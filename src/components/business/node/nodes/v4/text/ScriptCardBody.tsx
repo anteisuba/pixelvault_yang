@@ -99,7 +99,7 @@ export function ScriptCardBody({
                 <span className="shrink-0 font-mono text-2xs text-muted-foreground">
                   {shot.no === undefined
                     ? '·'
-                    : `S${String(shot.no).padStart(2, '0')}`}
+                    : `S${String(shot.no).padStart(2, '0')}${shot.suffix ?? ''}`}
                 </span>
                 <span className="min-w-0 flex-1 truncate">{shot.title}</span>
                 {changed && (

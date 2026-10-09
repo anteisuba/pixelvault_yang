@@ -53,6 +53,25 @@ describe('parseScriptShots · 确定性拆镜（进度表 24）', () => {
    * ⚠ 没有这条边界，`s3cret …` 会被读成第 3 镜 —— 一行被误判成标记的后果是整张
    * 剧本的键全错位，而那在界面上表现为「我只改了一句话，它把四镜全标成删了」。
    */
+  it('一镜拆成 `S04a` / `S04b` 时是两面镜，⛔ 不并进上一镜', () => {
+    const result = parseScriptShots(
+      [
+        'S03 · 拒绝握手 · 6s',
+        'S04a · 破防 · 5s',
+        '笑容僵住。',
+        'S04b · 冲出门 · 4s',
+      ].join('\n'),
+    )
+    expect(result.shots.map((shot) => shot.key)).toEqual(['s3', 's4a', 's4b'])
+    expect(result.shots[0]?.text).not.toContain('破防')
+    expect(result.shots[1]).toMatchObject({
+      no: 4,
+      suffix: 'a',
+      title: '破防',
+      durationSec: 5,
+    })
+  })
+
   it('⭐ `s3cret` 不算编号标记', () => {
     const result = parseScriptShots('s3cret plan\n\n第二段')
     expect(result.shots.map((shot) => shot.key)).toEqual(['p1', 'p2'])

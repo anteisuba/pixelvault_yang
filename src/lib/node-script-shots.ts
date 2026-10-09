@@ -32,6 +32,8 @@ export interface ScriptShotDraft {
   readonly key: string
   /** 编号档拆出来的镜号（`S02` → 2）。其余两档没有。 */
   readonly no?: number
+  /** 一镜拆成几段时镜号后面那个字母（`S04a` → `a`）。 */
+  readonly suffix?: string
   /** 卡面那一行显示的一句话（已截断）。 */
   readonly title: string
   /** 这一段的完整正文 —— 投影时写进镜头节点、重投影时逐字比对。 */
@@ -51,13 +53,15 @@ export interface ScriptBreakdown {
 }
 
 /**
- * 编号标记：`S01` / `s2` / `镜3` / `第 3 镜` / `Shot 4`，前面允许 `#`、`-`、`*`。
- * ⚠ 捕获组 1 是编号，组 2 是同一行剩下的话（`S02 · 递伞 · 5s` 的「递伞 · 5s」）。
+ * 编号标记：`S01` / `s2` / `S04a` / `镜3` / `第 3 镜` / `Shot 4`，前面允许 `#`、`-`、`*`。
+ * ⚠ 捕获组 1 是编号，组 2 是一镜拆成几段时的字母（2026-10-09 马尔福画布：`S04a`
+ *   / `S04b` 不认，两行并进了 S03，重投影后找不到这两镜），组 3 是同一行剩下的话
+ *   （`S02 · 递伞 · 5s` 的「递伞 · 5s」）。
  * ⚠ 编号后面那个**零宽边界**不是装饰：没有它 `s3cret …` 会被读成第 3 镜，而一行
  * 被误判成镜头标记的后果是整张剧本的键全错位（diff 于是把没改的镜报成「删了」）。
  */
 const NUMBERED_MARKER =
-  /^[ \t]{0,3}(?:#{1,6}[ \t]*|[-*][ \t]+)?(?:SHOT|Shot|shot|S|s|镜|第)[ \t]*0*(\d{1,3})[ \t]*(?:镜|号)?(?=$|[\s·．.、:：\-—|])[ \t]*(?:[·．.、:：\-—|]+[ \t]*)?(.*)$/
+  /^[ \t]{0,3}(?:#{1,6}[ \t]*|[-*][ \t]+)?(?:SHOT|Shot|shot|S|s|镜|第)[ \t]*0*(\d{1,3})([a-zA-Z])?[ \t]*(?:镜|号)?(?=$|[\s·．.、:：\-—|])[ \t]*(?:[·．.、:：\-—|]+[ \t]*)?(.*)$/
 
 /** Markdown 小标题（第二档，也是「幕」的判据）。 */
 const HEADING_MARKER = /^[ \t]{0,3}(#{1,6})[ \t]+(.+?)[ \t]*#*$/
@@ -116,6 +120,7 @@ function uniqueKey(key: string, taken: Set<string>): string {
 interface RawBlock {
   readonly key: string
   readonly no?: number
+  readonly suffix?: string
   /** 标记行上剩下的那半句（编号档才有）。 */
   readonly headline: string
   readonly lines: string[]
@@ -128,12 +133,17 @@ function isHeading(line: string): boolean {
 
 function numberedOf(
   line: string,
-): { no: number; headline: string } | undefined {
+): { no: number; suffix?: string; headline: string } | undefined {
   const match = NUMBERED_MARKER.exec(line)
   if (!match) return undefined
   const no = Number(match[1])
   if (!Number.isInteger(no) || no < 1 || no > 999) return undefined
-  return { no, headline: (match[2] ?? '').trim() }
+  const suffix = match[2]?.toLowerCase()
+  return {
+    no,
+    ...(suffix ? { suffix } : {}),
+    headline: (match[3] ?? '').trim(),
+  }
 }
 
 function finishBlock(
@@ -148,6 +158,7 @@ function finishBlock(
   shots.push({
     key: uniqueKey(block.key, taken),
     ...(block.no === undefined ? {} : { no: block.no }),
+    ...(block.suffix === undefined ? {} : { suffix: block.suffix }),
     title: clampTitle(block.headline || firstLine),
     text: body,
     ...(block.durationSec === undefined
@@ -188,8 +199,9 @@ export function parseScriptShots(body: string): ScriptBreakdown {
         flush()
         const duration = readDuration(line)
         current = {
-          key: `s${marker.no}`,
+          key: `s${marker.no}${marker.suffix ?? ''}`,
           no: marker.no,
+          ...(marker.suffix === undefined ? {} : { suffix: marker.suffix }),
           headline: marker.headline,
           lines: [],
           ...(duration === undefined ? {} : { durationSec: duration }),

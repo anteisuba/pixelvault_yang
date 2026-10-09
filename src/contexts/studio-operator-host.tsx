@@ -30,6 +30,7 @@ import { createContext, useContext, type ReactNode } from 'react'
 import type { LucideIcon } from '@/components/icons'
 
 import type { AssistantOperatorDomain } from '@/constants/assistant-operator'
+import type { NodeWorkflowStatus } from '@/constants/node-types'
 import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
 import type { CanvasNodeGenerationState } from '@/lib/studio-operator-canvas-snapshot'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
@@ -247,6 +248,13 @@ export interface StudioOperatorHost {
     generationStateOf?(nodeId: string): CanvasNodeGenerationState | undefined
     /** 这张卡此刻的产出图（出图后自动看一眼认它变没变）；没有图 = `undefined`。 */
     outputOf?(nodeId: string): { url: string; name: string } | undefined
+    /**
+     * 这张卡在跑没跑、有没有可看的一帧（队列条那几格的进度与结果，方向 C）。
+     * `previewUrl` = 图片卡的图 / 视频卡的封面；卡不在了 = `undefined`。
+     */
+    runOf?(
+      nodeId: string,
+    ): { status: NodeWorkflowStatus; previewUrl?: string } | undefined
   }
 }
 

@@ -711,7 +711,11 @@ export interface UseAssistantOperatorResult {
     value: string,
   ): readonly StudioOperatorGenerateKnob[]
   /** 生成确认卡「确认生成」（§5）—— **客户端扣扳机**，⛔ 不重发一轮。 */
-  confirmGeneration(options?: { auto?: boolean }): void
+  confirmGeneration(options?: {
+    auto?: boolean
+    /** 多张那一张卡（队列条）：留下来真去跑的那几张；不给 = 全部。 */
+    nodeIds?: readonly string[]
+  }): void
   /** 生成确认卡「先不要」—— 流已经停了，只把卡转「已取消」。 */
   cancelGeneration(): void
   /**
@@ -2594,7 +2598,7 @@ export function useAssistantOperator(
   )
 
   const confirmGeneration = useCallback(
-    (options: { auto?: boolean } = {}) => {
+    (options: { auto?: boolean; nodeIds?: readonly string[] } = {}) => {
       if (!isCurrentThread()) return
       const confirm = getOperatorState().confirm
       if (
@@ -2602,6 +2606,32 @@ export function useAssistantOperator(
         confirm.kind !== ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate ||
         confirm.status !== STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle
       ) {
+        return
+      }
+      /**
+       * ⭐ **几张卡一张确认卡**（v3 S2 · 方向 C 队列条）：用户在条上去掉的不跑，留下的
+       *   各按自己那张卡的生成键跑。确认之后 `canvasNodes` 收成真跑的那几张 —— 条上
+       *   接着显示的进度与结果读的就是它。
+       */
+      const batch = confirm.request.canvasNodes
+      if (batch) {
+        const generate = applyContext.canvas?.generate
+        if (!generate) return
+        const wanted = options.nodeIds ? new Set(options.nodeIds) : null
+        const chosen = wanted
+          ? batch.filter((node) => wanted.has(node.id))
+          : batch
+        if (chosen.length === 0) return
+        setOperatorConfirm({
+          ...confirm,
+          request: { ...confirm.request, canvasNodes: chosen },
+        })
+        resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed, {
+          auto: options.auto,
+        })
+        setOperatorStatus('idle')
+        autoReviewRef.current = null
+        for (const node of chosen) generate(node.id)
         return
       }
       if (
@@ -2617,7 +2647,10 @@ export function useAssistantOperator(
         )
         const request = node ? buildCanvasGenerationRequest(node) : null
         if (!request) return
-        setOperatorConfirm({ ...confirm, request })
+        setOperatorConfirm({
+          ...confirm,
+          request: { ...request, canvasNode: confirm.request.canvasNode },
+        })
       }
       if (
         !confirm.request.canvasNode &&

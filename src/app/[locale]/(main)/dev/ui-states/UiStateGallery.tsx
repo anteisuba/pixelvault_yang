@@ -14,6 +14,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Button } from '@/components/ui/button'
 
 import { LoadingAGallery } from './LoadingAGallery'
+import { QueueStripGallery } from './QueueStripGallery'
 import { SearchGroundingGallery } from './SearchGroundingGallery'
 import {
   UI_STATE_CASES,
@@ -129,6 +130,8 @@ export function UiStateGallery() {
             <LoadingAGallery />
           ) : active.kind === 'search-grounding' ? (
             <SearchGroundingGallery />
+          ) : active.kind === 'queue-strip' ? (
+            <QueueStripGallery />
           ) : active.kind === 'empty-state' ? (
             /* 空态模板三态（视觉语言总板 D1 ④）。⛔ 不画插画 —— 三格并排摆出来
                就是为了量「去掉插画之后，标题到主动作的距离还读不读得出层次」。 */

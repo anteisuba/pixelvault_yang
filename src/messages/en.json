@@ -8064,6 +8064,14 @@
         "knobStepTitle": "Changed on the confirm card",
         "knobStepReason": "You changed this on the confirm card"
       },
+      "batch": {
+        "title": "Generate these",
+        "confirm": "Generate <n>{count}</n>",
+        "cost": "About <a>{amount}</a>",
+        "costFrom": "From about <a>{amount}</a>",
+        "summary": "{count, plural, one {# card} other {# cards}}",
+        "failed": "{name} did not come out"
+      },
       "multistep": {
         "title": "{count}-step plan",
         "start": "Start",

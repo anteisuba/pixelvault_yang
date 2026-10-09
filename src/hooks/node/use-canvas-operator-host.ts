@@ -591,6 +591,21 @@ export function useCanvasOperatorHost({
             ? { url: node.data.url, name: node.data.name }
             : undefined
         },
+        runOf: (nodeId) => {
+          const node = nodes.find((candidate) => candidate.id === nodeId)
+          if (!node) return undefined
+          const data = node.data
+          const previewUrl =
+            data.kind === NODE_MEDIA_KIND_IDS.image
+              ? data.url
+              : data.kind === NODE_MEDIA_KIND_IDS.video
+                ? data.videoThumbnailUrl
+                : undefined
+          return {
+            status: data.status,
+            ...(previewUrl ? { previewUrl } : {}),
+          }
+        },
       },
     }),
     [

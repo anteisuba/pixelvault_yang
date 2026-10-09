@@ -2478,6 +2478,8 @@ export const ASSISTANT_OPERATOR_LIMITS = {
    * 而截断过的名字用户读不出来自己当时说的是哪一张。
    */
   maxGenerationLabelChars: 24,
+  /** 一张确认卡上最多几张画布卡（队列条一排放得下、出图并发不失控）。 */
+  maxCanvasGenerateCards: 8,
 } as const
 
 /**

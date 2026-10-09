@@ -31,7 +31,11 @@ import {
   ASSISTANT_V3_WRITE_MODE_IDS,
   type AssistantV3Tool,
 } from '@/constants/assistant-v3'
-import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
+import { NODE_SCRIPT_SHOT_STATE_IDS } from '@/constants/node-script'
+import {
+  NODE_MEDIA_KIND_IDS,
+  NODE_V4_TEXT_SUBTYPE_IDS,
+} from '@/constants/node-types'
 import { ProviderError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { fetchAsBuffer } from '@/services/storage/r2'
@@ -44,6 +48,11 @@ import {
   type AssistantV3Handles,
 } from '@/lib/assistant-v3-board'
 import {
+  checkShotBeforeGenerate,
+  promptTimelineEnd,
+} from '@/lib/assistant-v3-shot-checks'
+import { parseScriptShots } from '@/lib/node-script-shots'
+import {
   translateAssistantV3Edit,
   translateAssistantV3Write,
 } from '@/lib/assistant-v3-ops'
@@ -52,6 +61,7 @@ import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type {
   AssistantOperatorCanvasNode,
   AssistantOperatorEvent,
+  AssistantOperatorGenerationRequest,
   AssistantOperatorPriorStep,
   AssistantOperatorRequest,
 } from '@/types/assistant-operator'
@@ -151,7 +161,7 @@ const tools = (strict: boolean) => ({
   }),
   [ASSISTANT_V3_TOOL_IDS.generate]: tool({
     description:
-      'Put a generation confirm card in front of the creator. It spends nothing until they press it. List every card they asked to generate; for now the first one goes up and the app tells them about the rest.',
+      'Put a generation confirm card in front of the creator. It spends nothing until they press it. List every card they asked to generate in this one call: they all go on one confirm card.',
     inputSchema: AssistantV3GenerateInputSchema,
     strict,
   }),
@@ -204,6 +214,16 @@ const SKIPPED_GENERATE_MESSAGES: Record<
     `Only one confirm card went up; ${names} did not. It is one card at a time for now — ask again once this one is done.`,
 }
 
+const CONTENT_FILTER_MESSAGES: Record<PromptAssistantResponseLanguage, string> =
+  {
+    chinese:
+      '这一步被模型服务商的内容审核拦下了，什么都没改。多半是画布上的内容触发了它的安全规则；换一个助手模型再试，或者告诉我先避开哪些内容。',
+    japanese:
+      'このステップはモデル提供元のコンテンツ審査で止められ、何も変更していません。キャンバス上の内容が安全ルールに触れた可能性が高いので、アシスタントのモデルを切り替えて試すか、避けたい内容を教えてください。',
+    english:
+      "This step was stopped by the model provider's content filter, so nothing changed. Something on the board most likely tripped its safety rules — switch the assistant to another model and try again, or tell me what to leave out.",
+  }
+
 const EMPTY_REPLY_MESSAGES: Record<PromptAssistantResponseLanguage, string> = {
   chinese: '这一步模型没有给出任何回复，什么都没改。再说一次，或者换个说法。',
   japanese:
@@ -215,6 +235,7 @@ const EMPTY_REPLY_MESSAGES: Record<PromptAssistantResponseLanguage, string> = {
 const NOT_RUN_WHILE_BOARD_CHANGES =
   'Not run: an edit in this same reply is still landing on the board. Call it again in your next step if you still need it.'
 const NOT_RUN_AFTER_STOP = 'Not run: this turn stopped to wait for the creator.'
+const CHECKED_BEFORE_GENERATE = 'Not put up yet — checked first:'
 const WAITING_FOR_CREATOR =
   'Waiting for the creator: the card is in front of them now. This turn ends here.'
 
@@ -313,8 +334,7 @@ type V3Outcome =
   /** 交给前端落了，结果等接力那一跳再补。 */
   | { kind: 'pending' }
   /** 停在问题卡 / 确认卡上，等创作者。 */
-  /** `heldBack`：同一次 generate 里排在后面、这次没摆出来的卡（S2 多卡确认之前）。 */
-  | { kind: 'stop'; todo: string; heldBack?: string[] }
+  | { kind: 'stop'; todo: string }
 
 interface V3Context {
   readonly clerkId: string
@@ -324,6 +344,8 @@ interface V3Context {
   readonly handles: AssistantV3Handles
   readonly language: PromptAssistantResponseLanguage
   readonly stepPrefix: string
+  /** 本轮记录（同一个数组，回合循环往里追加）—— 出片前核对过没有，从这里看。 */
+  readonly transcript: AssistantV3Transcript
 }
 
 /**
@@ -665,7 +687,87 @@ function landedOutput(
       : []
   })
   if (cards.length) lines.push('Cards now:', ...cards)
+  lines.push(...projectionLines(call, nodes, handles))
+  lines.push(...timelineLines(call, nodes, handles))
   return { output: lines.join('\n'), error: false }
+}
+
+/**
+ * 改了镜头时长：提示词里的分段时间码还停在旧时长（v3 回放 T10：时长改成 6 秒，
+ * 提示词还写着 0–5 秒，模型反问要不要同步）。
+ */
+function timelineLines(
+  call: AssistantV3TranscriptCall,
+  nodes: readonly AssistantOperatorCanvasNode[],
+  handles: AssistantV3Handles,
+): string[] {
+  const ops = (parseInput(call) as { ops?: AssistantV3EditOpInput[] }).ops
+  return (ops ?? []).flatMap((op) => {
+    if (op.op !== ASSISTANT_V3_EDIT_OP_IDS.set || !op.params?.duration)
+      return []
+    const id = handles.idOf(op.card)
+    const node = nodes.find((candidate) => candidate.id === id)
+    const seconds = Number(node?.parameters?.values.duration)
+    const end = node ? promptTimelineEnd(node.text ?? '') : null
+    if (!node || end === null || !(seconds > 0) || end === seconds) return []
+    return [
+      `${handles.handleOf(node.id)}: the time codes in its prompt still run to ${end} s but the shot is now ${seconds} s. Bringing them in line is part of the same change, so do it now: change only those numbers (write, mode "edit").`,
+    ]
+  })
+}
+
+/**
+ * 投影过剧本：哪几镜是新建的、哪几镜的提示词还跟着旧剧本（v3 回放 T08：剧本改了一句，
+ * 镜头卡标了「已变」，提示词里那句台词却没人去改）。
+ */
+function projectionLines(
+  call: AssistantV3TranscriptCall,
+  nodes: readonly AssistantOperatorCanvasNode[],
+  handles: AssistantV3Handles,
+): string[] {
+  const ops = (parseInput(call) as { ops?: AssistantV3EditOpInput[] }).ops
+  const scripts = (ops ?? []).flatMap((op) =>
+    op.op === ASSISTANT_V3_EDIT_OP_IDS.projectScript
+      ? [handles.idOf(op.script)]
+      : [],
+  )
+  const known = call.knownIds ? new Set(call.knownIds) : null
+  return scripts.flatMap((scriptId) => {
+    if (!scriptId) return []
+    const shots = nodes.filter((node) => node.fromScript?.nodeId === scriptId)
+    const label = (node: AssistantOperatorCanvasNode) =>
+      `${handles.handleOf(node.id)} ${formatScriptShotKey(node.fromScript?.shotKey ?? '')}`
+    const fresh = known ? shots.filter((node) => !known.has(node.id)) : []
+    const changed = shots.filter(
+      (node) =>
+        node.fromScript?.state === NODE_SCRIPT_SHOT_STATE_IDS.changed &&
+        !fresh.includes(node),
+    )
+    const dropped = shots.filter(
+      (node) => node.fromScript?.state === NODE_SCRIPT_SHOT_STATE_IDS.dropped,
+    )
+    return [
+      ...(fresh.length
+        ? [
+            `New shots: ${fresh.map(label).join(', ')} — each prompt is just its script line. A shot split from an old one took over that shot's model, parameters and reference lines.`,
+          ]
+        : []),
+      ...(changed.length
+        ? [
+            `Script line changed: ${changed.map(label).join(', ')} — the video prompt still follows the old line. Bringing it in line is part of the same change, so do it now: change only the words that differ (write, mode "edit"); never paste the script line in.`,
+          ]
+        : []),
+      ...(dropped.length
+        ? [
+            `No longer in the script (kept on the board): ${dropped
+              .map((node) =>
+                formatScriptShotKey(node.fromScript?.shotKey ?? ''),
+              )
+              .join(', ')}`,
+          ]
+        : []),
+    ]
+  })
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -707,6 +809,7 @@ async function* runV3Turn(
     handles,
     language,
     stepPrefix: `v3s${transcript.length}`,
+    transcript,
   }
 
   if (transcript[0]?.type !== ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.board) {
@@ -805,6 +908,7 @@ async function* runV3Turn(
     )
     let text = ''
     let restart = true
+    let filtered = false
     const calls: {
       toolCallId: string
       toolName: string
@@ -843,6 +947,16 @@ async function* runV3Turn(
           })
         } else if (part.type === 'error') {
           throw part.error
+        } else if (part.type === 'finish' && !text && calls.length === 0) {
+          // 空回复（Gemini 回放 T15：0 个输出 token）：记下厂商给的结束原因。
+          filtered = part.finishReason === 'content-filter'
+          logger.warn('assistant v3 empty reply', {
+            userId: clerkId,
+            step,
+            modelId,
+            finishReason: part.finishReason,
+            rawFinishReason: part.rawFinishReason,
+          })
         }
       }
       const usage = await result.usage
@@ -895,11 +1009,20 @@ async function* runV3Turn(
     transcript.push(assistantEntry)
 
     /**
-     * 模型一个字都没回（10-09 Gemini 回放 T15：工具调用写坏、被接口吞掉，0 token）：
-     * 撤掉这一条、原样再问一次；还是空就如实说，⛔ 不拿「步数用完了」顶替。
+     * 模型一个字都没回：撤掉这一条、原样再问一次；还是空就如实说，⛔ 不拿「步数用完了」
+     * 顶替。⚠ 被厂商的内容审核拦下的（10-09 Gemini：PROHIBITED_CONTENT，画布上一年级
+     * 角色与「辣妹风」这类词同时在场）不重试 —— 同一份输入再问一次还是拦，直说是审核。
      */
     if (calls.length === 0 && !text.trim()) {
       transcript.pop()
+      if (filtered) {
+        yield {
+          type: ASSISTANT_OPERATOR_EVENTS.message,
+          text: CONTENT_FILTER_MESSAGES[language],
+        }
+        yield { type: ASSISTANT_OPERATOR_EVENTS.done }
+        return
+      }
       if (!emptyRetried) {
         emptyRetried = true
         continue
@@ -943,7 +1066,7 @@ async function* runV3Turn(
       entryCall: AssistantV3TranscriptCall
       ops: NodeAssistantOpV4[]
       title: string
-      adds: boolean
+      createsCards: boolean
     }[] = []
     for (const [index, call] of calls.entries()) {
       const entryCall = assistantEntry.calls[index]
@@ -1003,7 +1126,6 @@ async function* runV3Turn(
       const outcome = yield* executeCall(context, tool, call.input)
       if (outcome.kind === 'stop') {
         stopTodo = outcome.todo
-        skippedGenerates.push(...(outcome.heldBack ?? []))
         pushResult(WAITING_FOR_CREATOR, false)
         continue
       }
@@ -1047,7 +1169,7 @@ async function* runV3Turn(
           })
         if (outcome.kind === 'pending') {
           pending = true
-          if (mutation.adds)
+          if (mutation.createsCards)
             mutation.entryCall.knownIds = context.nodes.map((node) => node.id)
         } else if (outcome.kind === 'stop') {
           stopTodo = outcome.todo
@@ -1269,6 +1391,13 @@ async function* settlePlan(
   yield* flushInspectedReferences(context)
   switch (plan.kind) {
     case 'rejected':
+      // 一改什么都没变（要的值卡上本来就是）：不算一步，⛔ 在时间线上留一条红行。
+      if (plan.reason === REJECT.repeatedStep)
+        return {
+          kind: 'result',
+          output: plan.detail ?? 'Nothing changed: the board already had that.',
+          error: false,
+        }
       return yield* rejectedStep(
         context,
         tool,
@@ -1358,7 +1487,7 @@ function translateMutation(
   name: MutatingTool,
   input: unknown,
 ):
-  | { ok: true; ops: NodeAssistantOpV4[]; title: string; adds: boolean }
+  | { ok: true; ops: NodeAssistantOpV4[]; title: string; createsCards: boolean }
   | { ok: false; error: string; title: string } {
   if (name === ASSISTANT_V3_TOOL_IDS.edit) {
     const parsed = AssistantV3EditInputSchema.parse(input)
@@ -1369,7 +1498,11 @@ function translateMutation(
           ok: true,
           ops: translated.ops,
           title,
-          adds: parsed.ops.some((op) => op.op === ASSISTANT_V3_EDIT_OP_IDS.add),
+          createsCards: parsed.ops.some(
+            (op) =>
+              op.op === ASSISTANT_V3_EDIT_OP_IDS.add ||
+              op.op === ASSISTANT_V3_EDIT_OP_IDS.projectScript,
+          ),
         }
       : { ok: false, error: translated.error, title }
   }
@@ -1377,7 +1510,7 @@ function translateMutation(
   const title = writeTitle(context, parsed.writes)
   const translated = translateAssistantV3Write(parsed, context)
   return translated.ok
-    ? { ok: true, ops: translated.ops, title, adds: false }
+    ? { ok: true, ops: translated.ops, title, createsCards: false }
     : { ok: false, error: translated.error, title }
 }
 
@@ -1448,40 +1581,11 @@ async function* executeCall(
       )
       return { kind: 'result', output, error: false }
     }
-    case ASSISTANT_V3_TOOL_IDS.generate: {
-      const parsed = AssistantV3GenerateInputSchema.parse(input)
-      const [first, ...rest] = parsed.cards
-      if (first === undefined)
-        return {
-          kind: 'result',
-          output: 'generate needs the card to put up.',
-          error: true,
-          failureKey: `${TOOL.canvasGenerate}:empty`,
-        }
-      const title = `${text.generate} ${nameOf(context, first)}`
-      const id = context.handles.idOf(first)
-      if (!id)
-        return yield* rejectedStep(
-          context,
-          TOOL.canvasGenerate,
-          title,
-          REJECT.noSuchControl,
-          `no card "${first}" on the board`,
-          true,
-        )
-      const plan = await planSafely(context, TOOL.canvasGenerate, {
-        target: id,
-      })
-      const outcome = yield* settlePlan(
+    case ASSISTANT_V3_TOOL_IDS.generate:
+      return yield* executeGenerate(
         context,
-        TOOL.canvasGenerate,
-        title,
-        plan,
+        AssistantV3GenerateInputSchema.parse(input).cards,
       )
-      return outcome.kind === 'stop' && rest.length > 0
-        ? { ...outcome, heldBack: rest.map((card) => nameOf(context, card)) }
-        : outcome
-    }
     case ASSISTANT_V3_TOOL_IDS.look:
       return yield* executeLook(
         context,
@@ -1551,6 +1655,118 @@ async function* executeCall(
 }
 
 /**
+ * 生成：几张卡一张确认卡（方向 C 队列条）。每张先过一遍出片前核对（只报一次，模型改了
+ * 或说了再调就放行），再各自走旧执行器那道闸（没模型 / 缺 key 的那张单独报错）；
+ * 过了闸的合成一张确认卡。⛔ 钱闸不变：这里只摆卡，按下去的是创作者。
+ */
+async function* executeGenerate(
+  context: V3Context,
+  requested: readonly string[],
+): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
+  const text = TITLE_TEXT[context.language]
+  const cards = [...new Set(requested)].slice(
+    0,
+    ASSISTANT_OPERATOR_LIMITS.maxCanvasGenerateCards,
+  )
+  if (cards.length === 0)
+    return {
+      kind: 'result',
+      output: 'generate needs the cards to put up.',
+      error: true,
+      failureKey: `${TOOL.canvasGenerate}:empty`,
+    }
+  const unknown = cards.filter((card) => !context.handles.idOf(card))
+  if (unknown.length > 0)
+    return yield* rejectedStep(
+      context,
+      TOOL.canvasGenerate,
+      joinPhrases(
+        context,
+        unknown.map((card) => `${text.generate} ${card}`),
+      ),
+      REJECT.noSuchControl,
+      `no card ${unknown.map((card) => `"${card}"`).join(', ')} on the board`,
+      true,
+    )
+  const issues = cards.flatMap((card) => {
+    const id = context.handles.idOf(card)
+    const node = context.nodes.find((candidate) => candidate.id === id)
+    const found = node ? checkShotBeforeGenerate(node) : []
+    const handle = id ? context.handles.handleOf(id) : card
+    const checked = context.transcript.some(
+      (entry) =>
+        entry.type === ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.result &&
+        entry.output.startsWith(CHECKED_BEFORE_GENERATE) &&
+        entry.output.includes(handle),
+    )
+    return found.length > 0 && !checked
+      ? [`${handle}: ${found.join('; ')}`]
+      : []
+  })
+  if (issues.length > 0)
+    return {
+      kind: 'result',
+      output: `${CHECKED_BEFORE_GENERATE} ${issues.join(' · ')}. Fix what the creator would clearly want fixed, or tell them; then call generate again to put it up.`,
+      error: false,
+    }
+
+  const ready: AssistantOperatorGenerationRequest[] = []
+  const outputs: string[] = []
+  for (const card of cards) {
+    const plan = await planSafely(context, TOOL.canvasGenerate, {
+      target: context.handles.idOf(card),
+    })
+    if (plan.kind === 'confirmGenerate') {
+      // 剧本镜头卡的卡名是整段镜头描述：确认卡上写镜号（S04a）。
+      const node = context.nodes.find(
+        (candidate) => candidate.id === plan.request.canvasNode?.id,
+      )
+      ready.push(
+        node?.fromScript && plan.request.canvasNode
+          ? {
+              ...plan.request,
+              canvasNode: {
+                ...plan.request.canvasNode,
+                name: formatScriptShotKey(node.fromScript.shotKey),
+              },
+            }
+          : plan.request,
+      )
+      continue
+    }
+    const outcome = yield* settlePlan(
+      context,
+      TOOL.canvasGenerate,
+      `${text.generate} ${nameOf(context, card)}`,
+      plan,
+    )
+    if (outcome.kind === 'result') outputs.push(outcome.output)
+  }
+  const [first] = ready
+  if (!first)
+    return {
+      kind: 'result',
+      output: outputs.join('\n'),
+      error: true,
+      failureKey: `${TOOL.canvasGenerate}:none`,
+    }
+  const nodes = ready.flatMap((request) =>
+    request.canvasNode ? [request.canvasNode] : [],
+  )
+  yield {
+    type: ASSISTANT_OPERATOR_EVENTS.confirm,
+    confirm: {
+      kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate,
+      request: nodes.length > 1 ? { ...first, canvasNodes: nodes } : first,
+    },
+  }
+  return {
+    kind: 'stop',
+    todo: `等你确认生成${nodes.map((node) => `「${node.name}」`).join('')}`,
+  }
+}
+
+/**
  * 看图：被 @ 的那几张走评审（对着那张卡接的参考与它的提示词说哪里不对），其余带图
  * 的卡走参考分析（看清画面里有什么）。⛔ 没图的卡不硬看 —— 说清看不到，让创作者 @ 它。
  * ⚠ 评审一张一张评：旧执行器一次只看第一张 id，几张一起塞进去后面的会被静默丢掉。
@@ -1597,6 +1813,17 @@ async function* executeLook(
   }
   const outputs: string[] = []
   let failed = false
+  const scriptNotes =
+    context.nodes
+      .filter(
+        (node) =>
+          node.kind === NODE_MEDIA_KIND_IDS.text &&
+          node.subtype === NODE_V4_TEXT_SUBTYPE_IDS.script &&
+          !node.textTruncated,
+      )
+      .map((node) => parseScriptShots(node.text ?? '').outline)
+      .filter(Boolean)
+      .join('\n\n') || null
   for (const critique of critiques) {
     const title = clampTitle(`${text.look} ${nameOf(context, critique.card)}`)
     const sources = critique.node?.referenceUrls?.length
@@ -1604,6 +1831,7 @@ async function* executeLook(
           referenceUrls: critique.node.referenceUrls,
           prompt:
             critique.node.referencePromptContext ?? critique.node.text ?? null,
+          scriptNotes,
         }
       : undefined
     const plan = await planGuarded(context, TOOL.critiqueResult, () =>

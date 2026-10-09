@@ -147,6 +147,8 @@ export const ASSISTANT_V3_LIMITS = {
   maxSameRejections: 2,
   /** 卡片全文在工具结果里最多展开几字，再长让模型用 read。 */
   maxResultCardTextChars: 1_200,
+  /** 英文台词每秒大约说得完几个词（出片前核对台词塞不塞得进这一段）。 */
+  dialogueWordsPerSecond: 2.5,
 } as const
 
 /** 前端本地开关：`localStorage[key] === 'v3'` 时画布助手请求带上 `kernel: 'v3'`。 */

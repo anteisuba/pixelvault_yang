@@ -187,6 +187,16 @@ describe('v3 edit → v4 op', () => {
     })
   })
 
+  it('断线把方向说反了：两张卡之间那条线照断（T25）', () => {
+    const result = translateAssistantV3Edit(
+      [{ op: 'disconnect', from: h(S01), to: h(GOYLE), slot: null }],
+      context,
+    )
+    expect(result.ok && result.ops).toEqual([
+      { op: 'disconnect', edgeId: 'edge-goyle' },
+    ])
+  })
+
   it('没有那条线：说清这张卡上现有哪些线，整批不落', () => {
     const result = translateAssistantV3Edit(
       [{ op: 'disconnect', from: h(HARRY), to: h(S01), slot: null }],
@@ -260,6 +270,53 @@ describe('v3 write → set_prompt / set_text', () => {
         mode: 'replace',
       },
     ])
+  })
+
+  it('几处 find 都对着读到的原文找，一起换（T22：后一条落在前一条换掉的那段里）', () => {
+    const result = translateAssistantV3Write(
+      {
+        writes: [
+          {
+            card: h(S01),
+            field: 'prompt',
+            mode: 'edit',
+            text: null,
+            edits: [
+              { find: '全局设定', replace: '镜头1（0-5秒）' },
+              { find: '镜头1（0-5秒）：全景', replace: '镜头1（0-6秒）：全景' },
+            ],
+          },
+        ],
+      },
+      context,
+    )
+    expect(result.ok && result.ops).toEqual([
+      {
+        op: 'set_prompt',
+        target: S01,
+        prompt:
+          '镜头1（0-5秒）：暖琥珀车厢灯与冷蓝灰雨窗。镜头1（0-6秒）：全景。',
+        mode: 'replace',
+      },
+    ])
+    const overlap = translateAssistantV3Write(
+      {
+        writes: [
+          {
+            card: h(S01),
+            field: 'prompt',
+            mode: 'edit',
+            text: null,
+            edits: [
+              { find: '冷蓝灰雨窗', replace: 'x' },
+              { find: '灰雨窗。镜头1', replace: 'y' },
+            ],
+          },
+        ],
+      },
+      context,
+    )
+    expect(!overlap.ok && overlap.error).toContain('overlap')
   })
 
   it('要找的句子出现多次或没出现：不写，说清楚', () => {

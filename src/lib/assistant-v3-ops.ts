@@ -200,11 +200,19 @@ export function translateAssistantV3Edit(
         if (!to) return fail(index, unknownCard(op.to, context.handles))
         if (!to.node || !from.node)
           return fail(index, 'a card created in this edit has no lines yet')
-        const lines = (to.node.inputs ?? []).filter(
-          (input) =>
-            input.from === from.target &&
-            (op.slot === null || input.slot === op.slot),
-        )
+        const linesInto = (
+          target: NonNullable<typeof to.node>,
+          source: string,
+        ) =>
+          (target.inputs ?? []).filter(
+            (input) =>
+              input.from === source &&
+              (op.slot === null || input.slot === op.slot),
+          )
+        // 断线说反了方向（v3 回放 T25：「断开 S04b → 克拉布」）：两张卡之间那条线是确定的，照断。
+        const forward = linesInto(to.node, from.target)
+        const lines =
+          forward.length > 0 ? forward : linesInto(from.node, to.target)
         if (lines.length === 0) {
           const into = (to.node.inputs ?? [])
             .map(
@@ -344,22 +352,45 @@ function translateWriteEntry(
         ok: false,
         error: `${input.card} is longer than the board can carry — edit it by hand or append`,
       }
-    let current = withoutReferenceRoleLegend(node.text ?? '')
+    /**
+     * 每条 find 都对着**读到的原文**找（v3 回放 T22：一次改三处、后一条的 find 落在前一条
+     * 刚换掉的那一段里，按顺序替换就「找不到」）。各处不许重叠，一起换。
+     */
+    const original = withoutReferenceRoleLegend(node.text ?? '')
+    const spans: { start: number; end: number; replace: string }[] = []
     for (const [index, edit] of input.edits.entries()) {
       if (!edit.find)
         return { ok: false, error: `edits[${index}].find is empty` }
-      const count = current.split(edit.find).length - 1
+      const count = original.split(edit.find).length - 1
       if (count !== 1)
         return {
           ok: false,
           error: `edits[${index}].find occurs ${count} times in ${input.card} — ${
             count === 0
               ? 'copy it exactly from the card (read it first if it was clipped)'
-              : 'make it longer so it matches exactly one place'
+              : 'copy a few more words around it so it matches exactly one place, and send the edit again (do not switch to replace: rewriting the whole text changes lines you were not asked to touch)'
           }.`,
         }
-      current = current.replace(edit.find, () => edit.replace)
+      const at = original.indexOf(edit.find)
+      spans.push({
+        start: at,
+        end: at + edit.find.length,
+        replace: edit.replace,
+      })
     }
+    spans.sort((a, b) => a.start - b.start)
+    for (const [index, span] of spans.entries()) {
+      const next = spans[index + 1]
+      if (next && next.start < span.end)
+        return {
+          ok: false,
+          error:
+            'two edits overlap in the same words — merge them into one {find, replace}.',
+        }
+    }
+    let current = original
+    for (const span of [...spans].reverse())
+      current = `${current.slice(0, span.start)}${span.replace}${current.slice(span.end)}`
     text = current
     mode = 'replace'
   } else {

@@ -183,7 +183,17 @@ export function StudioOperatorConfirmCard({
     !decided && canvasState ? buildCanvasGenerationRequest(canvasState) : null
   const generate =
     confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate
-      ? { ...confirm, request: liveCanvasRequest ?? confirm.request }
+      ? {
+          ...confirm,
+          request: liveCanvasRequest
+            ? {
+                ...liveCanvasRequest,
+                // 卡名照服务端给的（剧本镜头卡写镜号 S04a，不是整段镜头描述）。
+                canvasNode:
+                  confirm.request.canvasNode ?? liveCanvasRequest.canvasNode,
+              }
+            : confirm.request,
+        }
       : null
   /**
    * 提议记一张卡那一支（§8.1）—— 卡上摆的是草稿本身。

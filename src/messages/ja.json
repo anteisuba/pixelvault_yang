@@ -8064,6 +8064,14 @@
         "knobStepTitle": "確認カードで変更",
         "knobStepReason": "確認カードであなたが変更しました"
       },
+      "batch": {
+        "title": "これを生成",
+        "confirm": "<n>{count}</n> 枚を生成",
+        "cost": "約 <a>{amount}</a>",
+        "costFrom": "約 <a>{amount}</a>〜",
+        "summary": "{count} 枚のカード",
+        "failed": "「{name}」は生成できませんでした"
+      },
       "multistep": {
         "title": "{count} ステップのプラン",
         "start": "開始",

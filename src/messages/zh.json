@@ -8064,6 +8064,14 @@
         "knobStepTitle": "在确认卡上改了参数",
         "knobStepReason": "你在确认卡上改的"
       },
+      "batch": {
+        "title": "生成这几张",
+        "confirm": "生成 <n>{count}</n> 张",
+        "cost": "约 <a>{amount}</a>",
+        "costFrom": "约 <a>{amount}</a> 起",
+        "summary": "{count} 张卡",
+        "failed": "{name} 没出来"
+      },
       "multistep": {
         "title": "{count} 步计划",
         "start": "开始",

@@ -1296,6 +1296,15 @@ export const AssistantOperatorGenerationRequestSchema = z.object({
    */
   canvasNode: z.object({ id: IdSchema, name: LabelSchema }).optional(),
   /**
+   * 一张确认卡上的几张画布卡（v3 S2 · 方向 C 队列条）。给了它，`canvasNode` 是第一张；
+   * 确认时客户端把它收成真去生成的那几张（用户在卡上去掉的不在里面）。
+   */
+  canvasNodes: z
+    .array(z.object({ id: IdSchema, name: LabelSchema }))
+    .min(1)
+    .max(LIMITS.maxCanvasGenerateCards)
+    .optional(),
+  /**
    * 「先搜再画」：确认那一刻工作台的开关开着、型号支持 —— **客户端记的**，只用来在
    * 「已确认 · … · 先搜再画」那一行与结果卡上说清这一枪搜过。⚠ 服务端不填它；
    * 真正发不发由工作台开关决定（发送口），⛔ 来源与搜索建议不进这份载荷。

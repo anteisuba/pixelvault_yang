@@ -39,8 +39,12 @@ export interface StudioGeneratingProgressProps {
   stageLabel: string
   /** Bottom parameter row, e.g. "12s · anima XL · 1:1". Omit for the compact/regenerate-overlay variant. */
   paramsLine?: string
-  /** `full` = new-generation stage card (larger digits + params row). `compact` = overlay on existing media, canvas cards, grid tiles. */
-  variant?: 'full' | 'compact'
+  /**
+   * `full` = new-generation stage card (larger digits + params row). `compact` = overlay on existing media, canvas cards, grid tiles.
+   * `edge` = the line alone, for thumbnails too small to carry a number (the assistant's queue strip, direction C);
+   * the reading and any failure go to screen readers only.
+   */
+  variant?: 'full' | 'compact' | 'edge'
   /** True while the parent is holding this component mounted through the completion beat (close → hold → fade). */
   isCompleting?: boolean
   /** Fires once the full close/hold/fade sequence has played — parent unmounts on this. */
@@ -70,7 +74,11 @@ export interface StudioGeneratingProgressProps {
    * `--radius-node` is the canvas node card's own radius exception
    * (ui-defaults §3.1) — added for `NodeFrameProgress`.
    */
-  cornerRadiusVar?: '--radius-xl' | '--radius-2xl' | '--radius-node'
+  cornerRadiusVar?:
+    | '--radius-md'
+    | '--radius-xl'
+    | '--radius-2xl'
+    | '--radius-node'
   /**
    * `inside` (default): the line sits just inside the box's edge — every
    * workbench host clips its media box (`overflow-hidden`: the stage, grid
@@ -290,7 +298,11 @@ export function StudioGeneratingProgress({
         />
       </svg>
 
-      {failure ? (
+      {variant === 'edge' ? (
+        <span className="sr-only">
+          {failure ? failure.message : currentLabel}
+        </span>
+      ) : failure ? (
         <div className="pointer-events-auto flex max-w-full animate-in flex-col items-center gap-3 px-6 text-center fade-in-0 duration-base ease-linear @max-4xs/progress:gap-2 @max-4xs/progress:px-2.5 motion-reduce:animate-none">
           <p className="text-sm leading-5 text-foreground/80 @max-4xs/progress:text-xs">
             <span

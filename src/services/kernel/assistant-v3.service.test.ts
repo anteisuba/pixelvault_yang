@@ -587,26 +587,49 @@ describe('v3 内核', () => {
     })
   })
 
-  it.each([
-    [
-      '一次列两张',
-      [
-        {
-          id: 'call_1',
-          name: 'generate',
-          input: { cards: ['img-249e8b', 'img-9c0d1e'] },
+  it('一次列两张：合成一张确认卡（队列条），两张都在上面', async () => {
+    script(
+      toolTurn({
+        id: 'call_1',
+        name: 'generate',
+        input: { cards: ['img-249e8b', 'img-9c0d1e'] },
+      }),
+    )
+    plan.mockImplementation(async (_run, _tool, args: { target: string }) => ({
+      kind: 'confirmGenerate',
+      request: {
+        model: { id: 'gpt-image-2.5-flare', label: 'Flare' },
+        count: 1,
+        specs: { aspectRatio: '3:4', resolution: '1K', durationSeconds: null },
+        canvasNode: {
+          id: args.target,
+          name: args.target === HARRY ? '哈利 · 黑袍' : '高尔 · 黑袍',
         },
-      ],
-    ],
-    [
-      '一条回复里调两次',
-      [
+      },
+    }))
+    const events = await collect(runAssistantV3('clerk-1', request()))
+    expect(plan).toHaveBeenCalledTimes(2)
+    expect(events.map((event) => event.type)).toEqual(['confirm', 'stopped'])
+    expect(events[0]).toMatchObject({
+      confirm: {
+        request: {
+          canvasNode: { id: HARRY },
+          canvasNodes: [
+            { id: HARRY, name: '哈利 · 黑袍' },
+            { id: GOYLE, name: '高尔 · 黑袍' },
+          ],
+        },
+      },
+    })
+  })
+
+  it('一条回复里调两次生成：第一张确认卡停住时，补一句另一张没放', async () => {
+    script(
+      toolTurn(
         { id: 'call_1', name: 'generate', input: { cards: ['img-249e8b'] } },
         { id: 'call_2', name: 'generate', input: { cards: ['img-9c0d1e'] } },
-      ],
-    ],
-  ])('生成两张（%s）：先摆第一张确认卡，补一句另一张没放', async (_, calls) => {
-    script(toolTurn(...calls))
+      ),
+    )
     plan.mockResolvedValue({
       kind: 'confirmGenerate',
       request: {
@@ -626,6 +649,46 @@ describe('v3 内核', () => {
     expect(events[1]).toMatchObject({
       text: expect.stringContaining('「高尔 · 黑袍」 还没放'),
     })
+  })
+
+  it('镜头卡出片前核对：第一次把问题交回模型，再调才摆确认卡', async () => {
+    const shotBoard = request({
+      snapshot: {
+        prompt: '',
+        canvas: canvas(true, {
+          text: '镜头1（0-5秒）：她喊：{女德拉科：W-whatever! You’ll regret this, Potter!}',
+          parameters: {
+            values: { duration: '5' },
+            options: { generateAudio: [false, true] },
+          },
+        }),
+        availableModels: [],
+      },
+    } as Partial<AssistantOperatorRequest>)
+    const generateShot = (id: string) => ({
+      id,
+      name: 'generate',
+      input: { cards: ['vid-4f6105'] },
+    })
+    const mock = script(
+      toolTurn(generateShot('call_1')),
+      toolTurn(generateShot('call_2')),
+    )
+    plan.mockResolvedValue({
+      kind: 'confirmGenerate',
+      request: {
+        model: { id: 'seedance-2.5', label: 'Seedance' },
+        count: 1,
+        specs: { aspectRatio: null, resolution: '720p', durationSeconds: 5 },
+        canvasNode: { id: S04B, name: '冲出门' },
+      },
+    })
+    const events = await collect(runAssistantV3('clerk-1', shotBoard))
+    expect(promptText(mock.doStreamCalls[1])).toContain(
+      'it has a spoken line but sound is off',
+    )
+    expect(plan).toHaveBeenCalledTimes(1)
+    expect(events.at(-2)).toMatchObject({ type: 'confirm' })
   })
 
   it('看图评成图：把那张卡接的参考图和它的提示词一起交给评审', async () => {
@@ -678,8 +741,137 @@ describe('v3 内核', () => {
       {
         referenceUrls: ['https://cdn.test/goyle.png'],
         prompt: '图片1「高尔 · 黑袍」',
+        scriptNotes: null,
       },
     )
+  })
+
+  it('重投影接力：报出新建的镜和提示词还跟着旧剧本的镜', async () => {
+    const SCRIPT = 'textb1572be4-fea9-47b2-b03f-b7e642008921'
+    const S05 = 'video9c33dd53-1bb3-4e1b-a1e3-3bdc814143e2'
+    const S07A = 'video283fcee0-57af-4a15-81a7-db198f953388'
+    const board = (withSplit: boolean, s05: 'synced' | 'changed') =>
+      ({
+        currentShotNo: null,
+        selectedNodeIds: [],
+        shots: [
+          {
+            expanded: true,
+            shotNo: null,
+            title: 'loose',
+            nodes: [
+              {
+                id: SCRIPT,
+                name: '剧本',
+                kind: 'text',
+                subtype: 'script',
+                text: 'S05 · …',
+              },
+              {
+                id: S05,
+                name: '分院',
+                kind: 'video',
+                subtype: 'shot',
+                text: '分院帽："GRYFFINDOR!"',
+                fromScript: { nodeId: SCRIPT, shotKey: 's5', state: s05 },
+              },
+              ...(withSplit
+                ? [
+                    {
+                      id: S07A,
+                      name: '帽檐下',
+                      kind: 'video',
+                      subtype: 'shot',
+                      text: '帽檐下',
+                      fromScript: {
+                        nodeId: SCRIPT,
+                        shotKey: 's7a',
+                        state: 'synced',
+                      },
+                    },
+                  ]
+                : []),
+            ],
+          },
+        ],
+      }) as unknown as AssistantOperatorCanvasSnapshot
+    const mock = script(
+      toolTurn({
+        id: 'call_1',
+        name: 'edit',
+        input: {
+          ops: [
+            { op: 'project_script', script: 'txt-b1572b', mode: 'reproject' },
+          ],
+        },
+      }),
+      textTurn('好了。'),
+    )
+    plan.mockImplementation(async (_run, _tool, args) => ({
+      kind: 'mutate',
+      payload: args,
+      inverse: { op: 'batch', nodeRef: SCRIPT },
+      observation: 'queued',
+      apply: () => {},
+    }))
+    const first = await collect(
+      runAssistantV3(
+        'clerk-1',
+        request({
+          snapshot: {
+            prompt: '',
+            canvas: board(false, 'synced'),
+            availableModels: [],
+          },
+        } as Partial<AssistantOperatorRequest>),
+      ),
+    )
+    const transcript = (
+      first.find((event) => event.type === 'transcript') as {
+        transcript: AssistantV3Transcript
+      }
+    ).transcript
+    await collect(
+      runAssistantV3(
+        'clerk-1',
+        request({
+          snapshot: {
+            prompt: '',
+            canvas: board(true, 'changed'),
+            availableModels: [],
+          },
+          priorSteps: [
+            {
+              tool: 'canvas_batch',
+              status: 'done',
+              summary: '投影',
+              thisTurn: true,
+            },
+          ],
+          v3: { transcript },
+        } as Partial<AssistantOperatorRequest>),
+      ),
+    )
+    const relayed = promptText(mock.doStreamCalls[1])
+    expect(relayed).toContain('New shots: vid-283fce S07a')
+    expect(relayed).toContain('Script line changed: vid-9c33dd S05')
+  })
+
+  it('被厂商的内容审核拦下：不重试，直说是审核', async () => {
+    const mock = script([
+      {
+        type: 'finish',
+        finishReason: { unified: 'content-filter', raw: 'PROHIBITED_CONTENT' },
+        usage,
+      },
+    ])
+    const events = await collect(runAssistantV3('clerk-1', request()))
+    expect(mock.doStreamCalls).toHaveLength(1)
+    expect(events.at(-2)).toMatchObject({
+      type: 'message',
+      text: expect.stringContaining('内容审核拦下了'),
+    })
+    expect(events.at(-1)).toMatchObject({ type: 'done' })
   })
 
   it('接不了的厂商 / 没有画布：交回旧内核', async () => {

@@ -173,6 +173,19 @@ export const LOAD_REVEAL = {
 export type LoadRevealTone = keyof typeof LOAD_REVEAL
 
 /**
+ * 助手的多张生成确认卡（v3 S2 · 方向 C 队列条，owner 2026-10-09 选 C）：小图进场按
+ * 顺序错开 30ms 从下方 8px 淡入（列表进入那一行配方）；去掉一张缩到 0.96、淡到 0.35
+ * （`DURATION.fast`）。确认后的「边即进度」与出图「由糊变清」用现成的
+ * `StudioGeneratingProgress` / `useMediaReveal`，⛔ 这里不另写一份。
+ */
+export const QUEUE_STRIP = {
+  enterStaggerS: 0.03,
+  enterY: 8,
+  offScale: 0.96,
+  offOpacity: 0.35,
+} as const
+
+/**
  * 等多久算「网有点慢」：超过它底部黑条写「网有点慢，还在加载」，数据到了自己收掉
  * （`useSlowLoadingNotice`）。⚠ 这是**停留阈值**，不是过渡时长 —— ⛔ 不走四档刻度。
  */

@@ -257,6 +257,14 @@ export const UI_STATE_CASES = [
     selectedIndex: null,
   },
   {
+    kind: 'queue-strip',
+    key: 'queue-strip',
+    title:
+      '助手 · 多张生成确认卡（队列条：待确认 / 跑着 / 出图 / 失败 / 已取消）',
+    items: [],
+    selectedIndex: null,
+  },
+  {
     kind: 'empty-state',
     key: 'empty-state-trio',
     title: '空态模板 · 三态（双动作 / 单动作 / 只说明）',

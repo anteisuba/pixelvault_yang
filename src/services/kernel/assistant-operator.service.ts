@@ -6973,9 +6973,12 @@ function critiqueImageLabels(
 export interface CanvasCritiqueSources {
   referenceUrls: readonly string[]
   prompt: string | null
+  /** 画布上剧本卡分镜表之前那段设定（服装、站位、画风这类每一镜都要守的规矩）。 */
+  scriptNotes?: string | null
 }
 
 const CANVAS_CRITIQUE_PROMPT_CHARS = 2_400
+const CANVAS_CRITIQUE_NOTES_CHARS = 1_600
 
 export async function planCritiqueResult(
   run: OperatorRun,
@@ -7062,7 +7065,13 @@ export async function planCritiqueResult(
     callLog: { purpose: 'critique', domain: run.request.domain },
     cacheKey: operatorCacheKey(run, 'critique'),
     buildUserPrompt: () =>
-      buildCritiquePrompt(run, goal, result.modelLabel, canvas?.prompt ?? null),
+      buildCritiquePrompt(
+        run,
+        goal,
+        result.modelLabel,
+        canvas?.prompt ?? null,
+        canvas?.scriptNotes ?? null,
+      ),
     route: visionRoute,
     contextCompactionTargetLength: OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH,
     ...(visionModelId ? { modelId: visionModelId } : {}),
@@ -11337,6 +11346,7 @@ function buildCritiquePrompt(
   goal: string | null,
   modelLabel: string | undefined,
   cardPrompt: string | null,
+  scriptNotes: string | null,
 ): string {
   const sections: string[] = [
     goal
@@ -11347,6 +11357,13 @@ function buildCritiquePrompt(
   if (cardPrompt)
     sections.push(
       `THE PROMPT IT WAS MADE FROM (it names the reference images):\n${clamp(cardPrompt, CANVAS_CRITIQUE_PROMPT_CHARS)}`,
+      // v3 回放 T20：评语漏了「五个人对着镜头」——提示词里明写了不看镜头。
+      'Go through every explicit requirement in that prompt one by one — how many people and who, where each one stands, who looks at whom and whether anyone looks at the camera, outfits and their colours, framing and rendering style — and check each against the picture. Spend your findings on the requirements it breaks, the worst first; add a pass only when fewer than four are broken.',
+    )
+  if (scriptNotes)
+    sections.push(
+      // v3 回放 T20：纯黑校袍、不看镜头这类规矩写在剧本设定里，九宫格那张卡的提示词没写。
+      `THE PROJECT'S STANDING NOTES (from the script — they apply to every shot, check them too):\n${clamp(scriptNotes, CANVAS_CRITIQUE_NOTES_CHARS)}`,
     )
   if (run.request.domain === 'image' || run.request.domain === 'lora') {
     sections.push(

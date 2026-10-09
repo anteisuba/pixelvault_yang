@@ -21,6 +21,7 @@
 
 import { buildMessageImageReferences } from '@/lib/studio-reference-mentions'
 import { StudioOperatorConfirmCard } from './StudioOperatorConfirmCard'
+import { StudioOperatorQueueCard } from './StudioOperatorQueueCard'
 import { StudioOperatorCharacterImagesCard } from './StudioOperatorCharacterImagesCard'
 import { StudioOperatorCharacterProfileCard } from './StudioOperatorCharacterProfileCard'
 import {
@@ -169,6 +170,7 @@ import {
 } from '@/hooks/use-studio-operator-store'
 import { updateAssistantConversationRoundAPI } from '@/lib/api-client'
 import { assistantWorkspaceKey } from '@/lib/assistant-workspace'
+import { estimateCanvasNodeCost } from '@/lib/canvas-generation-cost'
 import {
   derivePinnedEvidence,
   isEvidencePinned,
@@ -1476,6 +1478,29 @@ export function StudioOperatorPanel({
             prompt={confirm}
             onApply={() => void applyLoraSetup()}
             onDismiss={dismissLoraSetup}
+            formatTime={formatDecidedAt}
+          />
+        ) : confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate &&
+          confirm.request.canvasNodes ? (
+          /* ── 几张画布卡一张确认卡（v3 S2 · 方向 C 队列条）── */
+          <StudioOperatorQueueCard
+            confirm={confirm}
+            nodes={confirm.request.canvasNodes}
+            {...(operatorHost.canvasTargets?.runOf
+              ? { runOf: operatorHost.canvasTargets.runOf }
+              : {})}
+            costOf={(nodeId) => {
+              const state =
+                operatorHost.canvasTargets?.generationStateOf?.(nodeId)
+              return state ? estimateCanvasNodeCost(state) : null
+            }}
+            canGenerate={Boolean(operatorHost.apply.canvas?.generate)}
+            onConfirm={(nodeIds) => confirmGeneration({ nodeIds })}
+            onCancel={cancelGeneration}
+            onRetry={retryGeneration}
+            {...(operatorHost.canvasTargets
+              ? { onLocate: operatorHost.canvasTargets.locate }
+              : {})}
             formatTime={formatDecidedAt}
           />
         ) : (

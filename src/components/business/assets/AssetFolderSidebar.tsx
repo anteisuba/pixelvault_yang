@@ -219,6 +219,7 @@ export function AssetFolderSidebar({
 
   // ── 拖一个夹（树里，桌面指针）──
   const treeRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const [pending, setPending] = useState<{
     id: string
     pointerId: number
@@ -315,6 +316,8 @@ export function AssetFolderSidebar({
     let lineKey = ''
     let hoverId: string | null = null
     let hoverTimer: number | undefined
+    let lastY = pending.y0
+    let scrollFrame = 0
 
     const clearHover = () => {
       window.clearTimeout(hoverTimer)
@@ -377,8 +380,32 @@ export function AssetFolderSidebar({
       }
     }
 
+    // 靠近栏的上 / 下边就一帧一帧往那边滚，滚动中按最后的指针位置重新瞄准。
+    const autoScroll = () => {
+      scrollFrame = 0
+      const el = scrollRef.current
+      if (!el) return
+      const rect = el.getBoundingClientRect()
+      const edge = FOLDER_TREE_DRAG.autoScrollEdgePx
+      const nearTop = (rect.top + edge - lastY) / edge
+      const nearBottom = (lastY - (rect.bottom - edge)) / edge
+      const step =
+        nearTop > 0
+          ? -Math.min(nearTop, 1)
+          : nearBottom > 0
+            ? Math.min(nearBottom, 1)
+            : 0
+      if (step === 0) return
+      const before = el.scrollTop
+      el.scrollTop += step * FOLDER_TREE_DRAG.autoScrollMaxPx
+      if (el.scrollTop === before) return
+      aim(lastY)
+      scrollFrame = window.requestAnimationFrame(autoScroll)
+    }
+
     const finish = (commit: boolean) => {
       clearHover()
+      window.cancelAnimationFrame(scrollFrame)
       if (started) {
         // pointerup 之后浏览器还会补一个 click —— 等它过去再放行。
         window.setTimeout(() => {
@@ -421,7 +448,9 @@ export function AssetFolderSidebar({
       }
       ghostX.set(event.clientX + GHOST_OFFSET.x)
       ghostY.set(event.clientY + GHOST_OFFSET.y)
+      lastY = event.clientY
       aim(event.clientY)
+      if (!scrollFrame) scrollFrame = window.requestAnimationFrame(autoScroll)
     }
     const onUp = (event: PointerEvent) => {
       if (event.pointerId === pending.pointerId) finish(true)
@@ -443,6 +472,7 @@ export function AssetFolderSidebar({
     window.addEventListener('keydown', onKeyDown, true)
     return () => {
       clearHover()
+      window.cancelAnimationFrame(scrollFrame)
       window.removeEventListener('pointermove', onMoveEvent)
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('pointercancel', onCancel)
@@ -652,7 +682,10 @@ export function AssetFolderSidebar({
         </label>
       ) : null}
 
-      <div className="studio-scrollbar -mx-1 min-h-0 flex-1 overflow-y-auto px-1">
+      <div
+        ref={scrollRef}
+        className="studio-scrollbar -mx-1 min-h-0 flex-1 overflow-y-auto px-1"
+      >
         {query.trim() ? (
           matches.length === 0 ? (
             <p className="px-2 py-4 text-center text-2sm text-muted-foreground">

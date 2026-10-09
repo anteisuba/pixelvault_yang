@@ -32,6 +32,7 @@ export const FOLDER_TREE_MAX_INDENT_DEPTH = 5
  *   上 / 下四分之一 = 排到这一行前 / 后（同一层）。
  * - 拖出 `activationPx` 才算拖 —— 点一下仍是打开这个夹。
  * - 压在一个收着、有子夹的夹中间停 `hoverExpandMs` 就自己展开，可以继续往深处拖。
+ * - 拖到栏的上 / 下边 `autoScrollEdgePx` 以内，栏自己往那边滚，够得着屏幕外的夹。
  * - 触屏不拖：长按一行 `longPressMs` 弹出 ⋯ 菜单；手指挪出 `longPressSlopPx` 就算滑动、作废。
  */
 export const FOLDER_TREE_DRAG = {
@@ -42,4 +43,8 @@ export const FOLDER_TREE_DRAG = {
   longPressSlopPx: 8,
   /** 拿起来的影子放大多少（同画布素材拖起那一档的手感，略收）。 */
   liftScale: 1.04,
+  /** 拖着靠近栏的上 / 下边这么近就开始自己滚（越靠边越快，出了栏按最快）。 */
+  autoScrollEdgePx: 40,
+  /** 自己滚最快每帧挪几像素。 */
+  autoScrollMaxPx: 12,
 } as const

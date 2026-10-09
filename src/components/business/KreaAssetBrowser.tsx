@@ -1407,9 +1407,9 @@ export function KreaAssetBrowser({
     onRename: () => setRenamingFolderId(folder.id),
     onTogglePin: () =>
       void folderStore.setPinned(folder.id, folder.pinnedOrder === null),
-    // 段头 ⋯「新建子文件夹」：同栏里一样当场建「未命名文件夹」，栏打开、那一行改名。
+    // 段头 ⋯「新建子文件夹」：同栏里一样当场建「未命名文件夹」，栏打开（窄屏拉出抽屉）、那一行改名。
     onCreateChild: () => {
-      setStoredRail('open')
+      revealFolders()
       void createFolder(t('folderUntitled'), folder.id).then((created) => {
         if (created) setRenamingFolderId(created.id)
       })

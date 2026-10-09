@@ -459,9 +459,9 @@ function SidebarGroupLabel({
       className={cn(
         'flex h-8 shrink-0 items-center overflow-hidden rounded-md px-2 text-xs font-medium whitespace-nowrap text-sidebar-foreground/70 ring-sidebar-ring outline-hidden transition-[opacity,filter] duration-base ease-standard focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0',
         /**
-         * 收起态：标题**原地糊掉**（owner 2026-10-08 侧栏原型 v1），⛔ 不再用
-         * `-mt-8` 把它收走 —— 标题让出高度，下面每一颗图标都会跟着往上跳，
-         * 而这一版要的是「收起时图标不动」。标题那一行在 40 档留成段间空白。
+         * 收起态：标题**原地糊掉**（owner 2026-10-08 侧栏原型 v1），⛔ 不用
+         * `-mt-8` 瞬间收走（图标会一帧跳上去）。那一行收成细线由消费方
+         * `AppSidebar` 用弹簧收高度（owner 2026-10-09），这里只管字。
          *
          * ⚠ `pointer-events-none` 不是可选项 —— 看不见的东西不该还能接住鼠标
          * （2026-09-20 owner 真机撞到过：透明标题压在上一组最后一项身上，那一项

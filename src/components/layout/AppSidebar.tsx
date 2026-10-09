@@ -62,7 +62,8 @@ const SIDEBAR_FOOTER_CLASS = 'gap-1 p-1'
  * 一张左缘浮起的白卡。轨宽 144 展开 / 40 收起。
  *
  * 收展（owner 2026-10-08 侧栏原型 v1）：轨宽走弹簧推挤主卡；字原地糊掉，
- * 图标从头到尾不动（行高、内沟、内距两档同值）；收起后悬停一项出黑色名字提示。
+ * 图标横向不动（行高、内沟、内距两档同值）；段标题那一行收成细线，图标跟着
+ * 同一条弹簧微微上滑（owner 2026-10-09）；收起后悬停一项出黑色名字提示。
  *
  * 结构：品牌 + 折叠钮 · 去处段 · 工具段 · 最底一行「账号」。
  * 条目清单**只在** `src/constants/navigation.ts`，任何断点都从那里取。
@@ -205,11 +206,19 @@ function AppSidebarContent() {
 
       {SHELL_NAV_SECTIONS.map((section) => (
         <SidebarGroup key={section.id} className="p-1">
-          {/* 段标题「去处 / 工具」保留；收起时原地糊掉、留下这一行当段间空白
-              （⛔ 不收走高度 —— 收走的话下面的图标全会往上跳）。 */}
-          <SidebarGroupLabel className="h-7 px-2 text-sidebar-subtle">
-            {t(section.labelKey)}
-          </SidebarGroupLabel>
+          {/* 段标题「去处 / 工具」：收起时字原地糊掉，这一行 28 → 12 收成一根细线
+              （owner 2026-10-09 侧栏留白选 A）。高度与轨宽走**同一条**弹簧、同时起步，
+              下面的图标跟着微微上滑；细线只淡入，⛔ 不走弹簧。 */}
+          <div className="relative h-7 overflow-hidden transition-[height] duration-spring-expand ease-spring-expand group-data-[collapsible=icon]:h-3">
+            <SidebarGroupLabel className="h-7 px-2 text-sidebar-subtle">
+              {t(section.labelKey)}
+            </SidebarGroupLabel>
+            <div
+              aria-hidden
+              data-slot="sidebar-group-divider"
+              className="pointer-events-none absolute inset-x-2 top-1/2 h-px bg-sidebar-border opacity-0 transition-opacity duration-base ease-standard group-data-[collapsible=icon]:opacity-100"
+            />
+          </div>
           <SidebarGroupContent>
             <SidebarMenu>
               {section.items.map((item) => renderItem(item))}

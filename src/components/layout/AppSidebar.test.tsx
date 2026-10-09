@@ -276,12 +276,18 @@ describe('AppSidebar 入口收口（D11 ④）', () => {
       'Navbar.links.gallery',
     )
 
-    // 段标题保留，收起时原地糊掉、⛔ 不收走高度。
+    // 段标题保留，收起时原地糊掉；那一行走弹簧收成细线（⛔ 不用 -mt-8 瞬间收走）。
     const label = container.querySelector<HTMLElement>(
       '[data-slot="sidebar-group-label"]',
     )
     expect(label?.className).toContain('group-data-[collapsible=icon]:blur-xs')
     expect(label?.className).not.toContain('-mt-8')
+    const row = label?.parentElement
+    expect(row?.className).toContain('group-data-[collapsible=icon]:h-3')
+    expect(row?.className).toContain('ease-spring-expand')
+    expect(
+      row?.querySelector('[data-slot="sidebar-group-divider"]')?.className,
+    ).toContain('group-data-[collapsible=icon]:opacity-100')
 
     // 账号名同样糊掉。
     const name = within(screen.getByLabelText('Navbar:account')).getByText(

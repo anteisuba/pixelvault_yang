@@ -3,6 +3,8 @@ import { z } from 'zod'
 import { ASSISTANT_OPERATOR_SEARCH_KINDS } from '@/constants/assistant-operator'
 import {
   ASSISTANT_V3_CARD_TYPES,
+  ASSISTANT_V3_CARDS_EDIT_OP_IDS,
+  ASSISTANT_V3_CARDS_PROFILE_PARTS,
   ASSISTANT_V3_EDIT_OP_IDS,
   ASSISTANT_V3_IMAGE_EDIT_OP_IDS,
   ASSISTANT_V3_LIMITS,
@@ -484,6 +486,105 @@ export const AssistantV3ImageSearchLibraryInputSchema = z.object({
     .describe(
       'web_images only: the work and character name, so the search also runs in their own languages. null otherwise.',
     ),
+})
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * ①d 卡片台那张脸的入参（S6 第三张脸）。三种提议都出卡、停下等创作者勾选。
+ * ───────────────────────────────────────────────────────────────────────── */
+
+const CharacterHandleSchema = z
+  .string()
+  .describe('A character handle from the board, e.g. "char-b27ce8".')
+
+export const AssistantV3CardsEditOpInputSchema = z.union([
+  z
+    .object({
+      op: one(ASSISTANT_V3_CARDS_EDIT_OP_IDS.proposeProfile),
+      character: CharacterHandleSchema,
+      say: CardSaySchema,
+      fields: z.array(
+        z.object({
+          field: z.enum(ASSISTANT_V3_CARDS_PROFILE_PARTS),
+          text: z.string(),
+          source: z
+            .string()
+            .describe(
+              'Where it comes from, in a few words: the page you read, or "你写的 + 我补的".',
+            ),
+          sourceUrl: z.string().nullable(),
+          added: z
+            .array(z.string())
+            .nullable()
+            .describe(
+              'For a history the creator sketched: the phrases you added, copied exactly from text.',
+            ),
+        }),
+      ),
+    })
+    .describe(
+      'Offer profile fields for the creator to tick: one per part you actually drafted, each with its source.',
+    ),
+  z
+    .object({
+      op: one(ASSISTANT_V3_CARDS_EDIT_OP_IDS.proposeImages),
+      character: CharacterHandleSchema,
+      say: CardSaySchema,
+      images: z.array(
+        z.object({
+          asset: z
+            .string()
+            .nullable()
+            .describe('An asset id from a library search this turn.'),
+          imageUrl: z
+            .string()
+            .nullable()
+            .describe('An image URL from a web_images search this turn.'),
+          reason: z
+            .string()
+            .describe('Which view it gives: face, full body, back …'),
+        }),
+      ),
+    })
+    .describe(
+      'Offer pictures found this turn for the creator to tick and attach to the character.',
+    ),
+  z
+    .object({
+      op: one(ASSISTANT_V3_CARDS_EDIT_OP_IDS.handOff),
+      character: CharacterHandleSchema,
+      say: CardSaySchema,
+      request: z
+        .string()
+        .describe('The one message the image assistant should get.'),
+    })
+    .describe(
+      'When neither the library nor the web has the picture the character needs: offer to hand it to the image assistant.',
+    ),
+])
+
+export type AssistantV3CardsEditOpInput = z.infer<
+  typeof AssistantV3CardsEditOpInputSchema
+>
+
+export const AssistantV3CardsEditInputSchema = z.object({
+  ops: z.array(AssistantV3CardsEditOpInputSchema),
+})
+
+export const AssistantV3CardsReadInputSchema = z.object({
+  items: z
+    .array(z.string())
+    .describe(
+      'A profile part of the open character ("look", "identity", "behavior", "speech", "backstory", "tags"), or a web page URL to read in full.',
+    ),
+})
+
+export const AssistantV3CardsLookInputSchema = z.object({
+  images: z
+    .array(z.string())
+    .describe(
+      '"card" checks the open character\'s pictures against their profile; or the name of a picture attached to the message.',
+    ),
+  question: z.string(),
 })
 
 /* ─────────────────────────────────────────────────────────────────────────

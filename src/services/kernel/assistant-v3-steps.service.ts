@@ -78,6 +78,11 @@ export const TITLE_TEXT: Record<
     searchImages: string
     people: string
     sceneTexts: string
+    profile: string
+    pickImages: string
+    handOff: string
+    readPage: string
+    checkLook: string
     more: (count: number) => string
   }
 > = {
@@ -116,6 +121,11 @@ export const TITLE_TEXT: Record<
     searchImages: '联网找图',
     people: '设角色',
     sceneTexts: '设画面文字',
+    profile: '提议设定',
+    pickImages: '挑图',
+    handOff: '交给图片助手',
+    readPage: '读网页',
+    checkLook: '核对外观',
     more: (count) => `等 ${count} 项`,
   },
   japanese: {
@@ -153,6 +163,11 @@ export const TITLE_TEXT: Record<
     searchImages: 'Web で画像検索',
     people: 'キャラクターを設定',
     sceneTexts: '画面の文字を設定',
+    profile: '設定を提案',
+    pickImages: '画像を選ぶ',
+    handOff: '画像アシスタントに渡す',
+    readPage: 'ページを読む',
+    checkLook: '外見を照合',
     more: (count) => `ほか ${count} 件`,
   },
   english: {
@@ -190,6 +205,11 @@ export const TITLE_TEXT: Record<
     searchImages: 'Search web images for',
     people: 'Set people',
     sceneTexts: 'Set scene text',
+    profile: 'Propose profile',
+    pickImages: 'Pick pictures',
+    handOff: 'Hand to the image assistant',
+    readPage: 'Read page',
+    checkLook: 'Check the look',
     more: (count) => `+${count} more`,
   },
 }
@@ -435,6 +455,34 @@ export async function* settlePlan(
           ? `等你确认生成「${plan.request.canvasNode.name}」`
           : `等你确认生成 ${plan.request.count} 张`,
       }
+    case 'confirmCharacterProfile':
+      // 卡片台三种提议：吐一帧、停下；⛔ 一行库都没写，收不收由创作者在卡上勾。
+      yield {
+        type: ASSISTANT_OPERATOR_EVENTS.confirm,
+        confirm: {
+          kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterProfile,
+          profile: plan.profile,
+        },
+      }
+      return { kind: 'stop', todo: '等你决定要不要收下这份设定' }
+    case 'confirmCharacterImages':
+      yield {
+        type: ASSISTANT_OPERATOR_EVENTS.confirm,
+        confirm: {
+          kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterImages,
+          proposal: plan.proposal,
+        },
+      }
+      return { kind: 'stop', todo: '等你挑要挂哪几张' }
+    case 'confirmImageHandoff':
+      yield {
+        type: ASSISTANT_OPERATOR_EVENTS.confirm,
+        confirm: {
+          kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.imageHandoff,
+          handoff: plan.handoff,
+        },
+      }
+      return { kind: 'stop', todo: '等你决定要不要交给图片助手出图' }
     case 'confirmLoraSetup':
       // 搭配卡：一把都没挂、一格都没改，创作者点「应用」时客户端逐行落。
       yield {

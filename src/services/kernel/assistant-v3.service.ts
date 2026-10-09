@@ -111,6 +111,16 @@ import {
 } from '@/lib/assistant-v3-lora-board'
 import { renderAssistantV3ImageBoard } from '@/lib/assistant-v3-image-board'
 import {
+  buildAssistantV3CardsHandles,
+  openCharacterImages,
+  renderAssistantV3CardsBoard,
+} from '@/lib/assistant-v3-cards-board'
+import {
+  assistantV3CardsTools,
+  executeAssistantV3CardsCall,
+  executeAssistantV3CardsMutation,
+} from '@/services/kernel/assistant-v3-cards.service'
+import {
   assistantV3ImageTools,
   executeAssistantV3ImageCall,
   executeAssistantV3ImageMutation,
@@ -715,7 +725,9 @@ async function* runV3Turn(
       ? ASSISTANT_V3_FACE_IDS.lora
       : request.domain === ASSISTANT_V3_FACE_IDS.image
         ? ASSISTANT_V3_FACE_IDS.image
-        : ASSISTANT_V3_FACE_IDS.canvas
+        : request.domain === ASSISTANT_V3_FACE_IDS.cards
+          ? ASSISTANT_V3_FACE_IDS.cards
+          : ASSISTANT_V3_FACE_IDS.canvas
   const canvas = request.snapshot.canvas
   const model = modelId
     ? resolveAssistantV3Model(route, modelId, persona.reasoningEffort)
@@ -726,7 +738,9 @@ async function* runV3Turn(
       ? Boolean(canvas)
       : face === ASSISTANT_V3_FACE_IDS.lora
         ? Boolean(request.snapshot.loras)
-        : true
+        : face === ASSISTANT_V3_FACE_IDS.cards
+          ? Boolean(request.snapshot.cards)
+          : true
   if (!model || !modelId || !faceReady) {
     yield* runOperatorTurn(clerkId, request, options, prepared)
     return
@@ -737,7 +751,9 @@ async function* runV3Turn(
   const handles =
     face === ASSISTANT_V3_FACE_IDS.lora
       ? buildAssistantV3LoraHandles(request.snapshot)
-      : buildAssistantV3Handles(nodes.map((node) => node.id))
+      : face === ASSISTANT_V3_FACE_IDS.cards
+        ? buildAssistantV3CardsHandles(request.snapshot)
+        : buildAssistantV3Handles(nodes.map((node) => node.id))
   const language = resolveResponseLanguage(request, persona)
   const { history, latest } = historyMessages(request)
   const transcript: AssistantV3Transcript = [...(request.v3?.transcript ?? [])]
@@ -778,6 +794,21 @@ async function* runV3Turn(
           mentionedIds,
         }).slice(0, ASSISTANT_V3_LIMITS.maxBoardChars),
         images: supportsImages ? mentionedImages : [],
+      })
+    } else if (face === ASSISTANT_V3_FACE_IDS.cards) {
+      // ⭐ 打开那位的图跟着板子给模型看（card-1 …），看图不用另调工具。
+      const cardImages = openCharacterImages(request.snapshot.cards?.open)
+        .slice(0, ASSISTANT_V3_LIMITS.maxLookCards)
+        .map((url, index) => ({ url, label: `card-${index + 1}` }))
+      transcript.push({
+        type: ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.board,
+        text: renderAssistantV3CardsBoard({
+          snapshot: request.snapshot,
+          handles,
+          attachedNames: mentionedImages.map((image) => image.label),
+          latestUserText: latest,
+        }).slice(0, ASSISTANT_V3_LIMITS.maxBoardChars),
+        images: supportsImages ? [...cardImages, ...mentionedImages] : [],
       })
     } else if (face === ASSISTANT_V3_FACE_IDS.image) {
       transcript.push({
@@ -850,7 +881,9 @@ async function* runV3Turn(
       ? assistantV3LoraTools(model.strictTools)
       : face === ASSISTANT_V3_FACE_IDS.image
         ? assistantV3ImageTools(model.strictTools)
-        : tools(model.strictTools)
+        : face === ASSISTANT_V3_FACE_IDS.cards
+          ? assistantV3CardsTools(model.strictTools)
+          : tools(model.strictTools)
   const cacheKey = operatorCacheKey(run, 'v3')
   const budget = Math.min(
     request.stepBudget ?? ASSISTANT_V3_LIMITS.maxSteps,
@@ -1091,7 +1124,13 @@ async function* runV3Turn(
         const outcome =
           face === ASSISTANT_V3_FACE_IDS.lora
             ? yield* executeAssistantV3LoraMutation(context, tool, call.input)
-            : yield* executeAssistantV3ImageMutation(context, tool, call.input)
+            : face === ASSISTANT_V3_FACE_IDS.cards
+              ? yield* executeAssistantV3CardsMutation(context, call.input)
+              : yield* executeAssistantV3ImageMutation(
+                  context,
+                  tool,
+                  call.input,
+                )
         if (outcome.kind === 'stop') {
           stopTodo = outcome.todo
           pushResult(WAITING_FOR_CREATOR, false)
@@ -1358,7 +1397,10 @@ async function* executeCall(
   )
     return context.face === ASSISTANT_V3_FACE_IDS.lora
       ? yield* executeAssistantV3LoraCall(context, name, input)
-      : yield* executeAssistantV3ImageCall(context, name, input)
+      : context.face === ASSISTANT_V3_FACE_IDS.cards &&
+          name !== ASSISTANT_V3_TOOL_IDS.generate
+        ? yield* executeAssistantV3CardsCall(context, name, input)
+        : yield* executeAssistantV3ImageCall(context, name, input)
   switch (name) {
     case ASSISTANT_V3_TOOL_IDS.read: {
       const parsed = AssistantV3ReadInputSchema.parse(input)

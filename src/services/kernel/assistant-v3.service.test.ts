@@ -1426,3 +1426,217 @@ describe('v3 内核 · 图片台', () => {
     )
   })
 })
+
+describe('v3 内核 · 角色页', () => {
+  const RON = 'b27ce882-f139-42a7-8361-29a13c74643d'
+  const run = {
+    stepSeq: 0,
+    signal: undefined,
+    inspectedCanvasReferences: null,
+    state: { referenceUrls: [], prompt: '' },
+  }
+
+  function cardsRequest(message: string): AssistantOperatorRequest {
+    const open = {
+      id: RON,
+      name: '罗恩',
+      work: null,
+      imageCount: 3,
+      hasProfile: false,
+      look: '',
+      identity: '',
+      behavior: '',
+      speech: '',
+      backstory: '',
+      characterTags: [],
+      appearanceTags: [],
+      loraTrigger: '',
+      imagesOnCard: 1,
+      cardImageUrls: ['https://cdn.test/ron.png'],
+    }
+    return {
+      workspaceKey: 'cards',
+      domain: 'cards',
+      messages: [{ role: 'user', content: message }],
+      snapshot: {
+        prompt: '',
+        availableModels: [],
+        cards: {
+          total: 2,
+          characters: [
+            {
+              id: RON,
+              name: '罗恩',
+              work: null,
+              imageCount: 3,
+              hasProfile: false,
+            },
+            {
+              id: 'ad992b94-baf2-45c7-8185-d0b02ace5b02',
+              name: '赫敏',
+              work: null,
+              imageCount: 1,
+              hasProfile: false,
+            },
+          ],
+          open,
+        },
+      },
+    } as unknown as AssistantOperatorRequest
+  }
+
+  beforeEach(() => {
+    plan.mockReset()
+    legacy.mockReset()
+    vi.mocked(prepareOperatorTurn).mockImplementation(
+      async (_clerkId, request) =>
+        ({
+          request,
+          user: { id: 'user-1', displayName: null, username: null },
+          persona: { language: 'ui' },
+          rules: [],
+          route: { adapterType: 'openai', providerConfig: {}, apiKey: 'k' },
+          modelId: 'gpt-6-luna',
+          run,
+        }) as never,
+    )
+  })
+
+  it('板子：角色名册用句柄，打开那位的设定与图一起给模型看', async () => {
+    const mock = script(textTurn('他还没有设定。'))
+    await collect(runAssistantV3('clerk-1', cardsRequest('他有设定吗')))
+    const prompt = promptText(mock.doStreamCalls[0]!)
+    expect(prompt).toContain('CHARACTER PAGE')
+    expect(prompt).toMatch(/OPEN: char-b27ce8\S* 「罗恩」/)
+    expect(prompt).toContain('attached below as card-1…card-1')
+    expect(legacy).not.toHaveBeenCalled()
+  })
+
+  it('提议设定：句柄换成角色 id，卡上方先说 say，停在设定卡上', async () => {
+    script(
+      toolTurn({
+        id: 'call_1',
+        name: 'edit',
+        input: {
+          ops: [
+            {
+              op: 'propose_profile',
+              character: 'char-b27ce8',
+              say: '身份和说话方式查到了，经历还缺。',
+              fields: [
+                {
+                  field: 'identity',
+                  text: '韦斯莱家第六个孩子，哈利最好的朋友。',
+                  source: 'Harry Potter Wiki',
+                  sourceUrl:
+                    'https://harrypotter.fandom.com/wiki/Ronald_Weasley',
+                  added: null,
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    )
+    plan.mockResolvedValue({
+      kind: 'confirmCharacterProfile',
+      profile: { characterId: RON, fields: [] },
+    })
+    const events = await collect(
+      runAssistantV3('clerk-1', cardsRequest('查一下罗恩的设定交给我挑')),
+    )
+    expect(plan).toHaveBeenCalledWith(
+      expect.anything(),
+      'propose_character_profile',
+      {
+        characterId: RON,
+        fields: [
+          {
+            field: 'identity',
+            text: '韦斯莱家第六个孩子，哈利最好的朋友。',
+            source: 'Harry Potter Wiki',
+            sourceUrl: 'https://harrypotter.fandom.com/wiki/Ronald_Weasley',
+          },
+        ],
+      },
+      'user-1',
+    )
+    const types = events.map((event) => event.type)
+    expect(types.indexOf('message')).toBeLessThan(types.indexOf('confirm'))
+    expect(events.find((event) => event.type === 'confirm')).toMatchObject({
+      confirm: { kind: 'characterProfile' },
+    })
+  })
+
+  it('交给图片助手：那句话里的句柄换回角色名', async () => {
+    script(
+      toolTurn({
+        id: 'call_1',
+        name: 'edit',
+        input: {
+          ops: [
+            {
+              op: 'hand_off',
+              character: 'char-b27ce8',
+              say: '库里没有背面图。',
+              request:
+                '基于罗恩（char-b27ce8）现有正面立绘画一张背面图，参考 char-ad992b 的画风',
+            },
+          ],
+        },
+      }),
+    )
+    plan.mockResolvedValue({
+      kind: 'confirmImageHandoff',
+      handoff: { characterId: RON, request: 'x' },
+    })
+    await collect(runAssistantV3('clerk-1', cardsRequest('缺一张背面图')))
+    expect(plan).toHaveBeenCalledWith(
+      expect.anything(),
+      'hand_off_to_image_assistant',
+      {
+        characterId: RON,
+        request: '基于罗恩现有正面立绘画一张背面图，参考 赫敏 的画风',
+      },
+      'user-1',
+    )
+  })
+
+  it('read 一个网址就读那一页；look card 核对打开那位的图', async () => {
+    script(
+      toolTurn(
+        {
+          id: 'call_1',
+          name: 'read',
+          input: {
+            items: ['https://harrypotter.fandom.com/wiki/Ronald_Weasley'],
+          },
+        },
+        {
+          id: 'call_2',
+          name: 'look',
+          input: { images: ['card'], question: '图和设定对得上吗' },
+        },
+      ),
+      textTurn('读完了。'),
+    )
+    plan.mockResolvedValue({
+      kind: 'rejected',
+      reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.repeatedStep,
+      detail: 'ok',
+    })
+    await collect(runAssistantV3('clerk-1', cardsRequest('读一下他的 wiki')))
+    expect(plan).toHaveBeenCalledWith(
+      expect.anything(),
+      'read_url',
+      { url: 'https://harrypotter.fandom.com/wiki/Ronald_Weasley' },
+      'user-1',
+    )
+    expect(plan).toHaveBeenCalledWith(
+      expect.anything(),
+      'check_character_look',
+      { characterId: RON },
+      'user-1',
+    )
+  })
+})

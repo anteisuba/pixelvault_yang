@@ -56,7 +56,7 @@ beforeEach(() => {
   mockRateLimitAllowed()
 })
 
-/** S6（owner 2026-10-09）：画布、LoRA 台、图片台默认走 v3，开关选 v2 才回旧内核；别的工作台还在旧内核上。 */
+/** S6（owner 2026-10-09）：画布、LoRA 台、图片台、角色页默认走 v3，开关选 v2 才回旧内核；别的工作台还在旧内核上。 */
 describe('POST /api/studio/assistant-operator · 走哪个内核', () => {
   it('画布默认走 v3，不看是不是管理员', async () => {
     await POST(createPOST('/api/studio/assistant-operator', body('canvas')))
@@ -86,6 +86,22 @@ describe('POST /api/studio/assistant-operator · 走哪个内核', () => {
       createPOST('/api/studio/assistant-operator', body('image', 'v2')),
     )
     expect(runAssistantOperator).toHaveBeenCalledTimes(1)
+  })
+
+  it('角色页默认走 v3', async () => {
+    await POST(
+      createPOST('/api/studio/assistant-operator', {
+        messages: [{ role: 'user', content: '查一下罗恩' }],
+        domain: 'cards',
+        workspaceKey: 'cards',
+        snapshot: {
+          prompt: '',
+          availableModels: [],
+          cards: { total: 0, characters: [], open: null },
+        },
+      }),
+    )
+    expect(runAssistantV3).toHaveBeenCalledTimes(1)
   })
 
   it('视频台还在旧内核上，带着 v3 也一样', async () => {

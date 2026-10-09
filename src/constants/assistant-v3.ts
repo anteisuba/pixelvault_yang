@@ -16,6 +16,7 @@ export const ASSISTANT_V3_FACE_IDS = {
   canvas: 'canvas',
   lora: 'lora',
   image: 'image',
+  cards: 'cards',
 } as const
 
 export type AssistantV3Face =
@@ -25,6 +26,7 @@ export const ASSISTANT_V3_FACES: readonly string[] = [
   ASSISTANT_V3_FACE_IDS.canvas,
   ASSISTANT_V3_FACE_IDS.lora,
   ASSISTANT_V3_FACE_IDS.image,
+  ASSISTANT_V3_FACE_IDS.cards,
 ]
 
 /** 改动随步落、当场就有结果的那几张脸（一张表单）；画布要前端落完再接力。 */
@@ -152,6 +154,28 @@ export const ASSISTANT_V3_IMAGE_EDIT_OP_IDS = {
   importUrl: 'import_url',
   setPeople: 'set_people',
   setSceneTexts: 'set_scene_texts',
+} as const
+
+/** 卡片台 `edit` 的三种提议（S6 第三张脸）：都出一张卡、停下等创作者勾选，服务端不写库。 */
+export const ASSISTANT_V3_CARDS_EDIT_OP_IDS = {
+  proposeProfile: 'propose_profile',
+  proposeImages: 'propose_images',
+  handOff: 'hand_off',
+} as const
+
+/** 角色设定的五格（与旧内核 `ASSISTANT_OPERATOR_CHARACTER_PROFILE_FIELDS` 同序同名）。 */
+export const ASSISTANT_V3_CARDS_PROFILE_PARTS = [
+  'look',
+  'identity',
+  'behavior',
+  'speech',
+  'backstory',
+] as const
+
+/** 卡片台板子上的叫法：角色句柄前缀、打开那位的图。 */
+export const ASSISTANT_V3_CARDS_ITEM_IDS = {
+  characterPrefix: 'char',
+  card: 'card',
 } as const
 
 /** `search_library` 在图片台多一种：联网找图（结果摆在面板上，创作者点「选用」）。 */

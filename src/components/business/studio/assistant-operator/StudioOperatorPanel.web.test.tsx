@@ -158,6 +158,8 @@ const HOST_SPEC = vi.hoisted(() => ({
   trigger: null as null | 'workbench' | 'canvas',
   /** 宿主声明附图挂参考位（画布那一档）。 */
   mountsReferences: false,
+  /** 一个参考位都没挂（LoRA 台的常态）。 */
+  noReferences: false,
 }))
 
 vi.mock('@/contexts/studio-operator-host', () => ({
@@ -181,13 +183,18 @@ vi.mock('@/contexts/studio-operator-host', () => ({
     }),
     results: HOST_RESULTS,
     referenceLimit: 4,
-    referenceImages: [
-      ...hostReferenceOrder.map((index) => ({
-        url: HOST_RESULTS[index].url,
-        name: HOST_REFERENCE_NAMES.get(HOST_RESULTS[index].url),
-      })),
-      { url: 'https://cdn.test/disabled.png', disabledReason: 'over_limit' },
-    ],
+    referenceImages: HOST_SPEC.noReferences
+      ? []
+      : [
+          ...hostReferenceOrder.map((index) => ({
+            url: HOST_RESULTS[index].url,
+            name: HOST_REFERENCE_NAMES.get(HOST_RESULTS[index].url),
+          })),
+          {
+            url: 'https://cdn.test/disabled.png',
+            disabledReason: 'over_limit',
+          },
+        ],
     open: true,
     setOpen: vi.fn(),
     apply: {
@@ -227,6 +234,7 @@ beforeEach(async () => {
   vi.clearAllMocks()
   HOST_SPEC.controls = null
   HOST_SPEC.trigger = null
+  HOST_SPEC.noReferences = false
   HOST_REFERENCE_NAMES.clear()
   hostReferenceOrder = [0, 1]
   initialAttachments = []
@@ -368,8 +376,14 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
         store.appendOperatorEntry(entry)
       }
       renderPanel()
+      // ⭐ 正文没写到名字的图画在气泡下面那一排（2026-10-09 owner：发出去缩略图就没了）。
       expect(
-        screen.queryByRole('img', { name: 'reference image 1' }),
+        screen.getByRole('img', { name: 'reference image 1' }),
+      ).toHaveAttribute('src', 'https://cdn.test/thumb.png')
+      expect(
+        within(screen.getByTestId('operator-user-text')).queryByRole('img', {
+          name: 'reference image 1',
+        }),
       ).toBeNull()
       expect(
         screen.getAllByRole('img', { name: 'reference image 2' })[0],
@@ -616,6 +630,42 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     fireEvent.click(screen.getByRole('button', { name: 'send' }))
     expect(send).toHaveBeenCalledWith('眼睛有点糊', initialAttachments)
     expect(changeAttachments).toHaveBeenCalledWith([])
+  })
+
+  // 2026-10-09 owner 真机：LoRA 台带着刚出的图写「@Image1 比如这张」被拦成「引用的图片不可用」。
+  it('⭐ 一个参考位都没挂：@Image1 指的是这条消息自己带的第一张图', () => {
+    HOST_SPEC.noReferences = true
+    initialAttachments = [
+      {
+        id: 'result',
+        kind: 'image',
+        url: 'https://cdn.test/result.png',
+        label: '图_894',
+      },
+    ]
+    renderPanel()
+    const editor = screen.getByRole('textbox', {
+      name: '描述画面，或把参考图挂进来…',
+    })
+    editor.textContent = '画风不对 @Image1 比如这张'
+    fireEvent.input(editor)
+    fireEvent.click(screen.getByRole('button', { name: 'send' }))
+    expect(send).toHaveBeenCalledWith(
+      '画风不对 「图_894」 比如这张',
+      initialAttachments,
+    )
+  })
+
+  it('一个参考位都没挂、也没带图：@Image1 照旧拦下', () => {
+    HOST_SPEC.noReferences = true
+    renderPanel()
+    const editor = screen.getByRole('textbox', {
+      name: '描述画面，或把参考图挂进来…',
+    })
+    editor.textContent = '看看 @Image1'
+    fireEvent.input(editor)
+    fireEvent.click(screen.getByRole('button', { name: 'send' }))
+    expect(send).not.toHaveBeenCalled()
   })
 
   it.each([false, true])(

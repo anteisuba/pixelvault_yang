@@ -27,6 +27,7 @@ import { OPERATOR_TOOL_ICONS } from '@/components/business/studio/assistant-oper
 import {
   StudioOperatorCollapsibleText,
   StudioOperatorUserText,
+  attachmentsBelowUserText,
 } from '@/components/business/studio/assistant-operator/StudioOperatorMessageBody'
 import { describeSystemSubjects } from '@/lib/studio-operator-timeline'
 import { cn } from '@/lib/utils'
@@ -59,18 +60,16 @@ export function StudioOperatorHistoryItem({
             attachments={entry.attachments}
             references={references}
           />
-          {entry.attachments.some(
-            (attachment) => attachment.kind !== 'image',
-          ) ? (
+          {attachmentsBelowUserText(entry.text, entry.attachments).length ? (
             <div className="flex flex-wrap gap-1">
-              {entry.attachments
-                .filter((attachment) => attachment.kind !== 'image')
-                .map((attachment) => (
+              {attachmentsBelowUserText(entry.text, entry.attachments).map(
+                (attachment) => (
                   <span
                     key={attachment.id}
                     className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-2sm text-muted-foreground"
                   >
-                    {attachment.thumbnailUrl && (
+                    {(attachment.thumbnailUrl ||
+                      attachment.kind === 'image') && (
                       <Image
                         src={attachment.thumbnailUrl || attachment.url}
                         alt={attachment.label}
@@ -84,7 +83,8 @@ export function StudioOperatorHistoryItem({
                       {attachment.label}
                     </span>
                   </span>
-                ))}
+                ),
+              )}
             </div>
           ) : null}
         </div>

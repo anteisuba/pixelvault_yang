@@ -435,6 +435,22 @@ export function StudioOperatorMessageBody({
   )
 }
 
+/**
+ * 气泡底下那一排要画的附件：不是图的，加上正文里没写到名字的图。
+ *
+ * ⚠ 图只在正文写到它名字的地方贴缩略图（`withImageReferences`）；从输入框上方
+ *   chip 带上的图名字不在正文里，此前发出去就一张都看不见了（2026-10-09 owner 真机）。
+ */
+export function attachmentsBelowUserText(
+  text: string,
+  attachments: readonly StudioOperatorAttachment[],
+): StudioOperatorAttachment[] {
+  return attachments.filter(
+    (attachment) =>
+      attachment.kind !== 'image' || !text.includes(attachment.label),
+  )
+}
+
 export function StudioOperatorUserText({
   text,
   attachments,

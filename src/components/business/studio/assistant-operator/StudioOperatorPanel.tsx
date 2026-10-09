@@ -117,6 +117,7 @@ import {
 import {
   StudioOperatorMessageBody,
   StudioOperatorUserText,
+  attachmentsBelowUserText,
 } from '@/components/business/studio/assistant-operator/StudioOperatorMessageBody'
 import {
   toOperatorAnswerSources,
@@ -1048,18 +1049,36 @@ export function StudioOperatorPanel({
             text.replaceAll(`@${referenceLabel(index)}`, `@Image${index + 1}`),
           value,
         )
+      /**
+       * ⭐ 一个参考位都没挂时，「@Image N」指的是这条消息自己带的第 N 张图（2026-10-09
+       * owner 真机：LoRA 台带着刚出的图写「@Image1 比如这张」，被拦成「引用的图片不
+       * 可用」）。挂了参考位就只认参考位 —— 两套编号混着数会指错图。
+       */
+      const messageImages = currentReferences.length
+        ? []
+        : merged.filter((item) => item.kind === 'image')
       const indices = getReferenceMentionIndices(value)
       if (
-        indices.some(
-          (index) =>
-            !currentReferences[index] ||
-            currentReferences[index].disabledReason,
+        indices.some((index) =>
+          messageImages.length
+            ? !messageImages[index]
+            : !currentReferences[index] ||
+              currentReferences[index].disabledReason,
         )
       ) {
         toast.info(tReference('invalid'))
         return
       }
-      for (const index of indices) {
+      if (messageImages.length)
+        value = value.replace(
+          /(?<![\w.%+-])@Image([1-9]\d*)(?![\w])/g,
+          (token, number: string) => {
+            const image = messageImages[Number(number) - 1]
+            return image ? `「${image.label}」` : token
+          },
+        )
+      // 指的是这条消息自己的图时，它们已经在 `merged` 里了。
+      for (const index of messageImages.length ? [] : indices) {
         const url = currentReferences[index].url
         const reference: StudioOperatorAttachment = {
           id: getReferenceImageAttachmentId(url),
@@ -1838,18 +1857,16 @@ export function StudioOperatorPanel({
               references={messageImageReferences.get(entry.id)}
               textNodeNames={textNodeNames}
             />
-            {entry.attachments.some(
-              (attachment) => attachment.kind !== 'image',
-            ) ? (
+            {attachmentsBelowUserText(entry.text, entry.attachments).length ? (
               <div className="mt-1 flex flex-wrap gap-1">
-                {entry.attachments
-                  .filter((attachment) => attachment.kind !== 'image')
-                  .map((attachment) => (
+                {attachmentsBelowUserText(entry.text, entry.attachments).map(
+                  (attachment) => (
                     <span
                       key={attachment.id}
                       className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-2sm text-primary"
                     >
-                      {attachment.thumbnailUrl && (
+                      {(attachment.thumbnailUrl ||
+                        attachment.kind === 'image') && (
                         <Image
                           src={attachment.thumbnailUrl || attachment.url}
                           alt={attachment.label}
@@ -1863,7 +1880,8 @@ export function StudioOperatorPanel({
                         {attachment.label}
                       </span>
                     </span>
-                  ))}
+                  ),
+                )}
               </div>
             ) : null}
           </StudioOperatorTimelineRow>

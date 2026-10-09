@@ -132,6 +132,7 @@ const rowOf = (name: string) =>
 
 afterEach(() => {
   vi.restoreAllMocks()
+  vi.useRealTimers()
 })
 
 describe('AssetFolderSidebar Eagle 式新建', () => {
@@ -310,6 +311,103 @@ describe('AssetFolderSidebar 拖一个夹', () => {
       parentId: null,
       ids: ['b', 'a'],
     })
+  })
+
+  it('拖到栏的下边自己往下滚，滚过去再松手落在滚出来的那一行', () => {
+    vi.useFakeTimers({
+      toFake: [
+        'requestAnimationFrame',
+        'cancelAnimationFrame',
+        'setTimeout',
+        'clearTimeout',
+      ],
+    })
+    // 栏只露 100 高（三行多一点），六个夹摞起来 192 高。
+    const VIEW = 100
+    let scrollTop = 0
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
+      function (this: HTMLElement) {
+        const rows = Array.from(
+          document.querySelectorAll<HTMLElement>('[data-folder-row]'),
+        )
+        const index = rows.indexOf(this)
+        const isScroller = this.contains(
+          document.querySelector('[role="tree"]'),
+        )
+        const top =
+          index >= 0 ? index * ROW - scrollTop : isScroller ? 0 : -scrollTop
+        const height = index >= 0 ? ROW : isScroller ? VIEW : 0
+        return {
+          top,
+          bottom: top + height,
+          left: 0,
+          right: 200,
+          width: 200,
+          height,
+          x: 0,
+          y: top,
+          toJSON: () => ({}),
+        } as DOMRect
+      },
+    )
+    const { onPlace } = renderSidebar(
+      ['A', 'B', 'C', 'D', 'E', 'F'].map((name) =>
+        folder(name.toLowerCase(), name),
+      ),
+    )
+    const scroller = screen
+      .getByRole('tree')
+      .closest('.overflow-y-auto') as HTMLElement
+    Object.defineProperty(scroller, 'scrollTop', {
+      configurable: true,
+      get: () => scrollTop,
+      set: (value: number) => {
+        scrollTop = Math.max(0, Math.min(value, 6 * ROW - VIEW))
+      },
+    })
+
+    const move = (clientY: number) =>
+      act(() => {
+        window.dispatchEvent(
+          new PointerEvent('pointermove', {
+            pointerId: 1,
+            clientX: 24,
+            clientY,
+          }),
+        )
+      })
+    fireEvent.pointerDown(screen.getByText('A'), {
+      button: 0,
+      pointerId: 1,
+      pointerType: 'mouse',
+      clientX: 20,
+      clientY: 0,
+    })
+    move(VIEW - 4)
+    act(() => {
+      vi.advanceTimersByTime(16 * 4)
+    })
+    expect(scrollTop).toBeGreaterThan(0)
+
+    // 挪回栏中间：不再滚。
+    move(VIEW / 2)
+    const settled = scrollTop
+    act(() => {
+      vi.advanceTimersByTime(16 * 4)
+    })
+    expect(scrollTop).toBe(settled)
+
+    // 一直压在底边直到滚到头（最多 92），再落到底边那一行（F）的中间。
+    move(VIEW - 4)
+    act(() => {
+      vi.advanceTimersByTime(16 * 40)
+    })
+    expect(scrollTop).toBe(6 * ROW - VIEW)
+    move(5 * ROW - scrollTop + ROW / 2)
+    act(() => {
+      window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1 }))
+    })
+    expect(onPlace).toHaveBeenCalledWith({ id: 'a', parentId: 'f', ids: ['a'] })
   })
 
   it('拖不进自己的子孙', () => {

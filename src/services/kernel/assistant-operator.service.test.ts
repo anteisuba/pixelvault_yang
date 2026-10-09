@@ -8536,6 +8536,7 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
       'user-db-1',
       'image',
       ASSISTANT_PROJECT_RULE_LIMITS.maxInPrompt,
+      null,
     )
     const prompt = systemPrompt()
     expect(prompt).toContain('STANDING RULES THIS CREATOR WROTE DOWN')
@@ -8601,6 +8602,7 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
     )
     expect(mockListStandingRuleMemories).toHaveBeenCalledWith('user-db-1', {
       scope: 'video',
+      projectId: null,
       limit: ASSISTANT_PROJECT_RULE_LIMITS.maxReadResults,
     })
     const done = steps.find(
@@ -8646,6 +8648,7 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
     expect(mockAddRuleMemory).toHaveBeenCalledWith('user-db-1', {
       text: 'Skin tones stay warm.',
       scope: 'image',
+      projectId: null,
     })
     // ⛔ 普通规矩不再写项目规则表
     expect(mockAddProjectRule).not.toHaveBeenCalled()
@@ -8803,6 +8806,7 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
     expect(mockAddRuleMemory).toHaveBeenCalledWith('user-db-1', {
       text: '以后查资料只信官方站，别拿同人图当依据',
       scope: 'global',
+      projectId: null,
     })
   })
 
@@ -8824,6 +8828,7 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
     expect(mockAddRuleMemory).toHaveBeenCalledWith('user-db-1', {
       text: '输出一律不加水印',
       scope: 'global',
+      projectId: null,
     })
   })
 
@@ -17535,6 +17540,51 @@ describe('助手记忆（56a）', () => {
     ])
     // 回执上那个 N = 服务真正记下的条数（敏感命中的那几条已经不在里面）。
     expect(doneEvent(events).roundSummary?.memoriesWritten).toBe(2)
+  })
+
+  /** ⭐ owner 2026-10-09：一个项目一份记忆，换了项目之前的记忆不能影响新项目。 */
+  it('画布：注入只读本项目，结账记下的归本项目，提示写明只留在这个项目', async () => {
+    queueTurns(searchStep, { finished: true, message: '挑好了。' })
+    mockLlmTextCompletion.mockResolvedValue(
+      JSON.stringify({
+        facts: ['库里有三张夜景'],
+        decisions: [],
+        todos: [],
+        memories: [{ kind: 'fact', text: '这个项目画风是 3D 游戏 CG' }],
+      }),
+    )
+
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          domain: 'canvas',
+          conversationId: CONVERSATION_ID,
+          snapshot: {
+            prompt: '',
+            availableModels: [],
+            canvas: { currentShotNo: null, selectedNodeIds: [], shots: [] },
+          },
+        }),
+      ),
+    )
+
+    expect(mockListMemoriesForPrompt.mock.calls[0]?.[3]).toBe('test-project')
+    expect(mockListCreatorMemories.mock.calls[0]?.[3]).toBe('test-project')
+    const args = mockRecordMemories.mock.calls[0]?.[0] as {
+      scope: string
+      projectId?: string | null
+    }
+    expect(args).toMatchObject({ scope: 'canvas', projectId: 'test-project' })
+    const checkoutPrompt = mockLlmTextCompletion.mock.calls
+      .map((entry) => entry[0] as { systemPrompt?: string })
+      .find((entry) =>
+        entry.systemPrompt?.startsWith(
+          'You write the creator-facing closing record',
+        ),
+      )?.systemPrompt
+    expect(checkoutPrompt).toContain('kept for THIS project only')
+    expect(checkoutPrompt).not.toContain('on a different project')
   })
 
   it('⛔ 形状不对的那一条被丢掉，整轮记忆不作废', async () => {

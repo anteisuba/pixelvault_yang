@@ -313,6 +313,35 @@ describe('AssistantMemoryPane · 改 / 删', () => {
     )
   })
 
+  /** ⭐ owner 2026-10-09：一个项目一份记忆 —— 那一条写项目名，选「所有画布」就离开项目。 */
+  it('只属于一个项目的那条写项目名；改成所有画布当场存', async () => {
+    renderPane([
+      memory({
+        id: 'proj-mem',
+        scope: 'canvas',
+        projectId: 'proj-1',
+        projectName: '马尔福',
+        text: '这个项目画风是 3D 游戏 CG',
+      }),
+    ])
+    const projectLabel =
+      'AssistantSettings:memory.canvasProject({"name":"马尔福"})'
+    expect(screen.getByText(projectLabel)).toBeInTheDocument()
+    fireEvent.click(screen.getByText('这个项目画风是 3D 游戏 CG'))
+    fireEvent.pointerDown(screen.getByTestId('assistant-memory-scope'), {
+      button: 0,
+      ctrlKey: false,
+    })
+    fireEvent.click(
+      await screen.findByText('AssistantSettings:memory.scope.canvas'),
+    )
+    await waitFor(() =>
+      expect(store.update).toHaveBeenCalledWith('proj-mem', {
+        scope: 'canvas',
+      }),
+    )
+  })
+
   it('就地改完：时间那一格闪「✓ 已保存」，⛔ 不弹提示', async () => {
     store.update.mockResolvedValueOnce(memory({ text: '喜欢赛璐璐' }) as never)
     renderPane([LEARNED])

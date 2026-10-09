@@ -206,6 +206,7 @@ export type NodeWorkflowProjectWhereInput = {
   createdAt?: Prisma.DateTimeFilter<"NodeWorkflowProject"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"NodeWorkflowProject"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
+  assistantMemories?: Prisma.AssistantMemoryListRelationFilter
 }
 
 export type NodeWorkflowProjectOrderByWithRelationInput = {
@@ -218,6 +219,7 @@ export type NodeWorkflowProjectOrderByWithRelationInput = {
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
+  assistantMemories?: Prisma.AssistantMemoryOrderByRelationAggregateInput
 }
 
 export type NodeWorkflowProjectWhereUniqueInput = Prisma.AtLeast<{
@@ -233,6 +235,7 @@ export type NodeWorkflowProjectWhereUniqueInput = Prisma.AtLeast<{
   createdAt?: Prisma.DateTimeFilter<"NodeWorkflowProject"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"NodeWorkflowProject"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
+  assistantMemories?: Prisma.AssistantMemoryListRelationFilter
 }, "id">
 
 export type NodeWorkflowProjectOrderByWithAggregationInput = {
@@ -272,6 +275,7 @@ export type NodeWorkflowProjectCreateInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutNodeWorkflowProjectsInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutProjectInput
 }
 
 export type NodeWorkflowProjectUncheckedCreateInput = {
@@ -283,6 +287,7 @@ export type NodeWorkflowProjectUncheckedCreateInput = {
   isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutProjectInput
 }
 
 export type NodeWorkflowProjectUpdateInput = {
@@ -294,6 +299,7 @@ export type NodeWorkflowProjectUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutNodeWorkflowProjectsNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutProjectNestedInput
 }
 
 export type NodeWorkflowProjectUncheckedUpdateInput = {
@@ -305,6 +311,7 @@ export type NodeWorkflowProjectUncheckedUpdateInput = {
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutProjectNestedInput
 }
 
 export type NodeWorkflowProjectCreateManyInput = {
@@ -380,6 +387,11 @@ export type NodeWorkflowProjectMinOrderByAggregateInput = {
   updatedAt?: Prisma.SortOrder
 }
 
+export type NodeWorkflowProjectNullableScalarRelationFilter = {
+  is?: Prisma.NodeWorkflowProjectWhereInput | null
+  isNot?: Prisma.NodeWorkflowProjectWhereInput | null
+}
+
 export type NodeWorkflowProjectCreateNestedManyWithoutUserInput = {
   create?: Prisma.XOR<Prisma.NodeWorkflowProjectCreateWithoutUserInput, Prisma.NodeWorkflowProjectUncheckedCreateWithoutUserInput> | Prisma.NodeWorkflowProjectCreateWithoutUserInput[] | Prisma.NodeWorkflowProjectUncheckedCreateWithoutUserInput[]
   connectOrCreate?: Prisma.NodeWorkflowProjectCreateOrConnectWithoutUserInput | Prisma.NodeWorkflowProjectCreateOrConnectWithoutUserInput[]
@@ -422,6 +434,22 @@ export type NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput = {
   deleteMany?: Prisma.NodeWorkflowProjectScalarWhereInput | Prisma.NodeWorkflowProjectScalarWhereInput[]
 }
 
+export type NodeWorkflowProjectCreateNestedOneWithoutAssistantMemoriesInput = {
+  create?: Prisma.XOR<Prisma.NodeWorkflowProjectCreateWithoutAssistantMemoriesInput, Prisma.NodeWorkflowProjectUncheckedCreateWithoutAssistantMemoriesInput>
+  connectOrCreate?: Prisma.NodeWorkflowProjectCreateOrConnectWithoutAssistantMemoriesInput
+  connect?: Prisma.NodeWorkflowProjectWhereUniqueInput
+}
+
+export type NodeWorkflowProjectUpdateOneWithoutAssistantMemoriesNestedInput = {
+  create?: Prisma.XOR<Prisma.NodeWorkflowProjectCreateWithoutAssistantMemoriesInput, Prisma.NodeWorkflowProjectUncheckedCreateWithoutAssistantMemoriesInput>
+  connectOrCreate?: Prisma.NodeWorkflowProjectCreateOrConnectWithoutAssistantMemoriesInput
+  upsert?: Prisma.NodeWorkflowProjectUpsertWithoutAssistantMemoriesInput
+  disconnect?: Prisma.NodeWorkflowProjectWhereInput | boolean
+  delete?: Prisma.NodeWorkflowProjectWhereInput | boolean
+  connect?: Prisma.NodeWorkflowProjectWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.NodeWorkflowProjectUpdateToOneWithWhereWithoutAssistantMemoriesInput, Prisma.NodeWorkflowProjectUpdateWithoutAssistantMemoriesInput>, Prisma.NodeWorkflowProjectUncheckedUpdateWithoutAssistantMemoriesInput>
+}
+
 export type NodeWorkflowProjectCreateWithoutUserInput = {
   id?: string
   name: string
@@ -430,6 +458,7 @@ export type NodeWorkflowProjectCreateWithoutUserInput = {
   isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutProjectInput
 }
 
 export type NodeWorkflowProjectUncheckedCreateWithoutUserInput = {
@@ -440,6 +469,7 @@ export type NodeWorkflowProjectUncheckedCreateWithoutUserInput = {
   isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutProjectInput
 }
 
 export type NodeWorkflowProjectCreateOrConnectWithoutUserInput = {
@@ -482,6 +512,66 @@ export type NodeWorkflowProjectScalarWhereInput = {
   updatedAt?: Prisma.DateTimeFilter<"NodeWorkflowProject"> | Date | string
 }
 
+export type NodeWorkflowProjectCreateWithoutAssistantMemoriesInput = {
+  id?: string
+  name: string
+  state: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  lastActiveAt?: Date | string
+  isDeleted?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  user: Prisma.UserCreateNestedOneWithoutNodeWorkflowProjectsInput
+}
+
+export type NodeWorkflowProjectUncheckedCreateWithoutAssistantMemoriesInput = {
+  id?: string
+  userId: string
+  name: string
+  state: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  lastActiveAt?: Date | string
+  isDeleted?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+export type NodeWorkflowProjectCreateOrConnectWithoutAssistantMemoriesInput = {
+  where: Prisma.NodeWorkflowProjectWhereUniqueInput
+  create: Prisma.XOR<Prisma.NodeWorkflowProjectCreateWithoutAssistantMemoriesInput, Prisma.NodeWorkflowProjectUncheckedCreateWithoutAssistantMemoriesInput>
+}
+
+export type NodeWorkflowProjectUpsertWithoutAssistantMemoriesInput = {
+  update: Prisma.XOR<Prisma.NodeWorkflowProjectUpdateWithoutAssistantMemoriesInput, Prisma.NodeWorkflowProjectUncheckedUpdateWithoutAssistantMemoriesInput>
+  create: Prisma.XOR<Prisma.NodeWorkflowProjectCreateWithoutAssistantMemoriesInput, Prisma.NodeWorkflowProjectUncheckedCreateWithoutAssistantMemoriesInput>
+  where?: Prisma.NodeWorkflowProjectWhereInput
+}
+
+export type NodeWorkflowProjectUpdateToOneWithWhereWithoutAssistantMemoriesInput = {
+  where?: Prisma.NodeWorkflowProjectWhereInput
+  data: Prisma.XOR<Prisma.NodeWorkflowProjectUpdateWithoutAssistantMemoriesInput, Prisma.NodeWorkflowProjectUncheckedUpdateWithoutAssistantMemoriesInput>
+}
+
+export type NodeWorkflowProjectUpdateWithoutAssistantMemoriesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  state?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  lastActiveAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  user?: Prisma.UserUpdateOneRequiredWithoutNodeWorkflowProjectsNestedInput
+}
+
+export type NodeWorkflowProjectUncheckedUpdateWithoutAssistantMemoriesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  userId?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  state?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  lastActiveAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
 export type NodeWorkflowProjectCreateManyUserInput = {
   id?: string
   name: string
@@ -500,6 +590,7 @@ export type NodeWorkflowProjectUpdateWithoutUserInput = {
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutProjectNestedInput
 }
 
 export type NodeWorkflowProjectUncheckedUpdateWithoutUserInput = {
@@ -510,6 +601,7 @@ export type NodeWorkflowProjectUncheckedUpdateWithoutUserInput = {
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutProjectNestedInput
 }
 
 export type NodeWorkflowProjectUncheckedUpdateManyWithoutUserInput = {
@@ -523,6 +615,35 @@ export type NodeWorkflowProjectUncheckedUpdateManyWithoutUserInput = {
 }
 
 
+/**
+ * Count Type NodeWorkflowProjectCountOutputType
+ */
+
+export type NodeWorkflowProjectCountOutputType = {
+  assistantMemories: number
+}
+
+export type NodeWorkflowProjectCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  assistantMemories?: boolean | NodeWorkflowProjectCountOutputTypeCountAssistantMemoriesArgs
+}
+
+/**
+ * NodeWorkflowProjectCountOutputType without action
+ */
+export type NodeWorkflowProjectCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the NodeWorkflowProjectCountOutputType
+   */
+  select?: Prisma.NodeWorkflowProjectCountOutputTypeSelect<ExtArgs> | null
+}
+
+/**
+ * NodeWorkflowProjectCountOutputType without action
+ */
+export type NodeWorkflowProjectCountOutputTypeCountAssistantMemoriesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.AssistantMemoryWhereInput
+}
+
 
 export type NodeWorkflowProjectSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -534,6 +655,8 @@ export type NodeWorkflowProjectSelect<ExtArgs extends runtime.Types.Extensions.I
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  assistantMemories?: boolean | Prisma.NodeWorkflowProject$assistantMemoriesArgs<ExtArgs>
+  _count?: boolean | Prisma.NodeWorkflowProjectCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["nodeWorkflowProject"]>
 
 export type NodeWorkflowProjectSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -574,6 +697,8 @@ export type NodeWorkflowProjectSelectScalar = {
 export type NodeWorkflowProjectOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "name" | "state" | "lastActiveAt" | "isDeleted" | "createdAt" | "updatedAt", ExtArgs["result"]["nodeWorkflowProject"]>
 export type NodeWorkflowProjectInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  assistantMemories?: boolean | Prisma.NodeWorkflowProject$assistantMemoriesArgs<ExtArgs>
+  _count?: boolean | Prisma.NodeWorkflowProjectCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type NodeWorkflowProjectIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -586,6 +711,10 @@ export type $NodeWorkflowProjectPayload<ExtArgs extends runtime.Types.Extensions
   name: "NodeWorkflowProject"
   objects: {
     user: Prisma.$UserPayload<ExtArgs>
+    /**
+     * 这个项目自己的记忆（助手在这块画布里记下的事）。
+     */
+    assistantMemories: Prisma.$AssistantMemoryPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -998,6 +1127,7 @@ readonly fields: NodeWorkflowProjectFieldRefs;
 export interface Prisma__NodeWorkflowProjectClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   user<T extends Prisma.UserDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.UserDefaultArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  assistantMemories<T extends Prisma.NodeWorkflowProject$assistantMemoriesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.NodeWorkflowProject$assistantMemoriesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AssistantMemoryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1433,6 +1563,30 @@ export type NodeWorkflowProjectDeleteManyArgs<ExtArgs extends runtime.Types.Exte
    * Limit how many NodeWorkflowProjects to delete.
    */
   limit?: number
+}
+
+/**
+ * NodeWorkflowProject.assistantMemories
+ */
+export type NodeWorkflowProject$assistantMemoriesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the AssistantMemory
+   */
+  select?: Prisma.AssistantMemorySelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the AssistantMemory
+   */
+  omit?: Prisma.AssistantMemoryOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AssistantMemoryInclude<ExtArgs> | null
+  where?: Prisma.AssistantMemoryWhereInput
+  orderBy?: Prisma.AssistantMemoryOrderByWithRelationInput | Prisma.AssistantMemoryOrderByWithRelationInput[]
+  cursor?: Prisma.AssistantMemoryWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.AssistantMemoryScalarFieldEnum | Prisma.AssistantMemoryScalarFieldEnum[]
 }
 
 /**

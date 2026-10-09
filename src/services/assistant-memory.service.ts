@@ -87,6 +87,8 @@ const MEMORY_SELECT = {
   kind: true,
   source: true,
   text: true,
+  projectId: true,
+  project: { select: { name: true } },
   createdAt: true,
   updatedAt: true,
 } as const
@@ -97,6 +99,8 @@ interface MemoryRow {
   kind: AssistantMemoryKind
   source: AssistantMemorySource
   text: string
+  projectId: string | null
+  project: { name: string } | null
   createdAt: Date
   updatedAt: Date
 }
@@ -114,6 +118,8 @@ function toMemory(row: MemoryRow): AssistantMemory | null {
     kind: ID_BY_DB_KIND[row.kind],
     source: ID_BY_DB_SOURCE[row.source],
     text: row.text,
+    projectId: row.projectId,
+    projectName: row.project?.name ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   })
@@ -188,6 +194,42 @@ function promptScopes(scope: AssistantMemoryScopeId): AssistantMemoryScope[] {
 }
 
 /**
+ * 注入时哪几条算数：当前域 + `global`，⭐ 画布再按项目收（owner 2026-10-09：一个
+ * 项目一份记忆，换了项目之前的记忆不能影响新项目）—— 别的项目的那几条一条都不带；
+ * 不归项目的画布记忆（「所有画布」，你自己定的范围）照旧带。
+ */
+function promptWhere(
+  scope: AssistantMemoryScopeId,
+  projectId: string | null | undefined,
+) {
+  if (scope !== ASSISTANT_MEMORY_SCOPE_IDS.canvas)
+    return { scope: { in: promptScopes(scope) } }
+  return {
+    OR: [
+      { scope: DB_SCOPE_BY_ID[ASSISTANT_MEMORY_SCOPE_IDS.global] },
+      { scope: DB_SCOPE_BY_ID[scope], projectId: null },
+      ...(projectId ? [{ scope: DB_SCOPE_BY_ID[scope], projectId }] : []),
+    ],
+  }
+}
+
+/**
+ * 写进项目的那个 id 真是这个用户的项目才收（工作台键是客户端递来的）；不是就
+ * `null` —— 调用方据此**不写**这一条，⛔ 不退成「所有画布」。
+ */
+async function ownedProjectId(
+  userId: string,
+  projectId: string | null | undefined,
+): Promise<string | null> {
+  if (!projectId) return null
+  const project = await db.nodeWorkflowProject.findFirst({
+    where: { id: projectId, userId },
+    select: { id: true },
+  })
+  return project?.id ?? null
+}
+
+/**
  * **注入那一跳要的那几条助手记的**（切片 2）：当前域 + `global`，按 `lastUsedAt`
  * 倒序。⚠ 只要助手记的 —— 你写的有自己那一段（`listCreatorMemoriesForPrompt`）。
  *
@@ -199,13 +241,14 @@ export async function listAssistantMemoriesForPrompt(
   userId: string,
   scope: AssistantMemoryScopeId,
   limit: number,
+  projectId?: string | null,
 ): Promise<AssistantMemory[]> {
   if (limit <= 0) return []
   const rows = await db.assistantMemory.findMany({
     where: {
       userId,
       source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.assistant],
-      scope: { in: promptScopes(scope) },
+      ...promptWhere(scope, projectId),
     },
     orderBy: { lastUsedAt: 'desc' },
     take: Math.min(limit, ASSISTANT_MEMORY_LIMITS.maxInPrompt),
@@ -226,13 +269,14 @@ export async function listCreatorMemoriesForPrompt(
   userId: string,
   scope: AssistantMemoryScopeId,
   limit: number,
+  projectId?: string | null,
 ): Promise<AssistantMemory[]> {
   if (limit <= 0) return []
   const rows = await db.assistantMemory.findMany({
     where: {
       userId,
       source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.creator],
-      scope: { in: promptScopes(scope) },
+      ...promptWhere(scope, projectId),
     },
     orderBy: { updatedAt: 'desc' },
     take: Math.min(limit, ASSISTANT_MEMORY_LIMITS.maxCreatorEntries),
@@ -249,16 +293,34 @@ export async function listCreatorMemoriesForPrompt(
  */
 export async function listStandingRuleMemories(
   userId: string,
-  options: { scope?: AssistantMemoryScopeId | null; limit: number },
+  options: {
+    scope?: AssistantMemoryScopeId | null
+    projectId?: string | null
+    limit: number
+  },
 ): Promise<AssistantMemory[]> {
   const rows = await db.assistantMemory.findMany({
     where: {
       userId,
-      OR: [
-        { source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.creator] },
-        { kind: DB_KIND_BY_ID[ASSISTANT_MEMORY_KIND_IDS.rule] },
+      AND: [
+        {
+          OR: [
+            { source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.creator] },
+            { kind: DB_KIND_BY_ID[ASSISTANT_MEMORY_KIND_IDS.rule] },
+          ],
+        },
+        options.scope
+          ? promptWhere(options.scope, options.projectId)
+          : // 不分范围读也只读不归项目的 + 当前项目的，⛔ 别的项目一条都不带。
+            {
+              OR: [
+                { projectId: null },
+                ...(options.projectId
+                  ? [{ projectId: options.projectId }]
+                  : []),
+              ],
+            },
       ],
-      ...(options.scope ? { scope: { in: promptScopes(options.scope) } } : {}),
     },
     orderBy: { updatedAt: 'desc' },
     take: options.limit,
@@ -303,10 +365,11 @@ async function findSameText(
   userId: string,
   scope: AssistantMemoryScopeId,
   text: string,
+  projectId: string | null = null,
 ): Promise<MemoryRow | null> {
   const normalized = normalizeAssistantMemoryText(text)
   const siblings = await db.assistantMemory.findMany({
-    where: { userId, scope: DB_SCOPE_BY_ID[scope] },
+    where: { userId, scope: DB_SCOPE_BY_ID[scope], projectId },
     select: MEMORY_SELECT,
     take:
       ASSISTANT_MEMORY_LIMITS.maxPerScope +
@@ -389,10 +452,19 @@ export async function createCreatorMemoryForClerkId(
  */
 export async function addAssistantRuleMemory(
   userId: string,
-  input: { text: string; scope: AssistantMemoryScopeId },
+  input: {
+    text: string
+    scope: AssistantMemoryScopeId
+    /** 画布上记的归这个项目（只认这个用户自己的项目）。 */
+    projectId?: string | null
+  },
 ): Promise<{ memory: AssistantMemory; created: boolean }> {
   const text = input.text.trim()
-  const same = await findSameText(userId, input.scope, text)
+  const projectId =
+    input.scope === ASSISTANT_MEMORY_SCOPE_IDS.canvas
+      ? await ownedProjectId(userId, input.projectId)
+      : null
+  const same = await findSameText(userId, input.scope, text, projectId)
   if (same) {
     const memory = toMemory(same)
     if (!memory) throw new Error('ASSISTANT_MEMORY_UNREADABLE_AFTER_WRITE')
@@ -405,6 +477,7 @@ export async function addAssistantRuleMemory(
       kind: DB_KIND_BY_ID[ASSISTANT_MEMORY_KIND_IDS.rule],
       source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.assistant],
       text,
+      projectId,
     },
     select: MEMORY_SELECT,
   })
@@ -436,8 +509,9 @@ export async function updateAssistantMemory(
     where: { id: existing.id },
     data: {
       ...(input.text !== undefined ? { text: input.text } : {}),
+      // 在设置里换了范围（含「画布」= 所有画布）就不再只属于那个项目。
       ...(input.scope !== undefined
-        ? { scope: DB_SCOPE_BY_ID[input.scope] }
+        ? { scope: DB_SCOPE_BY_ID[input.scope], projectId: null }
         : {}),
     },
     select: MEMORY_SELECT,
@@ -514,6 +588,8 @@ export interface RecordAssistantMemoriesArgs {
   userId: string
   /** 缺席的候选挂这个域（当前工作台）。 */
   scope: AssistantMemoryScopeId
+  /** 在画布项目里结的账：画布范围的那几条归这个项目（只认这个用户自己的项目）。 */
+  projectId?: string | null
   candidates: readonly AssistantMemoryCandidate[]
   conversationId?: string | undefined
   messageId?: string | undefined
@@ -563,10 +639,24 @@ export async function recordAssistantMemories(
 
   if (accepted.length === 0) return 0
 
+  /**
+   * 画布范围的候选归当前项目（owner 2026-10-09：一个项目一份记忆）。项目对不上
+   * 这个用户（或请求里没有项目）时**画布那几条不写**，⛔ 不退成「所有画布」——
+   * 那会让这个项目的事漏进别的项目。
+   */
+  const projectId = accepted.some(
+    (entry) => entry.scope === ASSISTANT_MEMORY_SCOPE_IDS.canvas,
+  )
+    ? await ownedProjectId(args.userId, args.projectId)
+    : null
   let written = 0
   const touchedScopes = new Set<AssistantMemoryScopeId>()
 
   for (const entry of accepted) {
+    const entryProjectId =
+      entry.scope === ASSISTANT_MEMORY_SCOPE_IDS.canvas ? projectId : null
+    if (entry.scope === ASSISTANT_MEMORY_SCOPE_IDS.canvas && !entryProjectId)
+      continue
     /**
      * ③ 与库里字面去重。⚠ 归一化**在内存里比**而不是写成一列：加一列
      * `normalizedText` 就要为存量行回填，而回填一张可能有几万行的表换来的只是
@@ -577,6 +667,7 @@ export async function recordAssistantMemories(
         userId: args.userId,
         scope: DB_SCOPE_BY_ID[entry.scope],
         kind: DB_KIND_BY_ID[entry.kind],
+        projectId: entryProjectId,
       },
       select: { id: true, text: true },
       take: ASSISTANT_MEMORY_LIMITS.maxPerScope,
@@ -599,6 +690,7 @@ export async function recordAssistantMemories(
         scope: DB_SCOPE_BY_ID[entry.scope],
         kind: DB_KIND_BY_ID[entry.kind],
         text: entry.text,
+        projectId: entryProjectId,
         conversationId: args.conversationId ?? null,
         messageId: args.messageId ?? null,
       },

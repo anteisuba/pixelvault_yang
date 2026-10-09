@@ -41,6 +41,13 @@ export const AssistantMemorySchema = z.object({
   kind: AssistantMemoryKindSchema,
   source: AssistantMemorySourceSchema,
   text: AssistantMemoryTextSchema,
+  /**
+   * 属于哪个画布项目（owner 2026-10-09：一个项目一份记忆）。空 = 不归项目 ——
+   * 全局 / 工作台范围（画布范围时就是「所有画布」）。
+   */
+  projectId: z.string().min(1).nullable().optional(),
+  /** 那个项目现在叫什么（设置页那一列在范围那一格写它）。 */
+  projectName: z.string().nullable().optional(),
   /** ISO 串。列表上那枚时间读 `updatedAt`（画板：今天 HH:mm · 昨天 · M/D）。 */
   createdAt: z.string(),
   updatedAt: z.string(),

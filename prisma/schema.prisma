@@ -355,6 +355,9 @@ model NodeWorkflowProject {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  /// 这个项目自己的记忆（助手在这块画布里记下的事）。
+  assistantMemories AssistantMemory[]
+
   @@index([userId, isDeleted, lastActiveAt(sort: Desc)])
 }
 
@@ -1593,6 +1596,12 @@ model AssistantMemory {
   conversationId String?
   messageId      String?
 
+  /// 属于哪个画布项目（owner 2026-10-09：一个项目一份记忆，换了项目之前的记忆不能影响
+  /// 新项目）。画布里助手记下的事归当前项目、只在那个项目里注入；空 = 不归项目
+  /// （全局 / 工作台范围，或你自己写的）。
+  projectId String?
+  project   NodeWorkflowProject? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
   /// **被注入过就更新** —— 注入优先级与淘汰顺序都读它（每域上限 200，超了淘汰最旧的）。
   lastUsedAt DateTime @default(now())
 
@@ -1604,4 +1613,6 @@ model AssistantMemory {
   @@index([userId, updatedAt(sort: Desc)])
   /// 注入取前 N 条、淘汰取最旧一条，两边都按 lastUsedAt 排。
   @@index([userId, scope, lastUsedAt(sort: Desc)])
+  /// 画布按项目取那个项目的记忆。
+  @@index([userId, projectId, lastUsedAt(sort: Desc)])
 }

@@ -8937,7 +8937,7 @@
         "image": "Natural-language images",
         "tags": "Tag-based images",
         "video": "Video only",
-        "canvas": "Canvas project",
+        "canvas": "All canvases",
         "lora": "LoRA only",
         "cards": "Cards only"
       },

@@ -963,6 +963,7 @@ export const AssistantMemoryScalarFieldEnum = {
   text: 'text',
   conversationId: 'conversationId',
   messageId: 'messageId',
+  projectId: 'projectId',
   lastUsedAt: 'lastUsedAt',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'

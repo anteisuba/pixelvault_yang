@@ -87,6 +87,8 @@ const ACKNOWLEDGED: Record<string, string> = {
     '不需要连库验：外键列 "CharacterCard"."voiceCardId" 是同一条迁移里新加的**可空**列，ADD COLUMN 之后全表该列一律为 NULL，而 NULL 行不参与外键校验（SQL 标准的 MATCH SIMPLE，Postgres 默认）。所以 ADD CONSTRAINT 在任何存量数据上都成立——闸门认的是 ADD CONSTRAINT 这个语句形状，不是这条约束真有风险。⚠ 若日后有迁移往这一列写值，那条迁移得自己验。',
   '20260926120000_card_assistant':
     '不需要连库验：外键列 "AssistantPersona"."characterCardId" 是同一条迁移里新加的**可空**列，ADD COLUMN 之后全表该列为 NULL，NULL 行不参与外键校验（MATCH SIMPLE），所以 ADD CONSTRAINT 在任何存量数据上都成立。枚举只加值（ADD VALUE），不改不删旧值。⚠ 以后往这一列写值的代码（卡片施工第 5 片）只写本人的卡，由服务端校验归属。',
+  '20261009150000_assistant_memory_project':
+    '不需要连库验：外键列 "AssistantMemory"."projectId" 是同一条迁移里新加的**可空**列，ADD COLUMN 之后全表该列为 NULL，NULL 行不参与外键校验（MATCH SIMPLE）。同一条迁移里的回填只写 EXISTS 校验过、确实在 "NodeWorkflowProject" 里的 id，所以 ADD CONSTRAINT 在任何存量数据上都成立。2026-10-09 盘点全库记忆 4 条，回填只动 1 条（画布范围、助手记的、会话上有项目）。',
   '20260925120000_card_bus_expand':
     '不需要连库验：唯一索引 ("userId", "handle") 里的 handle 是同一条迁移新加的**可空**列，建索引时全表为 NULL，而 Postgres 唯一索引里多个 NULL 互不冲突（NULLS DISTINCT 默认）。所以在任何存量数据上都建得上。⚠ 回填 handle 的脚本（卡片总线第 ④ 片）自己保证同一用户内不重复（冲突加 -2、-3），那一步另有只读核查。',
 }

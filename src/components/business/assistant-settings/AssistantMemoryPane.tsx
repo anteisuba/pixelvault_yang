@@ -70,6 +70,9 @@ const MEMORY_FILTERS: readonly MemoryFilter[] = [
 ]
 
 /** 「用在哪」下拉的次序：全部工作台在最前（画板）。 */
+/** 下拉里「只在这个项目」那一格的值（它不是一个范围，选回范围就离开项目）。 */
+const PROJECT_SCOPE_VALUE = 'project'
+
 const SCOPE_MENU: readonly AssistantMemoryScopeId[] = [
   ASSISTANT_MEMORY_SCOPE_IDS.global,
   ...ASSISTANT_MEMORY_SCOPES.filter(
@@ -493,7 +496,12 @@ function MemoryRow({
     void onSave({ text })
   }
 
-  const scopeLabel = t(`memory.scope.${memory.scope}`)
+  /** 只属于一个画布项目的那条（owner 2026-10-09：一个项目一份记忆）写项目名。 */
+  const projectLabel =
+    memory.projectId && memory.projectName
+      ? t('memory.canvasProject', { name: memory.projectName })
+      : null
+  const scopeLabel = projectLabel ?? t(`memory.scope.${memory.scope}`)
 
   if (editing) {
     return (
@@ -556,12 +564,24 @@ function MemoryRow({
               }}
             >
               <DropdownMenuRadioGroup
-                value={memory.scope}
+                value={projectLabel ? PROJECT_SCOPE_VALUE : memory.scope}
                 onValueChange={(value) => {
+                  if (value === PROJECT_SCOPE_VALUE) return
                   const scope = value as AssistantMemoryScopeId
-                  if (scope !== memory.scope) void onSave({ scope })
+                  // 选「所有画布」也算换：它不再只属于那个项目。
+                  if (scope !== memory.scope || projectLabel)
+                    void onSave({ scope })
                 }}
               >
+                {projectLabel ? (
+                  <DropdownMenuRadioItem
+                    value={PROJECT_SCOPE_VALUE}
+                    indicator="check-end"
+                    className="min-h-9 rounded-lg coarse:min-h-11"
+                  >
+                    {projectLabel}
+                  </DropdownMenuRadioItem>
+                ) : null}
                 {SCOPE_MENU.map((scope) => (
                   <DropdownMenuRadioItem
                     key={scope}

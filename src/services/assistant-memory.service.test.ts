@@ -17,9 +17,13 @@ const mockCreate = vi.fn()
 const mockUpdate = vi.fn()
 const mockUpdateMany = vi.fn()
 const mockDeleteMany = vi.fn()
+const mockProjectFindFirst = vi.fn()
 
 vi.mock('@/lib/db', () => ({
   db: {
+    nodeWorkflowProject: {
+      findFirst: (...args: unknown[]) => mockProjectFindFirst(...args),
+    },
     assistantMemory: {
       findMany: (...args: unknown[]) => mockFindMany(...args),
       findFirst: (...args: unknown[]) => mockFindFirst(...args),
@@ -73,6 +77,7 @@ beforeEach(() => {
   mockCount.mockResolvedValue(0)
   mockCreate.mockResolvedValue({ id: 'mem-new' })
   mockDeleteMany.mockResolvedValue({ count: 0 })
+  mockProjectFindFirst.mockResolvedValue({ id: 'proj-1' })
 })
 
 // ─── 读 ─────────────────────────────────────────────────────────
@@ -165,6 +170,35 @@ describe('listAssistantMemoriesForPrompt', () => {
     expect(mockFindMany.mock.calls[0][0].where.source).toBe('ASSISTANT')
   })
 
+  /** ⭐ owner 2026-10-09：一个项目一份记忆，换了项目之前的记忆不能影响新项目。 */
+  it('画布：global + 所有画布 + 本项目，⛔ 不带别的项目', async () => {
+    await listAssistantMemoriesForPrompt(
+      'db_user_1',
+      ASSISTANT_MEMORY_SCOPE_IDS.canvas,
+      5,
+      'proj-1',
+    )
+    const { where } = mockFindMany.mock.calls[0][0]
+    expect(where).not.toHaveProperty('scope')
+    expect(where.OR).toEqual([
+      { scope: 'GLOBAL' },
+      { scope: 'CANVAS', projectId: null },
+      { scope: 'CANVAS', projectId: 'proj-1' },
+    ])
+  })
+
+  it('画布没有项目：只带 global + 所有画布', async () => {
+    await listAssistantMemoriesForPrompt(
+      'db_user_1',
+      ASSISTANT_MEMORY_SCOPE_IDS.canvas,
+      5,
+    )
+    expect(mockFindMany.mock.calls[0][0].where.OR).toEqual([
+      { scope: 'GLOBAL' },
+      { scope: 'CANVAS', projectId: null },
+    ])
+  })
+
   it('预算 <= 0（被卡吃光）时一条都不查', async () => {
     const memories = await listAssistantMemoriesForPrompt(
       'db_user_1',
@@ -227,17 +261,26 @@ describe('listStandingRuleMemories', () => {
       limit: 50,
     })
     const args = mockFindMany.mock.calls[0][0]
-    expect(args.where).toMatchObject({
+    expect(args.where).toEqual({
       userId: 'db_user_1',
-      OR: [{ source: 'CREATOR' }, { kind: 'RULE' }],
-      scope: { in: ['LORA', 'GLOBAL'] },
+      AND: [
+        { OR: [{ source: 'CREATOR' }, { kind: 'RULE' }] },
+        { scope: { in: ['LORA', 'GLOBAL'] } },
+      ],
     })
     expect(args.take).toBe(50)
   })
 
-  it('缺域 = 全部域', async () => {
-    await listStandingRuleMemories('db_user_1', { limit: 50 })
-    expect(mockFindMany.mock.calls[0][0].where).not.toHaveProperty('scope')
+  it('缺域 = 全部域，但别的项目的一条都不带', async () => {
+    await listStandingRuleMemories('db_user_1', {
+      projectId: 'proj-1',
+      limit: 50,
+    })
+    const { where } = mockFindMany.mock.calls[0][0]
+    expect(where).not.toHaveProperty('scope')
+    expect(where.AND[1]).toEqual({
+      OR: [{ projectId: null }, { projectId: 'proj-1' }],
+    })
   })
 })
 
@@ -369,6 +412,71 @@ describe('recordAssistantMemories', () => {
     })
     expect(written).toBe(1)
     expect(mockCreate).toHaveBeenCalledTimes(1)
+  })
+
+  it('画布：归当前项目，去重也只比这个项目里的', async () => {
+    await recordAssistantMemories({
+      userId: 'db_user_1',
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.canvas,
+      projectId: 'proj-1',
+      candidates: [
+        {
+          kind: ASSISTANT_MEMORY_KIND_IDS.fact,
+          text: '这个项目画风是 3D 游戏 CG',
+        },
+      ],
+    })
+    expect(mockProjectFindFirst.mock.calls[0][0].where).toEqual({
+      id: 'proj-1',
+      userId: 'db_user_1',
+    })
+    expect(mockFindMany.mock.calls[0][0].where).toMatchObject({
+      scope: 'CANVAS',
+      projectId: 'proj-1',
+    })
+    expect(mockCreate.mock.calls[0][0].data).toMatchObject({
+      scope: 'CANVAS',
+      projectId: 'proj-1',
+    })
+  })
+
+  it('项目不是这个用户的：画布那条不写，⛔ 不退成所有画布；全局那条照写', async () => {
+    mockProjectFindFirst.mockResolvedValue(null)
+    const written = await recordAssistantMemories({
+      userId: 'db_user_1',
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.canvas,
+      projectId: 'someone-elses',
+      candidates: [
+        {
+          kind: ASSISTANT_MEMORY_KIND_IDS.fact,
+          text: '这个项目画风是 3D 游戏 CG',
+        },
+        {
+          kind: ASSISTANT_MEMORY_KIND_IDS.preference,
+          text: '以后出图默认 1K',
+          scope: ASSISTANT_MEMORY_SCOPE_IDS.global,
+        },
+      ],
+    })
+    expect(written).toBe(1)
+    expect(mockCreate).toHaveBeenCalledTimes(1)
+    expect(mockCreate.mock.calls[0][0].data).toMatchObject({
+      scope: 'GLOBAL',
+      projectId: null,
+    })
+  })
+
+  it('不在画布：不查项目，projectId 为空', async () => {
+    await recordAssistantMemories({
+      userId: 'db_user_1',
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.image,
+      projectId: 'proj-1',
+      candidates: [
+        { kind: ASSISTANT_MEMORY_KIND_IDS.preference, text: '偏好冷色调' },
+      ],
+    })
+    expect(mockProjectFindFirst).not.toHaveBeenCalled()
+    expect(mockCreate.mock.calls[0][0].data.projectId).toBeNull()
   })
 
   it('候选带 scope 时按它落，缺席时落当前域', async () => {
@@ -532,6 +640,29 @@ describe('addAssistantRuleMemory（add_project_rule 的普通规矩）', () => {
     expect(memory.id).toBe('mine')
     expect(mockCreate).not.toHaveBeenCalled()
   })
+
+  it('画布上记的归当前项目，回来的那条带项目名', async () => {
+    mockCreate.mockResolvedValue(
+      row({
+        id: 'rule-2',
+        kind: 'RULE',
+        scope: 'CANVAS',
+        projectId: 'proj-1',
+        project: { name: '马尔福' },
+      }),
+    )
+    const { memory } = await addAssistantRuleMemory('db_user_1', {
+      text: '这个项目一律 3D 游戏 CG',
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.canvas,
+      projectId: 'proj-1',
+    })
+    expect(mockFindMany.mock.calls[0][0].where).toMatchObject({
+      scope: 'CANVAS',
+      projectId: 'proj-1',
+    })
+    expect(mockCreate.mock.calls[0][0].data.projectId).toBe('proj-1')
+    expect(memory).toMatchObject({ projectId: 'proj-1', projectName: '马尔福' })
+  })
 })
 
 // ─── 改 / 删 / 清空 ─────────────────────────────────────────────
@@ -563,7 +694,11 @@ describe('updateAssistantMemory', () => {
     await updateAssistantMemory('db_user_1', 'mem-1', {
       scope: ASSISTANT_MEMORY_SCOPE_IDS.global,
     })
-    expect(mockUpdate.mock.calls[0][0].data).toEqual({ scope: 'GLOBAL' })
+    // 换了范围就不再只属于那个项目。
+    expect(mockUpdate.mock.calls[0][0].data).toEqual({
+      scope: 'GLOBAL',
+      projectId: null,
+    })
   })
 })
 

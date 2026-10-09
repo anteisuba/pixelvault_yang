@@ -860,6 +860,7 @@ async function* runV3Turn(
     request,
     persona,
     rules,
+    memories: prepared.assistantMemories,
     accountName: user.displayName ?? user.username ?? null,
   })
   const baseMessages: ModelMessage[] = [

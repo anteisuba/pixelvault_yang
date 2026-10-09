@@ -2,8 +2,10 @@ import 'server-only'
 
 import { ASSISTANT_DOMAIN_BRIEFS } from '@/constants/assistant-protocol'
 import type { AssistantOperatorRequest } from '@/types/assistant-operator'
+import type { AssistantMemory } from '@/types/assistant-memory'
 import type { AssistantPersona, ProjectRule } from '@/types/assistant-persona'
 import {
+  buildAssistantMemorySection,
   buildCanvasModelDialectSection,
   buildCreatorSection,
   buildPersonaStyleSection,
@@ -64,6 +66,8 @@ export function buildAssistantV3SystemPrompt(input: {
   request: AssistantOperatorRequest
   persona: AssistantPersona
   rules: readonly ProjectRule[]
+  /** 助手跨会话记住的那几行（结账记下的）—— 与旧内核同一段。 */
+  memories: readonly AssistantMemory[]
   accountName: string | null
 }): string {
   const { request, persona } = input
@@ -86,5 +90,5 @@ ${CANVAS_CRAFT}${buildCanvasModelDialectSection(request)}${buildPersonaStyleSect
     input.accountName,
     [],
     null,
-  )}${rulesSection(input.rules)}`
+  )}${rulesSection(input.rules)}${buildAssistantMemorySection(input.memories)}`
 }

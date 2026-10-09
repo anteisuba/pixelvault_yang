@@ -31,16 +31,18 @@
 
 一条 = **一行字**：`text` 就是进系统提示的那一行。助手记的在**每轮结账**（或 `add_project_rule` 的普通规矩）时写，你写的在 `/settings/assistant` 的记忆页写；两种都能在那里改 / 删。
 
-| 列                             | 说明                                                                                                         |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| `scope`                        | `AssistantMemoryScope`：IMAGE · TAGS · VIDEO · CANVAS · LORA · CARDS · GLOBAL                                |
-| `kind`                         | `AssistantMemoryKind`：PREFERENCE · FACT · RULE（只影响提示措辞）                                            |
-| `text`                         | `@db.Text`，收窄在 `ASSISTANT_MEMORY_LIMITS.maxTextChars`                                                    |
-| `conversationId` / `messageId` | 溯源，**库里存着但界面不画**；⛔ 无 FK（会话删了记忆还在）                                                   |
-| `lastUsedAt`                   | 被注入过就更新；**注入优先级与淘汰顺序都读它**                                                               |
-| `source`                       | `AssistantMemorySource`：ASSISTANT · CREATOR（记忆页「助手记的 / 你写的」，2026-09-26 加列，默认 ASSISTANT） |
+| 列                             | 说明                                                                                                           |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| `scope`                        | `AssistantMemoryScope`：IMAGE · TAGS · VIDEO · CANVAS · LORA · CARDS · GLOBAL                                  |
+| `kind`                         | `AssistantMemoryKind`：PREFERENCE · FACT · RULE（只影响提示措辞）                                              |
+| `text`                         | `@db.Text`，收窄在 `ASSISTANT_MEMORY_LIMITS.maxTextChars`                                                      |
+| `conversationId` / `messageId` | 溯源，**库里存着但界面不画**；⛔ 无 FK（会话删了记忆还在）                                                     |
+| `lastUsedAt`                   | 被注入过就更新；**注入优先级与淘汰顺序都读它**                                                                 |
+| `source`                       | `AssistantMemorySource`：ASSISTANT · CREATOR（记忆页「助手记的 / 你写的」，2026-09-26 加列，默认 ASSISTANT）   |
+| `projectId`                    | 可空，FK → `NodeWorkflowProject`（`onDelete: Cascade`）。只属于一个画布项目的那条；空 = 不归项目（2026-10-09） |
 
-- 三条索引：`(userId, scope, updatedAt desc)` 总览列表按域筛 · `(userId, updatedAt desc)` 总览「全部」· `(userId, scope, lastUsedAt desc)` 注入取前 N / 淘汰取最旧。
+- 四条索引：`(userId, scope, updatedAt desc)` 总览列表按域筛 · `(userId, updatedAt desc)` 总览「全部」· `(userId, scope, lastUsedAt desc)` 注入取前 N / 淘汰取最旧 · `(userId, projectId, lastUsedAt desc)` 画布按项目注入。
+- **一个项目一份记忆**（owner 2026-10-09）：画布上结账记下的（和 `add_project_rule` 记在画布范围的）一律带当前项目；画布注入 = 全局 + 不归项目的画布条（记忆页「所有画布」）+ 本项目，⛔ 别的项目一条都不带。项目号对不上这个用户时画布那条**不写**，⛔ 不退成所有画布。记忆页里换范围（含选「所有画布」）就清掉 `projectId`。迁移 `20261009150000_assistant_memory_project` 加列 + 把历史上助手在画布会话里记的那几条按会话的项目回填，2026-10-09 经 owner 授权已对共用库执行（回填 1 行）。
 - **每域上限 200（只数助手记的）**，超了按 `lastUsedAt` 最旧的静默删（服务端 `evictOldestAssistantMemories`）；**你写的**最多 50 条、⛔ 不淘汰，满了拒。
 - 旧「项目规则」的普通规则（`ProjectRule.kind = NOTE`）由 `20260926210000_rules_into_memory` 搬进这张表（原 id / 原时间，类别 RULE，来源照搬，`scope` 为空或不在词表里的进 GLOBAL，超 200 字截断），随下一次生产构建执行。之后 `ProjectRule` 只装来源白 / 黑名单（`SOURCE_ALLOW` / `SOURCE_DENY`）；`NOTE` 这一枚举值暂留、无读写方。
 - 删除即真删，⛔ 无软删。`onDelete: Cascade` 挂在 `User` 上。

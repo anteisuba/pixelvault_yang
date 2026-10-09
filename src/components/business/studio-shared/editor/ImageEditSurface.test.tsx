@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   AI_ADAPTER_TYPES,
@@ -44,7 +44,33 @@ vi.mock('./ImageAnnotationEditor', () => ({
 vi.mock(
   '@/components/business/studio-shared/pickers/ModelPickerPopover',
   () => ({
-    ModelPickerPopover: () => null,
+    // 换模型那颗胶囊在这里退成一个下拉：要验的是「换到哪个渠道就用哪把 key」。
+    ModelPickerPopover: ({
+      options,
+      value,
+      onChange,
+    }: {
+      options: { optionId: string; modelId: string }[]
+      value: string | null
+      onChange: (option: { optionId: string; modelId: string }) => void
+    }) => (
+      <select
+        aria-label="modelLabel"
+        value={options.find((option) => option.optionId === value)?.modelId}
+        onChange={(event) => {
+          const option = options.find(
+            (candidate) => candidate.modelId === event.target.value,
+          )
+          if (option) onChange(option)
+        }}
+      >
+        {options.map((option) => (
+          <option key={option.optionId} value={option.modelId}>
+            {option.modelId}
+          </option>
+        ))}
+      </select>
+    ),
   }),
 )
 
@@ -110,6 +136,18 @@ function configureOpenAI() {
   ).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Verify key' }))
 }
+
+// jsdom 没有 ResizeObserver：Radix 的开关（反向蒙版）挂载时要它。
+beforeAll(() => {
+  if (!('ResizeObserver' in globalThis)) {
+    class ResizeObserverStub {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+    vi.stubGlobal('ResizeObserver', ResizeObserverStub)
+  }
+})
 
 beforeEach(() => {
   vi.clearAllMocks()

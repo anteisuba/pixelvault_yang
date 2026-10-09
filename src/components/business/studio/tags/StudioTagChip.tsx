@@ -29,6 +29,8 @@ interface StudioTagChipProps {
   look?: 'bench' | 'plain'
   /** 刚加进来的这一格：落进来时放大一下、浅底褪掉（查资料 B 动效表）。 */
   landing?: boolean
+  /** 字前一颗小黑点：这一格正被下面那行提醒点名（人数提示里的 `1girl`）。 */
+  marked?: boolean
   disabled?: boolean
   onChange: (next: TagChip) => void
   onRemove: () => void
@@ -47,6 +49,7 @@ export function StudioTagChip({
   chip,
   look = 'bench',
   landing,
+  marked,
   disabled,
   onChange,
   onRemove,
@@ -61,12 +64,16 @@ export function StudioTagChip({
     <span
       className={cn(
         // `min-w-0`：否则最小宽度 = 整段字宽，压过 `max-w-full`，截断不生效。
-        'inline-flex min-w-0 max-w-full items-center gap-1 rounded-md pr-1 max-lg:h-auto max-lg:min-h-11 max-lg:text-sm',
+        'group/tag inline-flex min-w-0 max-w-full items-center gap-1 rounded-md pr-1 max-lg:h-auto max-lg:min-h-11 max-lg:text-sm',
         look === 'plain'
           ? 'h-5.5 bg-muted pl-1.75 font-mono text-xs'
-          : cn(
-              'h-6 border bg-background pl-2 text-2xs',
-              weighted ? 'border-foreground/40' : 'border-border',
+          : // 标签台 A（owner 2026-10-09）：平时灰底无边；调过权重的那格换成白底描边，
+            // 一眼看出「这格动过」。
+            cn(
+              'h-7 border pl-2.5 text-2xs transition-colors duration-fast ease-standard',
+              weighted
+                ? 'border-foreground/40 bg-background'
+                : 'border-transparent bg-muted',
             ),
         landing && 'animate-tag-land motion-reduce:animate-none',
       )}
@@ -79,6 +86,12 @@ export function StudioTagChip({
             title={t('weightLabel')}
             className="inline-flex min-w-0 items-center gap-1 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none max-lg:min-h-11 max-lg:min-w-11"
           >
+            {marked ? (
+              <span
+                aria-hidden
+                className="size-1.5 shrink-0 rounded-full bg-foreground"
+              />
+            ) : null}
             {/* 一整句带过来的那一格会很长 —— 截在栏宽里，全文放在 title 上。 */}
             <span className="truncate" title={chip.text}>
               {chip.text}
@@ -148,7 +161,10 @@ export function StudioTagChip({
         onClick={onRemove}
         className={cn(
           'grid size-11 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none lg:size-4',
-          look === 'plain' ? 'hover:bg-background' : 'hover:bg-muted',
+          look === 'plain'
+            ? 'hover:bg-background'
+            : // 桌面上 × 平时不占眼：悬停 / 键盘落到这一格才出来（触屏照旧常在）。
+              'hover:bg-background lg:opacity-0 lg:transition-opacity lg:group-focus-within/tag:opacity-100 lg:group-hover/tag:opacity-100',
         )}
       >
         <X className="size-3.5 lg:size-2.5" />

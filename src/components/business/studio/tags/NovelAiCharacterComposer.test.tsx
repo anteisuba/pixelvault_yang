@@ -25,14 +25,12 @@ function layoutOf(
 function setup(
   mode: 'free' | 'grid',
   value: NovelAiCharacterLayout | undefined,
-  maxCharacters = mode === 'free' ? 22 : 6,
 ) {
   const onChange = vi.fn()
   const onSelect = vi.fn()
   render(
     <NovelAiCharacterComposer
       mode={mode}
-      maxCharacters={maxCharacters}
       value={value}
       activeIndex={0}
       onChange={onChange}
@@ -69,48 +67,19 @@ describe('角色构图两形态', () => {
     expect(next.characters[0].position.y).toBeCloseTo(0.3)
   })
 
-  it('两档的说明行各报各的上限', () => {
-    const { unmount } = render(
-      <NovelAiCharacterComposer
-        mode="free"
-        maxCharacters={22}
-        value={undefined}
-        activeIndex={null}
-        onChange={vi.fn()}
-        onSelect={vi.fn()}
-      />,
-    )
-    expect(screen.getByText('characterModeFree:22')).toBeInTheDocument()
-    unmount()
-
-    setup('grid', undefined)
-    expect(screen.getByText('characterModeGrid:6')).toBeInTheDocument()
-  })
-
-  it('到上限就加不动人了', () => {
-    setup(
-      'grid',
-      layoutOf(...Array.from({ length: 6 }, () => ({ x: 0.5, y: 0.5 }))),
-    )
-    expect(screen.getByRole('button', { name: /addCharacter/ })).toBeDisabled()
-  })
-
-  // 删掉最后一个人 = 整个 layout 消失（⛔ 不留一个空数组，schema 要求 ≥1）。
-  it('删光角色时把 layout 整个清掉', () => {
-    const { onChange, onSelect } = setup('free', layoutOf({ x: 0.5, y: 0.5 }))
-    fireEvent.click(screen.getByRole('button', { name: 'removeCharacter:1' }))
-    expect(onChange).toHaveBeenCalledWith(undefined)
-    expect(onSelect).toHaveBeenCalledWith(null)
-  })
-
-  it('点角色药丸把编辑器切到那个人', () => {
+  // 加人 / 删人只在输入框那排页签上（标签台 A）；板上点圆点 = 切到那个人。
+  it('板上不再有加人 / 删人，点圆点把输入框切到那个人', () => {
     const { onSelect } = setup(
       'free',
       layoutOf({ x: 0.2, y: 0.5 }, { x: 0.8, y: 0.5 }),
     )
-    fireEvent.click(
-      screen.getByRole('button', { name: 'characterChip:2,char 2' }),
+    expect(screen.queryByRole('button', { name: /addCharacter/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /removeCharacter/ })).toBeNull()
+    fireEvent.pointerDown(
+      screen.getByRole('button', { name: 'characterDot:2' }),
     )
     expect(onSelect).toHaveBeenCalledWith(1)
+    // 名字跟着圆点（第一格标签）。
+    expect(screen.getByText('char 2')).toBeInTheDocument()
   })
 })

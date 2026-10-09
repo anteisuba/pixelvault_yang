@@ -90,7 +90,9 @@ export function StudioTagsStage({
           }
         }}
       >
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        {/* 标签台 A（owner 2026-10-09）：标题 · 自动定位开关排一行，右边返回结果；
+            板下面 ⛔ 不再有角色药丸 / 加人（加人只在输入框页签的 ＋）。 */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           {/* ⚠ `outline-none`：打开面板时焦点被程序挪到这里（给读屏一个落点），
             浏览器自带的焦点框会把标题框起来（owner 2026-09-26 截图）。 */}
           <h2
@@ -100,18 +102,9 @@ export function StudioTagsStage({
           >
             {t(key)}
           </h2>
-          <Button
-            variant="outline"
-            size="sm"
-            className="min-h-11 lg:min-h-0"
-            onClick={close}
-          >
-            {t('backToResults')}
-          </Button>
-        </div>
-        {c.mode ? (
-          <>
-            <label className="flex items-center gap-2 text-sm">
+          {c.mode ? (
+            <label className="flex items-center gap-2 text-2xs text-muted-foreground">
+              {t('auto')}
               <Switch
                 checked={c.layout?.positioning !== 'manual'}
                 disabled={isGenerating || !c.layout}
@@ -123,13 +116,23 @@ export function StudioTagsStage({
                     })
                 }}
               />
-              {t('auto')}
             </label>
+          ) : null}
+          <Button
+            variant="outline"
+            size="sm"
+            className="ml-auto min-h-11 lg:min-h-0"
+            onClick={close}
+          >
+            {t('backToResults')}
+          </Button>
+        </div>
+        {c.mode ? (
+          <>
             {/* 构图格是正方形 —— 按舞台宽度铺开会比屏幕还高，收成一块居中的方格。 */}
             <div className="mx-auto w-full max-w-md">
               <NovelAiCharacterComposer
                 mode={c.mode}
-                maxCharacters={c.max}
                 value={c.layout}
                 activeIndex={c.activeIndex}
                 disabled={isGenerating}

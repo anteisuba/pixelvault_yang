@@ -195,21 +195,24 @@ describe('标签台底部输入框 · 编辑谁', () => {
   it('分页与角色构图面板共用同一个「正在编辑谁」', () => {
     const { unmount } = render(<StudioTagsComposer onOpenPanel={vi.fn()} />)
     fireEvent.click(
-      screen.getByRole('tab', { name: 'workbench.characterNumber:1' }),
+      screen.getByRole('tab', { name: /^workbench\.characterNumber:1/ }),
     )
     expect(mocks.select).toHaveBeenCalledWith(0)
     unmount()
 
     mocks.activeIndex = 0
     render(<StudioTagsComposer onOpenPanel={vi.fn()} />)
-    fireEvent.click(screen.getByRole('tab', { name: 'wholeTab' }))
+    fireEvent.click(screen.getByRole('tab', { name: /^wholeTab/ }))
     expect(mocks.select).toHaveBeenLastCalledWith(null)
   })
 
-  it('模型不支持角色构图时没有分页那一行', () => {
+  it('模型不支持角色构图时页签只剩「整体 · 负向」', () => {
     mocks.mode = null
     render(<StudioTagsComposer onOpenPanel={vi.fn()} />)
-    expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
+    expect(screen.getAllByRole('tab')).toHaveLength(2)
+    expect(
+      screen.queryByRole('button', { name: 'addCharacter' }),
+    ).not.toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: /workbench\.composition/ }),
     ).not.toBeInTheDocument()
@@ -318,7 +321,7 @@ describe('标签台底部输入框 · 编辑谁', () => {
       { prompt: 'girl', negativePrompt: '' },
     ]
     render(<StudioTagsComposer onOpenPanel={vi.fn()} />)
-    fireEvent.click(screen.getByRole('button', { name: 'addSceneText' }))
+    fireEvent.click(screen.getByRole('button', { name: 'sceneText' }))
     expect(mocks.dispatch).toHaveBeenCalledWith({
       type: 'SET_ADVANCED_PARAMS',
       payload: { novelAiSceneTexts: [{ kind: 'sign', text: '' }] },
@@ -333,5 +336,66 @@ describe('标签台底部输入框 · 编辑谁', () => {
         chips: [{ text: '2girls', weight: 1 }],
       },
     })
+  })
+
+  // 标签台 A：负向是最右边那一格；进去后「写给」切整体 / 每位角色各自的负向。
+  it('负向页签：同一个框换成负向，写给谁由下面那一行切', () => {
+    mocks.negative = [{ text: 'lowres', weight: 1 }]
+    mocks.characters = [
+      { prompt: 'girl', negativePrompt: 'bad hands' },
+      { prompt: 'boy', negativePrompt: '' },
+    ]
+    render(<StudioTagsComposer onOpenPanel={vi.fn()} />)
+    // 负向的数 = 整体 + 每位角色。
+    const negativeTab = screen.getByRole('tab', { name: /^tabs\.negative/ })
+    expect(negativeTab).toHaveTextContent('2')
+    fireEvent.click(negativeTab)
+    const field = screen.getByRole('button', { name: 'tabs.negative' })
+    expect(field).toHaveAttribute('data-chips', 'lowres')
+    fireEvent.click(field)
+    expect(mocks.dispatch).toHaveBeenCalledWith({
+      type: 'SET_TAG_CHIPS',
+      payload: {
+        polarity: 'negative',
+        chips: [
+          { text: 'lowres', weight: 1 },
+          { text: 'rain', weight: 1 },
+        ],
+      },
+    })
+    expect(screen.getByText('tabs.writeFor')).toBeInTheDocument()
+  })
+
+  it('负向页签上写给角色 1：改的是那一位的负向', () => {
+    mocks.activeIndex = 0
+    mocks.characters = [{ prompt: 'girl', negativePrompt: 'bad hands' }]
+    render(<StudioTagsComposer onOpenPanel={vi.fn()} />)
+    fireEvent.click(screen.getByRole('tab', { name: /^tabs\.negative/ }))
+    const field = screen.getByRole('button', {
+      name: 'tabs.negative · workbench.characterNumber:1',
+    })
+    expect(field).toHaveAttribute('data-chips', 'bad hands')
+    fireEvent.click(field)
+    expect(mocks.update).toHaveBeenCalledWith(0, {
+      negativePrompt: 'bad hands, rain',
+    })
+  })
+
+  it('加人只有页签那颗 ＋', () => {
+    render(<StudioTagsComposer onOpenPanel={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'addCharacter' }))
+    expect(mocks.add).toHaveBeenCalledTimes(1)
+  })
+
+  it('当前角色页签带 ⋯，其他页签没有', () => {
+    mocks.activeIndex = 0
+    mocks.characters = [
+      { prompt: 'girl', negativePrompt: '' },
+      { prompt: 'boy', negativePrompt: '' },
+    ]
+    render(<StudioTagsComposer onOpenPanel={vi.fn()} />)
+    expect(screen.getAllByRole('button', { name: /^tabs\.more/ })).toHaveLength(
+      1,
+    )
   })
 })

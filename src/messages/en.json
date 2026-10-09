@@ -6913,6 +6913,17 @@
         "cover": "Cover",
         "other": "Other"
       }
+    },
+    "tabs": {
+      "negative": "Negative",
+      "more": "More for {who}",
+      "appear": "Include this time",
+      "removeConfirm": "Click again to delete",
+      "wholePlaceholder": "Tags for the whole image, comma-separated…",
+      "characterPlaceholder": "Tags for character {number}…",
+      "negativePlaceholder": "What you don't want, e.g. lowres, bad hands…",
+      "writeFor": "For",
+      "count": "{count}"
     }
   },
   "StudioPanels": {

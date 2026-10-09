@@ -23,7 +23,11 @@ interface ImageAttachmentPreviewStripProps {
   onRemove: (index: number) => void
   overLimitTooltip?: string
   unsupportedTooltip?: string
-  variant?: 'composer' | 'panel'
+  /**
+   * `tabs` = 标签台 A：小缩略图排在页签那一行的最前面（owner 2026-10-09 原型），
+   * 只有页签那么高。
+   */
+  variant?: 'composer' | 'panel' | 'tabs'
   /**
    * Opt-in Pragmatic DnD drag source. When set, each thumbnail can be
    * dragged out with payload `{ type: dragType, url }` — used by the studio
@@ -118,7 +122,9 @@ export function ImageAttachmentPreviewStrip({
           'flex gap-2 overflow-x-auto overscroll-contain',
           variant === 'composer'
             ? 'px-2 pb-1 pt-2'
-            : 'rounded-xl border border-border/55 bg-background/45 p-2',
+            : variant === 'tabs'
+              ? 'shrink-0 gap-1'
+              : 'rounded-xl border border-border/55 bg-background/45 p-2',
           className,
         )}
       >
@@ -142,6 +148,7 @@ export function ImageAttachmentPreviewStrip({
               className={cn(
                 'group relative flex size-16 shrink-0 overflow-hidden rounded-xl border border-border/65 bg-muted/35 shadow-sm',
                 variant === 'composer' && 'size-14 rounded-lg',
+                variant === 'tabs' && 'size-7 rounded-md shadow-none',
                 isDisabled && 'opacity-55',
               )}
             >
@@ -191,7 +198,8 @@ export function ImageAttachmentPreviewStrip({
                 aria-label={removeLabel(index + 1)}
                 className={cn(
                   'absolute right-1 top-1 z-10 flex size-5 items-center justify-center rounded-full opacity-0 shadow-sm transition-opacity group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
-                  variant === 'composer'
+                  variant === 'tabs' && 'right-0 top-0 size-3.5',
+                  variant === 'composer' || variant === 'tabs'
                     ? 'border border-black/10 bg-white/90 text-neutral-800 hover:bg-white'
                     : 'bg-background/92 text-foreground hover:bg-background',
                 )}

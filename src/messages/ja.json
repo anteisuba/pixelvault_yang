@@ -6913,6 +6913,17 @@
         "cover": "表紙",
         "other": "その他"
       }
+    },
+    "tabs": {
+      "negative": "ネガティブ",
+      "more": "{who} のその他",
+      "appear": "今回は出す",
+      "removeConfirm": "もう一度押すと削除",
+      "wholePlaceholder": "画像全体のタグ（カンマ区切り）…",
+      "characterPlaceholder": "キャラ {number} のタグ…",
+      "negativePlaceholder": "入れたくないもの（例：lowres、bad hands）…",
+      "writeFor": "対象",
+      "count": "{count} 件"
     }
   },
   "StudioPanels": {

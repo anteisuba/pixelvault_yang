@@ -3,14 +3,12 @@
 import { useRef, type PointerEvent } from 'react'
 import { useTranslations } from 'next-intl'
 
-import { Plus, X } from '@/components/icons'
 import {
   NOVELAI_CHARACTER_GRID_SIZE,
   novelAiGridCellCenter,
   snapToNovelAiGrid,
   type NovelAiCharacterLayoutMode,
 } from '@/constants/novelai'
-import { removeNovelAiCharacter } from '@/lib/novelai-cast'
 import { cn } from '@/lib/utils'
 import type { NovelAiCharacterLayout } from '@/types/novelai'
 
@@ -18,7 +16,6 @@ type Character = NovelAiCharacterLayout['characters'][number]
 
 interface NovelAiCharacterComposerProps {
   mode: NovelAiCharacterLayoutMode
-  maxCharacters: number
   value: NovelAiCharacterLayout | undefined
   activeIndex: number | null
   disabled?: boolean
@@ -32,11 +29,11 @@ interface NovelAiCharacterComposerProps {
  * ⛔ 不给用户选形态：V5 是自由定位（拖圆点，≤22 人），V4.5 是 5×5 网格
  * （≤6 人），按模型能力切。⛔ 不做两个组件 —— 换的只是「点落在哪儿」这一件事。
  *
- * 每个角色有自己的正负标签；点它的药丸就把编辑器主区切过去（`onSelect`）。
+ * 每个角色有自己的正负标签；点它的圆点就把输入框切到那一页（`onSelect`）。
+ * 加人 / 删人 / 停用 ⛔ 不在这里：只在输入框那排页签上（标签台 A，owner 2026-10-09）。
  */
 export function NovelAiCharacterComposer({
   mode,
-  maxCharacters,
   value,
   activeIndex,
   disabled,
@@ -85,25 +82,12 @@ export function NovelAiCharacterComposer({
     }
   }
 
-  const add = () => {
-    if (characters.length >= maxCharacters) return
-    const slot = characters.length
-    // 新人均匀摊在横轴上 —— 全堆在正中间会叠成一个点，谁也拖不出来。
-    const x = (slot + 1) / (Math.min(maxCharacters, slot + 2) + 1)
-    const position =
-      mode === 'grid'
-        ? { x: snapToNovelAiGrid(x), y: novelAiGridCellCenter(2) }
-        : { x, y: 0.5 }
-    write([...characters, { prompt: '', negativePrompt: '', position }])
-    onSelect(slot)
-  }
-
   return (
     <div className="flex flex-col gap-2">
       <div
         ref={stageRef}
         className={cn(
-          'relative aspect-square w-full max-w-full overflow-hidden rounded-lg border border-dashed border-border bg-muted lg:aspect-16/10',
+          'relative aspect-square w-full max-w-full overflow-hidden rounded-xl border border-border bg-background lg:aspect-16/10',
           disabled && 'pointer-events-none opacity-50',
         )}
       >
@@ -192,74 +176,18 @@ export function NovelAiCharacterComposer({
               mode === 'free' &&
                 'cursor-grab touch-none active:cursor-grabbing',
               activeIndex === index
-                ? 'border-foreground shadow-sm'
+                ? 'border-foreground bg-foreground text-background'
                 : 'border-border text-muted-foreground',
             )}
           >
             {index + 1}
+            {/* 名字跟着圆点走（取这位的第一格标签）：板上就认得出谁是谁。 */}
+            <span className="pointer-events-none absolute top-full left-1/2 mt-1 max-w-28 -translate-x-1/2 truncate font-sans text-3xs text-muted-foreground lg:top-1/2 lg:left-full lg:mt-0 lg:ml-2 lg:translate-x-0 lg:-translate-y-1/2">
+              {character.prompt.split(',')[0]?.trim() || t('unnamed')}
+            </span>
           </button>
         ))}
       </div>
-
-      {/* 角色药丸 —— 点它把编辑器主区切到那个人的正负标签。 */}
-      <div className="flex flex-wrap gap-1">
-        {characters.map((character, index) => (
-          <span
-            key={index}
-            className={cn(
-              'inline-flex min-h-11 max-w-full items-center gap-1 rounded-md border bg-background pl-2 pr-1 text-sm lg:h-6 lg:min-h-0 lg:text-3xs',
-              activeIndex === index ? 'border-foreground' : 'border-border',
-            )}
-          >
-            <button
-              type="button"
-              disabled={disabled}
-              aria-pressed={activeIndex === index}
-              onClick={() => onSelect(activeIndex === index ? null : index)}
-              className="min-h-11 min-w-0 truncate rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none lg:min-h-0"
-            >
-              {t('characterChip', {
-                number: index + 1,
-                name: character.prompt.split(',')[0]?.trim() || t('unnamed'),
-              })}
-            </button>
-            <button
-              type="button"
-              disabled={disabled}
-              aria-label={t('removeCharacter', { number: index + 1 })}
-              onClick={() => {
-                write(removeNovelAiCharacter(characters, index))
-                if (activeIndex !== null)
-                  onSelect(
-                    activeIndex === index
-                      ? null
-                      : activeIndex > index
-                        ? activeIndex - 1
-                        : activeIndex,
-                  )
-              }}
-              className="grid size-11 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground disabled:pointer-events-none lg:size-4"
-            >
-              <X className="size-3.5 lg:size-2.5" />
-            </button>
-          </span>
-        ))}
-        <button
-          type="button"
-          disabled={disabled || characters.length >= maxCharacters}
-          onClick={add}
-          className="inline-flex h-11 items-center gap-1 rounded-md border border-dashed border-border bg-background px-2 text-sm text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent disabled:pointer-events-none disabled:opacity-50 lg:h-6 lg:text-3xs"
-        >
-          <Plus className="size-2.5" />
-          {t('addCharacter')}
-        </button>
-      </div>
-
-      <span className="font-mono text-3xs tabular-nums text-muted-foreground">
-        {t(mode === 'free' ? 'characterModeFree' : 'characterModeGrid', {
-          max: maxCharacters,
-        })}
-      </span>
     </div>
   )
 }

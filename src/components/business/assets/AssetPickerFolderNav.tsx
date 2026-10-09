@@ -13,7 +13,9 @@ import { useTranslations } from 'next-intl'
 
 import {
   filterFolders,
+  folderIndentPx,
   getChildFolders,
+  getFolderAncestorIds,
   getFolderPath,
   getRootFolders,
 } from '@/lib/folder-tree'
@@ -79,6 +81,16 @@ export function AssetPickerFolderNav({
 
   const isActiveProject = (id: string) =>
     scope.kind === 'project' && scope.id === id
+  // 选中的是深层夹时，一路往上的祖先都展开（否则高亮那一行藏在收起的父夹里）。
+  const activeAncestorIds = useMemo(
+    () =>
+      new Set(
+        scope.kind === 'project'
+          ? getFolderAncestorIds(projects, scope.id)
+          : [],
+      ),
+    [projects, scope],
+  )
 
   const pathOf = (project: ProjectRecord) =>
     getFolderPath(projects, project.id)
@@ -89,7 +101,8 @@ export function AssetPickerFolderNav({
   const renderTree = (nodes: ProjectRecord[], depth: number): React.ReactNode =>
     nodes.map((project) => {
       const children = getChildFolders(projects, project.id)
-      const expanded = expandedIds.has(project.id)
+      const expanded =
+        expandedIds.has(project.id) || activeAncestorIds.has(project.id)
       return (
         <div key={project.id}>
           <NavRow
@@ -260,7 +273,7 @@ function NavRow({
         'relative flex h-11 md:h-7 items-center rounded-md pr-1.5 transition-colors',
         active ? 'bg-muted/60' : 'hover:bg-muted/40',
       )}
-      style={{ paddingLeft: 6 + depth * 10 }}
+      style={{ paddingLeft: folderIndentPx('picker', depth) }}
     >
       {/* 当前范围高亮 = 左侧 2px 竖条（与主页夹树同一语言）。 */}
       {active && (

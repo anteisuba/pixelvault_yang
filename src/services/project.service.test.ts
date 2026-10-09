@@ -19,6 +19,7 @@ const mockItemDeleteMany = vi.fn()
 const mockGenFindMany = vi.fn()
 const mockGenCount = vi.fn()
 const mockExecuteRaw = vi.fn()
+const mockQueryRaw = vi.fn()
 
 const fakeDb = {
   project: {
@@ -40,6 +41,7 @@ const fakeDb = {
     count: (...a: unknown[]) => mockGenCount(...a),
   },
   $executeRaw: (...a: unknown[]) => mockExecuteRaw(...a),
+  $queryRaw: (...a: unknown[]) => mockQueryRaw(...a),
   $transaction: (fn: (tx: unknown) => Promise<unknown>) => fn(fakeDb),
 }
 
@@ -174,6 +176,37 @@ describe('listProjects', () => {
       'https://example.com/k.png',
     )
   })
+
+  it('borrows from deeper descendants too, nearest level first', async () => {
+    mockProjectFindMany.mockResolvedValue([
+      projectRow({ id: 'root' }),
+      projectRow({ id: 'mid', parentId: 'root' }),
+      projectRow({ id: 'mid2', parentId: 'root' }),
+      projectRow({
+        id: 'deep',
+        parentId: 'mid',
+        items: [coverItem('https://example.com/deep.png', 'IMAGE')],
+      }),
+      projectRow({
+        id: 'near',
+        parentId: 'mid2',
+        items: [coverItem('https://example.com/near.png', 'IMAGE')],
+      }),
+      projectRow({
+        id: 'deepest',
+        parentId: 'deep',
+        items: [coverItem('https://example.com/deepest.png', 'IMAGE')],
+      }),
+    ])
+
+    const records = await listProjects('clerk_1')
+    const cover = (id: string) => records.find((r) => r.id === id)?.coverUrl
+
+    // 第二层的 deep 在手动顺序上先于 near；更深的 deepest 排在它们之后
+    expect(cover('root')).toBe('https://example.com/deep.png')
+    expect(cover('mid')).toBe('https://example.com/deep.png')
+    expect(cover('mid2')).toBe('https://example.com/near.png')
+  })
 })
 
 describe('createProject', () => {
@@ -204,12 +237,12 @@ describe('createProject', () => {
     )
   })
 
-  it('creates a subfolder under a top-level folder of the user', async () => {
-    mockProjectFindFirst.mockResolvedValue({ id: 'parent_1', parentId: null })
+  it('creates a subfolder under a folder of the user', async () => {
+    mockProjectFindMany.mockResolvedValue([{ id: 'parent_1', parentId: null }])
     await createProject('clerk_1', { name: 'Child', parentId: 'parent_1' })
 
-    expect(mockProjectFindFirst).toHaveBeenCalledWith({
-      where: { id: 'parent_1', userId: FAKE_USER.id, isDeleted: false },
+    expect(mockProjectFindMany).toHaveBeenCalledWith({
+      where: { userId: FAKE_USER.id, isDeleted: false },
       select: { id: true, parentId: true },
     })
     expect(mockProjectCreate).toHaveBeenCalledWith(
@@ -219,11 +252,26 @@ describe('createProject', () => {
     )
   })
 
-  it('refuses a third level', async () => {
-    mockProjectFindFirst.mockResolvedValue({ id: 'kid', parentId: 'root' })
+  it('nests at any depth (a fourth level is fine)', async () => {
+    mockProjectFindMany.mockResolvedValue([
+      { id: 'root', parentId: null },
+      { id: 'kid', parentId: 'root' },
+      { id: 'grandkid', parentId: 'kid' },
+    ])
+    await createProject('clerk_1', { name: 'Deep', parentId: 'grandkid' })
+
+    expect(mockProjectCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ parentId: 'grandkid' }),
+      }),
+    )
+  })
+
+  it('refuses a parent that is not one of their live folders', async () => {
+    mockProjectFindMany.mockResolvedValue([{ id: 'root', parentId: null }])
     await expect(
-      createProject('clerk_1', { name: 'Grandchild', parentId: 'kid' }),
-    ).rejects.toThrow('two levels')
+      createProject('clerk_1', { name: 'X', parentId: 'theirs' }),
+    ).rejects.toThrow('Parent folder not found')
     expect(mockProjectCreate).not.toHaveBeenCalled()
   })
 
@@ -247,10 +295,15 @@ describe('updateProject', () => {
   })
 
   it('moves a folder under another one and puts it first there', async () => {
-    mockProjectFindFirst
-      .mockResolvedValueOnce({ parentId: null, pinnedOrder: null })
-      .mockResolvedValueOnce({ id: 'parent_1', parentId: null })
-    mockProjectCount.mockResolvedValue(0)
+    mockProjectFindFirst.mockResolvedValueOnce({
+      parentId: null,
+      pinnedOrder: null,
+    })
+    mockProjectFindMany.mockResolvedValue([
+      { id: 'proj_1', parentId: null },
+      { id: 'kid', parentId: 'proj_1' },
+      { id: 'parent_1', parentId: null },
+    ])
     mockProjectAggregate.mockResolvedValue({ _min: { sortOrder: 0 } })
 
     await updateProject('clerk_1', 'proj_1', { parentId: 'parent_1' })
@@ -262,15 +315,43 @@ describe('updateProject', () => {
     )
   })
 
-  it('keeps a folder that has subfolders at the top level', async () => {
-    mockProjectFindFirst
-      .mockResolvedValueOnce({ parentId: null, pinnedOrder: null })
-      .mockResolvedValueOnce({ id: 'parent_1', parentId: null })
-    mockProjectCount.mockResolvedValue(2)
+  it('moves a folder with subfolders under a deep folder', async () => {
+    mockProjectFindFirst.mockResolvedValueOnce({
+      parentId: null,
+      pinnedOrder: null,
+    })
+    mockProjectFindMany.mockResolvedValue([
+      { id: 'proj_1', parentId: null },
+      { id: 'kid', parentId: 'proj_1' },
+      { id: 'a', parentId: null },
+      { id: 'b', parentId: 'a' },
+      { id: 'c', parentId: 'b' },
+    ])
+    mockProjectAggregate.mockResolvedValue({ _min: { sortOrder: null } })
+
+    await updateProject('clerk_1', 'proj_1', { parentId: 'c' })
+
+    expect(mockProjectUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ parentId: 'c', sortOrder: 0 }),
+      }),
+    )
+  })
+
+  it('rejects moving a folder under one of its own descendants', async () => {
+    mockProjectFindFirst.mockResolvedValueOnce({
+      parentId: null,
+      pinnedOrder: null,
+    })
+    mockProjectFindMany.mockResolvedValue([
+      { id: 'proj_1', parentId: null },
+      { id: 'kid', parentId: 'proj_1' },
+      { id: 'grandkid', parentId: 'kid' },
+    ])
 
     await expect(
-      updateProject('clerk_1', 'proj_1', { parentId: 'parent_1' }),
-    ).rejects.toThrow('top level')
+      updateProject('clerk_1', 'proj_1', { parentId: 'grandkid' }),
+    ).rejects.toThrow('its own subfolder')
     expect(mockProjectUpdate).not.toHaveBeenCalled()
   })
 
@@ -383,6 +464,29 @@ describe('deleteProject', () => {
       'last',
     ])
   })
+
+  it('moves the subfolders of a nested folder up one level, into its parent', async () => {
+    mockProjectFindFirst.mockResolvedValue({ id: 'mid', parentId: 'root' })
+    mockProjectFindMany
+      .mockResolvedValueOnce([{ id: 'kid_1' }])
+      .mockResolvedValueOnce([{ id: 'mid' }, { id: 'sibling' }])
+
+    expect(await deleteProject('clerk_1', 'mid')).toBe(true)
+
+    expect(mockProjectFindMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: { parentId: 'root', userId: FAKE_USER.id, isDeleted: false },
+      }),
+    )
+    expect(mockProjectUpdateMany).toHaveBeenCalledWith({
+      where: { parentId: 'mid', userId: FAKE_USER.id, isDeleted: false },
+      data: { parentId: 'root' },
+    })
+    expect(writtenOrder(mockExecuteRaw.mock.calls[0])).toEqual([
+      'kid_1',
+      'sibling',
+    ])
+  })
 })
 
 describe('updateFolderItems', () => {
@@ -465,9 +569,14 @@ describe('getProjectHistory', () => {
     )
   })
 
-  it('counts a folder together with its subfolders', async () => {
+  it('counts a folder together with all its descendant folders', async () => {
     mockGenFindMany.mockResolvedValue([FAKE_GENERATION_ROW])
     mockGenCount.mockResolvedValue(8)
+    mockQueryRaw.mockResolvedValue([
+      { id: 'proj_1' },
+      { id: 'kid' },
+      { id: 'grandkid' },
+    ])
 
     const result = await getProjectHistory('clerk_1', 'proj_1', undefined, 20)
 
@@ -479,7 +588,7 @@ describe('getProjectHistory', () => {
           some: {
             project: {
               isDeleted: false,
-              OR: [{ id: 'proj_1' }, { parentId: 'proj_1' }],
+              id: { in: ['proj_1', 'kid', 'grandkid'] },
             },
           },
         },

@@ -605,7 +605,7 @@ describe('create_folder', () => {
     ).toBe(false)
   })
 
-  it('父夹自己是子夹（会出第三层）→ 建在最外层', async () => {
+  it('层数不限：父夹自己是子夹也照样挂进去（第三层、第四层）', async () => {
     const kid = await createAssetFolder(USER, {
       name: '子夹',
       parentId: 'folder-old',
@@ -616,7 +616,13 @@ describe('create_folder', () => {
       name: '孙夹',
       parentId: kid.folderId,
     })
-    expect(grandchild.parentId).toBeNull()
+    expect(grandchild.parentId).toBe(kid.folderId)
+
+    const greatGrandchild = await createAssetFolder(USER, {
+      name: '曾孙夹',
+      parentId: grandchild.folderId,
+    })
+    expect(greatGrandchild.parentId).toBe(grandchild.folderId)
   })
 
   it('别人的父夹当作没给，⛔ 不整条失败', async () => {

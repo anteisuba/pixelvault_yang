@@ -130,20 +130,26 @@ export function useAssetFolders(): UseAssetFoldersReturn {
 
   const remove = useCallback(
     async (id: string) => {
-      // 子夹移到最外层，接在父夹原来的位置上（与服务端同一条规矩）。
+      // 直接子夹往上挪一层（挂到它的父夹下），接在它原来的位置上；更深的子孙
+      // 跟着各自的父夹走（与服务端同一条规矩）。
       setFolders((prev) => {
+        const removed = prev.find((folder) => folder.id === id)
         const children = getChildFolders(prev, id)
         const rest = prev.filter((folder) => folder.id !== id)
-        if (children.length === 0) return rest
-        const rootOrder = getRootFolders(prev).flatMap((root) =>
-          root.id === id ? children.map((child) => child.id) : [root.id],
+        if (!removed || children.length === 0) return rest
+        const parentId = removed.parentId
+        const siblings = parentId
+          ? getChildFolders(prev, parentId)
+          : getRootFolders(prev)
+        const levelOrder = siblings.flatMap((sibling) =>
+          sibling.id === id ? children.map((child) => child.id) : [sibling.id],
         )
         const rank = new Map(
-          rootOrder.map((folderId, index) => [folderId, index]),
+          levelOrder.map((folderId, index) => [folderId, index]),
         )
         return rest.map((folder) =>
           rank.has(folder.id)
-            ? { ...folder, parentId: null, sortOrder: rank.get(folder.id) ?? 0 }
+            ? { ...folder, parentId, sortOrder: rank.get(folder.id) ?? 0 }
             : folder,
         )
       })

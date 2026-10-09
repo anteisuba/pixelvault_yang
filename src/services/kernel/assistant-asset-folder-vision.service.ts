@@ -291,7 +291,7 @@ export async function inspectAssistantAssetFolder({
   const images: FolderImageRow[] = await db.generation.findMany({
     where: {
       userId,
-      ...folderScopeWhere(folderId),
+      ...(await folderScopeWhere(userId, folderId)),
       outputType: 'IMAGE',
       status: 'COMPLETED',
     },

@@ -34,7 +34,9 @@ import { DURATION, EASE_STANDARD, LIQUID_SPRING } from '@/constants/motion'
 import { PROJECT } from '@/constants/config'
 import {
   filterFolders,
+  folderIndentPx,
   getChildFolders,
+  getFolderAncestorIds,
   getFolderPath,
   getPinnedFolders,
   getRootFolders,
@@ -134,7 +136,8 @@ function collapseMotion(reducedMotion: boolean | null): CollapseMotion {
 /**
  * 素材页左边那一列文件夹（画板 `AfB` 系列，owner 09-28 选 B）。
  *
- * 全部素材 / 未归档 → 置顶 → 整棵树（两层）。点一行 = 大河只剩这个夹（连子夹）；
+ * 全部素材 / 未归档 → 置顶 → 整棵树（层数不限，每层 ▸ 展开）。点一行 = 大河只剩
+ * 这个夹（连所有层子孙夹）；
  * 把选中的图拖到一行上 = 也放进那个夹（⛔ 不是挪）；按住一行拖 = 同一层里排顺序；
  * 行尾 ⋯ = 改名 / 置顶 / 新建子文件夹 / 移到… / 删除；新建和改名就在行里打字。
  */
@@ -175,11 +178,20 @@ export function AssetFolderSidebar({
   )
 
   const activeId = scope.kind === 'folder' ? scope.id : null
-  const activeParentId =
-    folders.find((folder) => folder.id === activeId)?.parentId ?? null
   const creatingUnder = edit?.kind === 'create' ? edit.parentId : undefined
+  // 选中的夹、正在它下面新建的夹：一路往上的祖先都得展开，否则那一行藏在收起的父夹里。
+  const forcedOpenIds = useMemo(
+    () =>
+      new Set([
+        ...(activeId ? getFolderAncestorIds(folders, activeId) : []),
+        ...(creatingUnder
+          ? [creatingUnder, ...getFolderAncestorIds(folders, creatingUnder)]
+          : []),
+      ]),
+    [folders, activeId, creatingUnder],
+  )
   const isExpanded = (id: string) =>
-    expandedIds.has(id) || id === activeParentId || id === creatingUnder
+    expandedIds.has(id) || forcedOpenIds.has(id)
 
   const heightMotion = collapseMotion(reducedMotion)
 
@@ -228,12 +240,10 @@ export function AssetFolderSidebar({
 
   const renderRow = (
     folder: ProjectRecord,
-    options: { depth: 0 | 1; group: 'tree' | 'pins' | 'search' },
-  ) => {
+    options: { depth: number; group: 'tree' | 'pins' | 'search' },
+  ): React.ReactNode => {
     const children =
-      options.group === 'tree' && options.depth === 0
-        ? getChildFolders(folders, folder.id)
-        : []
+      options.group === 'tree' ? getChildFolders(folders, folder.id) : []
     // 还没有子夹时，「新建子文件夹」那一行也得把它撑开，否则输入行根本不出现。
     const expanded =
       (children.length > 0 || creatingUnder === folder.id) &&
@@ -279,7 +289,7 @@ export function AssetFolderSidebar({
         }
         onDropAssets={(ids) => onDropAssets(folder.id, ids)}
       >
-        {options.group === 'tree' && options.depth === 0 ? (
+        {options.group === 'tree' ? (
           <AnimatePresence initial={false}>
             {expanded ? (
               <motion.div
@@ -289,7 +299,7 @@ export function AssetFolderSidebar({
               >
                 {creatingUnder === folder.id ? (
                   <NewFolderRow
-                    depth={1}
+                    depth={options.depth + 1}
                     rowMotion={heightMotion}
                     touch={touch}
                     onCommit={(name) => commitCreate(name, folder.id)}
@@ -304,7 +314,10 @@ export function AssetFolderSidebar({
                 >
                   <AnimatePresence initial={false}>
                     {children.map((child) =>
-                      renderRow(child, { depth: 1, group: 'tree' }),
+                      renderRow(child, {
+                        depth: options.depth + 1,
+                        group: 'tree',
+                      }),
                     )}
                   </AnimatePresence>
                 </SortableGroup>
@@ -629,8 +642,9 @@ function FolderCover({ url }: { url: string | null }) {
 interface FolderRowProps {
   folder: ProjectRecord
   folders: ProjectRecord[]
-  depth: 0 | 1
-  /** 搜索结果里给子夹写上父夹名。 */
+  /** 最外层 = 0；层数不限，缩进见 `folderIndentPx`。 */
+  depth: number
+  /** 搜索结果里给子夹写上整条父路径。 */
   path?: string
   active: boolean
   count?: number
@@ -710,8 +724,11 @@ function FolderRow({
           ref={setActivatorNodeRef}
           {...listeners}
           role="treeitem"
+          aria-level={depth + 1}
           aria-selected={active}
           aria-expanded={expandable ? expanded : undefined}
+          // 层深是算出来的数，只能走行内样式（见 FOLDER_TREE_INDENT）。
+          style={{ paddingLeft: folderIndentPx('sidebar', depth) }}
           onDragOver={(event) => {
             if (!hasAssets(event)) return
             event.preventDefault()
@@ -743,7 +760,6 @@ function FolderRow({
           className={cn(
             'group/row relative flex items-center gap-2 rounded-lg pr-1 text-2sm transition-[background-color,box-shadow,scale] duration-fast',
             touch ? 'h-11' : 'h-8.5',
-            depth === 1 ? 'pl-6' : 'pl-1',
             editing
               ? 'bg-background ring-2 ring-inset ring-foreground'
               : isDropTarget
@@ -862,7 +878,7 @@ function NewFolderRow({
   touch,
   onCommit,
 }: {
-  depth: 0 | 1
+  depth: number
   rowMotion: CollapseMotion
   touch: boolean
   onCommit: (name: string | null) => Promise<void>
@@ -876,8 +892,8 @@ function NewFolderRow({
         className={cn(
           'flex items-center gap-2 rounded-lg bg-background pr-2 ring-2 ring-inset ring-foreground',
           touch ? 'h-11' : 'h-8.5',
-          depth === 1 ? 'pl-6' : 'pl-1',
         )}
+        style={{ paddingLeft: folderIndentPx('sidebar', depth) }}
       >
         <span className="w-3.5 shrink-0" />
         <FolderCover url={null} />

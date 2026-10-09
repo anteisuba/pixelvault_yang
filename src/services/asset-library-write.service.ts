@@ -172,8 +172,8 @@ export class AssetFolderLimitError extends Error {
  *
  * ⚠ 落的是 `Project`（素材页左边那一列就是它）——
  * ⛔ 不新造一张表：用户心里「素材库里的文件夹」和工作台的项目本来就是同一个东西。
- * ⚠ `parentId` 按 userId 核一遍；不是他的、或它自己已是子夹（只有两层）就当没给
- * （挂到最外层），⛔ 不整条失败：模型偶尔写错一个父夹 id，代价该是「建在外面了」
+ * ⚠ `parentId` 按 userId 核一遍（层数不限，任何一层的活夹都能当父夹）；不是他的
+ * 活夹就当没给（挂到最外层），⛔ 不整条失败：模型偶尔写错一个父夹 id，代价该是「建在外面了」
  * 而不是「什么都没建」。新夹排在它那一层最前面（与页面上新建的同一条规矩）。
  */
 export async function createAssetFolder(
@@ -190,12 +190,7 @@ export async function createAssetFolder(
   const parentId = input.parentId
     ? ((
         await db.project.findFirst({
-          where: {
-            id: input.parentId,
-            userId,
-            isDeleted: false,
-            parentId: null,
-          },
+          where: { id: input.parentId, userId, isDeleted: false },
           select: { id: true },
         })
       )?.id ?? null)

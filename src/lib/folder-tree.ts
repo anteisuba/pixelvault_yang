@@ -1,3 +1,8 @@
+import {
+  FOLDER_TREE_INDENT,
+  FOLDER_TREE_MAX_INDENT_DEPTH,
+  type FolderTreeIndentSurface,
+} from '@/constants/asset-folder-tree'
 import type { ProjectRecord } from '@/types'
 
 /**
@@ -5,7 +10,7 @@ import type { ProjectRecord } from '@/types'
  *
  * 顺序是用户自己排的（owner 09-28 定手动排序）：同一层按 `sortOrder`，置顶组按
  * `pinnedOrder`，这几处看到的顺序一样。⛔ 不再有「最近 / 名称 / 数量」排法。
- * 只有两层：顶层夹 + 它们的子夹。
+ * 层数不限（owner 2026-10-09）：每个走树的函数都对坏数据（成环）自带刹车。
  */
 
 function byManualOrder(a: ProjectRecord, b: ProjectRecord): number {
@@ -51,12 +56,82 @@ export function getFolderPath(
 ): ProjectRecord[] {
   const byId = new Map(projects.map((project) => [project.id, project]))
   const path: ProjectRecord[] = []
+  const seen = new Set<string>()
   let current = byId.get(folderId)
-  for (let depth = 0; current && depth <= projects.length; depth += 1) {
+  while (current && !seen.has(current.id)) {
+    seen.add(current.id)
     path.unshift(current)
     current = current.parentId ? byId.get(current.parentId) : undefined
   }
   return path
+}
+
+/** 该夹所有层的祖先 id（不含它自己）—— 选中一个深层夹时一路展开用。 */
+export function getFolderAncestorIds(
+  projects: ProjectRecord[],
+  folderId: string,
+): string[] {
+  return getFolderPath(projects, folderId)
+    .slice(0, -1)
+    .map((folder) => folder.id)
+}
+
+/** 该夹连同所有层子孙的 id（含它自己）。 */
+export function getFolderSubtreeIds(
+  projects: ProjectRecord[],
+  folderId: string,
+): Set<string> {
+  const ids = new Set([folderId])
+  const queue = [folderId]
+  while (queue.length > 0) {
+    const parentId = queue.shift() as string
+    for (const project of projects) {
+      if (project.parentId === parentId && !ids.has(project.id)) {
+        ids.add(project.id)
+        queue.push(project.id)
+      }
+    }
+  }
+  return ids
+}
+
+export interface FolderTreeEntry {
+  folder: ProjectRecord
+  /** 最外层 = 0。 */
+  depth: number
+}
+
+/** 整棵树按显示顺序摊平（深度优先，同一层按手动顺序），带层深。 */
+export function flattenFolderTree(
+  projects: ProjectRecord[],
+): FolderTreeEntry[] {
+  const entries: FolderTreeEntry[] = []
+  const seen = new Set<string>()
+  const walk = (nodes: ProjectRecord[], depth: number) => {
+    for (const folder of nodes) {
+      if (seen.has(folder.id)) continue
+      seen.add(folder.id)
+      entries.push({ folder, depth })
+      walk(getChildFolders(projects, folder.id), depth + 1)
+    }
+  }
+  walk(getRootFolders(projects), 0)
+  return entries
+}
+
+/**
+ * 「移到…」能去的夹：整棵树里除掉它自己和它所有层的子孙（挂过去会成环），
+ * 也除掉它现在的父夹（挪过去等于没挪）。带层深，菜单里照树缩进。
+ */
+export function getFolderMoveTargets(
+  projects: ProjectRecord[],
+  folder: ProjectRecord,
+): FolderTreeEntry[] {
+  const subtree = getFolderSubtreeIds(projects, folder.id)
+  return flattenFolderTree(projects).filter(
+    (entry) =>
+      !subtree.has(entry.folder.id) && entry.folder.id !== folder.parentId,
+  )
 }
 
 /** 跨层级扁平搜索（子夹也能被搜到，不要求父夹匹配），按树里的顺序。 */
@@ -65,10 +140,16 @@ export function filterFolders(
   query: string,
 ): ProjectRecord[] {
   const q = query.trim().toLowerCase()
-  const ordered = getRootFolders(projects).flatMap((root) => [
-    root,
-    ...getChildFolders(projects, root.id),
-  ])
+  const ordered = flattenFolderTree(projects).map((entry) => entry.folder)
   if (!q) return ordered
   return ordered.filter((project) => project.name.toLowerCase().includes(q))
+}
+
+/** 某一层的左缩进（px）。超过 `FOLDER_TREE_MAX_INDENT_DEPTH` 不再往里缩。 */
+export function folderIndentPx(
+  surface: FolderTreeIndentSurface,
+  depth: number,
+): number {
+  const { basePx, stepPx } = FOLDER_TREE_INDENT[surface]
+  return basePx + Math.min(depth, FOLDER_TREE_MAX_INDENT_DEPTH) * stepPx
 }

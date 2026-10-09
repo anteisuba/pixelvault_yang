@@ -8567,7 +8567,7 @@ async function planCreateFolder(
     inverse: { folderId: folder.folderId },
     observation: `create_folder made an EMPTY folder "${folder.name}" (id=${folder.folderId})${
       args.parentId && !folder.parentId
-        ? ' at the top level — the parent id you gave is not one of their top-level folders (folders only go two levels deep)'
+        ? ' at the top level — the parent id you gave is not one of their folders'
         : ''
     }. Use add_to_folder with that id to actually put anything into it.`,
     apply: () => {},

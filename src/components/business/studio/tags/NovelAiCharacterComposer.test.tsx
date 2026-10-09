@@ -75,9 +75,10 @@ describe('角色构图两形态', () => {
     )
     expect(screen.queryByRole('button', { name: /addCharacter/ })).toBeNull()
     expect(screen.queryByRole('button', { name: /removeCharacter/ })).toBeNull()
-    fireEvent.pointerDown(
-      screen.getByRole('button', { name: 'characterDot:2' }),
-    )
+    const dot = screen.getByRole('button', { name: 'characterDot:2' })
+    // jsdom 没有 setPointerCapture（自由摆位按下就抓指针）。
+    dot.setPointerCapture = vi.fn()
+    fireEvent.pointerDown(dot)
     expect(onSelect).toHaveBeenCalledWith(1)
     // 名字跟着圆点（第一格标签）。
     expect(screen.getByText('char 2')).toBeInTheDocument()

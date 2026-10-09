@@ -186,6 +186,14 @@ function isMutatingTool(tool: AssistantV3Tool): tool is MutatingTool {
 const MAX_HISTORY_MESSAGES = 24
 const MAX_INLINE_IMAGE_BYTES = 20_000_000
 
+const EMPTY_REPLY_MESSAGES: Record<PromptAssistantResponseLanguage, string> = {
+  chinese: '这一步模型没有给出任何回复，什么都没改。再说一次，或者换个说法。',
+  japanese:
+    'このステップではモデルから返答がなく、何も変更していません。もう一度、または言い方を変えてお願いします。',
+  english:
+    'The model gave no reply this time, so nothing changed. Say it again, or put it another way.',
+}
+
 const NOT_RUN_WHILE_BOARD_CHANGES =
   'Not run: an edit in this same reply is still landing on the board. Call it again in your next step if you still need it.'
 const NOT_RUN_AFTER_STOP = 'Not run: this turn stopped to wait for the creator.'
@@ -724,6 +732,7 @@ async function* runV3Turn(
     ASSISTANT_V3_LIMITS.maxSteps,
   )
   const lastFailure = { key: '', strikes: 0, title: '' }
+  let emptyRetried = false
 
   for (let step = 0; step < budget; step += 1) {
     if (signal.aborted) {
@@ -840,8 +849,26 @@ async function* runV3Turn(
     }
     transcript.push(assistantEntry)
 
+    /**
+     * 模型一个字都没回（10-09 Gemini 回放 T15：工具调用写坏、被接口吞掉，0 token）：
+     * 撤掉这一条、原样再问一次；还是空就如实说，⛔ 不拿「步数用完了」顶替。
+     */
+    if (calls.length === 0 && !text.trim()) {
+      transcript.pop()
+      if (!emptyRetried) {
+        emptyRetried = true
+        continue
+      }
+      yield {
+        type: ASSISTANT_OPERATOR_EVENTS.message,
+        text: EMPTY_REPLY_MESSAGES[language],
+      }
+      yield { type: ASSISTANT_OPERATOR_EVENTS.done }
+      return
+    }
+
     if (calls.length === 0) {
-      const closing = text.trim() || OPERATOR_OUT_OF_STEPS_MESSAGES[language]
+      const closing = text.trim()
       yield { type: ASSISTANT_OPERATOR_EVENTS.message, text: closing }
       const roundSummary = await closeRound(run, {
         clerkId,

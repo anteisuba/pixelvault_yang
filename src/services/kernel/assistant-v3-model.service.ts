@@ -29,8 +29,7 @@ export interface AssistantV3Model {
  * 用户自己那把 key → AI SDK 模型。S1 只接三家：OpenAI（先跑）、Claude（过几天
  * 另跑一轮）、Gemini（看视频 / 听音频的那家）。别的厂商照走旧内核。
  *
- * ⚠ OpenAI 走 Chat Completions 而不是 Responses：与旧内核同一个端点，回放对比时
- *   差别只在协议层。⚠ 缓存键只发给官方端点（代理不一定认这个字段）。
+ * ⚠ 缓存键只发给官方端点（代理不一定认这个字段）。
  */
 export function resolveAssistantV3Model(
   route: ResolvedLlmTextRoute,
@@ -41,11 +40,19 @@ export function resolveAssistantV3Model(
       const baseURL = getOpenAiChatBaseUrl(route.providerConfig.baseUrl)
       const provider = createOpenAI({ apiKey: route.apiKey, baseURL })
       const official = baseURL === AI_PROVIDER_ENDPOINTS.OPENAI_CHAT
+      /**
+       * ⚠ 官方端点走 Responses：GPT-6 在 Chat Completions 里推理档与工具调用不能同开
+       * （2026-10-09 回放第一题就报这个错）。⛔ 不存记录（`store: false`）：本轮记录
+       * 由我们自己还原，OpenAI 那边留一份只是多一处用户数据。代理端点不一定有
+       * `/responses`，照走 Chat Completions。
+       */
       return {
-        model: provider.chat(modelId),
+        model: official ? provider.responses(modelId) : provider.chat(modelId),
         strictTools: official,
         providerOptions: (cacheKey): AssistantV3ProviderOptions =>
-          official ? { openai: { promptCacheKey: cacheKey } } : {},
+          official
+            ? { openai: { promptCacheKey: cacheKey, store: false } }
+            : {},
       }
     }
     case AI_ADAPTER_TYPES.ANTHROPIC: {

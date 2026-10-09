@@ -504,6 +504,28 @@ describe('v3 内核', () => {
     expect(relayed.match(/Landed\./g)).toHaveLength(2)
   })
 
+  it('模型空回复：重试一次；还空就如实说，不拿「步数用完了」顶替', async () => {
+    const empty: LanguageModelV3StreamPart[] = [
+      {
+        type: 'finish',
+        finishReason: { unified: 'other', raw: undefined },
+        usage,
+      },
+    ]
+    const mock = script(empty, textTurn('好了。'))
+    const events = await collect(runAssistantV3('clerk-1', request()))
+    expect(mock.doStreamCalls).toHaveLength(2)
+    expect(events.at(-2)).toMatchObject({ type: 'message', text: '好了。' })
+
+    script(empty, empty)
+    const twice = await collect(runAssistantV3('clerk-1', request()))
+    expect(twice.at(-2)).toMatchObject({
+      type: 'message',
+      text: '这一步模型没有给出任何回复，什么都没改。再说一次，或者换个说法。',
+    })
+    expect(twice.at(-1)).toMatchObject({ type: 'done' })
+  })
+
   it('接不了的厂商 / 没有画布：交回旧内核', async () => {
     legacy.mockImplementation(async function* () {
       yield { type: 'done' }

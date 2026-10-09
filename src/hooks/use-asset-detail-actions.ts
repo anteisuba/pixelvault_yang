@@ -83,7 +83,6 @@ export function useAssetDetailActions({
   const [isPublishScopeOpen, setIsPublishScopeOpen] = useState(false)
   const [isSettingCover, setIsSettingCover] = useState(false)
   const [coverPickerOpen, setCoverPickerOpen] = useState(false)
-  const [isLinkCopied, setIsLinkCopied] = useState(false)
 
   const currentPublishScope: AssetPublishScope = !generation?.isPublic
     ? 'private'
@@ -189,8 +188,12 @@ export function useAssetDetailActions({
     }
   }
 
-  const toggleFavorite = async () => {
-    if (!generation || isFavoriting) return
+  /**
+   * 收藏 / 取消收藏。成功返回新状态的那句结果（调用方写在键上，ui-defaults §7.1），
+   * 失败照旧底部黑条红点、返回 `null`。
+   */
+  const toggleFavorite = async (): Promise<string | null> => {
+    if (!generation || isFavoriting) return null
     setIsFavoriting(true)
     try {
       const response = await toggleLikeAPI(generation.id)
@@ -199,33 +202,34 @@ export function useAssetDetailActions({
           isLiked: response.data.liked,
           likeCount: response.data.likeCount,
         })
-        toast.success(
-          response.data.liked ? t('detailFavorited') : t('detailUnfavorited'),
-        )
-      } else {
-        toast.error(t('detailFavoriteFailed'))
+        return response.data.liked
+          ? t('detailFavorited')
+          : t('detailUnfavorited')
       }
+      toast.error(t('detailFavoriteFailed'))
+      return null
     } catch {
       toast.error(t('detailFavoriteFailed'))
+      return null
     } finally {
       setIsFavoriting(false)
     }
   }
 
-  const saveRecipe = async () => {
-    if (!generation || isSavingRecipe) return
+  /** 存成模板。成功返回 `true`（结果由调用方说：键上或菜单关了之后的黑条）。 */
+  const saveRecipe = async (): Promise<boolean> => {
+    if (!generation || isSavingRecipe) return false
     setIsSavingRecipe(true)
     try {
       const response = await createRecipeFromGenerationAPI({
         generationId: generation.id,
       })
-      if (response.success) {
-        toast.success(tPrompts('saveTemplateSuccess'))
-      } else {
-        toast.error(response.error ?? tPrompts('saveTemplateFailed'))
-      }
+      if (response.success) return true
+      toast.error(response.error ?? tPrompts('saveTemplateFailed'))
+      return false
     } catch {
       toast.error(tPrompts('saveTemplateFailed'))
+      return false
     } finally {
       setIsSavingRecipe(false)
     }
@@ -251,18 +255,18 @@ export function useAssetDetailActions({
     }
   }
 
-  const copyLink = async () => {
-    if (!generation) return
+  /** 复制分享链接。成功返回 `true`（结果由调用方说：键上或菜单关了之后的黑条）。 */
+  const copyLink = async (): Promise<boolean> => {
+    if (!generation) return false
     // 分享出去的是**素材详情页**（`/assets/<id>`），不是抽屉 deeplink：
     // 对方打开后拿到可刷新、可后退的真实路由。
     const shareUrl = `${window.location.origin}/${locale}${assetDetailPath(generation.id)}`
     try {
       await navigator.clipboard.writeText(shareUrl)
-      setIsLinkCopied(true)
-      toast.success(t('detailLinkCopied'))
-      window.setTimeout(() => setIsLinkCopied(false), 2000)
+      return true
     } catch {
       toast.error(t('detailCopyLinkFailed'))
+      return false
     }
   }
 
@@ -307,7 +311,6 @@ export function useAssetDetailActions({
     download,
     isDownloading,
     copyLink,
-    isLinkCopied,
     openOriginal,
     coverPickerOpen,
     setCoverPickerOpen,

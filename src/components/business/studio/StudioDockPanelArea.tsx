@@ -23,6 +23,10 @@ import {
   ResponsiveDialogContent,
   ResponsiveDialogDescription,
 } from '@/components/ui/responsive-dialog'
+import {
+  FeedbackButton,
+  useButtonFeedback,
+} from '@/components/ui/feedback-button'
 import { Spinner } from '@/components/ui/spinner'
 import {
   StudioPanelHeader,
@@ -126,6 +130,9 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
   const t = useTranslations('StudioV2')
   const tPanels = useTranslations('StudioPanels')
   const tBar = useTranslations('StudioToolbar')
+  const tCivitai = useTranslations('CivitaiToken')
+  const { feedback: tokenSavedFeedback, show: showTokenSaved } =
+    useButtonFeedback()
   const { selectedModel: imageModel } = useImageModelOptions()
   const { selectedModel: videoModel } = useVideoModelOptions(
     state.selectedOptionId ?? '',
@@ -226,8 +233,9 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
     const ok = await civitai.save(state.tokenInput.trim())
     if (ok) {
       dispatch({ type: 'SET_TOKEN_INPUT', payload: '' })
+      showTokenSaved({ label: tCivitai('saveSuccess') })
     }
-  }, [state.tokenInput, civitai, dispatch])
+  }, [state.tokenInput, civitai, dispatch, showTokenSaved, tCivitai])
 
   const activeSpeakerVoiceIndex =
     speakerVoiceSelectionTarget?.mode === 'replace'
@@ -276,14 +284,15 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
                 className="w-full rounded-md border border-border/60 bg-background px-2.5 py-2 font-mono text-base focus:border-primary/40 focus:outline-none md:text-xs"
               />
               <div className="flex gap-2">
-                <button
-                  type="button"
+                {/* 存好了写在键上（输入框随即清空，键在结果态下不跟着变灰）。 */}
+                <FeedbackButton
+                  feedback={tokenSavedFeedback}
                   onClick={handleSaveToken}
-                  disabled={!state.tokenInput.trim()}
+                  disabled={!state.tokenInput.trim() && !tokenSavedFeedback}
                   className="rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground disabled:opacity-40"
                 >
                   {t('save')}
-                </button>
+                </FeedbackButton>
                 {civitai.hasToken && (
                   <button
                     type="button"

@@ -15,13 +15,17 @@ import { toast } from 'sonner'
 
 import { CanvasAssistantHistory } from '@/components/business/node/CanvasAssistantHistory'
 import { CanvasAssistantRouteSelector } from '@/components/business/node/CanvasAssistantRouteSelector'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  FeedbackButton,
+  useButtonFeedback,
+} from '@/components/ui/feedback-button'
 import { usePromptAssistant } from '@/hooks/kernel/use-prompt-assistant'
 import { useStudioAssistantControls } from '@/hooks/use-studio-assistant-controls'
 import { createAssistantConversationShareAPI } from '@/lib/api-client/assistant-conversation'
@@ -34,6 +38,7 @@ import {
 } from '@/constants/research'
 import { getPromptDialect } from '@/constants/prompt-dialects'
 import { resolveAdapterType } from '@/constants/models'
+import { COPIED_ACK_MS } from '@/constants/motion'
 import { cn } from '@/lib/utils'
 
 /**
@@ -115,6 +120,8 @@ export function StudioAssistantHeaderActions({
     [sessions, tHistory],
   )
 
+  const { feedback: shareFeedback, show: showShareResult } =
+    useButtonFeedback(COPIED_ACK_MS)
   const handleShare = useCallback(async () => {
     if (!sessionId) {
       toast.error(tHistory('shareFailed'))
@@ -130,11 +137,12 @@ export function StudioAssistantHeaderActions({
       await navigator.clipboard.writeText(
         `${window.location.origin}/${locale}/assistant/share/${result.data.token}`,
       )
-      toast.success(tHistory('shareCopied'))
+      // 复制好的结果写在分享键上（ui-defaults §7.1），失败照旧底部黑条红点。
+      showShareResult({ label: tHistory('shareCopied') })
     } catch {
       toast.error(tHistory('shareFailed'))
     }
-  }, [sessionId, tHistory])
+  }, [sessionId, showShareResult, tHistory])
 
   const CloseIcon = mobile ? X : PanelRightClose
   const ResearchIcon = RESEARCH_MODE_ICONS[researchMode]
@@ -209,17 +217,18 @@ export function StudioAssistantHeaderActions({
         activeSessionId={sessionId}
         onSelect={(id) => void selectSession(id)}
       />
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
+      <FeedbackButton
+        feedback={shareFeedback}
         aria-label={tHistory('share')}
         title={tHistory('share')}
         onClick={() => void handleShare()}
-        className="rounded-xl text-muted-foreground hover:text-foreground"
+        className={cn(
+          buttonVariants({ variant: 'ghost', size: 'icon-sm' }),
+          'rounded-xl text-muted-foreground hover:text-foreground',
+        )}
       >
         <Share2 className="size-4" />
-      </Button>
+      </FeedbackButton>
       <Button
         type="button"
         size="icon-sm"

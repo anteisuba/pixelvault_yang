@@ -330,6 +330,8 @@ reduced-motion 下不糊、不错开，直接出现。实现与落点见 `loadin
 
 ## Last Verified
 
+- 2026-10-09 · 提示与弹窗收尾（§7.1）：逐个过了剩下的成功 / 提示黑条。改到键上的 10 处：素材详情的复制链接 / 收藏 / 存为模板与查看器的收藏键（`useAssetDetailActions` 改为把结果交回调用方，查看器「⋯」菜单里的复制链接 / 存为模板因菜单会关、仍走黑条）、`ImageDetailModal` 置顶、助手头部分享、Civitai 令牌保存、音色训练「自动转写」、LoRA 作者描述复制、配方查看器与来源配方弹窗的复制键（多颗键共用一份结果、按 `copyTarget` 落到按下的那颗）。其余照旧留黑条：出图 / 修图 / 训练等后台结果，带「撤销」的，菜单项、弹窗或编辑态随结果关掉的，删掉后内容消失的，被闸挡住的提示与引导，以及上传（另有切片接）与批量删除撤销。
+
 - 2026-10-08 · 补动效（§7.4，动效样片 AB / V / M / H / P / T / W / Z / AE / AF）：画布拖线线头吸附 + 合法卡黑环弹簧长出；做同款 chip 依次落下；规格 chip 比例框变形；收藏心收成 `FavoriteHeart` 一颗；排序让位换弹簧；拖图进输入框飞进参考图排；编辑舞台前后对比；输入框点进 chip 浮出；LoRA 训练格子进度 + ✓；素材拖上画布拿起放大、落下展开成卡。作品卡 / 素材格悬停（R）当时保持现在，2026-10-09 owner 看过对比页后改成 R。新常量全在 `constants/motion.ts`（`RECIPE_LAND` · `FOCUS_FLOAT` · `TRAINING_CELLS` · `SORTABLE_SPRING` · `SPRING_CSS_MS` · `DROP_FLY` · `RUBBER_BAND` · `MEDIA_DRAG_LIFT`）。
 
 - 2026-10-08 · 加载中（§7.2，原型 `ThV7ucUtgNZS4zbGry9XPh`）：`Skeleton` 与全站骨架去掉 `animate-pulse` / `animate-skeleton-breathe`（后者连 keyframe 一起删）；新原语 `load-reveal`（`useMediaReveal` / `LoadReveal` / `ArrivalReveal`）收编画廊卡、素材瓦片、LoRA 封面、`OptimizedImage` 四份各自的「由糊变清」；`FeedTail`（一屏前预取 + 灰块尾巴 + 「这批没拿到 · 重试」+「没有更多了」）画廊与素材库共用；`PageLoadError` 收编画廊 / 素材库整页失败；`useSlowLoadingNotice` 6 秒黑条；查看器先小图后原图；重试键转圈时写「重试中」。

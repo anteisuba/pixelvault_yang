@@ -14,7 +14,11 @@ import { useVoiceCards } from '@/hooks/cards/use-voice-cards'
 import { createVoiceAPI, transcribeVoiceAPI } from '@/lib/api-client'
 import { cn } from '@/lib/utils'
 
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
+import {
+  FeedbackButton,
+  useButtonFeedback,
+} from '@/components/ui/feedback-button'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
@@ -65,6 +69,7 @@ export const VoiceTrainer = memo(function VoiceTrainer({
   const [enhance, setEnhance] = useState(false)
   const [trainStage, setTrainStage] = useState<TrainStage>('idle')
   const [isTranscribing, setIsTranscribing] = useState(false)
+  const transcribeFeedback = useButtonFeedback()
   const isTraining = trainStage !== 'idle'
 
   useEffect(
@@ -183,7 +188,8 @@ export const VoiceTrainer = memo(function VoiceTrainer({
 
     if (result.success && result.data) {
       setTranscript(result.data.text)
-      toast.success(t('voiceTranscribeSuccess'))
+      // 填好了写在「自动转写」键上（ui-defaults §7.1），失败照旧底部黑条红点。
+      transcribeFeedback.show({ label: t('voiceTranscribeSuccess') })
     } else {
       toast.error(
         result.errorCode === VOICE_API_ERROR_CODES.MISSING_API_KEY
@@ -288,17 +294,18 @@ export const VoiceTrainer = memo(function VoiceTrainer({
         <p className="text-2xs text-muted-foreground">
           {t('voiceTrainTranscriptHint')}
         </p>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
+        <FeedbackButton
+          feedback={transcribeFeedback.feedback}
           onClick={handleTranscribe}
           disabled={!canTranscribe}
-          className="h-8 w-fit gap-2 text-xs"
+          className={cn(
+            buttonVariants({ variant: 'outline', size: 'sm' }),
+            'h-8 w-fit gap-2 text-xs',
+          )}
         >
           {isTranscribing && <Spinner size="sm" />}
           {files.length > 1 ? t('voiceTranscribeFirst') : t('voiceTranscribe')}
-        </Button>
+        </FeedbackButton>
       </div>
 
       {/* Enhance toggle */}

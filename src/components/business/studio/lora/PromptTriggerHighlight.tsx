@@ -1,7 +1,14 @@
 'use client'
 
-import { useMemo, type RefObject } from 'react'
+import { useEffect, useMemo, useState, type RefObject } from 'react'
+import { motion, useReducedMotion } from 'motion/react'
 
+import {
+  DURATION,
+  DURATION_MS,
+  EASE_STANDARD,
+  TRIGGER_WORD_PULSE,
+} from '@/constants/motion'
 import { cn } from '@/lib/utils'
 
 export interface TriggerHighlightSegment {
@@ -15,6 +22,11 @@ export interface TriggerHighlightPhrase {
   phrase: string
   /** 该触发词来自哪个挂载（hover title 用）。 */
   ownerName: string
+  /**
+   * 这把 LoRA 停用了（缺省 = 生效）。停用的词不高亮；它从生效翻成停用 / 停用翻回生效
+   * 的那一拍，正文里那个词糊一下暗下去 / 糊一下变回清楚。
+   */
+  enabled?: boolean
 }
 
 /** 词边界判定只挡拉丁字母/数字/下划线：CJK 触发词被 CJK 正文包着也算命中。 */
@@ -38,6 +50,7 @@ export function buildTriggerHighlightSegments(
 ): TriggerHighlightSegment[] {
   if (!text) return []
   const cleaned = phrases
+    .filter((p) => p.enabled !== false)
     .map((p) => ({ ...p, phrase: p.phrase.trim() }))
     .filter((p) => p.phrase.length > 0)
     .sort((a, b) => b.phrase.length - a.phrase.length)
@@ -88,6 +101,33 @@ export function buildTriggerHighlightSegments(
   return segments
 }
 
+/** 每把挂载生效没有：`名字 → 生效`（同名的几段触发词同进同出）。 */
+function enabledByOwner(phrases: readonly TriggerHighlightPhrase[]) {
+  const owners = new Map<string, boolean>()
+  for (const phrase of phrases) {
+    owners.set(phrase.ownerName, phrase.enabled !== false)
+  }
+  return owners
+}
+
+function enabledKeyOf(phrases: readonly TriggerHighlightPhrase[]) {
+  return [...enabledByOwner(phrases)]
+    .map(([owner, enabled]) => `${owner}:${enabled ? 1 : 0}`)
+    .join('|')
+}
+
+interface TriggerPulse {
+  /** `out` = 停用：词糊一下暗下去（随后照旧从正文里拿掉）；`in` = 启用：词糊一下变清楚。 */
+  mode: 'out' | 'in'
+  owner: string
+  /** 这一拍画哪一段字：`out` 画拿掉之前的那一份，`in` 画写回之后的这一份。 */
+  text: string
+  phrases: readonly TriggerHighlightPhrase[]
+  /** 只在正文还是这一份时演；用户接着打字就立刻收掉。 */
+  forText: string
+  id: number
+}
+
 export interface PromptTriggerHighlightProps {
   text: string
   phrases: readonly TriggerHighlightPhrase[]
@@ -117,16 +157,72 @@ export function PromptTriggerHighlight({
   backdropRef,
   className,
 }: PromptTriggerHighlightProps) {
+  const reduceMotion = useReducedMotion()
+  // 停用 / 启用那一拍（owner 2026-10-08 LoRA 页动效）：只认「某把挂载生效没有」翻了面，
+  // ⛔ 打字打出 / 删掉一个触发词不演。上一拍的正文与触发词记在 state 里（渲染中调整
+  // state 的写法），⛔ 在渲染里读写 ref。
+  const enabledKey = enabledKeyOf(phrases)
+  const [seen, setSeen] = useState({ text, phrases, enabledKey })
+  const [pulse, setPulse] = useState<TriggerPulse | null>(null)
+  if (seen.text !== text || seen.enabledKey !== enabledKey) {
+    if (seen.enabledKey !== enabledKey && !reduceMotion) {
+      const before = enabledByOwner(seen.phrases)
+      const flipped = [...enabledByOwner(phrases)].find(
+        ([owner, enabled]) =>
+          before.has(owner) && before.get(owner) !== enabled,
+      )
+      if (flipped) {
+        const [owner, enabled] = flipped
+        const source = enabled
+          ? { text, phrases }
+          : { text: seen.text, phrases: seen.phrases }
+        const shows = buildTriggerHighlightSegments(
+          source.text,
+          source.phrases,
+        ).some((segment) => segment.matchedBy === owner)
+        if (shows) {
+          setPulse({
+            mode: enabled ? 'in' : 'out',
+            owner,
+            ...source,
+            forText: text,
+            id: (pulse?.id ?? 0) + 1,
+          })
+        }
+      }
+    }
+    setSeen({ text, phrases, enabledKey })
+  }
+  const pulseId = pulse?.id
+  useEffect(() => {
+    if (pulseId === undefined) return
+    const timer = window.setTimeout(() => setPulse(null), DURATION_MS.slow)
+    return () => window.clearTimeout(timer)
+  }, [pulseId])
+  const active = pulse !== null && pulse.forText === text ? pulse : null
+
   const segments = useMemo(
-    () => buildTriggerHighlightSegments(text, phrases),
-    [text, phrases],
+    () =>
+      active
+        ? buildTriggerHighlightSegments(active.text, active.phrases)
+        : buildTriggerHighlightSegments(text, phrases),
+    [active, text, phrases],
   )
+  const dimmed = {
+    opacity: TRIGGER_WORD_PULSE.dimOpacity,
+    filter: `blur(${TRIGGER_WORD_PULSE.blurPx}px)`,
+  }
+  const pulseTransition = { duration: DURATION.slow, ease: EASE_STANDARD }
 
   return (
     <div
       ref={backdropRef}
       aria-hidden
+      // 演那一拍时字由这一层画（压在上面的 textarea 那一拍字变透明，lora.css），
+      // 只有这一层能给单个词上模糊。
+      data-trigger-pulse={active?.mode}
       className={cn(
+        'lora-trigger-backdrop',
         // ⚠ 字号必须与压在上面的 textarea 逐字一致（含 <768 的 iOS 防缩放档
         // `text-base md:text-sm`），否则高亮块和真实文字错位。
         'lora-prompt-layout pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words text-base leading-relaxed text-transparent md:text-sm',
@@ -134,7 +230,33 @@ export function PromptTriggerHighlight({
       )}
     >
       {segments.map((segment, index) =>
-        segment.matchedBy ? (
+        active && segment.matchedBy === active.owner ? (
+          <motion.span
+            key={`${active.id}-${index}`}
+            data-trigger-pulse-word={active.mode}
+            className="lora-trigger-hl"
+            initial={
+              active.mode === 'in'
+                ? dimmed
+                : { opacity: 1, filter: 'blur(0px)' }
+            }
+            animate={
+              active.mode === 'in'
+                ? { opacity: 1, filter: 'blur(0px)' }
+                : {
+                    opacity: TRIGGER_WORD_PULSE.dimOpacity,
+                    filter: [
+                      'blur(0px)',
+                      `blur(${TRIGGER_WORD_PULSE.blurPx}px)`,
+                      'blur(0px)',
+                    ],
+                  }
+            }
+            transition={pulseTransition}
+          >
+            {segment.text}
+          </motion.span>
+        ) : segment.matchedBy ? (
           <span key={index} className="lora-trigger-hl">
             {segment.text}
           </span>

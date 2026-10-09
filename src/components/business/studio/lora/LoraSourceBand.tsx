@@ -56,7 +56,8 @@ interface LoraSourceBandProps {
  * 收成一行「「{名}」出过的图 N ›」，点它长回整条。
  *
  * ⭐ 同一个外框换高度（320 · ease-standard），整条与那一行叠在里面交叉淡：收起那一块
- *   120 淡出，另一块等 120 再 200 淡入。高度按两块各自量出来的自然高 —— Hugging Face
+ *   120 淡出，另一块同一刻起 200 淡入（owner 2026-10-08：⛔ 等前一块淡完再进，读起来
+ *   一卡一卡的）。高度按两块各自量出来的自然高 —— Hugging Face
  *   的样例带着提示词列表，比配方那一排高，⛔ 不写死一个高度。
  * ⚠ 看不见的那一块挂 `inert`。
  * ⚠ 从没有到有（刷新后挂载栈读回来、第一次挂上 LoRA）直接落到自然高、只淡入 ——
@@ -145,7 +146,7 @@ export function LoraSourceBand({
     cn(
       'absolute inset-x-0 top-0 transition-opacity ease-linear',
       shown
-        ? 'opacity-100 delay-120 duration-base motion-reduce:delay-0 motion-reduce:duration-fast'
+        ? 'opacity-100 duration-base motion-reduce:duration-fast'
         : 'pointer-events-none opacity-0 duration-fast',
     )
 

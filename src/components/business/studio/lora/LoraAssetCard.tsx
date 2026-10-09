@@ -78,6 +78,7 @@ export function LoraAssetCard({
   onDelete,
 }: LoraAssetCardProps) {
   const t = useTranslations('LoraWorkbench')
+  const tFeedback = useTranslations('Feedback')
   const router = useRouter()
   const stack = useActiveLoraStack()
   const [detailOpen, setDetailOpen] = useState(false)
@@ -103,14 +104,23 @@ export function LoraAssetCard({
       stack.push(asset)
     }
     // 去生成：把 LoRA 喂进脊柱条并切到 LoRA 域的生成 tab
-    // （Image Studio 已解耦、不再消费 LoRA）。
+    // （Image Studio 已解耦、不再消费 LoRA）。键随页面一起走了，结果放进底部黑条
+    // （ui-defaults §7.1），这一下新挂上的带一个「撤销」。
     toast.success(t('addedToStack', { name: asset.name }), {
       duration: LORA_TOAST_DURATION_MS,
+      ...(alreadyInStack
+        ? {}
+        : {
+            action: {
+              label: tFeedback('undo'),
+              onClick: () => stack.remove(asset.id),
+            },
+          }),
     })
     router.push(
       `${ROUTES.STUDIO_LORA}?${LORA_WORKBENCH_SEARCH_PARAM}=${LORA_WORKBENCH_SECTIONS.GENERATE}`,
     )
-  }, [alreadyInStack, asset, stack, router, t])
+  }, [alreadyInStack, asset, stack, router, t, tFeedback])
 
   const handleCopyCode = useCallback(async () => {
     try {

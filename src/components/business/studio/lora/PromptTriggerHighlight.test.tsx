@@ -1,6 +1,10 @@
+import { render } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
-import { buildTriggerHighlightSegments } from './PromptTriggerHighlight'
+import {
+  PromptTriggerHighlight,
+  buildTriggerHighlightSegments,
+} from './PromptTriggerHighlight'
 
 const owner = (phrase: string, ownerName = 'LoRA A') => ({ phrase, ownerName })
 
@@ -91,5 +95,96 @@ describe('buildTriggerHighlightSegments', () => {
       owner('达妮娅'),
     ])
     expect(rejoin(segments)).toBe(text)
+  })
+})
+
+describe('PromptTriggerHighlight — 停用 / 启用那一拍', () => {
+  const backdropRef = { current: null }
+  const phrase = (enabled: boolean) => [
+    { phrase: 'jinhsi', ownerName: 'LoRA A', enabled },
+  ]
+
+  it('does not highlight a disabled LoRA trigger', () => {
+    const segments = buildTriggerHighlightSegments(
+      'jinhsi, dress',
+      phrase(false),
+    )
+    expect(segments.filter((s) => s.matchedBy)).toHaveLength(0)
+  })
+
+  it('dims and blurs the word on toggle-off, painted by the backdrop', () => {
+    const { container, rerender } = render(
+      <PromptTriggerHighlight
+        text="jinhsi, dress"
+        phrases={phrase(true)}
+        backdropRef={backdropRef}
+      />,
+    )
+    const backdrop = container.firstElementChild as HTMLElement
+    expect(backdrop).not.toHaveAttribute('data-trigger-pulse')
+
+    // 停用：同一拍里正文已拿掉这个词，背板还画着拿掉之前那一份让它暗下去。
+    rerender(
+      <PromptTriggerHighlight
+        text="dress"
+        phrases={phrase(false)}
+        backdropRef={backdropRef}
+      />,
+    )
+    expect(backdrop).toHaveAttribute('data-trigger-pulse', 'out')
+    expect(
+      container.querySelector('[data-trigger-pulse-word="out"]'),
+    ).toHaveTextContent('jinhsi')
+  })
+
+  it('blurs the word back in on toggle-on and stops when the user types', () => {
+    const { container, rerender } = render(
+      <PromptTriggerHighlight
+        text="dress"
+        phrases={phrase(false)}
+        backdropRef={backdropRef}
+      />,
+    )
+    rerender(
+      <PromptTriggerHighlight
+        text="jinhsi, dress"
+        phrases={phrase(true)}
+        backdropRef={backdropRef}
+      />,
+    )
+    const backdrop = container.firstElementChild as HTMLElement
+    expect(backdrop).toHaveAttribute('data-trigger-pulse', 'in')
+    expect(
+      container.querySelector('[data-trigger-pulse-word="in"]'),
+    ).toHaveTextContent('jinhsi')
+
+    rerender(
+      <PromptTriggerHighlight
+        text="jinhsi, dress, x"
+        phrases={phrase(true)}
+        backdropRef={backdropRef}
+      />,
+    )
+    expect(backdrop).not.toHaveAttribute('data-trigger-pulse')
+  })
+
+  it('does not pulse when the user just types a trigger word', () => {
+    const { container, rerender } = render(
+      <PromptTriggerHighlight
+        text="dress, jinhs"
+        phrases={phrase(true)}
+        backdropRef={backdropRef}
+      />,
+    )
+    rerender(
+      <PromptTriggerHighlight
+        text="dress, jinhsi"
+        phrases={phrase(true)}
+        backdropRef={backdropRef}
+      />,
+    )
+    expect(container.firstElementChild).not.toHaveAttribute(
+      'data-trigger-pulse',
+    )
   })
 })

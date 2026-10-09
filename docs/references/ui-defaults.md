@@ -253,7 +253,7 @@
 | 后台跑完的（出图完成 / 失败、上传完成）      | 底部正中黑色小条，最多叠 3 条：新的在前，旧的往上推、缩小、变淡；每条最多一个动作（查看 / 撤销 / 重试）；失败用红点代替对勾，⛔ 整条变红 | sonner（`components/ui/sonner.tsx`，皮肤在 globals.css `.toast-bar`，不分层）。业务代码照旧 `toast.success / toast.error`                                                                                              |
 | 黑条与底部输入框                             | 黑条浮在工作台输入框卡 / 手机固定输入条 / 画布底栏之上 12px                                                                              | `hooks/use-toast-lift.ts` 改写 `--toast-offset-bottom`；新的贴底输入框挂上它                                                                                                                                           |
 | 能撤销的小删除（删图、删对话、删一条记忆）   | 键拉长成红色「确认删除」，再点才删；点别处 / Esc / 3 秒缩回。键随内容一起消失时（删图关掉查看器），「撤销」放进底部黑条                  | `ConfirmDeleteButton`；撤销 = `lib/undoable-action.ts` 延后 5 秒落库，⛔ 不需要恢复接口。素材页多选删除同一套（「已删除 N 张 · 撤销」）                                                                                |
-| 删了找不回的大事（删密钥、删项目、注销账号） | 正中弹窗，从按下的那颗键长到正中，写清后果；注销账号要先打「注销」                                                                       | `ConfirmDialog`（`confirmPhrase`）/ `AlertDialog`。注销账号：设置 · 偏好最底 `SettingsDeleteAccountRow`                                                                                                                |
+| 删了找不回的大事（删密钥、删项目、注销账号） | 正中弹窗，从按下的那颗键长到正中，写清后果；注销账号要先打「注销」                                                                       | `ConfirmDialog`（`confirmPhrase`）/ `AlertDialog`（站内暂无注销账号入口：owner 2026-10-09 定等连数据一起删做好再放出）                                                                                                 |
 | 空态 / 出错 / 404                            | 同一个模板：虚线框 · 40px 白图标格 · 衬线标题 · 一句话 · 黑丸；出错只在图标角放红点                                                      | `EmptyState`（`tone="error"`）                                                                                                                                                                                         |
 
 动效：只用 `SPRING` 预设（最多一丝过冲）、换内容时短暂一糊、⛔ 发光 / 渐变；颜色只走脊柱（黑条 = `--foreground`，危险 = `--destructive`）。红点在黑条上的对比度：`--destructive` 对 `--foreground` ≈ 4.2:1（非文本图形门槛 3:1；`--status-risk` 只有 3.0，所以不用它）。
@@ -338,7 +338,7 @@ reduced-motion 下不糊、不错开，直接出现。实现与落点见 `loadin
 
 - 2026-10-08 · 设置页换皮加动效（原型 `Scp29Uk4yzuMG2foDn6y76`，落点见 `pages/settings.md` §8）：`QuickSetupDialog` 加入「从按下的那一点长出来」（`lib/grow-from-pointer.ts` 与 `AlertDialog` 共用），保存键「检查中 → ✓ 已保存」写在键上；`SelectContent` 新增 `spring` 档；新原语 `CountUp`；助手记忆删一条改走 `ConfirmDeleteButton` + 撤销黑条、全部清空改正中弹窗（§7.1 表的用法不变）。
 
-- 2026-10-09 · 提示与弹窗收尾（§7.1）：素材页上传键「上传中 2/3 → ✓ 已上传 3 张」走 `FeedbackButton`（`progress` → `done`）；素材多选删除走 `runUndoableAction`（「已删除 N 张 · 撤销」）；设置 · 偏好最底加「注销账号」（`ConfirmDialog` + `confirmPhrase`，Clerk `user.delete()`）。§7.1 表的三类场合至此都有落点。
+- 2026-10-09 · 提示与弹窗收尾（§7.1）：素材页上传键「上传中 2/3 → ✓ 已上传 3 张」走 `FeedbackButton`（`progress` → `done`）；素材多选删除走 `runUndoableAction`（「已删除 N 张 · 撤销」）。注销账号入口做过但没上线：owner 2026-10-09 定等连作品 / 文件 / key 一起删的管线做好再放出（现有 Clerk `user.deleted` webhook 只软删）。
 
 - 2026-10-08 · 提示与弹窗（§7.1）：sonner 换成底部正中黑条（最多 3 条、红点失败、`useToastLift` 让开底部输入框）；`FeedbackButton` / `ConfirmDeleteButton` 落地，画廊与素材查看器的下载 / 复制、`CopyPromptButton`、`ImageDetailModal`、素材详情的删除改走键上结果；素材删除可撤销（延后落库）；`AlertDialog` 从按下的那一点长出来、`ConfirmDialog` 支持 `confirmPhrase`；四个 `error.tsx`、`not-found.tsx`、`StudioErrorBoundary`、素材页整页加载失败收进空态模板（落点名册见 §7 表）。
 

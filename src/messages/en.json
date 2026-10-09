@@ -8753,19 +8753,6 @@
         "limit": "You can have up to {count} active tokens. Revoke one you no longer use.",
         "revoke": "Couldn't revoke the token. Try again."
       }
-    },
-    "deleteAccount": {
-      "row": "Delete account",
-      "rowHint": "You won't be able to sign in with it again",
-      "trigger": "Delete account",
-      "title": "Delete your account?",
-      "description": "Your account and sign-in will be deleted, and you won't be able to sign in with it again. Your profile becomes private and is hidden from others. Your assets are not exported for you — download anything you need first. This can't be undone.",
-      "phrase": "DELETE",
-      "phraseLabel": "Type \"{phrase}\" to confirm",
-      "cancel": "Cancel",
-      "confirm": "Delete account",
-      "deleting": "Deleting",
-      "failed": "Couldn't delete your account. Sign in again and retry."
     }
   },
   "AssistantSettings": {

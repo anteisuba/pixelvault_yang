@@ -37,7 +37,10 @@ import type { CivitaiLoraLibraryItem, CivitaiLoraLibraryResult } from '@/types'
  * 总数、翻页都以索引为准。新上架的模型最迟一天后出现。
  */
 
-const CIVITAI_INDEX_TIMEOUT_MS = 8000
+// 索引查询本身几十毫秒；超时多半是 Cloudflare 那头偶发卡一下，短超时 + 重试一次
+// 比干等 8 秒更稳（只读，重试安全）。
+const CIVITAI_INDEX_TIMEOUT_MS = 4000
+const CIVITAI_INDEX_ATTEMPTS = 2
 /** 卡片上最多带几个标签（与旧的上游路径一致）。 */
 const ITEM_MAX_TAGS = 8
 
@@ -92,19 +95,27 @@ async function callIndex(path: string, body?: unknown): Promise<unknown> {
       'CIVITAI_INDEX_URL / CIVITAI_INDEX_TOKEN are not configured',
     )
   }
-  const response = await fetch(new URL(path, baseUrl), {
-    method: body === undefined ? 'GET' : 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-    signal: AbortSignal.timeout(CIVITAI_INDEX_TIMEOUT_MS),
-  })
-  if (!response.ok) {
-    throw new Error(`Civitai index responded ${response.status}`)
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const response = await fetch(new URL(path, baseUrl), {
+        method: body === undefined ? 'GET' : 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+        },
+        body: body === undefined ? undefined : JSON.stringify(body),
+        signal: AbortSignal.timeout(CIVITAI_INDEX_TIMEOUT_MS),
+      })
+      if (!response.ok) {
+        throw new Error(`Civitai index responded ${response.status}`)
+      }
+      return await response.json()
+    } catch (error) {
+      const timedOut =
+        error instanceof DOMException && error.name === 'TimeoutError'
+      if (!timedOut || attempt >= CIVITAI_INDEX_ATTEMPTS) throw error
+    }
   }
-  return response.json()
 }
 
 export interface ListCivitaiLorasInput {

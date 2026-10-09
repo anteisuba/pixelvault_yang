@@ -90,6 +90,24 @@ describe('listCivitaiLoras', () => {
     })
   })
 
+  it('retries once when the index times out', async () => {
+    mockFetch
+      .mockRejectedValueOnce(
+        new DOMException('The operation was aborted', 'TimeoutError'),
+      )
+      .mockResolvedValueOnce(jsonResponse({ rows: [], total: 0 }))
+
+    await expect(listCivitaiLoras()).resolves.toMatchObject({ total: 0 })
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not retry an index error response', async () => {
+    mockFetch.mockResolvedValue(jsonResponse({}, 500))
+
+    await expect(listCivitaiLoras()).rejects.toThrow('responded 500')
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
   it.each([
     [{ sort: 'Highest Rated' as const }, { sort: 'thumbs' }],
     [{ sort: 'Most Downloaded' as const }, { sort: 'downloads' }],

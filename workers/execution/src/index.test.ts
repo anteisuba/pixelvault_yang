@@ -3285,6 +3285,51 @@ describe('OpenAI reference uploads and input fidelity', () => {
     expect(await image.text()).toBe('reference')
   })
 
+  it.each([
+    ['16:9', 16 / 9],
+    ['4:3', 4 / 3],
+    ['3:4', 3 / 4],
+    ['9:16', 9 / 16],
+  ])(
+    'without a resolution tier a %s card gets that ratio at the usual pixel count',
+    async (aspectRatio, ratio) => {
+      const { env } = openAiEnv()
+      const { uploadedForm } = stubImageResponse()
+
+      await generateOpenAIImage(
+        env,
+        openAiContext({
+          referenceImages: ['https://cdn.example.com/ref.png'],
+          aspectRatio,
+        }),
+        'test-key',
+      )
+
+      const [width, height] = String(uploadedForm()?.get('size'))
+        .split('x')
+        .map(Number)
+      expect(width! % 16).toBe(0)
+      expect(height! % 16).toBe(0)
+      expect(width! / height!).toBeCloseTo(ratio, 1)
+      expect(Math.abs(width! * height! - 1536 * 1024)).toBeLessThan(
+        1536 * 1024 * 0.05,
+      )
+    },
+  )
+
+  it('keeps the 1024x1024 square without a resolution tier', async () => {
+    const { env } = openAiEnv()
+    const { uploadedForm } = stubImageResponse()
+
+    await generateOpenAIImage(
+      env,
+      openAiContext({ referenceImages: ['https://cdn.example.com/ref.png'] }),
+      'test-key',
+    )
+
+    expect(uploadedForm()?.get('size')).toBe('1024x1024')
+  })
+
   it('sends nothing when the chip was never touched', async () => {
     const { env } = openAiEnv()
     const { uploadedForm } = stubImageResponse()

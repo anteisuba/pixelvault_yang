@@ -1,19 +1,25 @@
-/** Map the wire aspect ratio to a gpt-image supported size. */
+/**
+ * gpt-image size when no resolution tier is picked: the requested ratio at the
+ * pixel count of the old fixed sizes (1024x1024 square, about 1536x1024
+ * otherwise). The old table sent 16:9 and 4:3 as 1536x1024 (3:2) and 9:16 and
+ * 3:4 as 1024x1536 (2:3), so a 16:9 card came back 3:2 (2026-10-09).
+ */
 export function aspectRatioToOpenAISize(aspectRatio: string): {
   size: string
   width: number
   height: number
 } {
-  switch (aspectRatio) {
-    case '16:9':
-    case '4:3':
-      return { size: '1536x1024', width: 1536, height: 1024 }
-    case '9:16':
-    case '3:4':
-      return { size: '1024x1536', width: 1024, height: 1536 }
-    default:
-      return { size: '1024x1024', width: 1024, height: 1024 }
+  if (aspectRatio === '1:1' || !(aspectRatio in IMAGE_ASPECT_RATIO_PARTS)) {
+    return { size: '1024x1024', width: 1024, height: 1024 }
   }
+  const { width, height } = computeTieredDimensions(aspectRatio, {
+    targetPixels: OPENAI_DEFAULT_TARGET_PIXELS,
+    edgeStep: OPENAI_SIZE_EDGE_STEP,
+    maxEdge: OPENAI_SIZE_MAX_EDGE,
+    minTotalPixels: OPENAI_SIZE_MIN_TOTAL_PIXELS,
+    maxTotalPixels: OPENAI_SIZE_MAX_TOTAL_PIXELS,
+  })
+  return { size: `${width}x${height}`, width, height }
 }
 
 /** width:height ratio parts for the five wire aspect ratios. */
@@ -108,6 +114,7 @@ const OPENAI_SIZE_EDGE_STEP = 16
 const OPENAI_SIZE_MAX_EDGE = 3840
 const OPENAI_SIZE_MIN_TOTAL_PIXELS = 655_360
 const OPENAI_SIZE_MAX_TOTAL_PIXELS = 8_294_400
+const OPENAI_DEFAULT_TARGET_PIXELS = 1536 * 1024
 // gpt-image-2 accepts any size satisfying: edges are multiples of 16, long
 // edge <= 3840, and total pixels within [655_360, 8_294_400] — there is no
 // fixed enum, so tiers are pixel budgets rather than literal size strings.

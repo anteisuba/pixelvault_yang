@@ -24,7 +24,10 @@ vi.mock('@/hooks/use-novelai-characters', () => ({
   useNovelAiCharacters: () => ({ mode: null }),
 }))
 const viewport = vi.hoisted(() => ({ phone: false }))
-vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => viewport.phone }))
+vi.mock('@/hooks/use-mobile', () => ({
+  useIsMobile: () => viewport.phone,
+  useIsTablet: () => false,
+}))
 vi.mock('@/components/business/studio-shared/chrome/StudioCanvas', () => ({
   StudioCanvas: () => <div data-testid="results" />,
 }))

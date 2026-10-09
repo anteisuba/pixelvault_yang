@@ -4,7 +4,7 @@ import { useRef } from 'react'
 import { useMotionValueEvent } from 'motion/react'
 import { useReactFlow } from '@xyflow/react'
 
-import { studioOperatorYield } from '@/hooks/use-studio-operator-yield'
+import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
 
 /**
  * 助手打开把画布推窄时，**视口中心不动**（node-canvas-v2 §1 第 4 条 · 方向 B「助手推开
@@ -17,8 +17,9 @@ import { studioOperatorYield } from '@/hooks/use-studio-operator-yield'
  */
 export function useKeepCanvasCenterOnYield(): void {
   const { getViewport, setViewport } = useReactFlow()
-  const last = useRef(studioOperatorYield.get())
-  useMotionValueEvent(studioOperatorYield, 'change', (value) => {
+  const operatorYield = useStudioOperatorYield()
+  const last = useRef(operatorYield.get())
+  useMotionValueEvent(operatorYield, 'change', (value) => {
     const delta = value - last.current
     last.current = value
     if (delta === 0) return

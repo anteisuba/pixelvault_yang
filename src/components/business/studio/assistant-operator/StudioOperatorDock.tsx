@@ -63,7 +63,7 @@ import {
   removeReferenceMentions,
 } from '@/lib/studio-reference-mentions'
 import { useStudioOperatorHost } from '@/contexts/studio-operator-host'
-import { useIsMobile } from '@/hooks/use-mobile'
+import { useIsMobile, useIsTablet } from '@/hooks/use-mobile'
 import { useAssistantOperator } from '@/hooks/use-assistant-operator'
 import { useCanvasOperatorRequests } from '@/hooks/node/use-canvas-operator-requests'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
@@ -244,6 +244,12 @@ export function StudioOperatorDock() {
    */
   const slides = Boolean(anchor.avatarStays)
   const isMobile = useIsMobile()
+  /**
+   * 平板（768–1023）：面板照样从右边滑进来，但工作台不让位（消费方经
+   * `useStudioOperatorYield` 拿到恒 0），面板盖在工作台上 —— 所以这一档补上投影，
+   * 读得出它是浮在上面的。点面板外照旧收（下面那条注意力收放法则）。
+   */
+  const isTablet = useIsTablet()
   const { entries, mentions, question, confirm, threadScope, localThreadId } =
     useStudioOperatorState()
   const attachmentScope =
@@ -1167,7 +1173,9 @@ export function StudioOperatorDock() {
                * 把助手挂进任何一条 overlay 的人会原样再撞一次。
                */
               'overflow-hidden border border-border',
-              slides ? 'rounded-node' : 'rounded-2xl shadow-assistant-panel',
+              slides
+                ? cn('rounded-node', isTablet && 'shadow-assistant-panel')
+                : 'rounded-2xl shadow-assistant-panel',
               /**
                * ⚠ **毛玻璃只在静止档挂**（D7b 铁律）：`assistant-glass-panel` 带
                * `backdrop-filter`，而过渡中开它会让整块在每一帧重新采样背景 ——

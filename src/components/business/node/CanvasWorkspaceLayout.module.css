@@ -24,7 +24,7 @@
   height: 100%;
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 768px) {
   /* 与 CANVAS_SHELL_ASSISTANT.defaultWidthPx = 380 对齐（旧 22.5rem = 360）。 */
   .workspace[data-assistant-mode='chat'] {
     --canvas-assistant-width: 23.75rem;

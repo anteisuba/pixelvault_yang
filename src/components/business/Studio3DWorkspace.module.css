@@ -168,7 +168,7 @@
   border: 0;
   padding: 0;
 }
-@media (min-width: 1024px) {
+@media (min-width: 768px) {
   .root {
     height: 100svh;
     padding: 1.25rem;

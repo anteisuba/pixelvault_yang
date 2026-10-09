@@ -902,7 +902,7 @@
    ⚠ 与节点卡的材质纪律故意相反——节点卡是「桌面上的纸」（静态无投影、小圆角），
    助手是「浮在桌面上方的面板」；混同会让浮层读起来像一张巨大的节点卡。
    ⛔ 移动端不进这条：那一档是贴边 bottom sheet，贴边不该有四角圆角与投影。 */
-@media (min-width: 1024px) {
+@media (min-width: 768px) {
   .domain-canvas .canvas-assistant-surface {
     border-radius: var(--canvas-pop-radius);
     box-shadow: var(--canvas-pop-shadow);
@@ -1133,8 +1133,8 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
 
 /* ── v4 节点卡 · 375 降级（ui-defaults.md §6「降级 · 画布」+ §3.1 卡例外）──
    桌面档全部住在组件的 Tailwind 类里；这里只放**手机才成立**的三条改写。
-   ⚠ 断点 1023px 与应用壳的移动断点同源，⛔ 不另起一个数。 */
-@media (max-width: 1023px) {
+   ⚠ 断点 767px 与应用壳的移动断点同源，⛔ 不另起一个数。 */
+@media (max-width: 767px) {
   /* 卡内**不再限高**，页面自己滚：手机上「卡内滚 + 页面滚」两层滚动必错。 */
   [data-expanded-stack] {
     max-height: none !important;

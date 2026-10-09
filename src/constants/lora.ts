@@ -66,7 +66,7 @@ export function isLoraLibrarySource(value: string): value is LoraLibrarySource {
   )
 }
 
-// ── 库结果区移动端形制（<1024 走封面网格 + 底部详情抽屉）────────────────
+// ── 库结果区移动端形制（<768 走封面网格 + 底部详情抽屉）────────────────
 // 列数写在这里而不是散在组件里：2 列是 375 下「封面还看得出效果」的下限
 // （171px 宽 3:4 封面），sm(640) 起放到 3 列。间隙 8px（gap-2）。
 // ⚠ Tailwind 不吃运行期拼出来的类名，所以这里存的是**整串类**，不是数字。
@@ -75,7 +75,7 @@ export const LORA_LIBRARY_MOBILE_GRID_CLASS =
 /** 详情抽屉高度：留 8% 视口缺口露出底下的结果网格（几何在 .lora-detail-drawer）。 */
 export const LORA_LIBRARY_DETAIL_DRAWER_CLASS = 'lora-detail-drawer'
 
-// ── 库筛选行移动端形制（<1024：桌面那几行控件收成一条 chip 行 + 底部 sheet）──
+// ── 库筛选行移动端形制（<768：桌面那几行控件收成一条 chip 行 + 底部 sheet）──
 // 375 上原来的头部要 256px（应用条 44 + 模式 tab + 搜索/来源/排序换行成 80 +
 // 类型/底模/安全一行），结果区只剩 2 张卡看得全。收成一行 32px chip 后头部
 // ≤180px。chip 行横向可滚、不换行——换行就等于又长回两行。
@@ -1025,7 +1025,7 @@ export const LORA_LIBRARY_NSFW_STORAGE_KEY =
 export const CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL = 2
 
 /**
- * 移动端（<1024，`useIsMobile`）结果卡自动滚动 —— `LoraWorkbench` GenerateBranch。
+ * 移动端（<768，`useIsMobile`）结果卡自动滚动 —— `LoraWorkbench` GenerateBranch。
  *
  * 时机取「生成**开始**」而不是「生成完成」：开始的那一刻结果卡里已经是
  * `StudioGeneratingProgress`（边上的进度线 + 百分比 + 参数行），把它顶到视口顶，用户

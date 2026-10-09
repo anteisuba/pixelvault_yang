@@ -223,7 +223,6 @@ describe('ShellSidePanels · 六格（原型四格 + 角色 / 素材库）', () 
       onUpload: vi.fn(),
       onPlaceMedia: vi.fn(),
       placedCharacterIds: new Set<string>(),
-      railVisible: true,
       onPlaceCharacter: vi.fn(),
       ...PANEL_SLOT_PROPS,
     }
@@ -231,22 +230,10 @@ describe('ShellSidePanels · 六格（原型四格 + 角色 / 素材库）', () 
     return { props, view }
   }
 
-  it('兜底图标栏 = 六格（添加节点 / 节点 / 当前项目 / 历史对话 / 角色 / 素材库）', () => {
-    renderPanels()
-    const rail = screen.getByTestId('shell-side-rail')
-    expect(
-      Array.from(rail.querySelectorAll('button')).map(
-        (button) => button.dataset.testid,
-      ),
-    ).toEqual([
-      'shell-rail-addNode',
-      'shell-rail-nodes',
-      'shell-rail-project',
-      'shell-rail-history',
-      'shell-rail-cards',
-      'shell-rail-library',
-    ])
-    expect(screen.queryByTestId('shell-side-panel')).toBeNull()
+  it('画布里没有自己的图标栏：面板收着时什么都不画（入口全在全站侧栏）', () => {
+    const { view } = renderPanels()
+    expect(view.container.childElementCount).toBe(0)
+    expect(screen.queryByRole('button')).toBeNull()
   })
 
   it('四格各开各的内容：添加目录 / 节点定位器 / 宿主给的项目与历史', () => {
@@ -283,51 +270,18 @@ describe('ShellSidePanels · 六格（原型四格 + 角色 / 素材库）', () 
     }
   })
 
-  it('开着的是角色那一格：栏上只有它亮着', () => {
+  it('开着某一格：面板贴边距开在全站侧栏旁边；标题栏的收起交还 null', () => {
     const { props, view } = renderPanels()
-    view.rerender(
-      <ShellSidePanels {...props} activePanel={CANVAS_SHELL_PANEL_IDS.cards} />,
-    )
-    expect(screen.getByTestId('shell-side-panel').dataset.panel).toBe('cards')
-    expect(
-      screen.getByTestId('shell-rail-cards').getAttribute('aria-pressed'),
-    ).toBe('true')
-    expect(
-      screen.getByTestId('shell-rail-nodes').getAttribute('aria-pressed'),
-    ).toBe('false')
-  })
-
-  it('点图标开面板；再点同一个收起', () => {
-    const { props, view } = renderPanels()
-    fireEvent.click(screen.getByTestId('shell-rail-nodes'))
-    expect(props.onActivePanelChange).toHaveBeenCalledWith(
-      CANVAS_SHELL_PANEL_IDS.nodes,
-    )
-
     view.rerender(
       <ShellSidePanels {...props} activePanel={CANVAS_SHELL_PANEL_IDS.nodes} />,
     )
-    expect(screen.getByTestId('shell-side-panel').dataset.panel).toBe('nodes')
-    expect(screen.getByTestId('cast-dock')).toBeTruthy()
-
-    fireEvent.click(screen.getByTestId('shell-rail-nodes'))
-    expect(props.onActivePanelChange).toHaveBeenLastCalledWith(null)
-  })
-
-  it('≥1024 图标栏并进全站侧栏：画布里没有栏，面板贴边距开在侧栏旁边', () => {
-    const { props, view } = renderPanels()
-    view.rerender(
-      <ShellSidePanels
-        {...props}
-        railVisible={false}
-        activePanel={CANVAS_SHELL_PANEL_IDS.nodes}
-      />,
-    )
-    expect(screen.queryByTestId('shell-side-rail')).toBeNull()
-    expect(screen.queryByTestId('shell-rail-indicator')).toBeNull()
     const panel = screen.getByTestId('shell-side-panel')
     expect(panel.dataset.panel).toBe('nodes')
+    expect(screen.getByTestId('cast-dock')).toBeTruthy()
     expect(panel.parentElement?.style.left).toBe('16px')
+
+    fireEvent.click(screen.getByRole('button', { name: 'close' }))
+    expect(props.onActivePanelChange).toHaveBeenLastCalledWith(null)
   })
 })
 
@@ -363,7 +317,6 @@ describe('ShellSidePanels · 角色库（画布用角色 ④）', () => {
       onUpload: vi.fn(),
       onPlaceMedia: vi.fn(),
       placedCharacterIds: new Set<string>(placed),
-      railVisible: true,
       onPlaceCharacter: vi.fn(),
       ...PANEL_SLOT_PROPS,
     }
@@ -400,7 +353,6 @@ describe('ShellSidePanels · 液态开合', () => {
     onUpload: vi.fn(),
     onPlaceMedia: vi.fn(),
     placedCharacterIds: new Set<string>(),
-    railVisible: true,
     onPlaceCharacter: vi.fn(),
     ...PANEL_SLOT_PROPS,
   }
@@ -435,11 +387,6 @@ describe('ShellSidePanels · 液态开合', () => {
     // 动着时不接点击；阴影挂在外层壳上（clip-path 会把 box-shadow 一起裁掉）。
     expect(panel.className).toContain('pointer-events-none')
     expect(panel.parentElement?.style.filter).toContain('drop-shadow')
-    // 按下底由栏里那块会滑的底块画，按钮自己不铺；aria-pressed 照旧。
-    const railButton = screen.getByTestId('shell-rail-nodes')
-    expect(railButton.getAttribute('aria-pressed')).toBe('true')
-    expect(railButton.className).not.toContain('bg-node-panel-inner')
-    expect(screen.getByTestId('shell-rail-indicator')).toBeTruthy()
 
     advance(2000)
     expect(panel.dataset.phase).toBe('open')
@@ -465,9 +412,6 @@ describe('ShellSidePanels · 液态开合', () => {
     expect(panel.dataset.phase).toBe('closing')
     expect(panel.dataset.panel).toBe('project')
     expect(panel.className).toContain('pointer-events-none')
-    expect(
-      screen.getByTestId('shell-rail-project').getAttribute('aria-pressed'),
-    ).toBe('false')
     // 形状还在收：落定前不卸载。
     advance(
       (LIQUID_TIMING.retractDelayS + LIQUID_TIMING.retractSecondBeatDelayS) *
@@ -738,7 +682,6 @@ describe('素材库面板 · 翻页 / 点一下落卡 / 传完就变', () => {
       onUpload: vi.fn(),
       onPlaceMedia: vi.fn(),
       placedCharacterIds: new Set<string>(),
-      railVisible: true,
       onPlaceCharacter: vi.fn(),
       ...PANEL_SLOT_PROPS,
     }

@@ -6,7 +6,7 @@ import { PanelLeftIcon } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import { Slot } from 'radix-ui'
 
-import { useIsMobile } from '@/hooks/use-mobile'
+import { useIsMobile, useIsTablet } from '@/hooks/use-mobile'
 import type { NavRect } from '@/hooks/use-nav-indicator'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -86,12 +86,18 @@ function SidebarProvider({
   onOpenChange?: (open: boolean) => void
 }) {
   const isMobile = useIsMobile()
+  /**
+   * 平板（768–1023）侧栏钉死在收起档（owner 2026-10-09 平板 v10「图标栏点了只冒名字，
+   * 不展开」）：展开的 144 会把内容挤出视口。⚠ 只是不让它展开，用户在桌面上展开过的
+   * 记忆（`_open`）原样留着，转回 ≥1024 时照旧。
+   */
+  const isTablet = useIsTablet()
   const [openMobile, setOpenMobile] = React.useState(false)
 
   // This is the internal state of the sidebar.
   // We use openProp and setOpenProp for control from outside the component.
   const [_open, _setOpen] = React.useState(defaultOpen)
-  const open = openProp ?? _open
+  const open = isTablet ? false : (openProp ?? _open)
   const setOpen = React.useCallback(
     (value: boolean | ((value: boolean) => boolean)) => {
       const openState = typeof value === 'function' ? value(open) : value
@@ -106,8 +112,9 @@ function SidebarProvider({
 
   // Helper to toggle the sidebar.
   const toggleSidebar = React.useCallback(() => {
+    if (isTablet) return
     return isMobile ? setOpenMobile((open) => !open) : setOpen((open) => !open)
-  }, [isMobile, setOpen, setOpenMobile])
+  }, [isMobile, isTablet, setOpen, setOpenMobile])
 
   // Adds a keyboard shortcut to toggle the sidebar.
   React.useEffect(() => {

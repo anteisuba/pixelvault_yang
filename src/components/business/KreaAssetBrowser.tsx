@@ -93,7 +93,7 @@ import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import { useAssetFolders } from '@/hooks/use-asset-folders'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
 import { useLocalPreference } from '@/hooks/use-local-preference'
-import { useIsPhone } from '@/hooks/use-mobile'
+import { useIsMobile } from '@/hooks/use-mobile'
 import {
   useAssetUploadQueue,
   type UploadQueueItem,
@@ -518,7 +518,7 @@ export function KreaAssetBrowser({
     setSelectedOriginRect(null)
   }
   // 桌面 / 平板点开是就地查看器，手机沿用全屏详情（owner 2026-09-29）。
-  const isPhone = useIsPhone()
+  const isPhone = useIsMobile()
   // 换了夹或筛选 = 查看器关上再换范围（pages/assets.md §3「详情」）。
   const [viewerFilters, setViewerFilters] = useState(filters)
   if (viewerFilters !== filters) {

@@ -57,6 +57,7 @@ vi.mock('@/hooks/use-image-model-options', () => ({
 
 vi.mock('@/hooks/use-mobile', () => ({
   useIsMobile: () => false,
+  useIsTablet: () => false,
 }))
 
 /** 这一枪不发的那几张图（素材排、发送口与舞台封面同一份）。 */

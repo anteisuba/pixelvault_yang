@@ -10,7 +10,10 @@ vi.mock('next-intl', () => ({
 }))
 
 const viewport = vi.hoisted(() => ({ phone: false }))
-vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => viewport.phone }))
+vi.mock('@/hooks/use-mobile', () => ({
+  useIsMobile: () => viewport.phone,
+  useIsTablet: () => false,
+}))
 vi.mock('@/hooks/use-image-upload', () => ({
   useImageUpload: () => ({
     referenceImage: undefined,

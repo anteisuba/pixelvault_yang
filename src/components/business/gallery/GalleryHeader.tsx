@@ -176,7 +176,7 @@ export const GalleryHeader = memo(function GalleryHeader({
       onPointerLeave={() => setHovered(false)}
       onFocusCapture={() => setCollapsedByScroll(false)}
       className={cn(
-        'relative z-30 -mt-3 pt-3 transition-colors duration-fast ease-linear md:sticky md:top-11 lg:top-0',
+        'relative z-30 -mt-3 pt-3 transition-colors duration-fast ease-linear md:sticky md:top-0',
         expanded
           ? 'bg-surface-workbench'
           : 'pointer-events-none bg-transparent',

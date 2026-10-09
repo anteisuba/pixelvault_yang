@@ -10,6 +10,7 @@ vi.mock('next-intl', () => ({
 
 vi.mock('@/hooks/use-mobile', () => ({
   useIsMobile: vi.fn(() => false),
+  useIsTablet: () => false,
 }))
 
 // picker 现在是自己的任务型 shell（page §8），不再复用整个素材页组件。

@@ -35,6 +35,7 @@ vi.mock('@atlaskit/pragmatic-drag-and-drop/element/adapter', () => ({
 let mockIsMobile = false
 vi.mock('@/hooks/use-mobile', () => ({
   useIsMobile: () => mockIsMobile,
+  useIsTablet: () => false,
 }))
 vi.mock('@/hooks/use-studio-assistant-controls', () => ({
   useStudioAssistantControls: () => ({

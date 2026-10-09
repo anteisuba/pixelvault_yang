@@ -3,7 +3,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { CopyPromptButton } from './CopyPromptButton'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
-vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => false }))
+vi.mock('@/hooks/use-mobile', () => ({
+  useIsMobile: () => false,
+  useIsTablet: () => false,
+}))
 vi.mock('sonner', () => ({ toast: { success: vi.fn() } }))
 afterEach(() => vi.unstubAllGlobals())
 

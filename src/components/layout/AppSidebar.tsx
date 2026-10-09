@@ -76,7 +76,8 @@ const SIDEBAR_FOOTER_CLASS = 'gap-1 p-1'
 export function AppSidebar() {
   const { isMobile } = useSidebar()
 
-  // <1024 **完全没有侧栏**（方向 M2「顶栏当切换器」）——由 MobileShell 接管。
+  // <768 **完全没有侧栏**（方向 M2「顶栏当切换器」）——由 MobileShell 接管。
+  // 768–1023 是平板：同一条侧栏，钉死在收起档（owner 2026-10-09 平板 v10）。
   // 不挡的话，原语的移动分支会挂一个永远打不开的 Sheet 在 DOM 里。
   // 首帧 useIsMobile 返回 false，与 SSR 一致，不会水合不匹配。
   if (isMobile) return null
@@ -128,7 +129,8 @@ function AppSidebarHeader() {
         </Link>
         {/* 头像不在这里了（D11 ④）—— 它下沉到最底与「设置」合成账号入口。
             顶端只剩品牌与折叠钮。 */}
-        <SidebarTrigger className="size-11 shrink-0 rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:size-8" />
+        {/* 平板（768–1023）侧栏不展开（`SidebarProvider` 钉死收起档），折叠钮跟着藏起来。 */}
+        <SidebarTrigger className="size-11 shrink-0 rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground max-desk:hidden md:size-8" />
       </div>
     </SidebarHeader>
   )

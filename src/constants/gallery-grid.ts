@@ -10,7 +10,7 @@
 /**
  * 列数按视口宽度取档（升序，取最后一个满足 `viewportWidth >= minWidth` 的档）。
  * 2–6 列（owner 2026-10-08 画廊换皮：去掉左栏、整宽瀑布流）。档位与 Tailwind 断点
- * 对齐：md 768 · lg 1024 · 2xl 1536 · 3xl 1920（`globals.css` 的 `--breakpoint-3xl`）。
+ * 对齐：md 768 · desk 1024 · 2xl 1536 · 3xl 1920（`globals.css` 的 `--breakpoint-3xl`）。
  */
 export const GALLERY_GRID_COLUMN_BREAKPOINTS = [
   { minWidth: 0, columns: 2 },

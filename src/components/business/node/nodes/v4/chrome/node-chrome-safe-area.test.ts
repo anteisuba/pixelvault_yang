@@ -153,21 +153,8 @@ describe('节点浮层安全区 · mock.html after', () => {
 })
 
 describe('canvasShellSafeLeftPx · 图标栏并进全站侧栏（owner 2026-10-08）', () => {
-  it('≥1024 画布里没有图标栏：收着只留边距，面板开着让出面板', () => {
-    expect(
-      canvasShellSafeLeftPx({ panelOpen: false, railVisible: false }),
-    ).toBe(16)
-    expect(canvasShellSafeLeftPx({ panelOpen: true, railVisible: false })).toBe(
-      294,
-    )
-  })
-
-  it('768–1023 图标栏仍在画布里：沿用 72 / 346', () => {
-    expect(canvasShellSafeLeftPx({ panelOpen: false, railVisible: true })).toBe(
-      72,
-    )
-    expect(canvasShellSafeLeftPx({ panelOpen: true, railVisible: true })).toBe(
-      346,
-    )
+  it('画布里没有图标栏：收着只留边距，面板开着让出面板', () => {
+    expect(canvasShellSafeLeftPx({ panelOpen: false })).toBe(16)
+    expect(canvasShellSafeLeftPx({ panelOpen: true })).toBe(294)
   })
 })

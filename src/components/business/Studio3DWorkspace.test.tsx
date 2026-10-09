@@ -20,7 +20,10 @@ vi.mock('next/navigation', () => ({
 }))
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('next/image', () => ({ default: () => null }))
-vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => mocks.mobile }))
+vi.mock('@/hooks/use-mobile', () => ({
+  useIsMobile: () => mocks.mobile,
+  useIsTablet: () => false,
+}))
 vi.mock('@/contexts/api-keys-context', () => ({
   useApiKeysContext: () => ({
     keys: mocks.hasKey

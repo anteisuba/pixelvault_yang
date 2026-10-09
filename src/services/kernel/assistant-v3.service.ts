@@ -32,6 +32,7 @@ import {
   type AssistantV3Tool,
 } from '@/constants/assistant-v3'
 import { NODE_SCRIPT_SHOT_STATE_IDS } from '@/constants/node-script'
+import { resolveAssistantModelId } from '@/constants/node-studio'
 import {
   NODE_MEDIA_KIND_IDS,
   NODE_V4_TEXT_SUBTYPE_IDS,
@@ -788,7 +789,12 @@ async function* runV3Turn(
     return
   }
   const prepared = await prepareOperatorTurn(clerkId, initialRequest, signal)
-  const { request, user, persona, rules, route, modelId, run } = prepared
+  const { request, user, persona, rules, route, run } = prepared
+  /**
+   * ⚠ 助手模型选「自动」时这里没有型号（旧内核在更深处才补默认型号）。⛔ 别因此退回
+   *   旧内核：2026-10-09 才发现，画布上选「自动」的一直还在走旧内核。
+   */
+  const modelId = prepared.modelId ?? resolveAssistantModelId(route.adapterType)
   const canvas = request.snapshot.canvas
   const model = modelId ? resolveAssistantV3Model(route, modelId) : null
   if (!model || !modelId || !canvas) {

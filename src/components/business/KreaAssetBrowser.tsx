@@ -20,7 +20,6 @@ import {
   LayoutGrid,
   FolderX,
   MoreHorizontal,
-  PanelLeft,
   Pin,
   Trash2,
   UploadCloud,
@@ -40,7 +39,6 @@ import { AssetDetailSheet } from '@/components/business/AssetDetailSheet'
 import { AssetAddToFolderPanel } from '@/components/business/assets/AssetAddToFolderPanel'
 import { AssetFacetBar } from '@/components/business/assets/AssetFacetBar'
 import { AssetFolderMenu } from '@/components/business/assets/AssetFolderMenu'
-import { AssetScopePopover } from '@/components/business/assets/AssetScopePopover'
 import {
   AssetSelectionMorph,
   SelectionArmButton,
@@ -1770,8 +1768,8 @@ export function KreaAssetBrowser({
       <div className="flex min-h-0 flex-1 flex-col gap-3 px-2 pt-4 sm:px-6">
         {/* ─── 顶栏（默认单行）────────────────────────────────────
             page §3：`素材 + 总数` · 分面筛选 · ——弹性—— · 上传 · 选择 · 密度。
-            文件夹 B：跨在栏和大河上面；栏收起（或窄屏）时左端多一颗键，
-            标题旁写着当前范围，点它把栏拿回来。 */}
+            文件夹 B：跨在栏和大河上面；栏收起（或窄屏）时标题旁多一颗范围胶囊，
+            写着当前范围，点它把栏拿回来。 */}
         <motion.div
           initial={reducedMotion ? false : { opacity: 0, y: -6, scale: 0.995 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -1786,19 +1784,6 @@ export function KreaAssetBrowser({
           )}
         >
           <div className="flex min-w-0 items-center gap-1.5">
-            {/* 栏收起（或窄屏）时才在：宽度与透明度跟着栏一起走，⛔ 不突然冒出来。 */}
-            <button
-              type="button"
-              aria-label={t('folderRailExpand')}
-              onClick={revealFolders}
-              className={cn(
-                'mr-1 grid size-9 max-w-9 shrink-0 place-items-center overflow-hidden rounded-xl text-muted-foreground ring-1 ring-inset ring-border transition-[max-width,margin,opacity,visibility,background-color] duration-slow ease-standard hover:bg-muted hover:text-foreground motion-reduce:transition-none',
-                railOpen &&
-                  'md:invisible md:mr-0 md:max-w-0 md:opacity-0 md:ring-0',
-              )}
-            >
-              <PanelLeft className="size-4" />
-            </button>
             <h1 className="truncate text-base font-semibold text-foreground">
               {t('title')}
             </h1>
@@ -1806,51 +1791,39 @@ export function KreaAssetBrowser({
               value={libraryTotal}
               className="font-mono text-xs text-muted-foreground"
             />
-            <AssetScopePopover
-              folders={folders}
-              counts={folderCounts}
-              scope={folderScope}
-              onScopeChange={openScope}
-              onTriggerIntercept={() => {
-                // 窄屏没有栏可收：胶囊照旧把文件夹抽屉拿出来。
-                if (window.matchMedia('(min-width: 768px)').matches)
-                  return false
-                setIsFolderDrawerOpen(true)
-                return true
-              }}
-              trigger={
-                <button
-                  type="button"
-                  aria-label={t('folderScopeChip', { name: scopeTitle })}
-                  className={cn(
-                    'ml-1.5 inline-flex h-8 min-w-0 max-w-44 items-center gap-1.5 overflow-hidden rounded-full border border-border bg-background pl-1.5 pr-2.5 text-xs font-medium whitespace-nowrap text-foreground transition-[max-width,margin,padding,opacity,visibility,background-color] duration-slow ease-standard hover:bg-muted data-[state=open]:bg-muted motion-reduce:transition-none',
-                    railOpen &&
-                      'md:invisible md:ml-0 md:max-w-0 md:px-0 md:opacity-0',
-                  )}
-                >
-                  {folderScope.kind === 'folder' ? (
-                    scopeFolder?.coverUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- R2 缩略图，已是小图
-                      <img
-                        src={scopeFolder.coverUrl}
-                        alt=""
-                        className="size-5 shrink-0 rounded-full object-cover"
-                      />
-                    ) : (
-                      <Folder className="size-3.5 shrink-0 text-muted-foreground" />
-                    )
-                  ) : folderScope.kind === 'unassigned' ? (
-                    <FolderX className="size-3.5 shrink-0 text-muted-foreground" />
-                  ) : (
-                    <LayoutGrid className="size-3.5 shrink-0 text-muted-foreground" />
-                  )}
-                  <BlurSwap swapKey={scopeTitle} className="min-w-0">
-                    <span className="truncate">{scopeTitle}</span>
-                  </BlurSwap>
-                  <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
-                </button>
-              }
-            />
+            {/* 栏收起（或窄屏）时才在：宽度与透明度跟着栏一起走，⛔ 不突然冒出来。
+                owner 2026-10-09：只留这一颗，点它就是打开文件夹栏（窄屏拉出左边抽屉）。 */}
+            <button
+              type="button"
+              aria-label={t('folderScopeChip', { name: scopeTitle })}
+              onClick={revealFolders}
+              className={cn(
+                'ml-1.5 inline-flex h-8 min-w-0 max-w-44 items-center gap-1.5 overflow-hidden rounded-full border border-border bg-background pl-1.5 pr-2.5 text-xs font-medium whitespace-nowrap text-foreground transition-[max-width,margin,padding,opacity,visibility,background-color] duration-slow ease-standard hover:bg-muted motion-reduce:transition-none',
+                railOpen &&
+                  'md:invisible md:ml-0 md:max-w-0 md:px-0 md:opacity-0',
+              )}
+            >
+              {folderScope.kind === 'folder' ? (
+                scopeFolder?.coverUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- R2 缩略图，已是小图
+                  <img
+                    src={scopeFolder.coverUrl}
+                    alt=""
+                    className="size-5 shrink-0 rounded-full object-cover"
+                  />
+                ) : (
+                  <Folder className="size-3.5 shrink-0 text-muted-foreground" />
+                )
+              ) : folderScope.kind === 'unassigned' ? (
+                <FolderX className="size-3.5 shrink-0 text-muted-foreground" />
+              ) : (
+                <LayoutGrid className="size-3.5 shrink-0 text-muted-foreground" />
+              )}
+              <BlurSwap swapKey={scopeTitle} className="min-w-0">
+                <span className="truncate">{scopeTitle}</span>
+              </BlurSwap>
+              <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
+            </button>
           </div>
 
           {!isPickerMode && (

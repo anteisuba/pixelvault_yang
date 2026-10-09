@@ -801,8 +801,6 @@ interface OperatorRun {
   priorRounds: readonly AssistantConversationRoundStored[]
   referenceAnalysis: ReferenceAnalysis | null
   inspectedCanvasReferences: ReferenceAnalysis | null
-  /** 这次请求里 `read_state` 点名读过全文的卡 —— 之后每步的画布状态给它们全文。 */
-  canvasReadNodeIds: Set<string>
   /** 画布这一步刚为哪张卡算出的参考要点 —— 写词时据此补图例。 */
   canvasBrief: {
     target: string
@@ -1468,7 +1466,6 @@ function renderCanvasBoard(run: OperatorRun): string {
   const latest = latestUserMessage(run.request)
   const full = new Set<string>([
     ...canvas.selectedNodeIds,
-    ...run.canvasReadNodeIds,
     ...nodes
       .filter((node) => node.name.length >= 2 && latest.includes(node.name))
       .map((node) => node.id),
@@ -2157,7 +2154,9 @@ function planReadState(
   /**
    * ⭐ 画布：状态**每步都已经在**上面那段里 —— 再整份读一遍只会把上下文翻倍
    * （owner 2026-10-08 实测：读一次多 4.1 万字）。不点名就说一句它在上面；点名的
-   * 卡记进 `canvasReadNodeIds`，从下一步起那段状态里给它们全文。
+   * 卡把全文**接在这一步的观察里**，⛔ 不回写到上面那段画布：那段在一次请求里
+   * 一字不改，每一步的提示只在末尾追加，前面才进得了缓存（2026-10-09 一天实测：
+   * 读完一张卡就改写画布，整段之后的前缀每步都变，输入只有 15% 走缓存）。
    */
   if (run.request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas) {
     const nodes = (run.state.canvas?.shots ?? []).flatMap((shot) =>
@@ -2173,11 +2172,16 @@ function planReadState(
     const missing = requested.filter(
       (id) => !nodes.some((node) => node.id === id),
     )
+    const fullText = (node: AssistantOperatorCanvasNode) => {
+      const text = node.text ?? ''
+      return referenceRoleLegendCount(text) === null
+        ? text
+        : withoutReferenceRoleLegend(text)
+    }
     return {
       kind: 'read',
       payload: args,
       run: async () => {
-        for (const node of found) run.canvasReadNodeIds.add(node.id)
         const names = found.map((node) => node.name).join(', ')
         return {
           result: {
@@ -2189,7 +2193,14 @@ function planReadState(
             ),
           },
           observation: found.length
-            ? `read_state: ${names} now appear with their full text in CURRENT WORKBENCH STATE.${missing.length ? ` No card has id ${missing.join(', ')}.` : ''}${deferred.length ? ` ${deferred.length} more were not read this step (at most ${ASSISTANT_OPERATOR_CANVAS_LIMITS.maxReadNodes} per call): read ${deferred.join(', ')} next.` : ''}`
+            ? `read_state — full text of ${found.length} card(s):${found
+                .map(
+                  (node) =>
+                    `\n[${node.id}] ${node.name}:\n${fullText(node) || '(no text)'}`,
+                )
+                .join(
+                  '',
+                )}${missing.length ? `\nNo card has id ${missing.join(', ')}.` : ''}${deferred.length ? `\n${deferred.length} more were not read this step (at most ${ASSISTANT_OPERATOR_CANVAS_LIMITS.maxReadNodes} per call): read ${deferred.join(', ')} next.` : ''}`
             : `read_state: the board in CURRENT WORKBENCH STATE is current as of this step — there was nothing new to read.${missing.length ? ` No card has id ${missing.join(', ')}.` : ''} To see clipped cards in full, call read_state with {nodeIds:[...]}.`,
         }
       },
@@ -10966,13 +10977,19 @@ function hasVisualEvidence(
 }
 
 function buildOperatorUserPrompt(run: OperatorRun, maxLength?: number): string {
-  const sections: string[] = []
+  /**
+   * ⭐ **前面不变、后面追加**（2026-10-09 一天实测：输入只有 15% 走缓存）：缓存只认
+   * 一模一样的前缀。对话 → 本轮之前的事 → 画布 → 这一轮的观察，一次请求里每一步
+   * 只在最后长出新的一段；⛔ 别再把会变的东西排到对话前面。
+   */
+  const settled: string[] = []
+  const live: string[] = []
 
-  sections.push(`CURRENT WORKBENCH STATE (the creator is looking at this right now):
+  live.push(`CURRENT WORKBENCH STATE (the creator is looking at this right now):
 ${renderState(run, maxLength === undefined ? undefined : LIMITS.maxCompactedLoraMaterialChars)}`)
 
   if (run.request.mediaAttachments?.length) {
-    sections.push(
+    live.push(
       `ACTUAL MEDIA INPUTS FOR THIS TURN:\n${JSON.stringify(run.request.mediaAttachments)}\nThe video/audio content is attached to this request. Analyze it directly, identifying files by their labels. Do not claim you only received URLs. Answer analysis questions without modifying the workbench or requesting permission again.`,
     )
   }
@@ -10984,7 +11001,7 @@ ${renderState(run, maxLength === undefined ? undefined : LIMITS.maxCompactedLora
     return profile ? [{ imageIndex, ...profile }] : []
   })
   if (currentEvidence.length)
-    sections.push(
+    live.push(
       `CURRENT VERIFIED REFERENCE EVIDENCE (server-matched to the current URL order):\n${JSON.stringify(currentEvidence)}\nUse these visual facts when answering. Older assistant claims of an unreadable image do not override verified evidence. Missing evidence means not yet inspected, not a permanent failure.`,
     )
 
@@ -10996,7 +11013,7 @@ ${renderState(run, maxLength === undefined ? undefined : LIMITS.maxCompactedLora
     currentImages.length &&
     assistantAdapterSupportsImage(run.route.adapterType, run.modelId)
   )
-    sections.push(
+    live.push(
       `IMAGES ATTACHED TO THIS MODEL REQUEST (in attachment order):\n${JSON.stringify(currentImages)}\nThese actual image inputs are for the latest user question. Inspect them directly, regardless of failed reads described in older conversation. Do not repeat an old failure as a new observation. Answer visual questions directly; analyze_references is only needed to record structured evidence for prompt editing. Current pixels override stale descriptions; uncertain appearance is not a transport failure.`,
     )
 
@@ -11009,7 +11026,7 @@ ${renderState(run, maxLength === undefined ? undefined : LIMITS.maxCompactedLora
     (step) => step.thisTurn,
   )
   if (earlierSteps.length) {
-    sections.push(`HISTORICAL TOOL ATTEMPTS (not current image availability; failed reads may be tried again when the creator asks in a new turn):
+    settled.push(`HISTORICAL TOOL ATTEMPTS (not current image availability; failed reads may be tried again when the creator asks in a new turn):
 ${earlierSteps.map(priorStepLine).join('\n')}`)
   }
   /**
@@ -11017,7 +11034,7 @@ ${earlierSteps.map(priorStepLine).join('\n')}`)
    * 尝试」里，模型读不出是自己刚落的，三张卡写完又整批重写、还抄错一个 id。
    */
   if (thisTurnSteps.length) {
-    sections.push(`ALREADY DONE IN THIS TURN (before the app paused for canvas_sync or an interruption — every [done] change is on the board now, and so is every op of a canvasBatchPartial batch except only the ops it lists as Not landed; never repeat or rewrite any of it. Continue only with what the creator asked that is still missing, or finish):
+    settled.push(`ALREADY DONE IN THIS TURN (before the app paused for canvas_sync or an interruption — every [done] change is on the board now, and so is every op of a canvasBatchPartial batch except only the ops it lists as Not landed; never repeat or rewrite any of it. Continue only with what the creator asked that is still missing, or finish):
 ${thisTurnSteps.map(priorStepLine).join('\n')}`)
   }
 
@@ -11040,7 +11057,7 @@ ${thisTurnSteps.map(priorStepLine).join('\n')}`)
         .join(', ')
       return `- [${index + 1}] ${step.label}${artifacts ? ` → produced: ${artifacts}` : ''}`
     })
-    sections.push(
+    settled.push(
       [
         'YOU ARE RESUMING AN APPROVED PLAN THAT WAS INTERRUPTED. The steps below are ALREADY DONE — their results exist and are part of the current state. Do NOT redo them, do NOT re-plan from the start, and do NOT ask the creator to approve the plan again. Pick up at the first step that is not listed and carry on. Anything those steps produced is yours to build on; refer to it by the name printed here.',
         ...(run.request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas
@@ -11075,7 +11092,7 @@ ${thisTurnSteps.map(priorStepLine).join('\n')}`)
       run.request.planApproved === false
         ? 'THE CREATOR WANTS A DIFFERENT PLAN. Re-plan from scratch this turn: send a NEW "plan" (and new "questions" if anything is still open) BEFORE calling any tool, and fold their answers below into it.'
         : 'THE CREATOR APPROVED YOUR PLAN AND ANSWERED THE OPEN QUESTIONS. Each line below is the question you asked and what the creator picked. Treat them as settled facts: do not ask about them again, in any wording, and do not stall on them — act on them this turn.'
-    sections.push(
+    settled.push(
       [
         heading,
         ...(answers.length > 0 ? answers : ['- (no answers given)']),
@@ -11084,7 +11101,7 @@ ${thisTurnSteps.map(priorStepLine).join('\n')}`)
   }
 
   if (run.request.confirmations?.length) {
-    sections.push(`THE CREATOR ANSWERED YOUR OVERWRITE QUESTION:
+    settled.push(`THE CREATOR ANSWERED YOUR OVERWRITE QUESTION:
 ${run.request.confirmations
   .map(
     (entry) =>
@@ -11098,18 +11115,19 @@ ${run.request.confirmations
   }
 
   if (run.observations.length > 0) {
-    sections.push(`WHAT HAPPENED SO FAR THIS TURN:
+    live.push(`WHAT HAPPENED SO FAR THIS TURN:
 ${run.observations.join('\n')}`)
   }
 
-  const prefix = `${sections.join('\n\n')}\n\nCONVERSATION:\n`
+  const head = 'CONVERSATION:\n'
+  const body = `\n\n${[...settled, ...live].join('\n\n')}`
   const suffix = '\n\nReply with ONE JSON object.'
   const conversationBudget =
     maxLength === undefined
       ? undefined
-      : Math.max(1, maxLength - prefix.length - suffix.length)
+      : Math.max(1, maxLength - head.length - body.length - suffix.length)
 
-  return `${prefix}${operatorConversation(run.request.messages, conversationBudget)}${suffix}`
+  return `${head}${operatorConversation(run.request.messages, conversationBudget)}${body}${suffix}`
 }
 
 const OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH = 24_000
@@ -12235,7 +12253,6 @@ async function* runOperatorTurn(
     priorRounds,
     referenceAnalysis: null,
     inspectedCanvasReferences: null,
-    canvasReadNodeIds: new Set(),
     canvasBrief: null,
     referencePromptWritten: false,
     tagCheckRetried: false,

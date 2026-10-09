@@ -1023,7 +1023,11 @@ describe('工具环 · 逐事件顺序', () => {
         }),
       ),
     )
-    const conversation = lastUserPrompt().split('\n\nCONVERSATION:\n')[1] ?? ''
+    const prompt = lastUserPrompt()
+    const conversation = prompt.slice(
+      'CONVERSATION:\n'.length,
+      prompt.indexOf('\n\nCURRENT WORKBENCH STATE'),
+    )
     expect(conversation.length).toBeLessThanOrEqual(
       ASSISTANT_OPERATOR_LIMITS.maxConversationChars + 64,
     )
@@ -2190,6 +2194,59 @@ describe('read_state', () => {
     expect(toolRingCalls()[1].userPrompt.split('"保持五官"').length).toBe(2)
   })
 
+  it('⭐ 每一步的提示只在末尾追加：第二步以第一步开头，读到的全文接在最后', async () => {
+    const LONG = '雨夜街角，红伞下的女孩。'.repeat(800)
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.readState,
+          args: { nodeIds: ['edit-image'] },
+        },
+      },
+      { finished: true },
+    )
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          domain: 'canvas',
+          snapshot: {
+            prompt: '',
+            availableModels: [],
+            canvas: {
+              currentShotNo: null,
+              selectedNodeIds: [],
+              shots: [
+                {
+                  expanded: true,
+                  shotNo: null,
+                  title: 'Unassigned',
+                  nodes: [
+                    {
+                      id: 'edit-image',
+                      name: '换装',
+                      kind: 'image',
+                      subtype: 'shot',
+                      text: `${LONG}TAIL-MARK`,
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        }),
+      ),
+    )
+    const [first, second] = toolRingCalls().map((call) => call.userPrompt)
+    const stem = first!.replace(/\n\nReply with ONE JSON object\.$/, '')
+    expect(second!.startsWith(stem)).toBe(true)
+    expect(first).not.toContain('TAIL-MARK')
+    expect(second!.slice(stem.length)).toContain('TAIL-MARK')
+    expect(first!.indexOf('CONVERSATION:')).toBeLessThan(
+      first!.indexOf('CURRENT WORKBENCH STATE'),
+    )
+  })
+
   it('画布：按快照里那条线的 edgeId 断线，一步落地', async () => {
     queueTurns(
       {
@@ -2433,7 +2490,7 @@ describe('read_state', () => {
       expect(white).not.toHaveProperty('reviewContextComplete')
     })
 
-    it('read_state with nodeIds shows those cards in full from the next step on', async () => {
+    it('read_state with nodeIds appends those cards in full, the board above stays as it was', async () => {
       queueTurns(
         {
           tool: {
@@ -2453,8 +2510,8 @@ describe('read_state', () => {
       const before = board(toolRingCalls()[0].userPrompt).shots[0].nodes[0]
       const after = board(toolRingCalls()[1].userPrompt).shots[0].nodes[0]
       expect(before.textClipped).toBeDefined()
-      expect(after.text).toBe(`白短袜: ${LONG}`)
-      expect(after.textClipped).toBeUndefined()
+      expect(after).toEqual(before)
+      expect(toolRingCalls()[1].userPrompt).toContain(`白短袜: ${LONG}`)
     })
 
     it('lists only chat images that are not cards, without their addresses', async () => {
@@ -5181,7 +5238,7 @@ function visionCalls(): { imageData?: unknown; adapterType?: unknown }[] {
     .filter(
       (input) =>
         input.imageData !== undefined &&
-        !input.userPrompt?.startsWith('CURRENT WORKBENCH STATE'),
+        !input.userPrompt?.startsWith('CONVERSATION:'),
     )
 }
 
@@ -16112,7 +16169,7 @@ describe('current reference image bindings', () => {
     const vision = mockLlmTextCompletion.mock.calls.find(
       ([input]) =>
         input.imageData &&
-        !String(input.userPrompt).startsWith('CURRENT WORKBENCH STATE'),
+        !String(input.userPrompt).startsWith('CONVERSATION:'),
     )?.[0]
     expect(vision?.imageData).toEqual([
       'https://cdn.test/hug-result.png',

@@ -2206,6 +2206,12 @@ export const ASSISTANT_OPERATOR_CANVAS_LIMITS = {
    */
   boardFullTextChars: 6_000,
   boardTextPreviewChars: 240,
+  /**
+   * 画布卡多于这个数时只展开相关的卡（选中 / 点名 / 当前镜头 / 剧本卡，再加一跳
+   * 连线），其余每张一行（`brief`），要看细节用 `read_state`（2026-10-09 一天实测：
+   * 52 张卡的画布每步都整份发，一步平均 2.75 万 token）。
+   */
+  boardCatalogMinNodes: 16,
   /** `read_state` 一次最多点名读几张卡的全文。 */
   maxReadNodes: 16,
   /**

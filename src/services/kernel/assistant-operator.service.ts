@@ -157,7 +157,10 @@ import {
 } from '@/constants/model-strengths'
 import { getSeedanceControlRules } from '@/constants/model-strengths.media'
 import { NODE_SCRIPT_PROJECTION_MODE_IDS } from '@/constants/node-script'
-import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
+import {
+  NODE_MEDIA_KIND_IDS,
+  NODE_V4_TEXT_SUBTYPE_IDS,
+} from '@/constants/node-types'
 import {
   findNovelAiInteractionPreset,
   NOVELAI_INTERACTION_TAG_MAX_CHARS,
@@ -1446,12 +1449,180 @@ function describeNovelAiInteractions(
     .join(', ')
 }
 
+interface CanvasBoardTables {
+  readonly modelLists: Map<string, string>
+  readonly optionSets: Map<string, string>
+}
+
+/**
+ * 可选模型、参数选项按内容去重成 `m1` / `o1`。⚠ **按全部卡建**，⛔ 不只按展开的那几张：
+ * 一行卡被 `read_state` 读进来时，它引用的名字必须在画布那段的表里查得到。
+ */
+function canvasBoardTables(
+  nodes: readonly AssistantOperatorCanvasNode[],
+): CanvasBoardTables {
+  const modelLists = new Map<string, string>()
+  const optionSets = new Map<string, string>()
+  const register = (
+    table: Map<string, string>,
+    prefix: string,
+    value: unknown,
+  ) => {
+    const json = JSON.stringify(value)
+    if (!table.has(json)) table.set(json, `${prefix}${table.size + 1}`)
+  }
+  for (const node of nodes) {
+    if (node.availableModels) register(modelLists, 'm', node.availableModels)
+    if (node.parameters) register(optionSets, 'o', node.parameters.options)
+  }
+  return { modelLists, optionSets }
+}
+
+/** 一张卡的完整写法（画布那段里展开的卡，与 `read_state` 读回来的卡同一份）。 */
+function canvasFullNode(
+  node: AssistantOperatorCanvasNode,
+  tables: CanvasBoardTables,
+  clip: boolean,
+) {
+  /**
+   * ⚠ `referencePromptContext` 只给服务端写词时的参考复核用（每张卡一大段图名映射），
+   * 模型从 `inputs` 就知道接了谁 —— 留着只是 34 张卡各多一段噪音。
+   */
+  const {
+    referenceUrls: _referenceUrls,
+    referencePromptContext: _referencePromptContext,
+    reviewContextComplete: _reviewContextComplete,
+    availableModels,
+    parameters,
+    text: rawText,
+    position,
+    ...rest
+  } = node
+  /**
+   * 末尾的 Reference roles 图例由 app 每次写词时重算（见 planCanvasApply），⛔ 不给
+   * 模型看正文：2026-10-08 真机它读回来见到这段中文图例和自己写的不一样，就改一遍、
+   * app 再补一遍，面部那张卡来回改了 4 次。只留一个张数。
+   */
+  const appLegend =
+    rawText === undefined ? null : referenceRoleLegendCount(rawText)
+  const text =
+    rawText !== undefined && appLegend !== null
+      ? withoutReferenceRoleLegend(rawText)
+      : rawText
+  const clipped =
+    clip &&
+    text !== undefined &&
+    text.length > ASSISTANT_OPERATOR_CANVAS_LIMITS.boardTextPreviewChars
+  return {
+    ...rest,
+    /**
+     * ⚠ 没选模型的媒体卡**写出 `model: null`**，⛔ 不省掉这个键（2026-10-08 马尔福画布：
+     * 十张镜头卡都没有这个键，GPT-6 Luna 连着三轮把选好 Flare 的角色卡也说成「没选
+     * 模型」——让它把卡的 JSON 原样贴出来，`model` 明明在）。有没有都写出来，就没有
+     * 「没找到 = 没有」可猜。
+     */
+    ...(rest.kind !== NODE_MEDIA_KIND_IDS.text && rest.model === undefined
+      ? { model: null }
+      : {}),
+    ...(position
+      ? {
+          position: {
+            x: Math.round(position.x),
+            y: Math.round(position.y),
+          },
+        }
+      : {}),
+    ...(text === undefined
+      ? {}
+      : clipped
+        ? {
+            text: text.slice(
+              0,
+              ASSISTANT_OPERATOR_CANVAS_LIMITS.boardTextPreviewChars,
+            ),
+            textClipped: text.length,
+          }
+        : { text }),
+    ...(appLegend !== null ? { appLegend } : {}),
+    ...(parameters
+      ? {
+          parameters: {
+            values: parameters.values,
+            options: tables.optionSets.get(JSON.stringify(parameters.options)),
+          },
+        }
+      : {}),
+    ...(availableModels
+      ? {
+          availableModels: tables.modelLists.get(
+            JSON.stringify(availableModels),
+          ),
+        }
+      : {}),
+  }
+}
+
+/** 大画布上与这一轮无关的卡：一行，够连线、出图和认卡，细节要 `read_state`。 */
+function canvasBriefNode(node: AssistantOperatorCanvasNode) {
+  return {
+    id: node.id,
+    name: node.name,
+    kind: node.kind,
+    subtype: node.subtype,
+    ...(node.kind !== NODE_MEDIA_KIND_IDS.text
+      ? { model: node.model ?? null }
+      : {}),
+    ...(node.hasOutput ? { hasOutput: true } : {}),
+    ...(node.text ? { textChars: node.text.length } : {}),
+    ...(node.fromScript ? { fromScript: node.fromScript } : {}),
+    ...(node.lastFailure ? { lastFailure: node.lastFailure } : {}),
+    brief: true,
+  }
+}
+
+/**
+ * 大画布上展开哪几张（2026-10-09 一天实测：52 张卡整份发，一步平均 2.75 万 token）：
+ * 选中的、这句话点了名的、当前镜头里的、剧本卡，再加它们一跳连线两头的卡。
+ */
+function canvasFocusIds(
+  run: OperatorRun,
+  canvas: AssistantOperatorCanvasSnapshot,
+  nodes: readonly AssistantOperatorCanvasNode[],
+): Set<string> {
+  const latest = latestUserMessage(run.request)
+  const currentShot = canvas.shots.find(
+    (shot) => shot.expanded && shot.shotNo === canvas.currentShotNo,
+  )
+  const seeds = new Set<string>([
+    ...canvas.selectedNodeIds,
+    ...nodes
+      .filter(
+        (node) =>
+          (node.name.length >= 2 && latest.includes(node.name)) ||
+          node.subtype === NODE_V4_TEXT_SUBTYPE_IDS.script,
+      )
+      .map((node) => node.id),
+    ...(canvas.currentShotNo !== null && currentShot?.expanded
+      ? currentShot.nodes.map((node) => node.id)
+      : []),
+  ])
+  const focus = new Set(seeds)
+  for (const node of nodes) {
+    for (const input of node.inputs ?? []) {
+      if (seeds.has(node.id)) focus.add(input.from)
+      if (seeds.has(input.from)) focus.add(node.id)
+    }
+  }
+  return focus
+}
+
 /**
  * 画布状态**先给目录**（owner 2026-10-08 实测这一段一步 4.1 万字）：
  * · 可选模型、参数选项按内容去重，卡上只留一个名字（`m1` / `o1`）；
  * · 参考图地址与复核用的内部字段不给模型（连线认节点 id，复核在服务端做）；
- * · 提示词合计超过 `boardFullTextChars` 时，只有选中 / 点名 / 本次读过的卡给全文，
- *   其余给开头一段与全长（`textClipped`），要看全文用 `read_state` 带 `nodeIds`。
+ * · 提示词合计超过 `boardFullTextChars` 时，只有选中 / 点名的卡给全文，其余给开头
+ *   一段与全长（`textClipped`），要看全文用 `read_state` 带 `nodeIds`；
+ * · 卡多于 `boardCatalogMinNodes` 时只展开相关的卡（`canvasFocusIds`），其余每张一行。
  */
 function renderCanvasBoard(run: OperatorRun): string {
   const canvas = run.state.canvas
@@ -1472,97 +1643,22 @@ function renderCanvasBoard(run: OperatorRun): string {
   ])
   const showAll =
     totalText <= ASSISTANT_OPERATOR_CANVAS_LIMITS.boardFullTextChars
-  const modelLists = new Map<string, string>()
-  const optionSets = new Map<string, string>()
-  const nameOf = (
-    table: Map<string, string>,
-    prefix: string,
-    value: unknown,
-  ): string => {
-    const json = JSON.stringify(value)
-    const known = table.get(json)
-    if (known) return known
-    const name = `${prefix}${table.size + 1}`
-    table.set(json, name)
-    return name
-  }
-  const slim = (node: AssistantOperatorCanvasNode) => {
-    /**
-     * ⚠ `referencePromptContext` 只给服务端写词时的参考复核用（每张卡一大段图名映射），
-     * 模型从 `inputs` 就知道接了谁 —— 留着只是 34 张卡各多一段噪音。
-     */
-    const {
-      referenceUrls: _referenceUrls,
-      referencePromptContext: _referencePromptContext,
-      reviewContextComplete: _reviewContextComplete,
-      availableModels,
-      parameters,
-      text: rawText,
-      position,
-      ...rest
-    } = node
-    /**
-     * 末尾的 Reference roles 图例由 app 每次写词时重算（见 planCanvasApply），⛔ 不给
-     * 模型看正文：2026-10-08 真机它读回来见到这段中文图例和自己写的不一样，就改一遍、
-     * app 再补一遍，面部那张卡来回改了 4 次。只留一个张数。
-     */
-    const appLegend =
-      rawText === undefined ? null : referenceRoleLegendCount(rawText)
-    const text =
-      rawText !== undefined && appLegend !== null
-        ? withoutReferenceRoleLegend(rawText)
-        : rawText
-    const clip =
-      text !== undefined &&
-      !showAll &&
-      !full.has(node.id) &&
-      text.length > ASSISTANT_OPERATOR_CANVAS_LIMITS.boardTextPreviewChars
-    return {
-      ...rest,
-      /**
-       * ⚠ 没选模型的媒体卡**写出 `model: null`**，⛔ 不省掉这个键（2026-10-08 马尔福画布：
-       * 十张镜头卡都没有这个键，GPT-6 Luna 连着三轮把选好 Flare 的角色卡也说成「没选
-       * 模型」——让它把卡的 JSON 原样贴出来，`model` 明明在）。有没有都写出来，就没有
-       * 「没找到 = 没有」可猜。
-       */
-      ...(rest.kind !== NODE_MEDIA_KIND_IDS.text && rest.model === undefined
-        ? { model: null }
-        : {}),
-      ...(position
-        ? {
-            position: {
-              x: Math.round(position.x),
-              y: Math.round(position.y),
-            },
-          }
-        : {}),
-      ...(text === undefined
-        ? {}
-        : clip
-          ? {
-              text: text.slice(
-                0,
-                ASSISTANT_OPERATOR_CANVAS_LIMITS.boardTextPreviewChars,
-              ),
-              textClipped: text.length,
-            }
-          : { text }),
-      ...(appLegend !== null ? { appLegend } : {}),
-      ...(parameters
-        ? {
-            parameters: {
-              values: parameters.values,
-              options: nameOf(optionSets, 'o', parameters.options),
-            },
-          }
-        : {}),
-      ...(availableModels
-        ? { availableModels: nameOf(modelLists, 'm', availableModels) }
-        : {}),
-    }
-  }
+  const focus =
+    nodes.length > ASSISTANT_OPERATOR_CANVAS_LIMITS.boardCatalogMinNodes
+      ? canvasFocusIds(run, canvas, nodes)
+      : null
+  const tables = canvasBoardTables(nodes)
   const shots = canvas.shots.map((shot) =>
-    shot.expanded ? { ...shot, nodes: shot.nodes.map(slim) } : shot,
+    shot.expanded
+      ? {
+          ...shot,
+          nodes: shot.nodes.map((node) =>
+            focus && !focus.has(node.id)
+              ? canvasBriefNode(node)
+              : canvasFullNode(node, tables, !showAll && !full.has(node.id)),
+          ),
+        }
+      : shot,
   )
   const unpack = (table: Map<string, string>) =>
     Object.fromEntries(
@@ -1575,8 +1671,8 @@ function renderCanvasBoard(run: OperatorRun): string {
     ...(canvas.editDesk
       ? { editDesk: { ...canvas.editDesk, videoUrls: undefined } }
       : {}),
-    modelLists: unpack(modelLists),
-    optionSets: unpack(optionSets),
+    modelLists: unpack(tables.modelLists),
+    optionSets: unpack(tables.optionSets),
   })
 }
 
@@ -2172,12 +2268,7 @@ function planReadState(
     const missing = requested.filter(
       (id) => !nodes.some((node) => node.id === id),
     )
-    const fullText = (node: AssistantOperatorCanvasNode) => {
-      const text = node.text ?? ''
-      return referenceRoleLegendCount(text) === null
-        ? text
-        : withoutReferenceRoleLegend(text)
-    }
+    const tables = canvasBoardTables(nodes)
     return {
       kind: 'read',
       payload: args,
@@ -2193,10 +2284,10 @@ function planReadState(
             ),
           },
           observation: found.length
-            ? `read_state — full text of ${found.length} card(s):${found
+            ? `read_state — ${found.length} card(s) in full (same shape as the board, text unclipped):${found
                 .map(
                   (node) =>
-                    `\n[${node.id}] ${node.name}:\n${fullText(node) || '(no text)'}`,
+                    `\n${JSON.stringify(canvasFullNode(node, tables, false))}`,
                 )
                 .join(
                   '',
@@ -7409,7 +7500,7 @@ const CANVAS_GUIDE: readonly string[] = [
   'Node parameters.values contains current generation settings; parameters.options names an entry of board.optionSets that lists the controls and allowed values for the selected model. A missing quality or resolution value uses the model default, not a specific tier. Do not guess it. Configure requested settings with {action:"canvas_apply",op:"set_params",target:"node-id",params:{aspectRatio:"3:4",quality:"high",count:1}} using only supported options. Change the model first, then read its new options. Only include fields to change. storyboardGrid locks image count to 1. An options.seed value of true permits an integer seed.',
   'referenceImageIndex is zero-based: 0 means @Image1. Use that node id to wire the exact image the creator mentioned. In all creator-facing messages and node prompts, use the exact canvas node name from the current snapshot, never reference image N or an assistant slot number. Names are display labels; bind images by node id, never by guessing a number in a node name. If multiple nodes have the same name and the attachment does not resolve which one, ask before editing. position is the current canvas coordinate; place new cards beside the relevant source without overlapping it.',
   `Cards you can add (kind.subtype → input slots): ${JSON.stringify(Object.fromEntries(CANVAS_ADD_CATALOG.flatMap((group) => group.items.map((item) => [`${item.v4.kind}.${item.v4.subtype}`, getNodeV4Ports(item.v4.kind, item.v4.subtype)?.inputs.map((input) => input.slot) ?? []]))))}`,
-  'Arguments are flat: {action:"canvas_apply",op:"add_node",kind:"image",subtype:"shot",name:"...",position:{x:0,y:0}}; {action:"canvas_apply",op:"set_prompt",target:"node-id",prompt:"...",mode:"replace"}; {action:"canvas_apply",op:"set_text",target:"node-id",body:"...",mode:"replace"}; {action:"canvas_apply",op:"connect",source:"source-id",target:"target-id",slot:"reference"}; {action:"canvas_apply",op:"disconnect",edgeId:"<the edgeId of that line in the target node inputs>"}; {action:"canvas_apply",op:"attach_asset",sourceNodeId:"source-id",target:"target-id",slot:"reference"}; {action:"canvas_apply",op:"set_model",target:"node-id",modelId:"available-model-id"}. Use append or suggest instead of replace when appropriate. A node marked textClipped (its full length) shows only an opening: call read_state with {nodeIds:[...]} to see it in full before you replace, copy from or judge it. A node marked textTruncated is longer than a card can hold and shows only its opening — never replace it; append, or ask the creator to split it. appLegend: N means the app keeps a Reference roles legend for N images at the end of that prompt and rewrites it on every prompt write — never write one yourself and never rewrite a prompt to change it.',
+  'Arguments are flat: {action:"canvas_apply",op:"add_node",kind:"image",subtype:"shot",name:"...",position:{x:0,y:0}}; {action:"canvas_apply",op:"set_prompt",target:"node-id",prompt:"...",mode:"replace"}; {action:"canvas_apply",op:"set_text",target:"node-id",body:"...",mode:"replace"}; {action:"canvas_apply",op:"connect",source:"source-id",target:"target-id",slot:"reference"}; {action:"canvas_apply",op:"disconnect",edgeId:"<the edgeId of that line in the target node inputs>"}; {action:"canvas_apply",op:"attach_asset",sourceNodeId:"source-id",target:"target-id",slot:"reference"}; {action:"canvas_apply",op:"set_model",target:"node-id",modelId:"available-model-id"}. Use append or suggest instead of replace when appropriate. A node marked textClipped (its full length) shows only an opening: call read_state with {nodeIds:[...]} to see it in full before you replace, copy from or judge it. On a big board, a card marked "brief": true shows only its id, name, kind, model, whether it has output and its text length: its id is real, so connect, generate or name it directly, but call read_state with {nodeIds:[...]} for its text, inputs (with edgeIds) and parameters before you change, rewire or judge it. A node marked textTruncated is longer than a card can hold and shows only its opening — never replace it; append, or ask the creator to split it. appLegend: N means the app keeps a Reference roles legend for N images at the end of that prompt and rewrites it on every prompt write — never write one yourself and never rewrite a prompt to change it.',
   "CHARACTERS — board.characters is the creator's character library; onCanvas ones carry their profile. To put a character in a script, a shot prompt or a line, write @ plus their exact name from that list (e.g. @Denia): the shot then carries the images picked for that character by itself, so never add, connect or attach image nodes for them. If the name the creator used matches more than one character in the list, or none, ask ONE question with the candidates before writing. Write lines for a character in their own voice from profile.speech and profile.identity. Never put @ in front of a name that is not in the list.",
   'SCRIPT → SHOTS: project_script makes one shot card per entry of the script card scriptProjection.titles. It splits on numbered lines (`S01 · …`), else on # headings, else on blank-line paragraphs — so a script of setting notes projects its notes as shots. When those titles are not the shots you mean, first append a shot list to the script with set_text mode "append", one line per shot: `S01 · what happens · 4s` (what the creator wrote above S01 stays as the outline), check the new titles, then project. A script that already has a shot list is revised by rewriting the whole script with set_text mode "replace" — never append a second list: both lists would project. A script already projected (scriptProjection.projected > 0) takes mode "reproject": new shots get new cards, but a shot whose line changed keeps its old prompt and is only marked fromScript.state "changed" — when the creator asked for the new shots, set_prompt each changed card to its new line with mode "replace", which adopts the line: the changed mark clears and the card name follows the new shot. Match each card to its line by fromScript.shotKey, not by the old card name. After projecting, read the shot cards before saying what they contain.',
   'Complete the requested board setup before offering canvas_generate.',

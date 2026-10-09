@@ -2440,6 +2440,88 @@ describe('read_state', () => {
       }
     }
 
+    function bigBoardRequest(content: string) {
+      const others = Array.from({ length: 18 }, (_, index) =>
+        card(`other-${index}`, `闲置卡${index}`),
+      )
+      return buildRequest({
+        domain: 'canvas',
+        messages: [{ role: 'user', content }],
+        snapshot: {
+          prompt: '',
+          availableModels: [],
+          canvas: {
+            currentShotNo: null,
+            selectedNodeIds: [],
+            shots: [
+              {
+                expanded: true,
+                shotNo: null,
+                title: 'Unassigned',
+                nodes: [
+                  card('source', '包厢场景'),
+                  card('target', '首帧试验', {
+                    inputs: [
+                      { slot: 'reference', from: 'source', edgeId: 'edge-1' },
+                    ],
+                  }),
+                  ...others,
+                ],
+              },
+            ],
+          },
+        },
+      })
+    }
+
+    it('⭐ 大画布只展开相关的卡：点名的卡与它连着的卡给全，其余每张一行', async () => {
+      queueTurns({ finished: true })
+      await collect(
+        runAssistantOperator('clerk-1', bigBoardRequest('把首帧试验改成近景')),
+      )
+      const nodes = board(toolRingCalls()[0].userPrompt).shots[0]!.nodes
+      const byId = new Map(nodes.map((node) => [node.id, node]))
+      expect(byId.get('target')).toMatchObject({ inputs: expect.any(Array) })
+      expect(byId.get('target')?.brief).toBeUndefined()
+      expect(byId.get('source')?.brief).toBeUndefined()
+      expect(byId.get('other-3')).toMatchObject({
+        id: 'other-3',
+        name: '闲置卡3',
+        model: 'gpt-image-2.5-flare',
+        brief: true,
+      })
+      expect(byId.get('other-3')?.text).toBeUndefined()
+      expect(byId.get('other-3')?.parameters).toBeUndefined()
+      expect(toolRingCalls()[0].systemPrompt).toContain('"brief": true')
+    })
+
+    it('读一张只有一行的卡：结果里给它的正文、连线 id 和参数，接在末尾', async () => {
+      const request = bigBoardRequest('看一下')
+      const shot = request.snapshot.canvas!.shots[0]!
+      if (!shot.expanded) throw new Error('fixture shot must be expanded')
+      shot.nodes[5] = {
+        ...shot.nodes[5]!,
+        inputs: [{ slot: 'reference', from: 'source', edgeId: 'edge-9' }],
+      }
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.readState,
+            args: { nodeIds: [shot.nodes[5]!.id] },
+          },
+        },
+        { finished: true },
+      )
+      await collect(runAssistantOperator('clerk-1', request))
+      const second = toolRingCalls()[1]!.userPrompt
+      const tail = second.slice(
+        second.indexOf('WHAT HAPPENED SO FAR THIS TURN'),
+      )
+      expect(tail).toContain('edge-9')
+      expect(tail).toContain(`闲置卡3: ${LONG.trim()}`)
+      expect(tail).toContain('"parameters"')
+    })
+
     it('a media card with no model says model null; a text card has no model key', async () => {
       const request = boardRequest('看一下')
       const shot = request.snapshot.canvas!.shots[0]!

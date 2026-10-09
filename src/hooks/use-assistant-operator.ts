@@ -1783,7 +1783,12 @@ export function useAssistantOperator(
                 domain === 'canvas' &&
                 event.reason === ASSISTANT_OPERATOR_STOP_REASONS.canvasSync
               ) {
-                canvasSync = canvasApplied || canvasNeedsInputSync
+                /**
+                 * ⚠ 新内核（收到过本轮记录）**落没落都接力**：落地失败的原因作为工具
+                 * 结果交回模型，由它改了再来；旧内核这里直接收尾，模型永远不知道没落。
+                 */
+                canvasSync =
+                  canvasApplied || canvasNeedsInputSync || v3Transcript !== null
                 break
               }
               /**

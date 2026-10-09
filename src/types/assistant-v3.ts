@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import { ASSISTANT_OPERATOR_SEARCH_KINDS } from '@/constants/assistant-operator'
 import {
+  ASSISTANT_V3_CARD_TYPES,
   ASSISTANT_V3_EDIT_OP_IDS,
   ASSISTANT_V3_LIMITS,
   ASSISTANT_V3_TOOLS,
@@ -11,7 +12,6 @@ import {
 } from '@/constants/assistant-v3'
 import { NODE_SCRIPT_PROJECTION_MODES } from '@/constants/node-script'
 import { NODE_SLOT_TEXT_ROLES, NODE_SLOTS } from '@/constants/node-slots'
-import { NODE_MEDIA_KINDS } from '@/constants/node-types'
 
 /* ─────────────────────────────────────────────────────────────────────────
  * ① 八个工具的入参 —— 给 provider 看的那一份。
@@ -49,8 +49,11 @@ export const AssistantV3EditOpInputSchema = z.union([
       .describe(
         'A short temporary name ("new1") that later ops in this batch use for this card.',
       ),
-    kind: z.enum(NODE_MEDIA_KINDS),
-    subtype: z.string(),
+    type: z
+      .enum(ASSISTANT_V3_CARD_TYPES)
+      .describe(
+        'Card type as kind/subtype, written the way the board prints it.',
+      ),
     name: z.string(),
     model: z.string().nullable(),
     params: AssistantV3ParamsInputSchema.nullable(),

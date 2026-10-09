@@ -94,10 +94,11 @@ export function translateAssistantV3Edit(
         if (refs.has(ref) || context.handles.idOf(ref))
           return fail(index, `ref "${ref}" is already taken — pick another`)
         refs.set(ref, op)
+        const [kind, subtype] = op.type.split('/')
         out.push({
           op: NODE_ASSISTANT_OP_V4_IDS.addNode,
-          kind: op.kind,
-          subtype: op.subtype,
+          kind,
+          subtype,
           ref,
           name: op.name,
           ...(op.shot === null ? {} : { shotNo: op.shot }),
@@ -124,7 +125,7 @@ export function translateAssistantV3Edit(
               `text is longer than ${ASSISTANT_V3_LIMITS.maxTextChars} characters`,
             )
           out.push(
-            op.kind === NODE_MEDIA_KIND_IDS.text
+            kind === NODE_MEDIA_KIND_IDS.text
               ? {
                   op: NODE_ASSISTANT_OP_V4_IDS.setText,
                   target: ref,

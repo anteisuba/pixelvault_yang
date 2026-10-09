@@ -36,6 +36,18 @@ export const ASSISTANT_V3_TOOLS = [
 
 export type AssistantV3Tool = (typeof ASSISTANT_V3_TOOLS)[number]
 
+import { NODE_V4_SUBTYPES_BY_KIND } from '@/constants/node-types'
+
+/**
+ * 建卡的「类型」= `kind/subtype`，与板子上印的写法逐字相同（`image/character`）。
+ * ⚠ 一个枚举卡死：10-09 回放 GPT 写了 `image/image`，前端整批拒收（旧内核也不校验）。
+ */
+export const ASSISTANT_V3_CARD_TYPES = Object.entries(
+  NODE_V4_SUBTYPES_BY_KIND,
+).flatMap(([kind, subtypes]) =>
+  subtypes.map((subtype) => `${kind}/${subtype}`),
+) as [string, ...string[]]
+
 /** `edit` 一批里能做的事。⛔ 没有坐标：卡由画布自己放到空位（T18 卡叠在一起）。 */
 export const ASSISTANT_V3_EDIT_OP_IDS = {
   add: 'add',

@@ -598,7 +598,7 @@ function landedOutput(
       if (add.op !== ASSISTANT_V3_EDIT_OP_IDS.add) continue
       const match =
         left.find((node) => node.name === add.name) ??
-        left.find((node) => node.kind === add.kind)
+        left.find((node) => node.kind === add.type.split('/')[0])
       if (!match) continue
       left.splice(left.indexOf(match), 1)
       refIds.set(add.ref.trim(), match.id)
@@ -743,6 +743,8 @@ async function* runV3Turn(
       return
     }
     if (step > 0 && options.pastSoftBudget()) {
+      // ⚠ 先交本轮记录：画布接着发下一次请求时从这里续，⛔ 不从头再来一遍。
+      yield { type: ASSISTANT_OPERATOR_EVENTS.transcript, transcript }
       yield {
         type: ASSISTANT_OPERATOR_EVENTS.stopped,
         reason: ASSISTANT_OPERATOR_STOP_REASONS.timeBudget,

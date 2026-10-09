@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
 import type { AssistantOperatorCanvasNode } from '@/types/assistant-operator'
-import type { AssistantV3ParamsInput } from '@/types/assistant-v3'
+import {
+  AssistantV3EditOpInputSchema,
+  type AssistantV3ParamsInput,
+} from '@/types/assistant-v3'
 import { buildAssistantV3Handles } from './assistant-v3-board'
 import {
   translateAssistantV3Edit,
@@ -78,8 +81,7 @@ describe('v3 edit → v4 op', () => {
         {
           op: 'add',
           ref: 'new1',
-          kind: 'image',
-          subtype: 'character',
+          type: 'image/character',
           name: '赫敏 · 黑袍',
           model: 'gpt-image-2.5-flare',
           params: { ...noParams, aspectRatio: '3:4', resolution: '1K' },
@@ -123,14 +125,33 @@ describe('v3 edit → v4 op', () => {
     })
   })
 
+  it('卡片类型只收板子上那种写法：image/image 在 schema 就被拦下', () => {
+    const base = {
+      op: 'add',
+      ref: 'new1',
+      name: '测试',
+      model: null,
+      params: null,
+      text: null,
+      shot: null,
+    }
+    expect(
+      AssistantV3EditOpInputSchema.safeParse({ ...base, type: 'image/image' })
+        .success,
+    ).toBe(false)
+    expect(
+      AssistantV3EditOpInputSchema.safeParse({ ...base, type: 'image/result' })
+        .success,
+    ).toBe(true)
+  })
+
   it('建卡不出坐标 —— 卡由画布放到空位（T18 叠卡）', () => {
     const result = translateAssistantV3Edit(
       [
         {
           op: 'add',
           ref: 'new1',
-          kind: 'image',
-          subtype: 'character',
+          type: 'image/character',
           name: '纳威',
           model: null,
           params: null,

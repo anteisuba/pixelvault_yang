@@ -8,7 +8,7 @@
  * 那些磨好的执行函数（`planTool`），S6 再删旧协议那半边。
  *
  * ── 开关 ─────────────────────────────────────────────────────
- * 只开画布、只开管理员账号、且要前端在本地开关里选了 v3 才走 —— 线上默认不动。
+ * 画布默认走 v3（S6）；本地开关写 `v2` 照走旧内核。别的工作台还在旧内核上。
  */
 
 /** 八个工具。名字就是模型看到的工具名，⛔ 别改成旧内核那套动作名。 */
@@ -151,6 +151,17 @@ export const ASSISTANT_V3_LIMITS = {
   dialogueWordsPerSecond: 2.5,
 } as const
 
-/** 前端本地开关：`localStorage[key] === 'v3'` 时画布助手请求带上 `kernel: 'v3'`。 */
-export const ASSISTANT_V3_KERNEL_STORAGE_KEY = 'antei:assistant-kernel'
-export const ASSISTANT_V3_KERNEL_ID = 'v3'
+/**
+ * 画布默认走 v3（S6，owner 2026-10-09）。前端本地开关写 `v2` 时画布照走旧内核 ——
+ * 只为对比，删旧内核时一起删。
+ * ⚠ `v3` 还收着：开关切换前打开的页面仍会发它。
+ */
+export const ASSISTANT_KERNEL_STORAGE_KEY = 'antei:assistant-kernel'
+export const ASSISTANT_KERNEL_IDS = {
+  v2: 'v2',
+  v3: 'v3',
+} as const
+export const ASSISTANT_KERNELS = [
+  ASSISTANT_KERNEL_IDS.v2,
+  ASSISTANT_KERNEL_IDS.v3,
+] as const

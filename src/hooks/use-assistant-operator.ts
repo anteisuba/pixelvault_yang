@@ -66,8 +66,8 @@ import {
 } from '@/constants/assistant-operator'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import {
-  ASSISTANT_V3_KERNEL_ID,
-  ASSISTANT_V3_KERNEL_STORAGE_KEY,
+  ASSISTANT_KERNEL_IDS,
+  ASSISTANT_KERNEL_STORAGE_KEY,
 } from '@/constants/assistant-v3'
 import { CONTEXT_CARD_STATUS_IDS } from '@/constants/context-cards'
 import {
@@ -629,13 +629,13 @@ interface RunOptions {
   v3Transcript?: AssistantV3Transcript
 }
 
-/** 新内核的本地开关（v3 S1）：只有画布认，服务端另外只放管理员过。 */
-function readsAssistantV3Kernel(): boolean {
+/** 本地开关选了旧内核（只为对比，S6 删旧时一起删）。只有画布认。 */
+function readsLegacyKernel(): boolean {
   if (typeof window === 'undefined') return false
   try {
     return (
-      window.localStorage.getItem(ASSISTANT_V3_KERNEL_STORAGE_KEY) ===
-      ASSISTANT_V3_KERNEL_ID
+      window.localStorage.getItem(ASSISTANT_KERNEL_STORAGE_KEY) ===
+      ASSISTANT_KERNEL_IDS.v2
     )
   } catch {
     return false
@@ -1201,8 +1201,8 @@ export function useAssistantOperator(
           ...(resumeFrom ? { resumeFrom } : {}),
           responseLanguage: toResponseLanguage(locale),
           ...(domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas &&
-          readsAssistantV3Kernel()
-            ? { kernel: ASSISTANT_V3_KERNEL_ID }
+          readsLegacyKernel()
+            ? { kernel: ASSISTANT_KERNEL_IDS.v2 }
             : {}),
           ...(options.v3Transcript
             ? { v3: { transcript: options.v3Transcript } }

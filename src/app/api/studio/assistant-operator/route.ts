@@ -4,8 +4,7 @@ import { randomBytes } from 'node:crypto'
 
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { AssistantOperatorRequestSchema } from '@/types/assistant-operator'
-import { ASSISTANT_V3_KERNEL_ID } from '@/constants/assistant-v3'
-import { isAdmin } from '@/lib/admin'
+import { ASSISTANT_KERNEL_IDS } from '@/constants/assistant-v3'
 import { runAssistantOperator } from '@/services/kernel/assistant-operator.service'
 import { runAssistantV3 } from '@/services/kernel/assistant-v3.service'
 import { toAssistantOperatorSseResponse } from '@/lib/assistant-operator-stream'
@@ -92,13 +91,12 @@ export async function POST(request: NextRequest): Promise<Response> {
     })
 
     /**
-     * 新内核（v3 S1）只开画布、只开管理员（本地开发不查）、且前端在本地开关里选了 v3。
-     * ⚠ 线上默认不动：三样缺一样都走旧内核。
+     * 画布默认走 v3（S6，owner 2026-10-09）；本地开关选了 `v2` 才照走旧内核。
+     * 别的域还在旧内核上（四张脸逐个迁）。v3 接不了的厂商在 v3 里自己退回旧内核。
      */
     const useV3 =
-      parsed.data.kernel === ASSISTANT_V3_KERNEL_ID &&
       parsed.data.domain === 'canvas' &&
-      (process.env.NODE_ENV === 'development' || isAdmin(clerkId))
+      parsed.data.kernel !== ASSISTANT_KERNEL_IDS.v2
 
     // ⚠ 工具环是惰性的（async generator）：它到成帧器 `for await` 才开始跑，所以
     //    `open` 帧一定排在第一次 LLM 往返之前。别在这里先 await 一下"预热"。

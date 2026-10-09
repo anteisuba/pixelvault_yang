@@ -33,7 +33,7 @@ import {
   NOVELAI_V5_MAX_CHARACTERS,
 } from '@/constants/novelai'
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
-import { ASSISTANT_V3_KERNEL_ID } from '@/constants/assistant-v3'
+import { ASSISTANT_KERNELS } from '@/constants/assistant-v3'
 import { AssistantV3TranscriptSchema } from '@/types/assistant-v3'
 import {
   TimelineSnapshotAssetSchema,
@@ -1947,10 +1947,10 @@ export const AssistantOperatorRequestSchema = z.object({
    */
   videoFrames: AssistantOperatorVideoFramesSchema.optional(),
   /**
-   * 新内核开关（v3 S1）。只有画布、只有管理员账号认它；别的情况照走旧内核。
-   * ⚠ 前端从本地开关读（`ASSISTANT_V3_KERNEL_STORAGE_KEY`），⛔ 不是用户设置。
+   * 内核开关（S6）：画布默认走 v3，`v2` = 照走旧内核（对比用）。别的域都是旧内核。
+   * ⚠ 前端从本地开关读（`ASSISTANT_KERNEL_STORAGE_KEY`），⛔ 不是用户设置。
    */
-  kernel: z.literal(ASSISTANT_V3_KERNEL_ID).optional(),
+  kernel: z.enum(ASSISTANT_KERNELS).optional(),
   /** v3 的本轮记录：接力时由前端原样带回（见 `types/assistant-v3.ts` ②）。 */
   v3: z.object({ transcript: AssistantV3TranscriptSchema }).optional(),
 })

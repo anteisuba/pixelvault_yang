@@ -25,9 +25,7 @@ import {
 function readPreset(): EditShortcutPresetId {
   try {
     const raw = window.localStorage.getItem(EDIT_SHORTCUT_PRESET_STORAGE_KEY)
-    const known = EDIT_SHORTCUT_PRESETS.find(
-      (candidate) => candidate === raw,
-    )
+    const known = EDIT_SHORTCUT_PRESETS.find((candidate) => candidate === raw)
     return known ?? EDIT_SHORTCUT_PRESET_DEFAULT
   } catch {
     // 隐私模式 / 存储被禁 —— 忘掉一个手感偏好不该让剪辑台打不开。

@@ -5066,9 +5066,9 @@ export type CivitaiLoraLibraryItem = z.infer<
   typeof CivitaiLoraLibraryItemSchema
 >
 
+// 来自我们自己的全量索引（见 civitai-lora-library.service）：总数是准数，
+// 按页码直接翻页。
 export const CivitaiLoraLibraryResultSchema = z.object({
-  // 来自我们自己的全量索引（见 civitai-lora-library.service）：总数是准数，
-  // 按页码直接翻页。
   items: z.array(CivitaiLoraLibraryItemSchema),
   page: z.number().int().min(1),
   pageSize: z.number().int().min(1),

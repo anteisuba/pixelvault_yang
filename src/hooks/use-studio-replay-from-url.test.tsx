@@ -62,4 +62,33 @@ describe('Studio recovery link', () => {
     expect(mocks.clear).not.toHaveBeenCalled()
     expect(mocks.add).not.toHaveBeenCalled()
   })
+
+  it('generate=1 填完提示词后下一拍才请求出图，并从地址栏拿掉', () => {
+    vi.useFakeTimers()
+    mocks.query = 'prompt=%E6%B5%B7%E8%BE%B9&generate=1'
+    window.history.replaceState({}, '', `/?${mocks.query}`)
+    renderHook(() => useStudioReplayFromUrl())
+    expect(mocks.dispatch).toHaveBeenCalledWith({
+      type: 'SET_PROMPT',
+      payload: '海边',
+    })
+    expect(mocks.dispatch).not.toHaveBeenCalledWith({
+      type: 'REQUEST_GENERATE',
+    })
+    vi.runAllTimers()
+    expect(mocks.dispatch).toHaveBeenCalledWith({ type: 'REQUEST_GENERATE' })
+    expect(window.location.search).toBe('')
+    vi.useRealTimers()
+  })
+
+  it('没有 generate=1 只填不出图', () => {
+    vi.useFakeTimers()
+    mocks.query = 'prompt=hello'
+    renderHook(() => useStudioReplayFromUrl())
+    vi.runAllTimers()
+    expect(mocks.dispatch).not.toHaveBeenCalledWith({
+      type: 'REQUEST_GENERATE',
+    })
+    vi.useRealTimers()
+  })
 })

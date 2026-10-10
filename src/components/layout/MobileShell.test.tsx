@@ -89,7 +89,7 @@ describe('MobileShell 底栏（P3 · v10）', () => {
     ).not.toContain('MobileNav:last')
   })
 
-  it('一句话提交 = 带着 ?prompt= 进图片工作台（只填不出图）', () => {
+  it('一句话提交 = 带着 ?prompt=&generate=1 进图片工作台直接出图', () => {
     render(<MobileShell />)
     fireEvent.click(createButton())
     fireEvent.change(
@@ -98,7 +98,7 @@ describe('MobileShell 底栏（P3 · v10）', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: 'MobileNav:quickGo' }))
     expect(nav.push).toHaveBeenCalledWith(
-      `/studio/image?prompt=${encodeURIComponent('海边的猫')}`,
+      `/studio/image?prompt=${encodeURIComponent('海边的猫')}&generate=1`,
     )
   })
 

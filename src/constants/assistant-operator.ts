@@ -3371,7 +3371,7 @@ export const ASSISTANT_RESEARCH_LIMITS = {
    * ⚠ 读页是**并行**的，所以它加的是一次请求的时间不是三次。
    */
   quickReadPages: 3,
-  /** 深搜交给自带联网时，一次调用最多搜几次（只有 Claude 收这个上限）。 */
+  /** 深搜交给自带联网时的上限：Claude 按搜索次数收、Grok 按搜索轮数收，其余不收。 */
   deepNativeSearchUses: 6,
   /**
    * 快搜一档最多回几条证据。

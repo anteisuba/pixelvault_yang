@@ -2089,8 +2089,8 @@ async function deepseekTextCompletion(input: LlmTextInput): Promise<string> {
  *
  * Image input IS supported (grok-4.7 takes `text, image → text`; 20MiB max,
  * jpg/png only) using the same OpenAI multimodal content shape DeepSeek uses.
- * Video and grounding are not — xAI's Live Search is a separate API surface,
- * so we fail loudly rather than silently dropping the request.
+ * Video and grounding are not — xAI search lives on the Responses API
+ * (`xaiNativeWebSearch`), so we fail loudly rather than silently dropping it.
  */
 function buildXaiChatRequest(
   input: LlmTextInput,
@@ -2899,7 +2899,7 @@ export async function llmTextCompletion(input: LlmTextInput): Promise<string> {
  *
  * ⭐ 一次调用出「回答 + 来源」：查询词由模型在服务商那一侧自己写，⛔ 不再由我们
  * 先烧一次 LLM 改写、查完再烧一次 LLM 归纳。
- * ⚠ DeepSeek / Grok 没有可用的自带搜索 —— `supportsNativeWebSearch` 为假，调用方
+ * ⚠ DeepSeek 没有可用的自带搜索 —— `supportsNativeWebSearch` 为假，调用方
  * 退回我们自己的网搜。
  */
 export interface LlmNativeSearchSource {
@@ -2946,7 +2946,8 @@ export function supportsNativeWebSearch(
   return (
     adapterType === AI_ADAPTER_TYPES.GEMINI ||
     adapterType === AI_ADAPTER_TYPES.OPENAI ||
-    adapterType === AI_ADAPTER_TYPES.ANTHROPIC
+    adapterType === AI_ADAPTER_TYPES.ANTHROPIC ||
+    adapterType === AI_ADAPTER_TYPES.XAI
   )
 }
 
@@ -3138,7 +3139,7 @@ async function resolveGroundingRedirect(
   }
 }
 
-const OpenAiResponsesSearchSchema = z.object({
+const ResponsesSearchSchema = z.object({
   status: z.string().optional(),
   error: z
     .object({ message: z.string().optional(), code: z.string().optional() })
@@ -3153,6 +3154,9 @@ const OpenAiResponsesSearchSchema = z.object({
       z.object({
         type: z.string(),
         status: z.string().optional(),
+        /** xAI 的 X 搜索是 `custom_tool_call`：`name` 是 `x_*`，`input` 是 JSON 串。 */
+        name: z.string().optional(),
+        input: z.string().optional(),
         action: z
           .object({
             type: z.string(),
@@ -3234,11 +3238,43 @@ async function openAiNativeWebSearch(
       modelId,
     })
   }
-  const data = OpenAiResponsesSearchSchema.parse(await response.json())
-  const output = data.output ?? []
-  const calls = output.filter((item) => item.type === 'web_search_call')
+  const data = ResponsesSearchSchema.parse(await response.json())
+  return responsesNativeSearchResult(
+    data,
+    (data.output ?? [])
+      .filter((item) => item.type === 'web_search_call')
+      .map(webSearchCallOf),
+  )
+}
+
+type ResponsesSearchData = z.infer<typeof ResponsesSearchSchema>
+type ResponsesSearchItem = NonNullable<ResponsesSearchData['output']>[number]
+
+/** Responses API 里的一次搜索调用（OpenAI 只有网搜；xAI 另有 X 搜索）。 */
+interface ResponsesSearchCall {
+  status?: string
+  queries: string[]
+  sourceUrls: string[]
+}
+
+function webSearchCallOf(item: ResponsesSearchItem): ResponsesSearchCall {
+  return {
+    status: item.status,
+    queries:
+      item.action?.queries ?? (item.action?.query ? [item.action.query] : []),
+    sourceUrls: (item.action?.sources ?? [])
+      .filter((source) => source.type === 'url')
+      .map((source) => source.url),
+  }
+}
+
+/** OpenAI 与 xAI 共用：搜索调用 + 回答里的 `url_citation` 标注 → 回执。 */
+function responsesNativeSearchResult(
+  data: ResponsesSearchData,
+  calls: readonly ResponsesSearchCall[],
+): LlmNativeSearchResult {
   const completed = calls.filter((call) => call.status === 'completed')
-  const texts = output
+  const texts = (data.output ?? [])
     .filter((item) => item.type === 'message')
     .flatMap((item) => item.content ?? [])
     .filter((part) => part.type === 'output_text')
@@ -3248,42 +3284,39 @@ async function openAiNativeWebSearch(
           ...texts.flatMap((part) =>
             (part.annotations ?? [])
               .filter((note) => note.type === 'url_citation' && note.url)
-              .map(
-                (note): LlmNativeSearchSource => ({
+              .map((note): LlmNativeSearchSource => {
+                const excerpt = sentenceBefore(
+                  part.text ?? '',
+                  note.start_index ?? 0,
+                )
+                return {
                   url: note.url ?? '',
-                  title: note.title ?? '',
-                  excerpt: sentenceBefore(
-                    part.text ?? '',
-                    note.start_index ?? 0,
-                  ),
-                  excerptKind: 'answer_fragment',
-                }),
-              ),
+                  // ⚠ xAI 的标题是引用序号或地址本身，不是页面标题。
+                  title:
+                    note.title &&
+                    note.title !== note.url &&
+                    !/^\d+$/.test(note.title)
+                      ? note.title
+                      : '',
+                  excerpt,
+                  excerptKind: excerpt ? 'answer_fragment' : 'none',
+                }
+              }),
           ),
           ...completed.flatMap((call) =>
-            (call.action?.sources ?? [])
-              .filter((source) => source.type === 'url')
-              .map(
-                (source): LlmNativeSearchSource => ({
-                  url: source.url,
-                  title: '',
-                  excerpt: '',
-                  excerptKind: 'none',
-                }),
-              ),
+            call.sourceUrls.map(
+              (url): LlmNativeSearchSource => ({
+                url,
+                title: '',
+                excerpt: '',
+                excerptKind: 'none',
+              }),
+            ),
           ),
         ])
       : []
-  const queries = [
-    ...new Set(
-      calls.flatMap(
-        (call) =>
-          call.action?.queries ??
-          (call.action?.query ? [call.action.query] : []),
-      ),
-    ),
-  ]
-  const unfinished = calls.some((call) => call.status !== 'completed')
+  const queries = [...new Set(calls.flatMap((call) => call.queries))]
+  const unfinished = calls.find((call) => call.status !== 'completed')
   const error =
     data.error?.message ??
     data.error?.code ??
@@ -3291,7 +3324,7 @@ async function openAiNativeWebSearch(
     (data.status && data.status !== 'completed'
       ? `native_search_response_${data.status}`
       : unfinished
-        ? `native_search_call_${calls.find((call) => call.status !== 'completed')?.status ?? 'unknown'}`
+        ? `native_search_call_${unfinished.status ?? 'unknown'}`
         : undefined)
   return {
     status: error
@@ -3311,6 +3344,78 @@ async function openAiNativeWebSearch(
     queries,
     ...(error ? { error } : {}),
   }
+}
+
+const XaiXSearchInputSchema = z.object({ query: z.string().optional() })
+
+/** X 搜索调用的查询词在 `input` 那个 JSON 串里；读不出来就当没有。 */
+function xSearchQueryOf(input: string | undefined): string[] {
+  if (!input) return []
+  try {
+    const parsed = XaiXSearchInputSchema.safeParse(JSON.parse(input))
+    return parsed.success && parsed.data.query ? [parsed.data.query] : []
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Grok：Responses API 的 `web_search` + `x_search`（owner 2026-10-10）。X 上的帖子、
+ * 用户与串只有 Grok 搜得到 —— 别家自带联网只看得到网页。
+ * ⚠ X 搜索在输出里是 `custom_tool_call`（`x_keyword_search` / `x_semantic_search` /
+ *   `x_user_search` / `x_thread_fetch`），不是 `*_search_call`。
+ * ⚠ `max_turns` 限的是**轮数**不是次数 —— 一轮里会并行打好几次；X 搜索按拉到的
+ *   帖子计费，2026-10-10 实测一问 X 舆情约 $0.4、30 秒，普通事实题约 $0.06、8 秒。
+ * ⚠ 推理档同 chat 那条路压到 `low`：默认 high 时同一题要 56 秒。
+ */
+async function xaiNativeWebSearch(
+  input: LlmNativeSearchInput,
+): Promise<LlmNativeSearchResult> {
+  const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.XAI]
+  const baseUrl = input.providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.XAI
+  const response = await fetchLlmTextBuffered(
+    `${baseUrl.replace(/\/$/, '')}/responses`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${input.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: modelId,
+        instructions: input.systemPrompt,
+        input: input.query,
+        tools: [{ type: 'web_search' }, { type: 'x_search' }],
+        max_turns: input.maxUses ?? NATIVE_SEARCH_MAX_USES,
+        reasoning: { effort: 'low' },
+      }),
+    },
+    { adapterType: AI_ADAPTER_TYPES.XAI, modelId },
+    input.signal,
+  )
+  if (!response.ok) {
+    const errorBody = await readLlmErrorBody(response, input.signal)
+    throw toLlmTextProviderError(response.status, errorBody, {
+      adapterType: AI_ADAPTER_TYPES.XAI,
+      modelId,
+    })
+  }
+  const data = ResponsesSearchSchema.parse(await response.json())
+  return responsesNativeSearchResult(
+    data,
+    (data.output ?? []).flatMap((item): ResponsesSearchCall[] => {
+      if (item.type === 'web_search_call') return [webSearchCallOf(item)]
+      if (item.type === 'custom_tool_call' && item.name?.startsWith('x_'))
+        return [
+          {
+            status: item.status,
+            queries: xSearchQueryOf(item.input),
+            sourceUrls: [],
+          },
+        ]
+      return []
+    }),
+  )
 }
 
 const AnthropicSearchResponseSchema = z.object({
@@ -3514,6 +3619,8 @@ export async function llmNativeWebSearch(
       return openAiNativeWebSearch(input)
     case AI_ADAPTER_TYPES.ANTHROPIC:
       return anthropicNativeWebSearch(input)
+    case AI_ADAPTER_TYPES.XAI:
+      return xaiNativeWebSearch(input)
     default:
       throw new Error(
         `Native web search not supported for adapter: ${input.adapterType}`,

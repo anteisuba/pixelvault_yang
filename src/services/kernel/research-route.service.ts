@@ -48,7 +48,7 @@ export async function findGroundingRoute(
 
 /**
  * 自带联网借谁的 key（owner 2026-10-10：能用自带的用自带，不能用的才走管线）。
- * 助手所选模型自己没有自带联网（DeepSeek / Grok）时借创作者配了 key 的那一家。
+ * 助手所选模型自己没有自带联网（DeepSeek）时借创作者配了 key 的那一家。
  * ⭐ 顺序按 2026-10-10 八题对比：GPT 15/16、Gemini 14/16、Claude（修好后）随后。
  * 一把都没有回 `null`，调用方走我们自己的检索管线。
  */

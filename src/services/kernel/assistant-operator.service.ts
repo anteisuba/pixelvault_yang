@@ -3015,7 +3015,7 @@ async function planResearch(
   const quickNarrowed = quick && !hasSourceRules(run.sourceRules)
   /**
    * ⭐ **能用自带联网就用自带，用不了才走我们的管线**（owner 2026-10-10，八题对比：
-   * GPT 自带 15/16、Gemini 14/16，管线 6/16）。所选模型自己没有（DeepSeek / Grok）
+   * GPT 自带 15/16、Gemini 14/16，管线 6/16）。所选模型自己没有（DeepSeek）
    * 就借创作者配了 key 的那一家；快搜深搜都一样，深搜只是多搜几次。
    * ⚠ 走管线的只剩：来源名单在场（自带联网管不住它打哪些站）、「再多找几个源」
    * （百科 / danbooru 连接器补在自带联网旁边），以及一把能联网的 key 都没有。

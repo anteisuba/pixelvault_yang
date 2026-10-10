@@ -4280,12 +4280,100 @@ describe('llmNativeWebSearch（owner 2026-09-30：各家用自带联网）', () 
     apiKey: 'test-key',
   }
 
-  it('只有 Gemini / OpenAI / Claude 有自带联网', () => {
+  it('Gemini / OpenAI / Claude / Grok 有自带联网，DeepSeek 没有', () => {
     expect(supportsNativeWebSearch(AI_ADAPTER_TYPES.GEMINI)).toBe(true)
     expect(supportsNativeWebSearch(AI_ADAPTER_TYPES.OPENAI)).toBe(true)
     expect(supportsNativeWebSearch(AI_ADAPTER_TYPES.ANTHROPIC)).toBe(true)
+    expect(supportsNativeWebSearch(AI_ADAPTER_TYPES.XAI)).toBe(true)
     expect(supportsNativeWebSearch(AI_ADAPTER_TYPES.DEEPSEEK)).toBe(false)
-    expect(supportsNativeWebSearch(AI_ADAPTER_TYPES.XAI)).toBe(false)
+  })
+
+  it('Grok：web_search + x_search；X 搜索的 custom_tool_call 计入调用与查询词', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          status: 'completed',
+          output: [
+            { type: 'reasoning', status: 'completed' },
+            {
+              type: 'web_search_call',
+              status: 'completed',
+              action: {
+                type: 'search',
+                query: 'Seedance 2.0',
+                sources: [{ type: 'url', url: 'https://wiki.test/seedance' }],
+              },
+            },
+            {
+              type: 'custom_tool_call',
+              name: 'x_keyword_search',
+              input: '{"query":"Seedance 2.0","limit":"10","mode":"Latest"}',
+              status: 'completed',
+            },
+            {
+              type: 'custom_tool_call',
+              name: 'x_thread_fetch',
+              input: '{"post_id":"1"}',
+              status: 'completed',
+            },
+            {
+              type: 'message',
+              content: [
+                {
+                  type: 'output_text',
+                  text: '口碑偏正面。',
+                  annotations: [
+                    {
+                      type: 'url_citation',
+                      url: 'https://x.com/i/status/1',
+                      title: 'https://x.com/i/status/1',
+                      start_index: 0,
+                      end_index: 0,
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const found = await llmNativeWebSearch({
+      ...base,
+      adapterType: AI_ADAPTER_TYPES.XAI,
+      maxUses: 6,
+      providerConfig: { label: 'Grok', baseUrl: 'https://api.x.ai/v1/' },
+    })
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.x.ai/v1/responses')
+    expect(readFetchJson(fetchMock)).toMatchObject({
+      model: 'grok-4.7',
+      tools: [{ type: 'web_search' }, { type: 'x_search' }],
+      max_turns: 6,
+      reasoning: { effort: 'low' },
+    })
+    expect(found).toEqual({
+      status: 'searched',
+      answer: '口碑偏正面。',
+      queries: ['Seedance 2.0'],
+      sources: [
+        {
+          url: 'https://x.com/i/status/1',
+          title: '',
+          excerpt: '',
+          excerptKind: 'none',
+        },
+        {
+          url: 'https://wiki.test/seedance',
+          title: '',
+          excerpt: '',
+          excerptKind: 'none',
+        },
+      ],
+    })
   })
 
   it('Gemini：google_search 工具；引用那几段并成来源摘录', async () => {
@@ -4915,6 +5003,7 @@ describe('native web search receipts', () => {
     AI_ADAPTER_TYPES.GEMINI,
     AI_ADAPTER_TYPES.OPENAI,
     AI_ADAPTER_TYPES.ANTHROPIC,
+    AI_ADAPTER_TYPES.XAI,
   ])('%s native取消不发请求', async (adapterType) => {
     const fetchMock = respond({})
     const controller = new AbortController()

@@ -128,6 +128,10 @@
      呼吸——`bottom-safe-bottom` 工具类消费。env() 不能塞进纯 Tailwind 间距刻度，
      故单开一个 token（Hard Rule 5：禁 arbitrary value，非禁自定义 token）。 */
   --spacing-safe-bottom: calc(env(safe-area-inset-bottom) + 0.75rem);
+  /* 手机底栏（owner 2026-10-09 v10）：6px 上衬 + 52px 一行 + 底部安全区。
+     底栏自己用 `pb-safe-inset-bottom`，贴在它上面的东西用 `bottom-mobile-tabbar`。 */
+  --spacing-safe-inset-bottom: env(safe-area-inset-bottom, 0px);
+  --spacing-mobile-tabbar: calc(3.625rem + env(safe-area-inset-bottom, 0px));
   /* 统一模型选择器（D2 ④ 画板）：弹层 320px（owner 2026-10-03「太宽了」，与生成台
      输入框里那几颗 `w-80` 对齐；原 380），渠道面板浮在它右侧。
      渠道面板 220px（owner 09-24：190px 时「MiniMax China」被截成「MiniMax (…」，
@@ -2708,12 +2712,37 @@ html:lang(ja) {
    右键菜单 / transport / 移动端条），卡面用不透明 `bg-card`。
    `corner-squircle`：连续圆角，Chromium 才有；不支持的浏览器自动退回同值普通
    圆角（形状差、布局不差），所以永远与 `rounded-node` 一起写。 */
-/* 占满一屏的页面高度：手机顶栏（3rem）之下 / 桌面整屏。工作台地台页用它，
+/* 占满一屏的页面高度：手机扣掉外壳占的那一截（底栏或工作台顶栏，由主区的
+   `mobile-inset-*` 写进 `--mobile-chrome-height`）/ 桌面整屏。
    ⛔ 各页再写一遍 `h-[calc(100svh-3rem)]`。 */
 @utility h-page {
-  height: calc(100svh - 3rem);
+  height: calc(100svh - var(--mobile-chrome-height, 3rem));
   @media (width >= 48rem) {
     height: 100svh;
+  }
+}
+
+/* 主区给手机外壳让位（`MobileShellInset`）。工作台：顶上一条 44px；
+   其余页：底栏 + 顶部安全区（没有顶栏了，刘海要自己让）。≥768 归零。 */
+@utility mobile-inset-topbar {
+  --mobile-chrome-height: 2.75rem;
+  padding-top: 2.75rem;
+  @media (width >= 48rem) {
+    --mobile-chrome-height: 0px;
+    padding-top: 0;
+  }
+}
+
+@utility mobile-inset-tabbar {
+  --mobile-chrome-height: calc(
+    var(--spacing-mobile-tabbar) + env(safe-area-inset-top, 0px)
+  );
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: var(--spacing-mobile-tabbar);
+  @media (width >= 48rem) {
+    --mobile-chrome-height: 0px;
+    padding-top: 0;
+    padding-bottom: 0;
   }
 }
 

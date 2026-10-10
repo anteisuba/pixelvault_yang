@@ -11,6 +11,7 @@ import {
   Heart,
   Users,
   Camera,
+  FileText,
 } from '@/components/icons'
 import { toast } from 'sonner'
 
@@ -18,10 +19,13 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { PROFILE } from '@/constants/config'
+import { ROUTES } from '@/constants/routes'
 import { uploadBannerAPI } from '@/lib/api-client'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import type { CreatorProfilePageData } from '@/types'
 import { ProfileEditModal } from '@/components/business/ProfileEditModal'
+import { AccountMenu } from '@/components/layout/AccountMenu'
+import { Link } from '@/i18n/navigation'
 
 interface ProfileHeaderProps {
   profile: CreatorProfilePageData
@@ -37,6 +41,7 @@ export function ProfileHeader({
   onProfileUpdate,
 }: ProfileHeaderProps) {
   const t = useTranslations('CreatorProfile')
+  const tNav = useTranslations('Navbar')
   const [showEditModal, setShowEditModal] = useState(false)
   const [isUploadingBanner, setIsUploadingBanner] = useState(false)
   const bannerInputRef = useRef<HTMLInputElement>(null)
@@ -133,6 +138,27 @@ export function ProfileHeader({
               className="hidden"
               onChange={handleBannerChange}
             />
+            {/* 手机（<768）没有侧栏底行那颗账号菜单：v10「我的」稿把它放在封面
+                右上的 ⚙。提示词也收进「我的」（⛔ 不上底栏），「作品 | 提示词」
+                分页做好之前先在 ⚙ 旁边留一个入口。 */}
+            <div className="absolute right-3 top-3 flex gap-2 lg:hidden">
+              <Link
+                href={ROUTES.PROMPTS}
+                aria-label={tNav('links.prompts')}
+                className="flex size-9 items-center justify-center rounded-full bg-background/85 text-foreground shadow-sm backdrop-blur"
+              >
+                <FileText className="size-4.5" />
+              </Link>
+              <AccountMenu side="bottom" align="end">
+                <button
+                  type="button"
+                  aria-label={tNav('settings')}
+                  className="flex size-9 items-center justify-center rounded-full bg-background/85 text-foreground shadow-sm backdrop-blur"
+                >
+                  <Settings className="size-4.5" />
+                </button>
+              </AccountMenu>
+            </div>
           </>
         )}
       </div>

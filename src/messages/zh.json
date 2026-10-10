@@ -634,6 +634,19 @@
     },
     "groupLabel": "去处"
   },
+  "MobileNav": {
+    "create": "新建",
+    "close": "收起",
+    "quickPlaceholder": "想画什么，打一句就出图",
+    "quickGo": "去工作台",
+    "last": "上次",
+    "back": "返回",
+    "switchTool": "切换工具",
+    "tabs": {
+      "label": "主导航",
+      "profile": "我的"
+    }
+  },
   "LocaleSwitcher": {
     "label": "语言",
     "options": {

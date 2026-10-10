@@ -634,6 +634,19 @@
     },
     "groupLabel": "Go to"
   },
+  "MobileNav": {
+    "create": "Create",
+    "close": "Close",
+    "quickPlaceholder": "Describe it in a sentence to start",
+    "quickGo": "Open in studio",
+    "last": "Last",
+    "back": "Back",
+    "switchTool": "Switch tool",
+    "tabs": {
+      "label": "Main navigation",
+      "profile": "Me"
+    }
+  },
   "LocaleSwitcher": {
     "label": "Language",
     "options": {

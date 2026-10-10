@@ -25,7 +25,7 @@ export function CardsPageContent() {
   return (
     <motion.main
       style={{ paddingRight }}
-      className="workbench-ground h-[calc(100svh-3rem)] flex-col gap-0 text-foreground lg:h-svh"
+      className="workbench-ground h-page flex-col gap-0 text-foreground"
     >
       <CharacterRoster />
     </motion.main>

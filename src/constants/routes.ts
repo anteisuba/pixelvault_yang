@@ -218,6 +218,15 @@ export function studioImageWithCharacterPath(characterCardId: string): string {
   return `${ROUTES.STUDIO_IMAGE}?${params.toString()}`
 }
 
+/**
+ * 图片工作台深链：把一句话填进输入框（手机 ＋ 面板顶上那一行，owner 2026-10-09 v10）。
+ * 只填不出图 —— 走的是 `useStudioReplayFromUrl` 那条 `?prompt=` 回放。
+ */
+export function studioImageWithPromptPath(prompt: string): string {
+  const params = new URLSearchParams({ prompt })
+  return `${ROUTES.STUDIO_IMAGE}?${params.toString()}`
+}
+
 /** 画布深链里「新建一块画布」的项目值。 */
 export const CANVAS_NEW_PROJECT_QUERY_VALUE = 'new'
 

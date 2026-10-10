@@ -9,6 +9,7 @@ const mockCollectionItemFindMany = vi.fn()
 const mockCollectionItemFindFirst = vi.fn()
 const mockCollectionItemCreateMany = vi.fn()
 const mockCollectionItemDeleteMany = vi.fn()
+const mockCollectionItemCount = vi.fn()
 const mockGenerationFindMany = vi.fn()
 
 vi.mock('@/lib/db', () => ({
@@ -25,6 +26,7 @@ vi.mock('@/lib/db', () => ({
       findFirst: (...a: unknown[]) => mockCollectionItemFindFirst(...a),
       createMany: (...a: unknown[]) => mockCollectionItemCreateMany(...a),
       deleteMany: (...a: unknown[]) => mockCollectionItemDeleteMany(...a),
+      count: (...a: unknown[]) => mockCollectionItemCount(...a),
     },
     generation: { findMany: (...a: unknown[]) => mockGenerationFindMany(...a) },
   },
@@ -35,6 +37,7 @@ import {
   getUserCollections,
   createCollection,
   deleteCollection,
+  getCollectionById,
   removeFromCollection,
 } from '@/services/collection.service'
 
@@ -166,5 +169,136 @@ describe('removeFromCollection', () => {
 
     expect(result).toBe(false)
     expect(mockUpdate).not.toHaveBeenCalled()
+  })
+})
+
+describe('getCollectionById', () => {
+  const PUBLIC_COLLECTION = {
+    ...FAKE_COLLECTION,
+    userId: 'owner_1',
+    isPublic: true,
+    coverUrl: 'https://cdn.example.com/private-cover.png',
+    _count: { items: 3 },
+    user: {
+      id: 'owner_1',
+      username: 'owner',
+      displayName: null,
+      avatarUrl: null,
+    },
+  }
+  const generationItem = (
+    id: string,
+    isPublic: boolean,
+    isPromptPublic: boolean,
+  ) => ({
+    generation: {
+      id,
+      url: `https://cdn.example.com/${id}.png`,
+      prompt: `prompt of ${id}`,
+      negativePrompt: `negative of ${id}`,
+      isPublic,
+      isPromptPublic,
+    },
+  })
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockFindUnique.mockResolvedValue(PUBLIC_COLLECTION)
+  })
+
+  it('returns only public items to non-owners, counted and paged from the same filter', async () => {
+    mockCollectionItemFindMany.mockResolvedValue([
+      generationItem('gen_public', true, true),
+    ])
+    mockCollectionItemCount.mockResolvedValue(1)
+    mockCollectionItemFindFirst.mockResolvedValue({
+      generation: { url: 'https://cdn.example.com/gen_public.png' },
+    })
+
+    const result = await getCollectionById('col_1', 'viewer_1', 1, 20)
+
+    const publicWhere = {
+      collectionId: 'col_1',
+      generation: { isPublic: true },
+    }
+    expect(mockCollectionItemFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: publicWhere }),
+    )
+    expect(mockCollectionItemCount).toHaveBeenCalledWith({
+      where: publicWhere,
+    })
+    expect(mockCollectionItemFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: publicWhere }),
+    )
+    expect(result?.generations.map((g) => g.id)).toEqual(['gen_public'])
+    expect(result?.total).toBe(1)
+    expect(result?.itemCount).toBe(1)
+    expect(result?.hasMore).toBe(false)
+    expect(result?.coverUrl).toBe('https://cdn.example.com/gen_public.png')
+  })
+
+  it('applies the same filter to anonymous viewers and has no cover when nothing is public', async () => {
+    mockCollectionItemFindMany.mockResolvedValue([])
+    mockCollectionItemCount.mockResolvedValue(0)
+    mockCollectionItemFindFirst.mockResolvedValue(null)
+
+    const result = await getCollectionById('col_1', null)
+
+    expect(mockCollectionItemCount).toHaveBeenCalledWith({
+      where: { collectionId: 'col_1', generation: { isPublic: true } },
+    })
+    expect(result?.generations).toEqual([])
+    expect(result?.total).toBe(0)
+    expect(result?.coverUrl).toBeNull()
+  })
+
+  it('redacts prompts of items whose prompt is not public for non-owners', async () => {
+    mockCollectionItemFindMany.mockResolvedValue([
+      generationItem('gen_open', true, true),
+      generationItem('gen_hidden', true, false),
+    ])
+    mockCollectionItemCount.mockResolvedValue(2)
+    mockCollectionItemFindFirst.mockResolvedValue(null)
+
+    const result = await getCollectionById('col_1', 'viewer_1')
+
+    const [open, hidden] = result?.generations ?? []
+    expect(open.prompt).toBe('prompt of gen_open')
+    expect(open.negativePrompt).toBe('negative of gen_open')
+    expect(hidden.prompt).toBe('')
+    expect(hidden.negativePrompt).toBeNull()
+  })
+
+  it('keeps the owner view unfiltered and unredacted', async () => {
+    mockCollectionItemFindMany.mockResolvedValue([
+      generationItem('gen_public', true, true),
+      generationItem('gen_private', false, false),
+      generationItem('gen_hidden_prompt', true, false),
+    ])
+
+    const result = await getCollectionById('col_1', 'owner_1', 1, 2)
+
+    expect(mockCollectionItemFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { collectionId: 'col_1' } }),
+    )
+    expect(mockCollectionItemCount).not.toHaveBeenCalled()
+    expect(mockCollectionItemFindFirst).not.toHaveBeenCalled()
+    expect(result?.generations.map((g) => g.prompt)).toEqual([
+      'prompt of gen_public',
+      'prompt of gen_private',
+      'prompt of gen_hidden_prompt',
+    ])
+    expect(result?.total).toBe(3)
+    expect(result?.hasMore).toBe(true)
+    expect(result?.coverUrl).toBe('https://cdn.example.com/private-cover.png')
+  })
+
+  it('hides private collections from non-owners', async () => {
+    mockFindUnique.mockResolvedValue({ ...PUBLIC_COLLECTION, isPublic: false })
+
+    const result = await getCollectionById('col_1', 'viewer_1')
+
+    expect(result).toBeNull()
+    expect(mockCollectionItemFindMany).not.toHaveBeenCalled()
   })
 })

@@ -299,7 +299,9 @@ function getTimeRangeStart(timeRange?: GalleryTimeRange): Date | null {
 }
 
 /** Redact prompt fields for generations where isPromptPublic is false. */
-function redactPrompts(generations: GenerationRecord[]): GenerationRecord[] {
+export function redactPrompts(
+  generations: GenerationRecord[],
+): GenerationRecord[] {
   return generations.map((g) =>
     g.isPromptPublic ? g : { ...g, prompt: '', negativePrompt: null },
   )

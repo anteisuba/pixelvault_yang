@@ -2,7 +2,7 @@ import 'server-only'
 
 import { db } from '@/lib/db'
 import { COLLECTION } from '@/constants/config'
-import { LIST_GENERATION_SELECT } from './generation.service'
+import { LIST_GENERATION_SELECT, redactPrompts } from './generation.service'
 import type {
   CollectionRecord,
   CollectionDetailRecord,
@@ -52,21 +52,42 @@ export async function getCollectionById(
   const isOwner = viewerUserId === collection.userId
   if (!collection.isPublic && !isOwner) return null
 
-  const offset = (page - 1) * limit
-  const items = await db.collectionItem.findMany({
-    where: { collectionId: id },
-    orderBy: { orderIndex: 'asc' },
-    skip: offset,
-    take: limit,
-    include: { generation: { select: LIST_GENERATION_SELECT } },
-  })
+  // 非 owner 只看已公开的条目（公开闸只拦 `isPublic` 的写入，读端得跟着按它过滤），
+  // 提示词按画廊同一规则 redact；条数和封面也只从公开条目算，私有作品的图和数量都不外露。
+  const itemWhere = isOwner
+    ? { collectionId: id }
+    : { collectionId: id, generation: { isPublic: true } }
 
-  const total = collection._count.items
+  const offset = (page - 1) * limit
+  const [items, total, coverUrl] = await Promise.all([
+    db.collectionItem.findMany({
+      where: itemWhere,
+      orderBy: { orderIndex: 'asc' },
+      skip: offset,
+      take: limit,
+      include: { generation: { select: LIST_GENERATION_SELECT } },
+    }),
+    isOwner
+      ? collection._count.items
+      : db.collectionItem.count({ where: itemWhere }),
+    isOwner
+      ? collection.coverUrl
+      : db.collectionItem
+          .findFirst({
+            where: itemWhere,
+            orderBy: { orderIndex: 'asc' },
+            select: { generation: { select: { url: true } } },
+          })
+          .then((item) => item?.generation.url ?? null),
+  ])
+
   const generations = items.map((item) => item.generation as GenerationRecord)
 
   return {
     ...mapToRecord(collection),
-    generations,
+    coverUrl,
+    itemCount: total,
+    generations: isOwner ? generations : redactPrompts(generations),
     total,
     hasMore: offset + limit < total,
     owner: collection.user?.username

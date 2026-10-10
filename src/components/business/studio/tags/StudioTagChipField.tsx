@@ -38,12 +38,16 @@ interface StudioTagChipFieldProps {
   onChange: (chips: TagChip[]) => void
   /**
    * `stacked` = 标题在上 + 一个描边框（参数栏 / 手机，缺省）。
-   * `inline` = 标题在左、格子直接排在输入框卡里，⛔ 不再套一个框（桌面底部输入框，
-   * owner 2026-09-26 原型）。
    * `form` = 弹窗表单里（提示词页新建 / 编辑标签模板，画板 `TgA_New`）：标题同表单
    * 别的栏、格子浅底等宽，正向那一栏高一些。
+   * `bare` = 只有格子、没有标题：标签台 A（owner 2026-10-09「一个框 + 一排页签」）
+   * 桌面输入框，写的是谁由上面那排页签说，`label` 只给读屏。
    */
-  variant?: 'stacked' | 'inline' | 'form' | 'composer'
+  variant?: 'stacked' | 'form' | 'composer' | 'bare'
+  /** 空框里的那句提示；缺省「输入标签，逗号分隔…」。 */
+  placeholder?: string
+  /** 字前点一颗小黑点的那几格（小写比较）：人数提示正在说的 `1girl` 之类。 */
+  markedTags?: readonly string[]
   /** 格子底下那行状态（带过来的那一句正在翻成标签…）。 */
   status?: ReactNode
 }
@@ -64,6 +68,8 @@ export function StudioTagChipField({
   disabled,
   onChange,
   variant = 'stacked',
+  placeholder,
+  markedTags,
   status,
 }: StudioTagChipFieldProps) {
   const t = useTranslations('StudioTags')
@@ -216,23 +222,13 @@ export function StudioTagChipField({
   }
 
   const composer = variant === 'composer'
-  const inline = variant === 'inline'
   const form = variant === 'form'
+  const bare = variant === 'bare'
+  const marked = new Set(markedTags?.map((tag) => tag.toLowerCase()))
 
   return (
-    <div
-      className={inline ? 'flex items-start gap-2.5' : 'flex flex-col gap-1.5'}
-    >
-      {inline ? (
-        <span
-          title={note}
-          // 行高 = 格子第一行（`h-8`）：标题与占位字 / 第一排标签落在同一条中线上，
-          // ⛔ 别用 `pt-*` 凑 —— 占位字那一行只有一行字高，凑出来的是错位。
-          className="w-18 shrink-0 text-2xs leading-8 font-medium text-muted-foreground"
-        >
-          {label}
-        </span>
-      ) : (
+    <div className="flex flex-col gap-1.5">
+      {bare ? null : (
         <div className="flex items-baseline justify-between gap-2">
           <span
             className={
@@ -253,10 +249,7 @@ export function StudioTagChipField({
           </span>
         </div>
       )}
-      {/* 行内那一版：格子与官方补全那行小字叠成一列，排在标题右边。 */}
-      <div
-        className={inline ? 'flex min-w-0 flex-1 flex-col gap-1' : 'contents'}
-      >
+      <div className="contents">
         <div
           ref={boxRef}
           onClick={(event) => {
@@ -274,20 +267,22 @@ export function StudioTagChipField({
           // `relative`：删掉的那一格退场时脱开排版（popLayout），按这一块定位。
           className={cn(
             'relative contain-inline-size',
-            inline || composer
-              ? 'flex max-h-24 min-h-8 min-w-0 flex-1 flex-wrap content-start items-center gap-1.5 overflow-y-auto'
-              : form
-                ? cn(
-                    'flex max-h-48 flex-wrap content-start gap-1 overflow-y-auto rounded-xl border bg-background p-2 transition-colors duration-fast ease-standard',
-                    polarity === 'positive' ? 'min-h-28' : 'min-h-16',
-                    focused ? 'border-foreground' : 'border-border',
-                  )
-                : cn(
-                    'flex max-h-48 min-h-24 overflow-y-auto lg:min-h-18 lg:max-h-none flex-wrap content-start gap-1.5 rounded-lg border bg-background p-2 transition-colors duration-fast ease-standard',
-                    focused
-                      ? 'border-primary/40 ring-2 ring-primary/10'
-                      : 'border-border',
-                  ),
+            bare
+              ? 'flex max-h-32 min-h-9 min-w-0 flex-wrap content-start items-center gap-1.5 overflow-y-auto'
+              : composer
+                ? 'flex max-h-24 min-h-8 min-w-0 flex-1 flex-wrap content-start items-center gap-1.5 overflow-y-auto'
+                : form
+                  ? cn(
+                      'flex max-h-48 flex-wrap content-start gap-1 overflow-y-auto rounded-xl border bg-background p-2 transition-colors duration-fast ease-standard',
+                      polarity === 'positive' ? 'min-h-28' : 'min-h-16',
+                      focused ? 'border-foreground' : 'border-border',
+                    )
+                  : cn(
+                      'flex max-h-48 min-h-24 overflow-y-auto lg:min-h-18 lg:max-h-none flex-wrap content-start gap-1.5 rounded-lg border bg-background p-2 transition-colors duration-fast ease-standard',
+                      focused
+                        ? 'border-primary/40 ring-2 ring-primary/10'
+                        : 'border-border',
+                    ),
             disabled && 'pointer-events-none opacity-50',
           )}
         >
@@ -308,6 +303,7 @@ export function StudioTagChipField({
                   <StudioTagChip
                     look={form ? 'plain' : 'bench'}
                     landing={!firstKeys.has(key)}
+                    marked={marked.has(chip.text.trim().toLowerCase())}
                     chip={chip}
                     disabled={disabled}
                     onChange={(next) =>
@@ -342,7 +338,9 @@ export function StudioTagChipField({
             spellCheck={false}
             enterKeyHint="enter"
             aria-label={label}
-            placeholder={chips.length === 0 ? t('placeholder') : undefined}
+            placeholder={
+              chips.length === 0 ? (placeholder ?? t('placeholder')) : undefined
+            }
             onFocus={() => setFocused(true)}
             onBlur={() => {
               setFocused(false)
@@ -371,7 +369,7 @@ export function StudioTagChipField({
             className={cn(
               'min-h-11 min-w-24 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground/60 lg:min-h-0',
               form ? 'h-5.5 font-mono md:text-xs' : 'md:text-2xs',
-              inline && 'h-8',
+              bare && 'h-8',
             )}
           />
         </div>

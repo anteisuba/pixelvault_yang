@@ -6913,6 +6913,17 @@
         "cover": "封面",
         "other": "其他"
       }
+    },
+    "tabs": {
+      "negative": "负向",
+      "more": "{who} 的更多操作",
+      "appear": "这次出场",
+      "removeConfirm": "再点一下删除",
+      "wholePlaceholder": "整张图的标签，逗号分隔…",
+      "characterPlaceholder": "角色 {number} 的标签…",
+      "negativePlaceholder": "不想要的，比如 lowres、bad hands…",
+      "writeFor": "写给",
+      "count": "{count} 个"
     }
   },
   "StudioPanels": {

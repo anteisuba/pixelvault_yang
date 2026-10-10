@@ -11,7 +11,6 @@ import { StudioTagCapabilityControl } from '@/components/business/studio/tags/St
 import {
   getNovelAiCharacterLayoutMode,
   getNovelAiImageDimensions,
-  getNovelAiMaxCharacters,
   isWithinNovelAiOpusFreeTier,
 } from '@/constants/novelai'
 import {
@@ -154,7 +153,6 @@ export function StudioTagsControlColumn({
         >
           <NovelAiCharacterComposer
             mode={characterMode}
-            maxCharacters={getNovelAiMaxCharacters(characterModel.modelId)}
             value={state.advancedParams.novelAiLayout}
             activeIndex={state.activeTagCharacterIndex}
             disabled={isGenerating}

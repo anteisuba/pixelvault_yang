@@ -196,9 +196,9 @@ export function ImageAnnotationEditor({
           annotations.map((item, index) => (
             <div
               key={item.id}
-              className="flex items-center gap-2 rounded-lg border border-border bg-card p-2"
+              className="flex items-center gap-2 rounded-lg bg-muted py-1 pr-1 pl-2"
             >
-              <span className="size-5 shrink-0 rounded bg-primary text-center text-xs leading-5 text-primary-foreground">
+              <span className="size-5 shrink-0 rounded bg-foreground text-center font-mono text-xs leading-5 text-background">
                 {badge(index)}
               </span>
               <input
@@ -216,7 +216,7 @@ export function ImageAnnotationEditor({
                   )
                 }
                 // ⚠ <768 必须 ≥16px：iOS 对小于 16px 的可聚焦输入框会自动放大整页。
-                className="min-w-0 flex-1 border-0 border-b border-dashed border-border bg-transparent text-base outline-none focus:border-primary md:text-sm"
+                className="h-9 min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground/60 md:text-sm"
               />
               <button
                 type="button"
@@ -227,7 +227,7 @@ export function ImageAnnotationEditor({
                     current.filter((entry) => entry.id !== item.id),
                   )
                 }
-                className="flex size-11 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-destructive"
+                className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors duration-fast ease-standard hover:bg-background hover:text-destructive coarse:size-11"
               >
                 <Trash2 className="size-4" />
               </button>

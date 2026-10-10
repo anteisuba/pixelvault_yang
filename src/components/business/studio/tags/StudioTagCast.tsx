@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type KeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -74,7 +74,11 @@ const mobileFieldClass = cn(fieldClass, 'min-w-40')
 const inputClass =
   'min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground/60 md:text-2xs'
 
-/** 与 `StudioTagChipField` 同一副行：桌面标题在左（72px），手机标题在上。 */
+/**
+ * 手机：标题在上、内容一行。桌面（标签台 A，owner 2026-10-09）：⛔ 不画标题列 ——
+ * 东西直接流进输入框卡里「跟着页签的那一行」（宿主给的 flex-wrap 行），
+ * 互动有手的图标、台词有气泡图标、空的时候是「＋ 互动」「＋ 台词」，不用再写一遍。
+ */
 function CastRow({
   label,
   mobile,
@@ -94,19 +98,7 @@ function CastRow({
       </div>
     )
   }
-  return (
-    <div className="flex items-start gap-2.5">
-      <span
-        aria-hidden={label ? undefined : true}
-        className="w-18 shrink-0 text-2xs leading-8 font-medium text-muted-foreground"
-      >
-        {label}
-      </span>
-      <div className="flex min-h-8 min-w-0 flex-1 flex-wrap items-center gap-1.5">
-        {children}
-      </div>
-    </div>
-  )
+  return <>{children}</>
 }
 
 /** 「全部文字 n / 上限」—— 全部台词 + 画面文字合计，与生成闸同一把尺。 */
@@ -632,7 +624,8 @@ export function StudioTagSceneTexts({
           className={ghostClass}
         >
           <Plus className="size-3.5" aria-hidden />
-          {t('addSceneText')}
+          {/* 桌面没有标题列，按钮自己说「画面文字」。 */}
+          {mobile ? t('addSceneText') : t('sceneText')}
         </button>
       </CastRow>
     )
@@ -732,7 +725,10 @@ export function StudioTagSceneTexts({
   )
 }
 
-/** 一行灰底提示 + 动作（人数提示用）。 */
+/**
+ * 人数提示那一行。手机：一块灰底。桌面：靠在「跟着页签的那一行」右端的一行灰字 +
+ * 黑丸（标签台 A），被点名的那几格在框里带小黑点（`useStudioTagCountMarks`）。
+ */
 function HintRow({
   mobile,
   children,
@@ -743,8 +739,10 @@ function HintRow({
   return (
     <div
       className={cn(
-        'flex w-fit max-w-full flex-wrap items-center gap-2 rounded-lg bg-muted px-2.5 py-1.5 text-2xs text-muted-foreground',
-        !mobile && 'ml-20.5',
+        'flex max-w-full flex-wrap items-center gap-2 text-2xs text-muted-foreground',
+        mobile
+          ? 'w-fit rounded-lg bg-muted px-2.5 py-1.5'
+          : 'ml-auto justify-end',
       )}
     >
       {children}
@@ -782,11 +780,32 @@ export function StudioTagCountHint({
   )
 }
 
-function WholeCountHint({ mobile }: { mobile: boolean }) {
-  const t = useTranslations('StudioTags.cast')
-  const { state, dispatch } = useStudioForm()
+/**
+ * 「不用」点掉的那一条建议（按内容认）。模块级：输入框卡要读它决定点不点小黑点，
+ * 提示行要写它 —— 两边不是父子，⛔ 不为这一位值挪进 context。
+ */
+let dismissedCountSuggestion: string | null = null
+const dismissListeners = new Set<() => void>()
+function useDismissedCountSuggestion() {
+  const [value, setValue] = useState(dismissedCountSuggestion)
+  useEffect(() => {
+    const sync = () => setValue(dismissedCountSuggestion)
+    dismissListeners.add(sync)
+    return () => {
+      dismissListeners.delete(sync)
+    }
+  }, [])
+  const dismiss = (signature: string | null) => {
+    dismissedCountSuggestion = signature
+    dismissListeners.forEach((listener) => listener())
+  }
+  return [value, dismiss] as const
+}
+
+function useWholeCountSuggestion() {
+  const { state } = useStudioForm()
   const c = useNovelAiCharacters()
-  const [dismissed, setDismissed] = useState<string | null>(null)
+  const [dismissed, dismiss] = useDismissedCountSuggestion()
   const people = c.characters.filter(
     (character) => character.enabled !== false && character.prompt.trim(),
   )
@@ -795,7 +814,33 @@ function WholeCountHint({ mobile }: { mobile: boolean }) {
     people.map((character) => character.prompt),
   )
   const signature = suggestion ? JSON.stringify(suggestion) : null
-  if (!suggestion || dismissed === signature) return null
+  return {
+    people: people.length,
+    suggestion: !suggestion || dismissed === signature ? null : suggestion,
+    dismiss: () => dismiss(signature),
+  }
+}
+
+/**
+ * 正在被人数提示点名的那几格（输入框里给它们点小黑点）：整体页 = 建议要去掉的
+ * `1girl` / `solo`；角色页 = 写成 `1girl` 的那几格。
+ */
+export function useStudioTagCountMarks(
+  activeIndex: number | null,
+): readonly string[] {
+  const whole = useWholeCountSuggestion()
+  const c = useNovelAiCharacters()
+  if (!c.mode) return []
+  if (activeIndex === null) return whole.suggestion?.remove ?? []
+  const character = c.characters[activeIndex]
+  return character ? findNovelAiCharacterCountTags(character.prompt) : []
+}
+
+function WholeCountHint({ mobile }: { mobile: boolean }) {
+  const t = useTranslations('StudioTags.cast')
+  const { state, dispatch } = useStudioForm()
+  const { people, suggestion, dismiss } = useWholeCountSuggestion()
+  if (!suggestion) return null
 
   const apply = () => {
     const remove = new Set(suggestion.remove)
@@ -811,7 +856,7 @@ function WholeCountHint({ mobile }: { mobile: boolean }) {
   return (
     <HintRow mobile={mobile}>
       {t('countHint', {
-        count: people.length,
+        count: people,
         tags: suggestion.remove.join(' · '),
       })}
       <button type="button" onClick={apply} className={hintActionClass}>
@@ -819,11 +864,7 @@ function WholeCountHint({ mobile }: { mobile: boolean }) {
           ? t('countFix', { tags: suggestion.add.join(', ') })
           : t('countRemove', { tags: suggestion.remove.join(' · ') })}
       </button>
-      <button
-        type="button"
-        onClick={() => setDismissed(signature)}
-        className={hintQuietClass}
-      >
+      <button type="button" onClick={dismiss} className={hintQuietClass}>
         {t('countKeep')}
       </button>
     </HintRow>

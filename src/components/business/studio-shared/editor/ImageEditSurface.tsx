@@ -8,7 +8,7 @@ import {
   Eraser,
   Paintbrush,
   Scissors,
-  Settings2,
+  SlidersHorizontal,
   Sparkles,
   SquareDashed,
   WandSparkles,
@@ -24,7 +24,7 @@ import {
   StudioInpaintEditor,
   type InpaintMaskDraft,
 } from '@/components/business/studio/StudioInpaintEditor'
-import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
 import { ImageCompare } from '@/components/ui/image-compare'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import { ModelPickerPopover } from '@/components/business/studio-shared/pickers/ModelPickerPopover'
@@ -56,7 +56,8 @@ import {
   StudioToolSurface,
   StudioToolSurfaceTrigger,
   StudioToolPopoverContent,
-  studioChipActiveClass,
+  studioOutlineChipClass,
+  studioOutlineChipOpenClass,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 import { ImageEditOptionsSchema, type ImageEditOptions } from '@/types'
 import { logger } from '@/lib/logger'
@@ -657,6 +658,25 @@ export function ImageEditSurface({
         hasReferenceImage: true,
       })
     : null
+  const optionLabel = (kind: 'quality' | 'background', value: string) =>
+    kind === 'quality' && selectedModelId === AI_MODELS.IDEOGRAM_45
+      ? t(`quality.${value}`)
+      : tAdvanced(`${kind}Option.${value}`)
+  const settingRows = (['quality', 'background'] as const).flatMap((kind) => {
+    const options =
+      kind === 'quality' ? qualityOptions : config?.backgroundOptions
+    if (!options?.length) return []
+    return [{ kind, options, selected: editOptions[kind] ?? options[0]! }]
+  })
+  /** 设置那颗写「画质 高 · 透明底 · 预览」—— 改了什么一眼看见，⛔ 只写「编辑设置」。 */
+  const settingsSummary = [
+    ...settingRows.map(({ kind, selected }) =>
+      kind === 'quality'
+        ? `${tAdvanced('quality')} ${optionLabel(kind, selected)}`
+        : optionLabel(kind, selected),
+    ),
+    ...(editOptions.preview ? [tAdvanced('preview')] : []),
+  ].join(' · ')
   const settings = (
     <>
       {activeTask === 'upscale' ? (
@@ -665,7 +685,9 @@ export function ImageEditSurface({
           showChevron={false}
           disabled={isRunning}
         />
-      ) : generativeEdit ? (
+      ) : (
+        // 去背景 / 提取元素也用同一颗模型胶囊（标签台 A 编辑台统一，owner 2026-10-09），
+        // ⛔ 不再是系统下拉。
         <ModelPickerPopover
           options={modelOptions}
           value={selectedOption?.optionId ?? null}
@@ -677,105 +699,71 @@ export function ImageEditSurface({
           disabled={isRunning}
           side="top"
         />
-      ) : (
-        <select
-          aria-label={t('modelLabel')}
-          value={selectedModelId}
-          disabled={isRunning}
-          className="h-8 min-w-0 max-w-60 shrink-0 rounded-full border border-border bg-background px-3 text-2sm"
-          onChange={(event) => {
-            const option = modelOptions.find(
-              (candidate) => candidate.modelId === event.target.value,
-            )
-            if (option) chooseModel(option)
-          }}
-        >
-          {activeCapability.models.map((modelId) => (
-            <option key={modelId} value={modelId}>
-              {EDIT_MODELS[modelId]?.displayName ?? modelId}
-            </option>
-          ))}
-        </select>
       )}
       {hasOptions ? (
         <StudioToolSurface>
           <StudioToolSurfaceTrigger asChild>
-            <Button
+            <button
               type="button"
-              variant="ghost"
-              size="sm"
               disabled={isRunning}
               aria-label={t('settingsLabel')}
+              className="inline-flex h-8 min-w-0 shrink items-center gap-1.5 rounded-full px-2.5 text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-[state=open]:bg-muted data-[state=open]:text-foreground"
             >
-              <Settings2 className="size-4" />
-              {t('settingsLabel')}
-            </Button>
+              <SlidersHorizontal className="size-4 shrink-0" aria-hidden />
+              <span className="truncate">{settingsSummary}</span>
+            </button>
           </StudioToolSurfaceTrigger>
           <StudioToolPopoverContent
             size="action"
             label={t('settingsLabel')}
             side="top"
             align="start"
-            className="space-y-4 overflow-y-auto"
+            className="flex flex-col gap-1 overflow-y-auto p-3"
           >
-            {(['quality', 'background'] as const).map((kind) => {
-              const options =
-                kind === 'quality' ? qualityOptions : config?.backgroundOptions
-              if (!options?.length) return null
-              const selected = editOptions[kind] ?? options[0]
-              return (
-                <div key={kind} className="space-y-2">
-                  <span className="text-xs text-muted-foreground">
-                    {tAdvanced(kind)}
-                  </span>
-                  <div
-                    className="flex flex-wrap gap-1.5"
-                    role="group"
-                    aria-label={tAdvanced(kind)}
-                  >
-                    {options.map((value) => (
-                      <button
-                        key={value}
-                        type="button"
-                        disabled={isRunning}
-                        aria-pressed={selected === value}
-                        className={cn(
-                          'min-h-11 rounded-full border px-3 text-xs font-medium transition-colors',
-                          selected === value
-                            ? studioChipActiveClass
-                            : 'border-border/60 text-muted-foreground hover:text-foreground',
-                        )}
-                        onClick={() => {
-                          const parsed = ImageEditOptionsSchema.safeParse({
-                            ...editOptions,
-                            [kind]: value,
-                          })
-                          if (parsed.success) setEditOptions(parsed.data)
-                        }}
-                      >
-                        {kind === 'quality' &&
-                        selectedModelId === AI_MODELS.IDEOGRAM_45
-                          ? t(`quality.${value}`)
-                          : tAdvanced(`${kind}Option.${value}`)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )
-            })}
+            {/* 编辑设置 = 「专属」同一种排法（A1）：一行一个参数，名字在左、分段条在右。 */}
+            <div className="flex items-baseline gap-2 pb-1">
+              <span className="text-2xs font-semibold">
+                {t('settingsLabel')}
+              </span>
+              <span className="truncate text-3xs text-muted-foreground">
+                {EDIT_MODELS[selectedModelId]?.displayName ?? selectedModelId}
+              </span>
+            </div>
+            {settingRows.map(({ kind, options, selected }) => (
+              <div
+                key={kind}
+                className="grid min-h-9 grid-cols-[5rem_1fr] items-center gap-3"
+              >
+                <span className="text-2xs">{tAdvanced(kind)}</span>
+                <LiquidSegmented
+                  ariaLabel={tAdvanced(kind)}
+                  disabled={isRunning}
+                  semantics="radio"
+                  size="xs"
+                  fill
+                  value={selected}
+                  items={options.map((value) => ({
+                    value,
+                    label: optionLabel(kind, value),
+                  }))}
+                  onChange={(value) => {
+                    const parsed = ImageEditOptionsSchema.safeParse({
+                      ...editOptions,
+                      [kind]: value,
+                    })
+                    if (parsed.success) setEditOptions(parsed.data)
+                  }}
+                />
+              </div>
+            ))}
             {config?.capabilities.includes('preview') ? (
-              <label className="flex min-h-11 items-center justify-between gap-2 text-sm">
+              <label className="flex min-h-9 items-center justify-between gap-2 text-2xs">
                 {tAdvanced('preview')}
-                <input
-                  type="checkbox"
-                  className="size-4 accent-primary"
+                <Switch
                   disabled={isRunning}
                   checked={editOptions.preview ?? false}
-                  onChange={(event) =>
-                    setEditOptions({
-                      ...editOptions,
-                      preview: event.target.checked,
-                    })
+                  onCheckedChange={(preview) =>
+                    setEditOptions({ ...editOptions, preview })
                   }
                 />
               </label>
@@ -941,13 +929,9 @@ export function ImageEditSurface({
                 <div className="space-y-2">
                   <div className="flex flex-wrap gap-1.5">
                     {EXTRACT_PRESETS.map((preset) => (
-                      <Button
+                      <button
                         key={preset.key}
                         type="button"
-                        size="sm"
-                        variant={
-                          extractPreset === preset.key ? 'secondary' : 'ghost'
-                        }
                         aria-pressed={extractPreset === preset.key}
                         disabled={isRunning}
                         onClick={() => {
@@ -955,9 +939,15 @@ export function ImageEditSurface({
                           setExtractInvert(preset.invert)
                           setExtractPreset(preset.key)
                         }}
+                        className={cn(
+                          studioOutlineChipClass,
+                          'h-7 px-2.5 text-2xs',
+                          extractPreset === preset.key &&
+                            studioOutlineChipOpenClass,
+                        )}
                       >
                         {t(`extract.presets.${preset.key}`)}
-                      </Button>
+                      </button>
                     ))}
                   </div>
                   <Textarea
@@ -971,16 +961,14 @@ export function ImageEditSurface({
                       setExtractPreset(null)
                     }}
                   />
-                  <label className="flex min-h-11 items-center gap-2 text-xs text-muted-foreground">
-                    <input
-                      type="checkbox"
+                  <label className="flex min-h-9 items-center gap-2 text-2xs text-muted-foreground">
+                    <Switch
                       checked={extractInvert}
                       disabled={isRunning}
-                      onChange={(event) => {
-                        setExtractInvert(event.target.checked)
+                      onCheckedChange={(invert) => {
+                        setExtractInvert(invert)
                         setExtractPreset(null)
                       }}
-                      className="size-4 rounded border-border"
                     />
                     {t('extract.invertLabel')}
                   </label>

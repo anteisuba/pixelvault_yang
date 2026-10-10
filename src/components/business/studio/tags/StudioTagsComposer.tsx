@@ -86,6 +86,7 @@ import {
 import { StudioTagCarryNote } from './StudioTagCarryNote'
 import { StudioTagChipField } from './StudioTagChipField'
 import { StudioTagsControlColumn } from './StudioTagsControlColumn'
+import { StudioTagsDesktopEditor } from './StudioTagsDesktopEditor'
 import type { TagWorkbenchPanel } from './StudioTagsWorkbench'
 
 /** 分页里「整体」那一格的值（角色页用下标）。 */
@@ -196,6 +197,37 @@ export function StudioTagsComposer({
     )
   }
 
+  const referenceStripProps = {
+    entries: imageUpload.referenceEntries,
+    previewAlt: tImageChip('label'),
+    previewLabel: (index: number) =>
+      tImageChip('previewReferenceImage', { index }),
+    previewDescription: tImageChip('previewReferenceDescription'),
+    previewCloseLabel: tImageChip('closeReferencePreview'),
+    removeLabel: (index: number) =>
+      tImageChip('removeReferenceImage', { index }),
+    onRemove: imageUpload.removeReferenceImage,
+    overLimitTooltip: tImageChip('disabledOverLimit'),
+    unsupportedTooltip: tImageChip('disabledUnsupported'),
+    dragType: STUDIO_REFERENCE_DRAG_TYPE,
+  }
+  const referenceStatus = (
+    <>
+      {referenceNotice ? (
+        <p className="text-2xs text-muted-foreground">{referenceNotice}</p>
+      ) : null}
+      {imageUpload.isUploading ? (
+        <div
+          role="status"
+          className="flex items-center gap-2 text-sm text-muted-foreground"
+        >
+          <Spinner aria-hidden="true" className="size-4 shrink-0" />
+          {tImageUpload('uploading')}
+        </div>
+      ) : null}
+    </>
+  )
+
   // 手机「＋」下半截：模板 · 查资料 ·（角色构图）。
   const addRows: StudioMobileAddRow[] = [
     {
@@ -232,183 +264,130 @@ export function StudioTagsComposer({
           !mobile && '@container/tagrow gap-2.5',
         )}
       >
-        <div
-          className={
-            mobile
-              ? 'flex min-h-0 flex-col gap-2 overflow-y-auto overscroll-contain'
-              : 'contents'
-          }
-        >
-          <ImageAttachmentPreviewStrip
-            entries={imageUpload.referenceEntries}
-            previewAlt={tImageChip('label')}
-            previewLabel={(index) =>
-              tImageChip('previewReferenceImage', { index })
-            }
-            previewDescription={tImageChip('previewReferenceDescription')}
-            previewCloseLabel={tImageChip('closeReferencePreview')}
-            removeLabel={(index) =>
-              tImageChip('removeReferenceImage', { index })
-            }
-            onRemove={imageUpload.removeReferenceImage}
-            overLimitTooltip={tImageChip('disabledOverLimit')}
-            unsupportedTooltip={tImageChip('disabledUnsupported')}
-            variant="composer"
-            dragType={STUDIO_REFERENCE_DRAG_TYPE}
-          />
-          {referenceNotice ? (
-            <p className="text-2xs text-muted-foreground">{referenceNotice}</p>
-          ) : null}
-          {imageUpload.isUploading ? (
-            <div
-              role="status"
-              className="flex items-center gap-2 text-sm text-muted-foreground"
-            >
-              <Spinner aria-hidden="true" className="size-4 shrink-0" />
-              {tImageUpload('uploading')}
-            </div>
-          ) : null}
+        {mobile ? (
+          <div className="flex min-h-0 flex-col gap-2 overflow-y-auto overscroll-contain">
+            <ImageAttachmentPreviewStrip
+              {...referenceStripProps}
+              variant="composer"
+            />
+            {referenceStatus}
 
-          {/* 编辑谁 —— 只有支持角色构图的模型才有这一行。 */}
-          {characters.mode ? (
-            <div
-              className={cn(
-                'flex items-center gap-2',
-                mobile ? 'shrink-0 overflow-x-auto' : 'flex-wrap',
-              )}
-            >
-              <LiquidSegmented
-                ariaLabel={t('characterTitle')}
-                size="sm"
-                disabled={isGenerating}
-                value={activeIndex === null ? WHOLE : String(activeIndex)}
-                items={[
-                  { value: WHOLE, label: t('wholeTab') },
-                  ...characters.characters.map((_, index) => ({
-                    value: String(index),
-                    label: t('workbench.characterNumber', {
-                      number: index + 1,
-                    }),
-                    indicator: flashing === index,
-                  })),
-                ]}
-                onChange={(next) =>
-                  characters.select(next === WHOLE ? null : Number(next))
-                }
-              />
-              <button
-                type="button"
-                disabled={
-                  isGenerating || characters.characters.length >= characters.max
-                }
-                onClick={characters.add}
-                // 与 PC 同一档（owner 2026-10-04：手机上那颗 44 高的黑丸太重）；触屏命中区
-                // 由 `touch-target-y` 补到 44，⛔ 不把丸画大。
-                className={cn(
-                  studioOutlineChipClass,
-                  'touch-target-y h-7 border-dashed px-2.5 text-muted-foreground',
-                )}
-              >
-                <Plus className="size-3.5" aria-hidden />
-                {t('addCharacter')}
-              </button>
-              {activeIndex !== null ? (
-                <span className="flex items-center gap-1.5">
-                  <Switch
-                    aria-label={t('workbench.enableCharacter', {
-                      number: activeIndex + 1,
-                    })}
-                    checked={!characterDisabled}
-                    disabled={isGenerating}
-                    onCheckedChange={(enabled) =>
-                      characters.update(activeIndex, { enabled })
-                    }
-                  />
-                  <button
-                    type="button"
-                    disabled={isGenerating}
-                    aria-label={t('removeCharacter', {
-                      number: activeIndex + 1,
-                    })}
-                    onClick={() => characters.remove(activeIndex)}
-                    className={cn(
-                      'touch-target-y grid size-7 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50',
-                    )}
-                  >
-                    <X className="size-3.5" aria-hidden />
-                  </button>
-                </span>
-              ) : null}
-              <span
-                className={cn(
-                  'ml-auto text-2xs text-muted-foreground',
-                  mobile && 'hidden',
-                )}
-              >
-                {t(
-                  characters.mode === 'grid'
-                    ? 'characterModeGrid'
-                    : 'characterModeFree',
-                  { max: characters.max },
-                )}
-                {' · '}
-                {t(
-                  characters.layout?.positioning === 'manual'
-                    ? 'workbench.manual'
-                    : 'workbench.auto',
-                )}
-              </span>
-            </div>
-          ) : null}
-
-          {/* 换页 = 同一对栏换内容：旧的直接让位，新的带一下短模糊进场。 */}
-          <motion.div
-            key={activeIndex ?? 'whole'}
-            initial={
-              reducedMotion
-                ? false
-                : { opacity: 0, filter: `blur(${LIQUID_TIMING.blurPx}px)` }
-            }
-            animate={{ opacity: 1, filter: 'blur(0px)' }}
-            transition={{
-              delay: LIQUID_TIMING.swapInDelayS,
-              duration: LIQUID_TIMING.swapInS,
-              ease: EASE_STANDARD,
-            }}
-            className="flex flex-col gap-1.5"
-          >
-            <div data-assistant-field="prompt">
-              <StudioTagChipField
-                variant={mobile ? 'composer' : 'inline'}
-                modelId={tagModelId}
-                label={
-                  activeIndex === null
-                    ? t('positiveLabel')
-                    : t('characterPositiveLabel', { number: activeIndex + 1 })
-                }
-                polarity="positive"
-                chips={positive}
-                disabled={isGenerating || characterDisabled}
-                onChange={(chips) => setChips('positive', chips)}
-                status={
-                  activeIndex === null ? (
-                    <StudioTagCarryNote
-                      status={carry.status}
-                      onRetry={carry.retry}
-                    />
-                  ) : undefined
-                }
-              />
-            </div>
+            {/* 编辑谁 —— 只有支持角色构图的模型才有这一行。 */}
             {characters.mode ? (
-              <StudioTagCountHint
-                activeIndex={activeIndex}
-                mobile={mobile}
-                disabled={isGenerating || characterDisabled}
-              />
+              <div className="flex shrink-0 items-center gap-2 overflow-x-auto">
+                <LiquidSegmented
+                  ariaLabel={t('characterTitle')}
+                  size="sm"
+                  disabled={isGenerating}
+                  value={activeIndex === null ? WHOLE : String(activeIndex)}
+                  items={[
+                    { value: WHOLE, label: t('wholeTab') },
+                    ...characters.characters.map((_, index) => ({
+                      value: String(index),
+                      label: t('workbench.characterNumber', {
+                        number: index + 1,
+                      }),
+                      indicator: flashing === index,
+                    })),
+                  ]}
+                  onChange={(next) =>
+                    characters.select(next === WHOLE ? null : Number(next))
+                  }
+                />
+                <button
+                  type="button"
+                  disabled={
+                    isGenerating ||
+                    characters.characters.length >= characters.max
+                  }
+                  onClick={characters.add}
+                  // 与 PC 同一档（owner 2026-10-04：手机上那颗 44 高的黑丸太重）；触屏命中区
+                  // 由 `touch-target-y` 补到 44，⛔ 不把丸画大。
+                  className={cn(
+                    studioOutlineChipClass,
+                    'touch-target-y h-7 border-dashed px-2.5 text-muted-foreground',
+                  )}
+                >
+                  <Plus className="size-3.5" aria-hidden />
+                  {t('addCharacter')}
+                </button>
+                {activeIndex !== null ? (
+                  <span className="flex items-center gap-1.5">
+                    <Switch
+                      aria-label={t('workbench.enableCharacter', {
+                        number: activeIndex + 1,
+                      })}
+                      checked={!characterDisabled}
+                      disabled={isGenerating}
+                      onCheckedChange={(enabled) =>
+                        characters.update(activeIndex, { enabled })
+                      }
+                    />
+                    <button
+                      type="button"
+                      disabled={isGenerating}
+                      aria-label={t('removeCharacter', {
+                        number: activeIndex + 1,
+                      })}
+                      onClick={() => characters.remove(activeIndex)}
+                      className={cn(
+                        'touch-target-y grid size-7 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50',
+                      )}
+                    >
+                      <X className="size-3.5" aria-hidden />
+                    </button>
+                  </span>
+                ) : null}
+              </div>
             ) : null}
-            {mobile ? (
-              // 额度那一句挂在这一行右端（手机工具行只剩一行，放不下它）。
+
+            {/* 换页 = 同一对栏换内容：旧的直接让位，新的带一下短模糊进场。 */}
+            <motion.div
+              key={activeIndex ?? 'whole'}
+              initial={
+                reducedMotion
+                  ? false
+                  : { opacity: 0, filter: `blur(${LIQUID_TIMING.blurPx}px)` }
+              }
+              animate={{ opacity: 1, filter: 'blur(0px)' }}
+              transition={{
+                delay: LIQUID_TIMING.swapInDelayS,
+                duration: LIQUID_TIMING.swapInS,
+                ease: EASE_STANDARD,
+              }}
+              className="flex flex-col gap-1.5"
+            >
+              <div data-assistant-field="prompt">
+                <StudioTagChipField
+                  variant="composer"
+                  modelId={tagModelId}
+                  label={
+                    activeIndex === null
+                      ? t('positiveLabel')
+                      : t('characterPositiveLabel', { number: activeIndex + 1 })
+                  }
+                  polarity="positive"
+                  chips={positive}
+                  disabled={isGenerating || characterDisabled}
+                  onChange={(chips) => setChips('positive', chips)}
+                  status={
+                    activeIndex === null ? (
+                      <StudioTagCarryNote
+                        status={carry.status}
+                        onRetry={carry.retry}
+                      />
+                    ) : undefined
+                  }
+                />
+              </div>
+              {characters.mode ? (
+                <StudioTagCountHint
+                  activeIndex={activeIndex}
+                  mobile
+                  disabled={isGenerating || characterDisabled}
+                />
+              ) : null}
+              {/* 额度那一句挂在这一行右端（手机工具行只剩一行，放不下它）。 */}
               <div className="flex items-center justify-between gap-2">
                 <button
                   type="button"
@@ -431,38 +410,53 @@ export function StudioTagsComposer({
                 </button>
                 <TagQuotaLine runModels={runModels} />
               </div>
-            ) : null}
-            {!mobile || negativeOpen ? (
-              <div
-                ref={revealNegative}
-                id={negativeId}
-                data-assistant-field="negativePrompt"
-              >
-                <StudioTagChipField
-                  variant={mobile ? 'composer' : 'inline'}
-                  modelId={tagModelId}
-                  label={t('negativeLabel')}
-                  note={t('negativeNote')}
-                  polarity="negative"
-                  chips={negative}
-                  disabled={isGenerating || characterDisabled}
-                  onChange={(chips) => setChips('negative', chips)}
-                />
-              </div>
-            ) : null}
-            {characters.mode ? (
-              activeIndex !== null ? (
-                <StudioTagCharacterExtras
-                  index={activeIndex}
-                  mobile={mobile}
-                  disabled={isGenerating || characterDisabled}
-                />
-              ) : (
-                <StudioTagSceneTexts mobile={mobile} disabled={isGenerating} />
-              )
-            ) : null}
-          </motion.div>
-        </div>
+              {negativeOpen ? (
+                <div
+                  ref={revealNegative}
+                  id={negativeId}
+                  data-assistant-field="negativePrompt"
+                >
+                  <StudioTagChipField
+                    variant="composer"
+                    modelId={tagModelId}
+                    label={t('negativeLabel')}
+                    note={t('negativeNote')}
+                    polarity="negative"
+                    chips={negative}
+                    disabled={isGenerating || characterDisabled}
+                    onChange={(chips) => setChips('negative', chips)}
+                  />
+                </div>
+              ) : null}
+              {characters.mode ? (
+                activeIndex !== null ? (
+                  <StudioTagCharacterExtras
+                    index={activeIndex}
+                    mobile
+                    disabled={isGenerating || characterDisabled}
+                  />
+                ) : (
+                  <StudioTagSceneTexts mobile disabled={isGenerating} />
+                )
+              ) : null}
+            </motion.div>
+          </div>
+        ) : (
+          <StudioTagsDesktopEditor
+            tagModelId={tagModelId}
+            disabled={isGenerating}
+            carry={
+              <StudioTagCarryNote status={carry.status} onRetry={carry.retry} />
+            }
+            referenceStrip={
+              <ImageAttachmentPreviewStrip
+                {...referenceStripProps}
+                variant="tabs"
+              />
+            }
+            referenceStatus={referenceStatus}
+          />
+        )}
 
         {mobile ? (
           // 手机一行（owner 2026-10-04「和图片台一样」）：＋（图像 · 模板 · 查资料 ·

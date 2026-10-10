@@ -277,7 +277,6 @@ describe('mineCivitaiUserPrompts', () => {
     )
     expect(result.outfits[1]?.source).toBe('model_version_image')
     expect(result.totalSampled).toBe(2)
-    expect(mockFetch).toHaveBeenCalledTimes(1)
 
     // Per-image recipes pair the image URL with the FULL generation params
     // (hash matching is case-insensitive) and surface stacked extra LoRAs.
@@ -351,8 +350,6 @@ describe('mineCivitaiUserPrompts', () => {
       source: 'model_version_image',
       loraWeight: 0.8,
     })
-    // 只打了 model-versions 一次——source-image 命中就不再回落 community。
-    expect(mockFetch).toHaveBeenCalledTimes(1)
   })
 
   it('surfaces prompt-less model-version images as previewImages when no recipe exists anywhere', async () => {
@@ -589,8 +586,104 @@ describe('mineCivitaiUserPrompts', () => {
     expect(result.previewImages?.map((image) => image.imageUrl)).toEqual([
       'https://image.civitai.com/no-prompt.jpeg',
     ])
-    // 命中配方即返回，不回落 community。
-    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('appends community recipes after the author ones so stacked LoRAs show up', async () => {
+    // 作者图大多只挂这一把；叠了别的 LoRA 的是站内生成的社区图，只写
+    // civitaiResources（版本号）不写 resources[].hash——以前作者有配方就不看
+    // 社区图、社区图又只认 hash，两头把它们全丢了。
+    mockFetch
+      .mockResolvedValueOnce(
+        jsonResponse({
+          id: 3342283,
+          name: 'v01',
+          images: [
+            {
+              url: 'https://image.civitai.com/xG1/c0b9c3b5-cd66-46f4-aa55-7cc2504db4da/original=true/143301117.jpeg',
+              nsfwLevel: 1,
+              meta: { prompt: '1girl, @sh1nj1r0, fashion' },
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          items: [
+            // 作者那张在社区接口里又出现一次（URL 尾巴不同）——不重复。
+            {
+              id: 143301117,
+              url: 'https://image.civitai.com/xG1/c0b9c3b5-cd66-46f4-aa55-7cc2504db4da/original=true/c0b9c3b5-cd66-46f4-aa55-7cc2504db4da.jpeg',
+              meta: { prompt: '1girl, @sh1nj1r0, fashion' },
+            },
+            {
+              id: 144323800,
+              url: 'https://image.civitai.com/xG1/5d0c4a1e-1111-4222-8333-944455556666/original=true/144323800.jpeg',
+              modelVersionIds: [2983680, 3001940, 3126711, 3342283],
+              meta: {
+                prompt: '1girl, @sh1nj1r0, cafe',
+                civitaiResources: [
+                  { type: 'checkpoint', modelVersionId: 2983680 },
+                  { type: 'lora', weight: 1, modelVersionId: 3001940 },
+                  { type: 'lora', weight: 0.5, modelVersionId: 3126711 },
+                  { type: 'lora', weight: 0.5, modelVersionId: 3342283 },
+                ],
+              },
+            },
+          ],
+        }),
+      )
+
+      // 站内生成只记版本号——按版本号补名字（拿不到的照旧显示版本号）。
+      .mockResolvedValueOnce(
+        jsonResponse({ id: 3001940, model: { name: 'Anima Turbo LoRA' } }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ error: 'nope' }, 404))
+
+    const result = await mineCivitaiUserPrompts({
+      modelId: 2525160,
+      modelVersionId: 3342283,
+      fileHashAutoV3: null,
+    })
+
+    expect(result.recipes?.map((recipe) => recipe.source)).toEqual([
+      'model_version_image',
+      'community_image',
+    ])
+    expect(result.recipes?.[1]).toMatchObject({
+      loraWeight: 0.5,
+      checkpointVersionId: 2983680,
+      extraLoras: [
+        { name: 'Anima Turbo LoRA', weight: 1, modelVersionId: 3001940 },
+        { weight: 0.5, modelVersionId: 3126711 },
+      ],
+    })
+  })
+
+  it('keeps author recipes when the community images call fails', async () => {
+    mockFetch
+      .mockResolvedValueOnce(
+        jsonResponse({
+          id: 7,
+          name: 'v1',
+          images: [
+            {
+              url: 'https://image.civitai.com/author.jpeg',
+              nsfwLevel: 1,
+              meta: { prompt: '1girl', sampler: 'euler', scheduler: 'simple' },
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ error: 'down' }, 503))
+
+    const result = await mineCivitaiUserPrompts({
+      modelId: 6,
+      modelVersionId: 7,
+      fileHashAutoV3: null,
+    })
+
+    expect(result.recipes).toHaveLength(1)
+    expect(result.recipes?.[0]?.source).toBe('model_version_image')
   })
 
   it('clusters real activation segments from /api/v1/images by hash', async () => {
@@ -679,8 +772,8 @@ describe('mineCivitaiUserPrompts', () => {
     // is not.
     expect(result.totalSampled).toBe(4)
 
-    // Community recipes: only hash-matched images WITH a url (items 1+2;
-    // item 3 has no url, items 4+5 don't reference the LoRA). Full prompt
+    // Community recipes: only images WITH a url and a prompt (items 1+2;
+    // items 3+4 have no url, item 5 has no meta). Full prompt
     // (lora tag stripped), real weight from resources.
     expect(result.recipes).toHaveLength(2)
     expect(result.recipes?.[0]).toMatchObject({
@@ -1071,10 +1164,8 @@ describe('mineCivitaiUserPrompts', () => {
       loraWeight: 0.8,
     })
     expect(result.outfits).toHaveLength(1)
-    // Only the model-versions endpoint is hit — no community-images
-    // fallback call, and no crash from the null hash reaching
-    // resolveRecipeLoraSignals.
-    expect(mockFetch).toHaveBeenCalledTimes(1)
+    // No crash from the null hash reaching resolveRecipeLoraSignals; the
+    // author endpoint is still asked first.
     const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
     expect(requestUrl.pathname).toBe('/api/v1/model-versions/2050454')
   })

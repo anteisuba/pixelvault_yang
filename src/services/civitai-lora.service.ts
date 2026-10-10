@@ -1939,6 +1939,17 @@ interface ModelVersionSourceImages {
   recipes: CivitaiImageRecipe[]
   // 无配方兜底：静态 + 在天花板内、但没带 prompt 的示例图，供纯预览展示。
   previews: CivitaiPreviewImage[]
+  /** 这一版各文件的全部 hash（小写），社区图那一路靠它认出 LoRA 自己。 */
+  targetHashes: string[]
+  /** 这一版各文件的文件名词干（`<lora:NAME>` 写的就是它）。 */
+  targetNameHints: string[]
+}
+
+const EMPTY_SOURCE_IMAGES: ModelVersionSourceImages = {
+  recipes: [],
+  previews: [],
+  targetHashes: [],
+  targetNameHints: [],
 }
 
 async function fetchModelVersionSourceRecipes(
@@ -1963,7 +1974,7 @@ async function fetchModelVersionSourceRecipes(
       modelVersionId,
       error: error instanceof Error ? error.message : 'Unknown',
     })
-    return { recipes: [], previews: [] }
+    return EMPTY_SOURCE_IMAGES
   }
 
   const parsed = CivitaiModelVersionSchema.safeParse(payload)
@@ -1976,7 +1987,7 @@ async function fetchModelVersionSourceRecipes(
         issues: parsed.error.issues.map((issue) => issue.message).join('; '),
       },
     )
-    return { recipes: [], previews: [] }
+    return EMPTY_SOURCE_IMAGES
   }
 
   // In-prompt `<lora:NAME:..>` tags use the file name stem — collect every
@@ -1984,6 +1995,9 @@ async function fetchModelVersionSourceRecipes(
   const targetNameHints = (parsed.data.files ?? [])
     .map((file) => (file.name ? fileNameStem(file.name) : null))
     .filter((stem): stem is string => Boolean(stem))
+  const targetHashes = (parsed.data.files ?? []).flatMap((file) =>
+    Object.values(file.hashes ?? {}).map((hash) => hash.toLowerCase()),
+  )
 
   const recipes: CivitaiImageRecipe[] = []
   const previews: CivitaiPreviewImage[] = []
@@ -2032,7 +2046,7 @@ async function fetchModelVersionSourceRecipes(
     if (recipes.length >= CIVITAI_IMAGES_RECIPE_CAP) break
   }
 
-  return { recipes, previews }
+  return { recipes, previews, targetHashes, targetNameHints }
 }
 
 /**
@@ -2147,30 +2161,125 @@ export async function getCivitaiModelDescription(
   }
 }
 
-export async function mineCivitaiUserPrompts({
-  modelId,
-  modelVersionId,
-  fileHashAutoV3,
-}: MineCivitaiUserPromptsInput): Promise<CivitaiMinedPromptsResult> {
-  const targetHash = fileHashAutoV3?.toLowerCase() ?? null
+const CivitaiVersionModelNameSchema = z
+  .object({
+    model: z
+      .object({ name: z.string().nullable().optional() })
+      .passthrough()
+      .optional(),
+  })
+  .passthrough()
 
-  // 作者示例图里没带 prompt 的静态图：作为纯预览图始终随结果返回，排在
-  // 带配方的图后面——作者的样图必放，不能被社区配方图顶掉。
-  let sourcePreviews: CivitaiPreviewImage[] = []
-  if (modelVersionId !== undefined) {
-    const { recipes: sourceRecipes, previews } =
-      await fetchModelVersionSourceRecipes(modelId, modelVersionId, targetHash)
-    if (sourceRecipes.length > 0) {
-      return {
-        outfits: deriveOutfitsFromRecipes(sourceRecipes),
-        totalSampled: sourceRecipes.length,
-        recipes: sourceRecipes,
-        previewImages: previews.length > 0 ? previews : undefined,
+/** 一次挖掘最多替多少个版本号补名字（每个一次请求，并行）。 */
+const EXTRA_LORA_NAME_LOOKUP_CAP = 24
+const EXTRA_LORA_NAME_LOOKUP_TIMEOUT_MS = 4000
+
+/**
+ * 站内生成的图只记共挂 LoRA 的版本号、不记名字，弹窗里只能写「#3001940」，
+ * 认不出是哪把也就没法决定挂不挂。按版本号并行补一次名字，拿不到的照旧。
+ */
+async function lookupExtraLoraNames(
+  recipes: readonly CivitaiImageRecipe[],
+): Promise<Map<number, string>> {
+  const ids = [
+    ...new Set(
+      recipes.flatMap((recipe) =>
+        (recipe.extraLoras ?? []).flatMap((extra) =>
+          !extra.name && extra.modelVersionId !== undefined
+            ? [extra.modelVersionId]
+            : [],
+        ),
+      ),
+    ),
+  ].slice(0, EXTRA_LORA_NAME_LOOKUP_CAP)
+  const names = new Map<number, string>()
+  await Promise.all(
+    ids.map(async (id) => {
+      try {
+        const payload = await fetchCivitaiPayload(
+          new URL(`${CIVITAI_MODEL_VERSIONS_API}/${id}`),
+          { timeoutMs: EXTRA_LORA_NAME_LOOKUP_TIMEOUT_MS },
+        )
+        const parsed = CivitaiVersionModelNameSchema.safeParse(payload)
+        const name = parsed.success ? parsed.data.model?.name?.trim() : ''
+        if (name) names.set(id, repairUtf8Mojibake(name))
+      } catch {
+        // best-effort：拿不到名字就继续显示版本号，挂载照样按版本号定位。
       }
-    }
-    sourcePreviews = previews
-  }
+    }),
+  )
+  return names
+}
 
+function applyExtraLoraNames(
+  recipes: CivitaiImageRecipe[],
+  names: ReadonlyMap<number, string>,
+): CivitaiImageRecipe[] {
+  if (names.size === 0) return recipes
+  return recipes.map((recipe) =>
+    recipe.extraLoras
+      ? {
+          ...recipe,
+          extraLoras: recipe.extraLoras.map((extra) => {
+            const name =
+              !extra.name && extra.modelVersionId !== undefined
+                ? names.get(extra.modelVersionId)
+                : undefined
+            return name ? { ...extra, name } : extra
+          }),
+        }
+      : recipe,
+  )
+}
+
+interface CommunityImageRecipes {
+  recipes: CivitaiImageRecipe[]
+  /** Activation segments for the outfit chips (needs the in-prompt tag name). */
+  segments: string[]
+  consideredCount: number
+}
+
+const CIVITAI_IMAGE_UUID_RE =
+  /\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\//i
+
+/**
+ * 同一张图在 /model-versions 与 /images 两边的 URL 尾巴不一样（文件名一边是图片
+ * id、一边是 UUID），按路径里那段 UUID 认是不是同一张。
+ */
+function civitaiImageKey(url: string): string {
+  return url.match(CIVITAI_IMAGE_UUID_RE)?.[1]?.toLowerCase() ?? url
+}
+
+/**
+ * 社区图与作者图并行拉，解析时还不知道这一版的文件 hash / 文件名（搜索来的
+ * LoRA 本身也不带 hash），这把 LoRA 自己会混进「还叠了」。拿作者那一路带回
+ * 的文件信息剔掉，权重顺手补上。
+ */
+function dropTargetFromExtras(
+  recipe: CivitaiImageRecipe,
+  targetHashes: ReadonlySet<string>,
+  targetNames: ReadonlySet<string>,
+): CivitaiImageRecipe {
+  const extras = recipe.extraLoras
+  if (!extras) return recipe
+  const isTarget = (extra: CivitaiRecipeExtraLora) =>
+    (extra.hash !== undefined && targetHashes.has(extra.hash)) ||
+    isKnownTargetLoraName(extra.name, targetNames)
+  const target = extras.find(isTarget)
+  if (!target) return recipe
+  const rest = extras.filter((extra) => !isTarget(extra))
+  return {
+    ...recipe,
+    loraWeight: recipe.loraWeight ?? target.weight,
+    extraLoras: rest.length > 0 ? rest : undefined,
+  }
+}
+
+async function fetchCommunityImageRecipes(
+  modelId: number,
+  modelVersionId: number | undefined,
+  targetHash: string | null,
+): Promise<CommunityImageRecipes> {
   const url = new URL(CIVITAI_IMAGES_API)
   // Query by modelVersionId alone when we have it — modelId-only queries on
   // popular models risk Cloudflare timeouts (official docs) and return a
@@ -2238,20 +2347,24 @@ export async function mineCivitaiUserPrompts({
     const prompt = repairUtf8Mojibake(sdMeta.prompt?.trim() ?? '')
     if (!prompt) continue
     consideredCount += 1
-    const matched = sdMeta.resources?.find(
-      (r) => r.hash && r.hash.toLowerCase() === targetHash,
-    )
-    if (!matched) continue
+    const matched = targetHash
+      ? sdMeta.resources?.find(
+          (r) => r.hash && r.hash.toLowerCase() === targetHash,
+        )
+      : undefined
+    // 按版本号查回来的图，Civitai 已经认定它用了这一版。站内生成只写
+    // civitaiResources（版本号）、不写 resources[].hash，叠 LoRA 最多的恰恰是
+    // 这类——以前只认 hash，把它们整批丢了。只按 modelId 查（老收藏没存版本
+    // 号）时结果混着别的版本，才需要 hash 对上。
+    if (modelVersionId === undefined && !matched) continue
 
     // Per-image recipe: the FULL prompt + params, paired to the image —
     // "一键同款" wants everything the uploader used, not just the
     // activation segment.
     const cleanedPrompt = cleanRecommendedPrompt(prompt)
-    if (
-      item.url &&
-      cleanedPrompt &&
-      recipes.length < CIVITAI_IMAGES_RECIPE_CAP
-    ) {
+    // 不在这里截到 CIVITAI_IMAGES_RECIPE_CAP：前几张常是作者自己那几张，
+    // 得先和作者图去重再截（样本本身受 CIVITAI_IMAGES_SAMPLE_LIMIT 限制）。
+    if (item.url && cleanedPrompt) {
       recipes.push({
         imageUrl: item.url,
         width: item.width,
@@ -2272,7 +2385,7 @@ export async function mineCivitaiUserPrompts({
     }
 
     // Outfit segment clustering needs the in-prompt LoRA tag name.
-    if (!matched.name) continue
+    if (!matched?.name) continue
     const seg = extractActivationSegment(
       prompt,
       repairUtf8Mojibake(matched.name),
@@ -2280,14 +2393,62 @@ export async function mineCivitaiUserPrompts({
     if (seg) segments.push(seg)
   }
 
-  const summarised = summariseActivationSegments(segments)
-    .slice(0, CIVITAI_IMAGES_OUTFIT_CAP)
-    .map((s) => ({
-      label: '',
-      prompt: s.prompt,
-      sampleCount: s.sampleCount,
-      source: 'community_image' as const,
-    }))
+  return { recipes, segments, consideredCount }
+}
+
+export async function mineCivitaiUserPrompts({
+  modelId,
+  modelVersionId,
+  fileHashAutoV3,
+}: MineCivitaiUserPromptsInput): Promise<CivitaiMinedPromptsResult> {
+  const targetHash = fileHashAutoV3?.toLowerCase() ?? null
+
+  // 作者示例图与社区图并行拉。作者图排前面（样图必放，不能被社区图顶掉），
+  // 社区图接在后面——别人叠了哪些 LoRA 一起出图，几乎只在社区图里看得到，
+  // 作者图大多只挂这一把。作者示例图里没带 prompt 的静态图作为纯预览图
+  // 始终随结果返回。
+  const [source, community] = await Promise.all([
+    modelVersionId !== undefined
+      ? fetchModelVersionSourceRecipes(modelId, modelVersionId, targetHash)
+      : Promise.resolve(EMPTY_SOURCE_IMAGES),
+    fetchCommunityImageRecipes(modelId, modelVersionId, targetHash).then(
+      (value) => ({ ok: true as const, value }),
+      (error: unknown) => ({ ok: false as const, error }),
+    ),
+  ])
+  // 社区图拉挂了：作者图有配方就照常返回，连作者配方都没有才往上抛。
+  if (!community.ok && source.recipes.length === 0) throw community.error
+
+  const authorImageKeys = new Set(
+    source.recipes.map((recipe) => civitaiImageKey(recipe.imageUrl)),
+  )
+  const targetHashes = new Set(source.targetHashes)
+  const targetNames = new Set(source.targetNameHints)
+  const communityRecipes = community.ok
+    ? community.value.recipes
+        .filter(
+          (recipe) => !authorImageKeys.has(civitaiImageKey(recipe.imageUrl)),
+        )
+        .slice(0, CIVITAI_IMAGES_RECIPE_CAP)
+        .map((recipe) =>
+          dropTargetFromExtras(recipe, targetHashes, targetNames),
+        )
+    : []
+  const recipes = [...source.recipes, ...communityRecipes]
+
+  const outfits =
+    source.recipes.length > 0
+      ? deriveOutfitsFromRecipes(source.recipes)
+      : summariseActivationSegments(
+          community.ok ? community.value.segments : [],
+        )
+          .slice(0, CIVITAI_IMAGES_OUTFIT_CAP)
+          .map((s) => ({
+            label: '',
+            prompt: s.prompt,
+            sampleCount: s.sampleCount,
+            source: 'community_image' as const,
+          }))
 
   // 无配方兜底（方案 B）：到处都挖不到配方时，额外拉一次模型描述，原样给用户
   // 自读+复制（best-effort，失败不阻塞）。
@@ -2296,11 +2457,16 @@ export async function mineCivitaiUserPrompts({
       ? await fetchCivitaiModelDescriptionText(modelId)
       : undefined
 
+  const extraNames = await lookupExtraLoraNames(recipes)
+
   return {
-    outfits: summarised,
-    totalSampled: consideredCount,
-    recipes,
-    previewImages: sourcePreviews.length > 0 ? sourcePreviews : undefined,
+    outfits,
+    totalSampled:
+      source.recipes.length > 0 || !community.ok
+        ? recipes.length
+        : community.value.consideredCount,
+    recipes: applyExtraLoraNames(recipes, extraNames),
+    previewImages: source.previews.length > 0 ? source.previews : undefined,
     descriptionText,
   }
 }

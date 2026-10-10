@@ -5,6 +5,7 @@ import type { CivitaiImageRecipe } from '@/types'
 import {
   applyRecipePlanToAdvancedParams,
   buildCivitaiRecipeGenerationPlan,
+  isDistilledRecipeSampling,
 } from './civitai-recipe-to-generation'
 
 function makeRecipe(
@@ -113,6 +114,8 @@ describe('buildCivitaiRecipeGenerationPlan', () => {
       steps: 28,
       seed: 1234567890,
       runnerSeed: '1234567890',
+      runnerWidth: 832,
+      runnerHeight: 1216,
     })
     expect(plan.loraScale).toBe(0.85)
     // 832/1216 ≈ 0.684 → nearest supported ratio is 3:4 (0.75), not 9:16
@@ -212,6 +215,27 @@ describe('buildCivitaiRecipeGenerationPlan', () => {
     expect(plan.aspectRatio).toBe('3:4')
   })
 
+  it('falls back to the image size when meta has no Size and the image is not upscaled', () => {
+    const plan = buildCivitaiRecipeGenerationPlan(
+      makeRecipe({ width: 832, height: 1344 }),
+    )
+    expect(plan.advancedParams).toMatchObject({
+      runnerWidth: 832,
+      runnerHeight: 1344,
+    })
+    expect(plan.appliedParams).toContain('size')
+  })
+
+  it('scales an upscaled image back to a native ~1MP size of the same ratio', () => {
+    const plan = buildCivitaiRecipeGenerationPlan(
+      makeRecipe({ width: 4096, height: 6144 }),
+    )
+    expect(plan.advancedParams).toMatchObject({
+      runnerWidth: 832,
+      runnerHeight: 1280,
+    })
+  })
+
   it('passes extraLoras through so the UI can warn about limited fidelity', () => {
     const plan = buildCivitaiRecipeGenerationPlan(
       makeRecipe({
@@ -272,5 +296,20 @@ describe('applyRecipePlanToAdvancedParams', () => {
         includeSeed: true,
       }),
     ).toEqual(existing)
+  })
+})
+
+describe('isDistilledRecipeSampling', () => {
+  it('flags few steps with low CFG as a distilled recipe', () => {
+    expect(
+      isDistilledRecipeSampling(makeRecipe({ steps: 12, cfgScale: 1.8 })),
+    ).toBe(true)
+  })
+
+  it('leaves full-step recipes and recipes missing either value alone', () => {
+    expect(
+      isDistilledRecipeSampling(makeRecipe({ steps: 30, cfgScale: 4 })),
+    ).toBe(false)
+    expect(isDistilledRecipeSampling(makeRecipe({ steps: 12 }))).toBe(false)
   })
 })

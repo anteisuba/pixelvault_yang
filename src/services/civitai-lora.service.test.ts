@@ -35,6 +35,11 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
+// 作者示例图与社区图并行拉（作者图在前），有配方时再读一次作者说明补采样器。
+function fetchedPaths(): string[] {
+  return mockFetch.mock.calls.map((call) => new URL(String(call[0])).pathname)
+}
+
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -585,6 +590,52 @@ describe('mineCivitaiUserPrompts', () => {
     expect(result.recipes).toHaveLength(1)
     expect(result.previewImages?.map((image) => image.imageUrl)).toEqual([
       'https://image.civitai.com/no-prompt.jpeg',
+    ])
+  })
+
+  it('fills a missing sampler / scheduler from the author tested-with notes', async () => {
+    mockFetch
+      .mockResolvedValueOnce(
+        jsonResponse({
+          id: 3372361,
+          name: 'v1.0',
+          images: [
+            {
+              url: 'https://image.civitai.com/malfoid.jpeg',
+              width: 832,
+              height: 1344,
+              nsfwLevel: 1,
+              meta: {
+                prompt: '@m4lfoid, blonde hair',
+                steps: 12,
+                cfgScale: 1.8,
+              },
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ items: [] }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          description:
+            '<p>trigger word: @m4lfoid</p><p>tested with: er_sde_beta, cfg 1.8, step 12 (Turbo 1.1)</p>',
+        }),
+      )
+
+    const result = await mineCivitaiUserPrompts({
+      modelId: 2975496,
+      modelVersionId: 3372361,
+      fileHashAutoV3: null,
+    })
+
+    expect(result.recipes?.[0]).toMatchObject({
+      sampler: 'er_sde',
+      scheduler: 'beta',
+    })
+    expect(fetchedPaths()).toEqual([
+      '/api/v1/model-versions/3372361',
+      '/api/v1/images',
+      '/api/v1/models/2975496',
     ])
   })
 

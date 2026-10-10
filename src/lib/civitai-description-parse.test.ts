@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   civitaiDescriptionToText,
+  extractAuthorSamplingFromDescription,
   firstRecommendedPromptFromDescription,
   parseCivitaiDescriptionCodeBlocks,
 } from './civitai-description-parse'
@@ -118,5 +119,32 @@ describe('civitaiDescriptionToText', () => {
     expect(civitaiDescriptionToText(undefined)).toBe('')
     expect(civitaiDescriptionToText('')).toBe('')
     expect(civitaiDescriptionToText('   <p>  </p>  ')).toBe('')
+  })
+})
+
+describe('extractAuthorSamplingFromDescription', () => {
+  it('reads a combined sampler_scheduler label from the tested-with line', () => {
+    const text =
+      'trigger word: @m4lfoid\ntested with: er_sde_beta , cfg 1.8 , step 12 (Turbo 1.1)\nFull Prompt: blonde hair, green eyes'
+    expect(extractAuthorSamplingFromDescription(text)).toEqual({
+      sampler: 'er_sde',
+      scheduler: 'beta',
+    })
+  })
+
+  it('reads labelled sampler and scheduler lines', () => {
+    expect(
+      extractAuthorSamplingFromDescription(
+        'Sampler: DPM++ 2M\nScheduler: Karras\nSteps: 28',
+      ),
+    ).toEqual({ sampler: 'dpmpp_2m', scheduler: 'karras' })
+  })
+
+  it('ignores ordinary prompt tags', () => {
+    expect(
+      extractAuthorSamplingFromDescription(
+        'simple background, normal, white shirt, beta',
+      ),
+    ).toEqual({})
   })
 })

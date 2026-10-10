@@ -39,13 +39,41 @@ function parseSizeRaw(
   return { width, height }
 }
 
+/** 原图超过这个像素数多半是放大过的成品，不能直接当出图尺寸。 */
+const NATIVE_SIZE_MAX_PIXELS = 1_600_000
+/** 放大过的原图按比例缩回这个面积（≈1MP，SDXL / Anima 的原生档）。 */
+const NATIVE_SIZE_TARGET_PIXELS = 1024 * 1024
+
 function parseBaseDimensions(
   recipe: CivitaiImageRecipe,
 ): { width: number; height: number } | null {
   if (recipe.baseWidth && recipe.baseHeight) {
     return { width: recipe.baseWidth, height: recipe.baseHeight }
   }
-  return parseSizeRaw(recipe.sizeRaw)
+  const sized = parseSizeRaw(recipe.sizeRaw)
+  if (sized || recipe.sizeRaw !== undefined) return sized
+  // 元数据没写 Size：没放大过的原图本身就是出图尺寸；放大过的按比例缩回 ≈1MP。
+  const { width, height } = recipe
+  if (!width || !height) return null
+  if (width * height <= NATIVE_SIZE_MAX_PIXELS) return { width, height }
+  const scale = Math.sqrt(NATIVE_SIZE_TARGET_PIXELS / (width * height))
+  return {
+    width: Math.round((width * scale) / 64) * 64,
+    height: Math.round((height * scale) / 64) * 64,
+  }
+}
+
+/**
+ * 配方参数是不是步数蒸馏档的（少步数 + 低 CFG）。来源图没写底模时据此挑 Turbo
+ * 这类蒸馏底模——拿蒸馏参数去跑完整底模会欠采样，画风整体发虚。
+ */
+export function isDistilledRecipeSampling(recipe: CivitaiImageRecipe): boolean {
+  return (
+    recipe.steps !== undefined &&
+    recipe.cfgScale !== undefined &&
+    recipe.steps <= 15 &&
+    recipe.cfgScale < 2.5
+  )
 }
 
 function parseDisplayDimensions(

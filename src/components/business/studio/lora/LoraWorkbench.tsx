@@ -148,6 +148,7 @@ import { resolveGeneratingStageKey } from '@/lib/generation-progress'
 import {
   applyRecipePlanToAdvancedParams,
   buildCivitaiRecipeGenerationPlan,
+  isDistilledRecipeSampling,
 } from '@/lib/civitai-recipe-to-generation'
 import { resolveCivitaiLoraAPI } from '@/lib/api-client/lora-assets'
 import {
@@ -1705,15 +1706,21 @@ function GenerateBranch({
   const handleApplyRecipe = useCallback(
     (recipe: CivitaiImageRecipe, options: ApplyRecipeOptions) => {
       if (extraMountsPending.current > 0) return
+      const compatibleBases = recipeGroupAsset
+        ? getCompatibleBases(recipeGroupAsset.baseModelFamily)
+        : []
+      // 来源图写了底模 → 交给「来源图底模」按图定位；没写但参数是蒸馏档 → 换到
+      // 同家族的蒸馏底模（如 Anima Turbo），否则蒸馏参数跑完整底模会欠采样。
       const recipeBase =
-        (recipe.checkpointVersionId ||
-          recipe.checkpointHash ||
-          recipe.checkpoint) &&
-        recipeGroupAsset
-          ? (getCompatibleBases(recipeGroupAsset.baseModelFamily).find(
+        recipe.checkpointVersionId || recipe.checkpointHash || recipe.checkpoint
+          ? (compatibleBases.find(
               (base) => base.available && base.recipeCheckpointMode !== 'fixed',
             ) ?? selectedBase)
-          : selectedBase
+          : isDistilledRecipeSampling(recipe) && !selectedBase?.distilled
+            ? (compatibleBases.find(
+                (base) => base.available && base.distilled,
+              ) ?? selectedBase)
+            : selectedBase
       const plan = buildCivitaiRecipeGenerationPlan(recipe)
       const params = applyRecipePlanToAdvancedParams(undefined, plan, options)
       // G3b-2b：应用前快照当前输入（+ 该分组当前 scale），撤销时整批回滚。

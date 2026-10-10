@@ -19,6 +19,11 @@
  * 也支持 Markdown 三反引号 code fence 作为兜底（少数老内容用 md 格式）。
  */
 
+import {
+  normalizeCivitaiRunnerSampling,
+  type NormalizedRunnerSampling,
+} from '@/constants/runner-sampling'
+
 interface CodeBlock {
   /**
    * 块的标签（来自前置 `<strong>` heading 或 `<p>` heading），用于多 outfit
@@ -151,4 +156,34 @@ export function civitaiDescriptionToText(
     .join('\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim()
+}
+
+/**
+ * 作者在说明里写的测试采样设置（如 `tested with: er_sde_beta, cfg 1.8`）。示例图元数据
+ * 常不带 sampler / scheduler，做同款时拿它补。只认「整段就是一个采样器名」的片段
+ * （可带 `Sampler:` 之类的前缀），提示词里的普通标签不会被误认。
+ */
+export function extractAuthorSamplingFromDescription(
+  text: string | null | undefined,
+): NormalizedRunnerSampling {
+  const result: NormalizedRunnerSampling = {}
+  if (!text) return result
+  for (const raw of text.replace(/\([^)]*\)/g, ' ').split(/[\n,;|]/)) {
+    const colon = raw.lastIndexOf(':')
+    const label = colon >= 0 ? raw.slice(0, colon).toLowerCase() : ''
+    const value = (colon >= 0 ? raw.slice(colon + 1) : raw).trim()
+    if (!value || value.length > 40) continue
+    if (label.includes('schedul')) {
+      result.scheduler ??= normalizeCivitaiRunnerSampling(
+        undefined,
+        value,
+      ).scheduler
+      continue
+    }
+    const found = normalizeCivitaiRunnerSampling(value)
+    if (!found.sampler || result.sampler) continue
+    result.sampler = found.sampler
+    if (found.scheduler) result.scheduler ??= found.scheduler
+  }
+  return result
 }

@@ -27,7 +27,10 @@ import {
   isStaticCivitaiImage,
 } from '@/lib/civitai-library-item'
 import { cleanRecommendedPrompt } from '@/lib/lora-trigger-clean'
-import { civitaiDescriptionToText } from '@/lib/civitai-description-parse'
+import {
+  civitaiDescriptionToText,
+  extractAuthorSamplingFromDescription,
+} from '@/lib/civitai-description-parse'
 import { extractCivitaiTrigger } from '@/lib/lora-trigger-extract'
 import { logger } from '@/lib/logger'
 import { repairUtf8Mojibake } from '@/lib/text-encoding-repair'
@@ -2232,6 +2235,29 @@ function applyExtraLoraNames(
   )
 }
 
+/**
+ * 示例图元数据没写采样器 / 调度器时，用作者说明里写的测试设置补上（拿不到就原样返回）。
+ * 不补的话做同款只能落到底模默认，画风会和示例图差一截。
+ */
+async function fillRecipeSamplingFromAuthorNotes(
+  modelId: number,
+  recipes: CivitaiImageRecipe[],
+): Promise<CivitaiImageRecipe[]> {
+  if (
+    !recipes.some((r) => r.sampler === undefined || r.scheduler === undefined)
+  )
+    return recipes
+  const authored = extractAuthorSamplingFromDescription(
+    await fetchCivitaiModelDescriptionText(modelId),
+  )
+  if (!authored.sampler && !authored.scheduler) return recipes
+  return recipes.map((recipe) => ({
+    ...recipe,
+    sampler: recipe.sampler ?? authored.sampler,
+    scheduler: recipe.scheduler ?? authored.scheduler,
+  }))
+}
+
 interface CommunityImageRecipes {
   recipes: CivitaiImageRecipe[]
   /** Activation segments for the outfit chips (needs the in-prompt tag name). */
@@ -2457,7 +2483,12 @@ export async function mineCivitaiUserPrompts({
       ? await fetchCivitaiModelDescriptionText(modelId)
       : undefined
 
-  const extraNames = await lookupExtraLoraNames(recipes)
+  const [extraNames, sampledRecipes] = await Promise.all([
+    lookupExtraLoraNames(recipes),
+    recipes.length > 0
+      ? fillRecipeSamplingFromAuthorNotes(modelId, recipes)
+      : recipes,
+  ])
 
   return {
     outfits,
@@ -2465,7 +2496,7 @@ export async function mineCivitaiUserPrompts({
       source.recipes.length > 0 || !community.ok
         ? recipes.length
         : community.value.consideredCount,
-    recipes: applyExtraLoraNames(recipes, extraNames),
+    recipes: applyExtraLoraNames(sampledRecipes, extraNames),
     previewImages: source.previews.length > 0 ? source.previews : undefined,
     descriptionText,
   }

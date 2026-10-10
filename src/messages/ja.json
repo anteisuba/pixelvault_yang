@@ -6920,6 +6920,13 @@
       "characterCountHint": "キャラ欄は {tags} ではなく girl / boy",
       "characterCountFix": "直す",
       "latinOnly": "V4.5 は英語のみ",
+      "layer": "人物レイヤー · {count} 人",
+      "autoStatus": "モデルが配置",
+      "autoHint": "ドラッグで手動配置に",
+      "manualStatus": "手動配置",
+      "backToAuto": "モデルに任せる",
+      "gridLines": "グリッド",
+      "hasLine": "セリフあり",
       "actions": {
         "headpat": "なでなで",
         "hug": "ハグ",

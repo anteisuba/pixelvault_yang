@@ -31,6 +31,10 @@ vi.mock('@/hooks/use-mobile', () => ({
 vi.mock('@/components/business/studio-shared/chrome/StudioCanvas', () => ({
   StudioCanvas: () => <div data-testid="results" />,
 }))
+// 人物层有自己的测试（StudioTagCastLayer.test.tsx）；这里只管面板换场。
+vi.mock('./StudioTagCastLayer', () => ({
+  StudioTagCastStage: ({ children }: { children: ReactNode }) => children,
+}))
 vi.mock('./StudioTagsPromptArea', () => ({
   StudioTagsPromptArea: ({
     onOpenPanel,

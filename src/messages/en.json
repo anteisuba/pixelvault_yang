@@ -6920,6 +6920,13 @@
       "characterCountHint": "A character takes girl / boy, not {tags}",
       "characterCountFix": "Fix",
       "latinOnly": "V4.5 draws English only",
+      "layer": "Figures · {count}",
+      "autoStatus": "Model places them",
+      "autoHint": "drag someone to place them yourself",
+      "manualStatus": "Placed by hand",
+      "backToAuto": "let the model place them",
+      "gridLines": "Grid",
+      "hasLine": "Has a line",
       "actions": {
         "headpat": "Headpat",
         "hug": "Hug",

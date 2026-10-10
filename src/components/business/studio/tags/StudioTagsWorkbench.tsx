@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch'
 import { useStudioGen } from '@/contexts/studio-context'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useNovelAiCharacters } from '@/hooks/use-novelai-characters'
+import { StudioTagCastStage } from './StudioTagCastLayer'
 import { StudioTagsPromptArea } from './StudioTagsPromptArea'
 import { NovelAiCharacterComposer } from './NovelAiCharacterComposer'
 import { StudioDanbooruPanel } from './StudioDanbooruPanel'
@@ -146,19 +147,22 @@ export function StudioTagsStage({
     )
 
   return (
-    <StudioStageSwap
-      panelKey={panel}
-      renderResults={(motionClass) => (
-        <StudioCanvas
-          referenceRail={!bottom}
-          className={motionClass}
-          onEdit={onEditImage}
-        />
-      )}
-      renderPanel={(key) =>
-        key === 'templates' ? templates : renderOwnPanel(key as TagOwnPanel)
-      }
-    />
+    // 人物层只在看结果时挂上去（第 ② 片）；包裹层一直在，结果区不因换模型重挂。
+    <StudioTagCastStage active={panel === null}>
+      <StudioStageSwap
+        panelKey={panel}
+        renderResults={(motionClass) => (
+          <StudioCanvas
+            referenceRail={!bottom}
+            className={motionClass}
+            onEdit={onEditImage}
+          />
+        )}
+        renderPanel={(key) =>
+          key === 'templates' ? templates : renderOwnPanel(key as TagOwnPanel)
+        }
+      />
+    </StudioTagCastStage>
   )
 }
 

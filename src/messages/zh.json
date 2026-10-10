@@ -6920,6 +6920,13 @@
       "characterCountHint": "角色栏写 girl / boy，不写 {tags}",
       "characterCountFix": "改掉",
       "latinOnly": "V4.5 只认英文字",
+      "layer": "人物层 · {count} 人",
+      "autoStatus": "交给模型站位",
+      "autoHint": "拖人改成手动",
+      "manualStatus": "手动摆位",
+      "backToAuto": "回到交给模型",
+      "gridLines": "网格线",
+      "hasLine": "有台词",
       "actions": {
         "headpat": "摸头",
         "hug": "拥抱",

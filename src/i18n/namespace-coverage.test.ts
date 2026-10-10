@@ -689,11 +689,12 @@ const KNOWN_DYNAMIC_NAMESPACE_SITES: Readonly<
     namespaces: ['Navbar', 'StudioTools', 'StudioNode'],
   },
   'components/layout/MobileShell.tsx': {
-    // lines 69 and 169 as of 2026-08-25
+    // bottom-bar tab, ＋ panel rows, studio top bar (2026-10-10)
     reason:
-      'Same `SHELL_NAV_*` tables as AppSidebar, read twice (top bar entry ' +
-      'label + the nav sheet grid). See `src/constants/navigation.ts`.',
-    calls: ['useTranslations()', 'useTranslations()'],
+      'Same `SHELL_NAV_*` tables as AppSidebar, read three times (bottom-bar ' +
+      'tab label, the ＋ panel tool rows, the studio top-bar tool switcher). ' +
+      'See `src/constants/navigation.ts`.',
+    calls: ['useTranslations()', 'useTranslations()', 'useTranslations()'],
     namespaces: ['Navbar', 'StudioTools'],
   },
   'components/business/studio-shared/workflow/StudioWorkflowPicker.tsx': {

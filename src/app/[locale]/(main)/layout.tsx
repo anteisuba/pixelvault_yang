@@ -4,8 +4,8 @@ import { getMessages, getTranslations } from 'next-intl/server'
 import { AuthArrivalToast } from '@/components/business/auth/AuthArrivalToast'
 import { AppSidebar } from '@/components/layout/AppSidebar'
 import { MainProviders } from '@/components/layout/MainProviders'
-import { MobileShell } from '@/components/layout/MobileShell'
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
+import { MobileShell, MobileShellInset } from '@/components/layout/MobileShell'
+import { SidebarProvider } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/sonner'
 import { omitMessages, OUTSIDE_APP_NAMESPACES } from '@/i18n/messages-split'
 import { DEFAULT_LOCALE, isAppLocale } from '@/i18n/routing'
@@ -44,14 +44,10 @@ export default async function MainLayout({
         <MainProviders>
           <SidebarProvider defaultOpen={false}>
             <AppSidebar />
-            {/* <768 走方向 M2「顶栏当切换器」：没有竖轨，导航收进顶栏中间那颗
-                按钮（app-shell.md §6）。所以下面只给顶栏让位 44px，
-                ⚠ 原来的 `pl-11` 是给已删除的左轨让的，必须一起去掉，
-                否则每个移动端页面左边会留一条死白。 */}
+            {/* <768 走方向 P3「底栏」（app-shell.md §6）：页面上是底栏，工作台里
+                换成顶上一条「← · 图片 ▾」。主区让位跟着路由走，见 `MobileShellInset`。 */}
             <MobileShell />
-            <SidebarInset id="main-content" className="pt-11 lg:pt-0">
-              {children}
-            </SidebarInset>
+            <MobileShellInset>{children}</MobileShellInset>
           </SidebarProvider>
         </MainProviders>
         <Toaster />

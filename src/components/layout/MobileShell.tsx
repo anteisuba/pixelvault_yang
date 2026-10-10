@@ -21,7 +21,7 @@ import {
   type ShellNavItem,
 } from '@/constants/navigation'
 import { CHIP_POPOVER, springTransition } from '@/constants/motion'
-import { ROUTES, studioImageWithPromptPath } from '@/constants/routes'
+import { ROUTES, studioImageGeneratePath } from '@/constants/routes'
 import { ArrowLeft, ArrowUp, ChevronDown, Plus } from '@/components/icons'
 import {
   DropdownMenu,
@@ -102,7 +102,7 @@ function CreatePanel({
     const text = prompt.trim()
     if (!text) return
     onClose()
-    router.push(studioImageWithPromptPath(text))
+    router.push(studioImageGeneratePath(text))
   }
 
   return (

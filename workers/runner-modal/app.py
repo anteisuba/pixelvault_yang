@@ -87,6 +87,10 @@ def _run(fork_handler, job_input: dict) -> dict:
         return fork_handler(
             {"id": modal.current_function_call_id(), "input": job_input}
         )
+    except Exception as error:
+        # web 容器没装 fork 的依赖（requests 等），反序列化不了原异常类型，会把原话吞掉；
+        # 转成内置 RuntimeError 带回原话。
+        raise RuntimeError(f"{type(error).__name__}: {error}") from None
     finally:
         # 新下的底模 / LoRA 要提交，别的容器下次启动才看得见。
         # ⚠ 同时开着的另一台看不见，会自己再下一次——慢但不会错。

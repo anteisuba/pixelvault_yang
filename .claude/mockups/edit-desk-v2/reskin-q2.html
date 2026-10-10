@@ -1,0 +1,254 @@
+<title>剪辑台换皮 · 第二轮</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* 布局：四个问题，每题 2–3 张小图；弹层画在一个迷你剪辑台上（第一轮定的：白台面 + 只有画面那块黑、段名悬停才出、文字键属性行）。
+   照素材页换皮与模型选择器定稿：弹层白底细线、一行一项、选中整行浅灰块 + 对勾、参数 A1。单一浅色世界。 */
+:root{
+  --canvas:#f5f5f5;--surface:#fff;--muted:#f5f5f5;--hover:#fafafa;--ink:#0a0a0a;--ink-2:#737373;--ink-3:#a3a3a3;--line:#e5e5e5;--soft:#d4d4d4;
+  --sans:Geist,-apple-system,"Noto Sans SC","PingFang SC",sans-serif;--mono:"Geist Mono",ui-monospace,monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{background:var(--canvas);color:var(--ink);font-family:var(--sans);font-size:14px;margin:0}
+.page{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:24px 48px;display:flex;flex-direction:column;gap:22px}
+header h1{margin:0;font-size:20px;font-weight:600;letter-spacing:-.01em;text-wrap:balance}
+header p{margin:6px 0 0;color:var(--ink-2);font-size:13px;line-height:1.6;max-width:72ch}
+.q{display:flex;flex-direction:column;gap:10px}
+.q h2{margin:0;font-size:15px;font-weight:600;display:flex;gap:8px;align-items:baseline}
+.q h2 b{font-family:var(--mono);font-weight:500;font-size:12px;color:var(--ink-2)}
+.q .why{margin:0;color:var(--ink-2);font-size:12.5px;line-height:1.55;max-width:82ch}
+.opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px}
+.opt{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.opt.rec{border-color:var(--ink)}
+.cap{display:flex;gap:8px;align-items:baseline;font-size:12.5px;line-height:1.5}
+.cap .k{font-family:var(--mono);font-weight:500;font-size:12px;flex:none;width:18px;height:18px;border-radius:99px;display:grid;place-items:center;background:var(--muted)}
+.opt.rec .cap .k{background:var(--ink);color:#fff}
+.cap small{color:var(--ink-2);font-size:12px}
+.rec-tag{font-size:11px;color:var(--ink-2);margin-left:auto;white-space:nowrap}
+
+/* 迷你剪辑台（第一轮定稿） */
+.desk{position:relative;aspect-ratio:4/3;max-width:100%;border-radius:10px;overflow:hidden;background:var(--canvas);border:1px solid var(--line);display:grid;grid-template-rows:16px 1fr 62px;font-size:8px}
+.tb{background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:6px;padding:0 8px}
+.tb .t{font-weight:600}
+.mid{display:grid;grid-template-columns:18px 1fr;min-height:0}
+.rl{background:var(--surface);border-right:1px solid var(--line)}
+.stg{position:relative;background:var(--surface);display:grid;place-items:center;min-height:0;padding:6px}
+.well{position:absolute;inset:6px;border-radius:5px;background:#0a0a0a}
+.stg.short .well{bottom:44px}
+.frm{position:relative;z-index:1;height:100%;aspect-ratio:16/9;max-width:100%;border-radius:3px;background:linear-gradient(160deg,#6d7b8c,#2f3a46);overflow:hidden}
+.stg.short .frm{height:calc(100% - 38px);align-self:start}
+.frm::after{content:'';position:absolute;left:14%;right:40%;bottom:14%;top:32%;border-radius:40% 40% 4px 4px;background:#c9b49a;opacity:.8}
+.tl{background:var(--surface);border-top:1px solid var(--line);display:flex;flex-direction:column;gap:4px;padding:5px 8px}
+.row1{display:flex;align-items:center;gap:3px;height:14px}
+.row1 .pl{width:12px;height:12px;border-radius:99px;background:var(--ink);flex:none}
+.txt{height:12px;padding:0 4px;border-radius:3px;font-size:6.5px;display:flex;align-items:center;white-space:nowrap}
+.txt.on{background:var(--muted)}
+.txt.set{font-weight:600}
+.lane{position:relative;height:26px;display:flex;gap:2px}
+.clip{position:relative;height:100%;border-radius:4px;overflow:hidden;flex:none}
+.c1{width:28%;background:linear-gradient(90deg,#7a8a9b,#56636f 50%,#7a8a9b 51%,#56636f)}
+.c2{width:38%;background:linear-gradient(90deg,#b99a7c,#8b6f56 33%,#b99a7c 34%,#93785e 66%,#b99a7c 67%,#8b6f56)}
+.c3{width:22%;background:linear-gradient(90deg,#6c8a74,#4d6656 50%,#6c8a74 51%,#4d6656)}
+.clip.sel{outline:1.5px solid var(--ink);outline-offset:1px}
+.clip .nm{position:absolute;left:3px;top:2px;font-size:6.5px;line-height:9px;padding:0 3px;border-radius:2px;background:rgba(255,255,255,.92);color:#262626;white-space:nowrap}
+.seam{position:absolute;top:-4px;width:7px;height:7px;transform:rotate(45deg);background:var(--surface);border:1px solid var(--ink);z-index:2}
+.seam.on{background:var(--ink)}
+.take{position:absolute;right:3px;top:2px;font-family:var(--mono);font-size:6px;line-height:9px;padding:0 3px;border-radius:2px;background:rgba(255,255,255,.92);color:#262626}
+
+/* 弹层：照模型选择器 */
+.pop{position:absolute;z-index:5;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 20px rgba(10,10,10,.1);padding:3px;font-size:6.8px;display:flex;flex-direction:column}
+.pop .h{display:flex;justify-content:space-between;align-items:baseline;padding:3px 5px 4px;font-size:6.5px;color:var(--ink-2)}
+.pop .h b{color:var(--ink);font-weight:600;font-size:7px}
+.r{display:flex;align-items:center;gap:4px;height:15px;padding:0 5px;border-radius:4px;white-space:nowrap}
+.r.on{background:var(--muted)}
+.r .ck{margin-left:auto;font-size:7px}
+.r .m{font-family:var(--mono);color:var(--ink-3);font-size:6px}
+.r .tn{width:16px;height:9px;border-radius:2px;flex:none;position:relative;overflow:hidden;background:#3a4652}
+.r .tn i{position:absolute;inset:0;background:#b99a7c}
+.sep{height:1px;background:var(--line);margin:3px 2px}
+.a1{display:flex;align-items:center;justify-content:space-between;height:16px;padding:0 5px}
+.seg{display:flex;background:var(--muted);border-radius:3px;padding:1px;gap:1px}
+.seg span{font-family:var(--mono);font-size:5.5px;padding:0 3px;border-radius:2px;line-height:9px}
+.seg span.on{background:var(--ink);color:#fff}
+.go{margin:2px 4px 3px;height:13px;border-radius:99px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;gap:4px;font-size:6.5px}
+.go em{font-style:normal;font-family:var(--mono);opacity:.75}
+.lk{padding:2px 5px 3px;font-size:6.3px;color:var(--ink-2);text-decoration:underline;text-underline-offset:2px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;padding:0 3px}
+.grid3 div{display:flex;flex-direction:column;gap:1px;font-size:6px}
+.grid3 i{aspect-ratio:16/9;border-radius:2px;background:#3a4652;position:relative;overflow:hidden}
+.grid3 i::after{content:'';position:absolute;top:0;bottom:0;right:0;width:45%;background:#b99a7c}
+.grid3 .cur i{outline:1px solid var(--ink);outline-offset:1px}
+.vt{display:flex;gap:4px;padding:0 3px 3px}
+.vt div{flex:1;display:flex;flex-direction:column;gap:1px;font-size:6px}
+.vt i{aspect-ratio:16/9;border-radius:2px}
+.vt .cur i{outline:1px solid var(--ink);outline-offset:1px}
+.vt small{color:var(--ink-3);font-size:5.5px}
+.vimg{width:16px;height:9px;border-radius:2px;flex:none}
+.split{position:absolute;z-index:2;top:0;bottom:0;width:1px;background:#fff}
+.split::after{content:'';position:absolute;top:50%;left:-3px;width:7px;height:7px;margin-top:-3px;border-radius:99px;background:#fff}
+.lbl{position:absolute;z-index:2;top:3px;font-size:6px;color:#fff;background:rgba(10,10,10,.5);border-radius:2px;padding:0 3px}
+
+/* 重拍栏 */
+.bar{position:absolute;z-index:4;background:var(--surface);border:1px solid var(--ink);border-radius:8px;padding:3px 4px 3px 5px;font-size:6.5px;display:flex;flex-direction:column;gap:3px}
+.bar .tx{color:var(--ink-2);line-height:9px}
+.bar .ct{display:flex;align-items:center;gap:3px}
+.chip{height:10px;border:1px solid var(--line);border-radius:99px;padding:0 4px;font-family:var(--mono);font-size:5.5px;display:flex;align-items:center;white-space:nowrap}
+.cost{margin-left:auto;font-size:5.5px;color:var(--ink-2);white-space:nowrap}
+.cost b{font-family:var(--mono);color:var(--ink);font-weight:500}
+.send{width:12px;height:12px;border-radius:99px;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:6px;flex:none}
+
+/* 提示叠放 */
+.toast{position:absolute;z-index:6;background:var(--ink);color:#fff;border-radius:6px;height:13px;padding:0 6px;display:flex;align-items:center;gap:4px;font-size:6.3px;white-space:nowrap}
+.toast u{text-underline-offset:2px}
+.toast.back{opacity:.6;transform:scale(.94)}
+.rcpt{display:flex;align-items:center;gap:4px;margin:0 auto;height:11px;padding:0 5px;border-radius:99px;background:var(--muted);font-size:6.2px;white-space:nowrap}
+.rcpt.back{position:absolute;left:50%;top:2px;transform:translateX(-50%) scale(.92);opacity:.5}
+.foot{color:var(--ink-2);font-size:12px;line-height:1.6}
+</style>
+
+<div class="page">
+  <header>
+    <h1>剪辑台换皮 · 第二轮</h1>
+    <p>按第一轮定下的台面画：白台面、只有放画面的那块是黑的、段名悬停才出、选中行是一排文字键。这一轮问弹层和栏。所有弹层都是「按键自己长成弹层」（S），一行一项、选中整行浅灰块加对勾；参数行照专属 A1。黑框那张是我的推荐。</p>
+  </header>
+
+  <!-- Q5 接缝 -->
+  <section class="q">
+    <h2><b>5</b>接缝弹层（点两段之间的 ◆）</h2>
+    <p class="why">里面三样：六种预设转场（不花钱）、AI 接镜（首尾帧生成，花积分）、让助手挑。差别在预设转场怎么列。</p>
+    <div class="opts">
+      <div class="opt rec">
+        <div class="desk"><div class="tb"><span class="t">短片</span></div><div class="mid"><div class="rl"></div><div class="stg"><span class="well"></span><div class="frm"></div></div></div>
+          <div class="pop" style="left:22%;bottom:40px;width:58%">
+            <div class="h"><b>接缝</b><span>放学 → 借伞</span></div>
+            <div class="r on"><span class="tn"><i style="left:45%"></i></span>叠化<span class="ck">✓</span></div>
+            <div class="r"><span class="tn"><i style="left:60%;background:#0a0a0a"></i></span>黑场</div>
+            <div class="r"><span class="tn"><i style="left:55%"></i></span>擦除</div>
+            <div class="r"><span class="tn"><i style="left:30%"></i></span>推移</div>
+            <div class="r"><span class="tn"><i style="left:20%;right:20%;top:20%;bottom:20%"></i></span>缩放</div>
+            <div class="r"><span class="tn"><i style="left:30%;right:30%;top:15%;bottom:15%;border-radius:99px"></i></span>圆形</div>
+            <div class="a1">时长<span class="seg"><span>0.3</span><span class="on">0.5</span><span>1s</span></span></div>
+            <div class="sep"></div>
+            <div class="a1">AI 接镜<span class="m" style="font-family:var(--mono);color:var(--ink-3);font-size:6px">Seedance 2.5</span></div>
+            <div class="go">生成接镜 <em>约 12 积分</em></div>
+            <div class="r">让助手挑</div>
+            <div class="lk">改回硬切</div>
+          </div>
+          <div class="tl"><div class="row1"><span class="pl"></span></div><div class="lane"><span class="clip c1"></span><span class="seam on" style="left:calc(28% - 3px)"></span><span class="clip c2"></span><span class="clip c3"></span></div></div></div>
+        <div class="cap"><span class="k">A</span><span>一行一项 + 小动图缩略<small> · 悬停那一行，缩略里演一遍；时长是 A1 行</small></span><span class="rec-tag">推荐</span></div>
+      </div>
+      <div class="opt">
+        <div class="desk"><div class="tb"><span class="t">短片</span></div><div class="mid"><div class="rl"></div><div class="stg"><span class="well"></span><div class="frm"></div></div></div>
+          <div class="pop" style="left:22%;bottom:40px;width:58%">
+            <div class="h"><b>接缝</b><span>放学 → 借伞</span></div>
+            <div class="grid3"><div class="cur"><i></i>叠化</div><div><i></i>黑场</div><div><i></i>擦除</div><div><i></i>推移</div><div><i></i>缩放</div><div><i></i>圆形</div></div>
+            <div class="a1">时长<span class="seg"><span>0.3</span><span class="on">0.5</span><span>1s</span></span></div>
+            <div class="sep"></div>
+            <div class="go">生成接镜 <em>约 12 积分</em></div>
+            <div class="r">让助手挑</div>
+          </div>
+          <div class="tl"><div class="row1"><span class="pl"></span></div><div class="lane"><span class="clip c1"></span><span class="seam on" style="left:calc(28% - 3px)"></span><span class="clip c2"></span><span class="clip c3"></span></div></div></div>
+        <div class="cap"><span class="k">B</span><span>三列小格<small> · 关键切片原来的样子换白；格子大、看得清，但不是一行一项</small></span></div>
+      </div>
+      <div class="opt">
+        <div class="desk"><div class="tb"><span class="t">短片</span></div><div class="mid"><div class="rl"></div><div class="stg"><span class="well"></span><div class="frm"></div><span class="lbl" style="left:40%;z-index:3">悬停：擦除</span></div></div>
+          <div class="pop" style="left:22%;bottom:40px;width:46%">
+            <div class="h"><b>接缝</b><span>放学 → 借伞</span></div>
+            <div class="r on">叠化<span class="ck">✓</span></div><div class="r">黑场</div><div class="r" style="background:var(--hover)">擦除</div><div class="r">推移</div><div class="r">缩放</div><div class="r">圆形</div>
+            <div class="a1">时长<span class="seg"><span>0.3</span><span class="on">0.5</span><span>1s</span></span></div>
+            <div class="sep"></div>
+            <div class="go">生成接镜 <em>约 12</em></div>
+            <div class="r">让助手挑</div>
+          </div>
+          <div class="tl"><div class="row1"><span class="pl"></span></div><div class="lane"><span class="clip c1"></span><span class="seam on" style="left:calc(28% - 3px)"></span><span class="clip c2"></span><span class="clip c3"></span></div></div></div>
+        <div class="cap"><span class="k">C</span><span>纯文字一行一项<small> · 字最少；悬停哪一行，上面的大预览就在接缝处演一遍</small></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Q6 版本 -->
+  <section class="q">
+    <h2><b>6</b>版本弹层（点段角「2/3」或选中行「版本」）</h2>
+    <p class="why">现在是各版缩略并排。照选择器的话是一行一项；你列的 W（前后对比）最自然的位置也在这里。</p>
+    <div class="opts">
+      <div class="opt">
+        <div class="desk"><div class="tb"><span class="t">短片</span></div><div class="mid"><div class="rl"></div><div class="stg"><span class="well"></span><div class="frm"></div></div></div>
+          <div class="pop" style="left:30%;bottom:40px;width:52%">
+            <div class="h"><b>版本</b><span>借伞</span></div>
+            <div class="r"><span class="vimg" style="background:#8b6f56"></span>第 1 版<span class="m">4.8s · 画布</span></div>
+            <div class="r on"><span class="vimg" style="background:#b99a7c"></span>第 2 版<span class="m">5.0s · 剪辑台</span><span class="ck">✓</span></div>
+            <div class="r"><span class="vimg" style="background:#93785e"></span>第 3 版<span class="m">5.0s · 画布 · 新</span></div>
+          </div>
+          <div class="tl"><div class="row1"><span class="pl"></span><span class="txt set">版本 2/3</span></div><div class="lane"><span class="clip c1"></span><span class="clip c2 sel"><span class="take">2/3</span></span><span class="clip c3"></span></div></div></div>
+        <div class="cap"><span class="k">A</span><span>一行一项<small> · 小缩略 + 第 n 版 + 时长 · 来源；在用的整行浅灰 + 勾</small></span></div>
+      </div>
+      <div class="opt">
+        <div class="desk"><div class="tb"><span class="t">短片</span></div><div class="mid"><div class="rl"></div><div class="stg"><span class="well"></span><div class="frm"></div></div></div>
+          <div class="pop" style="left:22%;bottom:40px;width:66%">
+            <div class="h"><b>版本</b><span>借伞 · 点哪张换哪张</span></div>
+            <div class="vt"><div><i style="background:#8b6f56"></i>第 1 版<small>画布</small></div><div class="cur"><i style="background:#b99a7c"></i>第 2 版<small>在用</small></div><div><i style="background:#93785e"></i>第 3 版<small>画布 · 新</small></div></div>
+          </div>
+          <div class="tl"><div class="row1"><span class="pl"></span><span class="txt set">版本 2/3</span></div><div class="lane"><span class="clip c1"></span><span class="clip c2 sel"><span class="take">2/3</span></span><span class="clip c3"></span></div></div></div>
+        <div class="cap"><span class="k">B</span><span>缩略并排<small> · 现在的样子换白；画面大，但不是一行一项</small></span></div>
+      </div>
+      <div class="opt rec">
+        <div class="desk"><div class="tb"><span class="t">短片</span></div><div class="mid"><div class="rl"></div><div class="stg"><span class="well"></span><div class="frm" style="background:linear-gradient(90deg,#b99a7c 0 55%,#93785e 55%)"></div><span class="split" style="left:52%"></span><span class="lbl" style="left:30%">在用</span><span class="lbl" style="left:58%">第 3 版</span></div></div>
+          <div class="pop" style="left:30%;bottom:40px;width:52%">
+            <div class="h"><b>版本</b><span>借伞</span></div>
+            <div class="r"><span class="vimg" style="background:#8b6f56"></span>第 1 版<span class="m">4.8s</span></div>
+            <div class="r on"><span class="vimg" style="background:#b99a7c"></span>第 2 版<span class="m">5.0s</span><span class="ck">✓</span></div>
+            <div class="r" style="background:var(--hover)"><span class="vimg" style="background:#93785e"></span>第 3 版<span class="m">5.0s · 新</span></div>
+          </div>
+          <div class="tl"><div class="row1"><span class="pl"></span><span class="txt set">版本 2/3</span></div><div class="lane"><span class="clip c1"></span><span class="clip c2 sel"><span class="take">2/3</span></span><span class="clip c3"></span></div></div></div>
+        <div class="cap"><span class="k">C</span><span>一行一项 + 悬停在大预览上对比（W）<small> · 分隔线左边在用、右边悬停的那版，拖过头拉一下弹回</small></span><span class="rec-tag">推荐</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Q7 重拍栏 -->
+  <section class="q">
+    <h2><b>7</b>重拍栏放在哪</h2>
+    <p class="why">栏就是画布卡那条提示词栏（白框、chip、黑色圆发送键，花多少积分写在发送键左边、数字会滚 K）。黑的那块画面现在在舞台正中，栏放哪决定盖不盖画面。</p>
+    <div class="opts">
+      <div class="opt">
+        <div class="desk"><div class="tb"><span class="t">短片</span></div><div class="mid"><div class="rl"></div><div class="stg"><span class="well"></span><div class="frm"></div>
+            <div class="bar" style="left:14%;right:14%;bottom:10px"><span class="tx">她接过伞时低头笑了一下…</span><span class="ct"><span class="chip">16:9 · 5s</span><span class="chip">Seedance 2.5</span><span class="cost">约 <b>12</b> 积分</span><span class="send">↑</span></span></div></div></div>
+          <div class="tl"><div class="row1"><span class="pl"></span><span class="txt on">重拍</span></div><div class="lane"><span class="clip c1"></span><span class="clip c2 sel"></span><span class="clip c3"></span></div></div></div>
+        <div class="cap"><span class="k">A</span><span>浮在舞台底部<small> · 盖住画面下沿一截（关键切片原来的位置）</small></span></div>
+      </div>
+      <div class="opt rec">
+        <div class="desk"><div class="tb"><span class="t">短片</span></div><div class="mid"><div class="rl"></div><div class="stg short"><span class="well"></span><div class="frm"></div>
+            <div class="bar" style="left:8%;right:8%;bottom:6px"><span class="tx">她接过伞时低头笑了一下…</span><span class="ct"><span class="chip">16:9 · 5s</span><span class="chip">Seedance 2.5</span><span class="cost">约 <b>12</b> 积分</span><span class="send">↑</span></span></div></div></div>
+          <div class="tl"><div class="row1"><span class="pl"></span><span class="txt on">重拍</span></div><div class="lane"><span class="clip c1"></span><span class="clip c2 sel"></span><span class="clip c3"></span></div></div></div>
+        <div class="cap"><span class="k">B</span><span>舞台让出底部一条放栏<small> · 画面整块往上缩一点，⛔ 不盖画面；栏收起画面再长回去</small></span><span class="rec-tag">推荐</span></div>
+      </div>
+      <div class="opt">
+        <div class="desk"><div class="tb"><span class="t">短片</span></div><div class="mid"><div class="rl"></div><div class="stg"><span class="well"></span><div class="frm"></div></div></div>
+          <div class="bar" style="left:22%;right:22%;bottom:46px"><span class="tx">她接过伞时低头笑了一下…</span><span class="ct"><span class="chip">5s</span><span class="cost">约 <b>12</b></span><span class="send">↑</span></span></div>
+          <div class="tl"><div class="row1"><span class="pl"></span><span class="txt on">重拍</span></div><div class="lane"><span class="clip c1"></span><span class="clip c2 sel"></span><span class="clip c3"></span></div></div></div>
+        <div class="cap"><span class="k">C</span><span>贴着选中的那一段往上长<small> · 离段最近，但会盖住选中行和一部分舞台</small></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Q8 提示 -->
+  <section class="q">
+    <h2><b>8</b>回执与提示（「助手改了 3 段 · 撤销」「已落到画布 · 看看」…）</h2>
+    <p class="why">现在回执在顶栏正中，一次只一条。你列了 Y（提示叠起来）：连着来几条时，新的从下面推上来，旧的往后缩、变淡。</p>
+    <div class="opts">
+      <div class="opt">
+        <div class="desk"><div class="tb" style="position:relative"><span class="t">短片</span><span class="rcpt back">助手改了 1 段</span><span class="rcpt" style="position:absolute;left:50%;top:2px;transform:translateX(-50%)">Claude 改了 3 段 · <u>撤销</u></span></div><div class="mid"><div class="rl"></div><div class="stg"><span class="well"></span><div class="frm"></div></div></div>
+          <div class="tl"><div class="row1"><span class="pl"></span></div><div class="lane"><span class="clip c1"></span><span class="clip c2"></span><span class="clip c3"></span></div></div></div>
+        <div class="cap"><span class="k">A</span><span>留在顶栏正中，叠成一摞<small> · 浅灰胶囊，后面那条缩小变淡</small></span></div>
+      </div>
+      <div class="opt rec">
+        <div class="desk"><div class="tb"><span class="t">短片</span></div><div class="mid"><div class="rl"></div><div class="stg"><span class="well"></span><div class="frm"></div>
+            <span class="toast back" style="left:50%;bottom:20px;transform:translateX(-50%) scale(.94)">✓ 助手改了 1 段</span><span class="toast" style="left:50%;bottom:12px;transform:translateX(-50%)">✓ Claude 改了 3 段 · <u>撤销</u></span></div></div>
+          <div class="tl"><div class="row1"><span class="pl"></span></div><div class="lane"><span class="clip c1"></span><span class="clip c2"></span><span class="clip c3"></span></div></div></div>
+        <div class="cap"><span class="k">B</span><span>舞台底部居中的黑提示，叠成一摞<small> · 照素材页的提示；撤销 / 看看是提示里的下划线字</small></span><span class="rec-tag">推荐</span></div>
+      </div>
+    </div>
+  </section>
+
+  <p class="foot">这一轮定完就出原型：一个能点的白台面，带你列的那几个动效（B、AB、AF、P、K、W、Q、J、Y）。</p>
+</div>

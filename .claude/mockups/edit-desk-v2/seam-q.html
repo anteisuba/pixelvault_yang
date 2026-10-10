@@ -1,0 +1,243 @@
+<title>接缝标记三选一</title>
+<style>
+/* 布局：一页三行，每行一种接缝标记；每行三格并排「平时 · 停在接缝上 · 有转场」，窄屏叠成一列。 */
+:root {
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --muted: #f2f2f1;
+  --line: #e4e4e2;
+  --ink: #111111;
+  --ink-2: #5c5c5a;
+  --ink-3: #9a9a97;
+  --well: #0b0b0b;
+  --veil: rgba(255, 255, 255, 0.4);
+  --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161616; --surface: #1d1d1d; --muted: #2a2a29; --line: #333331;
+    --ink: #f2f2f0; --ink-2: #b4b4b0; --ink-3: #7d7d79; --well: #000000;
+    --veil: rgba(255, 255, 255, 0.28); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #161616; --surface: #1d1d1d; --muted: #2a2a29; --line: #333331;
+  --ink: #f2f2f0; --ink-2: #b4b4b0; --ink-3: #7d7d79; --well: #000000;
+  --veil: rgba(255, 255, 255, 0.28); color-scheme: dark;
+}
+body { background: var(--bg); color: var(--ink); font-family: var(--font); }
+.page { max-width: 1120px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 56px; display: grid; gap: 28px; }
+header h1 { margin: 0 0 6px; font-size: 20px; font-weight: 600; text-wrap: balance; }
+header p { margin: 0; color: var(--ink-2); font-size: 13.5px; line-height: 1.6; max-width: 68ch; }
+section { display: grid; gap: 12px; padding-top: 20px; border-top: 1px solid var(--line); }
+section h2 { margin: 0; font-size: 15px; font-weight: 600; display: flex; gap: 10px; align-items: baseline; }
+section h2 b { font-family: var(--mono); font-size: 13px; color: var(--ink-3); font-weight: 500; }
+section .why { margin: 0; color: var(--ink-2); font-size: 13px; line-height: 1.6; max-width: 72ch; }
+.states { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 760px) { .states { grid-template-columns: minmax(0, 1fr); } }
+.state { display: grid; gap: 8px; min-width: 0; }
+.state small { font-size: 12px; color: var(--ink-3); }
+
+/* 一小截时间线：字幕轨 + 主线三段（作品是有颜色的，界面不加颜色） */
+.tl { position: relative; height: 112px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); overflow: hidden; }
+.cap { position: absolute; top: 12px; height: 18px; border-radius: 5px; background: var(--muted); border: 1px solid var(--line); font-size: 10.5px; color: var(--ink-2); padding: 0 6px; display: flex; align-items: center; }
+.lane { position: absolute; left: 10px; right: 10px; top: 42px; height: 54px; }
+.clip { position: absolute; top: 0; bottom: 0; border-radius: 7px; overflow: hidden; display: flex; }
+.clip i { flex: 1; border-right: 1px solid rgba(0, 0, 0, 0.18); }
+.c1 { left: 0; width: 33%; } .c2 { left: 33%; width: 37%; } .c3 { left: 70%; width: 30%; }
+.c1 i:nth-child(odd) { background: #6f8fa6; } .c1 i:nth-child(even) { background: #58778e; }
+.c2 i:nth-child(odd) { background: #b88a6a; } .c2 i:nth-child(even) { background: #a17557; }
+.c3 i:nth-child(odd) { background: #4f5e52; } .c3 i:nth-child(even) { background: #66766a; }
+/* 硬切：段之间留一道 2px 白缝 */
+.clip.c1 { width: calc(33% - 1px); } .clip.c2 { left: calc(33% + 1px); width: calc(37% - 2px); } .clip.c3 { left: calc(70% + 1px); width: calc(30% - 1px); }
+.band { position: absolute; top: 0; bottom: 0; background: var(--veil); border-left: 1px dashed rgba(255, 255, 255, 0.85); border-right: 1px dashed rgba(255, 255, 255, 0.85); }
+.seam { position: absolute; top: 0; bottom: 0; width: 0; }
+.s1 { left: 33%; } .s2 { left: 70%; }
+
+/* A：平时不画；停在缝上冒出小圆钮；有转场 = 缝正中一颗黑底小方块，里面一个转场小图标 */
+.a-dot { position: absolute; top: 50%; left: 0; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 99px; background: var(--surface); box-shadow: 0 0 0 1px var(--line), 0 1px 4px rgba(0, 0, 0, 0.18); display: grid; place-items: center; color: var(--ink); font-size: 14px; line-height: 1; }
+.a-chip { position: absolute; top: 50%; left: 0; width: 24px; height: 18px; margin: -9px 0 0 -12px; border-radius: 6px; background: var(--ink); box-shadow: 0 0 0 2px var(--surface); display: grid; place-items: center; }
+.a-chip svg, .a-dot svg { display: block; }
+
+/* B：平时只有白缝；停在缝上，缝上沿冒出「+ 转场」文字小胶囊；有转场 = 缝上沿一颗写着名字和秒数的文字胶囊 */
+.b-pill { position: absolute; top: -27px; left: 0; transform: translateX(-50%); height: 20px; padding: 0 8px; border-radius: 99px; font-size: 11px; white-space: nowrap; display: flex; align-items: center; gap: 4px; }
+.b-pill.ghost { background: var(--surface); color: var(--ink-2); box-shadow: 0 0 0 1px var(--line); }
+.b-pill.set { background: var(--ink); color: var(--bg); }
+.b-pill.set em { font-style: normal; font-family: var(--mono); font-size: 10.5px; opacity: 0.7; }
+.b-tick { position: absolute; top: -7px; left: -0.5px; width: 1px; height: 7px; background: var(--ink-3); }
+
+/* C：没有任何标记；停在缝上，缝变成一道黑色竖线（可点）；有转场 = 那块白纱本身就是按钮，悬停描边 */
+.c-line { position: absolute; top: -3px; bottom: -3px; left: -1px; width: 2px; border-radius: 2px; background: var(--ink); }
+.c-band { position: absolute; top: 0; bottom: 0; background: var(--veil); border-left: 1px dashed rgba(255, 255, 255, 0.9); border-right: 1px dashed rgba(255, 255, 255, 0.9); }
+.c-band.hover { box-shadow: inset 0 0 0 2px var(--ink); border-color: transparent; }
+.c-label { position: absolute; top: -27px; left: 50%; transform: translateX(-50%); height: 20px; padding: 0 8px; border-radius: 6px; background: var(--ink); color: var(--bg); font-size: 11px; white-space: nowrap; display: flex; align-items: center; }
+
+/* 现在的样子，放最上面对照 */
+.now-diamond { position: absolute; top: -6px; left: 0; width: 12px; height: 12px; margin-left: -6px; transform: rotate(45deg); border-radius: 2px; box-shadow: 0 0 0 2px var(--surface); }
+.now-diamond.off { background: var(--surface); border: 1px solid var(--ink); }
+.now-diamond.on { background: var(--ink); }
+.cursor { position: absolute; width: 14px; height: 14px; pointer-events: none; }
+.foot { color: var(--ink-3); font-size: 12px; line-height: 1.6; }
+</style>
+
+<div class="page">
+  <header>
+    <h1>接缝标记换成哪一种</h1>
+    <p>主线两段之间那颗 ◆ 要换掉。下面每一行是一种方向，三格依次是：平时、鼠标停在接缝上、这个接缝已经有转场（白纱 = 成片里两段重叠的那一截）。点下去都是同一个接缝弹层，这里只看长相。</p>
+  </header>
+
+  <section>
+    <h2><b>现在</b>每个接缝一颗 ◆，空心 = 硬切，实心 = 有转场</h2>
+    <div class="states">
+      <div class="state">
+        <div class="tl">
+          <div class="cap" style="left:10px;width:46%">导出验收 · 中文字幕测试</div>
+          <div class="lane">
+            <div class="clip c1"><i></i><i></i><i></i></div><div class="clip c2"><i></i><i></i><i></i><i></i></div><div class="clip c3"><i></i><i></i><i></i></div>
+            <div class="seam s1"><span class="now-diamond off"></span></div>
+            <div class="seam s2"><span class="now-diamond off"></span></div>
+          </div>
+        </div>
+        <small>平时</small>
+      </div>
+      <div class="state">
+        <div class="tl">
+          <div class="cap" style="left:10px;width:46%">导出验收 · 中文字幕测试</div>
+          <div class="lane">
+            <div class="clip c1"><i></i><i></i><i></i></div><div class="clip c2"><i></i><i></i><i></i><i></i></div><div class="clip c3"><i></i><i></i><i></i></div>
+            <div class="seam s1"><span class="now-diamond off" style="transform:rotate(45deg) scale(1.15)"></span></div>
+            <div class="seam s2"><span class="now-diamond off"></span></div>
+          </div>
+        </div>
+        <small>停在接缝上</small>
+      </div>
+      <div class="state">
+        <div class="tl">
+          <div class="cap" style="left:10px;width:46%">导出验收 · 中文字幕测试</div>
+          <div class="lane">
+            <div class="clip c1"><i></i><i></i><i></i></div><div class="clip c2"><i></i><i></i><i></i><i></i></div><div class="clip c3"><i></i><i></i><i></i></div>
+            <div class="band" style="left:calc(70% - 18px);width:36px"></div>
+            <div class="seam s1"><span class="now-diamond off"></span></div>
+            <div class="seam s2"><span class="now-diamond on"></span></div>
+          </div>
+        </div>
+        <small>有转场</small>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><b>A</b>平时不画；停上去冒一颗圆钮；有转场是缝正中一颗黑色小方块</h2>
+    <p class="why">硬切的接缝只剩一道白缝，主线干净。有转场的接缝在画面正中压一颗黑底小块，里面一个两张叠在一起的小图标，一眼看出「这里有东西」。代价：小图标要认一下；停上去那颗圆钮盖住两段各一点画面。</p>
+    <div class="states">
+      <div class="state">
+        <div class="tl">
+          <div class="cap" style="left:10px;width:46%">导出验收 · 中文字幕测试</div>
+          <div class="lane">
+            <div class="clip c1"><i></i><i></i><i></i></div><div class="clip c2"><i></i><i></i><i></i><i></i></div><div class="clip c3"><i></i><i></i><i></i></div>
+          </div>
+        </div>
+        <small>平时（只有白缝）</small>
+      </div>
+      <div class="state">
+        <div class="tl">
+          <div class="cap" style="left:10px;width:46%">导出验收 · 中文字幕测试</div>
+          <div class="lane">
+            <div class="clip c1"><i></i><i></i><i></i></div><div class="clip c2"><i></i><i></i><i></i><i></i></div><div class="clip c3"><i></i><i></i><i></i></div>
+            <div class="seam s1"><span class="a-dot"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M5 1.5v7M1.5 5h7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span></div>
+          </div>
+        </div>
+        <small>停在接缝上：冒一颗「+」圆钮</small>
+      </div>
+      <div class="state">
+        <div class="tl">
+          <div class="cap" style="left:10px;width:46%">导出验收 · 中文字幕测试</div>
+          <div class="lane">
+            <div class="clip c1"><i></i><i></i><i></i></div><div class="clip c2"><i></i><i></i><i></i><i></i></div><div class="clip c3"><i></i><i></i><i></i></div>
+            <div class="band" style="left:calc(70% - 18px);width:36px"></div>
+            <div class="seam s2"><span class="a-chip"><svg width="14" height="10" viewBox="0 0 14 10" fill="none"><rect x="1" y="1" width="7" height="8" rx="1.5" stroke="currentColor" stroke-width="1.3" style="color:var(--bg)"/><rect x="6" y="1" width="7" height="8" rx="1.5" fill="currentColor" style="color:var(--bg)" opacity="0.55"/></svg></span></div>
+          </div>
+        </div>
+        <small>有转场：缝正中黑底小方块</small>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><b>B</b>平时只有白缝；有转场是缝上沿一颗写着字的小胶囊</h2>
+    <p class="why">和属性行一个说法：用字不用符号。有转场的接缝上沿挂一颗黑胶囊「叠化 0.5s」，不用认图标，秒数也看得到；停在硬切的缝上冒一颗浅色「+ 转场」。代价：胶囊占在字幕轨和主线之间那道缝里，字幕段恰好在上面时会挨得近；时间线缩得很小时字放不下，只剩一个点。</p>
+    <div class="states">
+      <div class="state">
+        <div class="tl">
+          <div class="cap" style="left:10px;width:46%">导出验收 · 中文字幕测试</div>
+          <div class="lane">
+            <div class="clip c1"><i></i><i></i><i></i></div><div class="clip c2"><i></i><i></i><i></i><i></i></div><div class="clip c3"><i></i><i></i><i></i></div>
+          </div>
+        </div>
+        <small>平时（只有白缝）</small>
+      </div>
+      <div class="state">
+        <div class="tl">
+          <div class="cap" style="left:10px;width:30%">导出验收 · 中文字幕测试</div>
+          <div class="lane">
+            <div class="clip c1"><i></i><i></i><i></i></div><div class="clip c2"><i></i><i></i><i></i><i></i></div><div class="clip c3"><i></i><i></i><i></i></div>
+            <div class="seam s1"><span class="b-tick"></span><span class="b-pill ghost">+ 转场</span></div>
+          </div>
+        </div>
+        <small>停在接缝上：缝上沿冒「+ 转场」</small>
+      </div>
+      <div class="state">
+        <div class="tl">
+          <div class="cap" style="left:10px;width:30%">导出验收 · 中文字幕测试</div>
+          <div class="lane">
+            <div class="clip c1"><i></i><i></i><i></i></div><div class="clip c2"><i></i><i></i><i></i><i></i></div><div class="clip c3"><i></i><i></i><i></i></div>
+            <div class="band" style="left:calc(70% - 18px);width:36px"></div>
+            <div class="seam s2"><span class="b-tick"></span><span class="b-pill set">叠化 <em>0.5s</em></span></div>
+          </div>
+        </div>
+        <small>有转场：上沿一颗黑胶囊写名字和秒数</small>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><b>C</b>不加任何标记：停上去缝变成一道黑线；有转场那块白纱自己就是按钮</h2>
+    <p class="why">最少的一种：主线上除了画面什么都不多。停在硬切的缝上，缝亮成一道 2px 黑线，点它开弹层；有转场的接缝，那块白纱（重叠的那一截）本身可点，停上去描黑边并在上沿写出名字。代价：平时看不出哪里能点，要靠悬停发现；白纱很窄（0.3s）时不好点。</p>
+    <div class="states">
+      <div class="state">
+        <div class="tl">
+          <div class="cap" style="left:10px;width:46%">导出验收 · 中文字幕测试</div>
+          <div class="lane">
+            <div class="clip c1"><i></i><i></i><i></i></div><div class="clip c2"><i></i><i></i><i></i><i></i></div><div class="clip c3"><i></i><i></i><i></i></div>
+            <div class="c-band" style="left:calc(70% - 18px);width:36px"></div>
+          </div>
+        </div>
+        <small>平时（白缝 + 有转场处一块白纱）</small>
+      </div>
+      <div class="state">
+        <div class="tl">
+          <div class="cap" style="left:10px;width:46%">导出验收 · 中文字幕测试</div>
+          <div class="lane">
+            <div class="clip c1"><i></i><i></i><i></i></div><div class="clip c2"><i></i><i></i><i></i><i></i></div><div class="clip c3"><i></i><i></i><i></i></div>
+            <div class="c-band" style="left:calc(70% - 18px);width:36px"></div>
+            <div class="seam s1"><span class="c-line"></span></div>
+          </div>
+        </div>
+        <small>停在硬切的缝上：亮成一道黑线</small>
+      </div>
+      <div class="state">
+        <div class="tl">
+          <div class="cap" style="left:10px;width:30%">导出验收 · 中文字幕测试</div>
+          <div class="lane">
+            <div class="clip c1"><i></i><i></i><i></i></div><div class="clip c2"><i></i><i></i><i></i><i></i></div><div class="clip c3"><i></i><i></i><i></i></div>
+            <div class="c-band hover" style="left:calc(70% - 18px);width:36px"><span class="c-label">叠化 0.5s</span></div>
+          </div>
+        </div>
+        <small>停在白纱上：描黑边、上沿写名字</small>
+      </div>
+    </div>
+  </section>
+
+  <p class="foot">三种点下去都开同一个接缝弹层（六种转场一行一项 + 时长 + 改回硬切）；左列「转场」页拖一个预设落到接缝上也照旧。</p>
+</div>

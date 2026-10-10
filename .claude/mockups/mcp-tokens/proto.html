@@ -1,0 +1,270 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>设置 · 连接 小样</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* 布局：上面一排状态键 + 旁白；中间照真机设置页的样子（灰底地台 · 白卡 · 左 200 导航 · 右 720 内容）可点；右边一台手机看二级页。下面动效表。
+   色：照全站脊柱浅色（设置页不是媒体观看面）——纯白卡、中性灰、黑色主动作、绿点 = 在用、红只给吊销确认。 */
+:root {
+  --k: 1;
+  --ground: #f4f4f1; --card: #ffffff; --muted: #f5f5f5; --accent: #f0f0f0; --border: #e3e3e3; --input: #dcdcdc;
+  --fg: #0a0a0a; --mfg: #6e6e6e; --primary: #0a0a0a; --pfg: #ffffff;
+  --applied: #16794c; --warning: #a04f00; --warning-surface: #fdf3e7; --destructive: #c4321f;
+  --sans: 'Geist', 'Noto Sans SC', 'PingFang SC', system-ui, sans-serif;
+  --mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  color-scheme: light;
+}
+@media (prefers-reduced-motion: reduce) { :root { --k: .01; } }
+[hidden] { display: none !important; }
+html, body { background: #e9e9e6; color: var(--fg); }
+body { margin: 0; font: 14px/1.5 var(--sans); -webkit-font-smoothing: antialiased; padding-inline: 20px; }
+.page { max-width: 1480px; margin: 0 auto; padding-block: 22px 64px; display: grid; gap: 14px; }
+.hd h1 { margin: 0; font: 600 20px/1.3 var(--sans); }
+.hd p { margin: 4px 0 0; color: var(--mfg); font-size: 13px; max-width: 80ch; }
+.ctrl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ctrl .lab { color: var(--mfg); font-size: 12px; margin-right: 4px; }
+.ctrl button { border: 0; border-radius: 999px; padding: 5px 12px; background: #fff; box-shadow: inset 0 0 0 1px var(--border); cursor: pointer; font: 12.5px var(--sans); }
+.ctrl button:hover { background: var(--accent); }
+.ctrl button.on { background: var(--fg); color: #fff; box-shadow: none; }
+.narr { font-size: 13px; color: #444; min-height: 20px; }
+.stage { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; }
+.desk-wrap { flex: 1 1 760px; min-width: 0; }
+.scale { position: relative; width: 100%; aspect-ratio: 1180 / 700; overflow: hidden; border-radius: 12px; box-shadow: 0 0 0 1px #d6d6d2, 0 30px 60px -40px rgba(0,0,0,.4); }
+.desk { position: absolute; left: 0; top: 0; width: 1180px; height: 700px; transform-origin: 0 0; background: var(--ground); padding: 24px; box-sizing: border-box; }
+.desk * { box-sizing: border-box; }
+button { font: inherit; color: inherit; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+.shell { display: flex; height: 100%; border-radius: 14px; border: 1px solid var(--border); background: var(--card); box-shadow: 0 6px 16px -8px rgba(0,0,0,.12); overflow: hidden; }
+.nav { width: 200px; flex: none; border-right: 1px solid var(--border); padding: 20px 14px; display: flex; flex-direction: column; gap: 2px; }
+.nav h2 { margin: 0; padding: 0 10px 12px; font: 600 18px var(--sans); }
+.nav a { padding: 8px 10px; border-radius: 8px; color: var(--mfg); text-decoration: none; font-size: 14px; }
+.nav a.cur { background: var(--muted); color: var(--fg); font-weight: 500; }
+.nav .sp { flex: 1; } .nav .out { color: var(--mfg); font-size: 14px; padding: 8px 10px; }
+.content { flex: 1; min-width: 0; padding: 24px 32px; overflow: hidden; }
+.sec { width: 720px; max-width: 100%; }
+.sec-h { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.sec-h h3 { margin: 0; font: 600 20px var(--sans); }
+.sec-h p { margin: 0; font-size: 12px; color: var(--mfg); }
+.blk { margin-top: 18px; }
+.blk-h { display: flex; align-items: flex-start; gap: 16px; }
+.blk-h div { flex: 1; min-width: 0; }
+.blk-h b { display: block; font-weight: 500; font-size: 14px; }
+.blk-h span { display: block; margin-top: 2px; font-size: 13px; color: var(--mfg); line-height: 1.55; }
+.btn { flex: none; height: 32px; padding: 0 12px; border: 0; border-radius: 8px; background: var(--primary); color: var(--pfg); font-weight: 500; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: transform calc(var(--k) * 120ms), opacity .15s; }
+.btn:active { transform: scale(.98); }
+.btn:disabled { opacity: .5; pointer-events: none; }
+.btn.ghost { background: transparent; color: var(--mfg); }
+.btn.ghost:hover { background: var(--accent); color: var(--fg); }
+.btn.out { background: #fff; color: var(--fg); box-shadow: inset 0 0 0 1px var(--border); }
+.btn.out:hover { background: var(--accent); }
+.limit { margin-top: 6px; font-size: 12px; color: var(--mfg); text-align: right; }
+ul.rows { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.row { border: 1px solid var(--border); border-radius: 10px; background: var(--card); display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; padding: 12px 14px; font-size: 14px; transition: border-color .12s, opacity calc(var(--k) * 120ms), transform calc(var(--k) * 120ms); animation: rowin calc(var(--k) * 200ms) var(--ease); }
+.row:hover { border-color: #bdbdbd; }
+.row.leaving { opacity: 0; transform: scale(.98); }
+@keyframes rowin { from { opacity: 0; transform: translateY(6px); } }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #c9c9c9; flex: none; }
+.dot.live { background: var(--applied); }
+.row .nm { font-weight: 500; min-width: 110px; }
+.row .l4 { font: 12px var(--mono); color: var(--mfg); min-width: 56px; }
+.row .st { flex: 1; font-size: 12px; color: var(--mfg); }
+.row .st.live { color: var(--applied); }
+.row .rv { height: 28px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--mfg); font-size: 12px; cursor: pointer; }
+.row .rv:hover { background: #fdeceb; color: var(--destructive); }
+.row.new { border-style: dashed; }
+.row input { flex: 1; min-width: 160px; height: 32px; border: 1px solid var(--input); border-radius: 8px; padding: 0 10px; font: 14px var(--sans); }
+.row input:focus { outline: 2px solid var(--fg); outline-offset: 1px; }
+.row .hint { width: 100%; font-size: 12px; color: var(--mfg); padding-left: 20px; }
+.once { border: 1px solid var(--fg); border-radius: 12px; background: var(--card); padding: 14px; display: grid; gap: 10px; animation: oncein calc(var(--k) * 320ms) var(--ease); overflow: hidden; }
+.once.closing { animation: onceout calc(var(--k) * 200ms) var(--ease) forwards; }
+@keyframes oncein { from { opacity: 0; transform: translateY(6px); } }
+@keyframes onceout { to { opacity: 0; transform: scale(.98); } }
+.once-h { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.once-h b { font-weight: 500; }
+.once-h span { font-size: 12px; color: var(--warning); background: var(--warning-surface); padding: 1px 8px; border-radius: 999px; }
+.code { display: flex; align-items: center; gap: 8px; border-radius: 8px; background: var(--muted); padding: 8px 8px 8px 12px; min-width: 0; }
+.code code { flex: 1; min-width: 0; font: 12.5px/1.55 var(--mono); color: var(--fg); overflow-x: auto; white-space: nowrap; scrollbar-width: thin; }
+.code .cp { flex: none; height: 28px; padding: 0 10px; border: 0; border-radius: 6px; background: #fff; box-shadow: inset 0 0 0 1px var(--border); font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+.code .cp.ok { color: var(--applied); }
+.once .k { font-size: 12px; color: var(--mfg); }
+.once-f { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.once-f p { margin: 0; font-size: 12px; color: var(--mfg); }
+.empty { margin-top: 12px; border: 1px dashed var(--border); border-radius: 10px; padding: 22px; text-align: center; font-size: 13px; color: var(--mfg); line-height: 1.6; }
+.loading { margin-top: 12px; border: 1px solid var(--border); border-radius: 10px; padding: 22px 16px; display: flex; gap: 8px; align-items: center; font-size: 14px; color: var(--mfg); }
+.spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #d4d4d4; border-top-color: var(--fg); animation: sp .8s linear infinite; }
+@keyframes sp { to { transform: rotate(360deg); } }
+.err { margin-top: 12px; border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; display: flex; gap: 12px; align-items: center; font-size: 13px; }
+.err span { flex: 1; color: var(--destructive); }
+/* 确认框 */
+.veil { position: absolute; inset: 0; background: rgba(0,0,0,.32); display: grid; place-items: center; animation: fade calc(var(--k) * 200ms); z-index: 10; }
+.dlg { width: 420px; max-width: calc(100% - 32px); background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 20px 50px -20px rgba(0,0,0,.4); animation: zoom calc(var(--k) * 200ms) var(--ease); }
+.dlg h4 { margin: 0; font: 600 16px var(--sans); }
+.dlg p { margin: 8px 0 0; font-size: 14px; color: var(--mfg); line-height: 1.6; }
+.dlg .acts { margin-top: 18px; display: flex; justify-content: flex-end; gap: 8px; }
+.btn.danger { background: var(--destructive); }
+@keyframes fade { from { opacity: 0; } }
+@keyframes zoom { from { opacity: 0; transform: scale(.95); } }
+/* 手机 */
+.phone { width: 360px; flex: none; height: 740px; border-radius: 36px; background: #fff; box-shadow: 0 0 0 1px #d6d6d2, 0 0 0 9px #1b1b1b, 0 30px 60px -30px rgba(0,0,0,.5); overflow: hidden; position: relative; }
+.phone .ph-in { position: absolute; inset: 0; padding: 44px 16px 16px; overflow: auto; }
+.ph-h { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+.ph-h b { font: 600 20px var(--sans); }
+.ph-h i { font-style: normal; font-size: 20px; width: 32px; }
+.phone .sec { width: 100%; }
+.phone .sec-h { display: none; }
+.phone .blk { margin-top: 0; }
+.phone .blk-h { flex-direction: column; gap: 10px; }
+.phone .btn { height: 44px; width: 100%; justify-content: center; }
+.phone .row { padding: 12px; }
+.phone .row .nm { min-width: 0; }
+.phone .row .st { flex-basis: 100%; order: 5; padding-left: 20px; }
+.phone .row .rv { height: 44px; margin-left: auto; }
+.phone .once-f .btn { width: 100%; }
+.phone .dlg { width: 100%; align-self: end; border-radius: 16px 16px 0 0; }
+.phone .veil { place-items: end center; }
+.phone .dlg .acts { flex-direction: column-reverse; }
+.phone .dlg .acts .btn { width: 100%; }
+.motion { overflow-x: auto; }
+.motion table { border-collapse: collapse; width: 100%; min-width: 680px; font-size: 13px; background: #fff; border-radius: 10px; overflow: hidden; }
+.motion th, .motion td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.motion th { color: var(--mfg); font-weight: 500; font-size: 12px; }
+.motion td:nth-child(2) { font: 12px var(--mono); white-space: nowrap; }
+.motion td:last-child { color: var(--mfg); }
+.rules { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 13px; color: #333; max-width: 90ch; }
+</style>
+
+<main class="page">
+  <header class="hd">
+    <h1>设置 · 连接（令牌入口）小样</h1>
+    <p>照真机设置页的骨架画（灰底地台、白卡、左 200 导航、右 720 内容、58 高的行）。能直接点：生成 → 填名字 → 复制令牌和命令 → 我复制好了 → 吊销。也可以用上面的键跳到某个状态。</p>
+  </header>
+  <div class="ctrl"><span class="lab">状态</span>
+    <button data-s="empty">空</button><button data-s="naming">填名字</button><button data-s="created">刚生成</button><button data-s="list">列表</button><button data-s="confirm">吊销确认</button><button data-s="limit">满 10 个</button><button data-s="loading">读取中</button><button data-s="error">读取失败</button>
+  </div>
+  <div class="narr" id="narr"></div>
+  <div class="stage">
+    <div class="desk-wrap"><div class="scale" id="scale"><div class="desk" id="desk">
+      <div class="shell">
+        <nav class="nav"><h2>设置</h2><a>API key</a><a>用量</a><a>偏好</a><a>助手</a><a class="cur">连接</a><span class="sp"></span><span class="out">退出登录</span></nav>
+        <div class="content"><div class="sec" id="secD"></div></div>
+      </div>
+    </div></div></div>
+    <div class="phone"><div class="ph-in"><div class="ph-h"><i>←</i><b>连接</b></div><div class="sec" id="secM"></div></div></div>
+  </div>
+
+  <section class="motion">
+    <ul class="rules">
+      <li><b>只显示一次</b>：令牌明文只在「刚生成」那张卡里出现，点「我复制好了」或离开这一页就再也看不到；列表里只剩名字和末 4 位。</li>
+      <li><b>命令里已经填好令牌</b>：复制命令贴进终端就接上（作用域 user，所有目录都能用）；地址取站点自己的域名。</li>
+      <li><b>绿点 = Claude 在用</b>：令牌 2 分钟内用过；其余写「几分钟前用过 / 从未使用」。</li>
+      <li><b>吊销立即生效</b>，过一次确认；最多 10 个有效令牌，满了生成键变灰并说明原因。</li>
+      <li>⛔ 不放 Claude.ai 连接器的占位：那一块等它做出来再出现在这一页。</li>
+    </ul>
+    <h3 style="font:600 15px var(--sans);margin:18px 0 8px">动效表</h3>
+    <table>
+      <thead><tr><th>动作</th><th>时长 · 曲线</th><th>动什么</th><th>不要</th></tr></thead>
+      <tbody>
+        <tr><td>点「生成令牌」</td><td>200ms · ease-standard</td><td>列表顶上长出一行虚线框输入行，名字预填「Claude Code」并全选</td><td>弹对话框</td></tr>
+        <tr><td>生成成功</td><td>320ms · ease-standard</td><td>输入行换成黑框的「刚生成」卡，从下方 6px 淡入</td><td>toast 里放令牌</td></tr>
+        <tr><td>复制</td><td>—</td><td>按钮字换成「已复制 ✓」，1.6 秒后换回</td><td>弹 toast</td></tr>
+        <tr><td>我复制好了</td><td>200ms</td><td>卡缩成普通一行（0.98 + 淡出后换成行）</td><td>直接消失</td></tr>
+        <tr><td>吊销</td><td>对话框内置 · 行 120ms</td><td>确认后那一行 0.98 淡出，下面的行补上</td><td>不确认就删</td></tr>
+        <tr><td>减弱动态效果</td><td>≈1ms</td><td>全部直接落到终态</td><td></td></tr>
+      </tbody>
+    </table>
+  </section>
+</main>
+
+<script>
+const ORIGIN = 'https://www.anteisuba.com';
+const now = Date.now();
+const SAMPLE = () => [
+  { id: 't1', name: 'Claude Code', last4: 'a3f9', createdAt: now - 3 * 864e5, lastUsedAt: now - 60e3 },
+  { id: 't2', name: '工作电脑', last4: 'c07e', createdAt: now - 9 * 864e5, lastUsedAt: now - 5 * 864e5 },
+  { id: 't3', name: '试一下', last4: '51b2', createdAt: now - 864e5, lastUsedAt: null },
+];
+let S = { tokens: SAMPLE(), mode: 'list', created: null, confirm: null, copied: null };
+const $ = s => document.querySelector(s);
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const rel = t => { if (!t) return '从未使用'; const m = Math.round((now - t) / 60e3); if (m < 60) return `${Math.max(1, m)} 分钟前用过`; const h = Math.round(m / 60); if (h < 24) return `${h} 小时前用过`; return `${Math.round(h / 24)} 天前用过`; };
+const live = t => t && now - t < 120e3;
+const date = t => { const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()} 生成`; };
+const randTok = () => 'pvmcp_' + Array.from(crypto.getRandomValues(new Uint8Array(32)), b => 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'[b & 63]).join('');
+const cmd = tok => `claude mcp add --transport http --scope user pixelvault ${ORIGIN}/api/mcp --header "Authorization: Bearer ${tok}"`;
+
+function view() {
+  const full = S.tokens.length >= 10;
+  const head = `<div class="sec-h"><h3>连接</h3><p>让 Claude 直接读写你的画布项目 · 不能花积分</p></div>
+    <div class="blk"><div class="blk-h"><div><b>Claude Code</b><span>贴一个令牌，Claude 就能读你的画布项目、剪片、出小样。要花积分的生成仍然由你在浏览器里点。</span></div>
+    <button class="btn" data-a="new" ${full || S.mode === 'naming' ? 'disabled' : ''}>生成令牌</button></div>${full ? '<div class="limit">最多 10 个，先吊销一个不用的</div>' : ''}`;
+  let body = '';
+  if (S.mode === 'loading') body = `<div class="loading"><span class="spin"></span>正在读取令牌…</div>`;
+  else if (S.mode === 'error') body = `<div class="err"><span>没读到令牌：网络连不上。</span><button class="btn out" data-a="retry">重试</button></div>`;
+  else {
+    let top = '';
+    if (S.mode === 'naming') top = `<li class="row new"><span class="dot"></span><input id="nm" value="Claude Code" maxlength="60" aria-label="令牌名字"><button class="btn" data-a="make">生成</button><button class="btn ghost" data-a="cancel">取消</button><span class="hint">起个能认出是哪台电脑的名字 · 回车生成，Esc 取消</span></li>`;
+    if (S.created) top = `<li class="once" id="once"><div class="once-h"><b>「${esc(S.created.name)}」生成好了</b><span>这串令牌只显示这一次</span></div>
+      <div class="k">令牌</div><div class="code"><code>${S.created.token}</code><button class="cp ${S.copied === 'tok' ? 'ok' : ''}" data-a="copy-tok">${S.copied === 'tok' ? '已复制 ✓' : '复制'}</button></div>
+      <div class="k">接入 Claude Code：在终端里运行</div><div class="code"><code>${esc(cmd(S.created.token))}</code><button class="cp ${S.copied === 'cmd' ? 'ok' : ''}" data-a="copy-cmd">${S.copied === 'cmd' ? '已复制 ✓' : '复制命令'}</button></div>
+      <div class="once-f"><p>接上后在 Claude Code 里输入 /mcp 能看到 pixelvault。</p><button class="btn" data-a="done">我复制好了</button></div></li>`;
+    const rows = S.tokens.map(t => `<li class="row" data-id="${t.id}"><span class="dot ${live(t.lastUsedAt) ? 'live' : ''}"></span><span class="nm">${esc(t.name)}</span><span class="l4">…${t.last4}</span><span class="st ${live(t.lastUsedAt) ? 'live' : ''}">${live(t.lastUsedAt) ? 'Claude 在用' : rel(t.lastUsedAt)} · ${date(t.createdAt)}</span><button class="rv" data-a="revoke" data-id="${t.id}">吊销</button></li>`).join('');
+    body = (top || rows) ? `<ul class="rows">${top}${rows}</ul>` : `<div class="empty">还没有令牌。生成一个贴进 Claude Code，Claude 就能帮你剪片。</div>`;
+  }
+  let dlg = '';
+  if (S.confirm) { const t = S.tokens.find(x => x.id === S.confirm); dlg = `<div class="veil"><div class="dlg" role="dialog" aria-modal="true"><h4>吊销「${esc(t.name)}」？</h4><p>用这个令牌连着的 Claude 会立刻断开，这一步撤不回。要再连，生成一个新令牌重新贴。</p><div class="acts"><button class="btn out" data-a="no">取消</button><button class="btn danger" data-a="yes">吊销</button></div></div></div>`; }
+  return head + body + '</div>' + dlg;
+}
+function render(focus) {
+  for (const id of ['secD', 'secM']) $('#' + id).innerHTML = view();
+  if (focus) { const i = document.querySelector('#secD #nm'); i?.focus(); i?.select(); }
+}
+const NARR = {
+  empty: '空态：一句话说清有了令牌能做什么；生成键在右上。',
+  naming: '点「生成令牌」：列表顶上长出一行输入，名字预填「Claude Code」并全选；回车生成，Esc 取消。',
+  created: '刚生成：黑框卡里给令牌明文和填好令牌的命令，各有复制；明文只显示这一次。',
+  list: '列表：绿点 = 2 分钟内用过（Claude 在用）；其余写多久前用过、哪天生成；只露末 4 位。',
+  confirm: '吊销过一次确认，确认后立即生效。',
+  limit: '满 10 个：生成键变灰，下面一行说明原因。',
+  loading: '读取中：和 API key 页同一个转圈行。',
+  error: '读取失败：一句原因 + 重试。',
+};
+function setState(k) {
+  S = { tokens: SAMPLE(), mode: 'list', created: null, confirm: null, copied: null };
+  if (k === 'empty') S.tokens = [];
+  if (k === 'naming') S.mode = 'naming';
+  if (k === 'created') S.created = { name: 'Claude Code', token: randTok() };
+  if (k === 'confirm') S.confirm = 't2';
+  if (k === 'limit') S.tokens = Array.from({ length: 10 }, (_, i) => ({ id: 'x' + i, name: i ? `电脑 ${i + 1}` : 'Claude Code', last4: (1000 + i * 731).toString(16).slice(-4), createdAt: now - i * 864e5, lastUsedAt: i % 3 ? null : now - i * 3600e3 }));
+  if (k === 'loading' || k === 'error') S.mode = k;
+  document.querySelectorAll('[data-s]').forEach(b => b.classList.toggle('on', b.dataset.s === k));
+  $('#narr').textContent = NARR[k] || '';
+  render(k === 'naming');
+}
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-a],[data-s]'); if (!b) return;
+  if (b.dataset.s) return setState(b.dataset.s);
+  const a = b.dataset.a;
+  if (a === 'new') { S.mode = 'naming'; S.created = null; render(true); $('#narr').textContent = NARR.naming; }
+  if (a === 'cancel') { S.mode = 'list'; render(); }
+  if (a === 'make') make(b.closest('.sec').querySelector('#nm').value);
+  if (a === 'copy-tok' || a === 'copy-cmd') { const text = a === 'copy-tok' ? S.created.token : cmd(S.created.token); try { await navigator.clipboard.writeText(text); } catch (err) {} S.copied = a === 'copy-tok' ? 'tok' : 'cmd'; render(); setTimeout(() => { S.copied = null; render(); }, 1600); }
+  if (a === 'done') { document.querySelectorAll('#once').forEach(o => o.classList.add('closing')); setTimeout(() => { S.tokens.unshift({ id: 'n' + Date.now(), name: S.created.name, last4: S.created.token.slice(-4), createdAt: now, lastUsedAt: null }); S.created = null; render(); $('#narr').textContent = '收成普通一行：从此只看得到名字和末 4 位。'; }, 200 * k()); }
+  if (a === 'revoke') { S.confirm = b.dataset.id; render(); $('#narr').textContent = NARR.confirm; }
+  if (a === 'no') { S.confirm = null; render(); }
+  if (a === 'yes') { const id = S.confirm; S.confirm = null; render(); document.querySelectorAll(`.row[data-id="${id}"]`).forEach(r => r.classList.add('leaving')); setTimeout(() => { S.tokens = S.tokens.filter(t => t.id !== id); render(); $('#narr').textContent = '吊销了：那一行淡出，下面的补上。'; }, 130 * k()); }
+  if (a === 'retry') { S.mode = 'loading'; render(); setTimeout(() => { S.mode = 'list'; render(); }, 900); }
+});
+document.addEventListener('keydown', e => {
+  if (e.target.id !== 'nm') return;
+  if (e.key === 'Enter') make(e.target.value);
+  if (e.key === 'Escape') { S.mode = 'list'; render(); }
+});
+function make(name) { name = (name || '').trim() || 'Claude Code'; S.mode = 'list'; S.created = { name, token: randTok() }; render(); $('#narr').textContent = NARR.created; }
+const k = () => +getComputedStyle(document.documentElement).getPropertyValue('--k') || 1;
+const fit = () => { const w = $('#scale').clientWidth; $('#desk').style.transform = `scale(${w / 1180})`; };
+addEventListener('resize', fit); fit();
+setState('list');
+</script>

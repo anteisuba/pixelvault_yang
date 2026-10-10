@@ -6773,11 +6773,11 @@
       "k_euler_ancestral": "Euler a",
       "k_dpmpp_2s_ancestral": "DPM++ 2S a"
     },
-    "opusFreeShort": "Opus 免费档",
+    "opusFreeShort": "Opus 订阅免费",
     "opusMeteredShort": "按 Anlas 计",
     "backToWhole": "回到整体",
     "resolutionTitle": "分辩率 · 额度",
-    "opusFree": "在 Opus 免费档内",
+    "opusFree": "在 Opus 免费范围内：有 Opus 订阅时不扣 Anlas，其他档位照常扣",
     "opusMetered": "超出免费档，按 Anlas 计",
     "referenceUsageTitle": "参考图用法",
     "referenceUsage": {
@@ -7442,6 +7442,7 @@
       "reference_image_limit_exceeded": "参考图数量超过该模型限制",
       "transparent_background_requires_single_reference": "透明底需要且只需要一张带透明通道的参考图（PNG）。",
       "layer_decomposition_requires_single_reference": "图层拆分需要且只需要一张待拆分的参考图。",
+      "novelai_anlas_shortfall": "NovelAI 账户的 Anlas 不够：这张要 {required}，只剩 {available}。只有 Opus 订阅在免费范围内（单张 · ≤1024² · ≤28 步）出图才不扣 Anlas——请到 NovelAI 检查订阅或补充 Anlas，直接重试无效。",
       "prompt_too_long": "提示词超过了这个模型的字数上限。",
       "invalid_reference_image_dimensions": "参考图尺寸或比例不符合该模型要求",
       "provider_account_limit_reached": "服务商账号为该模型设置的用量上限已触顶，模型服务被暂停。重试无效，需到服务商控制台调整限额。",

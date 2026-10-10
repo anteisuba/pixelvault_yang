@@ -6773,11 +6773,11 @@
       "k_euler_ancestral": "Euler a",
       "k_dpmpp_2s_ancestral": "DPM++ 2S a"
     },
-    "opusFreeShort": "Opus free",
+    "opusFreeShort": "Free on Opus",
     "opusMeteredShort": "Billed in Anlas",
     "backToWhole": "Back to the whole image",
     "resolutionTitle": "Resolution · quota",
-    "opusFree": "Inside the Opus free window",
+    "opusFree": "Inside the Opus free window: no Anlas with an Opus subscription, other tiers still pay",
     "opusMetered": "Outside the free window — burns Anlas",
     "referenceUsageTitle": "Reference use",
     "referenceUsage": {
@@ -7442,6 +7442,7 @@
       "reference_image_limit_exceeded": "This model received too many reference images",
       "transparent_background_requires_single_reference": "Transparent background needs exactly one reference image with an alpha channel (PNG).",
       "layer_decomposition_requires_single_reference": "Layer split needs exactly one reference image to take apart.",
+      "novelai_anlas_shortfall": "Your NovelAI account is short on Anlas: this image needs {required}, {available} left. Only an Opus subscription generates for free (one image · ≤1024² · ≤28 steps) — check your subscription or top up Anlas on NovelAI; retrying won't help.",
       "prompt_too_long": "The prompt is longer than this model accepts.",
       "invalid_reference_image_dimensions": "The reference image size or aspect ratio is not supported",
       "provider_account_limit_reached": "The provider account hit its configured usage limit for this model and the service is paused. Retrying will not help — adjust the limit in the provider's console.",

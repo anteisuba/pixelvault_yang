@@ -7,6 +7,10 @@ import {
 /** 原话附在提示里时最多带多少字（整段 JSON 糊一屏读不下去）。 */
 const GENERATION_ERROR_DETAIL_MAX_CHARS = 240
 
+/** NovelAI 402 原话：`Not enough Anlas … Required: 20, Available: 7`。 */
+const NOVELAI_ANLAS_SHORTFALL_RE =
+  /anlas[\s\S]*?required:\s*(\d+)[\s\S]*?available:\s*(\d+)/i
+
 interface ApiErrorLike {
   error?: string
   errorCode?: string
@@ -109,6 +113,20 @@ export function getGenerationErrorMessage(
     parseGenerationErrorCode(payload.error ?? '', {
       hasReferenceImage: payload.hasReferenceImage,
     })
+
+  // NovelAI 的原话带着「要多少 / 剩多少」——比一句「服务商余额不足」能用得多。
+  const anlas = payload.error?.match(NOVELAI_ANLAS_SHORTFALL_RE)
+  if (
+    code === GENERATION_ERROR_CODES.PROVIDER_INSUFFICIENT_BALANCE &&
+    anlas?.[1] &&
+    anlas[2] &&
+    tErrors.has('generation.novelai_anlas_shortfall')
+  ) {
+    return tErrors('generation.novelai_anlas_shortfall', {
+      required: anlas[1],
+      available: anlas[2],
+    })
+  }
 
   if (code !== GENERATION_ERROR_CODES.UNKNOWN) {
     const generationKey = `generation.${code}`

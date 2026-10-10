@@ -865,6 +865,33 @@ describe('generateNovelAiImage', () => {
     } as unknown as Parameters<typeof generateNovelAiImage>[1]
   }
 
+  it('classifies a 402 (out of Anlas) as insufficient balance, not unknown', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            statusCode: 402,
+            message:
+              'Not enough Anlas and out of trial image generations. Required: 20, Available: 7',
+          }),
+          { status: 402, headers: { 'content-type': 'application/json' } },
+        ),
+      ),
+    )
+    await expect(
+      generateNovelAiImage(
+        makeEnv(),
+        makeContext(NOVELAI_V5_FULL),
+        'nai-test-key',
+      ),
+    ).rejects.toMatchObject({
+      errorCode: 'provider_insufficient_balance',
+      message: expect.stringContaining('Required: 20, Available: 7'),
+      providerMetadata: expect.objectContaining({ httpStatus: 402 }),
+    })
+  })
+
   it('routes precise character reference as generation without img2img fields', async () => {
     const fetchMock = stubNovelAiZipResponse()
     const context = makeContext(NOVELAI_V45_FULL, [

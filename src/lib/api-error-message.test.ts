@@ -296,4 +296,29 @@ describe('generation errors · 失败原因要具体（owner 09-24）', () => {
       ),
     ).toBe('generation.provider_model_not_activated')
   })
+
+  it('NovelAI 的 Anlas 不足说出要多少、剩多少（三语）', () => {
+    const raw =
+      'NovelAI image generation failed (402): {"statusCode":402,"message":"Not enough Anlas and out of trial image generations. Required: 20, Available: 7"}'
+    for (const messages of [zhMessages, enMessages, jaMessages]) {
+      const t = createTranslator({
+        locale: 'zh',
+        messages,
+        namespace: 'Errors',
+      }) as unknown as Translator
+      for (const payload of [
+        { error: raw },
+        {
+          error:
+            'Not enough Anlas and out of trial image generations. Required: 20, Available: 7',
+          errorCode: 'provider_insufficient_balance',
+        },
+      ]) {
+        const message = getGenerationErrorMessage(t, payload, 'fallback')
+        expect(message).toContain('20')
+        expect(message).toContain('7')
+        expect(message).not.toContain('statusCode')
+      }
+    }
+  })
 })

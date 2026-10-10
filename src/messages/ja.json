@@ -6773,11 +6773,11 @@
       "k_euler_ancestral": "Euler a",
       "k_dpmpp_2s_ancestral": "DPM++ 2S a"
     },
-    "opusFreeShort": "Opus 無料枠",
+    "opusFreeShort": "Opus なら無料",
     "opusMeteredShort": "Anlas 消費",
     "backToWhole": "全体に戻る",
     "resolutionTitle": "解像度 · 消費",
-    "opusFree": "Opus 無料枠の範囲内",
+    "opusFree": "Opus 無料枠の範囲内：Opus 加入中なら Anlas を消費しません。他のプランでは消費します",
     "opusMetered": "無料枠外 — Anlas を消費",
     "referenceUsageTitle": "参照画像の使い方",
     "referenceUsage": {
@@ -7442,6 +7442,7 @@
       "reference_image_limit_exceeded": "参照画像の数がこのモデルの上限を超えています",
       "transparent_background_requires_single_reference": "透明背景には、アルファチャンネル付きの参照画像がちょうど 1 枚必要です。",
       "layer_decomposition_requires_single_reference": "レイヤー分解には、分解する参照画像がちょうど 1 枚必要です。",
+      "novelai_anlas_shortfall": "NovelAI アカウントの Anlas が足りません：この画像には {required} 必要で、残りは {available} です。Anlas を消費しないのは Opus 加入時の無料枠（1 枚 · 1024² 以下 · 28 ステップ以下）だけです。NovelAI でプランを確認するか Anlas を補充してください。再試行しても変わりません。",
       "prompt_too_long": "プロンプトがこのモデルの文字数上限を超えています。",
       "invalid_reference_image_dimensions": "参照画像のサイズまたはアスペクト比がこのモデルに対応していません",
       "provider_account_limit_reached": "プロバイダーのアカウントで設定された利用上限に達し、モデルサービスが停止されています。再試行しても解決しません。コンソールで上限を調整してください。",

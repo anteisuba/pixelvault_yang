@@ -89,6 +89,7 @@ let mockOutputType: 'image' | 'video' = 'image'
 let mockDialect = 'natural'
 let mockGen: {
   error: string | null
+  errorCode?: string | null
   isGenerating: boolean
   elapsedSeconds: number
   activeRun: unknown
@@ -253,6 +254,20 @@ describe('GenerationPreview — 加载态 A', () => {
     expect(onRetry).toHaveBeenCalledTimes(1)
     // 取消键只在生成中给。
     expect(screen.queryByTestId('generation-preview-cancel')).toBeNull()
+  })
+
+  it('余额不足这类重试也没用的失败：只说原因，不给「重试」', () => {
+    mockGen = {
+      ...idleGen(),
+      error: 'NovelAI 账户的 Anlas 不够',
+      errorCode: 'provider_insufficient_balance',
+    }
+    render(<GenerationPreview generation={null} onRetry={vi.fn()} />)
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'NovelAI 账户的 Anlas 不够',
+    )
+    expect(screen.queryByRole('button', { name: 'retry' })).toBeNull()
   })
 
   it('重画失败：旧图留着，原因 +「重试」在图上那一层（⛔ 图下面的红框）', () => {

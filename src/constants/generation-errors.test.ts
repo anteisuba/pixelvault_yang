@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest'
 import {
   GENERATION_ERROR_CODES,
   getGenerationErrorI18nKeyForCode,
+  isGenerationRetryFutile,
   normalizeErrorCode,
   parseGenerationErrorCode,
 } from './generation-errors'
@@ -271,5 +272,24 @@ describe('Runner download guardrails', () => {
         { hasReferenceImage: true },
       ),
     ).toBe(GENERATION_ERROR_CODES.RUNNER_STORAGE_FULL)
+  })
+})
+
+describe('isGenerationRetryFutile', () => {
+  it('不给账户 / key 类失败重试，超时这类照旧可以', () => {
+    expect(
+      isGenerationRetryFutile(
+        parseGenerationErrorCode(
+          'NovelAI image generation failed (402): {"statusCode":402,"message":"Not enough Anlas and out of trial image generations. Required: 20, Available: 7"}',
+        ),
+      ),
+    ).toBe(true)
+    expect(
+      isGenerationRetryFutile(GENERATION_ERROR_CODES.INVALID_API_KEY),
+    ).toBe(true)
+    expect(
+      isGenerationRetryFutile(GENERATION_ERROR_CODES.PROVIDER_TIMEOUT),
+    ).toBe(false)
+    expect(isGenerationRetryFutile(null)).toBe(false)
   })
 })

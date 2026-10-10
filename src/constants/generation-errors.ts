@@ -299,7 +299,7 @@ const ERROR_PATTERNS: Array<{
   },
   {
     pattern:
-      /exhausted\s+balance|top\s+up.*balance|billing|payment|insufficient.*(?:balance|credits?)|余额不足|余额已耗尽|充值/i,
+      /exhausted\s+balance|top\s+up.*balance|billing|payment|insufficient.*(?:balance|credits?)|not\s+enough\s+anlas|余额不足|余额已耗尽|充值/i,
     code: GENERATION_ERROR_CODES.PROVIDER_INSUFFICIENT_BALANCE,
   },
   {
@@ -416,6 +416,25 @@ export function normalizeErrorCode(
     return code as GenerationErrorCode
   }
   return BACKEND_ERROR_CODE_MAP[code] ?? null
+}
+
+/**
+ * 重试也不会变的失败：账户余额 / key / 用量上限 / 模型开通 / 作者关下载 / 月度额度
+ * 这类要用户去别处处理的事。舞台上不给「重试」——点了只会再失败一次。
+ */
+const RETRY_FUTILE_ERROR_CODES: ReadonlySet<GenerationErrorCode> = new Set([
+  GENERATION_ERROR_CODES.PROVIDER_INSUFFICIENT_BALANCE,
+  GENERATION_ERROR_CODES.INVALID_API_KEY,
+  GENERATION_ERROR_CODES.PROVIDER_ACCOUNT_LIMIT_REACHED,
+  GENERATION_ERROR_CODES.PROVIDER_MODEL_NOT_ACTIVATED,
+  GENERATION_ERROR_CODES.LORA_DOWNLOAD_DISABLED,
+  GENERATION_ERROR_CODES.RUNNER_MONTHLY_LIMIT_EXCEEDED,
+])
+
+export function isGenerationRetryFutile(
+  code: GenerationErrorCode | null | undefined,
+): boolean {
+  return code != null && RETRY_FUTILE_ERROR_CODES.has(code)
 }
 
 function getUnsupportedReferenceImageI18nKey(errorMessage: string): string {

@@ -18,6 +18,7 @@ import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
 
+import { isGenerationRetryFutile } from '@/constants/generation-errors'
 import { useStudioGen, useStudioForm } from '@/contexts/studio-context'
 import { useAskAssistantAboutImage } from '@/hooks/use-ask-assistant-about-image'
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -126,6 +127,7 @@ export const GenerationPreview = memo(function GenerationPreview({
 }: GenerationPreviewProps) {
   const {
     error: rawRunError,
+    errorCode,
     isGenerating: rawIsGenerating,
     elapsedSeconds,
     activeRun: rawActiveRun,
@@ -235,7 +237,8 @@ export const GenerationPreview = memo(function GenerationPreview({
     ? {
         message: error,
         retryLabel: t('retry'),
-        ...(onRetry ? { onRetry } : {}),
+        // 余额 / key / 开通这类失败重试也一样，不给按钮（原因里写着去哪处理）。
+        ...(onRetry && !isGenerationRetryFutile(errorCode) ? { onRetry } : {}),
       }
     : null
 

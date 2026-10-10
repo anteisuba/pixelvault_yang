@@ -7630,10 +7630,13 @@ export async function generateNovelAiImage(
   })
 
   if (!response.ok) {
-    const errBody = await response.text().catch(() => '')
-    throw new Error(
-      `NovelAI image generation failed (${response.status}): ${errBody.slice(0, 200)}`,
-    )
+    // 走带状态码的 provider 错误：402（Anlas 不足）归到余额不足、当场判死不重试，
+    // 原话（「Required: 20, Available: 7」）留在 message 里给前端拼说明。
+    throw await createProviderResponseError(response, {
+      provider: 'novelai',
+      phase: 'generate',
+      fallbackMessage: `NovelAI image generation failed (${response.status})`,
+    })
   }
 
   const imageBytes = await extractNovelAiZipImage(

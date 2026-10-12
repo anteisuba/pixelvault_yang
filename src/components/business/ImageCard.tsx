@@ -6,7 +6,7 @@ import Image from 'next/image'
 import { useLocale, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
-import { creatorProfilePath } from '@/constants/routes'
+import { creatorProfilePath, galleryGenerationPath } from '@/constants/routes'
 import type { GenerationRecord } from '@/types'
 import { ImageCardActions } from '@/components/business/image-card/ImageCardActions'
 import { ImageCardMedia } from '@/components/business/image-card/ImageCardMedia'
@@ -113,6 +113,12 @@ export const ImageCard = memo(function ImageCard({
     : ''
   const creatorHref = creatorPath ? `/${locale}${creatorPath}` : ''
   const creatorInitial = creatorName.charAt(0).toUpperCase()
+  // 只有公开作品才有详情页；私密的给了链接就是一条 404。
+  // 音频卡例外：`<audio controls>` 套在 `<a>` 里，点播放会顺带触发跳转。
+  const detailHref =
+    generation.isPublic && !isAudio
+      ? `/${locale}${galleryGenerationPath(generation.id)}`
+      : undefined
 
   return (
     <>
@@ -129,6 +135,7 @@ export const ImageCard = memo(function ImageCard({
           isVideo={isVideo}
           aspectRatio={aspectRatio}
           onOpenDetail={openDetail}
+          detailHref={detailHref}
           openImageLabel={t('openImage')}
           openVideoLabel={t('openVideo')}
           referenceImageLabel={t('referenceImageLabel')}

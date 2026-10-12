@@ -261,6 +261,11 @@ export default async function ImageDetailPage({
           </div>
 
           <div className="space-y-5 p-5 sm:p-6">
+            {/* 页面唯一的 h1：与 <title> / JSON-LD `name` 同一个 `seo.headline`
+                （seo.md「作品详情页的文字」）。应用内页面 h1 走正文槽加粗。 */}
+            <h1 className="text-2xl font-semibold leading-tight text-foreground">
+              {seo.headline}
+            </h1>
             <div className="flex items-start justify-between gap-4">
               <p
                 className={cn(

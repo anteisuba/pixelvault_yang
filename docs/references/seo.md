@@ -27,6 +27,12 @@ canonical 指向别的 URL，等于告诉搜索引擎「我是那一页的副本
 - JSON-LD 的 `creator` 是作者（`Person` + 主页地址），没有作者才回退成站点。
 - 画廊卡片的 alt 用同一个 `buildPromptAltText`（列表口的提示词已按公开授权 redact）。
 
+## 卡片内链与详情页 h1（2026-10-13）
+
+- **卡片内链**：画廊卡开图那一格是 `<a href="/{locale}/gallery/{id}">`（`ImageCardMedia` 的 `detailHref`），普通左键 `preventDefault` 照旧开查看器 / 全屏详情，⌘/Ctrl/Shift/中键交给浏览器开新标签。起因：线上 `/en/gallery` 的 HTML 里指向详情页的 `<a>` 为 0，72 个详情页只能靠 sitemap 被发现。⛔ 退回 `<button>`。
+- 只有 `isPublic` 的作品给链接（私密作品没有详情页）；音频卡例外仍是 `<button>`——`<audio controls>` 套在 `<a>` 里，点播放会顺带跳页。
+- **详情页 h1**：`/gallery/[id]` 唯一的 `<h1>` 就是 `seo.headline`，与 `<title>`、JSON-LD `name` 同源；样式按 ui-defaults 应用内页面 h1（正文槽 `text-2xl font-semibold`）。
+
 ## 有意的例外
 
 `/u/me` —— 同一张脸两个地址，`/u/me` 是登录后的快捷入口，正本是 `/u/<username>`（owner 2026-09-20 拍板）。它传 `canonicalPath`，于是 canonical 和 `og:url` 一起指向带用户名那个地址，并且不产出 hreflang。⛔ 不要把它改成自指，那会让两个地址互相争正本。

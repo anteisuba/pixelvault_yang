@@ -329,7 +329,7 @@ describe('GalleryFeed', () => {
 
     renderFeed()
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Open image' })[0])
+    fireEvent.click(screen.getAllByRole('link', { name: 'Open image' })[0])
 
     expect(
       screen.getByRole('dialog', { name: 'Gallery viewer' }),

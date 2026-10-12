@@ -30,6 +30,13 @@ interface ImageCardMediaProps {
   priority?: boolean
   /** 数据到了由糊变清时错开第几步（`revealStep`，左上往右下）。 */
   revealStep?: number
+  /**
+   * 公开作品详情页 `/{locale}/gallery/{id}`。给了就把开图那一格渲染成真链接：
+   * 普通左键照旧开查看器 / 全屏详情（`preventDefault`），⌘/Ctrl/中键交给浏览器
+   * 开新标签。⚠ 这条 `<a href>` 是爬虫进详情页的唯一内链（seo.md「卡片内链」），
+   * ⛔ 退回 `<button>` 会让详情页重新只剩 sitemap 一条路。
+   */
+  detailHref?: string
 }
 
 export function ImageCardMedia({
@@ -44,61 +51,97 @@ export function ImageCardMedia({
   layerBadgeLabel,
   priority,
   revealStep,
+  detailHref,
 }: ImageCardMediaProps) {
   const imageSrc = getGenerationThumbnailUrl(generation)
   // 派生列优先，缺了走 CDN 现场抽帧 —— 以前这里靠 `preload="metadata"` +
   // `currentTime` 自己抠一帧，等于为一张封面拉真实视频字节。
   const videoPoster = getGenerationVideoPosterUrl(generation) ?? undefined
+  const openLabel = isVideo ? openVideoLabel : openImageLabel
+
+  const media = (
+    <>
+      {isAudio ? (
+        <div
+          className="flex w-full flex-col items-center justify-center gap-3 bg-muted/30 px-4 py-8"
+          style={{ aspectRatio: '1 / 1' }}
+        >
+          <Music className="size-10 text-muted-foreground/40" />
+          <audio
+            src={generation.url}
+            controls
+            preload="metadata"
+            className="w-full max-w-[200px]"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      ) : isVideo ? (
+        <video
+          src={generation.url}
+          poster={videoPoster}
+          muted
+          playsInline
+          preload="none"
+          className="h-auto w-full object-cover"
+          style={{ aspectRatio }}
+        />
+      ) : (
+        <BlurUpImage
+          src={imageSrc}
+          alt={buildPromptAltText(generation.prompt)}
+          width={generation.width}
+          height={generation.height}
+          priority={priority}
+          revealStep={revealStep}
+        />
+      )}
+    </>
+  )
 
   return (
     <>
-      <button
-        type="button"
-        className="block w-full cursor-pointer bg-muted"
-        onClick={(event) =>
-          onOpenDetail(
-            toMediaTransitionOrigin(
-              event.currentTarget.getBoundingClientRect(),
-            ),
-          )
-        }
-        aria-label={isVideo ? openVideoLabel : openImageLabel}
-      >
-        {isAudio ? (
-          <div
-            className="flex w-full flex-col items-center justify-center gap-3 bg-muted/30 px-4 py-8"
-            style={{ aspectRatio: '1 / 1' }}
-          >
-            <Music className="size-10 text-muted-foreground/40" />
-            <audio
-              src={generation.url}
-              controls
-              preload="metadata"
-              className="w-full max-w-[200px]"
-              onClick={(e) => e.stopPropagation()}
-            />
-          </div>
-        ) : isVideo ? (
-          <video
-            src={generation.url}
-            poster={videoPoster}
-            muted
-            playsInline
-            preload="none"
-            className="h-auto w-full object-cover"
-            style={{ aspectRatio }}
-          />
-        ) : (
-          <BlurUpImage
-            src={imageSrc}
-            alt={buildPromptAltText(generation.prompt)}
-            width={generation.width}
-            height={generation.height}
-            priority={priority}
-            revealStep={revealStep}
-          />
-        )}
-      </button>
+      {detailHref ? (
+        <a
+          href={detailHref}
+          className="block w-full cursor-pointer bg-muted"
+          onClick={(event) => {
+            // 带修饰键或非左键 = 想开新标签，交给浏览器。
+            if (
+              event.button !== 0 ||
+              event.metaKey ||
+              event.ctrlKey ||
+              event.shiftKey ||
+              event.altKey
+            ) {
+              return
+            }
+            event.preventDefault()
+            onOpenDetail(
+              toMediaTransitionOrigin(
+                event.currentTarget.getBoundingClientRect(),
+              ),
+            )
+          }}
+          aria-label={openLabel}
+        >
+          {media}
+        </a>
+      ) : (
+        <button
+          type="button"
+          className="block w-full cursor-pointer bg-muted"
+          onClick={(event) =>
+            onOpenDetail(
+              toMediaTransitionOrigin(
+                event.currentTarget.getBoundingClientRect(),
+              ),
+            )
+          }
+          aria-label={openLabel}
+        >
+          {media}
+        </button>
+      )}
       {generation.referenceImageUrl && (
         // ⚠ 三档模态色已去色（32 ③，ui-defaults §2.3）：模态色只活在 prompts 域，
         //   这里的角标改走与右上角图层角标同一块中性玻璃 —— 模态本来就写在卡上，

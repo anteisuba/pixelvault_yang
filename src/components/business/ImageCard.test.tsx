@@ -176,6 +176,56 @@ describe('ImageCard', () => {
     expect(await screen.findByTestId('detail-modal')).toBeInTheDocument()
   })
 
+  it('renders public work as a crawlable link to its detail page', () => {
+    const onOpen = vi.fn()
+    renderCard({ onOpen })
+
+    const opener = screen.getByRole('link', { name: 'Open Image' })
+    expect(opener).toHaveAttribute('href', '/en/gallery/gen_card_001')
+
+    // 普通左键：留在画廊、交给查看器，⛔ 跳页。
+    const click = fireEvent.click(opener)
+    expect(click).toBe(false) // defaultPrevented
+    expect(onOpen).toHaveBeenCalledWith(BASE_GEN)
+  })
+
+  it('lets ⌘/Ctrl-click fall through to the browser (new tab)', () => {
+    const onOpen = vi.fn()
+    renderCard({ onOpen })
+
+    const opener = screen.getByRole('link', { name: 'Open Image' })
+    opener.addEventListener('click', (event) => event.preventDefault())
+    fireEvent.click(opener, { metaKey: true })
+    fireEvent.click(opener, { ctrlKey: true })
+
+    expect(onOpen).not.toHaveBeenCalled()
+  })
+
+  it('keeps private work and audio as a plain button (no detail page to link)', () => {
+    const { unmount } = renderCard({
+      generation: { ...BASE_GEN, isPublic: false },
+    })
+    expect(
+      screen.getByRole('button', { name: 'Open Image' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('link', { name: 'Open Image' }),
+    ).not.toBeInTheDocument()
+    unmount()
+
+    renderCard({
+      generation: {
+        ...BASE_GEN,
+        outputType: 'AUDIO',
+        url: 'https://r2.example.com/a.mp3',
+        mimeType: 'audio/mpeg',
+      },
+    })
+    expect(
+      screen.getByRole('button', { name: 'Open Image' }),
+    ).toBeInTheDocument()
+  })
+
   it('does not open anything from ♥, download or the creator chip', () => {
     const onOpen = vi.fn()
     renderCard({ generation: { ...BASE_GEN, creator: ALICE }, onOpen })

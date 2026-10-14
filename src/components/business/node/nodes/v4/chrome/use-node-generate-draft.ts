@@ -84,7 +84,8 @@ export function useNodeGenerateDraft({
     void generation
       .generateNode(
         id,
-        { nodes: canvas.nodes, edges: canvas.edges },
+        // op 之后的图：`set_prompt` 刚把新写的 @ 落成连线（见 `readGraph`）。
+        canvas.readGraph(),
         {
           prompt: draft,
           // 落 job id = 持久化「有一单在飞」：刷新之后由回填 hook 取回结果。

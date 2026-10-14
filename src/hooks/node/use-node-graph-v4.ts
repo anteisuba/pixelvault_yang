@@ -224,6 +224,12 @@ export interface NodeGraphV4 {
   /** 展开卡右侧邻居的让位偏移（渲染期加到 position 上）。 */
 
   /* ── 图动作 ────────────────────────────────────────────────────────── */
+  /**
+   * 此刻的图（含本次渲染之后刚 `dispatch` 进去的改动）。⚠ 「先发 op 再拿图去做下一步」
+   * 的调用方（发送 = `set_prompt` 建 @ 连线 → 立刻生成）必须读这里，渲染闭包里的
+   * `nodes` / `edges` 还是 op 之前那份。
+   */
+  readState(): NodeWorkflowStateV4
   dispatch(op: NodeAssistantOpV4): boolean
   dispatchBatch(ops: readonly NodeAssistantOpV4[]): NodeGraphV4BatchResult
   /**
@@ -470,6 +476,8 @@ export function useNodeGraphV4({
    * `changedNodeIds` 里 —— 顺手记一笔比事后反查便宜也准。
    */
   const lastCreatedRef = useRef<string | null>(null)
+
+  const readState = useCallback(() => stateRef.current, [])
 
   const dispatch = useCallback(
     (op: NodeAssistantOpV4): boolean => {
@@ -1169,6 +1177,7 @@ export function useNodeGraphV4({
     state,
     nodes: state.nodes,
     edges: state.edges,
+    readState,
     rfNodes: rendered.nodes,
     onRfNodesChange,
     selectedNodeIds,

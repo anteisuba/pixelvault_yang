@@ -118,6 +118,15 @@ export interface NodeV4CanvasContextValue {
     Record<NodeWorkflowMediaKind, NodeWorkflowModelOption[]>
   >
   onSetPrompt(nodeId: string, prompt: string): void
+  /**
+   * 此刻的图（含刚发出去、还没重渲染的 op）。发送那一下先 `onSetPrompt`（这一步才把
+   * 正文里的 @ 落成连线）再生成 —— 生成要读这里，⛔ 用渲染闭包里的 `nodes` / `edges`
+   * （第一次发送会漏掉刚 @ 的参考）。
+   */
+  readGraph(): {
+    readonly nodes: readonly NodeV4[]
+    readonly edges: readonly NodeWorkflowEdgeV4[]
+  }
   onSetModel(nodeId: string, model: NodeWorkflowModelSelection): void
   onSetParams(nodeId: string, params: NodeV4GenerationParams): void
   onSetMedia(nodeId: string, patch: NodeV4MediaPatch): void

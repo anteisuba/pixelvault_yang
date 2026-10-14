@@ -272,6 +272,10 @@ function harness(
     onEditText: vi.fn(),
     onDeriveFromText: vi.fn(),
     onSetPrompt: vi.fn(),
+    // 卡在发送那一下读「op 之后的图」—— 测试里就是这份上下文自己的 nodes / edges。
+    readGraph() {
+      return { nodes: this.nodes, edges: this.edges }
+    },
     onSetModel: vi.fn(),
     onSetParams: vi.fn(),
     onSetMedia: vi.fn(),

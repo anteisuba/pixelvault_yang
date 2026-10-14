@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { useStudioData, useStudioForm } from '@/contexts/studio-context'
 import { NovelAiCharacterLayoutSchema } from '@/types/novelai'
 import { isAspectRatio } from '@/constants/config'
+import { STUDIO_AUTOGENERATE_QUERY } from '@/constants/routes'
 
 /**
  * Hydrate the studio form from `?prompt= &seed= &negativePrompt= &aspectRatio=`
@@ -25,6 +26,14 @@ export function useStudioReplayFromUrl(): void {
   // re-apply replay params (the user may have edited the prompt in the
   // meantime; clobbering it would be very rude).
   const hasApplied = useRef(false)
+  const autoGenerateTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(
+    () => () => {
+      if (autoGenerateTimer.current) clearTimeout(autoGenerateTimer.current)
+    },
+    [],
+  )
 
   useEffect(() => {
     if (hasApplied.current) return
@@ -67,6 +76,7 @@ export function useStudioReplayFromUrl(): void {
     }
 
     hasApplied.current = true
+    let autoGenerate = false
 
     if (referenceImages.length > 0) {
       imageUpload.clearAllImages()
@@ -77,6 +87,10 @@ export function useStudioReplayFromUrl(): void {
     // in the URL is more likely a serialisation accident than intent.
     if (promptParam && promptParam.trim().length > 0) {
       dispatch({ type: 'SET_PROMPT', payload: promptParam })
+      // 手机 ＋ 面板那一句话（`studioImageGeneratePath`）：填完直接出图。
+      if (searchParams.get(STUDIO_AUTOGENERATE_QUERY) === '1') {
+        autoGenerate = true
+      }
     }
 
     if (aspectRatioParam && isAspectRatio(aspectRatioParam)) {
@@ -113,10 +127,20 @@ export function useStudioReplayFromUrl(): void {
       'novelAiLayout',
       'aspectRatio',
       'referenceImage',
+      STUDIO_AUTOGENERATE_QUERY,
     ]) {
       consumedUrl.searchParams.delete(key)
     }
     window.history.replaceState(window.history.state, '', consumedUrl)
+
+    // ⚠ 推到下一拍再扣扳机：首帧 `useIsMobile()` 还是 false，挂着的是桌面输入框；
+    // 量完视口才换成手机那颗。`REQUEST_GENERATE` 的执行端只认挂载之后的新请求，
+    // 这一枪若赶在换挂载之前发出，新挂上的那颗会把它当旧账吞掉。
+    if (autoGenerate) {
+      autoGenerateTimer.current = setTimeout(() => {
+        dispatch({ type: 'REQUEST_GENERATE' })
+      }, 0)
+    }
     // state intentionally not in deps: this effect must run on mount
     // only. `state` snapshot is OK here because we apply once and lock
     // — subsequent edits go through normal user-driven dispatches.

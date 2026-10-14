@@ -182,7 +182,7 @@ studio 内容裁出视口，是因为侧栏能展开到 144；平板档现在钉
 **手机 P3**（`MobileShell.tsx`，原型 v10 `U28UWBvWsYEGvEvQRR6sjq`）：
 
 - **底栏**：玻璃底 + 上边线，6px 上衬 + 52px 一行 + 底部安全区（`--spacing-mobile-tabbar`）；格子是 24 图标 + 11 字，当前页墨字加粗。条目按 id 从 `SHELL_NAV_GO` 取（`MOBILE_TAB_IDS`），⛔ 不另抄；提示词不上底栏，收进「我的」。
-- **＋**：52 方块、16 圆角、黑底、上浮 10px。点开是新建面板（从 ＋ 长出来，`CHIP_POPOVER` 缩放 + 由糊变清，`SPRING.slot`）：顶上一句话输入（提交 = 带 `?prompt=` 进图片工作台，**只填不出图**），下面六个工具，上次用的标「上次」。＋ 转 45° 变 ×。**长按 ＋**（`MOBILE_CREATE_LONG_PRESS_MS`）直接进上次的工具。
+- **＋**：52 方块、16 圆角、黑底、上浮 10px。点开是新建面板（从 ＋ 长出来，`CHIP_POPOVER` 缩放 + 由糊变清，`SPRING.slot`）：顶上一句话输入（提交 = 带 `?prompt=&generate=1` 进图片工作台**直接出图**，v10 稿第 2 条；缺 key 等闸门照常拦），下面六个工具，上次用的标「上次」。＋ 转 45° 变 ×。**长按 ＋**（`MOBILE_CREATE_LONG_PRESS_MS`）直接进上次的工具。
 - **工作台顶栏**：← 回到进工作台之前那一页（没有记录回素材），中间「当前工具 ▾」就地换工具，右端一格留给助手头像。「上次的工具」与「← 去哪」是本地记忆（`use-mobile-nav-memory.ts`）。
 - **主区让位**：`MobileShellInset` 按路由给 `mobile-inset-topbar` / `mobile-inset-tabbar`，`h-page` 读它写的 `--mobile-chrome-height`。底栏挂 `useToastLift`，黑条浮在它上面。
 - **账号与设置**：底栏上没有。「我的」页（自己的主页）封面右上 ⚙ 挂**同一颗** `AccountMenu`；「作品 | 提示词」分页做好之前，⚙ 旁边先留一个提示词入口。

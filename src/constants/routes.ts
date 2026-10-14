@@ -218,12 +218,19 @@ export function studioImageWithCharacterPath(characterCardId: string): string {
   return `${ROUTES.STUDIO_IMAGE}?${params.toString()}`
 }
 
+/** 回放深链里「到了就出图」的查询参数名（只跟 `prompt` 一起才生效）。 */
+export const STUDIO_AUTOGENERATE_QUERY = 'generate'
+
 /**
- * 图片工作台深链：把一句话填进输入框（手机 ＋ 面板顶上那一行，owner 2026-10-09 v10）。
- * 只填不出图 —— 走的是 `useStudioReplayFromUrl` 那条 `?prompt=` 回放。
+ * 图片工作台深链：带着一句话进来直接出图（手机 ＋ 面板顶上那一行，owner 2026-10-09
+ * v10「点生成直接进图片台开始出图」）。走 `useStudioReplayFromUrl` 那条 `?prompt=`
+ * 回放，再补一次 `REQUEST_GENERATE` —— 缺 key、没选模型等闸门照常拦。
  */
-export function studioImageWithPromptPath(prompt: string): string {
-  const params = new URLSearchParams({ prompt })
+export function studioImageGeneratePath(prompt: string): string {
+  const params = new URLSearchParams({
+    prompt,
+    [STUDIO_AUTOGENERATE_QUERY]: '1',
+  })
   return `${ROUTES.STUDIO_IMAGE}?${params.toString()}`
 }
 

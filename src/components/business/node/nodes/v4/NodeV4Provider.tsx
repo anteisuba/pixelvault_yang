@@ -186,6 +186,12 @@ export function NodeV4Provider({
     [dispatch],
   )
 
+  const readState = engine.readState
+  const readGraph = useCallback(() => {
+    const { nodes, edges } = readState()
+    return { nodes, edges }
+  }, [readState])
+
   const onSetModel = engine.setModel
   const onSetMedia = engine.setMedia
   const onSelectNode = useCallback(
@@ -223,6 +229,7 @@ export function NodeV4Provider({
       onEditText,
       onDeriveFromText: onDeriveFromText ?? (() => {}),
       onSetPrompt,
+      readGraph,
       onSetModel,
       onSetParams,
       onSetMedia,
@@ -257,6 +264,7 @@ export function NodeV4Provider({
       onEditText,
       onDeriveFromText,
       onSetPrompt,
+      readGraph,
       onSetModel,
       onSetParams,
       onSetMedia,

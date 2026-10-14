@@ -61,6 +61,12 @@ vi.mock('@/hooks/node/use-node-media-generation-v4', () => ({
   useNodeMediaGenerationV4: () => ({ generateNode, isLoading: false }),
 }))
 
+const cancelJobs = vi.fn()
+vi.mock('@/lib/api-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
+  cancelGenerationsAPI: (...args: unknown[]) => cancelJobs(...args),
+}))
+
 vi.mock(
   '@/components/business/studio-shared/pickers/ModelPickerPopover',
   () => ({
@@ -147,6 +153,10 @@ function harness(
     onEditText: vi.fn(),
     onDeriveFromText: vi.fn(),
     onSetPrompt: vi.fn(),
+    // 卡在发送那一下读「op 之后的图」—— 测试里就是这份上下文自己的 nodes / edges。
+    readGraph() {
+      return { nodes: this.nodes, edges: this.edges }
+    },
     onSetModel: vi.fn(),
     onSetParams: vi.fn(),
     onSetMedia: vi.fn(),
@@ -617,6 +627,48 @@ describe('选中态：工具条 + 提示词栏', () => {
     fireEvent.keyDown(input, { key: 'Enter' })
     expect(context.onSetPrompt).toHaveBeenCalledWith('i_1', '站台，夜')
     expect(generateNode).toHaveBeenCalled()
+  })
+
+  it('发送读 op 之后的图：刚 @ 出来的参考连线这一枪就带上', () => {
+    const fresh = {
+      id: 'e_mention',
+      source: 'i_ref',
+      target: 'i_1',
+    } as unknown as NodeV4CanvasContextValue['edges'][number]
+    const context = selectedContext()
+    context.readGraph = () => ({ nodes: context.nodes, edges: [fresh] })
+    renderImage(context, 'i_1', true)
+    const input = document.querySelector(
+      '[data-prompt-bar-input]',
+    ) as HTMLTextAreaElement
+    fireEvent.change(input, { target: { value: '站台 @i_ref' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(generateNode.mock.lastCall?.[1].edges).toEqual([fresh])
+  })
+
+  it('取消 = 剩下的几枪不再发，在飞那一单向服务端取消', async () => {
+    let options: Parameters<GenerateNode>[2] | undefined
+    generateNode.mockImplementationOnce(async (_id, _graph, opts) => {
+      options = opts
+      return new Promise(() => {})
+    })
+    const context = selectedContext()
+    renderImage(context, 'i_1', true)
+    const input = document.querySelector(
+      '[data-prompt-bar-input]',
+    ) as HTMLTextAreaElement
+    fireEvent.change(input, { target: { value: '站台，夜' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    act(() => options?.onJobCreated?.('job_1'))
+    expect(options?.shouldContinue?.()).toBe(true)
+    fireEvent.click(
+      document.querySelector('[data-prompt-bar-cancel]') as HTMLElement,
+    )
+    expect(options?.shouldContinue?.()).toBe(false)
+    expect(cancelJobs).toHaveBeenCalledWith(['job_1'])
+    expect(context.onSetMedia).toHaveBeenLastCalledWith('i_1', {
+      mediaJobId: undefined,
+    })
   })
 
   /**

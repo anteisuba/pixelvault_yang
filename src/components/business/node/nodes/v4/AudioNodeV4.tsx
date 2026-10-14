@@ -387,7 +387,9 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
     if (draft !== currentPrompt) canvas.onSetPrompt(id, draft)
     if (!audioData.model && effectiveModel)
       canvas.onSetModel(id, effectiveModel)
-    const nodes = canvas.nodes.map((item) =>
+    // 读 op 之后的图：`set_prompt` 刚把新写的 @ 落成连线（见 `readGraph`）。
+    const graph = canvas.readGraph()
+    const nodes = graph.nodes.map((item) =>
       item.id === id && effectiveModel
         ? ({
             ...item,
@@ -399,7 +401,7 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
     void generation
       .generateNode(
         id,
-        { nodes, edges: canvas.edges },
+        { nodes, edges: graph.edges },
         {
           // ⚠ 送出去的是**编译后**的台词（`[very angry]…`）——原文留在节点上，
           // 编译只发生在送出的那一刻（装配层同一条：`planV4Generation`）。

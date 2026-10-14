@@ -500,7 +500,9 @@ export function useVideoComposer({
     }
     // ⚠ 这一枪读的图是**打过补丁的**那份：上面两次写是异步落库，这一帧的
     // `canvas.nodes` 还是旧的，照它发出去就会少掉模型（发不出）与默认档。
-    const nodes = canvas.nodes.map((item) =>
+    // 连线读 op 之后的图（`readGraph`）：发送前的 `set_prompt` 刚把新写的 @ 落成连线。
+    const graph = canvas.readGraph()
+    const nodes = graph.nodes.map((item) =>
       item.id === id
         ? ({
             ...item,
@@ -519,7 +521,7 @@ export function useVideoComposer({
     return generation
       .generateNode(
         id,
-        { nodes, edges: canvas.edges },
+        { nodes, edges: graph.edges },
         {
           prompt: draft,
           onJobCreated: (jobId) => {

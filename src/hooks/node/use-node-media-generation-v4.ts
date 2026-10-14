@@ -646,6 +646,11 @@ export function useNodeMediaGenerationV4() {
          * 一枪，前面几张会一张都不落。
          */
         onEach?(result: Awaited<ReturnType<typeof inner.generate>>): void
+        /**
+         * 张数 > 1 时每发下一枪前问一次；返回 false = 用户取消了，剩下的⛔ 再发
+         * （每一枪都扣钱）。
+         */
+        shouldContinue?(): boolean
       } = {},
     ) => {
       const plan = planV4Generation(nodeId, graph, {
@@ -776,6 +781,7 @@ export function useNodeMediaGenerationV4() {
       let last = await runOnce()
       collect(last)
       for (let i = 1; i < times; i += 1) {
+        if (options.shouldContinue && !options.shouldContinue()) break
         last = await runOnce()
         collect(last)
       }

@@ -63,6 +63,7 @@ import { useNodeUploadV4 } from '@/hooks/node/use-node-upload-v4'
 import { useNodeSearchGrounding } from '@/hooks/node/use-node-search-grounding'
 import { resolveGeneratingStageKey } from '@/lib/generation-progress'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
+import { cancelGenerationsAPI } from '@/lib/api-client'
 import { renameStableNodeName } from '@/lib/node-display-name'
 import { pickDefaultModelOption } from '@/lib/pick-default-model-option'
 import type { ReadyCanvasImageEditCapabilityId } from '@/types/canvas-image-edit'
@@ -137,6 +138,15 @@ export { collapsedImageWidth, formatSizeBytes }
 /** 「生镜头」那一批里指代新建镜头的别名（只在这一批之内有效）。 */
 const SHOT_BATCH_REF = 'shot'
 
+/** 一次发送（张数 N = N 枪）。取消只认这一份，⛔ 认「卡上现在的 job」。 */
+interface ImageSubmission {
+  cancelled: boolean
+  /** 当前在飞那一枪的 job id（`onJobCreated` 回来才有）。 */
+  jobId?: string
+  /** 已经向服务端发过取消，⛔ 再发。 */
+  cancelRequested?: boolean
+}
+
 /** 空卡高：16:9（画板 280×200 那张的同一档比例）。 */
 function emptyCardHeight(width: number): number {
   return Math.round((width * 9) / 16)
@@ -202,7 +212,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
     readonly VideoRailEntry[] | null
   >(null)
   const [startedAt, setStartedAt] = useState<number | null>(null)
-  const submissionRef = useRef<{ cancelled: boolean } | null>(null)
+  const submissionRef = useRef<ImageSubmission | null>(null)
   const [elapsed, setElapsed] = useState(0)
   const fileRef = useRef<HTMLInputElement>(null)
   const promptInputRef = useRef<HTMLTextAreaElement>(null)
@@ -463,12 +473,27 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
     return true
   }
 
+  /**
+   * 取消在飞的那一单（尽力而为，同视频卡）：服务端停掉 job、卡上的「在飞」标记
+   * 清掉。已经出完的那张照常落卡 —— 钱已经花了；剩下几张由 `shouldContinue` 拦住。
+   */
+  const cancelSubmission = (submission: ImageSubmission) => {
+    const jobId = submission.jobId
+    if (!jobId || submission.cancelRequested) return
+    submission.cancelRequested = true
+    canvas.onSetMedia(id, { mediaJobId: undefined })
+    void cancelGenerationsAPI([jobId])
+  }
+
   const submitPrompt = () => {
     if (draft.trim().length === 0 || generating) return
     if (draft !== currentPrompt) canvas.onSetPrompt(id, draft)
     if (!imageData.model && effectiveModel)
       canvas.onSetModel(id, effectiveModel)
-    const nodes = canvas.nodes.map((item) =>
+    // 读 op 之后的图：上面那句 `set_prompt` 刚把正文里新写的 @ 落成连线，渲染闭包里
+    // 的 `canvas.edges` 还没有它们 —— 用旧的会让这一枪漏掉刚 @ 的参考图。
+    const graph = canvas.readGraph()
+    const nodes = graph.nodes.map((item) =>
       item.id === id && effectiveModel
         ? ({
             ...item,
@@ -476,20 +501,25 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
           } as NodeV4)
         : item,
     )
-    const submission = { cancelled: false }
+    const submission: ImageSubmission = { cancelled: false }
     submissionRef.current = submission
     canvas.onSetMedia(id, { generationFailure: undefined })
     setStartedAt(Date.now())
     void generation
       .generateNode(
         id,
-        { nodes, edges: canvas.edges },
+        { nodes, edges: graph.edges },
         {
           prompt: draft,
+          // 取消之后剩下的几张⛔ 再发：每一枪都扣钱。
+          shouldContinue: () => !submission.cancelled,
           // 落 job id = 持久化「有一单在飞」：刷新之后由回填 hook 取回结果。
           onJobCreated: (jobId) => {
             if (submissionRef.current !== submission) return
+            submission.jobId = jobId
             canvas.onSetMedia(id, { mediaJobId: jobId })
+            // 取消落在「请求已发、job id 还没回来」之间：拿到 id 立刻补一刀。
+            if (submission.cancelled) cancelSubmission(submission)
           },
           // ⚠ 回填写在 `onEach` 里而不是 `.then`：张数 > 1 时是顺序发的 N 枪，
           // `.then` 只拿得到最后一枪 —— 前面几张会一张都不落。每一枪各追加一个
@@ -1094,7 +1124,11 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
                 }
               : {})}
             onCancel={() => {
-              if (submissionRef.current) submissionRef.current.cancelled = true
+              const submission = submissionRef.current
+              if (submission) {
+                submission.cancelled = true
+                cancelSubmission(submission)
+              }
               setStartedAt(null)
             }}
             placeholder={tImage('promptPlaceholder')}

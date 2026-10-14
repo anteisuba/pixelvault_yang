@@ -273,6 +273,19 @@ describe('v3 内核', () => {
     expect(events[1]).toMatchObject({ text: 'S04b 现在接了高尔一张参考。' })
   })
 
+  it('自动生成开着：这一轮的话前面挂一行 AUTO-GENERATE ON（带张数上限），关着不挂', async () => {
+    const on = script(textTurn('好。'))
+    await collect(runAssistantV3('clerk-1', request({ autoGenerate: true })))
+    expect(promptText(on.doStreamCalls[0]!)).toContain(
+      'AUTO-GENERATE ON — at most 4 pictures this turn in total.',
+    )
+    const off = script(textTurn('好。'))
+    await collect(runAssistantV3('clerk-1', request()))
+    expect(promptText(off.doStreamCalls[0]!)).not.toContain(
+      'AUTO-GENERATE ON —',
+    )
+  })
+
   it('断线：按从哪到哪换成真 edgeId，交给前端落，停在 canvas_sync 并带上本轮记录', async () => {
     script(toolTurn(disconnectGoyle))
     plan.mockImplementation(async (_run, tool, args) => ({
@@ -534,6 +547,118 @@ describe('v3 内核', () => {
       text: '这一步模型没有给出任何回复，什么都没改。再说一次，或者换个说法。',
     })
     expect(twice.at(-1)).toMatchObject({ type: 'done' })
+  })
+
+  it('改动已经落下、收尾那一步空回复：不重试，⛔ 不说「什么都没改」', async () => {
+    script(toolTurn(disconnectGoyle))
+    plan.mockImplementation(async (_run, _tool, args) => ({
+      kind: 'mutate',
+      payload: args,
+      inverse: { op: 'batch', nodeRef: S04B },
+      observation: 'queued',
+      apply: () => {},
+    }))
+    const first = await collect(runAssistantV3('clerk-1', request()))
+    const transcript = (
+      first.find((event) => event.type === 'transcript') as {
+        transcript: AssistantV3Transcript
+      }
+    ).transcript
+
+    const empty: LanguageModelV3StreamPart[] = [
+      {
+        type: 'finish',
+        finishReason: { unified: 'other', raw: undefined },
+        usage,
+      },
+    ]
+    const mock = script(empty, textTurn('不该被问到'))
+    const second = await collect(
+      runAssistantV3(
+        'clerk-1',
+        request({
+          snapshot: { prompt: '', canvas: canvas(false), availableModels: [] },
+          priorSteps: [
+            {
+              tool: 'canvas_batch',
+              status: 'done',
+              summary: '断开',
+              thisTurn: true,
+            },
+          ],
+          v3: { transcript },
+        } as Partial<AssistantOperatorRequest>),
+      ),
+    )
+    expect(mock.doStreamCalls).toHaveLength(1)
+    const message = second.find((event) => event.type === 'message') as {
+      text: string
+    }
+    expect(message.text).toContain('已经落下')
+    expect(message.text).not.toContain('什么都没改')
+    expect(second.at(-1)).toMatchObject({ type: 'done' })
+  })
+
+  it('模型一直不回第一个分片：到点掐掉、原样重问一次，⛔ 不干等到硬线', async () => {
+    vi.useFakeTimers()
+    try {
+      const queue = [null, textTurn('好了。')]
+      const mock = new MockLanguageModelV3({
+        doStream: async (options) => {
+          const chunks = queue.shift()
+          if (chunks) {
+            return { stream: simulateReadableStream({ chunks }) }
+          }
+          // 一个分片都不给，直到被 abort。
+          return {
+            stream: new ReadableStream<LanguageModelV3StreamPart>({
+              start(controller) {
+                options.abortSignal?.addEventListener('abort', () =>
+                  controller.error(new DOMException('aborted', 'AbortError')),
+                )
+              },
+            }),
+          }
+        },
+      })
+      model.current = mock
+      const pending = collect(runAssistantV3('clerk-1', request()))
+      await vi.advanceTimersByTimeAsync(61_000)
+      const events = await pending
+      expect(mock.doStreamCalls).toHaveLength(2)
+      expect(events.at(-2)).toMatchObject({ type: 'message', text: '好了。' })
+      expect(events.at(-1)).toMatchObject({ type: 'done' })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('重问一次还是不回：报提供商超时（可重试的那种错）', async () => {
+    vi.useFakeTimers()
+    try {
+      const mock = new MockLanguageModelV3({
+        doStream: async (options) => ({
+          stream: new ReadableStream<LanguageModelV3StreamPart>({
+            start(controller) {
+              options.abortSignal?.addEventListener('abort', () =>
+                controller.error(new DOMException('aborted', 'AbortError')),
+              )
+            },
+          }),
+        }),
+      })
+      model.current = mock
+      const pending = collect(runAssistantV3('clerk-1', request())).catch(
+        (error: unknown) => error,
+      )
+      await vi.advanceTimersByTimeAsync(61_000)
+      await vi.advanceTimersByTimeAsync(61_000)
+      const result = await pending
+      expect(mock.doStreamCalls).toHaveLength(2)
+      expect(result).toMatchObject({ errorCode: 'PROVIDER_TIMEOUT' })
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('过程行：同一批新建的卡写卡名、剧本镜头卡写镜号', async () => {

@@ -145,7 +145,7 @@ describe('GenerationPreview — 问助手 entry', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'toolAskAssistant' }))
     expect(askAssistantMock).toHaveBeenCalledWith(
-      'https://cdn.example.com/gen-1.png',
+      expect.objectContaining({ url: 'https://cdn.example.com/gen-1.png' }),
     )
   })
 
@@ -173,7 +173,7 @@ describe('GenerationPreview — 问助手 entry', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'toolAskAssistant' }))
     expect(askAssistantMock).toHaveBeenCalledWith(
-      'https://cdn.example.com/gen-1.png',
+      expect.objectContaining({ url: 'https://cdn.example.com/gen-1.png' }),
     )
   })
 })

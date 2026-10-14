@@ -352,6 +352,9 @@ function collectCanvasChangedCards(
   entries: readonly StudioOperatorThreadEntry[],
   runKey: string,
   nameOf: (nodeId: string) => string | undefined,
+  createdIdOf:
+    | ((stepId: string, ref: string) => string | undefined)
+    | undefined,
   label: (key: string) => string,
 ): readonly StudioOperatorChangedCard[] {
   const touched = new Map<string, string[]>()
@@ -371,12 +374,18 @@ function collectCanvasChangedCards(
     } else continue
     for (const op of ops) {
       const key = CANVAS_OP_FIELD_KEYS[op.op] ?? 'field.canvasNodes'
-      const ref =
-        'target' in op && typeof op.target === 'string'
-          ? op.target
-          : 'scriptNodeId' in op
-            ? op.scriptNodeId
-            : fallbackRef
+      const raw =
+        op.op === NODE_ASSISTANT_OP_V4_IDS.addNode
+          ? op.ref
+          : 'target' in op && typeof op.target === 'string'
+            ? op.target
+            : 'scriptNodeId' in op
+              ? op.scriptNodeId
+              : fallbackRef
+      // ⚠ 同批新建的卡在载荷里只有临时名（`new1`）：换成宿主记下的真 id，
+      //   否则它们在清单里查不到名字、整行被丢，新卡点不到也定位不了。
+      const ref = raw ? (createdIdOf?.(step.id, raw) ?? raw) : undefined
+      if (!ref) continue
       const keys = touched.get(ref) ?? []
       if (!keys.includes(key)) keys.push(key)
       touched.set(ref, keys)
@@ -1726,6 +1735,7 @@ export function StudioOperatorPanel({
               allEntries,
               block.runKey,
               operatorHost.canvasTargets.nameOf,
+              operatorHost.canvasTargets.createdIdOf,
               (key) => t(key),
             )
           : []
@@ -2439,8 +2449,11 @@ export function StudioOperatorPanel({
                     outOfSteps && status === 'idle' ? (
                       <div
                         data-testid="operator-out-of-steps"
-                        className="mt-2.5 flex flex-wrap gap-1.5"
+                        className="mt-2.5 flex flex-wrap items-center gap-1.5"
                       >
+                        <p className="w-full text-xs text-muted-foreground">
+                          {t('outOfSteps.note')}
+                        </p>
                         <button
                           type="button"
                           data-testid="operator-out-of-steps-continue"
@@ -2471,14 +2484,19 @@ export function StudioOperatorPanel({
                         <StudioOperatorErrorBar
                           text={errorText ?? t('error.generic')}
                           trace={errorTrace}
-                          {...(errorCode === 'MISSING_API_KEY'
-                            ? {
-                                action: {
+                          action={
+                            errorCode === 'MISSING_API_KEY'
+                              ? {
                                   label: t('error.addKey'),
                                   onClick: () => setKeySetupOpen(true),
-                                },
-                              }
-                            : {})}
+                                }
+                              : {
+                                  /* ⭐ 出错了就地重试（2026-10-14）：发一句「接着做完」，
+                                     ⛔ 不原样重放上一条 —— 中途落下的改动还在，重放会重做一遍。 */
+                                  label: t('error.retry'),
+                                  onClick: () => send(t('error.retryPrompt')),
+                                }
+                          }
                         />
                       </StudioOperatorTimelineRow>
                     ) : null,

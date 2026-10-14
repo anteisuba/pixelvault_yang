@@ -10,6 +10,7 @@ import {
 
 import { assistantAdapterSupportsImage } from '@/constants/assistant'
 import {
+  ASSISTANT_AUTO_GENERATE_LIMITS,
   ASSISTANT_OPERATOR_CANVAS_LIMITS,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
   ASSISTANT_OPERATOR_EVENTS,
@@ -21,6 +22,7 @@ import {
   ASSISTANT_RESEARCH_LIMITS,
 } from '@/constants/assistant-operator'
 import {
+  ASSISTANT_V3_CALL_TIMEOUT,
   ASSISTANT_V3_EDIT_OP_IDS,
   ASSISTANT_V3_FACE_IDS,
   ASSISTANT_V3_LIMITS,
@@ -265,6 +267,21 @@ const EMPTY_REPLY_MESSAGES: Record<PromptAssistantResponseLanguage, string> = {
     'The model gave no reply this time, so nothing changed. Say it again, or put it another way.',
 }
 
+/**
+ * 这一轮已经有改动落下、模型最后一步却一个字没说时的收尾句。
+ * 🔬 从前这里也说「什么都没改」—— 与上面过程行里刚落下的改动正好相反。
+ */
+const LANDED_EMPTY_REPLY_MESSAGES: Record<
+  PromptAssistantResponseLanguage,
+  string
+> = {
+  chinese: '上面的改动已经落下了，详情见过程行。还要调整就直接说。',
+  japanese:
+    '上の変更は反映済みです。詳細はプロセス行をご覧ください。調整が必要ならそのまま伝えてください。',
+  english:
+    'The changes above have landed — see the step lines for details. Tell me if anything needs adjusting.',
+}
+
 const NOT_RUN_WHILE_BOARD_CHANGES =
   'Not run: an edit in this same reply is still landing on the board. Call it again in your next step if you still need it.'
 const NOT_RUN_AFTER_STOP = 'Not run: this turn stopped to wait for the creator.'
@@ -458,6 +475,7 @@ function currentUserMessage(
   images: readonly ({ data: Buffer; mediaType: string } | null)[],
   latest: string,
   autoReview: boolean,
+  autoGenerate: boolean,
 ): ModelMessage {
   const content: Exclude<UserContent, string> = [
     { type: 'text', text: board.text },
@@ -484,7 +502,9 @@ function currentUserMessage(
     type: 'text',
     text: autoReview
       ? `AUTO REVIEW — the app attached a fresh result the creator set to run automatically. Look at it once against its references and prompt, then say in one or two sentences whether it matches and, if not, the one or two things most off. Change nothing unless they ask.\n\n${latest}`
-      : `THE CREATOR SAYS:\n${latest}`,
+      : autoGenerate
+        ? `AUTO-GENERATE ON — at most ${ASSISTANT_AUTO_GENERATE_LIMITS.maxOutputsPerRound} pictures this turn in total.\n\nTHE CREATOR SAYS:\n${latest}`
+        : `THE CREATOR SAYS:\n${latest}`,
   })
   return { role: 'user', content }
 }
@@ -880,6 +900,7 @@ async function* runV3Turn(
       await inlineImages(board.images, signal),
       latest,
       request.autoReview === true,
+      request.autoGenerate === true,
     ),
   ]
   const toolSet =
@@ -899,6 +920,7 @@ async function* runV3Turn(
   )
   const lastFailure = { key: '', strikes: 0, title: '' }
   let emptyRetried = false
+  let timeoutRetries = 0
 
   for (let step = 0; step < budget; step += 1) {
     if (signal.aborted) {
@@ -937,6 +959,11 @@ async function* runV3Turn(
       error?: unknown
       signature?: string
     }[] = []
+    /**
+     * 这一次调用自己的计时（`ASSISTANT_V3_CALL_TIMEOUT`）：首个分片、分片间静默、总时长。
+     * ⚠ 自己掐、自己认：SDK 的超时在中断时可能只吐一个 `abort` 分片就收流，不抛错。
+     */
+    const callTimeout = watchV3Call(ASSISTANT_V3_CALL_TIMEOUT)
     try {
       const result = streamText({
         model: model.model,
@@ -945,10 +972,11 @@ async function* runV3Turn(
         tools: toolSet,
         toolChoice: 'auto',
         maxRetries: 2,
-        abortSignal: signal,
+        abortSignal: AbortSignal.any([signal, callTimeout.signal]),
         providerOptions: model.providerOptions(cacheKey),
       })
       for await (const part of result.fullStream) {
+        callTimeout.onChunk()
         if (part.type === 'text-delta') {
           if (!part.text) continue
           text += part.text
@@ -985,6 +1013,7 @@ async function* runV3Turn(
           })
         }
       }
+      if (callTimeout.timedOut()) throw callTimeout.error()
       const usage = await result.usage
       callLog.onUsage({
         ...(usage.inputTokens === undefined
@@ -1010,7 +1039,24 @@ async function* runV3Turn(
         }
         return
       }
+      if (callTimeout.timedOut()) {
+        logger.warn('assistant v3 model call timed out', {
+          userId: clerkId,
+          step,
+          modelId,
+          after: callTimeout.reason(),
+          retry: timeoutRetries < ASSISTANT_V3_CALL_TIMEOUT.retries,
+        })
+        // 原样再问一次：写到一半的正文由下一次的 `restart` 帧整段替掉。
+        if (timeoutRetries < ASSISTANT_V3_CALL_TIMEOUT.retries) {
+          timeoutRetries += 1
+          continue
+        }
+        throw callTimeout.error()
+      }
       throw toProviderError(route.adapterType, error)
+    } finally {
+      callTimeout.dispose()
     }
 
     const knownTools = new Set<string>(ASSISTANT_V3_TOOLS)
@@ -1048,6 +1094,25 @@ async function* runV3Turn(
           text: CONTENT_FILTER_MESSAGES[language],
         }
         yield { type: ASSISTANT_OPERATOR_EVENTS.done }
+        return
+      }
+      /**
+       * 本轮已经有改动落下：模型收尾时不说话很常见（「正文不复述改动」），过程行就是回执。
+       * ⛔ 不再为一句收尾话整段重发一次，也 ⛔ 不说「什么都没改」。
+       */
+      if (hasLandedChanges(transcript)) {
+        yield {
+          type: ASSISTANT_OPERATOR_EVENTS.message,
+          text: LANDED_EMPTY_REPLY_MESSAGES[language],
+        }
+        const roundSummary = await closeRound(run, {
+          clerkId,
+          userId: user.id,
+        })
+        yield {
+          type: ASSISTANT_OPERATOR_EVENTS.done,
+          ...(roundSummary ? { roundSummary } : {}),
+        }
         return
       }
       if (!emptyRetried) {
@@ -1309,6 +1374,54 @@ async function* runV3Turn(
     type: ASSISTANT_OPERATOR_EVENTS.stopped,
     reason: ASSISTANT_OPERATOR_STOP_REASONS.maxSteps,
     ...(roundSummary ? { roundSummary } : {}),
+  }
+}
+
+/** 本轮记录里有没有已经落成的改动（edit / write 的成功结果）。 */
+function hasLandedChanges(transcript: AssistantV3Transcript): boolean {
+  return transcript.some(
+    (entry) =>
+      entry.type === ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.result &&
+      !entry.error &&
+      (entry.tool === ASSISTANT_V3_TOOL_IDS.edit ||
+        entry.tool === ASSISTANT_V3_TOOL_IDS.write),
+  )
+}
+
+type V3CallTimeoutReason = 'first_chunk' | 'idle' | 'total'
+
+/**
+ * 一次模型调用的三只表。`onChunk` 每来一个分片调一次（思考分片也算：DeepSeek /
+ * Claude 想得久时只有它们在走）。到点了就 abort 自己的 signal，并记下是哪只表响的。
+ */
+function watchV3Call(limits: typeof ASSISTANT_V3_CALL_TIMEOUT) {
+  const controller = new AbortController()
+  let reason: V3CallTimeoutReason | null = null
+  const fire = (why: V3CallTimeoutReason) => () => {
+    if (reason) return
+    reason = why
+    controller.abort()
+  }
+  let idle = setTimeout(fire('first_chunk'), limits.firstChunkMs)
+  const total = setTimeout(fire('total'), limits.stepMs)
+  return {
+    signal: controller.signal,
+    onChunk() {
+      clearTimeout(idle)
+      idle = setTimeout(fire('idle'), limits.chunkMs)
+    },
+    timedOut: () => reason !== null,
+    reason: () => reason,
+    error: () =>
+      new ProviderError(
+        'assistant-v3',
+        `Model call timed out (${reason ?? 'unknown'}).`,
+        { timeout: true },
+      ),
+    dispose() {
+      clearTimeout(idle)
+      clearTimeout(total)
+    },
   }
 }
 

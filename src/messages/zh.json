@@ -8238,7 +8238,8 @@
       "imageHandoffAccepted": "已交给图片助手：{subject}",
       "imageHandoffDeclined": "先不交给图片助手：{subject}",
       "workbenchHandoffAccepted": "已换台：{subject}",
-      "workbenchHandoffDeclined": "先不换台：{subject}"
+      "workbenchHandoffDeclined": "先不换台：{subject}",
+      "autoGenerateHeld": "这次要出 {subject} 张，超过自动生成单轮 4 张的上限 —— 没替你按，确认后再出。"
     },
     "attach": {
       "latestResult": "最新 · {label}",
@@ -8339,7 +8340,9 @@
       "copyDetail": "复制详情",
       "copied": "已复制",
       "missingKey": "助手需要你自己的 AI 文本模型 Key。Gemini 的 Key 可以在 Google AI Studio 免费申请。",
-      "addKey": "配置 Key"
+      "addKey": "配置 Key",
+      "retry": "重试",
+      "retryPrompt": "刚才中断了，接着把上一条做完（已经落下的别重做）。"
     },
     "assistantSettings": "助手设置",
     "rule": {
@@ -8560,6 +8563,7 @@
       "label": "自动生成"
     },
     "outOfSteps": {
+      "note": "这一轮的步数用完了，已经落下的改动都保留着。",
       "continue": "继续",
       "stop": "先到这里",
       "continuePrompt": "继续"

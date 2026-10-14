@@ -69,6 +69,12 @@ export interface CanvasBatchResult {
   /** `skipped` 里连线 / 挂载没建成的那一部分（台账 K-2）。 */
   readonly failedConnects: number
   readonly createdNodeIds: readonly string[]
+  /**
+   * 批内别名 → 真 id（`add_node.ref` → 执行器现铸的 id）。助手的改动清单、闪烁与
+   * 定位靠它把 `new1` 这类临时名换成画布上的卡 —— ⛔ 只有 `createdNodeIds` 时
+   * 顺序对不上带 `ref` 的那几条（没给 ref 的建卡也在里面）。
+   */
+  readonly createdRefs: Readonly<Record<string, string>>
   readonly changedNodeIds: readonly string[]
   readonly failures: readonly CanvasBatchFailure[]
 }
@@ -134,6 +140,7 @@ export function applyCanvasBatchV4(
       skipped,
       failedConnects,
       createdNodeIds,
+      createdRefs: Object.fromEntries(refs),
       changedNodeIds: [],
       failures,
     }
@@ -154,6 +161,7 @@ export function applyCanvasBatchV4(
     skipped,
     failedConnects,
     createdNodeIds,
+    createdRefs: Object.fromEntries(refs),
     changedNodeIds: [...changedNodeIds],
     failures,
   }

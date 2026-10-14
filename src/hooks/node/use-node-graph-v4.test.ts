@@ -204,6 +204,42 @@ describe('useNodeGraphV4 · 图动作', () => {
     expect(view.result.current.canUndo).toBe(false)
   })
 
+  it('同一个 tick 里连撤几步：每一步都真撤掉，栈也逐条弹出（整轮撤销）', () => {
+    const { view } = renderGraph(stateOf([firstFrame, shot]))
+    act(() => {
+      view.result.current.connect('img1', 'shot1', NODE_SLOT_IDS.firstFrame)
+    })
+    act(() => {
+      view.result.current.deleteNodes(['img1'])
+    })
+    expect(view.result.current.nodes.map((n) => n.id)).toEqual(['shot1'])
+
+    // 助手「撤销这一轮」在一个 act 里连调 —— 第二次 undo 必须看到第一次之后的栈与 state。
+    const results: boolean[] = []
+    act(() => {
+      results.push(view.result.current.undo())
+      results.push(view.result.current.undo())
+      results.push(view.result.current.undo())
+    })
+    expect(results).toEqual([true, true, false])
+    expect(view.result.current.nodes.map((n) => n.id).sort()).toEqual([
+      'img1',
+      'shot1',
+    ])
+    expect(view.result.current.edges).toEqual([])
+    expect(view.result.current.canUndo).toBe(false)
+
+    // 两步都进了重做栈，能原样重做回来。
+    act(() => {
+      view.result.current.redo()
+    })
+    act(() => {
+      view.result.current.redo()
+    })
+    expect(view.result.current.nodes.map((n) => n.id)).toEqual(['shot1'])
+    expect(view.result.current.canRedo).toBe(false)
+  })
+
   it('duplicate 只克隆形状：同 kind/subtype，不带媒体', () => {
     const { view } = renderGraph(stateOf([firstFrame]))
     act(() => {

@@ -425,6 +425,28 @@ describe('buildCanvasOperatorSnapshot', () => {
     ).toBe(true)
   })
 
+  it('多选跨了镜头带、或 @ 到别处的卡时，那几面也展开（不止第一张所在的一段）', () => {
+    const nodes = [1, 2, 3, 4, 5, 6, 7].flatMap((shotNo) => [
+      imageNode(`node-${shotNo}`, shotNo),
+      ...fillers(shotNo, 12),
+    ])
+    const snapshot = buildCanvasOperatorSnapshot({
+      nodes,
+      edges: [],
+      currentShotNo: 1,
+      selectedNodeIds: ['node-1', 'node-5'],
+      mentionedNodeIds: ['node-7'],
+    })
+    const expandedShots = snapshot.shots
+      .filter((shot) => shot.expanded)
+      .map((shot) => shot.shotNo)
+    expect(expandedShots).toEqual([1, 2, 3, 5, 7])
+    const visible = snapshot.shots.flatMap((shot) =>
+      shot.expanded ? shot.nodes.map((node) => node.id) : [],
+    )
+    expect(visible).toEqual(expect.arrayContaining(['node-5', 'node-7']))
+  })
+
   /**
    * ⚠ 焦点缺席时展开**最前面**三面 —— 一张刚打开的画布上用户还没点任何东西，
    * 「一面都看不见」会让第一句话必然是一次白问。

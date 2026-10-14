@@ -95,15 +95,20 @@ export interface UseCanvasOperatorHostInput {
   /** 一批 op 一次落图（图引擎的 `dispatchBatch`：别名表 + 一个撤销条目）。 */
   dispatchBatch(ops: readonly NodeAssistantOpV4[]): NodeGraphV4BatchResult
   getApplyError?(): string | undefined
-  /** 撤一步（图引擎的线性撤销栈）。 */
-  undo(): void
-  readonly canUndo: boolean
+  /** 撤一步（图引擎的线性撤销栈）；栈空返回 `false`。 */
+  undo(): boolean
   /** 让一个节点出图 / 出片 —— **用户自己那颗生成键的同一条路**。 */
   generateNodes(nodeIds: readonly string[]): void
   open: boolean
   setOpen(open: boolean): void
   /** 改动清单点一行：镜头移到这张卡并让卡面闪一下（方向 B）。 */
   onLocate(nodeId: string): void
+}
+
+/** 排到下一帧再闪（理由见 `canvasApply` 里那段注释）。 */
+function flashNode(nodeId: string): void {
+  if (typeof window === 'undefined') return
+  window.requestAnimationFrame(() => flashAssistantTouchedNode(nodeId))
 }
 
 export function useCanvasOperatorHost({
@@ -118,7 +123,6 @@ export function useCanvasOperatorHost({
   dispatchBatch,
   getApplyError,
   undo,
-  canUndo,
   generateNodes,
   open,
   setOpen,
@@ -230,6 +234,13 @@ export function useCanvasOperatorHost({
    * ⛔ 不在这里存逆载荷：那份由图引擎自己的撤销栈扣着，存第二份必然漂。
    */
   const landedStepIdsRef = useRef<string[]>([])
+  /**
+   * 每一批建卡的别名表（step id → `add_node.ref` → 真 id）。改动清单、闪烁、定位
+   * 都靠它把 `new1` 换回画布上的卡。⚠ 按 step 分开存：模型每一批都可能再叫 `new1`。
+   */
+  const createdRefsByStepRef = useRef(
+    new Map<string, Readonly<Record<string, string>>>(),
+  )
   const promptInputSyncRef = useRef<string | undefined>(undefined)
   const lastBatchFailuresRef = useRef<
     readonly { index: number; reason: string }[]
@@ -253,13 +264,21 @@ export function useCanvasOperatorHost({
     (options?: { latestMessage?: string }): AssistantOperatorSnapshot => {
       const graph = graphRef.current
       const latestMessage = options?.latestMessage ?? ''
-      /** 这句话里 `@` 到的节点（`@名字`）——文本节点据此给全文，见快照头注。 */
+      /**
+       * 这句话里 `@` 到的节点 —— 文本节点据此给全文、所在镜头带据此展开，见快照头注。
+       * ⚠ 面板发送时把 `@` 到的**图片**编译成「名字」（不带 `@`，图本身随附件走），
+       *   只认 `@名字` 的从前版本里画布图片永远不算「被 @ 到」，所在的带也不展开。
+       */
       const mentionedNodeIds = latestMessage
-        ? graph.nodes.flatMap((node) =>
-            node.data.name && latestMessage.includes(`@${node.data.name}`)
-              ? [node.id]
-              : [],
-          )
+        ? graph.nodes.flatMap((node) => {
+            const name = node.data.name
+            if (!name) return []
+            const mentioned =
+              latestMessage.includes(`@${name}`) ||
+              (node.data.kind === NODE_MEDIA_KIND_IDS.image &&
+                latestMessage.includes(`「${name}」`))
+            return mentioned ? [node.id] : []
+          })
         : []
       const onCanvasIds = new Set(
         graph.nodes.flatMap((node) =>
@@ -366,13 +385,22 @@ export function useCanvasOperatorHost({
     [],
   )
 
-  const flashTouched = useCallback((op: NodeAssistantOpV4): void => {
-    const touched =
-      'target' in op ? op.target : 'scriptNodeId' in op ? op.scriptNodeId : null
-    if (typeof touched === 'string' && typeof window !== 'undefined') {
-      window.requestAnimationFrame(() => flashAssistantTouchedNode(touched))
-    }
-  }, [])
+  const flashTouched = useCallback(
+    (
+      op: NodeAssistantOpV4,
+      createdRefs: Readonly<Record<string, string>> = {},
+    ): void => {
+      const touched =
+        'target' in op
+          ? op.target
+          : 'scriptNodeId' in op
+            ? op.scriptNodeId
+            : null
+      if (typeof touched === 'string')
+        flashNode(createdRefs[touched] ?? touched)
+    },
+    [],
+  )
 
   const canvasApplyOps = useCallback(
     (
@@ -392,10 +420,13 @@ export function useCanvasOperatorHost({
       lastBatchFailuresRef.current = result.failures
       if (result.applied === 0) return { applied: 0, failures: result.failures }
       landedStepIdsRef.current.push(stepId)
+      createdRefsByStepRef.current.set(stepId, result.createdRefs)
       const failed = new Set(result.failures.map((failure) => failure.index))
       ops.forEach((op, index) => {
-        if (!failed.has(index)) flashTouched(op)
+        if (!failed.has(index)) flashTouched(op, result.createdRefs)
       })
+      // 新建的卡也闪一下 —— 它们是这一批里最该被看见的那几张。
+      for (const created of result.createdNodeIds) flashNode(created)
       return { applied: result.applied, failures: result.failures }
     },
     [dispatchBatch, promptInputSyncFor, flashTouched],
@@ -447,16 +478,19 @@ export function useCanvasOperatorHost({
       const landed = landedStepIdsRef.current
       const index = landed.lastIndexOf(stepId)
       // 没记在册上 = 这一步当时就没落成，撤销无从谈起（⛔ 不盲撤一格）。
-      if (index < 0 || !canUndo) return false
+      if (index < 0) return false
       // 撤到这一步为止（含它）—— 见文件头注那条线性撤销栈的论据。
+      // ⚠ 看 `undo()` 的返回值，⛔ 不看渲染期的 `canUndo`：整轮撤销会在同一个
+      // tick 里连调本函数，`canUndo` 那时还是旧值。
+      let reverted = false
       for (let i = landed.length - 1; i >= index; i -= 1) {
-        if (!canUndo) break
-        undo()
+        if (!undo()) break
+        reverted = true
       }
       landed.length = index
-      return true
+      return reverted
     },
-    [canUndo, undo],
+    [undo],
   )
 
   const canvasPlanRerun = useCallback(
@@ -580,6 +614,8 @@ export function useCanvasOperatorHost({
         // ⚠ 现读（`graphRef`）：清单渲染在回执之后，卡可能已经改过名或被删。
         nameOf: (nodeId) =>
           graphRef.current.nodes.find((node) => node.id === nodeId)?.data.name,
+        createdIdOf: (stepId, ref) =>
+          createdRefsByStepRef.current.get(stepId)?.[ref],
         locate: onLocate,
         generationStateOf: (nodeId) => {
           const node = nodes.find((candidate) => candidate.id === nodeId)

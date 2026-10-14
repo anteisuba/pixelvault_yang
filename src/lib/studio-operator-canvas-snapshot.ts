@@ -476,6 +476,17 @@ export function buildCanvasOperatorSnapshot({
     shotNodeCount <= ASSISTANT_OPERATOR_CANVAS_LIMITS.expandAllShotsUpToNodes
       ? new Set(shotNumbers)
       : expandedShotNumbers(shotNumbers, currentShotNo)
+  /**
+   * 选中的、`@` 到的卡所在的镜头带一律展开 —— 不止第一个选中卡那一段。
+   * 🔬 从前多选跨了带（或 `@` 到别处的卡）时只展开第一张那一段，其余的卡在板子上
+   *   没有句柄，助手看不见也动不了。
+   */
+  const pointedAt = new Set([...selectedNodeIds, ...mentionedNodeIds])
+  for (const node of nodes) {
+    const shotNo = node.data.shotNo
+    if (shotNo !== undefined && shotNo !== null && pointedAt.has(node.id))
+      expanded.add(shotNo)
+  }
 
   const shots: AssistantOperatorCanvasShot[] = []
   const pushShot = (shotNo: number | null, isExpanded: boolean): void => {

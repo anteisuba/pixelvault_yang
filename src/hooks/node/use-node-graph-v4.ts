@@ -79,6 +79,8 @@ import type {
 import type { NodeV4MediaPatch } from '@/components/business/node/nodes/v4/NodeV4Context'
 
 /** 一条撤销记录。`state` 档只给「重做之后再撤销」用，理由见 `redo`。 */
+type NodeGraphV4RedoEntry = { readonly redoState: NodeWorkflowStateV4 }
+
 type NodeGraphV4HistoryEntry = {
   readonly undo:
     | { readonly kind: 'inverse'; readonly inverse: NodeV4Inverse }
@@ -94,6 +96,8 @@ export interface NodeGraphV4BatchResult {
   /** `skipped` 里连线 / 挂载没建成的那一部分（台账 K-2）。 */
   readonly failedConnects: number
   readonly createdNodeIds: readonly string[]
+  /** 批内别名 → 真 id（见 `CanvasBatchResult.createdRefs`）。 */
+  readonly createdRefs: Readonly<Record<string, string>>
   /** 没落的那几条在批里的位置与原因（助手 `canvas_batch` 要逐条回报）。 */
   readonly failures: readonly CanvasBatchFailure[]
 }
@@ -281,7 +285,8 @@ export interface NodeGraphV4 {
   /* ── 撤销栈（**唯一**一份）─────────────────────────────────────────── */
   readonly canUndo: boolean
   readonly canRedo: boolean
-  undo(): void
+  /** 撤一步；栈空返回 `false`。同一 tick 里连调也逐条生效（见栈的 ref 镜像）。 */
+  undo(): boolean
   redo(): void
   /**
    * 外部换进来的一份 state（外部 Claude 经 MCP / 同账号的别的标签页，
@@ -329,19 +334,60 @@ export function useNodeGraphV4({
     reportStateChangeRef.current(next)
   }, [])
   const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null)
-  const [undoStack, setUndoStack] = useState<
+  const [undoStack, setUndoStackState] = useState<
     readonly NodeGraphV4HistoryEntry[]
   >([])
-  const [redoStack, setRedoStack] = useState<
-    readonly { readonly redoState: NodeWorkflowStateV4 }[]
+  const [redoStack, setRedoStackState] = useState<
+    readonly NodeGraphV4RedoEntry[]
   >([])
+  /**
+   * 两份栈各有一份 ref 镜像，`undo` / `redo` **只读 ref**。
+   *
+   * ⚠ 助手「撤销这一轮」会在同一个 tick 里连着调好几次 `undo`（一步一条）。读
+   * 渲染期闭包的写法每次拿到的都是同一个栈顶和同一份 state：只有最后那批真被
+   * 撤掉，其余记录被 `slice(0, -1)` 弹掉丢失、⌘Z 也找不回。ref 由下面两个
+   * setter 同步改写，同一 tick 内的第二次 `undo` 看到的是第一次之后的栈。
+   */
+  const undoStackRef = useRef<readonly NodeGraphV4HistoryEntry[]>([])
+  const redoStackRef = useRef<readonly NodeGraphV4RedoEntry[]>([])
+  useLayoutEffect(() => {
+    undoStackRef.current = undoStack
+    redoStackRef.current = redoStack
+  }, [undoStack, redoStack])
+  const setUndoStack = useCallback(
+    (
+      update: (
+        stack: readonly NodeGraphV4HistoryEntry[],
+      ) => readonly NodeGraphV4HistoryEntry[],
+    ) => {
+      const next = update(undoStackRef.current)
+      undoStackRef.current = next
+      setUndoStackState(next)
+    },
+    [],
+  )
+  const setRedoStack = useCallback(
+    (
+      update:
+        | readonly NodeGraphV4RedoEntry[]
+        | ((
+            stack: readonly NodeGraphV4RedoEntry[],
+          ) => readonly NodeGraphV4RedoEntry[]),
+    ) => {
+      const next =
+        typeof update === 'function' ? update(redoStackRef.current) : update
+      redoStackRef.current = next
+      setRedoStackState(next)
+    },
+    [],
+  )
   // 换了一段历史（切项目 / 载入最新）：两份栈一起清空 —— 渲染期同步，⛔ 不放 effect
-  // 里（effect 版会留一帧能按的旧撤销）。
+  // 里（effect 版会留一帧能按的旧撤销）。ref 由上面的 layout effect 跟上。
   const [historyOf, setHistoryOf] = useState(historyKey)
   if (historyOf !== historyKey) {
     setHistoryOf(historyKey)
-    setUndoStack([])
-    setRedoStack([])
+    setUndoStackState([])
+    setRedoStackState([])
   }
   const clipboardRef = useRef<NodeGraphV4ClipboardShape | null>(null)
   const [clipboard, setClipboard] = useState<NodeGraphV4ClipboardShape | null>(
@@ -510,7 +556,15 @@ export function useNodeGraphV4({
       onStateChange(next)
       return true
     },
-    [resolveModel, onOpFailed, onStateChange, castCards, emergeCreated],
+    [
+      resolveModel,
+      onOpFailed,
+      onStateChange,
+      castCards,
+      emergeCreated,
+      setUndoStack,
+      setRedoStack,
+    ],
   )
 
   /**
@@ -538,6 +592,7 @@ export function useNodeGraphV4({
         skipped: batch.skipped,
         failedConnects: batch.failedConnects,
         createdNodeIds: batch.createdNodeIds,
+        createdRefs: batch.createdRefs,
         failures: batch.failures,
       }
       if (!batch.inverse) return result
@@ -552,7 +607,16 @@ export function useNodeGraphV4({
       onStateChange(batch.state)
       return result
     },
-    [resolveModel, onOpFailed, onStateChange, castCards, emergeCreated, sizeOf],
+    [
+      resolveModel,
+      onOpFailed,
+      onStateChange,
+      castCards,
+      emergeCreated,
+      sizeOf,
+      setUndoStack,
+      setRedoStack,
+    ],
   )
 
   const dispatchBatchWithMedia = useCallback(
@@ -572,6 +636,7 @@ export function useNodeGraphV4({
         skipped: batch.skipped,
         failedConnects: batch.failedConnects,
         createdNodeIds: batch.createdNodeIds,
+        createdRefs: batch.createdRefs,
         failures: batch.failures,
       }
       if (!batch.inverse) return result
@@ -605,7 +670,16 @@ export function useNodeGraphV4({
       onStateChange(seeded)
       return result
     },
-    [resolveModel, onOpFailed, onStateChange, castCards, emergeCreated, sizeOf],
+    [
+      resolveModel,
+      onOpFailed,
+      onStateChange,
+      castCards,
+      emergeCreated,
+      sizeOf,
+      setUndoStack,
+      setRedoStack,
+    ],
   )
 
   /**
@@ -619,24 +693,28 @@ export function useNodeGraphV4({
     [onStateChange],
   )
 
-  const undo = useCallback(() => {
-    const entry = undoStack[undoStack.length - 1]
-    if (!entry) return
-    setUndoStack((stack) => stack.slice(0, -1))
-    setRedoStack((stack) => [...stack, { redoState: entry.redoState }])
+  const undo = useCallback((): boolean => {
+    const stack = undoStackRef.current
+    const entry = stack[stack.length - 1]
+    if (!entry) return false
+    setUndoStack((current) => current.slice(0, -1))
+    setRedoStack((current) => [...current, { redoState: entry.redoState }])
     onStateChange(
       entry.undo.kind === 'inverse'
         ? reconcileStateSlots(
-            applyInverseV4(state, entry.undo.inverse, { mintId }),
+            applyInverseV4(stateRef.current, entry.undo.inverse, { mintId }),
           )
         : entry.undo.state,
     )
-  }, [undoStack, state, onStateChange])
+    return true
+  }, [setUndoStack, setRedoStack, onStateChange])
 
   const redo = useCallback(() => {
-    const entry = redoStack[redoStack.length - 1]
+    const stack = redoStackRef.current
+    const entry = stack[stack.length - 1]
     if (!entry) return
-    setRedoStack((stack) => stack.slice(0, -1))
+    const state = stateRef.current
+    setRedoStack((current) => current.slice(0, -1))
     // ⚠ 重做推回撤销栈的那一条**不能**再用原来那份 inverse：它是对着「撤销前那
     // 份 state」算的。也不能用 `restore`（只把节点/边加回来，删不掉重做刚补上
     // 的）。所以这一档存整份快照。
@@ -645,7 +723,7 @@ export function useNodeGraphV4({
       { undo: { kind: 'state', state }, redoState: entry.redoState },
     ])
     onStateChange(entry.redoState)
-  }, [redoStack, state, onStateChange])
+  }, [setUndoStack, setRedoStack, onStateChange])
 
   const recordExternalChange = useCallback(
     (before: NodeWorkflowStateV4, after: NodeWorkflowStateV4) => {
@@ -656,7 +734,7 @@ export function useNodeGraphV4({
       ])
       setRedoStack([])
     },
-    [],
+    [setUndoStack, setRedoStack],
   )
 
   /* ── 图动作 ────────────────────────────────────────────────────────── */
@@ -816,7 +894,7 @@ export function useNodeGraphV4({
       onStateChange(next)
       return applied
     },
-    [state, onOpFailed, onStateChange],
+    [state, onOpFailed, onStateChange, setUndoStack, setRedoStack],
   )
 
   const duplicate = useCallback(
@@ -863,7 +941,7 @@ export function useNodeGraphV4({
       onStateChange(next)
       return created
     },
-    [state, onOpFailed, onStateChange],
+    [state, onOpFailed, onStateChange, setUndoStack, setRedoStack],
   )
 
   const moveNodes = useCallback(
@@ -962,7 +1040,7 @@ export function useNodeGraphV4({
       ),
     }))
     onStateChange(next)
-  }, [rendered.nodes, onStateChange])
+  }, [rendered.nodes, onStateChange, setUndoStack, setRedoStack])
 
   const setModel = useCallback(
     (nodeId: string, model: NodeWorkflowModelSelection) => {
@@ -987,7 +1065,7 @@ export function useNodeGraphV4({
       setRedoStack([])
       onStateChange(next)
     },
-    [state, onOpFailed, onStateChange],
+    [state, onOpFailed, onStateChange, setUndoStack, setRedoStack],
   )
 
   const setMedia = useCallback(
@@ -1162,7 +1240,7 @@ export function useNodeGraphV4({
         kept: kept.map((node) => node.id),
       }
     },
-    [state, onStateChange],
+    [state, onStateChange, setUndoStack, setRedoStack],
   )
 
   return {

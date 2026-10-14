@@ -962,7 +962,7 @@ describe('useAssistantOperator 的四条收尾路径', () => {
     await settle()
   })
 
-  it('反复不纠正输入引用也消耗画布步数，预算耗尽后不再自动重发', async () => {
+  it('反复不纠正输入引用也消耗画布步数，预算耗尽后不再自动重发，改为摆出继续', async () => {
     hostDomain.current = 'canvas'
     canvasApply.mockReturnValue(false)
     canvasInputSync.current = true
@@ -1002,6 +1002,8 @@ describe('useAssistantOperator 的四条收尾路径', () => {
       ASSISTANT_OPERATOR_LIMITS.maxCanvasSteps,
     )
     expect(store.getOperatorState().status).toBe('idle')
+    // 步数用完不再静默收尾：摆出「继续 / 先到这里」。
+    expect(store.getOperatorState().outOfSteps).toBe(true)
     expect(
       store
         .getOperatorState()
@@ -2373,6 +2375,69 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
         auto: true,
       })
     })
+
+    it.each([true, false])(
+      '自动生成开关 = %s：这一轮请求带不带 autoGenerate 跟着它',
+      async (on) => {
+        await proposeOnCanvas(on)
+        expect(streamAssistantOperatorAPI.mock.calls[0][0].autoGenerate).toBe(
+          on ? true : undefined,
+        )
+      },
+    )
+
+    it.each([
+      [2, 2, true],
+      [3, 2, false],
+    ] as const)(
+      '⭐ 自动生成单轮上限 4 张：%i 张卡 × 每张 %i 张 → 替你按下 = %s',
+      async (cards, perCard, pressed) => {
+        hostDomain.current = 'canvas'
+        canvasGenerationState.enabled = true
+        canvasGenerationState.current = {
+          id: 'shot-1',
+          name: '主角正面',
+          kind: 'image',
+          model: 'seedream-4',
+          parameters: { values: { count: perCard }, options: {} },
+        }
+        const { result } = render()
+        act(() => store.setOperatorAutoGenerate(true))
+        act(() => result.current.send('这几张都跑一下'))
+        await settle()
+        const nodes = Array.from({ length: cards }, (_, index) => ({
+          id: `shot-${index + 1}`,
+          name: `镜头 ${index + 1}`,
+        }))
+        streams[0].emit(
+          generateConfirmEvent({
+            ...CANVAS_REQUEST,
+            canvasNode: nodes[0],
+            canvasNodes: nodes,
+          }),
+        )
+        streams[0].emit({
+          type: ASSISTANT_OPERATOR_EVENTS.stopped,
+          reason: 'awaiting_confirm',
+        })
+        streams[0].close()
+        await settle()
+        expect(canvasGenerate).toHaveBeenCalledTimes(pressed ? cards : 0)
+        expect(store.getOperatorState().confirm?.status).toBe(
+          pressed ? 'confirmed' : 'idle',
+        )
+        // 没替你按要说一声：开关开着却没出图，⛔ 不能静默。
+        expect(
+          store
+            .getOperatorState()
+            .entries.some(
+              (entry) =>
+                entry.kind === 'system' && entry.code === 'autoGenerateHeld',
+            ),
+        ).toBe(!pressed)
+        canvasGenerationState.enabled = false
+      },
+    )
   })
 })
 

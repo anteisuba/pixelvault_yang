@@ -1840,6 +1840,12 @@ export const AssistantOperatorRequestSchema = z.object({
    * 自己发的这一轮，附件是刚出的那张。服务端据此只做一件事：对照参考看一次、说一两句。
    */
   autoReview: z.literal(true).optional(),
+  /**
+   * **自动生成开着**（owner 2026-10-14）：这一轮改了会影响产出的东西，就由助手自己
+   * 把对应那几张卡放上生成确认卡，客户端替你按下（单轮上限见
+   * `ASSISTANT_AUTO_GENERATE_LIMITS`）。⚠ 缺席 = 关；自动看一眼那一轮不带它。
+   */
+  autoGenerate: z.literal(true).optional(),
   snapshot: AssistantOperatorSnapshotSchema,
   priorSteps: z
     .array(AssistantOperatorPriorStepSchema)

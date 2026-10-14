@@ -8238,7 +8238,8 @@
       "imageHandoffAccepted": "Handed to the image assistant: {subject}",
       "imageHandoffDeclined": "Not handed to the image assistant: {subject}",
       "workbenchHandoffAccepted": "Switched workbench: {subject}",
-      "workbenchHandoffDeclined": "Stayed on this workbench: {subject}"
+      "workbenchHandoffDeclined": "Stayed on this workbench: {subject}",
+      "autoGenerateHeld": "This card would make {subject} pictures, over the auto-generate limit of 4 per turn. It was not pressed for you; confirm it to run."
     },
     "attach": {
       "latestResult": "Latest · {label}",
@@ -8339,7 +8340,9 @@
       "copyDetail": "Copy details",
       "copied": "Copied",
       "missingKey": "The assistant needs your own AI text model key. Gemini keys are free to create in Google AI Studio.",
-      "addKey": "Add a key"
+      "addKey": "Add a key",
+      "retry": "Retry",
+      "retryPrompt": "That got cut off. Finish my last request, without redoing what already landed."
     },
     "assistantSettings": "Assistant settings",
     "rule": {
@@ -8560,6 +8563,7 @@
       "label": "Auto-generate"
     },
     "outOfSteps": {
+      "note": "This turn ran out of steps. Everything that already landed is kept.",
       "continue": "Continue",
       "stop": "Stop here",
       "continuePrompt": "Continue"

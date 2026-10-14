@@ -8092,6 +8092,26 @@ const CANVAS_CONFIRM_ASK_TEXTS: Record<
   },
 }
 
+/**
+ * 确认卡开着时创作者**打字**作答（面板把那句话当 `otherText` 送来，`optionIds` 为空）。
+ *
+ * 🔬 从前只认点按钮：打「删吧」= 没答，同一张卡再弹一次，删卡死循环。现在先认
+ * 否定（「不要删」里也有「删」），再认肯定；两头都不像就按「没同意」处理并把原话
+ * 交给模型 —— ⛔ 不再问第三遍。
+ */
+const CANVAS_CONFIRM_TYPED_DECLINE =
+  /不要|不用|不对|不行|不好|不是|不可以|别|先不|算了|取消|保留|留着|不删|不投|\bno\b|\bnope\b|don'?t|do not|keep|cancel|stop|やめ|いいえ|残して|キャンセル/i
+const CANVAS_CONFIRM_TYPED_APPLY =
+  /删|刪|投|好|行|可以|确认|確認|是的|对|嗯|没问题|\byes\b|\byep\b|\bok(?:ay)?\b|\bsure\b|go ahead|do it|delete|remove|project|はい|お願い|削除|消して|どうぞ|いいよ/i
+
+type CanvasConfirmTypedAnswer = 'apply' | 'keep' | 'other'
+
+function readCanvasConfirmTypedAnswer(text: string): CanvasConfirmTypedAnswer {
+  if (CANVAS_CONFIRM_TYPED_DECLINE.test(text)) return 'keep'
+  if (CANVAS_CONFIRM_TYPED_APPLY.test(text)) return 'apply'
+  return 'other'
+}
+
 /** 创作者自己说了要投影剧本（中 / 英 / 日）。 */
 const CREATOR_ASKED_TO_PROJECT =
   /投影|投成镜头|拆成镜头|拆镜头|reproject|project (?:the |this )?script|into shots|ショットに展開|展開して/i
@@ -8118,6 +8138,11 @@ function planCanvasConfirm(
     (entry) => entry.questionId === id,
   )
   if (decision?.optionIds.includes(CANVAS_CONFIRM_APPLY_ID)) return null
+  const typed =
+    decision && decision.optionIds.length === 0 && decision.otherText
+      ? readCanvasConfirmTypedAnswer(decision.otherText)
+      : null
+  if (typed === 'apply') return null
   /**
    * ⭐ 创作者这句话自己点了投影就不再问一遍（2026-10-08 马尔福画布：说了「重新投影」
    * 还弹卡，两轮都要多点一次；投错了照样能撤）。⚠ 只放投影：一句话里出现「删」
@@ -8133,10 +8158,19 @@ function planCanvasConfirm(
     canvas.shots
       .flatMap((shot) => (shot.expanded ? shot.nodes : []))
       .find((node) => node.id === target)?.name ?? target
-  if (decision?.optionIds.includes(CANVAS_CONFIRM_KEEP_ID)) {
+  if (
+    decision?.optionIds.includes(CANVAS_CONFIRM_KEEP_ID) ||
+    typed === 'keep'
+  ) {
     return reject(
       REJECT.userDeclined,
       `The creator chose to leave ${name} as it is. Do not run ${op.op} on it and do not ask again; carry on with the rest of the request.`,
+    )
+  }
+  if (typed === 'other') {
+    return reject(
+      REJECT.userDeclined,
+      `The creator answered the confirmation for ${op.op} on ${name} in their own words: "${clamp(decision?.otherText ?? '', PLAN_LIMITS.maxOtherTextChars)}". That is not a yes, so ${op.op} did not run. Do not ask the same confirmation again; follow what they said.`,
     )
   }
   const texts =

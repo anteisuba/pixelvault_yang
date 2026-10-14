@@ -280,6 +280,22 @@ export const ASSISTANT_V3_LIMITS = {
 } as const
 
 /**
+ * 新内核单次模型调用的超时（`assistant-v3.service.ts`）。
+ *
+ * ⭐ 从前主调用只有 270 秒硬线：模型卡住时用户干等约 4.5 分钟才看到「提供商超时」。
+ * - `firstChunkMs`：发出请求后多久一个分片都没回（含思考分片）就放弃这一次；
+ * - `chunkMs`：两个分片之间最长的静默；
+ * - `stepMs`：这一次调用的总时长。
+ * 超时会原样重试一次（`retries`），第二次还超时才报错。⚠ 两次加起来要留在硬线内。
+ */
+export const ASSISTANT_V3_CALL_TIMEOUT = {
+  firstChunkMs: 60_000,
+  chunkMs: 60_000,
+  stepMs: 120_000,
+  retries: 1,
+} as const
+
+/**
  * 画布默认走 v3（S6，owner 2026-10-09）。前端本地开关写 `v2` 时画布照走旧内核 ——
  * 只为对比，删旧内核时一起删。
  * ⚠ `v3` 还收着：开关切换前打开的页面仍会发它。

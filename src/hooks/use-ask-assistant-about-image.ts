@@ -3,33 +3,34 @@
 import { useCallback } from 'react'
 
 import { useStudioForm } from '@/contexts/studio-context'
-import { useStudioAssistantReference } from '@/hooks/use-studio-assistant-reference'
+import { addOperatorMention } from '@/hooks/use-studio-operator-store'
+import { toOperatorAttachment } from '@/hooks/use-studio-operator-upload'
+import type { GenerationRecord } from '@/types'
 
 /**
  * §3.0b 第 4 条「引用对象扩展到生成图」——「点这张生成图问助手」。
  *
- * 返回的回调做两件事，**顺序不能反**：先把图注入助手输入区，再把助手面板打开。
- * 反过来的话，移动端抽屉是刚挂载的那一帧去读注入值，`token` 已经先于订阅建立
- * 之前变过，附件不会出现。
+ * 返回的回调做两件事，**顺序不能反**：先把图挂成助手输入框里的一枚 chip，再把助手
+ * 面板打开。反过来的话，面板是刚挂载的那一帧去读 chip，会漏掉这一张。
  *
- * ⚠ **只塞附件，不自动发送**（owner 拍板）：vision token 是真钱，像素级永远由
- * 用户点选触发。用户看到缩略图后自己打字提问、自己按发送，走的还是既有那条
- * 附件管线（`references` → `/api/.../prompt-assistant`），没有新建任何端点。
+ * ⭐ 走的是新助手那条唯一的 chip 管线（`use-studio-operator-mention.ts` 头注入口 ②）。
+ * 🔬 由来（2026-10-14 审计）：从前这里把图注入旧 `PromptAssistantPanel` 的 store，
+ * 而图片 / 视频台挂的是 `StudioOperatorDock`，它从不读那份 store —— 面板开了，图没挂上。
  *
- * ⚠ 8 张上限不在这里判 —— `PromptAssistantPanel` 注入时统一 `slice` 到
- * `ASSISTANT_MEDIA_LIMITS.maxReferences`，这里再写一道就是第二份闸，两份迟早
- * 各自漂移。
+ * ⚠ **只挂 chip，不自动发送**（owner 拍板）：vision token 是真钱，用户看到缩略图后
+ * 自己打字提问、自己按发送。
  */
-export function useAskAssistantAboutImage(): (url: string) => void {
+export function useAskAssistantAboutImage(): (
+  generation: GenerationRecord,
+) => void {
   const { dispatch } = useStudioForm()
-  const { injectReference } = useStudioAssistantReference()
 
   return useCallback(
-    (url: string) => {
-      if (!url) return
-      injectReference(url)
+    (generation: GenerationRecord) => {
+      if (!generation.url) return
+      addOperatorMention(toOperatorAttachment(generation))
       dispatch({ type: 'OPEN_PANEL', payload: 'enhance' })
     },
-    [dispatch, injectReference],
+    [dispatch],
   )
 }

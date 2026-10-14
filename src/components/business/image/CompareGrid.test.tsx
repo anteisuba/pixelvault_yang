@@ -238,7 +238,7 @@ describe('CompareGrid — 聚焦与定为最佳是两步', () => {
     fireEvent.click(screen.getByRole('button', { name: /useAsReference/ }))
 
     expect(askAssistantMock).toHaveBeenCalledWith(
-      'https://cdn.example.com/b2.png',
+      expect.objectContaining({ url: 'https://cdn.example.com/b2.png' }),
     )
     expect(onUseAsReference).toHaveBeenCalledWith(
       'https://cdn.example.com/b2.png',

@@ -14192,6 +14192,48 @@ describe('current reference image bindings', () => {
       },
     )
 
+    it.each([
+      ['删吧', 'done'],
+      ['好的，删掉', 'done'],
+      ['yes', 'done'],
+      ['不要删，留着', 'error'],
+      ['先换个角度再说', 'error'],
+    ] as const)(
+      '在输入框里打字作答「%s」也算答了这题，不再弹同一张卡',
+      async (typed, status) => {
+        const question = await askDelete(shot.id)
+        queueTurns(deleteTurn(shot.id), { finished: true })
+        const events = await collect(
+          runAssistantOperator(
+            'clerk-1',
+            boardRequest(undefined, {
+              planAnswers: [
+                {
+                  questionId: question.id,
+                  question: question.question,
+                  optionIds: [],
+                  otherText: typed,
+                },
+              ],
+            }),
+          ),
+        )
+        expect(
+          events.some((event) => event.type === ASSISTANT_OPERATOR_EVENTS.ask),
+        ).toBe(false)
+        const step = stepsOf(events).findLast(
+          (candidate) =>
+            candidate.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+        )
+        expect(step?.status).toBe(status)
+        if (status === 'error') {
+          expect(step?.error?.reason).toBe(
+            ASSISTANT_OPERATOR_REJECT_REASON_IDS.userDeclined,
+          )
+        }
+      },
+    )
+
     it('an approval covers only the card it named', async () => {
       const question = await askDelete(shot.id)
       queueTurns(deleteTurn(other.id))

@@ -244,6 +244,11 @@ export interface StudioOperatorHost {
   canvasTargets?: {
     /** 这张卡现在叫什么；卡已经不在了 = `undefined`（那一行不列）。 */
     nameOf(nodeId: string): string | undefined
+    /**
+     * 这一步建出来的卡的真 id（`add_node.ref` → id）；不是这一步建的 = `undefined`。
+     * 改动清单靠它把 `new1` 这类临时名换回画布上的卡。
+     */
+    createdIdOf?(stepId: string, ref: string): string | undefined
     locate(nodeId: string): void
     generationStateOf?(nodeId: string): CanvasNodeGenerationState | undefined
     /** 这张卡此刻的产出图（出图后自动看一眼认它变没变）；没有图 = `undefined`。 */

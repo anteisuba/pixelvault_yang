@@ -602,10 +602,13 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     expect(screen.getByTestId('quick-setup')).toHaveTextContent('Gemini')
   })
 
-  it('其他错误不给动作键', () => {
+  it('⭐ 其他错误给「重试」：发一句接着做完，⛔ 不原样重放上一条', () => {
     renderPanel()
     act(() => store.setOperatorStatus('error', 'boom', null, 'INTERNAL'))
-    expect(screen.queryByTestId('operator-error-action')).toBeNull()
+    const retry = screen.getByTestId('operator-error-action')
+    expect(retry).toHaveTextContent('error.retry')
+    fireEvent.click(retry)
+    expect(send).toHaveBeenCalledWith('error.retryPrompt')
   })
 
   it('⭐ 默认宿主：输入框里的图跟这条消息一起发出去，发完清空', () => {

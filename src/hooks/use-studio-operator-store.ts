@@ -131,9 +131,11 @@ export interface StudioOperatorState {
    */
   mentions: readonly StudioOperatorAttachment[]
   /**
-   * **自动生成开关**（D12 S-C）—— 开着时生成确认卡一到就由客户端替你按下。
+   * **自动生成开关**（D12 S-C）—— 开着时助手改完出图相关的卡就直接摆生成，
+   * 确认卡一到由客户端替你按下（单轮张数上限见 `ASSISTANT_AUTO_GENERATE_LIMITS`）。
    *
-   * ⭐ 只管**当前这段会话**：新对话 / 换一段会话都回到关（owner 09-23）。
+   * ⭐ 跟着**工作台**走（owner 2026-10-14 改定，替掉 09-23 的「只管当前会话」）：
+   * 新对话、换一段会话、刷新都保留；按 `threadScope` 记在本机（`readAutoGenerate`）。
    * ⚠ 钱闸不变：扳机仍是客户端这一下，服务端没有任何工具能建 generation。
    */
   autoGenerate: boolean
@@ -816,6 +818,36 @@ export function clearOperatorMentions(): void {
   emit({ ...state, mentions: [] })
 }
 
+/** 自动生成开关在本机的那一格（按工作台作用域）。读写失败一律当「关」。 */
+const AUTO_GENERATE_STORAGE_PREFIX = 'antei:assistant-auto-generate:'
+
+function readAutoGenerate(scope: string | null): boolean {
+  if (!scope) return false
+  try {
+    return (
+      globalThis.localStorage?.getItem(AUTO_GENERATE_STORAGE_PREFIX + scope) ===
+      '1'
+    )
+  } catch {
+    return false
+  }
+}
+
+function writeAutoGenerate(scope: string | null, on: boolean): void {
+  if (!scope) return
+  try {
+    if (on)
+      globalThis.localStorage?.setItem(
+        AUTO_GENERATE_STORAGE_PREFIX + scope,
+        '1',
+      )
+    else
+      globalThis.localStorage?.removeItem(AUTO_GENERATE_STORAGE_PREFIX + scope)
+  } catch {
+    // 存不下（隐私模式 / 配额）：开关只在这次打开期间有效。
+  }
+}
+
 export function claimOperatorThreadScope(
   scope: string | null,
   domain: AssistantOperatorDomain,
@@ -828,6 +860,7 @@ export function claimOperatorThreadScope(
     ...INITIAL_STATE,
     localThreadId: crypto.randomUUID(),
     planMode: scope ? state.planMode : INITIAL_STATE.planMode,
+    autoGenerate: readAutoGenerate(scope),
   }
   pendingAttachment = null
   if (
@@ -849,9 +882,10 @@ export function claimOperatorThreadScope(
   return true
 }
 
-/** 自动生成开关（D12 S-C）—— 会话级，见 `autoGenerate` 头注。 */
+/** 自动生成开关（D12 S-C）—— 跟着工作台走，见 `autoGenerate` 头注。 */
 export function setOperatorAutoGenerate(autoGenerate: boolean): void {
   if (state.autoGenerate === autoGenerate) return
+  writeAutoGenerate(state.threadScope, autoGenerate)
   emit({ ...state, autoGenerate })
 }
 
@@ -1097,8 +1131,6 @@ export function loadOperatorThread(args: {
     saveFailed: false,
     sessionSurface: args.sessionSurface,
     entries: [],
-    // ⚠ 翻开另一段会话 = 自动生成开关回到关（D12 S-C，只管当前会话）。
-    autoGenerate: false,
     outOfSteps: false,
     stepsDone: 0,
     plannedSteps: 0,
@@ -1141,11 +1173,6 @@ export function setOperatorSession(
   ) {
     return true
   }
-  /**
-   * ⚠ 自动生成开关只管当前这段会话（D12 S-C）：换到**另一段**会话就回到关。
-   * 第一次落库回填身份（null → id）还是同一段，⛔ 不清。
-   */
-  const switched = current.sessionId !== null && current.sessionId !== sessionId
   const resume = current.resume ? { ...current.resume, sessionId } : null
   const next: StudioOperatorState = {
     ...current,
@@ -1153,7 +1180,6 @@ export function setOperatorSession(
     sessionSurface,
     resume,
     saveFailed: false,
-    ...(switched ? { autoGenerate: false } : {}),
   }
   if (resume && current.threadScope && current.sessionId !== sessionId) {
     if (writeOperatorResume(current.threadScope, next, resume)) {
@@ -1309,8 +1335,6 @@ export function resetOperatorThread(
     entries: [],
     question: null,
     confirm: null,
-    // ⚠ 自动生成开关只管这一段会话（D12 S-C）：新对话回到关。
-    autoGenerate: false,
     outOfSteps: false,
     stepsDone: 0,
     plannedSteps: 0,

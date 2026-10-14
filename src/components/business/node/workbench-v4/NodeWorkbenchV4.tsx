@@ -1545,7 +1545,6 @@ function NodeWorkbenchV4Inner() {
     dispatchBatch: graph.dispatchBatch,
     getApplyError,
     undo: graph.undo,
-    canUndo: graph.canUndo,
     generateNodes,
     open: assistantOpen,
     setOpen: setAssistantOpen,

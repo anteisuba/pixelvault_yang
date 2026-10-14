@@ -8238,7 +8238,8 @@
       "imageHandoffAccepted": "画像アシスタントに渡しました：{subject}",
       "imageHandoffDeclined": "画像アシスタントには渡しませんでした：{subject}",
       "workbenchHandoffAccepted": "切り替えました：{subject}",
-      "workbenchHandoffDeclined": "切り替えませんでした：{subject}"
+      "workbenchHandoffDeclined": "切り替えませんでした：{subject}",
+      "autoGenerateHeld": "このカードは {subject} 枚を生成します。自動生成の上限（1 ターン 4 枚）を超えるため自動では押していません。確認すると生成します。"
     },
     "attach": {
       "latestResult": "最新 · {label}",
@@ -8339,7 +8340,9 @@
       "copyDetail": "詳細をコピー",
       "copied": "コピーしました",
       "missingKey": "アシスタントにはご自身の AI テキストモデルのキーが必要です。Gemini のキーは Google AI Studio で無料で作成できます。",
-      "addKey": "キーを追加"
+      "addKey": "キーを追加",
+      "retry": "再試行",
+      "retryPrompt": "途中で止まりました。前の依頼の続きをお願いします（反映済みの分はやり直さないで）。"
     },
     "assistantSettings": "アシスタント設定",
     "rule": {
@@ -8560,6 +8563,7 @@
       "label": "自動生成"
     },
     "outOfSteps": {
+      "note": "このターンのステップ数が上限に達しました。反映済みの変更はそのまま残っています。",
       "continue": "続ける",
       "stop": "ここまで",
       "continuePrompt": "続けて"

@@ -374,6 +374,11 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
    * 同一套（与 `contextCardDeclined` 同一条教训）。
    */
   'loraSetupDismissed',
+  /**
+   * **自动生成没替你按**（owner 2026-10-14）：这张确认卡加起来超过单轮上限，
+   * 卡留着等你按。⛔ 不静默：开关开着却没出图，用户会以为自动生成坏了。
+   */
+  'autoGenerateHeld',
 ] as const
 
 export type StudioOperatorSystemCode =

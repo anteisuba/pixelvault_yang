@@ -19,6 +19,7 @@ import { randomBytes } from 'node:crypto'
 import { ASSISTANT_STREAM_CONTENT_TYPE } from '@/constants/assistant-stream'
 import {
   ASSISTANT_OPERATOR_EVENTS,
+  ASSISTANT_OPERATOR_HEARTBEAT_MS,
   ASSISTANT_OPERATOR_INTERNAL_ERROR_CODE,
 } from '@/constants/assistant-operator'
 import type {
@@ -30,6 +31,9 @@ import { logger } from '@/lib/logger'
 import { encodeSseEvent } from '@/lib/sse'
 
 const ENCODER = new TextEncoder()
+
+/** SSE 注释行：只为让连接上有字节在走。 */
+const SSE_HEARTBEAT_FRAME = ': ping\n\n'
 
 export const ASSISTANT_OPERATOR_FALLBACK_ERROR = {
   error: 'The assistant operator run failed midway.',
@@ -118,6 +122,20 @@ export function toAssistantOperatorSseResponse(
       // ⭐ 第一件事，任何 await 之前。见文件头注。
       send({ type: ASSISTANT_OPERATOR_EVENTS.open })
 
+      /**
+       * 心跳：模型在想的那段时间里一个字节都不出，中间层（CDN / 代理）会把一条静默
+       * 太久的连接当死链掐掉，用户那头表现为「没有回复」。按 SSE 规范发注释行，
+       * 客户端解析器整行丢掉（`lib/sse.ts`），⛔ 不占任何事件名。
+       */
+      const heartbeat = setInterval(() => {
+        if (closed) return
+        try {
+          streamController.enqueue(ENCODER.encode(SSE_HEARTBEAT_FRAME))
+        } catch {
+          // 流已经被客户端关掉：下一次 `send` / `close` 会走 `closed` 闸。
+        }
+      }, ASSISTANT_OPERATOR_HEARTBEAT_MS)
+
       try {
         for await (const event of options.events(controller.signal)) {
           if (controller.signal.aborted) break
@@ -141,6 +159,7 @@ export function toAssistantOperatorSseResponse(
         })
         send(event)
       } finally {
+        clearInterval(heartbeat)
         options.signal?.removeEventListener('abort', abort)
         if (!closed) {
           closed = true

@@ -1588,6 +1588,21 @@ export const ASSISTANT_OPERATOR_TIME_BUDGET = {
   hardMs: 270_000,
 } as const
 
+/**
+ * 助手流的心跳间隔：模型思考时连接上也每隔这么久走一行 SSE 注释，
+ * 免得中间层把静默的长连接当死链掐掉（`lib/assistant-operator-stream.ts`）。
+ */
+export const ASSISTANT_OPERATOR_HEARTBEAT_MS = 15_000
+
+/**
+ * **自动生成开着时一轮最多替你按下几张**（owner 2026-10-14：4 张）。
+ * 确认卡上加起来超过它，卡就留给你自己按 —— 开关开着也不替你花这笔。
+ * ⚠ 按出图（视频按条）计，⛔ 不按卡数：一张卡出 4 张图也是 4。
+ */
+export const ASSISTANT_AUTO_GENERATE_LIMITS = {
+  maxOutputsPerRound: 4,
+} as const
+
 export type AssistantOperatorStopReason =
   (typeof ASSISTANT_OPERATOR_STOP_REASONS)[keyof typeof ASSISTANT_OPERATOR_STOP_REASONS]
 

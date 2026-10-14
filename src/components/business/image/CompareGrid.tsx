@@ -629,7 +629,7 @@ export const CompareGrid = memo(function CompareGrid({
             size="sm"
             variant="outline"
             className="rounded-full"
-            onClick={() => askAssistantAboutImage(focusedGeneration.url)}
+            onClick={() => askAssistantAboutImage(focusedGeneration)}
           >
             <Bot className="size-3.5" />
             {t('toolAskAssistant')}

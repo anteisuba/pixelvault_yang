@@ -44,6 +44,7 @@ import {
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
   ASSISTANT_OPERATOR_ERROR_MESSAGE_KEYS,
   ASSISTANT_OPERATOR_EVENTS,
+  ASSISTANT_AUTO_GENERATE_LIMITS,
   ASSISTANT_OPERATOR_LIMITS,
   ASSISTANT_OPERATOR_TOOL_VERBS,
   ASSISTANT_OPERATOR_REJECT_REASON_IDS,
@@ -1172,7 +1173,11 @@ export function useAssistantOperator(
            * 展示文本，当成权限清单用就是一条提示词注入的路。
            */
           ...(mentionedAssets.length ? { mentionedAssets } : {}),
-          ...(autoReviewTurnRef.current ? { autoReview: true as const } : {}),
+          ...(autoReviewTurnRef.current
+            ? { autoReview: true as const }
+            : getOperatorState().autoGenerate
+              ? { autoGenerate: true as const }
+              : {}),
           /**
            * ⭐ **这一轮属于哪段会话**（v2 §7.5 / §7.6，commit #12）—— 结账写库与
            * 下一轮注入唯一的落点：服务端零会话态，会话的身份一直由客户端持有
@@ -1893,20 +1898,26 @@ export function useAssistantOperator(
         setOperatorStatus('error', tError('streamInterrupted'))
         return
       }
-      if (
-        canvasSync &&
-        canvasSteps < ASSISTANT_OPERATOR_LIMITS.maxCanvasSteps
-      ) {
-        const resume = getOperatorState().resume
-        runRef.current?.({
-          ...options,
-          runKey,
-          canvasSteps,
-          planApproved: true,
-          resumeFrom: resume ? (toResumeFrom(resume) ?? undefined) : undefined,
-          v3Transcript: v3Transcript ?? undefined,
-        })
-        return
+      if (canvasSync) {
+        if (canvasSteps < ASSISTANT_OPERATOR_LIMITS.maxCanvasSteps) {
+          const resume = getOperatorState().resume
+          runRef.current?.({
+            ...options,
+            runKey,
+            canvasSteps,
+            planApproved: true,
+            resumeFrom: resume
+              ? (toResumeFrom(resume) ?? undefined)
+              : undefined,
+            v3Transcript: v3Transcript ?? undefined,
+          })
+          return
+        }
+        /**
+         * ⭐ 接力步数用完：⛔ 不再静默归 idle（从前只剩一行「· 撤销」、一个字都没有）。
+         * 摆出「继续 / 先到这里」，并说清已经落下的改动都还在。
+         */
+        setOperatorOutOfSteps(true)
       }
       // `done` 之后没有别的收尾 —— 状态没被 `stopped` / `error` 改过就是跑完了。
       if (getOperatorState().status === 'working') setOperatorStatus('idle')
@@ -2607,6 +2618,31 @@ export function useAssistantOperator(
         confirm.status !== STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle
       ) {
         return
+      }
+      /**
+       * ⭐ **自动生成单轮上限**（owner 2026-10-14）：这张卡加起来要出的张数（每张画布
+       * 卡按它自己的张数，工作台按此刻的张数）超过上限，就不替你按 —— 卡照常摆着等你。
+       */
+      if (options.auto) {
+        const nodes =
+          confirm.request.canvasNodes ??
+          (confirm.request.canvasNode ? [confirm.request.canvasNode] : [])
+        const outputs = nodes.length
+          ? nodes.reduce((sum, node) => {
+              const state = host.canvasTargets?.generationStateOf?.(node.id)
+              const request = state ? buildCanvasGenerationRequest(state) : null
+              return sum + (request?.count ?? confirm.request.count)
+            }, 0)
+          : (host.generationControls?.count ?? confirm.request.count)
+        if (outputs > ASSISTANT_AUTO_GENERATE_LIMITS.maxOutputsPerRound) {
+          appendOperatorEntry({
+            kind: 'system',
+            id: nextOperatorEntryId('sys'),
+            code: 'autoGenerateHeld',
+            subject: String(outputs),
+          })
+          return
+        }
       }
       /**
        * ⭐ **几张卡一张确认卡**（v3 S2 · 方向 C 队列条）：用户在条上去掉的不跑，留下的

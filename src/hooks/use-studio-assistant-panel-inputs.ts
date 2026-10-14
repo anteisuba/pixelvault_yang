@@ -184,9 +184,6 @@ export function useStudioAssistantPanelInputs() {
    * 重开时面板内部的 `lastInjectedToken` 归零，留在 store 里的旧引用会被当成
    * 新注入再挂一次（用户没点，附件却在那儿）。桌面 dock 的面板常驻，只验桌面
    * 永远看不到它。
-   *
-   * ⚠ 顺序安全：「问助手」是在同一个事件里先 `injectReference` 再 `OPEN_PANEL`，
-   * React 合批后这个 effect 只会看到 `open === true`，不会把刚注入的清掉。
    */
   useEffect(() => {
     if (!open) clearReference()

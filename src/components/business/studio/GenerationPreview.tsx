@@ -688,7 +688,7 @@ export const GenerationPreview = memo(function GenerationPreview({
         <CanvasToolButton
           icon={Bot}
           label={t('toolAskAssistant')}
-          onClick={() => askAssistantAboutImage(generation.url)}
+          onClick={() => askAssistantAboutImage(generation)}
           variant={variant}
         />
       ) : null}

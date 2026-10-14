@@ -7542,6 +7542,10 @@
       "notACard": "SillyTavern のキャラクターカード（PNG または JSON）ではありません。",
       "tooLarge": "カードのファイルが 3 MB を超えています。",
       "limitReached": "キャラクターの上限に達しました。1 体削除してから取り込んでください。"
+    },
+    "chubLibrary": {
+      "unavailable": "chub.ai から応答がありません。少し待ってからお試しください。",
+      "notFound": "このカードは chub.ai にもうありません。"
     }
   },
   "Transform": {
@@ -9130,7 +9134,25 @@
     "emptyField": "まだ書いていません",
     "removeTag": "{tag} を外す",
     "importCard": "カードを取り込む",
-    "importCardHint": "SillyTavern のキャラクターカード（PNG / JSON）を取り込みます。ここにドロップしても OK。"
+    "importCardHint": "SillyTavern のキャラクターカード（PNG / JSON）を取り込みます。ここにドロップしても OK。",
+    "tabRoster": "マイキャラ",
+    "tabLibrary": "カードライブラリ",
+    "librarySearchPlaceholder": "SillyTavern カードを検索（chub.ai）",
+    "librarySort": "並び替え",
+    "librarySortPopular": "人気",
+    "librarySortRecent": "新着",
+    "libraryOpenOnChub": "chub.ai で {name} を見る",
+    "libraryStars": "お気に入り数",
+    "libraryImport": "キャラにする",
+    "libraryImportNamed": "{name} をキャラにする",
+    "libraryNote": "chub.ai の公開 SillyTavern カードです。成人向けは既定で表示しません。キャラにするとあなた自身のカードになります。ワールドブックや同梱のシステムプロンプトは保存のみで、使われません。",
+    "libraryErrorTitle": "カードライブラリを開けませんでした",
+    "libraryErrorHint": "chub.ai から応答がありません。少し待ってからお試しください。",
+    "libraryRetry": "再試行",
+    "libraryNoResults": "該当するカードがありません。別の言葉で探してください。",
+    "libraryClearSearch": "検索をクリア",
+    "libraryMoreFailed": "読み込めませんでした · 再試行",
+    "libraryNoMore": "これ以上ありません"
   },
   "StudioTemplates": {
     "titleImage": "画像テンプレート · {count}",

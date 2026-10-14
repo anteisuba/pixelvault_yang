@@ -7542,6 +7542,10 @@
       "notACard": "That file isn't a SillyTavern character card (PNG or JSON).",
       "tooLarge": "That card file is over 3 MB.",
       "limitReached": "You've reached the character limit. Delete one to import more."
+    },
+    "chubLibrary": {
+      "unavailable": "chub.ai isn't responding right now. Try again in a moment.",
+      "notFound": "That card is no longer on chub.ai."
     }
   },
   "Transform": {
@@ -9130,7 +9134,25 @@
     "emptyField": "Not written yet",
     "removeTag": "Remove {tag}",
     "importCard": "Import card",
-    "importCardHint": "Import a SillyTavern character card (PNG or JSON). You can also drop it here."
+    "importCardHint": "Import a SillyTavern character card (PNG or JSON). You can also drop it here.",
+    "tabRoster": "My characters",
+    "tabLibrary": "Card library",
+    "librarySearchPlaceholder": "Search SillyTavern cards (chub.ai)",
+    "librarySort": "Sort",
+    "librarySortPopular": "Popular",
+    "librarySortRecent": "Recent",
+    "libraryOpenOnChub": "View {name} on chub.ai",
+    "libraryStars": "Stars",
+    "libraryImport": "Make character",
+    "libraryImportNamed": "Make {name} a character",
+    "libraryNote": "Public SillyTavern cards from chub.ai. Adult content is hidden by default. Once made into a character it is your own card; any lorebook or built-in system prompt is saved but not used.",
+    "libraryErrorTitle": "Couldn't open the card library",
+    "libraryErrorHint": "chub.ai isn't responding right now. Try again in a moment.",
+    "libraryRetry": "Retry",
+    "libraryNoResults": "No cards match that. Try other words.",
+    "libraryClearSearch": "Clear search",
+    "libraryMoreFailed": "Couldn't load more · Retry",
+    "libraryNoMore": "No more cards"
   },
   "StudioTemplates": {
     "titleImage": "My image templates · {count}",

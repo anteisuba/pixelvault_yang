@@ -7542,6 +7542,10 @@
       "notACard": "这个文件不是酒馆角色卡（PNG 或 JSON）",
       "tooLarge": "卡文件超过 3 MB 了",
       "limitReached": "角色数到上限了，删掉一个再导入"
+    },
+    "chubLibrary": {
+      "unavailable": "chub.ai 暂时没回应，过一会儿再试",
+      "notFound": "这张卡在 chub.ai 上已经找不到了"
     }
   },
   "Transform": {
@@ -9130,7 +9134,25 @@
     "emptyField": "还没写",
     "removeTag": "去掉 {tag}",
     "importCard": "导入酒馆卡",
-    "importCardHint": "导入酒馆（SillyTavern）角色卡，PNG 或 JSON；也可以直接拖进来"
+    "importCardHint": "导入酒馆（SillyTavern）角色卡，PNG 或 JSON；也可以直接拖进来",
+    "tabRoster": "我的角色",
+    "tabLibrary": "卡库",
+    "librarySearchPlaceholder": "搜酒馆卡（chub.ai）",
+    "librarySort": "排序",
+    "librarySortPopular": "热门",
+    "librarySortRecent": "最新",
+    "libraryOpenOnChub": "在 chub.ai 查看 {name}",
+    "libraryStars": "收藏数",
+    "libraryImport": "做成角色",
+    "libraryImportNamed": "把 {name} 做成角色",
+    "libraryNote": "来自 chub.ai 的公开酒馆卡，默认不显示成人内容。做成角色后它就是你自己的一张角色卡；卡里的世界书和自带系统提示词只保存、不生效。",
+    "libraryErrorTitle": "卡库没打开",
+    "libraryErrorHint": "chub.ai 暂时没回应，过一会儿再试。",
+    "libraryRetry": "重试",
+    "libraryNoResults": "没搜到这样的卡，换个词试试。",
+    "libraryClearSearch": "清除搜索",
+    "libraryMoreFailed": "这批没拿到 · 重试",
+    "libraryNoMore": "没有更多了"
   },
   "StudioTemplates": {
     "titleImage": "我的图片模板 · {count}",

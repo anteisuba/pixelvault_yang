@@ -479,14 +479,14 @@ export async function createCharacterCard(
 }
 
 /**
- * **导入的酒馆卡建卡**（附录J ⑥）：格子已由 `mapTavernCard` 落好，图（去掉文本块的
- * PNG）直接上 R2 当第一张参考图。⛔ 不跑视觉提取、不联网搜 —— 卡上写什么就是什么，
+ * **导入的酒馆卡建卡**（附录J ⑥；文件导入与卡库共用）：格子已由 `mapTavernCard`
+ * 落好，卡图直接上 R2 当第一张参考图。⛔ 不跑视觉提取、不联网搜 —— 卡上写什么就是什么，
  * 外观之后在详情里补或交给卡片助手（与「新角色」只建名字同一条理由：不替用户花钱）。
  */
 export async function createImportedCharacterCard(
   clerkId: string,
   imported: TavernCardImport,
-  image: Buffer | null,
+  image: { data: Buffer; mimeType: string } | null,
 ): Promise<CharacterCardRecord> {
   const dbUser = await ensureUser(clerkId)
 
@@ -507,9 +507,9 @@ export async function createImportedCharacterCard(
     ? await (async () => {
         const storageKey = generateStorageKey('IMAGE', dbUser.id)
         const url = await uploadToR2({
-          data: image,
+          data: image.data,
           key: storageKey,
-          mimeType: 'image/png',
+          mimeType: image.mimeType,
         })
         return { url, storageKey }
       })()

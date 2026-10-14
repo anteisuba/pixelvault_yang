@@ -479,11 +479,11 @@ describe('createImportedCharacterCard（导入的酒馆卡，附录J ⑥）', ()
     const card = await createImportedCharacterCard(
       'clerk_1',
       imported,
-      Buffer.from([1, 2, 3]),
+      { data: Buffer.from([1, 2, 3]), mimeType: 'image/webp' },
     )
 
     expect(uploadToR2).toHaveBeenCalledWith(
-      expect.objectContaining({ mimeType: 'image/png' }),
+      expect.objectContaining({ mimeType: 'image/webp' }),
     )
     expect(mockAnalyzeVisual).not.toHaveBeenCalled()
     expect(mockCardCreate).toHaveBeenCalledWith({

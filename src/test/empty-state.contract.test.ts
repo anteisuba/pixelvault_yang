@@ -33,6 +33,8 @@ const LANDING_POINTS = [
   'src/components/business/KreaAssetBrowser.tsx',
   'src/components/business/assets/AssetStateBlocks.tsx',
   'src/components/business/cards/CharacterCardManager.tsx',
+  // 角色页卡库：chub 没回时整块出错（owner 2026-10-14 卡库）。
+  'src/components/business/cards/CharacterLibrary.tsx',
   'src/components/business/cards/CharacterRoster.tsx',
   'src/components/business/cards/SimpleCardManager.tsx',
   'src/components/business/cards/StyleCardManager.tsx',

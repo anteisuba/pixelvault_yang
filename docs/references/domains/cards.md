@@ -11,7 +11,7 @@
 ## Service / API
 
 - `src/services/cards/character-card.service.ts`（CRUD + 属性抽取 + 一致性打分）· `character-sample-lines.service.ts`（试读：按设定写两句台词）· `character-card.mapper.ts`（行 → `CharacterCardRecord`）· `card-recipe-compiler.service.ts`（三卡 LLM 融合成单条 prompt）。
-- API：`/api/character-cards`（GET/POST）· `/api/character-cards/import`（POST，酒馆卡导入）· `/api/character-cards/[id]`（GET/PATCH/DELETE）· `/api/character-cards/[id]/sample-lines` · `/api/character-cards/[id]/score`。
+- API：`/api/character-cards`（GET/POST）· `/api/character-cards/import`（POST，酒馆卡导入）· `/api/character-cards/chub`（GET 卡库搜索）· `/api/character-cards/chub/import`（POST）· `/api/character-cards/[id]`（GET/PATCH/DELETE）· `/api/character-cards/[id]/sample-lines` · `/api/character-cards/[id]/score`。
 - Hooks：`src/hooks/cards/`。
 
 ## 酒馆卡导入（2026-10-14，owner「进提示词加导入」）
@@ -23,6 +23,16 @@
 - **⛔ 不注入**：世界书、卡自带系统提示词、「历史之后的指令」、备选开场白、作者、版本原样存进扩展键 `st.card`；经历装不下的 description 全文也留在这里，⛔ 不静默丢。卡覆盖系统提示是安全问题，等我们自己的世界书做好再转。
 - **宏原样存**：`{{char}}` / `{{user}}`（及 `<BOT>` / `<USER>`）进提示词那一跳才换成名字（称呼会改）。
 - 导入 ⛔ 不跑视觉提取、不联网搜（不替用户花钱）；格子类型不对只空那一格，没有名字才算「不是卡」。错误带 `i18nKey`（`Errors.tavernCard.*`）。
+
+## 卡库（2026-10-14，owner「角色页里加 tab」）
+
+角色页地台最左换成两个页签「我的角色 / 卡库」（`?tab=library` 直接开卡库）。卡库站内搜 chub.ai 的公开酒馆卡，点「做成角色」建成一张角色卡后回到「我的角色」并打开她；文件导入（上一节）照旧在「我的角色」页签。
+
+- **接口**：`GET /api/character-cards/chub?q=&page=&sort=popular|recent` → `searchChubCards`；`POST /api/character-cards/chub/import { fullPath }` → `importChubCard`（`src/services/cards/chub-library.service.ts`）。chub 没有公开文档，地址、`User-Agent: SillyTavern` 与字段照酒馆 `downloadChubCharacter`（常量头注写了出处，改前先对）。
+- **落格**：取 `/api/characters/<作者>/<卡名>?full=true` 的 `definition`，按酒馆的映射拼成 V2 卡（chub 的 `personality` → 酒馆 description → 我们的经历；`tavern_personality` → 性格；`description` → 简介），再走文件导入那条 `mapTavernCard` → `createImportedCharacterCard`；`st.card` 另记 `source: 'chub'` 与 `fullPath`。
+- **⛔ 成人内容**：搜索固定 `nsfw=false&nsfl=false`，再按 `NSFW` / `NSFL` 标签兜一层。没有开关（要开再问 owner）。
+- **图**：搜索结果的头像只认 chub 图床（`*.charhub.io` / `*.chub.ai`），不认就按路径拼 `avatar.webp`；导入时卡图 `max_res_url` 同样只从图床取（防 SSRF），≤ 8 MB、png / webp / jpeg，PNG 去掉文本块；取不到就建一张没图的卡，⛔ 不因此拒整张卡。
+- 失败带 `i18nKey`（`Errors.chubLibrary.*`）；第一页没拿到是整块出错（空态模板 `tone="error"`），往下接没拿到只在底部说「这批没拿到 · 重试」。
 
 ## 角色卡字段 v2（2026-09-17）
 

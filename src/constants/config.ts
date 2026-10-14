@@ -275,6 +275,9 @@ export const API_ENDPOINTS = {
   CHARACTER_CARDS: '/api/character-cards',
   /** 导入酒馆卡（PNG / JSON，附录J ⑥） */
   CHARACTER_CARDS_IMPORT: '/api/character-cards/import',
+  /** 卡库：搜 chub.ai / 建成角色卡 */
+  CHARACTER_CARDS_CHUB: '/api/character-cards/chub',
+  CHARACTER_CARDS_CHUB_IMPORT: '/api/character-cards/chub/import',
 
   /** Video Script (VS1-VS11) */
   VIDEO_SCRIPT: '/api/video-script',

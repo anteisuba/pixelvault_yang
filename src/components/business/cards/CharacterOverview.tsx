@@ -450,16 +450,19 @@ export function countCharacterWorks(
 }
 
 /**
- * 总览那一行（住在地台上、白卡外面，布局 A）：标题 + 计数 · 搜索 · 新角色。
+ * 总览那一行（住在地台上、白卡外面，布局 A）：页签（我的角色 / 卡库）+ 计数 · 搜索 ·
+ * 新角色。
  * ⚠ 右边留出助手头像那一格（头像是 Dock 的 fixed 元素，恒在这一行最右）。
  */
 export function CharacterOverviewHeader({
+  tabs,
   characters,
   works,
   query,
   onQueryChange,
   actions,
 }: {
+  tabs: React.ReactNode
   characters: number
   works: number
   query: string
@@ -469,7 +472,7 @@ export function CharacterOverviewHeader({
   const t = useTranslations('CharacterRoster')
   return (
     <>
-      <h1 className="text-lg font-semibold">{t('title')}</h1>
+      {tabs}
       <span className="hidden text-2sm text-muted-foreground sm:inline">
         {t('overviewCount', { characters, works })}
       </span>

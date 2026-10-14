@@ -25,6 +25,11 @@ import type {
   UpdateCollectionRequest,
   UpdateStyleCardRequest,
 } from '@/types'
+import type {
+  ChubSearchQuery,
+  ChubSearchResult,
+  ImportChubCardRequest,
+} from '@/types/chub-library'
 import type { ImportTavernCardRequest } from '@/types/tavern-card'
 import { API_ENDPOINTS } from '@/constants/config'
 
@@ -82,6 +87,66 @@ export async function importTavernCardAPI(
 ): Promise<CharacterCardResponse & { i18nKey?: string }> {
   try {
     const response = await fetch(API_ENDPOINTS.CHARACTER_CARDS_IMPORT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      const payload = await getErrorPayload(
+        response,
+        `Failed with status ${response.status}`,
+      )
+      return { success: false, error: payload.error, i18nKey: payload.i18nKey }
+    }
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+/** 卡库：搜 chub.ai 上的酒馆卡。失败带 `i18nKey`。 */
+export async function searchChubCardsAPI(
+  query: ChubSearchQuery,
+  signal?: AbortSignal,
+): Promise<{
+  success: boolean
+  data?: ChubSearchResult
+  error?: string
+  i18nKey?: string
+}> {
+  try {
+    const params = new URLSearchParams({
+      q: query.q,
+      page: String(query.page),
+      sort: query.sort,
+    })
+    const response = await fetch(
+      `${API_ENDPOINTS.CHARACTER_CARDS_CHUB}?${params}`,
+      { signal },
+    )
+    if (!response.ok) {
+      const payload = await getErrorPayload(
+        response,
+        `Failed with status ${response.status}`,
+      )
+      return { success: false, error: payload.error, i18nKey: payload.i18nKey }
+    }
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+/** 卡库里的一张卡 → 一张角色卡。失败带 `i18nKey`。 */
+export async function importChubCardAPI(
+  data: ImportChubCardRequest,
+): Promise<CharacterCardResponse & { i18nKey?: string }> {
+  try {
+    const response = await fetch(API_ENDPOINTS.CHARACTER_CARDS_CHUB_IMPORT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),

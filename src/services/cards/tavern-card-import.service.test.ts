@@ -51,8 +51,9 @@ describe('importTavernCard', () => {
       name: 'Rei',
       persona: { behavior: 'calm' },
     })
-    expect(Buffer.isBuffer(image)).toBe(true)
-    expect(image.includes(Buffer.from('chara'))).toBe(false)
+    expect(image.mimeType).toBe('image/png')
+    expect(Buffer.isBuffer(image.data)).toBe(true)
+    expect(image.data.includes(Buffer.from('chara'))).toBe(false)
   })
 
   it('JSON 卡：没有图', async () => {

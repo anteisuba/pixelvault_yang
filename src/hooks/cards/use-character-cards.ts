@@ -15,6 +15,7 @@ import { TAVERN_CARD } from '@/constants/cards/tavern-card'
 import {
   listCharacterCardsAPI,
   createCharacterCardAPI,
+  importChubCardAPI,
   importTavernCardAPI,
   updateCharacterCardAPI,
   deleteCharacterCardAPI,
@@ -86,6 +87,8 @@ export interface UseCharacterCardsReturn {
   ) => Promise<CharacterCardRecord | null>
   /** 导入一张酒馆卡（PNG / JSON）建成角色卡；失败已 toast，返回 `null`。 */
   importTavern: (file: File) => Promise<CharacterCardRecord | null>
+  /** 卡库里的一张 chub 卡（`作者/卡名`）建成角色卡；失败已 toast，返回 `null`。 */
+  importChub: (fullPath: string) => Promise<CharacterCardRecord | null>
   update: (id: string, data: UpdateCharacterCardRequest) => Promise<boolean>
   remove: (id: string) => Promise<boolean>
   refresh: () => Promise<void>
@@ -243,26 +246,11 @@ export function useCharacterCards(): UseCharacterCardsReturn {
     [t],
   )
 
-  const importTavern = useCallback(
-    async (file: File): Promise<CharacterCardRecord | null> => {
-      const mime = tavernCardMime(file)
-      if (!mime) {
-        toast.error(tErrors('tavernCard.notACard'))
-        return null
-      }
-      if (file.size > TAVERN_CARD.MAX_FILE_BYTES) {
-        toast.error(tErrors('tavernCard.tooLarge'))
-        return null
-      }
-      const base64 = await readFileBase64(file)
-      if (base64 === null) {
-        toast.error(t('characterCardImportFailed'))
-        return null
-      }
-      const response = await importTavernCardAPI({
-        fileName: file.name.slice(0, TAVERN_CARD.FILE_NAME_MAX_LENGTH),
-        data: `data:${mime};base64,${base64}`,
-      })
+  /** 导入那两条（文件 / 卡库）收尾同一套：插到最前、toast 名字；失败说人话。 */
+  const settleImport = useCallback(
+    (
+      response: Awaited<ReturnType<typeof importTavernCardAPI>>,
+    ): CharacterCardRecord | null => {
       if (response.success && response.data) {
         setError(null)
         const newCard = response.data
@@ -284,6 +272,38 @@ export function useCharacterCards(): UseCharacterCardsReturn {
       return null
     },
     [t, tErrors],
+  )
+
+  const importTavern = useCallback(
+    async (file: File): Promise<CharacterCardRecord | null> => {
+      const mime = tavernCardMime(file)
+      if (!mime) {
+        toast.error(tErrors('tavernCard.notACard'))
+        return null
+      }
+      if (file.size > TAVERN_CARD.MAX_FILE_BYTES) {
+        toast.error(tErrors('tavernCard.tooLarge'))
+        return null
+      }
+      const base64 = await readFileBase64(file)
+      if (base64 === null) {
+        toast.error(t('characterCardImportFailed'))
+        return null
+      }
+      return settleImport(
+        await importTavernCardAPI({
+          fileName: file.name.slice(0, TAVERN_CARD.FILE_NAME_MAX_LENGTH),
+          data: `data:${mime};base64,${base64}`,
+        }),
+      )
+    },
+    [settleImport, t, tErrors],
+  )
+
+  const importChub = useCallback(
+    async (fullPath: string): Promise<CharacterCardRecord | null> =>
+      settleImport(await importChubCardAPI({ fullPath })),
+    [settleImport],
   )
 
   const update = useCallback(
@@ -369,6 +389,7 @@ export function useCharacterCards(): UseCharacterCardsReturn {
     activeCards,
     create,
     importTavern,
+    importChub,
     update,
     remove,
     refresh: fetchCards,

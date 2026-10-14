@@ -63,6 +63,11 @@ export async function importTavernCard(
   return createImportedCharacterCard(
     clerkId,
     mapTavernCard(card),
-    isPngData ? Buffer.from(stripPngTextChunks(bytes)) : null,
+    isPngData
+      ? {
+          data: Buffer.from(stripPngTextChunks(bytes)),
+          mimeType: 'image/png',
+        }
+      : null,
   )
 }

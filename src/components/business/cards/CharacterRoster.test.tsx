@@ -95,6 +95,37 @@ function card(
 const mockUpdate = vi.fn().mockResolvedValue(true)
 const mockCreate = vi.fn()
 const mockImportTavern = vi.fn()
+const mockImportChub = vi.fn()
+const mockLibraryEnabled = vi.hoisted(() => ({ value: false }))
+
+vi.mock('@/hooks/cards/use-chub-library', () => ({
+  useChubLibrary: (enabled: boolean) => {
+    mockLibraryEnabled.value = enabled
+    return {
+      query: '',
+      setQuery: vi.fn(),
+      sort: 'popular',
+      setSort: vi.fn(),
+      items: [
+        {
+          fullPath: 'maker/rei',
+          name: 'Rei',
+          tagline: '雨夜里的店主',
+          tags: ['Original'],
+          avatarUrl: null,
+          starCount: 1200,
+          tokenCount: 900,
+        },
+      ],
+      status: 'ready',
+      moreStatus: null,
+      hasMore: false,
+      error: null,
+      loadMore: vi.fn(),
+      retry: vi.fn(),
+    }
+  },
+}))
 
 const CARDS = [
   card('denia', 'Denia', {
@@ -131,6 +162,7 @@ vi.mock('@/hooks/cards/use-character-cards', () => ({
       ) ?? null,
     create: (...a: unknown[]) => mockCreate(...a),
     importTavern: (...a: unknown[]) => mockImportTavern(...a),
+    importChub: (...a: unknown[]) => mockImportChub(...a),
     update: (...a: unknown[]) => mockUpdate(...a),
     remove: vi.fn(),
   }),
@@ -221,6 +253,38 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
     fireEvent.dragOver(board, { dataTransfer })
     fireEvent.drop(board, { dataTransfer })
     await vi.waitFor(() => expect(mockImportTavern).toHaveBeenCalledWith(file))
+  })
+
+  it('卡库页签：打开才去搜 chub；「做成角色」建好回到我的角色并打开她', async () => {
+    mockImportChub.mockReset()
+    mockImportChub.mockResolvedValue(CARDS[1])
+    renderRoster()
+    expect(mockLibraryEnabled.value).toBe(false)
+    fireEvent.click(screen.getByRole('tab', { name: '卡库' }))
+    expect(mockLibraryEnabled.value).toBe(true)
+    expect(screen.getByRole('tab', { name: '卡库' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(screen.getByText('雨夜里的店主')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '把 Rei 做成角色' }))
+    await vi.waitFor(() =>
+      expect(mockImportChub).toHaveBeenCalledWith('maker/rei'),
+    )
+    await vi.waitFor(() =>
+      expect(screen.getByRole('region', { name: '里希' })).toBeTruthy(),
+    )
+    fireEvent.click(screen.getByRole('button', { name: '角色' }))
+    expect(screen.getByRole('tab', { name: '我的角色' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+  })
+
+  it('?tab=library 直接打开卡库', () => {
+    mockSearch.value = 'tab=library'
+    renderRoster()
+    expect(screen.getAllByTestId('library-tile')).toHaveLength(1)
   })
 
   it('新角色草稿没起名就返回 = 什么都没建', () => {

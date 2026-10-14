@@ -5,6 +5,11 @@ import { motion, useReducedMotion } from 'motion/react'
 import { useSearchParams } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 
+import {
+  CHARACTER_PAGE_TABS,
+  CHUB_LIBRARY,
+  type CharacterPageTab,
+} from '@/constants/cards/chub-library'
 import { DURATION, DURATION_MS, EASE_STANDARD } from '@/constants/motion'
 import type { CharacterCardRecord } from '@/types'
 import type { AssistantOperatorCharacterProfileField } from '@/types/assistant-operator'
@@ -19,6 +24,11 @@ import {
   CharacterDraftBody,
 } from '@/components/business/cards/CharacterDetail'
 import {
+  CharacterLibrary,
+  CharacterLibraryHeader,
+  CharacterPageTabs,
+} from '@/components/business/cards/CharacterLibrary'
+import {
   CharacterOverview,
   CharacterOverviewHeader,
   countCharacterWorks,
@@ -28,6 +38,7 @@ import { StudioOperatorHostProvider } from '@/contexts/studio-operator-host'
 import { useCardsOperatorHost } from '@/hooks/cards/use-cards-operator-host'
 import { appendSlotSources } from '@/hooks/cards/use-character-card-editor'
 import { useCharacterCards } from '@/hooks/cards/use-character-cards'
+import { useChubLibrary } from '@/hooks/cards/use-chub-library'
 import { cn } from '@/lib/utils'
 
 /**
@@ -86,6 +97,18 @@ export function CharacterRoster() {
   const [query, setQuery] = useState('')
   /** 「新角色」草稿开着（owner 09-28：直接进空详情页，名字写好才建卡）。 */
   const [drafting, setDrafting] = useState(false)
+  /** 「我的角色 / 卡库」页签（`?tab=library` 直接开卡库）。 */
+  const [tab, setTab] = useState<CharacterPageTab>(() =>
+    searchParams.get(CHUB_LIBRARY.TAB_PARAM) === CHARACTER_PAGE_TABS.library
+      ? CHARACTER_PAGE_TABS.library
+      : CHARACTER_PAGE_TABS.roster,
+  )
+  const onLibrary = tab === CHARACTER_PAGE_TABS.library
+  const library = useChubLibrary(onLibrary)
+  /** 卡库里正在建成角色的那一张（一次一张）。 */
+  const [libraryImporting, setLibraryImporting] = useState<string | null>(
+    null,
+  )
   /** 导入酒馆卡：选文件那一下 / 拖进总览那一下（附录J ⑥）。 */
   const importInput = useRef<HTMLInputElement>(null)
   const [importing, setImporting] = useState(false)
@@ -226,6 +249,16 @@ export function CharacterRoster() {
     setImporting(false)
     if (card) openCharacter(card.id)
   }
+  /** 卡库里点「做成角色」：建好回到「我的角色」并打开她。 */
+  const importFromLibrary = async (fullPath: string) => {
+    if (libraryImporting) return
+    setLibraryImporting(fullPath)
+    const card = await characters.importChub(fullPath)
+    setLibraryImporting(null)
+    if (!card) return
+    setTab(CHARACTER_PAGE_TABS.roster)
+    openCharacter(card.id)
+  }
   const isFileDrag = (event: React.DragEvent) =>
     event.dataTransfer.types.includes('Files')
 
@@ -287,6 +320,8 @@ export function CharacterRoster() {
     </>
   )
 
+  const tabs = <CharacterPageTabs tab={tab} onChange={setTab} />
+
   return (
     <StudioOperatorHostProvider host={operatorHost}>
       <div className="flex min-h-0 flex-1 flex-col gap-3">
@@ -294,7 +329,11 @@ export function CharacterRoster() {
           冻结时整行卡在旧内容上）：换 key 即换，新的一行淡入上移。 */}
         <motion.div
           key={
-            drafting ? 'draft' : selected ? `detail:${selected.id}` : 'overview'
+            drafting
+              ? 'draft'
+              : selected
+                ? `detail:${selected.id}`
+                : `overview:${tab}`
           }
           initial={enter}
           animate={{ opacity: 1, y: 0 }}
@@ -324,8 +363,11 @@ export function CharacterRoster() {
             />
           ) : selected ? (
             <CharacterDetailHeader card={selected} onBack={closeDetail} />
+          ) : onLibrary ? (
+            <CharacterLibraryHeader tabs={tabs} library={library} />
           ) : (
             <CharacterOverviewHeader
+              tabs={tabs}
               characters={items.length}
               works={countCharacterWorks(items, locale)}
               query={query}
@@ -347,7 +389,7 @@ export function CharacterRoster() {
           )}
           // 酒馆卡 PNG / JSON 拖进总览即导入（详情、草稿开着时不接）。
           onDragOver={(event) => {
-            if (selected || drafting || !isFileDrag(event)) return
+            if (selected || drafting || onLibrary || !isFileDrag(event)) return
             event.preventDefault()
             setDragOver(true)
           }}
@@ -358,7 +400,7 @@ export function CharacterRoster() {
             setDragOver(false)
           }}
           onDrop={(event) => {
-            if (selected || drafting || !isFileDrag(event)) return
+            if (selected || drafting || onLibrary || !isFileDrag(event)) return
             event.preventDefault()
             setDragOver(false)
             void importCard(event.dataTransfer.files[0])
@@ -376,7 +418,13 @@ export function CharacterRoster() {
             }
             className="h-full overflow-y-auto px-5 pb-12 pt-6 sm:px-8"
           >
-            {characters.isLoading ? (
+            {onLibrary ? (
+              <CharacterLibrary
+                library={library}
+                importingPath={libraryImporting}
+                onImport={(fullPath) => void importFromLibrary(fullPath)}
+              />
+            ) : characters.isLoading ? (
               <div className="flex justify-center py-16">
                 <Spinner size="lg" className="text-muted-foreground" />
               </div>

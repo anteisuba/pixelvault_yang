@@ -73,6 +73,10 @@ export const NODE_STUDIO_CANVAS = {
   panOnDragButtons: [1, 2],
   // 空格 + 左键拖 = 临时平移（对齐 Figma）。
   panActivationKeyCode: 'Space',
+  // 触控板双指滑动 / 普通滚轮 = 平移（对齐 Figma）；缩放只走捏合（mac 捏合发
+  // ctrlKey 滚轮）与 ⌘/Ctrl + 滚轮（React Flow 默认 zoomActivationKeyCode）。
+  // 1 = 手指走多少画布走多少（库默认 0.5 偏慢）。
+  panOnScrollSpeed: 1,
 } as const
 
 export const NODE_STUDIO_CANVAS_APPEARANCE_FITS = ['cover', 'contain'] as const

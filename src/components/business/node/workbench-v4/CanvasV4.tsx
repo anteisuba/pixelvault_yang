@@ -761,7 +761,11 @@ export function CanvasV4({
         panActivationKeyCode={NODE_STUDIO_CANVAS.panActivationKeyCode}
         selectionOnDrag
         selectionMode={SelectionMode.Partial}
+        // 滚轮 / 双指滑动平移；捏合与 ⌘/Ctrl + 滚轮缩放（见 NODE_STUDIO_CANVAS）。
+        panOnScroll
+        panOnScrollSpeed={NODE_STUDIO_CANVAS.panOnScrollSpeed}
         zoomOnScroll
+        zoomOnPinch
         // 详情只从展开钮开；双击缩放在卡上要保持无效。
         zoomOnDoubleClick={false}
         fitView={false}

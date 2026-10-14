@@ -13,6 +13,7 @@ import {
   FileText,
   LockKeyhole,
   MoreHorizontal,
+  Pin,
   Plus,
   Share2,
   X,
@@ -79,6 +80,10 @@ interface GalleryViewerProps {
   onClose: () => void
   /** ♥ 由画廊统一记（卡片与查看器看同一个数）。 */
   onToggleLike: (generation: GenerationRecord) => void
+  /** 手机：整屏看图 + 底部上滑的作者与配方（`InPlaceViewer` 的 `phone`）。 */
+  phone?: boolean
+  /** 自己的主页：「⋯」里多一项置顶 / 取消置顶（拍立得右上角 ✦）。 */
+  pin?: { pinned: boolean; onToggle: () => void }
 }
 
 function studioRouteFor(outputType: OutputType) {
@@ -94,7 +99,7 @@ function studioRouteFor(outputType: OutputType) {
  */
 export function GalleryViewer(props: GalleryViewerProps) {
   const t = useTranslations('GalleryPage.viewer')
-  const { generation, images, onNavigate, onClose } = props
+  const { generation, images, onNavigate, onClose, phone } = props
 
   return (
     <InPlaceViewer
@@ -112,6 +117,7 @@ export function GalleryViewer(props: GalleryViewerProps) {
       previousLabel={t('previous')}
       nextLabel={t('next')}
       className="pt-3"
+      phone={phone}
     >
       <GalleryViewerAside {...props} />
     </InPlaceViewer>
@@ -123,6 +129,7 @@ function GalleryViewerAside({
   generation,
   onClose,
   onToggleLike,
+  pin,
 }: GalleryViewerProps) {
   const api = useInPlaceViewer()
   const t = useTranslations('GalleryPage.viewer')
@@ -130,6 +137,7 @@ function GalleryViewerAside({
   const tCard = useTranslations('GalleryCard')
   const tModels = useTranslations('Models')
   const tErrors = useTranslations('Errors')
+  const tProfile = useTranslations('CreatorProfile')
   const format = useFormatter()
   const locale = useLocale()
   const router = useRouter()
@@ -377,6 +385,12 @@ function GalleryViewerAside({
                   <FileText aria-hidden />
                   {tDetail('savePromptTemplate')}
                 </Link>
+              </DropdownMenuItem>
+            ) : null}
+            {pin ? (
+              <DropdownMenuItem onSelect={pin.onToggle} className="rounded-xl">
+                <Pin aria-hidden />
+                {pin.pinned ? tProfile('unpin') : tProfile('pin')}
               </DropdownMenuItem>
             ) : null}
             <DropdownMenuItem

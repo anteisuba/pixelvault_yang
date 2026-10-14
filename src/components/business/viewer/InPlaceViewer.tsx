@@ -1,9 +1,7 @@
 'use client'
 
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -14,30 +12,16 @@ import { motion, useReducedMotion } from 'motion/react'
 
 import { ChevronLeft, ChevronRight } from '@/components/icons'
 import { DURATION, EASE_STANDARD, SPRING } from '@/constants/motion'
+import { PhoneViewer } from '@/components/business/viewer/PhoneViewer'
+import { InPlaceViewerContext } from '@/components/business/viewer/in-place-viewer-context'
 import { cn } from '@/lib/utils'
 
-export interface InPlaceViewerApi {
-  /** 缩回当前那一张再放下（关上 / 删除后）。 */
-  requestClose: () => void
-  /** 菜单、确认框、弹层开着时让它们自己接 Esc 与方向键。 */
-  setKeyboardBlocked: (blocked: boolean) => void
-  /** 当前那张在可翻那组里的位置（从 0 起）；不在组里（视频 / 音频 / 3D）是 -1。 */
-  index: number
-  total: number
-  hasRail: boolean
-}
+export {
+  useInPlaceViewer,
+  type InPlaceViewerApi,
+} from '@/components/business/viewer/in-place-viewer-context'
 
-const InPlaceViewerContext = createContext<InPlaceViewerApi | null>(null)
-
-/** 右栏拿外壳的接口（`requestClose` 等）。只能用在 `InPlaceViewer` 的 children 里。 */
-export function useInPlaceViewer(): InPlaceViewerApi {
-  const api = useContext(InPlaceViewerContext)
-  if (!api)
-    throw new Error('useInPlaceViewer must be used inside InPlaceViewer')
-  return api
-}
-
-interface InPlaceViewerProps<T extends { id: string }> {
+export interface InPlaceViewerProps<T extends { id: string }> {
   current: T
   /** 能翻的那组（当前已加载、当前筛选结果里的图片）。 */
   items: readonly T[]
@@ -62,6 +46,11 @@ interface InPlaceViewerProps<T extends { id: string }> {
   children: ReactNode
   /** 外框的留白（例：画廊 `pt-3` —— 底色铺满容器，查看器本体往下让 12）。 */
   className?: string
+  /**
+   * 手机（<768）：整屏看图，左右滑翻张、往下拉关上，右栏那份内容变成底部上滑的信息页
+   * （`PhoneViewer`）。由宿主按 `useIsMobile()` 传进来 —— 查看器自己量会先按电脑画一帧。
+   */
+  phone?: boolean
 }
 
 function tileOf(attribute: string, id: string): HTMLElement | null {
@@ -78,7 +67,14 @@ function tileOf(attribute: string, id: string): HTMLElement | null {
  * ⚠ 顶栏与侧栏照常可用：⛔ 遮罩、⛔ 锁焦点。Esc 关、← / → 翻（首尾停住不循环）。
  * ⚠ 宿主给一个定好位的容器，这里 `absolute inset-0` 铺满它、底下留 16 与左栏对齐。
  */
-export function InPlaceViewer<T extends { id: string }>({
+export function InPlaceViewer<T extends { id: string }>(
+  props: InPlaceViewerProps<T>,
+) {
+  if (props.phone) return <PhoneViewer {...props} />
+  return <StageViewer {...props} />
+}
+
+function StageViewer<T extends { id: string }>({
   current,
   items,
   onNavigate,

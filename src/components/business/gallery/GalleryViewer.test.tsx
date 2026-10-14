@@ -82,6 +82,8 @@ function renderViewer(
     onNavigate: (next: GenerationRecord) => void
     onClose: () => void
     onToggleLike: (generation: GenerationRecord) => void
+    phone: boolean
+    pin: { pinned: boolean; onToggle: () => void }
   }> = {},
 ) {
   const props = {
@@ -193,5 +195,69 @@ describe('GalleryViewer', () => {
     )
     expect(onClose).toHaveBeenCalled()
     expect(push).toHaveBeenCalledWith('/studio/image')
+  })
+})
+
+describe('GalleryViewer on a phone', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    document.documentElement.style.overflow = ''
+  })
+
+  it('opens full screen over the page with the author and actions in the info sheet', () => {
+    renderViewer(works[1], { phone: true })
+
+    const screenRoot = screen.getByTestId('phone-viewer')
+    expect(screenRoot.parentElement).toBe(document.body)
+    expect(screen.getByRole('dialog')).toHaveAttribute('aria-modal', 'true')
+    expect(
+      screen.getByRole('link', { name: 'GalleryCard:creatorProfileLabel' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /GalleryPage\.viewer:remix/ }),
+    ).toBeInTheDocument()
+    // 翻张靠左右滑，⛔ 电脑那两颗箭头与缩略轨。
+    expect(
+      screen.queryByRole('button', { name: 'GalleryPage.viewer:previous' }),
+    ).toBeNull()
+    expect(
+      screen.queryByRole('button', { name: 'GalleryPage.viewer:thumb' }),
+    ).toBeNull()
+    // 开着时底下的页面不跟着滚。
+    expect(document.documentElement.style.overflow).toBe('hidden')
+  })
+
+  it('the handle pulls the info sheet up and back down', () => {
+    renderViewer(works[0], { phone: true })
+
+    const handle = screen.getByRole('button', {
+      name: 'MobileViewer:showInfo',
+    })
+    expect(handle).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(handle)
+    expect(
+      screen.getByRole('button', { name: 'MobileViewer:hideInfo' }),
+    ).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('a keyboard still pages and closes', () => {
+    const { onNavigate } = renderViewer(works[1], { phone: true })
+
+    fireEvent.keyDown(document, { key: 'ArrowLeft' })
+    expect(onNavigate).toHaveBeenCalledWith(works[0])
+  })
+
+  it('your own profile gets pin / unpin under ⋯', async () => {
+    const onToggle = vi.fn()
+    renderViewer(works[0], { phone: true, pin: { pinned: false, onToggle } })
+
+    const more = screen.getByRole('button', {
+      name: 'GalleryPage.viewer:more',
+    })
+    await act(async () => {
+      fireEvent.pointerDown(more, { button: 0, pointerType: 'mouse' })
+    })
+    fireEvent.click(await screen.findByText('CreatorProfile:pin'))
+    expect(onToggle).toHaveBeenCalled()
   })
 })

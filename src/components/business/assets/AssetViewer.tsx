@@ -85,6 +85,8 @@ interface AssetViewerProps {
   onUpdated: (id: string, patch: Partial<GenerationRecord>) => void
   /** 音频封面回退链算出的那一张（与瓦片同一张）。 */
   audioCoverUrl?: string
+  /** 手机：整屏看图 + 底部上滑的配方（`InPlaceViewer` 的 `phone`）。 */
+  phone?: boolean
 }
 
 /**
@@ -94,7 +96,8 @@ interface AssetViewerProps {
  */
 export function AssetViewer(props: AssetViewerProps) {
   const t = useTranslations('AssetsPage')
-  const { generation, images, onNavigate, onClose, audioCoverUrl } = props
+  const { generation, images, onNavigate, onClose, audioCoverUrl, phone } =
+    props
 
   return (
     <InPlaceViewer
@@ -117,6 +120,7 @@ export function AssetViewer(props: AssetViewerProps) {
       thumbLabel={(n) => t('viewer.thumb', { n })}
       previousLabel={t('detailPreviousImage')}
       nextLabel={t('detailNextImage')}
+      phone={phone}
     >
       <AssetViewerAside {...props} />
     </InPlaceViewer>

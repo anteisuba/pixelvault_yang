@@ -27,6 +27,8 @@ interface PolaroidCardProps {
   isOwnProfile?: boolean
   onLike?: (id: string) => void
   onPin?: (id: string) => void
+  /** 给了 = 点开交给宿主（手机整屏看图），不再弹自己的放大层。 */
+  onOpen?: (id: string) => void
   className?: string
 }
 
@@ -59,6 +61,7 @@ export function PolaroidCard({
   isOwnProfile,
   onLike,
   onPin,
+  onOpen,
   className,
 }: PolaroidCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
@@ -86,14 +89,20 @@ export function PolaroidCard({
     }
   }, [id, totalImages])
 
-  const handleExpand = useCallback(() => setIsExpanded(true), [])
+  const handleExpand = useCallback(() => {
+    if (onOpen) onOpen(id)
+    else setIsExpanded(true)
+  }, [id, onOpen])
   const handleClose = useCallback(() => setIsExpanded(false), [])
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault()
-      setIsExpanded(true)
-    }
-  }, [])
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        handleExpand()
+      }
+    },
+    [handleExpand],
+  )
   const handleExpandKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       setIsExpanded(false)
@@ -108,6 +117,7 @@ export function PolaroidCard({
       <div
         role="button"
         tabIndex={0}
+        data-gallery-tile-id={id}
         aria-label={`${t('imageBy')} ${model}, ${dateStr}`}
         className={cn(
           'group cursor-pointer transition-transform duration-300 ease-out',

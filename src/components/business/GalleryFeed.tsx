@@ -68,17 +68,16 @@ export function GalleryFeed({
   // 等太久（6 秒）底部黑条「网有点慢，还在加载」，数据到了自己收掉（加载中 2026-10-08）。
   useSlowLoadingNotice(isLoading)
 
-  // 桌面点开是就地查看器；平板与手机沿用卡片自己的全屏详情（owner 09-29）。
   /**
-   * 手机与平板点开走 `ImageDetailModal`，就地查看器只给 ≥1024（owner 09-29：平板 820 宽时
-   * 右栏 340 把舞台挤到约 290 宽）。桌面壳下移到 768 后平板也是桌面壳，这一条单独留着。
+   * 桌面点开是就地查看器；手机是同一个查看器的整屏形态（左右滑、往下拉关、作者与配方在
+   * 底部上滑，owner 2026-10-14）。平板仍走卡片自己的 `ImageDetailModal`（owner 09-29：
+   * 平板 820 宽时右栏 340 把舞台挤到约 290 宽）。
    */
   const isPhone = useIsMobile()
   const isTablet = useIsTablet()
-  const isCompact = isPhone || isTablet
   const [viewerId, setViewerId] = useState<string | null>(null)
   const viewing =
-    !isCompact && viewerId
+    !isTablet && viewerId
       ? (generations.find((generation) => generation.id === viewerId) ?? null)
       : null
   const images = useMemo(
@@ -91,7 +90,7 @@ export function GalleryFeed({
   )
   const closeViewer = useCallback(() => setViewerId(null), [])
   const rootRef = useRef<HTMLDivElement>(null)
-  const viewerBounds = useViewerBounds(Boolean(viewing), rootRef)
+  const viewerBounds = useViewerBounds(Boolean(viewing) && !isPhone, rootRef)
 
   const handleFiltersChange = useCallback(
     (nextFilters: GalleryFilters) => {
@@ -157,7 +156,7 @@ export function GalleryFeed({
         <GalleryHeader
           filters={filters}
           onFiltersChange={handleFiltersChange}
-          pinnedOpen={Boolean(viewing)}
+          pinnedOpen={Boolean(viewing) && !isPhone}
         />
 
         {/* 换筛选、缓存里没有：静止的灰块（⛔ 先闪一下「空」）；整页没拿到：统一出错模板。 */}
@@ -174,7 +173,7 @@ export function GalleryFeed({
             emptyActionLabel={t('emptyAction')}
             feedLabel={t('feedLabel')}
             itemFallbackLabel={t('itemFallbackLabel')}
-            onOpen={isCompact ? undefined : openViewer}
+            onOpen={isTablet ? undefined : openViewer}
             onToggleLike={handleToggleLike}
           />
         )}
@@ -197,7 +196,17 @@ export function GalleryFeed({
       </div>
 
       {/* 放在间距容器外：`gap` 会给它让出一道缝，把 bottom: 0 顶起来。 */}
-      {viewing && viewerBounds ? (
+      {viewing && isPhone ? (
+        <GalleryViewer
+          phone
+          generation={viewing}
+          images={images}
+          onNavigate={openViewer}
+          onClose={closeViewer}
+          onToggleLike={handleToggleLike}
+        />
+      ) : null}
+      {viewing && !isPhone && viewerBounds ? (
         <div style={viewerBounds} className="fixed z-20">
           <GalleryViewer
             generation={viewing}

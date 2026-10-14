@@ -647,6 +647,10 @@
       "profile": "Me"
     }
   },
+  "MobileViewer": {
+    "showInfo": "Show details",
+    "hideInfo": "Hide details"
+  },
   "LocaleSwitcher": {
     "label": "Language",
     "options": {

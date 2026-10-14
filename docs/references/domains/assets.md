@@ -10,7 +10,7 @@
 - 过滤：媒体类型 toggle；**搜索/排序/时间过滤引擎已存在**（`use-gallery.ts` 的 GalleryFilters 支持 search/model/sort/timeRange/provider）**但 UI 未露出**——这是 P0 优化方向之一。
 - 网格：密度 4/6/8（localStorage 持久化）+ 哨兵无限滚动；无虚拟化、无 blur-up。
 - 批量：选择模式逐张点选 + 底部操作条（删除/发布/收藏/移动）+ 拖拽入文件夹；无 shift 范围选。（2026-09-28 起「移动」改成「加入文件夹」，拖到左栏一行 = 也放进那个夹。）
-- 详情：2026-09-29 起桌面 / 平板是盖在大河那一列上的就地查看器（`assets/AssetViewer`，左大图 + 缩略轨，右边「这张的配方」：做同款 / 收藏 / 发布 / 下载 / ⋯ / 加入文件夹 / 复制配方），手机沿用 `AssetDetailSheet`（`MediaDetailViewer` 全屏）；两处共用一份动作逻辑。图片之间可在当前已加载、当前筛选结果里前后翻，首尾不循环。瓦片是 LoRA 库那套皮，悬停出「模型 · 尺寸」小签与 ♥ 收藏键。契约见 [`../pages/assets.md`](../pages/assets.md) §3「详情」、§6。
+- 详情：2026-09-29 起桌面 / 平板是盖在大河那一列上的就地查看器（`assets/AssetViewer`，左大图 + 缩略轨，右边「这张的配方」：做同款 / 收藏 / 发布 / 下载 / ⋯ / 加入文件夹 / 复制配方），手机（<768）是同一个查看器的整屏形态 `viewer/PhoneViewer`（owner 2026-10-14「像 App：看的时候是全屏的图或视频，信息滑动查看」）：从点的那一格长出来，左右滑翻张、往下拉关上，右栏那份内容原样放进底部信息页，平时露标题行与动作行，往上推或点把手拉满；`/assets/<id>` 整页另用 `AssetDetailContent`，三处共用一份动作逻辑。图片之间可在当前已加载、当前筛选结果里前后翻，首尾不循环。瓦片是 LoRA 库那套皮，悬停出「模型 · 尺寸」小签与 ♥ 收藏键。契约见 [`../pages/assets.md`](../pages/assets.md) §3「详情」、§6。
 - 媒体表达：Generation 已有图片/视频宽高与音频时长；当前列表统一正方形裁切。声音已有详情设置封面 API 与默认图回退链，但封面规则尚未成为页面契约。
 - 上传：完整素材页接受 JPG / PNG / WebP / GIF、MP4 / MOV / WebM，以及 MP3 / WAV / M4A / FLAC / OGG / audio-WebM。图片沿既有压缩/直传链；视频与音频由浏览器直接 PUT R2，分别按 `VIDEO` / `AUDIO` Generation 归档，视频额外保存客户端截取的 poster。大媒体单 PUT 上限 5 GiB、签名 1 小时；完成端以 HEAD 核对对象大小并只 Range 读取前 4 KiB 做容器签名校验。音频上传队列使用方形音频占位，不再误走图片解码/压缩。素材选择器仍保持图片上传入口。
 - 来源：Generation 已有 `sourceSurface`，但列表 select 与 Assets 筛选未接入；现有枚举也未完整覆盖 Video / Audio / 3D / Upload，暂时无法按所有真实来源分类。
@@ -50,12 +50,12 @@
 
 ## Source of Truth
 
-`src/components/business/KreaAssetBrowser.tsx` · `AssetSelectorDialog.tsx` · `AssetDetailSheet.tsx` · `assets/AssetFolderSidebar.tsx` · `assets/AssetAddToFolderPanel.tsx` · `src/services/asset-folder.service.ts` · `src/hooks/use-gallery.ts` · `src/hooks/use-asset-folders.ts`；方向调研 素材优化方向调研（已删，见 git 历史）（含 P0–P2 路线图）。
+`src/components/business/KreaAssetBrowser.tsx` · `AssetSelectorDialog.tsx` · `assets/AssetViewer.tsx` · `viewer/PhoneViewer.tsx` · `assets/AssetFolderSidebar.tsx` · `assets/AssetAddToFolderPanel.tsx` · `src/services/asset-folder.service.ts` · `src/hooks/use-gallery.ts` · `src/hooks/use-asset-folders.ts`；方向调研 素材优化方向调研（已删，见 git 历史）（含 P0–P2 路线图）。
 
 ## 移动端等级（owner 2026-09-03 拍板，配方见 `../ui-defaults.md §6`）
 
 - **完整**。`/assets` 是浏览与整理面，手机是主要场景之一。
-- 375px：图墙 2 列；文件夹栏收成顶栏一颗范围胶囊，点了从左边拉出抽屉；批量操作条固定在 `safe-area-inset-bottom` 之上；触屏上用「加入文件夹」面板代替拖拽；点开素材沿用 `AssetDetailSheet` 全屏详情（桌面 / 平板的就地查看器不上手机，owner 2026-09-29）。
+- 375px：图墙 2 列；文件夹栏收成顶栏一颗范围胶囊，点了从左边拉出抽屉；批量操作条固定在 `safe-area-inset-bottom` 之上；触屏上用「加入文件夹」面板代替拖拽；点开素材是就地查看器的整屏形态 `PhoneViewer`（左右滑、往下拉关、配方在底部上滑，owner 2026-10-14；推翻 09-29「手机沿用全屏详情」）。
 - 验收：`checklists/ui.md` 第 3、4 项，375 图能完成「筛选 → 选中 → 加入文件夹」主路径。
 
 ## Last Verified

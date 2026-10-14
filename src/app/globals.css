@@ -131,6 +131,8 @@
   /* 手机底栏（owner 2026-10-09 v10）：6px 上衬 + 52px 一行 + 底部安全区。
      底栏自己用 `pb-safe-inset-bottom`，贴在它上面的东西用 `bottom-mobile-tabbar`。 */
   --spacing-safe-inset-bottom: env(safe-area-inset-bottom, 0px);
+  /* 整屏盖上来的东西（手机看图）让开刘海 / 灵动岛：`pt-safe-inset-top`。 */
+  --spacing-safe-inset-top: env(safe-area-inset-top, 0px);
   --spacing-mobile-tabbar: calc(3.625rem + env(safe-area-inset-bottom, 0px));
   /* 统一模型选择器（D2 ④ 画板）：弹层 320px（owner 2026-10-03「太宽了」，与生成台
      输入框里那几颗 `w-80` 对齐；原 380），渠道面板浮在它右侧。

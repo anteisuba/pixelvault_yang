@@ -5963,6 +5963,10 @@
           "uploadFailed": "{n} コマ目を素材ライブラリに保存できなかったため、分割しませんでした",
           "failed": "分割できませんでした。元の画像はそのままです"
         },
+        "batchPick": {
+          "label": "{count} 枚できました。今使う 1 枚を選んでください",
+          "option": "{n} 枚目"
+        },
         "promptPlaceholder": "この画像を説明…",
         "promptLabel": "画像プロンプト"
       },

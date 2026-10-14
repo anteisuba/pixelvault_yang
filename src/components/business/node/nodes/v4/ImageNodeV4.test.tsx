@@ -101,6 +101,7 @@ vi.mock('../../CanvasImageEditWorkspace', () => ({
 
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_SLOT_IDS } from '@/constants/node-slots'
+import { applyMediaPatchOutputs } from '@/lib/node-output-versions'
 import type { NodeV4 } from '@/types/node-workflow'
 
 import { ImageNodeV4 } from './ImageNodeV4'
@@ -904,7 +905,7 @@ describe('生成中 / 版本 / 画中框', () => {
     expect(document.querySelector('[data-prompt-bar-cancel]')).not.toBeNull()
   })
 
-  it('产出版本今天只有一版，版本点自己不渲染', () => {
+  it('只有一版时版本条自己不渲染', () => {
     expect(imageVersions({ kind: 'image' } as never)).toEqual([])
     expect(
       imageVersions({ kind: 'image', url: 'https://cdn.test/a.png' } as never),
@@ -917,7 +918,7 @@ describe('生成中 / 版本 / 画中框', () => {
       true,
     )
     expect(
-      document.querySelector('[data-node-chrome="version-dots"]'),
+      document.querySelector('[data-node-chrome="version-strip"]'),
     ).toBeNull()
   })
 
@@ -1408,5 +1409,127 @@ describe('九宫格分镜（§3）', () => {
     )
     renderImage(context)
     expect(document.querySelector('[data-storyboard-splitting]')).toBeTruthy()
+  })
+})
+
+describe('一次多张 = 进版本，出完 2×2 挑一张（spec §3 A1）', () => {
+  beforeEach(() => {
+    generateNode.mockReset()
+  })
+
+  /** 回填走真的 `applyMediaPatchOutputs`：带 url 的补丁追加一版。 */
+  function renderBatch(count: number) {
+    const onApplyOp = vi.fn()
+    let minted = 0
+    function Fixture() {
+      const [node, setNode] = useState(
+        imageNode('i_1', {
+          prompt: '站台',
+          url: 'https://cdn.test/old.png',
+          params: { count },
+        }),
+      )
+      const context = harness([node], {
+        selectedNodeIds: ['i_1'],
+        onApplyOp,
+        onSetMedia: (_id, patch) =>
+          setNode(
+            (current) =>
+              ({
+                ...current,
+                data: applyMediaPatchOutputs(
+                  current.data as never,
+                  patch as never,
+                  { now: NOW, mintId: () => `v_${(minted += 1)}` },
+                ),
+              }) as NodeV4,
+          ),
+      })
+      return (
+        <NodeV4CanvasProvider value={context}>
+          {/* @ts-expect-error NodeProps 的其余字段本组测试用不到 */}
+          <ImageNodeV4 id="i_1" data={node.data} selected />
+        </NodeV4CanvasProvider>
+      )
+    }
+    render(<Fixture />)
+    return {
+      onApplyOp,
+      submit: () =>
+        fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' }),
+    }
+  }
+
+  type ShotResult = Awaited<ReturnType<GenerateNode>>
+  function shot(url: string): ShotResult {
+    return {
+      success: true,
+      mediaUrl: url,
+      generation: { id: url },
+    } as ShotResult
+  }
+
+  it('出图中版本条末尾是还没回来的占位，出完卡面铺成挑图', async () => {
+    let options: Parameters<GenerateNode>[2] | undefined
+    let finish: (value: ShotResult) => void = () => {}
+    generateNode.mockImplementationOnce(async (_id, _graph, opts) => {
+      options = opts
+      return new Promise<ShotResult>((resolve) => (finish = resolve))
+    })
+    const { submit, onApplyOp } = renderBatch(2)
+    act(() => submit())
+    expect(
+      document.querySelectorAll('[data-version-thumb-pending]'),
+    ).toHaveLength(2)
+    act(() => options?.onEach?.(shot('https://cdn.test/a.png')))
+    expect(
+      document.querySelectorAll('[data-version-thumb-pending]'),
+    ).toHaveLength(1)
+    act(() => options?.onEach?.(shot('https://cdn.test/b.png')))
+    await act(async () => finish(shot('https://cdn.test/b.png')))
+
+    expect(document.querySelectorAll('[data-version-thumb]')).toHaveLength(3)
+    const pick = document.querySelector(
+      '[data-image-batch-pick]',
+    ) as HTMLElement
+    const choices = pick.querySelectorAll('[data-image-batch-pick-option]')
+    // 旧图是第 0 版，这一批落在第 1、2 版。
+    expect(
+      Array.from(choices, (item) =>
+        item.getAttribute('data-image-batch-pick-option'),
+      ),
+    ).toEqual(['1', '2'])
+    fireEvent.click(choices[0] as HTMLElement)
+    expect(onApplyOp).toHaveBeenCalledWith({
+      op: NODE_ASSISTANT_OP_V4_IDS.setOutputVersion,
+      target: 'i_1',
+      index: 1,
+    })
+    expect(document.querySelector('[data-image-batch-pick]')).toBeNull()
+  })
+
+  it('Esc = 保持最新一张，挑图收起、不切版本', async () => {
+    generateNode.mockImplementationOnce(async (_id, _graph, opts) => {
+      opts?.onEach?.(shot('https://cdn.test/a.png') as never)
+      opts?.onEach?.(shot('https://cdn.test/b.png') as never)
+      return shot('https://cdn.test/b.png')
+    })
+    const { submit, onApplyOp } = renderBatch(2)
+    await act(async () => submit())
+    const pick = document.querySelector('[data-image-batch-pick]')
+    expect(pick).not.toBeNull()
+    fireEvent.keyDown(pick as HTMLElement, { key: 'Escape' })
+    expect(document.querySelector('[data-image-batch-pick]')).toBeNull()
+    expect(onApplyOp).not.toHaveBeenCalled()
+  })
+
+  it('只出一张不挑图', async () => {
+    generateNode.mockImplementationOnce(async (_id, _graph, opts) => {
+      opts?.onEach?.(shot('https://cdn.test/a.png') as never)
+      return shot('https://cdn.test/a.png')
+    })
+    const { submit } = renderBatch(1)
+    await act(async () => submit())
+    expect(document.querySelector('[data-image-batch-pick]')).toBeNull()
   })
 })

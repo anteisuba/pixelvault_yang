@@ -5963,6 +5963,10 @@
           "uploadFailed": "Panel {n} didn’t save to your library, so nothing was split",
           "failed": "Couldn’t split the grid. The original is unchanged"
         },
+        "batchPick": {
+          "label": "This batch made {count} images. Pick one to keep as current",
+          "option": "Image {n}"
+        },
         "promptPlaceholder": "Describe this image…",
         "promptLabel": "Image prompt"
       },

@@ -81,3 +81,6 @@ Constraints:
 
 /** i18n namespace for VideoScript UI */
 export const VIDEO_SCRIPT_I18N_NAMESPACE = 'VideoScript'
+
+/** 剧本绑角色卡时，外观 / 身份 / 说话方式每格交给模型多长（附录J ④）。 */
+export const VIDEO_SCRIPT_CHARACTER_FIELD_CHARS = 400

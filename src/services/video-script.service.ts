@@ -2,6 +2,7 @@ import 'server-only'
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
+  VIDEO_SCRIPT_CHARACTER_FIELD_CHARS,
   VIDEO_SCRIPT_SYSTEM_PROMPT,
   deriveSceneCount,
   PHASE_1_TRANSITION,
@@ -14,6 +15,7 @@ import {
   type ResolvedApiKeyValue,
 } from '@/services/apiKey.service'
 import { llmTextCompletion } from '@/services/llm-text.service'
+import { CharacterPersonaSchema } from '@/types'
 import {
   CreateVideoScriptInputSchema,
   LLMScriptOutputSchema,
@@ -56,7 +58,10 @@ export async function generateScript(
   const parsed = CreateVideoScriptInputSchema.parse(input)
   const totalScenes = deriveSceneCount(parsed.targetDuration)
 
-  const userPrompt = buildUserPrompt(parsed, totalScenes)
+  const character = parsed.characterCardId
+    ? await loadScriptCharacter(parsed.characterCardId, userId)
+    : null
+  const userPrompt = buildUserPrompt(parsed, totalScenes, character)
 
   const llmOutput = await callLlmWithFallback(userId, userPrompt)
   const scenes = validateAndNormalizeLlmOutput(
@@ -101,9 +106,42 @@ export async function generateScript(
   return toRecord(created)
 }
 
+/** 剧本里那位角色：名字 + 外观 + 身份 + 说话方式（各截一段）。 */
+interface ScriptCharacter {
+  name: string
+  look: string
+  identity: string
+  speech: string
+}
+
+/**
+ * 绑了角色卡时把卡的内容交给模型（附录J ④）：之前只写一行卡 id，模型不知道她是谁、
+ * 怎么说话。⚠ 只认这个用户自己的、没删的卡；读不到就当没绑。
+ */
+async function loadScriptCharacter(
+  cardId: string,
+  userId: string,
+): Promise<ScriptCharacter | null> {
+  const card = await db.characterCard.findFirst({
+    where: { id: cardId, userId, isDeleted: false },
+    select: { name: true, description: true, persona: true },
+  })
+  if (!card) return null
+  const persona = CharacterPersonaSchema.safeParse(card.persona ?? {})
+  const clip = (text: string | null | undefined) =>
+    (text ?? '').trim().slice(0, VIDEO_SCRIPT_CHARACTER_FIELD_CHARS)
+  return {
+    name: card.name,
+    look: clip(card.description),
+    identity: clip(persona.success ? persona.data.identity : ''),
+    speech: clip(persona.success ? persona.data.speech : ''),
+  }
+}
+
 function buildUserPrompt(
   input: CreateVideoScriptInput,
   totalScenes: number,
+  character: ScriptCharacter | null,
 ): string {
   const parts = [
     `Topic: ${input.topic}`,
@@ -112,8 +150,19 @@ function buildUserPrompt(
     `Consistency mode: ${input.consistencyMode}`,
     `Video model: ${input.videoModelId}`,
   ]
-  if (input.characterCardId) {
-    parts.push(`Character card bound: ${input.characterCardId}`)
+  if (character) {
+    parts.push(
+      [
+        `Main character: ${character.name}`,
+        character.look ? `  Looks: ${character.look}` : null,
+        character.identity ? `  Who they are: ${character.identity}` : null,
+        character.speech
+          ? `  How they talk: ${character.speech} — write their dialogue in this voice.`
+          : null,
+      ]
+        .filter((line): line is string => line !== null)
+        .join('\n'),
+    )
   }
   if (input.styleCardId) {
     parts.push(`Style card bound: ${input.styleCardId}`)

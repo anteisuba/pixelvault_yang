@@ -411,6 +411,19 @@ export const ASSISTANT_PERSONA_LIMITS = {
   /** 风格段拼完之后的长度上限（§8.5）。超出即截断，⛔ 不静默放行。 */
   maxStyleSectionChars: 400,
   /**
+   * 「用角色」时角色设定进系统提示的那一段（2026-10-14，附录J ①）：各格上限 +
+   * 整段封顶。⚠ 系统提示整段会话不变，这一段不破坏缓存；但它每一步都重发，所以
+   * 经历只给开头一截（全文仍在卡上）。
+   */
+  maxCharacterIdentityChars: 800,
+  maxCharacterBehaviorChars: 800,
+  maxCharacterProfileSpeechChars: 600,
+  maxCharacterBackstoryChars: 1500,
+  maxCharacterCatchphrases: 8,
+  maxCharacterSectionChars: 4400,
+  /** 每轮末尾那句「别出戏」里带的说话方式摘要（附录J ③）。 */
+  maxCharacterReminderChars: 120,
+  /**
    * 「用我的词」那一段最多列几个词（§8.3）。取的是上下文卡的**名称**与学出来的
    * 几个风格 / 标签词 —— 再多就不是词表而是一篇正文了，而正文在卡里。
    */

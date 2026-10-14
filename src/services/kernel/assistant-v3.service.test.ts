@@ -18,13 +18,15 @@ import type { AssistantV3Transcript } from '@/types/assistant-v3'
 
 vi.mock('server-only', () => ({}))
 
-const { plan, critique, legacy, closeRound, model } = vi.hoisted(() => ({
-  plan: vi.fn(),
-  critique: vi.fn(),
-  legacy: vi.fn(),
-  closeRound: vi.fn(async () => undefined),
-  model: { current: null as unknown },
-}))
+const { plan, critique, legacy, closeRound, model, characterReminder } =
+  vi.hoisted(() => ({
+    plan: vi.fn(),
+    critique: vi.fn(),
+    legacy: vi.fn(),
+    closeRound: vi.fn(async () => undefined),
+    model: { current: null as unknown },
+    characterReminder: vi.fn((): string | null => null),
+  }))
 
 vi.mock('@/services/kernel/assistant-operator.service', () => ({
   prepareOperatorTurn: vi.fn(
@@ -49,6 +51,7 @@ vi.mock('@/services/kernel/assistant-operator.service', () => ({
   ),
   planTool: plan,
   planCritiqueResult: critique,
+  buildCharacterReminder: characterReminder,
   runOperatorTurn: legacy,
   closeRound,
   closeRoundBeforeStop: closeRound,
@@ -284,6 +287,23 @@ describe('v3 内核', () => {
     expect(promptText(off.doStreamCalls[0]!)).not.toContain(
       'AUTO-GENERATE ON —',
     )
+  })
+
+  it('用角色时这一轮的话末尾带一句别出戏（附录J ③），没用角色不带', async () => {
+    characterReminder.mockReturnValueOnce(
+      'STAY IN CHARACTER as Denia — 说话短。',
+    )
+    const on = script(textTurn('好。'))
+    await collect(runAssistantV3('clerk-1', request()))
+    const text = promptText(on.doStreamCalls[0]!)
+    expect(text).toContain('STAY IN CHARACTER as Denia — 说话短。')
+    // 在这一轮的话之后 —— 离生成点最近。
+    expect(text.indexOf('STAY IN CHARACTER')).toBeGreaterThan(
+      text.indexOf('THE CREATOR SAYS'),
+    )
+    const off = script(textTurn('好。'))
+    await collect(runAssistantV3('clerk-1', request()))
+    expect(promptText(off.doStreamCalls[0]!)).not.toContain('STAY IN CHARACTER')
   })
 
   it('断线：按从哪到哪换成真 edgeId，交给前端落，停在 canvas_sync 并带上本轮记录', async () => {

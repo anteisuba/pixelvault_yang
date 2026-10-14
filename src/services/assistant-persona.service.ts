@@ -18,11 +18,13 @@ import {
 import { ApiRequestError } from '@/lib/errors'
 import { sanitizePrompt } from '@/services/kernel/prompt-guard'
 import { ensureUser } from '@/services/user.service'
-import { CharacterPersonaSchema } from '@/types'
+import { CharacterPersonaSchema, type CharacterPersona } from '@/types'
 import {
   AssistantPersonaSchema,
   type AssistantPersona,
   type AssistantPersonaCharacter,
+  type AssistantPromptCharacter,
+  type AssistantPromptPersona,
   type UpdateAssistantPersonaRequest,
 } from '@/types/assistant-persona'
 
@@ -74,13 +76,48 @@ interface PersonaRow {
 }
 
 /**
- * 角色设定里那段「说话方式」（去掉首尾空白）；没写 / 读不出来是空串。
+ * 角色卡上的设定；卡删了（软删）/ 读不出来是 `null`。
  * ⚠ 走角色卡自己的 schema，⛔ 不 `as`：`persona` 在库里是一格 Json。
  */
-function readCharacterSpeech(card: PersonaCharacterRow | null): string {
-  if (!card || card.isDeleted) return ''
+function readCharacterProfile(
+  card: PersonaCharacterRow | null,
+): CharacterPersona | null {
+  if (!card || card.isDeleted) return null
   const parsed = CharacterPersonaSchema.safeParse(card.persona ?? {})
-  return parsed.success ? parsed.data.speech.trim() : ''
+  return parsed.success ? parsed.data : null
+}
+
+/** 角色设定里那段「说话方式」（去掉首尾空白）；没写 / 读不出来是空串。 */
+function readCharacterSpeech(card: PersonaCharacterRow | null): string {
+  return readCharacterProfile(card)?.speech.trim() ?? ''
+}
+
+/**
+ * 角色设定 → 进系统提示的那几格（附录J ①）。一格都没写就是 `null`（只剩名字的角色
+ * 不值得一整段）。`speech` 由调用方按「语气跟不跟角色走」决定给不给。
+ */
+function toPromptCharacter(
+  name: string,
+  profile: CharacterPersona,
+  speech: string,
+): AssistantPromptCharacter | null {
+  const character = {
+    name,
+    identity: profile.identity.trim(),
+    behavior: profile.behavior.trim(),
+    speech,
+    catchphrases: profile.catchphrases
+      .map((phrase) => phrase.trim())
+      .filter(Boolean),
+    backstory: profile.backstory.trim(),
+  }
+  const empty =
+    !character.identity &&
+    !character.behavior &&
+    !character.speech &&
+    character.catchphrases.length === 0 &&
+    !character.backstory
+  return empty ? null : character
 }
 
 /** 正在用的角色（界面要的四样）。卡删了（软删）就当没用。 */
@@ -254,21 +291,31 @@ export async function getAssistantPersona(
  * **助手这一轮按谁说话** —— 吃的是库里的 user.id（工具环那一侧已经 `ensureUser`
  * 过一次了，`runAssistantOperator` 的第一行），⛔ 别为了统一签名再查一次用户。
  *
- * ⭐ 与设置里读的那一份只差一件事：**语气跟着角色走、而角色写了说话方式**时，
- * 把那段说话方式换进 `tone = custom` / `toneCustom`，风格段照常读它（上限见
- * `sanitizeToneCustom`）。名字不用换 —— `toPersona` 读出来的已经是显示的那个名字。
+ * ⭐ 与设置里读的那一份差两件事：
+ *  ① **语气跟着角色走、而角色写了说话方式**时，把那段说话方式换进
+ *     `tone = custom` / `toneCustom`（上限见 `sanitizeToneCustom`）；
+ *  ② **正在用角色**时带上 `promptCharacter`（身份 / 性格 / 说话方式 / 口头禅 /
+ *     经历），系统提示据此写「你就是她」那一段（附录J ①，2026-10-14 之前模型只拿到
+ *     名字和那句说话方式）。
+ * 名字不用换 —— `toPersona` 读出来的已经是显示的那个名字。
  */
 export async function getAssistantPersonaByUserId(
   userId: string,
-): Promise<AssistantPersona> {
+): Promise<AssistantPromptPersona> {
   const row = await findPersonaRow(userId)
   const persona = toPersona(row)
-  const speech = row ? readCharacterSpeech(row.characterCard) : ''
-  if (!persona.toneFromCharacter || !speech) return persona
+  const card = row?.characterCard ?? null
+  const profile = readCharacterProfile(card)
+  const speech =
+    persona.toneFromCharacter && profile ? profile.speech.trim() : ''
+  const promptCharacter =
+    card && profile ? toPromptCharacter(card.name, profile, speech) : null
   return {
     ...persona,
-    tone: ASSISTANT_PERSONA_TONE_IDS.custom,
-    toneCustom: speech,
+    ...(speech
+      ? { tone: ASSISTANT_PERSONA_TONE_IDS.custom, toneCustom: speech }
+      : {}),
+    ...(promptCharacter ? { promptCharacter } : {}),
   }
 }
 
@@ -308,6 +355,73 @@ export function sanitizeAddressUserAs(
   const cleaned = sanitizePrompt(persona.addressUserAs).trim()
   if (!cleaned) return null
   return cleaned.slice(0, ASSISTANT_PERSONA_LIMITS.maxAddressUserAsChars)
+}
+
+/** 截断并在截处留一个省略号（让模型知道后面还有）。 */
+function clipText(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, Math.max(0, max - 1))}…` : text
+}
+
+/**
+ * 酒馆卡里的宏（`{{char}}` / `{{user}}`，老卡写 `<BOT>` / `<USER>`）换成名字。
+ * 导入时原样存，⛔ 不在导入时换：称呼会改，卡不该跟着被改写。
+ */
+function fillCardMacros(text: string, char: string, user: string): string {
+  return text
+    .replace(/\{\{char\}\}|<BOT>/gi, char)
+    .replace(/\{\{user\}\}|<USER>/gi, user)
+}
+
+/**
+ * 角色设定进系统提示之前（附录J ①）：每一格过 `prompt-guard`、填宏、按格截断；
+ * 洗完一格都不剩就是 `null`。
+ *
+ * ⚠ 这张卡可能是从酒馆导入的**别人写的卡**，与 `sanitizeToneCustom` 同理在读的这一跳
+ * 清洗，⛔ 不在写入时改用户看得见的原文。
+ */
+export function sanitizePromptCharacter(
+  persona: AssistantPromptPersona,
+): AssistantPromptCharacter | null {
+  const character = persona.promptCharacter
+  if (!character) return null
+  const name =
+    sanitizePrompt(character.name)
+      .trim()
+      .slice(0, ASSISTANT_PERSONA_LIMITS.maxNameChars) ||
+    persona.name ||
+    ''
+  if (!name) return null
+  const user = sanitizeAddressUserAs(persona) ?? 'the creator'
+  const clean = (text: string, max: number) =>
+    clipText(sanitizePrompt(fillCardMacros(text, name, user)).trim(), max)
+  return toPromptCharacter(
+    name,
+    {
+      identity: clean(
+        character.identity,
+        ASSISTANT_PERSONA_LIMITS.maxCharacterIdentityChars,
+      ),
+      behavior: clean(
+        character.behavior,
+        ASSISTANT_PERSONA_LIMITS.maxCharacterBehaviorChars,
+      ),
+      speech: '',
+      catchphrases: character.catchphrases
+        .slice(0, ASSISTANT_PERSONA_LIMITS.maxCharacterCatchphrases)
+        .map((phrase) => clean(phrase, 120)),
+      scenario: '',
+      opening: '',
+      examples: [],
+      backstory: clean(
+        character.backstory,
+        ASSISTANT_PERSONA_LIMITS.maxCharacterBackstoryChars,
+      ),
+    },
+    clean(
+      character.speech,
+      ASSISTANT_PERSONA_LIMITS.maxCharacterProfileSpeechChars,
+    ),
+  )
 }
 
 /**

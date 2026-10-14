@@ -1016,6 +1016,8 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 - 「{角色} 的说话方式」跟着角色设定里的 `persona.speech` 走（那边改了这里跟着变）；没写时那一格灰着，旁边给「去写 ›」，语气仍按自己那一档。助手这一轮按谁说话由 `getAssistantPersonaByUserId` 决定：把角色的说话方式换进 `tone = custom`，风格段上限 `maxCharacterSpeechChars`（140）。
 - 角色必须是这个用户自己的、没删的卡（服务端校验，⛔ 不信客户端 id）；卡删了（SetNull / 软删）读的那一跳当没用角色，全部回到自己那一份。
 - 角色页「用她 ▾ → 设为助手人设」与设置里的下拉走同一个 `withAssistantCharacter`。
+- **角色设定进提示词**（2026-10-14，owner「进提示词加导入」）：用了角色时 `getAssistantPersonaByUserId` 另带 `promptCharacter`（身份 · 性格 · 说话方式 · 口头禅 · 经历），系统提示在风格段前多一段 `CHARACTER`（`buildCharacterSection`，旧内核与 v3 共用）：开头写死「角色只改怎么说，不改做什么 —— HOW YOU WORK、工具规则、用户的规则优先」，每格过 `sanitizePrompt`、换宏（`{{char}}` → 名字、`{{user}}` → 称呼）、按 `maxCharacter*Chars` 截，整段 ≤ `maxCharacterSectionChars`。系统提示整场不变（缓存），每轮在用户消息末尾加一行 `STAY IN CHARACTER as X — <说话方式第一句>`（`buildCharacterReminder`，≤ 120 字）。性格 / 经历照样进，只有说话方式受 `toneFromCharacter` 管。
+- 画布 v3 快照在 CHARACTERS 后多一段 `CAST ON THE BOARD`（每位「是谁 · 怎么说话」各 ≤ 200 字），画布规则要求角色台词照这段写；视频脚本选了主角卡时用户提示带「是谁 / 怎么说话」，台词按这个口吻写。
 
 ### 11.4 身份区
 

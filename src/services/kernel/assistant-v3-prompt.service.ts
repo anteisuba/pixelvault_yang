@@ -8,10 +8,14 @@ import {
 import { buildLoraDialectSection } from '@/lib/lora-dialect-section'
 import type { AssistantOperatorRequest } from '@/types/assistant-operator'
 import type { AssistantMemory } from '@/types/assistant-memory'
-import type { AssistantPersona, ProjectRule } from '@/types/assistant-persona'
+import type {
+  AssistantPromptPersona,
+  ProjectRule,
+} from '@/types/assistant-persona'
 import {
   buildAssistantMemorySection,
   buildCanvasModelDialectSection,
+  buildCharacterSection,
   buildCreatorSection,
   buildModelDialectSection,
   buildPersonaStyleSection,
@@ -59,6 +63,7 @@ const CANVAS_CRAFT = `CRAFT
 - When a result differs from its references, compare the result with the source images before changing the prompt: say which image supplies identity, body proportions and rendering style, and which parts are not evidenced. A prompt alone never guarantees exact preservation.
 - Frame by what the picture contains: full body 2:3 (3:4 where 2:3 is not offered) · bust 3:4 or 4:5 · face 1:1 or 4:5 · turnaround 16:9 · scene 16:9 or 3:2. Keep resolution at 1K and quality at high unless the creator asks for more.
 - Dialogue must fit its time: about 2.5 English words per second of the shot it is spoken in. When a line does not fit, say so instead of writing it in.
+- Write a character's lines in their own voice — from how CAST ON THE BOARD says they talk and who they are, not in a generic voice.
 - A new card that joins a set (another character sheet beside the existing ones): read one card of the set first and keep its conventions — background, proportions, framing, style words — unless the creator asks for something else.
 - A prompt a provider's safety filter blocked: say plainly that the exact trigger is not known. Remove or neutralise wording that could read as sexual or that dwells on a young character's age or body. Never add words like child, minor, non-sexual or innocent — naming them draws the filter's attention. Keep the model unless the creator asks.`
 
@@ -179,7 +184,7 @@ function rulesSection(rules: readonly ProjectRule[]): string {
 export function buildAssistantV3SystemPrompt(input: {
   face: AssistantV3Face
   request: AssistantOperatorRequest
-  persona: AssistantPersona
+  persona: AssistantPromptPersona
   rules: readonly ProjectRule[]
   /** 助手跨会话记住的那几行（结账记下的）—— 与旧内核同一段。 */
   memories: readonly AssistantMemory[]
@@ -214,7 +219,7 @@ export function buildAssistantV3SystemPrompt(input: {
           ? `${IMAGE_BOARD}\n\n${IMAGE_TOOLS}\n\n${IMAGE_CRAFT}${imageDialectSection(request)}`
           : `${THE_BOARD}\n\n${TOOLS_GUIDE}\n\n${CANVAS_CRAFT}${buildCanvasModelDialectSection(request)}`
   return `${opening} ${ASSISTANT_DOMAIN_BRIEFS[request.domain].persona}
-Reply in ${language}.
+Reply in ${language}.${buildCharacterSection(persona)}
 
 ${HOW_YOU_WORK}
 

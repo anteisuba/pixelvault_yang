@@ -214,6 +214,30 @@ export const AssistantPersonaSchema = AssistantPersonaShapeSchema.refine(
 export type AssistantPersona = z.infer<typeof AssistantPersonaSchema>
 
 /**
+ * 正在用的那个角色**进系统提示的那几格**（2026-10-14，附录J ①）。
+ *
+ * ⚠ 只在服务端拼提示时有（`getAssistantPersonaByUserId`），⛔ 不回给客户端 ——
+ * 界面只要 `AssistantPersonaCharacter` 那四样。`speech` 在语气不跟角色走时是空串。
+ */
+export const AssistantPromptCharacterSchema = z.object({
+  name: z.string().min(1),
+  identity: z.string(),
+  behavior: z.string(),
+  speech: z.string(),
+  catchphrases: z.array(z.string()),
+  backstory: z.string(),
+})
+
+export type AssistantPromptCharacter = z.infer<
+  typeof AssistantPromptCharacterSchema
+>
+
+/** 工具环读到的 persona：读回来的那一份 + 正在用的角色设定（没用角色就没有）。 */
+export type AssistantPromptPersona = AssistantPersona & {
+  promptCharacter?: AssistantPromptCharacter
+}
+
+/**
  * PUT `/api/assistant/persona` 的载荷 —— persona 减去**只读**的那几格：两张图的
  * 地址（由上传那条路写）与正在用的角色（由服务端从卡里取）。
  */

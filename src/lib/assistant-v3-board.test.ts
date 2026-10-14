@@ -90,6 +90,43 @@ describe('v3 板子', () => {
     expect(text).not.toMatch(/\bS5\b/)
   })
 
+  it('在场角色印出身份与说话方式（附录J ④），只在库里的不印', () => {
+    const text = renderAssistantV3Board({
+      canvas: {
+        ...board([]),
+        characters: {
+          total: 2,
+          list: [
+            {
+              name: '林夏',
+              work: null,
+              imageCount: 3,
+              onCanvas: true,
+              profile: {
+                look: '黑长发',
+                identity: '雾港侦探社见习生',
+                behavior: '',
+                speech: '说话短，\n爱用反问。' + '嗯'.repeat(400),
+                backstory: '',
+              },
+            },
+            { name: '高尔', work: null, imageCount: 1, onCanvas: false },
+          ],
+        },
+      },
+      handles: buildAssistantV3Handles([]),
+      latestUserText: '',
+    })
+    expect(text).toContain('CAST ON THE BOARD:')
+    expect(text).toContain(
+      '林夏 — is: 雾港侦探社见习生 · talks: 说话短， 爱用反问。',
+    )
+    expect(text).not.toMatch(/高尔 —/)
+    // 每格截到上限，⛔ 不把整份设定每轮重发。
+    const castLine = text.split('\n').find((line) => line.includes('林夏 —'))!
+    expect(castLine.length).toBeLessThan(300)
+  })
+
   it('连线印成「槽 ← 句柄」，不出 edgeId 也不出 UUID', () => {
     const shot = node({
       id: S01,

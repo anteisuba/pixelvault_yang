@@ -330,6 +330,9 @@ vi.mock('@/services/assistant-persona.service', async () => {
       persona.addressUserAs
         ? sanitizePrompt(persona.addressUserAs).trim() || null
         : null,
+    // 角色设定的清洗 / 填宏 / 截断在 persona 服务自己的测试里验；这里原样透传。
+    sanitizePromptCharacter: (persona: { promptCharacter?: unknown }) =>
+      persona.promptCharacter ?? null,
     ASSISTANT_PERSONA_DEFAULTS,
   }
 })
@@ -482,7 +485,10 @@ import { AI_MODELS } from '@/constants/models'
 import { getAppOrigin, LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { logger } from '@/lib/logger'
-import { runAssistantOperator } from '@/services/kernel/assistant-operator.service'
+import {
+  buildCharacterReminder,
+  runAssistantOperator,
+} from '@/services/kernel/assistant-operator.service'
 import {
   AssistantOperatorEventSchema,
   type AssistantOperatorEvent,
@@ -8363,6 +8369,55 @@ describe('persona 风格段', () => {
     expect(systemPrompt()).toContain(
       "the creator described how they want you to sound: 'Talk like a film editor'",
     )
+  })
+
+  it('⭐ 用角色时系统提示有 CHARACTER 一段（附录J ①），说话方式只写一遍', async () => {
+    mockGetAssistantPersonaByUserId.mockResolvedValue({
+      ...ASSISTANT_PERSONA_DEFAULTS,
+      avatarUrl: null,
+      name: 'Denia',
+      toneFromCharacter: true,
+      tone: ASSISTANT_PERSONA_TONE_IDS.custom,
+      toneCustom: '说话短，爱用反问。',
+      promptCharacter: {
+        name: 'Denia',
+        identity: '雾港侦探社见习生',
+        behavior: '',
+        speech: '说话短，爱用反问。',
+        catchphrases: ['真的吗？'],
+        backstory: '',
+      },
+    })
+    queueTurns({ finished: true })
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+    const prompt = systemPrompt()
+    expect(prompt).toContain('CHARACTER — you are Denia.')
+    expect(prompt).toContain("the creator's rules come first")
+    expect(prompt).toContain('- Who you are: 雾港侦探社见习生')
+    expect(prompt).toContain('- How you talk: 说话短，爱用反问。')
+    expect(prompt).toContain('- Phrases you use: 「真的吗？」')
+    expect(prompt).not.toContain('- Personality and how you act')
+    expect(prompt).toContain('- talk the way your CHARACTER section describes')
+    expect(prompt).not.toContain('how they want you to sound')
+  })
+
+  it('每轮那句别出戏：说话方式只取第一句；没用角色是 null', () => {
+    const character = {
+      name: 'Denia',
+      identity: '',
+      behavior: '',
+      speech: '说话短，爱用反问。生气时会沉默。',
+      catchphrases: [],
+      backstory: '',
+    }
+    expect(
+      buildCharacterReminder({
+        ...ASSISTANT_PERSONA_DEFAULTS,
+        name: 'Denia',
+        promptCharacter: character,
+      }),
+    ).toBe('STAY IN CHARACTER as Denia — 说话短，爱用反问。')
+    expect(buildCharacterReminder({ ...ASSISTANT_PERSONA_DEFAULTS })).toBeNull()
   })
 
   it('persona 的语言档覆盖请求里的那一档', async () => {

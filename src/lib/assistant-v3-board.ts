@@ -132,6 +132,12 @@ export function formatScriptShotKey(shotKey: string): string {
   return `S${match[1].padStart(2, '0')}${match[2].toLowerCase()}`
 }
 
+function clipCast(text: string): string {
+  const limit = ASSISTANT_OPERATOR_CANVAS_LIMITS.boardCastFieldChars
+  const flat = text.replace(/\s+/g, ' ').trim()
+  return flat.length > limit ? `${flat.slice(0, limit)}…` : flat
+}
+
 function clipName(name: string): string {
   const limit = 48
   return name.length > limit ? `${name.slice(0, limit)}…` : name
@@ -448,6 +454,22 @@ export function renderAssistantV3Board(input: AssistantV3BoardInput): string {
         )
         .join('; ')}`,
     )
+    /**
+     * ⭐ 在场角色的设定（附录J ④）：v3 之前只印名字，写台词时模型不知道她怎么说话。
+     * 只印身份与说话方式的开头 —— 写台词够用，板子每轮都重发。
+     */
+    const cast = canvas.characters.list.flatMap((character) => {
+      const profile = character.profile
+      if (!profile) return []
+      const fields = [
+        profile.identity ? `is: ${clipCast(profile.identity)}` : null,
+        profile.speech ? `talks: ${clipCast(profile.speech)}` : null,
+      ].filter((field): field is string => field !== null)
+      return fields.length
+        ? [`  ${character.name} — ${fields.join(' · ')}`]
+        : []
+    })
+    if (cast.length) lines.push('CAST ON THE BOARD:', ...cast)
   }
   return lines.join('\n')
 }

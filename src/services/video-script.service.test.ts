@@ -32,6 +32,9 @@ vi.mock('@/lib/db', () => ({
     generation: {
       findMany: vi.fn(),
     },
+    characterCard: {
+      findFirst: vi.fn(),
+    },
   },
 }))
 
@@ -214,6 +217,35 @@ describe('video-script.service', () => {
       expect(result.id).toBe(SCRIPT_ID)
       expect(result.scenes).toHaveLength(5)
       expect(result.status).toBe(VideoScriptStatus.DRAFT)
+    })
+
+    it('绑了角色卡：把她是谁、怎么说话交给模型（附录J ④），只认自己的卡', async () => {
+      vi.mocked(db.characterCard.findFirst).mockResolvedValueOnce({
+        name: '林夏',
+        description: '黑长发，风衣',
+        persona: { identity: '雾港侦探社见习生', speech: '说话短，爱用反问。' },
+      } as never)
+      vi.mocked(llmTextCompletion).mockResolvedValueOnce(
+        VALID_LLM_OUTPUT_5_SCENES,
+      )
+      await generateScript(
+        {
+          ...VALID_INPUT,
+          consistencyMode: 'character_card',
+          characterCardId: 'card-1',
+        },
+        USER_ID,
+      )
+      expect(db.characterCard.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'card-1', userId: USER_ID, isDeleted: false },
+        }),
+      )
+      const { userPrompt } = vi.mocked(llmTextCompletion).mock.calls[0][0]
+      expect(userPrompt).toContain('Main character: 林夏')
+      expect(userPrompt).toContain('Who they are: 雾港侦探社见习生')
+      expect(userPrompt).toContain('How they talk: 说话短，爱用反问。')
+      expect(userPrompt).not.toContain('card-1')
     })
 
     it('strips markdown code fences from LLM output', async () => {

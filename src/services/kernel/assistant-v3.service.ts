@@ -92,6 +92,7 @@ import {
 } from '@/types/assistant-v3'
 import { startCallLog } from '@/services/kernel/assistant-completion.service'
 import {
+  buildCharacterReminder,
   closeRound,
   closeRoundBeforeStop,
   isFatalOperatorToolError,
@@ -484,6 +485,7 @@ function currentUserMessage(
   latest: string,
   autoReview: boolean,
   autoGenerate: boolean,
+  characterReminder: string | null,
 ): ModelMessage {
   const content: Exclude<UserContent, string> = [
     { type: 'text', text: board.text },
@@ -514,6 +516,8 @@ function currentUserMessage(
         ? `AUTO-GENERATE ON — at most ${ASSISTANT_AUTO_GENERATE_LIMITS.maxOutputsPerRound} pictures this turn in total.\n\nTHE CREATOR SAYS:\n${latest}`
         : `THE CREATOR SAYS:\n${latest}`,
   })
+  // 离生成点最近的那一句（附录J ③）：用角色时每轮都提醒一次别出戏。
+  if (characterReminder) content.push({ type: 'text', text: characterReminder })
   return { role: 'user', content }
 }
 
@@ -909,6 +913,7 @@ async function* runV3Turn(
       latest,
       request.autoReview === true,
       request.autoGenerate === true,
+      buildCharacterReminder(persona),
     ),
   ]
   const toolSet =

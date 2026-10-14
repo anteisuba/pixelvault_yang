@@ -13,6 +13,7 @@ import type {
   GenerationStatusProbe,
   GenerationStatusProbeResponse,
 } from '@/lib/poll-generation-status'
+import { pendingMediaJobIds } from '@/lib/node-media-patch'
 import type { NodeV4MediaPatch } from '@/components/business/node/nodes/v4/NodeV4Context'
 import type { NodeV4, NodeV4Data } from '@/types/node-workflow'
 
@@ -37,11 +38,21 @@ export interface UseNodeGenerationReconcileV4Input {
   reportFailure(nodeId: string, payload: GenerationFailurePayload): void
 }
 
-/** 还在飞的：有 job id 就是有。⛔ 不另看 `status` —— 两个判据迟早对不上。 */
-function readPendingJobId(node: NodeV4): string | undefined {
-  if (node.data.kind === NODE_MEDIA_KIND_IDS.text) return undefined
-  const jobId = node.data.mediaJobId?.trim()
-  return jobId ? jobId : undefined
+/**
+ * 还在飞的：有 job id 就是有。⛔ 不另看 `status` —— 两个判据迟早对不上。
+ * 单枪那一单（`mediaJobId`）与一批里还没落地的几单（`mediaBatchJobIds`）都算。
+ */
+function readPendingJobIds(node: NodeV4): readonly string[] {
+  if (node.data.kind === NODE_MEDIA_KIND_IDS.text) return []
+  return pendingMediaJobIds(node.data)
+}
+
+/** 一单落地时摘掉它自己的在飞标记：一批里的只摘这一单，⛔ 清掉整张卡的。 */
+function settlePatch(node: NodeV4, jobId: string): NodeV4MediaPatch {
+  return node.data.kind !== NODE_MEDIA_KIND_IDS.text &&
+    node.data.mediaBatchJobIds?.includes(jobId)
+    ? { settleBatchJob: jobId }
+    : { mediaJobId: undefined }
 }
 
 function statusProbeForKind(kind: NodeV4Data['kind']): GenerationStatusProbe {
@@ -88,75 +99,84 @@ export function useNodeGenerationReconcileV4({
   /** 防止两轮重叠（focus 在上一轮还没解完时又打进来）。 */
   const isReconcilingRef = useRef(false)
 
-  const reconcileNode = useCallback(async (node: NodeV4): Promise<void> => {
-    const jobId = readPendingJobId(node)
-    if (!jobId || node.data.kind === NODE_MEDIA_KIND_IDS.text) return
+  const reconcileJob = useCallback(
+    async (node: NodeV4, jobId: string): Promise<void> => {
+      if (node.data.kind === NODE_MEDIA_KIND_IDS.text) return
 
-    let response: GenerationStatusProbeResponse | null = null
-    try {
-      response = await statusProbeForKind(node.data.kind)(jobId)
-    } catch {
-      return // 网络抖动 —— 留着 pending，下一轮再问
-    }
-
-    const currentNode = nodesRef.current.find((item) => item.id === node.id)
-    if (!currentNode || readPendingJobId(currentNode) !== jobId) return
-
-    const data = response?.success ? response.data : undefined
-    if (!data) return // 空信封同上
-
-    if (data.status === 'COMPLETED' && data.generation) {
-      const generation = data.generation
-      setMediaRef.current(node.id, {
-        url: generation.url,
-        generationId: generation.id,
-        // 终态：job id 清掉。⚠ 显式 `undefined`，见 `NodeV4MediaPatch` 那条注释。
-        mediaJobId: undefined,
-        imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
-        ...(generation.thumbnailUrl
-          ? { videoThumbnailUrl: generation.thumbnailUrl }
-          : {}),
-      })
-      setRunStateRef.current(node.id, NODE_STATUS_IDS.done)
-      return
-    }
-
-    if (data.status === 'CANCELLED') {
-      setMediaRef.current(node.id, { mediaJobId: undefined })
-      setRunStateRef.current(node.id, NODE_STATUS_IDS.idle)
-      return
-    }
-
-    if (data.status === 'FAILED') {
-      const failure = {
-        ...(data.error ? { error: data.error } : {}),
-        ...(data.errorCode ? { errorCode: data.errorCode } : {}),
-        ...(data.i18nKey ? { i18nKey: data.i18nKey } : {}),
+      let response: GenerationStatusProbeResponse | null = null
+      try {
+        response = await statusProbeForKind(node.data.kind)(jobId)
+      } catch {
+        return // 网络抖动 —— 留着 pending，下一轮再问
       }
-      reportFailureRef.current(node.id, failure)
-      setMediaRef.current(node.id, {
-        mediaJobId: undefined,
-        generationFailure: failure,
-      })
-      setRunStateRef.current(node.id, NODE_STATUS_IDS.failed)
-    }
-    // IN_QUEUE / IN_PROGRESS → 还在跑，留着 pending。
-  }, [])
+
+      const currentNode = nodesRef.current.find((item) => item.id === node.id)
+      if (!currentNode || !readPendingJobIds(currentNode).includes(jobId))
+        return
+      const settle = settlePatch(currentNode, jobId)
+      // 一批里别的单还在飞：卡仍是「在跑」，运行态等最后一单落地再改。
+      const lastInFlight = readPendingJobIds(currentNode).length === 1
+
+      const data = response?.success ? response.data : undefined
+      if (!data) return // 空信封同上
+
+      if (data.status === 'COMPLETED' && data.generation) {
+        const generation = data.generation
+        setMediaRef.current(node.id, {
+          url: generation.url,
+          generationId: generation.id,
+          // 终态：job id 清掉。⚠ 显式 `undefined`，见 `NodeV4MediaPatch` 那条注释。
+          ...settle,
+          imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
+          ...(generation.thumbnailUrl
+            ? { videoThumbnailUrl: generation.thumbnailUrl }
+            : {}),
+        })
+        if (lastInFlight) setRunStateRef.current(node.id, NODE_STATUS_IDS.done)
+        return
+      }
+
+      if (data.status === 'CANCELLED') {
+        setMediaRef.current(node.id, settle)
+        if (lastInFlight) setRunStateRef.current(node.id, NODE_STATUS_IDS.idle)
+        return
+      }
+
+      if (data.status === 'FAILED') {
+        const failure = {
+          ...(data.error ? { error: data.error } : {}),
+          ...(data.errorCode ? { errorCode: data.errorCode } : {}),
+          ...(data.i18nKey ? { i18nKey: data.i18nKey } : {}),
+        }
+        reportFailureRef.current(node.id, failure)
+        setMediaRef.current(node.id, {
+          ...settle,
+          generationFailure: failure,
+        })
+        if (lastInFlight)
+          setRunStateRef.current(node.id, NODE_STATUS_IDS.failed)
+      }
+      // IN_QUEUE / IN_PROGRESS → 还在跑，留着 pending。
+    },
+    [],
+  )
 
   const reconcileAll = useCallback(async (): Promise<void> => {
     if (isReconcilingRef.current) return
-    const pending = nodesRef.current.filter((node) =>
-      Boolean(readPendingJobId(node)),
+    const pending = nodesRef.current.flatMap((node) =>
+      readPendingJobIds(node).map((jobId) => ({ node, jobId })),
     )
     if (pending.length === 0) return
 
     isReconcilingRef.current = true
     try {
-      await Promise.all(pending.map(reconcileNode))
+      await Promise.all(
+        pending.map(({ node, jobId }) => reconcileJob(node, jobId)),
+      )
     } finally {
       isReconcilingRef.current = false
     }
-  }, [reconcileNode])
+  }, [reconcileJob])
 
   const reconcileAllRef = useRef(reconcileAll)
   reconcileAllRef.current = reconcileAll
@@ -165,11 +185,7 @@ export function useNodeGenerationReconcileV4({
    * 当前 pending 的 job id 集合的稳定键。挂载时跑一次，之后只在**有单进出**时
    * 再跑 —— ⛔ 不用 `nodes` 当依赖：拖一下卡就会重跑一遍全部探针。
    */
-  const pendingKey = nodes
-    .map(readPendingJobId)
-    .filter((jobId): jobId is string => Boolean(jobId))
-    .sort()
-    .join(',')
+  const pendingKey = nodes.flatMap(readPendingJobIds).sort().join(',')
 
   useEffect(() => {
     void reconcileAllRef.current()

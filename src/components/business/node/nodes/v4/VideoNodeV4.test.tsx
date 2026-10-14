@@ -1577,13 +1577,17 @@ it.each([false, true])(
   '失败回包 pending=%s 时正确保留或清除任务 ID',
   async (pending) => {
     generateNode.mockImplementationOnce(async (_id, _graph, options) => {
-      options?.onJobCreated?.('job-failure')
+      options?.onJobCreated?.('job-failure', {
+        index: 0,
+        total: 1,
+        jobId: 'job-failure',
+      })
       const result = {
         success: false as const,
         error: 'failed',
         ...(pending ? { pending: true as const, jobId: 'job-failure' } : {}),
       }
-      options?.onEach?.(result)
+      options?.onEach?.(result, { index: 0, total: 1, jobId: 'job-failure' })
       return result
     })
     const context = harness([videoNode('v_1', { ...READY, prompt: 'a shot' })])
@@ -1628,7 +1632,7 @@ it('提交尚未取得任务 ID 时点击取消，在 ID 到达后取消服务�
   renderVideo(context, 'v_1', true)
   fireEvent.click(screen.getByRole('button', { name: 'send' }))
   fireEvent.click(screen.getByRole('button', { name: 'cancel' }))
-  options?.onJobCreated?.('late-job')
+  options?.onJobCreated?.('late-job', { index: 0, total: 1, jobId: 'late-job' })
   await waitFor(() => expect(cancelJobs).toHaveBeenLastCalledWith(['late-job']))
   await waitFor(() =>
     expect(context.onSetMedia).toHaveBeenCalledWith('v_1', {

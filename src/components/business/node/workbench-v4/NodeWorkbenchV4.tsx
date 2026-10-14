@@ -73,6 +73,7 @@ import {
 } from '@/constants/node-studio'
 import type { CharacterCardRecord } from '@/types'
 import { looseAreaSpawn, nextShotNo } from '@/lib/node-shot-layout'
+import { pendingJobPatch, settledJobPatch } from '@/lib/node-media-patch'
 import { buildAssistantSetModelPatch } from '@/lib/node-assistant-op-patch'
 import {
   NODE_MEDIA_KIND_IDS,
@@ -787,49 +788,74 @@ function NodeWorkbenchV4Inner() {
         }
         const statusBefore = node?.data.status ?? NODE_STATUS_IDS.idle
         graph.setRunState(nodeId, NODE_STATUS_IDS.running)
+        // 有没有哪一枪真的发出去回来过（没有 = 连计划都没出，失败要在这里钉上卡）。
+        let shotsBack = 0
         void generation
           .generateNode(
             nodeId,
             { nodes: graph.nodes, edges: graph.edges },
             {
               // 落 job id = **持久化**「有一单在飞」。刷新 / 轮询窗口关掉之后，
-              // `useNodeGenerationReconcileV4` 就是靠它把结果取回来的。
-              onJobCreated: (jobId) =>
-                graph.setMedia(nodeId, { mediaJobId: jobId }),
+              // `useNodeGenerationReconcileV4` 就是靠它把结果取回来的。一张卡
+              // 一次出多张时几单各记一格（`pendingJobPatch`），⛔ 互相盖掉。
+              onJobCreated: (jobId, shot) =>
+                graph.setMedia(nodeId, pendingJobPatch(shot, jobId)),
+              // ⚠ 回填写在 `onEach` 而不是 `.then`：张数 > 1 时是并行的 N 枪，
+              // `.then` 只拿得到一枪。
+              onEach: (result, shot) => {
+                shotsBack += 1
+                if (result.success) {
+                  graph.setMedia(nodeId, {
+                    url: result.mediaUrl,
+                    generationId: result.generation.id,
+                    ...settledJobPatch(shot),
+                    imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
+                    ...(result.thumbnailUrl
+                      ? { videoThumbnailUrl: result.thumbnailUrl }
+                      : {}),
+                  })
+                  return
+                }
+                // ⚠ `pending` 不是失败：轮询窗口关了而 worker 还在跑。job id 留着，
+                // 交给回填 hook —— ⛔ 不在这里把它标成 failed。
+                if (result.pending) return
+                graph.setMedia(nodeId, {
+                  ...settledJobPatch(shot),
+                  generationFailure: {
+                    error: result.error,
+                    ...(result.errorCode
+                      ? { errorCode: result.errorCode }
+                      : {}),
+                    ...(result.i18nKey ? { i18nKey: result.i18nKey } : {}),
+                  },
+                })
+              },
             },
           )
           .then((result) => {
-            if (result.success) {
-              graph.setMedia(nodeId, {
-                url: result.mediaUrl,
-                generationId: result.generation.id,
-                mediaJobId: undefined,
-                imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
-                ...(result.thumbnailUrl
-                  ? { videoThumbnailUrl: result.thumbnailUrl }
-                  : {}),
-              })
-              graph.setRunState(nodeId, NODE_STATUS_IDS.done)
-              return
-            }
             // ⚠ 发送前校验拦下的不是失败：没发出去、没扣钱，提示已在生成入口弹过。
             // 运行态回到发之前，⛔ 不写 `generationFailure`（owner 09-28：不改卡）。
-            if ('blocked' in result) {
+            if (!result.success && 'blocked' in result) {
               graph.setRunState(nodeId, statusBefore)
               return
             }
-            // ⚠ `pending` 不是失败：轮询窗口关了而 worker 还在跑。job id 留着，
-            // 交给回填 hook —— ⛔ 不在这里把它标成 failed。
+            // 媒体与运行态已经一枪一枪落在 `onEach` 里；这里只把整次的结果说出来。
+            if (result.success) {
+              graph.setRunState(nodeId, NODE_STATUS_IDS.done)
+              return
+            }
             if (result.pending) return
             toast.error(tV4('generateDesk.failed', { reason: result.error }))
-            graph.setMedia(nodeId, {
-              mediaJobId: undefined,
-              generationFailure: {
-                error: result.error,
-                ...(result.errorCode ? { errorCode: result.errorCode } : {}),
-                ...(result.i18nKey ? { i18nKey: result.i18nKey } : {}),
-              },
-            })
+            if (shotsBack === 0) {
+              graph.setMedia(nodeId, {
+                mediaJobId: undefined,
+                generationFailure: {
+                  error: result.error,
+                  ...(result.errorCode ? { errorCode: result.errorCode } : {}),
+                  ...(result.i18nKey ? { i18nKey: result.i18nKey } : {}),
+                },
+              })
+            }
             graph.setRunState(nodeId, NODE_STATUS_IDS.failed)
           })
       }

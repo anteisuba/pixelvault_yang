@@ -45,6 +45,14 @@ export interface NodeV4MediaPatch {
    * 那样终态永远清不掉这个字段。
    */
   readonly mediaJobId?: string | undefined
+  /**
+   * 一次出多张时：这一单开始在飞 / 已落地（成功、失败、取消都算）。⚠ 是对
+   * `mediaBatchJobIds` 的**增删**，在引擎手里最新的 data 上做 —— 几单同一拍回来
+   * 也不会互相盖掉。单枪仍写 `mediaJobId`（`pendingJobPatch` / `settledJobPatch`
+   * 替调用方选）。
+   */
+  readonly addBatchJob?: string
+  readonly settleBatchJob?: string
   readonly generationId?: string | undefined
   /**
    * 这一版从哪来（S5c，spec §4）。声音库「用这段」/ 素材库 / 上传会带；

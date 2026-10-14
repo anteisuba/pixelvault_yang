@@ -52,6 +52,7 @@ import {
   type V4SlotIssue,
 } from '@/lib/node-slot-payload'
 import { wrapStoryboardGridPrompt } from '@/lib/storyboard-grid'
+import { type NodeGenerationShot } from '@/lib/node-media-patch'
 import {
   AdvancedParamsSchema,
   type CharacterCardRecord,
@@ -639,18 +640,20 @@ export function useNodeMediaGenerationV4() {
       graph: V4GenerateGraph,
       options: {
         readonly prompt?: string
-        onJobCreated?(jobId: string): void
         /**
-         * 每一枪回来叫一次（张数 > 1 时会叫多次）。
+         * 每一枪的 job 建好时叫一次。`shot.total > 1` = 并行的一批：落卡用
+         * `pendingJobPatch(shot, jobId)`，⛔ 写单字段 `mediaJobId`（几单互相盖掉）。
+         */
+        onJobCreated?(jobId: string, shot: NodeGenerationShot): void
+        /**
+         * 每一枪回来叫一次（张数 > 1 时会叫多次，**先回来的先叫**）。
          * ⚠ 调用方**要把回填写在这里**而不是 `.then` 里：`.then` 只拿得到最后
-         * 一枪，前面几张会一张都不落。
+         * 一枪，前面几张会一张都不落。摘在飞标记用 `settledJobPatch(shot)`。
          */
-        onEach?(result: Awaited<ReturnType<typeof inner.generate>>): void
-        /**
-         * 张数 > 1 时每发下一枪前问一次；返回 false = 用户取消了，剩下的⛔ 再发
-         * （每一枪都扣钱）。
-         */
-        shouldContinue?(): boolean
+        onEach?(
+          result: Awaited<ReturnType<typeof inner.generate>>,
+          shot: NodeGenerationShot,
+        ): void
       } = {},
     ) => {
       const plan = planV4Generation(nodeId, graph, {
@@ -711,7 +714,7 @@ export function useNodeMediaGenerationV4() {
           : {}),
         ...(plan.searchGrounding ? { searchGrounding: true } : {}),
       }
-      const runOnce = () =>
+      const runOnce = (onJobCreated: (jobId: string) => void) =>
         inner.generate(
           {
             kind: plan.kind,
@@ -759,34 +762,39 @@ export function useNodeMediaGenerationV4() {
               ? { advancedParams }
               : {}),
           },
-          options.onJobCreated
-            ? { onJobCreated: options.onJobCreated }
-            : undefined,
+          { onJobCreated },
         )
 
       // 「先搜再画」的资料只在出图当下、只在内存里：开始时让出资料位，每一枪交回
       // 的来源合起来；没开搜索的一枪把上一次的资料收起。
       if (plan.searchGrounding) startNodeSearchGrounding(nodeId)
       else clearNodeSearchGrounding(nodeId)
-      const collect = (result: Awaited<ReturnType<typeof runOnce>>) => {
+      // 张数 > 1 = **并行**发 N 枪（spec §3 A1，owner 2026-10-14）。每一枪的
+      // job 记进卡上的 `mediaBatchJobIds`（经 `pendingJobPatch`），⛔ 共用单字段
+      // `mediaJobId` —— 那样几单互相盖掉，刷新之后只剩最后一单找得回来。
+      const total = plan.kind === 'image' ? Math.max(plan.count ?? 1, 1) : 1
+      const runShot = async (index: number) => {
+        let jobId: string | undefined
+        const result = await runOnce((created) => {
+          jobId = created
+          options.onJobCreated?.(created, { index, total, jobId: created })
+        })
         if (result.success && result.searchGrounding) {
           addNodeSearchGroundingResult(nodeId, result.searchGrounding)
         }
-        options.onEach?.(result)
+        options.onEach?.(result, {
+          index,
+          total,
+          ...(jobId ? { jobId } : {}),
+        })
+        return result
       }
-
-      // ⚠ **顺序**发，⛔ 不并发：并发时 N 个 `onJobCreated` 会互相盖掉节点身上
-      // 那一个 `mediaJobId`，刷新之后只剩最后一单能被回填 hook 找回来。
-      const times = plan.kind === 'image' ? Math.max(plan.count ?? 1, 1) : 1
-      let last = await runOnce()
-      collect(last)
-      for (let i = 1; i < times; i += 1) {
-        if (options.shouldContinue && !options.shouldContinue()) break
-        last = await runOnce()
-        collect(last)
-      }
+      const results = await Promise.all(
+        Array.from({ length: total }, (_, index) => runShot(index)),
+      )
       if (plan.searchGrounding) finishNodeSearchGrounding(nodeId)
-      return last
+      // 有一张成了就交回成的那张：调用方的 `.then` 只用它判「这一次算不算失败」。
+      return results.find((result) => result.success) ?? results.at(-1)!
     },
     [inner, characterCards, describeBlocker, t],
   )

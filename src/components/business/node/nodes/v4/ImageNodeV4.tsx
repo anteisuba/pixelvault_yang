@@ -64,6 +64,12 @@ import { useNodeSearchGrounding } from '@/hooks/node/use-node-search-grounding'
 import { resolveGeneratingStageKey } from '@/lib/generation-progress'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import { cancelGenerationsAPI } from '@/lib/api-client'
+import {
+  hasPendingMediaJob,
+  pendingJobPatch,
+  settledJobPatch,
+  type NodeGenerationShot,
+} from '@/lib/node-media-patch'
 import { renameStableNodeName } from '@/lib/node-display-name'
 import { pickDefaultModelOption } from '@/lib/pick-default-model-option'
 import type { ReadyCanvasImageEditCapabilityId } from '@/types/canvas-image-edit'
@@ -138,13 +144,11 @@ export { collapsedImageWidth, formatSizeBytes }
 /** 「生镜头」那一批里指代新建镜头的别名（只在这一批之内有效）。 */
 const SHOT_BATCH_REF = 'shot'
 
-/** 一次发送（张数 N = N 枪）。取消只认这一份，⛔ 认「卡上现在的 job」。 */
+/** 一次发送（张数 N = 并行 N 枪）。取消只认这一份，⛔ 认「卡上现在的 job」。 */
 interface ImageSubmission {
   cancelled: boolean
-  /** 当前在飞那一枪的 job id（`onJobCreated` 回来才有）。 */
-  jobId?: string
-  /** 已经向服务端发过取消，⛔ 再发。 */
-  cancelRequested?: boolean
+  /** 这一次建好、还没落地的 job（`onJobCreated` 进、`onEach` 出），连同是哪一枪。 */
+  readonly inFlight: Map<string, NodeGenerationShot>
   /** 这一次要出几张（九宫格模板钉 1）。 */
   readonly expected: number
   /** 已回来几枪（成功失败都算）。 */
@@ -289,7 +293,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
     setSyncedRail(railItems)
   }
 
-  const generating = Boolean(imageData.mediaJobId) || startedAt !== null
+  const generating = hasPendingMediaJob(imageData) || startedAt !== null
   const failureMessage =
     !generating &&
     (imageData.generationFailure || imageData.status === 'failed')
@@ -508,15 +512,20 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   }
 
   /**
-   * 取消在飞的那一单（尽力而为，同视频卡）：服务端停掉 job、卡上的「在飞」标记
-   * 清掉。已经出完的那张照常落卡 —— 钱已经花了；剩下几张由 `shouldContinue` 拦住。
+   * 取消这一次还在飞的几单（尽力而为，同视频卡）：服务端停掉 job、卡上各自的
+   * 「在飞」标记摘掉。已经出完的那几张照常落卡 —— 钱已经花了。
+   * 只认 `inFlight` 里**还没发过取消**的：job id 晚回来的那几单由 `onJobCreated` 补刀。
    */
-  const cancelSubmission = (submission: ImageSubmission) => {
-    const jobId = submission.jobId
-    if (!jobId || submission.cancelRequested) return
-    submission.cancelRequested = true
-    canvas.onSetMedia(id, { mediaJobId: undefined })
-    void cancelGenerationsAPI([jobId])
+  const cancelSubmission = (
+    submission: ImageSubmission,
+    jobs: readonly [string, NodeGenerationShot][],
+  ) => {
+    if (jobs.length === 0) return
+    for (const [jobId, shot] of jobs) {
+      submission.inFlight.delete(jobId)
+      canvas.onSetMedia(id, settledJobPatch(shot))
+    }
+    void cancelGenerationsAPI(jobs.map(([jobId]) => jobId))
   }
 
   const submitPrompt = () => {
@@ -541,6 +550,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         : Math.max(imageData.params?.count ?? 1, 1)
     const submission: ImageSubmission = {
       cancelled: false,
+      inFlight: new Map(),
       expected,
       settled: 0,
       landed: 0,
@@ -558,21 +568,25 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         { nodes, edges: graph.edges },
         {
           prompt: draft,
-          // 取消之后剩下的几张⛔ 再发：每一枪都扣钱。
-          shouldContinue: () => !submission.cancelled,
           // 落 job id = 持久化「有一单在飞」：刷新之后由回填 hook 取回结果。
-          onJobCreated: (jobId) => {
+          // 一批里的几单各记一格（`pendingJobPatch`），⛔ 互相盖掉。
+          onJobCreated: (jobId, shot) => {
             if (submissionRef.current !== submission) return
-            submission.jobId = jobId
-            canvas.onSetMedia(id, { mediaJobId: jobId })
+            submission.inFlight.set(jobId, shot)
+            canvas.onSetMedia(id, pendingJobPatch(shot, jobId))
             // 取消落在「请求已发、job id 还没回来」之间：拿到 id 立刻补一刀。
-            if (submission.cancelled) cancelSubmission(submission)
+            if (submission.cancelled)
+              cancelSubmission(submission, [[jobId, shot]])
           },
-          // ⚠ 回填写在 `onEach` 里而不是 `.then`：张数 > 1 时是顺序发的 N 枪，
-          // `.then` 只拿得到最后一枪 —— 前面几张会一张都不落。每一枪各追加一个
-          // 产出版本（S3b §1.8），卡下那排小点因此长出来。
-          onEach: (result) => {
+          // ⚠ 回填写在 `onEach` 里而不是 `.then`：张数 > 1 时是并行的 N 枪，
+          // `.then` 只拿得到一枪 —— 其余几张会一张都不落。每一枪各追加一个
+          // 产出版本（S3b §1.8），先回来的先进版本条。
+          onEach: (result, shot) => {
             if (submissionRef.current !== submission) return
+            // 取消时已经摘过标记的那一单，⛔ 再摘一次（会把别的卡状态改回去）。
+            const stillTracked =
+              shot.jobId === undefined || submission.inFlight.delete(shot.jobId)
+            const settle = stillTracked ? settledJobPatch(shot) : {}
             submission.settled += 1
             setPendingShots(
               Math.max(submission.expected - submission.settled, 0),
@@ -581,7 +595,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
             if (!result.success) {
               if (!result.pending) {
                 canvas.onSetMedia(id, {
-                  mediaJobId: undefined,
+                  ...settle,
                   generationFailure:
                     result.cancelled || submission.cancelled
                       ? undefined
@@ -601,7 +615,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
             canvas.onSetMedia(id, {
               url: result.mediaUrl,
               generationId: result.generation.id,
-              mediaJobId: undefined,
+              ...settle,
               imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
             })
           },
@@ -1233,7 +1247,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
               const submission = submissionRef.current
               if (submission) {
                 submission.cancelled = true
-                cancelSubmission(submission)
+                cancelSubmission(submission, [...submission.inFlight])
               }
               setStartedAt(null)
               setPendingShots(0)

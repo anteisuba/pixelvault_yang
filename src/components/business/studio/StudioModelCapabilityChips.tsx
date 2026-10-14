@@ -157,23 +157,21 @@ export function StudioModelCapabilityChips({
 }
 
 /**
- * 同一颗专属 chip，**不读工作台 context**（owner 2026-10-08：画布图片卡也要有）。
- * 值与写回由宿主给：画布把它存在卡的参数上。
+ * 专属那几项的**面板本体**，不带触发器（画布图片卡的 `⚙` 弹层下半段，spec §3
+ * B1：chip `专属` 并进 ⚙ 之后由那一颗弹层来装）。没有可显示的项返回 null。
  */
-export function ModelCapabilitySingleChip({
+export function ModelCapabilityControlPanel({
   models,
   params,
   onParamsChange,
   hasReferenceImage,
   disabled = false,
-  triggerClassName,
 }: {
   models: readonly { adapterType: AI_ADAPTER_TYPES; modelId: string }[]
   params: AdvancedParams
   onParamsChange: (next: AdvancedParams) => void
   hasReferenceImage: boolean
   disabled?: boolean
-  triggerClassName?: string
 }) {
   const t = useTranslations('StudioCapabilityChips')
   const tModels = useTranslations('Models')
@@ -189,14 +187,13 @@ export function ModelCapabilitySingleChip({
     ].join(' · '),
   })
   return (
-    <CapabilitySingleChip
+    <CapabilityControlList
       chips={visibleChips}
       params={params}
       disabled={disabled}
       hasReferenceImage={hasReferenceImage}
       sectionLabel={sectionLabel}
       scopeNotes={new Map()}
-      triggerClassName={triggerClassName}
       onParamsChange={onParamsChange}
     />
   )

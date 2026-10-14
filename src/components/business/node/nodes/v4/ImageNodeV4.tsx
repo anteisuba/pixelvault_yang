@@ -32,6 +32,8 @@ import { useTranslations } from 'next-intl'
 import { Spinner } from '@/components/ui/spinner'
 
 import { useModelChannelGate } from '@/hooks/use-model-channel-gate'
+import { isMissingKeyModelOption } from '@/hooks/use-split-model-options'
+import { useApiKeysContextOptional } from '@/contexts/api-keys-context'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Clapperboard,
@@ -72,6 +74,7 @@ import {
 } from '@/lib/node-media-patch'
 import { renameStableNodeName } from '@/lib/node-display-name'
 import { pickDefaultModelOption } from '@/lib/pick-default-model-option'
+import { getTranslatedModelLabel } from '@/lib/model-options'
 import type { ReadyCanvasImageEditCapabilityId } from '@/types/canvas-image-edit'
 import type {
   NodeV4,
@@ -103,8 +106,9 @@ import {
   buildConnectToShotOps,
   buildConnectToShotTargets,
 } from './connect-to-shot-targets'
-import { ImageCapabilityChip } from './image/ImageCapabilityChip'
+import { ImageAdvancedChip } from './image/ImageAdvancedChip'
 import { ImageFrameChip } from './image/ImageFrameChip'
+import { ImageSendReadout } from './image/ImageSendReadout'
 import { ImageNodeFrame } from './image/ImageNodeFrame'
 import {
   ImageAddMenuItems,
@@ -127,6 +131,7 @@ import {
   collapsedImageHeight,
   collapsedImageWidth,
   formatSizeBytes,
+  imageCostEstimate,
   imageNodeAcceptsReferences,
   imageVersions,
   toStudioModelOption,
@@ -135,6 +140,7 @@ import { CharacterMentionRail } from './character/CharacterMentionRail'
 import { useImagePromptMentions } from './image/use-image-prompt-mentions'
 import { cn } from '@/lib/utils'
 import { ModelPickerPopover } from '../../../studio-shared/pickers/ModelPickerPopover'
+import { QuickSetupDialog } from '../../../studio-shared/setup/QuickSetupDialog'
 import { splitVersionOp, useNodeV4Canvas } from './NodeV4Context'
 import { NodeV4ContextMenu } from './NodeV4ContextMenu'
 import { triggerNodeV4Download } from './NodeV4SelectionToolbar'
@@ -210,6 +216,20 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
     }
   }, [modelOptions])
   const effectiveModel = imageData.model ?? defaultModel
+  // 缺 key 闸（Hard Rule 8）：名单回来、而这张卡的型号确定跑不起来 —— 发送键左边写
+  // 「先配 key」，点发送就地开 `QuickSetupDialog`，验证过才发。
+  const apiKeys = useApiKeysContextOptional()
+  const selectedOption = effectiveModel
+    ? modelOptions.find((option) => option.optionId === effectiveModel.optionId)
+    : undefined
+  const missingKey = selectedOption
+    ? isMissingKeyModelOption(
+        toStudioModelOption(selectedOption),
+        apiKeys?.hasLoaded ?? false,
+      )
+    : false
+  const [keySetupOpen, setKeySetupOpen] = useState(false)
+  const tModels = useTranslations('Models')
   // 「先搜再画」跟卡存（`params.searchGrounding`），只对支持的型号出现。
   const searchGroundingAvailable = Boolean(
     effectiveModel?.modelId && supportsSearchGrounding(effectiveModel.modelId),
@@ -528,8 +548,19 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
     void cancelGenerationsAPI(jobs.map(([jobId]) => jobId))
   }
 
-  const submitPrompt = () => {
+  /** 这一枪发几张（九宫格模板钉 1）—— 发送读数与 `submitPrompt` 同一个数。 */
+  const submitCount =
+    imageData.params?.storyboardGrid === true
+      ? 1
+      : Math.max(imageData.params?.count ?? 1, 1)
+
+  /** `keyVerified`：刚在 `QuickSetupDialog` 里配好 key —— 渲染闭包里的 `missingKey` 还没刷新。 */
+  const submitPrompt = (keyVerified = false) => {
     if (draft.trim().length === 0 || generating) return
+    if (missingKey && !keyVerified) {
+      setKeySetupOpen(true)
+      return
+    }
     if (draft !== currentPrompt) canvas.onSetPrompt(id, draft)
     if (!imageData.model && effectiveModel)
       canvas.onSetModel(id, effectiveModel)
@@ -544,10 +575,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
           } as NodeV4)
         : item,
     )
-    const expected =
-      imageData.params?.storyboardGrid === true
-        ? 1
-        : Math.max(imageData.params?.count ?? 1, 1)
+    const expected = submitCount
     const submission: ImageSubmission = {
       cancelled: false,
       inFlight: new Map(),
@@ -880,9 +908,9 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         : {})}
     />
   )
-  const capabilityChip = (
-    <ImageCapabilityChip
-      key="capability"
+  const advancedChip = (
+    <ImageAdvancedChip
+      key="advanced"
       model={effectiveModel}
       params={imageData.params}
       onParamsChange={(next) => canvas.onSetParams(id, next)}
@@ -999,7 +1027,9 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
                       }),
                       shortMessage: t('statuses.failed'),
                       retryLabel: tImage('rail.retry'),
-                      ...(draft.trim() ? { onRetry: submitPrompt } : {}),
+                      ...(draft.trim()
+                        ? { onRetry: () => submitPrompt() }
+                        : {}),
                     }
                   : null
               }
@@ -1233,7 +1263,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
             safeLeftPx={canvas.safeLeftPx}
             value={draft}
             onValueChange={setDraft}
-            onSubmit={submitPrompt}
+            onSubmit={() => submitPrompt()}
             generating={generating}
             // 多渠道型号没选渠道 = 这一枪发不出去（D2 Q1：没有「自动」渠道）。
             // 按钮上写「先选渠道」，点了打开这张卡的选择器并定位到那一行。
@@ -1242,7 +1272,22 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
                   blockedLabel: tPicker('pickChannel'),
                   onBlockedClick: channelGate.requestPick,
                 }
-              : {})}
+              : missingKey
+                ? {
+                    blockedLabel: tImage('send.needsKeyLabel'),
+                    onBlockedClick: () => setKeySetupOpen(true),
+                  }
+                : {})}
+            readout={
+              <ImageSendReadout
+                unit={imageCostEstimate(effectiveModel?.modelId, {
+                  quality: imageData.params?.quality,
+                })}
+                count={submitCount}
+                missingKey={missingKey}
+                onSetupKey={() => setKeySetupOpen(true)}
+              />
+            }
             onCancel={() => {
               const submission = submissionRef.current
               if (submission) {
@@ -1293,7 +1338,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
             mentionOptions={promptMentions.mentionOptions}
             renderValue={promptMentions.renderValue}
             addMenu={refAddMenu}
-            chips={[paramsChip, capabilityChip, modelChip].filter(Boolean)}
+            chips={[paramsChip, advancedChip, modelChip].filter(Boolean)}
           />
         </div>
       </NodeChromeLayer>
@@ -1310,6 +1355,24 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         }}
       />
       {acceptsRefs ? refs.overlays : null}
+      {keySetupOpen && selectedOption ? (
+        <QuickSetupDialog
+          open
+          onOpenChange={(next) => {
+            if (!next) setKeySetupOpen(false)
+          }}
+          modelId={selectedOption.modelId}
+          modelLabel={getTranslatedModelLabel(tModels, selectedOption.modelId)}
+          adapterType={selectedOption.adapterType}
+          optionId={selectedOption.optionId}
+          selectStudioModel={false}
+          // 验证过就把这一枪发出去 —— 用户点的是「发送」，配 key 只是半路的一步。
+          onVerified={() => {
+            setKeySetupOpen(false)
+            submitPrompt(true)
+          }}
+        />
+      ) : null}
 
       <AnimatePresence>
         {expanded && imageData.url && !media.problem ? (
@@ -1343,14 +1406,14 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
             onSave={(body) => {
               if (body !== currentPrompt) canvas.onSetPrompt(id, body)
             }}
-            onRegenerate={submitPrompt}
+            onRegenerate={() => submitPrompt()}
             regenerateDisabled={generating || draft.trim().length === 0}
             footerReadout={t('video.frame.readout', {
               chars: draft.trim().length,
               slots: refs.items.length,
             })}
             paramsChip={paramsChip}
-            capabilityChip={capabilityChip}
+            advancedChip={advancedChip}
             modelChip={modelChip}
             showReferences={acceptsRefs}
             refRail={

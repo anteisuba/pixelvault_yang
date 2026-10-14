@@ -5968,7 +5968,28 @@
           "option": "{n} 枚目"
         },
         "promptPlaceholder": "この画像を説明…",
-        "promptLabel": "画像プロンプト"
+        "promptLabel": "画像プロンプト",
+        "advanced": {
+          "label": "詳細設定",
+          "labelChanged": "詳細設定 · 変更あり",
+          "seed": "シード",
+          "seedRandom": "ランダム",
+          "seedShuffle": "シードを変える",
+          "seedLock": "シードを固定（毎回同じ値で送信）",
+          "seedUnlock": "固定を解除（毎回ランダム）",
+          "seedBatchHint": "複数枚のときは 1 枚ごとに +1",
+          "negative": "ネガティブプロンプト",
+          "negativePlaceholder": "入れたくないもの（例：文字、透かし）"
+        },
+        "send": {
+          "estimate": "≈{amount}",
+          "estimateLabel": "今回は約 {amount}。開くと計算を表示",
+          "estimateTitle": "今回のおおよその費用",
+          "estimateDetail": "{unit} / 枚 × {count} 枚 ≈ {amount}",
+          "estimateNote": "このチャネルの単価からの参考価格で、請求額ではありません。",
+          "needsKey": "キーを設定",
+          "needsKeyLabel": "このモデルはまだキーがありません。クリックしてその場で設定"
+        }
       },
       "audio": {
         "toolbar": {

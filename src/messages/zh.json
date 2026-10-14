@@ -5968,7 +5968,28 @@
           "option": "第 {n} 张"
         },
         "promptPlaceholder": "描述这张图……",
-        "promptLabel": "图片提示词"
+        "promptLabel": "图片提示词",
+        "advanced": {
+          "label": "高级参数",
+          "labelChanged": "高级参数 · 已改",
+          "seed": "种子",
+          "seedRandom": "随机",
+          "seedShuffle": "换一个种子",
+          "seedLock": "锁住种子，每次发送同一颗",
+          "seedUnlock": "解锁，每次随机",
+          "seedBatchHint": "一次多张时每张依次 +1",
+          "negative": "反向提示词",
+          "negativePlaceholder": "不想出现的东西，比如 文字、水印"
+        },
+        "send": {
+          "estimate": "≈{amount}",
+          "estimateLabel": "这一次约 {amount}，点开看算法",
+          "estimateTitle": "这一次大约多少钱",
+          "estimateDetail": "{unit} / 张 × {count} 张 ≈ {amount}",
+          "estimateNote": "参考价，按这条渠道的单价估算，不是计费依据。",
+          "needsKey": "先配 key",
+          "needsKeyLabel": "这个模型还没配 key，点一下就地配置"
+        }
       },
       "audio": {
         "toolbar": {

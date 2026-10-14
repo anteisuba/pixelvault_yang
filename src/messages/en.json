@@ -5968,7 +5968,28 @@
           "option": "Image {n}"
         },
         "promptPlaceholder": "Describe this image…",
-        "promptLabel": "Image prompt"
+        "promptLabel": "Image prompt",
+        "advanced": {
+          "label": "Advanced",
+          "labelChanged": "Advanced · changed",
+          "seed": "Seed",
+          "seedRandom": "Random",
+          "seedShuffle": "New seed",
+          "seedLock": "Lock seed: every send uses the same one",
+          "seedUnlock": "Unlock: random every time",
+          "seedBatchHint": "With several images, each one adds 1",
+          "negative": "Negative prompt",
+          "negativePlaceholder": "Things to keep out, e.g. text, watermark"
+        },
+        "send": {
+          "estimate": "≈{amount}",
+          "estimateLabel": "About {amount} for this send. Open to see how",
+          "estimateTitle": "Estimated cost",
+          "estimateDetail": "{unit} / image × {count} ≈ {amount}",
+          "estimateNote": "Reference price from this channel's unit price, not what you are billed.",
+          "needsKey": "Add key",
+          "needsKeyLabel": "This model has no API key yet. Click to add one here"
+        }
       },
       "audio": {
         "toolbar": {

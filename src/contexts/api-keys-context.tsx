@@ -30,3 +30,11 @@ export function useApiKeysContext(): UseApiKeysReturn {
     throw new Error('useApiKeysContext must be used inside ApiKeysProvider')
   return ctx
 }
+
+/**
+ * 不在 `ApiKeysProvider` 里时返回 null（画布卡片的单测不挂它）。用它判「缺不缺
+ * key」的调用方在 null 时一律当「不知道」，⛔ 当成缺。
+ */
+export function useApiKeysContextOptional(): UseApiKeysReturn | null {
+  return useContext(ApiKeysContext)
+}

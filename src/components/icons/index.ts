@@ -275,6 +275,8 @@ export {
   // 那颗声音开关用的就是这一对。
   SpeakerHighIcon as SpeakerHigh,
   SpeakerSlashIcon as SpeakerSlash,
+  // 画布图片卡 ⚙ 弹层里那颗种子锁（锁住 / 解锁一对）。
+  LockOpenIcon as LockOpen,
   SpeakerHighIcon as Volume2,
   SpeakerXIcon as VolumeX,
   MagicWandIcon as Wand2,

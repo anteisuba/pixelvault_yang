@@ -53,6 +53,7 @@ import {
 } from '@/lib/node-slot-payload'
 import { wrapStoryboardGridPrompt } from '@/lib/storyboard-grid'
 import { type NodeGenerationShot } from '@/lib/node-media-patch'
+import { shotSeed } from '@/lib/node-image-seed'
 import {
   AdvancedParamsSchema,
   type CharacterCardRecord,
@@ -714,8 +715,22 @@ export function useNodeMediaGenerationV4() {
           : {}),
         ...(plan.searchGrounding ? { searchGrounding: true } : {}),
       }
-      const runOnce = (onJobCreated: (jobId: string) => void) =>
-        inner.generate(
+      const total = plan.kind === 'image' ? Math.max(plan.count ?? 1, 1) : 1
+      // 锁住的种子（⚙）：一次多张时第 n 张用 `seed + n`，⛔ 四张同一颗出四张一样的。
+      const lockedSeed =
+        typeof advanced.seed === 'number' && advanced.seed >= 0
+          ? advanced.seed
+          : undefined
+      const shotAdvancedParams = (index: number) =>
+        lockedSeed === undefined || total === 1
+          ? advancedParams
+          : { ...advancedParams, seed: shotSeed(lockedSeed, index) }
+      const runOnce = (
+        index: number,
+        onJobCreated: (jobId: string) => void,
+      ) => {
+        const shotParams = shotAdvancedParams(index)
+        return inner.generate(
           {
             kind: plan.kind,
             modelId: plan.modelId,
@@ -758,12 +773,13 @@ export function useNodeMediaGenerationV4() {
                   ),
                 }
               : {}),
-            ...(Object.keys(advancedParams).length > 0
-              ? { advancedParams }
+            ...(Object.keys(shotParams).length > 0
+              ? { advancedParams: shotParams }
               : {}),
           },
           { onJobCreated },
         )
+      }
 
       // 「先搜再画」的资料只在出图当下、只在内存里：开始时让出资料位，每一枪交回
       // 的来源合起来；没开搜索的一枪把上一次的资料收起。
@@ -772,10 +788,9 @@ export function useNodeMediaGenerationV4() {
       // 张数 > 1 = **并行**发 N 枪（spec §3 A1，owner 2026-10-14）。每一枪的
       // job 记进卡上的 `mediaBatchJobIds`（经 `pendingJobPatch`），⛔ 共用单字段
       // `mediaJobId` —— 那样几单互相盖掉，刷新之后只剩最后一单找得回来。
-      const total = plan.kind === 'image' ? Math.max(plan.count ?? 1, 1) : 1
       const runShot = async (index: number) => {
         let jobId: string | undefined
-        const result = await runOnce((created) => {
+        const result = await runOnce(index, (created) => {
           jobId = created
           options.onJobCreated?.(created, { index, total, jobId: created })
         })

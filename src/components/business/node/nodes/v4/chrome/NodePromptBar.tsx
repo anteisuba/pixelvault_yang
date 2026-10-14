@@ -81,6 +81,11 @@ export interface NodePromptBarProps {
    */
   readonly trailing?: ReactNode
   /**
+   * 紧贴发送键左边的一格读数（图片卡「发送键带价」：`≈$0.16` / 「先配 key」）。
+   * 生成中不画 —— 那时发送键已换成取消，读数说的那一枪已经发出去了。
+   */
+  readonly readout?: ReactNode
+  /**
    * **栏内首行**（画板 `VideoSelected.dc.html`：已挂的首帧 / 尾帧 / 语音那排小
    * chip 就在栏里、正文之上，同一片玻璃）。
    *
@@ -149,6 +154,7 @@ export function NodePromptBar({
   addMenu,
   safeLeftPx = CANVAS_SHELL_SAFE_LEFT_DEFAULT_PX,
   trailing,
+  readout,
   leadingRow,
   slotRow,
   ariaLabel,
@@ -579,6 +585,7 @@ export function NodePromptBar({
             {t('charCount', { count: value.length })}
           </span>
         )}
+        {generating ? null : readout}
         {trailingButton}
       </div>
     </div>

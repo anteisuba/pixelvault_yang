@@ -86,6 +86,25 @@ vi.mock(
   }),
 )
 
+/** key 名单：缺省「还没回来」= 不知道缺不缺，⛔ 当成缺。 */
+const apiKeys = vi.hoisted(() => ({
+  current: null as { hasLoaded: boolean } | null,
+}))
+vi.mock('@/contexts/api-keys-context', () => ({
+  useApiKeysContextOptional: () => apiKeys.current,
+}))
+
+vi.mock('../../../studio-shared/setup/QuickSetupDialog', () => ({
+  QuickSetupDialog: (props: { onVerified?: () => void; modelId: string }) => (
+    <button
+      type="button"
+      data-testid="quick-setup"
+      data-model={props.modelId}
+      onClick={() => props.onVerified?.()}
+    />
+  ),
+}))
+
 vi.mock('@/components/business/AssetSelectorDialog', () => ({
   AssetSelectorDialog: () => <div data-testid="asset-picker" />,
 }))
@@ -851,6 +870,47 @@ describe('画面弹层与模型 chip', () => {
       }),
       expect.any(Object),
     )
+  })
+
+  it('型号缺 key：发送不出图，就地弹配置；验证过才发（Hard Rule 8）', () => {
+    generateNode.mockClear()
+    apiKeys.current = { hasLoaded: true }
+    const options = [
+      {
+        optionId: 'opt_missing',
+        modelId: 'model-missing',
+        adapterType: 'fal',
+        providerConfig: {},
+        requestCount: 0,
+        sourceType: 'workspace',
+      },
+    ] as never
+    const context = harness(
+      [
+        imageNode('i_1', {
+          prompt: '山间晨雾',
+          model: {
+            optionId: 'opt_missing',
+            modelId: 'model-missing',
+            adapterType: 'fal',
+          },
+        }),
+      ],
+      { selectedNodeIds: ['i_1'], modelOptionsByKind: { image: options } },
+    )
+    const { container } = renderImage(context, 'i_1', true)
+    expect(
+      container.querySelector('[data-image-send-readout="missing-key"]'),
+    ).not.toBeNull()
+    expect(screen.queryByTestId('quick-setup')).toBeNull()
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' })
+    expect(generateNode).not.toHaveBeenCalled()
+    const dialog = screen.getByTestId('quick-setup')
+    expect(dialog).toHaveAttribute('data-model', 'model-missing')
+    fireEvent.click(dialog)
+    expect(generateNode).toHaveBeenCalledTimes(1)
+    expect(screen.queryByTestId('quick-setup')).toBeNull()
+    apiKeys.current = null
   })
 
   it('选项映射与 WorkflowModelPicker 同口径（apiKeyId → keyId）', () => {

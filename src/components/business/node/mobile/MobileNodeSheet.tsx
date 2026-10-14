@@ -24,6 +24,7 @@ import { NODE_MOBILE_RAIL } from '@/constants/node-studio'
 import { chooseVoiceOps, renameForVoiceOps } from '@/lib/audio-node-name'
 import { formatShotDisplayName } from '@/lib/node-display-name'
 import { readOutputIndex, readOutputVersions } from '@/lib/node-output-versions'
+import { hasPendingMediaJob } from '@/lib/node-media-patch'
 import type {
   NodeV4,
   NodeV4AudioData,
@@ -165,11 +166,10 @@ function ImageSheetBody({ node }: { readonly node: NodeV4 }) {
   const draft = useNodeGenerateDraft({
     id: node.id,
     prompt: data.prompt,
-    mediaJobId: data.mediaJobId,
+    pending: hasPendingMediaJob(data),
     buildMediaPatch: (result) => ({
       url: result.mediaUrl,
       generationId: result.generation.id,
-      mediaJobId: undefined,
       imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
     }),
   })
@@ -181,7 +181,7 @@ function ImageSheetBody({ node }: { readonly node: NodeV4 }) {
     id: node.id,
     displayName: data.name,
     model: data.model,
-    disabled: Boolean(data.mediaJobId),
+    disabled: hasPendingMediaJob(data),
   })
   const mentions = useImagePromptMentions({
     id: node.id,
@@ -311,7 +311,7 @@ function AudioSheetBody({ node }: { readonly node: NodeV4 }) {
   const draft = useNodeGenerateDraft({
     id: node.id,
     prompt: data.prompt,
-    mediaJobId: data.mediaJobId,
+    pending: hasPendingMediaJob(data),
   })
   const versions = readOutputVersions(data)
   const versionIndex = readOutputIndex(data)

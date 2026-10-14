@@ -63,6 +63,7 @@ export {
   renderVoicePromptValue,
 } from './render-prompt-value'
 export { VersionDots, type VersionDotsProps } from './VersionDots'
+export { VersionStrip, type VersionStripProps } from './VersionStrip'
 export {
   NodeFrameProgress,
   useNodeProgressNarrow,

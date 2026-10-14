@@ -5965,6 +5965,10 @@
           "uploadFailed": "第 {n} 格没存进素材库，这次没切",
           "failed": "切宫格没成功，原图没动"
         },
+        "batchPick": {
+          "label": "这一批出了 {count} 张，挑一张作当前",
+          "option": "第 {n} 张"
+        },
         "promptPlaceholder": "描述这张图……",
         "promptLabel": "图片提示词"
       },

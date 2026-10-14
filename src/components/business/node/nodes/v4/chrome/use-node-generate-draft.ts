@@ -15,6 +15,7 @@ import { useEffect, useState } from 'react'
 
 import { PROGRESS_TICK_MS } from '@/constants/generation-progress'
 import { useNodeMediaGenerationV4 } from '@/hooks/node/use-node-media-generation-v4'
+import { pendingJobPatch, settledJobPatch } from '@/lib/node-media-patch'
 
 import { useNodeV4Canvas, type NodeV4MediaPatch } from '../NodeV4Context'
 
@@ -22,11 +23,15 @@ export interface NodeGenerateDraftOptions {
   readonly id: string
   /** 节点上落着的提示词（助手改它时草稿跟上）。 */
   readonly prompt: string | undefined
-  /** 节点上落着的在飞 job id —— 有它就是「生成中」（刷新之后也认得出来）。 */
-  readonly mediaJobId: string | undefined
   /**
-   * 成功一枪时往节点上写什么。⚠ 默认只写 `url / generationId / 清 job`；
-   * 图片卡要多写一个 `imageSource`，所以留这个口子。
+   * 节点上落着在飞的 job（`hasPendingMediaJob`）—— 有就是「生成中」（刷新之后
+   * 也认得出来）。
+   */
+  readonly pending: boolean
+  /**
+   * 成功一枪时往节点上写什么。⚠ 默认只写 `url / generationId`；图片卡要多写一个
+   * `imageSource`，所以留这个口子。摘在飞标记由这里统一补（`settledJobPatch`），
+   * ⛔ 调用方自己写 `mediaJobId: undefined`（一批里的几单会被清错）。
    */
   buildMediaPatch?(result: {
     readonly mediaUrl: string
@@ -49,7 +54,7 @@ export interface NodeGenerateDraft {
 export function useNodeGenerateDraft({
   id,
   prompt,
-  mediaJobId,
+  pending,
   buildMediaPatch,
 }: NodeGenerateDraftOptions): NodeGenerateDraft {
   const canvas = useNodeV4Canvas()
@@ -66,7 +71,7 @@ export function useNodeGenerateDraft({
     setDraft(currentPrompt)
   }
 
-  const generating = Boolean(mediaJobId) || startedAt !== null
+  const generating = pending || startedAt !== null
 
   useEffect(() => {
     if (!generating) return
@@ -89,22 +94,22 @@ export function useNodeGenerateDraft({
         {
           prompt: draft,
           // 落 job id = 持久化「有一单在飞」：刷新之后由回填 hook 取回结果。
-          onJobCreated: (jobId) => canvas.onSetMedia(id, { mediaJobId: jobId }),
-          // ⚠ 回填写在 `onEach` 而不是 `.then`：张数 > 1 时是顺序发的 N 枪。
-          onEach: (result) => {
+          // 一批里的几单各记一格（`pendingJobPatch`），⛔ 互相盖掉。
+          onJobCreated: (jobId, shot) =>
+            canvas.onSetMedia(id, pendingJobPatch(shot, jobId)),
+          // ⚠ 回填写在 `onEach` 而不是 `.then`：张数 > 1 时是并行的 N 枪。
+          onEach: (result, shot) => {
             if (!result.success) {
-              if (!result.pending)
-                canvas.onSetMedia(id, { mediaJobId: undefined })
+              if (!result.pending) canvas.onSetMedia(id, settledJobPatch(shot))
               return
             }
-            canvas.onSetMedia(
-              id,
-              buildMediaPatch?.(result) ?? {
+            canvas.onSetMedia(id, {
+              ...(buildMediaPatch?.(result) ?? {
                 url: result.mediaUrl,
                 generationId: result.generation.id,
-                mediaJobId: undefined,
-              },
-            )
+              }),
+              ...settledJobPatch(shot),
+            })
           },
         },
       )

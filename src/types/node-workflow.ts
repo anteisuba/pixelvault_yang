@@ -1054,6 +1054,20 @@ const NodeV4MediaMetaShape = {
    * 回填 pass 反复去查一个早就结束的 job。
    */
   mediaJobId: z.string().trim().min(1).max(200).optional().catch(undefined),
+  /**
+   * 一次出多张时**同时在飞**的那几单（图片卡并行出图，spec §3 A1）。
+   *
+   * 与 `mediaJobId` 分开存的理由：单枪的写法是整字段覆盖（`mediaJobId: x` /
+   * `undefined`），几单同时回来时互相盖掉，刷新之后只剩最后一单找得回来。这一列
+   * 只经 `addBatchJob` / `settleBatchJob` 两个补丁键在**最新的 data** 上增删
+   * （`applyNodeMediaPatch`），⛔ 调用方自己算好整列再写。
+   * 持久化理由同 `mediaJobId`；一单落地就从列里摘掉。
+   */
+  mediaBatchJobIds: z
+    .array(z.string().trim().min(1).max(200))
+    .max(8)
+    .optional()
+    .catch(undefined),
   /** 回填进来的那条 `Generation` 记录 id —— 素材库 / 审阅按它反查。 */
   generationId: z.string().trim().min(1).max(200).optional().catch(undefined),
 }

@@ -212,3 +212,50 @@ it('旧任务迟到的失败回包不清除新任务', async () => {
   expect(setMedia).not.toHaveBeenCalled()
   expect(setRunState).not.toHaveBeenCalled()
 })
+
+describe('一批并行在飞（mediaBatchJobIds）', () => {
+  it('每一单各问一次；落地的只摘自己那一格，别的单还在飞时不改运行态', async () => {
+    mockCheckImage.mockImplementation(async (jobId: string) =>
+      jobId === 'job-1'
+        ? {
+            success: true,
+            data: {
+              status: 'COMPLETED',
+              generation: { id: 'gen-1', url: 'https://cdn/1.png' },
+            },
+          }
+        : { success: true, data: { status: 'IN_PROGRESS' } },
+    )
+    const { setMedia, setRunState } = mount([
+      node('a', { mediaBatchJobIds: ['job-1', 'job-2'] }),
+    ])
+
+    await waitFor(() => expect(setMedia).toHaveBeenCalled())
+    expect(mockCheckImage).toHaveBeenCalledWith('job-1')
+    expect(mockCheckImage).toHaveBeenCalledWith('job-2')
+    expect(setMedia).toHaveBeenCalledTimes(1)
+    expect(setMedia).toHaveBeenCalledWith('a', {
+      url: 'https://cdn/1.png',
+      generationId: 'gen-1',
+      settleBatchJob: 'job-1',
+      imageSource: 'generated',
+    })
+    expect(setRunState).not.toHaveBeenCalled()
+  })
+
+  it('一批里只剩最后一单：失败照样摘它那一格，运行态转 failed', async () => {
+    mockCheckImage.mockResolvedValue({
+      success: true,
+      data: { status: 'FAILED', error: 'boom' },
+    })
+    const { setMedia, setRunState } = mount([
+      node('a', { mediaBatchJobIds: ['job-9'] }),
+    ])
+    await waitFor(() => expect(setMedia).toHaveBeenCalled())
+    expect(setMedia).toHaveBeenCalledWith('a', {
+      settleBatchJob: 'job-9',
+      generationFailure: { error: 'boom' },
+    })
+    expect(setRunState).toHaveBeenCalledWith('a', 'failed')
+  })
+})

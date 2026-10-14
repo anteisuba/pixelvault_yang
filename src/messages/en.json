@@ -527,7 +527,9 @@
     "loraTrainingSubmitFailed": "Couldn't start LoRA training",
     "loraTrainingComplete": "LoRA training is complete. Your model is ready to use.",
     "loraTrainingFailed": "LoRA training failed",
-    "signedIn": "Signed in"
+    "signedIn": "Signed in",
+    "characterCardImported": "Imported {name}",
+    "characterCardImportFailed": "Couldn't import that card. Try again."
   },
   "Projects": {
     "title": "Projects",
@@ -7531,6 +7533,11 @@
     },
     "promptTags": {
       "unusable": "The assistant couldn't turn that into tags."
+    },
+    "tavernCard": {
+      "notACard": "That file isn't a SillyTavern character card (PNG or JSON).",
+      "tooLarge": "That card file is over 3 MB.",
+      "limitReached": "You've reached the character limit. Delete one to import more."
     }
   },
   "Transform": {
@@ -9085,7 +9092,7 @@
     "tagsTitle": "Tags",
     "newCharacter": "New character",
     "emptyTitle": "No characters yet",
-    "emptyHint": "Create a character and add a few images of them.",
+    "emptyHint": "Create a character, or drop in a SillyTavern card (PNG / JSON).",
     "setting": "Profile",
     "noUses": "Not used yet",
     "loading": "Loading…",
@@ -9117,7 +9124,9 @@
     "readingUnlike": "Not quite — edit their voice",
     "readingFailed": "Couldn’t read it. Try again ›",
     "emptyField": "Not written yet",
-    "removeTag": "Remove {tag}"
+    "removeTag": "Remove {tag}",
+    "importCard": "Import card",
+    "importCardHint": "Import a SillyTavern character card (PNG or JSON). You can also drop it here."
   },
   "StudioTemplates": {
     "titleImage": "My image templates · {count}",

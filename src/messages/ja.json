@@ -527,7 +527,9 @@
     "loraTrainingSubmitFailed": "LoRA学習の開始に失敗しました",
     "loraTrainingComplete": "LoRA の学習が完了しました。モデルを使ってみましょう。",
     "loraTrainingFailed": "LoRA学習に失敗しました",
-    "signedIn": "ログインしました"
+    "signedIn": "ログインしました",
+    "characterCardImported": "{name} を取り込みました",
+    "characterCardImportFailed": "カードを取り込めませんでした。もう一度お試しください。"
   },
   "Projects": {
     "title": "プロジェクト",
@@ -7531,6 +7533,11 @@
     },
     "promptTags": {
       "unusable": "アシスタントがタグに変換できませんでした。"
+    },
+    "tavernCard": {
+      "notACard": "SillyTavern のキャラクターカード（PNG または JSON）ではありません。",
+      "tooLarge": "カードのファイルが 3 MB を超えています。",
+      "limitReached": "キャラクターの上限に達しました。1 体削除してから取り込んでください。"
     }
   },
   "Transform": {
@@ -9085,7 +9092,7 @@
     "tagsTitle": "タグ",
     "newCharacter": "新しいキャラクター",
     "emptyTitle": "キャラクターはまだありません",
-    "emptyHint": "キャラクターを作って、その子の画像を何枚か追加しましょう。",
+    "emptyHint": "キャラクターを新規作成するか、SillyTavern のカード（PNG / JSON）をドロップしてください。",
     "setting": "設定",
     "noUses": "まだ使っていません",
     "loading": "読み込み中…",
@@ -9117,7 +9124,9 @@
     "readingUnlike": "らしくない、話し方を直す",
     "readingFailed": "読めませんでした。もう一度 ›",
     "emptyField": "まだ書いていません",
-    "removeTag": "{tag} を外す"
+    "removeTag": "{tag} を外す",
+    "importCard": "カードを取り込む",
+    "importCardHint": "SillyTavern のキャラクターカード（PNG / JSON）を取り込みます。ここにドロップしても OK。"
   },
   "StudioTemplates": {
     "titleImage": "画像テンプレート · {count}",

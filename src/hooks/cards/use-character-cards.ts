@@ -11,12 +11,16 @@ import type {
   UpdateCharacterCardRequest,
 } from '@/types'
 import { CHARACTER_CARD } from '@/constants/cards/character-card'
+import { TAVERN_CARD } from '@/constants/cards/tavern-card'
 import {
   listCharacterCardsAPI,
   createCharacterCardAPI,
+  importTavernCardAPI,
   updateCharacterCardAPI,
   deleteCharacterCardAPI,
 } from '@/lib/api-client'
+import { getApiErrorMessage } from '@/lib/api-error-message'
+import { tavernCardMime } from '@/lib/tavern-card'
 import {
   makeCardCacheKey,
   readCardCache,
@@ -25,6 +29,20 @@ import {
 import { deferEffectTask } from '@/lib/defer-effect-task'
 
 const CHARACTER_CARDS_CACHE_KEY = makeCardCacheKey('character')
+
+/** 文件 → 纯 base64（不带数据地址前缀；类型由 `tavernCardMime` 另给）。读不了 `null`。 */
+function readFileBase64(file: File): Promise<string | null> {
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const url = typeof reader.result === 'string' ? reader.result : ''
+      const comma = url.indexOf(',')
+      resolve(comma >= 0 ? url.slice(comma + 1) : null)
+    }
+    reader.onerror = () => resolve(null)
+    reader.readAsDataURL(file)
+  })
+}
 
 function withoutKey<T>(
   record: Record<string, T>,
@@ -66,6 +84,8 @@ export interface UseCharacterCardsReturn {
   create: (
     data: CreateCharacterCardRequest,
   ) => Promise<CharacterCardRecord | null>
+  /** 导入一张酒馆卡（PNG / JSON）建成角色卡；失败已 toast，返回 `null`。 */
+  importTavern: (file: File) => Promise<CharacterCardRecord | null>
   update: (id: string, data: UpdateCharacterCardRequest) => Promise<boolean>
   remove: (id: string) => Promise<boolean>
   refresh: () => Promise<void>
@@ -88,6 +108,7 @@ export function useCharacterCards(): UseCharacterCardsReturn {
   )
   const [error, setError] = useState<string | null>(null)
   const t = useTranslations('Toasts')
+  const tErrors = useTranslations('Errors')
 
   // ─── Find card in tree ───────────────────────────────────────
 
@@ -222,6 +243,49 @@ export function useCharacterCards(): UseCharacterCardsReturn {
     [t],
   )
 
+  const importTavern = useCallback(
+    async (file: File): Promise<CharacterCardRecord | null> => {
+      const mime = tavernCardMime(file)
+      if (!mime) {
+        toast.error(tErrors('tavernCard.notACard'))
+        return null
+      }
+      if (file.size > TAVERN_CARD.MAX_FILE_BYTES) {
+        toast.error(tErrors('tavernCard.tooLarge'))
+        return null
+      }
+      const base64 = await readFileBase64(file)
+      if (base64 === null) {
+        toast.error(t('characterCardImportFailed'))
+        return null
+      }
+      const response = await importTavernCardAPI({
+        fileName: file.name.slice(0, TAVERN_CARD.FILE_NAME_MAX_LENGTH),
+        data: `data:${mime};base64,${base64}`,
+      })
+      if (response.success && response.data) {
+        setError(null)
+        const newCard = response.data
+        setCards((prev) => {
+          const next = [newCard, ...prev]
+          writeCardCache(CHARACTER_CARDS_CACHE_KEY, next)
+          return next
+        })
+        toast.success(t('characterCardImported', { name: newCard.name }))
+        return newCard
+      }
+      const msg = getApiErrorMessage(
+        tErrors,
+        response,
+        t('characterCardImportFailed'),
+      )
+      setError(msg)
+      toast.error(msg)
+      return null
+    },
+    [t, tErrors],
+  )
+
   const update = useCallback(
     async (id: string, data: UpdateCharacterCardRequest): Promise<boolean> => {
       const response = await updateCharacterCardAPI(id, data)
@@ -304,6 +368,7 @@ export function useCharacterCards(): UseCharacterCardsReturn {
     findCard,
     activeCards,
     create,
+    importTavern,
     update,
     remove,
     refresh: fetchCards,

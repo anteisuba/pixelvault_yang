@@ -11,8 +11,18 @@
 ## Service / API
 
 - `src/services/cards/character-card.service.ts`（CRUD + 属性抽取 + 一致性打分）· `character-sample-lines.service.ts`（试读：按设定写两句台词）· `character-card.mapper.ts`（行 → `CharacterCardRecord`）· `card-recipe-compiler.service.ts`（三卡 LLM 融合成单条 prompt）。
-- API：`/api/character-cards`（GET/POST）· `/api/character-cards/[id]`（GET/PATCH/DELETE）· `/api/character-cards/[id]/sample-lines` · `/api/character-cards/[id]/score`。
+- API：`/api/character-cards`（GET/POST）· `/api/character-cards/import`（POST，酒馆卡导入）· `/api/character-cards/[id]`（GET/PATCH/DELETE）· `/api/character-cards/[id]/sample-lines` · `/api/character-cards/[id]/score`。
 - Hooks：`src/hooks/cards/`。
+
+## 酒馆卡导入（2026-10-14，owner「进提示词加导入」）
+
+角色页「导入酒馆卡」键（紧挨「新角色」）或把文件拖进总览：一张 SillyTavern 卡 → 一张我们的角色卡，建好直接打开。调研与取舍见项目文件 `assistant-overhaul/附录J-酒馆角色设定调研.md`。
+
+- **认的格式**：PNG 卡（`tEXt` 块，`ccv3` 优先、`chara` 回落，base64 JSON）与 .json（V1 平铺 / V2 / V3 外壳）。`.charx` 暂不认。文件上限 `TAVERN_CARD.MAX_FILE_BYTES`（3 MB，走 JSON + base64，Vercel 请求体 4.5 MB）。解析是 `src/lib/tavern-card.ts` 的纯函数，建卡在 `tavern-card-import.service.ts` → `createImportedCharacterCard`。
+- **字段落点**：description → 经历 · personality → 性格 · scenario → 情境 · first_mes → 开场白 · mes_example → 示例对白（按 `<START>` 切块）· creator_notes → 简介 · tags → 标签。PNG 去掉文本块后当第一张参考图（⛔ 卡的 JSON 跟着图走到出图服务商）；JSON 卡没有图。
+- **⛔ 不注入**：世界书、卡自带系统提示词、「历史之后的指令」、备选开场白、作者、版本原样存进扩展键 `st.card`；经历装不下的 description 全文也留在这里，⛔ 不静默丢。卡覆盖系统提示是安全问题，等我们自己的世界书做好再转。
+- **宏原样存**：`{{char}}` / `{{user}}`（及 `<BOT>` / `<USER>`）进提示词那一跳才换成名字（称呼会改）。
+- 导入 ⛔ 不跑视觉提取、不联网搜（不替用户花钱）；格子类型不对只空那一格，没有名字才算「不是卡」。错误带 `i18nKey`（`Errors.tavernCard.*`）。
 
 ## 角色卡字段 v2（2026-09-17）
 
@@ -24,7 +34,7 @@
 | ------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
 | `voiceCardId`       | `String?` → `VoiceCard`，`onDelete: SetNull`，带 `@@index`                                             | 这个角色默认用哪副嗓子。软引用：删音色卡只把绑定清空，不删角色卡                                       | 角色卡 create / update                                     | 待接：视频 subject 编译（Vidu `voice_id`）、配音间 `VoiceRoom.cast`、画布角色节点        |
 | `voiceProfile`      | `Json?` — `{ emotions: [{ label, params }], sampleLines: string[] }`                                   | 该角色的情绪档与示例台词。`params` 是 provider 无关的参数袋（语速/音高等），不在这一层收敛到某家 API   | 角色卡 create / update                                     | 待接：配音间试听与情绪切换                                                               |
-| `persona`           | `Json?` — `{ behavior, speech, catchphrases[], scenario, opening, examples: [{ user, reply }] }`       | 人设（**写具体行为，不写形容词**：「紧张时搓手指」优于「温柔体贴」）。与 `description`（视觉描述）分开 | 角色卡 create / update                                     | 待接：对话/剧本链的 system prompt 注入                                                   |
+| `persona`           | `Json?` — `{ behavior, speech, catchphrases[], scenario, opening, examples: [{ user, reply }] }`       | 人设（**写具体行为，不写形容词**：「紧张时搓手指」优于「温柔体贴」）。与 `description`（视觉描述）分开 | 角色卡 create / update                                     | 助手 `CHARACTER` 段（2026-10-14）· 视频脚本主角 · 画布 v3 `CAST ON THE BOARD`            |
 | `referenceRoles`    | `Json?` — `Record<url, role>`，`role` ∈ 画布 11 类词表                                                 | 给已有参考图标用途槽位。**键是图片 URL**，值取 `NODE_STUDIO_REFERENCE_ROLES`                           | 角色卡 update                                              | 待接：各 adapter 的分槽映射（MJ `--oref`/`--sref`、Gemini 角色/物体/风格槽、Runway tag） |
 | `allowedStyleRange` | `Json?` — `{ allowStyleCardIds: string[], denyTags: string[] }`                                        | 这张卡允许搭配的画风白名单与禁用标签。空数组 = 不限制                                                  | 角色卡 create / update                                     | 待接：`CardRecipe` 组卡时的可选性过滤                                                    |
 | `provenance`        | `Json?` — `{ sourceGenerationIds: string[], loraJobId?, derivedFromCardId?, derivedFromCardVersion? }` | 这张卡的素材从哪来：哪几次生成、哪个 LoRA 训练 job、从哪张卡的哪个版本派生                             | 角色卡 create / update（精修落好图时由服务端补，属下一片） | 待接：卡片详情的血缘展示                                                                 |

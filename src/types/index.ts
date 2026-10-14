@@ -31,6 +31,7 @@ import {
 import {
   CARD_EXTENSIONS,
   CHARACTER_CARD,
+  CHARACTER_PERSONA_LIMITS,
 } from '@/constants/cards/character-card'
 import {
   BACKGROUND_CARD,
@@ -3347,8 +3348,8 @@ export type CharacterVoiceProfile = z.infer<typeof CharacterVoiceProfileSchema>
 
 /** 一组范例对话（用户说什么 → 角色怎么回）。 */
 export const CharacterPersonaExampleSchema = z.object({
-  user: z.string().trim().max(1000),
-  reply: z.string().trim().max(2000),
+  user: z.string().trim().max(CHARACTER_PERSONA_LIMITS.exampleUserChars),
+  reply: z.string().trim().max(CHARACTER_PERSONA_LIMITS.exampleReplyChars),
 })
 export type CharacterPersonaExample = z.infer<
   typeof CharacterPersonaExampleSchema
@@ -3360,17 +3361,44 @@ export type CharacterPersonaExample = z.infer<
  */
 export const CharacterPersonaSchema = z.object({
   /** 身份：年龄 · 职业 · 所属 · 世界（owner 09-26）。 */
-  identity: z.string().trim().max(2000).default(''),
-  behavior: z.string().trim().max(2000).default(''),
-  speech: z.string().trim().max(2000).default(''),
-  catchphrases: z.array(z.string().trim().max(120)).max(20).default([]),
-  scenario: z.string().trim().max(2000).default(''),
-  opening: z.string().trim().max(2000).default(''),
-  examples: z.array(CharacterPersonaExampleSchema).max(10).default([]),
+  identity: z
+    .string()
+    .trim()
+    .max(CHARACTER_PERSONA_LIMITS.identity)
+    .default(''),
+  behavior: z
+    .string()
+    .trim()
+    .max(CHARACTER_PERSONA_LIMITS.behavior)
+    .default(''),
+  speech: z.string().trim().max(CHARACTER_PERSONA_LIMITS.speech).default(''),
+  catchphrases: z
+    .array(z.string().trim().max(CHARACTER_PERSONA_LIMITS.catchphraseChars))
+    .max(CHARACTER_PERSONA_LIMITS.catchphrases)
+    .default([]),
+  scenario: z
+    .string()
+    .trim()
+    .max(CHARACTER_PERSONA_LIMITS.scenario)
+    .default(''),
+  opening: z
+    .string()
+    .trim()
+    .max(CHARACTER_PERSONA_LIMITS.opening)
+    .default(''),
+  examples: z
+    .array(CharacterPersonaExampleSchema)
+    .max(CHARACTER_PERSONA_LIMITS.examples)
+    .default([]),
   /**
    * 经历（owner 09-26）：没有固定格式——原作照资料的写法，原创由用户写、助手扩充。
+   * 酒馆卡导入时 `description`（酒馆那一格什么都写）落在这里。
    */
-  backstory: z.string().trim().max(6000).default(''),
+  backstory: z
+    .string()
+    .trim()
+    .max(CHARACTER_PERSONA_LIMITS.backstory)
+    .default(''),
 })
 export type CharacterPersona = z.infer<typeof CharacterPersonaSchema>
 

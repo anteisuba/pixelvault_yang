@@ -273,6 +273,8 @@ export const API_ENDPOINTS = {
 
   /** Character Cards */
   CHARACTER_CARDS: '/api/character-cards',
+  /** 导入酒馆卡（PNG / JSON，附录J ⑥） */
+  CHARACTER_CARDS_IMPORT: '/api/character-cards/import',
 
   /** Video Script (VS1-VS11) */
   VIDEO_SCRIPT: '/api/video-script',

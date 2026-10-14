@@ -94,6 +94,7 @@ function card(
 
 const mockUpdate = vi.fn().mockResolvedValue(true)
 const mockCreate = vi.fn()
+const mockImportTavern = vi.fn()
 
 const CARDS = [
   card('denia', 'Denia', {
@@ -129,6 +130,7 @@ vi.mock('@/hooks/cards/use-character-cards', () => ({
         (item) => item.id === id,
       ) ?? null,
     create: (...a: unknown[]) => mockCreate(...a),
+    importTavern: (...a: unknown[]) => mockImportTavern(...a),
     update: (...a: unknown[]) => mockUpdate(...a),
     remove: vi.fn(),
   }),
@@ -191,6 +193,34 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
     await vi.waitFor(() =>
       expect(screen.queryByRole('textbox', { name: '名字' })).toBeNull(),
     )
+  })
+
+  it('导入酒馆卡：选一个文件就导入，建好直接打开她', async () => {
+    mockImportTavern.mockReset()
+    mockImportTavern.mockResolvedValue(CARDS[1])
+    const { container } = renderRoster()
+    expect(screen.getByRole('button', { name: '导入酒馆卡' })).toBeTruthy()
+    const input = container.querySelector<HTMLInputElement>(
+      'input[type="file"]',
+    )!
+    const file = new File(['{}'], 'rixi.json', { type: 'application/json' })
+    fireEvent.change(input, { target: { files: [file] } })
+    await vi.waitFor(() => expect(mockImportTavern).toHaveBeenCalledWith(file))
+    await vi.waitFor(() =>
+      expect(screen.getByRole('region', { name: '里希' })).toBeTruthy(),
+    )
+  })
+
+  it('把卡拖进总览也导入（只认第一个文件）', async () => {
+    mockImportTavern.mockReset()
+    mockImportTavern.mockResolvedValue(null)
+    renderRoster()
+    const board = screen.getAllByTestId('roster-tile')[0]!
+    const file = new File(['png'], 'card.png', { type: 'image/png' })
+    const dataTransfer = { types: ['Files'], files: [file] }
+    fireEvent.dragOver(board, { dataTransfer })
+    fireEvent.drop(board, { dataTransfer })
+    await vi.waitFor(() => expect(mockImportTavern).toHaveBeenCalledWith(file))
   })
 
   it('新角色草稿没起名就返回 = 什么都没建', () => {

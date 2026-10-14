@@ -64,6 +64,7 @@ import { uploadToR2 } from '@/services/storage/r2'
 import {
   buildPromptFromAttributes,
   createCharacterCard,
+  createImportedCharacterCard,
   extractCharacterAttributes,
   listCharacterCards,
   getCharacterCard,
@@ -444,5 +445,74 @@ describe('createCharacterCard（角色页「新角色」只给名字）', () => 
     expect(card.sourceImageUrl).toBeNull()
     expect(card.referenceSlots).toEqual([])
     expect(card.sourceImages).toEqual([])
+  })
+})
+
+describe('createImportedCharacterCard（导入的酒馆卡，附录J ⑥）', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockEnsureUser.mockResolvedValue(FAKE_USER)
+    mockCount.mockResolvedValue(0)
+    mockCardCreate.mockImplementation(({ data }: { data: object }) =>
+      Promise.resolve({ ...FAKE_CARD, ...data, id: 'card_new' }),
+    )
+  })
+
+  const imported = {
+    name: '时夜',
+    summary: '雨夜里的店主',
+    tags: ['原创'],
+    persona: {
+      identity: '',
+      behavior: '先替别人撑伞',
+      speech: '',
+      catchphrases: [],
+      scenario: '雨夜的小店',
+      opening: '欢迎光临。',
+      examples: [{ user: '你好', reply: '嗯。' }],
+      backstory: '{{char}} 开了一家店。',
+    },
+    extensions: { 'st.card': { spec: 'chara_card_v2' } },
+  }
+
+  it('有图：上 R2 当第一张参考图；设定、标签、扩展原样落库；⛔ 不看图', async () => {
+    const card = await createImportedCharacterCard(
+      'clerk_1',
+      imported,
+      Buffer.from([1, 2, 3]),
+    )
+
+    expect(uploadToR2).toHaveBeenCalledWith(
+      expect.objectContaining({ mimeType: 'image/png' }),
+    )
+    expect(mockAnalyzeVisual).not.toHaveBeenCalled()
+    expect(mockCardCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        name: '时夜',
+        summary: '雨夜里的店主',
+        tags: ['原创'],
+        sourceImageUrl: 'https://r2.example.com/abc.jpg',
+        persona: imported.persona,
+        extensions: { 'st.card': { spec: 'chara_card_v2' } },
+      }),
+    })
+    expect(card.referenceSlots).toHaveLength(1)
+  })
+
+  it('JSON 卡没有图：不上传，建一张没有主图的角色', async () => {
+    const card = await createImportedCharacterCard('clerk_1', imported, null)
+
+    expect(uploadToR2).not.toHaveBeenCalled()
+    expect(card.sourceImageUrl).toBeNull()
+    expect(card.referenceSlots).toEqual([])
+  })
+
+  it('角色数到上限：带 i18nKey 的错，⛔ 不建卡', async () => {
+    mockCount.mockResolvedValue(10_000)
+
+    await expect(
+      createImportedCharacterCard('clerk_1', imported, null),
+    ).rejects.toMatchObject({ i18nKey: 'errors.tavernCard.limitReached' })
+    expect(mockCardCreate).not.toHaveBeenCalled()
   })
 })

@@ -2,6 +2,7 @@ import 'server-only'
 
 import { db } from '@/lib/db'
 import { CHARACTER_CARD } from '@/constants/cards/character-card'
+import { TAVERN_CARD_IMPORT_ERRORS } from '@/constants/cards/tavern-card'
 import { RESEARCH_CONCLUSION_BASES } from '@/constants/research'
 import { VISION_TASKS } from '@/constants/vision'
 import { ASSISTANT_SURFACE_IDS } from '@/types/assistant-conversation'
@@ -25,6 +26,8 @@ import {
 } from '@/services/llm-text.service'
 import { analyzeVisual } from '@/services/vision/vision-analyzer.service'
 import { deriveCardHandleBase, deriveVariantHandleBase } from '@/lib/card-bus'
+import { ApiRequestError } from '@/lib/errors'
+import type { TavernCardImport } from '@/lib/tavern-card'
 import { allocateHandleForNewCard } from '@/services/cards/card-handle.service'
 import {
   legacyColumnsFromReferenceSlots,
@@ -468,6 +471,84 @@ export async function createCharacterCard(
         variantLabel: input.variantLabel ?? null,
         // 角色卡字段 v2 —— 透传落库，⛔ 不在这里加业务逻辑（cards.md「角色卡字段 v2」）。
         ...serializeCharacterCardV2Fields(input),
+      },
+    }),
+  )
+
+  return mapCharacterCardRow(card)
+}
+
+/**
+ * **导入的酒馆卡建卡**（附录J ⑥）：格子已由 `mapTavernCard` 落好，图（去掉文本块的
+ * PNG）直接上 R2 当第一张参考图。⛔ 不跑视觉提取、不联网搜 —— 卡上写什么就是什么，
+ * 外观之后在详情里补或交给卡片助手（与「新角色」只建名字同一条理由：不替用户花钱）。
+ */
+export async function createImportedCharacterCard(
+  clerkId: string,
+  imported: TavernCardImport,
+  image: Buffer | null,
+): Promise<CharacterCardRecord> {
+  const dbUser = await ensureUser(clerkId)
+
+  const count = await db.characterCard.count({
+    where: { ...ownedBy(dbUser.id), isDeleted: false },
+  })
+  if (count >= CHARACTER_CARD.MAX_CARDS_PER_USER) {
+    const error = TAVERN_CARD_IMPORT_ERRORS.limitReached
+    throw new ApiRequestError(
+      error.code,
+      error.httpStatus,
+      error.i18nKey,
+      `${error.message} (max ${CHARACTER_CARD.MAX_CARDS_PER_USER})`,
+    )
+  }
+
+  const upload = image
+    ? await (async () => {
+        const storageKey = generateStorageKey('IMAGE', dbUser.id)
+        const url = await uploadToR2({
+          data: image,
+          key: storageKey,
+          mimeType: 'image/png',
+        })
+        return { url, storageKey }
+      })()
+    : null
+  const sourceImageEntries: SourceImageEntry[] = upload
+    ? [{ url: upload.url, viewType: 'other' }]
+    : []
+
+  const card = await db.$transaction(async (tx) =>
+    tx.characterCard.create({
+      data: {
+        userId: dbUser.id,
+        handle: await allocateHandleForNewCard(
+          tx,
+          dbUser.id,
+          deriveCardHandleBase(imported.name),
+        ),
+        name: imported.name,
+        description: null,
+        summary: imported.summary,
+        extensions: mergeCardExtensions(null, imported.extensions),
+        // 旧的三列非空：没图写空串，读方映射成 null（与「新角色」同一条）。
+        sourceImageUrl: upload?.url ?? '',
+        sourceStorageKey: upload?.storageKey ?? '',
+        sourceImages: upload ? [upload.url] : [],
+        sourceImageEntries: serializeSourceImageEntries(sourceImageEntries),
+        referenceSlots: upload
+          ? referenceSlotsFromCardRow({
+              sourceImageUrl: upload.url,
+              sourceImages: [upload.url],
+              sourceImageEntries,
+              referenceImages: null,
+              referenceRoles: null,
+            })
+          : [],
+        characterPrompt: '',
+        tags: imported.tags,
+        status: 'DRAFT',
+        ...serializeCharacterCardV2Fields({ persona: imported.persona }),
       },
     }),
   )

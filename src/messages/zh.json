@@ -527,7 +527,9 @@
     "loraTrainingSubmitFailed": "LoRA 训练启动失败",
     "loraTrainingComplete": "LoRA 训练完成！模型已可使用。",
     "loraTrainingFailed": "LoRA 训练失败",
-    "signedIn": "已登录"
+    "signedIn": "已登录",
+    "characterCardImported": "已导入 {name}",
+    "characterCardImportFailed": "这张卡没导进来，再试一次"
   },
   "Projects": {
     "title": "项目",
@@ -7531,6 +7533,11 @@
     },
     "promptTags": {
       "unusable": "助手没翻出标签，整句先留着。"
+    },
+    "tavernCard": {
+      "notACard": "这个文件不是酒馆角色卡（PNG 或 JSON）",
+      "tooLarge": "卡文件超过 3 MB 了",
+      "limitReached": "角色数到上限了，删掉一个再导入"
     }
   },
   "Transform": {
@@ -9085,7 +9092,7 @@
     "tagsTitle": "标签",
     "newCharacter": "新角色",
     "emptyTitle": "还没有角色",
-    "emptyHint": "新建一个角色，传几张她的图。",
+    "emptyHint": "新建一个角色，或者把酒馆卡（PNG / JSON）拖进来。",
     "setting": "设定",
     "noUses": "还没用过",
     "loading": "加载中…",
@@ -9117,7 +9124,9 @@
     "readingUnlike": "不像，改说话方式",
     "readingFailed": "没读出来，再试一次 ›",
     "emptyField": "还没写",
-    "removeTag": "去掉 {tag}"
+    "removeTag": "去掉 {tag}",
+    "importCard": "导入酒馆卡",
+    "importCardHint": "导入酒馆（SillyTavern）角色卡，PNG 或 JSON；也可以直接拖进来"
   },
   "StudioTemplates": {
     "titleImage": "我的图片模板 · {count}",

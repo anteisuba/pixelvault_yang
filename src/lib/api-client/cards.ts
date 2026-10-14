@@ -25,9 +25,10 @@ import type {
   UpdateCollectionRequest,
   UpdateStyleCardRequest,
 } from '@/types'
+import type { ImportTavernCardRequest } from '@/types/tavern-card'
 import { API_ENDPOINTS } from '@/constants/config'
 
-import { getErrorMessage } from '@/lib/api-client/shared'
+import { getErrorMessage, getErrorPayload } from '@/lib/api-client/shared'
 
 export async function listCharacterCardsAPI(): Promise<CharacterCardsResponse> {
   try {
@@ -66,6 +67,31 @@ export async function createCharacterCardAPI(
           `Failed with status ${response.status}`,
         ),
       }
+    }
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+/** 导入一张酒馆卡（PNG / JSON）→ 一张角色卡。失败带 `i18nKey`，调用方说人话。 */
+export async function importTavernCardAPI(
+  data: ImportTavernCardRequest,
+): Promise<CharacterCardResponse & { i18nKey?: string }> {
+  try {
+    const response = await fetch(API_ENDPOINTS.CHARACTER_CARDS_IMPORT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      const payload = await getErrorPayload(
+        response,
+        `Failed with status ${response.status}`,
+      )
+      return { success: false, error: payload.error, i18nKey: payload.i18nKey }
     }
     return await response.json()
   } catch (error) {

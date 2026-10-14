@@ -57,6 +57,24 @@ export const CHARACTER_CARD = {
   ] as const,
 } as const
 
+/**
+ * 角色设定（`persona`）各格上限 —— `CharacterPersonaSchema` 与酒馆卡导入的截断读同一份
+ * （导入时先截到这里再过 schema，⛔ 超长整卡拒收）。
+ */
+export const CHARACTER_PERSONA_LIMITS = {
+  identity: 2000,
+  behavior: 2000,
+  speech: 2000,
+  catchphraseChars: 120,
+  catchphrases: 20,
+  scenario: 2000,
+  opening: 2000,
+  examples: 10,
+  exampleUserChars: 1000,
+  exampleReplyChars: 2000,
+  backstory: 6000,
+} as const
+
 /** Character card status type */
 export type CharacterCardStatus = (typeof CHARACTER_CARD.STATUSES)[number]
 

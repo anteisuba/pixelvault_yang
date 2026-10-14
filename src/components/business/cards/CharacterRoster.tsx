@@ -8,7 +8,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { DURATION, DURATION_MS, EASE_STANDARD } from '@/constants/motion'
 import type { CharacterCardRecord } from '@/types'
 import type { AssistantOperatorCharacterProfileField } from '@/types/assistant-operator'
-import { Plus } from '@/components/icons'
+import { Plus, Upload } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Spinner } from '@/components/ui/spinner'
@@ -86,6 +86,10 @@ export function CharacterRoster() {
   const [query, setQuery] = useState('')
   /** 「新角色」草稿开着（owner 09-28：直接进空详情页，名字写好才建卡）。 */
   const [drafting, setDrafting] = useState(false)
+  /** 导入酒馆卡：选文件那一下 / 拖进总览那一下（附录J ⑥）。 */
+  const importInput = useRef<HTMLInputElement>(null)
+  const [importing, setImporting] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
 
   const selected = useMemo(
     () => items.find((item) => item.card.id === openId)?.card ?? null,
@@ -214,6 +218,17 @@ export function CharacterRoster() {
     return true
   }
 
+  /** 导入一张酒馆卡，建好直接打开她（一次一张：拖进来好几个只认第一个）。 */
+  const importCard = async (file: File | undefined) => {
+    if (!file || importing) return
+    setImporting(true)
+    const card = await characters.importTavern(file)
+    setImporting(false)
+    if (card) openCharacter(card.id)
+  }
+  const isFileDrag = (event: React.DragEvent) =>
+    event.dataTransfer.types.includes('Files')
+
   /** 删掉之后回总览。 */
   const deleteCharacter = async (id: string) => {
     const ok = await characters.remove(id)
@@ -238,6 +253,38 @@ export function CharacterRoster() {
       <Plus className="size-4" />
       <span className="max-sm:sr-only">{t('newCharacter')}</span>
     </Button>
+  )
+  /** 「导入酒馆卡」紧挨「新角色」，手机上同样收成圆形图标。 */
+  const importButton = (
+    <>
+      <input
+        ref={importInput}
+        type="file"
+        accept=".png,.json,image/png,application/json"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0]
+          event.target.value = ''
+          void importCard(file)
+        }}
+      />
+      <Button
+        type="button"
+        variant="outline"
+        aria-label={t('importCard')}
+        title={t('importCardHint')}
+        disabled={importing}
+        className="shrink-0 rounded-full max-sm:size-9 max-sm:px-0"
+        onClick={() => importInput.current?.click()}
+      >
+        {importing ? (
+          <Spinner size="sm" />
+        ) : (
+          <Upload className="size-4" />
+        )}
+        <span className="max-sm:sr-only">{t('importCard')}</span>
+      </Button>
+    </>
   )
 
   return (
@@ -283,12 +330,40 @@ export function CharacterRoster() {
               works={countCharacterWorks(items, locale)}
               query={query}
               onQueryChange={setQuery}
-              actions={newCharacterButton}
+              actions={
+                <>
+                  {importButton}
+                  {newCharacterButton}
+                </>
+              }
             />
           )}
         </motion.div>
 
-        <div className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-border bg-background">
+        <div
+          className={cn(
+            'relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-border bg-background',
+            dragOver && 'ring-2 ring-primary/40',
+          )}
+          // 酒馆卡 PNG / JSON 拖进总览即导入（详情、草稿开着时不接）。
+          onDragOver={(event) => {
+            if (selected || drafting || !isFileDrag(event)) return
+            event.preventDefault()
+            setDragOver(true)
+          }}
+          onDragLeave={(event) => {
+            if (event.currentTarget.contains(event.relatedTarget as Node)) {
+              return
+            }
+            setDragOver(false)
+          }}
+          onDrop={(event) => {
+            if (selected || drafting || !isFileDrag(event)) return
+            event.preventDefault()
+            setDragOver(false)
+            void importCard(event.dataTransfer.files[0])
+          }}
+        >
           <motion.div
             inert={selected !== null || drafting}
             animate={{ opacity: selected || drafting ? 0 : 1 }}

@@ -489,7 +489,7 @@ export function CharacterOverviewHeader({
       {/* 手机上这一格顶着第一行右端，让出右上角的助手头像。头像固定在视口「距右 16 ·
           36 宽」（`STUDIO_OPERATOR_MOBILE_SHELL`），这一行右缘在地台内边距 10 处：
           54 = 16 + 36 + 12 间距 − 10。 */}
-      <div className="flex shrink-0 max-sm:ml-auto max-sm:mr-13.5">
+      <div className="flex shrink-0 gap-2 max-sm:ml-auto max-sm:mr-13.5">
         {actions}
       </div>
     </>

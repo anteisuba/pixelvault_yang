@@ -92,3 +92,12 @@ docs/.obsidian/
 
 # playwright 跑出来的截图 / trace —— 是产物，重跑就有，不进库
 output/playwright/
+
+# 本地编辑器 / 工具的生成文件与个人杂项，不进仓
+.sfdx/
+/.obsidian/
+/scratchpad/
+/output/
+# ComfyUI 本地环境的依赖锁定（含本机路径）
+/override.txt
+/requirements.compiled

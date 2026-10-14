@@ -34,6 +34,12 @@ import {
 } from '@/constants/assistant-v3'
 import { NODE_SCRIPT_SHOT_STATE_IDS } from '@/constants/node-script'
 import { resolveAssistantModelId } from '@/constants/node-studio'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import {
+  NATIVE_SEARCH_FILTER_LIMITS,
+  X_HANDLE_PATTERN,
+  X_SEARCH_DATE_PATTERN,
+} from '@/constants/research'
 import {
   NODE_MEDIA_KIND_IDS,
   NODE_V4_TEXT_SUBTYPE_IDS,
@@ -66,6 +72,7 @@ import type {
   AssistantOperatorGenerationRequest,
   AssistantOperatorPriorStep,
   AssistantOperatorRequest,
+  AssistantResearchXSearch,
 } from '@/types/assistant-operator'
 import {
   AssistantV3AskInputSchema,
@@ -77,6 +84,7 @@ import {
   AssistantV3SearchWebInputSchema,
   AssistantV3WriteInputSchema,
   type AssistantV3EditOpInput,
+  type AssistantV3SearchWebInput,
   type AssistantV3Transcript,
   type AssistantV3TranscriptCall,
   type AssistantV3TranscriptEntry,
@@ -1487,6 +1495,29 @@ function translateMutation(
  */
 const ONLY_SOURCE_WORDS = /只|仅|僅|だけ|のみ|\bonly\b/i
 
+/**
+ * 模型给的 X 收窄 → 能交给 Grok 的那份：账号去掉 `@`、认不得的丢掉，日期不合
+ * `YYYY-MM-DD` 的丢掉。⛔ 不为一个写错的日期让整次搜索被拒。
+ */
+function toXSearch(
+  x: NonNullable<AssistantV3SearchWebInput['x']>,
+): AssistantResearchXSearch {
+  const handles = [
+    ...new Set(
+      x.handles
+        .map((handle) => handle.trim().replace(/^@/, ''))
+        .filter((handle) => X_HANDLE_PATTERN.test(handle)),
+    ),
+  ].slice(0, NATIVE_SEARCH_FILTER_LIMITS.xHandles)
+  const fromDate = x.fromDate?.trim()
+  const toDate = x.toDate?.trim()
+  return {
+    handles,
+    ...(fromDate && X_SEARCH_DATE_PATTERN.test(fromDate) ? { fromDate } : {}),
+    ...(toDate && X_SEARCH_DATE_PATTERN.test(toDate) ? { toDate } : {}),
+  }
+}
+
 function namedByCreator(
   context: V3Context,
   sources: readonly string[],
@@ -1595,7 +1626,13 @@ async function* executeCall(
       )
     case ASSISTANT_V3_TOOL_IDS.searchWeb: {
       const parsed = AssistantV3SearchWebInputSchema.parse(input)
-      const title = `${text.searchWeb} ${parsed.goal}`
+      const x = parsed.x ? toXSearch(parsed.x) : null
+      /** 创作者按了「用 Grok 搜这一次」、所选又不是 Grok：步骤行写清花的是谁的额度。 */
+      const lendsGrok =
+        x !== null &&
+        context.request.searchWithGrok === true &&
+        context.prepared.run.route.adapterType !== AI_ADAPTER_TYPES.XAI
+      const title = `${lendsGrok ? text.searchXWithGrok : text.searchWeb} ${parsed.goal}`
       const onlySources = namedByCreator(context, parsed.onlySources ?? [])
       const plan = await planSafely(context, TOOL.research, {
         goal: parsed.goal,
@@ -1613,6 +1650,8 @@ async function* executeCall(
             }
           : {}),
         ...(onlySources.length ? { onlySources } : {}),
+        ...(parsed.depth ? { depth: parsed.depth } : {}),
+        ...(x ? { x } : {}),
       })
       return yield* settlePlan(context, TOOL.research, title, plan)
     }

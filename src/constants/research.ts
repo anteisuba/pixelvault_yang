@@ -337,6 +337,30 @@ export const RESEARCH_LIMITS = {
 } as const
 
 /**
+ * 各家**自带联网**能收的过滤参数上限（2026-10-14 对照官方文档）。来源名单换成
+ * 服务商域名参数时按它判「装得下吗」；装不下就照旧走我们的管线。
+ *  - Claude `allowed_domains` / `blocked_domains`：文档没写上限，取 100 封顶。
+ *  - GPT `filters.allowed_domains` ≤100，没有黑名单。
+ *  - Grok `allowed_domains` / `excluded_domains` 各 ≤5，不能同时给。
+ *  - Grok X 搜索 `allowed_x_handles` ≤20。
+ */
+export const NATIVE_SEARCH_FILTER_LIMITS = {
+  anthropicDomains: 100,
+  openAiAllowedDomains: 100,
+  xaiDomains: 5,
+  xHandles: 20,
+} as const
+
+/** X 上的域名：名单挡掉它们时 Grok 也不许搜 X。 */
+export const X_DOMAINS = ['x.com', 'twitter.com'] as const
+
+/** X 账号（不带 `@`）：字母、数字、下划线，1–15 位。 */
+export const X_HANDLE_PATTERN = /^[A-Za-z0-9_]{1,15}$/
+
+/** X 搜索的日期：`YYYY-MM-DD`（Grok 不认带时刻的写法）。 */
+export const X_SEARCH_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
+
+/**
  * 每用户每日 run 上限。
  *
  * ⚠ **计数直接 count 当日 `ResearchRun` 行**，不塞 `ApiUsageLedger` —— 后者的形状

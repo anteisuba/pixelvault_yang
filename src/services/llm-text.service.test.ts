@@ -4280,12 +4280,217 @@ describe('llmNativeWebSearch（owner 2026-09-30：各家用自带联网）', () 
     apiKey: 'test-key',
   }
 
-  it('Gemini / OpenAI / Claude / Grok 有自带联网，DeepSeek 没有', () => {
+  it('五家都有自带联网（DeepSeek 走 Anthropic 兼容入口，2026-10-14）', () => {
     expect(supportsNativeWebSearch(AI_ADAPTER_TYPES.GEMINI)).toBe(true)
     expect(supportsNativeWebSearch(AI_ADAPTER_TYPES.OPENAI)).toBe(true)
     expect(supportsNativeWebSearch(AI_ADAPTER_TYPES.ANTHROPIC)).toBe(true)
     expect(supportsNativeWebSearch(AI_ADAPTER_TYPES.XAI)).toBe(true)
-    expect(supportsNativeWebSearch(AI_ADAPTER_TYPES.DEEPSEEK)).toBe(false)
+    expect(supportsNativeWebSearch(AI_ADAPTER_TYPES.DEEPSEEK)).toBe(true)
+  })
+
+  const messagesSearchResponse = () =>
+    new Response(
+      JSON.stringify({
+        content: [
+          {
+            type: 'server_tool_use',
+            id: 'srv_1',
+            name: 'web_search',
+            input: { query: '卡提希娅 官方立绘' },
+          },
+          {
+            type: 'web_search_tool_result',
+            tool_use_id: 'srv_1',
+            content: [
+              { type: 'web_search_result', url: 'https://a.test', title: 'A' },
+            ],
+          },
+          { type: 'text', text: '她是鸣潮的角色。' },
+        ],
+        stop_reason: 'end_turn',
+      }),
+      { status: 200 },
+    )
+
+  it('DeepSeek：Anthropic 兼容入口上的 web_search，只带 max_uses、不带 Claude 的 beta 头', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(messagesSearchResponse())
+    vi.stubGlobal('fetch', fetchMock)
+
+    const found = await llmNativeWebSearch({
+      ...base,
+      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+      timeZone: 'Asia/Tokyo',
+      providerConfig: {
+        label: 'DeepSeek',
+        baseUrl: 'https://api.deepseek.com/v1/',
+      },
+    })
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      'https://api.deepseek.com/anthropic/v1/messages',
+    )
+    const headers = (fetchMock.mock.calls[0]?.[1] as RequestInit).headers as
+      | Record<string, string>
+      | undefined
+    expect(headers?.['x-api-key']).toBe('test-key')
+    expect(headers?.['anthropic-beta']).toBeUndefined()
+    expect(readFetchJson(fetchMock)).toMatchObject({
+      model: LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH,
+      tools: [
+        {
+          type: ANTHROPIC_API.WEB_SEARCH_TOOL_TYPE,
+          name: 'web_search',
+          max_uses: 3,
+        },
+      ],
+    })
+    // ⚠ 兼容层没写收地区：⛔ 不带 user_location。
+    const tool = (
+      readFetchJson(fetchMock).tools as Record<string, unknown>[]
+    )[0]
+    expect(tool).not.toHaveProperty('user_location')
+    expect(found).toMatchObject({
+      status: 'searched',
+      answer: '她是鸣潮的角色。',
+      queries: ['卡提希娅 官方立绘'],
+      sources: [{ url: 'https://a.test', title: 'A' }],
+    })
+  })
+
+  it('Claude：来源白名单走 allowed_domains、黑名单走 blocked_domains，时区走 user_location', async () => {
+    const fetchMock = vi.fn(async () => messagesSearchResponse())
+    vi.stubGlobal('fetch', fetchMock)
+    const providerConfig = { label: 'Anthropic', baseUrl: '' }
+
+    await llmNativeWebSearch({
+      ...base,
+      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+      providerConfig,
+      domains: { mode: 'allow', domains: ['moegirl.org.cn'] },
+      timeZone: 'Asia/Tokyo',
+    })
+    await llmNativeWebSearch({
+      ...base,
+      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+      providerConfig,
+      domains: { mode: 'block', domains: ['zhihu.com'] },
+    })
+
+    expect(readFetchJson(fetchMock, 0).tools).toEqual([
+      {
+        type: ANTHROPIC_API.WEB_SEARCH_TOOL_TYPE,
+        name: 'web_search',
+        max_uses: 3,
+        allowed_domains: ['moegirl.org.cn'],
+        user_location: { type: 'approximate', timezone: 'Asia/Tokyo' },
+      },
+    ])
+    expect(readFetchJson(fetchMock, 1).tools).toEqual([
+      {
+        type: ANTHROPIC_API.WEB_SEARCH_TOOL_TYPE,
+        name: 'web_search',
+        max_uses: 3,
+        blocked_domains: ['zhihu.com'],
+      },
+    ])
+  })
+
+  it('GPT：白名单走 filters.allowed_domains，时区走 user_location', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ output: [] }), { status: 200 }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await llmNativeWebSearch({
+      ...base,
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+      providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
+      domains: { mode: 'allow', domains: ['wiki.biligame.com'] },
+      timeZone: 'Asia/Shanghai',
+    })
+
+    expect(readFetchJson(fetchMock).tools).toEqual([
+      {
+        type: 'web_search',
+        filters: { allowed_domains: ['wiki.biligame.com'] },
+        user_location: { type: 'approximate', timezone: 'Asia/Shanghai' },
+      },
+    ])
+  })
+
+  it('Grok：冲着 X 去时按账号 / 日期收窄并看帖子里的图；名单挡掉 X 就不带 X 搜索', async () => {
+    const fetchMock = vi.fn(
+      async () => new Response(JSON.stringify({ output: [] }), { status: 200 }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const providerConfig = { label: 'Grok', baseUrl: 'https://api.x.ai/v1' }
+
+    await llmNativeWebSearch({
+      ...base,
+      adapterType: AI_ADAPTER_TYPES.XAI,
+      providerConfig,
+      x: {
+        handles: ['artist_a'],
+        fromDate: '2026-10-07',
+        toDate: '2026-10-15',
+      },
+    })
+    await llmNativeWebSearch({
+      ...base,
+      adapterType: AI_ADAPTER_TYPES.XAI,
+      providerConfig,
+      domains: { mode: 'allow', domains: ['pixiv.net'] },
+    })
+    await llmNativeWebSearch({
+      ...base,
+      adapterType: AI_ADAPTER_TYPES.XAI,
+      providerConfig,
+      domains: { mode: 'block', domains: ['zhihu.com'] },
+    })
+
+    expect(readFetchJson(fetchMock, 0).tools).toEqual([
+      { type: 'web_search' },
+      {
+        type: 'x_search',
+        allowed_x_handles: ['artist_a'],
+        from_date: '2026-10-07',
+        to_date: '2026-10-15',
+        enable_image_understanding: true,
+      },
+    ])
+    expect(readFetchJson(fetchMock, 1).tools).toEqual([
+      { type: 'web_search', allowed_domains: ['pixiv.net'] },
+    ])
+    expect(readFetchJson(fetchMock, 2).tools).toEqual([
+      { type: 'web_search', excluded_domains: ['zhihu.com'] },
+      { type: 'x_search' },
+    ])
+  })
+
+  it('Gemini：问题里带链接就同开 url_context', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ candidates: [] }), { status: 200 }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await llmNativeWebSearch({
+      ...base,
+      query: '这页说了什么 https://wiki.test/char',
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      providerConfig: {
+        label: 'Gemini',
+        baseUrl: 'https://generativelanguage.googleapis.com',
+      },
+    })
+
+    expect(readFetchJson(fetchMock).tools).toEqual([
+      { google_search: {} },
+      { url_context: {} },
+    ])
   })
 
   it('Grok：web_search + x_search；X 搜索的 custom_tool_call 计入调用与查询词', async () => {

@@ -55,11 +55,13 @@ const mockSupportsNativeWebSearch = vi.fn<(adapter: string) => boolean>(
 const mockLlmNativeWebSearch = vi.fn()
 /** 所选模型没有自带联网时借哪一家的 key（owner 2026-10-10）。缺省一把都没有。 */
 const mockFindNativeSearchRoute = vi.fn(async (): Promise<unknown> => null)
+const mockFindXSearchRoute = vi.fn(async (): Promise<unknown> => null)
 vi.mock('@/services/kernel/research-route.service', async (importOriginal) => ({
   ...(await importOriginal<
     typeof import('@/services/kernel/research-route.service')
   >()),
   findNativeSearchRoute: () => mockFindNativeSearchRoute(),
+  findXSearchRoute: () => mockFindXSearchRoute(),
 }))
 /**
  * 工具环那一轮走的是 `llmTextStream`（2026-09-06 的逐字流），**桩到同一颗
@@ -10575,7 +10577,7 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
       mockRunAssistantResearch.mockReset()
     })
 
-    it('创作者点了来源：自带联网管不住打哪些站，走管线', async () => {
+    it('创作者只点了 danbooru：网页不在名单里，自带联网不跑', async () => {
       mockSupportsNativeWebSearch.mockReturnValueOnce(true)
       queueTurns(researchWith({ onlySources: ['danbooru'] }), {
         finished: true,
@@ -10585,6 +10587,149 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
       expect(mockFindNativeSearchRoute).not.toHaveBeenCalled()
       mockRunAssistantResearch.mockReset()
     })
+
+    it('白名单只写了域名：Claude 照用自带联网，名单换成它的域名参数，时区一起带上（2026-10-14）', async () => {
+      mockResolveLlmTextRoute.mockResolvedValue({
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+        providerConfig: { label: 'Claude', baseUrl: '' },
+        apiKey: 'sk-ant',
+      })
+      mockSupportsNativeWebSearch.mockReturnValue(true)
+      queueTurns(researchWith({ onlySources: ['moegirl.org.cn'] }), {
+        finished: true,
+      })
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({ timeZone: 'Asia/Tokyo' }),
+        ),
+      )
+      expect(mockLlmNativeWebSearch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+          domains: { mode: 'allow', domains: ['moegirl.org.cn'] },
+          timeZone: 'Asia/Tokyo',
+        }),
+      )
+      mockSupportsNativeWebSearch.mockReturnValue(false)
+      mockRunAssistantResearch.mockReset()
+    })
+
+    it('Gemini 没有域名参数：名单在场照旧走管线', async () => {
+      mockSupportsNativeWebSearch.mockReturnValueOnce(true)
+      queueTurns(researchWith({ onlySources: ['moegirl.org.cn'] }), {
+        finished: true,
+      })
+      await collect(runAssistantOperator('clerk-1', buildRequest()))
+      expect(mockLlmNativeWebSearch).not.toHaveBeenCalled()
+      mockRunAssistantResearch.mockReset()
+    })
+
+    it('问 X 而所选不是 Grok：如实说没搜 X，配了 Grok key 才给按钮（owner 2026-10-14）', async () => {
+      mockSupportsNativeWebSearch.mockReturnValueOnce(true)
+      mockFindXSearchRoute.mockResolvedValueOnce({
+        route: {
+          adapterType: AI_ADAPTER_TYPES.XAI,
+          providerConfig: { label: 'Grok', baseUrl: '' },
+          apiKey: 'xai-key',
+        },
+      })
+      queueTurns(researchWith({ x: { handles: ['artist_a'] } }), {
+        finished: true,
+      })
+      const steps = stepsOf(
+        await collect(runAssistantOperator('clerk-1', buildRequest())),
+      )
+      const done = steps.find(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.research &&
+          step.status === 'done',
+      )
+      expect(done?.result).toMatchObject({ xNotSearched: { grokKey: true } })
+      // ⛔ 没按按钮就不碰 Grok key：这一次仍是所选那一家在搜。
+      expect(mockLlmNativeWebSearch).toHaveBeenCalledWith(
+        expect.objectContaining({ adapterType: AI_ADAPTER_TYPES.GEMINI }),
+      )
+      mockRunAssistantResearch.mockReset()
+    })
+
+    it('按了「用 Grok 搜这一次」：这一轮用创作者自己的 Grok key 搜 X', async () => {
+      mockSupportsNativeWebSearch.mockReturnValueOnce(true)
+      mockFindXSearchRoute.mockResolvedValueOnce({
+        route: {
+          adapterType: AI_ADAPTER_TYPES.XAI,
+          providerConfig: { label: 'Grok', baseUrl: '' },
+          apiKey: 'xai-key',
+        },
+        modelId: 'grok-4.7',
+      })
+      queueTurns(
+        researchWith({ x: { handles: ['artist_a'], fromDate: '2026-10-07' } }),
+        { finished: true },
+      )
+      const steps = stepsOf(
+        await collect(
+          runAssistantOperator(
+            'clerk-1',
+            buildRequest({ searchWithGrok: true }),
+          ),
+        ),
+      )
+      expect(mockLlmNativeWebSearch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          adapterType: AI_ADAPTER_TYPES.XAI,
+          apiKey: 'xai-key',
+          x: { handles: ['artist_a'], fromDate: '2026-10-07' },
+        }),
+      )
+      const done = steps.find(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.research &&
+          step.status === 'done',
+      )
+      expect(done?.result).not.toHaveProperty('xNotSearched')
+      mockRunAssistantResearch.mockReset()
+    })
+
+    it.each([
+      ['searched', 'X search: on · accounts @artist_a'],
+      ['failed', 'Grok search failed this turn'],
+    ] as const)(
+      'Grok 自带联网 %s：告诉模型 X 到底搜没搜',
+      async (status, line) => {
+        if (status === 'failed') {
+          mockLlmNativeWebSearch.mockResolvedValue({
+            status: 'failed',
+            queries: [],
+            answer: '',
+            sources: [],
+            error: 'upstream 400',
+          })
+        }
+        mockFindXSearchRoute.mockResolvedValueOnce({
+          route: {
+            adapterType: AI_ADAPTER_TYPES.XAI,
+            providerConfig: { label: 'Grok', baseUrl: '' },
+            apiKey: 'xai-key',
+          },
+        })
+        queueTurns(researchWith({ x: { handles: ['artist_a'] } }), {
+          finished: true,
+        })
+        await collect(
+          runAssistantOperator(
+            'clerk-1',
+            buildRequest({ searchWithGrok: true }),
+          ),
+        )
+        const observations = mockLlmTextCompletion.mock.calls
+          .map((call) => (call[0] as { userPrompt?: string }).userPrompt ?? '')
+          .join('\n')
+        expect(observations).toContain(line)
+        mockSupportsNativeWebSearch.mockReturnValue(false)
+        mockRunAssistantResearch.mockReset()
+      },
+    )
   })
 
   it('⭐ 所选模型有自带联网时快搜交给它：它的回答就是结论，⛔ 不再改写、不再归纳（owner 2026-09-30）', async () => {

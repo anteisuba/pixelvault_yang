@@ -4006,3 +4006,28 @@ describe('LoRA 卡（lora-assistant §12）', () => {
     })
   })
 })
+
+describe('「用 Grok 搜这一次」', () => {
+  it('只有按钮发的那一句带 searchWithGrok；时区每一句都带', async () => {
+    const { result } = render()
+    act(() =>
+      result.current.send('用 Grok 在 X 上搜一下', [], {
+        searchWithGrok: true,
+      }),
+    )
+    await settle()
+    expect(streamAssistantOperatorAPI.mock.calls[0][0]).toMatchObject({
+      searchWithGrok: true,
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    })
+    streams[0].emit({ type: 'done' })
+    streams[0].close()
+    await settle()
+
+    act(() => result.current.send('再说说'))
+    await settle()
+    expect(streamAssistantOperatorAPI.mock.calls[1][0]).not.toHaveProperty(
+      'searchWithGrok',
+    )
+  })
+})

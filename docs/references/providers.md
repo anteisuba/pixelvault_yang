@@ -114,6 +114,7 @@
 
 - OpenAI：助手／默认文本／剧本规划使用 `gpt-6.1-sol`，增强与自动问答使用 `gpt-6-luna`，选择器保留 `gpt-6-astra`。原生调用继续 Chat Completions，Gateway 字符串同步为 `openai/gpt-6.1-sol`。6.1 Sol 不支持 `none/minimal` 推理档；当前原生调用不发送原生 tools 或这两种推理档，JSON 与 SSE 沿用现有路径。
 - DeepSeek：助手、规划与通用文本默认 `deepseek-flash`（V4.1 Flash），显式 `deepseek-v4-pro` 继续可用并保持纯文本。无型号请求的能力闸与实际默认模型一致。
+- DeepSeek 自带联网（2026-10-14 接入，**未实测**）：走 Anthropic 兼容入口 `{baseUrl 去掉 /v1}/anthropic/v1/messages`（头 `x-api-key` + `anthropic-version`，不带 beta 头），工具 `web_search_20250305` 只给 `max_uses`。依据：[Anthropic 兼容字段表](https://api-docs.deepseek.com/zh-cn/guides/anthropic_api) 把 `server_tool_use` / `web_search_tool_result` 标为支持；第三方用法文章说该入口可用。失败或没调用时 `research-fanout` 退回 Serper（`via: 'serper-fallback'`），线上首次实测后把结论写回这里。走 Cloudflare AI Gateway 时改道为 `…/deepseek/anthropic/v1/messages`。
 - Claude：助手默认 `claude-opus-5-5`，可选 `claude-sonnet-5-5` 与 `claude-fable-5-1`。三者均保持自适应思考，不发送禁用 thinking、非默认采样参数、强制 tool choice 或 assistant prefill；保留 Messages 的 token 预算、JSON 系统指令与官方 `fallbacks: "default"` 契约。默认 effort 分别为 medium / high / high；Sonnet 复用原生 Messages、图片输入、结构化 JSON、流式与搜索路径。Fable 的数据保留限制不推定适用于其他型号。
 - Grok：增强／助手统一 `grok-4.7`，沿用 Chat Completions、`reasoning_effort: "low"`、`max_completion_tokens` 与长首包等待。4.7 Fast 不在公共 API 上，不加入目录。
 - 模型名称沿用共享路由常量，en/ja/zh 使用同一官方名称；未增加翻译键。BYOK、平台权限和站内额度不变。

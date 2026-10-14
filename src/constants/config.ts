@@ -594,6 +594,15 @@ export const ANTHROPIC_API = {
   REFUSAL_STOP_REASON: 'refusal',
 } as const
 
+/**
+ * DeepSeek 的 **Anthropic 兼容入口**（2026-10-14）。chat 那条路没有联网；这个入口的
+ * 字段表把 `server_tool_use` / `web_search_tool_result` 标为支持，自带联网走这里。
+ * 拼在 DeepSeek 根地址后面（去掉 `/v1`）。https://api-docs.deepseek.com/guides/anthropic_api
+ */
+export const DEEPSEEK_ANTHROPIC_API = {
+  MESSAGES_PATH: '/anthropic/v1/messages',
+} as const
+
 export const LLM_TEXT_MODEL_IDS = {
   // Gemini: 3.1-flash-lite retired 2026-08-23 — official shutdown 2027-05-07
   // (deprecations page), replaced by 3.5-flash-lite. 3.8-flash is the current

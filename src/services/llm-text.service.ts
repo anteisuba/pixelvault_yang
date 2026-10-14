@@ -7,6 +7,7 @@ import { z } from 'zod'
 import {
   AI_PROVIDER_ENDPOINTS,
   ANTHROPIC_API,
+  DEEPSEEK_ANTHROPIC_API,
   LLM_TEXT_DEFAULT_MAX_TOKENS,
   LLM_TEXT_MODEL_IDS,
   LLM_TEXT_TIMEOUTS_MS,
@@ -24,6 +25,11 @@ import {
   parseGenerationErrorCode,
 } from '@/constants/generation-errors'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
+import {
+  nativeSearchRulesOutX,
+  type LlmNativeSearchDomains,
+  type LlmNativeXSearch,
+} from '@/services/research/native-search-filters'
 import {
   VIDEO_ANALYSIS,
   VIDEO_ANALYSIS_MIN_OUTPUT_TOKENS,
@@ -2899,8 +2905,8 @@ export async function llmTextCompletion(input: LlmTextInput): Promise<string> {
  *
  * ⭐ 一次调用出「回答 + 来源」：查询词由模型在服务商那一侧自己写，⛔ 不再由我们
  * 先烧一次 LLM 改写、查完再烧一次 LLM 归纳。
- * ⚠ DeepSeek 没有可用的自带搜索 —— `supportsNativeWebSearch` 为假，调用方
- * 退回我们自己的网搜。
+ * ⚠ DeepSeek 的 chat 那条路没有联网，走它的 Anthropic 兼容入口（2026-10-14 接上，
+ *   官方字段表标了支持；搜不成时扇出层回落到 Serper，见 `research-fanout`）。
  */
 export interface LlmNativeSearchSource {
   url: string
@@ -2936,6 +2942,15 @@ export interface LlmNativeSearchInput {
   signal?: AbortSignal
   /** 一次调用里最多搜几次。缺省 `NATIVE_SEARCH_MAX_USES`；深搜给得多一些。 */
   maxUses?: number
+  /** 来源名单换成的域名参数（`planNativeSearchDomains` 算出来的）。 */
+  domains?: LlmNativeSearchDomains
+  /** 创作者浏览器的 IANA 时区：Claude / GPT 据此偏向当地的结果。 */
+  timeZone?: string
+  /**
+   * 这一问冲着 X 上的帖子去（只 Grok 有 X 搜索）：按账号 / 日期收窄，并让 Grok 看帖子里
+   * 的图。缺席 = 照常（网页与 X 都开着，由 Grok 自己挑）。
+   */
+  x?: LlmNativeXSearch
 }
 
 const NATIVE_SEARCH_MAX_USES = 3
@@ -2947,8 +2962,15 @@ export function supportsNativeWebSearch(
     adapterType === AI_ADAPTER_TYPES.GEMINI ||
     adapterType === AI_ADAPTER_TYPES.OPENAI ||
     adapterType === AI_ADAPTER_TYPES.ANTHROPIC ||
-    adapterType === AI_ADAPTER_TYPES.XAI
+    adapterType === AI_ADAPTER_TYPES.XAI ||
+    adapterType === AI_ADAPTER_TYPES.DEEPSEEK
   )
+}
+
+function nativeSearchUserLocation(timeZone: string | undefined) {
+  return timeZone
+    ? { user_location: { type: 'approximate', timezone: timeZone } }
+    : {}
 }
 
 /** 同一个地址在回答里被引用多次时并成一条，摘录拼在一起。 */
@@ -3019,9 +3041,13 @@ const GeminiGroundedResponseSchema = z.object({
     .optional(),
 })
 
+const URL_IN_TEXT = /https?:\/\/\S/i
+
 /**
  * Gemini：`google_search` 工具。⚠ 来源地址是 Google 的跳转链接，真正的站点只在
  * `title` 里（一个域名）—— 所以标题同时当出处用。
+ * ⭐ 问题里带了链接就同开 `url_context`（2026-10-14）：Gemini 直接读那一页（≤20 个，
+ *   含 PDF 与图片；要登录的页面读不了），⛔ 不靠搜索去碰运气。
  */
 async function geminiNativeWebSearch(
   input: LlmNativeSearchInput,
@@ -3039,7 +3065,10 @@ async function geminiNativeWebSearch(
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: input.systemPrompt }] },
         contents: [{ parts: [{ text: input.query }] }],
-        tools: [{ google_search: {} }],
+        tools: [
+          { google_search: {} },
+          ...(URL_IN_TEXT.test(input.query) ? [{ url_context: {} }] : []),
+        ],
       }),
     },
     { adapterType: AI_ADAPTER_TYPES.GEMINI, modelId },
@@ -3206,6 +3235,8 @@ function sentenceBefore(text: string, index: number): string {
 /**
  * OpenAI：Responses API 的 `web_search` 工具 —— 用的是**所选的那个模型**，
  * ⛔ 不是 chat 那条路换成 `gpt-5-search-api` 的做法。
+ * ⭐ 来源白名单走 `filters.allowed_domains`（≤100，没有黑名单），时区走
+ *   `user_location`（2026-10-14）。
  */
 async function openAiNativeWebSearch(
   input: LlmNativeSearchInput,
@@ -3224,7 +3255,15 @@ async function openAiNativeWebSearch(
         model: modelId,
         instructions: input.systemPrompt,
         input: input.query,
-        tools: [{ type: 'web_search' }],
+        tools: [
+          {
+            type: 'web_search',
+            ...(input.domains?.mode === 'allow'
+              ? { filters: { allowed_domains: input.domains.domains } }
+              : {}),
+            ...nativeSearchUserLocation(input.timeZone),
+          },
+        ],
         include: ['web_search_call.action.sources'],
       }),
     },
@@ -3367,7 +3406,39 @@ function xSearchQueryOf(input: string | undefined): string[] {
  * ⚠ `max_turns` 限的是**轮数**不是次数 —— 一轮里会并行打好几次；X 搜索按拉到的
  *   帖子计费，2026-10-10 实测一问 X 舆情约 $0.4、30 秒，普通事实题约 $0.06、8 秒。
  * ⚠ 推理档同 chat 那条路压到 `low`：默认 high 时同一题要 56 秒。
+ * ⭐ 2026-10-14 补齐参数：冲着 X 去的那一问按账号（≤20）/ 日期收窄，并开
+ *   `enable_image_understanding` 看帖子里的图（按图片 token 计费；看视频更贵，不开）；
+ *   来源名单走网页搜索的 `allowed_domains` / `excluded_domains`（各 ≤5），名单挡掉
+ *   X 时整个 X 搜索不带。
  */
+function xaiSearchTools(input: LlmNativeSearchInput) {
+  const domains = input.domains
+  const webSearch = {
+    type: 'web_search',
+    ...(domains
+      ? domains.mode === 'allow'
+        ? { allowed_domains: domains.domains }
+        : { excluded_domains: domains.domains }
+      : {}),
+  }
+  if (nativeSearchRulesOutX(domains)) return [webSearch]
+  const x = input.x
+  return [
+    webSearch,
+    {
+      type: 'x_search',
+      ...(x
+        ? {
+            ...(x.handles.length ? { allowed_x_handles: x.handles } : {}),
+            ...(x.fromDate ? { from_date: x.fromDate } : {}),
+            ...(x.toDate ? { to_date: x.toDate } : {}),
+            enable_image_understanding: true,
+          }
+        : {}),
+    },
+  ]
+}
+
 async function xaiNativeWebSearch(
   input: LlmNativeSearchInput,
 ): Promise<LlmNativeSearchResult> {
@@ -3385,7 +3456,7 @@ async function xaiNativeWebSearch(
         model: modelId,
         instructions: input.systemPrompt,
         input: input.query,
-        tools: [{ type: 'web_search' }, { type: 'x_search' }],
+        tools: xaiSearchTools(input),
         max_turns: input.maxUses ?? NATIVE_SEARCH_MAX_USES,
         reasoning: { effort: 'low' },
       }),
@@ -3466,20 +3537,85 @@ const AnthropicSearchErrorSchema = z.object({
   error_code: z.string(),
 })
 
+/** Messages 形状的一次联网请求：Claude 自己，或 DeepSeek 的 Anthropic 兼容入口。 */
+interface MessagesSearchTarget {
+  adapterType: AI_ADAPTER_TYPES
+  modelId: string
+  endpoint: string
+  init: (body: string) => Omit<RequestInit, 'signal'>
+  /** `web_search` 工具上额外的参数（域名 / 地区）。 */
+  toolOptions: Record<string, unknown>
+}
+
 /**
  * Claude：服务端 `web_search` 工具。⚠ 搜索出错也是 HTTP 200 —— 结果块的
  * `content` 是一个错误对象而不是列表，按形状分支并保留失败回执。
+ * ⭐ 来源名单走 `allowed_domains` / `blocked_domains`，时区走 `user_location`
+ *   （2026-10-14）。
  */
-async function anthropicNativeWebSearch(
+function anthropicNativeWebSearch(
   input: LlmNativeSearchInput,
 ): Promise<LlmNativeSearchResult> {
-  const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.ANTHROPIC]
   const baseUrl =
     input.providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.ANTHROPIC
+  const domains = input.domains
+  return messagesNativeWebSearch(input, {
+    adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+    modelId: input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.ANTHROPIC],
+    endpoint: `${baseUrl.replace(/\/$/, '')}${ANTHROPIC_API.MESSAGES_PATH}`,
+    init: (body) =>
+      anthropicRequestInit(
+        input.apiKey,
+        body,
+        input.providerConfig.anthropicWorkspaceId,
+      ),
+    toolOptions: {
+      ...(domains
+        ? domains.mode === 'allow'
+          ? { allowed_domains: domains.domains }
+          : { blocked_domains: domains.domains }
+        : {}),
+      ...nativeSearchUserLocation(input.timeZone),
+    },
+  })
+}
+
+/**
+ * DeepSeek：Anthropic 兼容入口上的同一个 `web_search` 工具（2026-10-14）。
+ * ⚠ 只带 `max_uses`：兼容层没写收域名与地区，带了可能整次 400。也不带 Claude 那颗
+ *   beta 头。搜不成时扇出层回落到 Serper，所以这里失败不会让这一轮空手。
+ */
+function deepseekNativeWebSearch(
+  input: LlmNativeSearchInput,
+): Promise<LlmNativeSearchResult> {
+  const root = (input.providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.DEEPSEEK)
+    .replace(/\/+$/, '')
+    .replace(/\/v1$/, '')
+  return messagesNativeWebSearch(input, {
+    adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+    modelId: input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.DEEPSEEK],
+    endpoint: `${root}${DEEPSEEK_ANTHROPIC_API.MESSAGES_PATH}`,
+    init: (body) => ({
+      method: 'POST',
+      headers: {
+        'x-api-key': input.apiKey,
+        'anthropic-version': ANTHROPIC_API.VERSION,
+        'content-type': 'application/json',
+      },
+      body,
+    }),
+    toolOptions: {},
+  })
+}
+
+async function messagesNativeWebSearch(
+  input: LlmNativeSearchInput,
+  target: MessagesSearchTarget,
+): Promise<LlmNativeSearchResult> {
+  const { adapterType, modelId } = target
   const response = await fetchLlmTextBuffered(
-    `${baseUrl.replace(/\/$/, '')}${ANTHROPIC_API.MESSAGES_PATH}`,
-    anthropicRequestInit(
-      input.apiKey,
+    target.endpoint,
+    target.init(
       JSON.stringify({
         model: modelId,
         max_tokens: LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC,
@@ -3490,18 +3626,18 @@ async function anthropicNativeWebSearch(
             type: ANTHROPIC_API.WEB_SEARCH_TOOL_TYPE,
             name: 'web_search',
             max_uses: input.maxUses ?? NATIVE_SEARCH_MAX_USES,
+            ...target.toolOptions,
           },
         ],
       }),
-      input.providerConfig.anthropicWorkspaceId,
     ),
-    { adapterType: AI_ADAPTER_TYPES.ANTHROPIC, modelId },
+    { adapterType, modelId },
     input.signal,
   )
   if (!response.ok) {
     const errorBody = await readLlmErrorBody(response, input.signal)
     throw toLlmTextProviderError(response.status, errorBody, {
-      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+      adapterType,
       modelId,
     })
   }
@@ -3621,6 +3757,8 @@ export async function llmNativeWebSearch(
       return anthropicNativeWebSearch(input)
     case AI_ADAPTER_TYPES.XAI:
       return xaiNativeWebSearch(input)
+    case AI_ADAPTER_TYPES.DEEPSEEK:
+      return deepseekNativeWebSearch(input)
     default:
       throw new Error(
         `Native web search not supported for adapter: ${input.adapterType}`,

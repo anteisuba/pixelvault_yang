@@ -202,6 +202,21 @@ describe('StudioOperatorMessageBody', () => {
     )
   })
 
+  it('「用 Grok 搜 X」：给了才画、点下去回调；流着的时候不画', () => {
+    const onSearchXWithGrok = vi.fn()
+    renderBody({}, { onSearchXWithGrok })
+    const button = screen.getByTestId('operator-answer-search-x-grok')
+    // 没有来源卡也在：没搜 X 的那一问可能一条来源都没有。
+    expect(button.textContent).toBe('answer.searchXWithGrok')
+    fireEvent.click(button)
+    expect(onSearchXWithGrok).toHaveBeenCalledTimes(1)
+  })
+
+  it('「用 Grok 搜 X」还在流时不画', () => {
+    renderBody({ streaming: true }, { onSearchXWithGrok: vi.fn() })
+    expect(screen.queryByTestId('operator-answer-search-x-grok')).toBeNull()
+  })
+
   it('reduced motion 下仍逐字出现（光标静止），⛔ 不扣住整段', () => {
     renderBody({ text: '写到一半', streaming: true })
     expect(screen.getByTestId('operator-message-text').textContent).toContain(

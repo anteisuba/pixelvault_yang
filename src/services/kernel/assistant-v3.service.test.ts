@@ -1494,7 +1494,13 @@ describe('v3 内核 · 图片台', () => {
     const search = (onlySources: string[]) => ({
       id: 'call_1',
       name: 'search_web',
-      input: { goal: '艾弥丝的英文名', entities: ['艾弥丝'], onlySources },
+      input: {
+        goal: '艾弥丝的英文名',
+        entities: ['艾弥丝'],
+        onlySources,
+        depth: null,
+        x: null,
+      },
     })
     script(toolTurn(search(['danbooru'])), textTurn('查到了。'))
     await collect(runAssistantV3('clerk-1', imageRequest('艾弥丝英文名是什么')))
@@ -1526,6 +1532,43 @@ describe('v3 内核 · 图片台', () => {
         goal: '艾弥丝的英文名',
         entities: ['艾弥丝'],
         onlySources: ['danbooru'],
+      },
+      'user-1',
+    )
+  })
+
+  it('search_web 的深入档与 X 收窄照传：账号去掉 @，认不得的账号与日期丢掉', async () => {
+    script(
+      toolTurn({
+        id: 'call_1',
+        name: 'search_web',
+        input: {
+          goal: '这周发的新图',
+          entities: [],
+          onlySources: null,
+          depth: 'deep',
+          x: {
+            handles: ['@artist_a', 'not a handle!'],
+            fromDate: '2026-10-07',
+            toDate: 'next week',
+          },
+        },
+      }),
+      textTurn('查到了。'),
+    )
+    await collect(
+      runAssistantV3(
+        'clerk-1',
+        imageRequest('@artist_a 这周在 X 上发了什么图'),
+      ),
+    )
+    expect(plan).toHaveBeenLastCalledWith(
+      expect.anything(),
+      'research',
+      {
+        goal: '这周发的新图',
+        depth: 'deep',
+        x: { handles: ['artist_a'], fromDate: '2026-10-07' },
       },
       'user-1',
     )

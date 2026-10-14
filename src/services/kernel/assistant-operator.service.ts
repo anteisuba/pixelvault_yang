@@ -6,6 +6,7 @@ import type { NovelAiTagFix } from '@/lib/novelai-tag-check'
 import {
   AssistantLoraParametersSchema,
   type AssistantLoraParameters,
+  type AssistantResearchXSearch,
 } from '@/types/assistant-operator'
 import {
   analyzeOperatorReferences,
@@ -387,7 +388,14 @@ import {
   summarizeResearchConclusion,
   type AssistantResearchEvidence,
 } from '@/services/research/research-fanout.service'
-import { findNativeSearchRoute } from '@/services/kernel/research-route.service'
+import {
+  findNativeSearchRoute,
+  findXSearchRoute,
+} from '@/services/kernel/research-route.service'
+import {
+  nativeSearchRulesOutX,
+  planNativeSearchDomains,
+} from '@/services/research/native-search-filters'
 /**
  * **来源白 / 黑名单**（v2 §9.3）—— 名单在库里（上面那条 import），打源在扇出层，
  * 「名单怎么变成一份源清单」这条判断住在这个纯函数模块里。
@@ -2971,6 +2979,7 @@ async function planResearch(
     onlySources?: string[]
     expandSources?: boolean
     depth?: AssistantResearchDepth
+    x?: AssistantResearchXSearch
   },
   userId: string,
 ): Promise<ToolPlan> {
@@ -3020,15 +3029,46 @@ async function planResearch(
    * ⚠ 走管线的只剩：来源名单在场（自带联网管不住它打哪些站）、「再多找几个源」
    * （百科 / danbooru 连接器补在自带联网旁边），以及一把能联网的 key 都没有。
    */
-  const native = hasSourceRules(run.sourceRules)
-    ? null
+  const rules = run.sourceRules
+  /**
+   * ⭐ **X 上的帖子只有 Grok 搜得到**（owner 2026-10-14）。所选不是 Grok 时，只有创作者
+   * 按了「用 Grok 搜这一次」的那一轮才用他自己的 Grok key；⛔ 别的时候不碰。
+   */
+  const lentGrok =
+    args.x &&
+    run.request.searchWithGrok &&
+    run.route.adapterType !== AI_ADAPTER_TYPES.XAI
+      ? await findXSearchRoute(userId).catch(() => null)
+      : null
+  const nativeRoute = lentGrok
+    ? lentGrok
     : supportsNativeWebSearch(run.route.adapterType)
       ? {
           route: run.route,
           ...(run.modelId ? { modelId: run.modelId } : {}),
         }
-      : await findNativeSearchRoute(userId).catch(() => null)
-  const nativeOnly = native !== null && !args.expandSources
+      : hasSourceRules(rules)
+        ? null
+        : await findNativeSearchRoute(userId).catch(() => null)
+  /**
+   * ⭐ **来源名单换成服务商的域名参数**（2026-10-14）：这一家装得下就照常用自带联网，
+   * 装不下（Gemini / DeepSeek 没有域名参数，或超了上限）才照旧走管线。
+   * ⚠ 白名单点了「网页」= 网页不设限，只剩黑名单要管。
+   */
+  const nativeDomains = nativeRoute
+    ? planNativeSearchDomains(nativeRoute.route.adapterType, {
+        allow:
+          rules.hasAllowlist &&
+          !rules.allowSources.includes(ASSISTANT_RESEARCH_SOURCE_IDS.web)
+            ? rules.allowDomains
+            : [],
+        block: rules.denyDomains,
+      })
+    : null
+  const native =
+    nativeRoute && nativeDomains ? { ...nativeRoute, ...nativeDomains } : null
+  const nativeOnly =
+    native !== null && !args.expandSources && !hasSourceRules(rules)
   /**
    * ① 改写 + ② 选源 —— 一次结构化输出，挂了就回落到确定性那份。
    * ⭐ **快搜不改写**（owner 2026-09-30，照 Claude 的做法）：快搜只打网页一源，
@@ -3113,7 +3153,10 @@ async function planResearch(
    * Gemini / GPT / Claude 自己搜 —— 它自己写查询、自己读页、写一段带引用的回答。
    * 那段回答就是这一轮的结论，⛔ 不再另烧一次 LLM 归纳。
    */
-  const nativeAdapter = native?.route.adapterType ?? null
+  /** ⚠ 网页那一源被名单滤掉时自带联网不跑（它只顶替网页那一源）。 */
+  const nativeAdapter = sources.includes(ASSISTANT_RESEARCH_SOURCE_IDS.web)
+    ? (native?.route.adapterType ?? null)
+    : null
   let nativeAnswer = ''
   const nativeSearch: {
     result?: Awaited<ReturnType<typeof llmNativeWebSearch>>
@@ -3138,6 +3181,11 @@ async function planResearch(
               ...(quick
                 ? {}
                 : { maxUses: RESEARCH_LIMITS.deepNativeSearchUses }),
+              ...(native!.domains ? { domains: native!.domains } : {}),
+              ...(run.request.timeZone
+                ? { timeZone: run.request.timeZone }
+                : {}),
+              ...(args.x ? { x: args.x } : {}),
             })
             nativeSearch.result = found
             nativeAnswer = found.status === 'searched' ? found.answer : ''
@@ -3190,8 +3238,12 @@ async function planResearch(
    * ⚠ 并行读，所以它加的是一次请求的时间不是三次。
    */
   let readPages = 0
-  // 原生联网保留服务商引用；回答片段与来源原文按 excerptKind 区分。
-  if (quick && !nativeAdapter && keptEvidence.length > 0) {
+  /**
+   * 原生联网保留服务商引用；回答片段与来源原文按 excerptKind 区分。
+   * ⚠ 自带联网没搜成、扇出回落到 Serper 的那一支照样读页（2026-10-14）。
+   */
+  const nativeSearched = nativeSearch.result?.status === 'searched'
+  if (quick && !nativeSearched && keptEvidence.length > 0) {
     const targets = keptEvidence
       .map((item, index) => ({ index, url: item.url }))
       .filter(
@@ -3360,7 +3412,30 @@ async function planResearch(
   const queryLine = nativeAdapter
     ? `provider search queries [${nativeSearch.result?.queries.join(' | ') || 'not disclosed'}]`
     : `rewrote into ${outcome.queries.length} phrase(s) [${outcome.queries.join(' | ')}] in ${rewrite.langs.join('/') || 'zh'}`
-  const chainLine = `verify("${args.goal}") · ${queryLine} · sources ${sources.join(', ')}${args.expandSources ? ' (expanded)' : ''} · ${depth}${readPages > 0 ? ` · read ${readPages} page(s) in full` : ''}${gateLine}${ruleLine}${nativeLine}`
+  /**
+   * ⭐ **X 那一问的去向说给模型听**（owner 2026-10-14）：搜到了就说按什么收窄；没搜就
+   * 让它如实说「X 只有 Grok 搜得到」，⛔ 别把网页结果说成 X 上的说法。
+   */
+  const xRuledOut = nativeSearchRulesOutX(native?.domains)
+  const xReached =
+    nativeSearched && nativeAdapter === AI_ADAPTER_TYPES.XAI && !xRuledOut
+  const grokInPlay = nativeRoute?.route.adapterType === AI_ADAPTER_TYPES.XAI
+  const xNotSearched =
+    args.x && !grokInPlay
+      ? {
+          grokKey: (await findXSearchRoute(userId).catch(() => null)) !== null,
+        }
+      : undefined
+  const xLine = !args.x
+    ? ''
+    : xReached
+      ? `\nX search: on${args.x.handles.length ? ` · accounts ${args.x.handles.map((handle) => `@${handle}`).join(' ')}` : ''}${args.x.fromDate ? ` · from ${args.x.fromDate}` : ''}${args.x.toDate ? ` · before ${args.x.toDate}` : ''}${lentGrok ? " · with the creator's own Grok key (they pressed the button for this one search; say it was Grok)" : ''}.`
+      : xNotSearched
+        ? `\nPosts on X were NOT searched: only Grok can read X, and this turn runs on ${run.route.adapterType}. Say so plainly in one line, and do not present web results as what people on X said.${xNotSearched.grokKey ? ' Under your reply the panel offers the creator a button to search X once with their own Grok key.' : ' To search X they need to add a Grok key and pick Grok.'}`
+        : xRuledOut || !nativeAdapter
+          ? "\nThe creator's source list rules out X, so posts on X were not searched. Say so if it matters."
+          : '\nGrok search failed this turn, so posts on X were NOT searched. Say so plainly in one line, and do not present web results as what people on X said.'
+  const chainLine = `verify("${args.goal}") · ${queryLine} · sources ${sources.join(', ')}${args.expandSources ? ' (expanded)' : ''} · ${depth}${readPages > 0 ? ` · read ${readPages} page(s) in full` : ''}${gateLine}${ruleLine}${nativeLine}${xLine}`
   const observation =
     evidence.length === 0
       ? `${chainLine}\nfound nothing. Sources: ${receiptLine}.${
@@ -3409,6 +3484,7 @@ async function planResearch(
           ...item,
           snippet: clamp(item.snippet, RESEARCH_LIMITS.maxEvidenceSnippetChars),
         })),
+        ...(xNotSearched ? { xNotSearched } : {}),
       },
       observation,
     }),

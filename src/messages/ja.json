@@ -8446,6 +8446,7 @@
       "sourceCount": "出典 {count} 件",
       "corroborated": "{count}件の出典で一致",
       "expandPrompt": "詳しく調べ直して：出典を増やして全文を読み、できるだけ網羅して。",
+      "xWithGrokPrompt": "Grok で X を検索して。",
       "pinnedHeading": "ピン留めした根拠"
     },
     "researchProgress": {
@@ -8461,7 +8462,8 @@
       "media": "資料",
       "sources": "出典",
       "citation": "出典 {index}",
-      "deepResearch": "詳しく調べる"
+      "deepResearch": "詳しく調べる",
+      "searchXWithGrok": "Grok で X を検索 · Grok の利用枠を使用"
     },
     "message": {
       "expand": "全文を表示",

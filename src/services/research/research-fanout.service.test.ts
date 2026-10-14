@@ -729,7 +729,8 @@ describe('runAssistantResearch · 所选模型自带联网（owner 2026-09-30）
     )
   })
 
-  it('⚠ 模型那边挂了只记这一源失败，⛔ 不抛', async () => {
+  it('⚠ 模型那边挂了、又没配 Serper：只记这一源失败，⛔ 不抛', async () => {
+    mockIsWebSearchConfigured.mockReturnValue(false)
     const outcome = await runAssistantResearch({
       goal: '卡提希娅 配色',
       sources: ['web'],
@@ -744,6 +745,57 @@ describe('runAssistantResearch · 所选模型自带联网（owner 2026-09-30）
   })
 
   it.each([
+    [
+      'failed',
+      async () => {
+        throw new Error('upstream 400')
+      },
+      'native search failed: upstream 400',
+    ],
+    [
+      'not_invoked',
+      async () => ({
+        status: 'not_invoked' as const,
+        queries: [],
+        sources: [],
+        via: 'deepseek',
+      }),
+      'native deepseek skipped: native_search_not_invoked',
+    ],
+  ] as const)(
+    '⭐ 自带联网%s：回落 Serper，回执写清从哪儿退下来的（2026-10-14）',
+    async (_status, nativeWebSearch, error) => {
+      mockFetchWebSearchEvidence.mockResolvedValue({
+        items: [
+          textItem({
+            id: 'web_search:fallback',
+            sourceId: RESEARCH_SOURCE_IDS.webSearch,
+            title: 'Serper 那一条',
+            url: 'https://serper.test/page',
+          } as Partial<EvidenceItem>),
+        ],
+      })
+      const outcome = await runAssistantResearch({
+        goal: '卡提希娅 配色',
+        sources: ['web'],
+        nativeWebSearch,
+      })
+      expect(mockFetchWebSearchEvidence).toHaveBeenCalled()
+      expect(outcome.items.map((item) => item.url)).toEqual([
+        'https://serper.test/page',
+      ])
+      expect(outcome.receipts).toContainEqual(
+        expect.objectContaining({
+          sourceId: RESEARCH_SOURCE_IDS.webSearch,
+          status: 'ok',
+          via: 'serper-fallback',
+          error,
+        }),
+      )
+    },
+  )
+
+  it.each([
     ['empty', 'empty', 0, undefined],
     ['not_invoked', 'skipped', 0, 'native_search_not_invoked'],
     ['failed', 'failed', 0, 'unavailable'],
@@ -752,6 +804,8 @@ describe('runAssistantResearch · 所选模型自带联网（owner 2026-09-30）
   ] as const)(
     '原生%s回执不被证据条数改成成功',
     async (status, receiptStatus, count, error) => {
+      // 没配 Serper：看的是自带联网自己的回执（配了时 failed / not_invoked 会回落）。
+      mockIsWebSearchConfigured.mockReturnValue(false)
       const outcome = await runAssistantResearch({
         goal: '配色',
         sources: ['web'],

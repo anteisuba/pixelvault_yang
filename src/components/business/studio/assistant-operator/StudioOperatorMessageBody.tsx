@@ -69,6 +69,11 @@ interface StudioOperatorMessageBodyProps {
   onDeepResearch?(): void
   /** 「搜了 6 条 · 读了 3 页」那一行灰字。 */
   receiptLabel?: string
+  /**
+   * 「用 Grok 搜这一次」（owner 2026-10-14）：这一问冲着 X、所选模型搜不到 X，而创作者
+   * 配了 Grok key。按下才用他的 Grok 额度；缺席就不画。
+   */
+  onSearchXWithGrok?(): void
 }
 
 /**
@@ -397,8 +402,10 @@ export function StudioOperatorMessageBody({
   onTogglePin,
   onDeepResearch,
   receiptLabel,
+  onSearchXWithGrok,
   references = [],
 }: StudioOperatorMessageBodyProps) {
+  const t = useTranslations('StudioOperator')
   /**
    * ⚠ 高亮住在**这一格**而不是来源卡那颗组件里：角标在正文里、卡在正文下面，
    * 两边读的必须是同一个值。⛔ 别做成两份 state。
@@ -430,6 +437,18 @@ export function StudioOperatorMessageBody({
           {...(onDeepResearch ? { onDeepResearch } : {})}
           {...(receiptLabel ? { receiptLabel } : {})}
         />
+      ) : null}
+
+      {/* ⚠ 不跟着来源卡走：没搜 X 的那一问可能一条网页来源都没有，按钮照样要在。 */}
+      {onSearchXWithGrok && !entry.streaming ? (
+        <button
+          type="button"
+          data-testid="operator-answer-search-x-grok"
+          onClick={onSearchXWithGrok}
+          className="flex h-7 w-fit shrink-0 items-center gap-1 rounded-full border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-muted/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none"
+        >
+          {t('answer.searchXWithGrok')}
+        </button>
       ) : null}
     </div>
   )

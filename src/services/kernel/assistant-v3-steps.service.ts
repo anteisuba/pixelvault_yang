@@ -58,6 +58,8 @@ export const TITLE_TEXT: Record<
     edit: string
     generate: string
     searchWeb: string
+    /** 创作者按了「用 Grok 搜这一次」的那一步：写清楚花的是谁的额度。 */
+    searchXWithGrok: string
     searchLibrary: string
     inspect: string
     searchLora: string
@@ -101,6 +103,7 @@ export const TITLE_TEXT: Record<
     edit: '修改',
     generate: '准备生成',
     searchWeb: '联网查',
+    searchXWithGrok: '用 Grok 搜 X（花你的 Grok 额度）',
     searchLibrary: '素材库找',
     inspect: '核对参考图',
     searchLora: '找 LoRA',
@@ -143,6 +146,7 @@ export const TITLE_TEXT: Record<
     edit: '修正',
     generate: '生成を準備',
     searchWeb: 'Web 検索',
+    searchXWithGrok: 'Grok で X を検索（Grok の利用枠を使用）',
     searchLibrary: '素材検索',
     inspect: '参照画像を確認',
     searchLora: 'LoRA を検索',
@@ -185,6 +189,7 @@ export const TITLE_TEXT: Record<
     edit: 'Edit',
     generate: 'Prepare',
     searchWeb: 'Search the web for',
+    searchXWithGrok: 'Search X with Grok (your Grok quota) for',
     searchLibrary: 'Search the library for',
     inspect: 'Check references',
     searchLora: 'Search LoRAs for',

@@ -114,7 +114,12 @@ import {
   NodeV4ImageDataSchema,
 } from '@/types/node-workflow'
 import { NODE_SCRIPT_SHOT_STATES } from '@/constants/node-script'
-import { EVIDENCE_CREDIBILITY_VALUES } from '@/constants/research'
+import {
+  EVIDENCE_CREDIBILITY_VALUES,
+  NATIVE_SEARCH_FILTER_LIMITS,
+  X_HANDLE_PATTERN,
+  X_SEARCH_DATE_PATTERN,
+} from '@/constants/research'
 import { VIDEO_FRAME_LIMITS } from '@/constants/video-analysis'
 import { WEB_IMAGE_SOURCE_VERDICTS } from '@/constants/web-image-sources'
 import {
@@ -1797,6 +1802,15 @@ export type AssistantOperatorLoraMountCandidate = z.infer<
   typeof AssistantOperatorLoraMountCandidateSchema
 >
 
+function isIanaTimeZone(value: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: value })
+    return true
+  } catch {
+    return false
+  }
+}
+
 export const AssistantOperatorRequestSchema = z.object({
   workspaceKey: AssistantWorkspaceKeySchema,
   stepBudget: z.number().int().min(1).max(LIMITS.maxCanvasSteps).optional(),
@@ -1846,6 +1860,21 @@ export const AssistantOperatorRequestSchema = z.object({
    * `ASSISTANT_AUTO_GENERATE_LIMITS`）。⚠ 缺席 = 关；自动看一眼那一轮不带它。
    */
   autoGenerate: z.literal(true).optional(),
+  /**
+   * **这一轮用创作者自己的 Grok key 搜一次 X**（owner 2026-10-14）：只由回答底下那颗
+   * 「用 Grok 搜这一次」按钮发出，只管这一轮。⛔ 没有它就不碰别家的 key。
+   */
+  searchWithGrok: z.literal(true).optional(),
+  /**
+   * 创作者浏览器的 IANA 时区：联网时 Claude / GPT 据此偏向当地结果。
+   * ⚠ 认不得的时区当没给（`catch`），⛔ 不为它让整轮 400。
+   */
+  timeZone: z
+    .string()
+    .max(64)
+    .refine(isIanaTimeZone)
+    .optional()
+    .catch(undefined),
   snapshot: AssistantOperatorSnapshotSchema,
   priorSteps: z
     .array(AssistantOperatorPriorStepSchema)
@@ -2422,6 +2451,19 @@ export const AssistantOperatorCanvasBatchArgsSchema = z.object({
     .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxBatchOps),
 })
 
+/** X 帖子搜索的收窄（只 Grok 用得上）：账号不带 `@`，日期 `YYYY-MM-DD`。 */
+export const AssistantResearchXSearchSchema = z.object({
+  handles: z
+    .array(z.string().regex(X_HANDLE_PATTERN))
+    .max(NATIVE_SEARCH_FILTER_LIMITS.xHandles),
+  fromDate: z.string().regex(X_SEARCH_DATE_PATTERN).optional(),
+  toDate: z.string().regex(X_SEARCH_DATE_PATTERN).optional(),
+})
+
+export type AssistantResearchXSearch = z.infer<
+  typeof AssistantResearchXSearchSchema
+>
+
 export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
   AssistantOperatorTool,
   z.ZodType
@@ -2525,6 +2567,11 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
      * ⚠ `expandSources` 仍旧是**另一件事**（加源，不是加轮），两者可以并存。
      */
     depth: z.enum(ASSISTANT_RESEARCH_DEPTH_VALUES).optional(),
+    /**
+     * **这一问冲着 X 上的帖子去**（2026-10-14）。只有 Grok 搜得到 X：所选是 Grok 就
+     * 按账号 / 日期收窄；不是 Grok 就如实说没搜 X，⛔ 不拿网页结果冒充 X 上的说法。
+     */
+    x: AssistantResearchXSearchSchema.optional(),
   }),
   /**
    * 读一页正文（2026-09-06）。
@@ -3673,6 +3720,11 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
       evidence: z
         .array(AssistantOperatorEvidenceSchema)
         .max(RESEARCH_LIMITS.maxEvidenceItems),
+      /**
+       * 这一问冲着 X 去，却没搜 X（所选模型不是 Grok）。`grokKey` = 创作者配了 Grok
+       * key，面板据此给「用 Grok 搜这一次」（owner 2026-10-14）。缺席 = 不涉及 X 或已搜。
+       */
+      xNotSearched: z.object({ grokKey: z.boolean() }).optional(),
     }),
   ),
   /**

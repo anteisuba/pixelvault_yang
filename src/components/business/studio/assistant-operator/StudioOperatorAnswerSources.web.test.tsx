@@ -191,4 +191,21 @@ describe('toOperatorAnswerSources', () => {
       evidenceRefs: ['#e2', '#e1'],
     })
   })
+
+  it('⭐ 有一步说「X 没搜、但配了 Grok」才给 Grok 按钮', () => {
+    const withX = (grokKey: boolean): StudioOperatorStepEntry => {
+      const entry = step([])
+      return {
+        ...entry,
+        step: {
+          ...entry.step,
+          result: { evidence: [], xNotSearched: { grokKey } },
+        },
+      } as unknown as StudioOperatorStepEntry
+    }
+    expect(toOperatorAnswerSources([step([])]).offerGrokForX).toBe(false)
+    // 没配 Grok：只在正文里说清楚，⛔ 不给按不动的按钮。
+    expect(toOperatorAnswerSources([withX(false)]).offerGrokForX).toBe(false)
+    expect(toOperatorAnswerSources([withX(true)]).offerGrokForX).toBe(true)
+  })
 })

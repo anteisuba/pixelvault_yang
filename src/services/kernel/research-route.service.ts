@@ -58,23 +58,44 @@ const NATIVE_SEARCH_LENDERS: readonly AI_ADAPTER_TYPES[] = [
   AI_ADAPTER_TYPES.ANTHROPIC,
 ]
 
+type NativeSearchRoute = { route: ResolvedLlmTextRoute; modelId?: string }
+
+async function nativeSearchRouteFor(
+  userId: string,
+  adapterType: AI_ADAPTER_TYPES,
+): Promise<NativeSearchRoute | null> {
+  const key = await findActiveKeyForAdapter(userId, adapterType)
+  if (!key) return null
+  const modelId = resolveAssistantModelId(key.adapterType)
+  return {
+    route: {
+      adapterType: key.adapterType,
+      providerConfig: key.providerConfig,
+      apiKey: key.keyValue,
+    },
+    ...(modelId ? { modelId } : {}),
+  }
+}
+
 export async function findNativeSearchRoute(
   userId: string,
-): Promise<{ route: ResolvedLlmTextRoute; modelId?: string } | null> {
+): Promise<NativeSearchRoute | null> {
   for (const adapterType of NATIVE_SEARCH_LENDERS) {
-    const key = await findActiveKeyForAdapter(userId, adapterType)
-    if (!key) continue
-    const modelId = resolveAssistantModelId(key.adapterType)
-    return {
-      route: {
-        adapterType: key.adapterType,
-        providerConfig: key.providerConfig,
-        apiKey: key.keyValue,
-      },
-      ...(modelId ? { modelId } : {}),
-    }
+    const found = await nativeSearchRouteFor(userId, adapterType)
+    if (found) return found
   }
   return null
+}
+
+/**
+ * 创作者自己的 Grok key —— X 上的帖子只有它搜得到（owner 2026-10-14）。
+ * ⚠ 只在两处用：判「要不要给『用 Grok 搜这一次』按钮」，以及创作者按了那颗按钮的那一轮。
+ * ⛔ 不在创作者不知情时拿它去搜。
+ */
+export function findXSearchRoute(
+  userId: string,
+): Promise<NativeSearchRoute | null> {
+  return nativeSearchRouteFor(userId, AI_ADAPTER_TYPES.XAI)
 }
 
 /**

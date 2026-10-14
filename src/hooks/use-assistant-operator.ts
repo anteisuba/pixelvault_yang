@@ -629,6 +629,17 @@ interface RunOptions {
   resumeFrom?: AssistantOperatorResumeFrom
   /** v3：上一跳收到的本轮记录，画布接力时原样带回（⛔ 新一轮不带）。 */
   v3Transcript?: AssistantV3Transcript
+  /** 回答底下「用 Grok 搜这一次」发出的那一轮（owner 2026-10-14）：只管这一跳。 */
+  searchWithGrok?: boolean
+}
+
+/** 创作者浏览器的时区（联网时 Claude / GPT 偏向当地结果）；取不到就不发。 */
+function browserTimeZone(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined
+  } catch {
+    return undefined
+  }
 }
 
 /** 本地开关选了旧内核（只为对比，S6 删旧时一起删）。只有迁过去的脸认。 */
@@ -651,8 +662,13 @@ export interface UseAssistantOperatorResult {
    *
    * ⚠ **干活时不再 abort**（本片改口）：那一句进队列，等下一个工具步边界。
    * 排队条上的「撤回」走 `cancelQueued`，真要掐掉走 `stop()`。
+   * `searchWithGrok`：「用 Grok 搜这一次」发的那一句（只在闲着时生效，排队带不上）。
    */
-  send(text: string, attachments?: readonly StudioOperatorAttachment[]): void
+  send(
+    text: string,
+    attachments?: readonly StudioOperatorAttachment[],
+    options?: { searchWithGrok?: boolean },
+  ): void
   /** ⏹ —— 彻底叫停（拍板 13）。**连队列一起清**：叫停的是「接下来的一切」。 */
   stop(): void
   /** 撤回一条还没轮到的排队消息（§3.1 ㉔）—— 丢弃不发，线程里留一行交代。 */
@@ -918,7 +934,14 @@ export function useAssistantOperator(
   const run = useCallback(
     async (options: RunOptions = {}) => {
       if (!isCurrentThread() || !workspaceKey) return
-      const { confirmations, planAnswers, planApproved, resumeFrom } = options
+      const {
+        confirmations,
+        planAnswers,
+        planApproved,
+        resumeFrom,
+        searchWithGrok,
+      } = options
+      const timeZone = browserTimeZone()
       abortRef.current?.abort()
       const controller = new AbortController()
       abortRef.current = controller
@@ -1196,6 +1219,8 @@ export function useAssistantOperator(
            *   「用户特意关掉了隐身」，而绝大多数轮次里他从没碰过这颗开关。
            */
           ...(getOperatorState().incognito ? { incognito: true } : {}),
+          ...(searchWithGrok ? { searchWithGrok: true as const } : {}),
+          ...(timeZone ? { timeZone } : {}),
           ...(videoFrames ? { videoFrames } : {}),
           ...(confirmations?.length ? { confirmations } : {}),
           ...(planAnswers?.length ? { planAnswers } : {}),
@@ -2016,7 +2041,11 @@ export function useAssistantOperator(
   }, [run])
 
   const send = useCallback(
-    (text: string, attachments: readonly StudioOperatorAttachment[] = []) => {
+    (
+      text: string,
+      attachments: readonly StudioOperatorAttachment[] = [],
+      options: { searchWithGrok?: boolean } = {},
+    ) => {
       if (!isCurrentThread()) return
       const trimmed = text.trim()
       if (!trimmed) return
@@ -2058,7 +2087,10 @@ export function useAssistantOperator(
        */
       const revising = reviseRef.current
       reviseRef.current = false
-      void run(revising ? { planApproved: false } : {}).finally(() => {
+      void run({
+        ...(revising ? { planApproved: false } : {}),
+        ...(options.searchWithGrok ? { searchWithGrok: true } : {}),
+      }).finally(() => {
         autoReviewTurnRef.current = false
       })
     },

@@ -1,6 +1,9 @@
 import { z } from 'zod'
 
-import { ASSISTANT_OPERATOR_SEARCH_KINDS } from '@/constants/assistant-operator'
+import {
+  ASSISTANT_OPERATOR_SEARCH_KINDS,
+  ASSISTANT_RESEARCH_DEPTH_VALUES,
+} from '@/constants/assistant-operator'
 import {
   ASSISTANT_V3_CARD_TYPES,
   ASSISTANT_V3_CARDS_EDIT_OP_IDS,
@@ -165,7 +168,34 @@ export const AssistantV3SearchWebInputSchema = z.object({
   goal: z.string(),
   entities: z.array(z.string()),
   onlySources: z.array(z.string()).nullable(),
+  /** `deep` = 多搜几次、多看几个源；null = 快搜。 */
+  depth: z
+    .enum(ASSISTANT_RESEARCH_DEPTH_VALUES)
+    .nullable()
+    .describe(
+      '"deep" only when the creator asks you to dig deeper or be thorough, or a quick search came back thin; otherwise null.',
+    ),
+  /** 冲着 X（推特）上的帖子去时才给：账号不带 @，日期 YYYY-MM-DD。 */
+  x: z
+    .object({
+      handles: z
+        .array(z.string())
+        .describe('Accounts to search, without @. Empty for any account.'),
+      fromDate: z.string().nullable().describe('YYYY-MM-DD, or null.'),
+      toDate: z
+        .string()
+        .nullable()
+        .describe('YYYY-MM-DD, not included, or null.'),
+    })
+    .nullable()
+    .describe(
+      'Only when the question is about posts on X (Twitter); otherwise null.',
+    ),
 })
+
+export type AssistantV3SearchWebInput = z.infer<
+  typeof AssistantV3SearchWebInputSchema
+>
 
 export const AssistantV3SearchLibraryInputSchema = z.object({
   query: z.string(),

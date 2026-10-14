@@ -78,16 +78,20 @@ export function toOperatorAnswerSources(
 ): {
   sources: StudioOperatorAnswerSource[]
   summary: StudioOperatorResearchSummary
+  /** 这一问冲着 X、没搜到 X，而创作者配了 Grok key —— 给「用 Grok 搜这一次」。 */
+  offerGrokForX: boolean
 } {
   const sources: StudioOperatorAnswerSource[] = []
   const seen = new Set<number>()
   const conclusions: string[] = []
   const refs: string[] = []
   let corroborated = 0
+  let offerGrokForX = false
   for (const { step } of steps) {
     // ⚠ 先判 `status` 再判 `tool`：载荷与结果只挂在跑完那一支上。
     if (step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.done) continue
     if (step.tool !== ASSISTANT_OPERATOR_TOOL_IDS.research) continue
+    if (step.result?.xNotSearched?.grokKey) offerGrokForX = true
     if (step.result?.conclusion) conclusions.push(step.result.conclusion)
     for (const item of step.result?.evidence ?? []) {
       if (seen.has(item.cite)) continue
@@ -119,6 +123,7 @@ export function toOperatorAnswerSources(
       corroborated,
       evidenceRefs: refs,
     },
+    offerGrokForX,
   }
 }
 

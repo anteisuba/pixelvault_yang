@@ -8446,6 +8446,7 @@
       "sourceCount": "{count, plural, one {# source} other {# sources}}",
       "corroborated": "{count, plural, one {# source} other {# sources}} agree",
       "expandPrompt": "Research this properly: more sources, read them in full, be thorough.",
+      "xWithGrokPrompt": "Search X for this with Grok.",
       "pinnedHeading": "Pinned evidence"
     },
     "researchProgress": {
@@ -8461,7 +8462,8 @@
       "media": "Attachments",
       "sources": "Sources",
       "citation": "Source {index}",
-      "deepResearch": "Research deeper"
+      "deepResearch": "Research deeper",
+      "searchXWithGrok": "Search X with Grok · uses your Grok quota"
     },
     "message": {
       "expand": "Show all",

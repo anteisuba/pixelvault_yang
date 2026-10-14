@@ -1944,6 +1944,16 @@ export function StudioOperatorPanel({
                     onDeepResearch: () => submit(t('research.expandPrompt')),
                   }
                 : {})}
+              /* 「用 Grok 搜这一次」：只这一轮用创作者自己的 Grok key（owner
+                 2026-10-14）。跑着时不给：排队那一句带不上这一次的授权。 */
+              {...(answer?.offerGrokForX && !working
+                ? {
+                    onSearchXWithGrok: () =>
+                      send(t('research.xWithGrokPrompt'), [], {
+                        searchWithGrok: true,
+                      }),
+                  }
+                : {})}
             />
           </StudioOperatorTimelineRow>
         )

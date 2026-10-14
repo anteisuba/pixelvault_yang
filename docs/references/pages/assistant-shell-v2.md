@@ -41,7 +41,16 @@ Owner 原话：「讨论问题的时候希望他能和我讨论，而不是每�
 - **反问全走问题卡**，`message` 不以问句收尾；讨论轮的回答写在 `message`、卡跟在后面。服务端所有停在卡上的出口（问题卡 · ask 工具 · 覆盖三选 · 歧义选图 · 生成确认）一律**卡前先发 `message`**（`messageBeforeCard`）。
 - **联网不设门槛**：答案依赖不确定或会变的事实（作品、画师、角色、技法、模型能力）就查，熟知的不查；附着的图照旧靠看不靠搜。
 - **没有「为什么」**：`detail` 从 turn schema、`message` 事件、客户端条目整条删掉；推理留在模型那边。`plan` 只用于要动好几步的执行，讨论里不出。长度档只约束执行后的回报，讨论按段落给；「末尾一条下一步」只在执行后，卡片在时卡就是下一步。
-- **快搜用所选模型自带的联网**（同日 owner 选「各家用自带的联网」，照 Claude 的做法）：Gemini 走 `google_search`（跳转链接只读跳转头换成真地址）、GPT 走 Responses API 的 `web_search`（用所选模型本身）、Claude 走服务端 `web_search`、Grok 走 Responses API 的 `web_search` + `x_search`（2026-10-10 补上；X 上的帖子 / 串只有它搜得到，X 搜索按拉到的帖子计费，实测一问 X 舆情约 $0.4、30 秒）；模型自己写查询、读结果、给带引用的回答，那段回答直接当结论。快搜**不再**先改写、查完**不再**归纳（各省一次 LLM 往返），自带联网那一路也不再由我们读页。**能用自带的用自带，用不了才走管线**（owner 2026-10-10，八题对比：GPT 自带 15/16、Gemini 14/16、管线 6/16）：深入调查档也交给自带联网（只打网页那一源，Claude 一次可搜 `deepNativeSearchUses` 次、Grok 按同一个数收轮数）；所选模型没有自带联网（DeepSeek）时借创作者配了 key 的那一家（GPT → Gemini → Claude，`findNativeSearchRoute`），一把都没有才走外部检索。仍走管线的：创作者说了「只在某站查」（来源名单）、「再多找几个源」（百科 / danbooru 连接器补在自带联网旁边）、联网找图。Claude 用不带动态过滤的 `web_search_20250305`（带过滤的那一版过滤代码报错、次数耗尽）。入口 `llmNativeWebSearch`，扇出的 `nativeWebSearch` 顶替「网页」那一源（时限 `nativeSearchTimeoutMs`，不走 Serper 熔断器）。
+- **快搜用所选模型自带的联网**（同日 owner 选「各家用自带的联网」，照 Claude 的做法）：Gemini 走 `google_search`（跳转链接只读跳转头换成真地址）、GPT 走 Responses API 的 `web_search`（用所选模型本身）、Claude 走服务端 `web_search`、Grok 走 Responses API 的 `web_search` + `x_search`（2026-10-10 补上；X 上的帖子 / 串只有它搜得到，X 搜索按拉到的帖子计费，实测一问 X 舆情约 $0.4、30 秒）；模型自己写查询、读结果、给带引用的回答，那段回答直接当结论。快搜**不再**先改写、查完**不再**归纳（各省一次 LLM 往返），自带联网那一路也不再由我们读页。**能用自带的用自带，用不了才走管线**（owner 2026-10-10，八题对比：GPT 自带 15/16、Gemini 14/16、管线 6/16）：深入调查档也交给自带联网（只打网页那一源，Claude 一次可搜 `deepNativeSearchUses` 次、Grok 按同一个数收轮数）；所选模型没有自带联网时借创作者配了 key 的那一家（GPT → Gemini → Claude，`findNativeSearchRoute`；只在没有来源名单时借，P1 整条撤掉），一把都没有才走外部检索。仍走管线的：来源名单这一家装不下（见下一条）、「再多找几个源」（百科 / danbooru 连接器补在自带联网旁边）、联网找图。Claude 用不带动态过滤的 `web_search_20250305`（带过滤的那一版过滤代码报错、次数耗尽）。入口 `llmNativeWebSearch`，扇出的 `nativeWebSearch` 顶替「网页」那一源（时限 `nativeSearchTimeoutMs`，不走 Serper 熔断器）。
+- **各家自带联网补齐**（2026-10-14，owner「把缺口也补上」）：
+  - **DeepSeek** 也有自带联网：走它的 Anthropic 兼容入口 `{baseUrl 去掉 /v1}/anthropic/v1/messages` + `web_search_20250305`（只给 `max_uses`，官方兼容表没写域名参数），模型 `deepseek-flash`。上线前未实测，失败由下一条兜。
+  - **自带联网失败 / 没调用就退回 Serper**（`research-fanout` 的 `fetchOne`）：回执 `via: 'serper-fallback'`，`error` 里留 `native <via> <status>: <原因>`；搜到空不退。
+  - **来源名单换成各家域名参数**（`native-search-filters.ts` 的 `planNativeSearchDomains`），装得下就留在自带联网：Claude `allowed_domains` / `blocked_domains`（≤100）、GPT `filters.allowed_domains`（≤100，没有黑名单）、Grok `allowed_domains` / `excluded_domains`（≤5，二选一）。白名单在场只给白名单。装不下（Gemini、DeepSeek 没有这种参数；GPT 只有黑名单；超上限）照旧走管线。
+  - **时区当大致位置**：前端每一句带浏览器 IANA 时区（`timeZone`，不合法丢掉），Claude / GPT 的 `user_location` 只给 `timezone`。
+  - **Gemini** 问题里有链接时多挂 `url_context`。
+  - **X 上的帖子只有 Grok 的 `x_search` 搜得到**（X 挡爬虫要登录）。模型判断这一问冲着 X 时填 `x`（账号 ≤20、起止日期；`toDate` 当天不含），Grok 打开 `enable_image_understanding`（视频理解太贵，不开）；名单把 x.com / twitter.com 挡掉时不搜 X。所选模型不是 Grok 时**照实说没搜 X**，创作者配了 Grok key 就在回答底下给「用 Grok 搜 X · 花你的 Grok 额度」（`operator-answer-search-x-grok`）：按一下发一句带 `searchWithGrok: true` 的话，只这一轮用他的 Grok key（⛔ 不按就不借）。
+  - **v3 的 `search_web` 也收 `depth`**（快 / 深）与 `x`，与 operator 同一条规划。
+  - 刻意没做：GPT 自带联网的图片结果、Claude `web_fetch`（找图走 Serper、读页走 Jina，已覆盖）。
 - **查资料一开口就亮「查资料中」**：检索全跑在规划期，所以 `research` 在规划前先吐一帧 `running`（同 id，跑完覆盖）；前端把跑着的查资料步也认成一次调查。旧版这一行要等查完才出现。
 - **过程只在跑着时露**：工具组、调查行、计划清单在这一轮收尾后整条不画；撤销（checkpoint）、未解决的失败（整轮尝试留着查）、联网候选图、写提示词时的系统交代照旧。历史会话同理：没有失败的一轮只剩回复。
 

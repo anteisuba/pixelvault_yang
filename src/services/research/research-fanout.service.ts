@@ -300,7 +300,32 @@ async function fetchOne(
   nativeWebSearch?: () => Promise<NativeWebSearchFound>,
 ): Promise<{ items: EvidenceItem[]; receipt: ResearchSourceReceipt }> {
   if (sourceId === RESEARCH_SOURCE_IDS.webSearch && nativeWebSearch) {
-    return runNativeWebSearch(sourceId, nativeWebSearch)
+    const native = await runNativeWebSearch(sourceId, nativeWebSearch)
+    /**
+     * ⭐ **自带联网搜不成就回落 Serper**（2026-10-14）：报错、或模型这一次没去搜，
+     * 这一轮仍拿得到网页证据。回执写 `serper-fallback`，原因留在 `error` 里。
+     * ⚠ 「搜了但没结果」不回落：那是一个结论，再搜一遍 Google 只是换个说法。
+     */
+    const failed =
+      native.receipt.status === RESEARCH_SOURCE_STATUSES.failed ||
+      native.receipt.status === RESEARCH_SOURCE_STATUSES.skipped
+    if (!failed || native.items.length > 0 || !isWebSearchConfigured()) {
+      return native
+    }
+    const fallback = await fetchOne(sourceId, plan)
+    return {
+      items: fallback.items,
+      receipt: {
+        ...fallback.receipt,
+        tookMs: native.receipt.tookMs + fallback.receipt.tookMs,
+        via: 'serper-fallback',
+        error:
+          `native ${native.receipt.via ?? 'search'} ${native.receipt.status}${native.receipt.error ? `: ${native.receipt.error}` : ''}`.slice(
+            0,
+            400,
+          ),
+      },
+    }
   }
   const { queries } = plan
   const primary = queries[0] ?? ''

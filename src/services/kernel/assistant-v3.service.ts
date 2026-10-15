@@ -787,6 +787,9 @@ function touchedCards(
   return [...new Set([...ids, ...refIds.values()])]
 }
 
+/** 画布那一批只落了一部分时结果的开头（模型读的字；`isLandingStep` 也按它认）。 */
+const PARTIAL_LANDING = 'Landed only in part'
+
 function landedOutput(
   call: AssistantV3TranscriptCall,
   step: AssistantOperatorPriorStep | undefined,
@@ -811,7 +814,7 @@ function landedOutput(
   }
   const lines = [
     step.status === STATUS.error
-      ? `Landed only in part — ${step.detail ?? ''}`
+      ? `${PARTIAL_LANDING} — ${step.detail ?? ''}`
       : 'Landed.',
   ]
   const refIds = new Map<string, string>()
@@ -1775,6 +1778,8 @@ function hasLandedChanges(transcript: AssistantV3Transcript): boolean {
  * 这一步是不是**纯落地步**（§2.6）：本轮记录里最后一条 assistant 之后全是成功的 edit / write
  * 结果（画布接力那一跳的开头也是这样：前端落完交回来的结果）。没有结果、或有一条是查 / 看 /
  * 问 / 失败的，都不是 —— 那一步还要想。
+ * ⚠ 画布「只落了一部分」那条结果 `error` 是 false（落了的那几条照算改动），但模型要补没落的
+ *   那几条 —— 也不算纯落地（按 `PARTIAL_LANDING` 开头认）。
  */
 function isLandingStep(transcript: AssistantV3Transcript): boolean {
   let lastAssistant = -1
@@ -1790,6 +1795,7 @@ function isLandingStep(transcript: AssistantV3Transcript): boolean {
       (entry) =>
         entry.type === ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.result &&
         !entry.error &&
+        !entry.output.startsWith(PARTIAL_LANDING) &&
         (entry.tool === ASSISTANT_V3_TOOL_IDS.edit ||
           entry.tool === ASSISTANT_V3_TOOL_IDS.write),
     )

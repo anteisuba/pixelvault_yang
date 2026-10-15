@@ -23,6 +23,7 @@ import type {
   AssistantOperatorCanvasNode,
   AssistantOperatorCanvasSnapshot,
   AssistantOperatorEvent,
+  AssistantOperatorPriorStep,
   AssistantOperatorRequest,
 } from '@/types/assistant-operator'
 import type { AssistantV3Transcript } from '@/types/assistant-v3'
@@ -650,7 +651,9 @@ describe('v3 内核', () => {
 
   describe('思考档按步调（§2.6）', () => {
     /** 开轮那一跳落一个 edit，接力那一跳（纯落地步）收尾：两次调用各用哪一档。 */
-    async function landThenClose() {
+    async function landThenClose(
+      landed: Partial<AssistantOperatorPriorStep> = { status: 'done' },
+    ) {
       const mock = script(toolTurn(disconnectGoyle), textTurn('好了。'))
       plan.mockImplementation(async (_run, _tool, args) => ({
         kind: 'mutate',
@@ -680,6 +683,7 @@ describe('v3 内核', () => {
                 status: 'done',
                 summary: '断开',
                 thisTurn: true,
+                ...landed,
               },
             ],
             v3: { transcript },
@@ -702,6 +706,16 @@ describe('v3 内核', () => {
         { test: { effort: 'high' } },
         { test: { effort: 'high' } },
       ])
+    })
+
+    it('画布那一批只落了一部分（结果不算错）：照用创作者那一档', async () => {
+      expect(
+        await landThenClose({
+          status: 'error',
+          rejectReason: 'canvasBatchPartial',
+          detail: '第 2 条没落：连线目标不存在',
+        }),
+      ).toEqual([{ test: { effort: 'high' } }, { test: { effort: 'high' } }])
     })
 
     it('上一步失败了（不是纯落地）：照用创作者那一档', async () => {

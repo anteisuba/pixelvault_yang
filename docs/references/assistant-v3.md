@@ -52,7 +52,7 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 - **图片台**（`assistant-v3-image.service.ts` · `lib/assistant-v3-image-board.ts`）：自然语言台与标签台同一张脸。板子一行一格，每个旋钮带可选值：模型（多渠道的列出渠道）、提示词、负面（模型没有负面就说没有）、画幅 / 清晰度 / 质量 / 背景、每次张数、模型选项（`set_option` 按 key）、标签台的分角色与画面文字、参考图 `ref-N`。
   - edit：`set_model`（带渠道）· `set_specs`（没说的那一格沿用台上的值；没有清晰度档的模型写 auto）· `set_count` · `set_option` · `mount_reference`（按附图名或检索结果的资产 id）· `unmount_reference` · `import_url` · 标签台 `set_people` / `set_scene_texts`。
   - 写提示词不走旧内核的「参考图证据简报」闸（`run.skipReferenceReview`，五张脸都设）：v3 的模型自己用 look 看参考图再写。NAI 标签核对照旧（查不到的退回改写一次）。
-  - search_library：自己的素材，或 `kind: "web_images"` 联网找图（结果摆在面板上由创作者选用）。
+  - search_library：自己的素材，或 `kind: "web_images"` 联网找图（结果摆在面板上由创作者选用；2026-10-15 起网格摆在回答正文底下，见 `pages/assistant-shell-v2.md` §3.5「找到的图」）。
   - 系统提示的方言段是选中模型的写法（与旧内核同源，旧工具名换成 v3 的说法）。
 - **视频台**（与图片台同一个服务与板子，按 `face` 分）：板子多出时长、首尾帧（首帧挂上后画幅按 `aspectRatioLock` 锁死；没挂只是能力声明）、参考视频、参考声音（属于哪个角色）、原声三态开关。
   - edit：`set_specs`（时长 / 画幅 / 清晰度各自独立）· `mount_reference`（slot `first` / `last` / 参考）· `unmount_reference`（`ref-N` / `first` / `last`）· `mount_audio` · `set_sound` · 与图片台同形的 `set_model` / `set_option` / `import_url`。

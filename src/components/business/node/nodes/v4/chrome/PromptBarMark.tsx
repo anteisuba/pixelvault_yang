@@ -76,7 +76,8 @@ export function PromptBarMarkHidden({ text }: { readonly text: string }) {
  * ⚠ 这是唯一能在镜像层里放图而不错位的画法：缩略是 `absolute`，**一点布局宽度都
  * 不占**，占位的仍是那几个透明字符本身。所以调用方只能把它用在「藏起来的那段
  * 至少和缩略一样宽」的地方 —— 轨上序号项的 `@图` / `@视频` / `@语音` 前缀正好
- * 够宽，普通 `@名字` 只有一个 `@`（约 8px）就不够，那里不画缩略。
+ * 够宽放 16px；普通 `@名字` 只有一个 `@`（Geist 14px 约 13px），调用方传
+ * `className` 把缩略缩到这段字符的宽度（`w-full max-w-full aspect-square`）。
  */
 export function PromptBarMarkThumb({
   text,

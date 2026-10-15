@@ -690,6 +690,33 @@ describe('选中态：工具条 + 提示词栏', () => {
     expect(generateNode.mock.lastCall?.[1].edges).toEqual([fresh])
   })
 
+  it('正文里的 @别的图：镜像层压缩略，退格整颗删掉', () => {
+    const context = harness(
+      [
+        imageNode('i_1', {
+          subtype: 'shot',
+          url: 'https://cdn.test/a.png',
+          prompt: '站台',
+        }),
+        imageNode('i_ref', { url: 'https://cdn.test/ref.png' }),
+      ],
+      { selectedNodeIds: ['i_1'] },
+    )
+    renderImage(context, 'i_1', true)
+    const input = document.querySelector(
+      '[data-prompt-bar-input]',
+    ) as HTMLTextAreaElement
+    fireEvent.change(input, { target: { value: '站台 @i_ref' } })
+    expect(
+      document.querySelector(
+        '[data-prompt-bar-mark="mention"] [data-prompt-bar-thumb]',
+      ),
+    ).not.toBeNull()
+    input.setSelectionRange(input.value.length, input.value.length)
+    fireEvent.keyDown(input, { key: 'Backspace' })
+    expect(input.value).toBe('站台 ')
+  })
+
   it('取消 = 这一批在飞的几单一起向服务端取消，各自的在飞标记摘掉', async () => {
     let options: Parameters<GenerateNode>[2] | undefined
     generateNode.mockImplementationOnce(async (_id, _graph, opts) => {

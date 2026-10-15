@@ -10,8 +10,9 @@
  *
  * 缩略图**只能压在藏起来的字符上**（`PromptBarMarkThumb`，绝对定位、零布局宽度）：
  * 轨上序号项的 `@图2` 把 `@图` 藏掉、缩略压上去、只留下号（owner 2026-09-10 真机
- * 反馈第三条）。普通 `@名字` 前面只有一个 `@`，宽度不够放 16px，那里不画。
- * `「名字」` / `『名字』` 则把全角左引号换成 1em 缩略，保留完整名字与字符宽度。
+ * 反馈第三条）。普通 `@名字` 只藏那一个 `@`（Geist 14px 下约 13px 宽），缩略按
+ * `@` 的宽度缩成方块压上去、名字原样留着（owner 2026-10-15「@ 显示缩略图」）。
+ * `「名字」` / `『名字』` 同理把全角左引号换成 1em 缩略。
  */
 
 import type { ReactNode } from 'react'
@@ -129,12 +130,19 @@ export function renderPromptMentions(
       )
     }
     const media = options.mediaOf?.(segment.name)
-    const hidden = media ? railThumbSplit(segment.raw, segment.name) : null
+    const railHidden = media ? railThumbSplit(segment.raw, segment.name) : null
+    // 轨上序号项藏 `@图`、压 16px；其余只藏 `@`，缩略缩到 `@` 那么宽。
+    const hidden = railHidden ?? (media ? '@' : null)
     return (
       <PromptBarMark key={`${keyPrefix}:${index}`} dataAttr="mention">
         {hidden && media ? (
           <>
-            <PromptBarMarkThumb text={hidden}>
+            <PromptBarMarkThumb
+              text={hidden}
+              {...(railHidden
+                ? {}
+                : { className: 'aspect-square h-auto w-full max-w-full' })}
+            >
               <MentionThumb media={media} />
             </PromptBarMarkThumb>
             {segment.raw.slice(hidden.length)}

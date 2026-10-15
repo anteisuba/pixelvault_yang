@@ -186,6 +186,7 @@ function ImageSheetBody({ node }: { readonly node: NodeV4 }) {
   const mentions = useImagePromptMentions({
     id: node.id,
     draft: draft.draft,
+    setDraft: draft.setDraft,
     imageData: data,
     refs,
     acceptsRefs,
@@ -261,6 +262,9 @@ function ImageSheetBody({ node }: { readonly node: NodeV4 }) {
         }
         mentionOptions={mentions.mentionOptions}
         renderValue={mentions.renderValue}
+        {...(mentions.textareaProps
+          ? { textareaProps: mentions.textareaProps }
+          : {})}
         chips={[
           <ImageFrameChip
             key="frame"

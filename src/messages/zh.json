@@ -7587,7 +7587,9 @@
     },
     "chubLibrary": {
       "unavailable": "chub.ai 暂时没回应，过一会儿再试",
-      "notFound": "这张卡在 chub.ai 上已经找不到了"
+      "notFound": "这张卡在 chub.ai 上已经找不到了",
+      "countryBlocked": "chub.ai 在你所在的网络不可用",
+      "tooLarge": "这张卡超过 3 MB 了，没法建成角色"
     }
   },
   "Transform": {

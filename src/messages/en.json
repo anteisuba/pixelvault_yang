@@ -7587,7 +7587,9 @@
     },
     "chubLibrary": {
       "unavailable": "chub.ai isn't responding right now. Try again in a moment.",
-      "notFound": "That card is no longer on chub.ai."
+      "notFound": "That card is no longer on chub.ai.",
+      "countryBlocked": "chub.ai isn't available on your network.",
+      "tooLarge": "That card is over 3 MB, too large to import."
     }
   },
   "Transform": {

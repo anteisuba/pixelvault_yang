@@ -97,12 +97,23 @@ describe('useChubLibrary', () => {
       })
     const { result } = renderHook(() => useChubLibrary(true), { wrapper })
     await waitFor(() => expect(result.current.status).toBe('error'))
-    expect(result.current.error).toBe(
-      zhMessages.Errors.chubLibrary.unavailable,
-    )
+    expect(result.current.error).toBe(zhMessages.Errors.chubLibrary.unavailable)
 
     act(() => result.current.retry())
     await waitFor(() => expect(result.current.status).toBe('ready'))
     expect(mockSearch).toHaveBeenCalledTimes(2)
+  })
+
+  it('chub 拒了这个网络：照实说网络不可用', async () => {
+    mockSearch.mockResolvedValue({
+      success: false,
+      error: 'chub.ai is not available from this network.',
+      i18nKey: 'errors.chubLibrary.countryBlocked',
+    })
+    const { result } = renderHook(() => useChubLibrary(true), { wrapper })
+    await waitFor(() => expect(result.current.status).toBe('error'))
+    expect(result.current.error).toBe(
+      zhMessages.Errors.chubLibrary.countryBlocked,
+    )
   })
 })

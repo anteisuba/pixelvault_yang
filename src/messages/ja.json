@@ -7587,7 +7587,9 @@
     },
     "chubLibrary": {
       "unavailable": "chub.ai から応答がありません。少し待ってからお試しください。",
-      "notFound": "このカードは chub.ai にもうありません。"
+      "notFound": "このカードは chub.ai にもうありません。",
+      "countryBlocked": "お使いのネットワークでは chub.ai を利用できません。",
+      "tooLarge": "このカードは 3 MB を超えているため取り込めません。"
     }
   },
   "Transform": {

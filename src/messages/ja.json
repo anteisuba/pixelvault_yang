@@ -5826,7 +5826,8 @@
           "removeVersion": "この版を外す",
           "retry": "再試行"
         },
-        "slashPicker": "テンプレート候補"
+        "slashPicker": "テンプレート候補",
+        "myTemplates": "マイテンプレート"
       },
       "text": {
         "empty": "続きを書く……",
@@ -5903,14 +5904,14 @@
         "uploading": "画像をアップロード中…",
         "toolbar": {
           "label": "画像操作",
-          "shot": "カット生成",
           "edit": "編集",
           "more": "その他",
           "connect": "ショットに接続",
-          "upscale": "アップスケール"
+          "storyboard": "絵コンテ"
         },
         "edit": {
           "inpaint": "部分描き直し",
+          "upscale": "アップスケール",
           "cutout": "背景除去",
           "background": "背景差し替え"
         },
@@ -5940,7 +5941,8 @@
           "duplicate": "この画像カードを複製",
           "splitVersion": "現在のバージョンを切り出す",
           "source": "出所",
-          "delete": "この画像を削除"
+          "delete": "この画像を削除",
+          "newShot": "新規ショット"
         },
         "frame": {
           "title": "画面",
@@ -5996,11 +5998,10 @@
           "switchChannelLabel": "このカードの {from} はキー未設定ですが、同じモデルの {to} は設定済みです。クリックで {to} に切り替え"
         },
         "template": {
-          "group": "テンプレート",
-          "remove": "テンプレートを外す",
-          "countLocked": "テンプレートで枚数固定",
-          "fullTextShow": "送信時にテンプレートを付加 · 全文を見る",
-          "fullTextHide": "テンプレートを閉じる",
+          "remove": "絵コンテなし",
+          "countLocked": "絵コンテで枚数固定",
+          "fullTextShow": "送信時に絵コンテ文を付加 · 全文を見る",
+          "fullTextHide": "絵コンテ文を閉じる",
           "storyPlaceholder": "（あなたの一文）",
           "grid3": {
             "name": "9 コマ絵コンテ",

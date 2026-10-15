@@ -59,6 +59,7 @@ import {
   NODE_V4_VIDEO_SUBTYPE_IDS,
 } from '@/constants/node-types'
 import { useVideoReferenceSlots } from '@/hooks/node/use-video-reference-slots'
+import { useRecipeSlashOptions } from '@/hooks/node/use-recipe-slash-options'
 import { getGeneratingStageKey } from '@/lib/generation-progress'
 import {
   formatShotDisplayName,
@@ -257,6 +258,9 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
     }, 0)
     return () => window.clearTimeout(timer)
   }, [railMountState.animate])
+
+  // `/` = 「我的模板」里的视频模板：只落提示词，⛔ 换模型 / 套参数（owner 2026-10-15）。
+  const recipeSlash = useRecipeSlashOptions('VIDEO')
 
   if (!node) return null
 
@@ -926,6 +930,10 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
             }
             inputRef={promptInputRef}
             mentionOptions={mentionOptions}
+            slashOptions={recipeSlash.options}
+            onSlashSelect={(option) =>
+              recipeSlash.pick(option.id)?.compiledPrompt
+            }
             renderValue={renderPromptValue}
             chips={[paramsChip, modelChip].filter(Boolean)}
             // chip 与发送钮之间那颗声音开关（画板「画布提示词栏 · 结果」）。

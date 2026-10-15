@@ -120,7 +120,7 @@ describe('buildCanvasOperatorSnapshot', () => {
     expect(
       readCanvasNodeGenerationState(
         imageNode('grid', undefined, {
-          params: { count: 4, storyboardGrid: true },
+          params: { count: 4, promptTemplate: 'grid3' },
         }),
       ).parameters?.values.count,
     ).toBe(1)

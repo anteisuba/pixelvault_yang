@@ -1,7 +1,7 @@
 /**
- * 九宫格分镜：套模板、找格缝、切成九格（node-canvas-v2 §3「九宫格分镜」）。
+ * 宫格分镜：找格缝、切成 n×n 格（node-canvas-v2 §3「九宫格分镜」）。
  *
- * 纯函数（`wrapStoryboardGridPrompt` / `detectGridCells` / `equalGridCells`）
+ * 纯函数（`detectGridCells` / `equalGridCells`）
  * 与浏览器 I/O（`splitImageIntoCells`）分开：前者直接单测，后者只负责读图、画图、导出。
  */
 
@@ -9,7 +9,6 @@ import {
   STORYBOARD_CELL_MIME,
   STORYBOARD_CELL_QUALITY,
   STORYBOARD_GRID_DETECT,
-  STORYBOARD_GRID_PROMPT_TEMPLATE,
   type StoryboardGridSize,
 } from '@/constants/storyboard-grid'
 
@@ -18,13 +17,6 @@ export interface GridCellRect {
   readonly y: number
   readonly width: number
   readonly height: number
-}
-
-/** 你写的那一句接上分镜模板。空句不包（没东西可讲，交给调用方拦）。 */
-export function wrapStoryboardGridPrompt(story: string): string {
-  const trimmed = story.trim()
-  if (!trimmed) return story
-  return STORYBOARD_GRID_PROMPT_TEMPLATE.replace('{story}', trimmed)
 }
 
 interface Run {

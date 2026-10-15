@@ -26,7 +26,7 @@ const NOW = '2026-09-29T00:00:00.000Z'
 
 function sheet(
   versions: number,
-  params: NodeV4ImageData['params'] = { storyboardGrid: true },
+  params: NodeV4ImageData['params'] = { promptTemplate: 'grid3' },
 ): NodeV4 {
   const list = Array.from({ length: versions }, (_, i) => ({
     id: `ov_${i}`,
@@ -141,11 +141,21 @@ describe('useStoryboardGridSplit', () => {
     expect(view.result.current.landing?.sourceId).toBe('sheet')
   })
 
-  it('开关关着：新版本照常，不切', async () => {
+  it('没挂宫格模板（含连贯分镜）：新版本照常，不切', async () => {
     const { view } = renderSplit([sheet(0, {})])
     act(() => view.rerender({ nodes: [sheet(1, {})] }))
+    const sequence = { promptTemplate: 'sequence4' } as const
+    act(() => view.rerender({ nodes: [sheet(2, sequence)] }))
     await Promise.resolve()
     expect(splitImageIntoCells).not.toHaveBeenCalled()
+  })
+
+  it('四宫格模板：按 2×2 切', async () => {
+    const grid2 = { promptTemplate: 'grid2' } as const
+    const { view } = renderSplit([sheet(0, grid2)])
+    act(() => view.rerender({ nodes: [sheet(1, grid2)] }))
+    await waitFor(() => expect(splitImageIntoCells).toHaveBeenCalled())
+    expect(splitImageIntoCells.mock.calls[0]![1]).toBe(2)
   })
 
   it('认不出九宫格：不落卡，卡上记一句', async () => {

@@ -75,9 +75,18 @@ import {
 import { renameStableNodeName } from '@/lib/node-display-name'
 import { pickDefaultModelOption } from '@/lib/pick-default-model-option'
 import { getTranslatedModelLabel } from '@/lib/model-options'
+import {
+  IMAGE_PROMPT_TEMPLATE_IDS,
+  type ImagePromptTemplateId,
+} from '@/constants/image-prompt-templates'
+import {
+  imageSubmitCount,
+  isImagePromptTemplateId,
+} from '@/lib/image-prompt-templates'
 import type { ReadyCanvasImageEditCapabilityId } from '@/types/canvas-image-edit'
 import type {
   NodeV4,
+  NodeV4GenerationParams,
   NodeV4ImageData,
   NodeWorkflowModelSelection,
   NodeWorkflowNodeData,
@@ -548,11 +557,45 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
     void cancelGenerationsAPI(jobs.map(([jobId]) => jobId))
   }
 
-  /** 这一枪发几张（九宫格模板钉 1）—— 发送读数与 `submitPrompt` 同一个数。 */
-  const submitCount =
-    imageData.params?.storyboardGrid === true
-      ? 1
-      : Math.max(imageData.params?.count ?? 1, 1)
+  /** 这一枪发几张（模板钉死）—— 发送读数与 `submitPrompt` 同一个数。 */
+  const submitCount = imageSubmitCount(imageData.params ?? {})
+  const promptTemplate = imageData.params?.promptTemplate
+  /** `/` 模板挂上 / 摘掉（§3）：存在卡的参数上，⛔ 模板文本进正文。 */
+  const setPromptTemplate = (next: ImagePromptTemplateId | undefined) => {
+    const rest = Object.fromEntries(
+      Object.entries(imageData.params ?? {}).filter(
+        ([key]) => key !== 'promptTemplate',
+      ),
+    ) as NodeV4GenerationParams
+    canvas.onSetParams(id, next ? { ...rest, promptTemplate: next } : rest)
+  }
+  const templateOptions = IMAGE_PROMPT_TEMPLATE_IDS.map((templateId) => ({
+    id: templateId,
+    name: tImage(`template.${templateId}.name`),
+    hint: tImage(`template.${templateId}.hint`),
+    groupLabel: tImage('template.group'),
+  }))
+  const templateChip = promptTemplate ? (
+    <span
+      data-prompt-template-chip={promptTemplate}
+      className="inline-flex h-5 items-center gap-0.5 rounded-md bg-surface-fill-track pr-0.5 pl-1.5 text-xs font-medium text-foreground"
+    >
+      {tImage(`template.${promptTemplate}.name`)}
+      <button
+        type="button"
+        aria-label={tImage('template.remove')}
+        title={tImage('template.remove')}
+        disabled={generating}
+        onClick={() => {
+          setPromptTemplate(undefined)
+          promptInputRef.current?.focus()
+        }}
+        className="nodrag nopan flex size-4 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none"
+      >
+        <X aria-hidden className="size-3" />
+      </button>
+    </span>
+  ) : null
 
   /** `keyVerified`：刚在 `QuickSetupDialog` 里配好 key —— 渲染闭包里的 `missingKey` 还没刷新。 */
   const submitPrompt = (keyVerified = false) => {
@@ -896,16 +939,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
       onCountChange={(count) =>
         canvas.onSetParams(id, { ...imageData.params, count })
       }
-      {...(storyboard
-        ? {
-            storyboardGrid: imageData.params?.storyboardGrid === true,
-            onStoryboardGridChange: (storyboardGrid: boolean) =>
-              canvas.onSetParams(id, {
-                ...imageData.params,
-                storyboardGrid,
-              }),
-          }
-        : {})}
+      {...(promptTemplate ? { promptTemplate } : {})}
     />
   )
   const advancedChip = (
@@ -1336,6 +1370,13 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
               ) : null
             }
             mentionOptions={promptMentions.mentionOptions}
+            slashOptions={templateOptions}
+            onSlashSelect={(option) => {
+              if (isImagePromptTemplateId(option.id))
+                setPromptTemplate(option.id)
+            }}
+            prefix={templateChip}
+            onPrefixRemove={() => setPromptTemplate(undefined)}
             renderValue={promptMentions.renderValue}
             addMenu={refAddMenu}
             chips={[paramsChip, advancedChip, modelChip].filter(Boolean)}

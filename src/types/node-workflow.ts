@@ -74,6 +74,7 @@ import {
   EDIT_TRANSITION_IDS,
 } from '@/constants/edit-desk'
 import { VIDEO_RESOLUTIONS } from '@/constants/video-options'
+import { IMAGE_PROMPT_TEMPLATE_IDS } from '@/constants/image-prompt-templates'
 import { VIDEO_NODE_MODES } from '@/constants/video-node-modes'
 import { SCRIPT_PLANNER_PROVIDERS } from '@/constants/script-breakdown'
 import { SCRIPT_DOC_DEPTHS, SCRIPT_DOC_STAGES } from '@/constants/script-doc'
@@ -921,7 +922,7 @@ const NodeV4MediaFactsShape = {
   imageSource: NodeWorkflowImageOutputSourceSchema.optional().catch(undefined),
 }
 
-export const NodeV4GenerationParamsSchema = z.object({
+const NodeV4GenerationParamsShape = z.object({
   aspectRatio: z.string().trim().min(1).max(20).optional(),
   resolution: z.string().trim().min(1).max(20).optional(),
   duration: z.string().trim().min(1).max(20).optional(),
@@ -940,10 +941,10 @@ export const NodeV4GenerationParamsSchema = z.object({
    */
   count: z.number().int().min(1).max(8).optional(),
   /**
-   * 九宫格分镜（§3）：开着时发送前接上分镜模板、只出一张，出完切成九格。
-   * ⚠ 只影响**发出去的那一份**，⛔ 不改你写的提示词。
+   * `/` 模板（§3）：发送时把你写的那一句接进模板全文，张数按模板钉死，宫格模板出完
+   * 自动切开。⚠ 只影响**发出去的那一份**，⛔ 不改你写的提示词。
    */
-  storyboardGrid: z.boolean().optional(),
+  promptTemplate: z.enum(IMAGE_PROMPT_TEMPLATE_IDS).optional().catch(undefined),
   /**
    * 「先搜再画」（B 定稿 2026-10-07）：跟这张卡存，和比例、清晰度一样 —— 重跑老卡
    * 照样会搜。只对支持的型号发（`supportsSearchGrounding`）；来源与搜索建议
@@ -959,6 +960,22 @@ export const NodeV4GenerationParamsSchema = z.object({
     .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
     .optional(),
 })
+
+/**
+ * 存量卡上的九宫格开关（`storyboardGrid: true`，§3 `/` 模板之前）读成 `grid3`。
+ * 开关本身随 schema 剥掉 —— 下一次落库就是新形状。
+ */
+export const NodeV4GenerationParamsSchema = z.preprocess((value) => {
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    'storyboardGrid' in value &&
+    value.storyboardGrid === true &&
+    !('promptTemplate' in value)
+  )
+    return { ...value, promptTemplate: 'grid3' }
+  return value
+}, NodeV4GenerationParamsShape)
 
 /**
  * 一个**产出版本**（S3b，spec §1.8「版本 = 卡下一排小点」）。

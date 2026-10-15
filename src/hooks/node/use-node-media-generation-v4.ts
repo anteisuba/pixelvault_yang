@@ -51,7 +51,10 @@ import {
   validateV4Slots,
   type V4SlotIssue,
 } from '@/lib/node-slot-payload'
-import { wrapStoryboardGridPrompt } from '@/lib/storyboard-grid'
+import {
+  imageSubmitCount,
+  wrapImagePromptTemplate,
+} from '@/lib/image-prompt-templates'
 import { type NodeGenerationShot } from '@/lib/node-media-patch'
 import { shotSeed } from '@/lib/node-image-seed'
 import {
@@ -93,11 +96,16 @@ export interface V4GenerationPlan {
   /** 「专属」chip 的其余几项 —— 逐项过 `AdvancedParamsSchema` 后并进 `advancedParams`。 */
   readonly advanced?: Readonly<Record<string, string | number | boolean>>
   /**
-   * 发几张。⚠ 本仓 **1 请求 = 1 张**，所以它是**请求数**：`generateNode` 顺序发
+   * 发几张。⚠ 本仓 **1 请求 = 1 张**，所以它是**请求数**：`generateNode` 并行发
    * 这么多枪，每一枪回来各追加一个产出版本。⛔ 不塞进单次请求的载荷 ——
    * `StudioGenerateSchema` 里没有这个字段，塞了服务端也读不到。
    */
   readonly count?: number
+  /**
+   * 逐张不同的提示词（`/` 模板 `sequence4`：第 n 张写第 n 拍）。给了就按下标取，
+   * 长度 = `count`；没给每一枪都发 `prompt`。
+   */
+  readonly shotPrompts?: readonly string[]
   /** 音频：Fish 的 `reference_id`（音色）与 `prosody` 两档。 */
   readonly voiceId?: string
   readonly speed?: number
@@ -357,15 +365,23 @@ export function planV4Generation(
       ? { ownPrompt: overrides.prompt ?? data.prompt }
       : {}),
   })
-  // 九宫格分镜（§3）：只包**发出去的那一份**、只出一张；你写的那句原样留在卡上。
-  const storyboardGrid = data.params?.storyboardGrid === true
+  // `/` 模板（§3）：只包**发出去的那一份**、张数按模板钉死；你写的那句原样留在卡上。
+  const template = data.params?.promptTemplate
   const modelPrompt = toModelPrompt(payload.prompt)
+  const count = imageSubmitCount(data.params ?? {})
+  const shotPrompts =
+    template === 'sequence4'
+      ? Array.from({ length: count }, (_, shot) =>
+          wrapImagePromptTemplate(template, modelPrompt, shot),
+        )
+      : undefined
   return {
     ...base,
     kind: 'image',
-    prompt: storyboardGrid
-      ? wrapStoryboardGridPrompt(modelPrompt)
+    prompt: template
+      ? wrapImagePromptTemplate(template, modelPrompt)
       : modelPrompt,
+    ...(shotPrompts ? { shotPrompts } : {}),
     ...(data.params?.aspectRatio
       ? { aspectRatio: data.params.aspectRatio as AspectRatio }
       : {}),
@@ -378,11 +394,7 @@ export function planV4Generation(
       ? { searchGrounding: true }
       : {}),
     ...(data.params?.advanced ? { advanced: data.params.advanced } : {}),
-    ...(storyboardGrid
-      ? { count: 1 }
-      : data.params?.count === undefined
-        ? {}
-        : { count: data.params.count }),
+    ...(template || data.params?.count !== undefined ? { count } : {}),
     referenceImages: payload.referenceUrls,
   }
 }
@@ -734,7 +746,7 @@ export function useNodeMediaGenerationV4() {
           {
             kind: plan.kind,
             modelId: plan.modelId,
-            prompt: plan.prompt,
+            prompt: plan.shotPrompts?.[index] ?? plan.prompt,
             ...(plan.apiKeyId ? { apiKeyId: plan.apiKeyId } : {}),
             ...(plan.aspectRatio ? { aspectRatio: plan.aspectRatio } : {}),
             ...(plan.resolution ? { resolution: plan.resolution } : {}),

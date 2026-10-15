@@ -4,7 +4,6 @@ import {
   detectGridCells,
   equalGridCells,
   scaleCells,
-  wrapStoryboardGridPrompt,
 } from '@/lib/storyboard-grid'
 
 /**
@@ -38,21 +37,6 @@ function synthGrid(options: {
   }
   return { luma, width, height }
 }
-
-describe('wrapStoryboardGridPrompt', () => {
-  it('embeds the story inside the storyboard template', () => {
-    const wrapped = wrapStoryboardGridPrompt(
-      '  雨夜的天台，她等了很久，最后转身离开 ',
-    )
-    expect(wrapped).toContain('3×3 storyboard grid')
-    expect(wrapped).toContain('雨夜的天台，她等了很久，最后转身离开')
-    expect(wrapped).not.toContain('{story}')
-  })
-
-  it('leaves an empty prompt alone', () => {
-    expect(wrapStoryboardGridPrompt('   ')).toBe('   ')
-  })
-})
 
 describe('detectGridCells', () => {
   it('finds nine cells between white gutters and trims the outer margin', () => {

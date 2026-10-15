@@ -17,6 +17,7 @@ import { NodePromptBar } from './NodePromptBar'
 import {
   matchMentionOptions,
   readMentionQuery,
+  readSlashQuery,
   type MentionPickerOption,
 } from './MentionPicker'
 
@@ -46,6 +47,16 @@ function typeInto(text: string) {
   fireEvent.change(input, { target: { value: text } })
   return input
 }
+
+describe('readSlashQuery', () => {
+  it('行首或空白后的 `/` 才是查询；网址、a/b 不弹', () => {
+    expect(readSlashQuery('/', 1)).toEqual({ start: 0, query: '' })
+    expect(readSlashQuery('雨夜 /九', 5)).toEqual({ start: 3, query: '九' })
+    expect(readSlashQuery('a/b', 3)).toBeNull()
+    expect(readSlashQuery('https://x', 9)).toBeNull()
+    expect(readSlashQuery('/九 宫', 4)).toBeNull()
+  })
+})
 
 describe('readMentionQuery', () => {
   it('光标停在 `@` 之后就是一次查询，空查询也算', () => {

@@ -1828,8 +1828,8 @@ describe('画布 op 的别名', () => {
         {
           op: 'set_field',
           target: 'image-1',
-          field: 'storyboardGrid',
-          value: true,
+          field: 'promptTemplate',
+          value: 'grid3',
         },
         {
           op: 'set_field',
@@ -1851,7 +1851,7 @@ describe('画布 op 的别名', () => {
         {
           op: 'set_params',
           target: 'image-1',
-          params: { storyboardGrid: true },
+          params: { promptTemplate: 'grid3' },
         },
         {
           op: 'set_params',

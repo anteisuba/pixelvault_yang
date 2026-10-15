@@ -8594,6 +8594,7 @@
       "doneDeep": "深入调查 · 查了 {count} 条",
       "readPages": "读了 {count} 页",
       "xVideosWatched": "看了 X 上 {count} 段视频",
+      "serperFallback": "自带联网没成，改用平台 Google 搜索",
       "estimateSeconds": "约 {count} 秒",
       "estimateMinutes": "约 {count} 分钟"
     },

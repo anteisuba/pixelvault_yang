@@ -1768,6 +1768,7 @@ export function StudioOperatorPanel({
                       found={researchSummary.found}
                       readPages={researchSummary.readPages}
                       xVideosWatched={researchSummary.xVideosWatched}
+                      webSearchFallback={researchSummary.webSearchFallback}
                     >
                       {logItems}
                     </StudioOperatorResearchProgress>

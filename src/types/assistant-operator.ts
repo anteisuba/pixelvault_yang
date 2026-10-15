@@ -3830,6 +3830,11 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
        * 缺席 = 没开看视频（默认只看封面）。调查那一行据此写「看了 N 段视频」。
        */
       xVideosWatched: z.number().int().nonnegative().optional(),
+      /**
+       * 自带联网没走成，网页那一源改由**平台的 Serper**（Google 搜索）搜了（owner 2026-10-15：
+       * 照实说）。调查那一行据此写「自带联网没成，改用平台 Google 搜索」。缺席 = 没回落。
+       */
+      webSearchFallback: z.literal(true).optional(),
     }),
   ),
   /**

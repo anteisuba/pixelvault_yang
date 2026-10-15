@@ -44,6 +44,11 @@ interface StudioOperatorResearchProgressProps {
   readPages: number
   /** Grok 看了几段 X 上的视频（创作者说了「看看视频」才会 > 0，owner 2026-10-15）。 */
   xVideosWatched?: number
+  /**
+   * 自带联网没走成，网页结果改由平台的 Google 搜索（Serper）搜的 —— 照实写在这一行
+   * （owner 2026-10-15：⛔ 不在创作者不知情时换一家搜）。
+   */
+  webSearchFallback?: boolean
   /** 失败摘要 —— 有就画在行上面（与 `StudioOperatorToolGroup` 同一处位置）。 */
   failure?: ReactNode
   /** 那几条日志 —— 点开才展开。 */
@@ -67,6 +72,7 @@ export function StudioOperatorResearchProgress({
   found,
   readPages,
   xVideosWatched = 0,
+  webSearchFallback = false,
   failure,
   children,
 }: StudioOperatorResearchProgressProps) {
@@ -93,7 +99,7 @@ export function StudioOperatorResearchProgress({
         xVideosWatched > 0
           ? ` · ${t('researchProgress.xVideosWatched', { count: xVideosWatched })}`
           : ''
-      }`
+      }${webSearchFallback ? ` · ${t('researchProgress.serperFallback')}` : ''}`
 
   return (
     <div

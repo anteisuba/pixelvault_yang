@@ -8594,6 +8594,7 @@
       "doneDeep": "詳細調査 · {count} 件",
       "readPages": "{count} ページを読了",
       "xVideosWatched": "X の動画を{count}本視聴",
+      "serperFallback": "モデル内蔵の Web 検索が使えず、プラットフォームの Google 検索で代替",
       "estimateSeconds": "約 {count} 秒",
       "estimateMinutes": "約 {count} 分"
     },

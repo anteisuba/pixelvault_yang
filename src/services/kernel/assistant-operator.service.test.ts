@@ -11103,6 +11103,53 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
     })
   })
 
+  it('⭐ 网页那一源改由平台 Serper 搜了：结果带标记、观察照实说（owner 2026-10-15）', async () => {
+    mockRunAssistantResearch.mockResolvedValue({
+      queries: ['无限大 时夜'],
+      sources: ['web'],
+      evidence: EVIDENCE,
+      items: ITEMS,
+      receipts: [
+        {
+          sourceId: 'web_search',
+          status: 'ok',
+          count: 2,
+          tookMs: 40,
+          via: 'serper-fallback',
+          error: 'native gemini failed: timeout',
+        },
+      ],
+    })
+    queueTurns(researchTurn('外貌与服饰'), { finished: true })
+
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    expect(steps.at(-1)?.result).toMatchObject({ webSearchFallback: true })
+    expect(lastUserPrompt()).toContain(
+      "came from the platform's Google search (Serper)",
+    )
+  })
+
+  it('网页那一源没回落：⛔ 不带标记', async () => {
+    mockRunAssistantResearch.mockResolvedValue({
+      queries: [],
+      sources: ['web'],
+      evidence: EVIDENCE,
+      items: ITEMS,
+      receipts: [
+        { sourceId: 'web_search', status: 'ok', count: 2, tookMs: 40 },
+      ],
+    })
+    queueTurns(researchTurn('外貌与服饰'), { finished: true })
+
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    expect(steps.at(-1)?.result).not.toHaveProperty('webSearchFallback')
+    expect(lastUserPrompt()).not.toContain('Serper')
+  })
+
   it('⭐ 观察里逐条带出处与置信度，并把标签档点名成可直接用的词', async () => {
     mockRunAssistantResearch.mockResolvedValue({
       queries: [],

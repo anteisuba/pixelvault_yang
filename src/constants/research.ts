@@ -39,6 +39,15 @@ export const RESEARCH_SOURCE_IDS = {
   visionInput: 'vision_input',
 } as const
 
+/**
+ * 回执上的 `via`（这一源**实际**是谁搜的）。`serperFallback` = 本该走别的路（自带联网 /
+ * B 站自家搜索）没走成，改由**平台的 Serper**（Google 搜索）搜了 —— 花的是平台的额度，
+ * 界面要照实写出来（owner 2026-10-15：⛔ 不在创作者不知情时换一家搜）。
+ */
+export const RESEARCH_RECEIPT_VIAS = {
+  serperFallback: 'serper-fallback',
+} as const
+
 export const RESEARCH_SOURCE_ID_VALUES = [
   RESEARCH_SOURCE_IDS.moegirl,
   RESEARCH_SOURCE_IDS.wikipediaZh,

@@ -3,6 +3,7 @@ import 'server-only'
 import {
   BILIBILI_REQUEST,
   RESEARCH_LIMITS,
+  RESEARCH_RECEIPT_VIAS,
   RESEARCH_SOURCE_IDS,
   detectResearchVideoSite,
 } from '@/constants/research'
@@ -325,7 +326,7 @@ export async function fetchBilibiliEvidence(params: {
             : String(secondError),
       })
       const items = await searchViaSerper(params.query)
-      return { items, via: 'serper-fallback' }
+      return { items, via: RESEARCH_RECEIPT_VIAS.serperFallback }
     }
   }
 }

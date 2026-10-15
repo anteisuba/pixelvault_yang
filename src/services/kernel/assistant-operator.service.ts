@@ -413,7 +413,9 @@ import { planResearchWithLlm } from '@/services/research/research-planner.servic
 import { planResearchHeuristically } from '@/lib/research-intent'
 import {
   RESEARCH_QUESTION_TYPES,
+  RESEARCH_RECEIPT_VIAS,
   RESEARCH_SOURCE_GROUPS,
+  RESEARCH_SOURCE_IDS,
   detectResearchQuestionType,
   type ResearchQuestionType,
   type ResearchSourceGroup,
@@ -3463,7 +3465,19 @@ async function planResearch(
       : xVideosWatched > 0
         ? `\nThe creator asked to watch the videos, so Grok watched ${xVideosWatched} video(s) on X in this search. Say how many in one clause, and describe only what was in them.`
         : '\nThe creator asked to watch the videos, but Grok opened none in this search. Say so in one clause, and do not describe any video beyond its cover.'
-  const chainLine = `verify("${args.goal}") · ${queryLine} · sources ${sources.join(', ')}${args.expandSources ? ' (expanded)' : ''} · ${depth}${readPages > 0 ? ` · read ${readPages} page(s) in full` : ''}${gateLine}${ruleLine}${nativeLine}${xLine}${xVideoLine}`
+  /**
+   * ⭐ 自带联网没走成、网页那一源改由**平台的 Serper** 搜了（owner 2026-10-15：⛔ 不在创作者
+   * 不知情时换一家搜）：调查那一行照实写「改用平台 Google 搜索」，模型也知道网页结果从哪来。
+   */
+  const webSearchFallback = outcome.receipts.some(
+    (receipt) =>
+      receipt.sourceId === RESEARCH_SOURCE_IDS.webSearch &&
+      receipt.via === RESEARCH_RECEIPT_VIAS.serperFallback,
+  )
+  const fallbackLine = webSearchFallback
+    ? `\nThe model's own web search did not come through this turn, so the web results in this lookup came from the platform's Google search (Serper) instead. The panel already tells the creator; mention it only if it matters.`
+    : ''
+  const chainLine = `verify("${args.goal}") · ${queryLine} · sources ${sources.join(', ')}${args.expandSources ? ' (expanded)' : ''} · ${depth}${readPages > 0 ? ` · read ${readPages} page(s) in full` : ''}${gateLine}${ruleLine}${nativeLine}${xLine}${xVideoLine}${fallbackLine}`
   const observation =
     evidence.length === 0
       ? `${chainLine}\nfound nothing. Sources: ${receiptLine}.${
@@ -3514,6 +3528,7 @@ async function planResearch(
         })),
         ...(xNotSearched ? { xNotSearched } : {}),
         ...(xVideosWatched !== undefined ? { xVideosWatched } : {}),
+        ...(webSearchFallback ? { webSearchFallback: true as const } : {}),
       },
       observation,
     }),

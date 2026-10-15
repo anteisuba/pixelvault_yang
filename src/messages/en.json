@@ -8594,6 +8594,7 @@
       "doneDeep": "Deep research · {count} results",
       "readPages": "{count} pages read",
       "xVideosWatched": "watched {count} videos on X",
+      "serperFallback": "native web search didn't come through · used the platform's Google search",
       "estimateSeconds": "about {count}s",
       "estimateMinutes": "about {count} min"
     },

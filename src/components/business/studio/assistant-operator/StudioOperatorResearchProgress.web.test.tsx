@@ -61,6 +61,20 @@ describe('StudioOperatorResearchProgress', () => {
     ).not.toContain('xVideosWatched')
   })
 
+  it('⭐ 自带联网没成、改用平台 Google 搜索：行里照实写（owner 2026-10-15）', () => {
+    renderLine({ readPages: 0, webSearchFallback: true })
+    expect(
+      screen.getByTestId('operator-research-progress-label').textContent,
+    ).toBe('researchProgress.doneQuick:6 · researchProgress.serperFallback')
+  })
+
+  it('没回落就不提', () => {
+    renderLine({ readPages: 0 })
+    expect(
+      screen.getByTestId('operator-research-progress-label').textContent,
+    ).not.toContain('serperFallback')
+  })
+
   it('⭐ 深档换一句话', () => {
     renderLine({ depth: 'deep', found: 20, readPages: 7 })
     expect(

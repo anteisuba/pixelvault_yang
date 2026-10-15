@@ -16,6 +16,7 @@ import {
   RESEARCH_FRESHNESS,
   RESEARCH_LIMITS,
   RESEARCH_QUESTION_TYPES,
+  RESEARCH_RECEIPT_VIAS,
   RESEARCH_SOURCE_IDS,
   RESEARCH_SOURCE_META,
   RESEARCH_SOURCE_STATUSES,
@@ -318,7 +319,7 @@ async function fetchOne(
       receipt: {
         ...fallback.receipt,
         tookMs: native.receipt.tookMs + fallback.receipt.tookMs,
-        via: 'serper-fallback',
+        via: RESEARCH_RECEIPT_VIAS.serperFallback,
         error:
           `native ${native.receipt.via ?? 'search'} ${native.receipt.status}${native.receipt.error ? `: ${native.receipt.error}` : ''}`.slice(
             0,

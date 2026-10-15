@@ -208,7 +208,13 @@ describe('summarizeOperatorResearchBlock', () => {
       summarizeOperatorResearchBlock([
         research({ depth: 'quick', readPages: 3 }, [{}, {}, {}, {}, {}, {}]),
       ]),
-    ).toEqual({ depth: 'quick', found: 6, readPages: 3, xVideosWatched: 0 })
+    ).toEqual({
+      depth: 'quick',
+      found: 6,
+      readPages: 3,
+      xVideosWatched: 0,
+      webSearchFallback: false,
+    })
   })
 
   it('⭐ 一组里出现过深档就算深档；模型自己发的 read_url 也计页', () => {
@@ -219,7 +225,13 @@ describe('summarizeOperatorResearchBlock', () => {
         researchStep({}, TOOLS.readUrl),
         researchStep({}, TOOLS.readUrl),
       ]),
-    ).toEqual({ depth: 'deep', found: 3, readPages: 3, xVideosWatched: 0 })
+    ).toEqual({
+      depth: 'deep',
+      found: 3,
+      readPages: 3,
+      xVideosWatched: 0,
+      webSearchFallback: false,
+    })
   })
 
   it('⭐ Grok 看了 X 上的视频（创作者明说「看看视频」时）：一组里看了几段加起来', () => {
@@ -229,7 +241,24 @@ describe('summarizeOperatorResearchBlock', () => {
         research({ depth: 'quick', readPages: 0 }, [{}], { xVideosWatched: 1 }),
         research({ depth: 'quick', readPages: 0 }, [{}]),
       ]),
-    ).toEqual({ depth: 'quick', found: 3, readPages: 0, xVideosWatched: 3 })
+    ).toEqual({
+      depth: 'quick',
+      found: 3,
+      readPages: 0,
+      xVideosWatched: 3,
+      webSearchFallback: false,
+    })
+  })
+
+  it('⭐ 有一步的网页结果改由平台 Serper 搜了：这一组就照实标出来（owner 2026-10-15）', () => {
+    expect(
+      summarizeOperatorResearchBlock([
+        research({ depth: 'quick', readPages: 0 }, [{}]),
+        research({ depth: 'quick', readPages: 0 }, [{}], {
+          webSearchFallback: true,
+        }),
+      ])?.webSearchFallback,
+    ).toBe(true)
   })
 
   it('⭐ 跑着的查资料一开口就算一次调查（owner 2026-09-30）', () => {
@@ -243,6 +272,7 @@ describe('summarizeOperatorResearchBlock', () => {
       found: 0,
       readPages: 0,
       xVideosWatched: 0,
+      webSearchFallback: false,
     })
   })
 })

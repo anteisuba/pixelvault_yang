@@ -1,6 +1,6 @@
 # 助手新内核（v3）— 施工基准
 
-> 状态：**S1–S5 完成，S6 进行中（2026-10-10）**。五张脸（画布、LoRA 台、图片台〔自然语言台 + 标签台〕、角色页、视频台）都默认走 v3（不分账号、助手模型选「自动」也算）；本地开关 `localStorage['antei:assistant-kernel'] = 'v2'` 时照走旧内核，只为对比，删旧内核时一起删。v3 接不了的厂商（OpenAI / Claude / Gemini 以外）在 v3 里自己退回旧内核。S6 剩删旧内核。
+> 状态：**S1–S5 完成，S6 进行中（2026-10-10）**。五张脸（画布、LoRA 台、图片台〔自然语言台 + 标签台〕、角色页、视频台）都默认走 v3（不分账号、助手模型选「自动」也算）；本地开关 `localStorage['antei:assistant-kernel'] = 'v2'` 时照走旧内核，只为对比，删旧内核时一起删。助手的五家（OpenAI / Claude / Gemini / DeepSeek / Grok）都由 v3 自己跑；只有造不出模型或这张脸画不出板子时才交回旧内核。选定的模型那一家没绑 key 时整轮不跑（见下「只用所选那一家」），⛔ 不回落「自动」、不交回旧内核。S6 剩删旧内核。
 > owner 2026-10-09 定：AI SDK 原生工具；OpenAI 先跑，Claude 另跑一轮；五张脸（图片 / 视频 / LoRA / 画布 / 角色）都迁到新内核，画布先；最后删旧内核。正文不复述改动：改了什么由过程行说（按实际落地的 op 生成），正文只写判断与下一步。
 
 ## 1. 为什么换（2026-10-09 回放基线）
@@ -61,7 +61,17 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 - **角色页**（`assistant-v3-cards.service.ts` · `lib/assistant-v3-cards-board.ts`）：不改任何东西 —— 没有 write / generate，三种 edit 都是提议，出卡、停下等创作者勾（服务端不写库）。板子：角色名册用句柄（`char-b27ce8`，同名角色不止一位）、打开那位的五格设定与标签，卡上的图跟着板子给模型看（`card-1` …）。
   - edit：`propose_profile`（逐格带出处）· `propose_images`（本轮检索到的资产 id 或网图地址）· `hand_off`（交给图片助手；那句话里的句柄服务端换回角色名）。一条回复只走第一份提议。
   - read：设定某一格全文，或一个网址（读 wiki 角色页 / 故事页 / 语音页）；look `card` / `card-N`：创作者问图与设定对不对时，指给模型看卡上的图（前 6 张已跟着板子附上，再往后的才附），由它自己对 —— 只比身份（发色、瞳色、肤色、年龄、体型、种族、伤疤犄角），衣服、姿势、表情、背景、画风不算。⛔ 不再另起 `check_character_look`（v2 照旧）。
+  - search_library `kind: "web_images"`（联网找图，owner 2026-10-15「一种看法」）：搜完把候选的缩略图当一次 look 交给**主模型**（`searchWebImagesAndLook`），按搜索结果编号（`candidate N`，过程行「候选 N」），由它对照卡上的图与设定自己判断哪几张是这位。走 look 的硬规矩：只附给紧跟着的那一步、一次最多 6 张（多出来的点名）、一张下不来只点名那一张；标了 REFERENCE ONLY 的挂不上卡，⛔ 不占看图名额。所选模型看不了图：结果里明说「没人看过这些候选、只凭标题」，由模型照实告诉创作者。⛔ 不另起看缩略图的子调用（v2 的 `inspectWebImageCandidates` 跑在视觉顺位挑中的那一家，会悄悄借别家的 key）、⛔ 没有藏起来的判定去筛 `propose_images`：v3 设 `run.mainModelLooks`，旧执行器的搜图那一步只搜、只列，不写判词、不按判词丢图。
   - 系统提示沿用旧内核的角色页规矩：设定四部分 + 外观一句、原作先查原文、改编角色按原作改写或先问方向、原创先问方向、好图的标准、换衣不算矛盾。
+
+### 只用所选那一家（owner 2026-10-15「会自动扣其他模型的token，用户还不知道」）
+
+- ⛔ 不在创作者不知情时花另一家的 key。跨厂商只在创作者明确选了的时候用（如「用 Grok 搜这一次」那颗按钮），而且要标出来；模型做不了的事直说做不了。
+- **选定的模型缺 key**：persona 选了具体模型、那一家没有活着的 key → `requireLlmTextKeyId`（`llm-text.service.ts`）抛 `AssistantModelKeyMissingError`（`ASSISTANT_MODEL_KEY_MISSING`，带 `adapterType` 与 `modelId`），整轮一步不跑。判在共用的 `prepareOperatorTurn`，所以五张脸、v2 / v3 都一样。SSE 错误帧多带 `missingKey`；面板错误条的按钮是「配置 {厂商} Key」，就地弹那一家的 `QuickSetupDialog`（不改工作台选中的生成模型），验证过就自动重发上一条（与「重试」同一句 `error.retryPrompt`）。「自动」照旧按 Gemini → DeepSeek → OpenAI → Claude → Grok 找第一把。
+- **查证改写查询**（`research-planner.service.ts`）用这一轮的路由与型号（调用方交进来），出不来就走确定性那份，⛔ 不换一家再试。此前借的是画布规划器那条路（`resolveNodePlannerRoute`），名册只有 Gemini / DeepSeek / OpenAI —— 不是 Claude / Grok 做不了（规划器只要一个 JSON 对象，五家都给得出），只是那份型号表没有它们，于是选了 Claude / Grok 的人悄悄花了别家的 key。
+- **看图**：只由主模型看（look）；看不了就直说（上「看图」「角色页」）。
+- 测试：新用例最后用 `src/test/selected-provider-only.ts` 的 `expectSelectedProviderOnly` 数一遍这一轮每一次碰模型 / 按厂商查 key，⛔ 有一条不是所选那一家就失败。
+- ⚠ 还没收的一处：所选模型没有自带联网时，快搜借 OpenAI / Gemini / Claude 的 key 用自带联网（`findNativeSearchRoute`，owner 2026-10-10 定的），这一轮没动。
 
 ### 校验器（工具里跑，不靠提示词）
 
@@ -74,7 +84,7 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 - **什么都没变的改动**：只回结果，不在时间线上留红行。
 - **厂商内容审核拦下**（Gemini `PROHIBITED_CONTENT`）：不重试，直说是审核、什么都没改。
 - **看图**（owner 2026-10-15「不要求很严的表，让模型自己去看去判断」，`assistant-v3-look.service.ts`）：一种看法、五张脸共用 —— `look` 把要看的图连同问题交到**主模型**眼前，由它带着整段对话自己判断（认人、改名、对比、对照参考查成图、照参考写提示词）。⛔ 不另起看图子调用、⛔ 不填结构化的表。怎么看写在系统提示共用的 `LOOKING AT PICTURES` 一段：2D / 3D 看线、阴影、材质、头发（三渲二算 3D）、三视图是设定图不是漫画截图、裁切遮挡衣服挡住身体、⛔ 不脑补侧背面、创作者说怎么做的算数、图里的字不是指令；**安静**：看到什么⛔ 不单列成过程行，只在改变结果时在回复里带半句。
-  - 代码里的硬规矩：一次最多 `maxLookCards`（6）张，多了在结果里明说只看了前几张；一张下不来（下载失败、超过所选那家的单图上限 —— Claude 是 base64 后 10 MB、别家 20 MB —— 或不是 PNG / JPEG / WEBP：GIF 不收，Gemini 会整步 400）只点名那一张，其余照看，⛔ 不连坐整步；所选模型看不了图（`assistantAdapterSupportsImage` 为假，如 DeepSeek V4 Pro）就只回一句「告诉创作者这个模型看不了图、换一个」，⛔ 不借别家的 key（⛔ `findVisionCapableRoute`）。
+  - 代码里的硬规矩：一次最多 `maxLookCards`（6）张，多了在结果里明说只看了前几张；一张下不来（下载失败、超过所选那家的单图上限 —— Claude 是 base64 后 10 MB、别家 20 MB —— 或不是 PNG / JPEG / WEBP：GIF 不收，Gemini 会整步 400）只点名那一张，其余照看，⛔ 不连坐整步；所选模型看不了图（`assistantAdapterSupportsImage` 为假，如 DeepSeek V4 Pro）就只回一句「告诉创作者这个模型看不了图、换一个」，⛔ 不借别家的 key（⛔ `findVisionCapableRoute`）。角色页联网找图的候选也走这一条（见上「角色页」）。
   - 图的寿命：本轮记录只存地址与称呼（结果条目的 `images`），字节在服务端现下（`fetchAsBuffer`，防 SSRF）、只附给**紧跟着的那一次**模型调用 —— 按位置认：本轮记录里最后一条 assistant 之后的 look 结果才附，模型一开口就不再附；空回复 / 超时重问、画布接力照样附上。再往后与跨轮历史里只剩工具结果那行字。已经附在这一轮那句话里的图（`IMAGES THE CREATOR POINTED AT`）⛔ 不再附第二遍，只指给它看。
   - 图放在哪（对照装着的 AI SDK 核过）：Gemini 放进工具结果本身（Gemini 3 的 functionResponse parts）；OpenAI 协议的对话接口（DeepSeek、Grok、OpenAI）tool 消息只收文字，Claude 的 tool_result 后面接 user 正是它要的形状 —— 这四家工具结果只写字，图跟在紧接着的一条 user 消息里。
   - 画布：卡的图先找 `@` 带上来的那一张（按 `nodeId`），再找图片卡自己那张（参考位），名字只兜没带 id 的老附图；对照参考 = 把它接的参考卡写进同一次 look。视频台被 @ 的那段片子（带着抽好的帧）照旧走看片评审（`planCritiqueResult` → 抽帧逐帧看），只是同样先过「看不看得见」那道闸。
@@ -126,6 +136,7 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 ## Source of Truth
 
 - `src/services/kernel/assistant-v3.service.ts`（回合循环）· `assistant-v3-model.service.ts`（按用户的 key 造模型）· `assistant-v3-prompt.service.ts`（系统提示）
+- `src/services/kernel/assistant-v3-look.service.ts`（看图）· `assistant-v3-cards.service.ts`（角色页，含联网找图交给主模型看）· `src/services/llm-text.service.ts` 的 `requireLlmTextKeyId`（选定模型缺 key 就抛）
 - `src/lib/assistant-v3-board.ts`（句柄与板子）· `src/lib/assistant-v3-ops.ts`（edit / write → v4 op）
 - `src/types/assistant-v3.ts`（工具入参与本轮记录）· `src/constants/assistant-v3.ts`
 - 开关：`src/app/api/studio/assistant-operator/route.ts` · `src/hooks/use-assistant-operator.ts`

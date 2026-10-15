@@ -350,8 +350,9 @@ export const ASSISTANT_V3_CALL_TIMEOUT = {
 } as const
 
 /**
- * 画布默认走 v3（S6，owner 2026-10-09）。前端本地开关写 `v2` 时画布照走旧内核 ——
- * 只为对比，删旧内核时一起删。
+ * 五张脸默认走 v3（S6，owner 2026-10-09）。前端本地开关写 `v2` 时照走旧内核 ——
+ * 只为对比，删旧内核时一起删。⚠ **只有 owner 认**（服务端 `isAdmin`，owner 2026-10-15）：
+ * 别人的浏览器里写了 `v2`，服务端照走 v3。
  * ⚠ `v3` 还收着：开关切换前打开的页面仍会发它。
  */
 export const ASSISTANT_KERNEL_STORAGE_KEY = 'antei:assistant-kernel'

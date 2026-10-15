@@ -744,7 +744,10 @@ function browserTimeZone(): string | undefined {
   }
 }
 
-/** 本地开关选了旧内核（只为对比，S6 删旧时一起删）。只有迁过去的脸认。 */
+/**
+ * 本地开关选了旧内核（只为对比，S6 删旧时一起删）。只有迁过去的脸认。
+ * ⚠ 服务端只对 owner（`isAdmin`）认它（owner 2026-10-15）：别人写了也照走 v3。
+ */
 function readsLegacyKernel(): boolean {
   if (typeof window === 'undefined') return false
   try {

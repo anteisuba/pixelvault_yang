@@ -10,6 +10,7 @@ import {
 } from '@/constants/assistant-v3'
 import { runAssistantOperator } from '@/services/kernel/assistant-operator.service'
 import { runAssistantV3 } from '@/services/kernel/assistant-v3.service'
+import { isAdmin } from '@/lib/admin'
 import { toAssistantOperatorSseResponse } from '@/lib/assistant-operator-stream'
 import { isGenerationError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
@@ -94,12 +95,20 @@ export async function POST(request: NextRequest): Promise<Response> {
     })
 
     /**
-     * 迁过去的脸默认走 v3（S6：画布、LoRA 台）；本地开关选了 `v2` 才照走旧内核。
-     * 别的域还在旧内核上（逐个迁）。v3 接不了的厂商在 v3 里自己退回旧内核。
+     * 五张脸（画布、LoRA 台、图片台、角色页、视频台）都走 v3（S6）。本地开关选了 `v2`
+     * 只有 **owner** 认（`isAdmin`，与管理后台同一道判据）：旧内核只为对比留着，⛔ 不让
+     * 别人从浏览器里把自己切回去（owner 2026-10-15）。别人发了 `v2` 照走 v3。
+     * v3 接不了的厂商在 v3 里自己退回旧内核。
      */
+    const wantsLegacyKernel = parsed.data.kernel === ASSISTANT_KERNEL_IDS.v2
+    const legacyKernelAllowed = wantsLegacyKernel && isAdmin(clerkId)
+    if (wantsLegacyKernel && !legacyKernelAllowed) {
+      logger.info(`${routeName} legacy kernel ignored (owner only)`, {
+        userId: clerkId,
+      })
+    }
     const useV3 =
-      ASSISTANT_V3_FACES.includes(parsed.data.domain) &&
-      parsed.data.kernel !== ASSISTANT_KERNEL_IDS.v2
+      ASSISTANT_V3_FACES.includes(parsed.data.domain) && !legacyKernelAllowed
 
     // ⚠ 工具环是惰性的（async generator）：它到成帧器 `for await` 才开始跑，所以
     //    `open` 帧一定排在第一次 LLM 往返之前。别在这里先 await 一下"预热"。

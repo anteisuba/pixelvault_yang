@@ -2094,8 +2094,9 @@ export const AssistantOperatorRequestSchema = z.object({
     )
     .optional(),
   /**
-   * 内核开关（S6）：画布默认走 v3，`v2` = 照走旧内核（对比用）。别的域都是旧内核。
-   * ⚠ 前端从本地开关读（`ASSISTANT_KERNEL_STORAGE_KEY`），⛔ 不是用户设置。
+   * 内核开关（S6）：五张脸默认走 v3，`v2` = 照走旧内核（对比用）。
+   * ⚠ 前端从本地开关读（`ASSISTANT_KERNEL_STORAGE_KEY`），⛔ 不是用户设置；服务端只对 owner
+   * （`isAdmin`）认 `v2`，别人发了照走 v3（owner 2026-10-15）。
    */
   kernel: z.enum(ASSISTANT_KERNELS).optional(),
   /** v3 的本轮记录：接力时由前端原样带回（见 `types/assistant-v3.ts` ②）。 */

@@ -12856,10 +12856,38 @@ export async function* runWithOperatorTimeBudget(
  * 开跑前的准备：工作区鉴权、人设与规则、记忆、路由与工作副本。
  * ⚠ 新内核（v3）与旧循环共用这一份，⛔ 别在两处各抄一遍：抄了就是两套鉴权。
  */
+/**
+ * 上几轮的结论记录（§7.6）：开跑前读一次。⚠ 没有 `conversationId`（这条线程还没落过库 /
+ * 老客户端）时就是空的 —— 那一轮照常跑，只是没有跨轮记忆可注入。
+ */
+function loadPriorRounds(
+  clerkId: string,
+  userId: string,
+  request: AssistantOperatorRequest,
+): Promise<readonly AssistantConversationRoundStored[]> {
+  return optionalContext('priorRounds', clerkId, [], () =>
+    request.conversationId
+      ? listAssistantConversationRounds(userId, request.conversationId, {
+          limit: ROUND_LIMITS.maxRoundsInPrompt,
+          workspaceKey: request.workspaceKey,
+        })
+      : Promise.resolve([]),
+  )
+}
+
+export interface PrepareOperatorTurnOptions {
+  /**
+   * ⛔ 不读上几轮的结论记录（v3，P2）：v3 的提示不注入它，读它的 `referenceCreatorContext`
+   * 在 `skipReferenceReview` 下不走 —— 读了没人用。交回旧内核时 `runOperatorTurn` 补读。
+   */
+  readonly skipPriorRounds?: boolean
+}
+
 export async function prepareOperatorTurn(
   clerkId: string,
   initialRequest: AssistantOperatorRequest,
   signal: AbortSignal,
+  options: PrepareOperatorTurnOptions = {},
 ) {
   let request = initialRequest
   const user = await ensureUser(clerkId)
@@ -12958,17 +12986,10 @@ export async function prepareOperatorTurn(
       /**
        * ⭐ **之前几轮记住的事**（§7.6）—— 与 persona / 规则 / 卡同一档：开跑前读
        * 一次，⛔ 不在每一步重读（系统提示每一步都重发，但它每一步都是同一份）。
-       * ⚠ 没有 `conversationId`（这条线程还没落过库 / 老客户端）时就是空的 ——
-       * 那一轮照常跑，只是没有跨轮记忆可注入。
        */
-      optionalContext('priorRounds', clerkId, [], () =>
-        request.conversationId
-          ? listAssistantConversationRounds(user.id, request.conversationId, {
-              limit: ROUND_LIMITS.maxRoundsInPrompt,
-              workspaceKey: request.workspaceKey,
-            })
-          : Promise.resolve([]),
-      ),
+      options.skipPriorRounds
+        ? Promise.resolve([])
+        : loadPriorRounds(clerkId, user.id, request),
       /**
        * ⭐ **学出来的创作偏好**（§8.3）—— 账号级、助手只读，不是工作台的数据，所以
        * 不跟着工作区隔离走（owner 2026-10-04）。
@@ -13147,7 +13168,7 @@ export async function prepareOperatorTurn(
       run.sourceRules,
       contextCards,
       initialMemoryArtifacts(request),
-      priorRounds,
+      run.priorRounds,
       assistantMemories,
       {
         /**
@@ -13176,6 +13197,8 @@ export async function prepareOperatorTurn(
     audioData,
     run,
     composeSystemPrompt,
+    /** 开跑前没读上几轮的结论记录（`skipPriorRounds`）—— 交给旧内核时要补读。 */
+    priorRoundsSkipped: options.skipPriorRounds === true,
   }
 }
 
@@ -13200,6 +13223,16 @@ export async function* runOperatorTurn(
   const prepared =
     preparedTurn ??
     (await prepareOperatorTurn(clerkId, request, options.signal))
+  /**
+   * 新内核准备时没读上几轮的结论记录（它用不上），旧内核的提示与 `referenceCreatorContext`
+   * 要用：在这里补读一次（系统提示从 `run.priorRounds` 取）。
+   */
+  if (prepared.priorRoundsSkipped)
+    prepared.run.priorRounds = await loadPriorRounds(
+      clerkId,
+      prepared.user.id,
+      prepared.request,
+    )
   request = prepared.request
   const {
     user,

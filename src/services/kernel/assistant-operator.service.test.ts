@@ -532,6 +532,7 @@ import {
   prepareOperatorTurn,
   recordLedgerStep,
   runAssistantOperator,
+  runOperatorTurn,
 } from '@/services/kernel/assistant-operator.service'
 import {
   AssistantOperatorEventSchema,
@@ -19395,6 +19396,45 @@ describe('结论注入与 recall_evidence', () => {
     expect(systemPrompt()).not.toContain(
       'WHAT EARLIER ROUNDS SETTLED — oldest first',
     )
+  })
+
+  /** v3 用不上上几轮的结论记录（P2）：准备时 ⛔ 不读；交回旧内核时补读一次。 */
+  it('⛔ skipPriorRounds：开跑前不读那一跳', async () => {
+    const prepared = await prepareOperatorTurn(
+      'clerk-1',
+      buildRequest({ conversationId: CONVERSATION_ID }),
+      new AbortController().signal,
+      { skipPriorRounds: true },
+    )
+    expect(mockListAssistantConversationRounds).not.toHaveBeenCalled()
+    expect(prepared.run.priorRounds).toEqual([])
+    expect(prepared.priorRoundsSkipped).toBe(true)
+  })
+
+  it('跳过了读的那一份交回旧内核：补读一次，照样注入', async () => {
+    const prepared = await prepareOperatorTurn(
+      'clerk-1',
+      buildRequest({ conversationId: CONVERSATION_ID }),
+      new AbortController().signal,
+      { skipPriorRounds: true },
+    )
+    mockListAssistantConversationRounds.mockResolvedValueOnce([
+      round(0, { facts: ['库里有三张夜景'] }),
+    ])
+    queueTurns({ finished: true, message: '好的' })
+    await collect(
+      runOperatorTurn(
+        'clerk-1',
+        prepared.request,
+        {
+          signal: new AbortController().signal,
+          pastSoftBudget: () => false,
+        },
+        prepared,
+      ),
+    )
+    expect(mockListAssistantConversationRounds).toHaveBeenCalledTimes(1)
+    expect(systemPrompt()).toContain('Facts: 库里有三张夜景')
   })
 
   function recallTurn(refs: string[]) {

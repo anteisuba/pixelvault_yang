@@ -541,6 +541,17 @@ describe('v3 内核', () => {
     expect(events[1]).toMatchObject({ text: 'S04b 现在接了高尔一张参考。' })
   })
 
+  it('准备这一轮时 ⛔ 不读上几轮的结论记录（P2：v3 用不上）', async () => {
+    script(textTurn('好的。'))
+    await collect(runAssistantV3('clerk-1', request()))
+    expect(prepareOperatorTurn).toHaveBeenCalledWith(
+      'clerk-1',
+      expect.anything(),
+      expect.anything(),
+      { skipPriorRounds: true },
+    )
+  })
+
   it('自动生成开着：这一轮的话前面挂一行 AUTO-GENERATE ON（带张数上限），关着不挂', async () => {
     const on = script(textTurn('好。'))
     await collect(runAssistantV3('clerk-1', request({ autoGenerate: true })))

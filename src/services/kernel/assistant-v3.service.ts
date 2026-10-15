@@ -973,6 +973,8 @@ async function* runV3Turn(
         }
       : initialRequest,
     signal,
+    // v3 用不上上几轮的结论记录（P2）：⛔ 不读；交回旧内核时 `runOperatorTurn` 补读。
+    { skipPriorRounds: true },
   )
   /**
    * ⭐ 型号就是 `resolveAssistantRoute` 给的那一个（选定的，或「自动」挑的那一家的默认档，

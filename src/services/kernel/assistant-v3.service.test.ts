@@ -149,7 +149,11 @@ vi.mock('@/services/kernel/assistant-operator.service', () => ({
 }))
 
 vi.mock('@/services/kernel/assistant-v3-prompt.service', () => ({
-  buildAssistantV3SystemPrompt: () => 'SYSTEM',
+  buildAssistantV3SystemPrompt: () => ({
+    rules: 'SYSTEM',
+    creator: '',
+    text: 'SYSTEM',
+  }),
 }))
 
 vi.mock('@/services/kernel/assistant-v3-model.service', () => ({

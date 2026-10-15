@@ -147,7 +147,7 @@ describe('listAssistantMemories', () => {
 })
 
 describe('listAssistantMemoriesForPrompt', () => {
-  it('取当前域 + global，按 lastUsedAt 倒序', async () => {
+  it('取当前域 + global，按 lastUsedAt 倒序、并列按 id（选哪几条每次都一样）', async () => {
     mockFindMany.mockResolvedValue([row()])
     await listAssistantMemoriesForPrompt(
       'db_user_1',
@@ -156,7 +156,7 @@ describe('listAssistantMemoriesForPrompt', () => {
     )
     const args = mockFindMany.mock.calls[0][0]
     expect(args.where.scope.in).toEqual(['VIDEO', 'GLOBAL'])
-    expect(args.orderBy).toEqual({ lastUsedAt: 'desc' })
+    expect(args.orderBy).toEqual([{ lastUsedAt: 'desc' }, { id: 'asc' }])
     expect(args.take).toBe(5)
   })
 
@@ -238,7 +238,7 @@ describe('listCreatorMemoriesForPrompt', () => {
       source: 'CREATOR',
       scope: { in: ['VIDEO', 'GLOBAL'] },
     })
-    expect(args.orderBy).toEqual({ updatedAt: 'desc' })
+    expect(args.orderBy).toEqual([{ updatedAt: 'desc' }, { id: 'asc' }])
     expect(args.take).toBe(12)
   })
 

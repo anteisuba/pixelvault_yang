@@ -178,6 +178,21 @@ describe('assistant context budget', () => {
           followUpFresh: freshChars(turn2),
         }
         measured[key] = row
+        /**
+         * P2 稳定前缀：一轮里每一步（含接力那几跳）的「工具 + 系统提示」逐字相同，第二轮也是同一份
+         * （这道题里没有任何一样它依赖的东西变了）；相邻两步至少共用这一段。
+         */
+        expect(turn1.prefixes, 'tools + system changed within a turn').toEqual([
+          turn1.prefixes[0],
+        ])
+        expect(turn2.prefixes, 'tools + system changed across turns').toEqual(
+          turn1.prefixes,
+        )
+        expect(row.acrossTurns).toBeGreaterThanOrEqual(row.toolsAndSystem)
+        if (row.minStablePrefixInTurn !== null)
+          expect(row.minStablePrefixInTurn).toBeGreaterThanOrEqual(
+            row.toolsAndSystem,
+          )
         if (MODE === 'update') return
         const recorded = baseline[key]
         expect(

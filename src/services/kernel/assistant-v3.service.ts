@@ -1216,7 +1216,7 @@ async function* runV3Turn(
     modelId,
     routeModel: persona.routeModel,
     apiKeyId: run.apiKeyId ?? null,
-    systemPrompt: system,
+    systemPrompt: system.text,
   }
   const baseMessages: ModelMessage[] = [
     ...history,
@@ -1296,7 +1296,7 @@ async function* runV3Turn(
       const looks = await loadFreshLooks(context, signal)
       const result = streamText({
         model: model.model,
-        system,
+        system: system.text,
         messages: [
           ...baseMessages,
           ...transcriptMessages(

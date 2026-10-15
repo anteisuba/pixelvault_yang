@@ -1,0 +1,918 @@
+{
+  "projectId": "proj_hogwarts_replay",
+  "assetHost": "cdn.replay.test",
+  "state": {
+    "version": 4,
+    "nodes": [
+      {
+        "id": "image249e8b00-1000-4000-8000-000000000000",
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "data": {
+          "kind": "image",
+          "subtype": "character",
+          "name": "哈利 · 黑袍",
+          "createdAt": "2026-10-01T00:00:00.000Z",
+          "status": "idle",
+          "url": "https://cdn.replay.test/hogwarts/harry.png",
+          "model": {
+            "optionId": "workspace:gpt-image-2",
+            "modelId": "gpt-image-2",
+            "adapterType": "openai",
+            "providerConfig": {
+              "label": "OpenAI",
+              "baseUrl": "https://api.openai.com/v1/images"
+            }
+          },
+          "prompt": "全身立绘，哈利·波特，霍格沃茨黑色校袍，圆框眼镜，额头闪电疤，白底",
+          "params": {
+            "aspectRatio": "3:4",
+            "resolution": "1K",
+            "quality": "medium"
+          }
+        }
+      },
+      {
+        "id": "image5b7c1d00-1000-4000-8000-000000000001",
+        "position": {
+          "x": 300,
+          "y": 0
+        },
+        "data": {
+          "kind": "image",
+          "subtype": "character",
+          "name": "罗恩 · 黑袍",
+          "createdAt": "2026-10-01T00:00:00.000Z",
+          "status": "idle",
+          "url": "https://cdn.replay.test/hogwarts/ron.png",
+          "model": {
+            "optionId": "workspace:gpt-image-2",
+            "modelId": "gpt-image-2",
+            "adapterType": "openai",
+            "providerConfig": {
+              "label": "OpenAI",
+              "baseUrl": "https://api.openai.com/v1/images"
+            }
+          },
+          "prompt": "全身立绘，罗恩·韦斯莱，红发雀斑，霍格沃茨黑色校袍，白底",
+          "params": {
+            "aspectRatio": "3:4",
+            "resolution": "1K",
+            "quality": "medium"
+          }
+        }
+      },
+      {
+        "id": "image3e4f5a00-1000-4000-8000-000000000002",
+        "position": {
+          "x": 600,
+          "y": 0
+        },
+        "data": {
+          "kind": "image",
+          "subtype": "character",
+          "name": "赫敏 · 黑袍",
+          "createdAt": "2026-10-01T00:00:00.000Z",
+          "status": "idle",
+          "url": "https://cdn.replay.test/hogwarts/hermione.png",
+          "model": {
+            "optionId": "workspace:gpt-image-2",
+            "modelId": "gpt-image-2",
+            "adapterType": "openai",
+            "providerConfig": {
+              "label": "OpenAI",
+              "baseUrl": "https://api.openai.com/v1/images"
+            }
+          },
+          "prompt": "全身立绘，赫敏·格兰杰，浓密棕色卷发，霍格沃茨黑色校袍，白底",
+          "params": {
+            "aspectRatio": "3:4",
+            "resolution": "1K",
+            "quality": "medium"
+          }
+        }
+      },
+      {
+        "id": "image6a7b8c00-1000-4000-8000-000000000003",
+        "position": {
+          "x": 900,
+          "y": 0
+        },
+        "data": {
+          "kind": "image",
+          "subtype": "character",
+          "name": "马尔福 · 黑袍",
+          "createdAt": "2026-10-01T00:00:00.000Z",
+          "status": "idle",
+          "url": "https://cdn.replay.test/hogwarts/malfoy.png",
+          "model": {
+            "optionId": "workspace:gpt-image-2",
+            "modelId": "gpt-image-2",
+            "adapterType": "openai",
+            "providerConfig": {
+              "label": "OpenAI",
+              "baseUrl": "https://api.openai.com/v1/images"
+            }
+          },
+          "prompt": "全身立绘，德拉科·马尔福，铂金色背头，斯莱特林黑色校袍，白底",
+          "params": {
+            "aspectRatio": "3:4",
+            "resolution": "1K",
+            "quality": "medium"
+          }
+        }
+      },
+      {
+        "id": "image7e8f9a00-1000-4000-8000-000000000004",
+        "position": {
+          "x": 1200,
+          "y": 0
+        },
+        "data": {
+          "kind": "image",
+          "subtype": "character",
+          "name": "克拉布 · 黑袍",
+          "createdAt": "2026-10-01T00:00:00.000Z",
+          "status": "idle",
+          "url": "https://cdn.replay.test/hogwarts/crabbe.png",
+          "model": {
+            "optionId": "workspace:gpt-image-2",
+            "modelId": "gpt-image-2",
+            "adapterType": "openai",
+            "providerConfig": {
+              "label": "OpenAI",
+              "baseUrl": "https://api.openai.com/v1/images"
+            }
+          },
+          "prompt": "全身立绘，文森特·克拉布，矮壮，斯莱特林黑色校袍，白底",
+          "params": {
+            "aspectRatio": "3:4",
+            "resolution": "1K",
+            "quality": "medium"
+          }
+        }
+      },
+      {
+        "id": "image9c0d1e00-1000-4000-8000-000000000005",
+        "position": {
+          "x": 1500,
+          "y": 0
+        },
+        "data": {
+          "kind": "image",
+          "subtype": "character",
+          "name": "高尔 · 黑袍",
+          "createdAt": "2026-10-01T00:00:00.000Z",
+          "status": "idle",
+          "url": "https://cdn.replay.test/hogwarts/goyle.png",
+          "model": {
+            "optionId": "workspace:gpt-image-2",
+            "modelId": "gpt-image-2",
+            "adapterType": "openai",
+            "providerConfig": {
+              "label": "OpenAI",
+              "baseUrl": "https://api.openai.com/v1/images"
+            }
+          },
+          "prompt": "全身立绘，格雷戈里·高尔，魁梧，斯莱特林黑色校袍，白底",
+          "params": {
+            "aspectRatio": "3:4",
+            "resolution": "1K",
+            "quality": "medium"
+          }
+        }
+      },
+      {
+        "id": "imagee5f6a700-2000-4000-8000-000000000000",
+        "position": {
+          "x": 1800,
+          "y": 0
+        },
+        "data": {
+          "kind": "image",
+          "subtype": "background",
+          "name": "场景资产·霍格沃茨大礼堂",
+          "createdAt": "2026-10-01T00:00:00.000Z",
+          "status": "idle",
+          "url": "https://cdn.replay.test/hogwarts/hall.png",
+          "model": {
+            "optionId": "workspace:gpt-image-2",
+            "modelId": "gpt-image-2",
+            "adapterType": "openai",
+            "providerConfig": {
+              "label": "OpenAI",
+              "baseUrl": "https://api.openai.com/v1/images"
+            }
+          },
+          "prompt": "霍格沃茨大礼堂，漂浮的蜡烛，四张长桌，夜",
+          "params": {
+            "aspectRatio": "16:9",
+            "resolution": "2K"
+          }
+        }
+      },
+      {
+        "id": "imagef6a7b800-2000-4000-8000-000000000001",
+        "position": {
+          "x": 2100,
+          "y": 0
+        },
+        "data": {
+          "kind": "image",
+          "subtype": "background",
+          "name": "场景资产·雨夜走廊",
+          "createdAt": "2026-10-01T00:00:00.000Z",
+          "status": "idle",
+          "url": "https://cdn.replay.test/hogwarts/corridor.png",
+          "model": {
+            "optionId": "workspace:gpt-image-2",
+            "modelId": "gpt-image-2",
+            "adapterType": "openai",
+            "providerConfig": {
+              "label": "OpenAI",
+              "baseUrl": "https://api.openai.com/v1/images"
+            }
+          },
+          "prompt": "霍格沃茨石砌走廊，雨夜，壁灯暖黄，窗外冷蓝",
+          "params": {
+            "aspectRatio": "16:9",
+            "resolution": "2K"
+          }
+        }
+      },
+      {
+        "id": "video01a1b2c3-0000-4000-8000-000000000001",
+        "position": {
+          "x": 400,
+          "y": 600
+        },
+        "data": {
+          "kind": "video",
+          "subtype": "shot",
+          "name": "S01 礼堂门口",
+          "label": "礼堂门口",
+          "shotNo": 1,
+          "createdAt": "2026-10-01T00:00:00.000Z",
+          "status": "idle",
+          "url": "https://cdn.replay.test/hogwarts/s01.mp4",
+          "model": {
+            "optionId": "workspace:seedance-2.5-byteplus",
+            "modelId": "seedance-2.5-byteplus",
+            "adapterType": "byteplus",
+            "providerConfig": {
+              "label": "BytePlus",
+              "baseUrl": "https://ark.ap-southeast.bytepluses.com/api/v3"
+            }
+          },
+          "prompt": "全局设定：冷蓝灰雨夜的霍格沃茨，烛光暖黄、窗外冷蓝，16:9，电影质感但只写看得见的东西；人物外形以参考图为准，黑色校袍，纯净画面，无字幕无文字。\n镜头1（0-2秒）：远景平视，罗恩在礼堂门口回头，镜头缓慢推近，结束时主体停在画面中央偏左、离镜头约四米处。动作要连贯，衣摆随步伐摆动，脚步踩出细小水花，墙上的火把随风摇曳，光影在石墙上缓慢流动。\n镜头2（2-4秒）：硬切，中近景，侧逆光勾出人物轮廓，镜头沿 Z 轴稳定跟随，背景里的石柱一根根从镜头边缘掠过，人物的呼吸在冷空气里凝成白雾，眼神先看向画外再收回到前方。\n镜头3（4-5秒）：硬切，特写，烛泪滴在石阶上，镜头静止，焦点从前景缓慢移到人物的眼睛，结束在一个安静的停顿上。\n声音：雨声铺底，脚步在石廊里的回声，远处隐约的钟声；没有对白，没有音乐。\n补充：保持三个镜头之间的光线方向一致（主光来自画面右侧的火把），人物服装与参考图一致，不要额外的人物进入画面，不要镜头缩放冒充运镜，不要冻结的姿势，动作始终在进行。\n细节清单（第1镜）：石墙的缝隙里渗着雨水，在火光下闪出细碎的反光；地面是磨得发亮的青石板，倒映着火把与人物的剪影；袍子的布料是厚重的羊毛，湿了以后颜色更深、下摆贴着小腿；空气里有很淡的雾，越往画面深处越浓，让远处的拱门只剩轮廓；镜头运动始终平稳，没有手持晃动，推近与跟随的速度保持一致；人物的表情变化要小而真实，嘴角、眉头、呼吸节奏的变化比夸张的表情更重要；所有的光源都是画面里看得见的火把与窗外的冷光，不加看不见来源的补光；色彩上暖黄与冷蓝各占一半，暖色只在火把附近，冷色从窗口和走廊尽头渗进来，两种颜色在人物的脸上交汇；结尾那一拍留出半秒的静止，让下一镜可以硬切进来。",
+          "params": {
+            "aspectRatio": "16:9",
+            "resolution": "720p",
+            "duration": "5",
+            "generateAudio": true
+          }
+        }
+      },
+      {
+        "id": "image01f1f2f3-3000-4000-8000-000000000001",
+        "position": {
+          "x": 400,
+          "y": 300
+        },
+        "data": {
+          "kind": "image",
+          "subtype": "shot",
+          "name": "S01 首帧",
+          "createdAt": "2026-10-01T00:00:00.000Z",
+          "status": "idle",
+          "url": "https://cdn.replay.test/hogwarts/s01-first.png",
+          "model": {
+            "optionId": "workspace:gpt-image-2",
+            "modelId": "gpt-image-2",
+            "adapterType": "openai",
+            "providerConfig": {
+              "label": "OpenAI",
+              "baseUrl": "https://api.openai.com/v1/images"
+            }
+          },
+          "shotNo": 1,
+          "prompt": "罗恩在礼堂门口回头的首帧，16:9，冷蓝灰雨夜，烛光",
+          "params": {
+            "aspectRatio": "16:9",
+            "resolution": "1K"
+          }
+        }
+      },
+      {
+        "id": "video02a1b2c3-0000-4000-8000-000000000002",
+        "position": {
+          "x": 800,
+          "y": 600
+        },
+        "data": {
+          "kind": "video",
+          "subtype": "shot",
+          "name": "S02 雨窗",
+          "label": "雨窗",
+          "shotNo": 2,
+          "createdAt": "2026-10-01T00:00:00.000Z",
+          "status": "idle",
+          "model": {
+            "optionId": "workspace:seedance-2.5-byteplus",
+            "modelId": "seedance-2.5-byteplus",
+            "adapterType": "byteplus",
+            "providerConfig": {
+              "label": "BytePlus",
+              "baseUrl": "https://ark.ap-southeast.bytepluses.com/api/v3"
+            }
+          },
+          "prompt": "全局设定：冷蓝灰雨夜的霍格沃茨，烛光暖黄、窗外冷蓝，16:9，电影质感但只写看得见的东西；人物外形以参考图为准，黑色校袍，纯净画面，无字幕无文字。\n镜头1（0-2秒）：远景平视，哈利和罗恩在雨窗前低声说话，镜头缓慢推近，结束时主体停在画面中央偏左、离镜头约四米处。动作要连贯，衣摆随步伐摆动，脚步踩出细小水花，墙上的火把随风摇曳，光影在石墙上缓慢流动。\n镜头2（2-4秒）：硬切，中近景，侧逆光勾出人物轮廓，镜头沿 Z 轴稳定跟随，背景里的石柱一根根从镜头边缘掠过，人物的呼吸在冷空气里凝成白雾，眼神先看向画外再收回到前方。\n镜头3（4-5秒）：硬切，特写，窗玻璃上的雨痕像裂纹，镜头静止，焦点从前景缓慢移到人物的眼睛，结束在一个安静的停顿上。\n声音：雨声铺底，脚步在石廊里的回声，远处隐约的钟声；没有对白，没有音乐。\n补充：保持三个镜头之间的光线方向一致（主光来自画面右侧的火把），人物服装与参考图一致，不要额外的人物进入画面，不要镜头缩放冒充运镜，不要冻结的姿势，动作始终在进行。\n细节清单（第2镜）：石墙的缝隙里渗着雨水，在火光下闪出细碎的反光；地面是磨得发亮的青石板，倒映着火把与人物的剪影；袍子的布料是厚重的羊毛，湿了以后颜色更深、下摆贴着小腿；空气里有很淡的雾，越往画面深处越浓，让远处的拱门只剩轮廓；镜头运动始终平稳，没有手持晃动，推近与跟随的速度保持一致；人物的表情变化要小而真实，嘴角、眉头、呼吸节奏的变化比夸张的表情更重要；所有的光源都是画面里看得见的火把与窗外的冷光，不加看不见来源的补光；色彩上暖黄与冷蓝各占一半，暖色只在火把附近，冷色从窗口和走廊尽头渗进来，两种颜色在人物的脸上交汇；结尾那一拍留出半秒的静止，让下一镜可以硬切进来。",
+          "params": {
+            "aspectRatio": "16:9",
+            "resolution": "720p",
+            "duration": "5",
+            "generateAudio": true
+          }
+        }
+      },
+      {
+        "id": "video03a1b2c3-0000-4000-8000-000000000003",
+        "position": {
+          "x": 1200,
+          "y": 600
+        },
+        "data": {
+          "kind": "video",
+          "subtype": "shot",
+          "name": "S03 走廊",
+          "label": "走廊",
+          "shotNo": 3,
+          "createdAt": "2026-10-01T00:00:00.000Z",
+          "status": "idle",
+          "model": {
+            "optionId": "workspace:seedance-2.5-byteplus",
+            "modelId": "seedance-2.5-byteplus",
+            "adapterType": "byteplus",
+            "providerConfig": {
+              "label": "BytePlus",
+              "baseUrl": "https://ark.ap-southeast.bytepluses.com/api/v3"
+            }
+          },
+          "prompt": "全局设定：冷蓝灰雨夜的霍格沃茨，烛光暖黄、窗外冷蓝，16:9，电影质感但只写看得见的东西；人物外形以参考图为准，黑色校袍，纯净画面，无字幕无文字。\n镜头1（0-2秒）：远景平视，哈利快步穿过雨夜走廊，镜头缓慢推近，结束时主体停在画面中央偏左、离镜头约四米处。动作要连贯，衣摆随步伐摆动，脚步踩出细小水花，墙上的火把随风摇曳，光影在石墙上缓慢流动。\n镜头2（2-4秒）：硬切，中近景，侧逆光勾出人物轮廓，镜头沿 Z 轴稳定跟随，背景里的石柱一根根从镜头边缘掠过，人物的呼吸在冷空气里凝成白雾，眼神先看向画外再收回到前方。\n镜头3（4-5秒）：硬切，特写，盔甲的影子在墙上拉长，镜头静止，焦点从前景缓慢移到人物的眼睛，结束在一个安静的停顿上。\n声音：雨声铺底，脚步在石廊里的回声，远处隐约的钟声；没有对白，没有音乐。\n补充：保持三个镜头之间的光线方向一致（主光来自画面右侧的火把），人物服装与参考图一致，不要额外的人物进入画面，不要镜头缩放冒充运镜，不要冻结的姿势，动作始终在进行。\n细节清单（第3镜）：石墙的缝隙里渗着雨水，在火光下闪出细碎的反光；地面是磨得发亮的青石板，倒映着火把与人物的剪影；袍子的布料是厚重的羊毛，湿了以后颜色更深、下摆贴着小腿；空气里有很淡的雾，越往画面深处越浓，让远处的拱门只剩轮廓；镜头运动始终平稳，没有手持晃动，推近与跟随的速度保持一致；人物的表情变化要小而真实，嘴角、眉头、呼吸节奏的变化比夸张的表情更重要；所有的光源都是画面里看得见的火把与窗外的冷光，不加看不见来源的补光；色彩上暖黄与冷蓝各占一半，暖色只在火把附近，冷色从窗口和走廊尽头渗进来，两种颜色在人物的脸上交汇；结尾那一拍留出半秒的静止，让下一镜可以硬切进来。",
+          "params": {
+            "aspectRatio": "16:9",
+            "resolution": "720p",
+            "duration": "5",
+            "generateAudio": true
+          }
+        }
+      },
+      {
+        "id": "video04a1b2c3-0000-4000-8000-000000000004",
+        "position": {
+          "x": 1600,
+          "y": 600
+        },
+        "data": {
+          "kind": "video",
+          "subtype": "shot",
+          "name": "S04 冲出门",
+          "label": "冲出门",
+          "shotNo": 4,
+          "createdAt": "2026-10-01T00:00:00.000Z",
+          "status": "idle",
+          "url": "https://cdn.replay.test/hogwarts/s04.mp4",
+          "model": {
+            "optionId": "workspace:seedance-2.5-byteplus",
+            "modelId": "seedance-2.5-byteplus",
+            "adapterType": "byteplus",
+            "providerConfig": {
+              "label": "BytePlus",
+              "baseUrl": "https://ark.ap-southeast.bytepluses.com/api/v3"
+            }
+          },
+          "prompt": "全局设定：冷蓝灰雨夜的霍格沃茨，烛光暖黄、窗外冷蓝，16:9，电影质感但只写看得见的东西；人物外形以参考图为准，黑色校袍，纯净画面，无字幕无文字。\n镜头1（0-2秒）：远景平视，马尔福撞开礼堂大门冲出来，镜头缓慢推近，结束时主体停在画面中央偏左、离镜头约四米处。动作要连贯，衣摆随步伐摆动，脚步踩出细小水花，墙上的火把随风摇曳，光影在石墙上缓慢流动。\n镜头2（2-4秒）：硬切，中近景，侧逆光勾出人物轮廓，镜头沿 Z 轴稳定跟随，背景里的石柱一根根从镜头边缘掠过，人物的呼吸在冷空气里凝成白雾，眼神先看向画外再收回到前方。\n镜头3（4-5秒）：硬切，特写，门环撞在墙上弹回，镜头静止，焦点从前景缓慢移到人物的眼睛，结束在一个安静的停顿上。\n声音：雨声铺底，脚步在石廊里的回声，远处隐约的钟声；没有对白，没有音乐。\n补充：保持三个镜头之间的光线方向一致（主光来自画面右侧的火把），人物服装与参考图一致，不要额外的人物进入画面，不要镜头缩放冒充运镜，不要冻结的姿势，动作始终在进行。\n细节清单（第4镜）：石墙的缝隙里渗着雨水，在火光下闪出细碎的反光；地面是磨得发亮的青石板，倒映着火把与人物的剪影；袍子的布料是厚重的羊毛，湿了以后颜色更深、下摆贴着小腿；空气里有很淡的雾，越往画面深处越浓，让远处的拱门只剩轮廓；镜头运动始终平稳，没有手持晃动，推近与跟随的速度保持一致；人物的表情变化要小而真实，嘴角、眉头、呼吸节奏的变化比夸张的表情更重要；所有的光源都是画面里看得见的火把与窗外的冷光，不加看不见来源的补光；色彩上暖黄与冷蓝各占一半，暖色只在火把附近，冷色从窗口和走廊尽头渗进来，两种颜色在人物的脸上交汇；结尾那一拍留出半秒的静止，让下一镜可以硬切进来。",
+          "params": {
+            "aspectRatio": "16:9",
+            "resolution": "720p",
+            "duration": "5",
+            "generateAudio": true
+          }
+        }
+      },
+      {
+        "id": "image04f1f2f3-3000-4000-8000-000000000004",
+        "position": {
+          "x": 1600,
+          "y": 300
+        },
+        "data": {
+          "kind": "image",
+          "subtype": "shot",
+          "name": "S04 首帧",
+          "createdAt": "2026-10-01T00:00:00.000Z",
+          "status": "idle",
+          "url": "https://cdn.replay.test/hogwarts/s04-first.png",
+          "model": {
+            "optionId": "workspace:gpt-image-2",
+            "modelId": "gpt-image-2",
+            "adapterType": "openai",
+            "providerConfig": {
+              "label": "OpenAI",
+              "baseUrl": "https://api.openai.com/v1/images"
+            }
+          },
+          "shotNo": 4,
+          "prompt": "马尔福撞开礼堂大门冲出来的首帧，16:9，冷蓝灰雨夜，烛光",
+          "params": {
+            "aspectRatio": "16:9",
+            "resolution": "1K"
+          }
+        }
+      },
+      {
+        "id": "video05a1b2c3-0000-4000-8000-000000000005",
+        "position": {
+          "x": 2000,
+          "y": 600
+        },
+        "data": {
+          "kind": "video",
+          "subtype": "shot",
+          "name": "S05 礼堂",
+          "label": "礼堂",
+          "shotNo": 5,
+          "createdAt": "2026-10-01T00:00:00.000Z",
+          "status": "idle",
+          "model": {
+            "optionId": "workspace:seedance-2.5-byteplus",
+            "modelId": "seedance-2.5-byteplus",
+            "adapterType": "byteplus",
+            "providerConfig": {
+              "label": "BytePlus",
+              "baseUrl": "https://ark.ap-southeast.bytepluses.com/api/v3"
+            }
+          },
+          "prompt": "0-5s 新生排队走向分院帽；分院帽的帽檐微微张开",
+          "params": {
+            "aspectRatio": "16:9",
+            "resolution": "720p",
+            "duration": "5",
+            "generateAudio": true
+          }
+        }
+      },
+      {
+        "id": "video06a1b2c3-0000-4000-8000-000000000006",
+        "position": {
+          "x": 2400,
+          "y": 600
+        },
+        "data": {
+          "kind": "video",
+          "subtype": "shot",
+          "name": "S06 分院帽",
+          "label": "分院帽",
+          "shotNo": 6,
+          "createdAt": "2026-10-01T00:00:00.000Z",
+          "status": "idle",
+          "model": {
+            "optionId": "workspace:seedance-2.5-byteplus",
+            "modelId": "seedance-2.5-byteplus",
+            "adapterType": "byteplus",
+            "providerConfig": {
+              "label": "BytePlus",
+              "baseUrl": "https://ark.ap-southeast.bytepluses.com/api/v3"
+            }
+          },
+          "prompt": "0-5s 分院帽大喊学院名；帽子的褶皱像一张嘴",
+          "params": {
+            "aspectRatio": "16:9",
+            "resolution": "720p",
+            "duration": "5",
+            "generateAudio": true
+          }
+        }
+      },
+      {
+        "id": "video07a1b2c3-0000-4000-8000-000000000007",
+        "position": {
+          "x": 2800,
+          "y": 600
+        },
+        "data": {
+          "kind": "video",
+          "subtype": "shot",
+          "name": "S07 长桌",
+          "label": "长桌",
+          "shotNo": 7,
+          "createdAt": "2026-10-01T00:00:00.000Z",
+          "status": "idle",
+          "url": "https://cdn.replay.test/hogwarts/s07.mp4",
+          "model": {
+            "optionId": "workspace:seedance-2.5-byteplus",
+            "modelId": "seedance-2.5-byteplus",
+            "adapterType": "byteplus",
+            "providerConfig": {
+              "label": "BytePlus",
+              "baseUrl": "https://ark.ap-southeast.bytepluses.com/api/v3"
+            }
+          },
+          "prompt": "0-5s 斯莱特林长桌，马尔福冷笑；银质酒杯里映出烛光",
+          "params": {
+            "aspectRatio": "16:9",
+            "resolution": "720p",
+            "duration": "5",
+            "generateAudio": true
+          }
+        }
+      },
+      {
+        "id": "image07f1f2f3-3000-4000-8000-000000000007",
+        "position": {
+          "x": 2800,
+          "y": 300
+        },
+        "data": {
+          "kind": "image",
+          "subtype": "shot",
+          "name": "S07 首帧",
+          "createdAt": "2026-10-01T00:00:00.000Z",
+          "status": "idle",
+          "url": "https://cdn.replay.test/hogwarts/s07-first.png",
+          "model": {
+            "optionId": "workspace:gpt-image-2",
+            "modelId": "gpt-image-2",
+            "adapterType": "openai",
+            "providerConfig": {
+              "label": "OpenAI",
+              "baseUrl": "https://api.openai.com/v1/images"
+            }
+          },
+          "shotNo": 7,
+          "prompt": "斯莱特林长桌，马尔福冷笑的首帧，16:9，冷蓝灰雨夜，烛光",
+          "params": {
+            "aspectRatio": "16:9",
+            "resolution": "1K"
+          }
+        }
+      },
+      {
+        "id": "video08a1b2c3-0000-4000-8000-000000000008",
+        "position": {
+          "x": 3200,
+          "y": 600
+        },
+        "data": {
+          "kind": "video",
+          "subtype": "shot",
+          "name": "S08 退场",
+          "label": "退场",
+          "shotNo": 8,
+          "createdAt": "2026-10-01T00:00:00.000Z",
+          "status": "idle",
+          "model": {
+            "optionId": "workspace:seedance-2.5-byteplus",
+            "modelId": "seedance-2.5-byteplus",
+            "adapterType": "byteplus",
+            "providerConfig": {
+              "label": "BytePlus",
+              "baseUrl": "https://ark.ap-southeast.bytepluses.com/api/v3"
+            }
+          },
+          "prompt": "0-5s 晚宴结束，学生离开礼堂；最后一支蜡烛熄灭",
+          "params": {
+            "aspectRatio": "16:9",
+            "resolution": "720p",
+            "duration": "5",
+            "generateAudio": true
+          }
+        }
+      },
+      {
+        "id": "video09a1b2c3-0000-4000-8000-000000000009",
+        "position": {
+          "x": 3600,
+          "y": 600
+        },
+        "data": {
+          "kind": "video",
+          "subtype": "shot",
+          "name": "S09 塔楼",
+          "label": "塔楼",
+          "shotNo": 9,
+          "createdAt": "2026-10-01T00:00:00.000Z",
+          "status": "idle",
+          "model": {
+            "optionId": "workspace:seedance-2.5-byteplus",
+            "modelId": "seedance-2.5-byteplus",
+            "adapterType": "byteplus",
+            "providerConfig": {
+              "label": "BytePlus",
+              "baseUrl": "https://ark.ap-southeast.bytepluses.com/api/v3"
+            }
+          },
+          "prompt": "0-5s 赫敏在塔楼窗边翻书；书页被风翻到地图那一页",
+          "params": {
+            "aspectRatio": "16:9",
+            "resolution": "720p",
+            "duration": "5",
+            "generateAudio": true
+          }
+        }
+      },
+      {
+        "id": "video10a1b2c3-0000-4000-8000-000000000010",
+        "position": {
+          "x": 4000,
+          "y": 600
+        },
+        "data": {
+          "kind": "video",
+          "subtype": "shot",
+          "name": "S10 对峙",
+          "label": "对峙",
+          "shotNo": 10,
+          "createdAt": "2026-10-01T00:00:00.000Z",
+          "status": "idle",
+          "url": "https://cdn.replay.test/hogwarts/s10.mp4",
+          "model": {
+            "optionId": "workspace:seedance-2.5-byteplus",
+            "modelId": "seedance-2.5-byteplus",
+            "adapterType": "byteplus",
+            "providerConfig": {
+              "label": "BytePlus",
+              "baseUrl": "https://ark.ap-southeast.bytepluses.com/api/v3"
+            }
+          },
+          "prompt": "0-5s 哈利与马尔福在楼梯上对峙；楼梯在两人脚下开始转动",
+          "params": {
+            "aspectRatio": "16:9",
+            "resolution": "720p",
+            "duration": "5",
+            "generateAudio": true
+          }
+        }
+      },
+      {
+        "id": "image10f1f2f3-3000-4000-8000-000000000010",
+        "position": {
+          "x": 4000,
+          "y": 300
+        },
+        "data": {
+          "kind": "image",
+          "subtype": "shot",
+          "name": "S10 首帧",
+          "createdAt": "2026-10-01T00:00:00.000Z",
+          "status": "idle",
+          "url": "https://cdn.replay.test/hogwarts/s10-first.png",
+          "model": {
+            "optionId": "workspace:gpt-image-2",
+            "modelId": "gpt-image-2",
+            "adapterType": "openai",
+            "providerConfig": {
+              "label": "OpenAI",
+              "baseUrl": "https://api.openai.com/v1/images"
+            }
+          },
+          "shotNo": 10,
+          "prompt": "哈利与马尔福在楼梯上对峙的首帧，16:9，冷蓝灰雨夜，烛光",
+          "params": {
+            "aspectRatio": "16:9",
+            "resolution": "1K"
+          }
+        }
+      },
+      {
+        "id": "video11a1b2c3-0000-4000-8000-000000000011",
+        "position": {
+          "x": 4400,
+          "y": 600
+        },
+        "data": {
+          "kind": "video",
+          "subtype": "shot",
+          "name": "S11 追逐",
+          "label": "追逐",
+          "shotNo": 11,
+          "createdAt": "2026-10-01T00:00:00.000Z",
+          "status": "idle",
+          "model": {
+            "optionId": "workspace:seedance-2.5-byteplus",
+            "modelId": "seedance-2.5-byteplus",
+            "adapterType": "byteplus",
+            "providerConfig": {
+              "label": "BytePlus",
+              "baseUrl": "https://ark.ap-southeast.bytepluses.com/api/v3"
+            }
+          },
+          "prompt": "0-5s 克拉布和高尔在走廊追哈利；火把一盏接一盏被风吹灭",
+          "params": {
+            "aspectRatio": "16:9",
+            "resolution": "720p",
+            "duration": "5",
+            "generateAudio": true
+          }
+        }
+      },
+      {
+        "id": "video12a1b2c3-0000-4000-8000-000000000012",
+        "position": {
+          "x": 4800,
+          "y": 600
+        },
+        "data": {
+          "kind": "video",
+          "subtype": "shot",
+          "name": "S12 天亮",
+          "label": "天亮",
+          "shotNo": 12,
+          "createdAt": "2026-10-01T00:00:00.000Z",
+          "status": "idle",
+          "model": {
+            "optionId": "workspace:seedance-2.5-byteplus",
+            "modelId": "seedance-2.5-byteplus",
+            "adapterType": "byteplus",
+            "providerConfig": {
+              "label": "BytePlus",
+              "baseUrl": "https://ark.ap-southeast.bytepluses.com/api/v3"
+            }
+          },
+          "prompt": "0-5s 清晨的礼堂空无一人；第一缕阳光照在长桌尽头",
+          "params": {
+            "aspectRatio": "16:9",
+            "resolution": "720p",
+            "duration": "5",
+            "generateAudio": true
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-5b7c1d-s01",
+        "source": "image5b7c1d00-1000-4000-8000-000000000001",
+        "sourceHandle": "out",
+        "target": "video01a1b2c3-0000-4000-8000-000000000001",
+        "slot": "reference"
+      },
+      {
+        "id": "e-first-s01",
+        "source": "image01f1f2f3-3000-4000-8000-000000000001",
+        "sourceHandle": "out",
+        "target": "video01a1b2c3-0000-4000-8000-000000000001",
+        "slot": "firstFrame"
+      },
+      {
+        "id": "e-249e8b-s02",
+        "source": "image249e8b00-1000-4000-8000-000000000000",
+        "sourceHandle": "out",
+        "target": "video02a1b2c3-0000-4000-8000-000000000002",
+        "slot": "reference"
+      },
+      {
+        "id": "e-5b7c1d-s02",
+        "source": "image5b7c1d00-1000-4000-8000-000000000001",
+        "sourceHandle": "out",
+        "target": "video02a1b2c3-0000-4000-8000-000000000002",
+        "slot": "reference"
+      },
+      {
+        "id": "e-249e8b-s03",
+        "source": "image249e8b00-1000-4000-8000-000000000000",
+        "sourceHandle": "out",
+        "target": "video03a1b2c3-0000-4000-8000-000000000003",
+        "slot": "reference"
+      },
+      {
+        "id": "e-6a7b8c-s04",
+        "source": "image6a7b8c00-1000-4000-8000-000000000003",
+        "sourceHandle": "out",
+        "target": "video04a1b2c3-0000-4000-8000-000000000004",
+        "slot": "reference"
+      },
+      {
+        "id": "e-7e8f9a-s04",
+        "source": "image7e8f9a00-1000-4000-8000-000000000004",
+        "sourceHandle": "out",
+        "target": "video04a1b2c3-0000-4000-8000-000000000004",
+        "slot": "reference"
+      },
+      {
+        "id": "e-9c0d1e-s04",
+        "source": "image9c0d1e00-1000-4000-8000-000000000005",
+        "sourceHandle": "out",
+        "target": "video04a1b2c3-0000-4000-8000-000000000004",
+        "slot": "reference"
+      },
+      {
+        "id": "e-first-s04",
+        "source": "image04f1f2f3-3000-4000-8000-000000000004",
+        "sourceHandle": "out",
+        "target": "video04a1b2c3-0000-4000-8000-000000000004",
+        "slot": "firstFrame"
+      },
+      {
+        "id": "e-249e8b-s05",
+        "source": "image249e8b00-1000-4000-8000-000000000000",
+        "sourceHandle": "out",
+        "target": "video05a1b2c3-0000-4000-8000-000000000005",
+        "slot": "reference"
+      },
+      {
+        "id": "e-3e4f5a-s05",
+        "source": "image3e4f5a00-1000-4000-8000-000000000002",
+        "sourceHandle": "out",
+        "target": "video05a1b2c3-0000-4000-8000-000000000005",
+        "slot": "reference"
+      },
+      {
+        "id": "e-6a7b8c-s07",
+        "source": "image6a7b8c00-1000-4000-8000-000000000003",
+        "sourceHandle": "out",
+        "target": "video07a1b2c3-0000-4000-8000-000000000007",
+        "slot": "reference"
+      },
+      {
+        "id": "e-first-s07",
+        "source": "image07f1f2f3-3000-4000-8000-000000000007",
+        "sourceHandle": "out",
+        "target": "video07a1b2c3-0000-4000-8000-000000000007",
+        "slot": "firstFrame"
+      },
+      {
+        "id": "e-249e8b-s08",
+        "source": "image249e8b00-1000-4000-8000-000000000000",
+        "sourceHandle": "out",
+        "target": "video08a1b2c3-0000-4000-8000-000000000008",
+        "slot": "reference"
+      },
+      {
+        "id": "e-5b7c1d-s08",
+        "source": "image5b7c1d00-1000-4000-8000-000000000001",
+        "sourceHandle": "out",
+        "target": "video08a1b2c3-0000-4000-8000-000000000008",
+        "slot": "reference"
+      },
+      {
+        "id": "e-3e4f5a-s08",
+        "source": "image3e4f5a00-1000-4000-8000-000000000002",
+        "sourceHandle": "out",
+        "target": "video08a1b2c3-0000-4000-8000-000000000008",
+        "slot": "reference"
+      },
+      {
+        "id": "e-3e4f5a-s09",
+        "source": "image3e4f5a00-1000-4000-8000-000000000002",
+        "sourceHandle": "out",
+        "target": "video09a1b2c3-0000-4000-8000-000000000009",
+        "slot": "reference"
+      },
+      {
+        "id": "e-249e8b-s10",
+        "source": "image249e8b00-1000-4000-8000-000000000000",
+        "sourceHandle": "out",
+        "target": "video10a1b2c3-0000-4000-8000-000000000010",
+        "slot": "reference"
+      },
+      {
+        "id": "e-6a7b8c-s10",
+        "source": "image6a7b8c00-1000-4000-8000-000000000003",
+        "sourceHandle": "out",
+        "target": "video10a1b2c3-0000-4000-8000-000000000010",
+        "slot": "reference"
+      },
+      {
+        "id": "e-first-s10",
+        "source": "image10f1f2f3-3000-4000-8000-000000000010",
+        "sourceHandle": "out",
+        "target": "video10a1b2c3-0000-4000-8000-000000000010",
+        "slot": "firstFrame"
+      },
+      {
+        "id": "e-7e8f9a-s11",
+        "source": "image7e8f9a00-1000-4000-8000-000000000004",
+        "sourceHandle": "out",
+        "target": "video11a1b2c3-0000-4000-8000-000000000011",
+        "slot": "reference"
+      },
+      {
+        "id": "e-9c0d1e-s11",
+        "source": "image9c0d1e00-1000-4000-8000-000000000005",
+        "sourceHandle": "out",
+        "target": "video11a1b2c3-0000-4000-8000-000000000011",
+        "slot": "reference"
+      },
+      {
+        "id": "e-249e8b-s11",
+        "source": "image249e8b00-1000-4000-8000-000000000000",
+        "sourceHandle": "out",
+        "target": "video11a1b2c3-0000-4000-8000-000000000011",
+        "slot": "reference"
+      }
+    ]
+  }
+}

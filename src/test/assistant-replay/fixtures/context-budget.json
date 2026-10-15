@@ -1,4 +1,36 @@
 {
+  "L01 deepseek/deepseek-flash": {
+    "steps": 5,
+    "stepTotals": [31579, 32957, 34327, 35660, 37111],
+    "firstStep": 31579,
+    "firstStepTools": 13531,
+    "firstStepSystem": 15304,
+    "firstStepMessages": 2720,
+    "turnTotal": 171634,
+    "turnFresh": 37115,
+    "minStablePrefixInTurn": 31578,
+    "auxCalls": 1,
+    "auxChars": 2446,
+    "acrossTurns": 28885,
+    "toolsAndSystem": 28835,
+    "followUpFresh": 8364
+  },
+  "L02 anthropic/claude-sonnet-5-5": {
+    "steps": 5,
+    "stepTotals": [33700, 51820, 69938, 88060, 88399],
+    "firstStep": 33700,
+    "firstStepTools": 13531,
+    "firstStepSystem": 15304,
+    "firstStepMessages": 4841,
+    "turnTotal": 331917,
+    "turnFresh": 142763,
+    "minStablePrefixInTurn": 33699,
+    "auxCalls": 1,
+    "auxChars": 2522,
+    "acrossTurns": 28909,
+    "toolsAndSystem": 28835,
+    "followUpFresh": 114071
+  },
   "P01 anthropic/claude-sonnet-5-5": {
     "steps": 3,
     "stepTotals": [33121, 40573, 41606],

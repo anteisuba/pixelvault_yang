@@ -236,6 +236,12 @@ export const ASSISTANT_V3_READ_SOURCE_NOTE =
  */
 export const ASSISTANT_V3_GUIDE_ITEM_PREFIX = 'guide:'
 
+/**
+ * 整份写法开头那一行的前缀（后接型号 id 与换行）：本轮记录里有它 = 那份写法这一轮已经摆到模型
+ * 眼前（写词闸认它），瘦身时也按它留着不瘦（`planAssistantV3TranscriptView`）。
+ */
+export const ASSISTANT_V3_GUIDE_HEADING = 'PROMPT GUIDE FOR '
+
 /** 联网那两种（每张脸的 `search_library` 都收）。 */
 export const ASSISTANT_V3_WEB_SEARCH_KINDS = [
   ASSISTANT_V3_WEB_IMAGES_SEARCH_KIND,
@@ -314,6 +320,10 @@ export const ASSISTANT_V3_LIMITS = {
   /** 一轮最多几次模型往返（含接力之后的）。 */
   maxSteps: 16,
   maxTranscriptEntries: 96,
+  /**
+   * 一次调用里本轮记录（除板子以外：模型的话、调用入参、工具结果）最多发多少字；超了按
+   * `ASSISTANT_V3_TRANSCRIPT_SLIM` 的次序一级一级瘦下去（`planAssistantV3TranscriptView`）。
+   */
   maxTranscriptChars: 400_000,
   maxBoardChars: 160_000,
   maxEntryChars: 60_000,
@@ -346,6 +356,38 @@ export const ASSISTANT_V3_LIMITS = {
   maxResultCardTextChars: 1_200,
   /** 英文台词每秒大约说得完几个词（出片前核对台词塞不塞得进这一段）。 */
   dialogueWordsPerSecond: 2.5,
+} as const
+
+/**
+ * 本轮记录瘦身（P2 第二片，设计方案 §2.3）。一轮之内，查来的东西（`read` 的卡与网页全文、`look`、
+ * `search_web`、`search_library` 的清单）只有**最近 `keepFullResults` 条**原样发，更早的换成几行
+ * 摘要 —— 留着句柄、`[n]`、`#n`，要细节再调一次同一个工具。
+ * - ⚠ `slimAboveChars`：本轮记录**原样**（模型的话 + 调用入参 + 结果全文）过了这么多字才开始按
+ *   「最近几条」瘦；没过一字不动。瘦掉一条 = 缓存前缀从那一条起断一次，那条之后的东西整段重算；
+ *   省下的那几个字往后每步只按缓存价（约一折）计。回放实测（L01：四张约 1.1k 字的卡逐张读）：
+ *   照字面每步都瘦，整轮少发 907 字，要重算的字反倒多 2,962（+8%）。所以只在长轮次里瘦 —— 与
+ *   Claude 自家 context editing 同一个思路（默认也是留最近 3 次，过了触发线才清）。⚠ 这是我的
+ *   取舍（P2），不是 owner 定的；设成 0 就回到照字面每步都瘦。原样只增不减（记录只往后接），
+ *   过了线就一直瘦，不会来回翻。
+ * - `slimMinChars`：原样不到这么长的不瘦；摘要不到原样一半的也不换（瘦了省不下几个字，还白白
+ *   断一次缓存前缀）。
+ * - 摘要 = 一行说明 + 第一行 + 条目行（以句柄 / `#n` / `[n]` 开头的顶格行，前 `slimLines` 行，每行
+ *   截到 `slimLineChars`）+ 其余地方出现的句柄 / 编号（最多 `slimRefs` 个）。
+ * - 整份写法（`ASSISTANT_V3_GUIDE_HEADING`）不按「最近几条」瘦：写词时要它在眼前。
+ * - 超过 `ASSISTANT_V3_LIMITS.maxTranscriptChars` 时的次序（与 `slimAboveChars` 无关；每级都在
+ *   上一级之上，够了就停）：① 最后一条 assistant 之前的查来的东西全瘦 → ② 最后一条 assistant 之前
+ *   的所有结果全瘦（含写法、改动回执）→ ③ 更早的 assistant 正文截到 `clippedAssistantChars` →
+ *   ④ 最后一条 assistant 之后的结果（模型刚要的，最后才动）平分剩下的字数、截短。调用入参一个字
+ *   不动（截了不是合法 JSON）。
+ */
+export const ASSISTANT_V3_TRANSCRIPT_SLIM = {
+  slimAboveChars: 60_000,
+  keepFullResults: 3,
+  slimMinChars: 800,
+  slimLines: 8,
+  slimLineChars: 120,
+  slimRefs: 24,
+  clippedAssistantChars: 400,
 } as const
 
 /**

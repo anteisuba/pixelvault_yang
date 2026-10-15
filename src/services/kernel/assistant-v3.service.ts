@@ -72,6 +72,10 @@ import {
   promptTimelineEnd,
 } from '@/lib/assistant-v3-shot-checks'
 import { renderAssistantV3MentionTable } from '@/lib/assistant-v3-mentions'
+import {
+  planAssistantV3TranscriptView,
+  type AssistantV3TranscriptView,
+} from '@/lib/assistant-v3-transcript-view'
 import { ASSISTANT_MENTION_SCOPE_IDS } from '@/constants/assistant-mention'
 import type { AssistantMentionRef } from '@/types/assistant-mention'
 import {
@@ -554,6 +558,7 @@ function parseInput(call: AssistantV3TranscriptCall): unknown {
  */
 function transcriptMessages(
   entries: readonly AssistantV3TranscriptEntry[],
+  view: AssistantV3TranscriptView,
   looks: ReadonlyMap<string, V3FreshLook>,
   picturesInResult: boolean,
 ): ModelMessage[] {
@@ -569,20 +574,19 @@ function transcriptMessages(
     after = []
   }
   /**
-   * ⭐ 查证那一大段摘录只给紧跟着的那一次调用（与 look 的图同一个判据：最后一条 assistant
-   *   之后的结果才算新）；再往后只读短版（`compact`，搜索期第三片）。⚠ 换成短版的那一步
-   *   前缀变了，缓存从那一条起断一次 —— 与看图同一个代价，换来之后每一步都省下那一段。
+   * ⭐ 每条结果发什么字由 `view` 定（`planAssistantV3TranscriptView`）：查证那一大段摘录只给
+   *   紧跟着的那一次调用、再往后只读短版（`compact`，搜索期第三片）；长轮次里查来的东西只留最近
+   *   几条原样（P2 第二片）；超了 `maxTranscriptChars` 一级一级瘦。⚠ 换成短版 / 摘要的那一步前缀变了，
+   *   缓存从那一条起断一次 —— 与看图同一个代价，换来之后每一步都省下那一段。
    */
-  const lastAssistant = entries.findLastIndex(
-    (entry) => entry.type === ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.assistant,
-  )
   for (const [index, entry] of entries.entries()) {
     if (entry.type === ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.assistant) {
       flush()
+      const text = view.assistantTexts.get(index) ?? entry.text
       out.push({
         role: 'assistant',
         content: [
-          ...(entry.text ? [{ type: 'text' as const, text: entry.text }] : []),
+          ...(text ? [{ type: 'text' as const, text }] : []),
           ...entry.calls.map((call) => ({
             type: 'tool-call' as const,
             toolCallId: call.id,
@@ -604,8 +608,7 @@ function transcriptMessages(
         after.push(
           ...(picturesInResult ? lookClipParts(look) : lookUserParts(look)),
         )
-      const text =
-        entry.compact && index < lastAssistant ? entry.compact : entry.output
+      const text = view.results.get(index) ?? entry.output
       results.push({
         type: 'tool-result',
         toolCallId: entry.id,
@@ -1312,6 +1315,15 @@ async function* runV3Turn(
     try {
       // ⭐ 上一步 look 的图只附给这一次（之后只剩工具结果那行字）。
       const looks = await loadFreshLooks(context, signal)
+      const entries = transcript.slice(1)
+      const view = planAssistantV3TranscriptView(entries)
+      if (view.level > 0)
+        logger.warn('assistant v3 transcript over budget', {
+          userId: clerkId,
+          step,
+          level: view.level,
+          chars: view.chars,
+        })
       const result = streamText({
         model: model.model,
         system: model.system(system),
@@ -1319,7 +1331,8 @@ async function* runV3Turn(
           [
             ...baseMessages,
             ...transcriptMessages(
-              transcript.slice(1),
+              entries,
+              view,
               looks,
               picturesRideInToolResult(route.adapterType),
             ),

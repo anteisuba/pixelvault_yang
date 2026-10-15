@@ -2,6 +2,7 @@ import 'server-only'
 
 import { ASSISTANT_OPERATOR_CANVAS_LIMITS } from '@/constants/assistant-operator'
 import {
+  ASSISTANT_V3_GUIDE_HEADING,
   ASSISTANT_V3_GUIDE_ITEM_PREFIX,
   ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS,
 } from '@/constants/assistant-v3'
@@ -36,7 +37,7 @@ import type { AssistantV3Transcript } from '@/types/assistant-v3'
 
 /** 整份写法开头那一行：本轮记录里有它 = 这个型号的写法这一轮已经摆到模型眼前（`guideDelivered`）。 */
 function guideHeading(modelId: string): string {
-  return `PROMPT GUIDE FOR ${modelId}\n`
+  return `${ASSISTANT_V3_GUIDE_HEADING}${modelId}\n`
 }
 
 /** 这个型号是不是出视频的：板上挂在视频卡上，或目录里登记的是视频。 */

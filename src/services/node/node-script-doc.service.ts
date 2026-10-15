@@ -21,10 +21,8 @@ import { logger } from '@/lib/logger'
 import { ApiRequestError } from '@/lib/errors'
 import { validateLlmStructuredOutput } from '@/lib/llm-output-validator'
 import { withRetry } from '@/lib/with-retry'
-import {
-  llmTextCompletion,
-  resolveLlmTextRoute,
-} from '@/services/llm-text.service'
+import { resolveKeyOrAssistantRoute } from '@/services/kernel/assistant-route.service'
+import { llmTextCompletion } from '@/services/llm-text.service'
 import { ensureUser } from '@/services/user.service'
 import {
   NodeScriptDocResponseDataSchema,
@@ -370,7 +368,14 @@ export async function createNodeScriptDoc(
   params: NodeScriptDocRequest,
 ): Promise<NodeScriptDocResponseData> {
   const dbUser = await ensureUser(clerkId)
-  const route = await resolveLlmTextRoute(dbUser.id, params.apiKeyId)
+  /**
+   * 点名了 key 就用它；没点名 = **助手那一家、那个型号**（owner 2026-10-15「全跟助手」）。
+   * 那一家没 key / 解不开就照实抛，⛔ 不换一家。
+   */
+  const { route, modelId } = await resolveKeyOrAssistantRoute(
+    dbUser.id,
+    params.apiKeyId,
+  )
   const stage = params.stage ?? DEFAULT_SCRIPT_DOC_STAGE
   const depth = params.depth ?? DEFAULT_SCRIPT_DOC_DEPTH
 
@@ -393,6 +398,7 @@ export async function createNodeScriptDoc(
           adapterType: route.adapterType,
           providerConfig: route.providerConfig,
           apiKey: route.apiKey,
+          ...(modelId ? { modelId } : {}),
         }),
       )
 

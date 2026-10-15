@@ -19,7 +19,11 @@ vi.mock('@/lib/db', () => ({
 }))
 
 vi.mock('@/lib/crypto', () => ({
-  decryptApiKey: (encrypted: string) => `plain:${encrypted}`,
+  decryptApiKey: (encrypted: string) => {
+    // 坏掉的那把 key：解不开就抛（真 `decryptApiKey` 的行为）。
+    if (encrypted === 'broken') throw new Error('cannot decrypt')
+    return `plain:${encrypted}`
+  },
 }))
 
 import { ASSISTANT_PROVIDER_ORDER } from '@/constants/assistant'
@@ -41,6 +45,7 @@ import {
 import {
   assertAssistantRouteSeesImages,
   resolveAssistantRoute,
+  resolveKeyOrAssistantRoute,
 } from '@/services/kernel/assistant-route.service'
 import {
   assistantKey,
@@ -299,5 +304,109 @@ describe('assertAssistantRouteSeesImages（做不了就直说，⛔ 不借别家
       [{ via: 'route', adapterType: picked.route.adapterType }],
       { adapterType: AI_ADAPTER_TYPES.GEMINI },
     )
+  })
+})
+
+/**
+ * 自带 key 选择器的那几样（润色、角色卡、反馈、剧本文档）：点名的 key 照旧，没点名就跟助手
+ * （owner 2026-10-15「全跟助手」）。⛔ 不再走旧的「按顺序挑第一家、解不开试下一家」。
+ */
+describe('resolveKeyOrAssistantRoute', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('没点名 key = 助手那一家、那把 key、那个型号（⛔ 不是顺序里排第一的 Gemini）', async () => {
+    seedAssistantRoute(keyStore, {
+      keys: [
+        assistantKey(AI_ADAPTER_TYPES.GEMINI),
+        assistantKey(AI_ADAPTER_TYPES.ANTHROPIC),
+      ],
+      routeModel: LLM_TEXT_MODEL_IDS.CLAUDE_HAIKU_5_5,
+    })
+
+    const picked = await resolveKeyOrAssistantRoute('db_user_1', undefined)
+
+    expect(picked.route.adapterType).toBe(AI_ADAPTER_TYPES.ANTHROPIC)
+    expect(picked.modelId).toBe(LLM_TEXT_MODEL_IDS.CLAUDE_HAIKU_5_5)
+    expectSelectedProviderOnly(
+      [
+        ...keyLookupUsesOf(keyStore.findFirst),
+        {
+          via: 'route',
+          adapterType: picked.route.adapterType,
+          apiKey: picked.route.apiKey,
+        },
+      ],
+      {
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+        apiKey: `plain:enc_${AI_ADAPTER_TYPES.ANTHROPIC}`,
+      },
+    )
+  })
+
+  it('点名了一把 key：就是它，型号留给那一家的默认档（照旧）', async () => {
+    seedAssistantRoute(keyStore, {
+      keys: [
+        assistantKey(AI_ADAPTER_TYPES.GEMINI),
+        assistantKey(AI_ADAPTER_TYPES.OPENAI),
+      ],
+      routeModel: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
+    })
+
+    const picked = await resolveKeyOrAssistantRoute(
+      'db_user_1',
+      `key_${AI_ADAPTER_TYPES.OPENAI}`,
+    )
+
+    expect(picked).toEqual({
+      route: expect.objectContaining({
+        adapterType: AI_ADAPTER_TYPES.OPENAI,
+        apiKey: `plain:enc_${AI_ADAPTER_TYPES.OPENAI}`,
+      }),
+    })
+    expect(keyStore.personaFindUnique).not.toHaveBeenCalled()
+  })
+
+  it('⛔ 助手那一家没 key → 照实抛，⛔ 不拿别家的 key 顶上', async () => {
+    seedAssistantRoute(keyStore, {
+      keys: [assistantKey(AI_ADAPTER_TYPES.GEMINI)],
+      routeModel: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
+    })
+
+    await expect(
+      resolveKeyOrAssistantRoute('db_user_1', undefined),
+    ).rejects.toBeInstanceOf(AssistantModelKeyMissingError)
+    expect(keyStore.findFirst).not.toHaveBeenCalled()
+  })
+
+  it('⛔ 那把 key 解不开 → 照实抛，⛔ 不悄悄试下一家', async () => {
+    seedAssistantRoute(keyStore, {
+      keys: [
+        assistantKey(AI_ADAPTER_TYPES.GEMINI, { encryptedKey: 'broken' }),
+        assistantKey(AI_ADAPTER_TYPES.DEEPSEEK),
+      ],
+    })
+
+    await expect(
+      resolveKeyOrAssistantRoute('db_user_1', undefined),
+    ).rejects.toThrow('cannot decrypt')
+    expectSelectedProviderOnly(keyLookupUsesOf(keyStore.findFirst), {
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+    })
+  })
+
+  it('要看图、助手选的 DeepSeek V4 Pro 看不了 → 照实抛，⛔ 不借能看图的那一家', async () => {
+    seedAssistantRoute(keyStore, {
+      keys: [
+        assistantKey(AI_ADAPTER_TYPES.DEEPSEEK),
+        assistantKey(AI_ADAPTER_TYPES.GEMINI),
+      ],
+      routeModel: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
+    })
+
+    await expect(
+      resolveKeyOrAssistantRoute('db_user_1', undefined, { seesImages: true }),
+    ).rejects.toBeInstanceOf(AssistantModelCannotSeeError)
   })
 })

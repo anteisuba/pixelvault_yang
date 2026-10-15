@@ -6,11 +6,9 @@ import {
   isTagBasedPromptModel,
 } from '@/constants/model-strengths'
 import { getModelById } from '@/constants/models'
+import { resolveKeyOrAssistantRoute } from '@/services/kernel/assistant-route.service'
 import { buildInspirationContext } from '@/services/kernel/inspiration-context.service'
-import {
-  llmTextCompletion,
-  resolveLlmTextRoute,
-} from '@/services/llm-text.service'
+import { llmTextCompletion } from '@/services/llm-text.service'
 import { ensureUser } from '@/services/user.service'
 import { logger } from '@/lib/logger'
 import { validateLlmPromptOutput } from '@/lib/llm-output-validator'
@@ -118,7 +116,14 @@ export async function enhancePrompt(
 ): Promise<{ original: string; enhanced: string; style: string }> {
   const dbUser = await ensureUser(clerkId)
 
-  const route = await resolveLlmTextRoute(dbUser.id, apiKeyId)
+  /**
+   * 点名了 key 就用它；没点名 = **助手那一家**（同一家、同一把 key、同一个型号，owner
+   * 2026-10-15「全跟助手」）。那一家没 key / 解不开就照实抛，⛔ 不换一家。
+   */
+  const { route, modelId: llmModelId } = await resolveKeyOrAssistantRoute(
+    dbUser.id,
+    apiKeyId,
+  )
 
   // Tag-based generators (NovelAI, Illustrious) reject the paragraph
   // styles above. Swap the whole system prompt rather than appending a
@@ -147,6 +152,7 @@ export async function enhancePrompt(
     adapterType: route.adapterType,
     providerConfig: route.providerConfig,
     apiKey: route.apiKey,
+    ...(llmModelId ? { modelId: llmModelId } : {}),
   })
 
   // Validate LLM output — fall back to original if enhancement is unusable

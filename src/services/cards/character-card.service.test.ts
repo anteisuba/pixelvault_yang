@@ -11,9 +11,22 @@ vi.mock('@/services/user.service', () => ({
   ensureUser: (...a: unknown[]) => mockEnsureUser(...a),
 }))
 
-vi.mock('@/services/llm-text.service', () => ({
-  llmTextCompletion: vi.fn(),
-  resolveLlmTextRoute: vi.fn(),
+/**
+ * ⭐ 联网取材与合并属性那两跳的路由是**真的**（`resolveKeyOrAssistantRoute`），只桩库与补全
+ * （owner 2026-10-15「全跟助手」）：没点名 key 时它们此前走旧的自动兜底。
+ */
+const keyStore = vi.hoisted(() => ({
+  findFirst: vi.fn(),
+  findMany: vi.fn(),
+  personaFindUnique: vi.fn(),
+}))
+vi.mock('@/lib/crypto', () => ({
+  decryptApiKey: (encrypted: string) => `plain:${encrypted}`,
+}))
+const mockLlmCompletion = vi.fn()
+vi.mock('@/services/llm-text.service', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/llm-text.service')>()),
+  llmTextCompletion: (...a: unknown[]) => mockLlmCompletion(...a),
 }))
 
 vi.mock('@/services/storage/r2', () => ({
@@ -57,6 +70,8 @@ vi.mock('@/lib/db', () => ({
     generation: {
       findFirst: (...a: unknown[]) => mockGenerationFindFirst(...a),
     },
+    userApiKey: { findFirst: keyStore.findFirst, findMany: keyStore.findMany },
+    assistantPersona: { findUnique: keyStore.personaFindUnique },
   },
 }))
 
@@ -71,9 +86,20 @@ import {
   deleteCharacterCard,
   updateCharacterCard,
 } from '@/services/cards/character-card.service'
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { VISION_TASKS } from '@/constants/vision'
 import { ASSISTANT_SURFACE_IDS } from '@/types/assistant-conversation'
 import type { CharacterAttributes } from '@/types'
+import {
+  assistantKey,
+  seedAssistantRoute,
+} from '@/test/assistant-route-fixture'
+import {
+  expectSelectedProviderOnly,
+  keyLookupUsesOf,
+  providerUsesOf,
+} from '@/test/selected-provider-only'
 
 const FAKE_USER = { id: 'db_user_1', clerkId: 'clerk_1' }
 const FAKE_CARD = {
@@ -443,6 +469,69 @@ describe('createCharacterCard（角色页「新角色」只给名字）', () => 
     expect(card.sourceImageUrl).toBeNull()
     expect(card.referenceSlots).toEqual([])
     expect(card.sourceImages).toEqual([])
+  })
+})
+
+describe('createCharacterCard（带图：看图、联网取材、合并属性）', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockEnsureUser.mockResolvedValue(FAKE_USER)
+    mockCount.mockResolvedValue(0)
+    mockCardCreate.mockImplementation(({ data }: { data: object }) =>
+      Promise.resolve({ ...FAKE_CARD, ...data, id: 'card_new' }),
+    )
+    mockAnalyzeVisual.mockResolvedValue({
+      runId: 'run_1',
+      task: VISION_TASKS.characterIdentity,
+      grounded: false,
+      observations: {
+        task: VISION_TASKS.characterIdentity,
+        identity: {
+          hairColor: { label: 'hair', text: 'silver', basis: 'observation' },
+        },
+        variableLayer: {},
+        summary: { label: 'summary', text: 'a pilot', basis: 'inference' },
+        uncertainties: [],
+      },
+      conclusions: [],
+      model: 'anthropic',
+    })
+    mockLlmCompletion.mockResolvedValue(
+      JSON.stringify({ hairColor: 'silver', eyeColor: 'red' }),
+    )
+  })
+
+  it('⭐ 没点名 key：取材与合并都用助手那一家、那个型号（⛔ 不是顺序里排第一的 Gemini）', async () => {
+    seedAssistantRoute(keyStore, {
+      keys: [
+        assistantKey(AI_ADAPTER_TYPES.GEMINI),
+        assistantKey(AI_ADAPTER_TYPES.ANTHROPIC),
+      ],
+      routeModel: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
+    })
+
+    await createCharacterCard('clerk_1', {
+      name: '时夜',
+      sourceImages: ['data:image/png;base64,iVBORw0KGgo='],
+    })
+
+    // 联网取材（Claude 不支持 grounding → 这一步自己跳过）与合并属性各一次。
+    expect(mockLlmCompletion).toHaveBeenCalled()
+    for (const [input] of mockLlmCompletion.mock.calls) {
+      expect(input).toMatchObject({
+        modelId: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
+      })
+    }
+    expectSelectedProviderOnly(
+      [
+        ...keyLookupUsesOf(keyStore.findFirst),
+        ...providerUsesOf(mockLlmCompletion, 'character card'),
+      ],
+      {
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+        apiKey: `plain:enc_${AI_ADAPTER_TYPES.ANTHROPIC}`,
+      },
+    )
   })
 })
 

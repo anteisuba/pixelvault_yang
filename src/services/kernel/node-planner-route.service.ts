@@ -1,6 +1,5 @@
 import 'server-only'
 
-import { ASSISTANT_PROVIDER_ORDER } from '@/constants/assistant'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   SCRIPT_PLANNER_PROVIDER_IDS,
@@ -8,8 +7,8 @@ import {
   type ScriptPlannerConcreteProvider,
   type ScriptPlannerProvider,
 } from '@/constants/script-breakdown'
-import { logger } from '@/lib/logger'
 import { ApiKeyError } from '@/lib/errors'
+import { resolveAssistantRoute } from '@/services/kernel/assistant-route.service'
 import {
   resolveLlmTextRoute,
   type ResolvedLlmTextRoute,
@@ -20,16 +19,6 @@ export interface NodePlannerRoute extends ResolvedLlmTextRoute {
   modelId: string
   label: string
 }
-
-/** 「自动」的顺序：`ASSISTANT_PROVIDER_ORDER` 里能做分镜规划的那几家，次序照抄。 */
-const AUTO_PLANNER_PROVIDER_ORDER: readonly ScriptPlannerConcreteProvider[] =
-  ASSISTANT_PROVIDER_ORDER.flatMap((adapterType) =>
-    (
-      Object.keys(SCRIPT_PLANNER_MODELS) as ScriptPlannerConcreteProvider[]
-    ).filter(
-      (provider) => SCRIPT_PLANNER_MODELS[provider].adapterType === adapterType,
-    ),
-  )
 
 function getAdapterForProvider(
   provider: ScriptPlannerConcreteProvider,
@@ -114,24 +103,14 @@ export async function resolveNodePlannerRoute(
   }
 
   /**
-   * 「自动」= 助手那条顺序（`ASSISTANT_PROVIDER_ORDER`）里第一家配了 key、又能做分镜规划的
-   * （owner 2026-10-15：全站只留一条顺序）。⚠ 只有「这家没 key」才看下一家；那把 key 解不开
-   * 之类的错照实抛，⛔ 不悄悄换一家花别家的钱。
+   * 「自动」= **助手那一家、那个型号**（`resolveAssistantRoute`，owner 2026-10-15「全跟助手」）：
+   * 与助手 chip 上写的是同一个答案，五家都能做（规划只要一段 JSON）。那一家没 key、那把 key
+   * 解不开 → 照实抛，⛔ 不按顺序换一家花别家的钱。点名了 Gemini / DeepSeek / OpenAI 的照旧。
    */
-  for (const candidate of AUTO_PLANNER_PROVIDER_ORDER) {
-    try {
-      return await resolveSpecificNodePlannerRoute(userId, candidate)
-    } catch (error) {
-      if (!(error instanceof ApiKeyError)) throw error
-      logger.info('Node Studio planner route unavailable', {
-        provider: candidate,
-        reason: error.message,
-      })
-    }
+  const assistant = await resolveAssistantRoute(userId)
+  return {
+    ...assistant.route,
+    modelId: assistant.modelId,
+    label: assistant.modelLabel,
   }
-
-  throw new ApiKeyError(
-    'missing',
-    'Please add a Gemini, DeepSeek, or OpenAI API key to use Node Studio planning.',
-  )
 }

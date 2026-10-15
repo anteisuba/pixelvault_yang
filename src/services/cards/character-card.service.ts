@@ -20,10 +20,8 @@ import type {
   VisionClaim,
   VisionNamedClaim,
 } from '@/types/vision'
-import {
-  llmTextCompletion,
-  resolveLlmTextRoute,
-} from '@/services/llm-text.service'
+import { resolveKeyOrAssistantRoute } from '@/services/kernel/assistant-route.service'
+import { llmTextCompletion } from '@/services/llm-text.service'
 import { analyzeVisual } from '@/services/vision/vision-analyzer.service'
 import { deriveCardHandleBase, deriveVariantHandleBase } from '@/lib/card-bus'
 import { ApiRequestError } from '@/lib/errors'
@@ -70,6 +68,9 @@ Focus on VISUAL attributes that help AI image generators reproduce the character
 /**
  * Search the web for character information using LLM with grounding.
  * Returns supplementary attributes to merge with image-extracted ones.
+ *
+ * ⭐ 没点名 key = **助手那一家、那个型号**（`resolveKeyOrAssistantRoute`，owner 2026-10-15
+ * 「全跟助手」）。这一步是可省的取材：那一家没 key、或不支持联网，就跳过，⛔ 不换一家去搜。
  */
 async function searchCharacterInfo(
   clerkId: string,
@@ -79,7 +80,10 @@ async function searchCharacterInfo(
 ): Promise<CharacterAttributes | null> {
   try {
     const dbUser = await ensureUser(clerkId)
-    const route = await resolveLlmTextRoute(dbUser.id, apiKeyId)
+    const { route, modelId } = await resolveKeyOrAssistantRoute(
+      dbUser.id,
+      apiKeyId,
+    )
 
     const raw = await llmTextCompletion({
       systemPrompt: SEARCH_CHARACTER_SYSTEM_PROMPT,
@@ -88,6 +92,7 @@ async function searchCharacterInfo(
       adapterType: route.adapterType,
       providerConfig: route.providerConfig,
       apiKey: route.apiKey,
+      ...(modelId ? { modelId } : {}),
       useGrounding: true,
     })
 
@@ -245,6 +250,9 @@ Return ONLY valid JSON matching the same schema as the inputs.`
 /**
  * Merge multiple attribute sets into one canonical set.
  * Uses LLM to intelligently pick the most consistent values.
+ *
+ * ⭐ 没点名 key = **助手那一家、那个型号**（owner 2026-10-15「全跟助手」）；那一家没 key 就照实
+ * 抛，⛔ 不换一家。
  */
 async function mergeAttributes(
   clerkId: string,
@@ -254,7 +262,10 @@ async function mergeAttributes(
   if (attributeSets.length === 1) return attributeSets[0]
 
   const dbUser = await ensureUser(clerkId)
-  const route = await resolveLlmTextRoute(dbUser.id, apiKeyId)
+  const { route, modelId } = await resolveKeyOrAssistantRoute(
+    dbUser.id,
+    apiKeyId,
+  )
 
   const raw = await llmTextCompletion({
     systemPrompt: MERGE_ATTRIBUTES_SYSTEM_PROMPT,
@@ -262,6 +273,7 @@ async function mergeAttributes(
     adapterType: route.adapterType,
     providerConfig: route.providerConfig,
     apiKey: route.apiKey,
+    ...(modelId ? { modelId } : {}),
   })
 
   const jsonStr = raw

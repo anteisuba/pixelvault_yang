@@ -5,9 +5,10 @@ import { z } from 'zod'
 import { db } from '@/lib/db'
 import type { ConsistencyScoreResult } from '@/types'
 import {
-  llmTextCompletion,
-  resolveLlmTextRoute,
-} from '@/services/llm-text.service'
+  assertAssistantRouteSeesImages,
+  resolveAssistantRoute,
+} from '@/services/kernel/assistant-route.service'
+import { llmTextCompletion } from '@/services/llm-text.service'
 import { ensureUser } from '@/services/user.service'
 
 // ─── System Prompt ─────────────────────────────────────────────
@@ -67,15 +68,19 @@ const DEFAULT_SCORE: ConsistencyScoreResult = {
 /**
  * Score the consistency between a source character image and a generated image.
  * Uses LLM dual-image comparison to evaluate character fidelity.
+ *
+ * ⭐ 用**助手那一家**（`resolveAssistantRoute`，owner 2026-10-15「全跟助手」）：同一家、同一把
+ * key、同一个型号。那一家没 key、或那个型号看不了图 → 照实抛，⛔ 不拿别家的 key 顶上。
  */
 export async function scoreConsistency(
   clerkId: string,
   sourceImageUrl: string,
   generatedImageUrl: string,
-  apiKeyId?: string,
 ): Promise<ConsistencyScoreResult> {
   const dbUser = await ensureUser(clerkId)
-  const route = await resolveLlmTextRoute(dbUser.id, apiKeyId)
+  const assistant = await resolveAssistantRoute(dbUser.id)
+  assertAssistantRouteSeesImages(assistant)
+  const { route, modelId } = assistant
 
   // llmTextCompletion accepts both data: and http URLs — pass URLs
   // straight through. The Gemini path fetches+inlines server-side; the
@@ -88,6 +93,7 @@ export async function scoreConsistency(
     adapterType: route.adapterType,
     providerConfig: route.providerConfig,
     apiKey: route.apiKey,
+    modelId,
   })
 
   // Parse LLM JSON output
@@ -114,7 +120,6 @@ export async function scoreGenerationForCard(
   clerkId: string,
   cardId: string,
   generationId: string,
-  apiKeyId?: string,
 ): Promise<ConsistencyScoreResult> {
   const dbUser = await ensureUser(clerkId)
 
@@ -130,10 +135,5 @@ export async function scoreGenerationForCard(
     throw new Error('Generation not found')
   }
 
-  return scoreConsistency(
-    clerkId,
-    card.sourceImageUrl,
-    generation.url,
-    apiKeyId,
-  )
+  return scoreConsistency(clerkId, card.sourceImageUrl, generation.url)
 }

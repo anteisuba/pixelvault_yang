@@ -2,10 +2,8 @@ import 'server-only'
 
 import { z } from 'zod'
 
-import {
-  llmTextCompletion,
-  resolveLlmTextRoute,
-} from '@/services/llm-text.service'
+import { resolveKeyOrAssistantRoute } from '@/services/kernel/assistant-route.service'
+import { llmTextCompletion } from '@/services/llm-text.service'
 import { ensureUser } from '@/services/user.service'
 import type { ConversationMessage, GenerationFeedbackResult } from '@/types'
 
@@ -60,6 +58,10 @@ Rules:
 
 // ─── Public API ─────────────────────────────────────────────────
 
+/**
+ * 点名了 key 就用它；没点名 = **助手那一家、那个型号**（owner 2026-10-15「全跟助手」）。这件事
+ * 要看图：那一家没 key、或那个型号看不了图就照实抛，⛔ 不借别家。
+ */
 export async function conversationalRefine(
   clerkId: string,
   imageUrl: string,
@@ -69,7 +71,11 @@ export async function conversationalRefine(
   apiKeyId?: string,
 ): Promise<GenerationFeedbackResult> {
   const dbUser = await ensureUser(clerkId)
-  const route = await resolveLlmTextRoute(dbUser.id, apiKeyId)
+  const { route, modelId } = await resolveKeyOrAssistantRoute(
+    dbUser.id,
+    apiKeyId,
+    { seesImages: true },
+  )
 
   // llmTextCompletion now accepts both data: and http URLs and normalizes
   // per provider — Gemini fetches+inlines, OpenAI/VolcEngine pass URL
@@ -97,6 +103,7 @@ export async function conversationalRefine(
     adapterType: route.adapterType,
     providerConfig: route.providerConfig,
     apiKey: route.apiKey,
+    ...(modelId ? { modelId } : {}),
   })
 
   // Strip markdown fences if LLM wraps output

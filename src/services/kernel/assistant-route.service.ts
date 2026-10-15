@@ -123,6 +123,36 @@ export async function resolveAssistantRoute(
   }
 }
 
+export interface KeyOrAssistantRoute {
+  route: ResolvedLlmTextRoute
+  /** 缺席 = 点名的那把 key 那一家的默认档（照旧）；跟助手时就是助手那个型号。 */
+  modelId?: string
+}
+
+/**
+ * 自带 key 选择器的那几样（润色、角色卡、生成反馈、提示词反馈、剧本文档）用哪一家：
+ *  · 点名了一把 key（`apiKeyId`）→ 就是它，型号是那一家的默认档（照旧）；
+ *  · 没点名 → **助手那一家**（`resolveAssistantRoute`）：同一家、同一把 key、同一个型号
+ *    （owner 2026-10-15「全跟助手」）。
+ * ⛔ 没有第三条：旧的「按顺序挑第一家配了 key 的、那把解不开就试下一家」不再走 ——
+ *   那条路不认助手选的型号，key 坏了还会悄悄花下一家的钱。
+ * `seesImages`：这件事要看图，所选那一家、那个型号看不了就照实抛（`assertAssistantRouteSeesImages`）。
+ */
+export async function resolveKeyOrAssistantRoute(
+  userId: string,
+  apiKeyId: string | undefined,
+  options: { seesImages?: boolean } = {},
+): Promise<KeyOrAssistantRoute> {
+  const resolved: KeyOrAssistantRoute = apiKeyId
+    ? { route: await resolveLlmTextRoute(userId, apiKeyId) }
+    : await resolveAssistantRoute(userId).then(({ route, modelId }) => ({
+        route,
+        modelId,
+      }))
+  if (options.seesImages) assertAssistantRouteSeesImages(resolved)
+  return resolved
+}
+
 /**
  * 这件事要看图：所选那一家、那个型号看得了就放行，看不了就抛
  * `AssistantModelCannotSeeError`（翻译过的一句「这个模型看不了图」）。⛔ 不借别家。

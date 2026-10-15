@@ -2,10 +2,8 @@ import 'server-only'
 
 import { z } from 'zod'
 
-import {
-  llmTextCompletion,
-  resolveLlmTextRoute,
-} from '@/services/llm-text.service'
+import { resolveKeyOrAssistantRoute } from '@/services/kernel/assistant-route.service'
+import { llmTextCompletion } from '@/services/llm-text.service'
 import { ensureUser } from '@/services/user.service'
 import type { PromptFeedbackResponseData } from '@/types'
 
@@ -51,6 +49,10 @@ Rules:
 
 // ─── Public API ─────────────────────────────────────────────────
 
+/**
+ * 点名了 key 就用它；没点名 = **助手那一家、那个型号**（owner 2026-10-15「全跟助手」）。
+ * 那一家没 key / 解不开就照实抛，⛔ 不换一家。
+ */
 export async function getPromptFeedback(
   clerkId: string,
   prompt: string,
@@ -58,7 +60,10 @@ export async function getPromptFeedback(
   apiKeyId?: string,
 ): Promise<PromptFeedbackResponseData> {
   const dbUser = await ensureUser(clerkId)
-  const route = await resolveLlmTextRoute(dbUser.id, apiKeyId)
+  const { route, modelId } = await resolveKeyOrAssistantRoute(
+    dbUser.id,
+    apiKeyId,
+  )
 
   const userPrompt = context
     ? `Prompt to review:\n"${prompt}"\n\nAdditional context:\n${context}`
@@ -70,6 +75,7 @@ export async function getPromptFeedback(
     adapterType: route.adapterType,
     providerConfig: route.providerConfig,
     apiKey: route.apiKey,
+    ...(modelId ? { modelId } : {}),
   })
 
   // Strip markdown fences if LLM wraps output

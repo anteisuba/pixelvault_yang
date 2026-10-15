@@ -17,20 +17,49 @@ vi.mock('@/services/apiKey.service', () => ({
     mockFindActiveKeyForAdapter(...args),
 }))
 
+/**
+ * ⭐「自动」的路由是**真的**（`resolveAssistantRoute` + `resolveLlmTextRoute`），只桩库与补全
+ * （owner 2026-10-15「全跟助手」）：「自动」此前按 Gemini → DeepSeek → OpenAI 自己挑一家。
+ */
+const keyStore = vi.hoisted(() => ({
+  findFirst: vi.fn(),
+  findMany: vi.fn(),
+  personaFindUnique: vi.fn(),
+}))
+vi.mock('@/lib/db', () => ({
+  db: {
+    userApiKey: { findFirst: keyStore.findFirst, findMany: keyStore.findMany },
+    assistantPersona: { findUnique: keyStore.personaFindUnique },
+  },
+}))
+vi.mock('@/lib/crypto', () => ({
+  decryptApiKey: (encrypted: string) => `plain:${encrypted}`,
+}))
+
 const mockLlmTextCompletion = vi.fn()
-const mockResolveLlmTextRoute = vi.fn()
-vi.mock('@/services/llm-text.service', () => ({
+vi.mock('@/services/llm-text.service', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/llm-text.service')>()),
   llmTextCompletion: (...args: unknown[]) => mockLlmTextCompletion(...args),
-  resolveLlmTextRoute: (...args: unknown[]) => mockResolveLlmTextRoute(...args),
 }))
 
 vi.mock('@/lib/with-retry', () => ({
   withRetry: (task: () => Promise<string>) => task(),
 }))
 
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { SCRIPT_PLANNER_MODELS } from '@/constants/script-breakdown'
+import { AssistantModelKeyMissingError } from '@/lib/errors'
 import { createScriptBreakdown } from '@/services/node/script-breakdown.service'
+import {
+  assistantKey,
+  seedAssistantRoute,
+} from '@/test/assistant-route-fixture'
+import {
+  expectSelectedProviderOnly,
+  keyLookupUsesOf,
+  providerUsesOf,
+} from '@/test/selected-provider-only'
 
 const FAKE_USER = { id: 'db_user_1', clerkId: 'clerk_user_1' }
 
@@ -105,9 +134,12 @@ describe('createScriptBreakdown', () => {
     vi.clearAllMocks()
     mockEnsureUser.mockResolvedValue(FAKE_USER)
     mockFindActiveKeyForAdapter.mockResolvedValue(FAKE_KEY_ROUTE)
+    seedAssistantRoute(keyStore, {
+      keys: [assistantKey(AI_ADAPTER_TYPES.GEMINI)],
+    })
   })
 
-  it('returns validated breakdown data from the selected planner route', async () => {
+  it('「自动」= 助手那一家、那个型号（「自动」助手只有 Gemini key → Gemini 的默认档）', async () => {
     mockLlmTextCompletion.mockResolvedValue(JSON.stringify(VALID_BREAKDOWN))
 
     const result = await createScriptBreakdown('clerk_user_1', {
@@ -119,17 +151,67 @@ describe('createScriptBreakdown', () => {
     expect(result.breakdown.title).toBe(VALID_BREAKDOWN.title)
     expect(result.planner).toEqual({
       adapterType: AI_ADAPTER_TYPES.GEMINI,
-      modelId: SCRIPT_PLANNER_MODELS.gemini.modelId,
-      label: FAKE_KEY_ROUTE.providerConfig.label,
+      modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
+      label: 'Gemini 3.8 Flash',
     })
     expect(mockLlmTextCompletion).toHaveBeenCalledWith(
       expect.objectContaining({
         adapterType: AI_ADAPTER_TYPES.GEMINI,
-        apiKey: FAKE_KEY_ROUTE.keyValue,
-        modelId: SCRIPT_PLANNER_MODELS.gemini.modelId,
+        apiKey: `plain:enc_${AI_ADAPTER_TYPES.GEMINI}`,
+        modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
         responseFormat: 'json_object',
       }),
     )
+  })
+
+  it('⭐「自动」跟着助手选的 Claude 走（⛔ 不再按 Gemini → DeepSeek → OpenAI 自己挑一家）', async () => {
+    seedAssistantRoute(keyStore, {
+      keys: [
+        assistantKey(AI_ADAPTER_TYPES.GEMINI),
+        assistantKey(AI_ADAPTER_TYPES.ANTHROPIC),
+      ],
+      routeModel: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
+    })
+    mockLlmTextCompletion.mockResolvedValue(JSON.stringify(VALID_BREAKDOWN))
+
+    const result = await createScriptBreakdown('clerk_user_1', {
+      idea: 'A lantern archive mystery',
+      plannerProvider: 'auto',
+      locale: 'en',
+    })
+
+    expect(result.planner).toEqual({
+      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+      modelId: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
+      label: 'Claude Sonnet 5.5',
+    })
+    expect(mockFindActiveKeyForAdapter).not.toHaveBeenCalled()
+    expectSelectedProviderOnly(
+      [
+        ...keyLookupUsesOf(keyStore.findFirst),
+        ...providerUsesOf(mockLlmTextCompletion, 'planner'),
+      ],
+      {
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+        apiKey: `plain:enc_${AI_ADAPTER_TYPES.ANTHROPIC}`,
+      },
+    )
+  })
+
+  it('⛔「自动」时助手选的那一家没 key → 照实抛，⛔ 不换有 key 的 Gemini', async () => {
+    seedAssistantRoute(keyStore, {
+      keys: [assistantKey(AI_ADAPTER_TYPES.GEMINI)],
+      routeModel: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
+    })
+
+    await expect(
+      createScriptBreakdown('clerk_user_1', {
+        idea: 'missing key',
+        plannerProvider: 'auto',
+        locale: 'en',
+      }),
+    ).rejects.toBeInstanceOf(AssistantModelKeyMissingError)
+    expect(mockLlmTextCompletion).not.toHaveBeenCalled()
   })
 
   it('wraps invalid planner output in a structured provider output error', async () => {
@@ -215,6 +297,7 @@ describe('createScriptBreakdown', () => {
 
   it('throws missing API key when no planner route is available', async () => {
     mockFindActiveKeyForAdapter.mockResolvedValue(null)
+    seedAssistantRoute(keyStore, { keys: [] })
 
     await expect(
       createScriptBreakdown('clerk_user_1', {

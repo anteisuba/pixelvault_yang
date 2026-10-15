@@ -11,17 +11,36 @@ vi.mock('@/services/user.service', () => ({
   ensureUser: (...args: unknown[]) => mockEnsureUser(...args),
 }))
 
+/**
+ * ⭐ 路由是**真的**（`resolveKeyOrAssistantRoute`），只桩库与补全那一跳（owner 2026-10-15
+ * 「全跟助手」）：没点名 key 时剧本文档此前走旧的自动兜底，不认助手选的型号。
+ */
+const keyStore = vi.hoisted(() => ({
+  findFirst: vi.fn(),
+  findMany: vi.fn(),
+  personaFindUnique: vi.fn(),
+}))
+vi.mock('@/lib/db', () => ({
+  db: {
+    userApiKey: { findFirst: keyStore.findFirst, findMany: keyStore.findMany },
+    assistantPersona: { findUnique: keyStore.personaFindUnique },
+  },
+}))
+vi.mock('@/lib/crypto', () => ({
+  decryptApiKey: (encrypted: string) => `plain:${encrypted}`,
+}))
+
 const mockLlmTextCompletion = vi.fn()
-const mockResolveLlmTextRoute = vi.fn()
-vi.mock('@/services/llm-text.service', () => ({
+vi.mock('@/services/llm-text.service', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/llm-text.service')>()),
   llmTextCompletion: (...args: unknown[]) => mockLlmTextCompletion(...args),
-  resolveLlmTextRoute: (...args: unknown[]) => mockResolveLlmTextRoute(...args),
 }))
 
 vi.mock('@/lib/with-retry', () => ({
   withRetry: (task: () => Promise<unknown>) => task(),
 }))
 
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   SCRIPT_DOC_LIMITS,
@@ -30,16 +49,24 @@ import {
 import { validatePrompt } from '@/services/kernel/prompt-guard'
 import { createNodeScriptDoc } from '@/services/node/node-script-doc.service'
 import type { ScriptDoc } from '@/types/script-doc'
+import {
+  assistantKey,
+  seedAssistantRoute,
+} from '@/test/assistant-route-fixture'
+import {
+  expectSelectedProviderOnly,
+  keyLookupUsesOf,
+  providerUsesOf,
+} from '@/test/selected-provider-only'
 
 const FAKE_USER = { id: 'db_user_1', clerkId: 'clerk_user_1' }
 
-const FAKE_ROUTE = {
-  adapterType: AI_ADAPTER_TYPES.GEMINI,
-  providerConfig: {
-    label: 'Personal Gemini',
-    baseUrl: 'https://generativelanguage.googleapis.com',
-  },
-  apiKey: 'gemini-key',
+/** 「自动」下只有一把 Gemini key：助手那一家就是它。 */
+const GEMINI_API_KEY = `plain:enc_${AI_ADAPTER_TYPES.GEMINI}`
+function seedGeminiOnly() {
+  seedAssistantRoute(keyStore, {
+    keys: [assistantKey(AI_ADAPTER_TYPES.GEMINI)],
+  })
 }
 
 const VALID_SCRIPT_DOC: ScriptDoc = {
@@ -78,7 +105,7 @@ describe('createNodeScriptDoc', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockEnsureUser.mockResolvedValue(FAKE_USER)
-    mockResolveLlmTextRoute.mockResolvedValue(FAKE_ROUTE)
+    seedGeminiOnly()
   })
 
   it('returns a validated ScriptDoc from buffered json_object output', async () => {
@@ -96,7 +123,7 @@ describe('createNodeScriptDoc', () => {
     expect(mockLlmTextCompletion).toHaveBeenCalledWith(
       expect.objectContaining({
         adapterType: AI_ADAPTER_TYPES.GEMINI,
-        apiKey: FAKE_ROUTE.apiKey,
+        apiKey: GEMINI_API_KEY,
         responseFormat: 'json_object',
       }),
     )
@@ -298,6 +325,39 @@ describe('createNodeScriptDoc', () => {
       }),
     ).rejects.toThrow('provider down')
   })
+
+  it('⭐ 没点名 key = 助手那一家、那个型号（⛔ 不是顺序里排第一的 Gemini）', async () => {
+    seedAssistantRoute(keyStore, {
+      keys: [
+        assistantKey(AI_ADAPTER_TYPES.GEMINI),
+        assistantKey(AI_ADAPTER_TYPES.OPENAI),
+      ],
+      routeModel: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_LUNA,
+    })
+    mockLlmTextCompletion.mockResolvedValue(JSON.stringify(VALID_SCRIPT_DOC))
+
+    await createNodeScriptDoc('clerk_user_1', {
+      messages: CONVERSATION,
+      locale: 'en',
+    })
+
+    expect(mockLlmTextCompletion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        adapterType: AI_ADAPTER_TYPES.OPENAI,
+        modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_LUNA,
+      }),
+    )
+    expectSelectedProviderOnly(
+      [
+        ...keyLookupUsesOf(keyStore.findFirst),
+        ...providerUsesOf(mockLlmTextCompletion, 'script doc'),
+      ],
+      {
+        adapterType: AI_ADAPTER_TYPES.OPENAI,
+        apiKey: `plain:enc_${AI_ADAPTER_TYPES.OPENAI}`,
+      },
+    )
+  })
 })
 
 // ─── Prompt budget (P0-1: the 4000-character cliff) ──────────────────────
@@ -394,7 +454,7 @@ describe('createNodeScriptDoc prompt budget', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockEnsureUser.mockResolvedValue(FAKE_USER)
-    mockResolveLlmTextRoute.mockResolvedValue(FAKE_ROUTE)
+    seedGeminiOnly()
     mockLlmTextCompletion.mockResolvedValue(JSON.stringify(VALID_SCRIPT_DOC))
   })
 

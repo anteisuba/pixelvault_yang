@@ -363,8 +363,9 @@ function reportUsage(input: LlmTextInput, usage: LlmTextUsage | null): void {
 
 /**
  * Text-capable LLM adapter types —— **就是 `ASSISTANT_PROVIDER_ORDER`**（owner 2026-10-15：
- * 一份顺序）。下面那段无 `apiKeyId` 的自动优先级也按它走（画布剧本 / 润色 / 打分这些自带
- * 选择器的功能仍用它）；助手与跟着助手的小功能走 `resolveAssistantRoute`，⛔ 不走这里。
+ * 一份顺序）。下面那段无 `apiKeyId` 的自动优先级也按它走，但只剩 `intent-parser` 的平台
+ * 哨兵在用；助手与所有小功能（润色 / 打分 / 角色卡 / 反馈 / 画布剧本……）没点名 key 时
+ * 走 `resolveAssistantRoute`（`resolveKeyOrAssistantRoute`），⛔ 不走这里。
  */
 export const LLM_TEXT_ADAPTERS = ASSISTANT_PROVIDER_ORDER
 
@@ -1075,7 +1076,12 @@ async function readLlmErrorBody(
 
 /**
  * Resolves which LLM provider + API key to use for text completion.
- * Priority: specified apiKeyId → the user's newest active key in `LLM_TEXT_ADAPTERS` order.
+ * - 给了 `apiKeyId`：就用那一把（解不开照实抛）。
+ * - 没给：按 `LLM_TEXT_ADAPTERS` 找**第一家有 key 的**就停 —— 那一家的 key 解不开也照实抛，
+ *   ⛔ 不跳到下一家（owner 2026-10-15：「会自动扣其他模型的token，用户还不知道」）。
+ *   ⚠ 现在只有 `intent-parser` 的平台哨兵用户走这条（它没有 key，必然落启发式兜底）；
+ *   **创作者的功能一律走 `resolveAssistantRoute` / `resolveKeyOrAssistantRoute`**（认助手选的
+ *   那一家、那个型号），⛔ 不要再拿这条无 key 的路给用户功能挑一家。
  * ⚠ No platform fallback (owner 2026-10-07): every user brings their own key —
  * a keyless request ends in `ApiKeyError('missing')`, never on the owner's bill.
  */
@@ -1132,18 +1138,14 @@ export async function resolveLlmTextRoute(
       continue
     }
 
-    try {
-      const keyValue = decryptApiKey(userKey.encryptedKey)
-      return {
-        adapterType,
-        providerConfig: {
-          label,
-          baseUrl: getBaseUrlForAdapter(adapterType),
-        },
-        apiKey: keyValue,
-      }
-    } catch {
-      triedProviders.push(`${label} (key decryption failed)`)
+    // ⛔ 解不开就照实抛，不跳到下一家（owner 2026-10-15：不悄悄花别家的钱）。
+    return {
+      adapterType,
+      providerConfig: {
+        label,
+        baseUrl: getBaseUrlForAdapter(adapterType),
+      },
+      apiKey: decryptApiKey(userKey.encryptedKey),
     }
   }
 

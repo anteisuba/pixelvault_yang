@@ -11,11 +11,30 @@ vi.mock('@/services/user.service', () => ({
   ensureUser: (...a: unknown[]) => mockEnsureUser(...a),
 }))
 
+/**
+ * ⭐ 路由是**真的**（`resolveKeyOrAssistantRoute` → `resolveAssistantRoute` /
+ * `resolveLlmTextRoute`），只桩库与补全那一跳（owner 2026-10-15「全跟助手」）：没点名 key 时
+ * 润色此前走旧的自动兜底，不认助手选的型号。
+ */
+const keyStore = vi.hoisted(() => ({
+  findFirst: vi.fn(),
+  findMany: vi.fn(),
+  personaFindUnique: vi.fn(),
+}))
+vi.mock('@/lib/db', () => ({
+  db: {
+    userApiKey: { findFirst: keyStore.findFirst, findMany: keyStore.findMany },
+    assistantPersona: { findUnique: keyStore.personaFindUnique },
+  },
+}))
+vi.mock('@/lib/crypto', () => ({
+  decryptApiKey: (encrypted: string) => `plain:${encrypted}`,
+}))
+
 const mockLlmCompletion = vi.fn()
-const mockResolveLlmRoute = vi.fn()
-vi.mock('@/services/llm-text.service', () => ({
+vi.mock('@/services/llm-text.service', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/llm-text.service')>()),
   llmTextCompletion: (...a: unknown[]) => mockLlmCompletion(...a),
-  resolveLlmTextRoute: (...a: unknown[]) => mockResolveLlmRoute(...a),
 }))
 
 const mockBuildInspirationContext = vi.fn()
@@ -26,18 +45,24 @@ vi.mock('@/services/kernel/inspiration-context.service', () => ({
 
 import { enhancePrompt } from '@/services/kernel/prompt-enhance.service'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { PROMPT_ENHANCE, type PromptEnhanceStyle } from '@/constants/config'
+import {
+  LLM_TEXT_MODEL_IDS,
+  PROMPT_ENHANCE,
+  type PromptEnhanceStyle,
+} from '@/constants/config'
 import { AI_MODELS } from '@/constants/models'
+import { AssistantModelKeyMissingError } from '@/lib/errors'
+import {
+  assistantKey,
+  seedAssistantRoute,
+} from '@/test/assistant-route-fixture'
+import {
+  expectSelectedProviderOnly,
+  keyLookupUsesOf,
+  providerUsesOf,
+} from '@/test/selected-provider-only'
 
 const FAKE_USER = { id: 'db_user_1', clerkId: 'clerk_1' }
-const FAKE_ROUTE = {
-  adapterType: AI_ADAPTER_TYPES.GEMINI,
-  providerConfig: {
-    label: 'Gemini',
-    baseUrl: 'https://generativelanguage.googleapis.com',
-  },
-  apiKey: 'test-key',
-}
 
 const ORIGINAL_PROMPT = 'a cat under a tree'
 const ENHANCED_REPLY =
@@ -47,7 +72,9 @@ describe('enhancePrompt', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockEnsureUser.mockResolvedValue(FAKE_USER)
-    mockResolveLlmRoute.mockResolvedValue(FAKE_ROUTE)
+    seedAssistantRoute(keyStore, {
+      keys: [assistantKey(AI_ADAPTER_TYPES.GEMINI)],
+    })
     mockBuildInspirationContext.mockResolvedValue('')
   })
 
@@ -142,18 +169,75 @@ describe('enhancePrompt', () => {
     expect(result.enhanced).toBe(ORIGINAL_PROMPT)
   })
 
-  it('forwards the resolved LLM route credentials to llmTextCompletion', async () => {
+  it('⭐ 没点名 key = 助手那一家、那个型号（⛔ 不是顺序里排第一的 Gemini）', async () => {
+    seedAssistantRoute(keyStore, {
+      keys: [
+        assistantKey(AI_ADAPTER_TYPES.GEMINI),
+        assistantKey(AI_ADAPTER_TYPES.ANTHROPIC),
+      ],
+      routeModel: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
+    })
     mockLlmCompletion.mockResolvedValue(ENHANCED_REPLY)
 
     await enhancePrompt('clerk_1', ORIGINAL_PROMPT, 'detailed')
 
     expect(mockLlmCompletion).toHaveBeenCalledWith(
       expect.objectContaining({
-        adapterType: FAKE_ROUTE.adapterType,
-        providerConfig: FAKE_ROUTE.providerConfig,
-        apiKey: FAKE_ROUTE.apiKey,
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+        apiKey: `plain:enc_${AI_ADAPTER_TYPES.ANTHROPIC}`,
+        modelId: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
       }),
     )
+    expectSelectedProviderOnly(
+      [
+        ...keyLookupUsesOf(keyStore.findFirst),
+        ...providerUsesOf(mockLlmCompletion, 'enhance'),
+      ],
+      {
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+        apiKey: `plain:enc_${AI_ADAPTER_TYPES.ANTHROPIC}`,
+      },
+    )
+  })
+
+  it('点名了一把 key：就用它，型号是那一家的默认档（照旧）', async () => {
+    seedAssistantRoute(keyStore, {
+      keys: [
+        assistantKey(AI_ADAPTER_TYPES.GEMINI),
+        assistantKey(AI_ADAPTER_TYPES.OPENAI),
+      ],
+    })
+    mockLlmCompletion.mockResolvedValue(ENHANCED_REPLY)
+
+    await enhancePrompt(
+      'clerk_1',
+      ORIGINAL_PROMPT,
+      'detailed',
+      undefined,
+      `key_${AI_ADAPTER_TYPES.OPENAI}`,
+    )
+
+    const call = mockLlmCompletion.mock.calls[0]?.[0] as Record<string, unknown>
+    expect(call).toMatchObject({
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+      apiKey: `plain:enc_${AI_ADAPTER_TYPES.OPENAI}`,
+    })
+    expect(call).not.toHaveProperty('modelId')
+    expectSelectedProviderOnly(providerUsesOf(mockLlmCompletion, 'enhance'), {
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+    })
+  })
+
+  it('⛔ 助手选的那一家没 key → 照实抛，⛔ 不拿别家的 key 润色', async () => {
+    seedAssistantRoute(keyStore, {
+      keys: [assistantKey(AI_ADAPTER_TYPES.GEMINI)],
+      routeModel: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
+    })
+
+    await expect(
+      enhancePrompt('clerk_1', ORIGINAL_PROMPT, 'detailed'),
+    ).rejects.toBeInstanceOf(AssistantModelKeyMissingError)
+    expect(mockLlmCompletion).not.toHaveBeenCalled()
   })
 
   // ── RAG: useInspirationContext ─────────────────────────────────

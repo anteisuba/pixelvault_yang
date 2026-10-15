@@ -27,6 +27,7 @@ import {
   type LlmTextInput,
 } from '@/services/llm-text.service'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { decryptApiKey } from '@/lib/crypto'
 import { GENERATION_ERROR_CODES } from '@/constants/generation-errors'
 import {
   ASSISTANT_IMAGE_LIMITS,
@@ -193,6 +194,31 @@ describe('resolveLlmTextRoute', () => {
 
     expect(route.adapterType).toBe(AI_ADAPTER_TYPES.GEMINI)
     expect(route.apiKey).toBe('decrypted-key')
+  })
+
+  it('⛔ 第一家有 key 但解不开 → 照实抛，不跳到下一家花别家的钱', async () => {
+    mockFindFirst.mockImplementation(
+      async (query: { where: { adapterType: AI_ADAPTER_TYPES } }) => ({
+        ...GEMINI_KEY,
+        id: `key_${query.where.adapterType}`,
+        adapterType: query.where.adapterType,
+      }),
+    )
+    vi.mocked(decryptApiKey).mockImplementationOnce(() => {
+      throw new Error('cannot decrypt')
+    })
+
+    await expect(resolveLlmTextRoute('db_user_1')).rejects.toThrow(
+      'cannot decrypt',
+    )
+    expect(mockFindFirst).toHaveBeenCalledTimes(1)
+    expect(mockFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          adapterType: AI_ADAPTER_TYPES.GEMINI,
+        }),
+      }),
+    )
   })
 
   it('throws a missing-key error when the user owns no LLM key — no platform fallback', async () => {

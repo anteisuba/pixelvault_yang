@@ -47,6 +47,7 @@ function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : []
 }
 
+/** 几块系统提示首尾相接（分块只是给缓存断点用的，模型读到的是同一段字）。 */
 function textOf(value: unknown): string {
   if (typeof value === 'string') return value
   return asArray(value)
@@ -54,7 +55,7 @@ function textOf(value: unknown): string {
       const record = asRecord(part)
       return typeof record.text === 'string' ? record.text : canonicalJson(part)
     })
-    .join('\n')
+    .join('')
 }
 
 const SYSTEM_ROLES = new Set(['system', 'developer'])

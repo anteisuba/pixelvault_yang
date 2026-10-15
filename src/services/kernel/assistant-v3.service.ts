@@ -1296,15 +1296,18 @@ async function* runV3Turn(
       const looks = await loadFreshLooks(context, signal)
       const result = streamText({
         model: model.model,
-        system: system.text,
-        messages: [
-          ...baseMessages,
-          ...transcriptMessages(
-            transcript.slice(1),
-            looks,
-            picturesRideInToolResult(route.adapterType),
-          ),
-        ],
+        system: model.system(system),
+        messages: model.messages(
+          [
+            ...baseMessages,
+            ...transcriptMessages(
+              transcript.slice(1),
+              looks,
+              picturesRideInToolResult(route.adapterType),
+            ),
+          ],
+          history.length,
+        ),
         tools: toolSet,
         toolChoice: 'auto',
         maxRetries: 2,
@@ -1364,6 +1367,9 @@ async function* runV3Turn(
         ...(usage.inputTokenDetails.cacheReadTokens === undefined
           ? {}
           : { cachedInputTokens: usage.inputTokenDetails.cacheReadTokens }),
+        ...(usage.inputTokenDetails.cacheWriteTokens === undefined
+          ? {}
+          : { cacheWriteTokens: usage.inputTokenDetails.cacheWriteTokens }),
       })
       callLog.finish('ok')
     } catch (error) {

@@ -163,6 +163,9 @@ vi.mock('@/services/kernel/assistant-v3-model.service', () => ({
       model: model.current,
       strictTools: false,
       providerOptions: () => ({}),
+      system: (prompt: { rules: string; creator: string }) =>
+        `${prompt.rules}${prompt.creator}`,
+      messages: (messages: unknown[]) => messages,
     }
   },
 }))

@@ -3202,6 +3202,7 @@ describe('llmTextStream', () => {
         inputTokens: 10000,
         outputTokens: 700,
         cachedInputTokens: 9800,
+        cacheWriteTokens: 0,
       })
     })
 

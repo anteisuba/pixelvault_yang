@@ -4,7 +4,7 @@ import { createAnthropic } from '@ai-sdk/anthropic'
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createOpenAI } from '@ai-sdk/openai'
 import type { JSONValue } from '@ai-sdk/provider'
-import type { LanguageModel } from 'ai'
+import type { LanguageModel, ModelMessage, SystemModelMessage } from 'ai'
 
 import {
   ASSISTANT_DEEPSEEK_EFFORTS,
@@ -13,6 +13,7 @@ import {
 } from '@/constants/assistant-persona'
 import { AI_PROVIDER_ENDPOINTS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import type { AssistantV3SystemPrompt } from '@/services/kernel/assistant-v3-prompt.service'
 import {
   getOpenAiChatBaseUrl,
   type ResolvedLlmTextRoute,
@@ -29,6 +30,64 @@ export interface AssistantV3Model {
   /** OpenAI 严格模式：工具入参按 schema 生成，形状错不了（草稿步 0 的前提）。 */
   readonly strictTools: boolean
   providerOptions(cacheKey: string): AssistantV3ProviderOptions
+  /**
+   * 系统提示交给 SDK 的样子。Claude：规则段与分界线之后那段各一块、各带一个缓存断点
+   * （`withAnthropicCachePoints`）；别家：一整段（前缀照样稳定，隐式缓存认的就是它）。
+   */
+  system(
+    prompt: Pick<AssistantV3SystemPrompt, 'rules' | 'creator'>,
+  ): string | SystemModelMessage[]
+  /** Claude：历史末尾与最后一条各打一个缓存断点；别家原样交回。 */
+  messages(messages: ModelMessage[], historyLength: number): ModelMessage[]
+}
+
+/**
+ * Claude 的缓存断点（P2 稳定前缀）。⭐ Claude 只在显式断点处写缓存、读时从断点往回找最多
+ * 20 块（官方文档）；没有断点就一字不缓存 —— 2026-10-15 之前 v3 在 Claude 上每一步都整段重算。
+ * 四个断点（SDK 与 API 的上限都是 4，`CacheControlValidator`），按变的频率从慢到快：
+ *  ① 规则段末尾 —— 工具 + 不变的规则，对这位创作者的每一轮都一样；
+ *  ② 分界线之后那段末尾 —— 人设 / 规矩 / 记忆 / 板上型号写法，多数轮不变；
+ *  ③ 历史末尾 —— 下一轮的历史是这一轮的历史再接两条，往回找得到这一处；
+ *  ④ 最后一条 —— 同一轮的下一步（含接力那一跳）从这里接着读。
+ * ⚠ 一步就答完的轮次，④ 写下的那一段（板子 + 这句话）没人再读，多付一次写入的溢价（1.25 倍）
+ *   —— 换来多步、接力的那几轮每一步只重算新的那几条。
+ * ⚠ 不到最小可缓存长度（按型号 1–4k token）的断点 Claude 直接不缓存，不报错。
+ * ⚠ 默认 5 分钟过期；两轮之间隔得更久，①② 也要重写一次。
+ */
+const ANTHROPIC_CACHE_POINT = {
+  anthropic: { cacheControl: { type: 'ephemeral' } },
+} as const
+
+function withAnthropicCachePoint<T extends ModelMessage>(message: T): T {
+  return {
+    ...message,
+    providerOptions: {
+      ...message.providerOptions,
+      anthropic: {
+        ...message.providerOptions?.anthropic,
+        ...ANTHROPIC_CACHE_POINT.anthropic,
+      },
+    },
+  }
+}
+
+function withAnthropicCachePoints(
+  messages: ModelMessage[],
+  historyLength: number,
+): ModelMessage[] {
+  const last = messages.length - 1
+  return messages.map((message, index) =>
+    index === last || (historyLength > 0 && index === historyLength - 1)
+      ? withAnthropicCachePoint(message)
+      : message,
+  )
+}
+
+/** 别家：系统提示一整段（规则段在前），消息原样。 */
+const plainShape = {
+  system: (prompt: Pick<AssistantV3SystemPrompt, 'rules' | 'creator'>) =>
+    `${prompt.rules}${prompt.creator}`,
+  messages: (messages: ModelMessage[]) => messages,
 }
 
 /**
@@ -61,6 +120,7 @@ export function resolveAssistantV3Model(
       return {
         model: official ? provider.responses(modelId) : provider.chat(modelId),
         strictTools: official,
+        ...plainShape,
         // ⚠ 代理端点走 Chat Completions：GPT-6 在那里推理档与工具调用不能同开，⛔ 不发档位。
         providerOptions: (cacheKey): AssistantV3ProviderOptions =>
           official
@@ -89,6 +149,19 @@ export function resolveAssistantV3Model(
         model: provider(modelId),
         strictTools: false,
         providerOptions: () => ({ anthropic: { effort } }),
+        system: (prompt) => [
+          {
+            role: 'system',
+            content: prompt.rules,
+            providerOptions: ANTHROPIC_CACHE_POINT,
+          },
+          {
+            role: 'system',
+            content: prompt.creator,
+            providerOptions: ANTHROPIC_CACHE_POINT,
+          },
+        ],
+        messages: withAnthropicCachePoints,
       }
     }
     case AI_ADAPTER_TYPES.GEMINI: {
@@ -96,6 +169,7 @@ export function resolveAssistantV3Model(
       return {
         model: provider(modelId),
         strictTools: false,
+        ...plainShape,
         /**
          * ⚠ Gemini 3 自己默认最高档：2026-10-10 一步调权重想了 4465 个 token、46 秒；
          *   同题 low 12 秒但把决定推回给创作者，medium 33 秒出卡（所以默认 Medium）。
@@ -115,6 +189,7 @@ export function resolveAssistantV3Model(
       return {
         model: provider.chat(modelId),
         strictTools: false,
+        ...plainShape,
         providerOptions: () => ({
           openai: { reasoningEffort: ASSISTANT_DEEPSEEK_EFFORTS[effort] },
         }),
@@ -130,6 +205,7 @@ export function resolveAssistantV3Model(
       return {
         model: provider.chat(modelId),
         strictTools: false,
+        ...plainShape,
         /**
          * ⚠ grok 的推理关不掉、自己默认 high：High 档首字前想得久，旧内核那边曾因此被掐
          *   连接（`buildXaiChatRequest`）。

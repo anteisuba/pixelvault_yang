@@ -299,3 +299,20 @@ export type ContextCard = Prisma.ContextCardModel
  * 
  */
 export type AssistantMemory = Prisma.AssistantMemoryModel
+/**
+ * Model AssistantTurnRecord
+ * 助手每一轮的过程（owner 2026-10-15「建表」）：开轮时的画布 / 工作台快照、本轮记录（v3
+ * transcript）与那一轮用的模型，供以后原样回放（`src/test/assistant-replay/from-turn-record.ts`
+ * 把一行变成一道回放题）。写在服务端每一跳的末尾，失败只记一行警告，⛔ 不影响这一轮。
+ * 
+ * ⭐ **一轮一行**：开轮那一跳服务端发 `turnId`，随本轮记录（板子那一条）往返；画布接力的
+ * 每一跳写同一行。快照只在第一跳写 —— 那才是这一轮开始时的板子（后几跳的快照已经落了改动）。
+ * ⛔ 不进会话分享（`AssistantConversationShare` 只读会话那一行）、不进任何导出；隐身那一轮不写。
+ * ⛔ 只存 key 的 id，⛔ 不存 key 本身或任何解出来的东西；快照里的 data: 地址与视频帧一律摘掉。
+ * ⚠ 每行 ≤ 256 KB（`input` + `snapshot` + `transcript` 三段 JSON 的 UTF-8 字节，`sizeBytes`）：超了先截
+ * 本轮记录、再丢快照，截了哪几样记在 `truncated`。留 30 天、每人最近 200 条：写的时候顺手删这个人
+ * 超出的，每日 sweep 删全表过期的（不再写的人也到期就删）。
+ * ⚠ `conversationId` 不加 FK（与 `AssistantMemory` 同）：会话的第一轮还没落库、没有它；会话删了
+ * 这几行照样按 30 天到期。
+ */
+export type AssistantTurnRecord = Prisma.AssistantTurnRecordModel

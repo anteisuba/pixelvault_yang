@@ -427,7 +427,8 @@ export const ModelName = {
   GenerationLayer: 'GenerationLayer',
   InspirationPrompt: 'InspirationPrompt',
   ContextCard: 'ContextCard',
-  AssistantMemory: 'AssistantMemory'
+  AssistantMemory: 'AssistantMemory',
+  AssistantTurnRecord: 'AssistantTurnRecord'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -443,7 +444,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "imageAnalysis" | "modelConfig" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement" | "generationLayer" | "inspirationPrompt" | "contextCard" | "assistantMemory"
+    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "imageAnalysis" | "modelConfig" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement" | "generationLayer" | "inspirationPrompt" | "contextCard" | "assistantMemory" | "assistantTurnRecord"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -3703,6 +3704,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    AssistantTurnRecord: {
+      payload: Prisma.$AssistantTurnRecordPayload<ExtArgs>
+      fields: Prisma.AssistantTurnRecordFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.AssistantTurnRecordFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantTurnRecordPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.AssistantTurnRecordFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantTurnRecordPayload>
+        }
+        findFirst: {
+          args: Prisma.AssistantTurnRecordFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantTurnRecordPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.AssistantTurnRecordFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantTurnRecordPayload>
+        }
+        findMany: {
+          args: Prisma.AssistantTurnRecordFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantTurnRecordPayload>[]
+        }
+        create: {
+          args: Prisma.AssistantTurnRecordCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantTurnRecordPayload>
+        }
+        createMany: {
+          args: Prisma.AssistantTurnRecordCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.AssistantTurnRecordCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantTurnRecordPayload>[]
+        }
+        delete: {
+          args: Prisma.AssistantTurnRecordDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantTurnRecordPayload>
+        }
+        update: {
+          args: Prisma.AssistantTurnRecordUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantTurnRecordPayload>
+        }
+        deleteMany: {
+          args: Prisma.AssistantTurnRecordDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.AssistantTurnRecordUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.AssistantTurnRecordUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantTurnRecordPayload>[]
+        }
+        upsert: {
+          args: Prisma.AssistantTurnRecordUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantTurnRecordPayload>
+        }
+        aggregate: {
+          args: Prisma.AssistantTurnRecordAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateAssistantTurnRecord>
+        }
+        groupBy: {
+          args: Prisma.AssistantTurnRecordGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AssistantTurnRecordGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.AssistantTurnRecordCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AssistantTurnRecordCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -4602,6 +4677,36 @@ export const AssistantMemoryScalarFieldEnum = {
 export type AssistantMemoryScalarFieldEnum = (typeof AssistantMemoryScalarFieldEnum)[keyof typeof AssistantMemoryScalarFieldEnum]
 
 
+export const AssistantTurnRecordScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  turnId: 'turnId',
+  hops: 'hops',
+  outcome: 'outcome',
+  errorCode: 'errorCode',
+  workspaceKey: 'workspaceKey',
+  domain: 'domain',
+  projectId: 'projectId',
+  conversationId: 'conversationId',
+  adapterType: 'adapterType',
+  modelId: 'modelId',
+  routeModel: 'routeModel',
+  apiKeyId: 'apiKeyId',
+  systemPromptHash: 'systemPromptHash',
+  promptVersion: 'promptVersion',
+  input: 'input',
+  snapshot: 'snapshot',
+  transcript: 'transcript',
+  snapshotBytes: 'snapshotBytes',
+  sizeBytes: 'sizeBytes',
+  truncated: 'truncated',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AssistantTurnRecordScalarFieldEnum = (typeof AssistantTurnRecordScalarFieldEnum)[keyof typeof AssistantTurnRecordScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -5151,6 +5256,7 @@ export type GlobalOmitConfig = {
   inspirationPrompt?: Prisma.InspirationPromptOmit
   contextCard?: Prisma.ContextCardOmit
   assistantMemory?: Prisma.AssistantMemoryOmit
+  assistantTurnRecord?: Prisma.AssistantTurnRecordOmit
 }
 
 /* Types for Logging */

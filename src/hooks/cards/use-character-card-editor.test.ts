@@ -212,3 +212,33 @@ describe('updateFromDraft', () => {
     expect(update.extensions?.['pv.work']).toBe('鸣潮')
   })
 })
+
+describe('经历完整原文（旧卡导入被截在 6000）', () => {
+  const original = `开头。${'经'.repeat(7000)}`
+  const imported = {
+    ...CARD,
+    persona: { ...CARD.persona, backstory: original.slice(0, 6000) },
+    tavern: { description: original, spec: 'chara_card_v2' },
+  } as unknown as CharacterCardRecord
+
+  it('经历没被改过 → 显示全文；存一次后全文进经历、st.card 不再留副本', () => {
+    const draft = draftFromCard(imported)
+    expect(draft.backstory).toBe(original)
+    const request = updateFromDraft(imported, draft)
+    expect(request.persona?.backstory).toBe(original)
+    expect(request.extensions?.['st.card']).toEqual({ spec: 'chara_card_v2' })
+  })
+
+  it('经历已被用户改写 → 照旧显示改写的，原文留着', () => {
+    const edited = {
+      ...imported,
+      persona: { ...imported.persona, backstory: '我自己写的经历' },
+    } as unknown as CharacterCardRecord
+    const draft = draftFromCard(edited)
+    expect(draft.backstory).toBe('我自己写的经历')
+    expect(updateFromDraft(edited, draft).extensions?.['st.card']).toEqual({
+      description: original,
+      spec: 'chara_card_v2',
+    })
+  })
+})

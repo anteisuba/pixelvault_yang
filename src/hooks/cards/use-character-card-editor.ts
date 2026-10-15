@@ -74,6 +74,18 @@ export function examplesToTavernText(
     .join('\n')
 }
 
+/**
+ * 经历的完整原文（owner 2026-10-15）：导入时经历装不下的那截全文留在 `st.card.description`。
+ * 经历还是原文开头那截（没被用户改过）就换成全文显示，超上限的部分仍留在 `st.card`。
+ */
+function fullBackstory(card: CharacterCardRecord): string {
+  const backstory = card.persona?.backstory ?? ''
+  const original = card.tavern?.description?.trim() ?? ''
+  if (original.length <= backstory.length) return backstory
+  if (!original.startsWith(backstory.trim())) return backstory
+  return clip(original, CHARACTER_PERSONA_LIMITS.backstory)
+}
+
 /** 酒馆那几格写回 `st.card`：空的删掉，认不出的键（世界书、来源……）原样带着。 */
 function tavernFromDraft(
   kept: TavernCardKept | null,
@@ -87,6 +99,9 @@ function tavernFromDraft(
   delete next.systemPrompt
   delete next.postHistoryInstructions
   delete next.alternateGreetings
+  // 原文已整段进了经历 → 不再另存一份。
+  if (next.description?.trim() === draft.backstory.trim())
+    delete next.description
   if (draft.systemPrompt.trim()) next.systemPrompt = draft.systemPrompt.trim()
   if (draft.postHistoryInstructions.trim())
     next.postHistoryInstructions = draft.postHistoryInstructions.trim()
@@ -101,7 +116,7 @@ export function draftFromCard(card: CharacterCardRecord): CharacterCardDraft {
     identity: card.persona?.identity ?? '',
     behavior: card.persona?.behavior ?? '',
     speech: card.persona?.speech ?? '',
-    backstory: card.persona?.backstory ?? '',
+    backstory: fullBackstory(card),
     characterTags: card.cardTags.character.join(', '),
     appearanceTags: card.cardTags.appearance.join(', '),
     loraTrigger: card.cardTags.loraTrigger,

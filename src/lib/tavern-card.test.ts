@@ -68,7 +68,9 @@ const V2_CARD = {
     tags: ['原创', '原创', '店主'],
     creator: 'someone',
     character_version: '1.2',
-    character_book: { entries: [{ keys: ['店'], content: '小店在巷子尽头。' }] },
+    character_book: {
+      entries: [{ keys: ['店'], content: '小店在巷子尽头。' }],
+    },
     extensions: {},
   },
 }
@@ -85,9 +87,7 @@ describe('extractTavernCardJson', () => {
       textChunk('chara', base64Json(V2_CARD)),
       textChunk('ccv3', base64Json(v3)),
     )
-    expect(JSON.parse(extractTavernCardJson(bytes)!).spec).toBe(
-      'chara_card_v3',
-    )
+    expect(JSON.parse(extractTavernCardJson(bytes)!).spec).toBe('chara_card_v3')
   })
 
   it('不是 PNG / PNG 里没有卡：null', () => {
@@ -178,7 +178,7 @@ describe('mapTavernCard', () => {
   })
 
   it('经历装不下的那截不静默丢：全文留在 `st.card.description`', () => {
-    const long = 'x'.repeat(10_000)
+    const long = 'x'.repeat(40_000)
     const result = mapTavernCard(
       parseTavernCard({ name: 'Rei', description: long })!,
     )

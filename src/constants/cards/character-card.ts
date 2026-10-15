@@ -72,7 +72,8 @@ export const CHARACTER_PERSONA_LIMITS = {
   examples: 10,
   exampleUserChars: 1000,
   exampleReplyChars: 2000,
-  backstory: 6000,
+  // owner 2026-10-15：酒馆卡的 description 常有一两万字，放宽到 3 万（助手那边另有自己的截断）。
+  backstory: 30000,
 } as const
 
 /** Character card status type */

@@ -38,6 +38,8 @@ export const TavernCardKeptSchema = z.looseObject({
   postHistoryInstructions: z.string().optional().catch(undefined),
   alternateGreetings: z.array(z.string()).optional().catch(undefined),
   characterBook: z.unknown().optional(),
+  /** 经历一格装不下时的酒馆 description 全文（旧卡上限 6000 时导入的也在这）。 */
+  description: z.string().optional().catch(undefined),
 })
 
 export type TavernCardKept = z.infer<typeof TavernCardKeptSchema>

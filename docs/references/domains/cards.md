@@ -20,7 +20,7 @@
 
 - **认的格式**：PNG 卡（`tEXt` 块，`ccv3` 优先、`chara` 回落，base64 JSON）与 .json（V1 平铺 / V2 / V3 外壳）。`.charx` 暂不认。文件上限 `TAVERN_CARD.MAX_FILE_BYTES`（3 MB，走 JSON + base64，Vercel 请求体 4.5 MB）。解析是 `src/lib/tavern-card.ts` 的纯函数，建卡在 `tavern-card-import.service.ts` → `createImportedCharacterCard`。
 - **字段落点**：description → 经历 · personality → 性格 · scenario → 情境 · first_mes → 开场白 · mes_example → 示例对白（按 `<START>` 切块）· creator_notes → 简介 · tags → 标签。PNG 去掉文本块后当第一张参考图（⛔ 卡的 JSON 跟着图走到出图服务商）；JSON 卡没有图。
-- **⛔ 不注入**：世界书、卡自带系统提示词、「历史之后的指令」、备选开场白、作者、版本原样存进扩展键 `st.card`；经历装不下的 description 全文也留在这里，⛔ 不静默丢。卡覆盖系统提示是安全问题，等我们自己的世界书做好再转。
+- **⛔ 不注入**：世界书、卡自带系统提示词、「历史之后的指令」、备选开场白、作者、版本原样存进扩展键 `st.card`；经历装不下的 description 全文也留在这里，⛔ 不静默丢。经历上限 3 万字（owner 2026-10-15，原 6000）；旧卡被截过的，经历没被改写（仍是原文开头）时详情直接显示全文，存一次后全文进经历、`st.card.description` 删掉。助手只读经历前 1500 字，不受这个上限影响。卡覆盖系统提示是安全问题，等我们自己的世界书做好再转。
 - **宏原样存**：`{{char}}` / `{{user}}`（及 `<BOT>` / `<USER>`）进提示词那一跳才换成名字（称呼会改）。
 - 导入 ⛔ 不跑视觉提取、不联网搜（不替用户花钱）；格子类型不对只空那一格，没有名字才算「不是卡」。错误带 `i18nKey`（`Errors.tavernCard.*`）。
 - **酒馆字段并进「设定」（owner 2026-10-15：先选 A 全显示都能改、⛔ 不做导出；同日改成「我们的字段包含酒馆字段」，⛔ 另列一块）**：设定分三组，格名只用我们的叫法——**人物**（身份 · 性格 = 酒馆 personality · 说话方式 · 经历 = 酒馆 description）→ **对话**（场景 · 开场白，备选开场白一条一格跟在下面，清空即删、末尾一格「加一条」，上限 `TAVERN_CARD.MAX_ALTERNATE_GREETINGS` · 对话示例按 `mes_example` 原文写，`<START>` 切块，没改原样带回、改了重新切）→ **更多**（默认折起：作者备注 = `summary` · 系统提示词 / 历史后指令只保存不生效 · 世界书只显示条数）。读方 `CharacterCardRecord.tavern`（`TavernCardKeptSchema` 从 `st.card` 读，未知键原样保留），写回时整键带回 `st.card`，原卡没有这键又全空时不写。

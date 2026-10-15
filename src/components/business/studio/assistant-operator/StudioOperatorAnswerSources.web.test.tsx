@@ -1,4 +1,5 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
+import type { HTMLAttributeReferrerPolicy } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -25,16 +26,37 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('next/image', () => ({
-  default: ({ alt, src }: { alt: string; src: string }) => (
+  default: ({
+    alt,
+    src,
+    referrerPolicy,
+    onError,
+    'data-testid': testId,
+  }: {
+    alt: string
+    src: string
+    referrerPolicy?: HTMLAttributeReferrerPolicy
+    onError?: () => void
+    'data-testid'?: string
+  }) => (
     // eslint-disable-next-line @next/next/no-img-element -- 测试替身
-    <img alt={alt} src={src} />
+    <img
+      alt={alt}
+      src={src}
+      referrerPolicy={referrerPolicy}
+      onError={onError}
+      data-testid={testId}
+    />
   ),
 }))
 
 const openLightbox = vi.fn()
 vi.mock('./StudioOperatorLightbox', () => ({
-  openOperatorLightbox: (url: string, caption?: string) =>
-    openLightbox(url, caption),
+  openOperatorLightbox: (
+    url: string,
+    caption?: string,
+    options?: { thirdParty?: boolean },
+  ) => openLightbox(url, caption, options),
 }))
 
 const SOURCES: StudioOperatorAnswerSource[] = [
@@ -93,9 +115,11 @@ describe('StudioOperatorAnswerSources', () => {
     render(<StudioOperatorAnswerSources sources={SOURCES} activeCite={null} />)
     const media = screen.getAllByTestId('operator-answer-media-item')
     fireEvent.click(media[0] as HTMLElement)
+    // 媒体条里的图是第三方网图：灯箱按第三方取（不带 Referer、能代理就代理）。
     expect(openLightbox).toHaveBeenCalledWith(
       'https://cdn.test/1.png',
       '雨夜街道 · 作品集',
+      { thirdParty: true },
     )
     fireEvent.click(media[1] as HTMLElement)
     expect(open).toHaveBeenCalledWith(
@@ -104,6 +128,39 @@ describe('StudioOperatorAnswerSources', () => {
       'noopener,noreferrer',
     )
     vi.unstubAllGlobals()
+  })
+
+  it('⭐ 媒体条的图⛔ 不带 Referer；取不到画占位，⛔ 不出破图标', () => {
+    render(<StudioOperatorAnswerSources sources={SOURCES} activeCite={null} />)
+    const media = screen.getAllByTestId('operator-answer-media-item')
+    const image = media[0]?.querySelector('img') as HTMLImageElement
+    expect(image.getAttribute('referrerpolicy')).toBe('no-referrer')
+    fireEvent.error(image)
+    expect(media[0]?.querySelector('img')).toBeNull()
+    expect(screen.getByTestId('operator-answer-media-unavailable')).toBeTruthy()
+  })
+
+  it('⭐ 来源卡是站点自己的 favicon（不带 Referer），取不到 / 没地址回到地球', () => {
+    render(<StudioOperatorAnswerSources sources={SOURCES} activeCite={null} />)
+    const favicons = screen.getAllByTestId('operator-answer-source-favicon')
+    // 四条里三条有地址，danbooru 共现标签那条没有 → 地球。
+    expect(favicons.map((icon) => icon.getAttribute('src'))).toEqual([
+      'https://zhihu.com/favicon.ico',
+      'https://pixiv.net/favicon.ico',
+      'https://www.bilibili.com/favicon.ico',
+    ])
+    expect(favicons[0]?.getAttribute('referrerpolicy')).toBe('no-referrer')
+    expect(screen.getAllByTestId('operator-answer-source-globe')).toHaveLength(
+      1,
+    )
+
+    fireEvent.error(favicons[0] as HTMLElement)
+    expect(
+      screen.getAllByTestId('operator-answer-source-favicon'),
+    ).toHaveLength(2)
+    expect(screen.getAllByTestId('operator-answer-source-globe')).toHaveLength(
+      2,
+    )
   })
 
   it('时长角标只在有时长时画', () => {

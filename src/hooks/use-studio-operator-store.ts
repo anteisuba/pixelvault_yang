@@ -540,8 +540,34 @@ export function updateOperatorRoundSummary(
  * 条目」—— 换条目 = 换 React key = 头像和那一行整个重挂一次，而用户看到的是
  * 刚出现的占位行闪一下又跳一格。
  */
-export function appendOperatorPending(id: string): void {
-  appendOperatorEntry({ kind: 'message', id, text: '', streaming: true })
+export function appendOperatorPending(
+  id: string,
+  /** 画布接力那一跳（「正在画布上落地…」）。缺省 = 等模型开口。 */
+  phase?: 'landing',
+): void {
+  appendOperatorEntry({
+    kind: 'message',
+    id,
+    text: '',
+    streaming: true,
+    // 「正在想… N 秒」从这一刻数（2026-10-14 加载态）。
+    pendingSince: Date.now(),
+    ...(phase ? { pendingPhase: phase } : {}),
+  })
+}
+
+/**
+ * 第一个字到达时**这一段想了多久** —— 占位行还空着就从它挂上那一刻算，已经算过就
+ * 沿用（⛔ 每来一段增量重算一次，数会一直涨）。
+ */
+function thoughtMsOf(
+  current: StudioOperatorThreadEntry | undefined,
+): number | undefined {
+  if (!current || current.kind !== 'message') return undefined
+  if (current.thoughtMs !== undefined) return current.thoughtMs
+  if (current.text.length === 0 && current.pendingSince !== undefined)
+    return Math.max(0, Date.now() - current.pendingSince)
+  return undefined
 }
 
 /**
@@ -574,11 +600,13 @@ export function appendOperatorStreamingMessage(
     current && current.kind === 'message' && !(restart && current.streaming)
       ? `${current.text}${delta}`
       : delta
+  const thoughtMs = thoughtMsOf(current)
   const entry: StudioOperatorMessageEntry = {
     kind: 'message',
     id,
     text,
     streaming: true,
+    ...(thoughtMs !== undefined ? { thoughtMs } : {}),
   }
   if (index < 0) {
     appendOperatorEntry(entry)
@@ -591,14 +619,16 @@ export function appendOperatorStreamingMessage(
 }
 
 export function finalizeOperatorMessage(id: string, text: string): void {
+  const index = state.entries.findIndex(
+    (item) => item.kind === 'message' && item.id === id,
+  )
+  const thoughtMs = thoughtMsOf(index >= 0 ? state.entries[index] : undefined)
   const entry: StudioOperatorMessageEntry = {
     kind: 'message',
     id,
     text,
+    ...(thoughtMs !== undefined ? { thoughtMs } : {}),
   }
-  const index = state.entries.findIndex(
-    (item) => item.kind === 'message' && item.id === id,
-  )
   if (index < 0) {
     appendOperatorEntry(entry)
     return

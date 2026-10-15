@@ -63,6 +63,15 @@ export interface StudioOperatorMessageEntry {
   id: string
   text: string
   streaming?: boolean
+  /**
+   * 占位行挂上的那一刻（ms，2026-10-14 加载态）—— 「正在想… N 秒」从这里数。
+   * ⚠ 只在还空着的占位行上有意义；⛔ 不落库（历史条目没有这一格）。
+   */
+  pendingSince?: number
+  /** 占位行在等什么：缺席 = 等模型开口；`landing` = 画布接力那一跳（「正在画布上落地…」）。 */
+  pendingPhase?: 'landing'
+  /** 从占位行挂上到第一个字到达用了多久（ms）—— 正文上方那句「想了 N 秒」。 */
+  thoughtMs?: number
 }
 
 /** 计划条（一轮最多一条）。 */

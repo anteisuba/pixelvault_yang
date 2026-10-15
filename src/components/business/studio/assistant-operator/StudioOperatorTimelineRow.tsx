@@ -16,11 +16,12 @@
  * ⚠ 间距只有两档：轮与轮之间 20（`mt-5`），轮内 10（`mt-2.5`）。
  */
 
-import { Fragment, type ComponentProps, type ReactNode } from 'react'
+import { Fragment, useState, type ComponentProps, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { TimelineAvatar } from '@/components/business/studio/assistant-operator/TimelineAvatar'
 import type { AssistantPersona } from '@/types/assistant-persona'
+import type { StudioOperatorStatus } from '@/types/studio-assistant-operator'
 
 /**
  * **五类卡 + 系统行**（v2 §3.2）—— 时间线上唯一的一套分类。
@@ -114,10 +115,12 @@ const NODE_LABEL_KEYS: Record<StudioOperatorNodeShape, string> = {
 }
 
 /**
- * 时间线的**流容器**（`role="log"` + `aria-live="polite"`）。
+ * 时间线的**流容器**（`role="log"` + `aria-live="off"`）。
  *
- * ⚠ 助手的回合是**一条一条长出来的**：没有 live region，读屏用户要靠反复往回
- * 翻才知道又出了一步。`polite` 而不是 `assertive` —— 它不该打断用户正在读的话。
+ * ⚠ 2026-10-14 设计方案 §9.1 起**不再自动播报**：从前是 `polite`，结果流式正文
+ * 每长一段、每跑一步都被念一遍 —— 读屏用户听到的是一串碎片。现在播报只走面板那颗
+ * 隐藏的 `StudioOperatorLiveStatus`（开始 / 完成 / 停止 / 失败四句），要读正文
+ * 的人按自己的节奏进这一格读（`role="log"` 仍在，导航照旧找得到）。
  * ⚠ 一颗普通 `div` 的全部属性都收着（`ref` / `className` / `data-*` / 滚动
  * 处理器），所以 `StudioOperatorPanel` 那个 `threadRef` 容器可以原地换成它。
  */
@@ -127,14 +130,60 @@ export function StudioOperatorTimelineList({
 }: ComponentProps<'div'>) {
   const t = useTranslations('StudioOperator.timeline')
   return (
-    <div
-      role="log"
-      aria-live="polite"
-      aria-relevant="additions text"
-      aria-label={t('listLabel')}
-      {...props}
-    >
+    <div role="log" aria-live="off" aria-label={t('listLabel')} {...props}>
       {children}
+    </div>
+  )
+}
+
+type LiveAnnouncement = 'start' | 'done' | 'stopped' | 'failed'
+
+/**
+ * **隐藏的那颗播报**（§9.1 无障碍）：只说四句 —— 开始 / 完成 / 停止 / 失败。
+ *
+ * ⚠ 按**转变**说，⛔ 不按当前状态说：挂上时已经在跑（面板刚打开）不念「开始」——
+ *   那不是一个刚发生的事件。判据是渲染期派生（上一拍的 working 记在 state 里），
+ *   ⛔ 不在 effect 里 setState。
+ * ⚠ 收尾那一句**跟着当前值算**：⏹ 先把状态置回 idle、再落「已停止」那一行，两拍之间
+ *   先念成「完成」也会在下一拍改口成「已停止」。
+ * ⚠ 「等你定」（计划卡 / 确认卡）也算这一轮说完了 —— 念「完成」，卡本身会被读到。
+ */
+export function StudioOperatorLiveStatus({
+  status,
+  stopped,
+}: {
+  status: StudioOperatorStatus
+  /** 线程最后一条是 ⏹ 落下的「已停止」系统行。 */
+  stopped: boolean
+}) {
+  const t = useTranslations('StudioOperator.live')
+  const working = status === 'working'
+  const [phase, setPhase] = useState<{
+    working: boolean
+    said: 'none' | 'started' | 'ended'
+  }>({ working, said: 'none' })
+  if (phase.working !== working) {
+    setPhase({ working, said: working ? 'started' : 'ended' })
+  }
+  const announcement: LiveAnnouncement | null =
+    phase.said === 'started'
+      ? 'start'
+      : phase.said === 'ended'
+        ? stopped
+          ? 'stopped'
+          : status === 'error'
+            ? 'failed'
+            : 'done'
+        : null
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      data-testid="operator-live-status"
+      className="sr-only"
+    >
+      {announcement ? t(announcement) : ''}
     </div>
   )
 }

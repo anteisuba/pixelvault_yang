@@ -988,7 +988,14 @@ export function useAssistantOperator(
       let messageSeq = 0
       const messageEntryId = () =>
         `${runKey}:${continuationPrefix}msg-${messageSeq}`
-      appendOperatorPending(messageEntryId())
+      /**
+       * ⚠ 画布接力那一跳（`runKey` 由上一跳带来）：此刻在等的是刚落下的那批改动
+       * 回到服务端、助手接着往下做 —— 占位行写「正在画布上落地…」而不是「正在想…」。
+       */
+      appendOperatorPending(
+        messageEntryId(),
+        options.runKey ? 'landing' : undefined,
+      )
 
       /**
        * 攒着的那份计划（第 2 件）—— `plan` 帧到达时只存不落，由紧跟的

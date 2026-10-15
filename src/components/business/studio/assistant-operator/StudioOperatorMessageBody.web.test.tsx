@@ -106,7 +106,7 @@ describe('StudioOperatorMessageBody', () => {
   /**
    * `streaming` 两种形态：空正文是占位脉冲；有字是收尾轮还在写，先不折叠。
    */
-  it('⭐ 空正文 + streaming = 三点占位脉冲，⛔ 不是一行空白', () => {
+  it('⭐ 空正文 + streaming = 占位行，⛔ 不是一行空白', () => {
     renderBody({ text: '', streaming: true })
     expect(screen.getByTestId('operator-message-pending')).toBeTruthy()
     expect(screen.queryByTestId('operator-message-text')).toBeNull()
@@ -195,11 +195,27 @@ describe('StudioOperatorMessageBody', () => {
     expect(screen.queryByTestId('operator-message-caret')).toBeNull()
   })
 
-  it('⭐ D12 R-C：还没有字时是三点 +「正在思考」，⛔ 不按动作换词', () => {
+  it('⭐ §9.1：还没有字时是「正在想…」那一行（ThinkingRow），画布接力写「落地」', () => {
     renderBody({ text: '', streaming: true })
     expect(screen.getByTestId('operator-message-pending').textContent).toBe(
-      'streaming.thinking',
+      'thinking',
     )
+    screen.getByTestId('operator-message-pending').remove()
+    renderBody({ text: '', streaming: true, pendingPhase: 'landing' })
+    expect(screen.getByTestId('operator-message-pending').dataset.phase).toBe(
+      'landing',
+    )
+  })
+
+  it('⭐ §9.1：第一个字到了，正文上方是「想了 N 秒」；没想过一秒 / 历史条目不画', () => {
+    renderBody({ text: '好了。', thoughtMs: 8_200 })
+    expect(screen.getByTestId('operator-message-thought').textContent).toBe(
+      'thought',
+    )
+    screen.getByTestId('operator-message-thought').remove()
+    renderBody({ text: '好了。', thoughtMs: 300 })
+    renderBody({ text: '好了。' })
+    expect(screen.queryByTestId('operator-message-thought')).toBeNull()
   })
 
   it('「用 Grok 搜 X」：给了才画、点下去回调；流着的时候不画', () => {

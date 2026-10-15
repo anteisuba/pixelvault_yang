@@ -30,7 +30,12 @@ export function StudioOperatorToolGroup({
   children,
 }: StudioOperatorToolGroupProps) {
   const t = useTranslations('StudioOperator')
-  const [open, setOpen] = useState(false)
+  /**
+   * 开合（2026-10-14 设计方案 §9.1）：**跑着自动展开、跑完自动收起；用户手动点过就以
+   * 用户为准**。`null` = 用户还没碰过，跟着 `running` 走（派生，⛔ 不在 effect 里同步）。
+   */
+  const [userOpen, setUserOpen] = useState<boolean | null>(null)
+  const open = userOpen ?? running
   const detailsId = useId()
 
   return (
@@ -51,14 +56,17 @@ export function StudioOperatorToolGroup({
       ) : null}
       {/* ── 过程一行（D12 A · C3 / C4 / P5）：「做了 N 步 · 改了 X ▸ · 撤销」。
           ⭐ 四种记录皮统一成这一种 12 号灰字；「撤销」紧跟在后（`trailing`）。
-          ⚠ 跑着时写的是正在做的那一步，⛔ 不再挂转圈。 */}
+          ⚠ 跑着时写的是正在做的那一步的**人话动词**（面板按工具取，⛔ 不读模型
+          起的标题），⛔ 不再挂转圈。
+          ⚠ ⛔ 不是 live region：播报只走面板那一颗隐藏的 `role=status`（开始 /
+          完成 / 停止 / 失败），每一步都念一遍是噪音。 */}
       <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
         <button
           type="button"
           data-testid="operator-tool-group-toggle"
           aria-expanded={open}
           aria-controls={detailsId}
-          onClick={() => setOpen(!open)}
+          onClick={() => setUserOpen(!open)}
           className="flex min-w-0 items-center gap-1.5 rounded-sm text-left transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none"
         >
           {running ? <StudioOperatorThinkingDots /> : null}
@@ -68,7 +76,6 @@ export function StudioOperatorToolGroup({
                 ? 'operator-tool-group-running'
                 : 'operator-tool-group-title'
             }
-            {...(running ? { role: 'status' } : {})}
             className="min-w-0 truncate"
           >
             {running

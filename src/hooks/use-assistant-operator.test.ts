@@ -657,6 +657,47 @@ describe('useAssistantOperator 的四条收尾路径', () => {
     await settle()
   })
 
+  /**
+   * 画布接力那一跳（2026-10-14 加载态 §9.1）：上一跳停在 `canvas_sync`、改动落回画布后
+   * 接着跑的那一跳，占位行写「正在画布上落地…」—— 第一跳仍是「正在想…」。
+   */
+  it('画布接力那一跳的占位行带 landing，第一跳不带', async () => {
+    hostDomain.current = 'canvas'
+    const { result } = render()
+    act(() => result.current.send('建一张卡'))
+    await settle()
+    const pendingOf = () =>
+      store
+        .getOperatorState()
+        .entries.filter(
+          (entry) =>
+            entry.kind === 'message' && entry.streaming && entry.text === '',
+        )
+        .at(-1)
+    expect(pendingOf()).toMatchObject({ pendingSince: expect.any(Number) })
+    expect(pendingOf()).not.toHaveProperty('pendingPhase')
+    streams[0].emit({
+      type: 'step',
+      step: {
+        id: 'step-1',
+        title: '新建节点',
+        tool: 'canvas_apply',
+        verb: 'apply',
+        status: 'done',
+        payload: { op: 'add_node', kind: 'image', subtype: 'shot', name: 'A' },
+        inverse: { op: 'delete', nodeRef: 'add_node' },
+      },
+    })
+    streams[0].emit({ type: 'stopped', reason: 'canvas_sync' })
+    streams[0].close()
+    await settle()
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(2)
+    expect(pendingOf()).toMatchObject({ pendingPhase: 'landing' })
+    streams[1].emit({ type: 'done' })
+    streams[1].close()
+    await settle()
+  })
+
   it('连续布置多个画布节点时逐步续接最新快照', async () => {
     hostDomain.current = 'canvas'
     const nodes: { id: string; name: string; kind: string; subtype: string }[] =

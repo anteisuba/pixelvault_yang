@@ -28,6 +28,10 @@
  * **待确认（未答问题 + 未处理确认）+ 未读结果**，由外壳算。0 = 整颗角标不画，
  * ⛔ 不画一个写着 0 的圈。⚠ 角标 = **等你的事**，⛔ 不是红点（画板原话）。
  * ⚠ 只在收起档画：展开时头像已经坐在头部，旁边就是那件事本身。
+ *
+ * ── 运行环 + 状态点（2026-10-14 设计方案 §9.1，取代此前「⛔ 状态点」那条）────
+ * 收着面板时唯一能告诉你「它还在干活 / 干完了 / 出错了」的地方。运行环只动
+ * opacity、状态点呼吸，⛔ 不转圈；减少动效时都是静止的。
  */
 
 import {
@@ -51,9 +55,21 @@ import type { AssistantPersona } from '@/types/assistant-persona'
 
 export type StudioOperatorShellPhase = 'closed' | 'opening' | 'open' | 'closing'
 
+/**
+ * 收起态那一颗状态（2026-10-14 设计方案 §9.1）：在跑 / 收着时跑完了 / 收着时出错了。
+ * ⚠ 由外壳算（它知道「跑完那一刻面板收没收着」），⛔ 这里不自己读 store。
+ */
+export type StudioOperatorCollapsedActivity = 'running' | 'done' | 'failed'
+
 interface StudioOperatorAvatarToggleProps {
   /** 角标数：待确认 + 未读结果。`0` 不画角标。⚠ 由外壳算，⛔ 这里不自己数。 */
   badgeCount: number
+  /**
+   * 收起态的运行指示（§9.1）：`running` = 外面一圈呼吸的运行环 + 右下一颗呼吸点；
+   * `done` / `failed` = 右下一颗静止的点（出错走风险色）。`null` = 什么都不画。
+   * ⚠ 只在收起档画，理由与角标同一条。
+   */
+  activity?: StudioOperatorCollapsedActivity | null
   persona?: AssistantPersona
   anchor: StudioOperatorShellAnchor
   /** 面板此刻多宽 —— 落位的 x 要减掉它（面板贴右缘，头部左上槽在它的左边）。 */
@@ -101,6 +117,7 @@ export function operatorAvatarShift(
 
 export function StudioOperatorAvatarToggle({
   badgeCount,
+  activity = null,
   persona,
   anchor,
   panelWidthPx,
@@ -122,6 +139,18 @@ export function StudioOperatorAvatarToggle({
   const x = useTransform(progress, (p) => shift.x * p)
   const y = useTransform(progress, (p) => shift.y * p)
   const avatarScale = useTransform(progress, (p) => 1 - (1 - scale) * p)
+  const shownActivity = docked ? null : activity
+  /**
+   * ⚠ 「跑完了」那颗点**让给角标**：有等你的事时角标已经在叫你了，再挂一颗完成点是
+   *   同一件事说两遍。出错点不让 —— 它说的是另一件事。
+   */
+  const statusDot =
+    shownActivity === 'done' && badgeCount > 0 ? null : shownActivity
+  const baseLabel = docked
+    ? t('collapse')
+    : badgeCount > 0
+      ? `${t('expand')} — ${t('collapsedTodo', { count: badgeCount })}`
+      : t('expand')
 
   return (
     <motion.button
@@ -129,14 +158,13 @@ export function StudioOperatorAvatarToggle({
       data-testid="operator-avatar-toggle"
       data-phase={phase}
       data-badge={badgeCount > 0 ? String(badgeCount) : ''}
+      data-activity={shownActivity ?? ''}
       {...{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}
       aria-pressed={docked}
       aria-label={
-        docked
-          ? t('collapse')
-          : badgeCount > 0
-            ? `${t('expand')} — ${t('collapsedTodo', { count: badgeCount })}`
-            : t('expand')
+        shownActivity
+          ? `${baseLabel} — ${t(`collapsedActivity.${shownActivity}`)}`
+          : baseLabel
       }
       /* 展开时悬停说出怎么收（owner 2026-09-26：收起只走头像，得让人知道）。 */
       title={docked ? t('collapseHint') : name}
@@ -186,6 +214,32 @@ export function StudioOperatorAvatarToggle({
           className="rounded-full"
         />
       )}
+
+      {/* ── 运行环（§9.1）：头像外一圈，只动 opacity；减少动效时是一圈静止的实线。 */}
+      {shownActivity === 'running' ? (
+        <span
+          data-testid="operator-avatar-running-ring"
+          aria-hidden
+          className="pointer-events-none absolute -inset-0.5 rounded-full border-2 border-foreground/70 animate-assistant-ring motion-reduce:animate-none"
+        />
+      ) : null}
+
+      {/* ── 状态点（§9.1）：右下一颗。在跑 = 呼吸；跑完 = 静止中性色；出错 = 风险色。
+          ⚠ 角标在右上，两颗不打架。 */}
+      {statusDot ? (
+        <span
+          data-testid="operator-avatar-status-dot"
+          data-status={statusDot}
+          aria-hidden
+          className={cn(
+            'pointer-events-none absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-background',
+            statusDot === 'running' &&
+              'bg-foreground animate-assistant-breathe motion-reduce:animate-none',
+            statusDot === 'done' && 'bg-foreground',
+            statusDot === 'failed' && 'bg-status-risk',
+          )}
+        />
+      ) : null}
 
       {badgeCount > 0 && !docked ? (
         <span

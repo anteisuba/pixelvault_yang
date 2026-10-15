@@ -94,14 +94,30 @@ export interface StudioOperatorModelChipProps {
    * ⛔ 不留一个「看起来选上了、实际没存」的假状态。
    */
   onChange(next: AssistantRouteModel): void | boolean | Promise<boolean>
+  /**
+   * 受控开合（可选）—— 错误条那颗「换个模型」要从外面把这张选单打开
+   * （2026-10-14 设计方案 §9.1）。缺席 = 自己管。
+   */
+  open?: boolean
+  onOpenChange?(next: boolean): void
 }
 
 export function StudioOperatorModelChip({
   value,
   onChange,
+  open: openProp,
+  onOpenChange,
 }: StudioOperatorModelChipProps) {
   const t = useTranslations('StudioOperator.modelChip')
-  const [open, setOpen] = useState(false)
+  const [localOpen, setLocalOpen] = useState(false)
+  const open = openProp ?? localOpen
+  const setOpen = useCallback(
+    (next: boolean) => {
+      if (openProp === undefined) setLocalOpen(next)
+      onOpenChange?.(next)
+    },
+    [onOpenChange, openProp],
+  )
   /**
    * 乐观显示：写库那一跳回来之前 chip 上就是用户刚点的那一档。
    *
@@ -143,7 +159,7 @@ export function StudioOperatorModelChip({
       // 没存上就撤回，⛔ 不留一个「看起来选上了、实际没存」的假状态。
       if (ok === false) setPending(null)
     },
-    [onChange, value],
+    [onChange, setOpen, value],
   )
 
   const handlePick = useCallback(
@@ -160,7 +176,7 @@ export function StudioOperatorModelChip({
       }
       void commit(model.modelId)
     },
-    [commit, needsKey],
+    [commit, needsKey, setOpen],
   )
 
   const selectedLabel =

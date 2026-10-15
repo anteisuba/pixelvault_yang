@@ -62,6 +62,7 @@ import {
   splitOperatorHistoryRounds,
   describeSystemSubjects,
   mergeOperatorSystemRuns,
+  operatorRunningPhrase,
 } from '@/lib/studio-operator-timeline'
 import Image from 'next/image'
 import { motion, useReducedMotion } from 'motion/react'
@@ -144,6 +145,7 @@ import {
 import {
   STUDIO_OPERATOR_CARD_KINDS,
   STUDIO_OPERATOR_SPEAKERS,
+  StudioOperatorLiveStatus,
   StudioOperatorTimelineList,
   StudioOperatorTurns,
   type StudioOperatorThreadItem,
@@ -552,6 +554,8 @@ export function StudioOperatorPanel({
   const [libraryOpen, setLibraryOpen] = useState(false)
   /** 缺 key 的那条错误条上「配置 Key」打开的内联配置（Hard Rule 8）。 */
   const [keySetupOpen, setKeySetupOpen] = useState(false)
+  /** 模型 chip 的选单 —— 错误条那颗「换个模型」从这里打开（§9.1）。 */
+  const [modelPickerOpen, setModelPickerOpen] = useState(false)
   /** 回形针那颗按钮背后的文件选择器（上传三通道的第一条）。 */
   const uploadInputRef = useRef<HTMLInputElement>(null)
   const threadRef = useRef<HTMLDivElement>(null)
@@ -1795,11 +1799,15 @@ export function StudioOperatorPanel({
                     skipped={skipped}
                     running={running}
                     trailing={checkpoint}
-                    runningTitle={
-                      block.steps.findLast(
+                    runningTitle={(() => {
+                      /* §9.1 人话动词：按这一步的动词取，⛔ 不读模型起的标题。 */
+                      const current = block.steps.findLast(
                         (item) => item.step.status === 'running',
-                      )?.step.title
-                    }
+                      )?.step
+                      return current
+                        ? t(`running.${operatorRunningPhrase(current)}`)
+                        : undefined
+                    })()}
                     /* ⚠ 只在**本轮收尾后**说（D12 C11）：跑着的时候被退回的那一步
                        多半下一刻就换条路成了，中途亮一条红字是假警报。 */
                     failure={
@@ -2473,19 +2481,28 @@ export function StudioOperatorPanel({
                         <StudioOperatorErrorBar
                           text={errorText ?? t('error.generic')}
                           trace={errorTrace}
-                          action={
+                          actions={[
                             errorCode === 'MISSING_API_KEY'
                               ? {
+                                  id: 'addKey',
                                   label: t('error.addKey'),
                                   onClick: () => setKeySetupOpen(true),
                                 }
                               : {
                                   /* ⭐ 出错了就地重试（2026-10-14）：发一句「接着做完」，
                                      ⛔ 不原样重放上一条 —— 中途落下的改动还在，重放会重做一遍。 */
+                                  id: 'retry',
                                   label: t('error.retry'),
                                   onClick: () => send(t('error.retryPrompt')),
-                                }
-                          }
+                                },
+                            /* §9.1「换个模型」：打开输入框底下那颗模型 chip 的选单，
+                               ⛔ 不另起一张选模型的面板（缺 key 的模型照旧就地弹配置）。 */
+                            {
+                              id: 'switchModel',
+                              label: t('error.switchModel'),
+                              onClick: () => setModelPickerOpen(true),
+                            },
+                          ]}
                         />
                       </StudioOperatorTimelineRow>
                     ) : null,
@@ -2533,6 +2550,14 @@ export function StudioOperatorPanel({
             })()}
           </div>
         </StudioOperatorTimelineList>
+        {/* 读屏只听这四句（§9.1）：开始 / 完成 / 停止 / 失败 —— 时间线本身 `aria-live="off"`。 */}
+        <StudioOperatorLiveStatus
+          status={status}
+          stopped={(() => {
+            const last = allEntries.at(-1)
+            return last?.kind === 'system' && last.code === 'stopped'
+          })()}
+        />
 
         {/* ── 排队条（§3.1 ㉒–㉔）────────────────────────────────────
           ⚠ 长在输入框**上方**（不是线程末尾）：它说的是「你刚打的这句还在手上」，
@@ -2940,6 +2965,8 @@ export function StudioOperatorPanel({
             <StudioOperatorModelChip
               value={persona?.routeModel ?? ASSISTANT_ROUTE_MODEL_AUTO}
               onChange={onSelectRouteModel}
+              open={modelPickerOpen}
+              onOpenChange={setModelPickerOpen}
             />
             <StudioOperatorEffortChip
               value={

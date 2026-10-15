@@ -457,13 +457,64 @@ describe('正文与占位行', () => {
     const result = readState()
     act(() => store.appendOperatorPending('run-1:msg-0'))
     expect(result.current.entries).toEqual([
-      { kind: 'message', id: 'run-1:msg-0', text: '', streaming: true },
+      {
+        kind: 'message',
+        id: 'run-1:msg-0',
+        text: '',
+        streaming: true,
+        pendingSince: expect.any(Number),
+      },
     ])
 
     act(() => store.finalizeOperatorMessage('run-1:msg-0', '夜景'))
     expect(result.current.entries).toEqual([
-      { kind: 'message', id: 'run-1:msg-0', text: '夜景' },
+      {
+        kind: 'message',
+        id: 'run-1:msg-0',
+        text: '夜景',
+        thoughtMs: expect.any(Number),
+      },
     ])
+  })
+
+  /**
+   * 「正在想… N 秒」与「想了 N 秒」（2026-10-14 加载态 §9.1）：起点在占位行挂上那一刻，
+   * 第一个字到达时定格，之后每来一段增量⛔ 不重算。
+   */
+  it('⭐ 占位行记起点；第一个字到达时定格「想了多久」，之后⛔ 不再涨', () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(10_000)
+      const result = readState()
+      act(() => store.appendOperatorPending('run-1:msg-0'))
+      expect(result.current.entries[0]).toMatchObject({ pendingSince: 10_000 })
+
+      vi.setSystemTime(13_500)
+      act(() => store.appendOperatorStreamingMessage('run-1:msg-0', '图3'))
+      expect(result.current.entries[0]).toMatchObject({ thoughtMs: 3_500 })
+      expect(result.current.entries[0]).not.toHaveProperty('pendingSince')
+
+      vi.setSystemTime(20_000)
+      act(() => store.appendOperatorStreamingMessage('run-1:msg-0', '是夜景'))
+      act(() => store.finalizeOperatorMessage('run-1:msg-0', '图3是夜景'))
+      expect(result.current.entries[0]).toEqual({
+        kind: 'message',
+        id: 'run-1:msg-0',
+        text: '图3是夜景',
+        thoughtMs: 3_500,
+      })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('画布接力那一跳的占位行带 `landing`', () => {
+    const result = readState()
+    act(() => store.appendOperatorPending('run-1:c1-msg-0', 'landing'))
+    expect(result.current.entries[0]).toMatchObject({
+      pendingPhase: 'landing',
+      streaming: true,
+    })
   })
 
   it('⭐ 增量**追加**到那条 streaming 气泡后面，定稿再整体覆盖并降旗（56b 切片 3）', () => {
@@ -476,6 +527,7 @@ describe('正文与占位行', () => {
         id: 'run-1:msg-0',
         text: '图3是',
         streaming: true,
+        thoughtMs: expect.any(Number),
       },
     ])
     act(() =>
@@ -487,11 +539,17 @@ describe('正文与占位行', () => {
         id: 'run-1:msg-0',
         text: '图3是风格化 3D。',
         streaming: true,
+        thoughtMs: expect.any(Number),
       },
     ])
     act(() => store.finalizeOperatorMessage('run-1:msg-0', '图3是风格化 3D。'))
     expect(result.current.entries).toEqual([
-      { kind: 'message', id: 'run-1:msg-0', text: '图3是风格化 3D。' },
+      {
+        kind: 'message',
+        id: 'run-1:msg-0',
+        text: '图3是风格化 3D。',
+        thoughtMs: expect.any(Number),
+      },
     ])
   })
 
@@ -538,7 +596,12 @@ describe('正文与占位行', () => {
     act(() => store.finalizeOperatorMessage('run-1:msg-0', '已经改成夜'))
     act(() => store.finalizeOperatorMessage('run-1:msg-0', '已经改成夜景了。'))
     expect(result.current.entries).toEqual([
-      { kind: 'message', id: 'run-1:msg-0', text: '已经改成夜景了。' },
+      {
+        kind: 'message',
+        id: 'run-1:msg-0',
+        text: '已经改成夜景了。',
+        thoughtMs: expect.any(Number),
+      },
     ])
   })
 

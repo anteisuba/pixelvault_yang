@@ -7944,6 +7944,25 @@
     "deleteRoomHint": "“{name}” and all its lines will be removed. Voices you already generated stay in your library."
   },
   "StudioOperator": {
+    "collapsedActivity": {
+      "running": "working",
+      "done": "new reply",
+      "failed": "ran into an error"
+    },
+    "live": {
+      "start": "Assistant started",
+      "done": "Assistant finished",
+      "stopped": "Assistant stopped",
+      "failed": "Assistant ran into an error"
+    },
+    "running": {
+      "look": "Looking at the picture…",
+      "research": "Searching…",
+      "library": "Searching your library…",
+      "ask": "Thinking of a question…",
+      "apply": "Changing settings…",
+      "generate": "Getting ready to generate…"
+    },
     "title": "Assistant",
     "domainName": {
       "image": "the image workspace",
@@ -8349,7 +8368,8 @@
       "missingKey": "The assistant needs your own AI text model key. Gemini keys are free to create in Google AI Studio.",
       "addKey": "Add a key",
       "retry": "Retry",
-      "retryPrompt": "That got cut off. Finish my last request, without redoing what already landed."
+      "retryPrompt": "That got cut off. Finish my last request, without redoing what already landed.",
+      "switchModel": "Try another model"
     },
     "assistantSettings": "Assistant settings",
     "rule": {
@@ -8478,7 +8498,11 @@
     },
     "streaming": {
       "pending": "The assistant is thinking",
-      "thinking": "Thinking…"
+      "thinking": "Thinking…",
+      "landing": "Landing it on the canvas…",
+      "seconds": "{count}s",
+      "slow": "Taking longer than usual — still waiting on the model",
+      "thought": "Thought for {count}s"
     },
     "question": {
       "step": "{step} / {total}",

@@ -7944,6 +7944,25 @@
     "deleteRoomHint": "「{name}」和它的全部台词都会删掉。已经生成的声音不受影响，仍然在素材库里。"
   },
   "StudioOperator": {
+    "collapsedActivity": {
+      "running": "正在处理",
+      "done": "有新回复",
+      "failed": "出错了"
+    },
+    "live": {
+      "start": "助手开始处理",
+      "done": "助手已回复",
+      "stopped": "助手已停止",
+      "failed": "助手出错了"
+    },
+    "running": {
+      "look": "正在看图…",
+      "research": "正在查资料…",
+      "library": "正在查素材…",
+      "ask": "正在想问题…",
+      "apply": "正在改参数…",
+      "generate": "准备生成…"
+    },
     "title": "助手",
     "domainName": {
       "image": "图片工作台",
@@ -8349,7 +8368,8 @@
       "missingKey": "助手需要你自己的 AI 文本模型 Key。Gemini 的 Key 可以在 Google AI Studio 免费申请。",
       "addKey": "配置 Key",
       "retry": "重试",
-      "retryPrompt": "刚才中断了，接着把上一条做完（已经落下的别重做）。"
+      "retryPrompt": "刚才中断了，接着把上一条做完（已经落下的别重做）。",
+      "switchModel": "换个模型"
     },
     "assistantSettings": "助手设置",
     "rule": {
@@ -8478,7 +8498,11 @@
     },
     "streaming": {
       "pending": "助手正在思考",
-      "thinking": "正在思考…"
+      "thinking": "正在想…",
+      "landing": "正在画布上落地…",
+      "seconds": "{count} 秒",
+      "slow": "比平时久一点，还在等模型回话",
+      "thought": "想了 {count} 秒"
     },
     "question": {
       "step": "{step} / {total}",

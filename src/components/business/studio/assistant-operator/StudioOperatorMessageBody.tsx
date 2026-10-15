@@ -44,6 +44,10 @@ import {
   type StudioOperatorAnswerSource,
 } from './StudioOperatorAnswerSources'
 import {
+  StudioOperatorThinkingRow,
+  StudioOperatorThoughtReceipt,
+} from './StudioOperatorThinkingRow'
+import {
   firstOperatorSentence,
   shouldCollapseOperatorText,
 } from '@/lib/studio-operator-timeline'
@@ -268,11 +272,17 @@ export function StudioOperatorCollapsibleText({
   activeCite = null,
   onPickCitation,
   references = [],
+  pendingSince,
+  pendingPhase,
 }: {
   references?: readonly NamedImageReference[]
   text: string
+  /** 占位行挂上的那一刻 —— 「正在想… N 秒」从这里数（§9.1）。 */
+  pendingSince?: number
+  /** `landing` = 画布接力那一跳（「正在画布上落地…」）。 */
+  pendingPhase?: 'landing'
   /**
-   * 这一条**还没有字**（发送即回显的占位行）—— 空正文时画三点脉冲。
+   * 这一条**还没有字**（发送即回显的占位行）—— 空正文时画「正在想…」那一行。
    * 有字且仍 streaming = 收尾轮还在写，不折叠。
    */
   streaming?: boolean
@@ -325,19 +335,16 @@ export function StudioOperatorCollapsibleText({
   const textSwap = useBlurSwapIn(!text && streaming ? 'pending' : 'text')
 
   /**
-   * **等回答时那一行**（D12 R-C）：三颗小点错峰起伏 +「正在思考…」。
-   * ⛔ 不按动作换词、⛔ 不转圈、⛔ 不上骨架；第一个字一到就让位给正文。
-   * ⚠ 高度 = 一行正文高（`h-6`），第一个字到达时这一行不跳。
+   * **等回答时那一行**（2026-10-14 设计方案 §9.1，取代 D12 R-C 的三点）：一秒内不画，
+   * 之后呼吸点 + 扫光「正在想…」+ 已等秒数，>6 s 多一句慢提示。
+   * ⛔ 不转圈、⛔ 不上骨架；第一个字一到就让位给正文。详见 `StudioOperatorThinkingRow`。
    */
   if (!text && streaming) {
     return (
-      <p
-        data-testid="operator-message-pending"
-        className="flex h-6 items-center gap-2 text-xs text-muted-foreground"
-      >
-        <StudioOperatorThinkingDots />
-        {t('streaming.thinking')}
-      </p>
+      <StudioOperatorThinkingRow
+        {...(pendingSince === undefined ? {} : { since: pendingSince })}
+        landing={pendingPhase === 'landing'}
+      />
     )
   }
 
@@ -415,10 +422,21 @@ export function StudioOperatorMessageBody({
 
   return (
     <div className="flex min-w-0 flex-col gap-2">
+      {entry.text ? (
+        <StudioOperatorThoughtReceipt
+          {...(entry.thoughtMs === undefined
+            ? {}
+            : { thoughtMs: entry.thoughtMs })}
+        />
+      ) : null}
       <StudioOperatorCollapsibleText
         text={entry.text}
         references={references}
         streaming={entry.streaming ?? false}
+        {...(entry.pendingSince === undefined
+          ? {}
+          : { pendingSince: entry.pendingSince })}
+        {...(entry.pendingPhase ? { pendingPhase: entry.pendingPhase } : {})}
         sources={sources}
         activeCite={activeCite}
         onPickCitation={(cite) =>
@@ -525,9 +543,9 @@ export function StudioOperatorUserText({
 }
 
 /**
- * 「还在干活」的三颗小点（D12 R-C）：错峰起伏，⛔ 不转圈。等第一个字时与工具步
- * 跑着时共用这一个 —— 2026-10-08 owner：看图那一步只有一行灰字，和跑完的步骤长得
- * 一样，不看停止键看不出它还在动。
+ * 「还在干活」的三颗小点（D12 R-C）：错峰起伏，⛔ 不转圈。工具步跑着时用它 ——
+ * 2026-10-08 owner：看图那一步只有一行灰字，和跑完的步骤长得一样，不看停止键看不出
+ * 它还在动。（等第一个字那一行 2026-10-14 起换成 `StudioOperatorThinkingRow` 的呼吸点。）
  */
 export function StudioOperatorThinkingDots() {
   return (

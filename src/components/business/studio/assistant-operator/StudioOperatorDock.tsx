@@ -90,6 +90,7 @@ import {
 } from '@/components/business/assistant-settings/AssistantSettings'
 import {
   StudioOperatorAvatarToggle,
+  type StudioOperatorCollapsedActivity,
   type StudioOperatorShellPhase,
 } from '@/components/business/studio/assistant-operator/StudioOperatorAvatarToggle'
 import { StudioOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
@@ -251,8 +252,15 @@ export function StudioOperatorDock() {
    * 读得出它是浮在上面的。点面板外照旧收（下面那条注意力收放法则）。
    */
   const isTablet = useIsTablet()
-  const { entries, mentions, question, confirm, threadScope, localThreadId } =
-    useStudioOperatorState()
+  const {
+    entries,
+    mentions,
+    question,
+    confirm,
+    threadScope,
+    localThreadId,
+    status,
+  } = useStudioOperatorState()
   const attachmentScope =
     scope && threadScope === scope
       ? JSON.stringify([scope, localThreadId])
@@ -310,6 +318,39 @@ export function StudioOperatorDock() {
     ? 0
     : settledResultIds.filter((id) => !readResults.seen.has(id)).length
   const badgeCount = todoCount + unreadResults
+  /**
+   * **收起态的运行指示**（2026-10-14 设计方案 §9.1「收起态头像带运行环 + 状态点；
+   * 完成或出错时角标提醒」）。
+   *
+   * ⚠ 「收着时跑完了」要记住：跑完那一刻面板是收着的，才留一颗完成 / 出错点；
+   *   打开面板（看过了）或下一轮开跑就清掉。
+   * ⚠ 与上面已读线同一个写法：渲染阶段的派生 state，⛔ 不在 effect 里 `setState`。
+   */
+  const running = status === 'working'
+  const [activityTrack, setActivityTrack] = useState<{
+    running: boolean
+    open: boolean
+    finished: 'done' | 'failed' | null
+  }>({ running, open, finished: null })
+  if (activityTrack.running !== running || activityTrack.open !== open) {
+    setActivityTrack({
+      running,
+      open,
+      finished:
+        open || running
+          ? null
+          : activityTrack.running
+            ? status === 'error'
+              ? 'failed'
+              : 'done'
+            : activityTrack.finished,
+    })
+  }
+  const collapsedActivity: StudioOperatorCollapsedActivity | null = open
+    ? null
+    : running
+      ? 'running'
+      : activityTrack.finished
   /**
    * ⭐ 驱动 hook 在**外壳**这一层调用，不在面板里：收起面板时面板会被卸载，
    * 而收起（拍板 7）绝不该把在飞的那一轮掐掉 —— 胶囊上那句「干活中 3/7」
@@ -1085,6 +1126,7 @@ export function StudioOperatorDock() {
         {open ? null : (
           <StudioOperatorAvatarToggle
             badgeCount={badgeCount}
+            activity={collapsedActivity}
             {...(persona ? { persona } : {})}
             anchor={{
               avatarTopPx: STUDIO_OPERATOR_MOBILE_SHELL.avatarTopPx,
@@ -1261,6 +1303,7 @@ export function StudioOperatorDock() {
       <div className="hidden lg:block">
         <StudioOperatorAvatarToggle
           badgeCount={badgeCount}
+          activity={collapsedActivity}
           {...(persona ? { persona } : {})}
           anchor={anchor}
           panelWidthPx={width}

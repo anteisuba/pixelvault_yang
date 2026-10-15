@@ -1,10 +1,13 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import Image from 'next/image'
 import { useLocale, useTranslations } from 'next-intl'
 
-import { CHARACTER_CARD } from '@/constants/cards/character-card'
+import {
+  CHARACTER_CARD,
+  CHARACTER_PERSONA_LIMITS,
+} from '@/constants/cards/character-card'
 import { TAVERN_CARD } from '@/constants/cards/tavern-card'
 import type { CharacterCardRecord, UpdateCharacterCardRequest } from '@/types'
 import { ChevronDown, ChevronLeft, Plus } from '@/components/icons'
@@ -15,6 +18,10 @@ import {
   CharacterInlineField,
   CharacterTagChips,
 } from '@/components/business/cards/CharacterInlineField'
+import {
+  CharacterFieldEditor,
+  CharacterTextField,
+} from '@/components/business/cards/CharacterTextField'
 import { UseCharacterMenu } from '@/components/business/cards/UseCharacterMenu'
 import {
   appendSlotImages,
@@ -159,13 +166,16 @@ export function CharacterDetailBody({
             images: characterImageCount(card),
           })}
         </p>
-        <CharacterInlineField
-          multiline
-          value={card.description ?? ''}
+        <CharacterTextField
           label={t('fieldLooks')}
+          value={card.description ?? ''}
           placeholder={t('fieldLooks')}
-          onCommit={(description) => save({ description })}
-          className="mt-1 text-base leading-relaxed lg:text-md"
+          limit={CHARACTER_CARD.DESCRIPTION_MAX_LENGTH}
+          showLabel={false}
+          clamp={false}
+          onSave={(description) => save({ description })}
+          className="mt-1"
+          textClassName="lg:text-md"
         />
       </div>
 
@@ -352,12 +362,33 @@ function TileAction({
   )
 }
 
-const SETTING_FIELDS = [
+const PERSON_FIELDS = [
   ['identity', 'fieldIdentity'],
   ['behavior', 'fieldBehavior'],
   ['speech', 'fieldSpeech'],
   ['backstory', 'fieldBackstory'],
 ] as const
+
+/** 设定里的一组（人物 / 对话 / 更多）：一块浅灰底，owner 2026-10-15 选原型 A。 */
+function SettingGroup({
+  title,
+  children,
+  action,
+}: {
+  title: string
+  children: ReactNode
+  action?: ReactNode
+}) {
+  return (
+    <div className="flex flex-col gap-4 rounded-2xl bg-muted/60 px-4 py-4 sm:px-5">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold">{title}</p>
+        {action}
+      </div>
+      {children}
+    </div>
+  )
+}
 
 function SettingModule({
   card,
@@ -369,87 +400,83 @@ function SettingModule({
   const t = useTranslations('CharacterRoster')
   const reading = useCharacterSampleLines(card.id)
   const tErrors = useTranslations('Errors')
-  const speechRef = useRef<HTMLTextAreaElement>(null)
+  const [speechEditing, setSpeechEditing] = useState(false)
   const persona = card.persona
-  const written = SETTING_FIELDS.some(([key]) => persona?.[key]?.trim())
+  const written = PERSON_FIELDS.some(([key]) => persona?.[key]?.trim())
 
   return (
-    <section className="mb-8 flex flex-col gap-4">
+    <section className="mb-8 flex flex-col gap-3">
       <h3 className="text-base font-semibold">{t('setting')}</h3>
-      <p className="text-xs font-medium text-foreground">
-        {t('settingPerson')}
-      </p>
-      <div className="grid gap-x-11 gap-y-5 lg:grid-cols-2">
-        {SETTING_FIELDS.map(([key, label]) => (
-          <div key={key} className="flex min-w-0 flex-col gap-1">
-            <p className="text-xs text-muted-foreground">{t(label)}</p>
-            <CharacterInlineField
-              ref={key === 'speech' ? speechRef : undefined}
-              multiline
-              value={persona?.[key] ?? ''}
+      <SettingGroup title={t('settingPerson')}>
+        <div className="grid gap-x-10 gap-y-5 lg:grid-cols-2">
+          {PERSON_FIELDS.map(([key, label]) => (
+            <CharacterTextField
+              key={key}
               label={t(label)}
-              placeholder={t('emptyField')}
+              value={persona?.[key] ?? ''}
+              limit={CHARACTER_PERSONA_LIMITS[key]}
               hint={key === 'behavior' ? t('behaviorHint') : undefined}
-              onCommit={(text) => save({ [key]: text })}
-              className="text-base leading-relaxed lg:text-sm"
+              onSave={(text) => save({ [key]: text })}
+              {...(key === 'speech'
+                ? { editing: speechEditing, onEditingChange: setSpeechEditing }
+                : {})}
             />
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
 
-      {written ? (
-        reading.lines ? (
-          <div className="flex max-w-2xl flex-col gap-2.5">
-            <p className="text-xs text-muted-foreground">
-              {t('readingTitle', { name: card.name })}
-            </p>
-            <div className="rounded-2xl rounded-tl-sm bg-muted px-3.5 py-3 text-sm leading-7">
-              {reading.lines.map((line) => (
-                <p key={line}>{line}</p>
-              ))}
-            </div>
-            <div className="flex items-center gap-2.5">
-              <Button type="button" size="sm" onClick={reading.clear}>
-                {t('readingLike')}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  reading.clear()
-                  speechRef.current?.focus()
-                }}
-              >
-                {t('readingUnlike')}
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-1.5">
-            <button
-              type="button"
-              onClick={() => void reading.run()}
-              disabled={reading.isLoading}
-              className="flex w-fit items-center gap-2 text-sm text-muted-foreground transition-colors duration-fast hover:text-foreground"
-            >
-              {reading.isLoading ? <Spinner size="sm" /> : null}
-              {reading.error ? t('readingFailed') : t('readingTry')}
-            </button>
-            {/* 助手那一家跑不了就照实说（owner 2026-10-15「全跟助手」），⛔ 不悄悄换一家。 */}
-            {reading.reason && !reading.isLoading ? (
-              <p role="status" className="text-xs text-muted-foreground">
-                {getApiErrorMessage(
-                  tErrors,
-                  reading.reason,
-                  reading.reason.error,
-                )}
+        {written ? (
+          reading.lines ? (
+            <div className="flex max-w-2xl flex-col gap-2.5">
+              <p className="text-xs text-muted-foreground">
+                {t('readingTitle', { name: card.name })}
               </p>
-            ) : null}
-          </div>
-        )
-      ) : null}
-
+              <div className="rounded-2xl rounded-tl-sm bg-muted px-3.5 py-3 text-sm leading-7">
+                {reading.lines.map((line) => (
+                  <p key={line}>{line}</p>
+                ))}
+              </div>
+              <div className="flex items-center gap-2.5">
+                <Button type="button" size="sm" onClick={reading.clear}>
+                  {t('readingLike')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    reading.clear()
+                    setSpeechEditing(true)
+                  }}
+                >
+                  {t('readingUnlike')}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              <button
+                type="button"
+                onClick={() => void reading.run()}
+                disabled={reading.isLoading}
+                className="flex w-fit items-center gap-2 text-sm text-muted-foreground transition-colors duration-fast hover:text-foreground"
+              >
+                {reading.isLoading ? <Spinner size="sm" /> : null}
+                {reading.error ? t('readingFailed') : t('readingTry')}
+              </button>
+              {/* 助手那一家跑不了就照实说（owner 2026-10-15「全跟助手」），⛔ 不悄悄换一家。 */}
+              {reading.reason && !reading.isLoading ? (
+                <p role="status" className="text-xs text-muted-foreground">
+                  {getApiErrorMessage(
+                    tErrors,
+                    reading.reason,
+                    reading.reason.error,
+                  )}
+                </p>
+              ) : null}
+            </div>
+          )
+        ) : null}
+      </SettingGroup>
       <SettingTavernGroups card={card} save={save} />
     </section>
   )
@@ -465,50 +492,10 @@ function lorebookEntryCount(book: unknown): number {
     : 0
 }
 
-type DraftTextKey =
-  | 'scenario'
-  | 'opening'
-  | 'examples'
-  | 'summary'
-  | 'systemPrompt'
-  | 'postHistoryInstructions'
-
-const FIELD_CLASS = 'text-base leading-relaxed lg:text-sm'
-
-function DraftField({
-  draft,
-  field,
-  label,
-  hint,
-  save,
-}: {
-  draft: CharacterCardDraft
-  field: DraftTextKey
-  label: string
-  hint?: string
-  save: Save
-}) {
-  const t = useTranslations('CharacterRoster')
-  return (
-    <div className="flex min-w-0 flex-col gap-1">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <CharacterInlineField
-        multiline
-        value={draft[field]}
-        label={label}
-        placeholder={t('emptyField')}
-        hint={hint}
-        onCommit={(text) => save({ [field]: text })}
-        className={FIELD_CLASS}
-      />
-    </div>
-  )
-}
-
 /**
  * 「设定」的对话一组 + 折起来的「更多」（owner 10-15：我们的字段包含酒馆字段，⛔ 另列
- * 一块「酒馆卡字段」）。格名只用我们的叫法；系统提示词 / 历史后指令只保存不生效，
- * 世界书只读。
+ * 一块「酒馆卡字段」）。格名只用我们的叫法；作者备注以外的「更多」只保存不生效，
+ * 每格写一句它是干什么的；世界书只读。
  */
 function SettingTavernGroups({
   card,
@@ -519,124 +506,141 @@ function SettingTavernGroups({
 }) {
   const t = useTranslations('CharacterRoster')
   const [moreOpen, setMoreOpen] = useState(false)
+  const [adding, setAdding] = useState(false)
   const draft = draftFromCard(card)
   const greetings = draft.alternateGreetings
   const lorebook = lorebookEntryCount(card.tavern?.characterBook)
+  const savedOnly = (
+    <span className="rounded-full bg-background px-2 text-2xs">
+      {t('savedOnlyBadge')}
+    </span>
+  )
 
   return (
     <>
-      <p className="mt-2 text-xs font-medium text-foreground">
-        {t('settingDialogue')}
-      </p>
-      <div className="grid gap-x-11 gap-y-5 lg:grid-cols-2">
-        <DraftField
-          draft={draft}
-          field="scenario"
-          label={t('fieldScenario')}
-          save={save}
-        />
-        <div className="flex min-w-0 flex-col gap-1">
-          <DraftField
-            draft={draft}
-            field="opening"
-            label={t('fieldOpening')}
-            save={save}
+      <SettingGroup title={t('settingDialogue')}>
+        <div className="grid gap-x-10 gap-y-5 lg:grid-cols-2">
+          <CharacterTextField
+            label={t('fieldScenario')}
+            value={draft.scenario}
+            limit={CHARACTER_PERSONA_LIMITS.scenario}
+            onSave={(text) => save({ scenario: text })}
           />
-          <p className="mt-2 text-xs text-muted-foreground">
-            {t('fieldAlternateGreetings', { count: greetings.length })}
-          </p>
-          {greetings.map((greeting, index) => (
-            <CharacterInlineField
-              key={`${index}-${greeting}`}
-              multiline
-              value={greeting}
-              label={t('alternateGreetingLabel', { index: index + 1 })}
-              placeholder={t('emptyField')}
-              hint={t('alternateGreetingHint')}
-              onCommit={(text) =>
-                save({
-                  alternateGreetings: text
-                    ? greetings.map((item, i) => (i === index ? text : item))
-                    : greetings.filter((_, i) => i !== index),
-                })
-              }
-              className={FIELD_CLASS}
-            />
-          ))}
-          {greetings.length < TAVERN_CARD.MAX_ALTERNATE_GREETINGS ? (
-            <CharacterInlineField
-              key={`add-${greetings.length}`}
-              multiline
+          <CharacterTextField
+            label={t('fieldOpening')}
+            value={draft.opening}
+            limit={CHARACTER_PERSONA_LIMITS.opening}
+            onSave={(text) => save({ opening: text })}
+          />
+          <CharacterTextField
+            label={t('fieldExamples')}
+            value={draft.examples}
+            hint={t('examplesHint')}
+            onSave={(text) => save({ examples: text })}
+          />
+          <div className="flex min-w-0 flex-col gap-3">
+            {greetings.map((greeting, index) => (
+              <CharacterTextField
+                key={`${index}-${greeting}`}
+                label={t('alternateGreetingLabel', { index: index + 1 })}
+                value={greeting}
+                limit={CHARACTER_PERSONA_LIMITS.opening}
+                hint={t('alternateGreetingHint')}
+                onSave={(text) =>
+                  save({
+                    alternateGreetings: text
+                      ? greetings.map((item, i) => (i === index ? text : item))
+                      : greetings.filter((_, i) => i !== index),
+                  })
+                }
+              />
+            ))}
+            {greetings.length < TAVERN_CARD.MAX_ALTERNATE_GREETINGS ? (
+              <button
+                type="button"
+                onClick={() => setAdding(true)}
+                className="flex w-fit items-center gap-1 text-xs text-muted-foreground transition-colors duration-fast hover:text-foreground"
+              >
+                <Plus className="size-3.5" aria-hidden />
+                {t('alternateGreetingAdd')}
+              </button>
+            ) : null}
+            <CharacterFieldEditor
+              open={adding}
+              label={t('alternateGreetingLabel', {
+                index: greetings.length + 1,
+              })}
               value=""
-              label={t('alternateGreetingAdd')}
-              placeholder={t('alternateGreetingAdd')}
-              onCommit={(text) =>
+              limit={CHARACTER_PERSONA_LIMITS.opening}
+              onSave={(text) =>
                 save({ alternateGreetings: [...greetings, text] })
               }
-              className={FIELD_CLASS}
+              onClose={() => setAdding(false)}
             />
-          ) : null}
-        </div>
-        <div className="lg:col-span-2">
-          <DraftField
-            draft={draft}
-            field="examples"
-            label={t('fieldExamples')}
-            hint={t('examplesHint')}
-            save={save}
-          />
-        </div>
-      </div>
-
-      <button
-        type="button"
-        aria-expanded={moreOpen}
-        onClick={() => setMoreOpen((open) => !open)}
-        className="mt-2 flex w-fit items-center gap-1 text-xs font-medium text-muted-foreground transition-colors duration-fast hover:text-foreground"
-      >
-        {t('settingMore')}
-        <ChevronDown
-          aria-hidden
-          className={cn(
-            'size-3.5 transition-transform duration-fast ease-standard motion-reduce:transition-none',
-            moreOpen && 'rotate-180',
-          )}
-        />
-      </button>
-      {moreOpen ? (
-        <div className="grid gap-x-11 gap-y-5 lg:grid-cols-2">
-          <DraftField
-            draft={draft}
-            field="summary"
-            label={t('fieldSummary')}
-            save={save}
-          />
-          <DraftField
-            draft={draft}
-            field="systemPrompt"
-            label={t('fieldSystemPrompt')}
-            hint={t('savedOnlyHint')}
-            save={save}
-          />
-          <DraftField
-            draft={draft}
-            field="postHistoryInstructions"
-            label={t('fieldPostHistory')}
-            hint={t('savedOnlyHint')}
-            save={save}
-          />
-          <div className="flex min-w-0 flex-col gap-1">
-            <p className="text-xs text-muted-foreground">
-              {t('fieldLorebook')}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {lorebook
-                ? t('lorebookNote', { count: lorebook })
-                : t('emptyField')}
-            </p>
           </div>
         </div>
-      ) : null}
+      </SettingGroup>
+
+      <SettingGroup
+        title={t('settingMore')}
+        action={
+          <button
+            type="button"
+            aria-expanded={moreOpen}
+            onClick={() => setMoreOpen((open) => !open)}
+            className="flex items-center gap-1 text-xs text-muted-foreground transition-colors duration-fast hover:text-foreground"
+          >
+            {moreOpen ? t('collapseText') : t('expandText')}
+            <ChevronDown
+              aria-hidden
+              className={cn(
+                'size-3.5 transition-transform duration-fast ease-standard motion-reduce:transition-none',
+                moreOpen && 'rotate-180',
+              )}
+            />
+          </button>
+        }
+      >
+        {moreOpen ? (
+          <div className="grid gap-x-10 gap-y-5 lg:grid-cols-2">
+            <CharacterTextField
+              label={t('fieldSummary')}
+              value={draft.summary}
+              limit={CHARACTER_CARD.SUMMARY_MAX_LENGTH}
+              hint={t('summaryWhat')}
+              onSave={(text) => save({ summary: text })}
+            />
+            <CharacterTextField
+              label={t('fieldSystemPrompt')}
+              value={draft.systemPrompt}
+              hint={t('systemPromptWhat')}
+              badge={savedOnly}
+              onSave={(text) => save({ systemPrompt: text })}
+            />
+            <CharacterTextField
+              label={t('fieldPostHistory')}
+              value={draft.postHistoryInstructions}
+              hint={t('postHistoryWhat')}
+              badge={savedOnly}
+              onSave={(text) => save({ postHistoryInstructions: text })}
+            />
+            <div className="flex min-w-0 flex-col gap-1">
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                {t('fieldLorebook')}
+                {savedOnly}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {t('lorebookWhat')}
+              </p>
+              <p className="text-base leading-relaxed lg:text-sm">
+                {lorebook
+                  ? t('lorebookCount', { count: lorebook })
+                  : t('emptyField')}
+              </p>
+            </div>
+          </div>
+        ) : null}
+      </SettingGroup>
     </>
   )
 }

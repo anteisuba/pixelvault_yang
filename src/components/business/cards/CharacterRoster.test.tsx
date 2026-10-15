@@ -237,18 +237,20 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
     expect(screen.queryByRole('region', { name: 'Denia' })).toBeNull()
   })
 
-  it('设定里含酒馆字段：备选开场白可加；更多折起来，世界书只读', async () => {
+  it('设定里含酒馆字段：备选开场白弹框加一条；更多折起来，世界书只读', async () => {
     mockUpdate.mockClear()
     renderRoster()
     fireEvent.click(screen.getAllByTestId('roster-tile')[0]!)
     const detail = screen.getByRole('region', { name: 'Denia' })
-    expect(detail).toHaveTextContent('备选开场白（1 条）')
+    expect(detail).toHaveTextContent('雨停了。')
     expect(detail).not.toHaveTextContent('系统提示词')
-    fireEvent.click(screen.getByRole('button', { name: '更多' }))
-    expect(detail).toHaveTextContent('2 条，只保存、不生效。')
-    const add = screen.getByRole('textbox', { name: '加一条备选开场白…' })
-    fireEvent.change(add, { target: { value: '早上好。' } })
-    fireEvent.blur(add)
+    fireEvent.click(screen.getByRole('button', { name: '展开' }))
+    expect(detail).toHaveTextContent('2 条')
+    fireEvent.click(screen.getByRole('button', { name: /加一条备选开场白/ }))
+    fireEvent.change(screen.getByRole('textbox', { name: '备选开场白 2' }), {
+      target: { value: '早上好。' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
     await vi.waitFor(() =>
       expect(mockUpdate).toHaveBeenCalledWith(
         'denia',
@@ -374,14 +376,15 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
     expect(screen.queryByRole('region', { name: 'Denia' })).toBeNull()
   })
 
-  it('点哪改哪：改性格、离开这一格就存，整份设定带回（没改的格不丢）', async () => {
+  it('点正文弹大编辑框：改性格点保存，整份设定带回（没改的格不丢）', async () => {
     mockUpdate.mockClear()
     renderRoster()
     fireEvent.click(screen.getAllByTestId('roster-tile')[0]!)
-    expect(screen.queryByRole('button', { name: '编辑' })).toBeNull()
-    const behavior = screen.getByRole('textbox', { name: '性格' })
-    fireEvent.change(behavior, { target: { value: '会先把伞递给别人' } })
-    fireEvent.blur(behavior)
+    fireEvent.click(screen.getByRole('button', { name: '编辑性格' }))
+    fireEvent.change(screen.getByRole('textbox', { name: '性格' }), {
+      target: { value: '会先把伞递给别人' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
     await vi.waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1))
     const [id, data] = mockUpdate.mock.calls[0]!
     expect(id).toBe('denia')
@@ -392,17 +395,21 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
     })
   })
 
-  it('没改就离开不存；改到一半按 Esc 放弃这次改动，也不收起详情', () => {
+  it('编辑框没改就保存不存；取消放弃这次改动，也不收起详情', async () => {
     mockUpdate.mockClear()
     renderRoster()
     fireEvent.click(screen.getAllByTestId('roster-tile')[0]!)
-    const identity = screen.getByRole('textbox', { name: '身份' })
-    fireEvent.focus(identity)
-    fireEvent.blur(identity)
-    fireEvent.change(identity, { target: { value: '半截' } })
-    fireEvent.keyDown(identity, { key: 'Escape' })
+    fireEvent.click(screen.getByRole('button', { name: '编辑身份' }))
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
+    await vi.waitFor(() =>
+      expect(screen.queryByRole('textbox', { name: '身份' })).toBeNull(),
+    )
+    fireEvent.click(screen.getByRole('button', { name: '编辑身份' }))
+    fireEvent.change(screen.getByRole('textbox', { name: '身份' }), {
+      target: { value: '半截' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: '取消' }))
     expect(screen.getByRole('region', { name: 'Denia' })).toBeTruthy()
-    expect(identity).toHaveValue('舞台魔术师')
     expect(mockUpdate).not.toHaveBeenCalled()
   })
 })

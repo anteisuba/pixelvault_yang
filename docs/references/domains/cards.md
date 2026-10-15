@@ -24,6 +24,7 @@
 - **宏原样存**：`{{char}}` / `{{user}}`（及 `<BOT>` / `<USER>`）进提示词那一跳才换成名字（称呼会改）。
 - 导入 ⛔ 不跑视觉提取、不联网搜（不替用户花钱）；格子类型不对只空那一格，没有名字才算「不是卡」。错误带 `i18nKey`（`Errors.tavernCard.*`）。
 - **酒馆字段并进「设定」（owner 2026-10-15：先选 A 全显示都能改、⛔ 不做导出；同日改成「我们的字段包含酒馆字段」，⛔ 另列一块）**：设定分三组，格名只用我们的叫法——**人物**（身份 · 性格 = 酒馆 personality · 说话方式 · 经历 = 酒馆 description）→ **对话**（场景 · 开场白，备选开场白一条一格跟在下面，清空即删、末尾一格「加一条」，上限 `TAVERN_CARD.MAX_ALTERNATE_GREETINGS` · 对话示例按 `mes_example` 原文写，`<START>` 切块，没改原样带回、改了重新切）→ **更多**（默认折起：作者备注 = `summary` · 系统提示词 / 历史后指令只保存不生效 · 世界书只显示条数）。读方 `CharacterCardRecord.tavern`（`TavernCardKeptSchema` 从 `st.card` 读，未知键原样保留），写回时整键带回 `st.card`，原卡没有这键又全空时不写。
+- **设定排版与编辑（owner 2026-10-15 选原型 A + 乙，https://claude.ai/artifact/DwVBtAh4M494RRx5yP8qUU ）**：三组各一块浅灰底（`SettingGroup`），长文只露 3 行、「展开 / 收起」带高度过渡；**所有多行的格（设定三组 + 一句外观）点正文在正中弹大编辑框**（`CharacterTextField` / `CharacterFieldEditor`，手机是底部抽屉，带字数，保存或 ⌘/Ctrl+回车，取消 / Esc 放弃），⛔ 原地把输入框撑长；名字、标签等一行的格照旧 `CharacterInlineField` 原地改。「更多」里只保存不生效的格挂「只保存」小标，并写一句它是干什么的。
 
 ## 卡库（2026-10-14，owner「角色页里加 tab」）
 

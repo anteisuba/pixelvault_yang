@@ -41,6 +41,7 @@ const {
   resolveModel,
   recordTurn,
   effortPerStep,
+  maxOutputTokens,
 } = vi.hoisted(() => ({
   plan: vi.fn(),
   legacy: vi.fn(),
@@ -56,6 +57,8 @@ const {
   recordTurn: vi.fn(),
   /** 这一家能不能按步换思考档（`effortPerStep`，§2.6）。 */
   effortPerStep: { current: true },
+  /** 这一家交给 `streamText` 的输出上限（`undefined` = 不发）。 */
+  maxOutputTokens: { current: undefined as number | undefined },
 }))
 
 /** 测试里下得来的片子：地址 → 多大（真的 mp4 文件头）。 */
@@ -172,6 +175,7 @@ vi.mock(
         model: model.current,
         strictTools: false,
         effortPerStep: effortPerStep.current,
+        maxOutputTokens: maxOutputTokens.current,
         // 档位原样摆进请求，用例按步读它（`doStreamCalls[n].providerOptions`）。
         providerOptions: (_cacheKey: string, effort: string) => ({
           test: { effort },
@@ -362,6 +366,7 @@ beforeEach(() => {
   served.clear()
   resolveModel.mockClear()
   effortPerStep.current = true
+  maxOutputTokens.current = undefined
   clipsServed.clear()
   fetchAsBuffer.mockReset()
   fetchAsBuffer.mockImplementation(
@@ -744,6 +749,17 @@ describe('v3 内核', () => {
         { test: { effort: 'high' } },
       ])
     })
+  })
+
+  it('主步带上这一家的输出上限（P2 §2.3）；没有（代理 / Grok）就一个字不发', async () => {
+    maxOutputTokens.current = 64_000
+    const capped = script(textTurn('好的。'))
+    await collect(runAssistantV3('clerk-1', request()))
+    expect(capped.doStreamCalls[0]?.maxOutputTokens).toBe(64_000)
+    maxOutputTokens.current = undefined
+    const open = script(textTurn('好的。'))
+    await collect(runAssistantV3('clerk-1', request()))
+    expect(open.doStreamCalls[0]?.maxOutputTokens).toBeUndefined()
   })
 
   it('句柄抄错：这一步记成草稿、错误回给模型，带最近的句柄', async () => {

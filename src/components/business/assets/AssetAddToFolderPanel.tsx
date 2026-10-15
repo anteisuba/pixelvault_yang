@@ -26,10 +26,10 @@ import {
 import { cn } from '@/lib/utils'
 import type { ProjectRecord } from '@/types'
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
+  ResponsivePopover,
+  ResponsivePopoverContent,
+  ResponsivePopoverTrigger,
+} from '@/components/ui/responsive-popover'
 import { Spinner } from '@/components/ui/spinner'
 import { getChipZoomMotion } from '@/components/business/studio-shared/primitives/tool-surface'
 
@@ -62,6 +62,7 @@ interface AssetAddToFolderPanelProps {
  *
  * 勾上 = 选中的全部放进去，再点 = 从这个夹拿出（⛔ 不删图）；半勾 = 只有几张在。
  * 点一下就落库，⛔ 没有「确定」；关上面板后底部出一条「已放进「三视图」· 撤销」。
+ * 手机（触屏）从底部升起成抽屉（`ResponsivePopover`），行高 44、字 16。
  */
 export function AssetAddToFolderPanel({
   assetIds,
@@ -248,7 +249,7 @@ export function AssetAddToFolderPanel({
     return (
       <div key={folder.id}>
         <div
-          className="flex h-8.5 items-center gap-2 rounded-lg pr-2 transition-colors duration-fast hover:bg-muted/60"
+          className="flex h-8.5 items-center gap-2 rounded-lg pr-2 transition-colors duration-fast hover:bg-muted/60 max-md:h-11 max-md:gap-3"
           // 层深是算出来的数，只能走行内样式（见 FOLDER_TREE_INDENT）。
           style={{ paddingLeft: folderIndentPx('addPanel', depth) }}
         >
@@ -265,17 +266,17 @@ export function AssetAddToFolderPanel({
                   return next
                 })
               }
-              className="grid h-full w-3.5 shrink-0 place-items-center text-muted-foreground"
+              className="grid h-full w-3.5 shrink-0 place-items-center text-muted-foreground max-md:w-6"
             >
               <ChevronRight
                 className={cn(
-                  'size-3 transition-transform duration-base ease-standard motion-reduce:transition-none',
+                  'size-3 transition-transform duration-base ease-standard motion-reduce:transition-none max-md:size-4',
                   expanded && 'rotate-90',
                 )}
               />
             </button>
           ) : (
-            <span className="w-3.5 shrink-0" />
+            <span className="w-3.5 shrink-0 max-md:w-6" />
           )}
           <button
             type="button"
@@ -285,21 +286,21 @@ export function AssetAddToFolderPanel({
             }
             disabled={!memberships}
             onClick={() => void toggle(folder)}
-            className="flex h-full min-w-0 flex-1 items-center gap-2 text-left text-2sm font-medium text-foreground disabled:opacity-60"
+            className="flex h-full min-w-0 flex-1 items-center gap-2 text-left text-2sm font-medium text-foreground disabled:opacity-60 max-md:gap-3 max-md:text-base"
           >
             <span
               aria-hidden
               className={cn(
-                'grid size-4 shrink-0 place-items-center rounded-sm text-background transition-colors duration-fast',
+                'grid size-4 shrink-0 place-items-center rounded-sm text-background transition-colors duration-fast max-md:size-5',
                 state === 'none'
                   ? 'ring-1 ring-inset ring-muted-foreground/50'
                   : 'bg-foreground',
               )}
             >
               {state === 'all' ? (
-                <Check className="size-2.75" />
+                <Check className="size-2.75 max-md:size-3.5" />
               ) : state === 'some' ? (
-                <Minus className="size-2.75" />
+                <Minus className="size-2.75 max-md:size-3.5" />
               ) : null}
             </span>
             {folder.coverUrl ? (
@@ -308,20 +309,20 @@ export function AssetAddToFolderPanel({
                 src={folder.coverUrl}
                 alt=""
                 loading="lazy"
-                className="size-5 shrink-0 rounded-sm object-cover ring-1 ring-border"
+                className="size-5 shrink-0 rounded-sm object-cover ring-1 ring-border max-md:size-7 max-md:rounded-md"
               />
             ) : (
-              <span className="grid size-5 shrink-0 place-items-center rounded-sm bg-muted text-muted-foreground">
-                <Folder className="size-3" />
+              <span className="grid size-5 shrink-0 place-items-center rounded-sm bg-muted text-muted-foreground max-md:size-7 max-md:rounded-md">
+                <Folder className="size-3 max-md:size-4" />
               </span>
             )}
             <span className="min-w-0 flex-1 truncate">{folder.name}</span>
             {path ? (
-              <span className="max-w-24 shrink-0 truncate text-2xs font-normal text-muted-foreground">
+              <span className="max-w-24 shrink-0 truncate text-2xs font-normal text-muted-foreground max-md:text-xs">
                 {path}
               </span>
             ) : typeof counts?.[folder.id] === 'number' ? (
-              <span className="shrink-0 font-mono text-2xs font-normal text-muted-foreground tabular-nums">
+              <span className="shrink-0 font-mono text-2xs font-normal text-muted-foreground tabular-nums max-md:text-xs">
                 {counts[folder.id]}
               </span>
             ) : null}
@@ -333,7 +334,7 @@ export function AssetAddToFolderPanel({
   }
 
   return (
-    <Popover
+    <ResponsivePopover
       open={open}
       onOpenChange={(next) => {
         setOpen(next)
@@ -346,21 +347,22 @@ export function AssetAddToFolderPanel({
         }
       }}
     >
-      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
-      <PopoverContent
+      <ResponsivePopoverTrigger asChild>{trigger}</ResponsivePopoverTrigger>
+      <ResponsivePopoverContent
         side={side}
         align={align}
         sideOffset={8}
         collisionPadding={12}
-        aria-label={t('addToFolder')}
+        label={t('addToFolder')}
         className={cn(
           'flex w-90 flex-col gap-0.5 rounded-2xl p-2.5',
           zoom.className,
         )}
+        mobileClassName="flex flex-col gap-0.5"
         style={zoom.style}
       >
         <div className="flex items-baseline gap-2 px-1.5 pb-2 pt-1">
-          <span className="text-sm font-semibold text-foreground">
+          <span className="text-sm font-semibold text-foreground max-md:text-base">
             {t('addToFolder')}
           </span>
           {assetIds.length > 1 ? (
@@ -371,7 +373,7 @@ export function AssetAddToFolderPanel({
           <span className="flex-1" />
           {memberships ? null : <Spinner size="sm" />}
         </div>
-        <label className="flex h-9 shrink-0 items-center gap-2 rounded-lg bg-muted px-2.5 text-muted-foreground">
+        <label className="flex h-9 shrink-0 items-center gap-2 rounded-lg bg-muted px-2.5 text-muted-foreground max-md:h-11 max-md:rounded-xl max-md:px-3">
           <Search className="size-3.5 shrink-0" />
           <input
             type="search"
@@ -384,7 +386,7 @@ export function AssetAddToFolderPanel({
         </label>
         <div
           role="menu"
-          className="studio-scrollbar -mx-1 mt-1 max-h-80 overflow-y-auto px-1"
+          className="studio-scrollbar -mx-1 mt-1 max-h-80 overflow-y-auto px-1 max-md:coarse:max-h-none max-md:coarse:overflow-visible"
         >
           {query.trim() ? (
             matches.length === 0 ? (
@@ -430,7 +432,7 @@ export function AssetAddToFolderPanel({
         </div>
         <div className="mt-2 flex items-center border-t border-border/60 px-0.5 pt-2">
           {isCreating ? (
-            <label className="flex h-8.5 flex-1 items-center gap-2 rounded-lg px-2 ring-2 ring-inset ring-foreground">
+            <label className="flex h-8.5 flex-1 items-center gap-2 rounded-lg px-2 ring-2 ring-inset ring-foreground max-md:h-11 max-md:rounded-xl max-md:px-3">
               <Folder className="size-3.5 shrink-0 text-muted-foreground" />
               <input
                 autoFocus
@@ -459,14 +461,14 @@ export function AssetAddToFolderPanel({
                 !memberships || folders.length >= PROJECT.MAX_PROJECTS_PER_USER
               }
               onClick={() => setIsCreating(true)}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-2sm font-medium text-foreground ring-1 ring-inset ring-border transition-colors duration-fast hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-2sm font-medium text-foreground ring-1 ring-inset ring-border transition-colors duration-fast hover:bg-muted disabled:pointer-events-none disabled:opacity-50 max-md:h-11 max-md:flex-1 max-md:justify-center max-md:rounded-xl max-md:text-base"
             >
               <Plus className="size-3.5" />
               {t('addToFolderCreate')}
             </button>
           )}
         </div>
-      </PopoverContent>
-    </Popover>
+      </ResponsivePopoverContent>
+    </ResponsivePopover>
   )
 }

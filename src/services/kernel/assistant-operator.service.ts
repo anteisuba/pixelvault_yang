@@ -7077,7 +7077,11 @@ function critiqueImageLabels(
   ]
 }
 
-export async function planCritiqueResult(
+/**
+ * ⚠ 只剩旧内核在用（v2 开关）：v3 看片 / 看图由主模型自己看（`assistant-v3-watch.service.ts`
+ * / `assistant-v3-look.service.ts`），⛔ 别再从 v3 引它。删旧内核时一起删。
+ */
+async function planCritiqueResult(
   run: OperatorRun,
   args: { goal?: string; targetIds?: string[] },
   userId: string,

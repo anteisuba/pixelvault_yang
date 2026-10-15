@@ -30,7 +30,6 @@ vi.mock('server-only', () => ({}))
 
 const {
   plan,
-  critique,
   legacy,
   closeRound,
   model,
@@ -40,7 +39,6 @@ const {
   resolveModel,
 } = vi.hoisted(() => ({
   plan: vi.fn(),
-  critique: vi.fn(),
   legacy: vi.fn(),
   closeRound: vi.fn(async () => undefined),
   model: { current: null as unknown },
@@ -91,7 +89,6 @@ vi.mock('@/services/kernel/assistant-operator.service', () => ({
     }),
   ),
   planTool: plan,
-  planCritiqueResult: critique,
   buildCharacterReminder: characterReminder,
   runOperatorTurn: legacy,
   closeRound,
@@ -397,7 +394,6 @@ function attachedClips(call: LanguageModelV3CallOptions): string[] {
 describe('v3 内核', () => {
   beforeEach(() => {
     plan.mockReset()
-    critique.mockReset()
     legacy.mockReset()
     closeRound.mockClear()
   })
@@ -1055,7 +1051,6 @@ describe('v3 内核', () => {
     )
     // ⛔ 写词 / 出图前也不另看参考图（五张脸都设）。
     expect(run.skipReferenceReview).toBe(true)
-    expect(critique).not.toHaveBeenCalled()
     expect(plan).not.toHaveBeenCalled()
 
     const [before, next, after] = mock.doStreamCalls
@@ -1182,7 +1177,6 @@ describe('v3 内核', () => {
       expect(promptText(next)).toContain(
         'The clip itself comes with this result, for your next step only: 「vid-4f6105 冲出门」.',
       )
-      expect(critique).not.toHaveBeenCalled()
     })
 
     it('⭐ 别家看一张没被 @ 的视频卡：只回一句请创作者 @ 它，⛔ 不下片子、不借 Gemini', async () => {
@@ -1198,7 +1192,6 @@ describe('v3 内核', () => {
         ),
       )
       expect(fetchAsBuffer).not.toHaveBeenCalled()
-      expect(critique).not.toHaveBeenCalled()
       expect(promptText(mock.doStreamCalls[1]!)).toContain(
         'is a clip you were not shown: you only watch clips the creator points at. Ask them to @ the clip in their message.',
       )
@@ -1276,7 +1269,6 @@ describe('v3 内核', () => {
       ),
     )
     expect(fetchAsBuffer).not.toHaveBeenCalled()
-    expect(critique).not.toHaveBeenCalled()
     expect(plan).not.toHaveBeenCalled()
     const next = mock.doStreamCalls[1]!
     expect(attachedPictures(next)).toEqual([])
@@ -1730,7 +1722,6 @@ describe('v3 内核 · LoRA 台', () => {
     )
     await collect(runAssistantV3('clerk-1', loraRequest('和示例画风像吗')))
     expect(run.skipReferenceReview).toBe(true)
-    expect(critique).not.toHaveBeenCalled()
     expect(plan).not.toHaveBeenCalled()
     const next = mock.doStreamCalls[1]!
     expect(promptText(next)).toContain(
@@ -2406,7 +2397,6 @@ describe('v3 内核 · 角色页', () => {
       'user-1',
     )
     expect(plan).toHaveBeenCalledTimes(1)
-    expect(critique).not.toHaveBeenCalled()
     const next = promptText(mock.doStreamCalls[1]!)
     expect(next).toContain(
       "Already in front of you in the creator's message: 「card-1」 (picture 1 of IMAGES THE CREATOR POINTED AT)",
@@ -2802,7 +2792,6 @@ describe('v3 内核 · 视频台', () => {
       expect(
         vi.mocked(prepareOperatorTurn).mock.lastCall?.[1].mediaAttachments,
       ).toEqual([])
-      expect(critique).not.toHaveBeenCalled()
       expect(legacy).not.toHaveBeenCalled()
 
       const first = mock.doStreamCalls[0]!

@@ -5826,7 +5826,8 @@
           "removeVersion": "Remove this version",
           "retry": "Retry"
         },
-        "slashPicker": "Templates"
+        "slashPicker": "Templates",
+        "myTemplates": "My templates"
       },
       "text": {
         "empty": "Keep writing…",
@@ -5903,14 +5904,14 @@
         "uploading": "Uploading image…",
         "toolbar": {
           "label": "Image actions",
-          "shot": "New shot",
           "edit": "Edit",
           "more": "More",
           "connect": "Connect to shot",
-          "upscale": "Upscale"
+          "storyboard": "Storyboard"
         },
         "edit": {
           "inpaint": "Inpaint",
+          "upscale": "Upscale",
           "cutout": "Remove background",
           "background": "Replace background"
         },
@@ -5940,7 +5941,8 @@
           "duplicate": "Duplicate this image card",
           "splitVersion": "Split out current version",
           "source": "Source",
-          "delete": "Delete this image"
+          "delete": "Delete this image",
+          "newShot": "New shot"
         },
         "frame": {
           "title": "Frame",
@@ -5996,11 +5998,10 @@
           "switchChannelLabel": "This card uses {from}, which has no key, but {to} is set up for the same model. Click to switch to {to}"
         },
         "template": {
-          "group": "Templates",
-          "remove": "Remove template",
-          "countLocked": "Set by the template",
-          "fullTextShow": "Template is added at send · see full text",
-          "fullTextHide": "Hide template",
+          "remove": "No storyboard",
+          "countLocked": "Set by the storyboard",
+          "fullTextShow": "Storyboard text is added at send · see full text",
+          "fullTextHide": "Hide storyboard text",
           "storyPlaceholder": "(your line)",
           "grid3": {
             "name": "3×3 storyboard",

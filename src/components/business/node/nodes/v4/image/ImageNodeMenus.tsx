@@ -1,17 +1,21 @@
 'use client'
 
 /**
- * 图片节点的**三张菜单**（spec §3，画板 `ImageToolbar.dc.html` / `ImageStates.dc.html`）：
- * 工具条的「编辑」子菜单、「⋯」更多菜单（**与右键同一份**）、提示词栏 `+` 的添加菜单。
+ * 图片节点的**菜单**（spec §3，画板 `ImageToolbar.dc.html` / `ImageStates.dc.html`）：
+ * 工具条的「编辑」「分镜」子菜单、「⋯」更多菜单（**与右键同一份**）、提示词栏 `+`
+ * 的添加菜单。
  *
  * 前后两张只是 `DropdownMenuItem` 的**列表**：壳（`NodeToolbar` / `NodePromptBar`）
  * 负责弹层与定位，⛔ 这里不自己写浮层。
  *
  * ── 编辑子菜单接的是**现有**图片编辑（⛔ 不新写一套）─────────────────────
- * 三项映射到 `READY_CANVAS_IMAGE_EDIT_CAPABILITY_IDS` 里已经跑得通的能力，宿主是
- * 既有的 `CanvasImageEditWorkspace`（结果回本卡版本条）。「放大」单独上了工具条。
+ * 四项映射到 `READY_CANVAS_IMAGE_EDIT_CAPABILITY_IDS` 里已经跑得通的能力，宿主是
+ * 既有的 `CanvasImageEditWorkspace`（结果回本卡版本条）。
  * ⚠ 真正向四周延展的扩图（outpaint）能力表里没有，owner 2026-10-15「只做现有的」——
- * ⛔ 再把 `upscale` 叫成「扩图」摆进来。
+ * `upscale` 叫「放大」，⛔ 叫成「扩图」。
+ *
+ * ── 分镜子菜单（owner 2026-10-15：模板 `/` 让给「我的模板」，分镜上工具条）────
+ * 九宫格 / 四宫格 / 连贯四张仍存在 `params.promptTemplate`，发送时套进模板全文。
  *
  * ── ⋯ 与右键同一份（owner 2026-10-15）────────────────────────────────────
  * `useImageMoreActions` 出**一份动作表**，⋯ 用 `ImageMoreMenuItems` 画成下拉项、
@@ -21,8 +25,13 @@
 import { Fragment } from 'react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
+import {
+  IMAGE_PROMPT_TEMPLATE_IDS,
+  type ImagePromptTemplateId,
+} from '@/constants/image-prompt-templates'
 import type { StoryboardGridSize } from '@/constants/storyboard-grid'
 import {
+  Clapperboard,
   Copy,
   Check,
   Download,
@@ -39,6 +48,8 @@ import {
   Trash2,
   Upload,
   UserRound,
+  X,
+  ZoomIn,
 } from '@/components/icons'
 
 import {
@@ -57,12 +68,14 @@ export const IMAGE_EDIT_MENU_TASKS: readonly {
   readonly task: ReadyCanvasImageEditCapabilityId
 }[] = [
   { id: 'inpaint', task: 'inpaint' },
+  { id: 'upscale', task: 'upscale' },
   { id: 'cutout', task: 'remove-background' },
   { id: 'background', task: 'object-replace' },
 ]
 
 const EDIT_ICONS = {
   inpaint: Paintbrush,
+  upscale: ZoomIn,
   cutout: Layers,
   background: ImageIcon,
 } as const
@@ -92,6 +105,63 @@ export function ImageEditMenuItems({
   )
 }
 
+const STORYBOARD_ICONS: Record<ImagePromptTemplateId, typeof Pencil> = {
+  grid3: Grid3X3,
+  grid2: Grid2x2,
+  sequence4: LayoutGrid,
+}
+
+/**
+ * 工具条「分镜 ▾」：三种分镜任选一种（再点当前那种 = 不变）；挂着时末尾多一项
+ * 「不用分镜」。选中的那种打勾。
+ */
+export function ImageStoryboardMenuItems({
+  value,
+  onPick,
+}: {
+  readonly value: ImagePromptTemplateId | undefined
+  onPick(next: ImagePromptTemplateId | undefined): void
+}) {
+  const t = useTranslations('StudioNode.v4.image.template')
+  return (
+    <>
+      {IMAGE_PROMPT_TEMPLATE_IDS.map((templateId) => {
+        const Icon = STORYBOARD_ICONS[templateId]
+        return (
+          <DropdownMenuItem
+            key={templateId}
+            data-image-storyboard={templateId}
+            onSelect={() => onPick(templateId)}
+          >
+            <Icon aria-hidden className="size-4" />
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span>{t(`${templateId}.name`)}</span>
+              <span className="text-xs text-muted-foreground">
+                {t(`${templateId}.hint`)}
+              </span>
+            </span>
+            {value === templateId ? (
+              <Check aria-hidden className="size-4" />
+            ) : null}
+          </DropdownMenuItem>
+        )
+      })}
+      {value ? (
+        <>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            data-image-storyboard="none"
+            onSelect={() => onPick(undefined)}
+          >
+            <X aria-hidden className="size-4" />
+            {t('remove')}
+          </DropdownMenuItem>
+        </>
+      ) : null}
+    </>
+  )
+}
+
 /** ⋯ 与右键共用的一行。`id` 同时是两处的 `data-*` 值（测试按它找）。 */
 export interface ImageMoreAction {
   readonly id: string
@@ -110,6 +180,7 @@ export interface ImageMoreAction {
  */
 export function useImageMoreActions({
   onQuickLook,
+  onNewShot,
   onRename,
   onDuplicate,
   onSplitVersion,
@@ -122,6 +193,8 @@ export function useImageMoreActions({
   onDelete,
 }: {
   onQuickLook?: (() => void) | undefined
+  /** 「新建镜头」：以这张为首帧建一张视频卡并连上（原工具条「生镜头」）。 */
+  onNewShot(): void
   onRename(): void
   onDuplicate(): void
   /** 「拆出当前版本」（spec §3）。⚠ 只有一版时传 `undefined`（拆无可拆）。 */
@@ -157,6 +230,12 @@ export function useImageMoreActions({
   }
   // ⋯ 的文案按**这一类卡**写（S5c 尾项）。⛔ 共用键的语义不动。
   actions.push(
+    {
+      id: 'new-shot',
+      label: tImage('more.newShot'),
+      icon: Clapperboard,
+      run: onNewShot,
+    },
     {
       id: 'rename',
       label: tImage('more.rename'),

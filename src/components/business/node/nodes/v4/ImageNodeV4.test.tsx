@@ -127,6 +127,31 @@ vi.mock('@/components/business/AssetSelectorDialog', () => ({
 
 const mockProbeMedia = vi.hoisted(() => vi.fn())
 vi.mock('@/lib/media-probe', () => ({ probeMediaProblem: mockProbeMedia }))
+const { markRecipeUsedAPI } = vi.hoisted(() => ({
+  markRecipeUsedAPI: vi.fn(),
+}))
+vi.mock('@/lib/api-client/recipes', () => ({ markRecipeUsedAPI }))
+vi.mock('@/hooks/prompts/use-recipes', () => ({
+  prefetchRecipes: () => () => {},
+  useRecipes: () => ({
+    recipes: [
+      {
+        id: 'r_cat',
+        outputType: 'IMAGE',
+        name: '橘猫',
+        compiledPrompt: '一只橘猫',
+        negativePrompt: null,
+      },
+      {
+        id: 'r_video',
+        outputType: 'VIDEO',
+        name: '运镜',
+        compiledPrompt: '推镜头',
+        negativePrompt: null,
+      },
+    ],
+  }),
+}))
 
 vi.mock('../../CanvasImageEditWorkspace', () => ({
   CanvasImageEditWorkspace: (props: Record<string, unknown>) => (
@@ -632,12 +657,12 @@ describe('选中态：工具条 + 提示词栏', () => {
       { selectedNodeIds: ['i_1'] },
     )
 
-  it('工具条四键：生镜头 · 编辑 · 下载 · ⋯', () => {
+  it('工具条四键：编辑 · 分镜 · 下载 · ⋯（放大回编辑，生镜头进 ⋯）', () => {
     renderImage(selectedContext(), 'i_1', true)
     const ids = Array.from(
       document.querySelectorAll('[data-toolbar-action]'),
     ).map((element) => element.getAttribute('data-toolbar-action'))
-    expect(ids).toEqual(['shot', 'upscale', 'edit', 'download', 'more'])
+    expect(ids).toEqual(['edit', 'storyboard', 'download', 'more'])
   })
 
   it('提示词栏预填上次的词', () => {
@@ -764,14 +789,15 @@ describe('选中态：工具条 + 提示词栏', () => {
    * 修法是一行（`{...rest}` 挪到 `onClick` 之前）—— S0 已经修掉，所以这条从
    * `it.fails` 转回正的断言。
    */
-  it('连到镜头弹层顶行「新建镜头」是**一批**：建镜头 + 把这张图连成它的首帧', () => {
+  it('⋯「新建镜头」是**一批**：建镜头 + 把这张图连成它的首帧', () => {
     const context = selectedContext()
     renderImage(context, 'i_1', true)
-    fireEvent.click(
-      document.querySelector('[data-toolbar-action="shot"]') as HTMLElement,
+    fireEvent.pointerDown(
+      document.querySelector('[data-toolbar-action="more"]') as HTMLElement,
+      { button: 0 },
     )
     fireEvent.click(
-      document.querySelector('[data-connect-to-shot-new]') as HTMLElement,
+      document.querySelector('[data-image-more="new-shot"]') as HTMLElement,
     )
     // ⚠ 断言的是 `onApplyBatch` 而不是两次 `onApplyOp`：两条必须同批才解得开
     // `ref`，也才收成一个撤销条目。
@@ -1080,9 +1106,10 @@ describe('画面弹层与模型 chip', () => {
 })
 
 describe('编辑子菜单', () => {
-  it('三项都映射到已经跑得通的能力 id（放大单独上工具条）', () => {
+  it('四项都映射到已经跑得通的能力 id（放大在编辑里，⛔ 叫扩图）', () => {
     expect(IMAGE_EDIT_MENU_TASKS.map((entry) => entry.task)).toEqual([
       'inpaint',
+      'upscale',
       'remove-background',
       'object-replace',
     ])
@@ -1615,7 +1642,7 @@ describe('`/` 模板与九宫格分镜（§3）', () => {
     ).not.toBeNull()
   })
 
-  it('正文里打 `/` 选模板：挂到参数上，`/` 从正文里删掉，其余参数不丢', () => {
+  it('工具条「分镜 ▾」选一种：挂到参数上，其余参数不丢', () => {
     const onSetParams = vi.fn()
     const context = harness(
       [
@@ -1627,21 +1654,41 @@ describe('`/` 模板与九宫格分镜（§3）', () => {
       { selectedNodeIds: ['i_1'], onSetParams },
     )
     renderImage(context, 'i_1', true)
-    const input = screen.getByRole('textbox') as HTMLTextAreaElement
-    fireEvent.change(input, {
-      target: { value: '雨夜 /', selectionStart: 4, selectionEnd: 4 },
-    })
-    const option = document.querySelector(
-      '[data-mention-option="grid2"]',
-    ) as HTMLElement
-    expect(option).not.toBeNull()
-    fireEvent.pointerDown(option)
+    fireEvent.pointerDown(
+      document.querySelector(
+        '[data-toolbar-action="storyboard"]',
+      ) as HTMLElement,
+      { button: 0 },
+    )
+    fireEvent.click(
+      document.querySelector('[data-image-storyboard="grid2"]') as HTMLElement,
+    )
     expect(onSetParams).toHaveBeenCalledWith('i_1', {
       aspectRatio: '16:9',
       count: 2,
       promptTemplate: 'grid2',
     })
-    expect(input.value).toBe('雨夜 ')
+  })
+
+  it('正文里打 `/` 列「我的模板」里的图片模板：选中把提示词落在 `/` 的位置', () => {
+    const context = harness(
+      [imageNode('i_1', { url: 'https://cdn.test/a.png' })],
+      { selectedNodeIds: ['i_1'] },
+    )
+    renderImage(context, 'i_1', true)
+    const input = screen.getByRole('textbox') as HTMLTextAreaElement
+    fireEvent.change(input, {
+      target: { value: '雨夜 /', selectionStart: 4, selectionEnd: 4 },
+    })
+    // 视频模板不出现在图片卡上。
+    expect(document.querySelector('[data-mention-option="r_video"]')).toBeNull()
+    const option = document.querySelector(
+      '[data-mention-option="r_cat"]',
+    ) as HTMLElement
+    expect(option).not.toBeNull()
+    fireEvent.pointerDown(option)
+    expect(input.value).toBe('雨夜 一只橘猫')
+    expect(markRecipeUsedAPI).toHaveBeenCalledWith('r_cat')
   })
 
   it('光标在最前面按退格：摘掉模板，正文不动', () => {

@@ -41,14 +41,13 @@ import {
 import { useApiKeysContextOptional } from '@/contexts/api-keys-context'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Clapperboard,
   Download,
+  LayoutGrid,
   MoreHorizontal,
   Pencil,
   Upload,
   ImageIcon,
   X,
-  ZoomIn,
 } from '@/components/icons'
 
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
@@ -58,7 +57,6 @@ import { PROGRESS_TICK_MS } from '@/constants/generation-progress'
 import { formatUnitPriceAmount } from '@/constants/models/unit-prices'
 import { supportsSearchGrounding } from '@/constants/models'
 import {
-  NODE_STUDIO_DOCK,
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
   NODE_V4_CARD,
 } from '@/constants/node-studio'
@@ -82,14 +80,11 @@ import {
 import { renameStableNodeName } from '@/lib/node-display-name'
 import { pickDefaultModelOption } from '@/lib/pick-default-model-option'
 import { getTranslatedModelLabel } from '@/lib/model-options'
-import {
-  IMAGE_PROMPT_TEMPLATE_IDS,
-  type ImagePromptTemplateId,
-} from '@/constants/image-prompt-templates'
-import {
-  imageSubmitCount,
-  isImagePromptTemplateId,
-} from '@/lib/image-prompt-templates'
+import type { ImagePromptTemplateId } from '@/constants/image-prompt-templates'
+import { hasCapability } from '@/constants/provider-capabilities'
+import { isAiAdapterType } from '@/constants/providers'
+import { imageSubmitCount } from '@/lib/image-prompt-templates'
+import { useRecipeSlashOptions } from '@/hooks/node/use-recipe-slash-options'
 import type { ReadyCanvasImageEditCapabilityId } from '@/types/canvas-image-edit'
 import type {
   NodeV4,
@@ -113,15 +108,9 @@ import {
   NodeToolbar,
   QuickLook,
   VersionStrip,
-  ConnectToShotPopover,
-  flashNodeCard,
   useMediaProblem,
   type NodeToolbarGroup,
 } from './chrome'
-import {
-  buildConnectToShotOps,
-  buildConnectToShotTargets,
-} from './connect-to-shot-targets'
 import { ImageAdvancedChip } from './image/ImageAdvancedChip'
 import { ImageFrameChip } from './image/ImageFrameChip'
 import { ImageSendReadout } from './image/ImageSendReadout'
@@ -130,6 +119,7 @@ import {
   ImageAddMenuItems,
   ImageEditMenuItems,
   ImageMoreMenuItems,
+  ImageStoryboardMenuItems,
   useImageMoreActions,
 } from './image/ImageNodeMenus'
 import { readOutputIndex, readOutputVersions } from '@/lib/node-output-versions'
@@ -548,6 +538,27 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   const moreActions = useImageMoreActions({
     onQuickLook:
       imageData.url && !media.problem ? () => setQuickLook(true) : undefined,
+    // 原工具条「生镜头」（owner 2026-10-15 说多余，收进 ⋯）：建镜头 + 把这张连成
+    // 首帧。⚠ **一批两条**：批内别名（`ref`）让第二条认得出刚建的那张，⛔ 循环发两条
+    // `onApplyOp`（第二条时那个节点还不在闭包里的 state 上，撤销也会碎成两步）。
+    onNewShot: () =>
+      void canvas.onApplyBatch([
+        {
+          op: NODE_ASSISTANT_OP_V4_IDS.addNode,
+          kind: NODE_MEDIA_KIND_IDS.video,
+          subtype: NODE_V4_VIDEO_SUBTYPE_IDS.shot,
+          ref: SHOT_BATCH_REF,
+          ...(imageData.shotNo === undefined
+            ? {}
+            : { shotNo: imageData.shotNo }),
+        },
+        {
+          op: NODE_ASSISTANT_OP_V4_IDS.connect,
+          source: id,
+          target: SHOT_BATCH_REF,
+          slot: NODE_SLOT_IDS.firstFrame,
+        },
+      ]),
     onRename: () => setRenameRequest((count) => count + 1),
     onDuplicate: () =>
       void canvas.onApplyOp({
@@ -593,6 +604,9 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         target: id,
       }),
   })
+
+  // `/` = 「我的模板」里的图片模板（owner 2026-10-15）。hook，同样在提前返回之前取。
+  const recipeSlash = useRecipeSlashOptions('IMAGE')
 
   if (!node) return null
 
@@ -672,12 +686,29 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
     ) as NodeV4GenerationParams
     canvas.onSetParams(id, next ? { ...rest, promptTemplate: next } : rest)
   }
-  const templateOptions = IMAGE_PROMPT_TEMPLATE_IDS.map((templateId) => ({
-    id: templateId,
-    name: tImage(`template.${templateId}.name`),
-    hint: tImage(`template.${templateId}.hint`),
-    groupLabel: tImage('template.group'),
-  }))
+  /**
+   * 选了「我的模板」里的一条：提示词落进正文（返回给提示词栏落在 `/` 的位置），反向词
+   * 只在这个模型收反向词时写进 ⚙。⛔ 换模型、⛔ 套参数（owner 选 A）。
+   */
+  const applyRecipe = (optionId: string): string | void => {
+    const recipe = recipeSlash.pick(optionId)
+    if (!recipe) return
+    const negative = recipe.negativePrompt?.trim()
+    const negativeSupported =
+      effectiveModel &&
+      isAiAdapterType(effectiveModel.adapterType) &&
+      hasCapability(
+        effectiveModel.adapterType,
+        'negativePrompt',
+        effectiveModel.modelId,
+      )
+    if (negative && negativeSupported)
+      canvas.onSetParams(id, {
+        ...imageData.params,
+        advanced: { ...imageData.params?.advanced, negativePrompt: negative },
+      })
+    return recipe.compiledPrompt
+  }
   const templateChip = promptTemplate ? (
     <span
       data-prompt-template-chip={promptTemplate}
@@ -831,78 +862,8 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
       })
   }
 
-  /** 「连到镜头」列表 = 画布上的视频卡，按镜头带顺序（spec §1.13）。 */
-  const shotTargets = buildConnectToShotTargets({
-    nodes: canvas.nodes,
-    edges: canvas.edges,
-    formatDuration: (seconds) => `${Math.round(seconds)}s`,
-  })
-
   const toolbarGroups: readonly NodeToolbarGroup[] = [
     [
-      {
-        // 原「生镜头」（图标不变）——现在先开弹层选目标镜头与 首帧 / 尾帧
-        // （spec §1.13）。顶行「新建镜头」保留原来那一批两条。
-        id: 'shot',
-        // 主动作带字（§1 第 4 条 · 方向 B）：写「生镜头」—— 弹层里既能新建也能连到已有的。
-        label: tImage('toolbar.shot'),
-        icon: Clapperboard,
-        primary: true,
-        onSelect: () => {},
-        panel: (
-          <ConnectToShotPopover
-            sourceNodeId={id}
-            sourceKind={NODE_MEDIA_KIND_IDS.image}
-            targets={shotTargets}
-            // ⚠ **一批两条**：建镜头 + 把这张图连成它的首帧。批内别名（`ref`）让第二
-            // 条认得出刚建的那张，⛔ 循环发两条 `onApplyOp` 做不到（第二条时那个
-            // 节点还不在闭包里的 state 上），且撤销会碎成两步。
-            onNew={() =>
-              void canvas.onApplyBatch([
-                {
-                  op: NODE_ASSISTANT_OP_V4_IDS.addNode,
-                  kind: NODE_MEDIA_KIND_IDS.video,
-                  subtype: NODE_V4_VIDEO_SUBTYPE_IDS.shot,
-                  ref: SHOT_BATCH_REF,
-                  ...(imageData.shotNo === undefined
-                    ? {}
-                    : { shotNo: imageData.shotNo }),
-                },
-                {
-                  op: NODE_ASSISTANT_OP_V4_IDS.connect,
-                  source: id,
-                  target: SHOT_BATCH_REF,
-                  slot: NODE_SLOT_IDS.firstFrame,
-                },
-              ])
-            }
-            onConnect={(targetId, slot) => {
-              void Promise.resolve(
-                canvas.onApplyBatch(
-                  buildConnectToShotOps({
-                    sourceId: id,
-                    targetId,
-                    slot,
-                    edges: canvas.edges,
-                  }),
-                ),
-              ).then(() => {
-                canvas.onFocusNode(targetId)
-                flashNodeCard(targetId, NODE_STUDIO_DOCK.focusDurationMs)
-              })
-            }}
-          />
-        ),
-      },
-      {
-        // 放大 = 超分（能力表 `upscale`），结果回本卡版本条。原来摆在「编辑」里
-        // 叫「扩图」，名不副实（owner 2026-10-15）。
-        id: 'upscale',
-        label: tImage('toolbar.upscale'),
-        icon: ZoomIn,
-        disabled: !imageData.url,
-        onSelect: () => setEditTask('upscale'),
-      },
       {
         id: 'edit',
         label: tImage('toolbar.edit'),
@@ -910,6 +871,20 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         disabled: !imageData.url,
         onSelect: () => {},
         menu: <ImageEditMenuItems onPick={setEditTask} />,
+      },
+      {
+        // 分镜（owner 2026-10-15）：原来藏在正文 `/` 里，`/` 让给了「我的模板」。
+        id: 'storyboard',
+        label: tImage('toolbar.storyboard'),
+        icon: LayoutGrid,
+        disabled: generating,
+        onSelect: () => {},
+        menu: (
+          <ImageStoryboardMenuItems
+            value={promptTemplate}
+            onPick={setPromptTemplate}
+          />
+        ),
       },
     ],
     [
@@ -1455,11 +1430,8 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
               ) : null
             }
             mentionOptions={promptMentions.mentionOptions}
-            slashOptions={templateOptions}
-            onSlashSelect={(option) => {
-              if (isImagePromptTemplateId(option.id))
-                setPromptTemplate(option.id)
-            }}
+            slashOptions={recipeSlash.options}
+            onSlashSelect={(option) => applyRecipe(option.id)}
             prefix={templateChip}
             onPrefixRemove={() => setPromptTemplate(undefined)}
             renderValue={promptMentions.renderValue}

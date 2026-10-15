@@ -134,12 +134,12 @@ export interface NodePromptBarProps {
   readonly mentionOptions?: readonly MentionPickerOption[]
   onMentionSelect?(option: MentionPickerOption): void
   /**
-   * `/` 候选（图片卡的模板，node-canvas-v2 §3）。给了就在行首或空白后键 `/` 时弹
-   * 同一个列表；选中 = 把 `/查询` 从正文里删掉、交给 `onSlashSelect`。⛔ 不往正文
-   * 里落任何字 —— 选中的东西由调用方挂成 `prefix`。
+   * `/` 候选（「我的模板」，node-canvas-v2 §3）。给了就在行首或空白后键 `/` 时弹
+   * 同一个列表；选中 = 把 `/查询` 从正文里删掉、交给 `onSlashSelect`。它返回一段
+   * 字 = 落在 `/` 原来的位置、光标停在这段字后面；不返回就什么都不落。
    */
   readonly slashOptions?: readonly MentionPickerOption[]
-  onSlashSelect?(option: MentionPickerOption): void
+  onSlashSelect?(option: MentionPickerOption): string | void
   /**
    * 正文开头那颗 chip（挂着的模板）。它不是正文里的字：正文首行让出它的宽度
    * （`text-indent`），光标在最前面按退格 = `onPrefixRemove`，整颗一起摘掉。
@@ -309,13 +309,15 @@ export function NodePromptBar({
     onMentionSelect?.(option)
   }
 
-  /** 把 `/查询` 整段删掉，光标落回 `/` 原来的位置；挂什么由调用方定。 */
+  /** 把 `/查询` 整段换成调用方给的那段字（没给就删掉），光标落在它后面。 */
   const commitSlash = (option: MentionPickerOption) => {
     if (!slashQuery) return
-    pendingCaretRef.current = slashQuery.start
+    const insert = onSlashSelect?.(option) ?? ''
+    pendingCaretRef.current = slashQuery.start + insert.length
     setActiveId(null)
-    onValueChange(value.slice(0, slashQuery.start) + value.slice(caret))
-    onSlashSelect?.(option)
+    onValueChange(
+      value.slice(0, slashQuery.start) + insert + value.slice(caret),
+    )
   }
 
   const commitPicked = (option: MentionPickerOption) => {

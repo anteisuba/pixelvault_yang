@@ -579,7 +579,11 @@ export function ModelPickerPopover({
     if (!canvasCompact || !open) return
     const trigger = triggerRef.current
     const popup = canvasSurfaceRef.current
-    const bar = trigger?.closest<HTMLElement>('[data-node-chrome="prompt-bar"]')
+    // 卡上那条提示词栏；展开的画中框里没有那条栏，就让开整个框（⛔ 量不到就一直
+    // 停在 -9999 隐身 —— 2026-10-15 画中框里点模型「打不开」就是这个）。
+    const bar =
+      trigger?.closest<HTMLElement>('[data-node-chrome="prompt-bar"]') ??
+      trigger?.closest<HTMLElement>('[data-node-chrome="frame"]')
     if (!trigger || !popup || !bar) return
     const measure = () => {
       const stage = trigger.closest<HTMLElement>('.react-flow')

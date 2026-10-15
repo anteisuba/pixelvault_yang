@@ -161,13 +161,14 @@ function openPicker(
 
 function openCanvasPicker(
   props: Partial<React.ComponentProps<typeof ModelPickerPopover>> = {},
+  host: 'prompt-bar' | 'frame' = 'prompt-bar',
 ) {
   const onChange = vi.fn()
   const view = render(
     <StudioChipDensityProvider value="compact">
       <div className="react-flow">
         <div className="react-flow__node" data-id="node-a" />
-        <div data-node-chrome="prompt-bar">
+        <div data-node-chrome={host}>
           <ModelPickerPopover
             options={FIXTURE}
             value={null}
@@ -393,6 +394,14 @@ describe('ModelPickerPopover — 画布模型弹层', () => {
     )
     expect(channels).toHaveLength(2)
     expect(channels[0]?.textContent).toContain('Common.unitPrice')
+  })
+
+  it('展开的画中框里（没有提示词栏）点开也会落位显示', () => {
+    openCanvasPicker({}, 'frame')
+    const popover = document.querySelector(
+      '[data-canvas-model-popover]',
+    ) as HTMLElement
+    expect(popover.style.visibility).toBe('visible')
   })
 
   it('多渠道行主体按自动选中的渠道选型号，行尾单独打开渠道面板', () => {

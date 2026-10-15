@@ -5826,7 +5826,8 @@
           "removeVersion": "去掉这一版",
           "retry": "重试"
         },
-        "slashPicker": "模板候选"
+        "slashPicker": "模板候选",
+        "myTemplates": "我的模板"
       },
       "text": {
         "empty": "继续写……",
@@ -5903,14 +5904,14 @@
         "uploading": "图片上传中…",
         "toolbar": {
           "label": "图片操作",
-          "shot": "生镜头",
           "edit": "编辑",
           "more": "更多",
           "connect": "连到镜头",
-          "upscale": "放大"
+          "storyboard": "分镜"
         },
         "edit": {
           "inpaint": "局部重绘",
+          "upscale": "放大",
           "cutout": "抠图 / 去背景",
           "background": "换背景"
         },
@@ -5940,7 +5941,8 @@
           "duplicate": "复制这张图片卡",
           "splitVersion": "拆出当前版本",
           "source": "来源",
-          "delete": "删除这张图"
+          "delete": "删除这张图",
+          "newShot": "新建镜头"
         },
         "frame": {
           "title": "画面",
@@ -5996,11 +5998,10 @@
           "switchChannelLabel": "这张卡选的 {from} 没配 key，同一个模型的 {to} 已配好。点一下改走 {to}"
         },
         "template": {
-          "group": "模板",
-          "remove": "去掉模板",
-          "countLocked": "模板定了张数",
-          "fullTextShow": "发送时接上模板 · 看全文",
-          "fullTextHide": "收起模板",
+          "remove": "不用分镜",
+          "countLocked": "分镜定了张数",
+          "fullTextShow": "发送时接上分镜模板 · 看全文",
+          "fullTextHide": "收起分镜模板",
           "storyPlaceholder": "（你写的那一句）",
           "grid3": {
             "name": "九宫格多机位",

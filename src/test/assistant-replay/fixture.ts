@@ -13,9 +13,13 @@ import { z } from 'zod'
 
 import { ASSISTANT_PROVIDER_ORDER } from '@/constants/assistant'
 import { ASSISTANT_V3_TOOLS } from '@/constants/assistant-v3'
-import { ASSISTANT_OPERATOR_STOP_REASONS } from '@/constants/assistant-operator'
+import {
+  ASSISTANT_OPERATOR_STOP_REASONS,
+  ASSISTANT_WEB_FIND_LIMITS,
+} from '@/constants/assistant-operator'
 import { NODE_SLOTS } from '@/constants/node-slots'
 import { PromptAssistantResponseLanguageSchema } from '@/types'
+import { AssistantWebFindSchema } from '@/types/assistant-web-finds'
 import { NodeWorkflowStateV4Schema } from '@/types/node-workflow'
 
 const FIXTURES_DIR = new URL('./fixtures/', import.meta.url)
@@ -87,6 +91,14 @@ const ReplayTurnSchema = z.object({
   /** 浏览器抽好的帧：`@` 到的视频卡各带一组（按片长走 `planClipFrames`）。 */
   clipSeconds: z.record(z.string(), z.number().positive()).default({}),
   searchWithGrok: z.boolean().optional(),
+  /**
+   * 上一轮找到的图与视频（`#n`）：开轮那一跳的请求带上（与前端同一条规矩，接力那几跳不带），
+   * 服务端冻进板子 —— 模型读到那几行、号接着往下数，「用 #2」认得出是哪一张。
+   */
+  priorFinds: z
+    .array(AssistantWebFindSchema)
+    .max(ASSISTANT_WEB_FIND_LIMITS.maxCarried)
+    .optional(),
 })
 
 /** 「名字 -> 名字 / 槽」——一条边。 */

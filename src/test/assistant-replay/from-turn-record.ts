@@ -5,8 +5,10 @@
  *   出去的是 `fixtures/boards/<board>.json` + `fixtures/cases/<id>.json` 两份，过同一套 schema。
  *   ⛔ 这里不连库、不取数：拿哪一行由人决定，导出也由人做。
  * ⭐ 补得出来的：起始画布（开轮那一跳的快照里展开的那几面镜）、创作者这一句与之前的对话、
- *   `@` 到的卡、选中的卡、片子的片长、选的那一家与型号、模型每一次的回复（整轮，按顺序）、
- *   跳数与怎么收的。
+ *   `@` 到的卡、选中的卡、片子的片长、上一轮找到的东西（`#n`，`input.priorFinds` 原样带进
+ *   `turn.priorFinds`）、选的那一家与型号、模型每一次的回复（整轮，按顺序）、跳数与怎么收的。
+ * ⚠ 找到的东西的地址照原样、⛔ 不换到假主机上：模型只读编号那一行（标题 / 域名 / 尺寸），能不能
+ *   当参考按 `domain` / `pageUrl` 判。回放里真有一步去取那张图，会记成意外的网络（`fake-network.ts`）。
  * ⚠ 补不出来的一律进 `gaps`（写题的人要补或核对）：折叠的镜、读不全的正文、记录里没有地址的
  *   产出（换成假主机上的占位地址）、库外的 `@`、联网答复、被截过的那几段……还有 `expect` 里
  *   除了「怎么收、发了几次请求」以外的格 —— 落了什么、出没出卡、回复说了什么，先拿这份草稿跑
@@ -525,13 +527,19 @@ export function replayFromTurnRecord(
     )
   if (record.input.searchWithGrok)
     gaps.push('web search answers are not recorded: fill `search` by hand')
-  // 上一轮找到的图 / 视频（`#n`，冻在开轮的板子上）：回放题还不带这一份，「用 #2」那几步要人核对。
-  const carried = record.transcript.flatMap((entry) =>
+  // 上一轮找到的图 / 视频（`#n`）：回放题照 `input.priorFinds` 带回去。板子上冻着、`input` 里却没有
+  // （超限截掉了，或这一行写在 `input` 记它之前）→ 记一条缺口，⛔ 不从板子上悄悄补。
+  const priorFinds = record.input.priorFinds ?? []
+  const frozen = record.transcript.flatMap((entry) =>
     entry.type === ENTRY.board ? (entry.finds ?? []) : [],
   )
-  if (carried.length)
+  if (frozen.length && !priorFinds.length)
     gaps.push(
-      `the turn carried ${carried.length} web find(s) from the previous turn (#${carried[0]!.n}–#${carried.at(-1)!.n}): a replay case cannot carry them, so a step that names one by number will be refused`,
+      `the board carried ${frozen.length} web find(s) from the previous turn (#${frozen[0]!.n}–#${frozen.at(-1)!.n}) but the record input has none (${
+        record.truncated.includes(ASSISTANT_TURN_RECORD_CUT_IDS.priorFinds)
+          ? 'cut to fit'
+          : 'not stored'
+      }): copy them from the board entry into turn.priorFinds, or the model will not see them and a number like #2 will not resolve`,
     )
   if (!record.input.responseLanguage)
     gaps.push('no response language on the request: defaulted to chinese')
@@ -577,6 +585,7 @@ export function replayFromTurnRecord(
       selected,
       clipSeconds,
       ...(record.input.searchWithGrok ? { searchWithGrok: true } : {}),
+      ...(priorFinds.length ? { priorFinds } : {}),
     },
     replies,
     expect: {

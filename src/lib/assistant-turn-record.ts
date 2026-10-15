@@ -7,9 +7,11 @@
  */
 import {
   ASSISTANT_TURN_RECORD_CUT_IDS,
+  ASSISTANT_TURN_RECORD_CUTS,
   ASSISTANT_TURN_RECORD_LIMITS,
 } from '@/constants/assistant-turn-record'
 import { ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS } from '@/constants/assistant-v3'
+import { carriedWebFinds } from '@/lib/assistant-web-finds'
 import type {
   AssistantOperatorRequest,
   AssistantOperatorSnapshot,
@@ -19,6 +21,10 @@ import type {
   AssistantTurnRecordInput,
 } from '@/types/assistant-turn-record'
 import type { AssistantV3Transcript } from '@/types/assistant-v3'
+import type { AssistantWebFind } from '@/types/assistant-web-finds'
+
+const LIMITS = ASSISTANT_TURN_RECORD_LIMITS
+const ENTRY = ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS
 
 /** 摘掉的 data: 地址换成这一句：还是合法的 URL（读回来过得了 schema），但一个字节的图都不剩。 */
 export const TURN_RECORD_DATA_URL_PLACEHOLDER = 'data:,omitted'
@@ -55,18 +61,32 @@ export function turnRecordSnapshot(
 }
 
 /**
+ * 开轮那一跳冻进板子的上一轮找到的东西（`#n`）：就是开轮请求的 `priorFinds` 过了 `priorFindsOf`
+ * 的那一份（模型读到的也是它），再过一遍同一刀（按号去重、最多 `maxCarried` 条）。
+ * ⚠ 从本轮记录的板子取、⛔ 不读请求：接力那几跳的请求不带它，后几跳一更新 `input` 就冲掉了。
+ */
+function openingFinds(transcript: AssistantV3Transcript): AssistantWebFind[] {
+  const opening = transcript[0]
+  return opening?.type === ENTRY.board
+    ? carriedWebFinds(opening.finds ?? [])
+    : []
+}
+
+/**
  * 请求里回放要用的那几样。对话只留到创作者最后那一句（v3 发给模型的也只到那一句），
- * 片子只记地址与帧数，data: 地址一律摘掉。
+ * 片子只记地址与帧数，上一轮找到的东西取开轮板子上那一份，data: 地址一律摘掉。
  */
 export function turnRecordInput(
   request: AssistantOperatorRequest,
+  transcript: AssistantV3Transcript,
 ): AssistantTurnRecordInput {
   const lastUser = request.messages.findLastIndex(
     (message) => message.role === 'user',
   )
   const messages = request.messages
     .slice(0, lastUser >= 0 ? lastUser + 1 : request.messages.length)
-    .slice(-ASSISTANT_TURN_RECORD_LIMITS.maxMessages)
+    .slice(-LIMITS.maxMessages)
+  const priorFinds = openingFinds(transcript)
   const input: AssistantTurnRecordInput = {
     messages,
     ...(request.responseLanguage
@@ -108,6 +128,7 @@ export function turnRecordInput(
           })),
         }
       : {}),
+    ...(priorFinds.length ? { priorFinds } : {}),
   }
   return stripTurnRecordDataUrls(input)
 }
@@ -122,9 +143,6 @@ interface TurnRecordParts {
 }
 
 type Cut = (parts: TurnRecordParts) => TurnRecordParts
-
-const LIMITS = ASSISTANT_TURN_RECORD_LIMITS
-const ENTRY = ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS
 
 /** 截本轮记录 / 对话的那几样，按截的先后。快照那一刀不在这里（它只是「不留」）。 */
 const PART_CUTS: Partial<Record<AssistantTurnRecordGap, Cut>> = {
@@ -186,21 +204,16 @@ const PART_CUTS: Partial<Record<AssistantTurnRecordGap, Cut>> = {
         : entry,
     ),
   }),
+  [ASSISTANT_TURN_RECORD_CUT_IDS.priorFinds]: ({ input, transcript }) => {
+    const rest = { ...input }
+    delete rest.priorFinds
+    return { input: rest, transcript }
+  },
   [ASSISTANT_TURN_RECORD_CUT_IDS.transcript]: (parts) => ({
     ...parts,
     transcript: parts.transcript.filter((entry) => entry.type !== ENTRY.result),
   }),
 }
-
-const CUT_ORDER: readonly AssistantTurnRecordGap[] = [
-  ASSISTANT_TURN_RECORD_CUT_IDS.signatures,
-  ASSISTANT_TURN_RECORD_CUT_IDS.boardText,
-  ASSISTANT_TURN_RECORD_CUT_IDS.resultOutputs,
-  ASSISTANT_TURN_RECORD_CUT_IDS.history,
-  ASSISTANT_TURN_RECORD_CUT_IDS.assistantText,
-  ASSISTANT_TURN_RECORD_CUT_IDS.snapshot,
-  ASSISTANT_TURN_RECORD_CUT_IDS.transcript,
-]
 
 export interface FittedTurnRecord {
   readonly input: AssistantTurnRecordInput
@@ -214,7 +227,8 @@ export interface FittedTurnRecord {
 }
 
 /**
- * 按上限一样一样截：先截本轮记录与对话，还放不下才丢快照，再放不下只留板子开头与模型的回复。
+ * 按上限一样一样截（`ASSISTANT_TURN_RECORD_CUTS`）：先截本轮记录与对话、再截上一轮找到的东西，
+ * 还放不下才丢快照，再放不下只留板子开头与模型的回复。
  * `snapshotBytes` = 这一行上的快照有多大（第一跳是手上这份，后几跳是库里那份）。
  * 截到最后还放不下（几乎不会：一轮最多 16 跳，每次回复的调用入参都有上限）→ `null`，这一跳不写。
  */
@@ -234,12 +248,17 @@ export function fitAssistantTurnRecord(
     (keepSnapshot ? parts.snapshotBytes : 0)
 
   let bytes = size()
-  for (const step of CUT_ORDER) {
+  for (const step of ASSISTANT_TURN_RECORD_CUTS) {
     if (bytes <= maxBytes) break
     if (step === ASSISTANT_TURN_RECORD_CUT_IDS.snapshot) {
       if (parts.snapshotBytes === 0) continue
       keepSnapshot = false
     } else {
+      // 这一轮没带上一轮找到的东西：没有可截的，⛔ 不记这一刀（回放那边看到它就会说「截掉了」）。
+      const nothingToCut =
+        step === ASSISTANT_TURN_RECORD_CUT_IDS.priorFinds &&
+        !current.input.priorFinds?.length
+      if (nothingToCut) continue
       current = PART_CUTS[step]!(current)
     }
     cuts.push(step)

@@ -23,6 +23,24 @@ const BOARD = loadReplayBoard('malfoy')
 const GOYLE = 'image9c0d1e2f-1111-4222-8333-444455556666'
 const S04B = 'video4f610510-8120-436b-b3ac-ba4202af49b5'
 const TURN_ID = '33b9bd2e-b43d-4cc9-872d-bb5d57f8d420'
+/** 上一轮找到的一张图与一支视频（`#3`、`#4`）。 */
+const FINDS = [
+  {
+    kind: 'image' as const,
+    n: 3,
+    imageUrl: 'https://img.test/3.jpg',
+    pageUrl: 'https://www.pixiv.net/artworks/3',
+    domain: 'pixiv.net',
+    title: '立绘',
+  },
+  {
+    kind: 'video' as const,
+    n: 4,
+    url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    title: 'PV',
+    platform: 'youtube' as const,
+  },
+]
 
 function imageUrls(state: NodeWorkflowStateV4): string[] {
   return state.nodes.flatMap((node) =>
@@ -266,35 +284,39 @@ describe('replayFromTurnRecord', () => {
     expect(relay.gaps.join('\n')).toContain('never finished (relay)')
   })
 
-  it('开轮的板子带着上一轮找到的东西（#n）：回放题带不进去，记一条缺口', () => {
+  it('input 里记着上一轮找到的东西（#n）：原样带进题目的 turn.priorFinds（地址不换），不记缺口', () => {
     const [opening, ...rest] = row().transcript
-    const carried = replayFromTurnRecord(
+    const { testCase, gaps } = replayFromTurnRecord(
       row({
-        transcript: [
-          {
-            ...opening,
-            finds: [
-              { kind: 'image', n: 3, imageUrl: 'https://img.test/3.jpg' },
-              {
-                kind: 'video',
-                n: 4,
-                url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-                title: 'PV',
-                platform: 'youtube',
-              },
-            ],
-          },
-          ...rest,
-        ],
+        input: { ...row().input, priorFinds: FINDS },
+        transcript: [{ ...opening, finds: FINDS }, ...rest],
       }),
       { id: 'T90', board: 'b' },
     )
-    expect(carried.gaps.join('\n')).toContain(
-      'carried 2 web find(s) from the previous turn (#3–#4)',
+    expect(testCase.turn.priorFinds).toEqual(FINDS)
+    expect(gaps.join('\n')).not.toContain('web find')
+    expect(
+      replayFromTurnRecord(row(), { id: 'T90', board: 'b' }).testCase.turn,
+    ).not.toHaveProperty('priorFinds')
+  })
+
+  it('板子上冻着、input 里没有（截掉了 / 没存）：记一条缺口，⛔ 不从板子上悄悄补', () => {
+    const [opening, ...rest] = row().transcript
+    const frozen = [{ ...opening, finds: FINDS }, ...rest]
+    const cut = replayFromTurnRecord(
+      row({ transcript: frozen, truncated: ['prior_finds'] }),
+      { id: 'T90', board: 'b' },
+    )
+    expect(cut.testCase.turn).not.toHaveProperty('priorFinds')
+    expect(cut.gaps.join('\n')).toContain(
+      'the board carried 2 web find(s) from the previous turn (#3–#4) but the record input has none (cut to fit)',
     )
     expect(
-      replayFromTurnRecord(row(), { id: 'T90', board: 'b' }).gaps.join('\n'),
-    ).not.toContain('web find')
+      replayFromTurnRecord(row({ transcript: frozen }), {
+        id: 'T90',
+        board: 'b',
+      }).gaps.join('\n'),
+    ).toContain('(not stored)')
   })
 
   it('摘掉的 data: 地址：换成假主机上的占位地址，记一条缺口', () => {

@@ -1,0 +1,66 @@
+{
+  "id": "R03",
+  "title": "上一轮找到的图与视频（#n）带进这一轮：模型眼前有那几行，过程记录原样转得回来",
+  "source": "附录 I §3.3「模型只拿到一行一条：`#3 · 标题 · 域名 · 1920×1080 · 可当参考`」；上一轮的号带进下一轮（搜索期第三片）",
+  "board": "malfoy",
+  "routes": [
+    {
+      "routeModel": "gemini-3.8-flash",
+      "keys": ["gemini", "openai"],
+      "expect": { "adapterType": "gemini", "modelId": "gemini-3.8-flash" }
+    }
+  ],
+  "turn": {
+    "say": "#2 那张是哪个网站的？能直接当参考吗？",
+    "priorFinds": [
+      {
+        "kind": "image",
+        "n": 1,
+        "imageUrl": "https://static.wikia.nocookie.net/harrypotter/images/ron.jpg",
+        "pageUrl": "https://harrypotter.fandom.com/wiki/Ronald_Weasley",
+        "domain": "harrypotter.fandom.com",
+        "title": "Ronald Weasley | Harry Potter Wiki",
+        "width": 800,
+        "height": 1200
+      },
+      {
+        "kind": "image",
+        "n": 2,
+        "imageUrl": "https://i.pximg.net/img-original/img/2026/01/01/00/00/00/123_p0.png",
+        "pageUrl": "https://www.pixiv.net/artworks/123",
+        "domain": "pixiv.net",
+        "title": "ロン・ウィーズリー",
+        "width": 1600,
+        "height": 900
+      },
+      {
+        "kind": "video",
+        "n": 3,
+        "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "title": "Harry Potter PV",
+        "platform": "youtube",
+        "channel": "WB",
+        "durationSeconds": 95
+      }
+    ]
+  },
+  "replies": [
+    {
+      "text": "#2 来自 pixiv.net，只能看，不能直接当参考。"
+    }
+  ],
+  "expect": {
+    "end": "done",
+    "answer": { "contains": ["#2", "pixiv.net"] },
+    "stepPrompts": [
+      {
+        "contains": [
+          "FOUND ON THE WEB LAST TURN (still on the creator's screen",
+          "#1 · Ronald Weasley | Harry Potter Wiki · harrypotter.fandom.com · 800×1200",
+          "#2 · ロン・ウィーズリー · pixiv.net · 1600×900",
+          "#3 · Harry Potter PV · WB · YouTube"
+        ]
+      }
+    ]
+  }
+}

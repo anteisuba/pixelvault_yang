@@ -6,13 +6,14 @@
  *
  * ── 一行装什么 ───────────────────────────────────────────────
  * 开轮时的快照（画布 / 工作台）、v3 本轮记录（transcript）、请求里回放要用的那几样（对话、`@`、
- * 片子的地址与帧数），以及那一轮的厂商 / 型号 / key 的 id / 系统提示的 sha256。写在服务端每一跳
- * 的末尾（`services/assistant-turn-record.service.ts`），失败只记一行警告。
+ * 片子的地址与帧数、上一轮找到的东西 `#n`），以及那一轮的厂商 / 型号 / key 的 id / 系统提示的
+ * sha256。写在服务端每一跳的末尾（`services/assistant-turn-record.service.ts`），失败只记一行警告。
  *
  * ── 超限怎么截 ───────────────────────────────────────────────
  * 按 `ASSISTANT_TURN_RECORD_CUTS` 的顺序一样一样截，截到放得下为止：先截本轮记录（回放用不上的
- * 签名 → 回放会重画的板子正文 → 回放会现跑的工具结果 → 对话历史 → 模型正文），还放不下才丢快照，
- * 再放不下只留板子开头与模型的那几次回复。截了哪几样记在行上，⛔ 不悄悄截。
+ * 签名 → 回放会重画的板子正文 → 回放会现跑的工具结果 → 对话历史 → 模型正文），再截请求里上一轮
+ * 找到的东西，还放不下才丢快照，再放不下只留板子开头与模型的那几次回复。截了哪几样记在行上，
+ * ⛔ 不悄悄截。
  */
 
 export const ASSISTANT_TURN_RECORD_LIMITS = {
@@ -82,6 +83,11 @@ export const ASSISTANT_TURN_RECORD_CUT_IDS = {
   history: 'history',
   /** 模型正文截到开头。 */
   assistantText: 'assistant_text',
+  /**
+   * 请求里上一轮找到的东西（`input.priorFinds`）不存（开轮的板子上冻着的那一份照留）。
+   * ⚠ 回放题因此带不进它们：模型眼前少了那几行，`#2` 认不出是哪一张。这一轮没带就不记这一刀。
+   */
+  priorFinds: 'prior_finds',
   /** 快照丢掉。 */
   snapshot: 'snapshot',
   /** 本轮记录只留板子开头与模型的回复（工具结果全丢）。 */
@@ -97,6 +103,7 @@ export const ASSISTANT_TURN_RECORD_CUTS = [
   ASSISTANT_TURN_RECORD_CUT_IDS.resultOutputs,
   ASSISTANT_TURN_RECORD_CUT_IDS.history,
   ASSISTANT_TURN_RECORD_CUT_IDS.assistantText,
+  ASSISTANT_TURN_RECORD_CUT_IDS.priorFinds,
   ASSISTANT_TURN_RECORD_CUT_IDS.snapshot,
   ASSISTANT_TURN_RECORD_CUT_IDS.transcript,
 ] as const

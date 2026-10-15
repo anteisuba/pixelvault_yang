@@ -493,6 +493,7 @@ export async function gradeTurnRecord(input: {
       selected: back.testCase.turn.selected,
       clipSeconds: back.testCase.turn.clipSeconds,
       searchWithGrok: back.testCase.turn.searchWithGrok,
+      priorFinds: back.testCase.turn.priorFinds,
     },
     'record → the rest of the turn',
   ).toEqual({
@@ -501,6 +502,7 @@ export async function gradeTurnRecord(input: {
     selected: testCase.turn.selected,
     clipSeconds: testCase.turn.clipSeconds,
     searchWithGrok: testCase.turn.searchWithGrok,
+    priorFinds: testCase.turn.priorFinds,
   })
   expect(back.testCase.replies, 'record → every model reply, in order').toEqual(
     testCase.replies,

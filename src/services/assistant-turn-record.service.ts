@@ -105,7 +105,7 @@ export async function writeAssistantTurnRecord(
   draft: AssistantTurnDraft,
 ): Promise<void> {
   const { userId, turnId, hop } = draft
-  const input = turnRecordInput(draft.request)
+  const input = turnRecordInput(draft.request, draft.transcript)
   const ending = {
     hops: hop,
     outcome: draft.outcome,

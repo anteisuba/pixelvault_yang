@@ -44,6 +44,8 @@ export type AssistantTurnRecordClip = z.infer<
 /**
  * 请求里回放要用的那几样。⚠ 对话只存到这一轮创作者那一句为止（v3 发给模型的也就是这些），
  * 最多 `ASSISTANT_TURN_RECORD_LIMITS.maxMessages` 条。
+ * `priorFinds` = 开轮那一跳冻进板子的上一轮找到的东西（`#n`，与模型看到的同一份，最多
+ * `ASSISTANT_WEB_FIND_LIMITS.maxCarried` 条）：回放题照它带回去，「用 #2」才认得出是哪一张。
  */
 export const AssistantTurnRecordInputSchema =
   AssistantOperatorRequestSchema.pick({
@@ -61,6 +63,7 @@ export const AssistantTurnRecordInputSchema =
     autoReview: true,
     searchWithGrok: true,
     stepBudget: true,
+    priorFinds: true,
   }).extend({
     videoClips: z.array(AssistantTurnRecordClipSchema).optional(),
   })

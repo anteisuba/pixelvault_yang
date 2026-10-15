@@ -4,6 +4,8 @@
  *
  * ⚠ 写一律记下来（`writes`）：回放的一条硬约束是「一轮助手不建 generation、不记账」，
  *   多出来的写由 `graders.ts` 点名。
+ * ⭐ 唯一的例外是每轮的过程记录（`assistantTurnRecord`）：它是这一轮**该写**的那一行，存进
+ *   `turnRecords`（不进 `writes`），回放题再拿它原样转回一道题（`from-turn-record.ts`）对账。
  * ⚠ 人设必须是**完整的一行**：只给 `{ routeModel }` 时 `toPersona` 的 schema 不过、整份回落成
  *   默认值 —— 选的型号悄悄变回「自动」，这一题就测错了家（`seedAssistantRoute` 那一格只够
  *   `getAssistantRouteModelByUserId` 用）。
@@ -12,6 +14,7 @@ import { vi } from 'vitest'
 
 import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { Prisma } from '@/lib/generated/prisma/client'
 import {
   assistantKey,
   seedAssistantRoute,
@@ -70,6 +73,36 @@ interface WhereArgs {
   where?: { id?: string; userId?: string; clerkId?: string }
 }
 
+/** 过程记录的一行（库里那一行的形状：列名照 schema，JSON 列原样存）。 */
+export type ReplayTurnRecordRow = Record<string, unknown> & {
+  id: string
+  userId: string
+  turnId: string
+  hops: number
+  createdAt: Date
+}
+
+interface TurnRecordArgs {
+  where?: {
+    id?: string
+    userId?: string
+    userId_turnId?: { userId: string; turnId: string }
+    hops?: { lte?: number }
+  }
+  data?: Record<string, unknown>
+}
+
+/** `Prisma.DbNull` 落库就是 SQL NULL：读回来是 `null`。 */
+function dbValue(value: unknown): unknown {
+  return value === Prisma.DbNull ? null : value
+}
+
+function rowData(data: Record<string, unknown> | undefined) {
+  return Object.fromEntries(
+    Object.entries(data ?? {}).map(([key, value]) => [key, dbValue(value)]),
+  )
+}
+
 function whereOf(args: unknown): NonNullable<WhereArgs['where']> {
   return (args as WhereArgs | undefined)?.where ?? {}
 }
@@ -109,6 +142,60 @@ function createReplayDb() {
   const state = {
     projectId: '',
     writes: [] as ReplayDbWrite[],
+    turnRecords: [] as ReplayTurnRecordRow[],
+  }
+
+  /** 过程记录：`assistant-turn-record.service.ts` 用到的那几种查法，照 Prisma 的语义。 */
+  const turnRecordOf = (args: unknown) => (args as TurnRecordArgs).where ?? {}
+  const turnRecordHandlers: Record<string, Handler> = {
+    findUnique: (args) => {
+      const key = turnRecordOf(args).userId_turnId
+      return (
+        state.turnRecords.find(
+          (row) => row.userId === key?.userId && row.turnId === key?.turnId,
+        ) ?? null
+      )
+    },
+    create: (args) => {
+      const data = rowData((args as TurnRecordArgs).data)
+      if (
+        state.turnRecords.some(
+          (row) => row.userId === data.userId && row.turnId === data.turnId,
+        )
+      )
+        throw Object.assign(new Error('Unique constraint failed'), {
+          code: 'P2002',
+        })
+      const row: ReplayTurnRecordRow = {
+        snapshotBytes: 0,
+        truncated: [],
+        ...data,
+        id: `turn_record_${state.turnRecords.length + 1}`,
+        userId: String(data.userId),
+        turnId: String(data.turnId),
+        hops: Number(data.hops),
+        createdAt: new Date(),
+      }
+      state.turnRecords.push(row)
+      return row
+    },
+    updateMany: (args) => {
+      const where = turnRecordOf(args)
+      const data = rowData((args as TurnRecordArgs).data)
+      let count = 0
+      for (const row of state.turnRecords) {
+        if (where.id !== undefined && row.id !== where.id) continue
+        if (where.userId !== undefined && row.userId !== where.userId) continue
+        if (where.hops?.lte !== undefined && !(row.hops <= where.hops.lte))
+          continue
+        Object.assign(row, data)
+        count += 1
+      }
+      return { count }
+    },
+    // 回放里一个人只有几行，删旧的那两刀都落空。
+    findMany: () => [],
+    deleteMany: () => ({ count: 0 }),
   }
 
   const handlers: Record<string, Record<string, Handler>> = {
@@ -127,6 +214,7 @@ function createReplayDb() {
     assistantPersona: {
       findUnique: (args) => keyStore.personaFindUnique(args),
     },
+    assistantTurnRecord: turnRecordHandlers,
     nodeWorkflowProject: {
       findFirst: (args) => {
         const where = whereOf(args)
@@ -193,6 +281,7 @@ function createReplayDb() {
       projectId: string
     }) {
       state.writes.length = 0
+      state.turnRecords.length = 0
       state.projectId = setup.projectId
       keyStore.findFirst.mockReset()
       keyStore.findMany.mockReset()

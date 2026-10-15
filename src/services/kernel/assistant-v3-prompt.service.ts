@@ -32,6 +32,8 @@ import {
  * ⚠ 「正文不复述改动」是 owner 2026-10-09 定的：改了什么由界面上的过程行说（那是
  *   按实际落地的 op 生成的），正文只写判断与下一步 —— T02 / T19 两题都是正文说做了、
  *   实际没做。
+ * ⚠ 改了这里不变的那几段，把 `ASSISTANT_V3_PROMPT_VERSION`（`constants/assistant-v3.ts`）拨到
+ *   改的那天：每轮的过程记录按它认「这一行跑的是哪一版提示」。
  */
 const HOW_YOU_WORK = `HOW YOU WORK
 - You act through tools. When the creator asks for a change, make it with a tool call in this turn — never only describe it.

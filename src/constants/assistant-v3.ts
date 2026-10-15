@@ -246,6 +246,14 @@ export const ASSISTANT_V3_HANDLE = {
   fallbackPrefix: 'card',
 } as const
 
+/**
+ * 系统提示的版本（记进 `AssistantTurnRecord.promptVersion`）：回放一行旧记录时，先看它跑的
+ * 是不是现在这一版提示。⚠ 改了 `assistant-v3-prompt.service.ts` 里不变的那几段（规矩、看图、
+ * 看片、各张脸的方言段）就把它拨到改的那天；人设 / 规矩 / 记忆这些每人不同的段落不算，它们只
+ * 进 `systemPromptHash`。
+ */
+export const ASSISTANT_V3_PROMPT_VERSION = '2026-10-15'
+
 /** 本轮记录（前端原样带回、服务端还原成消息）的条目类型。 */
 export const ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS = {
   board: 'board',

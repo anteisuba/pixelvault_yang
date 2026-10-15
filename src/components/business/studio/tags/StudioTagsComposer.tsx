@@ -415,6 +415,7 @@ export function StudioTagsComposer({
                     activeIndex === null ? (
                       <StudioTagCarryNote
                         status={carry.status}
+                        reason={carry.reason}
                         onRetry={carry.retry}
                       />
                     ) : undefined
@@ -487,7 +488,11 @@ export function StudioTagsComposer({
             tagModelId={tagModelId}
             disabled={isGenerating}
             carry={
-              <StudioTagCarryNote status={carry.status} onRetry={carry.retry} />
+              <StudioTagCarryNote
+                status={carry.status}
+                reason={carry.reason}
+                onRetry={carry.retry}
+              />
             }
             referenceStrip={
               <ImageAttachmentPreviewStrip

@@ -320,6 +320,21 @@ export async function getAssistantPersonaByUserId(
 }
 
 /**
+ * 只读助手选的那个模型（`auto` 或路由表里的一个 modelId）—— 助手以外那几样小功能
+ * （标签台翻译、「满意」评估、试读……）跟着助手走时用（`resolveAssistantRoute`，
+ * owner 2026-10-15「全跟助手」）。⛔ 不为一个模型 id 读整份 persona 连角色卡。
+ */
+export async function getAssistantRouteModelByUserId(
+  userId: string,
+): Promise<AssistantPersona['routeModel']> {
+  const row = await db.assistantPersona.findUnique({
+    where: { userId },
+    select: { routeModel: true },
+  })
+  return normalizeRouteModel(row?.routeModel)
+}
+
+/**
  * 语气自定义那一句 —— **拼进系统提示之前先过 `prompt-guard`**（§8.5）。
  *
  * ⚠ 它是这份 persona 里唯一一段自由文本，而它直连系统提示。清洗放在服务端读的

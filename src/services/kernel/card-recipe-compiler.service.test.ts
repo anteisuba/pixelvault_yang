@@ -11,17 +11,33 @@ vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }))
 
+/**
+ * ⭐ 路由是**真的**（`resolveAssistantRoute` + `resolveLlmTextRoute`），只桩库与补全那一跳
+ * （owner 2026-10-15「全跟助手」）：卡片融合 / 看图取材此前走自动优先级，与助手选的那一家无关。
+ */
+const keyStore = vi.hoisted(() => ({
+  findFirst: vi.fn(),
+  findMany: vi.fn(),
+  personaFindUnique: vi.fn(),
+}))
+
 vi.mock('@/lib/db', () => ({
   db: {
     characterCard: { findFirst: vi.fn(), findUnique: vi.fn() },
     backgroundCard: { findFirst: vi.fn(), findUnique: vi.fn() },
     styleCard: { findFirst: vi.fn(), findUnique: vi.fn() },
+    userApiKey: { findFirst: keyStore.findFirst, findMany: keyStore.findMany },
+    assistantPersona: { findUnique: keyStore.personaFindUnique },
   },
 }))
 
-vi.mock('@/services/llm-text.service', () => ({
+vi.mock('@/lib/crypto', () => ({
+  decryptApiKey: (encrypted: string) => `plain:${encrypted}`,
+}))
+
+vi.mock('@/services/llm-text.service', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/llm-text.service')>()),
   llmTextCompletion: vi.fn(),
-  resolveLlmTextRoute: vi.fn(),
 }))
 
 vi.mock('@/lib/llm-output-validator', () => ({
@@ -34,19 +50,32 @@ vi.mock('@/lib/llm-output-validator', () => ({
 }))
 
 import { db } from '@/lib/db'
+import { ASSISTANT_MODEL_CANNOT_SEE_CODE } from '@/constants/assistant-operator'
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_MODELS } from '@/constants/models'
-import { compileRecipe, previewRecipe } from './card-recipe-compiler.service'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
-  llmTextCompletion,
-  resolveLlmTextRoute,
-} from '@/services/llm-text.service'
+  compileRecipe,
+  extractBackgroundAttributes,
+  extractStyleAttributes,
+  previewRecipe,
+} from './card-recipe-compiler.service'
+import { llmTextCompletion } from '@/services/llm-text.service'
 import { validateRecipeFusion } from '@/lib/llm-output-validator'
+import {
+  assistantKey,
+  seedAssistantRoute,
+} from '@/test/assistant-route-fixture'
+import {
+  expectSelectedProviderOnly,
+  keyLookupUsesOf,
+  providerUsesOf,
+} from '@/test/selected-provider-only'
 
 const mockCharFind = vi.mocked(db.characterCard.findFirst)
 const mockBgFind = vi.mocked(db.backgroundCard.findFirst)
 const mockStyleFind = vi.mocked(db.styleCard.findFirst)
 const mockLlm = vi.mocked(llmTextCompletion)
-const mockLlmRoute = vi.mocked(resolveLlmTextRoute)
 const mockValidator = vi.mocked(validateRecipeFusion)
 
 // ─── Fixtures ───────────────────────────────────────────────────
@@ -94,11 +123,9 @@ const mkBgCard = (overrides: Record<string, unknown> = {}) => ({
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mockLlmRoute.mockResolvedValue({
-    adapterType: 'gemini',
-    apiKey: 'test-key',
-    providerConfig: { label: 'Gemini', baseUrl: 'https://api.gemini' },
-  } as never)
+  seedAssistantRoute(keyStore, {
+    keys: [assistantKey(AI_ADAPTER_TYPES.GEMINI, { userId: 'user-1' })],
+  })
   mockLlm.mockResolvedValue('LLM fused prompt output')
 })
 
@@ -357,5 +384,108 @@ describe('LLM fusion input', () => {
         userPrompt: expect.stringContaining(`CHARACTER: ${longCharacter}\n`),
       }),
     )
+  })
+})
+
+/**
+ * 「全跟助手」（owner 2026-10-15）：融合与看图取材都用助手那一家、那个型号。没 key → 融合回落
+ * 模板（不花任何一家的钱）；看不了图 → 取材照实抛（建卡那边接住，用手写的那句建卡）。
+ * ⛔ 都不借别家。
+ */
+describe('只用助手那一家', () => {
+  const usesOf = () => [
+    ...keyLookupUsesOf(keyStore.findFirst),
+    ...providerUsesOf(mockLlm, 'card llm'),
+  ]
+
+  it('融合：「自动」挑的那一家（DeepSeek），连型号一起', async () => {
+    seedAssistantRoute(keyStore, {
+      keys: [
+        assistantKey(AI_ADAPTER_TYPES.XAI, { userId: 'user-1' }),
+        assistantKey(AI_ADAPTER_TYPES.DEEPSEEK, { userId: 'user-1' }),
+      ],
+    })
+    mockCharFind.mockResolvedValue(mkCharCard() as never)
+    mockStyleFind.mockResolvedValue(mkStyleCard() as never)
+    mockBgFind.mockResolvedValue(null as never)
+
+    await compileRecipe({
+      userId: 'user-1',
+      characterCardId: 'char-1',
+      styleCardId: 'style-1',
+    })
+
+    expect(mockLlm.mock.calls[0]?.[0]).toMatchObject({
+      modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH,
+    })
+    expectSelectedProviderOnly(usesOf(), {
+      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+      apiKey: `plain:enc_${AI_ADAPTER_TYPES.DEEPSEEK}`,
+    })
+  })
+
+  it('融合：选了 Claude 却只有 Gemini 的 key → 回落模板，⛔ 一个字都没发给 Gemini', async () => {
+    seedAssistantRoute(keyStore, {
+      keys: [assistantKey(AI_ADAPTER_TYPES.GEMINI, { userId: 'user-1' })],
+      routeModel: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
+    })
+    mockCharFind.mockResolvedValue(mkCharCard() as never)
+    mockStyleFind.mockResolvedValue(mkStyleCard() as never)
+    mockBgFind.mockResolvedValue(null as never)
+
+    const result = await compileRecipe({
+      userId: 'user-1',
+      characterCardId: 'char-1',
+      styleCardId: 'style-1',
+    })
+
+    expect(result.compiledPrompt).toBeTruthy()
+    expect(mockLlm).not.toHaveBeenCalled()
+    expectSelectedProviderOnly(usesOf(), {
+      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+    })
+  })
+
+  it.each([
+    ['background', extractBackgroundAttributes],
+    ['style', extractStyleAttributes],
+  ] as const)(
+    '看图取材（%s）：选的 DeepSeek V4 Pro 看不了图 → 照实抛，⛔ 不借 Gemini',
+    async (_kind, extract) => {
+      seedAssistantRoute(keyStore, {
+        keys: [
+          assistantKey(AI_ADAPTER_TYPES.DEEPSEEK, { userId: 'user-1' }),
+          assistantKey(AI_ADAPTER_TYPES.GEMINI, { userId: 'user-1' }),
+        ],
+        routeModel: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
+      })
+
+      await expect(
+        extract('user-1', 'data:image/png;base64,AAAA'),
+      ).rejects.toMatchObject({ errorCode: ASSISTANT_MODEL_CANNOT_SEE_CODE })
+      expect(mockLlm).not.toHaveBeenCalled()
+      expectSelectedProviderOnly(usesOf(), {
+        adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+      })
+    },
+  )
+
+  it('看图取材：看得了图就用助手那一家、那个型号', async () => {
+    seedAssistantRoute(keyStore, {
+      keys: [
+        assistantKey(AI_ADAPTER_TYPES.OPENAI, { userId: 'user-1' }),
+        assistantKey(AI_ADAPTER_TYPES.ANTHROPIC, { userId: 'user-1' }),
+      ],
+    })
+    mockLlm.mockResolvedValue('{"attributes":{},"prompt":"a forest"}')
+
+    await extractBackgroundAttributes('user-1', 'data:image/png;base64,AAAA')
+
+    expect(mockLlm.mock.calls[0]?.[0]).toMatchObject({
+      modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL,
+    })
+    expectSelectedProviderOnly(usesOf(), {
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+    })
   })
 })

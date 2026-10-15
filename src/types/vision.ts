@@ -338,10 +338,8 @@ export const VisionAnalysisResultSchema = z.object({
   grounded: z.literal(false),
   observations: VisionObservationsSchema,
   conclusions: z.array(VisionConclusionSchema),
-  /** 实际吃图的 adapter。 */
+  /** 实际吃图的 adapter —— 永远是所选那一家（⛔ 不借别家，owner 2026-10-15）。 */
   model: z.string(),
-  /** 用户选的路看不了图，借了一条 —— UI 要能如实说「这轮换了模型看图」。 */
-  borrowedRoute: z.boolean(),
 })
 
 export type VisionAnalysisResult = z.infer<typeof VisionAnalysisResultSchema>

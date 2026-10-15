@@ -17,9 +17,14 @@ vi.mock('@/services/vision/vision-structured-output', () => ({
 
 vi.mock('@/lib/logger', () => ({ logger: { warn: vi.fn() } }))
 
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
+
 import { inspectWebImageCandidates } from './assistant-web-image-vision.service'
 
-const ROUTE = { route: { adapterType: 'gemini' }, borrowed: false }
+const ROUTE = {
+  route: { adapterType: 'gemini' },
+  modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
+}
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -49,6 +54,7 @@ describe('inspectWebImageCandidates（搜完先看一眼）', () => {
     const result = await inspectWebImageCandidates({
       userId: 'user-1',
       apiKeyId: 'key-1',
+      modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
       character: {
         name: 'Denia',
         work: '鸣潮',
@@ -56,9 +62,15 @@ describe('inspectWebImageCandidates（搜完先看一眼）', () => {
       },
       thumbnails: ['https://t.test/a.jpg', 'https://t.test/b.jpg'],
     })
-    expect(mockResolveVisionRoute).toHaveBeenCalledWith('user-1', 'key-1')
+    // 「全跟助手」：看图用这一轮助手那把 key、那个型号，⛔ 不借别家。
+    expect(mockResolveVisionRoute).toHaveBeenCalledWith(
+      'user-1',
+      'key-1',
+      LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
+    )
     expect(mockCompleteVisionStructured).toHaveBeenCalledWith(
       expect.objectContaining({
+        modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
         imageData: [
           'https://cdn.test/main.png',
           'https://t.test/a.jpg',

@@ -68,12 +68,8 @@ export async function analyzeVideo<TTask extends VisionTask>(
   params: AnalyzeVideoParams<TTask>,
 ): Promise<AnalyzeVideoResult<TTask>> {
   // ⚠ 先解析路由再判档：能不能满足这个任务，取决于**这一轮真正会用的那条路**
-  //   （用户选的那把 key 看不了图时 `resolveVisionRoute` 会借一条），
-  //   拿用户「选的」那条去判会得出一个和实际执行不符的结论。
-  const { route, borrowed } = await resolveVisionRoute(
-    params.userId,
-    params.routeHint,
-  )
+  //   （`resolveVisionRoute`：选的那把，或助手那一家；看不了图就抛，⛔ 不借别家）。
+  const { route } = await resolveVisionRoute(params.userId, params.routeHint)
 
   const frames = params.frames ?? []
   const decision = resolveVideoAnalysisRoute({
@@ -88,7 +84,6 @@ export async function analyzeVideo<TTask extends VisionTask>(
     mode: decision.mode,
     requiredTier: decision.requiredTier,
     routeTier: String(assistantAdapterVideoTier(route.adapterType)),
-    borrowed,
     downgraded: decision.downgraded,
   })
 

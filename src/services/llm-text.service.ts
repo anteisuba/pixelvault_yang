@@ -15,6 +15,7 @@ import {
 import {
   ASSISTANT_IMAGE_LIMITS,
   ASSISTANT_MEDIA_LIMITS,
+  ASSISTANT_PROVIDER_ORDER,
 } from '@/constants/assistant'
 import {
   ASSISTANT_DEEPSEEK_EFFORTS,
@@ -39,11 +40,7 @@ import { VIDEO_LINK_KINDS } from '@/constants/video-link'
 import { db } from '@/lib/db'
 import { decryptApiKey } from '@/lib/crypto'
 import { routeThroughAiGateway } from '@/lib/ai-gateway'
-import {
-  ApiKeyError,
-  ApiRequestError,
-  AssistantModelKeyMissingError,
-} from '@/lib/errors'
+import { ApiKeyError, ApiRequestError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { buildYoutubeWatchUrl, classifyVideoLink } from '@/lib/video-link'
 import { readSseData } from '@/lib/sse'
@@ -364,23 +361,12 @@ function reportUsage(input: LlmTextInput, usage: LlmTextUsage | null): void {
 
 // ─── LLM Text Models ────────────────────────────────────────────
 
-/** Text-capable LLM adapter types */
-export const LLM_TEXT_ADAPTERS = [
-  AI_ADAPTER_TYPES.GEMINI,
-  AI_ADAPTER_TYPES.DEEPSEEK,
-  AI_ADAPTER_TYPES.OPENAI,
-  // Appended last: lowest priority in the no-apiKeyId auto-fallback loop
-  // below, and the newest/narrowest-scope BYOK route (see
-  // docs/references/pages/assistant-shell.md). Still
-  // required here — the node-assistant's explicit-apiKeyId path resolves
-  // through `isLlmTextAdapter`, so a saved Claude key can't complete without
-  // this membership.
-  AI_ADAPTER_TYPES.ANTHROPIC,
-  // Same reasoning as Claude above: last in the auto-fallback order (newest,
-  // narrowest scope), but membership here is what lets a saved Grok key
-  // resolve through the explicit-apiKeyId path.
-  AI_ADAPTER_TYPES.XAI,
-] as const
+/**
+ * Text-capable LLM adapter types —— **就是 `ASSISTANT_PROVIDER_ORDER`**（owner 2026-10-15：
+ * 一份顺序）。下面那段无 `apiKeyId` 的自动优先级也按它走（画布剧本 / 润色 / 打分这些自带
+ * 选择器的功能仍用它）；助手与跟着助手的小功能走 `resolveAssistantRoute`，⛔ 不走这里。
+ */
+export const LLM_TEXT_ADAPTERS = ASSISTANT_PROVIDER_ORDER
 
 type LlmTextAdapterType = (typeof LLM_TEXT_ADAPTERS)[number]
 
@@ -545,26 +531,6 @@ export function isLlmTextTransientError(error: unknown): boolean {
   return (
     error instanceof ApiRequestError &&
     error.errorCode === LLM_TEXT_PROVIDER_ERROR_CODES.temporarilyUnavailable
-  )
-}
-
-/**
- * **换一把 key 接着跑值得一试**的那几类（owner 2026-10-08：除了安全策略和额度，别让
- * 用户看见报错）：临时不可用、限流、超时、上游 502 / 504。⛔ 不含 key 失效、余额不足、
- * 安全拒答、上下文超限、请求过大、输出预算耗尽 —— 换 key 也过不去，或者该让用户知道。
- */
-export function isLlmTextRecoverableError(error: unknown): boolean {
-  if (!(error instanceof ApiRequestError)) return false
-  if (
-    error.errorCode === LLM_TEXT_PROVIDER_ERROR_CODES.temporarilyUnavailable ||
-    error.errorCode === LLM_TEXT_PROVIDER_ERROR_CODES.rateLimited ||
-    error.errorCode === LLM_TEXT_PROVIDER_ERROR_CODES.timeout
-  )
-    return true
-  return (
-    error.errorCode === LLM_TEXT_PROVIDER_ERROR_CODES.failed &&
-    (error.httpStatus === LLM_TEXT_PROVIDER_HTTP_STATUS.upstreamFailure ||
-      error.httpStatus === LLM_TEXT_PROVIDER_HTTP_STATUS.gatewayTimeout)
   )
 }
 
@@ -1106,36 +1072,6 @@ async function readLlmErrorBody(
 }
 
 // ─── Route Resolution ────────────────────────────────────────────
-
-/**
- * 助手选定的那个模型（`AssistantPersona.routeModel`）在它那一家下、还活着的那把文本 key 的 **id**。
- *
- * ⭐ **没有就抛 `AssistantModelKeyMissingError`**（owner 2026-10-15「会自动扣其他模型的token，
- *   用户还不知道」）：⛔ 不回落到 `resolveLlmTextRoute` 的自动优先级 —— 那等于拿别家的 key
- *   顶替用户点名的模型，界面上还写着他选的那个。错误带着厂商与型号，前端就地开
- *   `QuickSetupDialog`（Hard Rule 8）；选择本身留在库里，配上 key 就生效。
- * ⚠ 只有「选了具体模型」才走这里；「自动」照旧走 `resolveLlmTextRoute` 的优先级（语义待 owner 定）。
- *
- * ⚠ 存在的理由：persona 存的是**模型**，`resolveLlmTextRoute` 认的是 **key id**，这一跳把
- * 「用户想用哪个脑子」翻译成「用哪把钥匙」。⛔ 别让调用方各自去 `userApiKey` 查一遍 ——
- * `isActive` / 取最新那条这两条判据必须与下面那段优先级循环逐字一致。
- */
-export async function requireLlmTextKeyId(
-  userId: string,
-  pinned: { adapterType: AI_ADAPTER_TYPES; modelId: string },
-): Promise<string> {
-  const key = isLlmTextAdapter(pinned.adapterType)
-    ? await db.userApiKey.findFirst({
-        where: { userId, adapterType: pinned.adapterType, isActive: true },
-        orderBy: { createdAt: 'desc' },
-        select: { id: true },
-      })
-    : null
-  if (!key) {
-    throw new AssistantModelKeyMissingError(pinned.adapterType, pinned.modelId)
-  }
-  return key.id
-}
 
 /**
  * Resolves which LLM provider + API key to use for text completion.

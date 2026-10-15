@@ -5,7 +5,6 @@ vi.mock('@/lib/logger', () => ({
 }))
 
 const mockEnsureUser = vi.fn()
-const mockResolveRoute = vi.fn()
 const mockLlmCompletion = vi.fn()
 const mockFindUniqueGeneration = vi.fn()
 const mockUpdateGeneration = vi.fn()
@@ -15,8 +14,21 @@ vi.mock('@/services/user.service', () => ({
   ensureUser: (...args: unknown[]) => mockEnsureUser(...args),
 }))
 
-vi.mock('@/services/llm-text.service', () => ({
-  resolveLlmTextRoute: (...args: unknown[]) => mockResolveRoute(...args),
+/**
+ * ⭐ 路由是**真的**（`resolveAssistantRoute` + `resolveLlmTextRoute`），只桩库与补全那一跳
+ * （owner 2026-10-15「全跟助手」）：「满意」评估此前走自动优先级，与助手选的那一家无关。
+ */
+const keyStore = vi.hoisted(() => ({
+  findFirst: vi.fn(),
+  findMany: vi.fn(),
+  personaFindUnique: vi.fn(),
+}))
+vi.mock('@/lib/crypto', () => ({
+  decryptApiKey: (encrypted: string) => `plain:${encrypted}`,
+}))
+
+vi.mock('@/services/llm-text.service', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/llm-text.service')>()),
   llmTextCompletion: (...args: unknown[]) => mockLlmCompletion(...args),
 }))
 
@@ -31,21 +43,29 @@ vi.mock('@/lib/db', () => ({
       findUnique: (...args: unknown[]) => mockFindUniqueGeneration(...args),
       update: (...args: unknown[]) => mockUpdateGeneration(...args),
     },
+    userApiKey: { findFirst: keyStore.findFirst, findMany: keyStore.findMany },
+    assistantPersona: { findUnique: keyStore.personaFindUnique },
   },
 }))
 
+import {
+  ASSISTANT_MODEL_CANNOT_SEE_CODE,
+  ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
+} from '@/constants/assistant-operator'
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { evaluateGeneration } from '@/services/generation-evaluator.service'
+import {
+  assistantKey,
+  seedAssistantRoute,
+} from '@/test/assistant-route-fixture'
+import {
+  expectSelectedProviderOnly,
+  keyLookupUsesOf,
+  providerUsesOf,
+} from '@/test/selected-provider-only'
 
 const FAKE_USER = { id: 'db_user_123', clerkId: 'clerk_test_user' }
-
-const FAKE_ROUTE = {
-  adapterType: 'gemini',
-  providerConfig: {
-    label: 'Gemini',
-    baseUrl: 'https://generativelanguage.googleapis.com',
-  },
-  apiKey: 'test-api-key',
-}
 
 const FAKE_GENERATION = {
   id: 'gen_abc',
@@ -94,7 +114,9 @@ describe('evaluateGeneration', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockEnsureUser.mockResolvedValue(FAKE_USER)
-    mockResolveRoute.mockResolvedValue(FAKE_ROUTE)
+    seedAssistantRoute(keyStore, {
+      keys: [assistantKey(AI_ADAPTER_TYPES.GEMINI, { userId: FAKE_USER.id })],
+    })
     mockFindUniqueGeneration.mockResolvedValue(FAKE_GENERATION)
     mockUpdateGeneration.mockResolvedValue({ ...FAKE_GENERATION })
     mockLlmCompletion.mockResolvedValue(VALID_LLM_RESPONSE)
@@ -294,6 +316,84 @@ describe('evaluateGeneration', () => {
           reason: 'provider unavailable',
         },
       },
+    })
+  })
+
+  /**
+   * 「全跟助手」（owner 2026-10-15）：「满意」看图打分用助手那一家、那个型号；没 key / 看不了图
+   * 就照实抛（路由回 4xx，界面说一句），⛔ 不借别家，也⛔ 不记成一次「评估失败」。
+   */
+  describe('只用助手那一家', () => {
+    it('「自动」：顺序里第一家配了 key 的（DeepSeek），连型号一起', async () => {
+      seedAssistantRoute(keyStore, {
+        keys: [
+          assistantKey(AI_ADAPTER_TYPES.XAI, { userId: FAKE_USER.id }),
+          assistantKey(AI_ADAPTER_TYPES.DEEPSEEK, { userId: FAKE_USER.id }),
+        ],
+      })
+
+      await evaluateGeneration('clerk_test_user', 'gen_abc')
+
+      expect(mockLlmCompletion.mock.calls[0]?.[0]).toMatchObject({
+        modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH,
+      })
+      expectSelectedProviderOnly(
+        [
+          ...keyLookupUsesOf(keyStore.findFirst),
+          ...providerUsesOf(mockLlmCompletion, 'evaluation'),
+        ],
+        {
+          adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+          apiKey: `plain:enc_${AI_ADAPTER_TYPES.DEEPSEEK}`,
+        },
+      )
+    })
+
+    it('选的 DeepSeek V4 Pro 看不了图 → 照实抛「看不了图」，⛔ 不借 Gemini，也不写失败评估', async () => {
+      seedAssistantRoute(keyStore, {
+        keys: [
+          assistantKey(AI_ADAPTER_TYPES.DEEPSEEK, { userId: FAKE_USER.id }),
+          assistantKey(AI_ADAPTER_TYPES.GEMINI, { userId: FAKE_USER.id }),
+        ],
+        routeModel: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
+      })
+
+      await expect(
+        evaluateGeneration('clerk_test_user', 'gen_abc'),
+      ).rejects.toMatchObject({
+        errorCode: ASSISTANT_MODEL_CANNOT_SEE_CODE,
+        i18nKey: 'errors.assistant.modelCannotSee',
+      })
+      expect(mockLlmCompletion).not.toHaveBeenCalled()
+      expect(mockUpdateGeneration).not.toHaveBeenCalled()
+      expectSelectedProviderOnly(
+        [
+          ...keyLookupUsesOf(keyStore.findFirst),
+          ...providerUsesOf(mockLlmCompletion, 'evaluation'),
+        ],
+        { adapterType: AI_ADAPTER_TYPES.DEEPSEEK },
+      )
+    })
+
+    it('选了 Claude 却只有 Gemini 的 key → 照实抛缺 key，⛔ 一个字都没发给 Gemini', async () => {
+      seedAssistantRoute(keyStore, {
+        keys: [assistantKey(AI_ADAPTER_TYPES.GEMINI, { userId: FAKE_USER.id })],
+        routeModel: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
+      })
+
+      await expect(
+        evaluateGeneration('clerk_test_user', 'gen_abc'),
+      ).rejects.toMatchObject({
+        errorCode: ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
+      })
+      expect(mockLlmCompletion).not.toHaveBeenCalled()
+      expectSelectedProviderOnly(
+        [
+          ...keyLookupUsesOf(keyStore.findFirst),
+          ...providerUsesOf(mockLlmCompletion, 'evaluation'),
+        ],
+        { adapterType: AI_ADAPTER_TYPES.ANTHROPIC },
+      )
     })
   })
 })

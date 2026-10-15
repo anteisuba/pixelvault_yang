@@ -6842,6 +6842,7 @@
     "carry": {
       "translating": "Turning this sentence into tags…",
       "failed": "Couldn't turn it into tags — the sentence stays as one tag.",
+      "failedBecause": "Couldn't turn it into tags — the sentence stays as one tag. {reason}",
       "retry": "Try again"
     },
     "characterCount": "{count, plural, =0 {none} one {# character} other {# characters}}",
@@ -7444,6 +7445,7 @@
       "videoUnsupported": "This model cannot analyze video. Choose Gemini or remove the video reference.",
       "imageUnsupported": "This model cannot analyze images. Choose a model labeled for image vision, or remove the image reference.",
       "modelKeyMissing": "The assistant model you picked has no key for its provider, so nothing ran — no other provider was used in its place. Add the key, or pick another model.",
+      "modelCannotSee": "The assistant model can't look at pictures, so this was not sent — no other provider was used in its place. To use it, pick a model that can see pictures in the assistant's model menu.",
       "contentBlocked": "The provider blocked this request under its safety policy. Rephrase, or switch the assistant route.",
       "outputTruncated": "The model reached its response limit before finishing. Try again or start a shorter conversation.",
       "noTextResponse": "The model returned an empty answer. Retry, or switch the assistant route.",
@@ -7566,7 +7568,6 @@
       "promptTooLong": "The script plus this message is too long to revise in one request. Shorten the message or the shot summaries, or split it into fewer shots."
     },
     "vision": {
-      "noCapableRoute": "No image-capable model is available right now. Add a Gemini or OpenAI API key to analyze images.",
       "invalidOutput": "Couldn't read the analysis results. Try another image or try again later.",
       "insufficientMedia": "Comparing needs at least two images.",
       "framesInvalid": "The extracted frames didn't match the selected points. Try extracting them again."
@@ -7884,7 +7885,6 @@
     "receiptNative": "Read the video itself, not extracted frames.",
     "receiptModel": "Model: {model}",
     "receiptDowngraded": "Long video — a reduced window was analyzed to keep the cost down.",
-    "receiptBorrowed": "Your selected model can't read video, so another one was used for this pass.",
     "captureFailedTitle": "Frames could not be extracted",
     "captureReason": {
       "unsupportedEnvironment": "This browser can't extract video frames here.",
@@ -8123,7 +8123,7 @@
       "malformedArgs": "The request details weren't valid",
       "searchUnavailable": "Web image search isn't available right now",
       "noResultToCritique": "No picture was @-mentioned to review",
-      "visionUnavailable": "No model available here can look at pictures",
+      "visionUnavailable": "The assistant's model can't look at pictures — no other provider was used. Pick one that can in the model menu",
       "critiqueFailed": "The result review couldn't be read",
       "urlNotFromUser": "That link did not come from you, so it cannot be taken directly",
       "repeatedStep": "It already ran this exact step — skipped",
@@ -8348,7 +8348,10 @@
     "modelChip": {
       "label": "Text model",
       "auto": "Auto",
-      "autoHint": "Pick per task",
+      "autoHint": "The first model you have a key for",
+      "autoResolved": "Auto · {model}",
+      "autoHintResolved": "Uses {model} — the first one you have a key for",
+      "autoHintNoKey": "No key yet — set one up",
       "needsKey": "Set up"
     },
     "effortChip": {

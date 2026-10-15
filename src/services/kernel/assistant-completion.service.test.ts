@@ -19,12 +19,13 @@ vi.mock('@/services/llm-text.service', () => ({
     error instanceof Error && error.message === 'context overflow',
   isLlmTextTransientError: (error: unknown) =>
     error instanceof Error && error.message === 'overloaded',
-  isLlmTextRecoverableError: (error: unknown) =>
-    error instanceof Error &&
-    (error.message === 'overloaded' || error.message === 'timed out'),
 }))
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import {
+  expectSelectedProviderOnly,
+  providerUsesOf,
+} from '@/test/selected-provider-only'
 import {
   completeAssistantTextWithContextRetry,
   streamAssistantTextWithContextRetry,
@@ -196,132 +197,62 @@ describe('assistant completion cancellation and context retry', () => {
     }
   })
 
-  describe('借路：这条路临时出不来就换用户另一把 key（owner 2026-10-08）', () => {
-    const alt = {
-      route: {
-        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
-        providerConfig: {
-          label: 'Claude',
-          baseUrl: 'https://api.anthropic.com',
-        },
-        apiKey: 'alt-key',
-      },
-      modelId: 'claude-sonnet-5-5',
-    }
-
+  /**
+   * ⛔ 出不来就不换一家（owner 2026-10-15：「会自动扣其他模型的token，用户还不知道」）。
+   * 只在同一家、同一把 key、同一个型号上重发一次，仍不行就把原错交回。
+   */
+  describe('只用所选那一家：出不来不换一家', () => {
     it.each(['completion', 'stream'] as const)(
-      '%s: timed out → borrow another route, same prompt, caller told',
+      '%s: timed out → no retry on any other provider, the original error',
       async (mode) => {
         const failure = new Error('timed out')
         if (mode === 'completion') {
-          completion.mockRejectedValueOnce(failure)
-          completion.mockResolvedValueOnce('answer')
+          completion.mockRejectedValue(failure)
         } else {
-          stream.mockImplementationOnce(async function* () {
+          stream.mockImplementation(async function* () {
             throw failure
           })
-          stream.mockImplementationOnce(async function* () {
-            yield 'answer'
-          })
         }
-        const fallback = vi.fn(async () => alt)
-        const onFallback = vi.fn()
-        const input = {
-          ...options,
-          buildUserPrompt: () => 'full',
-          fallback,
-          onFallback,
-        }
-        const result =
+        const input = { ...options, buildUserPrompt: () => 'full' }
+        await expect(
           mode === 'completion'
-            ? await completeAssistantTextWithContextRetry(input)
-            : await collect(streamAssistantTextWithContextRetry(input))
-        expect(result).toEqual(mode === 'completion' ? 'answer' : ['answer'])
+            ? completeAssistantTextWithContextRetry(input)
+            : collect(streamAssistantTextWithContextRetry(input)),
+        ).rejects.toBe(failure)
         const transport = mode === 'completion' ? completion : stream
-        expect(transport).toHaveBeenCalledTimes(2)
-        expect(transport).toHaveBeenLastCalledWith(
-          expect.objectContaining({
-            userPrompt: 'full',
-            adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
-            apiKey: 'alt-key',
-            modelId: 'claude-sonnet-5-5',
-          }),
-        )
-        expect(onFallback).toHaveBeenCalledWith({ ...alt, error: failure })
+        expect(transport).toHaveBeenCalledTimes(1)
+        expectSelectedProviderOnly(providerUsesOf(transport, 'step'), {
+          adapterType: AI_ADAPTER_TYPES.OPENAI,
+          apiKey: 'test-key',
+        })
       },
     )
 
-    it('overloaded: retry the same route once, then borrow', async () => {
+    it('overloaded: one retry on the same provider, then the original error', async () => {
       vi.useFakeTimers()
       try {
-        completion.mockRejectedValueOnce(new Error('overloaded'))
-        completion.mockRejectedValueOnce(new Error('overloaded'))
-        completion.mockResolvedValueOnce('answer')
+        const failure = new Error('overloaded')
+        completion.mockRejectedValue(failure)
         const pending = completeAssistantTextWithContextRetry({
           ...options,
+          modelId: 'gpt-x',
           buildUserPrompt: () => 'full',
-          fallback: async () => alt,
         })
+        const assertion = expect(pending).rejects.toBe(failure)
         await vi.runAllTimersAsync()
-        await expect(pending).resolves.toBe('answer')
-        expect(completion).toHaveBeenCalledTimes(3)
+        await assertion
+        expect(completion).toHaveBeenCalledTimes(2)
         expect(completion).toHaveBeenNthCalledWith(
           2,
-          expect.objectContaining({ adapterType: AI_ADAPTER_TYPES.OPENAI }),
+          expect.objectContaining({ modelId: 'gpt-x', userPrompt: 'full' }),
         )
-        expect(completion).toHaveBeenNthCalledWith(
-          3,
-          expect.objectContaining({ adapterType: AI_ADAPTER_TYPES.ANTHROPIC }),
-        )
+        expectSelectedProviderOnly(providerUsesOf(completion, 'step'), {
+          adapterType: AI_ADAPTER_TYPES.OPENAI,
+          apiKey: 'test-key',
+        })
       } finally {
         vi.useRealTimers()
       }
-    })
-
-    it('never borrows for a refusal, bad key or empty balance', async () => {
-      const failure = new Error('insufficient balance')
-      completion.mockRejectedValue(failure)
-      const fallback = vi.fn(async () => alt)
-      await expect(
-        completeAssistantTextWithContextRetry({
-          ...options,
-          buildUserPrompt: () => 'full',
-          fallback,
-        }),
-      ).rejects.toBe(failure)
-      expect(fallback).not.toHaveBeenCalled()
-      expect(completion).toHaveBeenCalledTimes(1)
-    })
-
-    it('does not borrow once the stream has shown text', async () => {
-      const failure = new Error('timed out')
-      stream.mockImplementationOnce(async function* () {
-        yield 'partial'
-        throw failure
-      })
-      const fallback = vi.fn(async () => alt)
-      await expect(
-        collect(
-          streamAssistantTextWithContextRetry({
-            ...options,
-            buildUserPrompt: () => 'full',
-            fallback,
-          }),
-        ),
-      ).rejects.toBe(failure)
-      expect(fallback).not.toHaveBeenCalled()
-    })
-
-    it('nothing to borrow → the original error', async () => {
-      const failure = new Error('timed out')
-      completion.mockRejectedValue(failure)
-      await expect(
-        completeAssistantTextWithContextRetry({
-          ...options,
-          buildUserPrompt: () => 'full',
-          fallback: async () => null,
-        }),
-      ).rejects.toBe(failure)
     })
   })
 

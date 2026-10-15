@@ -15,6 +15,7 @@ vi.mock('@/lib/api-client', () => ({
   translatePromptToTagsAPI: (...args: unknown[]) => translate(...args),
 }))
 
+import { ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE } from '@/constants/assistant-operator'
 import { useTagCarryTranslation } from '@/hooks/use-tag-carry-translation'
 
 describe('useTagCarryTranslation', () => {
@@ -87,6 +88,43 @@ describe('useTagCarryTranslation', () => {
     expect(result.current.status).toBe('translating')
     await waitFor(() => expect(dispatch).toHaveBeenCalledTimes(1))
     expect(translate).toHaveBeenCalledTimes(2)
+  })
+
+  /**
+   * 「全跟助手」（owner 2026-10-15）：翻译用的是助手那一家。那一家跑不了（选定模型缺 key /
+   * 一家都没配）时把那句原因交给小字照实说；别的失败只说「没成」。
+   */
+  it('surfaces the reason when the assistant route cannot run it', async () => {
+    formState.tagCarrySource = 'a fox in the snow'
+    translate.mockResolvedValueOnce({
+      success: false,
+      error: 'Claude has no key',
+      errorCode: ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
+      i18nKey: 'errors.assistant.modelKeyMissing',
+    })
+
+    const { result } = renderHook(() => useTagCarryTranslation())
+
+    await waitFor(() => expect(result.current.status).toBe('failed'))
+    expect(result.current.reason).toEqual({
+      error: 'Claude has no key',
+      errorCode: ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
+      i18nKey: 'errors.assistant.modelKeyMissing',
+    })
+  })
+
+  it('gives no reason for an ordinary failure', async () => {
+    formState.tagCarrySource = 'a heron at dawn'
+    translate.mockResolvedValueOnce({
+      success: false,
+      error: 'not a tag list',
+      errorCode: 'PROMPT_TAGS_UNUSABLE',
+    })
+
+    const { result } = renderHook(() => useTagCarryTranslation())
+
+    await waitFor(() => expect(result.current.status).toBe('failed'))
+    expect(result.current.reason).toBeNull()
   })
 
   it('stays idle outside the tag studio', () => {

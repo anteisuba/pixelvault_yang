@@ -117,7 +117,6 @@ export const AssistantAssetFolderVisionResultSchema = z.object({
       ) * LIMITS.maxFolderVisionUncertainties,
     ),
   visionAdapter: FolderLabelSchema.nullable(),
-  borrowedVisionRoute: z.boolean(),
 })
 
 export type AssistantAssetFolderVisionResult = z.infer<

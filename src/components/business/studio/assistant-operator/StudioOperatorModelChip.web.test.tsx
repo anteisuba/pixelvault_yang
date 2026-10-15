@@ -1,8 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
+import { ASSISTANT_PROVIDER_ORDER } from '@/constants/assistant'
 import {
   ASSISTANT_ROUTE_MODEL_AUTO,
+  pickAutoAssistantRouteModel,
   type AssistantRouteModel,
 } from '@/constants/assistant-persona'
 import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
@@ -14,10 +16,15 @@ import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
  *  ③ 选中即写 persona（持久化），⛔ 不是组件内存态 —— 刷新后靠回填的
  *     `value` 仍是所选那一档（本测试用重挂 + 新 `value` 模拟那次刷新）。
  *  ④ 缺 key 的模型不禁用，点它进 `QuickSetupDialog`（Hard Rule 8）。
+ *  ⑤ 「自动」挑的是哪一档就写在 chip 上（owner 2026-10-15「全跟助手」），与服务端
+ *     `resolveAssistantRoute` 是同一个函数；一把 key 都没有时点「自动」就地开
+ *     `QuickSetupDialog`，配好才选上。
  */
 
+/** 文案原样回 key；带 `{model}` 的那几句把型号拼在括号里，好断言 chip 写的是哪一档。 */
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: { model?: string }) =>
+    values?.model ? `${key}(${values.model})` : key,
 }))
 
 /** 弹层原语换成直通：本测试问的是 chip 的选项与落库，不是 Radix 的锚定。 */
@@ -57,10 +64,19 @@ vi.mock('@/components/ui/responsive-popover', async () => {
 })
 
 const quickSetup = vi.fn()
+/** 最近一次挂上的配置弹层的 `onVerified` —— 用例拿它模拟「配好了」。 */
+const quickSetupVerified = vi.hoisted(() => ({
+  current: null as null | ((modelId: string) => void),
+}))
 vi.mock('@/components/business/studio-shared/setup/QuickSetupDialog', () => ({
-  QuickSetupDialog: (props: { open: boolean; modelId: string }) => {
+  QuickSetupDialog: (props: {
+    open: boolean
+    modelId: string
+    onVerified(modelId: string): void
+  }) => {
     // ⚠ 开着才挂 —— 挂上本身就是「它开了」。
     quickSetup(props.modelId)
+    quickSetupVerified.current = props.onVerified
     return null
   },
 }))
@@ -70,21 +86,25 @@ const BOUND = NODE_STUDIO_ASSISTANT_ROUTE_MODELS.filter(
   (model) =>
     model.adapterType === NODE_STUDIO_ASSISTANT_ROUTE_MODELS[0].adapterType,
 )
-/** key 名单回没回来 —— 默认回来了；没回来时 `savedRoutes` 也是空的。 */
-const routeKeys = vi.hoisted(() => ({ hasLoaded: true }))
+/**
+ * key 名单回没回来 —— 默认回来了；没回来时 `savedRoutes` 也是空的。
+ * `none`：回来了，但一把 key 都没有。
+ */
+const routeKeys = vi.hoisted(() => ({ hasLoaded: true, none: false }))
 vi.mock('@/hooks/use-llm-route-picker', () => ({
   useLLMRoutePicker: () => ({
-    savedRoutes: routeKeys.hasLoaded
-      ? BOUND.map((model) => ({
-          optionId: `llm-route:assistant:key:k1:${model.modelId}`,
-          apiKeyId: 'k1',
-          adapterType: model.adapterType,
-          modelId: model.modelId,
-          label: model.label,
-          providerLabel: 'OpenAI',
-          isSaved: true,
-        }))
-      : [],
+    savedRoutes:
+      routeKeys.hasLoaded && !routeKeys.none
+        ? BOUND.map((model) => ({
+            optionId: `llm-route:assistant:key:k1:${model.modelId}`,
+            apiKeyId: 'k1',
+            adapterType: model.adapterType,
+            modelId: model.modelId,
+            label: model.label,
+            providerLabel: 'OpenAI',
+            isSaved: true,
+          }))
+        : [],
     lockedRoutes: [],
     allRoutes: [],
     healthMap: {},
@@ -102,6 +122,8 @@ describe('StudioOperatorModelChip', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     routeKeys.hasLoaded = true
+    routeKeys.none = false
+    quickSetupVerified.current = null
   })
 
   it('「自动」排第一、默认打勾，九条模型按厂商分组列全', () => {
@@ -117,9 +139,14 @@ describe('StudioOperatorModelChip', () => {
     expect(options).toHaveLength(NODE_STUDIO_ASSISTANT_ROUTE_MODELS.length + 1)
     expect(options[0]).toBe(screen.getByTestId('operator-model-option-auto'))
     expect(options[0]).toHaveAttribute('aria-checked', 'true')
-    // chip 上一份、选项里一份 —— 两处说的是同一档。
-    expect(screen.getAllByText('auto')).toHaveLength(2)
-    expect(screen.getByText('autoHint')).toBeInTheDocument()
+    // chip 上写「自动」挑到的那一档，选项里那一行同样点名它 —— 两处说的是同一档。
+    const picked = pickAutoAssistantRouteModel([BOUND[0].adapterType])!
+    expect(screen.getByTestId('operator-model-chip')).toHaveTextContent(
+      `autoResolved(${picked.label})`,
+    )
+    expect(
+      screen.getByTestId('operator-model-option-auto-hint'),
+    ).toHaveTextContent(`autoHintResolved(${picked.label})`)
 
     for (const model of NODE_STUDIO_ASSISTANT_ROUTE_MODELS) {
       expect(
@@ -236,5 +263,68 @@ describe('StudioOperatorModelChip', () => {
 
     expect(onChange).toHaveBeenCalledWith(target.modelId)
     expect(quickSetup).not.toHaveBeenCalled()
+  })
+
+  it('「自动」挑的那一档写在 chip 上，与服务端是同一个函数（顺序里第一家配了 key 的默认档）', () => {
+    render(
+      <StudioOperatorModelChip
+        value={ASSISTANT_ROUTE_MODEL_AUTO}
+        onChange={vi.fn()}
+      />,
+    )
+
+    // 只有 OpenAI 的 key → 「自动 · OpenAI GPT-6.1 Sol」。
+    const picked = pickAutoAssistantRouteModel(
+      BOUND.map((model) => model.adapterType),
+    )!
+    expect(picked.adapterType).toBe(BOUND[0].adapterType)
+    expect(picked.modelId).toBe(BOUND[0].modelId)
+    expect(screen.getByTestId('operator-model-chip')).toHaveTextContent(
+      `autoResolved(${picked.label})`,
+    )
+  })
+
+  it('key 名单还没回来：chip 只写「自动」，⛔ 不猜是哪一家', () => {
+    routeKeys.hasLoaded = false
+    render(
+      <StudioOperatorModelChip
+        value={ASSISTANT_ROUTE_MODEL_AUTO}
+        onChange={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByTestId('operator-model-chip')).toHaveTextContent(
+      /^auto$/,
+    )
+    openMenu()
+    expect(
+      screen.getByTestId('operator-model-option-auto-hint'),
+    ).toHaveTextContent(/^autoHint$/)
+  })
+
+  it('一把 key 都没有：点「自动」就地开 QuickSetupDialog（顺序第一家的默认档），配好才选上「自动」', async () => {
+    routeKeys.none = true
+    const onChange = vi.fn().mockResolvedValue(true)
+    const pinned = NODE_STUDIO_ASSISTANT_ROUTE_MODELS[1]!
+      .modelId as AssistantRouteModel
+    render(<StudioOperatorModelChip value={pinned} onChange={onChange} />)
+    openMenu()
+
+    expect(
+      screen.getByTestId('operator-model-option-auto-hint'),
+    ).toHaveTextContent(/^autoHintNoKey$/)
+    fireEvent.click(screen.getByTestId('operator-model-option-auto'))
+
+    const setupModel = NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
+      (model) => model.adapterType === ASSISTANT_PROVIDER_ORDER[0],
+    )!
+    // ⛔ 还没配好就不选：不写 persona。
+    expect(onChange).not.toHaveBeenCalled()
+    expect(quickSetup).toHaveBeenLastCalledWith(setupModel.modelId)
+
+    act(() => quickSetupVerified.current?.(setupModel.modelId))
+
+    // 配好了 → 选上的是「自动」，⛔ 不是刚配的那一档。
+    expect(onChange).toHaveBeenCalledWith(ASSISTANT_ROUTE_MODEL_AUTO)
   })
 })

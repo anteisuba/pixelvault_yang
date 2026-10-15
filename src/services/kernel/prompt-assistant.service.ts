@@ -44,6 +44,7 @@ import {
   type VideoLinkPlatform,
 } from '@/constants/video-link'
 import { buildInspirationContext } from '@/services/kernel/inspiration-context.service'
+import { resolveAssistantRoute } from '@/services/kernel/assistant-route.service'
 import {
   buildAssistantConversation,
   completeAssistantTextWithContextRetry,
@@ -486,6 +487,28 @@ async function completeLoraAssistantStructured(options: {
 }
 
 /**
+ * 旧助手（音频台 / LoRA 台）这一轮用哪一家：面板上点名了一把 key 就是它（型号对表校验）；
+ * 没点名 =「自动」= **助手那一家**（`resolveAssistantRoute`：选定的模型，或按
+ * `ASSISTANT_PROVIDER_ORDER` 挑的第一家 —— 与助手 chip 上写的同一个答案，owner 2026-10-15
+ * 「全跟助手」）。查证（`runResearch`）也用这同一条路、同一个型号，⛔ 不借别家。
+ */
+async function resolvePromptAssistantRoute(
+  userId: string,
+  apiKeyId: string | undefined,
+  llmModelId: string | undefined,
+): Promise<{ route: ResolvedLlmTextRoute; modelId: string | undefined }> {
+  if (apiKeyId) {
+    const route = await resolveLlmTextRoute(userId, apiKeyId)
+    return {
+      route,
+      modelId: resolveAssistantModelId(route.adapterType, llmModelId),
+    }
+  }
+  const assistant = await resolveAssistantRoute(userId)
+  return { route: assistant.route, modelId: assistant.modelId }
+}
+
+/**
  * F1 v2 引擎入口。§2.1（grounding）+ §2.2（系统提示）+ §2.3（结构化输出+
  * 校验+重试）+ 出参规范化管线（触发词剔除/tray 去重/词库规范化）串联。
  */
@@ -513,7 +536,11 @@ async function chatLoraAssistantStructured(
     responseLanguage,
     loraContext,
   } = params
-  const route = await resolveLlmTextRoute(dbUserId, apiKeyId)
+  const { route, modelId } = await resolvePromptAssistantRoute(
+    dbUserId,
+    apiKeyId,
+    llmModelId,
+  )
   const media = getAssistantMediaInputs(
     references,
     route.adapterType,
@@ -543,7 +570,7 @@ async function chatLoraAssistantStructured(
           droppedReferenceCount: media.droppedCount,
         }),
       route,
-      modelId: resolveAssistantModelId(route.adapterType, llmModelId),
+      modelId,
       imageData: media.imageData,
       videoData: media.videoData,
     })
@@ -1075,9 +1102,9 @@ async function prepareAssistantTurn(params: {
     if (contextBlock) systemPrompt = `${systemPrompt}${contextBlock}`
   }
 
-  const route = await resolveLlmTextRoute(params.userId, params.apiKeyId)
-  const routeModelId = resolveAssistantModelId(
-    route.adapterType,
+  const { route, modelId: routeModelId } = await resolvePromptAssistantRoute(
+    params.userId,
+    params.apiKeyId,
     params.llmModelId,
   )
 
@@ -1104,10 +1131,10 @@ async function prepareAssistantTurn(params: {
   // 检索管线（切片 1）。
   //
   // ⚠ **provider 自带的联网 grounding 在这条路上已经删掉了**（原来的
-  // `resolveResearchRoute` 借路）。不是顺手删的：那条路给的是模型私下看到的网页，
+  // `resolveResearchRoute` 借路，2026-10-15 连函数一起删了）。不是顺手删的：那条路给的是模型私下看到的网页，
   // 拿不到 EvidenceItem，于是**引用没法校验、来源没法露出、单源失败没法回执**
   // —— 正是本批三道闸要挡的东西。切片 0 也证明它没降低幻觉率（两臂都 14.3%），
-  // 只是把「诚实弃权」换成了「自信编造」。画布那条路仍在用它，本批不动。
+  // 只是把「诚实弃权」换成了「自信编造」。
   //
   // 检索与 B站元数据**并行**：两边各自带重试和超时，串起来最坏能吃掉整轮的
   // `maxDuration=60`，表现是「助手转圈然后 504」。

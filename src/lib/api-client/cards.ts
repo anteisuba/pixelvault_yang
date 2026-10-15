@@ -329,9 +329,14 @@ export async function deleteCharacterCardAPI(
 }
 
 /** 试读：让助手用这个角色的口吻说两句（卡片页「设定」一行）。 */
-export async function sampleCharacterLinesAPI(
-  id: string,
-): Promise<{ success: boolean; data?: { lines: string[] }; error?: string }> {
+export async function sampleCharacterLinesAPI(id: string): Promise<{
+  success: boolean
+  data?: { lines: string[] }
+  error?: string
+  /** 助手那一家跑不了（缺 key）时界面按它说清原因。 */
+  errorCode?: string
+  i18nKey?: string
+}> {
   try {
     const response = await fetch(
       `${API_ENDPOINTS.CHARACTER_CARDS}/${id}/sample-lines`,
@@ -342,9 +347,12 @@ export async function sampleCharacterLinesAPI(
       },
     )
     if (!response.ok) {
+      const payload = await getErrorPayload(response, 'Sample lines failed')
       return {
         success: false,
-        error: await getErrorMessage(response, 'Sample lines failed'),
+        error: payload.error,
+        errorCode: payload.errorCode,
+        i18nKey: payload.i18nKey,
       }
     }
     return await response.json()

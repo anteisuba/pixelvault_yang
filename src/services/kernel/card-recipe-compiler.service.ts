@@ -15,9 +15,10 @@ import {
   type StyleAttributes,
 } from '@/types'
 import {
-  llmTextCompletion,
-  resolveLlmTextRoute,
-} from '@/services/llm-text.service'
+  assertAssistantRouteSeesImages,
+  resolveAssistantRoute,
+} from '@/services/kernel/assistant-route.service'
+import { llmTextCompletion } from '@/services/llm-text.service'
 import { logger } from '@/lib/logger'
 import { validateRecipeFusion } from '@/lib/llm-output-validator'
 
@@ -247,7 +248,11 @@ async function compileWithLlm(
   },
 ): Promise<string | null> {
   try {
-    const route = await resolveLlmTextRoute(userId)
+    /**
+     * ⭐ 融合用**助手那一家**（owner 2026-10-15「全跟助手」）。那一家没 key → 这里抛、
+     * 下面接住 → 回落模板拼接（不花任何一家的钱），⛔ 不拿别家的 key 顶上。
+     */
+    const { route, modelId } = await resolveAssistantRoute(userId)
     const systemPrompt = buildFusionSystemPrompt(adapterType)
 
     // Build style section with structured attributes when available.
@@ -290,6 +295,7 @@ async function compileWithLlm(
         adapterType: route.adapterType,
         apiKey: route.apiKey,
         providerConfig: route.providerConfig,
+        modelId,
       }),
       new Promise<never>((_, reject) =>
         setTimeout(
@@ -493,11 +499,22 @@ function parseLlmJson(raw: string): unknown {
   return JSON.parse(cleaned)
 }
 
+/**
+ * 看图取材（背景卡 / 画风卡建卡时，best-effort）。⭐ 用**助手那一家**（owner 2026-10-15
+ * 「全跟助手」）：那一家没 key、或那个型号看不了图 → 照实抛，建卡那边接住、照用户手写的
+ * 那句建卡；⛔ 不借别家能看图的 key。
+ */
+async function resolveExtractionRoute(userId: string) {
+  const assistant = await resolveAssistantRoute(userId)
+  assertAssistantRouteSeesImages(assistant)
+  return assistant
+}
+
 export async function extractBackgroundAttributes(
   userId: string,
   imageData: string,
 ): Promise<{ attributes: BackgroundAttributes; prompt: string }> {
-  const route = await resolveLlmTextRoute(userId)
+  const { route, modelId } = await resolveExtractionRoute(userId)
 
   // Single LLM call returns both attributes + prompt
   const raw = await llmTextCompletion({
@@ -508,6 +525,7 @@ export async function extractBackgroundAttributes(
     adapterType: route.adapterType,
     apiKey: route.apiKey,
     providerConfig: route.providerConfig,
+    modelId,
   })
 
   try {
@@ -533,7 +551,7 @@ export async function extractStyleAttributes(
   userId: string,
   imageData: string,
 ): Promise<{ attributes: StyleAttributes; prompt: string }> {
-  const route = await resolveLlmTextRoute(userId)
+  const { route, modelId } = await resolveExtractionRoute(userId)
 
   // Single LLM call returns both attributes + prompt
   const raw = await llmTextCompletion({
@@ -544,6 +562,7 @@ export async function extractStyleAttributes(
     adapterType: route.adapterType,
     apiKey: route.apiKey,
     providerConfig: route.providerConfig,
+    modelId,
   })
 
   try {

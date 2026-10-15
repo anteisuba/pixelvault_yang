@@ -3,10 +3,8 @@ import 'server-only'
 import { ApiRequestError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { parsePromptToTagsOutput } from '@/lib/tag-composer'
-import {
-  llmTextCompletion,
-  resolveLlmTextRoute,
-} from '@/services/llm-text.service'
+import { resolveAssistantRoute } from '@/services/kernel/assistant-route.service'
+import { llmTextCompletion } from '@/services/llm-text.service'
 import { checkNovelAiPromptTags } from '@/services/novelai-tags.service'
 import { ensureUser } from '@/services/user.service'
 import type {
@@ -19,6 +17,10 @@ import type {
  *
  * 与「润色」（`prompt-enhance.service` 的标签档）是两件事：润色会补质量词、调顺序、
  * 往里加东西；这里只**照原意直译** —— 原句里没有的一个都不加。
+ *
+ * ⭐ 用的是**助手那一家**（`resolveAssistantRoute`，owner 2026-10-15「全跟助手」）：选定的
+ * 模型，或「自动」挑的那一家（chip 上写的那个）。那一家没 key 就照实报错，⛔ 不拿别家的
+ * key 顶上。
  */
 const PROMPT_TO_TAGS_SYSTEM_PROMPT = `You convert an image description into a Danbooru tag list for tag-based anime diffusion models (NovelAI, PixAI).
 
@@ -35,13 +37,14 @@ export async function translatePromptToTags(
   input: PromptToTagsRequest,
 ): Promise<PromptToTagsResponseData> {
   const user = await ensureUser(clerkId)
-  const route = await resolveLlmTextRoute(user.id)
+  const { route, modelId } = await resolveAssistantRoute(user.id)
   const raw = await llmTextCompletion({
     systemPrompt: PROMPT_TO_TAGS_SYSTEM_PROMPT,
     userPrompt: input.prompt,
     adapterType: route.adapterType,
     providerConfig: route.providerConfig,
     apiKey: route.apiKey,
+    modelId,
   })
 
   // ⚠ 回的不是一串标签（回了一段话）就报错，调用方退回「整句一格」，

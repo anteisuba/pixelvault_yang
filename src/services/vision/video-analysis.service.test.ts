@@ -50,7 +50,6 @@ function routeOf(adapterType: AI_ADAPTER_TYPES) {
       providerConfig: { label: adapterType, baseUrl: 'https://x.test' },
       apiKey: 'key',
     },
-    borrowed: false,
   }
 }
 
@@ -63,7 +62,6 @@ beforeEach(() => {
     observations: { task: VISION_TASKS.compare },
     conclusions: [],
     model: 'openai',
-    borrowedRoute: false,
   })
   mockPersistVideoFrameSet.mockImplementation(
     ({ frames: submitted }: { frames: { index: number }[] }) =>
@@ -150,20 +148,17 @@ describe('analyzeVideo —— 一个入口两条腿', () => {
     expect(mockAnalyzeVisual).not.toHaveBeenCalled()
   })
 
-  it('⚠ 按**借到的那条路**判档，不是用户选的那条', async () => {
-    // 用户选了火山纯文字路由，借路借到了 Gemini —— 于是 native 成立。
-    mockResolveVisionRoute.mockResolvedValue({
-      ...routeOf(AI_ADAPTER_TYPES.GEMINI),
-      borrowed: true,
-    })
+  it('⚠ 按**这一轮真正会用的那条路**判档（助手那一家），⛔ 没有借来的路', async () => {
+    // 没点名 key：`resolveVisionRoute` 回的是助手那一家（这里是 Gemini）—— native 成立。
+    mockResolveVisionRoute.mockResolvedValue(routeOf(AI_ADAPTER_TYPES.GEMINI))
 
     const result = await analyzeVideo({
       ...BASE,
       task: VISION_TASKS.styleStudy,
-      routeHint: 'key_volcengine',
       durationSeconds: 30,
     })
 
     expect(result.mode).toBe('native')
+    expect(result).not.toHaveProperty('borrowedRoute')
   })
 })

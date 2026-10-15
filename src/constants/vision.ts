@@ -14,11 +14,6 @@
  * 「已取得联网证据」badge 对着一张图撒谎。
  */
 
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import {
-  ASSISTANT_MEDIA_CAPABILITIES,
-  assistantAdapterSupportsImage,
-} from '@/constants/assistant'
 import {
   RESEARCH_CONCLUSION_BASES,
   RESEARCH_GOALS,
@@ -161,63 +156,12 @@ export const VISION_DEFECT_SEVERITY_VALUES = [
 export type VisionDefectSeverity =
   (typeof VISION_DEFECT_SEVERITY_VALUES)[number]
 
-// ─── 路由（借路）─────────────────────────────────────────────────
-
-/**
- * 借路时先问谁。
- *
- * ⚠ 这**不是**第二张能力表，只是排序 —— 成员资格仍然只由
- * `ASSISTANT_MEDIA_CAPABILITIES` 说了算（见下面的 `VISION_CAPABLE_ADAPTERS`）。
- * Gemini 排前面是跟着仓里既有的两处顺位走：`llm-text.service` 的自动回落
- * （`LLM_TEXT_ADAPTERS` 以 Gemini 打头）与 `research-route.service` 的
- * `GROUNDING_CAPABLE_ADAPTERS`。平台兜底 key 也是 Gemini —— 三处一致，
- * 用户不会因为「哪条路借的」而看到不同的模型行为。
- */
-const VISION_ADAPTER_PREFERENCE: readonly AI_ADAPTER_TYPES[] = [
-  AI_ADAPTER_TYPES.GEMINI,
-  AI_ADAPTER_TYPES.OPENAI,
-]
-
-/**
- * 谁能吃图 —— **从 `ASSISTANT_MEDIA_CAPABILITIES` 推导，不另立一张表**。
- *
- * 项目里已经有一张「谁能看图 / 谁能看视频」的能力矩阵，助手附件那条路在用它。
- * 视觉线再抄一份的下场是可预期的：某天给某个 provider 开了看图，两张表只改一张，
- * 于是「助手能看图但结构化分析说它不能」。
- *
- * 排过序的成员没进 `VISION_ADAPTER_PREFERENCE` 也不会掉队 —— 它们接在后面，
- * 所以新开一个能看图的 provider **只需要改矩阵那一处**。
- */
-export const VISION_CAPABLE_ADAPTERS: readonly AI_ADAPTER_TYPES[] = (() => {
-  const capable = (
-    Object.keys(ASSISTANT_MEDIA_CAPABILITIES) as AI_ADAPTER_TYPES[]
-  ).filter((adapterType) => assistantAdapterSupportsImage(adapterType))
-  const preferred = VISION_ADAPTER_PREFERENCE.filter((adapterType) =>
-    capable.includes(adapterType),
-  )
-  return [
-    ...preferred,
-    ...capable.filter((adapterType) => !preferred.includes(adapterType)),
-  ]
-})()
-
-/**
- * 一条都借不到时的结构化错误。
- *
- * ⛔ **不静默降级成「用文本模型瞎猜」** —— 那会产出一份看起来完整、实际一眼没看过
- * 图的观察，比报错坏得多。Hard Rule 8：不禁用 UI，把用户引到 `QuickSetupDialog`
- * 内联配置一把能看图的 key。
- *
- * ⚠ `normalizeI18nKey` 会剥掉 `errors.` 前缀 —— 文案批要建的节点是
- * **`Errors.vision.noCapableRoute`**，别照字面建小写 `errors`（切片 1 踩过）。
- */
-export const VISION_NO_CAPABLE_ROUTE_ERROR = {
-  errorCode: 'VISION_NO_CAPABLE_ROUTE',
-  httpStatus: 400,
-  i18nKey: 'errors.vision.noCapableRoute',
-  message:
-    'No image-capable model is available. Add a Gemini or OpenAI key to analyze images.',
-} as const
+// ─── 路由 ───────────────────────────────────────────────────────
+//
+// ⛔ 视觉线**不借路**（owner 2026-10-15「全跟助手」）：看图用的就是助手那一家、那个
+// 型号（`resolveVisionRoute` → `resolveAssistantRoute`），看不了图抛
+// `AssistantModelCannotSeeError`。旧的「借路时先问谁」表与 `VISION_NO_CAPABLE_ROUTE`
+// 已删。
 
 /** 结构化输出两次都不合规。打回重试是 `withRetry` 的活，这是它最终放弃时的错。 */
 export const VISION_INVALID_OUTPUT_ERROR = {

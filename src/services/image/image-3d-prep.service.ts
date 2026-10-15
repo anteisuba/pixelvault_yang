@@ -9,9 +9,10 @@ import { logger } from '@/lib/logger'
 import { MODEL_3D_SOURCE_QUALITY } from '@/constants/model-3d-generation'
 import { upscaleImage } from '@/services/image/image-edit.service'
 import {
-  llmTextCompletion,
-  resolveLlmTextRoute,
-} from '@/services/llm-text.service'
+  assertAssistantRouteSeesImages,
+  resolveAssistantRoute,
+} from '@/services/kernel/assistant-route.service'
+import { llmTextCompletion } from '@/services/llm-text.service'
 import { fetchAsBuffer, uploadToR2 } from '@/services/storage/r2'
 
 /**
@@ -95,7 +96,13 @@ async function inspect3DSourceSemanticIssues(params: {
   userId: string
 }): Promise<string[]> {
   try {
-    const route = await resolveLlmTextRoute(params.userId)
+    /**
+     * ⭐ 预检用**助手那一家**（owner 2026-10-15「全跟助手」）。那一家没 key / 那个型号看不了图
+     * → 这里抛、下面接住 → 跳过预检（尺寸那几条照旧），⛔ 不借别家能看图的 key。
+     */
+    const assistant = await resolveAssistantRoute(params.userId)
+    assertAssistantRouteSeesImages(assistant)
+    const { route, modelId } = assistant
     const imageData = `data:${params.mimeType};base64,${params.imageBuffer.toString('base64')}`
     const raw = await llmTextCompletion({
       systemPrompt: SOURCE_3D_READY_SYSTEM_PROMPT,
@@ -105,6 +112,7 @@ async function inspect3DSourceSemanticIssues(params: {
       adapterType: route.adapterType,
       providerConfig: route.providerConfig,
       apiKey: route.apiKey,
+      modelId,
     })
     const cleaned = raw
       .replace(/```json\s*/g, '')

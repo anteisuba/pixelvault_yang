@@ -17,6 +17,8 @@ vi.mock('@/services/vision/vision-structured-output', () => ({
 
 vi.mock('@/lib/logger', () => ({ logger: { warn: vi.fn() } }))
 
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
+
 import { checkCharacterLook } from './assistant-character-look.service'
 
 const CHARACTER = {
@@ -32,7 +34,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   mockResolveVisionRoute.mockResolvedValue({
     route: { adapterType: 'gemini' },
-    borrowed: false,
+    modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
   })
 })
 
@@ -50,6 +52,8 @@ describe('checkCharacterLook（S14 对一下设定和外观）', () => {
     })
     expect(mockCompleteVisionStructured).toHaveBeenCalledWith(
       expect.objectContaining({
+        // 「全跟助手」：看图用 `resolveVisionRoute` 给的那个型号。
+        modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
         imageData: ['https://cdn.test/1.png', 'https://cdn.test/2.png'],
         userPrompt: expect.stringContaining('look: 短发少女'),
       }),

@@ -5,7 +5,10 @@
  * These classes are SERVER-ONLY — clients receive plain JSON: { errorCode, error, i18nKey }.
  */
 
-import { ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE } from '@/constants/assistant-operator'
+import {
+  ASSISTANT_MODEL_CANNOT_SEE_CODE,
+  ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
+} from '@/constants/assistant-operator'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 // ─── Base Class ──────────────────────────────────────────────────
@@ -170,6 +173,27 @@ export class AssistantModelKeyMissingError extends GenerationError {
   constructor(adapterType: AI_ADAPTER_TYPES, modelId: string) {
     super(
       `The assistant model ${modelId} has no active ${adapterType} key. Nothing ran; no other provider was used in its place.`,
+    )
+    this.adapterType = adapterType
+    this.modelId = modelId
+  }
+}
+
+/**
+ * The assistant's model (the one the creator picked, or the one "auto" picked) cannot look
+ * at pictures, and this job needs to (owner 2026-10-15: say it plainly, never borrow another
+ * provider's key that can see).
+ */
+export class AssistantModelCannotSeeError extends GenerationError {
+  readonly errorCode = ASSISTANT_MODEL_CANNOT_SEE_CODE
+  readonly httpStatus = 400
+  readonly i18nKey = 'errors.assistant.modelCannotSee' as const
+  readonly adapterType: AI_ADAPTER_TYPES
+  readonly modelId: string
+
+  constructor(adapterType: AI_ADAPTER_TYPES, modelId: string) {
+    super(
+      `The assistant model ${modelId} cannot look at pictures, so nothing was sent; no other provider was used in its place.`,
     )
     this.adapterType = adapterType
     this.modelId = modelId

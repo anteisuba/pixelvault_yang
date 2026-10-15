@@ -12,7 +12,6 @@ import {
   type LlmTextInput,
   type LlmTextUsage,
   type ResolvedLlmTextRoute,
-  isLlmTextRecoverableError,
 } from '@/services/llm-text.service'
 
 interface AssistantConversationEntry {
@@ -47,18 +46,11 @@ interface CompleteAssistantTextOptions {
   jsonSchema?: LlmTextInput['jsonSchema']
   /** 进 `assistant llm call` 那行日志：这次调用是干什么的、第几步。 */
   callLog?: AssistantLlmCallLog
-  /**
-   * 这条路临时出不来（`isLlmTextRecoverableError`）、重发一次仍不行时，借另一条路把这一次
-   * 跑完。⚠ 只在**一个字都没吐出**时换（与重发同一条规矩）；借到了必经 `onFallback`
-   * 告诉调用方，由它让模型对用户说一句。
+  /*
+   * ⛔ 没有「换一家再试」（owner 2026-10-15：「会自动扣其他模型的token，用户还不知道」）。
+   * 出不来时只在**同一家、同一把 key、同一个型号**上重发一次（见 `promptForRetry`），
+   * 仍不行就把原错交回，由面板说清楚。
    */
-  fallback?(): Promise<AssistantFallbackTextRoute | null>
-  onFallback?(info: AssistantFallbackTextRoute & { error: unknown }): void
-}
-
-export interface AssistantFallbackTextRoute {
-  route: ResolvedLlmTextRoute
-  modelId?: string
 }
 
 type CallOutcome = 'ok' | 'error' | 'aborted' | 'closed'
@@ -230,25 +222,17 @@ export async function completeAssistantTextWithContextRetry({
   responseFormat,
   jsonSchema,
   callLog,
-  fallback,
-  onFallback,
 }: CompleteAssistantTextOptions): Promise<string> {
   signal?.throwIfAborted()
   let attempt = 0
-  const complete = async (
-    userPrompt: string,
-    on: AssistantFallbackTextRoute = { route, modelId },
-  ) => {
-    const call = startCallLog(
-      { callLog, route: on.route, modelId: on.modelId },
-      ++attempt,
-    )
+  const complete = async (userPrompt: string) => {
+    const call = startCallLog({ callLog, route, modelId }, ++attempt)
     try {
       const result = await llmTextCompletion({
         systemPrompt,
         signal,
         userPrompt,
-        modelId: on.modelId,
+        modelId,
         imageData,
         imageLabels,
         imageDetail,
@@ -257,9 +241,9 @@ export async function completeAssistantTextWithContextRetry({
         videoData,
         audioData,
         videoAnalysis,
-        adapterType: on.route.adapterType,
-        providerConfig: on.route.providerConfig,
-        apiKey: on.route.apiKey,
+        adapterType: route.adapterType,
+        providerConfig: route.providerConfig,
+        apiKey: route.apiKey,
         useGrounding,
         providerManagedOutput: true,
         promptGuardMaxLength: null,
@@ -282,44 +266,16 @@ export async function completeAssistantTextWithContextRetry({
     return result
   } catch (error) {
     signal?.throwIfAborted()
-    let lastError: unknown = error
-    let lastPrompt = fullPrompt
-    try {
-      lastPrompt = await promptForRetry(error, {
-        fullPrompt,
-        buildUserPrompt,
-        contextCompactionTargetLength,
-        signal,
-      })
-      const result = await complete(lastPrompt)
-      signal?.throwIfAborted()
-      return result
-    } catch (again) {
-      signal?.throwIfAborted()
-      lastError = again
-    }
-    const alt = await borrowRoute(lastError, fallback, onFallback)
-    if (!alt) throw lastError
-    const result = await complete(lastPrompt, alt)
+    const retryPrompt = await promptForRetry(error, {
+      fullPrompt,
+      buildUserPrompt,
+      contextCompactionTargetLength,
+      signal,
+    })
+    const result = await complete(retryPrompt)
     signal?.throwIfAborted()
     return result
   }
-}
-
-/**
- * 重发也不行、而错是**换一把 key 能过去的那类**时，借一条路。借不到就把原错原样交回。
- * ⚠ 这里只认 `isLlmTextRecoverableError`：安全拒答、余额不足、key 失效一律不借。
- */
-async function borrowRoute(
-  error: unknown,
-  fallback: CompleteAssistantTextOptions['fallback'],
-  onFallback: CompleteAssistantTextOptions['onFallback'],
-): Promise<AssistantFallbackTextRoute | null> {
-  if (!fallback || !isLlmTextRecoverableError(error)) return null
-  const alt = await fallback()
-  if (!alt) return null
-  onFallback?.({ ...alt, error })
-  return alt
 }
 
 /** provider 临时不可用时，同一请求等这么久再发一次。 */
@@ -391,19 +347,11 @@ export async function* streamAssistantTextWithContextRetry({
   responseFormat,
   jsonSchema,
   callLog,
-  fallback,
-  onFallback,
 }: CompleteAssistantTextOptions): AsyncIterable<string> {
   signal?.throwIfAborted()
   let attempt = 0
-  async function* stream(
-    userPrompt: string,
-    on: AssistantFallbackTextRoute = { route, modelId },
-  ): AsyncIterable<string> {
-    const call = startCallLog(
-      { callLog, route: on.route, modelId: on.modelId },
-      ++attempt,
-    )
+  async function* stream(userPrompt: string): AsyncIterable<string> {
+    const call = startCallLog({ callLog, route, modelId }, ++attempt)
     /** 没跑完也没抛 = 调用方提前收了这条流（⏹ / 时间预算掐断时就是这样）。 */
     let outcome: CallOutcome = 'closed'
     try {
@@ -411,7 +359,7 @@ export async function* streamAssistantTextWithContextRetry({
         systemPrompt,
         signal,
         userPrompt,
-        modelId: on.modelId,
+        modelId,
         imageData,
         imageLabels,
         imageDetail,
@@ -420,9 +368,9 @@ export async function* streamAssistantTextWithContextRetry({
         videoData,
         audioData,
         videoAnalysis,
-        adapterType: on.route.adapterType,
-        providerConfig: on.route.providerConfig,
-        apiKey: on.route.apiKey,
+        adapterType: route.adapterType,
+        providerConfig: route.providerConfig,
+        apiKey: route.apiKey,
         useGrounding,
         providerManagedOutput: true,
         promptGuardMaxLength: null,
@@ -454,30 +402,13 @@ export async function* streamAssistantTextWithContextRetry({
     signal?.throwIfAborted()
     if (emittedText) throw error
 
-    let lastError: unknown = error
-    let lastPrompt = fullPrompt
-    try {
-      lastPrompt = await promptForRetry(error, {
-        fullPrompt,
-        buildUserPrompt,
-        contextCompactionTargetLength,
-        signal,
-      })
-      for await (const chunk of stream(lastPrompt)) {
-        signal?.throwIfAborted()
-        emittedText = true
-        yield chunk
-      }
-      signal?.throwIfAborted()
-      return
-    } catch (again) {
-      signal?.throwIfAborted()
-      if (emittedText) throw again
-      lastError = again
-    }
-    const alt = await borrowRoute(lastError, fallback, onFallback)
-    if (!alt) throw lastError
-    for await (const chunk of stream(lastPrompt, alt)) {
+    const retryPrompt = await promptForRetry(error, {
+      fullPrompt,
+      buildUserPrompt,
+      contextCompactionTargetLength,
+      signal,
+    })
+    for await (const chunk of stream(retryPrompt)) {
       signal?.throwIfAborted()
       yield chunk
     }

@@ -32,6 +32,7 @@ import {
   workLabelFromTag,
   workTagFromCharacterTag,
 } from '@/lib/character-works'
+import { getApiErrorMessage } from '@/lib/api-error-message'
 import { cn } from '@/lib/utils'
 
 /**
@@ -366,6 +367,7 @@ function SettingModule({
 }) {
   const t = useTranslations('CharacterRoster')
   const reading = useCharacterSampleLines(card.id)
+  const tErrors = useTranslations('Errors')
   const speechRef = useRef<HTMLTextAreaElement>(null)
   const persona = card.persona
   const written = SETTING_FIELDS.some(([key]) => persona?.[key]?.trim())
@@ -420,15 +422,27 @@ function SettingModule({
             </div>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => void reading.run()}
-            disabled={reading.isLoading}
-            className="flex w-fit items-center gap-2 text-sm text-muted-foreground transition-colors duration-fast hover:text-foreground"
-          >
-            {reading.isLoading ? <Spinner size="sm" /> : null}
-            {reading.error ? t('readingFailed') : t('readingTry')}
-          </button>
+          <div className="flex flex-col gap-1.5">
+            <button
+              type="button"
+              onClick={() => void reading.run()}
+              disabled={reading.isLoading}
+              className="flex w-fit items-center gap-2 text-sm text-muted-foreground transition-colors duration-fast hover:text-foreground"
+            >
+              {reading.isLoading ? <Spinner size="sm" /> : null}
+              {reading.error ? t('readingFailed') : t('readingTry')}
+            </button>
+            {/* 助手那一家跑不了就照实说（owner 2026-10-15「全跟助手」），⛔ 不悄悄换一家。 */}
+            {reading.reason && !reading.isLoading ? (
+              <p role="status" className="text-xs text-muted-foreground">
+                {getApiErrorMessage(
+                  tErrors,
+                  reading.reason,
+                  reading.reason.error,
+                )}
+              </p>
+            ) : null}
+          </div>
         )
       ) : null}
     </section>

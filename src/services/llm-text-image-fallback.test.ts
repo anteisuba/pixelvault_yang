@@ -11,13 +11,17 @@ vi.mock('@/lib/crypto', () => ({
   decryptApiKey: vi.fn().mockReturnValue('user-key'),
 }))
 const mockKeyFindFirst = vi.fn()
+const mockKeyFindMany = vi.fn()
 const mockGenerationFindUnique = vi.fn()
 const mockGenerationUpdate = vi.fn()
 vi.mock('@/lib/db', () => ({
   db: {
     userApiKey: {
       findFirst: (...a: unknown[]) => mockKeyFindFirst(...a),
+      findMany: (...a: unknown[]) => mockKeyFindMany(...a),
     },
+    // 助手设置没碰过 = 「自动」。
+    assistantPersona: { findUnique: vi.fn().mockResolvedValue(null) },
     generation: {
       findUnique: (...a: unknown[]) => mockGenerationFindUnique(...a),
       update: (...a: unknown[]) => mockGenerationUpdate(...a),
@@ -56,8 +60,9 @@ const EVALUATION_JSON = JSON.stringify({
 })
 
 /**
- * The user's only text key is one of these. With no apiKeyId the route
- * auto-fallback lands on it, so it has to be able to read the image.
+ * The user's only text key is one of these. With no apiKeyId these features
+ * follow the assistant (`resolveAssistantRoute`, owner 2026-10-15): "auto"
+ * lands on this provider's default model, so it has to be able to read the image.
  */
 const ONLY_KEY_CASES = [
   {
@@ -106,12 +111,19 @@ describe.each(ONLY_KEY_CASES)(
 
     beforeEach(() => {
       vi.clearAllMocks()
+      const key = {
+        id: 'key_1',
+        adapterType,
+        encryptedKey: 'enc',
+        isActive: true,
+      }
       mockKeyFindFirst.mockImplementation(
-        async (args: { where: { adapterType?: string } }) =>
-          args.where.adapterType === adapterType
-            ? { id: 'key_1', adapterType, encryptedKey: 'enc', isActive: true }
+        async (args: { where: { id?: string; adapterType?: string } }) =>
+          args.where.id === key.id || args.where.adapterType === adapterType
+            ? key
             : null,
       )
+      mockKeyFindMany.mockResolvedValue([{ id: key.id, adapterType }])
       fetchMock = vi.fn()
       vi.stubGlobal('fetch', fetchMock)
     })

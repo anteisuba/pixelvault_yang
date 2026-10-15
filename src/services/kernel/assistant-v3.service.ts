@@ -38,7 +38,6 @@ import {
   type AssistantV3Tool,
 } from '@/constants/assistant-v3'
 import { NODE_SCRIPT_SHOT_STATE_IDS } from '@/constants/node-script'
-import { resolveAssistantModelId } from '@/constants/node-studio'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   NATIVE_SEARCH_FILTER_LIMITS,
@@ -848,12 +847,11 @@ async function* runV3Turn(
       : initialRequest,
     signal,
   )
-  const { request, user, persona, rules, route, run } = prepared
   /**
-   * ⚠ 助手模型选「自动」时这里没有型号（旧内核在更深处才补默认型号）。⛔ 别因此退回
-   *   旧内核：2026-10-09 才发现，画布上选「自动」的一直还在走旧内核。
+   * ⭐ 型号就是 `resolveAssistantRoute` 给的那一个（选定的，或「自动」挑的那一家的默认档，
+   *   与 chip 上写的同一个 —— owner 2026-10-15「全跟助手」）。
    */
-  const modelId = prepared.modelId ?? resolveAssistantModelId(route.adapterType)
+  const { request, user, persona, rules, route, run, modelId } = prepared
   const face =
     request.domain === ASSISTANT_V3_FACE_IDS.lora
       ? ASSISTANT_V3_FACE_IDS.lora

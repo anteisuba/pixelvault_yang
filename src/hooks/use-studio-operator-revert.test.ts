@@ -127,7 +127,6 @@ const CRITIQUE_STEP = {
   result: {
     findings: [{ severity: 'fail', text: '雨丝糊成一片' }],
     advice: '把雨的方向写进提示词',
-    borrowedVisionRoute: false,
   },
 } satisfies AssistantOperatorAppliedStep
 

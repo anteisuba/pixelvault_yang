@@ -3,10 +3,8 @@ import 'server-only'
 import { z } from 'zod'
 
 import { db } from '@/lib/db'
-import {
-  llmTextCompletion,
-  resolveLlmTextRoute,
-} from '@/services/llm-text.service'
+import { resolveAssistantRoute } from '@/services/kernel/assistant-route.service'
+import { llmTextCompletion } from '@/services/llm-text.service'
 import { ensureUser } from '@/services/user.service'
 import { CharacterPersonaSchema } from '@/types'
 
@@ -15,6 +13,8 @@ import { CharacterPersonaSchema } from '@/types'
  * 用户一眼判断设定写得像不像——和外观的「试镜」对称，但不花出图的钱。
  *
  * ⚠ 只读卡、不写卡；台词不落库。语言跟着设定原文走（设定是中文就说中文）。
+ * ⭐ 用**助手那一家**（`resolveAssistantRoute`，owner 2026-10-15「全跟助手」）：没 key 就照实
+ * 抛（翻译过的一句），⛔ 不拿别家的 key 顶上。
  */
 
 const SAMPLE_LINE_COUNT = 2
@@ -76,13 +76,14 @@ export async function sampleCharacterLines(
     .filter(Boolean)
     .join('\n')
 
-  const route = await resolveLlmTextRoute(dbUser.id)
+  const { route, modelId } = await resolveAssistantRoute(dbUser.id)
   const raw = await llmTextCompletion({
     systemPrompt: SYSTEM_PROMPT,
     userPrompt,
     adapterType: route.adapterType,
     apiKey: route.apiKey,
     providerConfig: route.providerConfig,
+    modelId,
   })
   const lines = parseLines(raw)
   if (!lines) throw new Error('The assistant did not return usable lines.')

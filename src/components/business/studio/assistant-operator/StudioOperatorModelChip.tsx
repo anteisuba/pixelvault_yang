@@ -3,9 +3,16 @@
 /**
  * 输入区**文本模型 chip**（v2 §4.5 · 画板 BCards「文本模型选择器展开」）。
  *
- * ⭐ **「自动」是真选项**：排第一、默认值、带副标「按任务挑模型」，选中时打勾。
+ * ⭐ **「自动」是真选项**：排第一、默认值，选中时打勾。
  * ⛔ 不是「没选时的占位文案」—— 旧的 `CanvasAssistantRouteSelector` 就是那样，
  * 于是「我明确要自动」这件事根本没有表达手段。
+ *
+ * ⭐ **「自动」挑的是哪一家就写在 chip 上**（owner 2026-10-15「全跟助手」）：
+ * 「自动 · DeepSeek V4.1 Flash」。挑法与服务端是**同一个函数**
+ * （`pickAutoAssistantRouteModel`：`ASSISTANT_PROVIDER_ORDER` 里第一家配了 key 的默认档），
+ * 所以 chip 上写的就是这一轮、以及标签台翻译 / 试读 / 「满意」评估那几样小功能真的会打的那个。
+ * 一把 key 都没有时点「自动」就地开 `QuickSetupDialog`（顺序里的第一家，Gemini 有免费档），
+ * 配好才选上。
  *
  * ⭐ **选择持久化在 `AssistantPersona.routeModel`**（用户级一份）：模型偏好是
  * 「我喜欢用哪个脑子」，属于人设而不是某一次对话 —— 存会话意味着每开一个新会话
@@ -27,8 +34,10 @@ import { useTranslations } from 'next-intl'
 import {
   ASSISTANT_ROUTE_MODEL_AUTO,
   getAssistantRouteModelEntry,
+  pickAutoAssistantRouteModel,
   type AssistantRouteModel,
 } from '@/constants/assistant-persona'
+import { ASSISTANT_PROVIDER_ORDER } from '@/constants/assistant'
 import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
 import {
   getDefaultProviderConfig,
@@ -84,7 +93,14 @@ interface QuickSetupState {
   modelId: string
   modelLabel: string
   adapterType: AI_ADAPTER_TYPES
+  /** 配好之后选上的是「自动」（一把 key 都没有时点了「自动」），而不是这一档。 */
+  commitAuto?: boolean
 }
+
+/** 一把 key 都没有时点「自动」要配的那一档：顺序里第一家的默认档（Gemini 有免费档）。 */
+const AUTO_SETUP_MODEL = NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
+  (model) => model.adapterType === ASSISTANT_PROVIDER_ORDER[0],
+)
 
 export interface StudioOperatorModelChipProps {
   /** `auto` 或路由表里的一个 modelId —— 真值来自 `persona.routeModel`。 */
@@ -150,6 +166,19 @@ export function StudioOperatorModelChip({
     [boundModelIds, keysLoaded],
   )
   const selected = pending && pending.base === value ? pending.next : value
+  /**
+   * 「自动」此刻挑的那一档（与服务端 `resolveAssistantRoute` 同一个函数）。
+   * ⚠ key 名单回来之前是 `null` —— 那是「不知道」，chip 上只写「自动」。
+   */
+  const autoPick = useMemo(
+    () =>
+      keysLoaded
+        ? pickAutoAssistantRouteModel(
+            savedRoutes.map((route) => route.adapterType),
+          )
+        : null,
+    [keysLoaded, savedRoutes],
+  )
 
   const commit = useCallback(
     async (next: AssistantRouteModel) => {
@@ -161,6 +190,22 @@ export function StudioOperatorModelChip({
     },
     [onChange, setOpen, value],
   )
+
+  /** 点「自动」：一把 key 都没有就先就地配（Hard Rule 8），配好才选上。 */
+  const handlePickAuto = useCallback(() => {
+    if (keysLoaded && !autoPick && AUTO_SETUP_MODEL) {
+      setOpen(false)
+      setQuickSetup({
+        open: true,
+        modelId: AUTO_SETUP_MODEL.modelId,
+        modelLabel: AUTO_SETUP_MODEL.label,
+        adapterType: AUTO_SETUP_MODEL.adapterType,
+        commitAuto: true,
+      })
+      return
+    }
+    void commit(ASSISTANT_ROUTE_MODEL_AUTO)
+  }, [autoPick, commit, keysLoaded, setOpen])
 
   const handlePick = useCallback(
     (model: RouteModel) => {
@@ -181,7 +226,9 @@ export function StudioOperatorModelChip({
 
   const selectedLabel =
     selected === ASSISTANT_ROUTE_MODEL_AUTO
-      ? t('auto')
+      ? autoPick
+        ? t('autoResolved', { model: autoPick.label })
+        : t('auto')
       : (NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
           (model) => model.modelId === selected,
         )?.label ?? t('auto'))
@@ -202,7 +249,7 @@ export function StudioOperatorModelChip({
               open ? 'bg-accent text-foreground' : 'text-muted-foreground',
             )}
           >
-            <span className="max-w-32 truncate">{selectedLabel}</span>
+            <span className="max-w-48 truncate">{selectedLabel}</span>
             {/* 收着朝下、展开朝上（画板 BCards 两态）——箭头方向本身就是那一句
                 「它会往上开」。 */}
             {/* 输入条窄时箭头让位给字（思考 chip 同一道门槛）。 */}
@@ -239,7 +286,7 @@ export function StudioOperatorModelChip({
               role="menuitemradio"
               aria-checked={selected === ASSISTANT_ROUTE_MODEL_AUTO}
               data-testid="operator-model-option-auto"
-              onClick={() => void commit(ASSISTANT_ROUTE_MODEL_AUTO)}
+              onClick={handlePickAuto}
               className={cn(
                 'flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 selected === ASSISTANT_ROUTE_MODEL_AUTO && 'bg-muted',
@@ -249,8 +296,15 @@ export function StudioOperatorModelChip({
                 <span className="text-2sm font-medium text-foreground">
                   {t('auto')}
                 </span>
-                <span className="text-2xs text-muted-foreground">
-                  {t('autoHint')}
+                <span
+                  data-testid="operator-model-option-auto-hint"
+                  className="text-2xs text-muted-foreground"
+                >
+                  {autoPick
+                    ? t('autoHintResolved', { model: autoPick.label })
+                    : keysLoaded
+                      ? t('autoHintNoKey')
+                      : t('autoHint')}
                 </span>
               </span>
               {selected === ASSISTANT_ROUTE_MODEL_AUTO ? (
@@ -317,6 +371,10 @@ export function StudioOperatorModelChip({
           adapterType={quickSetup.adapterType}
           optionId={`llm-route:assistant:setup:${quickSetup.modelId}`}
           onVerified={(modelId) => {
+            if (quickSetup.commitAuto) {
+              void commit(ASSISTANT_ROUTE_MODEL_AUTO)
+              return
+            }
             // 词表外的 id 不该落进 persona —— 对表之后再存（同一张路由表）。
             const entry = getAssistantRouteModelEntry(modelId)
             if (entry) void commit(entry.modelId)

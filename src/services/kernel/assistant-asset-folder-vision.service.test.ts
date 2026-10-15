@@ -32,6 +32,7 @@ vi.mock('@/services/vision/vision-structured-output', () => ({
 }))
 
 import { ASSISTANT_OPERATOR_LIMITS } from '@/constants/assistant-operator'
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import {
   inspectAssistantAssetFolder,
   listAssistantAssetFolders,
@@ -77,7 +78,7 @@ beforeEach(() => {
       providerConfig: { label: 'Gemini', baseUrl: 'https://example.test' },
       apiKey: 'test-key',
     },
-    borrowed: false,
+    modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
   })
   mockCompleteVisionStructured.mockImplementation(
     async (params: { imageData: string[] }) => ({
@@ -149,6 +150,7 @@ describe('inspectAssistantAssetFolder', () => {
       folderId: 'hero-child',
       instruction: '挑出最适合做角色参考的三张',
       apiKeyId: 'key-1',
+      modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
     })
 
     expect(result.totalImages).toBe(30)
@@ -166,7 +168,15 @@ describe('inspectAssistantAssetFolder', () => {
         ([params]) => (params as { imageData: string[] }).imageData.length,
       ),
     ).toEqual([8, 8, 8])
-    expect(mockResolveVisionRoute).toHaveBeenCalledWith(USER_ID, 'key-1')
+    // 「全跟助手」：看图用这一轮助手那把 key、那个型号，⛔ 不借别家。
+    expect(mockResolveVisionRoute).toHaveBeenCalledWith(
+      USER_ID,
+      'key-1',
+      LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
+    )
+    expect(mockCompleteVisionStructured).toHaveBeenCalledWith(
+      expect.objectContaining({ modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH }),
+    )
     expect(mockGenerationFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({

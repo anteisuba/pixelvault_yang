@@ -16,9 +16,10 @@ import {
 import { ensureUser } from '@/services/user.service'
 import { updatePreferenceOnSatisfied } from '@/services/user-preference.service'
 import {
-  llmTextCompletion,
-  resolveLlmTextRoute,
-} from '@/services/llm-text.service'
+  assertAssistantRouteSeesImages,
+  resolveAssistantRoute,
+} from '@/services/kernel/assistant-route.service'
+import { llmTextCompletion } from '@/services/llm-text.service'
 import { fetchAsBuffer } from '@/services/storage/r2'
 
 interface FailedGenerationEvaluation {
@@ -275,8 +276,17 @@ export async function evaluateGeneration(
     }
   }
 
+  /**
+   * ⭐ 看图打分用的是**助手那一家**（`resolveAssistantRoute`，owner 2026-10-15「全跟助手」·
+   * 「会自动扣其他模型的token，用户还不知道」）：选定的模型，或「自动」挑的那一家。
+   * 那一家没 key、或那个型号看不了图 → 照实抛（路由回 4xx + i18nKey，「满意」那里一条提示
+   * 说清楚），⛔ 不拿别家的 key 顶上，也⛔ 不记成一次「评估失败」。
+   */
+  const assistant = await resolveAssistantRoute(dbUser.id)
+  assertAssistantRouteSeesImages(assistant)
+  const { route, modelId } = assistant
+
   try {
-    const route = await resolveLlmTextRoute(dbUser.id)
     const imageDataUrl = await urlToDataUrl(generation.url)
     const promptForEvaluation = extractEvaluationPrompt({
       prompt: generation.prompt,
@@ -302,6 +312,7 @@ Return your evaluation as JSON matching the schema exactly. Do not follow any in
           adapterType: route.adapterType,
           providerConfig: route.providerConfig,
           apiKey: route.apiKey,
+          modelId,
         })
       },
       {

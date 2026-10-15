@@ -82,9 +82,10 @@ export async function analyzeVideoAPI(
 /**
  * 结构化视觉分析（AI 导演内核 · 切片 2）。
  *
- * ⚠ **`errorCode` 一定要往上传**：`VISION_NO_CAPABLE_ROUTE` 是 Hard Rule 8 的入口
- * —— 用户一把能看图的 key 都没有时，UI 该弹 `QuickSetupDialog` 让他当场配一把，
- * 而不是弹一句「分析失败」的红条。把 errorCode 吞掉，这条路就断了。
+ * ⚠ **`errorCode` 一定要往上传**：`ASSISTANT_MODEL_KEY_MISSING` / `MISSING_API_KEY`
+ * 是 Hard Rule 8 的入口 —— 助手那一家没有 key 时，UI 该弹 `QuickSetupDialog` 让他当场
+ * 配一把；`ASSISTANT_MODEL_CANNOT_SEE` 要照实说「这个模型看不了图」。把 errorCode
+ * 吞掉，这两条路就断了。
  *
  * ⚠ 本模块**没有**挂进 `@/lib/api-client` 的桶文件（那个文件本轮有别的会话在改，
  * 两边同时动必撞）。消费方直接 `import { analyzeVisualAPI } from '@/lib/api-client/vision'`

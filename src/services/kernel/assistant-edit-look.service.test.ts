@@ -17,6 +17,7 @@ vi.mock('@/services/vision/vision-structured-output', () => ({
 
 vi.mock('@/lib/logger', () => ({ logger: { warn: vi.fn() } }))
 
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import type { AssistantOperatorCanvasSnapshot } from '@/types/assistant-operator'
 
 import {
@@ -99,7 +100,7 @@ beforeEach(() => {
   )
   mockResolveVisionRoute.mockResolvedValue({
     route: { adapterType: 'gemini' },
-    borrowed: false,
+    modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
   })
 })
 
@@ -209,6 +210,8 @@ describe('lookAtEditFrames（看片 2b）', () => {
     expect(mockFetch).toHaveBeenCalledTimes(1)
     expect(mockCompleteVisionStructured).toHaveBeenCalledWith(
       expect.objectContaining({
+        // 「全跟助手」：看帧用 `resolveVisionRoute` 给的那个型号。
+        modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
         imageData: ['data:image/jpeg;base64,AQID'],
         userPrompt: expect.stringContaining('手有没有坏'),
       }),

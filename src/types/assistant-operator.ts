@@ -4089,22 +4089,17 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
         goal: z.string().max(LIMITS.maxCritiqueGoalChars).nullable(),
       }),
     ]),
+    /**
+     * 看图用的永远是这一轮那一家（owner 2026-10-15「全跟助手」）：它看不了图就直说，
+     * ⛔ 不借别家 —— 所以这里没有「借了谁」那一格。
+     */
     z.union([
-      AssistantOperatorCritiqueSchema.extend({
-        /**
-         * 用户选的那条路看不了图、这一轮借了别的模型来看。
-         * ⚠ 如实说出来 —— 「你选的是 DeepSeek，但看图用的是 Gemini」
-         * （形态照 `ResolvedVisionRoute.borrowed`）。
-         */
-        borrowedVisionRoute: z.boolean(),
-      }),
+      AssistantOperatorCritiqueSchema,
       /**
        * 视频档（第二期）。客户端靠 `frames` 在不在分支 —— 两支的必填字段
        * （`findings` vs `frames` + `verdicts`）互不相容，parse 不会走岔。
        */
-      AssistantOperatorVideoCritiqueSchema.extend({
-        borrowedVisionRoute: z.boolean(),
-      }),
+      AssistantOperatorVideoCritiqueSchema,
     ]),
   ),
   mutatingStep(

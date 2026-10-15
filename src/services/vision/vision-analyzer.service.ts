@@ -410,7 +410,10 @@ export interface AnalyzeVisualParams {
   task: VisionTask
   /** http(s) URL 或 `data:` URL。**不下载不转存**，原样交给 provider。 */
   mediaUrls: string[]
-  /** 用户当前选中的 `apiKeyId`。看不了图时会借一条能看图的路。 */
+  /**
+   * 用户当前选中的 `apiKeyId`。缺席 = 助手那一家（`resolveAssistantRoute`）。
+   * 那一家看不了图就抛 `AssistantModelCannotSeeError`，⛔ 不借别家。
+   */
   routeHint?: string
   /** 用户附加的一句话（「重点看手」）。 */
   instruction?: string
@@ -439,7 +442,7 @@ export type VisionObservationsFor<TTask extends VisionTask> = Extract<
 /**
  * 跑一次视觉分析。
  *
- * **会抛**：路由借不到（`VISION_NO_CAPABLE_ROUTE`）、两次结构化输出都不合规
+ * **会抛**：所选那一家看不了图（`ASSISTANT_MODEL_CANNOT_SEE`）、两次结构化输出都不合规
  * （`VISION_INVALID_OUTPUT`）、provider 自己的错。⛔ 一律不静默降级 —— 一份
  * 没看过图却格式完整的观察，比一个报错坏得多，因为它会被当真。
  *
@@ -468,7 +471,7 @@ export async function analyzeVisual<TTask extends VisionTask>(
   }
 
   const mediaUrls = params.mediaUrls.slice(0, VISION_LIMITS.maxMedia)
-  const { route, borrowed } = await resolveVisionRoute(
+  const { route, modelId } = await resolveVisionRoute(
     params.userId,
     params.routeHint,
   )
@@ -520,6 +523,7 @@ export async function analyzeVisual<TTask extends VisionTask>(
       ...(params.video ? { videoData: [params.video.url] } : {}),
       ...(params.video?.window ? { videoAnalysis: params.video.window } : {}),
       route,
+      modelId,
       label: `vision.${params.task}`,
     })
   } catch (error) {
@@ -567,7 +571,7 @@ export async function analyzeVisual<TTask extends VisionTask>(
   logger.info('Vision analysis completed', {
     task: params.task,
     adapterType: route.adapterType,
-    borrowed,
+    modelId,
     mode: params.video ? 'native' : params.frameSet ? 'frames' : 'image',
     mediaCount: mediaUrls.length,
     evidenceCount: evidence.length,
@@ -585,6 +589,5 @@ export async function analyzeVisual<TTask extends VisionTask>(
     observations,
     conclusions,
     model: route.adapterType,
-    borrowedRoute: borrowed,
   }
 }

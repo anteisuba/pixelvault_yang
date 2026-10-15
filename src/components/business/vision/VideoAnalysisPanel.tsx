@@ -249,7 +249,6 @@ export function VideoAnalysisPanel({ videoUrl }: VideoAnalysisPanelProps) {
             </li>
             <li>{t('receiptModel', { model: result.model })}</li>
             {result.downgraded ? <li>{t('receiptDowngraded')}</li> : null}
-            {result.borrowedRoute ? <li>{t('receiptBorrowed')}</li> : null}
           </ul>
         </div>
       ) : null}

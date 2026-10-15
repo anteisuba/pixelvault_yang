@@ -13,8 +13,27 @@ vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }))
 
-vi.mock('@/services/llm-text.service', () => ({
-  resolveLlmTextRoute: vi.fn(),
+/**
+ * ⭐ 语义预检的路由是**真的**（`resolveAssistantRoute` + `resolveLlmTextRoute`），只桩库与
+ * 补全那一跳（owner 2026-10-15「全跟助手」）。
+ */
+const keyStore = vi.hoisted(() => ({
+  findFirst: vi.fn(),
+  findMany: vi.fn(),
+  personaFindUnique: vi.fn(),
+}))
+vi.mock('@/lib/db', () => ({
+  db: {
+    userApiKey: { findFirst: keyStore.findFirst, findMany: keyStore.findMany },
+    assistantPersona: { findUnique: keyStore.personaFindUnique },
+  },
+}))
+vi.mock('@/lib/crypto', () => ({
+  decryptApiKey: (encrypted: string) => `plain:${encrypted}`,
+}))
+
+vi.mock('@/services/llm-text.service', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/llm-text.service')>()),
   llmTextCompletion: vi.fn(),
 }))
 
@@ -26,16 +45,22 @@ import {
 } from './image-3d-prep.service'
 import { fetchAsBuffer, uploadToR2 } from '@/services/storage/r2'
 import { upscaleImage } from '@/services/image/image-edit.service'
-import {
-  llmTextCompletion,
-  resolveLlmTextRoute,
-} from '@/services/llm-text.service'
+import { llmTextCompletion } from '@/services/llm-text.service'
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import {
+  assistantKey,
+  seedAssistantRoute,
+} from '@/test/assistant-route-fixture'
+import {
+  expectSelectedProviderOnly,
+  keyLookupUsesOf,
+  providerUsesOf,
+} from '@/test/selected-provider-only'
 
 const mockFetch = vi.mocked(fetchAsBuffer)
 const mockUpload = vi.mocked(uploadToR2)
 const mockUpscale = vi.mocked(upscaleImage)
-const mockResolveLlmRoute = vi.mocked(resolveLlmTextRoute)
 const mockLlmTextCompletion = vi.mocked(llmTextCompletion)
 
 async function makePng(width: number, height: number): Promise<Buffer> {
@@ -208,10 +233,8 @@ describe('inspect3DSourceImageQuality', () => {
   it('adds semantic blockers when vision inspection is available', async () => {
     const buf = await makePng(1024, 1024)
     mockFetch.mockResolvedValueOnce({ buffer: buf, mimeType: 'image/png' })
-    mockResolveLlmRoute.mockResolvedValueOnce({
-      adapterType: AI_ADAPTER_TYPES.GEMINI,
-      providerConfig: { label: 'Gemini', baseUrl: 'https://gemini.test' },
-      apiKey: 'gemini-key',
+    seedAssistantRoute(keyStore, {
+      keys: [assistantKey(AI_ADAPTER_TYPES.GEMINI, { userId: 'user_1' })],
     })
     mockLlmTextCompletion.mockResolvedValueOnce(
       '{"issues":["multi_subject","strong_shadow"]}',
@@ -223,5 +246,73 @@ describe('inspect3DSourceImageQuality', () => {
     )
 
     expect(result.blockingIssues).toEqual(['multi_subject', 'strong_shadow'])
+    expectSelectedProviderOnly(
+      [
+        ...keyLookupUsesOf(keyStore.findFirst),
+        ...providerUsesOf(mockLlmTextCompletion, '3d precheck'),
+      ],
+      { adapterType: AI_ADAPTER_TYPES.GEMINI },
+    )
+  })
+
+  /**
+   * 「全跟助手」（owner 2026-10-15）：预检用助手那一家、那个型号；它看不了图就跳过预检
+   * （尺寸那几条照旧），⛔ 不借别家能看图的 key。
+   */
+  it('助手选的 DeepSeek V4 Pro 看不了图 → 跳过语义预检，⛔ 不借 Gemini', async () => {
+    const buf = await makePng(1024, 1024)
+    mockFetch.mockResolvedValueOnce({ buffer: buf, mimeType: 'image/png' })
+    seedAssistantRoute(keyStore, {
+      keys: [
+        assistantKey(AI_ADAPTER_TYPES.DEEPSEEK, { userId: 'user_1' }),
+        assistantKey(AI_ADAPTER_TYPES.GEMINI, { userId: 'user_1' }),
+      ],
+      routeModel: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
+    })
+
+    const result = await inspect3DSourceImageQuality(
+      'https://cdn.test/source.png',
+      { userId: 'user_1' },
+    )
+
+    expect(result.blockingIssues).toEqual([])
+    expect(mockLlmTextCompletion).not.toHaveBeenCalled()
+    expectSelectedProviderOnly(
+      [
+        ...keyLookupUsesOf(keyStore.findFirst),
+        ...providerUsesOf(mockLlmTextCompletion, '3d precheck'),
+      ],
+      { adapterType: AI_ADAPTER_TYPES.DEEPSEEK },
+    )
+  })
+
+  it('「自动」挑的那一家（OpenAI）连型号一起用', async () => {
+    const buf = await makePng(1024, 1024)
+    mockFetch.mockResolvedValueOnce({ buffer: buf, mimeType: 'image/png' })
+    seedAssistantRoute(keyStore, {
+      keys: [
+        assistantKey(AI_ADAPTER_TYPES.XAI, { userId: 'user_1' }),
+        assistantKey(AI_ADAPTER_TYPES.OPENAI, { userId: 'user_1' }),
+      ],
+    })
+    mockLlmTextCompletion.mockResolvedValueOnce('{"issues":[]}')
+
+    await inspect3DSourceImageQuality('https://cdn.test/source.png', {
+      userId: 'user_1',
+    })
+
+    expect(mockLlmTextCompletion.mock.calls[0]?.[0]).toMatchObject({
+      modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL,
+    })
+    expectSelectedProviderOnly(
+      [
+        ...keyLookupUsesOf(keyStore.findFirst),
+        ...providerUsesOf(mockLlmTextCompletion, '3d precheck'),
+      ],
+      {
+        adapterType: AI_ADAPTER_TYPES.OPENAI,
+        apiKey: `plain:enc_${AI_ADAPTER_TYPES.OPENAI}`,
+      },
+    )
   })
 })

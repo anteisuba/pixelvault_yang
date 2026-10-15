@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   RESEARCH_GOALS,
@@ -48,6 +49,10 @@ vi.mock('@/services/llm-text.service', () => ({
 }))
 
 import { analyzeVisual } from '@/services/vision/vision-analyzer.service'
+import {
+  expectSelectedProviderOnly,
+  providerUsesOf,
+} from '@/test/selected-provider-only'
 
 const IMAGE_A = 'https://cdn.test.com/a.png'
 const IMAGE_B = 'https://cdn.test.com/b.png'
@@ -192,7 +197,6 @@ describe('analyzeVisual', () => {
         providerConfig: { label: 'Gemini', baseUrl: 'https://gemini.test' },
         apiKey: 'gemini-key',
       },
-      borrowed: false,
     })
     mockResearchRunCreate.mockResolvedValue({ id: 'run_1' })
   })
@@ -452,14 +456,16 @@ describe('analyzeVisual', () => {
     expect(result.observations.identity.hairColor?.text).toBe('pink')
   })
 
-  it('reports a borrowed route so the UI can say which model actually looked', async () => {
+  it('looks with the selected provider and model only — never a borrowed one', async () => {
+    // owner 2026-10-15「全跟助手」：看图用的就是那一家、那个型号；⛔ 结果里也不再有
+    // 「借了谁」—— 因为不借。
     mockResolveVisionRoute.mockResolvedValue({
       route: {
-        adapterType: AI_ADAPTER_TYPES.GEMINI,
-        providerConfig: { label: 'Gemini', baseUrl: 'https://gemini.test' },
-        apiKey: 'gemini-key',
+        adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+        providerConfig: { label: 'DeepSeek', baseUrl: 'https://deepseek.test' },
+        apiKey: 'deepseek-key',
       },
-      borrowed: true,
+      modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH,
     })
     mockLlmTextCompletion.mockResolvedValue(
       JSON.stringify(validCharacterPayload()),
@@ -472,10 +478,17 @@ describe('analyzeVisual', () => {
       routeHint: 'key_deepseek',
     })
 
-    expect(result.borrowedRoute).toBe(true)
+    expect(result).not.toHaveProperty('borrowedRoute')
     expect(mockResolveVisionRoute).toHaveBeenCalledWith(
       'db_user_1',
       'key_deepseek',
+    )
+    expect(mockLlmTextCompletion.mock.calls[0]?.[0]).toMatchObject({
+      modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH,
+    })
+    expectSelectedProviderOnly(
+      providerUsesOf(mockLlmTextCompletion, 'vision'),
+      { adapterType: AI_ADAPTER_TYPES.DEEPSEEK, apiKey: 'deepseek-key' },
     )
   })
 

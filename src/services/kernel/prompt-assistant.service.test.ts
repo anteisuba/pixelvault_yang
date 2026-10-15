@@ -11,6 +11,27 @@ vi.mock('@/services/user.service', () => ({
   ensureUser: (...a: unknown[]) => mockEnsureUser(...a),
 }))
 
+/**
+ * 面板没点名 key（「自动」）时路由走**真的** `resolveAssistantRoute`（owner 2026-10-15
+ * 「全跟助手」）：它查库里有哪几家 key，再按 id 解开那一把。这里的库桩默认回「`FAKE_ROUTE`
+ * 那一家有一把 key」，所以这一大批用例照旧拿到它们 `mockResolveLlmRoute` 给的那条路。
+ * ⚠ 末尾「只用助手那一家」那组把 `resolveLlmTextRoute` 也换回真的，整条链只桩库。
+ */
+const keyStore = vi.hoisted(() => ({
+  findFirst: vi.fn(),
+  findMany: vi.fn(),
+  personaFindUnique: vi.fn(),
+}))
+vi.mock('@/lib/db', () => ({
+  db: {
+    userApiKey: { findFirst: keyStore.findFirst, findMany: keyStore.findMany },
+    assistantPersona: { findUnique: keyStore.personaFindUnique },
+  },
+}))
+vi.mock('@/lib/crypto', () => ({
+  decryptApiKey: (encrypted: string) => `plain:${encrypted}`,
+}))
+
 const mockLlmCompletion = vi.fn()
 const mockResolveLlmRoute = vi.fn()
 const mockIsContextLimitError = vi.fn(
@@ -81,9 +102,19 @@ import {
   createPromptAssistantStream,
   resolveResearchMode,
 } from '@/services/kernel/prompt-assistant.service'
+import { ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE } from '@/constants/assistant-operator'
 import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { RESEARCH_MODES } from '@/constants/research'
+import {
+  assistantKey,
+  seedAssistantRoute,
+} from '@/test/assistant-route-fixture'
+import {
+  expectSelectedProviderOnly,
+  keyLookupUsesOf,
+  providerUsesOf,
+} from '@/test/selected-provider-only'
 
 /**
  * 跑一轮对话（流式）并把整条流读成字符串。
@@ -117,6 +148,14 @@ describe('chatPromptAssistant', () => {
     vi.clearAllMocks()
     mockEnsureUser.mockResolvedValue(FAKE_USER)
     mockResolveLlmRoute.mockResolvedValue(FAKE_ROUTE)
+    // 「自动」：库里那一把就是 `mockResolveLlmRoute` 此刻给的那一家（各用例会改它）。
+    keyStore.personaFindUnique.mockResolvedValue(null)
+    keyStore.findMany.mockImplementation(async () => {
+      const route = (await mockResolveLlmRoute.getMockImplementation()?.(
+        FAKE_USER.id,
+      )) as { adapterType: string } | undefined
+      return route ? [{ id: 'key_route', adapterType: route.adapterType }] : []
+    })
     mockBuildInspirationContext.mockResolvedValue('')
     // 默认：这一轮规划器判定不需要检索（返回 null = 完全没打源）
     mockRunResearch.mockResolvedValue(null)
@@ -1230,11 +1269,15 @@ describe('chatPromptAssistant', () => {
     })
 
     it('只有 legacy 参考图 + 不支持图的路由 —— 走 ASSISTANT_IMAGE_UNSUPPORTED 而不是让 provider 裸抛', async () => {
-      // 洞 2。显式 DeepSeek V4 Pro 是纯文本路由；legacy 参考图照样会被 unshift 进 imageData，
+      // 洞 2。助手选的 DeepSeek V4 Pro 是纯文本路由；legacy 参考图照样会被 unshift 进 imageData，
       // 不进 hasImage 统计就等于绕过这道闸，用户拿到的是一句英文裸错。
+      // ⚠ 面板没点名 key 时型号跟助手（owner 2026-10-15「全跟助手」），所以 V4 Pro 选在助手上。
       mockResolveLlmRoute.mockResolvedValue({
         ...FAKE_ROUTE,
         adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+      })
+      keyStore.personaFindUnique.mockResolvedValue({
+        routeModel: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
       })
       mockLlmCompletion.mockResolvedValue('```\nok\n```')
 
@@ -1620,6 +1663,73 @@ describe('chatPromptAssistant', () => {
       expect(mockSearchLoraCandidates).toHaveBeenCalledWith(
         expect.objectContaining({ query: '水彩插画' }),
       )
+    })
+  })
+
+  /**
+   * 「全跟助手」（owner 2026-10-15）：旧助手（音频台 / LoRA 台）面板没点名 key 时，对话与查证
+   * 都用助手那一家、那个型号（与 chip 上写的同一个）。⚠ 这一组整条链只桩库：
+   * `resolveLlmTextRoute` 换回真的。
+   */
+  describe('只用助手那一家（面板没点名 key）', () => {
+    beforeEach(async () => {
+      const actual = await vi.importActual<
+        typeof import('@/services/llm-text.service')
+      >('@/services/llm-text.service')
+      mockResolveLlmRoute.mockImplementation(actual.resolveLlmTextRoute)
+    })
+
+    const usesOf = () => [
+      ...keyLookupUsesOf(keyStore.findFirst),
+      ...providerUsesOf(mockLlmCompletion, 'chat'),
+      ...providerUsesOf(mockRunResearch, 'research'),
+    ]
+
+    it('「自动」：对话与查证都走顺序里第一家配了 key 的（DeepSeek），连型号一起', async () => {
+      seedAssistantRoute(keyStore, {
+        keys: [
+          assistantKey(AI_ADAPTER_TYPES.ANTHROPIC, { userId: FAKE_USER.id }),
+          assistantKey(AI_ADAPTER_TYPES.DEEPSEEK, { userId: FAKE_USER.id }),
+        ],
+      })
+      mockLlmCompletion.mockResolvedValue('长离是粉发。')
+
+      await runGeneralTurn('clerk_1', {
+        messages: [{ role: 'user', content: '鸣潮长离的发色是什么' }],
+        research: true,
+      })
+
+      expect(mockRunResearch).toHaveBeenCalledWith(
+        expect.objectContaining({ model: LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH }),
+      )
+      expect(mockLlmCompletion).toHaveBeenCalledWith(
+        expect.objectContaining({ modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH }),
+      )
+      expectSelectedProviderOnly(usesOf(), {
+        adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+        apiKey: `plain:enc_${AI_ADAPTER_TYPES.DEEPSEEK}`,
+      })
+    })
+
+    it('选了 Claude 却只有 Gemini 的 key → 照实报缺 key，⛔ 不查证、不对话、不碰 Gemini', async () => {
+      seedAssistantRoute(keyStore, {
+        keys: [assistantKey(AI_ADAPTER_TYPES.GEMINI, { userId: FAKE_USER.id })],
+        routeModel: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
+      })
+
+      await expect(
+        runGeneralTurn('clerk_1', {
+          messages: [{ role: 'user', content: '鸣潮长离的发色是什么' }],
+          research: true,
+        }),
+      ).rejects.toMatchObject({
+        errorCode: ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
+      })
+      expect(mockRunResearch).not.toHaveBeenCalled()
+      expect(mockLlmCompletion).not.toHaveBeenCalled()
+      expectSelectedProviderOnly(usesOf(), {
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+      })
     })
   })
 })

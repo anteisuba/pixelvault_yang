@@ -1631,6 +1631,27 @@ export const ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE =
   'ASSISTANT_MODEL_KEY_MISSING'
 
 /**
+ * 助手选的那一家 / 那个型号**做不了这件事**（看不了图，如 DeepSeek V4 Pro），而这件事
+ * 要看图（「满意」评估、卡片取材、看图子调用……）。owner 2026-10-15：直说做不了，
+ * ⛔ 不借别家能看图的 key 顶上。`AssistantModelCannotSeeError` 发它。
+ */
+export const ASSISTANT_MODEL_CANNOT_SEE_CODE = 'ASSISTANT_MODEL_CANNOT_SEE'
+
+/**
+ * 「助手那一家」跑不了这件事的那几个错误码（owner 2026-10-15「全跟助手」）：选定的模型
+ * 缺 key、一家都没配（`ApiKeyError('missing')`）、那个型号看不了图。
+ *
+ * ⚠ 助手以外那几样小功能（标签台翻译、试读、「满意」评估……）失败时按它判断：是这几个
+ * 就把服务端那句翻译过的原因原样给人看（「没有改用别家的 Key」），⛔ 不只回一句笼统的
+ * 「没成」—— 不然创作者不知道为什么、也不知道去哪儿换。
+ */
+export const ASSISTANT_ROUTE_ERROR_CODES: readonly string[] = [
+  ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
+  ASSISTANT_MODEL_CANNOT_SEE_CODE,
+  'MISSING_API_KEY',
+]
+
+/**
  * **操作员自己那几个码** → `StudioOperator.error.*` 的词表键。
  *
  * ⭐ 由来（2026-09-06 真机）：zh 界面上助手失败时显示的是英文原文
@@ -2828,7 +2849,7 @@ export const ASSISTANT_OPERATOR_REJECT_REASON_IDS = {
    */
   noResultToCritique: 'noResultToCritique',
   /**
-   * 一条能看图的路都借不到（P3-C）。
+   * 这一轮那一家、那个型号看不了图（P3-C；owner 2026-10-15「全跟助手」起 ⛔ 不借别家）。
    *
    * ⛔ **不降级成「凭提示词猜」** —— 让一个看不见图的模型评价一张图，产出的是
    * 一份格式完整、内容全编的评价，比说不出话坏得多（论据与

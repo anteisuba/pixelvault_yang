@@ -24,12 +24,14 @@ import { useStudioRunModels } from '@/hooks/use-studio-run-models'
 import { useStudioVideoAssets } from '@/hooks/use-studio-video-assets'
 import { useReferenceReceiverNotice } from '@/hooks/use-reference-receiver-notice'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { ASSISTANT_ROUTE_ERROR_CODES } from '@/constants/assistant-operator'
 import { promptCreatePath } from '@/constants/routes'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import { landRecipeInComposer } from '@/lib/studio-workbench-motion'
 import { fetchGenerationByIdAPI } from '@/lib/api-client'
 import { buildStudioRemixPreset } from '@/lib/studio-remix'
 import { evaluateGenerationAPI } from '@/lib/api-client/generation'
+import { getApiErrorMessage } from '@/lib/api-error-message'
 import { focusStudioPrompt } from '@/lib/focus-studio-prompt'
 import { resolveReferenceRailSlot } from '@/lib/studio/reference-rail-slot'
 import {
@@ -97,6 +99,7 @@ export const StudioCanvas = memo(function StudioCanvas({
     cancelAllRunItems,
   } = useStudioGen()
   const tAudioFeedback = useTranslations('audioFeedback')
+  const tErrors = useTranslations('Errors')
   const tEdit = useTranslations('StudioImageEdit')
   const tVideo = useTranslations('VideoGenerate')
   const tSlots = useTranslations('StudioVideoSlots')
@@ -168,6 +171,22 @@ export const StudioCanvas = memo(function StudioCanvas({
 
           if (result.success && result.data) {
             setLastEvaluation(result.data)
+            return
+          }
+          /* ⭐ 助手那一家跑不了（缺 key / 看不了图）就照实说一句，⛔ 不悄悄换一家
+             （owner 2026-10-15「全跟助手」）。别的失败照旧不打扰。 */
+          if (
+            !result.success &&
+            result.errorCode &&
+            ASSISTANT_ROUTE_ERROR_CODES.includes(result.errorCode)
+          ) {
+            toast.error(
+              getApiErrorMessage(
+                tErrors,
+                result,
+                result.error ?? tErrors('assistant.modelKeyMissing'),
+              ),
+            )
           }
         })
         return
@@ -177,7 +196,7 @@ export const StudioCanvas = memo(function StudioCanvas({
         dispatch({ type: 'OPEN_PANEL', payload: 'keepChange' })
       }
     },
-    [dispatch, lastEvaluation, lastGeneration, setLastEvaluation],
+    [dispatch, lastEvaluation, lastGeneration, setLastEvaluation, tErrors],
   )
 
   // ── Drop target: gallery images → open reference panel (Pragmatic DnD) ──

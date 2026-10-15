@@ -159,7 +159,6 @@ const STEP_FIXTURES: Record<
       batchSummaries: ['这一批以正面角色图为主'],
       uncertainties: [],
       visionAdapter: 'gemini',
-      borrowedVisionRoute: false,
     },
   },
   /**
@@ -390,7 +389,6 @@ const STEP_FIXTURES: Record<
         { severity: 'fail', text: '雨丝糊成一片，看不出方向' },
       ],
       advice: '下一轮把雨的方向写进提示词',
-      borrowedVisionRoute: false,
     },
   },
   /**

@@ -74,7 +74,6 @@ describe('POST /api/vision/analyze', () => {
       },
       conclusions: [],
       model: 'gemini',
-      borrowedRoute: true,
     })
 
     const res = await POST(

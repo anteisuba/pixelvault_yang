@@ -11,11 +11,29 @@ vi.mock('@/services/user.service', () => ({
   ensureUser: (...a: unknown[]) => mockEnsureUser(...a),
 }))
 
+/**
+ * ⭐ 路由是**真的**（`resolveAssistantRoute` + `resolveLlmTextRoute`），只桩库与补全那一跳
+ * （owner 2026-10-15「全跟助手」）：标签台翻译此前就是在路由里悄悄换了一家。
+ */
+const keyStore = vi.hoisted(() => ({
+  findFirst: vi.fn(),
+  findMany: vi.fn(),
+  personaFindUnique: vi.fn(),
+}))
+vi.mock('@/lib/db', () => ({
+  db: {
+    userApiKey: { findFirst: keyStore.findFirst, findMany: keyStore.findMany },
+    assistantPersona: { findUnique: keyStore.personaFindUnique },
+  },
+}))
+vi.mock('@/lib/crypto', () => ({
+  decryptApiKey: (encrypted: string) => `plain:${encrypted}`,
+}))
+
 const mockLlmCompletion = vi.fn()
-const mockResolveLlmRoute = vi.fn()
-vi.mock('@/services/llm-text.service', () => ({
+vi.mock('@/services/llm-text.service', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/llm-text.service')>()),
   llmTextCompletion: (...a: unknown[]) => mockLlmCompletion(...a),
-  resolveLlmTextRoute: (...a: unknown[]) => mockResolveLlmRoute(...a),
 }))
 
 const mockCheckTags = vi.fn()
@@ -23,21 +41,28 @@ vi.mock('@/services/novelai-tags.service', () => ({
   checkNovelAiPromptTags: (...a: unknown[]) => mockCheckTags(...a),
 }))
 
+import { ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE } from '@/constants/assistant-operator'
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { ApiRequestError } from '@/lib/errors'
 import { translatePromptToTags } from '@/services/kernel/prompt-to-tags.service'
-
-const FAKE_ROUTE = {
-  adapterType: AI_ADAPTER_TYPES.GEMINI,
-  providerConfig: { label: 'Gemini', baseUrl: 'https://example.test' },
-  apiKey: 'test-key',
-}
+import {
+  assistantKey,
+  seedAssistantRoute,
+} from '@/test/assistant-route-fixture'
+import {
+  expectSelectedProviderOnly,
+  keyLookupUsesOf,
+  providerUsesOf,
+} from '@/test/selected-provider-only'
 
 describe('translatePromptToTags', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockEnsureUser.mockResolvedValue({ id: 'db_user_1' })
-    mockResolveLlmRoute.mockResolvedValue(FAKE_ROUTE)
+    seedAssistantRoute(keyStore, {
+      keys: [assistantKey(AI_ADAPTER_TYPES.GEMINI)],
+    })
     mockCheckTags.mockImplementation(
       async ({ prompt }: { prompt: string }) => ({
         prompt,
@@ -109,5 +134,59 @@ describe('translatePromptToTags', () => {
       i18nKey: 'errors.promptTags.unusable',
     })
     expect(mockCheckTags).not.toHaveBeenCalled()
+  })
+
+  /**
+   * 「全跟助手」（owner 2026-10-15）：翻译用的是助手那一家、那个型号 —— 选定的，或「自动」挑的
+   * （chip 上写的那个）。⛔ 不悄悄换一家。
+   */
+  describe('只用助手那一家', () => {
+    it('「自动」：顺序里第一家配了 key 的（DeepSeek），连型号一起', async () => {
+      seedAssistantRoute(keyStore, {
+        keys: [
+          assistantKey(AI_ADAPTER_TYPES.ANTHROPIC),
+          assistantKey(AI_ADAPTER_TYPES.DEEPSEEK),
+        ],
+      })
+      mockLlmCompletion.mockResolvedValue('1girl, rain')
+
+      await translatePromptToTags('clerk_1', { prompt: 'a girl in the rain' })
+
+      expect(mockLlmCompletion.mock.calls[0]?.[0]).toMatchObject({
+        modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH,
+      })
+      expectSelectedProviderOnly(
+        [
+          ...keyLookupUsesOf(keyStore.findFirst),
+          ...providerUsesOf(mockLlmCompletion, 'tag translation'),
+        ],
+        {
+          adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+          apiKey: `plain:enc_${AI_ADAPTER_TYPES.DEEPSEEK}`,
+        },
+      )
+    })
+
+    it('选了 Claude 却只有 Gemini 的 key → 照实报那句错，⛔ 一个字都没发给 Gemini', async () => {
+      seedAssistantRoute(keyStore, {
+        keys: [assistantKey(AI_ADAPTER_TYPES.GEMINI)],
+        routeModel: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
+      })
+
+      await expect(
+        translatePromptToTags('clerk_1', { prompt: 'a girl in the rain' }),
+      ).rejects.toMatchObject({
+        errorCode: ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
+        i18nKey: 'errors.assistant.modelKeyMissing',
+      })
+      expect(mockLlmCompletion).not.toHaveBeenCalled()
+      expectSelectedProviderOnly(
+        [
+          ...keyLookupUsesOf(keyStore.findFirst),
+          ...providerUsesOf(mockLlmCompletion, 'tag translation'),
+        ],
+        { adapterType: AI_ADAPTER_TYPES.ANTHROPIC },
+      )
+    })
   })
 })

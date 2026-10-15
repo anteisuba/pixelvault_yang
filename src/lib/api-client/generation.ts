@@ -1704,6 +1704,9 @@ export async function evaluateGenerationAPI(generationId: string): Promise<{
   success: boolean
   data?: GenerationEvaluation | null
   error?: string
+  /** 助手那一家跑不了（缺 key / 看不了图）时才有用：界面按它说清原因。 */
+  errorCode?: string
+  i18nKey?: string
 }> {
   try {
     const response = await fetch(API_ENDPOINTS.GENERATION_EVALUATE, {
@@ -1712,12 +1715,15 @@ export async function evaluateGenerationAPI(generationId: string): Promise<{
       body: JSON.stringify({ generationId }),
     })
     if (!response.ok) {
+      const payload = await getErrorPayload(
+        response,
+        `Evaluate failed with status ${response.status}`,
+      )
       return {
         success: false,
-        error: await getErrorMessage(
-          response,
-          `Evaluate failed with status ${response.status}`,
-        ),
+        error: payload.error,
+        errorCode: payload.errorCode,
+        i18nKey: payload.i18nKey,
       }
     }
     const body = (await response.json()) as {

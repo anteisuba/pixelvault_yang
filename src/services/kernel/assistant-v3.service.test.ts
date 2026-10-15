@@ -10,6 +10,7 @@ import {
   ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
   ASSISTANT_OPERATOR_REJECT_REASON_IDS,
 } from '@/constants/assistant-operator'
+import { pickAutoAssistantRouteModel } from '@/constants/assistant-persona'
 import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { AssistantModelKeyMissingError } from '@/lib/errors'
@@ -1648,7 +1649,7 @@ describe('v3 内核 · LoRA 台', () => {
     } as unknown as AssistantOperatorRequest
   }
 
-  function preparedWith(prompt: string, modelId: string | undefined) {
+  function preparedWith(prompt: string, modelId: string) {
     const run = {
       stepSeq: 0,
       signal: undefined,
@@ -1731,8 +1732,15 @@ describe('v3 内核 · LoRA 台', () => {
     expect(attachedPictures(next)).toEqual([SAMPLE])
   })
 
-  it('助手模型选「自动」（没有型号）也走 v3，⛔ 不退回旧内核', async () => {
-    preparedWith('typhoeus, 1girl', undefined)
+  /**
+   * 「自动」时 `prepareOperatorTurn` 交来的就是「自动」挑的那一档（`resolveAssistantRoute`，与 chip
+   * 上写的同一个 —— owner 2026-10-15「全跟助手」），⛔ 不再有「没有型号」那一态。
+   */
+  it('助手模型选「自动」也走 v3（型号就是「自动」挑的那一档），⛔ 不退回旧内核', async () => {
+    preparedWith(
+      'typhoeus, 1girl',
+      pickAutoAssistantRouteModel([AI_ADAPTER_TYPES.OPENAI])!.modelId,
+    )
     script(textTurn('好。'))
     await collect(runAssistantV3('clerk-1', loraRequest('你好')))
     expect(legacy).not.toHaveBeenCalled()

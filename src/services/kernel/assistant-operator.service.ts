@@ -111,7 +111,6 @@ import {
   ASSISTANT_PERSONA_TONE_IDS,
   ASSISTANT_PERSONA_VERBOSITY_IDS,
   ASSISTANT_PERSONA_LIMITS as PERSONA_LIMITS,
-  getAssistantRouteModelEntry,
 } from '@/constants/assistant-persona'
 import {
   ASSISTANT_PROJECT_RULE_LIMITS as RULE_LIMITS,
@@ -196,10 +195,6 @@ import {
 import { AdvancedParamsSchema, type AdvancedParams } from '@/types'
 import { getAssistantPlanVisual } from '@/constants/assistant-plan-visuals'
 import {
-  resolveAssistantFastModelId,
-  resolveAssistantModelId,
-} from '@/constants/node-studio'
-import {
   ASSISTANT_OPERATOR_ANSWER_FIRST_RULES,
   ASSISTANT_OPERATOR_LOOK_STYLE_APPENDIX,
   ASSISTANT_OPERATOR_RESEARCH_CHARACTER_APPENDIX,
@@ -235,11 +230,10 @@ import {
 } from '@/services/kernel/assistant-completion.service'
 import {
   llmNativeWebSearch,
-  requireLlmTextKeyId,
-  resolveLlmTextRoute,
   supportsNativeWebSearch,
   type ResolvedLlmTextRoute,
 } from '@/services/llm-text.service'
+import { resolveAssistantRoute } from '@/services/kernel/assistant-route.service'
 /**
  * ⚠ 三条都来自**同一个允许名单里的模块**（`generation.service`），判据逐条：
  *  · `getPublicGenerationPage` —— 只读分页查询（`search_assets`，早就在用）。
@@ -338,8 +332,6 @@ import {
  * ⛔ 别顺手把 `services/vision/vision-analyzer.service` 也拉进来「省一次往返」：
  * 那条链会落库。
  */
-import { findVisionCapableRoute } from '@/services/vision/vision-route.service'
-import { findFallbackAssistantRoute } from '@/services/kernel/assistant-fallback-route.service'
 import { checkNovelAiPromptTags } from '@/services/novelai-tags.service'
 import { buildOperatorCapabilities } from '@/lib/studio-operator-snapshot'
 import { buildCanvasGenerationRequest } from '@/lib/studio-operator-canvas-snapshot'
@@ -389,10 +381,7 @@ import {
   summarizeResearchConclusion,
   type AssistantResearchEvidence,
 } from '@/services/research/research-fanout.service'
-import {
-  findNativeSearchRoute,
-  findXSearchRoute,
-} from '@/services/kernel/research-route.service'
+import { findXSearchRoute } from '@/services/kernel/research-route.service'
 import {
   nativeSearchRulesOutX,
   planNativeSearchDomains,
@@ -811,7 +800,7 @@ function toWorkingState(
 
 interface OperatorRun {
   signal?: AbortSignal
-  /** 这一轮是谁的 —— 借路（换 key 接着跑）要按它找 key。 */
+  /** 这一轮是谁的（内部 `User.id`）。 */
   userId: string
   priorRounds: readonly AssistantConversationRoundStored[]
   referenceAnalysis: ReferenceAnalysis | null
@@ -845,21 +834,19 @@ interface OperatorRun {
   request: AssistantOperatorRequest
   state: OperatorWorkingState
   /**
-   * 这一轮说话用的那条路。
+   * 这一轮说话用的那条路（`resolveAssistantRoute`，owner 2026-10-15「全跟助手」）。
    *
-   * ⚠ 留在 run 上是为了 `critique_result`：它要先问「这条路看得见图吗」，
-   * 看不见才去借（`findVisionCapableRoute`）。没有它就只能在每次看图前重新
-   * `resolveLlmTextRoute` 一次 —— 多一次库查询，还可能与规划器用的不是同一条路。
+   * ⚠ 这一轮的每一次调用都走它：看图前先问「这条路、这个型号看得见图吗」，看不见就
+   * 直说，⛔ 不借别家（`findVisionCapableRoute` 已删）。
    */
   route: ResolvedLlmTextRoute
   /**
-   * 这条路用的那把 key 的 id —— persona 选了具体模型时才有值（「自动」是
-   * `undefined`）。看图那条腿（`inspect_asset_folder`）要把同一把 key 递下去，
-   * 否则「设置里选了 Gemini、看图却借了另一家」会变成一次说不清的归因。
+   * 这条路用的那把 key 的 id —— 「自动」也有（自动挑的那一家的那一把）。看图那几条腿
+   * （`inspect_asset_folder` 等）把同一把、同一个型号递下去。
    */
-  apiKeyId: string | undefined
-  /** 规划器用的模型 id。⚠ 借路时**不能**把它带过去：它是另一个 adapter 的型号。 */
-  modelId: string | undefined
+  apiKeyId: string
+  /** 这一轮的型号（选定的，或「自动」挑的那一家的默认档）。 */
+  modelId: string
   /**
    * 本轮 `search_assets` 真的返回过的素材。
    *
@@ -2503,6 +2490,7 @@ function planInspectAssetFolder(
 
   const instruction =
     args.instruction ?? ASSISTANT_FOLDER_VISION_DEFAULT_INSTRUCTION
+  if (!runSeesImages(run)) return cannotSeeRejection('the folder')
 
   return {
     kind: 'read',
@@ -2512,7 +2500,8 @@ function planInspectAssetFolder(
         userId,
         folderId: listedFolder.folderId,
         instruction,
-        ...(run.apiKeyId ? { apiKeyId: run.apiKeyId } : {}),
+        apiKeyId: run.apiKeyId,
+        modelId: run.modelId,
       })
       const observation =
         result.inspectedImages === 0
@@ -2690,11 +2679,14 @@ function planSearchWebImages(
       const openCharacter = run.state.cards?.open ?? null
       /** v3：缩略图交给主模型自己看（见 `mainModelLooks`），这里只搜、只列，⛔ 不说看没看过。 */
       const mainModelLooks = run.mainModelLooks === true
+      /** 这一轮那一家看不了图：⛔ 不借别家去看，观察里照实说「没看，只有标题」。 */
+      const canLook = runSeesImages(run)
       const seen =
-        forCharacters && images.length > 0 && !mainModelLooks
+        forCharacters && images.length > 0 && !mainModelLooks && canLook
           ? await inspectWebImageCandidates({
               userId,
-              ...(run.apiKeyId ? { apiKeyId: run.apiKeyId } : {}),
+              apiKeyId: run.apiKeyId,
+              modelId: run.modelId,
               character: {
                 name: openCharacter?.name ?? args.subject ?? args.query,
                 work: openCharacter?.work ?? null,
@@ -2746,7 +2738,9 @@ function planSearchWebImages(
                       ? ''
                       : seen
                         ? `You LOOKED at these thumbnails${openCharacter?.primaryImageUrl ? " next to the character's main image" : ''}: offer only ones seen as the character, write each reason from what was seen, and never offer one seen as NOT the character. `
-                        : 'You could NOT look at these images — you only have their titles. If you offer any, say plainly that you judged by title only. '
+                        : canLook
+                          ? 'You could NOT look at these images — you only have their titles. If you offer any, say plainly that you judged by title only. '
+                          : 'You could NOT look at these images: the model this turn runs on cannot see pictures, and no other provider is used in its place. You only have their titles — if you offer any, say plainly that you judged by title only. '
                   }These are previews only — nothing was saved yet, so never say you did. To attach the good ones to a character, send ask/propose_character_images with their imageUrl (never one marked REFERENCE ONLY); the creator ticks which to keep. If a view the character needs is missing (a back view, a clean full body), search again with that view in the words people use for it — the character's name in its own language plus 「背面」「全身」「立绘」, or "back view", "full body" — before you say there is none.`
                 : 'These are previews only — nothing was saved yet, so never say you did. Two ways one becomes a real reference: the creator presses "use this" on the candidate (that is the normal path — say which ones are worth keeping and let them pick), or, if they have ALREADY told you to attach them, you call import_user_url on the ones above that are not marked REFERENCE ONLY. Never paste one of these URLs into a prompt, and never import one they did not ask for.'
             }${ruleLine}`
@@ -3037,10 +3031,10 @@ async function planResearch(
   const quickNarrowed = quick && !hasSourceRules(run.sourceRules)
   /**
    * ⭐ **能用自带联网就用自带，用不了才走我们的管线**（owner 2026-10-10，八题对比：
-   * GPT 自带 15/16、Gemini 14/16，管线 6/16）。所选模型自己没有（DeepSeek）
-   * 就借创作者配了 key 的那一家；快搜深搜都一样，深搜只是多搜几次。
-   * ⚠ 走管线的只剩：来源名单在场（自带联网管不住它打哪些站）、「再多找几个源」
-   * （百科 / danbooru 连接器补在自带联网旁边），以及一把能联网的 key 都没有。
+   * GPT 自带 15/16、Gemini 14/16，管线 6/16）。用的是所选那一家自己的自带联网；
+   * 快搜深搜都一样，深搜只是多搜几次。
+   * ⚠ 走管线的只剩：来源名单装不进那一家的域名参数、「再多找几个源」
+   * （百科 / danbooru 连接器补在自带联网旁边），以及那一家没有自带联网。
    */
   const rules = run.sourceRules
   /**
@@ -3053,16 +3047,16 @@ async function planResearch(
     run.route.adapterType !== AI_ADAPTER_TYPES.XAI
       ? await findXSearchRoute(userId).catch(() => null)
       : null
-  const nativeRoute = lentGrok
-    ? lentGrok
-    : supportsNativeWebSearch(run.route.adapterType)
-      ? {
-          route: run.route,
-          ...(run.modelId ? { modelId: run.modelId } : {}),
-        }
-      : hasSourceRules(rules)
-        ? null
-        : await findNativeSearchRoute(userId).catch(() => null)
+  /**
+   * ⛔ **不借别家**（owner 2026-10-15「全跟助手」）：所选那一家没有自带联网就走我们的
+   * 管线（免 key 的那几源），⛔ 不拿创作者另一家的 key 去搜。助手的五家今天都有
+   * 自带联网，这一支是给哪天加进来一家没有的。
+   */
+  const nativeRoute =
+    lentGrok ??
+    (supportsNativeWebSearch(run.route.adapterType)
+      ? { route: run.route, modelId: run.modelId }
+      : null)
   /**
    * ⭐ **来源名单换成服务商的域名参数**（2026-10-14）：这一家装得下就照常用自带联网，
    * 装不下（Gemini / DeepSeek 没有域名参数，或超了上限）才照旧走管线。
@@ -4412,6 +4406,23 @@ function creatorAskedToOverwrite(request: AssistantOperatorRequest): boolean {
   )
 }
 
+/**
+ * 这一轮那一家、那个型号看不看得见图（owner 2026-10-15「全跟助手」·「会自动扣其他
+ * 模型的token，用户还不知道」）。看不见就 `cannotSeeRejection` 直说，⛔ 不借别家 ——
+ * 旧的 `findVisionCapableRoute` 已删。
+ */
+function runSeesImages(run: OperatorRun): boolean {
+  return assistantAdapterSupportsImage(run.route.adapterType, run.modelId)
+}
+
+/** 那一家看不了图时给模型的那一句：照实说，⛔ 不猜图里有什么，⛔ 不换一家。 */
+function cannotSeeRejection(what: string): ToolPlan {
+  return reject(
+    REJECT.visionUnavailable,
+    `The model this turn runs on cannot look at pictures, so ${what} was not looked at, and no other provider is ever used in its place. Tell the creator plainly in one line that this needs a model that can see pictures (they can pick one in the assistant's model menu). Do not guess what the pictures show.`,
+  )
+}
+
 async function completeReferenceAnalysisText(
   run: OperatorRun,
   purpose: string,
@@ -4441,43 +4452,10 @@ async function completeReferenceAnalysisText(
     jsonSchema,
     callLog: { purpose, domain: run.request.domain },
     cacheKey: operatorCacheKey(run, purpose),
-    ...routeFallback(run, route, purpose, { needsImages: !!images?.length }),
   })) {
     result += chunk
   }
   return result
-}
-
-/**
- * **借路**（owner 2026-10-08）：这一步的模型超时 / 限流 / 临时不可用、重发也不行时，
- * 换用户配过的另一把 key 把这一步跑完，并让模型对用户说一句；⛔ 不悄悄换，也⛔ 不把
- * 安全拒答和余额不足当成可借（`isLlmTextRecoverableError`）。
- */
-function routeFallback(
-  run: OperatorRun,
-  route: ResolvedLlmTextRoute,
-  purpose: string,
-  options: { needsImages?: boolean } = {},
-): Pick<
-  Parameters<typeof streamAssistantTextWithContextRetry>[0],
-  'fallback' | 'onFallback'
-> {
-  return {
-    fallback: () =>
-      findFallbackAssistantRoute(run.userId, route.adapterType, options),
-    onFallback: ({ route: alt, error }) => {
-      const code = error instanceof ApiRequestError ? error.errorCode : 'error'
-      logger.warn('assistant route fell back to another key', {
-        purpose,
-        from: route.adapterType,
-        to: alt.adapterType,
-        code,
-      })
-      run.observations.push(
-        `NOTE: ${route.adapterType} did not answer this step (${code}); it ran on ${alt.adapterType} instead. Mention that in one short clause to the creator.`,
-      )
-    },
-  }
 }
 
 async function planAnalyzeReferences(
@@ -4507,19 +4485,8 @@ async function planAnalyzeReferences(
           hasCompleteReferenceVisualEvidence(profile),
       ),
   )
-  const seesImages = assistantAdapterSupportsImage(
-    run.route.adapterType,
-    run.modelId,
-  )
-  const visionRoute =
-    needsVision && !seesImages
-      ? await findVisionCapableRoute(userId)
-      : run.route
-  if (!visionRoute)
-    return reject(
-      REJECT.visionUnavailable,
-      'No available model can inspect these references. Do not invent visual evidence.',
-    )
+  if (needsVision && !runSeesImages(run))
+    return cannotSeeRejection('the mounted references')
   let analysis: ReferenceAnalysis
   try {
     analysis = await analyzeOperatorReferences({
@@ -4549,10 +4516,8 @@ async function planAnalyzeReferences(
           system,
           prompt,
           images,
-          images ? visionRoute : run.route,
-          images && !seesImages
-            ? resolveAssistantModelId(visionRoute.adapterType)
-            : run.modelId,
+          run.route,
+          run.modelId,
           jsonSchema,
         ),
     })
@@ -4562,10 +4527,8 @@ async function planAnalyzeReferences(
         error instanceof ReferenceAnalysisValidationError
           ? 'vision_validation'
           : 'vision_request',
-      adapter: visionRoute.adapterType,
-      modelId: seesImages
-        ? run.modelId
-        : resolveAssistantModelId(visionRoute.adapterType),
+      adapter: run.route.adapterType,
+      modelId: run.modelId,
       imageIndices: indices,
       errorName: error instanceof Error ? error.name : 'UnknownError',
     })
@@ -6880,7 +6843,7 @@ const SEVERITY_MARKS: Record<AssistantOperatorVerdictSeverity, string> = {
  * ── 三件事按顺序发生，缺一条就退回一条**可教的**拒绝 ────────────────
  *  ① 用户 `@` 了哪一张（`resolveCritiqueTarget`）—— 什么都没指就 `noResultToCritique`。
  *     出图后不自检（D12）：助手不会自己去看刚出的图。
- *  ② 借不借得到一条看得见图的路 —— 借不到就 `visionUnavailable`，
+ *  ② 这一轮那一家看不看得见图 —— 看不见就 `visionUnavailable`（⛔ 不借别家），
  *     **⛔ 绝不降级成「凭提示词猜」**（论据见 `vision-route.service.ts` 头注：
  *     一份格式完整、内容全编的评价比说不出话坏得多）。
  *  ③ 视觉那一跳读不出结构 —— `critiqueFailed`。
@@ -6905,7 +6868,7 @@ const SEVERITY_MARKS: Record<AssistantOperatorVerdictSeverity, string> = {
  *     内容全编的评价，正是 `vision-route.service.ts` 头注里说的那种。
  *  ② 帧是不是**这段片子**的 —— `sourceUrl` 对不上就 `unknownAsset`。没有这一条，
  *     「看片」就变成了「客户端说这是哪段片子就是哪段」。
- *  ③ 借不借得到一条看得见图的路 —— 借不到就 `visionUnavailable`（与图片档同源）。
+ *  ③ 这一轮那一家看不看得见图 —— 看不见就 `visionUnavailable`（与图片档同源，⛔ 不借别家）。
  *
  * ── 逐帧 + 汇总，而不是一次把三张塞进去 ────────────────────────────
  * 三帧各自绑一个固定问题（起手 / 动作有没有冻住 / 末帧到没到 endState），
@@ -6938,23 +6901,7 @@ async function planVideoCritique(
     )
   }
 
-  const seesImages = assistantAdapterSupportsImage(
-    run.route.adapterType,
-    run.modelId,
-  )
-  const visionRoute = seesImages
-    ? run.route
-    : await findVisionCapableRoute(userId)
-  if (!visionRoute) {
-    return reject(
-      REJECT.visionUnavailable,
-      'No model available to this account can look at pictures, so the frames cannot be read. Say so plainly — do not guess what the clip looks like.',
-    )
-  }
-  const borrowedVisionRoute = !seesImages
-  const visionModelId = borrowedVisionRoute
-    ? resolveAssistantModelId(visionRoute.adapterType)
-    : run.modelId
+  if (!runSeesImages(run)) return cannotSeeRejection("the clip's frames")
 
   /**
    * ⚠ 计划**在服务端复算**：客户端说它按 0/中/末抽的，这里自己算一遍再逐帧对
@@ -6982,10 +6929,10 @@ async function planVideoCritique(
         systemPrompt: buildVideoFrameSystemPrompt(run.request, run.persona),
         buildUserPrompt: () =>
           buildVideoFramePrompt(run, goal, frame.label, frame.t),
-        route: visionRoute,
+        route: run.route,
         contextCompactionTargetLength:
           OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH,
-        ...(visionModelId ? { modelId: visionModelId } : {}),
+        modelId: run.modelId,
         // ⭐ 唯一真的「看」的那三下，喂进去的是**转存后的静态帧**，不是 mp4。
         imageData: frame.url,
         callLog: { purpose: 'videoFrame', domain: run.request.domain },
@@ -7010,9 +6957,9 @@ async function planVideoCritique(
           note: notes[index] ?? '',
         })),
       ),
-    route: visionRoute,
+    route: run.route,
     contextCompactionTargetLength: OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH,
-    ...(visionModelId ? { modelId: visionModelId } : {}),
+    modelId: run.modelId,
     responseFormat: 'json_object',
   })
 
@@ -7039,15 +6986,10 @@ async function planVideoCritique(
         frames,
         verdicts: critique.verdicts,
         advice,
-        borrowedVisionRoute,
       },
       observation: `critique_result — you watched ${frames.length} frames of the clip (${frames
         .map((frame) => `${frame.label} @ ${frame.t}s`)
-        .join(', ')})${
-        borrowedVisionRoute
-          ? ` (through a borrowed ${visionRoute.adapterType} route, because the creator's own model cannot see pictures)`
-          : ''
-      }:\n${critique.verdicts
+        .join(', ')}):\n${critique.verdicts
         .map(
           (verdict) => `  ${SEVERITY_MARKS[verdict.severity]} ${verdict.text}`,
         )
@@ -7135,26 +7077,8 @@ async function planCritiqueResult(
     return planVideoCritique(run, result, goal, userId)
   }
 
-  // 用户选的那条路看得见图就直接用它；看不见才去借（省得平白换掉他选的模型）。
-  const seesImages = assistantAdapterSupportsImage(
-    run.route.adapterType,
-    run.modelId,
-  )
-  const visionRoute = seesImages
-    ? run.route
-    : await findVisionCapableRoute(userId)
-  if (!visionRoute) {
-    return reject(
-      REJECT.visionUnavailable,
-      'No model available to this account can look at pictures. Say so plainly — do not guess what the picture looks like.',
-    )
-  }
-  const borrowedVisionRoute = !seesImages
-  // ⚠ 借路时**不带**规划器那个 modelId：它是另一个 adapter 的型号，硬塞过去
-  //   要么 404 要么被上游忽略，两种都比按新 adapter 重算一次差。
-  const visionModelId = borrowedVisionRoute
-    ? resolveAssistantModelId(visionRoute.adapterType)
-    : run.modelId
+  // 这一轮那一家看得见图就用它；看不见就直说（⛔ 不借别家，owner 2026-10-15）。
+  if (!runSeesImages(run)) return cannotSeeRejection('the picture')
 
   const references = run.state.referenceUrls.filter((url): url is string =>
     Boolean(url),
@@ -7165,9 +7089,9 @@ async function planCritiqueResult(
     callLog: { purpose: 'critique', domain: run.request.domain },
     cacheKey: operatorCacheKey(run, 'critique'),
     buildUserPrompt: () => buildCritiquePrompt(run, goal, result.modelLabel),
-    route: visionRoute,
+    route: run.route,
     contextCompactionTargetLength: OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH,
-    ...(visionModelId ? { modelId: visionModelId } : {}),
+    modelId: run.modelId,
     // ⭐ 唯一真的「看」的那一下。地址来自 `result`，模型碰不到它。
     imageData: references.length ? [result.url, ...references] : result.url,
     ...(references.length
@@ -7201,13 +7125,8 @@ async function planCritiqueResult(
       result: {
         findings: critique.findings,
         advice,
-        borrowedVisionRoute,
       },
-      observation: `critique_result — you looked at the picture${
-        borrowedVisionRoute
-          ? ` (through a borrowed ${visionRoute.adapterType} route, because the creator's own model cannot see pictures)`
-          : ''
-      }:\n${critique.findings
+      observation: `critique_result — you looked at the picture:\n${critique.findings
         .map(
           (finding) => `  ${SEVERITY_MARKS[finding.severity]} ${finding.text}`,
         )
@@ -7714,7 +7633,6 @@ function canvasOpTargets(op: NodeAssistantOpV4): readonly string[] {
 async function checkCanvasReferencePrompt(
   run: OperatorRun,
   node: AssistantOperatorCanvasNode,
-  userId: string,
 ): Promise<ToolPlan | null> {
   // v3：⛔ 写词 / 出图前不另看参考图，模型自己 look（见 `skipReferenceReview`）。
   if (run.skipReferenceReview) return null
@@ -7740,19 +7658,8 @@ async function checkCanvasReferencePrompt(
   const needsVision = urls.some(
     (url) => !hasCompleteReferenceVisualEvidence(cache.get(url)),
   )
-  const seesImages = assistantAdapterSupportsImage(
-    run.route.adapterType,
-    run.modelId,
-  )
-  const visionRoute =
-    needsVision && !seesImages
-      ? await findVisionCapableRoute(userId)
-      : run.route
-  if (!visionRoute)
-    return reject(
-      REJECT.visionUnavailable,
-      'No available model can inspect the target references. Do not invent visual evidence.',
-    )
+  if (needsVision && !runSeesImages(run))
+    return cannotSeeRejection("the target node's references")
   let analysis: ReferenceAnalysis
   try {
     analysis = await analyzeOperatorReferences({
@@ -7780,10 +7687,8 @@ async function checkCanvasReferencePrompt(
           system,
           input,
           images,
-          images ? visionRoute : run.route,
-          images && !seesImages
-            ? resolveAssistantModelId(visionRoute.adapterType)
-            : run.modelId,
+          run.route,
+          run.modelId,
           jsonSchema,
         ),
     })
@@ -7794,7 +7699,7 @@ async function checkCanvasReferencePrompt(
           ? 'vision_validation'
           : 'vision_request',
       nodeId: node.id,
-      adapter: visionRoute.adapterType,
+      adapter: run.route.adapterType,
       errorName: error instanceof Error ? error.name : 'UnknownError',
     })
     if (!(error instanceof ReferenceAnalysisValidationError)) throw error
@@ -8408,7 +8313,7 @@ async function planCanvasApply(
       .flatMap((shot) => (shot.expanded ? shot.nodes : []))
       .find((candidate) => candidate.id === op.target)
     if (node) {
-      const blocked = await checkCanvasReferencePrompt(run, node, userId)
+      const blocked = await checkCanvasReferencePrompt(run, node)
       if (blocked) return blocked
       /**
        * 每张参考图管什么写在词末（与工作台同一段 `withReferenceRoleLegend`；标签方言
@@ -8523,13 +8428,15 @@ function planCanvasLookAt(
   }
   const planned = planEditDeskFrames(canvas.editDesk, args)
   if (!planned.ok) return reject(REJECT.noSuchControl, planned.reason)
+  if (!runSeesImages(run)) return cannotSeeRejection('the footage')
   return {
     kind: 'read',
     payload: args,
     run: async () => {
       const looked = await lookAtEditFrames({
         userId,
-        ...(run.apiKeyId ? { apiKeyId: run.apiKeyId } : {}),
+        apiKeyId: run.apiKeyId,
+        modelId: run.modelId,
         plans: planned.plans,
         ...(args.question ? { question: args.question } : {}),
       })
@@ -8537,7 +8444,7 @@ function planCanvasLookAt(
         return {
           result: { viewed: 0, missed: planned.plans.length },
           observation:
-            'canvas_look_at could NOT look at the frames this time (no vision route or it failed). Tell the creator plainly that you could not see the footage; do not guess what is in it.',
+            'canvas_look_at could NOT look at the frames this time (the look failed). Tell the creator plainly that you could not see the footage; do not guess what is in it.',
         }
       }
       const observation = [
@@ -8576,7 +8483,6 @@ function planCanvasLookAt(
 async function planCanvasGenerate(
   run: OperatorRun,
   args: { target: string },
-  userId: string,
 ): Promise<ToolPlan> {
   const canvas = run.state.canvas
   if (!canvas) {
@@ -8608,7 +8514,7 @@ async function planCanvasGenerate(
     referenceRoleLegendCount(node.text ?? '') === node.referenceUrls?.length
   const blocked = legendMatches
     ? null
-    : await checkCanvasReferencePrompt(run, node, userId)
+    : await checkCanvasReferencePrompt(run, node)
   if (blocked) return blocked
   return {
     kind: 'confirmGenerate',
@@ -9062,6 +8968,8 @@ function planCheckCharacterLook(
       }),
     }
   }
+  if (!runSeesImages(run))
+    return cannotSeeRejection(`${open.name}'s card images`)
   return {
     kind: 'read',
     payload: args,
@@ -9073,7 +8981,8 @@ function planCheckCharacterLook(
           : []
       const result = await checkCharacterLook({
         userId,
-        ...(run.apiKeyId ? { apiKeyId: run.apiKeyId } : {}),
+        apiKeyId: run.apiKeyId,
+        modelId: run.modelId,
         character: {
           name: open.name,
           work: open.work,
@@ -9088,7 +8997,7 @@ function planCheckCharacterLook(
         return {
           result: { viewed: 0, conflicts: [] },
           observation:
-            'check_character_look could NOT look at the images this time (no vision route or it failed). Tell the creator plainly that the check did not run; do not guess.',
+            'check_character_look could NOT look at the images this time (the look failed). Tell the creator plainly that the check did not run; do not guess.',
         }
       }
       if (result.viewed === 0) {
@@ -9681,7 +9590,7 @@ export async function planTool(
         userId,
       )
     case TOOL.canvasGenerate:
-      return planCanvasGenerate(run, parsed.data as { target: string }, userId)
+      return planCanvasGenerate(run, parsed.data as { target: string })
     case TOOL.proposeCharacterProfile:
       return planProposeCharacterProfile(
         run,
@@ -11375,9 +11284,9 @@ function operatorConversation(
 /**
  * 看图那一跳的系统提示（P3-C）。
  *
- * ⚠ 与规划器的系统提示**分开**，因为它面对的可能根本不是同一个模型：用户选的
- * 路看不见图时这一跳是借来的（`findVisionCapableRoute`）。把工具表塞给它只会
- * 让它去调一个它这一跳根本没有的工具。
+ * ⚠ 与规划器的系统提示**分开**：这一跳是一次只看图、只出评价的补全（同一家、同一个
+ * 型号 —— 「全跟助手」），它没有工具表。把工具表塞给它只会让它去调一个它这一跳根本
+ * 没有的工具。
  */
 function buildCritiqueSystemPrompt(
   request: AssistantOperatorRequest,
@@ -12533,9 +12442,9 @@ export async function prepareOperatorTurn(
    * 用户级的一份设置，让客户端每轮上送等于给同一件事开两个真值口 ——
    * 「界面显示 A、实际打 B」那类事故（2026-08-19）正是这么来的。
    *
-   * ⛔ 选中的厂商**没绑 key** 时整轮不跑（`requireLlmTextKeyId` 抛
+   * ⛔ 选中的厂商**没绑 key** 时整轮不跑（`resolveAssistantRoute` 抛
    * `AssistantModelKeyMissingError`，owner 2026-10-15）—— ⛔ 回落到自动那条优先级、拿别家的
-   * key 顶上。选择照旧留在库里，前端就地配 key，配上就生效。「自动」不变。
+   * key 顶上。选择照旧留在库里，前端就地配 key，配上就生效。
    */
   /**
    * ⭐ **跨会话记忆**（56a 切片 2）—— 当前域 + `global`，按 `lastUsedAt` 倒序。
@@ -12581,20 +12490,16 @@ export async function prepareOperatorTurn(
     })
   }
 
-  const pinnedRouteModel = getAssistantRouteModelEntry(persona.routeModel)
-  const apiKeyId = pinnedRouteModel
-    ? await requireLlmTextKeyId(user.id, pinnedRouteModel)
-    : undefined
-  const route: ResolvedLlmTextRoute = await resolveLlmTextRoute(
-    user.id,
-    apiKeyId,
-  )
+  /**
+   * ⭐ 一家、一把 key、一个型号（owner 2026-10-15「全跟助手」）：选定的模型就是它，「自动」
+   * 按 `ASSISTANT_PROVIDER_ORDER` 取第一家配了 key 的默认档（chip 上写同一个）。这一轮
+   * 往后的每一次调用 —— 主步、查证改写、看图、归纳、结账 —— 都用这一份。⛔ 问答轮不再
+   * 换快档：chip 上写什么，这一轮就打什么。
+   */
+  const { route, apiKeyId, modelId } = await resolveAssistantRoute(user.id, {
+    routeModel: persona.routeModel,
+  })
   const questionTurn = isAssistantQuestionTurn(latestUserMessage(request))
-  const modelId = pinnedRouteModel?.modelId
-    ? resolveAssistantModelId(route.adapterType, pinnedRouteModel.modelId)
-    : questionTurn
-      ? resolveAssistantFastModelId(route.adapterType)
-      : resolveAssistantModelId(route.adapterType)
   const mediaAttachments = request.mediaAttachments ?? []
   assertAssistantMediaRoute(mediaAttachments, route.adapterType)
   const videoData = mediaAttachments
@@ -12973,9 +12878,6 @@ export async function* runOperatorTurn(
         reasoningEffort: run.persona.reasoningEffort,
         callLog: { purpose: 'step', domain: request.domain, step: index },
         cacheKey: operatorCacheKey(run, 'step'),
-        ...routeFallback(run, route, 'step', {
-          needsImages: conversationImages.length > 0,
-        }),
       })) {
         raw += chunk
         // ⚠ 客户端走了就别再往一条没人读的流里收字（同下面那道 abort 复查）。

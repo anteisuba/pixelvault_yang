@@ -94,7 +94,6 @@ function analysisResult(overrides: Partial<VideoAnalysisResult> = {}): {
         },
       ],
       model: 'gemini-2.5-flash',
-      borrowedRoute: false,
       mode: VIDEO_ANALYSIS_MODES.frames,
       downgraded: false,
       ...overrides,

@@ -48,10 +48,31 @@ vi.mock('@/services/user.service', () => ({
 const mockLlmTextCompletion = vi.fn()
 const mockResolveLlmTextRoute = vi.fn()
 /**
- * persona 选了具体模型时才会被问一次：那个厂商下活着的 key。
- * ⛔ 没有就抛 `AssistantModelKeyMissingError`，整轮不跑（不回落别家）。
+ * 「助手那一家」走**真的** `resolveAssistantRoute`（owner 2026-10-15「全跟助手」），只桩
+ * `db.userApiKey` 那两跳：按厂商列 key（`findMany`）与按厂商查 key（`findFirst`）。
+ * 缺省「库里那一把就是 `mockResolveLlmTextRoute` 此刻给的那一家」—— 见 `beforeEach`。
+ * ⚠ 其余表照旧走真模块（这一层本来就不碰它们）。
  */
-const mockRequireLlmTextKeyId = vi.fn()
+const keyStore = vi.hoisted(() => ({
+  findFirst: vi.fn(),
+  findMany: vi.fn(),
+}))
+vi.mock('@/lib/db', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/db')>()
+  const userApiKey = {
+    findFirst: keyStore.findFirst,
+    findMany: keyStore.findMany,
+  }
+  return {
+    ...actual,
+    db: new Proxy(actual.db, {
+      get: (target, property, receiver) =>
+        property === 'userApiKey'
+          ? userApiKey
+          : Reflect.get(target, property, receiver),
+    }),
+  }
+})
 /**
  * 所选模型自带联网（owner 2026-09-30）。缺省**不支持** —— 现存的查证用例验的是
  * Serper 那条路；验自带联网的用例自己打开。
@@ -60,14 +81,12 @@ const mockSupportsNativeWebSearch = vi.fn<(adapter: string) => boolean>(
   () => false,
 )
 const mockLlmNativeWebSearch = vi.fn()
-/** 所选模型没有自带联网时借哪一家的 key（owner 2026-10-10）。缺省一把都没有。 */
-const mockFindNativeSearchRoute = vi.fn(async (): Promise<unknown> => null)
+/** 搜 X 那一跳：只认 Grok 自己那把 key（创作者点名搜 X 才问）。缺省没有。 */
 const mockFindXSearchRoute = vi.fn(async (): Promise<unknown> => null)
 vi.mock('@/services/kernel/research-route.service', async (importOriginal) => ({
   ...(await importOriginal<
     typeof import('@/services/kernel/research-route.service')
   >()),
-  findNativeSearchRoute: () => mockFindNativeSearchRoute(),
   findXSearchRoute: () => mockFindXSearchRoute(),
 }))
 /**
@@ -94,25 +113,11 @@ vi.mock('@/services/llm-text.service', () => ({
     yield raw
   },
   resolveLlmTextRoute: (...args: unknown[]) => mockResolveLlmTextRoute(...args),
-  requireLlmTextKeyId: (...args: unknown[]) => mockRequireLlmTextKeyId(...args),
   supportsNativeWebSearch: (adapter: string) =>
     mockSupportsNativeWebSearch(adapter),
   llmNativeWebSearch: (...args: unknown[]) => mockLlmNativeWebSearch(...args),
   isLlmTextContextLimitError: () => false,
   isLlmTextTransientError: () => false,
-  isLlmTextRecoverableError: (error: unknown) => mockIsRecoverableError(error),
-}))
-
-/** 借路（换 key 接着跑）：缺省借不到；验借路的用例自己给一条。 */
-const mockIsRecoverableError = vi.hoisted(() =>
-  vi.fn<(error: unknown) => boolean>(() => false),
-)
-const mockFindFallbackAssistantRoute = vi.hoisted(() =>
-  vi.fn(async (..._args: unknown[]) => null as unknown),
-)
-vi.mock('@/services/kernel/assistant-fallback-route.service', () => ({
-  findFallbackAssistantRoute: (...args: unknown[]) =>
-    mockFindFallbackAssistantRoute(...args),
 }))
 
 const mockGetPublicGenerationPage = vi.fn()
@@ -274,16 +279,6 @@ vi.mock('@/services/research/assistant-evidence-book.service', () => ({
     mockAppendAssistantEvidenceBook(...args),
   recallAssistantEvidence: (...args: unknown[]) =>
     mockRecallAssistantEvidence(...args),
-}))
-
-/**
- * 看图那一跳的**借路**（P3-C）。桩掉是因为它真的会去查库找 key ——
- * 而这一层要验的是「什么时候借、借不到怎么办」，不是 key 表本身。
- */
-const mockFindVisionCapableRoute = vi.fn()
-vi.mock('@/services/vision/vision-route.service', () => ({
-  findVisionCapableRoute: (...args: unknown[]) =>
-    mockFindVisionCapableRoute(...args),
 }))
 
 /**
@@ -481,6 +476,7 @@ import {
   ASSISTANT_PERSONA_TONE_IDS,
   ASSISTANT_PERSONA_VERBOSITY_IDS,
   ASSISTANT_ROUTE_MODEL_AUTO,
+  pickAutoAssistantRouteModel,
 } from '@/constants/assistant-persona'
 import { LORA_PROMPT_DIALECTS } from '@/constants/lora-prompt-dialects'
 import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
@@ -509,6 +505,7 @@ import {
 } from '@/types/assistant-operator'
 import {
   expectSelectedProviderOnly,
+  keyLookupUsesOf,
   providerUsesOf,
 } from '@/test/selected-provider-only'
 
@@ -772,7 +769,20 @@ beforeEach(() => {
     providerConfig: { label: 'Gemini', baseUrl: 'https://example.test' },
     apiKey: 'test-key',
   })
-  mockRequireLlmTextKeyId.mockResolvedValue('key-pinned')
+  /**
+   * 库里那一把 = `mockResolveLlmTextRoute` 此刻给的那一家（各用例会改它），于是「自动」
+   * 挑到的就是那一家的默认档；点名了别家却没那一家的 key 就照实抛缺 key。
+   * ⚠ 它拒（模拟一把 key 都没有 / 坏 key）就让 `findMany` 跟着拒 —— 与旧的自动路由同一个结果。
+   */
+  keyStore.findFirst.mockResolvedValue(null)
+  keyStore.findMany.mockImplementation(async () => {
+    const route = (await mockResolveLlmTextRoute.getMockImplementation()?.(
+      'user-db-1',
+    )) as { adapterType: string } | undefined
+    return route
+      ? [{ id: `key-${route.adapterType}`, adapterType: route.adapterType }]
+      : []
+  })
   mockGetPublicGenerationPage.mockResolvedValue({
     generations: [],
     total: 0,
@@ -830,7 +840,6 @@ beforeEach(() => {
     batchSummaries: ['two visible character references'],
     uncertainties: [],
     visionAdapter: 'gemini',
-    borrowedVisionRoute: false,
   })
   mockIsWebImageSearchConfigured.mockReturnValue(true)
   mockWebImageSearch.mockResolvedValue([])
@@ -854,7 +863,6 @@ beforeEach(() => {
   })
   mockIsWebSearchConfigured.mockReturnValue(true)
   mockWebSearch.mockResolvedValue([])
-  mockFindVisionCapableRoute.mockResolvedValue(null)
   // ⚠ 默认「两个源都好好的但没命中」—— 与「源挂了」是两句不同的话，见下面那条用例。
   mockSearchLoraCandidates.mockResolvedValue({
     query: '',
@@ -1235,59 +1243,25 @@ describe('工具环 · 逐事件顺序', () => {
     expect(mockLlmTextCompletion).toHaveBeenCalledTimes(1)
   })
 
-  it('借路：模型超时就换用户另一把 key 跑这一步，并让模型对用户说一句（owner 2026-10-08）', async () => {
-    mockIsRecoverableError.mockReturnValue(true)
-    mockFindFallbackAssistantRoute.mockResolvedValueOnce({
-      route: {
-        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
-        providerConfig: {
-          label: 'Claude',
-          baseUrl: 'https://api.anthropic.com',
-        },
-        apiKey: 'alt-key',
-      },
-      modelId: 'claude-sonnet-5-5',
-    })
+  it('⛔ 不借路：一步超时就照实失败，⛔ 不换用户另一把 key 接着跑（owner 2026-10-15）', async () => {
+    // 旧的 `findFallbackAssistantRoute` 会拿用户另一家的 key 跑完这一步 —— 花的是创作者
+    // 没选的那一家的钱。现在只在同一家重试（llm 层），还不行就把那句错交出去。
     const timeout = new ApiRequestError(
       'PROVIDER_TIMEOUT',
       504,
       'errors.provider.timeout',
       'timed out',
     )
-    let calls = 0
-    mockLlmTextCompletion.mockReset().mockImplementation(async () => {
-      calls += 1
-      if (calls === 1) throw timeout
-      if (calls === 2)
-        return JSON.stringify(
-          wrapEntryToolCall({
-            tool: { name: ASSISTANT_OPERATOR_TOOL_IDS.readState, args: {} },
-          }),
-        )
-      return JSON.stringify({ finished: true, message: '好了。' })
-    })
-    try {
-      const events = await collect(
-        runAssistantOperator('clerk-1', buildRequest()),
-      )
-      expect(streamErrorOf(events)).toBeUndefined()
-      expect(events.at(-1)?.type).toBe(ASSISTANT_OPERATOR_EVENTS.done)
-      // 第二次调用走的是借来的那条路。
-      expect(mockLlmTextCompletion.mock.calls[1]?.[0]).toMatchObject({
-        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
-        apiKey: 'alt-key',
-        modelId: 'claude-sonnet-5-5',
-      })
-      expect(mockFindFallbackAssistantRoute).toHaveBeenCalledWith(
-        expect.any(String),
-        AI_ADAPTER_TYPES.GEMINI,
-        expect.objectContaining({ needsImages: false }),
-      )
-      // 下一步模型读得到「这一步换了家」，收尾时对用户说一句。
-      expect(lastUserPrompt()).toContain('it ran on anthropic instead')
-    } finally {
-      mockIsRecoverableError.mockReturnValue(false)
-    }
+    mockLlmTextCompletion.mockReset().mockRejectedValue(timeout)
+
+    await expect(
+      collect(runAssistantOperator('clerk-1', buildRequest())),
+    ).rejects.toBe(timeout)
+    expect(mockLlmTextCompletion).toHaveBeenCalledTimes(1)
+    expectSelectedProviderOnly(
+      providerUsesOf(mockLlmTextCompletion, 'main model'),
+      { adapterType: AI_ADAPTER_TYPES.GEMINI, apiKey: 'test-key' },
+    )
   })
 
   it('does not execute a complete tool JSON when its stream subsequently fails', async () => {
@@ -4151,10 +4125,13 @@ describe('素材文件夹视觉检查', () => {
       query: 'hero',
       limit: ASSISTANT_OPERATOR_LIMITS.maxFolderMatches,
     })
+    // 「全跟助手」：看夹子里的图用这一轮那把 key、那个型号（「自动」挑的 Gemini 默认档）。
     expect(mockInspectAssistantAssetFolder).toHaveBeenCalledWith({
       userId: 'user-db-1',
       folderId: 'hero-folder',
       instruction: '挑出最适合做角色参考的图',
+      apiKeyId: `key-${AI_ADAPTER_TYPES.GEMINI}`,
+      modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
     })
 
     const inspected = stepsOf(events).find(
@@ -5471,7 +5448,6 @@ describe('看图闭环 · critique_result', () => {
     expect(done.result).toMatchObject({
       findings: CRITIQUE_JSON.findings,
       advice: CRITIQUE_JSON.advice,
-      borrowedVisionRoute: false,
     })
 
     // 真的把图送出去看了 —— 而且送的是那一张。
@@ -5835,7 +5811,12 @@ describe('看图闭环 · critique_result', () => {
     expect(lastUserPrompt()).not.toContain('FRESH RESULT')
   })
 
-  it('用户选的路看不了图时借一条，并如实标 borrowed', async () => {
+  /**
+   * ⛔ 不借别家（owner 2026-10-15「全跟助手」）：助手选的那个型号看不了图，这一步就照实被拒，
+   * 哪怕库里另有一把能看图的 Gemini key —— 旧的 `findVisionCapableRoute` 会悄悄借它。
+   * ⛔ 也绝不降级成「凭提示词猜」。
+   */
+  it('选的 DeepSeek V4 Pro 看不了图：这一步照实被拒、⛔ 不借另一家能看图的 key、⛔ 不猜', async () => {
     mockGetAssistantPersonaByUserId.mockResolvedValue({
       ...ASSISTANT_PERSONA_DEFAULTS,
       avatarUrl: null,
@@ -5846,37 +5827,10 @@ describe('看图闭环 · critique_result', () => {
       providerConfig: { label: 'DeepSeek', baseUrl: 'https://example.test' },
       apiKey: 'deepseek-key',
     })
-    mockFindVisionCapableRoute.mockResolvedValue({
-      adapterType: AI_ADAPTER_TYPES.GEMINI,
-      providerConfig: { label: 'Gemini', baseUrl: 'https://example.test' },
-      apiKey: 'borrowed-key',
-    })
-    queueCritiqueRound()
-
-    const events = await collect(
-      runAssistantOperator('clerk-1', buildRequest(RESULT_MENTION)),
-    )
-    const done = stepsOf(events)[1]
-    expect(
-      (done.result as { borrowedVisionRoute: boolean }).borrowedVisionRoute,
-    ).toBe(true)
-    // 图打到的是**借来的**那条路，不是用户那条看不见图的。
-    expect(visionCalls()[0]?.adapterType).toBe(AI_ADAPTER_TYPES.GEMINI)
-  })
-
-  /** ⛔ 借不到就说不出话 —— 绝不降级成「凭提示词猜」。 */
-  it('一条能看图的路都借不到时被拒，且不降级去猜', async () => {
-    mockGetAssistantPersonaByUserId.mockResolvedValue({
-      ...ASSISTANT_PERSONA_DEFAULTS,
-      avatarUrl: null,
-      routeModel: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
-    })
-    mockResolveLlmTextRoute.mockResolvedValue({
-      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
-      providerConfig: { label: 'DeepSeek', baseUrl: 'https://example.test' },
-      apiKey: 'deepseek-key',
-    })
-    mockFindVisionCapableRoute.mockResolvedValue(null)
+    keyStore.findMany.mockResolvedValue([
+      { id: 'key-deepseek', adapterType: AI_ADAPTER_TYPES.DEEPSEEK },
+      { id: 'key-gemini', adapterType: AI_ADAPTER_TYPES.GEMINI },
+    ])
     queueCritiqueRound()
 
     const events = await collect(
@@ -5888,6 +5842,20 @@ describe('看图闭环 · critique_result', () => {
       ASSISTANT_OPERATOR_REJECT_REASON_IDS.visionUnavailable,
     )
     expect(visionCalls()).toHaveLength(0)
+    // 模型读到的是一句实话，让它对创作者照实说。
+    expect(lastUserPrompt()).toContain('no other provider is ever used')
+    expect(mockResolveLlmTextRoute).toHaveBeenCalledTimes(1)
+    expect(mockResolveLlmTextRoute).toHaveBeenCalledWith(
+      'user-db-1',
+      'key-deepseek',
+    )
+    expectSelectedProviderOnly(
+      [
+        ...keyLookupUsesOf(keyStore.findFirst),
+        ...providerUsesOf(mockLlmTextCompletion, 'main model'),
+      ],
+      { adapterType: AI_ADAPTER_TYPES.DEEPSEEK, apiKey: 'deepseek-key' },
+    )
   })
 
   /**
@@ -6571,7 +6539,6 @@ describe('看片评审 · 视频域 critique_result', () => {
       ],
       verdicts: VIDEO_CRITIQUE_JSON.verdicts,
       advice: VIDEO_CRITIQUE_JSON.advice,
-      borrowedVisionRoute: false,
     })
 
     // ⭐ 真的看了三下，而且看的是**帧**：mp4 地址一次都没进过 imageData。
@@ -10682,8 +10649,6 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
       sourcesAsked.length = 0
       mockLlmNativeWebSearch.mockReset()
       mockLlmNativeWebSearch.mockResolvedValue(SEARCHED)
-      mockFindNativeSearchRoute.mockReset()
-      mockFindNativeSearchRoute.mockResolvedValue(null)
       mockRunAssistantResearch.mockImplementation(
         async (params: {
           sources?: unknown
@@ -10718,23 +10683,24 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
       mockRunAssistantResearch.mockReset()
     })
 
-    it('所选模型没有自带联网：借创作者配了 key 的那一家搜', async () => {
-      mockFindNativeSearchRoute.mockResolvedValue({
-        route: {
-          adapterType: AI_ADAPTER_TYPES.OPENAI,
-          providerConfig: { label: 'OpenAI', baseUrl: '' },
-          apiKey: 'sk-lend',
-        },
-        modelId: 'gpt-6-luna',
-      })
+    it('所选模型没有自带联网：网页那一源走管线，⛔ 不借创作者另一家的 key 搜（owner 2026-10-15）', async () => {
+      // 旧的 `findNativeSearchRoute` 会借一把别家的 key 去搜 —— 花的是创作者没选的那一家的钱。
+      // （五家今天都有自带联网，这一支本就够不着；锁住的是「够不着也不借」。）
+      keyStore.findMany.mockResolvedValue([
+        { id: 'key-gemini', adapterType: AI_ADAPTER_TYPES.GEMINI },
+        { id: 'key-openai', adapterType: AI_ADAPTER_TYPES.OPENAI },
+      ])
       queueTurns(researchWith({}), { finished: true })
       await collect(runAssistantOperator('clerk-1', buildRequest()))
-      expect(mockLlmNativeWebSearch).toHaveBeenCalledWith(
-        expect.objectContaining({
-          adapterType: AI_ADAPTER_TYPES.OPENAI,
-          apiKey: 'sk-lend',
-          modelId: 'gpt-6-luna',
-        }),
+      expect(mockLlmNativeWebSearch).not.toHaveBeenCalled()
+      expect(sourcesAsked).toHaveLength(1)
+      expectSelectedProviderOnly(
+        [
+          ...keyLookupUsesOf(keyStore.findFirst),
+          ...providerUsesOf(mockLlmNativeWebSearch, 'native search'),
+          ...providerUsesOf(mockLlmTextCompletion, 'main model'),
+        ],
+        { adapterType: AI_ADAPTER_TYPES.GEMINI, apiKey: 'test-key' },
       )
       mockRunAssistantResearch.mockReset()
     })
@@ -10746,7 +10712,6 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
       })
       await collect(runAssistantOperator('clerk-1', buildRequest()))
       expect(mockLlmNativeWebSearch).not.toHaveBeenCalled()
-      expect(mockFindNativeSearchRoute).not.toHaveBeenCalled()
       mockRunAssistantResearch.mockReset()
     })
 
@@ -11452,7 +11417,6 @@ describe('查证与找图两入口（§9，commit #16）', () => {
       avatarUrl: null,
       routeModel: claude.modelId,
     })
-    mockRequireLlmTextKeyId.mockResolvedValue('key-claude')
     mockResolveLlmTextRoute.mockResolvedValue({
       adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
       providerConfig: { label: 'Claude', baseUrl: 'https://example.test' },
@@ -14863,8 +14827,13 @@ describe('current reference image bindings', () => {
     },
   )
 
+  /**
+   * ⛔ 不借别家（owner 2026-10-15「全跟助手」）：看不见图的 V4 Pro 被问到图3，旧实现会
+   * 借一把能看图的 Gemini key 先看一遍。现在那一步照实失败（visionUnavailable），模型读到
+   * 的是一句实话 —— 哪怕库里就有一把 Gemini key。
+   */
   it.each(['image', 'lora'] as const)(
-    'automatically obtains evidence for a text-only model before it can repeat an old failure (%s)',
+    'a text-only model asked about image 3 says plainly it cannot look — no borrowed vision key (%s)',
     async (domain) => {
       mockGetAssistantPersonaByUserId.mockResolvedValue({
         ...ASSISTANT_PERSONA_DEFAULTS,
@@ -14876,15 +14845,14 @@ describe('current reference image bindings', () => {
         providerConfig: { label: 'DeepSeek', baseUrl: 'https://example.test' },
         apiKey: 'text-key',
       })
-      mockFindVisionCapableRoute.mockResolvedValue({
-        adapterType: AI_ADAPTER_TYPES.GEMINI,
-        providerConfig: { label: 'Gemini', baseUrl: 'https://example.test' },
-        apiKey: 'vision-key',
+      keyStore.findMany.mockResolvedValue([
+        { id: 'key-deepseek', adapterType: AI_ADAPTER_TYPES.DEEPSEEK },
+        { id: 'key-gemini', adapterType: AI_ADAPTER_TYPES.GEMINI },
+      ])
+      queueTurns({
+        finished: true,
+        message: '我现在用的模型看不了图，换一个能看图的模型再问我。',
       })
-      queueTurns(
-        { images: [{ imageIndex: 2, ...facts }] },
-        { finished: true, message: '根据这次视觉检查，图3是风格化角色渲染。' },
-      )
       const events = await collect(
         runAssistantOperator(
           'clerk-1',
@@ -14898,23 +14866,32 @@ describe('current reference image bindings', () => {
           }),
         ),
       )
-      // ⚠ 只数工具环那几次：结账（§7.5）自己还有一次轻量往返排在 `done` 之前。
-      expect(toolRingCalls()).toHaveLength(2)
-      expect(mockLlmTextCompletion.mock.calls[0]?.[0]).toMatchObject({
-        adapterType: AI_ADAPTER_TYPES.GEMINI,
-        imageData: [refs[2]!.url],
-      })
-      expect(mockLlmTextCompletion.mock.calls[1]?.[0]).toMatchObject({
-        adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
-        userPrompt: expect.stringContaining('Recognizable face and costume'),
-      })
-      expect(mockLlmTextCompletion.mock.calls[1]?.[0].imageData).toBeUndefined()
+      const analyze = stepsOf(events).find(
+        (step) =>
+          step.tool === 'analyze_references' &&
+          step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.running,
+      )
+      expect(analyze?.status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.error)
+      expect(analyze?.error?.reason).toBe(
+        ASSISTANT_OPERATOR_REJECT_REASON_IDS.visionUnavailable,
+      )
+      expect(toolRingCalls()).toHaveLength(1)
+      expect(lastUserPrompt()).toContain(
+        `CURRENT REFERENCE INSPECTION FAILED (${ASSISTANT_OPERATOR_REJECT_REASON_IDS.visionUnavailable})`,
+      )
       expect(
-        stepsOf(events).some(
-          (step) =>
-            step.tool === 'analyze_references' && step.status === 'done',
+        mockLlmTextCompletion.mock.calls.every(
+          (call) =>
+            (call[0] as { imageData?: unknown }).imageData === undefined,
         ),
       ).toBe(true)
+      expectSelectedProviderOnly(
+        [
+          ...keyLookupUsesOf(keyStore.findFirst),
+          ...providerUsesOf(mockLlmTextCompletion, 'main model'),
+        ],
+        { adapterType: AI_ADAPTER_TYPES.DEEPSEEK, apiKey: 'text-key' },
+      )
     },
   )
 
@@ -14943,7 +14920,6 @@ describe('current reference image bindings', () => {
           }),
         ),
       )
-      expect(mockFindVisionCapableRoute).not.toHaveBeenCalled()
       expect(toolRingCalls()).toHaveLength(1)
       expect(lastUserPrompt()).toContain('Stylized 3D NPR')
       expect(mockLlmTextCompletion.mock.calls[0]?.[0].imageData).toBeUndefined()
@@ -17243,67 +17219,100 @@ describe('文本模型路由 · persona 说了算', () => {
     (model) => model.adapterType === AI_ADAPTER_TYPES.DEEPSEEK,
   )!
 
-  it('persona 指定了模型 → 按那个厂商找 key，并用那一档说话', async () => {
+  function routeFor(adapterType: AI_ADAPTER_TYPES) {
+    return {
+      adapterType,
+      providerConfig: { label: adapterType, baseUrl: 'https://example.test' },
+      apiKey: `${adapterType}-key`,
+    }
+  }
+
+  /** 库里有这几家的 key；按 id 解出来的就是那一家的路由。 */
+  function seedKeys(...adapterTypes: AI_ADAPTER_TYPES[]) {
+    keyStore.findMany.mockResolvedValue(
+      adapterTypes.map((adapterType) => ({
+        id: `key-${adapterType}`,
+        adapterType,
+      })),
+    )
+    mockResolveLlmTextRoute.mockImplementation(
+      async (_userId: string, apiKeyId?: string) => {
+        const adapterType = adapterTypes.find(
+          (candidate) => `key-${candidate}` === apiKeyId,
+        )
+        if (!adapterType) throw new Error(`unexpected key ${apiKeyId}`)
+        return routeFor(adapterType)
+      },
+    )
+  }
+
+  function usesOf() {
+    return [
+      ...keyLookupUsesOf(keyStore.findFirst),
+      ...providerUsesOf(mockLlmTextCompletion, 'main model'),
+    ]
+  }
+
+  it('persona 指定了模型 → 用那一家最新那把 key，并用那一档说话（哪怕顺序更靠前的 Gemini 也有 key）', async () => {
     mockGetAssistantPersonaByUserId.mockResolvedValue({
       ...ASSISTANT_PERSONA_DEFAULTS,
       avatarUrl: null,
       routeModel: PINNED.modelId,
     })
-    mockRequireLlmTextKeyId.mockResolvedValue('key-deepseek')
-    mockResolveLlmTextRoute.mockResolvedValue({
-      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
-      providerConfig: { label: 'DeepSeek', baseUrl: 'https://example.test' },
-      apiKey: 'deepseek-key',
-    })
+    seedKeys(AI_ADAPTER_TYPES.GEMINI, AI_ADAPTER_TYPES.DEEPSEEK)
     queueTurns({ finished: true })
 
     await collect(runAssistantOperator('clerk-1', buildRequest()))
 
-    expect(mockRequireLlmTextKeyId).toHaveBeenCalledWith(
-      'user-db-1',
-      expect.objectContaining({
-        adapterType: PINNED.adapterType,
-        modelId: PINNED.modelId,
-      }),
-    )
+    expect(mockResolveLlmTextRoute).toHaveBeenCalledTimes(1)
     expect(mockResolveLlmTextRoute).toHaveBeenCalledWith(
       'user-db-1',
-      'key-deepseek',
+      `key-${AI_ADAPTER_TYPES.DEEPSEEK}`,
     )
     expect(calledModelId()).toBe(PINNED.modelId)
+    expectSelectedProviderOnly(usesOf(), {
+      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+      apiKey: `${AI_ADAPTER_TYPES.DEEPSEEK}-key`,
+    })
   })
 
-  it('persona 是「自动」→ 不找 key，走既有的优先级兜底', async () => {
+  it('persona 是「自动」→ 顺序里第一家配了 key 的那一家的默认档（与 chip 上写的同一个）', async () => {
     mockGetAssistantPersonaByUserId.mockResolvedValue({
       ...ASSISTANT_PERSONA_DEFAULTS,
       avatarUrl: null,
       routeModel: ASSISTANT_ROUTE_MODEL_AUTO,
     })
+    // Grok 排在 DeepSeek 后面：库回的先后不改答案。
+    seedKeys(AI_ADAPTER_TYPES.XAI, AI_ADAPTER_TYPES.DEEPSEEK)
     queueTurns({ finished: true })
 
     await collect(runAssistantOperator('clerk-1', buildRequest()))
 
-    expect(mockRequireLlmTextKeyId).not.toHaveBeenCalled()
-    expect(mockResolveLlmTextRoute).toHaveBeenCalledWith('user-db-1', undefined)
-    // 兜底那条路的默认档（Gemini 的第一条）。
-    expect(calledModelId()).toBe(
-      NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
-        (model) => model.adapterType === AI_ADAPTER_TYPES.GEMINI,
-      )!.modelId,
+    expect(mockResolveLlmTextRoute).toHaveBeenCalledTimes(1)
+    expect(mockResolveLlmTextRoute).toHaveBeenCalledWith(
+      'user-db-1',
+      `key-${AI_ADAPTER_TYPES.DEEPSEEK}`,
     )
+    expect(calledModelId()).toBe(LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH)
+    expect(calledModelId()).toBe(
+      pickAutoAssistantRouteModel([
+        AI_ADAPTER_TYPES.XAI,
+        AI_ADAPTER_TYPES.DEEPSEEK,
+      ])?.modelId,
+    )
+    expectSelectedProviderOnly(usesOf(), {
+      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+      apiKey: `${AI_ADAPTER_TYPES.DEEPSEEK}-key`,
+    })
   })
 
-  it('自动 + 问句 + OpenAI → 走 Luna，不走 Sol', async () => {
+  it('自动 + 问句 + OpenAI → 仍是 chip 上那一档（Sol），⛔ 不悄悄换快档', async () => {
     mockGetAssistantPersonaByUserId.mockResolvedValue({
       ...ASSISTANT_PERSONA_DEFAULTS,
       avatarUrl: null,
       routeModel: ASSISTANT_ROUTE_MODEL_AUTO,
     })
-    mockResolveLlmTextRoute.mockResolvedValue({
-      adapterType: AI_ADAPTER_TYPES.OPENAI,
-      providerConfig: { label: 'OpenAI', baseUrl: 'https://example.test' },
-      apiKey: 'openai-key',
-    })
+    seedKeys(AI_ADAPTER_TYPES.OPENAI)
     queueTurns({ finished: true, message: '这是风格化 3D。' })
 
     await collect(
@@ -17315,14 +17324,17 @@ describe('文本模型路由 · persona 说了算', () => {
       ),
     )
 
-    expect(calledModelId()).toBe(LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_LUNA)
+    expect(calledModelId()).toBe(LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL)
+    expectSelectedProviderOnly(usesOf(), {
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+    })
   })
 
   /**
    * ⛔ 选了 Claude 但没绑 Anthropic key：**整轮不跑**，抛带厂商的类型化错误
    * （客户端就地弹那一家的 `QuickSetupDialog`）。⛔ 不回落「自动」—— 那等于
    * 悄悄花另一家的 key（owner 2026-10-15：「会自动扣其他模型的token，用户还不知道」）。
-   * 「找不到 key 就抛」本身在 `llm-text.service.test.ts` 里用真函数验。
+   * 解析器本身在 `assistant-route.service.test.ts` 里用真函数验。
    */
   it('选中的厂商没绑 key → 整轮不跑，⛔ 不回落自动、不碰任何一家的模型', async () => {
     const claude = NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
@@ -17333,9 +17345,7 @@ describe('文本模型路由 · persona 说了算', () => {
       avatarUrl: null,
       routeModel: claude.modelId,
     })
-    mockRequireLlmTextKeyId.mockRejectedValue(
-      new AssistantModelKeyMissingError(claude.adapterType, claude.modelId),
-    )
+    seedKeys(AI_ADAPTER_TYPES.GEMINI)
     queueTurns({ finished: true })
 
     const failure = await collect(
@@ -17348,6 +17358,22 @@ describe('文本模型路由 · persona 说了算', () => {
       adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
       modelId: claude.modelId,
     })
+    expect(mockResolveLlmTextRoute).not.toHaveBeenCalled()
+    expect(mockLlmTextCompletion).not.toHaveBeenCalled()
+    expectSelectedProviderOnly(usesOf(), {
+      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+    })
+  })
+
+  it('「自动」一把 key 都没有 → MISSING_API_KEY（面板就地开 QuickSetupDialog），一个模型都不碰', async () => {
+    seedKeys()
+    queueTurns({ finished: true })
+
+    const failure = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    ).catch((error: unknown) => error)
+
+    expect(failure).toMatchObject({ errorCode: 'MISSING_API_KEY' })
     expect(mockResolveLlmTextRoute).not.toHaveBeenCalled()
     expect(mockLlmTextCompletion).not.toHaveBeenCalled()
   })

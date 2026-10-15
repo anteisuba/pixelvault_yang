@@ -98,7 +98,7 @@ const ALLOWED_SERVICE_IMPORTS = new Set([
   '@/services/kernel/assistant-edit-look.service',
   // 选 LLM 路由（用户自己的 key / 平台兜底）。
   '@/services/llm-text.service',
-  // 自带联网借哪一家的 key（只读 key 表，不出图、不扣点数）。
+  // 创作者按了「用 Grok 搜这一次」时找他自己的 Grok key（只读 key 表，不出图、不扣点数）。
   '@/services/kernel/research-route.service',
   // 文本补全的重试策略，工具环每一步都走它。
   '@/services/kernel/assistant-completion.service',
@@ -149,10 +149,11 @@ const ALLOWED_SERVICE_IMPORTS = new Set([
    */
   '@/services/vision/vision-route.service',
   /**
-   * 借路（owner 2026-10-08）：模型超时 / 限流时找用户另一把文字 key。判据与上一条同源 ——
-   * 只读 key、产出「用哪把 key、走哪个 adapter」，一个字节都不落、一分钱都不扣。
+   * **助手那一家**（owner 2026-10-15「全跟助手」）：选定的模型，或「自动」挑的第一家配了
+   * key 的。判据与上一条同源 —— 只读 persona 那一列和 key 表，产出「用哪把 key、走哪个
+   * adapter、哪个型号」，一个字节都不落、一分钱都不扣。
    */
-  '@/services/kernel/assistant-fallback-route.service',
+  '@/services/kernel/assistant-route.service',
   /**
    * 参考图视觉结论的跨会话缓存（owner 2026-10-08）。只在 Upstash 里按图片地址存一段
    * 文字结论，⛔ 不建 generation、不扣额度、不碰 R2。

@@ -57,6 +57,8 @@ interface InspectAssistantAssetFolderInput {
   folderId: string
   instruction?: string
   apiKeyId?: string
+  /** 这一轮助手的型号 —— 看图用同一个（「全跟助手」）。 */
+  modelId?: string
 }
 
 const FOLDER_NOT_FOUND_ERROR = {
@@ -228,6 +230,7 @@ async function inspectBatch(
     userPrompt: buildBatchUserPrompt(instruction, batchIndex, totalBatches),
     imageData: images.map((image) => image.url),
     route: vision.route,
+    modelId: vision.modelId,
     label: `assistant.asset-folder.batch-${batchIndex + 1}`,
   })
 
@@ -263,6 +266,7 @@ export async function inspectAssistantAssetFolder({
   folderId,
   instruction = ASSISTANT_FOLDER_VISION_DEFAULT_INSTRUCTION,
   apiKeyId,
+  modelId,
 }: InspectAssistantAssetFolderInput): Promise<AssistantAssetFolderVisionResult> {
   const folders = await loadFolderCandidates(userId)
   const folder = folders.find((candidate) => candidate.folderId === folderId)
@@ -316,11 +320,10 @@ export async function inspectAssistantAssetFolder({
       batchSummaries: [],
       uncertainties: [],
       visionAdapter: null,
-      borrowedVisionRoute: false,
     }
   }
 
-  const vision = await resolveVisionRoute(userId, apiKeyId)
+  const vision = await resolveVisionRoute(userId, apiKeyId, modelId)
   const batches: FolderImageRow[][] = []
   for (
     let start = 0;
@@ -354,7 +357,7 @@ export async function inspectAssistantAssetFolder({
     inspectedImages: findings.length,
     batchCount: batches.length,
     adapterType: vision.route.adapterType,
-    borrowedVisionRoute: vision.borrowed,
+    modelId: vision.modelId,
   })
 
   return {
@@ -367,6 +370,5 @@ export async function inspectAssistantAssetFolder({
     batchSummaries,
     uncertainties,
     visionAdapter: vision.route.adapterType,
-    borrowedVisionRoute: vision.borrowed,
   }
 }

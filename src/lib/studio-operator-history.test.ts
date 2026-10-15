@@ -127,7 +127,6 @@ const CRITIQUE_STEP = step({
       { severity: 'fail', text: '伞的边缘糊了' },
     ],
     advice: '下一轮把伞往前推一点',
-    borrowedVisionRoute: false,
   },
 })
 

@@ -162,7 +162,7 @@ export function mapVisionIdentityToAttributes(
  * **收编（切片 2）**：这条链原来自成一路 —— 自己的 system prompt、自己的
  * `JSON.parse`、自己的「解析失败就把整段原文塞进 freeformDescription」兜底。
  * 现在它调 Vision Analyzer 的 `character_identity` 任务，于是白拿三件事：
- * 借路（选了 DeepSeek 也能看图）、结构化校验 + 打回重试一次、每条观察带 `basis`
+ * 只用所选那一家（看不了图就直说，⛔ 不借别家）、结构化校验 + 打回重试一次、每条观察带 `basis`
  * 并落一行 `ResearchRun`。
  *
  * ⚠ **两处行为变化，是有意的**：

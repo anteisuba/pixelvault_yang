@@ -10,7 +10,9 @@
  * 本文件会被客户端对话框直接 import，让它拖上 zod 是白付的包体积。
  */
 
+import { ASSISTANT_PROVIDER_ORDER } from '@/constants/assistant'
 import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
+import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 /**
  * 默认头像由 `AssistantAvatarGlyph` 复用网页标题栏的 `src/app/icon.png`。
@@ -71,8 +73,8 @@ export function isAvatarPresetChoice(
 
 /**
  * 文本模型 chip 的「自动」档（§4.5）——**它是一个真选项**，排第一、也是默认值，
- * ⛔ 不是「没选时的显示文案」。选中它 = 服务端按 `resolveLlmTextRoute` 的优先级
- * 自己挑，与这一列为空时的行为逐字相同（库里存 null）。
+ * ⛔ 不是「没选时的显示文案」。选中它 = 按 `pickAutoAssistantRouteModel` 挑一家一个型号，
+ * 与这一列为空时的行为逐字相同（库里存 null）。
  */
 export const ASSISTANT_ROUTE_MODEL_AUTO = 'auto'
 
@@ -109,6 +111,30 @@ export function getAssistantRouteModelEntry(
   return (
     NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
       (model) => model.modelId === value,
+    ) ?? null
+  )
+}
+
+/**
+ * ⭐ **「自动」挑哪一个**（owner 2026-10-15「全跟助手」）：`ASSISTANT_PROVIDER_ORDER` 里
+ * 第一家**配了 key 的**，用它在路由表里的第一条（那一家的默认档）。一轮、一家、一个型号 ——
+ * ⛔ 问答轮不再换快档，chip 上写的就是这一轮真正打的那个。
+ *
+ * ⚠ 服务端（`resolveAssistantRoute`）与 chip 读的是**这同一个函数**，只是喂的 key 名单
+ *   来源不同（库 / 前端的 key 列表，判据都是「这一家有活着的 key」），所以两边说的是同一个。
+ * `null` = 五家一把 key 都没有。
+ */
+export function pickAutoAssistantRouteModel(
+  configuredAdapters: Iterable<AI_ADAPTER_TYPES>,
+): (typeof NODE_STUDIO_ASSISTANT_ROUTE_MODELS)[number] | null {
+  const configured = new Set(configuredAdapters)
+  const adapterType = ASSISTANT_PROVIDER_ORDER.find((candidate) =>
+    configured.has(candidate),
+  )
+  if (!adapterType) return null
+  return (
+    NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
+      (model) => model.adapterType === adapterType,
     ) ?? null
   )
 }

@@ -118,7 +118,6 @@ const FOLDER_VISION_STEP: AssistantOperatorStep = {
     batchSummaries: ['two character references'],
     uncertainties: [],
     visionAdapter: 'gemini',
-    borrowedVisionRoute: false,
   },
 }
 

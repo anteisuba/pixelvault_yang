@@ -11,7 +11,6 @@ import {
 } from '@/constants/assistant'
 import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { VISION_CAPABLE_ADAPTERS } from '@/constants/vision'
 
 /**
  * 能力矩阵三值化（AI 导演内核 · 切片 2 · §4.3）。
@@ -186,22 +185,6 @@ describe('assistantAdapterAcceptsReferenceKind —— 附件闸', () => {
         ASSISTANT_VIDEO_TIERS.native,
       ),
     ).toBe(false)
-  })
-})
-
-describe('消费者：constants/vision 的 VISION_CAPABLE_ADAPTERS 从矩阵推导', () => {
-  it('成员 = 矩阵里 image 为 true 的那些，Gemini 排第一', () => {
-    expect([...VISION_CAPABLE_ADAPTERS]).toEqual(
-      expect.arrayContaining([
-        AI_ADAPTER_TYPES.GEMINI,
-        AI_ADAPTER_TYPES.OPENAI,
-      ]),
-    )
-    expect(VISION_CAPABLE_ADAPTERS[0]).toBe(AI_ADAPTER_TYPES.GEMINI)
-    for (const adapterType of VISION_CAPABLE_ADAPTERS) {
-      expect(assistantAdapterSupportsImage(adapterType)).toBe(true)
-    }
-    expect(VISION_CAPABLE_ADAPTERS).toContain(AI_ADAPTER_TYPES.DEEPSEEK)
   })
 })
 

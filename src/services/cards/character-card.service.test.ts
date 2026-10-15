@@ -171,7 +171,6 @@ describe('extractCharacterAttributes', () => {
       observations: observations(),
       conclusions: [],
       model: 'gemini',
-      borrowedRoute: false,
     })
 
     const attrs = await extractCharacterAttributes(
@@ -225,7 +224,6 @@ describe('extractCharacterAttributes', () => {
       }),
       conclusions: [],
       model: 'gemini',
-      borrowedRoute: false,
     })
 
     const attrs = await extractCharacterAttributes(
@@ -476,11 +474,10 @@ describe('createImportedCharacterCard（导入的酒馆卡，附录J ⑥）', ()
   }
 
   it('有图：上 R2 当第一张参考图；设定、标签、扩展原样落库；⛔ 不看图', async () => {
-    const card = await createImportedCharacterCard(
-      'clerk_1',
-      imported,
-      { data: Buffer.from([1, 2, 3]), mimeType: 'image/webp' },
-    )
+    const card = await createImportedCharacterCard('clerk_1', imported, {
+      data: Buffer.from([1, 2, 3]),
+      mimeType: 'image/webp',
+    })
 
     expect(uploadToR2).toHaveBeenCalledWith(
       expect.objectContaining({ mimeType: 'image/webp' }),

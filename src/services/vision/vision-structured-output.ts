@@ -137,6 +137,11 @@ export interface VisionStructuredParams<TSchema extends z.ZodType> {
   /** 成本 window（§4.3.1）。由 `resolveNativeVideoWindow` 按任务和片长算。 */
   videoAnalysis?: VideoAnalysisWindow
   route: ResolvedLlmTextRoute
+  /**
+   * 那一家的哪个型号（`resolveVisionRoute` 给的）。缺席 = 那一家的默认档。
+   * ⚠ 助手这一轮选了哪个型号，看图就用哪个 —— 「全跟助手」。
+   */
+  modelId?: string
   /** 进日志与重试标签，形如 `vision.character_identity`。 */
   label: string
   maxTokens?: number
@@ -167,6 +172,7 @@ export async function completeVisionStructured<TSchema extends z.ZodType>(
           adapterType: params.route.adapterType,
           providerConfig: params.route.providerConfig,
           apiKey: params.route.apiKey,
+          ...(params.modelId ? { modelId: params.modelId } : {}),
         }),
         hasVideo ? VISION_LIMITS.videoTimeoutMs : VISION_LIMITS.timeoutMs,
       )

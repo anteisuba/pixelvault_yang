@@ -232,16 +232,37 @@ function getAssistantMediaCapability(
 }
 
 /**
- * 一步的模型临时出不来（超时 / 限流 / 503）时，按这个顺序找用户配过的另一把 key
- * 接着跑这一步（owner 2026-10-08）。顺序按今天实测的稳定度与速度排，⛔ 不是偏好。
+ * ⭐ **「助手那一家」的唯一顺序**（owner 2026-10-15「全跟助手」）。
+ *
+ * 助手模型选「自动」时，按这个顺序取创作者**第一家配了 key 的**，用那一家的默认型号
+ * （路由表里它的第一条），chip 上写出来（「自动 · DeepSeek V4.1 Flash」）。助手的每一次
+ * 调用、以及助手以外那几样小功能（标签台翻译、「满意」评估、卡片编译、3D 预检、试读、
+ * 旧助手的查证）都用同一个选择 —— 服务端 `resolveAssistantRoute`，chip 读同一份
+ * `pickAutoAssistantRouteModel`。
+ *
+ * ⚠ 此前同一件事有五份顺序（自动对话、看图借路、出错换家、自带联网借路、规划器），
+ *   「自动」下对话与看图可以落在两家。现在只剩这一份；看图、规划器按能力从它里面筛，
+ *   ⛔ 不另排一份。出错换家与借路都已删掉（owner 2026-10-15：⛔ 不在创作者不知情时花别家的 key）。
+ * ⚠ 排法沿用原「自动」对话那一份（`LLM_TEXT_ADAPTERS`）：选「自动」的人主模型落在哪家
+ *   不变；Gemini 打头也与面板缺 key 时引导去配的那一家（AI Studio 免费档）一致。
  */
-export const ASSISTANT_FALLBACK_ADAPTER_ORDER = [
-  AI_ADAPTER_TYPES.OPENAI,
-  AI_ADAPTER_TYPES.ANTHROPIC,
+export const ASSISTANT_PROVIDER_ORDER = [
   AI_ADAPTER_TYPES.GEMINI,
   AI_ADAPTER_TYPES.DEEPSEEK,
+  AI_ADAPTER_TYPES.OPENAI,
+  AI_ADAPTER_TYPES.ANTHROPIC,
   AI_ADAPTER_TYPES.XAI,
 ] as const
+
+export type AssistantProvider = (typeof ASSISTANT_PROVIDER_ORDER)[number]
+
+export function isAssistantProvider(
+  adapterType: AI_ADAPTER_TYPES,
+): adapterType is AssistantProvider {
+  return (ASSISTANT_PROVIDER_ORDER as readonly AI_ADAPTER_TYPES[]).includes(
+    adapterType,
+  )
+}
 
 export function assistantAdapterSupportsImage(
   adapterType: AI_ADAPTER_TYPES,

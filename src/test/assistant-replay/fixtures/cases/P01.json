@@ -1,7 +1,7 @@
 {
   "id": "P01",
-  "title": "整段写视频提示词前先取那个型号的整份写法：read \"guide:<型号>\"",
-  "source": "P2 第二片「提示词瘦身」（2026-10-15）：系统提示里每个型号只剩一行，视频写法 / 镜头语法 / Seedance 控制规则现取",
+  "title": "整段写视频提示词：板上型号的整份写法已在系统提示里，一步写成，⛔ 不先 read、⛔ 没有写词闸",
+  "source": "P2 写法回调（协调者 2026-10-15 的决定，⛔ 不是 owner 定的）：写提示词是核心动作，板上型号的整份写法放回系统提示分界线之后，写词闸拿掉",
   "board": "malfoy",
   "routes": [
     {
@@ -17,16 +17,6 @@
     "say": "S03 的提示词整段重写：雨夜，哈利沿走廊快步走向镜头，两个镜头，5 秒。"
   },
   "replies": [
-    {
-      "calls": [
-        {
-          "tool": "read",
-          "input": {
-            "cards": ["guide:seedance-2.5-byteplus"]
-          }
-        }
-      ]
-    },
     {
       "calls": [
         {
@@ -65,20 +55,15 @@
     },
     "stepPrompts": [
       {
-        "contains": ["Full guide: read", "guide:seedance-2.5-byteplus"],
-        "notContains": [
+        "contains": [
           "SEEDANCE 2.5 CONTROL RULES",
           "VIDEO PROMPT WRITING",
           "SHOT GRAMMAR"
-        ]
+        ],
+        "notContains": ["Full guide", "PROMPT GUIDE FOR"]
       },
       {
-        "contains": [
-          "PROMPT GUIDE FOR seedance-2.5-byteplus",
-          "SEEDANCE 2.5 CONTROL RULES",
-          "VIDEO PROMPT WRITING",
-          "SHOT GRAMMAR"
-        ]
+        "notContains": ["Nothing in this write landed", "PROMPT GUIDE FOR"]
       }
     ]
   }

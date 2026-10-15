@@ -103,3 +103,147 @@ for (const [type, hex] of [
     await Promise.all(pending)
   })
 }
+
+// ── 热链那一支（`/hotlink/<host>/<path>`，助手找图 2026-10-15）──────────────
+
+function setupHotlink(responses) {
+  const calls = []
+  const queue = [...responses]
+  mock.method(globalThis, 'fetch', async (input, init) => {
+    calls.push({ url: String(input), init })
+    return queue.shift() ?? new Response(png, { headers: { 'Content-Type': 'image/png' } })
+  })
+  Object.defineProperty(globalThis, 'caches', {
+    configurable: true,
+    value: { default: { match: async () => undefined, put: async () => {} } },
+  })
+  const pending = []
+  return { calls, ctx: { waitUntil: (promise) => pending.push(promise) }, pending }
+}
+
+const hotlink = (path, headers) =>
+  new Request(`https://img.anteisuba.com/hotlink/${path}`, { headers })
+
+test('hotlink: fetches the allow-listed host with that site’s own Referer', async () => {
+  const { calls, ctx, pending } = setupHotlink([])
+  const response = await worker.fetch(
+    hotlink('i.pximg.net/img-master/img/2020/01/01/x_p0.jpg'),
+    {},
+    ctx,
+  )
+  assert.equal(response.status, 200)
+  assert.equal(response.headers.get('content-type'), 'image/png')
+  assert.equal(calls.length, 1)
+  assert.equal(
+    calls[0].url,
+    'https://i.pximg.net/img-master/img/2020/01/01/x_p0.jpg',
+  )
+  assert.equal(calls[0].init.headers.Referer, 'https://www.pixiv.net/')
+  assert.equal(calls[0].init.redirect, 'manual')
+  await Promise.all(pending)
+})
+
+test('hotlink: bilibili and weibo hosts get their own Referer', async () => {
+  for (const [path, referer] of [
+    ['i0.hdslb.com/bfs/archive/a.jpg@672w.webp', 'https://www.bilibili.com/'],
+    ['wx1.sinaimg.cn/large/b.jpg', 'https://weibo.com/'],
+  ]) {
+    const { calls, ctx } = setupHotlink([])
+    const response = await worker.fetch(hotlink(path), {}, ctx)
+    assert.equal(response.status, 200)
+    assert.equal(calls[0].url, `https://${path}`)
+    assert.equal(calls[0].init.headers.Referer, referer)
+    mock.restoreAll()
+  }
+})
+
+for (const path of [
+  'evil.com/x.jpg',
+  'i.pximg.net.evil.com/x.jpg',
+  'evilpximg.net/x.jpg',
+  'i.pximg.net:8443/x.jpg',
+  'user@i.pximg.net/x.jpg',
+  'i.pximg.net',
+  'i.pximg.net/',
+]) {
+  test(`hotlink: ⛔ not an open proxy — ${path} is 404 and never fetched`, async () => {
+    const { calls, ctx } = setupHotlink([])
+    const response = await worker.fetch(hotlink(path), {}, ctx)
+    assert.equal(response.status, 404)
+    assert.equal(calls.length, 0)
+  })
+}
+
+test('hotlink: another website embedding us with its Referer is refused', async () => {
+  const { calls, ctx } = setupHotlink([])
+  const response = await worker.fetch(
+    hotlink('i.pximg.net/x.jpg', { Referer: 'https://freeloader.example/' }),
+    {},
+    ctx,
+  )
+  assert.equal(response.status, 403)
+  assert.equal(calls.length, 0)
+})
+
+test('hotlink: our own pages (and no Referer at all) are served', async () => {
+  for (const referer of [undefined, 'https://www.anteisuba.com/en/studio']) {
+    const { ctx } = setupHotlink([])
+    const response = await worker.fetch(
+      hotlink('i.pximg.net/x.jpg', referer ? { Referer: referer } : undefined),
+      {},
+      ctx,
+    )
+    assert.equal(response.status, 200)
+    mock.restoreAll()
+  }
+})
+
+test('hotlink: follows a redirect inside the allow-list only', async () => {
+  const { calls, ctx } = setupHotlink([
+    new Response(null, {
+      status: 302,
+      headers: { Location: 'https://i1.hdslb.com/bfs/moved.jpg' },
+    }),
+  ])
+  const response = await worker.fetch(hotlink('i0.hdslb.com/bfs/a.jpg'), {}, ctx)
+  assert.equal(response.status, 200)
+  assert.deepEqual(
+    calls.map((call) => call.url),
+    ['https://i0.hdslb.com/bfs/a.jpg', 'https://i1.hdslb.com/bfs/moved.jpg'],
+  )
+})
+
+test('hotlink: ⛔ a redirect off the allow-list is a 502, not followed', async () => {
+  const { calls, ctx } = setupHotlink([
+    new Response(null, {
+      status: 302,
+      headers: { Location: 'https://evil.example/payload' },
+    }),
+  ])
+  const response = await worker.fetch(hotlink('i0.hdslb.com/bfs/a.jpg'), {}, ctx)
+  assert.equal(response.status, 502)
+  assert.equal(calls.length, 1)
+})
+
+test('hotlink: a page that is not an image is refused (415)', async () => {
+  const { ctx } = setupHotlink([
+    new Response('<html>login</html>', {
+      headers: { 'Content-Type': 'text/html' },
+    }),
+  ])
+  const response = await worker.fetch(hotlink('i.pximg.net/x.jpg'), {}, ctx)
+  assert.equal(response.status, 415)
+})
+
+test('hotlink: declared size over the cap is refused (413)', async () => {
+  const { ctx } = setupHotlink([
+    new Response(png, {
+      headers: {
+        'Content-Type': 'image/png',
+        'Content-Length': String(64 * 1024 * 1024),
+      },
+    }),
+  ])
+  const response = await worker.fetch(hotlink('i.pximg.net/x.jpg'), {}, ctx)
+  assert.equal(response.status, 413)
+})

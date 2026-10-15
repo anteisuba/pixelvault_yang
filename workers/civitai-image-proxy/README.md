@@ -33,7 +33,44 @@ img.anteisuba.com/<bucket>/<uuid>/<transform>/<file>
   301），Cloudflare→Cloudflare 非单客户端突发，不触发浏览器那种限流，然后长期缓存。
 - 封面在所有用户间共享，缓存很快焐热；Civitai 只会看到零星回源。
 
-目标 host 硬编码为 `image.civitai.com`（不是开放代理，无 SSRF 面）。
+Civitai 这一支的目标 host 硬编码为 `image.civitai.com`（不是开放代理，无 SSRF 面）。
+另有一支 `/hotlink/` 给助手网图用，见下一节。
+
+## 第二支：助手网图的热链代理（`/hotlink/`，2026-10-15）
+
+助手面板里的网图（联网候选网格、回答底下的媒体条、灯箱原图）浏览器直连时一律
+`referrerPolicy="no-referrer"`，大多数图床就放行了。剩下几家**只认自己站内的
+Referer**，空 Referer 也拒（pixiv 的 `i.pximg.net` 最典型）。这一支替浏览器取图，
+带上那一家自己的 Referer：
+
+```
+img.anteisuba.com/hotlink/<host>/<path>
+  → https://<host>/<path>      Referer: 那一家的首页
+```
+
+| 图床（含子域） | 带的 Referer                |
+| -------------- | --------------------------- |
+| `pximg.net`    | `https://www.pixiv.net/`    |
+| `hdslb.com`    | `https://www.bilibili.com/` |
+| `sinaimg.cn`   | `https://weibo.com/`        |
+
+- **不是开放代理**：host 只认上表（`HOTLINK_HOSTS`），跳转手动跟、只跟到同一张表里，
+  回来的必须是图（魔数判型，否则 415），声明长度超过 20 MB 回 413。
+- 带着别家网站 Referer 来的请求回 403（防被当成免费 pixiv 图床）；自家 `<img>` 是
+  `no-referrer`，不带这个头，照常放行。
+- 前端改写在 `src/lib/third-party-image-url.ts`，名单是
+  `src/constants/web-image-sources.ts` 的 `WEB_IMAGE_HOTLINK_PROXY` —— **两处一起改**。
+  前端复用同一个 `NEXT_PUBLIC_CIVITAI_IMAGE_PROXY_BASE`；没配、或这一支还没部署时
+  前端先试代理、失败退回直连（`no-referrer`），不会比之前更差。
+
+验证（部署后）：
+
+```bash
+curl -sI "https://img.anteisuba.com/hotlink/i.pximg.net/<pixiv 原图路径>"
+# 期望 HTTP/2 200、content-type: image/...
+curl -sI -H "Referer: https://example.com/" "https://img.anteisuba.com/hotlink/i.pximg.net/<同上>"
+# 期望 403
+```
 
 ## 部署（owner）
 

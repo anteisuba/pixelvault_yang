@@ -23,9 +23,92 @@
  *
  * 目标 host 硬编码为 image.civitai.com（不是开放代理，无 SSRF 面）；路径必须形如
  * `/<bucket>/<uuid>/<transform>/<file.ext>`，其余一律 404。
+ *
+ * ── 第二支：`/hotlink/<host>/<path>`（助手找图，2026-10-15）────────────────
+ * 助手面板里的网图（联网候选、回答底下的媒体条、灯箱原图）浏览器直连时已经
+ * 不带 Referer（`referrerPolicy="no-referrer"`），大多数图床就放行了；剩下几家
+ * **只认自己站内的 Referer**（pixiv 的 pximg 最出名，空 Referer 也是 403）。这一支
+ * 替浏览器去取，并带上**那一家自己的** Referer：
+ *   img.anteisuba.com/hotlink/i.pximg.net/img-master/…/x.jpg
+ *     → https://i.pximg.net/img-master/…/x.jpg   (Referer: https://www.pixiv.net/)
+ * ⛔ 不是开放代理：host 只认 `HOTLINK_HOSTS` 那几家图床（及其子域），跳转也只跟到
+ * 同一张名单里；回来的必须是图（魔数判型，同上面那一支），否则 415。
+ * 前端改写在 `src/lib/third-party-image-url.ts`（名单 = `WEB_IMAGE_HOTLINK_PROXY`，
+ * 与这里的 `HOTLINK_HOSTS` 两处要一起改）。
  */
 
 const CIVITAI_IMAGE_HOST = 'image.civitai.com'
+
+/** 热链那一支的路径前缀（前端 `WEB_IMAGE_HOTLINK_PROXY.pathPrefix` 同一个值）。 */
+const HOTLINK_PREFIX = '/hotlink/'
+
+/**
+ * 只认站内 Referer 的图床 → 取图时带上的那一家 Referer。
+ * ⚠ 按**注册域**认（`host === suffix` 或 `*.suffix`）：外人造不出这几个域的子域，
+ * 所以后缀匹配在这里是安全的；`evilpximg.net` / `i.pximg.net.evil.com` 都不命中。
+ */
+const HOTLINK_HOSTS = [
+  { suffix: 'pximg.net', referer: 'https://www.pixiv.net/' },
+  { suffix: 'hdslb.com', referer: 'https://www.bilibili.com/' },
+  { suffix: 'sinaimg.cn', referer: 'https://weibo.com/' },
+] as const
+
+/** 合法主机名：小写字母数字与连字符组成的点分标签（⛔ 端口、userinfo、百分号转义）。 */
+const HOSTNAME_RE =
+  /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/
+
+/** 一张网图的上限（声明了长度才拦得住；没声明的照常流式回）。 */
+const HOTLINK_MAX_BYTES = 20 * 1024 * 1024
+
+/** 跟几次跳转（只跟到同一张名单里）。 */
+const HOTLINK_MAX_REDIRECTS = 3
+
+/**
+ * 带着 Referer 来的请求只认自家页面（防别的网站拿它当免费的 pixiv 图床）。
+ * ⚠ 自家面板上的 `<img>` 是 `no-referrer`，根本不带这个头 —— 不带头的照常放行，
+ * 所以这只挡「别的网站按默认策略直接嵌我们的地址」那一种。
+ */
+const HOTLINK_PAGE_HOSTS = ['anteisuba.com', 'localhost', '127.0.0.1'] as const
+
+function hotlinkRule(host: string) {
+  return HOTLINK_HOSTS.find(
+    (rule) => host === rule.suffix || host.endsWith(`.${rule.suffix}`),
+  )
+}
+
+/** `/hotlink/<host>/<path>` → 目标地址 + 该带的 Referer；不合规矩就是 `null`（404）。 */
+function parseHotlinkTarget(url: URL): { target: URL; referer: string } | null {
+  const rest = url.pathname.slice(HOTLINK_PREFIX.length)
+  const slash = rest.indexOf('/')
+  if (slash <= 0) return null
+  const host = rest.slice(0, slash).toLowerCase()
+  const path = rest.slice(slash)
+  if (path.length < 2 || !HOSTNAME_RE.test(host)) return null
+  const rule = hotlinkRule(host)
+  if (!rule) return null
+  let target: URL
+  try {
+    target = new URL(`https://${host}${path}${url.search}`)
+  } catch {
+    return null
+  }
+  // 拼出来的主机名必须原样是名单里那一个（防路径里的奇怪字符把主机挤掉）。
+  if (target.hostname !== host) return null
+  return { target, referer: rule.referer }
+}
+
+function fromAllowedPage(request: Request): boolean {
+  const value = request.headers.get('Referer') ?? request.headers.get('Origin')
+  if (!value) return true
+  try {
+    const host = new URL(value).hostname.toLowerCase()
+    return HOTLINK_PAGE_HOSTS.some(
+      (allowed) => host === allowed || host.endsWith(`.${allowed}`),
+    )
+  } catch {
+    return false
+  }
+}
 
 // 封面按 transform 分档（thumb/card/cover/original 各自的路径即缓存键），内容不可变。
 const EDGE_CACHE_TTL_SECONDS = 60 * 60 * 24 * 30 // 边缘缓存 30 天
@@ -87,6 +170,42 @@ async function resolveImageContentType(
   return null
 }
 
+/**
+ * 热链那一支回源：带上那一家的 Referer，跳转**手动**跟 —— 只跟到同一张名单里。
+ * 返回 `null` = 跳出了名单或跳太多次（⛔ 不替别的站当跳板）。
+ */
+async function fetchHotlink(
+  target: URL,
+  referer: string,
+): Promise<Response | null> {
+  let current = target
+  for (let hop = 0; hop <= HOTLINK_MAX_REDIRECTS; hop += 1) {
+    const upstream = await fetch(current.toString(), {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (compatible; anteisuba-image-proxy/1.0; +https://www.anteisuba.com)',
+        Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+        Referer: referer,
+      },
+      redirect: 'manual',
+      cf: { cacheEverything: true, cacheTtl: EDGE_CACHE_TTL_SECONDS },
+    })
+    if (upstream.status < 300 || upstream.status >= 400) return upstream
+    const location = upstream.headers.get('Location')
+    await upstream.body?.cancel()
+    if (!location) return null
+    let next: URL
+    try {
+      next = new URL(location, current)
+    } catch {
+      return null
+    }
+    if (next.protocol !== 'https:' || !hotlinkRule(next.hostname)) return null
+    current = next
+  }
+  return null
+}
+
 export default {
   async fetch(request, _env, ctx): Promise<Response> {
     // HEAD 也放行 —— README 的验证命令用 `curl -sI`，且 Workers runtime 会自动
@@ -99,7 +218,12 @@ export default {
     }
 
     const url = new URL(request.url)
-    if (!CIVITAI_IMAGE_PATH_RE.test(url.pathname)) {
+    const hotlink = url.pathname.startsWith(HOTLINK_PREFIX)
+    if (hotlink && !fromAllowedPage(request)) {
+      return new Response('Forbidden', { status: 403 })
+    }
+    const hotlinkTarget = hotlink ? parseHotlinkTarget(url) : null
+    if (hotlink ? !hotlinkTarget : !CIVITAI_IMAGE_PATH_RE.test(url.pathname)) {
       return new Response('Not Found', { status: 404 })
     }
 
@@ -113,30 +237,45 @@ export default {
     const cached = await cache.match(cacheKey)
     if (cached) return cached
 
-    const target = `https://${CIVITAI_IMAGE_HOST}${url.pathname}${url.search}`
-
-    let upstream: Response
+    let upstream: Response | null
     try {
-      upstream = await fetch(target, {
-        // 贴近真实浏览器抓图，避开对可疑 UA 的处置；跟随 301 → image-b2。
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (compatible; anteisuba-image-proxy/1.0; +https://www.anteisuba.com)',
-          Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
-        },
-        redirect: 'follow',
-        // 让 Cloudflare 也缓存回源结果，进一步摊薄对 Civitai 的回源。
-        cf: { cacheEverything: true, cacheTtl: EDGE_CACHE_TTL_SECONDS },
-      })
+      upstream = hotlinkTarget
+        ? await fetchHotlink(hotlinkTarget.target, hotlinkTarget.referer)
+        : await fetch(
+            `https://${CIVITAI_IMAGE_HOST}${url.pathname}${url.search}`,
+            {
+              // 贴近真实浏览器抓图，避开对可疑 UA 的处置；跟随 301 → image-b2。
+              headers: {
+                'User-Agent':
+                  'Mozilla/5.0 (compatible; anteisuba-image-proxy/1.0; +https://www.anteisuba.com)',
+                Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+              },
+              redirect: 'follow',
+              // 让 Cloudflare 也缓存回源结果，进一步摊薄对 Civitai 的回源。
+              cf: { cacheEverything: true, cacheTtl: EDGE_CACHE_TTL_SECONDS },
+            },
+          )
     } catch {
+      return new Response('Bad Gateway', { status: 502 })
+    }
+    if (!upstream) {
       return new Response('Bad Gateway', { status: 502 })
     }
 
     if (!upstream.ok) {
       // 透传上游失败信息便于诊断；不缓存失败响应，下次自然重试。
+      await upstream.body?.cancel()
       return new Response(`Upstream ${upstream.status}`, {
         status: upstream.status === 404 ? 404 : 502,
       })
+    }
+
+    if (hotlinkTarget) {
+      const declared = Number(upstream.headers.get('content-length'))
+      if (Number.isFinite(declared) && declared > HOTLINK_MAX_BYTES) {
+        await upstream.body?.cancel()
+        return new Response('Payload Too Large', { status: 413 })
+      }
     }
 
     const contentType = await resolveImageContentType(upstream, ctx)

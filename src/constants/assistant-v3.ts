@@ -13,6 +13,8 @@
 
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
 import { ASSISTANT_MENTION_LIMITS } from '@/constants/assistant-mention'
+import { LLM_TEXT_DEFAULT_MAX_TOKENS } from '@/constants/config'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 /** v3 已经接上的那几张脸（S6 逐个迁：LoRA → 图片 → 卡片 → 视频）。 */
 export const ASSISTANT_V3_FACE_IDS = {
@@ -388,6 +390,31 @@ export const ASSISTANT_V3_TRANSCRIPT_SLIM = {
   slimLineChars: 120,
   slimRefs: 24,
   clippedAssistantChars: 400,
+} as const
+
+/**
+ * v3 主步一次最多输出多少 token（P2 第二片，设计方案 §2.3「加 `maxOutputTokens`」）。交给
+ * `streamText`（Grok 例外，见下）。⚠ 这是兜底的上限，不是花费：只为拦住失控的长输出（模型绕圈），
+ * ⛔ 不许低到切掉正常的一步 —— 最长的正常输出是一次 write 写满几段长提示词（`maxTextChars` 2 万字
+ * 一段）外加思考；回放里最大的一批调用入参才 433 字（T24）。
+ * - Claude：`max_tokens` 必填，思考与正文共用；不给时 SDK 自己填 128k。取旧内核流式那一档
+ *   （`LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC_STREAM`，2026-10-07 生产从 16k 抬上来的那个数）。
+ * - OpenAI 官方（Responses 的 `max_output_tokens`，含推理）、DeepSeek 官方（`max_tokens`，含思维链；
+ *   deepseek-flash 上限 384k）：同取 64k。
+ * - Gemini：`maxOutputTokens` 含思考（`VIDEO_ANALYSIS_MIN_OUTPUT_TOKENS` 那条坑）；Gemini 3 上限
+ *   65,536，64k 卡在它下面。
+ * - Grok：`max_tokens` 已弃用、⛔ 不发（`LLM_TEXT_DEFAULT_MAX_TOKENS.XAI` 那条）；同一个数走
+ *   `max_completion_tokens`（只管看得见的输出，推理另算）。
+ * ⚠ 只发给官方端点：代理 / 自建兼容口子的上限各不相同（vLLM 一类「提示 + 上限」超了上下文就 400），
+ *   照旧由模型自己兜着（与旧内核的 `providerManagedOutput` 同一条）。Claude 例外（必填）。
+ * ⚠ 数是我定的（P2），不是 owner 定的。
+ */
+export const ASSISTANT_V3_MAX_OUTPUT_TOKENS = {
+  [AI_ADAPTER_TYPES.ANTHROPIC]: LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC_STREAM,
+  [AI_ADAPTER_TYPES.OPENAI]: 64_000,
+  [AI_ADAPTER_TYPES.GEMINI]: 64_000,
+  [AI_ADAPTER_TYPES.DEEPSEEK]: 64_000,
+  [AI_ADAPTER_TYPES.XAI]: 64_000,
 } as const
 
 /**

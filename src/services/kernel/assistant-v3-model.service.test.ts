@@ -1,6 +1,8 @@
 import { generateText, type ModelMessage } from 'ai'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { ASSISTANT_V3_MAX_OUTPUT_TOKENS } from '@/constants/assistant-v3'
+import { AI_PROVIDER_ENDPOINTS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { ResolvedLlmTextRoute } from '@/services/llm-text.service'
 
@@ -11,11 +13,14 @@ import {
   resolveAssistantV3Model,
 } from './assistant-v3-model.service'
 
-function route(adapterType: AI_ADAPTER_TYPES): ResolvedLlmTextRoute {
+function route(
+  adapterType: AI_ADAPTER_TYPES,
+  baseUrl = '',
+): ResolvedLlmTextRoute {
   return {
     adapterType,
     apiKey: 'test-key',
-    providerConfig: { label: 'test', baseUrl: '' },
+    providerConfig: { label: 'test', baseUrl },
   } as unknown as ResolvedLlmTextRoute
 }
 
@@ -36,7 +41,13 @@ describe('resolveAssistantV3Model', () => {
         route(AI_ADAPTER_TYPES.XAI),
         'grok-4.7',
       )?.providerOptions('cache', 'medium'),
-    ).toEqual({ openai: { reasoningEffort: 'medium' } })
+    ).toEqual({
+      openai: {
+        reasoningEffort: 'medium',
+        maxCompletionTokens:
+          ASSISTANT_V3_MAX_OUTPUT_TOKENS[AI_ADAPTER_TYPES.XAI],
+      },
+    })
     expect(
       resolveAssistantV3Model(
         route(AI_ADAPTER_TYPES.GEMINI),
@@ -257,4 +268,85 @@ describe('缓存断点', () => {
       const input = conversation()
       expect(model.messages(input, 2)).toEqual(input)
     })
+})
+
+/**
+ * 主步的输出上限（P2 §2.3，`ASSISTANT_V3_MAX_OUTPUT_TOKENS`）：官方端点按各家的数发；代理端点
+ * 不发（上限各不相同）；Grok ⛔ 不发已弃用的 `max_tokens`，同一个数走 `max_completion_tokens`。
+ */
+describe('输出上限', () => {
+  const PROXY = 'https://llm-gateway.example.com/v1'
+
+  it('官方端点：五家各按自己的数（Grok 走 providerOptions）', () => {
+    const cap = (adapter: AI_ADAPTER_TYPES, modelId: string) =>
+      resolveAssistantV3Model(route(adapter), modelId)?.maxOutputTokens
+    expect(cap(AI_ADAPTER_TYPES.ANTHROPIC, 'claude-opus-5-5')).toBe(
+      ASSISTANT_V3_MAX_OUTPUT_TOKENS[AI_ADAPTER_TYPES.ANTHROPIC],
+    )
+    expect(cap(AI_ADAPTER_TYPES.OPENAI, 'gpt-6.1-sol')).toBe(
+      ASSISTANT_V3_MAX_OUTPUT_TOKENS[AI_ADAPTER_TYPES.OPENAI],
+    )
+    expect(cap(AI_ADAPTER_TYPES.GEMINI, 'gemini-3.8-flash')).toBe(
+      ASSISTANT_V3_MAX_OUTPUT_TOKENS[AI_ADAPTER_TYPES.GEMINI],
+    )
+    expect(cap(AI_ADAPTER_TYPES.DEEPSEEK, 'deepseek-flash')).toBe(
+      ASSISTANT_V3_MAX_OUTPUT_TOKENS[AI_ADAPTER_TYPES.DEEPSEEK],
+    )
+    expect(cap(AI_ADAPTER_TYPES.XAI, 'grok-4.7')).toBeUndefined()
+    expect(
+      resolveAssistantV3Model(
+        route(AI_ADAPTER_TYPES.XAI, AI_PROVIDER_ENDPOINTS.XAI),
+        'grok-4.7',
+      )?.providerOptions('cache', 'low').openai?.maxCompletionTokens,
+    ).toBe(ASSISTANT_V3_MAX_OUTPUT_TOKENS[AI_ADAPTER_TYPES.XAI])
+  })
+
+  it('代理端点：不发（Claude 例外：max_tokens 必填）', () => {
+    const cap = (adapter: AI_ADAPTER_TYPES, modelId: string) =>
+      resolveAssistantV3Model(route(adapter, PROXY), modelId)
+    expect(cap(AI_ADAPTER_TYPES.OPENAI, 'gpt-6.1-sol')?.maxOutputTokens).toBe(
+      undefined,
+    )
+    expect(
+      cap(AI_ADAPTER_TYPES.DEEPSEEK, 'deepseek-flash')?.maxOutputTokens,
+    ).toBeUndefined()
+    expect(
+      cap(AI_ADAPTER_TYPES.XAI, 'grok-4.7')?.providerOptions('cache', 'low'),
+    ).toEqual({ openai: { reasoningEffort: 'low' } })
+    expect(
+      cap(AI_ADAPTER_TYPES.ANTHROPIC, 'claude-opus-5-5')?.maxOutputTokens,
+    ).toBe(ASSISTANT_V3_MAX_OUTPUT_TOKENS[AI_ADAPTER_TYPES.ANTHROPIC])
+  })
+
+  it('Grok 发出去的请求里 ⛔ 没有 max_tokens，只有 max_completion_tokens', async () => {
+    let body: Record<string, unknown> | null = null
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, init?: RequestInit) => {
+        body = JSON.parse(String(init?.body)) as Record<string, unknown>
+        throw new Error('stop here')
+      }),
+    )
+    const model = resolveAssistantV3Model(
+      route(AI_ADAPTER_TYPES.XAI),
+      'grok-4.7',
+    )!
+    await expect(
+      generateText({
+        model: model.model,
+        prompt: 'hi',
+        maxRetries: 0,
+        ...(model.maxOutputTokens === undefined
+          ? {}
+          : { maxOutputTokens: model.maxOutputTokens }),
+        providerOptions: model.providerOptions('cache', 'low'),
+      }),
+    ).rejects.toThrow()
+    vi.unstubAllGlobals()
+    expect(body).not.toHaveProperty('max_tokens')
+    expect(body).toHaveProperty(
+      'max_completion_tokens',
+      ASSISTANT_V3_MAX_OUTPUT_TOKENS[AI_ADAPTER_TYPES.XAI],
+    )
+  })
 })

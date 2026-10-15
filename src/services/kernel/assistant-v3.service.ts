@@ -1342,6 +1342,9 @@ async function* runV3Turn(
         tools: toolSet,
         toolChoice: 'auto',
         maxRetries: 2,
+        ...(model.maxOutputTokens === undefined
+          ? {}
+          : { maxOutputTokens: model.maxOutputTokens }),
         abortSignal: AbortSignal.any([signal, callTimeout.signal]),
         providerOptions: model.providerOptions(cacheKey, effort),
       })
@@ -1371,6 +1374,15 @@ async function* runV3Turn(
           })
         } else if (part.type === 'error') {
           throw part.error
+        } else if (part.type === 'finish' && part.finishReason === 'length') {
+          // 撞了 `maxOutputTokens`（或厂商自己的上限）：这一步的话 / 调用多半被截了半截。
+          logger.warn('assistant v3 output hit the token cap', {
+            userId: clerkId,
+            step,
+            modelId,
+            maxOutputTokens: model.maxOutputTokens ?? null,
+            calls: calls.length,
+          })
         } else if (part.type === 'finish' && !text && calls.length === 0) {
           // 空回复（Gemini 回放 T15：0 个输出 token）：记下厂商给的结束原因。
           filtered = part.finishReason === 'content-filter'

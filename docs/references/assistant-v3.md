@@ -57,7 +57,7 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 - **视频台**（与图片台同一个服务与板子，按 `face` 分）：板子多出时长、首尾帧（首帧挂上后画幅按 `aspectRatioLock` 锁死；没挂只是能力声明）、参考视频、参考声音（属于哪个角色）、原声三态开关。
   - edit：`set_specs`（时长 / 画幅 / 清晰度各自独立）· `mount_reference`（slot `first` / `last` / 参考）· `unmount_reference`（`ref-N` / `first` / `last`）· `mount_audio` · `set_sound` · 与图片台同形的 `set_model` / `set_option` / `import_url`。
   - ⭐ 清晰度是花钱的那一格：创作者话里没提清晰度（1080p、清晰度、分辨率…）就不改 —— 写在代码里，提示词管不住（回放 V1 两次自选 1080p）。
-  - 系统提示沿用旧内核的视频规矩：按时间写动作与运镜、台词按时长（约 2.5 词 / 秒）、首尾帧是具名槽、看片只看首中尾三帧、原声只在创作者要时动、声音参考搜一两次没有就直说。
+  - 系统提示沿用旧内核的视频规矩：按时间写动作与运镜、台词按时长（约 2.5 词 / 秒）、首尾帧是具名槽、原声只在创作者要时动、声音参考搜一两次没有就直说。怎么看片不在视频规矩里，在五张脸共用的 `WATCHING CLIPS` 一段（见下「看片」）。
 - **角色页**（`assistant-v3-cards.service.ts` · `lib/assistant-v3-cards-board.ts`）：不改任何东西 —— 没有 write / generate，三种 edit 都是提议，出卡、停下等创作者勾（服务端不写库）。板子：角色名册用句柄（`char-b27ce8`，同名角色不止一位）、打开那位的五格设定与标签，卡上的图跟着板子给模型看（`card-1` …）。
   - edit：`propose_profile`（逐格带出处）· `propose_images`（本轮检索到的资产 id 或网图地址）· `hand_off`（交给图片助手；那句话里的句柄服务端换回角色名）。一条回复只走第一份提议。
   - read：设定某一格全文，或一个网址（读 wiki 角色页 / 故事页 / 语音页）；look `card` / `card-N`：创作者问图与设定对不对时，指给模型看卡上的图（前 6 张已跟着板子附上，再往后的才附），由它自己对 —— 只比身份（发色、瞳色、肤色、年龄、体型、种族、伤疤犄角），衣服、姿势、表情、背景、画风不算。⛔ 不再另起 `check_character_look`（v2 照旧）。
@@ -87,7 +87,14 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
   - 代码里的硬规矩：一次最多 `maxLookCards`（6）张，多了在结果里明说只看了前几张；一张下不来（下载失败、超过所选那家的单图上限 —— Claude 是 base64 后 10 MB、别家 20 MB —— 或不是 PNG / JPEG / WEBP：GIF 不收，Gemini 会整步 400）只点名那一张，其余照看，⛔ 不连坐整步；所选模型看不了图（`assistantAdapterSupportsImage` 为假，如 DeepSeek V4 Pro）就只回一句「告诉创作者这个模型看不了图、换一个」，⛔ 不借别家的 key（⛔ `findVisionCapableRoute`）。角色页联网找图的候选也走这一条（见上「角色页」）。
   - 图的寿命：本轮记录只存地址与称呼（结果条目的 `images`），字节在服务端现下（`fetchAsBuffer`，防 SSRF）、只附给**紧跟着的那一次**模型调用 —— 按位置认：本轮记录里最后一条 assistant 之后的 look 结果才附，模型一开口就不再附；空回复 / 超时重问、画布接力照样附上。再往后与跨轮历史里只剩工具结果那行字。已经附在这一轮那句话里的图（`IMAGES THE CREATOR POINTED AT`）⛔ 不再附第二遍，只指给它看。
   - 图放在哪（对照装着的 AI SDK 核过）：Gemini 放进工具结果本身（Gemini 3 的 functionResponse parts）；OpenAI 协议的对话接口（DeepSeek、Grok、OpenAI）tool 消息只收文字，Claude 的 tool_result 后面接 user 正是它要的形状 —— 这四家工具结果只写字，图跟在紧接着的一条 user 消息里。
-  - 画布：卡的图先找 `@` 带上来的那一张（按 `nodeId`），再找图片卡自己那张（参考位），名字只兜没带 id 的老附图；对照参考 = 把它接的参考卡写进同一次 look。视频台被 @ 的那段片子（带着抽好的帧）照旧走看片评审（`planCritiqueResult` → 抽帧逐帧看），只是同样先过「看不看得见」那道闸。
+  - 画布：卡的图先找 `@` 带上来的那一张（按 `nodeId`），再找图片卡自己那张（参考位），名字只兜没带 id 的老附图；对照参考 = 把它接的参考卡写进同一次 look。视频卡见下「看片」。
+- **看片**（看图期第二段，owner 2026-10-15「Denia 自己看片子」，`assistant-v3-watch.service.ts` · `lib/assistant-pointed-clips.ts`）：与看图同一种看法 —— 片子（或它的帧）连同创作者的问题摆到**主模型**眼前，由它带着整段对话自己判断。⛔ 不另起看片子调用、⛔ 不按固定问题逐帧问、⛔ 不填评审表（v3 不再走 `planCritiqueResult`；它留在旧内核里，v2 开关照旧调它，删旧内核时一起删）。怎么看写在系统提示共用的 `WATCHING CLIPS` 一段（五张脸都有）：帧只是那几个时间点的样本，两帧之间的快慢、连贯、跳切、闪烁说不准就直说只看了帧；有片子本体才直接判断运镜与节奏；问「这段行不行」时看动没动、连不连贯、构图与运镜、人物前后是否一致并对得上参考图、结尾落没落到创作者要的地方；没给它看的片子⛔ 不按提示词或名字描述，请创作者 `@`；安静同看图。
+  - 什么算「被指着」：`@` 的视频（画布视频卡、结果、素材库，带地址的才算）→ 📎 附上的视频 → 视频台挂着的参考视频（`video-N`），按这个顺序取、按地址去重；生成的与上传的都算。一轮最多 `ASSISTANT_V3_CLIP_LIMITS.maxClips`（2）段，多出来的面板留一条 `clipsOverCap` 系统行、`MENTIONED` 表里那一段写「不在眼前」。被指着的片子整轮摆在眼前（`CLIPS THE CREATOR POINTED AT`），与被指着的图同一种待遇。⚠ 视频台挂着的参考视频每轮都算被指着，所以每轮都带（帧或片子本体），多花 token。
+  - 帧（浏览器抽，`planClipFrames`）：`VIDEO_CLIP_FRAME_PLAN` —— N = clamp(⌈时长 / 1.5 s⌉, 3, 8)，片子等分 N 段、每段中点取一帧（2 s → 3 张、5 s → 4、8 s → 6、10 s → 7、超过 10.5 s → 8）；长边 768 px webp（两段 × 8 帧在 Vercel 请求体 4.5 MB 里留够余量），随 `videoClips` 上去。同一地址抽成功的记 4 段（视频台挂着的不必每轮重解码），失败的下一轮重抽。抽不成⛔ 不拦这一轮：片子照样上去（没有帧），面板留一条 `videoFramesFailed` 系统行。服务端按片长复算同一份计划，核对帧数与逐帧时间戳（容差 0.5 s）、按魔数验真（只收 PNG / JPEG / WEBP）、单帧不超过所选那家的单图上限（Claude 原图约 7.5 MB，与看图同一个数）；一帧不过整组不用。每帧标「clip 「名字」 · frame k/N at t s」。帧⛔ 不落 R2，每一跳由客户端原样再带（画布接力同）。
+  - 片子本体（Gemini，`ASSISTANT_VIDEO_TIERS.native`）：**先看片子本体，帧只是退路** —— 运镜、动作快慢与连贯、一个动作落在第几秒只有片子本体看得见。服务端按地址下（`fetchAsBuffer`，防 SSRF；`blob:` 下不了）、按文件头认容器（QuickTime 写 `video/mov`），单段不超过 `inlineMaxBytes`（20 MB，`geminiInlineMaxBytes`）就内联；超了 / 下不来退回那组帧，帧也没有就在那一段上写清没看成的原因。片子本体⛔ 不进 functionResponse（Gemini 文档只列图片与文档），放在工具结果后的 user 里 —— Gemini 上连着两条 user 没实测过。
+  - 别的看得见图的厂商（OpenAI、DeepSeek、Claude、Grok）是 `frames` 档：只看帧。所选模型看不了图（DeepSeek V4 Pro）一段也不看，⛔ 不借别家的 key。
+  - `look` 一段没被指着的片子（画布视频卡、视频台 `video-N`）：在被指着的那几段里 → 「已经在你眼前」；Gemini → 现下片子本体附给紧跟着的那一步（超限明说太大）；别家 → 一句「你只看创作者指着的片子，请他 `@` 这一段，⛔ 别按提示词或名字描述」，不算出错、不留过程行。
+  - 媒体附件的闸：旧内核那道「只有 Gemini 收媒体附件」（`lib/assistant-media-gate.ts`）在 v3 上先把视频附件摘掉再过（片子改由 `videoClips` 上来），所以 OpenAI / Claude / Grok 的 v3 回合不再被 `ASSISTANT_VIDEO_UNSUPPORTED` 挡在门口；退回旧内核时用原请求，旧行为不变。音频附件不动。
 - **`@` 对照表与看图上限**（统一引用模型，`assistant-shell-v2.md` §4.4）：客户端把每枚 `@` 按 id 解析好、正文写成 `「名字」`，请求带 `mentions`。服务端在每张脸的板子末尾接一段 `MENTIONED`（`lib/assistant-v3-mentions.ts`）：「名字」→ 句柄（画布按 `nodeId`、角色页按角色 id、LoRA 台按 LoRA id），附上的图写第几张，其余写清种类与「不在板上」；板子先截、表后接，⛔ 大画布不能把表挤掉。画布被 `@` 的卡按 `nodeId` 认（画布图片也算），⛔ 不再拿名字比；没带 id 的老附图只在名字唯一时认卡。`look` 先按 `nodeId` 找图、再按参考位地址，名字只兜没带 id 的那几条。看图上限 `maxLookCards` = `ASSISTANT_MENTION_LIMITS.lookImages`（6，面板「只细看前 6 张」同一个数），指了更多张时板子上多一行 `LOOK CAP`。
 
 ## 3. 回放题

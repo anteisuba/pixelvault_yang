@@ -32,12 +32,29 @@ describe('ASSISTANT_MEDIA_CAPABILITIES 三值化', () => {
     )
   })
 
-  it('没有视频档的默认路由 = false', () => {
+  it('看不了图的路由 = false', () => {
     for (const adapterType of [
-      AI_ADAPTER_TYPES.ANTHROPIC,
       AI_ADAPTER_TYPES.VOLCENGINE,
+      AI_ADAPTER_TYPES.BYTEPLUS,
     ]) {
       expect(assistantAdapterVideoTier(adapterType)).toBe(false)
+    }
+  })
+
+  it('Claude 与 Grok 能看图 → 至少 frames（从前写着 false，与不变式自相矛盾）', () => {
+    for (const adapterType of [
+      AI_ADAPTER_TYPES.ANTHROPIC,
+      AI_ADAPTER_TYPES.XAI,
+    ]) {
+      expect(assistantAdapterVideoTier(adapterType)).toBe(
+        ASSISTANT_VIDEO_TIERS.frames,
+      )
+      expect(
+        assistantAdapterSatisfiesVideoTier(
+          adapterType,
+          ASSISTANT_VIDEO_TIERS.native,
+        ),
+      ).toBe(false)
     }
   })
 
@@ -75,13 +92,14 @@ describe('ASSISTANT_MEDIA_CAPABILITIES 三值化', () => {
     ).toBe(false)
   })
 
-  it('⚠ 不变式：能吃视频的前提是能吃图（frames 档就是把视频降级成图）', () => {
+  it('⚠ 不变式：能吃图 ⇔ 至少 frames（frames 档就是把视频降级成图）', () => {
     for (const [adapterType, capability] of Object.entries(
       ASSISTANT_MEDIA_CAPABILITIES,
     )) {
-      if (capability.video !== false) {
-        expect(capability.image, `${adapterType} 有视频档却不能吃图`).toBe(true)
-      }
+      expect(
+        capability.video !== false,
+        `${adapterType}：image=${String(capability.image)} 与 video=${String(capability.video)} 对不上`,
+      ).toBe(capability.image)
     }
   })
 })

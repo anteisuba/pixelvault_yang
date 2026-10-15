@@ -175,11 +175,20 @@ export const ASSISTANT_MEDIA_CAPABILITIES: Record<
     image: true,
     video: ASSISTANT_VIDEO_TIERS.frames,
   },
-  [AI_ADAPTER_TYPES.ANTHROPIC]: { image: true, video: false },
+  /**
+   * ⚠ Claude 与 Grok 从前写着 `video: false`，与上面那条「能吃图就至少是 frames」自相
+   *   矛盾（2026-10-15 看图期第二段改正）。frames 档不要 provider 有任何视频能力：浏览器抽好的
+   *   帧当图片送进去，走的就是这两家已经在用的看图那条路。⛔ 别因为「它们不收视频文件」改回
+   *   `false` —— 那是 `native` 的事，这里写的是 `frames`。
+   */
+  [AI_ADAPTER_TYPES.ANTHROPIC]: {
+    image: true,
+    video: ASSISTANT_VIDEO_TIERS.frames,
+  },
   // grok-4.7 takes `text, image → text` (20MiB, jpg/png), and
   // `xaiTextCompletion` sends images as OpenAI multimodal content parts — so
   // this `true` is backed by a real code path, not just a spec sheet.
-  [AI_ADAPTER_TYPES.XAI]: { image: true, video: false },
+  [AI_ADAPTER_TYPES.XAI]: { image: true, video: ASSISTANT_VIDEO_TIERS.frames },
   [AI_ADAPTER_TYPES.VOLCENGINE]: { image: false, video: false },
   [AI_ADAPTER_TYPES.BYTEPLUS]: { image: false, video: false },
   [AI_ADAPTER_TYPES.MINIMAX]: { image: false, video: false },

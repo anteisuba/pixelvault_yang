@@ -272,7 +272,9 @@ beforeEach(async () => {
   lookupAssistantMentionAssetsAPI.mockResolvedValue({ success: true, data: [] })
   store = await import('@/hooks/use-studio-operator-store')
   Panel = (await import('./StudioOperatorPanel')).StudioOperatorPanel
-})
+  // ⚠ resetModules 之后第一次 import 面板是冷加载整棵依赖树，全量闸门高负载时
+  // 会超过默认 10 秒 hookTimeout（2026-10-15 推送被它拦过两次），这里放宽到 60 秒。
+}, 60_000)
 
 /** 在 contenteditable 里写一段字、光标停在末尾（jsdom 不会替我们动 selection）。 */
 function typeInto(editor: HTMLElement, text: string) {

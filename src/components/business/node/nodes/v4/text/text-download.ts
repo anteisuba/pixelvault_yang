@@ -1,7 +1,7 @@
 /**
  * 文本卡的**下载**（spec §2：以 `名字.md` 下载正文）。
  *
- * ⚠ 与四类卡的媒体下载（`triggerNodeV4Download`，`<a href={R2 地址}>`）不是一回事：
+ * ⚠ 与四类卡的媒体下载（`triggerNodeV4Download`，走 `/api/download`）不是一回事：
  * 正文没有 URL，它只在浏览器内存里，所以这条走 Blob + objectURL，并**当场释放**。
  */
 

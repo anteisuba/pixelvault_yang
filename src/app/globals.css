@@ -1539,12 +1539,9 @@ html:lang(ja) {
     padding-bottom: max(var(--keyboard-safe-area-bottom, 0px), 0.75rem);
   }
 
-  .studio-layout-v2:has(.studio-tags-mobile-composer) .studio-mobile-stage {
-    margin-bottom: calc(
-      var(--studio-mobile-composer-height) + var(--keyboard-inset, 0px) -
-        var(--workbench-pad)
-    );
-  }
+  /* 键盘升起 / 展开写标签时图不缩：键盘只把输入条抬起来盖在舞台上（手机稿 v10
+     「覆盖」，owner 2026-10-09），⛔ 把键盘高度算进舞台下边距。输入条高度由
+     `useStudioMobileComposerHeight` 按收起时量。 */
 
   .studio-layout-v2:has(.studio-tags-mobile-composer)
     .studio-mobile-stage-panel {

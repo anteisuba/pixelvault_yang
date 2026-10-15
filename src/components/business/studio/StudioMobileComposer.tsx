@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { memo, useRef, useState, type ReactNode } from 'react'
 import {
   ArrowUp,
   ChevronDown,
@@ -28,6 +28,7 @@ import {
 } from '@/contexts/studio-context'
 import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
 import { useStudioVideoAssets } from '@/hooks/use-studio-video-assets'
+import { useStudioMobileComposerHeight } from '@/hooks/use-studio-mobile-composer-height'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { cn } from '@/lib/utils'
 import { PromptInput, PromptInputTextarea } from '@/components/ui/prompt-input'
@@ -130,23 +131,7 @@ export const StudioMobileComposer = memo(function StudioMobileComposer({
   const [modelSheetOpen, setModelSheetOpen] = useState(false)
 
   const composerRef = useRef<HTMLDivElement>(null)
-  useLayoutEffect(() => {
-    const composer = composerRef.current
-    const layout = composer?.closest<HTMLElement>('.studio-layout-v2')
-    if (!composer || !layout) return
-    const update = () =>
-      layout.style.setProperty(
-        '--studio-mobile-composer-height',
-        `${Math.ceil(composer.getBoundingClientRect().height)}px`,
-      )
-    update()
-    const observer = new ResizeObserver(update)
-    observer.observe(composer)
-    return () => {
-      observer.disconnect()
-      layout.style.removeProperty('--studio-mobile-composer-height')
-    }
-  }, [])
+  useStudioMobileComposerHeight(composerRef)
 
   const isVideo = state.outputType === 'video'
 

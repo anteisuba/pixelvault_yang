@@ -675,7 +675,11 @@ export function StudioWorkspaceUI() {
                               renderPanel={() => templatesPanel}
                               renderResults={(motionClass) => (
                                 <StudioCanvas
-                                  referenceRail={!isPromptAreaBottom}
+                                  // 手机输入条里自带参考图排 —— 舞台不再画一遍，
+                                  // 图按舞台剩下的高度撑满（owner 2026-10-15「看图片作为重点」）。
+                                  referenceRail={
+                                    !isPromptAreaBottom && !useMobileComposer
+                                  }
                                   className={motionClass}
                                   onEdit={beginEdit}
                                 />

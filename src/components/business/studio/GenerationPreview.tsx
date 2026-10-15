@@ -9,6 +9,7 @@ import {
   ImagePlus,
   Maximize2,
   PenTool,
+  MoreHorizontal,
   Pin,
   RotateCcw,
   Sparkles,
@@ -19,6 +20,7 @@ import { toast } from 'sonner'
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
 
 import { isGenerationRetryFutile } from '@/constants/generation-errors'
+import { STUDIO_PROMPT_SCROLL_ANCHOR_ID } from '@/constants/studio-mobile'
 import { useStudioGen, useStudioForm } from '@/contexts/studio-context'
 import { useAskAssistantAboutImage } from '@/hooks/use-ask-assistant-about-image'
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -778,7 +780,7 @@ export const GenerationPreview = memo(function GenerationPreview({
         : []),
       {
         key: 'more',
-        icon: Sparkles,
+        icon: MoreHorizontal,
         label: tMobile('actionMore'),
         onClick: () => setToolDrawerOpen(true),
       },
@@ -798,42 +800,102 @@ export const GenerationPreview = memo(function GenerationPreview({
       generation.duration ? `${Math.round(generation.duration)}s` : null,
     ].filter((part): part is string => Boolean(part))
 
+    /**
+     * 图撑满舞台（`fillStage`）时动作键竖排在图右边（手机稿 v10，owner 2026-10-09 / 10-15
+     * 「看图片作为重点」）：下载 · 编辑 · 当参考 · 原图 · 更多，图不再被下面一排键挤矮。
+     * 「当参考」与 PC 同一个飞入（图飞进输入框）。
+     */
+    const sideActions = [
+      peekActions[0],
+      ...peekActions.filter((action) => action.key === 'edit'),
+      ...(canUseAsReference
+        ? [
+            {
+              key: 'reference',
+              icon: ImagePlus,
+              label: tMobile('actionReference'),
+              onClick: () => {
+                const image = stageImageRef.current
+                const prompt = document.getElementById(
+                  STUDIO_PROMPT_SCROLL_ANCHOR_ID,
+                )
+                if (image && prompt)
+                  flyImageToComposer(image, prompt, generation.url)
+                onUseAsReference?.(generation.url)
+              },
+            },
+          ]
+        : []),
+      ...peekActions.filter(
+        (action) => action.key === 'original' || action.key === 'more',
+      ),
+    ]
+
     return (
       <>
-        <div className="space-y-2">
-          {searchRail}
-          {previewContent}
-
-          {/* Peek action row — always visible */}
-          {!isGenerating && (
-            <>
+        {fillStage ? (
+          <div className="flex min-h-0 flex-1 gap-2">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+              {searchRail}
+              {previewContent}
+            </div>
+            {!isGenerating ? (
               <div
-                data-testid="studio-mobile-action-row"
-                className="flex items-stretch gap-1"
+                data-testid="studio-mobile-action-column"
+                className="flex shrink-0 flex-col justify-end gap-2"
               >
-                {peekActions.map(({ key, icon: Icon, label, onClick }) => (
+                {sideActions.map(({ key, icon: Icon, label, onClick }) => (
                   <button
                     key={key}
                     type="button"
                     onClick={onClick}
-                    className="flex min-h-11 flex-1 basis-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-border/40 bg-background/80 px-1 py-1.5 text-2xs whitespace-nowrap transition-colors active:scale-95"
+                    className="flex w-12 flex-col items-center gap-0.5 text-2xs whitespace-nowrap text-muted-foreground"
                   >
-                    <Icon className="size-4 shrink-0" />
+                    <span className="grid size-11 place-items-center rounded-full border border-border/60 bg-card text-foreground transition-transform duration-spring-press ease-spring-press active:scale-96 motion-reduce:transition-none">
+                      <Icon className="size-4.5" aria-hidden />
+                    </span>
                     {label}
                   </button>
                 ))}
               </div>
-              {metaParts.length > 0 ? (
-                <p
-                  data-testid="studio-mobile-result-meta"
-                  className="truncate font-mono text-2xs tabular-nums text-muted-foreground"
+            ) : null}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {searchRail}
+            {previewContent}
+
+            {/* Peek action row — always visible */}
+            {!isGenerating && (
+              <>
+                <div
+                  data-testid="studio-mobile-action-row"
+                  className="flex items-stretch gap-1"
                 >
-                  {metaParts.join(' · ')}
-                </p>
-              ) : null}
-            </>
-          )}
-        </div>
+                  {peekActions.map(({ key, icon: Icon, label, onClick }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={onClick}
+                      className="flex min-h-11 flex-1 basis-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-border/40 bg-background/80 px-1 py-1.5 text-2xs whitespace-nowrap transition-colors active:scale-95"
+                    >
+                      <Icon className="size-4 shrink-0" />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {metaParts.length > 0 ? (
+                  <p
+                    data-testid="studio-mobile-result-meta"
+                    className="truncate font-mono text-2xs tabular-nums text-muted-foreground"
+                  >
+                    {metaParts.join(' · ')}
+                  </p>
+                ) : null}
+              </>
+            )}
+          </div>
+        )}
 
         {/* Tool drawer — swipe up for full tools */}
         <Drawer open={toolDrawerOpen} onOpenChange={setToolDrawerOpen}>

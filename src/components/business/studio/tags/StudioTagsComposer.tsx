@@ -111,11 +111,20 @@ export function StudioTagsComposer({
   onOpenPanel,
   activePanel = null,
   mobile = false,
+  compact = false,
+  onExpand,
 }: {
   onOpenPanel: (panel: TagWorkbenchPanel | null) => void
   /** 舞台上此刻开着哪块面板（模板那颗 chip 要画「开着」、再点一下收起）。 */
   activePanel?: TagWorkbenchPanel | null
   mobile?: boolean
+  /**
+   * 手机收起态：编辑区缩成一行摘要（这一页的标签），只剩摘要 + 工具行，
+   * 舞台上的图 / 查资料把屏幕让出来（owner 2026-10-15「看图片作为重点」）。
+   */
+  compact?: boolean
+  /** 点摘要 —— 宿主展开输入框并把焦点交给标签输入。 */
+  onExpand?: () => void
 }) {
   const [negativeOpen, setNegativeOpen] = useState(false)
   const negativeId = useId()
@@ -264,7 +273,39 @@ export function StudioTagsComposer({
           !mobile && '@container/tagrow gap-2.5',
         )}
       >
-        {mobile ? (
+        {mobile && compact ? (
+          <button
+            type="button"
+            onClick={onExpand}
+            aria-label={t('compactExpand')}
+            className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-xl bg-muted/60 px-3 text-left text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {characters.mode ? (
+              <span className="shrink-0 text-sm font-medium">
+                {activeIndex === null
+                  ? t('wholeTab')
+                  : t('workbench.characterNumber', { number: activeIndex + 1 })}
+              </span>
+            ) : null}
+            <span
+              className={cn(
+                'min-w-0 flex-1 truncate',
+                positive.length === 0 && 'text-muted-foreground/60',
+              )}
+            >
+              {positive.length > 0
+                ? positive.map((chip) => chip.text).join(', ')
+                : t('placeholder')}
+            </span>
+            {imageUpload.referenceEntries.length > 0 ? (
+              <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                {t('compactReferences', {
+                  count: imageUpload.referenceEntries.length,
+                })}
+              </span>
+            ) : null}
+          </button>
+        ) : mobile ? (
           <div className="flex min-h-0 flex-col gap-2 overflow-y-auto overscroll-contain">
             <ImageAttachmentPreviewStrip
               {...referenceStripProps}

@@ -105,14 +105,7 @@ WHERE lora.model_id = json_extract(j.value, '$.modelId')`
 
 const DELETE_SQL = `DELETE FROM lora WHERE model_id IN (SELECT value FROM json_each(?1))`
 
-// 中日韩短词索引跟着完整数据一起重写：先删掉这批的旧词，再写有词的那些。
-const CJK_DELETE_SQL = `DELETE FROM lora_cjk WHERE rowid IN (SELECT value FROM json_each(?1))`
-const CJK_INSERT_SQL = `
-INSERT INTO lora_cjk (rowid, grams)
-SELECT json_extract(value, '$.modelId'), json_extract(value, '$.grams')
-FROM json_each(?1)`
-
-// 精确词表同理：先删掉这批模型的旧词，再写新的。
+// 精确词表跟着完整数据一起重写：先删掉这批模型的旧词，再写新的。
 const TERM_DELETE_SQL = `DELETE FROM lora_term WHERE model_id IN (SELECT value FROM json_each(?1))`
 const TERM_INSERT_SQL = `
 INSERT OR IGNORE INTO lora_term (term, model_id)
@@ -133,7 +126,6 @@ function chunk<T>(items: readonly T[], size: number): T[][] {
 function toWritableRow(row: IndexRow) {
   return {
     ...row,
-    cjkGrams: undefined,
     terms: undefined,
     nsfw: row.nsfw ? 1 : 0,
     tags: JSON.stringify(row.tags),
@@ -237,29 +229,17 @@ async function syncOnePage(
   }
   toDelete.push(...unusable)
 
-  const gramRows = fullRows
-    .filter((row) => row.cjkGrams)
-    .map((row) => ({ modelId: row.modelId, grams: row.cjkGrams }))
   const termRows = fullRows.flatMap((row) =>
     row.terms.map((term) => ({ term, modelId: row.modelId })),
-  )
-  const refreshedIdChunks = chunk(
-    fullRows.map((row) => row.modelId),
-    WRITE_CHUNK_SIZE,
   )
   const statements: D1PreparedStatement[] = [
     ...chunk(fullRows.map(toWritableRow), WRITE_CHUNK_SIZE).map((rows) =>
       db.prepare(UPSERT_SQL).bind(JSON.stringify(rows)),
     ),
-    ...refreshedIdChunks.map((ids) =>
-      db.prepare(CJK_DELETE_SQL).bind(JSON.stringify(ids)),
-    ),
-    ...chunk(gramRows, WRITE_CHUNK_SIZE).map((rows) =>
-      db.prepare(CJK_INSERT_SQL).bind(JSON.stringify(rows)),
-    ),
-    ...refreshedIdChunks.map((ids) =>
-      db.prepare(TERM_DELETE_SQL).bind(JSON.stringify(ids)),
-    ),
+    ...chunk(
+      fullRows.map((row) => row.modelId),
+      WRITE_CHUNK_SIZE,
+    ).map((ids) => db.prepare(TERM_DELETE_SQL).bind(JSON.stringify(ids))),
     ...chunk(termRows, TERM_CHUNK_SIZE).map((rows) =>
       db.prepare(TERM_INSERT_SQL).bind(JSON.stringify(rows)),
     ),

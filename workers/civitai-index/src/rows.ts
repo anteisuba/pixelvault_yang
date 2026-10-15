@@ -178,8 +178,6 @@ export interface IndexRow extends LightRow {
   createdAt: number
   lastVersionAt: number
   refreshedAt: number
-  /** 名字里中日韩字的单字与相邻两字，空格分隔；没有中日韩字是空串。 */
-  cjkGrams: string
   /** 写进 lora_term 的精确词（见 `indexTerms`）。 */
   terms: string[]
 }
@@ -375,7 +373,6 @@ export function mapFullHit(hit: unknown, refreshedAt: number): IndexRow | null {
     createdAt,
     lastVersionAt,
     refreshedAt,
-    cjkGrams: cjkGrams(data.name),
     terms: indexTerms(data.name, tags, extraBaseModels),
   }
 }

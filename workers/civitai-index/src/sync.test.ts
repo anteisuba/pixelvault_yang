@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { searchIndex, SearchInputSchema, type SearchInput } from './search'
+import {
+  searchIndex,
+  SearchInputSchema,
+  TOTAL_CAP,
+  type SearchInput,
+} from './search'
 import { recordSyncCompleted, syncPages } from './sync'
 import { createTestDb } from './test/d1'
 import { LIGHT_PAGE_SIZE, type Upstream } from './upstream'
@@ -314,7 +319,7 @@ describe('searchIndex', () => {
     expect(
       (await search(db, { q: '银发少' })).rows.map((row) => row.modelId),
     ).toEqual([1])
-    // 两个字的中文词不够 trigram，退回 LIKE。
+    // 两个字的中文词不够 trigram，查整词表。
     expect(
       (await search(db, { q: '银发' })).rows.map((row) => row.modelId),
     ).toEqual([1])
@@ -361,6 +366,71 @@ describe('searchIndex', () => {
       contentType: { tags: ['character'], nameKeywords: ['oc'] },
     })
     expect(character.rows.map((row) => row.modelId).sort()).toEqual([1, 5])
+  })
+
+  it('matches long content-type keywords at the start of a name word', async () => {
+    await syncAll(
+      db,
+      new FakeUpstream([
+        ...SEARCH_FIXTURE,
+        { id: 8, name: 'Characters pack', downloadCount: 1 },
+        { id: 9, name: 'Mycharacter study', downloadCount: 1 },
+      ]),
+    )
+    const result = await search(db, {
+      contentType: { tags: [], nameKeywords: ['character'] },
+    })
+    expect(result.rows.map((row) => row.modelId)).toEqual([8])
+  })
+
+  it('matches short Latin terms as whole words', async () => {
+    expect(
+      (await search(db, { q: 'oc' })).rows.map((row) => row.modelId),
+    ).toEqual([5])
+  })
+
+  it("finds a model by another version's base model and shows that version", async () => {
+    await syncAll(
+      db,
+      new FakeUpstream([
+        ...SEARCH_FIXTURE,
+        {
+          id: 8,
+          name: 'Multi base style',
+          baseModel: 'Krea 2',
+          trainedWords: ['krea_tag'],
+          otherVersions: [
+            { baseModel: 'Anima', trainedWords: ['@anima_tag'] },
+            { baseModel: 'Illustrious', trainedWords: ['il_tag'] },
+          ],
+        },
+      ]),
+    )
+    const anima = await search(db, { baseModels: ['Anima'] })
+    expect(anima.rows).toHaveLength(1)
+    expect(anima.rows[0]).toMatchObject({
+      modelId: 8,
+      versionId: 81,
+      baseModel: 'Anima',
+      trainedWords: ['@anima_tag'],
+      hashAutoV3: 'AV3-8-1',
+    })
+
+    // 不筛底模时还是默认版；别的版本的触发词也搜得到。
+    const byTrigger = await search(db, { q: 'anima_tag' })
+    expect(byTrigger.rows[0]).toMatchObject({
+      modelId: 8,
+      versionId: 80,
+      baseModel: 'Krea 2',
+      trainedWords: ['krea_tag'],
+    })
+
+    // 「其他」= 任一版本不属于具名家族。
+    const other = await search(db, {
+      excludeBaseModels: ['Illustrious', 'Pony', 'Anima'],
+    })
+    expect(other.rows.map((row) => row.modelId)).toEqual([8])
+    expect(other.rows[0]?.baseModel).toBe('Krea 2')
   })
 
   it('filters by base model and pages through results with an exact total', async () => {
@@ -418,6 +488,55 @@ describe('searchIndex', () => {
         .map((model) => model.id),
     )
   })
+
+  it('ranks relevance inside the most-downloaded pool, then continues by downloads', async () => {
+    const catalog: FakeModel[] = Array.from({ length: 2_400 }, (_, index) => ({
+      id: 100 + index,
+      name: index % 3 === 0 ? `bulk ${index}` : `pack bulk ${index}`,
+      downloadCount: 10_000 - index,
+    }))
+    await syncAll(db, new FakeUpstream(catalog))
+
+    const byDownloads = [...catalog].sort(
+      (a, b) => (b.downloadCount ?? 0) - (a.downloadCount ?? 0) || a.id - b.id,
+    )
+    const pool = byDownloads.slice(0, 1000)
+    const expected = [
+      // 名字以 bulk 开头（第 1 档）在前，含 bulk（第 2 档）在后。
+      ...pool.filter((model) => model.name.startsWith('bulk')),
+      ...pool.filter((model) => !model.name.startsWith('bulk')),
+      ...byDownloads.slice(1000),
+    ].map((model) => model.id)
+
+    const first = await search(db, {
+      q: 'bulk',
+      sort: 'relevance',
+      pageSize: 24,
+    })
+    expect(first.total).toBe(2_400)
+    expect(first.rows.map((row) => row.modelId)).toEqual(expected.slice(0, 24))
+    // 跨过候选池边界的那一页（offset 984–1008）。
+    const straddle = await search(db, {
+      q: 'bulk',
+      sort: 'relevance',
+      page: 42,
+      pageSize: 24,
+    })
+    expect(straddle.rows.map((row) => row.modelId)).toEqual(
+      expected.slice(984, 1008),
+    )
+  })
+
+  it('stops counting at the cap', async () => {
+    const catalog = Array.from({ length: TOTAL_CAP + 5 }, (_, index) => ({
+      id: index + 1,
+      name: `capped ${index}`,
+    }))
+    await syncAll(db, new FakeUpstream(catalog))
+    const result = await search(db, { q: 'capped', pageSize: 1 })
+    expect(result).toMatchObject({ total: TOTAL_CAP, totalCapped: true })
+    expect((await search(db, { q: 'capped 1234' })).totalCapped).toBe(false)
+  }, 60_000)
 
   it('reuses a browse total until the next completed sync, but never a search total', async () => {
     await recordSyncCompleted(db, 10)

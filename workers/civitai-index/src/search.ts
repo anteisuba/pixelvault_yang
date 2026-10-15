@@ -59,15 +59,16 @@ export interface SearchRow {
 
 export interface SearchResult {
   rows: SearchRow[]
+  /** 数到 TOTAL_CAP 为止 */
   total: number
+  /** 真实命中比 total 多（界面写「1 万+」） */
+  totalCapped: boolean
   /** 索引最近一次完整同步的时刻（unix ms），从没同步完是 null */
   syncedAt: number | null
 }
 
-/** trigram 分词至少要 3 个字；更短的中日韩词查 lora_cjk，其余退回 LIKE。 */
+/** trigram 分词至少要 3 个字；更短的词查 lora_term 的整词（见 rows.ts 的 indexTerms）。 */
 const TRIGRAM_MIN_CHARS = 3
-const CJK_ONLY =
-  /^[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uac00-\ud7af]+$/
 
 /**
  * 命中数不少于它时，让规划器沿排序索引走、边走边过滤、够一页就停（过滤列前面
@@ -76,6 +77,16 @@ const CJK_ONLY =
  */
 const WALK_ORDER_INDEX_MIN_TOTAL = 2000
 const MAX_QUERY_TERMS = 8
+/**
+ * 总数数到这里为止，界面写「1 万+」。常见词（girl 命中 17 万行）照实数要把整个
+ * 命中集读一遍，冷的时候 5–11 秒；数到上限就停只读一万多行（30 ms 上下）。
+ */
+export const TOTAL_CAP = 10_000
+/**
+ * 相关度排序且命中多（≥ 切换线）时，只在下载量最高的这么多条里按相关度排，其后
+ * 照下载量接着排——整体排序要把十几万行全读一遍。
+ */
+const RELEVANCE_POOL_SIZE = 1000
 
 function charLength(text: string): number {
   return [...text].length
@@ -86,14 +97,6 @@ function ftsString(text: string): string {
   return `"${text.replaceAll('"', '""')}"`
 }
 
-/**
- * 标签列存的是 JSON 文本（`["anime","style"]`），把引号也算进短语里，
- * `"style"` 就只命中整个标签 style，不会命中 lifestyle。
- */
-function ftsExactTag(tag: string): string {
-  return ftsString(`"${tag}"`)
-}
-
 function escapeLike(text: string): string {
   return text.replace(/[\\%_]/g, (char) => `\\${char}`)
 }
@@ -101,22 +104,39 @@ function escapeLike(text: string): string {
 interface BuiltQuery {
   where: string
   orderBy: string
-  /** 先是 WHERE 的参数（共 whereParamCount 个），再是 ORDER BY 的 */
+  /** 相关度那一档的分档表达式（只有相关度排序才有） */
+  tierExpr: string | null
+  /** 先是 WHERE 的参数（共 whereParamCount 个），再是排序的 */
   params: unknown[]
   whereParamCount: number
+  /** WHERE 里直接写了 `lora_fts MATCH`，FROM 要接上 lora_fts（见 driveFromFts） */
+  joinsFts: boolean
 }
 
 export function buildSearchQuery(
   input: SearchInput,
-  { walkOrderIndex = false }: { walkOrderIndex?: boolean } = {},
+  {
+    walkOrderIndex = false,
+    driveFromFts = false,
+  }: {
+    walkOrderIndex?: boolean
+    /** 计数用：从全文索引的命中流往外接 lora，数够上限就停（不先把命中集整个取出来）。 */
+    driveFromFts?: boolean
+  } = {},
 ): BuiltQuery {
   const params: unknown[] = []
   const param = (value: unknown) => {
     params.push(value)
     return `?${params.length}`
   }
-  const col = (name: string) => (walkOrderIndex ? `+${name}` : name)
+  const col = (name: string) =>
+    walkOrderIndex ? `+lora.${name}` : `lora.${name}`
+  const inTerms = (terms: readonly string[]) =>
+    `${col('model_id')} IN (SELECT model_id FROM lora_term WHERE term IN (${terms
+      .map(param)
+      .join(', ')}))`
   const where: string[] = []
+  let joinsFts = false
 
   if (input.nsfw.someImageAtMost !== undefined) {
     where.push(
@@ -127,16 +147,22 @@ export function buildSearchQuery(
     where.push(`${col('nsfw_level_max')} > ${param(input.nsfw.someImageAbove)}`)
   }
 
+  // 底模看任一版本：默认版在 base_model 列，其余版本是 lora_term 里的 `b:`。
   if (input.baseModels.length > 0) {
     where.push(
-      `${col('base_model')} IN (${input.baseModels.map(param).join(', ')})`,
+      `(${col('base_model')} IN (${input.baseModels.map(param).join(', ')}) OR ${inTerms(
+        input.baseModels.map((baseModel) => `b:${baseModel}`),
+      )})`,
     )
   }
   if (input.excludeBaseModels.length > 0) {
     where.push(
-      `(base_model IS NULL OR ${col('base_model')} NOT IN (${input.excludeBaseModels
+      `(lora.base_model IS NULL OR ${col('base_model')} NOT IN (${input.excludeBaseModels
         .map(param)
-        .join(', ')}))`,
+        .join(', ')}) OR ${col('model_id')} IN (SELECT model_id FROM lora_term
+        WHERE term > 'b:' AND term < 'b;' AND term NOT IN (${input.excludeBaseModels
+          .map((baseModel) => param(`b:${baseModel}`))
+          .join(', ')})))`,
     )
   }
 
@@ -148,53 +174,46 @@ export function buildSearchQuery(
   const longTerms = terms.filter(
     (term) => charLength(term) >= TRIGRAM_MIN_CHARS,
   )
-  const shortTerms = terms.filter(
-    (term) => charLength(term) < TRIGRAM_MIN_CHARS,
-  )
   if (longTerms.length > 0) {
-    where.push(
-      `${col('model_id')} IN (SELECT rowid FROM lora_fts WHERE lora_fts MATCH ${param(
-        longTerms.map(ftsString).join(' '),
-      )})`,
-    )
+    const match = param(longTerms.map(ftsString).join(' '))
+    if (driveFromFts) {
+      where.push(`lora_fts MATCH ${match}`)
+      joinsFts = true
+    } else {
+      where.push(
+        `${col('model_id')} IN (SELECT rowid FROM lora_fts WHERE lora_fts MATCH ${match})`,
+      )
+    }
   }
-  for (const term of shortTerms) {
-    where.push(
-      CJK_ONLY.test(term)
-        ? `${col('model_id')} IN (SELECT rowid FROM lora_cjk WHERE lora_cjk MATCH ${param(ftsString(term))})`
-        : `lower(name) LIKE ${param(`%${escapeLike(term)}%`)} ESCAPE '\\'`,
-    )
+  // 「鸣潮」「oc」这类不到 3 个字的词按整词（中日韩是单字 / 相邻两字）。
+  for (const term of terms) {
+    if (charLength(term) < TRIGRAM_MIN_CHARS) where.push(inTerms([`w:${term}`]))
   }
 
   if (input.contentType) {
-    const matchParts: string[] = []
-    if (input.contentType.tags.length > 0) {
-      matchParts.push(
-        `tags : (${input.contentType.tags.map(ftsExactTag).join(' OR ')})`,
-      )
-    }
     const keywords = input.contentType.nameKeywords.map((keyword) =>
       keyword.toLowerCase(),
     )
-    const longKeywords = keywords.filter(
-      (keyword) => charLength(keyword) >= TRIGRAM_MIN_CHARS,
-    )
-    if (longKeywords.length > 0) {
-      matchParts.push(`name : (${longKeywords.map(ftsString).join(' OR ')})`)
-    }
-    const anyOf: string[] = []
-    if (matchParts.length > 0) {
-      anyOf.push(
-        `${col('model_id')} IN (SELECT rowid FROM lora_fts WHERE lora_fts MATCH ${param(
-          matchParts.join(' OR '),
-        )})`,
+    // 标签精确匹配；「oc」这类短关键词按整词，免得命中 rococo；长关键词按
+    // 「名字里有词以它开头」（characters、charactersheet 都算）。⛔ 走 trigram
+    // 名字列：character 的三字组太常见，单这一项冷热都要 0.4 s 上下。
+    const exactTerms = [
+      ...input.contentType.tags.map((tag) => `t:${tag.toLowerCase()}`),
+      ...keywords
+        .filter((keyword) => charLength(keyword) < TRIGRAM_MIN_CHARS)
+        .map((keyword) => `w:${keyword}`),
+    ]
+    const prefixRanges = keywords
+      .filter((keyword) => charLength(keyword) >= TRIGRAM_MIN_CHARS)
+      .map(
+        (keyword) =>
+          `(term >= ${param(`w:${keyword}`)} AND term < ${param(`w:${keyword}\u{10ffff}`)})`,
       )
-    }
-    // 「oc」这类两个字的关键词按整词匹配，免得命中 rococo。
-    for (const keyword of keywords) {
-      if (charLength(keyword) >= TRIGRAM_MIN_CHARS) continue
+    const anyOf: string[] = []
+    if (exactTerms.length > 0) anyOf.push(inTerms(exactTerms))
+    if (prefixRanges.length > 0) {
       anyOf.push(
-        `(' ' || lower(name) || ' ') LIKE ${param(`% ${escapeLike(keyword)} %`)} ESCAPE '\\'`,
+        `${col('model_id')} IN (SELECT model_id FROM lora_term WHERE ${prefixRanges.join(' OR ')})`,
       )
     }
     if (anyOf.length > 0) where.push(`(${anyOf.join(' OR ')})`)
@@ -203,21 +222,23 @@ export function buildSearchQuery(
   const whereParamCount = params.length
   const sort = input.sort === 'relevance' && !query ? 'thumbs' : input.sort
   let orderBy: string
+  let tierExpr: string | null = null
   if (sort === 'relevance') {
     // 名字完全相同 → 名字以它开头 → 名字含整句 → 名字含每个词 → 只在标签 /
     // 作者 / 触发词里命中；同一档里按下载量。
     const exact = param(query)
     const prefix = param(`${escapeLike(query)}%`)
     const everyTerm = terms
-      .map((term) => `instr(lower(name), ${param(term)}) > 0`)
+      .map((term) => `instr(lower(lora.name), ${param(term)}) > 0`)
       .join(' AND ')
-    orderBy = `CASE
-      WHEN lower(name) = ${exact} THEN 0
-      WHEN lower(name) LIKE ${prefix} ESCAPE '\\' THEN 1
-      WHEN instr(lower(name), ${exact}) > 0 THEN 2
+    tierExpr = `CASE
+      WHEN lower(lora.name) = ${exact} THEN 0
+      WHEN lower(lora.name) LIKE ${prefix} ESCAPE '\\' THEN 1
+      WHEN instr(lower(lora.name), ${exact}) > 0 THEN 2
       WHEN ${everyTerm} THEN 3
       ELSE 4
-    END, download_count DESC, model_id`
+    END`
+    orderBy = `${tierExpr}, download_count DESC, model_id`
     // ⚠ 下面三档必须与迁移里的排序索引逐列一致（model_id 升序 = 索引自带的
     // rowid 顺序），否则规划器只能整体排序。
   } else if (sort === 'downloads') {
@@ -231,8 +252,10 @@ export function buildSearchQuery(
   return {
     where: where.length > 0 ? where.join(' AND ') : '1 = 1',
     orderBy,
+    tierExpr,
     params,
     whereParamCount,
+    joinsFts,
   }
 }
 
@@ -331,31 +354,31 @@ const ROW_COLUMNS = `model_id, version_id, version_name, name, creator,
 
 interface CountResult {
   total: number
+  totalCapped: boolean
   syncedAt: number | null
 }
 
 /**
- * 总数。没有搜索词的条件组合一天内不变，按「条件 + 最近一次同步完成时刻」缓存；
- * 有搜索词的照算（全文索引下本来就快，而且词千变万化，缓存不划算）。
+ * 总数（数到 TOTAL_CAP 为止）。没有搜索词的条件组合一天内不变，按「条件 + 最近
+ * 一次同步完成时刻」缓存；有搜索词的照算（词千变万化，缓存不划算）。
  */
 async function countMatches(
   db: D1Database,
   input: SearchInput,
-  counting: BuiltQuery,
 ): Promise<CountResult> {
+  const counting = buildSearchQuery(input, { driveFromFts: true })
   const whereParams = counting.params.slice(0, counting.whereParamCount)
   const cacheKey = input.q
     ? null
     : JSON.stringify([counting.where, whereParams])
-  // 「其他」底模是 NOT IN，规划器会回表读整张表（0.9 s）；只看底模与分级时
-  // 指定覆盖索引（0.12 s）。
-  const coveringOnly =
-    input.excludeBaseModels.length > 0 && !input.q && !input.contentType
+  const from = counting.joinsFts
+    ? 'lora_fts JOIN lora ON lora.model_id = lora_fts.rowid'
+    : 'lora'
   const countStatement = db
     .prepare(
-      `SELECT count(*) AS count FROM lora${
-        coveringOnly ? ' INDEXED BY lora_base_levels' : ''
-      } WHERE ${counting.where}`,
+      `SELECT count(*) AS count FROM (
+         SELECT 1 FROM ${from} WHERE ${counting.where} LIMIT ${TOTAL_CAP + 1}
+       )`,
     )
     .bind(...whereParams)
   const stateStatement = db.prepare(
@@ -366,11 +389,16 @@ async function countMatches(
       ?.last_completed_at ?? null
   const readCount = (result: D1Result | undefined) =>
     Number((result?.results[0] as { count?: number } | undefined)?.count ?? 0)
+  const capped = (count: number, syncedAt: number | null): CountResult => ({
+    total: Math.min(count, TOTAL_CAP),
+    totalCapped: count > TOTAL_CAP,
+    syncedAt,
+  })
 
   // 有搜索词：不缓存，同步时刻与总数一趟取回（每少一趟往返，离 D1 远时就省 0.15 s）。
   if (!cacheKey) {
     const [state, count] = await db.batch([stateStatement, countStatement])
-    return { total: readCount(count), syncedAt: readSyncedAt(state) }
+    return capped(readCount(count), readSyncedAt(state))
   }
 
   const [state, cached] = await db.batch([
@@ -384,18 +412,67 @@ async function countMatches(
     | { total: number; synced_at: number }
     | undefined
   if (hit && syncedAt !== null && hit.synced_at === syncedAt) {
-    return { total: hit.total, syncedAt }
+    return capped(hit.total, syncedAt)
   }
-  const total = readCount((await db.batch([countStatement]))[0])
+  const count = readCount((await db.batch([countStatement]))[0])
   if (syncedAt !== null) {
     await db
       .prepare(
         'INSERT OR REPLACE INTO count_cache (key, synced_at, total) VALUES (?1, ?2, ?3)',
       )
-      .bind(cacheKey, syncedAt, total)
+      .bind(cacheKey, syncedAt, count)
       .run()
   }
-  return { total, syncedAt }
+  return capped(count, syncedAt)
+}
+
+/**
+ * 相关度排序、命中又多：下载量最高的 RELEVANCE_POOL_SIZE 条里按相关度分档排，
+ * 其后照下载量接着排（两段不重叠）。跨两段的那一页两条查询一趟发出去。
+ */
+async function readRelevancePage(
+  db: D1Database,
+  input: SearchInput,
+  offset: number,
+): Promise<RawRow[]> {
+  const { where, tierExpr, params, whereParamCount } = buildSearchQuery(input, {
+    walkOrderIndex: true,
+  })
+  const end = offset + input.pageSize
+  const statements: D1PreparedStatement[] = []
+  if (offset < RELEVANCE_POOL_SIZE) {
+    const next = params.length + 1
+    statements.push(
+      db
+        .prepare(
+          `WITH pool AS (
+             SELECT lora.model_id AS pid, lora.download_count AS dc, ${tierExpr} AS tier
+             FROM lora WHERE ${where}
+             ORDER BY download_count DESC, model_id LIMIT ${RELEVANCE_POOL_SIZE}
+           ), page AS (
+             SELECT pid, dc, tier FROM pool ORDER BY tier, dc DESC, pid
+             LIMIT ?${next} OFFSET ?${next + 1}
+           )
+           SELECT ${ROW_COLUMNS} FROM page JOIN lora ON lora.model_id = page.pid
+           ORDER BY page.tier, page.dc DESC, page.pid`,
+        )
+        .bind(...params, Math.min(end, RELEVANCE_POOL_SIZE) - offset, offset),
+    )
+  }
+  if (end > RELEVANCE_POOL_SIZE) {
+    const start = Math.max(offset, RELEVANCE_POOL_SIZE)
+    const next = whereParamCount + 1
+    statements.push(
+      db
+        .prepare(
+          `SELECT ${ROW_COLUMNS} FROM lora WHERE ${where}
+           ORDER BY download_count DESC, model_id LIMIT ?${next} OFFSET ?${next + 1}`,
+        )
+        .bind(...params.slice(0, whereParamCount), end - start, start),
+    )
+  }
+  const results = await db.batch<RawRow>(statements)
+  return results.flatMap((result) => result.results)
 }
 
 export async function searchIndex(
@@ -403,30 +480,32 @@ export async function searchIndex(
   input: SearchInput,
 ): Promise<SearchResult> {
   // 先数，按总数决定取这一页时走哪条路。
-  const { total, syncedAt } = await countMatches(
-    db,
-    input,
-    buildSearchQuery(input),
-  )
+  const { total, totalCapped, syncedAt } = await countMatches(db, input)
   const offset = (input.page - 1) * input.pageSize
-  if (offset >= total) return { rows: [], total, syncedAt }
+  if (offset >= total) return { rows: [], total, totalCapped, syncedAt }
 
-  const { where, orderBy, params } = buildSearchQuery(input, {
-    walkOrderIndex:
-      total >= WALK_ORDER_INDEX_MIN_TOTAL &&
-      !(input.sort === 'relevance' && input.q),
-  })
-  const pageParam = params.length + 1
-  const { results } = await db
-    .prepare(
-      `SELECT ${ROW_COLUMNS} FROM lora WHERE ${where}
-       ORDER BY ${orderBy} LIMIT ?${pageParam} OFFSET ?${pageParam + 1}`,
-    )
-    .bind(...params, input.pageSize, offset)
-    .all<RawRow>()
+  const large = total >= WALK_ORDER_INDEX_MIN_TOTAL
+  let rows: RawRow[]
+  if (large && input.sort === 'relevance' && input.q) {
+    rows = await readRelevancePage(db, input, offset)
+  } else {
+    const { where, orderBy, params } = buildSearchQuery(input, {
+      walkOrderIndex: large,
+    })
+    const pageParam = params.length + 1
+    const { results } = await db
+      .prepare(
+        `SELECT ${ROW_COLUMNS} FROM lora WHERE ${where}
+         ORDER BY ${orderBy} LIMIT ?${pageParam} OFFSET ?${pageParam + 1}`,
+      )
+      .bind(...params, input.pageSize, offset)
+      .all<RawRow>()
+    rows = results
+  }
   return {
-    rows: results.map((row) => toSearchRow(row, input)),
+    rows: rows.map((row) => toSearchRow(row, input)),
     total,
+    totalCapped,
     syncedAt,
   }
 }

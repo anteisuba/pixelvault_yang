@@ -9,7 +9,7 @@
 - 生成的 client 在 `src/lib/generated/prisma/`——**永远不要手改**。
 - ownership（userId 归属）与 credit 计算只在服务端。
 
-## 域模型地图（40 模型 + 14 枚举，2026-07-23 对照 schema 清点；2026-09-18 +`GenerationLayer`；2026-09-20 +`AssistantMemory` 与它的两个枚举）
+## 域模型地图（45 模型 + 19 枚举，2026-10-15 对照 schema 重新清点（含 2026-10-15 +`AssistantTurnRecord`）；下表只列主干，没列到的直接读 schema）
 
 | 域          | 模型                                                                                                                                                                                                                            | 备注                                                                                                                                                                                                                                                                                                                                                                 |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -22,7 +22,7 @@
 | 社交        | `UserLike` · `UserFollow`                                                                                                                                                                                                       |                                                                                                                                                                                                                                                                                                                                                                      |
 | 模型配置    | `ModelConfig`                                                                                                                                                                                                                   | DB-first 覆盖目录条目；竞技场三表 2026-09-17 随 Arena 整删                                                                                                                                                                                                                                                                                                           |
 | 视频        | `VideoPipeline` / `VideoPipelineClip` · `VideoScript` / `VideoScriptScene`                                                                                                                                                      | 两代视频系统并存（收敛中；旧 archive 路线图已删 2026-08-07，见 git 历史）；故事板两表 2026-09-29 随故事板整删                                                                                                                                                                                                                                                        |
-| 助手        | `AssistantMemory`（助手记住的一行字，56a）                                                                                                                                                                                      | 见下「助手记忆」一节；与 `ContextCard` 是两件事，⛔ 无桥                                                                                                                                                                                                                                                                                                             |
+| 助手        | `AssistantMemory`（助手记住的一行字，56a）· `AssistantTurnRecord`（每轮的过程记录，供回放）                                                                                                                                     | 见下「助手记忆」「助手每轮的过程记录」两节；`AssistantMemory` 与 `ContextCard` 是两件事，⛔ 无桥；`AssistantTurnRecord` ⛔ 不进会话分享与任何导出                                                                                                                                                                                                                    |
 | LoRA        | `LoraAsset` · `LoraTrainingJob`                                                                                                                                                                                                 | Civitai 来源字段 2026-06-08 迁移加入                                                                                                                                                                                                                                                                                                                                 |
 
 核心执行枚举包括 OutputType · GenerationStatus · GenerationSourceSurface · GenerationJobStatus · ExecutionOutboxStatus；其余枚举直接以 `schema.prisma` 为准。
@@ -71,10 +71,23 @@
 
 `characterCardId`（→ `CharacterCard`，`onDelete: SetNull`）由 `20260926120000_card_assistant` 加入；卡删了只清绑定，读的那一跳当没用角色。
 
+## 助手每轮的过程记录 `AssistantTurnRecord`（2026-10-15 · owner「建表」）
+
+owner 在卡上选的原话就是规格：「每轮存画布、过程和模型，每行不超过 256KB，留 30 天或每人最近 200 条，不进分享和导出；先过迁移检查再上线」。读写全在 `src/services/assistant-turn-record.service.ts`；数与词表在 `src/constants/assistant-turn-record.ts`，JSON 形状在 `src/types/assistant-turn-record.ts`。
+
+- **一轮一行**：`(userId, turnId)` 唯一。号与第几跳随 v3 本轮记录的板子那一条（`turn: { id, hop }`）往返：开轮那一跳服务端发号、建行并存**开轮时的快照**；画布接力的后几跳按号找到同一行，只更新 `transcript` / `hops` / `outcome` / `errorCode`（`hops` 只增不减，同一跳再来一次照写），⛔ 不拿后几跳手上已落了改动的快照覆盖。第一跳没写成、由后面一跳建行时快照不存，`truncated` 带 `no_opening_snapshot`。
+- **写**：v3 每一跳收尾（`runAssistantV3` 的 `finally`）服务端记一笔，`after()` 托住、⛔ 不等、不抛，写不进只记一行警告。隐身那一轮、交回旧内核的、开跑前就失败的（缺 key 等）不记。
+- **列**：`workspaceKey` · `domain` · `projectId`（工作区键里解出来的）· `conversationId`（软引用，⛔ 无外键：首轮还没有会话号）· `adapterType` · `modelId` · `routeModel`（persona 里选的那一档，`auto` = 自动）· `apiKeyId`（**只存 id**）· `systemPromptHash`（系统提示的 sha256，正文 ⛔ 不落库）· `promptVersion`（`ASSISTANT_V3_PROMPT_VERSION`）· `input`（对话到创作者最后那一句、`@`、片子的地址与帧数等回放要用的请求字段）· `snapshot`（开轮快照）· `transcript`（v3 本轮记录）· `snapshotBytes` / `sizeBytes` · `truncated` · `outcome`（done / quiet / empty / content_filter / same_failure / awaiting_confirm / max_steps / aborted / error / relay）。
+- **摘掉的**：快照与请求里的 `data:` 地址一律换成 `data:,omitted`（剪贴板图、帧），视频帧只记帧数，⛔ 不存 key 本身、不存解密出来的任何东西。
+- **上限 256 KB**（`input` + `snapshot` + `transcript` 三段 JSON 的 UTF-8 字节，⚠ 不是 `pg_column_size`）：按签名 → 板子正文 → 工具结果 → 对话历史 → 模型正文 → 快照 → 只留板子与模型回复的顺序一样一样截，截到放得下为止，截了哪几样记在 `truncated`；截完还放不下这一跳不写、只记警告。
+- **保留**：建行之后顺手删这个人 30 天前的与第 200 条之后的（两刀都走 `(userId, createdAt DESC)`）；不再用助手的人由每日 sweep（`/api/internal/execution/sweep`，`pruneExpiredAssistantTurnRecords`，走 `createdAt` 索引）删 30 天前的，删不动只记警告、不拖垮 sweep。用户硬删 `onDelete: Cascade`；软删的用户 30 天内由 sweep 清掉。会话删了 ⛔ 不连带删记录（首轮没有会话号，删不全），30 天内自然过期。
+- **不进分享 / 导出**：没有任何读路由；整个 `src/`（生成的 client 除外）只有上面那个服务与 sweep 碰 `db.assistantTurnRecord`，会话分享（`AssistantConversationShare`、`assistant-conversation.service.ts`）与下载 / 导出路径都不读它。回放要用时由人导出一行，交给 `src/test/assistant-replay/from-turn-record.ts`（纯函数，⛔ 不连库）。
+- **迁移** `20261015120000_assistant_turn_record`：只新建这一张表 + 三个索引（`(userId, turnId)` 唯一、`(userId, createdAt DESC)`、`createdAt`）+ 指向 `User` 的外键，⛔ 不动任何已有表的列、约束与数据。SQL 由 `prisma migrate diff` 对着 PGlite 上的整套迁移回放生成。**未对共用库执行，随下一次生产构建的 `prisma migrate deploy` 执行**（push main 即生产构建）；Preview 构建不跑迁移，Preview 上写记录会失败，只记警告、助手照常。
+
 ## 迁移纪律
 
 1. 操作流程与授权统一见 `docs/scenes/db-migration.md`；不在生产或未确认隔离的连接运行 `migrate dev`（含 create-only）。已有环境记录不是本轮连接核验；不自动生成迁移或套用兼容期方案。
-2. 迁移历史 50 个（2026-08-23 点数；此前写的 41 已过期）；迁移文件是事实源，**不许手改数据库结构**。曾缺失的 `20260531090000_prompt_core_recipe_assets` 已恢复进 Git；CI 必须同时做 migration drift 检查和从空库执行 `prisma migrate deploy`，避免“当前 schema 对齐但历史不可重建”。
+2. 迁移历史 80 个（2026-10-15 点数，最新 `20261015120000_assistant_turn_record`；此前写的 50 / 41 已过期）；迁移文件是事实源，**不许手改数据库结构**。曾缺失的 `20260531090000_prompt_core_recipe_assets` 已恢复进 Git；CI 必须同时做 migration drift 检查和从空库执行 `prisma migrate deploy`，避免“当前 schema 对齐但历史不可重建”。
 3. WHERE / ORDER BY 用到的字段必须加 `@@index()`。
 4. 用户生成内容字段（prompt / 错误信息）用 `@db.Text`。
 5. 删除关系：ownership 关系 `onDelete: Cascade`；软引用 `onDelete: SetNull`——选哪个必须说得出理由（checklist P1）。
@@ -92,11 +105,12 @@ Model = PascalCase（`UserApiKey`）· 字段 = camelCase（`createdAt`）· 枚
 
 ## Source of Truth
 
-- `prisma/schema.prisma` · `prisma/migrations/`（41 个）· `prisma/CLAUDE.md`
+- `prisma/schema.prisma` · `prisma/migrations/`（80 个，2026-10-15）· `prisma/CLAUDE.md`
 - `src/lib/db.ts` · `src/lib/db-scope.ts`
 - 历史架构上下文：`git show cddc4384:docs/architecture/{overview,storage,credits}.md`
 
 ## Last Verified
 
+- Date: 2026-10-15 · Method: 新表 `AssistantTurnRecord` 对照 `prisma/schema.prisma` 与迁移 `20261015120000_assistant_turn_record` 逐列核验；全部 80 个迁移在 PGlite（`@electric-sql/pglite` 0.4.1 内存库 + `pg_trgm`，经 `pglite-socket` 暴露在 127.0.0.1）上从空库按序回放成功，回放后 `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` 为空（配置文件只写死那个本机 PGlite 地址，⛔ 不读任何 env）；`prisma/migration-safety.test.ts` 通过（新表不算已有表的约束，⛔ 未进 ACKNOWLEDGED）。模型 45、枚举 19、迁移 80 为重新清点。⚠ 该迁移**只在 PGlite 上回放过，未对任何共用数据库执行**。
 - Date: 2026-09-20 · Method: 56a 新表 `AssistantMemory` 与两个枚举对照 `prisma/schema.prisma` 与 migration 文件逐列核验；模型数 39 → 40、枚举 12 → 14。⚠ 该迁移**尚未对任何数据库执行**。
 - Date: 2026-07-23 · Method: schema 模型/枚举与迁移目录重新清点；`prisma validate` 通过，历史迁移恢复状态与 CI fresh-database replay 已核验。字段级细节未逐一审计——动具体模型前直接读 schema 对应段。

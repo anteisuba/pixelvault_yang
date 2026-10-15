@@ -457,11 +457,11 @@ flowchart LR
 
 > 🔬 起因是 owner 的真机用例：让助手查一部作品里某个角色的官方设定图与外貌服饰，它调了一次 `search_web`、拿回一句台词就停下来问用户要图。三件事一起坏了——**只打了一个源、只发了一条查询、只跑了一轮**。这三条工具逐条对着修。
 
-| 工具                    | 入参                                                                                                                                                     | 出参                                                                                              |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| **`research`**          | `goal`（一句话，`maxGoalChars`）· `entities?`（角色名 / 作品名，`maxEntities` 4）· `sources?`（**粗粒度四组** `web` / `wiki` / `bilibili` / `danbooru`） | `totalFound` + `evidence[]`（`maxEvidenceItems` 10）；载荷另记 `round` 与**服务端真的打了哪几组** |
-| **`read_url`**          | `url`（协议闸与 `import_user_url` 逐字同源，只放行 http(s)）· `focus?`（如「外貌与服饰」）                                                               | 页标题 + 正文摘录（`maxReadUrlExcerptChars`，**服务端按 `focus` 截段**）                          |
-| **`search_web_images`** | 原有 `query` / `limit` + **新** `subject?`（作品名 + 角色名）· `preferOfficial?`                                                                         | 候选行；载荷里带 `queries`（服务端真的发出去的那几条）· `subject` · `preferOfficial`              |
+| 工具                    | 入参                                                                                                                                                     | 出参                                                                                                            |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| **`research`**          | `goal`（一句话，`maxGoalChars`）· `entities?`（角色名 / 作品名，`maxEntities` 4）· `sources?`（**粗粒度四组** `web` / `wiki` / `bilibili` / `danbooru`） | `totalFound` + `evidence[]`（`maxEvidenceItems` 10）；载荷另记 `round` 与**服务端真的打了哪几组**               |
+| **`read_url`**          | `url`（协议闸与 `import_user_url` 逐字同源，只放行 http(s)）· `focus?`（如「外貌与服饰」）                                                               | 页标题 + 正文摘录（`maxReadUrlExcerptChars`，**服务端按 `focus` 截段**）+ `via`（2026-10-15，见下「读页被挡」） |
+| **`search_web_images`** | 原有 `query` / `limit` + **新** `subject?`（作品名 + 角色名）· `preferOfficial?`                                                                         | 候选行；载荷里带 `queries`（服务端真的发出去的那几条）· `subject` · `preferOfficial`                            |
 
 **证据卡六个字段**（`AssistantOperatorEvidenceSchema`，`src/types/assistant-operator.ts`）：`title` · `url?` · `publisher` · `snippet` · `kind` · `confidence`。
 
@@ -470,7 +470,9 @@ flowchart LR
 - ⚠ `kind` 三档 `text` / `tags` / `image`。**`tags` 那一档是这条链最值钱的东西**：图库与百科分类给的已经是结构化外观词，提示词直接吃得下，⛔ 不需要再过一次模型提取。
 - ⚠ `url` 可选：共现标签这类证据没有单一页面可点。
 
-**两轮上限**（`ASSISTANT_RESEARCH_LIMITS.maxRoundsPerTurn = 2`）是硬闸不是提示：第一轮定「官方名怎么写、哪个站是出处」，第二轮拿着那个答案问「外貌与服饰」。给 1 就退回成「搜一次就放弃」，给 4 则整轮 `maxSteps`（8）全烧在检索上。⚠ **打过就算一轮**，不管有没有收获；撞上限按 `researchRoundsExhausted` 拒并说清下一步该干什么，⛔ 不静默返回空结果——空结果会让模型以为「这个角色查不到」，然后开始编。⚠ 每一源的回执逐条带出（`ok` / `empty` / `failed` / `circuit_open`）：「打了但没料」与「源挂了」下一步该做的事完全不同。
+**轮次上限**（`ASSISTANT_RESEARCH_LIMITS.maxRoundsPerTurn = 3`；2026-10-15 前是 2）是硬闸不是提示：第一轮定「官方名怎么写、哪个站是出处」，第二轮拿着那个答案问「外貌与服饰」，第三轮留给换源 / 补问（两轮里一轮撞上挡爬的站就只剩一轮）。给 1 就退回成「搜一次就放弃」。改 3 时的判断（实现方的，不是 owner 的话）：v3 一轮 16 步，查完之后每一步只重发一行一条的短版，多一轮的代价是一次扇出（快搜 = 一个 Serper credit + 至多 3 页读取）；旧内核 `maxSteps`（8）三轮也还留得出写回答的步数。⚠ **打过就算一轮**，不管有没有收获；撞上限按 `researchRoundsExhausted` 拒并说清下一步该干什么，⛔ 不静默返回空结果——空结果会让模型以为「这个角色查不到」，然后开始编。⚠ 每一源的回执逐条带出（`ok` / `empty` / `failed` / `circuit_open`）：「打了但没料」与「源挂了」下一步该做的事完全不同。
+
+**读页被挡**（2026-10-15）：`read_url` 与快搜读前三页都走 `readUrlDetailed`（`web-research.service.ts`）—— Jina 读回「Just a moment...」/ 验证码 / 403·429 这类挑战页时判「被挡」（判据表 `URL_READER_BLOCK_SIGNALS`，`constants/web-search.ts`；判定 `lib/read-url-blocks.ts`），⛔ 那段字永远不当正文。退路依次：认得出的 wiki 站（`MEDIAWIKI_READ_HOSTS`：萌百 / 维基 / Fandom / 灰机wiki / B站 wiki）走 API → 服务端直连（`safeFetch`、老实报 UA、8 秒、1.5 MB）→ 本轮搜到过这一页就只交它的搜索摘要（`via: 'snippet'`，观察里明说全文没读到，日志条上一行「原页没读到」）→ 都没有就按 `urlUnreadable` 拒，理由写明是站点挡了。整条链都被挡的站进程内记 30 分钟（`URL_READER.blockedHostTtlMs`）：之内再读直接回「被挡了」、快搜挑页与证据排序把它往后放。细节见 [assistant-v3「读页被挡」](../assistant-v3.md)。
 
 **官方优先搜图**：给了 `subject` 且 `preferOfficial` 时，服务端把主体铺成**中 / 日 / 英三条**官方限定查询（`WEB_IMAGE_OFFICIAL_QUERY_SUFFIXES`，上限 `maxImageQueryVariants` 3，两边取小），再按来源优先级**稳定排序**把官方与 wiki 排到前面（`webImageSourceRank`，`src/constants/web-image-sources.ts`）。⚠ 一手立绘常常只发在中文 / 日文渠道，一条英文查询只搜得到二手转载。⚠ **每条变体 = 一个 Serper credit**，所以不给 `subject` 的普通搜图仍是一条查询一个 credit，成本形状与切片 3b 不变。⚠ 只在 `preferOfficial` 时排序，⛔ 不无条件排；`blocked` 档排最后而**不是剔除**（与格子上「禁用而不是移除」同一条纪律）。
 

@@ -87,6 +87,16 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 - **回放**：R02（Gemini：`search_web` → `read` → 答）钉「整段只给紧跟着的那一步、再往后是短版」（`stepPrompts`：按步查发出去的请求体含 / 不含哪几句）。过程记录转回回放题时，板子带了上一轮的 `finds` 就在 `gaps` 里说一句（回放题带不进上一轮，按号的那一步会被拒）。
 - **面板**：回复里的 `#3` 是一颗小胶囊，悬停 / 焦点圈卡、点一下滚过去圈一会儿，一轮最后那段回复点到的卡常驻细黑框 —— 见 `pages/assistant-shell-v2.md` §3.5「回复里的 `#n`」。
 
+### 读页被挡、退路与查证轮次（2026-10-15 搜索期第三片补充）
+
+起因：Jina 读一个挡爬的站时 HTTP 照样 200，正文是「Just a moment...」「Verification successful. Waiting for …」—— 这段字以前被当成正文交给模型，快搜读前三页时还拿它顶掉了搜索摘要。前四条的范围经 owner 同意；具体判据、做法与取舍（含第五条）是实现方的判断，⛔ 不是 owner 的原话。
+
+- **判「被挡」**（`lib/read-url-blocks.ts` 的 `detectBlockedPage`，判据表 `URL_READER_BLOCK_SIGNALS` 在 `constants/web-search.ts`）：站点状态码 401 / 403 / 429 / 451（直连那一跳的，或 Jina 头里「Target URL returned error 403」那一行）；否则正文短（≤ 2000 字）**且**标题 / 开头 600 字里有一句挑战页才写的整句（Cloudflare 五秒盾的「Just a moment...」「Verification successful. Waiting for」、「请输入验证码」「请完成安全验证」、「You don't have permission to access」……中日英）；或正文更短（≤ 1200 字）且同时沾上两样以上不同的弱信号（cloudflare、captcha、ray id、forbidden、error 1020、Access denied / 访问被拒绝……—— 讲报错的短文开头也会写「Access denied」，所以它只算弱信号）。长文一律不判：正常文章谈到 Cloudflare / captcha / 403 很平常。Jina 自己的非 2xx 算「读不出」，⛔ 不算站点挡你。
+- **退路**（`web-research.service.ts` 的 `readUrlDetailed`，`readUrl` 只是它的「读到 = 页、其余 = null」）：Jina → (a) 认得出的 MediaWiki 站按 API 取正文（`MEDIAWIKI_READ_HOSTS` 一行一个站：萌百、维基、Fandom（含语言段）、灰机wiki `*.huijiwiki.com`、B站 wiki `wiki.biligame.com/<游戏>`；`mediawiki.connector` 的 `resolveMediaWikiReadTarget` + `readMediaWikiPage`，与检索腿同一条 extracts → revisions → parse 降级链，结果记一行 info 日志）→ (b) 服务端直连（`safeFetch` 的 SSRF 闸、`RESEARCH_USER_AGENT` 老实报 UA ⛔ 不伪装浏览器、8 秒、只收 html / text、最多 1.5 MB，HTML 转文字也判一次挡没挡）→ (c) 在 `read_url` 的规划期：本轮搜到过这一页（`run.researchSnippets`：`search_web` 与 `research` 读全文**之前**的那段摘要；v3 每跳由本轮记录 `sources[].snippet` 续上）就只交那段摘要，结果 `via: 'snippet'`，观察里写「NOT READ … The full text of that page was not read」，日志条多一行「原页没读到……只是搜索结果里的那段摘要」（`StudioOperator.web.readSnippetOnly`，三语）。都没有就按 `urlUnreadable` 拒，理由写明「<站> blocked the reader (…)」与「Nothing from that page was read」。⛔ 没借任何 key、没加任何付费服务。读到了的结果带 `via`（`jina` / `mediawiki` / `direct`）与页面标题。
+- **按站记一阵**（进程内 Map，`URL_READER.blockedHostTtlMs` 30 分钟、最多 200 个站，满了先丢最早到期的；没复用 `lib/circuit-breaker`：它按失败次数计、每次跳闸记 error 级日志，也没有「只查不建」的读法）：整条链都没读到且有一条判了挡 → 记「整站挡」，30 分钟内再读它不碰 Jina 与直连、直接回「被挡了（没再去试）」（wiki 站照试 API）；只有 Jina 被挡、退路读到了 → 记「只挡 Jina」，下次直接走退路、⛔ 不算这个站被挡。查证那边：快搜挑前三页时整站挡的排到后面，扇出排序在印证数、题型分之后再按它排（⛔ 不删证据、不越过前两道次序）。⚠ 进程内的表：换一个 serverless 实例就是空的，这一阵记不住只是多打一次。
+- **轮次上限 2 → 3**（`ASSISTANT_RESEARCH_LIMITS.maxRoundsPerTurn`，`research` 步骤 `round` 的 schema 上限跟着它）：两轮里一轮撞上挡爬的站就只剩一轮；成本仍有界 —— 一轮一次扇出（快搜 = 一个 Serper credit + 至多 3 页），查完之后每一步只重发短版。旧内核系统提示里「You may verify twice」改成按常量写。
+- ⚠ 安全：直连的 HTML 转文字全用只往前扫的写法（一串没闭合的 `<a` / `<svg` / `<!--` 以前的懒匹配正则是平方级，2 万个 `<a` 就要 1.3 秒）；wikitext 去标记前截到 4 万字（`RESEARCH_LIMITS.maxWikitextChars`），因为 Fandom / 灰机wiki 的任意子站现在也读得到。wiki API 的地址一律 https、只认表里平台自己的域。
+
 ### 只用所选那一家（owner 2026-10-15「会自动扣其他模型的token，用户还不知道」·「全跟助手」）
 
 - ⛔ 不在创作者不知情时花另一家的 key。跨厂商只在创作者明确选了的时候用（如「用 Grok 搜这一次」那颗按钮），而且要标出来；模型做不了的事直说做不了。
@@ -219,6 +229,7 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 - `src/lib/assistant-v3-board.ts`（句柄与板子）· `src/lib/assistant-v3-ops.ts`（edit / write → v4 op）
 - `src/types/assistant-v3.ts`（工具入参与本轮记录）· `src/constants/assistant-v3.ts`
 - 找到的东西的编号与查证短版：`src/lib/assistant-web-finds.ts`（一行一条、`#n` 的认法、短版）· `src/types/assistant-web-finds.ts`（本轮记录里的那一条）· `src/services/kernel/assistant-v3-finds.service.ts`（续号、`#n` / `[n]` 换回）· `src/constants/assistant-operator.ts` 的 `ASSISTANT_WEB_FIND_LIMITS` 与 `ASSISTANT_RESEARCH_LIMITS.maxCompactGistChars`
+- 读页被挡与退路：`src/lib/read-url-blocks.ts`（判据、按站记一阵、HTML 转文字）· `src/constants/web-search.ts` 的 `URL_READER` / `URL_READER_BLOCK_SIGNALS` · `src/services/web-research.service.ts` 的 `readUrlDetailed` · `src/constants/research.ts` 的 `MEDIAWIKI_READ_HOSTS` + `mediawiki.connector` 的 `resolveMediaWikiReadTarget` / `readMediaWikiPage`
 - 开关：`src/app/api/studio/assistant-operator/route.ts` · `src/hooks/use-assistant-operator.ts`
 - 自动回放基线：`src/test/assistant-replay/`（题在 `fixtures/cases/`，判分在 `graders.ts`）
 - 每轮的过程记录：`src/services/assistant-turn-record.service.ts`（写与删）· `src/lib/assistant-turn-record.ts`（摘 data: 地址、挑请求字段、按上限截）· `src/constants/assistant-turn-record.ts` · `src/types/assistant-turn-record.ts`；一行转回回放题：`src/test/assistant-replay/from-turn-record.ts`
@@ -230,6 +241,8 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 - 结账提示在画布项目里换一段：记这个项目的角色 / 画风 / 规矩，只留在这个项目；「未成年」只挡真人，故事里角色的年龄与年级照记，与性有关的一概不记。
 
 ## Last Verified
+
+- 2026-10-15 · 读页被挡、退路与查证三轮（见上「读页被挡、退路与查证轮次」）。`tsc` + 改动文件 eslint（0 error）+ 定向 vitest（lib / types / constants / i18n / services/kernel / services/research / `web-research.service` / assistant-operator 组件 / 回放，350 个文件 5,595 条全绿；新增：判据 28 条（挑战页真阳性、讲 Cloudflare / Access denied 的正常文章不误判、按站记一阵的 30 分钟到期与表满、HTML 转文字含刁钻输入的线性）、读页链 8 条（先后：Jina → wiki API → 直连；挑战页的字不进正文；整站挡之内不碰网络；只挡 Jina 下次跳过；读不出不记；字节上限）、wiki 网址解析 11 条、扇出排序 2 条、`read_url` 摘要退路 / 被挡拒绝 / wiki via / 快搜挑页 4 条、v3 摘要续上 2 条、日志条 1 条；轮次上限两条用例改成「第三轮允许、第四轮拒」）+ `npm run test:replay`（42 条全绿）。⚠ 灰机wiki 与 B站 wiki 的 API 路径按 MediaWiki 惯例写、Jina 头里 `Warning:` 行的格式按已知样子写，都没对真站验过（沙箱代理拒连这几个站）；没有对真模型 / 真浏览器跑过；进程内的「记一阵」在 serverless 多实例下各记各的。
 
 - 2026-10-15 · 搜索期第三片：找到的东西编号 `#n`、按号动手、下一轮带上一轮的号、查证短版（见上「找到的东西的编号 `#n` 与查证短版」）。`tsc` + 改动文件 eslint（0 error）+ 定向 vitest（lib / types / constants / i18n / services/kernel / services/research / assistant-operator 组件 / 回放，347 个文件 5,510 条全绿）+ `npm run test:replay`（20 题 × 路由 = 26 跑 + 判分器反例 7 条 + 记录转题 9 条，全绿；新题 R02，判分器补 `stepPrompts` 会红的反例）。字数是单测里桩模型数的（7,213 → 1,602；16 次调用的一轮 152,805 → 74,251）。⚠ 没有对真模型跑过：模型会不会老实写 `#3`、点名准不准、短版之后会不会该 `read "[n]"` 时不读，都还没看过。
 - 2026-10-15 · 搜索期第二片：`search_library` 加 `web_videos`，每张脸都开 `web_images` + `web_videos`（见上「找图 / 找视频」）。定向 vitest（v3 五张脸各一条 `web_videos` 用例）+ `npm run test:replay`；⚠ 没有对真模型跑过找视频的题，Serper `/videos` 的线上字段名没对过。

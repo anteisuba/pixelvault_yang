@@ -206,7 +206,9 @@ export function StudioOperatorAvatarToggle({
           width={72}
           height={72}
           unoptimized
-          className="size-full rounded-full object-cover"
+          /* ⚠ 绝对定位铺满：留在 grid 流里时，竖长的图会把 auto 行撑高（行高按图的
+             天然比例算），头像就成了一根探出圆框的竖胶囊。 */
+          className="absolute inset-0 size-full rounded-full object-cover"
         />
       ) : (
         <AssistantAvatarGlyph

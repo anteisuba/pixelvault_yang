@@ -7,7 +7,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import { CHARACTER_CARD } from '@/constants/cards/character-card'
 import { TAVERN_CARD } from '@/constants/cards/tavern-card'
 import type { CharacterCardRecord, UpdateCharacterCardRequest } from '@/types'
-import { ChevronLeft, Plus } from '@/components/icons'
+import { ChevronDown, ChevronLeft, Plus } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
@@ -170,7 +170,6 @@ export function CharacterDetailBody({
       </div>
 
       <SettingModule card={card} save={save} />
-      <TavernModule card={card} save={save} />
       <TagsModule card={card} save={save} />
       <DeleteCharacter name={card.name} onDelete={onDelete} />
     </div>
@@ -377,6 +376,9 @@ function SettingModule({
   return (
     <section className="mb-8 flex flex-col gap-4">
       <h3 className="text-base font-semibold">{t('setting')}</h3>
+      <p className="text-xs font-medium text-foreground">
+        {t('settingPerson')}
+      </p>
       <div className="grid gap-x-11 gap-y-5 lg:grid-cols-2">
         {SETTING_FIELDS.map(([key, label]) => (
           <div key={key} className="flex min-w-0 flex-col gap-1">
@@ -447,18 +449,11 @@ function SettingModule({
           </div>
         )
       ) : null}
+
+      <SettingTavernGroups card={card} save={save} />
     </section>
   )
 }
-
-const TAVERN_FIELDS = [
-  ['scenario', 'fieldScenario', undefined],
-  ['opening', 'fieldOpening', undefined],
-  ['examples', 'fieldExamples', 'examplesHint'],
-  ['summary', 'fieldSummary', undefined],
-  ['systemPrompt', 'fieldSystemPrompt', 'savedOnlyHint'],
-  ['postHistoryInstructions', 'fieldPostHistory', 'savedOnlyHint'],
-] as const
 
 /** 世界书只认条目数（内容原样存着，不在这里改）。 */
 function lorebookEntryCount(book: unknown): number {
@@ -470,11 +465,52 @@ function lorebookEntryCount(book: unknown): number {
     : 0
 }
 
+type DraftTextKey =
+  | 'scenario'
+  | 'opening'
+  | 'examples'
+  | 'summary'
+  | 'systemPrompt'
+  | 'postHistoryInstructions'
+
+const FIELD_CLASS = 'text-base leading-relaxed lg:text-sm'
+
+function DraftField({
+  draft,
+  field,
+  label,
+  hint,
+  save,
+}: {
+  draft: CharacterCardDraft
+  field: DraftTextKey
+  label: string
+  hint?: string
+  save: Save
+}) {
+  const t = useTranslations('CharacterRoster')
+  return (
+    <div className="flex min-w-0 flex-col gap-1">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <CharacterInlineField
+        multiline
+        value={draft[field]}
+        label={label}
+        placeholder={t('emptyField')}
+        hint={hint}
+        onCommit={(text) => save({ [field]: text })}
+        className={FIELD_CLASS}
+      />
+    </div>
+  )
+}
+
 /**
- * 酒馆卡的其余字段（owner 10-15 选 A：全显示、都能改，不做导出）。格名照酒馆的叫法；
- * 系统提示词 / 历史后指令只保存不生效，世界书只读。
+ * 「设定」的对话一组 + 折起来的「更多」（owner 10-15：我们的字段包含酒馆字段，⛔ 另列
+ * 一块「酒馆卡字段」）。格名只用我们的叫法；系统提示词 / 历史后指令只保存不生效，
+ * 世界书只读。
  */
-function TavernModule({
+function SettingTavernGroups({
   card,
   save,
 }: {
@@ -482,78 +518,126 @@ function TavernModule({
   save: Save
 }) {
   const t = useTranslations('CharacterRoster')
+  const [moreOpen, setMoreOpen] = useState(false)
   const draft = draftFromCard(card)
   const greetings = draft.alternateGreetings
   const lorebook = lorebookEntryCount(card.tavern?.characterBook)
 
   return (
-    <section className="mb-8 flex flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <h3 className="text-base font-semibold">{t('tavernSection')}</h3>
-        <p className="text-xs text-muted-foreground">{t('tavernHint')}</p>
-      </div>
+    <>
+      <p className="mt-2 text-xs font-medium text-foreground">
+        {t('settingDialogue')}
+      </p>
       <div className="grid gap-x-11 gap-y-5 lg:grid-cols-2">
-        {TAVERN_FIELDS.map(([key, label, hint]) => (
-          <div key={key} className="flex min-w-0 flex-col gap-1">
-            <p className="text-xs text-muted-foreground">{t(label)}</p>
-            <CharacterInlineField
-              multiline
-              value={draft[key]}
-              label={t(label)}
-              placeholder={t('emptyField')}
-              hint={hint ? t(hint) : undefined}
-              onCommit={(text) => save({ [key]: text })}
-              className="text-base leading-relaxed lg:text-sm"
-            />
-          </div>
-        ))}
-
-        <div className="flex min-w-0 flex-col gap-1 lg:col-span-2">
-          <p className="text-xs text-muted-foreground">
+        <DraftField
+          draft={draft}
+          field="scenario"
+          label={t('fieldScenario')}
+          save={save}
+        />
+        <div className="flex min-w-0 flex-col gap-1">
+          <DraftField
+            draft={draft}
+            field="opening"
+            label={t('fieldOpening')}
+            save={save}
+          />
+          <p className="mt-2 text-xs text-muted-foreground">
             {t('fieldAlternateGreetings', { count: greetings.length })}
           </p>
-          <div className="flex flex-col gap-2">
-            {greetings.map((greeting, index) => (
-              <CharacterInlineField
-                key={`${index}-${greeting}`}
-                multiline
-                value={greeting}
-                label={t('alternateGreetingLabel', { index: index + 1 })}
-                placeholder={t('emptyField')}
-                hint={t('alternateGreetingHint')}
-                onCommit={(text) =>
-                  save({
-                    alternateGreetings: text
-                      ? greetings.map((item, i) => (i === index ? text : item))
-                      : greetings.filter((_, i) => i !== index),
-                  })
-                }
-                className="text-base leading-relaxed lg:text-sm"
-              />
-            ))}
-            {greetings.length < TAVERN_CARD.MAX_ALTERNATE_GREETINGS ? (
-              <CharacterInlineField
-                key={`add-${greetings.length}`}
-                multiline
-                value=""
-                label={t('alternateGreetingAdd')}
-                placeholder={t('alternateGreetingAdd')}
-                onCommit={(text) =>
-                  save({ alternateGreetings: [...greetings, text] })
-                }
-                className="text-base leading-relaxed lg:text-sm"
-              />
-            ) : null}
+          {greetings.map((greeting, index) => (
+            <CharacterInlineField
+              key={`${index}-${greeting}`}
+              multiline
+              value={greeting}
+              label={t('alternateGreetingLabel', { index: index + 1 })}
+              placeholder={t('emptyField')}
+              hint={t('alternateGreetingHint')}
+              onCommit={(text) =>
+                save({
+                  alternateGreetings: text
+                    ? greetings.map((item, i) => (i === index ? text : item))
+                    : greetings.filter((_, i) => i !== index),
+                })
+              }
+              className={FIELD_CLASS}
+            />
+          ))}
+          {greetings.length < TAVERN_CARD.MAX_ALTERNATE_GREETINGS ? (
+            <CharacterInlineField
+              key={`add-${greetings.length}`}
+              multiline
+              value=""
+              label={t('alternateGreetingAdd')}
+              placeholder={t('alternateGreetingAdd')}
+              onCommit={(text) =>
+                save({ alternateGreetings: [...greetings, text] })
+              }
+              className={FIELD_CLASS}
+            />
+          ) : null}
+        </div>
+        <div className="lg:col-span-2">
+          <DraftField
+            draft={draft}
+            field="examples"
+            label={t('fieldExamples')}
+            hint={t('examplesHint')}
+            save={save}
+          />
+        </div>
+      </div>
+
+      <button
+        type="button"
+        aria-expanded={moreOpen}
+        onClick={() => setMoreOpen((open) => !open)}
+        className="mt-2 flex w-fit items-center gap-1 text-xs font-medium text-muted-foreground transition-colors duration-fast hover:text-foreground"
+      >
+        {t('settingMore')}
+        <ChevronDown
+          aria-hidden
+          className={cn(
+            'size-3.5 transition-transform duration-fast ease-standard motion-reduce:transition-none',
+            moreOpen && 'rotate-180',
+          )}
+        />
+      </button>
+      {moreOpen ? (
+        <div className="grid gap-x-11 gap-y-5 lg:grid-cols-2">
+          <DraftField
+            draft={draft}
+            field="summary"
+            label={t('fieldSummary')}
+            save={save}
+          />
+          <DraftField
+            draft={draft}
+            field="systemPrompt"
+            label={t('fieldSystemPrompt')}
+            hint={t('savedOnlyHint')}
+            save={save}
+          />
+          <DraftField
+            draft={draft}
+            field="postHistoryInstructions"
+            label={t('fieldPostHistory')}
+            hint={t('savedOnlyHint')}
+            save={save}
+          />
+          <div className="flex min-w-0 flex-col gap-1">
+            <p className="text-xs text-muted-foreground">
+              {t('fieldLorebook')}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {lorebook
+                ? t('lorebookNote', { count: lorebook })
+                : t('emptyField')}
+            </p>
           </div>
         </div>
-
-        {lorebook ? (
-          <p className="text-xs text-muted-foreground lg:col-span-2">
-            {t('lorebookNote', { count: lorebook })}
-          </p>
-        ) : null}
-      </div>
-    </section>
+      ) : null}
+    </>
   )
 }
 

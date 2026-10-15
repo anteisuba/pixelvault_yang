@@ -237,13 +237,15 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
     expect(screen.queryByRole('region', { name: 'Denia' })).toBeNull()
   })
 
-  it('详情里有酒馆卡字段：备选开场白可加，世界书只读', async () => {
+  it('设定里含酒馆字段：备选开场白可加；更多折起来，世界书只读', async () => {
     mockUpdate.mockClear()
     renderRoster()
     fireEvent.click(screen.getAllByTestId('roster-tile')[0]!)
     const detail = screen.getByRole('region', { name: 'Denia' })
     expect(detail).toHaveTextContent('备选开场白（1 条）')
-    expect(detail).toHaveTextContent('带着世界书（2 条）')
+    expect(detail).not.toHaveTextContent('系统提示词')
+    fireEvent.click(screen.getByRole('button', { name: '更多' }))
+    expect(detail).toHaveTextContent('2 条，只保存、不生效。')
     const add = screen.getByRole('textbox', { name: '加一条备选开场白…' })
     fireEvent.change(add, { target: { value: '早上好。' } })
     fireEvent.blur(add)

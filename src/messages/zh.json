@@ -9305,8 +9305,6 @@
     "libraryClearSearch": "清除搜索",
     "libraryMoreFailed": "这批没拿到 · 重试",
     "libraryNoMore": "没有更多了",
-    "tavernSection": "酒馆卡字段",
-    "tavernHint": "和 SillyTavern 卡同一套格子，导入的卡原样落在这里，也能直接改。",
     "fieldScenario": "场景",
     "fieldOpening": "开场白",
     "fieldExamples": "对话示例",
@@ -9319,7 +9317,11 @@
     "alternateGreetingLabel": "备选开场白 {index}",
     "alternateGreetingHint": "清空这一条就是删掉它。",
     "alternateGreetingAdd": "加一条备选开场白…",
-    "lorebookNote": "带着世界书（{count} 条），只保存、不生效。"
+    "lorebookNote": "{count} 条，只保存、不生效。",
+    "settingPerson": "人物",
+    "settingDialogue": "对话",
+    "settingMore": "更多",
+    "fieldLorebook": "世界书"
   },
   "StudioTemplates": {
     "titleImage": "我的图片模板 · {count}",

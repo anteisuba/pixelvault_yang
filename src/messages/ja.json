@@ -9305,8 +9305,6 @@
     "libraryClearSearch": "検索をクリア",
     "libraryMoreFailed": "読み込めませんでした · 再試行",
     "libraryNoMore": "これ以上ありません",
-    "tavernSection": "酒場カードの項目",
-    "tavernHint": "SillyTavern カードと同じ項目です。取り込んだカードはそのままここに入り、直接編集できます。",
     "fieldScenario": "シナリオ",
     "fieldOpening": "最初のメッセージ",
     "fieldExamples": "会話例",
@@ -9319,7 +9317,11 @@
     "alternateGreetingLabel": "別の挨拶 {index}",
     "alternateGreetingHint": "空にするとこの挨拶を削除します。",
     "alternateGreetingAdd": "別の挨拶を追加…",
-    "lorebookNote": "ワールドブック付き（{count} 件）。保存のみで使われません。"
+    "lorebookNote": "{count} 件。保存のみで使われません。",
+    "settingPerson": "人物",
+    "settingDialogue": "会話",
+    "settingMore": "その他",
+    "fieldLorebook": "ワールドブック"
   },
   "StudioTemplates": {
     "titleImage": "画像テンプレート · {count}",

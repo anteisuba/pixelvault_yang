@@ -9305,8 +9305,6 @@
     "libraryClearSearch": "Clear search",
     "libraryMoreFailed": "Couldn't load more · Retry",
     "libraryNoMore": "No more cards",
-    "tavernSection": "Tavern card fields",
-    "tavernHint": "The same fields as a SillyTavern card. Imported cards land here as-is, and you can edit them.",
     "fieldScenario": "Scenario",
     "fieldOpening": "First message",
     "fieldExamples": "Example dialogue",
@@ -9319,7 +9317,11 @@
     "alternateGreetingLabel": "Alternate greeting {index}",
     "alternateGreetingHint": "Clear this one to delete it.",
     "alternateGreetingAdd": "Add an alternate greeting…",
-    "lorebookNote": "Has a lorebook ({count} entries), saved only, not used."
+    "lorebookNote": "{count} entries, saved only, not used.",
+    "settingPerson": "Person",
+    "settingDialogue": "Dialogue",
+    "settingMore": "More",
+    "fieldLorebook": "Lorebook"
   },
   "StudioTemplates": {
     "titleImage": "My image templates · {count}",

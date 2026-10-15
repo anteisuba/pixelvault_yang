@@ -41,7 +41,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
         │       ├── StudioOperatorTimelineRow (时间线沟一行 + **五类卡的分派点**)
         │       │   └── TimelineAvatar (用户 / 助手 32px 头像，与竖线同轴；助手那一档另出口 `AssistantTimelineAvatar` —— 它不碰 Clerk，收起态与空态用的是它)
         │       ├── StudioOperatorToolGroup (「5 个操作 · 4 成功 1 失败」折叠行；跑着时标题是**人话动词**（`operatorRunningPhrase`），跑着自动展开、跑完自动收起，用户点过以用户为准。§9.1)
-        │       ├── StudioOperatorResearchProgress (调查那一行，三态：跑着一行微光 + 预估 / 点开展开步骤 / 跑完收成灰底一行「搜了 N 条 · 读了 M 页」；有失败步时退回 ToolGroup。56b 切片 2)
+        │       ├── StudioOperatorResearchProgress (调查那一行，三态：跑着一行微光 + 预估 / 点开展开步骤 / 跑完收成灰底一行「搜了 N 条 · 读了 M 页」，创作者让 Grok 看视频时多一段「看了 X 上 N 段视频」；有失败步时退回 ToolGroup。56b 切片 2)
         │       ├── StudioOperatorCheckpointCard (每轮过程行上的「撤销」，点一下退回这一轮的改动 —— **撤回的唯一入口**，owner 2026-09-24)
         │       ├── StudioOperatorQueueBar (排队条，浮在输入框上方)
         │       ├── MentionInput（共享输入框：正文存 `<@kind:id>`，渲染成缩略图胶囊（`literal` token）；

@@ -39,8 +39,10 @@
   可在同一 OpenAI-compatible Chat Completions 接口中接收 `text + image_url` 内容块，
   PixelVault 自 2026-10-01 将它作为默认助手与文本档位；默认能力支持图片，显式型号仍单独判断。
   图片只允许进入该视觉档：显式选 V4 Pro 仍在能力闸和请求构造器两层拒绝；调用方**未指定型号**
-  且带图时（评分、3D 预检、卡片提取等无选择器的自动回落），请求构造器直接用 `deepseek-flash`
-  （2026-10-01 起无图请求也默认此型号）。⚠ **2026-09-17 换型号**：
+  且带图时，请求构造器直接用 `deepseek-flash`（2026-10-01 起无图请求也默认此型号）。
+  ⚠ 2026-10-15「全跟助手」起，助手与小功能（标签台翻译、「满意」评估、卡片取材、3D 预检、试读）
+  都带着 `resolveAssistantRoute` 给的型号去调：助手选了 V4 Pro，要看图的那几样就照实报
+  `ASSISTANT_MODEL_CANNOT_SEE`（或静默跳过可省的那一步），⛔ 不换型号、⛔ 不借别家的 key。⚠ **2026-09-17 换型号**：
   官方模型列表已把 `deepseek-v4-flash` / `deepseek-v4-flash-vision-exp` 标为 legacy
   并写明「对应模型已退役」（旧名仍被接受但由 DeepSeek-V4.1-Flash 承接），现行 id 是
   `deepseek-flash`——1M 上下文、384K 最大输出、Vision ✓、非高峰 $0.15/$0.6 每 MTok
@@ -51,7 +53,10 @@
   能力矩阵 `image: true`、`video: false`（与 Grok 同为只读图）。官方限制：jpeg/png/gif/webp，
   直连 API 单图 10 MB（base64 后）、单边 8000 px，单请求超过 20 张图时每张 ≤2000 px。依据：
   [Claude vision](https://platform.claude.com/docs/en/build-with-claude/vision)（2026-09-23 读取）。
-  自此 `LLM_TEXT_ADAPTERS` 五条文本线路都能读图，无 apiKeyId 的自动回落不需要再按读图能力挑选。
+  自此 `LLM_TEXT_ADAPTERS` 五条文本线路都能读图（型号级例外：DeepSeek V4 Pro）。助手与小功能
+  没点名 key 时用「助手那一家」（`resolveAssistantRoute`：选定的模型，或「自动」按
+  `ASSISTANT_PROVIDER_ORDER` Gemini → DeepSeek → OpenAI → Claude → Grok 取第一家配了 key 的），
+  ⛔ 不按读图能力另挑一家（旧的视觉借路 `findVisionCapableRoute` 已删）。
 - ⚠ **Qwen 文字线已于 2026-09-17 整体退役**（owner「文字路由合一」拍板）：`AI_ADAPTER_TYPES.DASHSCOPE`
   枚举、`qwen3-max` / `qwen-plus` / `qwen-flash` / `qwen3-vl-plus` 四个文本模型 id、
   DashScope 的 completion / stream 分支、enhance 与 planner 路由候选、key 校验与

@@ -52,7 +52,7 @@
         {
           "tool": "read",
           "input": {
-            "cards": ["vid-04a1b2"]
+            "cards": ["lane:4"]
           }
         }
       ]

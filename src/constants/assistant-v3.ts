@@ -239,6 +239,19 @@ export const ASSISTANT_V3_READ_SOURCE_NOTE =
 export const ASSISTANT_V3_GUIDE_ITEM_PREFIX = 'guide:'
 
 /**
+ * 画布 `read` 的一项 `"lane:<n>"`：那条镜头带上的卡（P2 第二片「板子分级」，设计方案 §2.4）。
+ * 大画布上不在眼前的镜头带只印一行（几张卡、叫什么），卡的句柄要用它现取 —— 见
+ * `renderAssistantV3Board` 的 `viewLaneNumbers`。
+ * - `offscreenNames`：那一行最多列几张卡的名字（再多只写「+k more」）。名字是我加的（P2）：设计
+ *   方案只说给计数；列名字是为了让模型把创作者说的「S09」「塔楼」对上是哪一条带（T23：镜头带的
+ *   位置号不等于剧本镜号），每张卡只多十来个字。
+ */
+export const ASSISTANT_V3_LANE_ITEM_PREFIX = 'lane:'
+export const ASSISTANT_V3_BOARD_TIERS = {
+  offscreenNames: 6,
+} as const
+
+/**
  * 整份写法开头那一行的前缀（后接型号 id 与换行）：本轮记录里有它 = 那份写法这一轮已经摆到模型
  * 眼前（写词闸认它），瘦身时也按它留着不瘦（`planAssistantV3TranscriptView`）。
  */
@@ -309,7 +322,7 @@ export const ASSISTANT_V3_HANDLE = {
  * 看片、各张脸的方言段）就把它拨到改的那天（同一天再改一次就加字母：`2026-10-15b`）；人设 /
  * 规矩 / 记忆这些每人不同的段落不算，它们只进 `systemPromptHash`。
  */
-export const ASSISTANT_V3_PROMPT_VERSION = '2026-10-15d'
+export const ASSISTANT_V3_PROMPT_VERSION = '2026-10-15e'
 
 /** 本轮记录（前端原样带回、服务端还原成消息）的条目类型。 */
 export const ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS = {

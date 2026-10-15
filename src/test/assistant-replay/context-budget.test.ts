@@ -200,6 +200,16 @@ describe('assistant context budget', () => {
           expect(row.minStablePrefixInTurn).toBeGreaterThanOrEqual(
             row.toolsAndSystem,
           )
+        /**
+         * P2 板子分级（设计方案 §2.4「别每步重发整块板子」）：板子冻在本轮记录头一条、排在稳定前缀
+         * 之后，往后每一步（含接力那几跳）都逐字以第一步的整份请求开头（只差收尾那个 `]`）——
+         * 第一步之后它只在缓存里，改了什么由工具结果带回来。
+         */
+        if (row.minStablePrefixInTurn !== null)
+          expect(
+            row.minStablePrefixInTurn,
+            'a later step does not start with the whole first step (board re-sent?)',
+          ).toBeGreaterThanOrEqual(firstStep.total - 1)
         if (MODE === 'update') return
         const recorded = baseline[key]
         expect(

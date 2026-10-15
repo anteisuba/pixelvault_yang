@@ -307,6 +307,51 @@ describe('日志条 · 证据卡（research，2026-09-06）', () => {
     renderItem({ step: RESEARCH_STEP })
     expect(screen.getByText('black_hair, yellow_eyes')).toBeInTheDocument()
   })
+
+  it('⭐ 标成视频、能嵌的那条：标题点了就地播（同一个播放器）；嵌不了的仍是新窗口链接', () => {
+    const step = {
+      ...RESEARCH_STEP,
+      result: {
+        totalFound: 2,
+        evidence: [
+          {
+            title: '时夜 PV',
+            url: 'https://www.bilibili.com/video/BV1ji421e7nM',
+            publisher: 'bilibili.com',
+            snippet: 'UP主：官方',
+            kind: 'video',
+            confidence: 'high',
+          },
+          {
+            title: '短链里的那支',
+            url: 'https://b23.tv/AbCdEf1',
+            publisher: 'b23.tv',
+            snippet: '短链',
+            kind: 'video',
+            confidence: 'medium',
+          },
+        ],
+      },
+    } as unknown as Parameters<typeof StudioOperatorLogItem>[0]['step']
+    renderItem({ step })
+
+    // 认不出稿件号的短链：仍是新窗口链接。
+    const links = screen.getAllByTestId('operator-evidence-link')
+    expect(links).toHaveLength(1)
+    expect(links[0]).toHaveAttribute('href', 'https://b23.tv/AbCdEf1')
+    expect(links[0]).toHaveAttribute('target', '_blank')
+
+    const play = screen.getByTestId('operator-evidence-play')
+    expect(play.tagName).toBe('BUTTON')
+    fireEvent.click(play)
+    expect(play).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByTestId('operator-web-video-iframe')).toHaveAttribute(
+      'src',
+      'https://player.bilibili.com/player.html?bvid=BV1ji421e7nM&autoplay=0',
+    )
+    fireEvent.click(play)
+    expect(screen.queryByTestId('operator-web-video-player')).toBeNull()
+  })
 })
 
 describe('日志条 · 读回来的正文（read_url，2026-09-06）', () => {

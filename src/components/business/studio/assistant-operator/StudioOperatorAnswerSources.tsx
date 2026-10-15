@@ -8,12 +8,15 @@
  * （标题 / 出处 / 可信度 / 印证 / 置信度五栏小字）+ 「N 条证据」展开。那张卡答的是
  * 「它查到了什么」，而用户在读的是**助手的回答**——证据于是成了回答前面的一段
  * 过程。56b 把它翻过来：回答是正文，资料是正文底下的两样东西 ——
- *  ① **媒体条**：图片与视频封面，点开看大图 / 跳原站；
+ *  ① **媒体条**：图片与视频封面，点开看大图 / 在面板里播（嵌不了才跳原站）；
  *  ② **来源卡**：站点图标 + 标题 + 域名，横向可滚，正文里的 `[n]` 点下来高亮它。
  *
  * ── 三条边界 ────────────────────────────────────────────────────
- * ⛔ **不嵌播放器、不转存**（决策树「不做」那一支）：视频封面点下去开新窗口到
- *    原站。站内播放要解流、要带版权判断，而用户要的只是「让我看看那一段」。
+ * ⭐ **视频能嵌就在面板里播，嵌不了才开新窗口**（owner，搜索期第二片起；早先这里是
+ *    「⛔ 不嵌播放器」）：媒体条里的视频封面、标成视频的来源卡，与找到的视频那一排走
+ *    **同一个判据**（`resolveWebVideo`）、**同一个播放器**（`StudioOperatorWebVideoPlayer`，
+ *    官方嵌入，这一块只放一个，摆在媒体条上面）。认不出稿件号的、别的站照旧新窗口。
+ *    ⛔ 不转存、不解流 —— 播放全在对方的播放器里。普通来源卡（文字 / 图 / 标签）仍是链接。
  * ⛔ **不铺摘录**：可复核的底稿留在「调查过程」那一折里（面板那一侧），来源卡上
  *    只写谁说的。一条萌百的整段简介就能吃掉半屏，而它不是回答。
  * ⛔ **不画空壳**：一条资料都没有就整块不渲染（同「无数据不渲染」那条判据）。
@@ -32,9 +35,13 @@ import { cn } from '@/lib/utils'
 import type { StudioOperatorStepEntry } from '@/types/studio-assistant-operator'
 import { flyCloneToTarget } from '@/lib/fly-to-composer'
 import { siteFaviconUrl } from '@/lib/third-party-image-url'
-import { formatVideoDuration } from '@/lib/web-video'
+import { formatVideoDuration, resolveWebVideo } from '@/lib/web-video'
 import { useThirdPartyImage } from '@/hooks/use-third-party-image'
 import { openOperatorLightbox } from './StudioOperatorLightbox'
+import {
+  StudioOperatorWebVideoPlayer,
+  type StudioOperatorPlayableVideo,
+} from './StudioOperatorWebVideoPlayer'
 
 /**
  * 摆在回答底下的**一条资料**。
@@ -54,6 +61,25 @@ export interface StudioOperatorAnswerSource {
   /** 图片原图 / 视频封面；缺席 = 这条没有画面，不进媒体条。 */
   mediaUrl?: string
   durationSeconds?: number
+}
+
+/**
+ * 这条资料**能不能在面板里播**：标成视频、有原页、`resolveWebVideo` 认得出稿件号。
+ * 与找到的视频那一排同一个判据 —— 认不出的（`b23.tv` 短链、频道页、别的站）返回 `null`，
+ * 调用方照旧新窗口开。
+ */
+function playableVideoOf(
+  source: StudioOperatorAnswerSource,
+): StudioOperatorPlayableVideo | null {
+  if (source.kind !== 'video' || !source.url) return null
+  const target = resolveWebVideo(source.url)
+  if (!target.embedUrl) return null
+  return {
+    url: source.url,
+    title: source.title,
+    platform: target.platform,
+    domain: source.publisher,
+  }
 }
 
 /** 钉住时交给面板顶部常驻条的那几样（§7.3 按证据编号认卡）。 */
@@ -157,6 +183,13 @@ export function StudioOperatorAnswerSources({
 }: StudioOperatorAnswerSourcesProps) {
   const t = useTranslations('StudioOperator')
   const cardsRef = useRef<HTMLDivElement>(null)
+  /**
+   * 正在播的那一条（按 `cite` 认）。媒体条与来源卡点的是同一条就是同一个播放器；
+   * 再点同一条 = 收起。⚠ 播放器跟着这一块走：回答底下这一块重挂（换会话）就收起。
+   */
+  const [playingCite, setPlayingCite] = useState<number | null>(null)
+  const togglePlaying = (cite: number) =>
+    setPlayingCite((current) => (current === cite ? null : cite))
 
   /**
    * 钉住时这一排来源卡的影子飞到面板顶上的钉住条（owner 2026-10-07 动效第 3 批）。
@@ -181,6 +214,8 @@ export function StudioOperatorAnswerSources({
    * 照旧在来源卡上出现，⛔ 不在媒体条里留一个灰格子假装有图。
    */
   const media = sources.filter((source) => Boolean(source.mediaUrl))
+  const playingSource = sources.find((source) => source.cite === playingCite)
+  const playing = playingSource ? playableVideoOf(playingSource) : null
 
   if (sources.length === 0) return null
 
@@ -189,6 +224,13 @@ export function StudioOperatorAnswerSources({
       data-testid="operator-answer-sources"
       className="flex min-w-0 flex-col gap-2"
     >
+      {playing ? (
+        <StudioOperatorWebVideoPlayer
+          video={playing}
+          onClose={() => setPlayingCite(null)}
+        />
+      ) : null}
+
       {media.length > 0 ? (
         <div
           data-testid="operator-answer-media"
@@ -196,7 +238,12 @@ export function StudioOperatorAnswerSources({
           className="flex min-w-0 gap-1.5 overflow-x-auto pb-0.5"
         >
           {media.map((source) => (
-            <AnswerMediaItem key={`media-${source.cite}`} source={source} />
+            <AnswerMediaItem
+              key={`media-${source.cite}`}
+              source={source}
+              playing={source.cite === playingCite && playing !== null}
+              onPlay={() => togglePlaying(source.cite)}
+            />
           ))}
         </div>
       ) : null}
@@ -209,6 +256,8 @@ export function StudioOperatorAnswerSources({
       >
         {sources.map((source) => {
           const active = activeCite === source.cite
+          const video = playableVideoOf(source)
+          const isPlaying = video !== null && source.cite === playingCite
           const body = (
             <>
               <span className="flex items-center gap-1 text-muted-foreground">
@@ -219,6 +268,13 @@ export function StudioOperatorAnswerSources({
                 <span className="truncate text-2xs tracking-nav">
                   {source.publisher}
                 </span>
+                {video ? (
+                  <Play
+                    className="ml-auto size-3 shrink-0"
+                    aria-hidden
+                    data-testid="operator-answer-source-play"
+                  />
+                ) : null}
               </span>
               <span className="line-clamp-2 text-xs leading-snug text-foreground">
                 {source.title}
@@ -228,8 +284,28 @@ export function StudioOperatorAnswerSources({
           /* 高亮走**信号位**（§12.2）：近黑描边，⛔ 不引入新色相、不填色。 */
           const className = cn(
             'flex w-[124px] shrink-0 flex-col gap-0.5 rounded-lg border bg-card px-2 py-1.5 text-left transition-colors duration-fast ease-standard focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none',
-            active ? 'border-foreground' : 'border-border hover:bg-muted/40',
+            active || isPlaying
+              ? 'border-foreground'
+              : 'border-border hover:bg-muted/40',
           )
+          /* 标成视频、能嵌的那张：点了在上面那个播放器里播（与媒体条同一个），⛔ 不跳走。 */
+          if (video)
+            return (
+              <button
+                key={`source-${source.cite}`}
+                type="button"
+                data-testid="operator-answer-source-card"
+                data-cite={source.cite}
+                data-kind={source.kind}
+                data-active={active ? 'true' : 'false'}
+                aria-pressed={isPlaying}
+                aria-label={t('web.videoPlay', { title: source.title })}
+                onClick={() => togglePlaying(source.cite)}
+                className={className}
+              >
+                {body}
+              </button>
+            )
           return source.url ? (
             <a
               key={`source-${source.cite}`}
@@ -308,8 +384,19 @@ export function StudioOperatorAnswerSources({
  * 媒体条里的一格。图是**第三方网图**：⛔ 不带我们的 Referer，能走热链代理就走
  * （`useThirdPartyImage`）；全都取不到就画一格灰底断图标，⛔ 不出破图标。
  */
-function AnswerMediaItem({ source }: { source: StudioOperatorAnswerSource }) {
+function AnswerMediaItem({
+  source,
+  playing,
+  onPlay,
+}: {
+  source: StudioOperatorAnswerSource
+  /** 这一条正在上面那个播放器里播。 */
+  playing: boolean
+  onPlay(): void
+}) {
   const image = useThirdPartyImage(source.mediaUrl)
+  const isVideo = source.kind === 'video'
+  const playable = playableVideoOf(source) !== null
   return (
     <button
       type="button"
@@ -317,16 +404,17 @@ function AnswerMediaItem({ source }: { source: StudioOperatorAnswerSource }) {
       data-kind={source.kind}
       data-cite={source.cite}
       title={source.title}
+      {...(playable ? { 'aria-pressed': playing } : {})}
       onClick={() => {
         /**
-         * ⭐ **两种点击，两个去处**：图片开站内灯箱（就在这一页看大图），
-         * 视频开新窗口跳原站。⛔ 不把视频也塞进灯箱 —— 灯箱里是一张静止的
-         * 封面，而用户点它是想看那一段。
+         * ⭐ **两种点击，两个去处**：图片开站内灯箱（就在这一页看大图）；视频能嵌就在
+         * 面板里播（与找到的视频那一排同一个播放器），嵌不了才开新窗口跳原站。
+         * ⛔ 不把视频也塞进灯箱 —— 灯箱里是一张静止的封面，而用户点它是想看那一段。
          */
-        if (source.kind === 'video') {
-          if (source.url) {
+        if (isVideo) {
+          if (playable) onPlay()
+          else if (source.url)
             window.open(source.url, '_blank', 'noopener,noreferrer')
-          }
           return
         }
         if (source.mediaUrl) {
@@ -335,7 +423,10 @@ function AnswerMediaItem({ source }: { source: StudioOperatorAnswerSource }) {
           })
         }
       }}
-      className="relative size-[62px] shrink-0 overflow-hidden rounded-lg border border-border bg-muted transition-opacity duration-fast ease-standard hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none"
+      className={cn(
+        'relative size-[62px] shrink-0 overflow-hidden rounded-lg border bg-muted transition-opacity duration-fast ease-standard hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none',
+        playing ? 'border-foreground ring-1 ring-foreground' : 'border-border',
+      )}
     >
       {image.src ? (
         <Image
@@ -358,7 +449,7 @@ function AnswerMediaItem({ source }: { source: StudioOperatorAnswerSource }) {
           <ImageOff className="size-4" />
         </span>
       )}
-      {source.kind === 'video' ? (
+      {isVideo ? (
         <>
           <span
             aria-hidden

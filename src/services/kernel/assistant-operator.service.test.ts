@@ -8469,6 +8469,11 @@ describe('persona 风格段', () => {
     expect(prompt).toContain("the creator's rules come first")
     expect(prompt).toContain('- Who you are: 雾港侦探社见习生')
     expect(prompt).toContain('- How you talk: 说话短，爱用反问。')
+    // 角色模式的说话规则：在系统提示里（吃缓存），排在设定前面不会被截掉
+    expect(prompt).toContain('one or two short sentences, spoken and casual')
+    expect(prompt.indexOf('one or two short sentences')).toBeLessThan(
+      prompt.indexOf('- Who you are'),
+    )
     expect(prompt).toContain('- Phrases you use: 「真的吗？」')
     expect(prompt).not.toContain('- Personality and how you act')
     expect(prompt).toContain('- talk the way your CHARACTER section describes')

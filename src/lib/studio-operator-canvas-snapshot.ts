@@ -415,6 +415,32 @@ function expandedShotNumbers(
   )
 }
 
+/**
+ * 焦点之外的带按离焦点由近到远排（同样远的先左后右；没焦点时从最前面起）—— 字节预算先给近的。
+ */
+function lanesByDistance(
+  shotNumbers: readonly number[],
+  currentShotNo: number | null,
+): number[] {
+  const focusIndex =
+    currentShotNo === null ? 0 : shotNumbers.indexOf(currentShotNo)
+  const anchor = focusIndex < 0 ? 0 : focusIndex
+  return shotNumbers
+    .map((shotNo, index) => ({ shotNo, distance: Math.abs(index - anchor) }))
+    .sort(
+      (left, right) =>
+        left.distance - right.distance || left.shotNo - right.shotNo,
+    )
+    .map(({ shotNo }) => shotNo)
+}
+
+const SNAPSHOT_ENCODER = new TextEncoder()
+
+/** 一段快照交上去的 UTF-8 字节（与过程记录 `turnRecordJsonBytes` 同一个量法）。 */
+function snapshotJsonBytes(value: unknown): number {
+  return SNAPSHOT_ENCODER.encode(JSON.stringify(value)).length
+}
+
 export interface BuildCanvasSnapshotInput {
   readonly referenceUrls?: readonly string[]
   readonly nodes: readonly NodeV4[]
@@ -480,39 +506,25 @@ export function buildCanvasOperatorSnapshot({
   const shotNumbers = [...byShot.keys()]
     .filter((shotNo): shotNo is number => shotNo !== null)
     .sort((a, b) => a - b)
-  const shotNodeCount = shotNumbers.reduce(
-    (sum, shotNo) => sum + (byShot.get(shotNo)?.length ?? 0),
-    0,
-  )
-  const expanded =
-    shotNodeCount <= ASSISTANT_OPERATOR_CANVAS_LIMITS.expandAllShotsUpToNodes
-      ? new Set(shotNumbers)
-      : expandedShotNumbers(shotNumbers, currentShotNo)
   /**
    * 选中的、`@` 到的卡所在的镜头带一律展开 —— 不止第一个选中卡那一段。
    * 🔬 从前多选跨了带（或 `@` 到别处的卡）时只展开第一张那一段，其余的卡在板子上
    *   没有句柄，助手看不见也动不了。
    */
   const pointedAt = new Set([...selectedNodeIds, ...mentionedNodeIds])
-  for (const node of nodes) {
-    const shotNo = node.data.shotNo
-    if (shotNo !== undefined && shotNo !== null && pointedAt.has(node.id))
-      expanded.add(shotNo)
-  }
+  const pointedLanes = new Set(
+    nodes.flatMap((node) => {
+      const shotNo = node.data.shotNo
+      return shotNo !== undefined && shotNo !== null && pointedAt.has(node.id)
+        ? [shotNo]
+        : []
+    }),
+  )
 
-  const shots: AssistantOperatorCanvasShot[] = []
-  const pushShot = (shotNo: number | null, isExpanded: boolean): void => {
+  const expandedLane = (
+    shotNo: number | null,
+  ): Extract<AssistantOperatorCanvasShot, { expanded: true }> => {
     const shotNodes = byShot.get(shotNo) ?? []
-    const title = shotNo === null ? LOOSE_SHOT_TITLE : `S${shotNo}`
-    if (!isExpanded) {
-      shots.push({
-        expanded: false,
-        shotNo,
-        title,
-        nodeCount: shotNodes.length,
-      })
-      return
-    }
     const visibleNodeIds = new Set(
       [
         ...new Set(
@@ -531,10 +543,10 @@ export function buildCanvasOperatorSnapshot({
       ].slice(0, ASSISTANT_OPERATOR_CANVAS_LIMITS.maxSnapshotNodesPerShot),
     )
     const omittedCount = shotNodes.length - visibleNodeIds.size
-    shots.push({
+    return {
       expanded: true,
       shotNo,
-      title,
+      title: shotNo === null ? LOOSE_SHOT_TITLE : `S${shotNo}`,
       ...(omittedCount > 0 ? { omittedCount } : {}),
       nodes: shotNodes
         .filter((node) => visibleNodeIds.has(node.id))
@@ -549,12 +561,51 @@ export function buildCanvasOperatorSnapshot({
             edges,
           ),
         ),
-    })
+    }
   }
 
-  for (const shotNo of shotNumbers) pushShot(shotNo, expanded.has(shotNo))
+  /**
+   * 展开哪几条带（P2 协调者的决定 D）：散卡、焦点那几面、指着的带一定展开；其余按离焦点由近到远
+   * 整条加，直到展开的卡在快照里到 `maxExpandedShotBytes` 为止 —— 放得下就每一条都展开。
+   * ⚠ 整条加、放不下就停（⛔ 跳过大的去塞后面小的）：展开的带连成一片，板子上不会东一条西一条。
+   */
+  const loose = byShot.has(null) ? expandedLane(null) : null
+  const lanes = new Map<
+    number,
+    Extract<AssistantOperatorCanvasShot, { expanded: true }>
+  >()
+  let bytes = loose ? snapshotJsonBytes(loose.nodes) : 0
+  const always = expandedShotNumbers(shotNumbers, currentShotNo)
+  for (const shotNo of pointedLanes) always.add(shotNo)
+  for (const shotNo of always) {
+    const lane = expandedLane(shotNo)
+    lanes.set(shotNo, lane)
+    bytes += snapshotJsonBytes(lane.nodes)
+  }
+  for (const shotNo of lanesByDistance(shotNumbers, currentShotNo)) {
+    if (lanes.has(shotNo)) continue
+    const lane = expandedLane(shotNo)
+    const laneBytes = snapshotJsonBytes(lane.nodes)
+    if (
+      bytes + laneBytes >
+      ASSISTANT_OPERATOR_CANVAS_LIMITS.maxExpandedShotBytes
+    )
+      break
+    lanes.set(shotNo, lane)
+    bytes += laneBytes
+  }
+
+  const shots: AssistantOperatorCanvasShot[] = shotNumbers.map(
+    (shotNo) =>
+      lanes.get(shotNo) ?? {
+        expanded: false,
+        shotNo,
+        title: `S${shotNo}`,
+        nodeCount: byShot.get(shotNo)?.length ?? 0,
+      },
+  )
   // ⚠ 散节点排在最后且永远展开 —— 见 `expandedShotNumbers` 头注。
-  if (byShot.has(null)) pushShot(null, true)
+  if (loose) shots.push(loose)
 
   return {
     currentShotNo,

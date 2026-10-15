@@ -5819,7 +5819,8 @@
           "remove": "キャンバスから外す",
           "removeVersion": "この版を外す",
           "retry": "再試行"
-        }
+        },
+        "slashPicker": "テンプレート候補"
       },
       "text": {
         "empty": "続きを書く……",
@@ -5945,13 +5946,6 @@
           "count": "枚数"
         },
         "storyboard": {
-          "toggle": "9 コマ絵コンテ",
-          "toggleHint": "3×3 の連続コマを 1 枚で作り、できたら 9 枚のカードに分けます",
-          "chipPrefix": "9 コマ",
-          "countLocked": "9 コマのときは 1 枚固定",
-          "templateShow": "送信時に絵コンテのテンプレートを付けます · 全文を見る",
-          "templateHide": "テンプレートを閉じる",
-          "templateStory": "（あなたが書いた一文）",
           "split3": "3×3 に分割",
           "split2": "2×2 に分割",
           "splitting": "分割中…",
@@ -5970,7 +5964,51 @@
           "option": "{n} 枚目"
         },
         "promptPlaceholder": "この画像を説明…",
-        "promptLabel": "画像プロンプト"
+        "promptLabel": "画像プロンプト",
+        "advanced": {
+          "label": "詳細設定",
+          "labelChanged": "詳細設定 · 変更あり",
+          "seed": "シード",
+          "seedRandom": "ランダム",
+          "seedShuffle": "シードを変える",
+          "seedLock": "シードを固定（毎回同じ値で送信）",
+          "seedUnlock": "固定を解除（毎回ランダム）",
+          "seedBatchHint": "複数枚のときは 1 枚ごとに +1",
+          "negative": "ネガティブプロンプト",
+          "negativePlaceholder": "入れたくないもの（例：文字、透かし）"
+        },
+        "send": {
+          "estimate": "≈{amount}",
+          "estimateLabel": "今回は約 {amount}。開くと計算を表示",
+          "estimateTitle": "今回のおおよその費用",
+          "estimateDetail": "{unit} / 枚 × {count} 枚 ≈ {amount}",
+          "estimateNote": "このチャネルの単価からの参考価格で、請求額ではありません。",
+          "needsKey": "キーを設定",
+          "needsKeyLabel": "このモデルはまだキーがありません。クリックしてその場で設定"
+        },
+        "template": {
+          "group": "テンプレート",
+          "remove": "テンプレートを外す",
+          "countLocked": "テンプレートで枚数固定",
+          "fullTextShow": "送信時にテンプレートを付加 · 全文を見る",
+          "fullTextHide": "テンプレートを閉じる",
+          "storyPlaceholder": "（あなたの一文）",
+          "grid3": {
+            "name": "9 コマ絵コンテ",
+            "short": "9 コマ",
+            "hint": "3×3 の連続コマを 1 枚で生成し、9 枚のカードに分割"
+          },
+          "grid2": {
+            "name": "4 コマストーリー",
+            "short": "4 コマ",
+            "hint": "2×2 の起承転合を 1 枚で生成し、4 枚のカードに分割"
+          },
+          "sequence4": {
+            "name": "連続ショット",
+            "short": "連続ショット",
+            "hint": "4 枚を同時に生成、1 枚 1 場面・同じ絵柄でバージョンに入る"
+          }
+        }
       },
       "audio": {
         "toolbar": {

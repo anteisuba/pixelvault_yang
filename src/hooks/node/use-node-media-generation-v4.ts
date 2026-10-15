@@ -51,8 +51,12 @@ import {
   validateV4Slots,
   type V4SlotIssue,
 } from '@/lib/node-slot-payload'
-import { wrapStoryboardGridPrompt } from '@/lib/storyboard-grid'
+import {
+  imageSubmitCount,
+  wrapImagePromptTemplate,
+} from '@/lib/image-prompt-templates'
 import { type NodeGenerationShot } from '@/lib/node-media-patch'
+import { shotSeed } from '@/lib/node-image-seed'
 import {
   AdvancedParamsSchema,
   type CharacterCardRecord,
@@ -92,11 +96,16 @@ export interface V4GenerationPlan {
   /** 「专属」chip 的其余几项 —— 逐项过 `AdvancedParamsSchema` 后并进 `advancedParams`。 */
   readonly advanced?: Readonly<Record<string, string | number | boolean>>
   /**
-   * 发几张。⚠ 本仓 **1 请求 = 1 张**，所以它是**请求数**：`generateNode` 顺序发
+   * 发几张。⚠ 本仓 **1 请求 = 1 张**，所以它是**请求数**：`generateNode` 并行发
    * 这么多枪，每一枪回来各追加一个产出版本。⛔ 不塞进单次请求的载荷 ——
    * `StudioGenerateSchema` 里没有这个字段，塞了服务端也读不到。
    */
   readonly count?: number
+  /**
+   * 逐张不同的提示词（`/` 模板 `sequence4`：第 n 张写第 n 拍）。给了就按下标取，
+   * 长度 = `count`；没给每一枪都发 `prompt`。
+   */
+  readonly shotPrompts?: readonly string[]
   /** 音频：Fish 的 `reference_id`（音色）与 `prosody` 两档。 */
   readonly voiceId?: string
   readonly speed?: number
@@ -356,15 +365,23 @@ export function planV4Generation(
       ? { ownPrompt: overrides.prompt ?? data.prompt }
       : {}),
   })
-  // 九宫格分镜（§3）：只包**发出去的那一份**、只出一张；你写的那句原样留在卡上。
-  const storyboardGrid = data.params?.storyboardGrid === true
+  // `/` 模板（§3）：只包**发出去的那一份**、张数按模板钉死；你写的那句原样留在卡上。
+  const template = data.params?.promptTemplate
   const modelPrompt = toModelPrompt(payload.prompt)
+  const count = imageSubmitCount(data.params ?? {})
+  const shotPrompts =
+    template === 'sequence4'
+      ? Array.from({ length: count }, (_, shot) =>
+          wrapImagePromptTemplate(template, modelPrompt, shot),
+        )
+      : undefined
   return {
     ...base,
     kind: 'image',
-    prompt: storyboardGrid
-      ? wrapStoryboardGridPrompt(modelPrompt)
+    prompt: template
+      ? wrapImagePromptTemplate(template, modelPrompt)
       : modelPrompt,
+    ...(shotPrompts ? { shotPrompts } : {}),
     ...(data.params?.aspectRatio
       ? { aspectRatio: data.params.aspectRatio as AspectRatio }
       : {}),
@@ -377,11 +394,7 @@ export function planV4Generation(
       ? { searchGrounding: true }
       : {}),
     ...(data.params?.advanced ? { advanced: data.params.advanced } : {}),
-    ...(storyboardGrid
-      ? { count: 1 }
-      : data.params?.count === undefined
-        ? {}
-        : { count: data.params.count }),
+    ...(template || data.params?.count !== undefined ? { count } : {}),
     referenceImages: payload.referenceUrls,
   }
 }
@@ -714,12 +727,26 @@ export function useNodeMediaGenerationV4() {
           : {}),
         ...(plan.searchGrounding ? { searchGrounding: true } : {}),
       }
-      const runOnce = (onJobCreated: (jobId: string) => void) =>
-        inner.generate(
+      const total = plan.kind === 'image' ? Math.max(plan.count ?? 1, 1) : 1
+      // 锁住的种子（⚙）：一次多张时第 n 张用 `seed + n`，⛔ 四张同一颗出四张一样的。
+      const lockedSeed =
+        typeof advanced.seed === 'number' && advanced.seed >= 0
+          ? advanced.seed
+          : undefined
+      const shotAdvancedParams = (index: number) =>
+        lockedSeed === undefined || total === 1
+          ? advancedParams
+          : { ...advancedParams, seed: shotSeed(lockedSeed, index) }
+      const runOnce = (
+        index: number,
+        onJobCreated: (jobId: string) => void,
+      ) => {
+        const shotParams = shotAdvancedParams(index)
+        return inner.generate(
           {
             kind: plan.kind,
             modelId: plan.modelId,
-            prompt: plan.prompt,
+            prompt: plan.shotPrompts?.[index] ?? plan.prompt,
             ...(plan.apiKeyId ? { apiKeyId: plan.apiKeyId } : {}),
             ...(plan.aspectRatio ? { aspectRatio: plan.aspectRatio } : {}),
             ...(plan.resolution ? { resolution: plan.resolution } : {}),
@@ -758,12 +785,13 @@ export function useNodeMediaGenerationV4() {
                   ),
                 }
               : {}),
-            ...(Object.keys(advancedParams).length > 0
-              ? { advancedParams }
+            ...(Object.keys(shotParams).length > 0
+              ? { advancedParams: shotParams }
               : {}),
           },
           { onJobCreated },
         )
+      }
 
       // 「先搜再画」的资料只在出图当下、只在内存里：开始时让出资料位，每一枪交回
       // 的来源合起来；没开搜索的一枪把上一次的资料收起。
@@ -772,10 +800,9 @@ export function useNodeMediaGenerationV4() {
       // 张数 > 1 = **并行**发 N 枪（spec §3 A1，owner 2026-10-14）。每一枪的
       // job 记进卡上的 `mediaBatchJobIds`（经 `pendingJobPatch`），⛔ 共用单字段
       // `mediaJobId` —— 那样几单互相盖掉，刷新之后只剩最后一单找得回来。
-      const total = plan.kind === 'image' ? Math.max(plan.count ?? 1, 1) : 1
       const runShot = async (index: number) => {
         let jobId: string | undefined
-        const result = await runOnce((created) => {
+        const result = await runOnce(index, (created) => {
           jobId = created
           options.onJobCreated?.(created, { index, total, jobId: created })
         })

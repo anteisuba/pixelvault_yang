@@ -45,6 +45,7 @@ export {
 export {
   MentionPicker,
   readMentionQuery,
+  readSlashQuery,
   matchMentionOptions,
   type MentionPickerProps,
   type MentionPickerOption,

@@ -5819,7 +5819,8 @@
           "remove": "Remove from canvas",
           "removeVersion": "Remove this version",
           "retry": "Retry"
-        }
+        },
+        "slashPicker": "Templates"
       },
       "text": {
         "empty": "Keep writing…",
@@ -5945,13 +5946,6 @@
           "count": "Count"
         },
         "storyboard": {
-          "toggle": "Storyboard grid",
-          "toggleHint": "Makes one 3×3 storyboard and splits it into 9 cards when it lands",
-          "chipPrefix": "Grid",
-          "countLocked": "Always 1 image in grid mode",
-          "templateShow": "A storyboard template is added when sending · Show it",
-          "templateHide": "Hide template",
-          "templateStory": "(your sentence)",
           "split3": "Split into 3×3",
           "split2": "Split into 2×2",
           "splitting": "Splitting…",
@@ -5970,7 +5964,51 @@
           "option": "Image {n}"
         },
         "promptPlaceholder": "Describe this image…",
-        "promptLabel": "Image prompt"
+        "promptLabel": "Image prompt",
+        "advanced": {
+          "label": "Advanced",
+          "labelChanged": "Advanced · changed",
+          "seed": "Seed",
+          "seedRandom": "Random",
+          "seedShuffle": "New seed",
+          "seedLock": "Lock seed: every send uses the same one",
+          "seedUnlock": "Unlock: random every time",
+          "seedBatchHint": "With several images, each one adds 1",
+          "negative": "Negative prompt",
+          "negativePlaceholder": "Things to keep out, e.g. text, watermark"
+        },
+        "send": {
+          "estimate": "≈{amount}",
+          "estimateLabel": "About {amount} for this send. Open to see how",
+          "estimateTitle": "Estimated cost",
+          "estimateDetail": "{unit} / image × {count} ≈ {amount}",
+          "estimateNote": "Reference price from this channel's unit price, not what you are billed.",
+          "needsKey": "Add key",
+          "needsKeyLabel": "This model has no API key yet. Click to add one here"
+        },
+        "template": {
+          "group": "Templates",
+          "remove": "Remove template",
+          "countLocked": "Set by the template",
+          "fullTextShow": "Template is added at send · see full text",
+          "fullTextHide": "Hide template",
+          "storyPlaceholder": "(your line)",
+          "grid3": {
+            "name": "3×3 storyboard",
+            "short": "3×3",
+            "hint": "One 3×3 storyboard image, split into 9 cards when done"
+          },
+          "grid2": {
+            "name": "2×2 story",
+            "short": "2×2",
+            "hint": "One 2×2 four-beat image, split into 4 cards when done"
+          },
+          "sequence4": {
+            "name": "Shot sequence",
+            "short": "Sequence",
+            "hint": "4 images at once, one beat each, same look, into versions"
+          }
+        }
       },
       "audio": {
         "toolbar": {

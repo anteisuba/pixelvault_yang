@@ -24,6 +24,7 @@ import {
 import { NODE_SCRIPT_PROJECTION_MODES } from '@/constants/node-script'
 import { NOVELAI_SCENE_TEXT_KINDS } from '@/constants/novelai'
 import { NODE_SLOT_TEXT_ROLES, NODE_SLOTS } from '@/constants/node-slots'
+import { IMAGE_PROMPT_TEMPLATE_CHOICES } from '@/constants/image-prompt-templates'
 
 /* ─────────────────────────────────────────────────────────────────────────
  * ① 八个工具的入参 —— 给 provider 看的那一份。
@@ -50,7 +51,7 @@ export const AssistantV3ParamsInputSchema = z.object({
   duration: z.string().nullable(),
   count: z.number().int().nullable(),
   generateAudio: z.boolean().nullable(),
-  storyboardGrid: z.boolean().nullable(),
+  promptTemplate: z.enum(IMAGE_PROMPT_TEMPLATE_CHOICES).nullable(),
 })
 
 export const AssistantV3EditOpInputSchema = z.union([

@@ -15,6 +15,7 @@
  * ⛔ 纯函数：不碰 DOM、不发请求、不读时钟（`now` 注入）。
  */
 
+import { IMAGE_PROMPT_TEMPLATE_NONE } from '@/constants/image-prompt-templates'
 import {
   NODE_ASSISTANT_OP_V4_IDS,
   type NodeAssistantWriteMode,
@@ -1347,11 +1348,17 @@ export function applyNodeAssistantOpV4(
         return { ok: false, reason: 'notAGeneratedNode' }
       }
       const previous = node.data.params
+      // `/` 模板的 `none` = 清掉：⛔ 把这个值落进卡（卡上的值域只有三种模板）。
+      const { promptTemplate, ...rest } = op.params
+      const merged = { ...previous, ...rest }
+      if (promptTemplate === IMAGE_PROMPT_TEMPLATE_NONE)
+        delete merged.promptTemplate
+      else if (promptTemplate) merged.promptTemplate = promptTemplate
       return {
         ok: true,
         state: replaceNodeData(state, node.id, (data) => ({
           ...data,
-          params: { ...previous, ...op.params },
+          params: merged,
         })),
         inverse: { kind: 'restoreParams', nodeId: node.id, params: previous },
         changedNodeIds: [node.id],

@@ -15,14 +15,17 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { buildImageSpecChipModel } from '@/lib/spec-chip-model'
+import { wrapImagePromptTemplate } from '@/lib/image-prompt-templates'
 import { cn } from '@/lib/utils'
 import { SpecChip } from '@/components/business/studio-shared/spec'
 import { useStudioChipDensity } from '@/components/business/studio-shared/primitives/tool-surface'
 import { ADAPTER_CAPABILITIES } from '@/constants/provider-capabilities'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { STORYBOARD_GRID_PROMPT_TEMPLATE } from '@/constants/storyboard-grid'
+import {
+  IMAGE_PROMPT_TEMPLATES,
+  type ImagePromptTemplateId,
+} from '@/constants/image-prompt-templates'
 import type { NodeWorkflowModelOption } from '@/types/node-workflow'
-import { Switch } from '@/components/ui/switch'
 
 import { IMAGE_COUNT_OPTIONS, imageFrameReadout } from './image-node-model'
 
@@ -40,11 +43,10 @@ export interface ImageFrameChipProps {
   onResolutionChange(next: string): void
   onCountChange(next: number): void
   /**
-   * 九宫格分镜（node-canvas-v2 §3）：开着时发送前接上分镜模板、只出一张、出完切成九格。
-   * 不给回调 = 不出这一行（手机抽屉这一轮不带）。
+   * 挂着的 `/` 模板（node-canvas-v2 §3）：张数按模板钉死、chip 首位写模板名、弹层
+   * 底部可展开看发出去的全文。模板在正文里打 `/` 挂、退格摘，⛔ 这里没有开关。
    */
-  readonly storyboardGrid?: boolean
-  onStoryboardGridChange?(next: boolean): void
+  readonly promptTemplate?: ImagePromptTemplateId
   readonly disabled?: boolean
 }
 
@@ -66,16 +68,18 @@ export function ImageFrameChip({
   onAspectRatioChange,
   onResolutionChange,
   onCountChange,
-  storyboardGrid = false,
-  onStoryboardGridChange,
+  promptTemplate,
   disabled = false,
 }: ImageFrameChipProps) {
   const t = useTranslations('StudioNode.v4.image')
   const tSpec = useTranslations('StudioSpecChip')
   const compact = useStudioChipDensity() === 'compact'
   const [templateOpen, setTemplateOpen] = useState(false)
-  // 九宫格开着时只出一张：张数钉在 1，读数也按一张算。
-  const effectiveCount = storyboardGrid ? 1 : count
+  // 挂着模板时张数由模板钉死，读数也按它算。
+  const templateCount = promptTemplate
+    ? IMAGE_PROMPT_TEMPLATES[promptTemplate].count
+    : undefined
+  const effectiveCount = templateCount ?? count
 
   const adapterType =
     model && model.adapterType in ADAPTER_CAPABILITIES
@@ -112,49 +116,32 @@ export function ImageFrameChip({
               options: IMAGE_COUNT_OPTIONS.map((option) =>
                 Number(option.value),
               ),
-              locked: storyboardGrid,
-              lockedHint: storyboardGrid
-                ? t('storyboard.countLocked')
+              locked: Boolean(promptTemplate),
+              lockedHint: promptTemplate
+                ? t('template.countLocked')
                 : undefined,
               onChange: onCountChange,
             }
           : undefined
       }
-      {...(storyboardGrid ? { summaryPrefix: t('storyboard.chipPrefix') } : {})}
+      {...(promptTemplate
+        ? { summaryPrefix: t(`template.${promptTemplate}.short`) }
+        : {})}
       more={
         compact ? undefined : (
           <div className="flex flex-col gap-3">
-            {onStoryboardGridChange ? (
-              <div className="flex min-h-11 items-start justify-between gap-3">
-                <div className="flex min-w-0 flex-col gap-0.5">
-                  <span className="text-xs font-medium text-foreground">
-                    {t('storyboard.toggle')}
-                  </span>
-                  <span className="text-2xs text-muted-foreground">
-                    {t('storyboard.toggleHint')}
-                  </span>
-                </div>
-                <Switch
-                  checked={storyboardGrid}
-                  disabled={disabled}
-                  onCheckedChange={onStoryboardGridChange}
-                  aria-label={t('storyboard.toggle')}
-                  data-testid="storyboard-grid-switch"
-                />
-              </div>
-            ) : null}
             <div className="flex flex-col gap-1.5">
               <span className="flex items-center justify-between gap-2 text-2xs font-medium text-muted-foreground/70">
                 {tSpec('moreItem.batchCount')}
-                {storyboardGrid ? (
+                {promptTemplate ? (
                   <span className="font-normal">
-                    {t('storyboard.countLocked')}
+                    {t('template.countLocked')}
                   </span>
                 ) : null}
               </span>
               <div className="flex flex-wrap gap-1.5">
                 {IMAGE_COUNT_OPTIONS.map((option) => {
-                  const locked = disabled || storyboardGrid
+                  const locked = disabled || Boolean(promptTemplate)
                   return (
                     <button
                       key={option.value}
@@ -192,7 +179,7 @@ export function ImageFrameChip({
                 {readout}
               </p>
             ) : null}
-            {storyboardGrid ? (
+            {promptTemplate ? (
               <div className="flex flex-col gap-1.5">
                 <button
                   type="button"
@@ -201,17 +188,17 @@ export function ImageFrameChip({
                   className="self-start rounded-md text-2xs text-muted-foreground underline-offset-4 transition-colors duration-fast hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {templateOpen
-                    ? t('storyboard.templateHide')
-                    : t('storyboard.templateShow')}
+                    ? t('template.fullTextHide')
+                    : t('template.fullTextShow')}
                 </button>
                 {templateOpen ? (
                   <p
                     data-storyboard-template
                     className="whitespace-pre-wrap rounded-lg bg-muted/60 px-2.5 py-2 font-mono text-2xs leading-4 text-foreground"
                   >
-                    {STORYBOARD_GRID_PROMPT_TEMPLATE.replace(
-                      '{story}',
-                      t('storyboard.templateStory'),
+                    {wrapImagePromptTemplate(
+                      promptTemplate,
+                      t('template.storyPlaceholder'),
                     )}
                   </p>
                 ) : null}

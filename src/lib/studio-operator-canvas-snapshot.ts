@@ -38,6 +38,8 @@ import {
 } from '@/constants/video-model-capabilities'
 import type { VideoResolution } from '@/constants/video-options'
 import { NODE_SCRIPT_SHOT_STATE_IDS } from '@/constants/node-script'
+import { IMAGE_PROMPT_TEMPLATE_CHOICES } from '@/constants/image-prompt-templates'
+import { imageSubmitCount } from '@/lib/image-prompt-templates'
 import {
   NODE_MEDIA_KIND_IDS,
   NODE_STATUS_IDS,
@@ -96,14 +98,17 @@ export function readCanvasNodeGenerationState(
       values: {
         ...data.params,
         aspectRatio: data.params?.aspectRatio ?? DEFAULT_ASPECT_RATIO,
-        count: data.params?.storyboardGrid ? 1 : (data.params?.count ?? 1),
+        count: imageSubmitCount(data.params ?? {}),
       },
       options: {
         aspectRatio: [...STUDIO_IMAGE_ASPECT_RATIOS],
         quality: [...(capability?.qualityOptions ?? [])],
         resolution: [...(capability?.resolutionOptions ?? [])],
-        count: data.params?.storyboardGrid ? [1] : [...IMAGE_BATCH_COUNTS],
-        storyboardGrid: [false, true],
+        // 挂着模板时张数由模板钉死，只剩那一个数可选。
+        count: data.params?.promptTemplate
+          ? [imageSubmitCount(data.params)]
+          : [...IMAGE_BATCH_COUNTS],
+        promptTemplate: [...IMAGE_PROMPT_TEMPLATE_CHOICES],
       },
     }
   } else if (data.kind === NODE_MEDIA_KIND_IDS.video) {
@@ -162,8 +167,8 @@ export function buildCanvasGenerationRequest(
   return {
     model: { id: node.model, label: node.model },
     count:
-      node.kind === NODE_MEDIA_KIND_IDS.image && !params?.storyboardGrid
-        ? (params?.count ?? 1)
+      node.kind === NODE_MEDIA_KIND_IDS.image
+        ? imageSubmitCount(params ?? {})
         : 1,
     specs: {
       aspectRatio: params?.aspectRatio ?? null,

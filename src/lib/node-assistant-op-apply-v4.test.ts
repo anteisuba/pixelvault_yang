@@ -1463,3 +1463,18 @@ describe('project_script · 重投影 diff（画板 DesignD7Script ③）', () =
     ).toMatchObject({ state: 'dropped' })
   })
 })
+
+it('set_params 的 promptTemplate: none = 摘掉模板，⛔ 落进卡', () => {
+  const node = imageNode('sheet')
+  if (node.data.kind !== 'image') throw new Error('Expected image')
+  node.data.params = { count: 2, promptTemplate: 'grid3' }
+  const state: NodeWorkflowStateV4 = { version: 4, nodes: [node], edges: [] }
+  const result = applyNodeAssistantOpV4(
+    state,
+    { op: 'set_params', target: node.id, params: { promptTemplate: 'none' } },
+    makeContext(),
+  )
+  if (!result.ok) throw new Error('Expected ok')
+  const data = result.state.nodes[0]!.data
+  expect(data.kind === 'image' && data.params).toEqual({ count: 2 })
+})

@@ -91,6 +91,7 @@ import {
   type AssistantOperatorTool,
 } from '@/constants/assistant-operator'
 import { ASSISTANT_PLAN_VISUAL_IDS } from '@/constants/assistant-plan-visuals'
+import { IMAGE_PROMPT_TEMPLATE_CHOICES } from '@/constants/image-prompt-templates'
 /**
  * ⭐ 画布那两条**原样借 v4 的 op 词表**（进度表 22）：词表、确认三档与 inverse
  * 形状在 `constants/node-assistant-ops.ts` 里已经是一张封闭的真值表，画布的执行器
@@ -684,7 +685,10 @@ export const AssistantOperatorCanvasParametersSchema = z.object({
       .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxParameterOptions)
       .optional(),
     generateAudio: z.array(z.boolean()).max(2).optional(),
-    storyboardGrid: z.array(z.boolean()).max(2).optional(),
+    promptTemplate: z
+      .array(z.enum(IMAGE_PROMPT_TEMPLATE_CHOICES))
+      .max(IMAGE_PROMPT_TEMPLATE_CHOICES.length)
+      .optional(),
     seed: z.literal(true).optional(),
   }),
 })

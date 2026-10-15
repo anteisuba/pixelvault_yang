@@ -88,4 +88,40 @@ describe('generateNode · 一次多张并行（spec §3 A1）', () => {
     // 有一张成了，整次就交回成的那张。
     await expect(done).resolves.toMatchObject({ success: true })
   })
+
+  it('锁住的种子：第 n 张用 seed + n，⛔ 几张同一颗', async () => {
+    generate.mockReset()
+    generate.mockResolvedValue({ success: false, error: 'x' })
+    const seeded = {
+      ...still,
+      data: {
+        kind: 'image',
+        subtype: 'shot',
+        name: 'still',
+        status: 'idle',
+        createdAt: '2026-10-14T00:00:00.000Z',
+        model: {
+          optionId: 'opt',
+          modelId: 'nai-v4',
+          adapterType: 'novelai',
+          providerConfig: { label: 'NovelAI', baseUrl: '' },
+        },
+        prompt: '走廊全景',
+        params: { count: 3, advanced: { seed: 4294967294, steps: 28 } },
+      } as NodeV4Data,
+    } as NodeV4
+    const { result } = renderHook(() => useNodeMediaGenerationV4())
+    await act(async () => {
+      await result.current.generateNode('still', {
+        nodes: [seeded],
+        edges: [],
+      })
+    })
+    const seeds = generate.mock.calls.map(
+      ([input]) =>
+        (input as { advancedParams?: { seed?: number } }).advancedParams?.seed,
+    )
+    // 越过上限绕回 0。
+    expect(seeds).toEqual([4294967294, 4294967295, 0])
+  })
 })

@@ -4,9 +4,9 @@
  * 九宫格分镜的「切开」（node-canvas-v2 §3「九宫格分镜」，设计画布「画布 · 九宫格分镜」A）。
  *
  * 两条路进来：
- * - **出完自动切**：开着九宫格开关的卡，**打开画布之后**才长出来的那一版生成图。
- *   卡片提示词栏、多选回车、助手、刷新后回填都会让版本表长一格，所以盯版本表，⛔ 不在
- *   每条发送路径里各挂一次。打开画布时已有的版本、事后才打开开关的图都不切。
+ * - **出完自动切**：挂着宫格模板（`/` 模板 grid3 / grid2）的卡，**打开画布之后**
+ *   才长出来的那一版生成图，按模板的宫格切。卡片提示词栏、多选回车、助手、刷新后回填都会让版本表长一格，所以盯版本表，⛔ 不在
+ *   每条发送路径里各挂一次。打开画布时已有的版本、事后才挂上模板的图都不切。
  * - **手动切**：图片卡 ⋯「切宫格 3×3 / 2×2」，以及认不出九宫格时卡上那两颗键。
  *
  * 切开 = 读图 → 认格缝 → 逐格存进素材库 → 九张带着图一次落下（一个撤销条目，
@@ -24,6 +24,7 @@ import {
   NODE_V4_CARD,
 } from '@/constants/node-studio'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
+import { IMAGE_PROMPT_TEMPLATES } from '@/constants/image-prompt-templates'
 import {
   NODE_MEDIA_KIND_IDS,
   NODE_V4_IMAGE_SUBTYPE_IDS,
@@ -234,14 +235,18 @@ export function useStoryboardGridSplit(options: {
       const before = seen.get(node.id)
       seen.set(node.id, count)
       if (before === undefined || count <= before) continue
-      if (node.data.params?.storyboardGrid !== true) continue
+      const template = node.data.params?.promptTemplate
+      const gridSize = template
+        ? IMAGE_PROMPT_TEMPLATES[template].gridSize
+        : undefined
+      if (!gridSize) continue
       const current = versions[readOutputIndex(node.data)]
       if (
         current?.meta?.imageSource !==
         NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated
       )
         continue
-      void run(node.id, 3, 'detect')
+      void run(node.id, gridSize, 'detect')
     }
   }, [graph.nodes, run])
 

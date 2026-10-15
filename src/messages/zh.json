@@ -5819,7 +5819,8 @@
           "remove": "从画布移除",
           "removeVersion": "去掉这一版",
           "retry": "重试"
-        }
+        },
+        "slashPicker": "模板候选"
       },
       "text": {
         "empty": "继续写……",
@@ -5945,13 +5946,6 @@
           "count": "张数"
         },
         "storyboard": {
-          "toggle": "九宫格分镜",
-          "toggleHint": "一次出 3×3 连续分镜，出完自动切成 9 张卡",
-          "chipPrefix": "九宫格",
-          "countLocked": "九宫格时固定 1 张",
-          "templateShow": "发送时接上分镜模板 · 看全文",
-          "templateHide": "收起模板",
-          "templateStory": "（你写的那一句）",
           "split3": "切宫格 3×3",
           "split2": "切宫格 2×2",
           "splitting": "正在切开…",
@@ -5970,7 +5964,51 @@
           "option": "第 {n} 张"
         },
         "promptPlaceholder": "描述这张图……",
-        "promptLabel": "图片提示词"
+        "promptLabel": "图片提示词",
+        "advanced": {
+          "label": "高级参数",
+          "labelChanged": "高级参数 · 已改",
+          "seed": "种子",
+          "seedRandom": "随机",
+          "seedShuffle": "换一个种子",
+          "seedLock": "锁住种子，每次发送同一颗",
+          "seedUnlock": "解锁，每次随机",
+          "seedBatchHint": "一次多张时每张依次 +1",
+          "negative": "反向提示词",
+          "negativePlaceholder": "不想出现的东西，比如 文字、水印"
+        },
+        "send": {
+          "estimate": "≈{amount}",
+          "estimateLabel": "这一次约 {amount}，点开看算法",
+          "estimateTitle": "这一次大约多少钱",
+          "estimateDetail": "{unit} / 张 × {count} 张 ≈ {amount}",
+          "estimateNote": "参考价，按这条渠道的单价估算，不是计费依据。",
+          "needsKey": "先配 key",
+          "needsKeyLabel": "这个模型还没配 key，点一下就地配置"
+        },
+        "template": {
+          "group": "模板",
+          "remove": "去掉模板",
+          "countLocked": "模板定了张数",
+          "fullTextShow": "发送时接上模板 · 看全文",
+          "fullTextHide": "收起模板",
+          "storyPlaceholder": "（你写的那一句）",
+          "grid3": {
+            "name": "九宫格多机位",
+            "short": "九宫格",
+            "hint": "一张 3×3 连续分镜，出完自动切成 9 张卡"
+          },
+          "grid2": {
+            "name": "四宫格剧情",
+            "short": "四宫格",
+            "hint": "一张 2×2 起承转合，出完自动切成 4 张卡"
+          },
+          "sequence4": {
+            "name": "连贯分镜",
+            "short": "连贯分镜",
+            "hint": "同时出 4 张，每张一拍、人物画风一致，进版本条"
+          }
+        }
       },
       "audio": {
         "toolbar": {

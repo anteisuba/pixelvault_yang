@@ -219,13 +219,13 @@ describe('planV4Generation · 其余分支', () => {
     expect(plan.aspectRatio).toBe('3:4')
   })
 
-  it('图 · 九宫格：发出去的那一份包上分镜模板、只出一张；卡上的原句不动', () => {
+  it('图 · 九宫格模板：发出去的那一份包上分镜模板、只出一张；卡上的原句不动', () => {
     const sheet = node('sheet', {
       kind: 'image',
       subtype: 'shot',
       model: MODEL,
       prompt: '雨夜的天台，她等了很久，最后转身离开',
-      params: { aspectRatio: '16:9', count: 4, storyboardGrid: true },
+      params: { aspectRatio: '16:9', count: 4, promptTemplate: 'grid3' },
     })
     const plan = planV4Generation('sheet', { nodes: [sheet], edges: [] })!
     expect(plan.prompt).toContain('3×3 storyboard grid')
@@ -236,13 +236,28 @@ describe('planV4Generation · 其余分支', () => {
     )
   })
 
-  it('图 · 九宫格关着：照常按张数发、不包模板', () => {
+  it('图 · 连贯分镜模板：钉 4 张，逐张写第 n 拍', () => {
+    const sequence = node('seq', {
+      kind: 'image',
+      subtype: 'shot',
+      model: MODEL,
+      prompt: '雨夜的天台',
+      params: { count: 1, promptTemplate: 'sequence4' },
+    })
+    const plan = planV4Generation('seq', { nodes: [sequence], edges: [] })!
+    expect(plan.count).toBe(4)
+    expect(plan.shotPrompts).toHaveLength(4)
+    expect(plan.shotPrompts?.[3]).toContain('Shot 4 of 4')
+    expect(plan.shotPrompts?.[3]).toContain('雨夜的天台')
+  })
+
+  it('图 · 没挂模板：照常按张数发、不包模板', () => {
     const still = node('still', {
       kind: 'image',
       subtype: 'shot',
       model: MODEL,
       prompt: '走廊全景',
-      params: { count: 2, storyboardGrid: false },
+      params: { count: 2 },
     })
     const plan = planV4Generation('still', { nodes: [still], edges: [] })!
     expect(plan.prompt).toBe('走廊全景')

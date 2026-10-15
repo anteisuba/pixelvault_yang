@@ -27,6 +27,8 @@ export interface MentionPickerOption {
   /** 分组标题（视频卡：参考轨 / 图 / 视频 / 语音 / 文本）。 */
   readonly groupLabel: string
   readonly media?: MentionChipMedia
+  /** 名字下面一行灰字（`/` 模板：这一项会怎么出图）。 */
+  readonly hint?: string
 }
 
 export interface MentionPickerProps {
@@ -142,7 +144,16 @@ export function MentionPicker({
                     <OptionThumb
                       {...(option.media ? { media: option.media } : {})}
                     />
-                    <span className="truncate">{option.name}</span>
+                    {option.hint ? (
+                      <span className="flex min-w-0 flex-col">
+                        <span className="truncate">{option.name}</span>
+                        <span className="text-2xs text-muted-foreground">
+                          {option.hint}
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="truncate">{option.name}</span>
+                    )}
                   </button>
                 </li>
               ))}
@@ -183,6 +194,27 @@ export function readMentionQuery(
       return { start: index, query: value.slice(index + 1, at) }
     }
     if (QUERY_TERMINATORS.test(char)) return null
+  }
+  return null
+}
+
+/**
+ * 光标处在不在一个 `/` 查询里？判据比 `@` 严：`/` 必须在行首或空白之后（`a/b`、
+ * 网址里的斜杠都不弹），`/` 与光标之间不能有空白。
+ */
+export function readSlashQuery(
+  value: string,
+  caret: number,
+): MentionQuery | null {
+  const at = Math.min(Math.max(caret, 0), value.length)
+  for (let index = at - 1; index >= 0; index -= 1) {
+    const char = value[index] ?? ''
+    if (char === '/') {
+      const before = index === 0 ? '' : (value[index - 1] ?? '')
+      if (before !== '' && !/\s/.test(before)) return null
+      return { start: index, query: value.slice(index + 1, at) }
+    }
+    if (/\s/.test(char)) return null
   }
   return null
 }

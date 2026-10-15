@@ -5,6 +5,7 @@ import {
   getVideoUnitPricePerSecond,
 } from '@/constants/models/unit-prices'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
+import { imageSubmitCount } from '@/lib/image-prompt-templates'
 import type { VideoResolution } from '@/constants/video-options'
 import type { CanvasNodeGenerationState } from '@/lib/studio-operator-canvas-snapshot'
 
@@ -22,7 +23,7 @@ export function estimateCanvasNodeCost(
   const values = node.parameters?.values
   if (!model) return null
   if (node.kind === NODE_MEDIA_KIND_IDS.image) {
-    const count = values?.storyboardGrid ? 1 : (values?.count ?? 1)
+    const count = imageSubmitCount(values ?? {})
     const quality = values?.quality
     const ideogram = getIdeogramImageOutputPrice(model, { quality })
     if (ideogram)

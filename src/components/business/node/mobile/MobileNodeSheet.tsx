@@ -45,7 +45,7 @@ import {
   type VoiceLibraryClip,
 } from '../voice-library/VoiceLibraryPanel'
 import { CharacterMentionRail } from '../nodes/v4/character/CharacterMentionRail'
-import { ImageCapabilityChip } from '../nodes/v4/image/ImageCapabilityChip'
+import { ImageAdvancedChip } from '../nodes/v4/image/ImageAdvancedChip'
 import { ImageFrameChip } from '../nodes/v4/image/ImageFrameChip'
 import { ImageSearchGroundingMenuItem } from '../nodes/v4/image/ImageNodeMenus'
 import { imageNodeAcceptsReferences } from '../nodes/v4/image/image-node-model'
@@ -281,8 +281,8 @@ function ImageSheetBody({ node }: { readonly node: NodeV4 }) {
               canvas.onSetParams(node.id, { ...data.params, count })
             }
           />,
-          <ImageCapabilityChip
-            key="capability"
+          <ImageAdvancedChip
+            key="advanced"
             model={data.model}
             params={data.params}
             onParamsChange={(next) => canvas.onSetParams(node.id, next)}

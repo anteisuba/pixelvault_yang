@@ -86,6 +86,25 @@ vi.mock(
   }),
 )
 
+/** key 名单：缺省「还没回来」= 不知道缺不缺，⛔ 当成缺。 */
+const apiKeys = vi.hoisted(() => ({
+  current: null as { hasLoaded: boolean } | null,
+}))
+vi.mock('@/contexts/api-keys-context', () => ({
+  useApiKeysContextOptional: () => apiKeys.current,
+}))
+
+vi.mock('../../../studio-shared/setup/QuickSetupDialog', () => ({
+  QuickSetupDialog: (props: { onVerified?: () => void; modelId: string }) => (
+    <button
+      type="button"
+      data-testid="quick-setup"
+      data-model={props.modelId}
+      onClick={() => props.onVerified?.()}
+    />
+  ),
+}))
+
 vi.mock('@/components/business/AssetSelectorDialog', () => ({
   AssetSelectorDialog: () => <div data-testid="asset-picker" />,
 }))
@@ -853,6 +872,47 @@ describe('画面弹层与模型 chip', () => {
     )
   })
 
+  it('型号缺 key：发送不出图，就地弹配置；验证过才发（Hard Rule 8）', () => {
+    generateNode.mockClear()
+    apiKeys.current = { hasLoaded: true }
+    const options = [
+      {
+        optionId: 'opt_missing',
+        modelId: 'model-missing',
+        adapterType: 'fal',
+        providerConfig: {},
+        requestCount: 0,
+        sourceType: 'workspace',
+      },
+    ] as never
+    const context = harness(
+      [
+        imageNode('i_1', {
+          prompt: '山间晨雾',
+          model: {
+            optionId: 'opt_missing',
+            modelId: 'model-missing',
+            adapterType: 'fal',
+          },
+        }),
+      ],
+      { selectedNodeIds: ['i_1'], modelOptionsByKind: { image: options } },
+    )
+    const { container } = renderImage(context, 'i_1', true)
+    expect(
+      container.querySelector('[data-image-send-readout="missing-key"]'),
+    ).not.toBeNull()
+    expect(screen.queryByTestId('quick-setup')).toBeNull()
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' })
+    expect(generateNode).not.toHaveBeenCalled()
+    const dialog = screen.getByTestId('quick-setup')
+    expect(dialog).toHaveAttribute('data-model', 'model-missing')
+    fireEvent.click(dialog)
+    expect(generateNode).toHaveBeenCalledTimes(1)
+    expect(screen.queryByTestId('quick-setup')).toBeNull()
+    apiKeys.current = null
+  })
+
   it('选项映射与 WorkflowModelPicker 同口径（apiKeyId → keyId）', () => {
     expect(
       toStudioModelOption({
@@ -1342,7 +1402,7 @@ describe('来源没了（owner 09-27：素材库删了图，画布上是裂图�
   })
 })
 
-describe('九宫格分镜（§3）', () => {
+describe('`/` 模板与九宫格分镜（§3）', () => {
   function storyboardApi(
     overrides: Partial<
       NonNullable<NodeV4CanvasContextValue['storyboard']>
@@ -1358,22 +1418,25 @@ describe('九宫格分镜（§3）', () => {
     }
   }
 
-  it('开着时 chip 首位写「九宫格」', () => {
+  it('挂着宫格模板：chip 首位写模板短名，正文开头一颗模板 chip', () => {
     const context = harness(
       [
         imageNode('i_1', {
           url: 'https://cdn.test/a.png',
-          params: { aspectRatio: '16:9', storyboardGrid: true },
+          params: { aspectRatio: '16:9', promptTemplate: 'grid3' },
         }),
       ],
       { selectedNodeIds: ['i_1'], storyboard: storyboardApi() },
     )
     renderImage(context, 'i_1', true)
     const chip = document.querySelector('[data-testid="image-frame-chip"]')
-    expect(chip?.textContent).toMatch(/^storyboard\.chipPrefix · /)
+    expect(chip?.textContent).toMatch(/^template\.grid3\.short · /)
+    expect(
+      document.querySelector('[data-prompt-template-chip="grid3"]'),
+    ).not.toBeNull()
   })
 
-  it('弹层里打开开关 → 写回 set_params，其余参数不丢', () => {
+  it('正文里打 `/` 选模板：挂到参数上，`/` 从正文里删掉，其余参数不丢', () => {
     const onSetParams = vi.fn()
     const context = harness(
       [
@@ -1382,31 +1445,43 @@ describe('九宫格分镜（§3）', () => {
           params: { aspectRatio: '16:9', count: 2 },
         }),
       ],
-      { selectedNodeIds: ['i_1'], onSetParams, storyboard: storyboardApi() },
+      { selectedNodeIds: ['i_1'], onSetParams },
     )
     renderImage(context, 'i_1', true)
-    fireEvent.click(document.querySelector('[data-testid="image-frame-chip"]')!)
-    fireEvent.click(screen.getByTestId('storyboard-grid-switch'))
+    const input = screen.getByRole('textbox') as HTMLTextAreaElement
+    fireEvent.change(input, {
+      target: { value: '雨夜 /', selectionStart: 4, selectionEnd: 4 },
+    })
+    const option = document.querySelector(
+      '[data-mention-option="grid2"]',
+    ) as HTMLElement
+    expect(option).not.toBeNull()
+    fireEvent.pointerDown(option)
     expect(onSetParams).toHaveBeenCalledWith('i_1', {
       aspectRatio: '16:9',
       count: 2,
-      storyboardGrid: true,
+      promptTemplate: 'grid2',
     })
+    expect(input.value).toBe('雨夜 ')
   })
 
-  it('宿主没接切开能力：弹层里不出开关', () => {
+  it('光标在最前面按退格：摘掉模板，正文不动', () => {
+    const onSetParams = vi.fn()
     const context = harness(
       [
         imageNode('i_1', {
-          url: 'https://cdn.test/a.png',
-          params: { aspectRatio: '16:9' },
+          prompt: '雨夜',
+          params: { count: 2, promptTemplate: 'sequence4' },
         }),
       ],
-      { selectedNodeIds: ['i_1'] },
+      { selectedNodeIds: ['i_1'], onSetParams },
     )
     renderImage(context, 'i_1', true)
-    fireEvent.click(document.querySelector('[data-testid="image-frame-chip"]')!)
-    expect(screen.queryByTestId('storyboard-grid-switch')).toBeNull()
+    const input = screen.getByRole('textbox') as HTMLTextAreaElement
+    input.setSelectionRange(0, 0)
+    fireEvent.keyDown(input, { key: 'Backspace' })
+    expect(onSetParams).toHaveBeenCalledWith('i_1', { count: 2 })
+    expect(input.value).toBe('雨夜')
   })
 
   it('认不出九宫格：卡上一句 + 手动切 3×3 / 2×2 + 关掉', () => {

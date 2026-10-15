@@ -71,7 +71,7 @@ const noParams: AssistantV3ParamsInput = {
   duration: null,
   count: null,
   generateAudio: null,
-  storyboardGrid: null,
+  promptTemplate: null,
 }
 
 describe('v3 edit → v4 op', () => {

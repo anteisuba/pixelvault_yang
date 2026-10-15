@@ -41,7 +41,9 @@ import {
   MentionPicker,
   matchMentionOptions,
   readMentionQuery,
+  readSlashQuery,
   type MentionPickerOption,
+  type MentionQuery,
 } from './MentionPicker'
 
 export interface NodePromptBarProps {
@@ -80,6 +82,11 @@ export interface NodePromptBarProps {
    * 竖线一起渲染；⛔ 空的时候不留一条孤零零的分隔线。
    */
   readonly trailing?: ReactNode
+  /**
+   * 紧贴发送键左边的一格读数（图片卡「发送键带价」：`≈$0.16` / 「先配 key」）。
+   * 生成中不画 —— 那时发送键已换成取消，读数说的那一枪已经发出去了。
+   */
+  readonly readout?: ReactNode
   /**
    * **栏内首行**（画板 `VideoSelected.dc.html`：已挂的首帧 / 尾帧 / 语音那排小
    * chip 就在栏里、正文之上，同一片玻璃）。
@@ -126,6 +133,19 @@ export interface NodePromptBarProps {
    */
   readonly mentionOptions?: readonly MentionPickerOption[]
   onMentionSelect?(option: MentionPickerOption): void
+  /**
+   * `/` 候选（图片卡的模板，node-canvas-v2 §3）。给了就在行首或空白后键 `/` 时弹
+   * 同一个列表；选中 = 把 `/查询` 从正文里删掉、交给 `onSlashSelect`。⛔ 不往正文
+   * 里落任何字 —— 选中的东西由调用方挂成 `prefix`。
+   */
+  readonly slashOptions?: readonly MentionPickerOption[]
+  onSlashSelect?(option: MentionPickerOption): void
+  /**
+   * 正文开头那颗 chip（挂着的模板）。它不是正文里的字：正文首行让出它的宽度
+   * （`text-indent`），光标在最前面按退格 = `onPrefixRemove`，整颗一起摘掉。
+   */
+  readonly prefix?: ReactNode
+  onPrefixRemove?(): void
 }
 
 export interface PromptBarSelection {
@@ -135,6 +155,8 @@ export interface PromptBarSelection {
 
 /** 正文行高 20px（`text-sm` 的 `leading-5`）——长高与滚动都按它算。 */
 const LINE_HEIGHT_PX = 20
+/** 开头那颗 chip 与正文第一个字之间的空。 */
+const PREFIX_GAP_PX = 6
 
 export function NodePromptBar({
   value,
@@ -149,6 +171,7 @@ export function NodePromptBar({
   addMenu,
   safeLeftPx = CANVAS_SHELL_SAFE_LEFT_DEFAULT_PX,
   trailing,
+  readout,
   leadingRow,
   slotRow,
   ariaLabel,
@@ -160,6 +183,10 @@ export function NodePromptBar({
   renderValue,
   mentionOptions,
   onMentionSelect,
+  slashOptions,
+  onSlashSelect,
+  prefix,
+  onPrefixRemove,
 }: NodePromptBarProps) {
   const t = useTranslations('StudioNode.v4.chrome')
   const sizerRef = useRef<HTMLDivElement>(null)
@@ -173,6 +200,9 @@ export function NodePromptBar({
   const [dismissedAt, setDismissedAt] = useState<number | null>(null)
   const [activeId, setActiveId] = useState<string | null>(null)
   const reduceMotion = useReducedMotion()
+  const prefixRef = useRef<HTMLSpanElement>(null)
+  /** 开头那颗 chip 量出来的宽。 */
+  const [prefixWidth, setPrefixWidth] = useState(0)
   const addTriggerRef = useRef<HTMLButtonElement>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [addMounted, setAddMounted] = useState(false)
@@ -203,6 +233,16 @@ export function NodePromptBar({
     setLines(Math.max(1, Math.round(el.scrollHeight / LINE_HEIGHT_PX)))
   }, [value])
 
+  const hasPrefix = prefix !== undefined && prefix !== null && prefix !== false
+  useLayoutEffect(() => {
+    const el = prefixRef.current
+    if (!el) return
+    setPrefixWidth(el.offsetWidth)
+  }, [prefix])
+  /** 正文首行让给 `prefix` 的宽度（含间隙）；没有 chip 就不让。 */
+  const prefixIndent =
+    hasPrefix && prefixWidth > 0 ? prefixWidth + PREFIX_GAP_PX : 0
+
   /**
    * 正文一变就把光标位置对齐：自己落完 `@` 走 `pendingCaretRef`（顺带把焦点抢
    * 回来），其余情况（外部改 `value`、`+` 菜单里插一个 `@`）从 DOM 读。
@@ -231,11 +271,32 @@ export function NodePromptBar({
       ? matchMentionOptions(mentionOptions ?? [], mentionQuery.query)
       : []
   const mentionOpen = mentionMatches.length > 0
+  // `@` 优先：两样同时成立时（`@a/b` 这种）只开一个列表。
+  const slashQuery =
+    !mentionOpen && slashOptions && slashOptions.length > 0 && !generating
+      ? readSlashQuery(value, caret)
+      : null
+  const slashMatches =
+    slashQuery && slashQuery.start !== dismissedAt
+      ? matchMentionOptions(slashOptions ?? [], slashQuery.query)
+      : []
+  /** 现在开着的那个列表（`@` 或 `/`）：键盘与高亮只认它。 */
+  const picker: {
+    readonly kind: 'mention' | 'slash'
+    readonly query: MentionQuery
+    readonly matches: readonly MentionPickerOption[]
+  } | null =
+    mentionOpen && mentionQuery
+      ? { kind: 'mention', query: mentionQuery, matches: mentionMatches }
+      : slashQuery && slashMatches.length > 0
+        ? { kind: 'slash', query: slashQuery, matches: slashMatches }
+        : null
+  const pickerMatches = picker?.matches ?? []
   const activeIndex = Math.max(
     0,
-    mentionMatches.findIndex((option) => option.id === activeId),
+    pickerMatches.findIndex((option) => option.id === activeId),
   )
-  const activeOption = mentionMatches[activeIndex]
+  const activeOption = pickerMatches[activeIndex]
 
   /** 把 `@查询` 整段换成 `@名字 `，光标落在空格之后。 */
   const commitMention = (option: MentionPickerOption) => {
@@ -246,6 +307,20 @@ export function NodePromptBar({
     setActiveId(null)
     onValueChange(`${head}@${option.name} ${tail}`)
     onMentionSelect?.(option)
+  }
+
+  /** 把 `/查询` 整段删掉，光标落回 `/` 原来的位置；挂什么由调用方定。 */
+  const commitSlash = (option: MentionPickerOption) => {
+    if (!slashQuery) return
+    pendingCaretRef.current = slashQuery.start
+    setActiveId(null)
+    onValueChange(value.slice(0, slashQuery.start) + value.slice(caret))
+    onSlashSelect?.(option)
+  }
+
+  const commitPicked = (option: MentionPickerOption) => {
+    if (picker?.kind === 'slash') commitSlash(option)
+    else commitMention(option)
   }
 
   /**
@@ -445,35 +520,46 @@ export function NodePromptBar({
         textareaProps?.onKeyDown?.(event)
         if (event.defaultPrevented) return
         if (event.nativeEvent.isComposing) return
-        // `@` 候选开着时键盘归它 —— ⛔ 这一段必须在「Enter = 发送」之前，
+        // `@` / `/` 候选开着时键盘归它 —— ⛔ 这一段必须在「Enter = 发送」之前，
         // 否则选候选那一下会把半截提示词发出去。
-        if (mentionOpen && mentionQuery) {
+        if (picker) {
           if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
             event.preventDefault()
             const step = event.key === 'ArrowDown' ? 1 : -1
             const next =
-              (activeIndex + step + mentionMatches.length) %
-              mentionMatches.length
-            setActiveId(mentionMatches[next]?.id ?? null)
+              (activeIndex + step + pickerMatches.length) % pickerMatches.length
+            setActiveId(pickerMatches[next]?.id ?? null)
             return
           }
           if (event.key === 'Enter' || event.key === 'Tab') {
             event.preventDefault()
-            if (activeOption) commitMention(activeOption)
+            if (activeOption) commitPicked(activeOption)
             return
           }
           if (event.key === 'Escape') {
             event.preventDefault()
-            setDismissedAt(mentionQuery.start)
+            setDismissedAt(picker.query.start)
             return
           }
+        }
+        // 光标在最前面按退格：摘掉开头那颗 chip（它不是正文里的字，退不掉）。
+        if (
+          event.key === 'Backspace' &&
+          hasPrefix &&
+          onPrefixRemove &&
+          event.currentTarget.selectionStart === 0 &&
+          event.currentTarget.selectionEnd === 0
+        ) {
+          event.preventDefault()
+          onPrefixRemove()
+          return
         }
         if (event.key !== 'Enter' || event.shiftKey) return
         event.preventDefault()
         if (generating || value.trim().length === 0) return
         onSubmit()
       }}
-      style={{ height: textareaHeight }}
+      style={{ height: textareaHeight, textIndent: prefixIndent }}
       className={cn(
         'nodrag nopan nowheel absolute inset-0 size-full resize-none bg-transparent placeholder:text-muted-foreground focus-visible:outline-none',
         typography,
@@ -496,6 +582,7 @@ export function NodePromptBar({
           ref={overlayRef}
           aria-hidden
           data-prompt-bar-overlay
+          style={{ textIndent: prefixIndent }}
           className={cn(
             'pointer-events-none absolute inset-0 size-full text-foreground',
             typography,
@@ -505,6 +592,15 @@ export function NodePromptBar({
         </div>
       ) : null}
       {textarea}
+      {hasPrefix ? (
+        <span
+          ref={prefixRef}
+          data-prompt-bar-prefix
+          className="absolute top-0 left-0 flex h-5 items-center"
+        >
+          {prefix}
+        </span>
+      ) : null}
     </div>
   )
 
@@ -528,18 +624,21 @@ export function NodePromptBar({
         ref={sizerRef}
         aria-hidden
         data-prompt-bar-sizer
+        style={{ textIndent: prefixIndent }}
         className="pointer-events-none invisible absolute inset-x-0 text-sm leading-5 break-words whitespace-pre-wrap"
       >
         {value}
         {'\u200b'}
       </div>
-      {mentionOpen ? (
+      {picker ? (
         <MentionPicker
-          options={mentionMatches}
+          options={picker.matches}
           activeId={activeOption?.id ?? null}
           onActiveChange={setActiveId}
-          onSelect={commitMention}
-          ariaLabel={t('mentionPicker')}
+          onSelect={commitPicked}
+          ariaLabel={
+            picker.kind === 'slash' ? t('slashPicker') : t('mentionPicker')
+          }
           emptyLabel={t('emptyHint')}
         />
       ) : null}
@@ -579,6 +678,7 @@ export function NodePromptBar({
             {t('charCount', { count: value.length })}
           </span>
         )}
+        {generating ? null : readout}
         {trailingButton}
       </div>
     </div>

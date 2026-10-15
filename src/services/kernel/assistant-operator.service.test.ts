@@ -523,7 +523,6 @@ import { getAppOrigin, LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { logger } from '@/lib/logger'
 import { markReadHostBlocked, resetReadHostBlocks } from '@/lib/read-url-blocks'
-import { ASSISTANT_BACKGROUND_MODEL_IDS } from '@/constants/assistant'
 import {
   buildCharacterReminder,
   closeRoundV3,
@@ -18986,7 +18985,7 @@ describe('助手记忆（56a）', () => {
 
 /**
  * **v3 收尾**（P2 §2.5）：⛔ 不起结账那一跳；证据编号确定性地落一条记录；记忆在后台抽、
- * 不挡 `done`，同一家的快档、`low` 档，隐身 / 「让助手记住」关 / 空账本照旧一条不写。
+ * 不挡 `done`，这一轮的那一家、那个型号（⛔ 换快档）、`low` 档，隐身 / 「让助手记住」关 / 空账本照旧一条不写。
  */
 describe('v3 收尾（P2 §2.5）', () => {
   const CONVERSATION_ID = '66666666-6666-4666-8666-666666666666'
@@ -19071,7 +19070,7 @@ describe('v3 收尾（P2 §2.5）', () => {
     })
   })
 
-  it('同一家的快档、low 档（⛔ 不换家）；材料里有这一轮的账本与收尾那句', async () => {
+  it('这一轮的那一家、那个型号、那把 key（全跟助手），low 档；材料里有这一轮的账本与收尾那句', async () => {
     const { run, user } = await prepare()
     recordLedgerStep(run, ASSISTANT_OPERATOR_VERB_IDS.look, '看图', '黑长直')
     mockLlmTextCompletion.mockResolvedValueOnce(MEMORIES)
@@ -19092,25 +19091,27 @@ describe('v3 收尾（P2 §2.5）', () => {
     }
     expect(call.adapterType).toBe(run.route.adapterType)
     expect(call.apiKey).toBe(run.route.apiKey)
-    expect(call.modelId).toBe(
-      ASSISTANT_BACKGROUND_MODEL_IDS[AI_ADAPTER_TYPES.GEMINI],
-    )
+    expect(run.modelId).toBeTruthy()
+    expect(call.modelId).toBe(run.modelId)
     expect(call.reasoningEffort).toBe('low')
     expect(call.userPrompt).toContain('看图: 黑长直')
     expect(call.userPrompt).toContain('HOW THE ASSISTANT CLOSED:\n挑好了。')
   })
 
-  it('那一家没有快档就用这一轮的型号', async () => {
+  it('⛔ 不换同一家的快档：选了 Claude Opus，抽记忆也用 Opus', async () => {
     const { run, user } = await prepare()
-    run.route = { ...run.route, adapterType: AI_ADAPTER_TYPES.XAI }
-    run.modelId = LLM_TEXT_MODEL_IDS.XAI_GROK_4_7
+    run.route = { ...run.route, adapterType: AI_ADAPTER_TYPES.ANTHROPIC }
+    run.modelId = LLM_TEXT_MODEL_IDS.CLAUDE_OPUS_5_5
     recordLedgerStep(run, ASSISTANT_OPERATOR_VERB_IDS.look, '看图', '黑长直')
     mockLlmTextCompletion.mockResolvedValueOnce(MEMORIES)
 
     await closeRoundV3(run, { clerkId: 'clerk-1', userId: user.id })
     await settleAfter()
 
-    expect(llmInputs()[0]?.modelId).toBe(LLM_TEXT_MODEL_IDS.XAI_GROK_4_7)
+    expect(llmInputs()[0]).toMatchObject({
+      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+      modelId: LLM_TEXT_MODEL_IDS.CLAUDE_OPUS_5_5,
+    })
   })
 
   it('⭐ 这一轮落了证据：确定性地写一条只带编号的记录，三栏空着', async () => {

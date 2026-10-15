@@ -148,60 +148,23 @@ describe('replay graders', () => {
     ).toThrow(/selected model/)
   })
 
-  describe('background calls on the same provider (P2 §2.5)', () => {
-    const declared = ReplayCaseSchema.parse({
-      ...testCase,
-      routes: [
-        {
-          ...testCase.routes[0],
-          expect: {
-            adapterType: 'gemini',
-            modelId: 'gemini-3.8-flash',
-            backgroundModelId: 'gemini-3.5-flash-lite',
-          },
-        },
-      ],
-    })
-    const step = call(AI_ADAPTER_TYPES.GEMINI, 'gemini-3.8-flash')
-    const background = {
-      ...call(AI_ADAPTER_TYPES.GEMINI, 'gemini-3.5-flash-lite'),
-      purpose: 'text' as const,
-    }
-    const gradeWith = (
-      replayCase: typeof testCase,
-      calls: RecordedModelCall[],
-    ) =>
+  it('fails when an auxiliary text call ran on a cheaper model of the same provider', () => {
+    expect(() =>
       gradeReplay({
-        testCase: replayCase,
-        route: replayCase.routes[0]!,
+        testCase,
+        route: testCase.routes[0]!,
         run: run(),
-        network: network(calls),
+        network: network([
+          call(AI_ADAPTER_TYPES.GEMINI, 'gemini-3.8-flash'),
+          {
+            ...call(AI_ADAPTER_TYPES.GEMINI, 'gemini-3.5-flash-lite'),
+            purpose: 'text' as const,
+          },
+        ]),
         writes: [],
         keyLookups: vi.fn(),
-      })
-
-    it('passes when a text call used the declared background model', () => {
-      expect(() => gradeWith(declared, [step, background])).not.toThrow()
-    })
-
-    it('fails when the case did not declare that background model', () => {
-      expect(() => gradeWith(testCase, [step, background])).toThrow(
-        /selected model/,
-      )
-    })
-
-    it('fails when a step ran on the background model', () => {
-      expect(() =>
-        gradeWith(declared, [
-          { ...step, modelId: 'gemini-3.5-flash-lite' },
-          background,
-        ]),
-      ).toThrow(/selected model/)
-    })
-
-    it('fails when the declared background call never happened', () => {
-      expect(() => gradeWith(declared, [step])).toThrow(/background call/)
-    })
+      }),
+    ).toThrow(/selected model/)
   })
 
   it('fails when a scripted reply was never used', () => {

@@ -40,18 +40,12 @@ export type ReplayBoard = z.infer<typeof ReplayBoardSchema>
  * 选定的助手路由。`routeModel` 写进 persona（`auto` = 自动），`keys` 是这个人配了 key 的几家
  * （⭐ 有意多配几家当诱饵：只配一家的题测不出「花了别家的钱」）。
  * `expect: null` = 这一轮一次模型都不该碰（缺 key 那一类）。
- * `expect.backgroundModelId` = 这一轮收尾后在后台抽记忆（P2 §2.5），用的是同一家的这一档：
- * 写了就要真的有一次辅助调用用它；⛔ 没写的题，辅助调用只许用 `modelId`。照写，⛔ 不从常量抄。
  */
 export const ReplayRouteSchema = z.object({
   routeModel: z.string().min(1),
   keys: z.array(ReplayProviderSchema),
   expect: z
-    .object({
-      adapterType: ReplayProviderSchema,
-      modelId: z.string().min(1),
-      backgroundModelId: z.string().min(1).optional(),
-    })
+    .object({ adapterType: ReplayProviderSchema, modelId: z.string().min(1) })
     .nullable(),
 })
 export type ReplayRoute = z.infer<typeof ReplayRouteSchema>

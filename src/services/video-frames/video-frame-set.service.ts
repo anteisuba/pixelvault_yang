@@ -127,13 +127,40 @@ function buildFrameStorageKey(
   return `${VIDEO_FRAME_STORAGE_PREFIX}/${userId}/${groupId}/frame-${paddedIndex}.${format}`
 }
 
+export interface VerifyVideoFrameSetInput {
+  durationSeconds: number
+  frames: SubmittedVideoFrame[]
+  /** 用哪一份计划核对 —— 语义同 `PersistVideoFrameSetInput.plan`。 */
+  plan?: VideoFramePlan
+}
+
+/** 核对过的一帧：真图片（按魔数认的 mime）+ 原始字节，按序号排好。 */
+export interface VerifiedVideoFrame {
+  index: number
+  timestampSeconds: number
+  buffer: Buffer
+  mimeType: string
+  format: string
+  width: number
+  height: number
+}
+
+export interface VerifiedVideoFrameSet {
+  plan: VideoFramePlan
+  frames: VerifiedVideoFrame[]
+}
+
 /**
- * 核对 + 转存 + 出帧集。**会抛** `VIDEO_FRAMES_INVALID`：不按计划抽的帧集
- * 静默收下就等于库里躺着一组「声称可复跑、其实不可」的证据。
+ * **只核对、不落库**：复算计划 → 帧数对得上 → 逐帧时间戳在容差内 → 每帧解得开、
+ * 是真图片、不超体量。**会抛** `VIDEO_FRAMES_INVALID`。
+ *
+ * ⭐ 拆出来是给 v3 助手看片用的（看图期第二段）：那条线每一跳都把浏览器抽好的帧
+ * 直接摆到模型眼前，用完即弃，不需要 R2 稳定 URL；但「这组帧是按计划抽的、是真
+ * 图片」这一关一步不能少 —— 与落库那条线走的是**同一道**核对，⛔ 不另写一份。
  */
-export async function persistVideoFrameSet(
-  input: PersistVideoFrameSetInput,
-): Promise<VideoFrameSet> {
+export async function verifyVideoFrameSet(
+  input: VerifyVideoFrameSetInput,
+): Promise<VerifiedVideoFrameSet> {
   const plan = input.plan ?? planVideoFrames(input.durationSeconds)
   if (plan.entries.length === 0) {
     throw invalidFrames(
@@ -159,30 +186,55 @@ export async function persistVideoFrameSet(
     )
   }
 
-  const groupId = randomBytes(8).toString('hex')
   const ordered = [...input.frames].sort((a, b) => a.index - b.index)
-
   const frames = await Promise.all(
-    ordered.map(async (frame): Promise<PersistedVideoFrame> => {
+    ordered.map(async (frame): Promise<VerifiedVideoFrame> => {
       const buffer = decodeDataUrl(frame.dataUrl)
       // ⚠ 按**魔数**验真，不信 data URL 头里那个 mime：那一段是客户端写的。
       const image = await detectTrustedImageMime(buffer)
+      return {
+        index: frame.index,
+        timestampSeconds: frame.timestampSeconds,
+        buffer,
+        mimeType: image.mimeType,
+        format: image.format,
+        width: image.width,
+        height: image.height,
+      }
+    }),
+  )
+  return { plan, frames }
+}
+
+/**
+ * 核对 + 转存 + 出帧集。**会抛** `VIDEO_FRAMES_INVALID`：不按计划抽的帧集
+ * 静默收下就等于库里躺着一组「声称可复跑、其实不可」的证据。
+ */
+export async function persistVideoFrameSet(
+  input: PersistVideoFrameSetInput,
+): Promise<VideoFrameSet> {
+  const verified = await verifyVideoFrameSet(input)
+  const plan = verified.plan
+  const groupId = randomBytes(8).toString('hex')
+
+  const frames = await Promise.all(
+    verified.frames.map(async (frame): Promise<PersistedVideoFrame> => {
       const url = await uploadToR2({
-        data: buffer,
+        data: frame.buffer,
         key: buildFrameStorageKey(
           input.userId,
           groupId,
           frame.index,
-          image.format,
+          frame.format,
         ),
-        mimeType: image.mimeType,
+        mimeType: frame.mimeType,
       })
       return {
         index: frame.index,
         timestampSeconds: frame.timestampSeconds,
         url,
-        width: image.width,
-        height: image.height,
+        width: frame.width,
+        height: frame.height,
       }
     }),
   )

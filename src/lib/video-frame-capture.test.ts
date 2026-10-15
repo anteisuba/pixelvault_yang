@@ -1,15 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ASSISTANT_V3_CLIP_LIMITS } from '@/constants/assistant-v3'
 import {
   VIDEO_FRAME_ENDPOINT_PLAN,
   VIDEO_FRAME_LIMITS,
   VIDEO_FRAME_PLAN,
 } from '@/constants/video-analysis'
 import {
+  planClipFrames,
   planVideoEndpointFrames,
   planVideoFrames,
 } from '@/lib/video-frame-plan'
 import {
+  captureClipFrames,
   captureVideoEndpointFrames,
   captureVideoFrames,
 } from '@/lib/video-frame-capture'
@@ -253,5 +256,38 @@ describe('captureVideoEndpointFrames', () => {
     const result = await captureVideoEndpointFrames(URL_SOURCE)
 
     expect(result).toMatchObject({ ok: false, reason: 'unreadable-duration' })
+  })
+})
+
+describe('captureClipFrames —— Denia 看片', () => {
+  const URL_SOURCE = 'https://cdn.anteisuba.com/clips/shot.mp4'
+
+  it('按片长计划 seek：5 秒片 4 帧、长片封顶 8 帧', async () => {
+    const short = makeFakeVideo({ duration: 5 })
+    installDom(short)
+    const shortResult = await captureClipFrames(URL_SOURCE)
+    expect(shortResult.ok).toBe(true)
+    if (!shortResult.ok) return
+    expect(shortResult.frames).toHaveLength(4)
+    expect(short.seeks).toEqual(
+      planClipFrames(5).entries.map((entry) => entry.timestampSeconds),
+    )
+
+    vi.restoreAllMocks()
+    const long = makeFakeVideo({ duration: 40 })
+    installDom(long)
+    const longResult = await captureClipFrames(URL_SOURCE)
+    expect(longResult.ok && longResult.frames.length).toBe(8)
+  })
+
+  it('长边压到 768：帧每一跳都随请求体上来（Vercel 4.5MB）', async () => {
+    installDom(
+      makeFakeVideo({ duration: 6, videoWidth: 3840, videoHeight: 2160 }),
+    )
+    await captureClipFrames(URL_SOURCE)
+    expect(lastCanvas?.width).toBe(ASSISTANT_V3_CLIP_LIMITS.frameMaxEdgePixels)
+    expect(lastCanvas?.height).toBe(
+      Math.round((ASSISTANT_V3_CLIP_LIMITS.frameMaxEdgePixels * 2160) / 3840),
+    )
   })
 })

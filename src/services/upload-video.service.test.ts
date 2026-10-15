@@ -32,7 +32,6 @@ import { ensureUser } from '@/services/user.service'
 import {
   completeUserVideoDirectUpload,
   createUserVideoDirectUpload,
-  detectTrustedVideoMime,
 } from '@/services/upload-video.service'
 
 const mockEnsureUser = vi.mocked(ensureUser)
@@ -59,10 +58,6 @@ describe('direct R2 user video upload', () => {
     )
     mockCreateGeneration.mockResolvedValue(FAKE_GENERATION)
     mockDeleteFromR2.mockResolvedValue(undefined)
-  })
-
-  it('recognizes an MP4 from its ISO-BMFF signature', () => {
-    expect(detectTrustedVideoMime(mp4Buffer())).toBe('video/mp4')
   })
 
   it('prepares a content-type-bound browser-direct upload', async () => {

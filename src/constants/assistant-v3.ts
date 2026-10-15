@@ -11,6 +11,7 @@
  * 画布默认走 v3（S6）；本地开关写 `v2` 照走旧内核。别的工作台还在旧内核上。
  */
 
+import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
 import { ASSISTANT_MENTION_LIMITS } from '@/constants/assistant-mention'
 
 /** v3 已经接上的那几张脸（S6 逐个迁：LoRA → 图片 → 卡片 → 视频）。 */
@@ -288,6 +289,27 @@ export const ASSISTANT_V3_LIMITS = {
   maxResultCardTextChars: 1_200,
   /** 英文台词每秒大约说得完几个词（出片前核对台词塞不塞得进这一段）。 */
   dialogueWordsPerSecond: 2.5,
+} as const
+
+/**
+ * Denia 自己看片（看图期第二段，owner 2026-10-15）的三个数。帧数规则本身住在
+ * `VIDEO_CLIP_FRAME_PLAN`（`constants/video-analysis.ts`），客户端与服务端共用。
+ *
+ * - `maxClips: 2`：一轮最多看几段被指着的片子（@ / 📎 / 视频台挂着的，按这个顺序
+ *   取前两段）。每段最多 8 帧，两段 = 16 张图，已经是 `lookImages`（6）的两倍多；
+ *   再多就该让创作者挑了。超出的那几段**不静默丢**：浏览器留一条系统行说没看。
+ * - `frameMaxEdgePixels: 768`：抽帧长边。⚠ 帧随请求体上来，而 Vercel 函数请求体
+ *   上限 4.5MB —— 16 帧 × 约 100KB webp × base64 1.33 ≈ 2.1MB，留出余量给对话与
+ *   本轮记录。比视频分析面板的 1024 小，是这条上限逼的，不是画质取舍。
+ * - `inlineMaxBytes`：Gemini 直接收片子本体（`native` 档）的单段上限，复用
+ *   `ASSISTANT_MEDIA_LIMITS.geminiInlineMaxBytes`（20MB）。两段 base64 后约 53MB，
+ *   仍在 Gemini 单次请求 100MB 的内联上限里。超出就改用帧；没有帧（没被指着）
+ *   就如实说「片子太大，请 @ 它」。
+ */
+export const ASSISTANT_V3_CLIP_LIMITS = {
+  maxClips: 2,
+  frameMaxEdgePixels: 768,
+  inlineMaxBytes: ASSISTANT_MEDIA_LIMITS.geminiInlineMaxBytes,
 } as const
 
 /**

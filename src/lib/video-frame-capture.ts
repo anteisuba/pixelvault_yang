@@ -1,9 +1,11 @@
+import { ASSISTANT_V3_CLIP_LIMITS } from '@/constants/assistant-v3'
 import {
   VIDEO_FRAME_CAPTURE_REASONS,
   VIDEO_FRAME_LIMITS,
   type VideoFrameCaptureReason,
 } from '@/constants/video-analysis'
 import {
+  planClipFrames,
   planVideoEndpointFrames,
   planVideoFrames,
   type VideoFramePlan,
@@ -97,12 +99,15 @@ function waitForEvent(
   })
 }
 
-/** 长边压到 `maxEdgePixels` 以内。视觉模型自己也会缩，多传的像素纯烧带宽。 */
-function scaledSize(width: number, height: number): { w: number; h: number } {
+/** 长边压到 `maxEdge` 以内。视觉模型自己也会缩，多传的像素纯烧带宽。 */
+function scaledSize(
+  width: number,
+  height: number,
+  maxEdge: number,
+): { w: number; h: number } {
   const longest = Math.max(width, height)
-  if (longest <= VIDEO_FRAME_LIMITS.maxEdgePixels)
-    return { w: width, h: height }
-  const ratio = VIDEO_FRAME_LIMITS.maxEdgePixels / longest
+  if (longest <= maxEdge) return { w: width, h: height }
+  const ratio = maxEdge / longest
   return {
     w: Math.max(1, Math.round(width * ratio)),
     h: Math.max(1, Math.round(height * ratio)),
@@ -120,6 +125,7 @@ function scaledSize(width: number, height: number): { w: number; h: number } {
 async function captureFramesWithPlan(
   source: string | File,
   planFrames: (durationSeconds: number) => VideoFramePlan,
+  maxEdge: number = VIDEO_FRAME_LIMITS.maxEdgePixels,
 ): Promise<VideoFrameCaptureResult> {
   if (typeof document === 'undefined') {
     return failure(
@@ -165,7 +171,7 @@ async function captureFramesWithPlan(
       )
     }
 
-    const { w, h } = scaledSize(video.videoWidth, video.videoHeight)
+    const { w, h } = scaledSize(video.videoWidth, video.videoHeight, maxEdge)
     if (!w || !h) {
       return failure(
         VIDEO_FRAME_CAPTURE_REASONS.loadFailed,
@@ -271,5 +277,21 @@ export function captureVideoEndpointFrames(
         ? Math.min(duration, untilSec)
         : duration,
     ),
+  )
+}
+
+/**
+ * Denia 自己看片的那一组（`planClipFrames`：帧数随片长走，3–8 帧段中点）。
+ *
+ * 长边压到 `ASSISTANT_V3_CLIP_LIMITS.frameMaxEdgePixels`（768）而不是 1024：这组帧
+ * 每一跳都随请求体上来，Vercel 请求体 4.5MB 封顶（算术见那条常量）。
+ */
+export function captureClipFrames(
+  source: string | File,
+): Promise<VideoFrameCaptureResult> {
+  return captureFramesWithPlan(
+    source,
+    planClipFrames,
+    ASSISTANT_V3_CLIP_LIMITS.frameMaxEdgePixels,
   )
 }

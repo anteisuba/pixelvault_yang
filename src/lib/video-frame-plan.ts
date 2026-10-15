@@ -1,4 +1,5 @@
 import {
+  VIDEO_CLIP_FRAME_PLAN,
   VIDEO_FRAME_ENDPOINT_PLAN,
   VIDEO_FRAME_LIMITS,
   VIDEO_FRAME_PLAN,
@@ -120,6 +121,45 @@ export function planVideoEndpointFrames(
     planVersion: VIDEO_FRAME_ENDPOINT_PLAN.planVersion,
     strategy: VIDEO_FRAME_ENDPOINT_PLAN.strategy,
     entries,
+  }
+}
+
+/**
+ * 片长 → 帧数：`clamp(ceil(duration / secondsPerFrame), minFrames, maxFrames)`
+ * （规则与三个数的理由在 `VIDEO_CLIP_FRAME_PLAN`）。片长不可用时返回 0。
+ */
+export function clipFrameCount(durationSeconds: number): number {
+  if (
+    !Number.isFinite(durationSeconds) ||
+    durationSeconds < VIDEO_FRAME_LIMITS.minDurationSeconds
+  ) {
+    return 0
+  }
+  const byLength = Math.ceil(
+    roundToPlanPrecision(durationSeconds) /
+      VIDEO_CLIP_FRAME_PLAN.secondsPerFrame,
+  )
+  return Math.min(
+    VIDEO_CLIP_FRAME_PLAN.maxFrames,
+    Math.max(VIDEO_CLIP_FRAME_PLAN.minFrames, byLength),
+  )
+}
+
+/**
+ * Denia 自己看片的那一组：帧数随片长走（`clipFrameCount`），时间戳仍是段中点
+ * （公式与理由同 `planVideoFrames`）。
+ *
+ * ⚠ 单独成一个函数、带自己的 `strategy` / `planVersion`：产物含义是「这段片子按
+ * 片长取的 N 个等价样本」，与固定 8 帧那份不是同一份计划 —— 服务端复算时必须知道
+ * 自己在复算哪一份，否则 5 秒片的 4 帧会被拿去对 8 帧的时间戳，永远对不上。
+ */
+export function planClipFrames(durationSeconds: number): VideoFramePlan {
+  const count = clipFrameCount(durationSeconds)
+  const base = planVideoFrames(durationSeconds, count)
+  return {
+    ...base,
+    planVersion: VIDEO_CLIP_FRAME_PLAN.planVersion,
+    strategy: VIDEO_CLIP_FRAME_PLAN.strategy,
   }
 }
 

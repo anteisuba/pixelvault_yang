@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  VIDEO_CLIP_FRAME_PLAN,
   VIDEO_FRAME_ENDPOINT_PLAN,
   VIDEO_FRAME_LIMITS,
   VIDEO_FRAME_PLAN,
 } from '@/constants/video-analysis'
 import {
+  clipFrameCount,
   findFramePlanMismatches,
   formatFrameTimestamp,
+  planClipFrames,
   planVideoEndpointFrames,
   planVideoFrames,
 } from '@/lib/video-frame-plan'
@@ -141,5 +144,45 @@ describe('planVideoEndpointFrames', () => {
     for (const duration of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
       expect(planVideoEndpointFrames(duration).entries).toEqual([])
     }
+  })
+})
+
+describe('planClipFrames —— Denia 看片：帧数随片长走', () => {
+  it('短片至少 3 帧（起 / 中 / 收都要有，少于三帧判断不了动没动）', () => {
+    expect(clipFrameCount(0.5)).toBe(VIDEO_CLIP_FRAME_PLAN.minFrames)
+    expect(clipFrameCount(2)).toBe(3)
+    expect(clipFrameCount(4.5)).toBe(3)
+  })
+
+  it('越长帧越多：约每 1.5 秒一帧', () => {
+    expect(clipFrameCount(5)).toBe(4)
+    expect(clipFrameCount(8)).toBe(6)
+    expect(clipFrameCount(10)).toBe(7)
+    expect(clipFrameCount(5)).toBeLessThan(clipFrameCount(10))
+  })
+
+  it('封顶 8 帧，与固定计划的帧数是同一个数', () => {
+    expect(VIDEO_CLIP_FRAME_PLAN.maxFrames).toBe(VIDEO_FRAME_PLAN.frameCount)
+    expect(clipFrameCount(10.5)).toBe(7)
+    expect(clipFrameCount(10.6)).toBe(8)
+    expect(clipFrameCount(60)).toBe(8)
+    expect(clipFrameCount(3600)).toBe(8)
+  })
+
+  it('段中点、确定性，带自己的策略名与版本', () => {
+    const plan = planClipFrames(6)
+    expect(plan.frameCount).toBe(4)
+    expect(plan.entries.map((entry) => entry.timestampSeconds)).toEqual([
+      0.75, 2.25, 3.75, 5.25,
+    ])
+    expect(plan.strategy).toBe(VIDEO_CLIP_FRAME_PLAN.strategy)
+    expect(plan.planVersion).toBe(VIDEO_CLIP_FRAME_PLAN.planVersion)
+    expect(planClipFrames(6)).toEqual(plan)
+  })
+
+  it('片长不可用 → 空计划（0 帧），不抛', () => {
+    expect(clipFrameCount(Number.NaN)).toBe(0)
+    expect(planClipFrames(Number.NaN).entries).toEqual([])
+    expect(planClipFrames(0.1).entries).toEqual([])
   })
 })

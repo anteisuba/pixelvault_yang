@@ -7,6 +7,7 @@ import {
   USER_VIDEO_UPLOAD_SIGNATURE_BYTES,
   type AcceptedVideoUploadMimeType,
 } from '@/constants/uploads'
+import { detectTrustedVideoMime } from '@/lib/video-mime'
 import { GenerateImageServiceError } from '@/services/image/generate-image.service'
 import { createGeneration } from '@/services/generation.service'
 import {
@@ -35,37 +36,6 @@ function videoExtension(mimeType: AcceptedVideoUploadMimeType): string {
     return 'mov'
   }
   return 'mp4'
-}
-
-/**
- * Validate the container from bytes instead of trusting the browser MIME.
- * MP4/QuickTime are ISO-BMFF (`ftyp` box); WebM is EBML with a `webm`
- * DocType near the start of the header.
- */
-export function detectTrustedVideoMime(buffer: Buffer): string {
-  if (buffer.byteLength < 12) {
-    throw new Error('Invalid or empty video file')
-  }
-
-  if (buffer.subarray(4, 8).toString('ascii') === 'ftyp') {
-    return buffer.subarray(8, 12).toString('ascii') === 'qt  '
-      ? 'video/quicktime'
-      : 'video/mp4'
-  }
-
-  const hasEbmlHeader =
-    buffer[0] === 0x1a &&
-    buffer[1] === 0x45 &&
-    buffer[2] === 0xdf &&
-    buffer[3] === 0xa3
-  const headerText = buffer
-    .subarray(0, Math.min(buffer.length, 4096))
-    .toString()
-  if (hasEbmlHeader && headerText.toLowerCase().includes('webm')) {
-    return 'video/webm'
-  }
-
-  throw new Error('Unsupported or invalid video file')
 }
 
 function assertVideoUploadSize(sizeBytes: number) {

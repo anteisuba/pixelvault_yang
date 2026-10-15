@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { VIDEO_FRAME_PLAN } from '@/constants/video-analysis'
 import { RESEARCH_SOURCE_IDS } from '@/constants/research'
-import { planVideoFrames } from '@/lib/video-frame-plan'
+import { planClipFrames, planVideoFrames } from '@/lib/video-frame-plan'
 
 const mockUploadToR2 = vi.fn()
 const mockDetectTrustedImageMime = vi.fn()
@@ -17,8 +17,12 @@ vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }))
 
-const { buildVideoFrameEvidence, describeVideoFrameSet, persistVideoFrameSet } =
-  await import('@/services/video-frames/video-frame-set.service')
+const {
+  buildVideoFrameEvidence,
+  describeVideoFrameSet,
+  persistVideoFrameSet,
+  verifyVideoFrameSet,
+} = await import('@/services/video-frames/video-frame-set.service')
 
 const DURATION = 80
 const VIDEO_URL = 'https://cdn.example.com/clips/shot-01.mp4'
@@ -135,6 +139,63 @@ describe('persistVideoFrameSet', () => {
         frames: onPlanFrames(),
       }),
     ).rejects.toThrow(/Unsupported or corrupted image file/)
+  })
+})
+
+describe('verifyVideoFrameSet —— 只核对不落库（v3 看片）', () => {
+  function clipFrames(duration: number) {
+    return planClipFrames(duration).entries.map((entry) => ({
+      index: entry.index,
+      timestampSeconds: entry.timestampSeconds,
+      dataUrl: FRAME_DATA_URL,
+    }))
+  }
+
+  it('按片长计划抽的帧：通过、按序号排好、带真 mime，且一帧都不上传', async () => {
+    const frames = clipFrames(6).reverse()
+    const verified = await verifyVideoFrameSet({
+      durationSeconds: 6,
+      frames,
+      plan: planClipFrames(6),
+    })
+    expect(verified.plan.frameCount).toBe(4)
+    expect(verified.frames.map((frame) => frame.index)).toEqual([0, 1, 2, 3])
+    expect(verified.frames[0]).toMatchObject({
+      mimeType: 'image/webp',
+      width: 640,
+      height: 360,
+    })
+    expect(Buffer.isBuffer(verified.frames[0].buffer)).toBe(true)
+    expect(mockUploadToR2).not.toHaveBeenCalled()
+  })
+
+  it('⭐ 服务端复算时间戳：偏离片长计划 → VIDEO_FRAMES_INVALID', async () => {
+    const frames = clipFrames(6)
+    frames[2] = {
+      ...frames[2],
+      timestampSeconds: frames[2].timestampSeconds + 2,
+    }
+    await expect(
+      verifyVideoFrameSet({
+        durationSeconds: 6,
+        frames,
+        plan: planClipFrames(6),
+      }),
+    ).rejects.toMatchObject({ errorCode: 'VIDEO_FRAMES_INVALID' })
+  })
+
+  it('帧数不随片长走（交了固定 8 帧）→ 打回', async () => {
+    await expect(
+      verifyVideoFrameSet({
+        durationSeconds: 6,
+        frames: planVideoFrames(6).entries.map((entry) => ({
+          index: entry.index,
+          timestampSeconds: entry.timestampSeconds,
+          dataUrl: FRAME_DATA_URL,
+        })),
+        plan: planClipFrames(6),
+      }),
+    ).rejects.toMatchObject({ errorCode: 'VIDEO_FRAMES_INVALID' })
   })
 })
 

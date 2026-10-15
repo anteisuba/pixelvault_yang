@@ -156,6 +156,35 @@ export const VIDEO_FRAME_ENDPOINT_PLAN = {
   endTrimSeconds: 0.08,
 } as const
 
+/**
+ * **按片长伸缩的段中点计划**：v3 助手（Denia）自己看片用（看图期第二段，owner
+ * 2026-10-15 定「帧数随片长走」）。
+ *
+ * 规则：`N = clamp(ceil(duration / secondsPerFrame), minFrames, maxFrames)`，
+ * 然后与 `VIDEO_FRAME_PLAN` 同一个段中点公式 `t_k = (k + 0.5) × duration / N`。
+ * 落到具体片长：2s → 3 帧 · 5s → 4 · 8s → 6 · 10s → 7 · 超过 10.5s → 8（封顶）。
+ *
+ * ── 三个数各自的理由 ───────────────────────────────────────────────
+ *  - `secondsPerFrame: 1.5`：落在 owner 给的「约每 1–2 秒一帧」中间。生成片多是
+ *    5–10 秒，这一档让 5 秒片有 4 帧、10 秒片有 7 帧 —— 中段动作有没有冻住、
+ *    人物有没有漂，都至少有两帧可比。
+ *  - `minFrames: 3`：再短的片子也要有「起 / 中 / 收」三处可比，少于三帧就判断不了
+ *    「动没动」。
+ *  - `maxFrames` 复用 `VIDEO_FRAME_PLAN.frameCount`（8）：与「一次分析最多 8 张图」
+ *    是同一个数（理由见那一行）；⛔ 不另立一个 8。
+ *
+ * ⚠ 仍然是**确定性**的（同一片长永远同一组时间戳）：服务端复算这份计划再逐帧核对
+ * 时间戳（`findFramePlanMismatches`），对不上就不放进模型眼前。改任何一个数都
+ * `planVersion + 1`。
+ */
+export const VIDEO_CLIP_FRAME_PLAN = {
+  minFrames: 3,
+  maxFrames: VIDEO_FRAME_PLAN.frameCount,
+  secondsPerFrame: 1.5,
+  planVersion: 1,
+  strategy: 'segment-midpoints-by-length',
+} as const
+
 export const VIDEO_FRAME_LIMITS = {
   /**
    * 服务端复算计划后允许的偏差。浏览器 seek 到的是**最近的可解码帧**，不是数学上

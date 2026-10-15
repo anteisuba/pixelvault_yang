@@ -245,7 +245,8 @@ const OpenAiChatResponseSchema = z.object({
  * provider 自报的单次调用 token 数（助手花费排查，2026-10-08）。
  *
  * - `inputTokens`：整个输入，含命中缓存的那部分（Claude 的三段相加，与另外几家同口径）；
- *   `cachedInputTokens` 是其中命中缓存的数。
+ *   `cachedInputTokens` 是其中命中缓存的数，`cacheWriteTokens` 是这一次新写进缓存的数（只有
+ *   Claude 这类显式断点的厂商报；查「断点打对了没有」看它与下一次的 `cachedInputTokens`）。
  * - `outputTokens` / `reasoningTokens` 照各家原字段抄，⛔ 不换算：Gemini 的
  *   `candidatesTokenCount` 不含思考，思考另在 `thoughtsTokenCount`；OpenAI 兼容三家的
  *   `reasoning_tokens` 是否已含在 `completion_tokens` 里，以各家文档为准。
@@ -256,6 +257,7 @@ export interface LlmTextUsage {
   outputTokens?: number
   reasoningTokens?: number
   cachedInputTokens?: number
+  cacheWriteTokens?: number
 }
 
 /** 解析失败 / 没有 usage 一律返回 null —— usage 的形状再怪也不能弄坏正文。 */
@@ -294,6 +296,7 @@ function readOpenAiCompatibleUsage(value: unknown): LlmTextUsage | null {
     cachedInputTokens:
       usage.prompt_tokens_details?.cached_tokens ??
       usage.prompt_cache_hit_tokens,
+    cacheWriteTokens: null,
   })
 }
 
@@ -315,6 +318,7 @@ function readGeminiUsage(value: unknown): LlmTextUsage | null {
     outputTokens: usage.candidatesTokenCount,
     reasoningTokens: usage.thoughtsTokenCount,
     cachedInputTokens: usage.cachedContentTokenCount,
+    cacheWriteTokens: null,
   })
 }
 
@@ -342,6 +346,7 @@ function toAnthropicUsage(
     outputTokens: usage.output_tokens,
     reasoningTokens: null,
     cachedInputTokens: usage.cache_read_input_tokens,
+    cacheWriteTokens: usage.cache_creation_input_tokens,
   })
 }
 

@@ -66,13 +66,13 @@
     "firstStepSystem": 21193,
     "firstStepMessages": 4276,
     "turnTotal": 79227,
-    "turnFresh": 79227,
+    "turnFresh": 40204,
     "minStablePrefixInTurn": 39023,
     "auxCalls": 1,
     "auxChars": 4678,
     "acrossTurns": 34798,
     "toolsAndSystem": 34724,
-    "followUpFresh": 79657
+    "followUpFresh": 5670
   },
   "T05 openai/gpt-6.1-sol": {
     "steps": 2,
@@ -192,7 +192,7 @@
     "auxChars": 4702,
     "acrossTurns": 34798,
     "toolsAndSystem": 34724,
-    "followUpFresh": 39249
+    "followUpFresh": 4500
   },
   "T14 xai/grok-4.7": {
     "steps": 1,
@@ -237,7 +237,7 @@
     "auxChars": 5106,
     "acrossTurns": 34798,
     "toolsAndSystem": 34724,
-    "followUpFresh": 39995
+    "followUpFresh": 5246
   },
   "T21 gemini/gemini-3.8-flash": {
     "steps": 1,
@@ -261,13 +261,13 @@
     "firstStepSystem": 21193,
     "firstStepMessages": 4267,
     "turnTotal": 80588,
-    "turnFresh": 80588,
+    "turnFresh": 41574,
     "minStablePrefixInTurn": 39014,
     "auxCalls": 1,
     "auxChars": 4652,
     "acrossTurns": 34798,
     "toolsAndSystem": 34724,
-    "followUpFresh": 80966
+    "followUpFresh": 7014
   },
   "T25 anthropic/claude-opus-5-5": {
     "steps": 2,
@@ -276,13 +276,13 @@
     "firstStepSystem": 21193,
     "firstStepMessages": 4254,
     "turnTotal": 80047,
-    "turnFresh": 80047,
+    "turnFresh": 41046,
     "minStablePrefixInTurn": 39001,
     "auxCalls": 1,
     "auxChars": 4644,
     "acrossTurns": 34798,
     "toolsAndSystem": 34724,
-    "followUpFresh": 80491
+    "followUpFresh": 6519
   },
   "T25 deepseek/deepseek-flash": {
     "steps": 2,

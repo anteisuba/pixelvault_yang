@@ -8,17 +8,17 @@ import type { AssistantOperatorStep } from '@/types/assistant-operator'
 import { StudioOperatorLogItem } from './StudioOperatorLogItem'
 
 /**
- * 联网候选在日志条上的回归闸（P3-B → 2026-08-31 按拍板 21 重做）。
+ * 日志条的回归闸。
  *
- * 钉四件事：
- *  ① 候选画的是**缩略图**（🔬 原图直链约三成 403 —— 画原图会得到一半碎图）；
- *  ② **点图 = 开灯箱看原图，一次导入都不发**（owner 打回的「浏览即采购」）；
- *  ③ 点「选用」才把那张交出去，已选的再点 = 取消；
- *  ④ 这一条**没有撤销按钮** —— 它是读类，一个字节都没落，没有东西可撤。
+ * ⚠ 联网候选网格**不在这里**了（搜索期切片 1，2026-10-15）：找到的图摆在回答底下，
+ *   闸在 `StudioOperatorWebCandidateGrid.web.test.tsx`。这里只钉找图那一步只剩一句
+ *   「搜索 Google 图片：… · N 张」、且没有撤销按钮（读类，一个字节都没落）。
  */
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations:
+    () => (key: string, values?: Record<string, string | number>) =>
+      values ? `${key} ${JSON.stringify(values)}` : key,
 }))
 
 vi.mock('motion/react', () => ({
@@ -124,163 +124,40 @@ const FOLDER_VISION_STEP: AssistantOperatorStep = {
 function renderItem(
   overrides: Partial<Parameters<typeof StudioOperatorLogItem>[0]> = {},
 ) {
-  const onToggleWebImage = vi.fn()
   render(
-    <StudioOperatorLogItem
-      entryId="run-1:step-1"
-      step={WEB_STEP}
-      undone={false}
-      webImport={undefined}
-      webImportLimit={4}
-      onToggleWebImage={onToggleWebImage}
-      renderWebCandidates
-      {...overrides}
-    />,
+    <StudioOperatorLogItem step={WEB_STEP} undone={false} {...overrides} />,
   )
-  return { onToggleWebImage }
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
 })
 
-describe('日志条 · 联网候选（P3-B）', () => {
-  it('每张候选一格，画的是缩略图（⛔ 不是原图直链）', () => {
+describe('日志条 · 找图那一步（搜索期切片 1）', () => {
+  it('⭐ 只留一句「搜索 Google 图片：… · N 张」，⛔ 网格不再画在这一条里', () => {
     renderItem()
-    const tiles = screen.getAllByTestId('operator-web-candidate')
-    expect(tiles).toHaveLength(2)
-    const images = tiles.map((tile) =>
-      tile.querySelector('img')?.getAttribute('src'),
+    expect(screen.getByTestId('operator-log-item').textContent).toContain(
+      'web.found {"query":"pvc figure studio shot","count":2}',
     )
-    // 第一张有缩略图就用缩略图；第二张没有才回落到原图。
-    expect(images).toEqual([
-      'https://tbn.example.com/a.jpg',
-      'https://cdn.other.com/b.jpg',
-    ])
-  })
-
-  /**
-   * ⭐ 拍板 21 的正面：**看不等于要**。owner 真机点一下缩略图就下载了一张，
-   * 换个选择再下载一张，而换掉的还留着。
-   */
-  it('⭐ 点缩略图 = 开灯箱看**原图**，⛔ 一次导入都不发', () => {
-    const { onToggleWebImage } = renderItem()
-    fireEvent.click(screen.getAllByTestId('operator-web-candidate')[0])
-    expect(onToggleWebImage).not.toHaveBeenCalled()
-    // 灯箱吃原图直链（缩略图只画在格子里）—— 看大图的意义就在这儿。
-    expect(openOperatorLightbox).toHaveBeenCalledWith(
-      'https://cdn.example.com/a.jpg',
-      'candidate A',
-    )
-  })
-
-  it('点「选用」才把那张候选交出去（转存由宿主的 hook 发起）', () => {
-    const { onToggleWebImage } = renderItem()
-    fireEvent.click(screen.getAllByTestId('operator-web-candidate-use')[1])
-    expect(onToggleWebImage).toHaveBeenCalledWith('run-1:step-1', {
-      imageUrl: 'https://cdn.other.com/b.jpg',
-      domain: 'other.com',
-      usableAsInput: true,
-      sourceVerdict: 'unknownLicense',
-    })
-    expect(openOperatorLightbox).not.toHaveBeenCalled()
-  })
-
-  it('⭐ 多选：已选一张时另一张照样可选（每格算自己的态）', () => {
-    const { onToggleWebImage } = renderItem({
-      webImport: {
-        picks: [
-          {
-            imageUrl: 'https://cdn.example.com/a.jpg',
-            status: 'imported',
-            generationId: 'gen-a',
-          },
-        ],
-      },
-    })
-    const tiles = screen.getAllByTestId('operator-web-candidate')
-    expect(tiles[0].getAttribute('data-state')).toBe('imported')
-    expect(tiles[1].getAttribute('data-state')).toBe('idle')
-
-    fireEvent.click(screen.getAllByTestId('operator-web-candidate-use')[1])
-    expect(onToggleWebImage).toHaveBeenCalledWith(
-      'run-1:step-1',
-      expect.objectContaining({ imageUrl: 'https://cdn.other.com/b.jpg' }),
-    )
-  })
-
-  it('已选那张的「选用」钮按下态，再点 = 取消选用', () => {
-    const { onToggleWebImage } = renderItem({
-      webImport: {
-        picks: [
-          {
-            imageUrl: 'https://cdn.example.com/a.jpg',
-            status: 'imported',
-            generationId: 'gen-a',
-          },
-        ],
-      },
-    })
-    const buttons = screen.getAllByTestId('operator-web-candidate-use')
-    expect(buttons[0].getAttribute('aria-pressed')).toBe('true')
-    expect(buttons[1].getAttribute('aria-pressed')).toBe('false')
-
-    fireEvent.click(buttons[0])
-    expect(onToggleWebImage).toHaveBeenCalledWith(
-      'run-1:step-1',
-      expect.objectContaining({ imageUrl: 'https://cdn.example.com/a.jpg' }),
-    )
-  })
-
-  it('⛔ 失败不静默：那一格标红、原因写在下面，且那一格没消失', () => {
-    renderItem({
-      webImport: {
-        picks: [
-          {
-            imageUrl: 'https://cdn.example.com/a.jpg',
-            status: 'error',
-            error: 'Failed to fetch image (403)',
-          },
-        ],
-      },
-    })
-    const tiles = screen.getAllByTestId('operator-web-candidate')
-    expect(tiles[0].getAttribute('data-state')).toBe('error')
-    expect(tiles[0].getAttribute('data-selected')).toBe('true')
-    expect(
-      screen.getAllByTestId('operator-web-candidate-error')[0].textContent,
-    ).toContain('403')
-  })
-
-  it('⛔ 清理失败也不静默（拍板 21 的零残留有没有做到，要说出来）', () => {
-    renderItem({
-      webImport: {
-        picks: [],
-        cleanupError: '换下来的那张没能删掉',
-      },
-    })
-    expect(screen.getByTestId('operator-web-cleanup-error')).toBeTruthy()
-  })
-
-  it('在飞时那一格转圈（导入中大声说出来）', () => {
-    renderItem({
-      webImport: {
-        picks: [
-          { imageUrl: 'https://cdn.example.com/a.jpg', status: 'importing' },
-        ],
-      },
-    })
-    expect(screen.getByTestId('spinner')).toBeTruthy()
-  })
-
-  /**
-   * 🔬 2026-09-07 真机：`[data-testid=operator-web-candidate]` 数出 16 个，唯一
-   * 候选只有 8 张 —— 调查卡画了一份，卡底「过程」里的这条日志又画了一份。
-   */
-  it('⛔ 调查卡已经画过时这一条不再画（同一张候选只有一个格子）', () => {
-    renderItem({ renderWebCandidates: false })
-    expect(screen.queryAllByTestId('operator-web-candidate')).toHaveLength(0)
     expect(screen.queryByTestId('operator-web-candidates')).toBeNull()
+    expect(screen.queryAllByTestId('operator-web-candidate')).toHaveLength(0)
+  })
+
+  it('还在搜时写「正在搜索…」', () => {
+    renderItem({
+      step: {
+        id: 'step-1',
+        title: 'searching',
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+        verb: 'research',
+        status: 'running',
+        payload: { query: 'pvc figure studio shot', limit: 8 },
+        result: null,
+      },
+    })
+    expect(screen.getByTestId('operator-log-item').textContent).toContain(
+      'web.searching {"query":"pvc figure studio shot"}',
+    )
   })
 
   it('⛔ 这一条没有撤销按钮 —— 读类，一个字节都没落', () => {
@@ -312,38 +189,6 @@ describe('日志条 · 文件夹视觉检查', () => {
 
     expect(screen.getByTestId('operator-log-item').textContent).toContain(
       '2/30',
-    )
-  })
-})
-
-/**
- * ⭐ 2026-08-30 真机抓到的那一帧：换选到一张取不到的图之后，旧那张的「已入库」
- * 角标不许消失 —— 它的附件还挂在输入框上。多选之后这条更硬：**每格各算各的**。
- */
-describe('日志条 · 一格失败不该弄脏别格', () => {
-  it('旧那张仍标「已入库」，新那张标红，两格互不干扰', () => {
-    renderItem({
-      webImport: {
-        picks: [
-          {
-            imageUrl: 'https://cdn.example.com/a.jpg',
-            status: 'imported',
-            generationId: 'gen-a',
-          },
-          {
-            imageUrl: 'https://cdn.other.com/b.jpg',
-            status: 'error',
-            error: '这个链接不是能收下的图片格式',
-          },
-        ],
-      },
-    })
-    const tiles = screen.getAllByTestId('operator-web-candidate')
-    expect(tiles[0].getAttribute('data-state')).toBe('imported')
-    expect(tiles[1].getAttribute('data-state')).toBe('error')
-    expect(tiles[0].getAttribute('data-selected')).toBe('true')
-    expect(screen.getAllByTestId('operator-web-candidate-error')).toHaveLength(
-      1,
     )
   })
 })

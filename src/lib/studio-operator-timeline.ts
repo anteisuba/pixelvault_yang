@@ -13,6 +13,7 @@ import {
   type StudioOperatorRunningPhrase,
 } from '@/constants/studio-assistant-operator'
 import type {
+  StudioOperatorMessageEntry,
   StudioOperatorStepEntry,
   StudioOperatorThreadEntry,
 } from '@/types/studio-assistant-operator'
@@ -28,6 +29,8 @@ export function operatorRunningPhrase(step: {
 }): StudioOperatorRunningPhrase {
   if (STUDIO_OPERATOR_LIBRARY_TOOLS.has(step.tool))
     return STUDIO_OPERATOR_RUNNING_PHRASE_IDS.library
+  if (step.tool === ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages)
+    return STUDIO_OPERATOR_RUNNING_PHRASE_IDS.webImages
   switch (step.verb) {
     case ASSISTANT_OPERATOR_VERB_IDS.look:
       return STUDIO_OPERATOR_RUNNING_PHRASE_IDS.look
@@ -130,6 +133,57 @@ export function collectOperatorAnswerSources(
     pending = []
   })
   return byMessage
+}
+
+/** 跑完且真找到了图的那一步找图（`search_web_images`）。 */
+export function isOperatorWebImagesFound(
+  entry: StudioOperatorStepEntry,
+): boolean {
+  const { step } = entry
+  // ⚠ 先判 `status` 再判 `tool` —— 结果只挂在跑完那一支上。
+  if (step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.done) return false
+  if (step.tool !== ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages) return false
+  return (step.result?.images.length ?? 0) > 0
+}
+
+/**
+ * **找到的图挂在哪一段回答底下**（搜索期切片 1 · 附录 I §四「搜到的东西就是答案的
+ * 一部分」，2026-10-15）。
+ *
+ * ⭐ 判据与 `collectOperatorAnswerSources` 同一种**位置**关系：攒着跑完且有图的找图步，
+ *   遇到下一条**能当锚**的助手消息就全部挂上去并清零。
+ * ⚠ 能不能当锚由调用方说（`isAnchor`）：还在写的那条（网格等这段话说完再摆，同来源卡）、
+ *   折进调查组的那条（收尾后整组不画 —— 挂上去图就跟着没了）都不行，就往后找下一条。
+ * ⚠ **一条用户发言就清零**：上一轮没等到回答（停了 / 出错）的那几次找图⛔ 不跨轮挂到
+ *   下一轮的回答底下 —— 它们不在 `anchored` 里，面板就地画在自己那一块。
+ */
+export function collectOperatorAnswerWebImages(
+  entries: readonly StudioOperatorThreadEntry[],
+  isAnchor: (entry: StudioOperatorMessageEntry) => boolean,
+): {
+  byMessage: Map<string, StudioOperatorStepEntry[]>
+  /** 已经挂到某段回答底下的找图步（线程条目 id）。 */
+  anchored: ReadonlySet<string>
+} {
+  const byMessage = new Map<string, StudioOperatorStepEntry[]>()
+  const anchored = new Set<string>()
+  let pending: StudioOperatorStepEntry[] = []
+  for (const entry of entries) {
+    if (entry.kind === 'user') {
+      pending = []
+      continue
+    }
+    if (entry.kind === 'step') {
+      if (isOperatorWebImagesFound(entry)) pending.push(entry)
+      continue
+    }
+    if (entry.kind !== 'message' || pending.length === 0) continue
+    if (!isAnchor(entry)) continue
+    byMessage.set(entry.id, pending)
+    for (const step of pending) anchored.add(step.id)
+    pending = []
+  }
+  return { byMessage, anchored }
 }
 
 /**

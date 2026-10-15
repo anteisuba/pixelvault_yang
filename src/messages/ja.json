@@ -8021,6 +8021,7 @@
     "running": {
       "look": "画像を見ています…",
       "research": "調べています…",
+      "webImages": "画像を探しています…",
       "library": "素材を探しています…",
       "ask": "質問を考えています…",
       "apply": "パラメータを変更しています…",
@@ -8371,7 +8372,9 @@
       }
     },
     "web": {
-      "candidates": "ウェブの候補 · プレビューのみ、まだ保存されていません",
+      "found": "Google 画像を検索：{query} · {count} 枚",
+      "searching": "Google 画像を検索中：{query}…",
+      "blockedNote": "{domains}：{reason}",
       "pickHint": "画像をクリックすると拡大できます。「使う」を押すと、ライブラリに保存して添付します",
       "selectedHint": "{count}/{limit} 選択中 · もう一度「使う」で解除し、ライブラリからも削除します。上限に達した後はいちばん古いものと入れ替わります",
       "viewLarge": "拡大表示",

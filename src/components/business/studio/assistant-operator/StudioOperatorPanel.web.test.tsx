@@ -1670,6 +1670,141 @@ it.each(['append', 'overwrite', 'keep'] as const)(
  * 一律 `shrink-0` 且排在它**后面**。⛔ 少了 `min-h-0`，时间线就不再收缩，内容会
  * 直接把 chip 行和输入框顶下去 —— 横屏手机 / 小屏 / 字号放大都会再把它挤回来。
  */
+/**
+ * **找到的图是答案的一部分**（搜索期切片 1，附录 I §四，2026-10-15）：网格摆在回答
+ * 正文底下，⛔ 不再折进步骤组；还在搜画灰块；没等到回答的那几块就地留着。
+ */
+describe('StudioOperatorPanel · 找到的图（搜索期切片 1）', () => {
+  const IMAGES = [
+    {
+      imageUrl: 'https://cdn.example.com/a.jpg',
+      thumbnailUrl: 'https://tbn.example.com/a.jpg',
+      pageUrl: 'https://example.com/a',
+      domain: 'example.com',
+      usableAsInput: true,
+      sourceVerdict: 'allowed',
+    },
+    {
+      imageUrl: 'https://cdn.other.com/b.jpg',
+      domain: 'other.com',
+      usableAsInput: true,
+      sourceVerdict: 'unknownLicense',
+    },
+  ]
+
+  function pushWebImages(
+    runKey: string,
+    status: 'running' | 'done',
+    images: unknown[] = IMAGES,
+  ): void {
+    store.upsertOperatorStep(
+      {
+        id: 'step-web',
+        title: '找官方立绘',
+        tool: 'search_web_images',
+        verb: 'research',
+        status,
+        payload: { query: '初音未来 官方立绘', limit: 8 },
+        result:
+          status === 'done' ? { totalFound: images.length, images } : null,
+      } as unknown as Parameters<typeof store.upsertOperatorStep>[0],
+      runKey,
+    )
+  }
+
+  it('还在搜：过程行写「正在搜索图片」，灰块画在折叠组**外面**', () => {
+    store.setOperatorStatus('working')
+    pushWebImages('run-web', 'running')
+    renderPanel()
+    expect(screen.getByTestId('operator-tool-group-running')).toHaveTextContent(
+      'running.webImages',
+    )
+    const grid = screen.getByTestId('operator-web-candidates')
+    expect(grid.dataset.state).toBe('loading')
+    expect(
+      screen.getAllByTestId('operator-web-candidate-skeleton'),
+    ).toHaveLength(8)
+    expect(
+      within(screen.getByTestId('operator-tool-group')).queryByTestId(
+        'operator-web-candidates',
+      ),
+    ).toBeNull()
+  })
+
+  it('⭐ 回答说完：网格摆在回答正文底下，一轮收尾后照样在；⛔ 不在过程行里', () => {
+    pushWebImages('run-web', 'done')
+    store.appendOperatorEntry({
+      kind: 'message',
+      id: 'answer',
+      text: '找到两张官方立绘。',
+    })
+    renderPanel()
+    // 跑完只留结果：过程行收走了，图还在 —— 在回答那一格里。
+    expect(screen.queryByTestId('operator-tool-group')).toBeNull()
+    expect(screen.getAllByTestId('operator-web-candidates')).toHaveLength(1)
+    const answerRow = screen
+      .getByTestId('operator-message-text')
+      .closest('[data-testid="operator-timeline-row"]') as HTMLElement
+    const underAnswer = within(answerRow).getByTestId(
+      'operator-answer-web-images',
+    )
+    expect(
+      within(underAnswer).getAllByTestId('operator-web-candidate'),
+    ).toHaveLength(2)
+    expect(screen.queryByTestId('operator-web-images-pending')).toBeNull()
+    // 选用照旧走宿主的 hook，认的是线程里那一条的 id。
+    fireEvent.click(
+      within(underAnswer).getAllByTestId('operator-web-candidate-use')[0]!,
+    )
+    expect(WEB_IMPORT.toggleCandidate).toHaveBeenCalledWith(
+      'run-web:step-web',
+      expect.objectContaining({ imageUrl: 'https://cdn.example.com/a.jpg' }),
+    )
+  })
+
+  it('回答还在写：网格先就地留在那一块，⛔ 不跟着正文一起跳', () => {
+    store.setOperatorStatus('working')
+    pushWebImages('run-web', 'done')
+    store.appendOperatorEntry({
+      kind: 'message',
+      id: 'answer',
+      text: '找到两张',
+      streaming: true,
+    })
+    renderPanel()
+    expect(screen.queryByTestId('operator-answer-web-images')).toBeNull()
+    expect(
+      within(screen.getByTestId('operator-web-images-pending')).getAllByTestId(
+        'operator-web-candidate',
+      ),
+    ).toHaveLength(2)
+  })
+
+  it('⛔ 这一轮没等到回答就停了：过程行收走，找到的图照样在', () => {
+    pushWebImages('run-web', 'done')
+    renderPanel()
+    expect(screen.queryByTestId('operator-tool-group')).toBeNull()
+    expect(
+      within(screen.getByTestId('operator-web-images-pending')).getAllByTestId(
+        'operator-web-candidate',
+      ),
+    ).toHaveLength(2)
+  })
+
+  it('一张都没找到：不画空网格', () => {
+    pushWebImages('run-web', 'done', [])
+    store.appendOperatorEntry({
+      kind: 'message',
+      id: 'answer',
+      text: '没找到合适的图。',
+    })
+    renderPanel()
+    expect(screen.queryByTestId('operator-web-candidates')).toBeNull()
+    // ⛔ 也不留一块空的「还没挂上」行。
+    expect(screen.queryByTestId('operator-web-images-pending')).toBeNull()
+  })
+})
+
 describe('StudioOperatorPanel · 会话区裁剪', () => {
   it('⭐ 时间线可收缩且自己滚；chip · 规格行 · 输入区都 `shrink-0` 且排在它后面', () => {
     renderPanel()

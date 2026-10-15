@@ -59,6 +59,8 @@ import {
 } from '@/components/icons'
 import {
   collectOperatorAnswerSources,
+  collectOperatorAnswerWebImages,
+  isOperatorWebImagesFound,
   groupOperatorResearch,
   summarizeOperatorResearchBlock,
   groupOperatorHistoryTools,
@@ -113,6 +115,7 @@ import {
 } from '@/components/business/studio/assistant-operator/StudioOperatorChangedCards'
 import { StudioOperatorHistoryItem } from '@/components/business/studio/assistant-operator/StudioOperatorHistoryItem'
 import { StudioOperatorLogItem } from '@/components/business/studio/assistant-operator/StudioOperatorLogItem'
+import { StudioOperatorWebCandidateGrid } from '@/components/business/studio/assistant-operator/StudioOperatorWebCandidateGrid'
 import {
   ASSISTANT_MENTION_GROUP_IDS,
   ASSISTANT_MENTION_KIND_IDS,
@@ -1399,6 +1402,54 @@ export function StudioOperatorPanel({
     ),
   )
   /**
+   * **找到的图摆在哪段回答底下**（搜索期切片 1，附录 I §四）—— 判据是位置，见
+   * `collectOperatorAnswerWebImages` 的头注。折进调查组的那几句（收尾后整组不画）
+   * 与还在写的那一句都不当锚：网格挂上去就跟着看不见了。
+   * 没挂上的（还在搜 / 回答还没说完 / 这一轮停了）由那一块工具步就地画
+   * （`renderWebImageGrid`，同一个 `entryId` 当 key）。
+   */
+  const foldedMessageIds = new Set(
+    liveGroups.flatMap((group) =>
+      group.research
+        ? group.indexes.flatMap((index) => {
+            const block = blocks[index]
+            return block?.kind === 'entry' && block.entry.kind === 'message'
+              ? [block.entry.id]
+              : []
+          })
+        : [],
+    ),
+  )
+  const answerWebImages = collectOperatorAnswerWebImages(
+    entries,
+    (entry) => !entry.streaming && !foldedMessageIds.has(entry.id),
+  )
+  /** 一次找图的网格：还在搜画灰块，跑完画图（⛔ 被拒的那一步不画）。 */
+  const renderWebImageGrid = (item: StudioOperatorStepEntry) => {
+    const { step } = item
+    if (
+      step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error ||
+      step.tool !== ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages
+    )
+      return null
+    return (
+      <StudioOperatorWebCandidateGrid
+        key={item.id}
+        entryId={item.id}
+        query={step.payload.query}
+        images={
+          step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.running
+            ? null
+            : (step.result?.images ?? [])
+        }
+        placeholderCount={step.payload.limit}
+        webImport={webImport.states[item.id]}
+        limit={webImport.limit}
+        onToggle={webImport.toggleCandidate}
+      />
+    )
+  }
+  /**
    * 确认卡那一行。⚠ 生成支确认之后它换来一张结果卡：那时这一行挪到**结果卡上面**
    * （`confirmLineBeforeResult`），⛔ 不再钉在线程最末尾（D12 S6）。
    */
@@ -1640,22 +1691,34 @@ export function StudioOperatorPanel({
           className="group/step flex min-w-0 items-start gap-2"
         >
           <div className="min-w-0 flex-1">
-            <StudioOperatorLogItem
-              entryId={item.id}
-              step={item.step}
-              undone={item.undone}
-              // ⚠ 按条取，不是把整个 hook 传下去：日志条是 `memo` 的，
-              //    传一个每次 render 都换引用的对象等于把 memo 关掉。
-              webImport={webImport.states[item.id]}
-              webImportLimit={webImport.limit}
-              onToggleWebImage={webImport.toggleCandidate}
-              /* ⚠ 候选网格由日志条自己画（56b 切片 1 起没有第二处画它的地方：
-               调查卡已经退场）。 */
-              renderWebCandidates
-            />
+            <StudioOperatorLogItem step={item.step} undone={item.undone} />
           </div>
         </div>
       ))
+      /**
+       * 这一块里**还没挂到回答底下**的找图（搜索期切片 1）：还在搜（灰块）、回答还没
+       * 说完、或者这一轮没等到回答就停了 —— 就地画在过程那一行**外面**（⛔ 折进组里：
+       * 组默认收起，找到的图就又藏起来了）。回答一说完它就搬到回答底下。
+       */
+      const orphanWebImages = block.steps
+        .filter(
+          (item) =>
+            item.step.tool === ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages &&
+            /* 一张没找到的⛔ 留一块空行：网格本来就不画，这一块也别占位。 */
+            (item.step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.running ||
+              isOperatorWebImagesFound(item)) &&
+            !answerWebImages.anchored.has(item.id),
+        )
+        .map(renderWebImageGrid)
+      const orphanWebImageList =
+        orphanWebImages.length > 0 ? (
+          <div
+            data-testid="operator-web-images-pending"
+            className="mt-2 flex min-w-0 flex-col gap-3"
+          >
+            {orphanWebImages}
+          </div>
+        ) : null
       const compactCanvasChanges =
         roundDone &&
         changeCountInRound > 0 &&
@@ -1675,21 +1738,14 @@ export function StudioOperatorPanel({
       /**
        * ⭐ **跑完只留结果**（owner 2026-09-30「我不关心它是怎么思考的」）：这一轮收尾
        * 之后，过程那一行整条不画 —— 用户读的是回复、来源和卡。
-       * ⚠ 三种情况照旧留着，它们是结果不是过程：这一轮以没解决的失败收尾（那一刻
-       *   唯一要读的东西，整轮的尝试都留着查）· 联网候选图（网格长在日志条里，
-       *   要点「选用」）· 写提示词时系统要交代的那句。撤销（checkpoint）另外单独留。
+       * ⚠ 两种情况照旧留着，它们是结果不是过程：这一轮以没解决的失败收尾（那一刻
+       *   唯一要读的东西，整轮的尝试都留着查）· 写提示词时系统要交代的那句。撤销
+       *   （checkpoint）另外单独留。
+       * ⚠ 找到的图**不再**是例外（搜索期切片 1）：网格不住在过程行里了 —— 挂在回答
+       *   底下，没等到回答的那几块（`orphanWebImageList`）过程行藏了也照样画。
        */
       const processHidden =
-        roundDone &&
-        !running &&
-        blocker?.status !== 'error' &&
-        !promptNote &&
-        !block.steps.some(
-          ({ step }) =>
-            step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done &&
-            step.tool === ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages &&
-            step.result,
-        )
+        roundDone && !running && blocker?.status !== 'error' && !promptNote
       const changedCards =
         roundDone &&
         changeCountInRound > 0 &&
@@ -1731,14 +1787,23 @@ export function StudioOperatorPanel({
           data-research-run={block.runKey}
         >
           {processHidden ? (
-            checkpoint || changedCardList ? (
-              <StudioOperatorTimelineRow
-                card={STUDIO_OPERATOR_CARD_KINDS.system}
-              >
-                {checkpoint}
-                {changedCardList}
-              </StudioOperatorTimelineRow>
-            ) : null
+            <>
+              {orphanWebImageList ? (
+                <StudioOperatorTimelineRow
+                  card={STUDIO_OPERATOR_CARD_KINDS.evidence}
+                >
+                  {orphanWebImageList}
+                </StudioOperatorTimelineRow>
+              ) : null}
+              {checkpoint || changedCardList ? (
+                <StudioOperatorTimelineRow
+                  card={STUDIO_OPERATOR_CARD_KINDS.system}
+                >
+                  {checkpoint}
+                  {changedCardList}
+                </StudioOperatorTimelineRow>
+              ) : null}
+            </>
           ) : !compactCanvasChanges ? (
             <StudioOperatorTimelineRow
               card={STUDIO_OPERATOR_CARD_KINDS.evidence}
@@ -1816,6 +1881,7 @@ export function StudioOperatorPanel({
                   </StudioOperatorToolGroup>
                 )
               }
+              {orphanWebImageList}
               {changedCardList}
             </StudioOperatorTimelineRow>
           ) : null}
@@ -1898,6 +1964,8 @@ export function StudioOperatorPanel({
             ? toOperatorAnswerSources(researchSteps)
             : null
         const runKey = attached?.runKey ?? ''
+        /** 这段话之前找到的图（搜索期切片 1）—— 摆在正文底下、来源卡上面。 */
+        const foundImages = answerWebImages.byMessage.get(entry.id)
         return (
           <StudioOperatorTimelineRow
             key={entry.id}
@@ -1907,6 +1975,18 @@ export function StudioOperatorPanel({
             <StudioOperatorMessageBody
               entry={entry}
               references={messageImageReferences.get(entry.id)}
+              {...(foundImages
+                ? {
+                    webImages: (
+                      <div
+                        data-testid="operator-answer-web-images"
+                        className="flex min-w-0 flex-col gap-3"
+                      >
+                        {foundImages.map(renderWebImageGrid)}
+                      </div>
+                    ),
+                  }
+                : {})}
               {...(answer
                 ? {
                     sources: answer.sources,

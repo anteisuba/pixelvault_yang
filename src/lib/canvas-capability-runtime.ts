@@ -185,7 +185,7 @@ function oneOutput(
       // 也正是为此），存进节点等于给画布埋裂图。
       // 更狠的一种见于已删除的 outpaint：它给 fal 传 `sync_mode: true`，拿回
       // 来的是 2MB 级的 `data:` URI，直接撞穿 `CanvasDerivedImageOutputSchema`
-      // 的 `imageUrl.max(4000)`，于是 `placeDerivedImages()` 静默返回 `[]` ——
+      // 的 `imageUrl.max(4000)`，于是 `appendImageVersions()` 静默落不下 ——
       // 图生成了、也落库了，画布上却什么都不长（2026-08-18 E0 实测）。
       imageUrl: result.generation?.url ?? result.imageUrl,
       width: result.width,

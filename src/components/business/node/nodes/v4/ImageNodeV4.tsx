@@ -48,6 +48,7 @@ import {
   Upload,
   ImageIcon,
   X,
+  ZoomIn,
 } from '@/components/icons'
 
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
@@ -129,6 +130,7 @@ import {
   ImageAddMenuItems,
   ImageEditMenuItems,
   ImageMoreMenuItems,
+  useImageMoreActions,
 } from './image/ImageNodeMenus'
 import { readOutputIndex, readOutputVersions } from '@/lib/node-output-versions'
 import {
@@ -160,6 +162,8 @@ import { QuickSetupDialog } from '../../../studio-shared/setup/QuickSetupDialog'
 import { splitVersionOp, useNodeV4Canvas } from './NodeV4Context'
 import { NodeV4ContextMenu } from './NodeV4ContextMenu'
 import { triggerNodeV4Download } from './NodeV4SelectionToolbar'
+import { requestCanvasRerunDownstream } from '@/lib/canvas-rerun-request'
+import { collectDownstream } from '@/lib/node-downstream'
 
 export { collapsedImageWidth, formatSizeBytes }
 
@@ -539,6 +543,57 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
     nodes: canvas.nodes,
   })
 
+  // ⋯ 与右键共用这一份清单（owner 2026-10-15「右键 = ⋯」）—— hook，所以在提前返回之前取。
+  const moreStoryboard = canvas.storyboard
+  const moreActions = useImageMoreActions({
+    onQuickLook:
+      imageData.url && !media.problem ? () => setQuickLook(true) : undefined,
+    onRename: () => setRenameRequest((count) => count + 1),
+    onDuplicate: () =>
+      void canvas.onApplyOp({
+        op: NODE_ASSISTANT_OP_V4_IDS.addNode,
+        kind: NODE_MEDIA_KIND_IDS.image,
+        subtype: imageData.subtype,
+        ...(imageData.shotNo === undefined ? {} : { shotNo: imageData.shotNo }),
+      }),
+    // 只有一版时拆无可拆 —— ⛔ 不摆一个按了什么都不变的项。
+    onSplitVersion:
+      imageVersions(imageData).length > 1
+        ? () =>
+            void canvas.onApplyOp(
+              splitVersionOp(canvas, id, imageData, readOutputIndex(imageData)),
+            )
+        : undefined,
+    onSetCharacter:
+      imageData.subtype === NODE_V4_IMAGE_SUBTYPE_IDS.character
+        ? undefined
+        : () =>
+            void canvas.onApplyOp({
+              op: NODE_ASSISTANT_OP_V4_IDS.setSubtype,
+              target: id,
+              subtype: NODE_V4_IMAGE_SUBTYPE_IDS.character,
+            }),
+    onDownload: imageData.url
+      ? () => imageData.url && triggerNodeV4Download(imageData.url)
+      : undefined,
+    onSplitGrid:
+      moreStoryboard && imageData.url
+        ? (size) => moreStoryboard.split(id, size)
+        : undefined,
+    splitGridBusy: moreStoryboard?.splitting.has(id) ?? false,
+    // 一个下游都没有就不摆（同右键原逻辑）：重跑只投便条给助手，⛔ 不绕钱闸。
+    onRerunDownstream:
+      collectDownstream(id, canvas.edges).length > 0
+        ? () => requestCanvasRerunDownstream(id)
+        : undefined,
+    onTidy: () => canvas.onTidyLayout(),
+    onDelete: () =>
+      void canvas.onApplyOp({
+        op: NODE_ASSISTANT_OP_V4_IDS.delete,
+        target: id,
+      }),
+  })
+
   if (!node) return null
 
   const versions = imageVersions(imageData)
@@ -840,6 +895,15 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         ),
       },
       {
+        // 放大 = 超分（能力表 `upscale`），结果回本卡版本条。原来摆在「编辑」里
+        // 叫「扩图」，名不副实（owner 2026-10-15）。
+        id: 'upscale',
+        label: tImage('toolbar.upscale'),
+        icon: ZoomIn,
+        disabled: !imageData.url,
+        onSelect: () => setEditTask('upscale'),
+      },
+      {
         id: 'edit',
         label: tImage('toolbar.edit'),
         icon: Pencil,
@@ -862,56 +926,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         icon: MoreHorizontal,
         onSelect: () => {},
         menu: (
-          <ImageMoreMenuItems
-            onQuickLook={
-              imageData.url && !media.problem
-                ? () => setQuickLook(true)
-                : undefined
-            }
-            onRename={() => setRenameRequest((count) => count + 1)}
-            onSplitGrid={
-              storyboard && imageData.url
-                ? (size) => storyboard.split(id, size)
-                : undefined
-            }
-            splitGridBusy={storyboardBusy}
-            sourceLabel={sourceLabel}
-            onSplitVersion={
-              // 只有一版时拆无可拆 —— ⛔ 不摆一个按了什么都不变的项。
-              versions.length > 1
-                ? () =>
-                    void canvas.onApplyOp(
-                      splitVersionOp(canvas, id, imageData, versionIndex),
-                    )
-                : undefined
-            }
-            onSetCharacter={
-              imageData.subtype === NODE_V4_IMAGE_SUBTYPE_IDS.character
-                ? undefined
-                : () =>
-                    void canvas.onApplyOp({
-                      op: NODE_ASSISTANT_OP_V4_IDS.setSubtype,
-                      target: id,
-                      subtype: NODE_V4_IMAGE_SUBTYPE_IDS.character,
-                    })
-            }
-            onDuplicate={() =>
-              void canvas.onApplyOp({
-                op: NODE_ASSISTANT_OP_V4_IDS.addNode,
-                kind: NODE_MEDIA_KIND_IDS.image,
-                subtype: imageData.subtype,
-                ...(imageData.shotNo === undefined
-                  ? {}
-                  : { shotNo: imageData.shotNo }),
-              })
-            }
-            onDelete={() =>
-              void canvas.onApplyOp({
-                op: NODE_ASSISTANT_OP_V4_IDS.delete,
-                target: id,
-              })
-            }
-          />
+          <ImageMoreMenuItems actions={moreActions} sourceLabel={sourceLabel} />
         ),
       },
     ],
@@ -1653,7 +1668,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
             node={node}
             x={menu.x}
             y={menu.y}
-            {...(imageData.url ? { mediaUrl: imageData.url } : {})}
+            items={moreActions}
             onClose={() => setMenu(null)}
           />
         ) : null}

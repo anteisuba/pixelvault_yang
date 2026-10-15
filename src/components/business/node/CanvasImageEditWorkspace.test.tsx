@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
   extractElementAPI: vi.fn(),
   focusNode: vi.fn(),
   inpaintImageAPI: vi.fn(),
-  placeDerivedImages: vi.fn(),
+  appendImageVersions: vi.fn(),
   setNodeRunState: vi.fn(),
   toastError: vi.fn(),
   toastSuccess: vi.fn(),
@@ -114,7 +114,7 @@ vi.mock(
 
 vi.mock('./nodes/v4/NodeV4ActionsBridge', () => ({
   useNodeCanvasActions: () => ({
-    placeDerivedImages: mocks.placeDerivedImages,
+    appendImageVersions: mocks.appendImageVersions,
     focusNode: mocks.focusNode,
     setNodeRunState: mocks.setNodeRunState,
   }),
@@ -207,7 +207,7 @@ function stubImageProbe(naturalWidth: number, naturalHeight: number) {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mocks.placeDerivedImages.mockReturnValue(['derived-node'])
+  mocks.appendImageVersions.mockReturnValue(1)
   mocks.createExtractedElementAPI.mockResolvedValue({
     success: true,
     data: { id: 'material-1' },
@@ -282,7 +282,7 @@ describe('CanvasImageEditWorkspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'actions.upscale' }))
 
     await waitFor(() => {
-      expect(mocks.placeDerivedImages).toHaveBeenCalledWith('source-node', [
+      expect(mocks.appendImageVersions).toHaveBeenCalledWith('source-node', [
         {
           imageUrl: 'https://cdn.example.com/upscaled.png',
           width: 2560,
@@ -293,7 +293,6 @@ describe('CanvasImageEditWorkspace', () => {
         },
       ])
     })
-    expect(mocks.focusNode).toHaveBeenCalledWith('derived-node')
     expect(mocks.editImageAPI).toHaveBeenCalledWith(
       'upscale',
       SOURCE_DATA.mediaUrl,
@@ -315,8 +314,7 @@ describe('CanvasImageEditWorkspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'actions.removeBg' }))
 
     await waitFor(() => expect(mocks.toastError).toHaveBeenCalled())
-    expect(mocks.placeDerivedImages).not.toHaveBeenCalled()
-    expect(mocks.focusNode).not.toHaveBeenCalled()
+    expect(mocks.appendImageVersions).not.toHaveBeenCalled()
   })
 
   it('blocks a second task run while the first request is pending', async () => {
@@ -402,7 +400,7 @@ describe('CanvasImageEditWorkspace', () => {
         { onPreview: expect.any(Function), signal: expect.any(AbortSignal) },
       )
     })
-    expect(mocks.placeDerivedImages).toHaveBeenCalledWith(
+    expect(mocks.appendImageVersions).toHaveBeenCalledWith(
       'source-node',
       expect.arrayContaining([
         expect.objectContaining({
@@ -467,7 +465,7 @@ describe('CanvasImageEditWorkspace', () => {
     await waitFor(() => {
       expect(mocks.createExtractedElementAPI).toHaveBeenCalled()
     })
-    expect(mocks.placeDerivedImages).toHaveBeenCalledWith(
+    expect(mocks.appendImageVersions).toHaveBeenCalledWith(
       'source-node',
       expect.arrayContaining([
         expect.objectContaining({

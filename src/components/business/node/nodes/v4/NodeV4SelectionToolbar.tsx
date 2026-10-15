@@ -33,6 +33,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { downloadRemoteAsset } from '@/lib/api-client'
 import { cn } from '@/lib/utils'
 
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
@@ -41,16 +42,21 @@ import type { NodeV4 } from '@/types/node-workflow'
 import { useNodeV4Canvas } from './NodeV4Context'
 
 /**
- * 下载：`<a download>` 一次性点击。⛔ 不 fetch 成 blob —— R2 是跨域的，blob 路线
- * 要么被 CORS 拦、要么把整张图读进内存换不来任何好处。
+ * 下载：走 `/api/download`（与图库、作品详情同一条）。
+ *
+ * ⚠ 不能直接 `<a href={R2 地址} download>`：CDN 是跨域的，浏览器无视跨域链接上的
+ * `download`，结果是新开一页把图打开（owner 2026-10-15 电脑与手机都撞上）。接口给自家
+ * R2 对象签一条带 `attachment` 的地址、给 provider 临时地址转一次流，两种都真的落成
+ * 文件。接口失败才退回开新页，至少还能手动另存。
  */
 export function triggerNodeV4Download(url: string) {
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.target = '_blank'
-  anchor.rel = 'noopener noreferrer'
-  anchor.download = ''
-  anchor.click()
+  const fileName =
+    decodeURIComponent(new URL(url, window.location.href).pathname)
+      .split('/')
+      .pop() || 'pixelvault-download'
+  void downloadRemoteAsset(url, fileName).then((result) => {
+    if (!result.success) window.open(url, '_blank', 'noopener,noreferrer')
+  })
 }
 
 export function NodeV4ToolbarButton({

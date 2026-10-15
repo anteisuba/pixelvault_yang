@@ -2,33 +2,40 @@
 
 /**
  * 图片节点的**三张菜单**（spec §3，画板 `ImageToolbar.dc.html` / `ImageStates.dc.html`）：
- * 工具条的「编辑」子菜单、「⋯」更多菜单、提示词栏 `+` 的添加菜单。
+ * 工具条的「编辑」子菜单、「⋯」更多菜单（**与右键同一份**）、提示词栏 `+` 的添加菜单。
  *
- * 三张都只是 `DropdownMenuItem` 的**列表**：壳（`NodeToolbar` / `NodePromptBar`）
+ * 前后两张只是 `DropdownMenuItem` 的**列表**：壳（`NodeToolbar` / `NodePromptBar`）
  * 负责弹层与定位，⛔ 这里不自己写浮层。
  *
  * ── 编辑子菜单接的是**现有**图片编辑（⛔ 不新写一套）─────────────────────
- * 四项映射到 `READY_CANVAS_IMAGE_EDIT_CAPABILITY_IDS` 里已经跑得通的四条能力，
- * 宿主是既有的 `CanvasImageEditWorkspace`（它把结果落成派生节点并聚焦过去）。
- * ⚠ 「扩图」在能力表里没有独立条目，最接近的是 `upscale`；真正的 outpaint 要等
- * 能力表补，⛔ 不在这里假装它已经有了。
+ * 三项映射到 `READY_CANVAS_IMAGE_EDIT_CAPABILITY_IDS` 里已经跑得通的能力，宿主是
+ * 既有的 `CanvasImageEditWorkspace`（结果回本卡版本条）。「放大」单独上了工具条。
+ * ⚠ 真正向四周延展的扩图（outpaint）能力表里没有，owner 2026-10-15「只做现有的」——
+ * ⛔ 再把 `upscale` 叫成「扩图」摆进来。
+ *
+ * ── ⋯ 与右键同一份（owner 2026-10-15）────────────────────────────────────
+ * `useImageMoreActions` 出**一份动作表**，⋯ 用 `ImageMoreMenuItems` 画成下拉项、
+ * 右键交给 `NodeV4ContextMenu` 的 `items` 画成按钮行。⛔ 两处各写一份列表。
  */
 
+import { Fragment } from 'react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 import type { StoryboardGridSize } from '@/constants/storyboard-grid'
 import {
   Copy,
   Check,
-  Crop,
+  Download,
   Eye,
   Globe,
   Grid2x2,
   Grid3X3,
   Image as ImageIcon,
   Layers,
+  LayoutGrid,
   Paintbrush,
   Pencil,
+  RotateCcw,
   Trash2,
   Upload,
   UserRound,
@@ -50,14 +57,12 @@ export const IMAGE_EDIT_MENU_TASKS: readonly {
   readonly task: ReadyCanvasImageEditCapabilityId
 }[] = [
   { id: 'inpaint', task: 'inpaint' },
-  { id: 'expand', task: 'upscale' },
   { id: 'cutout', task: 'remove-background' },
   { id: 'background', task: 'object-replace' },
 ]
 
 const EDIT_ICONS = {
   inpaint: Paintbrush,
-  expand: Crop,
   cutout: Layers,
   background: ImageIcon,
 } as const
@@ -87,116 +92,196 @@ export function ImageEditMenuItems({
   )
 }
 
-export function ImageMoreMenuItems({
+/** ⋯ 与右键共用的一行。`id` 同时是两处的 `data-*` 值（测试按它找）。 */
+export interface ImageMoreAction {
+  readonly id: string
+  readonly label: string
+  readonly icon: typeof Pencil
+  readonly disabled?: boolean
+  readonly danger?: boolean
+  /** 这一行之前起一组（画一条分组线）。 */
+  readonly startsGroup?: boolean
+  run(): void
+}
+
+/**
+ * ⋯ 与右键的**唯一一份**动作表。没有意义的项调用方传 `undefined`，整行不出
+ * （⛔ 不摆一个按了什么都不变的灰项）。
+ */
+export function useImageMoreActions({
   onQuickLook,
   onRename,
   onDuplicate,
   onSplitVersion,
   onSetCharacter,
+  onDownload,
   onSplitGrid,
   splitGridBusy = false,
-  sourceLabel,
+  onRerunDownstream,
+  onTidy,
   onDelete,
 }: {
   onQuickLook?: (() => void) | undefined
   onRename(): void
   onDuplicate(): void
+  /** 「拆出当前版本」（spec §3）。⚠ 只有一版时传 `undefined`（拆无可拆）。 */
+  onSplitVersion?: (() => void) | undefined
+  /** 「设为角色卡」。⚠ 已经是角色卡的那张传 `undefined`。 */
+  onSetCharacter?: (() => void) | undefined
+  /** 卡上还没有图 → `undefined`。 */
+  onDownload?: (() => void) | undefined
   /**
    * 「切宫格 3×3 / 2×2」（§3 九宫格分镜的手动那一条）。宿主没接切开能力、或卡上还
-   * 没有图 → 调用方传 `undefined`，整组不出。
+   * 没有图 → `undefined`，整组不出。
    */
   onSplitGrid?: ((size: StoryboardGridSize) => void) | undefined
   /** 正在切：两项灰掉（⛔ 同一张图并发切两次）。 */
   readonly splitGridBusy?: boolean
-  /** 当前版的来源（九宫格切出来的那一格写「九宫格 · 天台 · 第 3 格」），只读。 */
-  readonly sourceLabel?: string | undefined
-  /** 「拆出当前版本」（spec §3）。⚠ 只有一版时调用方传 `undefined`（拆无可拆）。 */
-  onSplitVersion?: (() => void) | undefined
-  /**
-   * 「设为角色卡」。⚠ 已经是角色卡的那张不给这一项 —— 调用方传 `undefined`，
-   * ⛔ 不摆一个按了什么都不变的灰项。
-   */
-  onSetCharacter?: (() => void) | undefined
+  /** 「重跑下游」。一个下游都没有 → `undefined`（画布上大半是叶子）。 */
+  onRerunDownstream?: (() => void) | undefined
+  onTidy(): void
   onDelete(): void
-}) {
+}): readonly ImageMoreAction[] {
   const tImage = useTranslations('StudioNode.v4.image')
   const tVideo = useTranslations('StudioNode.v4.video')
+  const tNode = useTranslations('StudioNode.v4')
+  const tRerun = useTranslations('StudioNode.rerunDownstream')
+  const actions: ImageMoreAction[] = []
+  if (onQuickLook) {
+    actions.push({
+      id: 'quick-look',
+      label: tVideo('more.quickLook'),
+      icon: Eye,
+      run: onQuickLook,
+    })
+  }
+  // ⋯ 的文案按**这一类卡**写（S5c 尾项）。⛔ 共用键的语义不动。
+  actions.push(
+    {
+      id: 'rename',
+      label: tImage('more.rename'),
+      icon: Pencil,
+      run: onRename,
+    },
+    {
+      id: 'duplicate',
+      label: tImage('more.duplicate'),
+      icon: Copy,
+      run: onDuplicate,
+    },
+  )
+  if (onSplitVersion) {
+    // 拆出一版 = 从一摞版本里抽一张；⛔ 剪刀只留给「裁剪」。
+    actions.push({
+      id: 'split',
+      label: tImage('more.splitVersion'),
+      icon: Layers,
+      run: onSplitVersion,
+    })
+  }
+  if (onSetCharacter) {
+    actions.push({
+      id: 'set-character',
+      label: tImage('more.setCharacter'),
+      icon: UserRound,
+      run: onSetCharacter,
+    })
+  }
+  if (onDownload) {
+    actions.push({
+      id: 'download',
+      label: tNode('toolbar.download'),
+      icon: Download,
+      startsGroup: true,
+      run: onDownload,
+    })
+  }
+  if (onSplitGrid) {
+    actions.push(
+      {
+        id: 'split-grid-3',
+        label: tImage('storyboard.split3'),
+        icon: Grid3X3,
+        disabled: splitGridBusy,
+        startsGroup: true,
+        run: () => onSplitGrid(3),
+      },
+      {
+        id: 'split-grid-2',
+        label: tImage('storyboard.split2'),
+        icon: Grid2x2,
+        disabled: splitGridBusy,
+        run: () => onSplitGrid(2),
+      },
+    )
+  }
+  if (onRerunDownstream) {
+    actions.push({
+      id: 'rerun-downstream',
+      label: tRerun('menu'),
+      icon: RotateCcw,
+      startsGroup: true,
+      run: onRerunDownstream,
+    })
+  }
+  actions.push(
+    {
+      id: 'tidy',
+      label: tNode('toolbar.tidy'),
+      icon: LayoutGrid,
+      startsGroup: !onRerunDownstream,
+      run: onTidy,
+    },
+    {
+      id: 'delete',
+      label: tImage('more.delete'),
+      icon: Trash2,
+      danger: true,
+      startsGroup: true,
+      run: onDelete,
+    },
+  )
+  return actions
+}
+
+export function ImageMoreMenuItems({
+  actions,
+  sourceLabel,
+}: {
+  readonly actions: readonly ImageMoreAction[]
+  /** 当前版的来源（九宫格切出来的那一格写「九宫格 · 天台 · 第 3 格」），只读。 */
+  readonly sourceLabel?: string | undefined
+}) {
+  const tImage = useTranslations('StudioNode.v4.image')
   return (
     <>
-      {onQuickLook ? (
-        <DropdownMenuItem data-image-more="quick-look" onSelect={onQuickLook}>
-          <Eye aria-hidden className="size-4" />
-          {tVideo('more.quickLook')}
-        </DropdownMenuItem>
-      ) : null}
-      {/* ⋯ 的文案按**这一类卡**写（S5c 尾项）。⛔ 共用键的语义不动。 */}
-      <DropdownMenuItem data-image-more="rename" onSelect={onRename}>
-        <Pencil aria-hidden className="size-4" />
-        {tImage('more.rename')}
-      </DropdownMenuItem>
-      <DropdownMenuItem data-image-more="duplicate" onSelect={onDuplicate}>
-        <Copy aria-hidden className="size-4" />
-        {tImage('more.duplicate')}
-      </DropdownMenuItem>
-      {onSplitVersion ? (
-        <DropdownMenuItem data-image-more="split" onSelect={onSplitVersion}>
-          {/* 拆出一版 = 从一摞版本里抽一张；⛔ 剪刀只留给「裁剪」。 */}
-          <Layers aria-hidden className="size-4" />
-          {tImage('more.splitVersion')}
-        </DropdownMenuItem>
-      ) : null}
-      {onSetCharacter ? (
-        <DropdownMenuItem
-          data-image-more="set-character"
-          onSelect={onSetCharacter}
-        >
-          <UserRound aria-hidden className="size-4" />
-          {tImage('more.setCharacter')}
-        </DropdownMenuItem>
-      ) : null}
-      {onSplitGrid ? (
-        <>
-          <DropdownMenuSeparator />
+      {actions.map((action) => (
+        <Fragment key={action.id}>
+          {action.danger && sourceLabel ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel data-image-more="source">
+                <span className="block text-3xs font-normal text-muted-foreground">
+                  {tImage('more.source')}
+                </span>
+                <span className="block truncate text-2xs font-normal text-foreground">
+                  {sourceLabel}
+                </span>
+              </DropdownMenuLabel>
+            </>
+          ) : null}
+          {action.startsGroup ? <DropdownMenuSeparator /> : null}
           <DropdownMenuItem
-            data-image-more="split-grid-3"
-            disabled={splitGridBusy}
-            onSelect={() => onSplitGrid(3)}
+            data-image-more={action.id}
+            disabled={action.disabled}
+            {...(action.danger ? { variant: 'destructive' as const } : {})}
+            onSelect={action.run}
           >
-            <Grid3X3 aria-hidden className="size-4" />
-            {tImage('storyboard.split3')}
+            <action.icon aria-hidden className="size-4" />
+            {action.label}
           </DropdownMenuItem>
-          <DropdownMenuItem
-            data-image-more="split-grid-2"
-            disabled={splitGridBusy}
-            onSelect={() => onSplitGrid(2)}
-          >
-            <Grid2x2 aria-hidden className="size-4" />
-            {tImage('storyboard.split2')}
-          </DropdownMenuItem>
-        </>
-      ) : null}
-      {sourceLabel ? (
-        <>
-          <DropdownMenuSeparator />
-          <DropdownMenuLabel data-image-more="source">
-            <span className="block text-3xs font-normal text-muted-foreground">
-              {tImage('more.source')}
-            </span>
-            <span className="block truncate text-2xs font-normal text-foreground">
-              {sourceLabel}
-            </span>
-          </DropdownMenuLabel>
-        </>
-      ) : null}
-      <DropdownMenuSeparator />
-      <DropdownMenuItem
-        data-image-more="delete"
-        variant="destructive"
-        onSelect={onDelete}
-      >
-        <Trash2 aria-hidden className="size-4" />
-        {tImage('more.delete')}
-      </DropdownMenuItem>
+        </Fragment>
+      ))}
     </>
   )
 }

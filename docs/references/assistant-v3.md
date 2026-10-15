@@ -164,7 +164,7 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 
 设计方案 §2 第 1、5、6 条。量法见 `testing.md`「上下文预算」：回放基线上每道题、每条路由跑两轮，量**字数**（⛔ 不是 token，也不是真机命中率；真机看 `assistant llm call` 日志的 `cachedInputTokens` / `cacheWriteTokens`）。
 
-- **分界线**（`assistant-v3-prompt.service.ts` 的 `buildAssistantV3SystemPrompt` 回 `{ rules, creator, text }`）：规则段 = 角色、HOW YOU WORK、ASKING、LOOKING、WATCHING、FOUND ON THE WEB、这张脸的板子 / 工具 / 写法，同一张脸、同一版提示对谁、哪一轮都逐字相同。`THIS CREATOR'S SETTINGS` 之后按变的频率从慢到快：名字与回复语言 → CHARACTER → HOW YOU TALK（人设口吻，以前粘在最后一段规则上）→ ABOUT THIS CREATOR → 规矩 → 记忆 → 这一轮板上型号的写法（画布节点型号、台上型号、LoRA 底模与 CFG；以前夹在规则里）。⛔ 每人 / 每轮会变的东西只许放分界线之后；改了规则段就拨 `ASSISTANT_V3_PROMPT_VERSION`（现为 `2026-10-15c`）。
+- **分界线**（`assistant-v3-prompt.service.ts` 的 `buildAssistantV3SystemPrompt` 回 `{ rules, creator, text }`）：规则段 = 角色、HOW YOU WORK、ASKING、LOOKING、WATCHING、FOUND ON THE WEB、这张脸的板子 / 工具 / 写法，同一张脸、同一版提示对谁、哪一轮都逐字相同。`THIS CREATOR'S SETTINGS` 之后按变的频率从慢到快：名字与回复语言 → CHARACTER → HOW YOU TALK（人设口吻，以前粘在最后一段规则上）→ ABOUT THIS CREATOR → 规矩 → 记忆 → 这一轮板上型号的写法（画布节点型号、台上型号、LoRA 底模与 CFG；以前夹在规则里）。⛔ 每人 / 每轮会变的东西只许放分界线之后；改了规则段就拨 `ASSISTANT_V3_PROMPT_VERSION`（现为 `2026-10-15e`）。
   - 记忆按记下的先后（`createdAt`，再 `id`）排：注入那一跳按 `lastUsedAt` 选、选完把这几条刷成同一刻，按查出来的顺序排每轮都可能换。查询也加了 `id` 作第二键，选中的那几条是确定的。
   - 工具表本就按固定顺序发。回放断言：一轮里每一步、每一跳接力、跨轮，工具 + 系统提示都逐字相同，相邻两步至少共用这一段前缀。
 - **Claude 四个缓存断点**（`assistant-v3-model.service.ts`，SDK 与 API 的上限都是 4）：① 规则段末尾（系统提示拆成两块）② 分界线之后那块末尾 ③ 历史末尾 ④ 最后一条消息。①–③ 给下一轮读，④ 给同一轮的下一步与接力那一跳读。别家（OpenAI / Gemini / DeepSeek / Grok）靠隐式前缀缓存，系统提示照旧一整段（规则在前），⛔ 不打标记。日志多记 `cacheWriteTokens`（AI SDK 的 usage；`llm-text` 读 `cache_creation_input_tokens`）。
@@ -183,7 +183,31 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
   - 首步原样大小几乎没变：Gemini 约 36.8k 字（工具 11.4k + 系统 21.2k + 消息约 4.2k），别家 38.9–40.2k（工具 13.4–13.5k）；每步多 39 字（两行新标题）。⚠ 「问答首步 < 10k」按原样字数**没达到**：系统提示 21.2k 里画布型号写法约 8.5k，工具 11–13.5k。
   - Claude 真要重算的字（按断点规则）：T13 第二轮 39.2k → 4.5k，T21 Sonnet 40.0k → 5.2k，T03 一整轮 79.1k → 40.2k、第二轮 79.6k → 5.7k，T24 / T25 第二轮 80.9k / 80.4k → 7.0k / 6.5k。别家（隐式缓存）本就只重算 4.2–7.5k。
   - 辅助调用：大多数轮 1 次（结账，约 4.5k 字）→ 0；落了账本的 R01 / R02 2 次 5.4k → 3.1k，T11 1 次 4.6k → 2.4k（只剩抽记忆）。
-- **还没做的**（§2 第 2–4 条）：历史窗口 24 条每轮滑动、没有字数上限（滑一格前缀就断）；板子每一步都重发；`maxTranscriptChars` 没有执行；主步没有 `maxOutputTokens`；板子 4k 多字没分层。
+- **还没做的**：§2 第 3、4 条与型号写法瘦身见下「第二片」；历史窗口（§2 第 2 条：24 条每轮滑动、没有字数上限，滑一格前缀就断）留给第三片。
+
+### 上下文预算（P2 第二片，2026-10-15）
+
+设计方案 §2 第 3、4 条，外加系统提示里那约 8.5k 字的画布型号写法。量法同第一片（`context-budget.json`；字数，⛔ 不是 token、⛔ 不是真机命中率）。下面标「我的判断」的都是我（P2 实现者）定的，⛔ 不是 owner 定的。
+
+- **型号写法：一行提示 + 现取**（`assistant-v3-guides.service.ts`）。画布系统提示分界线之后那段（`WHAT EACH CARD'S PROMPT MUST LOOK LIKE`）每个板上型号只剩一行 `enhanceHint`（按卡数取前 `maxDialectModels` 种、按 id 排；板上型号的集合不变就逐字不变），有长写法的标 `Full guide: read "guide:<id>"`。长的那几段（视频写法、镜头语法、Seedance 控制规则、标签写法）只在 `read "guide:<型号>"` 时进这一轮的记录。
+  - **写词闸**：整段写（write `replace` / `append`、edit 建卡带词）一张卡的提示词，而那个型号的整份写法这一轮还没摆到模型眼前（最后一条 assistant 之前的结果里没有 `PROMPT GUIDE FOR <型号>`），或系统提示根本没列这个型号 → 那一次一条不落，结果里直接给整份写法，模型照着再写一遍（⛔ 不出过程行、⛔ 不算失败）。`edit` 模式的 find / replace 不拦。
+  - 我的判断：整份写法 ⛔ 不按「选中的卡」自动带上 —— 选中会一直留着，那样每一轮都多约 6.9k 字新算的；写词那一轮多一步换不写词的轮次每步少约 5.7k 字。也 ⛔ 不做成按型号分块的稳定前缀：板上型号一变那一块就重写，与现在放在分界线之后的代价相同，却多一套拼法。
+  - 别的脸（图片 / 视频台、LoRA）的写法段照旧：台上只有一个型号，那一段本来就短。
+- **本轮记录瘦身**（`src/lib/assistant-v3-transcript-view.ts`，纯函数：同一份记录永远算出同一份样子；⛔ 不改记录，「再调一次」拿到的仍是全文）。查来的东西（`read` 的卡与网页全文、`look`、`search_web`、`search_library`）只留最近 3 条原样，更早的换成几行摘要：一行说明 + 第一行 + 条目行（句柄 / `#n` / `[n]` 开头）+ 其余地方出现的句柄与编号。整份写法与改动回执不瘦；模型刚要的（最后一条 assistant 之后）不瘦；不到 800 字或摘要省不下一半的不换。
+  - ⚠ 只在**长轮次**里瘦（`ASSISTANT_V3_TRANSCRIPT_SLIM.slimAboveChars` = 6 万字，本轮记录原样只增不减，过了线就一直瘦、不会来回翻）—— 我的判断。瘦掉一条 = 缓存前缀从那一条起断一次，那条之后的东西整段重算，省下的字往后每步只按缓存价计。回放实测 L01（四张约 1.1k 字的卡逐张读）：照字面每步都瘦，整轮少发 907 字、要重算的字反倒多 2,962（+8%），第二轮同样多 2,962；L02（四幕剧本各约 1.7 万字，过线）：第 5 步 106,179 → 88,399 字，整轮 349,697 → 331,917，要重算的 106,183 → 142,763（断缓存那一步的代价，往后每步少发约 1.78 万字）。与 Claude 自家 context editing 同一个思路（默认也是留最近 3 次、过了触发线才清）。设成 0 就回到照字面每步都瘦。
+  - `maxTranscriptChars`（40 万字）现在真执行，按固定次序一级一级瘦，够了就停：① 之前查来的全瘦 → ② 之前的所有结果全瘦（含写法、回执）→ ③ 更早的 assistant 正文截到 400 字 → ④ 模型刚要的那几条平分剩下的字数、截短（最后才动）。调用入参一个字不动（截了不是合法 JSON）；超了记一条 `assistant v3 transcript over budget`。⚠ 到了第 ② 级，写法也会被瘦掉，而写词闸看的是记录本身，不会再拦一次 —— 只在 40 万字那一档才会碰到。
+- **主步输出上限**（`ASSISTANT_V3_MAX_OUTPUT_TOKENS`，交给 `streamText`）：五家都是 64k —— Claude 取旧内核流式那一档（`max_tokens` 必填，SDK 原先自己填 128k）；OpenAI 官方是 Responses 的 `max_output_tokens`（含推理）；Gemini 的 `maxOutputTokens` 含思考，64k 在 Gemini 3 的 65,536 之下；DeepSeek 官方 `max_tokens`；Grok ⛔ 不发已弃用的 `max_tokens`，同一个数走 `max_completion_tokens`。⚠ 代理 / 自建兼容口子 ⛔ 不发（上限各不相同，vLLM 一类「提示 + 上限」超了上下文就 400；与旧内核 `providerManagedOutput` 同一条），Claude 例外。撞上限（`finishReason: length`）记一条日志。数是我的判断：只为拦住失控的长输出，远高于一次写满几段长提示词（回放里最大的一批调用入参才 433 字，T24）。
+- **板子分级**（`assistant-v3-board.ts`，tldraw agent kit 做法，只在画布、只在大画布 —— 卡多于 `boardCatalogMinNodes`）：在眼前的镜头带照旧（相关的卡展开、其余一张一行）；别的带只印一行 —— `LANE 9 — off-screen, 1 card: 「S09 塔楼」 — read "lane:9" for it`，⛔ 不给句柄。`read "lane:<n>"` 按原路读那条带（全文最多 12 张，其余一张一行带句柄；前端折起来的、没有的、截掉的照实说）。句柄的造法一字没变，op 照旧按句柄认（B01 证明：先读 lane 9 再改 S09）。
+  - 「在眼前」是近似（快照里没有视口，我的判断）：当前镜那条与左右各一（没焦点时最前面三条，与前端在很大的画布上展开的三面同一条）+ 有展开卡（选中 / @ / 点名 / 剧本 / 一跳连线）的带；散卡永远在。
+  - 那一行列卡名（最多 6 个）是我加的：设计方案只说给计数；列名字让模型把「S09」「塔楼」对上是哪一条带（T23：带的位置号不等于剧本镜号），每张卡只多十来个字。
+  - **板子不每步重发**：本来就是 —— 开轮那一刻冻进本轮记录头一条、排在稳定前缀之后，往后每一步与每一跳接力逐字复用、改了什么由工具结果带回。现在回放断言了这一条（第一步之后每一步都逐字以第一步的整份请求开头），⛔ 没再加「只发变化」那一套（板子不在后面的步里重算，没有可省的）。
+  - 别的脸看过、没动：图片 / 视频台的板子是一张表单（提示词截到 1,600 字、最多列 40 个型号）；LoRA 只列挂着的 LoRA、底模最多 12 个；角色页最多 120 位、一位一行（约 90 字：平常 1–3k 字，最坏约 1.1 万字 —— 要不要分级等 owner 定）。
+- **量出来的**（`context-budget.json`，第二片前 → 后）：
+  - 画布系统提示 21,193 → 15,468 字；`malfoy` 上每道题首步少 5,725 字（Gemini 约 36.8k → 31.1k，别家 38.9–40.2k → 33.2–34.5k），两步的轮次整轮少约 11.4k；第二轮要重算的字一个没变（系统提示本来就在缓存里）。
+  - 写词那一轮多一步：P01（先读写法）33,285 / 40,737 / 41,770，整轮 115.8k、重算 41.8k；P02（没读就写，被闸拦下）33,285 / 41,176 / 42,209。对照第二片前同样两步收的 T24：39,015 / 41,573，整轮 80.6k、重算 41.6k —— 多一步、多发约 35k（多半在缓存里），重算的字差不多。
+  - 板子分级：`hogwarts`（24 张卡、9 条带不在眼前）首步消息 3,878 → 3,518 字（B01）；卡越多省得越多（不在眼前的卡每张从约 85 字的一行变成十来个字的名字，我按这个估：60 张镜头卡、只看三条带时约省 3–4k 字，没量过）。规则段多两行（+164 字，跨轮在缓存里）。
+- **没验证的**：都是回放上的字数与录好的回复。真机缓存命中；真模型会不会照「Full guide」去读写法、会不会对着 off-screen 那一行去 `read "lane:<n>"`（回放里是写好的回复）；多一步的延迟；摘要够不够模型接着想；Gemini 3.8 Flash / GPT-6.1 的输出上限是不是真的 ≥ 64k（按文档与已知的上一代推的）。
+- **要 owner 定的**：写词那一轮多一步换平时每步少约 5.7k 字（或者选中视频卡就带整份写法）；`slimAboveChars` 的数（0 = 照字面每步都瘦）；很大的画布（镜头卡 > 60）上前端折起来的带仍然读不到 —— 服务端现在会分级，前端可以把每条带的卡都带上；角色页最坏约 1.1 万字要不要分级。
 
 ## 3. 回放题
 
@@ -223,19 +247,22 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 
 每道题还对账这一轮写下的过程记录（`gradeTurnRecord`）：整轮只写一行、只存 key 的 id、没有图的字节、开轮快照就是路由收下的那一份；这一行经 `from-turn-record.ts` 转回来，画布的卡与线、选的那一家与型号、这一句、上一轮带进来的 `#n`、整轮的模型回复、怎么收的都与题目一样。缺 key 那一题（K01）一行都不写。
 
-| 题                    | 路由（选定的那一家）                   | 查什么                                                        |
-| --------------------- | -------------------------------------- | ------------------------------------------------------------- |
-| T11 · T12 · T13       | Gemini / 自动→Luna · DeepSeek · Claude | 只答：不落 op、不出卡                                         |
-| T21 · V03             | Gemini · Sonnet · DeepSeek V4 Pro      | `@` 两张图都摆到模型眼前；看不了图的型号一张不收              |
-| V01 · V02             | Gemini · GPT-6.1 Sol                   | `@` 片子：Gemini 收片子本体，OpenAI 收按片长抽的帧            |
-| T01 · T25 · T24       | Gemini · 五家各一遍 · Sonnet           | 断 / 接线一批落、接力续上、其他不动；已接的不重复接           |
-| T03 · T05 · T07 · T09 | Opus · Sol · DeepSeek Flash · Sol      | 建卡 + 模型 + 参数 + 连线一批落；只改名；逐字只换一处；挪镜   |
-| T06                   | Gemini                                 | 模型直接发删除 → 服务端先出问题卡，一张不删                   |
-| T14 · T15             | Grok · Gemini                          | 生成确认卡只列点名的那几张，⛔ 不建 generation                |
-| R01                   | Gemini                                 | `search_web` 走 Gemini 自带联网，答出 Aemeath / Danbooru 标签 |
-| R02                   | Gemini                                 | 查证的整段摘录只给紧跟着的那一步，再往后是一行一条的短版      |
-| R03                   | Gemini                                 | 上一轮找到的 `#n` 带进这一轮：模型眼前有那几行，记录转得回来  |
-| K01                   | 选 Claude、只配 Gemini 的 key          | `ASSISTANT_MODEL_KEY_MISSING`，一次模型都不碰、⛔ 不借别家    |
+| 题                    | 路由（选定的那一家）                   | 查什么                                                                         |
+| --------------------- | -------------------------------------- | ------------------------------------------------------------------------------ |
+| T11 · T12 · T13       | Gemini / 自动→Luna · DeepSeek · Claude | 只答：不落 op、不出卡                                                          |
+| T21 · V03             | Gemini · Sonnet · DeepSeek V4 Pro      | `@` 两张图都摆到模型眼前；看不了图的型号一张不收                               |
+| V01 · V02             | Gemini · GPT-6.1 Sol                   | `@` 片子：Gemini 收片子本体，OpenAI 收按片长抽的帧                             |
+| T01 · T25 · T24       | Gemini · 五家各一遍 · Sonnet           | 断 / 接线一批落、接力续上、其他不动；已接的不重复接                            |
+| T03 · T05 · T07 · T09 | Opus · Sol · DeepSeek Flash · Sol      | 建卡 + 模型 + 参数 + 连线一批落；只改名；逐字只换一处；挪镜                    |
+| T06                   | Gemini                                 | 模型直接发删除 → 服务端先出问题卡，一张不删                                    |
+| T14 · T15             | Grok · Gemini                          | 生成确认卡只列点名的那几张，⛔ 不建 generation                                 |
+| R01                   | Gemini                                 | `search_web` 走 Gemini 自带联网，答出 Aemeath / Danbooru 标签                  |
+| R02                   | Gemini                                 | 查证的整段摘录只给紧跟着的那一步，再往后是一行一条的短版                       |
+| R03                   | Gemini                                 | 上一轮找到的 `#n` 带进这一轮：模型眼前有那几行，记录转得回来                   |
+| K01                   | 选 Claude、只配 Gemini 的 key          | `ASSISTANT_MODEL_KEY_MISSING`，一次模型都不碰、⛔ 不借别家                     |
+| P01 · P02             | Sonnet                                 | 系统提示里型号只剩一行；整段重写前读 `guide:<型号>` / 没读就被写词闸拦下给写法 |
+| L01 · L02             | DeepSeek Flash · Sonnet                | 本轮记录瘦身：没过线一字不瘦；过线后最早那条换摘要、句柄还在                   |
+| B01                   | Gemini                                 | 板子分级：不在眼前的带只有一行，先 `read "lane:9"` 再改 S09                    |
 
 ## 4. 切片
 
@@ -258,6 +285,7 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 - 读页被挡与退路：`src/lib/read-url-blocks.ts`（判据、按站记一阵、HTML 转文字）· `src/constants/web-search.ts` 的 `URL_READER` / `URL_READER_BLOCK_SIGNALS` · `src/services/web-research.service.ts` 的 `readUrlDetailed` · `src/constants/research.ts` 的 `MEDIAWIKI_READ_HOSTS` + `mediawiki.connector` 的 `resolveMediaWikiReadTarget` / `readMediaWikiPage`
 - 开关：`src/app/api/studio/assistant-operator/route.ts` · `src/hooks/use-assistant-operator.ts`
 - 自动回放基线：`src/test/assistant-replay/`（题在 `fixtures/cases/`，判分在 `graders.ts`）
+- 上下文预算（P2 第二片）：`assistant-v3-guides.service.ts`（型号一行提示、`read "guide:"`、写词闸）· `src/lib/assistant-v3-transcript-view.ts`（本轮记录瘦身与 `maxTranscriptChars`）· `assistant-v3-board.ts` 的 `viewLaneNumbers` / `renderOffscreenLane` 与 `assistant-v3.service.ts` 的 `readLanes`（板子分级）· `assistant-v3-model.service.ts` 的 `maxOutputTokens` · `src/constants/assistant-v3.ts` 的 `ASSISTANT_V3_TRANSCRIPT_SLIM` / `ASSISTANT_V3_MAX_OUTPUT_TOKENS` / `ASSISTANT_V3_BOARD_TIERS`
 - 上下文预算（P2）：`assistant-v3-prompt.service.ts`（分界线、记忆排序）· `assistant-v3-model.service.ts`（Claude 断点、`effortPerStep`、`assistantV3StepEffort`）· `assistant-v3.service.ts` 的 `isLandingStep` · `assistant-operator.service.ts` 的 `closeRoundV3` / `closeRoundV3BeforeStop` / `scheduleRoundMemories` / `prepareOperatorTurn({ skipPriorRounds })` · 量法 `src/test/assistant-replay/context-budget.ts` + `fixtures/context-budget.json`
 - 每轮的过程记录：`src/services/assistant-turn-record.service.ts`（写与删）· `src/lib/assistant-turn-record.ts`（摘 data: 地址、挑请求字段、按上限截）· `src/constants/assistant-turn-record.ts` · `src/types/assistant-turn-record.ts`；一行转回回放题：`src/test/assistant-replay/from-turn-record.ts`
 
@@ -269,6 +297,7 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 
 ## Last Verified
 
+- 2026-10-15 · P2 第二片「上下文预算」（见 §2「上下文预算（P2 第二片）」）：型号写法一行提示 + `read "guide:"` + 写词闸、本轮记录瘦身（长轮次留最近 3 条）+ `maxTranscriptChars` 四级、主步 `maxOutputTokens`、画布板子分级 + `read "lane:<n>"`、断言板子只在第一步算新的。`tsc` + 改动文件 eslint（0 problem）+ 定向 vitest（services/kernel · services/research · `llm-text` · `assistant-memory` · constants · types · lib，311 个文件 5,447 条全绿）+ `npm run test:replay`（81 条全绿；新题 P01 / P02 / L01 / L02 / B01，新板子 `hogwarts` / `scripts`）。反例：关掉写词闸 P02 红（多一次请求）；「最近 3 条」改成全留、瘦身线改成 0、在眼前的带不认展开卡，各自的单测红。`context-budget.json` 重写过四次，各有原因：新题入表；型号写法挪走首步 −5,725 字；板子分级的两行提示 +164 字、L01 第四次改读 `lane:4`。五家请求体里的上限字段逐一看过（Claude `max_tokens` / OpenAI `max_output_tokens` / Gemini `maxOutputTokens` / DeepSeek `max_tokens` / Grok 只有 `max_completion_tokens`，都是 64,000）。⚠ 都是回放上的字数与录好的回复，没对真模型跑过（见那一节「没验证的」）。
 - 2026-10-15 · P2 第一片「上下文预算」（见 §2「上下文预算」）：量法、分界线、Claude 四个断点、收尾不再结账 + 后台抽记忆（这一轮的型号）、v3 开轮不读 `priorRounds`、思考档按步调（Claude / OpenAI 整轮钉住）、查证改写查询传 low（查证结论与自带联网照旧不传）。`tsc` + 改动文件 eslint（0 error）+ 定向 vitest（services/kernel · services/research · `llm-text` · `assistant-memory` · constants · types，90 个文件 2,560 条；lib 219 个文件 2,852 条，全绿）+ `npm run test:replay`（71 条全绿；`context-budget.json` 重写过三次，各有原因：两行新标题每步 +39 字、Claude 断点让重算字数下降、结账删掉让辅助调用变少；抽记忆改回这一轮的型号、查证档位改回照旧都没动它）。⚠ 都是回放上的字数，没对真模型跑过：真机缓存命中、`after()` 在 Vercel 流式路由里跑完、Gemini / DeepSeek / Grok 换档后缓存还在不在、提示段落挪位后的模型表现，都没验证。
 - 2026-10-15 · 过程记录带上上一轮找到的东西（`input.priorFinds`，取开轮板子上冻着的那一份；超限时新的一刀 `prior_finds` 在模型正文之后、快照之前），回放题 schema 加 `turn.priorFinds`、`runner.ts` 只在开轮那一跳带、`from-turn-record.ts` 原样转回、`gradeTurnRecord` 对账它；新题 R03。`tsc` + 改动文件 eslint（0 error）+ 定向 vitest（lib / types / constants / services/kernel / 过程记录服务 / 回放，300 个文件 4,921 条全绿）+ `npm run test:replay`（21 题 × 路由 = 27 跑 + 判分器反例 7 条 + 记录转题 10 条，44 条全绿）；把 runner 改成不带、把转换器改成不转时 R03 各红一次（请求体里没有那几行 / 记录转不回同一道题）。
 - 2026-10-15 · 读页被挡、退路与查证三轮（见上「读页被挡、退路与查证轮次」）。`tsc` + 改动文件 eslint（0 error）+ 定向 vitest（lib / types / constants / i18n / services/kernel / services/research / `web-research.service` / assistant-operator 组件 / 回放，350 个文件 5,595 条全绿；新增：判据 28 条（挑战页真阳性、讲 Cloudflare / Access denied 的正常文章不误判、按站记一阵的 30 分钟到期与表满、HTML 转文字含刁钻输入的线性）、读页链 8 条（先后：Jina → wiki API → 直连；挑战页的字不进正文；整站挡之内不碰网络；只挡 Jina 下次跳过；读不出不记；字节上限）、wiki 网址解析 11 条、扇出排序 2 条、`read_url` 摘要退路 / 被挡拒绝 / wiki via / 快搜挑页 4 条、v3 摘要续上 2 条、日志条 1 条；轮次上限两条用例改成「第三轮允许、第四轮拒」）+ `npm run test:replay`（42 条全绿）。⚠ 灰机wiki 与 B站 wiki 的 API 路径按 MediaWiki 惯例写、Jina 头里 `Warning:` 行的格式按已知样子写，都没对真站验过（沙箱代理拒连这几个站）；没有对真模型 / 真浏览器跑过；进程内的「记一阵」在 serverless 多实例下各记各的。

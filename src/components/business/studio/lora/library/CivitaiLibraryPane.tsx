@@ -419,6 +419,7 @@ export function CivitaiCommunityBranch({
           nsfwOptions={nsfwOptions}
           onNsfwFilterChange={library.setNsfwFilter}
           total={library.total}
+          totalCapped={library.totalCapped}
           activeFilterCount={activeFilterCount}
           onClearFilters={handleClearFilters}
           onRefresh={() => void library.refresh()}
@@ -500,6 +501,7 @@ export function CivitaiCommunityBranch({
         <LoraLibraryPagination
           page={library.page}
           total={library.total}
+          totalCapped={library.totalCapped}
           hasNextPage={library.hasNextPage}
           isBusy={library.isRevalidating}
           onPreviousPage={library.previousPage}

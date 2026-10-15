@@ -50,6 +50,8 @@ export interface UseCivitaiLoraLibraryReturn {
   items: CivitaiLoraLibraryItem[]
   selectedItem: CivitaiLoraLibraryItem | null
   total: number | null
+  /** 索引数到上限就停了：真实命中比 `total` 多（界面写「1 万+」）。 */
+  totalCapped: boolean
   page: number
   pageSize: number
   hasNextPage: boolean
@@ -182,6 +184,7 @@ export function useCivitaiLoraLibrary(
   const [items, setItems] = useState<CivitaiLoraLibraryItem[]>([])
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [total, setTotal] = useState<number | null>(null)
+  const [totalCapped, setTotalCapped] = useState(false)
   const [page, setPage] = useState(1)
   const [hasNextPage, setHasNextPage] = useState(false)
   // `isLoading` = "I have nothing to show yet". `isRevalidating` = "a fetch is
@@ -243,6 +246,7 @@ export function useCivitaiLoraLibrary(
         setItems(result.items)
       }
       setTotal(result.total)
+      setTotalCapped(result.totalCapped)
       setHasNextPage(result.hasNextPage)
       // 接下一段时选中项还在列表里，⛔ 被新一段的第一项顶掉。
       if (appending) return
@@ -265,6 +269,7 @@ export function useCivitaiLoraLibrary(
       setItems([])
       setSelectedItemId(null)
       setTotal(null)
+      setTotalCapped(false)
       setHasNextPage(false)
     }
     setError(null)
@@ -500,6 +505,7 @@ export function useCivitaiLoraLibrary(
     items,
     selectedItem,
     total,
+    totalCapped,
     page,
     pageSize,
     hasNextPage,

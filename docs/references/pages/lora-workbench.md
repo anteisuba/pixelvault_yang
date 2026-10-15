@@ -166,7 +166,7 @@ tag-level 计数 API，改用 `GET huggingface.co/api/models?filter=lora&search=
 
 ### 3.2 内容类型的命中规则（工程契约）
 
-civitai 社区 tag 质量参差（官方 discussion #499：大量模型不打 tag），单靠标签会漏。一个模型属于某类型 = **命中任一 `civitaiTags`（整个标签精确相等）或名字含任一 `nameKeywords`**，两者取并集，在 Civitai 索引里一条查询完成（2026-10-07 起，见 [`../backend.md`](../backend.md#civitai-lora-库全量索引2026-10-07-起)）：总数是精确数、按页码翻页，两个字的关键词（如「oc」）按整词匹配。旧的 meilisearch 两个子查询合并 + 自建 override / exclude 表随索引一起删掉（两张表从来是空的）。
+civitai 社区 tag 质量参差（官方 discussion #499：大量模型不打 tag），单靠标签会漏。一个模型属于某类型 = **命中任一 `civitaiTags`（整个标签精确相等）或名字含任一 `nameKeywords`**，两者取并集，在 Civitai 索引里一条查询完成（2026-10-07 起，见 [`../backend.md`](../backend.md#civitai-lora-库全量索引2026-10-07-起)）：总数数到 1 万为止、按页码翻页，两个字的关键词（如「oc」）按整词匹配。旧的 meilisearch 两个子查询合并 + 自建 override / exclude 表随索引一起删掉（两张表从来是空的）。
 
 - HF 侧（`src/services/huggingface-lora.service.ts`）走既有的「抓 Hub 页 + 服务端过滤」架构（不是 meilisearch）：`isPotentialLoraCandidate` 新增 `modelMatchesContentType` 判据，同一套 L1(`hfTags`)/L2(`nameKeywords` 对 repoId/模型名/tags/文件名子串匹配，复用 `matchesRepositorySearch` 的 haystack 构造)/L3(`LORA_CONTENT_TYPE_OVERRIDES_HF`/`_EXCLUDES_HF`，repoId 键) 语义，不新开 over-fetch 路径。
 

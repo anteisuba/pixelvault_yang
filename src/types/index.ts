@@ -5111,6 +5111,8 @@ export const CivitaiLoraLibraryResultSchema = z.object({
   page: z.number().int().min(1),
   pageSize: z.number().int().min(1),
   total: z.number().int().nonnegative(),
+  /** 索引数到上限就停：真实命中比 `total` 多，界面写「1 万+」。 */
+  totalCapped: z.boolean(),
   hasNextPage: z.boolean(),
 })
 

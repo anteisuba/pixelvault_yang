@@ -37,9 +37,9 @@ import type { CivitaiLoraLibraryItem, CivitaiLoraLibraryResult } from '@/types'
  * 总数、翻页都以索引为准。新上架的模型最迟一天后出现。
  */
 
-// 索引查询本身几十毫秒；超时多半是 Cloudflare 那头偶发卡一下，短超时 + 重试一次
-// 比干等 8 秒更稳（只读，重试安全）。
-const CIVITAI_INDEX_TIMEOUT_MS = 4000
+// 热查询几十到几百毫秒，冷的时候（D1 页缓存没热）慢一个量级。4 秒的上限在
+// 2026-10 一周里超时 16 次——给足 8 秒，超时或索引 5xx 再试一次（只读，重试安全）。
+const CIVITAI_INDEX_TIMEOUT_MS = 8000
 const CIVITAI_INDEX_ATTEMPTS = 2
 /** 卡片上最多带几个标签（与旧的上游路径一致）。 */
 const ITEM_MAX_TAGS = 8
@@ -78,6 +78,8 @@ const IndexRowSchema = z.object({
 const IndexSearchResponseSchema = z.object({
   rows: z.array(IndexRowSchema),
   total: z.number().int().nonnegative(),
+  // 索引 Worker 与应用分开部署：Worker 还没换上封顶计数时缺这一格，按没封顶算。
+  totalCapped: z.boolean().default(false),
 })
 
 const IndexStatusSchema = z.object({
@@ -96,6 +98,7 @@ async function callIndex(path: string, body?: unknown): Promise<unknown> {
     )
   }
   for (let attempt = 1; ; attempt++) {
+    let retryable = false
     try {
       const response = await fetch(new URL(path, baseUrl), {
         method: body === undefined ? 'GET' : 'POST',
@@ -107,13 +110,16 @@ async function callIndex(path: string, body?: unknown): Promise<unknown> {
         signal: AbortSignal.timeout(CIVITAI_INDEX_TIMEOUT_MS),
       })
       if (!response.ok) {
+        retryable = response.status >= 500
         throw new Error(`Civitai index responded ${response.status}`)
       }
       return await response.json()
     } catch (error) {
       const timedOut =
         error instanceof DOMException && error.name === 'TimeoutError'
-      if (!timedOut || attempt >= CIVITAI_INDEX_ATTEMPTS) throw error
+      if (!(timedOut || retryable) || attempt >= CIVITAI_INDEX_ATTEMPTS) {
+        throw error
+      }
     }
   }
 }
@@ -252,6 +258,7 @@ export async function listCivitaiLoras(
     page,
     pageSize,
     total: result.total,
+    totalCapped: result.totalCapped,
     hasNextPage: page * pageSize < result.total,
   }
 }

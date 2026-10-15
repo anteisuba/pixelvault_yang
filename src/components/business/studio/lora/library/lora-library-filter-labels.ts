@@ -1,3 +1,5 @@
+import type { useFormatter } from 'next-intl'
+
 import type { LoraContentType, LoraLibraryFamily } from '@/constants/lora'
 
 // R1 库聚焦浏览：类型/底模从 chip 行改成下拉（LoraLibraryFilterCombobox）后，
@@ -31,3 +33,17 @@ export const LORA_LIBRARY_FAMILY_LABEL_KEYS: Record<LoraLibraryFamily, string> =
     chroma: 'familyLabel.chroma',
     other: 'familyLabel.other',
   }
+
+/**
+ * 库的总数：索引数到上限就停时写紧凑数加「+」（zh/ja「1万+」，en「10K+」），
+ * 否则照实写。
+ */
+export function formatLibraryTotal(
+  format: ReturnType<typeof useFormatter>,
+  total: number,
+  capped: boolean,
+): string {
+  return capped
+    ? `${format.number(total, { notation: 'compact' })}+`
+    : format.number(total)
+}

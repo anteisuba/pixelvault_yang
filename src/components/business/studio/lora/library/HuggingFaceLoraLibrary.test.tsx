@@ -32,6 +32,7 @@ let mockLibraryQuery = ''
 vi.mock('next-intl', () => ({
   useTranslations: (namespace: string) => (key: string) =>
     `${namespace}:${key}`,
+  useFormatter: () => ({ number: (value: number) => String(value) }),
 }))
 
 vi.mock('sonner', () => ({

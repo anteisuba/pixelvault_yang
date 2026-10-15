@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { ChevronDown, RefreshCw, SlidersHorizontal } from '@/components/icons'
-import { useTranslations } from 'next-intl'
+import { useFormatter, useTranslations } from 'next-intl'
 
 import {
   LORA_LIBRARY_FILTER_SHEET_CLASS,
@@ -19,6 +19,8 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer'
 import { Input } from '@/components/ui/input'
+
+import { formatLibraryTotal } from './lora-library-filter-labels'
 
 // <1024 的库筛选（ui-defaults.md §6「LoRA 降级」＋ pages/lora-library.md
 // 「移动端」）：桌面上散在顶栏和结果区上方的 来源 / 排序 / 类型 / 底模 / 安全 /
@@ -55,6 +57,8 @@ export interface LoraLibraryMobileFiltersProps {
   onNsfwFilterChange: (value: LoraNsfwFilter) => void
   /** 结果总数，未知时 footer 退化成「显示结果」。 */
   total: number | null
+  /** 总数是封顶数（Civitai 索引数到上限就停） */
+  totalCapped?: boolean
   /** chip 上的 ●N：类型/底模/安全里非默认值的个数，0 时不渲染角标。 */
   activeFilterCount: number
   onClearFilters: () => void
@@ -120,11 +124,13 @@ export function LoraLibraryMobileFilters({
   nsfwOptions,
   onNsfwFilterChange,
   total,
+  totalCapped = false,
   activeFilterCount,
   onClearFilters,
   onRefresh,
 }: LoraLibraryMobileFiltersProps) {
   const t = useTranslations('LoraWorkbench')
+  const format = useFormatter()
   const [open, setOpen] = useState(false)
   const [familyQuery, setFamilyQuery] = useState('')
 
@@ -324,7 +330,9 @@ export function LoraLibraryMobileFilters({
             >
               {total === null
                 ? t('mobileFilterApplyUnknown')
-                : t('mobileFilterApply', { count: total })}
+                : t('mobileFilterApply', {
+                    count: formatLibraryTotal(format, total, totalCapped),
+                  })}
             </Button>
           </footer>
         </DrawerContent>

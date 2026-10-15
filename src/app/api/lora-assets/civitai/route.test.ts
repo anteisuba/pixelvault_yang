@@ -23,6 +23,7 @@ const emptyResult = {
   page: 1,
   pageSize: 12,
   total: 0,
+  totalCapped: false,
   hasNextPage: false,
   nextCursor: null,
 }

@@ -51,6 +51,7 @@ import { Button } from '@/components/ui/button'
 
 import { LoraLibraryDetailPage } from './LoraLibraryDetailPage'
 import {
+  formatLibraryTotal,
   LORA_CONTENT_TYPE_LABEL_KEYS,
   LORA_LIBRARY_FAMILY_LABEL_KEYS,
 } from './lora-library-filter-labels'
@@ -365,7 +366,11 @@ export function LoraLibraryBrowse({
     library.debouncedSearch !== '' && (library.isReplacing || library.isLoading)
   const hasPendingSearch =
     library.search.trim() !== library.debouncedSearch.trim()
-  const totalLabel = format.number(library.total ?? library.items.length)
+  const totalLabel = formatLibraryTotal(
+    format,
+    library.total ?? library.items.length,
+    library.totalCapped,
+  )
   const typeFallbackTerm =
     library.contentType !== 'all'
       ? getLoraContentTypeDefinition(library.contentType).searchFallbackTerm

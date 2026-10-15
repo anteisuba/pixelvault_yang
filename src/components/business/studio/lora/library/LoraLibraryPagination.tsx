@@ -1,13 +1,17 @@
 'use client'
 
 import { ChevronLeft, ChevronRight } from '@/components/icons'
-import { useTranslations } from 'next-intl'
+import { useFormatter, useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
+
+import { formatLibraryTotal } from './lora-library-filter-labels'
 
 interface LoraLibraryPaginationProps {
   page: number
   total: number | null
+  /** 总数是封顶数（Civitai 索引数到上限就停） */
+  totalCapped?: boolean
   hasNextPage: boolean
   isBusy: boolean
   onPreviousPage: () => void
@@ -19,14 +23,19 @@ interface LoraLibraryPaginationProps {
 export function LoraLibraryPagination({
   page,
   total,
+  totalCapped = false,
   hasNextPage,
   isBusy,
   onPreviousPage,
   onNextPage,
 }: LoraLibraryPaginationProps) {
   const t = useTranslations('LoraWorkbench')
+  const format = useFormatter()
   const pageStatus = total
-    ? t('communityPageStatusKnown', { page, total })
+    ? t('communityPageStatusKnown', {
+        page,
+        total: formatLibraryTotal(format, total, totalCapped),
+      })
     : t('communityPageStatus', { page })
 
   return (

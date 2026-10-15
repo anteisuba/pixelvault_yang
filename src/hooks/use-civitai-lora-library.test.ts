@@ -70,6 +70,7 @@ function createResult(
     page,
     pageSize: 10,
     total: 1000,
+    totalCapped: false,
     hasNextPage,
   }
 }
@@ -570,6 +571,7 @@ describe('useCivitaiLoraLibrary', () => {
             page: 1,
             pageSize: 10,
             total: 0,
+            totalCapped: false,
             hasNextPage: false,
           },
         })

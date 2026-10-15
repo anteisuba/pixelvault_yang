@@ -61,7 +61,9 @@ afterEach(() => {
 
 describe('listCivitaiLoras', () => {
   it('translates library filters into an index query', async () => {
-    mockFetch.mockResolvedValue(jsonResponse({ rows: [], total: 0 }))
+    mockFetch.mockResolvedValue(
+      jsonResponse({ rows: [], total: 0, totalCapped: false }),
+    )
 
     await listCivitaiLoras({
       search: ' silver ',
@@ -95,16 +97,29 @@ describe('listCivitaiLoras', () => {
       .mockRejectedValueOnce(
         new DOMException('The operation was aborted', 'TimeoutError'),
       )
-      .mockResolvedValueOnce(jsonResponse({ rows: [], total: 0 }))
+      .mockResolvedValueOnce(
+        jsonResponse({ rows: [], total: 0, totalCapped: false }),
+      )
 
     await expect(listCivitaiLoras()).resolves.toMatchObject({ total: 0 })
     expect(mockFetch).toHaveBeenCalledTimes(2)
   })
 
-  it('does not retry an index error response', async () => {
-    mockFetch.mockResolvedValue(jsonResponse({}, 500))
+  it('retries once when the index answers 5xx', async () => {
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse({}, 500))
+      .mockResolvedValueOnce(
+        jsonResponse({ rows: [], total: 0, totalCapped: false }),
+      )
 
-    await expect(listCivitaiLoras()).rejects.toThrow('responded 500')
+    await expect(listCivitaiLoras()).resolves.toMatchObject({ total: 0 })
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not retry a rejected request', async () => {
+    mockFetch.mockResolvedValue(jsonResponse({}, 400))
+
+    await expect(listCivitaiLoras()).rejects.toThrow('responded 400')
     expect(mockFetch).toHaveBeenCalledTimes(1)
   })
 
@@ -119,7 +134,9 @@ describe('listCivitaiLoras', () => {
     [{ nsfwFilter: 'unrestricted' as const }, { nsfw: {} }],
     [{ contentType: 'all' as const }, { contentType: null }],
   ])('maps %o to %o', async (input, expected) => {
-    mockFetch.mockResolvedValue(jsonResponse({ rows: [], total: 0 }))
+    mockFetch.mockResolvedValue(
+      jsonResponse({ rows: [], total: 0, totalCapped: false }),
+    )
 
     await listCivitaiLoras(input)
 
@@ -127,7 +144,9 @@ describe('listCivitaiLoras', () => {
   })
 
   it('treats the "other" bucket as every base model outside the named families', async () => {
-    mockFetch.mockResolvedValue(jsonResponse({ rows: [], total: 0 }))
+    mockFetch.mockResolvedValue(
+      jsonResponse({ rows: [], total: 0, totalCapped: false }),
+    )
 
     await listCivitaiLoras({ baseModel: 'other' })
 
@@ -139,7 +158,9 @@ describe('listCivitaiLoras', () => {
   })
 
   it('maps index rows to library items with an exact total', async () => {
-    mockFetch.mockResolvedValue(jsonResponse({ rows: [indexRow], total: 25 }))
+    mockFetch.mockResolvedValue(
+      jsonResponse({ rows: [indexRow], total: 25, totalCapped: false }),
+    )
 
     const result = await listCivitaiLoras({ page: 2, pageSize: 12 })
 
@@ -147,6 +168,7 @@ describe('listCivitaiLoras', () => {
       page: 2,
       pageSize: 12,
       total: 25,
+      totalCapped: false,
       hasNextPage: true,
     })
     const [item] = result.items

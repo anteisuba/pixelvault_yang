@@ -167,6 +167,8 @@ describe('planResearchWithLlm · 只用所选那一家（2026-10-15）', () => {
         adapterType,
         apiKey: route.apiKey,
         responseFormat: 'json_object',
+        // P2 §2.6：子调用显式传档位 —— 磨搜索词用最低档。
+        reasoningEffort: 'low',
       })
       // 没给型号 = 那一家的默认型号（llmTextCompletion 自己挑），⛔ 不带别家的型号名。
       expect(

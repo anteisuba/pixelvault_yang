@@ -2869,6 +2869,13 @@ export interface LlmNativeSearchInput {
    * 这一次开 `enable_video_understanding`。缺席 = 只看封面。⚠ 只对 Grok 有意义。
    */
   xVideos?: boolean
+  /**
+   * 这一次搜的思考档（P2 §2.6「子调用显式传档位」）：Gemini `thinkingLevel`、OpenAI 官方
+   * `reasoning.effort`、Claude `output_config.effort`。缺席 = 各家默认（Gemini 3 / Claude 默认最高档）。
+   * ⚠ Grok 那一支照旧钉 `low`（既有调校），DeepSeek 的 Claude 兼容入口 ⛔ 不带（兼容层没写这个
+   *   字段，带了可能整次 400，与它不带域名同一条判据）。
+   */
+  reasoningEffort?: AssistantReasoningEffort
 }
 
 const NATIVE_SEARCH_MAX_USES = 3
@@ -2990,6 +2997,13 @@ async function geminiNativeWebSearch(
           { google_search: {} },
           ...(URL_IN_TEXT.test(input.query) ? [{ url_context: {} }] : []),
         ],
+        ...(input.reasoningEffort
+          ? {
+              generationConfig: {
+                thinkingConfig: { thinkingLevel: input.reasoningEffort },
+              },
+            }
+          : {}),
       }),
     },
     { adapterType: AI_ADAPTER_TYPES.GEMINI, modelId },
@@ -3186,6 +3200,11 @@ async function openAiNativeWebSearch(
           },
         ],
         include: ['web_search_call.action.sources'],
+        // 只对官方端点发（与对话那一支同一条判据：自填代理未必认）。
+        ...(input.reasoningEffort &&
+        baseUrl === AI_PROVIDER_ENDPOINTS.OPENAI_CHAT
+          ? { reasoning: { effort: input.reasoningEffort } }
+          : {}),
       }),
     },
     { adapterType: AI_ADAPTER_TYPES.OPENAI, modelId },
@@ -3478,6 +3497,8 @@ interface MessagesSearchTarget {
   init: (body: string) => Omit<RequestInit, 'signal'>
   /** `web_search` 工具上额外的参数（域名 / 地区）。 */
   toolOptions: Record<string, unknown>
+  /** `output_config.effort`；缺席 = 不带（DeepSeek 兼容入口）。 */
+  effort?: AssistantReasoningEffort
 }
 
 /**
@@ -3510,6 +3531,7 @@ function anthropicNativeWebSearch(
         : {}),
       ...nativeSearchUserLocation(input.timeZone),
     },
+    ...(input.reasoningEffort ? { effort: input.reasoningEffort } : {}),
   })
 }
 
@@ -3562,6 +3584,7 @@ async function messagesNativeWebSearch(
             ...target.toolOptions,
           },
         ],
+        ...(target.effort ? { output_config: { effort: target.effort } } : {}),
       }),
     ),
     { adapterType, modelId },

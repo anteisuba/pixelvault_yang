@@ -29,7 +29,19 @@ export interface AssistantV3Model {
   readonly model: LanguageModel
   /** OpenAI 严格模式：工具入参按 schema 生成，形状错不了（草稿步 0 的前提）。 */
   readonly strictTools: boolean
-  providerOptions(cacheKey: string): AssistantV3ProviderOptions
+  /**
+   * 这一家能不能**按步**换思考档（P2 §2.6，`assistantV3StepEffort`）而不赔掉缓存。
+   * ⚠ Claude、OpenAI 官方：⛔ 不换 —— 档位一变，Claude 至少整段消息缓存作废（有的型号连工具 +
+   *   系统提示一起）、官方文档要求「按路由钉住档位」；OpenAI 换 `reasoning.effort` 会改写藏在前面的
+   *   系统指令，整段前缀重算。两家各有不赔缓存的 beta 写法（Claude 的对话中系统消息
+   *   `output_config.effort`、GPT-6 的 `configuration_update`），这一片没接，列给 owner。
+   * ⭐ Gemini / DeepSeek / Grok：档位是生成参数，不进提示的前缀 —— 换（我的判断，未实测命中率）。
+   */
+  readonly effortPerStep: boolean
+  providerOptions(
+    cacheKey: string,
+    effort: AssistantReasoningEffort,
+  ): AssistantV3ProviderOptions
   /**
    * 系统提示交给 SDK 的样子。Claude：规则段与分界线之后那段各一块、各带一个缓存断点
    * （`withAnthropicCachePoints`）；别家：一整段（前缀照样稳定，隐式缓存认的就是它）。
@@ -99,12 +111,12 @@ const plainShape = {
  *
  * ⭐ 思考档位（owner 2026-10-10，输入区「思考」chip）按各家参数名落：OpenAI / Grok 的
  *   `reasoning_effort`、Claude 的 `effort`、Gemini 的 `thinkingLevel` 都是同名三档；
- *   DeepSeek 只有 low / high / max，按 `ASSISTANT_DEEPSEEK_EFFORTS` 换。
+ *   DeepSeek 只有 low / high / max，按 `ASSISTANT_DEEPSEEK_EFFORTS` 换。每一步用哪一档由
+ *   `assistantV3StepEffort` 定，交给 `providerOptions`。
  */
 export function resolveAssistantV3Model(
   route: ResolvedLlmTextRoute,
   modelId: string,
-  effort: AssistantReasoningEffort = ASSISTANT_REASONING_EFFORT_IDS.medium,
 ): AssistantV3Model | null {
   switch (route.adapterType) {
     case AI_ADAPTER_TYPES.OPENAI: {
@@ -120,9 +132,10 @@ export function resolveAssistantV3Model(
       return {
         model: official ? provider.responses(modelId) : provider.chat(modelId),
         strictTools: official,
+        effortPerStep: false,
         ...plainShape,
         // ⚠ 代理端点走 Chat Completions：GPT-6 在那里推理档与工具调用不能同开，⛔ 不发档位。
-        providerOptions: (cacheKey): AssistantV3ProviderOptions =>
+        providerOptions: (cacheKey, effort): AssistantV3ProviderOptions =>
           official
             ? {
                 openai: {
@@ -148,7 +161,8 @@ export function resolveAssistantV3Model(
       return {
         model: provider(modelId),
         strictTools: false,
-        providerOptions: () => ({ anthropic: { effort } }),
+        effortPerStep: false,
+        providerOptions: (_cacheKey, effort) => ({ anthropic: { effort } }),
         system: (prompt) => [
           {
             role: 'system',
@@ -169,12 +183,13 @@ export function resolveAssistantV3Model(
       return {
         model: provider(modelId),
         strictTools: false,
+        effortPerStep: true,
         ...plainShape,
         /**
          * ⚠ Gemini 3 自己默认最高档：2026-10-10 一步调权重想了 4465 个 token、46 秒；
          *   同题 low 12 秒但把决定推回给创作者，medium 33 秒出卡（所以默认 Medium）。
          */
-        providerOptions: () => ({
+        providerOptions: (_cacheKey, effort) => ({
           google: { thinkingConfig: { thinkingLevel: effort } },
         }),
       }
@@ -189,8 +204,9 @@ export function resolveAssistantV3Model(
       return {
         model: provider.chat(modelId),
         strictTools: false,
+        effortPerStep: true,
         ...plainShape,
-        providerOptions: () => ({
+        providerOptions: (_cacheKey, effort) => ({
           openai: { reasoningEffort: ASSISTANT_DEEPSEEK_EFFORTS[effort] },
         }),
       }
@@ -205,15 +221,37 @@ export function resolveAssistantV3Model(
       return {
         model: provider.chat(modelId),
         strictTools: false,
+        effortPerStep: true,
         ...plainShape,
         /**
          * ⚠ grok 的推理关不掉、自己默认 high：High 档首字前想得久，旧内核那边曾因此被掐
          *   连接（`buildXaiChatRequest`）。
          */
-        providerOptions: () => ({ openai: { reasoningEffort: effort } }),
+        providerOptions: (_cacheKey, effort) => ({
+          openai: { reasoningEffort: effort },
+        }),
       }
     }
     default:
       return null
   }
+}
+
+/**
+ * 这一步用哪一档（设计方案 §2.6，P2）。
+ * - 创作者在「思考」chip 上选的那一档管**想事的步**：开轮第一步，以及一切还要判断的步。
+ * - **纯落地步**（`landing`：上一步的调用全是成功落下的 edit / write，模型多半只剩收尾那句）用
+ *   `low`；⚠ 只在 `effortPerStep` 的那几家换 —— 换档赔缓存的两家（Claude、OpenAI 官方）整轮
+ *   照用创作者那一档。`low` 是最低档，⛔ 永远不会高过创作者选的。
+ * ⚠ 「落地步」的判据是保守版（我的判断）：上一步只要有一个调用不是成功的 edit / write
+ *   （查了、看了、问了、失败了），这一步照用创作者那一档。
+ */
+export function assistantV3StepEffort(
+  model: Pick<AssistantV3Model, 'effortPerStep'>,
+  creator: AssistantReasoningEffort,
+  landing: boolean,
+): AssistantReasoningEffort {
+  return landing && model.effortPerStep
+    ? ASSISTANT_REASONING_EFFORT_IDS.low
+    : creator
 }

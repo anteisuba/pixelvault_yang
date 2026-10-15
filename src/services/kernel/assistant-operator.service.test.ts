@@ -10778,6 +10778,8 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
         expect.objectContaining({
           adapterType: AI_ADAPTER_TYPES.GEMINI,
           maxUses: ASSISTANT_RESEARCH_LIMITS.deepNativeSearchUses,
+          // P2 §2.6：自带联网那一跳显式带创作者那一档。
+          reasoningEffort: ASSISTANT_PERSONA_DEFAULTS.reasoningEffort,
         }),
       )
       expect(sourcesAsked).toEqual([['web']])
@@ -11710,6 +11712,18 @@ describe('查证与找图两入口（§9，commit #16）', () => {
         step.status === 'done',
     )
     expect(done?.payload).toMatchObject({ depth: 'deep' })
+    // P2 §2.6：归纳那一跳显式带创作者那一档（缺席时 Gemini 3 / Claude 默认最高档）。
+    const conclusion = mockLlmTextCompletion.mock.calls
+      .map(
+        ([input]) =>
+          input as { systemPrompt: string; reasoningEffort?: string },
+      )
+      .find((input) =>
+        input.systemPrompt.startsWith('You write ONE short conclusion'),
+      )
+    expect(conclusion?.reasoningEffort).toBe(
+      ASSISTANT_PERSONA_DEFAULTS.reasoningEffort,
+    )
   })
 
   it('⭐ 证据带编号与印证标；单源那条在观察里点名', async () => {

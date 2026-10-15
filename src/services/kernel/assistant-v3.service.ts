@@ -130,7 +130,10 @@ import {
   type AssistantOperatorRunOptions,
   type OperatorTurnOptions,
 } from '@/services/kernel/assistant-operator.service'
-import { resolveAssistantV3Model } from '@/services/kernel/assistant-v3-model.service'
+import {
+  assistantV3StepEffort,
+  resolveAssistantV3Model,
+} from '@/services/kernel/assistant-v3-model.service'
 import {
   assistantV3LoraTools,
   executeAssistantV3LoraCall,
@@ -984,9 +987,7 @@ async function* runV3Turn(
             ? ASSISTANT_V3_FACE_IDS.video
             : ASSISTANT_V3_FACE_IDS.canvas
   const canvas = request.snapshot.canvas
-  const model = modelId
-    ? resolveAssistantV3Model(route, modelId, persona.reasoningEffort)
-    : null
+  const model = modelId ? resolveAssistantV3Model(route, modelId) : null
   /** 这张脸的板子画得出来吗。 */
   const faceReady =
     face === ASSISTANT_V3_FACE_IDS.canvas
@@ -1267,9 +1268,15 @@ async function* runV3Turn(
       return
     }
 
+    // 这一步的思考档（§2.6）：纯落地步在换档不赔缓存的那几家降到 low。
+    const effort = assistantV3StepEffort(
+      model,
+      persona.reasoningEffort,
+      isLandingStep(transcript),
+    )
     const callLog = startCallLog(
       {
-        callLog: { purpose: 'v3', domain: request.domain, step },
+        callLog: { purpose: 'v3', domain: request.domain, step, effort },
         route,
         modelId,
       },
@@ -1312,7 +1319,7 @@ async function* runV3Turn(
         toolChoice: 'auto',
         maxRetries: 2,
         abortSignal: AbortSignal.any([signal, callTimeout.signal]),
-        providerOptions: model.providerOptions(cacheKey),
+        providerOptions: model.providerOptions(cacheKey, effort),
       })
       for await (const part of result.fullStream) {
         callTimeout.onChunk()
@@ -1761,6 +1768,31 @@ function hasLandedChanges(transcript: AssistantV3Transcript): boolean {
       !entry.error &&
       (entry.tool === ASSISTANT_V3_TOOL_IDS.edit ||
         entry.tool === ASSISTANT_V3_TOOL_IDS.write),
+  )
+}
+
+/**
+ * 这一步是不是**纯落地步**（§2.6）：本轮记录里最后一条 assistant 之后全是成功的 edit / write
+ * 结果（画布接力那一跳的开头也是这样：前端落完交回来的结果）。没有结果、或有一条是查 / 看 /
+ * 问 / 失败的，都不是 —— 那一步还要想。
+ */
+function isLandingStep(transcript: AssistantV3Transcript): boolean {
+  let lastAssistant = -1
+  transcript.forEach((entry, index) => {
+    if (entry.type === ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.assistant)
+      lastAssistant = index
+  })
+  if (lastAssistant < 0) return false
+  const results = transcript.slice(lastAssistant + 1)
+  return (
+    results.length > 0 &&
+    results.every(
+      (entry) =>
+        entry.type === ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.result &&
+        !entry.error &&
+        (entry.tool === ASSISTANT_V3_TOOL_IDS.edit ||
+          entry.tool === ASSISTANT_V3_TOOL_IDS.write),
+    )
   )
 }
 

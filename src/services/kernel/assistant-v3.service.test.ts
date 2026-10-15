@@ -39,6 +39,7 @@ const {
   fetchAsBuffer,
   resolveModel,
   recordTurn,
+  effortPerStep,
 } = vi.hoisted(() => ({
   plan: vi.fn(),
   legacy: vi.fn(),
@@ -52,6 +53,8 @@ const {
   resolveModel: vi.fn(),
   /** 每轮的过程记录：每一跳收尾交过去的那一份。 */
   recordTurn: vi.fn(),
+  /** 这一家能不能按步换思考档（`effortPerStep`，§2.6）。 */
+  effortPerStep: { current: true },
 }))
 
 /** 测试里下得来的片子：地址 → 多大（真的 mp4 文件头）。 */
@@ -76,7 +79,7 @@ vi.mock('@/services/kernel/assistant-operator.service', () => ({
     async (_clerkId: string, request: AssistantOperatorRequest) => ({
       request,
       user: { id: 'user-1', displayName: null, username: null },
-      persona: { language: 'ui' },
+      persona: { language: 'ui', reasoningEffort: 'high' },
       rules: [],
       route: { adapterType: 'openai', providerConfig: {}, apiKey: 'k' },
       questionTurn: false,
@@ -156,19 +159,29 @@ vi.mock('@/services/kernel/assistant-v3-prompt.service', () => ({
   }),
 }))
 
-vi.mock('@/services/kernel/assistant-v3-model.service', () => ({
-  resolveAssistantV3Model: (...args: unknown[]) => {
-    resolveModel(...args)
-    return {
-      model: model.current,
-      strictTools: false,
-      providerOptions: () => ({}),
-      system: (prompt: { rules: string; creator: string }) =>
-        `${prompt.rules}${prompt.creator}`,
-      messages: (messages: unknown[]) => messages,
-    }
-  },
-}))
+vi.mock(
+  '@/services/kernel/assistant-v3-model.service',
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import('@/services/kernel/assistant-v3-model.service')
+    >()),
+    resolveAssistantV3Model: (...args: unknown[]) => {
+      resolveModel(...args)
+      return {
+        model: model.current,
+        strictTools: false,
+        effortPerStep: effortPerStep.current,
+        // 档位原样摆进请求，用例按步读它（`doStreamCalls[n].providerOptions`）。
+        providerOptions: (_cacheKey: string, effort: string) => ({
+          test: { effort },
+        }),
+        system: (prompt: { rules: string; creator: string }) =>
+          `${prompt.rules}${prompt.creator}`,
+        messages: (messages: unknown[]) => messages,
+      }
+    },
+  }),
+)
 
 vi.mock('@/services/kernel/assistant-completion.service', () => ({
   startCallLog: () => ({ onUsage: vi.fn(), finish: vi.fn() }),
@@ -347,6 +360,7 @@ const disconnectGoyle = {
 beforeEach(() => {
   served.clear()
   resolveModel.mockClear()
+  effortPerStep.current = true
   clipsServed.clear()
   fetchAsBuffer.mockReset()
   fetchAsBuffer.mockImplementation(
@@ -632,6 +646,79 @@ describe('v3 内核', () => {
     )
     expect(promptText(secondCall)).toContain('Landed.')
     expect(promptText(secondCall)).toContain('vid-4f6105')
+  })
+
+  describe('思考档按步调（§2.6）', () => {
+    /** 开轮那一跳落一个 edit，接力那一跳（纯落地步）收尾：两次调用各用哪一档。 */
+    async function landThenClose() {
+      const mock = script(toolTurn(disconnectGoyle), textTurn('好了。'))
+      plan.mockImplementation(async (_run, _tool, args) => ({
+        kind: 'mutate',
+        payload: args,
+        inverse: { op: 'batch', nodeRef: S04B },
+        observation: 'queued',
+        apply: () => {},
+      }))
+      const first = await collect(runAssistantV3('clerk-1', request()))
+      const transcript = (
+        first.find((event) => event.type === 'transcript') as {
+          transcript: AssistantV3Transcript
+        }
+      ).transcript
+      await collect(
+        runAssistantV3(
+          'clerk-1',
+          request({
+            snapshot: {
+              prompt: '',
+              canvas: canvas(false),
+              availableModels: [],
+            },
+            priorSteps: [
+              {
+                tool: 'canvas_batch',
+                status: 'done',
+                summary: '断开',
+                thisTurn: true,
+              },
+            ],
+            v3: { transcript },
+          } as Partial<AssistantOperatorRequest>),
+        ),
+      )
+      return mock.doStreamCalls.map((call) => call.providerOptions)
+    }
+
+    it('开轮那一步用创作者选的那一档；纯落地步降到 low', async () => {
+      expect(await landThenClose()).toEqual([
+        { test: { effort: 'high' } },
+        { test: { effort: 'low' } },
+      ])
+    })
+
+    it('换档赔缓存的那几家（effortPerStep 关）：整轮照用创作者那一档', async () => {
+      effortPerStep.current = false
+      expect(await landThenClose()).toEqual([
+        { test: { effort: 'high' } },
+        { test: { effort: 'high' } },
+      ])
+    })
+
+    it('上一步失败了（不是纯落地）：照用创作者那一档', async () => {
+      const mock = script(
+        toolTurn({
+          id: 'call_1',
+          name: 'edit',
+          input: { ops: [{ op: 'delete', card: 'img-9c0d1f' }] },
+        }),
+        textTurn('没找到那张卡。'),
+      )
+      await collect(runAssistantV3('clerk-1', request()))
+      expect(mock.doStreamCalls.map((call) => call.providerOptions)).toEqual([
+        { test: { effort: 'high' } },
+        { test: { effort: 'high' } },
+      ])
+    })
   })
 
   it('句柄抄错：这一步记成草稿、错误回给模型，带最近的句柄', async () => {

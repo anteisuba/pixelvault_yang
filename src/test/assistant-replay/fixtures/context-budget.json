@@ -1,6 +1,7 @@
 {
   "R01 gemini/gemini-3.8-flash": {
     "steps": 2,
+    "stepTotals": [36797, 39088],
     "firstStep": 36797,
     "firstStepTools": 11357,
     "firstStepSystem": 21193,
@@ -16,6 +17,7 @@
   },
   "R02 gemini/gemini-3.8-flash": {
     "steps": 3,
+    "stepTotals": [36805, 38903, 38210],
     "firstStep": 36805,
     "firstStepTools": 11357,
     "firstStepSystem": 21193,
@@ -31,6 +33,7 @@
   },
   "R03 gemini/gemini-3.8-flash": {
     "steps": 1,
+    "stepTotals": [37098],
     "firstStep": 37098,
     "firstStepTools": 11357,
     "firstStepSystem": 21193,
@@ -46,6 +49,7 @@
   },
   "T01 gemini/gemini-3.8-flash": {
     "steps": 2,
+    "stepTotals": [36798, 37919],
     "firstStep": 36798,
     "firstStepTools": 11357,
     "firstStepSystem": 21193,
@@ -61,6 +65,7 @@
   },
   "T03 anthropic/claude-opus-5-5": {
     "steps": 2,
+    "stepTotals": [39024, 40203],
     "firstStep": 39024,
     "firstStepTools": 13531,
     "firstStepSystem": 21193,
@@ -76,6 +81,7 @@
   },
   "T05 openai/gpt-6.1-sol": {
     "steps": 2,
+    "stepTotals": [38900, 39507],
     "firstStep": 38900,
     "firstStepTools": 13419,
     "firstStepSystem": 21193,
@@ -91,6 +97,7 @@
   },
   "T06 gemini/gemini-3.8-flash": {
     "steps": 1,
+    "stepTotals": [36785],
     "firstStep": 36785,
     "firstStepTools": 11357,
     "firstStepSystem": 21193,
@@ -106,6 +113,7 @@
   },
   "T07 deepseek/deepseek-flash": {
     "steps": 2,
+    "stepTotals": [39014, 40363],
     "firstStep": 39014,
     "firstStepTools": 13531,
     "firstStepSystem": 21193,
@@ -121,6 +129,7 @@
   },
   "T09 openai/gpt-6.1-sol": {
     "steps": 2,
+    "stepTotals": [38884, 39090],
     "firstStep": 38884,
     "firstStepTools": 13419,
     "firstStepSystem": 21193,
@@ -136,6 +145,7 @@
   },
   "T11 gemini/gemini-3.8-flash": {
     "steps": 2,
+    "stepTotals": [36802, 37453],
     "firstStep": 36802,
     "firstStepTools": 11357,
     "firstStepSystem": 21193,
@@ -151,6 +161,7 @@
   },
   "T11 openai/gpt-6-luna": {
     "steps": 2,
+    "stepTotals": [38906, 39430],
     "firstStep": 38906,
     "firstStepTools": 13419,
     "firstStepSystem": 21193,
@@ -166,6 +177,7 @@
   },
   "T12 deepseek/deepseek-v4-pro": {
     "steps": 1,
+    "stepTotals": [38995],
     "firstStep": 38995,
     "firstStepTools": 13531,
     "firstStepSystem": 21193,
@@ -181,6 +193,7 @@
   },
   "T13 anthropic/claude-opus-5-5": {
     "steps": 1,
+    "stepTotals": [39010],
     "firstStep": 39010,
     "firstStepTools": 13531,
     "firstStepSystem": 21193,
@@ -196,6 +209,7 @@
   },
   "T14 xai/grok-4.7": {
     "steps": 1,
+    "stepTotals": [38988],
     "firstStep": 38988,
     "firstStepTools": 13531,
     "firstStepSystem": 21193,
@@ -211,6 +225,7 @@
   },
   "T15 gemini/gemini-3.8-flash": {
     "steps": 1,
+    "stepTotals": [36795],
     "firstStep": 36795,
     "firstStepTools": 11357,
     "firstStepSystem": 21193,
@@ -226,6 +241,7 @@
   },
   "T21 anthropic/claude-sonnet-5-5": {
     "steps": 1,
+    "stepTotals": [39638],
     "firstStep": 39638,
     "firstStepTools": 13531,
     "firstStepSystem": 21193,
@@ -241,6 +257,7 @@
   },
   "T21 gemini/gemini-3.8-flash": {
     "steps": 1,
+    "stepTotals": [37362],
     "firstStep": 37362,
     "firstStepTools": 11357,
     "firstStepSystem": 21193,
@@ -256,6 +273,7 @@
   },
   "T24 anthropic/claude-sonnet-5-5": {
     "steps": 2,
+    "stepTotals": [39015, 41573],
     "firstStep": 39015,
     "firstStepTools": 13531,
     "firstStepSystem": 21193,
@@ -271,6 +289,7 @@
   },
   "T25 anthropic/claude-opus-5-5": {
     "steps": 2,
+    "stepTotals": [39002, 41045],
     "firstStep": 39002,
     "firstStepTools": 13531,
     "firstStepSystem": 21193,
@@ -286,6 +305,7 @@
   },
   "T25 deepseek/deepseek-flash": {
     "steps": 2,
+    "stepTotals": [39002, 41070],
     "firstStep": 39002,
     "firstStepTools": 13531,
     "firstStepSystem": 21193,
@@ -301,6 +321,7 @@
   },
   "T25 gemini/gemini-3.8-flash": {
     "steps": 2,
+    "stepTotals": [36798, 38915],
     "firstStep": 36798,
     "firstStepTools": 11357,
     "firstStepSystem": 21193,
@@ -316,6 +337,7 @@
   },
   "T25 openai/gpt-6.1-sol": {
     "steps": 2,
+    "stepTotals": [38902, 40994],
     "firstStep": 38902,
     "firstStepTools": 13419,
     "firstStepSystem": 21193,
@@ -331,6 +353,7 @@
   },
   "T25 xai/grok-4.7": {
     "steps": 2,
+    "stepTotals": [39002, 41070],
     "firstStep": 39002,
     "firstStepTools": 13531,
     "firstStepSystem": 21193,
@@ -346,6 +369,7 @@
   },
   "V01 gemini/gemini-3.8-flash": {
     "steps": 1,
+    "stepTotals": [37196],
     "firstStep": 37196,
     "firstStepTools": 11357,
     "firstStepSystem": 21193,
@@ -361,6 +385,7 @@
   },
   "V02 openai/gpt-6.1-sol": {
     "steps": 1,
+    "stepTotals": [40220],
     "firstStep": 40220,
     "firstStepTools": 13419,
     "firstStepSystem": 21193,
@@ -376,6 +401,7 @@
   },
   "V03 deepseek/deepseek-v4-pro": {
     "steps": 1,
+    "stepTotals": [39338],
     "firstStep": 39338,
     "firstStepTools": 13531,
     "firstStepSystem": 21193,

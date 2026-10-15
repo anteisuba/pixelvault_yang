@@ -9,7 +9,7 @@
     "updatedLabel": "Last updated",
     "privacy": {
       "title": "Privacy Policy",
-      "updated": "August 2, 2026",
+      "updated": "October 15, 2026",
       "intro": "ANTEI is a bring-your-own-key AI gallery. This policy explains what we store, what leaves our servers, who processes it on our behalf, and the control you have over it.",
       "sections": [
         {
@@ -20,6 +20,7 @@
             "Generation records: prompts, model and provider chosen, parameters such as seed and resolution, timing, and success or failure.",
             "The files you generate or upload, and the collections, canvases and LoRA recipes you build from them.",
             "Credit balance and deduction history where a model runs on platform credits.",
+            "A record of each assistant turn: the canvas at the time, the steps it took and the model it used (never the key itself), kept for troubleshooting and replay testing and never included in shares or exports.",
             "Support messages you send us, and error reports (see «Error monitoring»)."
           ]
         },
@@ -49,7 +50,7 @@
         },
         {
           "heading": "How long we keep it",
-          "body": "Files and generation records stay until you delete them or close your account. When you close an account we delete your files and records; backups holding copies roll off within 30 days. Credit and payment records are kept as long as accounting rules require. Error reports are kept for up to 90 days."
+          "body": "Files and generation records stay until you delete them or close your account. When you close an account we delete your files and records; backups holding copies roll off within 30 days. Credit and payment records are kept as long as accounting rules require. Assistant turn records are kept for 30 days, and only your latest 200. Error reports are kept for up to 90 days."
         },
         {
           "heading": "Cookies and local storage",

@@ -32,6 +32,7 @@ import { cn } from '@/lib/utils'
 import type { StudioOperatorStepEntry } from '@/types/studio-assistant-operator'
 import { flyCloneToTarget } from '@/lib/fly-to-composer'
 import { siteFaviconUrl } from '@/lib/third-party-image-url'
+import { formatVideoDuration } from '@/lib/web-video'
 import { useThirdPartyImage } from '@/hooks/use-third-party-image'
 import { openOperatorLightbox } from './StudioOperatorLightbox'
 
@@ -144,17 +145,6 @@ interface StudioOperatorAnswerSourcesProps {
   onDeepResearch?(): void
   /** 那一行灰字回执（「搜了 6 条 · 读了 3 页」）。缺席就不画。 */
   receiptLabel?: string
-}
-
-/** `12:40` / `1:02:03` —— 封面右下角那枚角标。 */
-export function formatSourceDuration(seconds: number): string {
-  const hours = Math.floor(seconds / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-  const rest = seconds % 60
-  const pad = (value: number): string => String(value).padStart(2, '0')
-  return hours > 0
-    ? `${hours}:${pad(minutes)}:${pad(rest)}`
-    : `${minutes}:${pad(rest)}`
 }
 
 export function StudioOperatorAnswerSources({
@@ -384,7 +374,7 @@ function AnswerMediaItem({ source }: { source: StudioOperatorAnswerSource }) {
               data-testid="operator-answer-media-duration"
               className="absolute bottom-0.5 right-0.5 rounded bg-foreground/55 px-1 font-mono text-2xs tabular-nums text-background"
             >
-              {formatSourceDuration(source.durationSeconds)}
+              {formatVideoDuration(source.durationSeconds)}
             </span>
           ) : null}
         </>

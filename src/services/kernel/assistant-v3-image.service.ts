@@ -13,7 +13,9 @@ import {
   ASSISTANT_V3_IMAGE_EDIT_OP_IDS,
   ASSISTANT_V3_LIMITS,
   ASSISTANT_V3_TOOL_IDS,
-  ASSISTANT_V3_WEB_IMAGES_SEARCH_KIND,
+  ASSISTANT_V3_WEB_IMAGES_KIND_DESCRIPTION,
+  ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION,
+  isAssistantV3WebSearchKind,
 } from '@/constants/assistant-v3'
 import { renderAssistantV3ImageItem } from '@/lib/assistant-v3-image-board'
 import {
@@ -38,6 +40,7 @@ import {
   joinOutcomes,
   refused,
   runOldTool,
+  runWebFind,
   unmountReference,
 } from '@/services/kernel/assistant-v3-bench.service'
 import {
@@ -98,8 +101,7 @@ export function assistantV3ImageTools(strict: boolean) {
       strict,
     }),
     [ASSISTANT_V3_TOOL_IDS.searchLibrary]: tool({
-      description:
-        'kind "image" / "video" / "audio": search the creator\'s own assets (results carry asset ids for mount_reference). kind "web_images": find pictures on the web — they appear in the panel and the creator picks which to use.',
+      description: `kind "image" / "video" / "audio": search the creator's own assets (results carry asset ids for mount_reference). ${ASSISTANT_V3_WEB_IMAGES_KIND_DESCRIPTION} ${ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION}`,
       inputSchema: AssistantV3ImageSearchLibraryInputSchema,
       strict,
     }),
@@ -128,8 +130,7 @@ export function assistantV3VideoTools(strict: boolean) {
       strict,
     }),
     [ASSISTANT_V3_TOOL_IDS.searchLibrary]: tool({
-      description:
-        'kind "image" / "video" / "audio": search the creator\'s own assets (results carry asset ids for mount_reference and mount_audio). kind "web_images": find pictures on the web — they appear in the panel and the creator picks which to use.',
+      description: `kind "image" / "video" / "audio": search the creator's own assets (results carry asset ids for mount_reference and mount_audio). ${ASSISTANT_V3_WEB_IMAGES_KIND_DESCRIPTION} ${ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION}`,
       inputSchema: AssistantV3ImageSearchLibraryInputSchema,
       strict,
     }),
@@ -450,17 +451,12 @@ export async function* executeAssistantV3ImageCall(
       return yield* executeBenchGenerate(context, input)
     case ASSISTANT_V3_TOOL_IDS.searchLibrary: {
       const parsed = AssistantV3ImageSearchLibraryInputSchema.parse(input)
-      if (parsed.kind === ASSISTANT_V3_WEB_IMAGES_SEARCH_KIND)
-        return yield* runOldTool(
+      if (isAssistantV3WebSearchKind(parsed.kind))
+        return yield* runWebFind(
           context,
-          TOOL.searchWebImages,
-          `${text.searchImages} ${parsed.query}`,
-          {
-            query: parsed.query,
-            ...(parsed.subject?.trim()
-              ? { subject: parsed.subject.trim(), preferOfficial: true }
-              : {}),
-          },
+          parsed.kind,
+          parsed.query,
+          parsed.subject,
         )
       return yield* runOldTool(
         context,

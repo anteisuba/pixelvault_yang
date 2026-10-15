@@ -14,6 +14,9 @@ import {
   ASSISTANT_V3_LORA_ITEM_IDS,
   ASSISTANT_V3_LORA_SEARCH_KIND,
   ASSISTANT_V3_TOOL_IDS,
+  ASSISTANT_V3_WEB_IMAGES_KIND_DESCRIPTION,
+  ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION,
+  isAssistantV3WebSearchKind,
 } from '@/constants/assistant-v3'
 import {
   normalizeCivitaiRunnerSampling,
@@ -42,6 +45,7 @@ import {
   joinOutcomes,
   refused,
   runOldTool,
+  runWebFind,
   unmountReference,
 } from '@/services/kernel/assistant-v3-bench.service'
 import {
@@ -103,8 +107,7 @@ export function assistantV3LoraTools(strict: boolean) {
       strict,
     }),
     [ASSISTANT_V3_TOOL_IDS.searchLibrary]: tool({
-      description:
-        'kind "lora": search LoRAs — it opens the creator\'s library page and runs the search there, and returns candidates with candidateIds. Other kinds search the creator\'s own assets.',
+      description: `kind "lora": search LoRAs — it opens the creator's library page and runs the search there, and returns candidates with candidateIds. kind "image" / "video" / "audio": search the creator's own assets. ${ASSISTANT_V3_WEB_IMAGES_KIND_DESCRIPTION} ${ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION}`,
       inputSchema: AssistantV3LoraSearchLibraryInputSchema,
       strict,
     }),
@@ -403,6 +406,13 @@ export async function* executeAssistantV3LoraCall(
           TOOL.searchLoras,
           `${text.searchLora} ${parsed.query}`,
           { query: parsed.query },
+        )
+      if (isAssistantV3WebSearchKind(parsed.kind))
+        return yield* runWebFind(
+          context,
+          parsed.kind,
+          parsed.query,
+          parsed.subject,
         )
       return yield* runOldTool(
         context,

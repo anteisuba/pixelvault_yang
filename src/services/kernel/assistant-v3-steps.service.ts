@@ -83,6 +83,7 @@ export const TITLE_TEXT: Record<
     mountReference: string
     importUrl: string
     searchImages: string
+    searchVideos: string
     people: string
     sceneTexts: string
     profile: string
@@ -127,6 +128,7 @@ export const TITLE_TEXT: Record<
     mountReference: '挂参考图',
     importUrl: '导入链接',
     searchImages: '联网找图',
+    searchVideos: '联网找视频',
     people: '设角色',
     sceneTexts: '设画面文字',
     profile: '提议设定',
@@ -169,6 +171,7 @@ export const TITLE_TEXT: Record<
     mountReference: '参照画像を追加',
     importUrl: 'リンクを取り込む',
     searchImages: 'Web で画像検索',
+    searchVideos: 'Web で動画検索',
     people: 'キャラクターを設定',
     sceneTexts: '画面の文字を設定',
     profile: '設定を提案',
@@ -211,6 +214,7 @@ export const TITLE_TEXT: Record<
     mountReference: 'Mount reference',
     importUrl: 'Import link',
     searchImages: 'Search web images for',
+    searchVideos: 'Search web videos for',
     people: 'Set people',
     sceneTexts: 'Set scene text',
     profile: 'Propose profile',

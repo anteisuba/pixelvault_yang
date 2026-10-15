@@ -540,6 +540,8 @@ export function applyOperatorStep(
      * 落地由用户点选完成（owner 拍板），⛔ 助手这一步什么都没改。
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages:
+    /** 找到的视频（搜索期第二片）同理：卡片只在面板里摆、点开在对方播放器里播，表单一个字都没动。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.searchWebVideos:
     /**
      * ⚠ 联网查文字（切片 3b）同理：它只产生一段可读的来源列表，表单一个字都没动。
      * 要照查到的东西改提示词是之后那条 `set_*` 的事——那条各自可撤销、各自记账。
@@ -956,6 +958,7 @@ export function revertOperatorStep(
     // 读类没有 inverse，也就没有东西可撤 —— 联网候选与看图同理
     // （见 `applyOperatorStep`）。
     case ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages:
+    case ASSISTANT_OPERATOR_TOOL_IDS.searchWebVideos:
     case ASSISTANT_OPERATOR_TOOL_IDS.searchLoras:
     case ASSISTANT_OPERATOR_TOOL_IDS.searchWeb:
     case ASSISTANT_OPERATOR_TOOL_IDS.research:

@@ -166,6 +166,53 @@ describe('日志条 · 找图那一步（搜索期切片 1）', () => {
   })
 })
 
+describe('日志条 · 找视频那一步（搜索期第二片）', () => {
+  it('只留一句「搜索视频：… · N 个」，⛔ 卡片不画在这一条里', () => {
+    renderItem({
+      step: {
+        id: 'step-2',
+        title: 'videos',
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.searchWebVideos,
+        verb: 'research',
+        status: 'done',
+        payload: { query: '长离 PV', limit: 8, bilibili: true },
+        result: {
+          totalFound: 1,
+          videos: [
+            {
+              url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+              title: 'Changli PV',
+              platform: 'youtube',
+            },
+          ],
+        },
+      },
+    })
+    expect(screen.getByTestId('operator-log-item').textContent).toContain(
+      'web.videosFound {"query":"长离 PV","count":1}',
+    )
+    expect(screen.queryByTestId('operator-web-videos')).toBeNull()
+    expect(screen.queryByTestId('operator-log-undo')).toBeNull()
+  })
+
+  it('还在搜时写「正在搜索视频…」', () => {
+    renderItem({
+      step: {
+        id: 'step-2',
+        title: 'videos',
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.searchWebVideos,
+        verb: 'research',
+        status: 'running',
+        payload: { query: '长离 PV', limit: 8, bilibili: false },
+        result: null,
+      },
+    })
+    expect(screen.getByTestId('operator-log-item').textContent).toContain(
+      'web.videosSearching {"query":"长离 PV"}',
+    )
+  })
+})
+
 describe('日志条 · 文件夹视觉检查', () => {
   it('只展示实际检查过的证据图，并用缩略图绘制', () => {
     renderItem({ step: FOLDER_VISION_STEP })

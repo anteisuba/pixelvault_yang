@@ -124,6 +124,7 @@ import { NODE_SCRIPT_SHOT_STATES } from '@/constants/node-script'
 import {
   EVIDENCE_CREDIBILITY_VALUES,
   NATIVE_SEARCH_FILTER_LIMITS,
+  RESEARCH_LIMITS as RESEARCH_SOURCE_LIMITS,
   X_HANDLE_PATTERN,
   X_SEARCH_DATE_PATTERN,
 } from '@/constants/research'
@@ -132,6 +133,7 @@ import {
   VIDEO_FRAME_LIMITS,
 } from '@/constants/video-analysis'
 import { WEB_IMAGE_SOURCE_VERDICTS } from '@/constants/web-image-sources'
+import { WEB_VIDEO_PLATFORMS } from '@/constants/web-video'
 import {
   LORA_CANDIDATE_NOT_IMPORTABLE_REASON_VALUES,
   LORA_CANDIDATE_SOURCE_VALUES,
@@ -2620,6 +2622,19 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
       .optional(),
   }),
   /**
+   * 联网**找视频**（搜索期第二片）。与搜图同一条纪律：只有一个查询词，⛔ 没有平台 /
+   * 域名旋钮 —— 要不要另问 B站是服务端按查询（中文 / 点名 B站）判的，不是模型选的。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.searchWebVideos]: z.object({
+    query: z.string().trim().min(1).max(LIMITS.maxWebVideoQueryChars),
+    limit: z
+      .number()
+      .int()
+      .positive()
+      .max(LIMITS.maxWebVideoResults)
+      .optional(),
+  }),
+  /**
    * 有目标的检索（2026-09-06）。
    *
    * ⚠ 与 `search_web` 的形状**故意不同构**：那条是「一句查询」，这条是
@@ -3509,6 +3524,37 @@ export const AssistantOperatorWebImageSchema = z.object({
 })
 
 /**
+ * 一条**找到的视频**（搜索期第二片，附录 I §四）。
+ *
+ * ⚠ 与 `AssistantOperatorWebImageSchema` 是两张表：图的中心是一个可以被转存的字节流，
+ * 这条的中心是**一个播放页**（`url`）—— ⛔ 没有任何「转存 / 选用」字段，这条链路
+ * 一个字节的视频都不取，面板里播放走的是对方的官方嵌入播放器。
+ * ⚠ 整张卡片只进面板（步骤的 `result`）；模型读到的是 `#n · 标题 · 频道 · 平台 · 时长`
+ * 那一行（服务端写进 observation），⛔ 不把封面地址 / 链接喂给它。
+ * ⚠ `platform` 由 `lib/web-video.ts` 的 `resolveWebVideo` 判（服务端与面板同一个函数）。
+ */
+export const AssistantOperatorWebVideoSchema = z.object({
+  /** 播放页（⛔ 不是视频流直链）。面板按它算嵌入地址，算不出就新窗口开它。 */
+  url: z.string().url(),
+  title: z.string().trim().min(1).max(LIMITS.maxPriorStepSummaryChars),
+  platform: z.enum(WEB_VIDEO_PLATFORMS),
+  /** 频道 / UP主名 —— 卡片第二行。取不到就缺席，⛔ 不回落成域名（那是 `domain`）。 */
+  channel: LabelSchema.optional(),
+  /** 站点域名（`youtube.com`）—— `other` 平台的那枚角标写它。 */
+  domain: LabelSchema.optional(),
+  /** 搜索引擎报的发布时间（原样的一截字，⛔ 不解析成日期：各家写法不一）。 */
+  date: LabelSchema.optional(),
+  durationSeconds: z
+    .number()
+    .int()
+    .positive()
+    .max(RESEARCH_SOURCE_LIMITS.maxVideoDurationSeconds)
+    .optional(),
+  /** 封面直链（第三方站）；缺席时卡片画占位，⛔ 不猜。 */
+  thumbnailUrl: z.string().url().optional(),
+})
+
+/**
  * 一条**文字**搜索结果（切片 3b）。
  *
  * ⚠ 它与 `AssistantOperatorWebImageSchema` 是两张表不是一张带可选字段的表：图那条
@@ -3649,6 +3695,10 @@ export type AssistantOperatorWebImage = z.infer<
   typeof AssistantOperatorWebImageSchema
 >
 
+export type AssistantOperatorWebVideo = z.infer<
+  typeof AssistantOperatorWebVideoSchema
+>
+
 /**
  * NAI 标签核对换了什么（拆分与反推 B3）—— 写提示词那一步随步下发，也进历史
  * （`StudioOperatorHistoryStepSchema`），刷新后那句灰字照样在。
@@ -3754,6 +3804,25 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
       images: z
         .array(AssistantOperatorWebImageSchema)
         .max(LIMITS.maxWebImageResults),
+    }),
+  ),
+  /**
+   * 联网找视频（搜索期第二片）。⛔ **永远是 readStep**：一个字节的视频都不取、
+   * 一条都不落库 —— 卡片只在面板里摆、点开走对方的官方嵌入播放器。
+   */
+  readStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.searchWebVideos,
+    z.object({
+      query: z.string().trim().min(1).max(LIMITS.maxWebVideoQueryChars),
+      limit: z.number().int().positive().max(LIMITS.maxWebVideoResults),
+      /** 这一次有没有另问 B站连接器（中文查询 / 点名 B站）—— 日志详情如实写。 */
+      bilibili: z.boolean(),
+    }),
+    z.object({
+      totalFound: z.number().int().nonnegative(),
+      videos: z
+        .array(AssistantOperatorWebVideoSchema)
+        .max(LIMITS.maxWebVideoResults),
     }),
   ),
   /**

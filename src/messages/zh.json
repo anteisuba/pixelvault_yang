@@ -8024,6 +8024,7 @@
       "look": "正在看图…",
       "research": "正在查资料…",
       "webImages": "正在搜索图片…",
+      "webVideos": "正在搜索视频…",
       "library": "正在查素材…",
       "ask": "正在想问题…",
       "apply": "正在改参数…",
@@ -8396,7 +8397,20 @@
       "cannotUse": "不可用",
       "notUsable": "这个站点声明不接受作为 AI 输入，或整站是溯源不到原作者的转载——你可以点开原页去看，但它不会被收进你的素材库。",
       "useAll": "挂上 {count} 张",
-      "notUsableHotlink": "这个站点的图床只认站内来源，我们在服务端取不回来——你可以点开原页去看，但它没法被收进你的素材库。"
+      "notUsableHotlink": "这个站点的图床只认站内来源，我们在服务端取不回来——你可以点开原页去看，但它没法被收进你的素材库。",
+      "videosFound": "搜索视频：{query} · {count} 个",
+      "videosSearching": "正在搜索视频：{query}…",
+      "videoPlay": "在这里播放：{title}",
+      "videoOpenExternal": "在新标签页打开 {site}：{title}",
+      "videoPlayerTitle": "{site} 播放器：{title}",
+      "videoOpenSource": "去 {site} 看",
+      "videoClose": "关上播放器",
+      "videoPlatform": {
+        "youtube": "YouTube",
+        "bilibili": "B站",
+        "niconico": "niconico",
+        "vimeo": "Vimeo"
+      }
     },
     "queue": {
       "badge": "已排队",

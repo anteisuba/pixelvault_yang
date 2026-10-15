@@ -115,6 +115,15 @@ export const STUDIO_OPERATOR_KEEP_OPEN_ATTR = 'data-operator-keep'
 export const STUDIO_OPERATOR_WEB_CANDIDATE_PIXELS = 112
 
 /**
+ * 找到的视频那一排（搜索期第二片）：封面的**位图尺寸**（16:9，2× 给高 DPI）。
+ * ⚠ 与上一条同一条纪律：不是布局值，卡片宽在类名里（手机 `w-56` 横滑、桌面两列）。
+ */
+export const STUDIO_OPERATOR_WEB_VIDEO_COVER_PIXELS = {
+  width: 448,
+  height: 252,
+} as const
+
+/**
  * 参考图挂载弹入的 stagger 间隔（秒，拍板 17）。
  *
  * ⚠ 单位是**秒**不是毫秒：motion 的 `delay` 收秒。写 140 进去会得到一个两分钟
@@ -450,6 +459,8 @@ export const STUDIO_OPERATOR_RUNNING_PHRASE_IDS = {
   research: 'research',
   /** 找图（`search_web_images`，搜索期 2026-10-15）：与「查资料」分开 —— 等的是一排图，不是一段话。 */
   webImages: 'webImages',
+  /** 找视频（`search_web_videos`，搜索期第二片）：等的是一排视频卡片，与找图同理分开。 */
+  webVideos: 'webVideos',
   library: 'library',
   ask: 'ask',
   apply: 'apply',

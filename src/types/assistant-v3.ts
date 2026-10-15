@@ -18,7 +18,7 @@ import {
   ASSISTANT_V3_TOOLS,
   ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS,
   ASSISTANT_V3_VIDEO_REFERENCE_SLOTS,
-  ASSISTANT_V3_WEB_IMAGES_SEARCH_KIND,
+  ASSISTANT_V3_WEB_SEARCH_KINDS,
   ASSISTANT_V3_WRITE_FIELDS,
   ASSISTANT_V3_WRITE_MODES,
 } from '@/constants/assistant-v3'
@@ -200,9 +200,26 @@ export type AssistantV3SearchWebInput = z.infer<
   typeof AssistantV3SearchWebInputSchema
 >
 
+/**
+ * 联网那两种（`web_images` / `web_videos`）每张脸都开（搜索期第二片）：四张脸的
+ * `search_library` 用同一份「主体」说明，⛔ 别各写一句。
+ */
+const WebSubjectSchema = z
+  .string()
+  .nullable()
+  .describe(
+    'web_images only: the work and character name, so the search also runs in their own languages. null otherwise.',
+  )
+
 export const AssistantV3SearchLibraryInputSchema = z.object({
   query: z.string(),
-  kind: z.enum(ASSISTANT_OPERATOR_SEARCH_KINDS).nullable(),
+  kind: z
+    .enum([
+      ...ASSISTANT_V3_WEB_SEARCH_KINDS,
+      ...ASSISTANT_OPERATOR_SEARCH_KINDS,
+    ])
+    .nullable(),
+  subject: WebSubjectSchema,
 })
 
 /**
@@ -390,8 +407,10 @@ export const AssistantV3LoraSearchLibraryInputSchema = z.object({
   query: z.string(),
   kind: z.enum([
     ASSISTANT_V3_LORA_SEARCH_KIND,
+    ...ASSISTANT_V3_WEB_SEARCH_KINDS,
     ...ASSISTANT_OPERATOR_SEARCH_KINDS,
   ]),
+  subject: WebSubjectSchema,
 })
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -624,15 +643,10 @@ export const AssistantV3ImageLookInputSchema = z.object({
 export const AssistantV3ImageSearchLibraryInputSchema = z.object({
   query: z.string(),
   kind: z.enum([
-    ASSISTANT_V3_WEB_IMAGES_SEARCH_KIND,
+    ...ASSISTANT_V3_WEB_SEARCH_KINDS,
     ...ASSISTANT_OPERATOR_SEARCH_KINDS,
   ]),
-  subject: z
-    .string()
-    .nullable()
-    .describe(
-      'web_images only: the work and character name, so the search also runs in their own languages. null otherwise.',
-    ),
+  subject: WebSubjectSchema,
 })
 
 /* ─────────────────────────────────────────────────────────────────────────

@@ -151,6 +151,14 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    */
   searchWebImages: 'search_web_images',
   /**
+   * 联网**找视频**（搜索期第二片，附录 I §3.1）。与找图同一条纪律：**只出预览**
+   * （标题 · 频道 · 时长 · 封面 · 源页），一个字节都不落；结果卡摆在回答底下，点开
+   * 在面板里用各家官方播放器播（`lib/web-video.ts`）。走平台的 Serper Google 视频 +
+   * 中文时问 B站连接器，⛔ 不走模型自带联网、⛔ 不花别家的 key。
+   * ⚠ v3 的 `search_library kind "web_videos"` 落在这条上；v2 不广告它（内部工具）。
+   */
+  searchWebVideos: 'search_web_videos',
+  /**
    * 联网**查文字**（切片 3b）。⛔ 与 `search_web_images` 是两件事，判据是「要的是
    * 图还是话」：这一条回的是标题 + 摘要 + 出处，一张图都不出。
    *
@@ -709,6 +717,7 @@ export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders,
   ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder,
   ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+  ASSISTANT_OPERATOR_TOOL_IDS.searchWebVideos,
   ASSISTANT_OPERATOR_TOOL_IDS.searchWeb,
   ASSISTANT_OPERATOR_TOOL_IDS.research,
   ASSISTANT_OPERATOR_TOOL_IDS.readUrl,
@@ -775,6 +784,8 @@ export const ASSISTANT_OPERATOR_READ_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders,
   ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder,
   ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+  /** ⚠ 找视频与找图同档：只出预览，一个字节都不落、表单一个字都不改。 */
+  ASSISTANT_OPERATOR_TOOL_IDS.searchWebVideos,
   /**
    * ⚠ 联网**查文字**也是读（切片 3b）：它回的是标题 + 摘要 + 出处，不落任何东西、
    * 也不改表单。真要照查到的内容改提示词，那是之后那条 `set_*` 的事——撤销也撤在
@@ -1027,6 +1038,8 @@ export const ASSISTANT_OPERATOR_TOOL_VERBS: Record<
     ASSISTANT_OPERATOR_VERB_IDS.research,
   [ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages]:
     ASSISTANT_OPERATOR_VERB_IDS.research,
+  [ASSISTANT_OPERATOR_TOOL_IDS.searchWebVideos]:
+    ASSISTANT_OPERATOR_VERB_IDS.research,
   [ASSISTANT_OPERATOR_TOOL_IDS.searchWeb]: ASSISTANT_OPERATOR_VERB_IDS.research,
   [ASSISTANT_OPERATOR_TOOL_IDS.research]: ASSISTANT_OPERATOR_VERB_IDS.research,
   [ASSISTANT_OPERATOR_TOOL_IDS.readUrl]: ASSISTANT_OPERATOR_VERB_IDS.research,
@@ -1222,6 +1235,11 @@ export const ASSISTANT_OPERATOR_INTERNAL_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.searchWeb,
   ASSISTANT_OPERATOR_TOOL_IDS.research,
   ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+  /**
+   * 找视频（搜索期第二片）只给 v3 用（`search_library kind "web_videos"`）：v2 内核
+   * 只留给 owner 对比、删旧内核时一起删，⛔ 不给它的「查」组多一个入口。
+   */
+  ASSISTANT_OPERATOR_TOOL_IDS.searchWebVideos,
 ] as const
 
 export function isInternalAssistantOperatorTool(tool: string): boolean {
@@ -1803,6 +1821,8 @@ const COMMON_DOMAIN_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders,
   ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder,
   ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+  /** 找视频**全域通用**（搜索期第二片，附录 I §3.1「所有工作台都开放」）。 */
+  ASSISTANT_OPERATOR_TOOL_IDS.searchWebVideos,
   /**
    * ⚠ 联网查文字**全域通用**（切片 3b）：「这个角色官方名怎么写」在图片、视频、
    * LoRA 三台工作台上是同一个问题，⛔ 别按域裁。
@@ -2063,6 +2083,7 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
     ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders,
     ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder,
     ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+    ASSISTANT_OPERATOR_TOOL_IDS.searchWebVideos,
     ASSISTANT_OPERATOR_TOOL_IDS.searchWeb,
     ASSISTANT_OPERATOR_TOOL_IDS.research,
     ASSISTANT_OPERATOR_TOOL_IDS.readUrl,
@@ -2096,6 +2117,7 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
     ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders,
     ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder,
     ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+    ASSISTANT_OPERATOR_TOOL_IDS.searchWebVideos,
     ASSISTANT_OPERATOR_TOOL_IDS.searchWeb,
     ASSISTANT_OPERATOR_TOOL_IDS.research,
     ASSISTANT_OPERATOR_TOOL_IDS.readUrl,
@@ -2389,6 +2411,13 @@ export const ASSISTANT_OPERATOR_LIMITS = {
    * 一段两百字的描述只会让召回崩掉（系统提示里也这么告诉模型）。
    */
   maxWebImageQueryChars: 120,
+  /**
+   * `search_web_videos` 一次最多回几条（搜索期第二片，附录 I §四「横向一排」）。
+   * 真上限在 `WEB_VIDEO_SEARCH.maxResults`，这里是协议侧的护栏，两边取小。
+   */
+  maxWebVideoResults: 8,
+  /** 视频查询词：与搜图同一档短查询。 */
+  maxWebVideoQueryChars: 120,
   /**
    * `search_web`（文字）一次最多回几条来源（切片 3b）。
    *
@@ -3112,6 +3141,8 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
    */
   [ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages]:
     "search the open web for reference pictures the creator does NOT already own. Returns PREVIEWS ONLY — thumbnails plus their source pages, and nothing is downloaded by this call. Each candidate is shown to the creator with a 'use this' button; they press it and the app files that one into their library and attaches it. So: never claim you saved, imported, or mounted a web result of your own search, and never paste one of these URLs into a prompt or a reference. Short English queries work far better than long descriptions. Use it only when the creator's own library has nothing suitable. ⚠ A URL the creator typed themselves is NOT this tool's business — use import_user_url for that.",
+  [ASSISTANT_OPERATOR_TOOL_IDS.searchWebVideos]:
+    'search the open web for VIDEOS (YouTube, Bilibili, niconico, Vimeo …) — a trailer, a PV, a tutorial, a dance or motion reference. Returns one line per video (title · channel · platform · length); the cards appear under your reply and the creator can play them there. You have NOT watched any of them: judge only by title and channel. Nothing is downloaded or saved, and never paste a video address into a prompt.',
   /**
    * ⚠ 这段话的全部工作是**把它和搜图分开**：两条工具的名字只差一个词，而模型
    * 在「找一张参考图」和「查一句设定」之间选错的代价是一整步（每一步都是一次

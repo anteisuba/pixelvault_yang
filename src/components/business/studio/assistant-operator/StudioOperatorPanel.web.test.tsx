@@ -1746,12 +1746,12 @@ describe('StudioOperatorPanel · 找到的图（搜索期切片 1）', () => {
       .getByTestId('operator-message-text')
       .closest('[data-testid="operator-timeline-row"]') as HTMLElement
     const underAnswer = within(answerRow).getByTestId(
-      'operator-answer-web-images',
+      'operator-answer-web-finds',
     )
     expect(
       within(underAnswer).getAllByTestId('operator-web-candidate'),
     ).toHaveLength(2)
-    expect(screen.queryByTestId('operator-web-images-pending')).toBeNull()
+    expect(screen.queryByTestId('operator-web-finds-pending')).toBeNull()
     // 选用照旧走宿主的 hook，认的是线程里那一条的 id。
     fireEvent.click(
       within(underAnswer).getAllByTestId('operator-web-candidate-use')[0]!,
@@ -1772,9 +1772,9 @@ describe('StudioOperatorPanel · 找到的图（搜索期切片 1）', () => {
       streaming: true,
     })
     renderPanel()
-    expect(screen.queryByTestId('operator-answer-web-images')).toBeNull()
+    expect(screen.queryByTestId('operator-answer-web-finds')).toBeNull()
     expect(
-      within(screen.getByTestId('operator-web-images-pending')).getAllByTestId(
+      within(screen.getByTestId('operator-web-finds-pending')).getAllByTestId(
         'operator-web-candidate',
       ),
     ).toHaveLength(2)
@@ -1785,7 +1785,7 @@ describe('StudioOperatorPanel · 找到的图（搜索期切片 1）', () => {
     renderPanel()
     expect(screen.queryByTestId('operator-tool-group')).toBeNull()
     expect(
-      within(screen.getByTestId('operator-web-images-pending')).getAllByTestId(
+      within(screen.getByTestId('operator-web-finds-pending')).getAllByTestId(
         'operator-web-candidate',
       ),
     ).toHaveLength(2)
@@ -1801,7 +1801,78 @@ describe('StudioOperatorPanel · 找到的图（搜索期切片 1）', () => {
     renderPanel()
     expect(screen.queryByTestId('operator-web-candidates')).toBeNull()
     // ⛔ 也不留一块空的「还没挂上」行。
-    expect(screen.queryByTestId('operator-web-images-pending')).toBeNull()
+    expect(screen.queryByTestId('operator-web-finds-pending')).toBeNull()
+  })
+
+  /** 搜索期第二片：找到的视频走同一条路，摆在图的网格**下面**。 */
+  const VIDEOS = [
+    {
+      url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      title: 'Miku PV',
+      platform: 'youtube',
+      domain: 'youtube.com',
+      durationSeconds: 209,
+    },
+  ]
+
+  function pushWebVideos(
+    runKey: string,
+    status: 'running' | 'done',
+    videos: unknown[] = VIDEOS,
+  ): void {
+    store.upsertOperatorStep(
+      {
+        id: 'step-videos',
+        title: '找 PV',
+        tool: 'search_web_videos',
+        verb: 'research',
+        status,
+        payload: { query: '初音未来 PV', limit: 8, bilibili: true },
+        result:
+          status === 'done' ? { totalFound: videos.length, videos } : null,
+      } as unknown as Parameters<typeof store.upsertOperatorStep>[0],
+      runKey,
+    )
+  }
+
+  it('找视频还在搜：过程行写「正在搜索视频」，灰卡画在折叠组外面', () => {
+    store.setOperatorStatus('working')
+    pushWebVideos('run-web', 'running')
+    renderPanel()
+    expect(screen.getByTestId('operator-tool-group-running')).toHaveTextContent(
+      'running.webVideos',
+    )
+    expect(screen.getByTestId('operator-web-videos').dataset.state).toBe(
+      'loading',
+    )
+    expect(
+      within(screen.getByTestId('operator-tool-group')).queryByTestId(
+        'operator-web-videos',
+      ),
+    ).toBeNull()
+  })
+
+  it('⭐ 回答说完：视频那一排摆在回答底下、图的网格下面；点开在面板里播', () => {
+    // 先找视频、后找图：摆的时候照样图在上、视频在下。
+    pushWebVideos('run-web', 'done')
+    pushWebImages('run-web', 'done')
+    store.appendOperatorEntry({
+      kind: 'message',
+      id: 'answer',
+      text: '找到两张图和一支 PV。',
+    })
+    renderPanel()
+    const underAnswer = screen.getByTestId('operator-answer-web-finds')
+    const blocks = Array.from(underAnswer.children).map((child) =>
+      child.getAttribute('data-testid'),
+    )
+    expect(blocks).toEqual(['operator-web-candidates', 'operator-web-videos'])
+    fireEvent.click(within(underAnswer).getByTestId('operator-web-video-card'))
+    expect(
+      within(underAnswer)
+        .getByTestId('operator-web-video-iframe')
+        .getAttribute('src'),
+    ).toBe('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ')
   })
 })
 

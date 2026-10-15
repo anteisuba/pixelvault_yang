@@ -49,6 +49,10 @@ const WEB_IMAGE_VISION_SOURCE = readFileSync(
   ),
   'utf8',
 )
+const WEB_VIDEO_SEARCH_SOURCE = readFileSync(
+  join(process.cwd(), 'src/services/web-video-search.service.ts'),
+  'utf8',
+)
 const ASSET_WRITE_SERVICE_PATH = join(
   process.cwd(),
   'src/services/asset-library-write.service.ts',
@@ -112,6 +116,12 @@ const ALLOWED_SERVICE_IMPORTS = new Set([
    * 让转存留在用户手上。
    */
   '@/services/web-research.service',
+  /**
+   * 联网**找视频**（搜索期第二片）。⭐ 判据与上一条逐字同源：**搜索**模块 —— 打
+   * Serper `/videos`（平台那把 key）与 B站连接器的只读接口，出一串播放页地址与元数据；
+   * 一个字节的视频都不取、一分钱都不扣、一行库都不碰（下面有一条用例扫它的源码）。
+   */
+  '@/services/web-video-search.service',
   /**
    * **有目标的检索**（2026-09-06）。⭐ 判据与上一条**逐字同源**：它是
    * **搜索 + 归并**模块 —— 打萌百 / 中文维基 / Fandom / danbooru / Serper 的只读
@@ -414,6 +424,33 @@ describe('⛔ 助手工具环的钱闸', () => {
       ).toBe(false)
     }
     expect(EDIT_LOOK_SOURCE).toContain('completeVisionStructured')
+  })
+
+  it('找视频服务只搜元数据：够不着生成、扣费、写入、转存，连库都不读', () => {
+    for (const identifier of [
+      'createGeneration',
+      'generateImage',
+      'generateVideo',
+      'generateAudio',
+      'deductCredits',
+      'submitGeneration',
+      'execution-worker',
+      'uploadToR2',
+      'uploadFromHttpToR2',
+      'web-image-import',
+      "from '@/lib/db'",
+      'prisma',
+      // ⛔ 不借创作者的 key、⛔ 不走模型自带联网：这条只花平台那把 Serper key。
+      'llm-text.service',
+      'resolveLlmTextRoute',
+      'api-key',
+    ]) {
+      expect(
+        WEB_VIDEO_SEARCH_SOURCE.includes(identifier),
+        `找视频服务里出现了 ${identifier}`,
+      ).toBe(false)
+    }
+    expect(WEB_VIDEO_SEARCH_SOURCE).toContain('SERPER_API_KEY')
   })
 
   it('联网候选看图服务只看缩略图：够不着生成、扣费、写入，连库都不读', () => {

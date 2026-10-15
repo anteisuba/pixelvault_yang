@@ -5,7 +5,6 @@ import { describe, expect, it, vi } from 'vitest'
 
 import {
   StudioOperatorAnswerSources,
-  formatSourceDuration,
   toOperatorAnswerSources,
   type StudioOperatorAnswerSource,
 } from './StudioOperatorAnswerSources'
@@ -168,8 +167,6 @@ describe('StudioOperatorAnswerSources', () => {
     expect(
       screen.getAllByTestId('operator-answer-media-duration'),
     ).toHaveLength(1)
-    expect(formatSourceDuration(760)).toBe('12:40')
-    expect(formatSourceDuration(3723)).toBe('1:02:03')
   })
 
   it('高亮认的是 cite，不是下标', () => {

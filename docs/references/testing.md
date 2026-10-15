@@ -7,6 +7,7 @@
 | 闸门                              | 内容                                                                                                                                                                                                                            |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run test` / `test:run`       | Vitest（watch / 单次）                                                                                                                                                                                                          |
+| `npm run test:replay`             | 助手回放基线（`src/test/assistant-replay/`，约 15 秒）；也在 `npx vitest run` 里，pre-push 一起跑                                                                                                                               |
 | pre-commit（husky + lint-staged） | `*.{ts,tsx}` → prettier + eslint --fix；`*.{json,css,md}` → prettier                                                                                                                                                            |
 | **pre-push（husky）**             | `tsc --noEmit` → `npm run lint` → `npx vitest run --reporter=verbose`——**三关全过才能推**（本机实测 2026-07-10：tsc 185s + lint 350s + vitest 412s ≈ **合计 15.8 分钟**，比旧口径"约 8–9 分钟"慢近一倍；不许 --no-verify 跳过） |
 | CI `ci.yml`                       | push/PR 跑 tsc + lint、应用 unit、Execution Worker unit、依赖审计、Prisma drift + fresh-database replay 和生产 build（见 cicd.md）                                                                                              |
@@ -20,6 +21,16 @@
 - 分层测法：Service 测业务逻辑边界 · Hook 测状态变化与 API mock · Component 测渲染与交互。
 - Zod schema 用 `.safeParse()` 测有效 / 无效 / 边界（不用 `.parse()`）。
 - i18n 守护测试：`src/i18n/completeness.test.ts`（三语键齐全 + AI_MODELS 标签 + providers 文案）。
+
+## 助手回放基线（`src/test/assistant-replay/`，2026-10-15）
+
+附录M 五.6：**每期改完助手都跑一遍**（`npm run test:replay`），修 A 不悄悄弄坏 B；它也在 `npx vitest run` 里，pre-push 闸门自动带上。
+
+- **跑的是真的那一条**：真路由 `POST` → `runAssistantV3` → 执行器 / 规划器 → 系统提示 → `resolveAssistantRoute`（库里的 key + 人设）→ AI SDK 的五家。只换最外圈：`fetch`（录好的模型回复、按扩展名现做的图 / 片子字节）、`@/lib/db`（`fake-db.ts`，任何写库都判红）、Clerk 与限流、`decryptApiKey`。前端那一半（拼请求、读流、落 `canvas_batch`、`canvas_sync` 接力）在 `runner.ts` 里用前端同一批纯函数复现。
+- **每题都判**：落了哪几种 op、起始 → 收尾画布的**完整**差异（没列的变了就算多改）、问题卡 / 确认卡、回复包含 / 不包含、录好的主步回复不多不少、没有意外的网络，以及硬约束 `expectSelectedProviderOnly`：每一次碰模型都是选定的那一家、那个型号、那把 key。`graders.test.ts` 是判分器自己的反例（每条硬约束都要真的会红）。
+- **加一道题**：在 `fixtures/cases/` 放 `<题号>.json`（文件名 = `id`，schema 见 `fixture.ts`）。板子用 `fixtures/boards/` 里的（卡按名字写，句柄 `img-249e8b` 只出现在模型回复里）；`routes` 写选定的型号、配了 key 的几家（⭐ 多配几家当诱饵）和期望的那一家 / 型号（照写，⛔ 不从解析器抄）；`replies` 每次主步调用一条；`expect` 只写这题在乎的格。写题、查红题时 `REPLAY_DEBUG=1 npm run test:replay` 把每次模型调用、每一帧、画布差异印出来。
+- **回放揭出真 bug**：题照留，加 `knownBug: { summary, evidence }`，跑成 `it.fails`（修好那天它变红，提醒删掉这一格）；⛔ 不拿它藏题目写错。
+- 题单与覆盖面见 `assistant-v3.md` §3「自动回放基线」。
 
 ## E2E / 视觉回归（Playwright，`e2e/` 2026-07-10 清点）
 
@@ -43,7 +54,7 @@
 
 ## Source of Truth
 
-- `vitest.config.ts` · `playwright.config.ts` · `e2e/` · `.husky/{pre-commit,pre-push}` · `package.json`（scripts + lint-staged）· `src/test/api-helpers.ts` · `src/i18n/completeness.test.ts`
+- `vitest.config.ts` · `playwright.config.ts` · `e2e/` · `.husky/{pre-commit,pre-push}` · `package.json`（scripts + lint-staged）· `src/test/api-helpers.ts` · `src/i18n/completeness.test.ts` · `src/test/assistant-replay/`
 
 ## Last Verified
 

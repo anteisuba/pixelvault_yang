@@ -151,6 +151,22 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 | T24 | 礼堂 S05–S08 每张都接上「场景资产·霍格沃茨大礼堂」，已经接了的不用重复接。                | 不重复接                                | ✅            | ✅            |
 | T25 | S04b 的参考里去掉克拉布和高尔，换成哈利，提示词不动。                                     | 断两条接一条                            | ✅（1 草稿）  | ✅            |
 
+### 自动回放基线（每期跑，2026-10-15）
+
+上表是真机回放（人跑、看事件流判分）。附录M 五.6 另立一套**自动**的：`src/test/assistant-replay/`，`npm run test:replay`，约 15 秒，也在 `npx vitest run` 里。真路由 → 整条 v3 环 → `resolveAssistantRoute`，只把网络（录好的模型回复）、库、Clerk 换掉；每题都查「只用所选那一家」（每次碰模型都是选定的那一家、型号、key）。**每一期（S 片 / 附录M 各期）改完都跑**，红了先看是不是改坏了别的题，再决定改题还是改代码。怎么加题见 `testing.md`「助手回放基线」。
+
+| 题                    | 路由（选定的那一家）                   | 查什么                                                        |
+| --------------------- | -------------------------------------- | ------------------------------------------------------------- |
+| T11 · T12 · T13       | Gemini / 自动→Luna · DeepSeek · Claude | 只答：不落 op、不出卡                                         |
+| T21 · V03             | Gemini · Sonnet · DeepSeek V4 Pro      | `@` 两张图都摆到模型眼前；看不了图的型号一张不收              |
+| V01 · V02             | Gemini · GPT-6.1 Sol                   | `@` 片子：Gemini 收片子本体，OpenAI 收按片长抽的帧            |
+| T01 · T25 · T24       | Gemini · 五家各一遍 · Sonnet           | 断 / 接线一批落、接力续上、其他不动；已接的不重复接           |
+| T03 · T05 · T07 · T09 | Opus · Sol · DeepSeek Flash · Sol      | 建卡 + 模型 + 参数 + 连线一批落；只改名；逐字只换一处；挪镜   |
+| T06                   | Gemini                                 | 模型直接发删除 → 服务端先出问题卡，一张不删                   |
+| T14 · T15             | Grok · Gemini                          | 生成确认卡只列点名的那几张，⛔ 不建 generation                |
+| R01                   | Gemini                                 | `search_web` 走 Gemini 自带联网，答出 Aemeath / Danbooru 标签 |
+| K01                   | 选 Claude、只配 Gemini 的 key          | `ASSISTANT_MODEL_KEY_MISSING`，一次模型都不碰、⛔ 不借别家    |
+
 ## 4. 切片
 
 | 片  | 内容                                                                                  | 验收（25 题对基线）                                        |
@@ -169,6 +185,7 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 - `src/lib/assistant-v3-board.ts`（句柄与板子）· `src/lib/assistant-v3-ops.ts`（edit / write → v4 op）
 - `src/types/assistant-v3.ts`（工具入参与本轮记录）· `src/constants/assistant-v3.ts`
 - 开关：`src/app/api/studio/assistant-operator/route.ts` · `src/hooks/use-assistant-operator.ts`
+- 自动回放基线：`src/test/assistant-replay/`（题在 `fixtures/cases/`，判分在 `graders.ts`）
 
 ### 项目笔记（S4，2026-10-09）
 
@@ -177,6 +194,8 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 - 结账提示在画布项目里换一段：记这个项目的角色 / 画风 / 规矩，只留在这个项目；「未成年」只挡真人，故事里角色的年龄与年级照记，与性有关的一概不记。
 
 ## Last Verified
+
+- 2026-10-15 · 自动回放基线落地（`npm run test:replay`）：19 题 × 路由 = 25 跑 + 判分器反例 6 条，全绿，约 15 秒；没有揭出真 bug（无 `knownBug`）。
 
 - 2026-10-10 · S6 视频台 5 题（库里没有真实视频对话，按马尔福短片列车段出题，Seedance 2.5 · BytePlus，本地 dev，「自动」= Gemini 3.8 Flash，隐身直调接口）：V1 挂首帧写镜头：首帧、Seedance 写法分两镜、5 秒、画幅 adaptive ✅ 57 秒（旧 ❌ 152 秒，附图挂不上、把一张达妮娅旧图挂成首帧、没写词）· V2 加台词：按 `{}` 写进提示词、算出约 1.5 秒放得下 ✅（旧 ⚠ 没写、反问 5 还是 7 秒）· V3 空包厢当尾帧 ✅ 31 秒（旧 ❌ 144 秒步数用完）· V4 静音 + 1080p ✅ 23 秒（旧 ✅ 64 秒；两边都没提更贵）· V5 用她的声音：库里没有、如实说 ✅（搜了 8 次 → 补规矩）（旧 ✅）。修了：没要清晰度却自选 1080p（代码拦）、`aspectRatioLock` 是能力声明（首帧在才算锁）。
 

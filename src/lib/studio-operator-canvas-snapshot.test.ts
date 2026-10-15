@@ -11,7 +11,19 @@ import {
 } from '@/constants/models'
 import { NODE_V4_PROMPT_MAX_LENGTH } from '@/constants/node-studio'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { ASSISTANT_TURN_RECORD_LIMITS } from '@/constants/assistant-turn-record'
 import { planV4Generation } from '@/hooks/node/use-node-media-generation-v4'
+import {
+  fitAssistantTurnRecord,
+  turnRecordInput,
+  turnRecordJsonBytes,
+  turnRecordSnapshot,
+} from '@/lib/assistant-turn-record'
+import {
+  assistantV3CanvasNodes,
+  buildAssistantV3Handles,
+  renderAssistantV3Board,
+} from '@/lib/assistant-v3-board'
 import {
   buildCanvasGenerationRequest,
   buildCanvasOperatorSnapshot,
@@ -20,8 +32,10 @@ import {
 import {
   AssistantOperatorCanvasNodeSchema,
   AssistantOperatorCanvasSnapshotSchema,
+  AssistantOperatorRequestSchema,
   type AssistantOperatorCanvasSnapshot,
 } from '@/types/assistant-operator'
+import type { AssistantV3Transcript } from '@/types/assistant-v3'
 import type {
   NodeV4,
   NodeV4ImageData,
@@ -413,10 +427,16 @@ describe('buildCanvasOperatorSnapshot', () => {
    * ⭐ 分层是这份快照**存在的理由**（进度表 22）：焦点那面镜与左右各一完整，
    * 其余每面一行。断不出这一条的话，一张六十镜的画布会把整轮步数烧在读上下文上。
    */
-  /** 镜头里的卡超过 `expandAllShotsUpToNodes` 时才按焦点折叠 —— 用填充卡撑过阈值。 */
+  /**
+   * 展开的卡超过 `maxExpandedShotBytes` 时才按焦点折叠 —— 用带 4,000 字提示词的填充卡撑过预算
+   * （每张约 4 KB：一条 12 张的带约 4.9 万字节，焦点那三条就有约 14.6 万）。
+   */
+  const FILLER_PROMPT = 'rain on the corridor window, '
+    .repeat(140)
+    .slice(0, 4000)
   const fillers = (shotNo: number, count: number) =>
     Array.from({ length: count }, (_, index) =>
-      imageNode(`filler-${shotNo}-${index}`, shotNo),
+      imageNode(`filler-${shotNo}-${index}`, shotNo, { prompt: FILLER_PROMPT }),
     )
 
   it('镜头里的卡不多时每一面都展开（十镜剧本逐镜改词要看得见每张卡）', () => {
@@ -1130,5 +1150,192 @@ describe('剪辑台那一块（v2 第 2 片）', () => {
       currentShotNo: null,
     })
     expect(snapshot).not.toHaveProperty('editDesk')
+  })
+})
+
+/**
+ * 大画布（P2 协调者的决定 D）：服务端给板子分级了，前端把每条带的卡都带上（在字节预算之内），
+ * `read "lane:<n>"` 才读得到不在眼前的带。量的是一块常见的分镜画布：每条带一张首帧图 + 两张视频卡。
+ */
+describe('大画布：每条带的卡都带上，在字节预算之内', () => {
+  const VIDEO_MODELS = getAvailableVideoModels(VIDEO_KIND.GENERATE).map(
+    (model) => model.id,
+  )
+  const PHRASE = '雨夜里哈利沿着石砌走廊快步走向镜头，壁灯把影子拉长。'
+  const prose = (chars: number) =>
+    PHRASE.repeat(Math.ceil(chars / PHRASE.length)).slice(0, chars)
+
+  function storyboard(lanes: number, promptChars: number) {
+    const nodes: NodeV4[] = []
+    const edges: NodeWorkflowEdgeV4[] = []
+    for (let shotNo = 1; shotNo <= lanes; shotNo += 1) {
+      const frame = `frame-${shotNo}`
+      nodes.push(
+        imageNode(frame, shotNo, {
+          name: `S${shotNo} 首帧`,
+          prompt: prose(promptChars),
+          url: `https://cdn.example.com/${frame}.png`,
+        }),
+        ...['a', 'b'].map(
+          (take) =>
+            ({
+              id: `video-${shotNo}${take}`,
+              position: { x: shotNo * 400, y: 0 },
+              data: {
+                kind: 'video',
+                subtype: 'shot',
+                name: `S${shotNo}${take} 视频`,
+                label: `S${shotNo}${take} 视频`,
+                status: 'idle',
+                createdAt: '2026-09-19T00:00:00.000Z',
+                shotNo,
+                prompt: prose(promptChars),
+                model: {
+                  optionId: `workspace:${AI_MODELS.SEEDANCE_25_BYTEPLUS}`,
+                  modelId: AI_MODELS.SEEDANCE_25_BYTEPLUS,
+                  adapterType: AI_ADAPTER_TYPES.BYTEPLUS,
+                  providerConfig: {
+                    label: 'BytePlus',
+                    baseUrl: 'https://ark.ap-southeast.bytepluses.com/api/v3',
+                  },
+                },
+                params: {
+                  duration: '5',
+                  resolution: '720p',
+                  aspectRatio: '16:9',
+                },
+              },
+            }) as NodeV4,
+        ),
+      )
+      edges.push({
+        ...edge(`edge-${shotNo}`, frame, `video-${shotNo}a`),
+        slot: 'firstFrame',
+      } as NodeWorkflowEdgeV4)
+    }
+    const availableModelsByNodeId = Object.fromEntries(
+      nodes.flatMap((node) =>
+        node.data.kind === 'video' ? [[node.id, VIDEO_MODELS]] : [],
+      ),
+    )
+    return { nodes, edges, availableModelsByNodeId }
+  }
+
+  const expandedBytes = (snapshot: AssistantOperatorCanvasSnapshot) =>
+    turnRecordJsonBytes(
+      snapshot.shots.flatMap((shot) => (shot.expanded ? shot.nodes : [])),
+    )
+
+  it('72 张卡、提示词 300 字：二十四条带全展开（从前只展开焦点那三条）', () => {
+    const snapshot = buildCanvasOperatorSnapshot({
+      ...storyboard(24, 300),
+      currentShotNo: 12,
+    })
+    expect(snapshot.shots).toHaveLength(24)
+    expect(snapshot.shots.every((shot) => shot.expanded)).toBe(true)
+    expect(
+      snapshot.shots.flatMap((shot) => (shot.expanded ? shot.nodes : [])),
+    ).toHaveLength(72)
+    expect(expandedBytes(snapshot)).toBeLessThanOrEqual(
+      ASSISTANT_OPERATOR_CANVAS_LIMITS.maxExpandedShotBytes,
+    )
+    expect(
+      AssistantOperatorCanvasSnapshotSchema.safeParse(snapshot).success,
+    ).toBe(true)
+  })
+
+  it('72 张卡、提示词 700 字：焦点那三条一定在，其余由近到远整条加到预算为止、连成一片', () => {
+    const snapshot = buildCanvasOperatorSnapshot({
+      ...storyboard(24, 700),
+      currentShotNo: 12,
+    })
+    const open = snapshot.shots
+      .filter((shot) => shot.expanded)
+      .map((shot) => shot.shotNo!)
+    expect(open).toEqual(expect.arrayContaining([11, 12, 13]))
+    expect(open.length).toBeGreaterThan(
+      ASSISTANT_OPERATOR_CANVAS_LIMITS.expandedShots,
+    )
+    expect(open.length).toBeLessThan(24)
+    // 连成一片：从最小到最大一条不缺。
+    expect(open).toEqual(
+      Array.from({ length: open.length }, (_, index) => open[0]! + index),
+    )
+    // 离焦点一样远：两边最多差一条。
+    expect(Math.abs(12 - open[0]! - (open.at(-1)! - 12))).toBeLessThanOrEqual(1)
+    expect(expandedBytes(snapshot)).toBeLessThanOrEqual(
+      ASSISTANT_OPERATOR_CANVAS_LIMITS.maxExpandedShotBytes,
+    )
+    const collapsed = snapshot.shots.find((shot) => !shot.expanded)
+    expect(collapsed).toMatchObject({ expanded: false, nodeCount: 3 })
+  })
+
+  it('选中 / @ 到远处带里的卡：那条带越过预算也展开', () => {
+    const snapshot = buildCanvasOperatorSnapshot({
+      ...storyboard(24, 700),
+      currentShotNo: 2,
+      mentionedNodeIds: ['video-24b'],
+    })
+    expect(snapshot.shots.find((shot) => shot.shotNo === 24)?.expanded).toBe(
+      true,
+    )
+  })
+
+  it('请求体与过程记录：60 张以上的大画布照样过 schema，快照留在 256 KB 那一行里', () => {
+    for (const promptChars of [300, 700]) {
+      const canvas = buildCanvasOperatorSnapshot({
+        ...storyboard(24, promptChars),
+        currentShotNo: 12,
+      })
+      const request = AssistantOperatorRequestSchema.parse({
+        workspaceKey: 'canvas:project-1',
+        domain: 'canvas',
+        messages: Array.from({ length: 24 }, (_, index) => ({
+          role: index % 2 === 0 ? 'user' : 'assistant',
+          content: prose(400),
+        })).concat([
+          { role: 'user', content: 'S20 的提示词里把「快步」改成「慢慢」' },
+        ]),
+        snapshot: { prompt: '', availableModels: [], canvas },
+      })
+      // 每一跳都整份上传：几百 KB 以内（平台的请求体上限是 4.5 MB）。
+      expect(turnRecordJsonBytes(request)).toBeLessThan(400_000)
+
+      const nodes = assistantV3CanvasNodes(canvas)
+      const board = renderAssistantV3Board({
+        canvas,
+        handles: buildAssistantV3Handles(nodes.map((node) => node.id)),
+        latestUserText: 'S20 的提示词里把「快步」改成「慢慢」',
+      })
+      const transcript: AssistantV3Transcript = [
+        { type: 'board', text: board, images: [] },
+        {
+          type: 'assistant',
+          text: '',
+          calls: [
+            { id: 'call_1', tool: 'read', input: '{"cards":["lane:20"]}' },
+          ],
+        },
+        {
+          type: 'result',
+          id: 'call_1',
+          tool: 'read',
+          output: prose(promptChars * 4),
+          error: false,
+        },
+        { type: 'assistant', text: '改好了。', calls: [] },
+      ]
+      const snapshot = turnRecordSnapshot(request.snapshot)
+      const fitted = fitAssistantTurnRecord({
+        input: turnRecordInput(request, transcript),
+        transcript,
+        snapshotBytes: turnRecordJsonBytes(snapshot),
+      })
+      expect(fitted, `prompt ${promptChars}`).not.toBeNull()
+      expect(fitted!.keepSnapshot, `prompt ${promptChars}`).toBe(true)
+      expect(fitted!.sizeBytes).toBeLessThanOrEqual(
+        ASSISTANT_TURN_RECORD_LIMITS.maxRowBytes,
+      )
+    }
   })
 })

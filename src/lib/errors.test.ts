@@ -8,8 +8,10 @@ import {
   AuthError,
   InsufficientCreditsError,
   ApiKeyError,
+  AssistantModelKeyMissingError,
   isGenerationError,
 } from '@/lib/errors'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 // ─── Base Class ──────────────────────────────────────────────────
 
@@ -230,6 +232,25 @@ describe('ApiKeyError', () => {
   it('accepts custom message', () => {
     const err = new ApiKeyError('missing', 'Provide your key')
     expect(err.message).toBe('Provide your key')
+  })
+})
+
+describe('AssistantModelKeyMissingError', () => {
+  it('JSON 也带上哪一家、哪个型号（界面就地开那一家的配置弹窗）', () => {
+    const err = new AssistantModelKeyMissingError(
+      AI_ADAPTER_TYPES.ANTHROPIC,
+      'claude-sonnet-5-5',
+    )
+    expect(err.toJSON()).toEqual({
+      success: false,
+      error: err.message,
+      errorCode: err.errorCode,
+      i18nKey: 'errors.assistant.modelKeyMissing',
+      missingKey: {
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+        modelId: 'claude-sonnet-5-5',
+      },
+    })
   })
 })
 

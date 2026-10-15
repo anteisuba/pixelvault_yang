@@ -1,4 +1,8 @@
 import { API_ENDPOINTS } from '@/constants/config'
+import {
+  AssistantOperatorMissingKeySchema,
+  type AssistantOperatorMissingKey,
+} from '@/types/assistant-operator'
 
 interface ApiErrorPayload {
   error?: string
@@ -6,6 +10,8 @@ interface ApiErrorPayload {
   i18nKey?: string
   traceId?: string
   detail?: string
+  /** 助手选定的那个模型缺 key 时才有：界面就地开那一家的 `QuickSetupDialog`。 */
+  missingKey?: AssistantOperatorMissingKey
 }
 
 export async function getErrorPayload(
@@ -15,6 +21,9 @@ export async function getErrorPayload(
   const errorData = (await response
     .json()
     .catch(() => null)) as ApiErrorPayload | null
+  const missingKey = AssistantOperatorMissingKeySchema.safeParse(
+    errorData?.missingKey,
+  )
 
   return {
     error: errorData?.error ?? fallbackMessage,
@@ -26,6 +35,7 @@ export async function getErrorPayload(
     ...(typeof errorData?.detail === 'string'
       ? { detail: errorData.detail }
       : {}),
+    ...(missingKey.success ? { missingKey: missingKey.data } : {}),
   }
 }
 

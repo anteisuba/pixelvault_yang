@@ -12,7 +12,7 @@
 
 import { ASSISTANT_PROVIDER_ORDER } from '@/constants/assistant'
 import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
-import type { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 /**
  * 默认头像由 `AssistantAvatarGlyph` 复用网页标题栏的 `src/app/icon.png`。
@@ -114,6 +114,15 @@ export function getAssistantRouteModelEntry(
     ) ?? null
   )
 }
+
+/**
+ * 一把 key 都没有时就地引导去配的那一档：Gemini 文本模型在 Google AI Studio 有免费档
+ * （2026-10-07 起没有平台兜底）。助手面板的错误条与「满意」评估共用这一个。
+ */
+export const ASSISTANT_FREE_TIER_ROUTE_MODEL =
+  NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
+    (model) => model.adapterType === AI_ADAPTER_TYPES.GEMINI,
+  ) ?? null
 
 /**
  * ⭐ **「自动」挑哪一个**（owner 2026-10-15「全跟助手」）：`ASSISTANT_PROVIDER_ORDER` 里

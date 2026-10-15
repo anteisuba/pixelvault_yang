@@ -1,6 +1,14 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { toast } from 'sonner'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import {
+  ASSISTANT_MODEL_CANNOT_SEE_CODE,
+  ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
+} from '@/constants/assistant-operator'
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { evaluateGenerationAPI } from '@/lib/api-client/generation'
 import type { GenerationRecord } from '@/types'
 import type { ActiveRun } from '@/types'
 
@@ -124,11 +132,41 @@ vi.mock('@/components/business/studio/StudioAudioFeedback', () => ({
 }))
 
 vi.mock('@/components/business/image/StudioResultFeedback', () => ({
-  StudioResultFeedback: ({ generationId }: { generationId: string }) => (
+  StudioResultFeedback: ({
+    generationId,
+    onFeedback,
+  }: {
+    generationId: string
+    onFeedback: (tags: string[]) => void
+  }) => (
+    <div data-testid="studio-result-feedback" data-generation-id={generationId}>
+      <button type="button" onClick={() => onFeedback(['satisfied'])}>
+        satisfied
+      </button>
+    </div>
+  ),
+}))
+
+vi.mock('@/components/business/studio-shared/setup/QuickSetupDialog', () => ({
+  QuickSetupDialog: (props: {
+    adapterType: string
+    modelId: string
+    selectStudioModel?: boolean
+    onVerified?: (modelId: string, keyId: string) => void
+  }) => (
     <div
-      data-testid="studio-result-feedback"
-      data-generation-id={generationId}
-    />
+      data-testid="quick-setup"
+      data-adapter={props.adapterType}
+      data-model={props.modelId}
+      data-select-studio-model={String(props.selectStudioModel)}
+    >
+      <button
+        type="button"
+        onClick={() => props.onVerified?.(props.modelId, 'key_new')}
+      >
+        verified
+      </button>
+    </div>
   ),
 }))
 
@@ -391,6 +429,104 @@ describe('StudioCanvas — 单张生成完成后的反馈条', () => {
     render(<StudioCanvas />)
 
     expect(screen.getByTestId('studio-audio-feedback')).toBeInTheDocument()
+  })
+})
+
+/**
+ * 「满意」评估跑不了（owner 2026-10-15「全跟助手」）：缺 key 就地弹那一家的配置（Hard Rule 8，
+ * 与助手面板错误条同一跳），配好接着评；看不了图这种配 key 解决不了的，照实说一句。
+ */
+describe('StudioCanvas — 「满意」评估缺 key', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    referenceState.entries = []
+    mockUseStudioForm.mockReturnValue({
+      state: {
+        outputType: 'image',
+        promptDialect: 'natural',
+        videoMode: 'text-to-video',
+      },
+      dispatch: vi.fn(),
+    })
+    const generation = makeGeneration()
+    mockUseStudioGen.mockReturnValue({
+      lastGeneration: generation,
+      error: null,
+      retry: vi.fn(),
+      activeRun: makeSingleActiveRun(generation),
+      selectWinner: vi.fn(),
+      lastEvaluation: null,
+      setLastEvaluation: vi.fn(),
+      isGenerating: false,
+      elapsedSeconds: 0,
+      retryVideoQueueItem: vi.fn(),
+      cancelRunItem: vi.fn(),
+      cancelAllRunItems: vi.fn(),
+    })
+  })
+
+  it('一把 key 都没有：就地弹免费档那一家（Gemini），配好接着评，⛔ 不改工作台模型', async () => {
+    vi.mocked(evaluateGenerationAPI).mockResolvedValueOnce({
+      success: false,
+      error: 'No API key available.',
+      errorCode: 'MISSING_API_KEY',
+    })
+    vi.mocked(evaluateGenerationAPI).mockResolvedValueOnce({
+      success: true,
+      data: null,
+    })
+
+    render(<StudioCanvas />)
+    fireEvent.click(screen.getByText('satisfied'))
+
+    const dialog = await screen.findByTestId('quick-setup')
+    expect(dialog).toHaveAttribute('data-adapter', AI_ADAPTER_TYPES.GEMINI)
+    expect(dialog).toHaveAttribute(
+      'data-model',
+      LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
+    )
+    expect(dialog).toHaveAttribute('data-select-studio-model', 'false')
+    expect(toast.error).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByText('verified'))
+    await waitFor(() => expect(evaluateGenerationAPI).toHaveBeenCalledTimes(2))
+    expect(evaluateGenerationAPI).toHaveBeenLastCalledWith('gen-single-1')
+  })
+
+  it('选定的模型缺 key：就地弹**它那一家**，⛔ 不换别家', async () => {
+    vi.mocked(evaluateGenerationAPI).mockResolvedValueOnce({
+      success: false,
+      error: 'no key',
+      errorCode: ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
+      missingKey: {
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+        modelId: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
+      },
+    })
+
+    render(<StudioCanvas />)
+    fireEvent.click(screen.getByText('satisfied'))
+
+    const dialog = await screen.findByTestId('quick-setup')
+    expect(dialog).toHaveAttribute('data-adapter', AI_ADAPTER_TYPES.ANTHROPIC)
+    expect(dialog).toHaveAttribute(
+      'data-model',
+      LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
+    )
+  })
+
+  it('看不了图：照实说一句（配 key 解决不了），不弹配置', async () => {
+    vi.mocked(evaluateGenerationAPI).mockResolvedValueOnce({
+      success: false,
+      error: 'cannot see',
+      errorCode: ASSISTANT_MODEL_CANNOT_SEE_CODE,
+    })
+
+    render(<StudioCanvas />)
+    fireEvent.click(screen.getByText('satisfied'))
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1))
+    expect(screen.queryByTestId('quick-setup')).not.toBeInTheDocument()
   })
 })
 

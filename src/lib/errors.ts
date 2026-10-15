@@ -177,6 +177,14 @@ export class AssistantModelKeyMissingError extends GenerationError {
     this.adapterType = adapterType
     this.modelId = modelId
   }
+
+  /** JSON 接口也带上哪一家、哪个型号：界面据它就地开**那一家**的配置弹窗（「满意」评估等）。 */
+  override toJSON() {
+    return {
+      ...super.toJSON(),
+      missingKey: { adapterType: this.adapterType, modelId: this.modelId },
+    }
+  }
 }
 
 /**

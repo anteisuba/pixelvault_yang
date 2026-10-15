@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { downloadRemoteAsset } from '@/lib/api-client/shared'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { downloadRemoteAsset, getErrorPayload } from '@/lib/api-client/shared'
 
 const ASSET_URL = 'https://cdn.test.com/generations/video.mp4'
 const PRESIGNED_URL =
@@ -104,5 +105,44 @@ describe('downloadRemoteAsset', () => {
       i18nKey: undefined,
     })
     expect(assign).not.toHaveBeenCalled()
+  })
+})
+
+describe('getErrorPayload', () => {
+  it('带上 missingKey（选定的助手模型缺 key 时）', async () => {
+    const payload = await getErrorPayload(
+      new Response(
+        JSON.stringify({
+          success: false,
+          error: 'no key',
+          errorCode: 'ASSISTANT_MODEL_KEY_MISSING',
+          missingKey: {
+            adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+            modelId: 'claude-sonnet-5-5',
+          },
+        }),
+        { status: 400 },
+      ),
+      'fallback',
+    )
+    expect(payload.missingKey).toEqual({
+      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+      modelId: 'claude-sonnet-5-5',
+    })
+  })
+
+  it('形状不对的 missingKey 不往下传', async () => {
+    const payload = await getErrorPayload(
+      new Response(
+        JSON.stringify({
+          success: false,
+          error: 'no key',
+          missingKey: { adapterType: 'not-a-provider', modelId: '' },
+        }),
+        { status: 400 },
+      ),
+      'fallback',
+    )
+    expect(payload).not.toHaveProperty('missingKey')
   })
 })

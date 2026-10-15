@@ -20,6 +20,11 @@
  */
 
 import { buildMessageImageReferences } from '@/lib/studio-reference-mentions'
+import {
+  assistantKeySetupForError,
+  assistantKeySetupOptionId,
+  type AssistantKeySetupTarget,
+} from '@/lib/assistant-key-setup'
 import { StudioOperatorConfirmCard } from './StudioOperatorConfirmCard'
 import { StudioOperatorQueueCard } from './StudioOperatorQueueCard'
 import { StudioOperatorCharacterImagesCard } from './StudioOperatorCharacterImagesCard'
@@ -72,7 +77,6 @@ import { useFormatter, useTranslations } from 'next-intl'
 
 import {
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
-  ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_TOOL_IDS,
 } from '@/constants/assistant-operator'
@@ -91,12 +95,9 @@ import {
 import {
   ASSISTANT_PERSONA_DEFAULTS,
   ASSISTANT_ROUTE_MODEL_AUTO,
-  getAssistantRouteModelEntry,
   type AssistantReasoningEffort,
 } from '@/constants/assistant-persona'
-import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
 import {
-  AI_ADAPTER_TYPES,
   getDefaultProviderConfig,
   getProviderLabel,
 } from '@/constants/providers'
@@ -405,20 +406,6 @@ function collectCanvasChangedCards(
 /** 胶囊小卡片的宽（`StudioOperatorMentionCard` 的 `w-64`）—— 靠右时夹回输入区里。 */
 const MENTION_CARD_WIDTH_PX = 256
 
-/** 错误条「配置 Key」就地配的那一家（见面板里的 `keySetup`）。 */
-interface OperatorKeySetup {
-  /** `freeTier` = 一把 key 都没有；`pinnedModel` = 选定的那个模型缺 key。 */
-  kind: 'freeTier' | 'pinnedModel'
-  adapterType: AI_ADAPTER_TYPES
-  modelId: string
-  modelLabel: string
-}
-
-/** 缺 key 时引导去配的那一档：Gemini 文本模型在 Google AI Studio 有免费档。 */
-const FREE_TIER_ASSISTANT_ROUTE = NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
-  (model) => model.adapterType === AI_ADAPTER_TYPES.GEMINI,
-)
-
 /** 发送键收着时是一颗 32 的圆键。 */
 const SEND_BUTTON_SIZE_PX = 32
 
@@ -587,7 +574,7 @@ export function StudioOperatorPanel({
    * 错误条上「配置 Key」就地打开的那一家（Hard Rule 8，⛔ 跳 `/settings/keys`）：
    * 一把 key 都没有 → Gemini 免费档；选定的模型缺 key → 就是它那一家（owner 2026-10-15）。
    */
-  const [keySetup, setKeySetup] = useState<OperatorKeySetup | null>(null)
+  const [keySetup, setKeySetup] = useState<AssistantKeySetupTarget | null>(null)
   /** 模型 chip 的选单 —— 错误条那颗「换个模型」从这里打开（§9.1）。 */
   const [modelPickerOpen, setModelPickerOpen] = useState(false)
   /** 回形针那颗按钮背后的文件选择器（上传三通道的第一条）。 */
@@ -2111,6 +2098,12 @@ export function StudioOperatorPanel({
     }
   }
 
+  /** 错误条「配置 Key」就地配的那一家（与「满意」评估同一跳）。 */
+  const errorKeySetup = assistantKeySetupForError({
+    errorCode,
+    missingKey: errorMissingKey,
+  })
+
   return (
     <>
       {/* ── 头部（v2 §4.1）—— 进度带整条删掉（决策 14），进度由状态词说（§3.6）。 */}
@@ -2482,55 +2475,30 @@ export function StudioOperatorPanel({
                           text={errorText ?? t('error.generic')}
                           trace={errorTrace}
                           actions={[
-                            errorCode === 'MISSING_API_KEY' &&
-                            FREE_TIER_ASSISTANT_ROUTE
+                            errorKeySetup
                               ? {
+                                  /* ⭐ 缺 key 就地配：一把都没有 → 免费档那一家；选定的模型
+                                     缺 key → **它那一家**，⛔ 不换别家（owner 2026-10-15）。 */
                                   id: 'addKey',
-                                  label: t('error.addKey'),
-                                  onClick: () =>
-                                    setKeySetup({
-                                      kind: 'freeTier',
-                                      adapterType:
-                                        FREE_TIER_ASSISTANT_ROUTE.adapterType,
-                                      modelId:
-                                        FREE_TIER_ASSISTANT_ROUTE.modelId,
-                                      modelLabel:
-                                        FREE_TIER_ASSISTANT_ROUTE.label,
-                                    }),
+                                  label:
+                                    errorKeySetup.kind === 'pinnedModel'
+                                      ? t('error.addProviderKey', {
+                                          provider: getProviderLabel(
+                                            getDefaultProviderConfig(
+                                              errorKeySetup.adapterType,
+                                            ),
+                                          ),
+                                        })
+                                      : t('error.addKey'),
+                                  onClick: () => setKeySetup(errorKeySetup),
                                 }
-                              : errorCode ===
-                                    ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE &&
-                                  errorMissingKey
-                                ? {
-                                    /* ⭐ 选定的模型缺 key：配**它那一家**的 key，⛔ 不换别家
-                                       （owner 2026-10-15）。配好就接着跑刚才那句。 */
-                                    id: 'addKey',
-                                    label: t('error.addProviderKey', {
-                                      provider: getProviderLabel(
-                                        getDefaultProviderConfig(
-                                          errorMissingKey.adapterType,
-                                        ),
-                                      ),
-                                    }),
-                                    onClick: () =>
-                                      setKeySetup({
-                                        kind: 'pinnedModel',
-                                        adapterType:
-                                          errorMissingKey.adapterType,
-                                        modelId: errorMissingKey.modelId,
-                                        modelLabel:
-                                          getAssistantRouteModelEntry(
-                                            errorMissingKey.modelId,
-                                          )?.label ?? errorMissingKey.modelId,
-                                      }),
-                                  }
-                                : {
-                                    /* ⭐ 出错了就地重试（2026-10-14）：发一句「接着做完」，
+                              : {
+                                  /* ⭐ 出错了就地重试（2026-10-14）：发一句「接着做完」，
                                      ⛔ 不原样重放上一条 —— 中途落下的改动还在，重放会重做一遍。 */
-                                    id: 'retry',
-                                    label: t('error.retry'),
-                                    onClick: () => send(t('error.retryPrompt')),
-                                  },
+                                  id: 'retry',
+                                  label: t('error.retry'),
+                                  onClick: () => send(t('error.retryPrompt')),
+                                },
                             /* §9.1「换个模型」：打开输入框底下那颗模型 chip 的选单，
                                ⛔ 不另起一张选模型的面板（缺 key 的模型照旧就地弹配置）。 */
                             {
@@ -3145,7 +3113,7 @@ export function StudioOperatorPanel({
           modelId={keySetup.modelId}
           modelLabel={keySetup.modelLabel}
           adapterType={keySetup.adapterType}
-          optionId={`llm-route:assistant:setup:${keySetup.modelId}`}
+          optionId={assistantKeySetupOptionId(keySetup.modelId)}
           {...(keySetup.kind === 'pinnedModel'
             ? {
                 selectStudioModel: false,

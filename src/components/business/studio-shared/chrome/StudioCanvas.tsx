@@ -32,6 +32,11 @@ import { fetchGenerationByIdAPI } from '@/lib/api-client'
 import { buildStudioRemixPreset } from '@/lib/studio-remix'
 import { evaluateGenerationAPI } from '@/lib/api-client/generation'
 import { getApiErrorMessage } from '@/lib/api-error-message'
+import {
+  assistantKeySetupForError,
+  assistantKeySetupOptionId,
+  type AssistantKeySetupTarget,
+} from '@/lib/assistant-key-setup'
 import { focusStudioPrompt } from '@/lib/focus-studio-prompt'
 import { resolveReferenceRailSlot } from '@/lib/studio/reference-rail-slot'
 import {
@@ -55,6 +60,7 @@ import { StudioVideoQueueStrip } from '@/components/business/studio-shared/chrom
 import { GenerationPreview } from '@/components/business/studio/GenerationPreview'
 import { StudioAudioFeedback } from '@/components/business/studio/StudioAudioFeedback'
 import { StudioResultFeedback } from '@/components/business/image/StudioResultFeedback'
+import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import { AudioVariantGrid } from '@/components/business/studio/AudioVariantGrid'
 import { type StudioImageEditTarget } from '@/components/business/studio-shared/editor/StudioImageEditStage'
 
@@ -156,39 +162,54 @@ export const StudioCanvas = memo(function StudioCanvas({
     [dispatch, isGenerating, state, tAudioFeedback],
   )
 
+  /** 「满意」评估缺 key 时就地配的那一家（Hard Rule 8，与助手面板错误条同一个做法）。 */
+  const [evaluationKeySetup, setEvaluationKeySetup] =
+    useState<AssistantKeySetupTarget | null>(null)
+
+  const evaluateSatisfied = useCallback(
+    (requestedGenerationId: string) => {
+      void evaluateGenerationAPI(requestedGenerationId).then((result) => {
+        if (lastGenerationRef.current?.id !== requestedGenerationId) {
+          return
+        }
+
+        if (result.success && result.data) {
+          setLastEvaluation(result.data)
+          return
+        }
+        if (result.success) return
+        /* ⭐ 缺 key：就地弹那一家的配置（一把都没有 → 免费档；选定的模型缺 key → 它那一家），
+           配好接着评。⛔ 不跳 /settings/keys，⛔ 不悄悄换一家（owner 2026-10-15「全跟助手」）。 */
+        const keySetup = assistantKeySetupForError(result)
+        if (keySetup) {
+          setEvaluationKeySetup(keySetup)
+          return
+        }
+        /* 看不了图这类配 key 也解决不了的：照实说一句。别的失败照旧不打扰。 */
+        if (
+          result.errorCode &&
+          ASSISTANT_ROUTE_ERROR_CODES.includes(result.errorCode)
+        ) {
+          toast.error(
+            getApiErrorMessage(
+              tErrors,
+              result,
+              result.error ?? tErrors('assistant.modelKeyMissing'),
+            ),
+          )
+        }
+      })
+    },
+    [setEvaluationKeySetup, setLastEvaluation, tErrors],
+  )
+
   const handleFeedback = useCallback(
     (tags: string[]) => {
       if (!lastGeneration) return
 
       if (tags.includes('satisfied')) {
         if (lastEvaluation !== null) return
-
-        const requestedGenerationId = lastGeneration.id
-        void evaluateGenerationAPI(requestedGenerationId).then((result) => {
-          if (lastGenerationRef.current?.id !== requestedGenerationId) {
-            return
-          }
-
-          if (result.success && result.data) {
-            setLastEvaluation(result.data)
-            return
-          }
-          /* ⭐ 助手那一家跑不了（缺 key / 看不了图）就照实说一句，⛔ 不悄悄换一家
-             （owner 2026-10-15「全跟助手」）。别的失败照旧不打扰。 */
-          if (
-            !result.success &&
-            result.errorCode &&
-            ASSISTANT_ROUTE_ERROR_CODES.includes(result.errorCode)
-          ) {
-            toast.error(
-              getApiErrorMessage(
-                tErrors,
-                result,
-                result.error ?? tErrors('assistant.modelKeyMissing'),
-              ),
-            )
-          }
-        })
+        evaluateSatisfied(lastGeneration.id)
         return
       }
 
@@ -196,7 +217,7 @@ export const StudioCanvas = memo(function StudioCanvas({
         dispatch({ type: 'OPEN_PANEL', payload: 'keepChange' })
       }
     },
-    [dispatch, lastEvaluation, lastGeneration, setLastEvaluation, tErrors],
+    [dispatch, evaluateSatisfied, lastEvaluation, lastGeneration],
   )
 
   // ── Drop target: gallery images → open reference panel (Pragmatic DnD) ──
@@ -742,6 +763,25 @@ export const StudioCanvas = memo(function StudioCanvas({
           onRetry={(itemId) => void retryVideoQueueItem(itemId)}
           onCancel={cancelRunItem}
           onCancelAll={cancelAllRunItems}
+        />
+      ) : null}
+
+      {/* 「满意」评估缺 key 就地配：配的是**助手**那一家的 key，⛔ 不顺手改工作台的出图模型。 */}
+      {evaluationKeySetup ? (
+        <QuickSetupDialog
+          open
+          onOpenChange={(next) => {
+            if (!next) setEvaluationKeySetup(null)
+          }}
+          modelId={evaluationKeySetup.modelId}
+          modelLabel={evaluationKeySetup.modelLabel}
+          adapterType={evaluationKeySetup.adapterType}
+          optionId={assistantKeySetupOptionId(evaluationKeySetup.modelId)}
+          selectStudioModel={false}
+          onVerified={() => {
+            const generationId = lastGenerationRef.current?.id
+            if (generationId) evaluateSatisfied(generationId)
+          }}
         />
       ) : null}
     </div>

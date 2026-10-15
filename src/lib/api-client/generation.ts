@@ -47,6 +47,7 @@ import type {
   PromptToTagsRequest,
   PromptToTagsResponseData,
 } from '@/types/tag-composer'
+import type { AssistantOperatorMissingKey } from '@/types/assistant-operator'
 import {
   readAssistantStream,
   type AssistantStreamMessage,
@@ -1707,6 +1708,8 @@ export async function evaluateGenerationAPI(generationId: string): Promise<{
   /** 助手那一家跑不了（缺 key / 看不了图）时才有用：界面按它说清原因。 */
   errorCode?: string
   i18nKey?: string
+  /** 助手选定的那个模型缺 key：就地开那一家的配置弹窗。 */
+  missingKey?: AssistantOperatorMissingKey
 }> {
   try {
     const response = await fetch(API_ENDPOINTS.GENERATION_EVALUATE, {
@@ -1724,6 +1727,7 @@ export async function evaluateGenerationAPI(generationId: string): Promise<{
         error: payload.error,
         errorCode: payload.errorCode,
         i18nKey: payload.i18nKey,
+        ...(payload.missingKey ? { missingKey: payload.missingKey } : {}),
       }
     }
     const body = (await response.json()) as {

@@ -62,6 +62,7 @@ import {
   splitOperatorHistoryRounds,
   describeSystemSubjects,
   mergeOperatorSystemRuns,
+  operatorRunningPhrase,
 } from '@/lib/studio-operator-timeline'
 import Image from 'next/image'
 import { motion, useReducedMotion } from 'motion/react'
@@ -132,10 +133,7 @@ import {
   StudioOperatorPinnedEvidence,
   type StudioOperatorPinnedEvidenceItem,
 } from '@/components/business/studio/assistant-operator/StudioOperatorPinnedEvidence'
-import {
-  StudioOperatorQuestionBlock,
-  type StudioOperatorQuestionAnswerPayload,
-} from '@/components/business/studio/assistant-operator/StudioOperatorQuestionBlock'
+import { StudioOperatorQuestionBlock } from '@/components/business/studio/assistant-operator/StudioOperatorQuestionBlock'
 import { StudioOperatorResearchProgress } from '@/components/business/studio/assistant-operator/StudioOperatorResearchProgress'
 import { StudioOperatorQueueBar } from '@/components/business/studio/assistant-operator/StudioOperatorQueueBar'
 import { StudioOperatorEmptyState } from '@/components/business/studio/assistant-operator/StudioOperatorEmptyState'
@@ -147,6 +145,7 @@ import {
 import {
   STUDIO_OPERATOR_CARD_KINDS,
   STUDIO_OPERATOR_SPEAKERS,
+  StudioOperatorLiveStatus,
   StudioOperatorTimelineList,
   StudioOperatorTurns,
   type StudioOperatorThreadItem,
@@ -171,6 +170,7 @@ import {
   getOperatorState,
   setOperatorAutoGenerate,
   setOperatorOutOfSteps,
+  setOperatorQuestionChecked,
   updateOperatorRoundSummary,
   useStudioOperatorState,
 } from '@/hooks/use-studio-operator-store'
@@ -199,7 +199,6 @@ import type { StudioOperatorHistoryEntry } from '@/types/studio-operator-history
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type {
   StudioOperatorAttachment,
-  StudioOperatorQuestionOption,
   StudioOperatorResultItem,
   StudioOperatorStepEntry,
   StudioOperatorThreadEntry,
@@ -236,26 +235,6 @@ function historyCardKind(kind: StudioOperatorHistoryEntry['kind']): {
   return {
     card: STUDIO_OPERATOR_CARD_KINDS.system,
     speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
-  }
-}
-
-/**
- * 缩略图选项 → 附件（@chip 管线要的那个形状）。
- *
- * ⚠ 走的是**四入口那条同一条 chip 管线**（§7）：点中即成 @chip，⛔ 没有第二条
- * 「被选中的候选」通道 —— 服务端那一侧只认 `mentionedAssets` 这一张名单。
- * ⚠ 预览与地址都用 `assetUrl`：选项在协议里只有这一个地址位。
- */
-function toQuestionAsset(
-  option: StudioOperatorQuestionOption | undefined,
-): StudioOperatorAttachment | undefined {
-  if (!option?.assetUrl) return undefined
-  return {
-    id: option.id,
-    url: option.assetUrl,
-    label: option.label,
-    kind: 'image',
-    thumbnailUrl: option.assetUrl,
   }
 }
 
@@ -511,8 +490,8 @@ export function StudioOperatorPanel({
     cancelQueued,
     newThread,
     answerQuestion,
+    acceptRecommendedQuestions,
     goBackQuestion,
-    dismissQuestion,
     approvePlan,
     declinePlan,
     revisePlan,
@@ -575,6 +554,8 @@ export function StudioOperatorPanel({
   const [libraryOpen, setLibraryOpen] = useState(false)
   /** 缺 key 的那条错误条上「配置 Key」打开的内联配置（Hard Rule 8）。 */
   const [keySetupOpen, setKeySetupOpen] = useState(false)
+  /** 模型 chip 的选单 —— 错误条那颗「换个模型」从这里打开（§9.1）。 */
+  const [modelPickerOpen, setModelPickerOpen] = useState(false)
   /** 回形针那颗按钮背后的文件选择器（上传三通道的第一条）。 */
   const uploadInputRef = useRef<HTMLInputElement>(null)
   const threadRef = useRef<HTMLDivElement>(null)
@@ -1168,9 +1149,11 @@ export function StudioOperatorPanel({
        * ⚠ 它替掉了 v2 §3.4 的「不答直接打字」：那一档把没答的问题留到本轮结束
        * 再折进时间线，而用户打的那句话往往**正是**答案（「8 镜，前 3 镜慢一点」）。
        * 当成一条普通发言送出去的表现是助手下一轮把同一道题再问一遍。
-       * ⚠ 不想答就按 `Esc`（问题块收起，输入框回到普通发言）。
+       * ⚠ 不想答就按「跳过」/ 在问题块上按 `Esc`（记一格「跳过」，进下一题）。
        * ⚠ 答复**带着这句话里的图走**（2026-10-08 真机）：从前这条路丢掉附件、把
        *   `@Attachment[…]` 原样当答案，助手连问三轮「那张图我看不到」。
+       * ⭐ **已勾的选项一起带上**（2026-10-14）：「选 A + 补一句」并存，⛔ 打字不再
+       *   清掉勾选。
        */
       const pending = getOperatorState().question
       if (pending) {
@@ -1178,10 +1161,10 @@ export function StudioOperatorPanel({
           {
             questionId:
               pending.questions[pending.answers.length]?.id ?? pending.id,
-            optionIds: [],
+            optionIds: [...(pending.checked ?? [])],
             otherText: compiled,
           },
-          { label: compiled, attachments: merged },
+          { attachments: merged },
         )
       } else {
         send(compiled, merged)
@@ -1816,11 +1799,15 @@ export function StudioOperatorPanel({
                     skipped={skipped}
                     running={running}
                     trailing={checkpoint}
-                    runningTitle={
-                      block.steps.findLast(
+                    runningTitle={(() => {
+                      /* §9.1 人话动词：按这一步的动词取，⛔ 不读模型起的标题。 */
+                      const current = block.steps.findLast(
                         (item) => item.step.status === 'running',
-                      )?.step.title
-                    }
+                      )?.step
+                      return current
+                        ? t(`running.${operatorRunningPhrase(current)}`)
+                        : undefined
+                    })()}
                     /* ⚠ 只在**本轮收尾后**说（D12 C11）：跑着的时候被退回的那一步
                        多半下一刻就换条路成了，中途亮一条红字是假警报。 */
                     failure={
@@ -2494,19 +2481,28 @@ export function StudioOperatorPanel({
                         <StudioOperatorErrorBar
                           text={errorText ?? t('error.generic')}
                           trace={errorTrace}
-                          action={
+                          actions={[
                             errorCode === 'MISSING_API_KEY'
                               ? {
+                                  id: 'addKey',
                                   label: t('error.addKey'),
                                   onClick: () => setKeySetupOpen(true),
                                 }
                               : {
                                   /* ⭐ 出错了就地重试（2026-10-14）：发一句「接着做完」，
                                      ⛔ 不原样重放上一条 —— 中途落下的改动还在，重放会重做一遍。 */
+                                  id: 'retry',
                                   label: t('error.retry'),
                                   onClick: () => send(t('error.retryPrompt')),
-                                }
-                          }
+                                },
+                            /* §9.1「换个模型」：打开输入框底下那颗模型 chip 的选单，
+                               ⛔ 不另起一张选模型的面板（缺 key 的模型照旧就地弹配置）。 */
+                            {
+                              id: 'switchModel',
+                              label: t('error.switchModel'),
+                              onClick: () => setModelPickerOpen(true),
+                            },
+                          ]}
                         />
                       </StudioOperatorTimelineRow>
                     ) : null,
@@ -2554,6 +2550,14 @@ export function StudioOperatorPanel({
             })()}
           </div>
         </StudioOperatorTimelineList>
+        {/* 读屏只听这四句（§9.1）：开始 / 完成 / 停止 / 失败 —— 时间线本身 `aria-live="off"`。 */}
+        <StudioOperatorLiveStatus
+          status={status}
+          stopped={(() => {
+            const last = allEntries.at(-1)
+            return last?.kind === 'system' && last.code === 'stopped'
+          })()}
+        />
 
         {/* ── 排队条（§3.1 ㉒–㉔）────────────────────────────────────
           ⚠ 长在输入框**上方**（不是线程末尾）：它说的是「你刚打的这句还在手上」，
@@ -2824,33 +2828,32 @@ export function StudioOperatorPanel({
               见 `submitComposer`）。 */}
           {question ? (
             <StudioOperatorQuestionBlock
-              /* ⭐ **key 带题序**：换一题 = 换一次挂载，于是键盘高亮、写了一半
-                 的「其他」、点过一次的锁全都自己清零 —— ⛔ 不在 effect 里
-                 setState 清（`react-hooks/set-state-in-effect`）。 */
+              /* ⭐ **key 带题序**：换一题 = 换一次挂载，于是键盘高亮、点过一次的
+                 锁全都自己清零 —— ⛔ 不在 effect 里 setState 清
+                 （`react-hooks/set-state-in-effect`）。勾选住在 store（`checked`），
+                 收放面板也不丢。 */
               key={`${question.id}:${question.answers.length}`}
               prompt={question}
+              hasDraft={draft.trim().length > 0}
               onBack={goBackQuestion}
-              onDismiss={dismissQuestion}
-              onAnswer={(
-                answer,
-                payload: StudioOperatorQuestionAnswerPayload,
-              ) =>
-                answerQuestion(answer, {
-                  label: payload.label,
-                  ...(payload.choice ? { choice: payload.choice } : {}),
-                  ...(payload.assetOptionId
-                    ? {
-                        asset: toQuestionAsset(
-                          question.questions[
-                            question.answers.length
-                          ]?.options.find(
-                            (option) => option.id === payload.assetOptionId,
-                          ),
-                        ),
-                      }
-                    : {}),
-                })
-              }
+              onAnswer={(answer) => answerQuestion(answer)}
+              onCheckedChange={setOperatorQuestionChecked}
+              onUseRecommended={acceptRecommendedQuestions}
+              onOther={() => inputRef.current?.focus()}
+              /* 多选「确定」：输入框里有字时走发送那条路（勾选 + 补的那句并存），
+                 否则只交勾选。 */
+              onConfirm={(optionIds) => {
+                if (draft.trim()) {
+                  submit(draft)
+                  return
+                }
+                const current = question.questions[question.answers.length]
+                if (current)
+                  answerQuestion({
+                    questionId: current.id,
+                    optionIds: [...optionIds],
+                  })
+              }}
             />
           ) : null}
           <MentionInput
@@ -2962,6 +2965,8 @@ export function StudioOperatorPanel({
             <StudioOperatorModelChip
               value={persona?.routeModel ?? ASSISTANT_ROUTE_MODEL_AUTO}
               onChange={onSelectRouteModel}
+              open={modelPickerOpen}
+              onOpenChange={setModelPickerOpen}
             />
             <StudioOperatorEffortChip
               value={

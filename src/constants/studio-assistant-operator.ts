@@ -422,7 +422,44 @@ export const STUDIO_OPERATOR_STREAMING = {
    * ⚠ 也别往大了调：超过一秒就等于这条占位行在最需要它的那一刻还没出现。
    */
   pendingAfterStepMs: 300,
+  /**
+   * **占位行多久之后才露字**（2026-10-14 设计方案 §9.1「<1 s 不显示任何指示」）。
+   * ⚠ 行本身（头像那一格）照旧发送即落：它是「收到了」的凭证；藏的只是那一行字，
+   *   一秒内就回话的那一轮因此不闪一下「正在想…」。
+   */
+  thinkingRevealMs: 1_000,
+  /** 等了多久算「比平时久」—— 占位行下面多一句慢提示（§9.1「>6 s 出慢提示」）。 */
+  thinkingSlowMs: 6_000,
+  /** 占位行上那个秒数多久刷一次。⚠ 半秒：露字门槛是一秒，一秒一跳会晚到一整秒才露。 */
+  thinkingTickMs: 500,
 } as const
+
+/**
+ * 过程行跑着时那一句**人话动词**（v2 §3.6 · 设计方案 §9.1）—— 按这一步的动词取，
+ * ⛔ 不读模型自己起的 `step.title`（附录 E：模型的标题每轮都不一样）。
+ * ⚠ 「查」拆两档：去库里找（素材 / LoRA / 卡 / 证据本）是「正在查素材」，其余是
+ *   「正在查资料」—— 用户关心的是它在翻谁的东西。
+ */
+export const STUDIO_OPERATOR_RUNNING_PHRASE_IDS = {
+  look: 'look',
+  research: 'research',
+  library: 'library',
+  ask: 'ask',
+  apply: 'apply',
+  generate: 'generate',
+} as const
+
+export type StudioOperatorRunningPhrase =
+  (typeof STUDIO_OPERATOR_RUNNING_PHRASE_IDS)[keyof typeof STUDIO_OPERATOR_RUNNING_PHRASE_IDS]
+
+/** 「正在查素材…」那一档的工具：去创作者**自己的库**里翻（素材 / 文件夹 / LoRA / 卡 / 证据本）。 */
+export const STUDIO_OPERATOR_LIBRARY_TOOLS: ReadonlySet<string> = new Set([
+  ASSISTANT_OPERATOR_TOOL_IDS.searchAssets,
+  ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders,
+  ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
+  ASSISTANT_OPERATOR_TOOL_IDS.listContextCards,
+  ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence,
+])
 
 /**
  * 面板外壳的几何（方向 C · `pages/assistant-shell.md` §11.1）。

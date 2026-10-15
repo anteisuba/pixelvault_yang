@@ -40,7 +40,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
         │       ├── StudioOperatorEmptyState (空态：助手头像 40px + **一句话**（`face.emptyLine`），⛔ 就这两样；起手药丸已搬去输入框正上方那一排 28px chip（D7c ④，只在空态出现）。上下留白是两根 `shrink`+`grow` 的 spacer（basis 52 / 44）—— ⛔ 不写成 padding：矮容器里 padding 不让步)
         │       ├── StudioOperatorTimelineRow (时间线沟一行 + **五类卡的分派点**)
         │       │   └── TimelineAvatar (用户 / 助手 32px 头像，与竖线同轴；助手那一档另出口 `AssistantTimelineAvatar` —— 它不碰 Clerk，收起态与空态用的是它)
-        │       ├── StudioOperatorToolGroup (「5 个操作 · 4 成功 1 失败」折叠行)
+        │       ├── StudioOperatorToolGroup (「5 个操作 · 4 成功 1 失败」折叠行；跑着时标题是**人话动词**（`operatorRunningPhrase`），跑着自动展开、跑完自动收起，用户点过以用户为准。§9.1)
         │       ├── StudioOperatorResearchProgress (调查那一行，三态：跑着一行微光 + 预估 / 点开展开步骤 / 跑完收成灰底一行「搜了 N 条 · 读了 M 页」；有失败步时退回 ToolGroup。56b 切片 2)
         │       ├── StudioOperatorCheckpointCard (每轮过程行上的「撤销」，点一下退回这一轮的改动 —— **撤回的唯一入口**，owner 2026-09-24)
         │       ├── StudioOperatorQueueBar (排队条，浮在输入框上方)
@@ -54,9 +54,9 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
         │       ├── StudioOperatorSpecLine (输入框上方的规格行：点开**就地**调模型 / 比例 / 张数 / 清晰度，与确认卡同一份 `generationControls`（`lib/studio-operator-knobs.ts`）；空态让位给起手 chip。D12 B6 / P1 / P7)
         │       ├── 输入区（D12 T-A）：**一个边框** = 文字 + 工具行（裸图标 上传 · 素材库 · 助手模型灰字 · 自动生成开关 · 圆形发送 / 停止）。⛔ 没有「+」：提及 = 打 `@`，指定来源在话里说（`research.onlySources`）；上下文卡只剩助手提议那张确认卡（设置里那一页 09-26 已删，09-25 定整体去掉）
         │       ├── StudioOperatorHistoryItem (会话历史条目)
-        │       ├── StudioOperatorMessageBody (助手正文那一格：无气泡 / 长回话折首句 / `detail` 折成「为什么」 / 空正文时的占位脉冲 / **句尾 `[n]` 角标**（56b 切片 1）· **末尾光标 + `motion-reduce` 扣住整段**（切片 3）)
+        │       ├── StudioOperatorMessageBody (助手正文那一格：无气泡 / 长回话折首句 / `detail` 折成「为什么」 / 空正文时的「正在想…」行（`StudioOperatorThinkingRow`：<1 s 不露字 → 呼吸点 + 扫光 + 秒数，>6 s 慢提示，接力跳写「正在画布上落地…」；第一个字到了正文上方「想了 N 秒」。§9.1） / **句尾 `[n]` 角标**（56b 切片 1）· **末尾光标 + `motion-reduce` 扣住整段**（切片 3）)
         │       ├── StudioOperatorAnswerSources (回答底下那两样：媒体条（图片开灯箱 · 视频封面开新窗口）+ 一排来源卡（站点图标 + 标题 + 域名，角标点下来高亮）+ 「深入调查 / 钉住 / 回执」一行)
-        │       ├── StudioOperatorQuestionBlock (问题块：**与输入框同框**、一组 ≤4 题一次一题、题头 + 「1 / 3」进度 + 竖排选项 + 就地展开的「其他」；键盘 1–4 / ↑↓+Enter / Esc；⛔ 没有「确定」。答完的回执（「问题 · 答案」）**不再画进时间线**，只以 `questionAnswered` 系统条目留在数据里、`userText` 进对话。56b 切片 4)
+        │       ├── StudioOperatorQuestionBlock (问题块：**与输入框同框**、一组 ≤4 题一次一题、每题 2–6 项、「1 / 3」进度 + 竖排选项（可带缩略图）+ 「其他…」（只把焦点交给输入框）+ 「跳过 · 全部用推荐」；**单选点即进下一题、⛔ 没有「确定」；多选勾选 + 「确定（N）」是唯一例外**（owner 2026-10-14）；勾选住 store（`question.checked`）；键盘 ↑↓ / 1–9 / 空格 / Enter / Esc 跳过；radiogroup / checkbox。面板只交 id，文案与缩略图由 hook 从卡上取。答完的回执（「问题 · 答案」）**不再画进时间线**，只以 `questionAnswered` 系统条目留在数据里、`userText`（i18n）进对话。v2 §3.4)
         │       ├── StudioOperatorConfirmCard (确认卡：多步 / 生成两支，就地换「已确认 · 时间」)
         │       └── StudioOperatorLightbox (全屏单例，模块级 store，三处共用)
         ├── StudioDockPanelArea (studio/ — 工具面板宿主，见下方规则 3)
@@ -65,7 +65,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
 ```
 
 **operator 系对外只有一颗入口**（`assistant-operator/index.ts`）：`StudioOperatorDock`（`StudioWorkspaceUI` 与 LoRA 工作台 `studio/lora/LoraWorkbench.tsx` 挂）。其余是面板内部件，不从 index 导出。⛔ 撤回只有每轮过程行上那一颗「撤销」（owner 2026-09-24）：✦ 字段还原、全部还原、逐步撤销、连对话一起回、恢复到这一步（含整套配置快照）都已删除。训练 tab 的身体在 `studio/lora/training/TrainWizard.tsx`（配 `hooks/use-lora-train-wizard.ts`），`LoraWorkbench.tsx` 里只剩 tab 分派那一行。
-**卡片已收敛为五类（v2 §3.2）**：消息 / 问题 / 确认 / 结果 / 证据 + 系统行，分派表在 `StudioOperatorTimelineRow.tsx`（`STUDIO_OPERATOR_CARD_KINDS`）。⛔ `StudioOperatorSpendConfirmCard` · `StudioOperatorAssetChoiceCard` · `StudioOperatorProgressBand` **三个文件已删**，旧的覆写三选条也整块删掉 —— 别再按名字找：花钱确认随决策 8 消失，缩略图单选并进问题卡，覆写三选降级成问题卡，进度带的两样挂件搬去了头部。`StudioOperatorConfirmCard`（`confirm` 两支；生成支确认即客户端扣扳机）· `RuleChip`（面板已渲染）· `AssistantSettingsDialog` + `AssistantAvatarGlyph`（入口是**头部右上 ⋯ 菜单里的「助手设置」** → `onOpenAssistantSettings`，开合 state 在 Dock；⛔ 没有常驻齿轮。弹窗只是外壳，内容住 `business/assistant-settings/AssistantSettings`（助手设置 B：「人设 / 记忆」两页、改了就存，与 `/settings/assistant` 同一份）；⛔ `AssistantPersonaPreview` 已删。⋯ 菜单只有「助手设置 · 隐身」两项，历史会话只走标题下拉，D12 B7 / B9）· `StudioOperatorTimelineList`（面板那颗 `threadRef` 容器）。
+**卡片已收敛为五类（v2 §3.2）**：消息 / 问题 / 确认 / 结果 / 证据 + 系统行，分派表在 `StudioOperatorTimelineRow.tsx`（`STUDIO_OPERATOR_CARD_KINDS`）。⛔ `StudioOperatorSpendConfirmCard` · `StudioOperatorAssetChoiceCard` · `StudioOperatorProgressBand` **三个文件已删**，旧的覆写三选条也整块删掉 —— 别再按名字找：花钱确认随决策 8 消失，缩略图单选并进问题卡，覆写三选降级成问题卡，进度带的两样挂件搬去了头部。`StudioOperatorConfirmCard`（`confirm` 两支；生成支确认即客户端扣扳机）· `RuleChip`（面板已渲染）· `AssistantSettingsDialog` + `AssistantAvatarGlyph`（入口是**头部右上 ⋯ 菜单里的「助手设置」** → `onOpenAssistantSettings`，开合 state 在 Dock；⛔ 没有常驻齿轮。弹窗只是外壳，内容住 `business/assistant-settings/AssistantSettings`（助手设置 B：「人设 / 记忆」两页、改了就存，与 `/settings/assistant` 同一份）；⛔ `AssistantPersonaPreview` 已删。⋯ 菜单只有「助手设置 · 隐身」两项，历史会话只走标题下拉，D12 B7 / B9）· `StudioOperatorTimelineList`（面板那颗 `threadRef` 容器，`role=log` + `aria-live=off`；播报只走同文件的 `StudioOperatorLiveStatus`：开始 / 完成 / 停止 / 失败四句，§9.1）。
 **皮肤是方向 B「玻璃仪表 · 浅色」（v2 §12）**：三层玻璃 = 面板（`assistant-glass-panel` + `shadow-assistant-panel`，18px 圆角）/ 卡片（`bg-card` + `border-border` + `shadow-assistant-card`，⛔ 不带模糊）/ 浮层（`assistant-glass-overlay` + `shadow-assistant-overlay`，历史下拉 · +菜单 · 模型选择器）。「当下要你动手的那张卡」（问题 / 确认待决 / 输入区 / 结论编辑）多一档 `border-assistant-line-strong` + `shadow-assistant-raised`。**信号位只用近黑实底 + 白字**（`bg-foreground text-background`）—— ⛔ 不用 `--primary`，那一支被工作台的生成键占着（§12.2）。token 全在 `globals.css`，⛔ 组件内不写 hex、不写任意值。
 
 已删、勿按名字复活：`StudioOperatorChangeRail` · `StudioOperatorRestoreButton` + `types/studio-operator-checkpoint.ts`（撤回收成一个入口，owner 2026-09-24）· `StudioOperatorRoundSummary`（本轮记录不在界面上显示，owner 2026-09-24；续跑按钮拆成 `StudioOperatorResumeChip`）· `StudioOperatorPlusMenu` + `ContextCardChip`（D12 U2–U4）· `StudioOperatorCritiqueCard` + `use-studio-operator-critique.ts` + `lib/studio-operator-claim.ts`（出图后不自检，D12：助手不会自己去看刚出的图，用户 `@` 一张让它看时由正文回答，`critique_result` 那一步折进过程行）· `StudioOperatorResearchCard`（证据在回答底下的 `StudioOperatorAnswerSources`，过程折进 `StudioOperatorToolGroup`，候选网格由 `StudioOperatorLogItem` 画）· `StudioOperatorReferenceAnalysisCard`（`analyze_references` 工具仍在，是 `set_prompt` 的取材来源，历史里的 `referenceAnalysis` 喂 `readOperatorReferenceProfiles`）· `StudioOperatorQuestionCard` + `PlanOptionVisual`（反问 = 输入区 `StudioOperatorQuestionBlock`，一帧一组 ≤4 题、界面一次一题；选项 `visual` 暂无渲染方，助手提示也不要求它）· `StudioOperatorStreamingText`（正文按 `message_delta` 追加到同一条 `streaming` 气泡，末尾一根不闪的光标，定稿帧按 id 整体覆盖；`motion-reduce` 下写完才画）。
@@ -76,7 +76,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
 
 **四张脸**：宿主契约多一格 `face`（`{domainIcon, contextLine(), emptyLine, starterPills[], inputPlaceholder}`，见 `src/contexts/studio-operator-host.tsx`），四份宿主各自实现，Dock / Header / EmptyState 只读它。⛔ 组件里不许按 `domain` 分叉挑文案 / 图标 / 药丸（`StudioOperatorDock.web.test.tsx` 有源码扫描守着）。静态那几样按域查表走 `src/hooks/use-studio-operator-face.ts`，只有 `contextLine` 是宿主自己算的。⛔ `STUDIO_OPERATOR_SUGGESTIONS` · `STUDIO_OPERATOR_EMPTY_SUGGESTION_COUNT` 与三语 `StudioOperator.suggestion.*` 已整块删。
 
-**收起态**：**右上角 36px 人设头像 + 数字角标，头像即唯一开关**（点开，再点或 Esc 收回；展开时悬停写「收起 · Esc」）。⛔ D7 ④ 的「右下 44px 近黑圆按钮」与画布顶栏那颗「助手」胶囊（`shell-assistant-toggle`）一起退场；⛔ 仍旧没有微状态卡、状态点、`N/M` 读数与那句状态词。机制与十条动画铁律见 `docs/references/pages/assistant-shell-v2.md §4.3`。
+**收起态**：**右上角 36px 人设头像 + 数字角标，头像即唯一开关**（点开，再点或 Esc 收回；展开时悬停写「收起 · Esc」）。⛔ D7 ④ 的「右下 44px 近黑圆按钮」与画布顶栏那颗「助手」胶囊（`shell-assistant-toggle`）一起退场；⛔ 仍旧没有微状态卡、`N/M` 读数与那句状态词；**运行指示**（2026-10-14 §9.1）：在跑 = 运行环 + 右下呼吸点，收着时跑完 / 出错留一颗完成 / 风险色点，打开即清（外壳 `StudioOperatorDock` 渲染期派生，`activity` 传给头像）。机制与十条动画铁律见 `docs/references/pages/assistant-shell-v2.md §4.3`。
 
 施工基准 `docs/references/pages/assistant-shell-v2.md`（A 方向节 · §3.2 五类卡片 · §4.3 收起态 · §12 皮肤）；`assistant-shell.md` 只作钱闸 / 检索链参考。动这一系之前先读 v2，别照现状扩。
 

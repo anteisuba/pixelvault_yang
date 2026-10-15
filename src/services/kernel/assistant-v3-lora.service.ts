@@ -8,6 +8,7 @@ import {
   ASSISTANT_OPERATOR_TOOL_IDS as TOOL,
 } from '@/constants/assistant-operator'
 import {
+  ASSISTANT_V3_ASK_TOOL_DESCRIPTION,
   ASSISTANT_V3_LIMITS,
   ASSISTANT_V3_LORA_EDIT_OP_IDS,
   ASSISTANT_V3_LORA_ITEM_IDS,
@@ -108,8 +109,7 @@ export function assistantV3LoraTools(strict: boolean) {
       strict,
     }),
     [ASSISTANT_V3_TOOL_IDS.ask]: tool({
-      description:
-        'Ask the creator when you cannot go on without their choice. Every option needs a one-line description of what it means.',
+      description: ASSISTANT_V3_ASK_TOOL_DESCRIPTION,
       inputSchema: AssistantV3AskInputSchema,
       strict,
     }),

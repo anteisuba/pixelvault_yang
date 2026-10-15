@@ -12,6 +12,7 @@ import {
   shouldStickOperatorScroll,
   placeOperatorRoundSummaries,
   splitOperatorHistoryRounds,
+  operatorRunningPhrase,
 } from './studio-operator-timeline'
 import { STUDIO_OPERATOR_TIMELINE } from '@/constants/studio-assistant-operator'
 import type {
@@ -358,5 +359,24 @@ describe('mergeOperatorSystemRuns', () => {
       'd',
       'e',
     ])
+  })
+})
+
+/**
+ * 过程行跑着时那一句人话动词（2026-10-14 设计方案 §9.1）：按动词取，「查」按工具分
+ * 「查素材」（自己的库）与「查资料」（外面）。
+ */
+describe('operatorRunningPhrase', () => {
+  it.each([
+    [TOOLS.analyzeReferences, 'look', 'look'],
+    [TOOLS.searchWeb, 'research', 'research'],
+    [TOOLS.searchAssets, 'research', 'library'],
+    [TOOLS.searchLoras, 'research', 'library'],
+    [TOOLS.recallEvidence, 'research', 'library'],
+    [TOOLS.proposeContextCard, 'ask', 'ask'],
+    [TOOLS.setPrompt, 'apply', 'apply'],
+    ['request_generation', 'request_generation', 'generate'],
+  ] as const)('%s（%s）→ %s', (tool, verb, phrase) => {
+    expect(operatorRunningPhrase({ tool, verb })).toBe(phrase)
   })
 })

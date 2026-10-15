@@ -487,6 +487,34 @@
       transform: translateY(-3px);
     }
   }
+  /* 助手在跑时的「呼吸点」（2026-10-14 加载态 §9.1）：等首包那一行、收起态头像旁
+     那颗状态点。1.6s 一轮，只动 opacity 与 transform；⚠ 用处一律配
+     `motion-reduce:animate-none`（静止是一颗实心点）。 */
+  --animate-assistant-breathe: assistant-breathe 1.6s var(--ease-standard)
+    infinite;
+  @keyframes assistant-breathe {
+    0%,
+    100% {
+      opacity: 0.4;
+      transform: scale(0.8);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  /* 收起态头像外那一圈「运行环」：只动 opacity（⛔ 不缩放 —— 环一缩就压进头像里）。
+     同样配 `motion-reduce:animate-none`（静止是一圈实线）。 */
+  --animate-assistant-ring: assistant-ring 1.6s var(--ease-standard) infinite;
+  @keyframes assistant-ring {
+    0%,
+    100% {
+      opacity: 0.35;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
   --animate-fade-in-up: fade-in-up 0.5s ease-out;
   @keyframes fade-in-up {
     from {
@@ -2862,6 +2890,45 @@ html:lang(ja) {
 
 .assistant-progress-dots > *:nth-child(3) {
   animation-delay: 0.32s;
+}
+
+/* ── 助手「正在想…」那一行字的扫光（2026-10-14 加载态 §9.1 · 附录 F）──────
+   1.5s 扫过 + 0.5s 停（一轮 2s），只动 background-position（`shiny-text` 的先例）。
+   文字底色就是 muted-foreground，扫过的那一道是 foreground —— 两个都是现成 token。
+   ⚠ 减少动效：整段换回静态灰字（⛔ 不靠文件末尾那条全局降级：它把动画压到最后一帧，
+   而最后一帧上扫光那一道可能正停在字中间）。 */
+.assistant-shimmer-text {
+  background-image: linear-gradient(
+    90deg,
+    var(--muted-foreground) 0%,
+    var(--muted-foreground) 40%,
+    var(--foreground) 50%,
+    var(--muted-foreground) 60%,
+    var(--muted-foreground) 100%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: assistant-shimmer 2s linear infinite;
+}
+
+@keyframes assistant-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  75%,
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assistant-shimmer-text {
+    animation: none;
+    background-image: none;
+    color: var(--muted-foreground);
+  }
 }
 
 @keyframes assistant-progress-dot {

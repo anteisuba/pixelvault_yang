@@ -1,14 +1,46 @@
 import {
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_TOOL_IDS,
+  ASSISTANT_OPERATOR_VERB_IDS,
   ASSISTANT_RESEARCH_DEPTHS,
+  type AssistantOperatorVerb,
   type AssistantResearchDepth,
 } from '@/constants/assistant-operator'
-import { STUDIO_OPERATOR_TIMELINE } from '@/constants/studio-assistant-operator'
+import {
+  STUDIO_OPERATOR_LIBRARY_TOOLS,
+  STUDIO_OPERATOR_RUNNING_PHRASE_IDS,
+  STUDIO_OPERATOR_TIMELINE,
+  type StudioOperatorRunningPhrase,
+} from '@/constants/studio-assistant-operator'
 import type {
   StudioOperatorStepEntry,
   StudioOperatorThreadEntry,
 } from '@/types/studio-assistant-operator'
+
+/**
+ * 过程行跑着时那一句人话动词（2026-10-14 设计方案 §9.1）—— 按这一步的**动词**取，
+ * 「查」再按工具分「查素材」（创作者自己的库）与「查资料」（外面）。
+ * ⛔ 不读模型起的 `step.title`：它每轮都不一样，读起来像日志不像人话（附录 E）。
+ */
+export function operatorRunningPhrase(step: {
+  tool: string
+  verb: AssistantOperatorVerb
+}): StudioOperatorRunningPhrase {
+  if (STUDIO_OPERATOR_LIBRARY_TOOLS.has(step.tool))
+    return STUDIO_OPERATOR_RUNNING_PHRASE_IDS.library
+  switch (step.verb) {
+    case ASSISTANT_OPERATOR_VERB_IDS.look:
+      return STUDIO_OPERATOR_RUNNING_PHRASE_IDS.look
+    case ASSISTANT_OPERATOR_VERB_IDS.research:
+      return STUDIO_OPERATOR_RUNNING_PHRASE_IDS.research
+    case ASSISTANT_OPERATOR_VERB_IDS.ask:
+      return STUDIO_OPERATOR_RUNNING_PHRASE_IDS.ask
+    case ASSISTANT_OPERATOR_VERB_IDS.apply:
+      return STUDIO_OPERATOR_RUNNING_PHRASE_IDS.apply
+    case ASSISTANT_OPERATOR_VERB_IDS.requestGeneration:
+      return STUDIO_OPERATOR_RUNNING_PHRASE_IDS.generate
+  }
+}
 
 export function isOperatorResearchTool(tool: string): boolean {
   return (

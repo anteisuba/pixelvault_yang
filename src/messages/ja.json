@@ -7990,6 +7990,25 @@
     "deleteRoomHint": "「{name}」とすべてのセリフが削除されます。生成済みの音声は素材ライブラリに残ります。"
   },
   "StudioOperator": {
+    "collapsedActivity": {
+      "running": "作業中",
+      "done": "新しい返信",
+      "failed": "エラー"
+    },
+    "live": {
+      "start": "アシスタントが作業を開始しました",
+      "done": "アシスタントの作業が完了しました",
+      "stopped": "アシスタントを停止しました",
+      "failed": "アシスタントでエラーが発生しました"
+    },
+    "running": {
+      "look": "画像を見ています…",
+      "research": "調べています…",
+      "library": "素材を探しています…",
+      "ask": "質問を考えています…",
+      "apply": "パラメータを変更しています…",
+      "generate": "生成の準備をしています…"
+    },
     "title": "アシスタント",
     "domainName": {
       "image": "画像ワークスペース",
@@ -8395,7 +8414,8 @@
       "missingKey": "アシスタントにはご自身の AI テキストモデルのキーが必要です。Gemini のキーは Google AI Studio で無料で作成できます。",
       "addKey": "キーを追加",
       "retry": "再試行",
-      "retryPrompt": "途中で止まりました。前の依頼の続きをお願いします（反映済みの分はやり直さないで）。"
+      "retryPrompt": "途中で止まりました。前の依頼の続きをお願いします（反映済みの分はやり直さないで）。",
+      "switchModel": "別のモデルにする"
     },
     "assistantSettings": "アシスタント設定",
     "rule": {
@@ -8524,7 +8544,11 @@
     },
     "streaming": {
       "pending": "アシスタントが考えています",
-      "thinking": "考えています…"
+      "thinking": "考えています…",
+      "landing": "キャンバスに反映しています…",
+      "seconds": "{count} 秒",
+      "slow": "いつもより時間がかかっています。モデルの応答を待っています",
+      "thought": "{count} 秒考えました"
     },
     "question": {
       "step": "{step} / {total}",
@@ -8533,7 +8557,19 @@
       "proposed": "提案されたプロンプト",
       "sourceNotes": "参照できる資料",
       "negativeDiff": "ネガティブに足す語：",
-      "edit": "変更"
+      "edit": "変更",
+      "other": "その他…",
+      "otherHint": "下の入力欄に自分の答えを書いてください",
+      "multiHint": "複数選択可",
+      "confirm": "確定（{count}）",
+      "skip": "スキップ",
+      "useRecommended": "すべておすすめで",
+      "skipped": "スキップ済み",
+      "quote": "「{label}」",
+      "answerText": "{labels}を選択（質問「{question}」への回答）",
+      "answerOther": "「{other}」と回答（質問「{question}」への回答）",
+      "answerBoth": "{labels}を選択し、「{other}」と補足（質問「{question}」への回答）",
+      "skippedText": "質問「{question}」はスキップ（判断はお任せ）"
     },
     "videoFrameCaptureReason": {
       "unsupported-environment": "この環境では動画を読めません",

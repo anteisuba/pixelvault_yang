@@ -644,13 +644,14 @@ describe('答复的 schema 尺寸（2026-09-12 真机 400）', () => {
   it('clampPlanAnswer 把历史里的旧值裁进上限', () => {
     const clamped = clampPlanAnswer({
       questionId: 'q',
-      optionIds: ['a', 'b', 'c', 'd', 'e'],
+      optionIds: ['a', 'b', 'c', 'd', 'e', 'f', 'g'],
       question: 'x'.repeat(120),
-      optionLabels: ['y'.repeat(90), 'ok', '1', '2', '3'],
+      optionLabels: ['y'.repeat(90), 'ok', '1', '2', '3', '4', '5'],
     })
-    expect(clamped.optionIds).toHaveLength(4)
+    // 上限 6（2026-10-14 反问卡多选，`ASSISTANT_PLAN_CARD_LIMITS.maxOptions`）。
+    expect(clamped.optionIds).toHaveLength(6)
     expect(clamped.question).toHaveLength(80)
-    expect(clamped.optionLabels).toHaveLength(4)
+    expect(clamped.optionLabels).toHaveLength(6)
     expect(clamped.optionLabels?.[0]).toHaveLength(40)
     expect(clamped.optionLabels?.[1]).toBe('ok')
   })

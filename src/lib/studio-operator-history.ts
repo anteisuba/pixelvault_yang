@@ -385,25 +385,6 @@ export function describeOperatorStepDetail(
 }
 
 /**
- * 问题卡答复那一行的**自包含正文**（v2 §3.4 落账规则，2026-09-12 真机 bug）。
- *
- * ⭐ 题面写在句子里，⛔ 不是「你选了 X」：那句话只有在**紧跟着问题卡**时才读
- * 得懂，而它要去的地方是三轮之后的一段对话 —— 那里没有卡，只有这一句。
- * ⚠ 这是**给模型与库看的那一份**：界面上那一行照旧走 i18n 词表
- * （`StudioOperator.system.questionAnswered`），两边有意不共用一句话。
- */
-export function describeQuestionAnswerText(
-  question: string,
-  label: string,
-): string {
-  const asked = question.trim()
-  const picked = label.trim()
-  return asked
-    ? `已选择「${picked}」（针对问题「${asked}」）`
-    : `已选择「${picked}」`
-}
-
-/**
  * 上下文卡确认卡上那一下的**题面**（§3.4 落账规则，2026-09-12 真机 bug）。
  *
  * ⭐ 卡名写在句子里：这句话要去的地方是三轮之后的一段对话，那里没有那张确认卡，
@@ -416,7 +397,7 @@ export function describeContextCardProposalText(cardName: string): string {
 /**
  * 「存这张卡」/「不用」那一行的**自包含正文**。
  *
- * ⭐ 判据与 `describeQuestionAnswerText` 逐字同源：从前那一下只落一行「已存上下
+ * ⭐ 判据与问题卡答复那一句（`use-assistant-operator.ts` 的 `describeAnswerText`）同源：从前那一下只落一行「已存上下
  * 文卡 X」，那一行不进 `messages` —— 于是模型看到的是一条从未被回应的「记一下」，
  * 每开一条流就重提同一张卡（真机：用户问别的事，回回先被拦一张「记住这张卡？」）。
  */

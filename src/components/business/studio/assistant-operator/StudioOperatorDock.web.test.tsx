@@ -8,6 +8,7 @@ import {
   appendOperatorEntry,
   resetOperatorThread,
   claimOperatorThreadScope,
+  setOperatorStatus,
 } from '@/hooks/use-studio-operator-store'
 import type { StudioOperatorAttachment } from '@/types/studio-assistant-operator'
 import type { StudioOperatorPanel } from './StudioOperatorPanel'
@@ -522,6 +523,59 @@ describe('StudioOperatorDock', () => {
     hostOpen = false
     view.rerender(<StudioOperatorDock />)
     expect(screen.queryByTestId('operator-avatar-badge')).toBeNull()
+  })
+
+  /**
+   * 收起态的运行指示（2026-10-14 设计方案 §9.1）：在跑 = 运行环 + 呼吸点；收着时跑完
+   * 留一颗完成点、出错留一颗风险色点；打开面板或下一轮开跑就清。
+   */
+  it('收着时在跑：运行环 + 状态点，aria-label 说「正在处理」', () => {
+    hostOpen = false
+    render(<StudioOperatorDock />)
+    const toggle = screen.getByTestId('operator-avatar-toggle')
+    expect(screen.queryByTestId('operator-avatar-running-ring')).toBeNull()
+    expect(screen.queryByTestId('operator-avatar-status-dot')).toBeNull()
+    act(() => setOperatorStatus('working'))
+    expect(screen.getByTestId('operator-avatar-running-ring')).toBeTruthy()
+    expect(
+      screen.getByTestId('operator-avatar-status-dot').dataset.status,
+    ).toBe('running')
+    expect(toggle.getAttribute('aria-label')).toContain(
+      'collapsedActivity.running',
+    )
+  })
+
+  it('收着时跑完留完成点；出错留风险点；打开面板即清', () => {
+    hostOpen = false
+    const view = render(<StudioOperatorDock />)
+    act(() => setOperatorStatus('working'))
+    act(() => setOperatorStatus('idle'))
+    expect(screen.queryByTestId('operator-avatar-running-ring')).toBeNull()
+    expect(
+      screen.getByTestId('operator-avatar-status-dot').dataset.status,
+    ).toBe('done')
+
+    act(() => setOperatorStatus('working'))
+    act(() => setOperatorStatus('error', 'boom', null, 'INTERNAL'))
+    const dot = screen.getByTestId('operator-avatar-status-dot')
+    expect(dot.dataset.status).toBe('failed')
+    expect(dot.className).toContain('bg-status-risk')
+
+    hostOpen = true
+    view.rerender(<StudioOperatorDock />)
+    hostOpen = false
+    view.rerender(<StudioOperatorDock />)
+    expect(screen.queryByTestId('operator-avatar-status-dot')).toBeNull()
+  })
+
+  it('开着面板跑完⛔ 不留点：用户就在看着', () => {
+    hostOpen = true
+    const view = render(<StudioOperatorDock />)
+    act(() => setOperatorStatus('working'))
+    act(() => setOperatorStatus('idle'))
+    hostOpen = false
+    view.rerender(<StudioOperatorDock />)
+    expect(screen.queryByTestId('operator-avatar-status-dot')).toBeNull()
   })
 
   /**

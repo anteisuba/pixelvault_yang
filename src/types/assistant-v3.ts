@@ -203,22 +203,46 @@ export const AssistantV3SearchLibraryInputSchema = z.object({
   kind: z.enum(ASSISTANT_OPERATOR_SEARCH_KINDS).nullable(),
 })
 
+/**
+ * 反问（2026-10-14 反问卡多选）。⭐ `multiSelect` / `allowOther` 带 `.describe()`：
+ * 严格模式下它俩必填，没有说明时模型只会填 `false` / `true` 猜（附录 D §6.2）。
+ * ⚠ `image` 是**句柄**不是地址：服务端只把这一轮手上已有的图（卡句柄 / ref-N /
+ *   card-N / 附图名）换成缩略图，⛔ 不收模型写的 URL（外链追踪 / SSRF）。
+ */
 export const AssistantV3AskInputSchema = z.object({
   questions: z.array(
     z.object({
       header: z.string(),
       question: z.string(),
-      multiSelect: z.boolean(),
-      allowOther: z.boolean(),
+      multiSelect: z
+        .boolean()
+        .describe(
+          'true when the creator may pick more than one option (which characters appear, which elements to keep); false when the options exclude each other.',
+        ),
+      allowOther: z
+        .boolean()
+        .describe(
+          'false only for a closed set; true lets them type their own answer.',
+        ),
       options: z.array(
         z.object({
           label: z.string(),
           description: z.string(),
           recommended: z.boolean(),
+          image: z
+            .string()
+            .nullable()
+            .describe(
+              "When the choice is between pictures: the handle of this option's picture (a card handle, ref-N, card-N, or the name of a picture the creator attached). Otherwise null.",
+            ),
         }),
       ),
     }),
   ),
+  why: z
+    .string()
+    .nullable()
+    .describe('One short line on why you are asking, or null.'),
 })
 
 export type AssistantV3AskInput = z.infer<typeof AssistantV3AskInputSchema>

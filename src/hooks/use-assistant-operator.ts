@@ -149,7 +149,6 @@ import {
   describeContextCardProposalText,
   clampPlanAnswer,
   describeLoraSetupDecisionText,
-  describeQuestionAnswerText,
   historyToOperatorMessages,
   historyToPriorSteps,
   readOperatorReferenceProfiles,
@@ -184,7 +183,9 @@ import type { AssistantV3Transcript } from '@/types/assistant-v3'
 import type {
   StudioOperatorAttachment,
   StudioOperatorErrorTrace,
+  StudioOperatorQuestion,
   StudioOperatorQuestionAnswer,
+  StudioOperatorQuestionAnswered,
   StudioOperatorQuestionPrompt,
   StudioOperatorThreadEntry,
 } from '@/types/studio-assistant-operator'
@@ -533,6 +534,17 @@ function resolveVideoCritiqueSource(
  * 少了它们，「用户对这张卡表过态」这件事在下一轮的请求里一个字都不剩，模型于是
  * 每开一条流就重提同一张卡，用户当前那句话一件事都办不成。
  */
+/** 覆盖三选那一支的选项 id 就是 `confirmations` 要带回去的那三个值。 */
+function toConfirmChoice(
+  optionId: string | undefined,
+): AssistantOperatorConfirmChoice | undefined {
+  return (
+    Object.values(ASSISTANT_OPERATOR_CONFIRM_CHOICES) as (string | undefined)[]
+  ).includes(optionId)
+    ? (optionId as AssistantOperatorConfirmChoice)
+    : undefined
+}
+
 function contextCardDecision(
   card: { kind: string; name: string },
   choice: keyof typeof OPERATOR_CONTEXT_CARD_CHOICE_LABELS,
@@ -674,24 +686,22 @@ export interface UseAssistantOperatorResult {
   /** 撤回一条还没轮到的排队消息（§3.1 ㉔）—— 丢弃不发，线程里留一行交代。 */
   cancelQueued(id: string): void
   /**
-   * **问题卡答复**（§3.4）—— 一次一道题；卡消失，时间线落一行「你选了 X」。
+   * **问题卡答复**（§3.4）—— 一次一道题；整组答完卡消失，时间线落「问题 · 答案」。
    *
-   * ⚠ `label` 由面板给（i18n 在那一层）；`asset` / `choice` 决定走哪条回执通道。
+   * ⭐ 面板只交 id（2026-10-14）：文案、缩略图、覆盖三选那一档全由 hook 从卡上取。
+   * ⚠ `optionIds` 空且没有 `otherText` = **跳过**这一题（「跳过」/ Esc）。
    */
   answerQuestion(
     answer: StudioOperatorQuestionAnswer,
-    options: {
-      label: string
-      asset?: StudioOperatorAttachment
+    options?: {
       /** 打字作答时那句话里挂的图（@ / 📎）。 */
       attachments?: readonly StudioOperatorAttachment[]
-      choice?: AssistantOperatorConfirmChoice
     },
   ): void
-  /** 「← 上一题」—— 退一格答复，回到那一道题（56b 切片 4）。 */
+  /** 「全部用推荐」—— 当前与之后每道题都取推荐项，整组一次发（2026-10-14）。 */
+  acceptRecommendedQuestions(): void
+  /** 「← 上一题」—— 退一格答复，回到那一道题、勾选放回（56b 切片 4）。 */
   goBackQuestion(): void
-  /** Esc —— 收起问题块，这一组题作废（56b 切片 4）。 */
-  dismissQuestion(): void
   /** 多步确认卡「开始」（§3.3）—— 带 `planApproved` 重发。 */
   approvePlan(): void
   /** 多步确认卡「一步一步来」—— ⛔ 不发请求，只记下「下一条消息是改计划」。 */
@@ -823,6 +833,8 @@ export function useAssistantOperator(
   /** 卡上就地改参数那几条 step 的文案（§5.2 第二行）—— i18n 只能在 React 层拿。 */
   const tConfirm = useTranslations('StudioOperator.confirm')
   const tAutoReview = useTranslations('StudioOperator.autoReview')
+  /** 问题卡答复那一句（给模型与库读，2026-10-14 起走词表）。 */
+  const tQuestion = useTranslations('StudioOperator.question')
   const tErrors = useTranslations('Errors')
   /**
    * 一句给用户看的失败文案（见 `ASSISTANT_OPERATOR_ERROR_MESSAGE_KEYS` 头注）。
@@ -976,7 +988,14 @@ export function useAssistantOperator(
       let messageSeq = 0
       const messageEntryId = () =>
         `${runKey}:${continuationPrefix}msg-${messageSeq}`
-      appendOperatorPending(messageEntryId())
+      /**
+       * ⚠ 画布接力那一跳（`runKey` 由上一跳带来）：此刻在等的是刚落下的那批改动
+       * 回到服务端、助手接着往下做 —— 占位行写「正在画布上落地…」而不是「正在想…」。
+       */
+      appendOperatorPending(
+        messageEntryId(),
+        options.runKey ? 'landing' : undefined,
+      )
 
       /**
        * 攒着的那份计划（第 2 件）—— `plan` 帧到达时只存不落，由紧跟的
@@ -2182,20 +2201,6 @@ export function useAssistantOperator(
   }, [isCurrentThread])
 
   /**
-   * **问题卡答复**（v2 §3.4 落账规则）—— 三条路一个入口。
-   *
-   * ⭐ 两件事，缺一不可：
-   *  ① 卡消失（钉住区清空）；
-   *  ② 时间线落一行「问题 · 你选了 X」（系统行）——⛔ 不把卡留在时间线里代替
-   *     它：卡钉在输入框上方就是为了不随时间线滚走，留一张滚得走的复本等于
-   *     把这条纪律又还回去了；
-   *  ③ 按载荷选回执通道：覆盖三选 → `confirmations`（⛔ 不靠模型从对话文本里
-   *     猜）；带素材的选项 → @chip 那条管线；其余 → `planAnswers`。
-   *
-   * ⚠ `label` 由面板给（i18n 在那一层）：hook 里没有词表，硬编一句中文会在英文
-   *   界面上原样印出来。
-   */
-  /**
    * **覆盖三选点下「覆盖 / 追加」—— 立刻写进表单**（owner 09-24：点完还要想很久，
    * 应该立马完成）。
    *
@@ -2280,116 +2285,183 @@ export function useAssistantOperator(
     [applyContext],
   )
 
-  const answerQuestion = useCallback(
+  /**
+   * 卡上**一道题**的答复 → 一格「已答」。
+   *
+   * ⭐ 文案、缩略图都**从卡上取**（选项 id → 选项）：卡在 store 里的这一份是唯一
+   * 有原文的地方，⛔ 不信面板拼的字（2026-10-14 起面板只交 id）。
+   * ⭐ **答复自带题面与选项文案**（v2 §3.4 落账规则，2026-09-12 真机 bug）：
+   * `questionId` / `optionIds` 是上一条流现编的合成 id，而服务端零会话态 —— 下一轮
+   * 它反查不回这道题问的是什么。真机：点完「角色设计展示立绘」，模型连着四轮重问。
+   * ⚠ 覆盖三选那一支换成**合成 id**（`overwrite:<field>`）：它的回执走
+   *   `confirmations`，结账那一跳按这个 id 认出两者说的是同一次选择。
+   */
+  const toAnswered = useCallback(
     (
+      prompt: StudioOperatorQuestionPrompt,
+      question: StudioOperatorQuestion,
       answer: StudioOperatorQuestionAnswer,
-      options: {
-        /** 系统行上那句「你选了 X」里的 X。 */
-        label: string
-        /** 选项带缩略图时，被点中的那一张 —— 走 @chip 管线端上去。 */
-        asset?: StudioOperatorAttachment
-        /** 打字作答时那句话里挂的图（@ / 📎）。 */
-        attachments?: readonly StudioOperatorAttachment[]
-        /** 覆盖三选时选的那一档。 */
-        choice?: AssistantOperatorConfirmChoice
-      },
-    ) => {
-      if (!isCurrentThread()) return
-      const prompt = getOperatorState().question
-      if (!prompt) return
-      /**
-       * ⭐ **当前是第几题 = 已答几道**（56b 切片 4）。⛔ 不另存一个下标。
-       */
-      const current = prompt.questions[prompt.answers.length]
-      if (!current) return
-      const question = { ...prompt, question: current }
-      /**
-       * ⭐ **答复自带题面与选项文案**（v2 §3.4 落账规则，2026-09-12 真机 bug）。
-       *
-       * `questionId` / `optionIds` 是上一条流现编的合成 id（`question-1` /
-       * `option-1-1`），而服务端零会话态 —— 下一轮它反查不回这道题问的是什么、
-       * 那个选项写的是什么，于是「用户已经选过了」这件事对模型不存在。真机表现：
-       * 点完「角色设计展示立绘」，模型连着四轮重问「画面以哪位角色为主体」，
-       * 顺带让 `set_prompt` 一直停在同一道问题上（提示词一个字都没写进去）。
-       * ⚠ 题面与文案**只在这里取一次**：卡在 store 里的这一份是唯一有原文的地方
-       *   （面板那一层只有 i18n 文案，⛔ 不在那儿拼第二份）。
-       * ⚠ 三条路（缩略图 / 覆盖三选 / 普通）**共用这一份**：三条都要在对话里留下
-       *   同一句自包含的话，否则「用户是从哪条路答的」会决定模型记不记得住。
-       */
-      const labels = answer.optionIds.flatMap((optionId) => {
-        const option = question.question.options.find(
+    ): {
+      answered: StudioOperatorQuestionAnswered
+      assets: StudioOperatorAttachment[]
+    } => {
+      const picked = answer.optionIds.flatMap((optionId) => {
+        const option = question.options.find(
           (candidate) => candidate.id === optionId,
         )
-        return option ? [option.label] : []
+        return option ? [option] : []
       })
-      const answered: AssistantOperatorPlanAnswer = {
-        ...answer,
+      const labels = picked.map((option) => option.label)
+      const otherText = answer.otherText?.trim()
+      return {
+        answered: {
+          header: question.header,
+          labels,
+          answer: {
+            questionId: prompt.overwrite
+              ? overwriteAnswerId(prompt.overwrite.field)
+              : answer.questionId,
+            optionIds: picked.map((option) => option.id),
+            ...(otherText ? { otherText } : {}),
+            question: question.question,
+            ...(labels.length ? { optionLabels: labels } : {}),
+          },
+        },
         /**
-         * ⚠ 覆盖三选那一支换成**合成 id**（`overwrite:<field>`）：它的回执走
-         * `confirmations`，而这条 user 消息走对话 —— 结账那一跳按这个 id 认出
-         * 两者说的是同一次选择，⛔ 不把一次覆盖记成两条「决定」。
+         * 带缩略图的选项 → 附件（**四入口那条同一条 chip 管线**，§7）：服务端的
+         * 准入名单只认 `mentionedAssets`，⛔ 没有第二条「被选中的候选」通道。
          */
-        ...(question.overwrite
-          ? { questionId: overwriteAnswerId(question.overwrite.field) }
-          : {}),
-        question: question.question.question,
-        ...(labels.length ? { optionLabels: labels } : {}),
+        assets: picked.flatMap((option) =>
+          option.assetUrl
+            ? [
+                {
+                  id: option.id,
+                  url: option.assetUrl,
+                  label: option.label,
+                  kind: 'image' as const,
+                  thumbnailUrl: option.assetUrl,
+                },
+              ]
+            : [],
+        ),
       }
-      /**
-       * ⭐ **这一行同时是一条 user 消息**（2026-09-12 真机 bug 的根）：从前答复
-       * 只以 `planAnswers` 随**当次**请求上送，再下一轮就什么都不剩了 —— 时间线
-       * 那一行不进 `messages`、结账又只在 `done` 那一轮写，于是三轮之后
-       * 「用户已经答过」这件事在系统里没有任何一处说得出口（真机：同一道
-       * 「2D 手绘还是 3D 渲染」被问了三遍）。
-       */
-      const userText = describeQuestionAnswerText(
-        question.question.question,
-        options.label,
-      )
-      /**
-       * ⚠ 缩略图那一支落的是**用户行**而不是系统行：服务端的准入名单
-       * （`mentionedAssets`）读的是**最后一条用户消息的附件**（见
-       * `buildMentionedAssets`）—— 落成系统行的话那张图根本到不了服务端，
-       * 而「你说的是哪一张」问完之后它是这一轮唯一要紧的东西。
-       * ⚠ 那一行本身就是「你选了 X」：它带着被选中的缩略图，⛔ 不再额外落一条
-       *   系统行（同一句话说两遍）。
-       */
-      if (options.asset) {
-        setOperatorQuestion(null)
-        addOperatorMention(options.asset)
-        appendOperatorEntry({
-          kind: 'user',
-          id: nextOperatorEntryId('user'),
-          // ⚠ 正文自包含（`已选择「X」（针对问题「Y」）`）：三轮之后读到这一行
-          //   的地方没有那张卡，只有这句话。
-          text: userText,
-          attachments: [options.asset],
-        })
-        void run({})
+    },
+    [],
+  )
+
+  /**
+   * 一道题答成了什么 —— **给人读的那半句**（小标签 / 系统行「问题 · 答案」）。
+   * 选项与补的那一句按语言拼成一串；什么都没有 = 跳过。
+   */
+  const describeAnswerLabel = useCallback(
+    (item: StudioOperatorQuestionAnswered): string => {
+      const other = item.answer.otherText?.trim()
+      const parts = [...item.labels, ...(other ? [other] : [])]
+      return parts.length
+        ? new Intl.ListFormat(locale, { type: 'conjunction' }).format(parts)
+        : tQuestion('skipped')
+    },
+    [locale, tQuestion],
+  )
+
+  /**
+   * 一道题答成了什么 —— **给模型与库读的那一整句**（自包含：带题面）。
+   *
+   * ⭐ 题面写在句子里，⛔ 不是「你选了 X」：这句话要去的地方是三轮之后的一段对话，
+   * 那里没有卡。⭐ 走 i18n（2026-10-14）：从前写死中文，缩略图那一支还把它当用户
+   * 气泡正文落下，英文 / 日文界面上原样印出中文。
+   * ⚠ 跳过也要说出口：从前 Esc 作废整组一行不落，模型下一轮不知道用户拒答了。
+   */
+  const describeAnswerText = useCallback(
+    (item: StudioOperatorQuestionAnswered): string => {
+      const question = (item.answer.question ?? '').trim()
+      const other = item.answer.otherText?.trim() ?? ''
+      const labels = item.labels.length
+        ? new Intl.ListFormat(locale, { type: 'conjunction' }).format(
+            item.labels.map((label) =>
+              tQuestion('quote', { label: label.trim() }),
+            ),
+          )
+        : ''
+      if (labels && other)
+        return tQuestion('answerBoth', { labels, other, question })
+      if (labels) return tQuestion('answerText', { labels, question })
+      if (other) return tQuestion('answerOther', { other, question })
+      return tQuestion('skippedText', { question })
+    },
+    [locale, tQuestion],
+  )
+
+  /**
+   * 记下一格或几格答复：还有题就进下一题，整组答完（或这一句带了图）才落账、发一次。
+   *
+   * ⭐ 整组答完时两件事缺一不可：卡消失（钉住区清空）+ 时间线落「问题 · 答案」
+   * 系统行 —— ⛔ 不把卡留在时间线里代替它（卡钉在输入框上方就是为了不随时间线滚走）。
+   *
+   * ⭐ **一组题一次答完再发**（56b 切片 4）：从前一帧一题，每答一题都要重跑一整轮
+   * 工具环。已答的那几道**留在 prompt 里而不是时间线里**：「← 上一题」只要 pop 一格。
+   * ⚠ **带图的答复当场收组**：服务端看图的准入名单只读**最后一条用户消息**的附件
+   * （`buildMentionedAssets`），所以这一句必须落成那条用户行、并且马上发。没答的题
+   * 助手要问自然会再问。缩略图选项与输入框里挂的图走的是同一条。
+   * ⚠ 覆盖三选（单题）点的是三档之一 → `confirmations` 回执并当场写表单；跳过 =
+   * 「保留」；打字作答照旧当一句回答发（⛔ 不猜它想覆盖还是追加）。
+   */
+  const settleQuestion = useCallback(
+    (
+      prompt: StudioOperatorQuestionPrompt,
+      added: readonly {
+        answered: StudioOperatorQuestionAnswered
+        assets: readonly StudioOperatorAttachment[]
+      }[],
+      attachments: readonly StudioOperatorAttachment[],
+    ) => {
+      const answeredAll = [
+        ...prompt.answers,
+        ...added.map((item) => item.answered),
+      ]
+      const carried = [...attachments]
+      for (const item of added) {
+        for (const asset of item.assets) {
+          addOperatorMention(asset)
+          if (!carried.some((candidate) => candidate.id === asset.id))
+            carried.push(asset)
+        }
+      }
+      if (
+        answeredAll.length < prompt.questions.length &&
+        carried.length === 0
+      ) {
+        // ⚠ 勾选只属于当前题：进下一题就清空。
+        setOperatorQuestion({ ...prompt, answers: answeredAll, checked: [] })
         return
       }
+      setOperatorQuestion(null)
 
-      if (question.overwrite && options.choice) {
-        setOperatorQuestion(null)
+      const last = answeredAll.at(-1)
+      const choice =
+        prompt.overwrite && last
+          ? (toConfirmChoice(last.answer.optionIds[0]) ??
+            (last.answer.optionIds.length === 0 && !last.answer.otherText
+              ? ASSISTANT_OPERATOR_CONFIRM_CHOICES.keep
+              : undefined))
+          : undefined
+      if (prompt.overwrite && last && choice) {
+        const subject = `${last.header} · ${describeAnswerLabel(last)}`
         appendOperatorEntry({
           kind: 'system',
           id: nextOperatorEntryId('sys'),
           code: 'questionAnswered',
           // Q8：留「问题 · 答案」一行，回看知道当时在选什么。
-          subject: `${question.question.header} · ${options.label}`,
-          userText,
-          answered,
+          subject,
+          userText: describeAnswerText(last),
+          answered: last.answer,
         })
-        const applied = applyOverwriteChoice(
-          question.overwrite,
-          options.choice,
-          `${question.question.header} · ${options.label}`,
-        )
+        const applied = applyOverwriteChoice(prompt.overwrite, choice, subject)
         void run({
           confirmations: [
             {
-              field: question.overwrite.field,
-              choice: options.choice,
+              field: prompt.overwrite.field,
+              choice,
               ...(applied ? { applied: true } : {}),
             },
           ],
@@ -2398,45 +2470,16 @@ export function useAssistantOperator(
       }
 
       /**
-       * ⭐ **一组题一次答完再发**（56b 切片 4）。
-       *
-       * 🔬 从前一帧一题，于是每答一题都要重跑一整轮工具环 —— 三道题三轮，而
-       * 后两道的答案与前一道无关。现在答完一题只是**记一格**：还有题就进下一题，
-       * 整组答完才带着全部 `planAnswers` 发一次。
-       * ⚠ 已答的那几道**留在 prompt 里而不是时间线里**：这样「← 上一题」只要
-       * pop 一格，⛔ 不用从线程里删条目（删条目那条路要处理「删到哪一条为止」，
-       * 而那正是位置计算最容易错的地方）。
-       * ⚠ 整组答完那一刻一次性落成几行系统行：它们各自带着自包含的 `userText`，
-       * 进 `messages`、进库、刷新之后还在。
+       * ⭐ **这几行同时是 user 消息**（2026-09-12 真机 bug 的根）：它们各自带着自包含
+       * 的 `userText`，进 `messages`、进库、刷新之后还在 —— 只随当次请求上送
+       * `planAnswers` 的话，再下一轮「用户已经答过」就无处可说。
        */
-      const answeredAll = [
-        ...prompt.answers,
-        { header: current.header, label: options.label, answer: answered },
-      ]
-      /**
-       * ⚠ **带图的答复当场收组**：服务端看图的准入名单只读**最后一条用户消息**的
-       * 附件（`buildMentionedAssets`），所以这一句必须落成那条用户行、并且马上发。
-       * 留到组末的话，后面那几道题一答，它就不再是最后一条了。没答的题助手要问
-       * 自然会再问。
-       */
-      const carried = options.attachments ?? []
-      if (
-        answeredAll.length < prompt.questions.length &&
-        carried.length === 0
-      ) {
-        setOperatorQuestion({ ...prompt, answers: answeredAll })
-        return
-      }
-      setOperatorQuestion(null)
       for (const [index, item] of answeredAll.entries()) {
         if (carried.length > 0 && index === answeredAll.length - 1) {
           appendOperatorEntry({
             kind: 'user',
             id: nextOperatorEntryId('user'),
-            text: describeQuestionAnswerText(
-              item.answer.question ?? '',
-              item.label,
-            ),
+            text: describeAnswerText(item),
             attachments: carried,
           })
           continue
@@ -2445,11 +2488,8 @@ export function useAssistantOperator(
           kind: 'system',
           id: nextOperatorEntryId('sys'),
           code: 'questionAnswered',
-          subject: `${item.header} · ${item.label}`,
-          userText: describeQuestionAnswerText(
-            item.answer.question ?? '',
-            item.label,
-          ),
+          subject: `${item.header} · ${describeAnswerLabel(item)}`,
+          userText: describeAnswerText(item),
           answered: item.answer,
         })
       }
@@ -2458,32 +2498,73 @@ export function useAssistantOperator(
         planApproved: true,
       })
     },
-    [run, applyOverwriteChoice, isCurrentThread],
+    [run, applyOverwriteChoice, describeAnswerLabel, describeAnswerText],
   )
+
+  const answerQuestion = useCallback(
+    (
+      answer: StudioOperatorQuestionAnswer,
+      options: {
+        /** 打字作答时那句话里挂的图（@ / 📎）。 */
+        attachments?: readonly StudioOperatorAttachment[]
+      } = {},
+    ) => {
+      if (!isCurrentThread()) return
+      const prompt = getOperatorState().question
+      if (!prompt) return
+      /** ⭐ **当前是第几题 = 已答几道**（56b 切片 4）。⛔ 不另存一个下标。 */
+      const current = prompt.questions[prompt.answers.length]
+      if (!current) return
+      settleQuestion(
+        prompt,
+        [toAnswered(prompt, current, answer)],
+        options.attachments ?? [],
+      )
+    },
+    [isCurrentThread, settleQuestion, toAnswered],
+  )
+
+  /**
+   * **「全部用推荐」**（2026-10-14）—— 当前与之后每道题都取推荐项，整组一次发。
+   * ⚠ 没有推荐项的那道算跳过（⛔ 不替用户挑第一个：那不是「推荐」）。
+   */
+  const acceptRecommendedQuestions = useCallback(() => {
+    if (!isCurrentThread()) return
+    const prompt = getOperatorState().question
+    if (!prompt) return
+    const rest = prompt.questions.slice(prompt.answers.length)
+    if (rest.length === 0) return
+    settleQuestion(
+      prompt,
+      rest.map((question) => {
+        const recommended = question.options.find(
+          (option) => option.recommended === true,
+        )
+        return toAnswered(prompt, question, {
+          questionId: question.id,
+          optionIds: recommended ? [recommended.id] : [],
+        })
+      }),
+      [],
+    )
+  }, [isCurrentThread, settleQuestion, toAnswered])
 
   /**
    * **「← 上一题」**（56b 切片 4）—— 把最后一格答复退回来，回到那一道题。
    *
-   * ⚠ 第一题上不画这颗（面板那一侧判），所以这里**只做退一格**：⛔ 不在这里
-   * 再判一次「能不能退」—— 两处判据迟早会分叉。空了就是空了，pop 一个空数组
-   * 什么都不会发生。
+   * ⭐ 那一题当时勾的选项**放回 `checked`**：回去是为了改，不是重做一遍。
+   * ⚠ 第一题上不画这颗（面板那一侧判），所以这里**只做退一格**。
    */
   const goBackQuestion = useCallback(() => {
     if (!isCurrentThread()) return
     const prompt = getOperatorState().question
-    if (!prompt || prompt.answers.length === 0) return
-    setOperatorQuestion({ ...prompt, answers: prompt.answers.slice(0, -1) })
-  }, [isCurrentThread])
-
-  /**
-   * **Esc 收起问题块**（56b 切片 4）—— 这一组题就此作废，输入框回到普通发言。
-   *
-   * ⚠ 已经答过的那几道**跟着一起作废**：只留一半的答案发上去，模型会以为用户
-   * 只关心那一半。⛔ 不落任何系统行 —— 什么都没定下来。
-   */
-  const dismissQuestion = useCallback(() => {
-    if (!isCurrentThread()) return
-    setOperatorQuestion(null)
+    const popped = prompt?.answers.at(-1)
+    if (!prompt || !popped) return
+    setOperatorQuestion({
+      ...prompt,
+      answers: prompt.answers.slice(0, -1),
+      checked: popped.answer.optionIds,
+    })
   }, [isCurrentThread])
 
   /**
@@ -3625,8 +3706,8 @@ export function useAssistantOperator(
     stop,
     cancelQueued,
     answerQuestion,
+    acceptRecommendedQuestions,
     goBackQuestion,
-    dismissQuestion,
     approvePlan,
     declinePlan,
     revisePlan,

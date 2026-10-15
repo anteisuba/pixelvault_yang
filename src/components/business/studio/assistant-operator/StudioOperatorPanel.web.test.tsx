@@ -598,17 +598,30 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
         'MISSING_API_KEY',
       ),
     )
-    fireEvent.click(screen.getByTestId('operator-error-action'))
+    fireEvent.click(screen.getByTestId('operator-error-action-addKey'))
     expect(screen.getByTestId('quick-setup')).toHaveTextContent('Gemini')
   })
 
   it('⭐ 其他错误给「重试」：发一句接着做完，⛔ 不原样重放上一条', () => {
     renderPanel()
     act(() => store.setOperatorStatus('error', 'boom', null, 'INTERNAL'))
-    const retry = screen.getByTestId('operator-error-action')
+    const retry = screen.getByTestId('operator-error-action-retry')
     expect(retry).toHaveTextContent('error.retry')
     fireEvent.click(retry)
     expect(send).toHaveBeenCalledWith('error.retryPrompt')
+  })
+
+  it('⭐ 错误条带「换个模型」：点下去打开输入框底下那颗模型 chip 的选单（§9.1）', () => {
+    renderPanel()
+    act(() => store.setOperatorStatus('error', 'boom', null, 'INTERNAL'))
+    expect(screen.getByTestId('operator-model-chip')).not.toHaveAttribute(
+      'data-open',
+    )
+    fireEvent.click(screen.getByTestId('operator-error-action-switchModel'))
+    expect(screen.getByTestId('operator-model-chip')).toHaveAttribute(
+      'data-open',
+      'true',
+    )
   })
 
   it('⭐ 默认宿主：输入框里的图跟这条消息一起发出去，发完清空', () => {
@@ -979,7 +992,7 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     },
   )
 
-  it('③ 问题卡的缩略图那一支：点一张走 `answerQuestion` 并带上素材', () => {
+  it('③ 问题卡的缩略图那一支：画出缩略图，点一张走 `answerQuestion`（素材由 hook 从卡上取）', () => {
     store.setOperatorQuestion({
       id: 'ask-2',
       questions: [
@@ -1012,11 +1025,49 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     const grid = screen.getAllByTestId('operator-question-option')
     expect(grid).toHaveLength(2)
     fireEvent.click(grid[1] as HTMLElement)
+    expect(grid[1]?.querySelector('img')?.getAttribute('src')).toContain(
+      'b.png',
+    )
     expect(answerQuestion).toHaveBeenCalledTimes(1)
-    expect(answerQuestion.mock.calls[0]?.[1]).toMatchObject({
-      label: '结果②',
-      asset: { id: 'gen-2', url: 'https://cdn.test/b.png' },
+    // ⭐ 面板只交 id（2026-10-14）：缩略图 → @chip 由 hook 从选项上取。
+    expect(answerQuestion.mock.calls[0]?.[0]).toEqual({
+      questionId: 'q2',
+      optionIds: ['gen-2'],
     })
+  })
+
+  it('⭐ 问题块开着时打字作答：已勾的选项一起带上（「选 A + 补一句」并存）', () => {
+    store.setOperatorQuestion({
+      id: 'ask-multi',
+      questions: [
+        {
+          id: 'who',
+          header: '出场',
+          question: '这一镜谁出场？',
+          multiSelect: true,
+          allowOther: true,
+          options: [
+            { id: 'harry', label: '哈利', description: '主角' },
+            { id: 'ron', label: '罗恩', description: '朋友' },
+          ],
+        },
+      ],
+      answers: [],
+    })
+    renderPanel()
+    fireEvent.click(screen.getAllByRole('checkbox')[1]!)
+    expect(store.getOperatorState().question?.checked).toEqual(['ron'])
+    const editor = screen.getByRole('textbox', {
+      name: '描述画面，或把参考图挂进来…',
+    })
+    editor.textContent = '罗恩站在后面'
+    fireEvent.input(editor)
+    fireEvent.keyDown(editor, { key: 'Enter' })
+    expect(send).not.toHaveBeenCalled()
+    expect(answerQuestion).toHaveBeenCalledWith(
+      { questionId: 'who', optionIds: ['ron'], otherText: '罗恩站在后面' },
+      { attachments: [] },
+    )
   })
 
   it('④ 规则薄卡长在时间线里；「查看规则」开设置弹层的规则页', () => {
@@ -1065,11 +1116,18 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
  * 没变 —— 组件级用例永远发现不了这种失败。
  */
 describe('StudioOperatorPanel · 正文与加载态', () => {
-  it('时间线容器是 B3 那颗 role=log 的 polite live region', () => {
+  it('时间线容器是 role=log、aria-live=off；播报只走隐藏的 role=status（§9.1）', () => {
     renderPanel()
     const thread = screen.getByTestId('operator-thread')
     expect(thread).toHaveAttribute('role', 'log')
-    expect(thread).toHaveAttribute('aria-live', 'polite')
+    expect(thread).toHaveAttribute('aria-live', 'off')
+    const live = screen.getByTestId('operator-live-status')
+    expect(live).toHaveAttribute('role', 'status')
+    expect(live).toHaveTextContent('')
+    act(() => store.setOperatorStatus('working'))
+    expect(live).toHaveTextContent('start')
+    act(() => store.setOperatorStatus('error', 'boom', null, 'INTERNAL'))
+    expect(live).toHaveTextContent('failed')
     // 滚的仍然是这一层 —— 换容器不许把滚动挪走。
     expect(thread.className).toContain('overflow-y-auto')
   })
@@ -1195,6 +1253,25 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
       runKey,
     )
   }
+
+  it('⭐ §9.1：跑着的那一步写人话动词（翻自己的库 =「查素材」），⛔ 不读模型起的标题', () => {
+    store.setOperatorStatus('working')
+    pushStep('run-live', {
+      id: 'step-1',
+      title: '模型自己起的一句很长的标题',
+      tool: 'search_assets',
+      verb: 'research',
+      status: 'running',
+      payload: { query: '夜景' },
+      inverse: {},
+    })
+    renderPanel()
+    const running = screen.getByTestId('operator-tool-group-running')
+    expect(running).toHaveTextContent('running.library')
+    expect(running).not.toHaveTextContent('模型自己起的')
+    // 运行中自动展开。
+    expect(screen.getByTestId('operator-tool-group').dataset.open).toBe('true')
+  })
 
   it('⭐ 跳过的重复步不进过程：展开也读不到「刚才做过了」（2026-09-24）', () => {
     pushStep('run-skip', {
@@ -1502,7 +1579,11 @@ it.each(['append', 'overwrite', 'keep'] as const)(
         .find((node) => node.dataset.optionId === choice)!,
     )
     expect(answerQuestion).toHaveBeenCalledTimes(1)
-    expect(answerQuestion.mock.calls[0]?.[1]).toMatchObject({ choice })
+    // ⭐ 选项 id 就是 choice：hook 认出它走 `confirmations`（见 hook 测试）。
+    expect(answerQuestion.mock.calls[0]?.[0]).toEqual({
+      questionId: 'overwrite-prompt',
+      optionIds: [choice],
+    })
   },
 )
 

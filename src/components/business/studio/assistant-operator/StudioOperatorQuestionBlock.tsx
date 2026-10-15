@@ -1,47 +1,49 @@
 'use client'
 
 /**
- * **问题块**（D12 A 定稿 · S3 / S4 · 对标 Claude 的提问框）。
+ * **问题块**（D12 A 定稿 · S3 / S4 · 对标 Claude 的提问框；2026-10-14 补多选与完整交互）。
  *
  * ── 形状 ────────────────────────────────────────────────────────
  * 问题**直接占用输入框内部**（P2：⛔ 不再套第二层框）：
  *  · 已答的题留一行「问题 · 答案」，最近那一行可点「改」回去（Q8）；
  *  · 问题一句加粗，**只有多题才**在右上写「2 / 2」（Q4）；
- *  · 选项竖排一行一个：编号 + 标签 + 一句灰色说明；推荐只用标签，**不预选**（Q5）；
- *  · 「其他」就是下面那一行输入框：问题开着时打字即回答（Q6），⛔ 不再就地展开
- *    第二个输入框。
+ *  · 选项竖排一行一个：编号（多选是勾选框）+ 标签 + 一句灰色说明；推荐排第一、
+ *    只用标签，**不预选**（Q5）；
+ *  · 「其他…」一行（`allowOther` 时）只是把焦点交给下面的输入框：输入框就是
+ *    「其他」（Q6），⛔ 不就地展开第二个输入框；
+ *  · 底下一行「跳过 · 全部用推荐」，多选题右边一颗「确定（N）」。
  *
- * ── 三条硬纪律 ──────────────────────────────────────────────────
- * ⛔ **没有「确定」按钮**：点任一行即选中并进下一题。
+ * ── 纪律 ────────────────────────────────────────────────────────
+ * ⭐ **单选没有「确定」**：点一行即选中并进下一题。**多选**是唯一的例外（owner
+ *    2026-10-14 拍板 4A）：勾选 + 「确定（N）」。覆盖三选永远按单选走。
  * ⛔ **不进时间线**：未答的问题是当下唯一挡路的东西，滚走了就等于问了个寂寞。
- * ⚠ **键盘**：`1`–`4` 直选 · `↑`/`↓` 移动 + `Enter` 选中 · `Esc` 收起只打字。
- *    键盘落在**块自己**身上（块出现时自动聚焦）：落在输入框上的话，用户打的
- *    「1」会变成一次选择。
+ * ⚠ **勾选住在 store**（`prompt.checked`）：收放面板会卸载这颗组件。
+ * ⚠ **键盘**：`↑`/`↓` 移动 · `1`–`9` 直选（多选 = 勾）· `空格` 选中 / 勾选 ·
+ *    `Enter` 单选选中、多选确定 · `Esc` 跳过这一题。块出现时焦点落在第一个选项上
+ *    （落在输入框上的话，用户打的「1」会变成一次选择）。
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import Image from 'next/image'
-import { useTranslations } from 'next-intl'
+import { useFormatter, useTranslations } from 'next-intl'
 
-import {
-  ASSISTANT_OPERATOR_CONFIRM_CHOICES,
-  type AssistantOperatorConfirmChoice,
-} from '@/constants/assistant-operator'
 import {
   DURATION_MS,
   LIQUID_TIMING,
   motionTransition,
 } from '@/constants/motion'
+import { Check } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import type {
   StudioOperatorQuestionAnswer,
+  StudioOperatorQuestionAnswered,
   StudioOperatorQuestionOption,
   StudioOperatorQuestionPrompt,
 } from '@/types/studio-assistant-operator'
 
-/** 数字直选只到 4 —— 选项本来就最多 4 个（`ASSISTANT_PLAN_CARD_LIMITS`）。 */
-const DIGIT_KEYS = ['1', '2', '3', '4']
+/** 数字直选到 9 —— 选项最多 6 个（`ASSISTANT_PLAN_CARD_LIMITS`），9 是键盘的头。 */
+const DIGIT_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9']
 
 /**
  * 推荐项排第一。
@@ -59,63 +61,53 @@ function orderOptions(
   return [picked, ...options.filter((_, at) => at !== index)]
 }
 
-/** 覆盖三选那一支的选项 id 就是 `confirmations` 要带回去的那三个值。 */
-function toConfirmChoice(
-  optionId: string,
-): AssistantOperatorConfirmChoice | undefined {
-  return (
-    Object.values(ASSISTANT_OPERATOR_CONFIRM_CHOICES) as string[]
-  ).includes(optionId)
-    ? (optionId as AssistantOperatorConfirmChoice)
-    : undefined
-}
-
-export interface StudioOperatorQuestionAnswerPayload {
-  /** 小标签上写的那句「你选了 X」里的 X。 */
-  label: string
-  /** 覆盖三选时选的那一档 —— 走 `confirmations` 回执。 */
-  choice?: AssistantOperatorConfirmChoice
-  /** 缩略图那一支被点中的选项 id —— 面板据它取素材，走 @chip 管线。 */
-  assetOptionId?: string
-}
-
 interface StudioOperatorQuestionBlockProps {
   prompt: StudioOperatorQuestionPrompt
-  onAnswer(
-    answer: StudioOperatorQuestionAnswer,
-    payload: StudioOperatorQuestionAnswerPayload,
-  ): void
+  /** 输入框里有没有字 —— 多选一项没勾时，有字也能按「确定」（选项 + 补的那句并存）。 */
+  hasDraft: boolean
+  /** 单选选中一项，或「跳过」（`optionIds` 空）。 */
+  onAnswer(answer: StudioOperatorQuestionAnswer): void
+  /** 多选「确定」—— 面板把输入框里那句一起带上。 */
+  onConfirm(optionIds: readonly string[]): void
+  /** 勾选变了（多选）—— 写回 store。 */
+  onCheckedChange(optionIds: readonly string[]): void
+  /** 「全部用推荐」。 */
+  onUseRecommended(): void
   /** 「← 上一题」——第一题上不画（判据在这颗组件里，⛔ 不在 hook 里再判一次）。 */
   onBack(): void
-  /** Esc —— 收起问题块只打字。 */
-  onDismiss(): void
+  /** 「其他…」—— 把焦点交给输入框。 */
+  onOther(): void
 }
 
 export function StudioOperatorQuestionBlock({
   prompt,
+  hasDraft,
   onAnswer,
+  onConfirm,
+  onCheckedChange,
+  onUseRecommended,
   onBack,
-  onDismiss,
+  onOther,
 }: StudioOperatorQuestionBlockProps) {
   const t = useTranslations('StudioOperator')
+  const format = useFormatter()
   const reduceMotion = useReducedMotion()
   /** ⭐ 当前是第几题 = 已答几道（⛔ 不另存一个下标，见 prompt 的头注）。 */
   const step = prompt.answers.length
   const question = prompt.questions[step]
   const total = prompt.questions.length
-  const containerRef = useRef<HTMLDivElement>(null)
-  /** 键盘高亮落在第几行（`-1` = 还没动过键盘）。 */
-  const [cursor, setCursor] = useState(-1)
+  const rowRefs = useRef<(HTMLDivElement | null)[]>([])
+  /** 键盘高亮落在第几行（选项之后那一行是「其他…」）。 */
+  const [cursor, setCursor] = useState(0)
   /**
-   * 点过一次了 —— 从这一刻起不可再点（2026-09-07 真机）。
+   * 交过一次了 —— 从这一刻起不可再点（2026-09-07 真机）。
    * ⚠ 块答完就换题，但**换题是下一帧的事**：少了这一格，用户连点两下会把同一题
    * 答两遍（第二下落在还没换掉的那一题上）。
    */
   const [submitted, setSubmitted] = useState(false)
   /**
-   * 刚被选中的那一行（owner 2026-10-07 动效第 2 批「点一行就进下一题」）：
-   * 那一行先变成近黑实底、编号键帽按下去，停一拍再换题 —— 用户看得见自己点中了
-   * 哪一行。减少动效时不停这一拍，直接提交。
+   * 单选刚被选中的那一行（owner 2026-10-07 动效第 2 批「点一行就进下一题」）：
+   * 那一行先变成近黑实底、编号键帽按下去，停一拍再换题。减少动效时不停这一拍。
    */
   const [picked, setPicked] = useState<string | null>(null)
   const pickTimer = useRef<number | null>(null)
@@ -127,45 +119,131 @@ export function StudioOperatorQuestionBlock({
   )
 
   /**
-   * ⭐ **块出现时自己拿走焦点**：键盘 1–4 / ↑↓ 要生效，焦点就不能留在输入框上。
+   * ⭐ **块出现时焦点落在第一个选项上**：键盘 1–9 / ↑↓ 要生效，焦点就不能留在
+   * 输入框上；落在选项上读屏也能直接念出「单选 / 复选，第 1 项」。
    * ⚠ 换一题是**换一次挂载**（面板给这颗组件的 `key` 带着题序）：临时态因此自己
    * 就清了，⛔ 不用在 effect 里 setState。
    */
   useEffect(() => {
-    containerRef.current?.focus()
+    rowRefs.current[0]?.focus()
   }, [])
 
   if (!question) return null
 
   const options = orderOptions(question.options)
+  /** 覆盖三选永远单选：三档互斥，回执只带一档。 */
+  const multi = question.multiSelect && !prompt.overwrite
+  const allowOther = question.allowOther !== false
+  const rowCount = options.length + (allowOther ? 1 : 0)
+  const checked = new Set(prompt.checked ?? [])
+  const checkedIds = options
+    .filter((option) => checked.has(option.id))
+    .map((option) => option.id)
+  const canConfirm = checkedIds.length > 0 || hasDraft
+  const hasRecommended = prompt.questions
+    .slice(step)
+    .some((item) => item.options.some((option) => option.recommended))
+
+  const moveTo = (index: number) => {
+    setCursor(index)
+    rowRefs.current[index]?.focus()
+  }
+
+  const submit = (answer: StudioOperatorQuestionAnswer) => {
+    if (submitted) return
+    setSubmitted(true)
+    onAnswer(answer)
+  }
 
   const pickOption = (option: StudioOperatorQuestionOption) => {
     if (submitted) return
     setSubmitted(true)
     setPicked(option.id)
-    const choice = toConfirmChoice(option.id)
-    const submit = () =>
-      onAnswer(
-        { questionId: question.id, optionIds: [option.id] },
-        {
-          label: option.label,
-          ...(choice ? { choice } : {}),
-          ...(option.assetUrl ? { assetOptionId: option.id } : {}),
-        },
-      )
+    const send = () =>
+      onAnswer({ questionId: question.id, optionIds: [option.id] })
     if (reduceMotion) {
-      submit()
+      send()
       return
     }
     pickTimer.current = window.setTimeout(() => {
       pickTimer.current = null
-      submit()
+      send()
     }, DURATION_MS.fast)
+  }
+
+  const toggleOption = (option: StudioOperatorQuestionOption) => {
+    if (submitted) return
+    const next = checked.has(option.id)
+      ? checkedIds.filter((id) => id !== option.id)
+      : [...checkedIds, option.id]
+    onCheckedChange(
+      options.filter((item) => next.includes(item.id)).map((item) => item.id),
+    )
+  }
+
+  const choose = (option: StudioOperatorQuestionOption) =>
+    multi ? toggleOption(option) : pickOption(option)
+
+  const confirm = () => {
+    if (submitted || !canConfirm) return
+    setSubmitted(true)
+    onConfirm(checkedIds)
+  }
+
+  const skip = () => submit({ questionId: question.id, optionIds: [] })
+
+  const applyRecommended = () => {
+    if (submitted) return
+    setSubmitted(true)
+    onUseRecommended()
+  }
+
+  const onRowKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      skip()
+      return
+    }
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      moveTo(
+        event.key === 'ArrowDown'
+          ? (cursor + 1) % rowCount
+          : (cursor <= 0 ? rowCount : cursor) - 1,
+      )
+      return
+    }
+    const option = options[cursor]
+    if (event.key === ' ') {
+      event.preventDefault()
+      if (option) choose(option)
+      else onOther()
+      return
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      if (!option) onOther()
+      else if (multi) confirm()
+      else pickOption(option)
+      return
+    }
+    const digit = DIGIT_KEYS.indexOf(event.key)
+    const target = options[digit]
+    if (digit >= 0 && target) {
+      event.preventDefault()
+      setCursor(digit)
+      choose(target)
+    }
+  }
+
+  const answerLabel = (item: StudioOperatorQuestionAnswered) => {
+    const other = item.answer.otherText?.trim()
+    const parts = [...item.labels, ...(other ? [other] : [])]
+    return parts.length ? format.list(parts) : t('question.skipped')
   }
 
   return (
     <motion.div
-      ref={containerRef}
       /**
        * 问题从输入框里**长出来**（owner 2026-10-07 动效方向）：每道题都是新挂上的
        * （key 带题号），所以每进一题都由糊变清地进来 —— 第一题往上浮一下，
@@ -183,53 +261,24 @@ export function StudioOperatorQuestionBlock({
       }
       animate={{ opacity: 1, x: 0, y: 0, filter: 'blur(0px)' }}
       transition={motionTransition('base', reduceMotion)}
-      tabIndex={-1}
       data-testid="operator-question-block"
       data-step={step + 1}
       data-total={total}
-      role="group"
-      aria-label={question.question}
-      onKeyDown={(event) => {
-        if (event.key === 'Escape') {
-          event.preventDefault()
-          onDismiss()
-          return
-        }
-        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-          event.preventDefault()
-          setCursor((current) =>
-            event.key === 'ArrowDown'
-              ? (current + 1) % options.length
-              : (current <= 0 ? options.length : current) - 1,
-          )
-          return
-        }
-        if (event.key === 'Enter') {
-          const option = options[cursor]
-          if (!option) return
-          event.preventDefault()
-          pickOption(option)
-          return
-        }
-        const digit = DIGIT_KEYS.indexOf(event.key)
-        const option = options[digit]
-        if (digit >= 0 && option) {
-          event.preventDefault()
-          pickOption(option)
-        }
-      }}
-      className="flex min-w-0 flex-col gap-0.5 pt-0.5 focus-visible:outline-none"
+      data-multi={multi ? 'true' : 'false'}
+      className="flex min-w-0 flex-col gap-0.5 pt-0.5"
     >
       {/* ── 已答的题：一行「问题 · 答案」，最近那一行可「改」（Q8 / S4）─── */}
       {prompt.answers.map((item, index) => (
         <p
-          key={`${item.header}:${item.label}`}
+          key={`${item.header}:${index}`}
           data-testid="operator-question-answer-tag"
           className="flex min-w-0 items-center gap-1.5 px-1 pb-1 text-xs text-muted-foreground"
         >
           <span className="shrink-0">{item.header}</span>
           <span aria-hidden>·</span>
-          <span className="min-w-0 truncate text-foreground">{item.label}</span>
+          <span className="min-w-0 truncate text-foreground">
+            {answerLabel(item)}
+          </span>
           {index === prompt.answers.length - 1 ? (
             <button
               type="button"
@@ -244,9 +293,20 @@ export function StudioOperatorQuestionBlock({
       ))}
 
       <div className="flex min-w-0 items-baseline gap-2 px-1 pb-1">
-        <p className="min-w-0 flex-1 text-sm font-semibold leading-snug text-foreground">
+        <p
+          id={`${prompt.id}-${step}-question`}
+          className="min-w-0 flex-1 text-sm font-semibold leading-snug text-foreground"
+        >
           {question.question}
         </p>
+        {multi ? (
+          <span
+            data-testid="operator-question-multi-hint"
+            className="shrink-0 text-2xs text-muted-foreground"
+          >
+            {t('question.multiHint')}
+          </span>
+        ) : null}
         {/* 只有多题才写进度（Q4）：一题的「1 / 1」只是噪音。 */}
         {total > 1 ? (
           <span
@@ -315,83 +375,187 @@ export function StudioOperatorQuestionBlock({
         </div>
       ) : null}
 
-      {/* ⚠ 竖排一行一个；编号即键盘直选键。⛔ 不预选、⛔ 不画圆点（Q5）。 */}
-      {options.map((option, index) => (
-        <button
-          key={option.id}
-          type="button"
-          data-testid="operator-question-option"
-          data-option-id={option.id}
-          data-index={index}
-          data-cursor={cursor === index ? 'true' : 'false'}
-          data-picked={picked === option.id ? 'true' : 'false'}
-          disabled={submitted}
-          onMouseEnter={() => setCursor(index)}
-          onClick={() => pickOption(option)}
+      {/* ⚠ 竖排一行一个；编号即键盘直选键。单选 = radiogroup，多选 = 一组 checkbox。
+          ⛔ 不预选（Q5）。焦点是「漫游」的：只有光标那一行在 Tab 序里。 */}
+      <div
+        role={multi ? 'group' : 'radiogroup'}
+        aria-labelledby={`${prompt.id}-${step}-question`}
+        data-testid="operator-question-options"
+        className="flex min-w-0 flex-col gap-0.5"
+      >
+        {options.map((option, index) => {
+          const isChecked = multi
+            ? checked.has(option.id)
+            : picked === option.id
+          return (
+            <div
+              key={option.id}
+              ref={(node) => {
+                rowRefs.current[index] = node
+              }}
+              role={multi ? 'checkbox' : 'radio'}
+              aria-checked={isChecked}
+              aria-disabled={submitted || undefined}
+              tabIndex={cursor === index ? 0 : -1}
+              data-testid="operator-question-option"
+              data-option-id={option.id}
+              data-index={index}
+              data-cursor={cursor === index ? 'true' : 'false'}
+              data-picked={picked === option.id ? 'true' : 'false'}
+              onMouseEnter={() => setCursor(index)}
+              onFocus={() => setCursor(index)}
+              onClick={() => choose(option)}
+              onKeyDown={onRowKeyDown}
+              className={cn(
+                'flex min-w-0 cursor-pointer items-start gap-2.5 rounded-lg px-1.5 py-1.5 text-left transition-colors duration-fast ease-standard focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring aria-disabled:cursor-default aria-disabled:opacity-60 motion-reduce:transition-none coarse:min-h-11',
+                cursor === index && 'bg-muted',
+                // 单选选中那一行：近黑实底 + 白字（信号位，§12.2），⛔ 不跟着锁定变淡。
+                picked === option.id &&
+                  'bg-foreground text-background aria-disabled:opacity-100',
+              )}
+            >
+              {multi ? (
+                <span
+                  aria-hidden
+                  data-testid="operator-question-checkbox"
+                  className={cn(
+                    'mt-px grid size-5 shrink-0 place-items-center rounded-md border transition-colors duration-fast ease-standard motion-reduce:transition-none',
+                    isChecked
+                      ? 'border-foreground bg-foreground text-background'
+                      : 'border-border text-transparent',
+                  )}
+                >
+                  <Check className="size-3.5" />
+                </span>
+              ) : (
+                <span
+                  aria-hidden
+                  className={cn(
+                    'mt-px grid size-5 shrink-0 place-items-center rounded-md border border-border font-mono text-2xs tabular-nums text-muted-foreground transition-transform duration-fast ease-standard motion-reduce:transition-none',
+                    // 键帽按下去（「按数字键直选」）。
+                    picked === option.id &&
+                      'scale-90 border-background/40 text-background',
+                  )}
+                >
+                  {index + 1}
+                </span>
+              )}
+              {option.assetUrl ? (
+                <Image
+                  src={option.assetUrl}
+                  alt={option.label}
+                  width={56}
+                  height={56}
+                  unoptimized
+                  className="size-7 shrink-0 rounded object-cover"
+                />
+              ) : null}
+              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <span
+                    className={cn(
+                      'min-w-0 text-sm font-medium text-foreground',
+                      picked === option.id && 'text-background',
+                    )}
+                  >
+                    {option.label}
+                  </span>
+                  {option.recommended ? (
+                    <span
+                      data-testid="operator-question-recommended"
+                      className="shrink-0 rounded-sm border border-border px-1 text-2xs text-muted-foreground"
+                    >
+                      {t('question.recommended')}
+                    </span>
+                  ) : null}
+                </span>
+                {/* 说明那一句由模型给 —— 没有就只剩标签（⛔ 不编一句）。 */}
+                {option.description ? (
+                  <span
+                    className={cn(
+                      'text-xs leading-relaxed text-muted-foreground',
+                      picked === option.id && 'text-background/70',
+                    )}
+                  >
+                    {option.description}
+                  </span>
+                ) : null}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* 「其他…」= 下面那一行输入框（Q6）：点它只是把焦点交过去。闭集题不画。 */}
+      {allowOther ? (
+        <div
+          ref={(node) => {
+            rowRefs.current[options.length] = node
+          }}
+          role="button"
+          tabIndex={cursor === options.length ? 0 : -1}
+          data-testid="operator-question-other"
+          data-cursor={cursor === options.length ? 'true' : 'false'}
+          onMouseEnter={() => setCursor(options.length)}
+          onFocus={() => setCursor(options.length)}
+          onClick={onOther}
+          onKeyDown={onRowKeyDown}
           className={cn(
-            'flex min-w-0 items-start gap-2.5 rounded-lg px-1.5 py-1.5 text-left transition-colors duration-fast ease-standard focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-60 motion-reduce:transition-none coarse:min-h-11',
-            cursor === index && 'bg-muted',
-            // 选中那一行：近黑实底 + 白字（信号位，§12.2），⛔ 不跟着 disabled 变淡。
-            picked === option.id &&
-              'bg-foreground text-background disabled:opacity-100',
+            'flex min-w-0 cursor-pointer items-start gap-2.5 rounded-lg px-1.5 py-1.5 text-left transition-colors duration-fast ease-standard focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none coarse:min-h-11',
+            cursor === options.length && 'bg-muted',
           )}
         >
           <span
             aria-hidden
-            className={cn(
-              'mt-px grid size-5 shrink-0 place-items-center rounded-md border border-border font-mono text-2xs tabular-nums text-muted-foreground transition-transform duration-fast ease-standard motion-reduce:transition-none',
-              // 键帽按下去（「按数字键直选」）。
-              picked === option.id &&
-                'scale-90 border-background/40 text-background',
-            )}
+            className="mt-px grid size-5 shrink-0 place-items-center rounded-md border border-dashed border-border text-2xs text-muted-foreground"
           >
-            {index + 1}
+            …
           </span>
-          {option.assetUrl ? (
-            <Image
-              src={option.assetUrl}
-              alt={option.label}
-              width={56}
-              height={56}
-              unoptimized
-              className="size-7 shrink-0 rounded object-cover"
-            />
-          ) : null}
           <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <span className="flex min-w-0 items-center gap-1.5">
-              <span
-                className={cn(
-                  'min-w-0 text-sm font-medium text-foreground',
-                  picked === option.id && 'text-background',
-                )}
-              >
-                {option.label}
-              </span>
-              {option.recommended ? (
-                <span
-                  data-testid="operator-question-recommended"
-                  className="shrink-0 rounded-sm border border-border px-1 text-2xs text-muted-foreground"
-                >
-                  {t('question.recommended')}
-                </span>
-              ) : null}
+            <span className="text-sm font-medium text-foreground">
+              {t('question.other')}
             </span>
-            {/* 说明那一句由模型给 —— 没有就只剩标签（⛔ 不编一句）。 */}
-            {option.description ? (
-              <span
-                className={cn(
-                  'text-xs leading-relaxed text-muted-foreground',
-                  picked === option.id && 'text-background/70',
-                )}
-              >
-                {option.description}
-              </span>
-            ) : null}
+            <span className="text-xs leading-relaxed text-muted-foreground">
+              {t('question.otherHint')}
+            </span>
           </span>
+        </div>
+      ) : null}
+
+      {/* ── 底下一行：跳过 · 全部用推荐 ……（多选）确定（N）──────────── */}
+      <div className="mx-1 mt-1 flex min-w-0 items-center gap-3 border-t border-border pt-1.5 text-xs text-muted-foreground">
+        <button
+          type="button"
+          data-testid="operator-question-skip"
+          disabled={submitted}
+          onClick={skip}
+          className="rounded-sm transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-60 motion-reduce:transition-none coarse:min-h-11"
+        >
+          {t('question.skip')}
         </button>
-      ))}
-      {/* 「其他」= 下面那一行输入框（Q6），分隔线只是提示那一行也能答。 */}
-      <div aria-hidden className="mx-1 mt-1 border-t border-border" />
+        {hasRecommended ? (
+          <button
+            type="button"
+            data-testid="operator-question-use-recommended"
+            disabled={submitted}
+            onClick={applyRecommended}
+            className="rounded-sm transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-60 motion-reduce:transition-none coarse:min-h-11"
+          >
+            {t('question.useRecommended')}
+          </button>
+        ) : null}
+        {multi ? (
+          <button
+            type="button"
+            data-testid="operator-question-confirm"
+            disabled={submitted || !canConfirm}
+            onClick={confirm}
+            className="ml-auto h-7.5 rounded-full bg-foreground px-3.5 text-2sm font-semibold tabular-nums text-background transition-opacity duration-fast ease-standard hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none coarse:min-h-11"
+          >
+            {t('question.confirm', { count: checkedIds.length })}
+          </button>
+        ) : null}
+      </div>
     </motion.div>
   )
 }

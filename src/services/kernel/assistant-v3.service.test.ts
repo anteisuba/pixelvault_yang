@@ -77,7 +77,7 @@ vi.mock('@/services/kernel/assistant-operator.service', () => ({
       question: string
       multiSelect: boolean
       allowOther: boolean
-      options: { label: string; description: string }[]
+      options: { label: string; description: string; assetUrl?: string }[]
     }[]
   }) =>
     turn.questions.map((question, index) => ({
@@ -90,6 +90,7 @@ vi.mock('@/services/kernel/assistant-operator.service', () => ({
         id: `option-${optionIndex + 1}`,
         label: option.label,
         description: option.description,
+        ...(option.assetUrl ? { assetUrl: option.assetUrl } : {}),
       })),
     })),
   resolveResponseLanguage: () => 'chinese',
@@ -893,6 +894,79 @@ describe('v3 内核', () => {
         scriptNotes: null,
       },
     )
+  })
+
+  it('反问：多选原样透传；图片句柄换成这一轮手上的图，⛔ 不收模型写的地址；带 why', async () => {
+    script(
+      toolTurn({
+        id: 'call_ask',
+        name: 'ask',
+        input: {
+          questions: [
+            {
+              header: '出场',
+              question: '这一镜谁出场？',
+              multiSelect: true,
+              allowOther: false,
+              options: [
+                {
+                  label: '冲出门那张',
+                  description: '你刚 @ 的那张',
+                  recommended: true,
+                  image: '冲出门',
+                },
+                {
+                  label: '外链',
+                  description: '模型自己写的地址',
+                  recommended: false,
+                  image: 'https://evil.test/x.png',
+                },
+                {
+                  label: '没图',
+                  description: '纯文字',
+                  recommended: false,
+                  image: null,
+                },
+              ],
+            },
+          ],
+          why: '两张构图差很多',
+        },
+      }),
+    )
+    const events = await collect(
+      runAssistantV3(
+        'clerk-1',
+        request({
+          mentionedAssets: [
+            {
+              id: 'gen-1',
+              url: 'https://cdn.test/result.png',
+              label: '冲出门',
+            },
+          ],
+        } as Partial<AssistantOperatorRequest>),
+      ),
+    )
+    const ask = events.find((event) => event.type === 'ask')
+    expect(ask).toMatchObject({
+      type: 'ask',
+      why: '两张构图差很多',
+      questions: [
+        {
+          multiSelect: true,
+          allowOther: false,
+          options: [
+            { label: '冲出门那张', assetUrl: 'https://cdn.test/result.png' },
+            { label: '外链' },
+            { label: '没图' },
+          ],
+        },
+      ],
+    })
+    if (ask?.type !== 'ask') throw new Error('no ask event')
+    expect(ask.questions[0]?.options[1]).not.toHaveProperty('assetUrl')
+    expect(ask.questions[0]?.options[2]).not.toHaveProperty('assetUrl')
   })
 
   it('重投影接力：报出新建的镜和提示词还跟着旧剧本的镜', async () => {

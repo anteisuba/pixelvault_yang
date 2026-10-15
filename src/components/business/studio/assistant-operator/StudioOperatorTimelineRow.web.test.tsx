@@ -8,6 +8,7 @@ import zhMessages from '@/messages/zh.json'
 import {
   STUDIO_OPERATOR_CARD_KINDS,
   STUDIO_OPERATOR_SPEAKERS,
+  StudioOperatorLiveStatus,
   StudioOperatorTimelineList,
   StudioOperatorTimelineRow,
   StudioOperatorTurns,
@@ -191,8 +192,11 @@ describe('StudioOperatorTimelineRow', () => {
     )
   })
 
-  /** 流容器是 live region —— 一步一步长出来的东西，读屏得自己听见。 */
-  it('StudioOperatorTimelineList 是 role=log 的 polite live region', () => {
+  /**
+   * 流容器是 `role=log` 但**不自动播报**（§9.1）：流式正文每长一段都念一遍是噪音，
+   * 播报只走 `StudioOperatorLiveStatus` 那四句。
+   */
+  it('StudioOperatorTimelineList 是 role=log、aria-live=off', () => {
     render(
       <StudioOperatorTimelineList data-testid="operator-thread">
         <span />
@@ -200,8 +204,47 @@ describe('StudioOperatorTimelineRow', () => {
     )
     const list = screen.getByTestId('operator-thread')
     expect(list).toHaveAttribute('role', 'log')
-    expect(list).toHaveAttribute('aria-live', 'polite')
+    expect(list).toHaveAttribute('aria-live', 'off')
     expect(list).toHaveAttribute('aria-label', 'listLabel')
+  })
+
+  describe('StudioOperatorLiveStatus', () => {
+    it('挂上时已经在跑⛔ 不念「开始」；之后按转变念开始 / 完成', () => {
+      const { rerender } = render(
+        <StudioOperatorLiveStatus status="working" stopped={false} />,
+      )
+      const live = screen.getByRole('status')
+      expect(live).toHaveAttribute('aria-atomic', 'true')
+      expect(live.className).toContain('sr-only')
+      expect(live).toHaveTextContent('')
+      rerender(<StudioOperatorLiveStatus status="idle" stopped={false} />)
+      expect(live).toHaveTextContent('done')
+      rerender(<StudioOperatorLiveStatus status="working" stopped={false} />)
+      expect(live).toHaveTextContent('start')
+      // 等你定也算这一轮说完了。
+      rerender(
+        <StudioOperatorLiveStatus status="awaitingConfirm" stopped={false} />,
+      )
+      expect(live).toHaveTextContent('done')
+    })
+
+    it('⏹：先置回 idle 再落「已停止」—— 下一拍改口成「停止」', () => {
+      const { rerender } = render(
+        <StudioOperatorLiveStatus status="idle" stopped={false} />,
+      )
+      rerender(<StudioOperatorLiveStatus status="working" stopped={false} />)
+      rerender(<StudioOperatorLiveStatus status="idle" stopped={false} />)
+      rerender(<StudioOperatorLiveStatus status="idle" stopped />)
+      expect(screen.getByRole('status')).toHaveTextContent('stopped')
+    })
+
+    it('出错念「失败」', () => {
+      const { rerender } = render(
+        <StudioOperatorLiveStatus status="working" stopped={false} />,
+      )
+      rerender(<StudioOperatorLiveStatus status="error" stopped={false} />)
+      expect(screen.getByRole('status')).toHaveTextContent('failed')
+    })
   })
 
   it.each(Object.values(STUDIO_OPERATOR_CARD_KINDS))(

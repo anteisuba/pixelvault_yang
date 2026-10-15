@@ -79,9 +79,14 @@ vi.mock('@/lib/api-client/context-cards', () => ({
  *   于是 provider 那一档自然落到「原文」，正好是本文件要验的两条边界。
  */
 vi.mock('next-intl', () => {
-  const t = Object.assign((key: string) => `i18n:${key}`, {
-    has: () => false,
-  })
+  /** 带参数时把参数按序拼进去：问题卡答复那一句要断言得出「选了什么、针对哪一题」。 */
+  const t = Object.assign(
+    (key: string, values?: Record<string, unknown>) =>
+      values
+        ? `i18n:${key}(${Object.values(values).join('|')})`
+        : `i18n:${key}`,
+    { has: () => false },
+  )
   return { useLocale: () => 'zh', useTranslations: () => t }
 })
 
@@ -649,6 +654,47 @@ describe('useAssistantOperator 的四条收尾路径', () => {
     ).toHaveLength(1)
     streams[2].emit({ type: 'done' })
     streams[2].close()
+    await settle()
+  })
+
+  /**
+   * 画布接力那一跳（2026-10-14 加载态 §9.1）：上一跳停在 `canvas_sync`、改动落回画布后
+   * 接着跑的那一跳，占位行写「正在画布上落地…」—— 第一跳仍是「正在想…」。
+   */
+  it('画布接力那一跳的占位行带 landing，第一跳不带', async () => {
+    hostDomain.current = 'canvas'
+    const { result } = render()
+    act(() => result.current.send('建一张卡'))
+    await settle()
+    const pendingOf = () =>
+      store
+        .getOperatorState()
+        .entries.filter(
+          (entry) =>
+            entry.kind === 'message' && entry.streaming && entry.text === '',
+        )
+        .at(-1)
+    expect(pendingOf()).toMatchObject({ pendingSince: expect.any(Number) })
+    expect(pendingOf()).not.toHaveProperty('pendingPhase')
+    streams[0].emit({
+      type: 'step',
+      step: {
+        id: 'step-1',
+        title: '新建节点',
+        tool: 'canvas_apply',
+        verb: 'apply',
+        status: 'done',
+        payload: { op: 'add_node', kind: 'image', subtype: 'shot', name: 'A' },
+        inverse: { op: 'delete', nodeRef: 'add_node' },
+      },
+    })
+    streams[0].emit({ type: 'stopped', reason: 'canvas_sync' })
+    streams[0].close()
+    await settle()
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(2)
+    expect(pendingOf()).toMatchObject({ pendingPhase: 'landing' })
+    streams[1].emit({ type: 'done' })
+    streams[1].close()
     await settle()
   })
 
@@ -2533,20 +2579,12 @@ describe('规则薄卡与歧义反问（§10 / §7）', () => {
     ).toHaveLength(2)
 
     const picked = store.getOperatorState().question?.questions[0]?.options[1]
+    // ⭐ 面板只交 id：缩略图由 hook 从卡上的选项取（2026-10-14）。
     act(() => {
-      result.current.answerQuestion(
-        { questionId: 'which-asset', optionIds: [picked!.id] },
-        {
-          label: picked!.label,
-          asset: {
-            id: picked!.id,
-            url: picked!.assetUrl as string,
-            label: picked!.label,
-            kind: 'image',
-            thumbnailUrl: picked!.assetUrl as string,
-          },
-        },
-      )
+      result.current.answerQuestion({
+        questionId: 'which-asset',
+        optionIds: [picked!.id],
+      })
     })
     await settle()
 
@@ -2598,14 +2636,12 @@ describe('规则薄卡与歧义反问（§10 / §7）', () => {
     await settle()
     dispatch.mockClear()
 
+    // ⭐ 覆盖三选那一档由 hook 从选项 id 认出来（面板不再传 choice）。
     act(() => {
-      result.current.answerQuestion(
-        { questionId: 'overwrite-prompt', optionIds: ['overwrite'] },
-        {
-          label: '覆盖',
-          choice: ASSISTANT_OPERATOR_CONFIRM_CHOICES.overwrite,
-        },
-      )
+      result.current.answerQuestion({
+        questionId: 'overwrite-prompt',
+        optionIds: ['overwrite'],
+      })
     })
 
     expect(dispatch).toHaveBeenCalledWith({
@@ -2664,10 +2700,10 @@ describe('规则薄卡与歧义反问（§10 / §7）', () => {
 
     const picked = store.getOperatorState().question!.questions[0]!.options[0]!
     act(() => {
-      result.current.answerQuestion(
-        { questionId: 'q1', optionIds: [picked.id] },
-        { label: picked.label },
-      )
+      result.current.answerQuestion({
+        questionId: 'q1',
+        optionIds: [picked.id],
+      })
     })
     await settle()
 
@@ -2709,10 +2745,7 @@ describe('规则薄卡与歧义反问（§10 / §7）', () => {
     await settle()
 
     act(() => {
-      result.current.answerQuestion(
-        { questionId: 'q1', optionIds: ['half'] },
-        { label: '半身' },
-      )
+      result.current.answerQuestion({ questionId: 'q1', optionIds: ['half'] })
     })
     await settle()
     // ① 还没发第二轮 —— 只是进了下一题。
@@ -2727,17 +2760,11 @@ describe('规则薄卡与歧义反问（§10 / §7）', () => {
     expect(store.getOperatorState().question?.answers).toHaveLength(0)
 
     act(() => {
-      result.current.answerQuestion(
-        { questionId: 'q1', optionIds: ['half'] },
-        { label: '半身' },
-      )
+      result.current.answerQuestion({ questionId: 'q1', optionIds: ['half'] })
     })
     await settle()
     act(() => {
-      result.current.answerQuestion(
-        { questionId: 'q2', optionIds: ['fast'] },
-        { label: '快切' },
-      )
+      result.current.answerQuestion({ questionId: 'q2', optionIds: ['fast'] })
     })
     await settle()
 
@@ -2777,7 +2804,6 @@ describe('规则薄卡与歧义反问（§10 / §7）', () => {
       result.current.answerQuestion(
         { questionId: 'q1', optionIds: [], otherText: '按「生成图2」的比例' },
         {
-          label: '按「生成图2」的比例',
           attachments: [
             {
               id: 'node-gen-2',
@@ -2812,25 +2838,174 @@ describe('规则薄卡与歧义反问（§10 / §7）', () => {
     ).toEqual(['q1'])
   })
 
-  it('Esc 收起问题块：这一组题作废，⛔ 一行都不落', async () => {
+  it('跳过（Esc /「跳过」）：记一格「跳过」进下一题，整组答完才发；那一句也进对话', async () => {
+    const second = {
+      id: 'q2',
+      header: '节奏',
+      question: '快切还是长镜头？',
+      multiSelect: false,
+      allowOther: true,
+      options: [
+        { id: 'fast', label: '快切', description: '2–4 秒' },
+        { id: 'slow', label: '长镜头', description: '6 秒以上' },
+      ],
+    }
     const { result } = render()
     act(() => {
       result.current.send('帮我定一下取景')
     })
     await settle()
-    streams[0].emit(askEvent())
+    streams[0].emit(askEvent(QUESTIONS[0]!, second))
     await settle()
     act(() => {
-      result.current.dismissQuestion()
+      result.current.answerQuestion({ questionId: 'q1', optionIds: [] })
+    })
+    await settle()
+    // 还没发：只是进了下一题。
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(1)
+    expect(store.getOperatorState().question?.answers).toHaveLength(1)
+    act(() => {
+      result.current.answerQuestion({ questionId: 'q2', optionIds: ['slow'] })
+    })
+    await settle()
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(2)
+    const lines = store
+      .getOperatorState()
+      .entries.filter((entry) => entry.kind === 'system')
+    // ⭐ 跳过也说出口：从前 Esc 一行不落，模型不知道用户拒答了。
+    expect(lines[0]).toMatchObject({
+      code: 'questionAnswered',
+      subject: '取景 · i18n:skipped',
+      userText: 'i18n:skippedText(取多少身？)',
+      answered: { questionId: 'q1', optionIds: [] },
+    })
+    expect(lines[1]).toMatchObject({
+      subject: '节奏 · 长镜头',
+      userText: 'i18n:answerText(i18n:quote(长镜头)|快切还是长镜头？)',
+    })
+  })
+
+  it('⭐ 多选：两项一起上去（optionIds / optionLabels 同序），打字补的那句并存', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('这一镜谁出场')
+    })
+    await settle()
+    streams[0].emit(
+      askEvent({
+        id: 'who',
+        header: '出场',
+        question: '这一镜谁出场？',
+        multiSelect: true,
+        allowOther: true,
+        options: [
+          { id: 'harry', label: '哈利', description: '主角' },
+          { id: 'ron', label: '罗恩', description: '朋友' },
+          { id: 'draco', label: '德拉科', description: '对手' },
+        ],
+      }),
+    )
+    await settle()
+    // 勾选住在 store：面板收放卸载也不丢。
+    act(() => {
+      store.setOperatorQuestionChecked(['harry', 'draco'])
+    })
+    expect(store.getOperatorState().question?.checked).toEqual([
+      'harry',
+      'draco',
+    ])
+    act(() => {
+      result.current.answerQuestion({
+        questionId: 'who',
+        optionIds: ['harry', 'draco'],
+        otherText: '德拉科在背景里',
+      })
+    })
+    await settle()
+    expect(streamAssistantOperatorAPI.mock.calls[1]?.[0].planAnswers).toEqual([
+      {
+        questionId: 'who',
+        optionIds: ['harry', 'draco'],
+        otherText: '德拉科在背景里',
+        question: '这一镜谁出场？',
+        optionLabels: ['哈利', '德拉科'],
+      },
+    ])
+    const line = store
+      .getOperatorState()
+      .entries.find((entry) => entry.kind === 'system')
+    // 小标签那半句按界面语言拼（mock 的 locale 是 zh）。
+    expect(line).toMatchObject({
+      subject: `出场 · ${new Intl.ListFormat('zh', { type: 'conjunction' }).format(['哈利', '德拉科', '德拉科在背景里'])}`,
+      userText: `i18n:answerBoth(${new Intl.ListFormat('zh', { type: 'conjunction' }).format(['i18n:quote(哈利)', 'i18n:quote(德拉科)'])}|德拉科在背景里|这一镜谁出场？)`,
+    })
+  })
+
+  it('「全部用推荐」：当前与之后每题取推荐项（没有推荐的算跳过），整组一次发', async () => {
+    const second = {
+      id: 'q2',
+      header: '节奏',
+      question: '快切还是长镜头？',
+      multiSelect: false,
+      allowOther: true,
+      options: [
+        { id: 'fast', label: '快切', description: '2–4 秒' },
+        {
+          id: 'slow',
+          label: '长镜头',
+          description: '6 秒以上',
+          recommended: true,
+        },
+      ],
+    }
+    const { result } = render()
+    act(() => {
+      result.current.send('帮我把这段排成分镜')
+    })
+    await settle()
+    streams[0].emit(askEvent(QUESTIONS[0]!, second))
+    await settle()
+    act(() => {
+      result.current.acceptRecommendedQuestions()
     })
     await settle()
     expect(store.getOperatorState().question).toBeNull()
+    const answers = streamAssistantOperatorAPI.mock.calls[1]?.[0].planAnswers
     expect(
-      store
-        .getOperatorState()
-        .entries.filter((entry) => entry.kind === 'system'),
-    ).toHaveLength(0)
-    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(1)
+      answers?.map((item: { optionIds: string[] }) => item.optionIds),
+    ).toEqual([[], ['slow']])
+  })
+
+  it('「← 上一题」把那一题的勾选放回 checked', async () => {
+    const second = {
+      id: 'q2',
+      header: '节奏',
+      question: '快切还是长镜头？',
+      multiSelect: false,
+      allowOther: true,
+      options: [
+        { id: 'fast', label: '快切', description: '2–4 秒' },
+        { id: 'slow', label: '长镜头', description: '6 秒以上' },
+      ],
+    }
+    const { result } = render()
+    act(() => {
+      result.current.send('帮我把这段排成分镜')
+    })
+    await settle()
+    streams[0].emit(askEvent(QUESTIONS[0]!, second))
+    await settle()
+    act(() => {
+      result.current.answerQuestion({ questionId: 'q1', optionIds: ['half'] })
+    })
+    expect(store.getOperatorState().question?.checked).toEqual([])
+    act(() => {
+      result.current.goBackQuestion()
+    })
+    expect(store.getOperatorState().question).toMatchObject({
+      answers: [],
+      checked: ['half'],
+    })
   })
 
   /**
@@ -2852,10 +3027,10 @@ describe('规则薄卡与歧义反问（§10 / §7）', () => {
 
     const picked = store.getOperatorState().question!.questions[0]!.options[0]!
     act(() => {
-      result.current.answerQuestion(
-        { questionId: 'q1', optionIds: [picked.id] },
-        { label: picked.label },
-      )
+      result.current.answerQuestion({
+        questionId: 'q1',
+        optionIds: [picked.id],
+      })
     })
     await settle()
 
@@ -2866,7 +3041,8 @@ describe('规则薄卡与歧义反问（§10 / §7）', () => {
     expect(line).toMatchObject({
       code: 'questionAnswered',
       subject: '取景 · 半身',
-      userText: '已选择「半身」（针对问题「取多少身？」）',
+      // ⭐ 走词表（2026-10-14）：题面与选项文案都在参数里。
+      userText: 'i18n:answerText(i18n:quote(半身)|取多少身？)',
     })
 
     // ⭐ 而它同时是这一轮请求里的一条 user 消息（自包含：带着题面）。
@@ -2877,7 +3053,7 @@ describe('规则薄卡与歧义反问（§10 / §7）', () => {
       messages.filter((message) => message.role === 'user').at(-1),
     ).toEqual({
       role: 'user',
-      content: '已选择「半身」（针对问题「取多少身？」）',
+      content: 'i18n:answerText(i18n:quote(半身)|取多少身？)',
       answered: {
         questionId: 'q1',
         optionIds: ['half'],
@@ -2902,7 +3078,9 @@ describe('规则薄卡与歧义反问（§10 / §7）', () => {
     const laterMessages: AssistantOperatorMessage[] = later?.messages ?? []
     expect(
       laterMessages.some((message) =>
-        message.content.includes('已选择「半身」（针对问题「取多少身？」）'),
+        message.content.includes(
+          'i18n:answerText(i18n:quote(半身)|取多少身？)',
+        ),
       ),
     ).toBe(true)
   })

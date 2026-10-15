@@ -2714,7 +2714,10 @@
       "mountTogether": "Mount too",
       "skipMount": "Skip",
       "imageAlt": "{name} sample {n}",
-      "noRecipe": "No public recipe for this one — the author's sample image carries no generation settings."
+      "noRecipe": "No public recipe for this one — the author's sample image carries no generation settings.",
+      "play": "Play",
+      "pause": "Pause",
+      "seek": "Seek"
     },
     "browse": {
       "searchClear": "Clear",

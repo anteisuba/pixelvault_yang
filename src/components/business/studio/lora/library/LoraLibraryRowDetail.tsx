@@ -45,6 +45,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
+import { LoraSampleVideo } from './LoraSampleVideo'
+
 // R1 库聚焦浏览（docs/references/pages/lora-library.md §3「选中项在原位置展开，
 // 不把用户带离当前浏览位置。展开内容按『效果证据 → 判断信息 → 下一步动作』
 // 组织」+ §4「行内详情不常驻试用提示词/来源图配方/带词去生成/复制配方」）：
@@ -399,7 +401,7 @@ function CivitaiRowDetail({
       disabled={!coverUrl}
       aria-label={t('viewCover')}
       className={cn(
-        'block w-full overflow-hidden rounded-xl border border-border/60 bg-muted',
+        'relative block w-full overflow-hidden rounded-xl border border-border/60 bg-muted',
         coverUrl ? 'cursor-zoom-in hover:opacity-95' : 'cursor-default',
       )}
     >
@@ -422,6 +424,7 @@ function CivitaiRowDetail({
           <Sparkles className="size-8" aria-hidden />
         </div>
       )}
+      {item.cardVideoUrl ? <LoraSampleVideo src={item.cardVideoUrl} /> : null}
     </button>
   )
 

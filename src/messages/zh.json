@@ -2714,7 +2714,10 @@
       "mountTogether": "一起挂",
       "skipMount": "不挂",
       "imageAlt": "{name} 的第 {n} 张样例",
-      "noRecipe": "这张没有公开配方 —— 作者的示例图没带生成参数。"
+      "noRecipe": "这张没有公开配方 —— 作者的示例图没带生成参数。",
+      "play": "播放",
+      "pause": "暂停",
+      "seek": "进度"
     },
     "browse": {
       "searchClear": "清除",

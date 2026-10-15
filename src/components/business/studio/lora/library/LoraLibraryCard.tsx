@@ -15,6 +15,8 @@ import type {
   LoraAssetRecord,
 } from '@/types'
 
+import { LoraSampleVideo } from './LoraSampleVideo'
+
 // 三源同卡（封面 + 族角标 + 源角标 CIV/HF + 名 + 下载/喜欢 mono + 动作）。
 // 两个消费者，形制同源、动作不同：
 //   · `LoraLibraryCard` —— 库 modal（＋添加 LoRA）。卡自带「使用/已挂」键，
@@ -102,10 +104,13 @@ function useLoraCardFacts(
 function CardCover({
   className,
   children,
+  videoBadgeCorner,
   ...props
 }: (LoraLibraryCardProps | LoraLibraryGridCardProps) & {
   className: string
   children?: ReactNode
+  /** 视频封面的角标放哪：避开这张卡自己的角标。 */
+  videoBadgeCorner: 'bottom-left' | 'top-right'
 }) {
   const showcase = useHuggingFaceShowcaseCover(
     props.source === 'huggingface' ? props.item.repoId : '',
@@ -155,6 +160,12 @@ function CardCover({
           )}
         </span>
       )}
+      {props.source === 'civitai' && props.item.cardVideoUrl ? (
+        <LoraSampleVideo
+          src={props.item.cardVideoUrl}
+          badgeCorner={videoBadgeCorner}
+        />
+      ) : null}
       {children}
     </span>
   )
@@ -169,6 +180,7 @@ export function LoraLibraryCard(props: LoraLibraryCardProps) {
     <div className="flex flex-col overflow-hidden rounded-xl border border-border/60 bg-card shadow-[var(--lora-shadow-panel)] transition-colors hover:border-border">
       <CardCover
         {...props}
+        videoBadgeCorner="bottom-left"
         className="relative block aspect-[3/4] w-full overflow-hidden bg-muted"
       >
         {/* 族角标（左上）+ 源角标（右上·CIV/HF·「我的」无）。 */}
@@ -248,6 +260,7 @@ export function LoraLibraryGridCard(props: LoraLibraryGridCardProps) {
     >
       <CardCover
         {...props}
+        videoBadgeCorner="top-right"
         className="relative block aspect-[3/4] w-full overflow-hidden bg-muted"
       >
         {facts.sourceBadge ? (

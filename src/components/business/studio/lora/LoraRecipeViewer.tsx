@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  Play,
   Wand2,
   X,
 } from '@/components/icons'
@@ -43,6 +44,8 @@ import {
 } from '@/lib/lora-recipe-extra-mount'
 import { cn } from '@/lib/utils'
 import type { CivitaiImageRecipe, CivitaiRecipeExtraLora } from '@/types'
+
+import { LoraViewerVideo } from './LoraViewerVideo'
 
 /** 查看器从哪一点长出来 / 缩回去（相对查看器所在容器的 px）。 */
 export interface LoraRecipeViewerOrigin {
@@ -264,29 +267,47 @@ export function LoraRecipeViewer({
                   }
                   className="studio-fit-box overflow-hidden rounded-lg bg-muted shadow-overlay"
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    key={recipe.imageUrl}
-                    src={civitaiDisplayImageUrl(
-                      recipe.imageUrl,
-                      LORA_DETAIL_IMAGE_WIDTH,
-                    )}
-                    alt={t('viewer.imageAlt', {
-                      name: assetName,
-                      n: index + 1,
-                    })}
-                    onLoad={(event) => {
-                      const { naturalWidth, naturalHeight } =
-                        event.currentTarget
-                      if (naturalWidth > 0 && naturalHeight > 0) {
-                        setLoadedRatio({
-                          url: recipe.imageUrl,
-                          ratio: naturalWidth / naturalHeight,
-                        })
+                  {recipe.videoUrl ? (
+                    <LoraViewerVideo
+                      key={recipe.videoUrl}
+                      src={recipe.videoUrl}
+                      poster={civitaiDisplayImageUrl(
+                        recipe.imageUrl,
+                        LORA_DETAIL_IMAGE_WIDTH,
+                      )}
+                      label={t('viewer.imageAlt', {
+                        name: assetName,
+                        n: index + 1,
+                      })}
+                      onRatio={(ratio) =>
+                        setLoadedRatio({ url: recipe.imageUrl, ratio })
                       }
-                    }}
-                    className="size-full animate-in object-cover fade-in-0 duration-base motion-reduce:animate-none"
-                  />
+                    />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={recipe.imageUrl}
+                      src={civitaiDisplayImageUrl(
+                        recipe.imageUrl,
+                        LORA_DETAIL_IMAGE_WIDTH,
+                      )}
+                      alt={t('viewer.imageAlt', {
+                        name: assetName,
+                        n: index + 1,
+                      })}
+                      onLoad={(event) => {
+                        const { naturalWidth, naturalHeight } =
+                          event.currentTarget
+                        if (naturalWidth > 0 && naturalHeight > 0) {
+                          setLoadedRatio({
+                            url: recipe.imageUrl,
+                            ratio: naturalWidth / naturalHeight,
+                          })
+                        }
+                      }}
+                      className="size-full animate-in object-cover fade-in-0 duration-base motion-reduce:animate-none"
+                    />
+                  )}
                 </div>
               </div>
             </div>
@@ -320,7 +341,7 @@ export function LoraRecipeViewer({
                       aria-current={i === index ? 'true' : undefined}
                       onClick={() => onIndexChange(i)}
                       className={cn(
-                        'h-11.5 w-8.5 shrink-0 overflow-hidden rounded-md bg-muted transition-[opacity,box-shadow] duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                        'relative h-11.5 w-8.5 shrink-0 overflow-hidden rounded-md bg-muted transition-[opacity,box-shadow] duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                         i === index
                           ? 'opacity-100 ring-2 ring-foreground ring-offset-2 ring-offset-surface-workbench'
                           : 'opacity-55 hover:opacity-80',
@@ -336,6 +357,13 @@ export function LoraRecipeViewer({
                         loading="lazy"
                         className="size-full object-cover"
                       />
+                      {item.videoUrl ? (
+                        <Play
+                          weight="fill"
+                          className="absolute right-0.5 top-0.5 size-2.5 text-background drop-shadow"
+                          aria-hidden
+                        />
+                      ) : null}
                     </button>
                   ))}
                 </div>

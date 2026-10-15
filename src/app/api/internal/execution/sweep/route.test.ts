@@ -5,13 +5,25 @@ import { CRON_JOBS } from '@/constants/cron'
 const mockSweep = vi.fn()
 const mockProcessPreviewOutboxes = vi.fn()
 const mockRecordCronRun = vi.fn()
+const mockPruneTurnRecords = vi.fn()
+const mockWarn = vi.fn()
 
 vi.mock('@/lib/cron-heartbeat', () => ({
   recordCronRun: (...args: unknown[]) => mockRecordCronRun(...args),
 }))
 
 vi.mock('@/lib/logger', () => ({
-  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  logger: {
+    info: vi.fn(),
+    warn: (...args: unknown[]) => mockWarn(...args),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
+}))
+
+vi.mock('@/services/assistant-turn-record.service', () => ({
+  pruneExpiredAssistantTurnRecords: (...args: unknown[]) =>
+    mockPruneTurnRecords(...args),
 }))
 
 vi.mock('@/services/execution-sweeper.service', () => ({
@@ -42,6 +54,7 @@ describe('GET /api/internal/execution/sweep', () => {
       expiredOutboxesReaped: 0,
     })
     mockProcessPreviewOutboxes.mockResolvedValue([])
+    mockPruneTurnRecords.mockResolvedValue(0)
   })
 
   afterEach(() => {
@@ -70,6 +83,7 @@ describe('GET /api/internal/execution/sweep', () => {
       { outboxId: 'preview-1', status: 'completed' },
       { outboxId: 'preview-2', status: 'failed' },
     ])
+    mockPruneTurnRecords.mockResolvedValue(3)
 
     const res = await GET(buildRequest('Bearer test-secret'))
 
@@ -82,10 +96,31 @@ describe('GET /api/internal/execution/sweep', () => {
         expiredOutboxesReaped: 1,
         previewDerivativeOutboxesAttempted: 2,
         previewDerivativeOutboxesCompleted: 1,
+        assistantTurnRecordsPruned: 3,
       },
     })
     expect(mockSweep).toHaveBeenCalledOnce()
+    expect(mockPruneTurnRecords).toHaveBeenCalledOnce()
     expect(mockProcessPreviewOutboxes).toHaveBeenCalledWith({ limit: 5 })
+    expect(mockRecordCronRun).toHaveBeenCalledWith(CRON_JOBS.EXECUTION_SWEEP, {
+      ok: true,
+    })
+  })
+
+  it('a failed assistant turn record prune only warns: the sweep still succeeds', async () => {
+    mockPruneTurnRecords.mockRejectedValue(new Error('db busy'))
+
+    const res = await GET(buildRequest('Bearer test-secret'))
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.data.assistantTurnRecordsPruned).toBeNull()
+    expect(mockWarn).toHaveBeenCalledWith(
+      'assistant turn record prune failed',
+      {
+        error: 'db busy',
+      },
+    )
     expect(mockRecordCronRun).toHaveBeenCalledWith(CRON_JOBS.EXECUTION_SWEEP, {
       ok: true,
     })

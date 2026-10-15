@@ -26,10 +26,12 @@
 
 ## 卡库（2026-10-14，owner「角色页里加 tab」）
 
-角色页地台最左换成两个页签「我的角色 / 卡库」（`?tab=library` 直接开卡库）。卡库站内搜 chub.ai 的公开酒馆卡，点「做成角色」建成一张角色卡后回到「我的角色」并打开她；文件导入（上一节）照旧在「我的角色」页签。
+角色页地台最左换成两个页签「我的角色 / 卡库」（`?tab=library` 直接开卡库）。卡库站内搜 chub.ai 的公开酒馆卡；卡片与「我的角色」同一张（4:5、名字压在图底，owner 2026-10-15），点卡在站内打开详情（电脑正中弹窗、手机底部整屏抽屉，`getChubCardAPI` 打开时才取完整定义），「做成角色」与「在 chub.ai 查看」只在详情里；建好后回到「我的角色」并打开她。文件导入（上一节）照旧在「我的角色」页签。
+
+- **成人内容照出**（owner 2026-10-15「不排除成人内容」）：搜索带 `nsfw=true`，只挡 NSFL（`nsfl=false` + 标签兜底）。**有搜索词时按相关度排**（`rankChubCards`）：名字就是它 > 名字里有 > 标签里有 > 只在正文里，同一档保持 chub 的热门 / 最新顺序；⚠ 只在一页里排。
 
 - **⚠ 浏览器直接问 api.chub.ai**（2026-10-15 改）：chub 的 Cloudflare 拒云厂商 / 机房 IP（2026-10-15 从 Vercel 东京 hnd1、弗吉尼亚 iad1 实测都是 403 `This service is not available in your country.`，与 `x-src-country`、UA、Origin 无关），而它对任何来源（含错误响应）都回 `access-control-allow-origin: *`，所以搜索与取卡定义都由用户浏览器去问，⛔ 回到服务端代问。浏览器只带 `Accept: application/json`（CORS 安全名单，不触发预检）。
-- **接口**：搜索 `searchChubCardsAPI`（`src/lib/api-client/cards.ts`）直接打 `https://api.chub.ai/search`；读结果的规则（卡片字段、成人标签兜底、图床判断、去 `ROOT`、`hasMore` / `MAX_PAGE`）在共用纯函数 `src/lib/chub-library.ts`。建卡 `importChubCardAPI` 先在浏览器取 `/api/characters/<作者>/<卡名>?full=true`，再 `POST /api/character-cards/chub/import { fullPath, node }` → `importChubCard`（`src/services/cards/chub-library.service.ts`），服务端 ⛔ 再问 api.chub.ai。chub 没有公开文档，地址与字段照酒馆 `downloadChubCharacter`（常量头注写了出处，改前先对）。
+- **接口**：搜索 `searchChubCardsAPI`（`src/lib/api-client/cards.ts`）直接打 `https://api.chub.ai/search`；读结果的规则（卡片字段、NSFL 标签兜底、相关度排序、图床判断、去 `ROOT`、`hasMore` / `MAX_PAGE`）在共用纯函数 `src/lib/chub-library.ts`。建卡 `importChubCardAPI` 先在浏览器取 `/api/characters/<作者>/<卡名>?full=true`，再 `POST /api/character-cards/chub/import { fullPath, node }` → `importChubCard`（`src/services/cards/chub-library.service.ts`），服务端 ⛔ 再问 api.chub.ai。chub 没有公开文档，地址与字段照酒馆 `downloadChubCharacter`（常量头注写了出处，改前先对）。
 - **递上来的 `node` 当用户输入看**（与拖进来的卡文件同级）：`ImportChubCardSchema`（`src/types/chub-library.ts`）只留落格要的几格（多余的键丢掉）、类型不对的格当空、超长一律拒——长文各格与整张卡（序列化后）沿用文件导入的 `TAVERN_CARD.MAX_FILE_BYTES`（3 MB），名字 / 标签 / 图片地址另有 `CHUB_LIBRARY.NODE_LIMITS`；`fullPath` 仍过 `ChubFullPathSchema`。浏览器先按同一份 schema 判一遍，太大就直接说，⛔ 递上去。
 - **落格**：`node.definition` 按酒馆的映射拼成 V2 卡（chub 的 `personality` → 酒馆 description → 我们的经历；`tavern_personality` → 性格；`description` → 简介），再走文件导入那条 `mapTavernCard` → `createImportedCharacterCard`；`st.card` 另记 `source: 'chub'` 与 `fullPath`。
 - **⛔ 成人内容**：搜索固定 `nsfw=false&nsfl=false`，再按 `NSFW` / `NSFL` 标签兜一层。没有开关（要开再问 owner）。

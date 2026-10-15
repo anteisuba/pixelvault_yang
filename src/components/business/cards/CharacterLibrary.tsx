@@ -10,21 +10,29 @@ import {
   type CharacterPageTab,
 } from '@/constants/cards/chub-library'
 import type { ChubCardSummary } from '@/types/chub-library'
-import { ExternalLink, Plus, Search, Star, Users } from '@/components/icons'
+import { ExternalLink, Plus, Search, Users } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
+import {
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogDescription,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+} from '@/components/ui/responsive-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
+import { useChubCard } from '@/hooks/cards/use-chub-card'
 import type { UseChubLibraryReturn } from '@/hooks/cards/use-chub-library'
 import { cn } from '@/lib/utils'
 
 /**
  * **角色页 · 卡库**（owner 2026-10-14 选「角色页里加 tab」）：站内搜 chub.ai 上别人
  * 做好的酒馆卡，点「做成角色」就建成一张我们的角色卡（与文件导入同一条落格规则，
- * 世界书、卡自带系统提示词只存不注入）。⛔ 成人内容默认不出。
+ * 世界书、卡自带系统提示词只存不注入）。成人内容照出（owner 2026-10-15），NSFL 不出。
  *
  * 地台那一行与总览同一套排法（`CharacterOverviewHeader`）：页签 · 搜索 · 排序；
- * 白卡里是卡片网格，滚到底接下一页。
+ * 白卡里是卡片网格（卡与「我的角色」同一张），滚到底接下一页；点卡在站内看详情。
  */
 
 /** 地台最左的两个页签「我的角色 / 卡库」（顶替原来的标题）。 */
@@ -121,108 +129,279 @@ export function CharacterLibraryHeader({
   )
 }
 
+/** 与「我的角色」的 `CellGrid` 同一套列数（owner 2026-10-15：卡库卡与角色卡对齐）。 */
 const GRID_CLASS =
-  'grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5'
+  'grid grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-3 md:grid-cols-4 desk:grid-cols-6 2xl:grid-cols-8'
 
 function TileSkeletons({ count }: { count: number }) {
   return Array.from({ length: count }, (_, index) => (
-    <div key={index} className="flex flex-col gap-2">
-      <Skeleton className="aspect-3/4 w-full rounded-lg" />
-      <Skeleton className="h-4 w-2/3" />
-      <Skeleton className="h-3 w-full" />
-    </div>
+    <Skeleton key={index} className="aspect-4/5 w-full rounded-2xl" />
   ))
 }
 
-function LibraryTile({
+/** chub 的图：坏了退成名字首字（chub 图床偶尔 404）。 */
+function ChubImage({
   card,
-  busy,
-  disabled,
-  onImport,
+  className,
+  imgClassName,
 }: {
   card: ChubCardSummary
-  busy: boolean
-  disabled: boolean
-  onImport(): void
+  className?: string
+  imgClassName?: string
 }) {
-  const t = useTranslations('CharacterRoster')
-  const locale = useLocale()
   const [broken, setBroken] = useState(false)
-  const compact = useMemo(
+  return (
+    <span className={cn('block overflow-hidden bg-muted', className)}>
+      {card.avatarUrl && !broken ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={card.avatarUrl}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onError={() => setBroken(true)}
+          className={cn('size-full object-cover', imgClassName)}
+        />
+      ) : (
+        <span className="flex size-full items-center justify-center text-2xl font-semibold text-muted-foreground">
+          {card.name.slice(0, 1)}
+        </span>
+      )}
+    </span>
+  )
+}
+
+function useCompactNumber() {
+  const locale = useLocale()
+  return useMemo(
     () => new Intl.NumberFormat(locale, { notation: 'compact' }),
     [locale],
   )
-  const tags = card.tags.slice(0, CHUB_LIBRARY.TILE_TAGS)
+}
+
+/** 卡片底下那行小字：★ 收藏数 · 前几个标签。 */
+function tileMeta(card: ChubCardSummary, compact: Intl.NumberFormat): string {
+  return [
+    card.starCount !== null ? `★ ${compact.format(card.starCount)}` : null,
+    ...card.tags.slice(0, CHUB_LIBRARY.TILE_TAGS),
+  ]
+    .filter(Boolean)
+    .join(' · ')
+}
+
+/**
+ * 卡库里的一张卡 = 「我的角色」那张卡（`CharacterOverview` 的 `CharacterTile`）：4:5、
+ * 大圆角、名字和一行小字压在图底。点开看详情，「做成角色」与 chub 外链都在详情里。
+ */
+function LibraryTile({
+  card,
+  onOpen,
+}: {
+  card: ChubCardSummary
+  onOpen(): void
+}) {
+  const t = useTranslations('CharacterRoster')
+  const compact = useCompactNumber()
+  const meta = tileMeta(card, compact)
   return (
-    <article
+    <button
+      type="button"
       data-testid="library-tile"
-      className="flex min-w-0 flex-col gap-2"
+      onClick={onOpen}
+      aria-label={t('libraryOpenDetail', { name: card.name })}
+      className="group relative block aspect-4/5 w-full text-left"
     >
-      <div className="relative aspect-3/4 w-full overflow-hidden rounded-lg bg-muted">
-        {card.avatarUrl && !broken ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={card.avatarUrl}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            referrerPolicy="no-referrer"
-            onError={() => setBroken(true)}
-            className="size-full object-cover"
-          />
-        ) : (
-          <span className="flex size-full items-center justify-center text-2xl font-semibold text-muted-foreground">
-            {card.name.slice(0, 1)}
-          </span>
-        )}
-      </div>
-      <div className="flex min-w-0 flex-col gap-1">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <h3 className="truncate text-sm font-medium">{card.name}</h3>
-          <a
-            href={`${CHUB_LIBRARY.SITE_URL}/${card.fullPath}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={t('libraryOpenOnChub', { name: card.name })}
-            title={t('libraryOpenOnChub', { name: card.name })}
-            className="ml-auto grid size-6 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-fast hover:text-foreground coarse:size-8"
-          >
-            <ExternalLink className="size-3.5" />
-          </a>
-        </div>
-        {card.tagline ? (
-          <p className="line-clamp-2 text-2sm text-muted-foreground">
-            {card.tagline}
-          </p>
-        ) : null}
-        {card.starCount !== null || tags.length > 0 ? (
-          <p className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-            {card.starCount !== null ? (
-              <span className="flex shrink-0 items-center gap-0.5">
-                <Star className="size-3" aria-hidden />
-                <span className="sr-only">{t('libraryStars')}</span>
-                {compact.format(card.starCount)}
-              </span>
-            ) : null}
-            {tags.length > 0 ? (
-              <span className="truncate">{tags.join(' · ')}</span>
-            ) : null}
-          </p>
-        ) : null}
-      </div>
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        className="mt-auto rounded-full"
-        disabled={disabled}
-        aria-label={t('libraryImportNamed', { name: card.name })}
-        onClick={onImport}
+      <span className="absolute inset-0 overflow-hidden rounded-2xl bg-muted">
+        <ChubImage
+          card={card}
+          className="size-full"
+          imgClassName="transition-transform duration-reveal ease-standard group-hover:scale-103"
+        />
+        <span className="absolute inset-x-0 bottom-0 flex flex-col bg-linear-to-t from-foreground/60 to-transparent px-4 pb-3 pt-10 text-background">
+          <span className="truncate text-base font-semibold">{card.name}</span>
+          {meta ? (
+            <span className="truncate text-xs opacity-85">{meta}</span>
+          ) : null}
+        </span>
+      </span>
+    </button>
+  )
+}
+
+function DetailField({ label, text }: { label: string; text: string }) {
+  const value = text.trim()
+  if (!value) return null
+  return (
+    <section className="flex min-w-0 flex-col gap-1">
+      <h3 className="text-xs text-muted-foreground">{label}</h3>
+      <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+        {value}
+      </p>
+    </section>
+  )
+}
+
+/**
+ * 卡库详情（owner 2026-10-15 选 B「正中弹窗」）：电脑是正中弹窗（左图右字），手机是
+ * 从底下拉起的整屏抽屉（图在上、字往上滑，「做成角色」贴底）。打开时才去 chub 取这张
+ * 卡的完整定义；标题、图、收藏数用列表里已有的，先出来。
+ */
+function LibraryDetail({
+  card,
+  busy,
+  disabled,
+  onClose,
+  onImport,
+}: {
+  card: ChubCardSummary | null
+  busy: boolean
+  disabled: boolean
+  onClose(): void
+  onImport(fullPath: string): void
+}) {
+  const t = useTranslations('CharacterRoster')
+  const compact = useCompactNumber()
+  const detail = useChubCard(card?.fullPath ?? null)
+  // 关上时内容还要陪着淡出：留住最后一张。
+  const [shown, setShown] = useState(card)
+  if (card && card !== shown) setShown(card)
+  const current = card ?? shown
+  if (!current) return null
+
+  const definition = detail.node?.definition
+  const creator = current.fullPath.split('/')[0]
+  const meta = [
+    current.starCount !== null
+      ? `★ ${compact.format(current.starCount)}`
+      : null,
+    creator ? t('libraryCreator', { name: creator }) : null,
+    current.tokenCount !== null
+      ? t('libraryTokens', { count: compact.format(current.tokenCount) })
+      : null,
+  ].filter(Boolean)
+  const alternates = definition?.alternate_greetings.length ?? 0
+
+  return (
+    <ResponsiveDialog
+      open={card !== null}
+      onOpenChange={(open) => {
+        if (!open) onClose()
+      }}
+    >
+      <ResponsiveDialogContent
+        data-testid="library-detail"
+        className="gap-0 overflow-hidden p-0 sm:flex sm:max-h-9/10 sm:max-w-4xl"
+        mobileBodyClassName="px-0 pt-0"
       >
-        {busy ? <Spinner size="sm" /> : <Plus className="size-4" />}
-        {t('libraryImport')}
-      </Button>
-    </article>
+        <ChubImage
+          card={current}
+          className="aspect-4/5 w-full shrink-0 sm:aspect-auto sm:w-2/5"
+        />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 px-5 pt-5 pb-4 sm:overflow-y-auto sm:px-6 sm:pt-6">
+            <ResponsiveDialogHeader className="gap-1 p-0 text-left">
+              <ResponsiveDialogTitle className="text-xl font-semibold">
+                {current.name}
+              </ResponsiveDialogTitle>
+              <ResponsiveDialogDescription className="text-xs text-muted-foreground">
+                {meta.join(' · ')}
+              </ResponsiveDialogDescription>
+            </ResponsiveDialogHeader>
+            {current.tags.length > 0 ? (
+              <ul className="flex flex-wrap gap-1.5">
+                {current.tags.map((tag) => (
+                  <li
+                    key={tag}
+                    className="rounded-full bg-muted px-2.5 py-0.5 text-xs"
+                  >
+                    {tag}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {current.tagline ? (
+              <p className="text-sm text-muted-foreground">{current.tagline}</p>
+            ) : null}
+
+            {detail.status === 'error' ? (
+              <div className="flex flex-col items-start gap-2 text-sm text-muted-foreground">
+                <p>{detail.error ?? t('libraryDetailFailed')}</p>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={detail.retry}
+                >
+                  {t('libraryRetry')}
+                </Button>
+              </div>
+            ) : definition ? (
+              <>
+                {/* ⚠ chub 的格名和酒馆错开一位（见 docs/references/domains/cards.md
+                    「落格」）：chub `personality` = 酒馆 description，`tavern_personality`
+                    = 性格，chub `description` = 作者备注。 */}
+                <DetailField
+                  label={t('libraryFieldDescription')}
+                  text={definition.personality}
+                />
+                <DetailField
+                  label={t('libraryFieldPersonality')}
+                  text={definition.tavern_personality}
+                />
+                <DetailField
+                  label={t('libraryFieldScenario')}
+                  text={definition.scenario}
+                />
+                <DetailField
+                  label={t('libraryFieldFirstMessage')}
+                  text={definition.first_message}
+                />
+                <DetailField
+                  label={t('libraryFieldCreatorNotes')}
+                  text={definition.description}
+                />
+                {alternates > 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    {t('libraryAltGreetings', { count: alternates })}
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <div className="flex flex-col gap-2" aria-busy>
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-2/3" />
+              </div>
+            )}
+          </div>
+          <div className="sticky bottom-0 flex items-center gap-3 border-t bg-background px-5 py-3 sm:px-6">
+            <a
+              href={`${CHUB_LIBRARY.SITE_URL}/${current.fullPath}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={t('libraryOpenOnChub', { name: current.name })}
+              className="flex items-center gap-1 text-2sm text-muted-foreground underline-offset-4 transition-colors duration-fast hover:text-foreground hover:underline"
+            >
+              {t('libraryViewOnChub')}
+              <ExternalLink className="size-3.5" aria-hidden />
+            </a>
+            <Button
+              type="button"
+              className="ml-auto rounded-full"
+              disabled={disabled}
+              aria-label={t('libraryImportNamed', { name: current.name })}
+              onClick={() => onImport(current.fullPath)}
+            >
+              {busy ? <Spinner size="sm" /> : <Plus className="size-4" />}
+              {t('libraryImport')}
+            </Button>
+          </div>
+        </div>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   )
 }
 
@@ -240,6 +419,8 @@ export function CharacterLibrary({
   const t = useTranslations('CharacterRoster')
   const sentinel = useRef<HTMLDivElement>(null)
   const { hasMore, loadMore, moreStatus, status } = library
+  /** 详情开着的那一张。 */
+  const [openCard, setOpenCard] = useState<ChubCardSummary | null>(null)
 
   // 滚到底自己接下一页（没有 IntersectionObserver 的环境就停在这一页）。
   useEffect(() => {
@@ -259,7 +440,7 @@ export function CharacterLibrary({
 
       {status === 'loading' ? (
         <div className={GRID_CLASS} aria-busy>
-          <TileSkeletons count={10} />
+          <TileSkeletons count={12} />
         </div>
       ) : status === 'error' ? (
         <EmptyState
@@ -301,12 +482,10 @@ export function CharacterLibrary({
               <LibraryTile
                 key={card.fullPath}
                 card={card}
-                busy={importingPath === card.fullPath}
-                disabled={importingPath !== null}
-                onImport={() => onImport(card.fullPath)}
+                onOpen={() => setOpenCard(card)}
               />
             ))}
-            {moreStatus === 'loading' ? <TileSkeletons count={5} /> : null}
+            {moreStatus === 'loading' ? <TileSkeletons count={6} /> : null}
           </div>
           <div
             ref={sentinel}
@@ -326,6 +505,13 @@ export function CharacterLibrary({
           </div>
         </>
       )}
+      <LibraryDetail
+        card={openCard}
+        busy={openCard !== null && importingPath === openCard.fullPath}
+        disabled={importingPath !== null}
+        onClose={() => setOpenCard(null)}
+        onImport={onImport}
+      />
     </div>
   )
 }

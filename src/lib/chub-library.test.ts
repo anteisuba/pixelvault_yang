@@ -9,8 +9,10 @@ import {
   isChubImageUrl,
   parseChubCharacter,
   parseChubSearch,
+  rankChubCards,
   realChubTopics,
 } from '@/lib/chub-library'
+import type { ChubCardSummary } from '@/types/chub-library'
 
 function node(index: number, overrides: Record<string, unknown> = {}) {
   return {
@@ -39,7 +41,7 @@ const definition = {
 }
 
 describe('chubSearchUrl', () => {
-  it('同样的参数：固定不要成人内容，排序换成 chub 的键', () => {
+  it('同样的参数：带成人内容、不要 NSFL，排序换成 chub 的键', () => {
     const url = new URL(chubSearchUrl({ q: '店主', page: 2, sort: 'recent' }))
 
     expect(`${url.origin}${url.pathname}`).toBe(CHUB_LIBRARY.SEARCH_URL)
@@ -49,7 +51,7 @@ describe('chubSearchUrl', () => {
       page: '2',
       sort: 'last_activity_at',
       asc: 'false',
-      nsfw: 'false',
+      nsfw: 'true',
       nsfl: 'false',
     })
   })
@@ -109,7 +111,7 @@ describe('parseChubSearch', () => {
     expect(result?.hasMore).toBe(false)
   })
 
-  it('带成人标签的兜掉；坏节点跳过不拒整页；满一页才算还有下一页', () => {
+  it('成人标签照留，NSFL 兜掉；坏节点跳过不拒整页；满一页才算还有下一页', () => {
     const nodes: unknown[] = Array.from(
       { length: CHUB_LIBRARY.PAGE_SIZE },
       (_, i) => node(i),
@@ -120,7 +122,8 @@ describe('parseChubSearch', () => {
 
     const result = parseChubSearch({ data: { nodes } }, 1)
 
-    expect(result?.items).toHaveLength(CHUB_LIBRARY.PAGE_SIZE - 3)
+    expect(result?.items).toHaveLength(CHUB_LIBRARY.PAGE_SIZE - 2)
+    expect(result?.items[0].fullPath).toBe('maker/card-0')
     expect(result?.hasMore).toBe(true)
   })
 
@@ -228,5 +231,43 @@ describe('isChubImageUrl / realChubTopics', () => {
 
   it('标签去掉树根与空串', () => {
     expect(realChubTopics(['ROOT', '', 'Original'])).toEqual(['Original'])
+  })
+})
+
+describe('rankChubCards', () => {
+  const card = (name: string, tags: string[] = []): ChubCardSummary => ({
+    fullPath: `maker/${name}`,
+    name,
+    tagline: '',
+    tags,
+    avatarUrl: null,
+    starCount: null,
+    tokenCount: null,
+  })
+
+  it('名字就是它 > 名字里有 > 标签里有 > 只在正文里；同一档保持原顺序', () => {
+    const ranked = rankChubCards(
+      [
+        card('Forced to be Free'),
+        card('Wuthering crew', ['Denia']),
+        card('Denia (Wuthering Waves)'),
+        card('Chris'),
+        card('denia'),
+      ],
+      ' Denia ',
+    )
+
+    expect(ranked.map((item) => item.name)).toEqual([
+      'denia',
+      'Denia (Wuthering Waves)',
+      'Wuthering crew',
+      'Forced to be Free',
+      'Chris',
+    ])
+  })
+
+  it('没有搜索词：原样', () => {
+    const items = [card('B'), card('A')]
+    expect(rankChubCards(items, '  ')).toEqual(items)
   })
 })

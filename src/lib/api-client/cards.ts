@@ -27,6 +27,7 @@ import type {
 } from '@/types'
 import {
   ChubFullPathSchema,
+  type ChubCharacterNode,
   type ChubSearchQuery,
   type ChubSearchResult,
   type ImportChubCardRequest,
@@ -194,8 +195,25 @@ export async function searchChubCardsAPI(
       result.kind === 'countryBlocked' ? 'countryBlocked' : 'unavailable',
     )
   }
-  const data = parseChubSearch(result.json, query.page)
+  const data = parseChubSearch(result.json, query.page, query.q)
   return data ? { success: true, data } : chubFailure('unavailable')
+}
+
+/** 卡库详情：浏览器从 chub 取一张卡的完整定义（只读，⛔ 建卡）。失败带 `i18nKey`。 */
+export async function getChubCardAPI(
+  fullPath: string,
+  signal?: AbortSignal,
+): Promise<
+  | { success: true; data: ChubCharacterNode }
+  | (ChubFailure & { data?: undefined })
+> {
+  const path = ChubFullPathSchema.safeParse(fullPath)
+  if (!path.success) return chubFailure('notFound')
+  const fetched = await fetchChubJson(chubCharacterUrl(path.data), signal)
+  if (!fetched.ok) return chubFailure(fetched.kind)
+  const card = parseChubCharacter(fetched.json)
+  if (!card.success) return chubFailure(card.reason)
+  return { success: true, data: card.node }
 }
 
 /**

@@ -18,7 +18,8 @@ import {
  * **卡库读 chub 的规则**（纯函数，浏览器与服务端共用）：拼地址、读搜索结果、读一张卡。
  * 问 chub 的是浏览器（`lib/api-client/cards.ts`，原因见 `CHUB_LIBRARY` 头注）；建卡的
  * 服务端（`chub-library.service`）只用其中的图床与标签判断。
- * ⛔ 成人内容：搜索固定 `nsfw=false&nsfl=false`，再按标签兜一层。
+ * 成人内容（owner 2026-10-15「不排除成人内容」）：搜索带 `nsfw=true`；⛔ 猎奇血腥
+ * （chub 的 NSFL）仍固定 `nsfl=false`，再按标签兜一层。
  */
 
 const SearchNodeSchema = z.object({
@@ -42,8 +43,8 @@ export function realChubTopics(topics: readonly string[]): string[] {
   return topics.filter((topic) => topic && topic !== CHUB_LIBRARY.ROOT_TOPIC)
 }
 
-function isAdultTopic(topic: string): boolean {
-  return /^nsf[wl]$/i.test(topic.trim())
+function isNsflTopic(topic: string): boolean {
+  return /^nsfl$/i.test(topic.trim())
 }
 
 /** 只认 chub 自己的图床（⛔ 跟着上游给的任意地址去取或去显示）。 */
@@ -78,7 +79,7 @@ export function chubSearchUrl(query: ChubSearchQuery): string {
     page: String(page),
     sort: CHUB_LIBRARY_SORTS[sort],
     asc: 'false',
-    nsfw: 'false',
+    nsfw: 'true',
     nsfl: 'false',
   })
   return `${CHUB_LIBRARY.SEARCH_URL}?${params}`
@@ -103,13 +104,47 @@ function toSummary(node: z.infer<typeof SearchNodeSchema>): ChubCardSummary {
   }
 }
 
+/** 卡和搜索词有多贴：0 名字就是它 · 1 名字里有 · 2 标签里有 · 3 只在正文里提到。 */
+function relevance(card: ChubCardSummary, words: readonly string[]): number {
+  const name = card.name.toLowerCase()
+  const whole = words.join(' ')
+  if (name === whole) return 0
+  if (words.every((word) => name.includes(word))) return 1
+  const tags = card.tags.map((tag) => tag.toLowerCase())
+  if (
+    words.every(
+      (word) => name.includes(word) || tags.some((tag) => tag.includes(word)),
+    )
+  ) {
+    return 2
+  }
+  return 3
+}
+
 /**
- * 搜索回来的 JSON → 卡片（坏节点、带成人标签的跳过，⛔ 不拒整页）。形状不对是 `null`。
- * 满一页且没到 `MAX_PAGE` 才算还有下一页。
+ * 有搜索词时按相关度排（owner 2026-10-15）：名字、标签对上的排前面，同一档里保持
+ * chub 原来的热门 / 最新顺序。⚠ 只在这一页里排（chub 按页回，前面的页已经摆出去了）。
+ */
+export function rankChubCards(
+  items: readonly ChubCardSummary[],
+  query: string,
+): ChubCardSummary[] {
+  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean)
+  if (words.length === 0) return [...items]
+  return items
+    .map((card, index) => ({ card, index, rank: relevance(card, words) }))
+    .sort((a, b) => a.rank - b.rank || a.index - b.index)
+    .map((entry) => entry.card)
+}
+
+/**
+ * 搜索回来的 JSON → 卡片（坏节点、带 NSFL 标签的跳过，⛔ 不拒整页），有搜索词时按
+ * 相关度排。形状不对是 `null`。满一页且没到 `MAX_PAGE` 才算还有下一页。
  */
 export function parseChubSearch(
   json: unknown,
   page: number,
+  query = '',
 ): ChubSearchResult | null {
   const parsed = SearchResponseSchema.safeParse(json)
   if (!parsed.success) return null
@@ -117,11 +152,11 @@ export function parseChubSearch(
   const items = nodes.flatMap((raw) => {
     const node = SearchNodeSchema.safeParse(raw)
     if (!node.success) return []
-    if (node.data.topics.some(isAdultTopic)) return []
+    if (node.data.topics.some(isNsflTopic)) return []
     return [toSummary(node.data)]
   })
   return {
-    items,
+    items: rankChubCards(items, query),
     page,
     hasMore:
       nodes.length >= CHUB_LIBRARY.PAGE_SIZE && page < CHUB_LIBRARY.MAX_PAGE,

@@ -3,7 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CHUB_LIBRARY } from '@/constants/cards/chub-library'
 import { TAVERN_CARD } from '@/constants/cards/tavern-card'
 import { API_ENDPOINTS } from '@/constants/config'
-import { importChubCardAPI, searchChubCardsAPI } from '@/lib/api-client/cards'
+import {
+  getChubCardAPI,
+  importChubCardAPI,
+  searchChubCardsAPI,
+} from '@/lib/api-client/cards'
 
 const fetchMock = vi.fn()
 
@@ -49,10 +53,10 @@ afterEach(() => {
 })
 
 describe('searchChubCardsAPI（浏览器直接问 chub）', () => {
-  it('直接打 api.chub.ai/search，只带 Accept（⛔ 预检）；成人标签兜掉', async () => {
+  it('直接打 api.chub.ai/search，只带 Accept（⛔ 预检）；NSFL 兜掉', async () => {
     fetchMock.mockResolvedValue(
       json({
-        data: { nodes: [searchNode(1), searchNode(2, ['ROOT', 'NSFW'])] },
+        data: { nodes: [searchNode(1), searchNode(2, ['ROOT', 'NSFL'])] },
       }),
     )
 
@@ -66,7 +70,7 @@ describe('searchChubCardsAPI（浏览器直接问 chub）', () => {
     const parsed = new URL(url)
     expect(`${parsed.origin}${parsed.pathname}`).toBe(CHUB_LIBRARY.SEARCH_URL)
     expect(parsed.searchParams.get('search')).toBe('店主')
-    expect(parsed.searchParams.get('nsfw')).toBe('false')
+    expect(parsed.searchParams.get('nsfw')).toBe('true')
     expect(parsed.searchParams.get('nsfl')).toBe('false')
     expect(init.headers).toEqual({ Accept: 'application/json' })
     expect(init.method).toBeUndefined()
@@ -233,6 +237,33 @@ describe('importChubCardAPI（浏览器取定义 → 我们的服务端建卡）
       success: false,
       error: 'Character card limit reached.',
       i18nKey: 'errors.tavernCard.limitReached',
+    })
+  })
+})
+
+describe('getChubCardAPI（卡库详情：只读）', () => {
+  it('取完整定义回给详情，⛔ 碰我们的服务端', async () => {
+    fetchMock.mockResolvedValueOnce(
+      json({ node: { name: 'Rei', topics: ['ROOT'], definition } }),
+    )
+
+    const result = await getChubCardAPI('maker/rei')
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      `${CHUB_LIBRARY.CHARACTER_URL}/maker/rei?full=true`,
+    )
+    expect(result.success).toBe(true)
+    expect(result.data?.definition.first_message).toBe('Welcome.')
+  })
+
+  it('路径不对 / chub 上没了：notFound', async () => {
+    expect(await getChubCardAPI('no-slash')).toMatchObject({
+      i18nKey: 'errors.chubLibrary.notFound',
+    })
+    fetchMock.mockResolvedValueOnce(json({}, 404))
+    expect(await getChubCardAPI('maker/gone')).toMatchObject({
+      i18nKey: 'errors.chubLibrary.notFound',
     })
   })
 })

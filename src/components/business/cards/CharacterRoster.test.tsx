@@ -98,6 +98,33 @@ const mockImportTavern = vi.fn()
 const mockImportChub = vi.fn()
 const mockLibraryEnabled = vi.hoisted(() => ({ value: false }))
 
+vi.mock('@/hooks/cards/use-chub-card', () => ({
+  useChubCard: (fullPath: string | null) => ({
+    status: fullPath ? 'ready' : 'idle',
+    node: fullPath
+      ? {
+          name: 'Rei',
+          topics: [],
+          max_res_url: null,
+          definition: {
+            name: 'Rei',
+            personality: '',
+            tavern_personality: '',
+            scenario: '',
+            first_message: '欢迎光临。',
+            example_dialogs: '',
+            description: '',
+            system_prompt: '',
+            post_history_instructions: '',
+            alternate_greetings: ['又见面了。'],
+          },
+        }
+      : null,
+    error: null,
+    retry: () => {},
+  }),
+}))
+
 vi.mock('@/hooks/cards/use-chub-library', () => ({
   useChubLibrary: (enabled: boolean) => {
     mockLibraryEnabled.value = enabled
@@ -232,9 +259,8 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
     mockImportTavern.mockResolvedValue(CARDS[1])
     const { container } = renderRoster()
     expect(screen.getByRole('button', { name: '导入酒馆卡' })).toBeTruthy()
-    const input = container.querySelector<HTMLInputElement>(
-      'input[type="file"]',
-    )!
+    const input =
+      container.querySelector<HTMLInputElement>('input[type="file"]')!
     const file = new File(['{}'], 'rixi.json', { type: 'application/json' })
     fireEvent.change(input, { target: { files: [file] } })
     await vi.waitFor(() => expect(mockImportTavern).toHaveBeenCalledWith(file))
@@ -266,7 +292,12 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
       'aria-selected',
       'true',
     )
+    // 卡片上没有按钮：点开站内详情，「做成角色」在详情里。
+    expect(screen.queryByRole('button', { name: '把 Rei 做成角色' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '查看 Rei 的详情' }))
     expect(screen.getByText('雨夜里的店主')).toBeTruthy()
+    expect(screen.getByText('欢迎光临。')).toBeTruthy()
+    expect(screen.getByText('另有 1 条备选开场白')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: '把 Rei 做成角色' }))
     await vi.waitFor(() =>
       expect(mockImportChub).toHaveBeenCalledWith('maker/rei'),

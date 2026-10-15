@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   VIDEO_ANALYSIS_DOWNGRADE,
@@ -22,6 +23,7 @@ describe('resolveVideoAnalysisRoute —— 三档', () => {
     const decision = resolveVideoAnalysisRoute({
       task: VIDEO_ANALYSIS_TASKS.conversational,
       adapterType: AI_ADAPTER_TYPES.GEMINI,
+      modelId: undefined,
       hasFrames: false,
       durationSeconds: 30,
     })
@@ -36,6 +38,7 @@ describe('resolveVideoAnalysisRoute —— 三档', () => {
       const decision = resolveVideoAnalysisRoute({
         task: VIDEO_ANALYSIS_TASKS.compare,
         adapterType,
+        modelId: undefined,
         hasFrames: true,
         durationSeconds: 600,
       })
@@ -50,6 +53,7 @@ describe('resolveVideoAnalysisRoute —— 三档', () => {
     const decision = resolveVideoAnalysisRoute({
       task: VIDEO_ANALYSIS_TASKS.characterIdentity,
       adapterType: AI_ADAPTER_TYPES.GEMINI,
+      modelId: undefined,
       hasFrames: false,
       durationSeconds: 60,
     })
@@ -61,6 +65,7 @@ describe('resolveVideoAnalysisRoute —— 三档', () => {
       resolveVideoAnalysisRoute({
         task: VIDEO_ANALYSIS_TASKS.conversational,
         adapterType: AI_ADAPTER_TYPES.OPENAI,
+        modelId: undefined,
         hasFrames: true,
         durationSeconds: 30,
       }),
@@ -75,11 +80,33 @@ describe('resolveVideoAnalysisRoute —— 三档', () => {
     )
   })
 
+  it('④ 按厂商 + 型号判：DeepSeek 默认档能看帧，V4 Pro 看不了图 → 有帧集也照实报错', () => {
+    expect(
+      resolveVideoAnalysisRoute({
+        task: VIDEO_ANALYSIS_TASKS.compare,
+        adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+        modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH,
+        hasFrames: true,
+      }).mode,
+    ).toBe(VIDEO_ANALYSIS_MODES.frames)
+    expect(() =>
+      resolveVideoAnalysisRoute({
+        task: VIDEO_ANALYSIS_TASKS.compare,
+        adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+        modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
+        hasFrames: true,
+      }),
+    ).toThrowError(
+      expect.objectContaining({ errorCode: 'ASSISTANT_VIDEO_UNSUPPORTED' }),
+    )
+  })
+
   it('③b 只支持帧的路由 + 没帧集 → 同样结构化报错，⛔ 不静默降级成瞎猜', () => {
     expect(() =>
       resolveVideoAnalysisRoute({
         task: VIDEO_ANALYSIS_TASKS.qualityReview,
         adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+        modelId: undefined,
         hasFrames: false,
       }),
     ).toThrowError(
@@ -133,6 +160,7 @@ describe('resolveNativeVideoWindow —— 先降级再问（⛔ 不弹确认卡�
     const decision = resolveVideoAnalysisRoute({
       task: VIDEO_ANALYSIS_TASKS.conversational,
       adapterType: AI_ADAPTER_TYPES.GEMINI,
+      modelId: undefined,
       hasFrames: false,
       durationSeconds: 3600,
     })

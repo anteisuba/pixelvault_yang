@@ -95,6 +95,11 @@ export function resolveNativeVideoWindow(
 export interface VideoAnalysisRouteInput {
   task: VideoAnalysisTask
   adapterType: AI_ADAPTER_TYPES
+  /**
+   * 这一轮真正会用的那个型号（`resolveVisionRoute` 给的）。⚠ 必填：能看到哪一档按
+   * 厂商 + 型号判（同一家里有看不了图的型号，比如 DeepSeek V4 Pro）。`undefined` = 那一家默认档。
+   */
+  modelId: string | undefined
   /** 本轮有没有现成的帧集（客户端抽好并落库了）。 */
   hasFrames: boolean
   /** 片长，用于成本 window。取不到就别猜。 */
@@ -106,10 +111,16 @@ export function resolveVideoAnalysisRoute(
 ): VideoAnalysisDecision {
   const requiredTier = VIDEO_ANALYSIS_TASK_TIERS[input.task]
 
-  if (!assistantAdapterSatisfiesVideoTier(input.adapterType, requiredTier)) {
+  if (
+    !assistantAdapterSatisfiesVideoTier(
+      input.adapterType,
+      requiredTier,
+      input.modelId,
+    )
+  ) {
     throw videoUnsupportedError(
-      `task=${input.task} needs tier "${requiredTier}", route ${input.adapterType} offers "${String(
-        assistantAdapterVideoTier(input.adapterType),
+      `task=${input.task} needs tier "${requiredTier}", route ${input.adapterType}/${String(input.modelId)} offers "${String(
+        assistantAdapterVideoTier(input.adapterType, input.modelId),
       )}"`,
     )
   }
@@ -131,11 +142,12 @@ export function resolveVideoAnalysisRoute(
     !assistantAdapterSatisfiesVideoTier(
       input.adapterType,
       ASSISTANT_VIDEO_TIERS.native,
+      input.modelId,
     )
   ) {
     throw videoUnsupportedError(
-      `task=${input.task} has no frame set, so it needs tier "native"; route ${input.adapterType} offers "${String(
-        assistantAdapterVideoTier(input.adapterType),
+      `task=${input.task} has no frame set, so it needs tier "native"; route ${input.adapterType}/${String(input.modelId)} offers "${String(
+        assistantAdapterVideoTier(input.adapterType, input.modelId),
       )}"`,
     )
   }

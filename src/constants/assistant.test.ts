@@ -20,13 +20,13 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
  */
 describe('ASSISTANT_MEDIA_CAPABILITIES 三值化', () => {
   it('Gemini = native（实测可用的那一条）', () => {
-    expect(assistantAdapterVideoTier(AI_ADAPTER_TYPES.GEMINI)).toBe(
+    expect(assistantAdapterVideoTier(AI_ADAPTER_TYPES.GEMINI, undefined)).toBe(
       ASSISTANT_VIDEO_TIERS.native,
     )
   })
 
   it('OpenAI = frames（能吃图但吃不了视频文件）', () => {
-    expect(assistantAdapterVideoTier(AI_ADAPTER_TYPES.OPENAI)).toBe(
+    expect(assistantAdapterVideoTier(AI_ADAPTER_TYPES.OPENAI, undefined)).toBe(
       ASSISTANT_VIDEO_TIERS.frames,
     )
   })
@@ -36,7 +36,7 @@ describe('ASSISTANT_MEDIA_CAPABILITIES 三值化', () => {
       AI_ADAPTER_TYPES.VOLCENGINE,
       AI_ADAPTER_TYPES.BYTEPLUS,
     ]) {
-      expect(assistantAdapterVideoTier(adapterType)).toBe(false)
+      expect(assistantAdapterVideoTier(adapterType, undefined)).toBe(false)
     }
   })
 
@@ -45,13 +45,14 @@ describe('ASSISTANT_MEDIA_CAPABILITIES 三值化', () => {
       AI_ADAPTER_TYPES.ANTHROPIC,
       AI_ADAPTER_TYPES.XAI,
     ]) {
-      expect(assistantAdapterVideoTier(adapterType)).toBe(
+      expect(assistantAdapterVideoTier(adapterType, undefined)).toBe(
         ASSISTANT_VIDEO_TIERS.frames,
       )
       expect(
         assistantAdapterSatisfiesVideoTier(
           adapterType,
           ASSISTANT_VIDEO_TIERS.native,
+          undefined,
         ),
       ).toBe(false)
     }
@@ -109,12 +110,14 @@ describe('assistantAdapterSatisfiesVideoTier —— 调用方必须说出要哪�
       assistantAdapterSatisfiesVideoTier(
         AI_ADAPTER_TYPES.GEMINI,
         ASSISTANT_VIDEO_TIERS.native,
+        undefined,
       ),
     ).toBe(true)
     expect(
       assistantAdapterSatisfiesVideoTier(
         AI_ADAPTER_TYPES.OPENAI,
         ASSISTANT_VIDEO_TIERS.native,
+        undefined,
       ),
     ).toBe(false)
   })
@@ -124,12 +127,14 @@ describe('assistantAdapterSatisfiesVideoTier —— 调用方必须说出要哪�
       assistantAdapterSatisfiesVideoTier(
         AI_ADAPTER_TYPES.OPENAI,
         ASSISTANT_VIDEO_TIERS.frames,
+        undefined,
       ),
     ).toBe(true)
     expect(
       assistantAdapterSatisfiesVideoTier(
         AI_ADAPTER_TYPES.GEMINI,
         ASSISTANT_VIDEO_TIERS.frames,
+        undefined,
       ),
     ).toBe(true)
   })
@@ -157,6 +162,7 @@ describe('assistantAdapterAcceptsReferenceKind —— 附件闸', () => {
         AI_ADAPTER_TYPES.OPENAI,
         'image',
         ASSISTANT_VIDEO_TIERS.native,
+        undefined,
       ),
     ).toBe(true)
     expect(
@@ -183,6 +189,7 @@ describe('assistantAdapterAcceptsReferenceKind —— 附件闸', () => {
         AI_ADAPTER_TYPES.OPENAI,
         'video',
         ASSISTANT_VIDEO_TIERS.native,
+        undefined,
       ),
     ).toBe(false)
   })

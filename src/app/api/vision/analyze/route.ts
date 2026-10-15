@@ -32,8 +32,8 @@ export const POST = createApiRoute({
       projectId: data.projectId ?? null,
       task: data.task,
       mediaUrls: data.mediaUrls,
-      // 线上叫 `apiKeyId`（全仓请求体都这么叫），服务层叫 `routeHint`
-      // （它对视觉线只是「用户当前选的那条路」的提示，看不了图就会被借掉）。
+      // 线上叫 `apiKeyId`（全仓请求体都这么叫），服务层叫 `routeHint`：用户当前选的那条路；
+      // 缺席 = 助手那一家。看不了图就照实报错，⛔ 不借别家（owner 2026-10-15）。
       routeHint: data.apiKeyId,
       instruction: data.instruction,
     })

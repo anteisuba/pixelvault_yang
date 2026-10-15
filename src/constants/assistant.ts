@@ -221,9 +221,14 @@ const ASSISTANT_MODEL_MEDIA_CAPABILITIES: Readonly<
   [LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO]: { image: false, video: false },
 }
 
+/**
+ * ⭐ 能力只有**一个来源**：厂商默认（上表）+ 按型号的例外（`ASSISTANT_MODEL_MEDIA_CAPABILITIES`）。
+ * 下面几个读法的 `modelId` **必填**（值可以是 `undefined` = 那一家的默认档）：只按厂商判会把
+ * DeepSeek V4 Pro 当成能看图（2026-10-15 对齐第三片）—— 调用方得说出这一轮真正用的型号。
+ */
 function getAssistantMediaCapability(
   adapterType: AI_ADAPTER_TYPES,
-  modelId?: string,
+  modelId: string | undefined,
 ): AssistantMediaCapability {
   return (
     (modelId ? ASSISTANT_MODEL_MEDIA_CAPABILITIES[modelId] : undefined) ??
@@ -277,7 +282,7 @@ export function isAssistantProvider(
 
 export function assistantAdapterSupportsImage(
   adapterType: AI_ADAPTER_TYPES,
-  modelId?: string,
+  modelId: string | undefined,
 ): boolean {
   return getAssistantMediaCapability(adapterType, modelId).image
 }
@@ -285,7 +290,7 @@ export function assistantAdapterSupportsImage(
 /** 这条路能把视频看到哪一档。`false` = 一档都不行。 */
 export function assistantAdapterVideoTier(
   adapterType: AI_ADAPTER_TYPES,
-  modelId?: string,
+  modelId: string | undefined,
 ): AssistantVideoTier | false {
   return getAssistantMediaCapability(adapterType, modelId).video
 }
@@ -304,7 +309,7 @@ export function assistantAdapterVideoTier(
 export function assistantAdapterSatisfiesVideoTier(
   adapterType: AI_ADAPTER_TYPES,
   requiredTier: AssistantVideoTier,
-  modelId?: string,
+  modelId: string | undefined,
 ): boolean {
   const tier = assistantAdapterVideoTier(adapterType, modelId)
   if (tier === false) return false
@@ -325,7 +330,7 @@ export function assistantAdapterAcceptsReferenceKind(
   adapterType: AI_ADAPTER_TYPES,
   kind: 'image' | 'video',
   requiredVideoTier: AssistantVideoTier,
-  modelId?: string,
+  modelId: string | undefined,
 ): boolean {
   return kind === 'image'
     ? assistantAdapterSupportsImage(adapterType, modelId)

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { VISION_TASKS } from '@/constants/vision'
 import { VIDEO_ANALYSIS_DOWNGRADE } from '@/constants/video-analysis'
@@ -145,6 +146,23 @@ describe('analyzeVideo —— 一个入口两条腿', () => {
     ).rejects.toMatchObject({ errorCode: 'ASSISTANT_VIDEO_UNSUPPORTED' })
 
     expect(mockPersistVideoFrameSet).not.toHaveBeenCalled()
+    expect(mockAnalyzeVisual).not.toHaveBeenCalled()
+  })
+
+  it('⚠ 按这一轮的**型号**判档，⛔ 只按厂商：DeepSeek V4 Pro 有帧集也看不了', async () => {
+    mockResolveVisionRoute.mockResolvedValue({
+      ...routeOf(AI_ADAPTER_TYPES.DEEPSEEK),
+      modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
+    })
+
+    await expect(
+      analyzeVideo({
+        ...BASE,
+        task: VISION_TASKS.compare,
+        durationSeconds: 80,
+        frames: frames(),
+      }),
+    ).rejects.toMatchObject({ errorCode: 'ASSISTANT_VIDEO_UNSUPPORTED' })
     expect(mockAnalyzeVisual).not.toHaveBeenCalled()
   })
 

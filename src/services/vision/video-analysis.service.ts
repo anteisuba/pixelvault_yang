@@ -47,7 +47,10 @@ export interface AnalyzeVideoParams<TTask extends VisionTask> {
   durationSeconds?: number
   /** 客户端按 `planVideoFrames` 抽好的帧。空 = 没有帧集，走 native。 */
   frames?: SubmittedVideoFrame[]
-  /** 用户当前选中的 `apiKeyId`。看不了就借一条能看的。 */
+  /**
+   * 用户当前选中的 `apiKeyId`。缺席 = 助手那一家、那个型号（`resolveAssistantRoute`）。
+   * 看不了就照实抛（`AssistantModelCannotSeeError` / `ASSISTANT_VIDEO_UNSUPPORTED`），⛔ 不借别家。
+   */
   routeHint?: string
   instruction?: string
 }
@@ -69,12 +72,16 @@ export async function analyzeVideo<TTask extends VisionTask>(
 ): Promise<AnalyzeVideoResult<TTask>> {
   // ⚠ 先解析路由再判档：能不能满足这个任务，取决于**这一轮真正会用的那条路**
   //   （`resolveVisionRoute`：选的那把，或助手那一家；看不了图就抛，⛔ 不借别家）。
-  const { route } = await resolveVisionRoute(params.userId, params.routeHint)
+  const { route, modelId } = await resolveVisionRoute(
+    params.userId,
+    params.routeHint,
+  )
 
   const frames = params.frames ?? []
   const decision = resolveVideoAnalysisRoute({
     task: params.task,
     adapterType: route.adapterType,
+    modelId,
     hasFrames: frames.length > 0,
     durationSeconds: params.durationSeconds,
   })
@@ -83,7 +90,7 @@ export async function analyzeVideo<TTask extends VisionTask>(
     task: params.task,
     mode: decision.mode,
     requiredTier: decision.requiredTier,
-    routeTier: String(assistantAdapterVideoTier(route.adapterType)),
+    routeTier: String(assistantAdapterVideoTier(route.adapterType, modelId)),
     downgraded: decision.downgraded,
   })
 

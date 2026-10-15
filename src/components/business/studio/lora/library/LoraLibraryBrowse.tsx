@@ -561,6 +561,8 @@ export function LoraLibraryBrowse({
                       meta={`↓ ${formatCompactNumber(item.downloadCount)} · ♥ ${formatCompactNumber(item.thumbsUpCount)}`}
                       coverUrl={cover ? proxyCivitaiImageUrl(cover) : null}
                       coverColor={item.coverColor ?? null}
+                      coverVideoUrl={item.cardVideoUrl ?? null}
+                      coverVideoActive={openItem === null}
                       mounted={isMounted(item)}
                       mounting={mountingId === item.id}
                       agentPick={

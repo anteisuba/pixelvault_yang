@@ -53,7 +53,10 @@ vi.mock('next-intl', () => ({
     `${namespace}:${key}`,
   // CivitaiCommunityBranch 用它渲染降级横幅里的「X 分钟前」。手写镜像 mock
   // 漏一个导出不是漏一条断言——组件渲染直接抛，整个文件集体红。
-  useFormatter: () => ({ relativeTime: () => 'relative-time' }),
+  useFormatter: () => ({
+    relativeTime: () => 'relative-time',
+    number: (value: number) => String(value),
+  }),
 }))
 
 vi.mock('sonner', () => ({

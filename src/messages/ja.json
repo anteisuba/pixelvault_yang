@@ -2737,6 +2737,7 @@
       "agentPick": "アシスタントのおすすめ",
       "agentSearching": "アシスタントが検索中…",
       "agentSearched": "アシスタントが検索",
+      "videoSample": "動画サンプル",
       "mountedLabel": "{name} はマウント済み",
       "back": "ライブラリに戻る",
       "updatedOn": "{date} 更新",

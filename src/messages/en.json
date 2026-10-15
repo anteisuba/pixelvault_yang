@@ -2737,6 +2737,7 @@
       "agentPick": "Assistant pick",
       "agentSearching": "Assistant searching…",
       "agentSearched": "Searched by the assistant",
+      "videoSample": "Video sample",
       "mountedLabel": "{name} is mounted",
       "back": "Back to library",
       "updatedOn": "updated {date}",

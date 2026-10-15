@@ -6,6 +6,8 @@ import { useTranslations } from 'next-intl'
 import { Check, Plus, Sparkles } from '@/components/icons'
 import { cn } from '@/lib/utils'
 
+import { LoraSampleVideo } from './LoraSampleVideo'
+
 interface LoraLibraryTileProps {
   name: string
   /** 名字下面那一行：库里写下载 · 点赞，收藏里写触发词。 */
@@ -13,6 +15,10 @@ interface LoraLibraryTileProps {
   coverUrl: string | null
   /** 封面的平均色（Civitai blurhash）：图到之前先铺这块颜色。 */
   coverColor?: string | null
+  /** 封面是视频样例时的片段（`coverUrl` 是它的静帧）：进视野就静音循环。 */
+  coverVideoUrl?: string | null
+  /** 网格被详情页盖住时为 false：视频停下、让出同屏名额。 */
+  coverVideoActive?: boolean
   mounted: boolean
   /** 挂载前的下载闸在飞（约 300ms）：这一下不给反应会像点空了。 */
   mounting?: boolean
@@ -46,6 +52,8 @@ export function LoraLibraryTile({
   meta,
   coverUrl,
   coverColor,
+  coverVideoUrl = null,
+  coverVideoActive = true,
   mounted,
   mounting = false,
   onOpen,
@@ -102,6 +110,9 @@ export function LoraLibraryTile({
             <Sparkles className="size-6" aria-hidden />
           </span>
         )}
+        {coverVideoUrl ? (
+          <LoraSampleVideo src={coverVideoUrl} active={coverVideoActive} />
+        ) : null}
         {mounted ? (
           <span
             role="img"

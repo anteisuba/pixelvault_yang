@@ -48,6 +48,8 @@ import type {
   LoraCandidateLicense,
 } from '@/types'
 
+import { LoraSampleVideo } from './LoraSampleVideo'
+
 /** ⋯ 菜单里宿主自己加的项（收藏里的自训：公开 / 私有、删除）。 */
 export interface LoraLibraryDetailMenuItem {
   readonly key: string
@@ -127,6 +129,8 @@ interface LoraLibraryDetailPageProps {
 
 interface Sample {
   readonly url: string
+  /** 视频样例的片段（`url` 是它的静帧）。视频样例都没有配方。 */
+  readonly videoUrl?: string
   /** 这张带不带可复用的配方（没配方的只看图）。 */
   readonly hasRecipe: boolean
   readonly ratio: number | null
@@ -244,6 +248,7 @@ export function LoraLibraryDetailPage({
       mined.previewImages.length > 0
         ? mined.previewImages.map((image) => ({
             url: image.imageUrl,
+            videoUrl: image.videoUrl,
             hasRecipe: false,
             ratio:
               image.width && image.height ? image.width / image.height : null,
@@ -273,6 +278,7 @@ export function LoraLibraryDetailPage({
         .filter((sample) => !sample.hasRecipe)
         .map((sample) => ({
           imageUrl: sample.url,
+          videoUrl: sample.videoUrl,
           source: 'model_version_image' as const,
           prompt: '',
         })),
@@ -643,11 +649,16 @@ export function LoraLibraryDetailPage({
                         decoding="async"
                         className="block size-full object-cover"
                       />
-                      <span className="absolute bottom-2 left-2 h-5 rounded-md bg-foreground/55 px-1.75 font-mono text-2xs leading-5 text-background opacity-0 transition-opacity duration-fast ease-linear group-hover/sample:opacity-100 group-focus-visible/sample:opacity-100">
-                        {sample.hasRecipe
-                          ? tb('sampleHasRecipe')
-                          : tb('sampleNoRecipe')}
-                      </span>
+                      {/* 视频样例都没有配方：只留 ▶ 角标，⛔ 再叠「没有配方」。 */}
+                      {sample.videoUrl ? (
+                        <LoraSampleVideo src={sample.videoUrl} />
+                      ) : (
+                        <span className="absolute bottom-2 left-2 h-5 rounded-md bg-foreground/55 px-1.75 font-mono text-2xs leading-5 text-background opacity-0 transition-opacity duration-fast ease-linear group-hover/sample:opacity-100 group-focus-visible/sample:opacity-100">
+                          {sample.hasRecipe
+                            ? tb('sampleHasRecipe')
+                            : tb('sampleNoRecipe')}
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>

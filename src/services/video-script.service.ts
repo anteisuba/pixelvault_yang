@@ -1,6 +1,5 @@
 import 'server-only'
 
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   VIDEO_SCRIPT_CHARACTER_FIELD_CHARS,
   VIDEO_SCRIPT_SYSTEM_PROMPT,
@@ -10,10 +9,7 @@ import {
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/with-retry'
-import {
-  findActiveKeyForAdapter,
-  type ResolvedApiKeyValue,
-} from '@/services/apiKey.service'
+import { resolveAssistantRoute } from '@/services/kernel/assistant-route.service'
 import { llmTextCompletion } from '@/services/llm-text.service'
 import { CharacterPersonaSchema } from '@/types'
 import {
@@ -38,18 +34,15 @@ export class VideoScriptNotFoundError extends Error {
   }
 }
 
-/** LLM provider order for script generation (VS9). */
-const LLM_PROVIDER_ORDER = [
-  AI_ADAPTER_TYPES.GEMINI,
-  AI_ADAPTER_TYPES.DEEPSEEK,
-  AI_ADAPTER_TYPES.OPENAI,
-] as const
+/** 同一家失败时的重试次数（只重试那一家，⛔ 不换一家）。 */
+const SCRIPT_LLM_MAX_ATTEMPTS = 2
 
 // ─── generateScript ──────────────────────────────────────────────
 
 /**
  * Generate a new structured script via LLM and persist it.
- * Provider fallback (VS9): try Gemini 2x, fall back to DeepSeek 1x, then OpenAI 1x. All fail → throw.
+ * 写脚本用**助手那一家、那个型号**（owner 2026-10-15「全跟助手」）；同一家重试一次，
+ * 仍失败就照实抛。⛔ 不再 Gemini → DeepSeek → OpenAI 依次换一家（那是悄悄花别家的钱）。
  */
 export async function generateScript(
   input: CreateVideoScriptInput,
@@ -63,7 +56,7 @@ export async function generateScript(
     : null
   const userPrompt = buildUserPrompt(parsed, totalScenes, character)
 
-  const llmOutput = await callLlmWithFallback(userId, userPrompt)
+  const llmOutput = await callAssistantLlm(userId, userPrompt)
   const scenes = validateAndNormalizeLlmOutput(
     llmOutput,
     totalScenes,
@@ -174,53 +167,29 @@ function buildUserPrompt(
 }
 
 /**
- * Try Gemini (withRetry 2x) then OpenAI (1x). Raises on total failure.
+ * 助手那一家（没 key / 点名的那家没 key / 解不开 → `resolveAssistantRoute` 照实抛，
+ * 由路由层转成「去配 key」）。同一家、同一把 key、同一个型号重试，⛔ 不换一家。
  */
-async function callLlmWithFallback(
+async function callAssistantLlm(
   userId: string,
   userPrompt: string,
 ): Promise<string> {
-  const errors: string[] = []
-
-  for (const adapterType of LLM_PROVIDER_ORDER) {
-    const key = await resolveKeyForAdapter(userId, adapterType)
-    if (!key) {
-      errors.push(`${adapterType}: no key available`)
-      continue
-    }
-
-    const maxAttempts = adapterType === AI_ADAPTER_TYPES.GEMINI ? 2 : 1
-
-    try {
-      return await withRetry(
-        () =>
-          llmTextCompletion({
-            systemPrompt: VIDEO_SCRIPT_SYSTEM_PROMPT,
-            userPrompt,
-            adapterType: key.adapterType,
-            providerConfig: key.providerConfig,
-            apiKey: key.keyValue,
-          }),
-        { maxAttempts, label: `videoScript.${adapterType}` },
-      )
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      logger.warn('VideoScript LLM provider failed', { adapterType, msg })
-      errors.push(`${adapterType}: ${msg}`)
-    }
-  }
-
-  throw new Error(
-    `All LLM providers failed for script generation: ${errors.join('; ')}`,
+  const { route, modelId } = await resolveAssistantRoute(userId)
+  return withRetry(
+    () =>
+      llmTextCompletion({
+        systemPrompt: VIDEO_SCRIPT_SYSTEM_PROMPT,
+        userPrompt,
+        adapterType: route.adapterType,
+        providerConfig: route.providerConfig,
+        apiKey: route.apiKey,
+        modelId,
+      }),
+    {
+      maxAttempts: SCRIPT_LLM_MAX_ATTEMPTS,
+      label: `videoScript.${route.adapterType}`,
+    },
   )
-}
-
-async function resolveKeyForAdapter(
-  userId: string,
-  adapterType: AI_ADAPTER_TYPES,
-): Promise<ResolvedApiKeyValue | null> {
-  // ⚠ 只认用户自己的 key（owner 2026-10-07 清空平台兜底）。
-  return findActiveKeyForAdapter(userId, adapterType)
 }
 
 function validateAndNormalizeLlmOutput(

@@ -2,8 +2,20 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ─── Mocks ───────────────────────────────────────────────────────
 
+/**
+ * ⭐ 路由是**真的**（`resolveAssistantRoute`），只桩库与补全那一跳（owner 2026-10-15
+ * 「全跟助手」）：写脚本此前按 Gemini → DeepSeek → OpenAI 依次换一家，悄悄花别家的钱。
+ */
+const keyStore = vi.hoisted(() => ({
+  findFirst: vi.fn(),
+  findMany: vi.fn(),
+  personaFindUnique: vi.fn(),
+}))
+
 vi.mock('@/lib/db', () => ({
   db: {
+    userApiKey: { findFirst: keyStore.findFirst, findMany: keyStore.findMany },
+    assistantPersona: { findUnique: keyStore.personaFindUnique },
     videoScript: {
       create: vi.fn(),
       findFirst: vi.fn(),
@@ -59,18 +71,19 @@ vi.mock('@/lib/with-retry', () => ({
   ),
 }))
 
-vi.mock('@/services/apiKey.service', () => ({
-  findActiveKeyForAdapter: vi.fn(),
+vi.mock('@/lib/crypto', () => ({
+  decryptApiKey: (encrypted: string) => `plain:${encrypted}`,
 }))
 
-vi.mock('@/services/llm-text.service', () => ({
+vi.mock('@/services/llm-text.service', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/llm-text.service')>()),
   llmTextCompletion: vi.fn(),
 }))
 
 // ─── Imports (after mocks) ───────────────────────────────────────
 
 import { db } from '@/lib/db'
-import { findActiveKeyForAdapter } from '@/services/apiKey.service'
+import { ApiKeyError } from '@/lib/errors'
 import { llmTextCompletion } from '@/services/llm-text.service'
 import {
   confirmScript,
@@ -81,7 +94,17 @@ import {
   updateScenes,
   VideoScriptNotFoundError,
 } from '@/services/video-script.service'
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import {
+  assistantKey,
+  seedAssistantRoute,
+} from '@/test/assistant-route-fixture'
+import {
+  expectSelectedProviderOnly,
+  keyLookupUsesOf,
+  providerUsesOf,
+} from '@/test/selected-provider-only'
 import {
   VideoScriptSceneStatus,
   VideoScriptStatus,
@@ -145,15 +168,8 @@ const VALID_LLM_OUTPUT_5_SCENES = JSON.stringify({
   ],
 })
 
-function fakeKey(adapterType: AI_ADAPTER_TYPES) {
-  return {
-    id: `key-${adapterType}`,
-    modelId: 'some-model',
-    adapterType,
-    providerConfig: { label: adapterType, baseUrl: 'https://x' },
-    label: adapterType,
-    keyValue: 'sk-test',
-  }
+function userKey(adapterType: AI_ADAPTER_TYPES) {
+  return assistantKey(adapterType, { userId: USER_ID })
 }
 
 function fakeDbScript(overrides: Partial<Record<string, unknown>> = {}) {
@@ -196,16 +212,13 @@ function fakeDbScript(overrides: Partial<Record<string, unknown>> = {}) {
 describe('video-script.service', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    // default: Gemini key available, OpenAI absent
-    vi.mocked(findActiveKeyForAdapter).mockImplementation(
-      async (_u, adapter) =>
-        adapter === AI_ADAPTER_TYPES.GEMINI ? fakeKey(adapter) : null,
-    )
+    // default: only a Gemini key, assistant on 「自动」
+    seedAssistantRoute(keyStore, { keys: [userKey(AI_ADAPTER_TYPES.GEMINI)] })
     vi.mocked(db.videoScript.create).mockResolvedValue(fakeDbScript() as never)
   })
 
   describe('generateScript', () => {
-    it('succeeds on first Gemini call, persists VideoScript + scenes', async () => {
+    it('succeeds on the first call, persists VideoScript + scenes', async () => {
       vi.mocked(llmTextCompletion).mockResolvedValueOnce(
         VALID_LLM_OUTPUT_5_SCENES,
       )
@@ -261,7 +274,7 @@ describe('video-script.service', () => {
         'I apologize, but I cannot help with this.',
       )
       await expect(generateScript(VALID_INPUT, USER_ID)).rejects.toThrow(
-        /not valid JSON|All LLM providers failed/,
+        /not valid JSON/,
       )
     })
 
@@ -277,7 +290,7 @@ describe('video-script.service', () => {
       })
       vi.mocked(llmTextCompletion).mockResolvedValueOnce(wrong)
       await expect(generateScript(VALID_INPUT, USER_ID)).rejects.toThrow(
-        /3 scenes, expected 5|All LLM providers failed/,
+        /3 scenes, expected 5/,
       )
     })
 
@@ -293,58 +306,73 @@ describe('video-script.service', () => {
       })
       vi.mocked(llmTextCompletion).mockResolvedValueOnce(bad)
       await expect(generateScript(VALID_INPUT, USER_ID)).rejects.toThrow(
-        /sum to 35s, expected 30s|All LLM providers failed/,
+        /sum to 35s, expected 30s/,
       )
     })
 
-    it('VS9: falls back to DeepSeek when Gemini fails, succeeds', async () => {
-      vi.mocked(findActiveKeyForAdapter).mockImplementation(async (_u, a) =>
-        fakeKey(a),
+    it('⭐ 用助手那一家、那个型号写脚本（⛔ 不是顺序里排第一的 Gemini）', async () => {
+      seedAssistantRoute(keyStore, {
+        keys: [
+          userKey(AI_ADAPTER_TYPES.GEMINI),
+          userKey(AI_ADAPTER_TYPES.ANTHROPIC),
+        ],
+        routeModel: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
+      })
+      vi.mocked(llmTextCompletion).mockResolvedValueOnce(
+        VALID_LLM_OUTPUT_5_SCENES,
       )
-      vi.mocked(llmTextCompletion)
-        .mockRejectedValueOnce(new Error('gemini down'))
-        .mockRejectedValueOnce(new Error('gemini down'))
-        .mockResolvedValueOnce(VALID_LLM_OUTPUT_5_SCENES)
 
-      const result = await generateScript(VALID_INPUT, USER_ID)
-      expect(llmTextCompletion).toHaveBeenCalledTimes(3)
-      expect(result.scenes).toHaveLength(5)
-      expect(vi.mocked(llmTextCompletion).mock.calls[2]?.[0]).toEqual(
+      await generateScript(VALID_INPUT, USER_ID)
+
+      expect(llmTextCompletion).toHaveBeenCalledWith(
         expect.objectContaining({
-          adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+          adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+          modelId: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
         }),
       )
-    })
-
-    it('VS9: falls back to OpenAI when Gemini and DeepSeek fail, succeeds', async () => {
-      vi.mocked(findActiveKeyForAdapter).mockImplementation(async (_u, a) =>
-        fakeKey(a),
-      )
-      vi.mocked(llmTextCompletion)
-        .mockRejectedValueOnce(new Error('gemini down'))
-        .mockRejectedValueOnce(new Error('gemini down'))
-        .mockRejectedValueOnce(new Error('deepseek down'))
-        .mockResolvedValueOnce(VALID_LLM_OUTPUT_5_SCENES)
-
-      const result = await generateScript(VALID_INPUT, USER_ID)
-      expect(llmTextCompletion).toHaveBeenCalledTimes(4)
-      expect(result.scenes).toHaveLength(5)
-      expect(vi.mocked(llmTextCompletion).mock.calls[3]?.[0]).toEqual(
-        expect.objectContaining({
-          adapterType: AI_ADAPTER_TYPES.OPENAI,
-        }),
+      expectSelectedProviderOnly(
+        [
+          ...keyLookupUsesOf(keyStore.findFirst),
+          ...providerUsesOf(vi.mocked(llmTextCompletion), 'video script'),
+        ],
+        {
+          adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+          apiKey: `plain:enc_${AI_ADAPTER_TYPES.ANTHROPIC}`,
+        },
       )
     })
 
-    it('VS9: throws when both providers fail', async () => {
-      vi.mocked(findActiveKeyForAdapter).mockImplementation(async (_u, a) =>
-        fakeKey(a),
-      )
-      vi.mocked(llmTextCompletion).mockRejectedValue(new Error('provider down'))
+    it('⛔ 那一家挂了：同一家重试一次后照实抛，不换 DeepSeek / OpenAI', async () => {
+      seedAssistantRoute(keyStore, {
+        keys: [
+          userKey(AI_ADAPTER_TYPES.GEMINI),
+          userKey(AI_ADAPTER_TYPES.DEEPSEEK),
+          userKey(AI_ADAPTER_TYPES.OPENAI),
+        ],
+      })
+      vi.mocked(llmTextCompletion).mockRejectedValue(new Error('gemini down'))
 
       await expect(generateScript(VALID_INPUT, USER_ID)).rejects.toThrow(
-        /All LLM providers failed/,
+        'gemini down',
       )
+      expect(llmTextCompletion).toHaveBeenCalledTimes(2)
+      expectSelectedProviderOnly(
+        providerUsesOf(vi.mocked(llmTextCompletion), 'video script'),
+        {
+          adapterType: AI_ADAPTER_TYPES.GEMINI,
+          apiKey: `plain:enc_${AI_ADAPTER_TYPES.GEMINI}`,
+        },
+      )
+      expect(db.videoScript.create).not.toHaveBeenCalled()
+    })
+
+    it('一把 key 都没有 → 照实抛「去配 key」', async () => {
+      seedAssistantRoute(keyStore, { keys: [] })
+
+      await expect(generateScript(VALID_INPUT, USER_ID)).rejects.toBeInstanceOf(
+        ApiKeyError,
+      )
+      expect(llmTextCompletion).not.toHaveBeenCalled()
     })
 
     it('rejects input when character_card mode has no characterCardId', async () => {

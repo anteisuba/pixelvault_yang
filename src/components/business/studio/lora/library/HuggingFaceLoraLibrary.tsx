@@ -354,7 +354,7 @@ export function HuggingFaceLoraLibrary({
                 onChange={(event) => library.setSearch(event.target.value)}
                 placeholder={t('huggingFaceSearchPlaceholder')}
                 aria-label={t('huggingFaceSearchPlaceholder')}
-                className="h-9 pl-9 pr-8 text-xs"
+                className="h-9 pl-9 pr-8"
               />
               {library.isRevalidating ? (
                 <Spinner

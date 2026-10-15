@@ -258,7 +258,7 @@ export function VoiceLibraryPanel({
                 aria-label={t('searchLabel')}
                 placeholder={t('searchPlaceholder')}
                 onChange={(event) => setSearch(event.target.value)}
-                className="h-9 border-0 px-0 text-2sm shadow-none focus-visible:ring-0"
+                className="h-9 border-0 px-0 shadow-none focus-visible:ring-0"
               />
             </div>
             <ToggleGroup

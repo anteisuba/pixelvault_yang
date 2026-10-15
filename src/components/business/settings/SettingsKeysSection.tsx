@@ -310,7 +310,7 @@ function ProviderRow({
               <button
                 type="button"
                 onClick={onQuickSetup}
-                className="inline-flex min-h-8 items-center gap-1.5 self-start text-xs text-muted-foreground transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="inline-flex min-h-8 items-center coarse:min-h-11 gap-1.5 self-start text-xs text-muted-foreground transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <Plus className="size-3.5" />
                 {t('keys.addAnother')}
@@ -343,7 +343,7 @@ function RowAction({
       <button
         type="button"
         onClick={onQuickSetup}
-        className="inline-flex h-8 items-center rounded-full border border-border px-3 text-xs font-medium transition-colors duration-fast hover:bg-accent active:scale-[.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex h-8 items-center coarse:h-11 rounded-full border border-border px-3 text-xs font-medium transition-colors duration-fast hover:bg-accent active:scale-[.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {state === 'invalid' ? t('keys.replaceKey') : t('keys.configure')}
       </button>
@@ -356,7 +356,7 @@ function RowAction({
       onClick={onToggleExpanded}
       aria-expanded={isExpanded}
       aria-label={t('keys.toggleKeys', { provider: providerLabel })}
-      className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors duration-fast hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="inline-flex size-8 items-center coarse:size-11 justify-center rounded-md text-muted-foreground transition-colors duration-fast hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <ChevronRight
         className={cn(
@@ -422,7 +422,7 @@ function KeyLine({
         type="button"
         onClick={() => void handleVerify()}
         disabled={isBusy}
-        className="inline-flex min-h-8 items-center font-mono text-muted-foreground transition-colors duration-fast hover:text-foreground disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex min-h-8 items-center coarse:min-h-11 font-mono text-muted-foreground transition-colors duration-fast hover:text-foreground disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {isBusy ? <Spinner size="sm" /> : t('keys.reverify')}
       </button>
@@ -432,7 +432,7 @@ function KeyLine({
             type="button"
             disabled={isBusy}
             aria-label={t('keys.deleteKey', { label })}
-            className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors duration-fast hover:text-destructive disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex size-8 items-center coarse:size-11 justify-center rounded-md text-muted-foreground transition-colors duration-fast hover:text-destructive disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Trash2 className="size-3.5" />
           </button>

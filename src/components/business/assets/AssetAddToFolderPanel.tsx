@@ -379,7 +379,7 @@ export function AssetAddToFolderPanel({
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t('folderSearchPlaceholder')}
             aria-label={t('folderSearch')}
-            className="min-w-0 flex-1 bg-transparent text-2sm text-foreground outline-none placeholder:text-muted-foreground/80"
+            className="min-w-0 flex-1 bg-transparent text-base text-foreground lg:text-2sm outline-none placeholder:text-muted-foreground/80"
           />
         </label>
         <div
@@ -449,7 +449,7 @@ export function AssetAddToFolderPanel({
                   }
                 }}
                 onBlur={() => setIsCreating(false)}
-                className="min-w-0 flex-1 bg-transparent text-2sm font-medium text-foreground outline-none"
+                className="min-w-0 flex-1 bg-transparent text-base font-medium lg:text-2sm text-foreground outline-none"
               />
             </label>
           ) : (

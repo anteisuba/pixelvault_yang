@@ -165,7 +165,7 @@ export function AudioTonePopover({ onInsert }: AudioTonePopoverProps) {
           const label = custom.trim()
           if (label) submit([{ label }])
         }}
-        className="h-8.5 text-2sm"
+        className="h-8.5"
       />
 
       <button

@@ -208,7 +208,7 @@ function DisplayNameField() {
           if (event.key === 'Enter') event.currentTarget.blur()
           if (event.key === 'Escape') setDraft(null)
         }}
-        className="h-8 w-44 rounded-md border border-border bg-background px-2.5 text-right text-xs transition-colors duration-fast focus:border-ring focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+        className="h-8 w-44 rounded-md border border-border bg-background px-2.5 text-right text-base lg:text-xs coarse:h-11 transition-colors duration-fast focus:border-ring focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
       />
     </span>
   )

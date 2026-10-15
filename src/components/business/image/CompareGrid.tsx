@@ -266,7 +266,7 @@ export const CompareGrid = memo(function CompareGrid({
               type="button"
               size="sm"
               variant="ghost"
-              className="absolute right-0 rounded-full text-muted-foreground"
+              className="touch-target-y absolute right-0 rounded-full text-muted-foreground"
               onClick={onCancelAll}
             >
               <Ban className="size-3.5" />
@@ -494,7 +494,7 @@ export const CompareGrid = memo(function CompareGrid({
                           }}
                           aria-label={tCancel('cancel')}
                           data-testid="compare-grid-cancel"
-                          className="absolute right-1.5 top-1.5 z-10 grid size-7 place-items-center rounded-full bg-background/85 text-muted-foreground backdrop-blur-sm transition-colors duration-fast ease-standard hover:text-foreground"
+                          className="absolute right-1.5 top-1.5 z-10 grid size-7 place-items-center coarse:before:absolute coarse:before:-inset-2 rounded-full bg-background/85 text-muted-foreground backdrop-blur-sm transition-colors duration-fast ease-standard hover:text-foreground"
                         >
                           <X className="size-3.5" />
                         </button>

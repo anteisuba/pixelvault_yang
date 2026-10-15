@@ -275,7 +275,7 @@ export function LoraFavoritesBrowse({
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t('myLorasSearchPlaceholder')}
             aria-label={t('myLorasSearchPlaceholder')}
-            className="h-full min-w-0 flex-1 bg-transparent text-2sm text-foreground outline-none placeholder:text-muted-foreground/70"
+            className="h-full min-w-0 flex-1 bg-transparent text-base text-foreground lg:text-2sm outline-none placeholder:text-muted-foreground/70"
           />
           {query ? (
             <button

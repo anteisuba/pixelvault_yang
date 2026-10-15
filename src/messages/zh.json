@@ -6688,6 +6688,7 @@
     "actionOriginal": "原图",
     "actionRemix": "重混",
     "actionEdit": "编辑",
+    "actionReference": "当参考",
     "actionMore": "更多"
   },
   "StudioV2": {
@@ -6800,6 +6801,8 @@
     "negativeNote": "NAI 叫 UC",
     "tagCount": "{count, plural, other {# 个 · 逗号分隔}}",
     "placeholder": "输入标签，逗号分隔…",
+    "compactExpand": "编辑标签",
+    "compactReferences": "{count} 张图",
     "weightLabel": "权重",
     "weightHint": "所有模型都这样显示；出图时按各家语法翻译。",
     "weightIncrease": "调高权重",

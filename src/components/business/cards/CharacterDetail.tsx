@@ -65,7 +65,7 @@ export function CharacterDetailHeader({
       <button
         type="button"
         onClick={onBack}
-        className="flex items-center gap-0.5 rounded-full py-1 pr-2 text-2sm text-muted-foreground transition-colors duration-fast hover:text-foreground"
+        className="flex items-center gap-0.5 rounded-full py-1 coarse:min-h-11 pr-2 text-2sm text-muted-foreground transition-colors duration-fast hover:text-foreground"
       >
         <ChevronLeft className="size-4" aria-hidden />
         {t('title')}
@@ -163,7 +163,7 @@ export function CharacterDetailBody({
           label={t('fieldLooks')}
           placeholder={t('fieldLooks')}
           onCommit={(description) => save({ description })}
-          className="mt-1 text-md leading-relaxed"
+          className="mt-1 text-base leading-relaxed lg:text-md"
         />
       </div>
 
@@ -385,7 +385,7 @@ function SettingModule({
               placeholder={t('emptyField')}
               hint={key === 'behavior' ? t('behaviorHint') : undefined}
               onCommit={(text) => save({ [key]: text })}
-              className="text-sm leading-relaxed"
+              className="text-base leading-relaxed lg:text-sm"
             />
           </div>
         ))}
@@ -480,7 +480,7 @@ function TagsModule({ card, save }: { card: CharacterCardRecord; save: Save }) {
                 : t('workNoTag')
             }
             onCommit={(work) => save({ work })}
-            className="text-sm"
+            className="text-base lg:text-sm"
           />
         </div>
         <div className="flex min-w-0 flex-col gap-1">
@@ -492,7 +492,7 @@ function TagsModule({ card, save }: { card: CharacterCardRecord; save: Save }) {
             label={t('fieldLoraTrigger')}
             placeholder={t('emptyField')}
             onCommit={(loraTrigger) => save({ loraTrigger })}
-            className="font-mono text-sm"
+            className="font-mono text-base lg:text-sm"
           />
         </div>
       </div>

@@ -6688,6 +6688,7 @@
     "actionOriginal": "原寸",
     "actionRemix": "リミックス",
     "actionEdit": "編集",
+    "actionReference": "参考に",
     "actionMore": "その他"
   },
   "StudioV2": {
@@ -6800,6 +6801,8 @@
     "negativeNote": "NovelAI では UC",
     "tagCount": "{count, plural, other {# 個 · カンマ区切り}}",
     "placeholder": "タグを入力（カンマ区切り）…",
+    "compactExpand": "タグを編集",
+    "compactReferences": "画像 {count} 枚",
     "weightLabel": "重み",
     "weightHint": "表示はどのモデルでも同じ。送信時に各プロバイダーの記法へ変換されます。",
     "weightIncrease": "重みを上げる",

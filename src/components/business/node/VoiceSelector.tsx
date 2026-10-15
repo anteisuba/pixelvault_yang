@@ -440,7 +440,7 @@ export const VoiceSelector = memo(function VoiceSelector({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('voiceSearch')}
-            className="h-9 pl-9 text-xs"
+            className="h-9 pl-9"
           />
         </div>
         {isPublicTab && (

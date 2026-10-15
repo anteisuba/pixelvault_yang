@@ -207,7 +207,7 @@ export function PolaroidCard({
           >
             {/* Close button */}
             <button
-              className="absolute -top-3 -right-3 z-10 bg-card text-card-foreground rounded-full p-1.5 shadow-lg hover:bg-accent transition-colors"
+              className="absolute -top-3 -right-3 z-10 coarse:before:absolute coarse:before:-inset-2 bg-card text-card-foreground rounded-full p-1.5 shadow-lg hover:bg-accent transition-colors"
               onClick={handleClose}
               aria-label={t('close')}
               autoFocus

@@ -179,7 +179,7 @@ export function CharacterTagChips({
               event.currentTarget.blur()
             }
           }}
-          className="w-40 rounded-md bg-background px-2 py-0.5 font-mono text-xs outline-none ring-1 ring-foreground"
+          className="w-40 rounded-md bg-background px-2 py-0.5 font-mono text-base outline-none lg:text-xs ring-1 ring-foreground"
         />
       ) : (
         <button

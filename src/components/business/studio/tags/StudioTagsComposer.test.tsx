@@ -262,6 +262,30 @@ describe('标签台底部输入框 · 编辑谁', () => {
     ).toHaveAttribute('data-chips', 'blurry')
   })
 
+  // owner 2026-10-15「看图片作为重点」：手机收起态只有一行摘要 + 工具行。
+  it('手机收起态只留一行摘要，点它交给宿主展开', () => {
+    const onExpand = vi.fn()
+    render(
+      <StudioTagsComposer
+        mobile
+        compact
+        onExpand={onExpand}
+        onOpenPanel={vi.fn()}
+      />,
+    )
+    expect(
+      screen.queryByRole('button', { name: 'positiveLabel' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /negativeLabel/ }),
+    ).not.toBeInTheDocument()
+    const summary = screen.getByRole('button', { name: 'compactExpand' })
+    expect(summary).toHaveTextContent('solo')
+    fireEvent.click(summary)
+    expect(onExpand).toHaveBeenCalledTimes(1)
+    expect(screen.getByTestId('studio-mobile-add')).toBeInTheDocument()
+  })
+
   it('手机角色页展开负向只更新当前角色', () => {
     mocks.activeIndex = 0
     render(<StudioTagsComposer mobile onOpenPanel={vi.fn()} />)

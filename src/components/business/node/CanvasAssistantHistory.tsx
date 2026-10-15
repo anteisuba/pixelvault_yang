@@ -81,7 +81,7 @@ export function CanvasAssistantHistoryPanel({
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder={t('search')}
-          className={cn(skin.input, 'h-9 pl-8 text-xs')}
+          className={cn(skin.input, 'h-9 pl-8')}
         />
       </div>
       {filtered.length === 0 ? (

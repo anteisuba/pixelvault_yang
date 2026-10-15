@@ -1539,12 +1539,9 @@ html:lang(ja) {
     padding-bottom: max(var(--keyboard-safe-area-bottom, 0px), 0.75rem);
   }
 
-  .studio-layout-v2:has(.studio-tags-mobile-composer) .studio-mobile-stage {
-    margin-bottom: calc(
-      var(--studio-mobile-composer-height) + var(--keyboard-inset, 0px) -
-        var(--workbench-pad)
-    );
-  }
+  /* 键盘升起 / 展开写标签时图不缩：键盘只把输入条抬起来盖在舞台上（手机稿 v10
+     「覆盖」，owner 2026-10-09），⛔ 把键盘高度算进舞台下边距。输入条高度由
+     `useStudioMobileComposerHeight` 按收起时量。 */
 
   .studio-layout-v2:has(.studio-tags-mobile-composer)
     .studio-mobile-stage-panel {
@@ -2752,11 +2749,12 @@ html:lang(ja) {
   }
 }
 
-/* 主区给手机外壳让位（`MobileShellInset`）。工作台：顶上一条 44px；
+/* 主区给手机外壳让位（`MobileShellInset`）。工作台：顶上一条 44px + 顶部安全区
+   （顶栏 `MobileStudioBar` 自己让开刘海，主区跟着多让同一截）；
    其余页：底栏 + 顶部安全区（没有顶栏了，刘海要自己让）。≥768 归零。 */
 @utility mobile-inset-topbar {
-  --mobile-chrome-height: 2.75rem;
-  padding-top: 2.75rem;
+  --mobile-chrome-height: calc(2.75rem + env(safe-area-inset-top, 0px));
+  padding-top: calc(2.75rem + env(safe-area-inset-top, 0px));
   @media (width >= 48rem) {
     --mobile-chrome-height: 0px;
     padding-top: 0;

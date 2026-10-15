@@ -103,7 +103,7 @@ interface Draft {
 }
 
 const pill =
-  'h-8.5 rounded-full px-3.5 text-2sm transition-colors duration-fast ease-linear'
+  'h-8.5 rounded-full px-3.5 text-2sm coarse:h-11 transition-colors duration-fast ease-linear'
 const blockTitle = 'mb-2 text-xs font-semibold text-muted-foreground'
 const box =
   'whitespace-pre-wrap break-words rounded-xl bg-muted px-3.5 py-3 font-mono text-2sm leading-5 text-foreground'
@@ -394,7 +394,7 @@ export function PromptTemplateDetailPage({
           autoFocus
           onClick={onClose}
           aria-label={t('back')}
-          className="grid size-8.5 shrink-0 place-items-center rounded-full text-foreground/75 transition-colors duration-fast ease-linear hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="grid size-8.5 shrink-0 coarse:size-11 place-items-center rounded-full text-foreground/75 transition-colors duration-fast ease-linear hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <ChevronLeft aria-hidden className="size-4" />
         </button>
@@ -462,7 +462,7 @@ export function PromptTemplateDetailPage({
                   type="button"
                   variant="outline"
                   aria-label={t('moreActions')}
-                  className="size-8.5 rounded-full p-0"
+                  className="size-8.5 rounded-full p-0 coarse:size-11"
                 >
                   <MoreHorizontal aria-hidden className="size-4" />
                 </Button>
@@ -636,7 +636,7 @@ export function PromptTemplateDetailPage({
                           compiledPrompt: event.target.value,
                         })
                       }
-                      className="min-h-40 resize-y rounded-xl font-mono text-2sm leading-5"
+                      className="min-h-40 resize-y rounded-xl font-mono leading-5"
                     />
                   </label>
                   <label className="flex flex-col gap-2">
@@ -650,7 +650,7 @@ export function PromptTemplateDetailPage({
                         })
                       }
                       placeholder={t('createNegativePromptPlaceholder')}
-                      className="min-h-24 resize-y rounded-xl font-mono text-2sm leading-5"
+                      className="min-h-24 resize-y rounded-xl font-mono leading-5"
                     />
                   </label>
                 </>

@@ -28,6 +28,9 @@ import {
  * v3 的系统提示。⭐ 只放**整段会话里不变**的东西：每轮会变的（板子、这一轮的
  * 记录）都进消息并且只追加 —— 系统提示一变，后面整段缓存就全失效（2026-10-09
  * 基线：每题第一步缓存 0）。
+ * ⭐ 分两段（P2 稳定前缀，`buildAssistantV3SystemPrompt`）：先是**不变的规则**（同一张脸、同一版
+ *   提示，对谁、哪一轮都逐字相同），过了分界线才是这位创作者的（名字、语言、角色、口吻、称呼、
+ *   规矩、记忆）与这一轮板上型号的写法 —— 后者一变，前者的缓存照样吃得到。
  *
  * ⚠ 「正文不复述改动」是 owner 2026-10-09 定的：改了什么由界面上的过程行说（那是
  *   按实际落地的 op 生成的），正文只写判断与下一步 —— T02 / T19 两题都是正文说做了、
@@ -251,6 +254,35 @@ function rulesSection(rules: readonly ProjectRule[]): string {
     .join('\n')}`
 }
 
+/**
+ * 分界线（P2 稳定前缀）：它之前一个字都不随人、随轮变；它之后是这位创作者的设定与这一轮板上
+ * 型号的写法。⚠ 只有这一处能放每人 / 每轮不同的东西（名字、语言、人设、规矩、记忆、型号写法）。
+ */
+const CREATOR_SECTION_HEADING = "THIS CREATOR'S SETTINGS"
+
+/** 两段系统提示：不变的规则 + 分界线之后那段；`text` 是两段拼起来（记进过程记录的那一份）。 */
+export interface AssistantV3SystemPrompt {
+  /** 不变的规则：同一张脸、同一版提示，对谁、哪一轮都逐字相同（缓存的第一段）。 */
+  readonly rules: string
+  /** 分界线之后：这位创作者的设定、规矩、记忆，以及这一轮板上型号的写法。 */
+  readonly creator: string
+  readonly text: string
+}
+
+/**
+ * 记忆按「记下的先后」排（再按 id），⛔ 不按查出来的顺序：注入那一跳按 `lastUsedAt` 选、
+ * 选完把这几条的 `lastUsedAt` 一起刷成同一刻 —— 查出来的顺序因此每轮都可能换，换一次这一段
+ * 就不再逐字相同（P2 稳定前缀：「记忆排序加第二键」）。
+ */
+function stableMemoryOrder(
+  memories: readonly AssistantMemory[],
+): AssistantMemory[] {
+  return [...memories].sort(
+    (a, b) =>
+      a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id),
+  )
+}
+
 export function buildAssistantV3SystemPrompt(input: {
   face: AssistantV3Face
   request: AssistantOperatorRequest
@@ -259,7 +291,7 @@ export function buildAssistantV3SystemPrompt(input: {
   /** 助手跨会话记住的那几行（结账记下的）—— 与旧内核同一段。 */
   memories: readonly AssistantMemory[]
   accountName: string | null
-}): string {
+}): AssistantV3SystemPrompt {
   const { request, persona } = input
   const lora = input.face === ASSISTANT_V3_FACE_IDS.lora
   const image = input.face === ASSISTANT_V3_FACE_IDS.image
@@ -274,22 +306,30 @@ export function buildAssistantV3SystemPrompt(input: {
         : cards
           ? 'character page assistant'
           : 'canvas assistant'
-  const opening = persona.name
-    ? `You are ${persona.name}, ANTEI's ${role}.`
-    : `You are ANTEI's ${role}.`
   const language =
     RESPONSE_LANGUAGE_LABELS[resolveResponseLanguage(request, persona)]
   const faceSections = lora
-    ? `${LORA_BOARD}\n\n${LORA_TOOLS}\n\n${LORA_CRAFT}\n${buildLoraDialectSection(request)}`
+    ? `${LORA_BOARD}\n\n${LORA_TOOLS}\n\n${LORA_CRAFT}`
     : video
-      ? `${VIDEO_BOARD}\n\n${VIDEO_TOOLS}\n\n${VIDEO_CRAFT}${imageDialectSection(request)}`
+      ? `${VIDEO_BOARD}\n\n${VIDEO_TOOLS}\n\n${VIDEO_CRAFT}`
       : cards
         ? `${CARDS_BOARD}\n\n${CARDS_TOOLS}\n\n${CARDS_CRAFT}`
         : image
-          ? `${IMAGE_BOARD}\n\n${IMAGE_TOOLS}\n\n${IMAGE_CRAFT}${imageDialectSection(request)}`
-          : `${THE_BOARD}\n\n${TOOLS_GUIDE}\n\n${CANVAS_CRAFT}${buildCanvasModelDialectSection(request)}`
-  return `${opening} ${ASSISTANT_DOMAIN_BRIEFS[request.domain].persona}
-Reply in ${language}.${buildCharacterSection(persona)}
+          ? `${IMAGE_BOARD}\n\n${IMAGE_TOOLS}\n\n${IMAGE_CRAFT}`
+          : `${THE_BOARD}\n\n${TOOLS_GUIDE}\n\n${CANVAS_CRAFT}`
+  /**
+   * 这一轮板上型号的写法：随快照变（画布上展开的镜里挂着哪几个型号、台上选的哪个型号、LoRA 台
+   * 的底模与 CFG），所以排在分界线之后的最末。
+   */
+  const dialect = lora
+    ? `\n\nTHE BASE ON THE BENCH NOW\n${buildLoraDialectSection(request)}`
+    : video || image
+      ? imageDialectSection(request)
+      : cards
+        ? ''
+        : buildCanvasModelDialectSection(request)
+  const style = buildPersonaStyleSection(persona)
+  const rules = `You are ANTEI's ${role}. ${ASSISTANT_DOMAIN_BRIEFS[request.domain].persona}
 
 ${HOW_YOU_WORK}
 
@@ -301,10 +341,17 @@ ${WATCHING}
 
 ${FOUND_ON_THE_WEB}
 
-${faceSections}${buildPersonaStyleSection(persona)}${buildCreatorSection(
+${faceSections}`
+  const creator = `\n\n${CREATOR_SECTION_HEADING}
+${persona.name ? `Your name is ${persona.name}.\n` : ''}Reply in ${language}.${buildCharacterSection(persona)}${
+    style ? `\n\nHOW YOU TALK${style}` : ''
+  }${buildCreatorSection(
     persona,
     input.accountName,
     [],
     null,
-  )}${rulesSection(input.rules)}${buildAssistantMemorySection(input.memories)}`
+  )}${rulesSection(input.rules)}${buildAssistantMemorySection(
+    stableMemoryOrder(input.memories),
+  )}${dialect}`
+  return { rules, creator, text: `${rules}${creator}` }
 }

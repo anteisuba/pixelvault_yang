@@ -294,7 +294,7 @@ export const ASSISTANT_V3_HANDLE = {
  * 看片、各张脸的方言段）就把它拨到改的那天（同一天再改一次就加字母：`2026-10-15b`）；人设 /
  * 规矩 / 记忆这些每人不同的段落不算，它们只进 `systemPromptHash`。
  */
-export const ASSISTANT_V3_PROMPT_VERSION = '2026-10-15b'
+export const ASSISTANT_V3_PROMPT_VERSION = '2026-10-15c'
 
 /** 本轮记录（前端原样带回、服务端还原成消息）的条目类型。 */
 export const ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS = {

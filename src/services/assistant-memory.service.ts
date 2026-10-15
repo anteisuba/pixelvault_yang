@@ -250,7 +250,8 @@ export async function listAssistantMemoriesForPrompt(
       source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.assistant],
       ...promptWhere(scope, projectId),
     },
-    orderBy: { lastUsedAt: 'desc' },
+    // ⭐ 第二键：注入过的那几条 `lastUsedAt` 被一起刷成同一刻，并列时选哪几条要确定（P2 稳定前缀）。
+    orderBy: [{ lastUsedAt: 'desc' }, { id: 'asc' }],
     take: Math.min(limit, ASSISTANT_MEMORY_LIMITS.maxInPrompt),
     select: MEMORY_SELECT,
   })
@@ -278,7 +279,7 @@ export async function listCreatorMemoriesForPrompt(
       source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.creator],
       ...promptWhere(scope, projectId),
     },
-    orderBy: { updatedAt: 'desc' },
+    orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
     take: Math.min(limit, ASSISTANT_MEMORY_LIMITS.maxCreatorEntries),
     select: MEMORY_SELECT,
   })

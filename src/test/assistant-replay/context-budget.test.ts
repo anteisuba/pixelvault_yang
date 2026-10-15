@@ -154,10 +154,10 @@ afterAll(() => {
   }
   if (MODE === 'print' || MODE === 'update') {
     const header =
-      'case/route | steps | 1st step (tools+system+msgs) | turn total | turn fresh | prefix in turn | across turns/tools+system | follow-up fresh | aux calls/chars'
+      'case/route | steps | 1st step (tools+system+msgs) | per step | turn total | turn fresh | prefix in turn | across turns/tools+system | follow-up fresh | aux calls/chars'
     const lines = keys.map((key) => {
       const row = measured[key]!
-      return `${key} | ${row.steps} | ${row.firstStep} (${row.firstStepTools}+${row.firstStepSystem}+${row.firstStepMessages}) | ${row.turnTotal} | ${row.turnFresh} | ${row.minStablePrefixInTurn ?? '—'} | ${row.acrossTurns}/${row.toolsAndSystem} | ${row.followUpFresh} | ${row.auxCalls}/${row.auxChars}`
+      return `${key} | ${row.steps} | ${row.firstStep} (${row.firstStepTools}+${row.firstStepSystem}+${row.firstStepMessages}) | ${row.stepTotals.join(' ')} | ${row.turnTotal} | ${row.turnFresh} | ${row.minStablePrefixInTurn ?? '—'} | ${row.acrossTurns}/${row.toolsAndSystem} | ${row.followUpFresh} | ${row.auxCalls}/${row.auxChars}`
     })
     process.stderr.write(`\n${header}\n${lines.join('\n')}\n`)
   }

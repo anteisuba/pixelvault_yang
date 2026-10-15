@@ -275,6 +275,8 @@ export function freshChars(turn: TurnBudget): number {
 /** 一轮的汇总：首步多大、整轮发了多少、其中多少要重算。 */
 export interface TurnSummary {
   readonly steps: number
+  /** 每一步主调用的总字数（按调用顺序）：看一轮里每一步涨了多少。 */
+  readonly stepTotals: readonly number[]
   readonly firstStep: number
   readonly firstStepTools: number
   readonly firstStepSystem: number
@@ -293,6 +295,7 @@ export function summarizeTurn(turn: TurnBudget): TurnSummary {
   const later = turn.steps.slice(1)
   return {
     steps: turn.steps.length,
+    stepTotals: turn.steps.map((step) => step.total),
     firstStep: first?.total ?? 0,
     firstStepTools: first?.tools ?? 0,
     firstStepSystem: first?.system ?? 0,

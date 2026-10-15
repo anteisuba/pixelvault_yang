@@ -117,8 +117,8 @@ export function getAssistantRouteModelEntry(
 
 /**
  * ⭐ **「自动」挑哪一个**（owner 2026-10-15「全跟助手」）：`ASSISTANT_PROVIDER_ORDER` 里
- * 第一家**配了 key 的**，用它在路由表里的第一条（那一家的默认档）。一轮、一家、一个型号 ——
- * ⛔ 问答轮不再换快档，chip 上写的就是这一轮真正打的那个。
+ * 第一家**配了 key 的**，用它在路由表里的第一条（那一家的默认档）。一轮、一家、一把 key ——
+ * 纯问答轮只在同一家里换快档（`ASSISTANT_AUTO_QUESTION_MODEL_IDS`，OpenAI Sol → Luna），⛔ 不换家。
  *
  * ⚠ 服务端（`resolveAssistantRoute`）与 chip 读的是**这同一个函数**，只是喂的 key 名单
  *   来源不同（库 / 前端的 key 列表，判据都是「这一家有活着的 key」），所以两边说的是同一个。

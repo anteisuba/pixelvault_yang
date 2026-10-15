@@ -128,6 +128,45 @@ describe('resolveAssistantRoute', () => {
     ])
   })
 
+  it('「自动」的问答轮换同一家的快档（OpenAI Sol → Luna），⛔ 不换家；点名的模型不换', async () => {
+    seedAssistantRoute(keyStore, {
+      keys: [assistantKey(AI_ADAPTER_TYPES.OPENAI)],
+    })
+    const quick = await resolveAssistantRoute('db_user_1', {
+      questionTurn: true,
+    })
+    expect(quick).toMatchObject({
+      modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_LUNA,
+      modelLabel: 'OpenAI GPT-6 Luna',
+      auto: true,
+    })
+    expectSelectedProviderOnly(usesOf(quick.route), {
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+    })
+
+    vi.clearAllMocks()
+    seedAssistantRoute(keyStore, {
+      keys: [assistantKey(AI_ADAPTER_TYPES.DEEPSEEK)],
+    })
+    const deepseek = await resolveAssistantRoute('db_user_1', {
+      questionTurn: true,
+    })
+    expect(deepseek.modelId).toBe(LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH)
+
+    vi.clearAllMocks()
+    seedAssistantRoute(keyStore, {
+      keys: [assistantKey(AI_ADAPTER_TYPES.OPENAI)],
+      routeModel: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL,
+    })
+    const pinned = await resolveAssistantRoute('db_user_1', {
+      questionTurn: true,
+    })
+    expect(pinned).toMatchObject({
+      modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL,
+      auto: false,
+    })
+  })
+
   it('顺序就是 Gemini → DeepSeek → OpenAI → Claude → Grok', () => {
     expect([...ASSISTANT_PROVIDER_ORDER]).toEqual([
       AI_ADAPTER_TYPES.GEMINI,

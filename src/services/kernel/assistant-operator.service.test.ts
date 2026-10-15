@@ -17398,7 +17398,7 @@ describe('文本模型路由 · persona 说了算', () => {
     })
   })
 
-  it('自动 + 问句 + OpenAI → 仍是 chip 上那一档（Sol），⛔ 不悄悄换快档', async () => {
+  it('自动 + 问句 + OpenAI → 同一家的快档（Luna），⛔ 不换家', async () => {
     mockGetAssistantPersonaByUserId.mockResolvedValue({
       ...ASSISTANT_PERSONA_DEFAULTS,
       avatarUrl: null,
@@ -17416,7 +17416,7 @@ describe('文本模型路由 · persona 说了算', () => {
       ),
     )
 
-    expect(calledModelId()).toBe(LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_1_SOL)
+    expect(calledModelId()).toBe(LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_LUNA)
     expectSelectedProviderOnly(usesOf(), {
       adapterType: AI_ADAPTER_TYPES.OPENAI,
     })

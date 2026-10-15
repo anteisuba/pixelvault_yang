@@ -71,7 +71,7 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
   - 选了具体模型：就是它，用那一家最新那把 key。那一家没有活着的 key → `AssistantModelKeyMissingError`（`ASSISTANT_MODEL_KEY_MISSING`，带 `adapterType` 与 `modelId`），⛔ 不回落「自动」。
   - 「自动」：`pickAutoAssistantRouteModel`（`constants/assistant-persona.ts`）按 `ASSISTANT_PROVIDER_ORDER`（`constants/assistant.ts`：**Gemini → DeepSeek → OpenAI → Claude → Grok**）取第一家配了 key 的，型号是 `NODE_STUDIO_ASSISTANT_ROUTE_MODELS` 里那一家的第一条（Gemini 3.8 Flash / DeepSeek V4.1 Flash / GPT-6.1 Sol / Claude 第一条 / Grok 4.7）。只看「这一家有没有活着的 key」，key 建的先后、库回的顺序都不改答案。五家都没有 → `ApiKeyError('missing')`（`MISSING_API_KEY`）。
   - 为什么是这个顺序：它就是旧的 `LLM_TEXT_ADAPTERS` 自动兜底顺序，「自动」用户的主脑一个都不变；Gemini 排第一也和面板缺 key 时开的 `QuickSetupDialog`（Gemini 有免费档）一致。画布规划器的自动顺序（`AUTO_PLANNER_PROVIDER_ORDER`）也从它派生。
-  - 那把 key 解不开就照实抛，⛔ 不悄悄换下一家（换了 chip 上写的就不是真的了）。⛔ 问答轮不再换快档（旧的「自动档问答走 Luna / Flash」已删）：chip 上写什么，这一轮就打什么。
+  - 那把 key 解不开就照实抛，⛔ 不悄悄换下一家（换了 chip 上写的就不是真的了）。「自动」下纯问答轮只在同一家里换快档（`ASSISTANT_AUTO_QUESTION_MODEL_IDS`：OpenAI Sol → Luna；Gemini / DeepSeek 默认档本就是快档），⛔ 不换家、不换 key；点名的模型不换。
 - **chip**（`StudioOperatorModelChip`）用同一个 `pickAutoAssistantRouteModel` 写「自动 · DeepSeek V4.1 Flash」（`modelChip.autoResolved`）；选项里那一行副标题同样点名（`autoHintResolved`）。key 名单没回来时只写「自动」。一把 key 都没有时副标题是 `autoHintNoKey`，点「自动」就地开顺序第一家（Gemini）默认档的 `QuickSetupDialog`，验证过才选上「自动」（Hard Rule 8）。
 - **整轮**：判在共用的 `prepareOperatorTurn`（五张脸、v2 / v3 都一样），选定模型缺 key 整轮一步不跑。SSE 错误帧多带 `missingKey`；面板错误条的按钮是「配置 {厂商} Key」，就地弹那一家的 `QuickSetupDialog`（不改工作台选中的生成模型），验证过就自动重发上一条（与「重试」同一句 `error.retryPrompt`）。
 - **主步不借路**：`assistant-fallback-route.service.ts`（`findFallbackAssistantRoute`，模型超时 / 出错就换用户另一把 key 跑完这一步）整个删掉；`assistant-completion.service.ts` 只在同一家重试一次，还不行就把那句错交出去。

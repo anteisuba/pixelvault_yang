@@ -12515,13 +12515,14 @@ export async function prepareOperatorTurn(
   /**
    * ⭐ 一家、一把 key、一个型号（owner 2026-10-15「全跟助手」）：选定的模型就是它，「自动」
    * 按 `ASSISTANT_PROVIDER_ORDER` 取第一家配了 key 的默认档（chip 上写同一个）。这一轮
-   * 往后的每一次调用 —— 主步、查证改写、看图、归纳、结账 —— 都用这一份。⛔ 问答轮不再
-   * 换快档：chip 上写什么，这一轮就打什么。
+   * 往后的每一次调用 —— 主步、查证改写、看图、归纳、结账 —— 都用这一份。「自动」下纯问答轮
+   * 换同一家的快档（OpenAI Sol → Luna）省 token，⛔ 不换家。
    */
+  const questionTurn = isAssistantQuestionTurn(latestUserMessage(request))
   const { route, apiKeyId, modelId } = await resolveAssistantRoute(user.id, {
     routeModel: persona.routeModel,
+    questionTurn,
   })
-  const questionTurn = isAssistantQuestionTurn(latestUserMessage(request))
   const mediaAttachments = request.mediaAttachments ?? []
   assertAssistantMediaRoute(mediaAttachments, route.adapterType)
   const videoData = mediaAttachments

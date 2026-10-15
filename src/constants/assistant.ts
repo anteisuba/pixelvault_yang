@@ -256,6 +256,17 @@ export const ASSISTANT_PROVIDER_ORDER = [
 
 export type AssistantProvider = (typeof ASSISTANT_PROVIDER_ORDER)[number]
 
+/**
+ * 「自动」下**纯问答轮**（`isAssistantQuestionTurn`）换的同家快档：只省 token，⛔ 不换家、
+ * 不换 key。没列的那家问答轮照用默认档（Gemini / DeepSeek 的默认档本来就是快档）。
+ * 点名了具体模型的不换 —— 点名的就是这一轮跑的。
+ */
+export const ASSISTANT_AUTO_QUESTION_MODEL_IDS: Partial<
+  Record<AssistantProvider, string>
+> = {
+  [AI_ADAPTER_TYPES.OPENAI]: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_LUNA,
+}
+
 export function isAssistantProvider(
   adapterType: AI_ADAPTER_TYPES,
 ): adapterType is AssistantProvider {

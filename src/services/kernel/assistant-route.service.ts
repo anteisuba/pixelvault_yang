@@ -1,8 +1,10 @@
 import 'server-only'
 
 import {
+  ASSISTANT_AUTO_QUESTION_MODEL_IDS,
   ASSISTANT_PROVIDER_ORDER,
   assistantAdapterSupportsImage,
+  isAssistantProvider,
 } from '@/constants/assistant'
 import {
   getAssistantRouteModelEntry,
@@ -55,6 +57,11 @@ export interface ResolveAssistantRouteOptions {
    * 缺席 = 这里自己读那一列。
    */
   routeModel?: string | null
+  /**
+   * 这一轮是纯问答（`isAssistantQuestionTurn`）。「自动」时换**同一家**的快档
+   * （`ASSISTANT_AUTO_QUESTION_MODEL_IDS`），⛔ 不换家；点名的模型不受影响。
+   */
+  questionTurn?: boolean
 }
 
 /** 五家里有活着的 key 的那几家，每家最新那一把（与旧的自动优先级同一条判据）。 */
@@ -99,11 +106,19 @@ export async function resolveAssistantRoute(
   if (!apiKeyId) {
     throw new AssistantModelKeyMissingError(picked.adapterType, picked.modelId)
   }
+  const fastModelId =
+    !pinned && options.questionTurn && isAssistantProvider(picked.adapterType)
+      ? ASSISTANT_AUTO_QUESTION_MODEL_IDS[picked.adapterType]
+      : undefined
+  const fastEntry = fastModelId
+    ? getAssistantRouteModelEntry(fastModelId)
+    : null
+  const model = fastEntry ?? picked
   return {
     route: await resolveLlmTextRoute(userId, apiKeyId),
     apiKeyId,
-    modelId: picked.modelId,
-    modelLabel: picked.label,
+    modelId: model.modelId,
+    modelLabel: model.label,
     auto: !pinned,
   }
 }

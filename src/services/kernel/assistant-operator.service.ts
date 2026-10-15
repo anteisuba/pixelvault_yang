@@ -210,10 +210,10 @@ import {
   WEB_VIDEO_SEARCH,
 } from '@/constants/web-search'
 import {
-  WEB_VIDEO_PLATFORM_IDS,
-  WEB_VIDEO_PLATFORM_NAMES,
-} from '@/constants/web-video'
-import { formatVideoDuration } from '@/lib/web-video'
+  buildResearchCompact,
+  describeWebImageFindLine,
+  describeWebVideoFindLine,
+} from '@/lib/assistant-web-finds'
 import { getAppOrigin } from '@/constants/config'
 import { USER_UPLOAD_PROVIDER } from '@/constants/uploads'
 import {
@@ -529,7 +529,6 @@ import {
   type AssistantOperatorImageHandoff,
   type AssistantOperatorWorkbenchHandoff,
   type AssistantOperatorWebImage,
-  type AssistantOperatorWebVideo,
   type AssistantOperatorCanvasNode,
   type AssistantOperatorReadStateArgs,
   type AssistantOperatorSnapshot,
@@ -929,6 +928,13 @@ interface OperatorRun {
    * ⛔ 否则来源卡上会缺号，而缺号在读者眼里就是「有一条我点不开」。
    */
   evidenceCiteSeq: number
+  /**
+   * **下一条找到的东西拿哪个 `#n`**（搜索期第三片，附录 I §3.3）—— 找图与找视频共用一条连号，
+   * 按找到的先后发。⭐ 与 `evidenceCiteSeq`（`[n]`）是两套号：那一套是证据角标，这一套是
+   * 面板上的图与视频卡。v3 每一跳开头按本轮记录（含上一轮带来的那几条）续上
+   * （`seedV3WebFinds`），所以接力之后、下一轮里新找到的都不和已有的撞号。
+   */
+  webFindSeq: number
   /** 讲给模型听的「刚才发生了什么」。 */
   observations: string[]
   /** 本轮里助手自己写过的字段 —— 覆写自己的东西不需要再问用户一次。 */
@@ -1109,7 +1115,11 @@ export type ToolPlan =
   | {
       kind: 'read'
       payload: unknown
-      run(): Promise<{ result: unknown; observation: string }>
+      /**
+       * `compact`：再往后几步给模型的短版（查证，搜索期第三片）—— 紧跟着这一步的那一次调用读
+       * `observation`，之后只读它。缺席 = 一直读 `observation`。
+       */
+      run(): Promise<{ result: unknown; observation: string; compact?: string }>
     }
   | {
       kind: 'mutate'
@@ -2655,7 +2665,12 @@ function planSearchWebImages(
         isWebImageAllowed(image.domain ?? image.pageUrl, run.sourceRules),
       )
       const blockedByRules = ordered.length - allowed.length
-      const images = allowed.slice(0, limit).map((image) => {
+      /**
+       * ⭐ 编号 `#n`（搜索期第三片，附录 I §3.3）：本轮一条连号、按找到的先后，与找视频共用。
+       *   模型只认编号（导入、挂参考、交给角色卡都写 `#n`），面板按它把正文里的 `#3` 指到这一格。
+       */
+      const firstNumber = run.webFindSeq
+      const images = allowed.slice(0, limit).map((image, index) => {
         /**
          * ⭐ 三字段在**服务端**算（切片 3b）：判定表是一份会长的常量，客户端算的
          * 表现是「同一张图在面板里说可用、在服务端拒了」——而那两句话用户都读得到。
@@ -2680,8 +2695,10 @@ function planSearchWebImages(
             : {}),
           ...(image.width ? { width: image.width } : {}),
           ...(image.height ? { height: image.height } : {}),
+          n: firstNumber + index,
         }
       })
+      run.webFindSeq = firstNumber + images.length
 
       // ⭐ 观察里**每次都要重申一遍「这只是预览」**：模型看到一串 URL 的第一反应
       //    是拿去用（挂参考 / 写进提示词），而那些地址在本仓里还不存在任何东西。
@@ -2740,15 +2757,15 @@ function planSearchWebImages(
                 ? ` ${blockedByRules} candidate(s) came back but the creator's source list rules them out — tell them plainly and offer to widen the list.`
                 : ''
             }${ruleLine} Do not invent image URLs. One empty search is not an answer: change the wording — the character's name in its own language, the work's official title, or "subject" plus preferOfficial — and try once more before you tell the creator there is nothing.`
-          : `find_images("${args.query}") → ${images.length} PREVIEW candidate(s) shown to the creator:\n${images
+          : `find_images("${args.query}") → ${images.length} PREVIEW picture(s), shown to the creator as numbered cards under your reply:\n${images
               .map(
                 (image, index) =>
-                  `  ${index + 1}. ${image.publisher ?? image.domain ?? 'web'}${
-                    image.title ? ` · "${image.title}"` : ''
-                  }${image.usableAsInput ? '' : ' · REFERENCE ONLY (this site cannot be used as an input)'}${
-                    // 角色页（卡片助手 C3）：`propose_character_images` 按原图直链认
-                    // 这一张，所以这里要给出地址；那一页没有提示词可以误贴。
-                    forCharacters ? ` · imageUrl ${image.imageUrl}` : ''
+                  `  ${describeWebImageFindLine(image, image.usableAsInput)}${
+                    // 旧内核的角色页（卡片助手 C3）：`propose_character_images` 按原图直链认
+                    // 这一张，所以这里要给出地址。v3 按编号认（`#n`），⛔ 不给地址。
+                    forCharacters && !mainModelLooks
+                      ? ` · imageUrl ${image.imageUrl}`
+                      : ''
                   }${describeSeen(index)}`,
               )
               .join('\n')}\n${
@@ -2761,10 +2778,18 @@ function planSearchWebImages(
                         : canLook
                           ? 'You could NOT look at these images — you only have their titles. If you offer any, say plainly that you judged by title only. '
                           : 'You could NOT look at these images: the model this turn runs on cannot see pictures, and no other provider is used in its place. You only have their titles — if you offer any, say plainly that you judged by title only. '
-                  }These are previews only — nothing was saved yet, so never say you did. To attach the good ones to a character, send ask/propose_character_images with their imageUrl (never one marked REFERENCE ONLY); the creator ticks which to keep. If a view the character needs is missing (a back view, a clean full body), search again with that view in the words people use for it — the character's name in its own language plus 「背面」「全身」「立绘」, or "back view", "full body" — before you say there is none.`
+                  }These are previews only — nothing was saved yet, so never say you did. ${
+                    mainModelLooks
+                      ? 'To attach the good ones to a character, propose them by number ("#2") with propose_character_images (never one marked view only); the creator ticks which to keep.'
+                      : 'To attach the good ones to a character, send ask/propose_character_images with their imageUrl (never one marked view only); the creator ticks which to keep.'
+                  } If a view the character needs is missing (a back view, a clean full body), search again with that view in the words people use for it — the character's name in its own language plus 「背面」「全身」「立绘」, or "back view", "full body" — before you say there is none.`
                 : modelCanImportWebImages(run)
-                  ? 'These are previews only — nothing was saved yet, so never say you did. Two ways one becomes a real reference: the creator presses "use this" on the candidate (that is the normal path — say which ones are worth keeping and let them pick), or, if they have ALREADY told you to attach them, you call import_user_url on the ones above that are not marked REFERENCE ONLY. Never paste one of these URLs into a prompt, and never import one they did not ask for.'
-                  : 'These are previews only — nothing was saved yet, so never say you did. The creator presses "use this" on the ones they want: that saves them to their library and attaches them to their next message. Say which ones are worth keeping and let them pick; never paste one of these URLs into a prompt.'
+                  ? `These are previews only — nothing was saved yet, so never say you did. Two ways one becomes a real reference: the creator presses "use this" on the card (that is the normal path — say which ones are worth keeping and let them pick), or, if they have ALREADY told you to attach them, you call import_user_url ${
+                      mainModelLooks
+                        ? 'with the number ("#2") of each one marked usable as reference'
+                        : 'on the ones above marked usable as reference'
+                    }. Never write a picture's address into a prompt, and never import one they did not ask for.`
+                  : 'These are previews only — nothing was saved yet, so never say you did. The creator presses "use this" on the ones they want: that saves them to their library and attaches them to their next message. Say which ones are worth keeping, by number ("#2"), and let them pick; never write a picture\'s address into a prompt.'
             }${ruleLine}`
 
       /**
@@ -2795,26 +2820,6 @@ function modelCanImportWebImages(run: OperatorRun): boolean {
   return !(
     run.mainModelLooks === true && domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.lora
   )
-}
-
-/** 模型读到的那一行：`#n · 标题 · 频道 · 平台 · 时长`（缺哪格就少哪格）。 */
-export function describeWebVideoLine(
-  video: AssistantOperatorWebVideo,
-  index: number,
-): string {
-  const platform =
-    video.platform === WEB_VIDEO_PLATFORM_IDS.other
-      ? (video.domain ?? 'web')
-      : WEB_VIDEO_PLATFORM_NAMES[video.platform]
-  return [
-    `#${index + 1}`,
-    video.title,
-    video.channel,
-    platform,
-    video.durationSeconds ? formatVideoDuration(video.durationSeconds) : null,
-  ]
-    .filter((part): part is string => Boolean(part))
-    .join(' · ')
 }
 
 /**
@@ -2890,8 +2895,11 @@ function planSearchWebVideos(
           filterEvidenceIndices([{ sourceId, url }], run.sourceRules).length >
           0,
       })
-      const videos = hits.map((hit) => ({
+      // 编号与找图同一条连号（`run.webFindSeq`）。
+      const firstNumber = run.webFindSeq
+      const videos = hits.map((hit, index) => ({
         ...hit.video,
+        n: firstNumber + index,
         title: clamp(hit.video.title, LIMITS.maxPriorStepSummaryChars),
         ...(hit.video.channel
           ? { channel: clamp(hit.video.channel, LIMITS.maxLabelChars) }
@@ -2903,6 +2911,7 @@ function planSearchWebVideos(
           ? { date: clamp(hit.video.date, LIMITS.maxLabelChars) }
           : {}),
       }))
+      run.webFindSeq = firstNumber + videos.length
       const blockedLine =
         blocked > 0
           ? ` The creator's source list ruled out ${blocked} result(s).`
@@ -2911,10 +2920,10 @@ function planSearchWebVideos(
         videos.length === 0
           ? `Web video search "${args.query}" came back empty.${blockedLine}${ruleLine} Do not invent videos or links. One empty search is not an answer: change the wording once — the work's official title, the name in its own language, or words like "PV", "trailer", "tutorial" — before you tell the creator there is nothing.`
           : `Web video search "${args.query}" → ${videos.length} video(s), shown to the creator as cards under your reply (they can play them there):\n${videos
-              .map((video, index) => `  ${describeWebVideoLine(video, index)}`)
+              .map((video) => `  ${describeWebVideoFindLine(video)}`)
               .join(
                 '\n',
-              )}\nYou have NOT watched any of these: you only have the title, channel and length — judge by those, and say so when it matters. Nothing was downloaded or saved, and they are links only: never import or mount one, and never paste a video address into a prompt. Point to one by its number (#2) instead of listing them again.${blockedLine}${ruleLine}`
+              )}\nYou have NOT watched any of these: you only have the title, channel and length — judge by those, and say so when it matters. Nothing was downloaded or saved, and they are links only: never import or mount one, and never write a video address into a prompt. Point to one by its number ("#2") instead of listing them again.${blockedLine}${ruleLine}`
       return { result: { totalFound: videos.length, videos }, observation }
     },
   }
@@ -3659,6 +3668,27 @@ async function planResearch(
             : 'This was your last research round. Use it, name the source when it matters, and say plainly what is still unconfirmed.'
         }`
 
+  /**
+   * ⭐ **短版**（搜索期第三片，附录 I §二 6）：上面那一大段（最多 6×300 + 3×1600 字的摘录）
+   *   只给紧跟着的那一步读；再往后每一步只剩一行一条「[n] 标题 · 域名 · 一句话」+ 结论那一句，
+   *   要全文就 `read "[n]"`（v3 每张脸的 read 都认）。⚠ 号不变 —— 正文照旧写 `[n]`。
+   */
+  const compact =
+    evidence.length > 0
+      ? buildResearchCompact({
+          goal: clamp(args.goal, RESEARCH_LIMITS.maxGoalChars),
+          evidence: evidence.map((item) => ({
+            cite: item.cite,
+            title: item.title,
+            publisher: item.publisher,
+            ...(item.url ? { url: item.url } : {}),
+            snippet: item.snippet,
+            corroboration: item.corroboration,
+          })),
+          summary: conclusion,
+        })
+      : undefined
+
   return {
     kind: 'read',
     /**
@@ -3686,6 +3716,7 @@ async function planResearch(
         ...(webSearchFallback ? { webSearchFallback: true as const } : {}),
       },
       observation,
+      ...(compact ? { compact } : {}),
     }),
   }
 }
@@ -3961,9 +3992,9 @@ function planImportUserUrl(run: OperatorRun, args: { url: string }): ToolPlan {
     },
     // ⚠ 逆操作也只能是源地址 —— 客户端按对照表反查它挂上去的那一张（见词表头注）。
     inverse: { url: args.url },
-    observation: `Imported the link the creator handed you (${
-      domain ?? 'web'
-    }) and mounted it as a reference (${run.state.referenceCount + 1}/${
+    observation: `Imported ${
+      fromCreator ? 'the link the creator handed you' : 'that picture'
+    } (${domain ?? 'web'}) and mounted it as a reference (${run.state.referenceCount + 1}/${
       run.state.referenceLimit
     }). It is already on the form — do not ask them to download, upload, or attach anything.`,
     apply: () => {
@@ -9101,16 +9132,16 @@ function planProposeCharacterImages(
       )
       continue
     }
+    // 说回给模型时用它看到的那个号（`#n`，搜索期第三片）：v3 按号交，⛔ 把地址说出去。
+    const label = image.n !== undefined ? `#${image.n}` : pick.imageUrl
     if (!image.usableAsInput) {
       dropped.push(
-        `${pick.imageUrl} (marked REFERENCE ONLY — that site cannot be used as an input)`,
+        `${label} (marked view only — that site cannot be used as an input)`,
       )
       continue
     }
     if (run.webImageVision.get(pick.imageUrl)?.isCharacter === 'no') {
-      dropped.push(
-        `${pick.imageUrl} (you looked at it and it is NOT this character)`,
-      )
+      dropped.push(`${label} (you looked at it and it is NOT this character)`)
       continue
     }
     if (seen.has(image.imageUrl)) continue
@@ -9131,7 +9162,11 @@ function planProposeCharacterImages(
     return notOffered(
       draft,
       tool,
-      `none of the picks can be offered — ${dropped.join('; ')}. Offer only ids and URLs your own searches returned this turn (search again if they came from an earlier turn).`,
+      `none of the picks can be offered — ${dropped.join('; ')}. ${
+        run.mainModelLooks === true
+          ? 'Offer only asset ids your library search returned and web find numbers ("#3") from this turn or last turn.'
+          : 'Offer only ids and URLs your own searches returned this turn (search again if they came from an earlier turn).'
+      }`,
     )
   }
   return {
@@ -11039,7 +11074,7 @@ function buildOperatorSystemPrompt(
     ? `- THE CREATOR HANDED YOU A LINK → call import_user_url on it, right then. Their link is their yes. It works for a direct image address and for an ordinary web page alike. Never answer a link with a search, and never ask them to save it, upload it, or pick it out of a list — you have the tool, so you do it.\n`
     : ''
   const importCandidatesRule = canImport
-    ? `- Once the creator tells you to attach the find_images candidates you showed ("use them all"), call import_user_url on each, skipping any marked REFERENCE ONLY.\n`
+    ? `- Once the creator tells you to attach the find_images candidates you showed ("use them all"), call import_user_url on each, skipping any marked view only.\n`
     : ''
 
   const lookAppendix =
@@ -11065,7 +11100,7 @@ HARD RULES — these are structural, not stylistic:
 - Never invent a model id or an asset id. Model ids come from the state block, asset ids come from search_assets results. A made-up id is refused and wastes a step.
 - Every asset the creator owns has a NAME, printed by search_assets and attached to what they hand you (图_012·silver-haired girl). Call it by that name whenever you talk about it — "the second one" is ambiguous the moment they scroll, and an asset id is a uuid neither of you can check by eye. Never read an id out loud; ids belong inside tool arguments only.
 ${frameRules}${importLinkRule}- Look facts up on the web whenever your answer depends on something you are not sure of or that may have changed — a work, an artist, a character, a technique, a model's abilities. Do not look up what you already know well. A question about a picture that is already attached is answered by looking at it, not by searching.
-- A web result may be marked REFERENCE ONLY: that site asks not to be used as AI input, or republishes work without a traceable source. The creator can still open it, but the app will not file it into their library and neither will you. Say so once and offer another source; never go hunting for the same picture on another site to get around it.
+- A web result may be marked view only: that site asks not to be used as AI input, or republishes work without a traceable source. The creator can still open it, but the app will not file it into their library and neither will you. Say so once and offer another source; never go hunting for the same picture on another site to get around it.
 ${importCandidatesRule}- Never fill a gap with invention. One empty search is not an answer: change the query and go again, or say what you could not confirm.
 - When the creator says the screen shows something different from the state block ("the negative prompt is empty"), take their word: say what the state block holds, never guess why the screen differs (no "maybe it lagged"), and offer to write it again.
 ${domainRules}
@@ -12759,6 +12794,7 @@ export async function prepareOperatorTurn(
     webImageIndex: new Map(),
     webImageVision: new Map(),
     evidenceCiteSeq: 1,
+    webFindSeq: 1,
     researchRounds: 0,
     evidenceRefs: [],
     searchIndex: new Map(),

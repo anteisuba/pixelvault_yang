@@ -3,6 +3,8 @@ import { z } from 'zod'
 import {
   ASSISTANT_OPERATOR_SEARCH_KINDS,
   ASSISTANT_RESEARCH_DEPTH_VALUES,
+  ASSISTANT_RESEARCH_LIMITS,
+  ASSISTANT_WEB_FIND_LIMITS,
 } from '@/constants/assistant-operator'
 import {
   ASSISTANT_V3_CARD_TYPES,
@@ -23,6 +25,10 @@ import {
   ASSISTANT_V3_WRITE_MODES,
 } from '@/constants/assistant-v3'
 import { ASSISTANT_TURN_RECORD_LIMITS } from '@/constants/assistant-turn-record'
+import {
+  AssistantResearchSourceRefSchema,
+  AssistantWebFindSchema,
+} from '@/types/assistant-web-finds'
 import { NODE_SCRIPT_PROJECTION_MODES } from '@/constants/node-script'
 import { NOVELAI_SCENE_TEXT_KINDS } from '@/constants/novelai'
 import { NODE_SLOT_TEXT_ROLES, NODE_SLOTS } from '@/constants/node-slots'
@@ -460,7 +466,7 @@ export const AssistantV3ImageEditOpInputSchema = z.union([
       asset: z
         .string()
         .describe(
-          'The name of a picture attached to the message, or an asset id from a search_library result this turn.',
+          'The name of a picture attached to the message, an asset id from a search_library result this turn, or a web find by its number ("#3", one marked usable as reference).',
         ),
     })
     .describe('Mount a picture as the next reference (ref-N = @ImageN).'),
@@ -471,10 +477,14 @@ export const AssistantV3ImageEditOpInputSchema = z.union([
   z
     .object({
       op: one(ASSISTANT_V3_IMAGE_EDIT_OP_IDS.importUrl),
-      url: z.string(),
+      url: z
+        .string()
+        .describe(
+          'The link the creator gave you, or a picture found on the web by its number ("#3").',
+        ),
     })
     .describe(
-      'File a link the creator gave you (an image address or a web page) into their library and mount it.',
+      'File a link the creator gave you (an image address or a web page), or a web find marked usable as reference, into their library and mount it.',
     ),
   z
     .object({
@@ -569,7 +579,7 @@ export const AssistantV3VideoEditOpInputSchema = z.union([
       asset: z
         .string()
         .describe(
-          'The name of a picture attached to the message, or an asset id from a search_library result this turn.',
+          'The name of a picture attached to the message, an asset id from a search_library result this turn, or a web find by its number ("#3", reference only — never a frame).',
         ),
       slot: z
         .enum(ASSISTANT_V3_VIDEO_REFERENCE_SLOTS)
@@ -610,10 +620,14 @@ export const AssistantV3VideoEditOpInputSchema = z.union([
   z
     .object({
       op: one(ASSISTANT_V3_IMAGE_EDIT_OP_IDS.importUrl),
-      url: z.string(),
+      url: z
+        .string()
+        .describe(
+          'The link the creator gave you, or a picture found on the web by its number ("#3").',
+        ),
     })
     .describe(
-      'File a link the creator gave you into their library and mount it.',
+      'File a link the creator gave you, or a web find marked usable as reference, into their library and mount it as a reference.',
     ),
 ])
 
@@ -696,10 +710,12 @@ export const AssistantV3CardsEditOpInputSchema = z.union([
             .string()
             .nullable()
             .describe('An asset id from a library search this turn.'),
-          imageUrl: z
+          find: z
             .string()
             .nullable()
-            .describe('An image URL from a web_images search this turn.'),
+            .describe(
+              'A web_images find by its number ("#3"), from this turn or last turn. Never an address.',
+            ),
           reason: z
             .string()
             .describe('Which view it gives: face, full body, back …'),
@@ -811,6 +827,15 @@ export const AssistantV3TranscriptBoardEntrySchema = z.object({
       hop: z.number().int().min(1).max(ASSISTANT_TURN_RECORD_LIMITS.maxHops),
     })
     .optional(),
+  /**
+   * 上一轮找到的图与视频（`#n`，搜索期第三片）：开轮那一跳从请求的 `priorFinds` 冻进来，
+   * 接力时原样带回 —— 每一跳给模型的那几行因此逐字相同（缓存吃得到）。模型只读编号那一行
+   * （`currentUserMessage`），地址只用来把 `#n` 换回那一张。
+   */
+  finds: z
+    .array(AssistantWebFindSchema)
+    .max(ASSISTANT_WEB_FIND_LIMITS.maxCarried)
+    .optional(),
 })
 
 export const AssistantV3TranscriptCallSchema = z.object({
@@ -853,6 +878,24 @@ export const AssistantV3TranscriptResultEntrySchema = z.object({
   clips: z
     .array(AssistantV3ClipRefSchema)
     .max(ASSISTANT_V3_CLIP_LIMITS.maxClips)
+    .optional(),
+  /**
+   * 这一次找到的图与视频（`#n`，搜索期第三片）：接力那一跳与下一步按它把 `#n` 换回那一张。
+   * ⛔ 不进模型看的东西（模型读 `output` 里那几行）。
+   */
+  finds: z
+    .array(AssistantWebFindSchema)
+    .max(ASSISTANT_WEB_FIND_LIMITS.maxPerTurn)
+    .optional(),
+  /**
+   * 再往后几步给模型的**短版**（查证那一步，搜索期第三片）：紧跟着这条结果的那一次调用
+   * 读 `output`（整段摘录），之后每一步只读这一份（`[n] 标题 · 域名 · 一句话`）。
+   */
+  compact: z.string().max(ASSISTANT_V3_LIMITS.maxEntryChars).optional(),
+  /** 查证的资料号 → 那一页：`read "[n]"` 按它再读一遍全文。 */
+  sources: z
+    .array(AssistantResearchSourceRefSchema)
+    .max(ASSISTANT_RESEARCH_LIMITS.maxEvidenceItems * 2)
     .optional(),
 })
 

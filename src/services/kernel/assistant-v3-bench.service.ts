@@ -63,18 +63,28 @@ const V3_WORDS: readonly [RegExp, string][] = [
   [/\bsearch_web_images\b/g, 'search_library kind "web_images"'],
   [/\bsearch_web_videos\b/g, 'search_library kind "web_videos"'],
   [/\bsearch_assets\b/g, 'search_library'],
+  // 查证的观察（搜索期第三片）：v3 没有 read_url，资料号 `[n]` 交给 read 再读一遍。
+  [
+    /\bread_url the (best|most likely) page above\b/g,
+    'read "[n]" the $1 source above in full',
+  ],
   [/\brequest_generation\b/g, 'generate'],
   [/@Image(\d+)/g, 'ref-$1'],
 ]
+
+function toV3Words(text: string): string {
+  return V3_WORDS.reduce(
+    (out, [pattern, word]) => out.replace(pattern, word),
+    text,
+  )
+}
 
 export function inV3Words(outcome: V3Outcome): V3Outcome {
   if (outcome.kind !== 'result') return outcome
   return {
     ...outcome,
-    output: V3_WORDS.reduce(
-      (text, [pattern, word]) => text.replace(pattern, word),
-      outcome.output,
-    ),
+    output: toV3Words(outcome.output),
+    ...(outcome.compact ? { compact: toV3Words(outcome.compact) } : {}),
   }
 }
 
@@ -87,6 +97,12 @@ export function joinOutcomes(outcomes: readonly V3Outcome[]): V3Outcome {
   const failed = results.find((outcome) => outcome.error)
   const images = results.flatMap((outcome) => outcome.images ?? [])
   const clips = results.flatMap((outcome) => outcome.clips ?? [])
+  const finds = results.flatMap((outcome) => outcome.finds ?? [])
+  const sources = results.flatMap((outcome) => outcome.sources ?? [])
+  /** 有一段有短版，合起来的那一份就有短版（没有短版的那几段原样）。 */
+  const compact = results.some((outcome) => outcome.compact)
+    ? results.map((outcome) => outcome.compact ?? outcome.output).join('\n')
+    : null
   return {
     kind: 'result',
     output: results.map((outcome) => outcome.output).join('\n'),
@@ -94,6 +110,9 @@ export function joinOutcomes(outcomes: readonly V3Outcome[]): V3Outcome {
     ...(failed?.failureKey ? { failureKey: failed.failureKey } : {}),
     ...(images.length ? { images } : {}),
     ...(clips.length ? { clips } : {}),
+    ...(finds.length ? { finds } : {}),
+    ...(compact ? { compact } : {}),
+    ...(sources.length ? { sources } : {}),
   }
 }
 

@@ -8,6 +8,7 @@ import {
   type ToolResultPart,
   type UserContent,
 } from 'ai'
+import { z } from 'zod'
 
 import {
   assistantAdapterSupportsImage,
@@ -25,9 +26,11 @@ import {
   ASSISTANT_OPERATOR_STOP_REASONS,
   ASSISTANT_OPERATOR_TOOL_IDS as TOOL,
   ASSISTANT_RESEARCH_LIMITS,
+  ASSISTANT_WEB_FIND_LIMITS,
 } from '@/constants/assistant-operator'
 import {
   ASSISTANT_V3_ASK_TOOL_DESCRIPTION,
+  ASSISTANT_V3_READ_SOURCE_NOTE,
   ASSISTANT_V3_CALL_TIMEOUT,
   ASSISTANT_V3_CLIP_LIMITS,
   ASSISTANT_V3_EDIT_OP_IDS,
@@ -98,7 +101,6 @@ import {
   AssistantV3WriteInputSchema,
   type AssistantV3ClipRef,
   type AssistantV3EditOpInput,
-  type AssistantV3PictureRef,
   type AssistantV3SearchWebInput,
   type AssistantV3Transcript,
   type AssistantV3TranscriptCall,
@@ -167,7 +169,17 @@ import {
 } from '@/services/kernel/assistant-v3-steps.service'
 import { buildAssistantV3SystemPrompt } from '@/services/kernel/assistant-v3-prompt.service'
 import {
+  parseResearchSourceHandle,
+  priorFindsOf,
+  priorFindsText,
+  seedV3WebFinds,
+  v3ResearchSourceOf,
+} from '@/services/kernel/assistant-v3-finds.service'
+import {
+  joinOutcomes,
   referenceIndexOf,
+  refused,
+  runOldTool,
   runWebFind,
 } from '@/services/kernel/assistant-v3-bench.service'
 import {
@@ -302,8 +314,7 @@ function nextTurnMark(
 
 const tools = (strict: boolean) => ({
   [ASSISTANT_V3_TOOL_IDS.read]: tool({
-    description:
-      'Read cards in full: text, inputs and parameters. Pass card handles from the board.',
+    description: `Read cards in full: text, inputs and parameters. Pass card handles from the board. ${ASSISTANT_V3_READ_SOURCE_NOTE}`,
     inputSchema: AssistantV3ReadInputSchema,
     strict,
   }),
@@ -548,7 +559,15 @@ function transcriptMessages(
     if (after.length) out.push({ role: 'user', content: after })
     after = []
   }
-  for (const entry of entries) {
+  /**
+   * ⭐ 查证那一大段摘录只给紧跟着的那一次调用（与 look 的图同一个判据：最后一条 assistant
+   *   之后的结果才算新）；再往后只读短版（`compact`，搜索期第三片）。⚠ 换成短版的那一步
+   *   前缀变了，缓存从那一条起断一次 —— 与看图同一个代价，换来之后每一步都省下那一段。
+   */
+  const lastAssistant = entries.findLastIndex(
+    (entry) => entry.type === ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.assistant,
+  )
+  for (const [index, entry] of entries.entries()) {
     if (entry.type === ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.assistant) {
       flush()
       out.push({
@@ -576,16 +595,18 @@ function transcriptMessages(
         after.push(
           ...(picturesInResult ? lookClipParts(look) : lookUserParts(look)),
         )
+      const text =
+        entry.compact && index < lastAssistant ? entry.compact : entry.output
       results.push({
         type: 'tool-result',
         toolCallId: entry.id,
         toolName: entry.tool,
         output:
           look && picturesInResult && look.pictures.length
-            ? lookToolOutput(entry.output, look)
+            ? lookToolOutput(text, look)
             : entry.error
-              ? { type: 'error-text', value: entry.output }
-              : { type: 'text', value: entry.output },
+              ? { type: 'error-text', value: text }
+              : { type: 'text', value: text },
       })
     }
   }
@@ -685,6 +706,9 @@ function currentUserMessage(
   }
   // ⭐ 被指着的片子与被指着的图同一个待遇：整轮都在眼前（看图期第二段）。
   content.push(...pointedClipParts(clips))
+  // 上一轮找到的图与视频（`#n`，搜索期第三片）：只有编号那一行，冻在板子里、每一跳逐字相同。
+  const found = priorFindsText(board.finds ?? [])
+  if (found) content.push({ type: 'text', text: found })
   content.push({
     type: 'text',
     text: autoReview
@@ -1160,9 +1184,20 @@ async function* runV3Turn(
   }
   const opening = transcript[0]
   if (opening?.type !== ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.board) return
+  /**
+   * 上一轮找到的图与视频（`#n`，搜索期第三片）：开轮那一跳从请求冻进板子；接力那几跳板子里
+   * 已经有了，⛔ 不再读请求。
+   */
+  const priorFinds = relay ? [] : priorFindsOf(request)
   // 这一轮的号与第几跳（每轮的过程记录）：⛔ 不进模型看的东西，只随本轮记录往返。
-  const board = { ...opening, turn: nextTurnMark(opening.turn, relay) }
+  const board = {
+    ...opening,
+    turn: nextTurnMark(opening.turn, relay),
+    ...(priorFinds.length ? { finds: priorFinds } : {}),
+  }
   transcript[0] = board
+  // 连号与准入名单接着本轮记录往下（`#n` 与 `[n]` 都不和前一跳 / 上一轮撞号）。
+  seedV3WebFinds(run, transcript)
 
   const system = buildAssistantV3SystemPrompt({
     face,
@@ -1471,8 +1506,12 @@ async function* runV3Turn(
       const pushResult = (
         output: string,
         error: boolean,
-        images?: readonly AssistantV3PictureRef[],
-        clips?: readonly AssistantV3ClipRef[],
+        extra: Partial<
+          Pick<
+            Extract<V3Outcome, { kind: 'result' }>,
+            'images' | 'clips' | 'finds' | 'compact' | 'sources'
+          >
+        > = {},
       ) =>
         transcript.push({
           type: ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.result,
@@ -1480,8 +1519,25 @@ async function* runV3Turn(
           tool: entryCall.tool,
           output: output.slice(0, ASSISTANT_V3_LIMITS.maxEntryChars),
           error,
-          ...(images?.length ? { images: [...images] } : {}),
-          ...(clips?.length ? { clips: [...clips] } : {}),
+          ...(extra.images?.length ? { images: [...extra.images] } : {}),
+          ...(extra.clips?.length ? { clips: [...extra.clips] } : {}),
+          ...(extra.finds?.length
+            ? {
+                finds: extra.finds.slice(
+                  0,
+                  ASSISTANT_WEB_FIND_LIMITS.maxPerTurn,
+                ),
+              }
+            : {}),
+          ...(extra.compact && !error
+            ? {
+                compact: extra.compact.slice(
+                  0,
+                  ASSISTANT_V3_LIMITS.maxEntryChars,
+                ),
+              }
+            : {}),
+          ...(extra.sources?.length ? { sources: [...extra.sources] } : {}),
         })
       if (stopTodo !== null) {
         pushResult(NOT_RUN_AFTER_STOP, true)
@@ -1519,7 +1575,7 @@ async function* runV3Turn(
           stopTodo = outcome.todo
           pushResult(WAITING_FOR_CREATOR, false)
         } else if (outcome.kind === 'result') {
-          pushResult(outcome.output, outcome.error)
+          pushResult(outcome.output, outcome.error, outcome)
           if (outcome.error && outcome.failureKey)
             failures.push(outcome.failureKey)
         }
@@ -1556,7 +1612,7 @@ async function* runV3Turn(
         continue
       }
       if (outcome.kind === 'result') {
-        pushResult(outcome.output, outcome.error, outcome.images, outcome.clips)
+        pushResult(outcome.output, outcome.error, outcome)
         if (outcome.error && outcome.failureKey)
           failures.push(outcome.failureKey)
       }
@@ -1872,12 +1928,74 @@ function askImageUrl(
     : undefined
 }
 
+const ReadCardsListSchema = z.object({ cards: z.array(z.string()) })
+const ReadItemsListSchema = z.object({ items: z.array(z.string()) })
+
+/**
+ * `read` 里的 `"[3]"`（查证的资料号，搜索期第三片）：五张脸的 read 入参形状各不相同（画布
+ * `cards`，别的脸 `items`），这里统一摘出来；剩下的照原路读。没有一项是 `[n]` → `null`。
+ */
+function splitSourceReads(
+  input: unknown,
+): { cites: number[]; rest: unknown | null } | null {
+  const cards = ReadCardsListSchema.safeParse(input)
+  const items = cards.success ? null : ReadItemsListSchema.safeParse(input)
+  const list = cards.success ? cards.data.cards : items?.data?.items
+  if (!list) return null
+  const cites = list.map(parseResearchSourceHandle)
+  if (cites.every((cite) => cite === null)) return null
+  const rest = list.filter((_, index) => cites[index] === null)
+  const key = cards.success ? 'cards' : 'items'
+  return {
+    cites: cites.filter((cite): cite is number => cite !== null),
+    rest: rest.length
+      ? { ...z.record(z.string(), z.unknown()).parse(input), [key]: rest }
+      : null,
+  }
+}
+
+/** 把查证的一条资料再读一遍全文（旧执行器的 read_url，地址由服务端按 `[n]` 换回）。 */
+async function* readResearchSource(
+  context: V3Context,
+  cite: number,
+): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
+  const text = TITLE_TEXT[context.language]
+  const source = v3ResearchSourceOf(context.transcript, cite)
+  if (!source)
+    return yield* refused(
+      context,
+      TOOL.readUrl,
+      `${text.readPage} [${cite}]`,
+      `There is no source [${cite}] with a page to read this turn: use a number from this turn's search_web results (sources without a page — tag lists, the search model's own answer — cannot be read again).`,
+    )
+  return yield* runOldTool(
+    context,
+    TOOL.readUrl,
+    `${text.readPage} ${source.title}`,
+    { url: source.url },
+  )
+}
+
 async function* executeCall(
   context: V3Context,
   name: Exclude<AssistantV3Tool, MutatingTool>,
   input: unknown,
 ): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
   const text = TITLE_TEXT[context.language]
+  if (name === ASSISTANT_V3_TOOL_IDS.read) {
+    const sources = splitSourceReads(input)
+    if (sources) {
+      const outcomes: V3Outcome[] = []
+      if (sources.rest !== null)
+        outcomes.push(yield* executeCall(context, name, sources.rest))
+      for (const cite of sources.cites.slice(
+        0,
+        ASSISTANT_V3_LIMITS.maxReadCards,
+      ))
+        outcomes.push(yield* readResearchSource(context, cite))
+      return joinOutcomes(outcomes)
+    }
+  }
   if (
     context.face !== ASSISTANT_V3_FACE_IDS.canvas &&
     (name === ASSISTANT_V3_TOOL_IDS.read ||

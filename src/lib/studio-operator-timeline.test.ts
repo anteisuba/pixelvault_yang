@@ -6,7 +6,11 @@ import {
   firstOperatorSentence,
   collectOperatorAnswerSources,
   collectOperatorAnswerWebFinds,
+  collectOperatorFindRefs,
+  collectOperatorPriorFinds,
+  operatorFindKey,
   orderOperatorWebFinds,
+  webFindNumbersIn,
   groupOperatorResearch,
   summarizeOperatorResearchBlock,
   isOperatorResearchTool,
@@ -565,5 +569,240 @@ describe('operatorRunningPhrase', () => {
     ['request_generation', 'request_generation', 'generate'],
   ] as const)('%s（%s）→ %s', (tool, verb, phrase) => {
     expect(operatorRunningPhrase({ tool, verb })).toBe(phrase)
+  })
+})
+
+/**
+ * 搜索期第三片（附录 I §3.3 / §四「模型点名」）：上一轮找到的带进下一轮；回复里的 `#n` 认哪张卡、
+ * 一轮最后一段回复点名了哪几张。
+ */
+describe('找到的东西编号 #n（搜索期第三片）', () => {
+  const imageStep = (id: string, numbers: number[], status = 'done') =>
+    ({
+      kind: 'step',
+      id,
+      runKey: 'run-1',
+      undone: false,
+      step: {
+        id,
+        title: '找图',
+        tool: TOOLS.searchWebImages,
+        status,
+        payload: { query: 'q', limit: 8 },
+        ...(status === 'done'
+          ? {
+              result: {
+                totalFound: numbers.length,
+                images: numbers.map((n) => ({
+                  n,
+                  imageUrl: `https://a.test/${id}-${n}.jpg`,
+                  domain: 'a.test',
+                  title: `pic ${n}`,
+                  usableAsInput: true,
+                  sourceVerdict: 'unknownLicense',
+                })),
+              },
+            }
+          : {}),
+      },
+    }) as unknown as StudioOperatorThreadEntry
+  const videoStep = (id: string, numbers: number[]) =>
+    ({
+      kind: 'step',
+      id,
+      runKey: 'run-1',
+      undone: false,
+      step: {
+        id,
+        title: '找视频',
+        tool: TOOLS.searchWebVideos,
+        status: 'done',
+        payload: { query: 'q', limit: 8, bilibili: false },
+        result: {
+          totalFound: numbers.length,
+          videos: numbers.map((n) => ({
+            n,
+            url: `https://www.youtube.com/watch?v=${id}${n}`,
+            title: `clip ${n}`,
+            platform: 'youtube',
+          })),
+        },
+      },
+    }) as unknown as StudioOperatorThreadEntry
+  const user = (id: string) =>
+    ({ kind: 'user', id, text: 'hi' }) as StudioOperatorThreadEntry
+  const message = (id: string, text: string, streaming = false) =>
+    ({ kind: 'message', id, text, streaming }) as StudioOperatorThreadEntry
+
+  it('⭐ 带进下一轮的只有上一轮的（最后一条用户发言之前那一轮），图与视频都带、按号排', () => {
+    const entries = [
+      user('u1'),
+      imageStep('old', [1, 2]),
+      message('m1', '#1'),
+      user('u2'),
+      imageStep('w2', [3, 4]),
+      videoStep('v2', [5]),
+      message('m2', '#4 最像'),
+      user('u3'),
+    ]
+    const carried = collectOperatorPriorFinds(entries)
+    expect(carried.map((find) => [find.kind, find.n])).toEqual([
+      ['image', 3],
+      ['image', 4],
+      ['video', 5],
+    ])
+    expect(carried[0]).toMatchObject({
+      imageUrl: 'https://a.test/w2-3.jpg',
+      title: 'pic 3',
+    })
+    // 第一轮：没有上一轮。
+    expect(collectOperatorPriorFinds([user('u1')])).toEqual([])
+    // 上一轮什么都没找到：一条都不带（⛔ 不往更早翻）。
+    expect(
+      collectOperatorPriorFinds([
+        user('u1'),
+        imageStep('old', [1]),
+        user('u2'),
+        message('m2', '好'),
+        user('u3'),
+      ]),
+    ).toEqual([])
+  })
+
+  it('⭐ 答完题也是新的一轮（与服务端同一刀）：带的是问题之前那半段找到的；一组几条答题行算一刀', () => {
+    const answered = (id: string) =>
+      ({
+        kind: 'system',
+        id,
+        code: 'questionAnswered',
+        subject: '画风 · 2D',
+        userText: '画风：2D',
+      }) as StudioOperatorThreadEntry
+    const entries = [
+      user('u1'),
+      imageStep('old', [1, 2]),
+      message('m1', '好'),
+      user('u2'),
+      imageStep('w2', [3, 4]),
+      message('m2', '先问两句'),
+      answered('a1'),
+      answered('a2'),
+    ]
+    // ⛔ 不是更早那一轮的 #1 / #2：那样新找到的会从 #3 接着数，和屏幕上的 #3 撞号。
+    expect(collectOperatorPriorFinds(entries).map((find) => find.n)).toEqual([
+      3, 4,
+    ])
+    // 答完之后又找了一次、再说一段：这一段认 #3 / #4（上一轮）+ #5（这一轮）。
+    const { byMessage, named } = collectOperatorFindRefs(
+      [...entries, imageStep('w3', [5]), message('m3', '#4 和 #5')],
+      false,
+    )
+    expect([...(byMessage.get('m3')?.keys() ?? [])]).toEqual([3, 4, 5])
+    expect([...named].sort()).toEqual(
+      [operatorFindKey('w2', 4), operatorFindKey('w3', 5)].sort(),
+    )
+    // 没有 `userText` 的系统行不是一刀。
+    expect(
+      collectOperatorPriorFinds([
+        user('u1'),
+        imageStep('w1', [1]),
+        {
+          kind: 'system',
+          id: 's1',
+          code: 'videoFramesFailed',
+        } as StudioOperatorThreadEntry,
+        user('u2'),
+      ]).map((find) => find.n),
+    ).toEqual([1])
+  })
+
+  it('⛔ 还在跑的、没编号的不带', () => {
+    const entries = [
+      user('u1'),
+      imageStep('running', [], 'running'),
+      {
+        ...imageStep('legacy', [1]),
+        step: {
+          ...(imageStep('legacy', [1]) as { step: Record<string, unknown> })
+            .step,
+          result: {
+            totalFound: 1,
+            images: [
+              {
+                imageUrl: 'https://a.test/legacy.jpg',
+                usableAsInput: true,
+                sourceVerdict: 'allowed',
+              },
+            ],
+          },
+        },
+      } as unknown as StudioOperatorThreadEntry,
+      user('u2'),
+    ]
+    expect(collectOperatorPriorFinds(entries)).toEqual([])
+  })
+
+  it('⭐ 每段回复认这一轮 + 上一轮的号；最后一段说完的回复点名的那几张常驻黑框', () => {
+    const entries = [
+      user('u1'),
+      imageStep('w1', [1, 2]),
+      message('m1', '#2 最像，#9 不存在'),
+      user('u2'),
+      imageStep('w2', [3]),
+      message('m2a', '再找一张'),
+      message('m2b', '我觉得#1和#3都行'),
+      user('u3'),
+      message('m3', '#3'),
+    ]
+    const { byMessage, named } = collectOperatorFindRefs(entries, false)
+    expect([...(byMessage.get('m1')?.keys() ?? [])]).toEqual([1, 2])
+    expect([...(byMessage.get('m2b')?.keys() ?? [])]).toEqual([1, 2, 3])
+    expect(byMessage.get('m2b')?.get(1)).toMatchObject({
+      key: operatorFindKey('w1', 1),
+      kind: 'image',
+      label: 'pic 1',
+    })
+    // 第三轮：上一轮的 #3 还认；更早那一轮的 #1 / #2 已经不认了。
+    expect([...(byMessage.get('m3')?.keys() ?? [])]).toEqual([3])
+    expect([...named].sort()).toEqual(
+      [
+        operatorFindKey('w1', 2),
+        operatorFindKey('w1', 1),
+        operatorFindKey('w2', 3),
+      ].sort(),
+    )
+    // 「再找一张」那一段不是最后一段：它点的号（没有）不算。
+    expect(named.has(operatorFindKey('w1', 9))).toBe(false)
+  })
+
+  it('还在跑的那一轮先不圈；还在写的那段不算最后一段', () => {
+    const entries = [
+      user('u1'),
+      imageStep('w1', [1, 2]),
+      message('m1', '#1 不错'),
+      message('m2', '#2', true),
+    ]
+    expect(collectOperatorFindRefs(entries, true).named.size).toBe(0)
+    expect([...collectOperatorFindRefs(entries, false).named]).toEqual([
+      operatorFindKey('w1', 1),
+    ])
+  })
+
+  it('同一个号在新一轮里重来时以这一轮的为准', () => {
+    const entries = [
+      user('u1'),
+      imageStep('w1', [1]),
+      message('m1', 'ok'),
+      user('u2'),
+      imageStep('w2', [1]),
+      message('m2', '#1'),
+    ]
+    const { byMessage, named } = collectOperatorFindRefs(entries, false)
+    expect(byMessage.get('m2')?.get(1)?.key).toBe(operatorFindKey('w2', 1))
+    expect([...named]).toEqual([operatorFindKey('w2', 1)])
+  })
+
+  it('webFindNumbersIn：去重、按出场顺序', () => {
+    expect(webFindNumbersIn('#3、#1 和 #3')).toEqual([3, 1])
   })
 })

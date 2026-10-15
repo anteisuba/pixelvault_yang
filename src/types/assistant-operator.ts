@@ -39,6 +39,7 @@ import {
   ASSISTANT_V3_CLIP_LIMITS,
 } from '@/constants/assistant-v3'
 import { AssistantV3TranscriptSchema } from '@/types/assistant-v3'
+import { AssistantWebFindSchema } from '@/types/assistant-web-finds'
 import { AssistantMentionRefSchema } from '@/types/assistant-mention'
 import { ASSISTANT_MENTION_LIMITS } from '@/constants/assistant-mention'
 import {
@@ -94,6 +95,7 @@ import {
   ASSISTANT_SOURCE_ALLOWLIST_LIMITS as SOURCE_ALLOWLIST_LIMITS,
   GENERATION_REVIEW_STATES,
   ASSISTANT_NAI_TAG_CHECK,
+  ASSISTANT_WEB_FIND_LIMITS,
   type AssistantOperatorTool,
 } from '@/constants/assistant-operator'
 import { ASSISTANT_PLAN_VISUAL_IDS } from '@/constants/assistant-plan-visuals'
@@ -2103,6 +2105,16 @@ export const AssistantOperatorRequestSchema = z.object({
   kernel: z.enum(ASSISTANT_KERNELS).optional(),
   /** v3 的本轮记录：接力时由前端原样带回（见 `types/assistant-v3.ts` ②）。 */
   v3: z.object({ transcript: AssistantV3TranscriptSchema }).optional(),
+  /**
+   * 上一轮找到的图与视频（`#n`，搜索期第三片）：只带上一轮的、最多
+   * `ASSISTANT_WEB_FIND_LIMITS.maxCarried` 条。开轮时服务端冻进板子，模型只拿每条一行
+   * （「用 #2」「放第二个」跨轮也认得），地址只用来把 `#n` 换回那一张。
+   * ⚠ 接力那几跳不读它（板子里已经冻着）；能不能当参考由服务端按域名重判。
+   */
+  priorFinds: z
+    .array(AssistantWebFindSchema)
+    .max(ASSISTANT_WEB_FIND_LIMITS.maxCarried)
+    .optional(),
 })
 
 export type AssistantOperatorRequest = z.infer<
@@ -3521,6 +3533,12 @@ export const AssistantOperatorWebImageSchema = z.object({
   title: z.string().max(LIMITS.maxPriorStepSummaryChars).optional(),
   width: z.number().int().positive().optional(),
   height: z.number().int().positive().optional(),
+  /**
+   * 这一张的编号 `#n`（搜索期第三片，附录 I §3.3）：本轮一条连号、按找到的先后，图与视频
+   * 共用（`ASSISTANT_WEB_FIND_LIMITS`）。模型只认它，面板按它把正文里的 `#n` 指到这一格。
+   * 缺席 = 旧客户端 / 旧记录。
+   */
+  n: z.number().int().positive().optional(),
 })
 
 /**
@@ -3552,6 +3570,8 @@ export const AssistantOperatorWebVideoSchema = z.object({
     .optional(),
   /** 封面直链（第三方站）；缺席时卡片画占位，⛔ 不猜。 */
   thumbnailUrl: z.string().url().optional(),
+  /** 编号 `#n` —— 与找到的图同一条连号（见 `AssistantOperatorWebImageSchema.n`）。 */
+  n: z.number().int().positive().optional(),
 })
 
 /**

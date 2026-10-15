@@ -8414,7 +8414,10 @@
         "bilibili": "bilibili",
         "niconico": "niconico",
         "vimeo": "Vimeo"
-      }
+      },
+      "findRef": "Show find #{n}: {label}",
+      "findRefPlain": "Show find #{n}",
+      "findNamed": "Named in the reply"
     },
     "queue": {
       "badge": "Queued",

@@ -28,6 +28,10 @@ import type {
   AssistantV3PictureRef,
   AssistantV3Transcript,
 } from '@/types/assistant-v3'
+import type {
+  AssistantResearchSourceRef,
+  AssistantWebFind,
+} from '@/types/assistant-web-finds'
 import {
   isFatalOperatorToolError,
   planTool,
@@ -38,6 +42,10 @@ import {
   type PreparedOperatorTurn,
   type ToolPlan,
 } from '@/services/kernel/assistant-operator.service'
+import {
+  findsOfStepResult,
+  sourcesOfStepResult,
+} from '@/services/kernel/assistant-v3-finds.service'
 import type { V3PictureCache } from '@/services/kernel/assistant-v3-look.service'
 import type { V3ClipCache } from '@/services/kernel/assistant-v3-watch.service'
 
@@ -90,8 +98,8 @@ export const TITLE_TEXT: Record<
     pickImages: string
     handOff: string
     readPage: string
-    /** 角色页联网找图的第 N 张候选（看图那一行上的称呼）。 */
-    candidate: (index: number) => string
+    /** 角色页联网找图的一张候选（看图那一行上的称呼；`#n` = 卡片上那个号）。 */
+    candidate: (n: number) => string
     more: (count: number) => string
   }
 > = {
@@ -135,7 +143,7 @@ export const TITLE_TEXT: Record<
     pickImages: '挑图',
     handOff: '交给图片助手',
     readPage: '读网页',
-    candidate: (index) => `候选 ${index}`,
+    candidate: (n) => `候选 #${n}`,
     more: (count) => `等 ${count} 项`,
   },
   japanese: {
@@ -178,7 +186,7 @@ export const TITLE_TEXT: Record<
     pickImages: '画像を選ぶ',
     handOff: '画像アシスタントに渡す',
     readPage: 'ページを読む',
-    candidate: (index) => `候補 ${index}`,
+    candidate: (n) => `候補 #${n}`,
     more: (count) => `ほか ${count} 件`,
   },
   english: {
@@ -221,7 +229,7 @@ export const TITLE_TEXT: Record<
     pickImages: 'Pick pictures',
     handOff: 'Hand to the image assistant',
     readPage: 'Read page',
-    candidate: (index) => `candidate ${index}`,
+    candidate: (n) => `candidate #${n}`,
     more: (count) => `+${count} more`,
   },
 }
@@ -241,6 +249,12 @@ export type V3Outcome =
       images?: readonly AssistantV3PictureRef[]
       /** `look` 交到模型眼前的片子本体（只有 Gemini）—— 规矩同 `images`。 */
       clips?: readonly AssistantV3ClipRef[]
+      /** 这一步找到的图与视频（`#n`）—— 进本轮记录，换号用，⛔ 不进模型看的东西。 */
+      finds?: readonly AssistantWebFind[]
+      /** 再往后几步给模型的短版（查证）—— 紧跟着的那一次读 `output`。 */
+      compact?: string
+      /** 查证的资料号 → 那一页（`read "[n]"`）。 */
+      sources?: readonly AssistantResearchSourceRef[]
     }
   /** 交给前端落了，结果等接力那一跳再补。 */
   | { kind: 'pending' }
@@ -437,7 +451,20 @@ export async function* settlePlan(
       yield toStepEvent(done)
       rememberStepArtifacts(run, done)
       recordLedgerStep(run, step.verb, step.title, outcome.observation)
-      return { kind: 'result', output: outcome.observation, error: false }
+      /**
+       * ⭐ 找到的图 / 视频（`#n`）与查证的资料号（`[n]`）从步骤结果里抄进本轮记录（搜索期
+       *   第三片）：接力那一跳、下一步、下一轮都按它换号。模型只读 `output` / `compact`。
+       */
+      const finds = findsOfStepResult(outcome.result)
+      const sources = sourcesOfStepResult(outcome.result)
+      return {
+        kind: 'result',
+        output: outcome.observation,
+        error: false,
+        ...(finds.length ? { finds } : {}),
+        ...(outcome.compact ? { compact: outcome.compact } : {}),
+        ...(sources.length ? { sources } : {}),
+      }
     }
     case 'mutate': {
       const step = nextStep(context, tool, title)

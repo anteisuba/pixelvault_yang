@@ -124,6 +124,15 @@ export const STUDIO_OPERATOR_WEB_VIDEO_COVER_PIXELS = {
 } as const
 
 /**
+ * 回复里的 `#3`（搜索期第三片，附录 I §四「模型点名」）：点一下滚到那张卡并把它圈出来，
+ * 这一圈留 `flashMs` 毫秒就退（悬停 / 焦点在胶囊上时一直圈着）。回复点名的那几张另有一圈
+ * 常驻的细黑框，不受它管。
+ */
+export const STUDIO_OPERATOR_FIND_REF = {
+  flashMs: 1_600,
+} as const
+
+/**
  * 参考图挂载弹入的 stagger 间隔（秒，拍板 17）。
  *
  * ⚠ 单位是**秒**不是毫秒：motion 的 `delay` 收秒。写 140 进去会得到一个两分钟

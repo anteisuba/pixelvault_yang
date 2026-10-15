@@ -13,6 +13,7 @@ import {
   ASSISTANT_V3_CARDS_EDIT_OP_IDS,
   ASSISTANT_V3_CARDS_ITEM_IDS,
   ASSISTANT_V3_LIMITS,
+  ASSISTANT_V3_READ_SOURCE_NOTE,
   ASSISTANT_V3_TOOL_IDS,
   ASSISTANT_V3_WEB_IMAGES_SEARCH_KIND,
   ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION,
@@ -41,6 +42,7 @@ import {
   runOldTool,
   runWebFind,
 } from '@/services/kernel/assistant-v3-bench.service'
+import { pickV3WebImage } from '@/services/kernel/assistant-v3-finds.service'
 import { executeV3Look } from '@/services/kernel/assistant-v3-look.service'
 import {
   joinPhrases,
@@ -62,8 +64,7 @@ import {
 export function assistantV3CardsTools(strict: boolean) {
   return {
     [ASSISTANT_V3_TOOL_IDS.read]: tool({
-      description:
-        'Read in full: a profile part of the open character ("look", "identity", "behavior", "speech", "backstory", "tags"), or a web page by its URL (a wiki character page, its story or voice-lines page).',
+      description: `Read in full: a profile part of the open character ("look", "identity", "behavior", "speech", "backstory", "tags"), or a web page by its URL (a wiki character page, its story or voice-lines page). ${ASSISTANT_V3_READ_SOURCE_NOTE}`,
       inputSchema: AssistantV3CardsReadInputSchema,
       strict,
     }),
@@ -86,7 +87,7 @@ export function assistantV3CardsTools(strict: boolean) {
       strict,
     }),
     [ASSISTANT_V3_TOOL_IDS.searchLibrary]: tool({
-      description: `kind "image": the creator's own pictures (results carry asset ids for propose_images). kind "web_images": pictures on the web (results carry image URLs for propose_images). ${ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION}`,
+      description: `kind "image": the creator's own pictures (results carry asset ids for propose_images). kind "web_images": pictures on the web, shown to the creator as numbered cards (results are one line per picture, "#n · title · site · size · usable as reference / view only"; propose by that number). ${ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION}`,
       inputSchema: AssistantV3ImageSearchLibraryInputSchema,
       strict,
     }),
@@ -177,19 +178,37 @@ async function* runProposal(
           title,
           character.error,
         )
-      const images = op.images.flatMap((image): ImagePick[] =>
-        image.asset
-          ? [{ assetId: image.asset, reason: image.reason }]
-          : image.imageUrl
-            ? [{ imageUrl: image.imageUrl, reason: image.reason }]
-            : [],
-      )
+      const images: ImagePick[] = []
+      for (const image of op.images) {
+        if (image.asset) {
+          images.push({ assetId: image.asset, reason: image.reason })
+          continue
+        }
+        if (!image.find) continue
+        // 联网找到的那一张只认 `#n`：服务端按本轮记录换回原图地址（⛔ 模型不写地址）。
+        const found = pickV3WebImage(context.transcript, image.find)
+        if (!found)
+          return yield* refused(
+            context,
+            TOOL.proposeCharacterImages,
+            title,
+            `"${image.find}" is not a web find number: write the number from the search results, like "#3".`,
+          )
+        if (!found.ok)
+          return yield* refused(
+            context,
+            TOOL.proposeCharacterImages,
+            title,
+            found.error,
+          )
+        images.push({ imageUrl: found.find.imageUrl, reason: image.reason })
+      }
       if (images.length === 0)
         return yield* refused(
           context,
           TOOL.proposeCharacterImages,
           title,
-          'Every picture needs an asset id or an image URL from a search this turn.',
+          'Every picture needs an asset id from a library search or a web find number ("#3") from this turn or last turn.',
         )
       yield* sayAboveCard(context, op.say)
       return yield* runOldTool(context, TOOL.proposeCharacterImages, title, {
@@ -242,6 +261,7 @@ export async function* executeAssistantV3CardsMutation(
 const WebImageCandidatesSchema = z.object({
   images: z.array(
     z.object({
+      n: z.number().int().positive().optional(),
       imageUrl: z.string(),
       thumbnailUrl: z.string().optional(),
       usableAsInput: z.boolean().optional(),
@@ -255,7 +275,7 @@ const WEB_CANDIDATES_TITLE_ONLY_NOTE =
 
 /** 交给主模型看候选时附的那一句：怎么认人由它自己判断（owner 2026-10-15）。 */
 function webCandidatesLookNote(name: string, hasCardPictures: boolean): string {
-  return `These are the web candidates listed above (candidate N = result N). Judge yourself which ones show ${name}${
+  return `These are the web candidates listed above, each labelled with its number (#n). Judge yourself which ones show ${name}${
     hasCardPictures
       ? ' — compare them with their own pictures already in front of you (card-N) and the profile'
       : ' — compare them with the profile'
@@ -310,18 +330,18 @@ async function* searchWebImagesAndLook(
     ])
   const open = context.request.snapshot.cards?.open
   const name = open?.name ?? subject ?? query
-  // 标了 REFERENCE ONLY 的挂不上卡，⛔ 占看图的名额；编号照搜索结果的顺序，与上面那张单子对得上。
-  const targets = candidates.flatMap((image, index) =>
-    image.usableAsInput === false
-      ? []
-      : [
-          {
-            url: image.thumbnailUrl ?? image.imageUrl,
-            label: `candidate ${index + 1}`,
-            title: text.candidate(index + 1),
-          },
-        ],
-  )
+  // 标了 view only 的挂不上卡，⛔ 占看图的名额；称呼用卡片上那个号 `#n`，与上面那张单子对得上。
+  const targets = candidates.flatMap((image, index) => {
+    if (image.usableAsInput === false) return []
+    const n = image.n ?? index + 1
+    return [
+      {
+        url: image.thumbnailUrl ?? image.imageUrl,
+        label: `#${n}`,
+        title: text.candidate(n),
+      },
+    ]
+  })
   if (targets.length === 0) return searched
   const look = yield* executeV3Look(context, {
     targets,

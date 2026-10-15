@@ -485,6 +485,7 @@ import {
   ASSISTANT_OPERATOR_TOOL_VERBS,
   ASSISTANT_OPERATOR_TOOLS,
   ASSISTANT_RESEARCH_LIMITS,
+  ASSISTANT_WEB_FIND_LIMITS,
   isAssistantOperatorEntryTool,
 } from '@/constants/assistant-operator'
 import {
@@ -3547,6 +3548,54 @@ describe('read_state', () => {
     ])
   })
 
+  /** 搜索期第三片：交图被拒时说回给模型用它看到的号（`#n`），不写那张图的地址。 */
+  it('交图被拒（只能看的站）：拒绝那句用号 #1 指那一张', async () => {
+    mockWebImageSearch.mockResolvedValue([
+      {
+        imageUrl: 'https://i.pinimg.test/pin.jpg',
+        thumbnailUrl: 'https://encrypted-tbn0.gstatic.test/p.jpg',
+        pageUrl: 'https://www.pinterest.com/pin/1',
+        domain: 'www.pinterest.com',
+      },
+    ])
+    mockInspectWebImageCandidates.mockResolvedValue([])
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+          title: '上网找图',
+          args: { query: 'denia' },
+        },
+      },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask,
+          title: '交图',
+          args: {
+            action: ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages,
+            characterId: 'denia',
+            images: [
+              { imageUrl: 'https://i.pinimg.test/pin.jpg', reason: '全身' },
+            ],
+          },
+        },
+      },
+    )
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ domain: 'cards', snapshot: CARDS_SNAPSHOT }),
+      ),
+    )
+    const prompts = toolRingCalls()
+      .map((call) => call.userPrompt)
+      .join('\n')
+    expect(prompts).toContain(
+      '#1 (marked view only — that site cannot be used as an input)',
+    )
+    expect(prompts).not.toContain('https://i.pinimg.test/pin.jpg (marked')
+  })
+
   /**
    * ⭐ v3（`mainModelLooks`）：缩略图交给主模型自己看（`assistant-v3-cards`），
    * 这一跳**只搜、只列**：⛔ 不起看缩略图的子调用（它走的是 `resolveVisionRoute`，
@@ -3622,7 +3671,10 @@ describe('read_state', () => {
     const { observation } = await search.run()
 
     expect(mockInspectWebImageCandidates).not.toHaveBeenCalled()
-    expect(observation).toContain('imageUrl https://cdn.example.test/other.jpg')
+    // ⭐ 搜索期第三片：v3 按编号交给角色卡（`#2`），⛔ 观察里不再有原图地址。
+    expect(observation).toContain('#2 · example.test · usable as reference')
+    expect(observation).toContain('propose them by number ("#2")')
+    expect(observation).not.toContain('https://')
     for (const verdictWord of [
       'LOOKED',
       'NOT VIEWED',
@@ -5262,7 +5314,8 @@ describe('联网搜图 · 预览优先（P3-B）', () => {
   /**
    * ⚠ 2026-09-06 改了口径的**只有一句**：候选在用户明确说「挂上」之后可以走
    * `import_user_url`（准入名单是服务端记下的那几张，见 `planImportUserUrl`）。
-   * 「默认由用户点选」「什么都还没落地」「⛔ 别把地址写进提示词」三条一个字没改。
+   * 「默认由用户点选」「什么都还没落地」「⛔ 别把地址写进提示词」三条意思没改（搜索期第三片
+   * 起观察里不再列地址、每张一行 `#n`，最后那一句改说「别把图的地址写进提示词」）。
    */
   it('⭐ 观察里必须写明「只是预览、默认由用户点选、地址不许写进提示词」', async () => {
     mockWebImageSearch.mockResolvedValue(WEB_HITS)
@@ -5274,7 +5327,7 @@ describe('联网搜图 · 预览优先（P3-B）', () => {
     expect(prompt).toContain('PREVIEW')
     expect(prompt).toContain('nothing was saved yet')
     expect(prompt).toContain('the creator presses "use this"')
-    expect(prompt).toContain('Never paste one of these URLs into a prompt')
+    expect(prompt).toMatch(/never write a picture's address into a prompt/i)
   })
 
   it('⛔ 联网候选挂不上参考图：mount_reference 认的是本轮 search_assets 的 id', async () => {
@@ -10322,7 +10375,7 @@ describe('联网候选 · 来源三字段（切片 3b）', () => {
     expect(images[0].usableAsInput).toBe(false)
     expect(images[0].sourceVerdict).toBe('blocked')
     // 模型也要读得到，否则它会在对白里承诺一张挂不上的图。
-    expect(lastUserPrompt()).toContain('REFERENCE ONLY')
+    expect(lastUserPrompt()).toContain('#1 · www.pinterest.com · view only')
   })
 
   it('⛔ 用户递来的地址也过这道闸：blocked 的站按 sourceNotUsable 拒', async () => {
@@ -11376,6 +11429,77 @@ describe('查证与找图两入口（§9，commit #16）', () => {
     corroboration: 2,
     publishedAt: '2024-05-12',
   }
+
+  /**
+   * ⭐ **短版**（搜索期第三片，附录 I §二 6「一次搜索最多 6×300 + 3×1600 字的摘要写进本轮记录，
+   *   之后每一步都重发」）：整段只给紧跟着的那一步；`compact` 一行一条「[n] 标题 · 域名 · 一句话」，
+   *   号与整段里的一样，要全文 `read "[n]"`。
+   */
+  it('⭐ 快搜满载（6 条摘要 + 3 页全文）：短版一行一条、号不变，⛔ 不带摘录与地址，长度压到整段的零头', async () => {
+    const evidence = ['a', 'b', 'c', 'd', 'e', 'f'].map((id, index) => ({
+      ...CORROBORATED,
+      title: `来源 ${id} · 时夜的外貌与服饰`,
+      url: `https://site-${id}.test/shiye`,
+      publisher: `site-${id}.test`,
+      snippet:
+        `第 ${index + 1} 条：${'黑色长发，金色瞳孔，改良中式长衫。'.repeat(20)}`.slice(
+          0,
+          ASSISTANT_RESEARCH_LIMITS.maxEvidenceSnippetChars,
+        ),
+      corroboration: index < 3 ? 2 : 1,
+    }))
+    // ⚠ 扇出的契约：投影（evidence）与原件（items）逐项对得上。
+    queueOutcome(
+      evidence,
+      evidence.map((item, index) => ({
+        ...ITEM,
+        id: `web:${index}`,
+        sourceId: 'web' as const,
+        title: item.title,
+        url: item.url,
+        excerpt: item.snippet,
+      })),
+    )
+    mockReadUrl.mockImplementation(async (url: string) => ({
+      url,
+      // 记号放在一句话摘要与结论都截不到的地方（第 325 字之后），只有整段里有它。
+      content: `${'外貌与服饰那一段讲得很细。'.repeat(25)}PAGE-BODY${'外貌与服饰那一段讲得很细。'.repeat(175)}`,
+    }))
+    const prepared = await prepareOperatorTurn(
+      'clerk-1',
+      buildRequest(),
+      new AbortController().signal,
+    )
+    const plan = await planTool(
+      prepared.run,
+      ASSISTANT_OPERATOR_TOOL_IDS.research,
+      { goal: '外貌与服饰', entities: ['无限大', '时夜'] },
+      prepared.user.id,
+    )
+    if (plan.kind !== 'read') throw new Error(`expected read, got ${plan.kind}`)
+    const { observation, compact } = await plan.run()
+
+    // 整段：3 页全文顶掉了前三条的摘要。
+    expect(observation.match(/PAGE-BODY/g)).toHaveLength(
+      ASSISTANT_RESEARCH_LIMITS.quickReadPages,
+    )
+    expect(compact).toBeDefined()
+    const lines = compact!.split('\n')
+    expect(lines.filter((line) => /^ {2}\[\d+\] /.test(line))).toHaveLength(6)
+    expect(compact).toContain('[1] 来源 a · 时夜的外貌与服饰 · site-a.test · ')
+    expect(compact).toContain('[6] 来源 f · 时夜的外貌与服饰 · site-f.test · ')
+    expect(compact).toContain('single source')
+    expect(compact).toContain('read "[n]"')
+    expect(compact).not.toContain('PAGE-BODY')
+    expect(compact).not.toContain('https://')
+    for (const line of lines.filter((line) => /^ {2}\[\d+\] /.test(line)))
+      expect(line.length).toBeLessThan(
+        ASSISTANT_WEB_FIND_LIMITS.maxLineTitleChars +
+          ASSISTANT_RESEARCH_LIMITS.maxCompactGistChars +
+          60,
+      )
+    expect(compact!.length * 4).toBeLessThan(observation.length)
+  })
 
   it('⭐ verify 落在检索那条实现上，find_images 落在搜图那条上', async () => {
     queueOutcome([CORROBORATED])
@@ -20938,9 +21062,10 @@ describe('search_web_videos（搜索期第二片）', () => {
     expect(observation).toContain('NOT watched')
     // ⛔ 播放页 / 封面地址一样都不喂给模型。
     expect(observation).not.toContain('https://')
+    // 编号进卡片数据（面板据此把回复里的 `#2` 指到那一张），与观察里那一行同号。
     expect(result).toEqual({
       totalFound: 3,
-      videos: VIDEOS.map((hit) => hit.video),
+      videos: VIDEOS.map((hit, index) => ({ ...hit.video, n: index + 1 })),
     })
   })
 

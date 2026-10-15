@@ -60,6 +60,7 @@ import {
 import {
   collectOperatorAnswerSources,
   collectOperatorAnswerWebFinds,
+  collectOperatorFindRefs,
   isOperatorWebFindFound,
   orderOperatorWebFinds,
   groupOperatorResearch,
@@ -1427,6 +1428,11 @@ export function StudioOperatorPanel({
     (entry) => !entry.streaming && !foldedMessageIds.has(entry.id),
   )
   /**
+   * **回复里的 `#n`**（搜索期第三片，附录 I §四「模型点名」）：每段回复认哪几张卡（这一轮 +
+   * 上一轮找到的），以及每轮最后一段回复点名的那几张（常驻细黑框）。还在跑的那一轮先不圈。
+   */
+  const findRefs = collectOperatorFindRefs(entries, working)
+  /**
    * 一次联网找的那一块：找图画网格、找视频画一排视频卡；还在搜画灰块，跑完画结果
    * （⛔ 被拒的那一步不画）。
    */
@@ -1445,6 +1451,7 @@ export function StudioOperatorPanel({
               : (step.result?.videos ?? [])
           }
           placeholderCount={step.payload.limit}
+          namedFinds={findRefs.named}
         />
       )
     if (step.tool !== ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages) return null
@@ -1462,6 +1469,7 @@ export function StudioOperatorPanel({
         webImport={webImport.states[item.id]}
         limit={webImport.limit}
         onToggle={webImport.toggleCandidate}
+        namedFinds={findRefs.named}
       />
     )
   }
@@ -1995,6 +2003,7 @@ export function StudioOperatorPanel({
             <StudioOperatorMessageBody
               entry={entry}
               references={messageImageReferences.get(entry.id)}
+              findRefs={findRefs.byMessage.get(entry.id)}
               {...(found
                 ? {
                     webFinds: (

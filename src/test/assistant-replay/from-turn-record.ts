@@ -525,6 +525,14 @@ export function replayFromTurnRecord(
     )
   if (record.input.searchWithGrok)
     gaps.push('web search answers are not recorded: fill `search` by hand')
+  // 上一轮找到的图 / 视频（`#n`，冻在开轮的板子上）：回放题还不带这一份，「用 #2」那几步要人核对。
+  const carried = record.transcript.flatMap((entry) =>
+    entry.type === ENTRY.board ? (entry.finds ?? []) : [],
+  )
+  if (carried.length)
+    gaps.push(
+      `the turn carried ${carried.length} web find(s) from the previous turn (#${carried[0]!.n}–#${carried.at(-1)!.n}): a replay case cannot carry them, so a step that names one by number will be refused`,
+    )
   if (!record.input.responseLanguage)
     gaps.push('no response language on the request: defaulted to chinese')
   for (const cut of record.truncated)

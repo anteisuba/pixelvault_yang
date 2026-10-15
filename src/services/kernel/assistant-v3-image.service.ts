@@ -10,6 +10,7 @@ import {
 import {
   ASSISTANT_V3_ASK_TOOL_DESCRIPTION,
   ASSISTANT_V3_FACE_IDS,
+  ASSISTANT_V3_READ_SOURCE_NOTE,
   ASSISTANT_V3_IMAGE_EDIT_OP_IDS,
   ASSISTANT_V3_LIMITS,
   ASSISTANT_V3_TOOL_IDS,
@@ -50,6 +51,10 @@ import {
   type V3Context,
   type V3Outcome,
 } from '@/services/kernel/assistant-v3-steps.service'
+import {
+  pickV3WebImage,
+  type V3WebImagePick,
+} from '@/services/kernel/assistant-v3-finds.service'
 
 /**
  * v3 的图片台（S6 第二张脸）：工具名与画布、LoRA 台同一套，动的是一张表单，改动随步落。
@@ -65,8 +70,7 @@ const SPECS_TIERLESS_RESOLUTION = 'auto'
 export function assistantV3ImageTools(strict: boolean) {
   return {
     [ASSISTANT_V3_TOOL_IDS.read]: tool({
-      description:
-        'Read in full what the board shows clipped: "prompt", "negative" or a reference ("ref-1").',
+      description: `Read in full what the board shows clipped: "prompt", "negative" or a reference ("ref-1"). ${ASSISTANT_V3_READ_SOURCE_NOTE}`,
       inputSchema: AssistantV3ImageReadInputSchema,
       strict,
     }),
@@ -139,6 +143,25 @@ export function assistantV3VideoTools(strict: boolean) {
 
 const FRAME_SLOTS: readonly string[] = ['first', 'last']
 
+/**
+ * 找到的网图（`#n`，搜索期第三片）→ 旧执行器的 `import_user_url`：地址由服务端从本轮记录换回，
+ * ⛔ 模型不写地址。准入与来源判定照旧在旧执行器里（`run.webImageIndex` 每一跳开头续上，
+ * 「只能看」的照旧按 `sourceNotUsable` 拒）。认不出 / 过期 / 是视频 → 说清楚，⛔ 不抛。
+ */
+async function* importWebFind(
+  context: V3Context,
+  handle: string,
+  found: V3WebImagePick,
+): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
+  const text = TITLE_TEXT[context.language]
+  const title = `${text.importUrl} ${handle.trim()}`
+  if (!found.ok)
+    return yield* refused(context, TOOL.importUserUrl, title, found.error)
+  return yield* runOldTool(context, TOOL.importUserUrl, title, {
+    url: found.find.imageUrl,
+  })
+}
+
 /** 创作者在话里提到了清晰度没有（数字档位或这几个词）。 */
 const RESOLUTION_WORDS =
   /\d{3,4}\s*p|\b[248]k\b|清晰度|分辨率|高清|画质|解像度|resolution/i
@@ -187,6 +210,20 @@ async function* runVideoEditOp(
         : outcome
     }
     case ASSISTANT_V3_IMAGE_EDIT_OP_IDS.mountReference: {
+      const found = pickV3WebImage(context.transcript, op.asset)
+      if (found) {
+        // 找到的网图（`#n`）只能导入成参考图：首 / 尾帧收的是创作者自己库里的图。
+        if (op.slot && FRAME_SLOTS.includes(op.slot))
+          return yield* refused(
+            context,
+            TOOL.mountReference,
+            `${text.mountReference}「${op.asset.trim()}」`,
+            found.ok
+              ? `${op.asset.trim()} is a picture from the web: it can go on the bench only as a reference picture (import_url "${op.asset.trim()}"), not as the ${op.slot} frame — frames take pictures from the creator's library.`
+              : found.error,
+          )
+        return yield* importWebFind(context, op.asset, found)
+      }
       const key = op.asset.trim().toLowerCase()
       const attached = (context.request.mentionedAssets ?? []).find(
         (asset) =>
@@ -320,6 +357,9 @@ async function* runEditOp(
         { key: op.key, value: op.value },
       )
     case ASSISTANT_V3_IMAGE_EDIT_OP_IDS.mountReference: {
+      // 找到的网图（`#n`）还不是素材：挂它 = 导入并挂成参考图（同 import_url）。
+      const found = pickV3WebImage(context.transcript, op.asset)
+      if (found) return yield* importWebFind(context, op.asset, found)
       const key = op.asset.trim().toLowerCase()
       const attached = (context.request.mentionedAssets ?? []).find(
         (asset) =>
@@ -334,10 +374,13 @@ async function* runEditOp(
     }
     case ASSISTANT_V3_IMAGE_EDIT_OP_IDS.unmountReference:
       return yield* unmountReference(context, op.ref)
-    case ASSISTANT_V3_IMAGE_EDIT_OP_IDS.importUrl:
+    case ASSISTANT_V3_IMAGE_EDIT_OP_IDS.importUrl: {
+      const found = pickV3WebImage(context.transcript, op.url)
+      if (found) return yield* importWebFind(context, op.url, found)
       return yield* runOldTool(context, TOOL.importUserUrl, text.importUrl, {
         url: op.url.trim(),
       })
+    }
     case ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setPeople:
       return yield* runOldTool(context, TOOL.setTagCharacters, text.people, {
         positioning: op.positioning,

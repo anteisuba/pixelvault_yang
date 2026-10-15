@@ -218,9 +218,16 @@ export const ASSISTANT_V3_WEB_VIDEOS_SEARCH_KIND = 'web_videos'
  * ⚠ 找图的「后半句」各脸不同（工作台点「选用」/ 角色页拿去 propose_images），由各脸自己接。
  */
 export const ASSISTANT_V3_WEB_IMAGES_KIND_DESCRIPTION =
-  'kind "web_images": find pictures on the web — they appear under your reply and the creator picks which to use.'
+  'kind "web_images": find pictures on the web — they appear under your reply as numbered cards and the creator picks which to use; you get one line per picture (#n · title · site · size · usable as reference / view only).'
 export const ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION =
-  'kind "web_videos": find videos on the web (YouTube, bilibili, niconico, Vimeo…) — a trailer, a PV, a tutorial, a dance or motion reference. They appear as cards under your reply and the creator can play them there; you get one line per video (title · channel · platform · length) and have not watched any of them. Not for facts — use search_web for those.'
+  'kind "web_videos": find videos on the web (YouTube, bilibili, niconico, Vimeo…) — a trailer, a PV, a tutorial, a dance or motion reference. They appear as numbered cards under your reply and the creator can play them there; you get one line per video (#n · title · channel · platform · length) and have not watched any of them. Not for facts — use search_web for those.'
+
+/**
+ * 每张脸的 `read` 都收 `"[n]"`（搜索期第三片）：查证的那一大段摘录只给紧跟着的那一步，再往后
+ * 只剩一行一条 —— 要全文就按资料号再读一遍那一页（服务端换回地址，⛔ 模型不写地址）。
+ */
+export const ASSISTANT_V3_READ_SOURCE_NOTE =
+  'Also "[n]": a source from this turn\'s search_web, to read its page in full again.'
 
 /** 联网那两种（每张脸的 `search_library` 都收）。 */
 export const ASSISTANT_V3_WEB_SEARCH_KINDS = [
@@ -284,10 +291,10 @@ export const ASSISTANT_V3_HANDLE = {
 /**
  * 系统提示的版本（记进 `AssistantTurnRecord.promptVersion`）：回放一行旧记录时，先看它跑的
  * 是不是现在这一版提示。⚠ 改了 `assistant-v3-prompt.service.ts` 里不变的那几段（规矩、看图、
- * 看片、各张脸的方言段）就把它拨到改的那天；人设 / 规矩 / 记忆这些每人不同的段落不算，它们只
- * 进 `systemPromptHash`。
+ * 看片、各张脸的方言段）就把它拨到改的那天（同一天再改一次就加字母：`2026-10-15b`）；人设 /
+ * 规矩 / 记忆这些每人不同的段落不算，它们只进 `systemPromptHash`。
  */
-export const ASSISTANT_V3_PROMPT_VERSION = '2026-10-15'
+export const ASSISTANT_V3_PROMPT_VERSION = '2026-10-15b'
 
 /** 本轮记录（前端原样带回、服务端还原成消息）的条目类型。 */
 export const ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS = {

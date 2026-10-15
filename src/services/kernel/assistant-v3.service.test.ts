@@ -2807,6 +2807,7 @@ describe('v3 内核 · 角色页', () => {
 
     function candidate(index: number, extra: Record<string, unknown> = {}) {
       return {
+        n: index,
         imageUrl: `https://img.test/full-${index}.jpg`,
         thumbnailUrl: `https://thumb.test/${index}.png`,
         pageUrl: `https://site.test/${index}`,
@@ -2883,7 +2884,7 @@ describe('v3 内核 · 角色页', () => {
       const mock = script(
         toolTurn(searchRon),
         toolTurn(readWiki),
-        textTurn('候选 1 和 3 是罗恩。'),
+        textTurn('#1 和 #3 是罗恩。'),
       )
 
       const events = await collect(
@@ -2912,9 +2913,9 @@ describe('v3 内核 · 角色页', () => {
       expect(attachedPictures(after!)).toEqual([CARD_PNG])
       const nextText = promptText(next!)
       expect(nextText).toContain('PREVIEW candidate(s)')
-      expect(nextText).toContain('1 = 「candidate 1」')
-      expect(nextText).toContain('2 = 「candidate 3」')
-      expect(nextText).toContain('Could not load 「candidate 4」')
+      expect(nextText).toContain('1 = 「#1」')
+      expect(nextText).toContain('2 = 「#3」')
+      expect(nextText).toContain('Could not load 「#4」')
       expect(nextText).toContain('Which of these web pictures show 罗恩?')
       expect(nextText).toContain('compare them with their own pictures')
       expect(nextText).not.toContain('Nobody looked')
@@ -2928,7 +2929,7 @@ describe('v3 内核 · 角色页', () => {
       expect(titles).toContain('联网找图 罗恩')
       expect(titles).toEqual([
         '联网找图 罗恩',
-        '查看「候选 1」；查看「候选 3」 等 1 项',
+        '查看「候选 #1」；查看「候选 #3」 等 1 项',
       ])
       expectSelectedProviderOnly(providerUsesOf(resolveModel, 'main model'), {
         adapterType: AI_ADAPTER_TYPES.OPENAI,
@@ -2955,7 +2956,53 @@ describe('v3 内核 · 角色页', () => {
         images.slice(0, 6).map((image) => image.thumbnailUrl),
       )
       expect(promptText(next)).toContain(
-        'Only the first 6 pictures were looked at; 「candidate 7」, 「candidate 8」 were not',
+        'Only the first 6 pictures were looked at; 「#7」, 「#8」 were not',
+      )
+    })
+
+    /** 搜索期第三片：交给角色卡按号（`#2`），服务端换回原图地址；写地址的那一项拒掉。 */
+    it('propose_images 按号交：find "#2" 换回那张原图；写成地址的拒掉并说清楚', async () => {
+      preparedCards({
+        adapterType: AI_ADAPTER_TYPES.OPENAI,
+        modelId: 'gpt-6-luna',
+      })
+      searchReturns([candidate(1), candidate(2)])
+      const propose = (find: string) => ({
+        id: `call_propose_${find.length}`,
+        name: 'edit',
+        input: {
+          ops: [
+            {
+              op: 'propose_images',
+              character: 'char-b27ce8',
+              say: '这两张是罗恩。',
+              images: [{ asset: null, find, reason: '正面全身' }],
+            },
+          ],
+        },
+      })
+      const mock = script(
+        toolTurn(searchRon),
+        toolTurn(propose('https://img.test/full-2.jpg')),
+        toolTurn(propose('#2')),
+        textTurn('交给你挑了。'),
+      )
+
+      await collect(runAssistantV3('clerk-1', cardsRequest('上网找罗恩的图')))
+
+      expect(promptText(mock.doStreamCalls[2]!)).toContain(
+        'is not a web find number: write the number from the search results',
+      )
+      expect(plan).toHaveBeenCalledWith(
+        expect.anything(),
+        'propose_character_images',
+        {
+          characterId: RON,
+          images: [
+            { imageUrl: 'https://img.test/full-2.jpg', reason: '正面全身' },
+          ],
+        },
+        'user-1',
       )
     })
 
@@ -3410,5 +3457,358 @@ describe('v3 内核 · 视频台', () => {
       { durationSeconds: 5, resolution: '1080p' },
       'user-1',
     )
+  })
+})
+
+/**
+ * ⭐ 搜索期第三片（附录 I §二 6 / 7、§3.3）：找到的图与视频一条连号 `#n`，模型只拿编号那一行、
+ *   按号办事（服务端换回那一张）；上一轮的那几条带进这一轮；查证的整段摘录只给紧跟着的那一步。
+ */
+describe('v3 内核 · 找到的东西编号 #n 与查证短版（搜索期第三片）', () => {
+  function freshRun() {
+    return {
+      stepSeq: 0,
+      signal: undefined,
+      inspectedCanvasReferences: null,
+      skipReferenceReview: false,
+      state: { referenceUrls: [], prompt: '' },
+      webImageIndex: new Map<string, unknown>(),
+      webFindSeq: 1,
+      evidenceCiteSeq: 1,
+    }
+  }
+  let run = freshRun()
+
+  function imageRequest(
+    message: string,
+    overrides: Partial<AssistantOperatorRequest> = {},
+  ): AssistantOperatorRequest {
+    return {
+      workspaceKey: 'image-natural',
+      domain: 'image',
+      messages: [{ role: 'user', content: message }],
+      snapshot: {
+        prompt: 'a girl in a garden',
+        negativePrompt: '',
+        model: { id: 'seedream-5.0-pro', label: 'Seedream 5.0 Pro' },
+        availableModels: [
+          { id: 'seedream-5.0-pro', label: 'Seedream 5.0 Pro' },
+        ],
+        specs: {
+          quality: null,
+          preview: null,
+          background: null,
+          aspectRatio: '1:1',
+          resolution: '1K',
+          aspectRatioOptions: ['1:1'],
+          resolutionOptions: ['1K'],
+        },
+        count: { value: 1, options: [1] },
+        references: { items: [], limit: 4 },
+      },
+      ...overrides,
+    } as unknown as AssistantOperatorRequest
+  }
+
+  const FOUND = [
+    {
+      n: 1,
+      imageUrl: 'https://img.test/full-1.jpg',
+      thumbnailUrl: 'https://thumb.test/1.png',
+      pageUrl: 'https://site.test/1',
+      domain: 'site.test',
+      title: 'Ron official art',
+      width: 1200,
+      height: 1800,
+      usableAsInput: true,
+      sourceVerdict: 'unknownLicense',
+    },
+    {
+      n: 2,
+      imageUrl: 'https://img.test/full-2.jpg',
+      pageUrl: 'https://site.test/2',
+      domain: 'site.test',
+      usableAsInput: true,
+      sourceVerdict: 'unknownLicense',
+    },
+  ]
+
+  /** 旧执行器那一跳：找图交回 `FOUND`；查证交回整段 + 短版；别的一律「台上本来就是这样」。 */
+  function oldTools() {
+    plan.mockImplementation(async (_run: unknown, tool: string) => {
+      if (tool === 'search_web_images')
+        return {
+          kind: 'read',
+          payload: { query: 'ron', limit: 8 },
+          run: async () => ({
+            result: { totalFound: FOUND.length, images: FOUND },
+            observation:
+              'find_images("ron") → 2 PREVIEW picture(s), shown to the creator as numbered cards under your reply:\n  #1 · Ron official art · site.test · 1200×1800 · usable as reference\n  #2 · site.test · usable as reference',
+          }),
+        }
+      if (tool === 'research')
+        return {
+          kind: 'read',
+          payload: {
+            goal: '罗恩的魔杖',
+            entities: ['罗恩'],
+            sources: [],
+            round: 1,
+            depth: 'quick',
+            readPages: 1,
+          },
+          run: async () => ({
+            result: {
+              totalFound: 2,
+              evidence: [
+                {
+                  cite: 1,
+                  title: 'Ronald Weasley',
+                  url: 'https://harrypotter.fandom.com/wiki/Ronald_Weasley',
+                  publisher: 'Harry Potter Wiki',
+                  snippet: '柳木，十四英寸。',
+                  kind: 'text',
+                  confidence: 'high',
+                  credibility: 'reference',
+                  corroboration: 2,
+                  scope: 'character',
+                },
+                {
+                  cite: 2,
+                  title: 'Tag counts',
+                  publisher: 'Danbooru',
+                  snippet: 'ron_weasley 1200',
+                  kind: 'tags',
+                  confidence: 'medium',
+                  credibility: 'communityDigest',
+                  corroboration: 1,
+                  scope: 'character',
+                },
+              ],
+            },
+            observation: `verify("罗恩的魔杖") → 2 source(s):\n[1] Ronald Weasley — EXCERPT-FULL ${'柳木，十四英寸。'.repeat(40)}`,
+            compact:
+              'verify("罗恩的魔杖") → 2 source(s), shown in full on the step right after the search; one line each now:\n  [1] Ronald Weasley · harrypotter.fandom.com · COMPACT-GIST',
+          }),
+        }
+      return {
+        kind: 'rejected',
+        reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.repeatedStep,
+        detail: 'ok',
+      }
+    })
+  }
+
+  beforeEach(() => {
+    plan.mockReset()
+    legacy.mockReset()
+    run = freshRun()
+    vi.mocked(prepareOperatorTurn).mockImplementation(
+      async (_clerkId, request) =>
+        ({
+          request,
+          user: { id: 'user-1', displayName: null, username: null },
+          persona: { language: 'ui' },
+          rules: [],
+          route: { adapterType: 'openai', providerConfig: {}, apiKey: 'k' },
+          modelId: 'gpt-6-luna',
+          run,
+        }) as never,
+    )
+    oldTools()
+  })
+
+  const searchRon = {
+    id: 'call_search',
+    name: 'search_library',
+    input: { query: 'ron', kind: 'web_images', subject: null },
+  }
+
+  it('⭐ 按号办事：import_url "#2" 由服务端换回那张原图；认不出的号、视频的号回一句说得清的话', async () => {
+    const mock = script(
+      toolTurn(searchRon),
+      toolTurn({
+        id: 'call_import',
+        name: 'edit',
+        input: { ops: [{ op: 'import_url', url: '#2' }] },
+      }),
+      toolTurn({
+        id: 'call_mount',
+        name: 'edit',
+        input: { ops: [{ op: 'mount_reference', asset: '＃9' }] },
+      }),
+      textTurn('#2 已经挂上了。'),
+    )
+
+    await collect(
+      runAssistantV3('clerk-1', imageRequest('找几张罗恩，挂第二张')),
+    )
+
+    expect(plan).toHaveBeenCalledWith(
+      expect.anything(),
+      'import_user_url',
+      { url: 'https://img.test/full-2.jpg' },
+      'user-1',
+    )
+    // ⛔ 模型那边一个地址都没有：搜图那一步只有编号行。
+    const afterSearch = promptText(mock.doStreamCalls[1]!)
+    expect(afterSearch).toContain('#2 · site.test · usable as reference')
+    expect(afterSearch).not.toContain('https://img.test/full-2.jpg')
+    const last = promptText(mock.doStreamCalls[3]!)
+    expect(last).toContain(
+      '#9 is not one of the finds of this turn or last turn (they run #1–#2)',
+    )
+    // 认不出的号 ⛔ 交给旧执行器去猜。
+    expect(plan).not.toHaveBeenCalledWith(
+      expect.anything(),
+      'mount_reference',
+      expect.anything(),
+      'user-1',
+    )
+  })
+
+  it('⭐ 上一轮找到的带进这一轮：编号那一行进开轮那条消息（⛔ 不带地址），"#3" 照样认，新号从最大号往后数', async () => {
+    const priorFinds = [
+      {
+        kind: 'image' as const,
+        n: 3,
+        imageUrl: 'https://img.test/full-3.jpg',
+        pageUrl: 'https://site.test/3',
+        domain: 'site.test',
+        title: 'Ron back view',
+        width: 800,
+        height: 1200,
+      },
+      {
+        kind: 'video' as const,
+        n: 4,
+        url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        title: 'Ron fan edit',
+        platform: 'youtube' as const,
+        channel: 'Someone',
+        durationSeconds: 75,
+      },
+    ]
+    const mock = script(
+      toolTurn({
+        id: 'call_import',
+        name: 'edit',
+        input: { ops: [{ op: 'import_url', url: '#3' }] },
+      }),
+      toolTurn({
+        id: 'call_video',
+        name: 'edit',
+        input: { ops: [{ op: 'mount_reference', asset: '#4' }] },
+      }),
+      textTurn('第三张挂上了。'),
+    )
+
+    const events = await collect(
+      runAssistantV3('clerk-1', imageRequest('用 #3', { priorFinds })),
+    )
+
+    const first = promptText(mock.doStreamCalls[0]!)
+    expect(first).toContain(
+      "FOUND ON THE WEB LAST TURN (still on the creator's screen under the earlier reply; same numbers):",
+    )
+    expect(first).toContain(
+      '#3 · Ron back view · site.test · 800×1200 · usable as reference',
+    )
+    expect(first).toContain('#4 · Ron fan edit · Someone · YouTube · 1:15')
+    expect(first).not.toContain('https://')
+    expect(plan).toHaveBeenCalledWith(
+      expect.anything(),
+      'import_user_url',
+      { url: 'https://img.test/full-3.jpg' },
+      'user-1',
+    )
+    // 准入名单接上了（`import_user_url` 只认 `run.webImageIndex` 里的图），连号从 #5 起。
+    expect(run.webImageIndex.has('https://img.test/full-3.jpg')).toBe(true)
+    expect(run.webFindSeq).toBe(5)
+    const third = promptText(mock.doStreamCalls[2]!)
+    expect(third).toContain('#4 is a video (')
+    expect(third).toContain('videos are links only')
+    // 过程记录里板子带着这一份（回放转题时据此记一条 gap）。
+    expect(JSON.stringify(events)).not.toContain('full-3.jpg')
+    const recorded = JSON.stringify(recordTurn.mock.calls.at(-1))
+    expect(recorded).toContain('"finds"')
+  })
+
+  it('接力那一跳不再读请求里上一轮的：板子已经冻着它们，连号接着板子往下', async () => {
+    script(textTurn('好。'))
+    const transcript: AssistantV3Transcript = [
+      {
+        type: 'board',
+        text: 'IMAGE WORKBENCH',
+        images: [],
+        finds: [
+          {
+            kind: 'image',
+            n: 5,
+            imageUrl: 'https://img.test/full-5.jpg',
+            domain: 'site.test',
+          },
+        ],
+      },
+    ]
+    await collect(
+      runAssistantV3(
+        'clerk-1',
+        imageRequest('继续', {
+          priorFinds: [
+            {
+              kind: 'image',
+              n: 1,
+              imageUrl: 'https://img.test/full-1.jpg',
+              domain: 'site.test',
+            },
+          ],
+          v3: { transcript },
+        } as Partial<AssistantOperatorRequest>),
+      ),
+    )
+    expect([...run.webImageIndex.keys()]).toEqual([
+      'https://img.test/full-5.jpg',
+    ])
+    expect(run.webFindSeq).toBe(6)
+  })
+
+  it('⭐ 查证：紧跟着的那一步读整段摘录，再往后只剩一行一条；read "[1]" 由服务端换回那一页再读', async () => {
+    const mock = script(
+      toolTurn({
+        id: 'call_research',
+        name: 'search_web',
+        input: {
+          goal: '罗恩的魔杖',
+          entities: ['罗恩'],
+          onlySources: null,
+          depth: null,
+          x: null,
+        },
+      }),
+      toolTurn({
+        id: 'call_read',
+        name: 'read',
+        input: { items: ['[1]', '[2]'] },
+      }),
+      textTurn('柳木，十四英寸 [1]。'),
+    )
+
+    await collect(runAssistantV3('clerk-1', imageRequest('罗恩的魔杖是什么木')))
+
+    const right = promptText(mock.doStreamCalls[1]!)
+    expect(right).toContain('EXCERPT-FULL')
+    expect(right).not.toContain('COMPACT-GIST')
+    const later = promptText(mock.doStreamCalls[2]!)
+    expect(later).toContain('COMPACT-GIST')
+    expect(later).not.toContain('EXCERPT-FULL')
+    expect(plan).toHaveBeenCalledWith(
+      expect.anything(),
+      'read_url',
+      { url: 'https://harrypotter.fandom.com/wiki/Ronald_Weasley' },
+      'user-1',
+    )
+    // 没有地址的那一条（标签统计）读不了：照实说，⛔ 不猜地址。
+    expect(later).toContain('There is no source [2] with a page to read')
   })
 })

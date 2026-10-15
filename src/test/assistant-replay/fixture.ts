@@ -158,6 +158,11 @@ const ReplayExpectSchema = z.object({
   /** 每一次主步调用里摆在模型眼前的图 / 片子张数（按调用顺序）。缺席 = 不查。 */
   stepImages: z.array(z.number().int().min(0)).optional(),
   stepVideos: z.array(z.number().int().min(0)).optional(),
+  /**
+   * 每一次主步调用**发出去的请求体**里有 / 没有哪几段字（按调用顺序，可以只写前几步）。
+   * 搜索期第三片：查证的整段摘录只该出现在紧跟着查证的那一步，之后只剩短版。缺席 = 不查。
+   */
+  stepPrompts: z.array(TextExpectSchema).optional(),
   /** 联网查了几次（厂商自带搜索那一跳）。 */
   searches: z.number().int().min(0).default(0),
 })

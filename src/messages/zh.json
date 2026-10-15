@@ -8410,7 +8410,10 @@
         "bilibili": "B站",
         "niconico": "niconico",
         "vimeo": "Vimeo"
-      }
+      },
+      "findRef": "查看找到的 #{n}：{label}",
+      "findRefPlain": "查看找到的 #{n}",
+      "findNamed": "回复里点到了这一项"
     },
     "queue": {
       "badge": "已排队",

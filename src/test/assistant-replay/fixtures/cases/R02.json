@@ -1,0 +1,68 @@
+{
+  "id": "R02",
+  "title": "查证之后再做一步：整段摘录只给紧跟着的那一步，再往后只剩一行一条",
+  "source": "附录 I §二 6「一次搜索最多 6×300 + 3×1600 字的摘要写进本轮记录，之后每一步都重发」（搜索期第三片）",
+  "board": "malfoy",
+  "routes": [
+    {
+      "routeModel": "gemini-3.8-flash",
+      "keys": ["gemini", "openai"],
+      "expect": { "adapterType": "gemini", "modelId": "gemini-3.8-flash" }
+    }
+  ],
+  "turn": {
+    "say": "罗恩的魔杖是什么木的？查一下，再看看「罗恩 · 黑袍」现在用的什么模型。"
+  },
+  "replies": [
+    {
+      "calls": [
+        {
+          "tool": "search_web",
+          "input": {
+            "goal": "罗恩·韦斯莱的魔杖材质",
+            "entities": ["罗恩·韦斯莱", "哈利·波特"],
+            "onlySources": null,
+            "depth": null,
+            "x": null
+          }
+        }
+      ]
+    },
+    { "calls": [{ "tool": "read", "input": { "cards": ["img-5b7c1d"] } }] },
+    {
+      "text": "罗恩后来那根魔杖是柳木的，十四英寸，杖芯是独角兽毛[1]。「罗恩 · 黑袍」用的是 GPT Image 2。"
+    }
+  ],
+  "search": [
+    {
+      "text": "罗恩·韦斯莱的第二根魔杖是柳木的，十四英寸，杖芯为独角兽毛。",
+      "queries": ["罗恩 魔杖 材质", "Ron Weasley wand wood"],
+      "sources": [
+        {
+          "url": "https://harrypotter.fandom.com/wiki/Ronald_Weasley%27s_second_wand",
+          "title": "Ronald Weasley's second wand | Harry Potter Wiki"
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "end": "done",
+    "searches": 1,
+    "answer": { "contains": ["柳木", "GPT Image 2"] },
+    "stepPrompts": [
+      { "notContains": ["CITE THEM", "one line each now"] },
+      {
+        "contains": ["CITE THEM", "piece(s) of evidence"],
+        "notContains": ["one line each now"]
+      },
+      {
+        "contains": [
+          "shown in full on the step right after the search; one line each now",
+          "[1] Ronald Weasley's second wand",
+          "harrypotter.fandom.com"
+        ],
+        "notContains": ["CITE THEM", "piece(s) of evidence"]
+      }
+    ]
+  }
+}

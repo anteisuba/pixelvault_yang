@@ -3217,7 +3217,7 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
    * 时那几张他看见了。⛔ 站方禁 AI 的那一档照旧拒，模型编的地址照旧拒。
    */
   [ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl]:
-    "take ONE web address, fetch that picture into the creator's library, and mount it as a reference — all in one step. Two addresses are allowed and no others: one the creator typed VERBATIM in this conversation (use it the moment they hand you a link; that is them saying yes), or one of the candidates your own find_images actually put on screen this turn — and that second kind ONLY when they have already told you to attach them, one call per picture. A candidate marked REFERENCE ONLY is refused either way. Plain image links work, and so does a normal web page — the picture on it is taken. Never tell the creator to download, upload, or click anything for a link they already gave you: that is what this tool is for.",
+    "take ONE web address, fetch that picture into the creator's library, and mount it as a reference — all in one step. Two addresses are allowed and no others: one the creator typed VERBATIM in this conversation (use it the moment they hand you a link; that is them saying yes), or one of the candidates your own find_images actually put on screen this turn — and that second kind ONLY when they have already told you to attach them, one call per picture. A candidate marked view only is refused either way. Plain image links work, and so does a normal web page — the picture on it is taken. Never tell the creator to download, upload, or click anything for a link they already gave you: that is what this tool is for.",
   /**
    * ⚠ 「短英文查询」那句与 `search_web_images` 同源，理由也一样：两个上游
    * （Civitai 的 meilisearch / HF 的仓库搜索）吃的都是名字与短标签，一整句描述
@@ -3248,7 +3248,7 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile]:
     'OFFER a drafted profile for ONE character on this page, for the creator to tick and keep. This SAVES NOTHING on its own: the app shows each field with a checkbox and the source line under it, and only the fields they tick are written into the character when they press keep. It ends your turn. "characterId" must be an id from the page snapshot. "fields" holds one to five of look / identity / behavior / speech / backstory — only the ones you actually drafted ("look" is the one-line appearance, used when fixing a look that contradicts the images). Each field: "text" (what goes into the character, in the creator\'s language; behaviour written as what they DO, not adjectives), "source" (one short line naming where it came from — the wiki page, the official site, or "你写的 + 我补的"), optional "sourceUrl", and for backstory you expanded from the creator\'s own skeleton, "added": the exact phrases YOU added (each must appear verbatim in "text") so the app can shade them and let the creator keep only their own words. For canon characters every field needs a real source you read this conversation; never invent one. Do not write profile text into your message instead of using this — the creator cannot keep it from there.',
   [ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages]:
-    'OFFER a few images to attach to ONE character on this page, for the creator to tick and keep. This SAVES NOTHING on its own: the app shows each image with a checkbox, your one-line reason and where it came from; only the ones they tick are attached (images from the web are saved into their library at that moment). It ends your turn. "characterId" must be an id from the page snapshot. "images" holds one to eight picks; each pick is EITHER {"assetId": an id that search_assets returned this turn} OR {"imageUrl": an image URL that search_web_images returned this turn and that is not marked REFERENCE ONLY}, plus "reason": one short line in the creator\'s language saying why this one is good (e.g. 「正面半身，脸清楚」「全身，服装完整」) — do not name the source there, the app already prints it under the reason. Pick images that show this character alone, large and clear, without text over them, in one outfit; say in the reason what view it gives (face / full body / back). Never invent an id or a URL.',
+    'OFFER a few images to attach to ONE character on this page, for the creator to tick and keep. This SAVES NOTHING on its own: the app shows each image with a checkbox, your one-line reason and where it came from; only the ones they tick are attached (images from the web are saved into their library at that moment). It ends your turn. "characterId" must be an id from the page snapshot. "images" holds one to eight picks; each pick is EITHER {"assetId": an id that search_assets returned this turn} OR {"imageUrl": an image URL that search_web_images returned this turn and that is not marked view only}, plus "reason": one short line in the creator\'s language saying why this one is good (e.g. 「正面半身，脸清楚」「全身，服装完整」) — do not name the source there, the app already prints it under the reason. Pick images that show this character alone, large and clear, without text over them, in one outfit; say in the reason what view it gives (face / full body / back). Never invent an id or a URL.',
   [ASSISTANT_OPERATOR_TOOL_IDS.checkCharacterLook]:
     'LOOK at the open character\'s images next to their written look and profile, and find contradictions. Use it ONLY when the creator asks you to check whether the profile matches the images — never on your own. It saves nothing. "characterId" must be the character that is open on the page (only the open one can be checked). It reports each place where the text says one thing and the images show another about who the character IS: hair colour or length, eye colour, skin, age, body type, species, marks such as scars or horns. Different outfits, poses, expressions and art styles are NOT contradictions — a character can own many outfits. For each contradiction, tell the creator in one line (「设定里说……，但图上是……」) and, when the fix belongs in the look line, identity or history, offer the corrected text with ask/propose_character_profile (source 「对照卡上的图」); if it is only in the tags, say which tag to change. If nothing contradicts, say so in one line.',
   [ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant]:
@@ -3464,6 +3464,34 @@ export const ASSISTANT_RESEARCH_LIMITS = {
    * 十条里有七条来自同一个站不是印证，是噪音。
    */
   quickEvidenceItems: 6,
+  /**
+   * 查完之后**再往后几步**模型读到的那一行摘要有多长（搜索期第三片，附录 I §二 6）。
+   *
+   * ⭐ 紧跟着查证的那一步看整段摘录（最多 6×300 + 3×1600 字）；再往后每一步只留
+   * 「[n] 标题 · 域名 · 一句话」—— 原先那一大段每一步都重发（最多 16 步）。要全文就
+   * `read "[n]"` 再读一遍那一页。
+   */
+  maxCompactGistChars: 140,
+} as const
+
+/**
+ * **找到的东西的编号**（`#n`，搜索期第三片，附录 I §3.3）。
+ *
+ * ⭐ 联网找到的每一张图、每一支视频都有一个本轮内的编号：模型只拿到每条一行
+ *   `#n · 标题 · 域名 · 宽×高 · 可当参考 / 只能看`（视频 `#n · 标题 · 频道 · 平台 · 时长`），
+ *   卡片的完整数据（缩略图、原图、链接、尺寸）只进面板；要用哪一张就写 `#n`，服务端按
+ *   本轮（或上一轮带过来的）找到的东西换回地址。
+ * ⚠ 与正文里的 `[n]`（查证的证据号）是两套号，⛔ 不合并。
+ */
+export const ASSISTANT_WEB_FIND_LIMITS = {
+  /** 下一轮带着上一轮的几条（只有编号那一行进模型）。 */
+  maxCarried: 16,
+  /** 一轮最多记几条（每次最多 8 条，一轮最多 16 步）。 */
+  maxPerTurn: 128,
+  /** 编号上限：防伪造的大数（一轮 128 条，跨轮接着数也到不了这里）。 */
+  maxNumber: 9_999,
+  /** 模型读的那一行里标题截到多长。 */
+  maxLineTitleChars: 80,
 } as const
 
 /**

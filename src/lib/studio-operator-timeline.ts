@@ -3,6 +3,7 @@ import {
   ASSISTANT_OPERATOR_TOOL_IDS,
   ASSISTANT_OPERATOR_VERB_IDS,
   ASSISTANT_RESEARCH_DEPTHS,
+  ASSISTANT_WEB_FIND_LIMITS,
   type AssistantOperatorVerb,
   type AssistantResearchDepth,
 } from '@/constants/assistant-operator'
@@ -17,6 +18,13 @@ import type {
   StudioOperatorStepEntry,
   StudioOperatorThreadEntry,
 } from '@/types/studio-assistant-operator'
+import type { AssistantWebFind } from '@/types/assistant-web-finds'
+import {
+  carriedWebFinds,
+  WEB_FIND_REF_PATTERN,
+  webImageToFind,
+  webVideoToFind,
+} from '@/lib/assistant-web-finds'
 
 /**
  * 过程行跑着时那一句人话动词（2026-10-14 设计方案 §9.1）—— 按这一步的**动词**取，
@@ -207,6 +215,165 @@ export function collectOperatorAnswerWebFinds(
     pending = []
   }
   return { byMessage, anchored }
+}
+
+/** 一步跑完的联网找图 / 找视频里带编号的那几条（`#n`，搜索期第三片）。 */
+function webFindsOfStep(entry: StudioOperatorStepEntry): AssistantWebFind[] {
+  const { step } = entry
+  if (step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.done) return []
+  if (step.tool === ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages)
+    return (step.result?.images ?? []).flatMap((image) => {
+      const find = webImageToFind(image)
+      return find ? [find] : []
+    })
+  if (step.tool === ASSISTANT_OPERATOR_TOOL_IDS.searchWebVideos)
+    return (step.result?.videos ?? []).flatMap((video) => {
+      const find = webVideoToFind(video)
+      return find ? [find] : []
+    })
+  return []
+}
+
+/**
+ * 这一条是不是开了服务端的新一轮：用户发言，或答了题 / 定了卡的那一条（带 `userText` 的系统行
+ * —— `buildMessages` 把它当用户说的话发出去，服务端就是新的一轮）。**连着的几条算一刀**：一组
+ * 题答完是好几条答题行接着一次请求。
+ * ⚠ 号的「上一轮」必须与服务端同一刀：答完题那一轮带的是**问题之前**那半段找到的，切错了就会
+ *   带上更早一轮的号，新找到的从那里接着数，和屏幕上的卡撞号。
+ */
+function startsOperatorTurn(entry: StudioOperatorThreadEntry): boolean {
+  return (
+    entry.kind === 'user' ||
+    (entry.kind === 'system' && Boolean(entry.userText))
+  )
+}
+
+/**
+ * **下一轮带去的「上一轮找到的东西」**（搜索期第三片，附录 I §3.3）：发这一轮时，开这一轮的
+ * 那一条（最后一条用户发言 / 答题行）与它前一条之间那几步联网找到的、带编号的图与视频 —— 只要
+ * 上一轮的，去重后最多 `maxCarried` 条（`carriedWebFinds`）。
+ * ⭐ 「用 #2」「放第二个」跨轮还能落到同一张：服务端把这几条冻进板子、只给模型编号那一行。
+ * ⚠ 调用方只在**新的一轮**发：接力那一跳的板子已经带着这一份了。
+ */
+export function collectOperatorPriorFinds(
+  entries: readonly StudioOperatorThreadEntry[],
+): AssistantWebFind[] {
+  let starts = 0
+  let inStart = false
+  const steps: StudioOperatorStepEntry[] = []
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index]!
+    if (startsOperatorTurn(entry)) {
+      if (!inStart) starts += 1
+      inStart = true
+      if (starts === 2) break
+      continue
+    }
+    inStart = false
+    if (starts === 1 && entry.kind === 'step') steps.unshift(entry)
+  }
+  return carriedWebFinds(steps.flatMap(webFindsOfStep))
+}
+
+/** 面板上一张找到的卡（图格 / 视频卡）在回复里被 `#n` 指到时要的那几样。 */
+export interface OperatorFindRef {
+  /** `operatorFindKey(线程条目 id, n)` —— 卡片的 DOM id 与高亮都认它。 */
+  key: string
+  n: number
+  kind: AssistantWebFind['kind']
+  /** 读屏念的那一句：标题，没有就域名 / 平台。 */
+  label: string | null
+}
+
+/** 一张找到的卡的稳定键：同一个号跨轮可能重来，所以带上它所在那一步的线程条目 id。 */
+export function operatorFindKey(entryId: string, n: number): string {
+  return `${entryId}#${n}`
+}
+
+/** 卡片元素的 DOM id（胶囊按它 `getElementById` 再滚过去）。 */
+export function operatorFindDomId(key: string): string {
+  return `operator-find-${key}`
+}
+
+/** 回复正文里点到的号（去重、按出场顺序）。 */
+export function webFindNumbersIn(text: string): number[] {
+  const numbers: number[] = []
+  for (const match of text.matchAll(WEB_FIND_REF_PATTERN)) {
+    const n = Number(match[1])
+    if (!numbers.includes(n)) numbers.push(n)
+  }
+  return numbers
+}
+
+/**
+ * **回复里的 `#n` 认哪张卡**（搜索期第三片，附录 I §3.3 / §四「模型点名」）。
+ *
+ * ⭐ 一轮 = 一条用户发言（或答题行）到下一条之前（与 `collectOperatorPriorFinds` 同一刀）。这一轮的每段
+ *   回复认的号 = 上一轮找到的（与服务端带进这一轮的那份同一个口径：只上一轮、最后
+ *   `maxCarried` 条）+ 这一轮找到的；同号以这一轮的为准。认不出的号不在表里 —— 正文里照原样
+ *   留着那段字。
+ * ⭐ **点名**：每一轮**最后一段说完的回复**里写到的号，对应那几张卡加一圈常驻的黑框。
+ *   `lastTurnRunning` = 最后一轮还在跑：那一段未必是最后一段，先不圈。
+ */
+export function collectOperatorFindRefs(
+  entries: readonly StudioOperatorThreadEntry[],
+  lastTurnRunning: boolean,
+): {
+  byMessage: Map<string, ReadonlyMap<number, OperatorFindRef>>
+  named: ReadonlySet<string>
+} {
+  const turns: StudioOperatorThreadEntry[][] = [[]]
+  let inStart = false
+  for (const entry of entries) {
+    const starts = startsOperatorTurn(entry)
+    if (starts && !inStart) turns.push([])
+    inStart = starts
+    turns.at(-1)!.push(entry)
+  }
+  const byMessage = new Map<string, ReadonlyMap<number, OperatorFindRef>>()
+  const named = new Set<string>()
+  let previous: OperatorFindRef[] = []
+  turns.forEach((turn, turnIndex) => {
+    const found = turn.flatMap((entry) =>
+      entry.kind === 'step'
+        ? webFindsOfStep(entry).map(
+            (find): OperatorFindRef => ({
+              key: operatorFindKey(entry.id, find.n),
+              n: find.n,
+              kind: find.kind,
+              label:
+                (find.kind === 'image'
+                  ? (find.title ?? find.domain)
+                  : find.title) ?? null,
+            }),
+          )
+        : [],
+    )
+    // 上一轮的：与 `carriedWebFinds` 同一个口径（按号去重、只留最后 `maxCarried` 条）。
+    const carried = [
+      ...new Map(previous.map((ref) => [ref.n, ref] as const)).values(),
+    ]
+      .sort((a, b) => a.n - b.n)
+      .slice(-ASSISTANT_WEB_FIND_LIMITS.maxCarried)
+    const refs = new Map<number, OperatorFindRef>()
+    for (const ref of [...carried, ...found]) refs.set(ref.n, ref)
+    const messages = turn.filter(
+      (entry): entry is StudioOperatorMessageEntry => entry.kind === 'message',
+    )
+    if (refs.size > 0)
+      for (const message of messages) byMessage.set(message.id, refs)
+    const running = lastTurnRunning && turnIndex === turns.length - 1
+    const final = messages.findLast(
+      (message) => !message.streaming && message.text.trim(),
+    )
+    if (!running && final)
+      for (const n of webFindNumbersIn(final.text)) {
+        const ref = refs.get(n)
+        if (ref) named.add(ref.key)
+      }
+    previous = found
+  })
+  return { byMessage, named }
 }
 
 /**

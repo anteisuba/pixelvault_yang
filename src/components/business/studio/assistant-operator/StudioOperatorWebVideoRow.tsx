@@ -27,7 +27,7 @@
  *   （与图那一格同一个 key 规则），正在播的那一支要再点一次。
  */
 
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { Clapperboard, ExternalLink, Play } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
@@ -38,8 +38,14 @@ import {
   StudioOperatorWebVideoPlayer,
   useWebVideoSiteLabel,
 } from '@/components/business/studio/assistant-operator/StudioOperatorWebVideoPlayer'
+import {
+  operatorFindCardProps,
+  operatorFindRingClass,
+  useOperatorFindHighlighted,
+} from '@/components/business/studio/assistant-operator/StudioOperatorFindRef'
 import { revealStep, useMediaReveal } from '@/components/ui/load-reveal'
 import { Skeleton } from '@/components/ui/skeleton'
+import { operatorFindKey } from '@/lib/studio-operator-timeline'
 import { cn } from '@/lib/utils'
 import { formatVideoDuration, resolveWebVideo } from '@/lib/web-video'
 import type { AssistantOperatorWebVideo } from '@/types/assistant-operator'
@@ -54,7 +60,11 @@ interface StudioOperatorWebVideoRowProps {
   videos: readonly AssistantOperatorWebVideo[] | null
   /** 还在搜时画几张灰卡 —— 这一步要了几条（`payload.limit`）。 */
   placeholderCount?: number
+  /** 回复点名的那几支（`operatorFindKey`，搜索期第三片）：常驻一圈细黑框。 */
+  namedFinds?: ReadonlySet<string>
 }
+
+const NO_NAMED: ReadonlySet<string> = new Set()
 
 const CARD_CLASS =
   'w-56 shrink-0 snap-start lg:@2xs:w-auto lg:@2xs:shrink lg:@2xs:snap-align-none'
@@ -64,6 +74,7 @@ export function StudioOperatorWebVideoRow({
   query,
   videos,
   placeholderCount = ASSISTANT_OPERATOR_LIMITS.maxWebVideoResults,
+  namedFinds = NO_NAMED,
 }: StudioOperatorWebVideoRowProps) {
   const t = useTranslations('StudioOperator')
   const [playingUrl, setPlayingUrl] = useState<string | null>(null)
@@ -108,6 +119,11 @@ export function StudioOperatorWebVideoRow({
                 <WebVideoCard
                   video={video}
                   index={index}
+                  findKey={video.n ? operatorFindKey(entryId, video.n) : null}
+                  named={
+                    video.n !== undefined &&
+                    namedFinds.has(operatorFindKey(entryId, video.n))
+                  }
                   playing={video.url === playingUrl}
                   onPlay={() =>
                     setPlayingUrl((current) =>
@@ -143,15 +159,23 @@ export function StudioOperatorWebVideoRow({
 function WebVideoCard({
   video,
   index,
+  findKey,
+  named,
   playing,
   onPlay,
 }: {
   video: AssistantOperatorWebVideo
   index: number
+  /** 这一张的 `#n` 键（`operatorFindKey`）；没编号 = `null`。 */
+  findKey: string | null
+  /** 回复点名了这一支：常驻细黑框。 */
+  named: boolean
   playing: boolean
   onPlay(): void
 }) {
   const t = useTranslations('StudioOperator')
+  const highlighted = useOperatorFindHighlighted(findKey)
+  const namedId = useId()
   const platformLabel = useWebVideoSiteLabel(video)
   const { embedUrl } = resolveWebVideo(video.url)
   const cover = useThirdPartyImage(video.thumbnailUrl)
@@ -168,6 +192,7 @@ function WebVideoCard({
         className={cn(
           'relative block aspect-video w-full overflow-hidden rounded-lg border border-border/70 bg-accent',
           playing && 'border-foreground ring-1 ring-foreground',
+          operatorFindRingClass(named, highlighted),
         )}
       >
         {cover.src ? (
@@ -214,6 +239,15 @@ function WebVideoCard({
               video.platform === WEB_VIDEO_PLATFORM_IDS.other && 'font-mono',
             )}
           >
+            {/* 编号 `#n`：与回复里的 `#3` 对得上（搜索期第三片）。 */}
+            {video.n ? (
+              <span
+                data-testid="operator-web-video-number"
+                className="font-mono font-semibold tabular-nums"
+              >
+                #{video.n} ·{' '}
+              </span>
+            ) : null}
             {platformLabel}
           </span>
         </span>
@@ -234,11 +268,24 @@ function WebVideoCard({
           {video.channel}
         </span>
       ) : null}
+      {named ? (
+        <span id={namedId} className="sr-only">
+          {t('web.findNamed')}
+        </span>
+      ) : null}
     </>
   )
 
+  /**
+   * ⚠ 卡片本身带 `aria-label`（会盖掉里面的字），「回复里点到了」得用 `aria-describedby`
+   *   挂上去读屏才念得到。
+   */
+  const findProps = {
+    ...operatorFindCardProps(findKey, video.n, named, highlighted),
+    ...(named ? { 'aria-describedby': namedId } : {}),
+  }
   const className =
-    'block w-full min-w-0 rounded-lg text-left transition-opacity duration-fast ease-standard hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none'
+    'block w-full min-w-0 scroll-m-2 rounded-lg text-left transition-opacity duration-fast ease-standard hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none'
 
   /** 认不出稿件号 / 别的站：新窗口开源页（⛔ 不带我们的页面句柄与 Referer）。 */
   if (!embedUrl)
@@ -249,6 +296,7 @@ function WebVideoCard({
         rel="noopener noreferrer"
         data-testid="operator-web-video-link"
         data-platform={video.platform}
+        {...findProps}
         aria-label={t('web.videoOpenExternal', {
           title: video.title,
           site: platformLabel,
@@ -264,6 +312,7 @@ function WebVideoCard({
       type="button"
       data-testid="operator-web-video-card"
       data-platform={video.platform}
+      {...findProps}
       aria-pressed={playing}
       aria-label={t('web.videoPlay', { title: video.title })}
       onClick={onPlay}

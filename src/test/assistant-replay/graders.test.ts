@@ -170,6 +170,33 @@ describe('replay graders', () => {
     ).toThrow(/disconnected/)
   })
 
+  it('fails when a step sends the model text stepPrompts rules out (R02 的查证短版)', () => {
+    const slim = ReplayCaseSchema.parse({
+      ...testCase,
+      expect: {
+        ...testCase.expect,
+        stepPrompts: [{ notContains: ['FULL-EXCERPT'] }],
+      },
+    })
+    const sent = {
+      ...call(AI_ADAPTER_TYPES.GEMINI, 'gemini-3.8-flash'),
+      body: { contents: [{ parts: [{ text: 'FULL-EXCERPT again' }] }] },
+    }
+    const gradeSlim = (calls: RecordedModelCall[]) =>
+      gradeReplay({
+        testCase: slim,
+        route: slim.routes[0]!,
+        run: run(),
+        network: network(calls),
+        writes: [],
+        keyLookups: vi.fn(),
+      })
+    expect(() => gradeSlim([sent])).toThrow(/request body of step 1/)
+    expect(() =>
+      gradeSlim([call(AI_ADAPTER_TYPES.GEMINI, 'gemini-3.8-flash')]),
+    ).not.toThrow()
+  })
+
   it('diffs boards by card names, ignoring slot bookkeeping', () => {
     const renamed: NodeWorkflowStateV4 = {
       ...BOARD,

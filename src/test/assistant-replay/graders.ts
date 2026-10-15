@@ -371,6 +371,19 @@ export function gradeReplay(input: {
       steps.map((call) => call.videos),
       'clips (video body) in front of the model, per step',
     ).toEqual(wanted.stepVideos)
+  if (wanted.stepPrompts) {
+    expect(
+      wanted.stepPrompts.length,
+      'stepPrompts lists no more steps than the turn took',
+    ).toBeLessThanOrEqual(steps.length)
+    wanted.stepPrompts.forEach((want, index) => {
+      const body = JSON.stringify(steps[index]?.body ?? null)
+      for (const piece of want.contains)
+        expect(body, `request body of step ${index + 1}`).toContain(piece)
+      for (const piece of want.notContains)
+        expect(body, `request body of step ${index + 1}`).not.toContain(piece)
+    })
+  }
 }
 
 /** 回放题里的 `@{名字}` 与回放发出去的正文里的「名字」是同一个指法。 */

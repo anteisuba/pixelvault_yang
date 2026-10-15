@@ -23,6 +23,9 @@
  *    markdown 渲染器 —— `[3]` 在 markdown 里本来就是一段普通文字，所以做法是在
  *    **渲染出来的 React 子树上**把那段字换成一颗按钮（`withCitations`）。
  *
+ * ⭐ **正文里的 `#3`**（搜索期第三片）：认得出的号（这一轮或上一轮找到的那张）同一种做法换成一颗
+ *    胶囊（`withFindRefs`，`StudioOperatorFindRef.tsx`），悬停 / 焦点 / 点它把那张卡圈出来。
+ *
  * ⚠ 折叠开合是**局部 state**：它是一次性的阅读动作，不该占 store 的一格 ——
  * 而收放法则（拍板 7）把面板卸载一次之后重新收起，恰恰是对的（那时用户是在
  * 重新读这条会话）。
@@ -47,9 +50,11 @@ import {
   StudioOperatorThinkingRow,
   StudioOperatorThoughtReceipt,
 } from './StudioOperatorThinkingRow'
+import { withFindRefs } from './StudioOperatorFindRef'
 import {
   firstOperatorSentence,
   shouldCollapseOperatorText,
+  type OperatorFindRef,
 } from '@/lib/studio-operator-timeline'
 import { cn } from '@/lib/utils'
 import type { NamedImageReference } from '@/lib/studio-reference-mentions'
@@ -86,7 +91,15 @@ interface StudioOperatorMessageBodyProps {
    * ⚠ 是一个槽而不是数据：选用态、播放器与它们的去处是面板的，这一格只管摆在哪。
    */
   webFinds?: ReactNode
+  /**
+   * **正文里的 `#n` 认哪张卡**（搜索期第三片）—— 这一轮与上一轮找到的那几张，按号查
+   * （`collectOperatorFindRefs`）。缺席 / 空 = 正文里的 `#3` 就是字。
+   */
+  findRefs?: ReadonlyMap<number, OperatorFindRef>
 }
+
+/** 没有可认的号时共用这一份，⛔ 别写成行内 `new Map()`（每次 render 换引用）。 */
+const NO_FIND_REFS: ReadonlyMap<number, OperatorFindRef> = new Map()
 
 /**
  * 参考图缩略图（D12 P8 / C10）—— 地址过期或被删时画一格占位，⛔ 不出破图标。
@@ -280,10 +293,13 @@ export function StudioOperatorCollapsibleText({
   activeCite = null,
   onPickCitation,
   references = [],
+  findRefs = NO_FIND_REFS,
   pendingSince,
   pendingPhase,
 }: {
   references?: readonly NamedImageReference[]
+  /** 正文里的 `#n` 认哪张卡（搜索期第三片）。 */
+  findRefs?: ReadonlyMap<number, OperatorFindRef>
   text: string
   /** 占位行挂上的那一刻 —— 「正在想… N 秒」从这里数（§9.1）。 */
   pendingSince?: number
@@ -311,8 +327,19 @@ export function StudioOperatorCollapsibleText({
    * ⚠ 一条资料都没有时**整张表不传**：没有号可认的正文里，`[1]` 就是用户自己
    * 打的那两个方括号，⛔ 不该被吃掉。
    */
+  /**
+   * ⚠ 认号表按**内容**钉：面板每一帧（流式里每来一个字）都会重算出一张新的表，按引用钉会让
+   *   每段正文的段落组件跟着换身份、整段重挂（胶囊的焦点与悬停就丢了）。
+   */
+  const findSignature = [...findRefs.values()]
+    .map((findRef) => `${findRef.key}=${findRef.label ?? ''}`)
+    .join('\n')
   const components = useMemo<Partial<Components> | undefined>(() => {
-    if (references.length === 0 && (known.size === 0 || !onPickCitation))
+    if (
+      references.length === 0 &&
+      findRefs.size === 0 &&
+      (known.size === 0 || !onPickCitation)
+    )
       return undefined
     const wrap = (node: ReactNode): ReactNode => {
       const cited = onPickCitation
@@ -320,7 +347,7 @@ export function StudioOperatorCollapsibleText({
             t('answer.citation', { index: cite }),
           )
         : node
-      return withImageReferences(cited, references)
+      return withImageReferences(withFindRefs(cited, findRefs), references)
     }
     return {
       ...INITIAL_COMPONENTS,
@@ -331,8 +358,8 @@ export function StudioOperatorCollapsibleText({
         return <li>{wrap(children)}</li>
       },
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `t` 每次 render 换引用，钉在真正会变的三样上
-  }, [known, onPickCitation, activeCite, references])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `t` 每次 render 换引用；认号表按内容（`findSignature`）钉，钉在真正会变的几样上
+  }, [known, onPickCitation, activeCite, references, findSignature])
 
   const collapsible = !streaming && shouldCollapseOperatorText(text)
   const collapsed = collapsible && !expanded
@@ -420,6 +447,7 @@ export function StudioOperatorMessageBody({
   onSearchXWithGrok,
   webFinds,
   references = [],
+  findRefs,
 }: StudioOperatorMessageBodyProps) {
   const t = useTranslations('StudioOperator')
   /**
@@ -441,6 +469,7 @@ export function StudioOperatorMessageBody({
       <StudioOperatorCollapsibleText
         text={entry.text}
         references={references}
+        {...(findRefs ? { findRefs } : {})}
         streaming={entry.streaming ?? false}
         {...(entry.pendingSince === undefined
           ? {}

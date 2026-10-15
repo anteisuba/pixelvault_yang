@@ -41,9 +41,15 @@ import {
   WEB_IMAGE_SOURCE_VERDICT_IDS,
 } from '@/constants/web-image-sources'
 import { openOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
+import {
+  operatorFindCardProps,
+  operatorFindRingClass,
+  useOperatorFindHighlighted,
+} from '@/components/business/studio/assistant-operator/StudioOperatorFindRef'
 import { revealStep, useMediaReveal } from '@/components/ui/load-reveal'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
+import { operatorFindKey } from '@/lib/studio-operator-timeline'
 import { cn } from '@/lib/utils'
 import type { AssistantOperatorWebImage } from '@/types/assistant-operator'
 import { useThirdPartyImage } from '@/hooks/use-third-party-image'
@@ -54,6 +60,7 @@ import type {
 
 /** 一张都没选时共用这一份，⛔ 别写成行内 `[]`（每次 render 换引用）。 */
 const NO_PICKS: readonly StudioOperatorWebImportPick[] = []
+const NO_NAMED: ReadonlySet<string> = new Set()
 
 /** 一行几格 —— 错开（`revealStep`）按桌面那一档算，手机两列时错得稍密，无妨。 */
 const REVEAL_COLUMNS = 4
@@ -75,6 +82,11 @@ interface StudioOperatorWebCandidateGridProps {
   /** 一行最多能选几张（工作台参考位上限）——「已选 n/m」里的 m；0 = 只能看。 */
   limit: number
   onToggle(entryId: string, image: AssistantOperatorWebImage): void
+  /**
+   * 回复点名的那几张（`operatorFindKey`，搜索期第三片）：常驻一圈细黑框。
+   * 缺席 = 一张都没点名。
+   */
+  namedFinds?: ReadonlySet<string>
 }
 
 export function StudioOperatorWebCandidateGrid({
@@ -85,6 +97,7 @@ export function StudioOperatorWebCandidateGrid({
   webImport,
   limit,
   onToggle,
+  namedFinds = NO_NAMED,
 }: StudioOperatorWebCandidateGridProps) {
   const t = useTranslations('StudioOperator')
 
@@ -164,6 +177,11 @@ export function StudioOperatorWebCandidateGrid({
                 key={image.imageUrl}
                 image={image}
                 index={index}
+                findKey={image.n ? operatorFindKey(entryId, image.n) : null}
+                named={
+                  image.n !== undefined &&
+                  namedFinds.has(operatorFindKey(entryId, image.n))
+                }
                 pick={picks.find((item) => item.imageUrl === image.imageUrl)}
                 pickable={pickable}
                 onUse={() => onToggle(entryId, image)}
@@ -253,17 +271,24 @@ export function StudioOperatorWebCandidateGrid({
 function WebCandidateTile({
   image,
   index,
+  findKey,
+  named,
   pick,
   pickable,
   onUse,
 }: {
   image: AssistantOperatorWebImage
   index: number
+  /** 这一格的 `#n` 键（`operatorFindKey`）；没编号（旧内核）= `null`。 */
+  findKey: string | null
+  /** 回复点名了这一张：常驻细黑框。 */
+  named: boolean
   pick: StudioOperatorWebImportPick | undefined
   pickable: boolean
   onUse(): void
 }) {
   const t = useTranslations('StudioOperator')
+  const highlighted = useOperatorFindHighlighted(findKey)
   /**
    * 格子里画**缩略图**（gstatic，稳）；取不到再试原图（能走热链代理就先走代理）。
    * 🔬 原图直链约三成 403 —— 格子里先画原图会得到一半碎图。
@@ -307,12 +332,17 @@ function WebCandidateTile({
     : t('web.referenceOnly')
 
   return (
-    <div className="flex min-w-0 flex-col gap-1">
+    <div
+      data-testid="operator-web-candidate-tile"
+      {...operatorFindCardProps(findKey, image.n, named, highlighted)}
+      className="flex min-w-0 scroll-m-2 flex-col gap-1"
+    >
       <div
         className={cn(
           'relative aspect-square w-full overflow-hidden rounded-lg border border-border/70 bg-accent',
           imported && 'border-foreground ring-1 ring-foreground',
           failed && 'border-status-risk ring-1 ring-status-risk',
+          operatorFindRingClass(named, highlighted),
         )}
       >
         {/* 看 —— ⛔ 这一颗不发任何导入，它只开灯箱。
@@ -374,17 +404,27 @@ function WebCandidateTile({
           <span className="sr-only">{usableLabel}</span>
         </span>
 
-        {/* 左下角：域名小标（§四）。 */}
-        {image.domain ? (
+        {/* 左下角：编号 `#n` + 域名小标（§四；编号与回复里的 `#3` 对得上，搜索期第三片）。 */}
+        {image.n || image.domain ? (
           <span className="pointer-events-none absolute inset-x-1 bottom-1 flex">
             <span
               data-testid="operator-web-candidate-domain"
               className="max-w-full truncate rounded-sm bg-foreground/70 px-1 font-mono text-3xs leading-4 text-background"
             >
+              {image.n ? (
+                <span
+                  data-testid="operator-web-candidate-number"
+                  className="font-semibold tabular-nums"
+                >
+                  #{image.n}
+                </span>
+              ) : null}
+              {image.n && image.domain ? ' · ' : null}
               {image.domain}
             </span>
           </span>
         ) : null}
+        {named ? <span className="sr-only">{t('web.findNamed')}</span> : null}
 
         {imported ? (
           <span className="pointer-events-none absolute left-1.5 top-1.5 grid size-4 place-items-center rounded-full bg-foreground text-background">

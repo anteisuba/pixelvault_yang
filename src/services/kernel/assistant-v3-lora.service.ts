@@ -13,6 +13,7 @@ import {
   ASSISTANT_V3_LORA_EDIT_OP_IDS,
   ASSISTANT_V3_LORA_ITEM_IDS,
   ASSISTANT_V3_LORA_SEARCH_KIND,
+  ASSISTANT_V3_READ_SOURCE_NOTE,
   ASSISTANT_V3_TOOL_IDS,
   ASSISTANT_V3_WEB_IMAGES_KIND_DESCRIPTION,
   ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION,
@@ -71,8 +72,7 @@ import {
 export function assistantV3LoraTools(strict: boolean) {
   return {
     [ASSISTANT_V3_TOOL_IDS.read]: tool({
-      description:
-        'Read in full what the board shows clipped: "prompt", "negative", "sample" (the example open on the left, with its recipe), a LoRA handle (author prompt and source picture prompts) or a reference.',
+      description: `Read in full what the board shows clipped: "prompt", "negative", "sample" (the example open on the left, with its recipe), a LoRA handle (author prompt and source picture prompts) or a reference. ${ASSISTANT_V3_READ_SOURCE_NOTE}`,
       inputSchema: AssistantV3LoraReadInputSchema,
       strict,
     }),

@@ -266,6 +266,37 @@ describe('replayFromTurnRecord', () => {
     expect(relay.gaps.join('\n')).toContain('never finished (relay)')
   })
 
+  it('开轮的板子带着上一轮找到的东西（#n）：回放题带不进去，记一条缺口', () => {
+    const [opening, ...rest] = row().transcript
+    const carried = replayFromTurnRecord(
+      row({
+        transcript: [
+          {
+            ...opening,
+            finds: [
+              { kind: 'image', n: 3, imageUrl: 'https://img.test/3.jpg' },
+              {
+                kind: 'video',
+                n: 4,
+                url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+                title: 'PV',
+                platform: 'youtube',
+              },
+            ],
+          },
+          ...rest,
+        ],
+      }),
+      { id: 'T90', board: 'b' },
+    )
+    expect(carried.gaps.join('\n')).toContain(
+      'carried 2 web find(s) from the previous turn (#3–#4)',
+    )
+    expect(
+      replayFromTurnRecord(row(), { id: 'T90', board: 'b' }).gaps.join('\n'),
+    ).not.toContain('web find')
+  })
+
   it('摘掉的 data: 地址：换成假主机上的占位地址，记一条缺口', () => {
     const stripped = stripTurnRecordDataUrls({
       ...row().snapshot,

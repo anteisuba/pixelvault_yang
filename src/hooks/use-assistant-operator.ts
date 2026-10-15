@@ -135,6 +135,7 @@ import {
 } from '@/lib/assistant-mention'
 import { buildCanvasGenerationRequest } from '@/lib/studio-operator-canvas-snapshot'
 import { collectStepArtifacts } from '@/lib/studio-operator-artifacts'
+import { collectOperatorPriorFinds } from '@/lib/studio-operator-timeline'
 import { captureVideoEndpointFrames } from '@/lib/video-frame-capture'
 import {
   captureTurnClips,
@@ -1278,6 +1279,7 @@ export function useAssistantOperator(
         if (!isCurrentRun()) return
       }
 
+      const priorFinds = collectOperatorPriorFinds(entries)
       const latestMessage = messages.findLast(
         (message) => message.role === 'user',
       )?.content
@@ -1423,6 +1425,13 @@ export function useAssistantOperator(
             : {}),
           ...(options.v3Transcript
             ? { v3: { transcript: options.v3Transcript } }
+            : {}),
+          /**
+           * ⭐ **上一轮找到的图与视频**（`#n`，搜索期第三片）：「用 #2」「放第二个」跨轮还能落到
+           *   同一张。只在 v3 的新一轮发 —— 接力那一跳的板子已经冻着这一份；空的不发。
+           */
+          ...(usesV3 && !options.v3Transcript && priorFinds.length
+            ? { priorFinds }
             : {}),
         },
         { signal: controller.signal },

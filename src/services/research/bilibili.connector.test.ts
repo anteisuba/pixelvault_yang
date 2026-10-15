@@ -78,6 +78,8 @@ describe('fetchBilibiliEvidence — 搜索入口（风控路）', () => {
     expect(result.items).toHaveLength(1)
     // 高亮标记要剥掉 —— 证据里不该出现 <em class="keyword">
     expect(result.items[0]?.title).toBe('bilibili · 《鸣潮》动画短片 | 今昔')
+    const first = result.items[0]
+    expect(first?.kind === 'video' && first.channel).toBe('鸣潮')
     expect(mockWebSearch).not.toHaveBeenCalled()
   })
 
@@ -152,6 +154,8 @@ describe('fetchBilibiliEvidence — 单稿件（稳定路）', () => {
     const video = result.items.find((item) => item.kind === 'video')
     expect(video?.kind).toBe('video')
     expect(video?.kind === 'video' && video.excerpt).toContain('UP主：鸣潮')
+    // 搜索期第二片：UP主名另起一格，「找视频」那一排卡片的第二行读它
+    expect(video?.kind === 'video' && video.channel).toBe('鸣潮')
     // 时长来自接口的秒数，不是「看过视频」推断的 —— 检索线不假装看过画面
     expect(video?.kind === 'video' && video.excerpt).toContain(
       '17:58（1078 秒）',

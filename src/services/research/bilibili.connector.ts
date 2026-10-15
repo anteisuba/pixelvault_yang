@@ -157,6 +157,9 @@ async function fetchByBvid(bvid: string): Promise<EvidenceItem[]> {
       lang: 'zh',
       videoUrl: url,
       site: 'bilibili',
+      ...(data.owner?.name?.trim()
+        ? { channel: data.owner.name.trim().slice(0, 120) }
+        : {}),
       ...(cover ? { thumbnailUrl: cover } : {}),
       ...(typeof data.duration === 'number' &&
       data.duration > 0 &&
@@ -253,11 +256,13 @@ async function searchOnce(keyword: string): Promise<EvidenceItem[]> {
        */
       if (!url) return { ...base, kind: 'text' as const, excerpt }
       const duration = parseDurationSeconds(entry.duration)
+      const channel = stripHighlight(entry.author ?? '').slice(0, 120)
       return {
         ...base,
         kind: 'video' as const,
         videoUrl: url,
         site: 'bilibili',
+        ...(channel ? { channel } : {}),
         ...(cover ? { thumbnailUrl: cover } : {}),
         ...(duration ? { durationSeconds: duration } : {}),
         excerpt,

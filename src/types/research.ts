@@ -122,6 +122,11 @@ export const EvidenceVideoItemSchema = EvidenceBaseSchema.extend({
     .optional(),
   site: z.string().trim().min(1).max(60),
   /**
+   * 频道 / UP主名（接口给了才有）。助手「找视频」那一排卡片的第二行读它
+   * （搜索期第二片）；⚠ 模型读的仍是下面的 `excerpt`，这一格不重复喂。
+   */
+  channel: z.string().trim().min(1).max(120).optional(),
+  /**
    * 元数据摘录（标题 / UP主 / 简介）—— **喂给模型的那段字**。
    *
    * ⚠ 视频证据没有正文，但它有简介与标题，而那正是模型唯一能读的部分。缺了它

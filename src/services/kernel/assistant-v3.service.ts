@@ -75,6 +75,13 @@ import {
 } from '@/lib/assistant-v3-shot-checks'
 import { renderAssistantV3MentionTable } from '@/lib/assistant-v3-mentions'
 import {
+  assistantV3HistoryMessages,
+  pinnedAssistantV3History,
+  planAssistantV3History,
+  splitAssistantV3History,
+  type AssistantV3HistoryMessage,
+} from '@/lib/assistant-v3-history'
+import {
   planAssistantV3TranscriptView,
   type AssistantV3TranscriptView,
 } from '@/lib/assistant-v3-transcript-view'
@@ -177,6 +184,10 @@ import {
   type V3Outcome,
 } from '@/services/kernel/assistant-v3-steps.service'
 import { buildAssistantV3SystemPrompt } from '@/services/kernel/assistant-v3-prompt.service'
+import {
+  loadAssistantV3HistorySummaries,
+  scheduleAssistantV3HistorySummary,
+} from '@/services/kernel/assistant-v3-history.service'
 import {
   parseResearchSourceHandle,
   priorFindsOf,
@@ -383,8 +394,6 @@ function isMutatingTool(tool: AssistantV3Tool): tool is MutatingTool {
     tool === ASSISTANT_V3_TOOL_IDS.edit || tool === ASSISTANT_V3_TOOL_IDS.write
   )
 }
-
-const MAX_HISTORY_MESSAGES = 24
 
 /**
  * 一条回复里叫了两次 generate：第一张确认卡一出这一轮就停了，模型没机会再说话
@@ -627,27 +636,16 @@ function transcriptMessages(
   return out
 }
 
-function historyMessages(request: AssistantOperatorRequest): {
-  history: ModelMessage[]
-  latest: string
-} {
-  const lastUser = request.messages.findLastIndex(
-    (message) => message.role === 'user',
+/** 窗口里的对白 → 模型消息（只有字，与从前同一个形状）。 */
+function historyModelMessages(
+  messages: readonly AssistantV3HistoryMessage[],
+): ModelMessage[] {
+  return messages.map(
+    (message): ModelMessage =>
+      message.role === 'user'
+        ? { role: 'user', content: message.content }
+        : { role: 'assistant', content: message.content },
   )
-  const history = request.messages
-    .slice(0, Math.max(lastUser, 0))
-    .filter((message) => message.content.trim())
-    .slice(-MAX_HISTORY_MESSAGES)
-    .map(
-      (message): ModelMessage =>
-        message.role === 'user'
-          ? { role: 'user', content: message.content }
-          : { role: 'assistant', content: message.content },
-    )
-  return {
-    history,
-    latest: lastUser >= 0 ? request.messages[lastUser].content : '',
-  }
 }
 
 /**
@@ -1035,7 +1033,9 @@ async function* runV3Turn(
         ? buildAssistantV3CardsHandles(request.snapshot)
         : buildAssistantV3Handles(nodes.map((node) => node.id))
   const language = resolveResponseLanguage(request, persona)
-  const { history, latest } = historyMessages(request)
+  const { turns: historyTurns, latest } = splitAssistantV3History(
+    request.messages,
+  )
   const transcript: AssistantV3Transcript = [...(request.v3?.transcript ?? [])]
   const seesImages = assistantAdapterSupportsImage(route.adapterType, modelId)
   const context: V3Context = {
@@ -1205,11 +1205,46 @@ async function* runV3Turn(
    * 已经有了，⛔ 不再读请求。
    */
   const priorFinds = relay ? [] : priorFindsOf(request)
+  /**
+   * ⭐ 模型看得见的对白（P2 第三片，设计方案 §2.2）：开轮那一跳按字数开窗（按块滑）、挑滑出去那几轮
+   *   的摘要，冻进板子；接力那几跳照板子上的 —— 每一跳的对白与摘要逐字相同（中途后台写好了新的
+   *   也不换）。缺口（滑出去的那几轮还没有摘要）交给后台补，收尾之后才开跑（`after`），⛔ 不补在接力上。
+   */
+  const historyOwner = {
+    userId: user.id,
+    clerkId,
+    conversationId: request.conversationId,
+    incognito: request.incognito === true,
+  }
+  const historyPlan =
+    relay && opening.history
+      ? pinnedAssistantV3History(historyTurns, opening.history)
+      : planAssistantV3History({
+          turns: historyTurns,
+          ...(await loadAssistantV3HistorySummaries(historyOwner)),
+        })
+  if (!relay)
+    scheduleAssistantV3HistorySummary({
+      owner: historyOwner,
+      plan: historyPlan,
+      turns: historyTurns,
+      route,
+      modelId,
+      domain: request.domain,
+      cacheKey: operatorCacheKey(run, 'historySummary'),
+    })
+  const history = historyModelMessages(
+    assistantV3HistoryMessages(historyTurns, historyPlan.start),
+  )
   // 这一轮的号与第几跳（每轮的过程记录）：⛔ 不进模型看的东西，只随本轮记录往返。
   const board = {
     ...opening,
     turn: nextTurnMark(opening.turn, relay),
     ...(priorFinds.length ? { finds: priorFinds } : {}),
+    history: {
+      turns: historyTurns.length - historyPlan.start,
+      ...(historyPlan.summary ? { summary: historyPlan.summary } : {}),
+    },
   }
   transcript[0] = board
   // 连号与准入名单接着本轮记录往下（`#n` 与 `[n]` 都不和前一跳 / 上一轮撞号）。
@@ -1222,6 +1257,7 @@ async function* runV3Turn(
     rules,
     memories: prepared.assistantMemories,
     accountName: user.displayName ?? user.username ?? null,
+    historySummary: historyPlan.summary,
   })
   recording.turn = {
     userId: user.id,

@@ -120,7 +120,7 @@ describe('stripTurnRecordDataUrls', () => {
 
 describe('turnRecordInput', () => {
   it('对话只到创作者最后那一句；最多留 maxMessages 条', () => {
-    const messages = Array.from({ length: 40 }, (_, index) => ({
+    const messages = Array.from({ length: 120 }, (_, index) => ({
       role: index % 2 === 0 ? ('user' as const) : ('assistant' as const),
       content: `m${index}`,
     }))
@@ -128,7 +128,43 @@ describe('turnRecordInput', () => {
     expect(input.messages).toHaveLength(
       ASSISTANT_TURN_RECORD_LIMITS.maxMessages,
     )
-    expect(input.messages.at(-1)).toEqual({ role: 'user', content: 'm38' })
+    expect(input.messages.at(-1)).toEqual({ role: 'user', content: 'm118' })
+  })
+
+  it('板子上记着窗口（P2 第三片）：只存模型看见的那几轮 + 这一句，原样带着 answered', () => {
+    const messages: AssistantOperatorRequest['messages'] = [
+      { role: 'user', content: 'u0' },
+      { role: 'assistant', content: 'a0' },
+      { role: 'user', content: 'u1' },
+      { role: 'assistant', content: '' },
+      {
+        role: 'user',
+        content: 'answer',
+        answered: { questionId: 'question-1', optionIds: ['option-1-1'] },
+      },
+      { role: 'assistant', content: 'a2' },
+      { role: 'user', content: 'now' },
+    ]
+    const [board, ...rest] = transcript()
+    const windowed = (turns: number) =>
+      turnRecordInput(request({ messages }), [
+        { ...board!, history: { turns } } as AssistantV3Transcript[number],
+        ...rest,
+      ]).messages.map((message) => message.content)
+    expect(windowed(2)).toEqual(['u1', '', 'answer', 'a2', 'now'])
+    expect(windowed(1)).toEqual(['answer', 'a2', 'now'])
+    expect(windowed(0)).toEqual(['now'])
+    expect(windowed(3)).toHaveLength(messages.length)
+    expect(
+      turnRecordInput(request({ messages }), [
+        { ...board!, history: { turns: 1 } } as AssistantV3Transcript[number],
+        ...rest,
+      ]).messages[0],
+    ).toEqual({
+      role: 'user',
+      content: 'answer',
+      answered: { questionId: 'question-1', optionIds: ['option-1-1'] },
+    })
   })
 
   it('只挑回放要用的那几样；片子只记地址与帧数，⛔ 帧不存', () => {

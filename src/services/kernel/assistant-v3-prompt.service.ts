@@ -9,9 +9,11 @@ import {
   type AssistantV3Face,
 } from '@/constants/assistant-v3'
 import { assistantV3CanvasNodes } from '@/lib/assistant-v3-board'
+import { renderAssistantV3HistorySummary } from '@/lib/assistant-v3-history'
 import { buildLoraDialectSection } from '@/lib/lora-dialect-section'
 import type { AssistantOperatorRequest } from '@/types/assistant-operator'
 import type { AssistantMemory } from '@/types/assistant-memory'
+import type { AssistantV3HistorySummary } from '@/types/assistant-v3'
 import type {
   AssistantPromptPersona,
   ProjectRule,
@@ -295,6 +297,11 @@ export function buildAssistantV3SystemPrompt(input: {
   /** 助手跨会话记住的那几行（结账记下的）—— 与旧内核同一段。 */
   memories: readonly AssistantMemory[]
   accountName: string | null
+  /**
+   * 这段会话滑出窗口的那几轮的摘要（P2 第三片）：开轮板子上冻的那一份，接力那几跳逐字相同。
+   * 排在记忆之后、板上型号的写法之前（它只在窗口滑的时候变，写法跟着画布上的型号变）。
+   */
+  historySummary: AssistantV3HistorySummary | null
 }): AssistantV3SystemPrompt {
   const { request, persona } = input
   const lora = input.face === ASSISTANT_V3_FACE_IDS.lora
@@ -362,6 +369,6 @@ ${persona.name ? `Your name is ${persona.name}.\n` : ''}Reply in ${language}.${b
     null,
   )}${rulesSection(input.rules)}${buildAssistantMemorySection(
     stableMemoryOrder(input.memories),
-  )}${dialect}`
+  )}${renderAssistantV3HistorySummary(input.historySummary)}${dialect}`
   return { rules, creator, text: `${rules}${creator}` }
 }

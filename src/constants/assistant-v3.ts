@@ -408,6 +408,44 @@ export const ASSISTANT_V3_TRANSCRIPT_SLIM = {
 } as const
 
 /**
+ * 模型看得见的对白（P2 第三片，设计方案 §2.2「历史压缩」）：创作者这一句之前的对话按「轮」分组
+ * （一条 user 起一轮），只发最后几轮 —— **按字数封顶，按块滑**，滑出去的那几轮由后台写成一段
+ * 结构化摘要接在系统提示里（`assistant-v3-history.ts` / `assistant-v3-history.service.ts`）。
+ *
+ * - `maxChars` / `maxMessages`：窗口里对白的总字数与条数上限（条数上限只防一长串一两个字的来回，
+ *   也是本轮记录 `ASSISTANT_TURN_RECORD_LIMITS.maxMessages` 的来源）。
+ * - `blockTurns`：窗口的起点只落在第 0、8、16…… 轮上（从请求里第一轮数起）：两次滑动之间起点不动，
+ *   对白那一段逐字是上一轮的再接两条，缓存吃得到；每轮滑一条的话，历史那一段每轮都整段重算。
+ *   最后一块自己就超了上限（几条很长的）才退到逐轮挪；最近那一轮无论多长都留着。
+ * - 挪过去的那几轮还没有摘要时（后台那一跳还没回来），**多留一轮**：窗口照上一轮的起点、只多出
+ *   新的那一轮；再下一轮摘要还没有就照样滑（那几轮这一轮看不见，后台接着补）。
+ * ⚠ 数是我定的（P2），⛔ 不是 owner 定的；`maxChars` 的取法见 `docs/references/assistant-v3.md`。
+ */
+export const ASSISTANT_V3_HISTORY = {
+  maxChars: 20_000,
+  maxMessages: 48,
+  blockTurns: 8,
+  /**
+   * 摘要（后台那一跳，这一轮的那一家、那个型号、`low` 档，⛔ 不借别家）：
+   * - 四栏（决定 / 偏好 / 没做完的 / 名字与 id）每栏最多 `maxItems` 条、每条 `maxItemChars` 字；
+   * - 原料 = 上一份摘要 + 滑出去的那几轮，每条截到 `sourceMessageChars`；整份还超 `sourceChars` 就把
+   *   每条平分着再截短（⛔ 整轮丢）。厂商报上下文超了，同一家同一型号重发一次，原料截到
+   *   `compactedSourceChars`；
+   * - 每段会话存最近 `keep` 份（最新那份管得比窗口起点还远时 —— 两个标签页各聊各的 —— 退回前一份）；
+   * - 自己的时限 `timeoutMs`，⛔ 不挂这一轮的 signal。
+   */
+  summary: {
+    maxItems: 8,
+    maxItemChars: 240,
+    sourceMessageChars: 4_000,
+    sourceChars: 40_000,
+    compactedSourceChars: 16_000,
+    keep: 3,
+    timeoutMs: 20_000,
+  },
+} as const
+
+/**
  * v3 主步一次最多输出多少 token（P2 第二片，设计方案 §2.3「加 `maxOutputTokens`」）。⚠ 这是兜底的
  * 上限，不是花费：只为拦住失控的长输出（模型绕圈），⛔ 不许低到切掉正常的一步 —— 最长的正常输出是
  * 一次 write 写满几段长提示词（`maxTextChars` 2 万字一段）外加思考；回放里最大的一批调用入参才 433

@@ -4,7 +4,9 @@ import {
   ASSISTANT_V3_FACE_IDS,
   ASSISTANT_V3_LIMITS,
 } from '@/constants/assistant-v3'
+import { ASSISTANT_V3_HISTORY_SUMMARY_HEADING } from '@/lib/assistant-v3-history'
 import type { AssistantOperatorRequest } from '@/types/assistant-operator'
+import type { AssistantV3HistorySummary } from '@/types/assistant-v3'
 import type { AssistantMemory } from '@/types/assistant-memory'
 import type {
   AssistantPromptPersona,
@@ -76,6 +78,7 @@ describe('v3 系统提示 · ASKING', () => {
         rules: [],
         memories: [],
         accountName: null,
+        historySummary: null,
       }).text
       expect(prompt).toContain('ASKING')
       expect(prompt).toContain(
@@ -110,6 +113,7 @@ describe('v3 系统提示 · LOOKING AT PICTURES', () => {
         rules: [],
         memories: [],
         accountName: null,
+        historySummary: null,
       }).text
       expect(prompt).toContain('LOOKING AT PICTURES')
       expect(prompt).toContain(
@@ -157,6 +161,7 @@ describe('v3 系统提示 · WATCHING CLIPS', () => {
         rules: [],
         memories: [],
         accountName: null,
+        historySummary: null,
       }).text
       expect(prompt).toContain('WATCHING CLIPS')
       expect(prompt).toContain('CLIPS THE CREATOR POINTED AT')
@@ -207,6 +212,7 @@ describe('v3 系统提示 · 稳定前缀', () => {
       rules: string[]
       memories: AssistantMemory[]
       accountName: string | null
+      historySummary?: AssistantV3HistorySummary
     },
   ) =>
     buildAssistantV3SystemPrompt({
@@ -226,6 +232,7 @@ describe('v3 系统提示 · 稳定前缀', () => {
       ),
       memories: variant.memories,
       accountName: variant.accountName,
+      historySummary: variant.historySummary ?? null,
     })
   const plain = {
     board: 'board-one',
@@ -244,6 +251,14 @@ describe('v3 系统提示 · 稳定前缀', () => {
     rules: ['always 9:16'],
     memories: [memory('m1', 'likes rain', '2026-10-01T00:00:00.000Z')],
     accountName: 'antei',
+    historySummary: {
+      through: '00000000000abc',
+      turns: 8,
+      decisions: ['whole film in 16:9'],
+      preferences: [],
+      openItems: [],
+      names: [],
+    },
   }
 
   for (const face of Object.values(ASSISTANT_V3_FACE_IDS)) {
@@ -263,6 +278,8 @@ describe('v3 系统提示 · 稳定前缀', () => {
         'board-two',
         'DIALECT',
         'CANVAS GUIDES',
+        'whole film in 16:9',
+        ASSISTANT_V3_HISTORY_SUMMARY_HEADING,
       ])
         expect(b.rules).not.toContain(varying)
       for (const varying of [
@@ -273,6 +290,7 @@ describe('v3 系统提示 · 稳定前缀', () => {
         'ABOUT antei',
         'always 9:16',
         'likes rain',
+        'whole film in 16:9',
       ])
         expect(b.creator).toContain(varying)
       // 板上型号的写法排在最末（每轮都可能变的那一段）。
@@ -280,6 +298,25 @@ describe('v3 系统提示 · 稳定前缀', () => {
         expect(b.creator.trimEnd().endsWith('board-two')).toBe(true)
     })
   }
+
+  it('滑出去那几轮的摘要接在记忆之后、板上型号的写法之前；同一份逐字相同', () => {
+    const one = build(ASSISTANT_V3_FACE_IDS.canvas, personal)
+    const two = build(ASSISTANT_V3_FACE_IDS.canvas, { ...personal })
+    expect(one.text).toBe(two.text)
+    const memoriesAt = one.creator.indexOf('likes rain')
+    const summaryAt = one.creator.indexOf(ASSISTANT_V3_HISTORY_SUMMARY_HEADING)
+    const guideAt = one.creator.lastIndexOf('board-two')
+    expect(memoriesAt).toBeGreaterThan(-1)
+    expect(summaryAt).toBeGreaterThan(memoriesAt)
+    expect(guideAt).toBeGreaterThan(summaryAt)
+    expect(one.creator).toContain(
+      `${ASSISTANT_V3_HISTORY_SUMMARY_HEADING} — the first 8 turns of this conversation are no longer shown below`,
+    )
+    // 没有摘要就没有这一段。
+    expect(build(ASSISTANT_V3_FACE_IDS.canvas, plain).text).not.toContain(
+      ASSISTANT_V3_HISTORY_SUMMARY_HEADING,
+    )
+  })
 
   it('记忆按记下的先后排，⛔ 不随查出来的顺序变', () => {
     const older = memory('m1', 'likes rain', '2026-10-01T00:00:00.000Z')

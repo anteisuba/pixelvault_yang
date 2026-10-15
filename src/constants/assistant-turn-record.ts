@@ -16,6 +16,8 @@
  * ⛔ 不悄悄截。
  */
 
+import { ASSISTANT_V3_HISTORY } from '@/constants/assistant-v3'
+
 export const ASSISTANT_TURN_RECORD_LIMITS = {
   /** 每行上限：`input` + `snapshot` + `transcript` 三段 JSON 的 UTF-8 字节（owner：每行不超过 256KB）。 */
   maxRowBytes: 256 * 1024,
@@ -23,8 +25,11 @@ export const ASSISTANT_TURN_RECORD_LIMITS = {
   retentionDays: 30,
   /** 每人最多留几轮（owner：每人最近 200 条）。写时顺手删这个人超出的。 */
   maxRowsPerUser: 200,
-  /** 存几条对话：v3 发给模型的历史最多 24 条，再加这一轮这一句。 */
-  maxMessages: 25,
+  /**
+   * 存几条对话：只存模型这一轮看见的那几条（开轮板子上的 `history.turns`）再加这一句；v3 发给模型的
+   * 对白最多 `ASSISTANT_V3_HISTORY.maxMessages` 条，这里跟着那边走（⛔ 不是 owner 定的数）。
+   */
+  maxMessages: ASSISTANT_V3_HISTORY.maxMessages + 1,
   /** 一轮最多几跳（画布接力 + 时间预算接力）。前端的步数上限是 16，这里只防伪造的号。 */
   maxHops: 64,
   /** 截的时候留多少字：板子正文、工具结果、对话里的一句、模型正文。 */

@@ -13,6 +13,7 @@ import {
   ASSISTANT_V3_EDIT_OP_IDS,
   ASSISTANT_V3_IMAGE_EDIT_OP_IDS,
   ASSISTANT_V3_CLIP_LIMITS,
+  ASSISTANT_V3_HISTORY,
   ASSISTANT_V3_LIMITS,
   ASSISTANT_V3_LORA_EDIT_OP_IDS,
   ASSISTANT_V3_LORA_SEARCH_KIND,
@@ -806,6 +807,65 @@ export const AssistantV3ClipRefSchema = AssistantV3PictureRefSchema.extend({
 })
 export type AssistantV3ClipRef = z.infer<typeof AssistantV3ClipRefSchema>
 
+/**
+ * 滑出窗口的那几轮留下的摘要（P2 第三片，设计方案 §2.2）：四栏结论 + 它管到哪一轮为止。
+ * - `through`：它管到的最后一轮的指纹（`assistantV3TurnFingerprint`）。⭐ 认的是那一轮的字，
+ *   ⛔ 不是第几轮：刷新之后前端只重带最后几条，请求里第几轮就对不上了。
+ * - `turns`：这一份一共管了几轮（一份接一份累计）。
+ * 存在会话上（`assistant-v3-history-store.service.ts`），开轮那一跳冻进板子（`history.summary`）。
+ */
+const HistorySummaryItemsSchema = z
+  .array(z.string().min(1).max(ASSISTANT_V3_HISTORY.summary.maxItemChars))
+  .max(ASSISTANT_V3_HISTORY.summary.maxItems)
+
+export const AssistantV3HistorySummarySchema = z.object({
+  through: z.string().min(1).max(32),
+  turns: z.number().int().min(1),
+  decisions: HistorySummaryItemsSchema,
+  preferences: HistorySummaryItemsSchema,
+  openItems: HistorySummaryItemsSchema,
+  names: HistorySummaryItemsSchema,
+})
+export type AssistantV3HistorySummary = z.infer<
+  typeof AssistantV3HistorySummarySchema
+>
+
+/** 会话上存的那几份（最旧的在前，最多 `keep` 份）。 */
+export const AssistantV3HistorySummariesSchema = z
+  .array(AssistantV3HistorySummarySchema)
+  .max(ASSISTANT_V3_HISTORY.summary.keep)
+
+/**
+ * 后台那一跳模型回的原样（宽松：缺栏 / 不是数组当空、多的栏不认、写成对象的那一条拼成一行）。条数、字数、去重由
+ * `normalizeAssistantV3HistorySummary` 收拾，⛔ 不在这里拒 —— 拒了就白跑一次。
+ */
+const HistorySummaryDraftItemsSchema = z
+  .array(
+    z.unknown().transform((item) =>
+      typeof item === 'string'
+        ? item
+        : typeof item === 'object' && item !== null
+          ? Object.values(item)
+              .filter(
+                (value): value is string | number =>
+                  typeof value === 'string' || typeof value === 'number',
+              )
+              .join(' — ')
+          : '',
+    ),
+  )
+  .catch([])
+
+export const AssistantV3HistorySummaryDraftSchema = z.object({
+  decisions: HistorySummaryDraftItemsSchema,
+  preferences: HistorySummaryDraftItemsSchema,
+  openItems: HistorySummaryDraftItemsSchema,
+  names: HistorySummaryDraftItemsSchema,
+})
+export type AssistantV3HistorySummaryDraft = z.infer<
+  typeof AssistantV3HistorySummaryDraftSchema
+>
+
 export const AssistantV3TranscriptBoardEntrySchema = z.object({
   type: z.literal(ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.board),
   text: z.string().max(ASSISTANT_V3_LIMITS.maxBoardChars),
@@ -835,6 +895,24 @@ export const AssistantV3TranscriptBoardEntrySchema = z.object({
   finds: z
     .array(AssistantWebFindSchema)
     .max(ASSISTANT_WEB_FIND_LIMITS.maxCarried)
+    .optional(),
+  /**
+   * 这一轮模型看见的对白（P2 第三片）：开轮那一跳定下，接力时前端原样带回 —— 每一跳的对白与摘要
+   * 因此逐字相同（中途后台写好了新摘要也不换）。
+   * - `turns`：发了最后几轮（从创作者这一句往前数；⭐ 从后往前数，前端少带了前面几条也不变）；
+   * - `summary`：接在系统提示里的那一份（没有 = 这一轮不带摘要）。
+   * 缺席 = 老客户端带回来的记录（它的 schema 不认这一格、剥掉了）：照开轮那样现算。
+   */
+  history: z
+    .object({
+      // 每轮至少一条，窗口（含多留的那一轮）最多 `maxMessages` 条；多给一格只是余量。
+      turns: z
+        .number()
+        .int()
+        .min(0)
+        .max(ASSISTANT_V3_HISTORY.maxMessages + 1),
+      summary: AssistantV3HistorySummarySchema.optional(),
+    })
     .optional(),
 })
 

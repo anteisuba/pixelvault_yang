@@ -12,14 +12,24 @@ import { useCallback, useSyncExternalStore } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
+import { ImageOff } from '@/components/icons'
 import { DURATION, EASE_POP } from '@/constants/motion'
+import { useThirdPartyImage } from '@/hooks/use-third-party-image'
 
 interface LightboxState {
   url: string | null
   caption: string | null
+  /** 第三方网图（助手找图）：不带 Referer、能走热链代理就走、取不到退到 `fallbackUrl`。 */
+  thirdParty: boolean
+  fallbackUrl: string | null
 }
 
-const CLOSED: LightboxState = { url: null, caption: null }
+const CLOSED: LightboxState = {
+  url: null,
+  caption: null,
+  thirdParty: false,
+  fallbackUrl: null,
+}
 
 let state: LightboxState = CLOSED
 const listeners = new Set<() => void>()
@@ -36,8 +46,26 @@ function subscribe(listener: () => void): () => void {
   }
 }
 
-export function openOperatorLightbox(url: string, caption?: string): void {
-  emit({ url, caption: caption ?? null })
+export interface OperatorLightboxOptions {
+  /**
+   * 这张是**第三方网图**（附录 I §3.4）：自家 R2 / CDN 的图别传 —— 那些不需要改写。
+   * 原图三成取不到，`fallbackUrl`（通常是搜索结果的缩略图）兜底，先给看小图。
+   */
+  thirdParty?: boolean
+  fallbackUrl?: string
+}
+
+export function openOperatorLightbox(
+  url: string,
+  caption?: string,
+  options?: OperatorLightboxOptions,
+): void {
+  emit({
+    url,
+    caption: caption ?? null,
+    thirdParty: options?.thirdParty ?? false,
+    fallbackUrl: options?.fallbackUrl ?? null,
+  })
 }
 
 export function closeOperatorLightbox(): void {
@@ -83,15 +111,24 @@ export function StudioOperatorLightbox() {
             }}
             className="relative max-h-full w-full max-w-3xl overflow-hidden rounded-2xl shadow-lg"
           >
-            {/* ⚠ `unoptimized` 是全局默认（`next.config` 关了优化），这里跟着走 ——
-                写 `sizes` / `quality` 在本仓是死配置（台账：next/image 全局关了优化）。 */}
-            <Image
-              src={lightbox.url}
-              alt={lightbox.caption ?? t('lightboxLabel')}
-              width={1024}
-              height={1024}
-              className="h-auto max-h-full w-full object-contain"
-            />
+            {lightbox.thirdParty ? (
+              <ThirdPartyLightboxImage
+                url={lightbox.url}
+                fallbackUrl={lightbox.fallbackUrl}
+                alt={lightbox.caption ?? t('lightboxLabel')}
+                unavailableLabel={t('web.previewUnavailable')}
+              />
+            ) : (
+              /* ⚠ `unoptimized` 是全局默认（`next.config` 关了优化），这里跟着走 ——
+                 写 `sizes` / `quality` 在本仓是死配置（台账：next/image 全局关了优化）。 */
+              <Image
+                src={lightbox.url}
+                alt={lightbox.caption ?? t('lightboxLabel')}
+                width={1024}
+                height={1024}
+                className="h-auto max-h-full w-full object-contain"
+              />
+            )}
           </motion.div>
           {lightbox.caption ? (
             <span className="pointer-events-none mt-4 text-2sm text-background/80">
@@ -101,5 +138,43 @@ export function StudioOperatorLightbox() {
         </motion.div>
       ) : null}
     </>
+  )
+}
+
+/** 第三方网图的大图：⛔ 不带我们的 Referer；全都取不到时画占位，⛔ 不出破图标。 */
+function ThirdPartyLightboxImage({
+  url,
+  fallbackUrl,
+  alt,
+  unavailableLabel,
+}: {
+  url: string
+  fallbackUrl: string | null
+  alt: string
+  unavailableLabel: string
+}) {
+  const image = useThirdPartyImage(url, fallbackUrl)
+  if (!image.src) {
+    return (
+      <div
+        data-testid="operator-lightbox-unavailable"
+        className="grid aspect-square w-full place-items-center gap-2 bg-muted p-8 text-2sm text-muted-foreground"
+      >
+        <ImageOff className="size-6" />
+        <span>{unavailableLabel}</span>
+      </div>
+    )
+  }
+  return (
+    <Image
+      key={image.src}
+      src={image.src}
+      alt={alt}
+      width={1024}
+      height={1024}
+      referrerPolicy={image.referrerPolicy}
+      onError={image.onError}
+      className="h-auto max-h-full w-full object-contain"
+    />
   )
 }

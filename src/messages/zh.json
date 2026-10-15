@@ -8376,6 +8376,7 @@
       "pickHint": "点图看大图（不下载）· 点「选用」才收进素材库并挂上",
       "selectedHint": "已选 {count}/{limit} · 再点「选用」= 取消并从素材库清掉；选满后再选会换掉最早那张",
       "viewLarge": "看大图",
+      "previewUnavailable": "这张图从原站取不到",
       "use": "选用",
       "used": "已选用",
       "retry": "重试",

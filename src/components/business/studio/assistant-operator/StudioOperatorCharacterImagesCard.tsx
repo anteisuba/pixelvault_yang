@@ -6,7 +6,9 @@ import { useTranslations } from 'next-intl'
 import { STUDIO_OPERATOR_CONFIRM_STATUS_IDS } from '@/constants/studio-assistant-operator'
 import type { ASSISTANT_OPERATOR_CONFIRM_KIND_IDS } from '@/constants/assistant-operator'
 import type { StudioOperatorConfirmPrompt } from '@/types/studio-assistant-operator'
+import { ImageOff } from '@/components/icons'
 import { openOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
+import { useThirdPartyImage } from '@/hooks/use-third-party-image'
 import { cn } from '@/lib/utils'
 
 /**
@@ -136,16 +138,23 @@ export function StudioOperatorCharacterImagesCard({
                 <button
                   type="button"
                   aria-label={t('web.viewLarge')}
-                  onClick={() => openOperatorLightbox(image.url, image.reason)}
+                  onClick={() =>
+                    openOperatorLightbox(
+                      image.url,
+                      image.reason,
+                      image.source === 'web'
+                        ? {
+                            thirdParty: true,
+                            ...(image.thumbnailUrl
+                              ? { fallbackUrl: image.thumbnailUrl }
+                              : {}),
+                          }
+                        : undefined,
+                    )
+                  }
                   className="size-14 shrink-0 cursor-zoom-in overflow-hidden rounded-lg border border-border bg-muted"
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element -- 网上那几张是任意第三方图床，进不了 next.config 的 remotePatterns（同联网候选网格）。 */}
-                  <img
-                    src={image.thumbnailUrl ?? image.url}
-                    alt=""
-                    loading="lazy"
-                    className="size-full object-cover"
-                  />
+                  <CharacterImageThumb image={image} />
                 </button>
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
                   <label
@@ -200,5 +209,46 @@ export function StudioOperatorCharacterImagesCard({
         </div>
       </fieldset>
     </section>
+  )
+}
+
+type CharacterImageCandidate =
+  CharacterImagesPrompt['proposal']['images'][number]
+
+/**
+ * 一格缩略图。网上那几张是**第三方网图**：⛔ 不带我们的 Referer、能代理就代理、取不到
+ * 退到原图再退到占位（`useThirdPartyImage`）；素材库那几张是自家的图，照原样取。
+ */
+function CharacterImageThumb({ image }: { image: CharacterImageCandidate }) {
+  const web = image.source === 'web'
+  const thirdParty = useThirdPartyImage(
+    ...(web ? [image.thumbnailUrl, image.url] : []),
+  )
+  const src = web ? thirdParty.src : (image.thumbnailUrl ?? image.url)
+  if (!src) {
+    return (
+      <span
+        aria-hidden
+        className="grid size-full place-items-center text-muted-foreground"
+      >
+        <ImageOff className="size-4" />
+      </span>
+    )
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- 网上那几张是任意第三方图床，进不了 next.config 的 remotePatterns（同联网候选网格）。
+    <img
+      key={src}
+      src={src}
+      alt=""
+      loading="lazy"
+      {...(web
+        ? {
+            referrerPolicy: thirdParty.referrerPolicy,
+            onError: thirdParty.onError,
+          }
+        : {})}
+      className="size-full object-cover"
+    />
   )
 }

@@ -107,6 +107,21 @@ export const WEB_IMAGE_SOURCE_HOTLINK_LIST = [
 ] as const
 
 /**
+ * **浏览器看图时走自家热链代理的图床**（助手找图，2026-10-15）。
+ *
+ * ⭐ 面板里的网图一律 `referrerPolicy="no-referrer"` 直连，多数图床就放行了；这几家
+ * 连**空** Referer 也拒（pixiv 最出名），只能由 `workers/civitai-image-proxy` 的
+ * `/hotlink/` 那一支带上它们自己站内的 Referer 去取。
+ * ⚠ 这是上面 `WEB_IMAGE_SOURCE_HOTLINK_LIST` 的**子集**，而且只收**图床**域（页面域
+ *   不会出现在 `<img src>` 里）。Worker 那边的 `HOTLINK_HOSTS` 是同一张表 —— 两处一起改。
+ * ⚠ 只管「看」：转存（`web-image-import`）是服务端直取，这张表不让它取得回来。
+ */
+export const WEB_IMAGE_HOTLINK_PROXY = {
+  pathPrefix: '/hotlink',
+  hosts: ['pximg.net', 'hdslb.com', 'sinaimg.cn'],
+} as const
+
+/**
  * 发布方就是权利方的站——官方 wiki / 官方社区 / 自由许可百科。
  *
  * ⚠ 命中它只意味着「出处是清楚的」，⛔ 不意味着「随便用」：维基上的图各有各的

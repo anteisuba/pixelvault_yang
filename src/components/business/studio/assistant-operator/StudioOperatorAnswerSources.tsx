@@ -19,8 +19,8 @@
  * ⛔ **不画空壳**：一条资料都没有就整块不渲染（同「无数据不渲染」那条判据）。
  */
 
-import { useRef } from 'react'
-import { Globe, Pin, Play } from '@/components/icons'
+import { useRef, useState } from 'react'
+import { Globe, ImageOff, Pin, Play } from '@/components/icons'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 
@@ -31,6 +31,8 @@ import {
 import { cn } from '@/lib/utils'
 import type { StudioOperatorStepEntry } from '@/types/studio-assistant-operator'
 import { flyCloneToTarget } from '@/lib/fly-to-composer'
+import { siteFaviconUrl } from '@/lib/third-party-image-url'
+import { useThirdPartyImage } from '@/hooks/use-third-party-image'
 import { openOperatorLightbox } from './StudioOperatorLightbox'
 
 /**
@@ -204,61 +206,7 @@ export function StudioOperatorAnswerSources({
           className="flex min-w-0 gap-1.5 overflow-x-auto pb-0.5"
         >
           {media.map((source) => (
-            <button
-              key={`media-${source.cite}`}
-              type="button"
-              data-testid="operator-answer-media-item"
-              data-kind={source.kind}
-              data-cite={source.cite}
-              title={source.title}
-              onClick={() => {
-                /**
-                 * ⭐ **两种点击，两个去处**：图片开站内灯箱（就在这一页看大图），
-                 * 视频开新窗口跳原站。⛔ 不把视频也塞进灯箱 —— 灯箱里是一张静止的
-                 * 封面，而用户点它是想看那一段。
-                 */
-                if (source.kind === 'video') {
-                  if (source.url) {
-                    window.open(source.url, '_blank', 'noopener,noreferrer')
-                  }
-                  return
-                }
-                if (source.mediaUrl) {
-                  openOperatorLightbox(source.mediaUrl, source.title)
-                }
-              }}
-              className="relative size-[62px] shrink-0 overflow-hidden rounded-lg border border-border bg-muted transition-opacity duration-fast ease-standard hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none"
-            >
-              <Image
-                src={source.mediaUrl as string}
-                alt={source.title}
-                width={124}
-                height={124}
-                unoptimized
-                className="size-full object-cover"
-              />
-              {source.kind === 'video' ? (
-                <>
-                  <span
-                    aria-hidden
-                    className="absolute inset-0 grid place-items-center"
-                  >
-                    <span className="grid size-6 place-items-center rounded-full bg-foreground/55">
-                      <Play className="size-3 text-background" />
-                    </span>
-                  </span>
-                  {/* 时长取不到就整枚不画（⛔ 不写「0:00」）。 */}
-                  {source.durationSeconds ? (
-                    <span
-                      data-testid="operator-answer-media-duration"
-                      className="absolute bottom-0.5 right-0.5 rounded bg-foreground/55 px-1 font-mono text-2xs tabular-nums text-background"
-                    >
-                      {formatSourceDuration(source.durationSeconds)}
-                    </span>
-                  ) : null}
-                </>
-              ) : null}
-            </button>
+            <AnswerMediaItem key={`media-${source.cite}`} source={source} />
           ))}
         </div>
       ) : null}
@@ -274,7 +222,10 @@ export function StudioOperatorAnswerSources({
           const body = (
             <>
               <span className="flex items-center gap-1 text-muted-foreground">
-                <Globe className="size-2.5 shrink-0" aria-hidden />
+                <SourceSiteIcon
+                  key={siteFaviconUrl(source.url) ?? 'none'}
+                  url={source.url}
+                />
                 <span className="truncate text-2xs tracking-nav">
                   {source.publisher}
                 </span>
@@ -360,5 +311,117 @@ export function StudioOperatorAnswerSources({
         </div>
       ) : null}
     </div>
+  )
+}
+
+/**
+ * 媒体条里的一格。图是**第三方网图**：⛔ 不带我们的 Referer，能走热链代理就走
+ * （`useThirdPartyImage`）；全都取不到就画一格灰底断图标，⛔ 不出破图标。
+ */
+function AnswerMediaItem({ source }: { source: StudioOperatorAnswerSource }) {
+  const image = useThirdPartyImage(source.mediaUrl)
+  return (
+    <button
+      type="button"
+      data-testid="operator-answer-media-item"
+      data-kind={source.kind}
+      data-cite={source.cite}
+      title={source.title}
+      onClick={() => {
+        /**
+         * ⭐ **两种点击，两个去处**：图片开站内灯箱（就在这一页看大图），
+         * 视频开新窗口跳原站。⛔ 不把视频也塞进灯箱 —— 灯箱里是一张静止的
+         * 封面，而用户点它是想看那一段。
+         */
+        if (source.kind === 'video') {
+          if (source.url) {
+            window.open(source.url, '_blank', 'noopener,noreferrer')
+          }
+          return
+        }
+        if (source.mediaUrl) {
+          openOperatorLightbox(source.mediaUrl, source.title, {
+            thirdParty: true,
+          })
+        }
+      }}
+      className="relative size-[62px] shrink-0 overflow-hidden rounded-lg border border-border bg-muted transition-opacity duration-fast ease-standard hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none"
+    >
+      {image.src ? (
+        <Image
+          key={image.src}
+          src={image.src}
+          alt={source.title}
+          width={124}
+          height={124}
+          unoptimized
+          referrerPolicy={image.referrerPolicy}
+          onError={image.onError}
+          className="size-full object-cover"
+        />
+      ) : (
+        <span
+          aria-hidden
+          data-testid="operator-answer-media-unavailable"
+          className="grid size-full place-items-center text-muted-foreground"
+        >
+          <ImageOff className="size-4" />
+        </span>
+      )}
+      {source.kind === 'video' ? (
+        <>
+          <span
+            aria-hidden
+            className="absolute inset-0 grid place-items-center"
+          >
+            <span className="grid size-6 place-items-center rounded-full bg-foreground/55">
+              <Play className="size-3 text-background" />
+            </span>
+          </span>
+          {/* 时长取不到就整枚不画（⛔ 不写「0:00」）。 */}
+          {source.durationSeconds ? (
+            <span
+              data-testid="operator-answer-media-duration"
+              className="absolute bottom-0.5 right-0.5 rounded bg-foreground/55 px-1 font-mono text-2xs tabular-nums text-background"
+            >
+              {formatSourceDuration(source.durationSeconds)}
+            </span>
+          ) : null}
+        </>
+      ) : null}
+    </button>
+  )
+}
+
+/**
+ * 来源卡上的站点图标（附录 I §4.3）：那个站自己的 `/favicon.ico`，⛔ 不带 Referer；
+ * 没有地址或取不到就回到地球图标。⛔ 不走第三方 favicon 服务（见 `siteFaviconUrl`）。
+ * 调用方按图标地址给 `key`：换了一条来源就从头试，失败态不串到下一张卡。
+ */
+function SourceSiteIcon({ url }: { url?: string }) {
+  const favicon = siteFaviconUrl(url)
+  const [failed, setFailed] = useState(false)
+  if (!favicon || failed) {
+    return (
+      <Globe
+        className="size-3 shrink-0"
+        aria-hidden
+        data-testid="operator-answer-source-globe"
+      />
+    )
+  }
+  return (
+    <Image
+      src={favicon}
+      alt=""
+      aria-hidden
+      width={12}
+      height={12}
+      unoptimized
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+      data-testid="operator-answer-source-favicon"
+      className="size-3 shrink-0 rounded-sm"
+    />
   )
 }

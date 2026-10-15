@@ -8376,6 +8376,7 @@
       "pickHint": "Click an image to preview it. Choose Use to save it to your library and attach it.",
       "selectedHint": "{count}/{limit} chosen · press Use again to drop one and delete it from your library; when full, the next one replaces the oldest",
       "viewLarge": "View full size",
+      "previewUnavailable": "This image could not be loaded from its site",
       "use": "Use",
       "used": "In use",
       "retry": "Retry",

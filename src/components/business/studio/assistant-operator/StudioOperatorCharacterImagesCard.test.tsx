@@ -76,6 +76,28 @@ describe('StudioOperatorCharacterImagesCard（候选图卡）', () => {
     expect(onKeep).toHaveBeenCalledWith(['asset:gen-1'])
   })
 
+  it('⭐ 网上那张缩略图⛔ 不带 Referer、全取不到画占位；素材库那张照原样取', () => {
+    const { container } = render(
+      <NextIntlClientProvider locale="zh" messages={zhMessages}>
+        <StudioOperatorCharacterImagesCard
+          prompt={PROMPT}
+          characterName="Denia"
+          assistantName="达妮娅"
+          onKeep={vi.fn()}
+          onDismiss={vi.fn()}
+          formatTime={() => '11:24'}
+        />
+      </NextIntlClientProvider>,
+    )
+    const [library, web] = Array.from(container.querySelectorAll('img'))
+    expect(library?.getAttribute('src')).toBe('https://cdn.test/1.png')
+    expect(library?.hasAttribute('referrerpolicy')).toBe(false)
+    expect(web?.getAttribute('src')).toBe('https://cdn.test/full.jpg')
+    expect(web?.getAttribute('referrerpolicy')).toBe('no-referrer')
+    fireEvent.error(web as HTMLImageElement)
+    expect(container.querySelectorAll('img')).toHaveLength(1)
+  })
+
   it('一张都不勾时「挂上」点不了；「不用」交给驱动 hook', () => {
     const { onDismiss } = renderImages()
     fireEvent.click(screen.getByLabelText('正面半身，脸清楚'))

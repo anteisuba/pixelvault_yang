@@ -960,7 +960,7 @@ describe('v3 内核', () => {
   })
 
   it('look：图交到主模型眼前，只附给紧跟着的那一步；⛔ 不另起看图子调用', async () => {
-    preparedOnce(OPENAI, [HARRY_PNG, GOYLE_PNG])
+    const run = preparedOnce(OPENAI, [HARRY_PNG, GOYLE_PNG])
     served.set(HARRY_PNG, 'png')
     served.set(GOYLE_PNG, 'png')
     const mock = script(
@@ -980,6 +980,8 @@ describe('v3 内核', () => {
         } as Partial<AssistantOperatorRequest>),
       ),
     )
+    // ⛔ 写词 / 出图前也不另看参考图（五张脸都设）。
+    expect(run.skipReferenceReview).toBe(true)
     expect(critique).not.toHaveBeenCalled()
     expect(plan).not.toHaveBeenCalled()
 
@@ -1511,8 +1513,8 @@ describe('v3 内核 · LoRA 台', () => {
     expect(legacy).not.toHaveBeenCalled()
   })
 
-  it('look sample 只指给板子上那张，⛔ 不重附', async () => {
-    preparedWith('typhoeus, 1girl', 'gpt-6-luna')
+  it('写词不另看参考图（skipReferenceReview）；look sample 只指给板子上那张，⛔ 不重附', async () => {
+    const run = preparedWith('typhoeus, 1girl', 'gpt-6-luna')
     served.set(SAMPLE, 'png')
     const mock = script(
       toolTurn({
@@ -1523,6 +1525,7 @@ describe('v3 内核 · LoRA 台', () => {
       textTurn('像。'),
     )
     await collect(runAssistantV3('clerk-1', loraRequest('和示例画风像吗')))
+    expect(run.skipReferenceReview).toBe(true)
     expect(critique).not.toHaveBeenCalled()
     expect(plan).not.toHaveBeenCalled()
     const next = mock.doStreamCalls[1]!

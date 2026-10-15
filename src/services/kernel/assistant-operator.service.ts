@@ -823,8 +823,9 @@ interface OperatorRun {
   } | null
   referencePromptWritten: boolean
   /**
-   * v3 图片台：写提示词不走「参考图证据简报」那道闸 —— v3 的模型自己用 look 看图再写
-   * （S6 第二张脸，2026-10-10）。
+   * v3（五张脸都设）：写提示词、出图前⛔ 不另起一次看参考图的子调用 —— 图片台的证据简报、
+   * LoRA 台的参考图补读、画布的 `checkCanvasReferencePrompt` 都跳过，v3 的模型自己用 look
+   * 看图再写（图片台 2026-10-10；全部 owner 2026-10-15「不要求很严的表，让模型自己去看去判断」）。
    */
   skipReferenceReview: boolean
   /** NAI 标签核对查不到的已经退回给模型改写过一次（拆分与反推 B3）。 */
@@ -4652,11 +4653,11 @@ async function planSetText(
 
   if (isPrompt && run.request.domain === 'lora') {
     const needed = requiredReferenceIndices(run, args.value)
-    if (!hasVisualEvidence(run, needed)) {
+    if (!run.skipReferenceReview && !hasVisualEvidence(run, needed)) {
       const unread = await readMissingReferenceEvidence(run, userId, needed)
       if (unread) return unread
     }
-    if (!hasVisualEvidence(run, needed)) {
+    if (!run.skipReferenceReview && !hasVisualEvidence(run, needed)) {
       return reject(
         REJECT.referenceAnalysisRequired,
         needed.length
@@ -7701,6 +7702,8 @@ async function checkCanvasReferencePrompt(
   node: AssistantOperatorCanvasNode,
   userId: string,
 ): Promise<ToolPlan | null> {
+  // v3：⛔ 写词 / 出图前不另看参考图，模型自己 look（见 `skipReferenceReview`）。
+  if (run.skipReferenceReview) return null
   if (node.kind !== 'image' || node.referenceUrls?.length === 0) return null
   if (
     node.reviewContextComplete !== true ||

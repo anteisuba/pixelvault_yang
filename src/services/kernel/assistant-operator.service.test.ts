@@ -487,6 +487,8 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { logger } from '@/lib/logger'
 import {
   buildCharacterReminder,
+  planTool,
+  prepareOperatorTurn,
   runAssistantOperator,
 } from '@/services/kernel/assistant-operator.service'
 import {
@@ -13515,6 +13517,35 @@ describe('current reference image bindings', () => {
     )
   })
 
+  it.each(['image', 'lora'] as const)(
+    'v3（skipReferenceReview）在 %s 台写词：⛔ 不补读参考图、不起简报',
+    async (domain) => {
+      queueTurns()
+      const prepared = await prepareOperatorTurn(
+        'clerk-1',
+        buildRequest({
+          domain,
+          messages: [{ role: 'user', content: '按参考写一段提示词' }],
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+        new AbortController().signal,
+      )
+      prepared.run.skipReferenceReview = true
+      mockLlmTextCompletion.mockClear()
+      const write = await planTool(
+        prepared.run,
+        ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+        {
+          value: 'two characters embracing, white background',
+          overwrite: true,
+        },
+        prepared.user.id,
+      )
+      expect(write.kind).toBe('mutate')
+      expect(mockLlmTextCompletion).not.toHaveBeenCalled()
+    },
+  )
+
   describe('canvas target reference checks', () => {
     const targetUrls = [refs[2]!.url, refs[0]!.url]
     const targetNode: AssistantOperatorCanvasNode = {
@@ -13595,6 +13626,42 @@ describe('current reference image bindings', () => {
         String(input.systemPrompt).includes(prefix),
       )
     }
+
+    it('v3（skipReferenceReview）：写词与出图前⛔ 不另看参考图 —— 不分析、不简报、不补图例', async () => {
+      queueTurns()
+      const prepared = await prepareOperatorTurn(
+        'clerk-1',
+        canvasRequest(),
+        new AbortController().signal,
+      )
+      prepared.run.skipReferenceReview = true
+      mockLlmTextCompletion.mockClear()
+      const write = await planTool(
+        prepared.run,
+        ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+        {
+          op: 'set_prompt',
+          target: targetNode.id,
+          prompt: 'Single half-body portrait.',
+          mode: 'replace',
+        },
+        prepared.user.id,
+      )
+      expect(write).toMatchObject({
+        kind: 'mutate',
+        payload: expect.objectContaining({
+          prompt: 'Single half-body portrait.',
+        }),
+      })
+      const generate = await planTool(
+        prepared.run,
+        ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate,
+        { target: targetNode.id },
+        prepared.user.id,
+      )
+      expect(generate.kind).toBe('confirmGenerate')
+      expect(mockLlmTextCompletion).not.toHaveBeenCalled()
+    })
 
     it('briefs only the target actual references in their submission order, excluding unrelated attachments and cached nodes', async () => {
       queueTurns(writeTurn('Single half-body portrait.'), targetBrief)

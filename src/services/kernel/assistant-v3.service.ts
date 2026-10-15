@@ -820,7 +820,11 @@ async function* runV3Turn(
     yield* runOperatorTurn(clerkId, request, options, prepared)
     return
   }
-  if (face === ASSISTANT_V3_FACE_IDS.image) run.skipReferenceReview = true
+  /**
+   * ⭐ 五张脸写词、出图都不另起一次看参考图的子调用（owner 2026-10-15「不要求很严的表，
+   *   让模型自己去看去判断」）：要看就用 look，图交到主模型眼前。
+   */
+  run.skipReferenceReview = true
 
   const nodes = canvas ? assistantV3CanvasNodes(canvas) : []
   const handles =

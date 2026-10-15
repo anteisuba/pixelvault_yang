@@ -35,11 +35,6 @@ function scrollTo(y: number) {
 describe('GalleryHeader', () => {
   beforeEach(() => {
     Object.defineProperty(window, 'scrollY', { value: 0, configurable: true })
-    window.matchMedia = vi.fn().mockReturnValue({
-      matches: true,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    })
     globalThis.ResizeObserver = class {
       observe() {}
       unobserve() {}
@@ -88,12 +83,14 @@ describe('GalleryHeader', () => {
     expect(container.firstElementChild).not.toHaveAttribute('data-collapsed')
   })
 
-  it('does not collapse on narrow screens where the bar is not sticky', () => {
-    window.matchMedia = vi.fn().mockReturnValue({ matches: false })
+  it('reopens when the collapsed line is tapped', () => {
     const { container } = render(
       <GalleryHeader filters={FILTERS} onFiltersChange={vi.fn()} />,
     )
+    const bar = container.firstElementChild as HTMLElement
     scrollTo(600)
-    expect(container.firstElementChild).not.toHaveAttribute('data-collapsed')
+    expect(bar).toHaveAttribute('data-collapsed')
+    fireEvent.click(bar.firstElementChild as HTMLElement)
+    expect(bar).not.toHaveAttribute('data-collapsed')
   })
 })

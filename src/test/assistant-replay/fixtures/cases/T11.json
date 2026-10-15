@@ -7,20 +7,12 @@
     {
       "routeModel": "gemini-3.8-flash",
       "keys": ["gemini", "openai", "anthropic"],
-      "expect": {
-        "adapterType": "gemini",
-        "modelId": "gemini-3.8-flash",
-        "backgroundModelId": "gemini-3.5-flash-lite"
-      }
+      "expect": { "adapterType": "gemini", "modelId": "gemini-3.8-flash" }
     },
     {
       "routeModel": "auto",
       "keys": ["openai", "anthropic", "xai"],
-      "expect": {
-        "adapterType": "openai",
-        "modelId": "gpt-6-luna",
-        "backgroundModelId": "gpt-6-luna"
-      }
+      "expect": { "adapterType": "openai", "modelId": "gpt-6-luna" }
     }
   ],
   "turn": {

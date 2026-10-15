@@ -7,11 +7,7 @@
     {
       "routeModel": "gemini-3.8-flash",
       "keys": ["gemini", "openai"],
-      "expect": {
-        "adapterType": "gemini",
-        "modelId": "gemini-3.8-flash",
-        "backgroundModelId": "gemini-3.5-flash-lite"
-      }
+      "expect": { "adapterType": "gemini", "modelId": "gemini-3.8-flash" }
     }
   ],
   "turn": {

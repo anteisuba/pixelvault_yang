@@ -122,11 +122,7 @@ import {
   overwriteAnswerId,
   type ProjectRuleKindId,
 } from '@/constants/assistant-operator'
-import {
-  ASSISTANT_BACKGROUND_MODEL_IDS,
-  assistantAdapterSupportsImage,
-  isAssistantProvider,
-} from '@/constants/assistant'
+import { assistantAdapterSupportsImage } from '@/constants/assistant'
 import { planVideoEndpointFrames } from '@/lib/video-frame-plan'
 import {
   ASSISTANT_DOMAIN_BRIEFS,
@@ -12569,8 +12565,8 @@ export async function closeRoundV3BeforeStop(
  * 形状：立刻开跑，`after` 只让函数等它跑完再退（不在请求作用域里 —— 脚本 / 测试 —— 时它已经在跑了）。
  *
  * ⚠ 原料在这里一次取完：后台那一跳 ⛔ 不回头读 `run` 上会变的东西。
- * ⚠ 型号：同一家的快档（`ASSISTANT_BACKGROUND_MODEL_IDS`，⛔ 不换家、不换 key），那一家没有就用
- *   这一轮的型号；档位 `low` —— 这一跳只读几段原料、写几行字。
+ * ⚠ 型号：**这一轮的那一家、那个型号、那把 key**（owner「全跟助手」：小功能跟助手，同一家
+ *   也 ⛔ 换快档）；档位 `low` —— 这一跳只读几段原料、写几行字（各家怎么落由 `llm-text` 定）。
  * ⚠ 自己的时限（`extractionTimeoutMs`），⛔ 不挂 `run.signal`：创作者在 `done` 之后关面板、断线，
  *   与这一轮学到的东西无关。
  */
@@ -12583,11 +12579,7 @@ function scheduleRoundMemories(
   },
 ): void {
   const adapterType = run.route.adapterType
-  const modelId =
-    (isAssistantProvider(adapterType)
-      ? ASSISTANT_BACKGROUND_MODEL_IDS[adapterType]
-      : undefined) ??
-    (run.modelId || undefined)
+  const modelId = run.modelId || undefined
   const projectId = requestProjectId(run.request)
   const conversationId = run.request.conversationId
   const material = roundMaterial(run, args.closingMessage).join('\n\n')

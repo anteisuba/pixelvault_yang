@@ -1,5 +1,9 @@
 import { ASSISTANT_OPERATOR_CANVAS_LIMITS } from '@/constants/assistant-operator'
-import { ASSISTANT_V3_HANDLE } from '@/constants/assistant-v3'
+import {
+  ASSISTANT_V3_BOARD_TIERS,
+  ASSISTANT_V3_HANDLE,
+  ASSISTANT_V3_LANE_ITEM_PREFIX,
+} from '@/constants/assistant-v3'
 import {
   NODE_MEDIA_KIND_IDS,
   NODE_V4_TEXT_SUBTYPE_IDS,
@@ -290,7 +294,8 @@ export function renderAssistantV3Card(
   return lines.join('\n')
 }
 
-function renderBriefCard(
+/** 一张卡一行：句柄、类型、名字、型号、状态、正文多长 —— 大画布上不展开的卡、`read "lane:<n>"` 读不完的卡。 */
+export function renderAssistantV3BriefCard(
   node: AssistantOperatorCanvasNode,
   handles: AssistantV3Handles,
 ): string {
@@ -352,6 +357,64 @@ function focusIds(
   return focus
 }
 
+/**
+ * 大画布上哪几条镜头带算「在眼前」（板子分级，P2 第二片，设计方案 §2.4）。快照里没有视口，取近似：
+ * 当前镜那条与左右各一（与前端在很大的画布上展开的三面同一条；还没落焦点时是最前面三条），加上有
+ * 展开卡（选中 / @ / 点名 / 剧本 / 一跳连线）的那几条。散卡那一档不在这里 —— 它永远在眼前。
+ * ⚠ 这是我的取舍（P2），不是 owner 定的：不在眼前的带只印一行（`renderOffscreenLane`），卡的句柄
+ *   用 `read "lane:<n>"` 现取，要动那几张卡多一步。
+ */
+function viewLaneNumbers(
+  canvas: AssistantOperatorCanvasSnapshot,
+  focus: ReadonlySet<string>,
+): Set<number> {
+  const numbers = canvas.shots.flatMap((shot) =>
+    shot.shotNo === null ? [] : [shot.shotNo],
+  )
+  const width = ASSISTANT_OPERATOR_CANVAS_LIMITS.expandedShots
+  const anchor =
+    canvas.currentShotNo === null
+      ? 0
+      : Math.max(0, numbers.indexOf(canvas.currentShotNo))
+  const start = Math.max(
+    0,
+    Math.min(anchor - Math.floor(width / 2), numbers.length - width),
+  )
+  const view = new Set(numbers.slice(start, start + width))
+  for (const shot of canvas.shots)
+    if (
+      shot.expanded &&
+      shot.shotNo !== null &&
+      shot.nodes.some((node) => focus.has(node.id))
+    )
+      view.add(shot.shotNo)
+  return view
+}
+
+/** 不在眼前的一条镜头带：几张卡、叫什么、怎么取。⛔ 不给句柄（要动它们先读）。 */
+function renderOffscreenLane(
+  shotNo: number,
+  nodes: readonly AssistantOperatorCanvasNode[],
+  omitted: number,
+): string {
+  const cap = ASSISTANT_V3_BOARD_TIERS.offscreenNames
+  const count = nodes.length + omitted
+  const names = nodes
+    .slice(0, cap)
+    .map((node) => `「${clipName(node.name)}」`)
+    .join('')
+  const more = count - Math.min(nodes.length, cap)
+  return `LANE ${shotNo} — off-screen, ${count} card${count === 1 ? '' : 's'}: ${names}${more > 0 ? ` +${more} more` : ''} — read "${ASSISTANT_V3_LANE_ITEM_PREFIX}${shotNo}" for ${count === 1 ? 'it' : 'them'}`
+}
+
+/** `read` 的一项是不是 `"lane:<n>"`：是 → 镜头带的位置号，不是 → `null`。 */
+export function parseAssistantV3LaneItem(item: string): number | null {
+  const text = item.trim().toLowerCase()
+  if (!text.startsWith(ASSISTANT_V3_LANE_ITEM_PREFIX)) return null
+  const shotNo = Number(text.slice(ASSISTANT_V3_LANE_ITEM_PREFIX.length).trim())
+  return Number.isInteger(shotNo) && shotNo >= 1 ? shotNo : null
+}
+
 export interface AssistantV3BoardInput {
   readonly canvas: AssistantOperatorCanvasSnapshot
   readonly handles: AssistantV3Handles
@@ -392,9 +455,21 @@ export function renderAssistantV3Board(input: AssistantV3BoardInput): string {
     nodes.length > ASSISTANT_OPERATOR_CANVAS_LIMITS.boardCatalogMinNodes
       ? focusIds(canvas, nodes, latestUserText, input.mentionedIds ?? [])
       : null
+  /** 大画布才分级：在眼前的带一张卡一行（相关的展开），不在眼前的带只印一行。 */
+  const view = focus ? viewLaneNumbers(canvas, focus) : null
+  const offscreen = (lane: AssistantOperatorCanvasSnapshot['shots'][number]) =>
+    view !== null &&
+    lane.expanded &&
+    lane.shotNo !== null &&
+    !view.has(lane.shotNo)
+  const offscreenLanes = canvas.shots.filter(offscreen).length
 
   const lines: string[] = [
     `BOARD — ${nodes.length} cards${focus ? `; ${focus.size} shown in full, the rest one line each (read a card for the rest)` : ''}${
+      offscreenLanes
+        ? `; ${offscreenLanes} lanes off-screen as one line each (read "${ASSISTANT_V3_LANE_ITEM_PREFIX}<n>" for their cards)`
+        : ''
+    }${
       selected.size
         ? `; selected: ${[...selected].map((id) => handles.handleOf(id)).join(', ')}`
         : ''
@@ -416,12 +491,18 @@ export function renderAssistantV3Board(input: AssistantV3BoardInput): string {
       )
       continue
     }
+    if (offscreen(lane) && lane.shotNo !== null) {
+      lines.push(
+        renderOffscreenLane(lane.shotNo, lane.nodes, lane.omittedCount ?? 0),
+      )
+      continue
+    }
     lines.push(
       `${header}${lane.omittedCount ? ` — ${lane.omittedCount} more cards not listed` : ''}`,
     )
     for (const node of lane.nodes) {
       if (focus && !focus.has(node.id)) {
-        lines.push(`  ${renderBriefCard(node, handles)}`)
+        lines.push(`  ${renderAssistantV3BriefCard(node, handles)}`)
         continue
       }
       const card = renderAssistantV3Card(

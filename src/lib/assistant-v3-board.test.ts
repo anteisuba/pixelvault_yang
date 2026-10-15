@@ -7,6 +7,7 @@ import type {
 import {
   buildAssistantV3Handles,
   formatScriptShotKey,
+  parseAssistantV3LaneItem,
   renderAssistantV3Board,
 } from './assistant-v3-board'
 
@@ -210,5 +211,119 @@ describe('v3 板子', () => {
     expect(text).toContain('prompt (2 chars): 罗恩')
     expect(text).toContain('「填充卡0」 · model none · 8 chars')
     expect(text).not.toContain('一段很长的提示词')
+  })
+})
+
+/**
+ * 板子分级（P2 第二片，设计方案 §2.4）：大画布上当前镜那条与左右各一、有展开卡的带照旧（相关的
+ * 展开、其余一行）；别的带只印一行（几张卡、叫什么、怎么取），⛔ 不给句柄。散卡永远在。
+ */
+describe('v3 板子 · 分级', () => {
+  const shot = (no: number, suffix = 'a') =>
+    node({
+      id: `video${String(no).padStart(2, '0')}${suffix}1b2c3-0000-4000-8000-${String(no).padStart(12, '0')}`,
+      name: `S${String(no).padStart(2, '0')} 镜头${no}`,
+      kind: 'video',
+      subtype: 'shot',
+      model: 'seedance-2.5-byteplus',
+      text: `第 ${no} 镜的提示词`,
+    })
+  const lanes = Array.from({ length: 12 }, (_, index) => ({
+    shotNo: index + 1,
+    nodes: [shot(index + 1), shot(index + 1, 'b')],
+  }))
+  const loose = node({ id: HARRY, name: '哈利 · 黑袍', kind: 'image' })
+  const allNodes = [...lanes.flatMap((lane) => lane.nodes), loose]
+  const handles = buildAssistantV3Handles(allNodes.map((item) => item.id))
+  const render = (
+    patch: Partial<AssistantOperatorCanvasSnapshot>,
+    latestUserText = '',
+  ) =>
+    renderAssistantV3Board({
+      canvas: {
+        ...board([], [...lanes, { shotNo: null, nodes: [loose] }]),
+        ...patch,
+      },
+      handles,
+      latestUserText,
+    })
+
+  it('当前镜左右各一照旧；别的带一行：卡数、名字、read "lane:<n>"，⛔ 不给句柄', () => {
+    const text = render({ currentShotNo: 5, selectedNodeIds: [] })
+    for (const no of [4, 5, 6]) {
+      expect(text).toContain(`LANE ${no}\n`)
+      expect(text).toContain(handles.handleOf(lanes[no - 1]!.nodes[0]!.id))
+    }
+    expect(text).toContain(
+      'LANE 9 — off-screen, 2 cards: 「S09 镜头9」「S09 镜头9」 — read "lane:9" for them',
+    )
+    expect(text).not.toContain(handles.handleOf(lanes[8]!.nodes[0]!.id))
+    expect(text).toContain('9 lanes off-screen as one line each')
+    // 散卡永远在。
+    expect(text).toContain('img-249e8b')
+  })
+
+  it('还没落焦点：最前面三条在眼前；选中 / 点名的卡所在的带也在', () => {
+    const plain = render({ currentShotNo: null })
+    expect(plain).toContain('LANE 3\n')
+    expect(plain).toContain('LANE 4 — off-screen')
+    const selected = render({
+      currentShotNo: null,
+      selectedNodeIds: [lanes[10]!.nodes[0]!.id],
+    })
+    expect(selected).toContain('LANE 11\n')
+    expect(selected).not.toContain('LANE 11 — off-screen')
+    const named = render({ currentShotNo: null }, '把「S08 镜头8」改成黄昏')
+    expect(named).not.toContain('LANE 8 — off-screen')
+  })
+
+  it('最后一面是焦点：照样三条在眼前（往前挪）', () => {
+    const text = render({ currentShotNo: 12 })
+    for (const no of [10, 11, 12]) expect(text).toContain(`LANE ${no}\n`)
+    expect(text).toContain('LANE 9 — off-screen')
+  })
+
+  it('小画布（不过 boardCatalogMinNodes）不分级', () => {
+    const small = lanes.slice(0, 6)
+    const text = renderAssistantV3Board({
+      canvas: { ...board([], small), currentShotNo: 1 },
+      handles,
+      latestUserText: '',
+    })
+    expect(text).not.toContain('off-screen')
+    expect(text).toContain(handles.handleOf(small[5]!.nodes[0]!.id))
+  })
+
+  it('一条带的名字最多列几个，其余只写 +k more', () => {
+    const crowded = Array.from({ length: 9 }, (_, index) =>
+      node({
+        id: `image${String(index).padStart(8, '0')}-0000-4000-8000-000000000000`,
+        name: `S20 素材${index}`,
+        kind: 'image',
+      }),
+    )
+    const text = renderAssistantV3Board({
+      canvas: {
+        ...board([], [...lanes, { shotNo: 20, nodes: crowded }]),
+        currentShotNo: 1,
+      },
+      handles: buildAssistantV3Handles([
+        ...allNodes.map((item) => item.id),
+        ...crowded.map((item) => item.id),
+      ]),
+      latestUserText: '',
+    })
+    expect(text).toMatch(
+      /LANE 20 — off-screen, 9 cards: (「S20 素材\d」){6} \+3 more — read "lane:20" for them/,
+    )
+  })
+
+  it('认得出 "lane:<n>"（大小写、空格不论），别的照原路走', () => {
+    expect(parseAssistantV3LaneItem('lane:9')).toBe(9)
+    expect(parseAssistantV3LaneItem(' LANE: 12 ')).toBe(12)
+    expect(parseAssistantV3LaneItem('lane:')).toBeNull()
+    expect(parseAssistantV3LaneItem('lane:0')).toBeNull()
+    expect(parseAssistantV3LaneItem('lane:2.5')).toBeNull()
+    expect(parseAssistantV3LaneItem('vid-09a1b2')).toBeNull()
   })
 })

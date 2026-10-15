@@ -762,6 +762,69 @@ describe('v3 内核', () => {
     expect(open.doStreamCalls[0]?.maxOutputTokens).toBeUndefined()
   })
 
+  it('read "lane:<n>"（板子分级）：那条带上的卡照原路读，一次最多 12 张，其余一行；折起来的带、没有的带照实说', async () => {
+    const lane = Array.from(
+      { length: 14 },
+      (_, index) =>
+        ({
+          id: `video${String(index + 10).padStart(2, '0')}a1b2c3-0000-4000-8000-000000000000`,
+          name: `S01 素材${index}`,
+          kind: 'video',
+          subtype: 'shot',
+          text: `第 ${index} 段提示词`,
+        }) as AssistantOperatorCanvasNode,
+    )
+    const mock = script(
+      toolTurn({
+        id: 'call_1',
+        name: 'read',
+        input: { cards: ['lane:1', 'lane:2', 'lane:7'] },
+      }),
+      textTurn('看过了。'),
+    )
+    await collect(
+      runAssistantV3(
+        'clerk-1',
+        request({
+          snapshot: {
+            prompt: '',
+            availableModels: [],
+            canvas: {
+              currentShotNo: null,
+              selectedNodeIds: [],
+              shots: [
+                { expanded: true, shotNo: 1, title: 'S1', nodes: lane },
+                { expanded: false, shotNo: 2, title: 'S2', nodeCount: 5 },
+              ],
+            },
+          },
+        } as Partial<AssistantOperatorRequest>),
+      ),
+    )
+    const tool = mock.doStreamCalls[1]!.prompt.find(
+      (message) => message.role === 'tool',
+    )!
+    const part = tool.content[0] as {
+      output: { type: string; value: string }
+    }
+    const read = {
+      output: part.output.value,
+      error: part.output.type === 'error-text',
+    }
+    expect(read.error).toBe(false)
+    for (const index of [0, 11])
+      expect(read.output).toContain(`第 ${index} 段提示词`)
+    expect(read.output).not.toContain('第 12 段提示词')
+    expect(read.output).toContain(
+      '2 more cards there, one line each — read them by handle:',
+    )
+    expect(read.output).toMatch(/vid-22a1b2 · video\/shot 「S01 素材12」/)
+    expect(read.output).toContain(
+      "LANE 2 is collapsed on the creator's screen: its 5 cards are not available to you.",
+    )
+    expect(read.output).toContain('There is no LANE 7 on the board.')
+  })
+
   it('句柄抄错：这一步记成草稿、错误回给模型，带最近的句柄', async () => {
     const mock = script(
       toolTurn({

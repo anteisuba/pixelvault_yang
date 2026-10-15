@@ -63,7 +63,9 @@ import {
   assistantV3CanvasNodes,
   buildAssistantV3Handles,
   formatScriptShotKey,
+  parseAssistantV3LaneItem,
   renderAssistantV3Board,
+  renderAssistantV3BriefCard,
   renderAssistantV3Card,
   type AssistantV3Handles,
 } from '@/lib/assistant-v3-board'
@@ -2095,6 +2097,81 @@ function splitSourceReads(
 }
 
 /**
+ * 画布 `read` 里的 `"lane:<n>"`（P2 第二片「板子分级」）：换成那条镜头带上的卡的句柄，照原路读。
+ * 没有一项是 → `null`。
+ */
+function splitLaneReads(
+  input: unknown,
+): { lanes: number[]; rest: string[] } | null {
+  const parsed = ReadCardsListSchema.safeParse(input)
+  if (!parsed.success) return null
+  const lanes = parsed.data.cards.map(parseAssistantV3LaneItem)
+  if (lanes.every((lane) => lane === null)) return null
+  return {
+    lanes: [...new Set(lanes.filter((lane): lane is number => lane !== null))],
+    rest: parsed.data.cards.filter((_, index) => lanes[index] === null),
+  }
+}
+
+/**
+ * `read "lane:<n>"`：那几条带上的卡按原路读（全文；一次最多 `maxReadCards` 张，其余一张一行、
+ * 给句柄）。⚠ 读的是**这一跳的快照**（板子是开轮那一刻的）；前端折起来的带（很大的画布）快照里
+ * 本来就没有卡，读不到，照实说。
+ */
+async function* readLanes(
+  context: V3Context,
+  lanes: readonly number[],
+  rest: readonly string[],
+): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
+  const shots = context.request.snapshot.canvas?.shots ?? []
+  const notes: string[] = []
+  const wanted = [...rest]
+  for (const shotNo of lanes) {
+    const lane = shots.find((shot) => shot.shotNo === shotNo)
+    if (!lane) notes.push(`There is no LANE ${shotNo} on the board.`)
+    else if (!lane.expanded)
+      notes.push(
+        `LANE ${shotNo} is collapsed on the creator's screen: its ${lane.nodeCount} cards are not available to you. Ask the creator to select a card in it.`,
+      )
+    else {
+      wanted.push(
+        ...lane.nodes.map((node) => context.handles.handleOf(node.id)),
+      )
+      if (lane.omittedCount)
+        notes.push(
+          `LANE ${shotNo} has ${lane.omittedCount} more cards that are not in your snapshot.`,
+        )
+    }
+  }
+  if (!wanted.length && !notes.length)
+    notes.push(`LANE ${lanes.join(', ')} has no cards.`)
+  const cards = [...new Set(wanted)]
+  const now = cards.slice(0, ASSISTANT_V3_LIMITS.maxReadCards)
+  const later = cards.flatMap((card) => {
+    if (now.includes(card)) return []
+    const id = context.handles.idOf(card)
+    const node = context.nodes.find((item) => item.id === id)
+    return node ? [renderAssistantV3BriefCard(node, context.handles)] : []
+  })
+  const outcomes: V3Outcome[] = []
+  if (now.length)
+    outcomes.push(
+      yield* executeCall(context, ASSISTANT_V3_TOOL_IDS.read, { cards: now }),
+    )
+  if (later.length)
+    notes.push(
+      `${later.length} more cards there, one line each — read them by handle:\n${later.join('\n')}`,
+    )
+  if (notes.length)
+    outcomes.push({
+      kind: 'result',
+      output: notes.join('\n'),
+      error: now.length === 0,
+    })
+  return joinOutcomes(outcomes)
+}
+
+/**
  * 画布 `read` 里的 `"guide:<型号>"`（P2 第二片）：摘出来现给那份写法（⛔ 不出过程行 —— 那是
  * 模型自己的功课，不是创作者要看的一步）。没有一项是 → `null`。
  */
@@ -2160,6 +2237,8 @@ async function* executeCall(
         outcomes.push(yield* executeCall(context, name, { cards: guides.rest }))
       return joinOutcomes(outcomes)
     }
+    const lanes = splitLaneReads(input)
+    if (lanes) return yield* readLanes(context, lanes.lanes, lanes.rest)
   }
   if (name === ASSISTANT_V3_TOOL_IDS.read) {
     const sources = splitSourceReads(input)

@@ -187,49 +187,39 @@ describe('resolveLlmTextRoute', () => {
     vi.clearAllMocks()
   })
 
-  it('returns gemini route when user has an active gemini key', async () => {
+  it('点名的那把 key → 它那一家', async () => {
     mockFindFirst.mockResolvedValue(GEMINI_KEY)
 
-    const route = await resolveLlmTextRoute('db_user_1')
+    const route = await resolveLlmTextRoute('db_user_1', GEMINI_KEY.id)
 
     expect(route.adapterType).toBe(AI_ADAPTER_TYPES.GEMINI)
     expect(route.apiKey).toBe('decrypted-key')
-  })
-
-  it('⛔ 第一家有 key 但解不开 → 照实抛，不跳到下一家花别家的钱', async () => {
-    mockFindFirst.mockImplementation(
-      async (query: { where: { adapterType: AI_ADAPTER_TYPES } }) => ({
-        ...GEMINI_KEY,
-        id: `key_${query.where.adapterType}`,
-        adapterType: query.where.adapterType,
+    expect(mockFindFirst).toHaveBeenCalledTimes(1)
+    expect(mockFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: GEMINI_KEY.id }),
       }),
     )
+  })
+
+  it('⛔ 那把 key 解不开 → 照实抛，不去找别家的 key', async () => {
+    mockFindFirst.mockResolvedValue(GEMINI_KEY)
     vi.mocked(decryptApiKey).mockImplementationOnce(() => {
       throw new Error('cannot decrypt')
     })
 
-    await expect(resolveLlmTextRoute('db_user_1')).rejects.toThrow(
-      'cannot decrypt',
-    )
+    await expect(
+      resolveLlmTextRoute('db_user_1', GEMINI_KEY.id),
+    ).rejects.toThrow('cannot decrypt')
     expect(mockFindFirst).toHaveBeenCalledTimes(1)
-    expect(mockFindFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          adapterType: AI_ADAPTER_TYPES.GEMINI,
-        }),
-      }),
-    )
   })
 
-  it('throws a missing-key error when the user owns no LLM key — no platform fallback', async () => {
+  it('那把 key 不在了 → 照实抛', async () => {
     mockFindFirst.mockResolvedValue(null)
 
-    await expect(resolveLlmTextRoute('db_user_1')).rejects.toMatchObject({
-      errorCode: 'MISSING_API_KEY',
-      message: expect.stringContaining(
-        'Please add a Gemini, DeepSeek, OpenAI, Claude, or Grok API key',
-      ),
-    })
+    await expect(resolveLlmTextRoute('db_user_1', 'key_gone')).rejects.toThrow(
+      'The selected API key is unavailable',
+    )
   })
 })
 

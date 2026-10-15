@@ -1,63 +1,18 @@
 import 'server-only'
 
-import {
-  ImageIntentSchema,
-  type ImageIntent,
-  type ReferenceAsset,
-} from '@/types'
-import { validateLlmStructuredOutput } from '@/lib/llm-output-validator'
+import type { ImageIntent, ReferenceAsset } from '@/types'
 import { logger } from '@/lib/logger'
 import { GenerationValidationError } from '@/lib/errors'
 import { validatePrompt, sanitizePrompt } from '@/services/kernel/prompt-guard'
-import {
-  llmTextCompletion,
-  resolveLlmTextRoute,
-} from '@/services/llm-text.service'
 
-const INTENT_PARSER_PLATFORM_USER_ID = '__generation_plan_platform__'
-
-const INTENT_EXTRACTION_SYSTEM_PROMPT = `You are an expert image generation prompt analyst.
-Your task is to extract structured intent from a user's natural language description.
-
-Return ONLY a JSON object with these optional fields (only include fields you can infer):
-{
-  "subject": "string (REQUIRED - the main subject)",
-  "subjectDetails": "string (optional - appearance, clothing)",
-  "actionOrPose": "string (optional - what they are doing)",
-  "scene": "string (optional - environment/location)",
-  "composition": "string (optional - framing like close-up or wide shot)",
-  "camera": "string (optional - lens/camera details)",
-  "lighting": "string (optional - lighting conditions)",
-  "colorPalette": "string (optional - colors/tones)",
-  "style": "string (optional - visual style)",
-  "mood": "string (optional - emotional tone)",
-  "mustInclude": ["string array of elements that must appear"],
-  "mustAvoid": ["string array of elements to avoid"]
-}
-
-Rules:
-- Always extract a "subject" field.
-- Only include fields you can confidently infer from the description.
-- Do not invent details not implied by the description.
-- Return raw JSON only. No markdown. No explanation.`
-
-function stripMarkdownFences(text: string): string {
-  return text
-    .replace(/^```(?:json)?\s*/i, '')
-    .replace(/\s*```\s*$/, '')
-    .trim()
-}
-
-function buildFallbackIntent(
-  naturalLanguage: string,
-  referenceAssets?: ReferenceAsset[],
-): ImageIntent {
-  return {
-    subject: naturalLanguage.slice(0, 500),
-    referenceAssets,
-  }
-}
-
+/**
+ * `/api/generation/plan` 的意图：过一道提示词守卫，然后把原话当主体。
+ *
+ * ⚠ 这里**不调模型**（owner 2026-10-15「全跟助手」·⛔ 不在创作者不知情时花谁的 key）：
+ * 以前它拿一个平台哨兵用户去「自动」挑一家 key，可哨兵在库里没有 key、平台兜底 2026-10-07
+ * 已清，那一步每次都 `MISSING_API_KEY` 落到这里的兜底。真要让模型拆意图，得让创作者点名
+ * 一把 key 或跟助手（`resolveKeyOrAssistantRoute`），⛔ 别再拿哨兵用户挑一家。
+ */
 export async function parseImageIntent(
   naturalLanguage: string,
   referenceAssets?: ReferenceAsset[],
@@ -76,36 +31,8 @@ export async function parseImageIntent(
     ])
   }
 
-  const safeInput = sanitizePrompt(naturalLanguage)
-
-  try {
-    const route = await resolveLlmTextRoute(INTENT_PARSER_PLATFORM_USER_ID)
-    const rawOutput = await llmTextCompletion({
-      systemPrompt: INTENT_EXTRACTION_SYSTEM_PROMPT,
-      userPrompt: `Extract intent from: "${safeInput}"`,
-      adapterType: route.adapterType,
-      providerConfig: route.providerConfig,
-      apiKey: route.apiKey,
-    })
-
-    const parsed: unknown = JSON.parse(stripMarkdownFences(rawOutput))
-    const validated = validateLlmStructuredOutput(parsed, ImageIntentSchema)
-
-    if (!validated.usable || !validated.data) {
-      logger.warn('Intent parser LLM output failed schema validation', {
-        reason: validated.reason,
-      })
-      return buildFallbackIntent(safeInput, referenceAssets)
-    }
-
-    return {
-      ...validated.data,
-      referenceAssets: referenceAssets ?? validated.data.referenceAssets,
-    }
-  } catch (error) {
-    logger.warn('Intent parser LLM call failed, using fallback', {
-      error: error instanceof Error ? error.message : String(error),
-    })
-    return buildFallbackIntent(safeInput, referenceAssets)
+  return {
+    subject: sanitizePrompt(naturalLanguage).slice(0, 500),
+    referenceAssets,
   }
 }

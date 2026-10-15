@@ -16,6 +16,7 @@ import {
   waitForImageGenerationResult,
 } from '@/services/image/submit-image.service'
 import { compileRecipe } from '@/services/kernel/card-recipe-compiler.service'
+import { ensureUser } from '@/services/user.service'
 import type {
   TransformInput,
   TransformOutput,
@@ -34,9 +35,11 @@ export async function handleStyleTransform(
   let apiKeyId: string | undefined
 
   if (input.style.type === 'style_card' && input.style.cardId) {
-    // Use recipe compiler for card-based styles
+    // Use recipe compiler for card-based styles. ⚠ 编译器要库里的用户 id（查卡、找助手那把
+    // key 都按它），⛔ 不是 Clerk id。
+    const user = await ensureUser(clerkId)
     const recipe = await compileRecipe({
-      userId: clerkId,
+      userId: user.id,
       styleCardId: input.style.cardId,
       freePrompt: 'Apply style transformation',
     })

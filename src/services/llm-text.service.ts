@@ -40,7 +40,7 @@ import { VIDEO_LINK_KINDS } from '@/constants/video-link'
 import { db } from '@/lib/db'
 import { decryptApiKey } from '@/lib/crypto'
 import { routeThroughAiGateway } from '@/lib/ai-gateway'
-import { ApiKeyError, ApiRequestError } from '@/lib/errors'
+import { ApiRequestError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { buildYoutubeWatchUrl, classifyVideoLink } from '@/lib/video-link'
 import { readSseData } from '@/lib/sse'
@@ -363,9 +363,7 @@ function reportUsage(input: LlmTextInput, usage: LlmTextUsage | null): void {
 
 /**
  * Text-capable LLM adapter types —— **就是 `ASSISTANT_PROVIDER_ORDER`**（owner 2026-10-15：
- * 一份顺序）。下面那段无 `apiKeyId` 的自动优先级也按它走，但只剩 `intent-parser` 的平台
- * 哨兵在用；助手与所有小功能（润色 / 打分 / 角色卡 / 反馈 / 画布剧本……）没点名 key 时
- * 走 `resolveAssistantRoute`（`resolveKeyOrAssistantRoute`），⛔ 不走这里。
+ * 一份顺序）。这里只用来判「这把 key 能不能做文本」；挑哪一家归 `resolveAssistantRoute`。
  */
 export const LLM_TEXT_ADAPTERS = ASSISTANT_PROVIDER_ORDER
 
@@ -1075,85 +1073,43 @@ async function readLlmErrorBody(
 // ─── Route Resolution ────────────────────────────────────────────
 
 /**
- * Resolves which LLM provider + API key to use for text completion.
- * - 给了 `apiKeyId`：就用那一把（解不开照实抛）。
- * - 没给：按 `LLM_TEXT_ADAPTERS` 找**第一家有 key 的**就停 —— 那一家的 key 解不开也照实抛，
- *   ⛔ 不跳到下一家（owner 2026-10-15：「会自动扣其他模型的token，用户还不知道」）。
- *   ⚠ 现在只有 `intent-parser` 的平台哨兵用户走这条（它没有 key，必然落启发式兜底）；
- *   **创作者的功能一律走 `resolveAssistantRoute` / `resolveKeyOrAssistantRoute`**（认助手选的
- *   那一家、那个型号），⛔ 不要再拿这条无 key 的路给用户功能挑一家。
- * ⚠ No platform fallback (owner 2026-10-07): every user brings their own key —
- * a keyless request ends in `ApiKeyError('missing')`, never on the owner's bill.
+ * 一把**点名的** key → 它那一家的文本线路（解不开照实抛）。
+ *
+ * ⛔ 没有「不点名就按顺序挑第一家有 key 的」那一圈了（owner 2026-10-15「全跟助手」·
+ * 「会自动扣其他模型的token，用户还不知道」）：创作者没点名 key 时，调用方走
+ * `resolveAssistantRoute` / `resolveKeyOrAssistantRoute`（助手那一家、那个型号），由它们
+ * 挑出 key 再递到这里。
+ * ⚠ No platform fallback (owner 2026-10-07): every user brings their own key.
  */
 export async function resolveLlmTextRoute(
   userId: string,
-  apiKeyId?: string,
+  apiKeyId: string,
 ): Promise<ResolvedLlmTextRoute> {
-  // If a specific key is requested, use it directly
-  if (apiKeyId) {
-    const specificKey = await db.userApiKey.findFirst({
-      where: { id: apiKeyId, userId, isActive: true },
-    })
+  const specificKey = await db.userApiKey.findFirst({
+    where: { id: apiKeyId, userId, isActive: true },
+  })
 
-    if (!specificKey) {
-      throw new Error(
-        'The selected API key is unavailable. Please choose a different key in Settings > API Keys.',
-      )
-    }
-
-    const adapterType = specificKey.adapterType as AI_ADAPTER_TYPES
-    if (!isLlmTextAdapter(adapterType)) {
-      throw new Error(
-        `The selected API key does not support text completion (requires ${LLM_TEXT_PROVIDER_NAMES}). Please bind a compatible key.`,
-      )
-    }
-
-    const keyValue = decryptApiKey(specificKey.encryptedKey)
-    return {
-      adapterType,
-      providerConfig: {
-        label: LLM_TEXT_LABELS[adapterType],
-        baseUrl: getBaseUrlForAdapter(adapterType),
-      },
-      apiKey: keyValue,
-    }
+  if (!specificKey) {
+    throw new Error(
+      'The selected API key is unavailable. Please choose a different key in Settings > API Keys.',
+    )
   }
 
-  const triedProviders: string[] = []
-
-  for (const adapterType of LLM_TEXT_ADAPTERS) {
-    const label = LLM_TEXT_LABELS[adapterType]
-
-    const userKey = await db.userApiKey.findFirst({
-      where: {
-        userId,
-        adapterType,
-        isActive: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    })
-
-    if (!userKey) {
-      triedProviders.push(`${label} (no key bound)`)
-      continue
-    }
-
-    // ⛔ 解不开就照实抛，不跳到下一家（owner 2026-10-15：不悄悄花别家的钱）。
-    return {
-      adapterType,
-      providerConfig: {
-        label,
-        baseUrl: getBaseUrlForAdapter(adapterType),
-      },
-      apiKey: decryptApiKey(userKey.encryptedKey),
-    }
+  const adapterType = specificKey.adapterType as AI_ADAPTER_TYPES
+  if (!isLlmTextAdapter(adapterType)) {
+    throw new Error(
+      `The selected API key does not support text completion (requires ${LLM_TEXT_PROVIDER_NAMES}). Please bind a compatible key.`,
+    )
   }
 
-  const tried = triedProviders.join(', ')
-  throw new ApiKeyError(
-    'missing',
-    `No API key available. Tried: ${tried}. Please add a ${LLM_TEXT_PROVIDER_NAMES} API key in Settings > API Keys.`,
-  )
+  return {
+    adapterType,
+    providerConfig: {
+      label: LLM_TEXT_LABELS[adapterType],
+      baseUrl: getBaseUrlForAdapter(adapterType),
+    },
+    apiKey: decryptApiKey(specificKey.encryptedKey),
+  }
 }
 
 // ─── Provider Implementations ────────────────────────────────────

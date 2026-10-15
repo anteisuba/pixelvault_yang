@@ -207,9 +207,9 @@ export function StudioAssistantHeaderActions({
       <CanvasAssistantRouteSelector
         value={route}
         onChange={setRoute}
-        // studio 没有 gateway 分支：不选 key 时服务端按 LLM_TEXT_ADAPTERS 优先级
-        // 挑用户已绑的第一把（Gemini 打头），客户端预判不了是哪个。**所以只说
-        // 「自动」，不报任何具体型号** —— 报错型号正是 2026-08-19 生产事故的成因。
+        // studio 没有 gateway 分支：不选 key 时服务端跟助手那一家（`resolveAssistantRoute`），
+        // 这里没读助手的选择。**所以只说「自动」，不报任何具体型号** —— 报错型号正是
+        // 2026-08-19 生产事故的成因。
         emptyRouteLabel={tPrompt('routeAuto')}
       />
       <CanvasAssistantHistory

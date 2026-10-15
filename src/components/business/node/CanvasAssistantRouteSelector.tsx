@@ -27,8 +27,8 @@ interface CanvasAssistantRouteSelectorProps {
    * 不是同一条**：
    *  - 画布：不选 key 且无附件时走 gateway（`NODE_STUDIO_ASSISTANT.gatewayModelId`
    *    = openai/gpt-6.1-sol），所以写死 OpenAI 是诚实的。
-   *  - studio：**没有 gateway 分支**，服务端按 `LLM_TEXT_ADAPTERS` 优先级兜底
-   *    （Gemini 打头），所以显示 OpenAI 是在说谎。
+   *  - studio：**没有 gateway 分支**，服务端跟助手那一家（`resolveAssistantRoute`：
+   *    选定的模型，或「自动」的第一家有 key 的），所以显示 OpenAI 是在说谎。
    *
    * ⚠ 2026-08-19 生产事故就是这个：组件原本写死画布的标签，studio 复用后
    * 「界面显示 GPT、实际打 Gemini」，Gemini 空回复报错时 owner 完全无法归因。

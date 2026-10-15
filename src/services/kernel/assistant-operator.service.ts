@@ -3378,8 +3378,6 @@ async function planResearch(
               ...(native!.modelId ? { modelId: native!.modelId } : {}),
               systemPrompt: NATIVE_SEARCH_SYSTEM_PROMPT,
               query: [...entities, args.goal].join(' '),
-              // 显式传档（P2 §2.6）：搜回来的就是这一轮的证据，跟创作者选的那一档。
-              reasoningEffort: run.persona.reasoningEffort,
               ...(quick
                 ? {}
                 : { maxUses: RESEARCH_LIMITS.deepNativeSearchUses }),
@@ -3835,10 +3833,8 @@ async function synthesizeResearchConclusion(
       contextCompactionTargetLength: OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH,
       ...(run.modelId ? { modelId: run.modelId } : {}),
       /**
-       * ⭐ 显式传档（P2 §2.6）：这一句归纳就是交给创作者的结论，跟他在「思考」chip 上选的那一档；
-       * 缺席时各家按自己的默认想（Gemini 3 / Claude 默认最高档）。
+       * ⚠ 不传档位（各家默认）：查证的质量是 owner 按这样实测过的，P2 没有新的实测就 ⛔ 不改。
        */
-      reasoningEffort: run.persona.reasoningEffort,
       responseFormat: 'json_object',
       jsonSchema: RESEARCH_CONCLUSION_JSON_SCHEMA,
       callLog: { purpose: 'researchConclusion', domain: run.request.domain },

@@ -57,6 +57,7 @@ vi.mock('@/services/research/bilibili.connector', () => ({
 }))
 
 import { MEDIAWIKI_SOURCE_IDS, RESEARCH_SOURCE_IDS } from '@/constants/research'
+import { markReadHostBlocked, resetReadHostBlocks } from '@/lib/read-url-blocks'
 import type { EvidenceItem } from '@/types/research'
 import {
   buildResearchQueryPlan,
@@ -478,6 +479,63 @@ describe('runAssistantResearch · 题型排序（2026-09-12）', () => {
 
     expect(outcome.evidence[0]?.title).toBe(BIO.title)
     expect(outcome.evidence[0]?.corroboration).toBe(3)
+  })
+})
+
+/**
+ * **最近挡过读者的站排后面**（2026-10-15）：同印证、同题型分时才起作用，⛔ 不删、不越过前两道次序。
+ */
+describe('runAssistantResearch · 挡过读者的站往后放（2026-10-15）', () => {
+  const OPEN = textItem({
+    id: 'web:open',
+    sourceId: RESEARCH_SOURCE_IDS.webSearch,
+    title: '时夜 - 设定集',
+    url: 'https://open.example.test/a',
+    excerpt: '黑色长发。',
+  } as Partial<EvidenceItem>)
+  const WALLED = textItem({
+    id: 'web:walled',
+    sourceId: RESEARCH_SOURCE_IDS.webSearch,
+    title: '时夜 - 攻略站',
+    url: 'https://walled.example.test/a',
+    excerpt: '金色瞳孔。',
+  } as Partial<EvidenceItem>)
+
+  beforeEach(() => {
+    resetReadHostBlocks()
+  })
+
+  it('⭐ 同印证数时，挡过读者的站排到读得到的后面；它的摘要照样留着', async () => {
+    markReadHostBlocked('walled.example.test', {
+      reason: 'challenge',
+      detail: 'just a moment...',
+      readerOnly: false,
+    })
+    mockFetchWebSearchEvidence.mockResolvedValue({ items: [WALLED, OPEN] })
+
+    const outcome = await runAssistantResearch({
+      goal: '外貌',
+      sources: ['web'],
+    })
+    expect(outcome.evidence.map((item) => item.title)).toEqual([
+      OPEN.title,
+      WALLED.title,
+    ])
+  })
+
+  it('只挡了 Jina（退路读得到）的不算，顺序不动', async () => {
+    markReadHostBlocked('walled.example.test', {
+      reason: 'status',
+      detail: 'HTTP 403',
+      readerOnly: true,
+    })
+    mockFetchWebSearchEvidence.mockResolvedValue({ items: [WALLED, OPEN] })
+
+    const outcome = await runAssistantResearch({
+      goal: '外貌',
+      sources: ['web'],
+    })
+    expect(outcome.evidence[0]?.title).toBe(WALLED.title)
   })
 })
 

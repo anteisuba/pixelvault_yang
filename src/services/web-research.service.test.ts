@@ -2,7 +2,25 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 
-import { WEB_IMAGE_SEARCH } from '@/constants/web-search'
+// 直连那条退路走 `safeFetch`，它每一跳先解析主机名：DNS 一律走 mock（⛔ 单测不发真实请求）。
+// ⚠ `default` 必须一起给（同 `lib/url-guard.test.ts` 的说明）。
+const { lookupMock } = vi.hoisted(() => ({ lookupMock: vi.fn() }))
+vi.mock('node:dns', () => {
+  const mocked = { promises: { lookup: lookupMock } }
+  return { ...mocked, default: mocked }
+})
+
+// 退避链在 with-retry 自己的测试里覆盖；这里验的是读页那条链的先后。
+vi.mock('@/lib/with-retry', () => ({
+  withRetry: <T>(fn: () => Promise<T>) => fn(),
+}))
+
+import { URL_READER, WEB_IMAGE_SEARCH } from '@/constants/web-search'
+import {
+  isReadHostBlocked,
+  readHostBlockOf,
+  resetReadHostBlocks,
+} from '@/lib/read-url-blocks'
 import {
   gatherWebContext,
   hasWebContext,
@@ -10,6 +28,7 @@ import {
   isWebSearchConfigured,
   extractFocusedExcerpt,
   readUrl,
+  readUrlDetailed,
   webImageSearch,
   webImageSearchMulti,
   webSearch,
@@ -21,6 +40,9 @@ beforeEach(() => {
   vi.unstubAllEnvs()
   vi.stubGlobal('fetch', mockFetch)
   mockFetch.mockReset()
+  lookupMock.mockReset()
+  lookupMock.mockResolvedValue([{ address: '93.184.216.34', family: 4 }])
+  resetReadHostBlocks()
 })
 
 afterEach(() => {
@@ -125,6 +147,226 @@ describe('readUrl', () => {
     mockFetch.mockResolvedValue(textResponse('', 400))
     const page = await readUrl('https://example.com')
     expect(page).toBeNull()
+  })
+})
+
+/**
+ * ⭐ **被挡了说被挡了**（2026-10-15）：Jina → wiki 站的 API → 直连，挑战页的字永远不当正文。
+ */
+describe('readUrlDetailed：被挡的页与退路', () => {
+  const JINA_CHALLENGE = [
+    'Title: Just a moment...',
+    '',
+    'URL Source: https://blocked.example.test/post',
+    '',
+    'Markdown Content:',
+    'Verification successful. Waiting for blocked.example.test to respond...',
+  ].join('\n')
+  const CHALLENGE_HTML =
+    '<html><head><title>Just a moment...</title></head><body><p>Checking your browser before accessing blocked.example.test.</p><p>Ray ID: 8a1b2c</p></body></html>'
+  const ARTICLE_HTML =
+    '<html><head><title>时夜 - 角色介绍</title></head><body><h1>时夜</h1><p>黑色长发，金色瞳孔。</p></body></html>'
+
+  function htmlResponse(
+    body: string,
+    status = 200,
+    type = 'text/html; charset=utf-8',
+  ) {
+    return new Response(body, { status, headers: { 'content-type': type } })
+  }
+
+  /** 按网址路由：Jina / MediaWiki API / 直连各回各的。 */
+  function route(handlers: {
+    jina?: () => Response
+    api?: (url: string) => Response
+    direct?: () => Response
+  }) {
+    mockFetch.mockImplementation(async (input: string) => {
+      const url = String(input)
+      if (url.startsWith(URL_READER.jinaEndpoint)) {
+        if (!handlers.jina) throw new Error(`unexpected Jina call: ${url}`)
+        return handlers.jina()
+      }
+      if (url.includes('api.php')) {
+        if (!handlers.api) throw new Error(`unexpected API call: ${url}`)
+        return handlers.api(url)
+      }
+      if (!handlers.direct) throw new Error(`unexpected direct call: ${url}`)
+      return handlers.direct()
+    })
+  }
+
+  function kindsCalled(): string[] {
+    return mockFetch.mock.calls.map(([input]) => {
+      const url = String(input)
+      if (url.startsWith(URL_READER.jinaEndpoint)) return 'jina'
+      if (url.includes('api.php')) return 'api'
+      return 'direct'
+    })
+  }
+
+  it('Jina 读到了就停：via jina，头里的标题拆出来，⛔ 头不进正文', async () => {
+    route({
+      jina: () =>
+        textResponse(
+          'Title: 时夜\n\nURL Source: https://example.test/a\n\nMarkdown Content:\n黑色长发，金色瞳孔。',
+        ),
+    })
+    const outcome = await readUrlDetailed('https://example.test/a')
+    expect(outcome).toEqual({
+      status: 'read',
+      via: 'jina',
+      page: {
+        url: 'https://example.test/a',
+        title: '时夜',
+        content: '黑色长发，金色瞳孔。',
+      },
+    })
+    expect(kindsCalled()).toEqual(['jina'])
+  })
+
+  it('⭐ Jina 回挑战页 → 直连读到：via direct，⛔ 挑战页的字不在正文里；这个站记成「只挡 Jina」', async () => {
+    route({
+      jina: () => textResponse(JINA_CHALLENGE),
+      direct: () => htmlResponse(ARTICLE_HTML),
+    })
+    const outcome = await readUrlDetailed('https://blocked.example.test/post')
+    expect(outcome).toMatchObject({
+      status: 'read',
+      via: 'direct',
+      page: { title: '时夜 - 角色介绍' },
+    })
+    if (outcome.status !== 'read') throw new Error('unreachable')
+    expect(outcome.page.content).toContain('金色瞳孔')
+    expect(outcome.page.content).not.toMatch(/just a moment|verification/i)
+    expect(kindsCalled()).toEqual(['jina', 'direct'])
+    // 直连那一跳：老实报 UA（⛔ 不伪装浏览器）。
+    const directInit = mockFetch.mock.calls[1]?.[1] as RequestInit
+    expect(new Headers(directInit.headers).get('user-agent')).toMatch(
+      /^ANTEIResearch\//,
+    )
+    expect(readHostBlockOf('blocked.example.test')).toMatchObject({
+      readerOnly: true,
+    })
+    expect(isReadHostBlocked('https://blocked.example.test/other')).toBe(false)
+
+    // 下一次直接走退路，⛔ 不再碰 Jina。
+    mockFetch.mockClear()
+    await readUrlDetailed('https://blocked.example.test/other')
+    expect(kindsCalled()).toEqual(['direct'])
+  })
+
+  it('⭐ 顺序：wiki 站先走 API（读到就不直连）', async () => {
+    route({
+      jina: () => textResponse(JINA_CHALLENGE),
+      api: () =>
+        jsonResponse({
+          query: {
+            pages: [{ title: '长离', extract: '长离是《鸣潮》中的角色。' }],
+          },
+        }),
+    })
+    const outcome = await readUrlDetailed(
+      'https://zh.moegirl.org.cn/%E9%95%BF%E7%A6%BB',
+    )
+    expect(outcome).toMatchObject({
+      status: 'read',
+      via: 'mediawiki',
+      page: {
+        url: 'https://zh.moegirl.org.cn/%E9%95%BF%E7%A6%BB',
+        title: '长离',
+        content: '长离是《鸣潮》中的角色。',
+      },
+    })
+    expect(kindsCalled()).toEqual(['jina', 'api'])
+    expect(String(mockFetch.mock.calls[1]?.[0])).toMatch(
+      /^https:\/\/zh\.moegirl\.org\.cn\/api\.php\?/,
+    )
+  })
+
+  it('wiki 站 API 也没读到 → 再直连', async () => {
+    route({
+      jina: () => textResponse('', 500),
+      api: () => jsonResponse({ error: { code: 'action-notallowed' } }),
+      direct: () => htmlResponse(ARTICLE_HTML),
+    })
+    const outcome = await readUrlDetailed('https://zh.moegirl.org.cn/X')
+    expect(outcome).toMatchObject({ status: 'read', via: 'direct' })
+    expect(kindsCalled()).toEqual(['jina', 'api', 'direct'])
+  })
+
+  it('⛔ 整条链都被挡 → blocked（⛔ 不交挑战页的字），记 30 分钟；之内再读不碰网络', async () => {
+    route({
+      jina: () => textResponse(JINA_CHALLENGE),
+      direct: () => htmlResponse(CHALLENGE_HTML, 503),
+    })
+    const first = await readUrlDetailed('https://blocked.example.test/post')
+    expect(first).toEqual({
+      status: 'blocked',
+      url: 'https://blocked.example.test/post',
+      host: 'blocked.example.test',
+      reason: 'challenge',
+      detail: 'just a moment...',
+      cached: false,
+    })
+    expect(isReadHostBlocked('https://www.blocked.example.test/x')).toBe(true)
+    expect(await readUrl('https://blocked.example.test/post')).toBeNull()
+
+    mockFetch.mockClear()
+    const again = await readUrlDetailed('https://blocked.example.test/other')
+    expect(again).toMatchObject({ status: 'blocked', cached: true })
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it('直连回 403 / 429 也算挡了', async () => {
+    route({
+      jina: () => textResponse('', 502),
+      direct: () => htmlResponse('', 429),
+    })
+    expect(await readUrlDetailed('https://busy.example.test/a')).toMatchObject({
+      status: 'blocked',
+      reason: 'status',
+      detail: 'HTTP 429',
+    })
+  })
+
+  it('只是读不出（Jina 5xx、直连超时 / 不是网页）→ failed，⛔ 不记「被挡」', async () => {
+    route({
+      jina: () => textResponse('', 502),
+      direct: () => htmlResponse('%PDF-1.7', 200, 'application/pdf'),
+    })
+    expect(await readUrlDetailed('https://files.example.test/a.pdf')).toEqual({
+      status: 'failed',
+      url: 'https://files.example.test/a.pdf',
+    })
+    expect(readHostBlockOf('files.example.test')).toBeNull()
+  })
+
+  it('直连只收 directMaxBytes 字节：到了就停，⛔ 不整个吞下去', async () => {
+    const chunk = new TextEncoder().encode(`<p>${'a'.repeat(65_536)}</p>`)
+    let pulled = 0
+    const endless = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled += 1
+        controller.enqueue(chunk)
+      },
+    })
+    route({
+      jina: () => textResponse('', 502),
+      direct: () =>
+        new Response(endless, {
+          headers: { 'content-type': 'text/html' },
+        }),
+    })
+    const outcome = await readUrlDetailed('https://big.example.test/a')
+    expect(outcome.status).toBe('read')
+    expect(pulled).toBeLessThanOrEqual(
+      Math.ceil(URL_READER.directMaxBytes / chunk.byteLength) + 2,
+    )
+    if (outcome.status !== 'read') throw new Error('unreachable')
+    expect(outcome.page.content.length).toBeLessThanOrEqual(
+      URL_READER.maxContentLength,
+    )
   })
 })
 

@@ -74,7 +74,127 @@ export const URL_READER = {
   maxContentLength: 6000,
   /** Cap URLs read per research turn so one message can't fan out unbounded. */
   maxUrlsPerTurn: 3,
+  /**
+   * 退路 (b)：服务端自己直连那一页（Jina 被挡 / 读不出、又不是 MediaWiki 站时）。
+   * ⚠ 一次、不重试、超时短：它是退路，⛔ 不该比主路还慢。
+   */
+  directTimeoutMs: 8_000,
+  /** 直连最多收多少字节（读到这里就停，⛔ 不整页吞下一个几十兆的东西）。 */
+  directMaxBytes: 1_500_000,
+  /** 直连只收这几种（别的类型 = 不是一页能读的文字）。 */
+  directContentTypes: ['text/html', 'application/xhtml+xml', 'text/plain'],
+  /**
+   * 一个站挡过一次就记一阵（按主机，进程内）：这段时间里再读它直接回「被挡了」，
+   * 查证选页时也排到后面。⭐ 30 分钟：挑战页通常按 IP / 会话放，几分钟内重试没用；
+   * 记太久又会错过站点放开。
+   */
+  blockedHostTtlMs: 30 * 60_000,
+  /** 记几个站（满了先丢最早过期的那个）—— 进程内的表，⛔ 不无限长。 */
+  maxBlockedHosts: 200,
 } as const
+
+/** 这一页最后是怎么读到的（日志与 `read_url` 结果上的 `via`）。 */
+export const URL_READER_VIAS = {
+  jina: 'jina',
+  mediawiki: 'mediawiki',
+  direct: 'direct',
+  /** 全文没读到，只有搜索结果里那一段摘要。 */
+  snippet: 'snippet',
+} as const
+
+export const URL_READER_VIA_VALUES = [
+  URL_READER_VIAS.jina,
+  URL_READER_VIAS.mediawiki,
+  URL_READER_VIAS.direct,
+  URL_READER_VIAS.snippet,
+] as const
+
+export type UrlReaderVia = (typeof URL_READER_VIA_VALUES)[number]
+
+/**
+ * **读回来的是不是一张「挡住你」的页**（Cloudflare 五秒盾、验证码、403 / 429）。
+ *
+ * 🔬 由来：Jina 读一个挡爬的站，HTTP 照样 200，正文是「Just a moment...」「Verification
+ * successful. Waiting for …」—— 之前这段字被当成正文交给模型，查证还拿它顶掉了搜索摘要。
+ *
+ * 判据（`lib/read-url-blocks.ts` 的 `detectBlockedPage`）：
+ *  · 状态码在 `statuses` 里 = 挡了（直连那一跳的状态码，或 Jina 正文头里那句
+ *    「Target URL returned error 403」）；
+ *  · 否则正文**短**（≤ `maxBodyChars`）**且**命中一条 `strongMarkers`（挑战页才写的整句，
+ *    只看标题与正文开头 `strongMarkerHeadChars` 字）；或正文**更短**（≤ `weakMarkerMaxBodyChars`）
+ *    **且**命中**两条以上不同的** `weakMarkers`。
+ *  · 「Access denied / 访问被拒绝」这类话一篇讲报错的短文开头也会写，所以算弱信号；挡人的那一页
+ *    总会再带一样（Cloudflare、Ray ID、error 1020、Forbidden……）或一句整句（「You don't have
+ *    permission to access」）。
+ * ⚠ 防误判：一篇正常文章谈到 Cloudflare / captcha / 403 很常见 —— 长文一律不判；短文也要
+ *   整句挑战语，或好几样弱信号同时出现。
+ * ⚠ 全部小写比对（判定前把文字转小写）。
+ */
+export const URL_READER_BLOCK_SIGNALS = {
+  statuses: [401, 403, 429, 451] as readonly number[],
+  maxBodyChars: 2_000,
+  strongMarkerHeadChars: 600,
+  weakMarkerMaxBodyChars: 1_200,
+  strongMarkers: [
+    'just a moment...',
+    'checking your browser',
+    'checking if the site connection is secure',
+    'verification successful. waiting for',
+    'verifying you are human',
+    'verify you are human',
+    'please verify you are a human',
+    'performing security verification',
+    'please complete the security check',
+    'attention required! | cloudflare',
+    'enable javascript and cookies to continue',
+    'ddos protection by',
+    'sorry, you have been blocked',
+    "you don't have permission to access",
+    'you do not have permission to access',
+    'this page maybe requiring captcha',
+    'are you a robot',
+    'cf-browser-verification',
+    'cf_chl_',
+    '/cdn-cgi/challenge-platform',
+    '请完成安全验证',
+    '请输入验证码',
+    '人机验证',
+    '請完成安全驗證',
+    '請輸入驗證碼',
+    '画像認証',
+  ] as readonly string[],
+  /** 单独一条不算（正文谈到它很平常）；两条以上不同的 + 正文短才算。 */
+  weakMarkers: [
+    /\bcloudflare\b/,
+    /\bcaptcha\b/,
+    /\brecaptcha\b/,
+    /\bhcaptcha\b/,
+    /\bturnstile\b/,
+    /\bray id\b/,
+    /\bforbidden\b/,
+    /\btoo many requests\b/,
+    /\berror(?: code)?:?\s*(?:403|429|1010|1015|1020)\b/,
+    /\bhttp\s*(?:403|429)\b/,
+    /\baccess denied\b/,
+    /访问被拒绝|訪問被拒絕|拒绝访问|拒絕訪問/,
+    /アクセスが拒否されました|アクセス拒否/,
+    /\bsecurity check\b/,
+    /\bbot detection\b/,
+    /验证码|驗證碼/,
+    /安全验证|安全驗證/,
+  ] as readonly RegExp[],
+  /** Jina 把目标站的状态写在正文头里：`Warning: Target URL returned error 403: Forbidden`。 */
+  jinaTargetStatus: /target url returned error (\d{3})/i,
+} as const
+
+/** 被挡的几种说法（日志、给模型的那句话按它挑词）。 */
+export const URL_READER_BLOCK_REASONS = {
+  status: 'status',
+  challenge: 'challenge',
+} as const
+
+export type UrlReaderBlockReason =
+  (typeof URL_READER_BLOCK_REASONS)[keyof typeof URL_READER_BLOCK_REASONS]
 
 /**
  * 找**角色官方设定图**时往查询里加的限定词（助手检索线，2026-09-06）。

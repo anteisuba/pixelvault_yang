@@ -68,6 +68,7 @@ import {
   type AssistantOperatorTool,
 } from '@/constants/assistant-operator'
 import { DURATION, EASE_POP_STRONG } from '@/constants/motion'
+import { URL_READER_VIAS } from '@/constants/web-search'
 import { STUDIO_OPERATOR_REFERENCE_STAGGER_SECONDS } from '@/constants/studio-assistant-operator'
 import { openOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
 import { StudioOperatorWebVideoPlayer } from '@/components/business/studio/assistant-operator/StudioOperatorWebVideoPlayer'
@@ -545,6 +546,15 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
           >
             {step.result.title}
           </a>
+          {/* 全文没读到（站点挡了 / 读不出），下面只是搜索摘要 —— ⛔ 不让它看着像读过原页。 */}
+          {step.result.via === URL_READER_VIAS.snippet ? (
+            <p
+              data-testid="operator-read-url-snippet-only"
+              className="mt-1 text-xs text-muted-foreground"
+            >
+              {t('web.readSnippetOnly')}
+            </p>
+          ) : null}
           <p
             data-testid="operator-read-url-excerpt"
             className="mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap text-2sm text-muted-foreground"

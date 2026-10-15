@@ -4,9 +4,11 @@ import {
   buildFandomSite,
   FANDOM_WIKIS,
   MEDIAWIKI_CONTENT_ROUTES,
+  MEDIAWIKI_READ_HOSTS,
   MEDIAWIKI_SITES,
   RESEARCH_LIMITS,
   RESEARCH_SOURCE_IDS,
+  type MediaWikiReadHost,
   type MediaWikiSiteCapability,
   type ResearchSourceId,
 } from '@/constants/research'
@@ -156,14 +158,15 @@ async function resolveTitle(
 /** wikitext → 可读摘录。只做最低限度的去标记，够当证据引文即可。 */
 function flattenWikitext(wikitext: string): string {
   return wikitext
+    .slice(0, RESEARCH_LIMITS.maxWikitextChars)
     .replace(/<!--[\s\S]*?-->/g, '')
     .replace(/\[\[(?:File|Image|文件|档案):[^\]]*\]\]/gi, '')
     .replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, '$2')
     .replace(/\[\[([^\]]+)\]\]/g, '$1')
     .replace(/'{2,}/g, '')
-    .replace(/<ref[^>]*\/>/gi, '')
-    .replace(/<ref[^>]*>[\s\S]*?<\/ref>/gi, '')
-    .replace(/<[^>]+>/g, '')
+    .replace(/<ref[^<>]*\/>/gi, '')
+    .replace(/<ref[^<>]*>[\s\S]*?<\/ref>/gi, '')
+    .replace(/<[^<>]*>/g, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim()
 }
@@ -281,6 +284,126 @@ export function getMediaWikiSite(
   sourceId: ResearchSourceId,
 ): MediaWikiSiteCapability | undefined {
   return MEDIAWIKI_SITES.find((site) => site.sourceId === sourceId)
+}
+
+// ─── 按网址读一页（`read_url` 的退路 (a)）──────────────────────
+
+/** 一个网址认出来是哪个 wiki 的哪一页：照这一行打它的 API。 */
+export interface MediaWikiReadTarget {
+  site: MediaWikiSiteCapability
+  title: string
+}
+
+/** 中文站繁简路径段（`/zh-cn/页名`、`/zh-hans/页名`），与 `/wiki/` 同位。 */
+const ZH_VARIANT_SEGMENT = /^\/zh(?:-[a-z]{2,4})?\//i
+/** Fandom 的语言段（`/zh/wiki/…`、`/pt-br/wiki/…`）。 */
+const FANDOM_LANG_SEGMENT = /^\/([a-z]{2,3}(?:-[a-z]{2,4})?)(?=\/wiki\/)/i
+/** 特殊页没有正文可读（搜索页、最近更改……）。 */
+const SPECIAL_NAMESPACE = /^(?:special|特殊|特別|特别)\s*:/i
+
+function matchReadHost(hostname: string): MediaWikiReadHost | undefined {
+  return MEDIAWIKI_READ_HOSTS.find((entry) =>
+    entry.match === 'exact'
+      ? hostname === entry.host
+      : hostname === entry.host || hostname.endsWith(`.${entry.host}`),
+  )
+}
+
+/** 路径里的页名是百分号编码的；`?title=` 那一种已经解过（⛔ 再解一次会吃掉页名里的 `%`）。 */
+function cleanTitle(raw: string, encoded: boolean): string | null {
+  let title = raw
+  if (encoded)
+    try {
+      title = decodeURIComponent(raw)
+    } catch {
+      return null
+    }
+  title = title.replace(/_/g, ' ').trim()
+  if (!title || SPECIAL_NAMESPACE.test(title)) return null
+  return title
+}
+
+/**
+ * 网址 → 哪个 wiki 的哪一页（表在 `MEDIAWIKI_READ_HOSTS`）。认不出 / 不是一页正文 = `null`。
+ *
+ * ⚠ 只认路径与 `?title=`，⛔ 不打任何请求；API 地址按**这个网址自己的主机**拼（https；子域、
+ *   B站 wiki 的游戏段、Fandom 的语言段原样保留），所以读的就是用户给的那一页。
+ */
+export function resolveMediaWikiReadTarget(
+  raw: string | URL,
+): MediaWikiReadTarget | null {
+  let url: URL
+  try {
+    url = typeof raw === 'string' ? new URL(raw) : raw
+  } catch {
+    return null
+  }
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') return null
+  const entry = matchReadHost(url.hostname.toLowerCase())
+  if (!entry) return null
+
+  let base = ''
+  let rest = url.pathname
+  if (entry.wikiInPath) {
+    const wiki = /^\/([^/]+)(\/.*)?$/.exec(rest)
+    if (!wiki?.[1] || wiki[1].includes('.')) return null
+    base = `/${wiki[1]}`
+    rest = wiki[2] ?? '/'
+  }
+  if (entry.langInPath) {
+    const lang = FANDOM_LANG_SEGMENT.exec(rest)
+    if (lang?.[1]) {
+      base = `/${lang[1]}`
+      rest = rest.slice(lang[0].length)
+    }
+  }
+
+  const queryTitle = url.searchParams.get('title')
+  let pathTitle: string | null = null
+  if (entry.titlePrefix !== '/' && rest.startsWith(entry.titlePrefix))
+    pathTitle = rest.slice(entry.titlePrefix.length)
+  else if (ZH_VARIANT_SEGMENT.test(rest))
+    pathTitle = rest.replace(ZH_VARIANT_SEGMENT, '')
+  else if (entry.titlePrefix === '/' && !/\.php$/i.test(rest))
+    pathTitle = rest.slice(1)
+  const title = queryTitle
+    ? cleanTitle(queryTitle, false)
+    : pathTitle === null
+      ? null
+      : cleanTitle(pathTitle, true)
+  if (!title) return null
+
+  // ⚠ 一律 https、默认端口：表里的站都是平台自己的子域（DNS 不归 wiki 作者管），给 http 的网址
+  //   或带端口的网址也不跟着走。
+  const origin = `https://${url.hostname.toLowerCase()}`
+  return {
+    title,
+    site: {
+      sourceId: RESEARCH_SOURCE_IDS.urlReader,
+      label: entry.label,
+      api: `${origin}${base}${entry.apiPath}`,
+      pageUrlPrefix: `${origin}${base}${entry.titlePrefix}`,
+      queryLanguage: entry.queryLanguage,
+      supportsOpenSearch: false,
+      supportsGeneratorSearch: false,
+      contentRoutes: entry.contentRoutes,
+      supportsCategories: false,
+      supportsPageImages: false,
+    },
+  }
+}
+
+/**
+ * 按 API 读那一页的正文（与检索腿同一条降级链 `fetchDetail`）。没有正文（页不存在 /
+ * 空页）= `null`；整条链都被拒 = 抛（调用方记日志、走下一条退路）。
+ */
+export async function readMediaWikiPage(
+  target: MediaWikiReadTarget,
+): Promise<{ title: string; text: string; url: string } | null> {
+  const detail = await fetchDetail(target.site, target.title)
+  const text = detail.text?.trim()
+  if (!text) return null
+  return { title: detail.title, text, url: pageUrl(target.site, detail.title) }
 }
 
 // ─── 归一化与相关性 ─────────────────────────────────────────────

@@ -71,13 +71,18 @@ export function findsOfStepResult(result: unknown): AssistantWebFind[] {
   ].slice(0, ASSISTANT_WEB_FIND_LIMITS.maxPerTurn)
 }
 
-/** 一步查证的结果 → 资料号对照表（只收有地址的那几条）。 */
+/**
+ * 一步查证的结果 → 资料号对照表（只收有地址的那几条）。`snippets` = 这一跳记下的搜索摘要
+ * （`run.researchSnippets`，读全文之前的那一段），跟着那一页搬进本轮记录。
+ */
 export function sourcesOfStepResult(
   result: unknown,
+  snippets?: Run['researchSnippets'],
 ): AssistantResearchSourceRef[] {
   const evidence = LooseEvidenceSchema.safeParse(result).data?.evidence ?? []
   return evidence
     .flatMap((item) => {
+      const snippet = item.url ? snippets?.get(item.url)?.snippet : undefined
       const parsed = AssistantResearchSourceRefSchema.safeParse({
         cite: item.cite,
         url: item.url,
@@ -85,6 +90,14 @@ export function sourcesOfStepResult(
           0,
           ASSISTANT_RESEARCH_LIMITS.maxEvidenceTitleChars,
         ),
+        ...(snippet
+          ? {
+              snippet: snippet.slice(
+                0,
+                ASSISTANT_RESEARCH_LIMITS.maxEvidenceSnippetChars,
+              ),
+            }
+          : {}),
       })
       return parsed.success ? [parsed.data] : []
     })
@@ -121,7 +134,8 @@ function transcriptSources(
 }
 
 /**
- * 每一跳开头：旧执行器的两条连号接着本轮记录往下数，找到过的图回到准入名单。
+ * 每一跳开头：旧执行器的两条连号接着本轮记录往下数，找到过的图回到准入名单，查证过的页的
+ * 搜索摘要回到 `run.researchSnippets`。
  *
  * ⭐ 连号：下一条找到的东西从「已有最大号 + 1」起（上一轮带来的也算 —— 所以「用 #2」永远
  *   只指一张）；`[n]` 同理，接力之后再查一次也不和前一跳的撞号。
@@ -139,11 +153,16 @@ export function seedV3WebFinds(
   for (const find of finds)
     if (find.kind === 'image' && !run.webImageIndex.has(find.imageUrl))
       run.webImageIndex.set(find.imageUrl, webFindToWebImage(find))
-  const topCite = transcriptSources(transcript).reduce(
-    (max, source) => Math.max(max, source.cite),
-    0,
-  )
+  const sources = transcriptSources(transcript)
+  const topCite = sources.reduce((max, source) => Math.max(max, source.cite), 0)
   run.evidenceCiteSeq = Math.max(run.evidenceCiteSeq ?? 1, topCite + 1)
+  // 搜索摘要回到 `read_url` 的最后一条退路（再读被挡时只交它，明说全文没读到）。
+  for (const source of sources)
+    if (source.snippet && !run.researchSnippets.has(source.url))
+      run.researchSnippets.set(source.url, {
+        title: source.title,
+        snippet: source.snippet,
+      })
 }
 
 /** `#n` → 那一条：本轮最近找到的优先，再看上一轮带来的。 */

@@ -8413,7 +8413,8 @@
       },
       "findRef": "見つけた #{n} を表示：{label}",
       "findRefPlain": "見つけた #{n} を表示",
-      "findNamed": "回答で挙げた候補"
+      "findNamed": "回答で挙げた候補",
+      "readSnippetOnly": "ページ本文は読めませんでした（サイトに拒否されたか、読み込めませんでした）。以下は検索結果の抜粋だけです。"
     },
     "queue": {
       "badge": "順番待ち",

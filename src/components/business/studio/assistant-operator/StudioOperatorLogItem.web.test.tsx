@@ -385,6 +385,27 @@ describe('日志条 · 读回来的正文（read_url，2026-09-06）', () => {
       'href',
       'https://zh.moegirl.org.cn/shiye',
     )
+    expect(screen.queryByTestId('operator-read-url-snippet-only')).toBeNull()
+  })
+
+  it('⛔ 全文没读到（via snippet）时明说只是搜索摘要（2026-10-15）', () => {
+    renderItem({
+      step: {
+        ...READ_STEP,
+        result: {
+          title: '时夜 - 角色介绍',
+          url: 'https://blocked.example.test/shiye',
+          excerpt: '时夜：黑色长发，金色瞳孔。',
+          via: 'snippet',
+        },
+      } as unknown as Parameters<typeof StudioOperatorLogItem>[0]['step'],
+    })
+    expect(
+      screen.getByTestId('operator-read-url-snippet-only'),
+    ).toBeInTheDocument()
+    expect(screen.getByTestId('operator-read-url-excerpt')).toHaveTextContent(
+      '金色瞳孔',
+    )
   })
 })
 

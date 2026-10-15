@@ -3475,6 +3475,7 @@ describe('v3 内核 · 找到的东西编号 #n 与查证短版（搜索期第�
       webImageIndex: new Map<string, unknown>(),
       webFindSeq: 1,
       evidenceCiteSeq: 1,
+      researchSnippets: new Map<string, { title: string; snippet: string }>(),
     }
   }
   let run = freshRun()

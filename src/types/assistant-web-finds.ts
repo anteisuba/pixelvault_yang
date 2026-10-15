@@ -85,6 +85,14 @@ export const AssistantResearchSourceRefSchema = z.object({
   cite: z.number().int().min(1).max(ASSISTANT_WEB_FIND_LIMITS.maxNumber),
   url: FindUrlSchema,
   title: z.string().max(ASSISTANT_RESEARCH_LIMITS.maxEvidenceTitleChars),
+  /**
+   * 那一页的**搜索摘要**（读全文之前的那一段，2026-10-15）：再读那一页被站点挡了时，只交它并明说
+   * 全文没读到。⛔ 不进模型看的东西（模型读 `compact` 那一行）。
+   */
+  snippet: z
+    .string()
+    .max(ASSISTANT_RESEARCH_LIMITS.maxEvidenceSnippetChars)
+    .optional(),
 })
 export type AssistantResearchSourceRef = z.infer<
   typeof AssistantResearchSourceRefSchema

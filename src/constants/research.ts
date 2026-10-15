@@ -296,6 +296,12 @@ export const RESEARCH_LIMITS = {
   maxEvidenceItems: 24,
   /** 文本证据摘录的截断长度。 */
   excerptChars: 900,
+  /**
+   * wikitext 只拿前这么多字去去标记（2026-10-15）。⚠ 按网址读页的退路会读到任意 Fandom /
+   * 灰机wiki 子站（外人写的 wikitext），去标记那几条正则遇上成千上万个没闭合的 `<ref` / `[[`
+   * 会退化成平方级 —— 截断让最坏情况有界；输出最多也只要 `URL_READER.maxContentLength`（6000）字。
+   */
+  maxWikitextChars: 40_000,
   /** tags 证据最多几个标签。 */
   maxTagsPerItem: 40,
   /**
@@ -755,6 +761,92 @@ export const MEDIAWIKI_SITES: readonly MediaWikiSiteCapability[] = [
     contentRoutes: [MEDIAWIKI_CONTENT_ROUTES.extracts],
     supportsCategories: false,
     supportsPageImages: false,
+  },
+]
+
+/**
+ * **按网址读一页 wiki**（`read_url` 的退路 (a)，2026-10-15）：Jina 读不出 / 被挡时，认得出
+ * 是哪个 MediaWiki 站就改走它的 API 取正文（`mediawiki.connector` 的
+ * `resolveMediaWikiReadTarget` + `readMediaWikiPage`，与检索腿同一条降级链）。
+ *
+ * ⭐ 数据驱动：加一个站 = 加一行，⛔ 别在连接器里写 `if (host === …)`。
+ *  · `host` + `match`：`exact` 整个相等；`suffix` = 它本身或它的子域（`xxx.huijiwiki.com`）。
+ *  · `titlePrefix`：路径里页名前那一截（`/wiki/` 或 `/`）；`?title=` 的写法也认。
+ *  · `wikiInPath`：第一段路径是子 wiki 名（B站 wiki：`wiki.biligame.com/<game>/页名`，
+ *    API 在 `/<game>/api.php`）。`langInPath`：Fandom 的语言段（`/zh/wiki/页名` → `/zh/api.php`）。
+ *  · 中文维基 / 萌百的繁简路径（`/zh-cn/页名`、`/zh-hans/页名`）照样认。
+ * ⚠ 灰机wiki 与 B站 wiki 的 API 路径按 MediaWiki 的惯例写的，**没有实测**；取正文三条路依次
+ *   试（extracts → revisions → parse），哪条通用哪条。萌百只有 extracts 通（同检索表）。
+ */
+export interface MediaWikiReadHost {
+  label: string
+  host: string
+  match: 'exact' | 'suffix'
+  titlePrefix: '/wiki/' | '/'
+  apiPath: string
+  wikiInPath?: boolean
+  langInPath?: boolean
+  queryLanguage: 'zh' | 'en'
+  contentRoutes: readonly MediaWikiContentRoute[]
+}
+
+const ALL_CONTENT_ROUTES = [
+  MEDIAWIKI_CONTENT_ROUTES.extracts,
+  MEDIAWIKI_CONTENT_ROUTES.revisions,
+  MEDIAWIKI_CONTENT_ROUTES.parse,
+] as const
+
+export const MEDIAWIKI_READ_HOSTS: readonly MediaWikiReadHost[] = [
+  {
+    label: '萌娘百科',
+    host: 'moegirl.org.cn',
+    match: 'suffix',
+    titlePrefix: '/',
+    apiPath: '/api.php',
+    queryLanguage: 'zh',
+    contentRoutes: [MEDIAWIKI_CONTENT_ROUTES.extracts],
+  },
+  {
+    label: 'Wikipedia',
+    host: 'wikipedia.org',
+    match: 'suffix',
+    titlePrefix: '/wiki/',
+    apiPath: '/w/api.php',
+    queryLanguage: 'en',
+    contentRoutes: [MEDIAWIKI_CONTENT_ROUTES.extracts],
+  },
+  {
+    label: 'Fandom',
+    host: 'fandom.com',
+    match: 'suffix',
+    titlePrefix: '/wiki/',
+    apiPath: '/api.php',
+    langInPath: true,
+    queryLanguage: 'en',
+    // 🔬 Fandom 未装 TextExtracts（同检索表）。
+    contentRoutes: [
+      MEDIAWIKI_CONTENT_ROUTES.revisions,
+      MEDIAWIKI_CONTENT_ROUTES.parse,
+    ],
+  },
+  {
+    label: '灰机wiki',
+    host: 'huijiwiki.com',
+    match: 'suffix',
+    titlePrefix: '/wiki/',
+    apiPath: '/api.php',
+    queryLanguage: 'zh',
+    contentRoutes: ALL_CONTENT_ROUTES,
+  },
+  {
+    label: 'BWIKI',
+    host: 'wiki.biligame.com',
+    match: 'exact',
+    titlePrefix: '/',
+    apiPath: '/api.php',
+    wikiInPath: true,
+    queryLanguage: 'zh',
+    contentRoutes: ALL_CONTENT_ROUTES,
   },
 ]
 

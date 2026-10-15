@@ -456,7 +456,7 @@ export async function* settlePlan(
        *   第三片）：接力那一跳、下一步、下一轮都按它换号。模型只读 `output` / `compact`。
        */
       const finds = findsOfStepResult(outcome.result)
-      const sources = sourcesOfStepResult(outcome.result)
+      const sources = sourcesOfStepResult(outcome.result, run.researchSnippets)
       return {
         kind: 'result',
         output: outcome.observation,

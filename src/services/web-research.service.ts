@@ -2,15 +2,31 @@ import 'server-only'
 
 import { z } from 'zod'
 
+import { RESEARCH_USER_AGENT } from '@/constants/research'
 import {
   URL_READER,
+  URL_READER_VIAS,
   WEB_IMAGE_SEARCH,
   WEB_SEARCH,
+  type UrlReaderBlockReason,
+  type UrlReaderVia,
 } from '@/constants/web-search'
-import { assertSafeUrl } from '@/lib/url-guard'
+import { assertSafeUrl, safeFetch } from '@/lib/url-guard'
 import { logger } from '@/lib/logger'
+import {
+  detectBlockedPage,
+  htmlToReadableText,
+  markReadHostBlocked,
+  parseJinaReaderOutput,
+  readHostBlockOf,
+  readHostOf,
+} from '@/lib/read-url-blocks'
 import { extractUrlsFromText, stripUrls } from '@/lib/research-intent'
 import { withRetry } from '@/lib/with-retry'
+import {
+  readMediaWikiPage,
+  resolveMediaWikiReadTarget,
+} from '@/services/research/mediawiki.connector'
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -29,6 +45,8 @@ export interface WebSearchResult {
 export interface FetchedPage {
   url: string
   content: string
+  /** 页面标题（Jina 头里的 `Title:`、wiki 页名、HTML 的 `<title>`）；取不到就缺席。 */
+  title?: string
 }
 
 export interface WebContext {
@@ -342,23 +360,39 @@ export async function webImageSearchMulti(
   return merged
 }
 
-// ─── URL reader (Jina) ───────────────────────────────────────────
+// ─── URL reader：Jina → MediaWiki API → 直连 ───────────────────
 
 /**
- * Read a single URL via Jina Reader (renders JS, returns clean markdown).
- * Best-effort: returns null on an unsafe URL or any fetch failure. The target
- * is SSRF-guarded before we hand it to the reader.
+ * 读一页的结果（2026-10-15）。
+ *  · `read`：读到了正文，`via` 说是哪条路读到的。
+ *  · `blocked`：站点挡住了（挑战页 / 验证码 / 401·403·429·451）—— ⛔ 挑战页的字一个都不交出去；
+ *    `cached` = 这个站 `URL_READER.blockedHostTtlMs` 之内挡过，这次没再去碰它。
+ *  · `failed`：读不出来（超时、不是网页、空页、地址不安全）。
  */
-export async function readUrl(rawUrl: string): Promise<FetchedPage | null> {
-  let target: string
-  try {
-    target = assertSafeUrl(rawUrl, {
-      allowedProtocols: ['http:', 'https:'],
-    }).toString()
-  } catch {
-    return null
-  }
+export type ReadUrlOutcome =
+  | {
+      status: 'read'
+      page: FetchedPage
+      via: Exclude<UrlReaderVia, typeof URL_READER_VIAS.snippet>
+    }
+  | {
+      status: 'blocked'
+      url: string
+      host: string
+      reason: UrlReaderBlockReason
+      detail: string
+      cached: boolean
+    }
+  | { status: 'failed'; url: string }
 
+/** 一条路读一次的结果（内部用）。 */
+type ReadAttempt =
+  | { status: 'read'; content: string; title: string | null }
+  | { status: 'blocked'; reason: UrlReaderBlockReason; detail: string }
+  | { status: 'failed' }
+
+/** Jina（渲染 JS、出 markdown）。⚠ Jina 自己的非 2xx = 读者的事（`failed`），⛔ 不算站点挡你。 */
+async function readViaJina(target: string): Promise<ReadAttempt> {
   const headers: Record<string, string> = {
     'X-Return-Format': 'markdown',
   }
@@ -368,7 +402,7 @@ export async function readUrl(rawUrl: string): Promise<FetchedPage | null> {
   }
 
   try {
-    const content = await withRetry(
+    const raw = await withRetry(
       async () => {
         const response = await fetch(`${URL_READER.jinaEndpoint}${target}`, {
           headers,
@@ -384,20 +418,254 @@ export async function readUrl(rawUrl: string): Promise<FetchedPage | null> {
       },
       { label: 'readUrl.jina' },
     )
-
-    const trimmed = content.trim()
-    if (!trimmed) return null
-    return {
-      url: target,
-      content: trimmed.slice(0, URL_READER.maxContentLength),
-    }
+    const parsed = parseJinaReaderOutput(raw)
+    const verdict = detectBlockedPage(parsed)
+    if (verdict.blocked)
+      return {
+        status: 'blocked',
+        reason: verdict.reason,
+        detail: verdict.detail,
+      }
+    if (!parsed.body) return { status: 'failed' }
+    return { status: 'read', content: parsed.body, title: parsed.title }
   } catch (error) {
-    logger.warn('readUrl failed', {
+    logger.warn('readUrl via Jina failed', {
       url: target,
       error: error instanceof Error ? error.message : String(error),
     })
-    return null
+    return { status: 'failed' }
   }
+}
+
+/** 退路 (a)：认得出是哪个 MediaWiki 站就按 API 取正文（与检索腿同一条降级链）。 */
+async function readViaMediaWiki(target: string): Promise<ReadAttempt | null> {
+  const wiki = resolveMediaWikiReadTarget(target)
+  if (!wiki) return null
+  try {
+    const page = await readMediaWikiPage(wiki)
+    logger.info('readUrl fallback: MediaWiki API', {
+      url: target,
+      site: wiki.site.label,
+      outcome: page ? 'read' : 'empty',
+    })
+    return page
+      ? { status: 'read', content: page.text, title: page.title }
+      : { status: 'failed' }
+  } catch (error) {
+    logger.info('readUrl fallback: MediaWiki API', {
+      url: target,
+      site: wiki.site.label,
+      outcome: 'failed',
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return { status: 'failed' }
+  }
+}
+
+/** 收一段响应体，最多 `maxBytes` 字节（到了就停，⛔ 不整个吞下去）。 */
+async function readCappedText(
+  response: Response,
+  maxBytes: number,
+): Promise<string> {
+  const charset = /charset=([^;]+)/i
+    .exec(response.headers.get('content-type') ?? '')?.[1]
+    ?.trim()
+    .replace(/["']/g, '')
+  let decoder: TextDecoder
+  try {
+    decoder = new TextDecoder(charset || 'utf-8')
+  } catch {
+    decoder = new TextDecoder('utf-8')
+  }
+  const reader = response.body?.getReader()
+  if (!reader) return ''
+  let received = 0
+  let text = ''
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    const chunk =
+      value.byteLength > maxBytes - received
+        ? value.subarray(0, maxBytes - received)
+        : value
+    received += chunk.byteLength
+    text += decoder.decode(chunk, { stream: true })
+    if (received >= maxBytes) {
+      await reader.cancel().catch(() => undefined)
+      break
+    }
+  }
+  return text + decoder.decode()
+}
+
+/**
+ * 退路 (b)：服务端自己直连那一页（SSRF 守卫的 `safeFetch`：解析后的地址、每一跳重定向都过闸）。
+ * ⚠ 老实报 UA（`RESEARCH_USER_AGENT`），⛔ 不伪装浏览器；一次、不重试、超时短、限字节。
+ */
+async function readViaDirect(target: string): Promise<ReadAttempt> {
+  try {
+    const response = await safeFetch(target, {
+      allowedProtocols: ['http:', 'https:'],
+      headers: {
+        'User-Agent': RESEARCH_USER_AGENT,
+        Accept: 'text/html,application/xhtml+xml,text/plain;q=0.9',
+      },
+      signal: AbortSignal.timeout(URL_READER.directTimeoutMs),
+    })
+    const type = (response.headers.get('content-type') ?? '')
+      .split(';')[0]
+      ?.trim()
+      .toLowerCase()
+    const readable =
+      !type ||
+      (URL_READER.directContentTypes as readonly string[]).includes(type)
+    const raw = readable
+      ? await readCappedText(response, URL_READER.directMaxBytes)
+      : (await response.body?.cancel().catch(() => undefined), '')
+    const { title, text } =
+      type === 'text/plain'
+        ? { title: null, text: raw.trim() }
+        : htmlToReadableText(raw)
+    // 挑战页常带 403 / 503 + 「Just a moment…」：状态码与正文一起判。
+    const verdict = detectBlockedPage({
+      status: response.status,
+      title,
+      body: text,
+    })
+    if (verdict.blocked)
+      return {
+        status: 'blocked',
+        reason: verdict.reason,
+        detail: verdict.detail,
+      }
+    if (!response.ok || !readable || !text) return { status: 'failed' }
+    return { status: 'read', content: text, title }
+  } catch (error) {
+    logger.info('readUrl fallback: direct fetch failed', {
+      url: target,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return { status: 'failed' }
+  }
+}
+
+function toPage(
+  url: string,
+  attempt: Extract<ReadAttempt, { status: 'read' }>,
+): FetchedPage {
+  return {
+    url,
+    content: attempt.content.slice(0, URL_READER.maxContentLength),
+    ...(attempt.title ? { title: attempt.title } : {}),
+  }
+}
+
+/**
+ * 读一页正文，**被挡了说被挡了**（2026-10-15）。
+ *
+ * 顺序：Jina → (a) MediaWiki API（认得出的 wiki 站）→ (b) 直连。前一条读到了就停。
+ * ⚠ 第三条退路「只给搜索摘要」不在这里：摘要在调用方手里（`read_url` 的规划期）。
+ *
+ * ── 一个站挡过就记一阵（`lib/read-url-blocks`，进程内，`URL_READER.blockedHostTtlMs`）──
+ *  · 整条链都没读到、且有一条判了「挡了」→ 记「整站挡」：这段时间里再读它不再碰 Jina 与直连，
+ *    直接回 `blocked`（`cached: true`）；wiki 站照旧先试 API（那是另一扇门）。
+ *  · 只有 Jina 被挡、退路读到了 → 记「只挡 Jina」：下次直接走退路，⛔ 不算这个站被挡。
+ *  · Jina 只是失败（超时 / 5xx）不记：那是读者的事，不是站点的。
+ */
+export async function readUrlDetailed(rawUrl: string): Promise<ReadUrlOutcome> {
+  let target: string
+  try {
+    target = assertSafeUrl(rawUrl, {
+      allowedProtocols: ['http:', 'https:'],
+    }).toString()
+  } catch {
+    return { status: 'failed', url: rawUrl }
+  }
+  const host = readHostOf(target) ?? target
+  const remembered = readHostBlockOf(target)
+  const blockedSite = remembered !== null && !remembered.readerOnly
+
+  let block: Extract<ReadAttempt, { status: 'blocked' }> | null = null
+  if (!remembered) {
+    const jina = await readViaJina(target)
+    if (jina.status === 'read')
+      return {
+        status: 'read',
+        page: toPage(target, jina),
+        via: URL_READER_VIAS.jina,
+      }
+    if (jina.status === 'blocked') {
+      block = jina
+      logger.info('readUrl: page blocked behind the reader', {
+        url: target,
+        reason: jina.reason,
+        detail: jina.detail,
+      })
+    }
+  }
+
+  const fallbacks: [
+    typeof URL_READER_VIAS.mediawiki | typeof URL_READER_VIAS.direct,
+    () => Promise<ReadAttempt | null>,
+  ][] = [
+    [URL_READER_VIAS.mediawiki, () => readViaMediaWiki(target)],
+    [
+      URL_READER_VIAS.direct,
+      async () => (blockedSite ? null : readViaDirect(target)),
+    ],
+  ]
+  for (const [via, attempt] of fallbacks) {
+    const result = await attempt()
+    if (!result) continue
+    if (result.status === 'read') {
+      if (block)
+        markReadHostBlocked(target, {
+          reason: block.reason,
+          detail: block.detail,
+          readerOnly: true,
+        })
+      return { status: 'read', page: toPage(target, result), via }
+    }
+    if (result.status === 'blocked') block ??= result
+  }
+
+  if (blockedSite)
+    return {
+      status: 'blocked',
+      url: target,
+      host,
+      reason: remembered.reason,
+      detail: remembered.detail,
+      cached: true,
+    }
+  if (!block) return { status: 'failed', url: target }
+  markReadHostBlocked(target, {
+    reason: block.reason,
+    detail: block.detail,
+    readerOnly: false,
+  })
+  logger.info('readUrl: site blocked every reader, remembered for a while', {
+    host,
+    reason: block.reason,
+    detail: block.detail,
+  })
+  return {
+    status: 'blocked',
+    url: target,
+    host,
+    reason: block.reason,
+    detail: block.detail,
+    cached: false,
+  }
+}
+
+/**
+ * 读一页正文，读不到就 `null`（被挡 / 失败一个样）。要分清「被挡了」用 `readUrlDetailed`。
+ * ⛔ 挑战页的字永远不当正文交出去（判据在 `lib/read-url-blocks`）。
+ */
+export async function readUrl(rawUrl: string): Promise<FetchedPage | null> {
+  const outcome = await readUrlDetailed(rawUrl)
+  return outcome.status === 'read' ? outcome.page : null
 }
 
 // ─── Orchestrator ────────────────────────────────────────────────

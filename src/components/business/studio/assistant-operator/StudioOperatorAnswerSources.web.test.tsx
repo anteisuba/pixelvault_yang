@@ -16,7 +16,8 @@ import type { StudioOperatorStepEntry } from '@/types/studio-assistant-operator'
  * 钉四件事：
  *  ① 一条资料一张来源卡，域名与标题都在，`url` 缺席时⛔ 不渲染成链接；
  *  ② 只有带画面的那几条进媒体条 —— ⛔ 不给没有封面的视频留灰格子；
- *  ③ 视频封面点下去**开新窗口跳原站**（⛔ 不进灯箱、⛔ 不嵌播放器）；
+ *  ③ 视频封面 / 标成视频的来源卡：能嵌就**在面板里播**（与找到的视频那一排同一个
+ *     播放器），嵌不了（认不出稿件号、别的站）才开新窗口跳原站；⛔ 不进灯箱；
  *  ④ 高亮认的是 `cite` 而不是下标。
  */
 
@@ -108,7 +109,7 @@ describe('StudioOperatorAnswerSources', () => {
     expect(media.map((item) => item.dataset.cite)).toEqual(['2', '3'])
   })
 
-  it('⭐ 图片开灯箱、视频开新窗口 —— 两种点击两个去处', () => {
+  it('⭐ 图片开灯箱、嵌不了的视频开新窗口（`BV1` 不是完整稿件号）', () => {
     const open = vi.fn()
     vi.stubGlobal('open', open)
     render(<StudioOperatorAnswerSources sources={SOURCES} activeCite={null} />)
@@ -126,7 +127,89 @@ describe('StudioOperatorAnswerSources', () => {
       '_blank',
       'noopener,noreferrer',
     )
+    expect(screen.queryByTestId('operator-web-video-player')).toBeNull()
+    // 嵌不了的视频来源卡仍是链接。
+    const cards = screen.getAllByTestId('operator-answer-source-card')
+    expect(cards[2]?.tagName).toBe('A')
     vi.unstubAllGlobals()
+  })
+
+  /** 能嵌的两条：一条有封面（进媒体条），一条没封面（只在来源卡上）。 */
+  const PLAYABLE: StudioOperatorAnswerSource[] = [
+    {
+      cite: 1,
+      title: '雨夜霓虹 · 讲解',
+      url: 'https://zhihu.com/a',
+      publisher: 'zhihu.com',
+      kind: 'text',
+    },
+    {
+      cite: 2,
+      title: 'Changli PV',
+      url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      publisher: 'youtube.com',
+      kind: 'video',
+      mediaUrl: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
+      durationSeconds: 209,
+    },
+    {
+      cite: 3,
+      title: '动画短片 | 今昔',
+      url: 'https://www.bilibili.com/video/BV1ji421e7nM',
+      publisher: 'bilibili.com',
+      kind: 'video',
+    },
+  ]
+
+  it('⭐ 能嵌的视频封面：在面板里播（同一个播放器），⛔ 不开新窗口；再点 = 收起', () => {
+    const open = vi.fn()
+    vi.stubGlobal('open', open)
+    render(<StudioOperatorAnswerSources sources={PLAYABLE} activeCite={null} />)
+    const [cover] = screen.getAllByTestId('operator-answer-media-item')
+    fireEvent.click(cover as HTMLElement)
+    expect(open).not.toHaveBeenCalled()
+    expect(openLightbox).not.toHaveBeenCalledWith(
+      PLAYABLE[1]?.mediaUrl,
+      expect.anything(),
+      expect.anything(),
+    )
+    const iframe = screen.getByTestId('operator-web-video-iframe')
+    expect(iframe.getAttribute('src')).toBe(
+      'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ',
+    )
+    expect(iframe.getAttribute('sandbox')).not.toContain('allow-top-navigation')
+    expect(cover?.getAttribute('aria-pressed')).toBe('true')
+    // 同一条的来源卡也亮着，点它 = 收起同一个播放器。
+    const videoCard = screen
+      .getAllByTestId('operator-answer-source-card')
+      .find((card) => card.dataset.cite === '2')
+    expect(videoCard?.tagName).toBe('BUTTON')
+    expect(videoCard?.getAttribute('aria-pressed')).toBe('true')
+    fireEvent.click(videoCard as HTMLElement)
+    expect(screen.queryByTestId('operator-web-video-player')).toBeNull()
+    vi.unstubAllGlobals()
+  })
+
+  it('⭐ 没封面、标成视频的来源卡也在面板里播；文字来源卡仍是链接', () => {
+    render(<StudioOperatorAnswerSources sources={PLAYABLE} activeCite={null} />)
+    const cards = screen.getAllByTestId('operator-answer-source-card')
+    expect(cards[0]?.tagName).toBe('A')
+    expect(cards[2]?.tagName).toBe('BUTTON')
+    expect(screen.getAllByTestId('operator-answer-source-play')).toHaveLength(2)
+    fireEvent.click(cards[2] as HTMLElement)
+    expect(
+      screen.getByTestId('operator-web-video-iframe').getAttribute('src'),
+    ).toBe(
+      'https://player.bilibili.com/player.html?bvid=BV1ji421e7nM&autoplay=0',
+    )
+    // 换一条 = 同一个播放器换地址，⛔ 不叠第二个。
+    fireEvent.click(screen.getAllByTestId('operator-answer-media-item')[0]!)
+    expect(screen.getAllByTestId('operator-web-video-player')).toHaveLength(1)
+    expect(
+      screen.getByTestId('operator-web-video-iframe').getAttribute('src'),
+    ).toBe('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ')
+    fireEvent.click(screen.getByTestId('operator-web-video-close'))
+    expect(screen.queryByTestId('operator-web-video-player')).toBeNull()
   })
 
   it('⭐ 媒体条的图⛔ 不带 Referer；取不到画占位，⛔ 不出破图标', () => {

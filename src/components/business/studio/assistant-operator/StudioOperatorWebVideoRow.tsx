@@ -16,9 +16,9 @@
  *  · 手机横滑（`snap-x`）；桌面面板够宽时两列。
  *
  * ── 点开 ────────────────────────────────────────────────────────
- *  · 四家（`lib/web-video.ts` 认得出稿件号）：**在面板里播**，用各家官方嵌入播放器
- *    （iframe，`WEB_VIDEO_EMBED` 的 sandbox / allow，⛔ 没有 allow-top-navigation），
- *    全屏放行；等创作者在播放器里自己点播放。
+ *  · 四家（`lib/web-video.ts` 认得出稿件号）：**在面板里播**，播放器是全面板共用的那一个
+ *    （`StudioOperatorWebVideoPlayer`：官方嵌入 iframe，⛔ 没有 allow-top-navigation，
+ *    全屏放行）；等创作者在播放器里自己点播放。
  *  · 别的站 / 认不出稿件号（频道页、`b23.tv` 短链）：新窗口开源页
  *    （`rel="noopener noreferrer"`）。
  *  · ⛔ 不下载、不转存、不解码任何一帧 —— 播放全在对方的播放器里；这一排没有「选用」。
@@ -28,12 +28,16 @@
  */
 
 import { useState } from 'react'
-import { Clapperboard, ExternalLink, Play, X } from '@/components/icons'
+import { Clapperboard, ExternalLink, Play } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { ASSISTANT_OPERATOR_LIMITS } from '@/constants/assistant-operator'
 import { STUDIO_OPERATOR_WEB_VIDEO_COVER_PIXELS } from '@/constants/studio-assistant-operator'
-import { WEB_VIDEO_EMBED, WEB_VIDEO_PLATFORM_IDS } from '@/constants/web-video'
+import { WEB_VIDEO_PLATFORM_IDS } from '@/constants/web-video'
+import {
+  StudioOperatorWebVideoPlayer,
+  useWebVideoSiteLabel,
+} from '@/components/business/studio/assistant-operator/StudioOperatorWebVideoPlayer'
 import { revealStep, useMediaReveal } from '@/components/ui/load-reveal'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
@@ -68,7 +72,6 @@ export function StudioOperatorWebVideoRow({
   if (shown && shown.length === 0) return null
 
   const playing = shown?.find((video) => video.url === playingUrl) ?? null
-  const playingEmbed = playing ? resolveWebVideo(playing.url).embedUrl : null
 
   return (
     <section
@@ -89,12 +92,13 @@ export function StudioOperatorWebVideoRow({
         <Skeleton className="mb-1.5 h-5 w-48 max-w-full" />
       )}
 
-      {playing && playingEmbed ? (
-        <WebVideoPlayer
-          video={playing}
-          embedUrl={playingEmbed}
-          onClose={() => setPlayingUrl(null)}
-        />
+      {playing ? (
+        <div className="mb-2">
+          <StudioOperatorWebVideoPlayer
+            video={playing}
+            onClose={() => setPlayingUrl(null)}
+          />
+        </div>
       ) : null}
 
       <ul className="flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1 lg:@2xs:grid lg:@2xs:grid-cols-2 lg:@2xs:overflow-visible lg:@2xs:pb-0">
@@ -136,14 +140,6 @@ export function StudioOperatorWebVideoRow({
   )
 }
 
-/** 角标上写的平台名：四家走 i18n（B站 / ニコニコ），别的站写域名。 */
-function usePlatformLabel(video: AssistantOperatorWebVideo): string {
-  const t = useTranslations('StudioOperator')
-  return video.platform === WEB_VIDEO_PLATFORM_IDS.other
-    ? (video.domain ?? t('web.publisherUnknown'))
-    : t(`web.videoPlatform.${video.platform}`)
-}
-
 function WebVideoCard({
   video,
   index,
@@ -156,7 +152,7 @@ function WebVideoCard({
   onPlay(): void
 }) {
   const t = useTranslations('StudioOperator')
-  const platformLabel = usePlatformLabel(video)
+  const platformLabel = useWebVideoSiteLabel(video)
   const { embedUrl } = resolveWebVideo(video.url)
   const cover = useThirdPartyImage(video.thumbnailUrl)
   const {
@@ -275,72 +271,5 @@ function WebVideoCard({
     >
       {body}
     </button>
-  )
-}
-
-/**
- * 面板里的播放器：官方嵌入页 + 一行「标题 · 去原站 · 关上」。
- *
- * ⚠ `sandbox` 放行脚本、同源（对方自己的源）、弹窗与演示；⛔ 没有 allow-top-navigation
- *   —— 嵌进来的页面不许把整个面板导走。全屏单独放行（`allowFullScreen` + `allow`）。
- * ⚠ `referrerPolicy` 只带源站：YouTube 的嵌入要看到来源站才肯放。
- */
-function WebVideoPlayer({
-  video,
-  embedUrl,
-  onClose,
-}: {
-  video: AssistantOperatorWebVideo
-  embedUrl: string
-  onClose(): void
-}) {
-  const t = useTranslations('StudioOperator')
-  const platformLabel = usePlatformLabel(video)
-  return (
-    <div
-      data-testid="operator-web-video-player"
-      className="mb-2 overflow-hidden rounded-lg border border-border bg-card"
-    >
-      <div className="aspect-video w-full bg-foreground">
-        <iframe
-          key={embedUrl}
-          data-testid="operator-web-video-iframe"
-          src={embedUrl}
-          title={t('web.videoPlayerTitle', {
-            title: video.title,
-            site: platformLabel,
-          })}
-          sandbox={WEB_VIDEO_EMBED.sandbox}
-          allow={WEB_VIDEO_EMBED.allow}
-          allowFullScreen
-          referrerPolicy={WEB_VIDEO_EMBED.referrerPolicy}
-          className="size-full border-0"
-        />
-      </div>
-      <div className="flex min-w-0 items-center gap-1 py-1 pl-2 pr-1">
-        <p className="min-w-0 flex-1 truncate text-xs text-foreground">
-          {video.title}
-        </p>
-        <a
-          href={video.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          data-testid="operator-web-video-open-source"
-          className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted/60 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none"
-        >
-          <ExternalLink className="size-3.5" aria-hidden />
-          {t('web.videoOpenSource', { site: platformLabel })}
-        </a>
-        <button
-          type="button"
-          data-testid="operator-web-video-close"
-          onClick={onClose}
-          aria-label={t('web.videoClose')}
-          className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted/60 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none"
-        >
-          <X className="size-3.5" aria-hidden />
-        </button>
-      </div>
-    </div>
   )
 }

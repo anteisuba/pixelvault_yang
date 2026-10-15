@@ -70,8 +70,10 @@ import {
 import { DURATION, EASE_POP_STRONG } from '@/constants/motion'
 import { STUDIO_OPERATOR_REFERENCE_STAGGER_SECONDS } from '@/constants/studio-assistant-operator'
 import { openOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
+import { StudioOperatorWebVideoPlayer } from '@/components/business/studio/assistant-operator/StudioOperatorWebVideoPlayer'
 import { describeOperatorStepDetail } from '@/lib/studio-operator-history'
 import { cn } from '@/lib/utils'
+import { resolveWebVideo } from '@/lib/web-video'
 import type { AssistantOperatorStep } from '@/types/assistant-operator'
 
 /**
@@ -221,6 +223,10 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
   const t = useTranslations('StudioOperator')
   const reduceMotion = useReducedMotion()
   const [open, setOpen] = useState(false)
+  /** 证据条里正在播的那支视频（按原页地址认）—— 与回答底下同一个播放器。 */
+  const [playingEvidenceUrl, setPlayingEvidenceUrl] = useState<string | null>(
+    null,
+  )
 
   const isRunning = step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.running
   const isRejected = step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error
@@ -414,7 +420,10 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
             `confidence`（这个源有多权威）。⛔ 别为它另起一张卡：日志流里
             「查了一下」的形状该是一个，两张卡会让用户以为发生了两种不同的事。
           ⚠ `url` 可选 —— danbooru 的共现标签没有单一页面可点，那种没有链接，
-            ⛔ 不渲染成一颗点不开的链接。 */}
+            ⛔ 不渲染成一颗点不开的链接。
+          ⚠ 标成视频、`resolveWebVideo` 认得出稿件号的那条（搜索期第二片）：标题点了
+            **就地播**（`StudioOperatorWebVideoPlayer`，与回答底下 / 找到的视频同一个），
+            ⛔ 不跳走；认不出的照旧新窗口。 */}
       {step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done &&
       step.tool === ASSISTANT_OPERATOR_TOOL_IDS.research &&
       step.result &&
@@ -423,64 +432,99 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
           data-testid="operator-evidence-list"
           className="mt-2 flex flex-col gap-1.5"
         >
-          {step.result.evidence.map((item, index) => (
-            <li
-              key={`${item.url ?? item.title}-${index}`}
-              data-testid="operator-evidence-item"
-              data-kind={item.kind}
-              data-confidence={item.confidence}
-              className="min-w-0"
-            >
-              {item.url ? (
-                <a
-                  href={item.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  data-testid="operator-evidence-link"
-                  className="block truncate text-2sm text-foreground underline-offset-2 transition-colors duration-fast ease-standard hover:text-primary hover:underline"
-                >
-                  {item.title}
-                </a>
-              ) : (
-                <span className="block truncate text-2sm text-foreground">
-                  {item.title}
-                </span>
-              )}
-              <span className="flex min-w-0 items-center gap-1">
-                <span
-                  data-testid="operator-evidence-publisher"
-                  className="truncate text-xs tracking-nav text-muted-foreground"
-                >
-                  {item.publisher}
-                </span>
-                {/* 两枚标 —— 一眼看出「这是标签还是一段话」「信得过几分」。
+          {step.result.evidence.map((item, index) => {
+            const video =
+              item.kind === 'video' && item.url
+                ? resolveWebVideo(item.url)
+                : null
+            const playable = video?.embedUrl ? video : null
+            const playing = playable !== null && playingEvidenceUrl === item.url
+            return (
+              <li
+                key={`${item.url ?? item.title}-${index}`}
+                data-testid="operator-evidence-item"
+                data-kind={item.kind}
+                data-confidence={item.confidence}
+                className="min-w-0"
+              >
+                {playable && item.url ? (
+                  <button
+                    type="button"
+                    data-testid="operator-evidence-play"
+                    aria-pressed={playing}
+                    onClick={() =>
+                      setPlayingEvidenceUrl((current) =>
+                        current === item.url ? null : (item.url ?? null),
+                      )
+                    }
+                    className="block w-full truncate text-left text-2sm text-foreground underline-offset-2 transition-colors duration-fast ease-standard hover:text-primary hover:underline"
+                  >
+                    {item.title}
+                  </button>
+                ) : item.url ? (
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-testid="operator-evidence-link"
+                    className="block truncate text-2sm text-foreground underline-offset-2 transition-colors duration-fast ease-standard hover:text-primary hover:underline"
+                  >
+                    {item.title}
+                  </a>
+                ) : (
+                  <span className="block truncate text-2sm text-foreground">
+                    {item.title}
+                  </span>
+                )}
+                <span className="flex min-w-0 items-center gap-1">
+                  <span
+                    data-testid="operator-evidence-publisher"
+                    className="truncate text-xs tracking-nav text-muted-foreground"
+                  >
+                    {item.publisher}
+                  </span>
+                  {/* 两枚标 —— 一眼看出「这是标签还是一段话」「信得过几分」。
                     ⚠ `high` 用 applied 绿、`low` 用 risk 橙，中间档走
                       `muted-foreground`：三档各有各的颜色会让整片证据变成灯泡墙。 */}
-                <span
-                  data-testid="operator-evidence-kind"
-                  className="shrink-0 rounded-sm border border-border/70 px-1 text-xs text-muted-foreground"
-                >
-                  {t(`evidence.kind.${item.kind}`)}
+                  <span
+                    data-testid="operator-evidence-kind"
+                    className="shrink-0 rounded-sm border border-border/70 px-1 text-xs text-muted-foreground"
+                  >
+                    {t(`evidence.kind.${item.kind}`)}
+                  </span>
+                  <span
+                    data-testid="operator-evidence-confidence"
+                    className={cn(
+                      'shrink-0 text-xs',
+                      item.confidence === 'high'
+                        ? 'text-status-applied'
+                        : item.confidence === 'low'
+                          ? 'text-status-risk'
+                          : 'text-muted-foreground',
+                    )}
+                  >
+                    {t(`evidence.confidence.${item.confidence}`)}
+                  </span>
                 </span>
-                <span
-                  data-testid="operator-evidence-confidence"
-                  className={cn(
-                    'shrink-0 text-xs',
-                    item.confidence === 'high'
-                      ? 'text-status-applied'
-                      : item.confidence === 'low'
-                        ? 'text-status-risk'
-                        : 'text-muted-foreground',
-                  )}
-                >
-                  {t(`evidence.confidence.${item.confidence}`)}
+                <span className="mt-0.5 block text-2sm text-muted-foreground">
+                  {item.snippet}
                 </span>
-              </span>
-              <span className="mt-0.5 block text-2sm text-muted-foreground">
-                {item.snippet}
-              </span>
-            </li>
-          ))}
+                {playing && item.url && playable ? (
+                  <div className="mt-1.5">
+                    <StudioOperatorWebVideoPlayer
+                      video={{
+                        url: item.url,
+                        title: item.title,
+                        platform: playable.platform,
+                        domain: item.publisher,
+                      }}
+                      onClose={() => setPlayingEvidenceUrl(null)}
+                    />
+                  </div>
+                ) : null}
+              </li>
+            )
+          })}
         </ul>
       ) : null}
 

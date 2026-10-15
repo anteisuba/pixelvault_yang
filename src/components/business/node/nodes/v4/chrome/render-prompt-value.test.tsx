@@ -45,7 +45,7 @@ describe('renderPromptMentions', () => {
     expect(container.textContent).toBe('听 @语音1 这条')
   })
 
-  it('普通 @名字 不画缩略：前面只有一个 `@`，16px 放不下', () => {
+  it('普通 @名字 只藏 `@`、缩略压在它上面，字符逐字符不变', () => {
     const { container } = render(
       <div>
         {renderPromptMentions('@莫宁 靠在长椅边', {
@@ -54,8 +54,19 @@ describe('renderPromptMentions', () => {
         })}
       </div>,
     )
-    expect(container.querySelector('[data-prompt-bar-thumb]')).toBeNull()
+    const thumb = container.querySelector('[data-prompt-bar-thumb]')
+    expect(thumb).not.toBeNull()
+    expect(thumb?.parentElement?.textContent).toBe('@')
     expect(container.textContent).toBe('@莫宁 靠在长椅边')
+  })
+
+  it('没有媒体的 @名字 不画缩略', () => {
+    const { container } = render(
+      <div>
+        {renderPromptMentions('@莫宁 靠在长椅边', { names: ['莫宁'] })}
+      </div>,
+    )
+    expect(container.querySelector('[data-prompt-bar-thumb]')).toBeNull()
   })
 
   it('完整保留引用名称、引号和换行，按名称显示对应缩略图', () => {

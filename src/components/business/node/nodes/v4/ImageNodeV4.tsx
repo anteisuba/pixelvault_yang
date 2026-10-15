@@ -525,6 +525,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   const promptMentions = useImagePromptMentions({
     id,
     draft,
+    setDraft,
     imageData,
     refs,
     acceptsRefs,
@@ -1447,6 +1448,9 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
             prefix={templateChip}
             onPrefixRemove={() => setPromptTemplate(undefined)}
             renderValue={promptMentions.renderValue}
+            {...(promptMentions.textareaProps
+              ? { textareaProps: promptMentions.textareaProps }
+              : {})}
             addMenu={refAddMenu}
             chips={[paramsChip, advancedChip, modelChip].filter(Boolean)}
           />

@@ -50,6 +50,7 @@
 ## 环境与安全
 
 - 测试用 key / 账号必须一次性 / dev 实例 / 限额；**严禁生产 key**。
+- 登录态测试用户（`auth.setup.ts`）：Clerk dev 实例专用用户，只配 `E2E_CLERK_USER_EMAIL`（`.env.local`），必须是 `+clerk_test` 地址；走 `email_code` 策略、固定码 424242（应用已不开密码登录，故无密码变量）。
 - 本机 preview\_\* 浏览器连不上 localhost：UI 实跑用 claude-in-chrome；owner 已开 dev（3000）直接复用，绝不另起实例。
 - dev server 跑着时不 build（毁 .next）。
 

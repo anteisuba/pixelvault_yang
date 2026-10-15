@@ -234,8 +234,8 @@ import {
   streamAssistantTextWithContextRetry,
 } from '@/services/kernel/assistant-completion.service'
 import {
-  findLlmTextKeyId,
   llmNativeWebSearch,
+  requireLlmTextKeyId,
   resolveLlmTextRoute,
   supportsNativeWebSearch,
   type ResolvedLlmTextRoute,
@@ -12519,8 +12519,9 @@ export async function prepareOperatorTurn(
    * 用户级的一份设置，让客户端每轮上送等于给同一件事开两个真值口 ——
    * 「界面显示 A、实际打 B」那类事故（2026-08-19）正是这么来的。
    *
-   * ⚠ 选中的厂商**没绑 key** 时回落到自动那条优先级（`findLlmTextKeyId` 给
-   * `undefined`）：选择照旧留在库里，用户补上 key 之后自动生效。
+   * ⛔ 选中的厂商**没绑 key** 时整轮不跑（`requireLlmTextKeyId` 抛
+   * `AssistantModelKeyMissingError`，owner 2026-10-15）—— ⛔ 回落到自动那条优先级、拿别家的
+   * key 顶上。选择照旧留在库里，前端就地配 key，配上就生效。「自动」不变。
    */
   /**
    * ⭐ **跨会话记忆**（56a 切片 2）—— 当前域 + `global`，按 `lastUsedAt` 倒序。
@@ -12568,7 +12569,7 @@ export async function prepareOperatorTurn(
 
   const pinnedRouteModel = getAssistantRouteModelEntry(persona.routeModel)
   const apiKeyId = pinnedRouteModel
-    ? await findLlmTextKeyId(user.id, pinnedRouteModel.adapterType)
+    ? await requireLlmTextKeyId(user.id, pinnedRouteModel)
     : undefined
   const route: ResolvedLlmTextRoute = await resolveLlmTextRoute(
     user.id,

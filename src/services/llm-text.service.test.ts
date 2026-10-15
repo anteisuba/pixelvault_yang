@@ -17,6 +17,7 @@ vi.mock('@/lib/db', () => ({
 
 import {
   isLlmTextContextLimitError,
+  requireLlmTextKeyId,
   resolveLlmTextRoute,
   llmTextCompletion,
   llmTextStream,
@@ -27,7 +28,13 @@ import {
   type LlmTextInput,
 } from '@/services/llm-text.service'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE } from '@/constants/assistant-operator'
 import { GENERATION_ERROR_CODES } from '@/constants/generation-errors'
+import { AssistantModelKeyMissingError } from '@/lib/errors'
+import {
+  expectSelectedProviderOnly,
+  keyLookupUsesOf,
+} from '@/test/selected-provider-only'
 import {
   ASSISTANT_IMAGE_LIMITS,
   ASSISTANT_MEDIA_LIMITS,
@@ -204,6 +211,89 @@ describe('resolveLlmTextRoute', () => {
         'Please add a Gemini, DeepSeek, OpenAI, Claude, or Grok API key',
       ),
     })
+  })
+})
+
+/**
+ * 助手选定了模型、那一家却没有 key（owner 2026-10-15「会自动扣其他模型的token，用户还不知道」）。
+ * ⚠ 不桩路由：真的 `requireLlmTextKeyId` + `resolveLlmTextRoute`，只桩库 —— 此前就是这两跳
+ *   之间的「没 key → undefined → 自动优先级」悄悄换成了别家的 key。
+ */
+describe('requireLlmTextKeyId（选定的模型只用它那一家）', () => {
+  const CLAUDE = {
+    adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+    modelId: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
+  }
+  const CLAUDE_KEY = {
+    id: 'key_claude',
+    adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+    encryptedKey: 'enc',
+    isActive: true,
+  }
+
+  /** 库里只有这几把：按厂商查给最新那把，按 id 查给那一把。 */
+  function keysInDb(...keys: (typeof GEMINI_KEY)[]) {
+    mockFindFirst.mockImplementation(
+      async (query: { where: { id?: string; adapterType?: string } }) =>
+        keys.find((key) =>
+          query.where.id
+            ? key.id === query.where.id
+            : key.adapterType === query.where.adapterType,
+        ) ?? null,
+    )
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('⛔ 选了 Claude、只有 Gemini 的 key → 抛带厂商与型号的错，⛔ 不去翻别家的 key', async () => {
+    keysInDb(GEMINI_KEY)
+
+    const failure = await requireLlmTextKeyId('db_user_1', CLAUDE).catch(
+      (error: unknown) => error,
+    )
+
+    expect(failure).toBeInstanceOf(AssistantModelKeyMissingError)
+    expect(failure).toMatchObject({
+      errorCode: ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
+      i18nKey: 'errors.assistant.modelKeyMissing',
+      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+      modelId: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
+    })
+    expectSelectedProviderOnly(keyLookupUsesOf(mockFindFirst), {
+      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+    })
+  })
+
+  it('有那一家的 key → 路由就是它那一家（与 prepareOperatorTurn 同一串两跳）', async () => {
+    keysInDb(GEMINI_KEY, CLAUDE_KEY)
+
+    const keyId = await requireLlmTextKeyId('db_user_1', CLAUDE)
+    const route = await resolveLlmTextRoute('db_user_1', keyId)
+
+    expect(keyId).toBe('key_claude')
+    expect(route.adapterType).toBe(AI_ADAPTER_TYPES.ANTHROPIC)
+    expectSelectedProviderOnly(
+      [
+        ...keyLookupUsesOf(mockFindFirst),
+        { via: 'route', adapterType: route.adapterType },
+      ],
+      { adapterType: AI_ADAPTER_TYPES.ANTHROPIC },
+    )
+  })
+
+  it('「只用所选那一家」那道断言抓得住旧路：没 key 时退回自动优先级就会翻到 Gemini', async () => {
+    keysInDb(GEMINI_KEY)
+
+    // 旧的做法：选定的那一家查不到 → 不带 key 走自动优先级。
+    await resolveLlmTextRoute('db_user_1')
+
+    expect(() =>
+      expectSelectedProviderOnly(keyLookupUsesOf(mockFindFirst), {
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+      }),
+    ).toThrow()
   })
 })
 

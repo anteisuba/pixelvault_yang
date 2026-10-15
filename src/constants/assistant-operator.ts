@@ -1620,6 +1620,17 @@ export type AssistantOperatorStopReason =
 export const ASSISTANT_OPERATOR_INTERNAL_ERROR_CODE = 'INTERNAL'
 
 /**
+ * 助手选定的那个模型在它那一家下**没有可用的 key**（owner 2026-10-15：⛔ 换别家的 key 去跑 ——
+ * 「会自动扣其他模型的token，用户还不知道」）。这一轮一步都不跑，失败帧带着厂商与型号。
+ *
+ * ⚠ 三个消费方：`AssistantModelKeyMissingError` 发它；hook 按它带着模型名与厂商名取
+ * `StudioOperator.error.modelKeyMissing`；面板按它在错误条上给「配置 X 的 key」，就地开
+ * `QuickSetupDialog`（Hard Rule 8，⛔ 跳 `/settings/keys`）。「自动」不走这里。
+ */
+export const ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE =
+  'ASSISTANT_MODEL_KEY_MISSING'
+
+/**
  * **操作员自己那几个码** → `StudioOperator.error.*` 的词表键。
  *
  * ⭐ 由来（2026-09-06 真机）：zh 界面上助手失败时显示的是英文原文

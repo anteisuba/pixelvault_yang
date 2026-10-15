@@ -63,6 +63,7 @@ import type {
   StudioOperatorThreadEntry,
 } from '@/types/studio-assistant-operator'
 import type {
+  AssistantOperatorMissingKey,
   AssistantOperatorRoundSummary,
   AssistantOperatorStep,
 } from '@/types/assistant-operator'
@@ -118,6 +119,11 @@ export interface StudioOperatorState {
    * Hard Rule 8）。⚠ 文案仍走 `errorText`，⛔ 不按码在面板里另取一份。
    */
   errorCode: string | null
+  /**
+   * 助手选定的那个模型缺 key 时，缺的是哪一家、哪个型号（owner 2026-10-15）—— 错误条上那颗
+   * 「配置 X 的 key」就地开的就是这一家的 `QuickSetupDialog`。其余失败都是 `null`。
+   */
+  errorMissingKey: AssistantOperatorMissingKey | null
   /**
    * 排着队、还没发出去的那些话（§3.1 ㉒，本片）。
    *
@@ -284,6 +290,7 @@ const INITIAL_STATE: StudioOperatorState = {
   errorText: null,
   errorTrace: null,
   errorCode: null,
+  errorMissingKey: null,
   queue: [],
   mentions: [],
   mentionInbox: [],
@@ -751,8 +758,9 @@ export function setOperatorStatus(
    */
   errorTrace: StudioOperatorErrorTrace | null = null,
   errorCode: string | null = null,
+  errorMissingKey: AssistantOperatorMissingKey | null = null,
 ): void {
-  emit({ ...state, status, errorText, errorTrace, errorCode })
+  emit({ ...state, status, errorText, errorTrace, errorCode, errorMissingKey })
 }
 
 /** 抽帧那一段的开关（第二期）—— 见 `capturingFrames` 头注。 */
@@ -1226,6 +1234,7 @@ export function loadOperatorThread(args: {
     errorText: null,
     errorTrace: null,
     errorCode: null,
+    errorMissingKey: null,
     queue: [],
     // ⚠ 登记表留着：它只是 `<@kind:id>` 的名字 / 缩略图，别的作用域的草稿可能还
     //   指着它们（换档回来胶囊不该变成「已删除」）。待写进正文的那几条跟着线程走。
@@ -1433,6 +1442,7 @@ export function resetOperatorThread(
     errorText: null,
     errorTrace: null,
     errorCode: null,
+    errorMissingKey: null,
     // ⚠ 队列跟着走：排的那几句是说给**上一条线程**听的，留到新话题里接住，
     //   用户会看到助手回答一个他已经翻篇的问题。
     queue: [],

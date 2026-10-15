@@ -33,6 +33,7 @@ import {
   NOVELAI_V5_MAX_CHARACTERS,
 } from '@/constants/novelai'
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { ASSISTANT_KERNELS } from '@/constants/assistant-v3'
 import { AssistantV3TranscriptSchema } from '@/types/assistant-v3'
 import { AssistantMentionRefSchema } from '@/types/assistant-mention'
@@ -4786,6 +4787,19 @@ export const AssistantOperatorTranscriptEventSchema = z.object({
  * ⚠ `detail` **只在非生产环境下发**（成帧器那一侧判），⛔ 生产 UI 上不出现原始
  * message，更不出现 stack —— 那是日志的事，日志靠 `traceId` 找得回来。
  */
+/**
+ * 助手选定的那个模型缺 key 时，失败帧带上**哪一家、哪个型号**（owner 2026-10-15）：
+ * 面板据它就地开那一家的 `QuickSetupDialog`（Hard Rule 8），⛔ 不猜、⛔ 不配别家。
+ */
+export const AssistantOperatorMissingKeySchema = z.object({
+  adapterType: z.nativeEnum(AI_ADAPTER_TYPES),
+  modelId: z.string().min(1).max(200),
+})
+
+export type AssistantOperatorMissingKey = z.infer<
+  typeof AssistantOperatorMissingKeySchema
+>
+
 export const AssistantOperatorErrorEventSchema = z.object({
   type: z.literal(ASSISTANT_OPERATOR_EVENTS.error),
   error: z.string(),
@@ -4795,6 +4809,8 @@ export const AssistantOperatorErrorEventSchema = z.object({
   traceId: z.string().optional(),
   /** 原始 message —— 仅非生产环境。 */
   detail: z.string().optional(),
+  /** 选定的模型缺 key（`ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE`）时才有。 */
+  missingKey: AssistantOperatorMissingKeySchema.optional(),
 })
 
 /** 错误那一帧（成帧器与客户端错误条共用的形状）。 */

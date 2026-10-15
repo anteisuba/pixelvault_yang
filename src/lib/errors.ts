@@ -5,6 +5,9 @@
  * These classes are SERVER-ONLY — clients receive plain JSON: { errorCode, error, i18nKey }.
  */
 
+import { ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE } from '@/constants/assistant-operator'
+import type { AI_ADAPTER_TYPES } from '@/constants/providers'
+
 // ─── Base Class ──────────────────────────────────────────────────
 
 export abstract class GenerationError extends Error {
@@ -147,6 +150,29 @@ export class ApiKeyError extends GenerationError {
     this.errorCode = type === 'missing' ? 'MISSING_API_KEY' : 'INVALID_API_KEY'
     this.i18nKey =
       type === 'missing' ? 'errors.apiKey.missing' : 'errors.apiKey.invalid'
+  }
+}
+
+/**
+ * The assistant model the user picked has no active key for its provider.
+ *
+ * ⛔ Never run the turn on another provider's key in its place (owner 2026-10-15:
+ * 「会自动扣其他模型的token，用户还不知道」). The error carries the provider and model
+ * so the client opens `QuickSetupDialog` for exactly that provider (Hard Rule 8).
+ */
+export class AssistantModelKeyMissingError extends GenerationError {
+  readonly errorCode = ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE
+  readonly httpStatus = 400
+  readonly i18nKey = 'errors.assistant.modelKeyMissing' as const
+  readonly adapterType: AI_ADAPTER_TYPES
+  readonly modelId: string
+
+  constructor(adapterType: AI_ADAPTER_TYPES, modelId: string) {
+    super(
+      `The assistant model ${modelId} has no active ${adapterType} key. Nothing ran; no other provider was used in its place.`,
+    )
+    this.adapterType = adapterType
+    this.modelId = modelId
   }
 }
 

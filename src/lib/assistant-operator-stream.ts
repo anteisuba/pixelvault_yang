@@ -26,7 +26,7 @@ import type {
   AssistantOperatorErrorEvent,
   AssistantOperatorEvent,
 } from '@/types/assistant-operator'
-import { isGenerationError } from '@/lib/errors'
+import { AssistantModelKeyMissingError, isGenerationError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { encodeSseEvent } from '@/lib/sse'
 
@@ -81,6 +81,15 @@ function toErrorEvent(error: unknown): AssistantOperatorErrorEvent {
     error: payload.error,
     ...(payload.errorCode ? { errorCode: payload.errorCode } : {}),
     ...(payload.i18nKey ? { i18nKey: payload.i18nKey } : {}),
+    // 选定的模型缺 key：带上哪一家、哪个型号，面板就地开那一家的配置弹窗（Hard Rule 8）。
+    ...(error instanceof AssistantModelKeyMissingError
+      ? {
+          missingKey: {
+            adapterType: error.adapterType,
+            modelId: error.modelId,
+          },
+        }
+      : {}),
   }
 }
 

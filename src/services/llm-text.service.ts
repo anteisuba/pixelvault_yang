@@ -39,7 +39,11 @@ import { VIDEO_LINK_KINDS } from '@/constants/video-link'
 import { db } from '@/lib/db'
 import { decryptApiKey } from '@/lib/crypto'
 import { routeThroughAiGateway } from '@/lib/ai-gateway'
-import { ApiKeyError, ApiRequestError } from '@/lib/errors'
+import {
+  ApiKeyError,
+  ApiRequestError,
+  AssistantModelKeyMissingError,
+} from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { buildYoutubeWatchUrl, classifyVideoLink } from '@/lib/video-link'
 import { readSseData } from '@/lib/sse'
@@ -1104,28 +1108,33 @@ async function readLlmErrorBody(
 // ─── Route Resolution ────────────────────────────────────────────
 
 /**
- * 这个用户绑在某个厂商下、还活着的那把文本 key 的 **id**（没有就是 `undefined`）。
+ * 助手选定的那个模型（`AssistantPersona.routeModel`）在它那一家下、还活着的那把文本 key 的 **id**。
  *
- * ⚠ 存在的理由只有一条：助手的模型选择存的是**模型**（`AssistantPersona.routeModel`
- * = 一个 modelId），而 `resolveLlmTextRoute` 认的是 **key id**。这一跳把
- * 「用户想用哪个脑子」翻译成「用哪把钥匙」。⛔ 别让调用方各自去 `userApiKey`
- * 查一遍 —— `isActive` / 取最新那条这两条判据必须与下面那段优先级循环逐字一致。
+ * ⭐ **没有就抛 `AssistantModelKeyMissingError`**（owner 2026-10-15「会自动扣其他模型的token，
+ *   用户还不知道」）：⛔ 不回落到 `resolveLlmTextRoute` 的自动优先级 —— 那等于拿别家的 key
+ *   顶替用户点名的模型，界面上还写着他选的那个。错误带着厂商与型号，前端就地开
+ *   `QuickSetupDialog`（Hard Rule 8）；选择本身留在库里，配上 key 就生效。
+ * ⚠ 只有「选了具体模型」才走这里；「自动」照旧走 `resolveLlmTextRoute` 的优先级（语义待 owner 定）。
  *
- * 没绑那个厂商的 key 时**返回 undefined 而不是抛错**：调用方随后照常走
- * `resolveLlmTextRoute` 的优先级兜底（= 与「自动」同一条路），选择本身留在库里，
- * 用户补上 key 之后自动生效。
+ * ⚠ 存在的理由：persona 存的是**模型**，`resolveLlmTextRoute` 认的是 **key id**，这一跳把
+ * 「用户想用哪个脑子」翻译成「用哪把钥匙」。⛔ 别让调用方各自去 `userApiKey` 查一遍 ——
+ * `isActive` / 取最新那条这两条判据必须与下面那段优先级循环逐字一致。
  */
-export async function findLlmTextKeyId(
+export async function requireLlmTextKeyId(
   userId: string,
-  adapterType: AI_ADAPTER_TYPES,
-): Promise<string | undefined> {
-  if (!isLlmTextAdapter(adapterType)) return undefined
-  const key = await db.userApiKey.findFirst({
-    where: { userId, adapterType, isActive: true },
-    orderBy: { createdAt: 'desc' },
-    select: { id: true },
-  })
-  return key?.id
+  pinned: { adapterType: AI_ADAPTER_TYPES; modelId: string },
+): Promise<string> {
+  const key = isLlmTextAdapter(pinned.adapterType)
+    ? await db.userApiKey.findFirst({
+        where: { userId, adapterType: pinned.adapterType, isActive: true },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true },
+      })
+    : null
+  if (!key) {
+    throw new AssistantModelKeyMissingError(pinned.adapterType, pinned.modelId)
+  }
+  return key.id
 }
 
 /**

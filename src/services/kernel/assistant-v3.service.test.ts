@@ -6,8 +6,13 @@ import type {
   LanguageModelV3StreamPart,
 } from '@ai-sdk/provider'
 
-import { ASSISTANT_OPERATOR_REJECT_REASON_IDS } from '@/constants/assistant-operator'
+import {
+  ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
+  ASSISTANT_OPERATOR_REJECT_REASON_IDS,
+} from '@/constants/assistant-operator'
 import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { AssistantModelKeyMissingError } from '@/lib/errors'
 import { AssistantOperatorStepSchema } from '@/types/assistant-operator'
 import type {
   AssistantOperatorCanvasNode,
@@ -28,6 +33,7 @@ const {
   characterReminder,
   served,
   fetchAsBuffer,
+  resolveModel,
 } = vi.hoisted(() => ({
   plan: vi.fn(),
   critique: vi.fn(),
@@ -38,6 +44,8 @@ const {
   /** 测试里下得来的图：地址 → 格式（没登记的下不来）。 */
   served: new Map<string, string>(),
   fetchAsBuffer: vi.fn(),
+  /** 记下主模型按哪条路由、哪个型号建（「只用所选那一家」要数它）。 */
+  resolveModel: vi.fn(),
 }))
 
 /** 图的内容写着格式与地址（`png:https://…`）：附没附、附在哪，按它认。 */
@@ -136,11 +144,14 @@ vi.mock('@/services/kernel/assistant-v3-prompt.service', () => ({
 }))
 
 vi.mock('@/services/kernel/assistant-v3-model.service', () => ({
-  resolveAssistantV3Model: () => ({
-    model: model.current,
-    strictTools: false,
-    providerOptions: () => ({}),
-  }),
+  resolveAssistantV3Model: (...args: unknown[]) => {
+    resolveModel(...args)
+    return {
+      model: model.current,
+      strictTools: false,
+      providerOptions: () => ({}),
+    }
+  },
 }))
 
 vi.mock('@/services/kernel/assistant-completion.service', () => ({
@@ -313,6 +324,7 @@ const disconnectGoyle = {
 
 beforeEach(() => {
   served.clear()
+  resolveModel.mockClear()
   fetchAsBuffer.mockReset()
   fetchAsBuffer.mockImplementation(async (url: string) => {
     const format = served.get(url)
@@ -1375,6 +1387,33 @@ describe('v3 内核', () => {
       text: expect.stringContaining('内容审核拦下了'),
     })
     expect(events.at(-1)).toMatchObject({ type: 'done' })
+  })
+
+  /**
+   * ⛔ 选定的模型那一家没绑 key：整轮不跑（五张脸都一样，判在共用的 `prepareOperatorTurn`），
+   * 错误带厂商与型号，客户端就地弹那一家的配置框。⛔ 不交回旧内核、⛔ 不换一家接着跑。
+   */
+  it('选定的模型缺 key：整轮不跑、不碰任何一家的模型、不交回旧内核', async () => {
+    vi.mocked(prepareOperatorTurn).mockRejectedValueOnce(
+      new AssistantModelKeyMissingError(
+        AI_ADAPTER_TYPES.ANTHROPIC,
+        LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
+      ),
+    )
+    const mock = script(textTurn('不该说出来的话'))
+
+    const failure = await collect(runAssistantV3('clerk-1', request())).catch(
+      (error: unknown) => error,
+    )
+
+    expect(failure).toBeInstanceOf(AssistantModelKeyMissingError)
+    expect(failure).toMatchObject({
+      errorCode: ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
+      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+    })
+    expect(mock.doStreamCalls).toHaveLength(0)
+    expect(resolveModel).not.toHaveBeenCalled()
+    expect(legacy).not.toHaveBeenCalled()
   })
 
   it('接不了的厂商 / 没有画布：交回旧内核', async () => {

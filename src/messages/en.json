@@ -7436,6 +7436,7 @@
       "audioUnsupported": "This model cannot analyze audio. Select Gemini or remove the audio attachment.",
       "videoUnsupported": "This model cannot analyze video. Choose Gemini or remove the video reference.",
       "imageUnsupported": "This model cannot analyze images. Choose a model labeled for image vision, or remove the image reference.",
+      "modelKeyMissing": "The assistant model you picked has no key for its provider, so nothing ran — no other provider was used in its place. Add the key, or pick another model.",
       "contentBlocked": "The provider blocked this request under its safety policy. Rephrase, or switch the assistant route.",
       "outputTruncated": "The model reached its response limit before finishing. Try again or start a shorter conversation.",
       "noTextResponse": "The model returned an empty answer. Retry, or switch the assistant route.",
@@ -8462,7 +8463,9 @@
       "copyDetail": "Copy details",
       "copied": "Copied",
       "missingKey": "The assistant needs your own AI text model key. Gemini keys are free to create in Google AI Studio.",
+      "modelKeyMissing": "{model} has no {provider} key yet, so nothing ran — no other provider was used in its place. Add the key, or pick another model.",
       "addKey": "Add a key",
+      "addProviderKey": "Add {provider} key",
       "retry": "Retry",
       "retryPrompt": "That got cut off. Finish my last request, without redoing what already landed.",
       "switchModel": "Try another model"

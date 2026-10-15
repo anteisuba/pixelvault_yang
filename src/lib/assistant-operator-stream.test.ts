@@ -7,13 +7,16 @@ vi.mock('@/lib/logger', () => ({
 import {
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_INTERNAL_ERROR_CODE,
+  ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
 } from '@/constants/assistant-operator'
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { ASSISTANT_STREAM_CONTENT_TYPE } from '@/constants/assistant-stream'
 import {
   ASSISTANT_OPERATOR_FALLBACK_ERROR,
   toAssistantOperatorSseResponse,
 } from '@/lib/assistant-operator-stream'
-import { ApiRequestError } from '@/lib/errors'
+import { ApiRequestError, AssistantModelKeyMissingError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { parseSseStream } from '@/lib/sse'
 import type { AssistantOperatorEvent } from '@/types/assistant-operator'
@@ -164,6 +167,30 @@ describe('操作员流成帧器', () => {
     expect(error.errorCode).toBe('invalid_api_key')
     expect(error.traceId).toBeUndefined()
     expect(error.detail).toBeUndefined()
+  })
+
+  /** owner 2026-10-15：选定的模型缺 key 时不换别家，失败帧点名缺哪一家，面板就地开那一家的配置。 */
+  it('选定的模型缺 key：失败帧带 i18nKey 与缺的那一家、那个型号', async () => {
+    const response = toAssistantOperatorSseResponse({
+      routeName: 'test',
+      events: async function* () {
+        throw new AssistantModelKeyMissingError(
+          AI_ADAPTER_TYPES.ANTHROPIC,
+          LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
+        )
+      },
+    })
+
+    const frames = await readFrames(response)
+    expect(frames.at(-1)?.data).toMatchObject({
+      type: ASSISTANT_OPERATOR_EVENTS.error,
+      errorCode: ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
+      i18nKey: 'errors.assistant.modelKeyMissing',
+      missingKey: {
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+        modelId: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
+      },
+    })
   })
 
   it('客户端取消时 abort 传下去，生成器跑完自己的收尾，且不再往关掉的流里写', async () => {

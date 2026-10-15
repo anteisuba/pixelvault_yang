@@ -11,6 +11,9 @@ import {
   vi,
 } from 'vitest'
 
+import { ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE } from '@/constants/assistant-operator'
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { STUDIO_OPERATOR_SHELL } from '@/constants/studio-assistant-operator'
 import type { StudioOperatorAttachment } from '@/types/studio-assistant-operator'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
@@ -74,8 +77,19 @@ vi.mock('@/hooks/use-llm-route-picker', () => ({
 }))
 
 vi.mock('@/components/business/studio-shared/setup/QuickSetupDialog', () => ({
-  QuickSetupDialog: (props: { modelLabel: string }) => (
-    <div data-testid="quick-setup">{props.modelLabel}</div>
+  QuickSetupDialog: (props: {
+    modelLabel: string
+    adapterType: string
+    onVerified?: (modelId: string, keyId: string) => void
+  }) => (
+    <div data-testid="quick-setup" data-adapter={props.adapterType}>
+      {props.modelLabel}
+      <button
+        type="button"
+        data-testid="quick-setup-verified"
+        onClick={() => props.onVerified?.('model', 'key-1')}
+      />
+    </div>
   ),
 }))
 
@@ -625,6 +639,34 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     )
     fireEvent.click(screen.getByTestId('operator-error-action-addKey'))
     expect(screen.getByTestId('quick-setup')).toHaveTextContent('Gemini')
+  })
+
+  /** owner 2026-10-15：选定的模型缺 key 不换别家 —— 配它那一家的 key，配好接着跑刚才那句。 */
+  it('⭐ 选定的模型缺 key：错误条「配置 Claude 的 key」就地配那一家，验证过就接着跑', () => {
+    renderPanel()
+    act(() =>
+      store.setOperatorStatus(
+        'error',
+        'model key missing text',
+        null,
+        ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
+        {
+          adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+          modelId: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
+        },
+      ),
+    )
+    const addKey = screen.getByTestId('operator-error-action-addKey')
+    expect(addKey).toHaveTextContent('error.addProviderKey')
+    // ⛔ 这一种不给「重试」：没有 key，重试只会再撞一次。
+    expect(screen.queryByTestId('operator-error-action-retry')).toBeNull()
+    fireEvent.click(addKey)
+    const setup = screen.getByTestId('quick-setup')
+    expect(setup).toHaveTextContent('Claude Sonnet 5.5')
+    expect(setup).toHaveAttribute('data-adapter', AI_ADAPTER_TYPES.ANTHROPIC)
+    expect(send).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByTestId('quick-setup-verified'))
+    expect(send).toHaveBeenCalledWith('error.retryPrompt')
   })
 
   it('⭐ 其他错误给「重试」：发一句接着做完，⛔ 不原样重放上一条', () => {

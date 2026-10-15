@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { ApiRequestError, InsufficientCreditsError } from '@/lib/errors'
+import {
+  ApiRequestError,
+  AssistantModelKeyMissingError,
+  InsufficientCreditsError,
+} from '@/lib/errors'
 import { readOperatorReferenceProfiles } from '@/lib/studio-operator-history'
 import { getPromptDialect } from '@/constants/prompt-dialects'
 import { resolveAdapterType } from '@/constants/models'
@@ -43,8 +47,11 @@ vi.mock('@/services/user.service', () => ({
 
 const mockLlmTextCompletion = vi.fn()
 const mockResolveLlmTextRoute = vi.fn()
-/** persona 选了具体模型时才会被问一次：那个厂商下有没有活着的 key。 */
-const mockFindLlmTextKeyId = vi.fn()
+/**
+ * persona 选了具体模型时才会被问一次：那个厂商下活着的 key。
+ * ⛔ 没有就抛 `AssistantModelKeyMissingError`，整轮不跑（不回落别家）。
+ */
+const mockRequireLlmTextKeyId = vi.fn()
 /**
  * 所选模型自带联网（owner 2026-09-30）。缺省**不支持** —— 现存的查证用例验的是
  * Serper 那条路；验自带联网的用例自己打开。
@@ -87,7 +94,7 @@ vi.mock('@/services/llm-text.service', () => ({
     yield raw
   },
   resolveLlmTextRoute: (...args: unknown[]) => mockResolveLlmTextRoute(...args),
-  findLlmTextKeyId: (...args: unknown[]) => mockFindLlmTextKeyId(...args),
+  requireLlmTextKeyId: (...args: unknown[]) => mockRequireLlmTextKeyId(...args),
   supportsNativeWebSearch: (adapter: string) =>
     mockSupportsNativeWebSearch(adapter),
   llmNativeWebSearch: (...args: unknown[]) => mockLlmNativeWebSearch(...args),
@@ -458,6 +465,7 @@ import {
   ASSISTANT_OPERATOR_CONFIRM_FIELDS,
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_LIMITS,
+  ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
   ASSISTANT_OPERATOR_REJECT_REASON_IDS,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_STOP_REASONS,
@@ -760,7 +768,7 @@ beforeEach(() => {
     providerConfig: { label: 'Gemini', baseUrl: 'https://example.test' },
     apiKey: 'test-key',
   })
-  mockFindLlmTextKeyId.mockResolvedValue(undefined)
+  mockRequireLlmTextKeyId.mockResolvedValue('key-pinned')
   mockGetPublicGenerationPage.mockResolvedValue({
     generations: [],
     total: 0,
@@ -17095,7 +17103,7 @@ describe('文本模型路由 · persona 说了算', () => {
       avatarUrl: null,
       routeModel: PINNED.modelId,
     })
-    mockFindLlmTextKeyId.mockResolvedValue('key-deepseek')
+    mockRequireLlmTextKeyId.mockResolvedValue('key-deepseek')
     mockResolveLlmTextRoute.mockResolvedValue({
       adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
       providerConfig: { label: 'DeepSeek', baseUrl: 'https://example.test' },
@@ -17105,9 +17113,12 @@ describe('文本模型路由 · persona 说了算', () => {
 
     await collect(runAssistantOperator('clerk-1', buildRequest()))
 
-    expect(mockFindLlmTextKeyId).toHaveBeenCalledWith(
+    expect(mockRequireLlmTextKeyId).toHaveBeenCalledWith(
       'user-db-1',
-      PINNED.adapterType,
+      expect.objectContaining({
+        adapterType: PINNED.adapterType,
+        modelId: PINNED.modelId,
+      }),
     )
     expect(mockResolveLlmTextRoute).toHaveBeenCalledWith(
       'user-db-1',
@@ -17126,7 +17137,7 @@ describe('文本模型路由 · persona 说了算', () => {
 
     await collect(runAssistantOperator('clerk-1', buildRequest()))
 
-    expect(mockFindLlmTextKeyId).not.toHaveBeenCalled()
+    expect(mockRequireLlmTextKeyId).not.toHaveBeenCalled()
     expect(mockResolveLlmTextRoute).toHaveBeenCalledWith('user-db-1', undefined)
     // 兜底那条路的默认档（Gemini 的第一条）。
     expect(calledModelId()).toBe(
@@ -17162,28 +17173,37 @@ describe('文本模型路由 · persona 说了算', () => {
   })
 
   /**
-   * ⚠ 选了 Claude 但没绑 Anthropic key：**回落到自动那条路**，⛔ 不把另一个厂商
-   * 的 key 配上 Claude 的型号（那会打出一个对面不认识的模型名）。
+   * ⛔ 选了 Claude 但没绑 Anthropic key：**整轮不跑**，抛带厂商的类型化错误
+   * （客户端就地弹那一家的 `QuickSetupDialog`）。⛔ 不回落「自动」—— 那等于
+   * 悄悄花另一家的 key（owner 2026-10-15：「会自动扣其他模型的token，用户还不知道」）。
+   * 「找不到 key 就抛」本身在 `llm-text.service.test.ts` 里用真函数验。
    */
-  it('选中的厂商没绑 key → 回落自动，且不把型号带过去', async () => {
+  it('选中的厂商没绑 key → 整轮不跑，⛔ 不回落自动、不碰任何一家的模型', async () => {
+    const claude = NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
+      (model) => model.adapterType === AI_ADAPTER_TYPES.ANTHROPIC,
+    )!
     mockGetAssistantPersonaByUserId.mockResolvedValue({
       ...ASSISTANT_PERSONA_DEFAULTS,
       avatarUrl: null,
-      routeModel: NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
-        (model) => model.adapterType === AI_ADAPTER_TYPES.ANTHROPIC,
-      )!.modelId,
+      routeModel: claude.modelId,
     })
-    mockFindLlmTextKeyId.mockResolvedValue(undefined)
+    mockRequireLlmTextKeyId.mockRejectedValue(
+      new AssistantModelKeyMissingError(claude.adapterType, claude.modelId),
+    )
     queueTurns({ finished: true })
 
-    await collect(runAssistantOperator('clerk-1', buildRequest()))
+    const failure = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    ).catch((error: unknown) => error)
 
-    expect(mockResolveLlmTextRoute).toHaveBeenCalledWith('user-db-1', undefined)
-    expect(calledModelId()).toBe(
-      NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
-        (model) => model.adapterType === AI_ADAPTER_TYPES.GEMINI,
-      )!.modelId,
-    )
+    expect(failure).toBeInstanceOf(AssistantModelKeyMissingError)
+    expect(failure).toMatchObject({
+      errorCode: ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
+      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+      modelId: claude.modelId,
+    })
+    expect(mockResolveLlmTextRoute).not.toHaveBeenCalled()
+    expect(mockLlmTextCompletion).not.toHaveBeenCalled()
   })
 })
 

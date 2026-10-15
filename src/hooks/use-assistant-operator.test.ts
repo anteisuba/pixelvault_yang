@@ -7,10 +7,13 @@ import {
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_INTERNAL_ERROR_CODE,
   ASSISTANT_OPERATOR_LIMITS,
+  ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_TOOL_IDS,
   type AssistantOperatorDomain,
 } from '@/constants/assistant-operator'
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { STUDIO_OPERATOR_STREAMING } from '@/constants/studio-assistant-operator'
 import { nextResumeStepNumber } from '@/lib/studio-operator-resume'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
@@ -1457,6 +1460,39 @@ describe('useAssistantOperator 的四条收尾路径', () => {
     await settle()
 
     expect(store.getOperatorState().errorTrace).toBeNull()
+  })
+
+  /** owner 2026-10-15：选定的模型缺 key —— 点名模型与厂商，store 记下缺的那一家给错误条用。 */
+  it('选定的模型缺 key：人话点名模型与厂商，缺的那一家落进 store', async () => {
+    const { result } = render()
+
+    act(() => {
+      result.current.send('画一张海报')
+    })
+    await settle()
+
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.error,
+      error: 'The assistant model has no key.',
+      errorCode: ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
+      i18nKey: 'errors.assistant.modelKeyMissing',
+      missingKey: {
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+        modelId: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
+      },
+    })
+    await settle()
+
+    const state = store.getOperatorState()
+    expect(state.status).toBe('error')
+    expect(state.errorCode).toBe(ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE)
+    expect(state.errorText).toBe(
+      'i18n:modelKeyMissing(Claude Sonnet 5.5|Claude)',
+    )
+    expect(state.errorMissingKey).toEqual({
+      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+      modelId: LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
+    })
   })
 })
 

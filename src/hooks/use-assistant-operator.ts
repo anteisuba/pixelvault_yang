@@ -44,6 +44,7 @@ import {
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
   ASSISTANT_OPERATOR_ERROR_MESSAGE_KEYS,
   ASSISTANT_OPERATOR_EVENTS,
+  ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
   ASSISTANT_AUTO_GENERATE_LIMITS,
   ASSISTANT_OPERATOR_LIMITS,
   ASSISTANT_OPERATOR_TOOL_VERBS,
@@ -69,7 +70,12 @@ import {
   ASSISTANT_MENTION_LIMITS,
   ASSISTANT_MENTION_SCOPE_IDS,
 } from '@/constants/assistant-mention'
+import { getAssistantRouteModelEntry } from '@/constants/assistant-persona'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
+import {
+  getDefaultProviderConfig,
+  getProviderLabel,
+} from '@/constants/providers'
 import {
   ASSISTANT_KERNEL_IDS,
   ASSISTANT_KERNEL_STORAGE_KEY,
@@ -182,6 +188,7 @@ import type {
   AssistantOperatorContextCardDraft,
   AssistantOperatorGenerationRequest,
   AssistantOperatorMessage,
+  AssistantOperatorMissingKey,
   AssistantOperatorPlanAnswer,
   AssistantOperatorResumeFrom,
   AssistantOperatorPriorStep,
@@ -925,7 +932,21 @@ export function useAssistantOperator(
       error: string
       errorCode?: string
       i18nKey?: string
+      missingKey?: AssistantOperatorMissingKey
     }): string => {
+      // 选定的模型缺 key：点名是哪个模型、缺哪一家的 key（owner 2026-10-15，⛔ 换别家顶上）。
+      if (
+        payload.errorCode === ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE &&
+        payload.missingKey
+      )
+        return tError('modelKeyMissing', {
+          model:
+            getAssistantRouteModelEntry(payload.missingKey.modelId)?.label ??
+            payload.missingKey.modelId,
+          provider: getProviderLabel(
+            getDefaultProviderConfig(payload.missingKey.adapterType),
+          ),
+        })
       const key = payload.errorCode
         ? ASSISTANT_OPERATOR_ERROR_MESSAGE_KEYS[payload.errorCode]
         : undefined
@@ -1987,6 +2008,7 @@ export function useAssistantOperator(
                 describeError(event),
                 toErrorTrace(event),
                 event.errorCode ?? null,
+                event.missingKey ?? null,
               )
               break
             default:

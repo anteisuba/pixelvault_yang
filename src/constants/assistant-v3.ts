@@ -229,6 +229,13 @@ export const ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION =
 export const ASSISTANT_V3_READ_SOURCE_NOTE =
   'Also "[n]": a source from this turn\'s search_web, to read its page in full again.'
 
+/**
+ * 画布 `read` 的一项 `"guide:<型号 id>"`：那个型号的整份提示词写法（P2 第二片「提示词瘦身」）。
+ * 系统提示里每个型号只剩一行提示，长的那几段（视频写法、镜头语法、Seedance 控制规则、标签写法）
+ * 用它现取 —— 见 `assistant-v3-guides.service.ts`。
+ */
+export const ASSISTANT_V3_GUIDE_ITEM_PREFIX = 'guide:'
+
 /** 联网那两种（每张脸的 `search_library` 都收）。 */
 export const ASSISTANT_V3_WEB_SEARCH_KINDS = [
   ASSISTANT_V3_WEB_IMAGES_SEARCH_KIND,
@@ -294,7 +301,7 @@ export const ASSISTANT_V3_HANDLE = {
  * 看片、各张脸的方言段）就把它拨到改的那天（同一天再改一次就加字母：`2026-10-15b`）；人设 /
  * 规矩 / 记忆这些每人不同的段落不算，它们只进 `systemPromptHash`。
  */
-export const ASSISTANT_V3_PROMPT_VERSION = '2026-10-15c'
+export const ASSISTANT_V3_PROMPT_VERSION = '2026-10-15d'
 
 /** 本轮记录（前端原样带回、服务端还原成消息）的条目类型。 */
 export const ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS = {

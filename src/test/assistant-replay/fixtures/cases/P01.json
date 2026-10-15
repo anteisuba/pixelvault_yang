@@ -1,0 +1,85 @@
+{
+  "id": "P01",
+  "title": "整段写视频提示词前先取那个型号的整份写法：read \"guide:<型号>\"",
+  "source": "P2 第二片「提示词瘦身」（2026-10-15）：系统提示里每个型号只剩一行，视频写法 / 镜头语法 / Seedance 控制规则现取",
+  "board": "malfoy",
+  "routes": [
+    {
+      "routeModel": "claude-sonnet-5-5",
+      "keys": ["anthropic", "gemini"],
+      "expect": {
+        "adapterType": "anthropic",
+        "modelId": "claude-sonnet-5-5"
+      }
+    }
+  ],
+  "turn": {
+    "say": "S03 的提示词整段重写：雨夜，哈利沿走廊快步走向镜头，两个镜头，5 秒。"
+  },
+  "replies": [
+    {
+      "calls": [
+        {
+          "tool": "read",
+          "input": {
+            "cards": ["guide:seedance-2.5-byteplus"]
+          }
+        }
+      ]
+    },
+    {
+      "calls": [
+        {
+          "tool": "write",
+          "input": {
+            "writes": [
+              {
+                "card": "vid-3c4d5e",
+                "field": "prompt",
+                "mode": "replace",
+                "text": "全局设定：冷蓝灰雨夜，霍格沃茨石砌走廊，壁灯暖黄侧光，哈利·波特身穿黑色校袍、戴圆框眼镜。\n镜头1（0-2秒）：中景平视，哈利从走廊深处沿 Z 轴快步走向镜头，镜头缓慢后拉，结束时他停在离镜头约两米处。\n镜头2（2-5秒）：硬切，近景，雨水顺着窗棂流下，哈利侧过脸望向窗外，镜头稳定推近，结束在他眼睛的特写。\n声音：雨声，脚步在石廊里的回声。",
+                "edits": null
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "text": "S03 的提示词重写好了：两个镜头共 5 秒，雨夜走廊里哈利走向镜头。"
+    }
+  ],
+  "expect": {
+    "end": "done",
+    "requests": 2,
+    "opKinds": ["set_prompt"],
+    "board": {
+      "nodesChanged": {
+        "S03 走廊": {
+          "prompt": "全局设定：冷蓝灰雨夜，霍格沃茨石砌走廊，壁灯暖黄侧光，哈利·波特身穿黑色校袍、戴圆框眼镜。\n镜头1（0-2秒）：中景平视，哈利从走廊深处沿 Z 轴快步走向镜头，镜头缓慢后拉，结束时他停在离镜头约两米处。\n镜头2（2-5秒）：硬切，近景，雨水顺着窗棂流下，哈利侧过脸望向窗外，镜头稳定推近，结束在他眼睛的特写。\n声音：雨声，脚步在石廊里的回声。"
+        }
+      }
+    },
+    "answer": {
+      "contains": ["S03"]
+    },
+    "stepPrompts": [
+      {
+        "contains": ["Full guide: read", "guide:seedance-2.5-byteplus"],
+        "notContains": [
+          "SEEDANCE 2.5 CONTROL RULES",
+          "VIDEO PROMPT WRITING",
+          "SHOT GRAMMAR"
+        ]
+      },
+      {
+        "contains": [
+          "PROMPT GUIDE FOR seedance-2.5-byteplus",
+          "SEEDANCE 2.5 CONTROL RULES",
+          "VIDEO PROMPT WRITING",
+          "SHOT GRAMMAR"
+        ]
+      }
+    ]
+  }
+}

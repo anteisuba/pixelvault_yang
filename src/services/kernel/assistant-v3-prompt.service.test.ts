@@ -26,8 +26,6 @@ vi.mock('@/services/kernel/assistant-operator.service', () => ({
     memories.length
       ? `\n\nMEMORIES ${memories.map((memory) => memory.text).join(' | ')}`
       : '',
-  buildCanvasModelDialectSection: (request: DialectRequest) =>
-    `\n\nCANVAS DIALECT ${request.snapshot?.prompt ?? ''}`,
   buildCharacterSection: (persona: { name?: string }) =>
     persona.name ? `\n\nCHARACTER ${persona.name}` : '',
   buildCreatorSection: (_persona: unknown, accountName: string | null) =>
@@ -41,6 +39,14 @@ vi.mock('@/services/kernel/assistant-operator.service', () => ({
     persona: { language?: string },
   ) => (persona.language === 'english' ? 'english' : 'chinese'),
   RESPONSE_LANGUAGE_LABELS: { chinese: 'Chinese', english: 'English' },
+}))
+
+/** 画布：每个型号一行的写法（P2 第二片）按板上挂着的型号给 —— 测试里型号就是那一轮的板子。 */
+vi.mock('@/services/kernel/assistant-v3-guides.service', () => ({
+  buildAssistantV3CanvasGuideSection: (nodes: { model?: string }[]) =>
+    nodes.length
+      ? `\n\nCANVAS GUIDES ${nodes.map((node) => node.model).join(',')}`
+      : '',
 }))
 
 import { buildAssistantV3SystemPrompt } from './assistant-v3-prompt.service'
@@ -64,6 +70,7 @@ describe('v3 系统提示 · ASKING', () => {
         face,
         request: {
           domain: DOMAIN_BY_FACE[face],
+          snapshot: {},
         } as unknown as AssistantOperatorRequest,
         persona: {} as AssistantPromptPersona,
         rules: [],
@@ -97,6 +104,7 @@ describe('v3 系统提示 · LOOKING AT PICTURES', () => {
         face,
         request: {
           domain: DOMAIN_BY_FACE[face],
+          snapshot: {},
         } as unknown as AssistantOperatorRequest,
         persona: {} as AssistantPromptPersona,
         rules: [],
@@ -143,6 +151,7 @@ describe('v3 系统提示 · WATCHING CLIPS', () => {
         face,
         request: {
           domain: DOMAIN_BY_FACE[face],
+          snapshot: {},
         } as unknown as AssistantOperatorRequest,
         persona: {} as AssistantPromptPersona,
         rules: [],
@@ -204,7 +213,12 @@ describe('v3 系统提示 · 稳定前缀', () => {
       face,
       request: {
         domain: DOMAIN_BY_FACE[face],
-        snapshot: { prompt: variant.board },
+        snapshot: {
+          prompt: variant.board,
+          canvas: {
+            shots: [{ expanded: true, nodes: [{ model: variant.board }] }],
+          },
+        },
       } as unknown as AssistantOperatorRequest,
       persona: variant.persona as AssistantPromptPersona,
       rules: variant.rules.map(
@@ -248,6 +262,7 @@ describe('v3 系统提示 · 稳定前缀', () => {
         'antei',
         'board-two',
         'DIALECT',
+        'CANVAS GUIDES',
       ])
         expect(b.rules).not.toContain(varying)
       for (const varying of [

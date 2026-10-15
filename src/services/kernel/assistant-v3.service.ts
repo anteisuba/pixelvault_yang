@@ -179,6 +179,12 @@ import {
   v3ResearchSourceOf,
 } from '@/services/kernel/assistant-v3-finds.service'
 import {
+  canvasGuideGap,
+  isAssistantV3VideoModel,
+  parseGuideItem,
+  renderAssistantV3ModelGuide,
+} from '@/services/kernel/assistant-v3-guides.service'
+import {
   joinOutcomes,
   referenceIndexOf,
   refused,
@@ -1600,6 +1606,11 @@ async function* runV3Turn(
       }
       if (isMutatingTool(tool)) {
         const translated = translateMutation(context, tool, call.input)
+        // 写词闸：⛔ 不出过程行、不算失败 —— 没落任何东西，模型照着写法再写一遍。
+        if ('guide' in translated) {
+          pushResult(translated.guide, true)
+          continue
+        }
         if (!translated.ok) {
           const outcome = yield* rejectedStep(
             context,
@@ -1862,6 +1873,55 @@ function toProviderError(provider: string, error: unknown): unknown {
  * 一次工具调用
  * ───────────────────────────────────────────────────────────────────────── */
 
+/**
+ * 写词闸（P2 第二片）：这一次 edit / write 要整段写某张卡的提示词，而那个型号的整份写法模型
+ * 眼前没有（`canvasGuideGap`）→ 那份写法。只看整段写（`replace` / `append` / 建卡带词）：
+ * 找句换句（`edit` 模式）只动几个字，⛔ 不为它多跑一步。没缺 → `null`。
+ */
+function missingGuide(
+  context: V3Context,
+  name: MutatingTool,
+  input: unknown,
+): { card: string; modelId: string; guide: string } | null {
+  const targets: { card: string; modelId: string; video: boolean }[] = []
+  if (name === ASSISTANT_V3_TOOL_IDS.edit) {
+    const parsed = AssistantV3EditInputSchema.safeParse(input)
+    for (const op of parsed.success ? parsed.data.ops : []) {
+      if (op.op !== ASSISTANT_V3_EDIT_OP_IDS.add) continue
+      const kind = op.type.split('/')[0]
+      if (!op.text?.trim() || !op.model || kind === NODE_MEDIA_KIND_IDS.text)
+        continue
+      targets.push({
+        card: op.name,
+        modelId: op.model,
+        video: kind === NODE_MEDIA_KIND_IDS.video,
+      })
+    }
+  } else {
+    const parsed = AssistantV3WriteInputSchema.safeParse(input)
+    for (const write of parsed.success ? parsed.data.writes : []) {
+      if (write.mode === ASSISTANT_V3_WRITE_MODE_IDS.edit) continue
+      const id = context.handles.idOf(write.card)
+      const node = context.nodes.find((candidate) => candidate.id === id)
+      if (!node?.model || node.kind === NODE_MEDIA_KIND_IDS.text) continue
+      targets.push({
+        card: node.name,
+        modelId: node.model,
+        video: node.kind === NODE_MEDIA_KIND_IDS.video,
+      })
+    }
+  }
+  for (const target of targets) {
+    const guide = canvasGuideGap({
+      ...target,
+      nodes: context.nodes,
+      transcript: context.transcript,
+    })
+    if (guide) return { card: target.card, modelId: target.modelId, guide }
+  }
+  return null
+}
+
 /** edit / write → 这一批的 v4 op 与过程行标题。⛔ 不落：由回合循环合成一批再落。 */
 function translateMutation(
   context: V3Context,
@@ -1869,7 +1929,14 @@ function translateMutation(
   input: unknown,
 ):
   | { ok: true; ops: NodeAssistantOpV4[]; title: string; createsCards: boolean }
-  | { ok: false; error: string; title: string } {
+  | { ok: false; error: string; title: string }
+  | { ok: false; guide: string } {
+  const gap = missingGuide(context, name, input)
+  if (gap)
+    return {
+      ok: false,
+      guide: `Nothing in this ${name} landed: 「${gap.card}」 runs on ${gap.modelId}, and a whole prompt for it is written with that model's full guide in front of you. Here it is — write it again following it.\n\n${gap.guide}`,
+    }
   if (name === ASSISTANT_V3_TOOL_IDS.edit) {
     const parsed = AssistantV3EditInputSchema.parse(input)
     const title = editTitle(context, parsed.ops)
@@ -2002,6 +2069,25 @@ function splitSourceReads(
   }
 }
 
+/**
+ * 画布 `read` 里的 `"guide:<型号>"`（P2 第二片）：摘出来现给那份写法（⛔ 不出过程行 —— 那是
+ * 模型自己的功课，不是创作者要看的一步）。没有一项是 → `null`。
+ */
+function splitGuideReads(
+  input: unknown,
+): { models: string[]; rest: string[] } | null {
+  const parsed = ReadCardsListSchema.safeParse(input)
+  if (!parsed.success) return null
+  const models = parsed.data.cards.map(parseGuideItem)
+  if (models.every((model) => model === null)) return null
+  return {
+    models: [
+      ...new Set(models.filter((model): model is string => model !== null)),
+    ].slice(0, ASSISTANT_V3_LIMITS.maxReadCards),
+    rest: parsed.data.cards.filter((_, index) => models[index] === null),
+  }
+}
+
 /** 把查证的一条资料再读一遍全文（旧执行器的 read_url，地址由服务端按 `[n]` 换回）。 */
 async function* readResearchSource(
   context: V3Context,
@@ -2030,6 +2116,26 @@ async function* executeCall(
   input: unknown,
 ): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
   const text = TITLE_TEXT[context.language]
+  if (
+    name === ASSISTANT_V3_TOOL_IDS.read &&
+    context.face === ASSISTANT_V3_FACE_IDS.canvas
+  ) {
+    const guides = splitGuideReads(input)
+    if (guides) {
+      // 写法排在前面：结果按 `maxEntryChars` 截时，截掉的是后面的卡，⛔ 不是写法。
+      const outcomes: V3Outcome[] = guides.models.map((modelId) => ({
+        kind: 'result',
+        output: renderAssistantV3ModelGuide(
+          modelId,
+          isAssistantV3VideoModel(modelId, context.nodes),
+        ),
+        error: false,
+      }))
+      if (guides.rest.length)
+        outcomes.push(yield* executeCall(context, name, { cards: guides.rest }))
+      return joinOutcomes(outcomes)
+    }
+  }
   if (name === ASSISTANT_V3_TOOL_IDS.read) {
     const sources = splitSourceReads(input)
     if (sources) {

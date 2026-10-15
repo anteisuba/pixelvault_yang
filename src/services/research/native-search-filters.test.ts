@@ -4,6 +4,7 @@ vi.mock('server-only', () => ({}))
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
+  creatorAsksToWatchXVideos,
   nativeSearchRulesOutX,
   planNativeSearchDomains,
 } from '@/services/research/native-search-filters'
@@ -56,5 +57,31 @@ describe('nativeSearchRulesOutX', () => {
     expect(
       nativeSearchRulesOutX({ mode: 'block', domains: ['zhihu.com'] }),
     ).toBe(false)
+  })
+})
+
+describe('creatorAsksToWatchXVideos（「看看视频」才看视频，owner 2026-10-15）', () => {
+  it.each([
+    '帮我看看这个视频里她穿的什么',
+    '视频也看一下，动作是怎么做的',
+    '搜一下 X 上的新 PV，看完视频告诉我节奏',
+    'その動画を見て、振り付けを教えて',
+    'Can you watch the video and tell me the camera moves?',
+    'check out their clips on X',
+  ])('明说要看：%s', (text) => {
+    expect(creatorAsksToWatchXVideos(text)).toBe(true)
+  })
+
+  it.each([
+    'X 上大家怎么评价这部新番',
+    '找几张她的官方立绘',
+    '不用看视频，看封面就行',
+    '别看视频了，太贵',
+    '動画は見なくていいです',
+    "Don't watch the videos, the thumbnails are enough",
+    'What do people on X think of the trailer?',
+    '',
+  ])('没明说（或说了不要）：%s', (text) => {
+    expect(creatorAsksToWatchXVideos(text)).toBe(false)
   })
 })

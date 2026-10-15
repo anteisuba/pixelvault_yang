@@ -42,6 +42,8 @@ interface StudioOperatorResearchProgressProps {
   found: number
   /** 读了几页全文（快搜是服务端读的，深档是模型自己发的 `read_url`）。 */
   readPages: number
+  /** Grok 看了几段 X 上的视频（创作者说了「看看视频」才会 > 0，owner 2026-10-15）。 */
+  xVideosWatched?: number
   /** 失败摘要 —— 有就画在行上面（与 `StudioOperatorToolGroup` 同一处位置）。 */
   failure?: ReactNode
   /** 那几条日志 —— 点开才展开。 */
@@ -64,6 +66,7 @@ export function StudioOperatorResearchProgress({
   running,
   found,
   readPages,
+  xVideosWatched = 0,
   failure,
   children,
 }: StudioOperatorResearchProgressProps) {
@@ -85,6 +88,10 @@ export function StudioOperatorResearchProgress({
         // ⚠ 自带联网那一路页面由服务商读，这边读页数恒为 0 ——「读了 0 页」是噪音。
         readPages > 0
           ? ` · ${t('researchProgress.readPages', { count: readPages })}`
+          : ''
+      }${
+        xVideosWatched > 0
+          ? ` · ${t('researchProgress.xVideosWatched', { count: xVideosWatched })}`
           : ''
       }`
 

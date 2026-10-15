@@ -361,6 +361,28 @@ export const X_HANDLE_PATTERN = /^[A-Za-z0-9_]{1,15}$/
 export const X_SEARCH_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 
 /**
+ * **创作者明说「看看视频」**（owner 2026-10-15）：只有这时 Grok 的 X 搜索才开
+ * `enable_video_understanding`（真的把帖子里的视频看一遍）。默认只看封面
+ * （`enable_image_understanding`）。
+ * ⚠ 计费：xAI 把看视频按**图片 token** 计（一段视频抽很多帧，比看封面贵得多）；X 搜索本身
+ *   按拉到的帖子算，$5 / 1000 条。所以 ⛔ 不按「帖子里有视频」自动开，只认这几种说法。
+ * ⚠ 前面紧挨着否定（「不用看视频」「don't watch the video」）不算。
+ */
+export const X_VIDEO_WATCH_INTENT = {
+  ask: [
+    /(?:看看|看一下|看下|看一看|看一眼|看完|点开|播放|打开)(?:这个|那个|这些|那些|这段|那段|帖子里的|里面的|它的|他们的|她的)?(?:视频|影片|片子)/,
+    /(?:视频|影片|片子)(?:也|都)?(?:看看|看一下|看下|看一看|看一眼|看完)/,
+    /(?:動画|ビデオ)(?:を|も)?(?:見て|みて|観て|視聴して|確認して|チェックして)/,
+    /\b(?:watch|view|play|look at|check out)\s+(?:the|this|that|these|those|their|its|his|her)?\s*(?:video|videos|clip|clips)\b/i,
+  ],
+  negation: [
+    /(?:不|别|不用|不要|无需|不必|甭)(?:去)?(?:看看|看一下|看下|看一看|看一眼|看完|看|点开|播放|打开)(?:这个|那个|这些|那些|这段|那段|帖子里的|里面的|它的|他们的|她的)?(?:视频|影片|片子)/,
+    /(?:動画|ビデオ)(?:を|は)?(?:見なくて|見ないで|みなくて|みないで)/,
+    /\b(?:don['’]?t|do not|no need to|without|never)\s+(?:watch|view|play|look at|check out)\s+(?:the|this|that|these|those|their|its|his|her)?\s*(?:video|videos|clip|clips)\b/i,
+  ],
+} as const
+
+/**
  * 每用户每日 run 上限。
  *
  * ⚠ **计数直接 count 当日 `ResearchRun` 行**，不塞 `ApiUsageLedger` —— 后者的形状

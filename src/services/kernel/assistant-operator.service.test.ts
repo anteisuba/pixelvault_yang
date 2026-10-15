@@ -10857,6 +10857,98 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
         mockRunAssistantResearch.mockReset()
       },
     )
+
+    /**
+     * ⭐ Grok 看 X 上的视频（owner 2026-10-15）：默认只看封面；创作者明说「看看视频」才开
+     * `enable_video_understanding`（按图片 token 计费），开了就如实说看了几段。
+     */
+    describe('Grok 看视频：只在创作者明说时开', () => {
+      const GROK_ROUTE = {
+        adapterType: AI_ADAPTER_TYPES.XAI,
+        providerConfig: { label: 'Grok', baseUrl: '' },
+        apiKey: 'xai-key',
+      }
+      beforeEach(() => {
+        mockResolveLlmTextRoute.mockResolvedValue(GROK_ROUTE)
+        mockSupportsNativeWebSearch.mockReturnValue(true)
+      })
+      afterEach(() => {
+        mockSupportsNativeWebSearch.mockReturnValue(false)
+        mockRunAssistantResearch.mockReset()
+      })
+
+      async function runGrokSearch(said: string) {
+        queueTurns(researchWith({ x: { handles: ['artist_a'] } }), {
+          finished: true,
+        })
+        const steps = stepsOf(
+          await collect(
+            runAssistantOperator(
+              'clerk-1',
+              buildRequest({ messages: [{ role: 'user', content: said }] }),
+            ),
+          ),
+        )
+        return steps.find(
+          (step) =>
+            step.tool === ASSISTANT_OPERATOR_TOOL_IDS.research &&
+            step.status === 'done',
+        )
+      }
+
+      function grokOnly() {
+        expectSelectedProviderOnly(
+          [
+            ...keyLookupUsesOf(keyStore.findFirst),
+            ...providerUsesOf(mockLlmNativeWebSearch, 'native search'),
+            ...providerUsesOf(mockLlmTextCompletion, 'main model'),
+          ],
+          { adapterType: AI_ADAPTER_TYPES.XAI, apiKey: 'xai-key' },
+        )
+      }
+
+      it('「看看视频」→ 开视频理解，结果与观察行都写看了几段', async () => {
+        mockLlmNativeWebSearch.mockResolvedValue({
+          ...SEARCHED,
+          xVideosWatched: 2,
+        })
+
+        const done = await runGrokSearch(
+          '去 X 上搜 @artist_a 最近的帖子，看看视频',
+        )
+
+        expect(mockLlmNativeWebSearch).toHaveBeenCalledWith(
+          expect.objectContaining({
+            adapterType: AI_ADAPTER_TYPES.XAI,
+            xVideos: true,
+          }),
+        )
+        expect(done?.result).toMatchObject({ xVideosWatched: 2 })
+        expect(lastUserPrompt()).toContain('Grok watched 2 video(s) on X')
+        grokOnly()
+      })
+
+      it.each([
+        ['只说搜帖子', '去 X 上搜 @artist_a 最近的帖子'],
+        ['明说不用看', '搜一下 @artist_a 的帖子，不用看视频'],
+        ['英文否定', "search @artist_a's posts on X, don't watch the videos"],
+      ])('%s → ⛔ 不开视频理解（只看封面）', async (_label, said) => {
+        mockLlmNativeWebSearch.mockResolvedValue({
+          ...SEARCHED,
+          xVideosWatched: 3,
+        })
+
+        const done = await runGrokSearch(said)
+
+        expect(mockLlmNativeWebSearch).toHaveBeenCalledTimes(1)
+        expect(mockLlmNativeWebSearch.mock.calls[0]?.[0]).not.toHaveProperty(
+          'xVideos',
+        )
+        expect(done?.result).not.toHaveProperty('xVideosWatched')
+        expect(lastUserPrompt()).not.toContain('asked to watch the videos')
+        grokOnly()
+      })
+    })
   })
 
   it('⭐ 所选模型有自带联网时快搜交给它：它的回答就是结论，⛔ 不再改写、不再归纳（owner 2026-09-30）', async () => {

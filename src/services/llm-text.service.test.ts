@@ -4469,6 +4469,83 @@ describe('llmNativeWebSearch（owner 2026-09-30：各家用自带联网）', () 
     ])
   })
 
+  /**
+   * 「看看视频」（owner 2026-10-15）：只有创作者明说要看视频，X 搜索才开
+   * `enable_video_understanding`；默认只看封面。看了几段从 `view_x_video` 数。
+   */
+  it('Grok：创作者说了「看看视频」才开 enable_video_understanding，并数出看了几段', async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            status: 'completed',
+            output: [
+              {
+                type: 'custom_tool_call',
+                name: 'x_keyword_search',
+                input: '{"query":"新作 PV"}',
+                status: 'completed',
+              },
+              {
+                type: 'custom_tool_call',
+                name: 'view_x_video',
+                input: '{"video_url":"https://video.twimg.com/1.mp4"}',
+                status: 'completed',
+              },
+              {
+                type: 'custom_tool_call',
+                name: 'view_x_video',
+                input: '{"video_url":"https://video.twimg.com/2.mp4"}',
+                status: 'completed',
+              },
+              {
+                type: 'message',
+                content: [{ type: 'output_text', text: '两段都是预告。' }],
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const providerConfig = { label: 'Grok', baseUrl: 'https://api.x.ai/v1' }
+
+    const watched = await llmNativeWebSearch({
+      ...base,
+      adapterType: AI_ADAPTER_TYPES.XAI,
+      providerConfig,
+      xVideos: true,
+    })
+    const covers = await llmNativeWebSearch({
+      ...base,
+      adapterType: AI_ADAPTER_TYPES.XAI,
+      providerConfig,
+      x: { handles: ['artist_a'] },
+    })
+
+    expect(readFetchJson(fetchMock, 0).tools).toEqual([
+      { type: 'web_search' },
+      {
+        type: 'x_search',
+        enable_image_understanding: true,
+        enable_video_understanding: true,
+      },
+    ])
+    expect(watched.xVideosWatched).toBe(2)
+    // view_x_video 不是一次搜索：不进查询词。
+    expect(watched.queries).toEqual(['新作 PV'])
+
+    expect(readFetchJson(fetchMock, 1).tools).toEqual([
+      { type: 'web_search' },
+      {
+        type: 'x_search',
+        allowed_x_handles: ['artist_a'],
+        enable_image_understanding: true,
+      },
+    ])
+    expect(covers).not.toHaveProperty('xVideosWatched')
+  })
+
   it('Gemini：问题里带链接就同开 url_context', async () => {
     const fetchMock = vi
       .fn()

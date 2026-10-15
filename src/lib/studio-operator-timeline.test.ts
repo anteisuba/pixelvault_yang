@@ -174,6 +174,7 @@ describe('summarizeOperatorResearchBlock', () => {
   const research = (
     payload: Record<string, unknown>,
     evidence: unknown[] = [],
+    result: Record<string, unknown> = {},
   ): StudioOperatorStepEntry =>
     ({
       kind: 'step',
@@ -191,7 +192,7 @@ describe('summarizeOperatorResearchBlock', () => {
           round: 1,
           ...payload,
         },
-        result: { evidence, totalFound: evidence.length },
+        result: { evidence, totalFound: evidence.length, ...result },
       },
     }) as unknown as StudioOperatorStepEntry
 
@@ -207,7 +208,7 @@ describe('summarizeOperatorResearchBlock', () => {
       summarizeOperatorResearchBlock([
         research({ depth: 'quick', readPages: 3 }, [{}, {}, {}, {}, {}, {}]),
       ]),
-    ).toEqual({ depth: 'quick', found: 6, readPages: 3 })
+    ).toEqual({ depth: 'quick', found: 6, readPages: 3, xVideosWatched: 0 })
   })
 
   it('⭐ 一组里出现过深档就算深档；模型自己发的 read_url 也计页', () => {
@@ -218,7 +219,17 @@ describe('summarizeOperatorResearchBlock', () => {
         researchStep({}, TOOLS.readUrl),
         researchStep({}, TOOLS.readUrl),
       ]),
-    ).toEqual({ depth: 'deep', found: 3, readPages: 3 })
+    ).toEqual({ depth: 'deep', found: 3, readPages: 3, xVideosWatched: 0 })
+  })
+
+  it('⭐ Grok 看了 X 上的视频（创作者明说「看看视频」时）：一组里看了几段加起来', () => {
+    expect(
+      summarizeOperatorResearchBlock([
+        research({ depth: 'quick', readPages: 0 }, [{}], { xVideosWatched: 2 }),
+        research({ depth: 'quick', readPages: 0 }, [{}], { xVideosWatched: 1 }),
+        research({ depth: 'quick', readPages: 0 }, [{}]),
+      ]),
+    ).toEqual({ depth: 'quick', found: 3, readPages: 0, xVideosWatched: 3 })
   })
 
   it('⭐ 跑着的查资料一开口就算一次调查（owner 2026-09-30）', () => {
@@ -231,6 +242,7 @@ describe('summarizeOperatorResearchBlock', () => {
       depth: 'quick',
       found: 0,
       readPages: 0,
+      xVideosWatched: 0,
     })
   })
 })

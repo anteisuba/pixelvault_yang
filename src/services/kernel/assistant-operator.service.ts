@@ -383,6 +383,7 @@ import {
 } from '@/services/research/research-fanout.service'
 import { findXSearchRoute } from '@/services/kernel/research-route.service'
 import {
+  creatorAsksToWatchXVideos,
   nativeSearchRulesOutX,
   planNativeSearchDomains,
 } from '@/services/research/native-search-filters'
@@ -3164,6 +3165,15 @@ async function planResearch(
   const nativeAdapter = sources.includes(ASSISTANT_RESEARCH_SOURCE_IDS.web)
     ? (native?.route.adapterType ?? null)
     : null
+  /**
+   * ⭐ **创作者明说「看看视频」才让 Grok 真的看 X 上的视频**（owner 2026-10-15）：默认只看
+   * 封面（`enable_image_understanding`）；看视频按图片 token 计费、贵得多，⛔ 不自动开。
+   * ⚠ 判据只读创作者这一句（`creatorAsksToWatchXVideos`），⛔ 不读模型写的查证目标。
+   */
+  const watchXVideos =
+    nativeAdapter === AI_ADAPTER_TYPES.XAI &&
+    !nativeSearchRulesOutX(native?.domains) &&
+    creatorAsksToWatchXVideos(latestUserMessage(run.request))
   let nativeAnswer = ''
   const nativeSearch: {
     result?: Awaited<ReturnType<typeof llmNativeWebSearch>>
@@ -3193,6 +3203,7 @@ async function planResearch(
                 ? { timeZone: run.request.timeZone }
                 : {}),
               ...(args.x ? { x: args.x } : {}),
+              ...(watchXVideos ? { xVideos: true } : {}),
             })
             nativeSearch.result = found
             nativeAnswer = found.status === 'searched' ? found.answer : ''
@@ -3442,7 +3453,17 @@ async function planResearch(
         : xRuledOut || !nativeAdapter
           ? "\nThe creator's source list rules out X, so posts on X were not searched. Say so if it matters."
           : '\nGrok search failed this turn, so posts on X were NOT searched. Say so plainly in one line, and do not present web results as what people on X said.'
-  const chainLine = `verify("${args.goal}") · ${queryLine} · sources ${sources.join(', ')}${args.expandSources ? ' (expanded)' : ''} · ${depth}${readPages > 0 ? ` · read ${readPages} page(s) in full` : ''}${gateLine}${ruleLine}${nativeLine}${xLine}`
+  /** 看了几段 X 上的视频（只在创作者说了「看看视频」、Grok 真的搜了时有）。 */
+  const xVideosWatched = watchXVideos
+    ? nativeSearch.result?.xVideosWatched
+    : undefined
+  const xVideoLine =
+    xVideosWatched === undefined
+      ? ''
+      : xVideosWatched > 0
+        ? `\nThe creator asked to watch the videos, so Grok watched ${xVideosWatched} video(s) on X in this search. Say how many in one clause, and describe only what was in them.`
+        : '\nThe creator asked to watch the videos, but Grok opened none in this search. Say so in one clause, and do not describe any video beyond its cover.'
+  const chainLine = `verify("${args.goal}") · ${queryLine} · sources ${sources.join(', ')}${args.expandSources ? ' (expanded)' : ''} · ${depth}${readPages > 0 ? ` · read ${readPages} page(s) in full` : ''}${gateLine}${ruleLine}${nativeLine}${xLine}${xVideoLine}`
   const observation =
     evidence.length === 0
       ? `${chainLine}\nfound nothing. Sources: ${receiptLine}.${
@@ -3492,6 +3513,7 @@ async function planResearch(
           snippet: clamp(item.snippet, RESEARCH_LIMITS.maxEvidenceSnippetChars),
         })),
         ...(xNotSearched ? { xNotSearched } : {}),
+        ...(xVideosWatched !== undefined ? { xVideosWatched } : {}),
       },
       observation,
     }),

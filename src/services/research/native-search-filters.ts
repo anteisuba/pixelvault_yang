@@ -1,7 +1,11 @@
 import 'server-only'
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { NATIVE_SEARCH_FILTER_LIMITS, X_DOMAINS } from '@/constants/research'
+import {
+  NATIVE_SEARCH_FILTER_LIMITS,
+  X_DOMAINS,
+  X_VIDEO_WATCH_INTENT,
+} from '@/constants/research'
 
 /**
  * **自带联网的过滤参数**（2026-10-14）：来源名单 → 各家服务商的域名参数，以及
@@ -59,6 +63,19 @@ export function planNativeSearchDomains(
   const domains = [...(mode === 'allow' ? rules.allow : rules.block)]
   if (domains.length > nativeSearchDomainLimit(adapterType, mode)) return null
   return { domains: { mode, domains } }
+}
+
+/**
+ * 创作者这一句是不是**明说要看 X 上的视频**（owner 2026-10-15「看看视频」）。是 → Grok 的 X
+ * 搜索这一次开 `enable_video_understanding`；否 → 只看封面。
+ * ⚠ 只读创作者自己说的话，⛔ 不读模型写的查证目标：花不花看视频的钱由创作者开口定。
+ * ⚠ 否定在前（「不用看视频」「don't watch the video」）不算。
+ */
+export function creatorAsksToWatchXVideos(text: string): boolean {
+  if (!text) return false
+  if (X_VIDEO_WATCH_INTENT.negation.some((pattern) => pattern.test(text)))
+    return false
+  return X_VIDEO_WATCH_INTENT.ask.some((pattern) => pattern.test(text))
 }
 
 /** 名单把 X 挡掉了吗：白名单里没有 X，或黑名单里有 X。 */

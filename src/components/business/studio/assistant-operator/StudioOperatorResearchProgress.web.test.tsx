@@ -47,6 +47,20 @@ describe('StudioOperatorResearchProgress', () => {
     ).toBe('researchProgress.doneQuick:6 · researchProgress.readPages:3')
   })
 
+  it('⭐ Grok 看了 X 上的视频（创作者明说「看看视频」）：行里写看了几段；没看就不写', () => {
+    renderLine({ readPages: 0, xVideosWatched: 2 })
+    expect(
+      screen.getByTestId('operator-research-progress-label').textContent,
+    ).toBe('researchProgress.doneQuick:6 · researchProgress.xVideosWatched:2')
+  })
+
+  it('⛔ 没看视频（默认只看封面）就一个字都不提', () => {
+    renderLine({ xVideosWatched: 0 })
+    expect(
+      screen.getByTestId('operator-research-progress-label').textContent,
+    ).not.toContain('xVideosWatched')
+  })
+
   it('⭐ 深档换一句话', () => {
     renderLine({ depth: 'deep', found: 20, readPages: 7 })
     expect(

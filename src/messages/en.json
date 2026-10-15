@@ -8592,6 +8592,7 @@
       "doneQuick": "{count} results",
       "doneDeep": "Deep research · {count} results",
       "readPages": "{count} pages read",
+      "xVideosWatched": "watched {count} videos on X",
       "estimateSeconds": "about {count}s",
       "estimateMinutes": "about {count} min"
     },

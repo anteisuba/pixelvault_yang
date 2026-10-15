@@ -2875,6 +2875,11 @@ export interface LlmNativeSearchResult {
   sources: LlmNativeSearchSource[]
   queries: string[]
   error?: string
+  /**
+   * Grok 这一次真的看了几段 X 上的视频（输出里 `view_x_video` 那几下）。只在
+   * `xVideos` 开着时有；缺席 = 没开看视频。
+   */
+  xVideosWatched?: number
 }
 
 export interface LlmNativeSearchInput {
@@ -2896,9 +2901,17 @@ export interface LlmNativeSearchInput {
    * 的图。缺席 = 照常（网页与 X 都开着，由 Grok 自己挑）。
    */
   x?: LlmNativeXSearch
+  /**
+   * 创作者明说「看看视频」（`creatorAsksToWatchXVideos`，owner 2026-10-15）：Grok 的 X 搜索
+   * 这一次开 `enable_video_understanding`。缺席 = 只看封面。⚠ 只对 Grok 有意义。
+   */
+  xVideos?: boolean
 }
 
 const NATIVE_SEARCH_MAX_USES = 3
+
+/** Grok X 搜索看视频那一下的工具名（`enable_video_understanding` 开着时才会出现）。 */
+const XAI_VIEW_X_VIDEO_TOOL = 'view_x_video'
 
 export function supportsNativeWebSearch(
   adapterType: AI_ADAPTER_TYPES,
@@ -3352,7 +3365,9 @@ function xSearchQueryOf(input: string | undefined): string[] {
  *   帖子计费，2026-10-10 实测一问 X 舆情约 $0.4、30 秒，普通事实题约 $0.06、8 秒。
  * ⚠ 推理档同 chat 那条路压到 `low`：默认 high 时同一题要 56 秒。
  * ⭐ 2026-10-14 补齐参数：冲着 X 去的那一问按账号（≤20）/ 日期收窄，并开
- *   `enable_image_understanding` 看帖子里的图（按图片 token 计费；看视频更贵，不开）；
+ *   `enable_image_understanding` 看帖子里的图（视频只看封面；按图片 token 计费）；
+ * ⭐ 2026-10-15：创作者明说「看看视频」（`input.xVideos`）才开
+ *   `enable_video_understanding` —— 视频按图片 token 计费、比封面贵得多，⛔ 不自动开；
  *   来源名单走网页搜索的 `allowed_domains` / `excluded_domains`（各 ≤5），名单挡掉
  *   X 时整个 X 搜索不带。
  */
@@ -3379,6 +3394,9 @@ function xaiSearchTools(input: LlmNativeSearchInput) {
             ...(x.toDate ? { to_date: x.toDate } : {}),
             enable_image_understanding: true,
           }
+        : {}),
+      ...(input.xVideos
+        ? { enable_image_understanding: true, enable_video_understanding: true }
         : {}),
     },
   ]
@@ -3417,7 +3435,7 @@ async function xaiNativeWebSearch(
     })
   }
   const data = ResponsesSearchSchema.parse(await response.json())
-  return responsesNativeSearchResult(
+  const result = responsesNativeSearchResult(
     data,
     (data.output ?? []).flatMap((item): ResponsesSearchCall[] => {
       if (item.type === 'web_search_call') return [webSearchCallOf(item)]
@@ -3432,6 +3450,13 @@ async function xaiNativeWebSearch(
       return []
     }),
   )
+  if (!input.xVideos) return result
+  /** 看视频那一下在输出里是 `custom_tool_call` · `view_x_video`（一段一下）。 */
+  const xVideosWatched = (data.output ?? []).filter(
+    (item) =>
+      item.type === 'custom_tool_call' && item.name === XAI_VIEW_X_VIDEO_TOOL,
+  ).length
+  return { ...result, xVideosWatched }
 }
 
 const AnthropicSearchResponseSchema = z.object({

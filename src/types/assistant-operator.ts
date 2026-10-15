@@ -3825,6 +3825,11 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
        * key，面板据此给「用 Grok 搜这一次」（owner 2026-10-14）。缺席 = 不涉及 X 或已搜。
        */
       xNotSearched: z.object({ grokKey: z.boolean() }).optional(),
+      /**
+       * 创作者明说「看看视频」时 Grok 这一次看了几段 X 上的视频（owner 2026-10-15）。
+       * 缺席 = 没开看视频（默认只看封面）。调查那一行据此写「看了 N 段视频」。
+       */
+      xVideosWatched: z.number().int().nonnegative().optional(),
     }),
   ),
   /**

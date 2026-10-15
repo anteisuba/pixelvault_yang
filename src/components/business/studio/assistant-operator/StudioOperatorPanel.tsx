@@ -1780,6 +1780,7 @@ export function StudioOperatorPanel({
                       running={running}
                       found={researchSummary.found}
                       readPages={researchSummary.readPages}
+                      xVideosWatched={researchSummary.xVideosWatched}
                     >
                       {logItems}
                     </StudioOperatorResearchProgress>

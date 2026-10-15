@@ -145,11 +145,18 @@ export function collectOperatorAnswerSources(
  */
 export function summarizeOperatorResearchBlock(
   steps: readonly StudioOperatorStepEntry[],
-): { depth: AssistantResearchDepth; found: number; readPages: number } | null {
+): {
+  depth: AssistantResearchDepth
+  found: number
+  readPages: number
+  /** Grok 看了几段 X 上的视频（创作者说了「看看视频」才有，owner 2026-10-15）。 */
+  xVideosWatched: number
+} | null {
   let seen = false
   let depth: AssistantResearchDepth = ASSISTANT_RESEARCH_DEPTHS.quick
   let found = 0
   let readPages = 0
+  let xVideosWatched = 0
   for (const { step } of steps) {
     /**
      * ⭐ 跑着的查资料也算（owner 2026-09-30）：服务端一开口就吐 `running`，
@@ -174,12 +181,13 @@ export function summarizeOperatorResearchBlock(
     if (step.tool !== ASSISTANT_OPERATOR_TOOL_IDS.research) continue
     seen = true
     found += step.result?.evidence?.length ?? 0
+    xVideosWatched += step.result?.xVideosWatched ?? 0
     readPages += step.payload.readPages
     if (step.payload.depth === ASSISTANT_RESEARCH_DEPTHS.deep) {
       depth = ASSISTANT_RESEARCH_DEPTHS.deep
     }
   }
-  return seen ? { depth, found, readPages } : null
+  return seen ? { depth, found, readPages, xVideosWatched } : null
 }
 
 /**

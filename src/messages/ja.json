@@ -8592,6 +8592,7 @@
       "doneQuick": "{count} 件を検索",
       "doneDeep": "詳細調査 · {count} 件",
       "readPages": "{count} ページを読了",
+      "xVideosWatched": "X の動画を{count}本視聴",
       "estimateSeconds": "約 {count} 秒",
       "estimateMinutes": "約 {count} 分"
     },

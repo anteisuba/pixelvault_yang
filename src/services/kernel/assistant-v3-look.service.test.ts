@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { ASSISTANT_V3_LIMITS } from '@/constants/assistant-v3'
+import { ASSISTANT_VIDEO_TIERS } from '@/constants/assistant'
+import {
+  ASSISTANT_V3_CLIP_LIMITS,
+  ASSISTANT_V3_LIMITS,
+} from '@/constants/assistant-v3'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { AssistantOperatorStepSchema } from '@/types/assistant-operator'
 import type { AssistantOperatorEvent } from '@/types/assistant-operator'
@@ -43,11 +47,22 @@ import {
   createPictureCache,
   executeV3Look,
   loadFreshLooks,
+  lookClipParts,
+  lookUserParts,
   picturesRideInToolResult,
 } from './assistant-v3-look.service'
+import { createClipCache } from './assistant-v3-watch.service'
 
 /** 地址 → 格式；没登记的地址下不来。 */
 const served = new Map<string, string>()
+/** 地址 → 片子多大（真的 mp4 文件头）；没登记的下不来。 */
+const clipsServed = new Map<string, number>()
+
+function clip(name: string, bytes = 1_000) {
+  const url = `https://cdn.test/${name}.mp4`
+  clipsServed.set(url, bytes)
+  return { url, label: name }
+}
 
 function context(overrides: Partial<V3Context> = {}): V3Context {
   return {
@@ -66,6 +81,8 @@ function context(overrides: Partial<V3Context> = {}): V3Context {
     replyText: { current: '' },
     seesImages: true,
     pictures: createPictureCache(AI_ADAPTER_TYPES.OPENAI),
+    clipTier: ASSISTANT_VIDEO_TIERS.frames,
+    clips: createClipCache(),
     ...overrides,
   } as unknown as V3Context
 }
@@ -92,11 +109,28 @@ describe('v3 look · Denia 自己看', () => {
     served.clear()
     recordLedgerStep.mockReset()
     fetchAsBuffer.mockReset()
-    fetchAsBuffer.mockImplementation(async (url: string) => {
-      const format = served.get(url)
-      if (!format) throw new Error('unreachable')
-      return { buffer: Buffer.from(`${format}:${url}`), mimeType: 'image/*' }
-    })
+    clipsServed.clear()
+    fetchAsBuffer.mockImplementation(
+      async (url: string, options: { maxBytes?: number }) => {
+        const bytes = clipsServed.get(url)
+        if (bytes !== undefined) {
+          if (options.maxBytes !== undefined && bytes > options.maxBytes)
+            throw new Error(
+              `Image exceeds maximum size of ${options.maxBytes} bytes (declared ${bytes}).`,
+            )
+          return {
+            buffer: Buffer.concat([
+              Buffer.from([0, 0, 0, 24]),
+              Buffer.from('ftypisom-mp4-bytes', 'ascii'),
+            ]),
+            mimeType: 'video/mp4',
+          }
+        }
+        const format = served.get(url)
+        if (!format) throw new Error('unreachable')
+        return { buffer: Buffer.from(`${format}:${url}`), mimeType: 'image/*' }
+      },
+    )
   })
 
   it('一次最多看 maxLookCards 张：多出来的明说只看了前几张', async () => {
@@ -233,6 +267,7 @@ describe('v3 look · Denia 自己看', () => {
     const fresh = await loadFreshLooks(
       look,
       createPictureCache(AI_ADAPTER_TYPES.OPENAI),
+      createClipCache(),
     )
     expect([...fresh.keys()]).toEqual(['call_1'])
     expect(fresh.get('call_1')).toMatchObject({
@@ -243,6 +278,7 @@ describe('v3 look · Denia 自己看', () => {
     const later = await loadFreshLooks(
       [...look, { type: 'assistant', text: '是哈利。', calls: [] }],
       createPictureCache(AI_ADAPTER_TYPES.OPENAI),
+      createClipCache(),
     )
     expect(later.size).toBe(0)
   })
@@ -269,5 +305,143 @@ describe('v3 look · Denia 自己看', () => {
       AI_ADAPTER_TYPES.XAI,
     ])
       expect(picturesRideInToolResult(adapter)).toBe(false)
+  })
+
+  /* ── 看片（看图期第二段）──────────────────────────────────────────── */
+
+  it('⭐ 别家（帧档）看一段没被指着的片子：只回一句请创作者 @ 它，⛔ 不下、不猜、不记失败', async () => {
+    const take = clip('take')
+    const { events, outcome } = await run(
+      executeV3Look(context(), {
+        targets: [],
+        clips: [take],
+        notes: [],
+        question: 'does it move?',
+      }),
+    )
+    expect(fetchAsBuffer).not.toHaveBeenCalled()
+    expect(events).toEqual([])
+    expect(outcome).toMatchObject({ kind: 'result', error: false })
+    expect(outcome).not.toHaveProperty('clips')
+    expect(outcome).not.toHaveProperty('failureKey')
+    expect((outcome as { output: string }).output).toContain(
+      '「take」 is a clip you were not shown: you only watch clips the creator points at. Ask them to @ the clip in their message. Do not describe it from its prompt or its name.',
+    )
+  })
+
+  it('⭐ Gemini（native 档）看一段没被指着的片子：在内联上限内交片子本体，只附给下一次', async () => {
+    const take = clip('take')
+    const { events, outcome } = await run(
+      executeV3Look(context({ clipTier: ASSISTANT_VIDEO_TIERS.native }), {
+        targets: [],
+        clips: [take],
+        notes: [],
+        question: 'does it move?',
+      }),
+    )
+    expect(fetchAsBuffer).toHaveBeenCalledWith(
+      take.url,
+      expect.objectContaining({
+        maxBytes: ASSISTANT_V3_CLIP_LIMITS.inlineMaxBytes,
+      }),
+    )
+    expect(outcome).toMatchObject({
+      kind: 'result',
+      error: false,
+      clips: [take],
+    })
+    expect((outcome as { output: string }).output).toContain(
+      'The clip itself comes with this result, for your next step only: 「take」.',
+    )
+    expect(events[0]).toMatchObject({
+      step: { status: 'done', result: { digest: 'take' } },
+    })
+  })
+
+  it('Gemini 片子太大：如实说，请创作者 @ 它（@ 了浏览器会抽帧）', async () => {
+    const big = clip('big', ASSISTANT_V3_CLIP_LIMITS.inlineMaxBytes + 1)
+    const { outcome } = await run(
+      executeV3Look(context({ clipTier: ASSISTANT_VIDEO_TIERS.native }), {
+        targets: [],
+        clips: [big],
+        notes: [],
+        question: '',
+      }),
+    )
+    expect(outcome).toMatchObject({ kind: 'result', error: false })
+    expect(outcome).not.toHaveProperty('clips')
+    expect((outcome as { output: string }).output).toContain(
+      '「big」 is too large to watch directly (over 20 MB). Ask the creator to @ the clip',
+    )
+  })
+
+  it('被指着的片子已经在眼前：只指给模型看，⛔ 不再下第二遍', async () => {
+    const take = clip('take')
+    const { outcome } = await run(
+      executeV3Look(
+        context({
+          clipTier: ASSISTANT_VIDEO_TIERS.native,
+          transcript: [
+            { type: 'board', text: 'BOARD', images: [], clips: [take] },
+          ],
+        }),
+        { targets: [], clips: [take], notes: [], question: 'ok?' },
+      ),
+    )
+    expect(fetchAsBuffer).not.toHaveBeenCalled()
+    expect(outcome).not.toHaveProperty('clips')
+    expect((outcome as { output: string }).output).toContain(
+      "Already in front of you in the creator's message: 「take」 (clip 1 of CLIPS THE CREATOR POINTED AT).",
+    )
+  })
+
+  it('⛔ 不借别家：所选模型看不了图，片子一段也不看', async () => {
+    const { events, outcome } = await run(
+      executeV3Look(context({ seesImages: false, clipTier: false }), {
+        targets: [],
+        clips: [clip('take')],
+        notes: [],
+        question: '',
+      }),
+    )
+    expect(events).toEqual([])
+    expect(fetchAsBuffer).not.toHaveBeenCalled()
+    expect(outcome).toMatchObject({ failureKey: 'look:noVision' })
+  })
+
+  it('look 附上的片子只跟在下一次调用里，作为文件交给模型', async () => {
+    const take = clip('take')
+    const transcript: AssistantV3Transcript = [
+      { type: 'board', text: 'BOARD', images: [] },
+      {
+        type: 'assistant',
+        text: '',
+        calls: [{ id: 'call_1', tool: 'look', input: '{}' }],
+      },
+      {
+        type: 'result',
+        id: 'call_1',
+        tool: 'look',
+        output: 'watched',
+        error: false,
+        clips: [take],
+      },
+    ]
+    const fresh = await loadFreshLooks(
+      transcript,
+      createPictureCache(AI_ADAPTER_TYPES.GEMINI),
+      createClipCache(),
+    )
+    const look = fresh.get('call_1')!
+    expect(look.header).toBe('')
+    expect(look.pictures).toEqual([])
+    expect(lookClipParts(look)).toEqual([
+      {
+        type: 'text',
+        text: 'CLIP FROM YOUR look: 「take」 (the clip itself)',
+      },
+      expect.objectContaining({ type: 'file', mediaType: 'video/mp4' }),
+    ])
+    expect(lookUserParts(look)).toEqual(lookClipParts(look))
   })
 })

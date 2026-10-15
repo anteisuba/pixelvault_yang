@@ -185,7 +185,7 @@ import {
 } from '@/constants/models'
 import { getCapabilityConfig } from '@/constants/provider-capabilities'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { ASSISTANT_MEDIA_UNSUPPORTED_ERRORS } from '@/constants/assistant'
+import { assertAssistantMediaRoute } from '@/lib/assistant-media-gate'
 import {
   ApiKeyError,
   ApiRequestError,
@@ -12592,18 +12592,7 @@ export async function prepareOperatorTurn(
       ? resolveAssistantFastModelId(route.adapterType)
       : resolveAssistantModelId(route.adapterType)
   const mediaAttachments = request.mediaAttachments ?? []
-  if (
-    mediaAttachments.length &&
-    route.adapterType !== AI_ADAPTER_TYPES.GEMINI
-  ) {
-    const spec = ASSISTANT_MEDIA_UNSUPPORTED_ERRORS[mediaAttachments[0].kind]
-    throw new ApiRequestError(
-      spec.code,
-      spec.httpStatus,
-      spec.i18nKey,
-      spec.message,
-    )
-  }
+  assertAssistantMediaRoute(mediaAttachments, route.adapterType)
   const videoData = mediaAttachments
     .filter((item) => item.kind === 'video')
     .map((item) => item.url)

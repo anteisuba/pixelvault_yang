@@ -10,6 +10,7 @@ import {
   type AssistantOperatorRejectReason,
   type AssistantOperatorTool,
 } from '@/constants/assistant-operator'
+import type { AssistantVideoTier } from '@/constants/assistant'
 import {
   ASSISTANT_V3_FACE_IDS,
   type AssistantV3Face,
@@ -23,6 +24,7 @@ import type {
   AssistantOperatorRequest,
 } from '@/types/assistant-operator'
 import type {
+  AssistantV3ClipRef,
   AssistantV3PictureRef,
   AssistantV3Transcript,
 } from '@/types/assistant-v3'
@@ -37,6 +39,7 @@ import {
   type ToolPlan,
 } from '@/services/kernel/assistant-operator.service'
 import type { V3PictureCache } from '@/services/kernel/assistant-v3-look.service'
+import type { V3ClipCache } from '@/services/kernel/assistant-v3-watch.service'
 
 /**
  * v3 两张脸共用的那一层（S6）：过程行、调旧执行器、把执行器的计划变成步与工具结果。
@@ -232,6 +235,8 @@ export type V3Outcome =
       failureKey?: string
       /** `look` 交到模型眼前的图 —— 进本轮记录，只附给紧跟着的那一次调用。 */
       images?: readonly AssistantV3PictureRef[]
+      /** `look` 交到模型眼前的片子本体（只有 Gemini）—— 规矩同 `images`。 */
+      clips?: readonly AssistantV3ClipRef[]
     }
   /** 交给前端落了，结果等接力那一跳再补。 */
   | { kind: 'pending' }
@@ -261,6 +266,13 @@ export interface V3Context {
   readonly seesImages: boolean
   /** 这次请求里下过的图（按地址）。⚠ 字节只活在这次请求里，⛔ 不进本轮记录。 */
   readonly pictures: V3PictureCache
+  /**
+   * 这一轮选的模型能把片子看到哪一档（`assistantAdapterVideoTier`）：`native` = 片子本体
+   * 进模型（Gemini），`frames` = 只看浏览器抽好的帧，`false` = 看不了图也就看不了片。
+   */
+  readonly clipTier: AssistantVideoTier | false
+  /** 这次请求里下过的片子（只有 `native` 档会下）。规矩同 `pictures`。 */
+  readonly clips: V3ClipCache
 }
 
 /** 停在卡上的那一轮：模型这条回复没写正文，就把卡上的 `say` 说出来。 */
@@ -310,7 +322,7 @@ export function planSafely(
   )
 }
 
-export async function planGuarded(
+async function planGuarded(
   context: V3Context,
   tool: AssistantOperatorTool,
   plan: () => Promise<ToolPlan>,

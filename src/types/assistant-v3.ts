@@ -10,6 +10,7 @@ import {
   ASSISTANT_V3_CARDS_PROFILE_PARTS,
   ASSISTANT_V3_EDIT_OP_IDS,
   ASSISTANT_V3_IMAGE_EDIT_OP_IDS,
+  ASSISTANT_V3_CLIP_LIMITS,
   ASSISTANT_V3_LIMITS,
   ASSISTANT_V3_LORA_EDIT_OP_IDS,
   ASSISTANT_V3_LORA_SEARCH_KIND,
@@ -614,7 +615,7 @@ export const AssistantV3ImageLookInputSchema = z.object({
   images: z
     .array(z.string())
     .describe(
-      'Pictures to look at: the name of a picture attached to the message, or a reference like "ref-1".',
+      'What to look at: the name of a picture or clip the creator pointed at, a reference like "ref-1", or on the video bench a reference video like "video-1".',
     ),
   question: z.string(),
 })
@@ -758,12 +759,31 @@ export const AssistantV3PictureRefSchema = z.object({
 })
 export type AssistantV3PictureRef = z.infer<typeof AssistantV3PictureRefSchema>
 
+/**
+ * 记录里的一段片子（看图期第二段）：同样只有地址与称呼，⛔ 不存字节也不存帧。
+ * - 板子上的 = 创作者这一轮指着的那几段（@ / 📎 / 视频台挂着的）：每一跳都重新摆到模型
+ *   眼前 —— Gemini 下片子本体，别家用请求里那组帧（`videoClips`，接力时客户端原样再带）。
+ * - 结果上的 = `look` 看一段没被指着的片子（只有 Gemini 走得通）：只附给紧跟着那一次。
+ */
+export const AssistantV3ClipRefSchema = AssistantV3PictureRefSchema.extend({
+  /** 画布上的视频卡（`look` 认「这张卡已经在你眼前」靠它）。 */
+  nodeId: z
+    .string()
+    .max(ASSISTANT_V3_LIMITS.maxCallIdChars * 2)
+    .optional(),
+})
+export type AssistantV3ClipRef = z.infer<typeof AssistantV3ClipRefSchema>
+
 export const AssistantV3TranscriptBoardEntrySchema = z.object({
   type: z.literal(ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.board),
   text: z.string().max(ASSISTANT_V3_LIMITS.maxBoardChars),
   images: z
     .array(AssistantV3PictureRefSchema)
     .max(ASSISTANT_V3_LIMITS.maxLookCards * 2),
+  clips: z
+    .array(AssistantV3ClipRefSchema)
+    .max(ASSISTANT_V3_CLIP_LIMITS.maxClips)
+    .optional(),
 })
 
 export const AssistantV3TranscriptCallSchema = z.object({
@@ -801,6 +821,11 @@ export const AssistantV3TranscriptResultEntrySchema = z.object({
   images: z
     .array(AssistantV3PictureRefSchema)
     .max(ASSISTANT_V3_LIMITS.maxLookCards)
+    .optional(),
+  /** `look` 交到模型眼前的片子本体（只有 Gemini；规矩同 `images`）。 */
+  clips: z
+    .array(AssistantV3ClipRefSchema)
+    .max(ASSISTANT_V3_CLIP_LIMITS.maxClips)
     .optional(),
 })
 

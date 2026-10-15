@@ -34,7 +34,10 @@ import {
 } from '@/constants/novelai'
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { ASSISTANT_KERNELS } from '@/constants/assistant-v3'
+import {
+  ASSISTANT_KERNELS,
+  ASSISTANT_V3_CLIP_LIMITS,
+} from '@/constants/assistant-v3'
 import { AssistantV3TranscriptSchema } from '@/types/assistant-v3'
 import { AssistantMentionRefSchema } from '@/types/assistant-mention'
 import { ASSISTANT_MENTION_LIMITS } from '@/constants/assistant-mention'
@@ -124,7 +127,10 @@ import {
   X_HANDLE_PATTERN,
   X_SEARCH_DATE_PATTERN,
 } from '@/constants/research'
-import { VIDEO_FRAME_LIMITS } from '@/constants/video-analysis'
+import {
+  VIDEO_CLIP_FRAME_PLAN,
+  VIDEO_FRAME_LIMITS,
+} from '@/constants/video-analysis'
 import { WEB_IMAGE_SOURCE_VERDICTS } from '@/constants/web-image-sources'
 import {
   LORA_CANDIDATE_NOT_IMPORTABLE_REASON_VALUES,
@@ -741,6 +747,15 @@ export const AssistantOperatorCanvasNodeSchema = z.object({
     .optional(),
   /** 有没有产出。⚠ 是布尔不是 URL —— 挂图那一跳认的是节点 id，不是地址。 */
   hasOutput: z.boolean().optional(),
+  /**
+   * 视频卡的成片地址（看图期第二段）：只给 v3 的 `look` 看片用 —— Gemini 能直接看片子本体，
+   * 服务端按它下载（防 SSRF 的那条）。⚠ 挂图、连线照旧只认节点 id，⛔ 别拿它当句柄。
+   */
+  videoUrl: z
+    .string()
+    .url()
+    .max(ASSISTANT_MEDIA_LIMITS.maxUrlLength)
+    .optional(),
   /** 正在生成（卡上转着圈）。不给的话问「哪些还没出」时模型只能逐张去读（v3 回放 T23）。 */
   generating: z.literal(true).optional(),
   /**
@@ -1462,6 +1477,50 @@ export type AssistantOperatorVideoFrames = z.infer<
 >
 
 /**
+ * v3 助手（Denia）这一轮被指着的一段片子（看图期第二段，owner 2026-10-15）：`@` 的、📎 的、
+ * 视频台上挂着的，浏览器按 `planClipFrames` 抽好帧再发。
+ *
+ * ⭐ 帧是**片子的样本**而不是证据存档：服务端复算同一份计划逐帧核对时间戳、按魔数验真
+ *   （`verifyVideoFrameSet`），然后直接摆到模型眼前，⛔ 不落 R2。画布接力时客户端把同一组
+ *   帧原样再带一次（⛔ 不重抽）。
+ * ⚠ `frames` 缺席 = 浏览器没抽成（跨域 / 读不出时长 / 超时）。片子照样上来：Gemini 能直接看
+ *   片子本体；别家就如实说没看成。
+ * ⚠ `sourceUrl` 只是「看哪一段」：服务端下载走防 SSRF 的那条（`fetchAsBuffer`）。
+ */
+export const AssistantOperatorClipFrameSchema = z.object({
+  /** 计划里的序号（从 0 起），⛔ 不是数组下标。 */
+  index: z
+    .number()
+    .int()
+    .min(0)
+    .max(VIDEO_CLIP_FRAME_PLAN.maxFrames - 1),
+  timestampSeconds: z.number().min(0),
+  /** `data:image/webp;base64,…`；上限只挡离谱载荷，真正的关在服务端（同上面那份帧）。 */
+  dataUrl: z
+    .string()
+    .min(1)
+    .max(VIDEO_FRAME_LIMITS.maxFrameBytes * 2),
+})
+
+export const AssistantOperatorVideoClipSchema = z.object({
+  sourceUrl: z.string().url().max(ASSISTANT_MEDIA_LIMITS.maxUrlLength),
+  /** 给模型的称呼（与正文里 `「名字」` 同一个；视频台挂着的那几段叫 `video-N`）。 */
+  label: LabelSchema,
+  /** 画布上的视频卡：服务端按它认卡，`look` 一张被指着的卡时不再下第二遍。 */
+  nodeId: IdSchema.optional(),
+  /** `<video>.duration` —— 服务端按它复算计划。抽帧失败时可能缺席。 */
+  durationSeconds: z.number().positive().optional(),
+  frames: z
+    .array(AssistantOperatorClipFrameSchema)
+    .max(VIDEO_CLIP_FRAME_PLAN.maxFrames)
+    .optional(),
+})
+
+export type AssistantOperatorVideoClip = z.infer<
+  typeof AssistantOperatorVideoClipSchema
+>
+
+/**
  * **一件可指认的产物**（切片 X；v2 §7.6 之后由**服务端现场派生**）。
  *
  * ⭐ 它答的是一个具体的失败：用户说「把刚才那张挂上」，而助手手上只有一串 id
@@ -2016,6 +2075,14 @@ export const AssistantOperatorRequestSchema = z.object({
    * 服务端 ffmpeg 要往 Vercel 包里塞几十 MB）。
    */
   videoFrames: AssistantOperatorVideoFramesSchema.optional(),
+  /**
+   * v3：这一轮被指着的片子（最多 `ASSISTANT_V3_CLIP_LIMITS.maxClips` 段），见 schema 头注。
+   * ⚠ 旧内核不读它（旧内核照旧走上面那份三帧）。
+   */
+  videoClips: z
+    .array(AssistantOperatorVideoClipSchema)
+    .max(ASSISTANT_V3_CLIP_LIMITS.maxClips)
+    .optional(),
   /**
    * 内核开关（S6）：画布默认走 v3，`v2` = 照走旧内核（对比用）。别的域都是旧内核。
    * ⚠ 前端从本地开关读（`ASSISTANT_KERNEL_STORAGE_KEY`），⛔ 不是用户设置。

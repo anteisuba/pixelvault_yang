@@ -7,10 +7,10 @@ import {
   type AssistantOperatorTool,
 } from '@/constants/assistant-operator'
 import {
-  ASSISTANT_V3_FACE_IDS,
   ASSISTANT_V3_LIMITS,
   ASSISTANT_V3_LORA_ITEM_IDS,
   ASSISTANT_V3_LORA_WRITE_FIELD_IDS,
+  ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS,
   ASSISTANT_V3_WRITE_MODE_IDS,
 } from '@/constants/assistant-v3'
 import {
@@ -19,9 +19,7 @@ import {
   type AssistantV3LoraWriteEntry,
 } from '@/types/assistant-v3'
 import type { AssistantOperatorEvent } from '@/types/assistant-operator'
-import { planCritiqueResult } from '@/services/kernel/assistant-operator.service'
 import {
-  planGuarded,
   planSafely,
   rejectedStep,
   sayAboveCard,
@@ -33,6 +31,7 @@ import {
 import {
   cannotSeeOutcome,
   executeV3Look,
+  type V3LookClipTarget,
   type V3LookTarget,
 } from '@/services/kernel/assistant-v3-look.service'
 
@@ -84,12 +83,14 @@ export function joinOutcomes(outcomes: readonly V3Outcome[]): V3Outcome {
   )
   const failed = results.find((outcome) => outcome.error)
   const images = results.flatMap((outcome) => outcome.images ?? [])
+  const clips = results.flatMap((outcome) => outcome.clips ?? [])
   return {
     kind: 'result',
     output: results.map((outcome) => outcome.output).join('\n'),
     error: Boolean(failed),
     ...(failed?.failureKey ? { failureKey: failed.failureKey } : {}),
     ...(images.length ? { images } : {}),
+    ...(clips.length ? { clips } : {}),
   }
 }
 
@@ -249,12 +250,20 @@ export async function* executeBenchWrite(
   return joinOutcomes(outcomes)
 }
 
+/** `video-2` → 视频台上第几段参考视频（从 0 起）；对不上回 `null`。 */
+function referenceVideoIndexOf(context: V3Context, ref: string): number | null {
+  const match = /^video-(\d+)$/.exec(ref.trim().toLowerCase())
+  if (!match) return null
+  const index = Number(match[1]) - 1
+  return context.request.snapshot.videoReferences?.items[index] ? index : null
+}
+
 /**
  * look：这条消息带的图（按名字或 id）与挂着的参考图（`ref-N`），交给 `executeV3Look` 放到
  * 模型眼前。各台自己的名字（LoRA 台的 `sample`、角色页的 `card` / `card-N`）由 `faceImages`
  * 先认走（认得名字却没有图 = 回给模型的一句），`notes` 是这张脸上怎么看的那一句。
- * ⚠ 视频台上被 @ 的那段片子（这一轮带着抽好的帧）照旧走看片评审（`planCritiqueResult` →
- *   抽帧逐帧看）—— 这一期只动看图，⛔ 不动看片。
+ * ⭐ 片子（看图期第二段）：被指着的那几段（板子上的 `clips`，按称呼认）与视频台上挂着的参考
+ *   视频（`video-N`）也交给 `executeV3Look` —— Denia 自己看，⛔ 不再走看片评审那条子调用。
  */
 export async function* executeBenchLook(
   context: V3Context,
@@ -264,13 +273,17 @@ export async function* executeBenchLook(
   notes: readonly string[] = [],
 ): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
   if (!context.seesImages) return cannotSeeOutcome()
-  const text = TITLE_TEXT[context.language]
   const mentioned = context.request.mentionedAssets ?? []
   const references = context.request.snapshot.references?.items ?? []
-  const clipUrl = context.request.videoFrames?.sourceUrl
+  const referenceVideos = context.request.snapshot.videoReferences?.items ?? []
+  const board = context.transcript[0]
+  const boardClips =
+    board?.type === ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.board
+      ? (board.clips ?? [])
+      : []
   const targets: V3LookTarget[] = []
+  const clips: V3LookClipTarget[] = []
   const unknown: string[] = []
-  const clips: { id: string; label: string }[] = []
   for (const image of images) {
     const named = faceImages?.(image) ?? null
     if (typeof named === 'string') {
@@ -292,57 +305,37 @@ export async function* executeBenchLook(
       continue
     }
     const key = image.trim().toLowerCase()
+    const pointedClip = boardClips.find(
+      (clip) => clip.label.trim().toLowerCase() === key,
+    )
+    if (pointedClip) {
+      clips.push({ ...pointedClip })
+      continue
+    }
+    const videoIndex = referenceVideoIndexOf(context, image)
+    if (videoIndex !== null) {
+      clips.push({
+        url: referenceVideos[videoIndex]!.url,
+        label: `video-${videoIndex + 1}`,
+      })
+      continue
+    }
     const asset = mentioned.find(
       (candidate) =>
         candidate.label?.trim().toLowerCase() === key || candidate.id === image,
     )
     if (!asset)
       unknown.push(
-        `Could not see "${image}": it is not a picture attached to this message or a mounted reference. If it is a result, ask the creator to @ it.`,
+        `Could not see "${image}": it is not a picture or clip attached to this message or a mounted reference. If it is a result, ask the creator to @ it.`,
       )
-    else if (
-      context.face === ASSISTANT_V3_FACE_IDS.video &&
-      clipUrl === asset.url
-    )
-      clips.push({ id: asset.id, label: asset.label ?? image })
     else targets.push({ url: asset.url, label: asset.label ?? image })
   }
-  const outcomes: V3Outcome[] = []
-  for (const clip of clips) {
-    const plan = await planGuarded(context, TOOL.critiqueResult, () =>
-      planCritiqueResult(
-        context.prepared.run,
-        { goal: question, targetIds: [clip.id] },
-        context.prepared.user.id,
-      ),
-    )
-    outcomes.push(
-      inV3Words(
-        yield* settlePlan(
-          context,
-          TOOL.critiqueResult,
-          `${text.look}「${clip.label}」`,
-          plan,
-        ),
-      ),
-    )
-  }
-  if (targets.length || clips.length === 0)
-    outcomes.push(
-      yield* executeV3Look(context, {
-        targets,
-        notes: [...(targets.length ? notes : []), ...unknown],
-        question,
-      }),
-    )
-  else if (unknown.length)
-    outcomes.push({
-      kind: 'result',
-      output: unknown.join('\n'),
-      error: true,
-      failureKey: 'look:unknown',
-    })
-  return joinOutcomes(outcomes)
+  return yield* executeV3Look(context, {
+    targets,
+    clips,
+    notes: [...(targets.length ? notes : []), ...unknown],
+    question,
+  })
 }
 
 /** generate：台上现在这一套的确认卡，卡上方先说 `say`。 */

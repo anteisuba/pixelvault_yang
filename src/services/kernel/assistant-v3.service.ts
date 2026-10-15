@@ -8,7 +8,10 @@ import {
   type UserContent,
 } from 'ai'
 
-import { assistantAdapterSupportsImage } from '@/constants/assistant'
+import {
+  assistantAdapterSupportsImage,
+  assistantAdapterVideoTier,
+} from '@/constants/assistant'
 import {
   ASSISTANT_AUTO_GENERATE_LIMITS,
   ASSISTANT_OPERATOR_CANVAS_LIMITS,
@@ -24,6 +27,7 @@ import {
 import {
   ASSISTANT_V3_ASK_TOOL_DESCRIPTION,
   ASSISTANT_V3_CALL_TIMEOUT,
+  ASSISTANT_V3_CLIP_LIMITS,
   ASSISTANT_V3_EDIT_OP_IDS,
   ASSISTANT_V3_FACE_IDS,
   ASSISTANT_V3_LIMITS,
@@ -75,6 +79,7 @@ import type {
 } from '@/types/assistant-operator'
 import {
   AssistantV3AskInputSchema,
+  AssistantV3ClipRefSchema,
   AssistantV3EditInputSchema,
   AssistantV3GenerateInputSchema,
   AssistantV3LookInputSchema,
@@ -82,6 +87,7 @@ import {
   AssistantV3SearchLibraryInputSchema,
   AssistantV3SearchWebInputSchema,
   AssistantV3WriteInputSchema,
+  type AssistantV3ClipRef,
   type AssistantV3EditOpInput,
   type AssistantV3PictureRef,
   type AssistantV3SearchWebInput,
@@ -153,14 +159,22 @@ import {
   executeV3Look,
   loadFreshLooks,
   loadPicture,
+  lookClipParts,
   lookToolOutput,
   lookUserParts,
   picturesRideInToolResult,
   type V3FreshLook,
+  type V3LookClipTarget,
   type V3LookTarget,
   type V3Picture,
   type V3PictureCache,
 } from '@/services/kernel/assistant-v3-look.service'
+import {
+  createClipCache,
+  pointedClipParts,
+  viewPointedClips,
+  type V3ClipView,
+} from '@/services/kernel/assistant-v3-watch.service'
 
 /**
  * 助手新内核（v3 S1）：AI SDK 原生工具调用 + 只追加的消息。
@@ -199,7 +213,7 @@ const tools = (strict: boolean) => ({
     strict,
   }),
   [ASSISTANT_V3_TOOL_IDS.look]: tool({
-    description: `Put pictures in front of you for your next response, with one specific question: a card's picture (its output or an image the creator attached). At most ${ASSISTANT_V3_LIMITS.maxLookCards} per call; to compare with what a card was made from, name its reference cards in the same call.`,
+    description: `Put pictures or clips in front of you for your next response, with one specific question: a card's picture (its output or an image the creator attached), or a video card's clip. At most ${ASSISTANT_V3_LIMITS.maxLookCards} pictures per call; to compare with what a card was made from, name its reference cards in the same call.`,
     inputSchema: AssistantV3LookInputSchema,
     strict,
   }),
@@ -430,14 +444,14 @@ function transcriptMessages(
 ): ModelMessage[] {
   const out: ModelMessage[] = []
   let results: ToolResultPart[] = []
-  let pictures: V3FreshLook[] = []
+  /** 跟在这一批工具结果后面那条 user 里的：别家是整份 look，Gemini 只剩片子本体。 */
+  let after: Exclude<UserContent, string> = []
   const flush = () => {
     if (results.length === 0) return
     out.push({ role: 'tool', content: results })
     results = []
-    if (pictures.length)
-      out.push({ role: 'user', content: pictures.flatMap(lookUserParts) })
-    pictures = []
+    if (after.length) out.push({ role: 'user', content: after })
+    after = []
   }
   for (const entry of entries) {
     if (entry.type === ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.assistant) {
@@ -463,13 +477,16 @@ function transcriptMessages(
       })
     } else if (entry.type === ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.result) {
       const look = looks.get(entry.id)
-      if (look && !picturesInResult) pictures.push(look)
+      if (look)
+        after.push(
+          ...(picturesInResult ? lookClipParts(look) : lookUserParts(look)),
+        )
       results.push({
         type: 'tool-result',
         toolCallId: entry.id,
         toolName: entry.tool,
         output:
-          look && picturesInResult
+          look && picturesInResult && look.pictures.length
             ? lookToolOutput(entry.output, look)
             : entry.error
               ? { type: 'error-text', value: entry.output }
@@ -519,9 +536,30 @@ function inlineImages(
   )
 }
 
+/**
+ * 请求里那几段被指着的片子 → 板子上的称呼表（只记地址、称呼、卡 id）。
+ * ⚠ 进不了本轮记录的（地址太长）这里就丢掉：接力时那一跳会整份记录不过校验。
+ */
+function pointedClipRefs(
+  request: AssistantOperatorRequest,
+): AssistantV3ClipRef[] {
+  const refs: AssistantV3ClipRef[] = []
+  for (const clip of request.videoClips ?? []) {
+    if (refs.some((ref) => ref.url === clip.sourceUrl)) continue
+    const ref = {
+      url: clip.sourceUrl,
+      label: clip.label.slice(0, ASSISTANT_V3_LIMITS.maxNameChars * 2),
+      ...(clip.nodeId ? { nodeId: clip.nodeId } : {}),
+    }
+    if (AssistantV3ClipRefSchema.safeParse(ref).success) refs.push(ref)
+  }
+  return refs.slice(0, ASSISTANT_V3_CLIP_LIMITS.maxClips)
+}
+
 function currentUserMessage(
   board: Extract<AssistantV3TranscriptEntry, { type: 'board' }>,
   images: readonly (V3Picture | null)[],
+  clips: readonly V3ClipView[],
   latest: string,
   autoReview: boolean,
   autoGenerate: boolean,
@@ -548,6 +586,8 @@ function currentUserMessage(
           mediaType: image.mediaType,
         })
   }
+  // ⭐ 被指着的片子与被指着的图同一个待遇：整轮都在眼前（看图期第二段）。
+  content.push(...pointedClipParts(clips))
   content.push({
     type: 'text',
     text: autoReview
@@ -786,7 +826,26 @@ async function* runV3Turn(
     }
     return
   }
-  const prepared = await prepareOperatorTurn(clerkId, initialRequest, signal)
+  /**
+   * ⭐ 视频附件在 v3 里不走旧内核的「媒体直传」：被指着的片子由浏览器抽好帧随 `videoClips`
+   *   上来（看图期第二段），Gemini 另下片子本体。所以先摘掉 —— 否则非 Gemini 的模型在这里就被
+   *   「请选 Gemini」整轮拒掉，而它们看帧完全够用。⚠ 音频照旧（不在这一期）。
+   */
+  const strippedVideo = (initialRequest.mediaAttachments ?? []).some(
+    (item) => item.kind === 'video',
+  )
+  const prepared = await prepareOperatorTurn(
+    clerkId,
+    strippedVideo
+      ? {
+          ...initialRequest,
+          mediaAttachments: initialRequest.mediaAttachments?.filter(
+            (item) => item.kind !== 'video',
+          ),
+        }
+      : initialRequest,
+    signal,
+  )
   const { request, user, persona, rules, route, run } = prepared
   /**
    * ⚠ 助手模型选「自动」时这里没有型号（旧内核在更深处才补默认型号）。⛔ 别因此退回
@@ -817,7 +876,10 @@ async function* runV3Turn(
           ? Boolean(request.snapshot.cards)
           : true
   if (!model || !modelId || !faceReady) {
-    yield* runOperatorTurn(clerkId, request, options, prepared)
+    // ⚠ 摘过视频附件的那一份交不回旧内核（它要的就是那几段）：原样重新准备一遍。
+    yield* strippedVideo
+      ? runOperatorTurn(clerkId, initialRequest, options)
+      : runOperatorTurn(clerkId, request, options, prepared)
     return
   }
   /**
@@ -852,6 +914,11 @@ async function* runV3Turn(
     replyText: { current: '' },
     seesImages,
     pictures: createPictureCache(route.adapterType),
+    // ⚠ 看不了图就一段片子也不看（帧也是图）；⛔ 不借别家。
+    clipTier: seesImages
+      ? assistantAdapterVideoTier(route.adapterType, modelId)
+      : false,
+    clips: createClipCache(),
   }
 
   if (transcript[0]?.type !== ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.board) {
@@ -861,6 +928,12 @@ async function* runV3Turn(
       .slice(0, ASSISTANT_V3_LIMITS.maxLookCards)
       .map((asset) => ({ url: asset.url, label: asset.label ?? asset.id }))
     /**
+     * ⭐ 创作者这一轮指着的片子（看图期第二段）：冻进板子，整轮都摆在模型眼前，与被指着的图
+     *   同一个待遇。看不了图的模型一段都不收（⛔ 不借别家）。
+     */
+    const clips = seesImages ? pointedClipRefs(request) : []
+    const boardClips = clips.length ? { clips } : {}
+    /**
      * ⭐ `@` 对照表（§10b）：每条引用按 id 对到这张脸的句柄上，接在板子末尾。
      * ⚠ 板子先截、表后接 —— 表很短，⛔ 不能让一张大画布把它挤出去。
      */
@@ -868,6 +941,7 @@ async function* runV3Turn(
       const table = renderAssistantV3MentionTable({
         mentions: request.mentions ?? [],
         attachedLabels: mentionedImages.map((image) => image.label),
+        clipLabels: clips.map((clip) => clip.label),
         pointedImageCount: mentioned.length,
         handleOf: (mention) =>
           mentionHandleOf(face, mention, nodes, handles, request.snapshot),
@@ -910,6 +984,7 @@ async function* runV3Turn(
           }),
         ),
         images: seesImages ? mentionedImages : [],
+        ...boardClips,
       })
     } else if (face === ASSISTANT_V3_FACE_IDS.cards) {
       // ⭐ 打开那位的图跟着板子给模型看（card-1 …），看图不用另调工具。
@@ -927,6 +1002,7 @@ async function* runV3Turn(
           }),
         ),
         images: seesImages ? [...cardImages, ...mentionedImages] : [],
+        ...boardClips,
       })
     } else if (
       face === ASSISTANT_V3_FACE_IDS.image ||
@@ -942,6 +1018,7 @@ async function* runV3Turn(
           }),
         ),
         images: seesImages ? mentionedImages : [],
+        ...boardClips,
       })
     } else {
       // ⭐ 左边打开着的示例图跟板子一起给模型看（L1「你能看到左边这个示例图吗」）。
@@ -964,6 +1041,7 @@ async function* runV3Turn(
               ...mentionedImages,
             ]
           : [],
+        ...boardClips,
       })
     }
   } else {
@@ -997,6 +1075,7 @@ async function* runV3Turn(
     currentUserMessage(
       board,
       await inlineImages(board.images, context.pictures, signal),
+      await viewPointedClips(context, board.clips ?? []),
       latest,
       request.autoReview === true,
       request.autoGenerate === true,
@@ -1066,7 +1145,12 @@ async function* runV3Turn(
     const callTimeout = watchV3Call(ASSISTANT_V3_CALL_TIMEOUT)
     try {
       // ⭐ 上一步 look 的图只附给这一次（之后只剩工具结果那行字）。
-      const looks = await loadFreshLooks(transcript, context.pictures, signal)
+      const looks = await loadFreshLooks(
+        transcript,
+        context.pictures,
+        context.clips,
+        signal,
+      )
       const result = streamText({
         model: model.model,
         system,
@@ -1277,6 +1361,7 @@ async function* runV3Turn(
         output: string,
         error: boolean,
         images?: readonly AssistantV3PictureRef[],
+        clips?: readonly AssistantV3ClipRef[],
       ) =>
         transcript.push({
           type: ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.result,
@@ -1285,6 +1370,7 @@ async function* runV3Turn(
           output: output.slice(0, ASSISTANT_V3_LIMITS.maxEntryChars),
           error,
           ...(images?.length ? { images: [...images] } : {}),
+          ...(clips?.length ? { clips: [...clips] } : {}),
         })
       if (stopTodo !== null) {
         pushResult(NOT_RUN_AFTER_STOP, true)
@@ -1359,7 +1445,7 @@ async function* runV3Turn(
         continue
       }
       if (outcome.kind === 'result') {
-        pushResult(outcome.output, outcome.error, outcome.images)
+        pushResult(outcome.output, outcome.error, outcome.images, outcome.clips)
         if (outcome.error && outcome.failureKey)
           failures.push(outcome.failureKey)
       }
@@ -1974,6 +2060,8 @@ async function* executeGenerate(
  * ⭐ 先按卡的 id 找 `@` 带上来的那一张（`nodeId`），再找图片卡自己那张图，最后才按名字认
  *   **没带 `nodeId`** 的老附图（📎 / 答题带上来的图、老客户端）—— 带了 id 的⛔ 不拿名字去撞，
  *   同名卡只认得第一张正是要修的那个病。
+ * ⭐ 视频卡（看图期第二段）：被指着的那几段已经在眼前（板子上的 `clips`，按卡 id 认）；没被
+ *   指着的交成片地址（`videoUrl`），由 `executeV3Look` 判 Gemini 能不能看片子本体、别家请创作者 @。
  * ⛔ 没图的卡不硬看：说清看不到，让创作者 @ 它。对照参考 = 把它接的参考卡写进同一次 look。
  */
 async function* executeLook(
@@ -1982,7 +2070,13 @@ async function* executeLook(
 ): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
   const mentioned = context.request.mentionedAssets ?? []
   const referenceUrls = context.prepared.run.state.referenceUrls
+  const board = context.transcript[0]
+  const boardClips =
+    board?.type === ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.board
+      ? (board.clips ?? [])
+      : []
   const targets: V3LookTarget[] = []
+  const clips: V3LookClipTarget[] = []
   const nodeIds: string[] = []
   const notes: string[] = []
   for (const card of input.cards) {
@@ -1990,6 +2084,37 @@ async function* executeLook(
     const node = id
       ? (context.nodes.find((candidate) => candidate.id === id) ?? null)
       : null
+    if (!node) {
+      // 没有句柄的名字：先认被指着的那几段片子（库里 / 结果里 @ 上来的没有卡）。
+      const pointedClip = boardClips.find((clip) => clip.label === card)
+      if (pointedClip) {
+        clips.push({ ...pointedClip })
+        continue
+      }
+    }
+    const name = node
+      ? node.fromScript
+        ? formatScriptShotKey(node.fromScript.shotKey)
+        : shortName(node.name)
+      : card
+    if (node?.kind === NODE_MEDIA_KIND_IDS.video) {
+      const url =
+        boardClips.find((clip) => clip.nodeId === node.id)?.url ?? node.videoUrl
+      if (!url) {
+        notes.push(
+          `Could not watch ${nameOf(context, card)}: it has no clip yet.`,
+        )
+        continue
+      }
+      clips.push({
+        url,
+        label: `${context.handles.handleOf(node.id)} ${name}`,
+        title: name,
+        nodeId: node.id,
+      })
+      nodeIds.push(node.id)
+      continue
+    }
     const asset =
       (node && mentioned.find((candidate) => candidate.nodeId === node.id)) ??
       mentioned.find(
@@ -2014,9 +2139,6 @@ async function* executeLook(
       targets.push({ url, label: asset?.label ?? card })
       continue
     }
-    const name = node.fromScript
-      ? formatScriptShotKey(node.fromScript.shotKey)
-      : shortName(node.name)
     // ⚠ 给模型的称呼带句柄（三张「镜头1」分得清），过程行只写名字（⛔ 不露句柄）。
     targets.push({
       url,
@@ -2027,6 +2149,7 @@ async function* executeLook(
   }
   return yield* executeV3Look(context, {
     targets,
+    clips,
     notes,
     question: input.question,
     nodeIds,

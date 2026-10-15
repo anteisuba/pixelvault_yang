@@ -10,6 +10,7 @@
  */
 
 import { ASSISTANT_MENTION_LIMITS } from '@/constants/assistant-mention'
+import { ASSISTANT_V3_CLIP_LIMITS } from '@/constants/assistant-v3'
 import type { AssistantMentionRef } from '@/types/assistant-mention'
 
 const SCOPE_TEXT: Record<AssistantMentionRef['scope'], string> = {
@@ -26,6 +27,8 @@ export interface AssistantV3MentionTableInput {
   readonly mentions: readonly AssistantMentionRef[]
   /** 这一轮真正附给模型的那几张图（按顺序，与「IMAGES THE CREATOR POINTED AT」同一份）。 */
   readonly attachedLabels: readonly string[]
+  /** 这一轮摆在模型眼前的那几段片子（按顺序，与「CLIPS THE CREATOR POINTED AT」同一份）。 */
+  readonly clipLabels?: readonly string[]
   /** 用户这一轮一共递了几张可看的图（`mentionedAssets` 的长度）。 */
   readonly pointedImageCount: number
   /** 这一条在这张脸上的句柄；没有（不在板子上 / 这张脸不认它）= `null`。 */
@@ -44,13 +47,20 @@ export function renderAssistantV3MentionTable(
     for (const mention of input.mentions) {
       const handle = input.handleOf(mention)
       const attached = input.attachedLabels.indexOf(mention.label)
+      const clip = (input.clipLabels ?? []).indexOf(mention.label)
       const target = handle
         ? `${handle} (${SCOPE_TEXT[mention.scope]})`
         : attached >= 0
           ? `attached image ${attached + 1} (${SCOPE_TEXT[mention.scope]})`
-          : `${mention.kind} · ${SCOPE_TEXT[mention.scope]}${
-              typeof mention.seq === 'number' ? ` #${mention.seq}` : ''
-            } (not on this board)`
+          : clip >= 0
+            ? `pointed clip ${clip + 1} (${SCOPE_TEXT[mention.scope]})`
+            : `${mention.kind} · ${SCOPE_TEXT[mention.scope]}${
+                typeof mention.seq === 'number' ? ` #${mention.seq}` : ''
+              } (${
+                mention.kind === 'video'
+                  ? `not in front of you — at most ${ASSISTANT_V3_CLIP_LIMITS.maxClips} clips a message are watched; say so if it matters`
+                  : 'not on this board'
+              })`
       const role = mention.role
         ? ` · use as ${mention.role.replace('_', ' ')} reference`
         : ''

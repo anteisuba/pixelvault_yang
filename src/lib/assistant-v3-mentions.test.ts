@@ -46,8 +46,21 @@ describe('renderAssistantV3MentionTable', () => {
       "MENTIONED — the creator's @ references, resolved by id (「name」 in their message = this):",
       '  「镜头1」 = c3 (canvas card)',
       '  「图_001」 = attached image 1 (library asset)',
-      '  「视频_002」 = video · library asset #2 (not on this board) · use as first frame reference',
+      '  「视频_002」 = video · library asset #2 (not in front of you — at most 2 clips a message are watched; say so if it matters) · use as first frame reference',
     ])
+  })
+
+  it('⭐ 被指着、摆在眼前的片子写第几段（看图期第二段）', () => {
+    const table = renderAssistantV3MentionTable({
+      mentions: [elsewhere],
+      attachedLabels: [],
+      clipLabels: ['视频_002'],
+      pointedImageCount: 0,
+      handleOf: () => null,
+    })
+    expect(table.split('\n')[1]).toBe(
+      '  「视频_002」 = pointed clip 1 (library asset) · use as first frame reference',
+    )
   })
 
   it(`⭐ 指的图超过 ${ASSISTANT_MENTION_LIMITS.lookImages} 张：板上明说只附了前几张`, () => {

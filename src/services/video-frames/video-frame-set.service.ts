@@ -132,6 +132,8 @@ export interface VerifyVideoFrameSetInput {
   frames: SubmittedVideoFrame[]
   /** 用哪一份计划核对 —— 语义同 `PersistVideoFrameSetInput.plan`。 */
   plan?: VideoFramePlan
+  /** 收哪几种图（缺席 = `detectTrustedImageMime` 的默认那几种）。 */
+  allowedFormats?: ReadonlySet<string>
 }
 
 /** 核对过的一帧：真图片（按魔数认的 mime）+ 原始字节，按序号排好。 */
@@ -191,7 +193,7 @@ export async function verifyVideoFrameSet(
     ordered.map(async (frame): Promise<VerifiedVideoFrame> => {
       const buffer = decodeDataUrl(frame.dataUrl)
       // ⚠ 按**魔数**验真，不信 data URL 头里那个 mime：那一段是客户端写的。
-      const image = await detectTrustedImageMime(buffer)
+      const image = await detectTrustedImageMime(buffer, input.allowedFormats)
       return {
         index: frame.index,
         timestampSeconds: frame.timestampSeconds,

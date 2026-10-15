@@ -52,9 +52,13 @@ const {
   resolveModel: vi.fn(),
 }))
 
+/** 测试里下得来的片子：地址 → 多大（真的 mp4 文件头）。 */
+const clipsServed = new Map<string, number>()
+
 /** 图的内容写着格式与地址（`png:https://…`）：附没附、附在哪，按它认。 */
 vi.mock('@/services/storage/r2', () => ({
   fetchAsBuffer,
+  uploadToR2: vi.fn(),
   detectTrustedImageMime: async (
     buffer: Buffer,
     formats: ReadonlySet<string>,
@@ -163,6 +167,8 @@ vi.mock('@/services/kernel/assistant-completion.service', () => ({
 }))
 
 import { prepareOperatorTurn } from '@/services/kernel/assistant-operator.service'
+import { assertAssistantMediaRoute } from '@/lib/assistant-media-gate'
+import { planClipFrames } from '@/lib/video-frame-plan'
 
 import { runAssistantV3 } from './assistant-v3.service'
 
@@ -329,13 +335,64 @@ const disconnectGoyle = {
 beforeEach(() => {
   served.clear()
   resolveModel.mockClear()
+  clipsServed.clear()
   fetchAsBuffer.mockReset()
-  fetchAsBuffer.mockImplementation(async (url: string) => {
-    const format = served.get(url)
-    if (!format) throw new Error('unreachable')
-    return { buffer: Buffer.from(`${format}:${url}`), mimeType: 'image/*' }
-  })
+  fetchAsBuffer.mockImplementation(
+    async (url: string, options?: { maxBytes?: number }) => {
+      const bytes = clipsServed.get(url)
+      if (bytes !== undefined) {
+        if (options?.maxBytes !== undefined && bytes > options.maxBytes)
+          throw new Error(
+            `Image exceeds maximum size of ${options.maxBytes} bytes (declared ${bytes}).`,
+          )
+        return {
+          buffer: Buffer.concat([
+            Buffer.from([0, 0, 0, 24]),
+            Buffer.from(`ftypisom:${url}`, 'ascii'),
+          ]),
+          mimeType: 'video/mp4',
+        }
+      }
+      const format = served.get(url)
+      if (!format) throw new Error('unreachable')
+      return { buffer: Buffer.from(`${format}:${url}`), mimeType: 'image/*' }
+    },
+  )
 })
+
+/** 浏览器按片长计划抽好的那组帧（`captureClipFrames` 交上来的形状）。 */
+function capturedClip(
+  sourceUrl: string,
+  label: string,
+  durationSeconds: number,
+  nodeId?: string,
+) {
+  return {
+    sourceUrl,
+    label,
+    durationSeconds,
+    ...(nodeId ? { nodeId } : {}),
+    frames: planClipFrames(durationSeconds).entries.map((entry) => ({
+      index: entry.index,
+      timestampSeconds: entry.timestampSeconds,
+      dataUrl: `data:image/webp;base64,${Buffer.from(`webp:${sourceUrl}#${entry.index}`).toString('base64')}`,
+    })),
+  }
+}
+
+/** 这一次调用附了哪几段片子本体（按 mp4 里写着的地址认）。 */
+function attachedClips(call: LanguageModelV3CallOptions): string[] {
+  return call.prompt.flatMap((message) =>
+    message.role === 'user'
+      ? message.content.flatMap((part) => {
+          if (part.type !== 'file' || !part.mediaType.startsWith('video/'))
+            return []
+          const text = Buffer.from(part.data as Uint8Array).toString()
+          return [text.slice(text.indexOf(':') + 1)]
+        })
+      : [],
+  )
+}
 
 describe('v3 内核', () => {
   beforeEach(() => {
@@ -1088,6 +1145,110 @@ describe('v3 内核', () => {
     )
     expect(events.find((event) => event.type === 'step')).toMatchObject({
       step: { tool: 'read_state', status: 'done' },
+    })
+  })
+
+  describe('画布上的视频卡（看图期第二段）', () => {
+    const TAKE = 'https://cdn.test/s04b.mp4'
+    const lookTake = {
+      id: 'call_look',
+      name: 'look',
+      input: { cards: ['vid-4f6105'], question: '动作连贯吗' },
+    }
+    const withTake = () => ({
+      prompt: '',
+      canvas: canvas(true, { videoUrl: TAKE, hasOutput: true }),
+      availableModels: [],
+    })
+
+    it('⭐ Gemini 看一张没被 @ 的视频卡：片子本体只附给下一次，跟在工具结果后面', async () => {
+      clipsServed.set(TAKE, 3_000_000)
+      preparedOnce({ adapterType: 'gemini', modelId: 'gemini-3-pro' }, [])
+      const mock = script(toolTurn(lookTake), textTurn('中段停住了。'))
+      await collect(
+        runAssistantV3(
+          'clerk-1',
+          request({
+            snapshot: withTake(),
+          } as Partial<AssistantOperatorRequest>),
+        ),
+      )
+      expect(attachedClips(mock.doStreamCalls[0]!)).toEqual([])
+      const next = mock.doStreamCalls[1]!
+      expect(attachedClips(next)).toEqual([TAKE])
+      // 片子不进 functionResponse：tool 之后那条 user 里。
+      const roles = next.prompt.map((message) => message.role)
+      expect(roles.slice(-2)).toEqual(['tool', 'user'])
+      expect(promptText(next)).toContain(
+        'The clip itself comes with this result, for your next step only: 「vid-4f6105 冲出门」.',
+      )
+      expect(critique).not.toHaveBeenCalled()
+    })
+
+    it('⭐ 别家看一张没被 @ 的视频卡：只回一句请创作者 @ 它，⛔ 不下片子、不借 Gemini', async () => {
+      clipsServed.set(TAKE, 3_000_000)
+      preparedOnce({ adapterType: 'openai', modelId: 'gpt-6-luna' }, [])
+      const mock = script(toolTurn(lookTake), textTurn('请 @ 一下。'))
+      const events = await collect(
+        runAssistantV3(
+          'clerk-1',
+          request({
+            snapshot: withTake(),
+          } as Partial<AssistantOperatorRequest>),
+        ),
+      )
+      expect(fetchAsBuffer).not.toHaveBeenCalled()
+      expect(critique).not.toHaveBeenCalled()
+      expect(promptText(mock.doStreamCalls[1]!)).toContain(
+        'is a clip you were not shown: you only watch clips the creator points at. Ask them to @ the clip in their message.',
+      )
+      // 什么都没看：不出过程行。
+      expect(events.some((event) => event.type === 'step')).toBe(false)
+    })
+
+    it('被 @ 的视频卡：帧整轮在眼前，look 它按卡 id 认出「已经在你眼前」', async () => {
+      preparedOnce({ adapterType: 'anthropic', modelId: 'claude-opus-5' }, [])
+      const mock = script(toolTurn(lookTake), textTurn('好。'))
+      await collect(
+        runAssistantV3(
+          'clerk-1',
+          request({
+            snapshot: withTake(),
+            videoClips: [capturedClip(TAKE, '冲出门', 9, S04B)],
+          } as Partial<AssistantOperatorRequest>),
+        ),
+      )
+      expect(promptText(mock.doStreamCalls[0]!)).toContain(
+        'CLIPS THE CREATOR POINTED AT (in order): 1 = clip 「冲出门」 (6 frames sampled across 9 s)',
+      )
+      expect(promptText(mock.doStreamCalls[1]!)).toContain(
+        "Already in front of you in the creator's message: 「vid-4f6105 冲出门」 (clip 1 of CLIPS THE CREATOR POINTED AT).",
+      )
+      expect(fetchAsBuffer).not.toHaveBeenCalledWith(TAKE, expect.anything())
+    })
+
+    it('⛔ 看不了图的模型：被指着的片子一段也不摆、不下', async () => {
+      preparedOnce(
+        {
+          adapterType: 'deepseek',
+          modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
+        },
+        [],
+      )
+      const mock = script(textTurn('看不了。'))
+      await collect(
+        runAssistantV3(
+          'clerk-1',
+          request({
+            snapshot: withTake(),
+            videoClips: [capturedClip(TAKE, '冲出门', 9, S04B)],
+          } as Partial<AssistantOperatorRequest>),
+        ),
+      )
+      const prompt = promptText(mock.doStreamCalls[0]!)
+      expect(prompt).not.toContain('CLIPS THE CREATOR POINTED AT')
+      expect(attachedPictures(mock.doStreamCalls[0]!)).toEqual([])
+      expect(fetchAsBuffer).not.toHaveBeenCalled()
     })
   })
 
@@ -2581,49 +2742,158 @@ describe('v3 内核 · 视频台', () => {
     ])
   })
 
-  it('看片：带着抽好的帧的那段片子照旧走看片评审；别的图交到眼前', async () => {
-    const CLIP = 'https://cdn.test/clip.mp4'
-    const DOOR = 'https://cdn.test/door.png'
-    const POSE = 'https://cdn.test/pose.png'
-    served.set(DOOR, 'png')
-    served.set(POSE, 'png')
-    critique.mockResolvedValue({
-      kind: 'rejected',
-      reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.videoFramesMissing,
-      detail: 'no frames this turn',
+  /**
+   * 这一轮的模型路由，⭐ 并且过一遍**真的**媒体闸（`assertAssistantMediaRoute`，旧内核
+   * `prepareOperatorTurn` 里那道「媒体直传只认 Gemini」）：客户端照旧把 📎 的片子放在
+   * `mediaAttachments` 里发上来，v3 必须先摘掉它，别家才进得来。
+   */
+  function routeOnce(adapterType: AI_ADAPTER_TYPES, modelId: string) {
+    vi.mocked(prepareOperatorTurn).mockImplementationOnce(
+      async (_clerkId, request) => {
+        assertAssistantMediaRoute(request.mediaAttachments ?? [], adapterType)
+        return {
+          request,
+          user: { id: 'user-1', displayName: null, username: null },
+          persona: { language: 'ui' },
+          rules: [],
+          route: { adapterType, providerConfig: {}, apiKey: 'k' },
+          modelId,
+          run,
+        } as never
+      },
+    )
+  }
+
+  const CLIP = 'https://cdn.test/clip.mp4'
+
+  /** 创作者 📎 了一段片子、又 @ 了一张图，问动作连不连贯。 */
+  function clipRequest(): AssistantOperatorRequest {
+    const base = videoRequest('这段片子动作连贯吗')
+    return {
+      ...base,
+      mentionedAssets: [
+        ...(base.mentionedAssets ?? []),
+        { id: 'asset-pose', url: 'https://cdn.test/pose.png', label: '姿势' },
+      ],
+      mediaAttachments: [{ kind: 'video', url: CLIP, label: '冲出门' }],
+      videoClips: [capturedClip(CLIP, '冲出门', 5)],
+    } as unknown as AssistantOperatorRequest
+  }
+
+  for (const [adapterType, modelId] of [
+    [AI_ADAPTER_TYPES.OPENAI, 'gpt-6-luna'],
+    [AI_ADAPTER_TYPES.ANTHROPIC, 'claude-opus-5'],
+    [AI_ADAPTER_TYPES.XAI, 'grok-5'],
+  ] as const)
+    it(`⭐ ${adapterType}：被指着的片子过得了真媒体闸，帧整轮在眼前、逐帧标好；look 它只指过去，⛔ 不走看片评审`, async () => {
+      served.set('https://cdn.test/pose.png', 'png')
+      routeOnce(adapterType, modelId)
+      const mock = script(
+        toolTurn({
+          id: 'call_look',
+          name: 'look',
+          input: { images: ['冲出门', '姿势'], question: '动作连贯吗' },
+        }),
+        textTurn('中段停住了。'),
+      )
+      const events = await collect(runAssistantV3('clerk-1', clipRequest()))
+      expect(events.some((event) => event.type === 'error')).toBe(false)
+      // 摘掉的是视频附件：旧内核那道闸看到的已经没有它了。
+      expect(
+        vi.mocked(prepareOperatorTurn).mock.lastCall?.[1].mediaAttachments,
+      ).toEqual([])
+      expect(critique).not.toHaveBeenCalled()
+      expect(legacy).not.toHaveBeenCalled()
+
+      const first = mock.doStreamCalls[0]!
+      const prompt = promptText(first)
+      expect(prompt).toContain(
+        'CLIPS THE CREATOR POINTED AT (in order): 1 = clip 「冲出门」 (4 frames sampled across 5 s)',
+      )
+      expect(prompt).toContain('clip 「冲出门」 · frame 1/4 at 0.6 s')
+      expect(prompt).toContain('clip 「冲出门」 · frame 4/4 at 4.4 s')
+      expect(
+        attachedPictures(first).filter((url) => url.startsWith(CLIP)),
+      ).toEqual([0, 1, 2, 3].map((index) => `${CLIP}#${index}`))
+      // 帧档⛔ 不下片子本体。
+      expect(attachedClips(first)).toEqual([])
+      expect(fetchAsBuffer).not.toHaveBeenCalledWith(CLIP, expect.anything())
+
+      const next = promptText(mock.doStreamCalls[1]!)
+      expect(next).toContain(
+        "Already in front of you in the creator's message: 「冲出门」 (clip 1 of CLIPS THE CREATOR POINTED AT).",
+      )
+      expect(next).toContain(
+        "Already in front of you in the creator's message: 「姿势」",
+      )
+      // 帧整轮都在：第二次调用的第一条消息里照样有。
+      expect(
+        attachedPictures(mock.doStreamCalls[1]!).filter((url) =>
+          url.startsWith(CLIP),
+        ),
+      ).toHaveLength(4)
     })
+
+  it('⛔ 没摘的话这道闸就把别家整轮拒掉（这条用例守着上面那条摘法）', () => {
+    expect(() =>
+      assertAssistantMediaRoute([{ kind: 'video' }], AI_ADAPTER_TYPES.OPENAI),
+    ).toThrow('A Gemini key analyzes video directly')
+    expect(() =>
+      assertAssistantMediaRoute([{ kind: 'video' }], AI_ADAPTER_TYPES.GEMINI),
+    ).not.toThrow()
+  })
+
+  it('⭐ Gemini：被指着的片子在内联上限内交片子本体，⛔ 不用帧', async () => {
+    clipsServed.set(CLIP, 2_000_000)
+    routeOnce(AI_ADAPTER_TYPES.GEMINI, 'gemini-3-pro')
+    const mock = script(textTurn('中段停住了。'))
+    await collect(runAssistantV3('clerk-1', clipRequest()))
+    const first = mock.doStreamCalls[0]!
+    expect(promptText(first)).toContain(
+      'CLIPS THE CREATOR POINTED AT (in order): 1 = clip 「冲出门」 (the clip itself)',
+    )
+    expect(attachedClips(first)).toEqual([CLIP])
+    expect(
+      attachedPictures(first).filter((url) => url.startsWith(CLIP)),
+    ).toEqual([])
+  })
+
+  it('Gemini：片子超过内联上限就改用帧', async () => {
+    clipsServed.set(CLIP, 21 * 1024 * 1024)
+    routeOnce(AI_ADAPTER_TYPES.GEMINI, 'gemini-3-pro')
+    const mock = script(textTurn('好。'))
+    await collect(runAssistantV3('clerk-1', clipRequest()))
+    const first = mock.doStreamCalls[0]!
+    expect(attachedClips(first)).toEqual([])
+    expect(
+      attachedPictures(first).filter((url) => url.startsWith(CLIP)),
+    ).toHaveLength(4)
+  })
+
+  it('视频台挂着、没被抽帧的参考视频（video-N）：别家只回一句请创作者 @ 它', async () => {
+    routeOnce(AI_ADAPTER_TYPES.OPENAI, 'gpt-6-luna')
+    const base = videoRequest('参考视频里的人动作快吗')
     const mock = script(
       toolTurn({
         id: 'call_look',
         name: 'look',
-        input: { images: ['冲出门', '姿势'], question: '动作连贯吗' },
+        input: { images: ['video-1'], question: '动作快吗' },
       }),
-      textTurn('动作停住了。'),
+      textTurn('请 @ 一下那段片子。'),
     )
-    const base = videoRequest('这段片子动作连贯吗')
     await collect(
       runAssistantV3('clerk-1', {
         ...base,
-        mentionedAssets: [
-          ...(base.mentionedAssets ?? []),
-          { id: 'asset-clip', url: CLIP, label: '冲出门' },
-          { id: 'asset-pose', url: POSE, label: '姿势' },
-        ],
-        videoFrames: { sourceUrl: CLIP, durationSeconds: 5, frames: [] },
-      } as unknown as AssistantOperatorRequest),
+        snapshot: {
+          ...base.snapshot,
+          videoReferences: { items: [{ url: CLIP }], limit: 3 },
+        },
+      } as AssistantOperatorRequest),
     )
-    expect(critique).toHaveBeenCalledTimes(1)
-    expect(critique).toHaveBeenCalledWith(
-      expect.anything(),
-      { goal: '动作连贯吗', targetIds: ['asset-clip'] },
-      'user-1',
+    expect(fetchAsBuffer).not.toHaveBeenCalledWith(CLIP, expect.anything())
+    expect(promptText(mock.doStreamCalls[1]!)).toContain(
+      '「video-1」 is a clip you were not shown: you only watch clips the creator points at. Ask them to @ the clip in their message.',
     )
-    // 「姿势」那张是第 3 张 @ 上来的图：板子上已经附了，⛔ 不再附一遍。
-    const next = mock.doStreamCalls[1]!
-    expect(promptText(next)).toContain(
-      "Already in front of you in the creator's message: 「姿势」",
-    )
-    expect(promptText(next)).toContain('no frames this turn')
   })
 
   it('清晰度是花钱的那一格：创作者没提就不改，提了照改', async () => {

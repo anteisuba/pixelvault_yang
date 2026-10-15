@@ -121,6 +121,12 @@ export function assistantV3VideoTools(strict: boolean) {
       inputSchema: AssistantV3VideoEditInputSchema,
       strict,
     }),
+    [ASSISTANT_V3_TOOL_IDS.look]: tool({
+      description:
+        'Put pictures or clips in front of you for your next response, with one specific question: pictures or clips the creator pointed at (by name), mounted references ("ref-1") or mounted reference videos ("video-1").',
+      inputSchema: AssistantV3ImageLookInputSchema,
+      strict,
+    }),
     [ASSISTANT_V3_TOOL_IDS.searchLibrary]: tool({
       description:
         'kind "image" / "video" / "audio": search the creator\'s own assets (results carry asset ids for mount_reference and mount_audio). kind "web_images": find pictures on the web — they appear in the panel and the creator picks which to use.',

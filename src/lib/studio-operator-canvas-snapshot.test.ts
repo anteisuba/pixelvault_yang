@@ -349,6 +349,42 @@ describe('buildCanvasOperatorSnapshot', () => {
     const shot = snapshot.shots[0]
     expect(shot.expanded && shot.nodes[0].availableModels).toEqual(models)
   })
+  it('出了片的视频卡带成片地址（v3 look 看片用）；图片卡与没出片的视频卡不带', () => {
+    const video = (id: string, url?: string): NodeV4 =>
+      ({
+        id,
+        position: { x: 0, y: 0 },
+        data: {
+          kind: 'video',
+          subtype: 'shot',
+          name: id,
+          status: 'idle',
+          createdAt: '2026-10-15T00:00:00.000Z',
+          ...(url ? { url } : {}),
+        },
+      }) as NodeV4
+    const snapshot = buildCanvasOperatorSnapshot({
+      nodes: [
+        video('done', 'https://cdn.example.com/clip.mp4'),
+        video('empty'),
+        video('local', 'blob:https://app.example/123'),
+        imageNode('still', undefined, { url: 'https://cdn.example.com/a.png' }),
+      ],
+      edges: [],
+      currentShotNo: null,
+      selectedNodeIds: [],
+    })
+    expect(snapshotNode(snapshot, 'done')?.videoUrl).toBe(
+      'https://cdn.example.com/clip.mp4',
+    )
+    expect(snapshotNode(snapshot, 'empty')?.videoUrl).toBeUndefined()
+    expect(snapshotNode(snapshot, 'local')?.videoUrl).toBeUndefined()
+    expect(snapshotNode(snapshot, 'still')?.videoUrl).toBeUndefined()
+    expect(
+      AssistantOperatorCanvasSnapshotSchema.safeParse(snapshot).success,
+    ).toBe(true)
+  })
+
   it('保留节点位置，并按当前参考图顺序提供 @Image 到节点 id 的映射', () => {
     const node = imageNode('source', undefined)
     node.position = { x: 120, y: 240 }

@@ -16,6 +16,7 @@
  * 参考输入，供服务端复核提示词，不携带完整生成载荷或私有配置。
  */
 
+import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
 import { ASSISTANT_OPERATOR_CANVAS_LIMITS } from '@/constants/assistant-operator'
 import { DEFAULT_ASPECT_RATIO, type AspectRatio } from '@/constants/config'
 import { NODE_V4_PROMPT_MAX_LENGTH } from '@/constants/node-studio'
@@ -347,6 +348,12 @@ function toSnapshotNode(
       : { availableModels: [...new Set(availableModels)] }),
     ...(inputs.length === 0 ? {} : { inputs }),
     ...(nodeHasOutput(node) ? { hasOutput: true } : {}),
+    // v3 `look` 看一张没被 @ 的视频卡时，Gemini 按它下载片子本体（看图期第二段）。
+    ...(data.kind === NODE_MEDIA_KIND_IDS.video &&
+    data.url?.startsWith('http') &&
+    data.url.length <= ASSISTANT_MEDIA_LIMITS.maxUrlLength
+      ? { videoUrl: data.url }
+      : {}),
     ...(data.kind !== NODE_MEDIA_KIND_IDS.text &&
     data.status === NODE_STATUS_IDS.running
       ? { generating: true as const }

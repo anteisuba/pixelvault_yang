@@ -292,6 +292,16 @@ export const ASSISTANT_V3_LIMITS = {
 } as const
 
 /**
+ * 摆到模型眼前的图（看图、看片的帧）只收这三种 —— 五家都收。⚠ GIF 不收：Gemini 只认
+ * PNG / JPEG / WEBP / HEIC，附一张 GIF 整步 400。⛔ SVG 不收（能带脚本）。格式按文件头判。
+ */
+export const ASSISTANT_V3_PICTURE_FORMATS: ReadonlySet<string> = new Set([
+  'jpeg',
+  'png',
+  'webp',
+])
+
+/**
  * Denia 自己看片（看图期第二段，owner 2026-10-15）的三个数。帧数规则本身住在
  * `VIDEO_CLIP_FRAME_PLAN`（`constants/video-analysis.ts`），客户端与服务端共用。
  *

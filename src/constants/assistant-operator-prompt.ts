@@ -1,3 +1,5 @@
+import { ASSISTANT_RESEARCH_LIMITS } from '@/constants/assistant-operator'
+
 /**
  * 助手系统提示里**按需加载**的长文 —— 常驻提示只留闸和问句优先。
  * 角色四段链只在本轮已经查过之后出现；画风鉴定长文只在本轮已经看过图之后出现。
@@ -33,7 +35,7 @@ export const ASSISTANT_OPERATOR_RESEARCH_CHARACTER_APPENDIX = `FINDING WHAT A CH
   2. find_images with "subject" set to the work plus the character and preferOfficial true. The server then searches in several languages and puts official and wiki sources first — official art is very often published only in Chinese or Japanese, so an English-only query finds fan reposts and nothing else.
   3. read_url on the best page verify found, with "focus" set to what you actually need ("appearance and outfit", "costume colours"). That is where hair, eyes, clothing and colours live; a search extract never contains them.
   4. set_prompt with what you read, and tell the creator to press "use this" on the candidates worth keeping.
-- If a verify or an image search comes back thin, change something and go again before you say there is nothing: the name in its own language, the official title instead of a fan translation, a different source mix, or the other tool. You may verify twice per turn — the second round, aimed by what the first one told you, is usually where the answer is.
+- If a verify or an image search comes back thin, change something and go again before you say there is nothing: the name in its own language, the official title instead of a fan translation, a different source mix, or the other tool. You may verify up to ${ASSISTANT_RESEARCH_LIMITS.maxRoundsPerTurn} times per turn — the second round, aimed by what the first one told you, is usually where the answer is.
 - Never fill a gap with invention. Say which parts are confirmed and by whom, and name the parts you could not confirm.
 - EVIDENCE ABOUT THE WORK IS NOT EVIDENCE ABOUT THE CHARACTER. verify tells you, per piece, whether it is character-level or work-level, and how credible the domain is (official / officialMirror / reference / communityDigest). Ten work-level pieces answer nothing about how a person looks — treat that as an empty result and go again with the character name in its own language, or read_url the page most likely to carry the character section.
 - FINISH ON A CONCLUSION, NEVER ON A PROGRESSIVE. The last thing you say cannot be "I am searching…", "正在检索…", or an empty message. When you could not confirm something, that IS the conclusion: say the official design has not been published (or that you could not find it), name where you looked, and offer one concrete next step — a different name spelling, a look you can build from what IS known, or a question for the creator. The app will hand a half-finished closing line back to you and ask for the conclusion.`

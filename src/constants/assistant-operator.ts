@@ -3394,13 +3394,17 @@ export const ASSISTANT_RESEARCH_LIMITS = {
   /**
    * 一轮对话里最多发几次 `research`。
    *
-   * ⭐ 2 不是保守，是**这条工具存在的理由**：第一轮定「作品的官方站在哪、角色
-   * 官方名怎么写」，第二轮拿着那个答案问「她的外貌与服饰」。给 1 就退回成
-   * 「搜一次就放弃」（owner 打回的那个行为）；给 4 则是一整轮步数全烧在检索上，
-   * 而 `maxSteps` 只有 8。
+   * ⭐ 多轮是**这条工具存在的理由**：第一轮定「作品的官方站在哪、角色官方名怎么写」，
+   * 第二轮拿着那个答案问「她的外貌与服饰」。给 1 就退回成「搜一次就放弃」（owner 打回的
+   * 那个行为）。
+   * ⭐ 2026-10-15 由 2 改 3：v3 一轮有 16 步（`ASSISTANT_V3_LIMITS.maxSteps`），两轮查证里
+   *   一轮撞上挡爬的站（读页只回「被挡了」）就只剩一轮可用；第三轮给换源 / 补问留余地。
+   *   成本仍有界：每轮一次扇出（快搜 = 一个 Serper credit + 至多 `quickReadPages` 页），
+   *   查完之后每一步只重发一行一条的短版（`maxCompactGistChars`），⛔ 不是整段摘录。
+   *   旧内核 `maxSteps` 只有 8，三轮也还留得出写回答的步数。
    * ⚠ 撞上限按 `researchRoundsExhausted` 拒，⛔ 不静默降级成空结果。
    */
-  maxRoundsPerTurn: 2,
+  maxRoundsPerTurn: 3,
   /** 一次检索最多带几个实体（角色名 / 作品名）。 */
   maxEntities: 4,
   maxEntityChars: 80,

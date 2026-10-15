@@ -8312,14 +8312,58 @@
       "cancel": "取り消す"
     },
     "mention": {
-      "textNodes": "テキストノード",
       "pickerLabel": "アシスタントに見せるものを選ぶ",
-      "recent": "最近の生成",
+      "button": "@ で参照",
       "empty": "見つかりません —— そのまま入力してください",
+      "searching": "ライブラリを検索中…",
+      "libraryHint": "入力して検索：名前・#番号・フォルダ・プロンプト",
+      "viewAll": "すべて表示（{count}）",
+      "showLess": "閉じる",
+      "back": "戻る",
+      "openFolder": "フォルダ「{name}」を開く",
+      "mentionAll": "すべて参照",
       "remove": "この参照を外す",
+      "locate": "キャンバスで表示",
+      "preview": "プレビュー",
+      "role": "用途",
+      "roleNone": "見るだけ",
+      "roles": {
+        "subject": "被写体",
+        "style": "スタイル",
+        "composition": "構図",
+        "first_frame": "開始フレーム",
+        "last_frame": "終了フレーム"
+      },
+      "deleted": "削除済み",
+      "deletedNamed": "{label}（削除済み）",
+      "blockedDeleted": "参照先が削除されています。グレーの参照を外してから送信してください。",
       "count": "{count} 枚を見ます",
-      "countWarn": "{count}枚を確認します · {limit}枚を超えると精度が下がることがあります",
-      "cards": "キャラクター / スタイルカード"
+      "countWarn": "{count}枚 · 詳しく見るのは最初の{limit}枚だけ",
+      "results": "候補 {count} 件",
+      "matches": "一致する候補",
+      "notProduced": "未生成",
+      "shotNo": "カット{no}",
+      "slot": "参照枠 {index}",
+      "groups": {
+        "recent": "最近使った",
+        "selected": "選択中のカード",
+        "canvas": "キャンバス上のカード",
+        "references": "参照枠",
+        "attachments": "このメッセージの添付",
+        "results": "この会話の生成",
+        "characters": "キャラクター",
+        "loras": "LoRA",
+        "library": "ライブラリ"
+      },
+      "kinds": {
+        "image": "画像",
+        "video": "動画",
+        "audio": "音声",
+        "model3d": "3D",
+        "text": "テキスト",
+        "character": "キャラクター",
+        "lora": "LoRA"
+      }
     },
     "library": {
       "label": "素材ライブラリ",

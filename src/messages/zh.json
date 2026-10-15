@@ -8312,14 +8312,58 @@
       "cancel": "撤回"
     },
     "mention": {
-      "textNodes": "文本节点",
-      "pickerLabel": "挑一张给助手看",
-      "recent": "最近生成",
+      "pickerLabel": "@ 引用：挑给助手看的东西",
+      "button": "@ 引用",
       "empty": "没找到 —— 接着打字试试",
+      "searching": "正在搜素材库…",
+      "libraryHint": "打字搜：名字 · #序号 · 文件夹 · 提示词",
+      "viewAll": "查看全部（{count}）",
+      "showLess": "收起",
+      "back": "返回上一层",
+      "openFolder": "打开文件夹「{name}」",
+      "mentionAll": "全部 @",
       "remove": "去掉这个引用",
+      "locate": "在画布上定位",
+      "preview": "看大图",
+      "role": "当作",
+      "roleNone": "只是看看",
+      "roles": {
+        "subject": "主体",
+        "style": "风格",
+        "composition": "构图",
+        "first_frame": "首帧",
+        "last_frame": "尾帧"
+      },
+      "deleted": "已删除",
+      "deletedNamed": "{label}（已删除）",
+      "blockedDeleted": "有引用的东西已经不在了 —— 先移除灰色的引用再发送。",
       "count": "将看 {count} 张",
-      "countWarn": "将看 {count} 张 · 超过 {limit} 张可能不准",
-      "cards": "角色 / 风格卡"
+      "countWarn": "共 {count} 张 · 只细看前 {limit} 张",
+      "results": "{count} 个候选",
+      "matches": "匹配的",
+      "notProduced": "未产出",
+      "shotNo": "第 {no} 镜",
+      "slot": "参考位 {index}",
+      "groups": {
+        "recent": "最近使用",
+        "selected": "选中的卡",
+        "canvas": "画布上的卡",
+        "references": "参考位",
+        "attachments": "这条消息的附件",
+        "results": "本次对话的生成",
+        "characters": "角色",
+        "loras": "LoRA",
+        "library": "素材库"
+      },
+      "kinds": {
+        "image": "图",
+        "video": "视频",
+        "audio": "音频",
+        "model3d": "3D",
+        "text": "文本",
+        "character": "角色",
+        "lora": "LoRA"
+      }
     },
     "library": {
       "label": "素材库",

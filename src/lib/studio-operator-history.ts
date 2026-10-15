@@ -15,6 +15,9 @@
  */
 
 import type { ReferenceVisualProfile } from '@/types/assistant-reference-analysis'
+import { ASSISTANT_MENTION_LIMITS } from '@/constants/assistant-mention'
+import { describeMentionNote } from '@/lib/assistant-mention'
+import type { AssistantMention } from '@/types/assistant-mention'
 import {
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
   ASSISTANT_OPERATOR_DOMAINS,
@@ -583,6 +586,20 @@ function isPersistableUrl(url: string | undefined): url is string {
   return typeof url === 'string' && /^https?:\/\//i.test(url)
 }
 
+/** 引用进历史：本地 `blob:` 地址留不住，去掉地址 / 缩略图但保留引用本身（名字与 id）。 */
+function toPersistableMentions(
+  mentions: readonly AssistantMention[],
+): AssistantMention[] {
+  return mentions
+    .slice(0, ASSISTANT_MENTION_LIMITS.maxPerMessage)
+    .map(({ url, thumb, ...rest }) => ({
+      ...rest,
+      label: truncate(rest.label, ASSISTANT_MENTION_LIMITS.maxLabelChars),
+      ...(isPersistableUrl(url) ? { url } : {}),
+      ...(isPersistableUrl(thumb) ? { thumb } : {}),
+    }))
+}
+
 function truncate(value: string, max: number): string {
   return value.length <= max ? value : value.slice(0, max)
 }
@@ -618,6 +635,9 @@ export function toOperatorHistoryEntry(
               ? { thumbnailUrl: attachment.thumbnailUrl }
               : {}),
           })),
+        ...(entry.mentions?.length
+          ? { mentions: toPersistableMentions(entry.mentions) }
+          : {}),
       }
     }
     case 'message': {
@@ -938,7 +958,10 @@ export function historyToOperatorMessages(
               )
               .join(', ')}]`
           : ''
-      messages.push({ role: 'user', content: `${entry.text}${attachmentNote}` })
+      messages.push({
+        role: 'user',
+        content: `${entry.text}${attachmentNote}${describeMentionNote(entry.mentions ?? [])}`,
+      })
     } else if (entry.kind === 'message') {
       messages.push({ role: 'assistant', content: entry.text })
     } else if (entry.kind === 'system' && entry.userText) {

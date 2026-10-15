@@ -44,15 +44,19 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
         │       ├── StudioOperatorResearchProgress (调查那一行，三态：跑着一行微光 + 预估 / 点开展开步骤 / 跑完收成灰底一行「搜了 N 条 · 读了 M 页」；有失败步时退回 ToolGroup。56b 切片 2)
         │       ├── StudioOperatorCheckpointCard (每轮过程行上的「撤销」，点一下退回这一轮的改动 —— **撤回的唯一入口**，owner 2026-09-24)
         │       ├── StudioOperatorQueueBar (排队条，浮在输入框上方)
-        │       ├── MentionInput（共享输入框：`@` 选择器**只列当前工作台**（参考图 / 结果）；
-        │       │    正文缩略图标签。⛔ 分段能力已随 #7c 删回单段，素材库走下行那颗按钮）
+        │       ├── MentionInput（共享输入框：正文存 `<@kind:id>`，渲染成缩略图胶囊（`literal` token）；
+        │       │    助手这里走**外部菜单**模式（`mentionMenu` 绑定 = combobox ARIA + 多词查询 + Esc 记住放掉的 `@`），
+        │       │    单击胶囊 → `onChipClick`。统一引用模型见 v2 §4.4「`@` 引用」）
+        │       ├── StudioOperatorMentionMenu（`@` 菜单：贴在输入框正上方、⛔ 不 portal；最近使用 · 分组 4 条 +「查看全部」·
+        │       │    「全部 @」· 素材库文件夹下钻 · 搜索 ≤20 条 · 悬停预览；形状来自 `lib/assistant-mention-menu.ts`）
+        │       ├── StudioOperatorMentionCard（单击胶囊的小卡片：看大图 · 在画布上定位 · 当作哪种参考 · 移除；已删除只剩移除）
         │       ├── AssetSelectorDialog（下行「素材库」按钮 `operator-library-toggle` 开的弹层：
-        │       │    `AssetPickerBrowser` 多选 + 图片锁 + 文件夹分类 + 无限滚动，首屏 10 条）
+        │       │    `AssetPickerBrowser` 多选 + 图片锁 + 文件夹分类 + 无限滚动，首屏 10 条；选中 = 插 `library` 胶囊）
         │       ├── StudioOperatorResultRow (结果卡三态：生成中 / 单张 / 多张；**无审核态**，只有「再来一组」「用它当参考」两颗。回流在 use-studio-operator-results.ts)
         │       ├── StudioOperatorLogItem (时间线一行：工具步 / 动作 / 系统行 / 证据卡)
         │       ├── StudioOperatorWebCandidateGrid (联网候选网格：来源三字段 + 「挂上 N 张」)
         │       ├── StudioOperatorSpecLine (输入框上方的规格行：点开**就地**调模型 / 比例 / 张数 / 清晰度，与确认卡同一份 `generationControls`（`lib/studio-operator-knobs.ts`）；空态让位给起手 chip。D12 B6 / P1 / P7)
-        │       ├── 输入区（D12 T-A）：**一个边框** = 文字 + 工具行（裸图标 上传 · 素材库 · 助手模型灰字 · 自动生成开关 · 圆形发送 / 停止）。⛔ 没有「+」：提及 = 打 `@`，指定来源在话里说（`research.onlySources`）；上下文卡只剩助手提议那张确认卡（设置里那一页 09-26 已删，09-25 定整体去掉）
+        │       ├── 输入区（D12 T-A）：**一个边框** = 文字 + 工具行（裸图标 上传 · 素材库 · `@`（`operator-mention-button`）· 助手模型灰字 · 自动生成开关 · 圆形发送 / 停止）。⛔ 没有「+」：提及 = 打 `@` 或点 `@` 键，指定来源在话里说（`research.onlySources`）；上下文卡只剩助手提议那张确认卡（设置里那一页 09-26 已删，09-25 定整体去掉）
         │       ├── StudioOperatorHistoryItem (会话历史条目)
         │       ├── StudioOperatorMessageBody (助手正文那一格：无气泡 / 长回话折首句 / `detail` 折成「为什么」 / 空正文时的占位脉冲 / **句尾 `[n]` 角标**（56b 切片 1）· **末尾光标 + `motion-reduce` 扣住整段**（切片 3）)
         │       ├── StudioOperatorAnswerSources (回答底下那两样：媒体条（图片开灯箱 · 视频封面开新窗口）+ 一排来源卡（站点图标 + 标题 + 域名，角标点下来高亮）+ 「深入调查 / 钉住 / 回执」一行)

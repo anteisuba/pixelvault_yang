@@ -34,6 +34,11 @@ import type { NodeWorkflowStatus } from '@/constants/node-types'
 import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
 import type { CanvasNodeGenerationState } from '@/lib/studio-operator-canvas-snapshot'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
+import type {
+  AssistantMentionCandidate,
+  AssistantMentionGroupId,
+  AssistantMentionRole,
+} from '@/types/assistant-mention'
 import type { AssistantWorkspace } from '@/types/assistant-workspace'
 import type { SearchGroundingRailState } from '@/components/business/studio-shared/search-grounding/SearchGroundingRail'
 import type { StudioOperatorShellAnchor } from '@/constants/studio-assistant-operator'
@@ -84,6 +89,16 @@ export interface StudioOperatorFace {
   inputPlaceholder: string
 }
 
+/** 宿主自己带进 `@` 菜单的那几组（见 `StudioOperatorHost.mentions`）。 */
+export interface StudioOperatorMentionSources {
+  readonly groups: readonly {
+    readonly id: AssistantMentionGroupId
+    readonly items: readonly AssistantMentionCandidate[]
+  }[]
+  readonly omit?: readonly AssistantMentionGroupId[]
+  readonly roles?: readonly AssistantMentionRole[]
+}
+
 export interface StudioOperatorHost {
   workspace: AssistantWorkspace
   /**
@@ -106,9 +121,14 @@ export interface StudioOperatorHost {
    *
    * ⚠ 必须是**每次调用现读**（不是渲染时算好的对象）：事件循环跨很多次 render，
    * 应用第 5 步时用的必须是此刻的表单，不是发消息那一刻的。
-   * `latestMessage` = 这一轮用户刚说的那句：画布据它认出 `@` 到的节点（文本节点给全文）。
+   * `latestMessage` = 这一轮用户刚说的那句；`mentionedNodeIds` = 这句话 `@` 到的卡
+   * （统一引用模型按 id 解析好的，§10b）—— 画布据此展开那几张、给文本卡全文。
+   * ⛔ 别再按名字从正文里猜：三张同名「镜头1」只认得第一张。
    */
-  buildSnapshot(options?: { latestMessage?: string }): AssistantOperatorSnapshot
+  buildSnapshot(options?: {
+    latestMessage?: string
+    mentionedNodeIds?: readonly string[]
+  }): AssistantOperatorSnapshot
   /**
    * op 往哪落、撤销从哪撤 —— 应用与撤销共用同一份判据的两侧。
    *
@@ -233,10 +253,15 @@ export interface StudioOperatorHost {
    */
   attachmentsMountReferences?: boolean
   /**
-   * `@` 选择器里可以点名的文本节点（只有画布给）。选中 = 在正文里写下 `@名字`，
-   * ⛔ 不粘原文：要的是「指着它让助手读 / 改」，不是把它倒进这句话里。
+   * 这张脸在 `@` 菜单里**自己带的**候选（§10b「候选来源插件化」）。面板统一渲染、
+   * 统一搜索；参考位 / 结果 / 📎 / 素材库 / 角色这几组由面板自己从契约里现成的东西拼。
+   *
+   * - 画布：「选中的卡」+「画布上的卡」（图 / 视频 / 音频 / 文本，含还没产出的）；
+   * - LoRA 台：挂着的 LoRA；角色页：页上的角色。
+   * ⚠ `omit`：这张脸不出哪几组通用候选（LoRA 台不 `@` 角色；画布的参考位就是画布上
+   *   的卡，不另列一组）。⚠ `roles`：胶囊小卡片上能定的参考用途，缺省 = 不给。
    */
-  mentionTextNodes?: readonly { id: string; name: string; preview: string }[]
+  mentions?: StudioOperatorMentionSources
   /**
    * 改动清单（node-canvas-v2 §1 第 4 条 · 方向 B）：这一轮改了哪几张卡，点一行 = 镜头
    * 移过去、卡面闪一下。只有画布给 —— 其余宿主没有「卡」，回执下面就不列清单。

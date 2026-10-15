@@ -60,11 +60,73 @@ export interface MentionToken {
    * 胶囊变淡，与素材排那一格同一个说法。⚠ 存储与序列化不受影响，只是显示。
    */
   dimmed?: boolean
+  /**
+   * 指的东西**没了**（画布上的卡被删、参考位被摘 —— 统一引用模型 §10b）。胶囊变灰，
+   * 显示调用方给的 `slotLabel`（「已删除」）；父级据此拦住发送。
+   */
+  missing?: boolean
 }
 
+/**
+ * 外置的 `@` 菜单（助手输入框，设计方案 §10b）：组件只负责认出 `@查询`、把导航键
+ * 交出去、按 combobox 的 ARIA 挂好属性；菜单本身由父级渲染（分组、异步素材库、
+ * 下钻、悬停大图都不是一个原子输入框该知道的事）。
+ *
+ * ⚠ 不传就是内置浮层，其余调用方的行为一个字都不变。
+ */
+export interface MentionMenuBinding {
+  /** 菜单那个 listbox 的 id（`aria-controls`）。 */
+  listId: string
+  /** 此刻高亮那一行的 id（`aria-activedescendant`）。 */
+  activeOptionId?: string
+  /** 菜单此刻开着没有（`aria-expanded`）。 */
+  open: boolean
+  /** 光标前的 `@查询` 变了；`null` = 没在写 `@`。 */
+  onQueryChange(query: string | null): void
+  /** 菜单开着时的导航键；返回 `true` = 菜单接住了（输入框不再处理）。 */
+  onKey(key: MentionMenuKey): boolean
+  /**
+   * 给了就允许**多词查询**（`@镜头 1`）：词与词之间单个空格，最多 `terms` 个词、
+   * `chars` 个字。⚠ 打完 `@` 接着写一句话时查询会一路变长 —— 父级在没结果时调
+   * `dismissMention()` 把这个 `@` 放掉。
+   */
+  queryLimits?: { readonly chars: number; readonly terms: number }
+}
+
+export type MentionMenuKey =
+  | 'ArrowDown'
+  | 'ArrowUp'
+  | 'Enter'
+  | 'Tab'
+  | 'Escape'
+  | 'Home'
+  | 'End'
+
+const MENTION_MENU_KEYS: readonly string[] = [
+  'ArrowDown',
+  'ArrowUp',
+  'Enter',
+  'Tab',
+  'Escape',
+  'Home',
+  'End',
+]
+
 export interface MentionInputHandle {
-  /** Insert an atomic `@名字` chip at the caret (falls back to the end). */
-  insertToken(name: string): void
+  /**
+   * Insert an atomic `@名字` chip at the caret (falls back to the end).
+   * `token` 给了就按它画胶囊（父级刚登记、`tokens` 还没回流的那一枚）。
+   */
+  insertToken(name: string, token?: MentionToken): void
+  /**
+   * 外置菜单选中一行：删掉光标前的 `@查询`，在原处插一枚胶囊（见 `MentionMenuBinding`）。
+   * 光标已经离开编辑器（手机上点了菜单）时按记下的位置放回去再插。
+   */
+  commitMention(name: string, token?: MentionToken): void
+  /** 触屏入口（输入框旁那颗 `@`）：在光标处写一个 `@` 并打开菜单。 */
+  openMention(): void
+  /** 放掉光标前这个 `@`（与按 Esc 同一份记忆）：接着打字不再弹，换一个 `@` 才重新算。 */
+  dismissMention(): void
   /**
    * Insert plain text at the caret — 运镜语法 chips（§5 L1，影视语汇不是 @token）
    * 与**文本节点粘原文**（契约 §5.2）都走这条。
@@ -125,7 +187,8 @@ export function parseMentions(
     const literal = literals.find(
       (name) =>
         value.slice(i, i + name.length) === name &&
-        !/\d/.test(value[i + name.length] ?? '') &&
+        // `<@image:abc>` 这种自带收尾符的记号后面紧跟数字也是它（`<@…>12`）。
+        (name.endsWith('>') || !/\d/.test(value[i + name.length] ?? '')) &&
         !(/^[A-Za-z]/.test(name) && /[A-Za-z0-9_]/.test(value[i - 1] ?? '')),
     )
     if (literal) {
@@ -310,11 +373,17 @@ function buildChip(
   chip.setAttribute('contenteditable', 'false')
   chip.className = cn(
     CHIP_BASE,
-    kind ? CHIP_FILL[kind] : 'bg-node-panel-inner',
-    kind ? 'pl-0.5 pr-1.5' : 'px-1.5',
+    token?.missing
+      ? 'bg-muted text-muted-foreground line-through decoration-muted-foreground/60'
+      : kind
+        ? CHIP_FILL[kind]
+        : 'bg-node-panel-inner',
+    kind && !token?.missing ? 'pl-0.5 pr-1.5' : 'px-1.5',
     token?.dimmed && 'opacity-45',
   )
-  if (kind) chip.appendChild(buildThumb(doc, kind, token?.thumbnailUrl))
+  if (token?.missing) chip.setAttribute('data-missing', 'true')
+  if (kind && !token?.missing)
+    chip.appendChild(buildThumb(doc, kind, token?.thumbnailUrl))
   const label = doc.createElement('span')
   label.className = 'mention-chip-label leading-none'
   // 显示位置（「图 3」），存储仍是字面量 —— 见 `MentionToken.slotLabel`。
@@ -595,6 +664,10 @@ export interface MentionInputProps {
    * 再通过 ref 的 `insertToken(name)` / `insertText(原文)` 把内容放进去。
    */
   onMentionSelect?(candidate: MentionCandidate): void
+  /** 外置 `@` 菜单（见 `MentionMenuBinding`）。给了就不画内置浮层。 */
+  mentionMenu?: MentionMenuBinding
+  /** 点了一枚胶囊（存储字面量 + 它在屏幕上的位置）—— 助手输入框弹小卡片用。 */
+  onChipClick?(name: string, rect: DOMRect): void
 }
 
 /**
@@ -614,8 +687,14 @@ export interface MentionInputProps {
  */
 const EMAIL_LOCAL_PART_CHAR = /[A-Za-z0-9._%+-]/
 
-/** 光标所在文本节点上、紧邻光标的 `@查询`。不在写 @ 时返回 null。 */
-function readMentionQuery(editor: HTMLElement): MentionQuery | null {
+/**
+ * 光标所在文本节点上、紧邻光标的 `@查询`。不在写 @ 时返回 null。
+ * `limits` 给了就放行词间单个空格（多词查询，见 `MentionMenuBinding.queryLimits`）。
+ */
+function readMentionQuery(
+  editor: HTMLElement,
+  limits?: { readonly chars: number; readonly terms: number },
+): MentionQuery | null {
   const selection = editor.ownerDocument.getSelection()
   if (!selection || !selection.isCollapsed) return null
   const node = selection.anchorNode
@@ -626,8 +705,16 @@ function readMentionQuery(editor: HTMLElement): MentionQuery | null {
   const at = before.lastIndexOf(MENTION_PREFIX)
   if (at === -1) return null
   // `@` 后不允许空格与第二个 `@` —— 有了就说明用户已经写完这一段，不是在挑候选。
+  // 多词那一档只放行词间**单个**空格（开头、连打两个、换行都算写完了）。
   const query = before.slice(at + 1)
-  if (/[\s@]/.test(query)) return null
+  if (limits) {
+    if (
+      /[@\n\t]|^\s|\s\s/.test(query) ||
+      query.length > limits.chars ||
+      query.trim().split(/\s+/).length > limits.terms
+    )
+      return null
+  } else if (/[\s@]/.test(query)) return null
   // 行首恒可；否则看前一个字符是不是「邮箱局部名」的一员。
   const prev = at > 0 ? before[at - 1] : ''
   if (prev && EMAIL_LOCAL_PART_CHAR.test(prev)) return null
@@ -660,6 +747,8 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
       onKeyUpCapture,
       mentionCandidates,
       onMentionSelect,
+      mentionMenu,
+      onChipClick,
       id,
       disabled = false,
       variant = 'default',
@@ -694,6 +783,16 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
       rect: { left: number; top: number; bottom: number }
     } | null>(null)
     const [activeIndex, setActiveIndex] = useState(0)
+    /**
+     * 外置菜单那一档的两份记忆（只在事件里读写）：
+     *  · `queryRef` —— `@查询` 的长度与光标位置。手机上点菜单那一下光标可能已经离开
+     *    编辑器，选中时按它放回去再删 `@查询`。
+     *  · `dismissedAtRef` —— 按 Esc 关掉的那个 `@` 在正文里的位置。接着往下打字不再
+     *    弹（不然 Esc 等于没按）；删掉那个 `@` 或换一个 `@` 才重新算。
+     */
+    const queryRef = useRef<{ length: number; caret: number } | null>(null)
+    const dismissedAtRef = useRef<number | null>(null)
+    const reportedQueryRef = useRef<string | null>(null)
     // Last value we rendered OR emitted — lets us skip re-rendering the DOM
     // (which would reset the caret) when `value` just echoes our own edit.
     const lastValueRef = useRef<string | null>(null)
@@ -819,22 +918,45 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
       return buckets.flatMap((bucket, i) => bucket.slice(0, quota[i]))
     }, [mention, mentionCandidates, variant])
 
+    /** 外置菜单：只在查询真的变了时告诉父级（每次按键都报一遍是白白的重渲染）。 */
+    const reportQuery = (text: string | null) => {
+      if (!mentionMenu || reportedQueryRef.current === text) return
+      reportedQueryRef.current = text
+      mentionMenu.onQueryChange(text)
+    }
+    const closeMention = () => {
+      setMention(null)
+      queryRef.current = null
+      reportQuery(null)
+    }
+
     /** 光标动了就重算查询 —— 输入、点击、方向键都要走这里。 */
     const syncMention = () => {
       const el = editorRef.current
       if (
         !el ||
         disabled ||
-        !mentionCandidates ||
-        (variant === 'canvas' && !mentionCandidates.length)
+        (!mentionCandidates && !mentionMenu) ||
+        (variant === 'canvas' && !mentionCandidates?.length)
       ) {
-        setMention(null)
+        closeMention()
         return
       }
-      const query = readMentionQuery(el)
+      const query = readMentionQuery(el, mentionMenu?.queryLimits)
       if (!query) {
-        setMention(null)
+        dismissedAtRef.current = null
+        closeMention()
         return
+      }
+      if (mentionMenu) {
+        const caret = getCaretOffset(el)
+        const at = caret === null ? null : caret - query.length
+        if (at !== null && dismissedAtRef.current === at) {
+          closeMention()
+          return
+        }
+        queryRef.current =
+          caret === null ? null : { length: query.length, caret }
       }
       const selection = el.ownerDocument.getSelection()
       const range = selection?.rangeCount ? selection.getRangeAt(0) : null
@@ -851,6 +973,7 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
           rect: { left: anchor.left, top: anchor.top, bottom: anchor.bottom },
         }
       })
+      reportQuery(query.text)
     }
 
     const emit = (serializedValue?: string) => {
@@ -865,15 +988,19 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
     }
 
     useEffect(() => {
-      if (variant !== 'canvas' && mention) {
+      if (variant !== 'canvas' && mention && !mentionMenu) {
         document
           .getElementById(`${listId}-${activeIndex}`)
           ?.scrollIntoView?.({ block: 'nearest' })
       }
-    }, [activeIndex, mention, listId, variant])
+    }, [activeIndex, mention, listId, variant, mentionMenu])
 
+    /**
+     * ⚠ 外置菜单那一档**不挂**这三条：菜单贴在输入框上方、跟着面板走，手机上键盘
+     * 一弹 `visualViewport` 就 resize —— 挂着的话菜单永远开不住（§10b「键盘弹出不关闭」）。
+     */
     useEffect(() => {
-      if (variant === 'canvas' || !mention) return
+      if (variant === 'canvas' || !mention || mentionMenu) return
       const dismiss = () => setMention(null)
       const onScroll = (event: Event) => {
         if (
@@ -891,7 +1018,7 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
         window.removeEventListener('scroll', onScroll, true)
         window.visualViewport?.removeEventListener('resize', dismiss)
       }
-    }, [mention, listId, variant])
+    }, [mention, listId, variant, mentionMenu])
 
     const pickerHeight = Math.min(264, Math.max(60, matches.length * 52 + 8))
     const viewportBottom = portalHost
@@ -996,13 +1123,13 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
     useImperativeHandle(
       ref,
       () => ({
-        insertToken(name: string) {
+        insertToken(name: string, token?: MentionToken) {
           const el = editorRef.current
           if (!el) return
           el.focus()
           insertNodeAtCaret(
             el,
-            buildChip(el.ownerDocument, name, tokenByName.get(name)),
+            buildChip(el.ownerDocument, name, token ?? tokenByName.get(name)),
           )
           // A trailing space so the caret has a text node to live in after the
           // atomic chip (chips can't hold a caret on their trailing edge alone).
@@ -1016,6 +1143,78 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
           insertNodeAtCaret(el, el.ownerDocument.createTextNode(text))
           emit()
         },
+        commitMention(name: string, token?: MentionToken) {
+          const el = editorRef.current
+          if (!el || disabled) return
+          const current = queryRef.current
+          el.focus()
+          const doc = el.ownerDocument
+          const selection = doc.getSelection()
+          if (
+            current &&
+            (!selection?.rangeCount || !el.contains(selection.anchorNode))
+          ) {
+            setCaretOffset(el, current.caret)
+          }
+          const live = doc.getSelection()
+          const node = live?.anchorNode
+          if (current && live && node && node.nodeType === Node.TEXT_NODE) {
+            const end = live.anchorOffset
+            const start = Math.max(0, end - current.length)
+            const range = doc.createRange()
+            range.setStart(node, start)
+            range.setEnd(node, end)
+            range.deleteContents()
+            const after = doc.createRange()
+            after.setStart(node, start)
+            after.collapse(true)
+            live.removeAllRanges()
+            live.addRange(after)
+          }
+          closeMention()
+          insertNodeAtCaret(
+            el,
+            buildChip(doc, name, token ?? tokenByName.get(name)),
+          )
+          insertNodeAtCaret(el, doc.createTextNode(' '))
+          emit()
+        },
+        openMention() {
+          const el = editorRef.current
+          if (!el || disabled) return
+          el.focus()
+          const doc = el.ownerDocument
+          const caret = getCaretOffset(el)
+          const serialized = serializeEditor(el)
+          const prev = (
+            caret === null ? serialized : serialized.slice(0, caret)
+          ).at(-1)
+          // 光标前是字母数字时 `@` 不算提及（邮箱守卫），先垫一个空格。
+          const text = doc.createTextNode(
+            prev && EMAIL_LOCAL_PART_CHAR.test(prev)
+              ? ` ${MENTION_PREFIX}`
+              : MENTION_PREFIX,
+          )
+          insertNodeAtCaret(el, text)
+          // 光标落进这段文字的末尾：`readMentionQuery` 只认文本节点里的光标。
+          const selection = doc.getSelection()
+          if (selection) {
+            const range = doc.createRange()
+            range.setStart(text, text.length)
+            range.collapse(true)
+            selection.removeAllRanges()
+            selection.addRange(range)
+          }
+          dismissedAtRef.current = null
+          emit()
+          syncMention()
+        },
+        dismissMention() {
+          const current = queryRef.current
+          if (!current) return
+          dismissedAtRef.current = current.caret - current.length
+          closeMention()
+        },
         focus() {
           editorRef.current?.focus()
         },
@@ -1024,7 +1223,7 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
         },
       }),
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [tokenByName],
+      [tokenByName, disabled, mentionMenu],
     )
 
     return (
@@ -1032,17 +1231,30 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
         <div
           ref={editorRef}
           id={id}
-          role="textbox"
-          aria-multiline="true"
+          /* ⭐ 外置菜单那一档是完整的 combobox（WAI-ARIA 1.2）：展开态、控制谁、
+             高亮哪一行都由父级的菜单说了算。 */
+          role={mentionMenu ? 'combobox' : 'textbox'}
+          aria-multiline={mentionMenu ? undefined : 'true'}
           aria-label={rest['aria-label']}
           aria-disabled={disabled}
-          aria-autocomplete={mentionCandidates ? 'list' : undefined}
-          aria-haspopup={mentionCandidates ? 'listbox' : undefined}
-          aria-controls={mention ? listId : undefined}
+          aria-autocomplete={
+            mentionCandidates || mentionMenu ? 'list' : undefined
+          }
+          aria-haspopup={
+            mentionCandidates || mentionMenu ? 'listbox' : undefined
+          }
+          aria-expanded={mentionMenu ? mentionMenu.open : undefined}
+          aria-controls={
+            mentionMenu ? mentionMenu.listId : mention ? listId : undefined
+          }
           aria-activedescendant={
-            mention && matches.length
-              ? `${listId}-${Math.min(activeIndex, matches.length - 1)}`
-              : undefined
+            mentionMenu
+              ? mentionMenu.open
+                ? mentionMenu.activeOptionId
+                : undefined
+              : mention && matches.length
+                ? `${listId}-${Math.min(activeIndex, matches.length - 1)}`
+                : undefined
           }
           contentEditable={!disabled}
           suppressContentEditableWarning
@@ -1059,7 +1271,8 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
           onCompositionStart={() => {
             composingRef.current = true
             setIsComposing(true)
-            setMention(null)
+            // ⚠ 外置菜单组字时**不关**：中文打 `@镜头` 时拼音那几下不该让菜单闪一下。
+            if (!mentionMenu) setMention(null)
           }}
           onCompositionEnd={() => {
             composingRef.current = false
@@ -1068,12 +1281,25 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
             emit()
             syncMention()
           }}
-          onClick={syncMention}
+          onClick={(event) => {
+            const chip =
+              event.target instanceof Element
+                ? event.target.closest(`[${MENTION_ATTR}]`)
+                : null
+            if (chip && onChipClick && editorRef.current?.contains(chip)) {
+              onChipClick(
+                chip.getAttribute(MENTION_ATTR) ?? '',
+                chip.getBoundingClientRect(),
+              )
+              return
+            }
+            syncMention()
+          }}
           onFocus={onFocus}
           onBlur={() => {
             composingRef.current = false
             setIsComposing(false)
-            setMention(null)
+            closeMention()
           }}
           onCopy={(event) => {
             if (variant === 'canvas') return
@@ -1117,7 +1343,30 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
             // 下拉开着时，方向键/回车/Tab 归下拉，不能漏给编辑器（回车会插换行、
             // 方向键会移光标把下拉关掉）。Escape 只关下拉，**并且要 stopPropagation**
             // —— 否则它会一路冒泡把外层的节点面板一起关掉。
-            if (mention) {
+            if (
+              mention &&
+              mentionMenu &&
+              MENTION_MENU_KEYS.includes(event.key)
+            ) {
+              const key = event.key as MentionMenuKey
+              if (key === 'Escape') {
+                event.preventDefault()
+                event.stopPropagation()
+                const current = queryRef.current
+                dismissedAtRef.current = current
+                  ? current.caret - current.length
+                  : null
+                mentionMenu.onKey(key)
+                closeMention()
+                return
+              }
+              if (mentionMenu.onKey(key)) {
+                event.preventDefault()
+                event.stopPropagation()
+                return
+              }
+            }
+            if (mention && !mentionMenu) {
               if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
                 event.preventDefault()
                 event.stopPropagation()
@@ -1148,9 +1397,14 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
             if (
               composingRef.current ||
               event.nativeEvent.isComposing ||
-              ['Escape', 'Enter', 'Tab', 'ArrowDown', 'ArrowUp'].includes(
-                event.key,
-              )
+              [
+                'Escape',
+                'Enter',
+                'Tab',
+                'ArrowDown',
+                'ArrowUp',
+                ...(mentionMenu ? ['Home', 'End'] : []),
+              ].includes(event.key)
             )
               return
             // 方向键/退格之后光标位置变了，查询要跟着重算。
@@ -1176,7 +1430,10 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
           原注释「fixed + 视口坐标，所以不会被父级带跑」正是这条错判，就地改掉。
           ⚠ `onMouseDown` 必须 preventDefault —— 否则点击先让编辑器失焦，onBlur 把
           浮层关掉，click 永远等不到。 */}
-        {portalHost && mention && (matches.length > 0 || emptyLabel)
+        {portalHost &&
+        !mentionMenu &&
+        mention &&
+        (matches.length > 0 || emptyLabel)
           ? createPortal(
               <div
                 role="listbox"

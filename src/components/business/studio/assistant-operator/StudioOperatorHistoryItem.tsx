@@ -35,16 +35,22 @@ import type {
   StudioOperatorHistoryEntry,
   StudioOperatorHistoryStep,
 } from '@/types/studio-operator-history'
+import type { AssistantMention } from '@/types/assistant-mention'
 
 interface StudioOperatorHistoryItemProps {
   references?: readonly NamedImageReference[]
   /** `subjects` 是并过的那一行才有的（`mergeOperatorSystemRuns`）。 */
   entry: StudioOperatorHistoryEntry & { subjects?: readonly string[] }
+  /** 气泡里的 `@` 胶囊点一下去哪（与实时线程同一个，见 `StudioOperatorUserText`）。 */
+  onMentionClick?: (mention: AssistantMention) => void
+  isMentionMissing?: (mention: AssistantMention) => boolean
 }
 
 export function StudioOperatorHistoryItem({
   entry,
   references,
+  onMentionClick,
+  isMentionMissing,
 }: StudioOperatorHistoryItemProps) {
   const t = useTranslations('StudioOperator')
   const format = useFormatter()
@@ -59,6 +65,9 @@ export function StudioOperatorHistoryItem({
             text={entry.text}
             attachments={entry.attachments}
             references={references}
+            {...(entry.mentions ? { mentions: entry.mentions } : {})}
+            {...(onMentionClick ? { onMentionClick } : {})}
+            {...(isMentionMissing ? { isMentionMissing } : {})}
           />
           {attachmentsBelowUserText(entry.text, entry.attachments).length ? (
             <div className="flex flex-wrap gap-1">

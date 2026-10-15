@@ -1,5 +1,7 @@
 import { z } from 'zod'
 import { ReferenceAnalysisSchema } from '@/types/assistant-reference-analysis'
+import { AssistantMentionSchema } from '@/types/assistant-mention'
+import { ASSISTANT_MENTION_LIMITS } from '@/constants/assistant-mention'
 
 import {
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
@@ -91,6 +93,15 @@ export const StudioOperatorHistoryEntrySchema = z.discriminatedUnion('kind', [
     attachments: z
       .array(StudioOperatorHistoryAttachmentSchema)
       .max(LIMITS.maxSnapshotReferences),
+    /**
+     * 这一轮 `@` 了什么（统一引用模型，§10b）。⚠ 存量行没有它；坏了就当没有
+     * （`.catch`）—— ⛔ 不让一条引用的形状拖垮整条用户消息。
+     */
+    mentions: z
+      .array(AssistantMentionSchema)
+      .max(ASSISTANT_MENTION_LIMITS.maxPerMessage)
+      .optional()
+      .catch(undefined),
   }),
   z.object({
     kind: z.literal('message'),

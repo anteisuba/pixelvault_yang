@@ -1,16 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { ASSISTANT_MENTION_LIMITS } from '@/constants/generation-naming'
+import { ASSISTANT_MENTION_LIMITS } from '@/constants/assistant-mention'
 import {
   buildGenerationDisplayName,
   buildGenerationTag,
   formatGenerationSerial,
   readGenerationMentions,
   resolveGenerationDisplayName,
-  resolveGenerationMentions,
 } from '@/lib/generation-name'
-
-const ID = '5f0f9b0c-1a2b-4c3d-8e4f-0a1b2c3d4e5f'
 
 describe('formatGenerationSerial', () => {
   it('补零到三位', () => {
@@ -187,44 +184,6 @@ describe('readGenerationMentions', () => {
     expect(
       readGenerationMentions('@视频_007 @音频_100').map((m) => m.tag),
     ).toEqual(['视频_007', '音频_100'])
-  })
-})
-
-describe('resolveGenerationMentions', () => {
-  const candidates = [
-    { id: ID, seq: 12, label: '图_012·银发少女' },
-    { id: 'other-id', seq: 999, label: '图_999' },
-  ]
-
-  it('名字命中候选（按 seq 精确相等）', () => {
-    expect(resolveGenerationMentions('看看 @图_012', candidates)).toEqual([
-      candidates[0],
-    ])
-  })
-
-  it('未知名字不成 chip', () => {
-    expect(resolveGenerationMentions('@图_512', candidates)).toEqual([])
-  })
-
-  /** ⛔ 摘要里恰好写着别人的号也不算命中 —— 判据是 `seq`，不是字符串包含。 */
-  it('label 里含号但 seq 对不上 → 不命中', () => {
-    expect(
-      resolveGenerationMentions('@图_012', [
-        { id: 'x', seq: 3, label: '图_003·封面图_012' },
-      ]),
-    ).toEqual([])
-  })
-
-  it('seq 缺席的候选永远不命中', () => {
-    expect(
-      resolveGenerationMentions('@图_012', [{ id: 'x', label: '图_012' }]),
-    ).toEqual([])
-  })
-
-  it('同一条被写两次只挂一次', () => {
-    expect(
-      resolveGenerationMentions('@图_012 与 @图_012', candidates),
-    ).toHaveLength(1)
   })
 })
 

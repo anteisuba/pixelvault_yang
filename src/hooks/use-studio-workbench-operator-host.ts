@@ -10,6 +10,10 @@ import {
 import { getModelMessageKey, isBuiltInModel } from '@/constants/models'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import {
+  ASSISTANT_MENTION_IMAGE_ROLES,
+  ASSISTANT_MENTION_VIDEO_ROLES,
+} from '@/constants/assistant-mention'
+import {
   getPromptDialect,
   PROMPT_DIALECT_ROUTES,
 } from '@/constants/prompt-dialects'
@@ -18,7 +22,10 @@ import {
   useStudioForm,
   useStudioGenOptional,
 } from '@/contexts/studio-context'
-import type { StudioOperatorHost } from '@/contexts/studio-operator-host'
+import type {
+  StudioOperatorHost,
+  StudioOperatorMentionSources,
+} from '@/contexts/studio-operator-host'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useStudioRunModels } from '@/hooks/use-studio-run-models'
 import { useStudioSearchGrounding } from '@/hooks/use-studio-search-grounding'
@@ -76,6 +83,20 @@ function removeReferenceByUrl(
     (entry) => entry.url === url,
   )
   if (index >= 0) imageUpload.removeReferenceImage(index)
+}
+
+/**
+ * 工作台在 `@` 菜单里不另带组（§10b 那张表：参考位 / 本次对话的生成 / 素材库 /
+ * 角色都由面板从契约里现成的东西拼），只声明胶囊上能定哪几种用途。
+ * ⚠ 模块常量：每次 render 新建对象会把宿主那颗 `useMemo` 打穿。
+ */
+const IMAGE_MENTIONS: StudioOperatorMentionSources = {
+  groups: [],
+  roles: ASSISTANT_MENTION_IMAGE_ROLES,
+}
+const VIDEO_MENTIONS: StudioOperatorMentionSources = {
+  groups: [],
+  roles: ASSISTANT_MENTION_VIDEO_ROLES,
 }
 
 export function useStudioWorkbenchOperatorHost({
@@ -715,6 +736,10 @@ export function useStudioWorkbenchOperatorHost({
       searchGroundingForResult,
       referenceLimit,
       referenceImages: imageUpload.referenceEntries,
+      mentions:
+        domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video
+          ? VIDEO_MENTIONS
+          : IMAGE_MENTIONS,
       open,
       setOpen,
     }),

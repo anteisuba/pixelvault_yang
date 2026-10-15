@@ -6,6 +6,7 @@ import { useImageUpload } from '@/hooks/use-image-upload'
 import {
   addOperatorMention,
   appendOperatorEntry,
+  getOperatorState,
   resetOperatorThread,
   claimOperatorThreadScope,
 } from '@/hooks/use-studio-operator-store'
@@ -305,7 +306,7 @@ describe('StudioOperatorDock', () => {
     expect(panelProps.attachments).toEqual([])
   })
 
-  it('挂参考位的宿主：uploads and workspace reference changes share one list, including removals and draft renumbering', () => {
+  it('挂参考位的宿主：uploads and workspace reference changes share one list, including removals (draft untouched)', () => {
     hostMountsReferences = true
     render(<StudioOperatorDock />)
     const first: StudioOperatorAttachment = {
@@ -319,13 +320,18 @@ describe('StudioOperatorDock', () => {
     expect(panelProps.attachments.map((item) => item.url)).toEqual([first.url])
     act(() => references.addReferenceImage('https://cdn.test/second.png'))
     expect(panelProps.attachments).toHaveLength(2)
-    act(() => panelProps.onDraftChange('参考@Image2'))
+    const draft = '参考<@image:reference-x>'
+    act(() => panelProps.onDraftChange(draft))
     act(() => panelProps.onAttachmentsChange(panelProps.attachments.slice(1)))
     expect(references.referenceImages).toEqual(['https://cdn.test/second.png'])
-    expect(panelProps.draft).toBe('参考@Image1')
+    /**
+     * ⭐ 胶囊按 id 指（§10b）：参考位增删⛔ 不再给正文重编号 —— 被摘掉的那一枚在面板里
+     * 变灰「已删除」并拦住发送（`useAssistantMentionComposer`）。
+     */
+    expect(panelProps.draft).toBe(draft)
     act(() => references.clearAllImages())
     expect(panelProps.attachments).toEqual([])
-    expect(panelProps.draft).toBe('参考')
+    expect(panelProps.draft).toBe(draft)
   })
 
   // owner 2026-09-29：画布上十几张图全摆成 chip，「节点太多这边显得很冗余」。
@@ -348,19 +354,19 @@ describe('StudioOperatorDock', () => {
     }
   })
 
-  it('clears a removed image mention even when a replacement keeps the reference count unchanged', () => {
+  it('参考位换了一张（数量不变）也⛔ 不改写正文：被摘的那枚由面板标「已删除」', () => {
     render(<StudioOperatorDock />)
     act(() => references.addReferenceImage('https://cdn.test/old.png'))
-    act(() => panelProps.onDraftChange('参考@Image1'))
+    act(() => panelProps.onDraftChange('参考<@image:reference-old>'))
     act(() => {
       references.removeReferenceImage(0)
       references.addReferenceImage('https://cdn.test/new.png')
     })
     expect(references.referenceImages).toEqual(['https://cdn.test/new.png'])
-    expect(panelProps.draft).toBe('参考')
+    expect(panelProps.draft).toBe('参考<@image:reference-old>')
   })
 
-  it('挂参考位的宿主：library selections and dragged mention images enter the shared references without duplicates', () => {
+  it('挂参考位的宿主：@ 进来的图⛔ 不偷换成参考位 / 📎（§10b 一套 chip）', () => {
     hostMountsReferences = true
     render(<StudioOperatorDock />)
     const image: StudioOperatorAttachment = {
@@ -370,9 +376,18 @@ describe('StudioOperatorDock', () => {
       label: 'library',
     }
     act(() => panelProps.onAttachmentsChange([image]))
-    act(() => addOperatorMention({ ...image, id: 'dragged' }))
+    act(() =>
+      addOperatorMention({
+        ...image,
+        id: 'dragged',
+        url: 'https://cdn.test/dragged.png',
+      }),
+    )
     expect(references.referenceImages).toEqual([image.url])
     expect(panelProps.attachments).toHaveLength(1)
+    expect(getOperatorState().mentions.map((item) => item.id)).toContain(
+      'dragged',
+    )
   })
 
   it('展开态：宽 = 视口三成（夹在上下限里）、顶 / 右由宿主锚点给（缺省 24）', () => {

@@ -18,6 +18,10 @@
 
 import { useSyncExternalStore } from 'react'
 
+import {
+  ASSISTANT_MENTION_LIMITS,
+  ASSISTANT_MENTION_SCOPE_IDS,
+} from '@/constants/assistant-mention'
 import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import type { AssistantPersonaPlanMode } from '@/constants/assistant-persona'
@@ -36,6 +40,11 @@ import {
   readOperatorResume,
   writeOperatorResume,
 } from '@/lib/studio-operator-resume'
+import { mentionFromAttachment, mentionKey } from '@/lib/assistant-mention'
+import type {
+  AssistantMention,
+  AssistantMentionScope,
+} from '@/types/assistant-mention'
 import type {
   StudioOperatorResumePlan,
   StudioOperatorResumeStep,
@@ -120,16 +129,20 @@ export interface StudioOperatorState {
    */
   queue: readonly StudioOperatorQueuedMessage[]
   /**
-   * `@` 提及的那些图（§3.3 四入口共用的**同一条 chip 管线**）。
+   * `@` 引用的**登记表**（统一引用模型，设计方案 §10b）。
    *
-   * ⚠ 类型就是附件类型，**不另立一个 mention 形状**：发送时它们与 📎 挂的那些
-   * 合成同一个数组送出去（`send(text, [...attachments, ...mentions])`），
-   * 服务端一个新字段都没有。分成两种形状的下场是下游要处处判「这是 @ 来的还是
-   * 📎 来的」，而对助手来说它们本来就是同一件事：这条消息附带的图。
-   * ⚠ 同样住在 store：它属于**还没发出去的那条消息**，与草稿同命（草稿今天住在
-   * dock 的 state 里 —— 本片不动 dock，chip 放这里反而更抗卸载）。
+   * ⭐ 正文里只存 `<@kind:id>`，名字 / 缩略图 / scope / nodeId 住在这里 —— 「这条
+   * 消息带了哪几条引用」的真值是**正文里的记号**，这张表只负责把记号翻译回东西。
+   * 登记了但正文里已经删掉的那几条不算数（`resolveDraftMentions` 只看正文）。
+   * ⚠ 住在 store：它属于**还没发出去的那条消息**（与草稿同命，收放法则会卸载面板）。
    */
-  mentions: readonly StudioOperatorAttachment[]
+  mentions: readonly AssistantMention[]
+  /**
+   * 外面递进来、还没写进正文的那几条的键（「问助手」/ 拖进来 / 用它当参考 / 歧义单选）。
+   * 面板挂着时立刻把它们接到正文末尾（`takeOperatorMentionInbox`）；收着时就等它
+   * 下次挂上来。
+   */
+  mentionInbox: readonly string[]
   /**
    * **自动生成开关**（D12 S-C）—— 开着时助手改完出图相关的卡就直接摆生成，
    * 确认卡一到由客户端替你按下（单轮张数上限见 `ASSISTANT_AUTO_GENERATE_LIMITS`）。
@@ -273,6 +286,7 @@ const INITIAL_STATE: StudioOperatorState = {
   errorCode: null,
   queue: [],
   mentions: [],
+  mentionInbox: [],
   autoGenerate: false,
   threadScope: null,
   selectedResultId: null,
@@ -793,29 +807,65 @@ export function getOperatorReviewState(id: string): GenerationReviewState {
   return state.reviewStates[id] ?? GENERATION_REVIEW_STATE_IDS.pending
 }
 
-// ─── @ chip（§3.3 / §7）──────────────────────────────────────────
+// ─── @ 引用（统一引用模型，§10b）────────────────────────────────────
+
+function upsertMentions(
+  current: readonly AssistantMention[],
+  next: readonly AssistantMention[],
+): readonly AssistantMention[] {
+  const keys = new Set(next.map((item) => mentionKey(item)))
+  return [
+    ...current.filter((item) => !keys.has(mentionKey(item))),
+    ...next,
+  ].slice(-ASSISTANT_MENTION_LIMITS.registry)
+}
 
 /**
- * 加一枚 chip。
+ * 从外面递一条进来（结果卡「问助手」/ 拖图 / 歧义单选 / 用它当参考）：登记，并排进
+ * 「待写进正文」那一格。
  *
- * ⚠ **按 id 去重**：四个入口（@ 选择器 / 结果卡「问助手」/ 拖图 / 歧义单选）
- * 都可能指向同一张图，重复的 chip 会让「将看 N 张」多数一张，而助手那边看到的
- * 还是一张 —— 界面上的数字与实际不符是本仓明令不许的那种失败。
+ * ⚠ **按键去重**：同一张图被两个入口各递一次，正文里也只有一枚胶囊 ——「将看 N 张」
+ * 多数一张而助手只看到一张，是本仓明令不许的那种失败。
  */
-export function addOperatorMention(mention: StudioOperatorAttachment): void {
-  if (state.mentions.some((item) => item.id === mention.id)) return
-  emit({ ...state, mentions: [...state.mentions, mention] })
+export function addOperatorMention(
+  attachment: StudioOperatorAttachment,
+  scope: AssistantMentionScope = ASSISTANT_MENTION_SCOPE_IDS.library,
+): void {
+  const mention = mentionFromAttachment(attachment, scope)
+  const key = mentionKey(mention)
+  emit({
+    ...state,
+    mentions: upsertMentions(state.mentions, [mention]),
+    mentionInbox: state.mentionInbox.includes(key)
+      ? state.mentionInbox
+      : [...state.mentionInbox, key],
+  })
 }
 
-export function removeOperatorMention(id: string): void {
-  if (!state.mentions.some((item) => item.id === id)) return
-  emit({ ...state, mentions: state.mentions.filter((item) => item.id !== id) })
+/** 只登记、不排队 —— 面板自己从菜单里挑的那几条（胶囊它自己插）。 */
+export function registerOperatorMentions(
+  mentions: readonly AssistantMention[],
+): void {
+  if (!mentions.length) return
+  emit({ ...state, mentions: upsertMentions(state.mentions, mentions) })
 }
 
-/** 发出去之后清空 —— chip 属于**那一条消息**，不是一直挂着的设置。 */
+/** 取走「待写进正文」的那几条（取走即清空）。 */
+export function takeOperatorMentionInbox(): AssistantMention[] {
+  if (!state.mentionInbox.length) return []
+  const byKey = new Map(state.mentions.map((item) => [mentionKey(item), item]))
+  const taken = state.mentionInbox.flatMap((key) => {
+    const hit = byKey.get(key)
+    return hit ? [hit] : []
+  })
+  emit({ ...state, mentionInbox: [] })
+  return taken
+}
+
+/** 整张登记表连同待写进正文的那几条一起清（测试与「换账号」那种彻底重来用）。 */
 export function clearOperatorMentions(): void {
-  if (state.mentions.length === 0) return
-  emit({ ...state, mentions: [] })
+  if (state.mentions.length === 0 && state.mentionInbox.length === 0) return
+  emit({ ...state, mentions: [], mentionInbox: [] })
 }
 
 /** 自动生成开关在本机的那一格（按工作台作用域）。读写失败一律当「关」。 */
@@ -1138,7 +1188,10 @@ export function loadOperatorThread(args: {
     errorTrace: null,
     errorCode: null,
     queue: [],
-    mentions: [],
+    // ⚠ 登记表留着：它只是 `<@kind:id>` 的名字 / 缩略图，别的作用域的草稿可能还
+    //   指着它们（换档回来胶囊不该变成「已删除」）。待写进正文的那几条跟着线程走。
+    mentions: state.mentions,
+    mentionInbox: [],
     selectedResultId: null,
     pendingResultId: null,
     capturingFrames: false,

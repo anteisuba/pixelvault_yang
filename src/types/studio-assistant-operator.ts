@@ -12,6 +12,7 @@
  * 按 id 覆盖；漏了 id 就变成追加，表现是每一步在日志流里出现两遍。
  */
 
+import type { AssistantMention } from '@/types/assistant-mention'
 import type { StudioOperatorResumeStep } from '@/types/studio-operator-resume'
 import type { ContextCardKindId } from '@/constants/context-cards'
 import type { ContextCardImage } from '@/types/context-cards'
@@ -47,8 +48,14 @@ import type {
 export interface StudioOperatorUserEntry {
   kind: 'user'
   id: string
+  /** 发出去的那份正文 —— `@` 记号已经换成 `「名字」`（见 `renderMentionText`）。 */
   text: string
   attachments: readonly StudioOperatorAttachment[]
+  /**
+   * 这一轮 `@` 了哪几条（统一引用模型，§10b）。名字在这条消息里唯一，气泡按它把
+   * `「名字」` 画回可点的胶囊；事后回看也知道这一轮指着的是什么。缺席 = 没 `@`。
+   */
+  mentions?: readonly AssistantMention[]
 }
 
 /**
@@ -299,8 +306,8 @@ export interface StudioOperatorAttachment {
   /**
    * 这一条的产物序号（`Generation.seq`，切片 N1）。
    *
-   * ⚠ 正文里的 `@图_012` **只按它比**（`matchGenerationMention`），也只按它随
-   * `mentionedAssets` 上服务端。缺席 = 这一行没有号（存量行 / 上传来的行），
+   * ⚠ `@` 搜 `#12` / `图_012` **只按它比**（`searchMentionCandidates` 的序号精确命中），
+   * 也只按它随 `mentionedAssets` 上服务端。缺席 = 这一行没有号（存量行 / 上传来的行），
    * 于是永远不会被 `@序号` 命中 —— ⛔ 不从 id 派生一个：算出来的号会去撞别人的
    * 真号。用户照旧能从选择器点它上来，那条路不经过名字。
    */
@@ -351,6 +358,8 @@ export interface StudioOperatorQueuedMessage {
   id: string
   text: string
   attachments: readonly StudioOperatorAttachment[]
+  /** 排队时就定好的引用（发送那一刻解析过的快照）。 */
+  mentions?: readonly AssistantMention[]
 }
 
 /**

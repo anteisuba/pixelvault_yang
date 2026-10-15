@@ -11,6 +11,8 @@
  * 画布默认走 v3（S6）；本地开关写 `v2` 照走旧内核。别的工作台还在旧内核上。
  */
 
+import { ASSISTANT_MENTION_LIMITS } from '@/constants/assistant-mention'
+
 /** v3 已经接上的那几张脸（S6 逐个迁：LoRA → 图片 → 卡片 → 视频）。 */
 export const ASSISTANT_V3_FACE_IDS = {
   canvas: 'canvas',
@@ -257,7 +259,8 @@ export const ASSISTANT_V3_LIMITS = {
    */
   maxSignatureChars: 32_000,
   maxReadCards: 12,
-  maxLookCards: 6,
+  /** ⚠ 看图上限只有一个数（UI / 提示 / 模型一致），住在 `ASSISTANT_MENTION_LIMITS.lookImages`。 */
+  maxLookCards: ASSISTANT_MENTION_LIMITS.lookImages,
   /**
    * ⚠ 一条 v3 op 会展开成好几条 v4 op（建卡 + 模型 + 参数 + 提示词），而画布一批
    * 最多 `ASSISTANT_OPERATOR_CANVAS_LIMITS.maxBatchOps` 条 —— 这里限的是 v3 这一侧。

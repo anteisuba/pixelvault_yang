@@ -10,15 +10,16 @@ import {
   TAG_BASED_GENERATION_PROMPT_RULE,
 } from '@/constants/model-strengths'
 import { AI_MODELS } from '@/constants/models'
-import { SEEDANCE_25_CONTROL_RULES } from '@/constants/seedance-prompt-plan'
+import {
+  SEEDANCE_20_CONTROL_RULES,
+  SEEDANCE_25_CONTROL_RULES,
+} from '@/constants/seedance-prompt-plan'
 import type { AssistantOperatorCanvasNode } from '@/types/assistant-operator'
-import type { AssistantV3Transcript } from '@/types/assistant-v3'
 
 vi.mock('server-only', () => ({}))
 
 import {
   buildAssistantV3CanvasGuideSection,
-  canvasGuideGap,
   parseGuideItem,
   renderAssistantV3ModelGuide,
 } from './assistant-v3-guides.service'
@@ -41,24 +42,41 @@ const BOARD = [
   card('i1', 'image', GPT_IMAGE),
 ]
 
-describe('画布写法（P2 第二片）· 系统提示那一段', () => {
-  it('每个型号一行提示，长的那几段 ⛔ 不进系统提示，只标去哪儿取', () => {
+describe('画布写法 · 系统提示那一段（板上型号给整份）', () => {
+  it('每个型号一行提示，板上有视频卡就带控制规则 + 视频写法 + 镜头语法', () => {
     const section = buildAssistantV3CanvasGuideSection(BOARD)
     expect(section).toContain(
       `- ${GPT_IMAGE}: ${getModelEnhanceHint(GPT_IMAGE)}`,
     )
-    expect(section).toContain(
-      `- ${SEEDANCE}: ${getModelEnhanceHint(SEEDANCE)} Full guide: read "guide:${SEEDANCE}".`,
-    )
-    expect(section).not.toContain(
-      `${GPT_IMAGE}: ${getModelEnhanceHint(GPT_IMAGE)} Full guide`,
-    )
+    expect(section).toContain(`- ${SEEDANCE}: ${getModelEnhanceHint(SEEDANCE)}`)
     for (const long of [
+      SEEDANCE_25_CONTROL_RULES,
       VIDEO_PROMPT_WRITING_RULES,
       CINEMATIC_SHOT_GRAMMAR,
-      SEEDANCE_25_CONTROL_RULES,
     ])
-      expect(section).not.toContain(long.slice(0, 40))
+      expect(section).toContain(long)
+    // 长段各一份，⛔ 不按型号重复；⛔ 没有「先 read 再写」的闸话。
+    expect(section.split(VIDEO_PROMPT_WRITING_RULES)).toHaveLength(2)
+    expect(section).not.toContain('Full guide')
+  })
+
+  it('没有视频卡就没有视频写法；标签型号带标签写法', () => {
+    const section = buildAssistantV3CanvasGuideSection([
+      card('i1', 'image', GPT_IMAGE),
+      card('i2', 'image', NOVELAI),
+    ])
+    expect(section).toContain(TAG_BASED_GENERATION_PROMPT_RULE)
+    expect(section).not.toContain(VIDEO_PROMPT_WRITING_RULES.slice(0, 40))
+    expect(section).not.toContain(CINEMATIC_SHOT_GRAMMAR.slice(0, 40))
+  })
+
+  it('Seedance 2.0 与 2.5 同在板上：两份控制规则都给', () => {
+    const section = buildAssistantV3CanvasGuideSection([
+      ...BOARD,
+      card('v3', 'video', AI_MODELS.SEEDANCE_20_BYTEPLUS),
+    ])
+    expect(section).toContain(SEEDANCE_25_CONTROL_RULES)
+    expect(section).toContain(SEEDANCE_20_CONTROL_RULES)
   })
 
   it('板上卡怎么排、怎么增减同型号的卡，这一段都逐字不变（缓存吃得到）', () => {
@@ -73,7 +91,7 @@ describe('画布写法（P2 第二片）· 系统提示那一段', () => {
     )
   })
 
-  it('型号多于上限：按卡数取前几种，其余只列名字、指去 read', () => {
+  it('型号多于上限：按卡数取前几种，其余只列名字、可以 read', () => {
     const cap = ASSISTANT_OPERATOR_CANVAS_LIMITS.maxDialectModels
     const extra = Array.from({ length: cap }, (_, index) =>
       card(`x${index}`, 'image', `rare-model-${index}`),
@@ -82,7 +100,7 @@ describe('画布写法（P2 第二片）· 系统提示那一段', () => {
     expect(section).toContain(`- ${SEEDANCE}:`)
     expect(section).toContain(`- ${GPT_IMAGE}:`)
     expect(section).toMatch(
-      /- Also on the board: (rare-model-\d, )*rare-model-\d — read "guide:<model id>"/,
+      /- Also on the board: (rare-model-\d, )*rare-model-\d — read "guide:<model id>" for one's guide/,
     )
   })
 
@@ -115,89 +133,5 @@ describe('画布写法 · read "guide:<型号>"', () => {
     const image = renderAssistantV3ModelGuide(GPT_IMAGE, false)
     expect(image).toContain(getModelEnhanceHint(GPT_IMAGE)!)
     expect(image).not.toContain(VIDEO_PROMPT_WRITING_RULES.slice(0, 40))
-  })
-})
-
-describe('画布写法 · 写词闸', () => {
-  const board = (): AssistantV3Transcript => [
-    { type: 'board', text: 'BOARD', images: [] },
-  ]
-  const assistant = (): AssistantV3Transcript[number] => ({
-    type: 'assistant',
-    text: '',
-    calls: [],
-  })
-  const guideResult = (modelId: string): AssistantV3Transcript[number] => ({
-    type: 'result',
-    id: 'call-guide',
-    tool: 'read',
-    output: renderAssistantV3ModelGuide(modelId, true),
-    error: false,
-  })
-
-  it('系统提示里那一行就够的型号：不拦', () => {
-    expect(
-      canvasGuideGap({
-        modelId: GPT_IMAGE,
-        video: false,
-        nodes: BOARD,
-        transcript: [...board(), assistant()],
-      }),
-    ).toBeNull()
-  })
-
-  it('视频型号没取过整份写法：拦下，给的就是那份写法', () => {
-    const gap = canvasGuideGap({
-      modelId: SEEDANCE,
-      video: true,
-      nodes: BOARD,
-      transcript: [...board(), assistant()],
-    })
-    expect(gap).toBe(renderAssistantV3ModelGuide(SEEDANCE, true))
-  })
-
-  it('前面一步读过：放行；同一条回复里并排读的 ⛔ 不算（写的时候还没看到）', () => {
-    expect(
-      canvasGuideGap({
-        modelId: SEEDANCE,
-        video: true,
-        nodes: BOARD,
-        transcript: [
-          ...board(),
-          assistant(),
-          guideResult(SEEDANCE),
-          assistant(),
-        ],
-      }),
-    ).toBeNull()
-    expect(
-      canvasGuideGap({
-        modelId: SEEDANCE,
-        video: true,
-        nodes: BOARD,
-        transcript: [...board(), assistant(), guideResult(SEEDANCE)],
-      }),
-    ).not.toBeNull()
-  })
-
-  it('这一轮刚换上、系统提示没列的型号：有提示就拦下给提示', () => {
-    const gap = canvasGuideGap({
-      modelId: GPT_IMAGE,
-      video: false,
-      nodes: [card('v1', 'video', SEEDANCE)],
-      transcript: [...board(), assistant()],
-    })
-    expect(gap).toBe(renderAssistantV3ModelGuide(GPT_IMAGE, false))
-  })
-
-  it('没有任何写法的型号：不拦（拦了也给不出东西）', () => {
-    expect(
-      canvasGuideGap({
-        modelId: 'some-unknown-model',
-        video: false,
-        nodes: BOARD,
-        transcript: [...board(), assistant()],
-      }),
-    ).toBeNull()
   })
 })

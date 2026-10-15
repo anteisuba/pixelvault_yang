@@ -122,7 +122,7 @@ const THE_BOARD = `THE BOARD
 const WEB_VIDEOS_LINE = `- search_library kind "web_videos": videos on the web — a trailer, a PV, a tutorial, a dance or motion reference, or whenever the creator asks for a video. The cards appear under your reply and the creator can play them there; you get one line per video (#n · title · channel · platform · length). You have not watched any of them: judge by title and channel only, point to one by its number. They are links only: never import or mount one, and never paste a video address into a prompt. Not for facts — that is search_web.`
 
 const TOOLS_GUIDE = `TOOLS
-- read: the full text, inputs and parameters of cards that are shown on one line or with clipped text. Also "${ASSISTANT_V3_LANE_ITEM_PREFIX}<n>": the cards of an off-screen lane. Also "${ASSISTANT_V3_GUIDE_ITEM_PREFIX}<model id>": that model's full prompt guide (timeline, shot grammar and control rules for a video model, tag syntax for a tag model). Read it before you write a whole prompt — write "replace" or "append", or add with text — for a model that WHAT EACH CARD'S PROMPT MUST LOOK LIKE marks "Full guide" or does not list.
+- read: the full text, inputs and parameters of cards that are shown on one line or with clipped text. Also "${ASSISTANT_V3_LANE_ITEM_PREFIX}<n>": the cards of an off-screen lane. Also "${ASSISTANT_V3_GUIDE_ITEM_PREFIX}<model id>": the prompt guide for a model WHAT EACH CARD'S PROMPT MUST LOOK LIKE does not cover, such as one you are about to put on a new card.
 - edit: structure and settings. Put everything one request needs into ONE edit call. Create a card with add and a ref ("new1") — put its prompt in text right there — then connect it by that ref in the same ops list. set changes the name, model and parameters together; null keeps a field as it is, and parameter values must come from the card's option set. When the creator asks for a value the option set does not have, set the rest, leave that one, and say what the card has now — do not ask which other value to use. There are no positions — new cards land in an empty spot by themselves. delete and re-projecting a script ask the creator first on their own: just call edit.
 - write: a card's prompt (image / video / audio cards) or text (text and script cards). To change words inside existing text use mode "edit" with {find, replace} pairs copied exactly from the card — it touches nothing else. Each find must occur exactly once in that card: take enough words around the change to make it unique. Use "replace" only when the creator wants the whole text rewritten, and read the full text first. A shot card's prompt is a video prompt written from its script line, not the script line itself: when the script changes, edit the prompt only where it now differs.
 - generate: list every card the creator asked to generate in one call; they all go on one confirm card and the creator confirms there. A shot is checked first (spoken lines against its time, sound): when generate reports a problem, fix what they would clearly want fixed or tell them, then call generate again.
@@ -324,9 +324,8 @@ export function buildAssistantV3SystemPrompt(input: {
   /**
    * 这一轮板上型号的写法：随快照变（画布上挂着哪几个型号、台上选的哪个型号、LoRA 台的底模与
    * CFG），所以排在分界线之后的最末。
-   * ⭐ 画布只给每个型号一行提示（P2 第二片）：整份写法用 `read "guide:<型号>"` 现取，见
-   *   `assistant-v3-guides.service.ts`。工作台照旧给选中那个型号的整份写法 —— 台上就这一个型号，
-   *   写的每一句都是给它的。
+   * ⭐ 画布给板上型号（按卡数前几种，按 id 排）的整份写法；板上没有的型号用 `read "guide:<型号>"`
+   *   现取（可选，⛔ 不设闸），见 `assistant-v3-guides.service.ts`。工作台给选中那个型号的整份写法。
    */
   const dialect = lora
     ? `\n\nTHE BASE ON THE BENCH NOW\n${buildLoraDialectSection(request)}`

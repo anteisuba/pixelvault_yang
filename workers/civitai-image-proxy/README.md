@@ -56,8 +56,9 @@ img.anteisuba.com/hotlink/<host>/<path>
 
 - **不是开放代理**：host 只认上表（`HOTLINK_HOSTS`），跳转手动跟、只跟到同一张表里，
   回来的必须是图（魔数判型，否则 415），声明长度超过 20 MB 回 413。
-- 带着别家网站 Referer 来的请求回 403（防被当成免费 pixiv 图床）；自家 `<img>` 是
-  `no-referrer`，不带这个头，照常放行。
+- 只认自家页面来的请求（防被当成免费 pixiv 图床）：面板打这一支时
+  `referrerPolicy="origin"`，带着 `https://www.anteisuba.com`；别家网站的 Referer、
+  不带 Referer / Origin 的一律 403。
 - 前端改写在 `src/lib/third-party-image-url.ts`，名单是
   `src/constants/web-image-sources.ts` 的 `WEB_IMAGE_HOTLINK_PROXY` —— **两处一起改**。
   前端复用同一个 `NEXT_PUBLIC_CIVITAI_IMAGE_PROXY_BASE`；没配、或这一支还没部署时
@@ -66,8 +67,10 @@ img.anteisuba.com/hotlink/<host>/<path>
 验证（部署后）：
 
 ```bash
-curl -sI "https://img.anteisuba.com/hotlink/i.pximg.net/<pixiv 原图路径>"
+curl -sI -H "Referer: https://www.anteisuba.com/" "https://img.anteisuba.com/hotlink/i.pximg.net/<pixiv 原图路径>"
 # 期望 HTTP/2 200、content-type: image/...
+curl -sI "https://img.anteisuba.com/hotlink/i.pximg.net/<同上>"
+# 不带 Referer：期望 403
 curl -sI -H "Referer: https://example.com/" "https://img.anteisuba.com/hotlink/i.pximg.net/<同上>"
 # 期望 403
 ```

@@ -64,9 +64,9 @@ const HOTLINK_MAX_BYTES = 20 * 1024 * 1024
 const HOTLINK_MAX_REDIRECTS = 3
 
 /**
- * 带着 Referer 来的请求只认自家页面（防别的网站拿它当免费的 pixiv 图床）。
- * ⚠ 自家面板上的 `<img>` 是 `no-referrer`，根本不带这个头 —— 不带头的照常放行，
- * 所以这只挡「别的网站按默认策略直接嵌我们的地址」那一种。
+ * 只认自家页面来的请求（防别人拿它当免费的 pixiv 图床）：面板打这一支时
+ * `referrerPolicy="origin"`，带着 `https://www.anteisuba.com`。⛔ 不带 Referer / Origin
+ * 的一律 403 —— 命令行能伪造头，但别的网站嵌我们的地址、`no-referrer` 偷用都挡得住。
  */
 const HOTLINK_PAGE_HOSTS = ['anteisuba.com', 'localhost', '127.0.0.1'] as const
 
@@ -99,7 +99,7 @@ function parseHotlinkTarget(url: URL): { target: URL; referer: string } | null {
 
 function fromAllowedPage(request: Request): boolean {
   const value = request.headers.get('Referer') ?? request.headers.get('Origin')
-  if (!value) return true
+  if (!value) return false
   try {
     const host = new URL(value).hostname.toLowerCase()
     return HOTLINK_PAGE_HOSTS.some(

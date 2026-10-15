@@ -1,11 +1,14 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
 
-import { thirdPartyImageSources } from '@/lib/third-party-image-url'
+import {
+  isHotlinkProxyImageUrl,
+  thirdPartyImageSources,
+} from '@/lib/third-party-image-url'
 
 /**
- * 一张**第三方网图**在面板里的 `<img>`：不带我们的 Referer，取不到就换下一个地址
+ * 一张**第三方网图**在面板里的 `<img>`：直连不带我们的 Referer，取不到就换下一个地址
  * （热链代理 → 直连 → 调用方给的退路，见 `thirdPartyImageSources`）。
  *
  * 用法：`src` 为 `null`（`exhausted`）= 全都取不到，调用方画占位，⛔ 不出破图标。
@@ -19,7 +22,7 @@ export function useThirdPartyImage(
   src: string | null
   exhausted: boolean
   onError: () => void
-  referrerPolicy: 'no-referrer'
+  referrerPolicy: 'no-referrer' | 'origin'
 } {
   const sources = thirdPartyImageSources(...urls)
   // 入参换了（同一格换成另一张图）就从第一个地址重来；⛔ 不在 effect 里同步。
@@ -27,16 +30,20 @@ export function useThirdPartyImage(
   const [attempt, setAttempt] = useState({ key, index: 0 })
   if (attempt.key !== key) setAttempt({ key, index: 0 })
   const index = attempt.key === key ? attempt.index : 0
-  const onError = useCallback(() => {
+  const src = sources[index] ?? null
+  // 直连不带我们的 Referer；打自家代理时只带源站（Worker 凭它认自家页面）。
+  const referrerPolicy =
+    src !== null && isHotlinkProxyImageUrl(src) ? 'origin' : 'no-referrer'
+  // React Compiler 自己会记住它（手写 useCallback 反而让编译器跳过这个 hook）。
+  const onError = () => {
     setAttempt((previous) =>
       previous.key === key ? { key, index: previous.index + 1 } : previous,
     )
-  }, [key])
-  const src = sources[index] ?? null
+  }
   return {
     src,
     exhausted: src === null,
     onError,
-    referrerPolicy: 'no-referrer',
+    referrerPolicy,
   }
 }

@@ -11,7 +11,10 @@ import {
   ASSISTANT_REASONING_EFFORT_IDS,
   type AssistantReasoningEffort,
 } from '@/constants/assistant-persona'
-import { ASSISTANT_V3_MAX_OUTPUT_TOKENS } from '@/constants/assistant-v3'
+import {
+  ASSISTANT_V3_MAX_OUTPUT_TOKENS,
+  assistantV3VerifiedOutputCap,
+} from '@/constants/assistant-v3'
 import { AI_PROVIDER_ENDPOINTS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { AssistantV3SystemPrompt } from '@/services/kernel/assistant-v3-prompt.service'
@@ -41,8 +44,8 @@ export interface AssistantV3Model {
   readonly effortPerStep: boolean
   /**
    * 主步一次最多输出多少 token（`ASSISTANT_V3_MAX_OUTPUT_TOKENS`，交给 `streamText`）。
-   * `undefined` = 不发：代理端点（上限由模型自己兜着），以及 Grok（同一个数走 `providerOptions`
-   * 的 `maxCompletionTokens`，⛔ 不发已弃用的 `max_tokens`）。
+   * `undefined` = 不发：官方上限没登记的型号、代理端点（上限由模型自己兜着），以及 Grok（同一个数
+   * 走 `providerOptions` 的 `maxCompletionTokens`，⛔ 不发已弃用的 `max_tokens`）。Claude 一律发（必填）。
    */
   readonly maxOutputTokens: number | undefined
   providerOptions(
@@ -141,7 +144,7 @@ export function resolveAssistantV3Model(
         strictTools: official,
         effortPerStep: false,
         maxOutputTokens: official
-          ? ASSISTANT_V3_MAX_OUTPUT_TOKENS[AI_ADAPTER_TYPES.OPENAI]
+          ? assistantV3VerifiedOutputCap(modelId)
           : undefined,
         ...plainShape,
         // ⚠ 代理端点走 Chat Completions：GPT-6 在那里推理档与工具调用不能同开，⛔ 不发档位。
@@ -172,9 +175,8 @@ export function resolveAssistantV3Model(
         model: provider(modelId),
         strictTools: false,
         effortPerStep: false,
-        // Claude 必填（代理也一样）：不给时 SDK 自己填 128k。
-        maxOutputTokens:
-          ASSISTANT_V3_MAX_OUTPUT_TOKENS[AI_ADAPTER_TYPES.ANTHROPIC],
+        // Claude 必填（代理也一样）：不给时 SDK 自己填。64k 在四个型号的官方上限 128K 之下。
+        maxOutputTokens: ASSISTANT_V3_MAX_OUTPUT_TOKENS.anthropic,
         providerOptions: (_cacheKey, effort) => ({ anthropic: { effort } }),
         system: (prompt) => [
           {
@@ -198,8 +200,7 @@ export function resolveAssistantV3Model(
         strictTools: false,
         effortPerStep: true,
         // 只走官方端点（这里不接自定义地址）。
-        maxOutputTokens:
-          ASSISTANT_V3_MAX_OUTPUT_TOKENS[AI_ADAPTER_TYPES.GEMINI],
+        maxOutputTokens: assistantV3VerifiedOutputCap(modelId),
         ...plainShape,
         /**
          * ⚠ Gemini 3 自己默认最高档：2026-10-10 一步调权重想了 4465 个 token、46 秒；
@@ -221,7 +222,7 @@ export function resolveAssistantV3Model(
         effortPerStep: true,
         maxOutputTokens:
           baseURL === AI_PROVIDER_ENDPOINTS.DEEPSEEK
-            ? ASSISTANT_V3_MAX_OUTPUT_TOKENS[AI_ADAPTER_TYPES.DEEPSEEK]
+            ? assistantV3VerifiedOutputCap(modelId)
             : undefined,
         ...plainShape,
         providerOptions: (_cacheKey, effort) => ({
@@ -235,6 +236,9 @@ export function resolveAssistantV3Model(
         AI_PROVIDER_ENDPOINTS.XAI
       const provider = createOpenAI({ apiKey: route.apiKey, baseURL })
       const official = baseURL === AI_PROVIDER_ENDPOINTS.XAI
+      const outputCap = official
+        ? assistantV3VerifiedOutputCap(modelId)
+        : undefined
       return {
         model: provider.chat(modelId),
         strictTools: false,
@@ -249,12 +253,9 @@ export function resolveAssistantV3Model(
         providerOptions: (_cacheKey, effort) => ({
           openai: {
             reasoningEffort: effort,
-            ...(official
-              ? {
-                  maxCompletionTokens:
-                    ASSISTANT_V3_MAX_OUTPUT_TOKENS[AI_ADAPTER_TYPES.XAI],
-                }
-              : {}),
+            ...(outputCap === undefined
+              ? {}
+              : { maxCompletionTokens: outputCap }),
           },
         }),
       }

@@ -1,8 +1,12 @@
 import { generateText, type ModelMessage } from 'ai'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { ASSISTANT_V3_MAX_OUTPUT_TOKENS } from '@/constants/assistant-v3'
+import {
+  ASSISTANT_V3_MAX_OUTPUT_TOKENS,
+  assistantV3VerifiedOutputCap,
+} from '@/constants/assistant-v3'
 import { AI_PROVIDER_ENDPOINTS } from '@/constants/config'
+import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { ResolvedLlmTextRoute } from '@/services/llm-text.service'
 
@@ -44,8 +48,7 @@ describe('resolveAssistantV3Model', () => {
     ).toEqual({
       openai: {
         reasoningEffort: 'medium',
-        maxCompletionTokens:
-          ASSISTANT_V3_MAX_OUTPUT_TOKENS[AI_ADAPTER_TYPES.XAI],
+        maxCompletionTokens: ASSISTANT_V3_MAX_OUTPUT_TOKENS.cap,
       },
     })
     expect(
@@ -270,83 +273,127 @@ describe('缓存断点', () => {
     })
 })
 
+/** 拦下发出去的请求体（在 fetch 那一层停住，⛔ 不真发）。 */
+async function sentBody(
+  adapter: AI_ADAPTER_TYPES,
+  modelId: string,
+  baseUrl = '',
+): Promise<Record<string, unknown>> {
+  let body: Record<string, unknown> = {}
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (_url: string, init?: RequestInit) => {
+      body = JSON.parse(String(init?.body)) as Record<string, unknown>
+      throw new Error('stop here')
+    }),
+  )
+  const model = resolveAssistantV3Model(route(adapter, baseUrl), modelId)!
+  await expect(
+    generateText({
+      model: model.model,
+      prompt: 'hi',
+      maxRetries: 0,
+      ...(model.maxOutputTokens === undefined
+        ? {}
+        : { maxOutputTokens: model.maxOutputTokens }),
+      providerOptions: model.providerOptions('cache', 'low'),
+    }),
+  ).rejects.toThrow()
+  vi.unstubAllGlobals()
+  return body
+}
+
 /**
- * 主步的输出上限（P2 §2.3，`ASSISTANT_V3_MAX_OUTPUT_TOKENS`）：官方端点按各家的数发；代理端点
- * 不发（上限各不相同）；Grok ⛔ 不发已弃用的 `max_tokens`，同一个数走 `max_completion_tokens`。
+ * 主步的输出上限（P2 §2.3，`ASSISTANT_V3_MAX_OUTPUT_TOKENS`）。协调者的决定 C：⛔ 拿创作者的主模型
+ * 冒 400 的险 —— 只在官方端点、官方上限登记过且 ≥ 那个数的型号上发；Claude 例外（必填）。
  */
 describe('输出上限', () => {
   const PROXY = 'https://llm-gateway.example.com/v1'
+  const { cap } = ASSISTANT_V3_MAX_OUTPUT_TOKENS
 
-  it('官方端点：五家各按自己的数（Grok 走 providerOptions）', () => {
-    const cap = (adapter: AI_ADAPTER_TYPES, modelId: string) =>
+  it('登记的每个官方上限都 ≥ 发的那个数；助手路由上的每个型号都登记过', () => {
+    for (const documented of Object.values(
+      ASSISTANT_V3_MAX_OUTPUT_TOKENS.documentedMax,
+    ))
+      expect(documented).toBeGreaterThanOrEqual(cap)
+    for (const { modelId } of NODE_STUDIO_ASSISTANT_ROUTE_MODELS)
+      expect(assistantV3VerifiedOutputCap(modelId), modelId).toBe(cap)
+  })
+
+  it('官方端点：登记过的型号发（Grok 走 providerOptions）', () => {
+    const sent = (adapter: AI_ADAPTER_TYPES, modelId: string) =>
       resolveAssistantV3Model(route(adapter), modelId)?.maxOutputTokens
-    expect(cap(AI_ADAPTER_TYPES.ANTHROPIC, 'claude-opus-5-5')).toBe(
-      ASSISTANT_V3_MAX_OUTPUT_TOKENS[AI_ADAPTER_TYPES.ANTHROPIC],
+    expect(sent(AI_ADAPTER_TYPES.ANTHROPIC, 'claude-opus-5-5')).toBe(
+      ASSISTANT_V3_MAX_OUTPUT_TOKENS.anthropic,
     )
-    expect(cap(AI_ADAPTER_TYPES.OPENAI, 'gpt-6.1-sol')).toBe(
-      ASSISTANT_V3_MAX_OUTPUT_TOKENS[AI_ADAPTER_TYPES.OPENAI],
-    )
-    expect(cap(AI_ADAPTER_TYPES.GEMINI, 'gemini-3.8-flash')).toBe(
-      ASSISTANT_V3_MAX_OUTPUT_TOKENS[AI_ADAPTER_TYPES.GEMINI],
-    )
-    expect(cap(AI_ADAPTER_TYPES.DEEPSEEK, 'deepseek-flash')).toBe(
-      ASSISTANT_V3_MAX_OUTPUT_TOKENS[AI_ADAPTER_TYPES.DEEPSEEK],
-    )
-    expect(cap(AI_ADAPTER_TYPES.XAI, 'grok-4.7')).toBeUndefined()
+    expect(sent(AI_ADAPTER_TYPES.OPENAI, 'gpt-6.1-sol')).toBe(cap)
+    expect(sent(AI_ADAPTER_TYPES.GEMINI, 'gemini-3.8-flash')).toBe(cap)
+    expect(sent(AI_ADAPTER_TYPES.DEEPSEEK, 'deepseek-flash')).toBe(cap)
+    expect(sent(AI_ADAPTER_TYPES.DEEPSEEK, 'deepseek-v4-pro')).toBe(cap)
+    expect(sent(AI_ADAPTER_TYPES.XAI, 'grok-4.7')).toBeUndefined()
     expect(
       resolveAssistantV3Model(
         route(AI_ADAPTER_TYPES.XAI, AI_PROVIDER_ENDPOINTS.XAI),
         'grok-4.7',
       )?.providerOptions('cache', 'low').openai?.maxCompletionTokens,
-    ).toBe(ASSISTANT_V3_MAX_OUTPUT_TOKENS[AI_ADAPTER_TYPES.XAI])
+    ).toBe(cap)
+  })
+
+  it('官方端点上没登记的型号：不发（Claude 例外）', () => {
+    const sent = (adapter: AI_ADAPTER_TYPES, modelId: string) =>
+      resolveAssistantV3Model(route(adapter), modelId)
+    expect(
+      sent(AI_ADAPTER_TYPES.OPENAI, 'gpt-7-preview')?.maxOutputTokens,
+    ).toBeUndefined()
+    expect(
+      sent(AI_ADAPTER_TYPES.GEMINI, 'gemini-4-flash')?.maxOutputTokens,
+    ).toBeUndefined()
+    expect(
+      sent(AI_ADAPTER_TYPES.DEEPSEEK, 'deepseek-v5')?.maxOutputTokens,
+    ).toBeUndefined()
+    expect(
+      sent(AI_ADAPTER_TYPES.XAI, 'grok-5')?.providerOptions('cache', 'low'),
+    ).toEqual({ openai: { reasoningEffort: 'low' } })
+    expect(
+      sent(AI_ADAPTER_TYPES.ANTHROPIC, 'claude-next')?.maxOutputTokens,
+    ).toBe(ASSISTANT_V3_MAX_OUTPUT_TOKENS.anthropic)
   })
 
   it('代理端点：不发（Claude 例外：max_tokens 必填）', () => {
-    const cap = (adapter: AI_ADAPTER_TYPES, modelId: string) =>
+    const sent = (adapter: AI_ADAPTER_TYPES, modelId: string) =>
       resolveAssistantV3Model(route(adapter, PROXY), modelId)
-    expect(cap(AI_ADAPTER_TYPES.OPENAI, 'gpt-6.1-sol')?.maxOutputTokens).toBe(
-      undefined,
-    )
     expect(
-      cap(AI_ADAPTER_TYPES.DEEPSEEK, 'deepseek-flash')?.maxOutputTokens,
+      sent(AI_ADAPTER_TYPES.OPENAI, 'gpt-6.1-sol')?.maxOutputTokens,
     ).toBeUndefined()
     expect(
-      cap(AI_ADAPTER_TYPES.XAI, 'grok-4.7')?.providerOptions('cache', 'low'),
+      sent(AI_ADAPTER_TYPES.DEEPSEEK, 'deepseek-flash')?.maxOutputTokens,
+    ).toBeUndefined()
+    expect(
+      sent(AI_ADAPTER_TYPES.XAI, 'grok-4.7')?.providerOptions('cache', 'low'),
     ).toEqual({ openai: { reasoningEffort: 'low' } })
     expect(
-      cap(AI_ADAPTER_TYPES.ANTHROPIC, 'claude-opus-5-5')?.maxOutputTokens,
-    ).toBe(ASSISTANT_V3_MAX_OUTPUT_TOKENS[AI_ADAPTER_TYPES.ANTHROPIC])
+      sent(AI_ADAPTER_TYPES.ANTHROPIC, 'claude-opus-5-5')?.maxOutputTokens,
+    ).toBe(ASSISTANT_V3_MAX_OUTPUT_TOKENS.anthropic)
+  })
+
+  it('owner 的主模型 DeepSeek V4.1 Flash：官方端点请求体里 max_tokens 64000（官方上限 384K），代理上一个上限字段都没有', async () => {
+    const official = await sentBody(AI_ADAPTER_TYPES.DEEPSEEK, 'deepseek-flash')
+    expect(official).toHaveProperty('model', 'deepseek-flash')
+    expect(official).toHaveProperty('max_tokens', cap)
+    expect(official).not.toHaveProperty('max_completion_tokens')
+    const proxied = await sentBody(
+      AI_ADAPTER_TYPES.DEEPSEEK,
+      'deepseek-flash',
+      PROXY,
+    )
+    expect(proxied).toHaveProperty('model', 'deepseek-flash')
+    expect(proxied).not.toHaveProperty('max_tokens')
+    expect(proxied).not.toHaveProperty('max_completion_tokens')
   })
 
   it('Grok 发出去的请求里 ⛔ 没有 max_tokens，只有 max_completion_tokens', async () => {
-    let body: Record<string, unknown> | null = null
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (_url: string, init?: RequestInit) => {
-        body = JSON.parse(String(init?.body)) as Record<string, unknown>
-        throw new Error('stop here')
-      }),
-    )
-    const model = resolveAssistantV3Model(
-      route(AI_ADAPTER_TYPES.XAI),
-      'grok-4.7',
-    )!
-    await expect(
-      generateText({
-        model: model.model,
-        prompt: 'hi',
-        maxRetries: 0,
-        ...(model.maxOutputTokens === undefined
-          ? {}
-          : { maxOutputTokens: model.maxOutputTokens }),
-        providerOptions: model.providerOptions('cache', 'low'),
-      }),
-    ).rejects.toThrow()
-    vi.unstubAllGlobals()
+    const body = await sentBody(AI_ADAPTER_TYPES.XAI, 'grok-4.7')
     expect(body).not.toHaveProperty('max_tokens')
-    expect(body).toHaveProperty(
-      'max_completion_tokens',
-      ASSISTANT_V3_MAX_OUTPUT_TOKENS[AI_ADAPTER_TYPES.XAI],
-    )
+    expect(body).toHaveProperty('max_completion_tokens', cap)
   })
 })

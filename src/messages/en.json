@@ -5904,11 +5904,11 @@
           "shot": "New shot",
           "edit": "Edit",
           "more": "More",
-          "connect": "Connect to shot"
+          "connect": "Connect to shot",
+          "upscale": "Upscale"
         },
         "edit": {
           "inpaint": "Inpaint",
-          "expand": "Expand",
           "cutout": "Remove background",
           "background": "Replace background"
         },

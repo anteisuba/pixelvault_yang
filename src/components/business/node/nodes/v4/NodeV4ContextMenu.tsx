@@ -32,6 +32,17 @@ import { FADE_ONLY, GROW_FROM_POINTER } from './chrome/chrome-motion'
 import { useNodeV4Canvas } from './NodeV4Context'
 import { triggerNodeV4Download } from './NodeV4SelectionToolbar'
 
+/** 调用方自带的一行（图片卡：与 ⋯ 同一份，`useImageMoreActions`）。 */
+export interface NodeV4ContextMenuItem {
+  readonly id: string
+  readonly label: string
+  readonly disabled?: boolean
+  readonly danger?: boolean
+  /** 该项之前起一组（渲染成一条分组线）。 */
+  readonly startsGroup?: boolean
+  run(): void
+}
+
 export interface NodeV4ContextMenuProps {
   readonly node: NodeV4
   /** 相对**卡片**的落点（右键事件的 offsetX/Y）。 */
@@ -43,6 +54,11 @@ export interface NodeV4ContextMenuProps {
    * 克隆还会复制出一张没绑角色的空卡）。
    */
   readonly layoutOnly?: boolean
+  /**
+   * 整份换掉内置列表。图片卡传它，让右键与 ⋯ 是**同一份**（owner 2026-10-15）；
+   * 其余卡不传，照旧用下面那份。
+   */
+  readonly items?: readonly NodeV4ContextMenuItem[]
   onClose(): void
 }
 
@@ -52,6 +68,7 @@ export function NodeV4ContextMenu({
   y,
   mediaUrl,
   layoutOnly = false,
+  items: customItems,
   onClose,
 }: NodeV4ContextMenuProps) {
   const t = useTranslations('StudioNode.v4')
@@ -87,15 +104,7 @@ export function NodeV4ContextMenu({
     }
   }, [onClose])
 
-  const items: {
-    id: string
-    label: string
-    disabled?: boolean
-    /** 该项之前起一组（渲染成一条分组线）。 */
-    startsGroup?: boolean
-    danger?: boolean
-    run(): void
-  }[] = [
+  const items: NodeV4ContextMenuItem[] = [
     {
       id: 'expand',
       label: t(
@@ -157,9 +166,11 @@ export function NodeV4ContextMenu({
         }),
     },
   ]
-  const shown = layoutOnly
-    ? items.filter((item) => item.id === 'tidy' || item.id === 'delete')
-    : items
+  const shown =
+    customItems ??
+    (layoutOnly
+      ? items.filter((item) => item.id === 'tidy' || item.id === 'delete')
+      : items)
 
   return (
     <motion.div

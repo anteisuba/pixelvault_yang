@@ -22,7 +22,7 @@
  * 例外只有两类，且都有先例（`NodeV4Context.onSetMedia` 那条注释）：
  *   ① **运行态**（`setNodeRunState`）—— 生成/编辑跑起来的进度信号。进 op 表等于
  *      给每一次进度跳变产生一条撤销记录，而它本身不是用户的意图。
- *   ② **画布编排类**（`placeDerivedImages` / `spawnReference` / `focusNode`…）——
+ *   ② **画布编排类**（`appendImageVersions` / `spawnReference` / `focusNode`…）——
  *      要么只动相机不动图，要么是「建节点＋连线＋落图」的复合编排，其原语只住在
  *      workbench 手里。
  */
@@ -168,13 +168,14 @@ export interface NodeCanvasActions {
   /** 见 `NodeCanvasRunState` —— 运行态不进 op 表。 */
   setNodeRunState(nodeId: string, runState: NodeCanvasRunState): void
   /**
-   * 落一批非破坏性图片编辑的产物为派生节点，返回新节点 id。
-   * 复合编排（建节点＋连线＋落图＋选中），原语只住在 workbench。
+   * 一批图片编辑的产物**回到来源卡的版本条**（owner 2026-10-15，spec §3 工具条）：
+   * 逐张追加、最后一张设为当前，返回追加了几版（来源卡不在了 = 0）。
+   * ⛔ 另落派生卡 —— 要独立卡走 ⋯「拆出当前版本」。
    */
-  placeDerivedImages(
-    sourceNodeId: string,
+  appendImageVersions(
+    nodeId: string,
     outputs: readonly CanvasDerivedImageOutput[],
-  ): string[]
+  ): number
   /** 从一份已解析的素材自动新建上游参考节点并接进目标。`null` = 被容量闸拒了。 */
   spawnReference(input: SpawnReferenceInput): string | null
   /** 画布上**已经有图可取**的节点。 */

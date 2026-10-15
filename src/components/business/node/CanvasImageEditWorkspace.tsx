@@ -24,7 +24,7 @@ import {
 
 /**
  * 画布侧的编辑宿主 —— 只负责三件事：**弹窗外壳**、把节点数据翻成源图、把结果
- * 落成派生节点。能力怎么跑、面板长什么样，全在共用躯干
+ * 追加成**这张卡的新版本**（owner 2026-10-15：⛔ 另落派生卡）。能力怎么跑、面板长什么样，全在共用躯干
  * `studio-shared/editor/ImageEditSurface` 里（工作台舞台共用同一份）。
  *
  * ⚠ 2026-08-19 拆分。拆之前这些逻辑和画布节点是长在一起的，工作台要用就只能
@@ -60,8 +60,7 @@ export function CanvasImageEditWorkspace({
 }: CanvasImageEditWorkspaceProps) {
   const t = useTranslations('StudioImageEdit')
   const tCommon = useTranslations('Common')
-  const { placeDerivedImages, focusNode, setNodeRunState } =
-    useNodeCanvasActions()
+  const { appendImageVersions, setNodeRunState } = useNodeCanvasActions()
   const [uncontrolledOpen, setUncontrolledOpen] = useState(true)
 
   const dialogOpen = open ?? uncontrolledOpen
@@ -82,16 +81,11 @@ export function CanvasImageEditWorkspace({
   )
 
   // ⚠ 躯干还会传一个 `summary`（这一步做了什么）—— 那是工作台编辑历史用的，
-  // 画布落派生节点用不上，这里故意不接。
+  // 画布的版本条用不上，这里故意不接。
   const placeOutputs = useCallback(
-    (outputs: CanvasDerivedImageOutput[]): boolean => {
-      const derivedNodeIds = placeDerivedImages(nodeId, outputs)
-      if (derivedNodeIds.length === 0) return false
-
-      focusNode(derivedNodeIds[0])
-      return true
-    },
-    [focusNode, nodeId, placeDerivedImages],
+    (outputs: CanvasDerivedImageOutput[]): boolean =>
+      appendImageVersions(nodeId, outputs) > 0,
+    [appendImageVersions, nodeId],
   )
 
   // C2: 进度要长在源对象上，不只在弹窗里。⚠ 三态各写各的 —— 失败必须写成

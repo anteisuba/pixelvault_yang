@@ -5904,11 +5904,11 @@
           "shot": "生镜头",
           "edit": "编辑",
           "more": "更多",
-          "connect": "连到镜头"
+          "connect": "连到镜头",
+          "upscale": "放大"
         },
         "edit": {
           "inpaint": "局部重绘",
-          "expand": "扩图",
           "cutout": "抠图 / 去背景",
           "background": "换背景"
         },

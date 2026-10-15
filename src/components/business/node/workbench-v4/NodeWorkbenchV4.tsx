@@ -1330,29 +1330,22 @@ function NodeWorkbenchV4Inner() {
               : NODE_STATUS_IDS.failed,
         )
       },
-      placeDerivedImages: (sourceNodeId, outputs) => {
-        // 编辑出的几张排成一行，落在来源右边第一个空位（§7 摆放 A「让位」）。
-        const positions = graph.placeBeside(
-          sourceNodeId,
-          outputs.map(() => ({
-            kind: NODE_MEDIA_KIND_IDS.image,
-            subtype: NODE_V4_IMAGE_SUBTYPE_IDS.result,
-          })),
-        )
-        const created: string[] = []
-        outputs.forEach((output, index) => {
-          const position = positions?.[index]
-          const id = graph.addNode(
-            NODE_MEDIA_KIND_IDS.image,
-            NODE_V4_IMAGE_SUBTYPE_IDS.result,
-            position ? { position } : {},
-          )
-          if (!id) return
-          graph.setMedia(id, { url: output.imageUrl })
-          created.push(id)
-        })
-        lastCreatedRef.current = created
-        return created
+      appendImageVersions: (nodeId, outputs) => {
+        // 编辑结果回本卡版本条：`setMedia` 是版本表唯一的写入点（带 url = 追加一版
+        // 并切过去），与生成回填同一条路，⛔ 不另写一份追加逻辑。
+        if (!graph.nodes.some((node) => node.id === nodeId)) return 0
+        for (const output of outputs) {
+          graph.setMedia(nodeId, {
+            url: output.imageUrl,
+            imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
+            ...(output.width ? { mediaWidth: output.width } : {}),
+            ...(output.height ? { mediaHeight: output.height } : {}),
+            ...(output.generationId
+              ? { generationId: output.generationId }
+              : {}),
+          })
+        }
+        return outputs.length
       },
       spawnReference: (input) => {
         // 参考图喂给目标卡：落在它**左边**第一个空位（连线从左往右走）。

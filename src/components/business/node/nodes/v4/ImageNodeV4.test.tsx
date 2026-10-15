@@ -637,7 +637,7 @@ describe('选中态：工具条 + 提示词栏', () => {
     const ids = Array.from(
       document.querySelectorAll('[data-toolbar-action]'),
     ).map((element) => element.getAttribute('data-toolbar-action'))
-    expect(ids).toEqual(['shot', 'edit', 'download', 'more'])
+    expect(ids).toEqual(['shot', 'upscale', 'edit', 'download', 'more'])
   })
 
   it('提示词栏预填上次的词', () => {
@@ -1080,10 +1080,9 @@ describe('画面弹层与模型 chip', () => {
 })
 
 describe('编辑子菜单', () => {
-  it('四项都映射到已经跑得通的能力 id', () => {
+  it('三项都映射到已经跑得通的能力 id（放大单独上工具条）', () => {
     expect(IMAGE_EDIT_MENU_TASKS.map((entry) => entry.task)).toEqual([
       'inpaint',
-      'upscale',
       'remove-background',
       'object-replace',
     ])
@@ -1191,6 +1190,35 @@ describe('生成中 / 版本 / 画中框', () => {
     expect(
       document.querySelector('[data-node-chrome="quick-look"]'),
     ).not.toBeNull()
+  })
+
+  it('右键菜单与 ⋯ 是同一份清单', () => {
+    renderImage(
+      harness([imageNode('i_1', { url: 'https://cdn.test/a.png' })], {
+        selectedNodeIds: ['i_1'],
+      }),
+      'i_1',
+      true,
+    )
+    fireEvent.pointerDown(
+      document.querySelector('[data-toolbar-action="more"]')!,
+      { button: 0 },
+    )
+    const moreIds = [
+      ...document.querySelectorAll<HTMLElement>('[data-image-more]'),
+    ].map((item) => item.dataset.imageMore)
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: 'Escape',
+    })
+    fireEvent.contextMenu(
+      document.querySelector('[data-node-kind="image"]') as HTMLElement,
+    )
+    const menu = document.querySelector('[data-node-context-menu="i_1"]')!
+    const contextIds = [...menu.querySelectorAll('[data-menu-action]')].map(
+      (item) => item.getAttribute('data-menu-action'),
+    )
+    expect(moreIds).toContain('download')
+    expect(contextIds).toEqual(moreIds)
   })
 
   it('空卡双击不打开画中框', () => {

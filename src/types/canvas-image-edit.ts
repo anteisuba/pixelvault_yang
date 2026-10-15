@@ -60,9 +60,9 @@ export const CanvasImageEditCapabilitySchema = z.object({
 })
 
 /**
- * A completed edit result ready to become a new loose image node. The source
- * image is intentionally not part of this contract: `placeDerivedImages`
- * resolves it from `sourceNodeId`, which keeps lineage and placement atomic.
+ * A completed edit result. On the canvas it lands as a new version of the
+ * source card (`appendImageVersions`); the source image is intentionally not
+ * part of this contract, the caller already knows which card it came from.
  */
 export const CanvasDerivedImageOutputSchema = z.object({
   imageUrl: z.string().trim().min(1).max(4000),

@@ -5904,11 +5904,11 @@
           "shot": "カット生成",
           "edit": "編集",
           "more": "その他",
-          "connect": "ショットに接続"
+          "connect": "ショットに接続",
+          "upscale": "アップスケール"
         },
         "edit": {
           "inpaint": "部分描き直し",
-          "expand": "拡張",
           "cutout": "背景除去",
           "background": "背景差し替え"
         },

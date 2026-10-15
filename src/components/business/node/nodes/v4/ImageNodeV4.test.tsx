@@ -95,13 +95,29 @@ vi.mock('@/contexts/api-keys-context', () => ({
 }))
 
 vi.mock('../../../studio-shared/setup/QuickSetupDialog', () => ({
-  QuickSetupDialog: (props: { onVerified?: () => void; modelId: string }) => (
-    <button
-      type="button"
-      data-testid="quick-setup"
-      data-model={props.modelId}
-      onClick={() => props.onVerified?.()}
-    />
+  QuickSetupDialog: (props: {
+    onVerified?: () => void
+    modelId: string
+    channelChoices?: readonly { id: string; label: string }[]
+    channelId?: string
+    onChannelChange?: (id: string) => void
+  }) => (
+    <div data-testid="quick-setup-root" data-channel={props.channelId}>
+      {props.channelChoices?.map((choice) => (
+        <button
+          key={choice.id}
+          type="button"
+          data-testid={`quick-setup-channel-${choice.id}`}
+          onClick={() => props.onChannelChange?.(choice.id)}
+        />
+      ))}
+      <button
+        type="button"
+        data-testid="quick-setup"
+        data-model={props.modelId}
+        onClick={() => props.onVerified?.()}
+      />
+    </div>
   ),
 }))
 
@@ -910,6 +926,114 @@ describe('画面弹层与模型 chip', () => {
     fireEvent.click(dialog)
     expect(generateNode).toHaveBeenCalledTimes(1)
     expect(screen.queryByTestId('quick-setup')).toBeNull()
+    apiKeys.current = null
+  })
+
+  /** Seedream 5.0 Pro 在 fal / 火山两家各一条。 */
+  const seedreamChannels = (volcKey: boolean) =>
+    [
+      {
+        optionId: 'opt_fal',
+        modelId: 'seedream-5.0-pro',
+        adapterType: 'fal',
+        providerConfig: {},
+        requestCount: 0,
+        sourceType: 'workspace',
+      },
+      {
+        optionId: 'opt_volc',
+        modelId: 'seedream-5.0-pro-volcengine',
+        adapterType: 'volcengine',
+        providerConfig: {},
+        requestCount: 0,
+        sourceType: 'workspace',
+        ...(volcKey ? { providerKeyId: 'pk_volc' } : {}),
+      },
+    ] as never
+
+  it('卡上那家没 key、同型号另一家配好了：发送键旁提示改走，点一下才切', () => {
+    generateNode.mockClear()
+    apiKeys.current = { hasLoaded: true }
+    const context = harness(
+      [
+        imageNode('i_1', {
+          prompt: '山间晨雾',
+          model: {
+            optionId: 'opt_fal',
+            modelId: 'seedream-5.0-pro',
+            adapterType: 'fal',
+          },
+        }),
+      ],
+      {
+        selectedNodeIds: ['i_1'],
+        modelOptionsByKind: { image: seedreamChannels(true) },
+      },
+    )
+    const { container } = renderImage(context, 'i_1', true)
+    const hint = container.querySelector(
+      '[data-image-send-readout="switch-channel"]',
+    )!
+    expect(hint).not.toBeNull()
+    // 没点之前卡上那家不动 —— ⛔ 偷偷换厂商。
+    expect(context.onSetModel).not.toHaveBeenCalled()
+    fireEvent.click(hint)
+    expect(context.onSetModel).toHaveBeenCalledWith(
+      'i_1',
+      expect.objectContaining({ optionId: 'opt_volc' }),
+    )
+    expect(generateNode).not.toHaveBeenCalled()
+    apiKeys.current = null
+  })
+
+  it('多厂商一家都没配：弹窗里挑配哪家，验证过这一枪走那一家', () => {
+    generateNode.mockClear()
+    apiKeys.current = { hasLoaded: true }
+    const context = harness(
+      [
+        imageNode('i_1', {
+          prompt: '山间晨雾',
+          model: {
+            optionId: 'opt_fal',
+            modelId: 'seedream-5.0-pro',
+            adapterType: 'fal',
+          },
+        }),
+      ],
+      {
+        selectedNodeIds: ['i_1'],
+        modelOptionsByKind: { image: seedreamChannels(false) },
+      },
+    )
+    const { container } = renderImage(context, 'i_1', true)
+    expect(
+      container.querySelector('[data-image-send-readout="missing-key"]'),
+    ).not.toBeNull()
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' })
+    expect(screen.getByTestId('quick-setup-channel-opt_fal')).toBeTruthy()
+    fireEvent.click(screen.getByTestId('quick-setup-channel-opt_volc'))
+    expect(screen.getByTestId('quick-setup')).toHaveAttribute(
+      'data-model',
+      'seedream-5.0-pro-volcengine',
+    )
+    fireEvent.click(screen.getByTestId('quick-setup'))
+    expect(context.onSetModel).toHaveBeenCalledWith(
+      'i_1',
+      expect.objectContaining({ optionId: 'opt_volc' }),
+    )
+    expect(generateNode).toHaveBeenCalledWith(
+      'i_1',
+      expect.objectContaining({
+        nodes: [
+          expect.objectContaining({
+            data: expect.objectContaining({
+              model: expect.objectContaining({ optionId: 'opt_volc' }),
+            }),
+          }),
+        ],
+      }),
+      expect.any(Object),
+    )
     apiKeys.current = null
   })
 

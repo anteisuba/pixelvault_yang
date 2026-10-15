@@ -221,3 +221,16 @@ export function imageRailCapacity(
       : undefined,
   )
 }
+
+/** 清单里的一条 → 卡上存的那份选择（`set_model` 的载荷）。 */
+export function toNodeModelSelection(
+  option: NodeWorkflowModelOption,
+): NodeWorkflowModelSelection {
+  return {
+    optionId: option.optionId,
+    modelId: option.modelId,
+    adapterType: option.adapterType,
+    providerConfig: option.providerConfig,
+    ...(option.apiKeyId ? { apiKeyId: option.apiKeyId } : {}),
+  }
+}

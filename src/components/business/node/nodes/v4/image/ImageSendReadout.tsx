@@ -6,6 +6,8 @@
  * - 有价：`≈$0.16`（单价 × 这一枪的张数），点开看算法。
  * - 型号缺 key：写「先配 key」，点了就地开 `QuickSetupDialog`（Hard Rule 8，
  *   ⛔ 跳 `/settings/keys`）。
+ * - 卡上那家缺 key、同型号另一家配好了：写「fal 没 key，改走 火山 ≈$0.05」，
+ *   点一下才切（owner 2026-10-15：⛔ 偷偷换厂商）。
  * - 钉不死一个价（区间价、缺价）：整行不画，⛔ 不写「$0」。
  *
  * 价是参考价（与画面弹层底部那一行同一份 `imageCostEstimate`），不是计费依据。
@@ -25,6 +27,13 @@ export interface ImageSendReadoutProps {
   /** 当前型号确定缺 key（名单已回来）。 */
   readonly missingKey: boolean
   onSetupKey(): void
+  /** 同型号能跑的另一家；`unit` 是那一家一张的价。 */
+  readonly switchTo?: {
+    readonly from: string
+    readonly to: string
+    readonly unit: number | null
+  }
+  onSwitch?(): void
   readonly disabled?: boolean
 }
 
@@ -36,9 +45,32 @@ export function ImageSendReadout({
   count,
   missingKey,
   onSetupKey,
+  switchTo,
+  onSwitch,
   disabled = false,
 }: ImageSendReadoutProps) {
   const t = useTranslations('StudioNode.v4.image.send')
+  if (missingKey && switchTo && onSwitch) {
+    const names = { from: switchTo.from, to: switchTo.to }
+    return (
+      <button
+        type="button"
+        data-image-send-readout="switch-channel"
+        disabled={disabled}
+        onClick={onSwitch}
+        aria-label={t('switchChannelLabel', names)}
+        title={t('switchChannelLabel', names)}
+        className={`${readoutClass} min-w-0 truncate text-status-warning`}
+      >
+        {switchTo.unit === null
+          ? t('switchChannel', names)
+          : t('switchChannelPrice', {
+              ...names,
+              price: formatUnitPriceAmount(switchTo.unit * count),
+            })}
+      </button>
+    )
+  }
   if (missingKey) {
     return (
       <button

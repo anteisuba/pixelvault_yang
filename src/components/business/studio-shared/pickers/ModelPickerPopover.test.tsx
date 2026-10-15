@@ -24,12 +24,26 @@ vi.mock('@/components/business/studio-shared/setup/QuickSetupDialog', () => ({
     modelId,
     adapterType,
     onVerified,
+    channelChoices,
+    onChannelChange,
   }: {
     modelId: string
     adapterType: string
     onVerified?: (modelId: string, keyId: string) => void
+    channelChoices?: readonly { id: string; label: string }[]
+    onChannelChange?: (id: string) => void
   }) => (
     <div data-testid="quick-setup" data-adapter={adapterType}>
+      {channelChoices?.map((choice) => (
+        <button
+          key={choice.id}
+          type="button"
+          data-quick-setup-choice={choice.id}
+          onClick={() => onChannelChange?.(choice.id)}
+        >
+          {choice.label}
+        </button>
+      ))}
       <button type="button" onClick={() => onVerified?.(modelId, 'k1')}>
         verify
       </button>
@@ -299,6 +313,33 @@ describe('ModelPickerPopover — 画布模型弹层', () => {
     fireEvent.click(locked)
     expect(onChange).not.toHaveBeenCalled()
     expect(quickSetup()).toHaveAttribute('data-adapter', 'openai')
+  })
+
+  it('多厂商一家都没配：点行先挑配哪家（默认最便宜），配好选中那一家', () => {
+    const falPro = option({
+      optionId: 'ws:fal-pro',
+      modelId: AI_MODELS.SEEDREAM_50_PRO,
+      adapterType: AI_ADAPTER_TYPES.FAL,
+    })
+    const volcPro = option({
+      optionId: 'ws:volc-pro',
+      modelId: AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE,
+      adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
+    })
+    const { onChange } = openCanvasPicker({ options: [falPro, volcPro] })
+    fireEvent.click(row('seedream-5.0-pro'))
+    const dialog = quickSetup() as HTMLElement
+    expect(dialog.querySelectorAll('[data-quick-setup-choice]').length).toBe(2)
+    // 单价表里 fal 那条（$0.0675）比火山（2K 档 $0.085）便宜 —— 默认那一家。
+    expect(dialog).toHaveAttribute('data-adapter', 'fal')
+    fireEvent.click(
+      dialog.querySelector('[data-quick-setup-choice="ws:volc-pro"]')!,
+    )
+    expect(quickSetup()).toHaveAttribute('data-adapter', 'volcengine')
+    fireEvent.click(within(quickSetup()!).getByText('verify'))
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ optionId: 'ws:volc-pro' }),
+    )
   })
 
   it('有厂商前缀的 GPT Image 组也只写型号；无固定单价如实写按用量计费', () => {

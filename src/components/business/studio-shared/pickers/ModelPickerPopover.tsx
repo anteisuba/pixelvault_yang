@@ -58,6 +58,10 @@ import {
   subscribeModelPickerOpen,
 } from '@/lib/model-picker-gate'
 import { toModelChannelCandidate } from '@/lib/pick-default-model-option'
+import {
+  pickCheapestChannel,
+  pickPreferredRunnableChannel,
+} from '@/lib/model-channel-fallback'
 import { resolveModelChannel } from '@/lib/resolve-model-channel'
 import { isTouchPrimary } from '@/lib/touch'
 import { cn } from '@/lib/utils'
@@ -146,26 +150,10 @@ function preferredCanvasChannel(
   channels: readonly ChannelView[],
 ): ChannelView | null {
   if (channels.length === 0) return null
-  const runnable = channels.filter((view) => view.hasKey)
-  if (runnable.length === 0) return channels[0] ?? null
-  const ownKey = runnable.filter(
-    (view) =>
-      view.channel.option.sourceType === 'saved' ||
-      Boolean(view.channel.option.providerKeyId),
+  const picked = pickPreferredRunnableChannel(
+    channels.map((view) => ({ option: view.channel.option, view })),
   )
-  const pool = ownKey.length > 0 ? ownKey : runnable
-  return pool.reduce((best, view) => {
-    const candidatePrice = getModelUnitPriceByStringId(
-      view.channel.option.modelId,
-    )
-    const bestPrice = getModelUnitPriceByStringId(best.channel.option.modelId)
-    if (!candidatePrice) return best
-    if (!bestPrice) return view
-    return candidatePrice.unit === bestPrice.unit &&
-      candidatePrice.amount < bestPrice.amount
-      ? view
-      : best
-  })
+  return picked?.view ?? channels[0] ?? null
 }
 
 export interface ModelPickerPopoverProps {
@@ -382,6 +370,12 @@ export function ModelPickerPopover({
     labelDefault: string
     /** 从渠道面板点进来的：配好后记住这条渠道。 */
     channelId?: string
+    /**
+     * 多厂商型号一家都没配、从行上点进来：弹窗顶上让他挑配哪家（owner 2026-10-15），
+     * 换一家时整份换成那条渠道。
+     */
+    choices?: readonly ChannelView[]
+    rowLabel?: string
   } | null>(null)
 
   const { healthMap, hasLoaded: keysLoaded } = useApiKeysContext()
@@ -794,23 +788,53 @@ export function ModelPickerPopover({
     setFocusPanelPending(true)
   }
 
+  /** 标题写渠道（这一步配的是这条渠道的 key），命名框预填「型号 · 渠道」。 */
+  const channelKeySetup = (
+    modelKey: string,
+    rowLabel: string,
+    view: ChannelView,
+  ) => ({
+    option: view.channel.option,
+    modelKey,
+    title: view.channel.label,
+    labelDefault: `${rowLabel} · ${view.channel.label}`,
+    channelId: view.channel.channelId,
+    rowLabel,
+  })
+
   const handleSelectChannel = (row: ModelRow, view: ChannelView) => {
     if (view.missingKey) {
       setOpen(false)
       setActiveRowId(null)
-      // 标题写渠道（这一步配的是这条渠道的 key），命名框预填「型号 · 渠道」。
-      setKeySetup({
-        option: view.channel.option,
-        modelKey: row.modelKey,
-        title: view.channel.label,
-        labelDefault: `${row.label} · ${view.channel.label}`,
-        channelId: view.channel.channelId,
-      })
+      setKeySetup(channelKeySetup(row.modelKey, row.label, view))
       return
     }
     // 点过就是记住 —— 下次这个型号默认走这条（跨会话，按型号存）。
     memory.rememberChannel(row.modelKey, view.channel.channelId)
     commit(view.channel.option, row.modelKey)
+  }
+
+  /**
+   * 从行上点「未配 key」：多厂商且**一家都没配**时先让他挑配哪家，默认单价最低
+   * 的那家（owner 2026-10-15）；其余情况配的就是行上那一条。
+   */
+  const handleSetupRowKey = (row: ModelRow, view: ChannelView) => {
+    const choices =
+      row.channels.length > 1 && row.channels.every((item) => !item.hasKey)
+        ? row.channels
+        : null
+    // 单价最低的那家（查不到价的排后面）。
+    const start = choices
+      ? (pickCheapestChannel(
+          choices.map((item) => ({ option: item.channel.option, view: item })),
+        )?.view ?? view)
+      : view
+    setOpen(false)
+    setActiveRowId(null)
+    setKeySetup({
+      ...channelKeySetup(row.modelKey, row.label, start),
+      ...(choices ? { choices } : {}),
+    })
   }
 
   /** 渠道面板的一行：状态点 · 渠道名 · 单价。⛔ 没有对勾，选中只用底色。 */
@@ -984,7 +1008,7 @@ export function ModelPickerPopover({
             onFocus={() => focusRow(rowId)}
             onClick={() => {
               if (row.active?.missingKey) {
-                handleSelectChannel(row, row.active)
+                handleSetupRowKey(row, row.active)
                 return
               }
               handleSelectRow(row, rowId)
@@ -1311,6 +1335,30 @@ export function ModelPickerPopover({
       // 选中走宿主自己的 onChange / onToggleOption（同系列多选、画布都对），
       // ⛔ 让弹窗直接改工作台的主模型。
       selectStudioModel={false}
+      {...(keySetup.choices
+        ? {
+            channelChoices: keySetup.choices.map((view) => ({
+              id: view.channel.channelId,
+              label: view.channel.label,
+              price: view.price,
+            })),
+            channelId: keySetup.channelId,
+            onChannelChange: (channelId: string) => {
+              const view = keySetup.choices?.find(
+                (item) => item.channel.channelId === channelId,
+              )
+              if (!view) return
+              setKeySetup({
+                ...channelKeySetup(
+                  keySetup.modelKey,
+                  keySetup.rowLabel ?? keySetup.title,
+                  view,
+                ),
+                choices: keySetup.choices,
+              })
+            },
+          }
+        : {})}
       onVerified={() => {
         if (keySetup.channelId)
           memory.rememberChannel(keySetup.modelKey, keySetup.channelId)

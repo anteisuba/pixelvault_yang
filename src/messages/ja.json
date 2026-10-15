@@ -5984,7 +5984,10 @@
           "estimateDetail": "{unit} / 枚 × {count} 枚 ≈ {amount}",
           "estimateNote": "このチャネルの単価からの参考価格で、請求額ではありません。",
           "needsKey": "キーを設定",
-          "needsKeyLabel": "このモデルはまだキーがありません。クリックしてその場で設定"
+          "needsKeyLabel": "このモデルはまだキーがありません。クリックしてその場で設定",
+          "switchChannel": "{from} はキー未設定 · {to} に切り替え",
+          "switchChannelPrice": "{from} はキー未設定 · {to} に切り替え {price}",
+          "switchChannelLabel": "このカードの {from} はキー未設定ですが、同じモデルの {to} は設定済みです。クリックで {to} に切り替え"
         },
         "template": {
           "group": "テンプレート",
@@ -7376,6 +7379,7 @@
     }
   },
   "QuickSetup": {
+    "channelPick": "どのプロバイダーのキーを設定しますか？",
     "ideogramGuide": "Ideogram にログイン → API Keys → Create key でキーを作成。",
     "title": "{model} を設定",
     "description": "2分でAPIキーを取得して、このモデルを使えるようにします。",

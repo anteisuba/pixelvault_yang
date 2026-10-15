@@ -5984,7 +5984,10 @@
           "estimateDetail": "{unit} / image × {count} ≈ {amount}",
           "estimateNote": "Reference price from this channel's unit price, not what you are billed.",
           "needsKey": "Add key",
-          "needsKeyLabel": "This model has no API key yet. Click to add one here"
+          "needsKeyLabel": "This model has no API key yet. Click to add one here",
+          "switchChannel": "No {from} key · use {to}",
+          "switchChannelPrice": "No {from} key · use {to} {price}",
+          "switchChannelLabel": "This card uses {from}, which has no key, but {to} is set up for the same model. Click to switch to {to}"
         },
         "template": {
           "group": "Templates",
@@ -7376,6 +7379,7 @@
     }
   },
   "QuickSetup": {
+    "channelPick": "Pick a provider: whose key are you adding?",
     "ideogramGuide": "Sign in to Ideogram → API Keys → Create key.",
     "title": "Set up {model}",
     "description": "Get your API key in 2 minutes to unlock this model.",

@@ -421,19 +421,29 @@ export interface StudioOperatorQuestionPrompt {
   /** 「为什么问这一句」—— 一行小字，缺席就不画。 */
   why?: string
   overwrite?: NonNullable<AssistantOperatorAskEvent['overwrite']>
+  /**
+   * **当前这道题已经勾上的选项**（2026-10-14 反问卡多选）。
+   *
+   * ⭐ 住在 store 不住在卡里：收放法则（拍板 7）随时把面板卸载，勾了三项一收一放
+   * 就归零是假承诺。输入框作答时也从这里取（「选 A + 补一句」并存）。
+   * ⚠ 只属于**当前题**：答完一题清空；「← 上一题」把那一题的答案放回这里。
+   * ⚠ 不落库：刷新后从第一道重来（见 `StudioOperatorPendingSchema` 头注）。
+   */
+  checked?: readonly string[]
 }
 
 /**
- * 问题块里**已经答完的一道**（56b 切片 4）。
+ * 问题块里**已经答完的一道**（56b 切片 4；2026-10-14 标签改数组）。
  *
- * ⚠ `label` 是小标签上写的那句（「6 镜」/「6 镜 · 前 3 镜慢一点」），
- * `answer` 是要原样上服务端的那一份 —— 两者分开是因为前者是给人读的、后者是
- * 契约，⛔ 别让渲染去从契约里拼一句话。
+ * ⚠ `labels` 是被选中那几项的文案（多选 = 多个；单选 = 一个；只打字 / 跳过 = 空），
+ * 补的那一句在 `answer.otherText`。小标签与系统行按语言把两者拼成一句
+ * （`Intl.ListFormat`）—— ⛔ 不在这里存一句拼好的中文。
+ * `answer` 是要原样上服务端的那一份：前者给人读、后者是契约。
  */
 export interface StudioOperatorQuestionAnswered {
   /** 题头那几个字 —— 小标签左边那半截。 */
   header: string
-  label: string
+  labels: readonly string[]
   answer: AssistantOperatorPlanAnswer
 }
 

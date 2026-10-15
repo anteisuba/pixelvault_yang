@@ -1004,6 +1004,15 @@ export function setOperatorQuestion(
   emit({ ...state, question })
 }
 
+/**
+ * 问题块上**勾选 / 取消勾选**（2026-10-14 反问卡多选）—— 只动当前题的 `checked`。
+ * ⚠ 没有问题卡时什么都不做：卡刚被答掉的那一帧里迟到的一下不该复活它。
+ */
+export function setOperatorQuestionChecked(checked: readonly string[]): void {
+  if (!state.question) return
+  emit({ ...state, question: { ...state.question, checked } })
+}
+
 /** 确认卡到货（§3.3）。 */
 export function setOperatorConfirm(
   confirm: StudioOperatorConfirmPrompt | null,

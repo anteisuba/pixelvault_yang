@@ -63,6 +63,14 @@ export const ASSISTANT_V3_TOOLS = [
 
 export type AssistantV3Tool = (typeof ASSISTANT_V3_TOOLS)[number]
 
+/**
+ * `ask` 的工具描述 —— 五张脸**同一句**（2026-10-14 反问卡多选）。
+ * ⚠ 从前四份工具表各抄一句，且一字没提多选：OpenAI 严格模式下 `multiSelect` 必填，
+ *   模型只能猜，于是永远填 `false`。何时多选的细则在系统提示的 ASKING 段。
+ */
+export const ASSISTANT_V3_ASK_TOOL_DESCRIPTION =
+  'Ask the creator when you cannot go on without their choice. Every option needs a one-line description of what it means. Set multiSelect when several options can apply together; give image a picture handle when the choice is between pictures.'
+
 import { NODE_V4_SUBTYPES_BY_KIND } from '@/constants/node-types'
 
 /**
@@ -270,7 +278,7 @@ export const ASSISTANT_V3_LIMITS = {
   maxTextChars: 20_000,
   maxQuestionChars: 400,
   maxQuestions: 4,
-  maxOptions: 4,
+  maxOptions: 6,
   /** 同一个工具连着被拒几次就收尾（与旧内核同一条：撞墙不再撞第三次）。 */
   maxSameRejections: 2,
   /** 卡片全文在工具结果里最多展开几字，再长让模型用 read。 */

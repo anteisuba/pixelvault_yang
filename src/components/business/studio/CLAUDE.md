@@ -56,7 +56,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
         │       ├── StudioOperatorHistoryItem (会话历史条目)
         │       ├── StudioOperatorMessageBody (助手正文那一格：无气泡 / 长回话折首句 / `detail` 折成「为什么」 / 空正文时的占位脉冲 / **句尾 `[n]` 角标**（56b 切片 1）· **末尾光标 + `motion-reduce` 扣住整段**（切片 3）)
         │       ├── StudioOperatorAnswerSources (回答底下那两样：媒体条（图片开灯箱 · 视频封面开新窗口）+ 一排来源卡（站点图标 + 标题 + 域名，角标点下来高亮）+ 「深入调查 / 钉住 / 回执」一行)
-        │       ├── StudioOperatorQuestionBlock (问题块：**与输入框同框**、一组 ≤4 题一次一题、题头 + 「1 / 3」进度 + 竖排选项 + 就地展开的「其他」；键盘 1–4 / ↑↓+Enter / Esc；⛔ 没有「确定」。答完的回执（「问题 · 答案」）**不再画进时间线**，只以 `questionAnswered` 系统条目留在数据里、`userText` 进对话。56b 切片 4)
+        │       ├── StudioOperatorQuestionBlock (问题块：**与输入框同框**、一组 ≤4 题一次一题、每题 2–6 项、「1 / 3」进度 + 竖排选项（可带缩略图）+ 「其他…」（只把焦点交给输入框）+ 「跳过 · 全部用推荐」；**单选点即进下一题、⛔ 没有「确定」；多选勾选 + 「确定（N）」是唯一例外**（owner 2026-10-14）；勾选住 store（`question.checked`）；键盘 ↑↓ / 1–9 / 空格 / Enter / Esc 跳过；radiogroup / checkbox。面板只交 id，文案与缩略图由 hook 从卡上取。答完的回执（「问题 · 答案」）**不再画进时间线**，只以 `questionAnswered` 系统条目留在数据里、`userText`（i18n）进对话。v2 §3.4)
         │       ├── StudioOperatorConfirmCard (确认卡：多步 / 生成两支，就地换「已确认 · 时间」)
         │       └── StudioOperatorLightbox (全屏单例，模块级 store，三处共用)
         ├── StudioDockPanelArea (studio/ — 工具面板宿主，见下方规则 3)

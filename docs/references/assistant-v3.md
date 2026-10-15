@@ -38,7 +38,7 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 | generate       | 生成确认卡：几张合成一张队列条（方向 C）；镜头卡先过出片前核对                   | `canvas_generate`                        |
 | search_web     | 联网查                                                                           | `research`                               |
 | search_library | 素材库                                                                           | `search_assets`                          |
-| ask            | 反问（≤4 题）                                                                    | 问题卡                                   |
+| ask            | 反问（≤4 题、每题 2–6 项；`multiSelect` 多选；选项 `image` 句柄换缩略图；`why`） | 问题卡                                   |
 
 ### 一张脸一个适配（S6）
 

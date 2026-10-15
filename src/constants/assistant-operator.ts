@@ -1454,13 +1454,14 @@ export type AssistantOperatorConfirmKind =
  *    第一项自己没了。
  *
  * ⚠ 上限 4 题是**设计**不是护栏：一次问五件事就不是反问，是问卷。
- * ⚠ 每题 2–4 项同理：一个选项的「单选」不是问题，是通知（`message` 那条路）；
- *   五个以上说明问题问错了，该先缩小范围。
+ * ⚠ 每题 2–6 项：一个选项的「单选」不是问题，是通知（`message` 那条路）。
+ *   上限从 4 提到 6（2026-10-14 反问卡多选）：「这几个角色里哪些出场」这类多选题
+ *   常超过 4；单选题照旧该先缩小范围。数字直选键也跟着到 6（`1`–`9` 都认）。
  */
 export const ASSISTANT_PLAN_CARD_LIMITS = {
   maxQuestions: 4,
   minOptions: 2,
-  maxOptions: 4,
+  maxOptions: 6,
   /** chip 上那几个字（≤12 字）。⛔ 别拿它装问句。 */
   maxHeaderChars: 12,
   /** 问句本身。 */

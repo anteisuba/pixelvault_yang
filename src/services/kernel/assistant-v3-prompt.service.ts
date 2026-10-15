@@ -3,6 +3,7 @@ import 'server-only'
 import { ASSISTANT_DOMAIN_BRIEFS } from '@/constants/assistant-protocol'
 import {
   ASSISTANT_V3_FACE_IDS,
+  ASSISTANT_V3_LIMITS,
   type AssistantV3Face,
 } from '@/constants/assistant-v3'
 import { buildLoraDialectSection } from '@/lib/lora-dialect-section'
@@ -41,6 +42,18 @@ const HOW_YOU_WORK = `HOW YOU WORK
 - You cannot generate anything. generate puts a confirm card in front of the creator; they press it.
 - When the creator's turn carries the line AUTO-GENERATE ON, the app presses that card for them. Then, once this request has changed what a card or the bench will produce (its prompt, model, parameters or references) or asked to fix or redo a result, finish the turn by calling generate yourself for exactly what this request changed — they do not have to ask. Never for anything this request did not touch, never on a plain question, and keep within the picture limit that line gives.
 - A question about the board is answered from the board. Do not call tools you do not need.`
+
+/**
+ * 反问卡怎么问（2026-10-14 反问卡多选）—— 五张脸**同一段**。
+ * ⚠ 从前五张脸的 ask 行一字没提多选，模型于是永远填 `multiSelect: false`；
+ *   「跳过」那一句是客户端落的 user 消息（i18n 文案），这里只教模型怎么接。
+ */
+const ASKING = `ASKING
+- ask shows a question card: up to ${ASSISTANT_V3_LIMITS.maxQuestions} questions, 2 to ${ASSISTANT_V3_LIMITS.maxOptions} options each. Mark the option you would pick as recommended. Every option says in one line what it means.
+- multiSelect: true when several options can apply together (which characters appear, which elements to keep, which shots to redo); false when they exclude each other. Never split one multi-choice into several single-choice questions.
+- allowOther: false only for a closed set; otherwise the creator can type their own answer.
+- image: when the choice is between pictures, give each option the handle of its picture so the card shows it; otherwise null. why: one short line on why you are asking, or null.
+- The answer comes back as the creator's next message. A skipped question is yours to decide: pick, and name the choice in half a sentence.`
 
 const THE_BOARD = `THE BOARD
 - The first message of each turn carries the board as it was when the creator spoke. Cards have handles like img-6db120 (kind + short id). Use handles in tool calls; in your reply call a card by its 「name」 — never by handle.
@@ -222,6 +235,8 @@ export function buildAssistantV3SystemPrompt(input: {
 Reply in ${language}.${buildCharacterSection(persona)}
 
 ${HOW_YOU_WORK}
+
+${ASKING}
 
 ${faceSections}${buildPersonaStyleSection(persona)}${buildCreatorSection(
     persona,

@@ -22,6 +22,7 @@ import {
   ASSISTANT_RESEARCH_LIMITS,
 } from '@/constants/assistant-operator'
 import {
+  ASSISTANT_V3_ASK_TOOL_DESCRIPTION,
   ASSISTANT_V3_CALL_TIMEOUT,
   ASSISTANT_V3_EDIT_OP_IDS,
   ASSISTANT_V3_FACE_IDS,
@@ -150,6 +151,7 @@ import {
   type V3Outcome,
 } from '@/services/kernel/assistant-v3-steps.service'
 import { buildAssistantV3SystemPrompt } from '@/services/kernel/assistant-v3-prompt.service'
+import { referenceIndexOf } from '@/services/kernel/assistant-v3-bench.service'
 
 /**
  * 助手新内核（v3 S1）：AI SDK 原生工具调用 + 只追加的消息。
@@ -221,8 +223,7 @@ const tools = (strict: boolean) => ({
     strict,
   }),
   [ASSISTANT_V3_TOOL_IDS.ask]: tool({
-    description:
-      'Ask the creator when you cannot go on without their choice. Every option needs a one-line description of what it means.',
+    description: ASSISTANT_V3_ASK_TOOL_DESCRIPTION,
     inputSchema: AssistantV3AskInputSchema,
     strict,
   }),
@@ -1539,6 +1540,40 @@ function namedByCreator(
   })
 }
 
+/**
+ * 反问选项的缩略图（2026-10-14 恢复缩略图题）—— 模型给句柄，这里换成**这一轮手上
+ * 已有的那张图**：附图（名字 / id）· 角色页 card-N · 工作台 ref-N · 画布卡句柄。
+ * ⛔ 不收模型写的地址：对不上任何一张已知的图就不画缩略图（外链追踪 / SSRF）。
+ */
+function askImageUrl(
+  context: V3Context,
+  handle: string | null,
+): string | undefined {
+  const key = handle?.trim()
+  if (!key) return undefined
+  const attached = (context.request.mentionedAssets ?? []).find(
+    (asset) => asset.label === key || asset.id === key,
+  )
+  if (attached) return attached.url
+  const lowered = key.toLowerCase()
+  const cardImage = /^card-(\d+)$/.exec(lowered)
+  if (cardImage && context.face === ASSISTANT_V3_FACE_IDS.cards)
+    return openCharacterImages(context.request.snapshot.cards?.open)[
+      Number(cardImage[1]) - 1
+    ]
+  const reference = referenceIndexOf(context, lowered)
+  if (reference !== null)
+    return context.request.snapshot.references?.items[reference]?.url
+  const id = context.handles.idOf(key)
+  const node = id
+    ? context.nodes.find((candidate) => candidate.id === id)
+    : undefined
+  return node?.referenceImageIndex !== undefined
+    ? (context.prepared.run.state.referenceUrls[node.referenceImageIndex] ??
+        undefined)
+    : undefined
+}
+
 async function* executeCall(
   context: V3Context,
   name: Exclude<AssistantV3Tool, MutatingTool>,
@@ -1685,11 +1720,15 @@ async function* executeCall(
               allowOther: question.allowOther,
               options: question.options
                 .slice(0, ASSISTANT_V3_LIMITS.maxOptions)
-                .map((option) => ({
-                  label: option.label,
-                  description: option.description,
-                  recommended: option.recommended,
-                })),
+                .map((option) => {
+                  const assetUrl = askImageUrl(context, option.image)
+                  return {
+                    label: option.label,
+                    description: option.description,
+                    recommended: option.recommended,
+                    ...(assetUrl ? { assetUrl } : {}),
+                  }
+                }),
             })),
         },
         context.clerkId,
@@ -1702,7 +1741,14 @@ async function* executeCall(
           error: true,
           failureKey: 'ask:invalid',
         }
-      yield { type: ASSISTANT_OPERATOR_EVENTS.ask, questions }
+      const why = parsed.why
+        ?.trim()
+        .slice(0, ASSISTANT_V3_LIMITS.maxQuestionChars)
+      yield {
+        type: ASSISTANT_OPERATOR_EVENTS.ask,
+        questions,
+        ...(why ? { why } : {}),
+      }
       return {
         kind: 'stop',
         todo: questions.map((question) => question.question).join('；'),

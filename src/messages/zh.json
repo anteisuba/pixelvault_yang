@@ -8487,7 +8487,19 @@
       "proposed": "助手建议的提示词",
       "sourceNotes": "可参考的材料",
       "negativeDiff": "负面提示词要补的词：",
-      "edit": "改"
+      "edit": "改",
+      "other": "其他…",
+      "otherHint": "在下面的输入框里写你的答案",
+      "multiHint": "可多选",
+      "confirm": "确定（{count}）",
+      "skip": "跳过",
+      "useRecommended": "全部用推荐",
+      "skipped": "已跳过",
+      "quote": "「{label}」",
+      "answerText": "已选择{labels}（针对问题「{question}」）",
+      "answerOther": "回答「{other}」（针对问题「{question}」）",
+      "answerBoth": "已选择{labels}，并补充「{other}」（针对问题「{question}」）",
+      "skippedText": "跳过了问题「{question}」，由你决定"
     },
     "videoFrameCaptureReason": {
       "unsupported-environment": "这个环境读不了视频",

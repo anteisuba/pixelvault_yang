@@ -8487,7 +8487,19 @@
       "proposed": "提案されたプロンプト",
       "sourceNotes": "参照できる資料",
       "negativeDiff": "ネガティブに足す語：",
-      "edit": "変更"
+      "edit": "変更",
+      "other": "その他…",
+      "otherHint": "下の入力欄に自分の答えを書いてください",
+      "multiHint": "複数選択可",
+      "confirm": "確定（{count}）",
+      "skip": "スキップ",
+      "useRecommended": "すべておすすめで",
+      "skipped": "スキップ済み",
+      "quote": "「{label}」",
+      "answerText": "{labels}を選択（質問「{question}」への回答）",
+      "answerOther": "「{other}」と回答（質問「{question}」への回答）",
+      "answerBoth": "{labels}を選択し、「{other}」と補足（質問「{question}」への回答）",
+      "skippedText": "質問「{question}」はスキップ（判断はお任せ）"
     },
     "videoFrameCaptureReason": {
       "unsupported-environment": "この環境では動画を読めません",

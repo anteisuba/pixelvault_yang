@@ -979,7 +979,7 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     },
   )
 
-  it('③ 问题卡的缩略图那一支：点一张走 `answerQuestion` 并带上素材', () => {
+  it('③ 问题卡的缩略图那一支：画出缩略图，点一张走 `answerQuestion`（素材由 hook 从卡上取）', () => {
     store.setOperatorQuestion({
       id: 'ask-2',
       questions: [
@@ -1012,11 +1012,49 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     const grid = screen.getAllByTestId('operator-question-option')
     expect(grid).toHaveLength(2)
     fireEvent.click(grid[1] as HTMLElement)
+    expect(grid[1]?.querySelector('img')?.getAttribute('src')).toContain(
+      'b.png',
+    )
     expect(answerQuestion).toHaveBeenCalledTimes(1)
-    expect(answerQuestion.mock.calls[0]?.[1]).toMatchObject({
-      label: '结果②',
-      asset: { id: 'gen-2', url: 'https://cdn.test/b.png' },
+    // ⭐ 面板只交 id（2026-10-14）：缩略图 → @chip 由 hook 从选项上取。
+    expect(answerQuestion.mock.calls[0]?.[0]).toEqual({
+      questionId: 'q2',
+      optionIds: ['gen-2'],
     })
+  })
+
+  it('⭐ 问题块开着时打字作答：已勾的选项一起带上（「选 A + 补一句」并存）', () => {
+    store.setOperatorQuestion({
+      id: 'ask-multi',
+      questions: [
+        {
+          id: 'who',
+          header: '出场',
+          question: '这一镜谁出场？',
+          multiSelect: true,
+          allowOther: true,
+          options: [
+            { id: 'harry', label: '哈利', description: '主角' },
+            { id: 'ron', label: '罗恩', description: '朋友' },
+          ],
+        },
+      ],
+      answers: [],
+    })
+    renderPanel()
+    fireEvent.click(screen.getAllByRole('checkbox')[1]!)
+    expect(store.getOperatorState().question?.checked).toEqual(['ron'])
+    const editor = screen.getByRole('textbox', {
+      name: '描述画面，或把参考图挂进来…',
+    })
+    editor.textContent = '罗恩站在后面'
+    fireEvent.input(editor)
+    fireEvent.keyDown(editor, { key: 'Enter' })
+    expect(send).not.toHaveBeenCalled()
+    expect(answerQuestion).toHaveBeenCalledWith(
+      { questionId: 'who', optionIds: ['ron'], otherText: '罗恩站在后面' },
+      { attachments: [] },
+    )
   })
 
   it('④ 规则薄卡长在时间线里；「查看规则」开设置弹层的规则页', () => {
@@ -1502,7 +1540,11 @@ it.each(['append', 'overwrite', 'keep'] as const)(
         .find((node) => node.dataset.optionId === choice)!,
     )
     expect(answerQuestion).toHaveBeenCalledTimes(1)
-    expect(answerQuestion.mock.calls[0]?.[1]).toMatchObject({ choice })
+    // ⭐ 选项 id 就是 choice：hook 认出它走 `confirmations`（见 hook 测试）。
+    expect(answerQuestion.mock.calls[0]?.[0]).toEqual({
+      questionId: 'overwrite-prompt',
+      optionIds: [choice],
+    })
   },
 )
 

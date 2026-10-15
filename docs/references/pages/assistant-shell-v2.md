@@ -325,7 +325,7 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 - **钉住改为钉来源卡**：底下认的仍旧是证据编号（`pinnedEvidence`，§7.3），⛔ 不是「收藏一张卡」。
 - **⛔ 不为角标另写一个 markdown 渲染器**：`[3]` 在 markdown 里本来就是普通文字，所以做法是在**渲染出来的 React 子树上**递归替换（`withCitations`，`p` / `li` 两个覆盖叠在 `INITIAL_COMPONENTS` 之上）。只映射段落的直接子节点会漏掉紧跟在加粗后面的那一个。
 - **还在流的时候不摆资料**：否则来源卡会在正文长高的过程中一直往下跳。
-- **⛔ 分析卡退场**（56b 切片 5，`StudioOperatorReferenceAnalysisCard` 整文件删）：挂进来的图直接进当前多模态模型，回答就是一段普通正文 —— 说这是什么画风、凭什么这么判、提示词里该怎么写，末尾顺手问要不要落到工作台。那张卡把同一件事拆成「一段分工简报 + 一折『参考依据 · N 张图』」，而用户问的是「这是什么画风」。⚠ **`analyze_references` 这条工具本身没有删**：它仍旧是 `set_prompt` 的取材与分工来源，而且历史里那一份 `referenceAnalysis` 还在喂 `readOperatorReferenceProfiles`（「没换过的图复用已核实的视觉事实」那条省钱路）。删掉的是它在界面上的那张卡。
+- **⛔ 分析卡退场**（56b 切片 5，`StudioOperatorReferenceAnalysisCard` 整文件删）：挂进来的图直接进当前多模态模型，回答就是一段普通正文 —— 说这是什么画风、凭什么这么判、提示词里该怎么写，末尾顺手问要不要落到工作台。那张卡把同一件事拆成「一段分工简报 + 一折『参考依据 · N 张图』」，而用户问的是「这是什么画风」。⚠ **`analyze_references` 这条工具本身没有删**：在 v2 内核里它仍旧是 `set_prompt` 的取材与分工来源，而且历史里那一份 `referenceAnalysis` 还在喂 `readOperatorReferenceProfiles`（「没换过的图复用已核实的视觉事实」那条省钱路）。删掉的是它在界面上的那张卡。⚠ v3 内核（五张脸）写词、出图都⛔ 不再走它（`run.skipReferenceReview`，owner 2026-10-15「不要求很严的表，让模型自己去看去判断」）：要看就用 `look`，图交到主模型眼前（`docs/references/assistant-v3.md`「看图」）。
 - **视频链接**同一条路：`verify` 取回标题 / UP主 / 时长 / 简介（`video` 证据），模型据此说话。⚠ **关键帧抽取本仓没有服务端能力**（`lib/video-frame-capture.ts` 跑在浏览器里，服务端只复算计划核对时间戳），所以这一档目前是**元数据喂**，⛔ 不许描述没看过的镜头。
 
 - **收尾轮逐段追加**（56b 切片 3）：服务端只发差值（`message_delta`），客户端**追加**到同一条 `streaming` 气泡后面，末尾画一根**不闪的光标**；定稿帧 `message` 按 id 整体覆盖并降旗。⛔ `message` 上的 `partial` 已删 —— 两条「正文还没写完」的表达方式必然分叉。工具轮仍然不发旁白。
@@ -1249,7 +1249,7 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
   - 看参考图那一条**跟着其它步一起折进工具组**（`groupOperatorHistoryTools` 去掉 `referenceAnalysis` 那条例外）；它的简报摘要现在是日志条的 detail 行。
   - `StudioOperator.referenceAnalysis` 整块 i18n 删（三语）。
   - 系统提示补两条：产出是 prose 不是结构化卡；视频链接走元数据、⛔ 不许描述没看过的镜头。
-  - ⚠ **`analyze_references` 工具与它在历史里的 `referenceAnalysis` 一格保留** —— 它是 `set_prompt` 的取材来源，也是 `readOperatorReferenceProfiles` 那条复用路的唯一数据。删的是卡，不是这条链。
+  - ⚠ **`analyze_references` 工具与它在历史里的 `referenceAnalysis` 一格保留** —— 它是 v2 内核 `set_prompt` 的取材来源，也是 `readOperatorReferenceProfiles` 那条复用路的唯一数据。删的是卡，不是这条链。v3 内核不再拿它取材（2026-10-15，见上 §「分析卡退场」那条）。
   - ⚠ **关键帧抽取仍旧没有服务端能力**，视频档是元数据喂（记为已知缺口）。
 
 - **2026-09-19 · 进度表 56b 切片 4「反问与输入框同框、一次一题」落地**。

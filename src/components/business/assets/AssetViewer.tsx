@@ -42,12 +42,12 @@ import {
 import { VideoAnalysisPanel } from '@/components/business/vision/VideoAnalysisPanel'
 import { BlurSwap } from '@/components/ui/blur-swap'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+  ResponsiveMenu,
+  ResponsiveMenuContent,
+  ResponsiveMenuItem,
+  ResponsiveMenuSeparator,
+  ResponsiveMenuTrigger,
+} from '@/components/ui/responsive-menu'
 import { RollingNumber } from '@/components/ui/rolling-number'
 import {
   FeedbackButton,
@@ -351,14 +351,14 @@ function AssetViewerAside({
             <Download className="size-3.5" aria-hidden />
           )}
         </FeedbackButton>
-        <DropdownMenu
+        <ResponsiveMenu
           open={menuOpen}
           onOpenChange={(open) => {
             setMenuOpen(open)
             if (!open) setConfirmDelete(false)
           }}
         >
-          <DropdownMenuTrigger asChild>
+          <ResponsiveMenuTrigger asChild>
             <button
               type="button"
               aria-label={t('viewer.more')}
@@ -367,14 +367,15 @@ function AssetViewerAside({
             >
               <MoreHorizontal className="size-4" aria-hidden />
             </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
+          </ResponsiveMenuTrigger>
+          <ResponsiveMenuContent
+            label={t('viewer.more')}
             align="end"
             sideOffset={6}
             className={cn('w-50 rounded-2xl p-1.5', menuZoom.className)}
             style={menuZoom.style}
           >
-            <DropdownMenuItem
+            <ResponsiveMenuItem
               // 菜单项点完菜单就关了，没有键可写 —— 结果照旧放底部黑条（§7.1）。
               onSelect={() =>
                 void actions.copyLink().then((copied) => {
@@ -385,8 +386,8 @@ function AssetViewerAside({
             >
               <Link2 aria-hidden />
               {t('detailCopyLink')}
-            </DropdownMenuItem>
-            <DropdownMenuItem
+            </ResponsiveMenuItem>
+            <ResponsiveMenuItem
               onSelect={() =>
                 void actions.saveRecipe().then((saved) => {
                   if (saved) toast.success(tPrompts('saveTemplateSuccess'))
@@ -397,21 +398,21 @@ function AssetViewerAside({
             >
               <FileText aria-hidden />
               {tPrompts('saveAsTemplate')}
-            </DropdownMenuItem>
+            </ResponsiveMenuItem>
             {isAudio ? (
-              <DropdownMenuItem
+              <ResponsiveMenuItem
                 onSelect={() => actions.setCoverPickerOpen(true)}
                 disabled={actions.isSettingCover}
                 className="rounded-xl"
               >
                 <ImagePlus aria-hidden />
                 {t('detailSetCover')}
-              </DropdownMenuItem>
+              </ResponsiveMenuItem>
             ) : null}
-            <DropdownMenuSeparator />
+            <ResponsiveMenuSeparator />
             {/* 删除要点两次：第一次原地变成红底「确认删除」、菜单不关；再点才删（owner 2026-10-08
                 「提示与弹窗」第 2 题 B）。删掉之后这一张连同查看器一起消失，「撤销」在底部黑条上。 */}
-            <DropdownMenuItem
+            <ResponsiveMenuItem
               variant="destructive"
               onSelect={(event) => {
                 if (!confirmDelete) {
@@ -433,9 +434,9 @@ function AssetViewerAside({
                 {confirmDelete ? null : <Trash2 aria-hidden />}
                 {confirmDelete ? t('viewer.deleteArm') : t('detailDelete')}
               </BlurSwap>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+            </ResponsiveMenuItem>
+          </ResponsiveMenuContent>
+        </ResponsiveMenu>
       </div>
       <SearchGroundingPublishNote
         id="asset-viewer-publish-note"

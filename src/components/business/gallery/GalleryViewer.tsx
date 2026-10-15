@@ -45,11 +45,11 @@ import {
   VIEWER_SMALL_PILL,
 } from '@/components/business/viewer/viewer-classes'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+  ResponsiveMenu,
+  ResponsiveMenuContent,
+  ResponsiveMenuItem,
+  ResponsiveMenuTrigger,
+} from '@/components/ui/responsive-menu'
 import {
   FeedbackButton,
   useButtonFeedback,
@@ -353,8 +353,8 @@ function GalleryViewerAside({
             <Download className="size-3.5" aria-hidden />
           )}
         </FeedbackButton>
-        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-          <DropdownMenuTrigger asChild>
+        <ResponsiveMenu open={menuOpen} onOpenChange={setMenuOpen}>
+          <ResponsiveMenuTrigger asChild>
             <button
               type="button"
               aria-label={t('more')}
@@ -363,15 +363,16 @@ function GalleryViewerAside({
             >
               <MoreHorizontal className="size-4" aria-hidden />
             </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
+          </ResponsiveMenuTrigger>
+          <ResponsiveMenuContent
+            label={t('more')}
             align="end"
             sideOffset={6}
             className={cn('w-50 rounded-2xl p-1.5', menuZoom.className)}
             style={menuZoom.style}
           >
             {promptPublic ? (
-              <DropdownMenuItem asChild className="rounded-xl">
+              <ResponsiveMenuItem asChild className="rounded-xl">
                 <Link
                   href={promptCreatePath({
                     prompt: generation.prompt,
@@ -385,23 +386,26 @@ function GalleryViewerAside({
                   <FileText aria-hidden />
                   {tDetail('savePromptTemplate')}
                 </Link>
-              </DropdownMenuItem>
+              </ResponsiveMenuItem>
             ) : null}
             {pin ? (
-              <DropdownMenuItem onSelect={pin.onToggle} className="rounded-xl">
+              <ResponsiveMenuItem
+                onSelect={pin.onToggle}
+                className="rounded-xl"
+              >
                 <Pin aria-hidden />
                 {pin.pinned ? tProfile('unpin') : tProfile('pin')}
-              </DropdownMenuItem>
+              </ResponsiveMenuItem>
             ) : null}
-            <DropdownMenuItem
+            <ResponsiveMenuItem
               onSelect={() => openExternalAsset(generation.url)}
               className="rounded-xl"
             >
               <ArrowUpRight aria-hidden />
               {t('openOriginal')}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+            </ResponsiveMenuItem>
+          </ResponsiveMenuContent>
+        </ResponsiveMenu>
       </div>
 
       <div className="studio-scrollbar flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-5">

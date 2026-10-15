@@ -5,13 +5,13 @@ import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogDescription,
+  ResponsiveDialogFooter,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+} from '@/components/ui/responsive-dialog'
 import { Input } from '@/components/ui/input'
 import { isTouchPrimary } from '@/lib/touch'
 import {
@@ -70,16 +70,16 @@ export function PlaceholderFillDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle>{t('placeholderTitle')}</DialogTitle>
-          <DialogDescription>
+    <ResponsiveDialog open={open} onOpenChange={onOpenChange}>
+      <ResponsiveDialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
+        <ResponsiveDialogHeader>
+          <ResponsiveDialogTitle>{t('placeholderTitle')}</ResponsiveDialogTitle>
+          <ResponsiveDialogDescription>
             {placeholders.length > 0
               ? t('placeholderDescription', { count: placeholders.length })
               : t('placeholderDescriptionEmpty')}
-          </DialogDescription>
-        </DialogHeader>
+          </ResponsiveDialogDescription>
+        </ResponsiveDialogHeader>
 
         {placeholders.length > 0 && (
           <div className="space-y-3 py-2">
@@ -115,7 +115,7 @@ export function PlaceholderFillDialog({
           </div>
         </div>
 
-        <DialogFooter>
+        <ResponsiveDialogFooter>
           <Button
             type="button"
             variant="outline"
@@ -133,8 +133,8 @@ export function PlaceholderFillDialog({
               ? t('placeholderApply')
               : t('placeholderApplyAsIs')}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </ResponsiveDialogFooter>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   )
 }

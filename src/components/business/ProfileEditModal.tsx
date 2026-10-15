@@ -14,13 +14,13 @@ import { getApiErrorMessage } from '@/lib/api-error-message'
 import { updateProfileAPI, uploadAvatarAPI } from '@/lib/api-client'
 import { Input } from '@/components/ui/input'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogDescription,
+  ResponsiveDialogFooter,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+} from '@/components/ui/responsive-dialog'
 import { Textarea } from '@/components/ui/textarea'
 
 interface ProfileEditModalProps {
@@ -130,23 +130,23 @@ export function ProfileEditModal({
   }
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent
-        className="w-[min(100%-2rem,34rem)] rounded-3xl border-border/70 bg-card p-0 shadow-2xl"
+    <ResponsiveDialog open onOpenChange={(open) => !open && onClose()}>
+      <ResponsiveDialogContent
+        className="w-[min(100%-2rem,34rem)] rounded-3xl border-border/70 bg-card p-0 shadow-2xl max-md:w-full max-md:rounded-b-none"
         closeLabel={t('close')}
         onOpenAutoFocus={(event) => {
           event.preventDefault()
           usernameInputRef.current?.focus()
         }}
       >
-        <DialogHeader className="space-y-2 border-b border-border/70 px-6 py-5 text-left">
-          <DialogTitle className="text-xl font-semibold tracking-tight">
+        <ResponsiveDialogHeader className="space-y-2 border-b border-border/70 px-6 py-5 text-left">
+          <ResponsiveDialogTitle className="text-xl font-semibold tracking-tight">
             {t('editProfile')}
-          </DialogTitle>
-          <DialogDescription className="text-sm leading-6 text-muted-foreground">
+          </ResponsiveDialogTitle>
+          <ResponsiveDialogDescription className="text-sm leading-6 text-muted-foreground">
             {t('editProfileDescription')}
-          </DialogDescription>
-        </DialogHeader>
+          </ResponsiveDialogDescription>
+        </ResponsiveDialogHeader>
 
         <div className="space-y-6 px-6 py-5">
           <div className="flex items-center gap-4">
@@ -324,7 +324,7 @@ export function ProfileEditModal({
           ) : null}
         </div>
 
-        <DialogFooter className="border-t border-border/70 px-6 py-4 sm:justify-end">
+        <ResponsiveDialogFooter className="border-t border-border/70 px-6 py-4 sm:justify-end">
           <Button variant="outline" onClick={onClose} disabled={isSaving}>
             {t('cancel')}
           </Button>
@@ -332,13 +332,13 @@ export function ProfileEditModal({
             {isSaving ? <Spinner size="md" /> : null}
             {t('save')}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </ResponsiveDialogFooter>
+      </ResponsiveDialogContent>
 
       <AssistantSettingsDialog
         open={assistantSettingsOpen}
         onOpenChange={setAssistantSettingsOpen}
       />
-    </Dialog>
+    </ResponsiveDialog>
   )
 }

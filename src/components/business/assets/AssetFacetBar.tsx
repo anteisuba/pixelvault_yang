@@ -9,10 +9,10 @@ import { getChipZoomMotion } from '@/components/business/studio-shared/primitive
 import { BlurSwap } from '@/components/ui/blur-swap'
 import { Input } from '@/components/ui/input'
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
+  ResponsivePopover,
+  ResponsivePopoverContent,
+  ResponsivePopoverTrigger,
+} from '@/components/ui/responsive-popover'
 import {
   DURATION,
   EASE_STANDARD,
@@ -433,8 +433,8 @@ function FacetPopover({
     sideOffset: FACET_POPOVER_OFFSET,
   })
   return (
-    <Popover onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild>
+    <ResponsivePopover onOpenChange={onOpenChange}>
+      <ResponsivePopoverTrigger asChild>
         <button
           type="button"
           aria-label={label}
@@ -451,16 +451,17 @@ function FacetPopover({
           </BlurSwap>
           <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
         </button>
-      </PopoverTrigger>
-      <PopoverContent
+      </ResponsivePopoverTrigger>
+      <ResponsivePopoverContent
+        label={label}
         align="start"
         sideOffset={FACET_POPOVER_OFFSET}
         className={cn('w-56 rounded-xl p-1', zoom.className, contentClassName)}
         style={zoom.style}
       >
         {children}
-      </PopoverContent>
-    </Popover>
+      </ResponsivePopoverContent>
+    </ResponsivePopover>
   )
 }
 
@@ -492,7 +493,7 @@ function FacetOptionRow({
         animationDelay: `${Math.round(staggerDelay(order) * 1000 * 0.6)}ms`,
       }}
       className={cn(
-        'picker-row-in flex h-8 w-full coarse:h-11 items-center gap-2 rounded-lg px-2 text-left text-xs text-foreground',
+        'picker-row-in flex h-8 w-full coarse:h-11 items-center gap-2 rounded-lg px-2 text-left text-xs text-foreground max-md:text-base',
         'transition-colors duration-base ease-standard motion-reduce:transition-none',
         'hover:outline hover:outline-1 hover:outline-border',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',

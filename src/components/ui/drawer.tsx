@@ -5,16 +5,38 @@ import { Drawer as DrawerPrimitive } from 'vaul'
 
 import { cn } from '@/lib/utils'
 import { isTouchPrimary } from '@/lib/touch'
+import { useBackToClose } from '@/hooks/use-back-to-close'
 
+/**
+ * 底部抽屉。开着时系统返回手势先关它（`useBackToClose`），所以这里自己记一份开关
+ * 状态：受控就跟着 `open`，不受控（只给了 `DrawerTrigger`）就自己管。
+ */
 const Drawer = ({
   shouldScaleBackground = true,
+  open: openProp,
+  defaultOpen = false,
+  onOpenChange,
   ...props
-}: React.ComponentProps<typeof DrawerPrimitive.Root>) => (
-  <DrawerPrimitive.Root
-    shouldScaleBackground={shouldScaleBackground}
-    {...props}
-  />
-)
+}: React.ComponentProps<typeof DrawerPrimitive.Root>) => {
+  const [innerOpen, setInnerOpen] = React.useState(defaultOpen)
+  const open = openProp ?? innerOpen
+  const setOpen = React.useCallback(
+    (next: boolean) => {
+      if (openProp === undefined) setInnerOpen(next)
+      onOpenChange?.(next)
+    },
+    [openProp, onOpenChange],
+  )
+  useBackToClose(open, () => setOpen(false))
+  return (
+    <DrawerPrimitive.Root
+      shouldScaleBackground={shouldScaleBackground}
+      open={open}
+      onOpenChange={setOpen}
+      {...props}
+    />
+  )
+}
 Drawer.displayName = 'Drawer'
 
 const DrawerTrigger = DrawerPrimitive.Trigger

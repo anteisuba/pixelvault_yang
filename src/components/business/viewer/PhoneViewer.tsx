@@ -24,6 +24,7 @@ import { useTranslations } from 'next-intl'
 import { DURATION, EASE_STANDARD, SPRING } from '@/constants/motion'
 import { InPlaceViewerContext } from '@/components/business/viewer/in-place-viewer-context'
 import type { InPlaceViewerProps } from '@/components/business/viewer/InPlaceViewer'
+import { useBackToClose } from '@/hooks/use-back-to-close'
 import { cn } from '@/lib/utils'
 
 /** 左右两张之间的缝（滑的时候看得见下一张的边）。 */
@@ -111,6 +112,10 @@ export function PhoneViewer<T extends { id: string }>({
       ?.focus({ preventScroll: true })
     onClose()
   }, [current.id, onClose, tileAttribute])
+
+  // 系统返回手势：信息页拉满时先收回，再按一次关大图（⛔ 直接离开整页）。
+  useBackToClose(!closing, requestClose)
+  useBackToClose(expanded && !closing, () => setExpanded(false))
 
   // 开着时底下的页面不跟着滚。
   useEffect(() => {

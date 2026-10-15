@@ -4,10 +4,10 @@ import { useState } from 'react'
 
 import { Check, ChevronDown } from '@/components/icons'
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
+  ResponsivePopover,
+  ResponsivePopoverContent,
+  ResponsivePopoverTrigger,
+} from '@/components/ui/responsive-popover'
 import { cn } from '@/lib/utils'
 
 export interface PromptFilterMenuOption<T extends string> {
@@ -40,8 +40,8 @@ export function PromptFilterMenu<T extends string>({
   const current = options.find((option) => option.value === value)?.label
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+    <ResponsivePopover open={open} onOpenChange={setOpen}>
+      <ResponsivePopoverTrigger asChild>
         <button
           type="button"
           aria-expanded={open}
@@ -65,8 +65,9 @@ export function PromptFilterMenu<T extends string>({
             )}
           />
         </button>
-      </PopoverTrigger>
-      <PopoverContent
+      </ResponsivePopoverTrigger>
+      <ResponsivePopoverContent
+        label={label}
         align="start"
         sideOffset={6}
         collisionPadding={12}
@@ -85,7 +86,7 @@ export function PromptFilterMenu<T extends string>({
                   onChange(option.value)
                   setOpen(false)
                 }}
-                className="flex h-8.5 items-center gap-2 rounded-lg px-2.5 text-left text-2sm text-foreground transition-colors duration-fast ease-linear hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
+                className="flex h-8.5 items-center gap-2 rounded-lg px-2.5 text-left text-2sm text-foreground transition-colors duration-fast ease-linear hover:bg-muted focus-visible:bg-muted focus-visible:outline-none active:bg-muted max-md:h-12 max-md:text-base"
               >
                 <span className="min-w-0 flex-1 truncate">{option.label}</span>
                 {selected ? (
@@ -95,7 +96,7 @@ export function PromptFilterMenu<T extends string>({
             )
           })}
         </div>
-      </PopoverContent>
-    </Popover>
+      </ResponsivePopoverContent>
+    </ResponsivePopover>
   )
 }

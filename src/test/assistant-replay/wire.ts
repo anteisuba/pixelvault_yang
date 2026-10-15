@@ -24,7 +24,7 @@ export type WireProtocol = 'gemini' | 'responses' | 'chat' | 'anthropic'
 
 /**
  * 这一跳是干什么的：主步（工具环，带 v3 那八个工具）、联网查（厂商自带搜索工具）、
- * 其余文本调用（结账、改写……）。
+ * 其余文本调用（抽记忆、改写……）。
  */
 export type CallPurpose = 'step' | 'search' | 'text'
 
@@ -463,7 +463,7 @@ export function encodeStream(
   }
 }
 
-/** 一次性文本调用（结账、改写……）的 JSON 正文。 */
+/** 一次性文本调用（抽记忆、改写……）的 JSON 正文。 */
 export function encodeText(request: ProviderRequest, text: string): unknown {
   switch (request.protocol) {
     case 'gemini':

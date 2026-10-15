@@ -229,7 +229,7 @@ export interface TurnBudget {
   readonly prompts: readonly string[]
   /** 本轮主步的「工具 + 系统提示」（逐字）：整轮应当只有一份。 */
   readonly prefixes: readonly string[]
-  /** 主步以外的调用（结账、规划、联网查……）：几次、共多少字。 */
+  /** 主步以外的调用（抽记忆、规划、联网查……）：几次、共多少字。 */
   readonly auxCalls: number
   readonly auxChars: number
 }

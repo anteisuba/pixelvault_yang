@@ -16,6 +16,15 @@ import {
 } from '@/constants/seedance-prompt-plan'
 
 vi.mock('server-only', () => ({}))
+/**
+ * `after` 换成记下来：v3 收尾把后台抽记忆那一跳交给它（P2 §2.5），用例据此验
+ * 「函数等它跑完再退」，并在断言前把它等完。
+ */
+const mockAfter = vi.hoisted(() => vi.fn())
+vi.mock('next/server', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next/server')>()),
+  after: (task: unknown) => mockAfter(task),
+}))
 
 /**
  * 参考图尺寸探针走的真实取图。⚠ 默认一律失败 —— 单测不去打真地址；要尺寸的那一条
@@ -514,10 +523,14 @@ import { getAppOrigin, LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { logger } from '@/lib/logger'
 import { markReadHostBlocked, resetReadHostBlocks } from '@/lib/read-url-blocks'
+import { ASSISTANT_BACKGROUND_MODEL_IDS } from '@/constants/assistant'
 import {
   buildCharacterReminder,
+  closeRoundV3,
+  closeRoundV3BeforeStop,
   planTool,
   prepareOperatorTurn,
+  recordLedgerStep,
   runAssistantOperator,
 } from '@/services/kernel/assistant-operator.service'
 import {
@@ -18953,6 +18966,271 @@ describe('助手记忆（56a）', () => {
     expect(mockListContextCards).not.toHaveBeenCalled()
     expect(warn).toHaveBeenCalled()
     warn.mockRestore()
+  })
+})
+
+/**
+ * **v3 收尾**（P2 §2.5）：⛔ 不起结账那一跳；证据编号确定性地落一条记录；记忆在后台抽、
+ * 不挡 `done`，同一家的快档、`low` 档，隐身 / 「让助手记住」关 / 空账本照旧一条不写。
+ */
+describe('v3 收尾（P2 §2.5）', () => {
+  const CONVERSATION_ID = '66666666-6666-4666-8666-666666666666'
+  const MEMORIES = JSON.stringify({
+    memories: [{ kind: 'preference', text: '偏好横构图 16:9' }],
+  })
+
+  async function prepare(extra: Partial<AssistantOperatorRequest> = {}) {
+    queueTurns()
+    const prepared = await prepareOperatorTurn(
+      'clerk-1',
+      buildRequest({ conversationId: CONVERSATION_ID, ...extra }),
+      new AbortController().signal,
+    )
+    mockLlmTextCompletion.mockClear()
+    mockAfter.mockClear()
+    return prepared
+  }
+
+  /** `after` 收下的那几样 —— 等它们跑完（Vercel 上函数也是等它们跑完才退）。 */
+  async function settleAfter() {
+    await Promise.all(
+      mockAfter.mock.calls.map(([task]) =>
+        typeof task === 'function' ? (task as () => unknown)() : task,
+      ),
+    )
+  }
+
+  function llmInputs() {
+    return mockLlmTextCompletion.mock.calls.map(
+      ([input]) =>
+        input as {
+          systemPrompt: string
+          modelId?: string
+          reasoningEffort?: string
+          signal?: AbortSignal
+        },
+    )
+  }
+
+  it('⭐ 不起结账那一跳；记忆在后台抽，收尾不等它', async () => {
+    const { run, user } = await prepare()
+    recordLedgerStep(run, ASSISTANT_OPERATOR_VERB_IDS.look, '看图', '黑长直')
+    let release: (raw: string) => void = () => undefined
+    mockLlmTextCompletion.mockImplementationOnce(
+      () =>
+        new Promise<string>((resolve) => {
+          release = resolve
+        }),
+    )
+
+    const summary = await closeRoundV3(run, {
+      clerkId: 'clerk-1',
+      userId: user.id,
+      closingMessage: '挑好了。',
+    })
+
+    // 收尾已经回来了，抽记忆那一跳还挂着：`done` 不等它。
+    expect(summary).toBeUndefined()
+    expect(mockRecordMemories).not.toHaveBeenCalled()
+    const inputs = llmInputs()
+    expect(inputs).toHaveLength(1)
+    expect(inputs[0]?.systemPrompt).toMatch(/^You pick what/)
+    expect(
+      inputs.some((input) =>
+        input.systemPrompt.startsWith('You write the creator-facing closing'),
+      ),
+    ).toBe(false)
+    // 后台那一跳有自己的时限，⛔ 不挂这一轮的 signal。
+    expect(inputs[0]?.signal).toBeDefined()
+    expect(inputs[0]?.signal).not.toBe(run.signal)
+    expect(mockAfter).toHaveBeenCalled()
+
+    release(MEMORIES)
+    await settleAfter()
+    expect(mockRecordMemories).toHaveBeenCalledTimes(1)
+    expect(mockRecordMemories.mock.calls[0]?.[0]).toMatchObject({
+      userId: user.id,
+      scope: 'image',
+      conversationId: CONVERSATION_ID,
+      candidates: [{ kind: 'preference', text: '偏好横构图 16:9' }],
+    })
+  })
+
+  it('同一家的快档、low 档（⛔ 不换家）；材料里有这一轮的账本与收尾那句', async () => {
+    const { run, user } = await prepare()
+    recordLedgerStep(run, ASSISTANT_OPERATOR_VERB_IDS.look, '看图', '黑长直')
+    mockLlmTextCompletion.mockResolvedValueOnce(MEMORIES)
+
+    await closeRoundV3(run, {
+      clerkId: 'clerk-1',
+      userId: user.id,
+      closingMessage: '挑好了。',
+    })
+    await settleAfter()
+
+    const call = mockLlmTextCompletion.mock.calls[0]?.[0] as {
+      adapterType: string
+      apiKey: string
+      modelId?: string
+      reasoningEffort?: string
+      userPrompt: string
+    }
+    expect(call.adapterType).toBe(run.route.adapterType)
+    expect(call.apiKey).toBe(run.route.apiKey)
+    expect(call.modelId).toBe(
+      ASSISTANT_BACKGROUND_MODEL_IDS[AI_ADAPTER_TYPES.GEMINI],
+    )
+    expect(call.reasoningEffort).toBe('low')
+    expect(call.userPrompt).toContain('看图: 黑长直')
+    expect(call.userPrompt).toContain('HOW THE ASSISTANT CLOSED:\n挑好了。')
+  })
+
+  it('那一家没有快档就用这一轮的型号', async () => {
+    const { run, user } = await prepare()
+    run.route = { ...run.route, adapterType: AI_ADAPTER_TYPES.XAI }
+    run.modelId = LLM_TEXT_MODEL_IDS.XAI_GROK_4_7
+    recordLedgerStep(run, ASSISTANT_OPERATOR_VERB_IDS.look, '看图', '黑长直')
+    mockLlmTextCompletion.mockResolvedValueOnce(MEMORIES)
+
+    await closeRoundV3(run, { clerkId: 'clerk-1', userId: user.id })
+    await settleAfter()
+
+    expect(llmInputs()[0]?.modelId).toBe(LLM_TEXT_MODEL_IDS.XAI_GROK_4_7)
+  })
+
+  it('⭐ 这一轮落了证据：确定性地写一条只带编号的记录，三栏空着', async () => {
+    const { run, user } = await prepare()
+    run.evidenceRefs.push('#e1', '#e2')
+
+    const summary = await closeRoundV3(run, {
+      clerkId: 'clerk-1',
+      userId: user.id,
+    })
+
+    expect(mockAppendAssistantConversationRound).toHaveBeenCalledTimes(1)
+    expect(
+      mockAppendAssistantConversationRound.mock.calls[0]?.[2],
+    ).toMatchObject({
+      facts: [],
+      decisions: [],
+      todos: [],
+      evidenceRefs: ['#e1', '#e2'],
+    })
+    expect(summary).toMatchObject({
+      evidenceRefs: ['#e1', '#e2'],
+      roundIndex: 3,
+    })
+    // 空账本：没东西可记，后台那一跳也不起。
+    expect(mockLlmTextCompletion).not.toHaveBeenCalled()
+  })
+
+  it('没落证据：不写记录（面板不画结论记录，三栏没有读者）', async () => {
+    const { run, user } = await prepare()
+    recordLedgerStep(run, ASSISTANT_OPERATOR_VERB_IDS.look, '看图', '黑长直')
+    mockLlmTextCompletion.mockResolvedValueOnce(MEMORIES)
+
+    expect(
+      await closeRoundV3(run, { clerkId: 'clerk-1', userId: user.id }),
+    ).toBeUndefined()
+    await settleAfter()
+    expect(mockAppendAssistantConversationRound).not.toHaveBeenCalled()
+  })
+
+  it('⛔ 隐身开着：后台那一跳不起，一条都不写；证据记录照常', async () => {
+    const { run, user } = await prepare({ incognito: true })
+    recordLedgerStep(run, ASSISTANT_OPERATOR_VERB_IDS.look, '看图', '黑长直')
+    run.evidenceRefs.push('#e1')
+
+    const summary = await closeRoundV3(run, {
+      clerkId: 'clerk-1',
+      userId: user.id,
+    })
+    await settleAfter()
+
+    expect(mockLlmTextCompletion).not.toHaveBeenCalled()
+    expect(mockRecordMemories).not.toHaveBeenCalled()
+    expect(summary).toMatchObject({ evidenceRefs: ['#e1'], incognito: true })
+  })
+
+  it('⛔ 「让助手记住」关着 / 账本是空的：后台那一跳不起', async () => {
+    mockGetAssistantPersonaByUserId.mockResolvedValue({
+      ...ASSISTANT_PERSONA_DEFAULTS,
+      avatarUrl: null,
+      memoryCapture: false,
+    })
+    const off = await prepare()
+    recordLedgerStep(
+      off.run,
+      ASSISTANT_OPERATOR_VERB_IDS.look,
+      '看图',
+      '黑长直',
+    )
+    await closeRoundV3(off.run, { clerkId: 'clerk-1', userId: off.user.id })
+    await settleAfter()
+    expect(mockLlmTextCompletion).not.toHaveBeenCalled()
+
+    mockGetAssistantPersonaByUserId.mockResolvedValue({
+      ...ASSISTANT_PERSONA_DEFAULTS,
+      avatarUrl: null,
+    })
+    const empty = await prepare()
+    await closeRoundV3(empty.run, {
+      clerkId: 'clerk-1',
+      userId: empty.user.id,
+      closingMessage: '你好呀。',
+    })
+    await settleAfter()
+
+    expect(mockLlmTextCompletion).not.toHaveBeenCalled()
+    expect(mockRecordMemories).not.toHaveBeenCalled()
+  })
+
+  it('抽记忆失败：只记一行，⛔ 不抛', async () => {
+    const warn = vi.spyOn(logger, 'warn')
+    const { run, user } = await prepare()
+    recordLedgerStep(run, ASSISTANT_OPERATOR_VERB_IDS.look, '看图', '黑长直')
+    mockLlmTextCompletion.mockRejectedValueOnce(new Error('provider down'))
+
+    await expect(
+      closeRoundV3(run, { clerkId: 'clerk-1', userId: user.id }),
+    ).resolves.toBeUndefined()
+    await settleAfter()
+
+    expect(mockRecordMemories).not.toHaveBeenCalled()
+    expect(warn).toHaveBeenCalledWith(
+      'assistant round memories not stored',
+      expect.objectContaining({ error: 'provider down' }),
+    )
+  })
+
+  it('以确认卡收：一步都没跑成就不收；跑过的把那条待办记进原料，一次运行只收一次', async () => {
+    const idle = await prepare()
+    expect(
+      await closeRoundV3BeforeStop(idle.run, {
+        clerkId: 'clerk-1',
+        userId: idle.user.id,
+        todo: '等你确认生成 2 张',
+      }),
+    ).toBeUndefined()
+    expect(mockLlmTextCompletion).not.toHaveBeenCalled()
+
+    const { run, user } = await prepare()
+    recordLedgerStep(run, ASSISTANT_OPERATOR_VERB_IDS.look, '看图', '黑长直')
+    mockLlmTextCompletion.mockResolvedValue(MEMORIES)
+    await closeRoundV3BeforeStop(run, {
+      clerkId: 'clerk-1',
+      userId: user.id,
+      todo: '等你确认生成 2 张',
+    })
+    await closeRoundV3(run, { clerkId: 'clerk-1', userId: user.id })
+    await settleAfter()
+
+    expect(mockLlmTextCompletion).toHaveBeenCalledTimes(1)
+    expect(
+      (mockLlmTextCompletion.mock.calls[0]?.[0] as { userPrompt: string })
+        .userPrompt,
+    ).toContain('等你确认生成 2 张')
+    expect(mockRecordMemories).toHaveBeenCalledTimes(1)
   })
 })
 

@@ -348,14 +348,31 @@ export function gradeReplay(input: {
       [...modelUses(network), ...keyLookupUsesOf(input.keyLookups)],
       { adapterType: selected.adapterType, apiKey },
     )
+    /**
+     * 主步与联网查用选定的型号；辅助文本调用也是，只有题目写明的那一档后台型号例外
+     * （同一家、同一把 key，下面那条照查）。
+     */
+    const background = selected.backgroundModelId
     expect(
       network.modelCalls.map((call) => `${call.adapterType}/${call.modelId}`),
       'every model call used the selected model',
     ).toEqual(
       network.modelCalls.map(
-        () => `${selected.adapterType}/${selected.modelId}`,
+        (call) =>
+          `${selected.adapterType}/${
+            call.purpose === 'text' && call.modelId === background
+              ? background
+              : selected.modelId
+          }`,
       ),
     )
+    if (background)
+      expect(
+        network.modelCalls.some(
+          (call) => call.purpose === 'text' && call.modelId === background,
+        ),
+        'a background call on the declared same-provider model',
+      ).toBe(true)
     expect(
       network.modelCalls.every((call) => call.apiKey === apiKey),
       'every model call carried the selected key',
@@ -475,11 +492,15 @@ export async function gradeTurnRecord(input: {
     boardFacts(back.board.state),
     'record → board: cards and edges',
   ).toEqual(boardFacts(board.state))
+  // ⚠ 后台那一档（`backgroundModelId`）不在记录里：收尾后的辅助调用不进过程记录，写题时照跑出来的填。
   expect(back.testCase.routes, 'record → route').toEqual([
     {
       routeModel: route.routeModel,
       keys: [route.expect.adapterType],
-      expect: route.expect,
+      expect: {
+        adapterType: route.expect.adapterType,
+        modelId: route.expect.modelId,
+      },
     },
   ])
   expect(

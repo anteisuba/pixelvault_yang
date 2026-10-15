@@ -99,6 +99,11 @@ export const ASSISTANT_MEMORY_LIMITS = {
    * 记忆单独能占的上限，真正进提示的条数还要减去这一轮挂着的卡。
    */
   maxInPrompt: 8,
+  /**
+   * v3 一轮收尾后在后台抽记忆那一跳的时限（P2 §2.5）。⚠ 它跑在 `after` 里，被路由的
+   * `maxDuration`（300 s）兜着；一轮最晚在工具环硬线（270 s）收，留给它的就是这 30 s 里的一截。
+   */
+  extractionTimeoutMs: 25_000,
 } as const
 
 /**

@@ -272,6 +272,22 @@ export const ASSISTANT_AUTO_QUESTION_MODEL_IDS: Partial<
   [AI_ADAPTER_TYPES.OPENAI]: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_LUNA,
 }
 
+/**
+ * 一轮收尾之后在后台跑的辅助调用（v3 的记忆抽取，P2 §2.5，2026-10-15）换的同家快档。
+ * 判据与 `ASSISTANT_AUTO_QUESTION_MODEL_IDS` 同一条：⛔ 不换家、不换 key，只在同一家里挑更便宜的
+ * 那一档；多列的是有便宜档的另外三家。没列的（Grok 没有更便宜的档）照用助手这一轮的型号。
+ * ⚠ 与问答快档不同，**点名了型号也换**：这一跳不是创作者在看的那段回答，只读这一轮的原料
+ *   写几行记忆（我的判断，P2 报告里列给 owner）。
+ */
+export const ASSISTANT_BACKGROUND_MODEL_IDS: Partial<
+  Record<AssistantProvider, string>
+> = {
+  ...ASSISTANT_AUTO_QUESTION_MODEL_IDS,
+  [AI_ADAPTER_TYPES.ANTHROPIC]: LLM_TEXT_MODEL_IDS.CLAUDE_HAIKU_5_5,
+  [AI_ADAPTER_TYPES.GEMINI]: LLM_TEXT_MODEL_IDS.GEMINI_3_5_FLASH_LITE,
+  [AI_ADAPTER_TYPES.DEEPSEEK]: LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH,
+}
+
 export function isAssistantProvider(
   adapterType: AI_ADAPTER_TYPES,
 ): adapterType is AssistantProvider {

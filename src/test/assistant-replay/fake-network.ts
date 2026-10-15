@@ -25,12 +25,11 @@ export interface RecordedModelCall extends ProviderRequest {
   readonly path: string
 }
 
-/** 没录回复时结账那一跳的答复：一份空的结论草稿（`AssistantOperatorRoundSummaryDraftSchema`）。 */
-export const EMPTY_ROUND_SUMMARY = JSON.stringify({
-  facts: [],
-  decisions: [],
-  todos: [],
-})
+/**
+ * 没录回复时辅助文本调用的答复：一份空的记忆草稿（`AssistantRoundMemoriesDraftSchema`，v3 收尾后
+ * 在后台抽记忆那一跳）。别的辅助调用（查证规划……）读不出它，照它们自己的退路走。
+ */
+export const EMPTY_TEXT_REPLY = JSON.stringify({ memories: [] })
 
 const MIME_BY_EXTENSION: Record<string, string> = {
   png: 'image/png',
@@ -156,7 +155,7 @@ export function createReplayNetwork(script: {
       searchIndex += 1
       return Response.json(encodeSearch(request, search))
     }
-    const reply = script.textReplies[textIndex] ?? EMPTY_ROUND_SUMMARY
+    const reply = script.textReplies[textIndex] ?? EMPTY_TEXT_REPLY
     textIndex += 1
     return request.stream
       ? new Response(

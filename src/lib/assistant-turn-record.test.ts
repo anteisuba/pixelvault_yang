@@ -7,6 +7,7 @@ import {
 } from '@/types/assistant-turn-record'
 import type { AssistantOperatorRequest } from '@/types/assistant-operator'
 import type { AssistantV3Transcript } from '@/types/assistant-v3'
+import type { AssistantWebImageFind } from '@/types/assistant-web-finds'
 
 import {
   fitAssistantTurnRecord,
@@ -70,6 +71,28 @@ function transcript(boardChars = 10, resultChars = 10): AssistantV3Transcript {
   ]
 }
 
+function imageFind(n: number, urlChars = 0): AssistantWebImageFind {
+  return {
+    kind: 'image',
+    n,
+    imageUrl: `https://img.test/${n}${'x'.repeat(urlChars)}.jpg`,
+    pageUrl: `https://www.pixiv.net/artworks/${n}`,
+    domain: 'pixiv.net',
+    title: `立绘 ${n}`,
+  }
+}
+
+/** 开轮板子上冻着上一轮找到的那几条的本轮记录。 */
+function transcriptWithFinds(
+  finds: readonly AssistantWebImageFind[],
+): AssistantV3Transcript {
+  const [board, ...rest] = transcript()
+  return [
+    { ...board!, finds: [...finds] } as AssistantV3Transcript[number],
+    ...rest,
+  ]
+}
+
 describe('stripTurnRecordDataUrls', () => {
   it('data: 地址换成占位（还是合法 URL），别的原样，undefined 的键丢掉', () => {
     const stripped = stripTurnRecordDataUrls({
@@ -101,7 +124,7 @@ describe('turnRecordInput', () => {
       role: index % 2 === 0 ? ('user' as const) : ('assistant' as const),
       content: `m${index}`,
     }))
-    const input = turnRecordInput(request({ messages }))
+    const input = turnRecordInput(request({ messages }), transcript())
     expect(input.messages).toHaveLength(
       ASSISTANT_TURN_RECORD_LIMITS.maxMessages,
     )
@@ -131,6 +154,7 @@ describe('turnRecordInput', () => {
           { kind: 'video', url: 'https://cdn.test/a.mp4', label: 'a' },
         ],
       } as Partial<AssistantOperatorRequest>),
+      transcript(),
     )
     expect(input).toEqual({
       messages: request().messages,
@@ -153,10 +177,32 @@ describe('turnRecordInput', () => {
     expect(JSON.stringify(input)).not.toContain('base64')
     expect(AssistantTurnRecordInputSchema.safeParse(input).success).toBe(true)
   })
+
+  it('上一轮找到的东西（#n）：记开轮板子上冻着的那一份 —— 接力那几跳的请求不带它也照记；按号去重、最多 maxCarried 条', () => {
+    const finds = Array.from({ length: 18 }, (_, index) => imageFind(index + 1))
+    // 接力那一跳：请求里没有 priorFinds，板子上冻着（这里故意多给、带一条重号，看同一刀）。
+    const input = turnRecordInput(
+      request(),
+      transcriptWithFinds([...finds, { ...finds[17]!, title: '后到的' }]),
+    )
+    expect(input.priorFinds?.map((find) => find.n)).toEqual(
+      Array.from({ length: 16 }, (_, index) => index + 3),
+    )
+    expect(input.priorFinds?.at(-1)).toMatchObject({ n: 18, title: '后到的' })
+    expect(AssistantTurnRecordInputSchema.safeParse(input).success).toBe(true)
+  })
+
+  it('上一轮找到的东西只认板子：请求里带了、板子上没冻（服务端没用上）→ 不记', () => {
+    const input = turnRecordInput(
+      request({ priorFinds: [imageFind(1)] }),
+      transcript(),
+    )
+    expect(input).not.toHaveProperty('priorFinds')
+  })
 })
 
 describe('fitAssistantTurnRecord', () => {
-  const input = turnRecordInput(request())
+  const input = turnRecordInput(request(), transcript())
 
   it('放得下：一刀不截，字节是三段之和', () => {
     const fitted = fitAssistantTurnRecord({
@@ -236,6 +282,35 @@ describe('fitAssistantTurnRecord', () => {
       'board',
       'assistant',
       'assistant',
+    ])
+  })
+
+  it('上一轮找到的东西：对话历史与模型正文都截了还放不下才截它（快照之前）', () => {
+    // 地址故意拉长：十六条压过整行，截完前面几刀还放不下。
+    const withFinds = turnRecordInput(
+      request(),
+      transcriptWithFinds(
+        Array.from({ length: 16 }, (_, index) => imageFind(index + 1, 3_000)),
+      ),
+    )
+    expect(withFinds.priorFinds).toHaveLength(16)
+    const fitted = fitAssistantTurnRecord(
+      { input: withFinds, transcript: transcript(), snapshotBytes: 1_000 },
+      20_000,
+    )!
+    // 对话历史那一刀不碰它（不然这一刀没东西可截、不会记下）。
+    expect(fitted.cuts).toEqual([
+      'signatures',
+      'board_text',
+      'result_outputs',
+      'history',
+      'assistant_text',
+      'prior_finds',
+    ])
+    expect(fitted.keepSnapshot).toBe(true)
+    expect(fitted.input).not.toHaveProperty('priorFinds')
+    expect(fitted.input.messages).toEqual([
+      { role: 'user', content: 'S04b 去掉高尔' },
     ])
   })
 

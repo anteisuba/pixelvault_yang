@@ -168,6 +168,45 @@ describe('writeAssistantTurnRecord', () => {
     expect(record.deleteMany).not.toHaveBeenCalled()
   })
 
+  it('上一轮找到的东西（#n）：开轮板子上冻着的那一份记进 input；接力那几跳的请求不带它，照样记着', async () => {
+    const find = {
+      kind: 'image' as const,
+      n: 3,
+      imageUrl: 'https://img.test/3.jpg',
+      pageUrl: 'https://www.pixiv.net/artworks/3',
+      domain: 'pixiv.net',
+      title: '立绘',
+    }
+    const withFinds: AssistantV3Transcript = [
+      { ...transcript[0]!, finds: [find] } as AssistantV3Transcript[number],
+      ...transcript.slice(1),
+    ]
+    await writeAssistantTurnRecord(
+      draft({
+        transcript: withFinds,
+        request: {
+          ...draft().request,
+          priorFinds: [find],
+        } as AssistantOperatorRequest,
+      }),
+    )
+    expect(record.create.mock.calls[0]![0].data.input.priorFinds).toEqual([
+      find,
+    ])
+
+    record.findUnique.mockResolvedValue({
+      id: 'row-1',
+      hops: 1,
+      snapshotBytes: 900,
+      truncated: [],
+    })
+    // 接力那一跳：请求里没有 priorFinds（前端只在开轮带），板子原样带回。
+    await writeAssistantTurnRecord(draft({ hop: 2, transcript: withFinds }))
+    expect(record.updateMany.mock.calls[0]![0].data.input.priorFinds).toEqual([
+      find,
+    ])
+  })
+
   it('更晚的一跳已经写过：⛔ 拿旧的盖新的', async () => {
     record.findUnique.mockResolvedValue({
       id: 'row-1',

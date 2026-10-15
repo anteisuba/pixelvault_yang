@@ -388,6 +388,10 @@ export async function runReplayTurn(
       ...(mentionedAssets.length ? { mentionedAssets } : {}),
       ...(pointedMentions.length ? { mentions: pointedMentions } : {}),
       ...(turn.searchWithGrok ? { searchWithGrok: true as const } : {}),
+      // 与前端同一条：只有开轮那一跳带上一轮找到的东西（接力那几跳板子里已经冻着）。
+      ...(!transcript && turn.priorFinds?.length
+        ? { priorFinds: turn.priorFinds }
+        : {}),
       ...(videoClips.length ? { videoClips } : {}),
       ...(hop > 0 ? { planApproved: true } : {}),
       responseLanguage: turn.responseLanguage,

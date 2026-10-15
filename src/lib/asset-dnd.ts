@@ -23,3 +23,21 @@ export function readDroppedAssetIds(event: React.DragEvent): string[] | null {
 export function hasAssetDragPayload(event: React.DragEvent): boolean {
   return Array.from(event.dataTransfer.types).includes(ASSET_DND_MIME)
 }
+
+/**
+ * 拖拽载荷字符串里那些**库内资产 id**（`ASSET_DND_MIME` 的既有约定，
+ * `KreaAssetBrowser.tsx` 的瓦片就是这么写的：`JSON.stringify(ids)`）。
+ *
+ * ⚠ 解析失败一律当作「没有资产」而不是抛：拖拽来源五花八门，一个格式没对上就把
+ * 输入框整个打红是不成比例的 —— 那种情况下它照旧回落到上传通道。
+ */
+export function parseDroppedAssetIds(raw: string): readonly string[] {
+  if (!raw) return []
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((item): item is string => typeof item === 'string')
+  } catch {
+    return []
+  }
+}

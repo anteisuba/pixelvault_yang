@@ -28,7 +28,15 @@ import {
 } from '@/constants/assistant-operator'
 import { ASSISTANT_LORA_PICK_LIMITS } from '@/constants/assistant-protocol'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
-import type { StudioOperatorHost } from '@/contexts/studio-operator-host'
+import {
+  ASSISTANT_MENTION_GROUP_IDS,
+  ASSISTANT_MENTION_KIND_IDS,
+  ASSISTANT_MENTION_SCOPE_IDS,
+} from '@/constants/assistant-mention'
+import type {
+  StudioOperatorHost,
+  StudioOperatorMentionSources,
+} from '@/contexts/studio-operator-host'
 import {
   primeMinedPrompts,
   readCachedMinedPrompts,
@@ -57,6 +65,7 @@ import { deleteAssistantMemoryAPI } from '@/lib/api-client/assistant-memories'
 import { deleteProjectRuleAPI } from '@/lib/api-client/assistant-persona'
 import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
 import { buildLoraOperatorSnapshot } from '@/lib/studio-operator-snapshot'
+import { clampLabel } from '@/lib/assistant-mention'
 import {
   toOperatorResultRun,
   matchesOperatorResultOwner,
@@ -723,6 +732,35 @@ export function useLoraOperatorHost(
     contextLine,
   )
 
+  /**
+   * 装配台在 `@` 菜单里自己带的那一组（§10b）：**挂着的 LoRA**（名字、封面、权重、
+   * 触发词可搜）。角色那一组不出：装配台不用角色卡。
+   */
+  const mentions = useMemo(
+    (): StudioOperatorMentionSources => ({
+      groups: [
+        {
+          id: ASSISTANT_MENTION_GROUP_IDS.loras,
+          items: (stackItems ?? []).map((item) => ({
+            kind: ASSISTANT_MENTION_KIND_IDS.lora,
+            id: item.asset.id,
+            label: clampLabel(item.asset.name),
+            scope: ASSISTANT_MENTION_SCOPE_IDS.lora,
+            ...(item.asset.coverImageUrl
+              ? { thumb: item.asset.coverImageUrl }
+              : {}),
+            subtitle: `${t('mention.kinds.lora')} · ×${item.scale ?? item.asset.defaultScale}`,
+            keywords: [item.asset.triggerWord, item.asset.styleCode].filter(
+              Boolean,
+            ),
+          })),
+        },
+      ],
+      omit: [ASSISTANT_MENTION_GROUP_IDS.characters],
+    }),
+    [stackItems, t],
+  )
+
   return useMemo(
     () => ({
       domain: ASSISTANT_PROTOCOL_DOMAIN_IDS.lora,
@@ -734,10 +772,12 @@ export function useLoraOperatorHost(
       ...(resultRun ? { resultRun } : {}),
       referenceLimit,
       referenceImages: input.imageUpload.referenceEntries,
+      mentions,
       open: input.open,
       setOpen: input.setOpen,
     }),
     [
+      mentions,
       apply,
       buildSnapshot,
       face,

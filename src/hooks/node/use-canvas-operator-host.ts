@@ -36,7 +36,22 @@ import {
   STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR,
   type StudioOperatorShellAnchor,
 } from '@/constants/studio-assistant-operator'
-import type { StudioOperatorHost } from '@/contexts/studio-operator-host'
+import {
+  ASSISTANT_MENTION_GROUP_IDS,
+  ASSISTANT_MENTION_IMAGE_ROLES,
+  ASSISTANT_MENTION_KIND_IDS,
+  ASSISTANT_MENTION_LIMITS,
+  ASSISTANT_MENTION_SCOPE_IDS,
+} from '@/constants/assistant-mention'
+import type {
+  StudioOperatorHost,
+  StudioOperatorMentionSources,
+} from '@/contexts/studio-operator-host'
+import { clampLabel } from '@/lib/assistant-mention'
+import type {
+  AssistantMentionCandidate,
+  AssistantMentionKind,
+} from '@/types/assistant-mention'
 import type { NodeGraphV4BatchResult } from '@/hooks/node/use-node-graph-v4'
 import type { StudioOperatorCanvasBatchOutcome } from '@/lib/studio-operator-apply'
 import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
@@ -75,9 +90,6 @@ const CANVAS_ANCHOR: StudioOperatorShellAnchor = {
 /** ⚠ 常量化：空数组字面量每次 render 换引用，会把下面那个 `useMemo` 打穿。 */
 const NO_RESULTS: readonly StudioOperatorResultItem[] = []
 
-/** `@` 选择器悬停时预览文本节点的前几个字（只是认得出是哪一段，⛔ 不是全文）。 */
-const MENTION_PREVIEW_CHARS = 200
-
 export interface UseCanvasOperatorHostInput {
   readonly projectId: string
   /** ⚠ 现读：事件循环跨很多次 render，第 5 步用的必须是此刻这张图。 */
@@ -103,6 +115,67 @@ export interface UseCanvasOperatorHostInput {
   setOpen(open: boolean): void
   /** 改动清单点一行：镜头移到这张卡并让卡面闪一下（方向 B）。 */
   onLocate(nodeId: string): void
+}
+
+const CANVAS_MENTION_KIND: Record<
+  NodeV4['data']['kind'],
+  AssistantMentionKind
+> = {
+  [NODE_MEDIA_KIND_IDS.image]: ASSISTANT_MENTION_KIND_IDS.image,
+  [NODE_MEDIA_KIND_IDS.video]: ASSISTANT_MENTION_KIND_IDS.video,
+  [NODE_MEDIA_KIND_IDS.audio]: ASSISTANT_MENTION_KIND_IDS.audio,
+  [NODE_MEDIA_KIND_IDS.text]: ASSISTANT_MENTION_KIND_IDS.text,
+}
+
+/**
+ * 一张卡 → `@` 菜单里的一行。没名字的卡不列（说不出它是谁）。
+ * ⚠ 还没产出的卡照列（「未产出」）：用户指着一张空卡说「给它写个提示词」是正当的。
+ */
+function toCanvasMentionCandidate(
+  node: NodeV4,
+  t: (key: string, values?: Record<string, string | number>) => string,
+): AssistantMentionCandidate | null {
+  const data = node.data
+  const label = data.name?.trim()
+  if (!label) return null
+  const kind = CANVAS_MENTION_KIND[data.kind]
+  const url = data.kind === NODE_MEDIA_KIND_IDS.text ? undefined : data.url
+  const thumb =
+    data.kind === NODE_MEDIA_KIND_IDS.image
+      ? data.url
+      : data.kind === NODE_MEDIA_KIND_IDS.video
+        ? data.videoThumbnailUrl
+        : undefined
+  const subtitle = [
+    isCharacterCardNode(node) ? t('kinds.character') : t(`kinds.${kind}`),
+    data.shotNo === undefined ? null : t('shotNo', { no: data.shotNo }),
+    data.kind !== NODE_MEDIA_KIND_IDS.text && !url ? t('notProduced') : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+  const prompt =
+    data.kind === NODE_MEDIA_KIND_IDS.text ? undefined : data.prompt?.trim()
+  return {
+    kind,
+    id: node.id,
+    label: clampLabel(label),
+    scope: ASSISTANT_MENTION_SCOPE_IDS.canvas,
+    nodeId: node.id,
+    ...(url ? { url } : {}),
+    ...(thumb ? { thumb } : {}),
+    ...(data.kind !== NODE_MEDIA_KIND_IDS.text && data.generationId
+      ? { generationId: data.generationId }
+      : {}),
+    subtitle,
+    ...(data.kind === NODE_MEDIA_KIND_IDS.text && data.body.trim()
+      ? {
+          preview: data.body
+            .trim()
+            .slice(0, ASSISTANT_MENTION_LIMITS.previewChars),
+        }
+      : {}),
+    ...(prompt ? { keywords: [prompt] } : {}),
+  }
 }
 
 /** 排到下一帧再闪（理由见 `canvasApply` 里那段注释）。 */
@@ -261,25 +334,27 @@ export function useCanvasOperatorHost({
   const locale = useLocale()
 
   const buildSnapshot = useCallback(
-    (options?: { latestMessage?: string }): AssistantOperatorSnapshot => {
+    (options?: {
+      latestMessage?: string
+      mentionedNodeIds?: readonly string[]
+    }): AssistantOperatorSnapshot => {
       const graph = graphRef.current
       const latestMessage = options?.latestMessage ?? ''
       /**
        * 这句话里 `@` 到的节点 —— 文本节点据此给全文、所在镜头带据此展开，见快照头注。
-       * ⚠ 面板发送时把 `@` 到的**图片**编译成「名字」（不带 `@`，图本身随附件走），
-       *   只认 `@名字` 的从前版本里画布图片永远不算「被 @ 到」，所在的带也不展开。
+       * ⭐ **按 id**（统一引用模型，§10b）：面板发送前已经把每一枚胶囊解析到卡上
+       *   （`mentionedNodeIds`），图片卡、同名卡、改过名的卡都认得 —— 从前按「名字」
+       *   从正文里找，画布图片永远不算被 @ 到（P0），三张「镜头1」只认第一张。
+       * ⚠ 手打的 `@名字`（没经过菜单、也没被发送前认出来的那种）仍按名字补一次。
        */
-      const mentionedNodeIds = latestMessage
-        ? graph.nodes.flatMap((node) => {
-            const name = node.data.name
-            if (!name) return []
-            const mentioned =
-              latestMessage.includes(`@${name}`) ||
-              (node.data.kind === NODE_MEDIA_KIND_IDS.image &&
-                latestMessage.includes(`「${name}」`))
-            return mentioned ? [node.id] : []
-          })
-        : []
+      const pointed = new Set(options?.mentionedNodeIds ?? [])
+      const mentionedNodeIds = graph.nodes.flatMap((node) => {
+        if (pointed.has(node.id)) return [node.id]
+        const name = node.data.name
+        return name && latestMessage && latestMessage.includes(`@${name}`)
+          ? [node.id]
+          : []
+      })
       const onCanvasIds = new Set(
         graph.nodes.flatMap((node) =>
           isCharacterCardNode(node) &&
@@ -327,22 +402,6 @@ export function useCanvasOperatorHost({
     },
     [availableModelsByNodeId, library.cards, locale, referenceImages],
   )
-  const mentionTextNodes = useMemo(
-    () =>
-      nodes.flatMap((node) =>
-        node.data.kind === NODE_MEDIA_KIND_IDS.text && node.data.name
-          ? [
-              {
-                id: node.id,
-                name: node.data.name,
-                preview: node.data.body.trim().slice(0, MENTION_PREVIEW_CHARS),
-              },
-            ]
-          : [],
-      ),
-    [nodes],
-  )
-
   /**
    * 写词会不会顺手改到参考线：正文里的 `@` 要先连 / 断线，这一条就先退回，让模型把那条
    * 连线 op 带上再来（单条和一批共用同一道检查）。
@@ -578,6 +637,36 @@ export function useCanvasOperatorHost({
     contextLine,
   )
 
+  /**
+   * 画布在 `@` 菜单里自己带的两组（§10b）：**选中的卡**（空查询时排最上面）与
+   * **画布上的卡**（图 / 视频 / 音频 / 文本，含还没产出的）。
+   * ⚠ 画布上的图同时是参考位：面板按地址把那一格认成这张卡（scope 是 canvas、
+   *   带 nodeId），同一张不列两遍；参考位那一组里只剩用户另外挂上去的图。
+   */
+  const tMention = useTranslations('StudioOperator.mention')
+  const mentionSources = useMemo((): StudioOperatorMentionSources => {
+    const candidates = new Map(
+      nodes.flatMap((node) => {
+        const candidate = toCanvasMentionCandidate(node, tMention)
+        return candidate ? [[node.id, candidate] as const] : []
+      }),
+    )
+    const selected = selectedNodeIds.flatMap((id) => {
+      const hit = candidates.get(id)
+      return hit ? [hit] : []
+    })
+    return {
+      groups: [
+        { id: ASSISTANT_MENTION_GROUP_IDS.selected, items: selected },
+        {
+          id: ASSISTANT_MENTION_GROUP_IDS.canvas,
+          items: [...candidates.values()],
+        },
+      ],
+      roles: ASSISTANT_MENTION_IMAGE_ROLES,
+    }
+  }, [nodes, selectedNodeIds, tMention])
+
   return useMemo(
     (): StudioOperatorHost => ({
       domain: ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas,
@@ -608,7 +697,7 @@ export function useCanvasOperatorHost({
       collapseOnOutsidePointer: false,
       /** 画布的参考列表就是助手上下文，附图照旧挂上去（见宿主类型头注）。 */
       attachmentsMountReferences: true,
-      mentionTextNodes,
+      mentions: mentionSources,
       anchor: CANVAS_ANCHOR,
       canvasTargets: {
         // ⚠ 现读（`graphRef`）：清单渲染在回执之后，卡可能已经改过名或被删。
@@ -654,7 +743,7 @@ export function useCanvasOperatorHost({
       setOpen,
       onLocate,
       nodes,
-      mentionTextNodes,
+      mentionSources,
     ],
   )
 }

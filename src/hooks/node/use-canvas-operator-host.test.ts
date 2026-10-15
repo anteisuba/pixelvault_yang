@@ -325,7 +325,7 @@ describe('canvas assistant image references', () => {
     expect(characters?.list[1]).toMatchObject({ name: 'Rixi', onCanvas: false })
   })
 
-  it('⭐ 文本节点进 @ 列表；不论有没有 @ 到，快照里都给全文', () => {
+  it('⭐ 文本节点进 @ 菜单「画布上的卡」那一组（按 id 指、带预览）；快照里都给全文', () => {
     const body = `${'剧情推进。'.repeat(150)}结尾`
     const text = {
       id: 'script-1',
@@ -340,9 +340,25 @@ describe('canvas assistant image references', () => {
       },
     } as NodeV4
     const { result } = setup([text])
-    expect(result.current.mentionTextNodes).toEqual([
-      { id: 'script-1', name: '剧本设定', preview: body.slice(0, 200) },
+    const canvasGroup = result.current.mentions?.groups.find(
+      (group) => group.id === 'canvas',
+    )
+    expect(canvasGroup?.items).toEqual([
+      expect.objectContaining({
+        kind: 'text',
+        id: 'script-1',
+        nodeId: 'script-1',
+        scope: 'canvas',
+        label: '剧本设定',
+        preview: body.slice(0, 200),
+      }),
     ])
+    // ⭐ 选中的卡那一组为空（没选）、参考位那一组不被画布藏起来。
+    expect(
+      result.current.mentions?.groups.find((group) => group.id === 'selected')
+        ?.items,
+    ).toEqual([])
+    expect(result.current.mentions?.omit ?? []).not.toContain('references')
     const nodeOf = (latestMessage?: string) =>
       result.current
         .buildSnapshot(latestMessage ? { latestMessage } : undefined)

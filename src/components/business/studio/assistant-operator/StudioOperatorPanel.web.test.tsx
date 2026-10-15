@@ -11,10 +11,7 @@ import {
   vi,
 } from 'vitest'
 
-import {
-  STUDIO_OPERATOR_KEEP_OPEN_ATTR,
-  STUDIO_OPERATOR_SHELL,
-} from '@/constants/studio-assistant-operator'
+import { STUDIO_OPERATOR_SHELL } from '@/constants/studio-assistant-operator'
 import type { StudioOperatorAttachment } from '@/types/studio-assistant-operator'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
 import type { UseStudioOperatorUploadResult } from '@/hooks/use-studio-operator-upload'
@@ -92,6 +89,20 @@ const fetchGalleryImages = vi.hoisted(() => vi.fn())
 vi.mock('@/lib/api-client/gallery', () => ({
   fetchGalleryImages,
   fetchGenerationByIdAPI: vi.fn(),
+}))
+
+/** `@` 菜单的素材库检索 / 参考位真名（§10b）—— 用例里不打真请求。 */
+const searchAssistantMentionLibraryAPI = vi.hoisted(() => vi.fn())
+const lookupAssistantMentionAssetsAPI = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/api-client/assistant-mentions', () => ({
+  searchAssistantMentionLibraryAPI,
+  lookupAssistantMentionAssetsAPI,
+}))
+
+/** 角色库：菜单打开时才拉（`useCharacterLibraryCards`）。 */
+const refreshCharacters = vi.hoisted(() => vi.fn(async () => undefined))
+vi.mock('@/hooks/cards/use-character-library', () => ({
+  useCharacterLibraryCards: () => ({ cards: [], refresh: refreshCharacters }),
 }))
 
 /**
@@ -252,9 +263,31 @@ beforeEach(async () => {
       outputType: 'IMAGE',
     },
   ]
+  // 「最近使用」存在本机（按工作台分）—— 用例之间不许串。
+  window.localStorage.clear()
+  searchAssistantMentionLibraryAPI.mockResolvedValue({
+    success: true,
+    data: { items: [], folders: [] },
+  })
+  lookupAssistantMentionAssetsAPI.mockResolvedValue({ success: true, data: [] })
   store = await import('@/hooks/use-studio-operator-store')
   Panel = (await import('./StudioOperatorPanel')).StudioOperatorPanel
 })
+
+/** 在 contenteditable 里写一段字、光标停在末尾（jsdom 不会替我们动 selection）。 */
+function typeInto(editor: HTMLElement, text: string) {
+  editor.focus()
+  editor.textContent = text
+  const range = document.createRange()
+  range.selectNodeContents(editor)
+  if (editor.firstChild) range.setStart(editor.firstChild, text.length)
+  range.collapse(true)
+  document.getSelection()?.removeAllRanges()
+  document.getSelection()?.addRange(range)
+  fireEvent.input(editor)
+}
+
+const editorName = '描述画面，或把参考图挂进来…'
 
 const HISTORY = {
   sessions: [],
@@ -417,55 +450,46 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     },
   )
 
-  it('助手正文选择缩略图引用后，发送实际图片并保留对应编号', () => {
+  it('@ 菜单贴在输入框上方（⛔ 不 portal），combobox ARIA 齐全；选中后按 id 发出', () => {
     renderPanel()
-    const editor = screen.getByRole('textbox', {
-      name: '描述画面，或把参考图挂进来…',
-    })
-    editor.focus()
-    editor.textContent = '采用@'
-    const range = document.createRange()
-    range.selectNodeContents(editor)
-    if (editor.firstChild) range.setStart(editor.firstChild, 3)
-    range.collapse(true)
-    document.getSelection()?.removeAllRanges()
-    document.getSelection()?.addRange(range)
-    fireEvent.input(editor)
-    expect(screen.getAllByRole('option')).toHaveLength(2)
+    const editor = screen.getByRole('combobox', { name: editorName })
+    expect(editor).toHaveAttribute('aria-expanded', 'false')
+    typeInto(editor, '采用@')
     /**
-     * 2026-09-11 回归的钉子：候选浮层是 `position: fixed`，只有挂在
-     * `document.body` 下才以视口为参照。面板换成 `assistant-glass-panel`
-     * （`backdrop-filter` 生成包含块）+ `overflow-hidden` 之后，portal 进面板的
-     * 浮层会被接管坐标再被裁掉——实测落在输入区右下角压着发送键。
-     * ⛔ 别把它 portal 回任何面板 / 卡片里。
+     * ⭐ 菜单住在输入区里（§10b「候选贴在输入框上方，键盘弹出不关闭」）：手机上它
+     * 跟着输入框一起被键盘顶上去。⛔ 别再 portal 到 body。
      */
     const listbox = screen.getByRole('listbox')
-    expect(listbox.parentElement).toBe(document.body)
-    for (
-      let node = listbox.parentElement;
-      node;
-      node = node.parentElement as HTMLElement | null
-    ) {
-      expect(node.className).not.toContain('overflow-hidden')
-    }
-    // portal 出面板后，点候选不能被「注意力收放法则」当成点了面板外面。
-    expect(listbox.hasAttribute(STUDIO_OPERATOR_KEEP_OPEN_ATTR)).toBe(true)
+    expect(screen.getByTestId('operator-input-area')).toContainElement(listbox)
+    expect(editor).toHaveAttribute('aria-expanded', 'true')
+    expect(editor).toHaveAttribute('aria-controls', listbox.id)
+    // 参考位两张 + 本次对话的生成两张，各成一组。
+    expect(within(listbox).getAllByRole('group')).toHaveLength(2)
+    expect(within(listbox).getAllByRole('option')).toHaveLength(4)
     fireEvent.keyDown(editor, { key: 'ArrowDown' })
+    const active = within(listbox).getAllByRole('option')[1]!
+    expect(active).toHaveAttribute('aria-selected', 'true')
+    expect(editor).toHaveAttribute('aria-activedescendant', active.id)
     fireEvent.keyDown(editor, { key: 'Enter' })
     expect(send).not.toHaveBeenCalled()
+    expect(screen.queryByRole('listbox')).toBeNull()
     expect(editor.querySelector('img')).toHaveAttribute(
       'src',
       HOST_RESULTS[1].url,
     )
     fireEvent.keyDown(editor, { key: 'Enter' })
-    // ⭐ 未命名参考图按界面上的名字发（真 i18n 下是「图2」；这里的 t 桩回的是键名）。
-    expect(send).toHaveBeenCalledWith('采用「image」', [
-      expect.objectContaining({
-        url: HOST_RESULTS[1].url,
-        kind: 'image',
-        label: 'image',
-      }),
-    ])
+    // ⭐ 未命名参考图按界面上的名字发（真 i18n 下是「图2」；这里的 t 桩回的是键名）；
+    //   引用随第三个参数走（按 id，§10b），⛔ 不再塞进附件。
+    expect(send).toHaveBeenCalledWith('采用「image」', [], {
+      mentions: [
+        expect.objectContaining({
+          kind: 'image',
+          scope: 'reference',
+          url: HOST_RESULTS[1].url,
+          label: 'image',
+        }),
+      ],
+    })
     expect(editor.textContent).toBe('')
   })
 
@@ -474,19 +498,9 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     (change) => {
       HOST_REFERENCE_NAMES.set(HOST_RESULTS[1].url, '生成图3')
       const view = render(<PanelHarness />)
-      const editor = screen.getByRole('textbox', {
-        name: '描述画面，或把参考图挂进来…',
-      })
-      editor.focus()
-      editor.textContent = '采用@'
-      const range = document.createRange()
-      range.selectNodeContents(editor)
-      if (editor.firstChild) range.setStart(editor.firstChild, 3)
-      range.collapse(true)
-      document.getSelection()?.removeAllRanges()
-      document.getSelection()?.addRange(range)
-      fireEvent.input(editor)
-      fireEvent.click(screen.getByRole('option', { name: '生成图3' }))
+      const editor = screen.getByRole('combobox', { name: editorName })
+      typeInto(editor, '采用@')
+      fireEvent.click(screen.getByRole('option', { name: /生成图3/ }))
       expect(editor.textContent).toContain('生成图3')
       expect(editor.querySelector('img')).toHaveAttribute(
         'src',
@@ -496,18 +510,24 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
         hostReferenceOrder = change === 'removed' ? [0] : [1, 0]
         view.rerender(<PanelHarness />)
       }
-      fireEvent.keyDown(editor, { key: 'Enter' })
       if (change === 'removed') {
+        // ⭐ 指的东西没了：胶囊变灰「已删除」，整条拦下（§10b），⛔ 不悄悄少带一张。
+        expect(editor.querySelector('[data-missing="true"]')).not.toBeNull()
+        fireEvent.keyDown(editor, { key: 'Enter' })
         expect(send).not.toHaveBeenCalled()
         return
       }
-      expect(send).toHaveBeenCalledWith('采用「生成图3」', [
-        expect.objectContaining({
-          url: HOST_RESULTS[1].url,
-          label: '生成图3',
-          kind: 'image',
-        }),
-      ])
+      fireEvent.keyDown(editor, { key: 'Enter' })
+      // ⭐ 换了顺序也还是那一张：按 id 指，⛔ 不按「图N」位置。
+      expect(send).toHaveBeenCalledWith('采用「生成图3」', [], {
+        mentions: [
+          expect.objectContaining({
+            url: HOST_RESULTS[1].url,
+            label: '生成图3',
+            kind: 'image',
+          }),
+        ],
+      })
     },
   )
 
@@ -544,34 +564,37 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
       }
       initialAttachments = [attachment]
       renderPanel()
-      const editor = screen.getByRole('textbox', {
-        name: '描述画面，或把参考图挂进来…',
-      })
-      editor.focus()
-      editor.textContent = '参考@'
-      const range = document.createRange()
-      range.selectNodeContents(editor)
-      if (editor.firstChild) range.setStart(editor.firstChild, 3)
-      range.collapse(true)
-      document.getSelection()?.removeAllRanges()
-      document.getSelection()?.addRange(range)
-      fireEvent.input(editor)
-      expect(screen.getAllByRole('option')).toHaveLength(3)
-      fireEvent.click(screen.getByRole('option', { name: attachment.label }))
+      const editor = screen.getByRole('combobox', { name: editorName })
+      typeInto(editor, '参考@')
+      // 参考位两张 · 这条消息的附件一条 · 本次对话的生成两张。
+      expect(screen.getAllByRole('option')).toHaveLength(5)
+      fireEvent.click(
+        screen.getByRole('option', { name: new RegExp(attachment.label) }),
+      )
       expect(send).not.toHaveBeenCalled()
       expect(editor.textContent).toContain(attachment.label)
       expect(editor.querySelector('img')).toBeNull()
       fireEvent.keyDown(editor, { key: 'Enter' })
-      expect(send).toHaveBeenCalledWith(`参考@${attachment.label}`, [
-        attachment,
-      ])
+      expect(send).toHaveBeenCalledWith(
+        `参考「${attachment.label}」`,
+        [attachment],
+        {
+          mentions: [
+            expect.objectContaining({
+              kind,
+              id: attachment.id,
+              scope: 'attachment',
+            }),
+          ],
+        },
+      )
     },
   )
 
   it('IME 选字回车不发送，过一会儿再回车才发送', () => {
     const now = vi.spyOn(performance, 'now')
     renderPanel()
-    const editor = screen.getByRole('textbox', {
+    const editor = screen.getByRole('combobox', {
       name: '描述画面，或把参考图挂进来…',
     })
     editor.textContent = '改成夜景'
@@ -584,7 +607,7 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     expect(send).not.toHaveBeenCalled()
     now.mockReturnValue(150)
     fireEvent.keyDown(editor, { key: 'Enter' })
-    expect(send).toHaveBeenCalledWith('改成夜景', [])
+    expect(send).toHaveBeenCalledWith('改成夜景', [], { mentions: [] })
     now.mockRestore()
   })
 
@@ -640,13 +663,15 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
       },
     ]
     renderPanel()
-    const editor = screen.getByRole('textbox', {
+    const editor = screen.getByRole('combobox', {
       name: '描述画面，或把参考图挂进来…',
     })
     editor.textContent = '眼睛有点糊'
     fireEvent.input(editor)
     fireEvent.click(screen.getByRole('button', { name: 'send' }))
-    expect(send).toHaveBeenCalledWith('眼睛有点糊', initialAttachments)
+    expect(send).toHaveBeenCalledWith('眼睛有点糊', initialAttachments, {
+      mentions: [],
+    })
     expect(changeAttachments).toHaveBeenCalledWith([])
   })
 
@@ -662,7 +687,7 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
       },
     ]
     renderPanel()
-    const editor = screen.getByRole('textbox', {
+    const editor = screen.getByRole('combobox', {
       name: '描述画面，或把参考图挂进来…',
     })
     editor.textContent = '画风不对 @Image1 比如这张'
@@ -671,13 +696,18 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     expect(send).toHaveBeenCalledWith(
       '画风不对 「图_894」 比如这张',
       initialAttachments,
+      {
+        mentions: [
+          expect.objectContaining({ id: 'result', scope: 'attachment' }),
+        ],
+      },
     )
   })
 
   it('一个参考位都没挂、也没带图：@Image1 照旧拦下', () => {
     HOST_SPEC.noReferences = true
     renderPanel()
-    const editor = screen.getByRole('textbox', {
+    const editor = screen.getByRole('combobox', {
       name: '描述画面，或把参考图挂进来…',
     })
     editor.textContent = '看看 @Image1'
@@ -709,7 +739,7 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
         },
       ]
       renderPanel()
-      const editor = screen.getByRole('textbox', {
+      const editor = screen.getByRole('combobox', {
         name: '描述画面，或把参考图挂进来…',
       })
       editor.textContent = hasMention ? '一起参考@Image2' : '一起参考'
@@ -717,17 +747,18 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
       fireEvent.click(screen.getByRole('button', { name: 'send' }))
       expect(send).toHaveBeenCalledWith(
         hasMention ? '一起参考「image」' : '一起参考',
-        [
-          expect.objectContaining({ kind: 'audio' }),
-          ...(hasMention
+        [expect.objectContaining({ kind: 'audio' })],
+        {
+          mentions: hasMention
             ? [
                 expect.objectContaining({
                   url: HOST_RESULTS[1].url,
                   label: 'image',
+                  scope: 'reference',
                 }),
               ]
-            : []),
-        ],
+            : [],
+        },
       )
       expect(changeAttachments).toHaveBeenCalledWith(
         initialAttachments.slice(0, 3),
@@ -1057,7 +1088,7 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     renderPanel()
     fireEvent.click(screen.getAllByRole('checkbox')[1]!)
     expect(store.getOperatorState().question?.checked).toEqual(['ron'])
-    const editor = screen.getByRole('textbox', {
+    const editor = screen.getByRole('combobox', {
       name: '描述画面，或把参考图挂进来…',
     })
     editor.textContent = '罗恩站在后面'
@@ -1760,7 +1791,7 @@ describe('StudioOperatorPanel · v2 §4.4 输入区两行', () => {
   it('上行文本框、下行工具条 —— 顺序是文本框在前', () => {
     renderPanel()
     const area = screen.getByTestId('operator-input-area')
-    const editor = screen.getByRole('textbox', {
+    const editor = screen.getByRole('combobox', {
       name: '描述画面，或把参考图挂进来…',
     })
     const toolbar = screen.getByTestId('operator-toolbar')
@@ -1864,11 +1895,10 @@ describe('StudioOperatorPanel · v2 §4.4 输入区两行', () => {
 /**
  * 素材库按钮（切片 #7c，owner 2026-09-11「@ 那边取消，最好新做一个按钮」）。
  *
- * ⭐ 这份用例存在的理由与本文件其余部分同源：弹层自己绿着、chip 管线自己绿着，
- * 而「下行到底有没有这颗按钮、点了到底开不开弹层、挑完到底落不落 chip」只有把
+ * ⭐ 这份用例存在的理由与本文件其余部分同源：弹层自己绿着、引用管线自己绿着，
+ * 而「下行到底有没有这颗按钮、点了到底开不开弹层、挑完到底落不落胶囊」只有把
  * 面板真的画出来才看得见。
- * ⚠ 挂进工作台的那一跳（chip → `apply.addReference`）钉在 `StudioOperatorDock`
- * 的用例里 —— 面板这一侧的责任到 `addChip` 为止（管线只有一条）。
+ * ⚠ 挑中的图只进这条消息（§10b：正文里一枚 `library` 胶囊），⛔ 不挂工作台参考位。
  */
 describe('素材库按钮（切片 #7c）', () => {
   it('下行有素材库按钮，点一下开弹层，首屏页大小是 10', () => {
@@ -1885,67 +1915,215 @@ describe('素材库按钮（切片 #7c）', () => {
     expect(dialog).toHaveAttribute('data-multi', 'true')
   })
 
-  it('挑两张：两张都落 chip 管线，正文里各留一个 @ 胶囊', () => {
+  it('挑两张：正文里各留一枚 @ 胶囊（按 id 指，⛔ 不再按「图N」编号）', () => {
     renderPanel()
-    const editor = screen.getByRole('textbox', {
-      name: '描述画面，或把参考图挂进来…',
-    })
+    const editor = screen.getByRole('combobox', { name: editorName })
     fireEvent.click(screen.getByTestId('operator-library-toggle'))
     fireEvent.click(screen.getByTestId('asset-selector-confirm-many'))
 
-    expect(store.getOperatorState().mentions.map((item) => item.id)).toEqual([
-      'lib-1',
-      'lib-2',
+    expect(
+      store.getOperatorState().mentions.map((item) => [item.id, item.scope]),
+    ).toEqual([
+      ['lib-1', 'library'],
+      ['lib-2', 'library'],
     ])
-    // 宿主已经有 2 张可用参考图（第三张 disabled 也占位），新的两张顺次落在队尾。
-    expect(editor.textContent).toContain('@Image4')
-    expect(editor.textContent).toContain('@Image5')
+    const chips = editor.querySelectorAll('[data-mention]')
+    expect([...chips].map((chip) => chip.getAttribute('data-mention'))).toEqual(
+      ['<@image:lib-1>', '<@image:lib-2>'],
+    )
+    expect(editor.textContent).not.toContain('@Image')
   })
 
-  it('已经在工作台上的那张跳过 —— ⛔ 不做「点了没反应」的重复挂载', () => {
+  it('已经在正文里的那张跳过 —— ⛔ 同一件不插第二枚', () => {
     libraryPicks = [
       {
-        id: 'dup',
-        url: HOST_RESULTS[0].url,
-        prompt: '已经挂着的那张',
+        id: 'lib-1',
+        url: 'https://cdn.test/lib-1.png',
+        prompt: '库里那张海报',
+        outputType: 'IMAGE',
+      },
+      {
+        id: 'lib-1',
+        url: 'https://cdn.test/lib-1.png',
+        prompt: '库里那张海报',
         outputType: 'IMAGE',
       },
     ]
     renderPanel()
+    const editor = screen.getByRole('combobox', { name: editorName })
     fireEvent.click(screen.getByTestId('operator-library-toggle'))
     fireEvent.click(screen.getByTestId('asset-selector-confirm-many'))
-
-    expect(store.getOperatorState().mentions).toEqual([])
+    expect(editor.querySelectorAll('[data-mention]')).toHaveLength(1)
   })
 })
 
 /**
- * `@` 选择器回到**只列当前工作台**（切片 #7c 取消了素材库那一段）。
+ * `@` 菜单（设计方案 §10b）：分组 + 最近使用 + 素材库服务端检索 + 下钻 + 搜索排序；
+ * 胶囊小卡片；气泡里的胶囊可点；触屏 `@` 按钮。
  */
-describe('@ 选择器只剩工作台一段（切片 #7c）', () => {
-  /** 在 contenteditable 里打一个 `@`（jsdom 不会替我们动 selection）。 */
-  function typeAt(editor: HTMLElement) {
-    editor.textContent = '@'
-    const range = document.createRange()
-    range.setStart(editor.firstChild!, 1)
-    range.collapse(true)
-    const selection = document.getSelection()!
-    selection.removeAllRanges()
-    selection.addRange(range)
-    fireEvent.input(editor)
-  }
-
-  it('打 @ 只出工作台候选，没有素材库那一段，也不打搜索请求', () => {
+describe('@ 菜单（§10b）', () => {
+  it('空查询按分组列；素材库那一组走服务端检索（菜单开着才问）', async () => {
+    searchAssistantMentionLibraryAPI.mockResolvedValue({
+      success: true,
+      data: {
+        items: [
+          {
+            id: 'lib-9',
+            kind: 'image',
+            label: '图_009·海边',
+            url: 'https://cdn.test/lib-9.png',
+            seq: 9,
+            folders: ['夏天'],
+            prompt: '海边日落',
+            model: 'seedream',
+            createdAt: '2026-10-01T00:00:00.000Z',
+          },
+        ],
+        folders: [{ id: 'f1', name: '夏天', parentId: null }],
+      },
+    })
     renderPanel()
-    typeAt(screen.getByRole('textbox', { name: '描述画面，或把参考图挂进来…' }))
-
-    const options = screen.getAllByRole('option')
-    expect(options.map((option) => option.textContent)).toEqual([
-      'image',
-      'image',
+    expect(searchAssistantMentionLibraryAPI).not.toHaveBeenCalled()
+    typeInto(screen.getByRole('combobox', { name: editorName }), '@')
+    const library = await screen.findByRole('option', { name: /图_009·海边/ })
+    expect(library).toHaveTextContent('#9')
+    expect(searchAssistantMentionLibraryAPI).toHaveBeenCalledWith(
+      expect.objectContaining({ q: '' }),
+      expect.anything(),
+    )
+    const groups = within(screen.getByRole('listbox')).getAllByRole('group')
+    expect(groups.map((group) => group.getAttribute('aria-label'))).toEqual([
+      'groups.references',
+      'groups.results',
+      'groups.library',
     ])
-    expect(document.querySelector('[data-mention-section]')).toBeNull()
-    expect(fetchGalleryImages).not.toHaveBeenCalled()
+    // 文件夹可以下钻：点进去就按文件夹再问一次。
+    fireEvent.click(screen.getByRole('option', { name: /openFolder/ }))
+    await vi.waitFor(() =>
+      expect(searchAssistantMentionLibraryAPI).toHaveBeenLastCalledWith(
+        expect.objectContaining({ folderId: 'f1' }),
+        expect.anything(),
+      ),
+    )
+    expect(screen.getByRole('option', { name: /back/ })).toBeTruthy()
+  })
+
+  it('搜索：多词都要命中，名字前缀排在子串前面；一条都没中时放掉这个 @', async () => {
+    renderPanel()
+    const editor = screen.getByRole('combobox', { name: editorName })
+    typeInto(editor, '@第二')
+    expect(
+      within(screen.getByRole('listbox'))
+        .getAllByRole('option')
+        .map((option) => option.getAttribute('data-mention-key')),
+    ).toEqual(['image:gen-2'])
+    // 接着写一句话（多词查询一条都没中）：菜单自己收掉，回车就是发送。
+    typeInto(editor, '@第二 张再来一版')
+    await vi.waitFor(() => expect(screen.queryByRole('listbox')).toBeNull())
+    expect(editor).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('触屏入口：输入框旁的 @ 按钮在光标处写一个 @ 并打开菜单', () => {
+    renderPanel()
+    const button = screen.getByTestId('operator-mention-button')
+    expect(button).toHaveAttribute('aria-haspopup', 'listbox')
+    fireEvent.click(button)
+    const editor = screen.getByRole('combobox', { name: editorName })
+    expect(editor.textContent).toBe('@')
+    expect(screen.getByRole('listbox')).toBeTruthy()
+    expect(button).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('选中的东西进「最近使用」，下次空查询排最上面', () => {
+    renderPanel()
+    const editor = screen.getByRole('combobox', { name: editorName })
+    typeInto(editor, '@')
+    fireEvent.click(screen.getByRole('option', { name: /第二张/ }))
+    // 删掉那枚胶囊，再打一次 @：刚用过的那条在「最近使用」组里。
+    act(() => {
+      editor.textContent = ''
+      fireEvent.input(editor)
+    })
+    typeInto(editor, '@')
+    const groups = within(screen.getByRole('listbox')).getAllByRole('group')
+    expect(groups[0]).toHaveAttribute('aria-label', 'groups.recent')
+    expect(within(groups[0]!).getByRole('option')).toHaveAttribute(
+      'data-mention-key',
+      'image:gen-2',
+    )
+  })
+
+  it('点胶囊弹小卡片：移除就从正文里摘掉那一枚', () => {
+    renderPanel()
+    const editor = screen.getByRole('combobox', { name: editorName })
+    typeInto(editor, '看@')
+    fireEvent.click(screen.getByRole('option', { name: /第一张/ }))
+    const chip = editor.querySelector('[data-mention]') as HTMLElement
+    expect(chip).not.toBeNull()
+    fireEvent.click(chip)
+    const card = screen.getByTestId('operator-mention-card')
+    expect(within(card).getByText('第一张')).toBeTruthy()
+    fireEvent.click(within(card).getByTestId('operator-mention-card-remove'))
+    expect(screen.queryByTestId('operator-mention-card')).toBeNull()
+    expect(editor.querySelector('[data-mention]')).toBeNull()
+  })
+
+  it('外面递进来的（问助手 / 拖图）落成正文末尾的一枚胶囊，⛔ 没有第二排', () => {
+    renderPanel()
+    const editor = screen.getByRole('combobox', { name: editorName })
+    act(() =>
+      store.addOperatorMention({
+        id: 'gen-1',
+        kind: 'image',
+        url: HOST_RESULTS[0].url,
+        label: '第一张',
+      }),
+    )
+    expect(editor.querySelector('[data-mention]')).toHaveAttribute(
+      'data-mention',
+      '<@image:gen-1>',
+    )
+    expect(screen.queryByTestId('operator-mention-chip')).toBeNull()
+    // 再递一次同一张：正文里还是一枚。
+    act(() =>
+      store.addOperatorMention({
+        id: 'gen-1',
+        kind: 'image',
+        url: HOST_RESULTS[0].url,
+        label: '第一张',
+      }),
+    )
+    expect(editor.querySelectorAll('[data-mention]')).toHaveLength(1)
+    expect(screen.getByTestId('operator-mention-count')).toHaveTextContent(
+      'mention.count',
+    )
+  })
+
+  it('气泡里的 @ 胶囊可点：有地址的图开大图', () => {
+    store.appendOperatorEntry({
+      kind: 'user',
+      id: 'with-mention',
+      text: '看看「第一张」',
+      attachments: [],
+      mentions: [
+        {
+          kind: 'image',
+          id: 'gen-1',
+          label: '第一张',
+          scope: 'result',
+          generationId: 'gen-1',
+          url: HOST_RESULTS[0].url,
+          thumb: HOST_RESULTS[0].url,
+        },
+      ],
+    })
+    renderPanel()
+    const chip = within(screen.getByTestId('operator-user-text')).getByTestId(
+      'operator-user-mention',
+    )
+    expect(chip.tagName).toBe('BUTTON')
+    expect(chip).toHaveTextContent('第一张')
+    expect(screen.getByTestId('operator-user-text')).not.toHaveTextContent('「')
   })
 })
 

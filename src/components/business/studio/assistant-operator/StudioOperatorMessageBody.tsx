@@ -28,7 +28,7 @@
  * 重新读这条会话）。
  */
 
-import { Children, isValidElement, useMemo, useState } from 'react'
+import { Children, Fragment, isValidElement, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { motion } from 'motion/react'
 import Image from 'next/image'
@@ -53,6 +53,7 @@ import {
 } from '@/lib/studio-operator-timeline'
 import { cn } from '@/lib/utils'
 import type { NamedImageReference } from '@/lib/studio-reference-mentions'
+import type { AssistantMention } from '@/types/assistant-mention'
 import type {
   StudioOperatorAttachment,
   StudioOperatorMessageEntry,
@@ -488,17 +489,114 @@ export function attachmentsBelowUserText(
   )
 }
 
+/**
+ * 气泡里一枚 `@` 引用（设计方案 §10b「用户消息气泡里的 chip 也可点、可定位」）。
+ * 发出去的正文里它是 `「名字」`（`renderMentionText`，同一条消息里名字已去重），
+ * 这里按名字换回胶囊；点一下由面板决定去哪（画布定位 / 看大图）。
+ */
+function MentionChip({
+  mention,
+  missing,
+  onClick,
+}: {
+  mention: AssistantMention
+  missing: boolean
+  onClick?: (mention: AssistantMention) => void
+}) {
+  const t = useTranslations('StudioOperator.mention')
+  const body = (
+    <>
+      {mention.thumb && !missing ? (
+        <ReferenceThumb url={mention.thumb} name={mention.label} />
+      ) : (
+        <span
+          aria-hidden
+          className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"
+        >
+          <FileText className="size-4" aria-hidden />
+        </span>
+      )}
+      <span className={cn('min-w-0 break-words', missing && 'line-through')}>
+        {mention.label}
+      </span>
+    </>
+  )
+  const className =
+    'mx-0.5 inline-flex max-w-full items-center gap-1.5 align-middle text-xs font-normal text-muted-foreground'
+  if (!onClick || missing)
+    return (
+      <span
+        data-testid="operator-user-mention"
+        data-missing={missing ? 'true' : undefined}
+        title={
+          missing ? t('deletedNamed', { label: mention.label }) : mention.label
+        }
+        className={className}
+      >
+        {body}
+      </span>
+    )
+  return (
+    <button
+      type="button"
+      data-testid="operator-user-mention"
+      title={mention.label}
+      onClick={() => onClick(mention)}
+      className={cn(
+        className,
+        'rounded-md transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+      )}
+    >
+      {body}
+    </button>
+  )
+}
+
+/** 正文里的 `「名字」` → 胶囊；其余照旧交给 `withImageReferences`。 */
+function withMentionChips(
+  text: string,
+  mentions: readonly AssistantMention[],
+  render: (mention: AssistantMention, key: number) => ReactNode,
+  rest: (part: string) => ReactNode,
+): { node: ReactNode; inlined: ReadonlySet<AssistantMention> } {
+  const byLabel = new Map(
+    mentions.map((mention) => [`「${mention.label}」`, mention]),
+  )
+  const labels = [...byLabel.keys()].sort((a, b) => b.length - a.length)
+  const inlined = new Set<AssistantMention>()
+  if (!labels.length) return { node: rest(text), inlined }
+  const pattern = new RegExp(
+    `(${labels.map((label) => label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`,
+    'g',
+  )
+  const node = text.split(pattern).map((part, index) => {
+    const mention = byLabel.get(part)
+    if (!mention) return <Fragment key={index}>{rest(part)}</Fragment>
+    inlined.add(mention)
+    return render(mention, index)
+  })
+  return { node, inlined }
+}
+
 export function StudioOperatorUserText({
   text,
   attachments,
   references = [],
   textNodeNames = [],
+  mentions = [],
+  onMentionClick,
+  isMentionMissing,
 }: {
   references?: readonly NamedImageReference[]
   text: string
   attachments: readonly StudioOperatorAttachment[]
   /** 画布上文本节点的名字 —— 正文里的 `@名字` 画成文档胶囊（owner 2026-10-08）。 */
   textNodeNames?: readonly string[]
+  /** 这一条带的 `@` 引用（统一引用模型 §10b）。 */
+  mentions?: readonly AssistantMention[]
+  onMentionClick?: (mention: AssistantMention) => void
+  /** 指的东西此刻还在不在（画布上的卡被删了 = 灰掉、不可点）。 */
+  isMentionMissing?: (mention: AssistantMention) => boolean
 }) {
   const displayText = attachments.reduce(
     (value, attachment) =>
@@ -519,6 +617,35 @@ export function StudioOperatorUserText({
           name: item.label,
           aliases: [item.label],
         }))
+  const legacy = (part: string) =>
+    withImageReferences(part, [
+      ...imageReferences,
+      ...textNodeNames
+        .filter((name) => part.includes(`@${name}`))
+        // ⚠ 只认带 `@` 的那一处：正文里顺口提到同一个词不算引用。
+        .map((name) => ({
+          url: '',
+          name,
+          aliases: [`@${name}`],
+          text: true as const,
+        })),
+    ])
+  const renderChip = (mention: AssistantMention, key: number) => (
+    <MentionChip
+      key={key}
+      mention={mention}
+      missing={isMentionMissing?.(mention) ?? false}
+      {...(onMentionClick ? { onClick: onMentionClick } : {})}
+    />
+  )
+  const { node, inlined } = withMentionChips(
+    displayText,
+    mentions,
+    renderChip,
+    legacy,
+  )
+  /** 正文里没写出名字的那几条（答题那条路）照样挂在这一条底下 —— 事后看得出这轮带了什么。 */
+  const trailing = mentions.filter((mention) => !inlined.has(mention))
   return (
     <p
       data-testid="operator-user-text"
@@ -526,18 +653,12 @@ export function StudioOperatorUserText({
          右上角收成小圆角；助手那一轮在灰框里。两侧靠材质与左右分。 */
       className="w-fit max-w-full whitespace-pre-wrap rounded-2xl rounded-tr-sm bg-surface-composer px-3 py-2 text-sm leading-relaxed text-surface-composer-foreground"
     >
-      {withImageReferences(displayText, [
-        ...imageReferences,
-        ...textNodeNames
-          .filter((name) => displayText.includes(`@${name}`))
-          // ⚠ 只认带 `@` 的那一处：正文里顺口提到同一个词不算引用。
-          .map((name) => ({
-            url: '',
-            name,
-            aliases: [`@${name}`],
-            text: true as const,
-          })),
-      ])}
+      {node}
+      {trailing.length ? (
+        <span className="mt-1 flex flex-wrap gap-1">
+          {trailing.map((mention, index) => renderChip(mention, index))}
+        </span>
+      ) : null}
     </p>
   )
 }

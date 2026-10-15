@@ -55,14 +55,6 @@ export const GENERATION_NAME = {
 } as const
 
 /**
- * 正文里 `@名字` 的上限（切片 N1）。
- *
- * ⚠ 与 chip 数量上限**不是一回事**：chip 侧 owner 2026-09-06 定过「不设硬上限，
- * 只提示」（见 `use-studio-operator-mention.ts` 头注），这里限的是**一条消息的
- * 正文里自动解析出多少个名字**。理由不同：正文解析是我们替用户做的动作，一句
- * 话里粘进 50 个名字时静默挂 50 张图，用户既没看见也没同意。
- */
-/**
  * 公开作品报给搜索引擎与分享卡片的文字（详情页标题摘要 / 描述 / 图片 alt）。
  * 算法见 `lib/generation-seo.ts`。长度取搜索结果页与读屏实际用得上的量级。
  */
@@ -110,7 +102,3 @@ export const PROMPT_DISPLAY_NOISE_TAGS = [
   '4k',
   '8k',
 ] as const
-
-export const ASSISTANT_MENTION_LIMITS = {
-  maxPerMessage: 10,
-} as const

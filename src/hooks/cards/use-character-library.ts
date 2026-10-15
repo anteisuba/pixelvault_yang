@@ -104,3 +104,12 @@ export function useCharacterLibrary() {
     refresh: load,
   }
 }
+
+/**
+ * 同一份角色库，但**挂载时不拉**（助手 `@` 菜单用，§10b）：工作台每开一次助手面板
+ * 都去拉一遍角色库是白打的请求 —— 菜单真打开时再 `refresh()`，拉回来大家共用。
+ */
+export function useCharacterLibraryCards() {
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
+  return { cards: snapshot.cards, refresh: load }
+}

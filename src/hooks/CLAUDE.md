@@ -61,8 +61,9 @@ All hooks use `'use client'`. Less than half have a `.test` file — check for a
 ### Studio Operator（统一助手 · 施工基准 `docs/references/pages/assistant-shell-v2.md`）
 
 - `use-assistant-operator.ts` — SSE 工具环驱动：排队（停顿点 = 一步跑完）与 Stop（abort）**语义分离**
-- `use-studio-operator-store.ts` — 模块级 store：进度带 / 结果行卡选中 / @ chips / 队列（面板收放会卸载组件，这些不能住组件 state）
-- `use-studio-operator-mention.ts` — **@ 四入口唯一一条 chip 管线**（`addChip`）；chip 就是 `StudioOperatorAttachment`，发送时与 📎 附件按 `id` 去重合并
+- `use-studio-operator-store.ts` — 模块级 store：进度带 / 结果行卡选中 / `@` 引用登记表（`mentions`，名字 / 缩略图快照，上限 200、水化不清）与收件箱（`mentionInbox`，别处递进来的引用由输入框收进正文）/ 队列（面板收放会卸载组件，这些不能住组件 state）
+- `use-assistant-mention-composer.ts` — **`@` 统一引用模型的唯一一条管线**（设计方案 §10b）：正文存 `<@kind:id>`，这里把宿主 `host.mentions` 插件 + 参考位 / 附件 / 本次结果 / 角色公共几组合成候选，按 id 解析每一枚胶囊（`drafts`：在 / 已删除）、喂 `MentionInput` 的 `tokens`、算「将看 N 张」，收 store 收件箱、接拖放；`prepare(text)` 在发送时认手打的 `@图N` / 唯一 `@名字`，已删除的拦下，返回发给模型的正文 + `mentions`。素材库那一组 `useMentionLibrarySearch`（防抖、只在菜单开着时问）。⛔ 别处另写 chip 管线
+- `use-assistant-mention-menu.ts` — `@` 菜单的状态（查询 / 高亮 / 查看全部 / 文件夹下钻 / 键盘），形状由 `lib/assistant-mention-menu.ts` 纯函数算；`binding` 原样交给 `MentionInput.mentionMenu`
 - `use-assistant-persona.ts` — 助手设置 persona 读 / 写 / 传头像（`/api/assistant/persona`）。⚠ 初值是 `ASSISTANT_PERSONA_DEFAULTS` 不是 null，⛔ 不做「加载中什么都不显示」的空窗。`useAssistantPersonaAutosave` = 助手设置 B 的「改了就存」：请求排队合并（同一时刻一个 `PUT`，⛔ 不并发）、打字只改界面失焦 `commit` 才存、失败停在「重试」；「只改一格」的地方一律从 `toAssistantPersonaUpdate(persona)` 起手（`PUT` 收完整形状）
 - `use-studio-video-assets.ts` — 视频档**素材**（owner 09-24 去掉三个模式；09-27 视频台 A 挂在输入框里）：图、视频、音频按类型编号（图片1 · 视频1 · 音频1），首 / 尾帧是图片角标。⭐ 拖入（`acceptTransfer`）/ 素材库（`acceptGeneration`）/ 助手 `mount_reference slot` **三条落法汇到同一份状态**（`SET_VIDEO_FRAME_SLOT` / `imageUpload` / `SET_VIDEO_REFERENCE_VIDEOS`），「已否」的产物在这里拒收并说话，⛔ 组件里别另写写入。容量、编号、这一枪走哪个端点全部来自 `lib/studio/video-workbench-slots.ts`（与画布同一个 `videoSendMode`），⛔ 不由组件自己判模型；本地图片走参考图那条同源上传管线（压缩闸 → multipart → R2），⛔ 不是 base64；本地视频走画布那条参考视频上传（`uploadReferenceVideoAPI`）。参考图取**全部**（含被 `setMaxImages` 标停用的）—— 发不发只由 `planStudioVideoSend` 判，发送口、素材排、助手快照读同一份。连着落好几样时刚占的格记在 ref 里，⛔ 用渲染闭包里的旧值（第二张会顶掉第一张的首帧）
 - `use-assistant-memories.ts` — 记忆一列（`/api/assistant-memories`，助手设置 B）：一次全取、筛选在前端；「写一条」存成你写的；清空带 `source` 跟着筛选走；失败带 `i18nKey`，组件走 `getApiErrorMessage` 说人话，⛔ 不把英文原话递给用户

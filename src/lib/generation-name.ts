@@ -19,8 +19,8 @@
  * 撞别人的真号。
  */
 
+import { ASSISTANT_MENTION_LIMITS } from '@/constants/assistant-mention'
 import {
-  ASSISTANT_MENTION_LIMITS,
   GENERATION_NAME,
   GENERATION_NAME_PREFIX_BY_OUTPUT_TYPE,
   type GenerationNameOutputType,
@@ -165,9 +165,8 @@ const PREFIX_ALTERNATION = Object.values(GENERATION_NAME_PREFIX_BY_OUTPUT_TYPE)
 /**
  * 正文里的 `@图_012` / `@图_012·银发少女立绘`。
  *
- * 三条判据与 `readMentionTrigger` 一致（`@` 前是行首或空白，⛔ 不匹配
- * `a@b.com`），另加一条：**序号必须是数字**，否则 `@图片很好看` 会被当成一次
- * 提及。摘要段可有可无 —— 匹配只看身份段，多出来的那截原样留在句子里。
+ * 两条判据：`@` 前是行首或空白（⛔ 不匹配 `a@b.com`）；**序号必须是数字**，
+ * 否则 `@图片很好看` 会被当成一次提及。摘要段可有可无 —— 匹配只看身份段，多出来的那截原样留在句子里。
  */
 const MENTION_PATTERN = new RegExp(
   `(^|\\s)@((?:${PREFIX_ALTERNATION})${GENERATION_NAME.prefixSeparator}\\d{${GENERATION_NAME.serialDigits},})`,
@@ -199,51 +198,4 @@ export function readGenerationMentions(
     if (tokens.length >= ASSISTANT_MENTION_LIMITS.maxPerMessage) break
   }
   return tokens
-}
-
-export interface GenerationMentionCandidate {
-  readonly id: string
-  /** 这一行的 `Generation.seq`。缺席 = 它没有号，永远不会被 `@序号` 命中。 */
-  readonly seq?: number | null
-  readonly label?: string
-}
-
-/**
- * 一个提及落到哪一条候选上。**名单之外一律不命中**（返回 `undefined`）——
- * 名字是给人念的，不是凭证：服务端拿它去 `mentionedAssets` 里找，找不到就拒。
- *
- * ⚠ 命中判据是**序号精确相等**（`candidate.seq === token.serial`），不是
- * 「label 里含这几个字」：后者会让 `@图_012` 命中一条摘要里恰好写着 `图_012`
- * 的行。⛔ `seq` 缺席的候选一律不命中 —— 没有号的行没有名字可念。
- * ⚠ 名单是**一个用户自己的**，而 `seq` 在用户内唯一，所以正常不会撞号；真撞上
- * （名单混了两个用户）取**第一条** —— 调用方按「新的在前」给名单，于是退化成
- * 「指的是最近那一张」，⛔ 不静默挂两张。
- */
-export function matchGenerationMention(
-  token: GenerationMentionToken,
-  candidates: readonly GenerationMentionCandidate[],
-): GenerationMentionCandidate | undefined {
-  return candidates.find(
-    (candidate) =>
-      typeof candidate.seq === 'number' && candidate.seq === token.serial,
-  )
-}
-
-/**
- * 正文 → 命中的候选（保持出现顺序，去重）。未知名字**不成 chip**：用户写错一个
- * 号时该看见「什么都没挂」，⛔ 不是悄悄挂上一张别的图。
- */
-export function resolveGenerationMentions(
-  text: string,
-  candidates: readonly GenerationMentionCandidate[],
-): readonly GenerationMentionCandidate[] {
-  const picked: GenerationMentionCandidate[] = []
-  const seen = new Set<string>()
-  for (const token of readGenerationMentions(text)) {
-    const hit = matchGenerationMention(token, candidates)
-    if (!hit || seen.has(hit.id)) continue
-    seen.add(hit.id)
-    picked.push(hit)
-  }
-  return picked
 }

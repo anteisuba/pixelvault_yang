@@ -59,10 +59,7 @@ import {
   getStudioOperatorPanelWidthBounds,
   getStudioOperatorPanelWidthPx,
 } from '@/constants/studio-assistant-operator'
-import {
-  getReferenceImageAttachmentId,
-  removeReferenceMentions,
-} from '@/lib/studio-reference-mentions'
+import { getReferenceImageAttachmentId } from '@/lib/studio-reference-mentions'
 import { useStudioOperatorHost } from '@/contexts/studio-operator-host'
 import { useIsMobile, useIsTablet } from '@/hooks/use-mobile'
 import { useAssistantOperator } from '@/hooks/use-assistant-operator'
@@ -73,7 +70,6 @@ import { useStudioOperatorHistory } from '@/hooks/use-studio-operator-history'
 import {
   getOperatorState,
   setOperatorPlanMode,
-  removeOperatorMention,
   subscribeOperatorAttachment,
   takeOperatorAttachment,
   takeOperatorDraft,
@@ -252,15 +248,8 @@ export function StudioOperatorDock() {
    * 读得出它是浮在上面的。点面板外照旧收（下面那条注意力收放法则）。
    */
   const isTablet = useIsTablet()
-  const {
-    entries,
-    mentions,
-    question,
-    confirm,
-    threadScope,
-    localThreadId,
-    status,
-  } = useStudioOperatorState()
+  const { entries, question, confirm, threadScope, localThreadId, status } =
+    useStudioOperatorState()
   const attachmentScope =
     scope && threadScope === scope
       ? JSON.stringify([scope, localThreadId])
@@ -870,43 +859,11 @@ export function StudioOperatorDock() {
     scopeKey: attachmentScope,
   })
 
-  useEffect(() => {
-    // 附图只进对话的宿主：@ / 素材库选的图留在 chip 上跟消息走，⛔ 不挂参考位。
-    if (!attachmentsMountReferences) return
-    for (const mention of mentions) {
-      if (mention.kind !== 'image') continue
-      apply.addReference(mention.url)
-      removeOperatorMention(mention.id)
-    }
-  }, [apply, attachmentsMountReferences, mentions])
-
-  const [previousReferences, setPreviousReferences] = useState({
-    scope: attachmentScope,
-    images: referenceImages,
-  })
-  if (
-    previousReferences.scope !== attachmentScope ||
-    previousReferences.images !== referenceImages
-  ) {
-    setPreviousReferences({ scope: attachmentScope, images: referenceImages })
-    if (previousReferences.scope === attachmentScope && attachmentScope) {
-      const removed = previousReferences.images
-        .flatMap((entry, index) =>
-          referenceImages.some((current) => current.url === entry.url)
-            ? []
-            : [index],
-        )
-        .reverse()
-      if (removed.length) {
-        setDraft((current) =>
-          removed.reduce(
-            (text, index) => removeReferenceMentions(text, index),
-            current,
-          ),
-        )
-      }
-    }
-  }
+  /**
+   * ⚠ `@` 不再改参考位（§10b）：画布 / 工作台上 `@` 一张图只是「指着它说话」，
+   * ⛔ 不偷偷挂成参考位、也不换成 📎；参考位被摘掉时正文里的胶囊按 id 变成
+   * 「已删除」并拦住发送（`useAssistantMentionComposer`），⛔ 不再给 `@图N` 重编号。
+   */
 
   useEffect(() => {
     const consume = () => {

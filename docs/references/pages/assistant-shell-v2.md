@@ -601,40 +601,30 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 ### 4.4 输入区（两行）
 
 **上行**：文本框（多行自增高）。
-**下行**：`+` · 上传 · **素材库** · **LLM 模型 chip** · ……右端发送键。
+**下行**：上传 · **素材库** · **`@`** · LLM 模型 chip · 自动生成开关 ……右端发送键。⛔ 没有「+」菜单（D12 T-A）：提及 = 打 `@` 或点 `@` 键，指定来源在话里说（`research.onlySources`），上下文卡只剩助手提议那张确认卡。
 
-**「+」菜单三项**（画板 BCards「+」展开态）：
+#### `@` 引用（设计方案 §10b，2026-10-15）
 
-| 项       | 作用                                                 |
-| -------- | ---------------------------------------------------- |
-| 提及素材 | 唤出 `@` 选择器（v1 `MentionInput`，**单段**，见下） |
-| 上下文卡 | 挂一张角色 / 风格 / 品牌卡                           |
-| 指定来源 | 本轮限定检索来源（接 §9.3 白 / 黑名单）              |
+**一条引用 = `{kind, id, label, thumb, scope, nodeId?, generationId?}`**（`types/assistant-mention.ts`）。正文里只存 `<@kind:id>`，名字只是快照：改名、三张同名「镜头1」都按 id 各指各的。指的东西没了（画布上删了卡、参考位摘了），胶囊变灰「已删除」，**拦住发送**（toast 说先移除灰色那枚）。⛔ 不再在参考位变化时给正文重编号，⛔ 没有 `@Image2` / `@Attachment[hash]` / `@TextNode[id]` 三套写法。
 
-**`@` 选择器只列当前工作台**（参考图 / 结果，选中 = 引用它）。一条都没对上时也要
-说话（「这儿本来就没有参考图」与「没一条对得上你打的字」两句分开），⛔ 没有「悄悄
-什么都不显示」。
+- **发送**：`useAssistantMentionComposer.prepare` 先把手打的 `@图N` / `@ImageN`（槽位）与候选里**唯一**对上的 `@名字` 认成记号，再按 id 解析每一枚；同名补序号后在正文里写成 `「名字」`，末尾一行 `[mentioned: …]`；请求另带 `mentions`（`AssistantMentionRef`，不带地址）与 `mentionedAssets`（看得见的那几张在前、带 `nodeId`）。服务端按 id 解析：画布 `buildSnapshot({mentionedNodeIds})` 按 id 认被 `@` 的卡（**画布图片也算被 @ 到**，文本节点据此给全文），v3 板子末尾接一张 `MENTIONED` 对照表（「名字」→ 句柄），`look` 先按 `nodeId` 认图、名字只给没带 id 的老附图兜底。
+- **看图上限只有一个数**：`ASSISTANT_MENTION_LIMITS.lookImages = 6`（= `ASSISTANT_V3_LIMITS.maxLookCards`）。输入框下面一行「将看 N 张」，超了转 warning「共 N 张 · 只细看前 6 张」，⛔ 不拦；板子上同一句 `LOOK CAP`。
+- **一套胶囊**：菜单选的、素材库弹层挑的、拖进来的库里资产、结果卡「用它当参考」、别处递进来的（store `mentionInbox`）都是同一种 `<@kind:id>` 胶囊，同一条只落一次。⛔ 输入框上方那排 @ chip 已删，⛔ 画布图片不再被换成 📎（`attachmentsMountReferences` 只管 📎 那条）。名字 / 缩略图快照住 store 的 `mentions` 登记表（上限 `registry` 200 条，水化不清、发送不清）。
+- **发出去的气泡**：每条用户消息带着自己的 `mentions`（历史 `entry.mentions`），正文里的 `「名字」` 渲染成胶囊，点一下画布卡就地定位、图开灯箱；已删的灰着不可点。
+- **候选来源 = 每张脸一个插件**：宿主契约 `host.mentions = {groups, roles, omit}`（`contexts/studio-operator-host.tsx`）。画布给「选中的卡 / 画布上的卡」（带镜号、未产出、文本节点前 200 字预览），LoRA 台给挂着的 LoRA，工作台只给用途；参考位 / 附件 / 本次对话的生成 / 角色由 composer 公共补上，`omit` 去掉这张脸不要的那几组；素材库那一组走服务端（`/api/assistant/mentions`：序号 · 提示词 · 产物名 · 文件夹 · 角色 · 模型 · 类型词，多词 AND，可按文件夹下钻，只读）。
+- **菜单**（`StudioOperatorMentionMenu`，形状由 `lib/assistant-mention-menu.ts` 纯函数算）：贴在输入框正上方、输入区里绝对定位（⛔ 不 portal，手机键盘弹起时跟着走）。空查询：「最近使用」（本机）→ 各组先露 4 条 +「查看全部」，选中的卡不止一张时多一行「全部 @」，素材库先列文件夹。有查询：多词（`@海报 夜景`，单个空格）、`#12` 只认序号，名字全等 > 前缀 > 子串 > 副标题 > 关键词，同分最近用过的在前，合计 ≤ 20 条并给素材库留 4 个位；多词一条都没中自动放掉这个 `@`。每行缩略图 + 副标题 + `#序号`，桌面宽时右侧出悬停大图 / 文本预览。正文里已经有的不再列。拼音没做（仓里没有现成依赖）。
+- **胶囊小卡片**（`StudioOperatorMentionCard`）：单击输入框里的胶囊弹出：看大图 · 在画布上定位 · 当作（主体 / 风格 / 构图，视频台多首尾帧；宿主 `mentions.roles` 说收才出）· 移除。点外面 / Esc 关。
+- **无障碍 / 手机**：输入框是 `role="combobox"`（`aria-expanded` / `aria-controls` / `aria-activedescendant`），菜单 `role="listbox"`、分组 `role="group"`、行 `role="option"`，↑↓ Home End Enter Tab Esc；Esc 记住放掉的那个 `@`，不再弹回来；结果数走 `aria-live`。工具行那颗 `@` 键（`operator-mention-button`，手机 44px）在光标处插 `@` 并打开菜单。
 
-画布引用以节点名为准（2026-09-23）：附件条、`@` 候选与已选引用、聊天正文及本轮记录统一显示「缩略图 + 画布名称」。选择后的 token 绑定图片 URL 的稳定附件 ID；发送时从当前宿主取对应原图和名称，换序不换图，图片移除或不可用时要求重新选择。历史编号只通过当时消息保存的附件 URL 解析，不能用当前附件顺序猜；同名不同图不自动替换缩略图。助手面向用户使用画布名，内部连线仍使用节点 ID。
-
-**素材库是下行一颗独立按钮**（切片 #7c，owner 2026-09-11「@ 那边取消，最好新做一个
-按钮」）：点开 `AssetSelectorDialog`（桌面 Dialog / 手机 Drawer），里面仍是
-`AssetPickerBrowser` —— **首屏 10 条**（`STUDIO_OPERATOR_LIBRARY_PAGE_SIZE`）、左侧
-文件夹分类、往下拉继续翻页、多选、锁图片档。选中 → 每张走 `mention.addChip`，跟这条消息一起发出。
+**素材库是下行一颗独立按钮**（切片 #7c）：点开 `AssetSelectorDialog`（桌面 Dialog / 手机 Drawer），里面仍是 `AssetPickerBrowser` —— **首屏 10 条**（`STUDIO_OPERATOR_LIBRARY_PAGE_SIZE`）、左侧文件夹分类、往下拉继续翻页、多选、锁图片档。选中 → 每张成一枚 `library` 胶囊插进正文。`@` 菜单里的素材库那一组是**快捷入口**（打字搜 / 下钻），两者不互相替代。
 
 **附图只给助手看（owner 2026-10-07）**：📎 上传、素材库、`@` 递上来的图默认只进这条消息（`mentionedAssets`），规划那一步直接带上像素；⛔ 不再自动挂进工作台 / LoRA 台的出图参考位。创作者说「用这张当参考」时，助手走 `mount_reference`（附图在准入名单里，过程行可撤销）。宿主用 `attachmentsMountReferences` 声明例外：画布置 `true`，那边的参考列表本来就是助手上下文。
 
-**画布文本节点可 `@`（owner 2026-10-07）**：`@` 选择器多一族「文本节点」（悬停预览前 200 字），选中写下普通文字 `@名字`（不粘原文、没有引用胶囊）。被 `@` 或被选中的文本节点在快照里给全文（上限 `NODE_V4_PROMPT_MAX_LENGTH`），其余只给开头 400 字并带 `textTruncated`；服务端拒绝对 `textTruncated` 节点做 `set_text` 整段替换（`partialText`），追加照常。
+**画布文本节点可 `@`（owner 2026-10-07）**：文本节点是 `@` 菜单「画布上的卡」里的一行（悬停预览前 200 字），选中成一枚 `<@text:id>` 胶囊（不粘原文）。被 `@` 或被选中的文本节点在快照里给全文（上限 `NODE_V4_PROMPT_MAX_LENGTH`），其余只给开头 400 字并带 `textTruncated`；服务端拒绝对 `textTruncated` 节点做 `set_text` 整段替换（`partialText`），追加照常。
 
 **刚出的结果自动带进下一句（owner 2026-10-07）**：工作台新落地的一批结果以「最新 · 名字」chip 出现在输入框上方，可删，发出才进对话；挂载时已有的不算，下一批换掉还没发出的上一批。
 
-**为什么从 `@` 的第二段改成显性按钮**：`@` 得先想起来打一个 `@` 才看得见，而「从素材
-库挑图」是用户一眼要找的入口——藏在提及语法后面等于没有入口。⛔ 随之删掉的：
-`useStudioOperatorAssetLibrary`（搜索 + 防抖 + 三态）、共享 `MentionInput` 的
-`mentionSections` / `onMentionQueryChange` / `MentionCandidate.searched`（全仓只有助手
-这一处消费，删回单段实现）、`STUDIO_OPERATOR_MENTION_SECTION_IDS` 与
-`STUDIO_OPERATOR_LIBRARY_CANDIDATE_PREFIX`、i18n `mention.{workbench,library,libraryEmpty,searchFailed,searchRetry,searching}`。
-⛔ 不留兼容层。
+**为什么素材库仍有一颗显性按钮**：`@` 得先想起来打一个 `@` 才看得见，而「从素材库挑图」是用户一眼要找的入口。⛔ 随 §10b 删掉的：`use-studio-operator-mention.ts`（`addChip` chip 管线）、`STUDIO_OPERATOR_MENTION`、`lib/generation-name.ts` 的 `resolveGenerationMentions` / `matchGenerationMention`、旧 `ASSISTANT_MENTION_LIMITS`（`constants/generation-naming.ts`）、Dock 里「@ 图 → 挂参考位 / 删参考位给正文重编号」两段、i18n `mention.{textNodes,recent,cards}`。⛔ 不留兼容层。
 
 **删掉的**：「先问我」开关（决策 6）。它的语义迁到人设三档的 `planMode`（§11.1）。⛔ 不留兼容开关。
 

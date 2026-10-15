@@ -3364,6 +3364,18 @@ html:lang(ja) {
 .mention-chip-in {
   animation: mention-popover-in var(--duration-base) var(--ease-standard);
 }
+/* 助手输入框的 `@` 菜单（设计方案 §10b）：贴在输入框上方、从 `@` 那一侧长出来；
+   高度跟着可视区收（手机键盘弹起时 `dvh` 变矮，菜单不被顶出屏幕）。
+   胶囊上点出来的小卡片同一个进场。 */
+.assistant-mention-menu {
+  max-height: min(22rem, 45dvh);
+  transform-origin: bottom left;
+  animation: mention-popover-in var(--duration-base) var(--ease-standard);
+}
+.assistant-mention-card {
+  transform-origin: bottom left;
+  animation: mention-popover-in var(--duration-base) var(--ease-standard);
+}
 
 /* 工作台出图（owner 2026-10-07 工作台原型）：结果图由糊变清、略大落到原尺寸
    （与助手结果卡 `RESULT_REVEAL` 同一组数：blur 10px · scale 1.04）。 */

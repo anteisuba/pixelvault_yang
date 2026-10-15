@@ -35,6 +35,8 @@ import {
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
 import { ASSISTANT_KERNELS } from '@/constants/assistant-v3'
 import { AssistantV3TranscriptSchema } from '@/types/assistant-v3'
+import { AssistantMentionRefSchema } from '@/types/assistant-mention'
+import { ASSISTANT_MENTION_LIMITS } from '@/constants/assistant-mention'
 import {
   TimelineSnapshotAssetSchema,
   TimelineSnapshotSchema,
@@ -1977,9 +1979,25 @@ export const AssistantOperatorRequestSchema = z.object({
          * `blocked` 写成 `approved` 换不到放行 —— 挂载那一步会自己去读。
          */
         reviewState: GenerationReviewStateSchema.optional(),
+        /**
+         * 这张是画布上哪张卡（统一引用模型，§10b）。⭐ 服务端按它找卡、给句柄、
+         * 让 `look` 认图 —— ⛔ 不再拿 `label` 去和卡名比（三张同名「镜头1」只认得
+         * 第一张，改个名就认不出）。
+         */
+        nodeId: IdSchema.optional(),
       }),
     )
     .max(LIMITS.maxSnapshotReferences)
+    .optional(),
+  /**
+   * 用户这一轮 `@` 了哪几条（统一引用模型，§10b）——图之外还有文本卡、视频卡、角色、
+   * LoRA。服务端按 id / nodeId 把它们对到句柄上，板子里写一张「「名字」= 句柄」的
+   * 对照表。⚠ 名字在这条消息里唯一（客户端补过序号）。
+   * ⚠ 它**不是**看图名单：看图仍然只认 `mentionedAssets`。
+   */
+  mentions: z
+    .array(AssistantMentionRefSchema)
+    .max(ASSISTANT_MENTION_LIMITS.maxPerMessage)
     .optional(),
   /*
    * ⛔ **没有 `workingMemory`**（v2 §7.6，commit #12）：产物索引改由**服务端现场

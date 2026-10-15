@@ -337,6 +337,10 @@ export const API_ENDPOINTS = {
    * 与 `PROMPT_ASSISTANT_STREAM` 并存而不是替代它：那条流的载荷是文本增量。
    */
   STUDIO_ASSISTANT_OPERATOR: '/api/studio/assistant-operator',
+  /** 助手输入框 `@` 的素材库检索（多字段 + 文件夹下钻，只读）。 */
+  ASSISTANT_MENTIONS: '/api/assistant/mentions',
+  /** 按地址查参考位在库里叫什么（参考位带真名）。 */
+  ASSISTANT_MENTIONS_LOOKUP: '/api/assistant/mentions/lookup',
   /**
    * 联网搜图的**确认转存**（P3-B 腿 B）。搜索只出预览候选，用户点选一张才走这条
    * 路由把它转进 R2 —— ⛔ 助手的工具环里没有任何一条工具能调到它。

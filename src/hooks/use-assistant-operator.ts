@@ -65,6 +65,10 @@ import {
   type AssistantOperatorConfirmField,
   type AssistantOperatorDomain,
 } from '@/constants/assistant-operator'
+import {
+  ASSISTANT_MENTION_LIMITS,
+  ASSISTANT_MENTION_SCOPE_IDS,
+} from '@/constants/assistant-mention'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import {
   ASSISTANT_KERNEL_IDS,
@@ -117,6 +121,11 @@ import {
 } from '@/hooks/use-studio-operator-store'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import { assistantWorkspaceKey } from '@/lib/assistant-workspace'
+import {
+  describeMentionNote,
+  isLookableMention,
+  toMentionRef,
+} from '@/lib/assistant-mention'
 import { buildCanvasGenerationRequest } from '@/lib/studio-operator-canvas-snapshot'
 import { collectStepArtifacts } from '@/lib/studio-operator-artifacts'
 import { captureVideoEndpointFrames } from '@/lib/video-frame-capture'
@@ -180,6 +189,7 @@ import type {
   AssistantOperatorStep,
 } from '@/types/assistant-operator'
 import type { AssistantV3Transcript } from '@/types/assistant-v3'
+import type { AssistantMention } from '@/types/assistant-mention'
 import type {
   StudioOperatorAttachment,
   StudioOperatorErrorTrace,
@@ -238,7 +248,10 @@ function buildMessages(
               )
               .join(', ')}]`
           : ''
-      messages.push({ role: 'user', content: `${entry.text}${attachmentNote}` })
+      messages.push({
+        role: 'user',
+        content: `${entry.text}${attachmentNote}${describeMentionNote(entry.mentions ?? [])}`,
+      })
     } else if (entry.kind === 'message') {
       /**
        * ⚠ **空助手行不进对话**（2026-09-12 真机 bug）：出错 / 被打断的那一轮会
@@ -453,6 +466,44 @@ function lastUserAttachments(
   return []
 }
 
+/** 最后那条用户消息 `@` 了什么（统一引用模型，§10b）。 */
+function lastUserMentions(
+  entries: readonly StudioOperatorThreadEntry[],
+): readonly AssistantMention[] {
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index]
+    if (entry?.kind !== 'user') continue
+    return entry.mentions ?? []
+  }
+  return []
+}
+
+/**
+ * 最后那条消息带的视频 / 音频（媒体理解那条线）：📎 的那几条，加上从结果 / 素材库
+ * `@` 上来的那几条。⚠ 画布上的卡不算 —— 那些助手从板子上读，⛔ 不另送一份媒体。
+ */
+function lastUserMedia(
+  entries: readonly StudioOperatorThreadEntry[],
+): { kind: 'video' | 'audio'; url: string; label: string }[] {
+  const media: { kind: 'video' | 'audio'; url: string; label: string }[] = []
+  for (const attachment of lastUserAttachments(entries)) {
+    if (attachment.kind !== 'video' && attachment.kind !== 'audio') continue
+    media.push({
+      kind: attachment.kind,
+      url: attachment.url,
+      label: attachment.label,
+    })
+  }
+  for (const mention of lastUserMentions(entries)) {
+    if (mention.scope === ASSISTANT_MENTION_SCOPE_IDS.canvas || !mention.url)
+      continue
+    if (mention.kind !== 'video' && mention.kind !== 'audio') continue
+    if (media.some((item) => item.url === mention.url)) continue
+    media.push({ kind: mention.kind, url: mention.url, label: mention.label })
+  }
+  return media.slice(0, ASSISTANT_OPERATOR_LIMITS.maxSnapshotReferences)
+}
+
 /**
  * `critique_result.targetIds` 的**准入名单**（§7）。
  *
@@ -466,14 +517,35 @@ function buildMentionedAssets(
   domain: AssistantOperatorDomain,
 ): NonNullable<AssistantOperatorRequest['mentionedAssets']> {
   const isVideoDomain = domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video
-  return lastUserAttachments(entries)
-    .filter(
-      (attachment) =>
-        attachment.kind === 'image' ||
-        (isVideoDomain && attachment.kind === 'video'),
+  /**
+   * ⭐ `@` 的在前、📎 的在后：看图上限（`ASSISTANT_MENTION_LIMITS.lookImages`）截的是
+   * 名单前几张，指名道姓的那几张先占位。同一张图两边都有时只算一次（按地址）。
+   * ⚠ 画布的卡带 `nodeId` 上去 —— 服务端按它认卡，⛔ 不再按名字。
+   */
+  const pointed: (StudioOperatorAttachment & { nodeId?: string })[] =
+    lastUserMentions(entries).flatMap((mention) =>
+      isLookableMention(mention, isVideoDomain) && mention.url
+        ? [
+            {
+              id: mention.generationId ?? mention.id,
+              url: mention.url,
+              label: mention.label,
+              kind: mention.kind === 'video' ? 'video' : 'image',
+              ...(mention.seq === undefined ? {} : { seq: mention.seq }),
+              ...(mention.nodeId ? { nodeId: mention.nodeId } : {}),
+            },
+          ]
+        : [],
     )
+  const attached = lastUserAttachments(entries).filter(
+    (attachment) =>
+      (attachment.kind === 'image' ||
+        (isVideoDomain && attachment.kind === 'video')) &&
+      !pointed.some((item) => item.url === attachment.url),
+  )
+  return [...pointed, ...attached]
     .slice(0, ASSISTANT_OPERATOR_LIMITS.maxSnapshotReferences)
-    .map((attachment) => {
+    .map((attachment: StudioOperatorAttachment & { nodeId?: string }) => {
       /**
        * ⭐ **审核态随名单一起上去**（切片 Y）——它只是替服务端省一次查库：
        * 真正说了算的是服务端自己从库里读到的那一位（见契约里 `reviewState`
@@ -493,6 +565,7 @@ function buildMentionedAssets(
          * ⛔ 不从 id 派生一个补上。
          */
         ...(typeof attachment.seq === 'number' ? { seq: attachment.seq } : {}),
+        ...(attachment.nodeId ? { nodeId: attachment.nodeId } : {}),
         ...(reviewState === GENERATION_REVIEW_STATE_IDS.pending
           ? {}
           : { reviewState }),
@@ -679,7 +752,10 @@ export interface UseAssistantOperatorResult {
   send(
     text: string,
     attachments?: readonly StudioOperatorAttachment[],
-    options?: { searchWithGrok?: boolean },
+    options?: {
+      searchWithGrok?: boolean
+      mentions?: readonly AssistantMention[]
+    },
   ): void
   /** ⏹ —— 彻底叫停（拍板 13）。**连队列一起清**：叫停的是「接下来的一切」。 */
   stop(): void
@@ -925,6 +1001,7 @@ export function useAssistantOperator(
         id: nextOperatorEntryId('user'),
         text: item.text,
         attachments: item.attachments,
+        ...(item.mentions?.length ? { mentions: item.mentions } : {}),
       })
     }
     /**
@@ -1163,8 +1240,18 @@ export function useAssistantOperator(
       const latestMessage = messages.findLast(
         (message) => message.role === 'user',
       )?.content
+      /** ⭐ `@` 到的卡按 id 给宿主（画布据此展开那几张、给文本卡全文），⛔ 不按名字。 */
+      const pointedMentions = lastUserMentions(entries)
+      const mentionedNodeIds = pointedMentions.flatMap((mention) =>
+        mention.nodeId ? [mention.nodeId] : [],
+      )
       const snapshot = buildSnapshot(
-        latestMessage ? { latestMessage } : undefined,
+        latestMessage || mentionedNodeIds.length
+          ? {
+              ...(latestMessage ? { latestMessage } : {}),
+              ...(mentionedNodeIds.length ? { mentionedNodeIds } : {}),
+            }
+          : undefined,
       )
       const authoredByAssistant = buildAuthoredByAssistant(
         entries,
@@ -1175,17 +1262,7 @@ export function useAssistantOperator(
       const result = await streamAssistantOperatorAPI(
         {
           messages,
-          mediaAttachments: lastUserAttachments(entries)
-            .filter(
-              (attachment) =>
-                attachment.kind === 'video' || attachment.kind === 'audio',
-            )
-            .slice(0, ASSISTANT_OPERATOR_LIMITS.maxSnapshotReferences)
-            .map(({ kind, url, label }) => ({
-              kind: kind as 'video' | 'audio',
-              url,
-              label,
-            })),
+          mediaAttachments: lastUserMedia(entries),
           domain,
           workspaceKey,
           snapshot,
@@ -1215,6 +1292,13 @@ export function useAssistantOperator(
            * 展示文本，当成权限清单用就是一条提示词注入的路。
            */
           ...(mentionedAssets.length ? { mentionedAssets } : {}),
+          ...(pointedMentions.length
+            ? {
+                mentions: pointedMentions
+                  .slice(0, ASSISTANT_MENTION_LIMITS.maxPerMessage)
+                  .map(toMentionRef),
+              }
+            : {}),
           ...(autoReviewTurnRef.current
             ? { autoReview: true as const }
             : getOperatorState().autoGenerate
@@ -2063,11 +2147,18 @@ export function useAssistantOperator(
     (
       text: string,
       attachments: readonly StudioOperatorAttachment[] = [],
-      options: { searchWithGrok?: boolean } = {},
+      options: {
+        searchWithGrok?: boolean
+        /** 这一句 `@` 了什么（发送前已按 id 解析、名字已去重，§10b）。 */
+        mentions?: readonly AssistantMention[]
+      } = {},
     ) => {
       if (!isCurrentThread()) return
       const trimmed = text.trim()
       if (!trimmed) return
+      const mentions = options.mentions?.length
+        ? { mentions: options.mentions }
+        : {}
       /**
        * ⭐ **干活时进队列，⛔ 不再 abort**（本片改口，见文件头注）。
        * 排队条随即出现在输入框上方，接住发生在下一个工具步跑完的那一刻。
@@ -2077,6 +2168,7 @@ export function useAssistantOperator(
           id: nextOperatorEntryId('queued'),
           text: trimmed,
           attachments,
+          ...mentions,
         })
         return
       }
@@ -2099,6 +2191,7 @@ export function useAssistantOperator(
         id: nextOperatorEntryId('user'),
         text: trimmed,
         attachments,
+        ...mentions,
       })
       /**
        * 计划卡「修改」之后的第一条消息带 `planApproved: false` —— 服务端据此把

@@ -8377,14 +8377,58 @@
       "cancel": "Pull back"
     },
     "mention": {
-      "textNodes": "Text nodes",
-      "pickerLabel": "Pick something for the assistant to look at",
-      "recent": "Recent results",
+      "pickerLabel": "Mention something for the assistant",
+      "button": "Mention (@)",
       "empty": "Nothing matches — keep typing",
+      "searching": "Searching your library…",
+      "libraryHint": "Type to search: name · #number · folder · prompt",
+      "viewAll": "View all ({count})",
+      "showLess": "Show less",
+      "back": "Back",
+      "openFolder": "Open folder “{name}”",
+      "mentionAll": "Mention all",
       "remove": "Remove this reference",
+      "locate": "Show on canvas",
+      "preview": "Open preview",
+      "role": "Use as",
+      "roleNone": "Just look",
+      "roles": {
+        "subject": "Subject",
+        "style": "Style",
+        "composition": "Composition",
+        "first_frame": "First frame",
+        "last_frame": "Last frame"
+      },
+      "deleted": "Deleted",
+      "deletedNamed": "{label} (deleted)",
+      "blockedDeleted": "Something you mentioned no longer exists — remove the grey mention before sending.",
       "count": "will look at {count}",
-      "countWarn": "Reviewing {count, plural, one {# image} other {# images}} · accuracy may drop above {limit}",
-      "cards": "Characters & style cards"
+      "countWarn": "{count} images · only the first {limit} are looked at closely",
+      "results": "{count, plural, one {# option} other {# options}}",
+      "matches": "Matches",
+      "notProduced": "Not generated yet",
+      "shotNo": "Shot {no}",
+      "slot": "Reference slot {index}",
+      "groups": {
+        "recent": "Recently used",
+        "selected": "Selected cards",
+        "canvas": "Cards on the canvas",
+        "references": "Reference slots",
+        "attachments": "Attached to this message",
+        "results": "Generated in this chat",
+        "characters": "Characters",
+        "loras": "LoRAs",
+        "library": "Library"
+      },
+      "kinds": {
+        "image": "Image",
+        "video": "Video",
+        "audio": "Audio",
+        "model3d": "3D",
+        "text": "Text",
+        "character": "Character",
+        "lora": "LoRA"
+      }
     },
     "library": {
       "label": "Asset library",

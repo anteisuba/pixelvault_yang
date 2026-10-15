@@ -861,7 +861,10 @@ describe('useLoraOperatorHost 的 face（D7b ③）', () => {
       selectBase: () => {},
       stack: {
         items: Array.from({ length: mounted }, (_, index) => ({
-          asset: { id: `lora-${index}` } as unknown as LoraAssetRecord,
+          asset: {
+            id: `lora-${index}`,
+            name: `LoRA ${index}`,
+          } as unknown as LoraAssetRecord,
         })),
         push: () => {},
         setScale: () => {},
@@ -896,6 +899,24 @@ describe('useLoraOperatorHost 的 face（D7b ③）', () => {
     expect(result.current.face.contextLine()).toBe(
       'face.lora.context|WAI-Illustrious v15·3',
     )
+  })
+
+  it('`@` 菜单插件（§10b）：挂着的 LoRA 一组、按 id 认；角色那一组不出', () => {
+    const { result } = renderHook(() => useLoraOperatorHost(faceInput(2, BASE)))
+    const mentions = result.current.mentions
+    expect(mentions?.omit).toEqual(['characters'])
+    expect(mentions?.groups).toHaveLength(1)
+    expect(mentions?.groups[0]?.id).toBe('loras')
+    expect(
+      mentions?.groups[0]?.items.map((item) => [
+        item.kind,
+        item.id,
+        item.label,
+      ]),
+    ).toEqual([
+      ['lora', 'lora-0', 'LoRA 0'],
+      ['lora', 'lora-1', 'LoRA 1'],
+    ])
   })
 
   it('底模还没定出来时说「未选模型」，⛔ 不留一个空的前半句', () => {

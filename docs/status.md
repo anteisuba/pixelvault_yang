@@ -1,5 +1,7 @@
 # 项目状态
 
+- 助手全面修复 P1 输入交互（2026-10-15，owner「做完直接 push 到 main 上检查」）：① 反问卡多选与完整交互——多选勾选 +「确定（N）」（唯一例外）、推荐项排第一、「其他…」交给输入框、「跳过 · 全部用推荐」、键盘 ↑↓ / 1–9 / 空格 / Enter / Esc，打字作答时已勾的一起带上；② 加载态——等首包「正在想…」（<1 秒不露字、>6 秒慢提示）、「想了 N 秒」、工具步人话动词、出错条加「换个模型」、`role=status` 只播开始 / 完成 / 停止 / 失败；③ 收起态头像运行环 + 呼吸点，收着跑完 / 出错留一颗点；④ `@` 重做——正文存 `<@kind:id>` 按 id 解析（改名 / 同名不再错指、被删的拦发送）、一套胶囊、候选按宿主插件化、多词搜索与素材库服务端检索、单击胶囊小卡片定位、手机 `@` 键与 combobox ARIA，看图上限统一为 6。契约见 [assistant-shell-v2 §3.4 / §3.6 / §4.3 / §4.4](references/pages/assistant-shell-v2.md)。未做浏览器实测。
+
 - 角色页卡库（2026-10-14，owner 选「角色页里加 tab」）：角色页地台换成「我的角色 / 卡库」两个页签，卡库站内搜 chub.ai 的酒馆卡（热门 / 最新，默认不出成人内容），点「做成角色」建成角色卡并打开；落格与文件导入同一条。见 [cards](references/domains/cards.md#卡库2026-10-14owner角色页里加-tab)。chub 接口没有公开文档，云端沙箱连不上，只能上线后实测。
 - 角色设定接进助手 + 酒馆卡导入（2026-10-14，owner 选「进提示词加导入」）：用了角色时，身份、性格、说话方式、口头禅、经历整段进系统提示（角色只改怎么说、不改做什么），每轮末尾补一句「保持角色」；画布 v3 快照列出在场角色怎么说话，视频脚本主角带设定。角色页加「导入酒馆卡」与拖入（PNG / JSON），落格规则与「世界书、卡自带系统提示词原样存不注入」见 [cards](references/domains/cards.md#酒馆卡导入2026-10-14owner进提示词加导入)，提示词契约见 [assistant-shell-v2 §11.3](references/pages/assistant-shell-v2.md#113-用角色assistantpersonacharactercardid)。卡库见上一条。
 - 助手联网补齐（2026-10-14，owner「把缺口也补上」，推 main 线上验）：DeepSeek 自带联网走 Anthropic 兼容入口（未实测，失败自动退回 Serper）；自带联网失败 / 没调用一律退回 Serper；来源名单换成 Claude / GPT / Grok 的域名参数，装得下就不再退到管线；Claude / GPT 带浏览器时区当大致位置；Gemini 遇到链接加 `url_context`；Grok 的 X 搜索收账号 / 日期并看图；所选模型不是 Grok 时照实说没搜 X，配了 Grok key 就给「用 Grok 搜 X · 花你的 Grok 额度」按钮（按一次借一次）；v3 `search_web` 真传深度。契约见 [assistant-shell-v2](references/pages/assistant-shell-v2.md#2026-09-30--先讨论说了才动手只给看回复)。

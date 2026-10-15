@@ -41,6 +41,7 @@ import {
 } from 'react'
 import {
   ArrowUp,
+  AtSign,
   Box,
   Images,
   Music,
@@ -81,9 +82,7 @@ import {
 import {
   STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
   STUDIO_OPERATOR_HISTORY_OPEN_ROUNDS,
-  STUDIO_OPERATOR_KEEP_OPEN_ATTR,
   STUDIO_OPERATOR_LIBRARY_PAGE_SIZE,
-  STUDIO_OPERATOR_MENTION,
   STUDIO_OPERATOR_SHELL,
   STUDIO_OPERATOR_SKIPPED_REJECT_REASONS,
   STUDIO_OPERATOR_UPLOAD_ACCEPT,
@@ -108,18 +107,18 @@ import {
 import { StudioOperatorHistoryItem } from '@/components/business/studio/assistant-operator/StudioOperatorHistoryItem'
 import { StudioOperatorLogItem } from '@/components/business/studio/assistant-operator/StudioOperatorLogItem'
 import {
+  ASSISTANT_MENTION_GROUP_IDS,
+  ASSISTANT_MENTION_KIND_IDS,
+  ASSISTANT_MENTION_LIMITS,
+  ASSISTANT_MENTION_SCOPE_IDS,
+} from '@/constants/assistant-mention'
+import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
+import {
   MentionInput,
-  type MentionCandidate,
   type MentionInputHandle,
-  type MentionToken,
 } from '@/components/ui/mention-input'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
-import {
-  getReferenceMentionIndices,
-  getReferenceImageAttachmentId,
-  compileReferenceMentions,
-} from '@/lib/studio-reference-mentions'
 import {
   StudioOperatorMessageBody,
   StudioOperatorUserText,
@@ -155,6 +154,9 @@ import {
 import { StudioOperatorResumeChip } from '@/components/business/studio/assistant-operator/StudioOperatorResumeChip'
 import { StudioOperatorToolGroup } from '@/components/business/studio/assistant-operator/StudioOperatorToolGroup'
 import { StudioOperatorPromptNote } from '@/components/business/studio/assistant-operator/StudioOperatorPromptNote'
+import { StudioOperatorMentionMenu } from '@/components/business/studio/assistant-operator/StudioOperatorMentionMenu'
+import { StudioOperatorMentionCard } from '@/components/business/studio/assistant-operator/StudioOperatorMentionCard'
+import { openOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
 import { BlurSwap } from '@/components/ui/blur-swap'
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
@@ -163,7 +165,11 @@ import type { UseAssistantOperatorResult } from '@/hooks/use-assistant-operator'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
 import type { UseStudioOperatorUploadResult } from '@/hooks/use-studio-operator-upload'
 import type { UseStudioOperatorWebImportResult } from '@/hooks/use-studio-operator-web-import'
-import { useStudioOperatorMention } from '@/hooks/use-studio-operator-mention'
+import {
+  mentionChipToken,
+  useAssistantMentionComposer,
+} from '@/hooks/use-assistant-mention-composer'
+import { useAssistantMentionMenu } from '@/hooks/use-assistant-mention-menu'
 import { toOperatorAttachment } from '@/hooks/use-studio-operator-upload'
 import { useStudioOperatorRevert } from '@/hooks/use-studio-operator-revert'
 import {
@@ -175,6 +181,16 @@ import {
   useStudioOperatorState,
 } from '@/hooks/use-studio-operator-store'
 import { updateAssistantConversationRoundAPI } from '@/lib/api-client'
+import {
+  formatMentionToken,
+  isLookableMention,
+  mentionFromAttachment,
+  mentionKey,
+  parseMentionTokens,
+  removeMentionToken,
+  splitMentionKey,
+} from '@/lib/assistant-mention'
+import { candidateToMention } from '@/lib/assistant-mention-menu'
 import { assistantWorkspaceKey } from '@/lib/assistant-workspace'
 import { estimateCanvasNodeCost } from '@/lib/canvas-generation-cost'
 import {
@@ -194,6 +210,10 @@ import type {
   AssistantRouteModel,
 } from '@/types/assistant-persona'
 import type { GenerationRecord } from '@/types'
+import type {
+  AssistantMention,
+  AssistantMentionCandidate,
+} from '@/types/assistant-mention'
 import type { AssistantOperatorRoundSummary } from '@/types/assistant-operator'
 import type { StudioOperatorHistoryEntry } from '@/types/studio-operator-history'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
@@ -376,8 +396,8 @@ function collectCanvasChangedCards(
   })
 }
 
-/** `@` 选择器里文本节点那一族的分组键。 */
-const TEXT_NODE_MENTION_GROUP = 'text-node'
+/** 胶囊小卡片的宽（`StudioOperatorMentionCard` 的 `w-64`）—— 靠右时夹回输入区里。 */
+const MENTION_CARD_WIDTH_PX = 256
 
 /** 缺 key 时引导去配的那一档：Gemini 文本模型在 Google AI Studio 有免费档。 */
 const FREE_TIER_ASSISTANT_ROUTE = NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
@@ -533,11 +553,6 @@ export function StudioOperatorPanel({
   }, [domain, resume])
   const resumeFailedReason = describeRejectReason(resumeFailedCode)
   /**
-   * `@` 的那条 chip 管线（§3.3 四入口）—— chips 住在 store（收放法则会卸载这颗
-   * 组件），触发解析与选择器开合住在 hook 里。
-   */
-  const mention = useStudioOperatorMention()
-  /**
    * 结果格上那两颗 ✓/✕（切片 Y）—— 乐观更新 + PATCH 在 hook 里，
    * ⛔ 面板不自己打请求（Hard Rule 3）。
    */
@@ -579,6 +594,68 @@ export function StudioOperatorPanel({
   /** 输入区那一个边框（「用它当参考」飞进来的落点）。 */
   const inputAreaRef = useRef<HTMLDivElement>(null)
   const [dragOver, setDragOver] = useState(false)
+  /**
+   * `@` 的**一套 chip**（设计方案 §10b · 统一引用模型）：正文里的 `<@kind:id>` 就是
+   * 胶囊；登记表与外面递进来的那几条住在 store（收放法则会卸载这颗组件）。
+   * ⚠ 附图挂参考位的宿主：📎 里的图就是参考位（「参考位」那一组里列着），⛔ 不当
+   *   这条消息的附件再数一遍。
+   */
+  const mountsReferences = operatorHost.attachmentsMountReferences === true
+  const messageAttachments = useMemo(
+    () =>
+      mountsReferences
+        ? attachments.filter((item) => item.kind !== 'image')
+        : attachments,
+    [attachments, mountsReferences],
+  )
+  const composer = useAssistantMentionComposer({
+    host: operatorHost,
+    draft,
+    onDraftChange,
+    attachments: messageAttachments,
+  })
+  const draftMentionKeys = useMemo(
+    () => new Set(composer.drafts.map((item) => item.key)),
+    [composer.drafts],
+  )
+  /**
+   * 菜单里选中了（一条，或「选中的卡」那一组的「全部 @」）：登记 → 在 `@查询` 原处
+   * 插胶囊 → 记进最近使用 → 画布上的卡镜头移过去并闪一下（§10b「定位」）。
+   */
+  const pickMentions = useCallback(
+    (candidates: readonly AssistantMentionCandidate[]) => {
+      const fresh = candidates.filter(
+        (item) => !draftMentionKeys.has(mentionKey(item)),
+      )
+      const [first, ...rest] = fresh
+      if (!first) return
+      for (const item of fresh) composer.register(candidateToMention(item))
+      inputRef.current?.commitMention(
+        formatMentionToken(first),
+        mentionChipToken(first),
+      )
+      for (const item of rest)
+        inputRef.current?.insertToken(
+          formatMentionToken(item),
+          mentionChipToken(item),
+        )
+      composer.remember(fresh.map(mentionKey))
+      if (first.nodeId && operatorHost.canvasTargets)
+        operatorHost.canvasTargets.locate(first.nodeId)
+    },
+    [composer, draftMentionKeys, operatorHost.canvasTargets],
+  )
+  const mentionMenu = useAssistantMentionMenu({
+    groups: composer.groups,
+    recentKeys: composer.recentKeys,
+    excludeKeys: draftMentionKeys,
+    onPick: pickMentions,
+  })
+  /** 胶囊上点出来的小卡片：哪一枚、摆在多靠左。 */
+  const [chipCard, setChipCard] = useState<{
+    key: string
+    left: number
+  } | null>(null)
   /**
    * **还没落进结论记录的那几条钉住**（v2 §3.2 / §7.2，2026-09-12 实测第三组 B）。
    *
@@ -819,10 +896,8 @@ export function StudioOperatorPanel({
   /**
    * 结果卡上的**「用它当参考」**（v2 §6.2 第二行）。
    *
-   * ⭐ 走的是 `@` chip 那条**唯一的挂载管线**（`addChip` → Dock 那条 effect →
-   * `apply.addReference`）—— 与下行「素材库」按钮逐字同一条路。⛔ 面板不自己去
-   * 调宿主的挂载手：两处各挂一遍就是两条会分叉的链（判据与
-   * `use-studio-operator-mention.ts` 头注同源）。
+   * ⭐ 落成正文里的一枚 `@` 胶囊（统一引用模型 §10b）—— 与菜单 / 素材库按钮同一种
+   * 东西。⛔ 面板不自己去调宿主的挂载手、也不偷偷挂成参考位。
    * ⚠ 挂完把焦点还给输入框：用户点这颗的下一个动作多半是接着说「照这张再来一版」。
    */
   const useResultAsReference = useCallback(
@@ -834,17 +909,28 @@ export function StudioOperatorPanel({
           inputAreaRef.current,
           item.thumbnailUrl ?? item.url,
         )
-      mention.addChip({
-        id: item.id,
-        url: item.url,
-        label: item.label ?? item.id,
-        kind: item.outputType === 'video' ? 'video' : 'image',
-        ...(item.thumbnailUrl ? { thumbnailUrl: item.thumbnailUrl } : {}),
-        ...(item.seq === undefined ? {} : { seq: item.seq }),
-      })
-      inputRef.current?.focus()
+      const picked = mentionFromAttachment(
+        {
+          id: item.id,
+          url: item.url,
+          label: item.label ?? item.id,
+          kind: item.outputType === 'video' ? 'video' : 'image',
+          ...(item.thumbnailUrl ? { thumbnailUrl: item.thumbnailUrl } : {}),
+          ...(item.seq === undefined ? {} : { seq: item.seq }),
+        },
+        ASSISTANT_MENTION_SCOPE_IDS.result,
+      )
+      if (draftMentionKeys.has(mentionKey(picked))) {
+        inputRef.current?.focus()
+        return
+      }
+      composer.register(picked)
+      inputRef.current?.insertToken(
+        formatMentionToken(picked),
+        mentionChipToken(picked),
+      )
     },
-    [mention],
+    [composer, draftMentionKeys],
   )
 
   const referenceImages = operatorHost.referenceImages
@@ -856,105 +942,75 @@ export function StudioOperatorPanel({
       ),
     [historyEntries, entries, referenceImages],
   )
-  const referenceTokens: MentionToken[] = referenceImages.map(
-    (entry, index) => ({
-      name: entry.name
-        ? `Attachment[${getReferenceImageAttachmentId(entry.url)}]`
-        : `Image${index + 1}`,
-      kind: 'reference',
-      thumbnailUrl: entry.url,
-      slotLabel: `@${entry.name || tReference('image', { index: index + 1 })}`,
-    }),
-  )
-  const referenceCandidates: MentionCandidate[] = referenceTokens.flatMap(
-    (token, index) =>
-      referenceImages[index].disabledReason
-        ? []
-        : [
-            {
-              id: token.name,
-              name: token.slotLabel!.slice(1),
-              tokenName: token.name,
-              thumbnailUrl: token.thumbnailUrl,
-            },
-          ],
-  )
-
-  for (const attachment of attachments) {
-    if (attachment.kind !== 'video' && attachment.kind !== 'audio') continue
-    const name = `Attachment[${encodeURIComponent(attachment.id)}]`
-    referenceTokens.push({
-      name,
-      kind: attachment.kind === 'audio' ? 'voice' : 'video',
-      thumbnailUrl: attachment.thumbnailUrl,
-      slotLabel: `@${attachment.label}`,
-    })
-    referenceCandidates.push({
-      id: name,
-      name: attachment.label,
-      tokenName: name,
-      thumbnailUrl: attachment.thumbnailUrl,
-    })
-  }
-
-  /**
-   * 画布上的文本节点也能 `@`（owner 2026-10-07）：发出去的是 `@名字`，助手据此读它的
-   * 全文并能改它。⚠ 分一族（`group`），⛔ 不与图片抢名额。
-   * ⭐ 输入框里是一颗与图片同款的胶囊（owner 2026-10-08），发送时换回 `@名字`。
-   */
-  const textNodes = useMemo(
-    () => operatorHost.mentionTextNodes ?? [],
-    [operatorHost.mentionTextNodes],
-  )
-  const textNodeTokenName = (id: string) =>
-    `TextNode[${encodeURIComponent(id)}]`
-  for (const node of textNodes) {
-    referenceTokens.push({
-      name: textNodeTokenName(node.id),
-      kind: 'text',
-      slotLabel: `@${node.name}`,
-    })
-  }
-  const mentionCandidates: MentionCandidate[] = [
-    ...referenceCandidates,
-    ...textNodes.map((node) => ({
-      id: `text-node:${node.id}`,
-      name: node.name,
-      tokenName: textNodeTokenName(node.id),
-      group: TEXT_NODE_MENTION_GROUP,
-      groupLabel: t('mention.textNodes'),
-      preview: node.preview,
-    })),
-  ]
+  /** 画布文本节点的名字 —— 老消息（`@名字` 写法）在气泡里照旧画成文档胶囊。 */
   const textNodeNames = useMemo(
-    () => textNodes.map((node) => node.name),
-    [textNodes],
+    () =>
+      composer.groups.flatMap((group) =>
+        group.id === ASSISTANT_MENTION_GROUP_IDS.canvas
+          ? group.items.flatMap((item) =>
+              item.kind === ASSISTANT_MENTION_KIND_IDS.text ? [item.label] : [],
+            )
+          : [],
+      ),
+    [composer.groups],
   )
 
   /**
-   * 从素材库弹层挑中的那些 = **挂进工作台 + 正文里留一个 @ chip**（切片 #7c）。
+   * 从素材库弹层挑中的那些 = **正文里各留一枚 `@` 胶囊**（切片 #7c → §10b）。
    *
-   * ⭐ 挂载走的是 `addChip` 那一条（图片档由 `StudioOperatorDock` 的 effect 落到
-   * `apply.addReference`），⛔ 面板不自己调宿主的挂载手 —— 两处各挂一遍就是两条
-   * 会分叉的链（判据与 `use-studio-operator-mention.ts` 头注同源）。
-   * ⚠ 序号按**追加位**逐张往后推：一次挑三张时三个 `@` 必须各指各的那一张。
-   * ⚠ 已经在工作台上的那些（按 url）跳过：宿主按 url 去重，再挂一遍等于「点了
-   * 没反应」。
+   * ⭐ 按 id 指（scope `library`），⛔ 不再挂成参考位再按「图N」编号 —— 一次挑三张
+   * 时三枚胶囊各指各的那一张，删掉一张参考位也不会让后面的号挪位。
+   * ⚠ 已经在正文里的跳过（同一件再插一枚只是重复）。
    */
   const pickLibraryAssets = (generations: readonly GenerationRecord[]) => {
-    let slot = referenceImages.length
+    const picked: string[] = []
     for (const generation of generations) {
       if (!generation.url) continue
-      if (referenceImages.some((ref) => ref.url === generation.url)) continue
-      const asset = toOperatorAttachment(generation)
-      mention.addChip(asset)
-      if (asset.kind === 'image') {
-        slot += 1
-        inputRef.current?.insertToken(`Image${slot}`)
-      }
+      const item = mentionFromAttachment(
+        toOperatorAttachment(generation),
+        ASSISTANT_MENTION_SCOPE_IDS.library,
+      )
+      const key = mentionKey(item)
+      if (draftMentionKeys.has(key) || picked.includes(key)) continue
+      picked.push(key)
+      composer.register(item)
+      inputRef.current?.insertToken(
+        formatMentionToken(item),
+        mentionChipToken(item),
+      )
     }
+    composer.remember(picked)
     inputRef.current?.focus()
   }
+
+  /**
+   * 气泡里的 `@` 胶囊点一下（§10b「用户消息气泡里的 chip 也可点、可定位」）：
+   * 画布上还在的卡 → 镜头移过去并闪一下；其余有地址的图 / 视频 → 看大图。
+   */
+  const canvasTargets = operatorHost.canvasTargets
+  const isMentionMissing = useCallback(
+    (item: AssistantMention) =>
+      item.scope === ASSISTANT_MENTION_SCOPE_IDS.canvas &&
+      Boolean(item.nodeId) &&
+      Boolean(canvasTargets) &&
+      canvasTargets!.nameOf(item.nodeId!) === undefined,
+    [canvasTargets],
+  )
+  const openMention = useCallback(
+    (item: AssistantMention) => {
+      if (item.nodeId && canvasTargets && !isMentionMissing(item)) {
+        canvasTargets.locate(item.nodeId)
+        return
+      }
+      if (
+        item.url &&
+        (item.kind === ASSISTANT_MENTION_KIND_IDS.image ||
+          item.kind === ASSISTANT_MENTION_KIND_IDS.video)
+      )
+        openOperatorLightbox(item.url, item.label)
+    },
+    [canvasTargets, isMentionMissing],
+  )
 
   const working = status === 'working'
   /** ⭐ 跑着且输入框是空的 → 发送键就是**停止**（S2）；跑着但你打了字 → 仍是发送，这一句排队（§3.1 ㉒）。 */
@@ -1008,141 +1064,29 @@ export function StudioOperatorPanel({
 
   const submit = useCallback(
     (text: string) => {
-      let value = text.trim()
+      const value = text.trim()
       if (!value) return
       // 见上面 `uploading` 的注释：在飞的上传是发送的硬前提。
       if (uploading) return
       /**
-       * ⭐ **@chip 与 📎 附件合成同一个数组送出去**（§7「四条走同一条 chip 管线」）：
-       * 服务端一个新字段都没有，`buildMessages` 那条 `[attached: …]` 原样带上它们。
-       * ⚠ 去重按 id：同一张图既被 📎 挂过又被 @ 提过时，助手会收到两份同样的地址。
+       * ⭐ 发送前每一枚胶囊按 id 去**此刻还在的东西**里找（§10b）：手打的 `@图1` /
+       * `@名字` 先换成记号；指的东西没了 = 整条拦下并说清楚（⛔ 不悄悄少带一张）。
+       * 通过之后记号换成 `「名字」`（同名的补序号），引用列表随这条消息一起走。
        */
-      // ⚠ 附图挂参考位的宿主（画布）：输入框里的图 chip 就是挂着的参考，下面按
-      //   `@图N` 现取；其余宿主的图只跟这条消息走（宿主类型 `attachmentsMountReferences`）。
-      const mountsReferences = operatorHost.attachmentsMountReferences === true
-      const merged = attachments.filter(
-        (attachment) => !mountsReferences || attachment.kind !== 'image',
-      )
-      for (const chip of mention.chips) {
-        if (
-          (!mountsReferences || chip.kind !== 'image') &&
-          !merged.some((item) => item.id === chip.id)
+      const prepared = composer.prepare(value)
+      if (!prepared.ok) {
+        toast.info(
+          prepared.reason === 'missing'
+            ? t('mention.blockedDeleted')
+            : tReference('invalid'),
         )
-          merged.push(chip)
-      }
-      const currentReferences = operatorHost.referenceImages
-      /** 未命名参考图在界面上叫什么（「图1」）—— 气泡与选择器写的是同一个词。 */
-      const referenceLabel = (index: number) =>
-        currentReferences[index]?.name ||
-        tReference('image', { index: index + 1 })
-      /**
-       * ⭐ 手打的「@图1」也算提及（2026-09-24 真机：没经过选择器的那一句原样进了
-       * 气泡，也没带上图）。长的先换，免得「@图1」吃掉「@图10」的前半截。
-       */
-      value = currentReferences
-        .map((_, index) => index)
-        .sort((a, b) => referenceLabel(b).length - referenceLabel(a).length)
-        .reduce(
-          (text, index) =>
-            text.replaceAll(`@${referenceLabel(index)}`, `@Image${index + 1}`),
-          value,
-        )
-      /**
-       * ⭐ 一个参考位都没挂时，「@Image N」指的是这条消息自己带的第 N 张图（2026-10-09
-       * owner 真机：LoRA 台带着刚出的图写「@Image1 比如这张」，被拦成「引用的图片不
-       * 可用」）。挂了参考位就只认参考位 —— 两套编号混着数会指错图。
-       */
-      const messageImages = currentReferences.length
-        ? []
-        : merged.filter((item) => item.kind === 'image')
-      const indices = getReferenceMentionIndices(value)
-      if (
-        indices.some((index) =>
-          messageImages.length
-            ? !messageImages[index]
-            : !currentReferences[index] ||
-              currentReferences[index].disabledReason,
-        )
-      ) {
-        toast.info(tReference('invalid'))
         return
       }
-      if (messageImages.length)
-        value = value.replace(
-          /(?<![\w.%+-])@Image([1-9]\d*)(?![\w])/g,
-          (token, number: string) => {
-            const image = messageImages[Number(number) - 1]
-            return image ? `「${image.label}」` : token
-          },
-        )
-      // 指的是这条消息自己的图时，它们已经在 `merged` 里了。
-      for (const index of messageImages.length ? [] : indices) {
-        const url = currentReferences[index].url
-        const reference: StudioOperatorAttachment = {
-          id: getReferenceImageAttachmentId(url),
-          url,
-          thumbnailUrl: url,
-          kind: 'image',
-          label: referenceLabel(index),
-        }
-        if (!merged.some((item) => item.url === url)) merged.push(reference)
-      }
-      let missingAttachment = false
-      for (const match of value.matchAll(/@Attachment\[([^\]]+)\]/g)) {
-        const reference = currentReferences.find(
-          (entry) =>
-            encodeURIComponent(getReferenceImageAttachmentId(entry.url)) ===
-            match[1],
-        )
-        if (!reference) continue
-        if (reference.disabledReason) {
-          missingAttachment = true
-          continue
-        }
-        if (!merged.some((item) => item.url === reference.url)) {
-          merged.push({
-            id: getReferenceImageAttachmentId(reference.url),
-            kind: 'image',
-            url: reference.url,
-            thumbnailUrl: reference.url,
-            label: referenceLabel(currentReferences.indexOf(reference)),
-          })
-        }
-      }
-      // ⭐ 未命名的也写成「图1」：模型按附件里同名那张认图，气泡按同一个名字画缩略图。
-      const namedValue = value.replace(
-        /@Image([1-9]\d*)(?![\w])/g,
-        (token, number: string) =>
-          currentReferences[Number(number) - 1]
-            ? `「${referenceLabel(Number(number) - 1)}」`
-            : token,
-      )
-      const compiled = compileReferenceMentions(
-        namedValue.replace(
-          /@TextNode\[([^\]]+)\]/g,
-          (token, encodedId: string) => {
-            const node = textNodes.find(
-              (item) => encodeURIComponent(item.id) === encodedId,
-            )
-            return node ? `@${node.name}` : token
-          },
-        ),
-      ).replace(/@Attachment\[([^\]]+)\]/g, (token, encodedId: string) => {
-        const attachment = merged.find(
-          (item) => encodeURIComponent(item.id) === encodedId,
-        )
-        if (!attachment) {
-          missingAttachment = true
-          return token
-        }
-        return attachment.kind === 'image'
-          ? `「${attachment.label}」`
-          : `@${attachment.label}`
-      })
-      if (missingAttachment) {
-        toast.info(tReference('invalid'))
-        return
-      }
+      /**
+       * ⚠ 附图挂参考位的宿主：📎 里的图就是挂着的参考（快照里读得到），只跟这条消息
+       *   走非图片的那几样；其余宿主的 📎 原样随消息走。
+       */
+      const merged = messageAttachments
       /**
        * ⭐ **问题块开着时，直接打字 = 用一句话回答当前这题**（56b 切片 4）。
        *
@@ -1150,47 +1094,78 @@ export function StudioOperatorPanel({
        * 再折进时间线，而用户打的那句话往往**正是**答案（「8 镜，前 3 镜慢一点」）。
        * 当成一条普通发言送出去的表现是助手下一轮把同一道题再问一遍。
        * ⚠ 不想答就按「跳过」/ 在问题块上按 `Esc`（记一格「跳过」，进下一题）。
-       * ⚠ 答复**带着这句话里的图走**（2026-10-08 真机）：从前这条路丢掉附件、把
-       *   `@Attachment[…]` 原样当答案，助手连问三轮「那张图我看不到」。
+       * ⚠ 答复**带着这句话里的图走**（2026-10-08 真机）：`@` 的图 / 视频换成附件
+       *   随答复送出（答题那条路只收附件）。
        * ⭐ **已勾的选项一起带上**（2026-10-14）：「选 A + 补一句」并存，⛔ 打字不再
        *   清掉勾选。
        */
       const pending = getOperatorState().question
       if (pending) {
+        const includeVideo = domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video
+        const pointed = prepared.mentions.flatMap(
+          (item): StudioOperatorAttachment[] =>
+            isLookableMention(item, includeVideo) &&
+            !merged.some((attachment) => attachment.url === item.url)
+              ? [
+                  {
+                    id: item.generationId ?? item.id,
+                    url: item.url!,
+                    label: item.label,
+                    kind:
+                      item.kind === ASSISTANT_MENTION_KIND_IDS.video
+                        ? 'video'
+                        : 'image',
+                    ...(item.thumb ? { thumbnailUrl: item.thumb } : {}),
+                  },
+                ]
+              : [],
+        )
         answerQuestion(
           {
             questionId:
               pending.questions[pending.answers.length]?.id ?? pending.id,
             optionIds: [...(pending.checked ?? [])],
-            otherText: compiled,
+            otherText: prepared.text,
           },
-          { attachments: merged },
+          { attachments: [...pointed, ...merged] },
         )
       } else {
-        send(compiled, merged)
+        send(prepared.text, merged, { mentions: prepared.mentions })
       }
+      composer.remember(prepared.mentions.map(mentionKey))
       onDraftChange('')
       onAttachmentsChange(
         mountsReferences
           ? attachments.filter((item) => item.kind === 'image')
           : [],
       )
-      mention.clearChips()
-      mention.closePicker()
+      setChipCard(null)
     },
     [
       answerQuestion,
       attachments,
-      mention,
+      composer,
+      domain,
+      messageAttachments,
+      mountsReferences,
       onAttachmentsChange,
       onDraftChange,
-      operatorHost,
       send,
-      textNodes,
-      uploading,
+      t,
       tReference,
+      uploading,
     ],
   )
+
+  /** `@` 菜单多词查询一条都没中（打完 `@` 接着写了一句话）：放掉这个 `@`。 */
+  useEffect(() => {
+    if (mentionMenu.exhausted) inputRef.current?.dismissMention()
+  }, [mentionMenu.exhausted])
+  /** 菜单一打开就现拉一次角色库（面板挂载时不拉）。 */
+  const { warmCharacters } = composer
+  useEffect(() => {
+    if (mentionMenu.open) warmCharacters()
+  }, [mentionMenu.open, warmCharacters])
 
   /** 三个手势一条通道（拍板 16）：选文件 / 拖进来 / 粘贴，全落到这里。 */
   const handleUploadFiles = useCallback(
@@ -1861,6 +1836,9 @@ export function StudioOperatorPanel({
               attachments={entry.attachments}
               references={messageImageReferences.get(entry.id)}
               textNodeNames={textNodeNames}
+              {...(entry.mentions ? { mentions: entry.mentions } : {})}
+              onMentionClick={openMention}
+              isMentionMissing={isMentionMissing}
             />
             {attachmentsBelowUserText(entry.text, entry.attachments).length ? (
               <div className="mt-1 flex flex-wrap gap-1">
@@ -2240,6 +2218,8 @@ export function StudioOperatorPanel({
                     <StudioOperatorHistoryItem
                       entry={entry}
                       references={messageImageReferences.get(entry.id)}
+                      onMentionClick={openMention}
+                      isMentionMissing={isMentionMissing}
                     />
                   </StudioOperatorTimelineRow>
                 )
@@ -2689,64 +2669,34 @@ export function StudioOperatorPanel({
           </div>
         ) : null}
 
-        {/* ── @chip 区（§11.4「@chip」/ §7）──────────────────────────
-          ⚠ 与 📎 附件分成两排是有意的：📎 是「我给你一份材料」，@ 是「看这几张」。
-            右端那个计数是这一片的承诺（「将看 N 张」），⛔ 不合并进附件排 ——
-            合并之后计数会把材料也算进去，而助手并不会去看一段音频。 */}
-        {mention.chips.length > 0 ? (
+        {/* ── 「将看 N 张」（§10b「看图上限统一为一个数」）────────────────
+          ⭐ 胶囊就在正文里（一套 chip），这里只剩那一句承诺：`@` 的图 + 📎 的图按地址
+            去重后一共几张。超过 `lookImages` 转 warning 并**明说只细看前 N 张** ——
+            与发给模型的那句、`look` 工具的上限是同一个数（⛔ 界面说 8 张实际看 6 张）。
+            ⛔ 不拦发送（owner 2026-09-06「不设硬上限」）。 */}
+        {composer.lookCount > 0 ? (
           <div
             data-testid="operator-mention-row"
-            className="flex shrink-0 flex-wrap items-center gap-1.5 px-3 pb-1.5"
+            className="flex shrink-0 items-center px-4 pb-1"
           >
-            {mention.chips.map((chip) => (
-              <span
-                key={chip.id}
-                data-testid="operator-mention-chip"
-                className="mention-chip-in flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 py-0.5 pl-0.5 pr-1.5 text-2sm text-primary"
-              >
-                {chip.thumbnailUrl ? (
-                  <Image
-                    src={chip.thumbnailUrl}
-                    alt={chip.label}
-                    width={40}
-                    height={40}
-                    unoptimized
-                    className="size-5 rounded object-cover"
-                  />
-                ) : (
-                  <span className="grid size-5 place-items-center rounded bg-primary/15">
-                    <AttachKindGlyph kind={chip.kind} />
-                  </span>
-                )}
-                <span className="max-w-24 truncate">{chip.label}</span>
-                <button
-                  type="button"
-                  data-testid="operator-mention-remove"
-                  aria-label={t('mention.remove')}
-                  onClick={() => mention.removeChip(chip.id)}
-                  className="text-primary/70 hover:text-primary"
-                >
-                  <X className="size-2.5" aria-hidden />
-                </button>
-              </span>
-            ))}
-            {/* ⚠ 超过 8 张只**转色 + 加一句**，⛔ 不拦截、⛔ 不截断（owner 2026-09-06）。 */}
             <span
               data-testid="operator-mention-count"
-              data-over-limit={mention.overLimit}
+              data-over-limit={
+                composer.lookCount > ASSISTANT_MENTION_LIMITS.lookImages
+              }
               className={cn(
                 'ml-auto font-mono text-xs tracking-nav tabular-nums',
-                mention.overLimit
+                composer.lookCount > ASSISTANT_MENTION_LIMITS.lookImages
                   ? 'text-status-warning'
                   : 'text-muted-foreground',
               )}
             >
-              {mention.overLimit
+              {composer.lookCount > ASSISTANT_MENTION_LIMITS.lookImages
                 ? t('mention.countWarn', {
-                    count: mention.count,
-                    limit: STUDIO_OPERATOR_MENTION.warnAboveCount,
+                    count: composer.lookCount,
+                    limit: ASSISTANT_MENTION_LIMITS.lookImages,
                   })
-                : t('mention.count', { count: mention.count })}
+                : t('mention.count', { count: composer.lookCount })}
             </span>
           </div>
         ) : null}
@@ -2798,10 +2748,10 @@ export function StudioOperatorPanel({
           data-testid="operator-input-area"
           data-drag-over={dragOver}
           /**
-           * 拖图进输入框（§3.3 第 3 行）—— 四入口之三。
+           * 拖图进输入框（§3.3 第 3 行）。
            *
-           * ⭐ 库内资产（`ASSET_DND_MIME`）成 @chip，其余原样交回上传三通道那一个
-           * 出口（拍板 16）。判据在 `use-studio-operator-mention.ts` 里。
+           * ⭐ 库内资产（`ASSET_DND_MIME`）成正文里的 `@` 胶囊，其余原样交回上传三通道
+           * 那一个出口（拍板 16）。判据在 `useAssistantMentionComposer.acceptDrop`。
            * ⚠ `onDragOver` 必须 `preventDefault`，否则浏览器根本不会触发 `drop`。
            */
           onDragOver={(event) => {
@@ -2812,7 +2762,7 @@ export function StudioOperatorPanel({
           onDrop={(event) => {
             event.preventDefault()
             setDragOver(false)
-            const files = mention.acceptDrop(event.dataTransfer)
+            const files = composer.acceptDrop(event.dataTransfer)
             if (files.length > 0) upload.uploadFiles(files)
           }}
           className={cn(
@@ -2822,6 +2772,46 @@ export function StudioOperatorPanel({
               : 'border-assistant-line-strong',
           )}
         >
+          {/* ── `@` 菜单 / 胶囊小卡片（§10b）：贴在输入框正上方，⛔ 不 portal ——
+            手机上键盘弹起时它跟着输入框走，不会被盖住也不会被关掉。 */}
+          <StudioOperatorMentionMenu menu={mentionMenu} />
+          {chipCard && !mentionMenu.open
+            ? (() => {
+                const target = composer.drafts.find(
+                  (item) => item.key === chipCard.key,
+                )
+                if (!target) return null
+                const ref = splitMentionKey(target.key)
+                const item = target.mention
+                return (
+                  <StudioOperatorMentionCard
+                    draft={target}
+                    left={chipCard.left}
+                    roles={composer.roles}
+                    onClose={() => setChipCard(null)}
+                    onRemove={() => {
+                      if (ref) onDraftChange(removeMentionToken(draft, ref))
+                      setChipCard(null)
+                      inputRef.current?.focus()
+                    }}
+                    onRole={(role) => composer.setRole(target.key, role)}
+                    {...(item?.nodeId &&
+                    item.scope === ASSISTANT_MENTION_SCOPE_IDS.canvas &&
+                    canvasTargets
+                      ? { onLocate: () => canvasTargets.locate(item.nodeId!) }
+                      : {})}
+                    {...(item?.url &&
+                    (item.kind === ASSISTANT_MENTION_KIND_IDS.image ||
+                      item.kind === ASSISTANT_MENTION_KIND_IDS.video)
+                      ? {
+                          onPreview: () =>
+                            openOperatorLightbox(item.url!, item.label),
+                        }
+                      : {})}
+                  />
+                )
+              })()
+            : null}
           {/* ── 问题块（D12 S3 / S4）：**占用输入框内部**，⛔ 不套第二层框（P2）。
             ⭐ 不进时间线：未答的问题是当下唯一挡路的东西。
             ⚠ 下面的输入框**始终可用**：直接打字 = 用一句话回答当前这题（Q6，
@@ -2858,28 +2848,27 @@ export function StudioOperatorPanel({
           ) : null}
           <MentionInput
             ref={inputRef}
-            /* 浮层 portal 在 `document.body`（面板带 `backdrop-filter` +
-                   `overflow-hidden`，portal 进来就会被接管坐标再被裁），所以要自己
-                   挂收放法则的豁免标记，否则点候选 = 点面板外面 = 面板收起。 */
-            popoverAttributes={{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}
             value={draft}
             aria-label={operatorHost.face.inputPlaceholder}
             onValueChange={onDraftChange}
-            tokens={referenceTokens}
-            mentionCandidates={mentionCandidates}
-            /* 一条都没对上时也要**说话**：两句分得开 —— 一句是「这儿本来就没有
-                   参考图」，另一句是「有，但没一条对得上你打的字」。合成一句的话
-                   前者会把用户支使去改搜索词。 */
-            emptyLabel={
-              mentionCandidates.length
-                ? tReference('noMatches')
-                : tReference('empty')
-            }
-            onMentionSelect={(candidate) => {
-              // 文本节点也是一颗胶囊（owner 2026-10-08），发送时换回 `@名字`。
-              inputRef.current?.insertToken(
-                candidate.tokenName ?? candidate.name,
-              )
+            tokens={composer.tokens}
+            /* `@` 菜单外置（§10b）：输入框认出 `@查询`、挂 combobox ARIA，导航键交给
+               `useAssistantMentionMenu`；菜单本身画在上面那一格。 */
+            mentionMenu={mentionMenu.binding}
+            onChipClick={(name, rect) => {
+              const [token] = parseMentionTokens(name)
+              const area = inputAreaRef.current?.getBoundingClientRect()
+              if (!token || !area) return
+              setChipCard({
+                key: token.key,
+                left: Math.max(
+                  0,
+                  Math.min(
+                    rect.left - area.left,
+                    area.width - MENTION_CARD_WIDTH_PX,
+                  ),
+                ),
+              })
             }}
             onKeyDown={(event) => {
               if (event.nativeEvent.isComposing || event.keyCode === 229) return
@@ -2960,6 +2949,23 @@ export function StudioOperatorPanel({
               className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
             >
               <Images className="size-4" aria-hidden />
+            </button>
+            {/* `@` 的触屏入口（§10b「输入框旁加 @ 按钮」）：在光标处写一个 `@` 并打开
+                菜单。⚠ `onMouseDown` preventDefault：点它不能先让输入框失焦（光标位置
+                要留着）。 */}
+            <button
+              type="button"
+              data-testid="operator-mention-button"
+              aria-label={t('mention.button')}
+              title={t('mention.button')}
+              aria-haspopup="listbox"
+              aria-expanded={mentionMenu.open}
+              aria-controls={mentionMenu.binding.listId}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => inputRef.current?.openMention()}
+              className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none coarse:size-11"
+            >
+              <AtSign className="size-4" aria-hidden />
             </button>
             {/* 助手用的文本模型（§4.5）：选中即写 `AssistantPersona.routeModel`。 */}
             <StudioOperatorModelChip

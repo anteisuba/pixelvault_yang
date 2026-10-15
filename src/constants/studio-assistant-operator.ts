@@ -774,21 +774,6 @@ export type StudioOperatorGenerateKnob =
   (typeof STUDIO_OPERATOR_GENERATE_KNOBS)[number]
 
 /**
- * `@` 提及选择器（§3.3 / §7 的四入口）。
- *
- * ⚠ `warnAboveCount` 是**提示线不是闸**（owner 2026-09-06 定「看图上限：不设硬
- * 上限」）：超过它只把计数转 warning 并加一句「超 8 张可能不准」，⛔ 不拦截、
- * ⛔ 不软截断。原型阶段那句「只细看前 8 张」已作废 —— 悄悄少看几张是本仓最
- * 讨厌的那种失败（界面说看了 12 张，实际看了 8 张）。
- * ⚠ `trigger` 单独列出来是因为解析（hook）与占位语（组件）读的必须是同一个字符。
- */
-export const STUDIO_OPERATOR_MENTION = {
-  trigger: '@',
-  /** 超过这么多张就把 chip 区计数转 warning（见上：只提示，不拦）。 */
-  warnAboveCount: 8,
-} as const
-
-/**
  * 素材库按钮打开的选择器**首屏取几条**（切片 #7c，owner「初次只加在 10 个左右」）。
  *
  * ⚠ 只是**首屏**不是上限：往下拉继续翻页（`AssetPickerBrowser` 的无限滚动照旧），

@@ -61,6 +61,9 @@ import {
   promptTimelineEnd,
 } from '@/lib/assistant-v3-shot-checks'
 import { parseScriptShots } from '@/lib/node-script-shots'
+import { renderAssistantV3MentionTable } from '@/lib/assistant-v3-mentions'
+import { ASSISTANT_MENTION_SCOPE_IDS } from '@/constants/assistant-mention'
+import type { AssistantMentionRef } from '@/types/assistant-mention'
 import {
   translateAssistantV3Edit,
   translateAssistantV3Write,
@@ -298,6 +301,34 @@ const NOT_RUN_AFTER_STOP = 'Not run: this turn stopped to wait for the creator.'
 const CHECKED_BEFORE_GENERATE = 'Not put up yet — checked first:'
 const WAITING_FOR_CREATOR =
   'Waiting for the creator: the card is in front of them now. This turn ends here.'
+
+/**
+ * 一条 `@` 引用在这张脸上的句柄（§10b「按 id 解析到句柄」）：画布的卡按 `nodeId`，
+ * 角色页的角色、LoRA 台的 LoRA 按各自的 id。不在这张板子上 = `null`。
+ */
+function mentionHandleOf(
+  face: string,
+  mention: AssistantMentionRef,
+  nodes: readonly AssistantOperatorCanvasNode[],
+  handles: AssistantV3Handles,
+  snapshot: AssistantOperatorRequest['snapshot'],
+): string | null {
+  if (mention.nodeId && nodes.some((node) => node.id === mention.nodeId))
+    return handles.handleOf(mention.nodeId)
+  if (
+    face === ASSISTANT_V3_FACE_IDS.cards &&
+    mention.scope === ASSISTANT_MENTION_SCOPE_IDS.character &&
+    snapshot.cards?.characters?.some((item) => item.id === mention.id)
+  )
+    return handles.handleOf(mention.id)
+  if (
+    face === ASSISTANT_V3_FACE_IDS.lora &&
+    mention.scope === ASSISTANT_MENTION_SCOPE_IDS.lora &&
+    snapshot.loras?.items?.some((item) => item.id === mention.id)
+  )
+    return handles.handleOf(mention.id)
+  return null
+}
 
 function shortName(name: string): string {
   return name.length > 24 ? `${name.slice(0, 24)}…` : name
@@ -816,19 +847,55 @@ async function* runV3Turn(
     const mentionedImages = mentioned
       .slice(0, ASSISTANT_V3_LIMITS.maxLookCards)
       .map((asset) => ({ url: asset.url, label: asset.label ?? asset.id }))
-    if (canvas) {
-      const mentionedIds = mentioned.flatMap((asset) => {
-        const node = nodes.find((candidate) => candidate.name === asset.label)
-        return node ? [node.id] : []
+    /**
+     * ⭐ `@` 对照表（§10b）：每条引用按 id 对到这张脸的句柄上，接在板子末尾。
+     * ⚠ 板子先截、表后接 —— 表很短，⛔ 不能让一张大画布把它挤出去。
+     */
+    const withMentions = (board: string) => {
+      const table = renderAssistantV3MentionTable({
+        mentions: request.mentions ?? [],
+        attachedLabels: mentionedImages.map((image) => image.label),
+        pointedImageCount: mentioned.length,
+        handleOf: (mention) =>
+          mentionHandleOf(face, mention, nodes, handles, request.snapshot),
       })
+      const clipped = board.slice(
+        0,
+        ASSISTANT_V3_LIMITS.maxBoardChars - (table ? table.length + 1 : 0),
+      )
+      return table ? `${clipped}\n${table}` : clipped
+    }
+    if (canvas) {
+      /**
+       * ⭐ 按 id 认卡（§10b）：引用带着 `nodeId`，图片卡、同名卡、改过名的卡都认得。
+       * ⛔ 不再拿 `label` 去和卡名比 —— 三张「镜头1」只认得第一张。
+       */
+      const onBoard = new Set(nodes.map((node) => node.id))
+      /** 没带 id 的老附图（📎 / 老客户端）只在名字**唯一**时认卡，同名就不猜。 */
+      const byUniqueName = (label: string | undefined) => {
+        const hits = label ? nodes.filter((node) => node.name === label) : []
+        return hits.length === 1 ? hits[0]!.id : undefined
+      }
+      const mentionedIds = [
+        ...new Set(
+          [
+            ...mentioned.map(
+              (asset) => asset.nodeId ?? byUniqueName(asset.label),
+            ),
+            ...(request.mentions ?? []).map((mention) => mention.nodeId),
+          ].filter((id): id is string => !!id && onBoard.has(id)),
+        ),
+      ]
       transcript.push({
         type: ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.board,
-        text: renderAssistantV3Board({
-          canvas,
-          handles,
-          latestUserText: latest,
-          mentionedIds,
-        }).slice(0, ASSISTANT_V3_LIMITS.maxBoardChars),
+        text: withMentions(
+          renderAssistantV3Board({
+            canvas,
+            handles,
+            latestUserText: latest,
+            mentionedIds,
+          }),
+        ),
         images: supportsImages ? mentionedImages : [],
       })
     } else if (face === ASSISTANT_V3_FACE_IDS.cards) {
@@ -838,12 +905,14 @@ async function* runV3Turn(
         .map((url, index) => ({ url, label: `card-${index + 1}` }))
       transcript.push({
         type: ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.board,
-        text: renderAssistantV3CardsBoard({
-          snapshot: request.snapshot,
-          handles,
-          attachedNames: mentionedImages.map((image) => image.label),
-          latestUserText: latest,
-        }).slice(0, ASSISTANT_V3_LIMITS.maxBoardChars),
+        text: withMentions(
+          renderAssistantV3CardsBoard({
+            snapshot: request.snapshot,
+            handles,
+            attachedNames: mentionedImages.map((image) => image.label),
+            latestUserText: latest,
+          }),
+        ),
         images: supportsImages ? [...cardImages, ...mentionedImages] : [],
       })
     } else if (
@@ -852,11 +921,13 @@ async function* runV3Turn(
     ) {
       transcript.push({
         type: ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.board,
-        text: renderAssistantV3ImageBoard({
-          snapshot: request.snapshot,
-          attachedNames: mentionedImages.map((image) => image.label),
-          latestUserText: latest,
-        }).slice(0, ASSISTANT_V3_LIMITS.maxBoardChars),
+        text: withMentions(
+          renderAssistantV3ImageBoard({
+            snapshot: request.snapshot,
+            attachedNames: mentionedImages.map((image) => image.label),
+            latestUserText: latest,
+          }),
+        ),
         images: supportsImages ? mentionedImages : [],
       })
     } else {
@@ -864,12 +935,14 @@ async function* runV3Turn(
       const sample = request.snapshot.viewingRecipe
       transcript.push({
         type: ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.board,
-        text: renderAssistantV3LoraBoard({
-          snapshot: request.snapshot,
-          handles,
-          attachedNames: mentionedImages.map((image) => image.label),
-          latestUserText: latest,
-        }).slice(0, ASSISTANT_V3_LIMITS.maxBoardChars),
+        text: withMentions(
+          renderAssistantV3LoraBoard({
+            snapshot: request.snapshot,
+            handles,
+            attachedNames: mentionedImages.map((image) => image.label),
+            latestUserText: latest,
+          }),
+        ),
         images: supportsImages
           ? [
               ...(sample
@@ -1895,13 +1968,21 @@ async function* executeLook(
     const node = id
       ? (context.nodes.find((candidate) => candidate.id === id) ?? null)
       : null
-    const asset = mentioned.find(
-      (candidate) =>
-        candidate.label === node?.name ||
-        candidate.label === card ||
-        (node?.referenceImageIndex !== undefined &&
-          referenceUrls[node.referenceImageIndex] === candidate.url),
-    )
+    /**
+     * ⭐ 先按卡的 id（`@` 带上来的 `nodeId`），再按图的地址，最后才按名字。
+     * ⚠ 按卡名比只给**没带 `nodeId`** 的那几条（📎 / 答题带上来的图、老客户端）：
+     *   带了 id 的引用⛔ 不拿名字去撞 —— 同名卡只认得第一张正是要修的那个病。
+     */
+    const asset =
+      (node && mentioned.find((candidate) => candidate.nodeId === node.id)) ??
+      mentioned.find(
+        (candidate) =>
+          (node?.referenceImageIndex !== undefined &&
+            referenceUrls[node.referenceImageIndex] === candidate.url) ||
+          (!candidate.nodeId &&
+            (candidate.label === card ||
+              (node !== null && candidate.label === node.name))),
+      )
     if (asset) {
       critiques.push({ card, assetId: asset.id, node })
     } else if (

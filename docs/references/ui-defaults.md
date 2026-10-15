@@ -232,7 +232,7 @@
 | dev 展柜               | `dev/ui-states/UiStateGallery.tsx`                                                             |
 | 404                    | `app/[locale]/not-found.tsx`（图标角**不放**红点：404 不是出错）                               |
 | 路由段出错             | `RouteErrorState.tsx`（四个 `error.tsx` 共用）· `studio-shared/chrome/StudioErrorBoundary.tsx` |
-| 角色页卡库出错         | `cards/CharacterLibrary.tsx`（chub.ai 没回，`tone="error"`）                                   |
+| 角色页卡库出错         | `cards/CharacterLibrary.tsx`（chub.ai 没回 / 这个网络不可用，`tone="error"`）                  |
 | 整页加载失败           | `PageLoadError.tsx`（画廊与素材库共用，owner 2026-10-08 加载中）                               |
 
 **故意不收进原语的几处**（理由写在契约测试的 `EXCEPTIONS` 头注里，改代码前先读）：

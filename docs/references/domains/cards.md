@@ -11,7 +11,7 @@
 ## Service / API
 
 - `src/services/cards/character-card.service.ts`（CRUD + 属性抽取 + 一致性打分）· `character-sample-lines.service.ts`（试读：按设定写两句台词）· `character-card.mapper.ts`（行 → `CharacterCardRecord`）· `card-recipe-compiler.service.ts`（三卡 LLM 融合成单条 prompt）。
-- API：`/api/character-cards`（GET/POST）· `/api/character-cards/import`（POST，酒馆卡导入）· `/api/character-cards/chub`（GET 卡库搜索）· `/api/character-cards/chub/import`（POST）· `/api/character-cards/[id]`（GET/PATCH/DELETE）· `/api/character-cards/[id]/sample-lines` · `/api/character-cards/[id]/score`。
+- API：`/api/character-cards`（GET/POST）· `/api/character-cards/import`（POST，酒馆卡导入）· `/api/character-cards/chub/import`（POST，卡库建卡；卡库搜索由浏览器直接问 chub，没有我们的路由）· `/api/character-cards/[id]`（GET/PATCH/DELETE）· `/api/character-cards/[id]/sample-lines` · `/api/character-cards/[id]/score`。
 - Hooks：`src/hooks/cards/`。
 
 ## 酒馆卡导入（2026-10-14，owner「进提示词加导入」）
@@ -28,11 +28,13 @@
 
 角色页地台最左换成两个页签「我的角色 / 卡库」（`?tab=library` 直接开卡库）。卡库站内搜 chub.ai 的公开酒馆卡，点「做成角色」建成一张角色卡后回到「我的角色」并打开她；文件导入（上一节）照旧在「我的角色」页签。
 
-- **接口**：`GET /api/character-cards/chub?q=&page=&sort=popular|recent` → `searchChubCards`；`POST /api/character-cards/chub/import { fullPath }` → `importChubCard`（`src/services/cards/chub-library.service.ts`）。chub 没有公开文档，地址、`User-Agent: SillyTavern` 与字段照酒馆 `downloadChubCharacter`（常量头注写了出处，改前先对）。
-- **落格**：取 `/api/characters/<作者>/<卡名>?full=true` 的 `definition`，按酒馆的映射拼成 V2 卡（chub 的 `personality` → 酒馆 description → 我们的经历；`tavern_personality` → 性格；`description` → 简介），再走文件导入那条 `mapTavernCard` → `createImportedCharacterCard`；`st.card` 另记 `source: 'chub'` 与 `fullPath`。
+- **⚠ 浏览器直接问 api.chub.ai**（2026-10-15 改）：chub 的 Cloudflare 拒云厂商 / 机房 IP（2026-10-15 从 Vercel 东京 hnd1、弗吉尼亚 iad1 实测都是 403 `This service is not available in your country.`，与 `x-src-country`、UA、Origin 无关），而它对任何来源（含错误响应）都回 `access-control-allow-origin: *`，所以搜索与取卡定义都由用户浏览器去问，⛔ 回到服务端代问。浏览器只带 `Accept: application/json`（CORS 安全名单，不触发预检）。
+- **接口**：搜索 `searchChubCardsAPI`（`src/lib/api-client/cards.ts`）直接打 `https://api.chub.ai/search`；读结果的规则（卡片字段、成人标签兜底、图床判断、去 `ROOT`、`hasMore` / `MAX_PAGE`）在共用纯函数 `src/lib/chub-library.ts`。建卡 `importChubCardAPI` 先在浏览器取 `/api/characters/<作者>/<卡名>?full=true`，再 `POST /api/character-cards/chub/import { fullPath, node }` → `importChubCard`（`src/services/cards/chub-library.service.ts`），服务端 ⛔ 再问 api.chub.ai。chub 没有公开文档，地址与字段照酒馆 `downloadChubCharacter`（常量头注写了出处，改前先对）。
+- **递上来的 `node` 当用户输入看**（与拖进来的卡文件同级）：`ImportChubCardSchema`（`src/types/chub-library.ts`）只留落格要的几格（多余的键丢掉）、类型不对的格当空、超长一律拒——长文各格与整张卡（序列化后）沿用文件导入的 `TAVERN_CARD.MAX_FILE_BYTES`（3 MB），名字 / 标签 / 图片地址另有 `CHUB_LIBRARY.NODE_LIMITS`；`fullPath` 仍过 `ChubFullPathSchema`。浏览器先按同一份 schema 判一遍，太大就直接说，⛔ 递上去。
+- **落格**：`node.definition` 按酒馆的映射拼成 V2 卡（chub 的 `personality` → 酒馆 description → 我们的经历；`tavern_personality` → 性格；`description` → 简介），再走文件导入那条 `mapTavernCard` → `createImportedCharacterCard`；`st.card` 另记 `source: 'chub'` 与 `fullPath`。
 - **⛔ 成人内容**：搜索固定 `nsfw=false&nsfl=false`，再按 `NSFW` / `NSFL` 标签兜一层。没有开关（要开再问 owner）。
-- **图**：搜索结果的头像只认 chub 图床（`*.charhub.io` / `*.chub.ai`），不认就按路径拼 `avatar.webp`；导入时卡图 `max_res_url` 同样只从图床取（防 SSRF），≤ 8 MB、png / webp / jpeg，PNG 去掉文本块；取不到就建一张没图的卡，⛔ 不因此拒整张卡。
-- 失败带 `i18nKey`（`Errors.chubLibrary.*`）；第一页没拿到是整块出错（空态模板 `tone="error"`），往下接没拿到只在底部说「这批没拿到 · 重试」。
+- **图**：搜索结果的头像只认 chub 图床（`*.charhub.io` / `*.chub.ai`），不认就按路径拼 `avatar.webp`（`<img>` 直接显示；CSP 没有 `img-src` / `connect-src`，不用另开）；导入时卡图 `max_res_url` 由服务端只从图床取（防 SSRF；avatars.charhub.io 从机房能取），≤ 8 MB、png / webp / jpeg，PNG 去掉文本块；取不到就建一张没图的卡，⛔ 不因此拒整张卡。
+- 失败带 `i18nKey`（`Errors.chubLibrary.*`：`unavailable` 没回 · `countryBlocked` chub 的 403 说这个国家不可用，照实说「这个网络不可用」· `notFound` · `tooLarge`）；第一页没拿到是整块出错（空态模板 `tone="error"`），往下接没拿到只在底部说「这批没拿到 · 重试」。
 
 ## 角色卡字段 v2（2026-09-17）
 

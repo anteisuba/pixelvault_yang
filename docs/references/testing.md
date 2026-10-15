@@ -31,6 +31,7 @@
 - **加一道题**：在 `fixtures/cases/` 放 `<题号>.json`（文件名 = `id`，schema 见 `fixture.ts`）。板子用 `fixtures/boards/` 里的（卡按名字写，句柄 `img-249e8b` 只出现在模型回复里）；`routes` 写选定的型号、配了 key 的几家（⭐ 多配几家当诱饵）和期望的那一家 / 型号（照写，⛔ 不从解析器抄）；`replies` 每次主步调用一条；`expect` 只写这题在乎的格。写题、查红题时 `REPLAY_DEBUG=1 npm run test:replay` 把每次模型调用、每一帧、画布差异印出来。
 - **从真机的一轮做题**：助手每一轮都记在 `AssistantTurnRecord`（见 `database.md`「助手每轮的过程记录」）。由人导出那一行的 JSON（`row_to_json`），交给 `from-turn-record.ts` 的 `replayFromTurnRecord(row, { id, board })`：回来起始画布（存进 `fixtures/boards/`）与题目草稿（存进 `fixtures/cases/`），上一轮带进来的找到的东西（`#n`）照 `input.priorFinds` 原样进 `turn.priorFinds`（开轮那一跳带上）；补不出来的列在 `gaps` —— 折叠的镜、没地址的产出（换成假主机上的占位地址）、库外的 `@`、联网答复、记录里截掉的 `#n`，以及 `expect` 里除「怎么收、几次请求」以外的格（先 `REPLAY_DEBUG=1` 跑一遍再照实填）。⛔ 回放这边不连库取数。每一题也反过来对账：这一轮写下的那一行转得回同一道题（`gradeTurnRecord`）。
 - **回放揭出真 bug**：题照留，加 `knownBug: { summary, evidence }`，跑成 `it.fails`（修好那天它变红，提醒删掉这一格）；⛔ 不拿它藏题目写错。
+- **上下文预算**（设计方案 §2 / P2，`context-budget.test.ts`）：每道题按每条路由跑两轮（题目那一轮 + 历史里带着它再问一遍），量每次主步发给模型的「工具 + 系统提示 + 消息」字数、相邻两步逐字相同的前缀，以及按各家缓存规则真要重算的字数（`PrefixCache`：Claude 只认显式断点、往回找 20 块；别家按最长相同前缀；理想化，⛔ 不是实测命中率 —— 真机看 `assistant llm call` 日志里的 `cachedInputTokens` / `cacheWriteTokens`）。数字记在 `fixtures/context-budget.json`，按「不许变大」查首步、整轮、整轮重算、第二轮重算、辅助调用次数；`REPLAY_BUDGET=print npm run test:replay` 打表，有意改了提示词或量出变小时 `REPLAY_BUDGET=update npm run test:replay` 重写那份文件，并在提交里写为什么变。
 - 题单与覆盖面见 `assistant-v3.md` §3「自动回放基线」。
 
 ## E2E / 视觉回归（Playwright，`e2e/` 2026-07-10 清点）

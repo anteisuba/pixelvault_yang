@@ -59,6 +59,8 @@ export interface AssistantLlmCallLog {
   purpose: string
   domain?: string
   step?: number
+  /** 这一次的思考档（v3 主步按步定，§2.6）；缺席 = 调用方没传、各家默认。 */
+  effort?: string
 }
 
 /**
@@ -69,7 +71,10 @@ export interface AssistantLlmCallLog {
  * ⚠ 字段名用复数 `*Tokens`：logger 会把以 `token` 结尾的字段当密钥脱敏。
  */
 export function startCallLog(
-  options: Pick<CompleteAssistantTextOptions, 'callLog' | 'route' | 'modelId'>,
+  options: Pick<
+    CompleteAssistantTextOptions,
+    'callLog' | 'route' | 'modelId' | 'reasoningEffort'
+  >,
   attempt: number,
 ) {
   const startedAt = Date.now()
@@ -80,6 +85,7 @@ export function startCallLog(
     },
     finish(outcome: CallOutcome) {
       const entry = {
+        ...(options.reasoningEffort ? { effort: options.reasoningEffort } : {}),
         ...options.callLog,
         adapterType: options.route.adapterType,
         modelId: options.modelId ?? null,
@@ -226,7 +232,10 @@ export async function completeAssistantTextWithContextRetry({
   signal?.throwIfAborted()
   let attempt = 0
   const complete = async (userPrompt: string) => {
-    const call = startCallLog({ callLog, route, modelId }, ++attempt)
+    const call = startCallLog(
+      { callLog, route, modelId, reasoningEffort },
+      ++attempt,
+    )
     try {
       const result = await llmTextCompletion({
         systemPrompt,
@@ -351,7 +360,10 @@ export async function* streamAssistantTextWithContextRetry({
   signal?.throwIfAborted()
   let attempt = 0
   async function* stream(userPrompt: string): AsyncIterable<string> {
-    const call = startCallLog({ callLog, route, modelId }, ++attempt)
+    const call = startCallLog(
+      { callLog, route, modelId, reasoningEffort },
+      ++attempt,
+    )
     /** 没跑完也没抛 = 调用方提前收了这条流（⏹ / 时间预算掐断时就是这样）。 */
     let outcome: CallOutcome = 'closed'
     try {

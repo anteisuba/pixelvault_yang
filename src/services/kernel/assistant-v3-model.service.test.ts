@@ -6,7 +6,10 @@ import type { ResolvedLlmTextRoute } from '@/services/llm-text.service'
 
 vi.mock('server-only', () => ({}))
 
-import { resolveAssistantV3Model } from './assistant-v3-model.service'
+import {
+  assistantV3StepEffort,
+  resolveAssistantV3Model,
+} from './assistant-v3-model.service'
 
 function route(adapterType: AI_ADAPTER_TYPES): ResolvedLlmTextRoute {
   return {
@@ -27,44 +30,83 @@ describe('resolveAssistantV3Model', () => {
     expect(model?.strictTools).toBe(false)
   })
 
-  it('默认 Medium：Grok / Gemini 都取 medium', () => {
+  it('这一步的档位原样落成各家的参数：Grok / Gemini 同名三档', () => {
     expect(
       resolveAssistantV3Model(
         route(AI_ADAPTER_TYPES.XAI),
         'grok-4.7',
-      )?.providerOptions('cache'),
+      )?.providerOptions('cache', 'medium'),
     ).toEqual({ openai: { reasoningEffort: 'medium' } })
     expect(
       resolveAssistantV3Model(
         route(AI_ADAPTER_TYPES.GEMINI),
         'gemini-3.8-flash',
-      )?.providerOptions('cache'),
-    ).toEqual({ google: { thinkingConfig: { thinkingLevel: 'medium' } } })
+      )?.providerOptions('cache', 'low'),
+    ).toEqual({ google: { thinkingConfig: { thinkingLevel: 'low' } } })
   })
 
   it('思考档位换成各家原生写法（DeepSeek 没有 medium）', () => {
-    const options = (adapter: AI_ADAPTER_TYPES, modelId: string) =>
-      resolveAssistantV3Model(route(adapter), modelId, 'high')?.providerOptions(
+    const options = (
+      adapter: AI_ADAPTER_TYPES,
+      modelId: string,
+      effort: 'low' | 'medium' | 'high',
+    ) =>
+      resolveAssistantV3Model(route(adapter), modelId)?.providerOptions(
         'cache',
+        effort,
       )
-    expect(options(AI_ADAPTER_TYPES.ANTHROPIC, 'claude-haiku-5-5')).toEqual({
+    expect(
+      options(AI_ADAPTER_TYPES.ANTHROPIC, 'claude-haiku-5-5', 'high'),
+    ).toEqual({
       anthropic: { effort: 'high' },
     })
-    expect(options(AI_ADAPTER_TYPES.DEEPSEEK, 'deepseek-flash')).toEqual({
+    expect(
+      options(AI_ADAPTER_TYPES.DEEPSEEK, 'deepseek-flash', 'high'),
+    ).toEqual({
       openai: { reasoningEffort: 'max' },
     })
     expect(
-      resolveAssistantV3Model(
-        route(AI_ADAPTER_TYPES.DEEPSEEK),
-        'deepseek-flash',
-      )?.providerOptions('cache'),
-    ).toEqual({ openai: { reasoningEffort: 'high' } })
+      options(AI_ADAPTER_TYPES.DEEPSEEK, 'deepseek-flash', 'medium'),
+    ).toEqual({
+      openai: { reasoningEffort: 'high' },
+    })
+    expect(options(AI_ADAPTER_TYPES.OPENAI, 'gpt-6.1-sol', 'low')).toEqual({
+      openai: { promptCacheKey: 'cache', store: false, reasoningEffort: 'low' },
+    })
   })
 
   it('不在名单上的厂商照走旧内核', () => {
     expect(
       resolveAssistantV3Model(route(AI_ADAPTER_TYPES.NOVELAI), 'x'),
     ).toBeNull()
+  })
+})
+
+/**
+ * 思考档按步调（设计方案 §2.6）：换档赔缓存的两家（Claude、OpenAI 官方）整轮钉住创作者那一档；
+ * 别家在纯落地步降到 low。
+ */
+describe('按步调档', () => {
+  it('哪几家能按步换档', () => {
+    const perStep = (adapter: AI_ADAPTER_TYPES, modelId: string) =>
+      resolveAssistantV3Model(route(adapter), modelId)?.effortPerStep
+    expect(perStep(AI_ADAPTER_TYPES.ANTHROPIC, 'claude-opus-5-5')).toBe(false)
+    expect(perStep(AI_ADAPTER_TYPES.OPENAI, 'gpt-6.1-sol')).toBe(false)
+    expect(perStep(AI_ADAPTER_TYPES.GEMINI, 'gemini-3.8-flash')).toBe(true)
+    expect(perStep(AI_ADAPTER_TYPES.DEEPSEEK, 'deepseek-flash')).toBe(true)
+    expect(perStep(AI_ADAPTER_TYPES.XAI, 'grok-4.7')).toBe(true)
+  })
+
+  it('想事的步用创作者那一档；纯落地步在能换的那几家降到 low', () => {
+    const perStep = { effortPerStep: true }
+    const pinned = { effortPerStep: false }
+    expect(assistantV3StepEffort(perStep, 'high', false)).toBe('high')
+    expect(assistantV3StepEffort(perStep, 'high', true)).toBe('low')
+    expect(assistantV3StepEffort(perStep, 'medium', true)).toBe('low')
+    // ⛔ 永远不高过创作者选的。
+    expect(assistantV3StepEffort(perStep, 'low', true)).toBe('low')
+    expect(assistantV3StepEffort(perStep, 'low', false)).toBe('low')
+    expect(assistantV3StepEffort(pinned, 'high', true)).toBe('high')
   })
 })
 

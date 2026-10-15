@@ -4329,6 +4329,49 @@ describe('llmNativeWebSearch（owner 2026-09-30：各家用自带联网）', () 
       { status: 200 },
     )
 
+  /** P2 §2.6「子调用显式传档位」：这一次搜的档位落成各家的写法；缺席照旧不带。 */
+  it('档位：Gemini thinkingLevel、OpenAI 官方 reasoning.effort、Claude output_config；DeepSeek 不带、Grok 照旧 low', async () => {
+    const fetchMock = vi.fn(async () => messagesSearchResponse())
+    vi.stubGlobal('fetch', fetchMock)
+    const search = (adapterType: AI_ADAPTER_TYPES, withEffort = true) =>
+      llmNativeWebSearch({
+        ...base,
+        adapterType,
+        providerConfig: { label: 'test', baseUrl: '' },
+        ...(withEffort ? { reasoningEffort: 'medium' as const } : {}),
+      }).catch(() => undefined)
+
+    await search(AI_ADAPTER_TYPES.GEMINI)
+    await search(AI_ADAPTER_TYPES.OPENAI)
+    await search(AI_ADAPTER_TYPES.ANTHROPIC)
+    await search(AI_ADAPTER_TYPES.DEEPSEEK)
+    await search(AI_ADAPTER_TYPES.XAI)
+    await search(AI_ADAPTER_TYPES.GEMINI, false)
+
+    expect(readFetchJson(fetchMock, 0).generationConfig).toEqual({
+      thinkingConfig: { thinkingLevel: 'medium' },
+    })
+    expect(readFetchJson(fetchMock, 1).reasoning).toEqual({ effort: 'medium' })
+    expect(readFetchJson(fetchMock, 2).output_config).toEqual({
+      effort: 'medium',
+    })
+    expect(readFetchJson(fetchMock, 3)).not.toHaveProperty('output_config')
+    expect(readFetchJson(fetchMock, 4).reasoning).toEqual({ effort: 'low' })
+    expect(readFetchJson(fetchMock, 5)).not.toHaveProperty('generationConfig')
+  })
+
+  it('档位：OpenAI 自填代理 ⛔ 不带', async () => {
+    const fetchMock = vi.fn(async () => messagesSearchResponse())
+    vi.stubGlobal('fetch', fetchMock)
+    await llmNativeWebSearch({
+      ...base,
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+      providerConfig: { label: 'proxy', baseUrl: 'https://proxy.test/v1' },
+      reasoningEffort: 'medium',
+    }).catch(() => undefined)
+    expect(readFetchJson(fetchMock, 0)).not.toHaveProperty('reasoning')
+  })
+
   it('DeepSeek：Anthropic 兼容入口上的 web_search，只带 max_uses、不带 Claude 的 beta 头', async () => {
     const fetchMock = vi.fn().mockResolvedValue(messagesSearchResponse())
     vi.stubGlobal('fetch', fetchMock)

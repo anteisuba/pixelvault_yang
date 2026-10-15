@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { ASSISTANT_REASONING_EFFORT_IDS } from '@/constants/assistant-persona'
 import {
   RESEARCH_BIOGRAPHY_QUERY_TERMS,
   RESEARCH_LIMITS,
@@ -152,6 +153,12 @@ export async function planResearchWithLlm(params: {
         providerConfig: route.providerConfig,
         apiKey: route.apiKey,
         maxTokens: RESEARCH_LIMITS.plannerMaxTokens,
+        /**
+         * ⭐ 显式 `low`（P2 §2.6「子调用显式传档位」）：这一跳只把一句话磨成几条搜索词、判个
+         * 题型。缺席时各家按自己的默认想（Gemini 3、Grok 默认最高档），想得久还可能吃掉
+         * `plannerMaxTokens` 那点输出预算。
+         */
+        reasoningEffort: ASSISTANT_REASONING_EFFORT_IDS.low,
         responseFormat: 'json_object',
         // 用户消息已经在助手主路过了一次 guard；这里只是拿它当规划素材，
         // 长度上限交给上面的 slice，不重复设一道会误杀长提示词的闸。

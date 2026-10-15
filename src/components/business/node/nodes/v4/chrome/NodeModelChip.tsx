@@ -18,7 +18,10 @@ import {
 } from '@/components/business/studio-shared/pickers/ModelPickerPopover'
 import { useKeySettingsAction } from '../../../workbench-v4/shell/ShellKeySettings'
 import { useNodeV4Canvas } from '../NodeV4Context'
-import { toStudioModelOption } from '../image/image-node-model'
+import {
+  toNodeModelSelection,
+  toStudioModelOption,
+} from '../image/image-node-model'
 
 export interface NodeModelChipProps {
   readonly nodeId: string
@@ -61,13 +64,7 @@ export function NodeModelChip({
           (item) => item.optionId === option.optionId,
         )
         if (!picked) return
-        canvas.onSetModel(nodeId, {
-          optionId: picked.optionId,
-          modelId: picked.modelId,
-          adapterType: picked.adapterType,
-          providerConfig: picked.providerConfig,
-          ...(picked.apiKeyId ? { apiKeyId: picked.apiKeyId } : {}),
-        })
+        canvas.onSetModel(nodeId, toNodeModelSelection(picked))
       }}
     />
   )

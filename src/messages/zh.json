@@ -5984,7 +5984,10 @@
           "estimateDetail": "{unit} / 张 × {count} 张 ≈ {amount}",
           "estimateNote": "参考价，按这条渠道的单价估算，不是计费依据。",
           "needsKey": "先配 key",
-          "needsKeyLabel": "这个模型还没配 key，点一下就地配置"
+          "needsKeyLabel": "这个模型还没配 key，点一下就地配置",
+          "switchChannel": "{from} 没 key，改走 {to}",
+          "switchChannelPrice": "{from} 没 key，改走 {to} {price}",
+          "switchChannelLabel": "这张卡选的 {from} 没配 key，同一个模型的 {to} 已配好。点一下改走 {to}"
         },
         "template": {
           "group": "模板",
@@ -7376,6 +7379,7 @@
     }
   },
   "QuickSetup": {
+    "channelPick": "先选一家：配哪家的 key？",
     "ideogramGuide": "登录 Ideogram → API Keys → Create key，创建密钥。",
     "title": "设置 {model}",
     "description": "2 分钟获取 API key，解锁该模型。",

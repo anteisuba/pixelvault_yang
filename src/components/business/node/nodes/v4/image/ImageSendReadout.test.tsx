@@ -53,4 +53,27 @@ describe('ImageSendReadout（spec §3 发送键带价）', () => {
     fireEvent.click(button)
     expect(onSetupKey).toHaveBeenCalledTimes(1)
   })
+
+  it('同型号另一家能跑：写「fal 没 key，改走 火山」带价，点了才切', () => {
+    const onSwitch = vi.fn()
+    const onSetupKey = vi.fn()
+    const { container } = render(
+      <ImageSendReadout
+        unit={null}
+        count={2}
+        missingKey
+        onSetupKey={onSetupKey}
+        switchTo={{ from: 'fal', to: '火山', unit: 0.025 }}
+        onSwitch={onSwitch}
+      />,
+    )
+    const button = container.querySelector(
+      '[data-image-send-readout="switch-channel"]',
+    )!
+    expect(button.textContent).toContain('switchChannelPrice')
+    expect(button.textContent).toContain('$0.05')
+    fireEvent.click(button)
+    expect(onSwitch).toHaveBeenCalledTimes(1)
+    expect(onSetupKey).not.toHaveBeenCalled()
+  })
 })

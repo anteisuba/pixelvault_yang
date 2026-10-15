@@ -23,6 +23,14 @@ import { BlurSwap } from '@/components/ui/blur-swap'
 import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
 
+/** 同一个型号可以配哪几家的 key（弹窗顶上那一排）。 */
+export interface QuickSetupChannelChoice {
+  readonly id: string
+  readonly label: string
+  /** 已格式化的单价；查不到为 null。 */
+  readonly price: string | null
+}
+
 interface QuickSetupDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -60,6 +68,14 @@ interface QuickSetupDialogProps {
    */
   onVerified?: (modelId: string, keyId: string) => void
   selectStudioModel?: boolean
+  /**
+   * 多厂商型号一家都没配时，让用户先挑**配哪一家**（owner 2026-10-15）。两条以上
+   * 才画；当前那家由 `channelId` 说，换一家由宿主把 `modelId` / `adapterType` /
+   * 标题一起换掉（弹窗本身不认识渠道）。
+   */
+  channelChoices?: readonly QuickSetupChannelChoice[]
+  channelId?: string
+  onChannelChange?: (channelId: string) => void
 }
 
 type SetupStep = 'guide' | 'verifying' | 'success' | 'error'
@@ -151,6 +167,9 @@ export function QuickSetupDialog({
   optionId,
   onVerified,
   selectStudioModel = true,
+  channelChoices,
+  channelId,
+  onChannelChange,
 }: QuickSetupDialogProps) {
   const [labelValue, setLabelValue] = useState('')
   const [keyValue, setKeyValue] = useState('')
@@ -294,6 +313,58 @@ export function QuickSetupDialog({
         </ResponsiveDialogHeader>
 
         <div className="space-y-4 pt-2">
+          {channelChoices && channelChoices.length > 1 && onChannelChange ? (
+            <div className="space-y-2">
+              <p id="quick-setup-channel" className="text-sm font-medium">
+                {t('channelPick')}
+              </p>
+              <div
+                role="radiogroup"
+                aria-labelledby="quick-setup-channel"
+                className="flex flex-wrap gap-1.5"
+              >
+                {channelChoices.map((choice) => {
+                  const checked = choice.id === channelId
+                  return (
+                    <button
+                      key={choice.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={checked}
+                      data-quick-setup-channel={choice.id}
+                      disabled={step === 'verifying' || step === 'success'}
+                      onClick={() => {
+                        if (checked) return
+                        if (step === 'error') setStep('guide')
+                        onChannelChange(choice.id)
+                      }}
+                      className={cn(
+                        'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs transition-colors duration-fast ease-standard focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50',
+                        checked
+                          ? 'border-foreground bg-foreground text-background'
+                          : 'border-border/60 text-foreground hover:bg-muted',
+                      )}
+                    >
+                      {choice.label}
+                      {choice.price ? (
+                        <span
+                          className={cn(
+                            'font-mono tabular-nums',
+                            checked
+                              ? 'text-background/70'
+                              : 'text-muted-foreground',
+                          )}
+                        >
+                          {choice.price}
+                        </span>
+                      ) : null}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ) : null}
+
           {/* Step 1: Guide */}
           <div className="rounded-lg border border-border/60 bg-muted/30 p-3 space-y-2">
             <p className="text-sm font-medium">{t('step1')}</p>

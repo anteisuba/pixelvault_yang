@@ -401,7 +401,7 @@ export function PromptTemplateCreatePanel({
                                 setCompiledPrompt(event.target.value)
                               }
                               placeholder={t('createPromptPlaceholder')}
-                              className="min-h-40 resize-y rounded-xl text-sm leading-6"
+                              className="min-h-40 resize-y rounded-xl leading-6"
                             />
                           </div>
 
@@ -477,7 +477,7 @@ export function PromptTemplateCreatePanel({
                                 setNegativePrompt(event.target.value)
                               }
                               placeholder={t('createNegativePromptPlaceholder')}
-                              className="min-h-24 resize-y text-sm leading-6"
+                              className="min-h-24 resize-y leading-6"
                             />
                           </div>
                         </>

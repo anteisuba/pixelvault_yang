@@ -351,11 +351,11 @@ export function LoraLibraryDetailPage({
     : { duration: DURATION.base, ease: EASE_STANDARD }
 
   const ghost =
-    'inline-flex h-8.5 items-center gap-1.5 rounded-full border border-border px-3.5 text-2sm text-foreground transition-colors duration-fast ease-linear hover:border-foreground/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+    'inline-flex h-8.5 items-center coarse:h-11 gap-1.5 rounded-full border border-border px-3.5 text-2sm text-foreground transition-colors duration-fast ease-linear hover:border-foreground/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
   const blockTitle = 'text-xs font-semibold text-muted-foreground'
   const chip = 'rounded-full bg-muted px-2 py-0.5 text-foreground/80'
   const menuItem =
-    'flex h-8.5 items-center gap-2 rounded-lg px-2.5 text-left text-2sm text-foreground transition-colors duration-fast ease-linear hover:bg-muted focus-visible:bg-muted focus-visible:outline-none'
+    'flex h-8.5 items-center coarse:h-11 gap-2 rounded-lg px-2.5 text-left text-2sm text-foreground transition-colors duration-fast ease-linear hover:bg-muted focus-visible:bg-muted focus-visible:outline-none'
 
   return (
     <motion.div
@@ -378,7 +378,7 @@ export function LoraLibraryDetailPage({
           autoFocus
           onClick={onClose}
           aria-label={tb('back')}
-          className="grid size-8.5 shrink-0 place-items-center rounded-full text-foreground/75 transition-colors duration-fast ease-linear hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="grid size-8.5 shrink-0 coarse:size-11 place-items-center rounded-full text-foreground/75 transition-colors duration-fast ease-linear hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <ChevronLeft className="size-4" aria-hidden />
         </button>
@@ -432,7 +432,7 @@ export function LoraLibraryDetailPage({
               onClick={() => onMount(current)}
               aria-busy={mountingId === current.id || undefined}
               className={cn(
-                'inline-flex h-8.5 items-center gap-1.5 rounded-full bg-foreground px-4 text-2sm font-semibold text-background transition-opacity duration-fast ease-linear hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                'inline-flex h-8.5 items-center coarse:h-11 gap-1.5 rounded-full bg-foreground px-4 text-2sm font-semibold text-background transition-opacity duration-fast ease-linear hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                 mountingId === current.id && 'opacity-70',
               )}
             >
@@ -462,7 +462,7 @@ export function LoraLibraryDetailPage({
               rel="noreferrer"
               aria-label={tb('openSource')}
               title={tb('openSource')}
-              className="grid size-8.5 place-items-center rounded-full border border-border text-foreground/75 transition-colors duration-fast ease-linear hover:border-foreground/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="grid size-8.5 place-items-center coarse:size-11 rounded-full border border-border text-foreground/75 transition-colors duration-fast ease-linear hover:border-foreground/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <ArrowUpRight className="size-3.5" aria-hidden />
             </a>
@@ -472,7 +472,7 @@ export function LoraLibraryDetailPage({
             aria-label={tb('more')}
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((open) => !open)}
-            className="grid size-8.5 place-items-center rounded-full border border-border text-foreground/75 transition-colors duration-fast ease-linear hover:border-foreground/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="grid size-8.5 place-items-center coarse:size-11 rounded-full border border-border text-foreground/75 transition-colors duration-fast ease-linear hover:border-foreground/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <MoreHorizontal className="size-4" aria-hidden />
           </button>
@@ -504,7 +504,7 @@ export function LoraLibraryDetailPage({
                       }
                 }
                 style={{ transformOrigin: 'calc(100% - 17px) 0' }}
-                className="absolute right-0 top-11 z-30 flex w-47 flex-col rounded-xl bg-popover p-1.5 shadow-overlay ring-1 ring-border/70"
+                className="absolute right-0 top-11 z-30 coarse:top-13.5 flex w-47 flex-col rounded-xl bg-popover p-1.5 shadow-overlay ring-1 ring-border/70"
               >
                 {/* 风格码是收进来以后才有的（Hugging Face 列表条目还没有）。 */}
                 {current.styleCode ? (
@@ -569,7 +569,7 @@ export function LoraLibraryDetailPage({
                         setMenuOpen(false)
                         onToggleFavorite(current)
                       }}
-                      className="flex h-8.5 items-center rounded-lg px-2.5 text-left text-2sm text-status-risk transition-colors duration-fast ease-linear hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
+                      className="flex h-8.5 items-center coarse:h-11 rounded-lg px-2.5 text-left text-2sm text-status-risk transition-colors duration-fast ease-linear hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
                     >
                       {t('unfavorite')}
                     </button>

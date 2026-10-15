@@ -158,7 +158,7 @@ export function StyleCardEditor({
           placeholder={t('promptPlaceholder')}
           rows={3}
           disabled={isLoading}
-          className="resize-none border-border/60 bg-background text-sm"
+          className="resize-none border-border/60 bg-background"
         />
       </div>
 

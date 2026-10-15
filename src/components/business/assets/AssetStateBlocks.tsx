@@ -42,7 +42,7 @@ export function AssetEmptyLibrary({ onUpload }: AssetEmptyLibraryProps) {
       action={
         <Button
           type="button"
-          className="rounded-full"
+          className="rounded-full coarse:h-11"
           size="sm"
           onClick={onUpload}
         >
@@ -50,7 +50,12 @@ export function AssetEmptyLibrary({ onUpload }: AssetEmptyLibraryProps) {
         </Button>
       }
       secondaryAction={
-        <Button asChild size="sm" variant="ghost" className="rounded-full">
+        <Button
+          asChild
+          size="sm"
+          variant="ghost"
+          className="rounded-full coarse:h-11"
+        >
           <Link href={ROUTES.STUDIO_IMAGE}>{t('emptyAction')}</Link>
         </Button>
       }
@@ -79,7 +84,12 @@ export function AssetEmptyFolder({
       <p className="max-w-sm text-sm text-muted-foreground">
         {t('emptyFolderHint')}
       </p>
-      <Button type="button" size="sm" className="mt-1" onClick={onUpload}>
+      <Button
+        type="button"
+        size="sm"
+        className="mt-1 coarse:h-11"
+        onClick={onUpload}
+      >
         {t('emptyFolderUpload')}
       </Button>
     </div>
@@ -119,6 +129,7 @@ export function AssetEmptySearch({
         type="button"
         size="sm"
         variant="outline"
+        className="coarse:h-11"
         onClick={onClearFilters}
       >
         {t('facetClearAll')}

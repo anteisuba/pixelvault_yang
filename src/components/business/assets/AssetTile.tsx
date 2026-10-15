@@ -149,14 +149,16 @@ export function AssetTile({
           />
         )}
 
-        {/* 播放键：音频常显（它是封面卡的一部分），视频 hover 才浮。 */}
+        {/* 播放键：音频常显（它是封面卡的一部分），视频 hover 才浮；触屏没有悬停，常显。 */}
         {(isAudio || isVideo) && (
           <span
             aria-hidden
             className={cn(
               'absolute left-1/2 top-1/2 flex size-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full transition-opacity duration-fast',
               'asset-tile-badge',
-              isAudio ? 'opacity-90' : 'opacity-0 group-hover:opacity-100',
+              isAudio
+                ? 'opacity-90'
+                : 'opacity-0 group-hover:opacity-100 coarse:opacity-100',
             )}
           >
             <Play weight="fill" className="size-3.5 translate-x-px" />
@@ -185,7 +187,7 @@ export function AssetTile({
             </span>
           ) : null
         ) : hasTag || durationLabel || is3D ? (
-          /* 左下「模型 · 尺寸」小签悬停才出；右下时长 / 3D 角标常显。 */
+          /* 左下「模型 · 尺寸」小签悬停才出（触屏常显）；右下时长 / 3D 角标常显。 */
           <span
             className="absolute inset-x-2 bottom-2 flex items-end justify-between gap-2"
             aria-hidden
@@ -193,7 +195,7 @@ export function AssetTile({
             {hasTag ? (
               /* 窄图上只截模型名，尺寸常留（尺寸才是认图的那一半）。 */
               /* 悬停时从下面滑上来（动效样片 R），⛔ 只是淡出来。 */
-              <span className="asset-tile-badge flex min-w-0 translate-y-2 items-center gap-1 rounded-md px-1.75 font-mono text-3xs leading-5 tabular-nums opacity-0 transition-[opacity,translate] duration-spring-slot ease-spring-slot group-hover:translate-y-0 group-hover:opacity-100 group-has-focus-visible:translate-y-0 group-has-focus-visible:opacity-100 motion-reduce:translate-y-0 motion-reduce:transition-opacity motion-reduce:duration-fast motion-reduce:ease-linear">
+              <span className="asset-tile-badge flex min-w-0 translate-y-2 items-center gap-1 rounded-md px-1.75 font-mono text-3xs leading-5 tabular-nums opacity-0 transition-[opacity,translate] duration-spring-slot ease-spring-slot group-hover:translate-y-0 group-hover:opacity-100 group-has-focus-visible:translate-y-0 group-has-focus-visible:opacity-100 coarse:translate-y-0 coarse:opacity-100 motion-reduce:translate-y-0 motion-reduce:transition-opacity motion-reduce:duration-fast motion-reduce:ease-linear">
                 {modelLabel ? (
                   <span className="min-w-0 truncate">{modelLabel}</span>
                 ) : null}
@@ -265,11 +267,11 @@ export function AssetTile({
           aria-label={isLiked ? t('detailUnfavorite') : t('detailFavorite')}
           title={isLiked ? t('detailUnfavorite') : t('detailFavorite')}
           className={cn(
-            'absolute right-2 top-2 z-20 grid size-6.5 place-items-center rounded-full bg-background/95 text-foreground shadow-sm transition-opacity duration-fast ease-linear focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            'absolute right-2 top-2 z-20 grid size-6.5 coarse:before:absolute coarse:before:-inset-2.25 place-items-center rounded-full bg-background/95 text-foreground shadow-sm transition-opacity duration-fast ease-linear focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             isLiked
               ? 'opacity-100'
-              : 'opacity-0 group-hover:opacity-100 group-has-focus-visible:opacity-100',
-            favoritePending && 'opacity-60',
+              : 'opacity-0 group-hover:opacity-100 group-has-focus-visible:opacity-100 coarse:opacity-100',
+            favoritePending && 'opacity-60 coarse:opacity-60',
           )}
         >
           {/* 收藏（原型 H）：先缩一下再弹回，同时涂黑；首次挂载不弹。 */}

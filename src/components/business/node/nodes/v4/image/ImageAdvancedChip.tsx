@@ -150,7 +150,7 @@ export function ImageAdvancedChip({
                 placeholder={t('seedRandom')}
                 aria-label={t('seed')}
                 disabled={disabled}
-                className="h-7 min-w-0 flex-1 font-mono text-xs"
+                className="h-7 min-w-0 flex-1 font-mono"
                 onChange={(event) => {
                   const raw = event.target.value
                   if (raw === '') {
@@ -212,7 +212,7 @@ export function ImageAdvancedChip({
               maxLength={PROMPT_TEXT_GUARD_MAX_CHARS}
               placeholder={t('negativePlaceholder')}
               disabled={disabled}
-              className="nowheel min-h-14 resize-none text-xs"
+              className="nowheel min-h-14 resize-none"
               onChange={(event) =>
                 setAdvanced(
                   'negativePrompt',

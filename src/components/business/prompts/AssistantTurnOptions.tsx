@@ -190,7 +190,7 @@ export function AssistantTurnOptions({
                     disabled={disabled}
                     aria-label={t('customPlaceholder')}
                     placeholder={t('customPlaceholder')}
-                    className="h-8 text-xs"
+                    className="h-8"
                   />
                 ) : null}
                 {question.allowSkip ? (

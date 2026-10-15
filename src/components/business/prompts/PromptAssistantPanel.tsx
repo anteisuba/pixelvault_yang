@@ -692,7 +692,7 @@ export function PromptAssistantPanel({
             onKeyDown={handleKeyDown}
             onCompositionStart={() => setIsComposing(true)}
             onCompositionEnd={() => setIsComposing(false)}
-            className="min-h-20 w-full resize-none border-0 bg-transparent px-4 py-3 text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground"
+            className="min-h-20 w-full resize-none border-0 bg-transparent px-4 py-3 text-base leading-relaxed lg:text-sm text-foreground outline-none placeholder:text-muted-foreground"
           />
 
           <div className="flex min-h-14 items-center gap-2 border-t border-border/50 bg-muted/45 px-3 py-2">

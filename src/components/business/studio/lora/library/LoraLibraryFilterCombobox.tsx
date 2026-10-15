@@ -143,10 +143,7 @@ export function LoraLibraryFilterCombobox<T extends string>({
             shouldFilter={searchable}
           >
             {searchable ? (
-              <CommandInput
-                placeholder={searchPlaceholder}
-                className="h-9 text-xs"
-              />
+              <CommandInput placeholder={searchPlaceholder} className="h-9" />
             ) : null}
             <CommandList>
               {searchable ? <CommandEmpty>{emptyText}</CommandEmpty> : null}

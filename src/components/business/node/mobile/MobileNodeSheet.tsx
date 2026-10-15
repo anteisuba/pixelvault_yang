@@ -432,7 +432,7 @@ function TextSheetBody({ node }: { readonly node: NodeV4 }) {
         aria-label={data.name}
         data-mobile-text-body
         onBlur={(event) => canvas.onEditText(node.id, event.target.value)}
-        className="min-h-40 w-full resize-none rounded-lg border border-border bg-card p-3 text-sm leading-relaxed text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        className="min-h-40 w-full resize-none rounded-lg border border-border bg-card p-3 text-base leading-relaxed text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       />
       <TextAssistantBar nodeId={node.id} />
     </div>

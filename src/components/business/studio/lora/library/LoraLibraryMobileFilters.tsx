@@ -278,7 +278,7 @@ export function LoraLibraryMobileFilters({
                 onChange={(event) => setFamilyQuery(event.target.value)}
                 placeholder={t('baseModelSearchPlaceholder')}
                 aria-label={t('baseModelSearchPlaceholder')}
-                className="h-9 text-xs"
+                className="h-9"
               />
               {filteredFamilyOptions.length === 0 ? (
                 <p className="text-xs text-muted-foreground">

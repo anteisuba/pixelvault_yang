@@ -107,7 +107,7 @@ export function ShellProjectList({
           placeholder={t('search')}
           aria-label={t('search')}
           data-testid="shell-project-search"
-          className="min-w-0 flex-1 bg-transparent text-sm text-node-foreground outline-none placeholder:text-node-muted"
+          className="min-w-0 flex-1 bg-transparent text-base text-node-foreground lg:text-sm outline-none placeholder:text-node-muted"
         />
       </div>
       <div className="my-1.5 h-px shrink-0 bg-node-panel-inner" aria-hidden />

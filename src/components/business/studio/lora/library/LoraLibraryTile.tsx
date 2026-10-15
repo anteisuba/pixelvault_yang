@@ -127,12 +127,13 @@ export function LoraLibraryTile({
                   : t('mountLabel', { name })
             }
             className={cn(
-              'pointer-events-auto absolute bottom-2 right-2 inline-flex h-7 items-center gap-1 rounded-full px-2.75 text-xs font-semibold shadow-md transition-[opacity,translate,background-color,color] ease-standard',
-              'translate-y-1 opacity-0 duration-base group-focus-within:translate-y-0 group-focus-within:opacity-100 group-hover:translate-y-0 group-hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:translate-y-0',
+              'touch-target-y pointer-events-auto absolute bottom-2 right-2 inline-flex h-7 items-center gap-1 rounded-full px-2.75 text-xs font-semibold shadow-md transition-[opacity,translate,background-color,color] ease-standard',
+              // 触屏没有悬停：常显、不位移（ui-defaults §6「hover 显示的操作 → 常显」）。
+              'translate-y-1 opacity-0 duration-base group-focus-within:translate-y-0 group-focus-within:opacity-100 group-hover:translate-y-0 group-hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:translate-y-0 coarse:translate-y-0 coarse:opacity-100',
               mounted
                 ? 'cursor-default bg-foreground text-background'
                 : 'bg-background/95 text-foreground hover:bg-background',
-              mounting && 'opacity-70',
+              mounting && 'opacity-70 coarse:opacity-70',
             )}
           >
             {mounted ? (

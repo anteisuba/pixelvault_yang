@@ -343,7 +343,9 @@ export function AssetFacetBar({
             }}
             className="overflow-hidden"
           >
-            <div className="flex flex-wrap items-center gap-1.5 pt-2">
+            {/* 触屏：chip 32px + 44px 命中区（`.touch-target-y`），行距 12px 让上下两行的
+                命中区不叠；底边多留 6px，免得最后一行的命中区被 overflow-hidden 裁掉。 */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-2 coarse:gap-y-3 coarse:pb-1.5">
               {activeChips.map((chip) => (
                 <motion.button
                   key={chip.key}
@@ -363,7 +365,7 @@ export function AssetFacetBar({
                   }}
                   onClick={chip.onRemove}
                   aria-label={t('facetRemove', { name: chip.label })}
-                  className="group inline-flex h-6.5 items-center gap-1 rounded-full bg-muted pl-2.5 pr-1.5 text-xs text-foreground"
+                  className="group touch-target-y inline-flex h-6.5 items-center coarse:h-8 gap-1 rounded-full bg-muted pl-2.5 pr-1.5 text-xs text-foreground"
                 >
                   <span className="max-w-40 truncate">{chip.label}</span>
                   <X className="size-3 text-muted-foreground transition-colors duration-fast group-hover:text-foreground" />
@@ -372,7 +374,7 @@ export function AssetFacetBar({
               <button
                 type="button"
                 onClick={clearAll}
-                className="h-6.5 px-1.5 text-xs text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
+                className="touch-target-y h-6.5 px-1.5 text-xs coarse:h-8 text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
               >
                 {t('facetClearAll')}
               </button>
@@ -438,7 +440,7 @@ function FacetPopover({
           aria-label={label}
           data-active={active || undefined}
           className={cn(
-            'inline-flex h-8 shrink-0 items-center gap-1 rounded-lg px-2.5 text-xs text-foreground',
+            'inline-flex h-8 shrink-0 items-center coarse:h-11 gap-1 rounded-lg px-2.5 text-xs text-foreground',
             'transition-colors duration-fast ease-standard motion-reduce:transition-none',
             'hover:bg-muted data-[state=open]:bg-muted',
             active && 'font-medium',
@@ -490,7 +492,7 @@ function FacetOptionRow({
         animationDelay: `${Math.round(staggerDelay(order) * 1000 * 0.6)}ms`,
       }}
       className={cn(
-        'picker-row-in flex h-8 w-full items-center gap-2 rounded-lg px-2 text-left text-xs text-foreground',
+        'picker-row-in flex h-8 w-full coarse:h-11 items-center gap-2 rounded-lg px-2 text-left text-xs text-foreground',
         'transition-colors duration-base ease-standard motion-reduce:transition-none',
         'hover:outline hover:outline-1 hover:outline-border',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
@@ -555,7 +557,7 @@ function ModelFacetPopover({
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder={searchPlaceholder}
-        className="picker-row-in mb-1 h-8 rounded-lg border-0 bg-muted text-xs shadow-none"
+        className="picker-row-in mb-1 h-8 rounded-lg coarse:h-11 border-0 bg-muted shadow-none"
       />
       <div className="studio-scrollbar max-h-64 overflow-y-auto">
         {visible.length === 0 ? (

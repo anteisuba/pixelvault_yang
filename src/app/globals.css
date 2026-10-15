@@ -2749,11 +2749,12 @@ html:lang(ja) {
   }
 }
 
-/* 主区给手机外壳让位（`MobileShellInset`）。工作台：顶上一条 44px；
+/* 主区给手机外壳让位（`MobileShellInset`）。工作台：顶上一条 44px + 顶部安全区
+   （顶栏 `MobileStudioBar` 自己让开刘海，主区跟着多让同一截）；
    其余页：底栏 + 顶部安全区（没有顶栏了，刘海要自己让）。≥768 归零。 */
 @utility mobile-inset-topbar {
-  --mobile-chrome-height: 2.75rem;
-  padding-top: 2.75rem;
+  --mobile-chrome-height: calc(2.75rem + env(safe-area-inset-top, 0px));
+  padding-top: calc(2.75rem + env(safe-area-inset-top, 0px));
   @media (width >= 48rem) {
     --mobile-chrome-height: 0px;
     padding-top: 0;

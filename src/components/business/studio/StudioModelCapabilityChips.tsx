@@ -295,7 +295,7 @@ function CapabilityControlBody({
           disabled={disabled}
           aria-label={label}
           placeholder={tAdvanced(`${chip.capability}Placeholder`)}
-          className="h-7 text-xs"
+          className="h-7"
           onChange={(event) =>
             update({
               [chip.capability]: event.target.value,

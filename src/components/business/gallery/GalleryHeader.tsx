@@ -236,7 +236,7 @@ export const GalleryHeader = memo(function GalleryHeader({
           />
 
           <div className="ml-auto flex shrink-0 items-center gap-2">
-            <label className="flex h-8 w-44 items-center gap-2 rounded-lg bg-muted/60 px-2.5 text-xs text-foreground transition-[width,background-color] duration-spring-slot ease-spring-slot focus-within:bg-muted motion-reduce:transition-none sm:w-56 sm:focus-within:w-80">
+            <label className="flex h-8 w-44 items-center coarse:h-11 gap-2 rounded-lg bg-muted/60 px-2.5 text-xs text-foreground transition-[width,background-color] duration-spring-slot ease-spring-slot focus-within:bg-muted motion-reduce:transition-none sm:w-56 sm:focus-within:w-80">
               <Search
                 className="size-3.5 shrink-0 text-muted-foreground"
                 aria-hidden
@@ -254,7 +254,7 @@ export const GalleryHeader = memo(function GalleryHeader({
                   type="button"
                   onClick={clearSearch}
                   aria-label={tFilters('clearSearch')}
-                  className="grid size-5 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
+                  className="relative grid size-5 shrink-0 place-items-center coarse:before:absolute coarse:before:-inset-3 rounded-full text-muted-foreground transition-colors hover:text-foreground"
                 >
                   <X className="size-3" aria-hidden />
                 </button>
@@ -265,7 +265,7 @@ export const GalleryHeader = memo(function GalleryHeader({
               onClick={toggleLiked}
               aria-pressed={filters.liked}
               className={cn(
-                'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                'inline-flex h-8 shrink-0 items-center coarse:h-11 gap-1.5 rounded-lg px-2.5 text-xs transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 filters.liked
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground',

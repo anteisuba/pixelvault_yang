@@ -295,7 +295,11 @@ function MobileTabBar({ pathname }: { pathname: string }) {
   )
 }
 
-/** 工作台里那条顶栏：`← · 图片 ▾ · （助手）`。 */
+/**
+ * 工作台里那条顶栏：`← · 图片 ▾ · （助手）`。
+ * 44px 一条 + 顶部安全区（`box-content` 让 `pt-safe-inset-top` 往外长，不吃掉 44），
+ * 主区的 `mobile-inset-topbar` 同步让出同样的高度。
+ */
 function MobileStudioBar({ pathname }: { pathname: string }) {
   const t = useTranslations()
   const tMobile = useTranslations('MobileNav')
@@ -304,11 +308,11 @@ function MobileStudioBar({ pathname }: { pathname: string }) {
   const CurrentIcon = current.icon
 
   return (
-    <header className="fixed inset-x-0 top-0 z-40 flex h-11 items-center bg-background px-1 lg:hidden">
+    <header className="fixed inset-x-0 top-0 z-40 box-content flex h-11 items-center bg-background px-1 pt-safe-inset-top lg:hidden">
       <Link
         href={returnPath ?? ROUTES.ASSETS}
         aria-label={tMobile('back')}
-        className="flex size-9 shrink-0 items-center justify-center rounded-full text-foreground transition-colors duration-fast ease-standard active:bg-muted"
+        className="flex size-9 shrink-0 items-center coarse:size-11 justify-center rounded-full text-foreground transition-colors duration-fast ease-standard active:bg-muted"
       >
         <ArrowLeft className="size-5" />
       </Link>
@@ -319,7 +323,7 @@ function MobileStudioBar({ pathname }: { pathname: string }) {
             <button
               type="button"
               aria-label={tMobile('switchTool')}
-              className="flex h-8 min-w-0 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-foreground transition-colors duration-fast ease-standard active:bg-muted data-[state=open]:bg-muted"
+              className="flex h-8 min-w-0 items-center coarse:h-11 gap-1.5 rounded-full px-3 text-sm font-semibold text-foreground transition-colors duration-fast ease-standard active:bg-muted data-[state=open]:bg-muted"
             >
               <CurrentIcon className="size-4 shrink-0" />
               <span className="truncate">{t(current.labelKey)}</span>
@@ -360,7 +364,7 @@ function MobileStudioBar({ pathname }: { pathname: string }) {
       </div>
 
       {/* 右端留给**助手头像**：它是工作台上那颗持久 fixed 的开关，落在这一格上。 */}
-      <span className="size-9 shrink-0" aria-hidden />
+      <span className="size-9 shrink-0 coarse:size-11" aria-hidden />
     </header>
   )
 }

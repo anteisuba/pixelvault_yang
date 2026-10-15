@@ -2352,18 +2352,21 @@ export function KreaAssetBrowser({
           <SheetContent
             side="left"
             showCloseButton={false}
-            className="gap-0 px-3 pb-3 pt-4"
+            className="gap-0 px-3 pb-safe-inset-bottom pt-safe-inset-top"
           >
             <SheetTitle className="sr-only">{t('sidebarFolders')}</SheetTitle>
             <SheetDescription className="sr-only">
               {t('folderDrawerDescription')}
             </SheetDescription>
-            <AssetFolderSidebar
-              {...sidebarProps}
-              touch
-              onCollapse={() => setIsFolderDrawerOpen(false)}
-              className="h-full"
-            />
+            {/* 整屏高的抽屉：外层让开刘海 / 底部横条，里面再留原来的 16 / 12px。 */}
+            <div className="flex min-h-0 flex-1 flex-col pb-3 pt-4">
+              <AssetFolderSidebar
+                {...sidebarProps}
+                touch
+                onCollapse={() => setIsFolderDrawerOpen(false)}
+                className="h-full"
+              />
+            </div>
           </SheetContent>
         </Sheet>
       )}
@@ -2379,10 +2382,10 @@ export function KreaAssetBrowser({
           于是「点了『选择』什么都没发生」，用户不知道进没进选择模式。 */}
       {!isPickerMode && selectionMode && (
         <div
-          className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex flex-col items-center px-3 md:hidden"
+          className="pointer-events-none fixed inset-x-0 bottom-mobile-tabbar z-40 flex flex-col items-center px-3 md:hidden"
+          // 立在手机底栏上沿：底部安全区已算进 `bottom-mobile-tabbar`，这里只留 8px 间隙。
           style={{
-            paddingBottom:
-              'calc(max(var(--keyboard-safe-area-bottom, 0px), 1rem) + var(--keyboard-inset, 0px))',
+            paddingBottom: 'calc(0.5rem + var(--keyboard-inset, 0px))',
           }}
         >
           {/* 选中的全是「先搜再画」出的图：「发布到画廊」置灰，原因长在工具条上方。 */}

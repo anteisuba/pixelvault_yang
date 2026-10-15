@@ -123,7 +123,7 @@ export function EditDeskTopBar({
               }
               event.stopPropagation()
             }}
-            className="h-7 max-w-56 rounded-md border border-input bg-card px-2 text-sm font-semibold text-foreground outline-none"
+            className="h-7 max-w-56 rounded-md border border-input bg-card px-2 text-base font-semibold lg:text-sm text-foreground outline-none"
           />
         ) : (
           <button

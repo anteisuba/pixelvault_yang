@@ -148,7 +148,7 @@ export function StudioKeepChangePanel({
               value={freeText}
               onChange={(event) => setFreeText(event.target.value)}
               placeholder={t('freeTextPlaceholder')}
-              className="min-h-24 resize-none bg-background/70 text-sm"
+              className="min-h-24 resize-none bg-background/70"
             />
           </div>
 

@@ -153,7 +153,7 @@ export interface PromptBarSelection {
   readonly end: number
 }
 
-/** 正文行高 20px（`text-sm` 的 `leading-5`）——长高与滚动都按它算。 */
+/** 正文行高 20px（`leading-5`，手机 16px 字防 iOS 缩放、桌面 `text-sm`）——长高与滚动都按它算。 */
 const LINE_HEIGHT_PX = 20
 /** 开头那颗 chip 与正文第一个字之间的空。 */
 const PREFIX_GAP_PX = 6
@@ -478,7 +478,7 @@ export function NodePromptBar({
 
   // 正文与 overlay 的排版类必须**逐条相同**，否则同一段字在两层里断行的位置不一样。
   const typography = cn(
-    'text-sm leading-5 whitespace-pre-wrap',
+    'text-base leading-5 lg:text-sm whitespace-pre-wrap',
     overflowing ? 'overflow-y-auto' : 'overflow-hidden',
   )
 
@@ -625,7 +625,7 @@ export function NodePromptBar({
         aria-hidden
         data-prompt-bar-sizer
         style={{ textIndent: prefixIndent }}
-        className="pointer-events-none invisible absolute inset-x-0 text-sm leading-5 break-words whitespace-pre-wrap"
+        className="pointer-events-none invisible absolute inset-x-0 text-base leading-5 lg:text-sm break-words whitespace-pre-wrap"
       >
         {value}
         {'\u200b'}

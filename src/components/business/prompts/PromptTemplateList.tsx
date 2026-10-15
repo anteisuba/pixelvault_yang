@@ -181,14 +181,14 @@ export function PromptTemplateList({
               enterKeyHint="search"
               aria-label={t('searchTemplates')}
               placeholder={t('searchTemplates')}
-              className="h-full min-w-0 flex-1 bg-transparent text-2sm text-foreground outline-none placeholder:text-muted-foreground/70"
+              className="h-full min-w-0 flex-1 bg-transparent text-base text-foreground lg:text-2sm outline-none placeholder:text-muted-foreground/70"
             />
             {query ? (
               <button
                 type="button"
                 onClick={() => setQuery('')}
                 aria-label={t('clearSearch')}
-                className="shrink-0 text-muted-foreground transition-colors duration-fast ease-linear hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="grid shrink-0 place-items-center text-muted-foreground coarse:size-11 transition-colors duration-fast ease-linear hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <X aria-hidden className="size-3.5" />
               </button>
@@ -403,7 +403,7 @@ function PromptTemplateCard({
           <CopyPromptButton
             prompt={recipe.compiledPrompt}
             label={t('copyShort')}
-            className="h-7.5 rounded-full px-3 text-2sm"
+            className="touch-target-y h-7.5 rounded-full px-3 text-2sm"
           />
           {recipe.tagSource ? (
             <PromptTemplateUseMenu
@@ -413,12 +413,12 @@ function PromptTemplateCard({
               onUse={(destination) => {
                 if (openTemplate(recipe, destination)) onUsed()
               }}
-              triggerClassName="h-7.5 rounded-full px-3 text-2sm font-semibold"
+              triggerClassName="touch-target-y h-7.5 rounded-full px-3 text-2sm font-semibold"
             />
           ) : (
             <Button
               type="button"
-              className="h-7.5 rounded-full px-3 text-2sm font-semibold"
+              className="touch-target-y h-7.5 rounded-full px-3 text-2sm font-semibold"
               onClick={() => {
                 if (openTemplate(recipe)) onUsed()
                 else toast.error(t('useFailed'))

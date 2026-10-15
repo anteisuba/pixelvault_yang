@@ -268,7 +268,7 @@ export function SimpleCardManager({
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder={t('namePlaceholder')}
-              className="w-full rounded-md border border-border/60 bg-background px-3 py-1.5 text-sm focus:border-primary/40 focus:outline-none"
+              className="w-full rounded-md border border-border/60 bg-background px-3 py-1.5 text-base lg:text-sm focus:border-primary/40 focus:outline-none"
             />
 
             {/* Image upload for bg/style cards */}
@@ -325,7 +325,7 @@ export function SimpleCardManager({
                   onChange={(e) => setNewPrompt(e.target.value)}
                   placeholder={promptPlaceholder ?? t('descriptionPlaceholder')}
                   rows={2}
-                  className="w-full rounded-md border border-border/60 bg-background px-3 py-1.5 text-xs focus:border-primary/40 focus:outline-none resize-none"
+                  className="w-full rounded-md border border-border/60 bg-background px-3 py-1.5 text-base lg:text-xs focus:border-primary/40 focus:outline-none resize-none"
                 />
               )}
 

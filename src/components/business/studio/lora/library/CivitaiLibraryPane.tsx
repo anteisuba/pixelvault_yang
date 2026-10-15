@@ -527,7 +527,7 @@ export function CivitaiCommunityBranch({
                 // 右侧那颗搜索按钮上。
                 enterKeyHint="search"
                 placeholder={t('communitySearch')}
-                className="h-9 pl-9 pr-16 text-xs"
+                className="h-9 pl-9 pr-16"
               />
               {library.isRevalidating ? (
                 <Spinner

@@ -147,7 +147,7 @@ export function AssetPickerFolderNav({
           onChange={(event) => setQuery(event.target.value)}
           placeholder={t('folderSearch')}
           aria-label={t('folderSearch')}
-          className="h-11 md:h-7 w-full rounded-md border border-border/60 bg-background/40 pl-7 pr-1.5 text-sm md:text-2xs text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-foreground/40"
+          className="h-11 md:h-7 w-full rounded-md border border-border/60 bg-background/40 pl-7 pr-1.5 text-base md:text-2xs text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-foreground/40"
         />
       </div>
 

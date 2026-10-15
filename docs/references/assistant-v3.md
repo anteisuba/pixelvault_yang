@@ -1,6 +1,6 @@
 # 助手新内核（v3）— 施工基准
 
-> 状态：**S1–S5 完成，S6 进行中（2026-10-10）**。五张脸（画布、LoRA 台、图片台〔自然语言台 + 标签台〕、角色页、视频台）都默认走 v3（不分账号、助手模型选「自动」也算）；本地开关 `localStorage['antei:assistant-kernel'] = 'v2'` 时照走旧内核，只为对比，删旧内核时一起删。助手的五家（OpenAI / Claude / Gemini / DeepSeek / Grok）都由 v3 自己跑；只有造不出模型或这张脸画不出板子时才交回旧内核。选定的模型那一家没绑 key 时整轮不跑（见下「只用所选那一家」），⛔ 不回落「自动」、不交回旧内核。S6 剩删旧内核。
+> 状态：**S1–S5 完成，S6 进行中（2026-10-10）**。五张脸（画布、LoRA 台、图片台〔自然语言台 + 标签台〕、角色页、视频台）都默认走 v3（不分账号、助手模型选「自动」也算）；本地开关 `localStorage['antei:assistant-kernel'] = 'v2'` 只认 owner（服务端 `isAdmin`，与管理后台同一道判据，⛔ 不另起 env，2026-10-15）：owner 开了照走旧内核，只为对比，删旧内核时一起删；别人发了 `v2` 服务端照走 v3、记一行日志（⚠ 浏览器那头仍按 v2 的形状组请求：视频台 `@` 的片子放进 `mentionedAssets`、不抽 `videoClips`，到了 v3 这几段片子就看不到）。助手的五家（OpenAI / Claude / Gemini / DeepSeek / Grok）都由 v3 自己跑；只有造不出模型或这张脸画不出板子时才交回旧内核。选定的模型那一家没绑 key 时整轮不跑（见下「只用所选那一家」），⛔ 不回落「自动」、不交回旧内核。S6 剩删旧内核。
 > owner 2026-10-09 定：AI SDK 原生工具；OpenAI 先跑，Claude 另跑一轮；五张脸（图片 / 视频 / LoRA / 画布 / 角色）都迁到新内核，画布先；最后删旧内核。正文不复述改动：改了什么由过程行说（按实际落地的 op 生成），正文只写判断与下一步。
 
 ## 1. 为什么换（2026-10-09 回放基线）
@@ -70,24 +70,29 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 - **一个解析器**：`resolveAssistantRoute`（`services/kernel/assistant-route.service.ts`）是「助手那一家」的唯一答案，回 `{route, apiKeyId, modelId, modelLabel, auto}`。
   - 选了具体模型：就是它，用那一家最新那把 key。那一家没有活着的 key → `AssistantModelKeyMissingError`（`ASSISTANT_MODEL_KEY_MISSING`，带 `adapterType` 与 `modelId`），⛔ 不回落「自动」。
   - 「自动」：`pickAutoAssistantRouteModel`（`constants/assistant-persona.ts`）按 `ASSISTANT_PROVIDER_ORDER`（`constants/assistant.ts`：**Gemini → DeepSeek → OpenAI → Claude → Grok**）取第一家配了 key 的，型号是 `NODE_STUDIO_ASSISTANT_ROUTE_MODELS` 里那一家的第一条（Gemini 3.8 Flash / DeepSeek V4.1 Flash / GPT-6.1 Sol / Claude 第一条 / Grok 4.7）。只看「这一家有没有活着的 key」，key 建的先后、库回的顺序都不改答案。五家都没有 → `ApiKeyError('missing')`（`MISSING_API_KEY`）。
-  - 为什么是这个顺序：它就是旧的 `LLM_TEXT_ADAPTERS` 自动兜底顺序，「自动」用户的主脑一个都不变；Gemini 排第一也和面板缺 key 时开的 `QuickSetupDialog`（Gemini 有免费档）一致。画布规划器的自动顺序（`AUTO_PLANNER_PROVIDER_ORDER`）也从它派生。
+  - 为什么是这个顺序：它就是旧的 `LLM_TEXT_ADAPTERS` 自动兜底顺序，「自动」用户的主脑一个都不变；Gemini 排第一也和面板缺 key 时开的 `QuickSetupDialog`（Gemini 有免费档）一致。⛔ 别处另写一份顺序：画布规划器的「自动」直接调 `resolveAssistantRoute`（见下「小功能」），视频脚本的 `LLM_PROVIDER_ORDER` 删了。
   - 那把 key 解不开就照实抛，⛔ 不悄悄换下一家（换了 chip 上写的就不是真的了）。「自动」下纯问答轮只在同一家里换快档（`ASSISTANT_AUTO_QUESTION_MODEL_IDS`：OpenAI Sol → Luna；Gemini / DeepSeek 默认档本就是快档），⛔ 不换家、不换 key；点名的模型不换。
 - **chip**（`StudioOperatorModelChip`）用同一个 `pickAutoAssistantRouteModel` 写「自动 · DeepSeek V4.1 Flash」（`modelChip.autoResolved`）；选项里那一行副标题同样点名（`autoHintResolved`）。key 名单没回来时只写「自动」。一把 key 都没有时副标题是 `autoHintNoKey`，点「自动」就地开顺序第一家（Gemini）默认档的 `QuickSetupDialog`，验证过才选上「自动」（Hard Rule 8）。
 - **整轮**：判在共用的 `prepareOperatorTurn`（五张脸、v2 / v3 都一样），选定模型缺 key 整轮一步不跑。SSE 错误帧多带 `missingKey`；面板错误条的按钮是「配置 {厂商} Key」，就地弹那一家的 `QuickSetupDialog`（不改工作台选中的生成模型），验证过就自动重发上一条（与「重试」同一句 `error.retryPrompt`）。
 - **主步不借路**：`assistant-fallback-route.service.ts`（`findFallbackAssistantRoute`，模型超时 / 出错就换用户另一把 key 跑完这一步）整个删掉；`assistant-completion.service.ts` 只在同一家重试一次，还不行就把那句错交出去。
 - **小功能也跟助手**（同一个 `resolveAssistantRoute`，连型号一起；做不了就直说，⛔ 不换一家）：
   - 标签台「带到标签台」翻译（`prompt-to-tags.service.ts`）：失败时标签台那条提示写出原因（`StudioTags.carry.failedBecause`，选定模型缺 key / 一把 key 都没有是翻译过的那句）。
-  - 「满意」评估（`generation-evaluator.service.ts`）：先解析、再判看不看得了图；缺 key / 看不了图就抛（⛔ 不写一条失败的评估），工作台 toast 写翻译过的原因。
-  - 卡片编译（`card-recipe-compiler.service.ts`）：融合那一跳出错退回模板拼接；背景 / 画风卡取材要看图，看不了就跳过取材（卡照样用手填的提示词建）。
+  - 「满意」评估（`generation-evaluator.service.ts`）：先解析、再判看不看得了图；缺 key / 看不了图就抛（⛔ 不写一条失败的评估）。缺 key 时工作台**就地**开 `QuickSetupDialog`（Hard Rule 8）：一把 key 都没有 → 顺序第一家 Gemini 的默认档（有免费档）；选定的模型缺 key → 那一家（`AssistantModelKeyMissingError` 的错误体带 `missingKey`）。不改工作台选中的生成模型，验证过就自动再评一次。判据与操作员面板错误条共用一份（`lib/assistant-key-setup.ts` 的 `assistantKeySetupForError`）。看不了图仍是 toast 写翻译过的原因。
+  - 卡片编译（`card-recipe-compiler.service.ts`）：助手那一家没 key（一把都没有 / 选定的模型那一家没有）→ 退回模板拼接，**照实说一句**：编译结果带 `fusionNote: 'noAssistantKey'`（`CARD_RECIPE_FUSION_NOTES`），`POST /api/studio/generate` 回 `recipeFusionNote`，工作台弹一条 toast（`StudioV2.recipeFusionNoAssistantKey`；四处出图入口都接，同一个 toast id 不叠）。⛔ 模板结果不进缓存，配好 key 下一次就融合。融合那一跳别的出错照旧退回模板。背景 / 画风卡取材要看图，看不了就跳过取材（卡照样用手填的提示词建）。
   - 3D 预检（`image-3d-prep.service.ts`）：看不了图就安静跳过语义预检。
   - 角色试读（`character-sample-lines.service.ts`）：缺 key 照实报，角色页那一格写原因。
   - 旧助手（音频台 / LoRA 台，`prompt-assistant.service.ts` 的 `resolvePromptAssistantRoute`）：面板点名了 key 就用那把；没点名时对话与查证都用助手那一家、那个型号。
+  - 自己有 key 选择器的几样（提示词润色 `prompt-enhance`、角色卡搜索与合并 `character-card`、生成反馈、提示词反馈、剧本文档 `node-script-doc`）：点名了 key 照旧用那把（那一家的默认型号）；没点名 = `resolveKeyOrAssistantRoute`（`assistant-route.service.ts`）→ 助手那一家、那个型号，要看图的传 `seesImages`，看不了照实抛。角色一致性评分（`character-scoring`）本就没有 key 选择器，`apiKeyId` 参数删了，一律走助手那一家，看不了图照实抛。
+  - 视频脚本（`video-script.service.ts`）：`LLM_PROVIDER_ORDER` 与按顺序换一家的 `callLlmWithFallback` 删了；走助手那一家、那个型号，只在同一家重试（`SCRIPT_LLM_MAX_ATTEMPTS` = 2 次），还不行就抛。
+  - 画布规划器（`node-planner-route.service.ts`）选「自动」= `resolveAssistantRoute`（五家都做得了，规划只要一段 JSON）；那一家没 key / key 解不开照实抛。点名了 Gemini / DeepSeek / OpenAI 的照旧。
+  - `resolveLlmTextRoute` 不点名 key 的那一圈（`LLM_TEXT_ADAPTERS` 顺序）只剩 `intent-parser` 的平台哨兵在用，创作者的功能 ⛔ 不走它；第一家有 key 但解不开 → 照实抛，⛔ 试下一家。
 - **看图**：v3 只由主模型看（look）；看不了就直说（上「看图」「角色页」）。v2 那几条看图腿（`analyze_references` · 看结果 / 看片 · `inspect_asset_folder` · `canvas_look_at` · `check_character_look` · 搜图后的看缩略图）一律用这一轮那把 key、那个型号；看不了 → `visionUnavailable` 拒绝并附一句实话（「这一轮的模型看不了图，没有换别家」），搜图那一步只跳过看缩略图。`resolveVisionRoute`（`/api/vision/analyze`、视频分析）：调用方递了 key 就用它，没递就是助手那一家；看不了 → `AssistantModelCannotSeeError`（`ASSISTANT_MODEL_CANNOT_SEE`）。旧的 `findVisionCapableRoute`、`VISION_ADAPTER_PREFERENCE` / `VISION_CAPABLE_ADAPTERS` / `VISION_NO_CAPABLE_ROUTE` 与结果里的 `borrowedRoute` / `borrowedVisionRoute` 都删了。
-- **联网**：所选模型自带联网就用它自己的；没有就走管线。借别家自带联网的 `findNativeSearchRoute`（`NATIVE_SEARCH_LENDERS`）删了 —— 它本就够不着：`resolveLlmTextRoute` 只回五家之一，而 `supportsNativeWebSearch` 对五家都为真。没人引用的 `resolveResearchRoute` / `findGroundingRoute` 一起删。`research-route.service.ts` 只剩 `findXSearchRoute`（创作者按了「用 Grok 搜这一次」才用的那把 Grok key）。
+  - 看不看得了只有一个判据，按**厂商 + 型号**（`constants/assistant.ts` 的能力表）：`assistantAdapterSupportsImage` / `assistantAdapterVideoTier` / `assistantAdapterSatisfiesVideoTier` / `assistantAdapterAcceptsReferenceKind` 的 `modelId` 是必填参数（`undefined` = 那一家默认档），⛔ 只按厂商判 —— 同一家里有看不了图的型号（DeepSeek V4 Pro）。视频分析（`video-analysis.service.ts` → `resolveVideoAnalysisRoute`）用 `resolveVisionRoute` 挑中的那个型号判档、发请求。
+- **联网**：所选模型自带联网就用它自己的；没有就走管线。借别家自带联网的 `findNativeSearchRoute`（`NATIVE_SEARCH_LENDERS`）删了 —— 它本就够不着：`resolveLlmTextRoute` 只回五家之一，而 `supportsNativeWebSearch` 对五家都为真。没人引用的 `resolveResearchRoute` / `findGroundingRoute` 一起删。`research-route.service.ts` 只剩 `findXSearchRoute`（创作者按了「用 Grok 搜这一次」才用的那把 Grok key）。自带联网没成、网页那一源退回平台 Serper（回执 `via: 'serper-fallback'`，`constants/research.ts` 的 `RESEARCH_RECEIPT_VIAS`）时照实说：查证结果带 `webSearchFallback`，调查那一行多一句「自带联网没成，改用平台 Google 搜索」（`researchProgress.serperFallback`），观察行也让模型知道网页结果从哪来。
 - **查证改写查询**（`research-planner.service.ts`）用这一轮的路由与型号（调用方交进来），出不来就走确定性那份，⛔ 不换一家再试。此前借的是画布规划器那条路（`resolveNodePlannerRoute`），名册只有 Gemini / DeepSeek / OpenAI —— 不是 Claude / Grok 做不了（规划器只要一个 JSON 对象，五家都给得出），只是那份型号表没有它们，于是选了 Claude / Grok 的人悄悄花了别家的 key。
 - **Grok 看 X 上的视频**（owner 2026-10-15）：`x_search` 默认只开 `enable_image_understanding`（看封面）。创作者这一句明说要看视频（「看看视频」/「動画を見て」/ "watch the video"，判据 `X_VIDEO_WATCH_INTENT` + `creatorAsksToWatchXVideos`，在 `native-search-filters.ts` 与搜 X 的意图放一起；「不用看视频」/ "don't watch" 不算）才加 `enable_video_understanding`。⚠ 只读创作者那一句，⛔ 不读模型写的查证目标。开了就数 Grok 实际调了几次 `view_x_video`（`xVideosWatched`，⚠ 工具名按 xAI 文档推断，未实测），观察行让模型说看了几段，调查那一行写「看了 X 上 N 段视频」。计费：视频按图片 token 计；X 搜索 $5 / 千条帖子。
-- **测试**：新用例跑**真的** `resolveAssistantRoute` + `resolveLlmTextRoute`，只桩库（`src/test/assistant-route-fixture.ts` 的 `assistantKey` / `seedAssistantRoute`），最后用 `src/test/selected-provider-only.ts` 的 `expectSelectedProviderOnly` 数一遍这一轮每一次碰模型 / 按厂商查 key，⛔ 有一条不是所选那一家就失败。
-- ⚠ 还没收的：自己有 key 选择器的几样（提示词润色 `prompt-enhance`、角色评分、角色卡、生成反馈、提示词反馈、`node-script-doc`）没点名 key 时仍走 `resolveLlmTextRoute` 的自动兜底 —— 同一个顺序、只用一家，但不认助手选定的模型、解不开 key 时会试下一家；`intent-parser` 用平台用户。「满意」缺 key 是 toast，不是就地 `QuickSetupDialog`。
+- **测试**：新用例跑**真的** `resolveAssistantRoute` + `resolveLlmTextRoute`，只桩库（`src/test/assistant-route-fixture.ts` 的 `assistantKey` / `seedAssistantRoute`），最后用 `src/test/selected-provider-only.ts` 的 `expectSelectedProviderOnly` 数一遍这一轮每一次碰模型 / 按厂商查 key，⛔ 有一条不是所选那一家就失败。钱闸测试（`assistant-operator.money-gate.test.ts`）的允许名单与操作员实际 import 的模块一一对上：名单里有一条没人 import 也失败（此前还挂着已不 import 的 `vision-route`）。
+- ⚠ 还没收的：`intent-parser`（`/api/generation/plan`，眼下没有界面调用方）拿平台哨兵用户 `INTENT_PARSER_PLATFORM_USER_ID` 走 `resolveLlmTextRoute` 的不点名那一圈 —— 哨兵在库里没有 key，平台兜底 2026-10-07 已清，所以每次都 `MISSING_API_KEY` 落到启发式，⛔ 不碰创作者的 key、也不花平台的钱。留不留这条死掉的 LLM 腿等 owner 定（删了它，不点名那一圈也可以一起删、`apiKeyId` 改必填）。
 
 ### 校验器（工具里跑，不靠提示词）
 

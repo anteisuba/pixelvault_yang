@@ -463,8 +463,8 @@ function buildAuthoredByAssistant(
  * ⭐ 判据是「这一轮他指着说的是哪几张」：把整条线程里所有附件都端上去，助手会
  * 拿三轮之前那张图去回答现在这句话，而 `targetIds` 的准入名单也会一路膨胀 ——
  * 「@ 指定任意图可看」（拍板 4 推翻）随即退化成「历史上出现过的都能看」。
- * ⚠ 只收图：视频 / 音频 / 3D 那条视觉线吃不下（`vision-route.service.ts` 头注），
- * 端上去只会换来一份格式完整、内容全编的评价。
+ * ⚠ 只收图：视频 / 音频 / 3D 看图那条线吃不下，端上去只会换来一份格式完整、内容全编的
+ * 评价（`vision-route.service.ts` 头注）；v3 的片子另走 `videoClips`。
  */
 /** 最后那条用户消息挂了什么（`@` 与 📎 是同一条 chip 管线，见附件类型头注）。 */
 function lastUserAttachments(

@@ -29,16 +29,16 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 - **五家都接**：OpenAI（官方端点走 Responses）、Claude、Gemini，DeepSeek 与 Grok 走兼容 OpenAI 的对话接口。
 - **停在卡上的那一轮**：搭配卡（`propose_setup`）与出图卡（LoRA 台的 `generate`）入参带必填 `say`，这条回复没写正文时服务端把它放在卡上方 —— 提示词里要求它说，五家里三家不说。
 
-| 工具           | 管什么                                                                              | 交给旧执行器的哪一步                   |
-| -------------- | ----------------------------------------------------------------------------------- | -------------------------------------- |
-| read           | 卡的全文、连线、参数                                                                | 服务端直接渲染（`read_state` 过程行）  |
-| look           | 把要看的图（被 @ 的、卡上的、参考位的）连同问题交到主模型眼前，只附给紧跟着的那一步 | ⛔ 不交旧执行器（`read_state` 过程行） |
-| edit           | 建卡（带模型 / 参数 / 提示词）、设名字模型参数、连线、断线、删卡、挪镜、投影剧本    | `canvas_batch`                         |
-| write          | 一张或几张卡的提示词 / 正文：替换、追加、找句换句                                   | `canvas_batch`                         |
-| generate       | 生成确认卡：几张合成一张队列条（方向 C）；镜头卡先过出片前核对                      | `canvas_generate`                      |
-| search_web     | 联网查                                                                              | `research`                             |
-| search_library | 素材库                                                                              | `search_assets`                        |
-| ask            | 反问（≤4 题、每题 2–6 项；`multiSelect` 多选；选项 `image` 句柄换缩略图；`why`）    | 问题卡                                 |
+| 工具           | 管什么                                                                               | 交给旧执行器的哪一步                                        |
+| -------------- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
+| read           | 卡的全文、连线、参数                                                                 | 服务端直接渲染（`read_state` 过程行）                       |
+| look           | 把要看的图（被 @ 的、卡上的、参考位的）连同问题交到主模型眼前，只附给紧跟着的那一步  | ⛔ 不交旧执行器（`read_state` 过程行）                      |
+| edit           | 建卡（带模型 / 参数 / 提示词）、设名字模型参数、连线、断线、删卡、挪镜、投影剧本     | `canvas_batch`                                              |
+| write          | 一张或几张卡的提示词 / 正文：替换、追加、找句换句                                    | `canvas_batch`                                              |
+| generate       | 生成确认卡：几张合成一张队列条（方向 C）；镜头卡先过出片前核对                       | `canvas_generate`                                           |
+| search_web     | 联网查                                                                               | `research`                                                  |
+| search_library | 素材库；`kind: "web_images"` 联网找图、`kind: "web_videos"` 联网找视频（每张脸都开） | `search_assets` / `search_web_images` / `search_web_videos` |
+| ask            | 反问（≤4 题、每题 2–6 项；`multiSelect` 多选；选项 `image` 句柄换缩略图；`why`）     | 问题卡                                                      |
 
 ### 一张脸一个适配（S6）
 
@@ -47,12 +47,12 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 - **LoRA 台**（`assistant-v3-lora.service.ts` · `lib/assistant-v3-lora-board.ts`）：工具名不变，动的是一张表单。板子一行一格：底模、提示词、负面、采样参数（附可选的采样器 / 调度器）、挂着的 LoRA（句柄 `lora-cmg1ab`，权重、开关、触发词在不在提示词里、合不合底模）、总权重与这台底模的上限、参考图 `ref-N`、左边打开着的示例（`sample`，图跟着板子给模型看，配方写在板上，全文用 `read`）。
   - edit：`set_model` · `set_params`（Civitai 的采样器名照认）· `set_weight` · `unmount` · `unmount_reference` · `propose_setup`（搭配卡）· `show_picks`（库页圈选）。新挂 LoRA 只走搭配卡或圈选，挂载由创作者点；助手自己定的权重 / 参数也上卡，创作者说了确切数值或要照抄配方才直接设。
   - write：提示词 / 负面，替换 · 追加 · 找句换句；⛔ 不再问「你写过了，覆盖吗」（创作者叫助手改就是要改，每步可撤）。追加由 v3 拼好整段再写。
-  - search_library：`kind: "lora"` 在库页当面搜；look：@ 来的图 · `ref-N` · `sample`（示例图已跟着板子附上，look 只指给模型看）；generate：只在创作者要图时摆确认卡。
+  - search_library：`kind: "lora"` 在库页当面搜，另有 `web_images` / `web_videos`（见下「找图 / 找视频」；这一台没有导入工具，找到的图只能由创作者点「选用」挂到下一句话）；look：@ 来的图 · `ref-N` · `sample`（示例图已跟着板子附上，look 只指给模型看）；generate：只在创作者要图时摆确认卡。
   - 系统提示的方言段只注入当前底模那一族（`lib/lora-dialect-section.ts`，旧内核同用）。
 - **图片台**（`assistant-v3-image.service.ts` · `lib/assistant-v3-image-board.ts`）：自然语言台与标签台同一张脸。板子一行一格，每个旋钮带可选值：模型（多渠道的列出渠道）、提示词、负面（模型没有负面就说没有）、画幅 / 清晰度 / 质量 / 背景、每次张数、模型选项（`set_option` 按 key）、标签台的分角色与画面文字、参考图 `ref-N`。
   - edit：`set_model`（带渠道）· `set_specs`（没说的那一格沿用台上的值；没有清晰度档的模型写 auto）· `set_count` · `set_option` · `mount_reference`（按附图名或检索结果的资产 id）· `unmount_reference` · `import_url` · 标签台 `set_people` / `set_scene_texts`。
   - 写提示词不走旧内核的「参考图证据简报」闸（`run.skipReferenceReview`，五张脸都设）：v3 的模型自己用 look 看参考图再写。NAI 标签核对照旧（查不到的退回改写一次）。
-  - search_library：自己的素材，或 `kind: "web_images"` 联网找图（结果摆在面板上由创作者选用；2026-10-15 起网格摆在回答正文底下，见 `pages/assistant-shell-v2.md` §3.5「找到的图」）。
+  - search_library：自己的素材，或 `kind: "web_images"` 联网找图（结果摆在面板上由创作者选用；2026-10-15 起网格摆在回答正文底下，见 `pages/assistant-shell-v2.md` §3.5「找到的图」），或 `kind: "web_videos"` 联网找视频（见下「找图 / 找视频」）。
   - 系统提示的方言段是选中模型的写法（与旧内核同源，旧工具名换成 v3 的说法）。
 - **视频台**（与图片台同一个服务与板子，按 `face` 分）：板子多出时长、首尾帧（首帧挂上后画幅按 `aspectRatioLock` 锁死；没挂只是能力声明）、参考视频、参考声音（属于哪个角色）、原声三态开关。
   - edit：`set_specs`（时长 / 画幅 / 清晰度各自独立）· `mount_reference`（slot `first` / `last` / 参考）· `unmount_reference`（`ref-N` / `first` / `last`）· `mount_audio` · `set_sound` · 与图片台同形的 `set_model` / `set_option` / `import_url`。
@@ -62,7 +62,16 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
   - edit：`propose_profile`（逐格带出处）· `propose_images`（本轮检索到的资产 id 或网图地址）· `hand_off`（交给图片助手；那句话里的句柄服务端换回角色名）。一条回复只走第一份提议。
   - read：设定某一格全文，或一个网址（读 wiki 角色页 / 故事页 / 语音页）；look `card` / `card-N`：创作者问图与设定对不对时，指给模型看卡上的图（前 6 张已跟着板子附上，再往后的才附），由它自己对 —— 只比身份（发色、瞳色、肤色、年龄、体型、种族、伤疤犄角），衣服、姿势、表情、背景、画风不算。⛔ 不再另起 `check_character_look`（v2 照旧）。
   - search_library `kind: "web_images"`（联网找图，owner 2026-10-15「一种看法」）：搜完把候选的缩略图当一次 look 交给**主模型**（`searchWebImagesAndLook`），按搜索结果编号（`candidate N`，过程行「候选 N」），由它对照卡上的图与设定自己判断哪几张是这位。走 look 的硬规矩：只附给紧跟着的那一步、一次最多 6 张（多出来的点名）、一张下不来只点名那一张；标了 REFERENCE ONLY 的挂不上卡，⛔ 不占看图名额。所选模型看不了图：结果里明说「没人看过这些候选、只凭标题」，由模型照实告诉创作者。⛔ 不另起看缩略图的子调用（v2 的 `inspectWebImageCandidates` 跑在视觉顺位挑中的那一家，会悄悄借别家的 key）、⛔ 没有藏起来的判定去筛 `propose_images`：v3 设 `run.mainModelLooks`，旧执行器的搜图那一步只搜、只列，不写判词、不按判词丢图。
+  - search_library `kind: "web_videos"`：与别的脸同一条（只搜、只列，⛔ 不走 look —— 视频没有能交给模型看的那一帧）。
   - 系统提示沿用旧内核的角色页规矩：设定四部分 + 外观一句、原作先查原文、改编角色按原作改写或先问方向、原创先问方向、好图的标准、换衣不算矛盾。
+
+### 找图 / 找视频（每张脸都开，2026-10-15 搜索期第二片）
+
+- `search_library` 的 `kind` 除了自己的素材（`image` / `video` / `audio`，LoRA 台是 `lora`），**每张脸**都多两种：`web_images`（联网找图）与 `web_videos`（联网找视频）。入参多一个可空的 `subject`（作品 + 角色，只有找图用它铺多语言查询）。路由在 `assistant-v3-bench.service.ts` 的 `runWebFind`：`web_images` → 旧执行器 `search_web_images`（`preferOfficial`），`web_videos` → `search_web_videos`；角色页的 `web_images` 仍走 `searchWebImagesAndLook`（上面那条）。两条描述的文案只有一份（`ASSISTANT_V3_WEB_IMAGES_KIND_DESCRIPTION` / `ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION`，`constants/assistant-v3.ts`），系统提示每张脸的工具段各有一行（`WEB_VIDEOS_LINE`）。
+- **找视频**（`services/web-video-search.service.ts`）：平台的 Serper `/videos`（`SERPER_API_KEY`）+ 已有的 B站连接器（中文查询或点了 B站才打），两路并发、按嵌入地址去重、最多 8 条。⛔ 不走模型的自带联网、⛔ 不碰创作者的模型 key（钱闸测试锁源码）。来源名单照样管（`filterResearchSources` / `filterEvidenceIndices`）。
+- **模型拿到什么**：每支一行 `#n · 标题 · 频道 · 平台 · 时长`，外加「你没看过这些、只凭标题判断」「⛔ 别导入、别把视频地址写进提示词、用 #n 指代」。整卡数据（封面、域名、日期…）只走步骤事件给面板。搜空了：⛔ 编视频 / 链接，换一次说法（作品官方名、原文名、PV / trailer / tutorial）再说没有。
+- **面板**：找到的视频是一排 16:9 卡片，摆在回答正文底下、找到的图下面；点一张在面板里用官方嵌入播（YouTube nocookie / B站 / niconico / Vimeo），认不出稿件号的新窗口开 —— 见 `pages/assistant-shell-v2.md` §3.5「找到的视频」与 §9.4。
+- ⚠ 找图的结尾句按这张脸够得着什么写：只有图片台 / 视频台（`modelCanImportWebImages`：画布 ⛔、v3 LoRA 台 ⛔）提「也可以用 import_url 挂」，别的只说「创作者点『选用』」—— 指一条走不通的路，模型就会去走。
 
 ### 只用所选那一家（owner 2026-10-15「会自动扣其他模型的token，用户还不知道」·「全跟助手」）
 
@@ -206,6 +215,7 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 
 ## Last Verified
 
+- 2026-10-15 · 搜索期第二片：`search_library` 加 `web_videos`，每张脸都开 `web_images` + `web_videos`（见上「找图 / 找视频」）。定向 vitest（v3 五张脸各一条 `web_videos` 用例）+ `npm run test:replay`；⚠ 没有对真模型跑过找视频的题，Serper `/videos` 的线上字段名没对过。
 - 2026-10-15 · 每轮的过程记录接进 v3（`AssistantTurnRecord`，迁移只在 PGlite 上回放过、未对共用库执行）：`npm run test:replay` 19 题 × 路由 = 25 跑全绿，每一跑都对账自己写下的那一行并原样转回题目（含五家各跑一遍的 T25、两跳接力的 T01 / T03、看片的 V01 / V02）；把转换器故意改坏（丢最后一条回复）时 T11 两跑都红。v3 内核单测补了号与跳数、接力同号、老客户端丢号、空回复 / 审核 / 等确认 / 抛错的收尾、隐身与交回旧内核不记。
 
 - 2026-10-15 · 自动回放基线落地（`npm run test:replay`）：19 题 × 路由 = 25 跑 + 判分器反例 6 条，全绿，约 15 秒；没有揭出真 bug（无 `knownBug`）。

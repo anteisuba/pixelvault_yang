@@ -2,7 +2,11 @@ import 'server-only'
 
 import crypto from 'crypto'
 import { db } from '@/lib/db'
-import { CARD_RECIPE } from '@/constants/cards/card-types'
+import {
+  CARD_RECIPE,
+  CARD_RECIPE_FUSION_NOTES,
+  type CardRecipeFusionNote,
+} from '@/constants/cards/card-types'
 import { ADAPTER_PROMPT_HINTS } from '@/constants/model-strengths'
 import { getModelById, IMAGE_KIND, resolveImageKind } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
@@ -19,6 +23,7 @@ import {
   resolveAssistantRoute,
 } from '@/services/kernel/assistant-route.service'
 import { llmTextCompletion } from '@/services/llm-text.service'
+import { ApiKeyError, AssistantModelKeyMissingError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { validateRecipeFusion } from '@/lib/llm-output-validator'
 
@@ -39,7 +44,18 @@ export interface CompiledRecipe {
   advancedParams: AdvancedParams | null
   referenceImages: string[]
   snapshot: RecipeSnapshot
+  /**
+   * 这次没走助手融合、只按原文拼接时说为什么（界面照实说一句）；融合成功 / 命中缓存 = `null`。
+   * ⚠ 只报「没 key」这一种：超时、输出不合格这些偶发失败照旧安静回落。
+   */
+  fusionNote: CardRecipeFusionNote | null
 }
+
+/** 融合那一跳的结果：成了 / 没 key（照实说）/ 别的原因没成（安静回落模板）。 */
+type LlmFusionOutcome =
+  | { kind: 'fused'; prompt: string }
+  | { kind: 'noAssistantKey' }
+  | { kind: 'failed' }
 
 // ─── LLM System Prompts ─────────────────────────────────────────
 
@@ -246,13 +262,29 @@ async function compileWithLlm(
     freePrompt?: string
     styleAttributes?: Record<string, unknown> | null
   },
-): Promise<string | null> {
+): Promise<LlmFusionOutcome> {
+  /**
+   * ⭐ 融合用**助手那一家**（owner 2026-10-15「全跟助手」）。那一家没 key → 回落模板拼接
+   * （不花任何一家的钱）并**照实说一句**，⛔ 不拿别家的 key 顶上、⛔ 也不悄悄回落。
+   */
+  let assistant: Awaited<ReturnType<typeof resolveAssistantRoute>>
   try {
-    /**
-     * ⭐ 融合用**助手那一家**（owner 2026-10-15「全跟助手」）。那一家没 key → 这里抛、
-     * 下面接住 → 回落模板拼接（不花任何一家的钱），⛔ 不拿别家的 key 顶上。
-     */
-    const { route, modelId } = await resolveAssistantRoute(userId)
+    assistant = await resolveAssistantRoute(userId)
+  } catch (error) {
+    if (
+      error instanceof AssistantModelKeyMissingError ||
+      (error instanceof ApiKeyError && error.errorCode === 'MISSING_API_KEY')
+    ) {
+      return { kind: 'noAssistantKey' }
+    }
+    logger.warn('Recipe fusion route failed, using template', {
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return { kind: 'failed' }
+  }
+
+  try {
+    const { route, modelId } = assistant
     const systemPrompt = buildFusionSystemPrompt(adapterType)
 
     // Build style section with structured attributes when available.
@@ -286,7 +318,7 @@ async function compileWithLlm(
       .filter(Boolean)
       .join('\n\n')
 
-    if (!userMessage) return null
+    if (!userMessage) return { kind: 'failed' }
 
     const result = await Promise.race([
       llmTextCompletion({
@@ -314,16 +346,16 @@ async function compileWithLlm(
         reason: validation.reason,
         adapterType,
       })
-      return null
+      return { kind: 'failed' }
     }
     if (validation.warnings.length > 0) {
       logger.info('LLM fusion warnings', { warnings: validation.warnings })
     }
 
-    return validation.output
+    return { kind: 'fused', prompt: validation.output }
   } catch {
-    // LLM fusion failed — caller should fall back to template
-    return null
+    // LLM fusion failed — caller falls back to template
+    return { kind: 'failed' }
   }
 }
 
@@ -378,21 +410,24 @@ export async function compileRecipe(
   }
   const cacheKey = getCacheKey(cacheKeyInput)
 
-  // Check cache
+  // Check cache（只缓存融合成功的那一句）
   let compiledPrompt = getCachedPrompt(cacheKey)
+  let fusionNote: CardRecipeFusionNote | null = null
 
   if (!compiledPrompt) {
     // Stage 2: Try LLM fusion
-    compiledPrompt = await compileWithLlm(userId, adapterType, parts)
+    const fusion = await compileWithLlm(userId, adapterType, parts)
 
-    // Stage 1 fallback: Template-based compilation
-    if (!compiledPrompt) {
-      compiledPrompt = compileWithTemplate(parts)
-    }
-
-    // Cache the result
-    if (compiledPrompt) {
+    if (fusion.kind === 'fused') {
+      compiledPrompt = fusion.prompt
       setCachedPrompt(cacheKey, compiledPrompt)
+    } else {
+      // Stage 1 fallback: Template-based compilation。⚠ 不缓存 —— 配好 key / 偶发失败过去后，
+      // 下一次就该真的融合，⛔ 不让一句拼接顶一个小时。
+      compiledPrompt = compileWithTemplate(parts)
+      if (fusion.kind === 'noAssistantKey') {
+        fusionNote = CARD_RECIPE_FUSION_NOTES.noAssistantKey
+      }
     }
   }
 
@@ -460,6 +495,7 @@ export async function compileRecipe(
     advancedParams: finalAdvancedParams,
     referenceImages,
     snapshot,
+    fusionNote,
   }
 }
 

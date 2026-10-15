@@ -6723,6 +6723,7 @@
     "viewInGallery": "查看大图",
     "generateFailed": "生成失败",
     "stillProcessingHint": "仍在后台生成，完成后会出现在素材库中。",
+    "recipeFusionNoAssistantKey": "助手还没配 key，这次卡片没经助手融合，是按原文直接拼接的。",
     "variantGenerate": "生成变体",
     "variantGenerating": "正在生成 {count} 个变体...",
     "compareGenerate": "对比模型",

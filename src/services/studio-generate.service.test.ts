@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { CARD_RECIPE_FUSION_NOTES } from '@/constants/cards/card-types'
 import { AI_MODELS } from '@/constants/models'
 import type { StudioGenerateRequest } from '@/types'
 import { GenerationValidationError } from '@/lib/errors'
@@ -50,6 +51,7 @@ beforeEach(() => {
     adapterType: 'fal',
     referenceImages: [],
     advancedParams: undefined,
+    fusionNote: null,
   } as never)
 })
 
@@ -113,6 +115,29 @@ describe('compileAndGenerate prompt limits', () => {
       {},
       expect.any(Object),
     )
+  })
+
+  it('⭐ 卡片融合没走助手（没 key）：把这句原因带回去，界面照实说（⛔ 悄悄回落模板）', async () => {
+    vi.mocked(compileRecipe).mockResolvedValue({
+      compiledPrompt: 'a knight, anime style',
+      modelId: AI_MODELS.FLUX_2_FLASH,
+      adapterType: 'fal',
+      referenceImages: [],
+      advancedParams: null,
+      fusionNote: CARD_RECIPE_FUSION_NOTES.noAssistantKey,
+    } as never)
+
+    const result = await compileAndGenerate('clerk-1', {
+      styleCardId: 'style-1',
+      aspectRatio: '1:1',
+      freePrompt: 'standing',
+    })
+
+    expect(result).toEqual({
+      jobId: 'job-1',
+      requestId: 'request-1',
+      recipeFusionNote: CARD_RECIPE_FUSION_NOTES.noAssistantKey,
+    })
   })
 
   it('rejects quick-mode freePrompt over the resolved model maxPromptChars', async () => {

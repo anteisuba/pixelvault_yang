@@ -51,6 +51,7 @@ vi.mock('@/lib/llm-output-validator', () => ({
 
 import { db } from '@/lib/db'
 import { ASSISTANT_MODEL_CANNOT_SEE_CODE } from '@/constants/assistant-operator'
+import { CARD_RECIPE_FUSION_NOTES } from '@/constants/cards/card-types'
 import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_MODELS } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
@@ -440,10 +441,61 @@ describe('只用助手那一家', () => {
     })
 
     expect(result.compiledPrompt).toBeTruthy()
+    // ⭐ 照实说一句（owner 2026-10-15：⛔ 悄悄回落模板）
+    expect(result.fusionNote).toBe(CARD_RECIPE_FUSION_NOTES.noAssistantKey)
     expect(mockLlm).not.toHaveBeenCalled()
     expectSelectedProviderOnly(usesOf(), {
       adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
     })
+  })
+
+  it('融合：一把 key 都没有 → 回落模板并照实说；配好 key 后下一次就真的融合（模板不进缓存）', async () => {
+    mockValidator.mockImplementation((text: string) => ({
+      usable: true,
+      output: text,
+      reason: '',
+      warnings: [],
+    }))
+    seedAssistantRoute(keyStore, { keys: [] })
+    mockCharFind.mockResolvedValue(
+      mkCharCard({ characterPrompt: 'a bard' }) as never,
+    )
+    mockStyleFind.mockResolvedValue(mkStyleCard() as never)
+    mockBgFind.mockResolvedValue(null as never)
+    const input = {
+      userId: 'user-1',
+      characterCardId: 'char-1',
+      styleCardId: 'style-1',
+      freePrompt: 'no-key-then-key',
+    }
+
+    const first = await compileRecipe(input)
+    expect(first.compiledPrompt).toBe('a bard, no-key-then-key, anime style')
+    expect(first.fusionNote).toBe(CARD_RECIPE_FUSION_NOTES.noAssistantKey)
+    expect(mockLlm).not.toHaveBeenCalled()
+
+    seedAssistantRoute(keyStore, {
+      keys: [assistantKey(AI_ADAPTER_TYPES.GEMINI, { userId: 'user-1' })],
+    })
+    const second = await compileRecipe(input)
+    expect(second.compiledPrompt).toBe('LLM fused prompt output')
+    expect(second.fusionNote).toBeNull()
+  })
+
+  it('融合：有 key 但这一次没成（超时等）→ 安静回落模板，不报「没 key」', async () => {
+    mockLlm.mockRejectedValue(new Error('LLM fusion timeout'))
+    mockCharFind.mockResolvedValue(mkCharCard() as never)
+    mockStyleFind.mockResolvedValue(mkStyleCard() as never)
+    mockBgFind.mockResolvedValue(null as never)
+
+    const result = await compileRecipe({
+      userId: 'user-1',
+      characterCardId: 'char-1',
+      styleCardId: 'style-1',
+      freePrompt: 'transient-failure',
+    })
+
+    expect(result.fusionNote).toBeNull()
   })
 
   it.each([

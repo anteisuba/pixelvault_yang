@@ -20,6 +20,7 @@ import {
   type AudioPace,
 } from '@/constants/voice-cards'
 import { VARIANT_MAX_SEED } from '@/constants/studio'
+import { CARD_RECIPE_FUSION_NOTES } from '@/constants/cards/card-types'
 import {
   GENERATION_ERROR_CODES,
   type GenerationErrorCode,
@@ -192,6 +193,21 @@ function hasJobId(
   { jobId: string }
 > {
   return typeof data?.jobId === 'string' && data.jobId.length > 0
+}
+
+/** 同一轮多格只弹一次（sonner 按 id 去重）。 */
+const RECIPE_FUSION_NOTE_TOAST_ID = 'studio-recipe-fusion-note'
+
+/**
+ * 卡片融合没走助手（助手那一家没 key）、只按原文拼接时**照实说一句**（owner 2026-10-15：
+ * ⛔ 悄悄回落模板）。图照常出，所以是提示不是报错。
+ */
+function announceRecipeFusionNote(
+  data: StudioGenerateResponseData | undefined,
+  message: () => string,
+): void {
+  if (data?.recipeFusionNote !== CARD_RECIPE_FUSION_NOTES.noAssistantKey) return
+  toast.info(message(), { id: RECIPE_FUSION_NOTE_TOAST_ID })
 }
 
 function waitForPollInterval(ms: number): Promise<void> {
@@ -587,6 +603,9 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
 
       try {
         const result = await studioGenerateAPI(input)
+        announceRecipeFusionNote(result.data, () =>
+          tStudio('recipeFusionNoAssistantKey'),
+        )
 
         if (result.success && hasJobId(result.data)) {
           const { jobId } = result.data
@@ -1050,6 +1069,9 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
             }
             imageItemRequestsRef.current.set(item.id, request)
             const result = await studioGenerateAPI(request)
+            announceRecipeFusionNote(result.data, () =>
+              tStudio('recipeFusionNoAssistantKey'),
+            )
             if (result.success && hasJobId(result.data)) {
               activeJobIdsRef.current.set(item.id, result.data.jobId)
               setStage('processing')
@@ -1239,6 +1261,9 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
             }
             imageItemRequestsRef.current.set(item.id, request)
             const result = await studioGenerateAPI(request)
+            announceRecipeFusionNote(result.data, () =>
+              tStudio('recipeFusionNoAssistantKey'),
+            )
             if (result.success && hasJobId(result.data)) {
               activeJobIdsRef.current.set(item.id, result.data.jobId)
               setStage('processing')
@@ -1732,6 +1757,9 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       )
       try {
         const result = await studioGenerateAPI(request)
+        announceRecipeFusionNote(result.data, () =>
+          tStudio('recipeFusionNoAssistantKey'),
+        )
         if (result.success && hasJobId(result.data)) {
           activeJobIdsRef.current.set(itemId, result.data.jobId)
           const outcome = await pollImageJobForRunItem(

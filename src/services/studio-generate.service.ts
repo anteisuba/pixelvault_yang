@@ -1,6 +1,10 @@
 import 'server-only'
 
-import type { ImageSubmitResponseData, StudioGenerateRequest } from '@/types'
+import type {
+  ImageSubmitResponseData,
+  StudioGenerateRequest,
+  StudioGenerateResponseData,
+} from '@/types'
 import { getModelById } from '@/constants/models'
 import { getMaxReferenceImages } from '@/constants/provider-capabilities'
 import { compileImageOutlet } from '@/lib/card-bus-compile'
@@ -27,7 +31,7 @@ import {
 export async function compileAndGenerate(
   clerkId: string,
   input: StudioGenerateRequest,
-): Promise<ImageSubmitResponseData> {
+): Promise<StudioGenerateResponseData> {
   const dbUser = await ensureUser(clerkId)
   const mentionIndices = getReferenceMentionIndices(input.freePrompt ?? '')
   const unavailableMention = mentionIndices.some(
@@ -202,7 +206,7 @@ export async function compileAndGenerate(
         }
       : undefined
 
-  return submitImageGeneration(
+  const submitted: ImageSubmitResponseData = await submitImageGeneration(
     clerkId,
     {
       prompt: mentionIndices.length
@@ -239,4 +243,8 @@ export async function compileAndGenerate(
       },
     },
   )
+  // 融合没走助手（没 key）时照实带回去，界面说一句，⛔ 悄悄回落模板。
+  return compiled.fusionNote
+    ? { ...submitted, recipeFusionNote: compiled.fusionNote }
+    : submitted
 }

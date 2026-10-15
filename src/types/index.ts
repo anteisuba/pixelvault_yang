@@ -37,6 +37,7 @@ import {
   BACKGROUND_CARD,
   STYLE_CARD,
   CARD_RECIPE,
+  type CardRecipeFusionNote,
 } from '@/constants/cards/card-types'
 import { API_KEY_ADAPTER_OPTIONS } from '@/constants/api-keys'
 import {
@@ -1042,7 +1043,13 @@ export interface ImageStatusResponse {
   error?: string
 }
 
-export type StudioGenerateResponseData = ImageSubmitResponseData
+export interface StudioGenerateResponseData extends ImageSubmitResponseData {
+  /**
+   * 卡片模式下融合没走助手、只按原文拼接时说为什么（界面照实说一句，owner 2026-10-15
+   * ⛔ 悄悄回落模板）。快速模式与融合成功时缺席。
+   */
+  recipeFusionNote?: CardRecipeFusionNote
+}
 
 export interface StudioGenerateResponse {
   success: boolean
@@ -3381,11 +3388,7 @@ export const CharacterPersonaSchema = z.object({
     .trim()
     .max(CHARACTER_PERSONA_LIMITS.scenario)
     .default(''),
-  opening: z
-    .string()
-    .trim()
-    .max(CHARACTER_PERSONA_LIMITS.opening)
-    .default(''),
+  opening: z.string().trim().max(CHARACTER_PERSONA_LIMITS.opening).default(''),
   examples: z
     .array(CharacterPersonaExampleSchema)
     .max(CHARACTER_PERSONA_LIMITS.examples)
@@ -4366,6 +4369,8 @@ export interface CompileRecipeResponse {
     advancedParams: AdvancedParams | null
     referenceImages: string[]
     snapshot: RecipeSnapshot
+    /** 没走助手融合、只按原文拼接时说为什么；融合成功为 `null`。 */
+    fusionNote: CardRecipeFusionNote | null
   }
   error?: string
 }

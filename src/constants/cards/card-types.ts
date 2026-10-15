@@ -34,3 +34,14 @@ export const CARD_RECIPE = {
   /** LLM fusion timeout in milliseconds */
   LLM_FUSION_TIMEOUT_MS: 10_000,
 } as const
+
+/**
+ * 卡片融合没走助手、只按原文拼接时**照实说一句**（owner 2026-10-15：⛔ 悄悄回落模板）。
+ * `noAssistantKey` = 助手那一家没 key（一把都没有，或选定的模型那一家没有）。
+ */
+export const CARD_RECIPE_FUSION_NOTES = {
+  noAssistantKey: 'noAssistantKey',
+} as const
+
+export type CardRecipeFusionNote =
+  (typeof CARD_RECIPE_FUSION_NOTES)[keyof typeof CARD_RECIPE_FUSION_NOTES]

@@ -6723,6 +6723,7 @@
     "viewInGallery": "View full size",
     "generateFailed": "Generation failed",
     "stillProcessingHint": "Still generating in the background — it'll appear in your library when it's ready.",
+    "recipeFusionNoAssistantKey": "No assistant key is set up, so your cards were joined as written instead of blended by the assistant.",
     "variantGenerate": "Generate Variants",
     "variantGenerating": "Generating {count, plural, one {# variant} other {# variants}}...",
     "compareGenerate": "Compare Models",

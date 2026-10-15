@@ -6715,6 +6715,7 @@
     "viewInGallery": "拡大表示",
     "generateFailed": "生成失敗",
     "stillProcessingHint": "バックグラウンドで生成を続けています。完了するとライブラリに表示されます。",
+    "recipeFusionNoAssistantKey": "アシスタントのキーが未設定のため、カードはアシスタントで融合せず、書かれたとおりにつなげました。",
     "variantGenerate": "バリエーション生成",
     "variantGenerating": "{count}個のバリエーションを生成中...",
     "compareGenerate": "モデル比較",

@@ -3,6 +3,7 @@ import { createElement, type ReactNode } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 
+import { CARD_RECIPE_FUSION_NOTES } from '@/constants/cards/card-types'
 import {
   AUDIO_GENERATION,
   IMAGE_GENERATION,
@@ -249,6 +250,70 @@ describe('useUnifiedGenerate', () => {
     // 出图就是结果原地出现（加载态 A，owner 2026-09-27 取代审查 D1 的完成提示）：
     // ⛔ 再弹一条成功 toast。
     expect(toast.success).not.toHaveBeenCalled()
+  })
+
+  it('⭐ 卡片融合没走助手（没 key）：照实说一句，多格同一轮只弹一次', async () => {
+    vi.useFakeTimers()
+    mockStudioGenerate.mockResolvedValue({
+      success: true,
+      data: {
+        ...SUCCESS_IMAGE_SUBMIT_RESPONSE.data,
+        recipeFusionNote: CARD_RECIPE_FUSION_NOTES.noAssistantKey,
+      },
+    })
+
+    const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
+    let generationPromise: Promise<GenerationRecord | null>
+    await act(async () => {
+      generationPromise = result.current.generate({
+        mode: 'image',
+        image: IMAGE_INPUT,
+        variantCount: 2,
+      })
+      await Promise.resolve()
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(IMAGE_GENERATION.POLL_INTERVAL_MS)
+    })
+    await generationPromise!
+
+    expect(toast.info).toHaveBeenCalledWith('recipeFusionNoAssistantKey', {
+      id: 'studio-recipe-fusion-note',
+    })
+    // 两格都带这句，toast 按同一个 id 去重
+    expect(
+      vi
+        .mocked(toast.info)
+        .mock.calls.filter(
+          ([message]) => message === 'recipeFusionNoAssistantKey',
+        )
+        .every(([, options]) => options?.id === 'studio-recipe-fusion-note'),
+    ).toBe(true)
+  })
+
+  it('融合走了助手：⛔ 不弹这句', async () => {
+    vi.useFakeTimers()
+    mockStudioGenerate.mockResolvedValue(SUCCESS_IMAGE_SUBMIT_RESPONSE)
+
+    const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
+    let generationPromise: Promise<GenerationRecord | null>
+    await act(async () => {
+      generationPromise = result.current.generate({
+        mode: 'image',
+        image: IMAGE_INPUT,
+        variantCount: 2,
+      })
+      await Promise.resolve()
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(IMAGE_GENERATION.POLL_INTERVAL_MS)
+    })
+    await generationPromise!
+
+    expect(toast.info).not.toHaveBeenCalledWith(
+      'recipeFusionNoAssistantKey',
+      expect.anything(),
+    )
   })
 
   it('routes variantCount > 1 to N independent seeded requests', async () => {

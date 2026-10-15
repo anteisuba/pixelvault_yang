@@ -11257,7 +11257,7 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
     expect(prompt).toContain('prompt-ready vocabulary')
   })
 
-  it('⭐ 第二轮**允许**（多轮就是这条工具的核心），第三轮按上限拒', async () => {
+  it('⭐ 第二、第三轮**允许**（多轮就是这条工具的核心），第四轮按上限拒', async () => {
     mockRunAssistantResearch.mockResolvedValue({
       queries: [],
       sources: ['wiki'],
@@ -11268,6 +11268,7 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
     queueTurns(
       researchTurn('which site is official'),
       researchTurn('appearance and outfit'),
+      researchTurn('try another source'),
       researchTurn('one more time'),
       { finished: true },
     )
@@ -11278,16 +11279,17 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
       (step) => step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.running,
     )
 
+    expect(ASSISTANT_RESEARCH_LIMITS.maxRoundsPerTurn).toBe(3)
     expect(steps[0].status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.done)
     expect(steps[1].status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.done)
-    expect((steps[1].payload as { round: number }).round).toBe(2)
-    expect(steps[2].status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.error)
-    expect((steps[2].error as { reason: string }).reason).toBe(
+    expect(steps[2].status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.done)
+    expect((steps[2].payload as { round: number }).round).toBe(3)
+    expect(steps[3].status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.error)
+    expect((steps[3].error as { reason: string }).reason).toBe(
       ASSISTANT_OPERATOR_REJECT_REASON_IDS.researchRoundsExhausted,
     )
-    // ⚠ 上限是**轮次**不是「同一步」：三次的 goal 各不相同，重复步那道闸拦不住它。
-    expect(mockRunAssistantResearch).toHaveBeenCalledTimes(2)
-    expect(ASSISTANT_RESEARCH_LIMITS.maxRoundsPerTurn).toBeGreaterThanOrEqual(2)
+    // ⚠ 上限是**轮次**不是「同一步」：四次的 goal 各不相同，重复步那道闸拦不住它。
+    expect(mockRunAssistantResearch).toHaveBeenCalledTimes(3)
   })
 
   it('⭐ 空结果时**不许放弃**：观察里明说再换个角度试一次', async () => {
@@ -11380,12 +11382,18 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
         { sourceId: 'web_search', status: 'failed', count: 0, tookMs: 1 },
       ],
     })
-    queueTurns(researchTurn('a'), researchTurn('b'), researchTurn('c'), {
-      finished: true,
-    })
+    queueTurns(
+      researchTurn('a'),
+      researchTurn('b'),
+      researchTurn('c'),
+      researchTurn('d'),
+      { finished: true },
+    )
 
     await collect(runAssistantOperator('clerk-1', buildRequest()))
-    expect(mockRunAssistantResearch).toHaveBeenCalledTimes(2)
+    expect(mockRunAssistantResearch).toHaveBeenCalledTimes(
+      ASSISTANT_RESEARCH_LIMITS.maxRoundsPerTurn,
+    )
   })
 })
 
@@ -11997,19 +12005,20 @@ describe('查证与找图两入口（§9，commit #16）', () => {
     expect(lastUserPrompt()).toContain('(expanded)')
   })
 
-  it('⚠ 配额照旧：一轮里查证两次之后第三次按轮次上限拒', async () => {
+  it('⚠ 配额照旧：一轮里查证三次之后第四次按轮次上限拒', async () => {
     queueOutcome([CORROBORATED])
     queueTurns(
       verifyTurn({ goal: 'a' }),
       verifyTurn({ goal: 'b' }),
       verifyTurn({ goal: 'c' }),
+      verifyTurn({ goal: 'd' }),
       { finished: true },
     )
 
     const steps = stepsOf(
       await collect(runAssistantOperator('clerk-1', buildRequest())),
     )
-    expect(mockRunAssistantResearch).toHaveBeenCalledTimes(2)
+    expect(mockRunAssistantResearch).toHaveBeenCalledTimes(3)
     const rejected = steps.find(
       (step) => step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
     )

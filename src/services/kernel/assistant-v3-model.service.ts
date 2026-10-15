@@ -75,7 +75,16 @@ export function resolveAssistantV3Model(
       }
     }
     case AI_ADAPTER_TYPES.ANTHROPIC: {
-      const provider = createAnthropic({ apiKey: route.apiKey })
+      /**
+       * ⚠ baseURL 一定要显式给：不给时 SDK 读进程环境的 `ANTHROPIC_BASE_URL`，环境里
+       * 设了它，创作者的 key 就会发到那个地址去（2026-10-15 回放基线在沙箱里撞见）。
+       */
+      const provider = createAnthropic({
+        apiKey: route.apiKey,
+        baseURL:
+          route.providerConfig.baseUrl?.replace(/\/$/, '') ||
+          AI_PROVIDER_ENDPOINTS.ANTHROPIC,
+      })
       return {
         model: provider(modelId),
         strictTools: false,

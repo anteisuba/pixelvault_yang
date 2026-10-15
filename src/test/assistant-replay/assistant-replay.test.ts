@@ -38,8 +38,6 @@ const cases = loadReplayCases()
 beforeAll(() => {
   // 网关 / 代理一律不走：请求直达五家的官方地址，回放才认得出是哪一家。
   vi.stubEnv('CLOUDFLARE_AI_GATEWAY_URL', '')
-  vi.stubEnv('ANTHROPIC_BASE_URL', undefined)
-  vi.stubEnv('OPENAI_BASE_URL', undefined)
   vi.stubEnv('EXECUTION_WORKER_BASE_URL', '')
 })
 

@@ -13,7 +13,7 @@
  * ② **镜头顺序 = 桌面镜头带序**（`shotNo` 升序）——⛔ 不按时间或名字另排一遍。
  */
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 import { FileUp, Plus, Sparkles } from '@/components/icons'
@@ -25,6 +25,7 @@ import {
 } from '@/constants/node-studio'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { cardManagementPath } from '@/constants/routes'
+import { useBackToClose } from '@/hooks/use-back-to-close'
 import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
 import { useRouter } from '@/i18n/navigation'
 import { characterMainImage } from '@/lib/node-character-mentions'
@@ -149,25 +150,8 @@ export function CanvasMobileRail({
     return pickDefaultModelOption(options.map(toStudioModelOption))?.modelId
   }, [canvas.modelOptionsByKind])
 
-  /**
-   * 系统返回手势 / 浏览器返回 = **收抽屉**（§7.x 末条）：抽屉开着时往历史里压
-   * 一层，返回就把这一层弹掉。
-   *
-   * ⚠ 用 UI 关掉抽屉时要把那一层**吃回来**（cleanup 里 `history.back()`），否则
-   * 开关几次之后用户要按好几下返回才离得开画布。监听在 back 之前就摘了，所以
-   * 那一下 popstate 不会再触发一次关闭。
-   */
-  useEffect(() => {
-    if (openNodeId === null) return
-    window.history.pushState({ canvasNodeSheet: true }, '')
-    const onPopState = () => setOpenNodeId(null)
-    window.addEventListener('popstate', onPopState)
-    return () => {
-      window.removeEventListener('popstate', onPopState)
-      const state = window.history.state as { canvasNodeSheet?: boolean } | null
-      if (state?.canvasNodeSheet) window.history.back()
-    }
-  }, [openNodeId])
+  /** 系统返回手势 / 浏览器返回 = **收抽屉**（§7.x 末条，`useBackToClose`）。 */
+  useBackToClose(openNodeId !== null, () => setOpenNodeId(null))
 
   const openNode = canvas.nodes.find((node) => node.id === openNodeId) ?? null
 

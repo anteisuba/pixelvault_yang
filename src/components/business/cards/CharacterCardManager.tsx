@@ -10,11 +10,11 @@ import type {
   UpdateCharacterCardRequest,
 } from '@/types'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+} from '@/components/ui/responsive-dialog'
 import { Spinner } from '@/components/ui/spinner'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -203,16 +203,18 @@ export function CharacterCardManager({
           </div>
         )}
 
-        <Dialog
+        <ResponsiveDialog
           open={detailCard !== null}
           onOpenChange={(open) => {
             if (!open) setDetailCardId(null)
           }}
         >
-          <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
-            <DialogHeader>
-              <DialogTitle>{detailCard?.name ?? ''}</DialogTitle>
-            </DialogHeader>
+          <ResponsiveDialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
+            <ResponsiveDialogHeader>
+              <ResponsiveDialogTitle>
+                {detailCard?.name ?? ''}
+              </ResponsiveDialogTitle>
+            </ResponsiveDialogHeader>
             {detailCard && (
               <CharacterCardItem
                 card={detailCard}
@@ -230,8 +232,8 @@ export function CharacterCardManager({
                 onUpdateCard={onUpdate}
               />
             )}
-          </DialogContent>
-        </Dialog>
+          </ResponsiveDialogContent>
+        </ResponsiveDialog>
 
         {activeCardIds.length >= 2 && (
           <div className="space-y-2 rounded-lg border border-border/40 bg-background/60 p-3">

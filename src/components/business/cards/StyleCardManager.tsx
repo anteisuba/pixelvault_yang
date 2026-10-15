@@ -17,11 +17,11 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { MediaCardTile } from '@/components/business/MediaCardTile'
 import { StyleCardEditor } from '@/components/business/cards/StyleCardEditor'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+} from '@/components/ui/responsive-dialog'
 import type { CardManagerSortMode } from '@/lib/card-management'
 import { matchesCardSearch, sortCardManagerItems } from '@/lib/card-management'
 
@@ -269,16 +269,18 @@ export function StyleCardManager({
           </div>
         )}
 
-        <Dialog
+        <ResponsiveDialog
           open={detailCard !== null}
           onOpenChange={(open) => {
             if (!open) setDetailCardId(null)
           }}
         >
-          <DialogContent className="sm:max-w-sm">
-            <DialogHeader>
-              <DialogTitle>{detailCard?.name ?? ''}</DialogTitle>
-            </DialogHeader>
+          <ResponsiveDialogContent className="sm:max-w-sm">
+            <ResponsiveDialogHeader>
+              <ResponsiveDialogTitle>
+                {detailCard?.name ?? ''}
+              </ResponsiveDialogTitle>
+            </ResponsiveDialogHeader>
             {detailCard && (
               <div className="space-y-3">
                 {detailCard.modelId ? (
@@ -329,8 +331,8 @@ export function StyleCardManager({
                 </div>
               </div>
             )}
-          </DialogContent>
-        </Dialog>
+          </ResponsiveDialogContent>
+        </ResponsiveDialog>
       </div>
     </div>
   )

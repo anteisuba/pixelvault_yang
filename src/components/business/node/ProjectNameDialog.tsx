@@ -4,12 +4,12 @@ import { useState, type FormEvent } from 'react'
 
 import { Button } from '@/components/ui/button'
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogFooter,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+} from '@/components/ui/responsive-dialog'
 import { Input } from '@/components/ui/input'
 import { isTouchPrimary } from '@/lib/touch'
 
@@ -40,11 +40,14 @@ export function ProjectNameDialog({
   onSubmit,
 }: ProjectNameDialogProps) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md" aria-describedby={undefined}>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
+    <ResponsiveDialog open={open} onOpenChange={onOpenChange}>
+      <ResponsiveDialogContent
+        className="sm:max-w-md"
+        aria-describedby={undefined}
+      >
+        <ResponsiveDialogHeader>
+          <ResponsiveDialogTitle>{title}</ResponsiveDialogTitle>
+        </ResponsiveDialogHeader>
         {/* Mounts fresh each time the dialog opens, so the input re-seeds from
             defaultValue (next "Untitled project N" / current name) without an
             effect. */}
@@ -59,8 +62,8 @@ export function ProjectNameDialog({
             onOpenChange(false)
           }}
         />
-      </DialogContent>
-    </Dialog>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   )
 }
 
@@ -104,14 +107,14 @@ function ProjectNameForm({
         maxLength={64}
         required
       />
-      <DialogFooter>
+      <ResponsiveDialogFooter>
         <Button type="button" variant="outline" onClick={onCancel}>
           {cancelLabel}
         </Button>
         <Button type="submit" disabled={!canSubmit}>
           {submitLabel}
         </Button>
-      </DialogFooter>
+      </ResponsiveDialogFooter>
     </form>
   )
 }

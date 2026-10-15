@@ -1092,6 +1092,8 @@ export function KreaAssetBrowser({
     const handlePopState = () => {
       const projectId =
         new URLSearchParams(window.location.search).get('projectId') ?? ''
+      // 返回手势关大图 / 抽屉（`useBackToClose`）也走 popstate，地址没变 = 不是换范围。
+      if ((filtersRef.current.projectId ?? '') === projectId) return
       setFilters({ ...filtersRef.current, projectId })
     }
     window.addEventListener('popstate', handlePopState)

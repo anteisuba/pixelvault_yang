@@ -23,11 +23,11 @@ import {
   type MediaCardAspect,
 } from '@/components/business/MediaCardTile'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+} from '@/components/ui/responsive-dialog'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Spinner } from '@/components/ui/spinner'
@@ -422,7 +422,7 @@ export function SimpleCardManager({
             </div>
           )}
 
-        <Dialog
+        <ResponsiveDialog
           open={detailCard !== null}
           onOpenChange={(open) => {
             if (!open) {
@@ -431,10 +431,12 @@ export function SimpleCardManager({
             }
           }}
         >
-          <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>{detailCard?.name ?? ''}</DialogTitle>
-            </DialogHeader>
+          <ResponsiveDialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
+            <ResponsiveDialogHeader>
+              <ResponsiveDialogTitle>
+                {detailCard?.name ?? ''}
+              </ResponsiveDialogTitle>
+            </ResponsiveDialogHeader>
             {detailCard && (
               <div className="space-y-3">
                 {detailCard.sourceImageUrl && (
@@ -540,8 +542,8 @@ export function SimpleCardManager({
                 </div>
               </div>
             )}
-          </DialogContent>
-        </Dialog>
+          </ResponsiveDialogContent>
+        </ResponsiveDialog>
       </div>
     </div>
   )

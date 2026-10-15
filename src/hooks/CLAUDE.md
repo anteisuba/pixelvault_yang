@@ -54,6 +54,7 @@ All hooks use `'use client'`. Less than half have a `.test` file — check for a
 - `use-studio-mobile-composer-height.ts` — 手机工作台底部输入条的高度写进 `--studio-mobile-composer-height`（舞台按它结束）；扣掉键盘、输入条有焦点 / 宿主说展开时不更新 —— 键盘与展开的输入条盖在图上，⛔ 把图压小
 - `use-mobile-tabbar-actions.ts` — 页面借手机底栏那一格放动作（素材页多选：五格糊掉、四格动作由糊变清）；底栏 `useMobileTabBarActionsHost` 交出格子，页面 `useMobileTabBarActions(active)` 拿去 `createPortal`。⛔ 另浮一条动作栏
 - `use-touch-long-press.ts` — 触屏长按（iOS 不为触屏发 `contextmenu`）；`swallow()` 吞掉长按后紧跟的那一下 click / contextmenu
+- `use-back-to-close.ts` — 触屏上系统返回手势先关最上面那层浮层（大图、底部抽屉；叠着开一次关一层）；用界面关掉时把那层历史退回去。`Drawer` 已内置，⛔ 浮层自己再写 `popstate`
 - `use-pinch-step.ts` — 双指捏合按档 ±1（手机素材格子大小），两指时拦掉整页缩放
 - `use-toast-lift.ts` — 贴底输入框（工作台输入框卡 / 手机固定输入条 / 画布底栏）挂上它，底部黑条（toast）就浮在它上面（改写 `--toast-offset-bottom`）
 - `use-error-recovery-reveal.ts` — 出错块点重试且救回来时，让原位长出来的内容由糊变清（出错块卸下时动它的父元素）

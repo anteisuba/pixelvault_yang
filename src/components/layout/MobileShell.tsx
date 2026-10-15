@@ -24,11 +24,11 @@ import { CHIP_POPOVER, springTransition } from '@/constants/motion'
 import { ROUTES, studioImageGeneratePath } from '@/constants/routes'
 import { ArrowLeft, ArrowUp, ChevronDown, Plus } from '@/components/icons'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+  ResponsiveMenu,
+  ResponsiveMenuContent,
+  ResponsiveMenuItem,
+  ResponsiveMenuTrigger,
+} from '@/components/ui/responsive-menu'
 import { SidebarInset } from '@/components/ui/sidebar'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
 import {
@@ -341,8 +341,8 @@ function MobileStudioBar({ pathname }: { pathname: string }) {
       </Link>
 
       <div className="flex min-w-0 flex-1 justify-center">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+        <ResponsiveMenu>
+          <ResponsiveMenuTrigger asChild>
             <button
               type="button"
               aria-label={tMobile('switchTool')}
@@ -352,8 +352,9 @@ function MobileStudioBar({ pathname }: { pathname: string }) {
               <span className="truncate">{t(current.labelKey)}</span>
               <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
             </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
+          </ResponsiveMenuTrigger>
+          <ResponsiveMenuContent
+            label={tMobile('switchTool')}
             align="center"
             sideOffset={6}
             collisionPadding={8}
@@ -364,7 +365,7 @@ function MobileStudioBar({ pathname }: { pathname: string }) {
               const Icon = item.icon
               const isActive = item.id === current.id
               return (
-                <DropdownMenuItem
+                <ResponsiveMenuItem
                   key={item.id}
                   asChild
                   className={cn(
@@ -379,11 +380,11 @@ function MobileStudioBar({ pathname }: { pathname: string }) {
                     <Icon className="size-4" />
                     {t(item.labelKey)}
                   </Link>
-                </DropdownMenuItem>
+                </ResponsiveMenuItem>
               )
             })}
-          </DropdownMenuContent>
-        </DropdownMenu>
+          </ResponsiveMenuContent>
+        </ResponsiveMenu>
       </div>
 
       {/* 右端留给**助手头像**：它是工作台上那颗持久 fixed 的开关，落在这一格上。 */}

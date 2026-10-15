@@ -1148,7 +1148,7 @@ async function prepareAssistantTurn(params: {
             projectId: params.projectId ?? null,
             text: latestUserText,
             mode: params.researchMode,
-            apiKeyId: params.apiKeyId,
+            route,
             model: routeModelId,
           })
         : null,

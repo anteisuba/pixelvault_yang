@@ -2914,12 +2914,12 @@ const VERIFY_SOURCES_BY_QUESTION_TYPE: Partial<
  * ⭐ 为什么这两步合成一次 LLM 往返：它们问的是同一件事的两面（「这题该用哪几个
  * 词、去哪儿问」），而每多一次往返就少一步可用的 `maxSteps`。规划器本来就同时
  * 吐 `queries`（带 `lang`）与 `sourceGroup`，⛔ 别为了「一步一件事」拆成两次。
- * ⚠ **任何一步不成就用确定性那份**（规划器自己就是这条契约）：拿不到路由、超时、
+ * ⚠ **任何一步不成就用确定性那份**（规划器自己就是这条契约）：调用失败、超时、
  * 吐了非 JSON 全都回落，⛔ 一个加分项挂了不该让整条查证线挂。
+ * ⭐ **用这一轮的那一家、那个模型**（owner 2026-10-15）：⛔ 选了 Claude / Grok 时借别家的 key。
  */
 async function rewriteVerifyQueries(
   run: OperatorRun,
-  userId: string,
   goal: string,
   entities: readonly string[],
 ): Promise<{
@@ -2931,8 +2931,8 @@ async function rewriteVerifyQueries(
   const text = [...entities, goal].filter(Boolean).join(' ')
   const heuristic = planResearchHeuristically(text)
   const plan = await planResearchWithLlm({
-    userId,
-    ...(run.apiKeyId ? { apiKeyId: run.apiKeyId } : {}),
+    route: run.route,
+    ...(run.modelId ? { modelId: run.modelId } : {}),
     text,
     heuristic,
     forced: true,
@@ -3098,7 +3098,7 @@ async function planResearch(
             [...entities, args.goal].join(' '),
           ),
         }
-      : await rewriteVerifyQueries(run, userId, args.goal, entities)
+      : await rewriteVerifyQueries(run, args.goal, entities)
   /**
    * ⚠ 优先级是硬的：模型自己指定的 `sources` > 「再多找几个源」> 规划器选的。
    * `expandSources` 打**全部**源组（含默认里没有的 B站）—— 用户按那颗按钮说的是

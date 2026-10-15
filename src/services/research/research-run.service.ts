@@ -54,6 +54,7 @@ import {
   fetchWebSearchEvidence,
 } from '@/services/research/web-search.connector'
 import { planResearchWithLlm } from '@/services/research/research-planner.service'
+import type { ResolvedLlmTextRoute } from '@/services/llm-text.service'
 
 /**
  * 检索管线 v1 编排（§3.2）。
@@ -76,9 +77,11 @@ export interface RunResearchParams {
   /** 最新一条用户消息的原文。 */
   text: string
   mode: ResearchMode
-  /** 用哪条 key 跑规划器（跟着助手轮的选择走）。 */
-  apiKeyId?: string
-  /** 落库用：这一轮助手用的模型标识。 */
+  /**
+   * 规划器跑在哪一家：就是这一轮助手所选的那条路（owner 2026-10-15，⛔ 借别家的 key）。
+   */
+  route: ResolvedLlmTextRoute
+  /** 这一轮助手用的型号：规划器同用它，落库也记它。 */
   model?: string
 }
 
@@ -444,8 +447,8 @@ export async function runResearch(
   // 规划器只在「已经决定要搜」之后才跑 —— 它的活是把查询磨快（按源选语言、
   // 收窄源组），不是当门卫。当门卫意味着每一句「你好」都要先烧一次 LLM 调用。
   const plan = await planResearchWithLlm({
-    userId: params.userId,
-    apiKeyId: params.apiKeyId,
+    route: params.route,
+    ...(params.model ? { modelId: params.model } : {}),
     text: params.text,
     heuristic,
     forced,

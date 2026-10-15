@@ -11438,6 +11438,55 @@ describe('查证与找图两入口（§9，commit #16）', () => {
     expect(prompt).toContain('SINGLE SOURCE')
   })
 
+  /**
+   * ⭐ 查证的改写**用这一轮的那一家**（owner 2026-10-15）：选了 Claude 就是 Claude，
+   * ⛔ 不再按画布规划器的名册另找一家（那份名册没有 Claude / Grok，于是悄悄借了
+   * Gemini / DeepSeek / OpenAI 的 key）。
+   */
+  it('⭐ 选了 Claude：改写查询那一跳拿的是这一轮的 Claude 路由与型号，⛔ 不另找一家', async () => {
+    const claude = NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
+      (model) => model.adapterType === AI_ADAPTER_TYPES.ANTHROPIC,
+    )!
+    mockGetAssistantPersonaByUserId.mockResolvedValue({
+      ...ASSISTANT_PERSONA_DEFAULTS,
+      avatarUrl: null,
+      routeModel: claude.modelId,
+    })
+    mockRequireLlmTextKeyId.mockResolvedValue('key-claude')
+    mockResolveLlmTextRoute.mockResolvedValue({
+      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+      providerConfig: { label: 'Claude', baseUrl: 'https://example.test' },
+      apiKey: 'claude-key',
+    })
+    queueOutcome([CORROBORATED])
+    queueTurns(
+      // ⚠ 深入调查才改写（快搜不改写，见 `rewriteVerifyQueries` 调用处）。
+      verifyTurn({ goal: '外貌', entities: ['时夜'], depth: 'deep' }),
+      CONCLUSION_TURN,
+      { finished: true },
+    )
+
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+
+    expect(mockPlanResearchWithLlm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        route: expect.objectContaining({
+          adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+          apiKey: 'claude-key',
+        }),
+        modelId: claude.modelId,
+        forced: true,
+      }),
+    )
+    expectSelectedProviderOnly(
+      [
+        ...providerUsesOf(mockPlanResearchWithLlm, 'verify query rewrite'),
+        ...providerUsesOf(mockLlmTextCompletion, 'main model'),
+      ],
+      { adapterType: AI_ADAPTER_TYPES.ANTHROPIC, apiKey: 'claude-key' },
+    )
+  })
+
   it('⭐ 深入调查的结论是**归纳**不是摘录：收尾一次归纳往返，卡上那句用它', async () => {
     queueOutcome([CORROBORATED])
     queueTurns(

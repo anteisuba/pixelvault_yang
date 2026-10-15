@@ -18,10 +18,13 @@ vi.mock('@/lib/db', () => ({
 }))
 
 // 规划器在这里是恒等替身：本文件验的是**编排**（状态三态 / 配额 / 去重），
-// 规划本身由 research-intent 的测试覆盖。
+// 规划本身由 research-intent 的测试覆盖。⚠ 记下入参：要验路由原样交过去。
+const mockPlanResearchWithLlm = vi.fn(
+  async (params: { heuristic: unknown }) => params.heuristic,
+)
 vi.mock('@/services/research/research-planner.service', () => ({
-  planResearchWithLlm: async (params: { heuristic: unknown }) =>
-    params.heuristic,
+  planResearchWithLlm: (params: { heuristic: unknown }) =>
+    mockPlanResearchWithLlm(params),
 }))
 
 const mockMediaWiki = vi.fn()
@@ -58,11 +61,20 @@ import {
   RESEARCH_RUN_STATUSES,
   RESEARCH_SOURCE_ID_VALUES,
 } from '@/constants/research'
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
+import {
+  AI_ADAPTER_TYPES,
+  getDefaultProviderConfig,
+} from '@/constants/providers'
 import { resetResearchBreakers } from '@/services/research/connector-runtime'
 import {
   dedupeEvidence,
   runResearch,
 } from '@/services/research/research-run.service'
+import {
+  expectSelectedProviderOnly,
+  providerUsesOf,
+} from '@/test/selected-provider-only'
 import type { EvidenceItem } from '@/types/research'
 
 const CHARACTER_QUESTION = '鸣潮长离的发色是什么'
@@ -81,12 +93,20 @@ function evidence(
   } as EvidenceItem
 }
 
+/** 这一轮助手所选的那条路（规划器同用它）。 */
+const XAI_ROUTE = {
+  adapterType: AI_ADAPTER_TYPES.XAI,
+  providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.XAI),
+  apiKey: 'xai-user-key',
+}
+
 function baseParams() {
   return {
     userId: 'db_user_1',
     surface: 'IMAGE_STUDIO' as const,
     text: CHARACTER_QUESTION,
     mode: RESEARCH_MODES.auto,
+    route: XAI_ROUTE,
   }
 }
 
@@ -295,5 +315,26 @@ describe('dedupeEvidence', () => {
     ])
 
     expect(deduped).toHaveLength(2)
+  })
+})
+
+describe('runResearch · 规划器只用所选那一家（2026-10-15）', () => {
+  it('⭐ 这一轮的路由与型号原样交给规划器，⛔ 不另找一家', async () => {
+    await runResearch({
+      ...baseParams(),
+      mode: RESEARCH_MODES.forced,
+      model: LLM_TEXT_MODEL_IDS.XAI_GROK_4_7,
+    })
+
+    expect(mockPlanResearchWithLlm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        route: XAI_ROUTE,
+        modelId: LLM_TEXT_MODEL_IDS.XAI_GROK_4_7,
+      }),
+    )
+    expectSelectedProviderOnly(
+      providerUsesOf(mockPlanResearchWithLlm, 'research planner'),
+      { adapterType: XAI_ROUTE.adapterType, apiKey: XAI_ROUTE.apiKey },
+    )
   })
 })

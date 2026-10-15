@@ -10,14 +10,12 @@ import {
   biasQueriesForQuestionType,
   detectResearchQuestionType,
 } from '@/constants/research'
-import { SCRIPT_PLANNER_PROVIDER_IDS } from '@/constants/script-breakdown'
 import { logger } from '@/lib/logger'
 import { validateLlmStructuredOutput } from '@/lib/llm-output-validator'
 import {
-  resolveNodePlannerRoute,
-  type NodePlannerRoute,
-} from '@/services/kernel/node-planner-route.service'
-import { llmTextCompletion } from '@/services/llm-text.service'
+  llmTextCompletion,
+  type ResolvedLlmTextRoute,
+} from '@/services/llm-text.service'
 import {
   ResearchPlannerOutputSchema,
   type ResearchPlan,
@@ -30,8 +28,15 @@ import {
  * （见 `lib/research-intent.ts`），规划器负责它做不到的那部分 —— **按源选语言**
  * （萌百中文、danbooru/Fandom 英文）、收窄源组、拆成 2–3 条互补查询。
  *
- * ⚠ **任何一步不成就用启发式结果，绝不硬失败**：拿不到 planner 路由、超时、
- * 吐了非 JSON、schema 不过 —— 全都回落。一个加分项挂了不该让整条检索线挂。
+ * ⚠ **任何一步不成就用启发式结果，绝不硬失败**：调用失败、超时、吐了非 JSON、
+ * schema 不过 —— 全都回落。一个加分项挂了不该让整条检索线挂。
+ *
+ * ⭐ **只用这一轮的那一家、那个模型**（owner 2026-10-15「会自动扣其他模型的token，用户还不
+ *   知道」）：路由与型号由调用方交进来，⛔ 这里不另找 key。此前借的是画布规划器那条路
+ *   （`resolveNodePlannerRoute`），它只认 Gemini / DeepSeek / OpenAI —— 选了 Claude / Grok
+ *   时就悄悄换成别家的 key。那三家只是画布规划器有型号表，⛔ 不是做不了：这里要的只是
+ *   一个 JSON 对象，五家都给得出（Grok 有 `response_format`；Claude 没有，靠系统提示里那句
+ *   「只回 JSON」+ 下面容忍代码围栏的解析）。所选模型真出不来就走启发式那份。
  */
 
 const PLANNER_SYSTEM_PROMPT = `You plan retrieval for a creative AI workbench. Output ONLY a JSON object, no prose and no code fences.
@@ -125,31 +130,16 @@ function withQuestionTypeBias(plan: ResearchPlan, text: string): ResearchPlan {
 }
 
 export async function planResearchWithLlm(params: {
-  userId: string
-  apiKeyId?: string
+  /** 这一轮所选的那一家（用户自己的 key）。⛔ 别处另找一把。 */
+  route: ResolvedLlmTextRoute
+  /** 这一轮所选的型号；缺席 = 那一家的默认型号（同一把 key）。 */
+  modelId?: string
   text: string
   heuristic: ResearchPlan
   forced: boolean
 }): Promise<ResearchPlan> {
   const heuristic = withQuestionTypeBias(params.heuristic, params.text)
-
-  let route: NodePlannerRoute
-  try {
-    // 先试用户自己选的那把 key（省平台额度）；它不是 planner 能用的 provider
-    // 就退到 auto 顺位。两条都不成就直接用启发式。
-    route = await resolveNodePlannerRoute(
-      params.userId,
-      SCRIPT_PLANNER_PROVIDER_IDS.auto,
-      params.apiKeyId,
-    ).catch(() =>
-      resolveNodePlannerRoute(params.userId, SCRIPT_PLANNER_PROVIDER_IDS.auto),
-    )
-  } catch (error) {
-    logger.info('Research planner route unavailable, using heuristic plan', {
-      reason: error instanceof Error ? error.message : String(error),
-    })
-    return heuristic
-  }
+  const { route } = params
 
   let raw: string | null
   try {
@@ -157,7 +147,7 @@ export async function planResearchWithLlm(params: {
       llmTextCompletion({
         systemPrompt: PLANNER_SYSTEM_PROMPT,
         userPrompt: buildPlannerUserPrompt(params.text, heuristic),
-        modelId: route.modelId,
+        ...(params.modelId ? { modelId: params.modelId } : {}),
         adapterType: route.adapterType,
         providerConfig: route.providerConfig,
         apiKey: route.apiKey,

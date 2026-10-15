@@ -13,15 +13,11 @@ import {
   CheckCircle2,
   ChevronDown,
   Folder,
-  FolderInput,
-  Globe,
-  Heart,
   Image as ImageIcon,
   LayoutGrid,
   FolderX,
   MoreHorizontal,
   Pin,
-  Trash2,
   UploadCloud,
   X,
 } from '@/components/icons'
@@ -38,6 +34,7 @@ import { toast } from 'sonner'
 import { AssetAddToFolderPanel } from '@/components/business/assets/AssetAddToFolderPanel'
 import { AssetFacetBar } from '@/components/business/assets/AssetFacetBar'
 import { AssetFolderMenu } from '@/components/business/assets/AssetFolderMenu'
+import { AssetMobileActionBar } from '@/components/business/assets/AssetMobileActionBar'
 import {
   AssetSelectionMorph,
   SelectionArmButton,
@@ -92,6 +89,8 @@ import { useAssetFolders } from '@/hooks/use-asset-folders'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
 import { useLocalPreference } from '@/hooks/use-local-preference'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { usePinchStep } from '@/hooks/use-pinch-step'
+import { useTouchLongPress } from '@/hooks/use-touch-long-press'
 import {
   useAssetUploadQueue,
   type UploadQueueItem,
@@ -490,6 +489,10 @@ export function KreaAssetBrowser({
   // 桌面 / 平板点开是就地查看器；手机是同一个查看器的整屏形态（左右滑、往下拉关、
   // 配方在底部上滑，owner 2026-10-14）。
   const isPhone = useIsMobile()
+  // 手机往下滚：筛选那一行收起，只留第一行；往上滚再出来（v10）。
+  const [facetsHidden, setFacetsHidden] = useState(false)
+  const lastScrollTopRef = useRef(0)
+  const facetsCollapsed = isPhone && facetsHidden
   // 换了夹或筛选 = 查看器关上再换范围（pages/assets.md §3「详情」）。
   const [viewerFilters, setViewerFilters] = useState(filters)
   if (viewerFilters !== filters) {
@@ -534,11 +537,10 @@ export function KreaAssetBrowser({
   )
 
   // ── Confirm action state ──────────────────────────────────────
-  // One AlertDialog handles every destructive flow (bulk delete, publish,
-  // favorite, folder delete) — keeps the Krea-style modal consistent and
-  // replaces the native window.confirm() pop-up which looked out of place.
+  // One AlertDialog handles every confirm flow (bulk publish, favorite,
+  // folder delete) and replaces the native window.confirm() pop-up. Bulk
+  // delete has no dialog: tap twice to confirm, then 5s undo.
   type ConfirmAction =
-    | { kind: 'delete-bulk'; count: number }
     /** `kept` = 选中里用过「先搜再画」、只能留在私密的那几张。 */
     | { kind: 'publish-bulk'; count: number; kept: number }
     | { kind: 'favorite-bulk'; count: number }
@@ -598,6 +600,11 @@ export function KreaAssetBrowser({
     setSelectionMode(true)
     setSelectedIds(new Set([id]))
   }, [])
+  // 触屏长按一张 = 进多选并选上它；已在多选里就是勾 / 取消（v10，像系统相册）。
+  const tileLongPress = useTouchLongPress<string>((id) => {
+    if (selectionMode) toggleSelection(id)
+    else enterSelectionWith(id)
+  })
   /** 删掉的那一张原来排第几（撤销时放回原处，owner 2026-10-08「提示与弹窗」）。 */
   const deletedIndexRef = useRef(new Map<string, number>())
   const handleAssetDeleted = useCallback(
@@ -624,12 +631,6 @@ export function KreaAssetBrowser({
   const selectAllVisible = useCallback(() => {
     setSelectedIds(new Set(generations.map((g) => g.id)))
   }, [generations])
-
-  const requestBulkDelete = () => {
-    const count = selectedIds.size
-    if (count === 0) return
-    setConfirmAction({ kind: 'delete-bulk', count })
-  }
 
   /**
    * 批量删除与单张同一套（owner 2026-10-08「提示与弹窗」）：选中的那几张立刻从
@@ -993,6 +994,9 @@ export function KreaAssetBrowser({
     ? storedDensity
     : ASSET_GRID_DEFAULT_DENSITY
   const changeDensity = setStoredDensity
+
+  // 手机没有密度键：双指捏合换档（张开变大、捏拢变小），捏的时候正中露出档位。
+  const [isPinching, setIsPinching] = useState(false)
 
   // ── 文件夹（文件夹 B：左边一列）───────────────────────────────
   // ⚠ 文件夹范围与收藏 / 发布 / 类型等筛选**叠加**（page §2「可叠加维度」）：
@@ -1473,6 +1477,16 @@ export function KreaAssetBrowser({
   const gridElementRef = useRef<HTMLDivElement | null>(null)
   const [gridOffsetTop, setGridOffsetTop] = useState(0)
 
+  usePinchStep(scrollElementRef, {
+    enabled: isPhone && !isPickerMode,
+    onStep: (direction) => {
+      const index = ASSET_GRID_DENSITIES.indexOf(density) + direction
+      const next = ASSET_GRID_DENSITIES[index]
+      if (next) changeDensity(next)
+    },
+    onActiveChange: setIsPinching,
+  })
+
   // 网格上方还有顶栏/面包屑/门牌行，高度会变（筛选条换行、门牌行出现），
   // 所以偏移量得跟着量，否则整片行会整体错位。
   const setGridElement = useCallback(
@@ -1753,14 +1767,30 @@ export function KreaAssetBrowser({
               : 'border-border/70 shadow-sm',
           )}
         >
-          <div className="flex min-w-0 items-center gap-1.5">
-            <h1 className="truncate text-base font-semibold text-foreground">
+          <div className="relative flex min-w-0 items-center gap-1.5">
+            {/* 手机第一行只留范围胶囊（v10）：标题与总数让给它。 */}
+            <h1 className="truncate text-base font-semibold text-foreground max-md:hidden">
               {t('title')}
             </h1>
             <RollingNumber
               value={libraryTotal}
-              className="font-mono text-xs text-muted-foreground"
+              className="font-mono text-xs text-muted-foreground max-md:hidden"
             />
+            {/* 手机多选：胶囊糊掉，同一位置写「已选 N」（PC 是「选择」键拉长成的条）。 */}
+            <span
+              aria-hidden={!selectionMode}
+              className={cn(
+                'pointer-events-none absolute inset-y-0 left-0 flex items-center gap-1.5 whitespace-nowrap pl-1 text-sm font-medium text-foreground md:hidden',
+                SELECTION_YIELD_CLASS,
+                !selectionMode && SELECTION_YIELD_HIDDEN_CLASS,
+              )}
+            >
+              {t('selectedPrefix')}
+              <RollingNumber
+                value={selectedIds.size}
+                className="font-mono text-sm"
+              />
+            </span>
             {/* 栏收起（或窄屏）时才在：宽度与透明度跟着栏一起走，⛔ 不突然冒出来。
                 owner 2026-10-09：只留这一颗，点它就是打开文件夹栏（窄屏拉出左边抽屉）。 */}
             <button
@@ -1768,9 +1798,11 @@ export function KreaAssetBrowser({
               aria-label={t('folderScopeChip', { name: scopeTitle })}
               onClick={revealFolders}
               className={cn(
-                'ml-1.5 inline-flex h-8 min-w-0 max-w-44 items-center gap-1.5 overflow-hidden rounded-full border border-border bg-background pl-1.5 pr-2.5 text-xs font-medium whitespace-nowrap text-foreground transition-[max-width,margin,padding,opacity,visibility,background-color] duration-slow ease-standard hover:bg-muted motion-reduce:transition-none',
+                'ml-1.5 inline-flex h-8 min-w-0 max-w-44 items-center gap-1.5 overflow-hidden rounded-full border border-border bg-background pl-1.5 pr-2.5 text-xs font-medium whitespace-nowrap text-foreground transition-[max-width,margin,padding,opacity,visibility,background-color,filter] duration-slow ease-standard hover:bg-muted motion-reduce:transition-none max-md:ml-0 coarse:h-11',
                 railOpen &&
                   'md:invisible md:ml-0 md:max-w-0 md:px-0 md:opacity-0',
+                selectionMode &&
+                  'max-md:pointer-events-none max-md:opacity-0 max-md:blur-xs',
               )}
             >
               {folderScope.kind === 'folder' ? (
@@ -1806,21 +1838,33 @@ export function KreaAssetBrowser({
                 selectionMode && SELECTION_YIELD_HIDDEN_CLASS,
               )}
             >
-              <AssetFacetBar
-                filters={filters}
-                onFiltersChange={setFilters}
-                typeCounts={{
-                  image: imageCount,
-                  video: videoCount,
-                  audio: audioCount,
-                  model_3d: model3DCount,
-                }}
-                statusCounts={{
-                  favorites: favoritesCount,
-                  published: publishedCount,
-                }}
-                modelCounts={counts?.byModel ?? {}}
-              />
+              {/* 手机往下滚收起这一行，只留第一行；往上滚再长出来（v10）。 */}
+              <motion.div
+                initial={false}
+                animate={
+                  facetsCollapsed
+                    ? { height: 0, opacity: 0, filter: 'blur(4px)' }
+                    : { height: 'auto', opacity: 1, filter: 'blur(0px)' }
+                }
+                transition={motionTransition('base', reducedMotion)}
+                style={{ overflow: isPhone ? 'hidden' : undefined }}
+              >
+                <AssetFacetBar
+                  filters={filters}
+                  onFiltersChange={setFilters}
+                  typeCounts={{
+                    image: imageCount,
+                    video: videoCount,
+                    audio: audioCount,
+                    model_3d: model3DCount,
+                  }}
+                  statusCounts={{
+                    favorites: favoritesCount,
+                    published: publishedCount,
+                  }}
+                  modelCounts={counts?.byModel ?? {}}
+                />
+              </motion.div>
             </div>
           )}
 
@@ -1834,13 +1878,25 @@ export function KreaAssetBrowser({
                 className={cn(
                   buttonVariants({ size: 'sm' }),
                   TOOLBAR_BUTTON_CLASS,
+                  'coarse:h-11',
                   SELECTION_YIELD_CLASS,
-                  selectionMode && SELECTION_YIELD_HIDDEN_CLASS,
+                  selectionMode &&
+                    cn(SELECTION_YIELD_HIDDEN_CLASS, 'max-md:hidden'),
                 )}
               >
                 <UploadCloud className="size-3.5" aria-hidden />
                 {t('uploadButton')}
               </FeedbackButton>
+              {/* 手机多选：上传让位，同一处出「全选」。 */}
+              {selectionMode ? (
+                <button
+                  type="button"
+                  onClick={selectAllVisible}
+                  className="-ml-2 inline-flex h-8 items-center rounded-full px-2.5 text-sm text-muted-foreground transition-colors duration-fast ease-standard active:bg-muted coarse:h-11 md:hidden"
+                >
+                  {t('selectAll')}
+                </button>
+              ) : null}
               <Button
                 ref={selectButtonRef}
                 type="button"
@@ -1858,10 +1914,14 @@ export function KreaAssetBrowser({
                 )}
               >
                 {selectionMode ? (
-                  <>
-                    <X className="size-3.5" />
-                    {t('selectExit')}
-                  </>
+                  isPhone ? (
+                    t('selectDone')
+                  ) : (
+                    <>
+                      <X className="size-3.5" />
+                      {t('selectExit')}
+                    </>
+                  )
                 ) : (
                   <>
                     <CheckCircle2 className="size-3.5" />
@@ -1936,11 +1996,49 @@ export function KreaAssetBrowser({
                 </p>
               </div>
             </div>
+            {/* 捏合时正中露出「小 · 中 · 大」，松手后停一会儿再糊掉。 */}
+            {isPhone ? (
+              <div
+                aria-hidden
+                className={cn(
+                  'pointer-events-none absolute left-1/2 top-24 z-30 flex -translate-x-1/2 gap-0.5 rounded-full border border-border bg-background p-1 shadow-overlay',
+                  'transition-[opacity,filter] duration-fast ease-standard motion-reduce:transition-none',
+                  isPinching ? 'opacity-100' : 'opacity-0 blur-xs delay-500',
+                )}
+              >
+                {ASSET_GRID_DENSITIES.map((step) => (
+                  <span
+                    key={step}
+                    className={cn(
+                      'grid h-6.5 w-8.5 place-items-center rounded-full text-xs text-muted-foreground transition-colors duration-fast ease-standard',
+                      step === density && 'bg-foreground text-background',
+                    )}
+                  >
+                    {t(
+                      step === 's'
+                        ? 'densityPinchS'
+                        : step === 'm'
+                          ? 'densityPinchM'
+                          : 'densityPinchL',
+                    )}
+                  </span>
+                ))}
+              </div>
+            ) : null}
             <main
               ref={scrollElementRef}
-              className="studio-scrollbar assets-scroll-gutter min-h-0 flex-1 overflow-x-hidden overflow-y-auto pb-4"
+              className="studio-scrollbar assets-scroll-gutter min-h-0 flex-1 overflow-x-hidden overflow-y-auto pb-4 max-md:touch-pan-y"
               onScroll={(event) => {
-                setIsToolbarStuck(event.currentTarget.scrollTop > 8)
+                const top = event.currentTarget.scrollTop
+                setIsToolbarStuck(top > 8)
+                // 单次挪不到 6px 不算换方向（手指抖动）；页顶附近一直展开。
+                const delta = top - lastScrollTopRef.current
+                if (top < 40) setFacetsHidden(false)
+                if (Math.abs(delta) < 6) return
+                lastScrollTopRef.current = top
+                if (!isPhone) return
+                if (delta > 0 && top > 90) setFacetsHidden(true)
+                else if (delta < 0) setFacetsHidden(false)
               }}
             >
               {/* ─── 段头：当前范围 + 张数；在夹里时多「在 X 里」与置顶 / ⋯ ─── */}
@@ -2139,6 +2237,7 @@ export function KreaAssetBrowser({
                           const handleTileClick = (
                             event: React.MouseEvent<HTMLButtonElement>,
                           ) => {
+                            if (tileLongPress.swallow()) return
                             if (selectionMode) {
                               // Shift 点 = 从锚点到这里整段选中（§7.1）。
                               if (event.shiftKey) selectRangeTo(gen.id)
@@ -2151,6 +2250,7 @@ export function KreaAssetBrowser({
                             e: React.MouseEvent<HTMLElement>,
                           ) => {
                             e.preventDefault()
+                            if (tileLongPress.swallow()) return
                             if (selectionMode) toggleSelection(gen.id)
                             else enterSelectionWith(gen.id)
                           }
@@ -2224,6 +2324,7 @@ export function KreaAssetBrowser({
                           return (
                             <div
                               key={gen.id}
+                              {...tileLongPress.bind(gen.id)}
                               className={cn(
                                 'shrink-0 transition-[scale,opacity] duration-base ease-standard motion-reduce:transition-none',
                                 leavingIds.has(gen.id) && 'scale-95 opacity-0',
@@ -2377,52 +2478,29 @@ export function KreaAssetBrowser({
         style={{ position: 'fixed', left: '-9999px', top: '-9999px' }}
         className="pointer-events-none rounded-lg bg-foreground px-3 py-1.5 text-xs font-medium text-background shadow-lg"
       />
-      {/* ─── Bulk selection action bar ─────────────────────────── */}
-      {/* ⭐ **进入选择模式即出现**（§7.1）：以前要 `selectedIds.size > 0` 才渲染，
-          于是「点了『选择』什么都没发生」，用户不知道进没进选择模式。 */}
-      {!isPickerMode && selectionMode && (
-        <div
-          className="pointer-events-none fixed inset-x-0 bottom-mobile-tabbar z-40 flex flex-col items-center px-3 md:hidden"
-          // 立在手机底栏上沿：底部安全区已算进 `bottom-mobile-tabbar`，这里只留 8px 间隙。
-          style={{
-            paddingBottom: 'calc(0.5rem + var(--keyboard-inset, 0px))',
-          }}
-        >
-          {/* 选中的全是「先搜再画」出的图：「发布到画廊」置灰，原因长在工具条上方。 */}
+      {/* ─── 手机多选：底栏本身换成四格动作（手机稿 v10）──────────── */}
+      {/* 选中的全是「先搜再画」出的图：「发布」置灰，原因浮在底栏上沿。 */}
+      {!isPickerMode && isPhone && selectionMode && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-mobile-tabbar z-40 flex justify-center px-3 pb-2 md:hidden">
           <SearchGroundingPublishNote
             id="asset-bulk-publish-note"
             show={bulkPublishAllBlocked}
             variant="bulk"
             className="max-w-full"
-            noteClassName="pointer-events-auto mb-1.5 rounded-lg border border-border/60 bg-background/95 px-3 py-1.5 shadow-lg backdrop-blur-md"
+            noteClassName="pointer-events-auto rounded-lg border border-border/60 bg-background/95 px-3 py-1.5 shadow-lg backdrop-blur-md"
           />
-          <div className="pointer-events-auto flex max-w-full items-center gap-2 overflow-x-auto rounded-xl border border-border/60 bg-background/95 px-3 py-2 shadow-2xl backdrop-blur-md">
-            <span className="px-2 text-xs font-medium tabular-nums">
-              {t('selectedCount', { count: selectedIds.size })}
-            </span>
-            {selectedIds.size === 0 && (
-              <span className="hidden px-1 text-2xs text-muted-foreground sm:inline">
-                {t('selectHint')}
-              </span>
-            )}
-            <span className="h-4 w-px bg-border/60" />
-            <button
-              type="button"
-              onClick={selectAllVisible}
-              className="rounded-full px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
-            >
-              {t('selectAll')}
-            </button>
-            <button
-              type="button"
-              onClick={clearSelection}
-              disabled={selectedIds.size === 0}
-              className="rounded-full px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground disabled:opacity-40"
-            >
-              {t('selectClear')}
-            </button>
-            <span className="h-4 w-px bg-border/60" />
-            {/* 加入文件夹（一张图可以同时在好几个夹里）：勾上 = 放进去，再点 = 拿出。 */}
+        </div>
+      )}
+      {!isPickerMode && isPhone && (
+        <AssetMobileActionBar
+          open={selectionMode}
+          count={selectedIds.size}
+          pending={isBulkActionPending}
+          favoriting={isBulkFavoriting}
+          publishing={isBulkPublishing}
+          publishBlocked={bulkPublishAllBlocked}
+          publishBlockedNoteId="asset-bulk-publish-note"
+          addToFolder={(trigger) => (
             <AssetAddToFolderPanel
               assetIds={Array.from(selectedIds)}
               folders={folders}
@@ -2430,61 +2508,13 @@ export function KreaAssetBrowser({
               onCreateFolder={(name) => createFolder(name, null)}
               onChanged={handleMembershipsChanged}
               onUndone={handleFolderUndone}
-              trigger={
-                <button
-                  type="button"
-                  disabled={isBulkActionPending || selectedIds.size === 0}
-                  className="flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground disabled:opacity-40 data-[state=open]:bg-muted data-[state=open]:text-foreground"
-                >
-                  <FolderInput className="size-3.5" />
-                  {t('addToFolder')}
-                </button>
-              }
+              trigger={trigger}
             />
-            <button
-              type="button"
-              onClick={requestBulkFavorite}
-              disabled={isBulkActionPending || selectedIds.size === 0}
-              className="flex items-center gap-1.5 rounded-full border border-primary/40 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
-            >
-              {isBulkFavoriting ? (
-                <Spinner size="sm" />
-              ) : (
-                <Heart className="size-3.5" />
-              )}
-              {t('bulkFavorite')}
-            </button>
-            <button
-              type="button"
-              onClick={requestBulkPublish}
-              disabled={
-                isBulkActionPending ||
-                selectedIds.size === 0 ||
-                bulkPublishAllBlocked
-              }
-              aria-describedby={
-                bulkPublishAllBlocked ? 'asset-bulk-publish-note' : undefined
-              }
-              className="flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50"
-            >
-              {isBulkPublishing ? (
-                <Spinner size="sm" />
-              ) : (
-                <Globe className="size-3.5" />
-              )}
-              {t('bulkPublish')}
-            </button>
-            <button
-              type="button"
-              onClick={requestBulkDelete}
-              disabled={isBulkActionPending || selectedIds.size === 0}
-              className="flex items-center gap-1.5 rounded-full border border-status-risk/40 px-3 py-1.5 text-xs font-medium text-status-risk transition-colors hover:bg-status-risk-surface disabled:opacity-50"
-            >
-              <Trash2 className="size-3.5" />
-              {t('bulkDelete')}
-            </button>
-          </div>
-        </div>
+          )}
+          onFavorite={requestBulkFavorite}
+          onPublish={requestBulkPublish}
+          onDelete={performBulkDelete}
+        />
       )}
 
       {/* ─── Confirm dialog for destructive flows ──────────────── */}
@@ -2499,30 +2529,26 @@ export function KreaAssetBrowser({
             <>
               <AlertDialogHeader>
                 <AlertDialogTitle>
-                  {confirmAction.kind === 'delete-bulk'
-                    ? t('bulkDelete')
-                    : confirmAction.kind === 'publish-bulk'
-                      ? t('bulkPublish')
-                      : confirmAction.kind === 'favorite-bulk'
-                        ? t('bulkFavorite')
-                        : t('folderDeleteTitle', {
-                            name: confirmAction.folder.name,
-                          })}
+                  {confirmAction.kind === 'publish-bulk'
+                    ? t('bulkPublish')
+                    : confirmAction.kind === 'favorite-bulk'
+                      ? t('bulkFavorite')
+                      : t('folderDeleteTitle', {
+                          name: confirmAction.folder.name,
+                        })}
                 </AlertDialogTitle>
                 <AlertDialogDescription>
-                  {confirmAction.kind === 'delete-bulk'
-                    ? t('bulkDeleteConfirm', { count: confirmAction.count })
-                    : confirmAction.kind === 'publish-bulk'
-                      ? confirmAction.kept > 0
-                        ? `${tSearch('bulkConfirmTitle', { count: confirmAction.count })} ${tSearch('bulkSomeKept', { count: confirmAction.kept })}`
-                        : t('bulkPublishConfirm', {
-                            count: confirmAction.count,
-                          })
-                      : confirmAction.kind === 'favorite-bulk'
-                        ? t('bulkFavoriteConfirm', {
-                            count: confirmAction.count,
-                          })
-                        : folderDeleteDescription(confirmAction.folder)}
+                  {confirmAction.kind === 'publish-bulk'
+                    ? confirmAction.kept > 0
+                      ? `${tSearch('bulkConfirmTitle', { count: confirmAction.count })} ${tSearch('bulkSomeKept', { count: confirmAction.kept })}`
+                      : t('bulkPublishConfirm', {
+                          count: confirmAction.count,
+                        })
+                    : confirmAction.kind === 'favorite-bulk'
+                      ? t('bulkFavoriteConfirm', {
+                          count: confirmAction.count,
+                        })
+                      : folderDeleteDescription(confirmAction.folder)}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -2541,9 +2567,7 @@ export function KreaAssetBrowser({
                   onClick={() => {
                     const action = confirmAction
                     setConfirmAction(null)
-                    if (action.kind === 'delete-bulk') {
-                      performBulkDelete()
-                    } else if (action.kind === 'publish-bulk') {
+                    if (action.kind === 'publish-bulk') {
                       void performBulkPublish()
                     } else if (action.kind === 'favorite-bulk') {
                       void performBulkFavorite()
@@ -2634,7 +2658,7 @@ function DensityToggle({ density, onChange }: DensityToggleProps) {
     l: t('densityLarge'),
   }
   return (
-    <div className="hidden shrink-0 items-center gap-2 sm:inline-flex">
+    <div className="hidden shrink-0 items-center gap-2 md:inline-flex">
       <span className="hidden text-2xs font-medium uppercase tracking-wide text-muted-foreground/70 xl:inline">
         {t('densityLabel')}
       </span>

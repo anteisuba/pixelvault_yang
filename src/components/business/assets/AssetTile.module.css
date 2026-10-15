@@ -15,4 +15,8 @@
 .tile {
   content-visibility: auto;
   contain-intrinsic-size: auto 200px;
+  /* 手机长按一张 = 进多选（v10）：iOS 自己那张「存储图像 / 拷贝」菜单和选字别抢。 */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }

@@ -36,6 +36,10 @@ import {
   useMobileReturnPath,
   useRecordMobileNav,
 } from '@/hooks/use-mobile-nav-memory'
+import {
+  useMobileTabBarActionsActive,
+  useMobileTabBarActionsHost,
+} from '@/hooks/use-mobile-tabbar-actions'
 import { useToastLift } from '@/hooks/use-toast-lift'
 import { cn } from '@/lib/utils'
 
@@ -208,6 +212,10 @@ function MobileTabBar({ pathname }: { pathname: string }) {
   const barRef = useRef<HTMLElement>(null)
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const longPressed = useRef(false)
+  // 页面借这条栏放动作（素材页多选）：五格糊掉，同一格里动作由糊变清。
+  const [actionsHost, setActionsHost] = useState<HTMLDivElement | null>(null)
+  useMobileTabBarActionsHost(actionsHost)
+  const lent = useMobileTabBarActionsActive()
 
   useToastLift(barRef)
 
@@ -251,44 +259,59 @@ function MobileTabBar({ pathname }: { pathname: string }) {
         aria-label={tMobile('tabs.label')}
         className="fixed inset-x-0 bottom-0 z-40 border-t border-border pb-safe-inset-bottom pt-1.5 surface-glass lg:hidden"
       >
-        <div className="grid h-13 grid-cols-5 items-stretch">
-          {MOBILE_TABS_LEFT.map((item) => (
-            <MobileTab key={item.id} item={item} pathname={pathname} />
-          ))}
-          <div className="flex items-start justify-center">
-            <button
-              type="button"
-              aria-label={open ? tMobile('close') : tMobile('create')}
-              aria-expanded={open}
-              aria-haspopup="dialog"
-              onPointerDown={startPress}
-              onPointerUp={cancelPress}
-              onPointerLeave={cancelPress}
-              onPointerCancel={cancelPress}
-              onContextMenu={(event) => event.preventDefault()}
-              onClick={() => {
-                if (longPressed.current) {
-                  longPressed.current = false
-                  return
-                }
-                setOpen(!open)
-              }}
-              className="flex size-13 -translate-y-2.5 select-none items-center justify-center rounded-2xl bg-foreground text-background shadow-overlay transition-transform duration-fast ease-standard active:scale-95"
-            >
-              {/* ＋ 转 45° 就是 ×：同一个元素变形，不换图标。 */}
-              <motion.span
-                aria-hidden
-                animate={{ rotate: open ? 45 : 0 }}
-                transition={springTransition('slot', reduceMotion)}
-                className="flex"
+        <div className="relative">
+          <div
+            inert={lent}
+            className={cn(
+              'grid h-13 grid-cols-5 items-stretch transition-[opacity,filter] duration-fast ease-standard motion-reduce:transition-none',
+              lent && 'pointer-events-none opacity-0 blur-xs',
+            )}
+          >
+            {MOBILE_TABS_LEFT.map((item) => (
+              <MobileTab key={item.id} item={item} pathname={pathname} />
+            ))}
+            <div className="flex items-start justify-center">
+              <button
+                type="button"
+                aria-label={open ? tMobile('close') : tMobile('create')}
+                aria-expanded={open}
+                aria-haspopup="dialog"
+                onPointerDown={startPress}
+                onPointerUp={cancelPress}
+                onPointerLeave={cancelPress}
+                onPointerCancel={cancelPress}
+                onContextMenu={(event) => event.preventDefault()}
+                onClick={() => {
+                  if (longPressed.current) {
+                    longPressed.current = false
+                    return
+                  }
+                  setOpen(!open)
+                }}
+                className="flex size-13 -translate-y-2.5 select-none items-center justify-center rounded-2xl bg-foreground text-background shadow-overlay transition-transform duration-fast ease-standard active:scale-95"
               >
-                <Plus className="size-6" />
-              </motion.span>
-            </button>
+                {/* ＋ 转 45° 就是 ×：同一个元素变形，不换图标。 */}
+                <motion.span
+                  aria-hidden
+                  animate={{ rotate: open ? 45 : 0 }}
+                  transition={springTransition('slot', reduceMotion)}
+                  className="flex"
+                >
+                  <Plus className="size-6" />
+                </motion.span>
+              </button>
+            </div>
+            {MOBILE_TABS_RIGHT.map((item) => (
+              <MobileTab key={item.id} item={item} pathname={pathname} />
+            ))}
           </div>
-          {MOBILE_TABS_RIGHT.map((item) => (
-            <MobileTab key={item.id} item={item} pathname={pathname} />
-          ))}
+          <div
+            ref={setActionsHost}
+            className={cn(
+              'absolute inset-0 transition-[opacity,filter] duration-fast ease-standard motion-reduce:transition-none',
+              lent ? 'delay-100' : 'pointer-events-none opacity-0 blur-xs',
+            )}
+          />
         </div>
       </nav>
     </>

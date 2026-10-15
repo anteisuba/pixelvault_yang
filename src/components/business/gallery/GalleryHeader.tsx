@@ -25,8 +25,6 @@ const COLLAPSED_LINE_PX = 6
 const COLLAPSE_AFTER_SCROLL_PX = 120
 /** 单次滚动小于这个量不算换方向（触控板的抖动）。 */
 const SCROLL_DIRECTION_SLOP_PX = 6
-/** 顶栏只在 ≥768 吸顶（手机折成三行、不吸），收起也只在这一档做。 */
-const STICKY_MEDIA_QUERY = '(min-width: 768px)'
 
 interface GalleryHeaderProps {
   filters: GalleryFilters
@@ -71,10 +69,6 @@ export const GalleryHeader = memo(function GalleryHeader({
 
   useEffect(() => {
     let lastY = window.scrollY
-    const sticky =
-      typeof window.matchMedia === 'function'
-        ? window.matchMedia(STICKY_MEDIA_QUERY)
-        : null
     const onScroll = () => {
       const y = window.scrollY
       setIsStuck(y > 8)
@@ -88,7 +82,6 @@ export const GalleryHeader = memo(function GalleryHeader({
       const header = headerRef.current
       // 正在用的时候不收：焦点在里面，或者某个分面弹层开着。
       if (
-        !sticky?.matches ||
         !header ||
         header.contains(document.activeElement) ||
         header.querySelector('[aria-expanded="true"]')
@@ -166,8 +159,9 @@ export const GalleryHeader = memo(function GalleryHeader({
 
   return (
     // 吸顶的是外面这层：展开时方角页底色盖住头顶那 12（滚过去的图不从缝里露出来）；收起后
-    // 变透明，只剩一条线，图从它周围透出来。手机上顶栏折成三行，不吸也不收；平板吸在紧凑
-    // 外壳那条 44 的固定栏下面。
+    // 变透明，只剩一条线，图从它周围透出来。手机同样吸顶、往下滚缩成细线（手机稿 v10
+    // 画廊：白框浮在图上，缩细线时图不跳），点那条线或往上滚再展开；平板吸在紧凑外壳那条
+    // 44 的固定栏下面。
     <div
       data-collapsed={!expanded || undefined}
       onPointerEnter={(event) => {
@@ -176,17 +170,18 @@ export const GalleryHeader = memo(function GalleryHeader({
       onPointerLeave={() => setHovered(false)}
       onFocusCapture={() => setCollapsedByScroll(false)}
       className={cn(
-        'relative z-30 -mt-3 pt-3 transition-colors duration-fast ease-linear md:sticky md:top-0',
+        'sticky top-0 z-30 -mt-3 pt-3 transition-colors duration-fast ease-linear',
         expanded
           ? 'bg-surface-workbench'
           : 'pointer-events-none bg-transparent',
       )}
     >
-      {/* 收起时的悬停区：线上下各让一点，⛔ 只靠 6px 那条线去对准。 */}
+      {/* 收起时的悬停区：线上下各让一点，⛔ 只靠 6px 那条线去对准。触屏没有悬停：点它展开。 */}
       {!expanded ? (
         <div
           aria-hidden
-          className="pointer-events-auto absolute inset-x-0 top-0 h-6"
+          onClick={() => setCollapsedByScroll(false)}
+          className="pointer-events-auto absolute inset-x-0 top-0 h-6 coarse:h-11"
         />
       ) : null}
       <motion.header

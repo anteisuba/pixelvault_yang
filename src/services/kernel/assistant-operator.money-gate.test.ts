@@ -96,7 +96,8 @@ const ALLOWED_SERVICE_IMPORTS = new Set([
    * （下面同一条用例扫它和截帧那条腿的源码）。
    */
   '@/services/kernel/assistant-edit-look.service',
-  // 选 LLM 路由（用户自己的 key / 平台兜底）。
+  // 文本补全本身与一把点名 key 的解析（`resolveLlmTextRoute(userId, apiKeyId)`）。
+  // ⚠ 没有平台兜底（owner 2026-10-07），也不在无 key 时自己挑一家（那是 `assistant-route`）。
   '@/services/llm-text.service',
   // 创作者按了「用 Grok 搜这一次」时找他自己的 Grok key（只读 key 表，不出图、不扣点数）。
   '@/services/kernel/research-route.service',
@@ -142,16 +143,11 @@ const ALLOWED_SERVICE_IMPORTS = new Set([
    */
   '@/services/research/research-planner.service',
   /**
-   * 看图闭环的**路由解析**（P3-C）。⭐ 判据与上一条同源：它产出的是
-   * 「用哪把 key、走哪个 adapter」，一个字节都不落、一分钱都不扣。真正看图的那次
-   * 补全走的仍是 `assistant-completion.service`（本名单里早就有的那条）。
-   * ⛔ `services/vision/vision-analyzer.service` **有意不在名单里**：那条链会落库。
-   */
-  '@/services/vision/vision-route.service',
-  /**
    * **助手那一家**（owner 2026-10-15「全跟助手」）：选定的模型，或「自动」挑的第一家配了
-   * key 的。判据与上一条同源 —— 只读 persona 那一列和 key 表，产出「用哪把 key、走哪个
-   * adapter、哪个型号」，一个字节都不落、一分钱都不扣。
+   * key 的。只读 persona 那一列和 key 表，产出「用哪把 key、走哪个 adapter、哪个型号」，
+   * 一个字节都不落、一分钱都不扣。看图也走这一家（经上面那几条看图服务），工具环
+   * 自己不再直接 import `vision-route.service`（2026-10-15 对齐第三片从名单里拿掉）。
+   * ⛔ `services/vision/vision-analyzer.service` **有意不在名单里**：那条链会落库。
    */
   '@/services/kernel/assistant-route.service',
   /**
@@ -327,6 +323,18 @@ describe('⛔ 助手工具环的钱闸', () => {
         `${moduleId} 不在允许名单里。它会花钱吗？会的话别在工具环里 import 它。`,
       ).toBe(true)
     }
+  })
+
+  it('允许名单与实际 import 一一对上：名单里没有用不到的条目', () => {
+    // ⚠ 名单里多一条用不到的，等于给下一个人留了一张「已经批过」的空白支票。
+    const imported = new Set(importedModules(SOURCE))
+    const unused = [...ALLOWED_SERVICE_IMPORTS].filter(
+      (moduleId) => !imported.has(moduleId),
+    )
+    expect(
+      unused,
+      `名单里这几条工具环根本没 import：${unused.join(', ')}`,
+    ).toEqual([])
   })
 
   it('源码里不出现任何一条能花钱的标识符', () => {

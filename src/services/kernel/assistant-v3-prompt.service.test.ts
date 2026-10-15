@@ -112,3 +112,40 @@ describe('v3 系统提示 · LOOKING AT PICTURES', () => {
     })
   }
 })
+
+/**
+ * 怎么看片（看图期第二段，owner 2026-10-15）：五张脸**同一段** WATCHING CLIPS。
+ * 帧是样本、两帧之间不当真；片子本体就直接判；看动作、构图、人物前后与参考一致；安静。
+ */
+describe('v3 系统提示 · WATCHING CLIPS', () => {
+  for (const face of Object.values(ASSISTANT_V3_FACE_IDS)) {
+    it(`${face} 脸带着看片的看法`, () => {
+      const prompt = buildAssistantV3SystemPrompt({
+        face,
+        request: {
+          domain: DOMAIN_BY_FACE[face],
+        } as unknown as AssistantOperatorRequest,
+        persona: {} as AssistantPromptPersona,
+        rules: [],
+        memories: [],
+        accountName: null,
+      })
+      expect(prompt).toContain('WATCHING CLIPS')
+      expect(prompt).toContain('CLIPS THE CREATOR POINTED AT')
+      expect(prompt).toContain('clip 「name」 · frame k/N at t s')
+      expect(prompt).toContain(
+        'Frames are samples at the times given, not the clip.',
+      )
+      expect(prompt).toContain('is not certain from frames')
+      expect(prompt).toContain(
+        'With the clip itself you see motion, camera and timing',
+      )
+      expect(prompt).toContain('is the motion continuous or does it jump')
+      expect(prompt).toContain('match its reference pictures')
+      expect(prompt).toContain('ask the creator to @ the clip')
+      expect(prompt).toContain('Stay quiet about watching')
+      // ⛔ 旧视频台那句「三张静帧、只答三件事」不再有。
+      expect(prompt).not.toContain('a clip is judged by three stills')
+    })
+  }
+})

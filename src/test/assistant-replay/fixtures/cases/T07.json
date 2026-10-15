@@ -1,0 +1,56 @@
+{
+  "id": "T07",
+  "title": "两张卡逐字只换一处：冷蓝灰雨窗 → 冷蓝雨窗",
+  "source": "docs/references/assistant-v3.md §3 T07（两张卡逐字只换这一处）",
+  "board": "malfoy",
+  "routes": [
+    {
+      "routeModel": "deepseek-flash",
+      "keys": ["deepseek", "gemini"],
+      "expect": { "adapterType": "deepseek", "modelId": "deepseek-flash" }
+    }
+  ],
+  "turn": {
+    "say": "S02 和 S03 的提示词里把「冷蓝灰雨窗」改成「冷蓝雨窗」，其余一个字都不动。"
+  },
+  "replies": [
+    {
+      "calls": [
+        {
+          "tool": "write",
+          "input": {
+            "writes": [
+              {
+                "card": "vid-2b3c4d",
+                "field": "prompt",
+                "mode": "edit",
+                "text": null,
+                "edits": [{ "find": "冷蓝灰雨窗", "replace": "冷蓝雨窗" }]
+              },
+              {
+                "card": "vid-3c4d5e",
+                "field": "prompt",
+                "mode": "edit",
+                "text": null,
+                "edits": [{ "find": "冷蓝灰雨窗", "replace": "冷蓝雨窗" }]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    { "text": "S02、S03 里的「冷蓝灰雨窗」都换成了「冷蓝雨窗」，别的字没动。" }
+  ],
+  "expect": {
+    "end": "done",
+    "requests": 2,
+    "opKinds": ["set_prompt", "set_prompt"],
+    "board": {
+      "nodesChanged": {
+        "S02 雨窗": { "prompt": "0-5s 冷蓝雨窗前，哈利和罗恩低声说话" },
+        "S03 走廊": { "prompt": "0-5s 冷蓝雨窗外的走廊，哈利快步走过" }
+      }
+    },
+    "answer": { "contains": ["冷蓝雨窗"] }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "id": "V01",
+  "title": "看 @ 的片子（Gemini）：片子本体摆到模型眼前",
+  "source": "assistant-v3.md「看片」（owner 2026-10-15「Denia 自己看片子」）：Gemini 先看片子本体，帧只是退路",
+  "board": "malfoy",
+  "routes": [
+    {
+      "routeModel": "gemini-3.8-flash",
+      "keys": ["gemini", "openai"],
+      "expect": {
+        "adapterType": "gemini",
+        "modelId": "gemini-3.8-flash"
+      }
+    }
+  ],
+  "turn": {
+    "say": "@{S04b 冲出门} 这段节奏怎么样？",
+    "clipSeconds": {
+      "S04b 冲出门": 5
+    }
+  },
+  "replies": [
+    {
+      "text": "我看了「S04b 冲出门」：前 1.5 秒撞门很干脆，后面追出来那段镜头后拉偏慢，可以压到 2 秒。"
+    }
+  ],
+  "expect": {
+    "end": "done",
+    "answer": {
+      "contains": ["S04b 冲出门"]
+    },
+    "stepImages": [0],
+    "stepVideos": [1]
+  }
+}

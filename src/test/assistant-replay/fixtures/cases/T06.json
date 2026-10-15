@@ -1,0 +1,28 @@
+{
+  "id": "T06",
+  "title": "删卡先问：模型直接发了删除，也要先出问题卡、一张不删",
+  "source": "docs/references/assistant-v3.md §3 T06（先问再删）；node-canvas-v2 §13.2 confirm 档 op 先问一句",
+  "board": "malfoy",
+  "routes": [
+    {
+      "routeModel": "gemini-3.8-flash",
+      "keys": ["gemini", "openai"],
+      "expect": { "adapterType": "gemini", "modelId": "gemini-3.8-flash" }
+    }
+  ],
+  "turn": { "say": "删掉「S04 首帧试验」这张卡。" },
+  "replies": [
+    {
+      "calls": [
+        {
+          "tool": "edit",
+          "input": { "ops": [{ "op": "delete", "card": "img-c1d2e3" }] }
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "end": "awaiting_confirm",
+    "ask": { "questions": 1, "contains": ["S04 首帧试验"] }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "id": "T13",
+  "title": "只答：Seedance 2.5 的提示词怎么写镜头切换和台词",
+  "source": "docs/references/assistant-v3.md §3 T13（只答，讲到时间段 / 切法 / 台词写法）",
+  "board": "malfoy",
+  "routes": [
+    {
+      "routeModel": "claude-opus-5-5",
+      "keys": ["anthropic", "gemini", "openai"],
+      "expect": { "adapterType": "anthropic", "modelId": "claude-opus-5-5" }
+    }
+  ],
+  "turn": {
+    "say": "Seedance 2.5 的提示词怎么写镜头切换和台词？先讨论，不要改卡。"
+  },
+  "replies": [
+    {
+      "text": "Seedance 2.5 按时间段写：每段开头标 0-2s、2-5s，段与段之间写切法（硬切 / 推近 / 跟拍）。台词单独一行，写成 角色：「台词」，并标在哪一段说。卡我没动。"
+    }
+  ],
+  "expect": {
+    "end": "done",
+    "answer": { "contains": ["0-2s", "切", "台词"] }
+  }
+}

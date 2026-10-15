@@ -1,0 +1,24 @@
+{
+  "id": "V03",
+  "title": "看不了图的型号：@ 了图也一张不收、不借别家",
+  "source": "assistant-v3.md「看图」：所选模型看不了图（DeepSeek V4 Pro）一张也不看，⛔ 不借别家的 key",
+  "board": "malfoy",
+  "routes": [
+    {
+      "routeModel": "deepseek-v4-pro",
+      "keys": ["deepseek", "gemini", "openai"],
+      "expect": { "adapterType": "deepseek", "modelId": "deepseek-v4-pro" }
+    }
+  ],
+  "turn": { "say": "@{高尔 · 黑袍} @{克拉布 · 黑袍} 这两张哪张更像原作？" },
+  "replies": [
+    {
+      "text": "我现在用的 DeepSeek V4 Pro 看不了图，没法比较这两张。换一个看得见图的助手模型（比如 Gemini）再问我。"
+    }
+  ],
+  "expect": {
+    "end": "done",
+    "answer": { "contains": ["看不了图"] },
+    "stepImages": [0]
+  }
+}

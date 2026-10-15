@@ -1,0 +1,29 @@
+{
+  "id": "T21",
+  "title": "看 @ 的两张图：高尔和克拉布哪张更像原作",
+  "source": "docs/references/assistant-v3.md §3 T21（两张都看、比较）",
+  "board": "malfoy",
+  "routes": [
+    {
+      "routeModel": "gemini-3.8-flash",
+      "keys": ["gemini", "anthropic"],
+      "expect": { "adapterType": "gemini", "modelId": "gemini-3.8-flash" }
+    },
+    {
+      "routeModel": "claude-sonnet-5-5",
+      "keys": ["anthropic", "gemini"],
+      "expect": { "adapterType": "anthropic", "modelId": "claude-sonnet-5-5" }
+    }
+  ],
+  "turn": { "say": "@{高尔 · 黑袍} @{克拉布 · 黑袍} 这两张哪张更像原作？" },
+  "replies": [
+    {
+      "text": "两张我都看了：「高尔 · 黑袍」的体型和发型更贴原作，「克拉布 · 黑袍」脸偏瘦。更像的是高尔那张。"
+    }
+  ],
+  "expect": {
+    "end": "done",
+    "answer": { "contains": ["高尔 · 黑袍", "克拉布 · 黑袍"] },
+    "stepImages": [2]
+  }
+}

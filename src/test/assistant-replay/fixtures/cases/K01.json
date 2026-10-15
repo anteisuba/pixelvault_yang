@@ -1,0 +1,19 @@
+{
+  "id": "K01",
+  "title": "选了 Claude 却只配了 Gemini 的 key：整轮不跑、不借别家",
+  "source": "owner 2026-10-15「全跟助手」：选定的厂商没绑 key 时就地配 key，⛔ 回落到别家",
+  "board": "malfoy",
+  "routes": [
+    {
+      "routeModel": "claude-opus-5-5",
+      "keys": ["gemini"],
+      "expect": null
+    }
+  ],
+  "turn": { "say": "把 S01 上「罗恩 · 黑袍」那条参考线断掉。" },
+  "expect": {
+    "end": "error",
+    "errorCode": "ASSISTANT_MODEL_KEY_MISSING",
+    "missingKey": { "adapterType": "anthropic", "modelId": "claude-opus-5-5" }
+  }
+}

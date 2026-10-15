@@ -1,0 +1,24 @@
+{
+  "id": "T12",
+  "title": "只答：S02 接了哪几张参考图",
+  "source": "docs/references/assistant-v3.md §3 T12（只答，不改）",
+  "board": "malfoy",
+  "routes": [
+    {
+      "routeModel": "deepseek-v4-pro",
+      "keys": ["deepseek", "gemini", "openai"],
+      "expect": { "adapterType": "deepseek", "modelId": "deepseek-v4-pro" }
+    }
+  ],
+  "turn": { "say": "S02 现在接了哪几张参考图？只回答，不改。" },
+  "replies": [
+    {
+      "text": "S02 雨窗现在接了两张参考图：「哈利 · 黑袍」和「罗恩 · 黑袍」。"
+    }
+  ],
+  "expect": {
+    "end": "done",
+    "answer": { "contains": ["哈利 · 黑袍", "罗恩 · 黑袍"] },
+    "stepImages": [0]
+  }
+}

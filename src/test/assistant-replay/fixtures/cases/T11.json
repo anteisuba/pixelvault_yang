@@ -1,0 +1,31 @@
+{
+  "id": "T11",
+  "title": "只答：罗恩 · 黑袍用的什么模型、比例、分辨率",
+  "source": "docs/references/assistant-v3.md §3 T11（只答，不动画布）",
+  "board": "malfoy",
+  "routes": [
+    {
+      "routeModel": "gemini-3.8-flash",
+      "keys": ["gemini", "openai", "anthropic"],
+      "expect": { "adapterType": "gemini", "modelId": "gemini-3.8-flash" }
+    },
+    {
+      "routeModel": "auto",
+      "keys": ["openai", "anthropic", "xai"],
+      "expect": { "adapterType": "openai", "modelId": "gpt-6-luna" }
+    }
+  ],
+  "turn": {
+    "say": "先别动画布：「罗恩 · 黑袍」用的什么模型、什么比例、什么分辨率？"
+  },
+  "replies": [
+    { "calls": [{ "tool": "read", "input": { "cards": ["img-5b7c1d"] } }] },
+    {
+      "text": "「罗恩 · 黑袍」用的是 GPT Image 2，比例 3:4，分辨率 1K。画布没动。"
+    }
+  ],
+  "expect": {
+    "end": "done",
+    "answer": { "contains": ["GPT Image 2", "3:4", "1K"] }
+  }
+}

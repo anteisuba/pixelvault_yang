@@ -1,0 +1,37 @@
+{
+  "id": "T09",
+  "title": "挪镜：把 6 号镜挪到最后",
+  "source": "docs/references/assistant-v3.md §3 T09（挪镜成功；回放板上 6 号是 S06 分院帽）",
+  "board": "malfoy",
+  "routes": [
+    {
+      "routeModel": "gpt-6.1-sol",
+      "keys": ["openai", "anthropic"],
+      "expect": { "adapterType": "openai", "modelId": "gpt-6.1-sol" }
+    }
+  ],
+  "turn": { "say": "把 6 号镜挪到最后。" },
+  "replies": [
+    {
+      "calls": [
+        {
+          "tool": "edit",
+          "input": { "ops": [{ "op": "reorder_shot", "from": 6, "to": 8 }] }
+        }
+      ]
+    },
+    { "text": "6 号镜「分院帽」挪到了最后，现在是第 8 镜。" }
+  ],
+  "expect": {
+    "end": "done",
+    "requests": 2,
+    "opKinds": ["reorder_shot"],
+    "board": {
+      "nodesChanged": {
+        "S06 分院帽": { "shotNo": 8 },
+        "S07 长桌": { "shotNo": 6 },
+        "S08 退场": { "shotNo": 7 }
+      }
+    }
+  }
+}

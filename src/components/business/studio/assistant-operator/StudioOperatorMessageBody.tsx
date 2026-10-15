@@ -79,6 +79,12 @@ interface StudioOperatorMessageBodyProps {
    * 配了 Grok key。按下才用他的 Grok 额度；缺席就不画。
    */
   onSearchXWithGrok?(): void
+  /**
+   * **这段话之前找到的图**（搜索期切片 1 · 附录 I §四）—— 面板画好的网格
+   * （`StudioOperatorWebCandidateGrid`）交进来，摆在正文底下、来源卡上面。
+   * ⚠ 是一个槽而不是数据：选用态与「选用」的去处是面板的，这一格只管摆在哪。
+   */
+  webImages?: ReactNode
 }
 
 /**
@@ -411,6 +417,7 @@ export function StudioOperatorMessageBody({
   onDeepResearch,
   receiptLabel,
   onSearchXWithGrok,
+  webImages,
   references = [],
 }: StudioOperatorMessageBodyProps) {
   const t = useTranslations('StudioOperator')
@@ -446,7 +453,8 @@ export function StudioOperatorMessageBody({
       />
 
       {/* ⚠ 还在写的时候**不画**（56b 切片 1）：资料要等这段话说完再摆出来，
-          否则来源卡会在正文长高的过程中一直往下跳。 */}
+          否则来源卡会在正文长高的过程中一直往下跳。找到的图同一条。 */}
+      {webImages && !entry.streaming ? webImages : null}
       {sources.length > 0 && !entry.streaming ? (
         <StudioOperatorAnswerSources
           sources={sources}

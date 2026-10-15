@@ -8022,6 +8022,7 @@
     "running": {
       "look": "Looking at the picture…",
       "research": "Searching…",
+      "webImages": "Searching for images…",
       "library": "Searching your library…",
       "ask": "Thinking of a question…",
       "apply": "Changing settings…",
@@ -8372,7 +8373,9 @@
       }
     },
     "web": {
-      "candidates": "From the web · previews, not in your library yet",
+      "found": "Google Images: {query} · {count, plural, one {# image} other {# images}}",
+      "searching": "Searching Google Images: {query}…",
+      "blockedNote": "{domains}: {reason}",
       "pickHint": "Click an image to preview it. Choose Use to save it to your library and attach it.",
       "selectedHint": "{count}/{limit} chosen · press Use again to drop one and delete it from your library; when full, the next one replaces the oldest",
       "viewLarge": "View full size",

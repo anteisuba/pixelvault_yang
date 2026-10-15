@@ -8022,6 +8022,7 @@
     "running": {
       "look": "正在看图…",
       "research": "正在查资料…",
+      "webImages": "正在搜索图片…",
       "library": "正在查素材…",
       "ask": "正在想问题…",
       "apply": "正在改参数…",
@@ -8372,7 +8373,9 @@
       }
     },
     "web": {
-      "candidates": "联网候选 · 预览，还没进你的库",
+      "found": "搜索 Google 图片：{query} · {count} 张",
+      "searching": "正在搜索 Google 图片：{query}…",
+      "blockedNote": "{domains}：{reason}",
       "pickHint": "点图看大图（不下载）· 点「选用」才收进素材库并挂上",
       "selectedHint": "已选 {count}/{limit} · 再点「选用」= 取消并从素材库清掉；选满后再选会换掉最早那张",
       "viewLarge": "看大图",

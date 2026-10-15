@@ -5,6 +5,7 @@ import {
   mergeOperatorSystemRuns,
   firstOperatorSentence,
   collectOperatorAnswerSources,
+  collectOperatorAnswerWebImages,
   groupOperatorResearch,
   summarizeOperatorResearchBlock,
   isOperatorResearchTool,
@@ -167,6 +168,90 @@ describe('collectOperatorAnswerSources', () => {
       runKey: 'run-1',
       steps: [0, 1],
     })
+  })
+})
+
+/**
+ * 找到的图挂在哪一段回答底下（搜索期切片 1，2026-10-15）：网格⛔ 不再折进步骤组，
+ * 摆在回答正文下面；还在写 / 折进调查组的那条不当锚。
+ */
+describe('collectOperatorAnswerWebImages', () => {
+  const webStep = (id: string, images: unknown[], status = 'done') =>
+    ({
+      kind: 'step',
+      id,
+      runKey: 'run-1',
+      undone: false,
+      step: {
+        id,
+        title: '找图',
+        tool: TOOLS.searchWebImages,
+        status,
+        payload: { query: 'q', limit: 8 },
+        ...(status === 'done'
+          ? { result: { totalFound: images.length, images } }
+          : {}),
+      },
+    }) as unknown as StudioOperatorThreadEntry
+  const message = (id: string, streaming = false) =>
+    ({
+      kind: 'message',
+      id,
+      text: 'ok',
+      streaming,
+    }) as StudioOperatorThreadEntry
+  const user = {
+    kind: 'user',
+    id: 'u',
+    text: 'hi',
+  } as StudioOperatorThreadEntry
+  const anyAnchor = (entry: { streaming?: boolean }) => !entry.streaming
+  const image = { imageUrl: 'https://a.test/1.jpg' }
+
+  it('⭐ 挂在下一条说完的回答上；还在写的那条不当锚', () => {
+    const entries = [webStep('w1', [image]), message('m1', true)]
+    const streaming = collectOperatorAnswerWebImages(entries, anyAnchor)
+    expect(streaming.byMessage.size).toBe(0)
+    expect(streaming.anchored.size).toBe(0)
+
+    const done = collectOperatorAnswerWebImages(
+      [webStep('w1', [image]), message('m1')],
+      anyAnchor,
+    )
+    expect(done.byMessage.get('m1')?.map((entry) => entry.id)).toEqual(['w1'])
+    expect([...done.anchored]).toEqual(['w1'])
+  })
+
+  it('调用方说不能当锚的（折进调查组的）跳过，挂到再下一条', () => {
+    const entries = [
+      webStep('w1', [image]),
+      message('folded'),
+      message('answer'),
+    ]
+    const { byMessage } = collectOperatorAnswerWebImages(
+      entries,
+      (entry) => entry.id !== 'folded',
+    )
+    expect(byMessage.has('folded')).toBe(false)
+    expect(byMessage.get('answer')?.map((entry) => entry.id)).toEqual(['w1'])
+  })
+
+  it('⛔ 没找到图的、还在跑的不挂；⛔ 上一轮没等到回答的不跨轮挂', () => {
+    const entries = [
+      webStep('empty', []),
+      webStep('running', [], 'running'),
+      webStep('stopped', [image]),
+      user,
+      webStep('w2', [image]),
+      message('m2'),
+    ]
+    const { byMessage, anchored } = collectOperatorAnswerWebImages(
+      entries,
+      anyAnchor,
+    )
+    expect(byMessage.get('m2')?.map((entry) => entry.id)).toEqual(['w2'])
+    expect(anchored.has('stopped')).toBe(false)
+    expect(anchored.has('empty')).toBe(false)
   })
 })
 
@@ -412,6 +497,7 @@ describe('operatorRunningPhrase', () => {
   it.each([
     [TOOLS.analyzeReferences, 'look', 'look'],
     [TOOLS.searchWeb, 'research', 'research'],
+    [TOOLS.searchWebImages, 'research', 'webImages'],
     [TOOLS.searchAssets, 'research', 'library'],
     [TOOLS.searchLoras, 'research', 'library'],
     [TOOLS.recallEvidence, 'research', 'library'],

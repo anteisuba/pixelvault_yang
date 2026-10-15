@@ -69,14 +69,9 @@ import {
 import { DURATION, EASE_POP_STRONG } from '@/constants/motion'
 import { STUDIO_OPERATOR_REFERENCE_STAGGER_SECONDS } from '@/constants/studio-assistant-operator'
 import { openOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
-import { StudioOperatorWebCandidateGrid } from '@/components/business/studio/assistant-operator/StudioOperatorWebCandidateGrid'
 import { describeOperatorStepDetail } from '@/lib/studio-operator-history'
 import { cn } from '@/lib/utils'
-import type {
-  AssistantOperatorStep,
-  AssistantOperatorWebImage,
-} from '@/types/assistant-operator'
-import type { StudioOperatorWebImportState } from '@/hooks/use-studio-operator-web-import'
+import type { AssistantOperatorStep } from '@/types/assistant-operator'
 
 /**
  * ⚠ `Record<Tool, …>`：工具表加一条而图标没跟上，编译期就红。
@@ -212,46 +207,13 @@ export const OPERATOR_TOOL_ICONS: Record<AssistantOperatorTool, LucideIcon> = {
 }
 
 interface StudioOperatorLogItemProps {
-  /**
-   * ⚠ 撤销认的是**线程里这一条的 id**，不是 `step.id` —— 服务端每轮从
-   * `step-1` 重新编号，两者只在第一轮碰巧相等（见 `operatorStepEntryId`）。
-   */
-  entryId: string
   step: AssistantOperatorStep
   undone: boolean
-  /**
-   * 这一条日志上的联网候选选用态（P3-B / 拍板 21）。`undefined` = 一张都还没选。
-   *
-   * ⚠ 写成**必填但可为 undefined**，不是 `?:` —— 台账：可选 prop 漏传 = 编译器
-   * 不报、全量测试全过、功能全失效。宿主必须显式写出这个键。
-   */
-  webImport: StudioOperatorWebImportState | undefined
-  /** 一行最多能选几张（工作台参考位上限）—— 「已选 n/m」里的 m。 */
-  webImportLimit: number
-  /** 点「选用」—— 导入并挂上 / 取消选用（拍板 21）。⛔ 点缩略图不走这条。 */
-  onToggleWebImage(entryId: string, image: AssistantOperatorWebImage): void
-  /**
-   * 这一条要不要**自己画候选网格**（2026-09-07 真机）。
-   *
-   * 🔬 根因：调查卡把同一轮的 `search_web_images` 候选画在卡面上，**同时**把这几条
-   * 日志原样塞进卡底那段「过程」——而日志条自己也画一份网格。`<details>` 收着时
-   * DOM 里照样有，于是 `[data-testid=operator-web-candidate]` 数出 16 个而唯一候选
-   * 只有 8 个，两份还共用同一个 `entryId`（选中态完全镜像）。
-   *
-   * ⚠ 写成**必填**而不是带默认值：默认值等于「谁忘了传谁就多画一份」，而这正是
-   * 出过事的那条路。⛔ 也不在这颗组件里去猜「我是不是长在卡里」——那是宿主的知识。
-   */
-  renderWebCandidates: boolean
 }
 
 export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
-  entryId,
   step,
   undone,
-  webImport,
-  webImportLimit,
-  onToggleWebImage,
-  renderWebCandidates,
 }: StudioOperatorLogItemProps) {
   const t = useTranslations('StudioOperator')
   const reduceMotion = useReducedMotion()
@@ -272,9 +234,21 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
    */
   const detail = isRejected
     ? (step.error.detail ?? null)
-    : step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done
-      ? describeOperatorStepDetail(step)
-      : null
+    : step.tool === ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages
+      ? /**
+         * 找图那一步**只留一句**（搜索期切片 1，附录 I §四）：「搜索 Google 图片：… · 8 张」。
+         * 找到的图是答案的一部分，摆在回答底下（`StudioOperatorWebCandidateGrid`，面板
+         * 交给 `StudioOperatorMessageBody`）—— ⛔ 别把网格搬回这一条。
+         */
+        step.result
+        ? t('web.found', {
+            query: step.payload.query,
+            count: step.result.images.length,
+          })
+        : t('web.searching', { query: step.payload.query })
+      : step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done
+        ? describeOperatorStepDetail(step)
+        : null
 
   return (
     <div
@@ -387,23 +361,6 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
             </button>
           ))}
         </div>
-      ) : null}
-
-      {/* 联网候选（拍板 21）—— 网格搬去了 `StudioOperatorWebCandidateGrid`
-          （切片 3b）：那一块有自己的交互与自己的每格状态机，⛔ 别搬回来。
-          ⚠ `renderWebCandidates` 为假 = 调查卡已经在卡面上画过这一份了（见 prop
-            头注）：这里再画一遍就是同一张候选出现两次。 */}
-      {renderWebCandidates &&
-      step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done &&
-      step.tool === ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages &&
-      step.result ? (
-        <StudioOperatorWebCandidateGrid
-          entryId={entryId}
-          images={step.result.images}
-          webImport={webImport}
-          limit={webImportLimit}
-          onToggle={onToggleWebImage}
-        />
       ) : null}
 
       {/* 联网**查文字**的来源列表（切片 3b）。

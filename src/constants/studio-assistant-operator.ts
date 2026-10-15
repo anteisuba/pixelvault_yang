@@ -448,6 +448,8 @@ export const STUDIO_OPERATOR_STREAMING = {
 export const STUDIO_OPERATOR_RUNNING_PHRASE_IDS = {
   look: 'look',
   research: 'research',
+  /** 找图（`search_web_images`，搜索期 2026-10-15）：与「查资料」分开 —— 等的是一排图，不是一段话。 */
+  webImages: 'webImages',
   library: 'library',
   ask: 'ask',
   apply: 'apply',

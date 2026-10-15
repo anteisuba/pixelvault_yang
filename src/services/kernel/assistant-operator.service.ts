@@ -828,6 +828,12 @@ interface OperatorRun {
    * 看图再写（图片台 2026-10-10；全部 owner 2026-10-15「不要求很严的表，让模型自己去看去判断」）。
    */
   skipReferenceReview: boolean
+  /**
+   * v3（五张脸都设）：⛔ 不另起看图子调用、⛔ 不借别家的 key 去看 —— 主模型自己看（look）。
+   * 角色页联网找图因此不再先跑 `inspectWebImageCandidates`：v3 把缩略图当一次 look 交给主模型，
+   * 也就没有藏起来的判定去筛 `propose_character_images`（owner 2026-10-15）。缺席 = 旧内核。
+   */
+  mainModelLooks?: boolean
   /** NAI 标签核对查不到的已经退回给模型改写过一次（拆分与反推 B3）。 */
   tagCheckRetried: boolean
   /**
@@ -2682,8 +2688,10 @@ function planSearchWebImages(
        * ⚠ 看不成不拖垮搜图（`null`）—— 观察里照实说「只有标题」。
        */
       const openCharacter = run.state.cards?.open ?? null
+      /** v3：缩略图交给主模型自己看（见 `mainModelLooks`），这里只搜、只列，⛔ 不说看没看过。 */
+      const mainModelLooks = run.mainModelLooks === true
       const seen =
-        forCharacters && images.length > 0
+        forCharacters && images.length > 0 && !mainModelLooks
           ? await inspectWebImageCandidates({
               userId,
               ...(run.apiKeyId ? { apiKeyId: run.apiKeyId } : {}),
@@ -2702,7 +2710,7 @@ function planSearchWebImages(
       const verdictOf = (index: number) =>
         seen?.find((item) => item.imageIndex === index) ?? null
       const describeSeen = (index: number) => {
-        if (!forCharacters) return ''
+        if (!forCharacters || mainModelLooks) return ''
         const verdict = verdictOf(index)
         if (!verdict) return ' · NOT VIEWED'
         const who =
@@ -2734,10 +2742,12 @@ function planSearchWebImages(
               .join('\n')}\n${
               forCharacters
                 ? `${
-                    seen
-                      ? `You LOOKED at these thumbnails${openCharacter?.primaryImageUrl ? " next to the character's main image" : ''}: offer only ones seen as the character, write each reason from what was seen, and never offer one seen as NOT the character.`
-                      : 'You could NOT look at these images — you only have their titles. If you offer any, say plainly that you judged by title only.'
-                  } These are previews only — nothing was saved yet, so never say you did. To attach the good ones to a character, send ask/propose_character_images with their imageUrl (never one marked REFERENCE ONLY); the creator ticks which to keep. If a view the character needs is missing (a back view, a clean full body), search again with that view in the words people use for it — the character's name in its own language plus 「背面」「全身」「立绘」, or "back view", "full body" — before you say there is none.`
+                    mainModelLooks
+                      ? ''
+                      : seen
+                        ? `You LOOKED at these thumbnails${openCharacter?.primaryImageUrl ? " next to the character's main image" : ''}: offer only ones seen as the character, write each reason from what was seen, and never offer one seen as NOT the character. `
+                        : 'You could NOT look at these images — you only have their titles. If you offer any, say plainly that you judged by title only. '
+                  }These are previews only — nothing was saved yet, so never say you did. To attach the good ones to a character, send ask/propose_character_images with their imageUrl (never one marked REFERENCE ONLY); the creator ticks which to keep. If a view the character needs is missing (a back view, a clean full body), search again with that view in the words people use for it — the character's name in its own language plus 「背面」「全身」「立绘」, or "back view", "full body" — before you say there is none.`
                 : 'These are previews only — nothing was saved yet, so never say you did. Two ways one becomes a real reference: the creator presses "use this" on the candidate (that is the normal path — say which ones are worth keeping and let them pick), or, if they have ALREADY told you to attach them, you call import_user_url on the ones above that are not marked REFERENCE ONLY. Never paste one of these URLs into a prompt, and never import one they did not ask for.'
             }${ruleLine}`
 

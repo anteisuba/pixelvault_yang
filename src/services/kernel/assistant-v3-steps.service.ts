@@ -86,6 +86,8 @@ export const TITLE_TEXT: Record<
     pickImages: string
     handOff: string
     readPage: string
+    /** 角色页联网找图的第 N 张候选（看图那一行上的称呼）。 */
+    candidate: (index: number) => string
     more: (count: number) => string
   }
 > = {
@@ -128,6 +130,7 @@ export const TITLE_TEXT: Record<
     pickImages: '挑图',
     handOff: '交给图片助手',
     readPage: '读网页',
+    candidate: (index) => `候选 ${index}`,
     more: (count) => `等 ${count} 项`,
   },
   japanese: {
@@ -169,6 +172,7 @@ export const TITLE_TEXT: Record<
     pickImages: '画像を選ぶ',
     handOff: '画像アシスタントに渡す',
     readPage: 'ページを読む',
+    candidate: (index) => `候補 ${index}`,
     more: (count) => `ほか ${count} 件`,
   },
   english: {
@@ -210,6 +214,7 @@ export const TITLE_TEXT: Record<
     pickImages: 'Pick pictures',
     handOff: 'Hand to the image assistant',
     readPage: 'Read page',
+    candidate: (index) => `candidate ${index}`,
     more: (count) => `+${count} more`,
   },
 }

@@ -507,6 +507,10 @@ import {
   type AssistantOperatorStep,
   type AssistantOperatorStepEvent,
 } from '@/types/assistant-operator'
+import {
+  expectSelectedProviderOnly,
+  providerUsesOf,
+} from '@/test/selected-provider-only'
 
 const SNAPSHOT: AssistantOperatorRequest['snapshot'] = {
   prompt: '',
@@ -3550,6 +3554,99 @@ describe('read_state', () => {
     expect(confirm.confirm.proposal.images.map((image) => image.url)).toEqual([
       'https://cdn.example.test/denia.jpg',
     ])
+  })
+
+  /**
+   * ⭐ v3（`mainModelLooks`）：缩略图交给主模型自己看（`assistant-v3-cards`），
+   * 这一跳**只搜、只列**：⛔ 不起看缩略图的子调用（它走的是 `resolveVisionRoute`，
+   * 会悄悄借别家的 key）、⛔ 观察里不说看没看过、⛔ 不按判词静默丢掉要交的图。
+   */
+  it('⭐ v3 主模型自己看：搜图不起看图子调用、不写判词，交图一张都不悄悄丢', async () => {
+    mockWebImageSearch.mockResolvedValue([
+      {
+        imageUrl: 'https://cdn.example.test/denia.jpg',
+        thumbnailUrl: 'https://encrypted-tbn0.gstatic.test/d.jpg',
+        pageUrl: 'https://example.test/denia',
+        domain: 'example.test',
+      },
+      {
+        imageUrl: 'https://cdn.example.test/other.jpg',
+        thumbnailUrl: 'https://encrypted-tbn0.gstatic.test/o.jpg',
+        pageUrl: 'https://example.test/other',
+        domain: 'example.test',
+      },
+    ])
+    // 若还有人去问这个子调用，它会说「第二张不是她」—— 这一条验的是没人问。
+    mockInspectWebImageCandidates.mockResolvedValue([
+      {
+        imageIndex: 1,
+        isCharacter: 'no',
+        view: 'bust',
+        cluttered: false,
+        observation: '白发的另一个角色',
+      },
+    ])
+    queueTurns()
+    const prepared = await prepareOperatorTurn(
+      'clerk-1',
+      buildRequest({
+        domain: 'cards',
+        snapshot: {
+          ...CARDS_SNAPSHOT,
+          cards: {
+            ...CARDS_SNAPSHOT.cards,
+            open: {
+              id: 'denia',
+              name: 'Denia',
+              work: '鸣潮',
+              imageCount: 1,
+              hasProfile: false,
+              look: '',
+              identity: '',
+              behavior: '',
+              speech: '',
+              backstory: '',
+              characterTags: [],
+              appearanceTags: [],
+              loraTrigger: '',
+              imagesOnCard: 1,
+              primaryImageUrl: 'https://cdn.example.test/main.png',
+            },
+          },
+        },
+      }),
+      new AbortController().signal,
+    )
+    prepared.run.mainModelLooks = true
+    mockLlmTextCompletion.mockClear()
+
+    const search = await planTool(
+      prepared.run,
+      ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+      { query: 'denia' },
+      prepared.user.id,
+    )
+    if (search.kind !== 'read')
+      throw new Error(`expected read, got ${search.kind}`)
+    const { observation } = await search.run()
+
+    expect(mockInspectWebImageCandidates).not.toHaveBeenCalled()
+    expect(observation).toContain('imageUrl https://cdn.example.test/other.jpg')
+    for (const verdictWord of [
+      'LOOKED',
+      'NOT VIEWED',
+      'could NOT look',
+      'seen:',
+    ])
+      expect(observation).not.toContain(verdictWord)
+    expect(prepared.run.webImageVision.size).toBe(0)
+    expectSelectedProviderOnly(
+      [
+        ...providerUsesOf(mockInspectWebImageCandidates, 'web-image vision'),
+        ...providerUsesOf(mockLlmTextCompletion, 'main model'),
+      ],
+      { adapterType: AI_ADAPTER_TYPES.GEMINI },
+    )
   })
 
   it('卡片助手对一下设定和外观：带着卡上的图去看，矛盾写进观察，主图地址不进模型读的状态', async () => {

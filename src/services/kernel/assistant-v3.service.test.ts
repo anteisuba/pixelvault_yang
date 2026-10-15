@@ -13,6 +13,10 @@ import {
 import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { AssistantModelKeyMissingError } from '@/lib/errors'
+import {
+  expectSelectedProviderOnly,
+  providerUsesOf,
+} from '@/test/selected-provider-only'
 import { AssistantOperatorStepSchema } from '@/types/assistant-operator'
 import type {
   AssistantOperatorCanvasNode,
@@ -2247,6 +2251,213 @@ describe('v3 内核 · 角色页', () => {
       "Already in front of you in the creator's message: 「card-1」 (picture 1 of IMAGES THE CREATOR POINTED AT)",
     )
     expect(next).toContain('only who they are counts')
+  })
+
+  /**
+   * ⭐ 联网找图的候选交给**主模型自己看**（owner 2026-10-15「一种看法」）：缩略图当一次 look
+   * 附给紧跟着的那一步，⛔ 不另起看缩略图的子调用、⛔ 不借别家的 key。
+   */
+  describe('联网找图：候选交给主模型自己看', () => {
+    const CARD_PNG = 'https://cdn.test/ron.png'
+    const searchRon = {
+      id: 'call_search',
+      name: 'search_library',
+      input: { query: '罗恩', kind: 'web_images', subject: '哈利波特 罗恩' },
+    }
+    const readWiki = {
+      id: 'call_read',
+      name: 'read',
+      input: { items: ['https://harrypotter.fandom.com/wiki/Ronald_Weasley'] },
+    }
+
+    function candidate(index: number, extra: Record<string, unknown> = {}) {
+      return {
+        imageUrl: `https://img.test/full-${index}.jpg`,
+        thumbnailUrl: `https://thumb.test/${index}.png`,
+        pageUrl: `https://site.test/${index}`,
+        domain: 'site.test',
+        usableAsInput: true,
+        sourceVerdict: 'allowed',
+        ...extra,
+      }
+    }
+
+    function preparedCards(route: { adapterType: string; modelId: string }) {
+      const cardsRun = {
+        stepSeq: 0,
+        signal: undefined,
+        inspectedCanvasReferences: null,
+        state: { referenceUrls: [], prompt: '' },
+      }
+      vi.mocked(prepareOperatorTurn).mockImplementationOnce(
+        async (_clerkId, request) =>
+          ({
+            request,
+            user: { id: 'user-1', displayName: null, username: null },
+            persona: { language: 'ui' },
+            rules: [],
+            route: {
+              adapterType: route.adapterType,
+              providerConfig: {},
+              apiKey: `${route.adapterType}-key`,
+            },
+            modelId: route.modelId,
+            run: cardsRun,
+          }) as never,
+      )
+      return cardsRun
+    }
+
+    /** 旧执行器那一跳：搜图交回这几张候选；读网页随便回一句。 */
+    function searchReturns(images: ReturnType<typeof candidate>[]) {
+      plan.mockImplementation(async (_run: unknown, tool: string) =>
+        tool === 'search_web_images'
+          ? {
+              kind: 'read',
+              payload: { query: '罗恩', limit: 8 },
+              run: async () => ({
+                result: { totalFound: images.length, images },
+                observation: `find_images("罗恩") → ${images.length} PREVIEW candidate(s) shown to the creator.`,
+              }),
+            }
+          : {
+              kind: 'rejected',
+              reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.repeatedStep,
+              detail: 'ok',
+            },
+      )
+    }
+
+    it('⭐ 能看图：缩略图只附给紧跟着的那一步；挂不上的不占名额；一张下不来只点名那一张', async () => {
+      const cardsRun = preparedCards({
+        adapterType: AI_ADAPTER_TYPES.OPENAI,
+        modelId: 'gpt-6-luna',
+      })
+      served.set(CARD_PNG, 'png')
+      served.set('https://thumb.test/1.png', 'png')
+      served.set('https://img.test/full-3.jpg', 'jpeg')
+      searchReturns([
+        candidate(1),
+        // 站方不许当输入：挂不上卡，⛔ 不占看图的名额。
+        candidate(2, { usableAsInput: false, sourceVerdict: 'blocked' }),
+        // 没缩略图就看原图。
+        candidate(3, { thumbnailUrl: undefined }),
+        // 缩略图下不来：只点名这一张。
+        candidate(4),
+      ])
+      const mock = script(
+        toolTurn(searchRon),
+        toolTurn(readWiki),
+        textTurn('候选 1 和 3 是罗恩。'),
+      )
+
+      const events = await collect(
+        runAssistantV3('clerk-1', cardsRequest('上网找几张罗恩的图')),
+      )
+
+      expect(plan).toHaveBeenCalledWith(
+        expect.objectContaining({ mainModelLooks: true }),
+        'search_web_images',
+        { query: '罗恩', subject: '哈利波特 罗恩', preferOfficial: true },
+        'user-1',
+      )
+      expect(cardsRun).toMatchObject({ mainModelLooks: true })
+      expect(fetchAsBuffer).not.toHaveBeenCalledWith(
+        'https://thumb.test/2.png',
+        expect.anything(),
+      )
+      const [before, next, after] = mock.doStreamCalls
+      // 板子上那张卡图一直在；候选只在紧跟着的那一步。
+      expect(attachedPictures(before!)).toEqual([CARD_PNG])
+      expect(attachedPictures(next!)).toEqual([
+        CARD_PNG,
+        'https://thumb.test/1.png',
+        'https://img.test/full-3.jpg',
+      ])
+      expect(attachedPictures(after!)).toEqual([CARD_PNG])
+      const nextText = promptText(next!)
+      expect(nextText).toContain('PREVIEW candidate(s)')
+      expect(nextText).toContain('1 = 「candidate 1」')
+      expect(nextText).toContain('2 = 「candidate 3」')
+      expect(nextText).toContain('Could not load 「candidate 4」')
+      expect(nextText).toContain('Which of these web pictures show 罗恩?')
+      expect(nextText).toContain('compare them with their own pictures')
+      expect(nextText).not.toContain('Nobody looked')
+      expect(promptText(after!)).toContain('for your next step only')
+      // 过程行：搜一行、看一行（看的是哪几张）。
+      const titles = events.flatMap((event) =>
+        event.type === 'step' && event.step.status === 'done'
+          ? [event.step.title]
+          : [],
+      )
+      expect(titles).toContain('联网找图 罗恩')
+      expect(titles).toEqual([
+        '联网找图 罗恩',
+        '查看「候选 1」；查看「候选 3」 等 1 项',
+      ])
+      expectSelectedProviderOnly(providerUsesOf(resolveModel, 'main model'), {
+        adapterType: AI_ADAPTER_TYPES.OPENAI,
+        apiKey: 'openai-key',
+      })
+    })
+
+    it('一次最多看 maxLookCards 张：多出来的照实点名，⛔ 不悄悄丢', async () => {
+      preparedCards({
+        adapterType: AI_ADAPTER_TYPES.OPENAI,
+        modelId: 'gpt-6-luna',
+      })
+      const images = Array.from({ length: 8 }, (_, index) =>
+        candidate(index + 1),
+      )
+      for (const image of images) served.set(image.thumbnailUrl, 'png')
+      searchReturns(images)
+      const mock = script(toolTurn(searchRon), textTurn('看了前六张。'))
+
+      await collect(runAssistantV3('clerk-1', cardsRequest('上网找罗恩的图')))
+
+      const next = mock.doStreamCalls[1]!
+      expect(attachedPictures(next)).toEqual(
+        images.slice(0, 6).map((image) => image.thumbnailUrl),
+      )
+      expect(promptText(next)).toContain(
+        'Only the first 6 pictures were looked at; 「candidate 7」, 「candidate 8」 were not',
+      )
+    })
+
+    it('所选模型看不了图（DeepSeek V4 Pro）：照实说没人看过、只凭标题，⛔ 不下图、不借别家', async () => {
+      preparedCards({
+        adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+        modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
+      })
+      served.set(CARD_PNG, 'png')
+      served.set('https://thumb.test/1.png', 'png')
+      searchReturns([candidate(1), candidate(2)])
+      const mock = script(toolTurn(searchRon), textTurn('只凭标题挑了一张。'))
+
+      const events = await collect(
+        runAssistantV3('clerk-1', cardsRequest('上网找几张罗恩的图')),
+      )
+
+      expect(fetchAsBuffer).not.toHaveBeenCalled()
+      const next = mock.doStreamCalls[1]!
+      expect(attachedPictures(next)).toEqual([])
+      expect(promptText(next)).toContain(
+        'Nobody looked at these candidates: the assistant model the creator picked cannot see pictures, and no other provider is used in its place',
+      )
+      expect(promptText(next)).toContain('picked them by title only')
+      // 只有搜图那一行，⛔ 没有「查看」那一行。
+      expect(
+        events.flatMap((event) =>
+          event.type === 'step' && event.step.status === 'done'
+            ? [event.step.tool]
+            : [],
+        ),
+      ).toEqual(['search_web_images'])
+      expectSelectedProviderOnly(providerUsesOf(resolveModel, 'main model'), {
+        adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+        apiKey: 'deepseek-key',
+      })
+    })
   })
 })
 

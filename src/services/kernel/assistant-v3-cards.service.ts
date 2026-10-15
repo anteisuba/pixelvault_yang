@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { tool } from 'ai'
+import { z } from 'zod'
 
 import {
   ASSISTANT_OPERATOR_LIMITS,
@@ -32,14 +33,18 @@ import type { AssistantOperatorEvent } from '@/types/assistant-operator'
 import { toStepEvent } from '@/services/kernel/assistant-operator.service'
 import {
   executeBenchLook,
+  inV3Words,
   joinOutcomes,
   refused,
   runOldTool,
 } from '@/services/kernel/assistant-v3-bench.service'
+import { executeV3Look } from '@/services/kernel/assistant-v3-look.service'
 import {
   joinPhrases,
   nextStep,
+  planSafely,
   sayAboveCard,
+  settlePlan,
   TITLE_TEXT,
   type V3Context,
   type V3Outcome,
@@ -231,6 +236,109 @@ export async function* executeAssistantV3CardsMutation(
   return outcome
 }
 
+/** 联网找图那一步结果里的候选：看图只要地址、缩略图与能不能挂。 */
+const WebImageCandidatesSchema = z.object({
+  images: z.array(
+    z.object({
+      imageUrl: z.string(),
+      thumbnailUrl: z.string().optional(),
+      usableAsInput: z.boolean().optional(),
+    }),
+  ),
+})
+
+/** 所选模型看不了图：候选一张都没人看过（⛔ 不借别家的 key 去看）。 */
+const WEB_CANDIDATES_TITLE_ONLY_NOTE =
+  'Nobody looked at these candidates: the assistant model the creator picked cannot see pictures, and no other provider is used in its place. You only have their titles and pages. If you offer any, say plainly in your reply that you picked them by title only, without seeing them, and suggest switching to a model that can see pictures if the creator wants them checked.'
+
+/** 交给主模型看候选时附的那一句：怎么认人由它自己判断（owner 2026-10-15）。 */
+function webCandidatesLookNote(name: string, hasCardPictures: boolean): string {
+  return `These are the web candidates listed above (candidate N = result N). Judge yourself which ones show ${name}${
+    hasCardPictures
+      ? ' — compare them with their own pictures already in front of you (card-N) and the profile'
+      : ' — compare them with the profile'
+  }; a different character, a cosplay photo or fan art that changes the design is not them. Offer only ones you saw as them and write each reason from what you saw. One you did not get to see may be offered only if you say it was judged by its title.`
+}
+
+/**
+ * 角色页联网找图（owner 2026-10-15「一种看法」）：搜完把候选的缩略图当一次 look 交给**主模型**，
+ * 由它自己判断哪几张是这位角色。
+ * ⛔ 不另起看缩略图的子调用（旧内核的 `inspectWebImageCandidates`，跑在视觉顺位挑中的那一家）、
+ * ⛔ 不借别家的 key、⛔ 没有藏起来的判定去筛 propose_images（旧执行器见 `run.mainModelLooks`）。
+ * 看图走 look 的硬规矩：只附给紧跟着的那一步、一次最多 `maxLookCards` 张、一张下不来只点名那一张。
+ * 所选模型看不了图：结果里明说「没人看过这些图，只凭标题」，由模型照实告诉创作者。
+ */
+async function* searchWebImagesAndLook(
+  context: V3Context,
+  query: string,
+  subject: string | null,
+): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
+  const tool = TOOL.searchWebImages
+  const text = TITLE_TEXT[context.language]
+  const plan = await planSafely(context, tool, {
+    query,
+    ...(subject ? { subject, preferOfficial: true } : {}),
+  })
+  let candidates: z.infer<typeof WebImageCandidatesSchema>['images'] = []
+  const searched = inV3Words(
+    yield* settlePlan(
+      context,
+      tool,
+      `${text.searchImages} ${query}`,
+      plan.kind === 'read'
+        ? {
+            ...plan,
+            run: async () => {
+              const found = await plan.run()
+              candidates =
+                WebImageCandidatesSchema.safeParse(found.result).data?.images ??
+                []
+              return found
+            },
+          }
+        : plan,
+    ),
+  )
+  if (searched.kind !== 'result' || searched.error || candidates.length === 0)
+    return searched
+  if (!context.seesImages)
+    return joinOutcomes([
+      searched,
+      { kind: 'result', output: WEB_CANDIDATES_TITLE_ONLY_NOTE, error: false },
+    ])
+  const open = context.request.snapshot.cards?.open
+  const name = open?.name ?? subject ?? query
+  // 标了 REFERENCE ONLY 的挂不上卡，⛔ 占看图的名额；编号照搜索结果的顺序，与上面那张单子对得上。
+  const targets = candidates.flatMap((image, index) =>
+    image.usableAsInput === false
+      ? []
+      : [
+          {
+            url: image.thumbnailUrl ?? image.imageUrl,
+            label: `candidate ${index + 1}`,
+            title: text.candidate(index + 1),
+          },
+        ],
+  )
+  if (targets.length === 0) return searched
+  const look = yield* executeV3Look(context, {
+    targets,
+    notes: [webCandidatesLookNote(name, openCharacterImages(open).length > 0)],
+    question: `Which of these web pictures show ${name}?`,
+  })
+  return joinOutcomes([
+    searched,
+    // 缩略图一张都没下来：搜索本身是成的，⛔ 记成失败（连着两次会掐掉整轮）；照实说只剩标题。
+    look.kind === 'result' && look.error
+      ? {
+          kind: 'result',
+          output: `${look.output}\nNone of the candidates could be seen, so you only have their titles: if you offer any, say plainly that they were judged by title only.`,
+          error: false,
+        }
+      : look,
+  ])
+}
+
 /** `card` 或 `card-N`（打开那位卡上的第 N 张图）。 */
 const CARD_PICTURE = new RegExp(
   `^${ASSISTANT_V3_CARDS_ITEM_IDS.card}(?:-(\\d+))?$`,
@@ -353,16 +461,10 @@ export async function* executeAssistantV3CardsCall(
     case ASSISTANT_V3_TOOL_IDS.searchLibrary: {
       const parsed = AssistantV3ImageSearchLibraryInputSchema.parse(input)
       if (parsed.kind === ASSISTANT_V3_WEB_IMAGES_SEARCH_KIND)
-        return yield* runOldTool(
+        return yield* searchWebImagesAndLook(
           context,
-          TOOL.searchWebImages,
-          `${text.searchImages} ${parsed.query}`,
-          {
-            query: parsed.query,
-            ...(parsed.subject?.trim()
-              ? { subject: parsed.subject.trim(), preferOfficial: true }
-              : {}),
-          },
+          parsed.query,
+          parsed.subject?.trim() || null,
         )
       return yield* runOldTool(
         context,

@@ -319,6 +319,11 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
    */
   'videoFramesFailed',
   /**
+   * 这一轮指着的片子超过 `ASSISTANT_V3_CLIP_LIMITS.maxClips` 段（看图期第二段）：只抽了前几段，
+   * 其余助手这一轮看不到。⛔ 不静默 —— 用户以为三段都给它看了。`count` = 上限。
+   */
+  'clipsOverCap',
+  /**
    * **存下了助手提议的那张上下文卡**（v2 §8.1，commit #14）——「已存上下文卡 X」。
    *
    * ⭐ 判据与 `questionAnswered` 逐字同源：确认卡就地换成「已确认 · 11:24」之后，

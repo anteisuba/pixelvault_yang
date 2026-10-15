@@ -79,6 +79,7 @@ import {
 import {
   ASSISTANT_KERNEL_IDS,
   ASSISTANT_KERNEL_STORAGE_KEY,
+  ASSISTANT_V3_CLIP_LIMITS,
   ASSISTANT_V3_FACES,
 } from '@/constants/assistant-v3'
 import { CONTEXT_CARD_STATUS_IDS } from '@/constants/context-cards'
@@ -135,6 +136,10 @@ import {
 import { buildCanvasGenerationRequest } from '@/lib/studio-operator-canvas-snapshot'
 import { collectStepArtifacts } from '@/lib/studio-operator-artifacts'
 import { captureVideoEndpointFrames } from '@/lib/video-frame-capture'
+import {
+  capturePointedClips,
+  resolvePointedClips,
+} from '@/lib/assistant-pointed-clips'
 import { streamAssistantOperatorAPI } from '@/lib/api-client/assistant-operator'
 import { importWebImageAPI } from '@/lib/api-client/web-image-import'
 /** ⚠ Hard Rule 3：写库走 api-client，⛔ 组件与 hook 里不 `fetch`。 */
@@ -521,9 +526,12 @@ function lastUserMedia(
  */
 function buildMentionedAssets(
   entries: readonly StudioOperatorThreadEntry[],
-  domain: AssistantOperatorDomain,
+  /**
+   * 视频进不进名单：只有**旧内核的视频域**（那边的看片评审吃三帧，片子得是它认得的目标）。
+   * ⚠ v3 一律只放图：片子走 `videoClips`（看图期第二段），放进这张名单只会被当成一张下不来的图。
+   */
+  isVideoDomain: boolean,
 ): NonNullable<AssistantOperatorRequest['mentionedAssets']> {
-  const isVideoDomain = domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video
   /**
    * ⭐ `@` 的在前、📎 的在后：看图上限（`ASSISTANT_MENTION_LIMITS.lookImages`）截的是
    * 名单前几张，指名道姓的那几张先占位。同一张图两边都有时只算一次（按地址）。
@@ -721,6 +729,8 @@ interface RunOptions {
   resumeFrom?: AssistantOperatorResumeFrom
   /** v3：上一跳收到的本轮记录，画布接力时原样带回（⛔ 新一轮不带）。 */
   v3Transcript?: AssistantV3Transcript
+  /** v3：这一轮抽好的那几段片子，接力时原样带回（⛔ 不重抽）。 */
+  videoClips?: AssistantOperatorRequest['videoClips']
   /** 回答底下「用 Grok 搜这一次」发出的那一轮（owner 2026-10-14）：只管这一跳。 */
   searchWithGrok?: boolean
 }
@@ -1210,7 +1220,12 @@ export function useAssistantOperator(
        * ⚠ 只带最后几条对白（`historyToOperatorMessages` 自己截），显示是全部。
        */
       const { entries, history, sessionId } = getOperatorState()
-      const mentionedAssets = buildMentionedAssets(entries, domain)
+      /** 这一轮走 v3（看图期第二段：片子由 Denia 自己看）还是旧内核（三帧评审）。 */
+      const usesV3 = ASSISTANT_V3_FACES.includes(domain) && !readsLegacyKernel()
+      const mentionedAssets = buildMentionedAssets(
+        entries,
+        !usesV3 && domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video,
+      )
       const messages = [
         ...historyToOperatorMessages(history),
         ...buildMessages(entries),
@@ -1230,7 +1245,9 @@ export function useAssistantOperator(
        * 可教的拒绝，助手会如实说它看不了。但线程里必须留一行说清楚**为什么**
        * ——⛔ 不静默（见 `videoFramesFailed` 那条系统码的头注）。
        */
-      const videoSourceUrl = resolveVideoCritiqueSource(domain, entries)
+      const videoSourceUrl = usesV3
+        ? null
+        : resolveVideoCritiqueSource(domain, entries)
       let videoFrames: AssistantOperatorRequest['videoFrames']
       if (videoSourceUrl) {
         setOperatorCapturingFrames(true)
@@ -1279,6 +1296,47 @@ export function useAssistantOperator(
         snapshot,
         getOperatorState().changes,
       )
+
+      /**
+       * ⭐ **v3 看片的帧生产者**（看图期第二段，owner 2026-10-15）：被指着的片子（@ / 📎 /
+       *   视频台挂着的，最多 `maxClips` 段）在请求发出去之前按片长抽好帧。
+       * ⚠ 快照要先拍：视频台挂着的那几段从快照里读（与板子上的 `video-N` 同一份）。
+       * ⚠ 接力（画布 canvas_sync / 时间预算）把上一跳的那一份原样带回来，⛔ 不重抽、不重复
+       *   系统行。抽帧失败不拦这一轮：照样发（Gemini 还能看片子本体），线程里留一行原因。
+       */
+      let videoClips = options.videoClips
+      if (usesV3 && !videoClips) {
+        const pointed = resolvePointedClips({
+          mentions: pointedMentions,
+          attachments: lastUserAttachments(entries),
+          referenceVideos: snapshot.videoReferences?.items,
+        })
+        if (pointed.clips.length) {
+          setOperatorCapturingFrames(true)
+          try {
+            const captured = await capturePointedClips(pointed.clips)
+            if (!isCurrentRun()) return
+            videoClips = captured.videoClips
+            for (const reason of captured.failures)
+              appendOperatorEntry({
+                kind: 'system',
+                id: nextOperatorEntryId('sys'),
+                code: 'videoFramesFailed',
+                subject: reason,
+              })
+          } finally {
+            if (isCurrentRun()) setOperatorCapturingFrames(false)
+          }
+          if (!isCurrentRun()) return
+        }
+        if (pointed.overflow > 0)
+          appendOperatorEntry({
+            kind: 'system',
+            id: nextOperatorEntryId('sys'),
+            code: 'clipsOverCap',
+            count: ASSISTANT_V3_CLIP_LIMITS.maxClips,
+          })
+      }
 
       const result = await streamAssistantOperatorAPI(
         {
@@ -1346,6 +1404,7 @@ export function useAssistantOperator(
           ...(searchWithGrok ? { searchWithGrok: true as const } : {}),
           ...(timeZone ? { timeZone } : {}),
           ...(videoFrames ? { videoFrames } : {}),
+          ...(videoClips?.length ? { videoClips } : {}),
           ...(confirmations?.length ? { confirmations } : {}),
           ...(planAnswers?.length ? { planAnswers } : {}),
           ...(planApproved === undefined ? {} : { planApproved }),
@@ -2060,6 +2119,7 @@ export function useAssistantOperator(
               ? (toResumeFrom(resume) ?? undefined)
               : undefined,
             v3Transcript: v3Transcript ?? undefined,
+            videoClips,
           })
           return
         }

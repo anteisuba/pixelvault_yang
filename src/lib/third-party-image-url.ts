@@ -7,8 +7,10 @@ import {
  * **第三方网图在面板里怎么取**（助手找图，2026-10-15 · 附录 I §3.4）。
  *
  * 两层：
- *  ① 一律 `referrerPolicy="no-referrer"` 直连 —— 大多数图床拒的是「别家站的 Referer」，
+ *  ① 直连一律 `referrerPolicy="no-referrer"` —— 大多数图床拒的是「别家站的 Referer」，
  *     空 Referer 放行；这一层在组件上（`useThirdPartyImage`），这里不管。
+ *     ⚠ 打自家代理那一下反过来带 `origin`（只有 `https://www.anteisuba.com`）：Worker 只认
+ *     自家页面来的请求，不带头的一律 403，免得被人拿去当免费的 pixiv 图床。
  *  ② 连空 Referer 也拒的那几家（`WEB_IMAGE_HOTLINK_PROXY.hosts`）先走自家图片代理的
  *     `/hotlink/` 那一支（Worker 带上它们站内的 Referer 去取），**取不到再退回直连**。
  *
@@ -41,6 +43,16 @@ export function hotlinkProxyImageUrl(url: string): string | null {
     return null
   }
   return `${base}${WEB_IMAGE_HOTLINK_PROXY.pathPrefix}/${host}${parsed.pathname}${parsed.search}`
+}
+
+/** 这个地址是不是自家代理的 `/hotlink/` 那一支（`hotlinkProxyImageUrl` 的产物）。 */
+export function isHotlinkProxyImageUrl(url: string): boolean {
+  const rawBase = process.env.NEXT_PUBLIC_CIVITAI_IMAGE_PROXY_BASE
+  const base = rawBase ? rawBase.replace(/\/+$/, '') : null
+  return (
+    Boolean(base) &&
+    url.startsWith(`${base}${WEB_IMAGE_HOTLINK_PROXY.pathPrefix}/`)
+  )
 }
 
 /**

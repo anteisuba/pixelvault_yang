@@ -12,17 +12,18 @@ afterEach(() => {
 })
 
 describe('useThirdPartyImage', () => {
-  it('不带 Referer；取不到就换下一个地址，全试完 = exhausted', () => {
+  it('打代理只带源站、直连不带 Referer；取不到就换下一个地址，全试完 = exhausted', () => {
     vi.stubEnv('NEXT_PUBLIC_CIVITAI_IMAGE_PROXY_BASE', BASE)
     const { result } = renderHook(() => useThirdPartyImage(PIXIV, THUMB))
 
-    expect(result.current.referrerPolicy).toBe('no-referrer')
     expect(result.current.src).toBe(
       `${BASE}/hotlink/i.pximg.net/img-original/img/1_p0.png`,
     )
+    expect(result.current.referrerPolicy).toBe('origin')
 
     act(() => result.current.onError())
     expect(result.current.src).toBe(PIXIV)
+    expect(result.current.referrerPolicy).toBe('no-referrer')
 
     act(() => result.current.onError())
     expect(result.current.src).toBe(THUMB)

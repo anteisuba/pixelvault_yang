@@ -111,17 +111,26 @@ function setupHotlink(responses) {
   const queue = [...responses]
   mock.method(globalThis, 'fetch', async (input, init) => {
     calls.push({ url: String(input), init })
-    return queue.shift() ?? new Response(png, { headers: { 'Content-Type': 'image/png' } })
+    return (
+      queue.shift() ??
+      new Response(png, { headers: { 'Content-Type': 'image/png' } })
+    )
   })
   Object.defineProperty(globalThis, 'caches', {
     configurable: true,
     value: { default: { match: async () => undefined, put: async () => {} } },
   })
   const pending = []
-  return { calls, ctx: { waitUntil: (promise) => pending.push(promise) }, pending }
+  return {
+    calls,
+    ctx: { waitUntil: (promise) => pending.push(promise) },
+    pending,
+  }
 }
 
-const hotlink = (path, headers) =>
+// 面板打这一支时 `referrerPolicy="origin"`：默认带上自家源站。
+const OWN_PAGE = { Referer: 'https://www.anteisuba.com/' }
+const hotlink = (path, headers = OWN_PAGE) =>
   new Request(`https://img.anteisuba.com/hotlink/${path}`, { headers })
 
 test('hotlink: fetches the allow-listed host with that site’s own Referer', async () => {
@@ -185,17 +194,28 @@ test('hotlink: another website embedding us with its Referer is refused', async 
   assert.equal(calls.length, 0)
 })
 
-test('hotlink: our own pages (and no Referer at all) are served', async () => {
-  for (const referer of [undefined, 'https://www.anteisuba.com/en/studio']) {
+test('hotlink: our own pages are served', async () => {
+  for (const headers of [
+    { Referer: 'https://www.anteisuba.com/en/studio' },
+    { Origin: 'https://www.anteisuba.com' },
+  ]) {
     const { ctx } = setupHotlink([])
     const response = await worker.fetch(
-      hotlink('i.pximg.net/x.jpg', referer ? { Referer: referer } : undefined),
+      hotlink('i.pximg.net/x.jpg', headers),
       {},
       ctx,
     )
     assert.equal(response.status, 200)
     mock.restoreAll()
   }
+})
+
+test('hotlink: no Referer and no Origin → 403, nothing fetched', async () => {
+  const { calls, ctx } = setupHotlink([])
+  const response = await worker.fetch(hotlink('i.pximg.net/x.jpg', {}), {}, ctx)
+  assert.equal(response.status, 403)
+  assert.equal(calls.length, 0)
+  mock.restoreAll()
 })
 
 test('hotlink: follows a redirect inside the allow-list only', async () => {
@@ -205,7 +225,11 @@ test('hotlink: follows a redirect inside the allow-list only', async () => {
       headers: { Location: 'https://i1.hdslb.com/bfs/moved.jpg' },
     }),
   ])
-  const response = await worker.fetch(hotlink('i0.hdslb.com/bfs/a.jpg'), {}, ctx)
+  const response = await worker.fetch(
+    hotlink('i0.hdslb.com/bfs/a.jpg'),
+    {},
+    ctx,
+  )
   assert.equal(response.status, 200)
   assert.deepEqual(
     calls.map((call) => call.url),
@@ -220,7 +244,11 @@ test('hotlink: ⛔ a redirect off the allow-list is a 502, not followed', async 
       headers: { Location: 'https://evil.example/payload' },
     }),
   ])
-  const response = await worker.fetch(hotlink('i0.hdslb.com/bfs/a.jpg'), {}, ctx)
+  const response = await worker.fetch(
+    hotlink('i0.hdslb.com/bfs/a.jpg'),
+    {},
+    ctx,
+  )
   assert.equal(response.status, 502)
   assert.equal(calls.length, 1)
 })

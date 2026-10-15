@@ -94,7 +94,8 @@ export const ModelName = {
   GenerationLayer: 'GenerationLayer',
   InspirationPrompt: 'InspirationPrompt',
   ContextCard: 'ContextCard',
-  AssistantMemory: 'AssistantMemory'
+  AssistantMemory: 'AssistantMemory',
+  AssistantTurnRecord: 'AssistantTurnRecord'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -971,6 +972,36 @@ export const AssistantMemoryScalarFieldEnum = {
 } as const
 
 export type AssistantMemoryScalarFieldEnum = (typeof AssistantMemoryScalarFieldEnum)[keyof typeof AssistantMemoryScalarFieldEnum]
+
+
+export const AssistantTurnRecordScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  turnId: 'turnId',
+  hops: 'hops',
+  outcome: 'outcome',
+  errorCode: 'errorCode',
+  workspaceKey: 'workspaceKey',
+  domain: 'domain',
+  projectId: 'projectId',
+  conversationId: 'conversationId',
+  adapterType: 'adapterType',
+  modelId: 'modelId',
+  routeModel: 'routeModel',
+  apiKeyId: 'apiKeyId',
+  systemPromptHash: 'systemPromptHash',
+  promptVersion: 'promptVersion',
+  input: 'input',
+  snapshot: 'snapshot',
+  transcript: 'transcript',
+  snapshotBytes: 'snapshotBytes',
+  sizeBytes: 'sizeBytes',
+  truncated: 'truncated',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AssistantTurnRecordScalarFieldEnum = (typeof AssistantTurnRecordScalarFieldEnum)[keyof typeof AssistantTurnRecordScalarFieldEnum]
 
 
 export const SortOrder = {

@@ -213,6 +213,7 @@ model User {
   assistantMemories      AssistantMemory[]
   mcpTokens              McpToken[]
   danbooruFavorites      DanbooruFavorite[]
+  assistantTurnRecords   AssistantTurnRecord[]
 
   @@index([username])
   @@index([isDeleted])
@@ -1618,4 +1619,68 @@ model AssistantMemory {
   @@index([userId, scope, lastUsedAt(sort: Desc)])
   /// 画布按项目取那个项目的记忆。
   @@index([userId, projectId, lastUsedAt(sort: Desc)])
+}
+
+/// 助手每一轮的过程（owner 2026-10-15「建表」）：开轮时的画布 / 工作台快照、本轮记录（v3
+/// transcript）与那一轮用的模型，供以后原样回放（`src/test/assistant-replay/from-turn-record.ts`
+/// 把一行变成一道回放题）。写在服务端每一跳的末尾，失败只记一行警告，⛔ 不影响这一轮。
+///
+/// ⭐ **一轮一行**：开轮那一跳服务端发 `turnId`，随本轮记录（板子那一条）往返；画布接力的
+///   每一跳写同一行。快照只在第一跳写 —— 那才是这一轮开始时的板子（后几跳的快照已经落了改动）。
+/// ⛔ 不进会话分享（`AssistantConversationShare` 只读会话那一行）、不进任何导出；隐身那一轮不写。
+/// ⛔ 只存 key 的 id，⛔ 不存 key 本身或任何解出来的东西；快照里的 data: 地址与视频帧一律摘掉。
+/// ⚠ 每行 ≤ 256 KB（`input` + `snapshot` + `transcript` 三段 JSON 的 UTF-8 字节，`sizeBytes`）：超了先截
+///   本轮记录、再丢快照，截了哪几样记在 `truncated`。留 30 天、每人最近 200 条：写的时候顺手删这个人
+///   超出的，每日 sweep 删全表过期的（不再写的人也到期就删）。
+/// ⚠ `conversationId` 不加 FK（与 `AssistantMemory` 同）：会话的第一轮还没落库、没有它；会话删了
+///   这几行照样按 30 天到期。
+model AssistantTurnRecord {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// 这一轮的号（开轮那一跳发的 uuid）；`hops` = 已经写到第几跳。
+  turnId    String
+  hops      Int
+  /// 这一轮怎么收的（`ASSISTANT_TURN_RECORD_OUTCOMES`）。`relay` = 还在接力：没收尾就断了的停在这。
+  outcome   String
+  /// 这一轮抛错收场时的错误码（`GenerationError.errorCode`）。
+  errorCode String?
+
+  workspaceKey   String
+  /// 哪张脸（`ASSISTANT_OPERATOR_DOMAINS`：canvas / image / video / lora / cards）。
+  domain         String
+  /// 画布项目（`canvas:<projectId>` 的那一段）。弱引用，无 FK。
+  projectId      String?
+  conversationId String?
+
+  /// 这一轮实际用的那一家、那个型号、那把 key 的 id；`routeModel` = persona 里选的那一档（`auto` = 自动）。
+  adapterType String
+  modelId     String
+  routeModel  String?
+  apiKeyId    String?
+
+  /// 这一轮系统提示的 sha256（含人设、规矩、记忆 —— 只比得出「变没变」，正文不存）。
+  systemPromptHash String
+  promptVersion    String
+
+  /// 请求里回放要用的那几样（对话、`@`、附件、片子的地址与帧数……）。
+  input         Json
+  /// 开轮时的快照（`AssistantOperatorSnapshot`）；超限丢掉 / 第一跳没写成时为空。
+  snapshot      Json?
+  /// v3 本轮记录（`AssistantV3Transcript`）。
+  transcript    Json
+  snapshotBytes Int      @default(0)
+  sizeBytes     Int
+  truncated     String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// 同一轮的各跳写同一行（按人收窄，⛔ 别人的 turnId 碰不到这一行）。
+  @@unique([userId, turnId])
+  /// 写时顺手删：这个人 30 天前的、超出最近 200 条的。
+  @@index([userId, createdAt(sort: Desc)])
+  /// 每日 sweep 删全表过期的。
+  @@index([createdAt])
 }

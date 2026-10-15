@@ -119,6 +119,14 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
   - 媒体附件的闸：旧内核那道「只有 Gemini 收媒体附件」（`lib/assistant-media-gate.ts`）在 v3 上先把视频附件摘掉再过（片子改由 `videoClips` 上来），所以 OpenAI / Claude / Grok 的 v3 回合不再被 `ASSISTANT_VIDEO_UNSUPPORTED` 挡在门口；退回旧内核时用原请求，旧行为不变。音频附件不动。
 - **`@` 对照表与看图上限**（统一引用模型，`assistant-shell-v2.md` §4.4）：客户端把每枚 `@` 按 id 解析好、正文写成 `「名字」`，请求带 `mentions`。服务端在每张脸的板子末尾接一段 `MENTIONED`（`lib/assistant-v3-mentions.ts`）：「名字」→ 句柄（画布按 `nodeId`、角色页按角色 id、LoRA 台按 LoRA id），附上的图写第几张，其余写清种类与「不在板上」；板子先截、表后接，⛔ 大画布不能把表挤掉。画布被 `@` 的卡按 `nodeId` 认（画布图片也算），⛔ 不再拿名字比；没带 id 的老附图只在名字唯一时认卡。`look` 先按 `nodeId` 找图、再按参考位地址，名字只兜没带 id 的那几条。看图上限 `maxLookCards` = `ASSISTANT_MENTION_LIMITS.lookImages`（6，面板「只细看前 6 张」同一个数），指了更多张时板子上多一行 `LOOK CAP`。
 
+### 每轮的过程记录（owner 2026-10-15「建表」）
+
+- **记什么**：每一跳收尾（`runAssistantV3` 的 `finally`）交一份草稿给 `recordAssistantTurn`（`services/assistant-turn-record.service.ts`），写进 `AssistantTurnRecord`：开轮时的快照、本轮记录、请求里回放要用的那几样、这一轮那一家 / 型号 / key 的 id、系统提示的 sha256 与 `ASSISTANT_V3_PROMPT_VERSION`（改了系统提示的固定段落就把它往前拨）。⛔ 不等、不抛：写不进只记一行警告。表、上限、保留见 `database.md`「助手每轮的过程记录」。
+- **一轮一行**：板子那一条带 `turn: { id, hop }`（`AssistantV3TranscriptBoardEntrySchema`）。开轮服务端发号，接力时前端原样带回、服务端加一跳；号 ⛔ 不进模型看的东西（板子给模型的只有 `text` / `images` / `clips`，回放「接力前缀逐字不变」照样过）。老客户端带回来的记录没有号：另起一个号、跳数记 2，这一行就不会把已落了改动的快照当开轮的存。
+- **怎么收的**（`outcome`）：`done` 那一帧分不出来的几种由 `runV3Turn` 当场写下 —— `quiet`（改动已落、收尾空回复，回放末尾补一条空回复）、`empty`（连着两次空回复，补两条）、`content_filter`、`same_failure`；停下的按原因记 `awaiting_confirm` / `max_steps` / `relay`（画布接力、时间预算）/ `aborted`；抛错记 `error` 与错误码。
+- **不记**：隐身那一轮（与结账不写记忆同一颗开关）；交回旧内核的、开跑前就失败的（缺 key、没有画布 —— 没造出模型、没冻板子）。
+- **转回回放题**：`src/test/assistant-replay/from-turn-record.ts`（纯函数，⛔ 不连库）把导出的一行变成起始画布 + 题目草稿，补不出来的列在 `gaps`。回放基线每一题都对账自己写下的那一行（`graders.ts` 的 `gradeTurnRecord`）。
+
 ## 3. 回放题
 
 在副本 `马尔福·回放副本` 上跑，每题新开对话、自动生成关。每题前用一条 SQL 把副本的 `state` 还原成母本 `马尔福·回放母本` 的，并把副本上的会话挪到母本名下（新开对话）。判分只看事件流里的 op 与最终回复，步数含被拒的草稿步；token 按 Workers Logs 里 `assistant llm call` 的时间窗统计。在隐藏标签页里 @ 一张卡：插入「@关键词」（@ 后不能有空格），再点选择器里的 `button[role=option]`。
@@ -155,6 +163,8 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 
 上表是真机回放（人跑、看事件流判分）。附录M 五.6 另立一套**自动**的：`src/test/assistant-replay/`，`npm run test:replay`，约 15 秒，也在 `npx vitest run` 里。真路由 → 整条 v3 环 → `resolveAssistantRoute`，只把网络（录好的模型回复）、库、Clerk 换掉；每题都查「只用所选那一家」（每次碰模型都是选定的那一家、型号、key）。**每一期（S 片 / 附录M 各期）改完都跑**，红了先看是不是改坏了别的题，再决定改题还是改代码。怎么加题见 `testing.md`「助手回放基线」。
 
+每道题还对账这一轮写下的过程记录（`gradeTurnRecord`）：整轮只写一行、只存 key 的 id、没有图的字节、开轮快照就是路由收下的那一份；这一行经 `from-turn-record.ts` 转回来，画布的卡与线、选的那一家与型号、这一句、整轮的模型回复、怎么收的都与题目一样。缺 key 那一题（K01）一行都不写。
+
 | 题                    | 路由（选定的那一家）                   | 查什么                                                        |
 | --------------------- | -------------------------------------- | ------------------------------------------------------------- |
 | T11 · T12 · T13       | Gemini / 自动→Luna · DeepSeek · Claude | 只答：不落 op、不出卡                                         |
@@ -186,6 +196,7 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 - `src/types/assistant-v3.ts`（工具入参与本轮记录）· `src/constants/assistant-v3.ts`
 - 开关：`src/app/api/studio/assistant-operator/route.ts` · `src/hooks/use-assistant-operator.ts`
 - 自动回放基线：`src/test/assistant-replay/`（题在 `fixtures/cases/`，判分在 `graders.ts`）
+- 每轮的过程记录：`src/services/assistant-turn-record.service.ts`（写与删）· `src/lib/assistant-turn-record.ts`（摘 data: 地址、挑请求字段、按上限截）· `src/constants/assistant-turn-record.ts` · `src/types/assistant-turn-record.ts`；一行转回回放题：`src/test/assistant-replay/from-turn-record.ts`
 
 ### 项目笔记（S4，2026-10-09）
 
@@ -194,6 +205,8 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 - 结账提示在画布项目里换一段：记这个项目的角色 / 画风 / 规矩，只留在这个项目；「未成年」只挡真人，故事里角色的年龄与年级照记，与性有关的一概不记。
 
 ## Last Verified
+
+- 2026-10-15 · 每轮的过程记录接进 v3（`AssistantTurnRecord`，迁移只在 PGlite 上回放过、未对共用库执行）：`npm run test:replay` 19 题 × 路由 = 25 跑全绿，每一跑都对账自己写下的那一行并原样转回题目（含五家各跑一遍的 T25、两跳接力的 T01 / T03、看片的 V01 / V02）；把转换器故意改坏（丢最后一条回复）时 T11 两跑都红。v3 内核单测补了号与跳数、接力同号、老客户端丢号、空回复 / 审核 / 等确认 / 抛错的收尾、隐身与交回旧内核不记。
 
 - 2026-10-15 · 自动回放基线落地（`npm run test:replay`）：19 题 × 路由 = 25 跑 + 判分器反例 6 条，全绿，约 15 秒；没有揭出真 bug（无 `knownBug`）。
 

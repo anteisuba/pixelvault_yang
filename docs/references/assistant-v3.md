@@ -59,9 +59,9 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
   - ⭐ 清晰度是花钱的那一格：创作者话里没提清晰度（1080p、清晰度、分辨率…）就不改 —— 写在代码里，提示词管不住（回放 V1 两次自选 1080p）。
   - 系统提示沿用旧内核的视频规矩：按时间写动作与运镜、台词按时长（约 2.5 词 / 秒）、首尾帧是具名槽、原声只在创作者要时动、声音参考搜一两次没有就直说。怎么看片不在视频规矩里，在五张脸共用的 `WATCHING CLIPS` 一段（见下「看片」）。
 - **角色页**（`assistant-v3-cards.service.ts` · `lib/assistant-v3-cards-board.ts`）：不改任何东西 —— 没有 write / generate，三种 edit 都是提议，出卡、停下等创作者勾（服务端不写库）。板子：角色名册用句柄（`char-b27ce8`，同名角色不止一位）、打开那位的五格设定与标签，卡上的图跟着板子给模型看（`card-1` …）。
-  - edit：`propose_profile`（逐格带出处）· `propose_images`（本轮检索到的资产 id 或网图地址）· `hand_off`（交给图片助手；那句话里的句柄服务端换回角色名）。一条回复只走第一份提议。
+  - edit：`propose_profile`（逐格带出处）· `propose_images`（本轮检索到的资产 id，或找到的图的号 `#3` —— 这一轮或上一轮的，服务端换回地址；⛔ 模型不写地址）· `hand_off`（交给图片助手；那句话里的句柄服务端换回角色名）。一条回复只走第一份提议。
   - read：设定某一格全文，或一个网址（读 wiki 角色页 / 故事页 / 语音页）；look `card` / `card-N`：创作者问图与设定对不对时，指给模型看卡上的图（前 6 张已跟着板子附上，再往后的才附），由它自己对 —— 只比身份（发色、瞳色、肤色、年龄、体型、种族、伤疤犄角），衣服、姿势、表情、背景、画风不算。⛔ 不再另起 `check_character_look`（v2 照旧）。
-  - search_library `kind: "web_images"`（联网找图，owner 2026-10-15「一种看法」）：搜完把候选的缩略图当一次 look 交给**主模型**（`searchWebImagesAndLook`），按搜索结果编号（`candidate N`，过程行「候选 N」），由它对照卡上的图与设定自己判断哪几张是这位。走 look 的硬规矩：只附给紧跟着的那一步、一次最多 6 张（多出来的点名）、一张下不来只点名那一张；标了 REFERENCE ONLY 的挂不上卡，⛔ 不占看图名额。所选模型看不了图：结果里明说「没人看过这些候选、只凭标题」，由模型照实告诉创作者。⛔ 不另起看缩略图的子调用（v2 的 `inspectWebImageCandidates` 跑在视觉顺位挑中的那一家，会悄悄借别家的 key）、⛔ 没有藏起来的判定去筛 `propose_images`：v3 设 `run.mainModelLooks`，旧执行器的搜图那一步只搜、只列，不写判词、不按判词丢图。
+  - search_library `kind: "web_images"`（联网找图，owner 2026-10-15「一种看法」）：搜完把候选的缩略图当一次 look 交给**主模型**（`searchWebImagesAndLook`），按找到的东西的号（`#n`，与卡片上、模型读的那一行同一个号；过程行「候选 #n」），由它对照卡上的图与设定自己判断哪几张是这位。走 look 的硬规矩：只附给紧跟着的那一步、一次最多 6 张（多出来的点名）、一张下不来只点名那一张；标了 view only 的挂不上卡，⛔ 不占看图名额。所选模型看不了图：结果里明说「没人看过这些候选、只凭标题」，由模型照实告诉创作者。⛔ 不另起看缩略图的子调用（v2 的 `inspectWebImageCandidates` 跑在视觉顺位挑中的那一家，会悄悄借别家的 key）、⛔ 没有藏起来的判定去筛 `propose_images`：v3 设 `run.mainModelLooks`，旧执行器的搜图那一步只搜、只列，不写判词、不按判词丢图。
   - search_library `kind: "web_videos"`：与别的脸同一条（只搜、只列，⛔ 不走 look —— 视频没有能交给模型看的那一帧）。
   - 系统提示沿用旧内核的角色页规矩：设定四部分 + 外观一句、原作先查原文、改编角色按原作改写或先问方向、原创先问方向、好图的标准、换衣不算矛盾。
 
@@ -69,9 +69,23 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 
 - `search_library` 的 `kind` 除了自己的素材（`image` / `video` / `audio`，LoRA 台是 `lora`），**每张脸**都多两种：`web_images`（联网找图）与 `web_videos`（联网找视频）。入参多一个可空的 `subject`（作品 + 角色，只有找图用它铺多语言查询）。路由在 `assistant-v3-bench.service.ts` 的 `runWebFind`：`web_images` → 旧执行器 `search_web_images`（`preferOfficial`），`web_videos` → `search_web_videos`；角色页的 `web_images` 仍走 `searchWebImagesAndLook`（上面那条）。两条描述的文案只有一份（`ASSISTANT_V3_WEB_IMAGES_KIND_DESCRIPTION` / `ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION`，`constants/assistant-v3.ts`），系统提示每张脸的工具段各有一行（`WEB_VIDEOS_LINE`）。
 - **找视频**（`services/web-video-search.service.ts`）：平台的 Serper `/videos`（`SERPER_API_KEY`）+ 已有的 B站连接器（中文查询或点了 B站才打），两路并发、按嵌入地址去重、最多 8 条。⛔ 不走模型的自带联网、⛔ 不碰创作者的模型 key（钱闸测试锁源码）。来源名单照样管（`filterResearchSources` / `filterEvidenceIndices`）。
-- **模型拿到什么**：每支一行 `#n · 标题 · 频道 · 平台 · 时长`，外加「你没看过这些、只凭标题判断」「⛔ 别导入、别把视频地址写进提示词、用 #n 指代」。整卡数据（封面、域名、日期…）只走步骤事件给面板。搜空了：⛔ 编视频 / 链接，换一次说法（作品官方名、原文名、PV / trailer / tutorial）再说没有。
+- **模型拿到什么**：每支一行 `#n · 标题 · 频道 · 平台 · 时长`，外加「你没看过这些、只凭标题判断」「⛔ 别导入、别把视频地址写进提示词、用 #n 指代」。整卡数据（封面、域名、日期…）只走步骤事件给面板。2026-10-15 第三片起找图同样一行一条、与视频共用一套号，见下「找到的东西的编号 `#n` 与查证短版」。搜空了：⛔ 编视频 / 链接，换一次说法（作品官方名、原文名、PV / trailer / tutorial）再说没有。
 - **面板**：找到的视频是一排 16:9 卡片，摆在回答正文底下、找到的图下面；点一张在面板里用官方嵌入播（YouTube nocookie / B站 / niconico / Vimeo），认不出稿件号的新窗口开 —— 见 `pages/assistant-shell-v2.md` §3.5「找到的视频」与 §9.4。
 - ⚠ 找图的结尾句按这张脸够得着什么写：只有图片台 / 视频台（`modelCanImportWebImages`：画布 ⛔、v3 LoRA 台 ⛔）提「也可以用 import_url 挂」，别的只说「创作者点『选用』」—— 指一条走不通的路，模型就会去走。
+
+### 找到的东西的编号 `#n` 与查证短版（2026-10-15 搜索期第三片）
+
+附录 I 原文：「结果卡的完整数据（缩略图、原图、链接、时长、尺寸）直接随事件下发给面板，**不进模型上下文**。」「模型只拿到一行一条：`#3 · 标题 · 域名 · 1920×1080 · 可当参考`。查资料类保留短摘要，全文按需再读。」「模型回复里写「#3 最接近你要的」，面板把第 3 张高亮。」下面除引号里的原文外，都是实现时的取舍。
+
+- **一套号**：联网找到的每张图、每支视频按找到的顺序编号（`run.webFindSeq`），一轮里跨步、跨接力不撞号；与查证的证据号 `[n]`（`run.evidenceCiteSeq`）是两套，⛔ 不合并。号 → 那一条的数据只活在本轮记录里：结果条目的 `finds`（找图 / 找视频）与 `sources`（查证 `[n]` → 地址），板子上的 `finds` 是上一轮带来的。每一跳开头 `seedV3WebFinds`（`assistant-v3-finds.service.ts`）按记录把连号、`[n]` 的连号与导入准入名单（`run.webImageIndex`）续上 —— 服务端不留会话态。
+- **模型拿到什么**：每条一行（`lib/assistant-web-finds.ts`）—— 图 `#n · 标题 · 域名 · 宽×高 · usable as reference / view only`，视频 `#n · 标题 · 频道 · 平台 · 时长`，缺哪格少哪格。⛔ 原图、缩略图、页面地址都不进模型看的东西，整卡只随步骤事件给面板。「能不能当参考」每次由服务端按域名现判（`judgeWebImageFind`），⛔ 不信往返带回来的那一格。
+- **按号动手**：图片台 / 视频台的 `import_url` 与 `mount_reference`、角色页的 `propose_images`（入参 `find`，取代原来的 `imageUrl`）收 `#3`，服务端按本轮或上一轮的记录换回地址（`pickV3WebImage`）。认不出的号 / 两轮以前的号 / 视频的号回一句说得清的话（号的范围、「先搜再用号」、「视频只是链接」），⛔ 不抛；view only 的图照旧被导入那一步拒。视频台的 `#n` 只能当参考图，⛔ 不当首尾帧。
+- **系统提示**：五张脸共用一段 `FOUND ON THE WEB`（`assistant-v3-prompt.service.ts`）：号怎么来、一行写什么、工具与回复里都用号、⛔ 写地址、view only 与视频不能导入 / 挂 / 提议、上一轮的那几行、`[n]` 是另一套号、整段摘录只给紧跟着的那一步。工具段：图片台 / 视频台「创作者说用哪张才挂」，角色页 `propose_images` 按号。`ASSISTANT_V3_PROMPT_VERSION` 拨到 `2026-10-15b`。
+- **下一轮**：前端从时间线上一轮的找图 / 找视频步骤收（`collectOperatorPriorFinds`，只上一轮、按号去重、最多 `ASSISTANT_WEB_FIND_LIMITS.maxCarried` = 16 条；答题 / 定卡那几行也算开了新的一轮，与服务端同一刀），开轮请求带 `priorFinds`；开轮那一跳冻进板子，模型在这句话后面读到 `FOUND ON THE WEB LAST TURN` 那几行（只有编号那一行），接力那几跳读板子、⛔ 不再读请求。号从上一轮最大号 +1 接着数，同一个号始终指同一张卡。再往前的号作废。
+- **查证短版**（附录 I 原文：「**费 token**：一次搜索最多 6×300 + 3×1600 字的摘要写进本轮记录，之后每一步都重发（最多 16 步）。」）：`research` 那一步的结果条目多存一份短版 `compact`（`buildResearchCompact`：每条 `[n] 标题 · 域名 · 一句话`，单源的打 `single source`，加结论与「怎么再读」）。紧跟着查证的那一次调用读整段；最后一条 assistant 之前的结果一律读短版（`transcriptMessages`，与 look 的图同一个「新不新」判据）。要全文：`read "[n]"`（五张脸的 read 都收，`ASSISTANT_V3_READ_SOURCE_NOTE`；服务端按 `sources` 换回地址，走旧执行器的 `read_url`；没有页面的来源 —— 标签表、搜索模型自己的回答 —— 拒绝）。⚠ 换成短版的那一步前缀变了，提示缓存从那一条起断一次。
+- **量了多少**（⛔ 没调真模型：单测桩模型，数发出去的提示 JSON 的字符，系统提示桩成短串）：快搜满载（6 条摘要 + 3 页全文，`planResearch` 真跑）整段 7,213 字、短版 1,602 字。查证之后接着走的一轮，模型收到的提示累计：4 次调用 25,639 → 14,417；8 次 63,269 → 29,603；16 次 152,805 → 74,251。只算查证这一段，16 次调用 108,195 → 29,641（整段从出现在 15 次调用里变成 1 次）。
+- **回放**：R02（Gemini：`search_web` → `read` → 答）钉「整段只给紧跟着的那一步、再往后是短版」（`stepPrompts`：按步查发出去的请求体含 / 不含哪几句）。过程记录转回回放题时，板子带了上一轮的 `finds` 就在 `gaps` 里说一句（回放题带不进上一轮，按号的那一步会被拒）。
+- **面板**：回复里的 `#3` 是一颗小胶囊，悬停 / 焦点圈卡、点一下滚过去圈一会儿，一轮最后那段回复点到的卡常驻细黑框 —— 见 `pages/assistant-shell-v2.md` §3.5「回复里的 `#n`」。
 
 ### 只用所选那一家（owner 2026-10-15「会自动扣其他模型的token，用户还不知道」·「全跟助手」）
 
@@ -184,6 +198,7 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 | T06                   | Gemini                                 | 模型直接发删除 → 服务端先出问题卡，一张不删                   |
 | T14 · T15             | Grok · Gemini                          | 生成确认卡只列点名的那几张，⛔ 不建 generation                |
 | R01                   | Gemini                                 | `search_web` 走 Gemini 自带联网，答出 Aemeath / Danbooru 标签 |
+| R02                   | Gemini                                 | 查证的整段摘录只给紧跟着的那一步，再往后是一行一条的短版      |
 | K01                   | 选 Claude、只配 Gemini 的 key          | `ASSISTANT_MODEL_KEY_MISSING`，一次模型都不碰、⛔ 不借别家    |
 
 ## 4. 切片
@@ -203,6 +218,7 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 - `src/services/kernel/assistant-v3-look.service.ts`（看图）· `assistant-v3-cards.service.ts`（角色页，含联网找图交给主模型看）· `src/services/kernel/assistant-route.service.ts` 的 `resolveAssistantRoute`（助手那一家：选定的或「自动」挑的，缺 key 就抛；小功能共用）
 - `src/lib/assistant-v3-board.ts`（句柄与板子）· `src/lib/assistant-v3-ops.ts`（edit / write → v4 op）
 - `src/types/assistant-v3.ts`（工具入参与本轮记录）· `src/constants/assistant-v3.ts`
+- 找到的东西的编号与查证短版：`src/lib/assistant-web-finds.ts`（一行一条、`#n` 的认法、短版）· `src/types/assistant-web-finds.ts`（本轮记录里的那一条）· `src/services/kernel/assistant-v3-finds.service.ts`（续号、`#n` / `[n]` 换回）· `src/constants/assistant-operator.ts` 的 `ASSISTANT_WEB_FIND_LIMITS` 与 `ASSISTANT_RESEARCH_LIMITS.maxCompactGistChars`
 - 开关：`src/app/api/studio/assistant-operator/route.ts` · `src/hooks/use-assistant-operator.ts`
 - 自动回放基线：`src/test/assistant-replay/`（题在 `fixtures/cases/`，判分在 `graders.ts`）
 - 每轮的过程记录：`src/services/assistant-turn-record.service.ts`（写与删）· `src/lib/assistant-turn-record.ts`（摘 data: 地址、挑请求字段、按上限截）· `src/constants/assistant-turn-record.ts` · `src/types/assistant-turn-record.ts`；一行转回回放题：`src/test/assistant-replay/from-turn-record.ts`
@@ -215,6 +231,7 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 
 ## Last Verified
 
+- 2026-10-15 · 搜索期第三片：找到的东西编号 `#n`、按号动手、下一轮带上一轮的号、查证短版（见上「找到的东西的编号 `#n` 与查证短版」）。`tsc` + 改动文件 eslint（0 error）+ 定向 vitest（lib / types / constants / i18n / services/kernel / services/research / assistant-operator 组件 / 回放，347 个文件 5,510 条全绿）+ `npm run test:replay`（20 题 × 路由 = 26 跑 + 判分器反例 7 条 + 记录转题 9 条，全绿；新题 R02，判分器补 `stepPrompts` 会红的反例）。字数是单测里桩模型数的（7,213 → 1,602；16 次调用的一轮 152,805 → 74,251）。⚠ 没有对真模型跑过：模型会不会老实写 `#3`、点名准不准、短版之后会不会该 `read "[n]"` 时不读，都还没看过。
 - 2026-10-15 · 搜索期第二片：`search_library` 加 `web_videos`，每张脸都开 `web_images` + `web_videos`（见上「找图 / 找视频」）。定向 vitest（v3 五张脸各一条 `web_videos` 用例）+ `npm run test:replay`；⚠ 没有对真模型跑过找视频的题，Serper `/videos` 的线上字段名没对过。
 - 2026-10-15 · 每轮的过程记录接进 v3（`AssistantTurnRecord`，迁移只在 PGlite 上回放过、未对共用库执行）：`npm run test:replay` 19 题 × 路由 = 25 跑全绿，每一跑都对账自己写下的那一行并原样转回题目（含五家各跑一遍的 T25、两跳接力的 T01 / T03、看片的 V01 / V02）；把转换器故意改坏（丢最后一条回复）时 T11 两跑都红。v3 内核单测补了号与跳数、接力同号、老客户端丢号、空回复 / 审核 / 等确认 / 抛错的收尾、隐身与交回旧内核不记。
 

@@ -1,12 +1,15 @@
 'use client'
 
+import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { ImageIcon } from '@/components/icons'
 import Link from 'next/link'
 
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
+import { GalleryViewer } from '@/components/business/gallery/GalleryViewer'
 import { PolaroidCard } from '@/components/business/PolaroidCard'
+import { useIsMobile } from '@/hooks/use-mobile'
 import type { CreatorProfileWithImages } from '@/types'
 
 interface PolaroidGridProps {
@@ -33,6 +36,17 @@ export function PolaroidGrid({
   isEmpty,
 }: PolaroidGridProps) {
   const t = useTranslations('CreatorProfile')
+  // 手机点开 = 和素材、画廊同一个整屏看图（左右滑、往下拉关、赞与做同款在底部，
+  // owner 2026-10-14）；电脑照旧拍立得放大层。
+  const isPhone = useIsMobile()
+  const [viewerId, setViewerId] = useState<string | null>(null)
+  const viewing = isPhone
+    ? (generations.find((generation) => generation.id === viewerId) ?? null)
+    : null
+  const images = useMemo(
+    () => generations.filter((generation) => generation.outputType === 'IMAGE'),
+    [generations],
+  )
 
   if (isEmpty) {
     return (
@@ -77,6 +91,7 @@ export function PolaroidGrid({
             isOwnProfile={isOwnProfile}
             onLike={onLike}
             onPin={onPin}
+            onOpen={isPhone ? setViewerId : undefined}
           />
         ))}
       </div>
@@ -101,6 +116,25 @@ export function PolaroidGrid({
           </Button>
         </div>
       )}
+
+      {viewing ? (
+        <GalleryViewer
+          phone
+          generation={viewing}
+          images={images}
+          onNavigate={(next) => setViewerId(next.id)}
+          onClose={() => setViewerId(null)}
+          onToggleLike={(generation) => onLike(generation.id)}
+          pin={
+            isOwnProfile && onPin
+              ? {
+                  pinned: viewing.isFeatured,
+                  onToggle: () => onPin(viewing.id),
+                }
+              : undefined
+          }
+        />
+      ) : null}
     </div>
   )
 }

@@ -649,6 +649,10 @@
       "profile": "我的"
     }
   },
+  "MobileViewer": {
+    "showInfo": "展开这张的信息",
+    "hideInfo": "收起信息"
+  },
   "LocaleSwitcher": {
     "label": "语言",
     "options": {

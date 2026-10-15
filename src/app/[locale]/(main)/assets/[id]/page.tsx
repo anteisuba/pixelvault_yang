@@ -13,9 +13,9 @@ import { ensureUser } from '@/services/user.service'
 import { AssetDetailContent } from '@/components/business/AssetDetailContent'
 
 /**
- * `/assets/[id]` — standalone detail page for one owned asset. Same body as
- * the `/assets` drawer (`AssetDetailContent`), different shell, so the link
- * is refreshable, shareable and back-navigable.
+ * `/assets/[id]` — standalone detail page for one owned asset
+ * (`AssetDetailContent`), so the link is refreshable, shareable and
+ * back-navigable. Inside `/assets` a tile opens the in-place viewer instead.
  *
  * ⚠ 私密素材一律 `notFound()`：403 会泄露「这个 id 存在」。未登录同理。
  */
@@ -68,11 +68,5 @@ export default async function AssetDetailPage({
   const { userId: clerkId } = await auth()
   const projects = clerkId ? await listProjects(clerkId) : []
 
-  return (
-    <AssetDetailContent
-      layout="page"
-      generation={generation}
-      folders={projects}
-    />
-  )
+  return <AssetDetailContent generation={generation} folders={projects} />
 }

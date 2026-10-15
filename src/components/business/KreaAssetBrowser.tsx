@@ -35,7 +35,6 @@ import {
 } from 'motion/react'
 import { toast } from 'sonner'
 
-import { AssetDetailSheet } from '@/components/business/AssetDetailSheet'
 import { AssetAddToFolderPanel } from '@/components/business/assets/AssetAddToFolderPanel'
 import { AssetFacetBar } from '@/components/business/assets/AssetFacetBar'
 import { AssetFolderMenu } from '@/components/business/assets/AssetFolderMenu'
@@ -62,7 +61,6 @@ import { useSlowLoadingNotice } from '@/hooks/use-slow-loading-notice'
 import { AssetUploadQueuePanel } from '@/components/business/assets/AssetUploadQueuePanel'
 import { AssetUploadTile } from '@/components/business/assets/AssetUploadTile'
 import { AssetViewer } from '@/components/business/assets/AssetViewer'
-import { toMediaTransitionOrigin } from '@/components/business/MediaDetailViewer'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -464,36 +462,9 @@ export function KreaAssetBrowser({
   // sheet would steal the click target.
   const [selectedGeneration, setSelectedGeneration] =
     useState<GenerationRecord | null>(initialSelectedGeneration)
-  const [selectedOriginRect, setSelectedOriginRect] = useState<{
-    x: number
-    y: number
-    width: number
-    height: number
-  } | null>(null)
-  const [imageNavigationDirection, setImageNavigationDirection] = useState<
-    -1 | 1
-  >(1)
   const imageGenerations = useMemo(
     () => generations.filter((generation) => generation.outputType === 'IMAGE'),
     [generations],
-  )
-  const selectedImageIndex = selectedGeneration
-    ? imageGenerations.findIndex(
-        (generation) => generation.id === selectedGeneration.id,
-      )
-    : -1
-  const showImageNavigation =
-    selectedGeneration?.outputType === 'IMAGE' && imageGenerations.length > 1
-  const selectSiblingImage = useCallback(
-    (offset: -1 | 1) => {
-      if (selectedImageIndex < 0) return
-      const nextGeneration = imageGenerations[selectedImageIndex + offset]
-      if (!nextGeneration) return
-      setImageNavigationDirection(offset)
-      setSelectedOriginRect(null)
-      setSelectedGeneration(nextGeneration)
-    },
-    [imageGenerations, selectedImageIndex],
   )
   const [failedAudioPreviewUrls, setFailedAudioPreviewUrls] = useState<
     ReadonlySet<string>
@@ -515,16 +486,15 @@ export function KreaAssetBrowser({
   if (lastDeeplinkGeneration !== initialSelectedGeneration) {
     setLastDeeplinkGeneration(initialSelectedGeneration)
     setSelectedGeneration(initialSelectedGeneration)
-    setSelectedOriginRect(null)
   }
-  // 桌面 / 平板点开是就地查看器，手机沿用全屏详情（owner 2026-09-29）。
+  // 桌面 / 平板点开是就地查看器；手机是同一个查看器的整屏形态（左右滑、往下拉关、
+  // 配方在底部上滑，owner 2026-10-14）。
   const isPhone = useIsMobile()
   // 换了夹或筛选 = 查看器关上再换范围（pages/assets.md §3「详情」）。
   const [viewerFilters, setViewerFilters] = useState(filters)
   if (viewerFilters !== filters) {
     setViewerFilters(filters)
     setSelectedGeneration(null)
-    setSelectedOriginRect(null)
   }
 
   // ── Multi-select state ────────────────────────────────────────
@@ -2175,12 +2145,6 @@ export function KreaAssetBrowser({
                               else toggleSelection(gen.id)
                               return
                             }
-                            setSelectedOriginRect(
-                              toMediaTransitionOrigin(
-                                event.currentTarget.getBoundingClientRect(),
-                              ),
-                            )
-                            setImageNavigationDirection(1)
                             setSelectedGeneration(gen)
                           }
                           const handleTileContextMenu = (
@@ -2313,14 +2277,8 @@ export function KreaAssetBrowser({
                 <AssetViewer
                   generation={selectedGeneration}
                   images={imageGenerations}
-                  onNavigate={(next) => {
-                    setSelectedOriginRect(null)
-                    setSelectedGeneration(next)
-                  }}
-                  onClose={() => {
-                    setSelectedGeneration(null)
-                    setSelectedOriginRect(null)
-                  }}
+                  onNavigate={setSelectedGeneration}
+                  onClose={() => setSelectedGeneration(null)}
                   folders={folders}
                   onCreateFolder={(name) => createFolder(name, null)}
                   onFoldersChanged={handleMembershipsChanged}
@@ -2341,16 +2299,13 @@ export function KreaAssetBrowser({
           </motion.div>
         </div>
       </div>
-      {!isPickerMode && isPhone && (
-        <AssetDetailSheet
+      {!isPickerMode && isPhone && selectedGeneration ? (
+        <AssetViewer
+          phone
           generation={selectedGeneration}
-          onOpenChange={(open) => {
-            if (!open) {
-              setSelectedGeneration(null)
-              setSelectedOriginRect(null)
-              setImageNavigationDirection(1)
-            }
-          }}
+          images={imageGenerations}
+          onNavigate={setSelectedGeneration}
+          onClose={() => setSelectedGeneration(null)}
           folders={folders}
           onCreateFolder={(name) => createFolder(name, null)}
           onFoldersChanged={handleMembershipsChanged}
@@ -2358,20 +2313,15 @@ export function KreaAssetBrowser({
           onDeleted={handleAssetDeleted}
           onRestored={handleAssetRestored}
           onUpdated={handleAssetUpdated}
-          transitionOrigin={selectedOriginRect}
-          imageNavigation={
-            showImageNavigation
-              ? {
-                  canGoPrevious: selectedImageIndex > 0,
-                  canGoNext: selectedImageIndex < imageGenerations.length - 1,
-                  direction: imageNavigationDirection,
-                  onPrevious: () => selectSiblingImage(-1),
-                  onNext: () => selectSiblingImage(1),
-                }
+          audioCoverUrl={
+            selectedGeneration.outputType === 'AUDIO'
+              ? getAudioPreviewCandidates(selectedGeneration).find(
+                  (url) => !failedAudioPreviewUrls.has(url),
+                )
               : undefined
           }
         />
-      )}
+      ) : null}
       {!isPickerMode && (
         <AssetUploadQueuePanel
           items={uploadQueue.items}

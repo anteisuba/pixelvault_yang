@@ -21,10 +21,6 @@ import { useTranslations } from 'next-intl'
 import NextImage from 'next/image'
 
 import { ModelViewer } from '@/components/business/ModelViewer'
-import {
-  MediaDetailViewer,
-  type MediaTransitionOrigin,
-} from '@/components/business/MediaDetailViewer'
 import { VideoAnalysisPanel } from '@/components/business/vision/VideoAnalysisPanel'
 import { Button, buttonVariants } from '@/components/ui/button'
 import {
@@ -50,13 +46,6 @@ import type { GenerationRecord, ProjectRecord } from '@/types'
 
 export interface AssetDetailContentProps {
   generation: GenerationRecord | null
-  /**
-   * `sheet` = 素材网格上的抽屉；`page` = `/assets/[id]` 整页。
-   * 两者共用同一份内容层，只有外壳不同。
-   */
-  layout?: 'sheet' | 'page'
-  /** 抽屉关闭回调。整页形态不需要。 */
-  onOpenChange?: (open: boolean) => void
   /** 这个用户的文件夹（「加入文件夹」面板列的就是它们）。 */
   folders: ProjectRecord[]
   /** 面板里「新建文件夹并放进去」。不给就直接建（`/assets/[id]` 整页）。 */
@@ -71,14 +60,6 @@ export interface AssetDetailContentProps {
   onRestored?: (generation: GenerationRecord) => void
   /** Called after publish/favorite toggles so the grid mirrors the new state. */
   onUpdated?: (id: string, patch: Partial<GenerationRecord>) => void
-  transitionOrigin?: MediaTransitionOrigin | null
-  imageNavigation?: {
-    canGoPrevious: boolean
-    canGoNext: boolean
-    direction: -1 | 1
-    onPrevious: () => void
-    onNext: () => void
-  }
 }
 
 /**
@@ -89,8 +70,6 @@ export interface AssetDetailContentProps {
  */
 export function AssetDetailContent({
   generation,
-  layout = 'sheet',
-  onOpenChange,
   folders,
   onCreateFolder,
   onFoldersChanged,
@@ -98,8 +77,6 @@ export function AssetDetailContent({
   onDeleted,
   onRestored,
   onUpdated,
-  transitionOrigin,
-  imageNavigation,
 }: AssetDetailContentProps) {
   const t = useTranslations('AssetsPage')
   const tFeedback = useTranslations('Feedback')
@@ -107,10 +84,8 @@ export function AssetDetailContent({
   const linkFeedback = useButtonFeedback(COPIED_ACK_MS)
   const favoriteFeedback = useButtonFeedback()
   const recipeFeedback = useButtonFeedback()
-  const tCommon = useTranslations('Common')
   const tPrompts = useTranslations('PromptLibrary')
   const router = useRouter()
-  const isPage = layout === 'page'
   /** 整页形态里新建的夹（素材页形态由父级的列表带回来）。 */
   const [createdFolders, setCreatedFolders] = useState<ProjectRecord[]>([])
   const panelFolders = [
@@ -129,17 +104,12 @@ export function AssetDetailContent({
   }
 
   /**
-   * 抽屉里就是关掉面板；整页里没有可关的层，退回素材库。
-   * 做同款在整页里本来就换了路由，不用再退。
+   * 整页里没有可关的层：删了退回素材库；做同款本来就换了路由，不用再退。
    */
   const actions = useAssetDetailActions({
     generation,
     onLeave: (reason) => {
-      if (isPage) {
-        if (reason === 'delete') router.push(ROUTES.ASSETS)
-        return
-      }
-      onOpenChange?.(false)
+      if (reason === 'delete') router.push(ROUTES.ASSETS)
     },
     onDeleted,
     onRestored,
@@ -154,8 +124,6 @@ export function AssetDetailContent({
     isSettingCover,
   } = actions
 
-  const open = generation !== null
-
   if (!generation) return null
 
   const isAudioAsset = generation.outputType === 'AUDIO'
@@ -164,7 +132,6 @@ export function AssetDetailContent({
   const publishBlocked =
     Boolean(generation.searchGrounded) && !generation.isPublic
 
-  const previewUrl = getGenerationPreviewUrl(generation)
   const toolbarActions = (
     <>
       {/* 下载的结果在键上说：拉长变黑「✓ 已开始下载」，1.6 秒后缩回。 */}
@@ -406,7 +373,7 @@ export function AssetDetailContent({
     </div>
   )
 
-  const shell = isPage ? (
+  const shell = (
     <div className="editorial-page">
       <div className="editorial-container max-w-5xl">
         <div className="mb-6 flex items-center justify-between gap-3">
@@ -436,35 +403,6 @@ export function AssetDetailContent({
         </div>
       </div>
     </div>
-  ) : (
-    <MediaDetailViewer
-      open={open}
-      onOpenChange={(nextOpen) => {
-        if (!nextOpen) actions.setIsPublishScopeOpen(false)
-        onOpenChange?.(nextOpen)
-      }}
-      title={t('detailTitle')}
-      description={t('detailDescription')}
-      closeLabel={tCommon('close')}
-      media={<Preview generation={generation} />}
-      mediaKey={generation.id}
-      sideHeader={sideHeader}
-      sideContent={sideContent}
-      footerActions={footerActions}
-      toolbarActions={toolbarActions}
-      navigation={
-        imageNavigation
-          ? {
-              previousLabel: t('detailPreviousImage'),
-              nextLabel: t('detailNextImage'),
-              ...imageNavigation,
-            }
-          : undefined
-      }
-      transitionOrigin={transitionOrigin}
-      transitionImageSrc={previewUrl}
-      transitionImageAlt={generation.prompt || generation.id}
-    />
   )
 
   return (

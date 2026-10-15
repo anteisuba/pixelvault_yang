@@ -649,6 +649,10 @@
       "profile": "マイ"
     }
   },
+  "MobileViewer": {
+    "showInfo": "この作品の情報を表示",
+    "hideInfo": "情報を閉じる"
+  },
   "LocaleSwitcher": {
     "label": "言語",
     "options": {

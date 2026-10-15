@@ -8417,7 +8417,8 @@
       },
       "findRef": "Show find #{n}: {label}",
       "findRefPlain": "Show find #{n}",
-      "findNamed": "Named in the reply"
+      "findNamed": "Named in the reply",
+      "readSnippetOnly": "The page itself could not be read (the site blocked it, or it would not load) — this is only the search-result excerpt."
     },
     "queue": {
       "badge": "Queued",

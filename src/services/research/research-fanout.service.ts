@@ -26,6 +26,7 @@ import {
   type ResearchQuestionType,
   type ResearchSourceId,
 } from '@/constants/research'
+import { isReadHostBlocked } from '@/lib/read-url-blocks'
 import type { EvidenceItem, ResearchSourceReceipt } from '@/types/research'
 import type {
   LlmNativeSearchResult,
@@ -871,10 +872,19 @@ export async function runAssistantResearch(
   const questionType = params.questionType ?? RESEARCH_QUESTION_TYPES.general
   const biasOf = (item: EvidenceItem): number =>
     scoreQuestionTypeBias(questionType, questionTypeRankText(item))
+  /**
+   * ⚠ 最后一道次序（2026-10-15）：同印证、同题型分时，最近挡过读者的站（`isReadHostBlocked`，
+   * 进程内记 30 分钟）排后面 —— 快搜只读前三页，名额该给读得到的那几页。它的摘要照样算证据，
+   * ⛔ 不删、不越过印证数与题型分。
+   */
+  const blockedOf = (item: EvidenceItem): number =>
+    Number(isReadHostBlocked(item.url))
   const items = dedupe(fetched)
     .sort(
       (a, b) =>
-        corroborationOf(b) - corroborationOf(a) || biasOf(b) - biasOf(a),
+        corroborationOf(b) - corroborationOf(a) ||
+        biasOf(b) - biasOf(a) ||
+        blockedOf(a) - blockedOf(b),
     )
     .slice(0, limit)
 

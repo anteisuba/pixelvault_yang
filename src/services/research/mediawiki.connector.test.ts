@@ -13,6 +13,7 @@ vi.mock('@/lib/with-retry', () => ({
 
 import {
   FANDOM_WIKIS,
+  MEDIAWIKI_READ_HOSTS,
   MEDIAWIKI_SITES,
   RESEARCH_SOURCE_IDS,
 } from '@/constants/research'
@@ -21,8 +22,10 @@ import {
   getMediaWikiSite,
   isRelevantToTerms,
   pickQueryForSite,
+  readMediaWikiPage,
   researchTermsOf,
   resolveFandomSite,
+  resolveMediaWikiReadTarget,
   resolveMediaWikiSite,
 } from '@/services/research/mediawiki.connector'
 
@@ -415,5 +418,159 @@ describe('A2 · 相关性闸（搜到了但搜到的不是它）', () => {
 
     expect(result.unrelated).toBeUndefined()
     expect(result.items.length).toBeGreaterThan(0)
+  })
+})
+
+/**
+ * ⭐ **按网址读一页 wiki**（`read_url` 的退路 (a)，2026-10-15）：认得出是哪个站、哪一页，就照
+ *   表（`MEDIAWIKI_READ_HOSTS`）打它的 API；认不出的一律 `null`（交给下一条退路）。
+ */
+describe('resolveMediaWikiReadTarget：网址 → 哪个 wiki 的哪一页', () => {
+  it.each([
+    [
+      '灰机wiki（子域）',
+      'https://ff14.huijiwiki.com/wiki/%E5%85%89%E4%B9%8B%E6%88%98%E5%A3%AB',
+      '光之战士',
+      'https://ff14.huijiwiki.com/api.php',
+      'https://ff14.huijiwiki.com/wiki/',
+    ],
+    [
+      'B站 wiki（游戏段在路径里）',
+      'https://wiki.biligame.com/ys/%E5%88%BB%E6%99%B4',
+      '刻晴',
+      'https://wiki.biligame.com/ys/api.php',
+      'https://wiki.biligame.com/ys/',
+    ],
+    [
+      'B站 wiki 的 index.php?title=',
+      'https://wiki.biligame.com/ys/index.php?title=%E5%88%BB%E6%99%B4&action=view',
+      '刻晴',
+      'https://wiki.biligame.com/ys/api.php',
+      'https://wiki.biligame.com/ys/',
+    ],
+    [
+      'Fandom 语言段',
+      'https://genshin-impact.fandom.com/zh/wiki/Keqing',
+      'Keqing',
+      'https://genshin-impact.fandom.com/zh/api.php',
+      'https://genshin-impact.fandom.com/zh/wiki/',
+    ],
+    [
+      'Fandom 英文（下划线 = 空格，锚点不算页名）',
+      'https://wutheringwaves.fandom.com/wiki/Chang_Li#Appearance',
+      'Chang Li',
+      'https://wutheringwaves.fandom.com/api.php',
+      'https://wutheringwaves.fandom.com/wiki/',
+    ],
+    [
+      '萌百繁简路径',
+      'https://zh.moegirl.org.cn/zh-hans/%E9%95%BF%E7%A6%BB',
+      '长离',
+      'https://zh.moegirl.org.cn/api.php',
+      'https://zh.moegirl.org.cn/',
+    ],
+    [
+      '中文维基 /zh-cn/',
+      'https://zh.wikipedia.org/zh-cn/%E9%B3%B4%E6%BD%AE',
+      '鳴潮',
+      'https://zh.wikipedia.org/w/api.php',
+      'https://zh.wikipedia.org/wiki/',
+    ],
+  ])('⭐ %s', (_name, url, title, api, pageUrlPrefix) => {
+    const target = resolveMediaWikiReadTarget(url)
+    expect(target?.title).toBe(title)
+    expect(target?.site).toMatchObject({
+      sourceId: RESEARCH_SOURCE_IDS.urlReader,
+      api,
+      pageUrlPrefix,
+      // 按网址读一页：⛔ 不搜、不取分类与主图。
+      supportsOpenSearch: false,
+      supportsGeneratorSearch: false,
+      supportsCategories: false,
+      supportsPageImages: false,
+    })
+  })
+
+  it('⛔ 不是表里的站、特殊页、首页 / 没页名的一律 null', () => {
+    for (const url of [
+      'https://www.example.test/wiki/Keqing',
+      'https://notwikipedia.org/wiki/X',
+      'https://zh.wikipedia.org/wiki/Special:Search',
+      'https://zh.moegirl.org.cn/',
+      'https://zh.moegirl.org.cn/index.php',
+      'https://wiki.biligame.com/',
+      'https://zh.wikipedia.org/w/index.php',
+      'not a url',
+    ])
+      expect(resolveMediaWikiReadTarget(url)).toBeNull()
+  })
+
+  it('表里每一行都认得出自己的一页（数据驱动：加一行就是加一个站）', () => {
+    for (const host of MEDIAWIKI_READ_HOSTS) {
+      const origin = `https://${host.match === 'suffix' ? `sub.${host.host}` : host.host}`
+      const path = `${host.wikiInPath ? '/game' : ''}${host.titlePrefix}Page`
+      const target = resolveMediaWikiReadTarget(`${origin}${path}`)
+      expect(target?.title, host.label).toBe('Page')
+      expect(target?.site.contentRoutes, host.label).toEqual(host.contentRoutes)
+    }
+  })
+})
+
+describe('readMediaWikiPage：按 API 读那一页', () => {
+  it('⭐ 走表里的降级链（灰机wiki：extracts 拒了就换 revisions），回页名、正文、页地址', async () => {
+    const target = resolveMediaWikiReadTarget(
+      'https://ff14.huijiwiki.com/wiki/Page',
+    )!
+    mockFetch.mockImplementation(async (url: string) => {
+      if (url.includes('prop=extracts'))
+        return jsonResponse({ error: { code: 'unknown_prop' } })
+      if (url.includes('prop=revisions'))
+        return jsonResponse({
+          query: {
+            pages: [
+              {
+                title: 'Page',
+                revisions: [
+                  {
+                    slots: { main: { content: "'''光之战士'''是[[主角]]。" } },
+                  },
+                ],
+              },
+            ],
+          },
+        })
+      throw new Error(`unexpected fetch: ${url}`)
+    })
+
+    const page = await readMediaWikiPage(target)
+    expect(page).toEqual({
+      title: 'Page',
+      text: '光之战士是主角。',
+      url: 'https://ff14.huijiwiki.com/wiki/Page',
+    })
+    expect(
+      fetchedUrls().every((url) =>
+        url.startsWith('https://ff14.huijiwiki.com/api.php?'),
+      ),
+    ).toBe(true)
+  })
+
+  it('页不存在 = null（⛔ 不是抛错）；整条链都拒 = 抛（调用方换下一条退路）', async () => {
+    const target = resolveMediaWikiReadTarget('https://zh.moegirl.org.cn/Nope')!
+    routeFetch([
+      {
+        match: 'prop=extracts',
+        body: { query: { pages: [{ title: 'Nope', missing: true }] } },
+      },
+    ])
+    await expect(readMediaWikiPage(target)).resolves.toBeNull()
+
+    routeFetch([
+      {
+        match: 'prop=extracts',
+        body: { error: { code: 'action-notallowed' } },
+      },
+    ])
+    await expect(readMediaWikiPage(target)).rejects.toThrow('action-notallowed')
   })
 })

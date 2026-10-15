@@ -187,6 +187,11 @@ const mockIsWebSearchConfigured = vi.fn()
  */
 const mockWebImageSearchMulti = vi.fn()
 const mockReadUrl = vi.fn()
+/**
+ * `read_url` 走 `readUrlDetailed`（2026-10-15）：默认照 `mockReadUrl` 的桩翻（读到 = Jina，
+ * 读不到 = failed），要验「站点挡了」的用例自己桩这一个。
+ */
+const mockReadUrlDetailed = vi.fn()
 vi.mock('@/services/web-research.service', async () => {
   const actual = await vi.importActual<
     typeof import('@/services/web-research.service')
@@ -200,6 +205,7 @@ vi.mock('@/services/web-research.service', async () => {
     webSearch: (...args: unknown[]) => mockWebSearch(...args),
     isWebSearchConfigured: () => mockIsWebSearchConfigured(),
     readUrl: (...args: unknown[]) => mockReadUrl(...args),
+    readUrlDetailed: (...args: unknown[]) => mockReadUrlDetailed(...args),
   }
 })
 
@@ -507,6 +513,7 @@ import { AI_MODELS } from '@/constants/models'
 import { getAppOrigin, LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { logger } from '@/lib/logger'
+import { markReadHostBlocked, resetReadHostBlocks } from '@/lib/read-url-blocks'
 import {
   buildCharacterReminder,
   planTool,
@@ -872,6 +879,12 @@ beforeEach(() => {
       mockWebImageSearch(queries[0], options),
   )
   mockReadUrl.mockResolvedValue(null)
+  mockReadUrlDetailed.mockImplementation(async (url: string) => {
+    const page = await mockReadUrl(url)
+    return page
+      ? { status: 'read', page, via: 'jina' }
+      : { status: 'failed', url }
+  })
   mockRunAssistantResearch.mockResolvedValue({
     queries: [],
     sources: ['wiki', 'web', 'danbooru'],
@@ -11601,6 +11614,42 @@ describe('查证与找图两入口（§9，commit #16）', () => {
     expect(result.evidence[0]?.snippet.length).toBeLessThanOrEqual(300)
   })
 
+  it('⭐ 快搜挑页时，最近挡过读者的站排到后面（三页的名额给读得到的）', async () => {
+    markReadHostBlocked('walled.example.test', {
+      reason: 'challenge',
+      detail: 'just a moment...',
+      readerOnly: false,
+    })
+    try {
+      const evidence = ['walled', 'a', 'b', 'c'].map((name) => ({
+        ...CORROBORATED,
+        title: name,
+        url: `https://${name}.example.test/x`,
+      }))
+      queueOutcome(
+        evidence,
+        evidence.map((item, index) => ({
+          ...ITEM,
+          id: `web:${index}`,
+          title: item.title,
+          url: item.url,
+        })),
+      )
+      queueTurns(verifyTurn({ goal: '雨夜画风', entities: ['新海诚'] }), {
+        finished: true,
+      })
+
+      await collect(runAssistantOperator('clerk-1', buildRequest()))
+      expect(mockReadUrl.mock.calls.map(([url]) => url)).toEqual([
+        'https://a.example.test/x',
+        'https://b.example.test/x',
+        'https://c.example.test/x',
+      ])
+    } finally {
+      resetReadHostBlocks()
+    }
+  })
+
   it('⛔ 读不出来就留着摘要，⛔ 也不在日志上假装读过', async () => {
     queueOutcome([{ ...CORROBORATED, url: 'https://zhihu.com/a' }])
     mockReadUrl.mockResolvedValue(null)
@@ -12091,6 +12140,100 @@ describe('read_url · 读一页正文（2026-09-06）', () => {
       ASSISTANT_OPERATOR_REJECT_REASON_IDS.urlNotReadable,
     )
     expect(mockReadUrl).not.toHaveBeenCalled()
+  })
+
+  /**
+   * ⭐ **被挡了说被挡了**（2026-10-15）：挑战页 / 验证码 / 403 的判定在 `readUrlDetailed`
+   *   （服务那一层测），这里钉规划期怎么说：本轮搜到过这一页就只交搜索摘要并明说全文没读到；
+   *   没搜到过就拒，理由写清楚是站点挡了。
+   */
+  it('⭐ 站点挡了、本轮搜到过这一页 → 只交搜索摘要（via snippet），明说全文没读到', async () => {
+    mockWebSearch.mockResolvedValue([
+      {
+        title: '时夜 - 角色介绍',
+        url: 'https://blocked.example.test/shiye',
+        snippet: '时夜：黑色长发，金色瞳孔。',
+      },
+    ])
+    mockReadUrlDetailed.mockResolvedValue({
+      status: 'blocked',
+      url: 'https://blocked.example.test/shiye',
+      host: 'blocked.example.test',
+      reason: 'challenge',
+      detail: 'just a moment...',
+      cached: false,
+    })
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.searchWeb,
+          title: 'search',
+          args: { query: '时夜 外貌' },
+        },
+      },
+      readTurn('https://blocked.example.test/shiye', '外貌'),
+      { finished: true },
+    )
+
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    const read = steps.find(
+      (step) =>
+        step.tool === ASSISTANT_OPERATOR_TOOL_IDS.readUrl &&
+        step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+    )
+    expect(read?.result).toEqual({
+      title: '时夜 - 角色介绍',
+      url: 'https://blocked.example.test/shiye',
+      excerpt: '时夜：黑色长发，金色瞳孔。',
+      via: 'snippet',
+    })
+    const prompt = lastUserPrompt()
+    expect(prompt).toContain('NOT READ')
+    expect(prompt).toContain(
+      'blocked.example.test blocked the reader (bot check / captcha page)',
+    )
+    expect(prompt).toContain('The full text of that page was not read')
+  })
+
+  it('⛔ 站点挡了、本轮没搜到过 → urlUnreadable，理由说是站点挡了（记着的那种说「没再去试」）', async () => {
+    mockReadUrlDetailed.mockResolvedValue({
+      status: 'blocked',
+      url: 'https://blocked.example.test/x',
+      host: 'blocked.example.test',
+      reason: 'status',
+      detail: 'HTTP 403',
+      cached: true,
+    })
+    queueTurns(readTurn('https://blocked.example.test/x'), { finished: true })
+
+    const [step] = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    const error = step.error as { reason: string; detail: string }
+    expect(error.reason).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.urlUnreadable,
+    )
+    expect(error.detail).toContain(
+      'Not read — blocked.example.test blocked the reader in the last 30 min (not retried)',
+    )
+    expect(error.detail).toContain('Nothing from that page was read')
+    expect(lastUserPrompt()).toContain(error.detail)
+  })
+
+  it('wiki 退路读到的：结果带 via 与页名标题', async () => {
+    mockReadUrlDetailed.mockResolvedValue({
+      status: 'read',
+      page: { ...PAGE, title: '时夜' },
+      via: 'mediawiki',
+    })
+    queueTurns(readTurn(PAGE.url, '外貌与服饰'), { finished: true })
+
+    const [, done] = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    expect(done.result).toMatchObject({ title: '时夜', via: 'mediawiki' })
   })
 })
 

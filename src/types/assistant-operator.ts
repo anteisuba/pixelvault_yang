@@ -130,6 +130,7 @@ import {
   X_HANDLE_PATTERN,
   X_SEARCH_DATE_PATTERN,
 } from '@/constants/research'
+import { URL_READER_VIA_VALUES } from '@/constants/web-search'
 import {
   VIDEO_CLIP_FRAME_PLAN,
   VIDEO_FRAME_LIMITS,
@@ -3942,6 +3943,12 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
       title: z.string().max(RESEARCH_LIMITS.maxEvidenceTitleChars),
       url: z.string().url(),
       excerpt: z.string().max(RESEARCH_LIMITS.maxReadUrlExcerptChars),
+      /**
+       * 这一段是怎么拿到的（2026-10-15）：`jina` / `mediawiki`（wiki 站的 API）/ `direct`
+       * （服务端直连）读到了全文；`snippet` = 全文没读到（站点挡了 / 读不出），只有搜索摘要 ——
+       * 日志上那一格要明说。缺席 = 旧记录。
+       */
+      via: z.enum(URL_READER_VIA_VALUES).optional(),
     }),
   ),
   /**

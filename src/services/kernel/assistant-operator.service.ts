@@ -205,10 +205,14 @@ import {
   webImageSourceRank,
 } from '@/constants/web-image-sources'
 import {
+  URL_READER,
+  URL_READER_BLOCK_REASONS,
+  URL_READER_VIAS,
   WEB_IMAGE_OFFICIAL_QUERY_SUFFIXES,
   WEB_IMAGE_SUBJECT_QUERY_SUFFIXES,
   WEB_VIDEO_SEARCH,
 } from '@/constants/web-search'
+import { isReadHostBlocked } from '@/lib/read-url-blocks'
 import {
   buildResearchCompact,
   describeWebImageFindLine,
@@ -370,6 +374,7 @@ import {
   isWebImageSearchConfigured,
   isWebSearchConfigured,
   readUrl,
+  readUrlDetailed,
   webImageSearchMulti,
   webSearch,
 } from '@/services/web-research.service'
@@ -935,6 +940,13 @@ interface OperatorRun {
    * （`seedV3WebFinds`），所以接力之后、下一轮里新找到的都不和已有的撞号。
    */
   webFindSeq: number
+  /**
+   * **本轮查到过的每一页的搜索摘要**（地址 → 标题 + 摘要，2026-10-15）：`read_url` 读不到那一页
+   * （站点挡了 / 读不出）时的最后一条退路 —— 只交这段摘要，并明说全文没读到。
+   * ⚠ 记的是读全文**之前**的那段摘要（快搜读到的正文会顶掉证据的 `snippet`）。v3 每一跳开头
+   *   按本轮记录的 `sources` 续上（`seedV3WebFinds`）。
+   */
+  researchSnippets: Map<string, { title: string; snippet: string }>
   /** 讲给模型听的「刚才发生了什么」。 */
   observations: string[]
   /** 本轮里助手自己写过的字段 —— 覆写自己的东西不需要再问用户一次。 */
@@ -2975,6 +2987,8 @@ function planSearchWeb(
           ...(publisher ? { publisher } : {}),
         }
       })
+      for (const entry of results)
+        rememberResearchSnippet(run, entry.url, entry.title, entry.snippet)
 
       /**
        * ⭐ 观察里**逐条带上出处**：模型接下来要在对白里说「按官方站的说法……」，
@@ -3418,13 +3432,20 @@ async function planResearch(
    * `maxReadUrlExcerptChars`），所以来源卡与正文角标仍旧一一对应，⛔ 不会出现
    * 「同一页在来源里占两格」。
    * ⚠ 读不出来就**留着摘要**（`readUrl` 自己回 `null`）：一页取不到不该让整轮
-   * 失败，也⛔ 不该在日志上假装读过。
+   * 失败，也⛔ 不该在日志上假装读过。被挡的页（挑战页 / 验证码）同样回 `null`
+   * （2026-10-15）：⛔ 「Just a moment...」那段字不会再顶掉摘要。
    * ⚠ 并行读，所以它加的是一次请求的时间不是三次。
    */
   let readPages = 0
+  // 读全文之前先记下每一页的搜索摘要：`read_url` 读不到那一页时只剩它（见 `researchSnippets`）。
+  for (const item of keptEvidence)
+    if (item.url)
+      rememberResearchSnippet(run, item.url, item.title, item.snippet)
   /**
    * 原生联网保留服务商引用；回答片段与来源原文按 excerptKind 区分。
    * ⚠ 自带联网没搜成、扇出回落到 Serper 的那一支照样读页（2026-10-14）。
+   * ⚠ 最近挡过读者的站（`isReadHostBlocked`，进程内记 30 分钟）排到后面再挑（2026-10-15）：
+   *   读它只会拿回一句「被挡了」，三页的名额该给读得到的那几页。
    */
   const nativeSearched = nativeSearch.result?.status === 'searched'
   if (quick && !nativeSearched && keptEvidence.length > 0) {
@@ -3433,6 +3454,10 @@ async function planResearch(
       .filter(
         (entry): entry is { index: number; url: string } =>
           typeof entry.url === 'string',
+      )
+      .sort(
+        (a, b) =>
+          Number(isReadHostBlocked(a.url)) - Number(isReadHostBlocked(b.url)),
       )
       .slice(0, RESEARCH_LIMITS.quickReadPages)
     const pages = await Promise.all(
@@ -3845,14 +3870,17 @@ async function synthesizeResearchConclusion(
  * 一句笼统的「跑到一半失败了」结束、那条日志永远停在 `running`。跑在这里，
  * 读不出来就是一条普通的被拒步 —— 模型读得到理由，还有步数去换一个来源。
  *
+ * ── 被挡了说被挡了（2026-10-15）──────────────────────────────────
+ * 读页走 `readUrlDetailed`：Jina → wiki 站的 API → 直连，挑战页 / 验证码 / 403·429 一律判成
+ * 「被挡」，⛔ 那段字永远不当正文交给模型。都读不到时，本轮搜到过这一页就交它的搜索摘要
+ * （`via: 'snippet'`，明说全文没读到）；没搜到过就拒，理由写清楚是站点挡了还是读不出。
+ *
  * ⛔ 它**只读文字**：一张图都不取。图仍然走 `search_web_images` + 用户点「选用」。
  */
 async function planReadUrl(
   run: OperatorRun,
   args: { url: string; focus?: string },
 ): Promise<ToolPlan> {
-  void run
-
   let target: URL
   try {
     target = new URL(args.url)
@@ -3875,14 +3903,53 @@ async function planReadUrl(
   }
 
   const focus = args.focus?.trim()
-  const page = await readUrl(args.url)
-  if (!page) {
+  const payload = {
+    url: args.url,
+    focus: focus ? clamp(focus, RESEARCH_LIMITS.maxFocusChars) : null,
+  }
+  const outcome = await readUrlDetailed(args.url)
+  if (outcome.status !== 'read') {
+    /**
+     * ⭐ 读不到（站点挡了 / 读不出）的最后一条退路：本轮搜到过这一页，就交那段搜索摘要，
+     *   ⛔ 并明说全文没读到 —— 挑战页的字一个都不交（判据在 `lib/read-url-blocks`）。
+     */
+    const known =
+      run.researchSnippets.get(outcome.url) ??
+      run.researchSnippets.get(args.url)
+    const why =
+      outcome.status === 'blocked'
+        ? outcome.cached
+          ? `${outcome.host} blocked the reader in the last ${Math.round(URL_READER.blockedHostTtlMs / 60_000)} min (not retried)`
+          : `${outcome.host} blocked the reader (${outcome.reason === URL_READER_BLOCK_REASONS.status ? outcome.detail : 'bot check / captcha page'})`
+        : 'the page could not be read (timed out, or it renders nothing without a browser)'
+    if (known) {
+      const excerpt = clamp(
+        known.snippet,
+        RESEARCH_LIMITS.maxReadUrlExcerptChars,
+      )
+      return {
+        kind: 'read',
+        payload,
+        run: async () => ({
+          result: {
+            title: clamp(known.title, RESEARCH_LIMITS.maxEvidenceTitleChars),
+            url: args.url,
+            excerpt,
+            via: URL_READER_VIAS.snippet,
+          },
+          observation: `read_url(${args.url}) → NOT READ: ${why}. The full text of that page was not read. All there is is the short excerpt the earlier search returned for it:\n${excerpt}\nUse only that excerpt and say plainly that you could not open the page itself; do not describe anything beyond it as if you had read it. If it does not answer the question, try another source.`,
+        }),
+      }
+    }
     return reject(
       REJECT.urlUnreadable,
-      'That page could not be read (blocked, timed out, or it renders nothing without a browser). Do not guess what it says from its title — try a different source; encyclopedia and official pages usually read fine.',
+      outcome.status === 'blocked'
+        ? `Not read — ${why}. Nothing from that page was read. Do not guess it from its title or address; try another source (encyclopedia and official pages usually read fine).`
+        : 'That page could not be read (timed out, or it renders nothing without a browser). Do not guess what it says from its title — try a different source; encyclopedia and official pages usually read fine.',
     )
   }
 
+  const { page, via } = outcome
   const excerpt = extractFocusedExcerpt(
     page.content,
     focus,
@@ -3891,19 +3958,35 @@ async function planReadUrl(
 
   return {
     kind: 'read',
-    payload: {
-      url: page.url,
-      focus: focus ? clamp(focus, RESEARCH_LIMITS.maxFocusChars) : null,
-    },
+    payload: { ...payload, url: page.url },
     run: async () => ({
       result: {
-        title: clamp(page.url, RESEARCH_LIMITS.maxEvidenceTitleChars),
+        title: clamp(
+          page.title ?? page.url,
+          RESEARCH_LIMITS.maxEvidenceTitleChars,
+        ),
         url: page.url,
         excerpt,
+        via,
       },
       observation: `read_url(${page.url})${focus ? ` focused on "${focus}"` : ''} → the passages that matched:\n${excerpt}\nThis is an extract of that page, not the whole thing. Quote it, name the page when it matters, and say so if it does not answer the question.`,
     }),
   }
+}
+
+/** 记下一页的搜索摘要（同一页先到先记：那是读全文之前的那一段）。 */
+function rememberResearchSnippet(
+  run: OperatorRun,
+  url: string,
+  title: string,
+  snippet: string,
+): void {
+  const text = snippet.trim()
+  if (!text || run.researchSnippets.has(url)) return
+  run.researchSnippets.set(url, {
+    title: clamp(title, RESEARCH_LIMITS.maxEvidenceTitleChars),
+    snippet: clamp(text, RESEARCH_LIMITS.maxEvidenceSnippetChars),
+  })
 }
 
 /**
@@ -12795,6 +12878,7 @@ export async function prepareOperatorTurn(
     webImageVision: new Map(),
     evidenceCiteSeq: 1,
     webFindSeq: 1,
+    researchSnippets: new Map(),
     researchRounds: 0,
     evidenceRefs: [],
     searchIndex: new Map(),

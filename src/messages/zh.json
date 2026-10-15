@@ -8417,7 +8417,8 @@
       },
       "findRef": "查看找到的 #{n}：{label}",
       "findRefPlain": "查看找到的 #{n}",
-      "findNamed": "回复里点到了这一项"
+      "findNamed": "回复里点到了这一项",
+      "readSnippetOnly": "原页没读到（站点挡了，或者读不出来）——下面只是搜索结果里的那段摘要。"
     },
     "queue": {
       "badge": "已排队",

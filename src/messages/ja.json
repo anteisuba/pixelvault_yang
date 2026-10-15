@@ -9304,7 +9304,22 @@
     "libraryNoResults": "該当するカードがありません。別の言葉で探してください。",
     "libraryClearSearch": "検索をクリア",
     "libraryMoreFailed": "読み込めませんでした · 再試行",
-    "libraryNoMore": "これ以上ありません"
+    "libraryNoMore": "これ以上ありません",
+    "tavernSection": "酒場カードの項目",
+    "tavernHint": "SillyTavern カードと同じ項目です。取り込んだカードはそのままここに入り、直接編集できます。",
+    "fieldScenario": "シナリオ",
+    "fieldOpening": "最初のメッセージ",
+    "fieldExamples": "会話例",
+    "examplesHint": "各ブロックは '<START>' で始め、1 行 1 発言：'{{user}}: … / {{char}}: …'",
+    "fieldSummary": "作者メモ",
+    "fieldSystemPrompt": "システムプロンプト",
+    "fieldPostHistory": "履歴後の指示",
+    "savedOnlyHint": "保存のみで、まだ使われません。",
+    "fieldAlternateGreetings": "別の挨拶（{count} 件）",
+    "alternateGreetingLabel": "別の挨拶 {index}",
+    "alternateGreetingHint": "空にするとこの挨拶を削除します。",
+    "alternateGreetingAdd": "別の挨拶を追加…",
+    "lorebookNote": "ワールドブック付き（{count} 件）。保存のみで使われません。"
   },
   "StudioTemplates": {
     "titleImage": "画像テンプレート · {count}",

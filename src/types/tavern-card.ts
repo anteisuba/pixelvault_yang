@@ -26,6 +26,22 @@ export const TavernCardFieldsSchema = z.object({
 
 export type TavernCardFields = z.infer<typeof TavernCardFieldsSchema>
 
+/**
+ * 角色卡上 `extensions['st.card']` 里原样存的那一份（导入时我们没有对应格子的几样）。
+ * 角色详情读它显示、改了按整键写回；认不出的键（世界书、来源……）原样带着走。
+ */
+export const TavernCardKeptSchema = z.looseObject({
+  spec: z.string().optional().catch(undefined),
+  creator: z.string().optional().catch(undefined),
+  characterVersion: z.string().optional().catch(undefined),
+  systemPrompt: z.string().optional().catch(undefined),
+  postHistoryInstructions: z.string().optional().catch(undefined),
+  alternateGreetings: z.array(z.string()).optional().catch(undefined),
+  characterBook: z.unknown().optional(),
+})
+
+export type TavernCardKept = z.infer<typeof TavernCardKeptSchema>
+
 /** V2 / V3 的外壳：`spec` 认得才拆 `data`，否则按 V1 平铺读。 */
 export const TavernCardEnvelopeSchema = z.object({
   spec: z.enum([TAVERN_CARD.SPEC_V2, TAVERN_CARD.SPEC_V3]),

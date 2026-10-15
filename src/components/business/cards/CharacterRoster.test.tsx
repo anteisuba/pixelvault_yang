@@ -85,6 +85,8 @@ function card(
     persona: null,
     cardTags: { character: [], appearance: [], loraTrigger: '' },
     workOverride: null,
+    summary: null,
+    tavern: null,
     generationCount: 0,
     createdAt: new Date(0),
     updatedAt: new Date(0),
@@ -166,6 +168,10 @@ const CARDS = [
       examples: [],
       backstory: '',
     },
+    tavern: {
+      alternateGreetings: ['雨停了。'],
+      characterBook: { entries: [{ key: 'a' }, { key: 'b' }] },
+    },
     variants: [
       card('denia-q', 'Denia', {
         parentId: 'denia',
@@ -229,6 +235,30 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
     expect(detail).toHaveTextContent('图片')
     fireEvent.click(screen.getByRole('button', { name: '角色' }))
     expect(screen.queryByRole('region', { name: 'Denia' })).toBeNull()
+  })
+
+  it('详情里有酒馆卡字段：备选开场白可加，世界书只读', async () => {
+    mockUpdate.mockClear()
+    renderRoster()
+    fireEvent.click(screen.getAllByTestId('roster-tile')[0]!)
+    const detail = screen.getByRole('region', { name: 'Denia' })
+    expect(detail).toHaveTextContent('备选开场白（1 条）')
+    expect(detail).toHaveTextContent('带着世界书（2 条）')
+    const add = screen.getByRole('textbox', { name: '加一条备选开场白…' })
+    fireEvent.change(add, { target: { value: '早上好。' } })
+    fireEvent.blur(add)
+    await vi.waitFor(() =>
+      expect(mockUpdate).toHaveBeenCalledWith(
+        'denia',
+        expect.objectContaining({
+          extensions: expect.objectContaining({
+            'st.card': expect.objectContaining({
+              alternateGreetings: ['雨停了。', '早上好。'],
+            }),
+          }),
+        }),
+      ),
+    )
   })
 
   it('新角色 = 直接进空详情页，光标在名字；名字写好离开才建卡（只有名字、不带图）', async () => {

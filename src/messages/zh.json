@@ -9304,7 +9304,22 @@
     "libraryNoResults": "没搜到这样的卡，换个词试试。",
     "libraryClearSearch": "清除搜索",
     "libraryMoreFailed": "这批没拿到 · 重试",
-    "libraryNoMore": "没有更多了"
+    "libraryNoMore": "没有更多了",
+    "tavernSection": "酒馆卡字段",
+    "tavernHint": "和 SillyTavern 卡同一套格子，导入的卡原样落在这里，也能直接改。",
+    "fieldScenario": "场景",
+    "fieldOpening": "开场白",
+    "fieldExamples": "对话示例",
+    "examplesHint": "每段用 '<START>' 开头，一行一句：'{{user}}: … / {{char}}: …'",
+    "fieldSummary": "作者备注",
+    "fieldSystemPrompt": "系统提示词",
+    "fieldPostHistory": "历史后指令",
+    "savedOnlyHint": "只保存，暂不生效。",
+    "fieldAlternateGreetings": "备选开场白（{count} 条）",
+    "alternateGreetingLabel": "备选开场白 {index}",
+    "alternateGreetingHint": "清空这一条就是删掉它。",
+    "alternateGreetingAdd": "加一条备选开场白…",
+    "lorebookNote": "带着世界书（{count} 条），只保存、不生效。"
   },
   "StudioTemplates": {
     "titleImage": "我的图片模板 · {count}",

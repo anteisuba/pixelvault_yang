@@ -40,6 +40,8 @@ const DENIA = {
   createdAt: new Date(0),
   cardTags: { character: [], appearance: [], loraTrigger: '' },
   workOverride: '鸣潮',
+  summary: null,
+  tavern: null,
   referenceSlots: [
     {
       id: 'slot-1',

@@ -9304,7 +9304,22 @@
     "libraryNoResults": "No cards match that. Try other words.",
     "libraryClearSearch": "Clear search",
     "libraryMoreFailed": "Couldn't load more · Retry",
-    "libraryNoMore": "No more cards"
+    "libraryNoMore": "No more cards",
+    "tavernSection": "Tavern card fields",
+    "tavernHint": "The same fields as a SillyTavern card. Imported cards land here as-is, and you can edit them.",
+    "fieldScenario": "Scenario",
+    "fieldOpening": "First message",
+    "fieldExamples": "Example dialogue",
+    "examplesHint": "Start each block with '<START>', one line per turn: '{{user}}: … / {{char}}: …'",
+    "fieldSummary": "Creator notes",
+    "fieldSystemPrompt": "System prompt",
+    "fieldPostHistory": "Post-history instructions",
+    "savedOnlyHint": "Saved only, not used yet.",
+    "fieldAlternateGreetings": "Alternate greetings ({count})",
+    "alternateGreetingLabel": "Alternate greeting {index}",
+    "alternateGreetingHint": "Clear this one to delete it.",
+    "alternateGreetingAdd": "Add an alternate greeting…",
+    "lorebookNote": "Has a lorebook ({count} entries), saved only, not used."
   },
   "StudioTemplates": {
     "titleImage": "My image templates · {count}",

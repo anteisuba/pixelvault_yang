@@ -291,6 +291,8 @@ describe('canvas assistant image references', () => {
         persona: null,
         cardTags: { character: [], appearance: [], loraTrigger: '' },
         workOverride: null,
+        summary: null,
+        tavern: null,
         generationCount: 0,
       },
       {
@@ -302,6 +304,8 @@ describe('canvas assistant image references', () => {
         persona: null,
         cardTags: { character: [], appearance: [], loraTrigger: '' },
         workOverride: null,
+        summary: null,
+        tavern: null,
         generationCount: 3,
       },
     ]

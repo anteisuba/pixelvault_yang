@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { CHARACTER_CARD } from '@/constants/cards/character-card'
+import { TAVERN_CARD } from '@/constants/cards/tavern-card'
 import type { CharacterCardRecord, UpdateCharacterCardRequest } from '@/types'
 import { ChevronLeft, Plus } from '@/components/icons'
 import { Button } from '@/components/ui/button'
@@ -169,6 +170,7 @@ export function CharacterDetailBody({
       </div>
 
       <SettingModule card={card} save={save} />
+      <TavernModule card={card} save={save} />
       <TagsModule card={card} save={save} />
       <DeleteCharacter name={card.name} onDelete={onDelete} />
     </div>
@@ -445,6 +447,112 @@ function SettingModule({
           </div>
         )
       ) : null}
+    </section>
+  )
+}
+
+const TAVERN_FIELDS = [
+  ['scenario', 'fieldScenario', undefined],
+  ['opening', 'fieldOpening', undefined],
+  ['examples', 'fieldExamples', 'examplesHint'],
+  ['summary', 'fieldSummary', undefined],
+  ['systemPrompt', 'fieldSystemPrompt', 'savedOnlyHint'],
+  ['postHistoryInstructions', 'fieldPostHistory', 'savedOnlyHint'],
+] as const
+
+/** 世界书只认条目数（内容原样存着，不在这里改）。 */
+function lorebookEntryCount(book: unknown): number {
+  if (!book || typeof book !== 'object' || !('entries' in book)) return 0
+  const entries = book.entries
+  if (Array.isArray(entries)) return entries.length
+  return entries && typeof entries === 'object'
+    ? Object.keys(entries).length
+    : 0
+}
+
+/**
+ * 酒馆卡的其余字段（owner 10-15 选 A：全显示、都能改，不做导出）。格名照酒馆的叫法；
+ * 系统提示词 / 历史后指令只保存不生效，世界书只读。
+ */
+function TavernModule({
+  card,
+  save,
+}: {
+  card: CharacterCardRecord
+  save: Save
+}) {
+  const t = useTranslations('CharacterRoster')
+  const draft = draftFromCard(card)
+  const greetings = draft.alternateGreetings
+  const lorebook = lorebookEntryCount(card.tavern?.characterBook)
+
+  return (
+    <section className="mb-8 flex flex-col gap-4">
+      <div className="flex flex-col gap-1">
+        <h3 className="text-base font-semibold">{t('tavernSection')}</h3>
+        <p className="text-xs text-muted-foreground">{t('tavernHint')}</p>
+      </div>
+      <div className="grid gap-x-11 gap-y-5 lg:grid-cols-2">
+        {TAVERN_FIELDS.map(([key, label, hint]) => (
+          <div key={key} className="flex min-w-0 flex-col gap-1">
+            <p className="text-xs text-muted-foreground">{t(label)}</p>
+            <CharacterInlineField
+              multiline
+              value={draft[key]}
+              label={t(label)}
+              placeholder={t('emptyField')}
+              hint={hint ? t(hint) : undefined}
+              onCommit={(text) => save({ [key]: text })}
+              className="text-base leading-relaxed lg:text-sm"
+            />
+          </div>
+        ))}
+
+        <div className="flex min-w-0 flex-col gap-1 lg:col-span-2">
+          <p className="text-xs text-muted-foreground">
+            {t('fieldAlternateGreetings', { count: greetings.length })}
+          </p>
+          <div className="flex flex-col gap-2">
+            {greetings.map((greeting, index) => (
+              <CharacterInlineField
+                key={`${index}-${greeting}`}
+                multiline
+                value={greeting}
+                label={t('alternateGreetingLabel', { index: index + 1 })}
+                placeholder={t('emptyField')}
+                hint={t('alternateGreetingHint')}
+                onCommit={(text) =>
+                  save({
+                    alternateGreetings: text
+                      ? greetings.map((item, i) => (i === index ? text : item))
+                      : greetings.filter((_, i) => i !== index),
+                  })
+                }
+                className="text-base leading-relaxed lg:text-sm"
+              />
+            ))}
+            {greetings.length < TAVERN_CARD.MAX_ALTERNATE_GREETINGS ? (
+              <CharacterInlineField
+                key={`add-${greetings.length}`}
+                multiline
+                value=""
+                label={t('alternateGreetingAdd')}
+                placeholder={t('alternateGreetingAdd')}
+                onCommit={(text) =>
+                  save({ alternateGreetings: [...greetings, text] })
+                }
+                className="text-base leading-relaxed lg:text-sm"
+              />
+            ) : null}
+          </div>
+        </div>
+
+        {lorebook ? (
+          <p className="text-xs text-muted-foreground lg:col-span-2">
+            {t('lorebookNote', { count: lorebook })}
+          </p>
+        ) : null}
+      </div>
     </section>
   )
 }

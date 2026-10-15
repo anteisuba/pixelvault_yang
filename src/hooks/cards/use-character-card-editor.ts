@@ -1,14 +1,19 @@
 import {
   CARD_EXTENSIONS,
   CHARACTER_CARD,
+  CHARACTER_PERSONA_LIMITS,
 } from '@/constants/cards/character-card'
+import { TAVERN_CARD } from '@/constants/cards/tavern-card'
 import { USER_UPLOAD_PROVIDER } from '@/constants/uploads'
 import type {
   CharacterCardRecord,
+  CharacterPersona,
   CharacterReferenceSlot,
   GenerationRecord,
   UpdateCharacterCardRequest,
 } from '@/types'
+import type { TavernCardKept } from '@/types/tavern-card'
+import { parseTavernExamples } from '@/lib/tavern-card'
 
 /**
  * 角色详情**点哪改哪**用的纯函数（owner 09-27 原型 B）：一格改完 → 以当前角色记录为底
@@ -33,6 +38,17 @@ export interface CharacterCardDraft {
   /** 作品手改值；空 = 从角色标签取。 */
   work: string
   slots: CharacterReferenceSlot[]
+  // ── 酒馆卡字段（owner 2026-10-15「字段对齐酒馆」：详情里全显示、能改）──
+  scenario: string
+  /** 开场白（酒馆 first_mes）。 */
+  opening: string
+  /** 对话示例，酒馆 `mes_example` 的写法（`<START>` / `{{user}}:` / `{{char}}:`）。 */
+  examples: string
+  /** 作者备注（酒馆 creator_notes）= 我们的简介。 */
+  summary: string
+  alternateGreetings: string[]
+  systemPrompt: string
+  postHistoryInstructions: string
 }
 
 const splitTags = (text: string): string[] =>
@@ -40,6 +56,43 @@ const splitTags = (text: string): string[] =>
     .split(/[,，\n]/)
     .map((tag) => tag.trim())
     .filter(Boolean)
+
+const clip = (text: string, max: number): string => text.trim().slice(0, max)
+
+/** 示例对白 → 酒馆 `mes_example` 的写法（一组一个 `<START>` 块）。 */
+export function examplesToTavernText(
+  examples: CharacterPersona['examples'],
+): string {
+  return examples
+    .map(({ user, reply }) =>
+      [
+        '<START>',
+        ...(user.trim() ? [`{{user}}: ${user.trim()}`] : []),
+        `{{char}}: ${reply.trim()}`,
+      ].join('\n'),
+    )
+    .join('\n')
+}
+
+/** 酒馆那几格写回 `st.card`：空的删掉，认不出的键（世界书、来源……）原样带着。 */
+function tavernFromDraft(
+  kept: TavernCardKept | null,
+  draft: CharacterCardDraft,
+): TavernCardKept | null {
+  const greetings = draft.alternateGreetings
+    .map((text) => text.trim())
+    .filter(Boolean)
+    .slice(0, TAVERN_CARD.MAX_ALTERNATE_GREETINGS)
+  const next: TavernCardKept = { ...kept }
+  delete next.systemPrompt
+  delete next.postHistoryInstructions
+  delete next.alternateGreetings
+  if (draft.systemPrompt.trim()) next.systemPrompt = draft.systemPrompt.trim()
+  if (draft.postHistoryInstructions.trim())
+    next.postHistoryInstructions = draft.postHistoryInstructions.trim()
+  if (greetings.length) next.alternateGreetings = greetings
+  return kept || Object.keys(next).length ? next : null
+}
 
 export function draftFromCard(card: CharacterCardRecord): CharacterCardDraft {
   return {
@@ -54,6 +107,13 @@ export function draftFromCard(card: CharacterCardRecord): CharacterCardDraft {
     loraTrigger: card.cardTags.loraTrigger,
     work: card.workOverride ?? '',
     slots: card.referenceSlots,
+    scenario: card.persona?.scenario ?? '',
+    opening: card.persona?.opening ?? '',
+    examples: examplesToTavernText(card.persona?.examples ?? []),
+    summary: card.summary ?? '',
+    alternateGreetings: card.tavern?.alternateGreetings ?? [],
+    systemPrompt: card.tavern?.systemPrompt ?? '',
+    postHistoryInstructions: card.tavern?.postHistoryInstructions ?? '',
   }
 }
 
@@ -62,21 +122,30 @@ export function updateFromDraft(
   card: CharacterCardRecord,
   draft: CharacterCardDraft,
 ): UpdateCharacterCardRequest {
+  const keptExamples = card.persona?.examples ?? []
+  // 没动过示例就原样带回（⛔ 来回解析一遍改掉别人的格式）。
+  const examples =
+    draft.examples === examplesToTavernText(keptExamples)
+      ? keptExamples
+      : parseTavernExamples(draft.examples, card.name)
+  const tavern = tavernFromDraft(card.tavern, draft)
   return {
     name: draft.name.trim() || card.name,
     description: draft.description.trim() || null,
+    summary: clip(draft.summary, CHARACTER_CARD.SUMMARY_MAX_LENGTH) || null,
     persona: {
       catchphrases: [],
-      scenario: '',
-      opening: '',
-      examples: [],
       ...card.persona,
       identity: draft.identity.trim(),
       behavior: draft.behavior.trim(),
       speech: draft.speech.trim(),
       backstory: draft.backstory.trim(),
+      scenario: clip(draft.scenario, CHARACTER_PERSONA_LIMITS.scenario),
+      opening: clip(draft.opening, CHARACTER_PERSONA_LIMITS.opening),
+      examples,
     },
     extensions: {
+      ...(tavern ? { [TAVERN_CARD.EXTENSION_KEY]: tavern } : {}),
       [CARD_EXTENSIONS.KEYS.tags]: {
         character: splitTags(draft.characterTags),
         appearance: splitTags(draft.appearanceTags),

@@ -35,6 +35,8 @@ const card = (
     persona: null,
     cardTags: { character: [], appearance: [], loraTrigger: '' },
     workOverride: null,
+    summary: null,
+    tavern: null,
     generationCount: 0,
     ...overrides,
   }) as CharacterCardRecord

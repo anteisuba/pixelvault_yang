@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { CARD_EXTENSIONS } from '@/constants/cards/character-card'
+import { TAVERN_CARD } from '@/constants/cards/tavern-card'
 import { legacyImagesToReferenceSlots } from '@/lib/card-bus'
 import type { Prisma } from '@/lib/generated/prisma/client'
 import {
@@ -23,6 +24,7 @@ import {
   type CharacterVoiceProfile,
   type SourceImageEntry,
 } from '@/types'
+import { TavernCardKeptSchema, type TavernCardKept } from '@/types/tavern-card'
 import { z } from 'zod'
 
 const StringArraySchema = z.array(z.string())
@@ -65,6 +67,7 @@ export interface DbCharacterCardRow {
   persona?: unknown
   extensions?: unknown
   referenceRoles?: unknown
+  summary?: string | null
 }
 
 function parseWithFallback<T>(
@@ -155,6 +158,16 @@ function readCardTags(extensions: unknown): CardTags {
     : { character: [], appearance: [], loraTrigger: '' }
 }
 
+function readTavernKept(extensions: unknown): TavernCardKept | null {
+  const value =
+    extensions && typeof extensions === 'object'
+      ? (extensions as Record<string, unknown>)[TAVERN_CARD.EXTENSION_KEY]
+      : undefined
+  if (value === undefined) return null
+  const parsed = TavernCardKeptSchema.safeParse(value)
+  return parsed.success ? parsed.data : null
+}
+
 function readWorkOverride(extensions: unknown): string | null {
   const value =
     extensions && typeof extensions === 'object'
@@ -210,6 +223,8 @@ export function mapCharacterCardRow(
     ),
     cardTags: readCardTags(row.extensions),
     workOverride: readWorkOverride(row.extensions),
+    summary: row.summary ?? null,
+    tavern: readTavernKept(row.extensions),
     generationCount: row._count?.generationLinks ?? 0,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,

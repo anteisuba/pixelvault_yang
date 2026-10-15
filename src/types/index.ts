@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import { CharacterImagePickSchema } from '@/types/character-image-pick'
 import type { StudioOperatorResultOwner } from '@/types/studio-assistant-operator'
+import type { TavernCardKept } from '@/types/tavern-card'
 import {
   NovelAiCharacterLayoutSchema,
   NovelAiSceneTextsSchema,
@@ -3725,6 +3726,10 @@ export interface CharacterCardRecord {
   cardTags: CardTags
   /** 作品手改值（`extensions['pv.work']`）；null = 从角色标签取。 */
   workOverride: string | null
+  /** 简介 / 酒馆的「作者备注」。⛔ 任何面都不进 prompt。 */
+  summary: string | null
+  /** 酒馆卡原样存的那几格（`extensions['st.card']`）；没导入过 = `null`。 */
+  tavern: TavernCardKept | null
   /** 用这个角色出过几张图（生成 ↔ 角色关联表计数；只在列表里算，其余为 0）。 */
   generationCount: number
   createdAt: Date

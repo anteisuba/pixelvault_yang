@@ -47,6 +47,8 @@ const CARD = {
   },
   referenceSlots: [slot('a', { isPrimary: true }), slot('b')],
   workOverride: null,
+  summary: null,
+  tavern: null,
 } as unknown as CharacterCardRecord
 
 describe('makePrimary / removeSlot', () => {
@@ -164,6 +166,42 @@ describe('updateFromDraft', () => {
       'pv.work': null,
     })
     expect(update.referenceSlots).toHaveLength(2)
+  })
+
+  it('酒馆字段：没卡外字段时不写 st.card；对话示例没改原样带回，改了按 <START> 重新切', () => {
+    const untouched = updateFromDraft(CARD, {
+      ...draftFromCard(CARD),
+      summary: ' 雨夜店主 ',
+    })
+    expect(untouched.summary).toBe('雨夜店主')
+    expect(untouched.extensions).not.toHaveProperty('st.card')
+    expect(untouched.persona?.examples).toEqual([{ user: 'hi', reply: 'yo' }])
+
+    const edited = updateFromDraft(CARD, {
+      ...draftFromCard(CARD),
+      examples: '<START>\n{{user}}: 你好\n{{char}}: 嗯',
+      systemPrompt: ' 只演 Denia ',
+      alternateGreetings: [' 早 ', '  '],
+    })
+    expect(edited.persona?.examples).toEqual([{ user: '你好', reply: '嗯' }])
+    expect(edited.extensions?.['st.card']).toEqual({
+      systemPrompt: '只演 Denia',
+      alternateGreetings: ['早'],
+    })
+  })
+
+  it('原卡外字段（世界书等）保留；清空系统提示词就删键', () => {
+    const card = {
+      ...CARD,
+      tavern: { systemPrompt: 'x', characterBook: { entries: [] } },
+    } as CharacterCardRecord
+    const update = updateFromDraft(card, {
+      ...draftFromCard(card),
+      systemPrompt: '',
+    })
+    expect(update.extensions?.['st.card']).toEqual({
+      characterBook: { entries: [] },
+    })
   })
 
   it('作品手改值写进 pv.work', () => {

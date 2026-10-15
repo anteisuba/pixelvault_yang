@@ -6,7 +6,6 @@ import {
   ASSISTANT_OPERATOR_LIMITS,
   ASSISTANT_OPERATOR_REJECT_REASON_IDS as REJECT,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS as STATUS,
-  ASSISTANT_OPERATOR_TOOL_IDS as TOOL,
   ASSISTANT_OPERATOR_TOOL_VERBS,
   type AssistantOperatorRejectReason,
   type AssistantOperatorTool,
@@ -23,7 +22,10 @@ import type {
   AssistantOperatorEvent,
   AssistantOperatorRequest,
 } from '@/types/assistant-operator'
-import type { AssistantV3Transcript } from '@/types/assistant-v3'
+import type {
+  AssistantV3PictureRef,
+  AssistantV3Transcript,
+} from '@/types/assistant-v3'
 import {
   isFatalOperatorToolError,
   planTool,
@@ -34,6 +36,7 @@ import {
   type PreparedOperatorTurn,
   type ToolPlan,
 } from '@/services/kernel/assistant-operator.service'
+import type { V3PictureCache } from '@/services/kernel/assistant-v3-look.service'
 
 /**
  * v3 两张脸共用的那一层（S6）：过程行、调旧执行器、把执行器的计划变成步与工具结果。
@@ -61,7 +64,6 @@ export const TITLE_TEXT: Record<
     /** 创作者按了「用 Grok 搜这一次」的那一步：写清楚花的是谁的额度。 */
     searchXWithGrok: string
     searchLibrary: string
-    inspect: string
     searchLora: string
     model: string
     params: string
@@ -84,7 +86,6 @@ export const TITLE_TEXT: Record<
     pickImages: string
     handOff: string
     readPage: string
-    checkLook: string
     more: (count: number) => string
   }
 > = {
@@ -105,7 +106,6 @@ export const TITLE_TEXT: Record<
     searchWeb: '联网查',
     searchXWithGrok: '用 Grok 搜 X（花你的 Grok 额度）',
     searchLibrary: '素材库找',
-    inspect: '核对参考图',
     searchLora: '找 LoRA',
     model: '换底模',
     params: '调参数',
@@ -128,7 +128,6 @@ export const TITLE_TEXT: Record<
     pickImages: '挑图',
     handOff: '交给图片助手',
     readPage: '读网页',
-    checkLook: '核对外观',
     more: (count) => `等 ${count} 项`,
   },
   japanese: {
@@ -148,7 +147,6 @@ export const TITLE_TEXT: Record<
     searchWeb: 'Web 検索',
     searchXWithGrok: 'Grok で X を検索（Grok の利用枠を使用）',
     searchLibrary: '素材検索',
-    inspect: '参照画像を確認',
     searchLora: 'LoRA を検索',
     model: 'ベースモデルを変更',
     params: 'パラメータを調整',
@@ -171,7 +169,6 @@ export const TITLE_TEXT: Record<
     pickImages: '画像を選ぶ',
     handOff: '画像アシスタントに渡す',
     readPage: 'ページを読む',
-    checkLook: '外見を照合',
     more: (count) => `ほか ${count} 件`,
   },
   english: {
@@ -191,7 +188,6 @@ export const TITLE_TEXT: Record<
     searchWeb: 'Search the web for',
     searchXWithGrok: 'Search X with Grok (your Grok quota) for',
     searchLibrary: 'Search the library for',
-    inspect: 'Check references',
     searchLora: 'Search LoRAs for',
     model: 'Switch base model',
     params: 'Adjust parameters',
@@ -214,18 +210,24 @@ export const TITLE_TEXT: Record<
     pickImages: 'Pick pictures',
     handOff: 'Hand to the image assistant',
     readPage: 'Read page',
-    checkLook: 'Check the look',
     more: (count) => `+${count} more`,
   },
 }
 
-export function clampTitle(value: string): string {
+function clampTitle(value: string): string {
   const max = ASSISTANT_OPERATOR_LIMITS.maxTitleChars
   return value.length > max ? `${value.slice(0, max - 1)}…` : value
 }
 
 export type V3Outcome =
-  | { kind: 'result'; output: string; error: boolean; failureKey?: string }
+  | {
+      kind: 'result'
+      output: string
+      error: boolean
+      failureKey?: string
+      /** `look` 交到模型眼前的图 —— 进本轮记录，只附给紧跟着的那一次调用。 */
+      images?: readonly AssistantV3PictureRef[]
+    }
   /** 交给前端落了，结果等接力那一跳再补。 */
   | { kind: 'pending' }
   /** 停在问题卡 / 确认卡上，等创作者。 */
@@ -247,6 +249,13 @@ export interface V3Context {
   readonly transcript: AssistantV3Transcript
   /** 这一条回复模型自己写了的正文（停在卡上时，没写才替它说 `say`）。 */
   readonly replyText: { current: string }
+  /**
+   * 这一轮选的模型看不看得见图（`assistantAdapterSupportsImage`）。看不见时 `look` 只回
+   * 一句「这个模型看不了图、换一个」，⛔ 不借别家的 key（owner 2026-10-14 / 10-15）。
+   */
+  readonly seesImages: boolean
+  /** 这次请求里下过的图（按地址）。⚠ 字节只活在这次请求里，⛔ 不进本轮记录。 */
+  readonly pictures: V3PictureCache
 }
 
 /** 停在卡上的那一轮：模型这条回复没写正文，就把卡上的 `say` 说出来。 */
@@ -322,27 +331,6 @@ export async function planGuarded(
   }
 }
 
-/** 写提示词时规划器顺手复核过参考图：那一步也要在时间线上留一行。 */
-export function* flushInspectedReferences(
-  context: V3Context,
-): Generator<AssistantOperatorEvent> {
-  const run = context.prepared.run
-  if (!run.inspectedCanvasReferences) return
-  const analysis = run.inspectedCanvasReferences
-  run.inspectedCanvasReferences = null
-  const step = nextStep(
-    context,
-    TOOL.analyzeReferences,
-    TITLE_TEXT[context.language].inspect,
-  )
-  yield toStepEvent({
-    ...step,
-    status: STATUS.done,
-    payload: {},
-    result: analysis,
-  })
-}
-
 export function* rejectedStep(
   context: V3Context,
   tool: AssistantOperatorTool,
@@ -376,7 +364,6 @@ export async function* settlePlan(
   plan: ToolPlan,
 ): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
   const run = context.prepared.run
-  yield* flushInspectedReferences(context)
   switch (plan.kind) {
     case 'rejected':
       // 一改什么都没变（要的值卡上本来就是）：不算一步，⛔ 在时间线上留一条红行。

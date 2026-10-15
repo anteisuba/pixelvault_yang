@@ -15,7 +15,10 @@ import {
   ASSISTANT_V3_TOOL_IDS,
   ASSISTANT_V3_WEB_IMAGES_SEARCH_KIND,
 } from '@/constants/assistant-v3'
-import { renderAssistantV3CardsItem } from '@/lib/assistant-v3-cards-board'
+import {
+  openCharacterImages,
+  renderAssistantV3CardsItem,
+} from '@/lib/assistant-v3-cards-board'
 import {
   AssistantV3AskInputSchema,
   AssistantV3CardsEditInputSchema,
@@ -58,7 +61,7 @@ export function assistantV3CardsTools(strict: boolean) {
     }),
     [ASSISTANT_V3_TOOL_IDS.look]: tool({
       description:
-        '"card": check the open character\'s pictures against their profile (only when the creator asks whether they match). Or look at a picture attached to the message, by its name, with one specific question.',
+        '"card" (or "card-N"): the open character\'s pictures, to check them against their profile when the creator asks. Or a picture attached to the message, by its name. With one specific question.',
       inputSchema: AssistantV3CardsLookInputSchema,
       strict,
     }),
@@ -228,6 +231,16 @@ export async function* executeAssistantV3CardsMutation(
   return outcome
 }
 
+/** `card` 或 `card-N`（打开那位卡上的第 N 张图）。 */
+const CARD_PICTURE = new RegExp(
+  `^${ASSISTANT_V3_CARDS_ITEM_IDS.card}(?:-(\\d+))?$`,
+  'i',
+)
+
+/** 对设定与外观时怎么看（原 check_character_look 的判据，owner 09-27）。 */
+const CARD_LOOK_NOTE =
+  "These are the open character's own pictures (card-1 is the main one). Compare them with the profile yourself: only who they are counts — hair colour or length, eye colour, skin, apparent age, body type, species, permanent marks (scars, tattoos, horns, wings, ears). Outfits, accessories, poses, expressions, backgrounds and art styles never count; a detail the text does not mention or the pictures cannot show clearly is not a mismatch."
+
 /** read / look / search_library 在角色页上的样子。search_web / ask 与别的脸共用。 */
 export async function* executeAssistantV3CardsCall(
   context: V3Context,
@@ -305,35 +318,37 @@ export async function* executeAssistantV3CardsCall(
     }
     case ASSISTANT_V3_TOOL_IDS.look: {
       const parsed = AssistantV3CardsLookInputSchema.parse(input)
-      const wantsCard = parsed.images.some(
-        (image) =>
-          image.trim().toLowerCase() === ASSISTANT_V3_CARDS_ITEM_IDS.card,
+      /**
+       * ⭐ `card` / `card-N` = 打开那位卡上的图（前几张已经跟着板子附上了）。对设定与外观
+       *   由模型自己看着判断（owner 2026-10-15），⛔ 不再另起 check_character_look 那次子调用。
+       */
+      const pictures = openCharacterImages(snapshot.cards?.open).map(
+        (url, index) => ({ url, label: `card-${index + 1}` }),
       )
-      const others = parsed.images.filter(
-        (image) =>
-          image.trim().toLowerCase() !== ASSISTANT_V3_CARDS_ITEM_IDS.card,
+      const wantsCard = parsed.images.some((image) =>
+        CARD_PICTURE.test(image.trim()),
       )
-      const open = snapshot.cards?.open
-      const outcomes: V3Outcome[] = []
-      if (wantsCard)
-        outcomes.push(
-          open
-            ? yield* runOldTool(
-                context,
-                TOOL.checkCharacterLook,
-                `${text.checkLook}「${open.name}」`,
-                { characterId: open.id },
-              )
-            : {
-                kind: 'result',
-                output:
-                  'No character is open: there are no card pictures to check.',
-                error: true,
-              },
-        )
-      if (others.length)
-        outcomes.push(yield* executeBenchLook(context, others, parsed.question))
-      return joinOutcomes(outcomes)
+      return yield* executeBenchLook(
+        context,
+        parsed.images,
+        parsed.question,
+        (name) => {
+          const key = name.trim().toLowerCase()
+          if (key === ASSISTANT_V3_CARDS_ITEM_IDS.card)
+            return pictures.length
+              ? pictures
+              : snapshot.cards?.open
+                ? 'The open character has no pictures yet.'
+                : 'No character is open: there are no card pictures to look at.'
+          const numbered = CARD_PICTURE.exec(key)?.[1]
+          if (!numbered) return null
+          const picture = pictures[Number(numbered) - 1]
+          return picture
+            ? [picture]
+            : `There is no ${key}: the open character has ${pictures.length} picture(s).`
+        },
+        wantsCard ? [CARD_LOOK_NOTE] : [],
+      )
     }
     case ASSISTANT_V3_TOOL_IDS.searchLibrary: {
       const parsed = AssistantV3ImageSearchLibraryInputSchema.parse(input)

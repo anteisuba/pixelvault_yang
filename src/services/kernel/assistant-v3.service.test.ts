@@ -7,6 +7,7 @@ import type {
 } from '@ai-sdk/provider'
 
 import { ASSISTANT_OPERATOR_REJECT_REASON_IDS } from '@/constants/assistant-operator'
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AssistantOperatorStepSchema } from '@/types/assistant-operator'
 import type {
   AssistantOperatorCanvasNode,
@@ -18,15 +19,39 @@ import type { AssistantV3Transcript } from '@/types/assistant-v3'
 
 vi.mock('server-only', () => ({}))
 
-const { plan, critique, legacy, closeRound, model, characterReminder } =
-  vi.hoisted(() => ({
-    plan: vi.fn(),
-    critique: vi.fn(),
-    legacy: vi.fn(),
-    closeRound: vi.fn(async () => undefined),
-    model: { current: null as unknown },
-    characterReminder: vi.fn((): string | null => null),
-  }))
+const {
+  plan,
+  critique,
+  legacy,
+  closeRound,
+  model,
+  characterReminder,
+  served,
+  fetchAsBuffer,
+} = vi.hoisted(() => ({
+  plan: vi.fn(),
+  critique: vi.fn(),
+  legacy: vi.fn(),
+  closeRound: vi.fn(async () => undefined),
+  model: { current: null as unknown },
+  characterReminder: vi.fn((): string | null => null),
+  /** 测试里下得来的图：地址 → 格式（没登记的下不来）。 */
+  served: new Map<string, string>(),
+  fetchAsBuffer: vi.fn(),
+}))
+
+/** 图的内容写着格式与地址（`png:https://…`）：附没附、附在哪，按它认。 */
+vi.mock('@/services/storage/r2', () => ({
+  fetchAsBuffer,
+  detectTrustedImageMime: async (
+    buffer: Buffer,
+    formats: ReadonlySet<string>,
+  ) => {
+    const format = buffer.toString().split(':')[0] ?? ''
+    if (!formats.has(format)) throw new Error('unsupported image')
+    return { format, mimeType: `image/${format}`, width: 512, height: 768 }
+  },
+}))
 
 vi.mock('@/services/kernel/assistant-operator.service', () => ({
   prepareOperatorTurn: vi.fn(
@@ -248,6 +273,34 @@ function promptText(call: LanguageModelV3CallOptions): string {
   return JSON.stringify(call.prompt)
 }
 
+/** 这一次调用附了哪几张图（按图里写着的地址认）：user 消息里的 + 工具结果里的。 */
+function attachedPictures(call: LanguageModelV3CallOptions): string[] {
+  const urlOf = (data: unknown) => {
+    const text =
+      typeof data === 'string'
+        ? Buffer.from(data, 'base64').toString()
+        : Buffer.from(data as Uint8Array).toString()
+    return text.slice(text.indexOf(':') + 1)
+  }
+  return call.prompt.flatMap((message) => {
+    if (message.role === 'user')
+      return message.content.flatMap((part) =>
+        part.type === 'file' && part.mediaType.startsWith('image/')
+          ? [urlOf(part.data)]
+          : [],
+      )
+    if (message.role === 'tool')
+      return message.content.flatMap((part) =>
+        part.type === 'tool-result' && part.output.type === 'content'
+          ? part.output.value.flatMap((item) =>
+              item.type === 'image-data' ? [urlOf(item.data)] : [],
+            )
+          : [],
+      )
+    return []
+  })
+}
+
 const disconnectGoyle = {
   id: 'call_1',
   name: 'edit',
@@ -258,6 +311,16 @@ const disconnectGoyle = {
   },
 }
 
+beforeEach(() => {
+  served.clear()
+  fetchAsBuffer.mockReset()
+  fetchAsBuffer.mockImplementation(async (url: string) => {
+    const format = served.get(url)
+    if (!format) throw new Error('unreachable')
+    return { buffer: Buffer.from(`${format}:${url}`), mimeType: 'image/*' }
+  })
+})
+
 describe('v3 内核', () => {
   beforeEach(() => {
     plan.mockReset()
@@ -265,6 +328,62 @@ describe('v3 内核', () => {
     legacy.mockReset()
     closeRound.mockClear()
   })
+
+  const HARRY_PNG = 'https://cdn.test/harry.png'
+  const GOYLE_PNG = 'https://cdn.test/goyle.png'
+
+  /** 两张角色图卡各指着画布参考位上自己那张图（`referenceImageIndex`）。 */
+  function lookSnapshot(withGoyle = true) {
+    const board = canvas(withGoyle)
+    const shot = board.shots[0]
+    if (shot?.expanded)
+      shot.nodes = shot.nodes.map((node) =>
+        node.id === HARRY
+          ? { ...node, referenceImageIndex: 0 }
+          : node.id === GOYLE
+            ? { ...node, referenceImageIndex: 1 }
+            : node,
+      )
+    return { prompt: '', canvas: board, availableModels: [] }
+  }
+
+  /** 这一轮选的模型与画布参考位（不给就用文件顶上那份默认）。 */
+  function preparedOnce(
+    route: { adapterType: string; modelId: string },
+    referenceUrls: string[],
+  ) {
+    const run = {
+      stepSeq: 0,
+      signal: undefined,
+      inspectedCanvasReferences: null,
+      skipReferenceReview: false,
+      state: { referenceUrls },
+    }
+    vi.mocked(prepareOperatorTurn).mockImplementationOnce(
+      async (_clerkId, request) =>
+        ({
+          request,
+          user: { id: 'user-1', displayName: null, username: null },
+          persona: { language: 'ui' },
+          rules: [],
+          route: {
+            adapterType: route.adapterType,
+            providerConfig: {},
+            apiKey: 'k',
+          },
+          modelId: route.modelId,
+          run,
+        }) as never,
+    )
+    return run
+  }
+
+  const OPENAI = { adapterType: 'openai', modelId: 'gpt-6-luna' }
+  const lookBoth = {
+    id: 'call_look',
+    name: 'look',
+    input: { cards: ['img-249e8b', 'img-9c0d1e'], question: '哪张是哈利？' },
+  }
 
   it('只回话：流式正文 + 定稿 + done，不发本轮记录', async () => {
     script(textTurn('S04b 现在接了高尔一张参考。'))
@@ -840,60 +959,219 @@ describe('v3 内核', () => {
     expect(events.at(-2)).toMatchObject({ type: 'confirm' })
   })
 
-  it('看图评成图：把那张卡接的参考图和它的提示词一起交给评审', async () => {
-    script(
+  it('look：图交到主模型眼前，只附给紧跟着的那一步；⛔ 不另起看图子调用', async () => {
+    preparedOnce(OPENAI, [HARRY_PNG, GOYLE_PNG])
+    served.set(HARRY_PNG, 'png')
+    served.set(GOYLE_PNG, 'png')
+    const mock = script(
+      toolTurn(lookBoth),
       toolTurn({
-        id: 'call_1',
-        name: 'look',
-        input: { cards: ['vid-4f6105'], question: '对照参考哪里不对？' },
+        id: 'call_read',
+        name: 'read',
+        input: { cards: ['img-249e8b'] },
       }),
-      textTurn('裙子画成了长裤。'),
+      textTurn('左边那张是哈利。'),
     )
-    critique.mockResolvedValue({
-      kind: 'read',
-      payload: { imageUrl: 'https://cdn.test/result.png', goal: null },
-      run: async () => ({
-        result: {
-          findings: [{ severity: 'warn', text: '裙子画成了长裤' }],
-          advice: null,
-          borrowedVisionRoute: false,
-        },
-        observation: 'critique_result — looked',
-      }),
+    const events = await collect(
+      runAssistantV3(
+        'clerk-1',
+        request({
+          snapshot: lookSnapshot(),
+        } as Partial<AssistantOperatorRequest>),
+      ),
+    )
+    expect(critique).not.toHaveBeenCalled()
+    expect(plan).not.toHaveBeenCalled()
+
+    const [before, next, after] = mock.doStreamCalls
+    expect(attachedPictures(before!)).toEqual([])
+    expect(attachedPictures(next!)).toEqual([HARRY_PNG, GOYLE_PNG])
+    // OpenAI 协议的 tool 消息只收文字：结果写字，图跟在后面那条 user 里。
+    expect(next!.prompt.at(-2)?.role).toBe('tool')
+    expect(next!.prompt.at(-1)?.role).toBe('user')
+    expect(JSON.stringify(next!.prompt.at(-1))).toContain(
+      'PICTURES FROM YOUR look (in order): 1 = 「img-249e8b 哈利 · 黑袍」 · 2 = 「img-9c0d1e 高尔 · 黑袍」',
+    )
+    expect(promptText(next!)).toContain(
+      'You are looking at these pictures for: \\"哪张是哈利？\\"',
+    )
+    // 再往后只剩工具结果那行字。
+    expect(attachedPictures(after!)).toEqual([])
+    expect(promptText(after!)).toContain('for your next step only')
+
+    // 过程行只说看了哪几张，⛔ 不另起一行「看到了什么」。
+    const steps = events.flatMap((event) =>
+      event.type === 'step' ? [event.step] : [],
+    )
+    expect(steps[0]).toMatchObject({
+      tool: 'read_state',
+      status: 'done',
+      title: '查看「哈利 · 黑袍」；查看「高尔 · 黑袍」',
+      payload: { nodeIds: [HARRY, GOYLE] },
+      result: { digest: '哈利 · 黑袍 · 高尔 · 黑袍' },
     })
+    expect(steps).toHaveLength(2)
+  })
+
+  it('Gemini：图放进 look 那条工具结果本身，⛔ 不另接一条 user', async () => {
+    preparedOnce({ adapterType: 'gemini', modelId: 'gemini-3.8-flash' }, [
+      HARRY_PNG,
+      GOYLE_PNG,
+    ])
+    served.set(HARRY_PNG, 'png')
+    const mock = script(
+      toolTurn({
+        id: 'call_look',
+        name: 'look',
+        input: { cards: ['img-249e8b'], question: '是谁？' },
+      }),
+      textTurn('是哈利。'),
+    )
     await collect(
       runAssistantV3(
         'clerk-1',
         request({
-          mentionedAssets: [
-            {
-              id: 'gen-1',
-              url: 'https://cdn.test/result.png',
-              label: '冲出门',
-            },
-          ],
-          snapshot: {
-            prompt: '',
-            canvas: canvas(true, {
-              referenceUrls: ['https://cdn.test/goyle.png'],
-              referencePromptContext: '图片1「高尔 · 黑袍」',
-            }),
-            availableModels: [],
-          },
+          snapshot: lookSnapshot(),
         } as Partial<AssistantOperatorRequest>),
       ),
     )
-    expect(critique).toHaveBeenCalledWith(
-      expect.anything(),
-      { goal: '对照参考哪里不对？', targetIds: ['gen-1'] },
-      'user-1',
-      {
-        referenceUrls: ['https://cdn.test/goyle.png'],
-        // 参考图抬头 + 提示词正文，两段都交给看图那一跳。
-        prompt: '图片1「高尔 · 黑袍」\n\n中景：女德拉科转身冲出门。',
-        scriptNotes: null,
-      },
+    const next = mock.doStreamCalls[1]!
+    expect(next.prompt.at(-1)).toMatchObject({
+      role: 'tool',
+      content: [
+        {
+          type: 'tool-result',
+          toolCallId: 'call_look',
+          output: { type: 'content' },
+        },
+      ],
+    })
+    expect(attachedPictures(next)).toEqual([HARRY_PNG])
+  })
+
+  it('look：一张下不来只点名那一张，其余照样交到眼前', async () => {
+    const GOYLE_GIF = 'https://cdn.test/goyle.gif'
+    preparedOnce(OPENAI, [HARRY_PNG, GOYLE_GIF])
+    served.set(HARRY_PNG, 'png')
+    served.set(GOYLE_GIF, 'gif')
+    const mock = script(toolTurn(lookBoth), textTurn('左边是哈利。'))
+    const events = await collect(
+      runAssistantV3(
+        'clerk-1',
+        request({
+          snapshot: lookSnapshot(),
+        } as Partial<AssistantOperatorRequest>),
+      ),
     )
+    const next = mock.doStreamCalls[1]!
+    expect(attachedPictures(next)).toEqual([HARRY_PNG])
+    expect(promptText(next)).toContain(
+      'Could not load 「img-9c0d1e 高尔 · 黑袍」',
+    )
+    expect(events.find((event) => event.type === 'step')).toMatchObject({
+      step: { tool: 'read_state', status: 'done' },
+    })
+  })
+
+  it('所选模型看不了图（DeepSeek V4 Pro）：look 只回一句换模型，⛔ 不下图、不借别家', async () => {
+    preparedOnce(
+      { adapterType: 'deepseek', modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO },
+      [HARRY_PNG, GOYLE_PNG],
+    )
+    served.set(HARRY_PNG, 'png')
+    const mock = script(toolTurn(lookBoth), textTurn('这个模型看不了图。'))
+    const events = await collect(
+      runAssistantV3(
+        'clerk-1',
+        request({
+          snapshot: lookSnapshot(),
+          mentionedAssets: [
+            {
+              id: 'gen-1',
+              url: HARRY_PNG,
+              label: '哈利 · 黑袍',
+              nodeId: HARRY,
+            },
+          ],
+        } as Partial<AssistantOperatorRequest>),
+      ),
+    )
+    expect(fetchAsBuffer).not.toHaveBeenCalled()
+    expect(critique).not.toHaveBeenCalled()
+    expect(plan).not.toHaveBeenCalled()
+    const next = mock.doStreamCalls[1]!
+    expect(attachedPictures(next)).toEqual([])
+    expect(promptText(next)).toContain(
+      'cannot see pictures, and no other provider is used in its place',
+    )
+    expect(events.some((event) => event.type === 'step')).toBe(false)
+  })
+
+  it('接力：本轮记录里只存图的地址与称呼；模型还没开口，下一跳照样附上', async () => {
+    preparedOnce(OPENAI, [HARRY_PNG, GOYLE_PNG])
+    preparedOnce(OPENAI, [HARRY_PNG])
+    served.set(HARRY_PNG, 'png')
+    const mock = script(
+      toolTurn(
+        {
+          id: 'call_look',
+          name: 'look',
+          input: { cards: ['img-249e8b'], question: '是谁？' },
+        },
+        disconnectGoyle,
+      ),
+      textTurn('断开了；左边是哈利。'),
+    )
+    plan.mockImplementation(async (_run, _tool, args) => ({
+      kind: 'mutate',
+      payload: args,
+      inverse: { op: 'batch', nodeRef: S04B },
+      observation: 'queued',
+      apply: () => {},
+    }))
+    const first = await collect(
+      runAssistantV3(
+        'clerk-1',
+        request({
+          snapshot: lookSnapshot(),
+        } as Partial<AssistantOperatorRequest>),
+      ),
+    )
+    const transcript = (
+      first.find((event) => event.type === 'transcript') as {
+        transcript: AssistantV3Transcript
+      }
+    ).transcript
+    expect(
+      transcript.find(
+        (entry) => entry.type === 'result' && entry.tool === 'look',
+      ),
+    ).toMatchObject({
+      images: [{ url: HARRY_PNG, label: 'img-249e8b 哈利 · 黑袍' }],
+    })
+    // ⛔ 字节不进记录（记录要发给前端接力）。
+    expect(JSON.stringify(transcript)).not.toContain(
+      Buffer.from(`png:${HARRY_PNG}`).toString('base64'),
+    )
+
+    await collect(
+      runAssistantV3(
+        'clerk-1',
+        request({
+          snapshot: lookSnapshot(false),
+          priorSteps: [
+            {
+              tool: 'canvas_batch',
+              status: 'done',
+              summary: '断开',
+              thisTurn: true,
+            },
+          ],
+          v3: { transcript },
+        } as Partial<AssistantOperatorRequest>),
+      ),
+    )
+    expect(attachedPictures(mock.doStreamCalls[1]!)).toEqual([HARRY_PNG])
   })
 
   it('反问：多选原样透传；图片句柄换成这一轮手上的图，⛔ 不收模型写的地址；带 why', async () => {
@@ -1173,6 +1451,13 @@ describe('v3 内核 · LoRA 台', () => {
   }
 
   function preparedWith(prompt: string, modelId: string | undefined) {
+    const run = {
+      stepSeq: 0,
+      signal: undefined,
+      inspectedCanvasReferences: null,
+      skipReferenceReview: false,
+      state: { referenceUrls: [], prompt, negativePrompt: 'lowres' },
+    }
     vi.mocked(prepareOperatorTurn).mockImplementationOnce(
       async (_clerkId, request) =>
         ({
@@ -1182,14 +1467,10 @@ describe('v3 内核 · LoRA 台', () => {
           rules: [],
           route: { adapterType: 'openai', providerConfig: {}, apiKey: 'k' },
           modelId,
-          run: {
-            stepSeq: 0,
-            signal: undefined,
-            inspectedCanvasReferences: null,
-            state: { referenceUrls: [], prompt, negativePrompt: 'lowres' },
-          },
+          run,
         }) as never,
     )
+    return run
   }
 
   /** 旧执行器回来的改动步（载荷照它真实的形状，步的 schema 按工具校验）。 */
@@ -1228,6 +1509,28 @@ describe('v3 内核 · LoRA 台', () => {
       'example 2 / 5 of 提弗洛斯 (its picture is attached)',
     )
     expect(legacy).not.toHaveBeenCalled()
+  })
+
+  it('look sample 只指给板子上那张，⛔ 不重附', async () => {
+    preparedWith('typhoeus, 1girl', 'gpt-6-luna')
+    served.set(SAMPLE, 'png')
+    const mock = script(
+      toolTurn({
+        id: 'call_look',
+        name: 'look',
+        input: { images: ['sample'], question: '画风像吗' },
+      }),
+      textTurn('像。'),
+    )
+    await collect(runAssistantV3('clerk-1', loraRequest('和示例画风像吗')))
+    expect(critique).not.toHaveBeenCalled()
+    expect(plan).not.toHaveBeenCalled()
+    const next = mock.doStreamCalls[1]!
+    expect(promptText(next)).toContain(
+      "Already in front of you in the creator's message: 「sample」 (picture 1 of IMAGES THE CREATOR POINTED AT)",
+    )
+    // 只有板子那一张：⛔ 不再附第二遍。
+    expect(attachedPictures(next)).toEqual([SAMPLE])
   })
 
   it('助手模型选「自动」（没有型号）也走 v3，⛔ 不退回旧内核', async () => {
@@ -1864,8 +2167,9 @@ describe('v3 内核 · 角色页', () => {
     )
   })
 
-  it('read 一个网址就读那一页；look card 核对打开那位的图', async () => {
-    script(
+  it('read 一个网址就读那一页；look card 指给板子上那几张，⛔ 不另起 check_character_look', async () => {
+    served.set('https://cdn.test/ron.png', 'png')
+    const mock = script(
       toolTurn(
         {
           id: 'call_1',
@@ -1894,12 +2198,13 @@ describe('v3 内核 · 角色页', () => {
       { url: 'https://harrypotter.fandom.com/wiki/Ronald_Weasley' },
       'user-1',
     )
-    expect(plan).toHaveBeenCalledWith(
-      expect.anything(),
-      'check_character_look',
-      { characterId: RON },
-      'user-1',
+    expect(plan).toHaveBeenCalledTimes(1)
+    expect(critique).not.toHaveBeenCalled()
+    const next = promptText(mock.doStreamCalls[1]!)
+    expect(next).toContain(
+      "Already in front of you in the creator's message: 「card-1」 (picture 1 of IMAGES THE CREATOR POINTED AT)",
     )
+    expect(next).toContain('only who they are counts')
   })
 })
 
@@ -2021,6 +2326,51 @@ describe('v3 内核 · 视频台', () => {
       ],
       ['set_sound', { enabled: false }],
     ])
+  })
+
+  it('看片：带着抽好的帧的那段片子照旧走看片评审；别的图交到眼前', async () => {
+    const CLIP = 'https://cdn.test/clip.mp4'
+    const DOOR = 'https://cdn.test/door.png'
+    const POSE = 'https://cdn.test/pose.png'
+    served.set(DOOR, 'png')
+    served.set(POSE, 'png')
+    critique.mockResolvedValue({
+      kind: 'rejected',
+      reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.videoFramesMissing,
+      detail: 'no frames this turn',
+    })
+    const mock = script(
+      toolTurn({
+        id: 'call_look',
+        name: 'look',
+        input: { images: ['冲出门', '姿势'], question: '动作连贯吗' },
+      }),
+      textTurn('动作停住了。'),
+    )
+    const base = videoRequest('这段片子动作连贯吗')
+    await collect(
+      runAssistantV3('clerk-1', {
+        ...base,
+        mentionedAssets: [
+          ...(base.mentionedAssets ?? []),
+          { id: 'asset-clip', url: CLIP, label: '冲出门' },
+          { id: 'asset-pose', url: POSE, label: '姿势' },
+        ],
+        videoFrames: { sourceUrl: CLIP, durationSeconds: 5, frames: [] },
+      } as unknown as AssistantOperatorRequest),
+    )
+    expect(critique).toHaveBeenCalledTimes(1)
+    expect(critique).toHaveBeenCalledWith(
+      expect.anything(),
+      { goal: '动作连贯吗', targetIds: ['asset-clip'] },
+      'user-1',
+    )
+    // 「姿势」那张是第 3 张 @ 上来的图：板子上已经附了，⛔ 不再附一遍。
+    const next = mock.doStreamCalls[1]!
+    expect(promptText(next)).toContain(
+      "Already in front of you in the creator's message: 「姿势」",
+    )
+    expect(promptText(next)).toContain('no frames this turn')
   })
 
   it('清晰度是花钱的那一格：创作者没提就不改，提了照改', async () => {

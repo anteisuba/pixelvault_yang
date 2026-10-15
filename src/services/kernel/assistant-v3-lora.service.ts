@@ -74,7 +74,7 @@ export function assistantV3LoraTools(strict: boolean) {
     }),
     [ASSISTANT_V3_TOOL_IDS.look]: tool({
       description:
-        'Look at a picture with one specific question: a picture attached to the message (by its name), or a mounted reference ("ref-1"). The open example is already attached to the board message.',
+        'Put pictures in front of you for your next response, with one specific question: a picture attached to the message (by its name), or a mounted reference ("ref-1"). The open example is already attached to the board message.',
       inputSchema: AssistantV3LoraLookInputSchema,
       strict,
     }),
@@ -375,31 +375,23 @@ export async function* executeAssistantV3LoraCall(
     }
     case ASSISTANT_V3_TOOL_IDS.look: {
       const parsed = AssistantV3LoraLookInputSchema.parse(input)
-      const wantsSample = parsed.images.some(
-        (image) =>
-          image.trim().toLowerCase() === ASSISTANT_V3_LORA_ITEM_IDS.sample,
+      // `sample` = 左边打开着的示例图（它已经跟着板子附上了，look 只指给模型看）。
+      return yield* executeBenchLook(
+        context,
+        parsed.images,
+        parsed.question,
+        (name) =>
+          name.trim().toLowerCase() !== ASSISTANT_V3_LORA_ITEM_IDS.sample
+            ? null
+            : snapshot.viewingRecipe
+              ? [
+                  {
+                    url: snapshot.viewingRecipe.recipe.imageUrl,
+                    label: ASSISTANT_V3_LORA_ITEM_IDS.sample,
+                  },
+                ]
+              : 'No example picture is open on the left.',
       )
-      const others = parsed.images.filter(
-        (image) =>
-          image.trim().toLowerCase() !== ASSISTANT_V3_LORA_ITEM_IDS.sample,
-      )
-      const sample: V3Outcome[] = wantsSample
-        ? [
-            {
-              kind: 'result',
-              output: snapshot.viewingRecipe
-                ? 'The open example is attached to the board message of this turn: look at it there.'
-                : 'No example picture is open on the left.',
-              error: !snapshot.viewingRecipe,
-            },
-          ]
-        : []
-      return joinOutcomes([
-        ...sample,
-        ...(others.length
-          ? [yield* executeBenchLook(context, others, parsed.question)]
-          : []),
-      ])
     }
     case ASSISTANT_V3_TOOL_IDS.generate:
       return yield* executeBenchGenerate(context, input)

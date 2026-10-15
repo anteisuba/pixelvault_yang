@@ -69,7 +69,7 @@ export function assistantV3ImageTools(strict: boolean) {
     }),
     [ASSISTANT_V3_TOOL_IDS.look]: tool({
       description:
-        'Look at pictures with one specific question: pictures attached to the message (by name) or mounted references ("ref-1").',
+        'Put pictures in front of you for your next response, with one specific question: pictures attached to the message (by name) or mounted references ("ref-1").',
       inputSchema: AssistantV3ImageLookInputSchema,
       strict,
     }),

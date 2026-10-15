@@ -41,13 +41,9 @@ import {
   X_HANDLE_PATTERN,
   X_SEARCH_DATE_PATTERN,
 } from '@/constants/research'
-import {
-  NODE_MEDIA_KIND_IDS,
-  NODE_V4_TEXT_SUBTYPE_IDS,
-} from '@/constants/node-types'
+import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { ProviderError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
-import { fetchAsBuffer } from '@/services/storage/r2'
 import {
   assistantV3CanvasNodes,
   buildAssistantV3Handles,
@@ -60,7 +56,6 @@ import {
   checkShotBeforeGenerate,
   promptTimelineEnd,
 } from '@/lib/assistant-v3-shot-checks'
-import { parseScriptShots } from '@/lib/node-script-shots'
 import { renderAssistantV3MentionTable } from '@/lib/assistant-v3-mentions'
 import { ASSISTANT_MENTION_SCOPE_IDS } from '@/constants/assistant-mention'
 import type { AssistantMentionRef } from '@/types/assistant-mention'
@@ -88,6 +83,7 @@ import {
   AssistantV3SearchWebInputSchema,
   AssistantV3WriteInputSchema,
   type AssistantV3EditOpInput,
+  type AssistantV3PictureRef,
   type AssistantV3SearchWebInput,
   type AssistantV3Transcript,
   type AssistantV3TranscriptCall,
@@ -104,7 +100,6 @@ import {
   OPERATOR_OUT_OF_STEPS_MESSAGES,
   OPERATOR_SAME_FAILURE_MESSAGES,
   operatorCacheKey,
-  planCritiqueResult,
   prepareOperatorTurn,
   recordLedgerStep,
   resolveResponseLanguage,
@@ -142,10 +137,8 @@ import {
   executeAssistantV3ImageMutation,
 } from '@/services/kernel/assistant-v3-image.service'
 import {
-  clampTitle,
   joinPhrases,
   nextStep,
-  planGuarded,
   planSafely,
   rejectedStep,
   settlePlan,
@@ -155,6 +148,19 @@ import {
 } from '@/services/kernel/assistant-v3-steps.service'
 import { buildAssistantV3SystemPrompt } from '@/services/kernel/assistant-v3-prompt.service'
 import { referenceIndexOf } from '@/services/kernel/assistant-v3-bench.service'
+import {
+  createPictureCache,
+  executeV3Look,
+  loadFreshLooks,
+  loadPicture,
+  lookToolOutput,
+  lookUserParts,
+  picturesRideInToolResult,
+  type V3FreshLook,
+  type V3LookTarget,
+  type V3Picture,
+  type V3PictureCache,
+} from '@/services/kernel/assistant-v3-look.service'
 
 /**
  * 助手新内核（v3 S1）：AI SDK 原生工具调用 + 只追加的消息。
@@ -167,8 +173,10 @@ import { referenceIndexOf } from '@/services/kernel/assistant-v3-bench.service'
  * 结果在那一跳补进记录。
  *
  * ── 工具真正执行在哪 ──────────────────────────────────────────
- * 全部交给旧内核的执行函数（`planTool`）：建卡、连线、写提示词、生成确认、联网查、
- * 看图都是磨过的。这里只做三件事：句柄 ↔ id、v3 入参 → 旧动作、结果 → 工具结果。
+ * 全部交给旧内核的执行函数（`planTool`）：建卡、连线、写提示词、生成确认、联网查都是
+ * 磨过的。这里只做三件事：句柄 ↔ id、v3 入参 → 旧动作、结果 → 工具结果。
+ * ⚠ 看图例外：`look` ⛔ 不调旧内核的看图子调用，图交到这个主模型眼前、放进紧跟着的那一步
+ *   （`assistant-v3-look.service.ts`，owner 2026-10-15）。
  *
  * ⛔ 钱闸不变：没有任何一条工具能建 generation，`generate` 只出确认卡。
  */
@@ -191,8 +199,7 @@ const tools = (strict: boolean) => ({
     strict,
   }),
   [ASSISTANT_V3_TOOL_IDS.look]: tool({
-    description:
-      "Look at a card's output picture (or images the creator attached) and answer one specific question about it.",
+    description: `Put pictures in front of you for your next response, with one specific question: a card's picture (its output or an image the creator attached). At most ${ASSISTANT_V3_LIMITS.maxLookCards} per call; to compare with what a card was made from, name its reference cards in the same call.`,
     inputSchema: AssistantV3LookInputSchema,
     strict,
   }),
@@ -244,7 +251,6 @@ function isMutatingTool(tool: AssistantV3Tool): tool is MutatingTool {
 }
 
 const MAX_HISTORY_MESSAGES = 24
-const MAX_INLINE_IMAGE_BYTES = 20_000_000
 
 /**
  * 一条回复里叫了两次 generate：第一张确认卡一出这一轮就停了，模型没机会再说话
@@ -413,15 +419,25 @@ function parseInput(call: AssistantV3TranscriptCall): unknown {
   }
 }
 
+/**
+ * 本轮记录 → 消息。`looks` 是这一次调用要附的图（`loadFreshLooks`）：Gemini 放进工具结果
+ * 本身，别家跟在这一批工具结果后面的那条 user 里（为什么见 `picturesRideInToolResult`）。
+ */
 function transcriptMessages(
   entries: readonly AssistantV3TranscriptEntry[],
+  looks: ReadonlyMap<string, V3FreshLook>,
+  picturesInResult: boolean,
 ): ModelMessage[] {
   const out: ModelMessage[] = []
   let results: ToolResultPart[] = []
+  let pictures: V3FreshLook[] = []
   const flush = () => {
     if (results.length === 0) return
     out.push({ role: 'tool', content: results })
     results = []
+    if (pictures.length)
+      out.push({ role: 'user', content: pictures.flatMap(lookUserParts) })
+    pictures = []
   }
   for (const entry of entries) {
     if (entry.type === ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.assistant) {
@@ -446,13 +462,18 @@ function transcriptMessages(
         ],
       })
     } else if (entry.type === ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.result) {
+      const look = looks.get(entry.id)
+      if (look && !picturesInResult) pictures.push(look)
       results.push({
         type: 'tool-result',
         toolCallId: entry.id,
         toolName: entry.tool,
-        output: entry.error
-          ? { type: 'error-text', value: entry.output }
-          : { type: 'text', value: entry.output },
+        output:
+          look && picturesInResult
+            ? lookToolOutput(entry.output, look)
+            : entry.error
+              ? { type: 'error-text', value: entry.output }
+              : { type: 'text', value: entry.output },
       })
     }
   }
@@ -484,36 +505,23 @@ function historyMessages(request: AssistantOperatorRequest): {
 }
 
 /**
- * 被点名的图在服务端下载成内联数据再发（与旧内核同一条：`fetchAsBuffer` 走防 SSRF
- * 的 safeFetch）。⛔ 不把地址直接交给 AI SDK：有的 provider 不收地址，SDK 会在我们
- * 的服务器上替它去下载一个前端给的地址。下不来的那张照样留一行字，不让整轮挂掉。
+ * 被点名的图在服务端下载成内联数据再发（与 look 同一条：`loadPicture` → `fetchAsBuffer`
+ * 走防 SSRF 的 safeFetch）。⛔ 不把地址直接交给 AI SDK：有的 provider 不收地址，SDK 会在
+ * 我们的服务器上替它去下载一个前端给的地址。下不来的那张照样留一行字，不让整轮挂掉。
  */
-async function inlineImages(
+function inlineImages(
   images: Extract<AssistantV3TranscriptEntry, { type: 'board' }>['images'],
+  cache: V3PictureCache,
   signal: AbortSignal,
-): Promise<({ data: Buffer; mediaType: string } | null)[]> {
+): Promise<(V3Picture | null)[]> {
   return Promise.all(
-    images.map(async (image) => {
-      try {
-        const { buffer, mimeType } = await fetchAsBuffer(image.url, {
-          maxBytes: MAX_INLINE_IMAGE_BYTES,
-          signal,
-        })
-        return { data: buffer, mediaType: mimeType }
-      } catch (error) {
-        signal.throwIfAborted()
-        logger.warn('assistant v3 image not inlined', {
-          error: error instanceof Error ? error.message : String(error),
-        })
-        return null
-      }
-    }),
+    images.map((image) => loadPicture(cache, image.url, signal)),
   )
 }
 
 function currentUserMessage(
   board: Extract<AssistantV3TranscriptEntry, { type: 'board' }>,
-  images: readonly ({ data: Buffer; mediaType: string } | null)[],
+  images: readonly (V3Picture | null)[],
   latest: string,
   autoReview: boolean,
   autoGenerate: boolean,
@@ -824,6 +832,7 @@ async function* runV3Turn(
   const language = resolveResponseLanguage(request, persona)
   const { history, latest } = historyMessages(request)
   const transcript: AssistantV3Transcript = [...(request.v3?.transcript ?? [])]
+  const seesImages = assistantAdapterSupportsImage(route.adapterType, modelId)
   const context: V3Context = {
     face,
     clerkId,
@@ -835,14 +844,12 @@ async function* runV3Turn(
     stepPrefix: `v3s${transcript.length}`,
     transcript,
     replyText: { current: '' },
+    seesImages,
+    pictures: createPictureCache(route.adapterType),
   }
 
   if (transcript[0]?.type !== ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.board) {
     transcript.length = 0
-    const supportsImages = assistantAdapterSupportsImage(
-      route.adapterType,
-      modelId,
-    )
     const mentioned = request.mentionedAssets ?? []
     const mentionedImages = mentioned
       .slice(0, ASSISTANT_V3_LIMITS.maxLookCards)
@@ -896,7 +903,7 @@ async function* runV3Turn(
             mentionedIds,
           }),
         ),
-        images: supportsImages ? mentionedImages : [],
+        images: seesImages ? mentionedImages : [],
       })
     } else if (face === ASSISTANT_V3_FACE_IDS.cards) {
       // ⭐ 打开那位的图跟着板子给模型看（card-1 …），看图不用另调工具。
@@ -913,7 +920,7 @@ async function* runV3Turn(
             latestUserText: latest,
           }),
         ),
-        images: supportsImages ? [...cardImages, ...mentionedImages] : [],
+        images: seesImages ? [...cardImages, ...mentionedImages] : [],
       })
     } else if (
       face === ASSISTANT_V3_FACE_IDS.image ||
@@ -928,7 +935,7 @@ async function* runV3Turn(
             latestUserText: latest,
           }),
         ),
-        images: supportsImages ? mentionedImages : [],
+        images: seesImages ? mentionedImages : [],
       })
     } else {
       // ⭐ 左边打开着的示例图跟板子一起给模型看（L1「你能看到左边这个示例图吗」）。
@@ -943,7 +950,7 @@ async function* runV3Turn(
             latestUserText: latest,
           }),
         ),
-        images: supportsImages
+        images: seesImages
           ? [
               ...(sample
                 ? [{ url: sample.recipe.imageUrl, label: 'sample' }]
@@ -983,7 +990,7 @@ async function* runV3Turn(
     ...history,
     currentUserMessage(
       board,
-      await inlineImages(board.images, signal),
+      await inlineImages(board.images, context.pictures, signal),
       latest,
       request.autoReview === true,
       request.autoGenerate === true,
@@ -1052,10 +1059,19 @@ async function* runV3Turn(
      */
     const callTimeout = watchV3Call(ASSISTANT_V3_CALL_TIMEOUT)
     try {
+      // ⭐ 上一步 look 的图只附给这一次（之后只剩工具结果那行字）。
+      const looks = await loadFreshLooks(transcript, context.pictures, signal)
       const result = streamText({
         model: model.model,
         system,
-        messages: [...baseMessages, ...transcriptMessages(transcript.slice(1))],
+        messages: [
+          ...baseMessages,
+          ...transcriptMessages(
+            transcript.slice(1),
+            looks,
+            picturesRideInToolResult(route.adapterType),
+          ),
+        ],
         tools: toolSet,
         toolChoice: 'auto',
         maxRetries: 2,
@@ -1251,13 +1267,18 @@ async function* runV3Turn(
     for (const [index, call] of calls.entries()) {
       const entryCall = assistantEntry.calls[index]
       if (!entryCall) break
-      const pushResult = (output: string, error: boolean) =>
+      const pushResult = (
+        output: string,
+        error: boolean,
+        images?: readonly AssistantV3PictureRef[],
+      ) =>
         transcript.push({
           type: ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.result,
           id: entryCall.id,
           tool: entryCall.tool,
           output: output.slice(0, ASSISTANT_V3_LIMITS.maxEntryChars),
           error,
+          ...(images?.length ? { images: [...images] } : {}),
         })
       if (stopTodo !== null) {
         pushResult(NOT_RUN_AFTER_STOP, true)
@@ -1332,7 +1353,7 @@ async function* runV3Turn(
         continue
       }
       if (outcome.kind === 'result') {
-        pushResult(outcome.output, outcome.error)
+        pushResult(outcome.output, outcome.error, outcome.images)
         if (outcome.error && outcome.failureKey)
           failures.push(outcome.failureKey)
       }
@@ -1943,126 +1964,65 @@ async function* executeGenerate(
 }
 
 /**
- * 看图：被 @ 的那几张走评审（对着那张卡接的参考与它的提示词说哪里不对），其余带图
- * 的卡走参考分析（看清画面里有什么）。⛔ 没图的卡不硬看 —— 说清看不到，让创作者 @ 它。
- * ⚠ 评审一张一张评：旧执行器一次只看第一张 id，几张一起塞进去后面的会被静默丢掉。
+ * 看图（画布）：每张卡找出它的图，交给 `executeV3Look` 放到模型眼前。
+ * ⭐ 先按卡的 id 找 `@` 带上来的那一张（`nodeId`），再找图片卡自己那张图，最后才按名字认
+ *   **没带 `nodeId`** 的老附图（📎 / 答题带上来的图、老客户端）—— 带了 id 的⛔ 不拿名字去撞，
+ *   同名卡只认得第一张正是要修的那个病。
+ * ⛔ 没图的卡不硬看：说清看不到，让创作者 @ 它。对照参考 = 把它接的参考卡写进同一次 look。
  */
 async function* executeLook(
   context: V3Context,
   input: { cards: string[]; question: string },
 ): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
-  const text = TITLE_TEXT[context.language]
-  const cards = input.cards.slice(0, ASSISTANT_V3_LIMITS.maxLookCards)
   const mentioned = context.request.mentionedAssets ?? []
   const referenceUrls = context.prepared.run.state.referenceUrls
-  const critiques: {
-    card: string
-    assetId: string
-    node: AssistantOperatorCanvasNode | null
-  }[] = []
-  const imageIndices: number[] = []
-  const imageCards: string[] = []
-  const missing: string[] = []
-  for (const card of cards) {
+  const targets: V3LookTarget[] = []
+  const nodeIds: string[] = []
+  const notes: string[] = []
+  for (const card of input.cards) {
     const id = context.handles.idOf(card)
     const node = id
       ? (context.nodes.find((candidate) => candidate.id === id) ?? null)
       : null
-    /**
-     * ⭐ 先按卡的 id（`@` 带上来的 `nodeId`），再按图的地址，最后才按名字。
-     * ⚠ 按卡名比只给**没带 `nodeId`** 的那几条（📎 / 答题带上来的图、老客户端）：
-     *   带了 id 的引用⛔ 不拿名字去撞 —— 同名卡只认得第一张正是要修的那个病。
-     */
     const asset =
       (node && mentioned.find((candidate) => candidate.nodeId === node.id)) ??
       mentioned.find(
         (candidate) =>
-          (node?.referenceImageIndex !== undefined &&
-            referenceUrls[node.referenceImageIndex] === candidate.url) ||
-          (!candidate.nodeId &&
-            (candidate.label === card ||
-              (node !== null && candidate.label === node.name))),
+          !candidate.nodeId &&
+          (candidate.label === card ||
+            (node !== null && candidate.label === node.name)),
       )
-    if (asset) {
-      critiques.push({ card, assetId: asset.id, node })
-    } else if (
+    const own =
       node?.kind === NODE_MEDIA_KIND_IDS.image &&
       node.referenceImageIndex !== undefined
-    ) {
-      imageIndices.push(node.referenceImageIndex)
-      imageCards.push(card)
-    } else {
-      missing.push(card)
-    }
-  }
-  const outputs: string[] = []
-  let failed = false
-  const scriptNotes =
-    context.nodes
-      .filter(
-        (node) =>
-          node.kind === NODE_MEDIA_KIND_IDS.text &&
-          node.subtype === NODE_V4_TEXT_SUBTYPE_IDS.script &&
-          !node.textTruncated,
+        ? referenceUrls[node.referenceImageIndex]
+        : undefined
+    const url = asset?.url ?? own
+    if (!url) {
+      notes.push(
+        `Could not see ${node ? nameOf(context, card) : `"${card}"`}: no picture of it reached you. If it has an output, ask the creator to @ it in their message.`,
       )
-      .map((node) => parseScriptShots(node.text ?? '').outline)
-      .filter(Boolean)
-      .join('\n\n') || null
-  for (const critique of critiques) {
-    const title = clampTitle(`${text.look} ${nameOf(context, critique.card)}`)
-    const sources = critique.node?.referenceUrls?.length
-      ? {
-          referenceUrls: critique.node.referenceUrls,
-          // ⚠ 参考图抬头只点名哪张是哪张，提示词正文在 `text` —— 两段都要（回放
-          //   T20：只交了抬头，「11 岁、一年级儿童比例」那句看图模型从没见过）。
-          prompt:
-            [critique.node.referencePromptContext, critique.node.text]
-              .map((part) => part?.trim())
-              .filter(Boolean)
-              .join('\n\n') || null,
-          scriptNotes,
-        }
-      : undefined
-    const plan = await planGuarded(context, TOOL.critiqueResult, () =>
-      planCritiqueResult(
-        context.prepared.run,
-        { goal: input.question, targetIds: [critique.assetId] },
-        context.prepared.user.id,
-        sources,
-      ),
-    )
-    const outcome = yield* settlePlan(context, TOOL.critiqueResult, title, plan)
-    if (outcome.kind === 'result') {
-      outputs.push(outcome.output)
-      failed ||= outcome.error
+      continue
     }
-  }
-  if (imageIndices.length) {
-    const plan = await planSafely(context, TOOL.analyzeReferences, {
-      imageIndices: [...new Set(imageIndices)],
+    if (!node) {
+      targets.push({ url, label: asset?.label ?? card })
+      continue
+    }
+    const name = node.fromScript
+      ? formatScriptShotKey(node.fromScript.shotKey)
+      : shortName(node.name)
+    // ⚠ 给模型的称呼带句柄（三张「镜头1」分得清），过程行只写名字（⛔ 不露句柄）。
+    targets.push({
+      url,
+      label: `${context.handles.handleOf(node.id)} ${name}`,
+      title: name,
     })
-    const outcome = yield* settlePlan(
-      context,
-      TOOL.analyzeReferences,
-      joinPhrases(
-        context,
-        imageCards.map((card) => `${text.look} ${nameOf(context, card)}`),
-      ),
-      plan,
-    )
-    if (outcome.kind === 'result') {
-      outputs.push(outcome.output)
-      failed ||= outcome.error
-    }
+    nodeIds.push(node.id)
   }
-  if (missing.length)
-    outputs.push(
-      `Could not see ${missing.join(', ')}: no picture of it reached you. If it has an output, ask the creator to @ it in their message.`,
-    )
-  return {
-    kind: 'result',
-    output: outputs.join('\n\n'),
-    error: failed || outputs.length === missing.length,
-    failureKey: `${TOOL.critiqueResult}:look`,
-  }
+  return yield* executeV3Look(context, {
+    targets,
+    notes,
+    question: input.question,
+    nodeIds,
+  })
 }

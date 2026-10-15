@@ -727,7 +727,7 @@ export const AssistantV3CardsLookInputSchema = z.object({
   images: z
     .array(z.string())
     .describe(
-      '"card" checks the open character\'s pictures against their profile; or the name of a picture attached to the message.',
+      '"card" (all of the open character\'s pictures) or "card-N" (one of them); or the name of a picture attached to the message.',
     ),
   question: z.string(),
 })
@@ -748,16 +748,21 @@ const TranscriptIdSchema = z
   .min(1)
   .max(ASSISTANT_V3_LIMITS.maxCallIdChars)
 
+/**
+ * 记录里的一张图：只有地址与称呼。⛔ 不存字节 —— 记录要发给前端接力，图在服务端
+ * 发给模型前现下（`fetchAsBuffer`，防 SSRF 的那条）。
+ */
+export const AssistantV3PictureRefSchema = z.object({
+  url: z.string().url().max(4_000),
+  label: z.string().max(ASSISTANT_V3_LIMITS.maxNameChars * 2),
+})
+export type AssistantV3PictureRef = z.infer<typeof AssistantV3PictureRefSchema>
+
 export const AssistantV3TranscriptBoardEntrySchema = z.object({
   type: z.literal(ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.board),
   text: z.string().max(ASSISTANT_V3_LIMITS.maxBoardChars),
   images: z
-    .array(
-      z.object({
-        url: z.string().url().max(4_000),
-        label: z.string().max(ASSISTANT_V3_LIMITS.maxNameChars * 2),
-      }),
-    )
+    .array(AssistantV3PictureRefSchema)
     .max(ASSISTANT_V3_LIMITS.maxLookCards * 2),
 })
 
@@ -788,6 +793,15 @@ export const AssistantV3TranscriptResultEntrySchema = z.object({
   tool: z.enum(ASSISTANT_V3_TOOLS),
   output: z.string().max(ASSISTANT_V3_LIMITS.maxEntryChars),
   error: z.boolean(),
+  /**
+   * `look` 交到模型眼前的那几张（owner 2026-10-15「让模型自己去看去判断」）。
+   * ⚠ 只在紧跟着的那一次模型调用里附图（它是本轮记录里最后一条 assistant 之后的
+   *   结果）；再往后只剩 `output` 那行字 —— 见 `assistant-v3-look.service.ts`。
+   */
+  images: z
+    .array(AssistantV3PictureRefSchema)
+    .max(ASSISTANT_V3_LIMITS.maxLookCards)
+    .optional(),
 })
 
 export const AssistantV3TranscriptEntrySchema = z.discriminatedUnion('type', [

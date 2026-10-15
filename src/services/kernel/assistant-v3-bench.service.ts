@@ -7,6 +7,7 @@ import {
   type AssistantOperatorTool,
 } from '@/constants/assistant-operator'
 import {
+  ASSISTANT_V3_FACE_IDS,
   ASSISTANT_V3_LIMITS,
   ASSISTANT_V3_LORA_ITEM_IDS,
   ASSISTANT_V3_LORA_WRITE_FIELD_IDS,
@@ -29,10 +30,16 @@ import {
   type V3Context,
   type V3Outcome,
 } from '@/services/kernel/assistant-v3-steps.service'
+import {
+  cannotSeeOutcome,
+  executeV3Look,
+  type V3LookTarget,
+} from '@/services/kernel/assistant-v3-look.service'
 
 /**
- * v3 两张「工作台」脸（LoRA 台、图片台）共用的那一层：改动随步落、当场就有结果。
- * 写提示词、看图、出确认卡在两台上是同一件事；各台只管自己的板子与旋钮。
+ * v3 的「工作台」脸（LoRA 台、图片台 / 视频台，角色页借它的看图与读写）共用的那一层：
+ * 改动随步落、当场就有结果。写提示词、看图、出确认卡在各台上是同一件事；各台只管自己的
+ * 板子与旋钮。
  */
 
 /** 旧执行器的话里提到的旧工具名 → v3 的说法（旧内核删掉时一起删）。 */
@@ -76,11 +83,13 @@ export function joinOutcomes(outcomes: readonly V3Outcome[]): V3Outcome {
     outcome.kind === 'result' ? [outcome] : [],
   )
   const failed = results.find((outcome) => outcome.error)
+  const images = results.flatMap((outcome) => outcome.images ?? [])
   return {
     kind: 'result',
     output: results.map((outcome) => outcome.output).join('\n'),
     error: Boolean(failed),
     ...(failed?.failureKey ? { failureKey: failed.failureKey } : {}),
+    ...(images.length ? { images } : {}),
   }
 }
 
@@ -241,42 +250,69 @@ export async function* executeBenchWrite(
 }
 
 /**
- * look：这条消息带的图（按名字）与挂着的参考图（`ref-N`）。
- * `sample` 由 LoRA 台先挑走（它跟着板子一起附上了）。
+ * look：这条消息带的图（按名字或 id）与挂着的参考图（`ref-N`），交给 `executeV3Look` 放到
+ * 模型眼前。各台自己的名字（LoRA 台的 `sample`、角色页的 `card` / `card-N`）由 `faceImages`
+ * 先认走（认得名字却没有图 = 回给模型的一句），`notes` 是这张脸上怎么看的那一句。
+ * ⚠ 视频台上被 @ 的那段片子（这一轮带着抽好的帧）照旧走看片评审（`planCritiqueResult` →
+ *   抽帧逐帧看）—— 这一期只动看图，⛔ 不动看片。
  */
 export async function* executeBenchLook(
   context: V3Context,
   images: readonly string[],
   question: string,
+  faceImages?: (name: string) => readonly V3LookTarget[] | string | null,
+  notes: readonly string[] = [],
 ): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
+  if (!context.seesImages) return cannotSeeOutcome()
   const text = TITLE_TEXT[context.language]
-  const outcomes: V3Outcome[] = []
-  const referenceIndices: number[] = []
   const mentioned = context.request.mentionedAssets ?? []
-  for (const image of images.slice(0, ASSISTANT_V3_LIMITS.maxLookCards)) {
-    const key = image.trim().toLowerCase()
-    const index = referenceIndexOf(context, key)
-    if (index !== null) {
-      referenceIndices.push(index)
+  const references = context.request.snapshot.references?.items ?? []
+  const clipUrl = context.request.videoFrames?.sourceUrl
+  const targets: V3LookTarget[] = []
+  const unknown: string[] = []
+  const clips: { id: string; label: string }[] = []
+  for (const image of images) {
+    const named = faceImages?.(image) ?? null
+    if (typeof named === 'string') {
+      unknown.push(named)
       continue
     }
+    if (named) {
+      targets.push(...named)
+      continue
+    }
+    const index = referenceIndexOf(context, image)
+    if (index !== null) {
+      const reference = references[index]!
+      targets.push({
+        url: reference.url,
+        label: `ref-${index + 1}${reference.label ? ` ${reference.label}` : ''}`,
+        title: `ref-${index + 1}`,
+      })
+      continue
+    }
+    const key = image.trim().toLowerCase()
     const asset = mentioned.find(
       (candidate) =>
         candidate.label?.trim().toLowerCase() === key || candidate.id === image,
     )
-    if (!asset) {
-      outcomes.push({
-        kind: 'result',
-        output: `Could not see "${image}": it is not a picture attached to this message or a mounted reference. If it is a result, ask the creator to @ it.`,
-        error: true,
-        failureKey: 'look:unknown',
-      })
-      continue
-    }
+    if (!asset)
+      unknown.push(
+        `Could not see "${image}": it is not a picture attached to this message or a mounted reference. If it is a result, ask the creator to @ it.`,
+      )
+    else if (
+      context.face === ASSISTANT_V3_FACE_IDS.video &&
+      clipUrl === asset.url
+    )
+      clips.push({ id: asset.id, label: asset.label ?? image })
+    else targets.push({ url: asset.url, label: asset.label ?? image })
+  }
+  const outcomes: V3Outcome[] = []
+  for (const clip of clips) {
     const plan = await planGuarded(context, TOOL.critiqueResult, () =>
       planCritiqueResult(
         context.prepared.run,
-        { goal: question, targetIds: [asset.id] },
+        { goal: question, targetIds: [clip.id] },
         context.prepared.user.id,
       ),
     )
@@ -285,21 +321,27 @@ export async function* executeBenchLook(
         yield* settlePlan(
           context,
           TOOL.critiqueResult,
-          `${text.look}「${asset.label ?? image}」`,
+          `${text.look}「${clip.label}」`,
           plan,
         ),
       ),
     )
   }
-  if (referenceIndices.length)
+  if (targets.length || clips.length === 0)
     outcomes.push(
-      yield* runOldTool(
-        context,
-        TOOL.analyzeReferences,
-        `${text.look} ${referenceIndices.map((index) => `ref-${index + 1}`).join('、')}`,
-        { imageIndices: [...new Set(referenceIndices)] },
-      ),
+      yield* executeV3Look(context, {
+        targets,
+        notes: [...(targets.length ? notes : []), ...unknown],
+        question,
+      }),
     )
+  else if (unknown.length)
+    outcomes.push({
+      kind: 'result',
+      output: unknown.join('\n'),
+      error: true,
+      failureKey: 'look:unknown',
+    })
   return joinOutcomes(outcomes)
 }
 

@@ -107,6 +107,8 @@ export const CARD_EXTENSIONS = {
     tags: 'pv.tags',
     /** 作品手改值（角色页按作品分组；没有就从角色标签括号里取，owner 09-26）。 */
     work: 'pv.work',
+    /** 经历超长时存的总结 `{ hash, text }`（助手角色段用，服务端写，owner 10-15）。 */
+    backstorySummary: 'pv.backstorySummary',
   },
   /** 作品名最长多少字符。 */
   WORK_MAX_LENGTH: 60,

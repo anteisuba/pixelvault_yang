@@ -261,6 +261,7 @@ import {
   sanitizePromptCharacter,
   sanitizeToneCustom,
 } from '@/services/assistant-persona.service'
+import { withSummarizedBackstory } from '@/services/kernel/character-backstory-summary.service'
 /**
  * ⭐ 学出来的**创作偏好**（v2 §8.3）。加它进钱闸白名单的判据与 persona 那条
  * 逐字同源：它读的是一张 1:1 侧表的五列 Json，出的是几个词 —— 不创建
@@ -12424,7 +12425,15 @@ export async function prepareOperatorTurn(
         'persona',
         clerkId,
         { ...ASSISTANT_PERSONA_DEFAULTS },
-        () => getAssistantPersonaByUserId(user.id),
+        /**
+         * 角色经历超长时换成存好的总结（第一次用便宜档算一次存到卡上，经历改了才
+         * 重算；失败照旧截断）—— owner 2026-10-15。
+         */
+        async () =>
+          withSummarizedBackstory(
+            user.id,
+            await getAssistantPersonaByUserId(user.id),
+          ),
       ),
       /**
        * ⭐ **你写的那几条**（助手设置 B：规矩并进记忆，你写的优先）—— 进规则段、

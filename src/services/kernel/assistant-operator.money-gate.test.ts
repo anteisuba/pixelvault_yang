@@ -174,6 +174,12 @@ const ALLOWED_SERVICE_IMPORTS = new Set([
    */
   '@/services/assistant-persona.service',
   /**
+   * 角色经历超长时的总结（owner 2026-10-15）。⭐ 判据：调一次**文本**模型（助手那一家的
+   * 便宜档、用户自己的 key），结果写回卡上 `extensions` 的一格文本 —— 不创建
+   * generation、不扣 credit、不碰 R2。
+   */
+  '@/services/kernel/character-backstory-summary.service',
+  /**
    * 项目规则（§10，拍板 23）。⭐ 判据同上：一张只有文本列的表。
    * ⚠ 它是这份名单里**唯一一条会往库里写**的服务 —— 写的是用户自己说过的一句话
    * （`add_project_rule`），与「创建 generation」不是一回事：没有 provider、

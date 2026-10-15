@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import type { IndexImage, IndexPermissions } from './rows'
+import type { IndexImage, IndexPermissions, IndexVersion } from './rows'
 
 /**
  * 搜索与浏览的唯一入口。业务口径（安全档的分级线、家族对应哪些 baseModel、
@@ -251,6 +251,7 @@ interface RawRow {
   hash_autov3: string | null
   download_count: number
   thumbs_up_count: number
+  versions: string
   images: string
   permissions: string
   created_at: number
@@ -279,20 +280,43 @@ function parsePermissions(text: string): IndexPermissions {
   }
 }
 
-function toSearchRow(row: RawRow): SearchRow {
+/**
+ * 这一行展示哪个版本：默认那一版；底模筛选下默认版不符合（模型是凭别的版本
+ * 进来的）时，换成第一个符合的版本——卡片上挂的就是用户筛的那个底模。
+ */
+function pickVersion(row: RawRow, input: SearchInput): IndexVersion {
+  const versions = parseJsonArray<IndexVersion>(row.versions)
+  const current = versions.find((entry) => entry.id === row.version_id) ?? {
+    // 还没按新格式重写过的行没有版本清单。
+    id: row.version_id,
+    name: row.version_name,
+    baseModel: row.base_model,
+    trainedWords: parseJsonArray<string>(row.trained_words),
+    hashAutoV3: row.hash_autov3,
+  }
+  const fits = (baseModel: string | null) =>
+    (input.baseModels.length === 0 ||
+      (baseModel !== null && input.baseModels.includes(baseModel))) &&
+    (baseModel === null || !input.excludeBaseModels.includes(baseModel))
+  if (fits(current.baseModel)) return current
+  return versions.find((entry) => fits(entry.baseModel)) ?? current
+}
+
+function toSearchRow(row: RawRow, input: SearchInput): SearchRow {
+  const version = pickVersion(row, input)
   return {
     modelId: row.model_id,
-    versionId: row.version_id,
-    versionName: row.version_name,
+    versionId: version.id,
+    versionName: version.name,
     name: row.name,
     creator: row.creator,
     creatorImage: row.creator_image,
     modelType: row.model_type,
     nsfw: row.nsfw === 1,
-    baseModel: row.base_model,
+    baseModel: version.baseModel,
     tags: parseJsonArray<string>(row.tags),
-    trainedWords: parseJsonArray<string>(row.trained_words),
-    hashAutoV3: row.hash_autov3,
+    trainedWords: version.trainedWords,
+    hashAutoV3: version.hashAutoV3,
     downloadCount: row.download_count,
     thumbsUpCount: row.thumbs_up_count,
     images: parseJsonArray<IndexImage>(row.images),
@@ -303,7 +327,7 @@ function toSearchRow(row: RawRow): SearchRow {
 
 const ROW_COLUMNS = `model_id, version_id, version_name, name, creator,
   creator_image, model_type, nsfw, base_model, tags, trained_words, hash_autov3,
-  download_count, thumbs_up_count, images, permissions, created_at`
+  download_count, thumbs_up_count, versions, images, permissions, created_at`
 
 interface CountResult {
   total: number
@@ -400,5 +424,9 @@ export async function searchIndex(
     )
     .bind(...params, input.pageSize, offset)
     .all<RawRow>()
-  return { rows: results.map(toSearchRow), total, syncedAt }
+  return {
+    rows: results.map((row) => toSearchRow(row, input)),
+    total,
+    syncedAt,
+  }
 }

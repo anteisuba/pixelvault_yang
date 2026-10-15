@@ -10,12 +10,16 @@ const MAX_IMAGES_PER_TIER = 6
  * 行格式版本，进指纹。索引里多存了一样东西（新列、新的派生索引）时加一：
  * 下一次同步所有指纹都对不上，整个目录按「拉完整数据」重写一遍，不用另写回填。
  */
-const INDEX_ROW_VERSION = 2
+const INDEX_ROW_VERSION = 3
 
 /** 中日韩：汉字、假名、谚文。 */
 const CJK_RUN =
   /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uac00-\ud7af]+/g
 const SAFE_IMAGE_MAX_LEVEL = 2
+/** 每个模型最多存几个版本（上游按新到旧给）。 */
+const MAX_VERSIONS = 40
+/** 每个模型最多写几个精确词——防超长名字把词表撑大。 */
+const MAX_TERMS = 64
 
 // 上游对「没有值」写 null 而不是省略字段，所以每一层都要放行 null。
 const NsfwLevelSchema = z
@@ -55,8 +59,22 @@ export const FULL_ATTRIBUTES = [
   'permissions',
   'createdAt',
   'version',
+  'versions',
   'images',
 ] as const
+
+const VersionSchema = z
+  .object({
+    id: z.number().int(),
+    name: z.string().nullable().optional(),
+    baseModel: z.string().nullable().optional(),
+    trainedWords: z.array(z.string()).nullable().optional(),
+    hashData: z
+      .array(z.object({ hash: z.string(), type: z.string() }).loose())
+      .nullable()
+      .optional(),
+  })
+  .loose()
 
 const LightHitSchema = z
   .object({
@@ -90,20 +108,8 @@ const FullHitSchema = LightHitSchema.extend({
     .nullable()
     .optional(),
   createdAt: z.string().nullable().optional(),
-  version: z
-    .object({
-      id: z.number().int(),
-      name: z.string().nullable().optional(),
-      baseModel: z.string().nullable().optional(),
-      trainedWords: z.array(z.string()).nullable().optional(),
-      hashData: z
-        .array(z.object({ hash: z.string(), type: z.string() }).loose())
-        .nullable()
-        .optional(),
-    })
-    .loose()
-    .nullable()
-    .optional(),
+  version: VersionSchema.nullable().optional(),
+  versions: z.array(VersionSchema).nullable().optional(),
   images: z
     .array(
       z
@@ -141,6 +147,14 @@ export interface IndexPermissions {
   allowNoCredit: boolean
 }
 
+export interface IndexVersion {
+  id: number
+  name: string | null
+  baseModel: string | null
+  trainedWords: string[]
+  hashAutoV3: string | null
+}
+
 export interface IndexRow extends LightRow {
   versionId: number
   versionName: string | null
@@ -151,10 +165,14 @@ export interface IndexRow extends LightRow {
   nsfw: boolean
   nsfwLevelMin: number
   nsfwLevelMax: number
+  /** 默认展示那一版的底模 */
   baseModel: string | null
   tags: string[]
+  /** 所有版本的触发词（去重）——进全文索引；展示用的是 `versions` 里各版自己的。 */
   trainedWords: string[]
   hashAutoV3: string | null
+  /** 全部版本，上游顺序（新到旧），默认展示那一版一定在里面。 */
+  versions: IndexVersion[]
   images: IndexImage[]
   permissions: IndexPermissions
   createdAt: number
@@ -162,6 +180,8 @@ export interface IndexRow extends LightRow {
   refreshedAt: number
   /** 名字里中日韩字的单字与相邻两字，空格分隔；没有中日韩字是空串。 */
   cjkGrams: string
+  /** 写进 lora_term 的精确词（见 `indexTerms`）。 */
+  terms: string[]
 }
 
 /**
@@ -178,6 +198,39 @@ export function cjkGrams(name: string): string {
     })
   }
   return [...grams].join(' ')
+}
+
+/**
+ * lora_term 的精确词：非默认版本的底模（`b:`）、标签（`t:`）、名字里的整词与
+ * 中日韩单字 / 相邻两字（`w:`）。前两类排前面，超出上限时先舍名字里的词。
+ */
+export function indexTerms(
+  name: string,
+  tags: readonly string[],
+  extraBaseModels: readonly string[],
+): string[] {
+  const terms = new Set<string>()
+  for (const baseModel of extraBaseModels) terms.add(`b:${baseModel}`)
+  for (const tag of tags) terms.add(`t:${tag.toLowerCase()}`)
+  const words = name
+    .toLowerCase()
+    .replace(CJK_RUN, ' ')
+    .match(/[\p{L}\p{N}]+/gu)
+  for (const word of words ?? []) terms.add(`w:${word}`)
+  for (const gram of cjkGrams(name).split(' ')) if (gram) terms.add(`w:${gram}`)
+  return [...terms].slice(0, MAX_TERMS)
+}
+
+function toIndexVersion(version: z.infer<typeof VersionSchema>): IndexVersion {
+  return {
+    id: version.id,
+    name: version.name ?? null,
+    baseModel: version.baseModel?.trim() || null,
+    trainedWords: version.trainedWords ?? [],
+    hashAutoV3:
+      version.hashData?.find((entry) => entry.type.toUpperCase() === 'AUTOV3')
+        ?.hash ?? null,
+  }
 }
 
 /** FNV-1a 32 位，十六进制。只用来判「变没变」，不做安全用途。 */
@@ -262,10 +315,28 @@ export function mapFullHit(hit: unknown, refreshedAt: number): IndexRow | null {
     ? parsedCreatedAt
     : lastVersionAt
 
+  const current = toIndexVersion(version)
+  const versions = (data.versions ?? [])
+    .slice(0, MAX_VERSIONS)
+    .map(toIndexVersion)
+  if (!versions.some((entry) => entry.id === current.id)) {
+    versions.unshift(current)
+  }
+  const extraBaseModels = [
+    ...new Set(
+      versions
+        .map((entry) => entry.baseModel)
+        .filter(
+          (baseModel): baseModel is string =>
+            baseModel !== null && baseModel !== current.baseModel,
+        ),
+    ),
+  ]
+
   return {
     ...light,
-    versionId: version.id,
-    versionName: version.name ?? null,
+    versionId: current.id,
+    versionName: current.name,
     name: data.name,
     creator: data.user?.username ?? null,
     creatorImage: data.user?.image ?? null,
@@ -273,12 +344,16 @@ export function mapFullHit(hit: unknown, refreshedAt: number): IndexRow | null {
     nsfw: data.nsfw ?? false,
     nsfwLevelMin: levels.min,
     nsfwLevelMax: levels.max,
-    baseModel: version.baseModel?.trim() || null,
+    baseModel: current.baseModel,
     tags,
-    trainedWords: version.trainedWords ?? [],
-    hashAutoV3:
-      version.hashData?.find((entry) => entry.type.toUpperCase() === 'AUTOV3')
-        ?.hash ?? null,
+    trainedWords: [
+      ...new Set([
+        ...current.trainedWords,
+        ...versions.flatMap((entry) => entry.trainedWords),
+      ]),
+    ],
+    hashAutoV3: current.hashAutoV3,
+    versions,
     // 保持上游原顺序（第一张是作者选的封面）。
     images: images
       .filter((image) => keptImages.has(image))
@@ -301,5 +376,6 @@ export function mapFullHit(hit: unknown, refreshedAt: number): IndexRow | null {
     lastVersionAt,
     refreshedAt,
     cjkGrams: cjkGrams(data.name),
+    terms: indexTerms(data.name, tags, extraBaseModels),
   }
 }

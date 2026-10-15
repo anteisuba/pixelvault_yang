@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { cjkGrams, mapFullHit, mapLightHit } from './rows'
+import { cjkGrams, indexTerms, mapFullHit, mapLightHit } from './rows'
 
 const baseHit = {
   id: 7,
@@ -47,6 +47,47 @@ describe('mapFullHit', () => {
     })
   })
 
+  it("keeps every version and indexes the other versions' base models and trigger words", () => {
+    const row = mapFullHit(
+      {
+        ...baseHit,
+        versions: [
+          {
+            id: 71,
+            name: 'anima',
+            baseModel: 'Anima',
+            trainedWords: ['@anima_tag'],
+          },
+          baseHit.version,
+          {
+            id: 69,
+            name: 'il old',
+            baseModel: 'Illustrious',
+            trainedWords: ['sample_trigger'],
+          },
+        ],
+      },
+      5,
+    )
+    expect(row?.versionId).toBe(70)
+    expect(row?.versions.map((version) => version.id)).toEqual([71, 70, 69])
+    expect(row?.versions[1]).toEqual({
+      id: 70,
+      name: 'v2',
+      baseModel: 'Illustrious',
+      trainedWords: ['sample_trigger'],
+      hashAutoV3: 'ABC',
+    })
+    expect(row?.trainedWords).toEqual(['sample_trigger', '@anima_tag'])
+    expect(row?.terms).toContain('b:Anima')
+    expect(row?.terms).not.toContain('b:Illustrious')
+  })
+
+  it('puts the current version in the list when the upstream list misses it', () => {
+    const row = mapFullHit({ ...baseHit, versions: [] }, 5)
+    expect(row?.versions.map((version) => version.id)).toEqual([70])
+  })
+
   it('skips a model without a current version', () => {
     expect(mapFullHit({ ...baseHit, version: null }, 1)).toBeNull()
   })
@@ -83,5 +124,21 @@ describe('cjkGrams', () => {
 
   it('is empty for names without CJK characters', () => {
     expect(cjkGrams('Silver Hair')).toBe('')
+  })
+})
+
+describe('indexTerms', () => {
+  it('writes base models, lowercased tags, whole name words and CJK grams', () => {
+    expect(indexTerms('My OC 银发 v2.0', ['Character'], ['Anima'])).toEqual([
+      'b:Anima',
+      't:character',
+      'w:my',
+      'w:oc',
+      'w:v2',
+      'w:0',
+      'w:银',
+      'w:银发',
+      'w:发',
+    ])
   })
 })

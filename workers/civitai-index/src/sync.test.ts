@@ -17,9 +17,20 @@ interface FakeModel {
   createdAt?: string
   lastVersionAtUnix?: number
   noVersion?: boolean
+  /** 默认版本之外的版本（底模 + 触发词） */
+  otherVersions?: { baseModel: string; trainedWords?: string[] }[]
 }
 
 function fullHit(model: FakeModel) {
+  const version = model.noVersion
+    ? null
+    : {
+        id: model.id * 10,
+        name: 'v1.0',
+        baseModel: model.baseModel ?? 'Illustrious',
+        trainedWords: model.trainedWords ?? [],
+        hashData: [{ hash: `AV3-${model.id}`, type: 'AutoV3' }],
+      }
   return {
     id: model.id,
     name: model.name,
@@ -39,15 +50,17 @@ function fullHit(model: FakeModel) {
       allowNoCredit: false,
     },
     createdAt: model.createdAt ?? '2026-01-01T00:00:00.000Z',
-    version: model.noVersion
-      ? null
-      : {
-          id: model.id * 10,
-          name: 'v1.0',
-          baseModel: model.baseModel ?? 'Illustrious',
-          trainedWords: model.trainedWords ?? [],
-          hashData: [{ hash: `AV3-${model.id}`, type: 'AutoV3' }],
-        },
+    version,
+    versions: [
+      ...(model.otherVersions ?? []).map((other, index) => ({
+        id: model.id * 10 + index + 1,
+        name: `${other.baseModel} v1`,
+        baseModel: other.baseModel,
+        trainedWords: other.trainedWords ?? [],
+        hashData: [{ hash: `AV3-${model.id}-${index + 1}`, type: 'AutoV3' }],
+      })),
+      ...(version ? [version] : []),
+    ],
     images: [{ id: model.id * 100, url: `uuid-${model.id}`, nsfwLevel: 1 }],
   }
 }
@@ -171,6 +184,40 @@ describe('syncPages', () => {
       [5, 'epsilon', 1],
     ])
     expect((await search(db, { q: 'renamed' })).rows).toHaveLength(1)
+  })
+
+  it("rewrites a model's exact terms on refresh and drops them with the model", async () => {
+    const terms = async () =>
+      (
+        await db
+          .prepare(
+            'SELECT term, model_id FROM lora_term ORDER BY model_id, term',
+          )
+          .all<{ term: string; model_id: number }>()
+      ).results.map((row) => `${row.model_id}:${row.term}`)
+    const upstream = new FakeUpstream([
+      {
+        id: 1,
+        name: 'Old OC',
+        tags: ['Style'],
+        otherVersions: [{ baseModel: 'Anima' }],
+      },
+      { id: 2, name: '银发', tags: [] },
+    ])
+    await syncAll(db, upstream)
+    expect(await terms()).toEqual([
+      '1:b:Anima',
+      '1:t:style',
+      '1:w:oc',
+      '1:w:old',
+      '2:w:发',
+      '2:w:银',
+      '2:w:银发',
+    ])
+
+    upstream.catalog = [{ id: 1, name: 'New OC', tags: ['Style'] }]
+    await syncAll(db, upstream)
+    expect(await terms()).toEqual(['1:t:style', '1:w:new', '1:w:oc'])
   })
 
   it('refuses to mass-delete a range when an upstream page comes back mostly empty', async () => {

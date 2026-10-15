@@ -43,7 +43,7 @@ const UPSERT_SQL = `
 INSERT INTO lora (
   model_id, version_id, version_name, name, creator, creator_image, model_type,
   nsfw, nsfw_level_min, nsfw_level_max, base_model, tags, trained_words,
-  hash_autov3, download_count, thumbs_up_count, images, permissions,
+  hash_autov3, download_count, thumbs_up_count, versions, images, permissions,
   created_at, last_version_at, light_fp, refreshed_at
 )
 SELECT
@@ -63,6 +63,7 @@ SELECT
   json_extract(value, '$.hashAutoV3'),
   json_extract(value, '$.downloadCount'),
   json_extract(value, '$.thumbsUpCount'),
+  json_extract(value, '$.versions'),
   json_extract(value, '$.images'),
   json_extract(value, '$.permissions'),
   json_extract(value, '$.createdAt'),
@@ -87,6 +88,7 @@ ON CONFLICT (model_id) DO UPDATE SET
   hash_autov3 = excluded.hash_autov3,
   download_count = excluded.download_count,
   thumbs_up_count = excluded.thumbs_up_count,
+  versions = excluded.versions,
   images = excluded.images,
   permissions = excluded.permissions,
   created_at = excluded.created_at,
@@ -110,6 +112,15 @@ INSERT INTO lora_cjk (rowid, grams)
 SELECT json_extract(value, '$.modelId'), json_extract(value, '$.grams')
 FROM json_each(?1)`
 
+// 精确词表同理：先删掉这批模型的旧词，再写新的。
+const TERM_DELETE_SQL = `DELETE FROM lora_term WHERE model_id IN (SELECT value FROM json_each(?1))`
+const TERM_INSERT_SQL = `
+INSERT OR IGNORE INTO lora_term (term, model_id)
+SELECT json_extract(value, '$.term'), json_extract(value, '$.modelId')
+FROM json_each(?1)`
+/** 一条写入 SQL 带多少个词（词很短，比行宽松得多）。 */
+const TERM_CHUNK_SIZE = 2000
+
 function chunk<T>(items: readonly T[], size: number): T[][] {
   const chunks: T[][] = []
   for (let index = 0; index < items.length; index += size) {
@@ -123,9 +134,11 @@ function toWritableRow(row: IndexRow) {
   return {
     ...row,
     cjkGrams: undefined,
+    terms: undefined,
     nsfw: row.nsfw ? 1 : 0,
     tags: JSON.stringify(row.tags),
     trainedWords: JSON.stringify(row.trainedWords),
+    versions: JSON.stringify(row.versions),
     images: JSON.stringify(row.images),
     permissions: JSON.stringify(row.permissions),
   }
@@ -227,16 +240,28 @@ async function syncOnePage(
   const gramRows = fullRows
     .filter((row) => row.cjkGrams)
     .map((row) => ({ modelId: row.modelId, grams: row.cjkGrams }))
+  const termRows = fullRows.flatMap((row) =>
+    row.terms.map((term) => ({ term, modelId: row.modelId })),
+  )
+  const refreshedIdChunks = chunk(
+    fullRows.map((row) => row.modelId),
+    WRITE_CHUNK_SIZE,
+  )
   const statements: D1PreparedStatement[] = [
     ...chunk(fullRows.map(toWritableRow), WRITE_CHUNK_SIZE).map((rows) =>
       db.prepare(UPSERT_SQL).bind(JSON.stringify(rows)),
     ),
-    ...chunk(
-      fullRows.map((row) => row.modelId),
-      WRITE_CHUNK_SIZE,
-    ).map((ids) => db.prepare(CJK_DELETE_SQL).bind(JSON.stringify(ids))),
+    ...refreshedIdChunks.map((ids) =>
+      db.prepare(CJK_DELETE_SQL).bind(JSON.stringify(ids)),
+    ),
     ...chunk(gramRows, WRITE_CHUNK_SIZE).map((rows) =>
       db.prepare(CJK_INSERT_SQL).bind(JSON.stringify(rows)),
+    ),
+    ...refreshedIdChunks.map((ids) =>
+      db.prepare(TERM_DELETE_SQL).bind(JSON.stringify(ids)),
+    ),
+    ...chunk(termRows, TERM_CHUNK_SIZE).map((rows) =>
+      db.prepare(TERM_INSERT_SQL).bind(JSON.stringify(rows)),
     ),
     ...chunk(metrics, WRITE_CHUNK_SIZE).map((rows) =>
       db.prepare(METRICS_SQL).bind(JSON.stringify(rows)),

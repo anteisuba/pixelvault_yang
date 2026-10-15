@@ -178,7 +178,7 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 - **思考档按步调**（§2.6，`assistantV3StepEffort`）：创作者在「思考」chip 上选的那一档管开轮第一步与一切还要判断的步；**纯落地步**（最后一条 assistant 之后全是成功的 edit / write 结果）用 low，⛔ 永远不高过创作者选的。v3 的调用日志多记 `effort`。
   - 只在换档不赔缓存的三家换（`effortPerStep`）：Gemini、DeepSeek、Grok（档位是生成参数，不进前缀 —— 我的判断，没测过命中率）。Claude 与 OpenAI 整轮钉住创作者那一档：Claude 换档至少作废整段消息缓存（官方文档建议按路由钉住思考与档位设置），OpenAI 换 `reasoning.effort` 会改写藏在前面的指令、整段前缀重算。两家各有不赔缓存的 beta 写法（Claude 对话中系统消息 `output_config.effort`、GPT-6 的 `configuration_update`），这一片没接，列给 owner。
   - 落地步的判据是保守版（我的判断）：上一步只要有一个调用是查、看、问、失败，或画布那一批「只落了一部分」（结果不算错，但模型要补没落的那几条），这一步照用创作者那一档。
-- **子调用都显式传档**：查证改写查询（`research-planner`）low；后台抽记忆 low；查证收尾那句结论与模型自带联网用创作者那一档（Gemini `thinkingLevel`、OpenAI 官方 `reasoning.effort`、Claude `output_config.effort`）；Grok 自带联网照旧钉 low（既有调校）；DeepSeek 走 Claude 兼容入口的联网 ⛔ 不发档位（兼容层没写这个字段，带了可能整次 400）—— 都是我的判断。
+- **子调用的档**：查证改写查询（`research-planner`）显式传 low；后台抽记忆 low。查证收尾那句结论与模型自带联网**照旧不传档位**（各家默认；Grok 自带联网照旧钉 low）：查证质量是 owner 按这样实测过的，没有新的实测 ⛔ 不改。
 - **量出来的**（`fixtures/context-budget.json`，P2 前 → 后）：
   - 首步原样大小几乎没变：Gemini 约 36.8k 字（工具 11.4k + 系统 21.2k + 消息约 4.2k），别家 38.9–40.2k（工具 13.4–13.5k）；每步多 39 字（两行新标题）。⚠ 「问答首步 < 10k」按原样字数**没达到**：系统提示 21.2k 里画布型号写法约 8.5k，工具 11–13.5k。
   - Claude 真要重算的字（按断点规则）：T13 第二轮 39.2k → 4.5k，T21 Sonnet 40.0k → 5.2k，T03 一整轮 79.1k → 40.2k、第二轮 79.6k → 5.7k，T24 / T25 第二轮 80.9k / 80.4k → 7.0k / 6.5k。别家（隐式缓存）本就只重算 4.2–7.5k。

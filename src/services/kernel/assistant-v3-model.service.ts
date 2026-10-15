@@ -31,10 +31,10 @@ export interface AssistantV3Model {
   readonly strictTools: boolean
   /**
    * 这一家能不能**按步**换思考档（P2 §2.6，`assistantV3StepEffort`）而不赔掉缓存。
-   * ⚠ Claude、OpenAI 官方：⛔ 不换 —— 档位一变，Claude 至少整段消息缓存作废（有的型号连工具 +
-   *   系统提示一起）、官方文档要求「按路由钉住档位」；OpenAI 换 `reasoning.effort` 会改写藏在前面的
-   *   系统指令，整段前缀重算。两家各有不赔缓存的 beta 写法（Claude 的对话中系统消息
-   *   `output_config.effort`、GPT-6 的 `configuration_update`），这一片没接，列给 owner。
+   * ⚠ Claude、OpenAI 官方：⛔ 不换，整轮照用创作者那一档 —— 档位一变，Claude 至少整段消息缓存
+   *   作废（有的型号连工具 + 系统提示一起，官方文档建议按路由钉住档位）；OpenAI 换 `reasoning.effort`
+   *   会改写藏在前面的系统指令，整段前缀重算。⛔ 也不接两家不赔缓存的 beta 写法。这是我们为了缓存
+   *   稳定做的取舍（P2），⛔ 不是 owner 定的。
    * ⭐ Gemini / DeepSeek / Grok：档位是生成参数，不进提示的前缀 —— 换（我的判断，未实测命中率）。
    */
   readonly effortPerStep: boolean

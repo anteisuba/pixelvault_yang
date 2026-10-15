@@ -171,12 +171,12 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
   - 我的判断：④ 每一步都写（滚动），一步就答完的轮次多付一次写入溢价（1.25 倍），换多步、接力那几轮每步只重算新的几条；型号写法放在系统提示末尾（②那一块），板上型号一变②之后全部重写 —— 多数轮不变，比挪进消息里简单。
 - **收尾不再结账**（§2.5）：v3 的五处收尾走 `closeRoundV3` / `closeRoundV3BeforeStop`（`assistant-operator.service.ts`），⛔ 不再起写结论三栏的那次往返（每轮约 4.5k 字，`done` 要等它回来）。判据：v3 里没有读者 —— 面板不画结论记录（owner 2026-09-24），v3 的提示不注入 `priorRounds`（读它的 `referenceCreatorContext` 在 `skipReferenceReview` 下不走），`memoriesWritten` 没有界面读。
   - 这一轮落了证据编号才写一条**只带编号**的记录（三栏空、确定性、照旧在 `done` 之前写），给面板「钉住」当家；没有证据就不写 —— 我的判断。v2 的 `closeRound` 一字不变。
-  - ⚠ v3 开轮仍从库里读 `priorRounds`（`prepareOperatorTurn` 共用），读了没人用；没动，列给 owner。
+  - v3 开轮 ⛔ 不读 `priorRounds`（`prepareOperatorTurn` 的 `skipPriorRounds`）：读了没人用。交回旧内核时 `runOperatorTurn` 补读一次（`priorRoundsSkipped`），旧内核的提示从 `run.priorRounds` 取。
 - **记忆在后台抽**：门槛与 v2 结账逐字相同（隐身、「让助手记住」关、本轮账本是空的都 ⛔ 不抽）。`scheduleRoundMemories` 收尾时就起，交给 `after()`（`next/server`），流 ⛔ 不等它；失败只记一行 `assistant round memories not stored`，⛔ 不进过程记录。
   - 型号：**这一轮的那一家、那个型号、那把 key**（owner「全跟助手」：小功能跟助手走，同一家也 ⛔ 换快档；唯一的同家快档例外仍只是「自动」下的纯问答轮，见上「只用所选那一家」）。
   - 档位 low、自己的时限 25 s（`ASSISTANT_MEMORY_LIMITS.extractionTimeoutMs`，在路由 300 s 的 `maxDuration` 之内）、只要 `{"memories":[...]}`（`roundMemoriesSystemPrompt`）；记什么、不记什么的规则与 v2 结账共用 `roundMemoryRules`（v2 那份提示逐字不变）。
 - **思考档按步调**（§2.6，`assistantV3StepEffort`）：创作者在「思考」chip 上选的那一档管开轮第一步与一切还要判断的步；**纯落地步**（最后一条 assistant 之后全是成功的 edit / write 结果）用 low，⛔ 永远不高过创作者选的。v3 的调用日志多记 `effort`。
-  - 只在换档不赔缓存的三家换（`effortPerStep`）：Gemini、DeepSeek、Grok（档位是生成参数，不进前缀 —— 我的判断，没测过命中率）。Claude 与 OpenAI 整轮钉住创作者那一档：Claude 换档至少作废整段消息缓存（官方文档建议按路由钉住思考与档位设置），OpenAI 换 `reasoning.effort` 会改写藏在前面的指令、整段前缀重算。两家各有不赔缓存的 beta 写法（Claude 对话中系统消息 `output_config.effort`、GPT-6 的 `configuration_update`），这一片没接，列给 owner。
+  - 只在换档不赔缓存的三家换（`effortPerStep`）：Gemini、DeepSeek、Grok（档位是生成参数，不进前缀 —— 我的判断，没测过命中率）。Claude 与 OpenAI 整轮钉住创作者那一档：Claude 换档至少作废整段消息缓存（官方文档建议按路由钉住思考与档位设置），OpenAI 换 `reasoning.effort` 会改写藏在前面的指令、整段前缀重算。⛔ 不接两家不赔缓存的 beta 写法（Claude 对话中系统消息 `output_config.effort`、GPT-6 的 `configuration_update`）。整轮钉住是我们为了缓存稳定做的取舍（P2），⛔ 不是 owner 定的。
   - 落地步的判据是保守版（我的判断）：上一步只要有一个调用是查、看、问、失败，或画布那一批「只落了一部分」（结果不算错，但模型要补没落的那几条），这一步照用创作者那一档。
 - **子调用的档**：查证改写查询（`research-planner`）显式传 low；后台抽记忆 low。查证收尾那句结论与模型自带联网**照旧不传档位**（各家默认；Grok 自带联网照旧钉 low）：查证质量是 owner 按这样实测过的，没有新的实测 ⛔ 不改。
 - **量出来的**（`fixtures/context-budget.json`，P2 前 → 后）：
@@ -258,7 +258,7 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 - 读页被挡与退路：`src/lib/read-url-blocks.ts`（判据、按站记一阵、HTML 转文字）· `src/constants/web-search.ts` 的 `URL_READER` / `URL_READER_BLOCK_SIGNALS` · `src/services/web-research.service.ts` 的 `readUrlDetailed` · `src/constants/research.ts` 的 `MEDIAWIKI_READ_HOSTS` + `mediawiki.connector` 的 `resolveMediaWikiReadTarget` / `readMediaWikiPage`
 - 开关：`src/app/api/studio/assistant-operator/route.ts` · `src/hooks/use-assistant-operator.ts`
 - 自动回放基线：`src/test/assistant-replay/`（题在 `fixtures/cases/`，判分在 `graders.ts`）
-- 上下文预算（P2）：`assistant-v3-prompt.service.ts`（分界线、记忆排序）· `assistant-v3-model.service.ts`（Claude 断点、`effortPerStep`、`assistantV3StepEffort`）· `assistant-v3.service.ts` 的 `isLandingStep` · `assistant-operator.service.ts` 的 `closeRoundV3` / `closeRoundV3BeforeStop` / `scheduleRoundMemories` · `src/constants/assistant.ts` 的 `ASSISTANT_BACKGROUND_MODEL_IDS` · 量法 `src/test/assistant-replay/context-budget.ts` + `fixtures/context-budget.json`
+- 上下文预算（P2）：`assistant-v3-prompt.service.ts`（分界线、记忆排序）· `assistant-v3-model.service.ts`（Claude 断点、`effortPerStep`、`assistantV3StepEffort`）· `assistant-v3.service.ts` 的 `isLandingStep` · `assistant-operator.service.ts` 的 `closeRoundV3` / `closeRoundV3BeforeStop` / `scheduleRoundMemories` / `prepareOperatorTurn({ skipPriorRounds })` · 量法 `src/test/assistant-replay/context-budget.ts` + `fixtures/context-budget.json`
 - 每轮的过程记录：`src/services/assistant-turn-record.service.ts`（写与删）· `src/lib/assistant-turn-record.ts`（摘 data: 地址、挑请求字段、按上限截）· `src/constants/assistant-turn-record.ts` · `src/types/assistant-turn-record.ts`；一行转回回放题：`src/test/assistant-replay/from-turn-record.ts`
 
 ### 项目笔记（S4，2026-10-09）
@@ -269,7 +269,7 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 
 ## Last Verified
 
-- 2026-10-15 · P2 第一片「上下文预算」（见 §2「上下文预算」）：量法、分界线、Claude 四个断点、收尾不再结账 + 后台抽记忆（用这一轮的型号）、v3 开轮不读 `priorRounds`、思考档按步调、查证改写查询传 low。`tsc` + 改动文件 eslint（0 error）+ 定向 vitest（services/kernel · services/research · `llm-text` · `assistant-memory` · constants · types，90 个文件 2,559 条；lib 2,852 条，全绿）+ `npm run test:replay`（74 条全绿，`context-budget.json` 重写过三次，各有原因：两行新标题每步 +39 字、Claude 断点让重算字数下降、结账删掉让辅助调用变少）。⚠ 都是回放上的字数，没对真模型跑过：真机缓存命中、`after()` 在 Vercel 流式路由里跑完、Haiku 5.5 / 3.5 Flash Lite 抽记忆的质量与 key 能不能用、3.5 Flash Lite 收不收 `thinkingLevel: low`、Gemini / DeepSeek / Grok 换档后缓存还在不在、自带联网用 medium 而不是各家默认最高档的查证质量、提示段落挪位后的模型表现，都没验证。
+- 2026-10-15 · P2 第一片「上下文预算」（见 §2「上下文预算」）：量法、分界线、Claude 四个断点、收尾不再结账 + 后台抽记忆（这一轮的型号）、v3 开轮不读 `priorRounds`、思考档按步调（Claude / OpenAI 整轮钉住）、查证改写查询传 low（查证结论与自带联网照旧不传）。`tsc` + 改动文件 eslint（0 error）+ 定向 vitest（services/kernel · services/research · `llm-text` · `assistant-memory` · constants · types，90 个文件 2,560 条；lib 219 个文件 2,852 条，全绿）+ `npm run test:replay`（71 条全绿；`context-budget.json` 重写过三次，各有原因：两行新标题每步 +39 字、Claude 断点让重算字数下降、结账删掉让辅助调用变少；抽记忆改回这一轮的型号、查证档位改回照旧都没动它）。⚠ 都是回放上的字数，没对真模型跑过：真机缓存命中、`after()` 在 Vercel 流式路由里跑完、Gemini / DeepSeek / Grok 换档后缓存还在不在、提示段落挪位后的模型表现，都没验证。
 - 2026-10-15 · 过程记录带上上一轮找到的东西（`input.priorFinds`，取开轮板子上冻着的那一份；超限时新的一刀 `prior_finds` 在模型正文之后、快照之前），回放题 schema 加 `turn.priorFinds`、`runner.ts` 只在开轮那一跳带、`from-turn-record.ts` 原样转回、`gradeTurnRecord` 对账它；新题 R03。`tsc` + 改动文件 eslint（0 error）+ 定向 vitest（lib / types / constants / services/kernel / 过程记录服务 / 回放，300 个文件 4,921 条全绿）+ `npm run test:replay`（21 题 × 路由 = 27 跑 + 判分器反例 7 条 + 记录转题 10 条，44 条全绿）；把 runner 改成不带、把转换器改成不转时 R03 各红一次（请求体里没有那几行 / 记录转不回同一道题）。
 - 2026-10-15 · 读页被挡、退路与查证三轮（见上「读页被挡、退路与查证轮次」）。`tsc` + 改动文件 eslint（0 error）+ 定向 vitest（lib / types / constants / i18n / services/kernel / services/research / `web-research.service` / assistant-operator 组件 / 回放，350 个文件 5,595 条全绿；新增：判据 28 条（挑战页真阳性、讲 Cloudflare / Access denied 的正常文章不误判、按站记一阵的 30 分钟到期与表满、HTML 转文字含刁钻输入的线性）、读页链 8 条（先后：Jina → wiki API → 直连；挑战页的字不进正文；整站挡之内不碰网络；只挡 Jina 下次跳过；读不出不记；字节上限）、wiki 网址解析 11 条、扇出排序 2 条、`read_url` 摘要退路 / 被挡拒绝 / wiki via / 快搜挑页 4 条、v3 摘要续上 2 条、日志条 1 条；轮次上限两条用例改成「第三轮允许、第四轮拒」）+ `npm run test:replay`（42 条全绿）。⚠ 灰机wiki 与 B站 wiki 的 API 路径按 MediaWiki 惯例写、Jina 头里 `Warning:` 行的格式按已知样子写，都没对真站验过（沙箱代理拒连这几个站）；没有对真模型 / 真浏览器跑过；进程内的「记一阵」在 serverless 多实例下各记各的。
 

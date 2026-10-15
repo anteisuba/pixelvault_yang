@@ -172,7 +172,7 @@ import {
 import {
   createClipCache,
   pointedClipParts,
-  viewPointedClips,
+  viewClips,
   type V3ClipView,
 } from '@/services/kernel/assistant-v3-watch.service'
 
@@ -538,6 +538,7 @@ function inlineImages(
 
 /**
  * 请求里那几段被指着的片子 → 板子上的称呼表（只记地址、称呼、卡 id）。
+ * ⚠ 视频台上只是挂着的（`mounted`）⛔ 不在这里：它们不上板子、不在眼前，`look` 它才摆。
  * ⚠ 进不了本轮记录的（地址太长）这里就丢掉：接力时那一跳会整份记录不过校验。
  */
 function pointedClipRefs(
@@ -545,6 +546,7 @@ function pointedClipRefs(
 ): AssistantV3ClipRef[] {
   const refs: AssistantV3ClipRef[] = []
   for (const clip of request.videoClips ?? []) {
+    if (clip.mounted) continue
     if (refs.some((ref) => ref.url === clip.sourceUrl)) continue
     const ref = {
       url: clip.sourceUrl,
@@ -929,7 +931,8 @@ async function* runV3Turn(
       .map((asset) => ({ url: asset.url, label: asset.label ?? asset.id }))
     /**
      * ⭐ 创作者这一轮指着的片子（看图期第二段）：冻进板子，整轮都摆在模型眼前，与被指着的图
-     *   同一个待遇。看不了图的模型一段都不收（⛔ 不借别家）。
+     *   同一个待遇。看不了图的模型一段都不收（⛔ 不借别家）。视频台上只是挂着的那几段不在这里
+     *   （板子上只列 `video-N` 的名字），`look` 它才摆、只给下一步 —— 与挂着的参考图同一个待遇。
      */
     const clips = seesImages ? pointedClipRefs(request) : []
     const boardClips = clips.length ? { clips } : {}
@@ -1075,7 +1078,7 @@ async function* runV3Turn(
     currentUserMessage(
       board,
       await inlineImages(board.images, context.pictures, signal),
-      await viewPointedClips(context, board.clips ?? []),
+      await viewClips(context, board.clips ?? []),
       latest,
       request.autoReview === true,
       request.autoGenerate === true,
@@ -1145,12 +1148,7 @@ async function* runV3Turn(
     const callTimeout = watchV3Call(ASSISTANT_V3_CALL_TIMEOUT)
     try {
       // ⭐ 上一步 look 的图只附给这一次（之后只剩工具结果那行字）。
-      const looks = await loadFreshLooks(
-        transcript,
-        context.pictures,
-        context.clips,
-        signal,
-      )
+      const looks = await loadFreshLooks(context, signal)
       const result = streamText({
         model: model.model,
         system,

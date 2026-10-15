@@ -204,7 +204,7 @@ describe('v3 看片：被指着的片子按片长抽帧，随 videoClips 上去'
     ])
   })
 
-  it('视频台上挂着的参考视频也算被指着（称呼与板子上一样：video-N）', async () => {
+  it('⭐ 视频台上挂着的参考视频照样抽帧随请求带着，但标 mounted（不在眼前，look 它才看）', async () => {
     hostSnapshot.current = {
       prompt: '',
       availableModels: [],
@@ -224,8 +224,52 @@ describe('v3 看片：被指着的片子按片长抽帧，随 videoClips 上去'
       expect.objectContaining({
         sourceUrl: 'https://cdn.anteisuba.com/refs/ref.mp4',
         label: 'video-1',
+        mounted: true,
+        frames: capturedOk(4).frames,
       }),
     ])
+  })
+
+  it('挂着的不占被指着的两段名额；它没抽成也⛔ 不留系统行（没人问它）', async () => {
+    hostSnapshot.current = {
+      prompt: '',
+      availableModels: [],
+      videoReferences: {
+        items: [{ url: 'https://cdn.anteisuba.com/refs/ref.mp4' }],
+        limit: 3,
+      },
+    }
+    captureClipFrames.mockImplementation(async (url: string) =>
+      url.includes('/refs/')
+        ? {
+            ok: false,
+            reason: VIDEO_FRAME_CAPTURE_REASONS.taintedCanvas,
+            message: 'tainted',
+          }
+        : capturedOk(4),
+    )
+    const chips = [1, 2].map(
+      (index): StudioOperatorAttachment => ({
+        id: `clip-${index}`,
+        url: `https://cdn.anteisuba.com/clips/${index}.mp4`,
+        label: `片子${index}`,
+        kind: 'video',
+      }),
+    )
+    const { result } = render()
+
+    act(() => {
+      result.current.send('两段比一比', chips)
+    })
+    await settle()
+
+    expect(captureClipFrames).toHaveBeenCalledTimes(3)
+    expect(requests[0]?.videoClips?.map((clip) => clip.label)).toEqual([
+      '片子1',
+      '片子2',
+    ])
+    expect(systemLines('clipsOverCap')).toHaveLength(0)
+    expect(systemLines('videoFramesFailed')).toHaveLength(0)
   })
 
   it('一轮最多两段：多出来的不抽，线程里留一行说只看前两段（⛔ 不静默）', async () => {

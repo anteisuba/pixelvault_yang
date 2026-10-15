@@ -302,12 +302,21 @@ export const ASSISTANT_V3_PICTURE_FORMATS: ReadonlySet<string> = new Set([
 ])
 
 /**
- * Denia 自己看片（看图期第二段，owner 2026-10-15）的三个数。帧数规则本身住在
+ * Denia 自己看片（看图期第二段，owner 2026-10-15）的几个数。帧数规则本身住在
  * `VIDEO_CLIP_FRAME_PLAN`（`constants/video-analysis.ts`），客户端与服务端共用。
  *
- * - `maxClips: 2`：一轮最多看几段被指着的片子（@ / 📎 / 视频台挂着的，按这个顺序
- *   取前两段）。每段最多 8 帧，两段 = 16 张图，已经是 `lookImages`（6）的两倍多；
+ * - `maxClips: 2`：一轮最多看几段**被指着**的片子（@ / 📎，按这个顺序取前两段），这几段
+ *   整轮摆在模型眼前。每段最多 8 帧，两段 = 16 张图，已经是 `lookImages`（6）的两倍多；
  *   再多就该让创作者挑了。超出的那几段**不静默丢**：浏览器留一条系统行说没看。
+ * - `maxMountedClips: 3`：视频台上**只是挂着**的参考视频（`video-N`）随请求带几段帧。它们
+ *   ⛔ 不在模型眼前（不花 token，只占请求体），模型 `look` 它时才摆上去、只给下一步 ——
+ *   与挂着的参考图同一个待遇（owner 2026-10-15「挂着不等于每轮都看」）。3 = 视频台上多数
+ *   型号收参考视频的格数。
+ * - `carriedFramesMaxChars`：一个请求里所有片子的帧（`dataUrl` 字数之和）最多带多少。被指着的
+ *   两段先占、⛔ 不为它让位；挂着的那几段按顺序往里填，放不下的那段整段不带（`look` 它时别家
+ *   如实说看不了）。⚠ Vercel 函数请求体上限 4.5MB：帧占到 2.5MB 为止，给对话、快照与本轮
+ *   记录留 2MB。实际一帧（768px webp 0.8）约 30–60KB、base64 后 40–80KB，一段 8 帧约
+ *   0.3–0.65MB，所以通常两段被指着的 + 两三段挂着的都放得下。
  * - `frameMaxEdgePixels: 768`：抽帧长边。⚠ 帧随请求体上来，而 Vercel 函数请求体
  *   上限 4.5MB —— 16 帧 × 约 100KB webp × base64 1.33 ≈ 2.1MB，留出余量给对话与
  *   本轮记录。比视频分析面板的 1024 小，是这条上限逼的，不是画质取舍。
@@ -318,6 +327,8 @@ export const ASSISTANT_V3_PICTURE_FORMATS: ReadonlySet<string> = new Set([
  */
 export const ASSISTANT_V3_CLIP_LIMITS = {
   maxClips: 2,
+  maxMountedClips: 3,
+  carriedFramesMaxChars: 2_500_000,
   frameMaxEdgePixels: 768,
   inlineMaxBytes: ASSISTANT_MEDIA_LIMITS.geminiInlineMaxBytes,
 } as const

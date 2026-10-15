@@ -33,7 +33,7 @@ import {
   createClipCache,
   loadClip,
   pointedClipParts,
-  viewPointedClips,
+  viewClips,
 } from './assistant-v3-watch.service'
 
 /** 地址 → 片子（`brand` 决定 mp4 / mov，`bytes` 决定多大）。没登记的下不来。 */
@@ -106,7 +106,7 @@ beforeEach(() => {
 describe('v3 看片 · 被指着的片子怎么摆', () => {
   it('⭐ 帧逐张标好「clip 「名字」 · frame k/N at t s」，整组摆上来', async () => {
     const url = 'https://cdn.test/walk.mp4'
-    const views = await viewPointedClips(
+    const views = await viewClips(
       context(
         AI_ADAPTER_TYPES.OPENAI,
         [capturedClip(url, '走路', 6)],
@@ -136,7 +136,7 @@ describe('v3 看片 · 被指着的片子怎么摆', () => {
 
   it('⭐ Gemini（native 档）在内联上限内交片子本体，⛔ 不用帧', async () => {
     const url = serve('walk')
-    const views = await viewPointedClips(
+    const views = await viewClips(
       context(
         AI_ADAPTER_TYPES.GEMINI,
         [capturedClip(url, '走路', 6)],
@@ -164,7 +164,7 @@ describe('v3 看片 · 被指着的片子怎么摆', () => {
       'isom',
       ASSISTANT_V3_CLIP_LIMITS.inlineMaxBytes + 1,
     )
-    const views = await viewPointedClips(
+    const views = await viewClips(
       context(
         AI_ADAPTER_TYPES.GEMINI,
         [capturedClip(url, '长片', 20)],
@@ -188,7 +188,7 @@ describe('v3 看片 · 被指着的片子怎么摆', () => {
       'isom',
       ASSISTANT_V3_CLIP_LIMITS.inlineMaxBytes + 1,
     )
-    const views = await viewPointedClips(
+    const views = await viewClips(
       context(
         AI_ADAPTER_TYPES.GEMINI,
         [{ sourceUrl: url, label: '长片' }],
@@ -199,6 +199,9 @@ describe('v3 看片 · 被指着的片子怎么摆', () => {
     expect(views[0]).toEqual({
       kind: 'none',
       ref: { url, label: '长片' },
+      tooLarge: true,
+      unloadable: false,
+      frames: 'missing',
       note: 'too large to watch directly (over 20 MB); its frames could not be sampled in the browser',
     })
     expect(pointedClipParts(views)).toEqual([
@@ -213,7 +216,7 @@ describe('v3 看片 · 被指着的片子怎么摆', () => {
     const url = 'https://cdn.test/walk.mp4'
     const clip = capturedClip(url, '走路', 6)
     clip.frames![1] = { ...clip.frames![1]!, timestampSeconds: 4.9 }
-    const views = await viewPointedClips(
+    const views = await viewClips(
       context(AI_ADAPTER_TYPES.OPENAI, [clip], ASSISTANT_VIDEO_TIERS.frames),
       [{ url, label: '走路' }],
     )
@@ -227,7 +230,7 @@ describe('v3 看片 · 被指着的片子怎么摆', () => {
     const url = 'https://cdn.test/walk.mp4'
     const clip = capturedClip(url, '走路', 12)
     clip.frames = clip.frames!.slice(0, 3)
-    const views = await viewPointedClips(
+    const views = await viewClips(
       context(AI_ADAPTER_TYPES.OPENAI, [clip], ASSISTANT_VIDEO_TIERS.frames),
       [{ url, label: '走路' }],
     )
@@ -241,7 +244,7 @@ describe('v3 看片 · 被指着的片子怎么摆', () => {
   for (const adapter of [AI_ADAPTER_TYPES.ANTHROPIC, AI_ADAPTER_TYPES.XAI]) {
     it(`${adapter}：被指着的片子按帧看，⛔ 不下片子本体`, async () => {
       const url = 'https://cdn.test/walk.mp4'
-      const views = await viewPointedClips(
+      const views = await viewClips(
         context(
           adapter,
           [capturedClip(url, '走路', 3)],
@@ -259,7 +262,7 @@ describe('v3 看片 · 被指着的片子怎么摆', () => {
     const url = 'https://cdn.test/walk.mp4'
     const pictures = createPictureCache(AI_ADAPTER_TYPES.ANTHROPIC)
     expect(pictures.maxBytes).toBe(7_500_000)
-    const views = await viewPointedClips(
+    const views = await viewClips(
       {
         ...context(
           AI_ADAPTER_TYPES.ANTHROPIC,
@@ -275,7 +278,7 @@ describe('v3 看片 · 被指着的片子怎么摆', () => {
 
   it('GIF 帧不收（Gemini 收不了 GIF，五家同一张名单）', async () => {
     const url = 'https://cdn.test/walk.mp4'
-    const views = await viewPointedClips(
+    const views = await viewClips(
       context(
         AI_ADAPTER_TYPES.OPENAI,
         [capturedClip(url, '走路', 3, 'gif')],

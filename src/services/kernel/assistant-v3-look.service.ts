@@ -15,10 +15,7 @@ import {
   ASSISTANT_V3_PICTURE_FORMATS,
   ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS,
 } from '@/constants/assistant-v3'
-import {
-  ASSISTANT_IMAGE_LIMITS,
-  ASSISTANT_VIDEO_TIERS,
-} from '@/constants/assistant'
+import { ASSISTANT_IMAGE_LIMITS } from '@/constants/assistant'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { logger } from '@/lib/logger'
 import type { AssistantOperatorEvent } from '@/types/assistant-operator'
@@ -27,7 +24,6 @@ import {
   AssistantV3PictureRefSchema,
   type AssistantV3ClipRef,
   type AssistantV3PictureRef,
-  type AssistantV3Transcript,
 } from '@/types/assistant-v3'
 import {
   recordLedgerStep,
@@ -41,9 +37,10 @@ import {
   type V3Outcome,
 } from '@/services/kernel/assistant-v3-steps.service'
 import {
-  loadClip,
-  type V3Clip,
-  type V3ClipCache,
+  clipViewParts,
+  clipViewSummary,
+  viewClips,
+  type V3ClipView,
 } from '@/services/kernel/assistant-v3-watch.service'
 import { detectTrustedImageMime, fetchAsBuffer } from '@/services/storage/r2'
 
@@ -195,24 +192,26 @@ function boardClipsOf(context: V3Context): readonly AssistantV3ClipRef[] {
 /**
  * 一段片子在这次 look 里怎么办（看图期第二段）：
  * - 创作者指着的（板子上的）→ 已经在眼前，只指给它看，⛔ 不再附第二遍；
- * - 没被指着的 → 只有 `native` 档（Gemini）能看：下得来、不超内联上限就交片子本体，只附给
- *   紧跟着的那一次；太大 / 下不来就如实说，让创作者 @ 它（@ 了浏览器会抽帧）；
- * - 别家没被指着的 → 没有帧可看，只回一句「请创作者 @ 这段片子」，⛔ 不按提示词或名字去猜。
+ * - 别的（视频台上挂着的 `video-N`、画布上没被指着的视频卡）→ 按 `viewClips` 摆：Gemini 先下
+ *   片子本体（内联上限内），别家 / 下不来 / 太大用浏览器随请求带来的帧；都没有就如实说，让
+ *   创作者 @ 它（@ 了浏览器会抽帧），⛔ 不按提示词或名字去猜。摆上去的只附给紧跟着的那一次。
+ * ⚠ 挂着的那几段帧早就随请求带来了，但**只有这里**会把它们摆到模型眼前（挂着 ≠ 每轮都看）。
  */
 async function lookAtClips(
   context: V3Context,
   clips: readonly V3LookClipTarget[],
 ): Promise<{
   shown: { target: V3LookClipTarget; position: number }[]
-  attached: V3LookClipTarget[]
+  attached: { target: V3LookClipTarget; view: V3ClipView }[]
   lines: string[]
 }> {
   const boardClips = boardClipsOf(context)
   const shown: { target: V3LookClipTarget; position: number }[] = []
-  const attached: V3LookClipTarget[] = []
+  const attached: { target: V3LookClipTarget; view: V3ClipView }[] = []
   const tooLarge: string[] = []
   const unloadable: string[] = []
   const unseen: string[] = []
+  const overCap: string[] = []
   for (const target of uniqueByUrl(clips)) {
     const position = boardClips.findIndex(
       (clip) =>
@@ -223,31 +222,44 @@ async function lookAtClips(
       shown.push({ target, position })
       continue
     }
-    if (context.clipTier !== ASSISTANT_VIDEO_TIERS.native) {
-      unseen.push(target.label)
-      continue
-    }
     if (attached.length >= ASSISTANT_V3_CLIP_LIMITS.maxClips) {
-      unseen.push(target.label)
+      overCap.push(target.label)
       continue
     }
     const ref = {
       url: target.url,
       label: target.label.slice(0, ASSISTANT_V3_LIMITS.maxNameChars * 2),
     }
-    const load = AssistantV3ClipRefSchema.safeParse(ref).success
-      ? await loadClip(context.clips, target.url, context.prepared.run.signal)
-      : ({ ok: false, reason: 'unloadable' } as const)
-    if (load.ok) attached.push({ ...target, ...ref })
-    else if (load.reason === 'tooLarge') tooLarge.push(target.label)
-    else unloadable.push(target.label)
+    // ⚠ 进不了本轮记录的地址（太长）当作看不了：接力时那一跳会整份记录不过校验。
+    if (!AssistantV3ClipRefSchema.safeParse(ref).success) {
+      unloadable.push(target.label)
+      continue
+    }
+    const [view] = await viewClips(context, [ref])
+    if (view!.kind !== 'none')
+      attached.push({ target: { ...target, ...ref }, view: view! })
+    else if (view!.tooLarge) tooLarge.push(target.label)
+    else if (view!.unloadable) unloadable.push(target.label)
+    else unseen.push(target.label)
   }
   const lines: string[] = []
-  if (attached.length)
+  const withClip = attached.filter(({ view }) => view.kind === 'video')
+  const withFrames = attached.filter(({ view }) => view.kind === 'frames')
+  if (withClip.length)
     lines.push(
       `The clip itself comes with this result, for your next step only: ${quoted(
-        attached.map((target) => target.label),
+        withClip.map(({ target }) => target.label),
       )}. After that step only this line stays — look again if you need to watch it again.`,
+    )
+  if (withFrames.length)
+    lines.push(
+      `Frames sampled from ${withFrames
+        .map(
+          ({ target, view }) => `「${target.label}」${clipViewSummary(view)}`,
+        )
+        .join(
+          ', ',
+        )} come with this result, for your next step only. After that step only this line stays — look again if you need to watch it again.`,
     )
   if (shown.length)
     lines.push(
@@ -269,6 +281,10 @@ async function lookAtClips(
   if (unseen.length)
     lines.push(
       `${quoted(unseen)} is a clip you were not shown: you only watch clips the creator points at. Ask them to @ the clip in their message. Do not describe it from its prompt or its name.`,
+    )
+  if (overCap.length)
+    lines.push(
+      `Only ${ASSISTANT_V3_CLIP_LIMITS.maxClips} clips can be watched in one look; ${quoted(overCap)} ${overCap.length === 1 ? 'was' : 'were'} not — look at it separately if it matters.`,
     )
   return { shown, attached, lines }
 }
@@ -326,7 +342,7 @@ export async function* executeV3Look(
   const clips = await lookAtClips(context, clipTargets)
   const seenClips = [
     ...clips.shown.map(({ target }) => target),
-    ...clips.attached,
+    ...clips.attached.map(({ target }) => target),
   ]
 
   const question = request.question
@@ -446,7 +462,7 @@ export async function* executeV3Look(
     ...(attached.length ? { images: attached.map((item) => item.ref) } : {}),
     ...(clips.attached.length
       ? {
-          clips: clips.attached.map((target) => ({
+          clips: clips.attached.map(({ target }) => ({
             url: target.url,
             label: target.label,
           })),
@@ -459,12 +475,16 @@ export async function* executeV3Look(
  * 图怎么进消息
  * ───────────────────────────────────────────────────────────────────────── */
 
-/** 紧跟着那一次调用要附的一次 look：一行抬头 + 下得来的图，以及片子本体（只有 Gemini）。 */
+/**
+ * 紧跟着那一次调用要附的一次 look：一行抬头 + 下得来的图，以及片子（Gemini 是片子本体，
+ * 别家 / 退路是随请求带来的那组帧）。
+ */
 export interface V3FreshLook {
   /** 图那一行抬头；这次 look 没附图时是空串。 */
   readonly header: string
   readonly pictures: readonly V3Picture[]
-  readonly clips: readonly { readonly label: string; readonly clip: V3Clip }[]
+  /** 这一跳看得成的那几段（`none` 已滤掉）。 */
+  readonly clips: readonly V3ClipView[]
 }
 
 /**
@@ -475,11 +495,10 @@ export interface V3FreshLook {
  *   请求接着跑，模型还没看过的图照样附上（换一次请求就重下一次，⛔ 不存字节）。片子同一条。
  */
 export async function loadFreshLooks(
-  transcript: AssistantV3Transcript,
-  pictureCache: V3PictureCache,
-  clipCache: V3ClipCache,
+  context: V3Context,
   signal?: AbortSignal,
 ): Promise<Map<string, V3FreshLook>> {
+  const { transcript, pictures: pictureCache } = context
   const looks = new Map<string, V3FreshLook>()
   const last = transcript.findLastIndex(
     (entry) => entry.type === ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.assistant,
@@ -499,10 +518,8 @@ export async function loadFreshLooks(
       pictures[index] ? [{ image, picture: pictures[index]! }] : [],
     )
     const lost = images.filter((_, index) => !pictures[index])
-    const clipRefs = entry.clips ?? []
-    const clipLoads = await Promise.all(
-      clipRefs.map((ref) => loadClip(clipCache, ref.url, signal)),
-    )
+    // ⚠ 片子每一跳按同一条 `viewClips` 重新摆（换一次请求就重下 / 重核一次帧，⛔ 不存字节）。
+    const clipViews = await viewClips(context, entry.clips ?? [])
     looks.set(entry.id, {
       header: images.length
         ? `PICTURES FROM YOUR look (in order): ${
@@ -512,10 +529,7 @@ export async function loadFreshLooks(
           }${lost.length ? ` — ${quoted(lost.map((image) => image.label))} could not be loaded this time` : ''}`
         : '',
       pictures: ok.map(({ picture }) => picture),
-      clips: clipRefs.flatMap((ref, index) => {
-        const load = clipLoads[index]!
-        return load.ok ? [{ label: ref.label, clip: load.clip }] : []
-      }),
+      clips: clipViews.filter((view) => view.kind !== 'none'),
     })
   }
   return looks
@@ -539,6 +553,8 @@ export async function loadFreshLooks(
  * ⚠ 片子本体（只有 Gemini 会有）**不进** functionResponse：官方那张「工具结果里能放什么」的
  *   表只列了图与文档，没有视频。所以它跟在这一批工具结果后面那条 user 里（`lookClipParts`）——
  *   这正是上面「两条相邻的 user content」那一种，⚠ 同样没核实到官方原文，未做真机实测。
+ *   look 摆上来的帧（挂着的参考视频、或 Gemini 片子太大时的退路）跟着同一段片子走、同一个位置，
+ *   逐帧带着时间标签；别家本来就在那条 user 里。
  *
  * ⚠ 缓存：前四家的图在消息最末尾，下一步拿掉它前缀一字不变；Gemini 那一条结果下一步变短，
  *   从它起重算。
@@ -549,15 +565,25 @@ export function picturesRideInToolResult(
   return adapterType === AI_ADAPTER_TYPES.GEMINI
 }
 
-/** look 附上的片子本体：一行称呼 + 片子（跟在工具结果后面那条 user 里）。 */
+/**
+ * look 摆上来的片子：一行称呼表 + 每段的片子本体或逐帧（帧照旧标「clip 「名字」 · frame k/N at
+ * t s」）。跟在工具结果后面那条 user 里，五家同一个位置：片子本体进不了 Gemini 的
+ * functionResponse（见上），帧与它跟着同一段走，⛔ 不拆成两处。
+ */
 export function lookClipParts(look: V3FreshLook): Exclude<UserContent, string> {
-  return look.clips.flatMap(({ label, clip }) => [
+  if (look.clips.length === 0) return []
+  return [
     {
       type: 'text' as const,
-      text: `CLIP FROM YOUR look: 「${label}」 (the clip itself)`,
+      text: `CLIPS FROM YOUR look (in order): ${look.clips
+        .map(
+          (view, index) =>
+            `${index + 1} = clip 「${view.ref.label}」${clipViewSummary(view)}`,
+        )
+        .join(' · ')}`,
     },
-    { type: 'file' as const, data: clip.data, mediaType: clip.mediaType },
-  ])
+    ...look.clips.flatMap((view) => clipViewParts(view)),
+  ]
 }
 
 /** 图跟在工具结果后面的那条 user 消息（OpenAI 协议 / Claude）。 */

@@ -2885,6 +2885,98 @@ describe('v3 内核 · 视频台', () => {
     )
   })
 
+  /* ── 挂着 ≠ 每轮都看（owner 2026-10-15）：视频台上只是挂着的参考视频，look 它才摆 ── */
+
+  const MOUNTED = 'https://cdn.test/mounted.mp4'
+
+  /** 视频台上挂着一段参考视频（video-1），浏览器照常把它的帧随请求带来（标 `mounted`）。 */
+  function mountedRequest(message: string): AssistantOperatorRequest {
+    const base = videoRequest(message)
+    return {
+      ...base,
+      snapshot: {
+        ...base.snapshot,
+        videoReferences: { items: [{ url: MOUNTED, label: '转身' }], limit: 3 },
+      },
+      videoClips: [{ ...capturedClip(MOUNTED, 'video-1', 5), mounted: true }],
+    } as unknown as AssistantOperatorRequest
+  }
+
+  for (const [adapterType, modelId] of [
+    [AI_ADAPTER_TYPES.OPENAI, 'gpt-6-luna'],
+    [AI_ADAPTER_TYPES.GEMINI, 'gemini-3-pro'],
+  ] as const)
+    it(`⭐ ${adapterType}：挂着的参考视频没人看就一个 token 也不花 —— 板子上只有名字，⛔ 不摆帧、不下片子`, async () => {
+      clipsServed.set(MOUNTED, 2_000_000)
+      routeOnce(adapterType, modelId)
+      const mock = script(textTurn('好。'))
+      await collect(runAssistantV3('clerk-1', mountedRequest('写得再紧一点')))
+      expect(mock.doStreamCalls).toHaveLength(1)
+      const first = mock.doStreamCalls[0]!
+      const prompt = promptText(first)
+      expect(prompt).toContain('Reference videos: 1 of 3 — video-1')
+      expect(prompt).not.toContain('CLIPS THE CREATOR POINTED AT (in order)')
+      expect(prompt).not.toContain('clip 「video-1」')
+      expect(
+        attachedPictures(first).filter((url) => url.startsWith(MOUNTED)),
+      ).toEqual([])
+      expect(attachedClips(first)).toEqual([])
+      expect(fetchAsBuffer).not.toHaveBeenCalledWith(MOUNTED, expect.anything())
+    })
+
+  it('⭐ 别家 look 挂着的 video-1：带来的帧只摆给下一步，再下一步就没了（不用 @）', async () => {
+    served.set('https://cdn.test/door.png', 'png')
+    routeOnce(AI_ADAPTER_TYPES.OPENAI, 'gpt-6-luna')
+    const mock = script(
+      toolTurn({
+        id: 'call_look',
+        name: 'look',
+        input: { images: ['video-1'], question: '她转身快吗' },
+      }),
+      toolTurn({
+        id: 'call_door',
+        name: 'look',
+        input: { images: ['门口'], question: '门口在哪' },
+      }),
+      textTurn('转身偏慢。'),
+    )
+    await collect(
+      runAssistantV3('clerk-1', mountedRequest('参考视频里她转身快吗')),
+    )
+    const [before, next, after] = mock.doStreamCalls
+    const framesOf = (call: LanguageModelV3CallOptions) =>
+      attachedPictures(call).filter((url) => url.startsWith(MOUNTED))
+    expect(framesOf(before!)).toEqual([])
+    expect(framesOf(next!)).toEqual(
+      [0, 1, 2, 3].map((index) => `${MOUNTED}#${index}`),
+    )
+    expect(promptText(next!)).toContain(
+      'Frames sampled from 「video-1」 (4 frames sampled across 5 s) come with this result, for your next step only.',
+    )
+    expect(promptText(next!)).toContain('clip 「video-1」 · frame 1/4 at 0.6 s')
+    expect(framesOf(after!)).toEqual([])
+    expect(fetchAsBuffer).not.toHaveBeenCalledWith(MOUNTED, expect.anything())
+  })
+
+  it('Gemini look 挂着的 video-1：下片子本体，只附给下一步', async () => {
+    clipsServed.set(MOUNTED, 2_000_000)
+    routeOnce(AI_ADAPTER_TYPES.GEMINI, 'gemini-3-pro')
+    const mock = script(
+      toolTurn({
+        id: 'call_look',
+        name: 'look',
+        input: { images: ['video-1'], question: '她转身快吗' },
+      }),
+      textTurn('转身偏慢。'),
+    )
+    await collect(
+      runAssistantV3('clerk-1', mountedRequest('参考视频里她转身快吗')),
+    )
+    const [before, next] = mock.doStreamCalls
+    expect(attachedClips(before!)).toEqual([])
+    expect(attachedClips(next!)).toEqual([MOUNTED])
+  })
+
   it('清晰度是花钱的那一格：创作者没提就不改，提了照改', async () => {
     const specs = {
       id: 'call_1',

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ASSISTANT_V3_CLIP_LIMITS } from '@/constants/assistant-v3'
 import { VIDEO_FRAME_CAPTURE_REASONS } from '@/constants/video-analysis'
 import type { AssistantMention } from '@/types/assistant-mention'
 
@@ -7,9 +8,9 @@ const captureClipFrames = vi.hoisted(() => vi.fn())
 vi.mock('@/lib/video-frame-capture', () => ({ captureClipFrames }))
 
 import {
-  capturePointedClips,
+  captureTurnClips,
   resetPointedClipCaptureCache,
-  resolvePointedClips,
+  resolveTurnClips,
 } from '@/lib/assistant-pointed-clips'
 
 function videoMention(
@@ -27,7 +28,8 @@ function videoMention(
   }
 }
 
-function captured(duration: number) {
+/** 抽好的一段：`frameChars` 是这段帧的 dataUrl 一共多少字（量预算用）。 */
+function captured(duration: number, frameChars = 25) {
   return {
     ok: true as const,
     plan: { durationSeconds: duration, frames: [] },
@@ -38,17 +40,19 @@ function captured(duration: number) {
       {
         index: 0,
         timestampSeconds: duration / 2,
-        dataUrl: 'data:image/webp;base64,AA',
+        dataUrl: `data:image/webp;base64,${'A'.repeat(Math.max(0, frameChars - 23))}`,
       },
     ],
   }
 }
 
-describe('resolvePointedClips', () => {
-  it('orders @ clips, then attachments, then mounted video-N, deduped by url', () => {
-    const { clips, overflow } = resolvePointedClips({
+const url = (name: string) => `https://cdn.example.com/${name}.mp4`
+
+describe('resolveTurnClips', () => {
+  it('points at @ clips then attachments; mounted video-N stay apart, deduped by url', () => {
+    const { pointed, overflow, mounted } = resolveTurnClips({
       mentions: [
-        videoMention('https://cdn.example.com/a.mp4', '  Shot A  ', 'node-1'),
+        videoMention(url('a'), '  Shot A  ', 'node-1'),
         {
           ...videoMention('https://cdn.example.com/img.png', 'pic'),
           kind: 'image',
@@ -57,36 +61,46 @@ describe('resolvePointedClips', () => {
       ],
       attachments: [
         { kind: 'image', url: 'https://cdn.example.com/b.png', label: 'b.png' },
-        { kind: 'video', url: 'https://cdn.example.com/a.mp4', label: 'dupe' },
+        { kind: 'video', url: url('a'), label: 'dupe' },
       ],
-      referenceVideos: [{ url: 'https://cdn.example.com/ref.mp4' }],
+      referenceVideos: [{ url: url('a') }, { url: url('ref') }],
     })
-    expect(clips).toEqual([
-      {
-        sourceUrl: 'https://cdn.example.com/a.mp4',
-        label: 'Shot A',
-        nodeId: 'node-1',
-      },
-      { sourceUrl: 'https://cdn.example.com/ref.mp4', label: 'video-1' },
+    expect(pointed).toEqual([
+      { sourceUrl: url('a'), label: 'Shot A', nodeId: 'node-1' },
     ])
+    // ⭐ 同一段既 @ 了又挂着：算被指着；挂着的称呼按它在视频台上的位置。
+    expect(mounted).toEqual([{ sourceUrl: url('ref'), label: 'video-2' }])
     expect(overflow).toBe(0)
   })
 
-  it('keeps the first two and reports the rest as overflow', () => {
-    const { clips, overflow } = resolvePointedClips({
+  it('caps the pointed set at two (mounted clips never count toward it)', () => {
+    const { pointed, overflow, mounted } = resolveTurnClips({
       mentions: [],
       attachments: [
-        { kind: 'video', url: 'https://cdn.example.com/1.mp4', label: 'one' },
-        { kind: 'video', url: 'https://cdn.example.com/2.mp4', label: 'two' },
+        { kind: 'video', url: url('1'), label: 'one' },
+        { kind: 'video', url: url('2'), label: 'two' },
+        { kind: 'video', url: url('3'), label: 'three' },
       ],
-      referenceVideos: [{ url: 'https://cdn.example.com/3.mp4' }],
+      referenceVideos: [{ url: url('m1') }, { url: url('m2') }],
     })
-    expect(clips.map((clip) => clip.label)).toEqual(['one', 'two'])
+    expect(pointed.map((clip) => clip.label)).toEqual(['one', 'two'])
     expect(overflow).toBe(1)
+    expect(mounted.map((clip) => clip.label)).toEqual(['video-1', 'video-2'])
+  })
+
+  it(`carries at most ${ASSISTANT_V3_CLIP_LIMITS.maxMountedClips} mounted clips`, () => {
+    const { mounted } = resolveTurnClips({
+      mentions: [],
+      attachments: [],
+      referenceVideos: Array.from({ length: 5 }, (_, index) => ({
+        url: url(`m${index}`),
+      })),
+    })
+    expect(mounted).toHaveLength(ASSISTANT_V3_CLIP_LIMITS.maxMountedClips)
   })
 
   it('skips addresses the request would reject', () => {
-    const { clips } = resolvePointedClips({
+    const { pointed } = resolveTurnClips({
       mentions: [],
       attachments: [
         { kind: 'video', url: 'not a url', label: 'bad' },
@@ -98,31 +112,34 @@ describe('resolvePointedClips', () => {
         { kind: 'video', url: 'blob:https://app.example.com/1', label: '   ' },
       ],
     })
-    expect(clips).toEqual([
+    expect(pointed).toEqual([
       { sourceUrl: 'blob:https://app.example.com/1', label: 'clip' },
     ])
   })
 })
 
-describe('capturePointedClips', () => {
+describe('captureTurnClips', () => {
   beforeEach(() => {
     captureClipFrames.mockReset()
     resetPointedClipCaptureCache()
   })
 
-  it('sends frames for captured clips and keeps failed ones without frames', async () => {
+  it('sends frames for captured clips and keeps failed pointed ones without frames', async () => {
     captureClipFrames.mockResolvedValueOnce(captured(4)).mockResolvedValueOnce({
       ok: false,
       reason: VIDEO_FRAME_CAPTURE_REASONS.taintedCanvas,
       message: 'tainted',
     })
-    const result = await capturePointedClips([
-      { sourceUrl: 'https://cdn.example.com/a.mp4', label: 'A', nodeId: 'n1' },
-      { sourceUrl: 'https://cdn.example.com/b.mp4', label: 'B' },
-    ])
+    const result = await captureTurnClips({
+      pointed: [
+        { sourceUrl: url('a'), label: 'A', nodeId: 'n1' },
+        { sourceUrl: url('b'), label: 'B' },
+      ],
+      mounted: [],
+    })
     expect(result.videoClips).toEqual([
       {
-        sourceUrl: 'https://cdn.example.com/a.mp4',
+        sourceUrl: url('a'),
         label: 'A',
         nodeId: 'n1',
         durationSeconds: 4,
@@ -134,9 +151,53 @@ describe('capturePointedClips', () => {
           },
         ],
       },
-      { sourceUrl: 'https://cdn.example.com/b.mp4', label: 'B' },
+      { sourceUrl: url('b'), label: 'B' },
     ])
     expect(result.failures).toEqual([VIDEO_FRAME_CAPTURE_REASONS.taintedCanvas])
+  })
+
+  it('⭐ mounted clips ride flagged; one that failed is dropped silently', async () => {
+    captureClipFrames.mockResolvedValueOnce(captured(6)).mockResolvedValueOnce({
+      ok: false,
+      reason: VIDEO_FRAME_CAPTURE_REASONS.loadFailed,
+      message: 'load',
+    })
+    const result = await captureTurnClips({
+      pointed: [],
+      mounted: [
+        { sourceUrl: url('m1'), label: 'video-1' },
+        { sourceUrl: url('m2'), label: 'video-2' },
+      ],
+    })
+    expect(result.videoClips).toEqual([
+      expect.objectContaining({
+        sourceUrl: url('m1'),
+        label: 'video-1',
+        mounted: true,
+        durationSeconds: 6,
+      }),
+    ])
+    // 挂着的没抽成：⛔ 不留系统行（没人问它）。
+    expect(result.failures).toEqual([])
+  })
+
+  it('mounted clips fill only what the frame budget leaves; pointed ones never give way', async () => {
+    const budget = ASSISTANT_V3_CLIP_LIMITS.carriedFramesMaxChars
+    captureClipFrames
+      .mockResolvedValueOnce(captured(4, budget - 100))
+      .mockResolvedValueOnce(captured(4, 200))
+      .mockResolvedValueOnce(captured(4, 50))
+    const result = await captureTurnClips({
+      pointed: [{ sourceUrl: url('p'), label: 'P' }],
+      mounted: [
+        { sourceUrl: url('big'), label: 'video-1' },
+        { sourceUrl: url('small'), label: 'video-2' },
+      ],
+    })
+    expect(result.videoClips.map((clip) => clip.label)).toEqual([
+      'P',
+      'video-2',
+    ])
   })
 
   it('reuses a successful capture and retries a failed one', async () => {
@@ -148,10 +209,10 @@ describe('capturePointedClips', () => {
         message: 'load',
       })
       .mockResolvedValueOnce(captured(6))
-    const a = { sourceUrl: 'https://cdn.example.com/a.mp4', label: 'A' }
-    const b = { sourceUrl: 'https://cdn.example.com/b.mp4', label: 'B' }
-    await capturePointedClips([a, b])
-    const again = await capturePointedClips([a, b])
+    const a = { sourceUrl: url('a'), label: 'A' }
+    const b = { sourceUrl: url('b'), label: 'B' }
+    await captureTurnClips({ pointed: [a, b], mounted: [] })
+    const again = await captureTurnClips({ pointed: [a, b], mounted: [] })
     expect(captureClipFrames).toHaveBeenCalledTimes(3)
     expect(again.failures).toEqual([])
     expect(again.videoClips.map((clip) => clip.durationSeconds)).toEqual([4, 6])

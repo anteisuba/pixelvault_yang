@@ -133,6 +133,12 @@ describe('v3 系统提示 · WATCHING CLIPS', () => {
       expect(prompt).toContain('WATCHING CLIPS')
       expect(prompt).toContain('CLIPS THE CREATOR POINTED AT')
       expect(prompt).toContain('clip 「name」 · frame k/N at t s')
+      // ⭐ 挂着的参考视频不在眼前，look 它才看、只给下一步（owner 2026-10-15）。
+      expect(prompt).toContain(
+        'A reference video mounted on the video bench (video-1) is not in front of you',
+      )
+      expect(prompt).toContain('shown to you for your next step only')
+      expect(prompt).not.toContain('or mounted on the video bench) is in front')
       expect(prompt).toContain(
         'Frames are samples at the times given, not the clip.',
       )

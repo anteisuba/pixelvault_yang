@@ -761,9 +761,10 @@ export type AssistantV3PictureRef = z.infer<typeof AssistantV3PictureRefSchema>
 
 /**
  * 记录里的一段片子（看图期第二段）：同样只有地址与称呼，⛔ 不存字节也不存帧。
- * - 板子上的 = 创作者这一轮指着的那几段（@ / 📎 / 视频台挂着的）：每一跳都重新摆到模型
- *   眼前 —— Gemini 下片子本体，别家用请求里那组帧（`videoClips`，接力时客户端原样再带）。
- * - 结果上的 = `look` 看一段没被指着的片子（只有 Gemini 走得通）：只附给紧跟着那一次。
+ * - 板子上的 = 创作者这一轮指着的那几段（@ / 📎）：每一跳都重新摆到模型眼前 —— Gemini 下
+ *   片子本体，别家用请求里那组帧（`videoClips`，接力时客户端原样再带）。
+ * - 结果上的 = `look` 看一段没被指着的片子（视频台上挂着的 `video-N`、画布上的视频卡）：
+ *   只附给紧跟着那一次 —— Gemini 下片子本体，别家用请求里带着的帧（挂着的那几段有）。
  */
 export const AssistantV3ClipRefSchema = AssistantV3PictureRefSchema.extend({
   /** 画布上的视频卡（`look` 认「这张卡已经在你眼前」靠它）。 */

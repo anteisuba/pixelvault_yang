@@ -137,8 +137,8 @@ import { buildCanvasGenerationRequest } from '@/lib/studio-operator-canvas-snaps
 import { collectStepArtifacts } from '@/lib/studio-operator-artifacts'
 import { captureVideoEndpointFrames } from '@/lib/video-frame-capture'
 import {
-  capturePointedClips,
-  resolvePointedClips,
+  captureTurnClips,
+  resolveTurnClips,
 } from '@/lib/assistant-pointed-clips'
 import { streamAssistantOperatorAPI } from '@/lib/api-client/assistant-operator'
 import { importWebImageAPI } from '@/lib/api-client/web-image-import'
@@ -1298,23 +1298,24 @@ export function useAssistantOperator(
       )
 
       /**
-       * ⭐ **v3 看片的帧生产者**（看图期第二段，owner 2026-10-15）：被指着的片子（@ / 📎 /
-       *   视频台挂着的，最多 `maxClips` 段）在请求发出去之前按片长抽好帧。
+       * ⭐ **v3 看片的帧生产者**（看图期第二段，owner 2026-10-15）：被指着的片子（@ / 📎，最多
+       *   `maxClips` 段，整轮在模型眼前）与视频台上只是挂着的参考视频（`video-N`，`look` 它才
+       *   摆，见 `lib/assistant-pointed-clips.ts`）在请求发出去之前按片长抽好帧。
        * ⚠ 快照要先拍：视频台挂着的那几段从快照里读（与板子上的 `video-N` 同一份）。
        * ⚠ 接力（画布 canvas_sync / 时间预算）把上一跳的那一份原样带回来，⛔ 不重抽、不重复
-       *   系统行。抽帧失败不拦这一轮：照样发（Gemini 还能看片子本体），线程里留一行原因。
+       *   系统行。被指着的抽帧失败不拦这一轮：照样发（Gemini 还能看片子本体），线程里留一行原因。
        */
       let videoClips = options.videoClips
       if (usesV3 && !videoClips) {
-        const pointed = resolvePointedClips({
+        const turnClips = resolveTurnClips({
           mentions: pointedMentions,
           attachments: lastUserAttachments(entries),
           referenceVideos: snapshot.videoReferences?.items,
         })
-        if (pointed.clips.length) {
+        if (turnClips.pointed.length || turnClips.mounted.length) {
           setOperatorCapturingFrames(true)
           try {
-            const captured = await capturePointedClips(pointed.clips)
+            const captured = await captureTurnClips(turnClips)
             if (!isCurrentRun()) return
             videoClips = captured.videoClips
             for (const reason of captured.failures)
@@ -1329,7 +1330,7 @@ export function useAssistantOperator(
           }
           if (!isCurrentRun()) return
         }
-        if (pointed.overflow > 0)
+        if (turnClips.overflow > 0)
           appendOperatorEntry({
             kind: 'system',
             id: nextOperatorEntryId('sys'),

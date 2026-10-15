@@ -31,6 +31,11 @@ import { verifyVideoFrameSet } from '@/services/video-frames/video-frame-set.ser
  *   复算同一份计划逐帧核对时间戳、按魔数验真（`verifyVideoFrameSet`），通过才摆上去。
  * ⛔ 不借别家的 key：所选模型看不了图，片子一段也不看（`cannotSeeOutcome`）。
  *
+ * ── 什么时候摆 ───────────────────────────────────────────────────
+ * - **被指着的**（`@` / 📎）：冻进板子，整轮都在眼前（`pointedClipParts`）。
+ * - **视频台上只是挂着的**（`video-N`，请求里标 `mounted`）：帧只随请求带着，⛔ 不摆（不花
+ *   token）；模型 `look` 它时才按同一套 `viewClips` 摆上去、只给下一步（`assistant-v3-look`）。
+ *
  * ⚠ 字节只活在这次请求里（与图同一条）：本轮记录只存地址与称呼，帧每一跳由客户端原样再带。
  */
 
@@ -163,7 +168,7 @@ export async function verifyClipFrames(
   }
 }
 
-/** 一段被指着的片子这一跳怎么摆。 */
+/** 一段片子这一跳怎么摆。 */
 export type V3ClipView =
   | {
       readonly kind: 'video'
@@ -179,18 +184,25 @@ export type V3ClipView =
   | {
       readonly kind: 'none'
       readonly ref: AssistantV3ClipRef
+      /** `native` 档下片子本体超过内联上限。 */
+      readonly tooLarge: boolean
+      /** `native` 档下片子本体下不来（不是太大）。 */
+      readonly unloadable: boolean
+      /** 帧为什么也没有：没带上来，还是没过服务端那一关。 */
+      readonly frames: 'missing' | 'invalid'
       readonly note: string
     }
 
 /**
- * 创作者这一轮指着的几段片子（板子上的 `clips`）这一跳各自怎么摆。
+ * 几段片子这一跳各自怎么摆（被指着的那几段每一跳都过一遍；`look` 一段挂着的也是这一条）。
  *
  * ⭐ `native` 档（Gemini）**先看片子本体，帧只是退路**：运镜、动作快慢与是否连贯、一个动作
  *   落在第几秒，只有看片子本体才看得见 —— 帧是几个时间点的样本，两帧之间发生了什么帧本身
  *   不说。所以片子在内联上限内就交片子，超了 / 下不来才用浏览器抽好的那组帧。
- * 别家只有帧；帧没抽成、或没过服务端那一关，就如实写一句没看成，⛔ 不猜。
+ * 别家只有帧；帧没带上来、或没过服务端那一关，就如实写一句没看成，⛔ 不猜。
+ * 帧按地址在请求的 `videoClips` 里找，被指着的与挂着的同一张表。
  */
-export async function viewPointedClips(
+export async function viewClips(
   context: V3Context,
   refs: readonly AssistantV3ClipRef[],
 ): Promise<V3ClipView[]> {
@@ -199,10 +211,12 @@ export async function viewPointedClips(
   return Promise.all(
     refs.map(async (ref): Promise<V3ClipView> => {
       let tooLarge = false
+      let unloadable = false
       if (context.clipTier === ASSISTANT_VIDEO_TIERS.native) {
         const load = await loadClip(context.clips, ref.url, signal)
         if (load.ok) return { kind: 'video', ref, clip: load.clip }
         tooLarge = load.reason === 'tooLarge'
+        unloadable = !tooLarge
       }
       const frames = await verifyClipFrames(
         submitted.find((clip) => clip.sourceUrl === ref.url),
@@ -218,6 +232,9 @@ export async function viewPointedClips(
       return {
         kind: 'none',
         ref,
+        tooLarge,
+        unloadable,
+        frames: frames.reason,
         note: [
           tooLarge
             ? `too large to watch directly (over ${Math.round(ASSISTANT_V3_CLIP_LIMITS.inlineMaxBytes / 1024 / 1024)} MB)`
@@ -252,19 +269,22 @@ export function pointedClipParts(
       text: `CLIPS THE CREATOR POINTED AT (in order): ${views
         .map(
           (view, index) =>
-            `${index + 1} = clip 「${view.ref.label}」${
-              view.kind === 'video'
-                ? ' (the clip itself)'
-                : view.kind === 'frames'
-                  ? ` (${view.frames.length} frames sampled across ${seconds(view.durationSeconds)})`
-                  : ` (not shown: ${view.note})`
-            }`,
+            `${index + 1} = clip 「${view.ref.label}」${clipViewSummary(view)}`,
         )
         .join(' · ')}`,
     },
   ]
   for (const view of views) parts.push(...clipViewParts(view))
   return parts
+}
+
+/** 一段片子在称呼表里那一小句：片子本体、几帧跨多长，或为什么没看成。 */
+export function clipViewSummary(view: V3ClipView): string {
+  return view.kind === 'video'
+    ? ' (the clip itself)'
+    : view.kind === 'frames'
+      ? ` (${view.frames.length} frames sampled across ${seconds(view.durationSeconds)})`
+      : ` (not shown: ${view.note})`
 }
 
 /** 一段片子的那几块：片子本体一块，或每帧一行字 + 一张图。 */

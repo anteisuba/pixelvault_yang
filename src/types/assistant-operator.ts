@@ -1477,14 +1477,15 @@ export type AssistantOperatorVideoFrames = z.infer<
 >
 
 /**
- * v3 助手（Denia）这一轮被指着的一段片子（看图期第二段，owner 2026-10-15）：`@` 的、📎 的、
- * 视频台上挂着的，浏览器按 `planClipFrames` 抽好帧再发。
+ * v3 助手（Denia）这一轮的一段片子（看图期第二段，owner 2026-10-15）：被指着的（`@` 的、📎 的，
+ * 整轮在模型眼前）或视频台上只是挂着的（`mounted`，`look` 它才摆上去），浏览器按
+ * `planClipFrames` 抽好帧再发。
  *
  * ⭐ 帧是**片子的样本**而不是证据存档：服务端复算同一份计划逐帧核对时间戳、按魔数验真
  *   （`verifyVideoFrameSet`），然后直接摆到模型眼前，⛔ 不落 R2。画布接力时客户端把同一组
  *   帧原样再带一次（⛔ 不重抽）。
- * ⚠ `frames` 缺席 = 浏览器没抽成（跨域 / 读不出时长 / 超时）。片子照样上来：Gemini 能直接看
- *   片子本体；别家就如实说没看成。
+ * ⚠ `frames` 缺席 = 浏览器没抽成（跨域 / 读不出时长 / 超时）。被指着的片子照样上来：Gemini
+ *   能直接看片子本体；别家就如实说没看成。挂着的那几段没抽成就不带（服务端按快照里的地址认）。
  * ⚠ `sourceUrl` 只是「看哪一段」：服务端下载走防 SSRF 的那条（`fetchAsBuffer`）。
  */
 export const AssistantOperatorClipFrameSchema = z.object({
@@ -1508,6 +1509,11 @@ export const AssistantOperatorVideoClipSchema = z.object({
   label: LabelSchema,
   /** 画布上的视频卡：服务端按它认卡，`look` 一张被指着的卡时不再下第二遍。 */
   nodeId: IdSchema.optional(),
+  /**
+   * 视频台上只是挂着（`video-N`）、这一轮没被指着的那几段：帧只随请求带着，⛔ 不摆到模型眼前，
+   * 模型 `look` 它时才摆、只给下一步。缺席 = 被指着（@ / 📎），整轮在眼前。
+   */
+  mounted: z.literal(true).optional(),
   /** `<video>.duration` —— 服务端按它复算计划。抽帧失败时可能缺席。 */
   durationSeconds: z.number().positive().optional(),
   frames: z
@@ -2076,12 +2082,16 @@ export const AssistantOperatorRequestSchema = z.object({
    */
   videoFrames: AssistantOperatorVideoFramesSchema.optional(),
   /**
-   * v3：这一轮被指着的片子（最多 `ASSISTANT_V3_CLIP_LIMITS.maxClips` 段），见 schema 头注。
-   * ⚠ 旧内核不读它（旧内核照旧走上面那份三帧）。
+   * v3：这一轮被指着的片子（最多 `ASSISTANT_V3_CLIP_LIMITS.maxClips` 段）与视频台上只是挂着
+   * 的那几段（`mounted`，最多 `maxMountedClips` 段），见 schema 头注。各自的段数由服务端
+   * 按标记分开截。⚠ 旧内核不读它（旧内核照旧走上面那份三帧）。
    */
   videoClips: z
     .array(AssistantOperatorVideoClipSchema)
-    .max(ASSISTANT_V3_CLIP_LIMITS.maxClips)
+    .max(
+      ASSISTANT_V3_CLIP_LIMITS.maxClips +
+        ASSISTANT_V3_CLIP_LIMITS.maxMountedClips,
+    )
     .optional(),
   /**
    * 内核开关（S6）：画布默认走 v3，`v2` = 照走旧内核（对比用）。别的域都是旧内核。

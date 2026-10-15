@@ -114,8 +114,8 @@ import {
 import { startCallLog } from '@/services/kernel/assistant-completion.service'
 import {
   buildCharacterReminder,
-  closeRound,
-  closeRoundBeforeStop,
+  closeRoundV3,
+  closeRoundV3BeforeStop,
   isFatalOperatorToolError,
   normalizePlanQuestions,
   OPERATOR_OUT_OF_STEPS_MESSAGES,
@@ -1449,7 +1449,7 @@ async function* runV3Turn(
           type: ASSISTANT_OPERATOR_EVENTS.message,
           text: LANDED_EMPTY_REPLY_MESSAGES[language],
         }
-        const roundSummary = await closeRound(run, {
+        const roundSummary = await closeRoundV3(run, {
           clerkId,
           userId: user.id,
         })
@@ -1475,11 +1475,10 @@ async function* runV3Turn(
     if (calls.length === 0) {
       const closing = text.trim()
       yield { type: ASSISTANT_OPERATOR_EVENTS.message, text: closing }
-      const roundSummary = await closeRound(run, {
+      const roundSummary = await closeRoundV3(run, {
         clerkId,
         userId: user.id,
         closingMessage: closing,
-        allowTextOnly: true,
       })
       yield {
         type: ASSISTANT_OPERATOR_EVENTS.done,
@@ -1689,7 +1688,7 @@ async function* runV3Turn(
             ),
           ),
         }
-      const roundSummary = await closeRoundBeforeStop(run, {
+      const roundSummary = await closeRoundV3BeforeStop(run, {
         clerkId,
         userId: user.id,
         todo: stopTodo,
@@ -1726,7 +1725,10 @@ async function* runV3Turn(
           type: ASSISTANT_OPERATOR_EVENTS.message,
           text: OPERATOR_SAME_FAILURE_MESSAGES[language](lastFailure.title),
         }
-        const roundSummary = await closeRound(run, { clerkId, userId: user.id })
+        const roundSummary = await closeRoundV3(run, {
+          clerkId,
+          userId: user.id,
+        })
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.done,
           ...(roundSummary ? { roundSummary } : {}),
@@ -1743,7 +1745,7 @@ async function* runV3Turn(
     type: ASSISTANT_OPERATOR_EVENTS.message,
     text: OPERATOR_OUT_OF_STEPS_MESSAGES[language],
   }
-  const roundSummary = await closeRound(run, { clerkId, userId: user.id })
+  const roundSummary = await closeRoundV3(run, { clerkId, userId: user.id })
   yield {
     type: ASSISTANT_OPERATOR_EVENTS.stopped,
     reason: ASSISTANT_OPERATOR_STOP_REASONS.maxSteps,

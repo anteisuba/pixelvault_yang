@@ -1724,6 +1724,13 @@ export type AssistantOperatorRoundSummaryDraft = z.infer<
 >
 
 /**
+ * v3 收尾后在后台单问的那一份：只要记忆（P2 §2.5）。v3 没有任何地方读结论三栏，
+ * 也就 ⛔ 不再为它们起一次调用；形状与上面那一格同源，缺席照旧 = 没什么值得记的。
+ */
+export const AssistantRoundMemoriesDraftSchema =
+  AssistantOperatorRoundSummaryDraftSchema.pick({ memories: true })
+
+/**
  * **查证收尾那一句归纳**（§9.1 ④，2026-09-12 实测第三组 A）—— 模型 → 服务端。
  *
  * ⭐ 它替掉的是「印证最多那条来源的原句」：实测里卡上那句结论是一段知乎评论的

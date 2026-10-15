@@ -95,8 +95,8 @@ vi.mock('@/services/kernel/assistant-operator.service', () => ({
   planTool: plan,
   buildCharacterReminder: characterReminder,
   runOperatorTurn: legacy,
-  closeRound,
-  closeRoundBeforeStop: closeRound,
+  closeRoundV3: closeRound,
+  closeRoundV3BeforeStop: closeRound,
   runWithOperatorTimeBudget: async function* (
     options: { signal?: AbortSignal },
     turn: (options: {

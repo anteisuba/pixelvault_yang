@@ -26,6 +26,13 @@ vi.mock('@/lib/db', async () => {
     isUniqueConstraintError: fake.isUniqueConstraintError,
   }
 })
+vi.mock('next/server', async (importOriginal) => {
+  const { collectAfterTask } = await import('./after-tasks')
+  return {
+    ...(await importOriginal<typeof import('next/server')>()),
+    after: collectAfterTask,
+  }
+})
 vi.mock('@/lib/crypto', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/crypto')>()),
   decryptApiKey: (encrypted: string) => `plain:${encrypted}`,

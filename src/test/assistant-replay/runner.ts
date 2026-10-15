@@ -43,6 +43,7 @@ import type { AssistantV3Transcript } from '@/types/assistant-v3'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type { NodeV4, NodeWorkflowStateV4 } from '@/types/node-workflow'
 
+import { settleAfterTasks } from './after-tasks'
 import type { ReplayBoard, ReplayCase } from './fixture'
 import { replayAssetBytes } from './fake-network'
 
@@ -436,6 +437,8 @@ export async function runReplayTurn(
     if (!canvasSync || canvasSteps >= ASSISTANT_OPERATOR_LIMITS.maxCanvasSteps)
       break
   }
+  // 收尾后在后台跑的那几样（`after`）算这一轮的：等完再交卷。
+  await settleAfterTasks()
 
   return {
     initial,

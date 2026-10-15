@@ -22,6 +22,7 @@ import {
   ASSISTANT_V3_WRITE_FIELDS,
   ASSISTANT_V3_WRITE_MODES,
 } from '@/constants/assistant-v3'
+import { ASSISTANT_TURN_RECORD_LIMITS } from '@/constants/assistant-turn-record'
 import { NODE_SCRIPT_PROJECTION_MODES } from '@/constants/node-script'
 import { NOVELAI_SCENE_TEXT_KINDS } from '@/constants/novelai'
 import { NODE_SLOT_TEXT_ROLES, NODE_SLOTS } from '@/constants/node-slots'
@@ -784,6 +785,17 @@ export const AssistantV3TranscriptBoardEntrySchema = z.object({
   clips: z
     .array(AssistantV3ClipRefSchema)
     .max(ASSISTANT_V3_CLIP_LIMITS.maxClips)
+    .optional(),
+  /**
+   * 这一轮的号与第几跳（每轮的过程记录 `AssistantTurnRecord`，owner 2026-10-15「建表」）：开轮那一跳
+   * 服务端发，接力时前端原样带回、服务端加一跳 —— 画布接力的每一跳因此写同一行，快照只留第一跳的。
+   * ⛔ 不进模型看的东西（板子给模型的只有 `text` / `images` / `clips`）。缺席 = 老客户端带回来的记录。
+   */
+  turn: z
+    .object({
+      id: z.string().uuid(),
+      hop: z.number().int().min(1).max(ASSISTANT_TURN_RECORD_LIMITS.maxHops),
+    })
     .optional(),
 })
 

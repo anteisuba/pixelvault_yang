@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { randomUUID } from 'node:crypto'
 import {
   streamText,
   tool,
@@ -17,6 +18,7 @@ import {
   ASSISTANT_OPERATOR_CANVAS_LIMITS,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
   ASSISTANT_OPERATOR_EVENTS,
+  ASSISTANT_OPERATOR_INTERNAL_ERROR_CODE,
   ASSISTANT_OPERATOR_LIMITS,
   ASSISTANT_OPERATOR_REJECT_REASON_IDS as REJECT,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS as STATUS,
@@ -37,6 +39,10 @@ import {
   ASSISTANT_V3_WRITE_MODE_IDS,
   type AssistantV3Tool,
 } from '@/constants/assistant-v3'
+import {
+  ASSISTANT_TURN_RECORD_LIMITS,
+  ASSISTANT_TURN_RECORD_OUTCOME_IDS,
+} from '@/constants/assistant-turn-record'
 import { NODE_SCRIPT_SHOT_STATE_IDS } from '@/constants/node-script'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
@@ -45,7 +51,7 @@ import {
   X_SEARCH_DATE_PATTERN,
 } from '@/constants/research'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
-import { ProviderError } from '@/lib/errors'
+import { isGenerationError, ProviderError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import {
   assistantV3CanvasNodes,
@@ -76,6 +82,7 @@ import type {
   AssistantOperatorRequest,
   AssistantResearchXSearch,
 } from '@/types/assistant-operator'
+import type { AssistantTurnRecordOutcome } from '@/types/assistant-turn-record'
 import {
   AssistantV3AskInputSchema,
   AssistantV3ClipRefSchema,
@@ -95,6 +102,10 @@ import {
   type AssistantV3TranscriptEntry,
   type AssistantV3WriteEntry,
 } from '@/types/assistant-v3'
+import {
+  recordAssistantTurn,
+  type AssistantTurnDraft,
+} from '@/services/assistant-turn-record.service'
 import { startCallLog } from '@/services/kernel/assistant-completion.service'
 import {
   buildCharacterReminder,
@@ -199,9 +210,88 @@ export async function* runAssistantV3(
   request: AssistantOperatorRequest,
   options: AssistantOperatorRunOptions = {},
 ): AsyncIterable<AssistantOperatorEvent> {
-  yield* runWithOperatorTimeBudget(options, (turnOptions) =>
-    runV3Turn(clerkId, request, turnOptions),
-  )
+  const recording: V3TurnRecording = {}
+  let outcome: AssistantTurnRecordOutcome = TURN_OUTCOME.aborted
+  let errorCode: string | undefined
+  try {
+    for await (const event of runWithOperatorTimeBudget(
+      options,
+      (turnOptions) => runV3Turn(clerkId, request, turnOptions, recording),
+    )) {
+      outcome = turnOutcomeOf(event, recording, outcome)
+      if (event.type === ASSISTANT_OPERATOR_EVENTS.error)
+        errorCode = event.errorCode
+      yield event
+    }
+  } catch (error) {
+    outcome = TURN_OUTCOME.error
+    errorCode = isGenerationError(error)
+      ? error.errorCode
+      : ASSISTANT_OPERATOR_INTERNAL_ERROR_CODE
+    throw error
+  } finally {
+    /**
+     * ⭐ 每一跳收尾都记一笔（每轮的过程记录，owner 2026-10-15「建表」）：⛔ 不等、不抛。
+     * ⛔ 隐身那一轮不记（与结账不写记忆同一颗开关）；交回旧内核 / 开跑前就失败的那一跳没有
+     *   `turn`（没造出模型、没冻板子），也不记。
+     */
+    const turn = recording.turn
+    if (turn && !request.incognito)
+      recordAssistantTurn({
+        ...turn,
+        request,
+        outcome,
+        ...(errorCode ? { errorCode } : {}),
+      })
+  }
+}
+
+/**
+ * 这一跳要记进过程记录的东西。`runV3Turn` 造出模型、冻好板子、拼好系统提示之后才填 `turn`；
+ * `ending` 是 `done` 那一帧分不出来的几种收尾（补话、空回复、审核、连着失败），由它当场写下。
+ */
+interface V3TurnRecording {
+  turn?: Omit<AssistantTurnDraft, 'request' | 'outcome' | 'errorCode'>
+  ending?: AssistantTurnRecordOutcome
+}
+
+const TURN_OUTCOME = ASSISTANT_TURN_RECORD_OUTCOME_IDS
+
+/** 收尾那一帧 → 这一跳怎么收的；别的帧不改。 */
+function turnOutcomeOf(
+  event: AssistantOperatorEvent,
+  recording: V3TurnRecording,
+  current: AssistantTurnRecordOutcome,
+): AssistantTurnRecordOutcome {
+  if (event.type === ASSISTANT_OPERATOR_EVENTS.done)
+    return recording.ending ?? TURN_OUTCOME.done
+  if (event.type === ASSISTANT_OPERATOR_EVENTS.error) return TURN_OUTCOME.error
+  if (event.type !== ASSISTANT_OPERATOR_EVENTS.stopped) return current
+  switch (event.reason) {
+    case ASSISTANT_OPERATOR_STOP_REASONS.canvasSync:
+    case ASSISTANT_OPERATOR_STOP_REASONS.timeBudget:
+      return TURN_OUTCOME.relay
+    case ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm:
+      return TURN_OUTCOME.awaitingConfirm
+    case ASSISTANT_OPERATOR_STOP_REASONS.maxSteps:
+      return TURN_OUTCOME.maxSteps
+    default:
+      return TURN_OUTCOME.aborted
+  }
+}
+
+/** 开轮发号，接力加一跳（号随本轮记录的板子那一条往返，见 `AssistantV3TranscriptBoardEntrySchema`）。 */
+function nextTurnMark(
+  previous: { id: string; hop: number } | undefined,
+  relay: boolean,
+): { id: string; hop: number } {
+  if (!relay) return { id: randomUUID(), hop: 1 }
+  // 老客户端把号丢了：另起一个号，跳数照样 > 1（这一行就不会把手上的快照当成开轮的存）。
+  if (!previous) return { id: randomUUID(), hop: 2 }
+  return {
+    id: previous.id,
+    hop: Math.min(previous.hop + 1, ASSISTANT_TURN_RECORD_LIMITS.maxHops),
+  }
 }
 
 const tools = (strict: boolean) => ({
@@ -818,6 +908,7 @@ async function* runV3Turn(
   clerkId: string,
   initialRequest: AssistantOperatorRequest,
   options: OperatorTurnOptions,
+  recording: V3TurnRecording,
 ): AsyncIterable<AssistantOperatorEvent> {
   const signal = options.signal
   if (signal.aborted) {
@@ -921,7 +1012,8 @@ async function* runV3Turn(
     clips: createClipCache(),
   }
 
-  if (transcript[0]?.type !== ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.board) {
+  const relay = transcript[0]?.type === ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.board
+  if (!relay) {
     transcript.length = 0
     const mentioned = request.mentionedAssets ?? []
     const mentionedImages = mentioned
@@ -1060,8 +1152,11 @@ async function* runV3Turn(
       })
     }
   }
-  const board = transcript[0]
-  if (board.type !== ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.board) return
+  const opening = transcript[0]
+  if (opening?.type !== ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.board) return
+  // 这一轮的号与第几跳（每轮的过程记录）：⛔ 不进模型看的东西，只随本轮记录往返。
+  const board = { ...opening, turn: nextTurnMark(opening.turn, relay) }
+  transcript[0] = board
 
   const system = buildAssistantV3SystemPrompt({
     face,
@@ -1071,6 +1166,17 @@ async function* runV3Turn(
     memories: prepared.assistantMemories,
     accountName: user.displayName ?? user.username ?? null,
   })
+  recording.turn = {
+    userId: user.id,
+    turnId: board.turn.id,
+    hop: board.turn.hop,
+    transcript,
+    adapterType: route.adapterType,
+    modelId,
+    routeModel: persona.routeModel,
+    apiKeyId: run.apiKeyId ?? null,
+    systemPrompt: system,
+  }
   const baseMessages: ModelMessage[] = [
     ...history,
     currentUserMessage(
@@ -1278,6 +1384,7 @@ async function* runV3Turn(
     if (calls.length === 0 && !text.trim()) {
       transcript.pop()
       if (filtered) {
+        recording.ending = ASSISTANT_TURN_RECORD_OUTCOME_IDS.contentFilter
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.message,
           text: CONTENT_FILTER_MESSAGES[language],
@@ -1290,6 +1397,7 @@ async function* runV3Turn(
        * ⛔ 不再为一句收尾话整段重发一次，也 ⛔ 不说「什么都没改」。
        */
       if (hasLandedChanges(transcript)) {
+        recording.ending = ASSISTANT_TURN_RECORD_OUTCOME_IDS.quiet
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.message,
           text: LANDED_EMPTY_REPLY_MESSAGES[language],
@@ -1308,6 +1416,7 @@ async function* runV3Turn(
         emptyRetried = true
         continue
       }
+      recording.ending = ASSISTANT_TURN_RECORD_OUTCOME_IDS.empty
       yield {
         type: ASSISTANT_OPERATOR_EVENTS.message,
         text: EMPTY_REPLY_MESSAGES[language],
@@ -1544,6 +1653,7 @@ async function* runV3Turn(
       lastFailure.key = key
       lastFailure.title = entryCalls[0]?.tool ?? ''
       if (lastFailure.strikes >= ASSISTANT_V3_LIMITS.maxSameRejections) {
+        recording.ending = ASSISTANT_TURN_RECORD_OUTCOME_IDS.sameFailure
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.message,
           text: OPERATOR_SAME_FAILURE_MESSAGES[language](lastFailure.title),

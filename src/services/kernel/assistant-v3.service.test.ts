@@ -38,6 +38,7 @@ const {
   served,
   fetchAsBuffer,
   resolveModel,
+  recordTurn,
 } = vi.hoisted(() => ({
   plan: vi.fn(),
   legacy: vi.fn(),
@@ -49,6 +50,8 @@ const {
   fetchAsBuffer: vi.fn(),
   /** 记下主模型按哪条路由、哪个型号建（「只用所选那一家」要数它）。 */
   resolveModel: vi.fn(),
+  /** 每轮的过程记录：每一跳收尾交过去的那一份。 */
+  recordTurn: vi.fn(),
 }))
 
 /** 测试里下得来的片子：地址 → 多大（真的 mp4 文件头）。 */
@@ -162,6 +165,10 @@ vi.mock('@/services/kernel/assistant-v3-model.service', () => ({
 
 vi.mock('@/services/kernel/assistant-completion.service', () => ({
   startCallLog: () => ({ onUsage: vi.fn(), finish: vi.fn() }),
+}))
+
+vi.mock('@/services/assistant-turn-record.service', () => ({
+  recordAssistantTurn: recordTurn,
 }))
 
 import { prepareOperatorTurn } from '@/services/kernel/assistant-operator.service'
@@ -1588,6 +1595,216 @@ describe('v3 内核', () => {
     )
     expect(legacy).toHaveBeenCalled()
     expect(events).toEqual([{ type: 'done' }])
+  })
+})
+
+/**
+ * 每轮的过程记录（owner 2026-10-15「建表」）：每一跳收尾交一份草稿；号随本轮记录的板子那一条往返，
+ * 接力同一个号、跳数加一。⛔ 隐身不记、⛔ 交回旧内核不记、⛔ 号不进模型看的东西。
+ */
+describe('v3 内核 · 每轮的过程记录', () => {
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+
+  beforeEach(() => {
+    plan.mockReset()
+    legacy.mockReset()
+    recordTurn.mockClear()
+  })
+
+  function draftOf(call = 0) {
+    return recordTurn.mock.calls[call]?.[0] as {
+      userId: string
+      turnId: string
+      hop: number
+      outcome: string
+      errorCode?: string
+      request: AssistantOperatorRequest
+      transcript: AssistantV3Transcript
+      adapterType: string
+      modelId: string
+      apiKeyId: string | null
+      systemPrompt: string
+    }
+  }
+
+  function mutatePlan() {
+    plan.mockImplementation(async (_run, _tool, args) => ({
+      kind: 'mutate',
+      payload: args,
+      inverse: { op: 'batch', nodeRef: S04B },
+      observation: 'queued',
+      apply: () => {},
+    }))
+  }
+
+  it('只回话：收尾交一份 —— 第一跳、新号、选的那一家与型号、系统提示、done', async () => {
+    script(textTurn('好。'))
+    const asked = request()
+    await collect(runAssistantV3('clerk-1', asked))
+    expect(recordTurn).toHaveBeenCalledTimes(1)
+    const draft = draftOf()
+    expect(draft).toMatchObject({
+      userId: 'user-1',
+      hop: 1,
+      outcome: 'done',
+      adapterType: 'openai',
+      modelId: 'gpt-6-luna',
+      apiKeyId: null,
+      systemPrompt: 'SYSTEM',
+      request: asked,
+    })
+    expect(draft.turnId).toMatch(UUID)
+    expect(draft.errorCode).toBeUndefined()
+    expect(draft.transcript[0]).toMatchObject({
+      type: 'board',
+      turn: { id: draft.turnId, hop: 1 },
+    })
+  })
+
+  it('接力：同一个号、第二跳；第一跳记成 relay，号 ⛔ 不进模型看的东西', async () => {
+    const mock = script(toolTurn(disconnectGoyle), textTurn('好了。'))
+    mutatePlan()
+    const first = await collect(runAssistantV3('clerk-1', request()))
+    const transcript = (
+      first.find((event) => event.type === 'transcript') as {
+        transcript: AssistantV3Transcript
+      }
+    ).transcript
+    expect(transcript[0]).toMatchObject({ turn: { hop: 1 } })
+    expect(draftOf(0)).toMatchObject({ hop: 1, outcome: 'relay' })
+
+    await collect(
+      runAssistantV3(
+        'clerk-1',
+        request({
+          snapshot: { prompt: '', canvas: canvas(false), availableModels: [] },
+          v3: { transcript },
+        } as Partial<AssistantOperatorRequest>),
+      ),
+    )
+    expect(recordTurn).toHaveBeenCalledTimes(2)
+    expect(draftOf(1)).toMatchObject({
+      turnId: draftOf(0).turnId,
+      hop: 2,
+      outcome: 'done',
+    })
+    expect(draftOf(1).transcript[0]).toMatchObject({
+      turn: { id: draftOf(0).turnId, hop: 2 },
+    })
+    for (const call of mock.doStreamCalls)
+      expect(promptText(call)).not.toContain(draftOf(0).turnId)
+  })
+
+  it('接力的板子丢了号（老客户端）：另起一个号，跳数照样 > 1', async () => {
+    script(textTurn('好了。'))
+    const board = {
+      type: 'board',
+      text: 'BOARD',
+      images: [],
+    } as unknown as AssistantV3Transcript[number]
+    await collect(
+      runAssistantV3(
+        'clerk-1',
+        request({
+          v3: { transcript: [board] },
+        } as Partial<AssistantOperatorRequest>),
+      ),
+    )
+    expect(draftOf()).toMatchObject({ hop: 2, outcome: 'done' })
+    expect(draftOf().turnId).toMatch(UUID)
+  })
+
+  it('两次空回复记成 empty；审核拦下记成 content_filter', async () => {
+    const empty: LanguageModelV3StreamPart[] = [
+      {
+        type: 'finish',
+        finishReason: { unified: 'other', raw: undefined },
+        usage,
+      },
+    ]
+    script(empty, empty)
+    await collect(runAssistantV3('clerk-1', request()))
+    expect(draftOf(0)).toMatchObject({ outcome: 'empty' })
+
+    script([
+      {
+        type: 'finish',
+        finishReason: { unified: 'content-filter', raw: 'PROHIBITED_CONTENT' },
+        usage,
+      },
+    ])
+    await collect(runAssistantV3('clerk-1', request()))
+    expect(draftOf(1)).toMatchObject({ outcome: 'content_filter' })
+  })
+
+  it('出确认卡停住：awaiting_confirm', async () => {
+    script(
+      toolTurn({
+        id: 'call_1',
+        name: 'generate',
+        input: { cards: ['img-249e8b'] },
+      }),
+    )
+    plan.mockResolvedValue({
+      kind: 'confirmGenerate',
+      request: {
+        model: { id: 'gpt-image-2.5-flare', label: 'Flare' },
+        count: 1,
+        specs: { aspectRatio: '3:4', resolution: '1K', durationSeconds: null },
+        canvasNode: { id: HARRY, name: '哈利 · 黑袍' },
+      },
+    })
+    await collect(runAssistantV3('clerk-1', request()))
+    expect(draftOf()).toMatchObject({ outcome: 'awaiting_confirm', hop: 1 })
+  })
+
+  it('跑到一半抛错：照样记一笔，带错误码，错照样往外抛', async () => {
+    const mock = new MockLanguageModelV3({
+      doStream: async () => {
+        throw new Error('boom')
+      },
+    })
+    model.current = mock
+    const failure = await collect(runAssistantV3('clerk-1', request())).catch(
+      (error: unknown) => error,
+    )
+    expect(failure).toBeInstanceOf(Error)
+    expect(recordTurn).toHaveBeenCalledTimes(1)
+    expect(draftOf()).toMatchObject({ outcome: 'error' })
+    expect(draftOf().errorCode).toEqual(expect.any(String))
+  })
+
+  it('隐身：⛔ 不记', async () => {
+    script(textTurn('好。'))
+    await collect(
+      runAssistantV3(
+        'clerk-1',
+        request({ incognito: true } as Partial<AssistantOperatorRequest>),
+      ),
+    )
+    expect(recordTurn).not.toHaveBeenCalled()
+  })
+
+  it('交回旧内核 / 开跑前就失败：⛔ 不记', async () => {
+    legacy.mockImplementation(async function* () {
+      yield { type: 'done' }
+    })
+    await collect(
+      runAssistantV3(
+        'clerk-1',
+        request({
+          snapshot: { prompt: '', availableModels: [] },
+        } as Partial<AssistantOperatorRequest>),
+      ),
+    )
+    vi.mocked(prepareOperatorTurn).mockRejectedValueOnce(
+      new AssistantModelKeyMissingError(
+        AI_ADAPTER_TYPES.ANTHROPIC,
+        LLM_TEXT_MODEL_IDS.CLAUDE_SONNET_5_5,
+      ),
+    )
+    await collect(runAssistantV3('clerk-1', request())).catch(() => undefined)
+    expect(recordTurn).not.toHaveBeenCalled()
   })
 })
 

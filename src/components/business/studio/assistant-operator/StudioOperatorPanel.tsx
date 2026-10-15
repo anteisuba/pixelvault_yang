@@ -59,8 +59,9 @@ import {
 } from '@/components/icons'
 import {
   collectOperatorAnswerSources,
-  collectOperatorAnswerWebImages,
-  isOperatorWebImagesFound,
+  collectOperatorAnswerWebFinds,
+  isOperatorWebFindFound,
+  orderOperatorWebFinds,
   groupOperatorResearch,
   summarizeOperatorResearchBlock,
   groupOperatorHistoryTools,
@@ -116,6 +117,7 @@ import {
 import { StudioOperatorHistoryItem } from '@/components/business/studio/assistant-operator/StudioOperatorHistoryItem'
 import { StudioOperatorLogItem } from '@/components/business/studio/assistant-operator/StudioOperatorLogItem'
 import { StudioOperatorWebCandidateGrid } from '@/components/business/studio/assistant-operator/StudioOperatorWebCandidateGrid'
+import { StudioOperatorWebVideoRow } from '@/components/business/studio/assistant-operator/StudioOperatorWebVideoRow'
 import {
   ASSISTANT_MENTION_GROUP_IDS,
   ASSISTANT_MENTION_KIND_IDS,
@@ -1403,10 +1405,10 @@ export function StudioOperatorPanel({
   )
   /**
    * **找到的图摆在哪段回答底下**（搜索期切片 1，附录 I §四）—— 判据是位置，见
-   * `collectOperatorAnswerWebImages` 的头注。折进调查组的那几句（收尾后整组不画）
+   * `collectOperatorAnswerWebFinds` 的头注。折进调查组的那几句（收尾后整组不画）
    * 与还在写的那一句都不当锚：网格挂上去就跟着看不见了。
    * 没挂上的（还在搜 / 回答还没说完 / 这一轮停了）由那一块工具步就地画
-   * （`renderWebImageGrid`，同一个 `entryId` 当 key）。
+   * （`renderWebFind`，同一个 `entryId` 当 key）。找到的视频（搜索期第二片）同一条路。
    */
   const foldedMessageIds = new Set(
     liveGroups.flatMap((group) =>
@@ -1420,18 +1422,32 @@ export function StudioOperatorPanel({
         : [],
     ),
   )
-  const answerWebImages = collectOperatorAnswerWebImages(
+  const answerWebFinds = collectOperatorAnswerWebFinds(
     entries,
     (entry) => !entry.streaming && !foldedMessageIds.has(entry.id),
   )
-  /** 一次找图的网格：还在搜画灰块，跑完画图（⛔ 被拒的那一步不画）。 */
-  const renderWebImageGrid = (item: StudioOperatorStepEntry) => {
+  /**
+   * 一次联网找的那一块：找图画网格、找视频画一排视频卡；还在搜画灰块，跑完画结果
+   * （⛔ 被拒的那一步不画）。
+   */
+  const renderWebFind = (item: StudioOperatorStepEntry) => {
     const { step } = item
-    if (
-      step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error ||
-      step.tool !== ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages
-    )
-      return null
+    if (step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error) return null
+    if (step.tool === ASSISTANT_OPERATOR_TOOL_IDS.searchWebVideos)
+      return (
+        <StudioOperatorWebVideoRow
+          key={item.id}
+          entryId={item.id}
+          query={step.payload.query}
+          videos={
+            step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.running
+              ? null
+              : (step.result?.videos ?? [])
+          }
+          placeholderCount={step.payload.limit}
+        />
+      )
+    if (step.tool !== ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages) return null
     return (
       <StudioOperatorWebCandidateGrid
         key={item.id}
@@ -1696,27 +1712,28 @@ export function StudioOperatorPanel({
         </div>
       ))
       /**
-       * 这一块里**还没挂到回答底下**的找图（搜索期切片 1）：还在搜（灰块）、回答还没
-       * 说完、或者这一轮没等到回答就停了 —— 就地画在过程那一行**外面**（⛔ 折进组里：
-       * 组默认收起，找到的图就又藏起来了）。回答一说完它就搬到回答底下。
+       * 这一块里**还没挂到回答底下**的找图 / 找视频（搜索期切片 1 · 第二片）：还在搜
+       * （灰块）、回答还没说完、或者这一轮没等到回答就停了 —— 就地画在过程那一行**外面**
+       * （⛔ 折进组里：组默认收起，找到的东西就又藏起来了）。回答一说完它就搬到回答底下。
        */
-      const orphanWebImages = block.steps
-        .filter(
+      const orphanWebFinds = orderOperatorWebFinds(
+        block.steps.filter(
           (item) =>
-            item.step.tool === ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages &&
-            /* 一张没找到的⛔ 留一块空行：网格本来就不画，这一块也别占位。 */
+            (item.step.tool === ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages ||
+              item.step.tool === ASSISTANT_OPERATOR_TOOL_IDS.searchWebVideos) &&
+            /* 一条没找到的⛔ 留一块空行：本来就不画，这一块也别占位。 */
             (item.step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.running ||
-              isOperatorWebImagesFound(item)) &&
-            !answerWebImages.anchored.has(item.id),
-        )
-        .map(renderWebImageGrid)
-      const orphanWebImageList =
-        orphanWebImages.length > 0 ? (
+              isOperatorWebFindFound(item)) &&
+            !answerWebFinds.anchored.has(item.id),
+        ),
+      ).map(renderWebFind)
+      const orphanWebFindList =
+        orphanWebFinds.length > 0 ? (
           <div
-            data-testid="operator-web-images-pending"
+            data-testid="operator-web-finds-pending"
             className="mt-2 flex min-w-0 flex-col gap-3"
           >
-            {orphanWebImages}
+            {orphanWebFinds}
           </div>
         ) : null
       const compactCanvasChanges =
@@ -1742,7 +1759,7 @@ export function StudioOperatorPanel({
        *   唯一要读的东西，整轮的尝试都留着查）· 写提示词时系统要交代的那句。撤销
        *   （checkpoint）另外单独留。
        * ⚠ 找到的图**不再**是例外（搜索期切片 1）：网格不住在过程行里了 —— 挂在回答
-       *   底下，没等到回答的那几块（`orphanWebImageList`）过程行藏了也照样画。
+       *   底下，没等到回答的那几块（`orphanWebFindList`）过程行藏了也照样画。
        */
       const processHidden =
         roundDone && !running && blocker?.status !== 'error' && !promptNote
@@ -1788,11 +1805,11 @@ export function StudioOperatorPanel({
         >
           {processHidden ? (
             <>
-              {orphanWebImageList ? (
+              {orphanWebFindList ? (
                 <StudioOperatorTimelineRow
                   card={STUDIO_OPERATOR_CARD_KINDS.evidence}
                 >
-                  {orphanWebImageList}
+                  {orphanWebFindList}
                 </StudioOperatorTimelineRow>
               ) : null}
               {checkpoint || changedCardList ? (
@@ -1881,7 +1898,7 @@ export function StudioOperatorPanel({
                   </StudioOperatorToolGroup>
                 )
               }
-              {orphanWebImageList}
+              {orphanWebFindList}
               {changedCardList}
             </StudioOperatorTimelineRow>
           ) : null}
@@ -1964,8 +1981,11 @@ export function StudioOperatorPanel({
             ? toOperatorAnswerSources(researchSteps)
             : null
         const runKey = attached?.runKey ?? ''
-        /** 这段话之前找到的图（搜索期切片 1）—— 摆在正文底下、来源卡上面。 */
-        const foundImages = answerWebImages.byMessage.get(entry.id)
+        /**
+         * 这段话之前找到的图与视频（搜索期切片 1 · 第二片）—— 摆在正文底下、来源卡上面，
+         * 图的网格在上、视频那一排在下（`orderOperatorWebFinds`）。
+         */
+        const found = answerWebFinds.byMessage.get(entry.id)
         return (
           <StudioOperatorTimelineRow
             key={entry.id}
@@ -1975,14 +1995,14 @@ export function StudioOperatorPanel({
             <StudioOperatorMessageBody
               entry={entry}
               references={messageImageReferences.get(entry.id)}
-              {...(foundImages
+              {...(found
                 ? {
-                    webImages: (
+                    webFinds: (
                       <div
-                        data-testid="operator-answer-web-images"
+                        data-testid="operator-answer-web-finds"
                         className="flex min-w-0 flex-col gap-3"
                       >
-                        {foundImages.map(renderWebImageGrid)}
+                        {orderOperatorWebFinds(found).map(renderWebFind)}
                       </div>
                     ),
                   }

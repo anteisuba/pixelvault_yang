@@ -11,7 +11,9 @@ import {
   ASSISTANT_V3_LORA_ITEM_IDS,
   ASSISTANT_V3_LORA_WRITE_FIELD_IDS,
   ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS,
+  ASSISTANT_V3_WEB_VIDEOS_SEARCH_KIND,
   ASSISTANT_V3_WRITE_MODE_IDS,
+  type AssistantV3WebSearchKind,
 } from '@/constants/assistant-v3'
 import {
   AssistantV3LoraGenerateInputSchema,
@@ -59,6 +61,7 @@ const V3_WORDS: readonly [RegExp, string][] = [
   [/\bmount_reference\b/g, 'edit mount_reference'],
   [/\bimport_user_url\b/g, 'edit import_url'],
   [/\bsearch_web_images\b/g, 'search_library kind "web_images"'],
+  [/\bsearch_web_videos\b/g, 'search_library kind "web_videos"'],
   [/\bsearch_assets\b/g, 'search_library'],
   [/\brequest_generation\b/g, 'generate'],
   [/@Image(\d+)/g, 'ref-$1'],
@@ -92,6 +95,39 @@ export function joinOutcomes(outcomes: readonly V3Outcome[]): V3Outcome {
     ...(images.length ? { images } : {}),
     ...(clips.length ? { clips } : {}),
   }
+}
+
+/**
+ * `search_library` 联网那两种（`web_images` / `web_videos`）—— 每张脸都开（搜索期第二片），
+ * 四张脸走这同一条，⛔ 别各写一份。角色页的 `web_images` 另有「搜完交给主模型看」那一跳，
+ * 它自己接，不走这里。
+ * ⚠ 找视频只给查询词：要不要另问 B站、要几条，都是服务端定的，⛔ 不是模型的旋钮。
+ */
+export async function* runWebFind(
+  context: V3Context,
+  kind: AssistantV3WebSearchKind,
+  query: string,
+  subject: string | null,
+): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
+  const text = TITLE_TEXT[context.language]
+  if (kind === ASSISTANT_V3_WEB_VIDEOS_SEARCH_KIND)
+    return yield* runOldTool(
+      context,
+      TOOL.searchWebVideos,
+      `${text.searchVideos} ${query}`,
+      { query },
+    )
+  return yield* runOldTool(
+    context,
+    TOOL.searchWebImages,
+    `${text.searchImages} ${query}`,
+    {
+      query,
+      ...(subject?.trim()
+        ? { subject: subject.trim(), preferOfficial: true }
+        : {}),
+    },
+  )
 }
 
 export async function* runOldTool(

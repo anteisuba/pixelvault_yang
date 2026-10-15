@@ -5,7 +5,8 @@ import {
   mergeOperatorSystemRuns,
   firstOperatorSentence,
   collectOperatorAnswerSources,
-  collectOperatorAnswerWebImages,
+  collectOperatorAnswerWebFinds,
+  orderOperatorWebFinds,
   groupOperatorResearch,
   summarizeOperatorResearchBlock,
   isOperatorResearchTool,
@@ -175,7 +176,7 @@ describe('collectOperatorAnswerSources', () => {
  * 找到的图挂在哪一段回答底下（搜索期切片 1，2026-10-15）：网格⛔ 不再折进步骤组，
  * 摆在回答正文下面；还在写 / 折进调查组的那条不当锚。
  */
-describe('collectOperatorAnswerWebImages', () => {
+describe('collectOperatorAnswerWebFinds', () => {
   const webStep = (id: string, images: unknown[], status = 'done') =>
     ({
       kind: 'step',
@@ -210,11 +211,11 @@ describe('collectOperatorAnswerWebImages', () => {
 
   it('⭐ 挂在下一条说完的回答上；还在写的那条不当锚', () => {
     const entries = [webStep('w1', [image]), message('m1', true)]
-    const streaming = collectOperatorAnswerWebImages(entries, anyAnchor)
+    const streaming = collectOperatorAnswerWebFinds(entries, anyAnchor)
     expect(streaming.byMessage.size).toBe(0)
     expect(streaming.anchored.size).toBe(0)
 
-    const done = collectOperatorAnswerWebImages(
+    const done = collectOperatorAnswerWebFinds(
       [webStep('w1', [image]), message('m1')],
       anyAnchor,
     )
@@ -228,7 +229,7 @@ describe('collectOperatorAnswerWebImages', () => {
       message('folded'),
       message('answer'),
     ]
-    const { byMessage } = collectOperatorAnswerWebImages(
+    const { byMessage } = collectOperatorAnswerWebFinds(
       entries,
       (entry) => entry.id !== 'folded',
     )
@@ -245,13 +246,70 @@ describe('collectOperatorAnswerWebImages', () => {
       webStep('w2', [image]),
       message('m2'),
     ]
-    const { byMessage, anchored } = collectOperatorAnswerWebImages(
+    const { byMessage, anchored } = collectOperatorAnswerWebFinds(
       entries,
       anyAnchor,
     )
     expect(byMessage.get('m2')?.map((entry) => entry.id)).toEqual(['w2'])
     expect(anchored.has('stopped')).toBe(false)
     expect(anchored.has('empty')).toBe(false)
+  })
+
+  /** 搜索期第二片：找到的视频走同一条路 —— 同一段回答底下图与视频按出场顺序挂。 */
+  const videoStep = (id: string, videos: unknown[], status = 'done') =>
+    ({
+      kind: 'step',
+      id,
+      runKey: 'run-1',
+      undone: false,
+      step: {
+        id,
+        title: '找视频',
+        tool: TOOLS.searchWebVideos,
+        status,
+        payload: { query: 'q', limit: 8, bilibili: false },
+        ...(status === 'done'
+          ? { result: { totalFound: videos.length, videos } }
+          : {}),
+      },
+    }) as unknown as StudioOperatorThreadEntry
+  const video = {
+    url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    title: 'PV',
+    platform: 'youtube',
+  }
+
+  it('⭐ 找到的视频与图挂在同一段回答底下；摆的时候图在上、视频在下', () => {
+    const { byMessage, anchored } = collectOperatorAnswerWebFinds(
+      [
+        videoStep('v1', [video]),
+        webStep('w1', [image]),
+        videoStep('v2', [video]),
+        message('m1'),
+      ],
+      anyAnchor,
+    )
+    const found = byMessage.get('m1') ?? []
+    expect(found.map((entry) => entry.id)).toEqual(['v1', 'w1', 'v2'])
+    expect([...anchored].sort()).toEqual(['v1', 'v2', 'w1'])
+    expect(orderOperatorWebFinds(found).map((entry) => entry.id)).toEqual([
+      'w1',
+      'v1',
+      'v2',
+    ])
+  })
+
+  it('⛔ 一条都没找到的、还在跑的找视频不挂', () => {
+    const { byMessage, anchored } = collectOperatorAnswerWebFinds(
+      [
+        videoStep('empty', []),
+        videoStep('running', [], 'running'),
+        message('m1'),
+      ],
+      anyAnchor,
+    )
+    expect(byMessage.size).toBe(0)
+    expect(anchored.size).toBe(0)
   })
 })
 
@@ -498,6 +556,7 @@ describe('operatorRunningPhrase', () => {
     [TOOLS.analyzeReferences, 'look', 'look'],
     [TOOLS.searchWeb, 'research', 'research'],
     [TOOLS.searchWebImages, 'research', 'webImages'],
+    [TOOLS.searchWebVideos, 'research', 'webVideos'],
     [TOOLS.searchAssets, 'research', 'library'],
     [TOOLS.searchLoras, 'research', 'library'],
     [TOOLS.recallEvidence, 'research', 'library'],

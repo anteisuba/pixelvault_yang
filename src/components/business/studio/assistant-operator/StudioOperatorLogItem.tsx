@@ -20,6 +20,7 @@ import {
   BookmarkPlus,
   BookUser,
   CircleDollarSign,
+  Clapperboard,
   Eye,
   Film,
   FolderInput,
@@ -88,6 +89,8 @@ export const OPERATOR_TOOL_ICONS: Record<AssistantOperatorTool, LucideIcon> = {
   /** 对一下设定和外观（卡片助手 S14）—— 同是看图。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.checkCharacterLook]: ScanEye,
   [ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages]: Globe,
+  /** 找视频（搜索期第二片）—— 🎬，与找图的 🌐 分开（两条常常前后脚出现）。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.searchWebVideos]: Clapperboard,
   /**
    * 联网查文字（切片 3b）—— 与搜图的 🌐 **分开**：日志流里这两条常常前后脚出现
    * （先查一句设定，再去找参考图），长一样就分不出哪条是哪条（同挂/摘 LoRA 那一对）。
@@ -246,9 +249,17 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
             count: step.result.images.length,
           })
         : t('web.searching', { query: step.payload.query })
-      : step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done
-        ? describeOperatorStepDetail(step)
-        : null
+      : step.tool === ASSISTANT_OPERATOR_TOOL_IDS.searchWebVideos
+        ? /** 找视频同一条：一句「搜索视频：… · 6 个」，卡片那一排摆在回答底下（`StudioOperatorWebVideoRow`）。 */
+          step.result
+          ? t('web.videosFound', {
+              query: step.payload.query,
+              count: step.result.videos.length,
+            })
+          : t('web.videosSearching', { query: step.payload.query })
+        : step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done
+          ? describeOperatorStepDetail(step)
+          : null
 
   return (
     <div

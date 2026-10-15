@@ -8023,6 +8023,7 @@
       "look": "画像を見ています…",
       "research": "調べています…",
       "webImages": "画像を探しています…",
+      "webVideos": "動画を探しています…",
       "library": "素材を探しています…",
       "ask": "質問を考えています…",
       "apply": "パラメータを変更しています…",
@@ -8395,7 +8396,20 @@
       "cannotUse": "使用不可",
       "notUsable": "このサイトは AI の入力に使わないよう求めているか、出所をたどれない転載が中心です。開いて見るのは自由ですが、ライブラリには取り込みません。",
       "useAll": "{count} 枚を添付",
-      "notUsableHotlink": "このサイトの画像ホストは自サイトからのアクセスしか受け付けないため、サーバー側では取得できません。元ページは開けますが、素材ライブラリには保存できません。"
+      "notUsableHotlink": "このサイトの画像ホストは自サイトからのアクセスしか受け付けないため、サーバー側では取得できません。元ページは開けますが、素材ライブラリには保存できません。",
+      "videosFound": "動画を検索：{query} · {count} 本",
+      "videosSearching": "動画を検索中：{query}…",
+      "videoPlay": "ここで再生：{title}",
+      "videoOpenExternal": "{site} を新しいタブで開く：{title}",
+      "videoPlayerTitle": "{site} プレーヤー：{title}",
+      "videoOpenSource": "{site} で開く",
+      "videoClose": "プレーヤーを閉じる",
+      "videoPlatform": {
+        "youtube": "YouTube",
+        "bilibili": "ビリビリ",
+        "niconico": "ニコニコ",
+        "vimeo": "Vimeo"
+      }
     },
     "queue": {
       "badge": "順番待ち",

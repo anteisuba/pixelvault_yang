@@ -36,7 +36,10 @@ import {
   ASSISTANT_V3_TOOL_IDS,
   ASSISTANT_V3_TOOLS,
   ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS,
+  ASSISTANT_V3_WEB_IMAGES_KIND_DESCRIPTION,
+  ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION,
   ASSISTANT_V3_WRITE_MODE_IDS,
+  isAssistantV3WebSearchKind,
   type AssistantV3Tool,
 } from '@/constants/assistant-v3'
 import {
@@ -163,7 +166,10 @@ import {
   type V3Outcome,
 } from '@/services/kernel/assistant-v3-steps.service'
 import { buildAssistantV3SystemPrompt } from '@/services/kernel/assistant-v3-prompt.service'
-import { referenceIndexOf } from '@/services/kernel/assistant-v3-bench.service'
+import {
+  referenceIndexOf,
+  runWebFind,
+} from '@/services/kernel/assistant-v3-bench.service'
 import {
   createPictureCache,
   executeV3Look,
@@ -331,7 +337,7 @@ const tools = (strict: boolean) => ({
     strict,
   }),
   [ASSISTANT_V3_TOOL_IDS.searchLibrary]: tool({
-    description: "Search the creator's own asset library.",
+    description: `Search the creator's own asset library (kind "image" / "video" / "audio", or null for all). ${ASSISTANT_V3_WEB_IMAGES_KIND_DESCRIPTION} ${ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION}`,
     inputSchema: AssistantV3SearchLibraryInputSchema,
     strict,
   }),
@@ -1989,6 +1995,13 @@ async function* executeCall(
     }
     case ASSISTANT_V3_TOOL_IDS.searchLibrary: {
       const parsed = AssistantV3SearchLibraryInputSchema.parse(input)
+      if (isAssistantV3WebSearchKind(parsed.kind))
+        return yield* runWebFind(
+          context,
+          parsed.kind,
+          parsed.query,
+          parsed.subject,
+        )
       const title = `${text.searchLibrary} ${parsed.query}`
       const plan = await planSafely(context, TOOL.searchAssets, {
         query: parsed.query,

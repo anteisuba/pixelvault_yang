@@ -39,6 +39,35 @@ export const WEB_IMAGE_SEARCH = {
   maxTitleLength: 120,
 } as const
 
+/**
+ * 联网**找视频**（搜索期第二片，附录 I §3.2）。
+ *
+ * ⚠ 与上面两条**同 key 同域、不同路径**（Serper 的 Google 视频）—— 平台付费的那把
+ * `SERPER_API_KEY`，⛔ 不走所选模型的自带联网，⛔ 不借创作者别家的 key。
+ * ⚠ 字段名是第三方集成页说的（title / link / channel / duration / imageUrl / date），
+ *   **没有实测**：解析一律宽容（缺哪格就少哪格），每次调用记一行原始字段名，线上
+ *   第一次跑完对一下日志再收口。
+ * ⚠ 一次调用一个 credit，与搜图同一条纪律：⛔ 不加自动重试、⛔ 不铺多语言变体。
+ * 中文查询或点名 B站时另问 B站连接器（`fetchBilibiliEvidence`，它自己的接口免费；
+ * 风控退路才再花一个 credit）。
+ */
+export const WEB_VIDEO_SEARCH = {
+  serperEndpoint: 'https://google.serper.dev/videos',
+  /** 摆在回答底下的那一排最多几条（附录 I §四）。 */
+  maxResults: 8,
+  timeoutMs: 12_000,
+  maxTitleLength: 120,
+  maxChannelLength: 80,
+  maxDateLength: 40,
+  /** 哪句话算「要 B站的」：查询或创作者那句话里点了名。 */
+  bilibiliIntent: /b站|bilibili|哔哩哔哩|嗶哩嗶哩|ビリビリ/i,
+  /** 中文查询：有汉字、没有假名（日文同样有汉字，⛔ 不当中文）。 */
+  hanCharacters: /[㐀-鿿]/,
+  kanaCharacters: /[぀-ヿ]/,
+  /** B站连接器在标题前加的那截来源名（`bilibili · ` / `bilibili（经网搜）· `）。 */
+  bilibiliTitlePrefix: /^bilibili(?:（[^）]*）)?\s*·\s*/i,
+} as const
+
 export const URL_READER = {
   jinaEndpoint: 'https://r.jina.ai/',
   timeoutMs: 15_000,

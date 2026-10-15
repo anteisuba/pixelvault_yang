@@ -462,6 +462,52 @@ describe('v3 内核', () => {
     input: { cards: ['img-249e8b', 'img-9c0d1e'], question: '哪张是哈利？' },
   }
 
+  /**
+   * 搜索期第二片：联网那两种每张脸都开 —— 画布上 search_library 的 web_images /
+   * web_videos 交给旧执行器那两条（⛔ 不当成搜素材库）。
+   */
+  it('画布：search_library 的 web_images / web_videos 走联网找图 / 找视频', async () => {
+    plan.mockResolvedValue({
+      kind: 'rejected',
+      reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.repeatedStep,
+      detail: 'ok',
+    })
+    script(
+      toolTurn(
+        {
+          id: 'call_videos',
+          name: 'search_library',
+          input: { query: '鸣潮 长离 PV', kind: 'web_videos', subject: null },
+        },
+        {
+          id: 'call_images',
+          name: 'search_library',
+          input: { query: '长离', kind: 'web_images', subject: '鸣潮 长离' },
+        },
+      ),
+      textTurn('找到了。'),
+    )
+    await collect(runAssistantV3('clerk-1', request()))
+    expect(plan).toHaveBeenCalledWith(
+      expect.anything(),
+      'search_web_videos',
+      { query: '鸣潮 长离 PV' },
+      'user-1',
+    )
+    expect(plan).toHaveBeenCalledWith(
+      expect.anything(),
+      'search_web_images',
+      { query: '长离', subject: '鸣潮 长离', preferOfficial: true },
+      'user-1',
+    )
+    expect(plan).not.toHaveBeenCalledWith(
+      expect.anything(),
+      'search_assets',
+      expect.anything(),
+      expect.anything(),
+    )
+  })
+
   it('只回话：流式正文 + 定稿 + done，不发本轮记录', async () => {
     script(textTurn('S04b 现在接了高尔一张参考。'))
     const events = await collect(runAssistantV3('clerk-1', request()))
@@ -1916,6 +1962,43 @@ describe('v3 内核 · LoRA 台', () => {
     legacy.mockReset()
   })
 
+  it('LoRA 台：search_library 也开 web_images / web_videos（lora 那一种照旧）', async () => {
+    preparedWith('typhoeus, 1girl', 'gpt-6-luna')
+    plan.mockResolvedValue({
+      kind: 'rejected',
+      reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.repeatedStep,
+      detail: 'ok',
+    })
+    script(
+      toolTurn(
+        {
+          id: 'call_videos',
+          name: 'search_library',
+          input: { query: 'typhoeus dance', kind: 'web_videos', subject: null },
+        },
+        {
+          id: 'call_images',
+          name: 'search_library',
+          input: { query: 'snow scene', kind: 'web_images', subject: null },
+        },
+      ),
+      textTurn('找到了。'),
+    )
+    await collect(runAssistantV3('clerk-1', loraRequest('找点参考')))
+    expect(plan).toHaveBeenCalledWith(
+      expect.anything(),
+      'search_web_videos',
+      { query: 'typhoeus dance' },
+      'user-1',
+    )
+    expect(plan).toHaveBeenCalledWith(
+      expect.anything(),
+      'search_web_images',
+      { query: 'snow scene' },
+      'user-1',
+    )
+  })
+
   it('板子是一张表单，左边打开的示例图跟着板子给模型看', async () => {
     const mock = script(textTurn('看得到。'))
     await collect(runAssistantV3('clerk-1', loraRequest('能看到左边的示例吗')))
@@ -2186,6 +2269,59 @@ describe('v3 内核 · 图片台', () => {
       reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.repeatedStep,
       detail: 'already so',
     })
+  })
+
+  it('图片台：search_library kind web_videos 走联网找视频，只给查询词', async () => {
+    const video = {
+      url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      title: 'Changli PV',
+      platform: 'youtube',
+      channel: 'Wuthering Waves',
+      domain: 'youtube.com',
+      durationSeconds: 209,
+    }
+    plan.mockResolvedValue({
+      kind: 'read',
+      payload: { query: 'changli trailer', limit: 8, bilibili: false },
+      run: async () => ({
+        result: { totalFound: 1, videos: [video] },
+        observation:
+          'Web video search "changli trailer" → 1 video(s):\n  #1 · Changli PV · Wuthering Waves · YouTube · 3:29',
+      }),
+    })
+    const mock = script(
+      toolTurn({
+        id: 'call_videos',
+        name: 'search_library',
+        input: { query: 'changli trailer', kind: 'web_videos', subject: null },
+      }),
+      textTurn('找到了。'),
+    )
+    const events = await collect(
+      runAssistantV3('clerk-1', imageRequest('找一下长离的 PV')),
+    )
+    expect(plan).toHaveBeenCalledWith(
+      expect.anything(),
+      'search_web_videos',
+      { query: 'changli trailer' },
+      'user-1',
+    )
+    // 整张卡片随步下发（面板画那一排），过了步骤帧的 schema。
+    const done = events.find(
+      (event) => event.type === 'step' && event.step.status === 'done',
+    )
+    expect(done).toMatchObject({
+      step: {
+        tool: 'search_web_videos',
+        title: '联网找视频 changli trailer',
+        result: { totalFound: 1, videos: [video] },
+      },
+    })
+    // 模型读到的是那一行，⛔ 不是地址。
+    const next = promptText(mock.doStreamCalls[1]!)
+    expect(next).toContain('#1 · Changli PV · Wuthering Waves · YouTube · 3:29')
+    // 工具描述里写着这一种：模型知道什么时候用它。
+    expect(JSON.stringify(mock.doStreamCalls[0]!.tools)).toContain('web_videos')
   })
 
   it('板子是一张表单：每个旋钮带上能选的值，写提示词不走参考图简报那道闸', async () => {
@@ -2487,6 +2623,29 @@ describe('v3 内核 · 角色页', () => {
           modelId: 'gpt-6-luna',
           run,
         }) as never,
+    )
+  })
+
+  it('角色页：search_library kind web_videos 走联网找视频（web_images 那一跳不受影响）', async () => {
+    plan.mockResolvedValue({
+      kind: 'rejected',
+      reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.repeatedStep,
+      detail: 'ok',
+    })
+    script(
+      toolTurn({
+        id: 'call_videos',
+        name: 'search_library',
+        input: { query: '罗恩 采访', kind: 'web_videos', subject: null },
+      }),
+      textTurn('找到了。'),
+    )
+    await collect(runAssistantV3('clerk-1', cardsRequest('找几个罗恩的视频')))
+    expect(plan).toHaveBeenCalledWith(
+      expect.anything(),
+      'search_web_videos',
+      { query: '罗恩 采访' },
+      'user-1',
     )
   })
 
@@ -2900,6 +3059,24 @@ describe('v3 内核 · 视频台', () => {
       reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.repeatedStep,
       detail: 'already so',
     })
+  })
+
+  it('视频台：search_library kind web_videos 走联网找视频', async () => {
+    script(
+      toolTurn({
+        id: 'call_videos',
+        name: 'search_library',
+        input: { query: 'dance reference', kind: 'web_videos', subject: null },
+      }),
+      textTurn('找到了。'),
+    )
+    await collect(runAssistantV3('clerk-1', videoRequest('找个舞蹈参考')))
+    expect(plan).toHaveBeenCalledWith(
+      expect.anything(),
+      'search_web_videos',
+      { query: 'dance reference' },
+      'user-1',
+    )
   })
 
   it('板子印出时长 / 首帧锁的画幅 / 首尾帧 / 声音参考 / 原声开关', async () => {

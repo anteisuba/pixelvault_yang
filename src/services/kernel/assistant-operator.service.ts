@@ -207,7 +207,13 @@ import {
 import {
   WEB_IMAGE_OFFICIAL_QUERY_SUFFIXES,
   WEB_IMAGE_SUBJECT_QUERY_SUFFIXES,
+  WEB_VIDEO_SEARCH,
 } from '@/constants/web-search'
+import {
+  WEB_VIDEO_PLATFORM_IDS,
+  WEB_VIDEO_PLATFORM_NAMES,
+} from '@/constants/web-video'
+import { formatVideoDuration } from '@/lib/web-video'
 import { getAppOrigin } from '@/constants/config'
 import { USER_UPLOAD_PROVIDER } from '@/constants/uploads'
 import {
@@ -367,6 +373,15 @@ import {
   webSearch,
 } from '@/services/web-research.service'
 /**
+ * 联网**找视频**（搜索期第二片）。判据与上一条逐字同源：搜索模块 —— 平台那把 Serper
+ * key + B站连接器的只读接口，出一串播放页与元数据，一个字节的视频都不取、一分钱都不扣。
+ */
+import {
+  isWebVideoSearchConfigured,
+  searchWebVideos,
+  wantsBilibiliVideos,
+} from '@/services/web-video-search.service'
+/**
  * ⭐ **有目标的检索**（2026-09-06）。加它进钱闸白名单的判据与
  * `web-research.service` 那条**逐字同源**：它是**搜索 + 归并**模块 —— 打萌百 /
  * 中文维基 / Fandom / danbooru / Serper 的只读接口，出一串证据对象，一个字节都
@@ -513,6 +528,7 @@ import {
   type AssistantOperatorImageHandoff,
   type AssistantOperatorWorkbenchHandoff,
   type AssistantOperatorWebImage,
+  type AssistantOperatorWebVideo,
   type AssistantOperatorCanvasNode,
   type AssistantOperatorReadStateArgs,
   type AssistantOperatorSnapshot,
@@ -2745,7 +2761,9 @@ function planSearchWebImages(
                           ? 'You could NOT look at these images — you only have their titles. If you offer any, say plainly that you judged by title only. '
                           : 'You could NOT look at these images: the model this turn runs on cannot see pictures, and no other provider is used in its place. You only have their titles — if you offer any, say plainly that you judged by title only. '
                   }These are previews only — nothing was saved yet, so never say you did. To attach the good ones to a character, send ask/propose_character_images with their imageUrl (never one marked REFERENCE ONLY); the creator ticks which to keep. If a view the character needs is missing (a back view, a clean full body), search again with that view in the words people use for it — the character's name in its own language plus 「背面」「全身」「立绘」, or "back view", "full body" — before you say there is none.`
-                : 'These are previews only — nothing was saved yet, so never say you did. Two ways one becomes a real reference: the creator presses "use this" on the candidate (that is the normal path — say which ones are worth keeping and let them pick), or, if they have ALREADY told you to attach them, you call import_user_url on the ones above that are not marked REFERENCE ONLY. Never paste one of these URLs into a prompt, and never import one they did not ask for.'
+                : modelCanImportWebImages(run)
+                  ? 'These are previews only — nothing was saved yet, so never say you did. Two ways one becomes a real reference: the creator presses "use this" on the candidate (that is the normal path — say which ones are worth keeping and let them pick), or, if they have ALREADY told you to attach them, you call import_user_url on the ones above that are not marked REFERENCE ONLY. Never paste one of these URLs into a prompt, and never import one they did not ask for.'
+                  : 'These are previews only — nothing was saved yet, so never say you did. The creator presses "use this" on the ones they want: that saves them to their library and attaches them to their next message. Say which ones are worth keeping and let them pick; never paste one of these URLs into a prompt.'
             }${ruleLine}`
 
       /**
@@ -2761,6 +2779,142 @@ function planSearchWebImages(
       })
 
       return { result: { totalFound: images.length, images }, observation }
+    },
+  }
+}
+
+/**
+ * 这一轮模型手上有没有「收下一条链接」那只手（`import_user_url`）。画布没有（域表里就没
+ * 列）；v3 的 LoRA 台也没有 —— 那张脸的 `edit` 不开 `import_url`。没有的地方，找图的
+ * 观察只说「创作者点『选用』」，⛔ 不指一条它够不着的路。
+ */
+function modelCanImportWebImages(run: OperatorRun): boolean {
+  const domain = run.request.domain
+  if (!isAssistantOperatorToolInDomain(TOOL.importUserUrl, domain)) return false
+  return !(
+    run.mainModelLooks === true && domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.lora
+  )
+}
+
+/** 模型读到的那一行：`#n · 标题 · 频道 · 平台 · 时长`（缺哪格就少哪格）。 */
+export function describeWebVideoLine(
+  video: AssistantOperatorWebVideo,
+  index: number,
+): string {
+  const platform =
+    video.platform === WEB_VIDEO_PLATFORM_IDS.other
+      ? (video.domain ?? 'web')
+      : WEB_VIDEO_PLATFORM_NAMES[video.platform]
+  return [
+    `#${index + 1}`,
+    video.title,
+    video.channel,
+    platform,
+    video.durationSeconds ? formatVideoDuration(video.durationSeconds) : null,
+  ]
+    .filter((part): part is string => Boolean(part))
+    .join(' · ')
+}
+
+/**
+ * 联网**找视频**（搜索期第二片，附录 I §3.2）。
+ *
+ * ⭐ 整张卡片进面板（步骤的 `result`），模型只拿每条一行 `#n · 标题 · 频道 · 平台 · 时长`
+ *   —— 播放页、封面、嵌入地址 ⛔ 一样都不喂：它没看过这些视频，给它地址的表现是被贴进
+ *   提示词，或者照着标题编内容。
+ * ⚠ 召回只走平台那把 Serper key（Google 视频）+ B站连接器（中文查询 / 点名 B站），
+ *   ⛔ 不走模型自带联网、⛔ 不借创作者别家的 key（`web-video-search.service` 头注）。
+ * ⚠ 来源白 / 黑名单与查证同一张：Google 视频按「web」组认、B站那一路按「bilibili」组认；
+ *   被名单挡掉的组**压根不打**（省一个 credit），打回来的再按域名滤一遍。
+ * ⛔ 结果不进任何准入名单（`searchIndex` / `webImageIndex`）：没有一条工具吃播放页。
+ */
+function planSearchWebVideos(
+  run: OperatorRun,
+  args: { query: string; limit?: number },
+): ToolPlan {
+  const limit = Math.min(
+    args.limit ?? LIMITS.maxWebVideoResults,
+    LIMITS.maxWebVideoResults,
+  )
+  const latest =
+    run.request.messages.findLast((message) => message.role === 'user')
+      ?.content ?? ''
+  const wantsBilibili = wantsBilibiliVideos(args.query, latest)
+  const gate = filterResearchSources(
+    [
+      ASSISTANT_RESEARCH_SOURCE_IDS.web,
+      ...(wantsBilibili ? [ASSISTANT_RESEARCH_SOURCE_IDS.bilibili] : []),
+    ],
+    run.sourceRules,
+  )
+  const ruleLine = hasSourceRules(run.sourceRules)
+    ? `\nSource list in force — ${describeSourceRules(run.sourceRules)}.`
+    : ''
+  const useBilibili = gate.sources.includes(
+    ASSISTANT_RESEARCH_SOURCE_IDS.bilibili,
+  )
+  const useSerper =
+    gate.sources.includes(ASSISTANT_RESEARCH_SOURCE_IDS.web) &&
+    isWebVideoSearchConfigured()
+
+  /** 名单把能打的源全滤光了：如实说，⛔ 不偷偷扩源（与查证那条同一句纪律）。 */
+  if (gate.sources.length === 0)
+    return {
+      kind: 'read',
+      payload: { query: args.query, limit, bilibili: false },
+      run: async () => ({
+        result: { totalFound: 0, videos: [] },
+        observation: `Web video search "${args.query}" searched NOTHING: this creator's source list rules out ${gate.dropped.join(', ')}.${ruleLine}\nSay this plainly and offer to look again if they widen the list. Do not invent videos.`,
+      }),
+    }
+  if (!useSerper && !useBilibili)
+    return reject(
+      REJECT.searchUnavailable,
+      'Web video search is not wired up on this deployment. Say so plainly; do not invent videos or links.',
+    )
+
+  return {
+    kind: 'read',
+    payload: { query: args.query, limit, bilibili: useBilibili },
+    run: async () => {
+      const { hits, blocked } = await searchWebVideos({
+        query: args.query,
+        limit,
+        serper: useSerper,
+        bilibili: useBilibili,
+        bilibiliFirst: WEB_VIDEO_SEARCH.bilibiliIntent.test(
+          `${args.query} ${latest}`,
+        ),
+        allows: (url, sourceId) =>
+          filterEvidenceIndices([{ sourceId, url }], run.sourceRules).length >
+          0,
+      })
+      const videos = hits.map((hit) => ({
+        ...hit.video,
+        title: clamp(hit.video.title, LIMITS.maxPriorStepSummaryChars),
+        ...(hit.video.channel
+          ? { channel: clamp(hit.video.channel, LIMITS.maxLabelChars) }
+          : {}),
+        ...(hit.video.domain
+          ? { domain: clamp(hit.video.domain, LIMITS.maxLabelChars) }
+          : {}),
+        ...(hit.video.date
+          ? { date: clamp(hit.video.date, LIMITS.maxLabelChars) }
+          : {}),
+      }))
+      const blockedLine =
+        blocked > 0
+          ? ` The creator's source list ruled out ${blocked} result(s).`
+          : ''
+      const observation =
+        videos.length === 0
+          ? `Web video search "${args.query}" came back empty.${blockedLine}${ruleLine} Do not invent videos or links. One empty search is not an answer: change the wording once — the work's official title, the name in its own language, or words like "PV", "trailer", "tutorial" — before you tell the creator there is nothing.`
+          : `Web video search "${args.query}" → ${videos.length} video(s), shown to the creator as cards under your reply (they can play them there):\n${videos
+              .map((video, index) => `  ${describeWebVideoLine(video, index)}`)
+              .join(
+                '\n',
+              )}\nYou have NOT watched any of these: you only have the title, channel and length — judge by those, and say so when it matters. Nothing was downloaded or saved, and they are links only: never import or mount one, and never paste a video address into a prompt. Point to one by its number (#2) instead of listing them again.${blockedLine}${ruleLine}`
+      return { result: { totalFound: videos.length, videos }, observation }
     },
   }
 }
@@ -9406,6 +9560,11 @@ export async function planTool(
       return planReadUrl(run, parsed.data as { url: string; focus?: string })
     case TOOL.recallEvidence:
       return planRecallEvidence(run, parsed.data as { refs: string[] }, userId)
+    case TOOL.searchWebVideos:
+      return planSearchWebVideos(
+        run,
+        parsed.data as { query: string; limit?: number },
+      )
     case TOOL.searchWeb:
       return planSearchWeb(
         run,

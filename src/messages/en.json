@@ -8023,6 +8023,7 @@
       "look": "Looking at the picture…",
       "research": "Searching…",
       "webImages": "Searching for images…",
+      "webVideos": "Searching for videos…",
       "library": "Searching your library…",
       "ask": "Thinking of a question…",
       "apply": "Changing settings…",
@@ -8395,7 +8396,20 @@
       "cannotUse": "Not usable",
       "notUsable": "This site asks not to be used as AI input, or republishes work without a traceable source — open it if you like, but it will not be filed into your library.",
       "useAll": "Attach {count}",
-      "notUsableHotlink": "This site’s image host only serves its own pages, so we cannot fetch it server-side — you can still open the original page, but it cannot be saved into your library."
+      "notUsableHotlink": "This site’s image host only serves its own pages, so we cannot fetch it server-side — you can still open the original page, but it cannot be saved into your library.",
+      "videosFound": "Videos: {query} · {count, plural, one {# video} other {# videos}}",
+      "videosSearching": "Searching videos: {query}…",
+      "videoPlay": "Play here: {title}",
+      "videoOpenExternal": "Open on {site} in a new tab: {title}",
+      "videoPlayerTitle": "{site} player: {title}",
+      "videoOpenSource": "Open on {site}",
+      "videoClose": "Close the player",
+      "videoPlatform": {
+        "youtube": "YouTube",
+        "bilibili": "bilibili",
+        "niconico": "niconico",
+        "vimeo": "Vimeo"
+      }
     },
     "queue": {
       "badge": "Queued",

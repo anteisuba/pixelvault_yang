@@ -186,6 +186,27 @@ const STEP_FIXTURES: Record<
       ],
     },
   },
+  /**
+   * 联网找视频（搜索期第二片）。⭐ 同样没有 assetId，也没有任何「选用」字段：
+   * 卡片只在面板里摆、点开走官方嵌入播放器，一个字节的视频都不取。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.searchWebVideos]: {
+    payload: { query: '鸣潮 长离 PV', limit: 8, bilibili: true },
+    result: {
+      totalFound: 1,
+      videos: [
+        {
+          url: 'https://www.bilibili.com/video/BV1ji421e7nM',
+          title: '《鸣潮》动画短片 | 今昔',
+          platform: 'bilibili',
+          channel: '鸣潮',
+          domain: 'bilibili.com',
+          durationSeconds: 1078,
+          thumbnailUrl: 'https://i2.hdslb.com/cover.jpg',
+        },
+      ],
+    },
+  },
   [ASSISTANT_OPERATOR_TOOL_IDS.searchWeb]: {
     payload: { query: 'wuthering waves jiyan official design', limit: 6 },
     result: {
@@ -916,7 +937,8 @@ describe('五动词入口', () => {
     // 助手写角色构图（2026-10-05）把 50 变成 51（`set_tag_characters`），
     // 画面文字（2026-10-07）再加一个（`set_scene_texts`）。
     // 剪辑台 v2 第 2 片 2b 把 52 变成 53（`canvas_look_at`，看片）。
-    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(54)
+    // 搜索期第二片（2026-10-15）把 54 变成 55（`search_web_videos`，内部工具）。
+    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(55)
     expect(
       ASSISTANT_OPERATOR_ENTRY_ACTIONS[
         ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research

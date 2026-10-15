@@ -204,6 +204,23 @@ vi.mock('@/services/web-research.service', async () => {
 })
 
 /**
+ * 联网找视频（搜索期第二片）—— 同一条论据：⛔ 一个 Serper credit 都不花、⛔ 不打 B站。
+ * ⚠ `wantsBilibiliVideos` 走真实现：「中文 / 点名 B站才另问 B站」正是这一层要验的判断。
+ */
+const mockSearchWebVideos = vi.fn()
+const mockIsWebVideoSearchConfigured = vi.fn(() => true)
+vi.mock('@/services/web-video-search.service', async () => {
+  const actual = await vi.importActual<
+    typeof import('@/services/web-video-search.service')
+  >('@/services/web-video-search.service')
+  return {
+    wantsBilibiliVideos: actual.wantsBilibiliVideos,
+    searchWebVideos: (...args: unknown[]) => mockSearchWebVideos(...args),
+    isWebVideoSearchConfigured: () => mockIsWebVideoSearchConfigured(),
+  }
+})
+
+/**
  * 检索扇出（2026-09-06）。⚠ **全程 mock，一次都不打萌百 / danbooru / Serper** ——
  * 与联网搜图那条同一条论据：让单元测试去打真上游是把别人的服务器当柴烧，
  * 而这一层要验的是「几轮、怎么讲给模型听」，不是上游返回什么。
@@ -20834,5 +20851,269 @@ describe('时间预算与同理由连败（assistant-durable-turns 第 0 片）'
     expect(
       stepsOf(events).filter((step) => step.status === 'error'),
     ).toHaveLength(1)
+  })
+})
+
+/**
+ * 联网**找视频**（搜索期第二片）：整张卡片进面板（步骤 result），模型只拿每条一行；
+ * 召回只走平台那把 Serper key + B站连接器，来源名单照样管。
+ */
+describe('search_web_videos（搜索期第二片）', () => {
+  const VIDEOS = [
+    {
+      sourceId: 'web_search',
+      video: {
+        url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        title: 'Wuthering Waves — Changli PV',
+        platform: 'youtube',
+        channel: 'Wuthering Waves',
+        domain: 'youtube.com',
+        durationSeconds: 209,
+        thumbnailUrl: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
+      },
+    },
+    {
+      sourceId: 'bilibili',
+      video: {
+        url: 'https://www.bilibili.com/video/BV1ji421e7nM',
+        title: '《鸣潮》动画短片 | 今昔',
+        platform: 'bilibili',
+        domain: 'bilibili.com',
+      },
+    },
+    {
+      sourceId: 'web_search',
+      video: {
+        url: 'https://example.test/clip',
+        title: 'Some clip',
+        platform: 'other',
+        domain: 'example.test',
+      },
+    },
+  ]
+
+  async function prepare(extra: Record<string, unknown> = {}) {
+    queueTurns()
+    return prepareOperatorTurn(
+      'clerk-1',
+      buildRequest(extra),
+      new AbortController().signal,
+    )
+  }
+
+  beforeEach(() => {
+    mockIsWebVideoSearchConfigured.mockReturnValue(true)
+    mockSearchWebVideos.mockResolvedValue({ hits: VIDEOS, blocked: 0 })
+  })
+
+  it('⭐ 模型只拿每条一行（#n · 标题 · 频道 · 平台 · 时长）；整张卡片进 result', async () => {
+    const prepared = await prepare()
+    const plan = await planTool(
+      prepared.run,
+      ASSISTANT_OPERATOR_TOOL_IDS.searchWebVideos,
+      { query: '鸣潮 长离 PV' },
+      prepared.user.id,
+    )
+    if (plan.kind !== 'read') throw new Error(`expected read, got ${plan.kind}`)
+    // 中文查询 → 另问 B站；载荷如实记下。
+    expect(plan.payload).toEqual({
+      query: '鸣潮 长离 PV',
+      limit: ASSISTANT_OPERATOR_LIMITS.maxWebVideoResults,
+      bilibili: true,
+    })
+    const { observation, result } = await plan.run()
+    expect(mockSearchWebVideos).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: '鸣潮 长离 PV',
+        serper: true,
+        bilibili: true,
+        bilibiliFirst: false,
+      }),
+    )
+    expect(observation).toContain(
+      '#1 · Wuthering Waves — Changli PV · Wuthering Waves · YouTube · 3:29',
+    )
+    expect(observation).toContain('#2 · 《鸣潮》动画短片 | 今昔 · bilibili')
+    expect(observation).toContain('#3 · Some clip · example.test')
+    expect(observation).toContain('NOT watched')
+    // ⛔ 播放页 / 封面地址一样都不喂给模型。
+    expect(observation).not.toContain('https://')
+    expect(result).toEqual({
+      totalFound: 3,
+      videos: VIDEOS.map((hit) => hit.video),
+    })
+  })
+
+  it('英文查询不问 B站；点名 B站时 B站排前', async () => {
+    const prepared = await prepare()
+    const plain = await planTool(
+      prepared.run,
+      ASSISTANT_OPERATOR_TOOL_IDS.searchWebVideos,
+      { query: 'wuthering waves changli trailer' },
+      prepared.user.id,
+    )
+    expect(plain.kind === 'read' && plain.payload).toMatchObject({
+      bilibili: false,
+    })
+
+    const named = await planTool(
+      prepared.run,
+      ASSISTANT_OPERATOR_TOOL_IDS.searchWebVideos,
+      { query: 'changli bilibili dance' },
+      prepared.user.id,
+    )
+    if (named.kind !== 'read') throw new Error('expected read')
+    expect(named.payload).toMatchObject({ bilibili: true })
+    await named.run()
+    expect(mockSearchWebVideos).toHaveBeenLastCalledWith(
+      expect.objectContaining({ bilibili: true, bilibiliFirst: true }),
+    )
+  })
+
+  it('来源名单：屏蔽了 B站这一组就⛔ 不打它；全屏蔽了如实说，一个请求都不发', async () => {
+    mockListProjectSourceRules.mockResolvedValue([
+      {
+        id: 'r1',
+        scope: null,
+        text: 'bilibili',
+        kind: 'sourceDeny',
+        source: 'creator',
+        createdAt: '2026-09-10T00:00:00.000Z',
+      },
+    ])
+    const prepared = await prepare()
+    const plan = await planTool(
+      prepared.run,
+      ASSISTANT_OPERATOR_TOOL_IDS.searchWebVideos,
+      { query: '鸣潮 PV' },
+      prepared.user.id,
+    )
+    if (plan.kind !== 'read') throw new Error('expected read')
+    expect(plan.payload).toMatchObject({ bilibili: false })
+    await plan.run()
+    const [params] = mockSearchWebVideos.mock.calls.at(-1) as [
+      { allows: (url: string, sourceId: string) => boolean },
+    ]
+    expect(
+      params.allows('https://www.youtube.com/watch?v=x', 'web_search'),
+    ).toBe(true)
+    expect(
+      params.allows('https://www.bilibili.com/video/BV1', 'bilibili'),
+    ).toBe(false)
+
+    mockListProjectSourceRules.mockResolvedValue([
+      {
+        id: 'r2',
+        scope: null,
+        text: 'wiki',
+        kind: 'sourceAllow',
+        source: 'creator',
+        createdAt: '2026-09-10T00:00:00.000Z',
+      },
+    ])
+    mockSearchWebVideos.mockClear()
+    const blockedRun = await prepare()
+    const blocked = await planTool(
+      blockedRun.run,
+      ASSISTANT_OPERATOR_TOOL_IDS.searchWebVideos,
+      { query: '鸣潮 PV' },
+      blockedRun.user.id,
+    )
+    if (blocked.kind !== 'read') throw new Error('expected read')
+    const { observation } = await blocked.run()
+    expect(observation).toContain('searched NOTHING')
+    expect(mockSearchWebVideos).not.toHaveBeenCalled()
+  })
+
+  it('平台没配 Serper、查询也用不上 B站 → searchUnavailable，⛔ 不借别家的联网', async () => {
+    mockIsWebVideoSearchConfigured.mockReturnValue(false)
+    const prepared = await prepare()
+    const plan = await planTool(
+      prepared.run,
+      ASSISTANT_OPERATOR_TOOL_IDS.searchWebVideos,
+      { query: 'changli trailer' },
+      prepared.user.id,
+    )
+    expect(plan.kind).toBe('rejected')
+    expect(plan.kind === 'rejected' && plan.reason).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.searchUnavailable,
+    )
+    expect(mockLlmTextCompletion).not.toHaveBeenCalled()
+  })
+
+  it('一条都没找到：叫它换个说法再试一次，⛔ 编链接', async () => {
+    mockSearchWebVideos.mockResolvedValue({ hits: [], blocked: 0 })
+    const prepared = await prepare()
+    const plan = await planTool(
+      prepared.run,
+      ASSISTANT_OPERATOR_TOOL_IDS.searchWebVideos,
+      { query: 'changli trailer' },
+      prepared.user.id,
+    )
+    if (plan.kind !== 'read') throw new Error('expected read')
+    const { observation, result } = await plan.run()
+    expect(result).toEqual({ totalFound: 0, videos: [] })
+    expect(observation).toContain('came back empty')
+    expect(observation).toContain('Do not invent videos')
+  })
+})
+
+/**
+ * 找图的观察只指模型够得着的路（搜索期第二片）：画布与 v3 的 LoRA 台没有 import_url，
+ * 那里只说「创作者点『选用』」。
+ */
+describe('search_web_images · 观察只指够得着的路', () => {
+  beforeEach(() => {
+    mockIsWebImageSearchConfigured.mockReturnValue(true)
+    mockWebImageSearchMulti.mockResolvedValue([
+      {
+        imageUrl: 'https://cdn.example.test/a.jpg',
+        domain: 'example.test',
+      },
+    ])
+  })
+
+  async function observe(extra: Record<string, unknown>, v3 = false) {
+    queueTurns()
+    const prepared = await prepareOperatorTurn(
+      'clerk-1',
+      buildRequest(extra),
+      new AbortController().signal,
+    )
+    if (v3) prepared.run.mainModelLooks = true
+    const plan = await planTool(
+      prepared.run,
+      ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+      { query: 'wet asphalt' },
+      prepared.user.id,
+    )
+    if (plan.kind !== 'read') throw new Error(`expected read, got ${plan.kind}`)
+    return (await plan.run()).observation
+  }
+
+  it('图片台照旧：两条路（「选用」或 import_user_url）', async () => {
+    expect(await observe({})).toContain('import_user_url')
+  })
+
+  it('画布：⛔ 不提 import_user_url，只说「选用」', async () => {
+    const observation = await observe({
+      domain: 'canvas',
+      snapshot: {
+        prompt: '',
+        availableModels: [],
+        canvas: { currentShotNo: null, selectedNodeIds: [], shots: [] },
+      },
+    })
+    expect(observation).not.toContain('import_user_url')
+    expect(observation).toContain('"use this"')
+  })
+
+  it('v3 的 LoRA 台：⛔ 不提 import_user_url', async () => {
+    const observation = await observe(
+      { domain: 'lora', snapshot: LORA_SNAPSHOT },
+      true,
+    )
+    expect(observation).not.toContain('import_user_url')
+    expect(observation).toContain('"use this"')
   })
 })

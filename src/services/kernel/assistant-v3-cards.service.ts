@@ -15,6 +15,8 @@ import {
   ASSISTANT_V3_LIMITS,
   ASSISTANT_V3_TOOL_IDS,
   ASSISTANT_V3_WEB_IMAGES_SEARCH_KIND,
+  ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION,
+  ASSISTANT_V3_WEB_VIDEOS_SEARCH_KIND,
 } from '@/constants/assistant-v3'
 import {
   openCharacterImages,
@@ -37,6 +39,7 @@ import {
   joinOutcomes,
   refused,
   runOldTool,
+  runWebFind,
 } from '@/services/kernel/assistant-v3-bench.service'
 import { executeV3Look } from '@/services/kernel/assistant-v3-look.service'
 import {
@@ -83,8 +86,7 @@ export function assistantV3CardsTools(strict: boolean) {
       strict,
     }),
     [ASSISTANT_V3_TOOL_IDS.searchLibrary]: tool({
-      description:
-        'kind "image": the creator\'s own pictures (results carry asset ids for propose_images). kind "web_images": pictures on the web (results carry image URLs for propose_images).',
+      description: `kind "image": the creator's own pictures (results carry asset ids for propose_images). kind "web_images": pictures on the web (results carry image URLs for propose_images). ${ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION}`,
       inputSchema: AssistantV3ImageSearchLibraryInputSchema,
       strict,
     }),
@@ -466,6 +468,8 @@ export async function* executeAssistantV3CardsCall(
           parsed.query,
           parsed.subject?.trim() || null,
         )
+      if (parsed.kind === ASSISTANT_V3_WEB_VIDEOS_SEARCH_KIND)
+        return yield* runWebFind(context, parsed.kind, parsed.query, null)
       return yield* runOldTool(
         context,
         TOOL.searchAssets,

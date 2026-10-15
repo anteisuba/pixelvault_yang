@@ -202,8 +202,43 @@ export const ASSISTANT_V3_CARDS_ITEM_IDS = {
   card: 'card',
 } as const
 
-/** `search_library` 在图片台多一种：联网找图（结果摆在面板上，创作者点「选用」）。 */
+/** `search_library` 联网找图（结果摆在面板上，创作者点「选用」）。每张脸都有。 */
 export const ASSISTANT_V3_WEB_IMAGES_SEARCH_KIND = 'web_images'
+
+/**
+ * `search_library` 联网找视频（搜索期第二片，附录 I §3.1）：平台的 Google 视频搜索
+ * （Serper）+ 中文 / 点名 B站时再问 B站连接器。结果卡摆在回答底下、点开在面板里播，
+ * 模型只拿每条一行。每张脸都有。⛔ 不走模型自带联网，⛔ 不花别家的 key。
+ */
+export const ASSISTANT_V3_WEB_VIDEOS_SEARCH_KIND = 'web_videos'
+
+/**
+ * `search_library` 联网那两种在工具描述里的那一句 —— 每张脸同一句（搜索期第二片），
+ * ⛔ 别在四份工具表里各写一份（`ask` 那条的教训：抄四份，四份各漏一样）。
+ * ⚠ 找图的「后半句」各脸不同（工作台点「选用」/ 角色页拿去 propose_images），由各脸自己接。
+ */
+export const ASSISTANT_V3_WEB_IMAGES_KIND_DESCRIPTION =
+  'kind "web_images": find pictures on the web — they appear under your reply and the creator picks which to use.'
+export const ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION =
+  'kind "web_videos": find videos on the web (YouTube, bilibili, niconico, Vimeo…) — a trailer, a PV, a tutorial, a dance or motion reference. They appear as cards under your reply and the creator can play them there; you get one line per video (title · channel · platform · length) and have not watched any of them. Not for facts — use search_web for those.'
+
+/** 联网那两种（每张脸的 `search_library` 都收）。 */
+export const ASSISTANT_V3_WEB_SEARCH_KINDS = [
+  ASSISTANT_V3_WEB_IMAGES_SEARCH_KIND,
+  ASSISTANT_V3_WEB_VIDEOS_SEARCH_KIND,
+] as const
+
+export type AssistantV3WebSearchKind =
+  (typeof ASSISTANT_V3_WEB_SEARCH_KINDS)[number]
+
+/** `search_library` 的这一种是不是联网那两种之一。 */
+export function isAssistantV3WebSearchKind(
+  kind: string | null,
+): kind is AssistantV3WebSearchKind {
+  return (ASSISTANT_V3_WEB_SEARCH_KINDS as readonly (string | null)[]).includes(
+    kind,
+  )
+}
 
 /**
  * `write` 的三种写法。`edit` = 找句换句：服务端拿卡上全文逐条替换后整段落下，

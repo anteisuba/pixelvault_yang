@@ -80,11 +80,12 @@ interface StudioOperatorMessageBodyProps {
    */
   onSearchXWithGrok?(): void
   /**
-   * **这段话之前找到的图**（搜索期切片 1 · 附录 I §四）—— 面板画好的网格
-   * （`StudioOperatorWebCandidateGrid`）交进来，摆在正文底下、来源卡上面。
-   * ⚠ 是一个槽而不是数据：选用态与「选用」的去处是面板的，这一格只管摆在哪。
+   * **这段话之前找到的图与视频**（搜索期切片 1 · 第二片 · 附录 I §四）—— 面板画好的
+   * 图网格（`StudioOperatorWebCandidateGrid`）与视频那一排（`StudioOperatorWebVideoRow`）
+   * 交进来，摆在正文底下、来源卡上面。
+   * ⚠ 是一个槽而不是数据：选用态、播放器与它们的去处是面板的，这一格只管摆在哪。
    */
-  webImages?: ReactNode
+  webFinds?: ReactNode
 }
 
 /**
@@ -417,7 +418,7 @@ export function StudioOperatorMessageBody({
   onDeepResearch,
   receiptLabel,
   onSearchXWithGrok,
-  webImages,
+  webFinds,
   references = [],
 }: StudioOperatorMessageBodyProps) {
   const t = useTranslations('StudioOperator')
@@ -453,8 +454,8 @@ export function StudioOperatorMessageBody({
       />
 
       {/* ⚠ 还在写的时候**不画**（56b 切片 1）：资料要等这段话说完再摆出来，
-          否则来源卡会在正文长高的过程中一直往下跳。找到的图同一条。 */}
-      {webImages && !entry.streaming ? webImages : null}
+          否则来源卡会在正文长高的过程中一直往下跳。找到的图与视频同一条。 */}
+      {webFinds && !entry.streaming ? webFinds : null}
       {sources.length > 0 && !entry.streaming ? (
         <StudioOperatorAnswerSources
           sources={sources}

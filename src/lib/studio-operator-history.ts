@@ -16,6 +16,10 @@
 
 import type { ReferenceVisualProfile } from '@/types/assistant-reference-analysis'
 import { ASSISTANT_MENTION_LIMITS } from '@/constants/assistant-mention'
+import {
+  WEB_VIDEO_PLATFORM_IDS,
+  WEB_VIDEO_PLATFORM_NAMES,
+} from '@/constants/web-video'
 import { describeMentionNote } from '@/lib/assistant-mention'
 import type { AssistantMention } from '@/types/assistant-mention'
 import {
@@ -132,6 +136,24 @@ export function describeOperatorStepDetail(
       ]
       return [`"${step.payload.query}"`, `· ${step.result?.totalFound ?? 0}`]
         .concat(domains.length > 0 ? [`· ${domains.join(', ')}`] : [])
+        .join(' ')
+    }
+    /**
+     * 找视频（搜索期第二片）。详情列**平台**（另问了 B站就写出来）：卡片上有角标，
+     * 折叠行上只有一句「找了 6 个」，而「是从哪几家找的」是用户判断要不要再搜的依据。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.searchWebVideos: {
+      const platforms = [
+        ...new Set(
+          (step.result?.videos ?? []).map((video) =>
+            video.platform === WEB_VIDEO_PLATFORM_IDS.other
+              ? (video.domain ?? 'web')
+              : WEB_VIDEO_PLATFORM_NAMES[video.platform],
+          ),
+        ),
+      ]
+      return [`"${step.payload.query}"`, `· ${step.result?.totalFound ?? 0}`]
+        .concat(platforms.length > 0 ? [`· ${platforms.join(', ')}`] : [])
         .join(' ')
     }
     /**

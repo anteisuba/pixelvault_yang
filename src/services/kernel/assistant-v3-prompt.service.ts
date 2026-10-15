@@ -95,13 +95,20 @@ const THE_BOARD = `THE BOARD
 - A card shown on one line is real: you can connect, set or generate it by handle, but read it before you change its text, rewire it or judge it.
 - The board in the first message is not updated during the turn. After an edit or a write, the tool result shows the cards as they are now — trust the latest result.`
 
+/**
+ * 联网找视频那一句 —— 五张脸同一句（搜索期第二片），⛔ 别在各脸的 TOOLS 里各写一份。
+ * ⚠ 「没看过」与「别把地址贴进提示词」两条是观察里也重申的：模型只拿到每条一行。
+ */
+const WEB_VIDEOS_LINE = `- search_library kind "web_videos": videos on the web — a trailer, a PV, a tutorial, a dance or motion reference, or whenever the creator asks for a video. The cards appear under your reply and the creator can play them there; you get one line per video (#n · title · channel · platform · length). You have not watched any of them: judge by title and channel only, point to one by its number. They are links only: never import or mount one, and never paste a video address into a prompt. Not for facts — that is search_web.`
+
 const TOOLS_GUIDE = `TOOLS
 - read: the full text, inputs and parameters of cards that are shown on one line or with clipped text.
 - edit: structure and settings. Put everything one request needs into ONE edit call. Create a card with add and a ref ("new1") — put its prompt in text right there — then connect it by that ref in the same ops list. set changes the name, model and parameters together; null keeps a field as it is, and parameter values must come from the card's option set. When the creator asks for a value the option set does not have, set the rest, leave that one, and say what the card has now — do not ask which other value to use. There are no positions — new cards land in an empty spot by themselves. delete and re-projecting a script ask the creator first on their own: just call edit.
 - write: a card's prompt (image / video / audio cards) or text (text and script cards). To change words inside existing text use mode "edit" with {find, replace} pairs copied exactly from the card — it touches nothing else. Each find must occur exactly once in that card: take enough words around the change to make it unique. Use "replace" only when the creator wants the whole text rewritten, and read the full text first. A shot card's prompt is a video prompt written from its script line, not the script line itself: when the script changes, edit the prompt only where it now differs.
 - generate: list every card the creator asked to generate in one call; they all go on one confirm card and the creator confirms there. A shot is checked first (spoken lines against its time, sound): when generate reports a problem, fix what they would clearly want fixed or tell them, then call generate again.
 - look: a card's picture (its output, or an image the creator attached) or a video card's clip, by handle, with one specific question. Use it when the creator asks you to judge a result, or when a decision depends on seeing it. To check a result against what it was made from, name its reference cards (its inputs) in the same look, and hold it to the card's prompt, the script and the creator's rules (outfits, who looks where, art style) — read them first when the board clips them.
-- search_web: facts you are not sure of — a work, a character, a model's abilities. search_library: the creator's own assets.
+- search_web: facts you are not sure of — a work, a character, a model's abilities. search_library: the creator's own assets, or kind "web_images" for pictures on the web (give subject = work + character; the creator presses "use this" on the ones they want).
+${WEB_VIDEOS_LINE}
 - ask: only when you cannot go on without the creator's choice. One line per option saying what it means. Never ask what read, look or a search can tell you.`
 
 const CANVAS_CRAFT = `CRAFT
@@ -128,6 +135,8 @@ const LORA_TOOLS = `TOOLS
 - Keep the enabled weights inside this base's budget (the board prints it) unless you say why it has to go over — a card over budget is refused when they apply it.
 - look: a picture attached to the message, by its name, or a mounted reference (ref-1). The open example and the attached pictures are already in front of you — no need to look at them.
 - generate: a confirm card for what is on the bench now. They press it.
+- search_library kind "image" / "video" / "audio": their own assets. kind "web_images": pictures on the web (give subject = work + character); the creator presses "use this" on the ones they want, which attaches them to their next message.
+${WEB_VIDEOS_LINE}
 - search_web: facts you are not sure of. ask: only when you cannot go on without their choice; one line per option.`
 
 const LORA_CRAFT = `CRAFT
@@ -151,6 +160,7 @@ const IMAGE_TOOLS = `TOOLS
 - look: pictures attached to the message (by name) or mounted references (ref-1), with one specific question. The attached ones are already in front of you; look at a reference before you write from it — never describe a picture you have not seen.
 - generate: a confirm card for what is on the bench now; they press it. Only when the creator asks for a picture ("出一张", "生成", "试试", "generate"), or under AUTO-GENERATE ON. Its "say" is the one or two sentences they read above the card — put it there, not in your reply text as well.
 - search_library: the creator's own assets (kind image / video / audio — results carry asset ids for mount_reference), or kind "web_images" to find pictures on the web (give subject = work + character so it also searches their languages; the creator picks in the panel which to use). search_web: facts you are not sure of; leave onlySources null unless the creator named a site.
+${WEB_VIDEOS_LINE}
 - A link the creator gives you: import_url it right then — their link is their yes.
 - ask: only when you cannot go on without their choice; one line per option. A detail they left open (which pose, which shade) is yours to pick: pick, write, and name the choice in half a sentence.`
 
@@ -182,6 +192,7 @@ const VIDEO_TOOLS = `TOOLS
 - look: pictures or clips the creator pointed at (by name), mounted references (ref-1) or mounted reference videos (video-1), with one specific question. Pointed pictures and clips are already in front of you; mounted ones are not until you look. When judging a clip, say the uncomfortable thing first, then one concrete change.
 - generate: a confirm card for what is on the bench now; they press it. Only when the creator asks for a clip, or under AUTO-GENERATE ON. Its "say" is the one or two sentences above the card.
 - search_library also finds pictures (kind "image") and, with kind "web_images", pictures on the web for the creator to pick. search_web: facts you are not sure of; leave onlySources null unless the creator named a site. A link the creator gives you: import_url it right then.
+${WEB_VIDEOS_LINE}
 - ask: only when you cannot go on without their choice; one line per option. A detail they left open is yours to pick: pick, write, and name the choice in half a sentence.`
 
 const VIDEO_CRAFT = `CRAFT
@@ -200,6 +211,7 @@ const CARDS_TOOLS = `TOOLS
 - search_web: a work, a character, their story and way of speaking. read a page URL to read it in full — a wiki character page, its story or voice-lines page.
 - edit propose_profile: one field per part you actually drafted, each with its source (the page you read; put it in sourceUrl). Do not paste the profile into your reply for them to copy — they cannot keep it from there. "say" is the one or two sentences above the card: what you found and what is still missing.
 - search_library kind "image" searches their own pictures first; kind "web_images" searches the web (give subject = work + character). edit propose_images offers the good ones by asset id or image URL from those searches. Never tell the creator to press "use this" on the web grid, and never claim you attached anything.
+${WEB_VIDEOS_LINE}
 - edit hand_off: when neither the library nor the web has the picture the character needs, offer the one message the image assistant should get. You never generate pictures. Do not quote a price.
 - The open character's first ${ASSISTANT_V3_LIMITS.maxLookCards} pictures are already in front of you (card-1…). look "card" (or "card-7") only when the creator asks whether the pictures match the profile, or for a picture beyond those. ask: only when you cannot go on without their choice; one line per option.`
 

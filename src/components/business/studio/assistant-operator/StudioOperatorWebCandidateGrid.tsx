@@ -5,7 +5,8 @@
  *
  * ── 搜索期切片 1：它是答案的一部分，⛔ 不是过程 ────────────────────
  * 附录 I §四：搜到的东西摆在**回答正文下面**（与来源卡同一格，面板经
- * `StudioOperatorMessageBody.webImages` 交进来），⛔ 不再折进步骤组 —— 之前它长在
+ * `StudioOperatorMessageBody.webFinds` 交进来；找到的视频排在它下面，见
+ * `StudioOperatorWebVideoRow`），⛔ 不再折进步骤组 —— 之前它长在
  * 日志条里，组默认收起、一轮收尾后整个过程区又被收掉，找到的图于是看不见。
  * 过程那一行只剩一句「搜索 Google 图片：… · 8 张」（`StudioOperatorLogItem`）。
  * 还没等到回答（还在搜 / 回答还在写 / 这一轮停了）时面板把它就地画在那一块里，

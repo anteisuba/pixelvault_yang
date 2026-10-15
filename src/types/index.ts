@@ -4922,6 +4922,9 @@ export const CivitaiLoraLibraryItemSchema = LoraAssetRecordSchema.extend({
   // 封面的平均色（取自 Civitai 给的 blurhash）：网格先铺这块颜色，图到了
   // 再由糊变清（LoRA 库 B，2026-09-27）。拿不到 hash 时是 null。
   coverColor: z.string().nullable().optional(),
+  // 封面是视频样例时网格卡播的压缩片段（此时上面各档封面都是它的静帧，库 B
+  // 视频样例，owner 2026-10-15）。图片封面是 null；optional 同 cardImageUrl。
+  cardVideoUrl: z.string().url().nullable().optional(),
   // 「点击放大查看」对话框用的全分辨率原图。base `coverImageUrl` rewrite 后
   // 已经是 640px，放大时需要回退到原图。
   coverImageUrlOriginal: z.string().url().nullable(),
@@ -4999,6 +5002,9 @@ export type CivitaiRecipeExtraLora = z.infer<
 // prompt 是配方存在的前提，必填）。
 export const CivitaiImageRecipeSchema = z.object({
   imageUrl: z.string().url(),
+  // 样例是视频时的压缩片段（`imageUrl` 是它的静帧）。视频样例只进预览不进配方，
+  // 这里只在查看器把预览补成一条时带上。
+  videoUrl: z.string().url().optional(),
   /** Final stored image dimensions; may include hires/upscale. */
   width: z.number().int().positive().optional(),
   height: z.number().int().positive().optional(),
@@ -5043,10 +5049,12 @@ export const CivitaiImageRecipeSchema = z.object({
 })
 export type CivitaiImageRecipe = z.infer<typeof CivitaiImageRecipeSchema>
 
-// 无配方预览图：作者示例图里没带 prompt 元数据的静态图 —— 无法「一键同款」，
+// 无配方预览图：作者示例图里没带 prompt 元数据的图，以及全部视频样例 —— 无法「一键同款」，
 // 仅作纯预览展示（点开看大图）。区别于 CivitaiImageRecipe（后者 prompt 必填）。
 export const CivitaiPreviewImageSchema = z.object({
   imageUrl: z.string().url(),
+  // 视频样例的压缩片段（`imageUrl` 是它的静帧）。
+  videoUrl: z.string().url().optional(),
   width: z.number().int().positive().optional(),
   height: z.number().int().positive().optional(),
   nsfwLevel: z.number().int().optional(),

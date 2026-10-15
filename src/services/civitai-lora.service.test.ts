@@ -467,18 +467,20 @@ describe('mineCivitaiUserPrompts', () => {
     ])
   })
 
-  it('skips video example images when collecting previewImages', async () => {
-    // 视频封面渲染不了 <img> —— 纯预览图兜底也要跳过 video 条目。
+  it('keeps video samples as previews with a still and a clip, never as recipes', async () => {
     mockFetch.mockResolvedValueOnce(
       jsonResponse({
         id: 4001,
         name: 'v1',
         images: [
           {
-            url: 'https://image.civitai.com/clip.mp4',
+            url: 'https://image.civitai.com/b/uuid-v/original=true/11.mp4',
             type: 'video',
+            width: 720,
+            height: 1280,
             nsfwLevel: 1,
-            meta: {},
+            // 视频带了 prompt 也只当预览：图片台没法拿它做同款。
+            meta: { prompt: 'a girl turns around' },
           },
           {
             url: 'https://image.civitai.com/still.jpeg',
@@ -501,7 +503,17 @@ describe('mineCivitaiUserPrompts', () => {
       modelVersionId: 4001,
     })
 
+    expect(result.recipes).toEqual([])
     expect(result.previewImages).toEqual([
+      {
+        imageUrl:
+          'https://image.civitai.com/b/uuid-v/anim=false,transcode=true,width=768,optimized=true/11.mp4',
+        videoUrl:
+          'https://image.civitai.com/b/uuid-v/transcode=true,width=450,optimized=true/11.mp4',
+        width: 720,
+        height: 1280,
+        nsfwLevel: 1,
+      },
       {
         imageUrl: 'https://image.civitai.com/still.jpeg',
         width: 512,

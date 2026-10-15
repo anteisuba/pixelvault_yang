@@ -17,6 +17,29 @@ describe('rewriteCivitaiImageUrl', () => {
     )
   })
 
+  it('transcodes a video into a still or a clip, and keeps that on later rewrites', () => {
+    const video = 'https://image.civitai.com/abc/uuid/original=true/111.mp4'
+    const still = rewriteCivitaiImageUrl(video, {
+      width: 450,
+      staticFrame: true,
+      transcode: true,
+    })
+    expect(still).toBe(
+      'https://image.civitai.com/abc/uuid/anim=false,transcode=true,width=450,optimized=true/111.mp4',
+    )
+    const clip = rewriteCivitaiImageUrl(video, { width: 450, transcode: true })
+    expect(clip).toBe(
+      'https://image.civitai.com/abc/uuid/transcode=true,width=450,optimized=true/111.mp4',
+    )
+    // 展示层只改宽度：静帧还是静帧，片段还是片段。
+    expect(rewriteCivitaiImageUrl(still, { width: 96 })).toBe(
+      'https://image.civitai.com/abc/uuid/anim=false,transcode=true,width=96,optimized=true/111.mp4',
+    )
+    expect(rewriteCivitaiImageUrl(clip, { width: 768 })).toBe(
+      'https://image.civitai.com/abc/uuid/transcode=true,width=768,optimized=true/111.mp4',
+    )
+  })
+
   it('rewrites existing width transform when present', () => {
     const input =
       'https://image.civitai.com/abc/uuid/width=450,optimized=true/file.jpg'

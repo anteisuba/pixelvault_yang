@@ -191,6 +191,35 @@ describe('listCivitaiLoras', () => {
     expect(item?.coverImageUrlOriginal).toContain('safe-uuid')
   })
 
+  it('covers a video sample with its still and carries the clip for the card', async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        rows: [
+          {
+            ...indexRow,
+            images: [
+              { id: 7, url: 'video-uuid', type: 'video', nsfwLevel: 1 },
+              { id: 8, url: 'image-uuid', nsfwLevel: 1 },
+            ],
+          },
+        ],
+        total: 1,
+        totalCapped: false,
+      }),
+    )
+
+    const [item] = (await listCivitaiLoras()).items
+
+    expect(item?.cardImageUrl).toContain(
+      '/video-uuid/anim=false,transcode=true,width=450,optimized=true/7.jpeg',
+    )
+    expect(item?.thumbImageUrl).toContain('anim=false,transcode=true,width=96')
+    expect(item?.cardVideoUrl).toContain(
+      '/video-uuid/transcode=true,width=450,optimized=true/7.jpeg',
+    )
+    expect(item?.previewImageUrls[1]).toContain('/image-uuid/width=768')
+  })
+
   it('fails loudly when the index is not configured', async () => {
     vi.stubEnv('CIVITAI_INDEX_URL', '')
 

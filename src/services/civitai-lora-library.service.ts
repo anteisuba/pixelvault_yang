@@ -208,6 +208,7 @@ function indexRowToLibraryItem(
     cardImageUrl: imageUrls.cardImageUrl,
     previewImageUrls: imageUrls.previewImageUrls,
     coverColor: imageUrls.coverColor,
+    cardVideoUrl: imageUrls.cardVideoUrl,
     defaultScale: 1,
     isPublic: true,
     isOwn: false,

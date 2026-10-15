@@ -79,14 +79,38 @@ export function buildCivitaiSearchImageOriginalUrl(image: {
   return `https://image.civitai.com/${CIVITAI_SEARCH_IMAGE_BUCKET}/${image.url}/original=true/${image.id}.jpeg`
 }
 
+/** 视频样例在网格卡与详情瀑布里播的片段宽度（450 宽约 0.85 MB / 5 秒，768 约 2.3 MB）。 */
+export const CIVITAI_CLIP_WIDTH = 450
+
 /**
- * 封面/来源图只能是静态图：Civitai 允许视频当封面，但 `<img>` 渲染不了
- * video/mp4（transform 段对视频不转码、`anim=false` 也照样回 video/mp4，
- * 2026-07-11 实测）。只有明确标 `type: 'video'` 才跳过——缺省视为 image，
- * 老响应/测试 fixture 不受影响。
+ * Civitai 样例可以是视频（mp4）：`<img>` 渲染不了，要转码成 JPEG 静帧
+ * （封面 / 缩略）或压缩片段（`<video>` 播）。只有明确标 `type: 'video'` 才
+ * 算视频——缺省视为图片，老响应 / 测试 fixture 不受影响。
  */
-export function isStaticCivitaiImage(image: { type?: string }): boolean {
-  return (image.type ?? 'image').toLowerCase() !== 'video'
+export function isCivitaiVideo(image: { type?: string | null }): boolean {
+  return (image.type ?? 'image').toLowerCase() === 'video'
+}
+
+/**
+ * 一张样例在 `width` 档的静态图：图片就是缩放；视频取 JPEG 静帧（CDN 对静帧
+ * 忽略宽度、总给全尺寸，2026-10-15 实测）。之后再按宽度改写会保留静帧。
+ */
+export function civitaiStillUrl(
+  url: string,
+  isVideo: boolean,
+  width: number,
+): string {
+  return isVideo
+    ? rewriteCivitaiImageUrl(url, { width, staticFrame: true, transcode: true })
+    : rewriteCivitaiImageUrl(url, { width })
+}
+
+/** 视频样例的压缩 mp4 片段。⛔ 走图片代理：它只放行 image/*（视频回 415）。 */
+export function civitaiClipUrl(
+  url: string,
+  width: number = CIVITAI_CLIP_WIDTH,
+): string {
+  return rewriteCivitaiImageUrl(url, { width, transcode: true })
 }
 
 export function inferLoraType(tags: string[], name: string): LoraAssetType {
@@ -116,6 +140,8 @@ export interface CivitaiItemImageUrls {
   cardImageUrl: string | null
   previewImageUrls: string[]
   coverColor: string | null
+  /** 封面是视频时网格卡播的片段；图片封面是 null。 */
+  cardVideoUrl: string | null
 }
 
 /**
@@ -127,19 +153,24 @@ export function buildCivitaiItemImageUrls(
   maxImageNsfwLevel: number,
 ): CivitaiItemImageUrls {
   const shown = images
-    .filter(
-      (image) =>
-        isStaticCivitaiImage(image) &&
-        (image.nsfwLevel ?? 1) <= maxImageNsfwLevel,
-    )
+    .filter((image) => (image.nsfwLevel ?? 1) <= maxImageNsfwLevel)
     .slice(0, CIVITAI_ITEM_MAX_IMAGES)
-  const originals = shown.map((image) =>
-    buildCivitaiSearchImageOriginalUrl(image),
-  )
+  // 视频的「原图」是全尺寸静帧（带 transcode，之后各档改宽度都还是静帧）。
+  const originals = shown.map((image) => {
+    const original = buildCivitaiSearchImageOriginalUrl(image)
+    return isCivitaiVideo(image)
+      ? civitaiStillUrl(original, true, CIVITAI_PREVIEW_WIDTH)
+      : original
+  })
+  const cover = shown[0]
 
   const coverOriginal = originals[0] ?? null
   return {
-    coverColor: blurhashAverageColor(shown[0]?.hash),
+    coverColor: blurhashAverageColor(cover?.hash),
+    cardVideoUrl:
+      cover && isCivitaiVideo(cover)
+        ? civitaiClipUrl(buildCivitaiSearchImageOriginalUrl(cover))
+        : null,
     coverImageUrlOriginal: coverOriginal,
     coverImageUrl: coverOriginal
       ? rewriteCivitaiImageUrl(coverOriginal, { width: CIVITAI_COVER_WIDTH })

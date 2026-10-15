@@ -23,8 +23,10 @@ import {
   CIVITAI_COVER_WIDTH,
   CIVITAI_PREVIEW_WIDTH,
   CIVITAI_THUMB_WIDTH,
+  civitaiClipUrl,
+  civitaiStillUrl,
   inferLoraType,
-  isStaticCivitaiImage,
+  isCivitaiVideo,
 } from '@/lib/civitai-library-item'
 import { cleanRecommendedPrompt } from '@/lib/lora-trigger-clean'
 import {
@@ -137,10 +139,9 @@ const CivitaiImageDimensionSchema = z.preprocess(
 const CivitaiImageSchema = z
   .object({
     url: z.string().url(),
-    // 'image' | 'video' — Civitai 允许视频当模型封面。<img> 渲染不了 video/mp4
-    // （transform 段对视频不转码、连 anim=false 也照样回 video/mp4，实测），
-    // 所以选封面时必须跳过 type=video 的条目。optional：老响应/fixture 不带
-    // type 时视为 image，不误伤。
+    // 'image' | 'video' — Civitai 允许视频当样例 / 封面，`url` 是 mp4。展示时
+    // 一律转码（civitaiStillUrl / civitaiClipUrl）。optional：老响应 / fixture
+    // 不带 type 时视为 image。
     type: z.string().optional(),
     width: CivitaiImageDimensionSchema,
     height: CivitaiImageDimensionSchema,
@@ -1146,21 +1147,18 @@ export async function fetchCivitaiVersionIdentifiers(
     : null
 
   // 回填的是用户已收藏的这把 LoRA 的封面（无三态语境）——放到 XXX 与
-  // toLibraryItem 的默认一致，否则 NSFW 收藏行永远补不回封面。视频封面
-  // 跳过（isStaticCivitaiImage 定义处有实测说明）。
-  const coverOriginal =
-    parsed.data.images?.find(
-      (image) =>
-        isStaticCivitaiImage(image) &&
-        (image.nsfwLevel ?? 1) <=
-          CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL_PERMISSIVE,
-    )?.url ?? null
+  // toLibraryItem 的默认一致，否则 NSFW 收藏行永远补不回封面。视频封面取静帧。
+  const cover = parsed.data.images?.find(
+    (image) =>
+      (image.nsfwLevel ?? 1) <=
+      CIVITAI_MODEL_VERSION_IMAGE_MAX_NSFW_LEVEL_PERMISSIVE,
+  )
 
   return {
     modelId: parsed.data.modelId ?? null,
     fileHashAutoV3,
-    coverImageUrl: coverOriginal
-      ? rewriteCivitaiImageUrl(coverOriginal, { width: CIVITAI_COVER_WIDTH })
+    coverImageUrl: cover
+      ? civitaiStillUrl(cover.url, isCivitaiVideo(cover), CIVITAI_COVER_WIDTH)
       : null,
   }
 }
@@ -1200,10 +1198,7 @@ function pickShownImages(
 ): z.infer<typeof CivitaiImageSchema>[] {
   return (
     version.images
-      ?.filter(
-        (image) =>
-          isStaticCivitaiImage(image) && (image.nsfwLevel ?? 1) <= maxNsfwLevel,
-      )
+      ?.filter((image) => (image.nsfwLevel ?? 1) <= maxNsfwLevel)
       .slice(0, 6) ?? []
   )
 }
@@ -1237,8 +1232,14 @@ function toLibraryItem(
 
   const tags = model.tags ?? []
   const shownImages = pickShownImages(version, maxImageNsfwLevel)
-  const originalImageUrls = shownImages.map((image) => image.url)
+  // 视频的「原图」是全尺寸静帧（带 transcode，之后各档改宽度都还是静帧）。
+  const originalImageUrls = shownImages.map((image) =>
+    isCivitaiVideo(image)
+      ? civitaiStillUrl(image.url, true, CIVITAI_PREVIEW_WIDTH)
+      : image.url,
+  )
   const coverOriginal = originalImageUrls[0] ?? null
+  const cover = shownImages[0]
   const previewImageUrls = originalImageUrls.map((url) =>
     rewriteCivitaiImageUrl(url, { width: CIVITAI_PREVIEW_WIDTH }),
   )
@@ -1298,7 +1299,9 @@ function toLibraryItem(
     thumbImageUrl,
     cardImageUrl,
     previewImageUrls,
-    coverColor: blurhashAverageColor(shownImages[0]?.hash),
+    coverColor: blurhashAverageColor(cover?.hash),
+    cardVideoUrl:
+      cover && isCivitaiVideo(cover) ? civitaiClipUrl(cover.url) : null,
     defaultScale: 1,
     isPublic: true,
     isOwn: false,
@@ -2013,8 +2016,19 @@ async function fetchModelVersionSourceRecipes(
     ) {
       continue
     }
-    // 视频条目进不了 <img> 缩略条（isStaticCivitaiImage 定义处有实测说明）。
-    if (!isStaticCivitaiImage(image)) continue
+    // 视频样例只当预览（静帧 + 片段）：图片台没法拿视频的配方「做同款」。
+    if (isCivitaiVideo(image)) {
+      if (image.url && previews.length < CIVITAI_IMAGES_RECIPE_CAP) {
+        previews.push({
+          imageUrl: civitaiStillUrl(image.url, true, CIVITAI_PREVIEW_WIDTH),
+          videoUrl: civitaiClipUrl(image.url),
+          width: image.width,
+          height: image.height,
+          nsfwLevel: image.nsfwLevel,
+        })
+      }
+      continue
+    }
     const rawPrompt = repairUtf8Mojibake(image.meta?.prompt ?? '')
     const prompt = cleanRecommendedPrompt(rawPrompt)
     if (!prompt) {
@@ -2355,8 +2369,8 @@ async function fetchCommunityImageRecipes(
   const recipes: CivitaiImageRecipe[] = []
   let consideredCount = 0
   for (const item of parsed.items) {
-    // 视频条目进不了 <img> 缩略条（isStaticCivitaiImage 定义处有实测说明）。
-    if (!isStaticCivitaiImage(item)) continue
+    // 社区图只挖文字配方：视频条目不挖（图片台没法拿它做同款）。
+    if (isCivitaiVideo(item)) continue
     // Civitai serves both `meta.{prompt,resources}` (single layer) and
     // `meta.meta.{prompt,resources}` (double-nested) depending on query
     // params. Try inner first, then outer — whichever has a non-empty

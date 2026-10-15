@@ -29,6 +29,7 @@ const TRANSFORM_KEYWORDS = [
   'fit=',
   'format=',
   'blur=',
+  'transcode=',
 ]
 
 export interface RewriteOptions {
@@ -43,6 +44,13 @@ export interface RewriteOptions {
    * 被回源成原图 4MB。仅在你确认源是 gif/webm 时显式传 true。
    */
   staticFrame?: boolean
+  /**
+   * 源是视频（Civitai 样例可以是 mp4）。带上 `transcode=true` 才转码：配
+   * `staticFrame` 出 JPEG 静帧，不配出压缩过的 mp4 片段；不带它视频原样回
+   * mp4（2026-10-15 实测）。⚠ 已经带 `transcode=true` 的 URL 再改写时这两样
+   * 都**保留**——静帧改个宽度还是静帧，片段还是片段，调用方不用知道源是什么。
+   */
+  transcode?: boolean
 }
 
 /**
@@ -83,8 +91,16 @@ export function rewriteCivitaiImageUrl(
     }
   }
 
+  const existing = transformIndex === -1 ? '' : (segments[transformIndex] ?? '')
+  const transcode =
+    options.transcode === true || existing.includes('transcode=true')
+  const staticFrame =
+    options.staticFrame === true ||
+    (transcode && existing.includes('anim=false'))
+
   const transformParts: string[] = []
-  if (options.staticFrame === true) transformParts.push('anim=false')
+  if (staticFrame) transformParts.push('anim=false')
+  if (transcode) transformParts.push('transcode=true')
   transformParts.push(`width=${options.width}`)
   if (options.optimized ?? true) transformParts.push('optimized=true')
   const transformSegment = transformParts.join(',')

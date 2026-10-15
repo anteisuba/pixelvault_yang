@@ -141,6 +141,8 @@ function createReplayDb() {
   }
   const state = {
     projectId: '',
+    /** 这位的那一段会话（长对话那一题带 `conversationId`）；空 = 库里没有会话。 */
+    conversationId: '',
     writes: [] as ReplayDbWrite[],
     turnRecords: [] as ReplayTurnRecordRow[],
   }
@@ -264,6 +266,16 @@ function createReplayDb() {
             state.writes.push({ model: '$raw', method: prop, args })
             return 0
           }
+        // 认会话那一句（`findConversationInWorkspace`）：只认这一题的那段、这一位的。
+        if (prop === '$queryRaw')
+          return async (query: unknown) =>
+            query instanceof Prisma.Sql &&
+            state.conversationId &&
+            query.sql.includes('FROM "AssistantConversation"') &&
+            query.values.includes(state.conversationId) &&
+            query.values.includes(REPLAY_USER.id)
+              ? [{ id: state.conversationId }]
+              : []
         if (prop.startsWith('$')) return async () => []
         return modelProxy(prop)
       },
@@ -279,10 +291,12 @@ function createReplayDb() {
       keys: readonly AI_ADAPTER_TYPES[]
       routeModel: string
       projectId: string
+      conversationId?: string
     }) {
       state.writes.length = 0
       state.turnRecords.length = 0
       state.projectId = setup.projectId
+      state.conversationId = setup.conversationId ?? ''
       keyStore.findFirst.mockReset()
       keyStore.findMany.mockReset()
       keyStore.personaFindUnique.mockReset()

@@ -11,6 +11,7 @@ import {
   ASSISTANT_TURN_RECORD_LIMITS,
 } from '@/constants/assistant-turn-record'
 import { ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS } from '@/constants/assistant-v3'
+import { splitAssistantV3History } from '@/lib/assistant-v3-history'
 import { carriedWebFinds } from '@/lib/assistant-web-finds'
 import type {
   AssistantOperatorRequest,
@@ -73,6 +74,31 @@ function openingFinds(transcript: AssistantV3Transcript): AssistantWebFind[] {
 }
 
 /**
+ * 对话存模型这一轮看见的那几条（P2 第三片：开轮板子上的 `history.turns`，从创作者这一句往前数几轮）
+ * 再加这一句，原样（带 `answered` 那些格）；窗口外的不存 —— 那几轮在摘要里（系统提示的 sha256 认它，
+ * 板子上的 `history.summary` 是原样）。板子上没有 `history` 的老记录照旧取最后几条。
+ */
+function shownMessages(
+  request: AssistantOperatorRequest,
+  transcript: AssistantV3Transcript,
+): AssistantOperatorRequest['messages'] {
+  const lastUser = request.messages.findLastIndex(
+    (message) => message.role === 'user',
+  )
+  const opening = transcript[0]
+  const shown =
+    opening?.type === ENTRY.board ? opening.history?.turns : undefined
+  let from = 0
+  if (shown !== undefined && lastUser >= 0) {
+    const { turns } = splitAssistantV3History(request.messages)
+    from = shown === 0 ? lastUser : (turns[turns.length - shown]?.index ?? 0)
+  }
+  return request.messages
+    .slice(from, lastUser >= 0 ? lastUser + 1 : request.messages.length)
+    .slice(-LIMITS.maxMessages)
+}
+
+/**
  * 请求里回放要用的那几样。对话只留到创作者最后那一句（v3 发给模型的也只到那一句），
  * 片子只记地址与帧数，上一轮找到的东西取开轮板子上那一份，data: 地址一律摘掉。
  */
@@ -80,12 +106,7 @@ export function turnRecordInput(
   request: AssistantOperatorRequest,
   transcript: AssistantV3Transcript,
 ): AssistantTurnRecordInput {
-  const lastUser = request.messages.findLastIndex(
-    (message) => message.role === 'user',
-  )
-  const messages = request.messages
-    .slice(0, lastUser >= 0 ? lastUser + 1 : request.messages.length)
-    .slice(-LIMITS.maxMessages)
+  const messages = shownMessages(request, transcript)
   const priorFinds = openingFinds(transcript)
   const input: AssistantTurnRecordInput = {
     messages,

@@ -280,6 +280,8 @@ export async function runReplayTurn(
   testCase: ReplayCase,
   board: ReplayBoard,
   post: ReplayPost,
+  /** 前端每一跳都带的会话 id（长对话那一题：摘要按会话存）。 */
+  session: { conversationId?: string } = {},
 ): Promise<ReplayRun> {
   const initial = board.state
   const canvas = { state: initial }
@@ -396,6 +398,9 @@ export async function runReplayTurn(
       ...(videoClips.length ? { videoClips } : {}),
       ...(hop > 0 ? { planApproved: true } : {}),
       responseLanguage: turn.responseLanguage,
+      ...(session.conversationId
+        ? { conversationId: session.conversationId }
+        : {}),
       ...(transcript ? { v3: { transcript } } : {}),
     }
     requests.push(request)

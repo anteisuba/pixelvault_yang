@@ -105,6 +105,11 @@ export function createReplayNetwork(script: {
   readonly textReplies: readonly string[]
   readonly search: readonly ReplaySearch[]
   readonly assetHost: string
+  /**
+   * 辅助文本调用先问它（回 `undefined` 才按 `textReplies` 的顺序答）：长对话那一题拿它当「写摘要的
+   * 模型」，按请求里的原料现写一份 —— 录死的回复对不上每次滑出去的是哪几轮。
+   */
+  readonly answerText?: (request: ProviderRequest) => string | undefined
 }): ReplayNetwork {
   const modelCalls: RecordedModelCall[] = []
   const assetFetches: string[] = []
@@ -155,8 +160,9 @@ export function createReplayNetwork(script: {
       searchIndex += 1
       return Response.json(encodeSearch(request, search))
     }
-    const reply = script.textReplies[textIndex] ?? EMPTY_TEXT_REPLY
-    textIndex += 1
+    const answered = script.answerText?.(request)
+    const reply = answered ?? script.textReplies[textIndex] ?? EMPTY_TEXT_REPLY
+    if (answered === undefined) textIndex += 1
     return request.stream
       ? new Response(
           encodeStream(request, { text: reply, calls: [] }, `t${textIndex}`),

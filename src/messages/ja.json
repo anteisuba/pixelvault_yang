@@ -8800,7 +8800,9 @@
       "label": "モード",
       "work": "作業",
       "chat": "チャット",
-      "pickCharacter": "話す相手"
+      "pickCharacter": "話す相手",
+      "toChat": "チャットに切替 · {name}と",
+      "toWork": "作業に戻る"
     }
   },
   "GenerationCancel": {

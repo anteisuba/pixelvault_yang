@@ -231,9 +231,10 @@ export interface StudioOperatorState {
    */
   offTheRecord: boolean
   /**
-   * **聊天模式**（附录L）：这段会话是和哪个角色聊；`null` = 工作会话。
-   * ⭐ 跟着会话走：新会话时定下、载入历史时从会话上读回，同一段会话不切。
-   * 每轮上送 `chatCharacterId`，服务端按这张卡扮演；保存时盖在会话首条消息上。
+   * **聊天模式**（附录L）：此刻是和哪个角色聊；`null` = 工作模式。
+   * ⭐ 同一段对话里能切（owner 2026-10-16，`switchOperatorChatMode`，切的地方留 `chatMark`）；
+   * 载入历史时从会话上读回最后那个模式。每轮上送 `chatCharacterId`，服务端按这张卡扮演；
+   * 保存时盖在会话首条消息上（= 最后的模式）。
    */
   chatCharacter: StudioOperatorChatCharacter | null
   /**
@@ -1589,6 +1590,38 @@ export async function saveOperatorChatUserRole(text: string): Promise<boolean> {
   if (result.success) return true
   withRole(previous)
   return false
+}
+
+/**
+ * 头部「工作 / 聊天」切换（owner 2026-10-16：只是模式切换，记录不变）：同一段对话里换成和
+ * `character` 聊，`null` = 回到工作。时间线里落一条切模式标记（会存、刷新后还在、模型也读得到）；
+ * 还空着的对话只换模式不落标记。跑着的时候不切（这一轮按哪种模式答已经定了）。
+ */
+export function switchOperatorChatMode(
+  character: StudioOperatorChatCharacter | null,
+): boolean {
+  if (state.status === 'working') return false
+  if ((state.chatCharacter?.id ?? null) === (character?.id ?? null))
+    return false
+  const empty = state.entries.length === 0 && state.history.length === 0
+  emit({
+    ...state,
+    chatCharacter: character,
+    regeneration: null,
+    entries: empty
+      ? state.entries
+      : [
+          ...state.entries,
+          {
+            kind: 'chatMark',
+            id: nextOperatorEntryId('chat-mark'),
+            character: character
+              ? { id: character.id, name: character.name }
+              : null,
+          },
+        ],
+  })
+  return true
 }
 
 /**

@@ -558,12 +558,9 @@ export function StudioOperatorHeader({
         {/* 标题药丸 hug 之后靠这一格把右上三颗推到右边（⛔ 不靠 `flex-1` 撑标题）。 */}
         <span className="flex-1" />
 
-        {/* ── 工作 / 聊天切换（owner 2026-10-16）：换到哪一段会话的唯一入口。 */}
+        {/* ── 工作 / 聊天切换（owner 2026-10-16）：同一段对话里换模式，记录不变。 */}
         <StudioOperatorModeSwitch
-          chatCharacter={chatCharacter}
-          history={history}
           disabled={working || Boolean(history.loadingSessionId)}
-          onNewThread={onNewThread}
         />
 
         {/* ── 右上**一颗 ⋯**（D7b ④ · 画板 `DesignD7bToggle` 的「⋯ 菜单」）────

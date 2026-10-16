@@ -8800,7 +8800,9 @@
       "label": "Mode",
       "work": "Work",
       "chat": "Chat",
-      "pickCharacter": "Chat with"
+      "pickCharacter": "Chat with",
+      "toChat": "Switched to chat · with {name}",
+      "toWork": "Back to work"
     }
   },
   "GenerationCancel": {

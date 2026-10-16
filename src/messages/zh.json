@@ -8800,7 +8800,9 @@
       "label": "模式",
       "work": "工作",
       "chat": "聊天",
-      "pickCharacter": "和谁聊"
+      "pickCharacter": "和谁聊",
+      "toChat": "切到聊天 · 和 {name}",
+      "toWork": "回到工作"
     }
   },
   "GenerationCancel": {

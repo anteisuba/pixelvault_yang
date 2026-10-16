@@ -1,15 +1,19 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
+import {
+  appendOperatorEntry,
+  getOperatorState,
+  resetOperatorThread,
+} from '@/hooks/use-studio-operator-store'
 import { StudioOperatorModeSwitch } from '@/components/business/studio/assistant-operator/StudioOperatorModeSwitch'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
-const RIN = { id: 'card-rin', name: 'Rin' }
-const MIO = { id: 'card-mio', name: 'Mio' }
+const RIN = { id: 'card-rin', name: 'Rin', userRole: '常来的熟客' }
+const MIO = { id: 'card-mio', name: 'Mio', userRole: '' }
 
 vi.mock('@/hooks/use-chat-characters', () => ({
   useChatCharacters: () => ({
@@ -21,80 +25,80 @@ vi.mock('@/hooks/use-chat-characters', () => ({
   }),
 }))
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  act(() => resetOperatorThread())
+})
 
-function session(
-  id: string,
-  chatCharacter: { id: string; name: string } | null,
-) {
-  return {
-    id,
-    chatCharacter,
-  } as UseStudioOperatorHistoryResult['sessions'][number]
+function startWorkThread() {
+  act(() => {
+    resetOperatorThread()
+    appendOperatorEntry({
+      kind: 'user',
+      id: 'u-1',
+      text: '帮我找制服参考',
+      attachments: [],
+    })
+  })
 }
 
-function renderSwitch(
-  chatCharacter: { id: string; name: string } | null,
-  sessions: UseStudioOperatorHistoryResult['sessions'],
-) {
-  const history = {
-    sessions,
-    selectSession: vi.fn(),
-    refreshSessions: vi.fn(),
-  } as unknown as UseStudioOperatorHistoryResult
-  const onNewThread = vi.fn()
-  render(
-    <StudioOperatorModeSwitch
-      chatCharacter={chatCharacter}
-      history={history}
-      disabled={false}
-      onNewThread={onNewThread}
-    />,
-  )
-  return { history, onNewThread }
+function marks() {
+  return getOperatorState().entries.filter((entry) => entry.kind === 'chatMark')
 }
 
 describe('StudioOperatorModeSwitch', () => {
-  it('工作里点「聊天」选角色：和她聊过就回到最近那段，没聊过就新开一段', () => {
-    const { history, onNewThread } = renderSwitch(null, [
-      session('work-1', null),
-      session('rin-1', RIN),
-    ])
+  it('⭐ 同一段对话里切：先选角色，记录不换，切的地方留一条标记', () => {
+    startWorkThread()
+    render(<StudioOperatorModeSwitch disabled={false} />)
     expect(
       screen.getByTestId('operator-mode-work').getAttribute('aria-pressed'),
     ).toBe('true')
+
+    // 没聊过谁：点「聊天」先弹列表。
     fireEvent.click(screen.getByTestId('operator-mode-chat'))
-    expect(history.refreshSessions).toHaveBeenCalledWith(true)
     fireEvent.click(screen.getByText('Rin'))
-    expect(history.selectSession).toHaveBeenCalledWith(session('rin-1', RIN))
-    expect(onNewThread).not.toHaveBeenCalled()
+    expect(getOperatorState().chatCharacter).toEqual(RIN)
+    expect(getOperatorState().entries[0]).toMatchObject({ id: 'u-1' })
+    expect(marks()).toEqual([
+      expect.objectContaining({ character: { id: RIN.id, name: 'Rin' } }),
+    ])
+
+    fireEvent.click(screen.getByTestId('operator-mode-work'))
+    expect(getOperatorState().chatCharacter).toBeNull()
+    expect(marks().at(-1)).toMatchObject({ character: null })
+
+    // 聊过 Rin：再点「聊天」直接接着和她聊，带着卡上的身份。
+    fireEvent.click(screen.getByTestId('operator-mode-chat'))
+    expect(getOperatorState().chatCharacter).toEqual(RIN)
+    expect(screen.queryByTestId('operator-mode-characters')).toBeNull()
+    expect(marks()).toHaveLength(3)
+  })
+
+  it('在聊天里再点「聊天」弹列表换个人；点同一个人什么都不做', () => {
+    startWorkThread()
+    render(<StudioOperatorModeSwitch disabled={false} />)
+    fireEvent.click(screen.getByTestId('operator-mode-chat'))
+    fireEvent.click(screen.getByText('Rin'))
+
+    fireEvent.click(screen.getByTestId('operator-mode-chat'))
+    fireEvent.click(screen.getByText('Rin'))
+    expect(marks()).toHaveLength(1)
 
     fireEvent.click(screen.getByTestId('operator-mode-chat'))
     fireEvent.click(screen.getByText('Mio'))
-    expect(onNewThread).toHaveBeenCalledWith({ character: MIO, opening: '' })
+    expect(getOperatorState().chatCharacter).toEqual(MIO)
+    expect(marks().at(-1)).toMatchObject({
+      character: { id: MIO.id, name: 'Mio' },
+    })
   })
 
-  it('聊天里点「工作」：回到最近那段工作会话；没有就新开一段', () => {
-    const first = renderSwitch(RIN, [
-      session('rin-1', RIN),
-      session('work-1', null),
-      session('work-2', null),
-    ])
+  it('还空着的对话只换模式不留标记；工作里再点「工作」什么都不做', () => {
+    act(() => resetOperatorThread())
+    render(<StudioOperatorModeSwitch disabled={false} />)
     fireEvent.click(screen.getByTestId('operator-mode-work'))
-    expect(first.history.selectSession).toHaveBeenCalledWith(
-      session('work-1', null),
-    )
-    cleanup()
-
-    const second = renderSwitch(RIN, [session('rin-1', RIN)])
-    fireEvent.click(screen.getByTestId('operator-mode-work'))
-    expect(second.onNewThread).toHaveBeenCalledWith()
-  })
-
-  it('工作里再点「工作」什么都不做', () => {
-    const { history, onNewThread } = renderSwitch(null, [session('w', null)])
-    fireEvent.click(screen.getByTestId('operator-mode-work'))
-    expect(history.selectSession).not.toHaveBeenCalled()
-    expect(onNewThread).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByTestId('operator-mode-chat'))
+    fireEvent.click(screen.getByText('Mio'))
+    expect(getOperatorState().chatCharacter).toEqual(MIO)
+    expect(marks()).toHaveLength(0)
   })
 })

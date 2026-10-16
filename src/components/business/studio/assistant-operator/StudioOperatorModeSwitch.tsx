@@ -9,57 +9,53 @@ import {
   ResponsivePopoverTrigger,
 } from '@/components/ui/responsive-popover'
 import { useChatCharacters } from '@/hooks/use-chat-characters'
-import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
-import type {
-  StudioOperatorChatCharacter,
-  StudioOperatorChatRequest,
+import {
+  switchOperatorChatMode,
+  useStudioOperatorState,
+  type StudioOperatorChatCharacter,
+  type StudioOperatorState,
 } from '@/hooks/use-studio-operator-store'
 import { cn } from '@/lib/utils'
-
-interface StudioOperatorModeSwitchProps {
-  /** 当前会话和谁聊；`null` = 工作模式。 */
-  chatCharacter: StudioOperatorChatCharacter | null
-  history: UseStudioOperatorHistoryResult
-  disabled: boolean
-  onNewThread(chat?: StudioOperatorChatRequest): void
-}
 
 const SEGMENT_CLASS =
   'rounded-sm px-2 py-0.5 text-2sm transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 coarse:min-h-11 motion-reduce:transition-none'
 
-/**
- * 头部「工作 / 聊天」切换（附录L，owner 2026-10-16：模式切换做成头部一个按钮）。
- * 模式仍跟着会话走（同一段不切）—— 这颗按钮只是「换到哪一段」的入口：
- *  - 点「工作」：回到最近那段工作会话；没有就新开一段。
- *  - 点「聊天」：弹出角色列表，选谁就回到和她最近那段；没聊过就新开一段（带开场白）。
- * 在聊天里再点「聊天」= 换个角色聊。
- */
-export function StudioOperatorModeSwitch({
-  chatCharacter,
-  history,
-  disabled,
-  onNewThread,
-}: StudioOperatorModeSwitchProps) {
-  const t = useTranslations('StudioOperator')
-  const [pickerOpen, setPickerOpen] = useState(false)
-  const chatCharacters = useChatCharacters(pickerOpen)
-  const inChat = chatCharacter !== null
-
-  const goWork = () => {
-    if (!inChat) return
-    const latest = history.sessions.find((session) => !session.chatCharacter)
-    if (latest) history.selectSession(latest)
-    else onNewThread()
+/** 这段对话上一次和谁聊（现在就在聊 = 她；否则翻切模式标记，先实时线程后历史）。 */
+function lastChatCharacter(
+  state: Pick<StudioOperatorState, 'chatCharacter' | 'entries' | 'history'>,
+): { id: string; name: string } | null {
+  if (state.chatCharacter) return state.chatCharacter
+  for (const entry of [...state.entries].reverse()) {
+    if (entry.kind === 'chatMark' && entry.character) return entry.character
   }
+  for (const entry of [...state.history].reverse()) {
+    if (entry.kind === 'chatMark' && entry.characterId && entry.characterName)
+      return { id: entry.characterId, name: entry.characterName }
+  }
+  return null
+}
 
-  const goChat = (chat: StudioOperatorChatRequest) => {
-    setPickerOpen(false)
-    if (chat.character.id === chatCharacter?.id) return
-    const latest = history.sessions.find(
-      (session) => session.chatCharacter?.id === chat.character.id,
-    )
-    if (latest) history.selectSession(latest)
-    else onNewThread(chat)
+/**
+ * 头部「工作 / 聊天」切换（owner 2026-10-16：只是模式切换，记录不变）。
+ *  - 点「工作」：这段对话换回工作模式。
+ *  - 点「聊天」：这段对话里聊过谁就接着和她聊；没聊过就弹角色列表先选。
+ *  - 已经在聊天里再点「聊天」：弹列表换个人。
+ * 切的地方时间线里留一条细线（`chatMark`，见 `switchOperatorChatMode`）。
+ */
+export function StudioOperatorModeSwitch({ disabled }: { disabled: boolean }) {
+  const t = useTranslations('StudioOperator')
+  const state = useStudioOperatorState()
+  const [pickerOpen, setPickerOpen] = useState(false)
+  // 角色列表一进面板就取：接着和她聊时要卡上的「你在故事里是谁」，切模式标记里只有名字。
+  const chatCharacters = useChatCharacters(true)
+  const inChat = state.chatCharacter !== null
+  const remembered = lastChatCharacter(state)
+
+  const switchTo = (character: StudioOperatorChatCharacter) => {
+    const full = chatCharacters.characters.find(
+      (chat) => chat.character.id === character.id,
+    )?.character
+    switchOperatorChatMode(full ?? character)
   }
 
   return (
@@ -74,7 +70,7 @@ export function StudioOperatorModeSwitch({
         data-testid="operator-mode-work"
         aria-pressed={!inChat}
         disabled={disabled}
-        onClick={goWork}
+        onClick={() => switchOperatorChatMode(null)}
         className={cn(
           SEGMENT_CLASS,
           inChat
@@ -87,7 +83,10 @@ export function StudioOperatorModeSwitch({
       <ResponsivePopover
         open={pickerOpen}
         onOpenChange={(next) => {
-          if (next) history.refreshSessions(true)
+          if (next && !inChat && remembered) {
+            switchTo(remembered)
+            return
+          }
           setPickerOpen(next)
         }}
       >
@@ -127,13 +126,16 @@ export function StudioOperatorModeSwitch({
           ) : (
             <ul data-testid="operator-mode-characters">
               {chatCharacters.characters.map((chat) => {
-                const current = chat.character.id === chatCharacter?.id
+                const current = chat.character.id === state.chatCharacter?.id
                 return (
                   <li key={chat.character.id}>
                     <button
                       type="button"
                       aria-current={current ? 'true' : undefined}
-                      onClick={() => goChat(chat)}
+                      onClick={() => {
+                        setPickerOpen(false)
+                        switchOperatorChatMode(chat.character)
+                      }}
                       className={cn(
                         'flex w-full min-w-0 items-center rounded-md px-2 py-1.5 text-left text-sm transition-colors duration-fast hover:bg-surface-fill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring coarse:min-h-11',
                         current && 'font-medium',

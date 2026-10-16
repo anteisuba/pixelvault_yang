@@ -155,6 +155,22 @@ export const StudioOperatorHistoryEntrySchema = z.discriminatedUnion('kind', [
     id: HistoryIdSchema,
     domain: z.enum(ASSISTANT_OPERATOR_DOMAINS),
   }),
+  /**
+   * 切模式标记（owner 2026-10-16：同一段对话里切「工作 / 聊天」）。落库的理由同 `domainMark`：
+   * 会话首条上的 `chatCharacterId` 只记得**最后**是什么模式，中间哪段是聊天只在这些条目里。
+   * 缺 `characterId` = 回到工作。
+   */
+  z.object({
+    kind: z.literal('chatMark'),
+    id: HistoryIdSchema,
+    characterId: z.string().uuid().optional(),
+    characterName: z
+      .string()
+      .trim()
+      .min(1)
+      .max(LIMITS.maxTitleChars)
+      .optional(),
+  }),
 ])
 
 /**

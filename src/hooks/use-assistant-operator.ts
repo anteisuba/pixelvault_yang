@@ -172,6 +172,7 @@ import {
   describeContextCardProposalText,
   clampPlanAnswer,
   describeLoraSetupDecisionText,
+  describeChatModeSwitch,
   historyToOperatorMessages,
   historyToPriorSteps,
   readOperatorReferenceProfiles,
@@ -297,6 +298,11 @@ function buildMessages(
         role: 'assistant',
         content:
           '[Workspace event: the creator restored a configuration checkpoint. Use the current form snapshot; earlier tool settings are historical.]',
+      })
+    } else if (entry.kind === 'chatMark') {
+      messages.push({
+        role: 'assistant',
+        content: describeChatModeSwitch(entry.character?.name ?? null),
       })
     }
   }

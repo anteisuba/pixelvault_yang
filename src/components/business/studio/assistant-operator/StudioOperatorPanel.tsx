@@ -118,6 +118,7 @@ import {
 } from '@/components/business/studio/assistant-operator/StudioOperatorChangedCards'
 import { StudioOperatorChatLine } from '@/components/business/studio/assistant-operator/StudioOperatorChatLine'
 import { StudioOperatorHistoryItem } from '@/components/business/studio/assistant-operator/StudioOperatorHistoryItem'
+import { StudioOperatorChatMark } from '@/components/business/studio/assistant-operator/StudioOperatorChatMark'
 import { StudioOperatorLogItem } from '@/components/business/studio/assistant-operator/StudioOperatorLogItem'
 import { StudioOperatorWebCandidateGrid } from '@/components/business/studio/assistant-operator/StudioOperatorWebCandidateGrid'
 import { StudioOperatorWebVideoRow } from '@/components/business/studio/assistant-operator/StudioOperatorWebVideoRow'
@@ -2255,6 +2256,15 @@ export function StudioOperatorPanel({
         ) : null
       case 'domainMark':
         return null
+      case 'chatMark':
+        return (
+          <StudioOperatorTimelineRow
+            key={entry.id}
+            card={STUDIO_OPERATOR_CARD_KINDS.system}
+          >
+            <StudioOperatorChatMark name={entry.character?.name ?? null} />
+          </StudioOperatorTimelineRow>
+        )
     }
   }
 

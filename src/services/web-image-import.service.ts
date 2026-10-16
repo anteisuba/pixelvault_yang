@@ -208,9 +208,13 @@ export async function importWebImage(
    * 按「每次都会打一个站外域名」定的）。落库前还会再查一次 —— 两条路几乎同时
    * 出发时，那几秒的网络往返正是它们互相看不见的窗口。
    */
+  /**
+   * ⚠ 只按这张图自己的地址认，⛔ 不带 `input.pageUrl`（2026-10-16 owner：「选用」只能挂一张）：
+   *   同一页上的几张图（一篇多图的 pixiv、一条四图的 X）页面地址相同，带上它，第二张就被认成
+   *   第一张、复用了第一张。用户粘网页地址时那个地址就是 `sourceUrl`，照样认得出。
+   */
   const existing = await findImportedGenerationBySourceUrl(dbUser.id, [
     sourceUrl,
-    ...(input.pageUrl ? [input.pageUrl] : []),
   ])
   if (existing) {
     logger.info('web image import reused existing asset', {
@@ -319,7 +323,6 @@ export async function importWebImage(
   const raced = await findImportedGenerationBySourceUrl(dbUser.id, [
     sourceUrl,
     imageUrl,
-    ...(input.pageUrl ? [input.pageUrl] : []),
   ])
   if (raced) {
     logger.info('web image import reused existing asset', {

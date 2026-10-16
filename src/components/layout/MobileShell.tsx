@@ -12,8 +12,7 @@ import { useTranslations } from 'next-intl'
 
 import {
   MOBILE_CREATE_LONG_PRESS_MS,
-  MOBILE_TABS_LEFT,
-  MOBILE_TABS_RIGHT,
+  MOBILE_TABS,
   SHELL_NAV_TOOLS,
   activeShellTool,
   isShellNavItemActive,
@@ -47,8 +46,9 @@ import { cn } from '@/lib/utils'
  * 手机（<768）的导航壳 —— 方向 P3「底栏」（owner 2026-10-07 选 P3，2026-10-09
  * 手机稿 v10 定稿，`docs/references/pages/app-shell.md` §6）。
  *
- * - **页面上**：底栏 `素材 · 画廊 · ＋ · 角色 · 我的`。＋ 点开是新建面板（顶上一句话
- *   出图 + 六个工具，上次用的那个标「上次」），长按 ＋ 直接进上次的工具。
+ * - **页面上**：浮起的胶囊底栏 `素材 · 画廊 · 角色 · 我的` + 右边一颗黑圆 ＋（手机 iOS 稿，
+ *   owner 2026-10-16 选 B）。＋ 点开是新建面板（顶上一句话出图 + 3×2 六个工具，上次用的
+ *   那个标「上次」），长按 ＋ 直接进上次的工具。
  * - **工作台里**（`/studio/**`）：底栏收起，顶上一条 `← · 图片 ▾ · （助手）`。
  *   ← 回到进来之前那一页；中间就地换工具；右端那一格留给助手头像（它自己 fixed 上来）。
  *
@@ -58,7 +58,7 @@ import { cn } from '@/lib/utils'
  */
 
 const TAB_CLASS =
-  'flex min-w-0 flex-col items-center justify-center gap-0.5 text-2xs font-medium text-muted-foreground transition-colors duration-fast ease-standard [&>svg]:size-6'
+  'flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-full text-2xs font-medium text-muted-foreground transition-colors duration-fast ease-standard active:bg-muted [&>svg]:size-5.5'
 
 function MobileTab({
   item,
@@ -78,7 +78,10 @@ function MobileTab({
     <Link
       href={item.href}
       aria-current={isActive ? 'page' : undefined}
-      className={cn(TAB_CLASS, isActive && 'font-semibold text-foreground')}
+      className={cn(
+        TAB_CLASS,
+        isActive && 'bg-muted font-semibold text-foreground',
+      )}
     >
       <Icon />
       <span className="max-w-full truncate">{label}</span>
@@ -143,7 +146,7 @@ function CreatePanel({
         onKeyDown={(event) => {
           if (event.key === 'Escape') onClose()
         }}
-        className="fixed inset-x-3 bottom-mobile-tabbar z-40 mb-2 origin-bottom rounded-2xl border border-border bg-popover p-2 text-popover-foreground shadow-overlay lg:hidden"
+        className="fixed inset-x-3 bottom-mobile-tabbar z-40 mb-2 origin-bottom-right rounded-2xl border border-border bg-popover p-2 text-popover-foreground shadow-overlay lg:hidden"
       >
         <form
           onSubmit={submit}
@@ -168,7 +171,7 @@ function CreatePanel({
           </button>
         </form>
 
-        <ul className="mt-1.5 flex flex-col">
+        <ul className="mt-2 grid grid-cols-3 gap-1">
           {SHELL_NAV_TOOLS.map((item) => {
             const Icon = item.icon
             const isActive = isShellNavItemActive(item, pathname)
@@ -178,14 +181,14 @@ function CreatePanel({
                   href={item.href}
                   onClick={onClose}
                   aria-current={isActive ? 'page' : undefined}
-                  className="flex h-11 items-center gap-3 rounded-xl px-3 text-sm text-foreground transition-colors duration-fast ease-standard active:bg-muted"
+                  className="relative flex h-19 flex-col items-center justify-center gap-1.5 rounded-xl text-xs text-foreground transition-colors duration-fast ease-standard active:bg-muted aria-[current=page]:bg-muted"
                 >
-                  <Icon className="size-5 shrink-0 text-muted-foreground" />
-                  <span className="min-w-0 flex-1 truncate">
+                  <Icon className="size-6 shrink-0" />
+                  <span className="max-w-full truncate px-1">
                     {t(item.labelKey)}
                   </span>
                   {item.id === lastToolId ? (
-                    <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-2xs font-medium text-muted-foreground">
+                    <span className="absolute right-1.5 top-1.5 rounded-full bg-muted px-1.5 text-3xs font-medium text-muted-foreground">
                       {tMobile('last')}
                     </span>
                   ) : null}
@@ -257,51 +260,18 @@ function MobileTabBar({ pathname }: { pathname: string }) {
       <nav
         ref={barRef}
         aria-label={tMobile('tabs.label')}
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-border pb-safe-inset-bottom pt-1.5 surface-glass lg:hidden"
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 px-4 pb-safe-inset-bottom lg:hidden"
       >
-        <div className="relative">
+        {/* iOS 26 式浮起的胶囊：四个去处；＋ 是旁边单独一颗黑圆键（iOS 稿 B）。 */}
+        <div className="pointer-events-auto relative mb-2 h-15 min-w-0 flex-1 rounded-full border border-border p-1 shadow-overlay surface-glass">
           <div
             inert={lent}
             className={cn(
-              'grid h-13 grid-cols-5 items-stretch transition-[opacity,filter] duration-fast ease-standard motion-reduce:transition-none',
+              'grid h-full grid-cols-4 items-stretch transition-[opacity,filter] duration-fast ease-standard motion-reduce:transition-none',
               lent && 'pointer-events-none opacity-0 blur-xs',
             )}
           >
-            {MOBILE_TABS_LEFT.map((item) => (
-              <MobileTab key={item.id} item={item} pathname={pathname} />
-            ))}
-            <div className="flex items-start justify-center">
-              <button
-                type="button"
-                aria-label={open ? tMobile('close') : tMobile('create')}
-                aria-expanded={open}
-                aria-haspopup="dialog"
-                onPointerDown={startPress}
-                onPointerUp={cancelPress}
-                onPointerLeave={cancelPress}
-                onPointerCancel={cancelPress}
-                onContextMenu={(event) => event.preventDefault()}
-                onClick={() => {
-                  if (longPressed.current) {
-                    longPressed.current = false
-                    return
-                  }
-                  setOpen(!open)
-                }}
-                className="flex size-13 -translate-y-2.5 select-none items-center justify-center rounded-2xl bg-foreground text-background shadow-overlay transition-transform duration-fast ease-standard active:scale-95"
-              >
-                {/* ＋ 转 45° 就是 ×：同一个元素变形，不换图标。 */}
-                <motion.span
-                  aria-hidden
-                  animate={{ rotate: open ? 45 : 0 }}
-                  transition={springTransition('slot', reduceMotion)}
-                  className="flex"
-                >
-                  <Plus className="size-6" />
-                </motion.span>
-              </button>
-            </div>
-            {MOBILE_TABS_RIGHT.map((item) => (
+            {MOBILE_TABS.map((item) => (
               <MobileTab key={item.id} item={item} pathname={pathname} />
             ))}
           </div>
@@ -313,6 +283,35 @@ function MobileTabBar({ pathname }: { pathname: string }) {
             )}
           />
         </div>
+        <button
+          type="button"
+          aria-label={open ? tMobile('close') : tMobile('create')}
+          aria-expanded={open}
+          aria-haspopup="dialog"
+          onPointerDown={startPress}
+          onPointerUp={cancelPress}
+          onPointerLeave={cancelPress}
+          onPointerCancel={cancelPress}
+          onContextMenu={(event) => event.preventDefault()}
+          onClick={() => {
+            if (longPressed.current) {
+              longPressed.current = false
+              return
+            }
+            setOpen(!open)
+          }}
+          className="pointer-events-auto mb-2 flex size-15 shrink-0 select-none items-center justify-center rounded-full bg-foreground text-background shadow-overlay transition-transform duration-fast ease-standard active:scale-95"
+        >
+          {/* ＋ 转 45° 就是 ×：同一个元素变形，不换图标。 */}
+          <motion.span
+            aria-hidden
+            animate={{ rotate: open ? 45 : 0 }}
+            transition={springTransition('slot', reduceMotion)}
+            className="flex"
+          >
+            <Plus className="size-6" />
+          </motion.span>
+        </button>
       </nav>
     </>
   )

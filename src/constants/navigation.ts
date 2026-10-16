@@ -153,14 +153,11 @@ export const SHELL_NAV_SECTIONS: readonly ShellNavSection[] = [
 ] as const
 
 /**
- * 手机底栏（<768，owner 2026-10-07 选 P3、10-09 v10 定稿）：
- * `素材 · 画廊 · ＋ · 角色 · 我的`，默认进素材。＋ 是 `SHELL_NAV_TOOLS` 那一组。
+ * 手机底栏（<768）：浮起的胶囊 `素材 · 画廊 · 角色 · 我的` + 旁边一颗黑圆 ＋
+ * （iOS 稿，owner 2026-10-16 选 B），默认进素材。＋ 是 `SHELL_NAV_TOOLS` 那一组。
  * 条目从「去处」那份清单里按 id 取，⛔ 不另抄一份；提示词收进「我的」，不上底栏。
  */
-export const MOBILE_TAB_IDS = {
-  left: ['assets', 'gallery'],
-  right: ['cards', 'profile'],
-} as const
+export const MOBILE_TAB_IDS = ['assets', 'gallery', 'cards', 'profile'] as const
 
 function pickGoItems(ids: readonly string[]): readonly ShellNavItem[] {
   return ids.flatMap((id) => SHELL_NAV_GO.filter((item) => item.id === id))
@@ -173,8 +170,7 @@ export const MOBILE_NAV_RETURN_STORAGE_KEY = 'pv:mobile-nav:return'
 /** 长按 ＋ 多久算长按（直接进上次的工具）。 */
 export const MOBILE_CREATE_LONG_PRESS_MS = 450
 
-export const MOBILE_TABS_LEFT = pickGoItems(MOBILE_TAB_IDS.left)
-export const MOBILE_TABS_RIGHT = pickGoItems(MOBILE_TAB_IDS.right)
+export const MOBILE_TABS = pickGoItems(MOBILE_TAB_IDS)
 
 /**
  * 工作台路由（`/studio/**`）：手机上底栏收起，换成顶上一条「← · 图片 ▾」。

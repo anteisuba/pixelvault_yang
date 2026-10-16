@@ -128,12 +128,12 @@
      呼吸——`bottom-safe-bottom` 工具类消费。env() 不能塞进纯 Tailwind 间距刻度，
      故单开一个 token（Hard Rule 5：禁 arbitrary value，非禁自定义 token）。 */
   --spacing-safe-bottom: calc(env(safe-area-inset-bottom) + 0.75rem);
-  /* 手机底栏（owner 2026-10-09 v10）：6px 上衬 + 52px 一行 + 底部安全区。
+  /* 手机底栏（iOS 稿，owner 2026-10-16）：60px 浮起胶囊 + 8px 离底 + 底部安全区。
      底栏自己用 `pb-safe-inset-bottom`，贴在它上面的东西用 `bottom-mobile-tabbar`。 */
   --spacing-safe-inset-bottom: env(safe-area-inset-bottom, 0px);
   /* 整屏盖上来的东西（手机看图）让开刘海 / 灵动岛：`pt-safe-inset-top`。 */
   --spacing-safe-inset-top: env(safe-area-inset-top, 0px);
-  --spacing-mobile-tabbar: calc(3.625rem + env(safe-area-inset-bottom, 0px));
+  --spacing-mobile-tabbar: calc(4.25rem + env(safe-area-inset-bottom, 0px));
   /* 统一模型选择器（D2 ④ 画板）：弹层 320px（owner 2026-10-03「太宽了」，与生成台
      输入框里那几颗 `w-80` 对齐；原 380），渠道面板浮在它右侧。
      渠道面板 220px（owner 09-24：190px 时「MiniMax China」被截成「MiniMax (…」，

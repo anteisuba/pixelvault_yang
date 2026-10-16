@@ -8793,9 +8793,9 @@
       "save": "Save",
       "cancel": "Cancel",
       "you": "you",
-      "roleLabel": "Who you are in this story",
+      "roleLabel": "Who you are in the story",
       "rolePlaceholder": "e.g. the new neighbour, {name}'s childhood friend",
-      "roleHint": "Only for this chat; takes effect from your next line"
+      "roleHint": "Saved on this character for every chat; takes effect from your next line"
     }
   },
   "GenerationCancel": {

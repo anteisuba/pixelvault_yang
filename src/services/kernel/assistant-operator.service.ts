@@ -12385,7 +12385,6 @@ export function memoryScopeForDomain(
  *  ① 「她先说的那句」以对白里真放着的那句为准：你可能切到了卡上的备选开场白，或者改过它 ——
  *     系统提示里再引卡上那句原文就和对白对不上了。对白不是她先开口的就照卡上的。
  *  ② 世界书只留这一轮提到的那几条（`pickWorldNotes`）。
- *  ③ 你在故事里是谁：会话那一格，每轮随请求来（`chatUserRole`）。
  */
 function withChatTurn(
   persona: AssistantPromptPersona,
@@ -12404,7 +12403,6 @@ function withChatTurn(
       ...roleplay,
       opening,
       world: pickWorldNotes(roleplay.world ?? [], request),
-      userRole: request.chatUserRole ?? '',
     },
   }
 }

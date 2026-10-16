@@ -28,7 +28,11 @@ export function useChatCharacters(enabled: boolean): {
         (result.success ? (result.data ?? []) : [])
           .filter((card) => card.parentId === null)
           .map((card) => ({
-            character: { id: card.id, name: card.name },
+            character: {
+              id: card.id,
+              name: card.name,
+              userRole: card.chatUserRole,
+            },
             opening: card.persona?.opening ?? '',
             alternateOpenings: card.tavern?.alternateGreetings ?? [],
           })),

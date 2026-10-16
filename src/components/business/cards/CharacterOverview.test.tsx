@@ -48,6 +48,7 @@ function card(id: string, work: string, urls: string[]): OverviewItem {
       workOverride: work,
       summary: null,
       tavern: null,
+      chatUserRole: '',
       generationCount: 0,
       createdAt: new Date(0),
       updatedAt: new Date(0),

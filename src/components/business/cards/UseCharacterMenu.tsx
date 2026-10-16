@@ -202,7 +202,11 @@ export function UseCharacterMenu({ card }: { card: CharacterCardRecord }) {
                 close()
                 // 附录L：这一页的助手开一段和她的聊天会话（开场白有就是她的第一句）。
                 requestOperatorChat({
-                  character: { id: card.id, name: card.name },
+                  character: {
+                    id: card.id,
+                    name: card.name,
+                    userRole: card.chatUserRole,
+                  },
                   opening: card.persona?.opening ?? '',
                   alternateOpenings: card.tavern?.alternateGreetings ?? [],
                 })

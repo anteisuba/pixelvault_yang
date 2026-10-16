@@ -475,7 +475,7 @@ export const ASSISTANT_PERSONA_LIMITS = {
   maxWorldNotes: 6,
   maxWorldNoteChars: 800,
   maxWorldNotesTotalChars: 3000,
-  /** 你在这段故事里是谁（聊天会话自己的一格，附录L 第二片 C）。 */
+  /** 和这个角色聊天时你在故事里是谁（存在卡上，附录L 第二片 C）。 */
   maxChatUserRoleChars: 300,
   /** 每轮末尾那句「别出戏」里带的说话方式摘要（附录J ③）。 */
   maxCharacterReminderChars: 120,

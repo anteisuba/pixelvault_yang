@@ -8650,7 +8650,12 @@ describe('persona 风格段', () => {
         catchphrases: [],
         backstory: '',
       },
-      roleplay: { scenario: '', opening: '欢迎光临喵', examples: [] },
+      roleplay: {
+        scenario: '',
+        opening: '欢迎光临喵',
+        examples: [],
+        userRole: '常来的熟客，怕猫',
+      },
     })
     queueTurns({ finished: true })
     await collect(
@@ -8658,7 +8663,6 @@ describe('persona 风格段', () => {
         'clerk-1',
         buildRequest({
           chatCharacterId: '11111111-1111-4111-8111-111111111111',
-          chatUserRole: '常来的熟客，怕猫',
           messages: [
             { role: 'assistant', content: '……又下雨了喵' },
             { role: 'user', content: '来杯热可可' },

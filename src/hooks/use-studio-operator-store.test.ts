@@ -14,6 +14,14 @@ import { operatorResumeStorageKey } from '@/lib/studio-operator-resume'
  */
 type Store = typeof import('@/hooks/use-studio-operator-store')
 
+const { mockUpdateCharacterCard } = vi.hoisted(() => ({
+  mockUpdateCharacterCard: vi.fn(),
+}))
+vi.mock('@/lib/api-client/cards', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client/cards')>()),
+  updateCharacterCardAPI: mockUpdateCharacterCard,
+}))
+
 let store: Store
 
 beforeEach(async () => {
@@ -1040,28 +1048,31 @@ describe('聊天会话 · 重新生成 / 改 / 删（附录L 第二片）', () =
     })
   })
 
-  it('⭐ 你在故事里是谁：只在聊天会话里能改，改了算改历史（会存）；新会话清空', () => {
-    act(() => store.setOperatorChatUserRole('工作会话不收'))
-    expect(store.getOperatorState().chatUserRole).toBe('')
+  it('⭐ 你在她故事里是谁：按角色存在卡上（下次和她新开也带）；存失败退回原样', async () => {
+    expect(await store.saveOperatorChatUserRole('工作会话不收')).toBe(false)
+    expect(mockUpdateCharacterCard).not.toHaveBeenCalled()
     act(() => {
       store.resetOperatorThread(undefined, {
-        character: CHARACTER,
+        character: { ...CHARACTER, userRole: '' },
         opening: '你来了。',
       })
     })
-    const before = store.getOperatorState().historyRevision
-    act(() => store.setOperatorChatUserRole('刚搬来的邻居'))
-    expect(store.getOperatorState()).toMatchObject({
-      chatUserRole: '刚搬来的邻居',
-      historyRevision: before + 1,
+    mockUpdateCharacterCard.mockResolvedValueOnce({ success: true })
+    await act(() => store.saveOperatorChatUserRole('  刚搬来的邻居 '))
+    expect(mockUpdateCharacterCard).toHaveBeenCalledWith(CHARACTER.id, {
+      extensions: { 'pv.chatUserRole': '刚搬来的邻居' },
     })
-    act(() => {
-      store.resetOperatorThread(undefined, {
-        character: CHARACTER,
-        opening: '',
-      })
+    expect(store.getOperatorState().chatCharacter?.userRole).toBe(
+      '刚搬来的邻居',
+    )
+    mockUpdateCharacterCard.mockResolvedValueOnce({ success: false })
+    await act(() => store.saveOperatorChatUserRole(''))
+    expect(mockUpdateCharacterCard).toHaveBeenLastCalledWith(CHARACTER.id, {
+      extensions: { 'pv.chatUserRole': null },
     })
-    expect(store.getOperatorState().chatUserRole).toBe('')
+    expect(store.getOperatorState().chatCharacter?.userRole).toBe(
+      '刚搬来的邻居',
+    )
   })
 
   it('只有开场白时没有可重新生成的', () => {

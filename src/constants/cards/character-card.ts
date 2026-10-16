@@ -109,6 +109,8 @@ export const CARD_EXTENSIONS = {
     work: 'pv.work',
     /** 经历超长时存的总结 `{ hash, text }`（助手角色段用，服务端写，owner 10-15）。 */
     backstorySummary: 'pv.backstorySummary',
+    /** 和这个角色聊天时你在故事里是谁（附录L 第二片 C，owner 10-16「按角色记住」）。 */
+    chatUserRole: 'pv.chatUserRole',
   },
   /** 作品名最长多少字符。 */
   WORK_MAX_LENGTH: 60,

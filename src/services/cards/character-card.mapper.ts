@@ -168,6 +168,17 @@ function readTavernKept(extensions: unknown): TavernCardKept | null {
   return parsed.success ? parsed.data : null
 }
 
+/** 和这个角色聊天时你在故事里是谁；没写 / 不是字符串 = 空串。 */
+export function readChatUserRole(extensions: unknown): string {
+  const value =
+    extensions && typeof extensions === 'object'
+      ? (extensions as Record<string, unknown>)[
+          CARD_EXTENSIONS.KEYS.chatUserRole
+        ]
+      : undefined
+  return typeof value === 'string' ? value.trim() : ''
+}
+
 function readWorkOverride(extensions: unknown): string | null {
   const value =
     extensions && typeof extensions === 'object'
@@ -225,6 +236,7 @@ export function mapCharacterCardRow(
     workOverride: readWorkOverride(row.extensions),
     summary: row.summary ?? null,
     tavern: readTavernKept(row.extensions),
+    chatUserRole: readChatUserRole(row.extensions),
     generationCount: row._count?.generationLinks ?? 0,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,

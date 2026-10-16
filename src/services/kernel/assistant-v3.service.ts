@@ -189,6 +189,7 @@ import {
   scheduleAssistantV3HistorySummary,
 } from '@/services/kernel/assistant-v3-history.service'
 import {
+  lookTargetOfFind,
   parseResearchSourceHandle,
   priorFindsOf,
   priorFindsText,
@@ -2574,6 +2575,16 @@ async function* executeLook(
   const nodeIds: string[] = []
   const notes: string[] = []
   for (const card of input.cards) {
+    // 联网找到的图（`#n`）：画布上也认。
+    const find = lookTargetOfFind(context.transcript, card)
+    if (typeof find === 'string') {
+      notes.push(find)
+      continue
+    }
+    if (find) {
+      targets.push(find)
+      continue
+    }
     const id = context.handles.idOf(card)
     const node = id
       ? (context.nodes.find((candidate) => candidate.id === id) ?? null)

@@ -330,22 +330,45 @@ async function* searchWebImagesAndLook(
     ])
   const open = context.request.snapshot.cards?.open
   const name = open?.name ?? subject ?? query
-  // 标了 view only 的挂不上卡，⛔ 占看图的名额；称呼用卡片上那个号 `#n`，与上面那张单子对得上。
-  const targets = candidates.flatMap((image, index) => {
-    if (image.usableAsInput === false) return []
+  /**
+   * 称呼用卡片上那个号 `#n`，与上面那张单子对得上。挂得上卡的排前面；标了 view only 的（pixiv
+   * 一类，站点不让取图）挂不上卡，只在名额有剩时看它的小预览（2026-10-16 owner：pixiv 那几张
+   * 一张都没看过、只按标题筛）—— 让 Denia 说得出「#22 最像，但只能点开原页看」。
+   */
+  const lookable = candidates.map((image, index) => {
     const n = image.n ?? index + 1
-    return [
-      {
-        url: image.thumbnailUrl ?? image.imageUrl,
-        label: `#${n}`,
-        title: text.candidate(n),
-      },
-    ]
+    return {
+      url: image.thumbnailUrl ?? image.imageUrl,
+      label: `#${n}`,
+      title: text.candidate(n),
+      viewOnly: image.usableAsInput === false,
+      thumbnailUrl: image.thumbnailUrl,
+    }
   })
+  const targets = [
+    ...lookable.filter((item) => !item.viewOnly),
+    ...lookable.filter((item) => item.viewOnly && item.thumbnailUrl),
+  ].map(({ url, label, title, viewOnly }) => ({
+    url,
+    label,
+    title,
+    ...(viewOnly ? { preview: true } : {}),
+  }))
   if (targets.length === 0) return searched
+  // 超出 `maxLookCards` 的由 look 明说没看（挂得上卡的在前，先看它们）。
+  const viewOnly = targets
+    .slice(0, ASSISTANT_V3_LIMITS.maxLookCards)
+    .filter((target) => target.preview)
   const look = yield* executeV3Look(context, {
     targets,
-    notes: [webCandidatesLookNote(name, openCharacterImages(open).length > 0)],
+    notes: [
+      webCandidatesLookNote(name, openCharacterImages(open).length > 0),
+      ...(viewOnly.length
+        ? [
+            `${viewOnly.map((target) => target.label).join(', ')} can only be opened on their own pages: you may judge them and name them, but never propose them.`,
+          ]
+        : []),
+    ],
     question: `Which of these web pictures show ${name}?`,
   })
   return joinOutcomes([

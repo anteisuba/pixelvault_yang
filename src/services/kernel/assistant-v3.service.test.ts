@@ -3129,7 +3129,7 @@ describe('v3 内核 · 角色页', () => {
       )
     }
 
-    it('⭐ 能看图：缩略图只附给紧跟着的那一步；挂不上的不占名额；一张下不来只点名那一张', async () => {
+    it('⭐ 能看图：缩略图只附给紧跟着的那一步；挂不上的排在后面看小预览；一张下不来只点名那一张', async () => {
       const cardsRun = preparedCards({
         adapterType: AI_ADAPTER_TYPES.OPENAI,
         modelId: 'gpt-6-luna',
@@ -3137,10 +3137,17 @@ describe('v3 内核 · 角色页', () => {
       served.set(CARD_PNG, 'png')
       served.set('https://thumb.test/1.png', 'png')
       served.set('https://img.test/full-3.jpg', 'jpeg')
+      served.set('https://thumb.test/2.png', 'png')
       searchReturns([
         candidate(1),
-        // 站方不许当输入：挂不上卡，⛔ 不占看图的名额。
+        // 站方不许当输入（pixiv 一类）：挂不上卡，排在后面只看小预览。
         candidate(2, { usableAsInput: false, sourceVerdict: 'blocked' }),
+        // 挂不上、也没有小预览：⛔ 不看。
+        candidate(5, {
+          usableAsInput: false,
+          sourceVerdict: 'blocked',
+          thumbnailUrl: undefined,
+        }),
         // 没缩略图就看原图。
         candidate(3, { thumbnailUrl: undefined }),
         // 缩略图下不来：只点名这一张。
@@ -3164,7 +3171,11 @@ describe('v3 内核 · 角色页', () => {
       )
       expect(cardsRun).toMatchObject({ mainModelLooks: true })
       expect(fetchAsBuffer).not.toHaveBeenCalledWith(
-        'https://thumb.test/2.png',
+        'https://img.test/full-2.jpg',
+        expect.anything(),
+      )
+      expect(fetchAsBuffer).not.toHaveBeenCalledWith(
+        'https://img.test/full-5.jpg',
         expect.anything(),
       )
       const [before, next, after] = mock.doStreamCalls
@@ -3174,12 +3185,21 @@ describe('v3 内核 · 角色页', () => {
         CARD_PNG,
         'https://thumb.test/1.png',
         'https://img.test/full-3.jpg',
+        'https://thumb.test/2.png',
       ])
       expect(attachedPictures(after!)).toEqual([CARD_PNG])
       const nextText = promptText(next!)
       expect(nextText).toContain('PREVIEW candidate(s)')
       expect(nextText).toContain('1 = 「#1」')
       expect(nextText).toContain('2 = 「#3」')
+      expect(nextText).toContain('3 = 「#2」')
+      expect(nextText).toContain(
+        "「#2」 is only the search engine's small preview",
+      )
+      expect(nextText).toContain(
+        '#2 can only be opened on their own pages: you may judge them and name them, but never propose them.',
+      )
+      expect(nextText).not.toContain('「#5」')
       expect(nextText).toContain('Could not load 「#4」')
       expect(nextText).toContain('Which of these web pictures show 罗恩?')
       expect(nextText).toContain('compare them with their own pictures')
@@ -3194,7 +3214,7 @@ describe('v3 内核 · 角色页', () => {
       expect(titles).toContain('联网找图 罗恩')
       expect(titles).toEqual([
         '联网找图 罗恩',
-        '查看「候选 #1」；查看「候选 #3」 等 1 项',
+        '查看「候选 #1」；查看「候选 #3」 等 2 项',
       ])
       expectSelectedProviderOnly(providerUsesOf(resolveModel, 'main model'), {
         adapterType: AI_ADAPTER_TYPES.OPENAI,
@@ -3930,6 +3950,82 @@ describe('v3 内核 · 找到的东西编号 #n 与查证短版（搜索期第�
       'mount_reference',
       expect.anything(),
       'user-1',
+    )
+  })
+
+  /** 2026-10-16 owner：pixiv 那几张 Denia 一张都没看过 —— look 认 `#n`，只能看的看小预览。 */
+  it('⭐ look "#n"：原图下不来看小预览；只能看的（pixiv）看小预览；没预览的照实说', async () => {
+    const found = [
+      ...FOUND,
+      {
+        n: 3,
+        imageUrl: 'https://i.pximg.net/img-original/3.png',
+        thumbnailUrl: 'https://thumb.test/3.png',
+        pageUrl: 'https://www.pixiv.net/artworks/3',
+        domain: 'www.pixiv.net',
+        usableAsInput: false,
+        sourceVerdict: 'hotlinkProtected',
+      },
+      {
+        n: 4,
+        imageUrl: 'https://i.pximg.net/img-original/4.png',
+        pageUrl: 'https://www.pixiv.net/artworks/4',
+        domain: 'www.pixiv.net',
+        usableAsInput: false,
+        sourceVerdict: 'hotlinkProtected',
+      },
+    ]
+    plan.mockImplementation(async (_run: unknown, tool: string) =>
+      tool === 'search_web_images'
+        ? {
+            kind: 'read',
+            payload: { query: 'ron', limit: 8 },
+            run: async () => ({
+              result: { totalFound: found.length, images: found },
+              observation: 'find_images("ron") → 4 PREVIEW picture(s)',
+            }),
+          }
+        : {
+            kind: 'rejected',
+            reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.repeatedStep,
+            detail: 'ok',
+          },
+    )
+    // #1 原图下不来、小预览下得来；#2 原图下得来；#3 只看小预览。
+    served.set('https://thumb.test/1.png', 'png')
+    served.set('https://img.test/full-2.jpg', 'jpeg')
+    served.set('https://thumb.test/3.png', 'png')
+    const mock = script(
+      toolTurn(searchRon),
+      toolTurn({
+        id: 'call_look',
+        name: 'look',
+        input: { images: ['#1', '#2', '#3', '#4'], question: '哪张是罗恩？' },
+      }),
+      textTurn('#2 最像。'),
+    )
+
+    await collect(runAssistantV3('clerk-1', imageRequest('找几张罗恩看看')))
+
+    expect(fetchAsBuffer).not.toHaveBeenCalledWith(
+      'https://i.pximg.net/img-original/3.png',
+      expect.anything(),
+    )
+    const afterLook = mock.doStreamCalls[2]!
+    expect(attachedPictures(afterLook)).toEqual([
+      'https://thumb.test/1.png',
+      'https://img.test/full-2.jpg',
+      'https://thumb.test/3.png',
+    ])
+    const text = promptText(afterLook)
+    expect(text).toContain('1 = 「#1」')
+    expect(text).toContain('2 = 「#2」')
+    expect(text).toContain('3 = 「#3」')
+    expect(text).toContain(
+      "「#1」, 「#3」 are only the search engine's small preview",
+    )
+    expect(text).toContain(
+      'Could not see #4: its site does not let us fetch the picture and the search gave no preview of it.',
     )
   })
 

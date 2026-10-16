@@ -9,7 +9,7 @@
  *     而且每一轮它都看得见（在窗口里，或在摘要里）—— 缺口那一轮多留一轮，⛔ 丢。
  * 外加：写摘要那一跳用的是这一轮的那一家、那个型号、那把 key（⛔ 不借别家）。
  *
- * ⚠ 摘要存在哪：会话上那一列还没加（`assistant-v3-history-store.service.ts` 现在 `persists: false`），
+ * ⚠ 摘要存在哪：真的那一份在会话那一行的 `historySummary`（`assistant-v3-history-store.service.ts`），
  *   这里换成一份内存里的。写摘要的「模型」也是假的（`summarize`）：照原料里「定了：」那几句记下决定、
  *   原样接着上一份 —— 这一题量的是窗口与摘要的管道，⛔ 不是哪家模型写得好不好。
  * `REPLAY_BUDGET=print` 打每一轮的数（取 `maxChars` 时比过 12k / 16k / 20k / 24k，见
@@ -70,7 +70,7 @@ vi.mock('@/lib/crypto', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/crypto')>()),
   decryptApiKey: (encrypted: string) => `plain:${encrypted}`,
 }))
-/** 会话上那一列加上之后的样子：按会话存最近几份。 */
+/** 与会话那一列同一个样子：按会话存最近几份。 */
 vi.mock('@/services/kernel/assistant-v3-history-store.service', () => ({
   assistantV3HistoryStore: {
     persists: true,

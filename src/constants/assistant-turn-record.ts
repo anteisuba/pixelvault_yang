@@ -27,7 +27,7 @@ export const ASSISTANT_TURN_RECORD_LIMITS = {
   maxRowsPerUser: 200,
   /**
    * 存几条对话：只存模型这一轮看见的那几条（开轮板子上的 `history.turns`）再加这一句；v3 发给模型的
-   * 对白最多 `ASSISTANT_V3_HISTORY.maxMessages` 条，这里跟着那边走（⛔ 不是 owner 定的数）。
+   * 对白最多 `ASSISTANT_V3_HISTORY.maxMessages` 条，这里跟着那边走（25 → 49，owner 2026-10-15 在卡上确认）。
    */
   maxMessages: ASSISTANT_V3_HISTORY.maxMessages + 1,
   /** 一轮最多几跳（画布接力 + 时间预算接力）。前端的步数上限是 16，这里只防伪造的号。 */

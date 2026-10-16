@@ -260,16 +260,16 @@ model DanbooruFavorite {
 /// Persisted assistant chat (Node canvas and Studio). Messages are JSON
 /// text-only (plus remote media URLs) — never base64 payloads.
 model AssistantConversation {
-  id        String                       @id @default(uuid())
-  userId    String
-  user      User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  surface   AssistantSurface
+  id             String                       @id @default(uuid())
+  userId         String
+  user           User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  surface        AssistantSurface
   /// NODE_CANVAS: NodeWorkflowProject.id (weak ref, no FK). STUDIO: null.
-  projectId String?
+  projectId      String?
   /// Truncated first user message for list UI.
-  title     String?
+  title          String?
   /// [{ id?, role, content, createdAt? }]
-  messages  Json
+  messages       Json
   /// 每轮结账的结论记录（assistant-shell-v2 §7.2）：
   /// [{ roundIndex, createdAt, facts[], decisions[], todos[], evidenceRefs[], editedByUser? }]
   ///
@@ -277,10 +277,15 @@ model AssistantConversation {
   /// `#e12` 形态的编号。同列存正文的代价与 `messages` 那条一字不差：每次读写
   /// 会话都拖着几十 KB 走，而同一份证据会在历史里复制 N 份。
   /// ⚠ 与会话同生共死，所以是同表的一列而不是一张侧表（§7.4 四条判据）。
-  rounds    Json                         @default("[]")
-  shares    AssistantConversationShare[]
-  createdAt DateTime                     @default(now())
-  updatedAt DateTime                     @updatedAt
+  rounds         Json                         @default("[]")
+  /// 滑出 v3 历史窗口的那几轮的摘要（P2 第三片，owner 2026-10-15 同意加这一列）：
+  /// 最近 `ASSISTANT_V3_HISTORY.summary.keep` 份 `AssistantV3HistorySummary`，最旧的在前。
+  /// 只有服务端读写（`assistant-v3-history-store.service.ts`）；⛔ 不进会话接口、分享页与导出
+  /// （`toRecord` 按字段挑），前端保存只写 `messages`，碰不到它。
+  historySummary Json?
+  shares         AssistantConversationShare[]
+  createdAt      DateTime                     @default(now())
+  updatedAt      DateTime                     @updatedAt
 
   @@index([userId, surface, updatedAt(sort: Desc)])
   @@index([projectId])
@@ -819,26 +824,26 @@ model AssistantPersona {
 
   /// 「用角色卡」这一档（owner 09-26）：头像取这张卡外观里的脸，语气取它设定里的
   /// 说话方式。null = 不用卡。卡删了只清绑定（SetNull），不动人设其余格。
-  characterCardId String?
-  characterCard   CharacterCard? @relation(fields: [characterCardId], references: [id], onDelete: SetNull)
+  characterCardId   String?
+  characterCard     CharacterCard? @relation(fields: [characterCardId], references: [id], onDelete: SetNull)
   /// 名字跟着角色走（用角色时一起打开；在名字框里改一个字就关掉，改的那个名字
   /// 落回 `name`）。没有角色时不生效 —— `name` 始终是创作者自己那一份。
-  nameFromCharacter Boolean @default(false)
+  nameFromCharacter Boolean        @default(false)
   /// 语气跟着角色设定里的「说话方式」走（设置里语气那一排的第一格）。角色还没写
   /// 说话方式时不生效，退回 `tone`；`tone` / `toneCustom` 始终是创作者自己那一份。
-  toneFromCharacter Boolean @default(false)
+  toneFromCharacter Boolean        @default(false)
   /// 头像单选表选的是哪一张（助手设置 B，owner 09-26）：character / upload / mark /
   /// monogram（`ASSISTANT_AVATAR_CHOICES`）。⭐ 换成预设不删上传的那张 —— 它留在
   /// 单选表里，点一下就换回来。NULL = 老行：读的那一跳按老规矩回推（传过图用图，
   /// 否则用预设），⛔ 不写迁移回填。
-  avatarChoice String?
+  avatarChoice      String?
   /// 「让助手记住」（记忆页右上那颗开关）。关 = 每轮结账不再自己记新的；清单里
   /// 已有的照样注入，不想要就删。
-  memoryCapture Boolean @default(true)
+  memoryCapture     Boolean        @default(true)
   /// always / auto / direct —— 「先问我」开关的初始态 + 出卡判据。
-  planMode  String @default("auto")
+  planMode          String         @default("auto")
   /// ui / chinese / english —— 覆盖请求里的 responseLanguage。
-  language  String @default("ui")
+  language          String         @default("ui")
 
   /// 每条回复末尾给一条「下一步建议」（v2 §11.3）。默认开：默认档就是「平衡」，
   /// 而那张卡第三行写的正是「附一条下一步」。
@@ -980,7 +985,7 @@ model CharacterCard {
   /// `@名字` 的稳定锚点，同一用户内唯一。只有角色卡有（owner 09-25：背景卡下线）。
   handle         String?
   /// 给人看的简介。⛔ 任何面都不进 prompt（含助手）。
-  summary        String?    @db.Text
+  summary        String? @db.Text
   /// `CharacterReferenceSlot[]`，吞掉 referenceImages / referenceRoles / sourceImages / sourceImageEntries。
   referenceSlots Json?
   /// 带命名空间的扩展键袋（`pv.*` 归本产品）。认不出的键原样保留。
@@ -1003,12 +1008,12 @@ model CharacterCard {
   recipesAsChar    CardRecipe[]              @relation("RecipeCharacter")
   loraTrainingJobs LoraTrainingJob[]
 
+  @@unique([userId, handle])
   @@index([userId, isDeleted, updatedAt(sort: Desc)])
   @@index([userId, status, isDeleted])
   @@index([parentId, isDeleted, updatedAt(sort: Desc)])
   @@index([userId, projectId, isDeleted, updatedAt(sort: Desc)])
   @@index([voiceCardId])
-  @@unique([userId, handle])
 }
 
 model GenerationCharacterCard {
@@ -1435,7 +1440,9 @@ model GenerationLayer {
   generationId String
   generation   Generation @relation("GenerationLayers", fields: [generationId], references: [id], onDelete: Cascade)
 
-  /** provider 的 z_index：底图固定 0（不存这张表），图层从 1 起递增，越大越靠上。 */
+  /**
+   * provider 的 z_index：底图固定 0（不存这张表），图层从 1 起递增，越大越靠上。
+   */
   zIndex Int
 
   url        String @db.Text
@@ -1445,7 +1452,9 @@ model GenerationLayer {
   width  Int @default(0)
   height Int @default(0)
 
-  /** 模型自己起的标签 / 语义描述；provider 不保证给，所以可空。 */
+  /**
+   * 模型自己起的标签 / 语义描述；provider 不保证给，所以可空。
+   */
   name        String?
   description String? @db.Text
 
@@ -1586,8 +1595,8 @@ model AssistantMemory {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  scope AssistantMemoryScope
-  kind  AssistantMemoryKind
+  scope  AssistantMemoryScope
+  kind   AssistantMemoryKind
   /// ⭐ 你写的优先：注入时排在助手记的前面，每域上限只淘汰助手记的那些。
   source AssistantMemorySource @default(ASSISTANT)
 

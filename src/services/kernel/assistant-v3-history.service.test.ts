@@ -115,7 +115,7 @@ beforeEach(() => {
 })
 
 describe('loadAssistantV3HistorySummaries', () => {
-  it('存不下（那一列还没加）/ 没会话：不读、不补', async () => {
+  it('存不下 / 没会话：不读、不补', async () => {
     mocks.store.persists = false
     expect(await loadAssistantV3HistorySummaries(owner)).toEqual({
       summaries: [],

@@ -1752,10 +1752,11 @@ describe('StudioOperatorPanel · 找到的图（搜索期切片 1）', () => {
       within(underAnswer).getAllByTestId('operator-web-candidate'),
     ).toHaveLength(2)
     expect(screen.queryByTestId('operator-web-finds-pending')).toBeNull()
-    // 选用照旧走宿主的 hook，认的是线程里那一条的 id。
+    // 选上再挂上，照旧走宿主的 hook，认的是线程里那一条的 id。
     fireEvent.click(
       within(underAnswer).getAllByTestId('operator-web-candidate-use')[0]!,
     )
+    fireEvent.click(within(underAnswer).getByTestId('operator-web-use-all'))
     expect(WEB_IMPORT.toggleCandidate).toHaveBeenCalledWith(
       'run-web:step-web',
       expect.objectContaining({ imageUrl: 'https://cdn.example.com/a.jpg' }),

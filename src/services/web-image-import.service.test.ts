@@ -420,10 +420,13 @@ describe('联网图片转存 · 幂等（2026-09-07）', () => {
     expect(createGeneration).not.toHaveBeenCalled()
   })
 
-  it('查的是**两条**地址：原图直链与页面地址（用户递来的可能是一张网页）', async () => {
+  it('⭐ 只按这张图自己的地址认，⛔ 不按页面地址（同一页的第二张不能被认成第一张）', async () => {
+    // 🔬 owner 2026-10-16：同一篇多图帖子里挑了几张，「选用」只挂上了一张。
     await importWebImage('clerk_test_user', REQUEST)
-    expect(
-      vi.mocked(findImportedGenerationBySourceUrl).mock.calls[0][1],
-    ).toEqual([REQUEST.imageUrl, REQUEST.pageUrl])
+    const lookups = vi
+      .mocked(findImportedGenerationBySourceUrl)
+      .mock.calls.map((call) => call[1])
+    expect(lookups[0]).toEqual([REQUEST.imageUrl])
+    for (const urls of lookups) expect(urls).not.toContain(REQUEST.pageUrl)
   })
 })

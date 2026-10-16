@@ -46,6 +46,7 @@ const DB_SCOPE_BY_ID: Record<AssistantMemoryScopeId, AssistantMemoryScope> = {
   [ASSISTANT_MEMORY_SCOPE_IDS.video]: 'VIDEO',
   [ASSISTANT_MEMORY_SCOPE_IDS.canvas]: 'CANVAS',
   [ASSISTANT_MEMORY_SCOPE_IDS.lora]: 'LORA',
+  [ASSISTANT_MEMORY_SCOPE_IDS.cards]: 'CARDS',
   [ASSISTANT_MEMORY_SCOPE_IDS.global]: 'GLOBAL',
 }
 
@@ -54,6 +55,7 @@ const ID_BY_DB_SCOPE: Record<AssistantMemoryScope, AssistantMemoryScopeId> = {
   VIDEO: ASSISTANT_MEMORY_SCOPE_IDS.video,
   CANVAS: ASSISTANT_MEMORY_SCOPE_IDS.canvas,
   LORA: ASSISTANT_MEMORY_SCOPE_IDS.lora,
+  CARDS: ASSISTANT_MEMORY_SCOPE_IDS.cards,
   GLOBAL: ASSISTANT_MEMORY_SCOPE_IDS.global,
 }
 

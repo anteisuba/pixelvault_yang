@@ -28,6 +28,8 @@ export const ASSISTANT_MEMORY_SCOPE_IDS = {
   video: ASSISTANT_PROTOCOL_DOMAIN_IDS.video,
   canvas: ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas,
   lora: ASSISTANT_PROTOCOL_DOMAIN_IDS.lora,
+  /** 角色页（卡片助手）自己的记忆：角色页上学到的只在角色页用，⛔ 不落 global 去影响工作台（P3 第二片）。 */
+  cards: ASSISTANT_PROTOCOL_DOMAIN_IDS.cards,
   global: 'global',
 } as const
 
@@ -36,6 +38,7 @@ export const ASSISTANT_MEMORY_SCOPES = [
   ASSISTANT_MEMORY_SCOPE_IDS.video,
   ASSISTANT_MEMORY_SCOPE_IDS.canvas,
   ASSISTANT_MEMORY_SCOPE_IDS.lora,
+  ASSISTANT_MEMORY_SCOPE_IDS.cards,
   ASSISTANT_MEMORY_SCOPE_IDS.global,
 ] as const
 

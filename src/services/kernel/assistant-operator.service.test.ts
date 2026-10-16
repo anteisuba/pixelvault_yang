@@ -19325,7 +19325,7 @@ describe('v3 收尾（P2 §2.5）', () => {
     expect(mockRecordMemories).not.toHaveBeenCalled()
   })
 
-  it('⛔ P3：角色页这一轮不自动记（cards 没有自己的域，不往全局漏）', async () => {
+  it('⭐ P3 第二片：角色页记进自己的 cards 域（⛔ 不往全局漏）', async () => {
     const { run, user } = await prepare({ domain: 'cards' })
     recordLedgerStep(run, ASSISTANT_OPERATOR_VERB_IDS.look, '看图', '黑长直')
     mockLlmTextCompletion.mockResolvedValue(MEMORIES)
@@ -19333,8 +19333,10 @@ describe('v3 收尾（P2 §2.5）', () => {
     await closeRoundV3(run, { clerkId: 'clerk-1', userId: user.id })
     await settleAfter()
 
-    expect(mockLlmTextCompletion).not.toHaveBeenCalled()
-    expect(mockRecordMemories).not.toHaveBeenCalled()
+    expect(mockRecordMemories).toHaveBeenCalledTimes(1)
+    expect(mockRecordMemories.mock.calls[0]?.[0]).toMatchObject({
+      scope: 'cards',
+    })
   })
 })
 

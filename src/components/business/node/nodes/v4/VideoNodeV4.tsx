@@ -5,7 +5,7 @@
  * `VideoExpanded` / `VideoQuickLook`）。
  *
  * 五态：**空卡**（16:9 虚线框 + 一句提示，⌘V / 拖入都落进这张卡）· **有片收起**
- * （卡即封面、右下角只有时长；悬停静音自动播 + 底部细进度线 + 右上静音标）·
+ * （卡即封面、右下角只有时长；悬停静音自动播 + 底部细进度线 + 右上声音键 + 左下播放暂停）·
  * **选中**（工具条 `续拍 · 抽帧 · 下载 · ⋯` 浮在卡上，版本点 + 已挂小 chip + 提示词栏
  * 浮在卡下）· **生成中**（边即进度 + 栏变灰可取消）· **展开**（画中框 720：播放器 +
  * 镜头说明 + 生成行 + 写作助手栏）。**双击 = 展开**；快速看片走空格与 ⋯ 菜单
@@ -43,6 +43,7 @@ import {
   StepForward,
   Upload,
   ImageIcon,
+  Volume2,
   VolumeX,
 } from '@/components/icons'
 import { toast } from 'sonner'
@@ -158,6 +159,8 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
    */
   const [pinned, setPinned] = useState(false)
   const [previewPlaying, setPreviewPlaying] = useState(false)
+  /** 卡上预览出不出声（默认静音；点右上角的声音键切换，换卡前一直记着）。 */
+  const [soundOn, setSoundOn] = useState(false)
   /**
    * 抽帧选帧（owner 2026-10-16「卡上拖选帧」）：`picking` 时卡上换成一只停住的
    * `<video>`，提示词栏换成选帧条，拖到哪一秒就抽哪一帧。
@@ -873,7 +876,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
                   ref={frameVideoRef}
                   src={videoData.url}
                   poster={posterUrl}
-                  muted
+                  muted={!soundOn}
                   autoPlay
                   loop
                   playsInline
@@ -924,14 +927,29 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
                     <Play aria-hidden weight="fill" className="size-3.5" />
                   )}
                 </button>
-                {/* 右上静音标：说明「现在是静音在放」，⛔ 不是开关。 */}
-                <span
-                  data-video-muted-badge
-                  aria-label={t('player.mute')}
-                  className="absolute top-2 right-2 flex size-6.5 items-center justify-center rounded-full surface-glass"
+                {/* 右上声音键（owner 2026-10-16「声音播放也无法点击」）：默认静音，点一下出声。 */}
+                <button
+                  type="button"
+                  data-video-sound-toggle
+                  data-sound={soundOn ? 'on' : 'off'}
+                  aria-label={t(soundOn ? 'player.mute' : 'player.unmute')}
+                  aria-pressed={soundOn}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    const next = !soundOn
+                    const video = frameVideoRef.current
+                    if (video) video.muted = !next
+                    setSoundOn(next)
+                  }}
+                  onDoubleClick={(event) => event.stopPropagation()}
+                  className="nodrag nopan absolute top-2 right-2 flex size-6.5 items-center justify-center rounded-full surface-glass focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 >
-                  <VolumeX aria-hidden className="size-3.5" />
-                </span>
+                  {soundOn ? (
+                    <Volume2 aria-hidden className="size-3.5" />
+                  ) : (
+                    <VolumeX aria-hidden className="size-3.5" />
+                  )}
+                </button>
               </>
             ) : null}
 

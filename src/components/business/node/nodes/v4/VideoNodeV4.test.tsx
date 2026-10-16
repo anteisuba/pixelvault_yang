@@ -410,7 +410,7 @@ describe('空卡 / 有片两态（spec §5）', () => {
     ).toHaveAttribute('data-video-first-frame-pending', 'true')
   })
 
-  it('悬停 = 静音自动播 + 底部细进度线 + 右上静音标', () => {
+  it('悬停 = 静音自动播 + 底部细进度线 + 右上声音键', () => {
     renderVideo(harness([videoNode('v_1', READY)]))
     const surface = document.querySelector('[data-video-surface="ready"]')!
     expect(document.querySelector('[data-video-hover-preview]')).toBeNull()
@@ -424,7 +424,7 @@ describe('空卡 / 有片两态（spec §5）', () => {
     expect(preview.muted).toBe(true)
     expect(preview.autoplay).toBe(true)
     expect(document.querySelector('[data-video-hover-progress]')).not.toBeNull()
-    expect(document.querySelector('[data-video-muted-badge]')).not.toBeNull()
+    expect(document.querySelector('[data-video-sound-toggle]')).not.toBeNull()
     // 悬停时时长让位给进度线（画板：两者不同时出现）。
     expect(document.querySelector('[data-video-duration]')).toBeNull()
 
@@ -1830,5 +1830,27 @@ describe('卡上选帧与播放暂停', () => {
     )
     fireEvent.mouseLeave(surface)
     expect(document.querySelector('[data-video-hover-preview]')).toBe(preview)
+  })
+})
+
+describe('卡上声音键', () => {
+  it('默认静音，点一下出声，再点回静音', () => {
+    renderVideo(harness([videoNode('v_1', READY)]), 'v_1', true)
+    fireEvent.load(document.querySelector('img') as HTMLImageElement)
+    fireEvent.mouseEnter(
+      document.querySelector('[data-video-surface="ready"]') as HTMLElement,
+    )
+    const preview = document.querySelector(
+      '[data-video-hover-preview]',
+    ) as HTMLVideoElement
+    const toggle = document.querySelector(
+      '[data-video-sound-toggle]',
+    ) as HTMLElement
+    expect(preview.muted).toBe(true)
+    fireEvent.click(toggle)
+    expect(preview.muted).toBe(false)
+    expect(toggle.getAttribute('data-sound')).toBe('on')
+    fireEvent.click(toggle)
+    expect(preview.muted).toBe(true)
   })
 })

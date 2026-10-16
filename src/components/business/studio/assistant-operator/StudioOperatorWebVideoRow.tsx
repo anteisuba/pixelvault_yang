@@ -12,8 +12,10 @@
  *  · 封面：第三方图，⛔ 不带我们的 Referer（`useThirdPartyImage`），到了由糊变清
  *    （`useMediaReveal`）；全取不到画一格占位图标，⛔ 破图标。
  *  · 左上平台角标（YouTube / B站 / niconico / Vimeo，别的站写域名）· 右下时长
- *    （取不到整枚不画，⛔ 不写「0:00」）· 下面两行标题 + 一行频道。
- *  · 手机横滑（`snap-x`）；桌面面板够宽时两列。
+ *    （取不到整枚不画，⛔ 不写「0:00」）· 回复点名的左下写「回复提到」· 下面两行标题 +
+ *    一行频道 + 一行怎么看（在面板里播 / 去某站看）。
+ *  · 胶片条（owner 2026-10-16 选 B）：与找到的图同一种横排，放不下就左右滑（`snap-x`），
+ *    ⛔ 宽面板也不改成两列；播放器开在这一排**下面**。
  *
  * ── 点开 ────────────────────────────────────────────────────────
  *  · 四家（`lib/web-video.ts` 认得出稿件号）：**在面板里播**，播放器是全面板共用的那一个
@@ -66,8 +68,7 @@ interface StudioOperatorWebVideoRowProps {
 
 const NO_NAMED: ReadonlySet<string> = new Set()
 
-const CARD_CLASS =
-  'w-56 shrink-0 snap-start lg:@2xs:w-auto lg:@2xs:shrink lg:@2xs:snap-align-none'
+const CARD_CLASS = 'w-56 shrink-0 snap-start'
 
 export function StudioOperatorWebVideoRow({
   entryId,
@@ -86,7 +87,7 @@ export function StudioOperatorWebVideoRow({
 
   return (
     <section
-      className="@container min-w-0"
+      className="min-w-0"
       data-testid="operator-web-videos"
       data-entry-id={entryId}
       data-state={shown ? 'ready' : 'loading'}
@@ -103,16 +104,10 @@ export function StudioOperatorWebVideoRow({
         <Skeleton className="mb-1.5 h-5 w-48 max-w-full" />
       )}
 
-      {playing ? (
-        <div className="mb-2">
-          <StudioOperatorWebVideoPlayer
-            video={playing}
-            onClose={() => setPlayingUrl(null)}
-          />
-        </div>
-      ) : null}
-
-      <ul className="flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1 lg:@2xs:grid lg:@2xs:grid-cols-2 lg:@2xs:overflow-visible lg:@2xs:pb-0">
+      <ul
+        aria-label={t('web.videoStripLabel', { count: shown?.length ?? 0 })}
+        className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 pt-1"
+      >
         {shown
           ? shown.map((video, index) => (
               <li key={video.url} className={CARD_CLASS}>
@@ -152,6 +147,15 @@ export function StudioOperatorWebVideoRow({
               ),
             )}
       </ul>
+
+      {playing ? (
+        <div className="mt-1">
+          <StudioOperatorWebVideoPlayer
+            video={playing}
+            onClose={() => setPlayingUrl(null)}
+          />
+        </div>
+      ) : null}
     </section>
   )
 }
@@ -251,6 +255,15 @@ function WebVideoCard({
             {platformLabel}
           </span>
         </span>
+        {named ? (
+          <span
+            data-testid="operator-web-video-named"
+            aria-hidden
+            className="pointer-events-none absolute bottom-1 left-1 rounded-full bg-foreground px-1.5 text-3xs leading-4 text-background"
+          >
+            {t('web.namedBadge')}
+          </span>
+        ) : null}
         {video.durationSeconds ? (
           <span
             data-testid="operator-web-video-duration"
@@ -260,14 +273,32 @@ function WebVideoCard({
           </span>
         ) : null}
       </span>
-      <span className="mt-1.5 line-clamp-2 text-xs leading-snug text-foreground">
+      <span className="mt-1.5 line-clamp-2 text-sm leading-snug text-foreground">
         {video.title}
       </span>
       {video.channel ? (
-        <span className="mt-0.5 block truncate text-2xs text-muted-foreground">
+        <span className="mt-0.5 block truncate text-xs text-muted-foreground">
           {video.channel}
         </span>
       ) : null}
+      <span
+        data-testid="operator-web-video-mode"
+        className={cn(
+          'mt-0.5 flex items-center gap-1 text-xs',
+          playing ? 'font-medium text-foreground' : 'text-muted-foreground',
+        )}
+      >
+        {embedUrl ? (
+          <Play className="size-3" aria-hidden />
+        ) : (
+          <ExternalLink className="size-3" aria-hidden />
+        )}
+        {embedUrl
+          ? playing
+            ? t('web.videoModePlaying')
+            : t('web.videoModePlay')
+          : t('web.videoOpenSource', { site: platformLabel })}
+      </span>
       {named ? (
         <span id={namedId} className="sr-only">
           {t('web.findNamed')}

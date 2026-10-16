@@ -75,6 +75,8 @@ export const TITLE_TEXT: Record<
     /** 创作者按了「用 Grok 搜这一次」的那一步：写清楚花的是谁的额度。 */
     searchXWithGrok: string
     searchLibrary: string
+    /** 翻记忆（P3 `search_library kind "memories"`）。 */
+    searchMemories: string
     searchLora: string
     model: string
     params: string
@@ -120,6 +122,7 @@ export const TITLE_TEXT: Record<
     searchWeb: '联网查',
     searchXWithGrok: '用 Grok 搜 X（花你的 Grok 额度）',
     searchLibrary: '素材库找',
+    searchMemories: '翻记忆',
     searchLora: '找 LoRA',
     model: '换底模',
     params: '调参数',
@@ -163,6 +166,7 @@ export const TITLE_TEXT: Record<
     searchWeb: 'Web 検索',
     searchXWithGrok: 'Grok で X を検索（Grok の利用枠を使用）',
     searchLibrary: '素材検索',
+    searchMemories: '記憶を探す',
     searchLora: 'LoRA を検索',
     model: 'ベースモデルを変更',
     params: 'パラメータを調整',
@@ -206,6 +210,7 @@ export const TITLE_TEXT: Record<
     searchWeb: 'Search the web for',
     searchXWithGrok: 'Search X with Grok (your Grok quota) for',
     searchLibrary: 'Search the library for',
+    searchMemories: 'Look through memories for',
     searchLora: 'Search LoRAs for',
     model: 'Switch base model',
     params: 'Adjust parameters',

@@ -153,6 +153,22 @@ vi.mock('@/services/kernel/assistant-operator.service', () => ({
   rememberStepArtifacts: vi.fn(),
   isFatalOperatorToolError: () => false,
   latestUserMessage: () => '',
+  memoryScopeForDomain: (domain: string) =>
+    domain === 'cards' ? 'global' : domain,
+  requestProjectId: () => null,
+  memoryAsRule: (memory: {
+    id: string
+    text: string
+    source: string
+    createdAt: string
+  }) => ({
+    id: memory.id,
+    scope: null,
+    text: memory.text,
+    kind: 'note',
+    source: memory.source,
+    createdAt: memory.createdAt,
+  }),
   TOOL_FAILED_DETAIL: 'tool failed',
   OPERATOR_OUT_OF_STEPS_MESSAGES: { chinese: '步数用完了' },
   OPERATOR_SAME_FAILURE_MESSAGES: {
@@ -192,6 +208,12 @@ vi.mock(
     },
   }),
 )
+
+/** P3 翻记忆：`search_library kind "memories"` 读它，⛔ 真打库。 */
+const searchMemories = vi.fn(async (..._args: unknown[]) => [] as unknown[])
+vi.mock('@/services/assistant-memory.service', () => ({
+  searchAssistantMemories: (...args: unknown[]) => searchMemories(...args),
+}))
 
 vi.mock('@/services/kernel/assistant-completion.service', () => ({
   startCallLog: () => ({ onUsage: vi.fn(), finish: vi.fn() }),
@@ -539,6 +561,56 @@ describe('v3 内核', () => {
       'search_assets',
       expect.anything(),
       expect.anything(),
+    )
+  })
+
+  it('⭐ P3：search_library kind memories 翻记忆，⛔ 不走素材库；翻到的给模型看、空的说没有', async () => {
+    searchMemories.mockResolvedValueOnce([
+      {
+        id: 'mem-1',
+        scope: 'canvas',
+        kind: 'preference',
+        source: 'assistant',
+        text: '分镜一律 16:9',
+        createdAt: '2026-10-01T00:00:00.000Z',
+        updatedAt: '2026-10-01T00:00:00.000Z',
+      },
+    ])
+    const mock = script(
+      toolTurn(
+        {
+          id: 'call_mem',
+          name: 'search_library',
+          input: { query: '画幅', kind: 'memories', subject: null },
+        },
+        {
+          id: 'call_mem_2',
+          name: 'search_library',
+          input: { query: '角色名', kind: 'memories', subject: null },
+        },
+      ),
+      textTurn('记得，16:9。'),
+    )
+    const events = await collect(runAssistantV3('clerk-1', request()))
+    expect(searchMemories).toHaveBeenCalledWith('user-1', {
+      scope: 'canvas',
+      projectId: null,
+      query: '画幅',
+    })
+    expect(plan).not.toHaveBeenCalled()
+    const next = promptText(mock.doStreamCalls[1]!)
+    expect(next).toContain('- [preference] 分镜一律 16:9')
+    expect(next).toContain('Nothing you remember matches')
+    expect(
+      events.some(
+        (event) =>
+          event.type === 'step' &&
+          event.step.status === 'done' &&
+          event.step.title === '翻记忆 画幅',
+      ),
+    ).toBe(true)
+    expect(JSON.stringify(mock.doStreamCalls[0]!.tools)).toContain(
+      'kind \\"memories\\"',
     )
   })
 

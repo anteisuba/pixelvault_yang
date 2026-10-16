@@ -347,7 +347,7 @@ export function buildAssistantV3SystemPrompt(input: {
               ? assistantV3CanvasNodes(request.snapshot.canvas)
               : [],
           )
-  const style = buildPersonaStyleSection(persona)
+  const style = buildPersonaStyleSection(persona, 'v3')
   const rules = `You are ANTEI's ${role}. ${ASSISTANT_DOMAIN_BRIEFS[request.domain].persona}
 
 ${HOW_YOU_WORK}

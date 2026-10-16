@@ -16,6 +16,8 @@ import {
   ASSISTANT_V3_TOOL_IDS,
   ASSISTANT_V3_WEB_IMAGES_KIND_DESCRIPTION,
   ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION,
+  ASSISTANT_V3_MEMORIES_KIND_DESCRIPTION,
+  ASSISTANT_V3_MEMORIES_SEARCH_KIND,
   isAssistantV3WebSearchKind,
 } from '@/constants/assistant-v3'
 import { renderAssistantV3ImageItem } from '@/lib/assistant-v3-image-board'
@@ -33,6 +35,7 @@ import {
   type AssistantV3VideoEditOpInput,
 } from '@/types/assistant-v3'
 import type { AssistantOperatorEvent } from '@/types/assistant-operator'
+import { searchMemoriesStep } from '@/services/kernel/assistant-v3-memories.service'
 import { toStepEvent } from '@/services/kernel/assistant-operator.service'
 import {
   executeBenchGenerate,
@@ -105,7 +108,7 @@ export function assistantV3ImageTools(strict: boolean) {
       strict,
     }),
     [ASSISTANT_V3_TOOL_IDS.searchLibrary]: tool({
-      description: `kind "image" / "video" / "audio": search the creator's own assets (results carry asset ids for mount_reference). ${ASSISTANT_V3_WEB_IMAGES_KIND_DESCRIPTION} ${ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION}`,
+      description: `kind "image" / "video" / "audio": search the creator's own assets (results carry asset ids for mount_reference). ${ASSISTANT_V3_WEB_IMAGES_KIND_DESCRIPTION} ${ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION} ${ASSISTANT_V3_MEMORIES_KIND_DESCRIPTION}`,
       inputSchema: AssistantV3ImageSearchLibraryInputSchema,
       strict,
     }),
@@ -134,7 +137,7 @@ export function assistantV3VideoTools(strict: boolean) {
       strict,
     }),
     [ASSISTANT_V3_TOOL_IDS.searchLibrary]: tool({
-      description: `kind "image" / "video" / "audio": search the creator's own assets (results carry asset ids for mount_reference and mount_audio). ${ASSISTANT_V3_WEB_IMAGES_KIND_DESCRIPTION} ${ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION}`,
+      description: `kind "image" / "video" / "audio": search the creator's own assets (results carry asset ids for mount_reference and mount_audio). ${ASSISTANT_V3_WEB_IMAGES_KIND_DESCRIPTION} ${ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION} ${ASSISTANT_V3_MEMORIES_KIND_DESCRIPTION}`,
       inputSchema: AssistantV3ImageSearchLibraryInputSchema,
       strict,
     }),
@@ -494,6 +497,8 @@ export async function* executeAssistantV3ImageCall(
       return yield* executeBenchGenerate(context, input)
     case ASSISTANT_V3_TOOL_IDS.searchLibrary: {
       const parsed = AssistantV3ImageSearchLibraryInputSchema.parse(input)
+      if (parsed.kind === ASSISTANT_V3_MEMORIES_SEARCH_KIND)
+        return yield* searchMemoriesStep(context, parsed.query)
       if (isAssistantV3WebSearchKind(parsed.kind))
         return yield* runWebFind(
           context,

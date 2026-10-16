@@ -104,6 +104,16 @@ export const ASSISTANT_MEMORY_LIMITS = {
    * `maxDuration`（300 s）兜着；一轮最晚在工具环硬线（270 s）收，留给它的就是这 30 s 里的一截。
    */
   extractionTimeoutMs: 25_000,
+  /**
+   * 后台抽记忆时**给模型看几条已有的**（P3 写入时消解冲突）：同域 + global、最近改过的在前，
+   * 编好号，模型自己判断新的这条是重复、改掉第 N 条，还是该忘掉第 N 条。
+   * ⚠ 不做相似度检索：一行最多 200 字，30 行也只有几千字，让模型自己读比代码替它挑准。
+   */
+  maxShownForReview: 30,
+  /** 助手翻一次记忆（`search_library kind "memories"`）最多回几条。 */
+  maxSearchResults: 20,
+  /** 翻记忆的查询最多认几个词（多了就是在复述整句话）。 */
+  maxSearchWords: 8,
 } as const
 
 /**

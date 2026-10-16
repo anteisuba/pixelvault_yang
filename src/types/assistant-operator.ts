@@ -1713,7 +1713,6 @@ export const AssistantOperatorRoundSummaryDraftSchema = z.object({
       z.object({
         kind: z.string(),
         text: z.string(),
-        scope: z.string().optional(),
       }),
     )
     .optional(),
@@ -1725,10 +1724,27 @@ export type AssistantOperatorRoundSummaryDraft = z.infer<
 
 /**
  * v3 收尾后在后台单问的那一份：只要记忆（P2 §2.5）。v3 没有任何地方读结论三栏，
- * 也就 ⛔ 不再为它们起一次调用；形状与上面那一格同源，缺席照旧 = 没什么值得记的。
+ * 也就 ⛔ 不再为它们起一次调用；缺席照旧 = 没什么值得记的。
+ *
+ * ⭐ P3 写入时消解冲突：模型看得到编了号的已有记忆，新的一条可以写 `replaces: N`（改掉第 N 条），
+ * 不再成立的放进 `forget`。号由服务端映射回行，⛔ 模型碰不到 id；号对不上的那一项丢掉。
  */
-export const AssistantRoundMemoriesDraftSchema =
-  AssistantOperatorRoundSummaryDraftSchema.pick({ memories: true })
+export const AssistantRoundMemoriesDraftSchema = z.object({
+  memories: z
+    .array(
+      z.object({
+        kind: z.string(),
+        text: z.string(),
+        replaces: z.number().int().optional(),
+      }),
+    )
+    .optional(),
+  forget: z.array(z.number().int()).optional(),
+})
+
+export type AssistantRoundMemoriesDraft = z.infer<
+  typeof AssistantRoundMemoriesDraftSchema
+>
 
 /**
  * **查证收尾那一句归纳**（§9.1 ④，2026-09-12 实测第三组 A）—— 模型 → 服务端。

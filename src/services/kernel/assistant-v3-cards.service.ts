@@ -17,6 +17,8 @@ import {
   ASSISTANT_V3_TOOL_IDS,
   ASSISTANT_V3_WEB_IMAGES_SEARCH_KIND,
   ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION,
+  ASSISTANT_V3_MEMORIES_KIND_DESCRIPTION,
+  ASSISTANT_V3_MEMORIES_SEARCH_KIND,
   ASSISTANT_V3_WEB_VIDEOS_SEARCH_KIND,
 } from '@/constants/assistant-v3'
 import {
@@ -33,6 +35,7 @@ import {
   type AssistantV3CardsEditOpInput,
 } from '@/types/assistant-v3'
 import type { AssistantOperatorEvent } from '@/types/assistant-operator'
+import { searchMemoriesStep } from '@/services/kernel/assistant-v3-memories.service'
 import { toStepEvent } from '@/services/kernel/assistant-operator.service'
 import {
   executeBenchLook,
@@ -87,7 +90,7 @@ export function assistantV3CardsTools(strict: boolean) {
       strict,
     }),
     [ASSISTANT_V3_TOOL_IDS.searchLibrary]: tool({
-      description: `kind "image": the creator's own pictures (results carry asset ids for propose_images). kind "web_images": pictures on the web, shown to the creator as numbered cards (results are one line per picture, "#n · title · site · size · usable as reference / view only"; propose by that number). ${ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION}`,
+      description: `kind "image": the creator's own pictures (results carry asset ids for propose_images). kind "web_images": pictures on the web, shown to the creator as numbered cards (results are one line per picture, "#n · title · site · size · usable as reference / view only"; propose by that number). ${ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION} ${ASSISTANT_V3_MEMORIES_KIND_DESCRIPTION}`,
       inputSchema: AssistantV3ImageSearchLibraryInputSchema,
       strict,
     }),
@@ -505,6 +508,8 @@ export async function* executeAssistantV3CardsCall(
     }
     case ASSISTANT_V3_TOOL_IDS.searchLibrary: {
       const parsed = AssistantV3ImageSearchLibraryInputSchema.parse(input)
+      if (parsed.kind === ASSISTANT_V3_MEMORIES_SEARCH_KIND)
+        return yield* searchMemoriesStep(context, parsed.query)
       if (parsed.kind === ASSISTANT_V3_WEB_IMAGES_SEARCH_KIND)
         return yield* searchWebImagesAndLook(
           context,

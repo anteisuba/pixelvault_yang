@@ -206,9 +206,16 @@ export interface StudioOperatorState {
    * 读它（`getOperatorState()`），那正是这份 store 存在的理由。
    * ⚠ **作用于当前会话**，⛔ 不写库、⛔ 不跨域分槽：它说的是「这段对话」，
    * 与用户此刻站在哪台工作台无关。换会话 / 刷新之后回到关着。
-   * ⚠ 它**只关掉写入**：这一轮照常跑、照常结账下发，只是一条记忆都不落。
+   * ⚠ 它关掉的是**写入**：这一轮照常跑、照常结账下发，只是一条记忆都不落，这段对话也不存
+   *   （见 `offTheRecord`）。
    */
   incognito: boolean
+  /**
+   * 这段对话**开过隐身**（P3「隐身真的不存会话」）—— 一旦开过就整段不落库，中途关掉也不补存：
+   * 否则关掉的那一刻会把隐身时说的话连同历史一起写进历史列表。换会话 / 新会话回到 `false`。
+   * ⚠ 已经存过的那一行留在库里（开隐身之前的那几轮），之后的都不再追加。
+   */
+  offTheRecord: boolean
   /**
    * 上一轮是**步数用完**停下的（D12 S12）—— 面板据此在末尾给「继续 / 先到这里」。
    * ⚠ 用户一开口（或新对话 / 换会话）就清掉。
@@ -302,6 +309,7 @@ const INITIAL_STATE: StudioOperatorState = {
   question: null,
   confirm: null,
   incognito: false,
+  offTheRecord: false,
   outOfSteps: false,
   capturingFrames: false,
   reviewStates: {},
@@ -1071,7 +1079,7 @@ export function setOperatorOutOfSteps(outOfSteps: boolean): void {
 
 export function setOperatorIncognito(incognito: boolean): void {
   if (state.incognito === incognito) return
-  emit({ ...state, incognito })
+  emit({ ...state, incognito, offTheRecord: state.offTheRecord || incognito })
 }
 
 export function setOperatorPlanMode(planMode: AssistantPersonaPlanMode): void {
@@ -1245,6 +1253,7 @@ export function loadOperatorThread(args: {
     capturingFrames: false,
     resume: null,
     incognito: false,
+    offTheRecord: false,
   })
   hydrateOperatorResume()
 }
@@ -1428,6 +1437,8 @@ export function resetOperatorThread(
     ...current,
     localThreadId: crypto.randomUUID(),
     saveFailed: false,
+    // 新会话只在隐身还开着时不存；上一段开过隐身不连累这一段。
+    offTheRecord: current.incognito,
     status: 'idle',
     history: EMPTY_HISTORY,
     historyRounds: EMPTY_ROUNDS,

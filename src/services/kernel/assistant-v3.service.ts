@@ -41,6 +41,8 @@ import {
   ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS,
   ASSISTANT_V3_WEB_IMAGES_KIND_DESCRIPTION,
   ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION,
+  ASSISTANT_V3_MEMORIES_KIND_DESCRIPTION,
+  ASSISTANT_V3_MEMORIES_SEARCH_KIND,
   ASSISTANT_V3_WRITE_MODE_IDS,
   isAssistantV3WebSearchKind,
   type AssistantV3Tool,
@@ -124,6 +126,7 @@ import {
   recordAssistantTurn,
   type AssistantTurnDraft,
 } from '@/services/assistant-turn-record.service'
+import { searchMemoriesStep } from '@/services/kernel/assistant-v3-memories.service'
 import { startCallLog } from '@/services/kernel/assistant-completion.service'
 import {
   buildCharacterReminder,
@@ -378,7 +381,7 @@ const tools = (strict: boolean) => ({
     strict,
   }),
   [ASSISTANT_V3_TOOL_IDS.searchLibrary]: tool({
-    description: `Search the creator's own asset library (kind "image" / "video" / "audio", or null for all). ${ASSISTANT_V3_WEB_IMAGES_KIND_DESCRIPTION} ${ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION}`,
+    description: `Search the creator's own asset library (kind "image" / "video" / "audio", or null for all). ${ASSISTANT_V3_WEB_IMAGES_KIND_DESCRIPTION} ${ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION} ${ASSISTANT_V3_MEMORIES_KIND_DESCRIPTION}`,
     inputSchema: AssistantV3SearchLibraryInputSchema,
     strict,
   }),
@@ -2371,6 +2374,8 @@ async function* executeCall(
     }
     case ASSISTANT_V3_TOOL_IDS.searchLibrary: {
       const parsed = AssistantV3SearchLibraryInputSchema.parse(input)
+      if (parsed.kind === ASSISTANT_V3_MEMORIES_SEARCH_KIND)
+        return yield* searchMemoriesStep(context, parsed.query)
       if (isAssistantV3WebSearchKind(parsed.kind))
         return yield* runWebFind(
           context,

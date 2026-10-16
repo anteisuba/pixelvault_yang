@@ -137,6 +137,25 @@ describe('会话历史落库', () => {
     expect(store.getOperatorState().status).toBe('awaitingConfirm')
   })
 
+  it('⛔ 开过隐身的这段对话整段不存，中途关掉也不补存；新会话照常存（P3）', async () => {
+    await mount()
+    act(() => store.setOperatorIncognito(true))
+    act(() => say('u1', '隐身时说的话'))
+    await settleDebounce()
+    expect(upsertMock).not.toHaveBeenCalled()
+
+    act(() => store.setOperatorIncognito(false))
+    act(() => say('u2', '关掉之后'))
+    await settleDebounce()
+    expect(upsertMock).not.toHaveBeenCalled()
+
+    act(() => store.resetOperatorThread())
+    act(() => say('u3', '新会话'))
+    await settleDebounce()
+    expect(upsertMock).toHaveBeenCalledTimes(1)
+    expect(JSON.stringify(lastUpsertBody())).not.toContain('隐身时说的话')
+  })
+
   it('一轮十几条只写一次库 —— 写入是防抖不是每帧', async () => {
     await mount()
 

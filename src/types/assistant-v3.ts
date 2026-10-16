@@ -18,6 +18,7 @@ import {
   ASSISTANT_V3_LORA_EDIT_OP_IDS,
   ASSISTANT_V3_LORA_SEARCH_KIND,
   ASSISTANT_V3_LORA_WRITE_FIELDS,
+  ASSISTANT_V3_MEMORIES_SEARCH_KIND,
   ASSISTANT_V3_TOOLS,
   ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS,
   ASSISTANT_V3_VIDEO_REFERENCE_SLOTS,
@@ -226,6 +227,7 @@ export const AssistantV3SearchLibraryInputSchema = z.object({
     .enum([
       ...ASSISTANT_V3_WEB_SEARCH_KINDS,
       ...ASSISTANT_OPERATOR_SEARCH_KINDS,
+      ASSISTANT_V3_MEMORIES_SEARCH_KIND,
     ])
     .nullable(),
   subject: WebSubjectSchema,
@@ -418,6 +420,7 @@ export const AssistantV3LoraSearchLibraryInputSchema = z.object({
     ASSISTANT_V3_LORA_SEARCH_KIND,
     ...ASSISTANT_V3_WEB_SEARCH_KINDS,
     ...ASSISTANT_OPERATOR_SEARCH_KINDS,
+    ASSISTANT_V3_MEMORIES_SEARCH_KIND,
   ]),
   subject: WebSubjectSchema,
 })
@@ -662,6 +665,7 @@ export const AssistantV3ImageSearchLibraryInputSchema = z.object({
   kind: z.enum([
     ...ASSISTANT_V3_WEB_SEARCH_KINDS,
     ...ASSISTANT_OPERATOR_SEARCH_KINDS,
+    ASSISTANT_V3_MEMORIES_SEARCH_KIND,
   ]),
   subject: WebSubjectSchema,
 })

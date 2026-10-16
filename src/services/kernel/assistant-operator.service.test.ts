@@ -453,6 +453,10 @@ const mockListMemoriesForPrompt = vi.fn(
 )
 const mockRecordMemories = vi.fn(async (..._args: unknown[]) => 0)
 const mockTouchMemories = vi.fn(async (..._args: unknown[]) => undefined)
+/** P3：后台抽记忆时给模型看的那几条已有的（编号 → id 由内核换）。 */
+const mockListMemoriesForReview = vi.fn(
+  async (..._args: unknown[]) => [] as unknown[],
+)
 /** 你写的那几条（规则段）与两条规则工具 —— 规矩并进记忆（助手设置 B）。 */
 const mockListCreatorMemories = vi.fn(
   async (..._args: unknown[]) => [] as unknown[],
@@ -471,6 +475,8 @@ vi.mock('@/services/assistant-memory.service', () => ({
   addAssistantRuleMemory: (...args: unknown[]) => mockAddRuleMemory(...args),
   recordAssistantMemories: (...args: unknown[]) => mockRecordMemories(...args),
   touchAssistantMemories: (...args: unknown[]) => mockTouchMemories(...args),
+  listAssistantMemoriesForReview: (...args: unknown[]) =>
+    mockListMemoriesForReview(...args),
 }))
 
 import {
@@ -18671,9 +18677,10 @@ describe('助手记忆（56a）', () => {
     }
     expect(args.scope).toBe('image')
     expect(args.conversationId).toBe(CONVERSATION_ID)
+    // 模型写的 scope 不再照收：挂哪个域只由服务端按这一轮在哪台定。
     expect(args.candidates).toEqual([
       { kind: 'preference', text: '偏好横构图 16:9' },
-      { kind: 'rule', text: '回答用中文', scope: 'global' },
+      { kind: 'rule', text: '回答用中文' },
     ])
     // 回执上那个 N = 服务真正记下的条数（敏感命中的那几条已经不在里面）。
     expect(doneEvent(events).roundSummary?.memoriesWritten).toBe(2)
@@ -18820,7 +18827,7 @@ describe('助手记忆（56a）', () => {
     expect(toolRingSystemPrompt()).toContain('偏好横构图 16:9')
   })
 
-  it('⭐ 注入段印出那几行字，并更新 lastUsedAt', async () => {
+  it('⭐ 注入段印出那几行字；⛔ 注入不刷 lastUsedAt（P3：翻到才算用过）', async () => {
     mockListMemoriesForPrompt.mockResolvedValueOnce([
       {
         id: 'mem-1',
@@ -18839,7 +18846,7 @@ describe('助手记忆（56a）', () => {
     expect(toolRingSystemPrompt()).toContain(
       '偏好横构图 16:9，除非我明说要竖的',
     )
-    expect(mockTouchMemories).toHaveBeenCalledWith('user-db-1', ['mem-1'])
+    expect(mockTouchMemories).not.toHaveBeenCalled()
   })
 
   it('⛔ 一条记忆都没有时不印那一段', async () => {
@@ -19248,6 +19255,76 @@ describe('v3 收尾（P2 §2.5）', () => {
         .userPrompt,
     ).toContain('等你确认生成 2 张')
     expect(mockRecordMemories).toHaveBeenCalledTimes(1)
+  })
+
+  it('⭐ P3：已有的编好号给模型看；replaces / forget 的编号换成 id，对不上的 replaces 当新加、对不上的 forget 丢掉', async () => {
+    const { run, user } = await prepare()
+    recordLedgerStep(run, ASSISTANT_OPERATOR_VERB_IDS.look, '看图', '黑长直')
+    mockListMemoriesForReview.mockResolvedValueOnce([
+      { id: 'm-a', kind: 'preference', text: '偏好竖构图 9:16' },
+      { id: 'm-b', kind: 'fact', text: '主角叫小林' },
+    ])
+    mockLlmTextCompletion.mockResolvedValueOnce(
+      JSON.stringify({
+        memories: [
+          { kind: 'preference', text: '偏好横构图 16:9', replaces: 1 },
+          { kind: 'fact', text: '同一条改两次只认第一次', replaces: 1 },
+          { kind: 'fact', text: '编号不存在就当新加', replaces: 9 },
+        ],
+        forget: [2, 7],
+      }),
+    )
+
+    await closeRoundV3(run, { clerkId: 'clerk-1', userId: user.id })
+    await settleAfter()
+
+    const prompt = (
+      mockLlmTextCompletion.mock.calls[0]?.[0] as { userPrompt: string }
+    ).userPrompt
+    expect(prompt).toContain('#1 [preference] 偏好竖构图 9:16')
+    expect(prompt).toContain('#2 [fact] 主角叫小林')
+    expect(mockRecordMemories).toHaveBeenCalledTimes(1)
+    expect(mockRecordMemories.mock.calls[0]?.[0]).toMatchObject({
+      scope: 'image',
+      replacements: [
+        {
+          id: 'm-a',
+          candidate: { kind: 'preference', text: '偏好横构图 16:9' },
+        },
+      ],
+      forget: ['m-b'],
+    })
+    const recorded = mockRecordMemories.mock.calls[0]?.[0] as {
+      candidates: { text: string }[]
+    }
+    expect(recorded.candidates.map((c) => c.text)).toContain(
+      '编号不存在就当新加',
+    )
+  })
+
+  it('P3：什么都不改（全空）就不调记忆服务', async () => {
+    const { run, user } = await prepare()
+    recordLedgerStep(run, ASSISTANT_OPERATOR_VERB_IDS.look, '看图', '黑长直')
+    mockLlmTextCompletion.mockResolvedValueOnce(
+      JSON.stringify({ memories: [], forget: [] }),
+    )
+
+    await closeRoundV3(run, { clerkId: 'clerk-1', userId: user.id })
+    await settleAfter()
+
+    expect(mockRecordMemories).not.toHaveBeenCalled()
+  })
+
+  it('⛔ P3：角色页这一轮不自动记（cards 没有自己的域，不往全局漏）', async () => {
+    const { run, user } = await prepare({ domain: 'cards' })
+    recordLedgerStep(run, ASSISTANT_OPERATOR_VERB_IDS.look, '看图', '黑长直')
+    mockLlmTextCompletion.mockResolvedValue(MEMORIES)
+
+    await closeRoundV3(run, { clerkId: 'clerk-1', userId: user.id })
+    await settleAfter()
+
+    expect(mockLlmTextCompletion).not.toHaveBeenCalled()
+    expect(mockRecordMemories).not.toHaveBeenCalled()
   })
 })
 

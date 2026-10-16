@@ -8711,7 +8711,7 @@
     },
     "placeholderQuestion": "Or just write what you want…",
     "collapsedTodo": "{count} awaiting your response",
-    "incognito": "Incognito · skip this round",
+    "incognito": "Incognito · not remembered or saved",
     "face": {
       "noModel": "No model yet",
       "pill": {

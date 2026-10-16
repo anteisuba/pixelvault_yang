@@ -7,10 +7,13 @@ const uploadImageFileAPI = vi.hoisted(() => vi.fn())
 const compressImageToLimit = vi.hoisted(() => vi.fn())
 const readImagePixelSize = vi.hoisted(() => vi.fn())
 const notifyGalleryChanged = vi.hoisted(() => vi.fn())
+const uploadVideoFileAPI = vi.hoisted(() => vi.fn())
+const readVideoFileMetadata = vi.hoisted(() => vi.fn())
+const captureVideoThumbnail = vi.hoisted(() => vi.fn())
 
 vi.mock('@/lib/api-client', () => ({
   uploadImageFileAPI,
-  uploadReferenceVideoAPI: vi.fn(),
+  uploadVideoFileAPI,
 }))
 vi.mock('@/lib/api-client/voices', () => ({
   uploadReferenceAudioAPI: vi.fn(),
@@ -23,7 +26,8 @@ vi.mock('@/lib/gallery-revision', () => ({
   notifyGalleryChanged,
 }))
 vi.mock('@/lib/video-thumbnail', () => ({
-  captureVideoThumbnail: vi.fn(),
+  captureVideoThumbnail,
+  readVideoFileMetadata,
 }))
 
 import { useNodeUploadV4 } from './use-node-upload-v4'
@@ -86,5 +90,78 @@ describe('useNodeUploadV4 · 图片回填带原图像素', () => {
     })
     expect(patch).not.toHaveProperty('mediaWidth')
     expect(patch).not.toHaveProperty('mediaHeight')
+  })
+})
+
+describe('useNodeUploadV4 · 视频走浏览器直传', () => {
+  const video = new File(['frames'], 'clip.mp4', { type: 'video/mp4' })
+  const poster = new Blob(['poster'], { type: 'image/webp' })
+
+  beforeEach(() => {
+    uploadVideoFileAPI.mockReset()
+    readVideoFileMetadata.mockReset()
+    captureVideoThumbnail.mockReset()
+    readVideoFileMetadata.mockResolvedValue({
+      width: 1280,
+      height: 720,
+      duration: 5,
+    })
+    captureVideoThumbnail.mockResolvedValue(poster)
+  })
+
+  it('uploads through the direct R2 path and backfills url + poster + dims', async () => {
+    uploadVideoFileAPI.mockResolvedValue({
+      success: true,
+      data: {
+        generation: {
+          url: 'https://cdn.example.com/clip.mp4',
+          thumbnailUrl: 'https://cdn.example.com/clip.webp',
+        },
+      },
+    })
+
+    const { result } = renderHook(() => useNodeUploadV4())
+    let patch: Awaited<ReturnType<typeof result.current.upload>> = null
+    await act(async () => {
+      patch = await result.current.upload('video', video, '参考片段')
+    })
+
+    expect(uploadVideoFileAPI).toHaveBeenCalledWith(
+      video,
+      expect.objectContaining({
+        width: 1280,
+        height: 720,
+        duration: 5,
+        poster,
+        note: '参考片段',
+      }),
+    )
+    expect(patch).toEqual({
+      url: 'https://cdn.example.com/clip.mp4',
+      sizeBytes: video.size,
+      videoThumbnailUrl: 'https://cdn.example.com/clip.webp',
+      mediaWidth: 1280,
+      mediaHeight: 720,
+    })
+    expect(notifyGalleryChanged).toHaveBeenCalled()
+  })
+
+  it('returns null with a retryable error when the upload fails', async () => {
+    uploadVideoFileAPI.mockResolvedValue({
+      success: false,
+      error: 'Video storage rejected the upload (status 403)',
+    })
+
+    const { result } = renderHook(() => useNodeUploadV4())
+    let patch: Awaited<ReturnType<typeof result.current.upload>> = null
+    await act(async () => {
+      patch = await result.current.upload('video', video, '参考片段')
+    })
+
+    expect(patch).toBeNull()
+    expect(result.current.error).toBe(
+      'Video storage rejected the upload (status 403)',
+    )
+    expect(result.current.canRetry).toBe(true)
   })
 })

@@ -7502,6 +7502,7 @@ function planReadProjectRules(
         await listStandingRuleMemories(userId, {
           scope: scope ? memoryScopeForDomain(scope) : null,
           projectId: requestProjectId(run.request),
+          characterCardId: chatMemoryCardId(run.request, run.persona),
           limit: RULE_LIMITS.maxReadResults,
         })
       ).map(memoryAsRule)
@@ -7743,6 +7744,7 @@ async function planAddRuleMemory(
       ? memoryScopeForDomain(args.scope)
       : ASSISTANT_MEMORY_SCOPE_IDS.global,
     projectId: requestProjectId(run.request),
+    characterCardId: chatMemoryCardId(run.request, run.persona),
   })
   const rule = memoryAsRule(memory)
   run.ruleIndex.set(rule.id, rule)
@@ -12364,18 +12366,47 @@ export function memoryScopeForDomain(
 }
 
 /**
+ * 聊天里「她先说的那句」以对白里真放着的那句为准（附录L 第二片）：你可能切到了卡上的备选开场白，
+ * 或者改过它 —— 系统提示里再引卡上那句原文就和对白对不上了。对白不是她先开口的就照卡上的。
+ */
+function withChatOpening(
+  persona: AssistantPromptPersona,
+  request: AssistantOperatorRequest,
+): AssistantPromptPersona {
+  const first = request.messages[0]
+  if (!persona.roleplay || first?.role !== 'assistant') return persona
+  const opening = first.content.trim()
+  if (!opening) return persona
+  return { ...persona, roleplay: { ...persona.roleplay, opening } }
+}
+
+/**
+ * 这一轮在和哪个角色聊（附录L 第二片：记忆按角色分开）—— 只认服务端按会话读出来的那张卡
+ * （`persona.roleplay` 在 = 读成了聊天人设），⛔ 不直接信请求体里的 id。工作会话 / 卡没了回 `null`。
+ */
+export function chatMemoryCardId(
+  request: AssistantOperatorRequest,
+  persona: AssistantPromptPersona,
+): string | null {
+  return request.chatCharacterId && persona.roleplay
+    ? (persona.characterCardId ?? null)
+    : null
+}
+
+/**
  * 这一轮学到的东西**写进**哪个域（P3 作用域修正）—— 每张脸写自己的域（角色页写 `cards`，P3 第二片）；
  * 认不出的面回 `null`，调用方据此**不自动记**。
  * ⛔ 别退成 global：原来角色页的记忆全落进 global，所有工作台都被它影响。
+ * ⭐ 和角色聊天：写进 `cards` + 这个角色（服务里按 `characterCardId` 收），故事里的事 ⛔ 不串进工作台。
  */
 function memoryWriteScopeForRequest(
   request: AssistantOperatorRequest,
+  persona: AssistantPromptPersona,
 ): AssistantMemoryScopeId | null {
-  /**
-   * 聊天模式这一版不自动记（附录L）：故事里的事落进工作记忆会串到各个工作台；
-   * 按角色分开存的那份等下一片。
-   */
-  if (request.chatCharacterId) return null
+  if (request.chatCharacterId)
+    return chatMemoryCardId(request, persona)
+      ? ASSISTANT_MEMORY_SCOPE_IDS.cards
+      : null
   const scope = memoryScopeForDomain(request.domain)
   return scope === ASSISTANT_MEMORY_SCOPE_IDS.global ? null : scope
 }
@@ -12485,7 +12516,7 @@ export async function closeRound(
    *     它只停「记新的」，已有的照样注入。
    */
   const incognito = run.request.incognito === true
-  const writeScope = memoryWriteScopeForRequest(run.request)
+  const writeScope = memoryWriteScopeForRequest(run.request, run.persona)
   let memoriesWritten = 0
   if (!incognito && run.persona.memoryCapture && hasLedger && writeScope) {
     const candidates = parseMemoryCandidates(draft.memories)
@@ -12495,6 +12526,7 @@ export async function closeRound(
           userId: args.userId,
           scope: writeScope,
           projectId: requestProjectId(run.request),
+          characterCardId: chatMemoryCardId(run.request, run.persona),
           candidates,
           ...(conversationId ? { conversationId } : {}),
         })
@@ -12627,7 +12659,7 @@ export async function closeRoundV3(
     ledger.todos.length > 0 ||
     ledger.evidence.length > 0
   const incognito = run.request.incognito === true
-  const writeScope = memoryWriteScopeForRequest(run.request)
+  const writeScope = memoryWriteScopeForRequest(run.request, run.persona)
   if (!incognito && run.persona.memoryCapture && hasLedger && writeScope)
     scheduleRoundMemories(run, { ...args, scope: writeScope })
 
@@ -12680,6 +12712,7 @@ function scheduleRoundMemories(
   const adapterType = run.route.adapterType
   const modelId = run.modelId || undefined
   const projectId = requestProjectId(run.request)
+  const characterCardId = chatMemoryCardId(run.request, run.persona)
   const conversationId = run.request.conversationId
   const material = roundMaterial(run, args.closingMessage).join('\n\n')
   const extraction = {
@@ -12694,6 +12727,7 @@ function scheduleRoundMemories(
       args.userId,
       args.scope,
       projectId,
+      characterCardId,
     )
     const prompt = [material, describeShownMemories(shown)].join('\n\n')
     const raw = await completeAssistantTextWithContextRetry({
@@ -12720,6 +12754,7 @@ function scheduleRoundMemories(
       userId: args.userId,
       scope: args.scope,
       projectId,
+      characterCardId,
       ...changes,
       ...(conversationId ? { conversationId } : {}),
     })
@@ -13098,9 +13133,15 @@ export async function prepareOperatorTurn(
          * 重算；失败照旧截断）—— owner 2026-10-15。
          */
         async () =>
-          withSummarizedBackstory(
-            user.id,
-            await getAssistantPersonaByUserId(user.id, request.chatCharacterId),
+          withChatOpening(
+            await withSummarizedBackstory(
+              user.id,
+              await getAssistantPersonaByUserId(
+                user.id,
+                request.chatCharacterId,
+              ),
+            ),
+            request,
           ),
       ),
       /**
@@ -13114,6 +13155,11 @@ export async function prepareOperatorTurn(
             memoryScopeForDomain(request.domain),
             RULE_LIMITS.maxInPrompt,
             workspace.projectId ?? null,
+            /**
+             * 和角色聊天：只读你写的全局规矩（服务里按卡收）。⚠ 人设与它并行读，这里先信请求里的
+             * 会话角色 —— 只读这个用户自己的行，卡不对也只是少读几条域规矩。
+             */
+            request.chatCharacterId ?? null,
           )
         ).map(memoryAsRule),
       ),
@@ -13195,6 +13241,8 @@ export async function prepareOperatorTurn(
             memoryScopeForDomain(request.domain),
             memoryBudget,
             workspace.projectId ?? null,
+            // 和角色聊天只读这个角色的（工作里学到的 ⛔ 不带进故事）。
+            chatMemoryCardId(request, persona),
           ),
   )
   // ⛔ 注入不刷 `lastUsedAt`（P3）：进过提示就排最前的那条自我强化撤了，翻到才算用过。

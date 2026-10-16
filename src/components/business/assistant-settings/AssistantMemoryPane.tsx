@@ -496,11 +496,16 @@ function MemoryRow({
     void onSave({ text })
   }
 
-  /** 只属于一个画布项目的那条（owner 2026-10-09：一个项目一份记忆）写项目名。 */
+  /**
+   * 只属于一个画布项目的那条（owner 2026-10-09：一个项目一份记忆）写项目名；
+   * 和角色聊天时记下的那条（附录L）写角色名。
+   */
   const projectLabel =
-    memory.projectId && memory.projectName
-      ? t('memory.canvasProject', { name: memory.projectName })
-      : null
+    memory.characterCardId && memory.characterName
+      ? t('memory.chatCharacter', { name: memory.characterName })
+      : memory.projectId && memory.projectName
+        ? t('memory.canvasProject', { name: memory.projectName })
+        : null
   const scopeLabel = projectLabel ?? t(`memory.scope.${memory.scope}`)
 
   if (editing) {

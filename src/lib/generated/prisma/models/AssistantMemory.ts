@@ -34,6 +34,7 @@ export type AssistantMemoryMinAggregateOutputType = {
   conversationId: string | null
   messageId: string | null
   projectId: string | null
+  characterCardId: string | null
   lastUsedAt: Date | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -49,6 +50,7 @@ export type AssistantMemoryMaxAggregateOutputType = {
   conversationId: string | null
   messageId: string | null
   projectId: string | null
+  characterCardId: string | null
   lastUsedAt: Date | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -64,6 +66,7 @@ export type AssistantMemoryCountAggregateOutputType = {
   conversationId: number
   messageId: number
   projectId: number
+  characterCardId: number
   lastUsedAt: number
   createdAt: number
   updatedAt: number
@@ -81,6 +84,7 @@ export type AssistantMemoryMinAggregateInputType = {
   conversationId?: true
   messageId?: true
   projectId?: true
+  characterCardId?: true
   lastUsedAt?: true
   createdAt?: true
   updatedAt?: true
@@ -96,6 +100,7 @@ export type AssistantMemoryMaxAggregateInputType = {
   conversationId?: true
   messageId?: true
   projectId?: true
+  characterCardId?: true
   lastUsedAt?: true
   createdAt?: true
   updatedAt?: true
@@ -111,6 +116,7 @@ export type AssistantMemoryCountAggregateInputType = {
   conversationId?: true
   messageId?: true
   projectId?: true
+  characterCardId?: true
   lastUsedAt?: true
   createdAt?: true
   updatedAt?: true
@@ -199,6 +205,7 @@ export type AssistantMemoryGroupByOutputType = {
   conversationId: string | null
   messageId: string | null
   projectId: string | null
+  characterCardId: string | null
   lastUsedAt: Date
   createdAt: Date
   updatedAt: Date
@@ -235,11 +242,13 @@ export type AssistantMemoryWhereInput = {
   conversationId?: Prisma.StringNullableFilter<"AssistantMemory"> | string | null
   messageId?: Prisma.StringNullableFilter<"AssistantMemory"> | string | null
   projectId?: Prisma.StringNullableFilter<"AssistantMemory"> | string | null
+  characterCardId?: Prisma.StringNullableFilter<"AssistantMemory"> | string | null
   lastUsedAt?: Prisma.DateTimeFilter<"AssistantMemory"> | Date | string
   createdAt?: Prisma.DateTimeFilter<"AssistantMemory"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AssistantMemory"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   project?: Prisma.XOR<Prisma.NodeWorkflowProjectNullableScalarRelationFilter, Prisma.NodeWorkflowProjectWhereInput> | null
+  characterCard?: Prisma.XOR<Prisma.CharacterCardNullableScalarRelationFilter, Prisma.CharacterCardWhereInput> | null
 }
 
 export type AssistantMemoryOrderByWithRelationInput = {
@@ -252,11 +261,13 @@ export type AssistantMemoryOrderByWithRelationInput = {
   conversationId?: Prisma.SortOrderInput | Prisma.SortOrder
   messageId?: Prisma.SortOrderInput | Prisma.SortOrder
   projectId?: Prisma.SortOrderInput | Prisma.SortOrder
+  characterCardId?: Prisma.SortOrderInput | Prisma.SortOrder
   lastUsedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
   project?: Prisma.NodeWorkflowProjectOrderByWithRelationInput
+  characterCard?: Prisma.CharacterCardOrderByWithRelationInput
 }
 
 export type AssistantMemoryWhereUniqueInput = Prisma.AtLeast<{
@@ -272,11 +283,13 @@ export type AssistantMemoryWhereUniqueInput = Prisma.AtLeast<{
   conversationId?: Prisma.StringNullableFilter<"AssistantMemory"> | string | null
   messageId?: Prisma.StringNullableFilter<"AssistantMemory"> | string | null
   projectId?: Prisma.StringNullableFilter<"AssistantMemory"> | string | null
+  characterCardId?: Prisma.StringNullableFilter<"AssistantMemory"> | string | null
   lastUsedAt?: Prisma.DateTimeFilter<"AssistantMemory"> | Date | string
   createdAt?: Prisma.DateTimeFilter<"AssistantMemory"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AssistantMemory"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   project?: Prisma.XOR<Prisma.NodeWorkflowProjectNullableScalarRelationFilter, Prisma.NodeWorkflowProjectWhereInput> | null
+  characterCard?: Prisma.XOR<Prisma.CharacterCardNullableScalarRelationFilter, Prisma.CharacterCardWhereInput> | null
 }, "id">
 
 export type AssistantMemoryOrderByWithAggregationInput = {
@@ -289,6 +302,7 @@ export type AssistantMemoryOrderByWithAggregationInput = {
   conversationId?: Prisma.SortOrderInput | Prisma.SortOrder
   messageId?: Prisma.SortOrderInput | Prisma.SortOrder
   projectId?: Prisma.SortOrderInput | Prisma.SortOrder
+  characterCardId?: Prisma.SortOrderInput | Prisma.SortOrder
   lastUsedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -310,6 +324,7 @@ export type AssistantMemoryScalarWhereWithAggregatesInput = {
   conversationId?: Prisma.StringNullableWithAggregatesFilter<"AssistantMemory"> | string | null
   messageId?: Prisma.StringNullableWithAggregatesFilter<"AssistantMemory"> | string | null
   projectId?: Prisma.StringNullableWithAggregatesFilter<"AssistantMemory"> | string | null
+  characterCardId?: Prisma.StringNullableWithAggregatesFilter<"AssistantMemory"> | string | null
   lastUsedAt?: Prisma.DateTimeWithAggregatesFilter<"AssistantMemory"> | Date | string
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"AssistantMemory"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"AssistantMemory"> | Date | string
@@ -328,6 +343,7 @@ export type AssistantMemoryCreateInput = {
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutAssistantMemoriesInput
   project?: Prisma.NodeWorkflowProjectCreateNestedOneWithoutAssistantMemoriesInput
+  characterCard?: Prisma.CharacterCardCreateNestedOneWithoutAssistantMemoriesInput
 }
 
 export type AssistantMemoryUncheckedCreateInput = {
@@ -340,6 +356,7 @@ export type AssistantMemoryUncheckedCreateInput = {
   conversationId?: string | null
   messageId?: string | null
   projectId?: string | null
+  characterCardId?: string | null
   lastUsedAt?: Date | string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -358,6 +375,7 @@ export type AssistantMemoryUpdateInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutAssistantMemoriesNestedInput
   project?: Prisma.NodeWorkflowProjectUpdateOneWithoutAssistantMemoriesNestedInput
+  characterCard?: Prisma.CharacterCardUpdateOneWithoutAssistantMemoriesNestedInput
 }
 
 export type AssistantMemoryUncheckedUpdateInput = {
@@ -370,6 +388,7 @@ export type AssistantMemoryUncheckedUpdateInput = {
   conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastUsedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -385,6 +404,7 @@ export type AssistantMemoryCreateManyInput = {
   conversationId?: string | null
   messageId?: string | null
   projectId?: string | null
+  characterCardId?: string | null
   lastUsedAt?: Date | string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -413,6 +433,7 @@ export type AssistantMemoryUncheckedUpdateManyInput = {
   conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastUsedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -438,6 +459,7 @@ export type AssistantMemoryCountOrderByAggregateInput = {
   conversationId?: Prisma.SortOrder
   messageId?: Prisma.SortOrder
   projectId?: Prisma.SortOrder
+  characterCardId?: Prisma.SortOrder
   lastUsedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -453,6 +475,7 @@ export type AssistantMemoryMaxOrderByAggregateInput = {
   conversationId?: Prisma.SortOrder
   messageId?: Prisma.SortOrder
   projectId?: Prisma.SortOrder
+  characterCardId?: Prisma.SortOrder
   lastUsedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -468,6 +491,7 @@ export type AssistantMemoryMinOrderByAggregateInput = {
   conversationId?: Prisma.SortOrder
   messageId?: Prisma.SortOrder
   projectId?: Prisma.SortOrder
+  characterCardId?: Prisma.SortOrder
   lastUsedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -557,6 +581,48 @@ export type AssistantMemoryUncheckedUpdateManyWithoutProjectNestedInput = {
   deleteMany?: Prisma.AssistantMemoryScalarWhereInput | Prisma.AssistantMemoryScalarWhereInput[]
 }
 
+export type AssistantMemoryCreateNestedManyWithoutCharacterCardInput = {
+  create?: Prisma.XOR<Prisma.AssistantMemoryCreateWithoutCharacterCardInput, Prisma.AssistantMemoryUncheckedCreateWithoutCharacterCardInput> | Prisma.AssistantMemoryCreateWithoutCharacterCardInput[] | Prisma.AssistantMemoryUncheckedCreateWithoutCharacterCardInput[]
+  connectOrCreate?: Prisma.AssistantMemoryCreateOrConnectWithoutCharacterCardInput | Prisma.AssistantMemoryCreateOrConnectWithoutCharacterCardInput[]
+  createMany?: Prisma.AssistantMemoryCreateManyCharacterCardInputEnvelope
+  connect?: Prisma.AssistantMemoryWhereUniqueInput | Prisma.AssistantMemoryWhereUniqueInput[]
+}
+
+export type AssistantMemoryUncheckedCreateNestedManyWithoutCharacterCardInput = {
+  create?: Prisma.XOR<Prisma.AssistantMemoryCreateWithoutCharacterCardInput, Prisma.AssistantMemoryUncheckedCreateWithoutCharacterCardInput> | Prisma.AssistantMemoryCreateWithoutCharacterCardInput[] | Prisma.AssistantMemoryUncheckedCreateWithoutCharacterCardInput[]
+  connectOrCreate?: Prisma.AssistantMemoryCreateOrConnectWithoutCharacterCardInput | Prisma.AssistantMemoryCreateOrConnectWithoutCharacterCardInput[]
+  createMany?: Prisma.AssistantMemoryCreateManyCharacterCardInputEnvelope
+  connect?: Prisma.AssistantMemoryWhereUniqueInput | Prisma.AssistantMemoryWhereUniqueInput[]
+}
+
+export type AssistantMemoryUpdateManyWithoutCharacterCardNestedInput = {
+  create?: Prisma.XOR<Prisma.AssistantMemoryCreateWithoutCharacterCardInput, Prisma.AssistantMemoryUncheckedCreateWithoutCharacterCardInput> | Prisma.AssistantMemoryCreateWithoutCharacterCardInput[] | Prisma.AssistantMemoryUncheckedCreateWithoutCharacterCardInput[]
+  connectOrCreate?: Prisma.AssistantMemoryCreateOrConnectWithoutCharacterCardInput | Prisma.AssistantMemoryCreateOrConnectWithoutCharacterCardInput[]
+  upsert?: Prisma.AssistantMemoryUpsertWithWhereUniqueWithoutCharacterCardInput | Prisma.AssistantMemoryUpsertWithWhereUniqueWithoutCharacterCardInput[]
+  createMany?: Prisma.AssistantMemoryCreateManyCharacterCardInputEnvelope
+  set?: Prisma.AssistantMemoryWhereUniqueInput | Prisma.AssistantMemoryWhereUniqueInput[]
+  disconnect?: Prisma.AssistantMemoryWhereUniqueInput | Prisma.AssistantMemoryWhereUniqueInput[]
+  delete?: Prisma.AssistantMemoryWhereUniqueInput | Prisma.AssistantMemoryWhereUniqueInput[]
+  connect?: Prisma.AssistantMemoryWhereUniqueInput | Prisma.AssistantMemoryWhereUniqueInput[]
+  update?: Prisma.AssistantMemoryUpdateWithWhereUniqueWithoutCharacterCardInput | Prisma.AssistantMemoryUpdateWithWhereUniqueWithoutCharacterCardInput[]
+  updateMany?: Prisma.AssistantMemoryUpdateManyWithWhereWithoutCharacterCardInput | Prisma.AssistantMemoryUpdateManyWithWhereWithoutCharacterCardInput[]
+  deleteMany?: Prisma.AssistantMemoryScalarWhereInput | Prisma.AssistantMemoryScalarWhereInput[]
+}
+
+export type AssistantMemoryUncheckedUpdateManyWithoutCharacterCardNestedInput = {
+  create?: Prisma.XOR<Prisma.AssistantMemoryCreateWithoutCharacterCardInput, Prisma.AssistantMemoryUncheckedCreateWithoutCharacterCardInput> | Prisma.AssistantMemoryCreateWithoutCharacterCardInput[] | Prisma.AssistantMemoryUncheckedCreateWithoutCharacterCardInput[]
+  connectOrCreate?: Prisma.AssistantMemoryCreateOrConnectWithoutCharacterCardInput | Prisma.AssistantMemoryCreateOrConnectWithoutCharacterCardInput[]
+  upsert?: Prisma.AssistantMemoryUpsertWithWhereUniqueWithoutCharacterCardInput | Prisma.AssistantMemoryUpsertWithWhereUniqueWithoutCharacterCardInput[]
+  createMany?: Prisma.AssistantMemoryCreateManyCharacterCardInputEnvelope
+  set?: Prisma.AssistantMemoryWhereUniqueInput | Prisma.AssistantMemoryWhereUniqueInput[]
+  disconnect?: Prisma.AssistantMemoryWhereUniqueInput | Prisma.AssistantMemoryWhereUniqueInput[]
+  delete?: Prisma.AssistantMemoryWhereUniqueInput | Prisma.AssistantMemoryWhereUniqueInput[]
+  connect?: Prisma.AssistantMemoryWhereUniqueInput | Prisma.AssistantMemoryWhereUniqueInput[]
+  update?: Prisma.AssistantMemoryUpdateWithWhereUniqueWithoutCharacterCardInput | Prisma.AssistantMemoryUpdateWithWhereUniqueWithoutCharacterCardInput[]
+  updateMany?: Prisma.AssistantMemoryUpdateManyWithWhereWithoutCharacterCardInput | Prisma.AssistantMemoryUpdateManyWithWhereWithoutCharacterCardInput[]
+  deleteMany?: Prisma.AssistantMemoryScalarWhereInput | Prisma.AssistantMemoryScalarWhereInput[]
+}
+
 export type EnumAssistantMemoryScopeFieldUpdateOperationsInput = {
   set?: $Enums.AssistantMemoryScope
 }
@@ -581,6 +647,7 @@ export type AssistantMemoryCreateWithoutUserInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   project?: Prisma.NodeWorkflowProjectCreateNestedOneWithoutAssistantMemoriesInput
+  characterCard?: Prisma.CharacterCardCreateNestedOneWithoutAssistantMemoriesInput
 }
 
 export type AssistantMemoryUncheckedCreateWithoutUserInput = {
@@ -592,6 +659,7 @@ export type AssistantMemoryUncheckedCreateWithoutUserInput = {
   conversationId?: string | null
   messageId?: string | null
   projectId?: string | null
+  characterCardId?: string | null
   lastUsedAt?: Date | string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -636,6 +704,7 @@ export type AssistantMemoryScalarWhereInput = {
   conversationId?: Prisma.StringNullableFilter<"AssistantMemory"> | string | null
   messageId?: Prisma.StringNullableFilter<"AssistantMemory"> | string | null
   projectId?: Prisma.StringNullableFilter<"AssistantMemory"> | string | null
+  characterCardId?: Prisma.StringNullableFilter<"AssistantMemory"> | string | null
   lastUsedAt?: Prisma.DateTimeFilter<"AssistantMemory"> | Date | string
   createdAt?: Prisma.DateTimeFilter<"AssistantMemory"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AssistantMemory"> | Date | string
@@ -653,6 +722,7 @@ export type AssistantMemoryCreateWithoutProjectInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutAssistantMemoriesInput
+  characterCard?: Prisma.CharacterCardCreateNestedOneWithoutAssistantMemoriesInput
 }
 
 export type AssistantMemoryUncheckedCreateWithoutProjectInput = {
@@ -664,6 +734,7 @@ export type AssistantMemoryUncheckedCreateWithoutProjectInput = {
   text: string
   conversationId?: string | null
   messageId?: string | null
+  characterCardId?: string | null
   lastUsedAt?: Date | string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -695,6 +766,62 @@ export type AssistantMemoryUpdateManyWithWhereWithoutProjectInput = {
   data: Prisma.XOR<Prisma.AssistantMemoryUpdateManyMutationInput, Prisma.AssistantMemoryUncheckedUpdateManyWithoutProjectInput>
 }
 
+export type AssistantMemoryCreateWithoutCharacterCardInput = {
+  id?: string
+  scope: $Enums.AssistantMemoryScope
+  kind: $Enums.AssistantMemoryKind
+  source?: $Enums.AssistantMemorySource
+  text: string
+  conversationId?: string | null
+  messageId?: string | null
+  lastUsedAt?: Date | string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  user: Prisma.UserCreateNestedOneWithoutAssistantMemoriesInput
+  project?: Prisma.NodeWorkflowProjectCreateNestedOneWithoutAssistantMemoriesInput
+}
+
+export type AssistantMemoryUncheckedCreateWithoutCharacterCardInput = {
+  id?: string
+  userId: string
+  scope: $Enums.AssistantMemoryScope
+  kind: $Enums.AssistantMemoryKind
+  source?: $Enums.AssistantMemorySource
+  text: string
+  conversationId?: string | null
+  messageId?: string | null
+  projectId?: string | null
+  lastUsedAt?: Date | string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+export type AssistantMemoryCreateOrConnectWithoutCharacterCardInput = {
+  where: Prisma.AssistantMemoryWhereUniqueInput
+  create: Prisma.XOR<Prisma.AssistantMemoryCreateWithoutCharacterCardInput, Prisma.AssistantMemoryUncheckedCreateWithoutCharacterCardInput>
+}
+
+export type AssistantMemoryCreateManyCharacterCardInputEnvelope = {
+  data: Prisma.AssistantMemoryCreateManyCharacterCardInput | Prisma.AssistantMemoryCreateManyCharacterCardInput[]
+  skipDuplicates?: boolean
+}
+
+export type AssistantMemoryUpsertWithWhereUniqueWithoutCharacterCardInput = {
+  where: Prisma.AssistantMemoryWhereUniqueInput
+  update: Prisma.XOR<Prisma.AssistantMemoryUpdateWithoutCharacterCardInput, Prisma.AssistantMemoryUncheckedUpdateWithoutCharacterCardInput>
+  create: Prisma.XOR<Prisma.AssistantMemoryCreateWithoutCharacterCardInput, Prisma.AssistantMemoryUncheckedCreateWithoutCharacterCardInput>
+}
+
+export type AssistantMemoryUpdateWithWhereUniqueWithoutCharacterCardInput = {
+  where: Prisma.AssistantMemoryWhereUniqueInput
+  data: Prisma.XOR<Prisma.AssistantMemoryUpdateWithoutCharacterCardInput, Prisma.AssistantMemoryUncheckedUpdateWithoutCharacterCardInput>
+}
+
+export type AssistantMemoryUpdateManyWithWhereWithoutCharacterCardInput = {
+  where: Prisma.AssistantMemoryScalarWhereInput
+  data: Prisma.XOR<Prisma.AssistantMemoryUpdateManyMutationInput, Prisma.AssistantMemoryUncheckedUpdateManyWithoutCharacterCardInput>
+}
+
 export type AssistantMemoryCreateManyUserInput = {
   id?: string
   scope: $Enums.AssistantMemoryScope
@@ -704,6 +831,7 @@ export type AssistantMemoryCreateManyUserInput = {
   conversationId?: string | null
   messageId?: string | null
   projectId?: string | null
+  characterCardId?: string | null
   lastUsedAt?: Date | string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -721,6 +849,7 @@ export type AssistantMemoryUpdateWithoutUserInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   project?: Prisma.NodeWorkflowProjectUpdateOneWithoutAssistantMemoriesNestedInput
+  characterCard?: Prisma.CharacterCardUpdateOneWithoutAssistantMemoriesNestedInput
 }
 
 export type AssistantMemoryUncheckedUpdateWithoutUserInput = {
@@ -732,6 +861,7 @@ export type AssistantMemoryUncheckedUpdateWithoutUserInput = {
   conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastUsedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -746,6 +876,7 @@ export type AssistantMemoryUncheckedUpdateManyWithoutUserInput = {
   conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastUsedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -760,6 +891,7 @@ export type AssistantMemoryCreateManyProjectInput = {
   text: string
   conversationId?: string | null
   messageId?: string | null
+  characterCardId?: string | null
   lastUsedAt?: Date | string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -777,6 +909,7 @@ export type AssistantMemoryUpdateWithoutProjectInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutAssistantMemoriesNestedInput
+  characterCard?: Prisma.CharacterCardUpdateOneWithoutAssistantMemoriesNestedInput
 }
 
 export type AssistantMemoryUncheckedUpdateWithoutProjectInput = {
@@ -788,6 +921,7 @@ export type AssistantMemoryUncheckedUpdateWithoutProjectInput = {
   text?: Prisma.StringFieldUpdateOperationsInput | string
   conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastUsedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -802,6 +936,67 @@ export type AssistantMemoryUncheckedUpdateManyWithoutProjectInput = {
   text?: Prisma.StringFieldUpdateOperationsInput | string
   conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lastUsedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type AssistantMemoryCreateManyCharacterCardInput = {
+  id?: string
+  userId: string
+  scope: $Enums.AssistantMemoryScope
+  kind: $Enums.AssistantMemoryKind
+  source?: $Enums.AssistantMemorySource
+  text: string
+  conversationId?: string | null
+  messageId?: string | null
+  projectId?: string | null
+  lastUsedAt?: Date | string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+export type AssistantMemoryUpdateWithoutCharacterCardInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  scope?: Prisma.EnumAssistantMemoryScopeFieldUpdateOperationsInput | $Enums.AssistantMemoryScope
+  kind?: Prisma.EnumAssistantMemoryKindFieldUpdateOperationsInput | $Enums.AssistantMemoryKind
+  source?: Prisma.EnumAssistantMemorySourceFieldUpdateOperationsInput | $Enums.AssistantMemorySource
+  text?: Prisma.StringFieldUpdateOperationsInput | string
+  conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lastUsedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  user?: Prisma.UserUpdateOneRequiredWithoutAssistantMemoriesNestedInput
+  project?: Prisma.NodeWorkflowProjectUpdateOneWithoutAssistantMemoriesNestedInput
+}
+
+export type AssistantMemoryUncheckedUpdateWithoutCharacterCardInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  userId?: Prisma.StringFieldUpdateOperationsInput | string
+  scope?: Prisma.EnumAssistantMemoryScopeFieldUpdateOperationsInput | $Enums.AssistantMemoryScope
+  kind?: Prisma.EnumAssistantMemoryKindFieldUpdateOperationsInput | $Enums.AssistantMemoryKind
+  source?: Prisma.EnumAssistantMemorySourceFieldUpdateOperationsInput | $Enums.AssistantMemorySource
+  text?: Prisma.StringFieldUpdateOperationsInput | string
+  conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lastUsedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type AssistantMemoryUncheckedUpdateManyWithoutCharacterCardInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  userId?: Prisma.StringFieldUpdateOperationsInput | string
+  scope?: Prisma.EnumAssistantMemoryScopeFieldUpdateOperationsInput | $Enums.AssistantMemoryScope
+  kind?: Prisma.EnumAssistantMemoryKindFieldUpdateOperationsInput | $Enums.AssistantMemoryKind
+  source?: Prisma.EnumAssistantMemorySourceFieldUpdateOperationsInput | $Enums.AssistantMemorySource
+  text?: Prisma.StringFieldUpdateOperationsInput | string
+  conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastUsedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -819,11 +1014,13 @@ export type AssistantMemorySelect<ExtArgs extends runtime.Types.Extensions.Inter
   conversationId?: boolean
   messageId?: boolean
   projectId?: boolean
+  characterCardId?: boolean
   lastUsedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   project?: boolean | Prisma.AssistantMemory$projectArgs<ExtArgs>
+  characterCard?: boolean | Prisma.AssistantMemory$characterCardArgs<ExtArgs>
 }, ExtArgs["result"]["assistantMemory"]>
 
 export type AssistantMemorySelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -836,11 +1033,13 @@ export type AssistantMemorySelectCreateManyAndReturn<ExtArgs extends runtime.Typ
   conversationId?: boolean
   messageId?: boolean
   projectId?: boolean
+  characterCardId?: boolean
   lastUsedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   project?: boolean | Prisma.AssistantMemory$projectArgs<ExtArgs>
+  characterCard?: boolean | Prisma.AssistantMemory$characterCardArgs<ExtArgs>
 }, ExtArgs["result"]["assistantMemory"]>
 
 export type AssistantMemorySelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -853,11 +1052,13 @@ export type AssistantMemorySelectUpdateManyAndReturn<ExtArgs extends runtime.Typ
   conversationId?: boolean
   messageId?: boolean
   projectId?: boolean
+  characterCardId?: boolean
   lastUsedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   project?: boolean | Prisma.AssistantMemory$projectArgs<ExtArgs>
+  characterCard?: boolean | Prisma.AssistantMemory$characterCardArgs<ExtArgs>
 }, ExtArgs["result"]["assistantMemory"]>
 
 export type AssistantMemorySelectScalar = {
@@ -870,23 +1071,27 @@ export type AssistantMemorySelectScalar = {
   conversationId?: boolean
   messageId?: boolean
   projectId?: boolean
+  characterCardId?: boolean
   lastUsedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type AssistantMemoryOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "scope" | "kind" | "source" | "text" | "conversationId" | "messageId" | "projectId" | "lastUsedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["assistantMemory"]>
+export type AssistantMemoryOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "scope" | "kind" | "source" | "text" | "conversationId" | "messageId" | "projectId" | "characterCardId" | "lastUsedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["assistantMemory"]>
 export type AssistantMemoryInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   project?: boolean | Prisma.AssistantMemory$projectArgs<ExtArgs>
+  characterCard?: boolean | Prisma.AssistantMemory$characterCardArgs<ExtArgs>
 }
 export type AssistantMemoryIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   project?: boolean | Prisma.AssistantMemory$projectArgs<ExtArgs>
+  characterCard?: boolean | Prisma.AssistantMemory$characterCardArgs<ExtArgs>
 }
 export type AssistantMemoryIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   project?: boolean | Prisma.AssistantMemory$projectArgs<ExtArgs>
+  characterCard?: boolean | Prisma.AssistantMemory$characterCardArgs<ExtArgs>
 }
 
 export type $AssistantMemoryPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -894,6 +1099,7 @@ export type $AssistantMemoryPayload<ExtArgs extends runtime.Types.Extensions.Int
   objects: {
     user: Prisma.$UserPayload<ExtArgs>
     project: Prisma.$NodeWorkflowProjectPayload<ExtArgs> | null
+    characterCard: Prisma.$CharacterCardPayload<ExtArgs> | null
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -921,6 +1127,12 @@ export type $AssistantMemoryPayload<ExtArgs extends runtime.Types.Extensions.Int
      * （全局 / 工作台范围，或你自己写的）。
      */
     projectId: string | null
+    /**
+     * 和哪个角色聊天时记下的（附录L 第二片 B，owner 2026-10-16「现在上」）：故事里的事只在和这个
+     * 角色的聊天里注入，⛔ 不进各台；工作里学到的也不进故事。空 = 不归角色。卡被真删时一起删
+     * （软删的卡读不到人设，聊天照工作模式答，这几条自然不读）。
+     */
+    characterCardId: string | null
     /**
      * **被注入过就更新** —— 注入优先级与淘汰顺序都读它（每域上限 200，超了淘汰最旧的）。
      */
@@ -1323,6 +1535,7 @@ export interface Prisma__AssistantMemoryClient<T, Null = never, ExtArgs extends 
   readonly [Symbol.toStringTag]: "PrismaPromise"
   user<T extends Prisma.UserDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.UserDefaultArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   project<T extends Prisma.AssistantMemory$projectArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.AssistantMemory$projectArgs<ExtArgs>>): Prisma.Prisma__NodeWorkflowProjectClient<runtime.Types.Result.GetResult<Prisma.$NodeWorkflowProjectPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  characterCard<T extends Prisma.AssistantMemory$characterCardArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.AssistantMemory$characterCardArgs<ExtArgs>>): Prisma.Prisma__CharacterCardClient<runtime.Types.Result.GetResult<Prisma.$CharacterCardPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1361,6 +1574,7 @@ export interface AssistantMemoryFieldRefs {
   readonly conversationId: Prisma.FieldRef<"AssistantMemory", 'String'>
   readonly messageId: Prisma.FieldRef<"AssistantMemory", 'String'>
   readonly projectId: Prisma.FieldRef<"AssistantMemory", 'String'>
+  readonly characterCardId: Prisma.FieldRef<"AssistantMemory", 'String'>
   readonly lastUsedAt: Prisma.FieldRef<"AssistantMemory", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"AssistantMemory", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"AssistantMemory", 'DateTime'>
@@ -1781,6 +1995,25 @@ export type AssistantMemory$projectArgs<ExtArgs extends runtime.Types.Extensions
    */
   include?: Prisma.NodeWorkflowProjectInclude<ExtArgs> | null
   where?: Prisma.NodeWorkflowProjectWhereInput
+}
+
+/**
+ * AssistantMemory.characterCard
+ */
+export type AssistantMemory$characterCardArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the CharacterCard
+   */
+  select?: Prisma.CharacterCardSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the CharacterCard
+   */
+  omit?: Prisma.CharacterCardOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.CharacterCardInclude<ExtArgs> | null
+  where?: Prisma.CharacterCardWhereInput
 }
 
 /**

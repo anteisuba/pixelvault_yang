@@ -204,6 +204,7 @@ export function UseCharacterMenu({ card }: { card: CharacterCardRecord }) {
                 requestOperatorChat({
                   character: { id: card.id, name: card.name },
                   opening: card.persona?.opening ?? '',
+                  alternateOpenings: card.tavern?.alternateGreetings ?? [],
                 })
               }}
             />

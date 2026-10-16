@@ -6,6 +6,7 @@ import type { AssistantOperatorEvent } from '@/types/assistant-operator'
 import type { AssistantMemory } from '@/types/assistant-memory'
 import { searchAssistantMemories } from '@/services/assistant-memory.service'
 import {
+  chatMemoryCardId,
   memoryAsRule,
   memoryScopeForDomain,
   requestProjectId,
@@ -47,6 +48,10 @@ export async function* searchMemoriesStep(
       const found = await searchAssistantMemories(context.prepared.user.id, {
         scope: memoryScopeForDomain(context.request.domain),
         projectId: requestProjectId(context.request),
+        characterCardId: chatMemoryCardId(
+          context.request,
+          context.prepared.run.persona,
+        ),
         query: words,
       })
       return {

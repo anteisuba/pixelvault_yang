@@ -220,6 +220,7 @@ import {
   failedResumeStep,
   nextResumeStepNumber,
 } from '@/lib/studio-operator-resume'
+import { fillOperatorChatMacros } from '@/lib/studio-operator-chat'
 import { cn } from '@/lib/utils'
 import type {
   AssistantPersona,
@@ -449,6 +450,7 @@ export function StudioOperatorPanel({
   const describeRejectReason = (code: string | undefined) =>
     code && t.has(`reject.${code}`) ? t(`reject.${code}`) : undefined
   const tReference = useTranslations('StudioPromptArea.referenceMention')
+  const tChat = useTranslations('StudioOperator.chat')
   const {
     entries: allEntries,
     status,
@@ -2268,7 +2270,16 @@ export function StudioOperatorPanel({
       <StudioOperatorHeader
         working={working}
         history={history}
-        onNewThread={newThread}
+        onNewThread={(chat) =>
+          newThread(
+            chat
+              ? fillOperatorChatMacros(
+                  chat,
+                  persona?.addressUserAs?.trim() || tChat('you'),
+                )
+              : undefined,
+          )
+        }
         onOpenAssistantSettings={onOpenAssistantSettings}
         onCollapse={onCollapse}
         avatar={headerAvatar}

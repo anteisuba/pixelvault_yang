@@ -91,6 +91,8 @@ const MEMORY_SELECT = {
   text: true,
   projectId: true,
   project: { select: { name: true } },
+  characterCardId: true,
+  characterCard: { select: { name: true } },
   createdAt: true,
   updatedAt: true,
 } as const
@@ -103,6 +105,8 @@ interface MemoryRow {
   text: string
   projectId: string | null
   project: { name: string } | null
+  characterCardId: string | null
+  characterCard: { name: string } | null
   createdAt: Date
   updatedAt: Date
 }
@@ -122,6 +126,8 @@ function toMemory(row: MemoryRow): AssistantMemory | null {
     text: row.text,
     projectId: row.projectId,
     projectName: row.project?.name ?? null,
+    characterCardId: row.characterCardId,
+    characterName: row.characterCard?.name ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   })
@@ -203,10 +209,28 @@ function promptScopes(scope: AssistantMemoryScopeId): AssistantMemoryScope[] {
 function promptWhere(
   scope: AssistantMemoryScopeId,
   projectId: string | null | undefined,
+  characterCardId?: string | null,
 ) {
+  /**
+   * ⭐ 和角色聊天（附录L 第二片，owner 2026-10-16「现在上」）：只要**这个角色**的记忆 + 你自己写的
+   * 全局规矩 —— 工作里学到的 ⛔ 一条都不带进故事，别的角色的也不带。
+   */
+  if (characterCardId)
+    return {
+      OR: [
+        { characterCardId },
+        {
+          scope: DB_SCOPE_BY_ID[ASSISTANT_MEMORY_SCOPE_IDS.global],
+          source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.creator],
+          characterCardId: null,
+        },
+      ],
+    }
+  // 工作里 ⛔ 不读任何角色的记忆：故事里的事不串进工作台。
   if (scope !== ASSISTANT_MEMORY_SCOPE_IDS.canvas)
-    return { scope: { in: promptScopes(scope) } }
+    return { scope: { in: promptScopes(scope) }, characterCardId: null }
   return {
+    characterCardId: null,
     OR: [
       { scope: DB_SCOPE_BY_ID[ASSISTANT_MEMORY_SCOPE_IDS.global] },
       { scope: DB_SCOPE_BY_ID[scope], projectId: null },
@@ -231,6 +255,19 @@ async function ownedProjectId(
   return project?.id ?? null
 }
 
+/** 同 `ownedProjectId`：角色卡真是这个用户的（且没删）才收，不是就 `null` —— 调用方据此不写。 */
+async function ownedCharacterCardId(
+  userId: string,
+  characterCardId: string | null | undefined,
+): Promise<string | null> {
+  if (!characterCardId) return null
+  const card = await db.characterCard.findFirst({
+    where: { id: characterCardId, userId, isDeleted: false },
+    select: { id: true },
+  })
+  return card?.id ?? null
+}
+
 /**
  * **注入那一跳要的那几条助手记的**（切片 2）：当前域 + `global`，按 `lastUsedAt`
  * 倒序。⚠ 只要助手记的 —— 你写的有自己那一段（`listCreatorMemoriesForPrompt`）。
@@ -244,13 +281,14 @@ export async function listAssistantMemoriesForPrompt(
   scope: AssistantMemoryScopeId,
   limit: number,
   projectId?: string | null,
+  characterCardId?: string | null,
 ): Promise<AssistantMemory[]> {
   if (limit <= 0) return []
   const rows = await db.assistantMemory.findMany({
     where: {
       userId,
       source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.assistant],
-      ...promptWhere(scope, projectId),
+      ...promptWhere(scope, projectId, characterCardId),
     },
     /**
      * ⭐ 固定的一组（P3）：最近记下 / 改过的那几条，⛔ 不按 `lastUsedAt` —— 原来注入一次就刷一次，
@@ -277,13 +315,14 @@ export async function listCreatorMemoriesForPrompt(
   scope: AssistantMemoryScopeId,
   limit: number,
   projectId?: string | null,
+  characterCardId?: string | null,
 ): Promise<AssistantMemory[]> {
   if (limit <= 0) return []
   const rows = await db.assistantMemory.findMany({
     where: {
       userId,
       source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.creator],
-      ...promptWhere(scope, projectId),
+      ...promptWhere(scope, projectId, characterCardId),
     },
     orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
     take: Math.min(limit, ASSISTANT_MEMORY_LIMITS.maxCreatorEntries),
@@ -303,6 +342,7 @@ export async function listStandingRuleMemories(
   options: {
     scope?: AssistantMemoryScopeId | null
     projectId?: string | null
+    characterCardId?: string | null
     limit: number
   },
 ): Promise<AssistantMemory[]> {
@@ -316,10 +356,15 @@ export async function listStandingRuleMemories(
             { kind: DB_KIND_BY_ID[ASSISTANT_MEMORY_KIND_IDS.rule] },
           ],
         },
-        options.scope
-          ? promptWhere(options.scope, options.projectId)
-          : // 不分范围读也只读不归项目的 + 当前项目的，⛔ 别的项目一条都不带。
+        options.scope || options.characterCardId
+          ? promptWhere(
+              options.scope ?? ASSISTANT_MEMORY_SCOPE_IDS.global,
+              options.projectId,
+              options.characterCardId,
+            )
+          : // 不分范围读也只读不归项目的 + 当前项目的，⛔ 别的项目一条都不带、⛔ 角色的也不带。
             {
+              characterCardId: null,
               OR: [
                 { projectId: null },
                 ...(options.projectId
@@ -374,10 +419,11 @@ async function findSameText(
   scope: AssistantMemoryScopeId,
   text: string,
   projectId: string | null = null,
+  characterCardId: string | null = null,
 ): Promise<MemoryRow | null> {
   const normalized = normalizeAssistantMemoryText(text)
   const siblings = await db.assistantMemory.findMany({
-    where: { userId, scope: DB_SCOPE_BY_ID[scope], projectId },
+    where: { userId, scope: DB_SCOPE_BY_ID[scope], projectId, characterCardId },
     select: MEMORY_SELECT,
     take:
       ASSISTANT_MEMORY_LIMITS.maxPerScope +
@@ -465,14 +511,29 @@ export async function addAssistantRuleMemory(
     scope: AssistantMemoryScopeId
     /** 画布上记的归这个项目（只认这个用户自己的项目）。 */
     projectId?: string | null
+    /** 和角色聊天时记的归这个角色（范围一律 `cards`，只认这个用户自己的卡）。 */
+    characterCardId?: string | null
   },
 ): Promise<{ memory: AssistantMemory; created: boolean }> {
   const text = input.text.trim()
+  const characterCardId = await ownedCharacterCardId(
+    userId,
+    input.characterCardId,
+  )
+  if (input.characterCardId && !characterCardId)
+    throw new Error('ASSISTANT_MEMORY_CHARACTER_NOT_FOUND')
+  const scope = characterCardId ? ASSISTANT_MEMORY_SCOPE_IDS.cards : input.scope
   const projectId =
-    input.scope === ASSISTANT_MEMORY_SCOPE_IDS.canvas
+    scope === ASSISTANT_MEMORY_SCOPE_IDS.canvas
       ? await ownedProjectId(userId, input.projectId)
       : null
-  const same = await findSameText(userId, input.scope, text, projectId)
+  const same = await findSameText(
+    userId,
+    scope,
+    text,
+    projectId,
+    characterCardId,
+  )
   if (same) {
     const memory = toMemory(same)
     if (!memory) throw new Error('ASSISTANT_MEMORY_UNREADABLE_AFTER_WRITE')
@@ -481,15 +542,16 @@ export async function addAssistantRuleMemory(
   const row = await db.assistantMemory.create({
     data: {
       userId,
-      scope: DB_SCOPE_BY_ID[input.scope],
+      scope: DB_SCOPE_BY_ID[scope],
       kind: DB_KIND_BY_ID[ASSISTANT_MEMORY_KIND_IDS.rule],
       source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.assistant],
       text,
       projectId,
+      characterCardId,
     },
     select: MEMORY_SELECT,
   })
-  await evictOldestAssistantMemories(userId, input.scope)
+  await evictOldestAssistantMemories(userId, scope, characterCardId)
   const memory = toMemory(row)
   if (!memory) throw new Error('ASSISTANT_MEMORY_UNREADABLE_AFTER_WRITE')
   return { memory, created: true }
@@ -517,9 +579,13 @@ export async function updateAssistantMemory(
     where: { id: existing.id },
     data: {
       ...(input.text !== undefined ? { text: input.text } : {}),
-      // 在设置里换了范围（含「画布」= 所有画布）就不再只属于那个项目。
+      // 在设置里换了范围（含「画布」= 所有画布）就不再只属于那个项目 / 那个角色。
       ...(input.scope !== undefined
-        ? { scope: DB_SCOPE_BY_ID[input.scope], projectId: null }
+        ? {
+            scope: DB_SCOPE_BY_ID[input.scope],
+            projectId: null,
+            characterCardId: null,
+          }
         : {}),
     },
     select: MEMORY_SELECT,
@@ -598,6 +664,8 @@ export interface RecordAssistantMemoriesArgs {
   scope: AssistantMemoryScopeId
   /** 在画布项目里结的账：画布范围的那几条归这个项目（只认这个用户自己的项目）。 */
   projectId?: string | null
+  /** 和角色聊天时结的账：全部归这个角色（范围一律 `cards`，只认这个用户自己的卡）。 */
+  characterCardId?: string | null
   candidates: readonly AssistantMemoryCandidate[]
   /**
    * 改掉已有的哪几条（P3 写入时消解冲突）：模型说「新的这条替掉第 N 条」，调用方已把号映射成 id。
@@ -619,12 +687,13 @@ export async function listAssistantMemoriesForReview(
   userId: string,
   scope: AssistantMemoryScopeId,
   projectId?: string | null,
+  characterCardId?: string | null,
 ): Promise<AssistantMemory[]> {
   const rows = await db.assistantMemory.findMany({
     where: {
       userId,
       source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.assistant],
-      ...promptWhere(scope, projectId),
+      ...promptWhere(scope, projectId, characterCardId),
     },
     orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
     take: ASSISTANT_MEMORY_LIMITS.maxShownForReview,
@@ -648,6 +717,7 @@ export async function searchAssistantMemories(
   options: {
     scope: AssistantMemoryScopeId
     projectId?: string | null
+    characterCardId?: string | null
     query: string
   },
 ): Promise<AssistantMemory[]> {
@@ -660,7 +730,7 @@ export async function searchAssistantMemories(
     where: {
       userId,
       AND: [
-        promptWhere(options.scope, options.projectId),
+        promptWhere(options.scope, options.projectId, options.characterCardId),
         ...(words.length
           ? [
               {
@@ -780,7 +850,14 @@ export async function recordAssistantMemories(
    * 这个用户（或请求里没有项目）时**画布那几条不写**，⛔ 不退成「所有画布」——
    * 那会让这个项目的事漏进别的项目。
    */
-  const isCanvas = args.scope === ASSISTANT_MEMORY_SCOPE_IDS.canvas
+  const characterCardId = await ownedCharacterCardId(
+    args.userId,
+    args.characterCardId,
+  )
+  // 角色对不上（删了 / 不是你的）就一条都不写，⛔ 不退成角色页的记忆。
+  if (args.characterCardId && !characterCardId) return written
+  const scope = characterCardId ? ASSISTANT_MEMORY_SCOPE_IDS.cards : args.scope
+  const isCanvas = scope === ASSISTANT_MEMORY_SCOPE_IDS.canvas
   const projectId = isCanvas
     ? await ownedProjectId(args.userId, args.projectId)
     : null
@@ -796,9 +873,10 @@ export async function recordAssistantMemories(
     const siblings = await db.assistantMemory.findMany({
       where: {
         userId: args.userId,
-        scope: DB_SCOPE_BY_ID[args.scope],
+        scope: DB_SCOPE_BY_ID[scope],
         kind: DB_KIND_BY_ID[entry.kind],
         projectId,
+        characterCardId,
       },
       select: { id: true, text: true },
       take: ASSISTANT_MEMORY_LIMITS.maxPerScope,
@@ -818,10 +896,11 @@ export async function recordAssistantMemories(
     await db.assistantMemory.create({
       data: {
         userId: args.userId,
-        scope: DB_SCOPE_BY_ID[args.scope],
+        scope: DB_SCOPE_BY_ID[scope],
         kind: DB_KIND_BY_ID[entry.kind],
         text: entry.text,
         projectId,
+        characterCardId,
         conversationId: args.conversationId ?? null,
         messageId: args.messageId ?? null,
       },
@@ -832,7 +911,8 @@ export async function recordAssistantMemories(
   }
 
   // ⑤ 这一轮新增过才收一次上限：没新增的域条数没变。
-  if (added) await evictOldestAssistantMemories(args.userId, args.scope)
+  if (added)
+    await evictOldestAssistantMemories(args.userId, scope, characterCardId)
 
   return written
 }
@@ -844,14 +924,17 @@ export async function recordAssistantMemories(
  * ⛔ 不通知、不画容量表、不变灰（owner 2026-09-20 撤）。
  * ⚠ 按 `lastUsedAt` 而不是 `createdAt`：一条两年前记下、每一轮都在用的偏好，
  * 比昨天记下、再没被注入过的那条值钱。
+ * ⚠ 每个角色单独一份上限（`characterCardId`）：和她聊得多，⛔ 不该挤掉角色页 / 别的角色记的。
  */
 async function evictOldestAssistantMemories(
   userId: string,
   scope: AssistantMemoryScopeId,
+  characterCardId: string | null = null,
 ): Promise<void> {
   const where = {
     userId,
     scope: DB_SCOPE_BY_ID[scope],
+    characterCardId,
     source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.assistant],
   }
   const count = await db.assistantMemory.count({ where })

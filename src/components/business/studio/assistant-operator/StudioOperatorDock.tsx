@@ -67,6 +67,7 @@ import { useCanvasOperatorRequests } from '@/hooks/node/use-canvas-operator-requ
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import { useStudioOperatorResults } from '@/hooks/use-studio-operator-results'
 import { useStudioOperatorHistory } from '@/hooks/use-studio-operator-history'
+import { fillOperatorChatMacros } from '@/lib/studio-operator-chat'
 import {
   getOperatorState,
   setOperatorPlanMode,
@@ -400,6 +401,7 @@ export function StudioOperatorDock() {
    *   挂在那里的下场是每展开一次就重新拉一遍。
    */
   const { persona, save: savePersona } = useAssistantPersona()
+  const tChat = useTranslations('StudioOperator.chat')
   /**
    * 文本模型 chip 选中即写（§4.5）。⚠ **写的是整份 persona**：`PUT` 收的是完整
    * 形状，只递一列会把其余几列按默认值覆盖回去。⛔ 别在 chip 里自己 `save()` ——
@@ -896,16 +898,17 @@ export function StudioOperatorDock() {
 
   /** 「和她聊」（附录L）：开一段和她的聊天会话、打开面板。 */
   const { newThread } = operator
+  const chatUserName = persona.addressUserAs?.trim() || tChat('you')
   useEffect(() => {
     const consume = () => {
       const chat = takeOperatorChat()
       if (!chat) return
-      newThread(chat)
+      newThread(fillOperatorChatMacros(chat, chatUserName))
       setOpen(true)
     }
     consume()
     return subscribeOperatorChat(consume)
-  }, [newThread, setOpen])
+  }, [newThread, setOpen, chatUserName])
 
   const webImportedUrls = useRef(new Map<string, string>())
   useLayoutEffect(() => {

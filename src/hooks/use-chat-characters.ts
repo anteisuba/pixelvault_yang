@@ -30,6 +30,7 @@ export function useChatCharacters(enabled: boolean): {
           .map((card) => ({
             character: { id: card.id, name: card.name },
             opening: card.persona?.opening ?? '',
+            alternateOpenings: card.tavern?.alternateGreetings ?? [],
           })),
       )
     })

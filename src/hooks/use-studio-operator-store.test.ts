@@ -1015,6 +1015,31 @@ describe('聊天会话 · 重新生成 / 改 / 删（附录L 第二片）', () =
     expect(store.getOperatorState().regeneration).toBeNull()
   })
 
+  it('⭐ 备选开场白：第一句带几版（去空去重），左右切', () => {
+    act(() => {
+      store.resetOperatorThread(undefined, {
+        character: CHARACTER,
+        opening: '你来了。',
+        alternateOpenings: ['  ', '你来了。', '……又是你？'],
+      })
+    })
+    const [first] = store.getOperatorState().history
+    expect(first).toMatchObject({
+      kind: 'message',
+      text: '你来了。',
+      versions: ['你来了。', '……又是你？'],
+      versionIndex: 0,
+    })
+    if (first?.kind !== 'message') throw new Error('开场白应当是她的一句话')
+    act(() => {
+      store.selectOperatorChatVersion(first, 1)
+    })
+    expect(store.getOperatorState().history[0]).toMatchObject({
+      text: '……又是你？',
+      versionIndex: 1,
+    })
+  })
+
   it('只有开场白时没有可重新生成的', () => {
     act(() => {
       store.resetOperatorThread(undefined, {

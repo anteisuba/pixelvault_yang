@@ -35,6 +35,7 @@ import {
   ChevronRight,
   Folder,
   FolderX,
+  Heart,
   LayoutGrid,
   MoreHorizontal,
   PanelLeft,
@@ -110,6 +111,11 @@ interface AssetFolderSidebarProps {
   onCollapse?: () => void
   /** 触屏抽屉：⋯ 常显、行高 44、不拖动（长按一行 = ⋯ 菜单）。 */
   touch?: boolean
+  /**
+   * 手机抽屉多一行「收藏」（iOS 稿：全部素材 · 未分类 · 收藏）。选中时「全部素材」
+   * 不亮。桌面不给 —— 那边收藏是顶栏的状态分面。
+   */
+  favorites?: { count?: number; active: boolean; onSelect: () => void }
   className?: string
 }
 
@@ -205,6 +211,7 @@ export function AssetFolderSidebar({
   onDropAssets,
   onCollapse,
   touch = false,
+  favorites,
   className,
 }: AssetFolderSidebarProps) {
   const t = useTranslations('AssetsPage')
@@ -702,7 +709,7 @@ export function AssetFolderSidebar({
               icon={<LayoutGrid className="size-3.5" />}
               label={t('sectionAllAssets')}
               count={counts.all}
-              active={scope.kind === 'all'}
+              active={scope.kind === 'all' && !favorites?.active}
               touch={touch}
               onSelect={() => onScopeChange({ kind: 'all' })}
             />
@@ -714,6 +721,16 @@ export function AssetFolderSidebar({
               touch={touch}
               onSelect={() => onScopeChange({ kind: 'unassigned' })}
             />
+            {favorites ? (
+              <SmartRow
+                icon={<Heart className="size-3.5" />}
+                label={t('phone.favorites')}
+                count={favorites.count}
+                active={favorites.active}
+                touch={touch}
+                onSelect={favorites.onSelect}
+              />
+            ) : null}
 
             <AnimatePresence initial={false}>
               {pinned.length > 0 ? (

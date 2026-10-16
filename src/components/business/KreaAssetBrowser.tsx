@@ -16,8 +16,10 @@ import {
   Image as ImageIcon,
   LayoutGrid,
   FolderX,
+  Heart,
   MoreHorizontal,
   Pin,
+  Search,
   UploadCloud,
   X,
 } from '@/components/icons'
@@ -107,6 +109,7 @@ import {
   DURATION_MS,
   LIQUID_SPRING,
   motionTransition,
+  springTransition,
 } from '@/constants/motion'
 import { ASSET_DND_MIME } from '@/constants/asset-dnd'
 import {
@@ -176,6 +179,7 @@ import {
 import type {
   AssetSectionCounts,
   GenerationRecord,
+  OutputTypeValue,
   ProjectRecord,
 } from '@/types'
 
@@ -1025,9 +1029,9 @@ export function KreaAssetBrowser({
   }, [])
 
   const openScope = useCallback(
-    (scope: AssetFolderScope) => {
+    (scope: AssetFolderScope, extra?: Partial<GalleryFilters>) => {
       const projectId = folderScopeParam(scope)
-      setFilters({ ...filters, projectId })
+      setFilters({ ...filters, ...extra, projectId })
       pushAssetsUrl(projectId)
       setIsFolderDrawerOpen(false)
     },
@@ -1569,6 +1573,41 @@ export function KreaAssetBrowser({
         ? t('sidebarUnassigned')
         : t('sectionAllAssets')
 
+  /** 手机抽屉里「收藏」是一行范围（iOS 稿），胶囊上跟着写「收藏」。 */
+  const phoneFavoritesScope = folderScope.kind === 'all' && filters.liked
+  const phoneScopeTitle = phoneFavoritesScope
+    ? t('phone.favorites')
+    : scopeTitle
+
+  /**
+   * 手机搜索（iOS 稿）：点胶囊上的放大镜，整条胶囊换成搜索框；打字停 300ms
+   * 才写进筛选（名字或提示词），「取消」清掉搜索词并收回。`null` = 没在搜。
+   */
+  const [phoneSearch, setPhoneSearch] = useState<string | null>(null)
+  useEffect(() => {
+    if (phoneSearch === null) return
+    const next = phoneSearch.trim()
+    if (next === filters.search) return
+    const timer = window.setTimeout(
+      () => setFilters({ ...filters, search: next }),
+      PHONE_SEARCH_DEBOUNCE_MS,
+    )
+    return () => window.clearTimeout(timer)
+  }, [phoneSearch, filters, setFilters])
+  const closePhoneSearch = useCallback(() => {
+    setPhoneSearch(null)
+    if (filters.search) setFilters({ ...filters, search: '' })
+  }, [filters, setFilters])
+
+  /** 手机类型分段（全部 · 图片 · 视频 · 声音）：一段 = 一个类型，「全部」= 不限。 */
+  const phoneTypeTab: PhoneTypeTab | null =
+    filters.types.length === 0
+      ? 'all'
+      : filters.types.length === 1
+        ? (PHONE_TYPE_TABS.find((tab) => tab.types[0] === filters.types[0])
+            ?.id ?? null)
+        : null
+
   /** 「搜索无结果」要回显当前全部生效筛选（§7）。 */
   const activeFilterLabels = useMemo(() => {
     const labels: string[] = []
@@ -1764,6 +1803,8 @@ export function KreaAssetBrowser({
           data-stuck={isToolbarStuck || undefined}
           className={cn(
             'relative z-30 flex min-h-14 w-full shrink-0 flex-wrap items-center gap-2 rounded-2xl border bg-background px-4 py-2 transition-[border-color,box-shadow] duration-base ease-standard',
+            // 手机 = 一条浮起的磨砂胶囊（iOS 稿）：范围 ▾ · 搜索 · 上传 · 选择，只一行。
+            'max-md:min-h-11 max-md:flex-nowrap max-md:gap-0.5 max-md:rounded-full max-md:bg-background/85 max-md:px-1 max-md:py-1 max-md:backdrop-blur-xl',
             isToolbarStuck
               ? 'border-border shadow-md'
               : 'border-border/70 shadow-sm',
@@ -1801,6 +1842,7 @@ export function KreaAssetBrowser({
               onClick={revealFolders}
               className={cn(
                 'ml-1.5 inline-flex h-8 min-w-0 max-w-44 items-center gap-1.5 overflow-hidden rounded-full border border-border bg-background pl-1.5 pr-2.5 text-xs font-medium whitespace-nowrap text-foreground transition-[max-width,margin,padding,opacity,visibility,background-color,filter] duration-slow ease-standard hover:bg-muted motion-reduce:transition-none max-md:ml-0 coarse:h-11',
+                'max-md:h-9 max-md:max-w-52 max-md:gap-2 max-md:border-transparent max-md:bg-transparent max-md:px-2.5 max-md:text-base max-md:font-semibold max-md:active:bg-muted',
                 railOpen &&
                   'md:invisible md:ml-0 md:max-w-0 md:px-0 md:opacity-0',
                 selectionMode &&
@@ -1816,17 +1858,24 @@ export function KreaAssetBrowser({
                     className="size-5 shrink-0 rounded-full object-cover"
                   />
                 ) : (
-                  <Folder className="size-3.5 shrink-0 text-muted-foreground" />
+                  <Folder className="size-3.5 shrink-0 text-muted-foreground max-md:size-5 max-md:text-foreground" />
                 )
               ) : folderScope.kind === 'unassigned' ? (
-                <FolderX className="size-3.5 shrink-0 text-muted-foreground" />
+                <FolderX className="size-3.5 shrink-0 text-muted-foreground max-md:size-5 max-md:text-foreground" />
+              ) : phoneFavoritesScope && isPhone ? (
+                <Heart className="size-5 shrink-0 text-foreground" />
               ) : (
-                <LayoutGrid className="size-3.5 shrink-0 text-muted-foreground" />
+                <LayoutGrid className="size-3.5 shrink-0 text-muted-foreground max-md:size-5 max-md:text-foreground" />
               )}
-              <BlurSwap swapKey={scopeTitle} className="min-w-0">
-                <span className="truncate">{scopeTitle}</span>
+              <BlurSwap
+                swapKey={isPhone ? phoneScopeTitle : scopeTitle}
+                className="min-w-0"
+              >
+                <span className="truncate">
+                  {isPhone ? phoneScopeTitle : scopeTitle}
+                </span>
               </BlurSwap>
-              <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
+              <ChevronDown className="size-3 shrink-0 text-muted-foreground max-md:size-3.5" />
             </button>
           </div>
 
@@ -1835,7 +1884,8 @@ export function KreaAssetBrowser({
               ref={facetStartRef}
               inert={selectionMode}
               className={cn(
-                'order-3 w-full min-w-0 sm:order-none sm:w-auto sm:flex-1',
+                // 手机不放分面（iOS 稿）：类型走胶囊下面那条分段，收藏在文件夹抽屉里。
+                'order-3 w-full min-w-0 max-md:hidden sm:order-none sm:w-auto sm:flex-1',
                 SELECTION_YIELD_CLASS,
                 selectionMode && SELECTION_YIELD_HIDDEN_CLASS,
               )}
@@ -1871,7 +1921,21 @@ export function KreaAssetBrowser({
           )}
 
           {!isPickerMode && (
-            <div className="ml-auto flex shrink-0 items-center gap-2">
+            <div className="ml-auto flex shrink-0 items-center gap-2 max-md:gap-0.5">
+              <button
+                type="button"
+                aria-label={t('phone.search')}
+                data-testid="assets-phone-search"
+                inert={selectionMode}
+                onClick={() => setPhoneSearch(filters.search)}
+                className={cn(
+                  'grid size-9 place-items-center rounded-full text-foreground transition-colors duration-fast ease-standard active:bg-muted md:hidden',
+                  SELECTION_YIELD_CLASS,
+                  selectionMode && SELECTION_YIELD_HIDDEN_CLASS,
+                )}
+              >
+                <Search className="size-5" aria-hidden />
+              </button>
               {/* 传着时还能再点：新选的文件并进这一轮（分母跟着变大）。 */}
               <FeedbackButton
                 feedback={uploadButtonFeedback}
@@ -1881,13 +1945,15 @@ export function KreaAssetBrowser({
                   buttonVariants({ size: 'sm' }),
                   TOOLBAR_BUTTON_CLASS,
                   'coarse:h-11',
+                  // 手机：只留一个上传图标（iOS 稿），字给读屏。
+                  'max-md:size-9 max-md:bg-transparent max-md:px-0 max-md:text-foreground max-md:shadow-none max-md:hover:bg-muted max-md:has-[>svg]:px-0 max-md:active:bg-muted',
                   SELECTION_YIELD_CLASS,
                   selectionMode &&
                     cn(SELECTION_YIELD_HIDDEN_CLASS, 'max-md:hidden'),
                 )}
               >
-                <UploadCloud className="size-3.5" aria-hidden />
-                {t('uploadButton')}
+                <UploadCloud className="size-3.5 max-md:size-5" aria-hidden />
+                <span className="max-md:sr-only">{t('uploadButton')}</span>
               </FeedbackButton>
               {/* 手机多选：上传让位，同一处出「全选」。 */}
               {selectionMode ? (
@@ -1912,7 +1978,10 @@ export function KreaAssetBrowser({
                 className={cn(
                   TOOLBAR_BUTTON_CLASS,
                   'border border-border',
-                  selectionMode && 'bg-muted hover:bg-muted md:invisible',
+                  // 手机：一个「选择」字键，⛔ 边框和勾（iOS 稿）。
+                  'max-md:h-9 max-md:border-transparent max-md:px-3 max-md:text-base max-md:font-normal',
+                  selectionMode &&
+                    'bg-muted hover:bg-muted md:invisible max-md:bg-transparent',
                 )}
               >
                 {selectionMode ? (
@@ -1926,7 +1995,7 @@ export function KreaAssetBrowser({
                   )
                 ) : (
                   <>
-                    <CheckCircle2 className="size-3.5" />
+                    <CheckCircle2 className="size-3.5 max-md:hidden" />
                     {t('selectMode')}
                   </>
                 )}
@@ -1948,7 +2017,74 @@ export function KreaAssetBrowser({
               </AssetSelectionMorph>
             </div>
           )}
+
+          {/* 手机搜索：整条胶囊换成搜索框（iOS 稿），⛔ 另开一页。 */}
+          {!isPickerMode && phoneSearch !== null ? (
+            <div className="absolute inset-0 z-10 flex items-center gap-1 rounded-full bg-background pl-3 pr-1 md:hidden">
+              <Search
+                className="size-4.5 shrink-0 text-muted-foreground"
+                aria-hidden
+              />
+              <input
+                type="search"
+                autoFocus
+                value={phoneSearch}
+                onChange={(event) => setPhoneSearch(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') closePhoneSearch()
+                }}
+                enterKeyHint="search"
+                placeholder={t('phone.searchPlaceholder')}
+                aria-label={t('phone.search')}
+                data-testid="assets-phone-search-input"
+                className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground/80"
+              />
+              <button
+                type="button"
+                onClick={closePhoneSearch}
+                className="h-9 shrink-0 rounded-full px-3 text-base text-foreground transition-colors duration-fast ease-standard active:bg-muted"
+              >
+                {t('phone.searchCancel')}
+              </button>
+            </div>
+          ) : null}
         </motion.div>
+
+        {/* 手机类型分段（iOS 稿）：全部 · 图片 · 视频 · 声音，选中块滑过去。 */}
+        {!isPickerMode ? (
+          <div
+            role="tablist"
+            aria-label={t('phone.typeTabs')}
+            className="relative -mt-1 grid h-8 shrink-0 grid-cols-4 rounded-lg bg-muted p-0.5 md:hidden"
+          >
+            {PHONE_TYPE_TABS.map((tab) => {
+              const active = phoneTypeTab === tab.id
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  data-testid={`assets-phone-type-${tab.id}`}
+                  onClick={() =>
+                    setFilters({ ...filters, types: [...tab.types] })
+                  }
+                  className="relative text-xs font-medium text-foreground"
+                >
+                  {active ? (
+                    <motion.span
+                      aria-hidden
+                      layoutId="assets-phone-type-thumb"
+                      className="absolute inset-0 rounded-md bg-background shadow-sm"
+                      transition={springTransition('slot', reducedMotion)}
+                    />
+                  ) : null}
+                  <span className="relative">{t(`phone.types.${tab.id}`)}</span>
+                </button>
+              )
+            })}
+          </div>
+        ) : null}
 
         <div className="flex min-h-0 flex-1 overflow-hidden">
           {/* ─── 左栏（≥768）：宽度在点下去那一刻就落到终态，栏卡片按弹簧从左缘
@@ -2466,6 +2602,13 @@ export function KreaAssetBrowser({
               <AssetFolderSidebar
                 {...sidebarProps}
                 touch
+                // 手机上「收藏」是抽屉里的一行范围（iOS 稿）：选别的范围就退出收藏。
+                onScopeChange={(scope) => openScope(scope, { liked: false })}
+                favorites={{
+                  count: favoritesCount,
+                  active: phoneFavoritesScope,
+                  onSelect: () => openScope({ kind: 'all' }, { liked: true }),
+                }}
                 onCollapse={() => setIsFolderDrawerOpen(false)}
                 className="h-full"
               />
@@ -2640,6 +2783,20 @@ function ScopeNameInput({
  * 无框文字键（悬停才出灰底）。
  */
 /** 进选择模式时让位的那几样（分面、上传）：先糊掉，条再长出来。 */
+const PHONE_SEARCH_DEBOUNCE_MS = 300
+
+type PhoneTypeTab = 'all' | 'image' | 'video' | 'audio'
+
+const PHONE_TYPE_TABS: readonly {
+  id: PhoneTypeTab
+  types: readonly OutputTypeValue[]
+}[] = [
+  { id: 'all', types: [] },
+  { id: 'image', types: ['image'] },
+  { id: 'video', types: ['video'] },
+  { id: 'audio', types: ['audio'] },
+]
+
 const SELECTION_YIELD_CLASS =
   'transition-[opacity,filter] duration-fast ease-standard motion-reduce:transition-none'
 const SELECTION_YIELD_HIDDEN_CLASS = 'pointer-events-none opacity-0 blur-xs'

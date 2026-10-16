@@ -3068,7 +3068,20 @@
     "uploadedCount": "已上传 {count} 张",
     "selectedPrefix": "已选",
     "bulkDeleteArm": "确认删除 {count} 张",
-    "selectDone": "完成"
+    "selectDone": "完成",
+    "phone": {
+      "favorites": "收藏",
+      "search": "搜索素材",
+      "searchPlaceholder": "搜名字或提示词",
+      "searchCancel": "取消",
+      "typeTabs": "类型",
+      "types": {
+        "all": "全部",
+        "image": "图片",
+        "video": "视频",
+        "audio": "声音"
+      }
+    }
   },
   "PromptLibrary": {
     "title": "提示词工程",

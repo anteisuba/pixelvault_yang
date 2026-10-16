@@ -3068,7 +3068,20 @@
     "uploadedCount": "{count, plural, one {Uploaded # file} other {Uploaded # files}}",
     "selectedPrefix": "Selected",
     "bulkDeleteArm": "Delete {count}?",
-    "selectDone": "Done"
+    "selectDone": "Done",
+    "phone": {
+      "favorites": "Favorites",
+      "search": "Search assets",
+      "searchPlaceholder": "Search names or prompts",
+      "searchCancel": "Cancel",
+      "typeTabs": "Type",
+      "types": {
+        "all": "All",
+        "image": "Images",
+        "video": "Videos",
+        "audio": "Audio"
+      }
+    }
   },
   "PromptLibrary": {
     "title": "Prompt Engineering",

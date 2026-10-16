@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { FOLDER_TREE_INDENT } from '@/constants/asset-folder-tree'
 import type { FolderDropPlan } from '@/lib/folder-tree'
@@ -418,5 +418,64 @@ describe('AssetFolderSidebar 拖一个夹', () => {
     // 第三行 = 表情（角色的孙夹）
     dragTo('角色', ROW * 2.5)
     expect(onPlace).not.toHaveBeenCalled()
+  })
+})
+
+describe('AssetFolderSidebar — 手机抽屉的「收藏」行（iOS 稿）', () => {
+  // 触屏模式要 IntersectionObserver（jsdom 没有）。
+  beforeEach(() => {
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    )
+  })
+  afterEach(() => vi.unstubAllGlobals())
+
+  function renderWithFavorites(active: boolean) {
+    const onSelect = vi.fn()
+    render(
+      <AssetFolderSidebar
+        folders={[]}
+        counts={{ byProject: {} }}
+        scope={{ kind: 'all' }}
+        onScopeChange={vi.fn()}
+        renamingId={null}
+        onRenamingChange={vi.fn()}
+        onCreate={vi.fn(async () => null)}
+        onRename={vi.fn()}
+        onTogglePin={vi.fn()}
+        onMove={vi.fn()}
+        onRequestDelete={vi.fn()}
+        onReorder={vi.fn()}
+        onPlace={vi.fn()}
+        draggingCount={0}
+        onDropAssets={vi.fn()}
+        touch
+        favorites={{ count: 3, active, onSelect }}
+      />,
+    )
+    return onSelect
+  }
+
+  it('收藏亮着时「全部素材」不亮，点收藏走 onSelect', () => {
+    const onSelect = renderWithFavorites(true)
+    const favorites = screen.getByRole('button', { name: /phone\.favorites/ })
+    expect(favorites).toHaveAttribute('aria-current', 'true')
+    expect(
+      screen.getByRole('button', { name: /sectionAllAssets/ }),
+    ).not.toHaveAttribute('aria-current')
+    fireEvent.click(favorites)
+    expect(onSelect).toHaveBeenCalledTimes(1)
+  })
+
+  it('不给 favorites（桌面栏）就没有这一行', () => {
+    renderSidebar([])
+    expect(
+      screen.queryByRole('button', { name: /phone\.favorites/ }),
+    ).toBeNull()
   })
 })

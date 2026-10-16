@@ -3068,7 +3068,20 @@
     "uploadedCount": "{count} 件アップロード済み",
     "selectedPrefix": "選択中",
     "bulkDeleteArm": "{count} 件を削除",
-    "selectDone": "完了"
+    "selectDone": "完了",
+    "phone": {
+      "favorites": "お気に入り",
+      "search": "素材を検索",
+      "searchPlaceholder": "名前やプロンプトで検索",
+      "searchCancel": "キャンセル",
+      "typeTabs": "種類",
+      "types": {
+        "all": "すべて",
+        "image": "画像",
+        "video": "動画",
+        "audio": "音声"
+      }
+    }
   },
   "PromptLibrary": {
     "title": "プロンプト設計",

@@ -13089,7 +13089,8 @@ export async function prepareOperatorTurn(
        * ⚠ 缺行 / 读失败都是 `null`，「关于这位创作者」那一段照样拼得出来。
        */
       optionalContext('creativePreference', clerkId, null, () =>
-        ASSISTANT_CREATIVE_PREFERENCE_DOMAINS.has(request.domain)
+        ASSISTANT_CREATIVE_PREFERENCE_DOMAINS.has(request.domain) &&
+        request.incognito !== true
           ? getCreativePreferenceDigest(user.id)
           : Promise.resolve(null),
       ),
@@ -13123,17 +13124,24 @@ export async function prepareOperatorTurn(
     ASSISTANT_MEMORY_LIMITS.maxInPrompt,
     ASSISTANT_CONTEXT_BUDGET.maxEntries - contextCards.length,
   )
+  /**
+   * ⛔ 隐身不读（owner 2026-10-16「好的」：隐身 = 不记、不存、不读）：助手记的一条都不注入，
+   * 学出来的创作偏好也不带。⚠ 你写的规矩照旧进规则段 —— 那是你亲手定的规矩，不是她对你的记忆。
+   */
+  const incognito = request.incognito === true
   const assistantMemories = await optionalContext(
     'assistantMemories',
     clerkId,
     [],
-    () =>
-      listAssistantMemoriesForPrompt(
-        user.id,
-        memoryScopeForDomain(request.domain),
-        memoryBudget,
-        workspace.projectId ?? null,
-      ),
+    async () =>
+      incognito
+        ? []
+        : listAssistantMemoriesForPrompt(
+            user.id,
+            memoryScopeForDomain(request.domain),
+            memoryBudget,
+            workspace.projectId ?? null,
+          ),
   )
   // ⛔ 注入不刷 `lastUsedAt`（P3）：进过提示就排最前的那条自我强化撤了，翻到才算用过。
 

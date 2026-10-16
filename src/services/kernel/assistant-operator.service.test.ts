@@ -18849,6 +18849,16 @@ describe('助手记忆（56a）', () => {
     expect(mockTouchMemories).not.toHaveBeenCalled()
   })
 
+  it('⛔ 隐身不读：助手记的一条都不查、不印（你写的规矩照旧）', async () => {
+    queueTurns({ finished: true, message: '好。' })
+    await collect(
+      runAssistantOperator('clerk-1', buildRequest({ incognito: true })),
+    )
+    expect(mockListMemoriesForPrompt).not.toHaveBeenCalled()
+    expect(mockListCreatorMemories).toHaveBeenCalled()
+    expect(toolRingSystemPrompt()).not.toContain('WHAT YOU ALREADY KNOW ABOUT')
+  })
+
   it('⛔ 一条记忆都没有时不印那一段', async () => {
     queueTurns({ finished: true, message: '好。' })
     await collect(runAssistantOperator('clerk-1', buildRequest()))

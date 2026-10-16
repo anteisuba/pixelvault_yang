@@ -31,11 +31,19 @@ export async function* searchMemoriesStep(
   query: string,
 ): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
   const words = query.trim()
+  const incognito = context.request.incognito === true
   const plan: ToolPlan = {
     kind: 'read',
     // 步骤帧借 `read_project_rules` 的形状（payload 一格域、result 一列规矩）；查询词在标题里。
     payload: { scope: context.request.domain },
     run: async () => {
+      // 隐身不读（owner 2026-10-16）：⛔ 打库，也 ⛔ 刷 lastUsedAt。
+      if (incognito)
+        return {
+          result: { rules: [] },
+          observation:
+            'Incognito is on: you do not use what you remember about the creator in this conversation. Ask them instead.',
+        }
       const found = await searchAssistantMemories(context.prepared.user.id, {
         scope: memoryScopeForDomain(context.request.domain),
         projectId: requestProjectId(context.request),

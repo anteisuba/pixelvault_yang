@@ -185,9 +185,15 @@ async function recipesInsteadOfLooking(
   }
 }
 
-/** 要看的一张图：`label` 是给模型的称呼，`title` 是过程行上的（缺席 = 同 `label`）。 */
+/**
+ * 要看的一张图：`label` 是给模型的称呼，`title` 是过程行上的（缺席 = 同 `label`）。
+ * 联网找到的图（`#n`）：`fallbackUrl` = 搜索引擎那张小预览，原图下不来时看它；`preview` =
+ * 本来就只能看预览（站点不让我们取图，如 pixiv），结果里明说看的是小图。
+ */
 export interface V3LookTarget extends AssistantV3PictureRef {
   readonly title?: string
+  readonly fallbackUrl?: string
+  readonly preview?: boolean
 }
 
 /** 要看的一段片子：称呼规矩同图；`nodeId` = 画布上哪张视频卡（认「已经在你眼前」）。 */
@@ -361,20 +367,28 @@ export async function* executeV3Look(
   const boardImages =
     board?.type === ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.board ? board.images : []
   const signal = context.prepared.run.signal
+  const label = (target: V3LookTarget) =>
+    target.label.slice(0, ASSISTANT_V3_LIMITS.maxNameChars * 2)
+  /** ⚠ 进不了本轮记录的地址（太长）当作下不来：接力时那一跳会整份记录不过校验。 */
+  const load = (url: string, target: V3LookTarget) =>
+    AssistantV3PictureRefSchema.safeParse({ url, label: label(target) }).success
+      ? loadPicture(context.pictures, url, signal)
+      : Promise.resolve(null)
   const loaded = await Promise.all(
     looked.map(async (target) => {
-      const ref = {
-        url: target.url,
-        label: target.label.slice(0, ASSISTANT_V3_LIMITS.maxNameChars * 2),
+      let url = target.url
+      let picture = await load(url, target)
+      // 原图下不来就看小预览；⚠ 记录里记的是真下来的那个地址（下一步按它再下一次）。
+      if (!picture && target.fallbackUrl) {
+        url = target.fallbackUrl
+        picture = await load(url, target)
       }
       return {
         target,
-        ref,
+        ref: { url, label: label(target) },
+        preview: Boolean(target.preview) || url !== target.url,
         onBoard: boardImages.findIndex((image) => image.url === target.url),
-        // ⚠ 进不了本轮记录的地址（太长）当作下不来：接力时那一跳会整份记录不过校验。
-        picture: AssistantV3PictureRefSchema.safeParse(ref).success
-          ? await loadPicture(context.pictures, target.url, signal)
-          : null,
+        picture,
       }
     }),
   )
@@ -413,6 +427,11 @@ export async function* executeV3Look(
             `「${item.target.label}」 (picture ${item.onBoard + 1} of IMAGES THE CREATOR POINTED AT)`,
         )
         .join(', ')}.`,
+    )
+  const previews = seen.filter((item) => item.preview)
+  if (previews.length)
+    lines.push(
+      `${quoted(previews.map((item) => item.target.label))} ${previews.length === 1 ? 'is' : 'are'} only the search engine's small preview (the full picture could not be fetched): judge only what a small picture can show — who it is, the outfit's colours and shapes, framing, 2D or 3D — and say so when a detail is too small to tell.`,
     )
   lines.push(...clips.lines)
   if (failed.length)

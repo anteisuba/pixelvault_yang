@@ -30,8 +30,8 @@ import {
   type V3Context,
   type V3Outcome,
 } from '@/services/kernel/assistant-v3-steps.service'
+import { lookTargetOfFind } from '@/services/kernel/assistant-v3-finds.service'
 import {
-  cannotSeeOutcome,
   executeV3Look,
   type V3LookClipTarget,
   type V3LookTarget,
@@ -327,7 +327,7 @@ export async function* executeBenchLook(
   faceImages?: (name: string) => readonly V3LookTarget[] | string | null,
   notes: readonly string[] = [],
 ): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
-  if (!context.seesImages) return cannotSeeOutcome()
+  // ⚠ 看不了图的模型也照样认出要看的是哪几张，交给 `executeV3Look`：图自带配方的照样给配方。
   const mentioned = context.request.mentionedAssets ?? []
   const references = context.request.snapshot.references?.items ?? []
   const referenceVideos = context.request.snapshot.videoReferences?.items ?? []
@@ -340,6 +340,16 @@ export async function* executeBenchLook(
   const clips: V3LookClipTarget[] = []
   const unknown: string[] = []
   for (const image of images) {
+    // 联网找到的图（`#n`）：每张脸都认。
+    const find = lookTargetOfFind(context.transcript, image)
+    if (typeof find === 'string') {
+      unknown.push(find)
+      continue
+    }
+    if (find) {
+      targets.push(find)
+      continue
+    }
     const named = faceImages?.(image) ?? null
     if (typeof named === 'string') {
       unknown.push(named)

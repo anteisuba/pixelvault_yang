@@ -7,9 +7,11 @@ import {
   ASSISTANT_WEB_FIND_LIMITS,
 } from '@/constants/assistant-operator'
 import { ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS } from '@/constants/assistant-v3'
+import { isWebImageSourceUsableAsInput } from '@/constants/web-image-sources'
 import {
   carriedWebFinds,
   describeWebFindLine,
+  judgeWebImageFind,
   parseWebFindHandle,
   webFindToWebImage,
   webImageToFind,
@@ -28,6 +30,7 @@ import {
   type AssistantWebImageFind,
 } from '@/types/assistant-web-finds'
 import type { PreparedOperatorTurn } from '@/services/kernel/assistant-operator.service'
+import type { V3LookTarget } from '@/services/kernel/assistant-v3-look.service'
 
 /**
  * v3 里**找到的东西的编号 `#n`** 与**查证的资料号 `[n]`**（搜索期第三片，附录 I §3.3）。
@@ -223,6 +226,32 @@ export function pickV3WebImage(
       error: `#${n} is a video ("${find.title}"): videos are links only — they cannot be imported, mounted or proposed as pictures.`,
     }
   return { ok: true, find }
+}
+
+/**
+ * `look` 的一项是不是 `#n`（2026-10-16 owner：pixiv 那几张 Denia 一张都没看过，只按标题筛）：
+ * 不是 → `null`；是 → 那张图（原图下不来看搜索引擎那张小预览），换不回就是一句话。
+ * ⚠ 站点不让我们取图（pixiv 一类）或不许拿来用的：只看小预览 —— 就是创作者卡片上看到的那张；
+ *   看一眼不是导入，「只能看」照样挡在导入 / 挂参考 / 交给角色卡那几条路上。
+ */
+export function lookTargetOfFind(
+  transcript: AssistantV3Transcript,
+  handle: string,
+): V3LookTarget | string | null {
+  const pick = pickV3WebImage(transcript, handle)
+  if (!pick) return null
+  if (!pick.ok) return pick.error
+  const { find } = pick
+  const label = `#${find.n}`
+  if (isWebImageSourceUsableAsInput(judgeWebImageFind(find)))
+    return {
+      url: find.imageUrl,
+      label,
+      ...(find.thumbnailUrl ? { fallbackUrl: find.thumbnailUrl } : {}),
+    }
+  return find.thumbnailUrl
+    ? { url: find.thumbnailUrl, label, preview: true }
+    : `Could not see ${label}: its site does not let us fetch the picture and the search gave no preview of it. Only the creator can open its page.`
 }
 
 /**

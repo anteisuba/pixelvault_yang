@@ -207,6 +207,61 @@ describe('v3 look · Denia 自己看', () => {
     expect(events[0]).toMatchObject({ step: { status: 'done' } })
   })
 
+  it('⭐ 联网找到的图：原图下不来看小预览；本来就只能看预览的照实说是小图', async () => {
+    const thumb = picture('thumb-3')
+    const pixiv = picture('pixiv-thumb-4')
+    const { outcome } = await run(
+      executeV3Look(context(), {
+        targets: [
+          {
+            url: 'https://img.test/full-3.jpg',
+            label: '#3',
+            fallbackUrl: thumb.url,
+          },
+          { url: pixiv.url, label: '#4', preview: true },
+        ],
+        notes: [],
+        question: 'which is Draco?',
+      }),
+    )
+    // ⚠ 记的是真下来的那个地址：下一步按它再下一次。
+    expect(outcome).toMatchObject({
+      kind: 'result',
+      error: false,
+      images: [
+        { url: thumb.url, label: '#3' },
+        { url: pixiv.url, label: '#4' },
+      ],
+    })
+    const output = (outcome as { output: string }).output
+    expect(output).toContain(
+      "「#3」, 「#4」 are only the search engine's small preview",
+    )
+    expect(output).not.toContain('Could not load')
+  })
+
+  it('原图下得来就看原图，⛔ 不提小预览', async () => {
+    const full = picture('full-5')
+    const { outcome } = await run(
+      executeV3Look(context(), {
+        targets: [
+          {
+            url: full.url,
+            label: '#5',
+            fallbackUrl: 'https://thumb.test/5.png',
+          },
+        ],
+        notes: [],
+        question: '',
+      }),
+    )
+    expect(outcome).toMatchObject({ images: [{ url: full.url, label: '#5' }] })
+    expect((outcome as { output: string }).output).not.toContain(
+      'small preview',
+    )
+    expect(fetchAsBuffer).toHaveBeenCalledTimes(1)
+  })
+
   it('一张都没下来：这一步才算失败', async () => {
     const { events, outcome } = await run(
       executeV3Look(context(), {

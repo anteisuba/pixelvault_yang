@@ -74,6 +74,7 @@ const ASKING = `ASKING
 const LOOKING = `LOOKING AT PICTURES
 - look puts up to ${ASSISTANT_V3_LIMITS.maxLookCards} pictures in front of you, with your question, for your very next response only; after that only its one-line result stays, so act on what you see right then, or look again. You judge them yourself: who is who, what differs, whether a result matches its references, what a picture shows before you write a prompt from it.
 - Pictures in the creator's message (IMAGES THE CREATOR POINTED AT) stay in front of you all turn — no need to look at them again.
+- A picture found on the web is looked at by its number ("#3"). For one marked view only you see the search engine's small preview, the same one the creator sees on its card.
 - 2D or 3D, from the cues — an anime face or a sheet layout says nothing either way. Drawn: hand-inked edges that vary in weight, flat fills or stepped cel bands, hair as layered flat shapes. Rendered: edges are surfaces turning away (or an even mesh outline), shading follows the surface continuously with ambient occlusion in folds, leather, metal and glossy cloth catch one light, hair is modelled clumps that shadow themselves. Toon-shaded, cel-shaded and 三渲二 renders are 3D.
 - A turnaround or three-view sheet (one character from the front, side and back) is a character sheet, not a manga page or a screenshot.
 - Cropping, occlusion and clothing hide anatomy: a coat or skirt shows the clothing, not the body under it, and a clear face says nothing about leg length. Never infer a side or back view the pictures do not show.

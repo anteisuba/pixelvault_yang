@@ -166,7 +166,9 @@ export const AssistantV3ReadInputSchema = z.object({
 })
 
 export const AssistantV3LookInputSchema = z.object({
-  cards: z.array(CardHandleSchema),
+  cards: z
+    .array(CardHandleSchema)
+    .describe('Card handles to look at, or a picture found on the web ("#3").'),
   question: z.string(),
 })
 
@@ -400,7 +402,7 @@ export const AssistantV3LoraLookInputSchema = z.object({
   images: z
     .array(z.string())
     .describe(
-      'Pictures to look at: the name of a picture attached to the message, "sample", or a reference like "ref-1".',
+      'Pictures to look at: the name of a picture attached to the message, "sample", a reference like "ref-1", or a picture found on the web ("#3").',
     ),
   question: z.string(),
 })
@@ -650,7 +652,7 @@ export const AssistantV3ImageLookInputSchema = z.object({
   images: z
     .array(z.string())
     .describe(
-      'What to look at: the name of a picture or clip the creator pointed at, a reference like "ref-1", or on the video bench a reference video like "video-1".',
+      'What to look at: the name of a picture or clip the creator pointed at, a reference like "ref-1", a picture found on the web ("#3"), or on the video bench a reference video like "video-1".',
     ),
   question: z.string(),
 })
@@ -760,7 +762,7 @@ export const AssistantV3CardsLookInputSchema = z.object({
   images: z
     .array(z.string())
     .describe(
-      '"card" (all of the open character\'s pictures) or "card-N" (one of them); or the name of a picture attached to the message.',
+      '"card" (all of the open character\'s pictures) or "card-N" (one of them); the name of a picture attached to the message; or a picture found on the web ("#3").',
     ),
   question: z.string(),
 })

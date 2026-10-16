@@ -42,6 +42,7 @@ const {
   recordTurn,
   effortPerStep,
   maxOutputTokens,
+  queryRaw,
 } = vi.hoisted(() => ({
   plan: vi.fn(),
   legacy: vi.fn(),
@@ -59,7 +60,11 @@ const {
   effortPerStep: { current: true },
   /** 这一家交给 `streamText` 的输出上限（`undefined` = 不发）。 */
   maxOutputTokens: { current: undefined as number | undefined },
+  /** 查自家作品配方那条裸 SQL（「反推读原配方」）：默认一张都不是自家做的。 */
+  queryRaw: vi.fn(async (): Promise<unknown[]> => []),
 }))
+
+vi.mock('@/lib/db', () => ({ db: { $queryRaw: queryRaw } }))
 
 /** 测试里下得来的片子：地址 → 多大（真的 mp4 文件头）。 */
 const clipsServed = new Map<string, number>()
@@ -364,6 +369,8 @@ const disconnectGoyle = {
 
 beforeEach(() => {
   served.clear()
+  queryRaw.mockReset()
+  queryRaw.mockResolvedValue([])
   resolveModel.mockClear()
   effortPerStep.current = true
   maxOutputTokens.current = undefined
@@ -1497,7 +1504,7 @@ describe('v3 内核', () => {
     })
   })
 
-  it('所选模型看不了图（DeepSeek V4 Pro）：look 只回一句换模型，⛔ 不下图、不借别家', async () => {
+  it('所选模型看不了图（DeepSeek V4 Pro）：look 只回一句换模型，⛔ 不附图、不借别家', async () => {
     preparedOnce(
       { adapterType: 'deepseek', modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO },
       [HARRY_PNG, GOYLE_PNG],
@@ -1520,8 +1527,9 @@ describe('v3 内核', () => {
         } as Partial<AssistantOperatorRequest>),
       ),
     )
-    expect(fetchAsBuffer).not.toHaveBeenCalled()
+    // 图会下（读文件里的配方），但⛔ 一张都不附给模型。
     expect(plan).not.toHaveBeenCalled()
+    expect(attachedPictures(mock.doStreamCalls[0]!)).toEqual([])
     const next = mock.doStreamCalls[1]!
     expect(attachedPictures(next)).toEqual([])
     expect(promptText(next)).toContain(
@@ -1529,6 +1537,65 @@ describe('v3 内核', () => {
     )
     expect(events.some((event) => event.type === 'step')).toBe(false)
   })
+
+  it.each([
+    ['看得见图（GPT）', OPENAI],
+    [
+      '看不了图（DeepSeek V4 Pro）',
+      {
+        adapterType: 'deepseek',
+        modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
+      },
+    ],
+  ])(
+    '⭐ 被指着的自家作品：配方冻进板子（%s），按地址只查这个用户的库',
+    async (_, route) => {
+      preparedOnce(route as typeof OPENAI, [HARRY_PNG, GOYLE_PNG])
+      served.set(HARRY_PNG, 'png')
+      queryRaw.mockResolvedValue([
+        {
+          url: HARRY_PNG,
+          thumbnailUrl: null,
+          prompt: 'harry, black robe',
+          negativePrompt: 'lowres',
+          model: 'gemini-3-image',
+          width: 832,
+          height: 1216,
+          seed: '7',
+          advancedParams: null,
+        },
+      ])
+      const mock = script(textTurn('配方在这。'))
+      await collect(
+        runAssistantV3(
+          'clerk-1',
+          request({
+            snapshot: lookSnapshot(),
+            mentionedAssets: [
+              {
+                id: 'gen-1',
+                url: HARRY_PNG,
+                label: '哈利 · 黑袍',
+                nodeId: HARRY,
+              },
+            ],
+          } as Partial<AssistantOperatorRequest>),
+        ),
+      )
+      const text = promptText(mock.doStreamCalls[0]!)
+      expect(text).toContain(
+        'RECIPES THAT CAME WITH THE PICTURES THE CREATOR POINTED AT',
+      )
+      expect(text).toContain(
+        "「哈利 · 黑袍」 — made here, the creator's own work:\\nharry, black robe\\nNegative prompt: lowres\\nSeed: 7, Size: 832x1216, Model: gemini-3-image",
+      )
+      const sql = queryRaw.mock.calls[0] as unknown as [
+        TemplateStringsArray,
+        ...unknown[],
+      ]
+      expect(sql.slice(1)).toContain('user-1')
+    },
+  )
 
   it('接力：本轮记录里只存图的地址与称呼；模型还没开口，下一跳照样附上', async () => {
     preparedOnce(OPENAI, [HARRY_PNG, GOYLE_PNG])

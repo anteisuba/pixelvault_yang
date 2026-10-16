@@ -324,7 +324,7 @@ export const ASSISTANT_V3_HANDLE = {
  * 看片、各张脸的方言段）就把它拨到改的那天（同一天再改一次就加字母：`2026-10-15b`）；人设 /
  * 规矩 / 记忆这些每人不同的段落不算，它们只进 `systemPromptHash`。
  */
-export const ASSISTANT_V3_PROMPT_VERSION = '2026-10-15f'
+export const ASSISTANT_V3_PROMPT_VERSION = '2026-10-16'
 
 /** 本轮记录（前端原样带回、服务端还原成消息）的条目类型。 */
 export const ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS = {
@@ -512,6 +512,22 @@ export const ASSISTANT_V3_PICTURE_FORMATS: ReadonlySet<string> = new Set([
   'png',
   'webp',
 ])
+
+/**
+ * 图自带的配方（「反推读原配方」小期，owner 2026-10-16 选瘦身版）：代码只把文件里的文字取出来、
+ * 压小，怎么读交给模型。几个数管的是 token：
+ * - `maxPictureChars`：一张图的配方最多几个字（A1111 / NovelAI 一段一两千字，压过的 ComfyUI
+ *   工作流三四千字）。
+ * - `maxTurnChars`：板子上那几张（最多 `maxLookCards` 张）合起来最多几个字 —— 板子每一跳都发。
+ * - `maxValueChars`：一格文字（一段提示词、一个参数）最多几个字。
+ * - `maxInflatedBytes`：一个压缩文本块最多解压出多少字节（防解压炸弹）。
+ */
+export const ASSISTANT_V3_RECIPE_LIMITS = {
+  maxPictureChars: 6_000,
+  maxTurnChars: 15_000,
+  maxValueChars: 2_000,
+  maxInflatedBytes: 2_000_000,
+} as const
 
 /**
  * Denia 自己看片（看图期第二段，owner 2026-10-15）的几个数。帧数规则本身住在

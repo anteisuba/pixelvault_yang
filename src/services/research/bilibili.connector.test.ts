@@ -59,7 +59,8 @@ const SEARCH_OK = {
         title: '《鸣潮》动画短片 | <em class="keyword">今昔</em>',
         author: '鸣潮',
         duration: '17:58',
-        arcurl: 'https://www.bilibili.com/video/BV1ji421e7nM',
+        // 真接口的 `arcurl` 是 av 号的写法，新稿件 15–16 位。
+        arcurl: 'http://www.bilibili.com/video/av113012345678901',
       },
     ],
   },
@@ -80,6 +81,11 @@ describe('fetchBilibiliEvidence — 搜索入口（风控路）', () => {
     expect(result.items[0]?.title).toBe('bilibili · 《鸣潮》动画短片 | 今昔')
     const first = result.items[0]
     expect(first?.kind === 'video' && first.channel).toBe('鸣潮')
+    // ⭐ 有 BV 号就用 BV 号拼地址（av 写法嵌不了、也和 Google 那一路去不了重）。
+    expect(first?.url).toBe('https://www.bilibili.com/video/BV1ji421e7nM')
+    expect(first?.kind === 'video' && first.videoUrl).toBe(
+      'https://www.bilibili.com/video/BV1ji421e7nM',
+    )
     expect(mockWebSearch).not.toHaveBeenCalled()
   })
 

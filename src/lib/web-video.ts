@@ -63,7 +63,11 @@ function youtubeTarget(url: URL): WebVideoTarget {
 function bilibiliTarget(url: URL): WebVideoTarget {
   const segments = segmentsOf(url)
   const videoIndex = segments.indexOf('video')
-  const id = videoIndex >= 0 ? segments[videoIndex + 1] : undefined
+  // 合集 / 稍后再看 / 活动页（`/list/…?bvid=`）的稿件号在查询串里。
+  const id =
+    videoIndex >= 0
+      ? segments[videoIndex + 1]
+      : (url.searchParams.get('bvid') ?? undefined)
   const params = new URLSearchParams()
   const aid = id ? WEB_VIDEO_ID_PATTERNS.bilibiliAid.exec(id)?.[1] : undefined
   if (id && WEB_VIDEO_ID_PATTERNS.bilibiliBvid.test(id)) params.set('bvid', id)

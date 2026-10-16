@@ -83,7 +83,8 @@ export const WEB_VIDEO_EMBED = {
 /** 稿件号的形状。认不出就不嵌（退回新窗口），⛔ 不猜。 */
 export const WEB_VIDEO_ID_PATTERNS = {
   bilibiliBvid: /^BV[0-9A-Za-z]{10}$/,
-  bilibiliAid: /^av(\d{1,12})$/i,
+  /** ⚠ 新稿件的 av 号有 15–16 位（64 位整数，最多 19 位）。 */
+  bilibiliAid: /^av(\d{1,19})$/i,
   niconico: /^(?:sm|so|nm)\d{1,12}$/,
   vimeo: /^\d{1,12}$/,
   /** Vimeo 不公开视频的私有串（`vimeo.com/<id>/<hash>`，嵌入要带 `?h=`）。 */

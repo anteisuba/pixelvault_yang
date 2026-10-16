@@ -52,9 +52,26 @@ describe('resolveWebVideo — B站', () => {
     expect(
       resolveWebVideo('http://www.bilibili.com/video/av170001?p=2').embedUrl,
     ).toBe('https://player.bilibili.com/player.html?aid=170001&p=2&autoplay=0')
+    // 新稿件的 av 号有 15–16 位（owner 2026-10-16：这种点不开）。
+    expect(
+      resolveWebVideo('http://www.bilibili.com/video/av113012345678901')
+        .embedUrl,
+    ).toBe(
+      'https://player.bilibili.com/player.html?aid=113012345678901&autoplay=0',
+    )
     expect(
       resolveWebVideo('https://m.bilibili.com/video/BV1ji421e7nM?p=abc')
         .embedUrl,
+    ).toBe(
+      'https://player.bilibili.com/player.html?bvid=BV1ji421e7nM&autoplay=0',
+    )
+  })
+
+  it('合集 / 稍后再看的地址：稿件号在查询串里', () => {
+    expect(
+      resolveWebVideo(
+        'https://www.bilibili.com/list/watchlater?bvid=BV1ji421e7nM&oid=1',
+      ).embedUrl,
     ).toBe(
       'https://player.bilibili.com/player.html?bvid=BV1ji421e7nM&autoplay=0',
     )

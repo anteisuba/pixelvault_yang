@@ -5379,6 +5379,7 @@
         "hint": "{name} を追加するカットを選んでください。Esc でキャンセル",
         "alreadyIncluded": "すでに含まれています"
       },
+      "uploadFailed": "「{name}」をアップロードできませんでした",
       "looseImageFused": "画像をキャラクターの参照ギャラリーに追加しました",
       "looseImageFuseRejected": "追加できませんでした——キャラクターか背景カードにドロップしてください",
       "canvasNodeSigned": "参照を関連付けました（本体はキャンバスに残ります）",

@@ -163,7 +163,7 @@ export function useWorkbenchDndV4({
   graph,
   pasteEnabled,
 }: UseWorkbenchDndV4Options): WorkbenchDndV4Value {
-  const t = useTranslations('StudioNode.ingest.looseImage')
+  const t = useTranslations('StudioNode.ingest')
   const { screenToFlowPosition } = useReactFlow()
   const upload = useNodeUploadV4()
   const [pendingUploads, setPendingUploads] = useState<
@@ -199,7 +199,7 @@ export function useWorkbenchDndV4({
             return
           }
           if (attempt >= 10) {
-            toast.error(latest.current.t('uploadFailed'))
+            toast.error(latest.current.t('looseImage.uploadFailed'))
             resolve()
             return
           }
@@ -248,7 +248,9 @@ export function useWorkbenchDndV4({
           .then(async (patch) => {
             // 传不上来就把那张空卡留着 + 出声：静默删掉用户刚看见的卡比失败更吓人。
             if (!patch) {
-              toast.error(latest.current.t('uploadFailed'))
+              toast.error(
+                latest.current.t('uploadFailed', { name: entry.file.name }),
+              )
               return
             }
             await backfillMedia(nodeId, patch)

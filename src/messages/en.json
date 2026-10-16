@@ -5379,6 +5379,7 @@
         "hint": "Choose a shot for {name}. Press Esc to cancel.",
         "alreadyIncluded": "Already included"
       },
+      "uploadFailed": "Couldn't upload “{name}”",
       "looseImageFused": "Image added to the character's references",
       "looseImageFuseRejected": "Couldn't add that image — drop it on a character or background card",
       "canvasNodeSigned": "Reference linked — the card stays on the canvas",

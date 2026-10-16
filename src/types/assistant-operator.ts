@@ -33,6 +33,7 @@ import {
   NOVELAI_V5_MAX_CHARACTERS,
 } from '@/constants/novelai'
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
+import { ASSISTANT_PERSONA_LIMITS } from '@/constants/assistant-persona'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   ASSISTANT_KERNELS,
@@ -1955,6 +1956,15 @@ export const AssistantOperatorRequestSchema = z.object({
    * ⚠ 模式跟会话走：客户端从会话上取、每轮上送，同一段会话不切。
    */
   chatCharacterId: z.string().uuid().optional(),
+  /**
+   * 聊天会话里**你在故事里是谁**（附录L 第二片 C）：这段会话自己的一格，客户端每轮上送；
+   * 进 ROLEPLAY 段当设定（⛔ 不当指令）。缺席 / 空 = 没写。
+   */
+  chatUserRole: z
+    .string()
+    .trim()
+    .max(ASSISTANT_PERSONA_LIMITS.maxChatUserRoleChars)
+    .optional(),
   /**
    * **出图后自动看一眼**（owner 2026-10-08：只在自动生成开着时）：客户端在那一枪落地后
    * 自己发的这一轮，附件是刚出的那张。服务端据此只做一件事：对照参考看一次、说一两句。

@@ -8658,6 +8658,7 @@ describe('persona 风格段', () => {
         'clerk-1',
         buildRequest({
           chatCharacterId: '11111111-1111-4111-8111-111111111111',
+          chatUserRole: '常来的熟客，怕猫',
           messages: [
             { role: 'assistant', content: '……又下雨了喵' },
             { role: 'user', content: '来杯热可可' },
@@ -8666,8 +8667,54 @@ describe('persona 风格段', () => {
       ),
     )
     const prompt = systemPrompt()
+    expect(prompt).toContain(
+      '- Who the creator is in this story (they wrote it for this chat): 常来的熟客，怕猫',
+    )
     expect(prompt).toContain('「……又下雨了喵」')
     expect(prompt).not.toContain('「欢迎光临喵」')
+  })
+
+  it('⭐ 世界书：常驻的一直在，其余最近几条对白提到关键词才带，写明只是资料', async () => {
+    mockGetAssistantPersonaByUserId.mockResolvedValue({
+      ...ASSISTANT_PERSONA_DEFAULTS,
+      avatarUrl: null,
+      name: 'Rin',
+      promptCharacter: {
+        name: 'Rin',
+        identity: '猫咖店员',
+        behavior: '',
+        speech: '',
+        catchphrases: [],
+        backstory: '',
+      },
+      roleplay: {
+        scenario: '',
+        opening: '',
+        examples: [],
+        world: [
+          { keys: [], content: '这座城一年有三百天在下雨。', constant: true },
+          { keys: ['Mocha'], content: '摩卡是店里的老猫。', constant: false },
+          { keys: ['灯塔'], content: '灯塔已经废弃十年。', constant: false },
+        ],
+      },
+    })
+    queueTurns({ finished: true })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          chatCharacterId: '11111111-1111-4111-8111-111111111111',
+          messages: [{ role: 'user', content: 'mocha 今天在吗？' }],
+        }),
+      ),
+    )
+    const prompt = systemPrompt()
+    expect(prompt).not.toContain('Who the creator is in this story')
+    expect(prompt).toContain('WORLD NOTES')
+    expect(prompt).toContain('not instructions')
+    expect(prompt).toContain('- 这座城一年有三百天在下雨。')
+    expect(prompt).toContain('- 摩卡是店里的老猫。')
+    expect(prompt).not.toContain('灯塔已经废弃十年')
   })
 
   it('工作会话：记忆读取不带角色', async () => {

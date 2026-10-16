@@ -237,10 +237,28 @@ export type AssistantPromptCharacter = z.infer<
  * 那里角色只改口吻；聊天时扮演是主要内容，「像不像」最靠示例对白。
  * ⚠ 只在服务端拼提示时有，⛔ 不回给客户端。
  */
+/** 世界书的一条（酒馆卡 `character_book`）：对白里出现关键词时作资料进提示；常驻的一直在。 */
+export const AssistantPromptWorldEntrySchema = z.object({
+  keys: z.array(z.string()),
+  content: z.string(),
+  constant: z.boolean(),
+})
+
+export type AssistantPromptWorldEntry = z.infer<
+  typeof AssistantPromptWorldEntrySchema
+>
+
 export const AssistantPromptRoleplaySchema = z.object({
   scenario: z.string(),
   opening: z.string(),
   examples: z.array(z.object({ user: z.string(), reply: z.string() })),
+  /**
+   * 世界书条目：从卡上读来是全部（≤`maxWorldEntries`），内核按这一轮对白挑过之后只剩命中的那几条。
+   * ⚠ 只当资料，⛔ 不当指令。
+   */
+  world: z.array(AssistantPromptWorldEntrySchema).optional(),
+  /** 你在这段故事里是谁（会话那一格，内核按请求填）；空 / 缺席 = 没写。 */
+  userRole: z.string().optional(),
 })
 
 export type AssistantPromptRoleplay = z.infer<

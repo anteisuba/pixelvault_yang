@@ -92,6 +92,7 @@ import { cn } from '@/lib/utils'
 import type { AssistantPersona } from '@/types/assistant-persona'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
 import { useSlowLoadingNotice } from '@/hooks/use-slow-loading-notice'
+import { StudioOperatorChatPill } from '@/components/business/studio/assistant-operator/StudioOperatorChatPill'
 import { StudioOperatorSessionRow } from '@/components/business/studio/assistant-operator/StudioOperatorSessionRow'
 import { deriveAssistantConversationTitle } from '@/lib/assistant-conversation-title'
 import {
@@ -233,7 +234,7 @@ export function StudioOperatorHeader({
    * 胶囊读、被驱动 hook 在事件处理器里同步读。穿成 prop 等于让面板与外壳各转发
    * 一次同一个布尔。
    */
-  const { incognito, chatCharacter } = useStudioOperatorState()
+  const { incognito, chatCharacter, chatUserRole } = useStudioOperatorState()
   /**
    * **举着刀的那一行**（owner 2026-09-20 真机第 3 条）—— 删除是原位两段确认，
    * ⛔ 不再弹 `AlertDialog`。
@@ -545,15 +546,10 @@ export function StudioOperatorHeader({
 
         {/* ── 聊天模式胶囊（附录L）：这段会话是和谁聊。工作会话不画。 */}
         {chatCharacter ? (
-          <span
-            data-testid="operator-chat-pill"
-            className="inline-flex min-w-0 shrink items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-2sm text-muted-foreground"
-          >
-            <MessagesSquare className="size-3.5 shrink-0" aria-hidden />
-            <span className="min-w-0 truncate">
-              {t('chat.pill', { name: chatCharacter.name })}
-            </span>
-          </span>
+          <StudioOperatorChatPill
+            character={chatCharacter}
+            userRole={chatUserRole}
+          />
         ) : null}
 
         {/* ── 隐身胶囊（56a · 画板 `DesignD56Simple`「隐身开着」）──────

@@ -1417,7 +1417,12 @@ export function useAssistantOperator(
           ...(getOperatorState().incognito ? { incognito: true } : {}),
           // 聊天会话（附录L）：每轮带上和谁聊，服务端按这张卡扮演。
           ...(getOperatorState().chatCharacter
-            ? { chatCharacterId: getOperatorState().chatCharacter?.id }
+            ? {
+                chatCharacterId: getOperatorState().chatCharacter?.id,
+                ...(getOperatorState().chatUserRole.trim()
+                  ? { chatUserRole: getOperatorState().chatUserRole.trim() }
+                  : {}),
+              }
             : {}),
           ...(searchWithGrok ? { searchWithGrok: true as const } : {}),
           ...(timeZone ? { timeZone } : {}),

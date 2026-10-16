@@ -8792,7 +8792,10 @@
       "confirmDelete": "Delete?",
       "save": "Save",
       "cancel": "Cancel",
-      "you": "you"
+      "you": "you",
+      "roleLabel": "Who you are in this story",
+      "rolePlaceholder": "e.g. the new neighbour, {name}'s childhood friend",
+      "roleHint": "Only for this chat; takes effect from your next line"
     }
   },
   "GenerationCancel": {

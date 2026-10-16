@@ -465,6 +465,18 @@ export const ASSISTANT_PERSONA_LIMITS = {
   maxRoleplayExamples: 4,
   maxRoleplayExampleChars: 600,
   maxRoleplaySectionChars: 4000,
+  /**
+   * 世界书（附录L 第二片 C）：卡上最多读几条进 persona；每轮按最近几条对白里出现的关键词挑几条
+   * 进「世界资料」段（常驻条目一直在），单条 / 整段各自封顶。
+   */
+  maxWorldEntries: 100,
+  maxWorldKeys: 20,
+  worldScanMessages: 4,
+  maxWorldNotes: 6,
+  maxWorldNoteChars: 800,
+  maxWorldNotesTotalChars: 3000,
+  /** 你在这段故事里是谁（聊天会话自己的一格，附录L 第二片 C）。 */
+  maxChatUserRoleChars: 300,
   /** 每轮末尾那句「别出戏」里带的说话方式摘要（附录J ③）。 */
   maxCharacterReminderChars: 120,
   /**

@@ -40,6 +40,7 @@ import {
   getAssistantPersonaByUserId,
   sanitizeAddressUserAs,
   sanitizePromptCharacter,
+  sanitizePromptRoleplay,
   sanitizeToneCustom,
   upsertAssistantPersona,
 } from '@/services/assistant-persona.service'
@@ -829,6 +830,34 @@ describe('聊天模式按会话那张卡', () => {
       },
     })
     expect(persona.promptCharacter?.name).toBe('Rin')
+  })
+
+  it('⭐ 世界书从卡上原样存的那份读；进提示前清洗、条数封顶、只留正文', async () => {
+    mockCardFindFirst.mockResolvedValue({
+      ...CHAT_CARD,
+      extensions: {
+        'st.card': {
+          characterBook: {
+            entries: Array.from({ length: 10 }, (_, index) => ({
+              keys: [`k${index}`],
+              content: `{{char}} 的第 ${index} 条`,
+            })),
+          },
+        },
+      },
+    })
+    const persona = await getAssistantPersonaByUserId('db_user_1', CHAT_CARD.id)
+    expect(mockCardFindFirst.mock.calls[0]?.[0].select).toMatchObject({
+      extensions: true,
+    })
+    expect(persona.roleplay?.world).toHaveLength(10)
+    const roleplay = sanitizePromptRoleplay(persona)
+    expect(roleplay?.world).toHaveLength(ASSISTANT_PERSONA_LIMITS.maxWorldNotes)
+    expect(roleplay?.world?.[0]).toEqual({
+      keys: [],
+      content: 'Rin 的第 0 条',
+      constant: false,
+    })
   })
 
   it('卡不是你的 / 删了 → 照工作模式答（设置里那一份）', async () => {

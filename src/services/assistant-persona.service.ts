@@ -16,6 +16,7 @@ import {
   type AssistantAvatarChoice,
 } from '@/constants/assistant-persona'
 import { ApiRequestError } from '@/lib/errors'
+import { readTavernWorldBook } from '@/lib/tavern-card'
 import { sanitizePrompt } from '@/services/kernel/prompt-guard'
 import { ensureUser } from '@/services/user.service'
 import { CharacterPersonaSchema, type CharacterPersona } from '@/types'
@@ -26,6 +27,7 @@ import {
   type AssistantPromptCharacter,
   type AssistantPromptPersona,
   type AssistantPromptRoleplay,
+  type AssistantPromptWorldEntry,
   type UpdateAssistantPersonaRequest,
 } from '@/types/assistant-persona'
 
@@ -309,7 +311,8 @@ export async function getAssistantPersonaByUserId(
   if (chatCharacterId) {
     const chatCard = await db.characterCard.findFirst({
       where: { id: chatCharacterId, userId, isDeleted: false },
-      select: PERSONA_SELECT.characterCard.select,
+      // 聊天多读卡上原样存的那份（世界书在里面）。
+      select: { ...PERSONA_SELECT.characterCard.select, extensions: true },
     })
     const chat = chatCard ? toChatPersona(persona, chatCard) : null
     if (chat) return chat
@@ -336,7 +339,7 @@ export async function getAssistantPersonaByUserId(
  */
 function toChatPersona(
   persona: AssistantPersona,
-  card: PersonaCharacterRow,
+  card: PersonaCharacterRow & { extensions: unknown },
 ): AssistantPromptPersona | null {
   const profile = readCharacterProfile(card)
   if (!profile) return null
@@ -349,6 +352,7 @@ function toChatPersona(
     examples: profile.examples.filter(
       (example) => example.user.trim() || example.reply.trim(),
     ),
+    world: readTavernWorldBook(card.extensions),
   }
   return {
     ...persona,
@@ -520,8 +524,41 @@ export function sanitizePromptRoleplay(
         ),
       }))
       .filter((example) => example.reply),
+    world: sanitizeWorldNotes(roleplay.world ?? [], clean),
+    userRole: clean(
+      roleplay.userRole ?? '',
+      ASSISTANT_PERSONA_LIMITS.maxChatUserRoleChars,
+    ),
   }
   return cleaned
+}
+
+/**
+ * 进提示的那几条世界书：清洗、填宏、单条截断，条数与总长封顶（前面的优先，内核已按命中挑过）。
+ * ⚠ 关键词不进提示，只留正文。
+ */
+function sanitizeWorldNotes(
+  world: readonly AssistantPromptWorldEntry[],
+  clean: (text: string, max: number) => string,
+): AssistantPromptWorldEntry[] {
+  const notes: AssistantPromptWorldEntry[] = []
+  let total = 0
+  for (const entry of world) {
+    if (notes.length >= ASSISTANT_PERSONA_LIMITS.maxWorldNotes) break
+    const content = clean(
+      entry.content,
+      ASSISTANT_PERSONA_LIMITS.maxWorldNoteChars,
+    )
+    if (!content) continue
+    if (
+      total + content.length >
+      ASSISTANT_PERSONA_LIMITS.maxWorldNotesTotalChars
+    )
+      break
+    total += content.length
+    notes.push({ keys: [], content, constant: entry.constant })
+  }
+  return notes
 }
 
 /**

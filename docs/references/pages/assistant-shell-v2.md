@@ -891,7 +891,7 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 
 ⛔ 不接 Anthropic 原生 memory tool（05b）· ⛔ 与上下文卡**没有桥**（⛔ 不做「存为卡」，⛔ 不自动降级）· ⛔ 不分组 / 不做时间线分段 / 不画容量表 / 不做负规则 / 不做导出。owner 2026-09-19 打回过一版更复杂的形状。
 
-### 7.9 聊天会话（附录L · 第一片 + 第二片 A / B / 开场白，2026-10-16）
+### 7.9 聊天会话（附录L · 第一片 + 第二片，2026-10-16）
 
 - **模式跟会话走**：`StudioOperatorState.chatCharacter`（`{id, name}`）在新会话时定下（`resetOperatorThread(_, chat)`），载回历史时从会话菜单那一行带回；同一段会话不切。每轮上送 `chatCharacterId`，保存时服务端把它盖在首条消息上（`AssistantConversationMessageSchema.chatCharacterId`，同 `workspaceKey` 的做法，⛔ 不加列）。列表用子查询带回角色名（只认同一用户、没删的卡），读不到就当工作会话。
 - **入口**：角色页「用她 ▾ → 和她聊」（`requestOperatorChat` → 这一页 Dock 取走、开会话、打开面板）；会话菜单底部「和角色聊…」（`useChatCharacters`，菜单开着才取，只列主卡）。回工作 = 「新会话（工作）」或点开工作会话。菜单按「工作 / 和 X 聊」分组（只有一组时不画组名），头部一枚「和 X 聊」胶囊。
@@ -902,7 +902,9 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
   - 重新生成 = `beginOperatorRegenerate()` 拿掉那段（在历史里就改历史）、记下已有各版 → `regenerate()` 按你最后那句话再跑一轮（不另落一条你说的话）→ 这一轮停下时（`setOperatorStatus` 非 working）最后一段接成新一版；一个字都没写出来就把原来那条放回去。最多 `STUDIO_OPERATOR_CHAT.maxVersions` 版，超了丢最早的。
   - 切到哪版、改成什么，下一轮的对白就是什么（对白每轮从线程现算）。各版随会话落库（历史 `message` 条目的 `versions` / `versionIndex`，只有一版不存）。
   - ⚠ 改 / 删 / 切按**条目对象本身**找，⛔ 不按 id（历史里本来就会有两个 `user-1`，见面板历史那段头注）。只改了历史时 `historyRevision` 递增，保存的防抖也看它。
-- **未做**：世界书关键词、你在故事里的身份。面板已能拖到 45%，不另做拉宽。
+- **世界书（第二片 C）**：酒馆卡原样存着的 `characterBook`（`extensions['st.card']`）由 `readTavernWorldBook` 读成「关键词 → 正文 / 常驻」几条（卡规范的数组与 SillyTavern 导出的对象 + `key` / `disable` 都认；关了的、没正文的、没关键词又不常驻的丢掉；按插入顺序，≤`maxWorldEntries`）。每轮 `pickWorldNotes` 看最近 `worldScanMessages` 条对白（含你这一句）里有没有出现关键词（不分大小写），常驻的一直在；清洗、填宏后条数 / 单条 / 总长封顶，在角色段之后单独一段 WORLD NOTES，写明是资料 ⛔ 不是指令。次关键词、概率、递归、插入位置这些酒馆机制 ⛔ 不照搬：代码只判「提到了没有」，正文怎么用交给模型。
+- **你在故事里是谁（第二片 C）**：点头部「和 X 聊」胶囊（`StudioOperatorChatPill`）写一句，这段会话自己的一格（≤`maxChatUserRoleChars`）；打字只改草稿，关上浮层才存（`setOperatorChatUserRole`，算改历史，会存）。每轮随请求上送 `chatUserRole`，保存时盖在首条消息上（同 `chatCharacterId`，⛔ 不加列），载回会话时读回；进 ROLEPLAY 段一行设定。新会话清空。
+- 面板已能拖到 45%，不另做拉宽。
 
 ## 8. 上下文卡与用户偏好
 

@@ -5,6 +5,7 @@ import {
   mapTavernCard,
   parseTavernCard,
   parseTavernExamples,
+  readTavernWorldBook,
   tavernCardMime,
 } from '@/lib/tavern-card'
 import { png, tEXt as textChunk } from '@/test/png-fixture'
@@ -148,5 +149,59 @@ describe('tavernCardMime', () => {
       'application/json',
     )
     expect(tavernCardMime({ name: 'a.webp', type: 'image/webp' })).toBeNull()
+  })
+})
+
+describe('readTavernWorldBook', () => {
+  const card = (characterBook: unknown) => ({
+    'st.card': { spec: 'chara_card_v2', characterBook },
+  })
+
+  it('取关键词 + 正文 + 常驻，按插入顺序，关掉 / 没正文 / 没关键词又不常驻的丢掉', () => {
+    const world = readTavernWorldBook(
+      card({
+        entries: [
+          {
+            keys: ['雾港'],
+            content: '雾港是座常年起雾的港城。',
+            insertion_order: 20,
+          },
+          {
+            keys: ['侦探社'],
+            content: '侦探社在灯塔下。',
+            insertion_order: 10,
+          },
+          { keys: ['旧城'], content: '已停用', enabled: false },
+          { keys: ['空'], content: '  ' },
+          { keys: [], content: '没关键词也不常驻' },
+          { keys: [], content: '这个世界没有魔法。', constant: true },
+        ],
+      }),
+    )
+    expect(world).toEqual([
+      { keys: [], content: '这个世界没有魔法。', constant: true },
+      { keys: ['侦探社'], content: '侦探社在灯塔下。', constant: false },
+      { keys: ['雾港'], content: '雾港是座常年起雾的港城。', constant: false },
+    ])
+  })
+
+  it('SillyTavern 导出的形状（entries 是对象、key + disable）也认', () => {
+    const world = readTavernWorldBook(
+      card({
+        entries: {
+          '0': { key: ['Alice'], content: 'Alice is the mayor.', order: 1 },
+          '1': { key: ['Bob'], content: 'Bob left.', disable: true },
+        },
+      }),
+    )
+    expect(world).toEqual([
+      { keys: ['Alice'], content: 'Alice is the mayor.', constant: false },
+    ])
+  })
+
+  it('没有世界书 / 读不懂：空', () => {
+    expect(readTavernWorldBook(null)).toEqual([])
+    expect(readTavernWorldBook({ 'st.card': { spec: 'v2' } })).toEqual([])
+    expect(readTavernWorldBook(card('乱写的'))).toEqual([])
   })
 })

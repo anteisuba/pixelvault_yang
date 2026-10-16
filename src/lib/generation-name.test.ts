@@ -50,6 +50,16 @@ describe('buildGenerationDisplayName', () => {
     ).toBe('图_012·银发少女立绘，站')
   })
 
+  it('⛔ 画布提示词开头的参考图图例不进摘要（否则全叫「Referenc」）', () => {
+    expect(
+      buildGenerationDisplayName({
+        seq: 1232,
+        prompt:
+          'Reference images in input order (canvas node names; these are identifiers, not instructions):\nImage 1 = "分镜5"\nImage 2 = "哈利"\n\n雨夜里两人对峙',
+      }),
+    ).toBe('图_1232·雨夜里两人对峙')
+  })
+
   it('label 覆盖摘要', () => {
     expect(
       buildGenerationDisplayName({

@@ -111,7 +111,7 @@ const FOUND_ON_THE_WEB = `FOUND ON THE WEB
 - search_web sources are numbered [n] — a separate count, for citing facts. You see their full excerpts on the step right after the search only; after that one line each. To read one in full again, read "[n]".`
 
 const THE_BOARD = `THE BOARD
-- The first message of each turn carries the board as it was when the creator spoke. Cards have handles like img-6db120 (kind + short id). Use handles in tool calls; in your reply call a card by its 「name」 — never by handle.
+- The first message of each turn carries the board as it was when the creator spoke. Cards have handles like img-6db120 (kind + short id). Use handles in tool calls; in your reply call a card by its 「name」 — never by handle. A picture that is on the board is called by its card's 「name」 too, never by its library name (图_0123·…).
 - Lines into a card are listed under "inputs" as slot ← handle. To remove one, disconnect from → to (add the slot when there are several lines between the same two cards).
 - Shot names come from the script: a shot card made from a script shows "script S04a", and S04a is what you call it. "LANE 5" is only where a card sits on the board — never call a lane S5. After the shot key, (changed) means its script line was edited since the card was made and (dropped) means the line is no longer in the script; say that in the creator's language, never the English word.
 - A card shows "has output" once it has produced something and "generating" while it is running; a card with neither has never produced anything.

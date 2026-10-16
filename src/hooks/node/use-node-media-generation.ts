@@ -38,6 +38,12 @@ interface NodeMediaGenerationInput {
   modelId: string
   prompt: string
   apiKeyId?: string
+  /**
+   * 产物名的摘要段（`createGeneration({ displayLabel })`）—— 画布传卡名，素材库里就叫
+   * 「图_1232·分镜5 · 开启…」。⛔ 缺席时服务端从提示词摘，而画布提示词开头是
+   * 参考图图例，摘出来全是「Referenc」（owner 2026-10-16 看不出是哪张）。
+   */
+  displayLabel?: string
   aspectRatio?: AspectRatio
   /**
    * Video duration in seconds, or the literal 'auto' to let the model decide.
@@ -173,6 +179,7 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
             modelId: input.modelId,
             apiKeyId: input.apiKeyId,
             freePrompt: input.prompt,
+            ...(input.displayLabel ? { displayLabel: input.displayLabel } : {}),
             aspectRatio: input.aspectRatio ?? DEFAULT_ASPECT_RATIO,
             referenceImages: input.referenceImages,
             advancedParams: input.advancedParams,
@@ -214,6 +221,7 @@ export function useNodeMediaGeneration(): UseNodeMediaGenerationValue {
             modelId: input.modelId,
             apiKeyId: input.apiKeyId,
             prompt: input.prompt,
+            ...(input.displayLabel ? { displayLabel: input.displayLabel } : {}),
             aspectRatio:
               input.aspectRatio ?? VIDEO_GENERATION.DEFAULT_ASPECT_RATIO,
             duration: input.duration ?? VIDEO_GENERATION.DEFAULT_DURATION,

@@ -88,4 +88,18 @@ describe('StudioOperatorEffortChip', () => {
     fireEvent.click(screen.getByTestId('operator-effort-option-low'))
     expect(onChange).not.toHaveBeenCalled()
   })
+
+  it('footer 挂在卡底（手机把自动生成收进来）', () => {
+    render(
+      <StudioOperatorEffortChip
+        value="medium"
+        onChange={vi.fn()}
+        footer={<span data-testid="footer-probe" />}
+      />,
+    )
+    fireEvent.click(screen.getByTestId('operator-effort-chip'))
+    expect(screen.getByTestId('operator-effort-chip-footer')).toContainElement(
+      screen.getByTestId('footer-probe'),
+    )
+  })
 })

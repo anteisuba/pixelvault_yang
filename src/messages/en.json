@@ -5379,6 +5379,7 @@
         "hint": "Choose a shot for {name}. Press Esc to cancel.",
         "alreadyIncluded": "Already included"
       },
+      "uploadFailed": "Couldn't upload “{name}”",
       "looseImageFused": "Image added to the character's references",
       "looseImageFuseRejected": "Couldn't add that image — drop it on a character or background card",
       "canvasNodeSigned": "Reference linked — the card stays on the canvas",
@@ -8370,7 +8371,9 @@
       "autoResolved": "Auto · {model}",
       "autoHintResolved": "Uses {model} — the first one you have a key for",
       "autoHintNoKey": "No key yet — set one up",
-      "needsKey": "Set up"
+      "needsKey": "Set up",
+      "search": "Search models",
+      "noMatch": "No model matches"
     },
     "effortChip": {
       "label": "Thinking",
@@ -8806,6 +8809,15 @@
       "pickCharacter": "Chat with",
       "toChat": "Switched to chat · with {name}",
       "toWork": "Back to work"
+    },
+    "phoneAdd": {
+      "label": "Add",
+      "library": "Pick from assets",
+      "camera": "Take photo",
+      "upload": "Upload file",
+      "mention": "@ a character or asset",
+      "recent": "Recent asset",
+      "all": "All"
     }
   },
   "GenerationCancel": {

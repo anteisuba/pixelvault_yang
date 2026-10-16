@@ -22,11 +22,14 @@ import { useCallback, useRef, useState } from 'react'
 
 import { CLIENT_UPLOAD_MAX_BYTES } from '@/constants/uploads'
 import { NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS } from '@/constants/node-studio'
-import { uploadImageFileAPI, uploadReferenceVideoAPI } from '@/lib/api-client'
+import { uploadImageFileAPI, uploadVideoFileAPI } from '@/lib/api-client'
 import { uploadReferenceAudioAPI } from '@/lib/api-client/voices'
 import { compressImageToLimit, readImagePixelSize } from '@/lib/compress-image'
 import { notifyGalleryChanged } from '@/lib/gallery-revision'
-import { captureVideoThumbnail } from '@/lib/video-thumbnail'
+import {
+  captureVideoThumbnail,
+  readVideoFileMetadata,
+} from '@/lib/video-thumbnail'
 import type { NodeV4MediaPatch } from '@/components/business/node/nodes/v4/NodeV4Context'
 
 export const NODE_V4_UPLOAD_KINDS = ['image', 'audio', 'video'] as const
@@ -43,7 +46,7 @@ export interface UseNodeUploadV4Value {
   /** 重放上一次失败的那一个 File（同一个文件、同一个 kind）。 */
   retry(): Promise<NodeV4MediaPatch | null>
   readonly isUploading: boolean
-  /** 0–100 真实字节进度（只有图片路由报得出来，其余两条停在 0）。 */
+  /** 0–100 真实字节进度（图片与视频直传报得出来，音频停在 0）。 */
   readonly progress: number
   readonly error: string | null
   /** 有没有可重试的那一份 —— UI 据此决定要不要摆「重试」。 */
@@ -151,21 +154,43 @@ export function useNodeUploadV4(): UseNodeUploadV4Value {
           }
         }
 
-        // 视频：先在客户端抓一帧当 poster —— 抓不到只是没封面，⛔ 不算上传失败
-        // （与 AI 生成那条路的 §9.2 封面同一条规矩）。
-        const thumbnailBlob = await captureVideoThumbnail(file)
-        const response = await uploadReferenceVideoAPI(file, thumbnailBlob)
-        if (!response.success || !response.data) {
+        // 视频：浏览器直传 R2（与图片同一条 presigned PUT）。⛔ 不走 multipart 进
+        // 函数：Vercel 请求体硬顶 4.5 MB，稍长一点的片子在到达路由之前就被 413
+        // 掉了（owner 2026-10-16 真机「视频无法上传」）。封面与尺寸都是尽力而为
+        // —— 抓不到只是没封面，⛔ 不算上传失败（§9.2 封面同一条规矩）。
+        const [metadata, poster] = await Promise.all([
+          readVideoFileMetadata(file),
+          captureVideoThumbnail(file),
+        ])
+        const response = await uploadVideoFileAPI(file, {
+          width: metadata?.width ?? 0,
+          height: metadata?.height ?? 0,
+          duration: metadata?.duration,
+          poster,
+          note,
+          onProgress: setProgress,
+          signal: controller.signal,
+        })
+        const generation = response.data?.generation
+        if (!response.success || !generation?.url) {
+          if (controller.signal.aborted) {
+            setError(null)
+            setCanRetry(false)
+            return null
+          }
           setError(response.error ?? 'upload failed')
           setCanRetry(true)
           return null
         }
         notifyGalleryChanged()
         return {
-          url: response.data.url,
-          sizeBytes: response.data.sizeBytes,
-          ...(response.data.thumbnailUrl
-            ? { videoThumbnailUrl: response.data.thumbnailUrl }
+          url: generation.url,
+          sizeBytes: file.size,
+          ...(generation.thumbnailUrl
+            ? { videoThumbnailUrl: generation.thumbnailUrl }
+            : {}),
+          ...(metadata && metadata.width > 0 && metadata.height > 0
+            ? { mediaWidth: metadata.width, mediaHeight: metadata.height }
             : {}),
         }
       } catch (cause) {

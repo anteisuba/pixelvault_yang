@@ -5379,6 +5379,7 @@
         "hint": "投放 {name} — 点击目标镜头，Esc 退出",
         "alreadyIncluded": "已含该卡"
       },
+      "uploadFailed": "「{name}」上传失败",
       "looseImageFused": "图已收进角色参考图集",
       "looseImageFuseRejected": "没收进——请拖到角色或背景卡上",
       "canvasNodeSigned": "已建立引用，本体留在画布上",
@@ -8370,7 +8371,9 @@
       "autoResolved": "自动 · {model}",
       "autoHintResolved": "现在用 {model}（你配了 key 的第一家）",
       "autoHintNoKey": "还没有 key，点这里配一把",
-      "needsKey": "待配置"
+      "needsKey": "待配置",
+      "search": "搜索模型",
+      "noMatch": "没找到这个模型"
     },
     "effortChip": {
       "label": "思考",
@@ -8806,6 +8809,15 @@
       "pickCharacter": "和谁聊",
       "toChat": "切到聊天 · 和 {name}",
       "toWork": "回到工作"
+    },
+    "phoneAdd": {
+      "label": "添加",
+      "library": "从素材挑图",
+      "camera": "拍照",
+      "upload": "上传文件",
+      "mention": "@ 角色或素材",
+      "recent": "最近的素材",
+      "all": "全部"
     }
   },
   "GenerationCancel": {

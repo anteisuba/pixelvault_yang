@@ -28,7 +28,7 @@
  */
 
 import { useCallback, useMemo, useState } from 'react'
-import { Check, ChevronDown, ChevronUp } from '@/components/icons'
+import { Check, ChevronDown, ChevronUp, Search } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -116,6 +116,11 @@ export interface StudioOperatorModelChipProps {
    */
   open?: boolean
   onOpenChange?(next: boolean): void
+  /**
+   * 卡顶加一格搜索（手机，iOS 稿 v19：模型多时搜索 + 按厂商分组可滑动）。
+   * 按模型名或厂商名筛，搜的时候「自动」那一行让位。
+   */
+  searchable?: boolean
 }
 
 export function StudioOperatorModelChip({
@@ -123,12 +128,16 @@ export function StudioOperatorModelChip({
   onChange,
   open: openProp,
   onOpenChange,
+  searchable = false,
 }: StudioOperatorModelChipProps) {
   const t = useTranslations('StudioOperator.modelChip')
   const [localOpen, setLocalOpen] = useState(false)
   const open = openProp ?? localOpen
+  const [query, setQuery] = useState('')
   const setOpen = useCallback(
     (next: boolean) => {
+      // 每次打开都从完整列表开始，⛔ 不留上一次的搜索词。
+      if (!next) setQuery('')
       if (openProp === undefined) setLocalOpen(next)
       onOpenChange?.(next)
     },
@@ -224,6 +233,18 @@ export function StudioOperatorModelChip({
     [commit, needsKey, setOpen],
   )
 
+  const needle = query.trim().toLowerCase()
+  const visibleGroups = needle
+    ? ROUTE_MODEL_GROUPS.map((group) => ({
+        ...group,
+        models: group.providerLabel.toLowerCase().includes(needle)
+          ? group.models
+          : group.models.filter((model) =>
+              model.label.toLowerCase().includes(needle),
+            ),
+      })).filter((group) => group.models.length > 0)
+    : ROUTE_MODEL_GROUPS
+
   const selectedLabel =
     selected === ASSISTANT_ROUTE_MODEL_AUTO
       ? autoPick
@@ -275,48 +296,81 @@ export function StudioOperatorModelChip({
           className="w-64 rounded-xl border-assistant-line-strong p-0 assistant-glass-overlay shadow-assistant-overlay"
           mobileClassName="px-0"
         >
+          {searchable ? (
+            <label className="flex items-center gap-2 border-b border-border/60 px-3 py-2">
+              <Search
+                className="size-4 shrink-0 text-muted-foreground"
+                aria-hidden
+              />
+              <input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={t('search')}
+                aria-label={t('search')}
+                data-testid="operator-model-search"
+                className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground/70"
+              />
+            </label>
+          ) : null}
           <div
             role="menu"
             aria-label={t('label')}
             data-testid="operator-model-chip-menu"
-            className="flex h-80 flex-col gap-0.5 overflow-y-auto p-1.5"
+            className="flex h-80 flex-col gap-0.5 overflow-y-auto overscroll-contain p-1.5"
           >
-            <button
-              type="button"
-              role="menuitemradio"
-              aria-checked={selected === ASSISTANT_ROUTE_MODEL_AUTO}
-              data-testid="operator-model-option-auto"
-              onClick={handlePickAuto}
-              className={cn(
-                'flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                selected === ASSISTANT_ROUTE_MODEL_AUTO && 'bg-muted',
-              )}
-            >
-              <span className="flex flex-col gap-px">
-                <span className="text-2sm font-medium text-foreground">
-                  {t('auto')}
+            {needle ? null : (
+              <button
+                type="button"
+                role="menuitemradio"
+                aria-checked={selected === ASSISTANT_ROUTE_MODEL_AUTO}
+                data-testid="operator-model-option-auto"
+                onClick={handlePickAuto}
+                className={cn(
+                  'flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left transition-colors duration-fast ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  selected === ASSISTANT_ROUTE_MODEL_AUTO && 'bg-muted',
+                )}
+              >
+                <span className="flex flex-col gap-px">
+                  <span className="text-2sm font-medium text-foreground">
+                    {t('auto')}
+                  </span>
+                  <span
+                    data-testid="operator-model-option-auto-hint"
+                    className="text-2xs text-muted-foreground"
+                  >
+                    {autoPick
+                      ? t('autoHintResolved', { model: autoPick.label })
+                      : keysLoaded
+                        ? t('autoHintNoKey')
+                        : t('autoHint')}
+                  </span>
                 </span>
-                <span
-                  data-testid="operator-model-option-auto-hint"
-                  className="text-2xs text-muted-foreground"
-                >
-                  {autoPick
-                    ? t('autoHintResolved', { model: autoPick.label })
-                    : keysLoaded
-                      ? t('autoHintNoKey')
-                      : t('autoHint')}
-                </span>
-              </span>
-              {selected === ASSISTANT_ROUTE_MODEL_AUTO ? (
-                <Check
-                  className="size-3.5 shrink-0 text-foreground"
-                  aria-hidden
-                />
-              ) : null}
-            </button>
-            {ROUTE_MODEL_GROUPS.map((group) => (
+                {selected === ASSISTANT_ROUTE_MODEL_AUTO ? (
+                  <Check
+                    className="size-3.5 shrink-0 text-foreground"
+                    aria-hidden
+                  />
+                ) : null}
+              </button>
+            )}
+            {needle && visibleGroups.length === 0 ? (
+              <p
+                data-testid="operator-model-search-empty"
+                className="px-2.5 py-6 text-center text-xs text-muted-foreground"
+              >
+                {t('noMatch')}
+              </p>
+            ) : null}
+            {visibleGroups.map((group, index) => (
               <div key={group.adapterType} className="flex flex-col gap-0.5">
-                <p className="mt-0.5 border-t border-border/60 px-2.5 pt-2.5 pb-1 text-3xs tracking-nav text-muted-foreground">
+                <p
+                  className={cn(
+                    'mt-0.5 px-2.5 pt-2.5 pb-1 text-3xs tracking-nav text-muted-foreground',
+                    // 搜索时第一组顶上没有「自动」，不画分隔线。
+                    !(needle && index === 0) && 'border-t border-border/60',
+                  )}
+                >
                   {group.providerLabel}
                 </p>
                 {group.models.map((model) => {

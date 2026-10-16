@@ -220,12 +220,10 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
   - 后台那一跳（`assistant-v3-history.service.ts`）：这一轮的那一家、那个型号、那把 key（⛔ 不借别家，与抽记忆同一条），`low` 档、要 JSON、自己的 20 秒时限；`after(fn)` 等这一轮的回复发完才开跑（⛔ 与主步抢同一把 key）。失败（超时、读不出 JSON、四栏一栏都没有、存不进）记 `assistant history summary not stored`，存着的那几份不动，下一轮缺口还在就再补。同一段会话、同一个缺口，同一个进程里只起一次。只在开轮那一跳起，⛔ 在接力上起。隐身：照读（隐身只关写入）、⛔ 补、⛔ 存。
   - **缺口那一轮多留一轮**（我的判断）：滑出去的那几轮还没有摘要时，窗口照上一轮的起点、只多出最新那一轮（上一轮的窗口本来放得下才留），所以那几轮的事每一轮都看得见（在窗口里或在摘要里）；再下一轮摘要还没回来就照样滑。窗口的字数因此最多比上限多一轮；条数照样封顶（多留之后超了 48 条就不留），过程记录那一行因此装得下模型看见的每一条。
   - 接力那几跳照开轮板子上冻的那一份（`history: { turns, summary }`，`turns` 从这一句往前数，前端少带前面几条也不变）：中途后台写好了新的也不换。老客户端的 schema 剥掉这一格时，照开轮那样现算。⚠ 这一格与板子正文一样是前端带回来的：改它只改得了自己这一轮给自己那把 key 的提示。
-- **存在哪：要一列新的，现在哪都不存**（`assistant-v3-history-store.service.ts`，`persists: false`）。它该住在会话那一行上（与 `rounds` 同一个理由：与会话同生共死、只有这段会话读它），现有两列都装不干净：`messages` 由前端整份覆盖写（`upsertAssistantConversation`），服务端写进去的下一次保存就冲掉；`rounds` 是结论记录，逐条按三栏 × 60 字的 schema 过、读不出来的丢掉，面板与分享页都读它。过程记录那张表留 30 天、每人 200 行，是排查用的，语义不对。所以（我的判断）要一列：
-  - Prisma：`AssistantConversation` 加 `historySummary Json?`（注释：滑出窗口的那几轮的摘要，最近 3 份 `AssistantV3HistorySummary`，最旧的在前）。
-  - SQL：`ALTER TABLE "AssistantConversation" ADD COLUMN "historySummary" JSONB;`（可空、无默认、无索引、不回填；Postgres 上只改元数据）。
-  - 加上之后换掉那个空的存储：`load` 按 `{ id: conversationId, userId }` 读这一格、过 `AssistantV3HistorySummariesSchema`，读不出来当空；`update` 在事务里 `SELECT … FOR UPDATE` 锁那一行读改写（与 `appendAssistantConversationRound` 同一个做法）；`persists: true`。`toRecord` 按字段挑，这一格不会进会话接口、分享页与导出；前端保存（只写 `messages`）碰不到它；删会话一起删。
-  - 那一列加上之前：窗口照样按字数滑，滑出去的那几轮没有摘要（与从前按 24 条截掉一样丢），后台那一跳一次都不起（存不下就 ⛔ 花这笔钱）、也不多留那一轮。
-- **过程记录**：对话只存模型这一轮看见的那几条再加这一句（板子上的 `history.turns`，原样带 `answered`），上限 `ASSISTANT_TURN_RECORD_LIMITS.maxMessages` 跟着 `maxMessages` 走（25 → 49，⛔ 不是 owner 定的数）；摘要原样在板子上，系统提示的 sha256 也认它。`ASSISTANT_V3_PROMPT_VERSION` 没拨：规则段没变，摘要与记忆一样是每段会话不同的段落。
+- **存在哪：会话那一行的 `AssistantConversation.historySummary`**（`Json?`，owner 2026-10-15 在卡上选「加一列」；迁移 `20261015200000_assistant_conversation_history_summary`：`ALTER TABLE "AssistantConversation" ADD COLUMN "historySummary" JSONB;`，可空、无默认、无索引、不回填，Postgres 上只改元数据）。为什么不放现有两列：`messages` 由前端整份覆盖写（`upsertAssistantConversation`），服务端写进去的下一次保存就冲掉；`rounds` 是结论记录，逐条按三栏 × 60 字的 schema 过、读不出来的丢掉，面板与分享页都读它。过程记录那张表留 30 天、每人 200 行，是排查用的，语义不对。
+  - 读写（`assistant-v3-history-store.service.ts`，`persists: true`）：`load` 按 `{ id: conversationId, userId }` 读这一格；`update` 在事务里 `SELECT … FOR UPDATE` 锁那一行读改写（与 `appendAssistantConversationRound` 同一个做法），写之前再过一遍 `AssistantV3HistorySummariesSchema`。读出来逐份过 `AssistantV3HistorySummarySchema`，坏的那一份丢掉，⛔ 一份坏的把其余几份一起当空。写用原生 SQL，⛔ 动 `updatedAt`（后台补摘要不是用户改了会话，列表排序不跟着跳）。
+  - 不外泄：`toRecord` 按字段挑，这一格不进会话接口、分享页与导出；前端保存（只写 `messages`）碰不到它；删会话一起删。
+- **过程记录**：对话只存模型这一轮看见的那几条再加这一句（板子上的 `history.turns`，原样带 `answered`），上限 `ASSISTANT_TURN_RECORD_LIMITS.maxMessages` 跟着 `maxMessages` 走（25 → 49，owner 2026-10-15 在「加一列」那张卡上一起确认）；摘要原样在板子上，系统提示的 sha256 也认它。`ASSISTANT_V3_PROMPT_VERSION` 没拨：规则段没变，摘要与记忆一样是每段会话不同的段落。
 - **量出来的**（`long-conversation.test.ts`：同一段会话 32 轮，助手每轮平均约 1.1k 字、隔几轮一段 2.4k，整段对白约 3.9 万字；下表是 DeepSeek V4.1 Flash，Claude 差 ±3%；量的时候还没有第 30 轮那一跳接力）：
 
   | 窗口                           | 32 轮首步共发 | 要重算  | 摘要（次 / 字） | 滑几次 | 平均看得见的对白 |
@@ -241,8 +239,7 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
   - 每轮第一步：没有历史时 39.4k 字，之后随对白涨、到约 61k 封顶，滑的那一轮掉回 51–53k（那一轮要重算约 2.5 万字；不滑的轮约 5–7k）。整段全带的话第 32 轮会到约 7.8 万；从前按 24 条截，首步最多 57.9k，但第 14 轮起每轮都滑、每轮整段对白重算。
   - 第 2 轮定下的「16:9 横版」：第 18 轮窗口该滑、摘要还没有，多留一轮；第 19 轮起它只在摘要里，一路带到第 32 轮（第二份摘要接着第一份写）；第 30 轮那一跳画布接力，接力那一跳的系统提示与对白逐字照开轮那一跳。
 
-- **没验证的**：摘要是假的（回放里照原料「定了：」那几句抄）：真模型写的摘要准不准、够不够模型接着想，没看过。真机缓存命中。指纹认轮靠前端每轮重发的对白逐字不变：会话里是；刷新后从库里读回来的那几条与会话里的是否逐字相同没对过 —— 对不上只会多带重复，不会丢。真库上的读写（那一列还没有）。
-- **要 owner 定的**：加 `AssistantConversation.historySummary`（见上），加之前摘要不生效。
+- **没验证的**：摘要是假的（回放里照原料「定了：」那几句抄）：真模型写的摘要准不准、够不够模型接着想，没看过。真机缓存命中。指纹认轮靠前端每轮重发的对白逐字不变：会话里是；刷新后从库里读回来的那几条与会话里的是否逐字相同没对过 —— 对不上只会多带重复，不会丢。真库上的读写：迁移只在 PGlite 上回放过（全部迁移按序跑完、与 schema 比 diff 为空），读写只有单测（假的 db），没对 Neon 跑过。
 
 ## 3. 回放题
 
@@ -332,6 +329,7 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 
 ## Last Verified
 
+- 2026-10-15 · 摘要那一列（owner「加一列」）：`AssistantConversation.historySummary Json?` + 迁移 `20261015200000_assistant_conversation_history_summary`，`assistant-v3-history-store.service.ts` 换成真的读写（按会话与用户认、锁行读改写、逐份过 schema、⛔ 动 `updatedAt`），`persists: true` 之后后台那一跳才真的起。过程记录 `maxMessages` 25 → 49 同卡确认。
 - 2026-10-15 · P2 协调者的决定 A–D（992f37a 整份写法放回、拿掉写词闸；4177d8f 输出上限只发查得到官方出处的；2efc59f 前端每条带的卡在 19 万字节内都带上）+ 第三片「历史窗口与摘要」（见 §2「上下文预算（P2 第三片）」）：对白按字数开窗（2 万字 / 48 条）、8 轮一块滑、滑出去的那几轮由后台写成四栏摘要（这一轮的那一家、那个型号、那把 key，`low`、20 秒、`after()`）、接在记忆之后与型号写法之前、接力照开轮板子上冻的那一份、过程记录只存模型看见的那几轮。`tsc` + 改动文件 eslint（0 problem）+ 定向 vitest（lib · services/kernel · services/research · `llm-text` · `assistant-memory` · `assistant-turn-record` · `assistant-conversation` · constants · types · hooks · node 组件 · mcp，490 个文件 7,323 条全绿）+ `npm run test:replay`（5 个文件 83 条全绿，含长对话两跑：DeepSeek V4.1 Flash 与 Claude Sonnet 5.5 各 32 轮、第 30 轮一跳画布接力）。`context-budget.json` 这一片一个数没变（那几道题的对白都放得下 2 万字、窗口不滑，也不带会话号）。反例：多留那一轮不守条数上限时单测红；`blockTurns` 改成 1（每轮滑）时长对话两跑都红（断缓存 11 次 > 4）；摘要不进系统提示时两跑都红（第 19 轮丢了第 2 轮的决定）。⚠ 摘要的存储是空的（`AssistantConversation.historySummary` 那一列没加，`persists: false`）：生产上这一片只生效了窗口，摘要一次都不生成；回放里写摘要的是假模型、存储是内存里的一份。真模型写的摘要准不准、真机缓存命中、真库读写、`after()` 在 Vercel 流式路由里跑完，都没验证。
 - 2026-10-15 · P2 第二片「上下文预算」（见 §2「上下文预算（P2 第二片）」）：型号写法一行提示 + `read "guide:"` + 写词闸、本轮记录瘦身（长轮次留最近 3 条）+ `maxTranscriptChars` 四级、主步 `maxOutputTokens`、画布板子分级 + `read "lane:<n>"`、断言板子只在第一步算新的。`tsc` + 改动文件 eslint（0 problem）+ 定向 vitest（services/kernel · services/research · `llm-text` · `assistant-memory` · constants · types · lib，311 个文件 5,447 条全绿）+ `npm run test:replay`（81 条全绿；新题 P01 / P02 / L01 / L02 / B01，新板子 `hogwarts` / `scripts`）。反例：关掉写词闸 P02 红（多一次请求）；「最近 3 条」改成全留、瘦身线改成 0、在眼前的带不认展开卡，各自的单测红。`context-budget.json` 重写过四次，各有原因：新题入表；型号写法挪走首步 −5,725 字；板子分级的两行提示 +164 字、L01 第四次改读 `lane:4`。五家请求体里的上限字段逐一看过（Claude `max_tokens` / OpenAI `max_output_tokens` / Gemini `maxOutputTokens` / DeepSeek `max_tokens` / Grok 只有 `max_completion_tokens`，都是 64,000）。⚠ 都是回放上的字数与录好的回复，没对真模型跑过（见那一节「没验证的」）。
 - 2026-10-15 · P2 第一片「上下文预算」（见 §2「上下文预算」）：量法、分界线、Claude 四个断点、收尾不再结账 + 后台抽记忆（这一轮的型号）、v3 开轮不读 `priorRounds`、思考档按步调（Claude / OpenAI 整轮钉住）、查证改写查询传 low（查证结论与自带联网照旧不传）。`tsc` + 改动文件 eslint（0 error）+ 定向 vitest（services/kernel · services/research · `llm-text` · `assistant-memory` · constants · types，90 个文件 2,560 条；lib 219 个文件 2,852 条，全绿）+ `npm run test:replay`（71 条全绿；`context-budget.json` 重写过三次，各有原因：两行新标题每步 +39 字、Claude 断点让重算字数下降、结账删掉让辅助调用变少；抽记忆改回这一轮的型号、查证档位改回照旧都没动它）。⚠ 都是回放上的字数，没对真模型跑过：真机缓存命中、`after()` 在 Vercel 流式路由里跑完、Gemini / DeepSeek / Grok 换档后缓存还在不在、提示段落挪位后的模型表现，都没验证。

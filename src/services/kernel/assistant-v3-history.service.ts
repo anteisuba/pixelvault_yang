@@ -21,7 +21,7 @@ import type { ResolvedLlmTextRoute } from '@/services/llm-text.service'
 /**
  * 滑出窗口的那几轮的摘要（P2 第三片，设计方案 §2.2）：开轮那一跳读、收尾后在后台补。
  * 窗口怎么开、挑哪一份见 `lib/assistant-v3-history.ts`；存在哪见 `assistant-v3-history-store.service.ts`
- * （⚠ 现在哪都不存：那一列还没加，`persists: false`，这里就一次都不调模型）。
+ * （会话那一行的 `historySummary`）。
  */
 
 export interface AssistantV3HistoryOwner {

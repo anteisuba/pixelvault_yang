@@ -223,11 +223,14 @@ async function searchOnce(keyword: string): Promise<EvidenceItem[]> {
     .slice(0, BILIBILI_REQUEST.maxResults)
     .filter((entry) => entry.title)
     .map((entry) => {
-      const url =
-        entry.arcurl ??
-        (entry.bvid
-          ? `https://www.bilibili.com/video/${entry.bvid}`
-          : undefined)
+      /**
+       * ⭐ 先用 BV 号拼（2026-10-16 owner：左边那列 B站视频点不开）：`arcurl` 是 av 号的写法，
+       *   新稿件的 av 号有 15–16 位，认不出就不嵌；而 Google 那一路给的是 BV 号，同一支视频两种
+       *   写法还去不了重。没有 BV 号才用 `arcurl`。
+       */
+      const url = entry.bvid
+        ? `https://www.bilibili.com/video/${entry.bvid}`
+        : entry.arcurl
       const cover = absoluteCover(entry.pic)
       const excerpt = metadataExcerpt([
         `标题：${stripHighlight(entry.title ?? '')}`,

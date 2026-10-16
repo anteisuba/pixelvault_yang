@@ -95,9 +95,33 @@ function makeFakeVideo(overrides: Partial<FakeVideo> = {}): FakeVideo {
 const canvasToDataUrl = vi.fn()
 let lastCanvas: { width: number; height: number } | null = null
 
-function installDom(video: FakeVideo) {
+/** 一赋 `src` 就报错的那只（带 `crossOrigin` 取到一份没有 CORS 头的缓存时就是这样）。 */
+function makeFailingVideo(): FakeVideo {
+  const video = makeFakeVideo()
+  const errors = new Set<() => void>()
+  let srcValue = ''
+  Object.defineProperty(video, 'src', {
+    get: () => srcValue,
+    set: (value: string) => {
+      srcValue = value
+      queueMicrotask(() => errors.forEach((listener) => listener()))
+    },
+  })
+  const add = video.addEventListener
+  video.addEventListener = (type, listener) => {
+    if (type === 'error') errors.add(listener)
+    add(type, listener)
+  }
+  return video
+}
+
+function installDom(video: FakeVideo, ...later: FakeVideo[]) {
+  const videos = [video, ...later]
   vi.spyOn(document, 'createElement').mockImplementation(((tag: string) => {
-    if (tag === 'video') return video as unknown as HTMLVideoElement
+    if (tag === 'video')
+      return (videos.length > 1
+        ? videos.shift()
+        : videos[0]) as unknown as HTMLVideoElement
     if (tag === 'canvas') {
       const canvas = {
         width: 0,
@@ -289,5 +313,31 @@ describe('captureClipFrames —— Denia 看片', () => {
     expect(lastCanvas?.height).toBe(
       Math.round((ASSISTANT_V3_CLIP_LIMITS.frameMaxEdgePixels * 2160) / 3840),
     )
+  })
+
+  it('⭐ 加载失败 → 换一个缓存键重试一次（画布上播过的片子缓存里没有 CORS 头）', async () => {
+    const failed = makeFailingVideo()
+    const retried = makeFakeVideo({ duration: 5 })
+    installDom(failed, retried)
+    const result = await captureClipFrames(URL_SOURCE)
+    expect(result.ok).toBe(true)
+    expect(failed.src).toBe(URL_SOURCE)
+    expect(
+      new URL(retried.src).searchParams.get(
+        VIDEO_FRAME_LIMITS.corsCacheKeyParam,
+      ),
+    ).toBe('1')
+    expect(retried.crossOriginAtSrc).toBe('anonymous')
+  })
+
+  it('重试也失败 → 照实报 `load-failed`，只重试一次', async () => {
+    const first = makeFailingVideo()
+    const second = makeFailingVideo()
+    installDom(first, second)
+    const result = await captureClipFrames(URL_SOURCE)
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.reason).toBe('load-failed')
+    expect(second.src).toContain(VIDEO_FRAME_LIMITS.corsCacheKeyParam)
   })
 })

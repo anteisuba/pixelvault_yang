@@ -60,15 +60,12 @@ export type AssistantMemory = z.infer<typeof AssistantMemorySchema>
  *
  * ⚠ 它**不带 id 也不带时间**：那两样由服务端给。⛔ 别让模型自己编 id ——
  * 编出来的每一个都指不到任何一行。
+ * ⚠ 也**不带域**（P3 作用域修正）：挂哪个域只由服务端按这一轮在哪台定。原来模型写了
+ * `scope: "global"` 服务端照收，一条只属于这个工作台的事就漏进了所有工作台。
  */
 export const AssistantMemoryCandidateSchema = z.object({
   kind: AssistantMemoryKindSchema,
   text: AssistantMemoryTextSchema,
-  /**
-   * 这一条挂哪个域。⚠ **缺席 = 当前域**（服务端补）：模型八成时候说的就是
-   * 手边这台工作台的事，让它每条都写一遍 scope 只会多一个出错的地方。
-   */
-  scope: AssistantMemoryScopeSchema.optional(),
 })
 
 export type AssistantMemoryCandidate = z.infer<

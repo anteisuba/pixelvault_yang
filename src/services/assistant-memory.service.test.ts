@@ -52,6 +52,7 @@ import {
   listCreatorMemoriesForPrompt,
   listStandingRuleMemories,
   recordAssistantMemories,
+  searchAssistantMemories,
   touchAssistantMemories,
   updateAssistantMemory,
 } from '@/services/assistant-memory.service'
@@ -147,7 +148,8 @@ describe('listAssistantMemories', () => {
 })
 
 describe('listAssistantMemoriesForPrompt', () => {
-  it('取当前域 + global，按 lastUsedAt 倒序、并列按 id（选哪几条每次都一样）', async () => {
+  /** ⭐ P3：固定一组 —— 最近记下 / 改过的在前，⛔ 不按 lastUsedAt（注入一次就排最前的自我强化）。 */
+  it('取当前域 + global，按 updatedAt 倒序、并列按 id（选哪几条每次都一样）', async () => {
     mockFindMany.mockResolvedValue([row()])
     await listAssistantMemoriesForPrompt(
       'db_user_1',
@@ -156,7 +158,7 @@ describe('listAssistantMemoriesForPrompt', () => {
     )
     const args = mockFindMany.mock.calls[0][0]
     expect(args.where.scope.in).toEqual(['VIDEO', 'GLOBAL'])
-    expect(args.orderBy).toEqual([{ lastUsedAt: 'desc' }, { id: 'asc' }])
+    expect(args.orderBy).toEqual([{ updatedAt: 'desc' }, { id: 'asc' }])
     expect(args.take).toBe(5)
   })
 
@@ -440,7 +442,7 @@ describe('recordAssistantMemories', () => {
     })
   })
 
-  it('项目不是这个用户的：画布那条不写，⛔ 不退成所有画布；全局那条照写', async () => {
+  it('项目不是这个用户的：画布那几条不写，⛔ 不退成所有画布', async () => {
     mockProjectFindFirst.mockResolvedValue(null)
     const written = await recordAssistantMemories({
       userId: 'db_user_1',
@@ -451,19 +453,10 @@ describe('recordAssistantMemories', () => {
           kind: ASSISTANT_MEMORY_KIND_IDS.fact,
           text: '这个项目画风是 3D 游戏 CG',
         },
-        {
-          kind: ASSISTANT_MEMORY_KIND_IDS.preference,
-          text: '以后出图默认 1K',
-          scope: ASSISTANT_MEMORY_SCOPE_IDS.global,
-        },
       ],
     })
-    expect(written).toBe(1)
-    expect(mockCreate).toHaveBeenCalledTimes(1)
-    expect(mockCreate.mock.calls[0][0].data).toMatchObject({
-      scope: 'GLOBAL',
-      projectId: null,
-    })
+    expect(written).toBe(0)
+    expect(mockCreate).not.toHaveBeenCalled()
   })
 
   it('不在画布：不查项目，projectId 为空', async () => {
@@ -479,7 +472,7 @@ describe('recordAssistantMemories', () => {
     expect(mockCreate.mock.calls[0][0].data.projectId).toBeNull()
   })
 
-  it('候选带 scope 时按它落，缺席时落当前域', async () => {
+  it('⭐ 全部落当前域：模型给不了域（P3 作用域修正）', async () => {
     await recordAssistantMemories({
       userId: 'db_user_1',
       scope: ASSISTANT_MEMORY_SCOPE_IDS.video,
@@ -487,13 +480,81 @@ describe('recordAssistantMemories', () => {
         {
           kind: ASSISTANT_MEMORY_KIND_IDS.rule,
           text: '回答用中文，术语保留英文',
-          scope: ASSISTANT_MEMORY_SCOPE_IDS.global,
         },
         { kind: ASSISTANT_MEMORY_KIND_IDS.preference, text: '偏好 24fps' },
       ],
     })
-    expect(mockCreate.mock.calls[0][0].data.scope).toBe('GLOBAL')
+    expect(mockCreate.mock.calls[0][0].data.scope).toBe('VIDEO')
     expect(mockCreate.mock.calls[1][0].data.scope).toBe('VIDEO')
+  })
+
+  it('⭐ 改掉第 N 条：原地换字，只认助手记的、这个用户的', async () => {
+    mockUpdateMany.mockResolvedValue({ count: 1 })
+    const written = await recordAssistantMemories({
+      userId: 'db_user_1',
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.image,
+      candidates: [],
+      replacements: [
+        {
+          id: 'mem-old',
+          candidate: {
+            kind: ASSISTANT_MEMORY_KIND_IDS.preference,
+            text: '现在偏好 3:4 竖图',
+          },
+        },
+      ],
+    })
+    expect(written).toBe(1)
+    expect(mockUpdateMany).toHaveBeenCalledWith({
+      where: { userId: 'db_user_1', source: 'ASSISTANT', id: 'mem-old' },
+      data: expect.objectContaining({
+        text: '现在偏好 3:4 竖图',
+        kind: 'PREFERENCE',
+      }),
+    })
+    expect(mockCreate).not.toHaveBeenCalled()
+  })
+
+  it('⭐ 忘掉：只删助手记的；同一条又要改就改赢', async () => {
+    mockUpdateMany.mockResolvedValue({ count: 1 })
+    await recordAssistantMemories({
+      userId: 'db_user_1',
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.image,
+      candidates: [],
+      replacements: [
+        {
+          id: 'mem-a',
+          candidate: { kind: ASSISTANT_MEMORY_KIND_IDS.fact, text: '新说法' },
+        },
+      ],
+      forget: ['mem-a', 'mem-b'],
+    })
+    expect(mockDeleteMany).toHaveBeenCalledWith({
+      where: {
+        userId: 'db_user_1',
+        source: 'ASSISTANT',
+        id: { in: ['mem-b'] },
+      },
+    })
+  })
+
+  it('改成的新说法命中敏感类目：不改、不计数', async () => {
+    const written = await recordAssistantMemories({
+      userId: 'db_user_1',
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.image,
+      candidates: [],
+      replacements: [
+        {
+          id: 'mem-a',
+          candidate: {
+            kind: ASSISTANT_MEMORY_KIND_IDS.fact,
+            text: '我的密码是 hunter2',
+          },
+        },
+      ],
+    })
+    expect(written).toBe(0)
+    expect(mockUpdateMany).not.toHaveBeenCalled()
   })
 
   it('一轮最多收 maxPerRound 条', async () => {
@@ -735,5 +796,59 @@ describe('clearAssistantMemories', () => {
     expect(mockDeleteMany).toHaveBeenCalledWith({
       where: { userId: 'db_user_1', source: 'ASSISTANT' },
     })
+  })
+})
+
+/** P3 读取：助手翻记忆（`search_library kind "memories"`）。 */
+describe('searchAssistantMemories', () => {
+  it('按词翻（任一个词，大小写不敏感），当前域 + global，两种来源都翻', async () => {
+    await searchAssistantMemories('db_user_1', {
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.image,
+      query: '横构图, 16:9',
+    })
+    const args = mockFindMany.mock.calls[0][0]
+    expect(args.where.userId).toBe('db_user_1')
+    expect(args.where.source).toBeUndefined()
+    expect(args.where.AND[0]).toEqual({ scope: { in: ['IMAGE', 'GLOBAL'] } })
+    expect(args.where.AND[1]).toEqual({
+      OR: [
+        { text: { contains: '横构图', mode: 'insensitive' } },
+        { text: { contains: '16:9', mode: 'insensitive' } },
+      ],
+    })
+    expect(args.orderBy).toEqual([{ updatedAt: 'desc' }, { id: 'asc' }])
+    expect(args.take).toBe(ASSISTANT_MEMORY_LIMITS.maxSearchResults)
+  })
+
+  it('空查询 = 最近的那批', async () => {
+    await searchAssistantMemories('db_user_1', {
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.image,
+      query: '  ',
+    })
+    expect(mockFindMany.mock.calls[0][0].where.AND).toHaveLength(1)
+  })
+
+  it('⭐ 翻到的助手记的刷 lastUsedAt（真被用到才算），你写的不刷', async () => {
+    mockFindMany.mockResolvedValueOnce([
+      row({ id: 'mem-a' }),
+      row({ id: 'mem-c', source: 'CREATOR', kind: 'RULE' }),
+    ])
+    const found = await searchAssistantMemories('db_user_1', {
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.image,
+      query: '构图',
+    })
+    expect(found.map((memory) => memory.id)).toEqual(['mem-a', 'mem-c'])
+    expect(mockUpdateMany).toHaveBeenCalledWith({
+      where: { userId: 'db_user_1', id: { in: ['mem-a'] } },
+      data: { lastUsedAt: expect.any(Date) },
+    })
+  })
+
+  it('什么都没翻到：不刷', async () => {
+    await searchAssistantMemories('db_user_1', {
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.image,
+      query: '不存在',
+    })
+    expect(mockUpdateMany).not.toHaveBeenCalled()
   })
 })

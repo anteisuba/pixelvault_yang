@@ -177,8 +177,9 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 
 设计方案 §2 第 1、5、6 条。量法见 `testing.md`「上下文预算」：回放基线上每道题、每条路由跑两轮，量**字数**（⛔ 不是 token，也不是真机命中率；真机看 `assistant llm call` 日志的 `cachedInputTokens` / `cacheWriteTokens`）。
 
-- **分界线**（`assistant-v3-prompt.service.ts` 的 `buildAssistantV3SystemPrompt` 回 `{ rules, creator, text }`）：规则段 = 角色、HOW YOU WORK、ASKING、LOOKING、WATCHING、FOUND ON THE WEB、这张脸的板子 / 工具 / 写法，同一张脸、同一版提示对谁、哪一轮都逐字相同。`THIS CREATOR'S SETTINGS` 之后按变的频率从慢到快：名字与回复语言 → CHARACTER → HOW YOU TALK（人设口吻，以前粘在最后一段规则上）→ ABOUT THIS CREATOR → 规矩 → 记忆 → 这一轮板上型号的写法（画布节点型号、台上型号、LoRA 底模与 CFG；以前夹在规则里）。⛔ 每人 / 每轮会变的东西只许放分界线之后；改了规则段就拨 `ASSISTANT_V3_PROMPT_VERSION`（现为 `2026-10-15f`）。
-  - 记忆按记下的先后（`createdAt`，再 `id`）排：注入那一跳按 `lastUsedAt` 选、选完把这几条刷成同一刻，按查出来的顺序排每轮都可能换。查询也加了 `id` 作第二键，选中的那几条是确定的。
+- **分界线**（`assistant-v3-prompt.service.ts` 的 `buildAssistantV3SystemPrompt` 回 `{ rules, creator, text }`）：规则段 = 角色、HOW YOU WORK、ASKING、LOOKING、WATCHING、FOUND ON THE WEB、这张脸的板子 / 工具 / 写法，同一张脸、同一版提示对谁、哪一轮都逐字相同。`THIS CREATOR'S SETTINGS` 之后按变的频率从慢到快：名字与回复语言 → CHARACTER → HOW YOU TALK（人设口吻，以前粘在最后一段规则上）→ ABOUT THIS CREATOR → 规矩 → 记忆 → 这一轮板上型号的写法（画布节点型号、台上型号、LoRA 底模与 CFG；以前夹在规则里）。⛔ 每人 / 每轮会变的东西只许放分界线之后；改了规则段就拨 `ASSISTANT_V3_PROMPT_VERSION`（现为 `2026-10-16c`）。
+  - 记忆按记下的先后（`createdAt`，再 `id`）排。P3 起选哪几条也固定：最近记下 / 改过的（`updatedAt`，再 `id`），注入 ⛔ 不刷 `lastUsedAt`，没进提示的由 `search_library kind "memories"` 翻（`assistant-v3-memories.service.ts`，步骤帧借 `read_project_rules` 的形状）。
+  - 人设长度三档在 v3 走自己那张表（`buildPersonaStyleSection(persona, 'v3')`）：平衡档不写（就是 HOW YOU WORK 的「一两句」），简洁 / 详细只往短 / 往深挪，⛔ 「做了什么一句」；计划卡那句 v3 不印（v3 没有计划卡）。
   - 工具表本就按固定顺序发。回放断言：一轮里每一步、每一跳接力、跨轮，工具 + 系统提示都逐字相同，相邻两步至少共用这一段前缀。
 - **Claude 四个缓存断点**（`assistant-v3-model.service.ts`，SDK 与 API 的上限都是 4）：① 规则段末尾（系统提示拆成两块）② 分界线之后那块末尾 ③ 历史末尾 ④ 最后一条消息。①–③ 给下一轮读，④ 给同一轮的下一步与接力那一跳读。别家（OpenAI / Gemini / DeepSeek / Grok）靠隐式前缀缓存，系统提示照旧一整段（规则在前），⛔ 不打标记。日志多记 `cacheWriteTokens`（AI SDK 的 usage；`llm-text` 读 `cache_creation_input_tokens`）。
   - 我的判断：④ 每一步都写（滚动），一步就答完的轮次多付一次写入溢价（1.25 倍），换多步、接力那几轮每步只重算新的几条；型号写法放在系统提示末尾（②那一块），板上型号一变②之后全部重写 —— 多数轮不变，比挪进消息里简单。

@@ -250,8 +250,12 @@ export async function listAssistantMemoriesForPrompt(
       source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.assistant],
       ...promptWhere(scope, projectId),
     },
-    // ⭐ 第二键：注入过的那几条 `lastUsedAt` 被一起刷成同一刻，并列时选哪几条要确定（P2 稳定前缀）。
-    orderBy: [{ lastUsedAt: 'desc' }, { id: 'asc' }],
+    /**
+     * ⭐ 固定的一组（P3）：最近记下 / 改过的那几条，⛔ 不按 `lastUsedAt` —— 原来注入一次就刷一次，
+     *   进过提示的永远排最前，别的再也上不来（自我强化）；也让前缀每轮都变、缓存吃不住。
+     *   没进提示的靠 `searchAssistantMemories` 翻。第二键让并列时选哪几条确定。
+     */
+    orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
     take: Math.min(limit, ASSISTANT_MEMORY_LIMITS.maxInPrompt),
     select: MEMORY_SELECT,
   })
@@ -333,7 +337,8 @@ export async function listStandingRuleMemories(
 }
 
 /**
- * **被注入过就更新 `lastUsedAt`** —— 注入优先级与淘汰顺序都读它。
+ * **真被用到就更新 `lastUsedAt`**（被助手翻到、同一句又记了一次）—— 淘汰顺序读它。
+ * ⚠ P3 起注入不再算「用到」：注入的那组按 `updatedAt` 定，见 `listAssistantMemoriesForPrompt`。
  *
  * ⚠ 一次 `updateMany`，⛔ 不逐条 update：一轮最多 8 条，逐条等于 8 次往返。
  * ⚠ 仍然带 `userId`：id 是从这个用户自己的查询里来的，但 ownership 校验不靠
@@ -587,88 +592,211 @@ export function isSensitiveMemoryText(text: string): boolean {
 
 export interface RecordAssistantMemoriesArgs {
   userId: string
-  /** 缺席的候选挂这个域（当前工作台）。 */
+  /** 这一轮在哪台：所有候选都挂这个域（⛔ 不由模型定，P3 作用域修正）。 */
   scope: AssistantMemoryScopeId
   /** 在画布项目里结的账：画布范围的那几条归这个项目（只认这个用户自己的项目）。 */
   projectId?: string | null
   candidates: readonly AssistantMemoryCandidate[]
+  /**
+   * 改掉已有的哪几条（P3 写入时消解冲突）：模型说「新的这条替掉第 N 条」，调用方已把号映射成 id。
+   * ⚠ 只认**助手记的**、这个用户的行；你写的那几条模型碰不到。
+   */
+  replacements?: readonly { id: string; candidate: AssistantMemoryCandidate }[]
+  /** 不再成立、要忘掉的那几条的 id（同样只认助手记的）。 */
+  forget?: readonly string[]
   conversationId?: string | undefined
   messageId?: string | undefined
 }
 
 /**
- * **每轮结账时一次性写**（切片 1）—— 这条路是记忆唯一的写入口。
+ * **后台抽记忆时给模型看的那几条已有记忆**（P3 写入时消解冲突）：与注入同一个范围（当前域 +
+ * global，画布按项目收），只要助手记的，最近改过的在前。
+ * ⚠ 你写的 ⛔ 不给：那几条只有你能改，给模型看了它也只能干看着，还会诱导它「改掉」。
+ */
+export async function listAssistantMemoriesForReview(
+  userId: string,
+  scope: AssistantMemoryScopeId,
+  projectId?: string | null,
+): Promise<AssistantMemory[]> {
+  const rows = await db.assistantMemory.findMany({
+    where: {
+      userId,
+      source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.assistant],
+      ...promptWhere(scope, projectId),
+    },
+    orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
+    take: ASSISTANT_MEMORY_LIMITS.maxShownForReview,
+    select: MEMORY_SELECT,
+  })
+  return rows
+    .map(toMemory)
+    .filter((memory): memory is AssistantMemory => memory !== null)
+}
+
+/**
+ * 助手**翻记忆**（P3 读取：`search_library kind "memories"`）—— 每轮只注入最近改过的那几条，
+ * 剩下的靠它翻。当前域 + global（画布只本项目），你写的与助手记的都翻。
+ *
+ * ⚠ 匹配只做「含其中任一个词」（大小写不敏感），⛔ 不做向量 / 相似度：一行最多 200 字，
+ *   措辞对不上就让模型换个词再翻，或者空着查询看最近的那批。
+ * ⭐ 翻到的**助手记的**刷新 `lastUsedAt`：真被用到才算用过（淘汰读它），⛔ 注入不再算。
+ */
+export async function searchAssistantMemories(
+  userId: string,
+  options: {
+    scope: AssistantMemoryScopeId
+    projectId?: string | null
+    query: string
+  },
+): Promise<AssistantMemory[]> {
+  const words = options.query
+    .split(/[\s,，、;；]+/)
+    .map((word) => word.trim())
+    .filter(Boolean)
+    .slice(0, ASSISTANT_MEMORY_LIMITS.maxSearchWords)
+  const rows = await db.assistantMemory.findMany({
+    where: {
+      userId,
+      AND: [
+        promptWhere(options.scope, options.projectId),
+        ...(words.length
+          ? [
+              {
+                OR: words.map((word) => ({
+                  text: { contains: word, mode: 'insensitive' as const },
+                })),
+              },
+            ]
+          : []),
+      ],
+    },
+    orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
+    take: ASSISTANT_MEMORY_LIMITS.maxSearchResults,
+    select: MEMORY_SELECT,
+  })
+  const memories = rows
+    .map(toMemory)
+    .filter((memory): memory is AssistantMemory => memory !== null)
+  const used = memories
+    .filter((memory) => memory.source === ASSISTANT_MEMORY_SOURCE_IDS.assistant)
+    .map((memory) => memory.id)
+  if (used.length > 0) await touchAssistantMemories(userId, used)
+  return memories
+}
+
+/** 一条候选 → 能落库的那一份：去空、过敏感闸（命中回 `null`，⛔ 不记明文）。 */
+function acceptableCandidate(
+  candidate: AssistantMemoryCandidate,
+): { kind: AssistantMemoryKindId; text: string; normalized: string } | null {
+  const text = candidate.text.trim()
+  if (text.length === 0 || isSensitiveMemoryText(text)) return null
+  const normalized = normalizeAssistantMemoryText(text)
+  if (normalized.length === 0) return null
+  return { kind: candidate.kind, text, normalized }
+}
+
+/**
+ * **每轮结账时一次性写**（切片 1；P3 加了改与忘）—— 这条路是助手记忆唯一的写入口。
  *
  * 顺序，逐条有理由：
- *  ① **敏感闸先过** —— 它一票否决，排在去重前面才不会让一条敏感文本先去库里
- *     比对一次（比对本身不落库，但它会把那句话写进查询日志）。
- *  ② **本轮内部先去重** —— 同一轮里模型把同一件事说两遍是常事。
- *  ③ **与库里字面去重**（同 userId + scope + kind，归一化后相等）——
- *     命中就**只更新 `updatedAt` / `lastUsedAt`**，⛔ 不新增一行、⛔ 不改原文：
- *     用户可能已经在设置里把那行字改顺眼了，用模型这一轮的措辞盖掉是在跟他抢。
- *  ④ **每域上限 200** —— 超了按 `lastUsedAt` 最旧的静默删。
+ *  ① **忘掉**模型说不再成立的那几条（只删助手记的、这个用户的）。
+ *  ② **改掉**模型说被新的一条替掉的那几条：原地换字、刷新时间。
+ *     ⚠ 同一行既要忘又要改 → 改赢（模型给了新说法）。
+ *  ③ **敏感闸** —— 一票否决，排在去重前面才不会让一条敏感文本先去库里比对一次。
+ *  ④ **本轮内部去重**，再**与库里字面去重**（同 userId + scope + kind，归一化后相等）——
+ *     命中就**只刷新 `lastUsedAt`**，⛔ 不新增、⛔ 不改原文：用户可能已经在设置里把那行字改顺眼了。
+ *  ⑤ **每域上限 200** —— 超了按 `lastUsedAt` 最旧的静默删。
  *
- * 返回**真正记下的条数**（新增 + 命中更新），它就是回执上那个 N。
+ * 返回**真正记下的条数**（新增 + 改掉 + 命中刷新），它就是回执上那个 N；忘掉的不算。
  * ⚠ 敏感命中与本轮重复都不进这个数 —— 回执里不许出现「有 N 条被跳过」。
  */
 export async function recordAssistantMemories(
   args: RecordAssistantMemoriesArgs,
 ): Promise<number> {
+  const assistantOwned = {
+    userId: args.userId,
+    source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.assistant],
+  }
+  const replacements = new Map<
+    string,
+    { kind: AssistantMemoryKindId; text: string }
+  >()
+  for (const replacement of args.replacements ?? []) {
+    if (replacements.has(replacement.id)) continue
+    const accepted = acceptableCandidate(replacement.candidate)
+    if (accepted) replacements.set(replacement.id, accepted)
+  }
+  const forget = (args.forget ?? []).filter((id) => !replacements.has(id))
+
+  // ① 忘掉。
+  if (forget.length > 0)
+    await db.assistantMemory.deleteMany({
+      where: { ...assistantOwned, id: { in: [...new Set(forget)] } },
+    })
+
+  // ② 改掉：`updateMany` 带上归属条件，号映射错了也改不到别人的、改不到你写的。
+  let written = 0
+  const now = new Date()
+  for (const [id, entry] of replacements) {
+    const result = await db.assistantMemory.updateMany({
+      where: { ...assistantOwned, id },
+      data: {
+        text: entry.text,
+        kind: DB_KIND_BY_ID[entry.kind],
+        lastUsedAt: now,
+      },
+    })
+    written += result.count
+  }
+
   const seen = new Set<string>()
   const accepted: {
-    scope: AssistantMemoryScopeId
     kind: AssistantMemoryKindId
     text: string
     normalized: string
   }[] = []
-
   for (const candidate of args.candidates) {
-    if (accepted.length >= ASSISTANT_MEMORY_LIMITS.maxPerRound) break
-    const text = candidate.text.trim()
-    if (text.length === 0) continue
-    // ① 敏感类目：不写、不计数、⛔ 不记任何日志明文。
-    if (isSensitiveMemoryText(text)) continue
-    const scope = candidate.scope ?? args.scope
-    const normalized = normalizeAssistantMemoryText(text)
-    if (normalized.length === 0) continue
-    // ② 本轮内部去重（同域同类同字面）。
-    const key = `${scope} ${candidate.kind} ${normalized}`
+    if (
+      accepted.length + replacements.size >=
+      ASSISTANT_MEMORY_LIMITS.maxPerRound
+    )
+      break
+    // ③ 敏感类目：不写、不计数、⛔ 不记任何日志明文。
+    const entry = acceptableCandidate(candidate)
+    if (!entry) continue
+    // ④ 本轮内部去重（同类同字面）。
+    const key = `${entry.kind} ${entry.normalized}`
     if (seen.has(key)) continue
     seen.add(key)
-    accepted.push({ scope, kind: candidate.kind, text, normalized })
+    accepted.push(entry)
   }
 
-  if (accepted.length === 0) return 0
+  if (accepted.length === 0) return written
 
   /**
    * 画布范围的候选归当前项目（owner 2026-10-09：一个项目一份记忆）。项目对不上
    * 这个用户（或请求里没有项目）时**画布那几条不写**，⛔ 不退成「所有画布」——
    * 那会让这个项目的事漏进别的项目。
    */
-  const projectId = accepted.some(
-    (entry) => entry.scope === ASSISTANT_MEMORY_SCOPE_IDS.canvas,
-  )
+  const isCanvas = args.scope === ASSISTANT_MEMORY_SCOPE_IDS.canvas
+  const projectId = isCanvas
     ? await ownedProjectId(args.userId, args.projectId)
     : null
-  let written = 0
-  const touchedScopes = new Set<AssistantMemoryScopeId>()
+  if (isCanvas && !projectId) return written
+  let added = false
 
   for (const entry of accepted) {
-    const entryProjectId =
-      entry.scope === ASSISTANT_MEMORY_SCOPE_IDS.canvas ? projectId : null
-    if (entry.scope === ASSISTANT_MEMORY_SCOPE_IDS.canvas && !entryProjectId)
-      continue
     /**
-     * ③ 与库里字面去重。⚠ 归一化**在内存里比**而不是写成一列：加一列
+     * ④ 与库里字面去重。⚠ 归一化**在内存里比**而不是写成一列：加一列
      * `normalizedText` 就要为存量行回填，而回填一张可能有几万行的表换来的只是
      * 每轮省一次最多 200 行的扫描。
      */
     const siblings = await db.assistantMemory.findMany({
       where: {
         userId: args.userId,
-        scope: DB_SCOPE_BY_ID[entry.scope],
+        scope: DB_SCOPE_BY_ID[args.scope],
         kind: DB_KIND_BY_ID[entry.kind],
-        projectId: entryProjectId,
+        projectId,
       },
       select: { id: true, text: true },
       take: ASSISTANT_MEMORY_LIMITS.maxPerScope,
@@ -688,23 +816,21 @@ export async function recordAssistantMemories(
     await db.assistantMemory.create({
       data: {
         userId: args.userId,
-        scope: DB_SCOPE_BY_ID[entry.scope],
+        scope: DB_SCOPE_BY_ID[args.scope],
         kind: DB_KIND_BY_ID[entry.kind],
         text: entry.text,
-        projectId: entryProjectId,
+        projectId,
         conversationId: args.conversationId ?? null,
         messageId: args.messageId ?? null,
       },
       select: { id: true },
     })
     written += 1
-    touchedScopes.add(entry.scope)
+    added = true
   }
 
-  // ④ 只对**这一轮新增过**的域收一次上限：没新增的域条数没变。
-  for (const scope of touchedScopes) {
-    await evictOldestAssistantMemories(args.userId, scope)
-  }
+  // ⑤ 这一轮新增过才收一次上限：没新增的域条数没变。
+  if (added) await evictOldestAssistantMemories(args.userId, args.scope)
 
   return written
 }

@@ -116,6 +116,8 @@ function sameSavedContent(
 }
 
 function persistThread(request: ThreadSave): Promise<boolean> {
+  // 开过隐身的这段对话整段不存（P3）：⛔ 不建新行，也不往已有那一行追加。
+  if (request.snapshot.offTheRecord) return Promise.resolve(false)
   const id = request.snapshot.localThreadId
   const existing = pendingSaves.get(id)
   if (existing) {

@@ -227,6 +227,14 @@ export const ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION =
   'kind "web_videos": find videos on the web (YouTube, bilibili, niconico, Vimeo…) — a trailer, a PV, a tutorial, a dance or motion reference. They appear as numbered cards under your reply and the creator can play them there; you get one line per video (#n · title · channel · platform · length) and have not watched any of them. Not for facts — use search_web for those.'
 
 /**
+ * `search_library` 翻记忆（P3 读取）：每轮只有最近记下 / 改过的那几条在系统提示里，剩下的靠它翻。
+ * 每张脸都有，工具描述里同一句（⛔ 四份各写一份）。
+ */
+export const ASSISTANT_V3_MEMORIES_SEARCH_KIND = 'memories'
+export const ASSISTANT_V3_MEMORIES_KIND_DESCRIPTION =
+  'kind "memories": look through what you remember about the creator beyond the few lines already in your instructions (query = a few words, or empty for the newest).'
+
+/**
  * 每张脸的 `read` 都收 `"[n]"`（搜索期第三片）：查证的那一大段摘录只给紧跟着的那一步，再往后
  * 只剩一行一条 —— 要全文就按资料号再读一遍那一页（服务端换回地址，⛔ 模型不写地址）。
  */
@@ -324,7 +332,7 @@ export const ASSISTANT_V3_HANDLE = {
  * 看片、各张脸的方言段）就把它拨到改的那天（同一天再改一次就加字母：`2026-10-15b`）；人设 /
  * 规矩 / 记忆这些每人不同的段落不算，它们只进 `systemPromptHash`。
  */
-export const ASSISTANT_V3_PROMPT_VERSION = '2026-10-16b'
+export const ASSISTANT_V3_PROMPT_VERSION = '2026-10-16c'
 
 /** 本轮记录（前端原样带回、服务端还原成消息）的条目类型。 */
 export const ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS = {

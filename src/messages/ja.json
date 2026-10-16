@@ -8711,7 +8711,7 @@
     },
     "placeholderQuestion": "または、そのまま書いてください…",
     "collapsedTodo": "返答待ち {count}件",
-    "incognito": "シークレット · この回は記憶しない",
+    "incognito": "シークレット · 記憶も保存もしない",
     "face": {
       "noModel": "モデル未選択",
       "pill": {

@@ -6166,7 +6166,6 @@
           "label": "動画の操作",
           "continue": "続きを撮る",
           "extract": "フレーム抽出",
-          "extractNeedsPlayback": "カードにカーソルを合わせて再生してから、現在のフレームを抽出してください",
           "more": "その他",
           "expand": "展開"
         },
@@ -6263,6 +6262,13 @@
         "scriptShot": {
           "changed": "変更あり",
           "dropped": "脚本から削除"
+        },
+        "framePick": {
+          "title": "抽出するフレームを選ぶ",
+          "scrub": "ドラッグしてフレームを選ぶ",
+          "keyEsc": "Esc でキャンセル",
+          "confirm": "このフレームを使う",
+          "confirming": "抽出中…"
         }
       },
       "connectToShot": {

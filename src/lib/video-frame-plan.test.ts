@@ -12,6 +12,7 @@ import {
   formatFrameTimestamp,
   planClipFrames,
   planVideoEndpointFrames,
+  planVideoSingleFrame,
   planVideoFrames,
 } from '@/lib/video-frame-plan'
 
@@ -184,5 +185,19 @@ describe('planClipFrames —— Denia 看片：帧数随片长走', () => {
     expect(clipFrameCount(Number.NaN)).toBe(0)
     expect(planClipFrames(Number.NaN).entries).toEqual([])
     expect(planClipFrames(0.1).entries).toEqual([])
+  })
+})
+
+describe('planVideoSingleFrame', () => {
+  it('取指定那一秒，越界夹进片内', () => {
+    expect(planVideoSingleFrame(7, 2.5).entries).toEqual([
+      { index: 0, timestampSeconds: 2.5 },
+    ])
+    expect(planVideoSingleFrame(7, -1).entries[0]?.timestampSeconds).toBe(0)
+    expect(planVideoSingleFrame(7, 99).entries[0]?.timestampSeconds).toBe(6.92)
+  })
+
+  it('片长读不到时不给帧', () => {
+    expect(planVideoSingleFrame(Number.NaN, 1).entries).toEqual([])
   })
 })

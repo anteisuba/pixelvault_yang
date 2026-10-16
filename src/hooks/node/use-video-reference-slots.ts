@@ -11,12 +11,11 @@
  * 链（`useNodeUploadV4`）拿到一个 R2 地址 → 交给调用方发 op。⛔ 这一层不发 op、
  * 不碰画布 state：落槽是 op 表的事（`nodes/v4/CLAUDE.md` 纪律 1）。
  *
- * ── 两种抓法为什么不一样 ────────────────────────────────────────────────
- * 末帧走 `captureVideoEndpointFrames`（离屏 `<video>` + `crossOrigin`，seek 超时与
- * CORS 都在那一层踩平了）。当前帧**必须**从页面上那只正在放的 `<video>` 上取 ——
- * 「当前」是它的 `currentTime`，离屏那只根本不知道用户看到哪儿了。代价是画布可能被
- * 污染（R2 CDN 没配 CORS 时），那时报的就是 `tainted-canvas` 那条文案，它明写修法
- * 是配 CORS，⛔ 不是「换个视频重试」。
+ * ── 两种抓法 ──────────────────────────────────────────────────────────
+ * 两条都走离屏 `<video>` + `crossOrigin`（`lib/video-frame-capture`，seek 超时与
+ * CORS 都在那一层踩平了）：末帧按片尾算，当前帧 seek 到调用方记下的那一秒。
+ * ⛔ 不从卡上悬停预览的那只 `<video>` 直接画 —— 它只在鼠标停在画面上时才挂，
+ * 手挪到工具条就卸了（抽帧因此永远拿不到它）；它也没打 `crossOrigin`。
  */
 
 import { useCallback, useState } from 'react'
@@ -26,7 +25,10 @@ import {
   type VideoFrameCaptureReason,
 } from '@/constants/video-analysis'
 import { useNodeUploadV4 } from '@/hooks/node/use-node-upload-v4'
-import { captureVideoEndpointFrames } from '@/lib/video-frame-capture'
+import {
+  captureVideoEndpointFrames,
+  captureVideoFrameAt,
+} from '@/lib/video-frame-capture'
 
 /**
  * 机器可读的失败原因（kebab）→ 已有文案键（camel，`VideoAnalysis.captureReason.*`）。
@@ -65,8 +67,10 @@ export interface UseVideoReferenceSlotsValue {
     name: string,
     untilSec?: number,
   ): Promise<VideoFrameGrabResult>
-  captureCurrentFrame(
-    video: HTMLVideoElement,
+  /** `atSec` = 用户最后看到的那一秒（悬停播放停下的位置；没放过 = 0，即封面那帧）。 */
+  captureFrameAt(
+    videoUrl: string,
+    atSec: number,
     name: string,
   ): Promise<VideoFrameGrabResult>
 }
@@ -82,41 +86,6 @@ function dataUrlToFile(dataUrl: string, name: string): File | null {
     bytes[index] = binary.charCodeAt(index)
   }
   return new File([bytes], name, { type: mime })
-}
-
-/**
- * 页面上那只 `<video>` 的当前画面 → `data:` URL。
- * 画布被污染（没 CORS 头）时抛 `SecurityError`，这里翻译成 `tainted-canvas`。
- */
-export function drawCurrentFrame(
-  video: HTMLVideoElement,
-):
-  | { ok: true; dataUrl: string }
-  | { ok: false; reason: VideoFrameCaptureReason } {
-  if (typeof document === 'undefined') {
-    return {
-      ok: false,
-      reason: VIDEO_FRAME_CAPTURE_REASONS.unsupportedEnvironment,
-    }
-  }
-  const width = video.videoWidth
-  const height = video.videoHeight
-  if (!width || !height) {
-    return { ok: false, reason: VIDEO_FRAME_CAPTURE_REASONS.loadFailed }
-  }
-  const canvas = document.createElement('canvas')
-  canvas.width = width
-  canvas.height = height
-  const context = canvas.getContext('2d')
-  if (!context) {
-    return { ok: false, reason: VIDEO_FRAME_CAPTURE_REASONS.encodeFailed }
-  }
-  try {
-    context.drawImage(video, 0, 0, width, height)
-    return { ok: true, dataUrl: canvas.toDataURL('image/webp') }
-  } catch {
-    return { ok: false, reason: VIDEO_FRAME_CAPTURE_REASONS.taintedCanvas }
-  }
 }
 
 export function useVideoReferenceSlots(): UseVideoReferenceSlotsValue {
@@ -177,21 +146,29 @@ export function useVideoReferenceSlots(): UseVideoReferenceSlotsValue {
     [push],
   )
 
-  const captureCurrentFrame = useCallback(
+  const captureFrameAt = useCallback(
     async (
-      video: HTMLVideoElement,
+      videoUrl: string,
+      atSec: number,
       name: string,
     ): Promise<VideoFrameGrabResult> => {
       setGrabbing('currentFrame')
       try {
-        const drawn = drawCurrentFrame(video)
-        if (!drawn.ok) {
+        const result = await captureVideoFrameAt(videoUrl, atSec)
+        if (!result.ok) {
           return {
             ok: false,
-            reasonKey: VIDEO_CAPTURE_REASON_KEYS[drawn.reason],
+            reasonKey: VIDEO_CAPTURE_REASON_KEYS[result.reason],
           }
         }
-        return await push(drawn.dataUrl, name)
+        const frame = result.frames[0]
+        if (!frame) {
+          return {
+            ok: false,
+            reasonKey: VIDEO_CAPTURE_REASON_KEYS['unreadable-duration'],
+          }
+        }
+        return await push(frame.dataUrl, name)
       } finally {
         setGrabbing(null)
       }
@@ -203,6 +180,6 @@ export function useVideoReferenceSlots(): UseVideoReferenceSlotsValue {
     grabbing,
     uploadError: upload.error,
     captureLastFrame,
-    captureCurrentFrame,
+    captureFrameAt,
   }
 }

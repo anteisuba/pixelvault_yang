@@ -191,6 +191,8 @@ import { QuickSetupDialog } from '@/components/business/studio-shared/setup/Quic
 import { StudioGeneratingProgress } from '@/components/business/studio-shared'
 import { SpecChip } from '@/components/business/studio-shared/spec'
 import { StudioGenerateButton } from '@/components/business/studio-shared/workflow/StudioGenerateButton'
+import { StudioMobileAddSheet } from '@/components/business/studio/StudioMobileAddSheet'
+import { ResponsivePopoverPhoneCard } from '@/components/ui/responsive-popover'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { getAvailableImageModels, resolveAdapterType } from '@/constants/models'
 import {
@@ -3050,6 +3052,89 @@ function GenerateBranch({
     [isMobile, operatorHost],
   )
 
+  /**
+   * 参数（采样器 / 步数 / CFG …）与出图键 —— 桌面工具行与手机输入栏是同一颗
+   * （iOS 稿 owner 2026-10-16：LoRA 手机输入栏与标签台同步），⛔ 别各写一份。
+   */
+  const loraParamsChip = isRunnerBase ? (
+    <LoraParamsChip
+      baseLabel={selectedBase ? operatorBaseLabel(selectedBase) : ''}
+      sampler={runnerSampler}
+      onSamplerChange={setRunnerSampler}
+      scheduler={runnerScheduler}
+      onSchedulerChange={setRunnerScheduler}
+      steps={runnerSteps}
+      onStepsChange={setRunnerSteps}
+      cfg={runnerCfg}
+      onCfgChange={setRunnerCfg}
+      seed={runnerSeed}
+      onSeedChange={(value) => {
+        setRunnerSeed(value)
+        setSeed(undefined)
+      }}
+      seedToFix={() =>
+        selectedResult?.seed ??
+        String(Math.floor(Math.random() * 4_294_967_295))
+      }
+      upscaler={runnerUpscaler}
+      onUpscalerChange={setRunnerUpscaler}
+      upscaleNote={
+        runnerUpscaler === '4x-AnimeSharp'
+          ? {
+              text: `${t('generate.advanced.upscaleSummary', {
+                width: previewDimensions.width,
+                height: previewDimensions.height,
+                outputWidth: upscaleFinalWidth,
+                outputHeight: upscaleFinalHeight,
+              })}${
+                upscaleOutputIsLarge
+                  ? ` ${t('generate.advanced.upscaleLargeWarning')}`
+                  : ''
+              }`,
+              warn: upscaleOutputIsLarge,
+            }
+          : null
+      }
+      hiresNote={
+        collocationRecipe?.params.runnerHires
+          ? t('generate.advanced.sourceHiresSummary', {
+              scale: collocationRecipe.params.runnerHires.scale,
+              denoise: collocationRecipe.params.runnerHires.denoise,
+              steps:
+                collocationRecipe.params.runnerHires.steps ??
+                (runnerSteps || t('generate.advanced.modelDefault')),
+              cfg:
+                collocationRecipe.params.runnerHires.cfg ??
+                (runnerCfg || t('generate.advanced.modelDefault')),
+            })
+          : null
+      }
+      error={runnerSamplingError}
+      customCount={advancedCustomCount}
+      defaults={baseSamplingDefaults}
+      disabled={isGenerating}
+    />
+  ) : null
+  const loraGenerateButton = (
+    <StudioGenerateButton
+      variant="round"
+      label={t('generate.run')}
+      busyLabel={t('generate.busy')}
+      ariaLabel={t('generate.run')}
+      isGenerating={isGenerating}
+      elapsedSeconds={elapsedSeconds}
+      canGenerate={canGenerate}
+      disabled={!canGenerate}
+      onGenerate={handleGenerateClick}
+      onStop={
+        activeGenerateItem
+          ? () => cancelRunItem(activeGenerateItem.id)
+          : undefined
+      }
+      stopLabel={tCancel('cancel')}
+    />
+  )
+
   if (isMobile) {
     return (
       /**
@@ -3464,42 +3549,73 @@ function GenerateBranch({
                   {t('sourceRecipeMounting')}
                 </p>
               )}
-              {/* S7 移动端：装配摘要 chip 行——B 稿把它从旧的「结果卡上方独立
-                小卡」挪到 composer 顶部（mock 的手机版 composer 也是 chips 行
-                在输入行之上），点开的仍是同一个 assemblySheetOpen 抽屉。 */}
-              <button
-                type="button"
-                onClick={() => setAssemblySheetOpen(true)}
-                aria-label={t('spine.openAssembly')}
-                className="flex w-full items-center gap-1.5 overflow-x-auto text-left"
-              >
-                <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border/60 px-2 py-1 text-2xs text-foreground">
-                  <Boxes
-                    className="size-3 shrink-0 text-muted-foreground"
+              {/* 装配行（iOS 稿 owner 2026-10-16）：底模键（小字「底模」+ 名字 ▾）·
+                挂着的 LoRA 只画小图不带名字 · ＋ 去库里挑。底模键与小图点开的都是
+                同一个装配抽屉（底模 / LoRA 栈 / 参考图）。 */}
+              <div className="flex min-w-0 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAssemblySheetOpen(true)}
+                  aria-label={t('spine.openAssembly')}
+                  className="flex min-w-0 shrink items-center gap-2 rounded-xl py-0.5 pr-1.5 text-left transition-colors duration-fast ease-standard active:bg-muted"
+                >
+                  <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+                    <Boxes className="size-4" aria-hidden />
+                  </span>
+                  <span className="flex min-w-0 flex-col leading-tight">
+                    <span className="text-2xs text-muted-foreground">
+                      {t('spine.baseModel')}
+                    </span>
+                    <span className="truncate text-sm font-semibold text-foreground">
+                      {selectedBase
+                        ? selectedBase.translationKey
+                          ? t(`spine.${selectedBase.translationKey}`)
+                          : selectedBase.displayName
+                        : t('spine.baseModelPending')}
+                    </span>
+                  </span>
+                  <ChevronDown
+                    className="size-3.5 shrink-0 text-muted-foreground"
                     aria-hidden
                   />
-                  {selectedBase
-                    ? selectedBase.translationKey
-                      ? t(`spine.${selectedBase.translationKey}`)
-                      : selectedBase.displayName
-                    : t('spine.baseModelPending')}
-                </span>
-                {stack.items.map((item) => (
-                  <span
-                    key={item.asset.id}
-                    className="inline-flex max-w-28 shrink-0 items-center gap-1 truncate rounded-full border border-border/60 px-2 py-1 text-2xs text-foreground"
+                </button>
+                <span aria-hidden className="h-6 w-px shrink-0 bg-border" />
+                <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
+                  {stack.items.map((item) => (
+                    <button
+                      key={item.asset.id}
+                      type="button"
+                      onClick={() => setAssemblySheetOpen(true)}
+                      aria-label={item.asset.name}
+                      className={cn(
+                        'grid size-8 shrink-0 place-items-center overflow-hidden rounded-lg border border-border/60 bg-muted text-muted-foreground',
+                        item.enabled === false && 'opacity-50',
+                      )}
+                    >
+                      {item.asset.coverImageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={proxyCivitaiImageUrl(item.asset.coverImageUrl)}
+                          alt=""
+                          className="size-full object-cover"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      ) : (
+                        <ImageIcon className="size-3.5" aria-hidden />
+                      )}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={onOpenLibrary}
+                    aria-label={t('spine.addLoraFull')}
+                    className="grid size-8 shrink-0 place-items-center rounded-lg border border-dashed border-border text-muted-foreground transition-colors duration-fast ease-standard active:bg-muted"
                   >
-                    <span
-                      aria-hidden
-                      className="size-1.5 shrink-0 rounded-full bg-status-applied"
-                    />
-                    <span className="truncate">{item.asset.name}</span>
-                  </span>
-                ))}
-                <span className="ml-auto inline-flex size-6 shrink-0 items-center justify-center rounded-full border border-border/60 text-muted-foreground">
-                  <Plus className="size-3.5" aria-hidden />
-                </span>
-              </button>
+                    <Plus className="size-4" aria-hidden />
+                  </button>
+                </div>
+              </div>
               {/* G3b-2b 搭配状态条（Prompt 上方单行）：一眼读到已应用来源配方 +
                 触发词×N，点查看展开（配方参数 + 可停用的触发词 chip），点撤销把
                 做同款前的输入快照整批回滚。触发词 chips 并入其展开，不再独占一行。 */}
@@ -3558,95 +3674,54 @@ function GenerateBranch({
                     polarity="positive"
                   />
                 </div>
-                {/* 出图 = 黑色胶囊，紧挨提示词右侧（mock「✦ 出图」）——不再是压在
-                  composer 最底的通栏大按钮。⚠ 本域是单次出图、没有张数字段
-                  （本域单次出图，没有张数控件），
-                  所以胶囊上没有 mock 示例图里的「×N」——那是 mock 的示例文案，
-                  不是本域真实存在的参数。 */}
-                <Button
-                  type="button"
-                  className="lora-send h-9 shrink-0 rounded-full px-4 text-xs font-semibold"
-                  disabled={!canGenerate}
-                  onClick={() => handleGenerateClick()}
-                >
-                  {isGenerating ? (
-                    <Spinner size="sm" aria-hidden />
-                  ) : (
-                    <Sparkles className="size-3.5" aria-hidden />
-                  )}
-                  {t('generate.run')}
-                </Button>
               </div>
-              {/* 第二行 chip：忠实还原 / 比例 —— 与 LoraAspectRatioChip 同一套胶囊
-                样式（`inline-flex h-8 rounded-full border px-2.5 text-xs`）手写一份，
-                这两颗不是 Popover，不值得为了共享 4 行样式再抽组件。负面 Prompt
-                收进这一行末尾，内联摘要「负面 bad hands, blurry…」，不再独占一整
-                行通栏——点它展开下方的编辑区（同一个 `.lora-reveal` 折叠机制）。 */}
-              {/* owner 验收发现（2026-09-04）：负面摘要文字在桌面/手机都溢出卡边。
-                根因是 `max-w-[60%]`（Tailwind 任意值，Hard Rule 5 本就不该用）
-                在 `flex-wrap` 行里不是可靠的收缩约束——摘要按钮拿到的是内容自身
-                宽度，超出卡宽的部分被 `.workbench-card` 的 `overflow:hidden`
-                硬裁掉（没有省略号，看起来像文字被卡边切断）。改成标准 flexbox
-                收缩链：行给 `min-w-0`，摘要按钮 `flex-1 min-w-0`，容许它在
-                「忠实还原/比例」两颗定宽 chip 之后吃剩余空间并在需要时收缩到 0
-                触发内部 truncate。 */}
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  disabled={!activeAsset || isGenerating}
-                  onClick={handleRestore}
-                  className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-border/60 px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/20 hover:text-foreground disabled:opacity-50"
-                >
-                  <Wand2 className="size-3.5" aria-hidden />
-                  {t('generate.restore')}
-                </button>
-                <LoraAspectRatioChip
-                  value={aspectRatio}
-                  onChange={handleAspectRatioChange}
-                  disabled={isGenerating}
-                />
-                <LoraNegativeInertHint
-                  inert={negativeInert}
-                  hint={t('generate.negativeInert')}
-                >
-                  <button
-                    type="button"
-                    aria-expanded={negativePromptExpanded && !negativeInert}
-                    aria-disabled={negativeInert}
-                    onClick={() => {
-                      if (negativeInert) return
-                      setNegativePromptExpanded((open) => !open)
-                    }}
-                    className={cn(
-                      'ml-auto flex min-w-0 flex-1 items-center gap-1 overflow-hidden text-left text-2xs text-muted-foreground/80 transition-colors duration-fast ease-linear hover:text-foreground',
-                      negativeInert &&
-                        'cursor-not-allowed text-muted-foreground/50 hover:text-muted-foreground/50',
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        'shrink-0 font-medium uppercase tracking-wide',
-                        negativeInert &&
-                          'underline decoration-dashed underline-offset-4',
-                      )}
-                    >
-                      {t('generate.negativePromptLabel')}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground/70">
-                      {negativePrompt.trim() ||
-                        t('generate.negativePromptPlaceholder')}
-                    </span>
-                    <ChevronDown
-                      className={cn(
-                        'size-3 shrink-0 transition-transform',
-                        negativePromptExpanded &&
-                          !negativeInert &&
-                          'rotate-180',
-                      )}
-                      aria-hidden
+              {/* 输入栏（iOS 稿 owner 2026-10-16，与标签台同步）：＋（忠实还原 · 负面）·
+                比例 · 参数 ……… 出图。弹层都从按钮正上方弹白卡。 */}
+              <div className="flex min-w-0 items-center gap-2">
+                <ResponsivePopoverPhoneCard>
+                  <div className="studio-mobile-chip-row flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+                    <StudioMobileAddSheet
+                      attachments={false}
+                      disabled={isGenerating}
+                      hasHiddenSetting={negativePrompt.trim() !== ''}
+                      rows={[
+                        ...(activeAsset
+                          ? [
+                              {
+                                key: 'restore',
+                                icon: <Wand2 className="size-4" />,
+                                label: t('generate.restoreShort'),
+                                onSelect: handleRestore,
+                              },
+                            ]
+                          : []),
+                        ...(negativeInert
+                          ? []
+                          : [
+                              {
+                                key: 'negative',
+                                icon: <Ban className="size-4" />,
+                                label: t('generate.negativePromptLabel'),
+                                detail: negativePrompt.trim() || undefined,
+                                onSelect: () => {
+                                  setNegativePromptExpanded(true)
+                                  requestAnimationFrame(() =>
+                                    negativePromptTextareaRef.current?.focus(),
+                                  )
+                                },
+                              },
+                            ]),
+                      ]}
                     />
-                  </button>
-                </LoraNegativeInertHint>
+                    <LoraAspectRatioChip
+                      value={aspectRatio}
+                      onChange={handleAspectRatioChange}
+                      disabled={isGenerating}
+                    />
+                    {loraParamsChip}
+                  </div>
+                </ResponsivePopoverPhoneCard>
+                {loraGenerateButton}
               </div>
               {/* 展开/收起走 grid-rows 过渡（.lora-reveal），收起时 inert 挡住焦点
                 与读屏。视觉上退成一个圈起来的小面板，紧贴在 chip 行下面。CFG 1 底模
@@ -4490,87 +4565,8 @@ function GenerateBranch({
                   }
                   popoverAlign="end"
                 />
-                {isRunnerBase ? (
-                  <LoraParamsChip
-                    baseLabel={
-                      selectedBase ? operatorBaseLabel(selectedBase) : ''
-                    }
-                    sampler={runnerSampler}
-                    onSamplerChange={setRunnerSampler}
-                    scheduler={runnerScheduler}
-                    onSchedulerChange={setRunnerScheduler}
-                    steps={runnerSteps}
-                    onStepsChange={setRunnerSteps}
-                    cfg={runnerCfg}
-                    onCfgChange={setRunnerCfg}
-                    seed={runnerSeed}
-                    onSeedChange={(value) => {
-                      setRunnerSeed(value)
-                      setSeed(undefined)
-                    }}
-                    seedToFix={() =>
-                      selectedResult?.seed ??
-                      String(Math.floor(Math.random() * 4_294_967_295))
-                    }
-                    upscaler={runnerUpscaler}
-                    onUpscalerChange={setRunnerUpscaler}
-                    upscaleNote={
-                      runnerUpscaler === '4x-AnimeSharp'
-                        ? {
-                            text: `${t('generate.advanced.upscaleSummary', {
-                              width: previewDimensions.width,
-                              height: previewDimensions.height,
-                              outputWidth: upscaleFinalWidth,
-                              outputHeight: upscaleFinalHeight,
-                            })}${
-                              upscaleOutputIsLarge
-                                ? ` ${t('generate.advanced.upscaleLargeWarning')}`
-                                : ''
-                            }`,
-                            warn: upscaleOutputIsLarge,
-                          }
-                        : null
-                    }
-                    hiresNote={
-                      collocationRecipe?.params.runnerHires
-                        ? t('generate.advanced.sourceHiresSummary', {
-                            scale: collocationRecipe.params.runnerHires.scale,
-                            denoise:
-                              collocationRecipe.params.runnerHires.denoise,
-                            steps:
-                              collocationRecipe.params.runnerHires.steps ??
-                              (runnerSteps ||
-                                t('generate.advanced.modelDefault')),
-                            cfg:
-                              collocationRecipe.params.runnerHires.cfg ??
-                              (runnerCfg ||
-                                t('generate.advanced.modelDefault')),
-                          })
-                        : null
-                    }
-                    error={runnerSamplingError}
-                    customCount={advancedCustomCount}
-                    defaults={baseSamplingDefaults}
-                    disabled={isGenerating}
-                  />
-                ) : null}
-                <StudioGenerateButton
-                  variant="round"
-                  label={t('generate.run')}
-                  busyLabel={t('generate.busy')}
-                  ariaLabel={t('generate.run')}
-                  isGenerating={isGenerating}
-                  elapsedSeconds={elapsedSeconds}
-                  canGenerate={canGenerate}
-                  disabled={!canGenerate}
-                  onGenerate={handleGenerateClick}
-                  onStop={
-                    activeGenerateItem
-                      ? () => cancelRunItem(activeGenerateItem.id)
-                      : undefined
-                  }
-                  stopLabel={tCancel('cancel')}
-                />
+                {loraParamsChip}
+                {loraGenerateButton}
               </div>
             </div>
           </StudioChipLookProvider>

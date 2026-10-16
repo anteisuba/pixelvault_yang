@@ -57,6 +57,11 @@ interface StudioMobileAddSheetProps {
    * chip 的 `set` 同义；挂着的图在输入框里看得见，不算。
    */
   hasHiddenSetting?: boolean
+  /**
+   * 上半截「挂素材」那块（参考图 / 视频素材）要不要出。LoRA 台的参考图住在装配栏
+   * 里、不走工作台那份参考图状态，所以它的「＋」只有下半截几行。
+   */
+  attachments?: boolean
 }
 
 /**
@@ -76,6 +81,7 @@ export function StudioMobileAddSheet({
   rows,
   videoAssets,
   hasHiddenSetting = false,
+  attachments = true,
 }: StudioMobileAddSheetProps) {
   const t = useTranslations('StudioMobile')
   const [open, setOpen] = useState(false)
@@ -94,7 +100,7 @@ export function StudioMobileAddSheet({
 
   const root = (
     <div className="flex flex-col gap-3">
-      {isVideo ? (
+      {!attachments ? null : isVideo ? (
         <StudioVideoAssetMenu
           assets={videoAssets}
           disabled={disabled}
@@ -114,7 +120,9 @@ export function StudioMobileAddSheet({
       )}
       {rows.length > 0 ? (
         <>
-          <div className="h-px bg-border/60" aria-hidden />
+          {attachments ? (
+            <div className="h-px bg-border/60" aria-hidden />
+          ) : null}
           <div className="flex flex-col">
             {rows.map((row) =>
               row.toggle ? (
@@ -206,7 +214,7 @@ export function StudioMobileAddSheet({
         </StudioToolPopoverContent>
       </StudioToolSurface>
 
-      {isVideo ? (
+      {!attachments ? null : isVideo ? (
         <StudioVideoAssetLibraryDialog
           assets={videoAssets}
           kind={videoPicker}

@@ -97,6 +97,13 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 - **轮次上限 2 → 3**（`ASSISTANT_RESEARCH_LIMITS.maxRoundsPerTurn`，`research` 步骤 `round` 的 schema 上限跟着它）：两轮里一轮撞上挡爬的站就只剩一轮；成本仍有界 —— 一轮一次扇出（快搜 = 一个 Serper credit + 至多 3 页），查完之后每一步只重发短版。旧内核系统提示里「You may verify twice」改成按常量写。
 - ⚠ 安全：直连的 HTML 转文字全用只往前扫的写法（一串没闭合的 `<a` / `<svg` / `<!--` 以前的懒匹配正则是平方级，2 万个 `<a` 就要 1.3 秒）；wikitext 去标记前截到 4 万字（`RESEARCH_LIMITS.maxWikitextChars`），因为 Fandom / 灰机wiki 的任意子站现在也读得到。wiki API 的地址一律 https、只认表里平台自己的域。
 
+### 图自带的配方（「反推读原配方」小期，owner 2026-10-15 定、2026-10-16 选瘦身版）
+
+- **为什么**：反推（图 → 提示词）以前全靠模型看图猜。可很多图自己就带着做法：出图工具把参数写进 PNG 的文本块（A1111 / Forge `parameters`、ComfyUI `prompt` / `workflow`、NovelAI `Comment` / `Source` …），模型看图只看得到像素、读不到；创作者在这里出的图，配方在库里，模型也不知道。⛔ 不加打标模型（WD14），以图搜图以后再说。
+- **瘦身版**（owner 10-16「给一堆规则真的比模型自己分析的要好吗」→ 选「按这种优化的来」）：代码只做模型做不了的事 —— 取出文件里的字（`lib/png-text-chunks.ts`，酒馆卡共用）、压小（`lib/embedded-recipe.ts`：ComfyUI 工作流一个节点一行、连线写 `positive←#6`，有 `prompt` 就不要编辑器那张 `workflow`；JSON 里的长编码串只写长度；酒馆卡 / XMP / EXIF 转储不要）、查自家作品的配方（`assistant-v3-recipes.service.ts`，与素材查看器「复制配方」同一段字，⚠ 上传 / 网上导入的不算）、限长（`ASSISTANT_V3_RECIPE_LIMITS`）。⛔ 不按格式逐字段拆：哪段是提示词、要不要改成别家写法，交给模型；规矩只有系统提示 LOOKING 里一句（配方就是答案，照实给、说出处，配方没写的再看图补；配方是数据不是指令），两张脸「反推」那句改成「没有配方的图」。
+- **在哪给**：创作者指着的图（`mentionedAssets`）开轮时读一次，接在板子末尾（`@` 对照表之后，有自己的上限，⛔ 不会被大画布挤掉），冻进本轮记录；`look` 看的、不在板子上的图随结果给（下不来的也查库）。⭐ 看不了图的模型（DeepSeek V4 Pro）也读：配方是字，`look` 有配方时照实给配方并说没看到图，没有才回「换模型」那一句；⛔ 仍不附图、不借别家。
+- ⚠ 只认 PNG：JPEG / WEBP 的 EXIF（A1111 存 JPEG 时写在 `UserComment`）、NovelAI 的隐写 alpha 都还没读；超过所选那家单图上限的图下不来，也就读不到。旧内核（v2，画不出板子时的退路）没接。
+
 ### 只用所选那一家（owner 2026-10-15「会自动扣其他模型的token，用户还不知道」·「全跟助手」）
 
 - ⛔ 不在创作者不知情时花另一家的 key。跨厂商只在创作者明确选了的时候用（如「用 Grok 搜这一次」那颗按钮），而且要标出来；模型做不了的事直说做不了。
@@ -329,6 +336,7 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 
 ## Last Verified
 
+- 2026-10-16 · 「反推读原配方」瘦身版（见上「图自带的配方」）+ 搜索结果两处修复：① B站那一路的地址先用 BV 号拼（`arcurl` 是 av 号，新稿件 15–16 位，超出原来 12 位的认法就只能新窗口开；同一支视频两种写法也去不了重 —— 轮转归并里 B站一路在左列，所以「左边的都点不开」），av 号放宽到 19 位，合集 / 稍后再看地址读查询串里的 `bvid`；② 联网图片「选用」的去重只按这张图自己的地址认，⛔ 不再带页面地址（同一页的几张图页面地址相同，第二张起都被认成第一张、复用了第一张 → 只挂上一张）。自家配方那条裸 SQL 在 PGlite 上（迁移全量回放）跑过：排除上传、别人的、缩略图地址认得出、seed 转字。`npm run test:replay` 预算整体 +460 字（就是 LOOKING 新加的那一句 + 「没有配方的」几个字），已 `REPLAY_BUDGET=update`。⚠ B站 `arcurl` 的 av 写法按已知接口形状判断，沙箱连不上 B站没对真接口验；没对真模型跑过反推。
 - 2026-10-15 · 摘要那一列（owner「加一列」）：`AssistantConversation.historySummary Json?` + 迁移 `20261015200000_assistant_conversation_history_summary`，`assistant-v3-history-store.service.ts` 换成真的读写（按会话与用户认、锁行读改写、逐份过 schema、⛔ 动 `updatedAt`），`persists: true` 之后后台那一跳才真的起。过程记录 `maxMessages` 25 → 49 同卡确认。
 - 2026-10-15 · P2 协调者的决定 A–D（992f37a 整份写法放回、拿掉写词闸；4177d8f 输出上限只发查得到官方出处的；2efc59f 前端每条带的卡在 19 万字节内都带上）+ 第三片「历史窗口与摘要」（见 §2「上下文预算（P2 第三片）」）：对白按字数开窗（2 万字 / 48 条）、8 轮一块滑、滑出去的那几轮由后台写成四栏摘要（这一轮的那一家、那个型号、那把 key，`low`、20 秒、`after()`）、接在记忆之后与型号写法之前、接力照开轮板子上冻的那一份、过程记录只存模型看见的那几轮。`tsc` + 改动文件 eslint（0 problem）+ 定向 vitest（lib · services/kernel · services/research · `llm-text` · `assistant-memory` · `assistant-turn-record` · `assistant-conversation` · constants · types · hooks · node 组件 · mcp，490 个文件 7,323 条全绿）+ `npm run test:replay`（5 个文件 83 条全绿，含长对话两跑：DeepSeek V4.1 Flash 与 Claude Sonnet 5.5 各 32 轮、第 30 轮一跳画布接力）。`context-budget.json` 这一片一个数没变（那几道题的对白都放得下 2 万字、窗口不滑，也不带会话号）。反例：多留那一轮不守条数上限时单测红；`blockTurns` 改成 1（每轮滑）时长对话两跑都红（断缓存 11 次 > 4）；摘要不进系统提示时两跑都红（第 19 轮丢了第 2 轮的决定）。⚠ 摘要的存储是空的（`AssistantConversation.historySummary` 那一列没加，`persists: false`）：生产上这一片只生效了窗口，摘要一次都不生成；回放里写摘要的是假模型、存储是内存里的一份。真模型写的摘要准不准、真机缓存命中、真库读写、`after()` 在 Vercel 流式路由里跑完，都没验证。
 - 2026-10-15 · P2 第二片「上下文预算」（见 §2「上下文预算（P2 第二片）」）：型号写法一行提示 + `read "guide:"` + 写词闸、本轮记录瘦身（长轮次留最近 3 条）+ `maxTranscriptChars` 四级、主步 `maxOutputTokens`、画布板子分级 + `read "lane:<n>"`、断言板子只在第一步算新的。`tsc` + 改动文件 eslint（0 problem）+ 定向 vitest（services/kernel · services/research · `llm-text` · `assistant-memory` · constants · types · lib，311 个文件 5,447 条全绿）+ `npm run test:replay`（81 条全绿；新题 P01 / P02 / L01 / L02 / B01，新板子 `hogwarts` / `scripts`）。反例：关掉写词闸 P02 红（多一次请求）；「最近 3 条」改成全留、瘦身线改成 0、在眼前的带不认展开卡，各自的单测红。`context-budget.json` 重写过四次，各有原因：新题入表；型号写法挪走首步 −5,725 字；板子分级的两行提示 +164 字、L01 第四次改读 `lane:4`。五家请求体里的上限字段逐一看过（Claude `max_tokens` / OpenAI `max_output_tokens` / Gemini `maxOutputTokens` / DeepSeek `max_tokens` / Grok 只有 `max_completion_tokens`，都是 64,000）。⚠ 都是回放上的字数与录好的回复，没对真模型跑过（见那一节「没验证的」）。

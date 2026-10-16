@@ -27,7 +27,8 @@ vi.mock('@/hooks/use-assistant-persona', () => ({
   }),
 }))
 
-vi.mock('@/types/assistant-persona', () => ({
+vi.mock('@/types/assistant-persona', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/types/assistant-persona')>()),
   withAssistantCharacter: (_persona: unknown, id: string | null) => ({
     characterCardId: id,
     nameFromCharacter: true,

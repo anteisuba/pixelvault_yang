@@ -860,6 +860,15 @@ describe('聊天模式按会话那张卡', () => {
     })
   })
 
+  it('⭐ 你在她故事里是谁：按角色记在卡上，每段聊天都从卡上读', async () => {
+    mockCardFindFirst.mockResolvedValue({
+      ...CHAT_CARD,
+      extensions: { 'pv.chatUserRole': '  常来的熟客，怕猫 ' },
+    })
+    const persona = await getAssistantPersonaByUserId('db_user_1', CHAT_CARD.id)
+    expect(persona.roleplay?.userRole).toBe('常来的熟客，怕猫')
+  })
+
   it('卡不是你的 / 删了 → 照工作模式答（设置里那一份）', async () => {
     mockCardFindFirst.mockResolvedValue(null)
     const persona = await getAssistantPersonaByUserId('db_user_1', CHAT_CARD.id)

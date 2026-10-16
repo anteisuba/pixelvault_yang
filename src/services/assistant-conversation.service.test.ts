@@ -866,44 +866,6 @@ it('聊天会话（附录L）：和谁聊盖在首条消息上，⛔ 不信消�
   expect(saved[0].chatCharacterId).toBe(chatCharacterId)
   expect(saved[1]).not.toHaveProperty('chatCharacterId')
   expect(record.chatCharacterId).toBe(chatCharacterId)
-  expect(record.chatUserRole).toBeNull()
-})
-
-it('你在故事里是谁（附录L 第二片 C）：随聊天会话盖在首条消息上；工作会话不盖', async () => {
-  mocks.create.mockImplementation(async ({ data }) => ({
-    id: 'conv-chat',
-    surface: data.surface,
-    projectId: data.projectId,
-    title: data.title,
-    messages: data.messages,
-    rounds: [],
-    createdAt: new Date('2026-10-16T00:00:00Z'),
-    updatedAt: new Date('2026-10-16T00:00:00Z'),
-  }))
-  const record = await upsertAssistantConversation('clerk-owner', {
-    workspaceKey: 'cards',
-    surface: 'CARDS',
-    chatCharacterId: '11111111-1111-4111-8111-111111111111',
-    chatUserRole: '刚搬来的邻居',
-    messages: [
-      { role: 'assistant', content: '欢迎光临喵' },
-      { role: 'user', content: '你好', chatUserRole: '冒名的' },
-    ],
-  })
-  const saved = mocks.create.mock.calls[0]?.[0].data.messages
-  expect(saved[0].chatUserRole).toBe('刚搬来的邻居')
-  expect(saved[1]).not.toHaveProperty('chatUserRole')
-  expect(record.chatUserRole).toBe('刚搬来的邻居')
-
-  await upsertAssistantConversation('clerk-owner', {
-    workspaceKey: 'cards',
-    surface: 'CARDS',
-    chatUserRole: '工作会话不该有',
-    messages: [{ role: 'user', content: '你好' }],
-  })
-  expect(mocks.create.mock.calls[1]?.[0].data.messages[0]).not.toHaveProperty(
-    'chatUserRole',
-  )
 })
 
 it('会话列表带上和谁聊；卡读不到就当工作会话', async () => {
@@ -919,6 +881,7 @@ it('会话列表带上和谁聊；卡读不到就当工作会话', async () => {
       operatorThread: true,
       chatCharacterId: '11111111-1111-4111-8111-111111111111',
       chatCharacterName: 'Rin',
+      chatCharacterRole: ' 常来的熟客 ',
     },
     {
       id: 'gone',
@@ -943,9 +906,11 @@ it('会话列表带上和谁聊；卡读不到就当工作会话', async () => {
   expect(query.sql).toContain(
     'card."userId" = "AssistantConversation"."userId"',
   )
+  expect(query.sql).toContain(`card."extensions"->>'pv.chatUserRole'`)
   expect(result[0].chatCharacter).toEqual({
     id: '11111111-1111-4111-8111-111111111111',
     name: 'Rin',
+    userRole: '常来的熟客',
   })
   expect(result[1].chatCharacter).toBeNull()
   expect(result[0]).not.toHaveProperty('chatCharacterName')

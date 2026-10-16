@@ -3730,6 +3730,8 @@ export interface CharacterCardRecord {
   summary: string | null
   /** 酒馆卡原样存的那几格（`extensions['st.card']`）；没导入过 = `null`。 */
   tavern: TavernCardKept | null
+  /** 和这个角色聊天时你在故事里是谁（`extensions['pv.chatUserRole']`）；没写 = 空串。 */
+  chatUserRole: string
   /** 用这个角色出过几张图（生成 ↔ 角色关联表计数；只在列表里算，其余为 0）。 */
   generationCount: number
   createdAt: Date

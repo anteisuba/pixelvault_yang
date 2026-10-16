@@ -12,25 +12,25 @@ import {
 } from '@/components/ui/responsive-popover'
 import { Textarea } from '@/components/ui/textarea'
 import {
-  setOperatorChatUserRole,
+  saveOperatorChatUserRole,
   type StudioOperatorChatCharacter,
 } from '@/hooks/use-studio-operator-store'
 
 interface StudioOperatorChatPillProps {
+  /** 带着 `userRole`：你在她的故事里是谁（存在角色卡上，见 `saveOperatorChatUserRole`）。 */
   character: StudioOperatorChatCharacter
-  /** 你在这段故事里是谁（会话那一格）。 */
-  userRole: string
 }
 
 /**
- * 头部那枚「和 X 聊」胶囊（附录L）：点开写**你在这段故事里是谁**（第二片 C）。
- * 这段会话自己的一格：打字只改草稿，关上浮层才存（下一轮起生效）；Esc 照样存 —— 关浮层
+ * 头部那枚「和 X 聊」胶囊（附录L）：点开写**你在她的故事里是谁**（第二片 C）。
+ * 按角色记（owner 2026-10-16「按角色记住，新开一段自动带上」）：存在角色卡上，和她的
+ * 每段聊天都带。打字只改草稿，关上浮层才存（下一轮起生效）；Esc 照样存 —— 关浮层
  * 就是「写完了」，⛔ 不另设保存键。
  */
 export function StudioOperatorChatPill({
   character,
-  userRole,
 }: StudioOperatorChatPillProps) {
+  const userRole = character.userRole ?? ''
   const t = useTranslations('StudioOperator')
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState(userRole)
@@ -40,7 +40,7 @@ export function StudioOperatorChatPill({
       open={open}
       onOpenChange={(next) => {
         if (next) setDraft(userRole)
-        else setOperatorChatUserRole(draft.trim())
+        else void saveOperatorChatUserRole(draft)
         setOpen(next)
       }}
     >
@@ -75,7 +75,9 @@ export function StudioOperatorChatPill({
             onChange={(event) => setDraft(event.target.value)}
             className="max-h-48 min-h-20 text-sm"
           />
-          <span className="text-xs text-muted-foreground">{t('chat.roleHint')}</span>
+          <span className="text-xs text-muted-foreground">
+            {t('chat.roleHint')}
+          </span>
         </label>
       </ResponsivePopoverContent>
     </ResponsivePopover>

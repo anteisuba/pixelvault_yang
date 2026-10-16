@@ -234,7 +234,7 @@ export function StudioOperatorHeader({
    * 胶囊读、被驱动 hook 在事件处理器里同步读。穿成 prop 等于让面板与外壳各转发
    * 一次同一个布尔。
    */
-  const { incognito, chatCharacter, chatUserRole } = useStudioOperatorState()
+  const { incognito, chatCharacter } = useStudioOperatorState()
   /**
    * **举着刀的那一行**（owner 2026-09-20 真机第 3 条）—— 删除是原位两段确认，
    * ⛔ 不再弹 `AlertDialog`。
@@ -546,10 +546,7 @@ export function StudioOperatorHeader({
 
         {/* ── 聊天模式胶囊（附录L）：这段会话是和谁聊。工作会话不画。 */}
         {chatCharacter ? (
-          <StudioOperatorChatPill
-            character={chatCharacter}
-            userRole={chatUserRole}
-          />
+          <StudioOperatorChatPill character={chatCharacter} />
         ) : null}
 
         {/* ── 隐身胶囊（56a · 画板 `DesignD56Simple`「隐身开着」）──────

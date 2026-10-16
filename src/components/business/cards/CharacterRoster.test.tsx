@@ -87,6 +87,7 @@ function card(
     workOverride: null,
     summary: null,
     tavern: null,
+    chatUserRole: '',
     generationCount: 0,
     createdAt: new Date(0),
     updatedAt: new Date(0),

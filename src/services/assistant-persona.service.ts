@@ -17,6 +17,7 @@ import {
 } from '@/constants/assistant-persona'
 import { ApiRequestError } from '@/lib/errors'
 import { readTavernWorldBook } from '@/lib/tavern-card'
+import { readChatUserRole } from '@/services/cards/character-card.mapper'
 import { sanitizePrompt } from '@/services/kernel/prompt-guard'
 import { ensureUser } from '@/services/user.service'
 import { CharacterPersonaSchema, type CharacterPersona } from '@/types'
@@ -353,6 +354,8 @@ function toChatPersona(
       (example) => example.user.trim() || example.reply.trim(),
     ),
     world: readTavernWorldBook(card.extensions),
+    /** 你在她的故事里是谁 —— 按角色记在卡上（owner 2026-10-16），每段聊天都带。 */
+    userRole: readChatUserRole(card.extensions),
   }
   return {
     ...persona,

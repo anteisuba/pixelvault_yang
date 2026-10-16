@@ -111,8 +111,7 @@ function sameSavedContent(
     left.snapshot.entries === right.snapshot.entries &&
     left.snapshot.history === right.snapshot.history &&
     left.snapshot.question === right.snapshot.question &&
-    left.snapshot.confirm === right.snapshot.confirm &&
-    left.snapshot.chatUserRole === right.snapshot.chatUserRole,
+    left.snapshot.confirm === right.snapshot.confirm,
   )
 }
 
@@ -155,12 +154,7 @@ function persistThread(request: ThreadSave): Promise<boolean> {
         workspaceKey: current.workspaceKey,
         ...(current.projectId ? { projectId: current.projectId } : {}),
         ...(current.snapshot.chatCharacter
-          ? {
-              chatCharacterId: current.snapshot.chatCharacter.id,
-              ...(current.snapshot.chatUserRole.trim()
-                ? { chatUserRole: current.snapshot.chatUserRole.trim() }
-                : {}),
-            }
+          ? { chatCharacterId: current.snapshot.chatCharacter.id }
           : {}),
         messages: toStoredOperatorMessages(
           history,
@@ -476,7 +470,6 @@ export function useStudioOperatorHistory({
           pending: pendingFromStoredMessages(result.data.messages),
           // 聊天会话照旧是聊天会话（附录L）；卡删了就当工作会话。
           chatCharacter: chatCharacter ?? null,
-          chatUserRole: result.data.chatUserRole ?? '',
         })
         return true
       } catch {

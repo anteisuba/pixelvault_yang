@@ -15,6 +15,7 @@ import { ApiRequestError } from '@/lib/errors'
 import { ensureUser } from '@/services/user.service'
 import type { AssistantWorkspace } from '@/types/assistant-workspace'
 import { ASSISTANT_ROUND_SUMMARY_LIMITS } from '@/constants/assistant-operator'
+import { CARD_EXTENSIONS } from '@/constants/cards/character-card'
 import { logger } from '@/lib/logger'
 import {
   ASSISTANT_CONVERSATION_LIMITS,
@@ -249,21 +250,11 @@ function stampWorkspace(
 function stampChatCharacter(
   messages: AssistantConversationMessageStored[],
   chatCharacterId: string | undefined,
-  chatUserRole: string | undefined,
 ): AssistantConversationMessageStored[] {
   return messages.map((message, index) => {
-    const {
-      chatCharacterId: _previous,
-      chatUserRole: _previousRole,
-      ...rest
-    } = message
+    const { chatCharacterId: _previous, ...rest } = message
     void _previous
-    void _previousRole
-    if (index !== 0 || !chatCharacterId) return rest
-    // 你在故事里是谁只跟聊天会话走（附录L 第二片 C）。
-    return chatUserRole
-      ? { ...rest, chatCharacterId, chatUserRole }
-      : { ...rest, chatCharacterId }
+    return index === 0 && chatCharacterId ? { ...rest, chatCharacterId } : rest
   })
 }
 
@@ -293,8 +284,6 @@ function toRecord(row: {
     projectId: row.projectId,
     title: row.title,
     chatCharacterId: messages[0]?.chatCharacterId ?? null,
-    chatUserRole:
-      (messages[0]?.chatCharacterId && messages[0]?.chatUserRole) || null,
     messages,
     rounds: sanitizeRounds(row.rounds),
     createdAt: row.createdAt.toISOString(),
@@ -311,7 +300,6 @@ export async function upsertAssistantConversation(
   const messages = stampChatCharacter(
     stampWorkspace(sanitizeMessages(input.messages), workspace),
     input.chatCharacterId,
-    input.chatUserRole,
   )
   const title = titleFromMessages(messages)
 
@@ -351,6 +339,11 @@ export async function upsertAssistantConversation(
   return toRecord(created)
 }
 
+/** 卡上「你在她故事里是谁」那一格的键 —— 常量写进 SQL 字面量，⛔ 不是用户输入。 */
+const CHAT_USER_ROLE_KEY_SQL = Prisma.raw(
+  `'${CARD_EXTENSIONS.KEYS.chatUserRole}'`,
+)
+
 export async function listAssistantConversations(
   clerkId: string,
   args: ListAssistantConversationsQuery,
@@ -368,6 +361,7 @@ export async function listAssistantConversations(
       stamp: unknown
       chatCharacterId: string | null
       chatCharacterName: string | null
+      chatCharacterRole: string | null
     })[]
   >(Prisma.sql`
     SELECT "id", "surface", "projectId", "title", "updatedAt",
@@ -380,7 +374,13 @@ export async function listAssistantConversations(
         WHERE card."id" = "AssistantConversation"."messages"->0->>'chatCharacterId'
           AND card."userId" = "AssistantConversation"."userId"
           AND card."isDeleted" = false
-      ) AS "chatCharacterName"
+      ) AS "chatCharacterName",
+      (
+        SELECT card."extensions"->>${CHAT_USER_ROLE_KEY_SQL} FROM "CharacterCard" card
+        WHERE card."id" = "AssistantConversation"."messages"->0->>'chatCharacterId'
+          AND card."userId" = "AssistantConversation"."userId"
+          AND card."isDeleted" = false
+      ) AS "chatCharacterRole"
     FROM "AssistantConversation"
     WHERE "userId" = ${user.id}
       AND ${conversationScopeSql(workspace)}
@@ -389,11 +389,22 @@ export async function listAssistantConversations(
     LIMIT ${limit}
   `)
   return rows.map(
-    ({ stamp, updatedAt, chatCharacterId, chatCharacterName, ...row }) => ({
+    ({
+      stamp,
+      updatedAt,
+      chatCharacterId,
+      chatCharacterName,
+      chatCharacterRole,
+      ...row
+    }) => ({
       ...row,
       chatCharacter:
         chatCharacterId && chatCharacterName
-          ? { id: chatCharacterId, name: chatCharacterName }
+          ? {
+              id: chatCharacterId,
+              name: chatCharacterName,
+              userRole: chatCharacterRole?.trim() ?? '',
+            }
           : null,
       workspaceKey: assistantWorkspaceKeyOfRow({
         surface: row.surface,

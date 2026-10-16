@@ -8795,7 +8795,7 @@
       "you": "あなた",
       "roleLabel": "この物語でのあなた",
       "rolePlaceholder": "例：引っ越してきた隣人、{name}の幼なじみ",
-      "roleHint": "このチャットだけ。次の一言から反映されます"
+      "roleHint": "このキャラとのチャットすべてで使われます。次の一言から反映されます"
     }
   },
   "GenerationCancel": {

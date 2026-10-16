@@ -492,7 +492,7 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
         store.appendOperatorEntry(entry)
       }
       renderPanel()
-      // ⭐ 正文没写到名字的图画在气泡下面那一排（2026-10-09 owner：发出去缩略图就没了）。
+      // ⭐ 正文没写到名字的图也排进气泡上方那一排（2026-10-09 owner：发出去缩略图就没了）。
       expect(
         screen.getByRole('img', { name: 'reference image 1' }),
       ).toHaveAttribute('src', 'https://cdn.test/thumb.png')
@@ -506,14 +506,19 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
       ).toHaveAttribute('src', 'https://cdn.test/ref2.png')
       expect(screen.queryByRole('img', { name: 'voice sample' })).toBeNull()
       expect(screen.getByText('voice sample')).toBeTruthy()
+      /* P4 第 3 项（owner 2026-10-16）：图一律排在气泡上方，同一张只一格；字里只留名字。 */
       const body = within(screen.getByTestId('operator-user-text'))
+      expect(body.queryAllByRole('img')).toHaveLength(0)
+      expect(screen.getByTestId('operator-user-text')).toHaveTextContent(
+        'reference image 2',
+      )
+      const thumbs = within(screen.getByTestId('operator-user-thumbs'))
       expect(
-        body.getAllByRole('img', { name: 'reference image 2' }),
-      ).toHaveLength(2)
+        thumbs.getAllByRole('img', { name: 'reference image 2' }),
+      ).toHaveLength(1)
       expect(
-        body.getAllByRole('img', { name: 'reference image 2' })[0],
-      ).toHaveAttribute('src', 'https://cdn.test/ref2.png')
-      expect(body.queryByRole('img', { name: 'reference image 4' })).toBeNull()
+        thumbs.queryByRole('img', { name: 'reference image 4' }),
+      ).toBeNull()
       expect(screen.getByTestId('operator-user-text')).toHaveTextContent(
         'reference image 4',
       )

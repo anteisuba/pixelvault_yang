@@ -51,6 +51,7 @@ import {
   StudioOperatorThoughtReceipt,
 } from './StudioOperatorThinkingRow'
 import { withFindRefs } from './StudioOperatorFindRef'
+import { openOperatorLightbox } from './StudioOperatorLightbox'
 import {
   firstOperatorSentence,
   shouldCollapseOperatorText,
@@ -134,6 +135,8 @@ type InlineReference = NamedImageReference & { readonly text?: true }
 function withImageReferences(
   node: ReactNode,
   references: readonly InlineReference[],
+  /** `name`：只留名字（用户气泡里，图已在气泡上方排成缩略图，P4 第 3 项）。 */
+  inline: 'chip' | 'name' = 'chip',
 ): ReactNode {
   if (typeof node === 'string') {
     const byAlias = new Map(
@@ -156,6 +159,19 @@ function withImageReferences(
     )
     return node.split(pattern).map((part, index) => {
       const reference = byAlias.get(part)
+      if (reference && inline === 'name')
+        return (
+          <span
+            key={index}
+            title={reference.name}
+            className="mx-0.5 inline-flex items-center gap-1 align-baseline font-medium text-muted-foreground"
+          >
+            {reference.text ? (
+              <FileText className="size-3.5 shrink-0" aria-hidden />
+            ) : null}
+            {reference.name}
+          </span>
+        )
       return reference ? (
         <span
           key={index}
@@ -178,13 +194,15 @@ function withImageReferences(
     })
   }
   if (Array.isArray(node))
-    return Children.map(node, (child) => withImageReferences(child, references))
+    return Children.map(node, (child) =>
+      withImageReferences(child, references, inline),
+    )
   if (isValidElement<{ children?: ReactNode }>(node) && node.props.children) {
     return {
       ...node,
       props: {
         ...node.props,
-        children: withImageReferences(node.props.children, references),
+        children: withImageReferences(node.props.children, references, inline),
       },
     }
   }
@@ -389,10 +407,10 @@ export function StudioOperatorCollapsibleText({
         data-testid="operator-message-text"
         {...(collapsed ? { 'data-collapsed': 'true' } : {})}
         {...textSwap}
-        className="min-w-0 text-sm leading-relaxed text-foreground"
+        className="min-w-0 text-md leading-reading text-foreground"
       >
         <Markdown
-          className="message-md"
+          className="message-md leading-reading"
           {...(components ? { components } : {})}
         >
           {collapsed ? firstOperatorSentence(text) : text}
@@ -517,7 +535,7 @@ export function StudioOperatorMessageBody({
  * ⚠ 图只在正文写到它名字的地方贴缩略图（`withImageReferences`）；从输入框上方
  *   chip 带上的图名字不在正文里，此前发出去就一张都看不见了（2026-10-09 owner 真机）。
  */
-export function attachmentsBelowUserText(
+function attachmentsBelowUserText(
   text: string,
   attachments: readonly StudioOperatorAttachment[],
 ): StudioOperatorAttachment[] {
@@ -542,17 +560,11 @@ function MentionChip({
   onClick?: (mention: AssistantMention) => void
 }) {
   const t = useTranslations('StudioOperator.mention')
+  /* P4 第 3 项：图的缩略图排在气泡上方，这里只留名字（没有图的引用仍带文档字形）。 */
   const body = (
     <>
-      {mention.thumb && !missing ? (
-        <ReferenceThumb url={mention.thumb} name={mention.label} />
-      ) : (
-        <span
-          aria-hidden
-          className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"
-        >
-          <FileText className="size-4" aria-hidden />
-        </span>
+      {mention.thumb ? null : (
+        <FileText className="size-3.5 shrink-0" aria-hidden />
       )}
       <span className={cn('min-w-0 break-words', missing && 'line-through')}>
         {mention.label}
@@ -560,7 +572,7 @@ function MentionChip({
     </>
   )
   const className =
-    'mx-0.5 inline-flex max-w-full items-center gap-1.5 align-middle text-xs font-normal text-muted-foreground'
+    'mx-0.5 inline-flex max-w-full items-center gap-1 align-baseline font-medium text-muted-foreground'
   if (!onClick || missing)
     return (
       <span
@@ -656,18 +668,22 @@ export function StudioOperatorUserText({
           aliases: [item.label],
         }))
   const legacy = (part: string) =>
-    withImageReferences(part, [
-      ...imageReferences,
-      ...textNodeNames
-        .filter((name) => part.includes(`@${name}`))
-        // ⚠ 只认带 `@` 的那一处：正文里顺口提到同一个词不算引用。
-        .map((name) => ({
-          url: '',
-          name,
-          aliases: [`@${name}`],
-          text: true as const,
-        })),
-    ])
+    withImageReferences(
+      part,
+      [
+        ...imageReferences,
+        ...textNodeNames
+          .filter((name) => part.includes(`@${name}`))
+          // ⚠ 只认带 `@` 的那一处：正文里顺口提到同一个词不算引用。
+          .map((name) => ({
+            url: '',
+            name,
+            aliases: [`@${name}`],
+            text: true as const,
+          })),
+      ],
+      'name',
+    )
   const renderChip = (mention: AssistantMention, key: number) => (
     <MentionChip
       key={key}
@@ -683,21 +699,131 @@ export function StudioOperatorUserText({
     legacy,
   )
   /** 正文里没写出名字的那几条（答题那条路）照样挂在这一条底下 —— 事后看得出这轮带了什么。 */
-  const trailing = mentions.filter((mention) => !inlined.has(mention))
+  const trailing = mentions.filter(
+    (mention) => !inlined.has(mention) && !mention.thumb,
+  )
+  /**
+   * ⭐ **引用的图排在气泡上方**（P4 第 3 项，owner 2026-10-16）：48px 缩略图、⛔ 不带
+   *   文件名（悬停才出），点一下放大 / 去画布定位。正文里同一处只留名字。
+   * ⚠ 三个来源按地址去重：`@` 引用、按名字认出的参考图、没被正文提到的图片附件。
+   */
+  const thumbs: {
+    key: string
+    url: string
+    name: string
+    onOpen: () => void
+  }[] = []
+  const seen = new Set<string>()
+  const pushThumb = (url: string, name: string, onOpen: () => void) => {
+    if (!url || seen.has(url)) return
+    seen.add(url)
+    thumbs.push({ key: url, url, name, onOpen })
+  }
+  for (const mention of mentions) {
+    if (!mention.thumb || isMentionMissing?.(mention)) continue
+    pushThumb(mention.thumb, mention.label, () =>
+      onMentionClick
+        ? onMentionClick(mention)
+        : openOperatorLightbox(mention.thumb ?? '', mention.label),
+    )
+  }
+  for (const reference of imageReferences)
+    if (reference.aliases.some((alias) => alias && text.includes(alias)))
+      pushThumb(reference.url, reference.name, () =>
+        openOperatorLightbox(reference.url, reference.name),
+      )
+  const below = attachmentsBelowUserText(text, attachments)
+  for (const attachment of below)
+    if (attachment.kind === 'image')
+      pushThumb(
+        attachment.thumbnailUrl || attachment.url,
+        attachment.label,
+        () => openOperatorLightbox(attachment.url, attachment.label),
+      )
+  const files = below.filter((attachment) => attachment.kind !== 'image')
   return (
-    <p
-      data-testid="operator-user-text"
-      /* 对话框 B-C（owner 09-25）：你的那一句是象牙气泡 —— 与输入条同一种料，
-         右上角收成小圆角；助手那一轮在灰框里。两侧靠材质与左右分。 */
-      className="w-fit max-w-full whitespace-pre-wrap rounded-2xl rounded-tr-sm bg-surface-composer px-3 py-2 text-sm leading-relaxed text-surface-composer-foreground"
-    >
-      {node}
-      {trailing.length ? (
-        <span className="mt-1 flex flex-wrap gap-1">
-          {trailing.map((mention, index) => renderChip(mention, index))}
-        </span>
+    <div className="flex min-w-0 max-w-full flex-col items-end gap-1.5">
+      {thumbs.length ? (
+        <div
+          data-testid="operator-user-thumbs"
+          className="flex flex-wrap justify-end gap-1.5"
+        >
+          {thumbs.map(({ key, url, name, onOpen }) => (
+            <UserThumb key={key} url={url} name={name} onOpen={onOpen} />
+          ))}
+        </div>
       ) : null}
-    </p>
+      <p
+        data-testid="operator-user-text"
+        /* 对话框 B-C（owner 09-25）：你的那一句是象牙气泡 —— 与输入条同一种料，
+           右上角收成小圆角。 */
+        className="w-fit max-w-full whitespace-pre-wrap rounded-2xl rounded-tr-sm bg-surface-composer px-3 py-2 text-md leading-reading text-surface-composer-foreground"
+      >
+        {node}
+        {trailing.length ? (
+          <span className="mt-1 flex flex-wrap gap-1">
+            {trailing.map((mention, index) => renderChip(mention, index))}
+          </span>
+        ) : null}
+      </p>
+      {files.length ? (
+        <div className="flex flex-wrap justify-end gap-1">
+          {files.map((attachment) => (
+            <span
+              key={attachment.id}
+              className="inline-flex h-7 max-w-full items-center gap-1.5 rounded-lg border border-border bg-muted/50 px-2 text-2sm text-muted-foreground"
+            >
+              {attachment.thumbnailUrl ? (
+                <Image
+                  src={attachment.thumbnailUrl}
+                  alt=""
+                  width={40}
+                  height={40}
+                  unoptimized
+                  className="size-5 shrink-0 rounded object-cover"
+                />
+              ) : (
+                <FileText className="size-4 shrink-0" aria-hidden />
+              )}
+              <span className="min-w-0 truncate">{attachment.label}</span>
+            </span>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+/** 气泡上方那一格 48px 缩略图：名字只在悬停 / 读屏里，点一下放大。 */
+function UserThumb({
+  url,
+  name,
+  onOpen,
+}: {
+  url: string
+  name: string
+  onOpen: () => void
+}) {
+  const [broken, setBroken] = useState(false)
+  return (
+    <button
+      type="button"
+      title={name}
+      onClick={onOpen}
+      className="size-12 shrink-0 overflow-hidden rounded-lg border border-border bg-muted transition-transform duration-fast ease-standard hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none"
+    >
+      {broken ? null : (
+        <Image
+          src={url}
+          alt={name}
+          width={96}
+          height={96}
+          unoptimized
+          onError={() => setBroken(true)}
+          className="size-full object-cover"
+        />
+      )}
+    </button>
   )
 }
 

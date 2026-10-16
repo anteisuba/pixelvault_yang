@@ -31,6 +31,7 @@
 5. **字号只走下面这张表**，⛔ 不写 `text-[13px]` 一类 arbitrary（Hard Rule 5），⛔ 不为同一个值再起第二个名字。更大的只在 `font-display` 槽里出现。
 6. **字重**：正文 400 · 强调/按钮 500 · 小标题 600 · 700 只在 `font-display`。CJK 不用 700 以上。
 7. **行高**：正文 `leading-normal`(1.5)，CJK 段落 `leading-relaxed`(1.625)，标题 `leading-tight`。
+8. **助手面板例外（owner 2026-10-16，P4 第 9 项）**：面板根挂 `assistant-type`，zh 下 CJK 那一位换成系统字优先（PingFang SC → Hiragino Sans GB → Microsoft YaHei → Noto Sans SC），拉丁仍 Geist 打头、ja 不变；正文与输入框 `text-md leading-reading`（15px · 1.7）。⛔ 别处照抄这一档，要扩到全站先问 owner。
 
 **字号档 → 用途（2026-09-20 收口，进度表 32 ③；真值 SoT = `src/app/globals.css`）**
 

@@ -347,9 +347,12 @@ describe('StudioOperatorHeader', () => {
    * 右上收成**一颗 ⋯**（D7b ④）：并排三颗图标（历史 · 设置 · 收起）全部退场，
    * 菜单两项 —— 设置 · 隐身。收起键 09-26 试过又撤回（收起只走头像）。
    */
-  it('右上只有一颗 ⋯（32px 档），菜单两项：设置 · 隐身', () => {
+  it('右上只有一颗 ⋯（28px 档，静止无框），菜单两项：设置 · 隐身', () => {
     const { onOpenAssistantSettings } = renderHeader()
-    expect(screen.getByTestId('operator-more').className).toContain('size-8')
+    expect(screen.getByTestId('operator-more').className).toContain('size-7')
+    expect(screen.getByTestId('operator-more').className).not.toContain(
+      'border',
+    )
     // ⛔ 并排那三颗不存在了。
     expect(screen.queryByTestId('operator-history-button')).toBeNull()
     expect(screen.queryByTestId('operator-collapse')).toBeNull()

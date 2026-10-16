@@ -138,7 +138,6 @@ import { QuickSetupDialog } from '@/components/business/studio-shared/setup/Quic
 import {
   StudioOperatorMessageBody,
   StudioOperatorUserText,
-  attachmentsBelowUserText,
 } from '@/components/business/studio/assistant-operator/StudioOperatorMessageBody'
 import {
   toOperatorAnswerSources,
@@ -1999,33 +1998,6 @@ export function StudioOperatorPanel({
                 isMentionMissing={isMentionMissing}
               />,
             )}
-            {attachmentsBelowUserText(entry.text, entry.attachments).length ? (
-              <div className="mt-1 flex flex-wrap gap-1">
-                {attachmentsBelowUserText(entry.text, entry.attachments).map(
-                  (attachment) => (
-                    <span
-                      key={attachment.id}
-                      className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-2sm text-primary"
-                    >
-                      {(attachment.thumbnailUrl ||
-                        attachment.kind === 'image') && (
-                        <Image
-                          src={attachment.thumbnailUrl || attachment.url}
-                          alt={attachment.label}
-                          width={48}
-                          height={48}
-                          unoptimized
-                          className="size-12 shrink-0 rounded object-cover"
-                        />
-                      )}
-                      <span className="min-w-0 break-words">
-                        {attachment.label}
-                      </span>
-                    </span>
-                  ),
-                )}
-              </div>
-            ) : null}
           </StudioOperatorTimelineRow>
         )
       /**
@@ -2726,9 +2698,10 @@ export function StudioOperatorPanel({
                   {older.length > 0 ? (
                     <details
                       data-testid="operator-history-older"
-                      className="min-w-0"
+                      className="flex min-w-0 flex-col"
                     >
-                      <summary className="cursor-pointer list-none py-1 text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+                      {/* P4 第 7 项：居中一颗小按钮（owner 2026-10-16）。 */}
+                      <summary className="mx-auto flex h-7 w-fit cursor-pointer list-none items-center rounded-full border border-border px-3 text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
                         {t('history.earlierRounds', { count: historyCutoff })}
                       </summary>
                       <StudioOperatorTurns
@@ -3126,7 +3099,7 @@ export function StudioOperatorPanel({
                            文案差异，⛔ 别把它也做成四套输入区。 */
                     operatorHost.face.inputPlaceholder
             }
-            className="max-h-40 min-h-9 w-full resize-none overflow-y-auto overscroll-contain bg-transparent px-1 py-1 text-sm outline-none placeholder:text-muted-foreground/70"
+            className="max-h-40 min-h-9 w-full resize-none overflow-y-auto overscroll-contain bg-transparent px-1 py-1 text-md leading-reading outline-none placeholder:text-muted-foreground/70"
           />
           <div
             data-testid="operator-toolbar"

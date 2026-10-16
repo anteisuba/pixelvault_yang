@@ -12,10 +12,14 @@ import type { AssistantV3Transcript } from '@/types/assistant-v3'
 
 vi.mock('server-only', () => ({}))
 
-const { fetchAsBuffer, recordLedgerStep } = vi.hoisted(() => ({
+const { fetchAsBuffer, recordLedgerStep, queryRaw } = vi.hoisted(() => ({
   fetchAsBuffer: vi.fn(),
   recordLedgerStep: vi.fn(),
+  /** 查自家作品配方那条裸 SQL：默认一张都不是自家做的。 */
+  queryRaw: vi.fn(async (): Promise<unknown[]> => []),
 }))
+
+vi.mock('@/lib/db', () => ({ db: { $queryRaw: queryRaw } }))
 
 vi.mock('@/services/kernel/assistant-operator.service', () => ({
   recordLedgerStep,
@@ -36,12 +40,15 @@ vi.mock('@/services/storage/r2', () => ({
     buffer: Buffer,
     formats: ReadonlySet<string>,
   ) => {
-    const format = buffer.toString().split(':')[0] ?? ''
+    // 真的 PNG 字节（带文本块的那几张）按文件头认。
+    const format =
+      buffer[0] === 0x89 ? 'png' : (buffer.toString().split(':')[0] ?? '')
     if (!formats.has(format)) throw new Error('unsupported image')
     return { format, mimeType: `image/${format}`, width: 512, height: 768 }
   },
 }))
 
+import { png, tEXt } from '@/test/png-fixture'
 import type { V3Context } from './assistant-v3-steps.service'
 import {
   createPictureCache,
@@ -55,6 +62,8 @@ import { createClipCache } from './assistant-v3-watch.service'
 
 /** 地址 → 格式；没登记的地址下不来。 */
 const served = new Map<string, string>()
+/** 地址 → 真的 PNG 字节（文件里写着配方的那几张）。 */
+const bytesServed = new Map<string, Uint8Array>()
 /** 地址 → 片子多大（真的 mp4 文件头）；没登记的下不来。 */
 const clipsServed = new Map<string, number>()
 
@@ -107,6 +116,9 @@ async function run(
 describe('v3 look · Denia 自己看', () => {
   beforeEach(() => {
     served.clear()
+    bytesServed.clear()
+    queryRaw.mockReset()
+    queryRaw.mockResolvedValue([])
     recordLedgerStep.mockReset()
     fetchAsBuffer.mockReset()
     clipsServed.clear()
@@ -126,6 +138,9 @@ describe('v3 look · Denia 自己看', () => {
             mimeType: 'video/mp4',
           }
         }
+        const pngBytes = bytesServed.get(url)
+        if (pngBytes)
+          return { buffer: Buffer.from(pngBytes), mimeType: 'image/png' }
         const format = served.get(url)
         if (!format) throw new Error('unreachable')
         return { buffer: Buffer.from(`${format}:${url}`), mimeType: 'image/*' }
@@ -209,7 +224,7 @@ describe('v3 look · Denia 自己看', () => {
     expect(events[0]).toMatchObject({ step: { status: 'error' } })
   })
 
-  it('所选模型看不了图：只回一句换模型，⛔ 不下图、不借别家', async () => {
+  it('所选模型看不了图、图也没带配方：只回一句换模型，⛔ 不附图、不借别家', async () => {
     const { events, outcome } = await run(
       executeV3Look(context({ seesImages: false }), {
         targets: [picture('harry')],
@@ -218,15 +233,86 @@ describe('v3 look · Denia 自己看', () => {
       }),
     )
     expect(events).toEqual([])
-    expect(fetchAsBuffer).not.toHaveBeenCalled()
     expect(outcome).toMatchObject({
       kind: 'result',
       error: true,
       failureKey: 'look:noVision',
     })
+    expect(outcome).not.toHaveProperty('images')
     expect((outcome as { output: string }).output).toContain(
       'cannot see pictures, and no other provider is used in its place',
     )
+  })
+
+  it('⭐ 看不了图，但文件里写着配方：配方照样给（是字），⛔ 仍不附图', async () => {
+    const url = 'https://cdn.test/a1111.png'
+    bytesServed.set(
+      url,
+      png(
+        tEXt('parameters', '1girl, rain\nNegative prompt: lowres\nSteps: 28'),
+      ),
+    )
+    const { events, outcome } = await run(
+      executeV3Look(context({ seesImages: false }), {
+        targets: [{ url, label: 'rain' }],
+        notes: [],
+        question: '反推',
+      }),
+    )
+    expect(events).toEqual([])
+    expect(outcome).toMatchObject({ kind: 'result', error: false })
+    expect(outcome).not.toHaveProperty('images')
+    const output = (outcome as { output: string }).output
+    expect(output).toContain('cannot see pictures')
+    expect(output).toContain(
+      '「rain」 — saved inside the file by the tool that made it:\nparameters: 1girl, rain',
+    )
+  })
+
+  it('⭐ 看的图带着配方：文件里写的与自家作品存的都随结果给', async () => {
+    const own = picture('own')
+    const url = 'https://cdn.test/nai.png'
+    bytesServed.set(url, png(tEXt('Software', 'NovelAI')))
+    queryRaw.mockResolvedValue([
+      {
+        url: own.url,
+        thumbnailUrl: null,
+        prompt: 'silver hair, rain',
+        negativePrompt: null,
+        model: 'gemini-3-image',
+        width: 832,
+        height: 1216,
+        seed: '42',
+        advancedParams: { steps: 30 },
+      },
+    ])
+    const { outcome } = await run(
+      executeV3Look(context(), {
+        targets: [own, { url, label: 'nai' }],
+        notes: [],
+        question: 'how was it made?',
+      }),
+    )
+    const output = (outcome as { output: string }).output
+    expect(output).toContain(
+      "「own」 — made here, the creator's own work:\nsilver hair, rain\nSteps: 30, Seed: 42, Size: 832x1216, Model: gemini-3-image",
+    )
+    expect(output).toContain(
+      '「nai」 — saved inside the file by the tool that made it:\nSoftware: NovelAI',
+    )
+  })
+
+  it('板子上已经在眼前的图⛔ 不再查一遍配方（随板子给过了）', async () => {
+    const pointed = picture('door')
+    await run(
+      executeV3Look(
+        context({
+          transcript: [{ type: 'board', text: 'BOARD', images: [pointed] }],
+        }),
+        { targets: [pointed], notes: [], question: 'what is it?' },
+      ),
+    )
+    expect(queryRaw).not.toHaveBeenCalled()
   })
 
   it('已经附在这一轮那句话里的图⛔ 不再附一遍，只指给模型看', async () => {

@@ -170,7 +170,29 @@ export const MOBILE_NAV_RETURN_STORAGE_KEY = 'pv:mobile-nav:return'
 /** 长按 ＋ 多久算长按（直接进上次的工具）。 */
 export const MOBILE_CREATE_LONG_PRESS_MS = 450
 
-export const MOBILE_TABS = pickGoItems(MOBILE_TAB_IDS)
+/**
+ * 手机「我的」那一格进的是 `/settings` 一级列表（iOS 稿 owner 2026-10-16：设置页取消，
+ * 内容全部摊在「我的」上），主页与提示词都从那张列表点进去，所以连它们一起算激活。
+ * 桌面侧栏那一项照旧去 `/u/me`。
+ */
+const MOBILE_ME_TAB_PATHS = [
+  ROUTES.SETTINGS,
+  ROUTES.MY_PROFILE,
+  ROUTES.PROMPTS,
+] as const
+
+export const MOBILE_TABS: readonly ShellNavItem[] = pickGoItems(
+  MOBILE_TAB_IDS,
+).map((item) =>
+  item.id === 'profile'
+    ? {
+        ...item,
+        href: ROUTES.SETTINGS,
+        activePaths: MOBILE_ME_TAB_PATHS,
+        match: 'prefix',
+      }
+    : item,
+)
 
 /**
  * 工作台路由（`/studio/**`）：手机上底栏收起，换成顶上一条「← · 图片 ▾」。

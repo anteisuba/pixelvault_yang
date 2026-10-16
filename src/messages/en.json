@@ -648,6 +648,10 @@
     "tabs": {
       "label": "Main navigation",
       "profile": "Me"
+    },
+    "me": {
+      "prompts": "Prompts",
+      "profileHint": "Profile & details"
     }
   },
   "MobileViewer": {
@@ -8954,7 +8958,7 @@
     "title": "Settings",
     "description": "API keys, usage, preferences and assistant settings.",
     "back": "Back",
-    "backToList": "Back to settings",
+    "backToList": "Back to Me",
     "signOut": "Sign out",
     "signingOut": "Signing out",
     "sections": {

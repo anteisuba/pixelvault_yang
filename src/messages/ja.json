@@ -648,6 +648,10 @@
     "tabs": {
       "label": "メインナビゲーション",
       "profile": "マイ"
+    },
+    "me": {
+      "prompts": "プロンプト",
+      "profileHint": "プロフィールと情報"
     }
   },
   "MobileViewer": {
@@ -8954,7 +8958,7 @@
     "title": "設定",
     "description": "API キー・使用量・環境設定・アシスタントの設定。",
     "back": "戻る",
-    "backToList": "設定に戻る",
+    "backToList": "マイに戻る",
     "signOut": "ログアウト",
     "signingOut": "ログアウト中",
     "sections": {

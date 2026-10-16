@@ -16,6 +16,7 @@ import { useLocalPreference } from '@/hooks/use-local-preference'
 import { useMyProfile } from '@/hooks/use-my-profile'
 import { updateProfileAPI } from '@/lib/api-client'
 import { toastError } from '@/lib/toast'
+import { cn } from '@/lib/utils'
 
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
 import { BlurSwap } from '@/components/ui/blur-swap'
@@ -46,30 +47,42 @@ export function SettingsPreferencesSection() {
   return (
     <section>
       <h2 className="text-xl font-semibold">{t('sections.preferences')}</h2>
-      <div className="mt-3 flex flex-col">
-        <PreferenceRow label={t('preferences.language')}>
-          <LocaleSwitcher size="compact" />
-        </PreferenceRow>
-        <PreferenceRow label={t('preferences.displayName')}>
-          <DisplayNameField />
-        </PreferenceRow>
-        <PreferenceRow label={t('preferences.defaultWorkbench')}>
-          <DefaultWorkbenchField />
-        </PreferenceRow>
-        <PreferenceRow label={t('preferences.notifyOnComplete')}>
-          <BooleanPreference
-            storageKey={SETTINGS_PREFERENCE_KEYS.notifyOnComplete}
-            ariaLabel={t('preferences.notifyOnComplete')}
-          />
-        </PreferenceRow>
-        <PreferenceRow label={t('preferences.reduceMotion')}>
-          <BooleanPreference
-            storageKey={SETTINGS_PREFERENCE_KEYS.reduceMotion}
-            ariaLabel={t('preferences.reduceMotion')}
-          />
-        </PreferenceRow>
-      </div>
+      <SettingsPreferenceRows className="mt-3" />
     </section>
+  )
+}
+
+/**
+ * 偏好那几行本身 —— 桌面分区页与手机「我的」（一级列表里就地摊开，iOS 稿
+ * owner 2026-10-16）共用这一份，⛔ 不另抄一套控件。
+ */
+export function SettingsPreferenceRows({ className }: { className?: string }) {
+  const t = useTranslations('Settings')
+
+  return (
+    <div className={cn('flex flex-col', className)}>
+      <PreferenceRow label={t('preferences.language')}>
+        <LocaleSwitcher size="compact" />
+      </PreferenceRow>
+      <PreferenceRow label={t('preferences.displayName')}>
+        <DisplayNameField />
+      </PreferenceRow>
+      <PreferenceRow label={t('preferences.defaultWorkbench')}>
+        <DefaultWorkbenchField />
+      </PreferenceRow>
+      <PreferenceRow label={t('preferences.notifyOnComplete')}>
+        <BooleanPreference
+          storageKey={SETTINGS_PREFERENCE_KEYS.notifyOnComplete}
+          ariaLabel={t('preferences.notifyOnComplete')}
+        />
+      </PreferenceRow>
+      <PreferenceRow label={t('preferences.reduceMotion')}>
+        <BooleanPreference
+          storageKey={SETTINGS_PREFERENCE_KEYS.reduceMotion}
+          ariaLabel={t('preferences.reduceMotion')}
+        />
+      </PreferenceRow>
+    </div>
   )
 }
 

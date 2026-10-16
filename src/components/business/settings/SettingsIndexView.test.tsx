@@ -1,8 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { SETTINGS_SECTIONS } from '@/constants/settings'
-
 import { SettingsIndexView } from './SettingsIndexView'
 
 vi.mock('next-intl', () => ({
@@ -35,6 +33,16 @@ vi.mock('@/i18n/navigation', () => ({
   ),
 }))
 
+vi.mock('@/hooks/use-my-profile', () => ({
+  useMyProfile: () => ({
+    profile: { username: 'yining', displayName: 'YINIG', avatarUrl: null },
+  }),
+}))
+
+vi.mock('@/components/business/settings/SettingsPreferencesSection', () => ({
+  SettingsPreferenceRows: () => <div data-testid="preference-rows" />,
+}))
+
 const mockUseProviderKeyRows = vi.hoisted(() => vi.fn())
 vi.mock('@/hooks/use-provider-key-rows', () => ({
   useProviderKeyRows: mockUseProviderKeyRows,
@@ -53,8 +61,26 @@ describe('SettingsIndexView (mobile first level)', () => {
     render(<SettingsIndexView />)
 
     expect(screen.queryByText('Settings:keys.invalidSummary')).toBeNull()
-    expect(screen.getAllByRole('listitem')).toHaveLength(
-      SETTINGS_SECTIONS.length,
+  })
+
+  it('is the phone 我的 hub: profile, prompts, sections, preferences inline, sign out last', () => {
+    mockUseProviderKeyRows.mockReturnValue({ invalidKeyCount: 0 })
+    const { container } = render(<SettingsIndexView />)
+
+    const hrefs = Array.from(container.querySelectorAll('a')).map((a) =>
+      a.getAttribute('href'),
     )
+    expect(hrefs).toEqual([
+      '/u/me',
+      '/prompts',
+      '/settings/keys',
+      '/settings/usage',
+      '/settings/assistant',
+      '/settings/connections',
+    ])
+    expect(screen.getByText('YINIG')).toBeTruthy()
+    expect(screen.getByTestId('preference-rows')).toBeTruthy()
+    const buttons = screen.getAllByRole('button')
+    expect(buttons.at(-1)?.textContent).toContain('Settings:signOut')
   })
 })

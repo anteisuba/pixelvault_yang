@@ -648,6 +648,10 @@
     "tabs": {
       "label": "主导航",
       "profile": "我的"
+    },
+    "me": {
+      "prompts": "提示词",
+      "profileHint": "主页与资料"
     }
   },
   "MobileViewer": {
@@ -8954,7 +8958,7 @@
     "title": "设置",
     "description": "API key、用量、偏好与助手设置。",
     "back": "返回",
-    "backToList": "回到设置",
+    "backToList": "回到我的",
     "signOut": "退出登录",
     "signingOut": "正在退出",
     "sections": {

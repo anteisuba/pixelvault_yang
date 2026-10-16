@@ -57,7 +57,7 @@ describe('MobileShell 底栏（P3 · v10）', () => {
     const hrefs = [...bar.querySelectorAll('a')].map((a) =>
       a.getAttribute('href'),
     )
-    expect(hrefs).toEqual(['/assets', '/gallery', '/cards', '/u/me'])
+    expect(hrefs).toEqual(['/assets', '/gallery', '/cards', '/settings'])
     expect(bar).toContainElement(createButton())
     // 窄格子里「我的主页」叫「我的」。
     expect(bar.textContent).toContain('MobileNav:tabs.profile')

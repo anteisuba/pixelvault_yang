@@ -1035,7 +1035,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
       className="relative"
       onContextMenu={(event) => {
         event.preventDefault()
-        setMenu({ x: event.nativeEvent.offsetX, y: event.nativeEvent.offsetY })
+        setMenu({ x: event.clientX, y: event.clientY })
       }}
       onDragOver={(event) => {
         event.preventDefault()

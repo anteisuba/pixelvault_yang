@@ -94,3 +94,13 @@ describe('NodeV4ContextMenu · 重跑下游', () => {
     expect(takeCanvasRerunDownstream()).toBeNull()
   })
 })
+
+describe('NodeV4ContextMenu · 层级', () => {
+  it('portal 到 body 并 fixed 定位，⛔ 不留在卡里被提示词输入框盖住', () => {
+    renderMenu([])
+    const menu = document.querySelector<HTMLElement>('[role="menu"]')
+    expect(menu?.parentElement).toBe(document.body)
+    expect(menu?.className).toContain('fixed')
+    expect(menu?.className).toContain('z-canvas-transient')
+  })
+})

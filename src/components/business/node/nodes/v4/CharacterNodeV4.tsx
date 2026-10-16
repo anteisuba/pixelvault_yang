@@ -281,8 +281,8 @@ export function CharacterNodeV4({ id, data, selected }: NodeProps) {
         onContextMenu={(event) => {
           event.preventDefault()
           setMenu({
-            x: event.nativeEvent.offsetX,
-            y: event.nativeEvent.offsetY,
+            x: event.clientX,
+            y: event.clientY,
           })
         }}
         data-character-node

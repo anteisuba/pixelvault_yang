@@ -60,7 +60,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
         │       ├── StudioOperatorSpecLine (输入框上方的规格行：点开**就地**调模型 / 比例 / 张数 / 清晰度，与确认卡同一份 `generationControls`（`lib/studio-operator-knobs.ts`）；空态让位给起手 chip。D12 B6 / P1 / P7)
         │       ├── 输入区（D12 T-A）：**一个边框** = 文字 + 工具行（裸图标 上传 · 素材库 · `@`（`operator-mention-button`）· 助手模型灰字 · 自动生成开关 · 圆形发送 / 停止）。⛔ 没有「+」：提及 = 打 `@` 或点 `@` 键，指定来源在话里说（`research.onlySources`）；上下文卡只剩助手提议那张确认卡（设置里那一页 09-26 已删，09-25 定整体去掉）
         │       ├── StudioOperatorHistoryItem (会话历史条目)
-        │       ├── StudioOperatorModeSwitch (头部右侧「工作 / 聊天」切换：聊天弹角色列表回到和她最近那段或新开，工作回最近工作会话；模式仍跟会话走。v2 §7.9)
+        │       ├── StudioOperatorModeSwitch (头部右侧「工作 / 聊天」切换：同一段对话里换模式、记录不变，切的地方时间线留细线 `StudioOperatorChatMark`；聊过谁就接着聊，没聊过先选。v2 §7.9)
         │       ├── StudioOperatorChatPill (头部「和 X 聊」胶囊：点开写「你在故事里是谁」，关浮层才存到角色卡上，按角色记。v2 §7.9)
         │       ├── StudioOperatorChatLine (聊天会话里一条对白底下那排小动作：改 · 删（再点确认）· 她最后那段「重新生成」· 「‹ 2 / 3 ›」；按条目对象本身改，⛔ 按 id。工作会话不套。v2 §7.9)
         │       ├── StudioOperatorMessageBody (助手正文那一格：无气泡 / 长回话折首句 / `detail` 折成「为什么」 / 空正文时的「正在想…」行（`StudioOperatorThinkingRow`：<1 s 不露字 → 呼吸点 + 扫光 + 秒数，>6 s 慢提示，接力跳写「正在画布上落地…」；第一个字到了正文上方「想了 N 秒」。§9.1） / **句尾 `[n]` 角标**（56b 切片 1）· **`#n` 胶囊**（`findRefs`，搜索期第三片）· **末尾光标 + `motion-reduce` 扣住整段**（切片 3）)

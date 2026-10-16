@@ -1376,6 +1376,35 @@ describe('v3 内核', () => {
     expect(events.at(-2)).toMatchObject({ type: 'confirm' })
   })
 
+  it('look：图片卡自带地址时按它取 —— 排在 16 张参考名单之外的新图也看得到', async () => {
+    // 参考名单里没有这两张（画布图多、新出的排在 16 张之后），卡上自带地址。
+    preparedOnce(OPENAI, [])
+    served.set(HARRY_PNG, 'png')
+    served.set(GOYLE_PNG, 'png')
+    const board = canvas(true)
+    const shot = board.shots[0]
+    if (shot?.expanded)
+      shot.nodes = shot.nodes.map((node) =>
+        node.id === HARRY
+          ? { ...node, imageUrl: HARRY_PNG, referenceImageIndex: 20 }
+          : node.id === GOYLE
+            ? { ...node, imageUrl: GOYLE_PNG }
+            : node,
+      )
+    const mock = script(toolTurn(lookBoth), textTurn('左边那张是哈利。'))
+    await collect(
+      runAssistantV3(
+        'clerk-1',
+        request({
+          snapshot: { prompt: '', canvas: board, availableModels: [] },
+        } as Partial<AssistantOperatorRequest>),
+      ),
+    )
+    const next = mock.doStreamCalls[1]!
+    expect(attachedPictures(next)).toEqual([HARRY_PNG, GOYLE_PNG])
+    expect(promptText(next)).not.toContain('no picture of it reached you')
+  })
+
   it('look：图交到主模型眼前，只附给紧跟着的那一步；⛔ 不另起看图子调用', async () => {
     const run = preparedOnce(OPENAI, [HARRY_PNG, GOYLE_PNG])
     served.set(HARRY_PNG, 'png')

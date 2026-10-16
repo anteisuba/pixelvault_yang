@@ -1071,7 +1071,47 @@ export function operatorChatReply(
   const reply = lines
     .slice(lastUser + 1)
     .findLast((item) => item.kind === 'message' && item.text.trim() !== '')
-  return reply && reply.kind === 'message' ? reply : null
+  return reply &&
+    reply.kind === 'message' &&
+    operatorChatModeLines(current).has(reply)
+    ? reply
+    : null
+}
+
+/**
+ * 同一段对话里哪些话是**聊天模式**下说的（owner 2026-10-16：工作 / 聊天在一段里切）——
+ * 只有这些对白套「改 / 删 / 重新生成」；工作那几轮照旧。按切模式标记从头走一遍：
+ * 第一条标记是「回到工作」说明开头在聊天，否则开头在工作；一条标记都没有就看现在的模式。
+ */
+export function operatorChatModeLines(
+  current: Pick<StudioOperatorState, 'chatCharacter' | 'history' | 'entries'>,
+): ReadonlySet<StudioOperatorChatLine> {
+  const lines: (StudioOperatorThreadEntry | StudioOperatorHistoryEntry)[] = [
+    ...current.history,
+    ...current.entries,
+  ]
+  const firstMark = lines.find((item) => item.kind === 'chatMark')
+  let chat = firstMark
+    ? !chatMarkTarget(firstMark)
+    : current.chatCharacter !== null
+  const chatLines = new Set<StudioOperatorChatLine>()
+  for (const line of lines) {
+    if (line.kind === 'chatMark') chat = chatMarkTarget(line)
+    else if (chat && (line.kind === 'user' || line.kind === 'message'))
+      chatLines.add(line)
+  }
+  return chatLines
+}
+
+/** 一条切模式标记切到的是不是聊天（实时条目带 `character`，历史条目带 `characterId`）。 */
+function chatMarkTarget(
+  mark: (StudioOperatorThreadEntry | StudioOperatorHistoryEntry) & {
+    kind: 'chatMark'
+  },
+): boolean {
+  return 'character' in mark
+    ? mark.character !== null
+    : Boolean(mark.characterId)
 }
 
 /** 抽帧那一段的开关（第二期）—— 见 `capturingFrames` 头注。 */
@@ -1608,20 +1648,36 @@ export function switchOperatorChatMode(
     ...state,
     chatCharacter: character,
     regeneration: null,
-    entries: empty
-      ? state.entries
-      : [
-          ...state.entries,
-          {
-            kind: 'chatMark',
-            id: nextOperatorEntryId('chat-mark'),
-            character: character
-              ? { id: character.id, name: character.name }
-              : null,
-          },
-        ],
+    entries: empty ? state.entries : withChatMark(state.entries, character),
   })
   return true
+}
+
+/**
+ * 落一条切模式标记。⭐ 中间一句话都没说的连着切只留一条（真机：来回点叠出一串细线）：
+ * 上一条就是标记时替换它；切回了那条标记之前的模式就整条拿掉。
+ */
+function withChatMark(
+  entries: readonly StudioOperatorThreadEntry[],
+  character: StudioOperatorChatCharacter | null,
+): readonly StudioOperatorThreadEntry[] {
+  const target = character ? { id: character.id, name: character.name } : null
+  const last = entries.at(-1)
+  if (last?.kind === 'chatMark') {
+    const rest = entries.slice(0, -1)
+    if ((last.previous?.id ?? null) === (target?.id ?? null)) return rest
+    return [...rest, { ...last, character: target }]
+  }
+  const current = state.chatCharacter
+  return [
+    ...entries,
+    {
+      kind: 'chatMark',
+      id: nextOperatorEntryId('chat-mark'),
+      character: target,
+      previous: current ? { id: current.id, name: current.name } : null,
+    },
+  ]
 }
 
 /**

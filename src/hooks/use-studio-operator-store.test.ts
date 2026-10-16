@@ -1075,6 +1075,41 @@ describe('聊天会话 · 重新生成 / 改 / 删（附录L 第二片）', () =
     )
   })
 
+  it('同一段里切过模式：只有聊天那几轮算对白，工作那轮不给重新生成', () => {
+    act(() => {
+      store.resetOperatorThread()
+      store.appendOperatorEntry({
+        kind: 'user',
+        id: 'u-1',
+        text: '帮我修图',
+        attachments: [],
+      })
+      store.finalizeOperatorMessage('m-1', '好，只补手。')
+    })
+    act(() => {
+      store.switchOperatorChatMode(CHARACTER)
+    })
+    const state = store.getOperatorState()
+    // 切到聊天后还没说话：最后那段是工作里说的，不能当她的对白重新生成。
+    expect(store.operatorChatReply(state)).toBeNull()
+    expect(store.operatorChatModeLines(state).size).toBe(0)
+
+    act(() => {
+      store.appendOperatorEntry({
+        kind: 'user',
+        id: 'u-2',
+        text: '穿上看看？',
+        attachments: [],
+      })
+      store.finalizeOperatorMessage('m-2', '领口有点紧喵。')
+    })
+    const after = store.getOperatorState()
+    expect(
+      [...store.operatorChatModeLines(after)].map((line) => line.id),
+    ).toEqual(['u-2', 'm-2'])
+    expect(store.operatorChatReply(after)?.id).toBe('m-2')
+  })
+
   it('只有开场白时没有可重新生成的', () => {
     act(() => {
       store.resetOperatorThread(undefined, {

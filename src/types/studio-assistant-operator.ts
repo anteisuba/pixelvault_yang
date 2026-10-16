@@ -183,6 +183,8 @@ export interface StudioOperatorChatMarkEntry {
   kind: 'chatMark'
   id: string
   character: { id: string; name: string } | null
+  /** 切之前是什么模式（只在本次会话里用：连着切回原样时把这条标记拿掉，不存）。 */
+  previous: { id: string; name: string } | null
 }
 
 /** 切域标记（拍板 8：切域换工具不断会话）。 */

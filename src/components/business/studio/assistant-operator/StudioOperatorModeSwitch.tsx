@@ -48,14 +48,18 @@ export function StudioOperatorModeSwitch({ disabled }: { disabled: boolean }) {
   const [pickerOpen, setPickerOpen] = useState(false)
   // 角色列表一进面板就取：接着和她聊时要卡上的「你在故事里是谁」，切模式标记里只有名字。
   const chatCharacters = useChatCharacters(true)
+  // 刚才和谁聊（中间没说话就切回去时标记会被拿掉，这里还记得是她）。
+  const [lastPicked, setLastPicked] =
+    useState<StudioOperatorChatCharacter | null>(null)
   const inChat = state.chatCharacter !== null
-  const remembered = lastChatCharacter(state)
+  const remembered = lastChatCharacter(state) ?? lastPicked
 
   const switchTo = (character: StudioOperatorChatCharacter) => {
     const full = chatCharacters.characters.find(
       (chat) => chat.character.id === character.id,
     )?.character
-    switchOperatorChatMode(full ?? character)
+    if (switchOperatorChatMode(full ?? character))
+      setLastPicked(full ?? character)
   }
 
   return (
@@ -134,7 +138,7 @@ export function StudioOperatorModeSwitch({ disabled }: { disabled: boolean }) {
                       aria-current={current ? 'true' : undefined}
                       onClick={() => {
                         setPickerOpen(false)
-                        switchOperatorChatMode(chat.character)
+                        switchTo(chat.character)
                       }}
                       className={cn(
                         'flex w-full min-w-0 items-center rounded-md px-2 py-1.5 text-left text-sm transition-colors duration-fast hover:bg-surface-fill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring coarse:min-h-11',

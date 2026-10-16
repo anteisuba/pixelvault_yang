@@ -190,6 +190,7 @@ import { toOperatorAttachment } from '@/hooks/use-studio-operator-upload'
 import { useStudioOperatorRevert } from '@/hooks/use-studio-operator-revert'
 import {
   getOperatorState,
+  operatorChatModeLines,
   operatorChatReply,
   setOperatorAutoGenerate,
   setOperatorOutOfSteps,
@@ -477,6 +478,16 @@ export function StudioOperatorPanel({
   const chatReply = useMemo(
     () =>
       operatorChatReply({
+        chatCharacter,
+        history: allHistoryEntries,
+        entries: allEntries,
+      }),
+    [chatCharacter, allHistoryEntries, allEntries],
+  )
+  /** 聊天模式下说的那些对白（同一段对话里切过模式时，工作那几轮不套聊天的小动作）。 */
+  const chatModeLines = useMemo(
+    () =>
+      operatorChatModeLines({
         chatCharacter,
         history: allHistoryEntries,
         entries: allEntries,
@@ -1054,6 +1065,7 @@ export function StudioOperatorPanel({
   ): ReactNode => {
     if (!chatCharacter || (line.kind !== 'user' && line.kind !== 'message'))
       return node
+    if (!chatModeLines.has(line)) return node
     if (
       line.kind === 'message' &&
       (!line.text.trim() || ('streaming' in line && line.streaming))
@@ -2428,6 +2440,7 @@ export function StudioOperatorPanel({
                     key: `h:${index}:${entry.id}`,
                     speaker: historyCardKind(entry.kind).speaker,
                     node: renderHistoryEntry(index),
+                    standalone: entry.kind === 'chatMark',
                   },
                   ...(historyRoundPlacement.byIndex.get(index) ?? []).map(
                     (summaryIndex) => ({
@@ -2596,6 +2609,8 @@ export function StudioOperatorPanel({
                         ? STUDIO_OPERATOR_SPEAKERS.user
                         : STUDIO_OPERATOR_SPEAKERS.assistant,
                     node: renderBlock(first),
+                    standalone:
+                      first.kind === 'entry' && first.entry.kind === 'chatMark',
                   }
                 },
               )

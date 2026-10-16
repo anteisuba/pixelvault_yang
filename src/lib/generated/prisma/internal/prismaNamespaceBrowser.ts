@@ -171,6 +171,7 @@ export const AssistantConversationScalarFieldEnum = {
   title: 'title',
   messages: 'messages',
   rounds: 'rounds',
+  historySummary: 'historySummary',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

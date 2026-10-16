@@ -776,7 +776,8 @@ export type $GenerationLayerPayload<ExtArgs extends runtime.Types.Extensions.Int
     id: string
     generationId: string
     /**
-     * * provider 的 z_index：底图固定 0（不存这张表），图层从 1 起递增，越大越靠上。
+     * *
+     *    * provider 的 z_index：底图固定 0（不存这张表），图层从 1 起递增，越大越靠上。
      */
     zIndex: number
     url: string
@@ -785,7 +786,8 @@ export type $GenerationLayerPayload<ExtArgs extends runtime.Types.Extensions.Int
     width: number
     height: number
     /**
-     * * 模型自己起的标签 / 语义描述；provider 不保证给，所以可空。
+     * *
+     *    * 模型自己起的标签 / 语义描述；provider 不保证给，所以可空。
      */
     name: string | null
     description: string | null

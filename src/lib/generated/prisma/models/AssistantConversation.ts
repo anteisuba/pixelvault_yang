@@ -53,6 +53,7 @@ export type AssistantConversationCountAggregateOutputType = {
   title: number
   messages: number
   rounds: number
+  historySummary: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -87,6 +88,7 @@ export type AssistantConversationCountAggregateInputType = {
   title?: true
   messages?: true
   rounds?: true
+  historySummary?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -172,6 +174,7 @@ export type AssistantConversationGroupByOutputType = {
   title: string | null
   messages: runtime.JsonValue
   rounds: runtime.JsonValue
+  historySummary: runtime.JsonValue | null
   createdAt: Date
   updatedAt: Date
   _count: AssistantConversationCountAggregateOutputType | null
@@ -205,6 +208,7 @@ export type AssistantConversationWhereInput = {
   title?: Prisma.StringNullableFilter<"AssistantConversation"> | string | null
   messages?: Prisma.JsonFilter<"AssistantConversation">
   rounds?: Prisma.JsonFilter<"AssistantConversation">
+  historySummary?: Prisma.JsonNullableFilter<"AssistantConversation">
   createdAt?: Prisma.DateTimeFilter<"AssistantConversation"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AssistantConversation"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -219,6 +223,7 @@ export type AssistantConversationOrderByWithRelationInput = {
   title?: Prisma.SortOrderInput | Prisma.SortOrder
   messages?: Prisma.SortOrder
   rounds?: Prisma.SortOrder
+  historySummary?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
@@ -236,6 +241,7 @@ export type AssistantConversationWhereUniqueInput = Prisma.AtLeast<{
   title?: Prisma.StringNullableFilter<"AssistantConversation"> | string | null
   messages?: Prisma.JsonFilter<"AssistantConversation">
   rounds?: Prisma.JsonFilter<"AssistantConversation">
+  historySummary?: Prisma.JsonNullableFilter<"AssistantConversation">
   createdAt?: Prisma.DateTimeFilter<"AssistantConversation"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AssistantConversation"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -250,6 +256,7 @@ export type AssistantConversationOrderByWithAggregationInput = {
   title?: Prisma.SortOrderInput | Prisma.SortOrder
   messages?: Prisma.SortOrder
   rounds?: Prisma.SortOrder
+  historySummary?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.AssistantConversationCountOrderByAggregateInput
@@ -268,6 +275,7 @@ export type AssistantConversationScalarWhereWithAggregatesInput = {
   title?: Prisma.StringNullableWithAggregatesFilter<"AssistantConversation"> | string | null
   messages?: Prisma.JsonWithAggregatesFilter<"AssistantConversation">
   rounds?: Prisma.JsonWithAggregatesFilter<"AssistantConversation">
+  historySummary?: Prisma.JsonNullableWithAggregatesFilter<"AssistantConversation">
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"AssistantConversation"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"AssistantConversation"> | Date | string
 }
@@ -279,6 +287,7 @@ export type AssistantConversationCreateInput = {
   title?: string | null
   messages: Prisma.JsonNullValueInput | runtime.InputJsonValue
   rounds?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  historySummary?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutAssistantConversationsInput
@@ -293,6 +302,7 @@ export type AssistantConversationUncheckedCreateInput = {
   title?: string | null
   messages: Prisma.JsonNullValueInput | runtime.InputJsonValue
   rounds?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  historySummary?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
   shares?: Prisma.AssistantConversationShareUncheckedCreateNestedManyWithoutConversationInput
@@ -305,6 +315,7 @@ export type AssistantConversationUpdateInput = {
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messages?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   rounds?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  historySummary?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutAssistantConversationsNestedInput
@@ -319,6 +330,7 @@ export type AssistantConversationUncheckedUpdateInput = {
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messages?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   rounds?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  historySummary?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   shares?: Prisma.AssistantConversationShareUncheckedUpdateManyWithoutConversationNestedInput
@@ -332,6 +344,7 @@ export type AssistantConversationCreateManyInput = {
   title?: string | null
   messages: Prisma.JsonNullValueInput | runtime.InputJsonValue
   rounds?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  historySummary?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -343,6 +356,7 @@ export type AssistantConversationUpdateManyMutationInput = {
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messages?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   rounds?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  historySummary?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -355,6 +369,7 @@ export type AssistantConversationUncheckedUpdateManyInput = {
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messages?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   rounds?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  historySummary?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -377,6 +392,7 @@ export type AssistantConversationCountOrderByAggregateInput = {
   title?: Prisma.SortOrder
   messages?: Prisma.SortOrder
   rounds?: Prisma.SortOrder
+  historySummary?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -473,6 +489,7 @@ export type AssistantConversationCreateWithoutUserInput = {
   title?: string | null
   messages: Prisma.JsonNullValueInput | runtime.InputJsonValue
   rounds?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  historySummary?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
   shares?: Prisma.AssistantConversationShareCreateNestedManyWithoutConversationInput
@@ -485,6 +502,7 @@ export type AssistantConversationUncheckedCreateWithoutUserInput = {
   title?: string | null
   messages: Prisma.JsonNullValueInput | runtime.InputJsonValue
   rounds?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  historySummary?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
   shares?: Prisma.AssistantConversationShareUncheckedCreateNestedManyWithoutConversationInput
@@ -527,6 +545,7 @@ export type AssistantConversationScalarWhereInput = {
   title?: Prisma.StringNullableFilter<"AssistantConversation"> | string | null
   messages?: Prisma.JsonFilter<"AssistantConversation">
   rounds?: Prisma.JsonFilter<"AssistantConversation">
+  historySummary?: Prisma.JsonNullableFilter<"AssistantConversation">
   createdAt?: Prisma.DateTimeFilter<"AssistantConversation"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AssistantConversation"> | Date | string
 }
@@ -538,6 +557,7 @@ export type AssistantConversationCreateWithoutSharesInput = {
   title?: string | null
   messages: Prisma.JsonNullValueInput | runtime.InputJsonValue
   rounds?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  historySummary?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutAssistantConversationsInput
@@ -551,6 +571,7 @@ export type AssistantConversationUncheckedCreateWithoutSharesInput = {
   title?: string | null
   messages: Prisma.JsonNullValueInput | runtime.InputJsonValue
   rounds?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  historySummary?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -578,6 +599,7 @@ export type AssistantConversationUpdateWithoutSharesInput = {
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messages?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   rounds?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  historySummary?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutAssistantConversationsNestedInput
@@ -591,6 +613,7 @@ export type AssistantConversationUncheckedUpdateWithoutSharesInput = {
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messages?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   rounds?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  historySummary?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -602,6 +625,7 @@ export type AssistantConversationCreateManyUserInput = {
   title?: string | null
   messages: Prisma.JsonNullValueInput | runtime.InputJsonValue
   rounds?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  historySummary?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -613,6 +637,7 @@ export type AssistantConversationUpdateWithoutUserInput = {
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messages?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   rounds?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  historySummary?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   shares?: Prisma.AssistantConversationShareUpdateManyWithoutConversationNestedInput
@@ -625,6 +650,7 @@ export type AssistantConversationUncheckedUpdateWithoutUserInput = {
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messages?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   rounds?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  historySummary?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   shares?: Prisma.AssistantConversationShareUncheckedUpdateManyWithoutConversationNestedInput
@@ -637,6 +663,7 @@ export type AssistantConversationUncheckedUpdateManyWithoutUserInput = {
   title?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messages?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   rounds?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  historySummary?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -680,6 +707,7 @@ export type AssistantConversationSelect<ExtArgs extends runtime.Types.Extensions
   title?: boolean
   messages?: boolean
   rounds?: boolean
+  historySummary?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -695,6 +723,7 @@ export type AssistantConversationSelectCreateManyAndReturn<ExtArgs extends runti
   title?: boolean
   messages?: boolean
   rounds?: boolean
+  historySummary?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -708,6 +737,7 @@ export type AssistantConversationSelectUpdateManyAndReturn<ExtArgs extends runti
   title?: boolean
   messages?: boolean
   rounds?: boolean
+  historySummary?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -721,11 +751,12 @@ export type AssistantConversationSelectScalar = {
   title?: boolean
   messages?: boolean
   rounds?: boolean
+  historySummary?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type AssistantConversationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "surface" | "projectId" | "title" | "messages" | "rounds" | "createdAt" | "updatedAt", ExtArgs["result"]["assistantConversation"]>
+export type AssistantConversationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "surface" | "projectId" | "title" | "messages" | "rounds" | "historySummary" | "createdAt" | "updatedAt", ExtArgs["result"]["assistantConversation"]>
 export type AssistantConversationInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   shares?: boolean | Prisma.AssistantConversation$sharesArgs<ExtArgs>
@@ -770,6 +801,13 @@ export type $AssistantConversationPayload<ExtArgs extends runtime.Types.Extensio
      * ⚠ 与会话同生共死，所以是同表的一列而不是一张侧表（§7.4 四条判据）。
      */
     rounds: runtime.JsonValue
+    /**
+     * 滑出 v3 历史窗口的那几轮的摘要（P2 第三片，owner 2026-10-15 同意加这一列）：
+     * 最近 `ASSISTANT_V3_HISTORY.summary.keep` 份 `AssistantV3HistorySummary`，最旧的在前。
+     * 只有服务端读写（`assistant-v3-history-store.service.ts`）；⛔ 不进会话接口、分享页与导出
+     * （`toRecord` 按字段挑），前端保存只写 `messages`，碰不到它。
+     */
+    historySummary: runtime.JsonValue | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["assistantConversation"]>
@@ -1204,6 +1242,7 @@ export interface AssistantConversationFieldRefs {
   readonly title: Prisma.FieldRef<"AssistantConversation", 'String'>
   readonly messages: Prisma.FieldRef<"AssistantConversation", 'Json'>
   readonly rounds: Prisma.FieldRef<"AssistantConversation", 'Json'>
+  readonly historySummary: Prisma.FieldRef<"AssistantConversation", 'Json'>
   readonly createdAt: Prisma.FieldRef<"AssistantConversation", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"AssistantConversation", 'DateTime'>
 }

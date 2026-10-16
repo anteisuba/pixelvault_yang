@@ -5,49 +5,12 @@ import {
   mapTavernCard,
   parseTavernCard,
   parseTavernExamples,
-  stripPngTextChunks,
   tavernCardMime,
 } from '@/lib/tavern-card'
-
-const SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
-
-/** 一个 PNG 块（CRC 填 0：解析不校验 CRC）。 */
-function chunk(type: string, data: Uint8Array): number[] {
-  const length = data.length
-  return [
-    (length >>> 24) & 0xff,
-    (length >>> 16) & 0xff,
-    (length >>> 8) & 0xff,
-    length & 0xff,
-    ...Array.from(type, (char) => char.charCodeAt(0)),
-    ...data,
-    0,
-    0,
-    0,
-    0,
-  ]
-}
-
-function textChunk(keyword: string, text: string): number[] {
-  const bytes = new Uint8Array([
-    ...Array.from(keyword, (char) => char.charCodeAt(0)),
-    0,
-    ...Array.from(text, (char) => char.charCodeAt(0)),
-  ])
-  return chunk('tEXt', bytes)
-}
+import { png, tEXt as textChunk } from '@/test/png-fixture'
 
 function base64Json(value: unknown): string {
   return Buffer.from(JSON.stringify(value), 'utf8').toString('base64')
-}
-
-function png(...chunks: number[][]): Uint8Array {
-  return new Uint8Array([
-    ...SIGNATURE,
-    ...chunk('IHDR', new Uint8Array(13)),
-    ...chunks.flat(),
-    ...chunk('IEND', new Uint8Array(0)),
-  ])
 }
 
 const V2_CARD = {
@@ -93,15 +56,6 @@ describe('extractTavernCardJson', () => {
   it('不是 PNG / PNG 里没有卡：null', () => {
     expect(extractTavernCardJson(new Uint8Array([1, 2, 3]))).toBeNull()
     expect(extractTavernCardJson(png(textChunk('Comment', 'hi')))).toBeNull()
-  })
-})
-
-describe('stripPngTextChunks', () => {
-  it('去掉文本块，图像块原样保留', () => {
-    const bytes = png(textChunk('chara', base64Json(V2_CARD)))
-    const stripped = stripPngTextChunks(bytes)
-    expect(extractTavernCardJson(stripped)).toBeNull()
-    expect(stripped).toEqual(png())
   })
 })
 

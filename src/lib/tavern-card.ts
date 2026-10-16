@@ -9,6 +9,7 @@ import {
   TavernCardFieldsSchema,
   type TavernCardFields,
 } from '@/types/tavern-card'
+import { readPngTextChunks } from '@/lib/png-text-chunks'
 
 /**
  * **酒馆卡 → 我们的角色卡**（2026-10-14，附录J ⑥）。纯函数：PNG 字节 / JSON 进来，
@@ -22,66 +23,7 @@ import {
  * ⚠ `{{char}}` / `{{user}}` 宏**原样存**：进提示词那一跳再换成名字（称呼会改）。
  */
 
-const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
-const TEXT_CHUNK_TYPES = new Set(['tEXt', 'iTXt', 'zTXt'])
-
-interface PngChunk {
-  type: string
-  start: number
-  end: number
-  data: Uint8Array
-}
-
-export function isPng(bytes: Uint8Array): boolean {
-  return PNG_SIGNATURE.every((byte, index) => bytes[index] === byte)
-}
-
-function readChunks(bytes: Uint8Array): PngChunk[] {
-  const chunks: PngChunk[] = []
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
-  let offset = PNG_SIGNATURE.length
-  while (offset + 12 <= bytes.length) {
-    const length = view.getUint32(offset)
-    const type = String.fromCharCode(...bytes.subarray(offset + 4, offset + 8))
-    const dataStart = offset + 8
-    const end = dataStart + length + 4
-    if (end > bytes.length) break
-    chunks.push({
-      type,
-      start: offset,
-      end,
-      data: bytes.subarray(dataStart, dataStart + length),
-    })
-    offset = end
-    if (type === 'IEND') break
-  }
-  return chunks
-}
-
-const latin1 = new TextDecoder('latin1')
 const utf8 = new TextDecoder('utf-8')
-
-/** 一个文本块 → `[关键字, 正文]`。压缩的 iTXt / zTXt 不认（酒馆写的是 tEXt）。 */
-function readTextChunk(chunk: PngChunk): [string, string] | null {
-  const zero = chunk.data.indexOf(0)
-  if (zero <= 0) return null
-  const keyword = latin1.decode(chunk.data.subarray(0, zero))
-  if (chunk.type === 'tEXt') {
-    return [keyword, latin1.decode(chunk.data.subarray(zero + 1))]
-  }
-  if (chunk.type === 'iTXt') {
-    // 关键字 \0 压缩标志 压缩方法 语言 \0 译名 \0 正文
-    if (chunk.data[zero + 1] !== 0) return null
-    let cursor = zero + 3
-    for (let skip = 0; skip < 2; skip += 1) {
-      const next = chunk.data.indexOf(0, cursor)
-      if (next < 0) return null
-      cursor = next + 1
-    }
-    return [keyword, utf8.decode(chunk.data.subarray(cursor))]
-  }
-  return null
-}
 
 function decodeBase64Utf8(text: string): string | null {
   try {
@@ -94,12 +36,9 @@ function decodeBase64Utf8(text: string): string | null {
 
 /** PNG 卡里那段 JSON 文本（`ccv3` 优先，`chara` 回落）；不是卡是 `null`。 */
 export function extractTavernCardJson(bytes: Uint8Array): string | null {
-  if (!isPng(bytes)) return null
   const texts = new Map<string, string>()
-  for (const chunk of readChunks(bytes)) {
-    if (!TEXT_CHUNK_TYPES.has(chunk.type)) continue
-    const entry = readTextChunk(chunk)
-    if (entry) texts.set(entry[0].toLowerCase(), entry[1])
+  for (const { keyword, text } of readPngTextChunks(bytes)) {
+    texts.set(keyword.toLowerCase(), text)
   }
   for (const keyword of TAVERN_CARD.PNG_KEYWORDS) {
     const payload = texts.get(keyword)
@@ -107,28 +46,6 @@ export function extractTavernCardJson(bytes: Uint8Array): string | null {
     if (json) return json
   }
   return null
-}
-
-/**
- * 去掉 PNG 里的文本块再当参考图存：卡的 JSON（常有几十 KB 的世界书）不该跟着图走到
- * 每一家出图服务商那里。
- */
-export function stripPngTextChunks(bytes: Uint8Array): Uint8Array {
-  if (!isPng(bytes)) return bytes
-  const keep = readChunks(bytes).filter(
-    (chunk) => !TEXT_CHUNK_TYPES.has(chunk.type),
-  )
-  const size =
-    PNG_SIGNATURE.length +
-    keep.reduce((total, chunk) => total + chunk.end - chunk.start, 0)
-  const out = new Uint8Array(size)
-  out.set(PNG_SIGNATURE, 0)
-  let offset = PNG_SIGNATURE.length
-  for (const chunk of keep) {
-    out.set(bytes.subarray(chunk.start, chunk.end), offset)
-    offset += chunk.end - chunk.start
-  }
-  return out
 }
 
 /** JSON → 卡上的字段（V2 / V3 拆 `data`，否则按 V1 平铺）。没有名字就不是卡：`null`。 */

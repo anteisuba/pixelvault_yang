@@ -10,12 +10,8 @@ import type { ImportChubCardRequest } from '@/types/chub-library'
 import { isChubImageUrl, realChubTopics } from '@/lib/chub-library'
 import { ApiRequestError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
-import {
-  isPng,
-  mapTavernCard,
-  parseTavernCard,
-  stripPngTextChunks,
-} from '@/lib/tavern-card'
+import { isPng, stripPngTextChunks } from '@/lib/png-text-chunks'
+import { mapTavernCard, parseTavernCard } from '@/lib/tavern-card'
 import { createImportedCharacterCard } from '@/services/cards/character-card.service'
 
 /**

@@ -681,7 +681,6 @@ export function useCanvasOperatorHost({
        */
       results: NO_RESULTS,
       referenceImages,
-      referenceLimit: Infinity,
       open,
       setOpen,
       /**

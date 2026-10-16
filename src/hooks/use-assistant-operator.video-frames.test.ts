@@ -48,7 +48,6 @@ vi.mock('@/contexts/studio-operator-host', () => ({
     workspace: hostDomain.current === 'image' ? 'image-natural' : 'video',
     buildSnapshot: () => hostSnapshot.current,
     results: [],
-    referenceLimit: 4,
     open: true,
     setOpen: () => {},
     apply: {

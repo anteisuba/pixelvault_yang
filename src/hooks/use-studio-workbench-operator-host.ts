@@ -549,15 +549,6 @@ export function useStudioWorkbenchOperatorHost({
   )
 
   /**
-   * 一行能选几张 = **工作台参考位上限**（拍板 21）。
-   * ⚠ `maxImages` 在 `StudioDockPanelArea` 那条 effect 跑到之前是 `Infinity`
-   * —— 与快照那边同一条兜底，回落到载荷护栏上限。
-   */
-  const referenceLimit = Number.isFinite(imageUpload.maxImages)
-    ? imageUpload.maxImages
-    : ASSISTANT_OPERATOR_LIMITS.maxSnapshotReferences
-
-  /**
    * **这一批结果**（§2.11 结果行卡）—— 映射见 `toOperatorRunResults`。此前这一段
    * 长在面板里（`useStudioGenOptional()`），搬到宿主上是因为 LoRA 装配台也要有
    * 结果行卡，而那条路由拿不到 `useStudioGen`。
@@ -734,7 +725,6 @@ export function useStudioWorkbenchOperatorHost({
       generationControls,
       ...(searchGrounding ? { searchGrounding } : {}),
       searchGroundingForResult,
-      referenceLimit,
       referenceImages: imageUpload.referenceEntries,
       mentions:
         domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video
@@ -753,7 +743,6 @@ export function useStudioWorkbenchOperatorHost({
       face,
       generationControls,
       open,
-      referenceLimit,
       imageUpload.referenceEntries,
       resultRun,
       results,

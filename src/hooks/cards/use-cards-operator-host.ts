@@ -139,7 +139,6 @@ export function useCardsOperatorHost({
       apply,
       results: NO_RESULTS,
       referenceImages: NO_REFERENCES,
-      referenceLimit: 0,
       open,
       setOpen,
       collapseOnOutsidePointer: false,

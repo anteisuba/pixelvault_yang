@@ -207,7 +207,6 @@ vi.mock('@/contexts/studio-operator-host', () => ({
       references: { items: HOST_RESULTS.map(({ url }) => ({ url })), limit: 4 },
     }),
     results: HOST_RESULTS,
-    referenceLimit: 4,
     referenceImages: HOST_SPEC.noReferences
       ? []
       : [
@@ -330,8 +329,7 @@ const UPLOAD = {
 
 const WEB_IMPORT = {
   states: {},
-  limit: 4,
-  toggleCandidate: vi.fn(),
+  saveCandidates: vi.fn(),
 } as unknown as UseStudioOperatorWebImportResult
 
 /** 素材库弹层里「挑中」的那些 —— 用例各自改。 */
@@ -1852,15 +1850,14 @@ describe('StudioOperatorPanel · 找到的图（搜索期切片 1）', () => {
       within(underAnswer).getAllByTestId('operator-web-candidate'),
     ).toHaveLength(2)
     expect(screen.queryByTestId('operator-web-finds-pending')).toBeNull()
-    // 选上再挂上，照旧走宿主的 hook，认的是线程里那一条的 id。
+    // 选上再保存（只进素材库），走宿主的 hook，认的是线程里那一条的 id。
     fireEvent.click(
       within(underAnswer).getAllByTestId('operator-web-candidate-use')[0]!,
     )
-    fireEvent.click(within(underAnswer).getByTestId('operator-web-use-all'))
-    expect(WEB_IMPORT.toggleCandidate).toHaveBeenCalledWith(
-      'run-web:step-web',
+    fireEvent.click(within(underAnswer).getByTestId('operator-web-save'))
+    expect(WEB_IMPORT.saveCandidates).toHaveBeenCalledWith('run-web:step-web', [
       expect.objectContaining({ imageUrl: 'https://cdn.example.com/a.jpg' }),
-    )
+    ])
   })
 
   it('回答还在写：网格先就地留在那一块，⛔ 不跟着正文一起跳', () => {

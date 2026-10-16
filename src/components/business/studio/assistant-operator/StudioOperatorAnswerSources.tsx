@@ -7,23 +7,24 @@
  * 此前一轮检索的产出是一张 `StudioOperatorResearchCard`：结论一行 + 一列证据
  * （标题 / 出处 / 可信度 / 印证 / 置信度五栏小字）+ 「N 条证据」展开。那张卡答的是
  * 「它查到了什么」，而用户在读的是**助手的回答**——证据于是成了回答前面的一段
- * 过程。56b 把它翻过来：回答是正文，资料是正文底下的两样东西 ——
- *  ① **媒体条**：图片与视频封面，点开看大图 / 在面板里播（嵌不了才跳原站）；
- *  ② **来源卡**：站点图标 + 标题 + 域名，横向可滚，正文里的 `[n]` 点下来高亮它。
+ * 过程。56b 把它翻过来：回答是正文，资料是正文底下**一行胶囊**（P4 第 14 项，
+ * owner 2026-10-16）：站点图标 + 站名，标题在悬停里，正文里的 `[n]` 点下来高亮它；
+ * 行尾一颗 ⋯ 收「深入调查 / 钉住」。⛔ 原来那条媒体小条已并掉 —— 图归找到的图那一块，
+ * 视频胶囊照旧在面板里播。
  *
  * ── 三条边界 ────────────────────────────────────────────────────
  * ⭐ **视频能嵌就在面板里播，嵌不了才开新窗口**（owner，搜索期第二片起；早先这里是
- *    「⛔ 不嵌播放器」）：媒体条里的视频封面、标成视频的来源卡，与找到的视频那一排走
+ *    「⛔ 不嵌播放器」）：标成视频的来源胶囊，与找到的视频那一排走
  *    **同一个判据**（`resolveWebVideo`）、**同一个播放器**（`StudioOperatorWebVideoPlayer`，
- *    官方嵌入，这一块只放一个，摆在媒体条上面）。认不出稿件号的、别的站照旧新窗口。
- *    ⛔ 不转存、不解流 —— 播放全在对方的播放器里。普通来源卡（文字 / 图 / 标签）仍是链接。
- * ⛔ **不铺摘录**：可复核的底稿留在「调查过程」那一折里（面板那一侧），来源卡上
+ *    官方嵌入，这一块只放一个，摆在胶囊上面）。认不出稿件号的、别的站照旧新窗口。
+ *    ⛔ 不转存、不解流 —— 播放全在对方的播放器里。普通来源（文字 / 图 / 标签）仍是链接。
+ * ⛔ **不铺摘录**：可复核的底稿留在「调查过程」那一折里（面板那一侧），胶囊上
  *    只写谁说的。一条萌百的整段简介就能吃掉半屏，而它不是回答。
  * ⛔ **不画空壳**：一条资料都没有就整块不渲染（同「无数据不渲染」那条判据）。
  */
 
 import { useRef, useState } from 'react'
-import { Globe, ImageOff, Pin, Play } from '@/components/icons'
+import { Globe, MoreHorizontal, Pin, Play, Search } from '@/components/icons'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 
@@ -35,9 +36,13 @@ import { cn } from '@/lib/utils'
 import type { StudioOperatorStepEntry } from '@/types/studio-assistant-operator'
 import { flyCloneToTarget } from '@/lib/fly-to-composer'
 import { siteFaviconUrl } from '@/lib/third-party-image-url'
-import { formatVideoDuration, resolveWebVideo } from '@/lib/web-video'
-import { useThirdPartyImage } from '@/hooks/use-third-party-image'
-import { openOperatorLightbox } from './StudioOperatorLightbox'
+import { resolveWebVideo } from '@/lib/web-video'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   StudioOperatorWebVideoPlayer,
   type StudioOperatorPlayableVideo,
@@ -58,9 +63,6 @@ export interface StudioOperatorAnswerSource {
   /** 域名（服务端已经回落过了，⛔ 客户端不再猜）。 */
   publisher: string
   kind: string
-  /** 图片原图 / 视频封面；缺席 = 这条没有画面，不进媒体条。 */
-  mediaUrl?: string
-  durationSeconds?: number
 }
 
 /**
@@ -135,10 +137,6 @@ export function toOperatorAnswerSources(
         ...(item.url ? { url: item.url } : {}),
         publisher: item.publisher,
         kind: item.kind,
-        ...(item.mediaUrl ? { mediaUrl: item.mediaUrl } : {}),
-        ...(item.durationSeconds
-          ? { durationSeconds: item.durationSeconds }
-          : {}),
       })
     }
   }
@@ -182,22 +180,22 @@ export function StudioOperatorAnswerSources({
   receiptLabel,
 }: StudioOperatorAnswerSourcesProps) {
   const t = useTranslations('StudioOperator')
-  const cardsRef = useRef<HTMLDivElement>(null)
+  const pillsRef = useRef<HTMLDivElement>(null)
   /**
-   * 正在播的那一条（按 `cite` 认）。媒体条与来源卡点的是同一条就是同一个播放器；
-   * 再点同一条 = 收起。⚠ 播放器跟着这一块走：回答底下这一块重挂（换会话）就收起。
+   * 正在播的那一条（按 `cite` 认）。再点同一条 = 收起。
+   * ⚠ 播放器跟着这一块走：回答底下这一块重挂（换会话）就收起。
    */
   const [playingCite, setPlayingCite] = useState<number | null>(null)
   const togglePlaying = (cite: number) =>
     setPlayingCite((current) => (current === cite ? null : cite))
 
   /**
-   * 钉住时这一排来源卡的影子飞到面板顶上的钉住条（owner 2026-10-07 动效第 3 批）。
+   * 钉住时这一排胶囊的影子飞到面板顶上的钉住条（owner 2026-10-07 动效第 3 批）。
    * ⚠ 钉住条第一次出现要等这一拍渲染完：排两帧再找落点；找不到就不飞（纯装饰）。
    */
   const togglePin = () => {
     onTogglePin?.()
-    const from = cardsRef.current
+    const from = pillsRef.current
     if (pinned || !from || typeof window === 'undefined') return
     window.requestAnimationFrame(() =>
       window.requestAnimationFrame(() => {
@@ -209,13 +207,9 @@ export function StudioOperatorAnswerSources({
     )
   }
 
-  /**
-   * ⚠ 媒体条只收**有画面**的那几条：没有封面的视频（Serper 的网页结果给不出）
-   * 照旧在来源卡上出现，⛔ 不在媒体条里留一个灰格子假装有图。
-   */
-  const media = sources.filter((source) => Boolean(source.mediaUrl))
   const playingSource = sources.find((source) => source.cite === playingCite)
   const playing = playingSource ? playableVideoOf(playingSource) : null
+  const hasMore = Boolean(onDeepResearch || onTogglePin)
 
   if (sources.length === 0) return null
 
@@ -231,246 +225,140 @@ export function StudioOperatorAnswerSources({
         />
       ) : null}
 
-      {media.length > 0 ? (
+      <div className="flex min-w-0 items-center gap-1.5">
         <div
-          data-testid="operator-answer-media"
-          aria-label={t('answer.media')}
-          className="flex min-w-0 gap-1.5 overflow-x-auto pb-0.5"
+          ref={pillsRef}
+          data-testid="operator-answer-source-cards"
+          aria-label={t('answer.sources')}
+          className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto"
         >
-          {media.map((source) => (
-            <AnswerMediaItem
-              key={`media-${source.cite}`}
-              source={source}
-              playing={source.cite === playingCite && playing !== null}
-              onPlay={() => togglePlaying(source.cite)}
-            />
-          ))}
-        </div>
-      ) : null}
-
-      <div
-        ref={cardsRef}
-        data-testid="operator-answer-source-cards"
-        aria-label={t('answer.sources')}
-        className="flex min-w-0 gap-1.5 overflow-x-auto pb-0.5"
-      >
-        {sources.map((source) => {
-          const active = activeCite === source.cite
-          const video = playableVideoOf(source)
-          const isPlaying = video !== null && source.cite === playingCite
-          const body = (
-            <>
-              <span className="flex items-center gap-1 text-muted-foreground">
+          {sources.map((source) => {
+            const active = activeCite === source.cite
+            const video = playableVideoOf(source)
+            const isPlaying = video !== null && source.cite === playingCite
+            const body = (
+              <>
                 <SourceSiteIcon
                   key={siteFaviconUrl(source.url) ?? 'none'}
                   url={source.url}
                 />
-                <span className="truncate text-2xs tracking-nav">
-                  {source.publisher}
-                </span>
+                <span className="max-w-32 truncate">{source.publisher}</span>
                 {video ? (
                   <Play
-                    className="ml-auto size-3 shrink-0"
+                    className="size-3 shrink-0"
                     aria-hidden
                     data-testid="operator-answer-source-play"
                   />
                 ) : null}
-              </span>
-              <span className="line-clamp-2 text-xs leading-snug text-foreground">
-                {source.title}
-              </span>
-            </>
-          )
-          /* 高亮走**信号位**（§12.2）：近黑描边，⛔ 不引入新色相、不填色。 */
-          const className = cn(
-            'flex w-[124px] shrink-0 flex-col gap-0.5 rounded-lg border bg-card px-2 py-1.5 text-left transition-colors duration-fast ease-standard focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none',
-            active || isPlaying
-              ? 'border-foreground'
-              : 'border-border hover:bg-muted/40',
-          )
-          /* 标成视频、能嵌的那张：点了在上面那个播放器里播（与媒体条同一个），⛔ 不跳走。 */
-          if (video)
-            return (
-              <button
+              </>
+            )
+            /* 高亮走**信号位**（§12.2）：近黑描边，⛔ 不引入新色相、不填色。
+               标题写在 `title` 上：悬停就看得到，⛔ 不占一行。 */
+            const shared = {
+              'data-testid': 'operator-answer-source-card',
+              'data-cite': source.cite,
+              'data-kind': source.kind,
+              'data-active': active ? 'true' : 'false',
+              title: source.title,
+              className: cn(
+                'flex h-7 shrink-0 items-center gap-1 rounded-full border bg-card px-2.5 text-xs text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none',
+                active || isPlaying
+                  ? 'border-foreground text-foreground'
+                  : 'border-border hover:bg-muted/40',
+              ),
+            }
+            /* 标成视频、能嵌的那颗：点了在上面那个播放器里播，⛔ 不跳走。 */
+            if (video)
+              return (
+                <button
+                  key={`source-${source.cite}`}
+                  type="button"
+                  {...shared}
+                  aria-pressed={isPlaying}
+                  aria-label={t('web.videoPlay', { title: source.title })}
+                  onClick={() => togglePlaying(source.cite)}
+                >
+                  {body}
+                </button>
+              )
+            return source.url ? (
+              <a
                 key={`source-${source.cite}`}
-                type="button"
-                data-testid="operator-answer-source-card"
-                data-cite={source.cite}
-                data-kind={source.kind}
-                data-active={active ? 'true' : 'false'}
-                aria-pressed={isPlaying}
-                aria-label={t('web.videoPlay', { title: source.title })}
-                onClick={() => togglePlaying(source.cite)}
-                className={className}
+                href={source.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                {...shared}
               >
                 {body}
-              </button>
+              </a>
+            ) : (
+              /* ⚠ `url` 缺席就画成一颗纯文字（danbooru 的共现标签没有单一页面可点）
+                 ——⛔ 不渲染成一颗点不开的链接。 */
+              <span key={`source-${source.cite}`} {...shared}>
+                {body}
+              </span>
             )
-          return source.url ? (
-            <a
-              key={`source-${source.cite}`}
-              href={source.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              data-testid="operator-answer-source-card"
-              data-cite={source.cite}
-              data-active={active ? 'true' : 'false'}
-              className={className}
+          })}
+        </div>
+
+        {/* 「深入调查 / 钉住」收进行尾一颗 ⋯（P4 第 14 项）。「钉住」钉的仍旧是证据
+            编号（`pinnedEvidence`，§7.3），⛔ 不是收藏一颗胶囊。 */}
+        {hasMore ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                data-testid="operator-answer-more"
+                aria-label={t('answer.more')}
+                title={t('answer.more')}
+                className={cn(
+                  'grid size-7 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring data-[state=open]:bg-surface-fill motion-reduce:transition-none coarse:size-11',
+                  pinned && 'text-foreground',
+                )}
+              >
+                <MoreHorizontal className="size-4" aria-hidden />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              side="top"
+              align="end"
+              className="w-44 rounded-xl border-assistant-line-strong p-1.5 assistant-glass-overlay shadow-assistant-overlay"
             >
-              {body}
-            </a>
-          ) : (
-            /* ⚠ `url` 缺席就画成一格纯文字（danbooru 的共现标签没有单一页面可点）
-               ——⛔ 不渲染成一颗点不开的链接。 */
-            <span
-              key={`source-${source.cite}`}
-              data-testid="operator-answer-source-card"
-              data-cite={source.cite}
-              data-active={active ? 'true' : 'false'}
-              className={className}
-            >
-              {body}
-            </span>
-          )
-        })}
+              {onDeepResearch ? (
+                <DropdownMenuItem
+                  data-testid="operator-answer-deep-research"
+                  onSelect={onDeepResearch}
+                  className="text-2sm"
+                >
+                  <Search aria-hidden />
+                  {t('answer.deepResearch')}
+                </DropdownMenuItem>
+              ) : null}
+              {onTogglePin ? (
+                <DropdownMenuItem
+                  data-testid="operator-answer-pin"
+                  data-pinned={pinned ? 'true' : 'false'}
+                  onSelect={togglePin}
+                  className="text-2sm"
+                >
+                  <Pin aria-hidden />
+                  {pinned ? t('research.unpin') : t('research.pin')}
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
       </div>
 
-      {onDeepResearch || onTogglePin || receiptLabel ? (
-        <div className="flex min-w-0 items-center gap-1.5">
-          {onDeepResearch ? (
-            <button
-              type="button"
-              data-testid="operator-answer-deep-research"
-              onClick={onDeepResearch}
-              className="flex h-7 shrink-0 items-center gap-1 rounded-full border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-muted/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none"
-            >
-              {t('answer.deepResearch')}
-            </button>
-          ) : null}
-          {/* 「钉住」钉的是**这一排来源卡**（56b 切片 1）——底下认的仍旧是证据
-              编号（`pinnedEvidence`，§7.3），⛔ 不是收藏一张卡。 */}
-          {onTogglePin ? (
-            <button
-              type="button"
-              data-testid="operator-answer-pin"
-              aria-pressed={pinned}
-              onClick={togglePin}
-              className={cn(
-                'flex h-7 shrink-0 items-center gap-1 rounded-full px-2.5 text-xs transition-colors duration-fast ease-standard focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none',
-                pinned
-                  ? 'bg-foreground font-medium text-background'
-                  : 'border border-border bg-card text-muted-foreground hover:text-foreground',
-              )}
-            >
-              <Pin className="size-3" aria-hidden />
-              {pinned ? t('research.unpin') : t('research.pin')}
-            </button>
-          ) : null}
-          {receiptLabel ? (
-            <span
-              data-testid="operator-answer-receipt"
-              className="ml-auto min-w-0 truncate text-2xs tracking-nav text-muted-foreground"
-            >
-              {receiptLabel}
-            </span>
-          ) : null}
-        </div>
+      {receiptLabel ? (
+        <span
+          data-testid="operator-answer-receipt"
+          className="min-w-0 truncate text-2xs tracking-nav text-muted-foreground"
+        >
+          {receiptLabel}
+        </span>
       ) : null}
     </div>
-  )
-}
-
-/**
- * 媒体条里的一格。图是**第三方网图**：⛔ 不带我们的 Referer，能走热链代理就走
- * （`useThirdPartyImage`）；全都取不到就画一格灰底断图标，⛔ 不出破图标。
- */
-function AnswerMediaItem({
-  source,
-  playing,
-  onPlay,
-}: {
-  source: StudioOperatorAnswerSource
-  /** 这一条正在上面那个播放器里播。 */
-  playing: boolean
-  onPlay(): void
-}) {
-  const image = useThirdPartyImage(source.mediaUrl)
-  const isVideo = source.kind === 'video'
-  const playable = playableVideoOf(source) !== null
-  return (
-    <button
-      type="button"
-      data-testid="operator-answer-media-item"
-      data-kind={source.kind}
-      data-cite={source.cite}
-      title={source.title}
-      {...(playable ? { 'aria-pressed': playing } : {})}
-      onClick={() => {
-        /**
-         * ⭐ **两种点击，两个去处**：图片开站内灯箱（就在这一页看大图）；视频能嵌就在
-         * 面板里播（与找到的视频那一排同一个播放器），嵌不了才开新窗口跳原站。
-         * ⛔ 不把视频也塞进灯箱 —— 灯箱里是一张静止的封面，而用户点它是想看那一段。
-         */
-        if (isVideo) {
-          if (playable) onPlay()
-          else if (source.url)
-            window.open(source.url, '_blank', 'noopener,noreferrer')
-          return
-        }
-        if (source.mediaUrl) {
-          openOperatorLightbox(source.mediaUrl, source.title, {
-            thirdParty: true,
-          })
-        }
-      }}
-      className={cn(
-        'relative size-[62px] shrink-0 overflow-hidden rounded-lg border bg-muted transition-opacity duration-fast ease-standard hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none',
-        playing ? 'border-foreground ring-1 ring-foreground' : 'border-border',
-      )}
-    >
-      {image.src ? (
-        <Image
-          key={image.src}
-          src={image.src}
-          alt={source.title}
-          width={124}
-          height={124}
-          unoptimized
-          referrerPolicy={image.referrerPolicy}
-          onError={image.onError}
-          className="size-full object-cover"
-        />
-      ) : (
-        <span
-          aria-hidden
-          data-testid="operator-answer-media-unavailable"
-          className="grid size-full place-items-center text-muted-foreground"
-        >
-          <ImageOff className="size-4" />
-        </span>
-      )}
-      {isVideo ? (
-        <>
-          <span
-            aria-hidden
-            className="absolute inset-0 grid place-items-center"
-          >
-            <span className="grid size-6 place-items-center rounded-full bg-foreground/55">
-              <Play className="size-3 text-background" />
-            </span>
-          </span>
-          {/* 时长取不到就整枚不画（⛔ 不写「0:00」）。 */}
-          {source.durationSeconds ? (
-            <span
-              data-testid="operator-answer-media-duration"
-              className="absolute bottom-0.5 right-0.5 rounded bg-foreground/55 px-1 font-mono text-2xs tabular-nums text-background"
-            >
-              {formatVideoDuration(source.durationSeconds)}
-            </span>
-          ) : null}
-        </>
-      ) : null}
-    </button>
   )
 }
 

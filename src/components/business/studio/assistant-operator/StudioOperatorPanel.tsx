@@ -1539,8 +1539,7 @@ export function StudioOperatorPanel({
         }
         placeholderCount={step.payload.limit}
         webImport={webImport.states[item.id]}
-        limit={webImport.limit}
-        onToggle={webImport.toggleCandidate}
+        onSave={webImport.saveCandidates}
         namedFinds={findRefs.named}
       />
     )

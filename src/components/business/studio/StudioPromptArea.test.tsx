@@ -40,7 +40,6 @@ const STUB_OPERATOR_HOST: StudioOperatorHost = {
   // 结果行卡的数据源（切片 3a 起是宿主契约的一格）—— 这份桩里没有结果。
   results: [],
   referenceImages: [],
-  referenceLimit: 4,
   open: false,
   setOpen: () => {},
   apply: {

@@ -93,7 +93,6 @@ vi.mock('@/contexts/studio-operator-host', () => ({
       domain: hostDomain,
       projectId: hostDomain === 'canvas' ? 'canvas-test' : undefined,
       workspace: hostDomain === 'image' ? hostWorkspace : hostDomain,
-      referenceLimit: 4,
       referenceImages: withImplicit(references.referenceEntries),
       apply: {
         addReference: references.addReferenceImage,

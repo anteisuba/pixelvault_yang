@@ -90,8 +90,7 @@ function renderAnswer(text: string, named: ReadonlySet<string> = new Set()) {
             query="changli"
             images={IMAGES}
             webImport={undefined}
-            limit={4}
-            onToggle={vi.fn()}
+            onSave={vi.fn()}
             namedFinds={named}
           />
           <StudioOperatorWebVideoRow
@@ -199,7 +198,7 @@ describe('回复里的 #n → 那张卡', () => {
         .map((badge) => badge.textContent),
     ).toEqual(['#1', '#2'])
     expect(screen.getByTestId('operator-web-video-number').textContent).toBe(
-      '#3 · ',
+      '#3',
     )
   })
 })

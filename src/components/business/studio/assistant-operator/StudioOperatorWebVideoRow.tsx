@@ -14,8 +14,9 @@
  *  · 左上平台角标（YouTube / B站 / niconico / Vimeo，别的站写域名）· 右下时长
  *    （取不到整枚不画，⛔ 不写「0:00」）· 回复点名的左下写「回复提到」· 下面两行标题 +
  *    一行频道 + 一行怎么看（在面板里播 / 去某站看）。
- *  · 胶片条（owner 2026-10-16 选 B）：与找到的图同一种横排，放不下就左右滑（`snap-x`），
- *    ⛔ 宽面板也不改成两列；播放器开在这一排**下面**。
+ *  · **竖着列**（P4 第 13 项，owner 2026-10-16 改）：图和视频分开放，视频在图下面单独
+ *    一列 —— 左边一格小封面（16:9，左上 `#n`、右下时长），右边两行标题 + 一行「频道 · 站」。
+ *    先露 3 个，多了点「还有 N 个」；播放器开在这一列**下面**。⛔ 不再横滑。
  *
  * ── 点开 ────────────────────────────────────────────────────────
  *  · 四家（`lib/web-video.ts` 认得出稿件号）：**在面板里播**，播放器是全面板共用的那一个
@@ -29,13 +30,12 @@
  *   （与图那一格同一个 key 规则），正在播的那一支要再点一次。
  */
 
-import { useId, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { Clapperboard, ExternalLink, Play } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { ASSISTANT_OPERATOR_LIMITS } from '@/constants/assistant-operator'
 import { STUDIO_OPERATOR_WEB_VIDEO_COVER_PIXELS } from '@/constants/studio-assistant-operator'
-import { WEB_VIDEO_PLATFORM_IDS } from '@/constants/web-video'
 import {
   StudioOperatorWebVideoPlayer,
   useWebVideoSiteLabel,
@@ -68,7 +68,8 @@ interface StudioOperatorWebVideoRowProps {
 
 const NO_NAMED: ReadonlySet<string> = new Set()
 
-const CARD_CLASS = 'w-56 shrink-0 snap-start'
+/** 收着时先露几个（多的点「还有 N 个」）。 */
+const COLLAPSED_VIDEOS = 3
 
 export function StudioOperatorWebVideoRow({
   entryId,
@@ -79,11 +80,15 @@ export function StudioOperatorWebVideoRow({
 }: StudioOperatorWebVideoRowProps) {
   const t = useTranslations('StudioOperator')
   const [playingUrl, setPlayingUrl] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState(false)
 
   const shown = videos?.slice(0, ASSISTANT_OPERATOR_LIMITS.maxWebVideoResults)
   if (shown && shown.length === 0) return null
 
   const playing = shown?.find((video) => video.url === playingUrl) ?? null
+  const hiddenCount = expanded
+    ? 0
+    : Math.max(0, (shown?.length ?? 0) - COLLAPSED_VIDEOS)
 
   return (
     <section
@@ -105,12 +110,15 @@ export function StudioOperatorWebVideoRow({
       )}
 
       <ul
-        aria-label={t('web.videoStripLabel', { count: shown?.length ?? 0 })}
-        className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 pt-1"
+        aria-label={t('web.videoListLabel', { count: shown?.length ?? 0 })}
+        className="flex flex-col gap-1"
       >
         {shown
           ? shown.map((video, index) => (
-              <li key={video.url} className={CARD_CLASS}>
+              <li
+                key={video.url}
+                hidden={!expanded && index >= COLLAPSED_VIDEOS}
+              >
                 <WebVideoCard
                   video={video}
                   index={index}
@@ -120,6 +128,8 @@ export function StudioOperatorWebVideoRow({
                     namedFinds.has(operatorFindKey(entryId, video.n))
                   }
                   playing={video.url === playingUrl}
+                  onReveal={() => setExpanded(true)}
+                  hidden={!expanded && index >= COLLAPSED_VIDEOS}
                   onPlay={() =>
                     setPlayingUrl((current) =>
                       current === video.url ? null : video.url,
@@ -136,17 +146,29 @@ export function StudioOperatorWebVideoRow({
                 ),
               },
               (_, index) => (
-                <li key={index} className={cn(CARD_CLASS, 'flex flex-col')}>
+                <li key={index} className="flex items-start gap-2.5 p-1">
                   <Skeleton
                     data-testid="operator-web-video-skeleton"
-                    className="aspect-video w-full rounded-lg"
+                    className="aspect-video w-28 shrink-0 rounded-lg"
                   />
-                  <Skeleton className="mt-1.5 h-4 w-full" />
-                  <Skeleton className="mt-1 h-3 w-2/3" />
+                  <span className="flex min-w-0 flex-1 flex-col gap-1.5 pt-0.5">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-3 w-2/3" />
+                  </span>
                 </li>
               ),
             )}
       </ul>
+      {hiddenCount > 0 ? (
+        <button
+          type="button"
+          data-testid="operator-web-videos-more"
+          onClick={() => setExpanded(true)}
+          className="mt-1 h-7 rounded-full px-2.5 text-xs text-muted-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+        >
+          {t('web.moreVideos', { count: hiddenCount })}
+        </button>
+      ) : null}
 
       {playing ? (
         <div className="mt-1">
@@ -166,6 +188,8 @@ function WebVideoCard({
   findKey,
   named,
   playing,
+  hidden,
+  onReveal,
   onPlay,
 }: {
   video: AssistantOperatorWebVideo
@@ -175,10 +199,17 @@ function WebVideoCard({
   /** 回复点名了这一支：常驻细黑框。 */
   named: boolean
   playing: boolean
+  /** 藏在「还有 N 个」后面。 */
+  hidden: boolean
+  /** 藏着时被回复里的 `#n` 点到了：把藏着的放出来。 */
+  onReveal(): void
   onPlay(): void
 }) {
   const t = useTranslations('StudioOperator')
   const highlighted = useOperatorFindHighlighted(findKey)
+  useEffect(() => {
+    if (highlighted && hidden) onReveal()
+  }, [highlighted, hidden, onReveal])
   const namedId = useId()
   const platformLabel = useWebVideoSiteLabel(video)
   const { embedUrl } = resolveWebVideo(video.url)
@@ -190,12 +221,14 @@ function WebVideoCard({
     className: revealClassName,
   } = useMediaReveal({ src: cover.src ?? '', step: revealStep(index, 0) })
 
+  /** 封面右边第二行：频道 · 站（取不到频道就只写站）。 */
+  const meta = [video.channel, platformLabel].filter(Boolean).join(' · ')
   const body = (
     <>
       <span
         className={cn(
-          'relative block aspect-video w-full overflow-hidden rounded-lg border border-border/70 bg-accent',
-          playing && 'border-foreground ring-1 ring-foreground',
+          'relative block aspect-video w-28 shrink-0 overflow-hidden rounded-lg bg-accent',
+          playing && 'ring-2 ring-foreground',
           operatorFindRingClass(named, highlighted),
         )}
       >
@@ -225,43 +258,23 @@ function WebVideoCard({
         )}
         <span
           aria-hidden
-          className="pointer-events-none absolute inset-0 grid place-items-center"
+          className="pointer-events-none absolute inset-0 grid place-items-center opacity-0 transition-opacity duration-fast ease-standard group-hover:opacity-100 motion-reduce:transition-none"
         >
-          <span className="grid size-8 place-items-center rounded-full bg-foreground/55 text-background">
+          <span className="grid size-7 place-items-center rounded-full bg-foreground/55 text-background">
             {embedUrl ? (
-              <Play className="size-3.5" />
+              <Play className="size-3" />
             ) : (
-              <ExternalLink className="size-3.5" />
+              <ExternalLink className="size-3" />
             )}
           </span>
         </span>
-        <span className="pointer-events-none absolute inset-x-1 top-1 flex">
+        {/* 左上：编号 `#n`（与回复里的 `#3` 对得上）。 */}
+        {video.n ? (
           <span
-            data-testid="operator-web-video-platform"
-            className={cn(
-              'max-w-full truncate rounded-sm bg-foreground/70 px-1 text-3xs leading-4 text-background',
-              video.platform === WEB_VIDEO_PLATFORM_IDS.other && 'font-mono',
-            )}
+            data-testid="operator-web-video-number"
+            className="pointer-events-none absolute left-1 top-1 rounded-sm bg-foreground/75 px-1 font-mono text-2xs font-semibold tabular-nums leading-4 text-background"
           >
-            {/* 编号 `#n`：与回复里的 `#3` 对得上（搜索期第三片）。 */}
-            {video.n ? (
-              <span
-                data-testid="operator-web-video-number"
-                className="font-mono font-semibold tabular-nums"
-              >
-                #{video.n} ·{' '}
-              </span>
-            ) : null}
-            {platformLabel}
-          </span>
-        </span>
-        {named ? (
-          <span
-            data-testid="operator-web-video-named"
-            aria-hidden
-            className="pointer-events-none absolute bottom-1 left-1 rounded-full bg-foreground px-1.5 text-3xs leading-4 text-background"
-          >
-            {t('web.namedBadge')}
+            #{video.n}
           </span>
         ) : null}
         {video.durationSeconds ? (
@@ -273,31 +286,19 @@ function WebVideoCard({
           </span>
         ) : null}
       </span>
-      <span className="mt-1.5 line-clamp-2 text-sm leading-snug text-foreground">
-        {video.title}
-      </span>
-      {video.channel ? (
-        <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-          {video.channel}
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5 pt-0.5">
+        <span className="line-clamp-2 text-2sm leading-snug text-foreground">
+          {video.title}
         </span>
-      ) : null}
-      <span
-        data-testid="operator-web-video-mode"
-        className={cn(
-          'mt-0.5 flex items-center gap-1 text-xs',
-          playing ? 'font-medium text-foreground' : 'text-muted-foreground',
-        )}
-      >
-        {embedUrl ? (
-          <Play className="size-3" aria-hidden />
-        ) : (
-          <ExternalLink className="size-3" aria-hidden />
-        )}
-        {embedUrl
-          ? playing
-            ? t('web.videoModePlaying')
-            : t('web.videoModePlay')
-          : t('web.videoOpenSource', { site: platformLabel })}
+        <span
+          data-testid="operator-web-video-platform"
+          className={cn(
+            'truncate text-xs text-muted-foreground',
+            playing && 'font-medium text-foreground',
+          )}
+        >
+          {playing ? t('web.videoModePlaying') : meta}
+        </span>
       </span>
       {named ? (
         <span id={namedId} className="sr-only">
@@ -316,7 +317,7 @@ function WebVideoCard({
     ...(named ? { 'aria-describedby': namedId } : {}),
   }
   const className =
-    'block w-full min-w-0 scroll-m-2 rounded-lg text-left transition-opacity duration-fast ease-standard hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none'
+    'group flex w-full min-w-0 scroll-m-2 items-start gap-2.5 rounded-lg p-1 text-left transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none'
 
   /** 认不出稿件号 / 别的站：新窗口开源页（⛔ 不带我们的页面句柄与 Referer）。 */
   if (!embedUrl)

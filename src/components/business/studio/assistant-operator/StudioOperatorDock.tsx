@@ -1221,7 +1221,7 @@ export function StudioOperatorDock() {
             )}
           >
             <div
-              className={styles.content}
+              className={cn(styles.content, 'assistant-type')}
               /* 布局 A 的内容随面板一起滑，⛔ 不分两批换场（`data-motion`）。 */
               data-motion={slides ? 'slide' : 'shape'}
               data-visible={slides || phase === 'open' || phase === 'opening'}

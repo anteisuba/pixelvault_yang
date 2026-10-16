@@ -19,7 +19,6 @@
 
 import type { NamedImageReference } from '@/lib/studio-reference-mentions'
 import { Sparkles, type LucideIcon } from '@/components/icons'
-import Image from 'next/image'
 import { useFormatter, useTranslations } from 'next-intl'
 
 import type { AssistantOperatorTool } from '@/constants/assistant-operator'
@@ -28,7 +27,6 @@ import { StudioOperatorChatMark } from '@/components/business/studio/assistant-o
 import {
   StudioOperatorCollapsibleText,
   StudioOperatorUserText,
-  attachmentsBelowUserText,
 } from '@/components/business/studio/assistant-operator/StudioOperatorMessageBody'
 import { describeSystemSubjects } from '@/lib/studio-operator-timeline'
 import { cn } from '@/lib/utils'
@@ -70,33 +68,6 @@ export function StudioOperatorHistoryItem({
             {...(onMentionClick ? { onMentionClick } : {})}
             {...(isMentionMissing ? { isMentionMissing } : {})}
           />
-          {attachmentsBelowUserText(entry.text, entry.attachments).length ? (
-            <div className="flex flex-wrap gap-1">
-              {attachmentsBelowUserText(entry.text, entry.attachments).map(
-                (attachment) => (
-                  <span
-                    key={attachment.id}
-                    className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-2sm text-muted-foreground"
-                  >
-                    {(attachment.thumbnailUrl ||
-                      attachment.kind === 'image') && (
-                      <Image
-                        src={attachment.thumbnailUrl || attachment.url}
-                        alt={attachment.label}
-                        width={48}
-                        height={48}
-                        unoptimized
-                        className="size-12 shrink-0 rounded object-cover"
-                      />
-                    )}
-                    <span className="min-w-0 break-words">
-                      {attachment.label}
-                    </span>
-                  </span>
-                ),
-              )}
-            </div>
-          ) : null}
         </div>
       )
     case 'message':

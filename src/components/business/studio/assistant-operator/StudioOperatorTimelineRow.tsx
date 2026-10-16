@@ -9,10 +9,10 @@
  * ── A 对话流（owner 2026-09-24 定）──────────────────────────────────
  * ⛔ **没有左侧时间线竖线与节点符号**：线和框层层套是「乱」的原因之一。
  * ⭐ **一轮只出一次头像名字**（C1）。⛔ 不再每一行各带一个头像。
- * ⭐ **对话框 B-C**（owner 2026-09-25）：你每开口一次，助手就另起一个框，本轮说的、
- *   做的、问的、出的图全装在这一个框里（`StudioOperatorTurns`）；头像名字在框外
- *   左上，框的左上角收成小圆角。你的那一句是靠右的象牙气泡（输入条同一种料），
- *   右上角收成小圆角，⛔ 不带名字与头像。
+ * ⭐ **对话框 B-C**（owner 2026-09-25）：你每开口一次，助手就另起一段，本轮说的、
+ *   做的、问的、出的图全在这一段里（`StudioOperatorTurns`）。P4（owner 2026-10-16）
+ *   起她那一段**不再包灰框**、名字只在一串开头出一次。你的那一句是靠右的象牙气泡
+ *   （输入条同一种料），右上角收成小圆角，⛔ 不带名字与头像。
  * ⚠ 间距只有两档：轮与轮之间 20（`mt-5`），轮内 10（`mt-2.5`）。
  */
 
@@ -312,12 +312,15 @@ export interface StudioOperatorThreadItem {
 }
 
 /**
- * **一轮一个框**（对话框 B-C，owner 2026-09-25）：连续的助手条目收进同一个框，
- * 直到你再开口。
+ * **一轮一段**（对话框 B-C，owner 2026-09-25；P4 去框，owner 2026-10-16）：连续的助手
+ * 条目收成一段，直到你再开口。
  *
- * ⭐ 框里装本轮的一切：正文、查证、确认卡、结果、续跑、错误 —— 调用方只管给每件
+ * ⭐ 段里装本轮的一切：正文、查证、确认卡、结果、续跑、错误 —— 调用方只管给每件
  *   东西标上是谁说的，⛔ 不在各处各自包框。
- * ⚠ 空条目（`null`）不算数：否则一段全是空的助手条目会画出一个空框。
+ * ⭐ **⛔ 灰框**（P4 第 1 项）：她的字直接铺在面板上，两侧只靠你那句象牙气泡分开。
+ * ⭐ **名字只在开头出一次**（P4 第 7 项）：一串里第一段带头像名字，往后几轮不再重复；
+ *   切模式那条细线之后重新出一次（换了模式，说话的人可能换了）。
+ * ⚠ 空条目（`null`）不算数：否则一段全是空的助手条目会画出一个空段。
  */
 export function StudioOperatorTurns({
   items,
@@ -354,27 +357,32 @@ export function StudioOperatorTurns({
       })
     }
   }
-  return runs.map((run) =>
-    run.standalone ? (
-      <div key={run.key} className="mt-3 min-w-0 first:mt-0">
-        {run.nodes}
-      </div>
-    ) : run.user ? (
-      <Fragment key={run.key}>{run.nodes}</Fragment>
-    ) : (
+  let named = false
+  return runs.map((run) => {
+    if (run.standalone) {
+      named = false
+      return (
+        <div key={run.key} className="mt-4 min-w-0 first:mt-0">
+          {run.nodes}
+        </div>
+      )
+    }
+    if (run.user) return <Fragment key={run.key}>{run.nodes}</Fragment>
+    const showName = !named
+    named = true
+    return (
       <div
         key={run.key}
         data-testid="operator-turn"
-        className="mt-3 flex min-w-0 flex-col gap-1.5 pr-6 first:mt-0"
+        className="mt-4 flex min-w-0 flex-col gap-1.5 first:mt-0"
       >
-        <StudioOperatorRoundHeader {...(persona ? { persona } : {})} />
-        <div
-          data-testid="operator-turn-frame"
-          className="min-w-0 rounded-2xl rounded-tl-sm bg-muted px-3 py-2.5"
-        >
+        {showName ? (
+          <StudioOperatorRoundHeader {...(persona ? { persona } : {})} />
+        ) : null}
+        <div data-testid="operator-turn-frame" className="min-w-0">
           {run.nodes}
         </div>
       </div>
-    ),
-  )
+    )
+  })
 }

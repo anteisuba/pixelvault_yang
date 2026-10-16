@@ -153,8 +153,9 @@ function groupSessionsByChat(sessions: readonly SessionSummary[]): {
  * ⚠ 命中区 32px 是 `ui-defaults.md §5` 的 fine 档底线，⛔ 别为了挤下更多东西
  * 缩到 28 —— 它是头部唯一的常驻入口，先保命中。
  */
+/** P4 第 5 项（owner 2026-10-16）：静止时⛔ 框、⛔ 底，悬停才出底 —— 与标题下拉同一种。 */
 const HEADER_ICON_BUTTON_CLASS =
-  'grid size-8 shrink-0 place-items-center rounded-md border border-border bg-card text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground active:bg-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none'
+  'grid size-7 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill hover:text-foreground active:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-[state=open]:bg-surface-fill data-[state=open]:text-foreground motion-reduce:transition-none'
 
 /** 头部左上那个头像位怎么处理 —— 见头注「左上那个头像位」。 */
 export type StudioOperatorHeaderAvatar = 'slot' | 'own' | 'none'
@@ -360,7 +361,7 @@ export function StudioOperatorHeader({
                    有分量的东西，再给它一块浅底等于让它跟一颗控件抢读法。hover 与
                    展开两态照旧压底 —— 可点这件事由那两态说。
                  ⚠ 两态同一档 4%（画板「历史会话行」），13px 半粗。 */
-              className="flex h-8 min-w-0 max-w-full items-center gap-1 rounded-md bg-transparent px-2.5 text-left text-2sm font-semibold text-foreground transition-colors duration-fast ease-linear hover:bg-surface-fill data-[state=open]:bg-surface-fill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+              className="flex h-7 min-w-0 max-w-full items-center gap-1 rounded-lg bg-transparent px-2 text-left text-2sm font-semibold text-foreground transition-colors duration-fast ease-linear hover:bg-surface-fill data-[state=open]:bg-surface-fill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
             >
               <span className="min-w-0 truncate">{sessionTitle}</span>
               <ChevronDown className="size-3.5 shrink-0" aria-hidden />

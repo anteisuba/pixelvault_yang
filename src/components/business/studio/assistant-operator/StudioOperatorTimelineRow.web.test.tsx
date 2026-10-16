@@ -53,7 +53,7 @@ describe('StudioOperatorTimelineRow', () => {
    * ⭐ 对话框 B-C（owner 2026-09-25）：你每开口一次，助手另起一个框；连续的助手
    * 条目收进同一个框，头像名字在框外、一框一次。
    */
-  it('连续的助手条目收进一个框，你开口就另起一框', () => {
+  it('连续的助手条目收成一段（⛔ 灰框），你开口就另起一段；名字只在开头出一次（P4）', () => {
     render(
       <StudioOperatorTurns
         items={[
@@ -94,7 +94,9 @@ describe('StudioOperatorTimelineRow', () => {
     expect(frames).toHaveLength(2)
     expect(frames[0]).toHaveTextContent('好确认卡')
     expect(frames[1]).toHaveTextContent('出好了')
-    expect(screen.getAllByTestId('operator-speaker-name')).toHaveLength(2)
+    expect(screen.getAllByTestId('operator-speaker-name')).toHaveLength(1)
+    for (const frame of frames)
+      expect(frame.className).not.toContain('bg-muted')
     for (const frame of frames) {
       expect(frame).not.toContainElement(
         screen.getAllByTestId('operator-speaker-name')[0]!,

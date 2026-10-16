@@ -243,7 +243,7 @@ describe('StudioOperatorMessageBody', () => {
 
 /** 2026-09-24 真机：用户气泡里是「@图1」原文，缩略图边上写着 reference image 1。 */
 describe('StudioOperatorUserText 引用', () => {
-  it('「图1」与 @图1 都画成缩略图 + 名字，记号不留在字里', () => {
+  it('「图1」与 @图1：图排在气泡上方（一张，P4 第 3 项），字里只留名字、记号不留', () => {
     render(
       <StudioOperatorUserText
         text="把「图1」换成校服，再参考 @图1 的发型"
@@ -261,7 +261,10 @@ describe('StudioOperatorUserText 引用', () => {
     const bubble = screen.getByTestId('operator-user-text')
     expect(bubble.textContent).not.toMatch(/[「」@]/)
     expect(bubble.textContent).toContain('图1')
-    expect(bubble.querySelectorAll('img').length).toBe(2)
+    expect(bubble.querySelectorAll('img').length).toBe(0)
+    const thumbs = screen.getByTestId('operator-user-thumbs')
+    expect(thumbs.querySelectorAll('img').length).toBe(1)
+    expect(thumbs.querySelector('button')?.getAttribute('title')).toBe('图1')
   })
 
   it('@文本节点名 画成文档胶囊（owner 2026-10-08），不是名字的字照常写', () => {

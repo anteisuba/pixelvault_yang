@@ -121,6 +121,8 @@
   --text-hero-title: clamp(2.25rem, 5vw, 4rem);
   --text-hero-subtitle: clamp(1.125rem, 2.5vw, 1.5rem);
   --leading-hero: 1.1;
+  /* 助手面板正文与输入框（P4 第 9 项，owner 2026-10-16：15px · 行高 1.7）。 */
+  --leading-reading: 1.7;
   --tracking-hero: -0.04em;
   --h-hero-btn: 2.85rem;
   --max-width-content: 75rem;
@@ -2796,6 +2798,18 @@ html:lang(ja) {
     background-color: var(--assistant-panel);
     -webkit-backdrop-filter: saturate(180%) blur(18px);
     backdrop-filter: saturate(180%) blur(18px);
+  }
+}
+
+/* 助手面板的中文先用系统字（P4 第 9 项，owner 2026-10-16：苹方 / 雅黑比 Noto Sans SC
+   粗细更齐）。⚠ 只改中文那一位，拉丁仍是 Geist 打头（ui-defaults §1 规则 1）；
+   日文照旧（`html:lang(ja)` 的栈不动）。面板根挂 `assistant-type`，里面的 `font-sans` 都跟着走。 */
+@layer components {
+  html:lang(zh) .assistant-type {
+    --font-stack-sans:
+      var(--font-geist), 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
+      var(--font-noto-sans-sc), ui-sans-serif, system-ui, sans-serif;
+    font-family: var(--font-stack-sans);
   }
 }
 

@@ -11,7 +11,7 @@
  * 菜单和悬停提示 —— 320 宽的面板里两颗 chip 一共只有 70px。
  */
 
-import { useCallback, useState } from 'react'
+import { useCallback, useState, type ReactNode } from 'react'
 import { Brain, Check, ChevronDown, ChevronUp } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
@@ -29,11 +29,14 @@ import { cn } from '@/lib/utils'
 export interface StudioOperatorEffortChipProps {
   value: AssistantReasoningEffort
   onChange(next: AssistantReasoningEffort): void | boolean | Promise<boolean>
+  /** 卡底多挂一格（手机把「自动生成」开关收进来，iOS 稿 v19）。 */
+  footer?: ReactNode
 }
 
 export function StudioOperatorEffortChip({
   value,
   onChange,
+  footer,
 }: StudioOperatorEffortChipProps) {
   const t = useTranslations('StudioOperator.effortChip')
   const [open, setOpen] = useState(false)
@@ -131,6 +134,14 @@ export function StudioOperatorEffortChip({
             )
           })}
         </div>
+        {footer ? (
+          <div
+            data-testid="operator-effort-chip-footer"
+            className="border-t border-border/60 p-1.5"
+          >
+            {footer}
+          </div>
+        ) : null}
       </ResponsivePopoverContent>
     </ResponsivePopover>
   )

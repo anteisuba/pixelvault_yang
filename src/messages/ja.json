@@ -8371,7 +8371,9 @@
       "autoResolved": "自動 · {model}",
       "autoHintResolved": "{model} を使用（キーを設定した最初のモデル）",
       "autoHintNoKey": "キーがまだありません。ここで設定",
-      "needsKey": "設定する"
+      "needsKey": "設定する",
+      "search": "モデルを検索",
+      "noMatch": "該当するモデルがありません"
     },
     "effortChip": {
       "label": "思考",
@@ -8817,7 +8819,9 @@
       "library": "素材から選ぶ",
       "camera": "写真を撮る",
       "upload": "ファイルをアップロード",
-      "mention": "@ キャラクターや素材"
+      "mention": "@ キャラクターや素材",
+      "recent": "最近の素材",
+      "all": "すべて"
     }
   },
   "GenerationCancel": {

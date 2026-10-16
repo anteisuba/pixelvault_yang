@@ -46,11 +46,24 @@ vi.mock('@/components/ui/responsive-popover', async () => {
   }
 })
 
+const galleryState = vi.hoisted(() => ({
+  generations: [] as { id: string; url: string; prompt: string }[],
+  hasLoaded: true,
+}))
+vi.mock('@/hooks/use-gallery', () => ({
+  useGallery: () => galleryState,
+}))
+vi.mock('@clerk/nextjs', () => ({ useAuth: () => ({ userId: 'u1' }) }))
+vi.mock('next/image', () => ({
+  default: ({ alt }: { alt: string }) => <span data-alt={alt} />,
+}))
+
 import { StudioOperatorPhoneAddCard } from './StudioOperatorPhoneAddCard'
 
 function setup() {
   const props = {
     onPickLibrary: vi.fn(),
+    onPickRecent: vi.fn(),
     onPickFile: vi.fn(),
     onCameraFiles: vi.fn(),
     onMention: vi.fn(),
@@ -85,6 +98,33 @@ describe('StudioOperatorPhoneAddCard', () => {
 
     openAndPick('mention')
     await waitFor(() => expect(props.onMention).toHaveBeenCalledTimes(1))
+  })
+
+  it('shows the three latest assets plus 全部, and picks one', async () => {
+    galleryState.generations = ['a', 'b', 'c', 'd'].map((id) => ({
+      id,
+      url: `https://cdn.example/${id}.png`,
+      prompt: id,
+    }))
+    const props = setup()
+    fireEvent.click(screen.getByTestId('operator-phone-add'))
+    expect(screen.getByTestId('operator-phone-add-recent-c')).toBeTruthy()
+    expect(screen.queryByTestId('operator-phone-add-recent-d')).toBeNull()
+    fireEvent.click(screen.getByTestId('operator-phone-add-recent-b'))
+    await waitFor(() =>
+      expect(props.onPickRecent).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'b' }),
+      ),
+    )
+    openAndPick('recent-all')
+    await waitFor(() => expect(props.onPickLibrary).toHaveBeenCalledTimes(1))
+    galleryState.generations = []
+  })
+
+  it('hides the recent row when there are no assets', () => {
+    setup()
+    fireEvent.click(screen.getByTestId('operator-phone-add'))
+    expect(screen.queryByTestId('operator-phone-add-recent')).toBeNull()
   })
 
   it('hands camera shots to the same upload path', () => {

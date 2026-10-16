@@ -8371,7 +8371,9 @@
       "autoResolved": "Auto · {model}",
       "autoHintResolved": "Uses {model} — the first one you have a key for",
       "autoHintNoKey": "No key yet — set one up",
-      "needsKey": "Set up"
+      "needsKey": "Set up",
+      "search": "Search models",
+      "noMatch": "No model matches"
     },
     "effortChip": {
       "label": "Thinking",
@@ -8817,7 +8819,9 @@
       "library": "Pick from assets",
       "camera": "Take photo",
       "upload": "Upload file",
-      "mention": "@ a character or asset"
+      "mention": "@ a character or asset",
+      "recent": "Recent asset",
+      "all": "All"
     }
   },
   "GenerationCancel": {

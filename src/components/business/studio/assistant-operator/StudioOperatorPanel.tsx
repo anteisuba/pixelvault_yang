@@ -2263,6 +2263,37 @@ export function StudioOperatorPanel({
     missingKey: errorMissingKey,
   })
 
+  /*
+    ⭐ **自动生成开关**（D12 S-C）：发送键左边，只管当前这段会话。开着时
+      生成确认卡一到就由客户端替你按下，卡直接收成「已自动生成」一行。
+    ⚠ 只在有生成键的宿主上画：工作台那颗（图片 / 视频档）或画布卡自己那颗
+      （`canvas_generate` 同一张卡，node-canvas-v2 §13.2.1）。⛔ 不摆一颗没用的开关。
+    ⚠ `shrink-0 whitespace-nowrap`：面板按屏宽三成算，窄屏上只有 320 宽，
+      让出空间的该是左边那颗模型灰字（它会截断），⛔ 不是把这几个字折成两行。
+    手机上它不在栏上，住思考那张参数卡底部（iOS 稿 v19）。
+  */
+  const autoGenerateSwitch =
+    operatorHost.apply.triggerGeneration || operatorHost.apply.canvas ? (
+      <label
+        className={cn(
+          'flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap select-none',
+          isMobile
+            ? 'min-h-11 w-full justify-between px-2.5 text-2sm text-foreground'
+            : 'mr-1 text-xs text-muted-foreground',
+        )}
+      >
+        {t('autoGenerate.label')}
+        <Switch
+          size="sm"
+          data-testid="operator-auto-generate"
+          checked={autoGenerate}
+          onCheckedChange={setOperatorAutoGenerate}
+          aria-label={t('autoGenerate.label')}
+          className="data-[state=checked]:bg-foreground"
+        />
+      </label>
+    ) : null
+
   return (
     <>
       {/* ── 头部（v2 §4.1）—— 进度带整条删掉（决策 14），进度由状态词说（§3.6）。 */}
@@ -3120,6 +3151,7 @@ export function StudioOperatorPanel({
               {isMobile ? (
                 <StudioOperatorPhoneAddCard
                   onPickLibrary={() => setLibraryOpen(true)}
+                  onPickRecent={(generation) => pickLibraryAssets([generation])}
                   onPickFile={() => uploadInputRef.current?.click()}
                   onCameraFiles={handleUploadFiles}
                   onMention={() => inputRef.current?.openMention()}
@@ -3185,6 +3217,7 @@ export function StudioOperatorPanel({
                 onChange={onSelectRouteModel}
                 open={modelPickerOpen}
                 onOpenChange={setModelPickerOpen}
+                searchable={isMobile}
               />
               <StudioOperatorEffortChip
                 value={
@@ -3192,30 +3225,11 @@ export function StudioOperatorPanel({
                   ASSISTANT_PERSONA_DEFAULTS.reasoningEffort
                 }
                 onChange={onSelectReasoningEffort}
+                /* 手机：自动生成收进这张参数卡（iOS 稿 v19），栏上只留 ＋ · 模型 · 思考 · 发送。 */
+                footer={isMobile ? autoGenerateSwitch : null}
               />
               <span className="flex-1" />
-              {/*
-              ⭐ **自动生成开关**（D12 S-C）：发送键左边，只管当前这段会话。开着时
-                生成确认卡一到就由客户端替你按下，卡直接收成「已自动生成」一行。
-              ⚠ 只在有生成键的宿主上画：工作台那颗（图片 / 视频档）或画布卡自己那颗
-                （`canvas_generate` 同一张卡，node-canvas-v2 §13.2.1）。⛔ 不摆一颗没用的开关。
-            */}
-              {operatorHost.apply.triggerGeneration ||
-              operatorHost.apply.canvas ? (
-                // ⚠ `shrink-0 whitespace-nowrap`：面板按屏宽三成算，窄屏上只有 320 宽，
-                //   让出空间的该是左边那颗模型灰字（它会截断），⛔ 不是把这几个字折成两行。
-                <label className="mr-1 flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap text-xs text-muted-foreground select-none">
-                  {t('autoGenerate.label')}
-                  <Switch
-                    size="sm"
-                    data-testid="operator-auto-generate"
-                    checked={autoGenerate}
-                    onCheckedChange={setOperatorAutoGenerate}
-                    aria-label={t('autoGenerate.label')}
-                    className="data-[state=checked]:bg-foreground"
-                  />
-                </label>
-              ) : null}
+              {!isMobile && autoGenerateSwitch}
               {/*
               ⭐ 跑着且输入框是空的 → 这一颗就是**停止**（S2）；跑着但你打了字 →
                 仍是发送，这一句排队（§3.1 ㉒）。⛔ 不并排两颗。

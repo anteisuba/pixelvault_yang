@@ -8371,7 +8371,9 @@
       "autoResolved": "自动 · {model}",
       "autoHintResolved": "现在用 {model}（你配了 key 的第一家）",
       "autoHintNoKey": "还没有 key，点这里配一把",
-      "needsKey": "待配置"
+      "needsKey": "待配置",
+      "search": "搜索模型",
+      "noMatch": "没找到这个模型"
     },
     "effortChip": {
       "label": "思考",
@@ -8817,7 +8819,9 @@
       "library": "从素材挑图",
       "camera": "拍照",
       "upload": "上传文件",
-      "mention": "@ 角色或素材"
+      "mention": "@ 角色或素材",
+      "recent": "最近的素材",
+      "all": "全部"
     }
   },
   "GenerationCancel": {

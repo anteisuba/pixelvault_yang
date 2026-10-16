@@ -162,6 +162,52 @@ describe('StudioOperatorModelChip', () => {
     ).toHaveLength(adapters.size)
   })
 
+  it('手机（searchable）：卡顶搜索按模型名筛，「自动」让位，搜不到写一句', () => {
+    render(
+      <StudioOperatorModelChip
+        value={ASSISTANT_ROUTE_MODEL_AUTO}
+        onChange={vi.fn()}
+        searchable
+      />,
+    )
+    openMenu()
+    const target = NODE_STUDIO_ASSISTANT_ROUTE_MODELS[0]
+    fireEvent.change(screen.getByTestId('operator-model-search'), {
+      target: { value: target.label },
+    })
+    expect(screen.queryByTestId('operator-model-option-auto')).toBeNull()
+    expect(
+      screen.getByTestId(`operator-model-option-${target.modelId}`),
+    ).toBeInTheDocument()
+    const others = NODE_STUDIO_ASSISTANT_ROUTE_MODELS.filter(
+      (model) =>
+        !model.label.toLowerCase().includes(target.label.toLowerCase()),
+    )
+    for (const model of others) {
+      expect(
+        screen.queryByTestId(`operator-model-option-${model.modelId}`),
+      ).toBeNull()
+    }
+
+    fireEvent.change(screen.getByTestId('operator-model-search'), {
+      target: { value: 'zzz-no-such-model' },
+    })
+    expect(
+      screen.getByTestId('operator-model-search-empty'),
+    ).toBeInTheDocument()
+  })
+
+  it('桌面不传 searchable：没有搜索格', () => {
+    render(
+      <StudioOperatorModelChip
+        value={ASSISTANT_ROUTE_MODEL_AUTO}
+        onChange={vi.fn()}
+      />,
+    )
+    openMenu()
+    expect(screen.queryByTestId('operator-model-search')).toBeNull()
+  })
+
   it('选中一个模型即写 persona，chip 上就地换成它', async () => {
     const onChange = vi.fn().mockResolvedValue(true)
     render(

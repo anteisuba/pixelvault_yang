@@ -14,9 +14,14 @@
  *
  * 开合 = 方向 A「从指针处长出来」（node-canvas-v2 §1 第 12 条：开 200 · 关 120 缓入）；
  * 调用方把它包在 `AnimatePresence` 里才播得到关。
+ *
+ * ⚠ 菜单 **portal 到 body、`fixed` 定位**：留在卡里会被 React Flow 的 NodeToolbar
+ * 浮层（选中卡下方的提示词输入框）盖住——那一层是 viewport 级 portal，卡内 z-index
+ * 再高也压不过它。
  */
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, useIsPresent, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
@@ -45,7 +50,7 @@ export interface NodeV4ContextMenuItem {
 
 export interface NodeV4ContextMenuProps {
   readonly node: NodeV4
-  /** 相对**卡片**的落点（右键事件的 offsetX/Y）。 */
+  /** 视口坐标落点（右键事件的 clientX/Y）。 */
   readonly x: number
   readonly y: number
   readonly mediaUrl?: string
@@ -77,6 +82,23 @@ export function NodeV4ContextMenu({
   const ref = useRef<HTMLDivElement>(null)
   const present = useIsPresent()
   const motionSet = useReducedMotion() ? FADE_ONLY : GROW_FROM_POINTER
+  /** 贴着视口边时往回收，别让菜单出屏。 */
+  const [pos, setPos] = useState({ left: x, top: y })
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const margin = 8
+    setPos({
+      left: Math.max(
+        margin,
+        Math.min(x, window.innerWidth - el.offsetWidth - margin),
+      ),
+      top: Math.max(
+        margin,
+        Math.min(y, window.innerHeight - el.offsetHeight - margin),
+      ),
+    })
+  }, [x, y])
   /**
    * 「重跑下游」露不露脸（第三期）。
    *
@@ -96,11 +118,17 @@ export function NodeV4ContextMenu({
     const onPointer = (event: PointerEvent) => {
       if (!ref.current?.contains(event.target as Node)) onClose()
     }
+    // 菜单钉在视口上，画布一滚/缩放卡就走了——跟着关掉。
+    const onWheel = (event: WheelEvent) => {
+      if (!ref.current?.contains(event.target as Node)) onClose()
+    }
     window.addEventListener('keydown', onKey)
     window.addEventListener('pointerdown', onPointer, true)
+    window.addEventListener('wheel', onWheel, true)
     return () => {
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('pointerdown', onPointer, true)
+      window.removeEventListener('wheel', onWheel, true)
     }
   }, [onClose])
 
@@ -172,22 +200,26 @@ export function NodeV4ContextMenu({
       ? items.filter((item) => item.id === 'tidy' || item.id === 'delete')
       : items)
 
-  return (
+  return createPortal(
     <motion.div
       ref={ref}
       role="menu"
       data-node-context-menu={node.id}
       style={{
-        left: x,
-        top: y,
+        left: pos.left,
+        top: pos.top,
         width: NODE_V4_CONTEXT_MENU.width,
         transformOrigin: '0 0',
       }}
       initial={motionSet.initial}
       animate={motionSet.animate}
       exit={motionSet.exit}
+      onContextMenu={(event) => {
+        event.preventDefault()
+        event.stopPropagation()
+      }}
       className={cn(
-        'nodrag nopan nowheel absolute z-10 rounded-xl border p-1.5 text-popover-foreground corner-squircle surface-glass shadow-node-menu',
+        'nodrag nopan nowheel fixed z-canvas-transient rounded-xl border p-1.5 text-popover-foreground corner-squircle surface-glass shadow-node-menu',
         !present && 'pointer-events-none',
       )}
     >
@@ -216,6 +248,7 @@ export function NodeV4ContextMenu({
           </button>
         </div>
       ))}
-    </motion.div>
+    </motion.div>,
+    document.body,
   )
 }

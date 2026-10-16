@@ -58,33 +58,46 @@ import { cn } from '@/lib/utils'
  */
 
 const TAB_CLASS =
-  'flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-full text-2xs font-medium text-muted-foreground transition-colors duration-fast ease-standard active:bg-muted [&>svg]:size-5.5'
+  'relative flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-full text-2xs font-medium text-muted-foreground transition-colors duration-fast ease-standard active:bg-muted [&>svg]:relative [&>svg]:size-5.5'
 
+/**
+ * 底栏一格。当前页那块灰底是**同一个元素滑过去**（`layoutId` + `SPRING.slot`，与
+ * 标签台页签、设置左栏同一手感），⛔ 不是每格各自亮灭（owner 2026-10-16）。
+ * `active` 由底栏给：点下去就先挪过去，不等新页面加载完（点击后动作同时起步）。
+ */
 function MobileTab({
   item,
-  pathname,
+  active,
+  onPress,
 }: {
   item: ShellNavItem
-  pathname: string
+  active: boolean
+  onPress: () => void
 }) {
   const t = useTranslations()
   const tMobile = useTranslations('MobileNav')
+  const reduceMotion = useReducedMotion()
   const Icon = item.icon
-  const isActive = isShellNavItemActive(item, pathname)
   // 底栏格子窄：「我的主页」在这里叫「我的」（v10 稿）。
   const label =
     item.id === 'profile' ? tMobile('tabs.profile') : t(item.labelKey)
   return (
     <Link
       href={item.href}
-      aria-current={isActive ? 'page' : undefined}
-      className={cn(
-        TAB_CLASS,
-        isActive && 'bg-muted font-semibold text-foreground',
-      )}
+      onClick={onPress}
+      aria-current={active ? 'page' : undefined}
+      className={cn(TAB_CLASS, active && 'font-semibold text-foreground')}
     >
+      {active ? (
+        <motion.span
+          aria-hidden
+          layoutId="mobile-tab-thumb"
+          className="absolute inset-0 rounded-full bg-muted"
+          transition={springTransition('slot', reduceMotion)}
+        />
+      ) : null}
       <Icon />
-      <span className="max-w-full truncate">{label}</span>
+      <span className="relative max-w-full truncate">{label}</span>
     </Link>
   )
 }
@@ -219,6 +232,12 @@ function MobileTabBar({ pathname }: { pathname: string }) {
   const [actionsHost, setActionsHost] = useState<HTMLDivElement | null>(null)
   useMobileTabBarActionsHost(actionsHost)
   const lent = useMobileTabBarActionsActive()
+  // 刚点的那一格（记下点时在哪一页）：灰块先滑过去，地址一换就交回给路由判定。
+  const [pressedTabAt, setPressedTab] = useState<{
+    id: string
+    at: string
+  } | null>(null)
+  const pressedTab = pressedTabAt?.at === pathname ? pressedTabAt : null
 
   useToastLift(barRef)
 
@@ -272,7 +291,16 @@ function MobileTabBar({ pathname }: { pathname: string }) {
             )}
           >
             {MOBILE_TABS.map((item) => (
-              <MobileTab key={item.id} item={item} pathname={pathname} />
+              <MobileTab
+                key={item.id}
+                item={item}
+                active={
+                  pressedTab
+                    ? pressedTab.id === item.id
+                    : isShellNavItemActive(item, pathname)
+                }
+                onPress={() => setPressedTab({ id: item.id, at: pathname })}
+              />
             ))}
           </div>
           <div

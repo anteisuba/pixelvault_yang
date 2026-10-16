@@ -181,7 +181,7 @@ studio 内容裁出视口，是因为侧栏能展开到 144；平板档现在钉
 
 **手机 P3**（`MobileShell.tsx`，原型 v10 `U28UWBvWsYEGvEvQRR6sjq`）：
 
-- **底栏**（iOS 稿，owner 2026-10-16 选 B）：浮起的玻璃胶囊（60px，离底 8px + 安全区，`--spacing-mobile-tabbar`）放 `素材 · 画廊 · 角色 · 我的` 四格，当前页一块灰底 + 墨字加粗；＋ 是胶囊右边单独一颗 60px 黑圆键，新建面板从它长出（一句话出图 + 3×2 工具格）。条目按 id 从 `SHELL_NAV_GO` 取（`MOBILE_TAB_IDS`），⛔ 不另抄；提示词不上底栏，收进「我的」。
+- **底栏**（iOS 稿，owner 2026-10-16 选 B）：浮起的玻璃胶囊（60px，离底 8px + 安全区，`--spacing-mobile-tabbar`）放 `素材 · 画廊 · 角色 · 我的` 四格，当前页一块灰底 + 墨字加粗，换页时这块灰底是同一个元素弹簧滑过去（`layoutId` + `SPRING.slot`，点下即动不等页面加载，owner 2026-10-16）；＋ 是胶囊右边单独一颗 60px 黑圆键，新建面板从它长出（一句话出图 + 3×2 工具格）。条目按 id 从 `SHELL_NAV_GO` 取（`MOBILE_TAB_IDS`），⛔ 不另抄；提示词不上底栏，收进「我的」。
 - **＋**：60 黑圆，胶囊右边。点开是新建面板（从 ＋ 长出来，`CHIP_POPOVER` 缩放 + 由糊变清，`SPRING.slot`）：顶上一句话输入（提交 = 带 `?prompt=&generate=1` 进图片工作台**直接出图**，v10 稿第 2 条；缺 key 等闸门照常拦），下面 3×2 六个工具格（图标在上、名字在下，当前工具灰底），上次用的右上角标「上次」。＋ 转 45° 变 ×。**长按 ＋**（`MOBILE_CREATE_LONG_PRESS_MS`）直接进上次的工具。
 - **工作台顶栏**：← 回到进工作台之前那一页（没有记录回素材），中间「当前工具 ▾」就地换工具，右端一格留给助手头像。「上次的工具」与「← 去哪」是本地记忆（`use-mobile-nav-memory.ts`）。
 - **主区让位**：`MobileShellInset` 按路由给 `mobile-inset-topbar` / `mobile-inset-tabbar`，`h-page` 读它写的 `--mobile-chrome-height`。底栏挂 `useToastLift`，黑条浮在它上面。

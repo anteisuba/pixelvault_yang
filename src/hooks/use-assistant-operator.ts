@@ -98,6 +98,7 @@ import {
   appendOperatorPendingResult,
   appendOperatorPending,
   appendOperatorRoundSummary,
+  beginOperatorRegenerate,
   clearOperatorPrompts,
   clearOperatorQueue,
   dropOperatorPending,
@@ -904,6 +905,11 @@ export interface UseAssistantOperatorResult {
    * 带 `chat` = 开一段和这个角色的聊天会话（附录L）。
    */
   newThread(chat?: StudioOperatorChatRequest): void
+  /**
+   * 聊天会话里「重新生成」她最后那段回复（附录L 第二片）：拿掉那段、按你最后那句话再跑一轮，
+   * 新回复接成下一版（左右切换在正文底下）。⚠ 工作会话 / 正在跑时不做。
+   */
+  regenerate(): void
 }
 
 export function useAssistantOperator(
@@ -3898,6 +3904,17 @@ export function useAssistantOperator(
     [scope, localThreadId],
   )
 
+  const regenerate = useCallback(() => {
+    if (!isCurrentThread()) return
+    const current = getOperatorState()
+    if (!current.chatCharacter || current.status === 'working') return
+    // 同 `send`：上一轮剩下的卡作废、步数用完的提示收掉。
+    clearOperatorPrompts()
+    setOperatorOutOfSteps(false)
+    if (!beginOperatorRegenerate()) return
+    void run()
+  }, [isCurrentThread, run])
+
   return {
     domain,
     send,
@@ -3929,5 +3946,6 @@ export function useAssistantOperator(
     retryGeneration,
     rerunGeneration,
     newThread,
+    regenerate,
   }
 }

@@ -8781,7 +8781,17 @@
       "workGroup": "作業",
       "newWorkThread": "新しい会話（作業）",
       "chatWith": "キャラと話す…",
-      "noCharacters": "キャラクターがまだありません。キャラクターページで作成してください"
+      "noCharacters": "キャラクターがまだありません。キャラクターページで作成してください",
+      "regenerate": "再生成",
+      "previousVersion": "前の版",
+      "nextVersion": "次の版",
+      "versionOf": "{index} / {total}",
+      "edit": "編集",
+      "editLabel": "このメッセージを編集",
+      "delete": "削除",
+      "confirmDelete": "削除する？",
+      "save": "保存",
+      "cancel": "キャンセル"
     }
   },
   "GenerationCancel": {

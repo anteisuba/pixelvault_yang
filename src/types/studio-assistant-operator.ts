@@ -79,6 +79,12 @@ export interface StudioOperatorMessageEntry {
   pendingPhase?: 'landing'
   /** 从占位行挂上到第一个字到达用了多久（ms）—— 正文上方那句「想了 N 秒」。 */
   thoughtMs?: number
+  /**
+   * 聊天会话里「重新生成」留下的各版（附录L 第二片），`text` 永远是 `versions[versionIndex]`。
+   * 缺席 = 只有这一版。⚠ 进下一轮对白的只有 `text`（用户左右切到哪版，她就接着哪版说）。
+   */
+  versions?: readonly string[]
+  versionIndex?: number
 }
 
 /** 计划条（一轮最多一条）。 */

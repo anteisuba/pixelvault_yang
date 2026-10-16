@@ -4245,3 +4245,57 @@ describe('「用 Grok 搜这一次」', () => {
     )
   })
 })
+
+describe('聊天会话 · 重新生成（附录L 第二片）', () => {
+  const CHARACTER = { id: '11111111-1111-4111-8111-111111111111', name: '莉莉' }
+
+  it('⭐ 拿掉她那段、按你最后那句话再跑一轮，新回复接成第二版', async () => {
+    const { result } = render()
+    act(() => result.current.newThread({ character: CHARACTER, opening: '' }))
+    act(() => result.current.send('今天去哪？'))
+    await settle()
+    streams[0].emit({ type: 'message', text: '去海边吧。' })
+    streams[0].emit({ type: 'done' })
+    streams[0].close()
+    await settle()
+
+    act(() => result.current.regenerate())
+    await settle()
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(2)
+    const request = streamAssistantOperatorAPI.mock.calls[1][0]
+    // ⭐ 对白停在你那句话上（旧回复不进上下文），还是这段聊天。
+    expect(request.messages.at(-1)).toMatchObject({
+      role: 'user',
+      content: '今天去哪？',
+    })
+    expect(
+      request.messages.some(
+        (message: { content: string }) => message.content === '去海边吧。',
+      ),
+    ).toBe(false)
+    expect(request.chatCharacterId).toBe(CHARACTER.id)
+
+    streams[1].emit({ type: 'message', text: '去山上看星星。' })
+    streams[1].emit({ type: 'done' })
+    streams[1].close()
+    await settle()
+    expect(store.getOperatorState().entries.at(-1)).toMatchObject({
+      kind: 'message',
+      text: '去山上看星星。',
+      versions: ['去海边吧。', '去山上看星星。'],
+    })
+  })
+
+  it('⛔ 工作会话不重新生成', async () => {
+    const { result } = render()
+    act(() => result.current.send('出一张图'))
+    await settle()
+    streams[0].emit({ type: 'message', text: '好的' })
+    streams[0].emit({ type: 'done' })
+    streams[0].close()
+    await settle()
+    act(() => result.current.regenerate())
+    await settle()
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(1)
+  })
+})

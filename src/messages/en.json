@@ -8781,7 +8781,17 @@
       "workGroup": "Work",
       "newWorkThread": "New conversation (work)",
       "chatWith": "Chat with a character…",
-      "noCharacters": "No characters yet. Create one on the Characters page first"
+      "noCharacters": "No characters yet. Create one on the Characters page first",
+      "regenerate": "Regenerate",
+      "previousVersion": "Previous version",
+      "nextVersion": "Next version",
+      "versionOf": "{index} / {total}",
+      "edit": "Edit",
+      "editLabel": "Edit this message",
+      "delete": "Delete",
+      "confirmDelete": "Delete?",
+      "save": "Save",
+      "cancel": "Cancel"
     }
   },
   "GenerationCancel": {

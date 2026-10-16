@@ -367,6 +367,36 @@ describe('历史 ↔ 库里的 messages', () => {
     ).toEqual(history)
   })
 
+  it('⭐ 聊天会话重新生成留下的各版跟着落库，读回来还在（附录L 第二片）', () => {
+    const history = toOperatorHistory([
+      {
+        kind: 'message',
+        id: 'm-1',
+        text: '第一版',
+        versions: ['第一版', '第二版'],
+        versionIndex: 0,
+      },
+      { kind: 'message', id: 'm-2', text: '只有一版', versions: ['只有一版'] },
+    ])
+    expect(history).toEqual([
+      {
+        kind: 'message',
+        id: 'm-1',
+        text: '第一版',
+        versions: ['第一版', '第二版'],
+        versionIndex: 0,
+      },
+      // 只有一版不存那一格。
+      { kind: 'message', id: 'm-2', text: '只有一版' },
+    ])
+    const stored = toStoredOperatorMessages(history)
+    for (const message of stored)
+      expect(
+        AssistantConversationMessageSchema.safeParse(message).success,
+      ).toBe(true)
+    expect(fromStoredOperatorMessages(stored)).toEqual(history)
+  })
+
   it('⭐ NAI 标签核对那句灰字跟着写提示词那一步进历史，存了再读回来还在', () => {
     const tagCheck = {
       fixes: [{ from: 'cherry blossom', to: 'cherry blossoms' }],

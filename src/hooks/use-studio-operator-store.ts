@@ -29,6 +29,7 @@ import type { AssistantOperatorDomain } from '@/constants/assistant-operator'
 import { GENERATION_REVIEW_STATE_IDS } from '@/constants/assistant-operator'
 import type { GenerationReviewState } from '@/constants/assistant-operator'
 import {
+  STUDIO_OPERATOR_CHAT,
   STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
   type StudioOperatorConfirmStatus,
   type StudioOperatorField,
@@ -229,6 +230,16 @@ export interface StudioOperatorState {
    */
   chatCharacter: StudioOperatorChatCharacter | null
   /**
+   * 聊天会话里正在「重新生成」（附录L 第二片）：被拿掉的那条回复已有的各版。这一轮停下时
+   * 新回复接成最后一版；没写出来就把原来那条放回去（⛔ 一次失败的重新生成吞掉她说过的话）。
+   */
+  regeneration: { versions: readonly string[] } | null
+  /**
+   * 载回来的历史被改过几次（聊天会话改 / 删消息、重新生成）—— 保存的防抖除了 `entries`
+   * 也看它：只动历史时 `entries` 可能一条都没有。换会话 / 新会话归零。
+   */
+  historyRevision: number
+  /**
    * 上一轮是**步数用完**停下的（D12 S12）—— 面板据此在末尾给「继续 / 先到这里」。
    * ⚠ 用户一开口（或新对话 / 换会话）就清掉。
    */
@@ -323,6 +334,8 @@ const INITIAL_STATE: StudioOperatorState = {
   incognito: false,
   offTheRecord: false,
   chatCharacter: null,
+  regeneration: null,
+  historyRevision: 0,
   outOfSteps: false,
   capturingFrames: false,
   reviewStates: {},
@@ -811,7 +824,233 @@ export function setOperatorStatus(
   errorCode: string | null = null,
   errorMissingKey: AssistantOperatorMissingKey | null = null,
 ): void {
-  emit({ ...state, status, errorText, errorTrace, errorCode, errorMissingKey })
+  emit({
+    ...state,
+    ...(status === 'working' ? {} : settleRegeneration()),
+    status,
+    errorText,
+    errorTrace,
+    errorCode,
+    errorMissingKey,
+  })
+}
+
+/**
+ * 这一轮停下时收「重新生成」（附录L 第二片）：最后一句话之后她写出来的最后一段接成新一版；
+ * 一个字都没写出来（出错 / 停掉）就把原来那条原样放回去。
+ */
+function settleRegeneration(): Pick<
+  StudioOperatorState,
+  'entries' | 'regeneration'
+> | null {
+  const pending = state.regeneration
+  if (!pending) return null
+  const lastUser = state.entries.findLastIndex((item) => item.kind === 'user')
+  const replyIndex = state.entries.findLastIndex(
+    (item, index) =>
+      index > lastUser && item.kind === 'message' && item.text.trim() !== '',
+  )
+  const reply = replyIndex >= 0 ? state.entries[replyIndex] : undefined
+  if (reply && reply.kind === 'message') {
+    const versions = [...pending.versions, reply.text].slice(
+      -STUDIO_OPERATOR_CHAT.maxVersions,
+    )
+    const settled: StudioOperatorMessageEntry = {
+      ...reply,
+      versions,
+      versionIndex: versions.length - 1,
+    }
+    return {
+      entries: state.entries.map((item, index) =>
+        index === replyIndex ? settled : item,
+      ),
+      regeneration: null,
+    }
+  }
+  const versions = pending.versions
+  const restored: StudioOperatorMessageEntry = {
+    kind: 'message',
+    id: nextOperatorEntryId('message'),
+    text: versions.at(-1) ?? '',
+    ...(versions.length > 1
+      ? { versions, versionIndex: versions.length - 1 }
+      : {}),
+  }
+  return { entries: [...state.entries, restored], regeneration: null }
+}
+
+/** 一条回复已有的各版：没重新生成过就是它自己这一版。 */
+function versionsOfReply(reply: {
+  text: string
+  versions?: readonly string[] | undefined
+}): readonly string[] {
+  return reply.versions && reply.versions.length > 0
+    ? reply.versions
+    : [reply.text]
+}
+
+/**
+ * 聊天会话「重新生成」第一步：拿掉最后一句话之后她说的那一段（在本次会话里或载回来的历史里），
+ * 记下已有的各版。返回 `false` = 最后不是她在回话（比如只有开场白），什么都不动。
+ * ⚠ 只拿掉、不发：发那一轮由驱动 hook 接着跑（对白现在正好停在你最后那句话上）。
+ */
+export function beginOperatorRegenerate(): boolean {
+  const lastUser = state.entries.findLastIndex((item) => item.kind === 'user')
+  if (lastUser >= 0) {
+    const reply = state.entries
+      .slice(lastUser + 1)
+      .findLast((item) => item.kind === 'message' && item.text.trim() !== '')
+    if (!reply || reply.kind !== 'message') return false
+    emit({
+      ...state,
+      entries: state.entries.slice(0, lastUser + 1),
+      regeneration: { versions: versionsOfReply(reply) },
+    })
+    return true
+  }
+  const lastHistoryUser = state.history.findLastIndex(
+    (item) => item.kind === 'user',
+  )
+  if (lastHistoryUser < 0) return false
+  const reply = [
+    ...state.history.slice(lastHistoryUser + 1),
+    ...state.entries,
+  ].findLast((item) => item.kind === 'message' && item.text.trim() !== '')
+  if (!reply || reply.kind !== 'message') return false
+  emit({
+    ...state,
+    history: state.history.slice(0, lastHistoryUser + 1),
+    historyRevision: state.historyRevision + 1,
+    entries: [],
+    regeneration: { versions: versionsOfReply(reply) },
+  })
+  return true
+}
+
+interface StudioOperatorChatLinePatch {
+  text: string
+  versions?: readonly string[]
+  versionIndex?: number
+}
+
+/** 时间线上的一条对白（你说的或她说的），本次会话或载回来的历史里的那个对象本身。 */
+export type StudioOperatorChatLine =
+  | Extract<StudioOperatorThreadEntry, { kind: 'user' | 'message' }>
+  | Extract<StudioOperatorHistoryEntry, { kind: 'user' | 'message' }>
+
+/**
+ * 改 / 删对白里的一条（聊天会话，附录L 第二片）。`patch` 返回 `null` = 删掉这条。
+ * ⚠ 按**对象本身**找、⛔ 不按 id：条目 id 是每次页面加载现编的序号，一段跨了几次加载的会话里
+ *   本来就有两个 `user-1`（见面板历史那一段的头注）。条目不可变，同一个对象就是同一条。
+ * ⚠ 下一轮的对白就是改过之后的样子（每轮从线程现算）。
+ */
+function patchOperatorChatLine(
+  line: StudioOperatorChatLine,
+  patch: (
+    line: StudioOperatorChatLinePatch,
+  ) => StudioOperatorChatLinePatch | null,
+): void {
+  const entryIndex = state.entries.findIndex((item) => item === line)
+  const entry = entryIndex >= 0 ? state.entries[entryIndex] : undefined
+  if (entry && (entry.kind === 'user' || entry.kind === 'message')) {
+    const next = patch(entry)
+    emit({
+      ...state,
+      entries: next
+        ? state.entries.map((item, index) =>
+            index === entryIndex
+              ? entry.kind === 'user'
+                ? { ...entry, text: next.text }
+                : { ...entry, ...next }
+              : item,
+          )
+        : state.entries.filter((_, index) => index !== entryIndex),
+    })
+    return
+  }
+  const historyIndex = state.history.findIndex((item) => item === line)
+  const stored = historyIndex >= 0 ? state.history[historyIndex] : undefined
+  if (!stored || (stored.kind !== 'user' && stored.kind !== 'message')) return
+  const next = patch(stored)
+  emit({
+    ...state,
+    history: next
+      ? state.history.map((item, index) =>
+          index === historyIndex
+            ? stored.kind === 'user'
+              ? { ...stored, text: next.text }
+              : {
+                  kind: stored.kind,
+                  id: stored.id,
+                  text: next.text,
+                  ...(next.versions
+                    ? {
+                        versions: [...next.versions],
+                        versionIndex: next.versionIndex ?? 0,
+                      }
+                    : {}),
+                }
+            : item,
+        )
+      : state.history.filter((_, index) => index !== historyIndex),
+    historyRevision: state.historyRevision + 1,
+  })
+}
+
+/** 改一条：她的回复改的是此刻显示的那一版。空的不收（要删走删除）。 */
+export function editOperatorChatLine(
+  line: StudioOperatorChatLine,
+  text: string,
+): void {
+  const next = text.trim()
+  if (!next) return
+  patchOperatorChatLine(line, (current) => {
+    if (!current.versions || current.versions.length < 2) return { text: next }
+    const shown = current.versionIndex ?? current.versions.length - 1
+    return {
+      text: next,
+      versions: current.versions.map((version, index) =>
+        index === shown ? next : version,
+      ),
+      versionIndex: shown,
+    }
+  })
+}
+
+export function deleteOperatorChatLine(line: StudioOperatorChatLine): void {
+  patchOperatorChatLine(line, () => null)
+}
+
+/** 左右切换她的回复：切到哪版，下一轮她就接着哪版说。 */
+export function selectOperatorChatVersion(
+  line: StudioOperatorChatLine,
+  index: number,
+): void {
+  patchOperatorChatLine(line, (current) => {
+    const version = current.versions?.[index]
+    if (version === undefined || !current.versions) return current
+    return { text: version, versions: current.versions, versionIndex: index }
+  })
+}
+
+/**
+ * 聊天会话里那条能「重新生成」的回复：你最后一句话之后她说的最后一段（本次会话或历史里）。
+ * `null` = 不是聊天会话 / 最后不是她在回话（比如只有开场白）。
+ */
+export function operatorChatReply(
+  current: Pick<StudioOperatorState, 'chatCharacter' | 'history' | 'entries'>,
+): StudioOperatorChatLine | null {
+  if (!current.chatCharacter) return null
+  const lines: (StudioOperatorThreadEntry | StudioOperatorHistoryEntry)[] = [
+    ...current.history,
+    ...current.entries,
+  ]
+  const lastUser = lines.findLastIndex((item) => item.kind === 'user')
+  if (lastUser < 0) return null
+  const reply = lines
+    .slice(lastUser + 1)
+    .findLast((item) => item.kind === 'message' && item.text.trim() !== '')
+  return reply && reply.kind === 'message' ? reply : null
 }
 
 /** 抽帧那一段的开关（第二期）—— 见 `capturingFrames` 头注。 */
@@ -1300,6 +1539,8 @@ export function loadOperatorThread(args: {
     incognito: false,
     offTheRecord: false,
     chatCharacter: args.chatCharacter ?? null,
+    regeneration: null,
+    historyRevision: 0,
   })
   hydrateOperatorResume()
 }
@@ -1502,6 +1743,8 @@ export function resetOperatorThread(
       : EMPTY_HISTORY,
     historyRounds: EMPTY_ROUNDS,
     chatCharacter: chat?.character ?? null,
+    regeneration: null,
+    historyRevision: 0,
     sessionId: null,
     sessionSurface: null,
     entries: [],

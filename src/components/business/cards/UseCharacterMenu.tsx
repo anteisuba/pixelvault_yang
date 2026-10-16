@@ -23,12 +23,13 @@ import { Check, ChevronDown, ChevronRight } from '@/components/icons'
 import { Spinner } from '@/components/ui/spinner'
 import { useRecentCanvases } from '@/hooks/node/use-recent-canvases'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
+import { requestOperatorChat } from '@/hooks/use-studio-operator-store'
 import { useLiquidReveal, type LiquidRect } from '@/hooks/use-liquid-reveal'
 import { useRouter } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
 
 /**
- * **用她 ▾**（角色详情右上，卡片重设计第 5 片）：一个角色三处用——出图 · 助手人设 ·
+ * **用她 ▾**（角色详情右上，卡片重设计第 5 片）：一个角色四处用——和她聊（附录L）· 出图 · 助手人设 ·
  * 画布。「放进画布 ›」在菜单里往下展开最近几块画布 + 新画布；选一块 = 打开它，她落在
  * 视口中间并选中（画布用角色 ④ 画板 S5，深链见 `canvasWithCharacterPath`）。
  *
@@ -194,6 +195,18 @@ export function UseCharacterMenu({ card }: { card: CharacterCardRecord }) {
             </button>
           </div>
           <div role="menu" aria-label={t('useCharacter')} className="p-1.5">
+            <MenuItem
+              title={t('chatWith')}
+              hint={t('chatWithHint')}
+              onSelect={() => {
+                close()
+                // 附录L：这一页的助手开一段和她的聊天会话（开场白有就是她的第一句）。
+                requestOperatorChat({
+                  character: { id: card.id, name: card.name },
+                  opening: card.persona?.opening ?? '',
+                })
+              }}
+            />
             <MenuItem
               title={t('useInStudio')}
               hint={t('useInStudioHint')}

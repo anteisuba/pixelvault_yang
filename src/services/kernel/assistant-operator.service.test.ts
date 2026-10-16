@@ -367,6 +367,8 @@ vi.mock('@/services/assistant-persona.service', async () => {
     // 角色设定的清洗 / 填宏 / 截断在 persona 服务自己的测试里验；这里原样透传。
     sanitizePromptCharacter: (persona: { promptCharacter?: unknown }) =>
       persona.promptCharacter ?? null,
+    sanitizePromptRoleplay: (persona: { roleplay?: unknown }) =>
+      persona.roleplay ?? null,
     ASSISTANT_PERSONA_DEFAULTS,
   }
 })
@@ -8580,6 +8582,43 @@ describe('persona 风格段', () => {
     expect(prompt).not.toContain('- Personality and how you act')
     expect(prompt).toContain('- talk the way your CHARACTER section describes')
     expect(prompt).not.toContain('how they want you to sound')
+  })
+
+  it('⭐ 聊天模式（附录L）：按会话那张卡读人设，角色段换成扮演为主的 ROLEPLAY', async () => {
+    mockGetAssistantPersonaByUserId.mockResolvedValue({
+      ...ASSISTANT_PERSONA_DEFAULTS,
+      avatarUrl: null,
+      name: 'Rin',
+      promptCharacter: {
+        name: 'Rin',
+        identity: '猫咖店员',
+        behavior: '',
+        speech: '爱用「喵」结尾',
+        catchphrases: [],
+        backstory: '',
+      },
+      roleplay: {
+        scenario: '雨天的猫咖',
+        opening: '欢迎光临喵',
+        examples: [{ user: '你好', reply: '……你好喵' }],
+      },
+    })
+    queueTurns({ finished: true })
+    const chatCharacterId = '11111111-1111-4111-8111-111111111111'
+    await collect(
+      runAssistantOperator('clerk-1', buildRequest({ chatCharacterId })),
+    )
+    expect(mockGetAssistantPersonaByUserId.mock.calls[0]?.[1]).toBe(
+      chatCharacterId,
+    )
+    const prompt = systemPrompt()
+    expect(prompt).toContain('ROLEPLAY — this conversation is a roleplay chat')
+    expect(prompt).not.toContain('CHARACTER — you are')
+    expect(prompt).not.toContain('never what you do')
+    expect(prompt).toContain('you never invent or bend them')
+    expect(prompt).toContain('- The scene: 雨天的猫咖')
+    expect(prompt).toContain('「欢迎光临喵」')
+    expect(prompt).toContain('Creator: 你好\nYou: ……你好喵')
   })
 
   it('每轮那句别出戏：说话方式只取第一句；没用角色是 null', () => {
@@ -19318,6 +19357,19 @@ describe('v3 收尾（P2 §2.5）', () => {
     mockLlmTextCompletion.mockResolvedValueOnce(
       JSON.stringify({ memories: [], forget: [] }),
     )
+
+    await closeRoundV3(run, { clerkId: 'clerk-1', userId: user.id })
+    await settleAfter()
+
+    expect(mockRecordMemories).not.toHaveBeenCalled()
+  })
+
+  it('⛔ 聊天会话这一轮不自动记（附录L：故事里的事不进工作记忆）', async () => {
+    const { run, user } = await prepare({
+      chatCharacterId: '11111111-1111-4111-8111-111111111111',
+    })
+    recordLedgerStep(run, ASSISTANT_OPERATOR_VERB_IDS.look, '看图', '黑长直')
+    mockLlmTextCompletion.mockResolvedValue(MEMORIES)
 
     await closeRoundV3(run, { clerkId: 'clerk-1', userId: user.id })
     await settleAfter()

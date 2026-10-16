@@ -56,6 +56,7 @@ import {
   MessageSquarePlus,
   ChevronDown,
   EyeOff,
+  MessagesSquare,
   MoreHorizontal,
   Settings2,
 } from '@/components/icons'
@@ -73,12 +74,17 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
   setOperatorIncognito,
   useStudioOperatorState,
+  type StudioOperatorChatRequest,
 } from '@/hooks/use-studio-operator-store'
+import { useChatCharacters } from '@/hooks/use-chat-characters'
 import { AssistantAvatarGlyph } from '@/components/business/studio/assistant-operator/AssistantAvatarGlyph'
 import { ArrivalReveal } from '@/components/ui/load-reveal'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -119,6 +125,30 @@ const MS_PER_DAY = 86_400_000
  */
 const HISTORY_SKELETON_WIDTHS = ['w-3/5', 'w-1/2', 'w-7/10'] as const
 
+type SessionSummary = UseStudioOperatorHistoryResult['sessions'][number]
+
+/** 会话分组（附录L）：工作一组 + 每个角色一组；组按各自最近那一条排（列表本来就是新的在前）。 */
+function groupSessionsByChat(sessions: readonly SessionSummary[]): {
+  character: { id: string; name: string } | null
+  sessions: SessionSummary[]
+}[] {
+  const groups = new Map<
+    string,
+    {
+      character: { id: string; name: string } | null
+      sessions: SessionSummary[]
+    }
+  >()
+  for (const session of sessions) {
+    const character = session.chatCharacter ?? null
+    const key = character?.id ?? ''
+    const group = groups.get(key) ?? { character, sessions: [] }
+    group.sessions.push(session)
+    groups.set(key, group)
+  }
+  return [...groups.values()]
+}
+
 /**
  * 右上**那一颗 ⋯** 的皮肤（§4.1：32px）。
  *
@@ -150,7 +180,8 @@ interface StudioOperatorHeaderProps {
    */
   working: boolean
   history: UseStudioOperatorHistoryResult
-  onNewThread(): void
+  /** 新会话；带 `chat` = 开一段和这个角色的聊天会话（附录L）。 */
+  onNewThread(chat?: StudioOperatorChatRequest): void
   /**
    * 「助手设置」（§4.1 右上那颗齿轮）。
    *
@@ -202,7 +233,7 @@ export function StudioOperatorHeader({
    * 胶囊读、被驱动 hook 在事件处理器里同步读。穿成 prop 等于让面板与外壳各转发
    * 一次同一个布尔。
    */
-  const { incognito } = useStudioOperatorState()
+  const { incognito, chatCharacter } = useStudioOperatorState()
   /**
    * **举着刀的那一行**（owner 2026-09-20 真机第 3 条）—— 删除是原位两段确认，
    * ⛔ 不再弹 `AlertDialog`。
@@ -215,6 +246,13 @@ export function StudioOperatorHeader({
   const cancelConfirmDelete = useCallback(() => setConfirmDeleteId(null), [])
   /** 标题▾ 与历史图标共开的那一个菜单（见头注），⛔ 不是两个实例。 */
   const [menuOpen, setMenuOpen] = useState(false)
+  /** 「和角色聊…」那一列（附录L）：菜单开着才取。 */
+  const chatCharacters = useChatCharacters(menuOpen)
+  /**
+   * 会话按「工作 / 和谁聊」分组（附录L：聊天会话按角色归组）。组的先后跟各组最近那一条走；
+   * 组内照旧按时间。卡删了的聊天会话归回工作那一组。
+   */
+  const sessionGroups = groupSessionsByChat(history.sessions)
 
   /**
    * 胶囊上那几个字（owner 2026-09-20 真机第 4 条）。
@@ -394,47 +432,63 @@ export function StudioOperatorHeader({
                 等过骨架才到的那一份短暂一糊变清（加载中 2026-10-08）；打开时手上就有的
                 直接出现，⛔ 每开一次糊一次。 */}
             <ArrivalReveal loading={listLoading}>
-              {history.sessions.map((session) => {
-                /* ⚠ 域标签读的是 `surface`（线程**起始**域）—— 一条线程后来切去
+              {sessionGroups.map((group) => (
+                <div key={group.character?.id ?? 'work'}>
+                  {sessionGroups.length > 1 ? (
+                    <DropdownMenuLabel className="px-2.25 pb-1 pt-1.5 text-2xs font-normal text-muted-foreground">
+                      {group.character
+                        ? t('chat.group', { name: group.character.name })
+                        : t('chat.workGroup')}
+                    </DropdownMenuLabel>
+                  ) : null}
+                  {group.sessions.map((session) => {
+                    /* ⚠ 域标签读的是 `surface`（线程**起始**域）—— 一条线程后来切去
                  哪儿只在它自己的域标记里，列表这一层看不到，也不该猜。
                  ⚠ 先取出来再判：直接把索引表达式塞进模板串，`null` 会一起进
                  `t()` 的键类型里（编译期就红）。 */
-                const sessionDomain = SESSION_DOMAIN_BY_SURFACE[session.surface]
-                return (
-                  <StudioOperatorSessionRow
-                    key={session.id}
-                    session={session}
-                    domainLabel={
-                      sessionDomain ? t(`domainName.${sessionDomain}`) : null
-                    }
-                    dateLabel={sessionDateLabel(session.updatedAt)}
-                    current={session.id === history.currentSessionId}
-                    selectDisabled={
-                      working ||
-                      Boolean(history.loadingSessionId) ||
-                      history.deletingSessionId === session.id
-                    }
-                    deleteDisabled={
-                      Boolean(history.deletingSessionId) ||
-                      (working && session.id === history.currentSessionId)
-                    }
-                    renaming={history.renamingSessionId === session.id}
-                    deleting={history.deletingSessionId === session.id}
-                    confirming={confirmDeleteId === session.id}
-                    onSelect={() => history.selectSession(session)}
-                    onRename={(title) =>
-                      void history.renameSession(session, title)
-                    }
-                    onRequestDelete={() => setConfirmDeleteId(session.id)}
-                    onCancelDelete={cancelConfirmDelete}
-                    onConfirmDelete={() => {
-                      void history.deleteSession(session).then((deleted) => {
-                        if (deleted) setConfirmDeleteId(null)
-                      })
-                    }}
-                  />
-                )
-              })}
+                    const sessionDomain =
+                      SESSION_DOMAIN_BY_SURFACE[session.surface]
+                    return (
+                      <StudioOperatorSessionRow
+                        key={session.id}
+                        session={session}
+                        domainLabel={
+                          sessionDomain
+                            ? t(`domainName.${sessionDomain}`)
+                            : null
+                        }
+                        dateLabel={sessionDateLabel(session.updatedAt)}
+                        current={session.id === history.currentSessionId}
+                        selectDisabled={
+                          working ||
+                          Boolean(history.loadingSessionId) ||
+                          history.deletingSessionId === session.id
+                        }
+                        deleteDisabled={
+                          Boolean(history.deletingSessionId) ||
+                          (working && session.id === history.currentSessionId)
+                        }
+                        renaming={history.renamingSessionId === session.id}
+                        deleting={history.deletingSessionId === session.id}
+                        confirming={confirmDeleteId === session.id}
+                        onSelect={() => history.selectSession(session)}
+                        onRename={(title) =>
+                          void history.renameSession(session, title)
+                        }
+                        onRequestDelete={() => setConfirmDeleteId(session.id)}
+                        onCancelDelete={cancelConfirmDelete}
+                        onConfirmDelete={() => {
+                          void history
+                            .deleteSession(session)
+                            .then((deleted) => {
+                              if (deleted) setConfirmDeleteId(null)
+                            })
+                        }}
+                      />
+                    )
+                  })}
+                </div>
+              ))}
             </ArrivalReveal>
             {history.error ? (
               <DropdownMenuItem disabled className="text-2sm text-destructive">
@@ -451,10 +505,56 @@ export function StudioOperatorHeader({
               onSelect={() => onNewThread()}
             >
               <MessageSquarePlus className="size-4" aria-hidden />
-              {t('newThread')}
+              {chatCharacter ? t('chat.newWorkThread') : t('newThread')}
             </DropdownMenuItem>
+            {/* 「和角色聊…」（附录L）：选一个角色就开一段和她的聊天会话。 */}
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger
+                data-testid="operator-chat-with"
+                disabled={working || Boolean(history.loadingSessionId)}
+              >
+                <MessagesSquare className="size-4" aria-hidden />
+                {t('chat.chatWith')}
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="max-h-72 w-56 overflow-y-auto rounded-xl p-1.25 assistant-glass-overlay shadow-assistant-overlay">
+                {chatCharacters.isLoading &&
+                chatCharacters.characters.length === 0 ? (
+                  <DropdownMenuItem disabled className="text-2sm">
+                    {t('history.loading')}
+                  </DropdownMenuItem>
+                ) : chatCharacters.characters.length === 0 ? (
+                  <DropdownMenuItem disabled className="text-2sm">
+                    {t('chat.noCharacters')}
+                  </DropdownMenuItem>
+                ) : (
+                  chatCharacters.characters.map((chat) => (
+                    <DropdownMenuItem
+                      key={chat.character.id}
+                      onSelect={() => onNewThread(chat)}
+                    >
+                      <span className="min-w-0 truncate">
+                        {chat.character.name}
+                      </span>
+                    </DropdownMenuItem>
+                  ))
+                )}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {/* ── 聊天模式胶囊（附录L）：这段会话是和谁聊。工作会话不画。 */}
+        {chatCharacter ? (
+          <span
+            data-testid="operator-chat-pill"
+            className="inline-flex min-w-0 shrink items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-2sm text-muted-foreground"
+          >
+            <MessagesSquare className="size-3.5 shrink-0" aria-hidden />
+            <span className="min-w-0 truncate">
+              {t('chat.pill', { name: chatCharacter.name })}
+            </span>
+          </span>
+        ) : null}
 
         {/* ── 隐身胶囊（56a · 画板 `DesignD56Simple`「隐身开着」）──────
             ⚠ **一枚文字胶囊**，⛔ 不用红点：红点说的是「有东西要你看」，而隐身

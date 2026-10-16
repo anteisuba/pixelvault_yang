@@ -79,6 +79,12 @@ interface StudioOperatorWorkbenchFields {
   primed: boolean
 }
 
+/** 聊天会话的对象（附录L）：会话菜单 / 顶栏只要名字。 */
+export interface StudioOperatorChatCharacter {
+  id: string
+  name: string
+}
+
 export interface StudioOperatorState {
   status: StudioOperatorStatus
   /** 现在在哪个域 —— 头部 chip 与线程里那条域标记读的是同一个值。 */
@@ -217,6 +223,12 @@ export interface StudioOperatorState {
    */
   offTheRecord: boolean
   /**
+   * **聊天模式**（附录L）：这段会话是和哪个角色聊；`null` = 工作会话。
+   * ⭐ 跟着会话走：新会话时定下、载入历史时从会话上读回，同一段会话不切。
+   * 每轮上送 `chatCharacterId`，服务端按这张卡扮演；保存时盖在会话首条消息上。
+   */
+  chatCharacter: StudioOperatorChatCharacter | null
+  /**
    * 上一轮是**步数用完**停下的（D12 S12）—— 面板据此在末尾给「继续 / 先到这里」。
    * ⚠ 用户一开口（或新对话 / 换会话）就清掉。
    */
@@ -310,6 +322,7 @@ const INITIAL_STATE: StudioOperatorState = {
   confirm: null,
   incognito: false,
   offTheRecord: false,
+  chatCharacter: null,
   outOfSteps: false,
   capturingFrames: false,
   reviewStates: {},
@@ -424,6 +437,36 @@ export function subscribeOperatorAttachment(listener: () => void): () => void {
   attachmentListeners.add(listener)
   return () => {
     attachmentListeners.delete(listener)
+  }
+}
+
+/**
+ * **「和她聊」**（附录L）：角色页「用她 ▾ → 和她聊」递过来，这一页的 Dock 取走后开一段
+ * 聊天会话并打开面板。⚠ 只留一个：连点两次就是「和她聊」。取走即消费。
+ */
+export interface StudioOperatorChatRequest {
+  character: StudioOperatorChatCharacter
+  opening: string
+}
+
+let pendingChat: StudioOperatorChatRequest | null = null
+const chatListeners = new Set<() => void>()
+
+export function requestOperatorChat(request: StudioOperatorChatRequest): void {
+  pendingChat = request
+  for (const listener of chatListeners) listener()
+}
+
+export function takeOperatorChat(): StudioOperatorChatRequest | null {
+  const next = pendingChat
+  pendingChat = null
+  return next
+}
+
+export function subscribeOperatorChat(listener: () => void): () => void {
+  chatListeners.add(listener)
+  return () => {
+    chatListeners.delete(listener)
   }
 }
 
@@ -1207,6 +1250,8 @@ export function loadOperatorThread(args: {
    * 回到「等你定」。缺席 = 没有；⚠ 换一段会话时旧的问题 / 卡一并清掉。
    */
   pending?: StudioOperatorPending | null
+  /** 这段会话是和谁聊（会话菜单那一行带来的）；缺席 = 工作会话。 */
+  chatCharacter?: StudioOperatorChatCharacter | null
 }): void {
   const pending = args.pending ?? null
   emit({
@@ -1254,6 +1299,7 @@ export function loadOperatorThread(args: {
     resume: null,
     incognito: false,
     offTheRecord: false,
+    chatCharacter: args.chatCharacter ?? null,
   })
   hydrateOperatorResume()
 }
@@ -1425,6 +1471,11 @@ export function clearOperatorResumePlan(): void {
  */
 export function resetOperatorThread(
   identity?: Pick<StudioOperatorState, 'threadScope' | 'localThreadId'>,
+  /**
+   * 开一段**聊天会话**（附录L）：和谁聊 + 她的开场白（有就作为她的第一句放进历史）。
+   * 缺席 = 工作会话。
+   */
+  chat?: StudioOperatorChatRequest,
 ): void {
   const current = identity ? getOperatorThread(identity.threadScope) : state
   if (
@@ -1440,8 +1491,17 @@ export function resetOperatorThread(
     // 新会话只在隐身还开着时不存；上一段开过隐身不连累这一段。
     offTheRecord: current.incognito,
     status: 'idle',
-    history: EMPTY_HISTORY,
+    history: chat?.opening.trim()
+      ? [
+          {
+            kind: 'message',
+            id: nextOperatorEntryId('message'),
+            text: chat.opening.trim(),
+          },
+        ]
+      : EMPTY_HISTORY,
     historyRounds: EMPTY_ROUNDS,
+    chatCharacter: chat?.character ?? null,
     sessionId: null,
     sessionSurface: null,
     entries: [],

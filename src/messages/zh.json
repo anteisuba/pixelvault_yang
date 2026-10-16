@@ -8774,7 +8774,15 @@
       "stop": "先到这里",
       "continuePrompt": "继续"
     },
-    "stopShort": "停止"
+    "stopShort": "停止",
+    "chat": {
+      "pill": "和 {name} 聊",
+      "group": "和 {name} 聊",
+      "workGroup": "工作",
+      "newWorkThread": "新会话（工作）",
+      "chatWith": "和角色聊…",
+      "noCharacters": "还没有角色，先去角色页建一个"
+    }
   },
   "GenerationCancel": {
     "cancel": "取消",
@@ -9249,6 +9257,8 @@
     "title": "角色",
     "useCharacter": "用她",
     "draftHint": "先起个名字，再加图、写设定",
+    "chatWith": "和她聊",
+    "chatWithHint": "在右边的助手里开一段和她的聊天",
     "useInStudio": "在图片工作台用她",
     "useInStudioHint": "带上主图与标签",
     "useAsPersona": "设为助手人设",

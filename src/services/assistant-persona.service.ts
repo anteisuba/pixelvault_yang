@@ -25,6 +25,7 @@ import {
   type AssistantPersonaCharacter,
   type AssistantPromptCharacter,
   type AssistantPromptPersona,
+  type AssistantPromptRoleplay,
   type UpdateAssistantPersonaRequest,
 } from '@/types/assistant-persona'
 
@@ -301,9 +302,18 @@ export async function getAssistantPersona(
  */
 export async function getAssistantPersonaByUserId(
   userId: string,
+  chatCharacterId?: string | null,
 ): Promise<AssistantPromptPersona> {
   const row = await findPersonaRow(userId)
   const persona = toPersona(row)
+  if (chatCharacterId) {
+    const chatCard = await db.characterCard.findFirst({
+      where: { id: chatCharacterId, userId, isDeleted: false },
+      select: PERSONA_SELECT.characterCard.select,
+    })
+    const chat = chatCard ? toChatPersona(persona, chatCard) : null
+    if (chat) return chat
+  }
   const card = row?.characterCard ?? null
   const profile = readCharacterProfile(card)
   const speech =
@@ -316,6 +326,39 @@ export async function getAssistantPersonaByUserId(
       ? { tone: ASSISTANT_PERSONA_TONE_IDS.custom, toneCustom: speech }
       : {}),
     ...(promptCharacter ? { promptCharacter } : {}),
+  }
+}
+
+/**
+ * **聊天模式**这一轮按谁说话（附录L）：会话绑的那张卡，⛔ 不看设置里「用哪个角色」。
+ * 名字、口吻都跟这张卡走（聊天里她就是她）；多带场景 / 开场白 / 示例对白三样。
+ * 卡里一格设定都没写 → `null`，调用方照工作模式答（只剩名字的角色演不出来）。
+ */
+function toChatPersona(
+  persona: AssistantPersona,
+  card: PersonaCharacterRow,
+): AssistantPromptPersona | null {
+  const profile = readCharacterProfile(card)
+  if (!profile) return null
+  const speech = profile.speech.trim()
+  const promptCharacter = toPromptCharacter(card.name, profile, speech)
+  if (!promptCharacter) return null
+  const roleplay: AssistantPromptRoleplay = {
+    scenario: profile.scenario.trim(),
+    opening: profile.opening.trim(),
+    examples: profile.examples.filter(
+      (example) => example.user.trim() || example.reply.trim(),
+    ),
+  }
+  return {
+    ...persona,
+    name: card.name.slice(0, ASSISTANT_PERSONA_LIMITS.maxNameChars),
+    characterCardId: card.id,
+    ...(speech
+      ? { tone: ASSISTANT_PERSONA_TONE_IDS.custom, toneCustom: speech }
+      : {}),
+    promptCharacter,
+    roleplay,
   }
 }
 
@@ -437,6 +480,48 @@ export function sanitizePromptCharacter(
       ASSISTANT_PERSONA_LIMITS.maxCharacterProfileSpeechChars,
     ),
   )
+}
+
+/**
+ * 聊天模式那三样进系统提示前的清洗（同 `sanitizePromptCharacter`：清洗 / 填宏 / 截断）。
+ * 没在聊天 → `null`（三样都空也照样是聊天模式）。
+ */
+export function sanitizePromptRoleplay(
+  persona: AssistantPromptPersona,
+): AssistantPromptRoleplay | null {
+  const roleplay = persona.roleplay
+  const character = sanitizePromptCharacter(persona)
+  if (!roleplay || !character) return null
+  const user = sanitizeAddressUserAs(persona) ?? 'the creator'
+  const clean = (text: string, max: number) =>
+    clipText(
+      sanitizePrompt(fillCardMacros(text, character.name, user)).trim(),
+      max,
+    )
+  const cleaned = {
+    scenario: clean(
+      roleplay.scenario,
+      ASSISTANT_PERSONA_LIMITS.maxRoleplayScenarioChars,
+    ),
+    opening: clean(
+      roleplay.opening,
+      ASSISTANT_PERSONA_LIMITS.maxRoleplayOpeningChars,
+    ),
+    examples: roleplay.examples
+      .slice(0, ASSISTANT_PERSONA_LIMITS.maxRoleplayExamples)
+      .map((example) => ({
+        user: clean(
+          example.user,
+          ASSISTANT_PERSONA_LIMITS.maxRoleplayExampleChars,
+        ),
+        reply: clean(
+          example.reply,
+          ASSISTANT_PERSONA_LIMITS.maxRoleplayExampleChars,
+        ),
+      }))
+      .filter((example) => example.reply),
+  }
+  return cleaned
 }
 
 /**

@@ -8774,7 +8774,15 @@
       "stop": "Stop here",
       "continuePrompt": "Continue"
     },
-    "stopShort": "Stop"
+    "stopShort": "Stop",
+    "chat": {
+      "pill": "Chatting with {name}",
+      "group": "With {name}",
+      "workGroup": "Work",
+      "newWorkThread": "New conversation (work)",
+      "chatWith": "Chat with a character…",
+      "noCharacters": "No characters yet. Create one on the Characters page first"
+    }
   },
   "GenerationCancel": {
     "cancel": "Cancel",
@@ -9249,6 +9257,8 @@
     "title": "Characters",
     "useCharacter": "Use",
     "draftHint": "Give them a name first, then add images and a profile",
+    "chatWith": "Chat with this character",
+    "chatWithHint": "Opens a chat with them in the assistant panel",
     "useInStudio": "Use in the image studio",
     "useInStudioHint": "Brings the main image and tags",
     "useAsPersona": "Set as assistant persona",

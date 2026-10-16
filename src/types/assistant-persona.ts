@@ -232,9 +232,25 @@ export type AssistantPromptCharacter = z.infer<
   typeof AssistantPromptCharacterSchema
 >
 
-/** 工具环读到的 persona：读回来的那一份 + 正在用的角色设定（没用角色就没有）。 */
+/**
+ * **聊天模式**才有的三样（附录L，2026-10-16）：场景、开场白、示例对白。工作模式 ⛔ 不带 ——
+ * 那里角色只改口吻；聊天时扮演是主要内容，「像不像」最靠示例对白。
+ * ⚠ 只在服务端拼提示时有，⛔ 不回给客户端。
+ */
+export const AssistantPromptRoleplaySchema = z.object({
+  scenario: z.string(),
+  opening: z.string(),
+  examples: z.array(z.object({ user: z.string(), reply: z.string() })),
+})
+
+export type AssistantPromptRoleplay = z.infer<
+  typeof AssistantPromptRoleplaySchema
+>
+
+/** 工具环读到的 persona：读回来的那一份 + 正在用的角色设定（没用角色就没有）+ 聊天模式那三样。 */
 export type AssistantPromptPersona = AssistantPersona & {
   promptCharacter?: AssistantPromptCharacter
+  roleplay?: AssistantPromptRoleplay
 }
 
 /**

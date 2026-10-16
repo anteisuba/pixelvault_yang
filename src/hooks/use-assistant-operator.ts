@@ -113,6 +113,7 @@ import {
   recordOperatorChange,
   removeOperatorQueued,
   resetOperatorThread,
+  type StudioOperatorChatRequest,
   resolveOperatorConfirm,
   setOperatorCapturingFrames,
   setOperatorConfirm,
@@ -900,8 +901,9 @@ export interface UseAssistantOperatorResult {
    * ＋新对话（拍板 10）—— 只清线程，改动与撤销本钱留着。
    * ⚠ 撤销 / 还原**不在这个接口里**：它们有两个宿主（日志条 + 参数栏的 ✦），
    *   住在 `use-studio-operator-revert.ts` 里，两边各自取用同一份。
+   * 带 `chat` = 开一段和这个角色的聊天会话（附录L）。
    */
-  newThread(): void
+  newThread(chat?: StudioOperatorChatRequest): void
 }
 
 export function useAssistantOperator(
@@ -1407,6 +1409,10 @@ export function useAssistantOperator(
            *   「用户特意关掉了隐身」，而绝大多数轮次里他从没碰过这颗开关。
            */
           ...(getOperatorState().incognito ? { incognito: true } : {}),
+          // 聊天会话（附录L）：每轮带上和谁聊，服务端按这张卡扮演。
+          ...(getOperatorState().chatCharacter
+            ? { chatCharacterId: getOperatorState().chatCharacter?.id }
+            : {}),
           ...(searchWithGrok ? { searchWithGrok: true as const } : {}),
           ...(timeZone ? { timeZone } : {}),
           ...(videoFrames ? { videoFrames } : {}),
@@ -3876,17 +3882,21 @@ export function useAssistantOperator(
   // 的面板里应用 op —— 表单被改而线程已经没了。
   useEffect(() => () => abortRef.current?.abort(), [])
 
-  const newThread = useCallback(() => {
-    const current = getOperatorState()
-    if (
-      !scope ||
-      current.threadScope !== scope ||
-      current.localThreadId !== localThreadId
-    )
-      return
-    abortRef.current?.abort()
-    resetOperatorThread()
-  }, [scope, localThreadId])
+  /** 新会话；带 `chat` 就是开一段和这个角色的聊天会话（附录L）。 */
+  const newThread = useCallback(
+    (chat?: StudioOperatorChatRequest) => {
+      const current = getOperatorState()
+      if (
+        !scope ||
+        current.threadScope !== scope ||
+        current.localThreadId !== localThreadId
+      )
+        return
+      abortRef.current?.abort()
+      resetOperatorThread(undefined, chat)
+    },
+    [scope, localThreadId],
+  )
 
   return {
     domain,

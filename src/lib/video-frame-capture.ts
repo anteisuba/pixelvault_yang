@@ -128,6 +128,43 @@ async function captureFramesWithPlan(
   planFrames: (durationSeconds: number) => VideoFramePlan,
   maxEdge: number = VIDEO_FRAME_LIMITS.maxEdgePixels,
 ): Promise<VideoFrameCaptureResult> {
+  const first = await captureFramesOnce(source, planFrames, maxEdge)
+  const retryUrl =
+    !first.ok &&
+    first.reason === VIDEO_FRAME_CAPTURE_REASONS.loadFailed &&
+    typeof source === 'string'
+      ? corsCacheKeyUrl(source)
+      : null
+  return retryUrl ? captureFramesOnce(retryUrl, planFrames, maxEdge) : first
+}
+
+/**
+ * 抽帧用的那份地址：同一段片子另起一个缓存键（owner 2026-10-16 真机：画布上播过的片子
+ * 「视频加载不出来」）。
+ *
+ * 🔬 画布卡上的 `<video>` 不打 `crossOrigin`，它取回来的那份响应不带
+ * `Access-Control-Allow-Origin`，R2 又不回 `Vary: Origin` —— 浏览器缓存（和 Cloudflare
+ * 边缘）之后把这份没头的响应原样交给抽帧这只带 `crossOrigin` 的 `<video>`，于是加载
+ * 直接报错。多一个查询参数就是另一个缓存键，这一次请求带着 `Origin` 出去、拿回带头的那份。
+ * ⚠ 只在第一次 `loadFailed` 之后重试一次：别家的签名地址加了参数会失效，第一次照原样取。
+ */
+function corsCacheKeyUrl(source: string): string | null {
+  let url: URL
+  try {
+    url = new URL(source)
+  } catch {
+    return null
+  }
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') return null
+  url.searchParams.set(VIDEO_FRAME_LIMITS.corsCacheKeyParam, '1')
+  return url.toString()
+}
+
+async function captureFramesOnce(
+  source: string | File,
+  planFrames: (durationSeconds: number) => VideoFramePlan,
+  maxEdge: number,
+): Promise<VideoFrameCaptureResult> {
   if (typeof document === 'undefined') {
     return failure(
       VIDEO_FRAME_CAPTURE_REASONS.unsupportedEnvironment,

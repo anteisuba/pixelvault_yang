@@ -215,6 +215,8 @@ export const VIDEO_FRAME_LIMITS = {
   seekTimeoutMs: 8_000,
   /** 太短的视频抽 8 帧没意义（每段不到一帧），但仍然要给出结果。 */
   minDurationSeconds: 0.2,
+  /** 加载失败后重试用的查询参数：另起一个缓存键躲开没有 CORS 头的那份缓存（见 `corsCacheKeyUrl`）。 */
+  corsCacheKeyParam: 'pv-frames',
 } as const
 
 /**

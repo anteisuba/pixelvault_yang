@@ -8399,6 +8399,9 @@
       "videoPlayerTitle": "{site} プレーヤー：{title}",
       "videoOpenSource": "{site} で開く",
       "videoClose": "プレーヤーを閉じる",
+      "videoEnlarge": "拡大",
+      "videoShrink": "戻す",
+      "videoEnlarged": "大きいウィンドウで再生中",
       "videoPlatform": {
         "youtube": "YouTube",
         "bilibili": "ビリビリ",

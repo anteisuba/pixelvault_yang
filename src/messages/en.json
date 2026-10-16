@@ -8399,6 +8399,9 @@
       "videoPlayerTitle": "{site} player: {title}",
       "videoOpenSource": "Open on {site}",
       "videoClose": "Close the player",
+      "videoEnlarge": "Enlarge",
+      "videoShrink": "Shrink back",
+      "videoEnlarged": "Playing in the big window",
       "videoPlatform": {
         "youtube": "YouTube",
         "bilibili": "bilibili",

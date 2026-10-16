@@ -2811,6 +2811,37 @@ html:lang(ja) {
   }
 }
 
+/* 助手面板里的视频播放器能「放大」（owner 2026-10-16 选「页面中间大窗口」）。
+   播放器那张卡本身就是一个 `popover`：收着时是面板里普通的一张卡（盖掉 UA 给
+   `[popover]` 的隐藏、居中与内边距），`showPopover()` 后**同一个元素**进顶层、浮到页面中间。
+   ⭐ 用 popover 而不是另开一个弹层：iframe 一直在原处的 DOM 里，⛔ 不重新加载、接着播；
+   顶层也不受面板玻璃的 `backdrop-filter` 约束（它会让 `fixed` 只相对面板）。
+   宽 = 视口宽 92%，或按 16:9 塞进 88% 视口高（扣掉底下那一行 2.25rem），取小的。
+   ⚠ 不认 `:popover-open` 的旧浏览器整条规则作废，元素就是一张普通的卡（放大键也不画）。 */
+@utility operator-video-stage {
+  padding: 0;
+  color: inherit;
+
+  &:not(:popover-open) {
+    display: block;
+    position: static;
+    inset: auto;
+    margin: 0;
+    width: 100%;
+    height: auto;
+  }
+
+  /* ⚠ 居中要自己写：preflight 的 `* { margin: 0 }` 是作者样式，压过 UA 给 popover 的
+     `margin: auto`，不写就钉在左上角（真机截图踩过）。 */
+  &:popover-open {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    width: min(92vw, calc((88dvh - 2.25rem) * 16 / 9));
+    height: fit-content;
+  }
+}
+
 /* 节点卡的**选中环**（画板 `.ring`：1.5px 前景色）。
    ⚠ 走 `outline` 而不是 `box-shadow`：卡影本身就是 `box-shadow`，两者同属一个
    属性会互相盖掉；而把环合进一个 `--shadow-*` 令牌里 Tailwind 生成不出来——它的

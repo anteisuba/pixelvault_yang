@@ -8399,6 +8399,9 @@
       "videoPlayerTitle": "{site} 播放器：{title}",
       "videoOpenSource": "去 {site} 看",
       "videoClose": "关上播放器",
+      "videoEnlarge": "放大",
+      "videoShrink": "收回",
+      "videoEnlarged": "在大窗口里播",
       "videoPlatform": {
         "youtube": "YouTube",
         "bilibili": "B站",

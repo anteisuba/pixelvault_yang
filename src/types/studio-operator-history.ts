@@ -18,7 +18,10 @@ import {
   AssistantOperatorNegativeFoldedSchema,
   AssistantOperatorTagCheckSchema,
 } from '@/types/assistant-operator'
-import { STUDIO_OPERATOR_SYSTEM_CODES } from '@/constants/studio-assistant-operator'
+import {
+  STUDIO_OPERATOR_CHAT,
+  STUDIO_OPERATOR_SYSTEM_CODES,
+} from '@/constants/studio-assistant-operator'
 
 /**
  * 历史里允许出现的地址 —— **只有 http(s)**。
@@ -107,6 +110,13 @@ export const StudioOperatorHistoryEntrySchema = z.discriminatedUnion('kind', [
     kind: z.literal('message'),
     id: HistoryIdSchema,
     text: HistoryTextSchema,
+    /** 聊天会话里重新生成留下的各版（附录L 第二片）；坏了就当只有一版。 */
+    versions: z
+      .array(HistoryTextSchema)
+      .max(STUDIO_OPERATOR_CHAT.maxVersions)
+      .optional()
+      .catch(undefined),
+    versionIndex: z.number().int().min(0).optional().catch(undefined),
   }),
   z.object({
     kind: z.literal('plan'),

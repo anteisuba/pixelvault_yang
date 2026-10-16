@@ -943,3 +943,196 @@ describe('隐身', () => {
     })
   })
 })
+
+describe('聊天会话 · 重新生成 / 改 / 删（附录L 第二片）', () => {
+  const CHARACTER = { id: '11111111-1111-4111-8111-111111111111', name: '莉莉' }
+
+  function startChat() {
+    act(() => {
+      store.resetOperatorThread(undefined, {
+        character: CHARACTER,
+        opening: '你来了。',
+      })
+      store.appendOperatorEntry({
+        kind: 'user',
+        id: 'u-1',
+        text: '今天去哪？',
+        attachments: [],
+      })
+      store.finalizeOperatorMessage('m-1', '去海边吧。')
+    })
+  }
+
+  it('⭐ 重新生成：拿掉她那段 → 新回复接成第二版，可以切回第一版', () => {
+    startChat()
+    expect(store.operatorChatReply(store.getOperatorState())?.text).toBe(
+      '去海边吧。',
+    )
+
+    act(() => {
+      expect(store.beginOperatorRegenerate()).toBe(true)
+    })
+    // 对白停在你那句话上，下一轮按它重新跑。
+    expect(store.getOperatorState().entries.at(-1)?.kind).toBe('user')
+
+    act(() => {
+      store.setOperatorStatus('working')
+      store.finalizeOperatorMessage('m-2', '去山上看星星。')
+      store.setOperatorStatus('idle')
+    })
+    const reply = store.getOperatorState().entries.at(-1)
+    expect(reply).toMatchObject({
+      kind: 'message',
+      text: '去山上看星星。',
+      versions: ['去海边吧。', '去山上看星星。'],
+      versionIndex: 1,
+    })
+
+    act(() => {
+      store.selectOperatorChatVersion(
+        store.operatorChatReply(store.getOperatorState())!,
+        0,
+      )
+    })
+    // ⭐ 切到哪版，下一轮的对白就是哪版。
+    expect(store.getOperatorState().entries.at(-1)).toMatchObject({
+      text: '去海边吧。',
+      versionIndex: 0,
+    })
+  })
+
+  it('⛔ 重新生成失败（一个字都没写出来）不吞掉她原来那句', () => {
+    startChat()
+    act(() => {
+      store.beginOperatorRegenerate()
+      store.setOperatorStatus('working')
+      store.setOperatorStatus('error', '超时了')
+    })
+    expect(store.getOperatorState().entries.at(-1)).toMatchObject({
+      kind: 'message',
+      text: '去海边吧。',
+    })
+    expect(store.getOperatorState().regeneration).toBeNull()
+  })
+
+  it('只有开场白时没有可重新生成的', () => {
+    act(() => {
+      store.resetOperatorThread(undefined, {
+        character: CHARACTER,
+        opening: '你来了。',
+      })
+    })
+    expect(store.operatorChatReply(store.getOperatorState())).toBeNull()
+    act(() => {
+      expect(store.beginOperatorRegenerate()).toBe(false)
+    })
+    expect(store.getOperatorState().history).toHaveLength(1)
+  })
+
+  it('载回来的历史里那段也能重新生成；改历史会触发保存（historyRevision）', () => {
+    act(() => {
+      store.loadOperatorThread({
+        history: [
+          { kind: 'user', id: 'user-1', text: '在吗', attachments: [] },
+          { kind: 'message', id: 'message-1', text: '在。' },
+        ],
+        sessionId: 'conv-1',
+        sessionSurface: 'IMAGE_STUDIO',
+        chatCharacter: CHARACTER,
+      })
+    })
+    act(() => {
+      expect(store.beginOperatorRegenerate()).toBe(true)
+    })
+    expect(store.getOperatorState().history).toHaveLength(1)
+    expect(store.getOperatorState().historyRevision).toBe(1)
+    act(() => {
+      store.setOperatorStatus('working')
+      store.finalizeOperatorMessage('m-new', '一直在。')
+      store.setOperatorStatus('idle')
+    })
+    expect(store.getOperatorState().entries.at(-1)).toMatchObject({
+      text: '一直在。',
+      versions: ['在。', '一直在。'],
+    })
+  })
+
+  it('⭐ 按对象本身改 / 删：历史里两个同 id 的只动点到的那条', () => {
+    const first = {
+      kind: 'user' as const,
+      id: 'user-1',
+      text: '第一次加载',
+      attachments: [],
+    }
+    const second = {
+      kind: 'user' as const,
+      id: 'user-1',
+      text: '第二次加载',
+      attachments: [],
+    }
+    act(() => {
+      store.loadOperatorThread({
+        history: [
+          first,
+          { kind: 'message', id: 'message-1', text: '嗯' },
+          second,
+        ],
+        sessionId: 'conv-1',
+        sessionSurface: 'IMAGE_STUDIO',
+        chatCharacter: CHARACTER,
+      })
+    })
+    act(() => {
+      store.editOperatorChatLine(second, '改过的')
+    })
+    expect(
+      store
+        .getOperatorState()
+        .history.map((line) => ('text' in line ? line.text : null)),
+    ).toEqual(['第一次加载', '嗯', '改过的'])
+
+    const oldest = store.getOperatorState().history[0]
+    if (oldest?.kind !== 'user') throw new Error('expected a user line')
+    act(() => {
+      store.deleteOperatorChatLine(oldest)
+    })
+    expect(store.getOperatorState().history).toHaveLength(2)
+    expect(store.getOperatorState().historyRevision).toBe(2)
+  })
+
+  it('改她的回复改的是此刻显示的那一版；空的不收', () => {
+    startChat()
+    act(() => {
+      store.beginOperatorRegenerate()
+      store.finalizeOperatorMessage('m-2', '第二版')
+      store.setOperatorStatus('idle')
+    })
+    const reply = store.operatorChatReply(store.getOperatorState())!
+    act(() => {
+      store.editOperatorChatLine(reply, '   ')
+    })
+    expect(store.getOperatorState().entries.at(-1)).toBe(reply)
+    act(() => {
+      store.editOperatorChatLine(reply, '改过的第二版')
+    })
+    expect(store.getOperatorState().entries.at(-1)).toMatchObject({
+      text: '改过的第二版',
+      versions: ['去海边吧。', '改过的第二版'],
+      versionIndex: 1,
+    })
+  })
+
+  it('工作会话没有可重新生成的那条', () => {
+    act(() => {
+      store.resetOperatorThread()
+      store.appendOperatorEntry({
+        kind: 'user',
+        id: 'u-1',
+        text: '出一张图',
+        attachments: [],
+      })
+      store.finalizeOperatorMessage('m-1', '好的')
+    })
+    expect(store.operatorChatReply(store.getOperatorState())).toBeNull()
+  })
+})

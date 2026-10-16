@@ -415,6 +415,14 @@ export type StudioOperatorSystemCode =
  * 触发 —— 它们全都以「entries 变了」的形式经过这里。
  * ⚠ 往小了调会把一次流式回合拆成十几次 POST（每一步都是一次写库）。
  */
+/**
+ * 聊天会话（附录L 第二片）：一条回复最多留几版（重新生成 / 左右切换）。
+ * ⚠ 每一版都随会话落库（`versions`），超出时丢最早的那版。
+ */
+export const STUDIO_OPERATOR_CHAT = {
+  maxVersions: 8,
+} as const
+
 export const STUDIO_OPERATOR_HISTORY = {
   saveDebounceMs: 1200,
   listFreshMs: 30_000,

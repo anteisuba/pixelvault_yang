@@ -8781,7 +8781,17 @@
       "workGroup": "工作",
       "newWorkThread": "新会话（工作）",
       "chatWith": "和角色聊…",
-      "noCharacters": "还没有角色，先去角色页建一个"
+      "noCharacters": "还没有角色，先去角色页建一个",
+      "regenerate": "重新生成",
+      "previousVersion": "上一版",
+      "nextVersion": "下一版",
+      "versionOf": "{index} / {total}",
+      "edit": "改这条",
+      "editLabel": "改这条消息",
+      "delete": "删这条",
+      "confirmDelete": "确定删除？",
+      "save": "保存",
+      "cancel": "取消"
     }
   },
   "GenerationCancel": {

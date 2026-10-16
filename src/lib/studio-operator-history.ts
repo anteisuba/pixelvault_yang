@@ -646,10 +646,20 @@ export function toOperatorHistoryEntry(
     case 'message': {
       const text = entry.text.trim()
       if (!text) return null
+      const versions = entry.versions?.map((version) =>
+        truncate(version, LIMITS.maxMessageChars),
+      )
       return {
         kind: 'message',
         id: entry.id,
         text: truncate(text, LIMITS.maxMessageChars),
+        // 聊天会话重新生成留下的各版（附录L 第二片）：只有一版就不存。
+        ...(versions && versions.length > 1
+          ? {
+              versions,
+              versionIndex: entry.versionIndex ?? versions.length - 1,
+            }
+          : {}),
       }
     }
     case 'plan': {

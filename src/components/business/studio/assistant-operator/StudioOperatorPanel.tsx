@@ -43,6 +43,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactNode,
 } from 'react'
 import {
   ArrowUp,
@@ -115,6 +116,7 @@ import {
   StudioOperatorChangedCards,
   type StudioOperatorChangedCard,
 } from '@/components/business/studio/assistant-operator/StudioOperatorChangedCards'
+import { StudioOperatorChatLine } from '@/components/business/studio/assistant-operator/StudioOperatorChatLine'
 import { StudioOperatorHistoryItem } from '@/components/business/studio/assistant-operator/StudioOperatorHistoryItem'
 import { StudioOperatorLogItem } from '@/components/business/studio/assistant-operator/StudioOperatorLogItem'
 import { StudioOperatorWebCandidateGrid } from '@/components/business/studio/assistant-operator/StudioOperatorWebCandidateGrid'
@@ -187,6 +189,7 @@ import { toOperatorAttachment } from '@/hooks/use-studio-operator-upload'
 import { useStudioOperatorRevert } from '@/hooks/use-studio-operator-revert'
 import {
   getOperatorState,
+  operatorChatReply,
   setOperatorAutoGenerate,
   setOperatorOutOfSteps,
   setOperatorQuestionChecked,
@@ -462,7 +465,21 @@ export function StudioOperatorPanel({
     autoGenerate,
     outOfSteps,
     saveFailed,
+    chatCharacter,
   } = useStudioOperatorState()
+  /**
+   * 聊天会话（附录L 第二片）：每条对白底下一排小动作，她最后那段多「重新生成」。
+   * ⚠ 工作会话不套这一层（`chatCharacter` 为空）。
+   */
+  const chatReply = useMemo(
+    () =>
+      operatorChatReply({
+        chatCharacter,
+        history: allHistoryEntries,
+        entries: allEntries,
+      }),
+    [chatCharacter, allHistoryEntries, allEntries],
+  )
   /**
    * ⚠ 两类条目**留在数据里、不画**（owner 2026-09-24：小字「没什么有用的信息」）：
    *  · 没开跑的计划（「计划 · N 步」）—— 在跑的那种画成打勾清单，照画；
@@ -1025,6 +1042,31 @@ export function StudioOperatorPanel({
   )
 
   const working = status === 'working'
+  /**
+   * 聊天会话里给一条对白套上「改 / 删 / 重新生成 / 左右切」（附录L 第二片）。还在写的、空的不套。
+   */
+  const withChatLine = (
+    line: StudioOperatorThreadEntry | StudioOperatorHistoryEntry,
+    node: ReactNode,
+  ): ReactNode => {
+    if (!chatCharacter || (line.kind !== 'user' && line.kind !== 'message'))
+      return node
+    if (
+      line.kind === 'message' &&
+      (!line.text.trim() || ('streaming' in line && line.streaming))
+    )
+      return node
+    return (
+      <StudioOperatorChatLine
+        line={line}
+        isReply={line === chatReply}
+        busy={working}
+        onRegenerate={operator.regenerate}
+      >
+        {node}
+      </StudioOperatorChatLine>
+    )
+  }
   /** ⭐ 跑着且输入框是空的 → 发送键就是**停止**（S2）；跑着但你打了字 → 仍是发送，这一句排队（§3.1 ㉒）。 */
   const showStop = working && !draft.trim()
   const reducedMotion = useReducedMotion()
@@ -1930,15 +1972,18 @@ export function StudioOperatorPanel({
             speaker={STUDIO_OPERATOR_SPEAKERS.user}
             {...(persona ? { persona } : {})}
           >
-            <StudioOperatorUserText
-              text={entry.text}
-              attachments={entry.attachments}
-              references={messageImageReferences.get(entry.id)}
-              textNodeNames={textNodeNames}
-              {...(entry.mentions ? { mentions: entry.mentions } : {})}
-              onMentionClick={openMention}
-              isMentionMissing={isMentionMissing}
-            />
+            {withChatLine(
+              entry,
+              <StudioOperatorUserText
+                text={entry.text}
+                attachments={entry.attachments}
+                references={messageImageReferences.get(entry.id)}
+                textNodeNames={textNodeNames}
+                {...(entry.mentions ? { mentions: entry.mentions } : {})}
+                onMentionClick={openMention}
+                isMentionMissing={isMentionMissing}
+              />,
+            )}
             {attachmentsBelowUserText(entry.text, entry.attachments).length ? (
               <div className="mt-1 flex flex-wrap gap-1">
                 {attachmentsBelowUserText(entry.text, entry.attachments).map(
@@ -2000,43 +2045,46 @@ export function StudioOperatorPanel({
             card={STUDIO_OPERATOR_CARD_KINDS.message}
             {...(persona ? { persona } : {})}
           >
-            <StudioOperatorMessageBody
-              entry={entry}
-              references={messageImageReferences.get(entry.id)}
-              findRefs={findRefs.byMessage.get(entry.id)}
-              {...(found
-                ? {
-                    webFinds: (
-                      <div
-                        data-testid="operator-answer-web-finds"
-                        className="flex min-w-0 flex-col gap-3"
-                      >
-                        {orderOperatorWebFinds(found).map(renderWebFind)}
-                      </div>
-                    ),
-                  }
-                : {})}
-              {...(answer
-                ? {
-                    sources: answer.sources,
-                    pinned: isPinned(runKey, answer.summary.evidenceRefs),
-                    onTogglePin: () => togglePin(runKey, answer.summary),
-                    /* 「深入调查」= 再跑一轮并加源（§9.1 ③）。⚠ 走的是**普通
+            {withChatLine(
+              entry,
+              <StudioOperatorMessageBody
+                entry={entry}
+                references={messageImageReferences.get(entry.id)}
+                findRefs={findRefs.byMessage.get(entry.id)}
+                {...(found
+                  ? {
+                      webFinds: (
+                        <div
+                          data-testid="operator-answer-web-finds"
+                          className="flex min-w-0 flex-col gap-3"
+                        >
+                          {orderOperatorWebFinds(found).map(renderWebFind)}
+                        </div>
+                      ),
+                    }
+                  : {})}
+                {...(answer
+                  ? {
+                      sources: answer.sources,
+                      pinned: isPinned(runKey, answer.summary.evidenceRefs),
+                      onTogglePin: () => togglePin(runKey, answer.summary),
+                      /* 「深入调查」= 再跑一轮并加源（§9.1 ③）。⚠ 走的是**普通
                        一轮**（发一句话），⛔ 不另开一条绕过工具环的检索路径。 */
-                    onDeepResearch: () => submit(t('research.expandPrompt')),
-                  }
-                : {})}
-              /* 「用 Grok 搜这一次」：只这一轮用创作者自己的 Grok key（owner
+                      onDeepResearch: () => submit(t('research.expandPrompt')),
+                    }
+                  : {})}
+                /* 「用 Grok 搜这一次」：只这一轮用创作者自己的 Grok key（owner
                  2026-10-14）。跑着时不给：排队那一句带不上这一次的授权。 */
-              {...(answer?.offerGrokForX && !working
-                ? {
-                    onSearchXWithGrok: () =>
-                      send(t('research.xWithGrokPrompt'), [], {
-                        searchWithGrok: true,
-                      }),
-                  }
-                : {})}
-            />
+                {...(answer?.offerGrokForX && !working
+                  ? {
+                      onSearchXWithGrok: () =>
+                        send(t('research.xWithGrokPrompt'), [], {
+                          searchWithGrok: true,
+                        }),
+                    }
+                  : {})}
+              />,
+            )}
           </StudioOperatorTimelineRow>
         )
       }
@@ -2338,12 +2386,15 @@ export function StudioOperatorPanel({
                     {...historyCardKind(entry.kind)}
                     {...(persona ? { persona } : {})}
                   >
-                    <StudioOperatorHistoryItem
-                      entry={entry}
-                      references={messageImageReferences.get(entry.id)}
-                      onMentionClick={openMention}
-                      isMentionMissing={isMentionMissing}
-                    />
+                    {withChatLine(
+                      entry,
+                      <StudioOperatorHistoryItem
+                        entry={entry}
+                        references={messageImageReferences.get(entry.id)}
+                        onMentionClick={openMention}
+                        isMentionMissing={isMentionMissing}
+                      />,
+                    )}
                   </StudioOperatorTimelineRow>
                 )
               }

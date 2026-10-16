@@ -41,23 +41,12 @@ export const STUDIO_MOBILE_COMPOSER_VIDEO_CLASS =
  */
 export const STUDIO_MOBILE_STAGE_CLASS = 'studio-mobile-stage' as const
 
-/** 模型 / 规格抽屉的高度类名（92svh，几何在 globals.css）。 */
 /**
  * 手机舞台卡顶上那一行（图片台的写法切换）—— globals.css 按它把模板面板的高度
  * 再扣掉一行。
  */
 export const STUDIO_MOBILE_STAGE_HEADER_CLASS =
   'studio-mobile-stage-header' as const
-
-export const STUDIO_MOBILE_DRAWER_CLASS = 'studio-mobile-drawer' as const
-
-/**
- * 模型抽屉里 drill 行的最小高度类名 —— drill 的 `CommandItem` 基准高度按桌面
- * 定，触屏要 ≥56px 才好点（需求卡表 5「型号行 56px 全宽」）。
- * ⚠ 只在移动端抽屉这个宿主上加，不动 drill 自身的桌面外观。
- */
-export const STUDIO_MOBILE_MODEL_ROWS_CLASS =
-  'studio-mobile-model-rows' as const
 
 /** 提示词输入最多长到几行（超过后内部滚动）。 */
 export const STUDIO_MOBILE_PROMPT_MAX_ROWS = 3

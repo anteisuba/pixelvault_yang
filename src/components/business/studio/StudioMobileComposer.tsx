@@ -1,9 +1,8 @@
 'use client'
 
-import { memo, useRef, useState, type ReactNode } from 'react'
+import { memo, useRef, type ReactNode } from 'react'
 import {
   ArrowUp,
-  ChevronDown,
   FileText,
   Globe,
   RotateCw,
@@ -32,6 +31,7 @@ import { useStudioMobileComposerHeight } from '@/hooks/use-studio-mobile-compose
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { cn } from '@/lib/utils'
 import { PromptInput, PromptInputTextarea } from '@/components/ui/prompt-input'
+import { ResponsivePopoverPhoneCard } from '@/components/ui/responsive-popover'
 import { Spinner } from '@/components/ui/spinner'
 import { ImageAttachmentPreviewStrip } from '@/components/business/ImageAttachmentPreviewStrip'
 import { StudioReferencePromptInput } from './StudioReferencePromptInput'
@@ -41,9 +41,9 @@ import {
   StudioMobileAddSheet,
   type StudioMobileAddRow,
 } from '@/components/business/studio/StudioMobileAddSheet'
-import { StudioMobileModelSheet } from '@/components/business/studio/StudioMobileModelSheet'
 import { StudioModelCapabilityChips } from '@/components/business/studio/StudioModelCapabilityChips'
 import { StudioSpecChip } from '@/components/business/studio/StudioSpecChip'
+import { MainModelPicker } from '@/components/business/studio-shared/pickers/MainModelPicker'
 import { StudioVideoAssetRail } from '@/components/business/studio-shared/chrome/StudioVideoAssetRail'
 import { SearchGroundingSlot } from '@/components/business/studio-shared/search-grounding/SearchGroundingSlot'
 import { useStudioSearchGrounding } from '@/hooks/use-studio-search-grounding'
@@ -51,13 +51,10 @@ import { useStudioSearchGrounding } from '@/hooks/use-studio-search-grounding'
 /**
  * 输入框卡里那一行的幽灵丸（模型 / 规格）—— ⛔ 不画边：卡自己有边，框里再套一圈
  * 描边就是「框里套框」。32px 高，命中区由 `.studio-mobile-chip-row` 补到 44。
+ * 模型那颗是共用的 `MainModelPicker`（与标签台手机同一副收边）。
  */
-const ghostChipClass = cn(
-  'flex h-8 shrink-0 items-center gap-1 rounded-full px-2.5 text-2sm font-medium text-foreground',
-  'transition-colors duration-fast ease-standard active:bg-muted',
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-  'disabled:pointer-events-none disabled:opacity-50',
-)
+const modelGhostClass =
+  'h-8 max-w-40 gap-1 border-transparent bg-transparent pr-2 pl-2.5 font-medium hover:border-transparent active:bg-muted data-[active=true]:bg-muted'
 /** 规格那颗是共用的 `SpecChip`，只在这里把它的描边收掉（闪烁提示的底色照旧）。 */
 const specGhostClass =
   'border-transparent px-2.5 font-medium hover:border-transparent active:bg-muted'
@@ -120,7 +117,6 @@ export const StudioMobileComposer = memo(function StudioMobileComposer({
     filterVideoModelOption,
     handleSelectSingleModel,
     handleToggleRunModel,
-    handleRemoveRunModel,
     blockedReason,
     handleGenerate,
     isGenerating,
@@ -128,7 +124,6 @@ export const StudioMobileComposer = memo(function StudioMobileComposer({
     videoCostBasis,
   } = useStudioGenerateAction()
   const videoAssets = useStudioVideoAssets()
-  const [modelSheetOpen, setModelSheetOpen] = useState(false)
 
   const composerRef = useRef<HTMLDivElement>(null)
   useStudioMobileComposerHeight(composerRef)
@@ -335,42 +330,78 @@ export const StudioMobileComposer = memo(function StudioMobileComposer({
           className="flex items-center gap-2"
           onClick={(event) => event.stopPropagation()}
         >
-          <div className="studio-mobile-chip-row flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
-            <StudioMobileAddSheet
-              disabled={isGenerating}
-              rows={addRows}
-              hasHiddenSetting={!isVideo && cardCount > 0}
-              {...(isVideo ? { videoAssets } : {})}
-            />
-            <button
-              type="button"
-              onClick={() => setModelSheetOpen(true)}
-              aria-label={tForm('modelLabel')}
-              aria-haspopup="dialog"
-              data-testid="studio-mobile-model-chip"
-              className={ghostChipClass}
-            >
-              <span className="max-w-32 truncate">{modelChipLabel}</span>
-              <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
-            </button>
-            {/* 规格 —— 与桌面**同一颗** chip（D2 ④，第 12 项）：触屏上它自己就是
+          <ResponsivePopoverPhoneCard>
+            <div className="studio-mobile-chip-row flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+              <StudioMobileAddSheet
+                disabled={isGenerating}
+                rows={addRows}
+                hasHiddenSetting={!isVideo && cardCount > 0}
+                {...(isVideo ? { videoAssets } : {})}
+              />
+              {/* 模型 —— 与桌面同一颗选择器，手机上也从按钮正上方弹白卡（iOS 稿
+                owner 2026-10-16）：卡里有搜索、按厂商分组、可滑动。图片档多选（同厂商
+                多模型一起出），视频档单选、选完即收。 */}
+              <span
+                data-testid="studio-mobile-model-chip"
+                data-assistant-field="model"
+                className="flex min-w-0 shrink"
+              >
+                {isVideo ? (
+                  <MainModelPicker
+                    modality="video"
+                    value={state.selectedOptionId ?? null}
+                    onChange={handleSelectSingleModel}
+                    filterOption={filterVideoModelOption}
+                    triggerEmptyLabel={modelChipLabel}
+                    searchPlaceholder={tForm('modelSelector.searchPlaceholder')}
+                    emptySearchText={tForm('modelSelector.emptySearch')}
+                    popoverSide="top"
+                    popoverAlign="start"
+                    contentClassName="w-80"
+                    disabled={isGenerating}
+                    triggerVariantOnly
+                    className={modelGhostClass}
+                  />
+                ) : (
+                  <MainModelPicker
+                    modality="image"
+                    // ⚠ 恒为 null：chip 上写的是这一轮名单的摘要（一个模型写名字，
+                    //   多个写「N 个模型」），勾选状态走 selectedOptionIds。
+                    value={null}
+                    onChange={handleToggleRunModel}
+                    selectedOptionIds={runModelIds}
+                    onToggleOption={handleToggleRunModel}
+                    filterOption={filterVideoModelOption}
+                    triggerEmptyLabel={modelChipLabel}
+                    searchPlaceholder={tForm('modelSelector.searchPlaceholder')}
+                    emptySearchText={tForm('modelSelector.emptySearch')}
+                    popoverSide="top"
+                    popoverAlign="start"
+                    contentClassName="w-80"
+                    disabled={isGenerating}
+                    className={modelGhostClass}
+                  />
+                )}
+              </span>
+              {/* 规格 —— 与桌面**同一颗** chip（D2 ④，第 12 项）：触屏上它自己就是
                 底部抽屉（视频的原生出声开关也在里面）。档位全部实算自型号，没有任何
                 一档可调时它自己不渲染。 */}
-            <StudioSpecChip
-              disabled={isGenerating}
-              triggerClassName={specGhostClass}
-            />
-            {/* 模型参数（专属）—— 规格旁边一颗（owner 2026-10-03），与桌面工具行
+              <StudioSpecChip
+                disabled={isGenerating}
+                triggerClassName={specGhostClass}
+              />
+              {/* 模型参数（专属）—— 规格旁边一颗（owner 2026-10-03），与桌面工具行
                 同一颗 chip、同一个弹层；这一轮没有可调项时整颗不渲染。视频档的专属
                 在规格抽屉里，不挂这颗。 */}
-            {!isVideo ? (
-              <StudioModelCapabilityChips
-                variant="single"
-                disabled={isGenerating}
-                triggerClassName={capabilityGhostClass}
-              />
-            ) : null}
-          </div>
+              {!isVideo ? (
+                <StudioModelCapabilityChips
+                  variant="single"
+                  disabled={isGenerating}
+                  triggerClassName={capabilityGhostClass}
+                />
+              ) : null}
+            </div>
+          </ResponsivePopoverPhoneCard>
           <button
             type="button"
             onClick={() => void handleGenerate()}
@@ -417,19 +448,6 @@ export const StudioMobileComposer = memo(function StudioMobileComposer({
           </button>
         </div>
       </PromptInput>
-
-      <StudioMobileModelSheet
-        open={modelSheetOpen}
-        onOpenChange={setModelSheetOpen}
-        mode={isVideo ? 'video' : 'image'}
-        runModels={runModels}
-        runModelIds={runModelIds}
-        onToggle={handleToggleRunModel}
-        onRemove={handleRemoveRunModel}
-        selectedOptionId={state.selectedOptionId ?? null}
-        onSelectSingle={handleSelectSingleModel}
-        filterOption={filterVideoModelOption}
-      />
     </div>
   )
 })

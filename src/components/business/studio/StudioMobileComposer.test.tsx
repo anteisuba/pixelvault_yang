@@ -135,9 +135,30 @@ vi.mock('@/components/business/ImageAttachmentPreviewStrip', () => ({
     entries.length > 0 ? <div data-testid="reference-strip" /> : null,
 }))
 
-vi.mock('@/components/business/studio/StudioMobileModelSheet', () => ({
-  StudioMobileModelSheet: ({ open }: { open: boolean }) =>
-    open ? <div data-testid="model-sheet" /> : null,
+// 模型选择器自带整套名册 / 渠道 / 缺 key 弹窗，另有单测；这里只验 composer 把
+// 哪一档、什么摘要、往哪边弹交给了它。
+vi.mock('@/components/business/studio-shared/pickers/MainModelPicker', () => ({
+  MainModelPicker: ({
+    modality,
+    triggerEmptyLabel,
+    popoverSide,
+    selectedOptionIds,
+  }: {
+    modality: string
+    triggerEmptyLabel?: string
+    popoverSide?: string
+    selectedOptionIds?: readonly string[]
+  }) => (
+    <button
+      type="button"
+      data-testid="model-picker"
+      data-modality={modality}
+      data-side={popoverSide}
+      data-multi={selectedOptionIds ? 'true' : 'false'}
+    >
+      {triggerEmptyLabel}
+    </button>
+  ),
 }))
 
 // 规格 chip 自带整条能力表 / 单价表，且它的弹层与摘要另有单测（`spec-chip-model`
@@ -423,15 +444,14 @@ describe('StudioMobileComposer', () => {
     expect(mockHandleGenerate).toHaveBeenCalledTimes(1)
   })
 
-  it('opens the model sheet from the 模型 chip; 规格走的是共用那颗 chip 自己的弹层', () => {
+  it('模型是共用的选择器、从按钮正上方弹卡（iOS 稿）；规格走共用那颗 chip 自己的弹层', () => {
     render(<StudioMobileComposer templates={TEMPLATES} />)
 
-    expect(screen.queryByTestId('model-sheet')).toBeNull()
-    fireEvent.click(screen.getByTestId('studio-mobile-model-chip'))
-    expect(screen.getByTestId('model-sheet')).toBeInTheDocument()
-
-    // ⚠ 规格**不再**有第二份 sheet 的开合 state（第 12 项）：触屏上 `SpecChip`
-    //    自己就是底部抽屉，composer 只负责把它摆在 chip 行里。
+    const picker = screen.getByTestId('model-picker')
+    expect(picker).toHaveAttribute('data-modality', 'image')
+    expect(picker).toHaveAttribute('data-side', 'top')
+    // 图片档多选：同厂商多模型一起出。
+    expect(picker).toHaveAttribute('data-multi', 'true')
     expect(screen.getByTestId('studio-spec-chip')).toBeInTheDocument()
   })
 })

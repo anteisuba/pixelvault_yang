@@ -1577,19 +1577,6 @@ html:lang(ja) {
      ⚠ 直接写在行上而不是逐颗 chip 上 —— 参考图 / 优化两颗是既有组件
      （`studioToolTriggerClass` 在窄屏是 h-11），它们的桌面外观不能动，
      只在这个宿主里压成 32px。 */
-  /* 模型 / 规格抽屉：92svh，留 8% 缺口露出底下的舞台，让「我还在画布上」
-     这件事保持可见（与 .lora-detail-drawer 同一条规矩）。 */
-  .studio-mobile-drawer {
-    height: 92svh;
-    max-height: 92svh;
-  }
-
-  /* drill 的型号行按桌面定高，触屏要 56px 才好点（需求卡表 5）。
-     只在移动端抽屉这个宿主里生效，不动选择器自身的桌面外观。 */
-  .studio-mobile-model-rows [data-slot='command-item'] {
-    min-height: 3.5rem;
-  }
-
   /* ── 结果图墙（CompareGrid）的格子高度 ────────────────────────────
      对照台的规矩：**一行等高**，宽度由每张图自己的长宽比推出来。这样
      竖图与方图并排时上下沿对齐，扫一行就是在比同一件事。

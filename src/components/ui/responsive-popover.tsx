@@ -32,28 +32,57 @@ import {
  *   内容容器样式用 `mobileClassName`。
  * - align/side/sideOffset 等锚定 props 在触屏 Drawer 路径被忽略。
  *
+ * 手机输入栏例外（iOS 稿 owner 2026-10-16）：包在 `ResponsivePopoverPhoneCard`
+ * 里的 chip，手机上也从按钮正上方弹白色小卡片（同电脑版），⛔ 不再底部升起。
+ * 卡片宽高被 Radix 量出的可用空间封顶，放不下就卡内滚。
+ *
  * Hydration 说明与 ResponsiveDialog 相同：useIsMobile() 服务端为 false，浮层
  * 由用户交互打开，水合时必然处于关闭态，原语切换不可见。不要传 defaultOpen。
  */
 
-const ResponsivePopoverContext = React.createContext<{ useDrawer: boolean }>({
+const ResponsivePopoverContext = React.createContext<{
+  useDrawer: boolean
+  /** 窄视口上按锚定卡片弹（`ResponsivePopoverPhoneCard` 圈内）。 */
+  compactCard: boolean
+}>({
   useDrawer: false,
+  compactCard: false,
 })
+
+const ResponsivePopoverPhoneCardContext = React.createContext(false)
+
+/** 圈内的 `ResponsivePopover` 在手机上也弹锚定小卡片（输入栏的模型 / 参数 / ＋）。 */
+function ResponsivePopoverPhoneCard({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <ResponsivePopoverPhoneCardContext.Provider value>
+      {children}
+    </ResponsivePopoverPhoneCardContext.Provider>
+  )
+}
+
+/** 卡片离屏幕边留的空（窄视口）。 */
+const COMPACT_CARD_COLLISION_PADDING = 12
 
 function ResponsivePopover({
   children,
   ...props
 }: React.ComponentProps<typeof Popover>) {
   const isMobile = useIsMobile()
+  const phoneCard = React.useContext(ResponsivePopoverPhoneCardContext)
   // Width decides the compact layout, but input capability decides whether a
   // disclosure should become modal. A narrow desktop window still has a fine
   // pointer and must keep the anchored trigger interactive so clicking it a
   // second time can close the surface. Touch-primary compact viewports use the
   // bottom drawer as before.
-  const useDrawer = isMobile && isTouchPrimary()
+  const useDrawer = isMobile && isTouchPrimary() && !phoneCard
+  const compactCard = isMobile && phoneCard
   const Component = useDrawer ? Drawer : Popover
   return (
-    <ResponsivePopoverContext.Provider value={{ useDrawer }}>
+    <ResponsivePopoverContext.Provider value={{ useDrawer, compactCard }}>
       <Component {...props}>{children}</Component>
     </ResponsivePopoverContext.Provider>
   )
@@ -82,9 +111,10 @@ function ResponsivePopoverContent({
   mobileClassName,
   children,
   style,
+  collisionPadding,
   ...props
 }: ResponsivePopoverContentProps) {
-  const { useDrawer } = React.useContext(ResponsivePopoverContext)
+  const { useDrawer, compactCard } = React.useContext(ResponsivePopoverContext)
   if (useDrawer) {
     return (
       <DrawerContent
@@ -113,7 +143,15 @@ function ResponsivePopoverContent({
   return (
     <PopoverContent
       aria-label={label}
-      className={className}
+      className={cn(
+        className,
+        compactCard &&
+          'max-h-(--radix-popover-content-available-height) max-w-(--radix-popover-content-available-width) overflow-y-auto overscroll-contain',
+      )}
+      collisionPadding={
+        collisionPadding ??
+        (compactCard ? COMPACT_CARD_COLLISION_PADDING : undefined)
+      }
       style={style}
       {...props}
     >
@@ -122,4 +160,9 @@ function ResponsivePopoverContent({
   )
 }
 
-export { ResponsivePopover, ResponsivePopoverTrigger, ResponsivePopoverContent }
+export {
+  ResponsivePopover,
+  ResponsivePopoverPhoneCard,
+  ResponsivePopoverTrigger,
+  ResponsivePopoverContent,
+}

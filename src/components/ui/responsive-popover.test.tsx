@@ -6,6 +6,7 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import {
   ResponsivePopover,
   ResponsivePopoverContent,
+  ResponsivePopoverPhoneCard,
   ResponsivePopoverTrigger,
 } from './responsive-popover'
 
@@ -128,6 +129,28 @@ describe('ResponsivePopover', () => {
 
     await waitFor(() =>
       expect(screen.queryByText('面板内容')).not.toBeInTheDocument(),
+    )
+  })
+
+  it('inside a phone-card scope a touch phone still gets the anchored card, capped to the free space', async () => {
+    mockUseIsMobile.mockReturnValue(true)
+    mockTouchPrimary(true)
+    render(
+      <ResponsivePopoverPhoneCard>
+        <ResponsivePopover open>
+          <ResponsivePopoverTrigger>打开设置</ResponsivePopoverTrigger>
+          <ResponsivePopoverContent label="快速设置">
+            <p>面板内容</p>
+          </ResponsivePopoverContent>
+        </ResponsivePopover>
+      </ResponsivePopoverPhoneCard>,
+    )
+
+    expect(await screen.findByText('面板内容')).toBeInTheDocument()
+    const popover = document.querySelector('[data-slot="popover-content"]')
+    expect(popover).not.toBeNull()
+    expect(popover?.className).toContain(
+      'max-h-(--radix-popover-content-available-height)',
     )
   })
 })

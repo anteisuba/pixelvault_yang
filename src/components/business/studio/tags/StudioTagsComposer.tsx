@@ -47,7 +47,10 @@ import {
   X,
 } from '@/components/icons'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
-import { ResponsivePopoverContent } from '@/components/ui/responsive-popover'
+import {
+  ResponsivePopoverPhoneCard,
+  ResponsivePopoverContent,
+} from '@/components/ui/responsive-popover'
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
 import { ImageAttachmentPreviewStrip } from '@/components/business/ImageAttachmentPreviewStrip'
@@ -517,47 +520,55 @@ export function StudioTagsComposer({
               </span>
             ) : null}
             <div className="flex min-w-0 items-center gap-2">
-              <div className="studio-mobile-chip-row flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
-                <StudioMobileAddSheet disabled={isGenerating} rows={addRows} />
-                <span
-                  data-assistant-field="model"
-                  className="flex min-w-0 shrink"
-                >
-                  {/* 这一台只能单选（owner 2026-09-27）：点一行 = 换成它，弹层随即收起。 */}
-                  <MainModelPicker
-                    modality="image"
-                    memoryScope="image-tags"
-                    value={runModels[0]?.optionId ?? null}
-                    onChange={handleReplaceRunModel}
-                    filterOption={filterModelByDialect}
-                    renderSearchFallback={(query, close) => (
-                      <StudioDialectJumpHint query={query} close={close} />
-                    )}
-                    triggerEmptyLabel={modelSummary}
-                    searchPlaceholder={tForm('modelSelector.searchPlaceholder')}
-                    emptySearchText={tForm('modelSelector.emptySearch')}
-                    popoverSide="top"
-                    popoverAlign="start"
-                    contentClassName="w-80"
+              {/* 手机上模型 / 规格 / 参数 / ＋ 也从按钮正上方弹白卡（iOS 稿 owner 2026-10-16）。 */}
+              <ResponsivePopoverPhoneCard>
+                <div className="studio-mobile-chip-row flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+                  <StudioMobileAddSheet
                     disabled={isGenerating}
-                    triggerVariantOnly
-                    className="h-8 max-w-40 gap-1 border-transparent bg-transparent pr-2 pl-2.5 font-medium hover:border-transparent active:bg-muted data-[active=true]:bg-muted"
+                    rows={addRows}
                   />
-                </span>
-                <span data-assistant-field="specs" className="shrink-0">
-                  {/* 与图片台手机同一颗：只写比例，张数在生成键角标上。 */}
-                  <StudioSpecChip
+                  <span
+                    data-assistant-field="model"
+                    className="flex min-w-0 shrink"
+                  >
+                    {/* 这一台只能单选（owner 2026-09-27）：点一行 = 换成它，弹层随即收起。 */}
+                    <MainModelPicker
+                      modality="image"
+                      memoryScope="image-tags"
+                      value={runModels[0]?.optionId ?? null}
+                      onChange={handleReplaceRunModel}
+                      filterOption={filterModelByDialect}
+                      renderSearchFallback={(query, close) => (
+                        <StudioDialectJumpHint query={query} close={close} />
+                      )}
+                      triggerEmptyLabel={modelSummary}
+                      searchPlaceholder={tForm(
+                        'modelSelector.searchPlaceholder',
+                      )}
+                      emptySearchText={tForm('modelSelector.emptySearch')}
+                      popoverSide="top"
+                      popoverAlign="start"
+                      contentClassName="w-80"
+                      disabled={isGenerating}
+                      triggerVariantOnly
+                      className="h-8 max-w-40 gap-1 border-transparent bg-transparent pr-2 pl-2.5 font-medium hover:border-transparent active:bg-muted data-[active=true]:bg-muted"
+                    />
+                  </span>
+                  <span data-assistant-field="specs" className="shrink-0">
+                    {/* 与图片台手机同一颗：只写比例，张数在生成键角标上。 */}
+                    <StudioSpecChip
+                      disabled={isGenerating}
+                      triggerClassName="border-transparent px-2.5 font-medium hover:border-transparent active:bg-muted"
+                      popoverAlign="end"
+                    />
+                  </span>
+                  <TagCapabilityChip
+                    mobile
+                    runModels={runModels}
                     disabled={isGenerating}
-                    triggerClassName="border-transparent px-2.5 font-medium hover:border-transparent active:bg-muted"
-                    popoverAlign="end"
                   />
-                </span>
-                <TagCapabilityChip
-                  mobile
-                  runModels={runModels}
-                  disabled={isGenerating}
-                />
-              </div>
+                </div>
+              </ResponsivePopoverPhoneCard>
               <StudioGenerateButton
                 variant="round"
                 className="size-9"

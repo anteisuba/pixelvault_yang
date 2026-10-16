@@ -104,18 +104,6 @@ vi.mock('@/components/ui/dropdown-menu', async () => {
       <div>{children}</div>
     ),
     DropdownMenuSeparator: () => <hr />,
-    DropdownMenuSub: ({ children }: { children: React.ReactNode }) => (
-      <div>{children}</div>
-    ),
-    DropdownMenuSubTrigger: ({
-      children,
-      ...props
-    }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-      <button {...props}>{children}</button>
-    ),
-    DropdownMenuSubContent: ({ children }: { children: React.ReactNode }) => (
-      <div data-testid="operator-chat-with-list">{children}</div>
-    ),
   }
 })
 
@@ -446,7 +434,7 @@ describe('StudioOperatorHeader', () => {
     }
   })
 
-  it('⭐ 聊天会话（附录L）：按「工作 / 和谁聊」分组，胶囊写和谁聊，「和角色聊…」开一段聊天', () => {
+  it('⭐ 聊天会话（附录L）：按「工作 / 和谁聊」分组，胶囊写和谁聊，「新对话」和同一个角色新开一段', () => {
     const rin = { id: 'card-rin', name: 'Rin' }
     const sessions = [
       { ...SESSIONS[0], chatCharacter: rin },
@@ -460,8 +448,11 @@ describe('StudioOperatorHeader', () => {
     expect(screen.getByTestId('operator-chat-pill').textContent).toContain(
       'chat.pill',
     )
+    expect(
+      screen.getByTestId('operator-mode-chat').getAttribute('aria-pressed'),
+    ).toBe('true')
     expect(screen.getByTestId('operator-new-thread').textContent).toContain(
-      'chat.newWorkThread',
+      'chat.newChatThread',
     )
     fireEvent.click(screen.getByTestId('operator-session-menu'))
     const content = screen.getAllByTestId(
@@ -475,8 +466,10 @@ describe('StudioOperatorHeader', () => {
     expect(text.indexOf('城市天台构图')).toBeLessThan(
       text.indexOf('chat.workGroup'),
     )
+    // ⛔ 菜单里不再有「和角色聊…」：切模式只走头部那颗按钮。
+    expect(screen.queryByTestId('operator-chat-with')).toBeNull()
 
-    fireEvent.click(screen.getByText('Rin'))
+    fireEvent.click(screen.getByTestId('operator-new-thread'))
     expect(onNewThread).toHaveBeenCalledWith({
       character: rin,
       opening: '欢迎光临喵',

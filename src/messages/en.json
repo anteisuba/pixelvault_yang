@@ -8779,8 +8779,7 @@
       "pill": "Chatting with {name}",
       "group": "With {name}",
       "workGroup": "Work",
-      "newWorkThread": "New conversation (work)",
-      "chatWith": "Chat with a character…",
+      "newChatThread": "New chat with {name}",
       "noCharacters": "No characters yet. Create one on the Characters page first",
       "regenerate": "Regenerate",
       "previousVersion": "Previous version",
@@ -8796,6 +8795,12 @@
       "roleLabel": "Who you are in the story",
       "rolePlaceholder": "e.g. the new neighbour, {name}'s childhood friend",
       "roleHint": "Saved on this character for every chat; takes effect from your next line"
+    },
+    "mode": {
+      "label": "Mode",
+      "work": "Work",
+      "chat": "Chat",
+      "pickCharacter": "Chat with"
     }
   },
   "GenerationCancel": {

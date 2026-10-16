@@ -31,18 +31,20 @@
 
 一条 = **一行字**：`text` 就是进系统提示的那一行。助手记的在**每轮结账**（v3 没有结账那次往返：一轮收尾后在后台单抽记忆，见 `assistant-v3.md`「上下文预算」）或 `add_project_rule` 的普通规矩时写，你写的在 `/settings/assistant` 的记忆页写；两种都能在那里改 / 删。
 
-| 列                             | 说明                                                                                                           |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------- |
-| `scope`                        | `AssistantMemoryScope`：IMAGE · TAGS · VIDEO · CANVAS · LORA · CARDS · GLOBAL                                  |
-| `kind`                         | `AssistantMemoryKind`：PREFERENCE · FACT · RULE（只影响提示措辞）                                              |
-| `text`                         | `@db.Text`，收窄在 `ASSISTANT_MEMORY_LIMITS.maxTextChars`                                                      |
-| `conversationId` / `messageId` | 溯源，**库里存着但界面不画**；⛔ 无 FK（会话删了记忆还在）                                                     |
-| `lastUsedAt`                   | 被注入过就更新；**注入优先级与淘汰顺序都读它**                                                                 |
-| `source`                       | `AssistantMemorySource`：ASSISTANT · CREATOR（记忆页「助手记的 / 你写的」，2026-09-26 加列，默认 ASSISTANT）   |
-| `projectId`                    | 可空，FK → `NodeWorkflowProject`（`onDelete: Cascade`）。只属于一个画布项目的那条；空 = 不归项目（2026-10-09） |
+| 列                             | 说明                                                                                                                     |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `scope`                        | `AssistantMemoryScope`：IMAGE · TAGS · VIDEO · CANVAS · LORA · CARDS · GLOBAL                                            |
+| `kind`                         | `AssistantMemoryKind`：PREFERENCE · FACT · RULE（只影响提示措辞）                                                        |
+| `text`                         | `@db.Text`，收窄在 `ASSISTANT_MEMORY_LIMITS.maxTextChars`                                                                |
+| `conversationId` / `messageId` | 溯源，**库里存着但界面不画**；⛔ 无 FK（会话删了记忆还在）                                                               |
+| `lastUsedAt`                   | 被注入过就更新；**注入优先级与淘汰顺序都读它**                                                                           |
+| `source`                       | `AssistantMemorySource`：ASSISTANT · CREATOR（记忆页「助手记的 / 你写的」，2026-09-26 加列，默认 ASSISTANT）             |
+| `projectId`                    | 可空，FK → `NodeWorkflowProject`（`onDelete: Cascade`）。只属于一个画布项目的那条；空 = 不归项目（2026-10-09）           |
+| `characterCardId`              | 可空，FK → `CharacterCard`（`onDelete: Cascade`）。和这个角色聊天时记下的（范围一律 CARDS）；空 = 不归角色（2026-10-16） |
 
-- 四条索引：`(userId, scope, updatedAt desc)` 总览列表按域筛 · `(userId, updatedAt desc)` 总览「全部」· `(userId, scope, lastUsedAt desc)` 注入取前 N / 淘汰取最旧 · `(userId, projectId, lastUsedAt desc)` 画布按项目注入。
+- 四条索引：`(userId, scope, updatedAt desc)` 总览列表按域筛 · `(userId, updatedAt desc)` 总览「全部」· `(userId, scope, lastUsedAt desc)` 注入取前 N / 淘汰取最旧 · `(userId, projectId, lastUsedAt desc)` 画布按项目注入 · `(userId, characterCardId, updatedAt desc)` 聊天按角色注入。
 - **一个项目一份记忆**（owner 2026-10-09）：画布上结账记下的（和 `add_project_rule` 记在画布范围的）一律带当前项目；画布注入 = 全局 + 不归项目的画布条（记忆页「所有画布」）+ 本项目，⛔ 别的项目一条都不带。项目号对不上这个用户时画布那条**不写**，⛔ 不退成所有画布。记忆页里换范围（含选「所有画布」）就清掉 `projectId`。迁移 `20261009150000_assistant_memory_project` 加列 + 把历史上助手在画布会话里记的那几条按会话的项目回填，2026-10-09 经 owner 授权已对共用库执行（回填 1 行）。
+- **一个角色一份记忆**（附录L 第二片，owner 2026-10-16「现在上」）：和角色聊天时记下的带 `characterCardId`；聊天里只读这个角色的 + 你写的全局规矩，工作里的所有读取都排除带角色的行。角色卡对不上这个用户（或删了）就不写。迁移 `20261016100000_assistant_memory_character` 只加列 + 索引 + FK，⛔ 无回填，合 main 时由生产构建执行（owner 同意）。
 - **每域上限 200（只数助手记的）**，超了按 `lastUsedAt` 最旧的静默删（服务端 `evictOldestAssistantMemories`）；**你写的**最多 50 条、⛔ 不淘汰，满了拒。
 - 旧「项目规则」的普通规则（`ProjectRule.kind = NOTE`）由 `20260926210000_rules_into_memory` 搬进这张表（原 id / 原时间，类别 RULE，来源照搬，`scope` 为空或不在词表里的进 GLOBAL，超 200 字截断），随下一次生产构建执行。之后 `ProjectRule` 只装来源白 / 黑名单（`SOURCE_ALLOW` / `SOURCE_DENY`）；`NOTE` 这一枚举值暂留、无读写方。
 - 删除即真删，⛔ 无软删。`onDelete: Cascade` 挂在 `User` 上。
@@ -111,6 +113,7 @@ Model = PascalCase（`UserApiKey`）· 字段 = camelCase（`createdAt`）· 枚
 
 ## Last Verified
 
+- Date: 2026-10-16 · Method: `AssistantMemory.characterCardId` 对照 `prisma/schema.prisma` 与迁移 `20261016100000_assistant_memory_character` 核验；全部 83 个迁移在 PGlite 上从空库回放，`prisma migrate diff` 对 schema 为空；`prisma/migration-safety.test.ts` 通过（新 FK 登记在 ACKNOWLEDGED：可空新列、无存量行引用）。
 - Date: 2026-10-15 · Method: 新表 `AssistantTurnRecord` 对照 `prisma/schema.prisma` 与迁移 `20261015120000_assistant_turn_record` 逐列核验；全部 80 个迁移在 PGlite（`@electric-sql/pglite` 0.4.1 内存库 + `pg_trgm`，经 `pglite-socket` 暴露在 127.0.0.1）上从空库按序回放成功，回放后 `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` 为空（配置文件只写死那个本机 PGlite 地址，⛔ 不读任何 env）；`prisma/migration-safety.test.ts` 通过（新表不算已有表的约束，⛔ 未进 ACKNOWLEDGED）。模型 45、枚举 19、迁移 80 为重新清点。⚠ 该迁移**只在 PGlite 上回放过，未对任何共用数据库执行**。
 - Date: 2026-09-20 · Method: 56a 新表 `AssistantMemory` 与两个枚举对照 `prisma/schema.prisma` 与 migration 文件逐列核验；模型数 39 → 40、枚举 12 → 14。⚠ 该迁移**尚未对任何数据库执行**。
 - Date: 2026-07-23 · Method: schema 模型/枚举与迁移目录重新清点；`prisma validate` 通过，历史迁移恢复状态与 CI fresh-database replay 已核验。字段级细节未逐一审计——动具体模型前直接读 schema 对应段。

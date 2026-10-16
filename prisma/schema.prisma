@@ -993,6 +993,8 @@ model CharacterCard {
 
   /// 把这张卡当人设的助手（最多每个用户一行）。
   assistantPersonas AssistantPersona[]
+  /// 和这个角色聊天时记下的事（附录L 第二片 B）。
+  assistantMemories AssistantMemory[]
 
   // ── Variant system (folder-like) ────────────────────────────
   parentId     String? // null = root card, set = variant of parent
@@ -1617,6 +1619,12 @@ model AssistantMemory {
   projectId String?
   project   NodeWorkflowProject? @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
+  /// 和哪个角色聊天时记下的（附录L 第二片 B，owner 2026-10-16「现在上」）：故事里的事只在和这个
+  /// 角色的聊天里注入，⛔ 不进各台；工作里学到的也不进故事。空 = 不归角色。卡被真删时一起删
+  /// （软删的卡读不到人设，聊天照工作模式答，这几条自然不读）。
+  characterCardId String?
+  characterCard   CharacterCard? @relation(fields: [characterCardId], references: [id], onDelete: Cascade)
+
   /// **被注入过就更新** —— 注入优先级与淘汰顺序都读它（每域上限 200，超了淘汰最旧的）。
   lastUsedAt DateTime @default(now())
 
@@ -1630,6 +1638,8 @@ model AssistantMemory {
   @@index([userId, scope, lastUsedAt(sort: Desc)])
   /// 画布按项目取那个项目的记忆。
   @@index([userId, projectId, lastUsedAt(sort: Desc)])
+  /// 聊天按角色取那个角色的记忆。
+  @@index([userId, characterCardId, updatedAt(sort: Desc)])
 }
 
 /// 助手每一轮的过程（owner 2026-10-15「建表」）：开轮时的画布 / 工作台快照、本轮记录（v3

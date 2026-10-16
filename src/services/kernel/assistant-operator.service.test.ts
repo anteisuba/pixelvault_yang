@@ -8621,6 +8621,62 @@ describe('persona 风格段', () => {
     expect(prompt).toContain('Creator: 你好\nYou: ……你好喵')
   })
 
+  it('⭐ 聊天模式只注入这个角色的记忆（附录L 第二片），你写的只读全局规矩', async () => {
+    const chatCharacterId = '11111111-1111-4111-8111-111111111111'
+    mockGetAssistantPersonaByUserId.mockResolvedValue({
+      ...ASSISTANT_PERSONA_DEFAULTS,
+      avatarUrl: null,
+      characterCardId: chatCharacterId,
+      roleplay: { scenario: '', opening: '', examples: [] },
+    })
+    queueTurns({ finished: true })
+    await collect(
+      runAssistantOperator('clerk-1', buildRequest({ chatCharacterId })),
+    )
+    expect(mockListMemoriesForPrompt.mock.calls[0]?.[4]).toBe(chatCharacterId)
+    expect(mockListCreatorMemories.mock.calls[0]?.[4]).toBe(chatCharacterId)
+  })
+
+  it('⭐ 切到了备选开场白：系统提示引的是对白里那句，⛔ 不是卡上原文', async () => {
+    mockGetAssistantPersonaByUserId.mockResolvedValue({
+      ...ASSISTANT_PERSONA_DEFAULTS,
+      avatarUrl: null,
+      name: 'Rin',
+      promptCharacter: {
+        name: 'Rin',
+        identity: '猫咖店员',
+        behavior: '',
+        speech: '',
+        catchphrases: [],
+        backstory: '',
+      },
+      roleplay: { scenario: '', opening: '欢迎光临喵', examples: [] },
+    })
+    queueTurns({ finished: true })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          chatCharacterId: '11111111-1111-4111-8111-111111111111',
+          messages: [
+            { role: 'assistant', content: '……又下雨了喵' },
+            { role: 'user', content: '来杯热可可' },
+          ],
+        }),
+      ),
+    )
+    const prompt = systemPrompt()
+    expect(prompt).toContain('「……又下雨了喵」')
+    expect(prompt).not.toContain('「欢迎光临喵」')
+  })
+
+  it('工作会话：记忆读取不带角色', async () => {
+    queueTurns({ finished: true })
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+    expect(mockListMemoriesForPrompt.mock.calls[0]?.[4]).toBeNull()
+    expect(mockListCreatorMemories.mock.calls[0]?.[4]).toBeNull()
+  })
+
   it('每轮那句别出戏：说话方式只取第一句；没用角色是 null', () => {
     const character = {
       name: 'Denia',
@@ -8888,6 +8944,7 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
       'image',
       ASSISTANT_PROJECT_RULE_LIMITS.maxInPrompt,
       null,
+      null,
     )
     const prompt = systemPrompt()
     expect(prompt).toContain('STANDING RULES THIS CREATOR WROTE DOWN')
@@ -8954,6 +9011,7 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
     expect(mockListStandingRuleMemories).toHaveBeenCalledWith('user-db-1', {
       scope: 'video',
       projectId: null,
+      characterCardId: null,
       limit: ASSISTANT_PROJECT_RULE_LIMITS.maxReadResults,
     })
     const done = steps.find(
@@ -9000,6 +9058,7 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
       text: 'Skin tones stay warm.',
       scope: 'image',
       projectId: null,
+      characterCardId: null,
     })
     // ⛔ 普通规矩不再写项目规则表
     expect(mockAddProjectRule).not.toHaveBeenCalled()
@@ -9158,6 +9217,7 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
       text: '以后查资料只信官方站，别拿同人图当依据',
       scope: 'global',
       projectId: null,
+      characterCardId: null,
     })
   })
 
@@ -9180,6 +9240,7 @@ describe('项目规则（§10，拍板 23）—— 规矩住记忆表（助手�
       text: '输出一律不加水印',
       scope: 'global',
       projectId: null,
+      characterCardId: null,
     })
   })
 
@@ -19364,7 +19425,30 @@ describe('v3 收尾（P2 §2.5）', () => {
     expect(mockRecordMemories).not.toHaveBeenCalled()
   })
 
-  it('⛔ 聊天会话这一轮不自动记（附录L：故事里的事不进工作记忆）', async () => {
+  it('⭐ 聊天会话记进这个角色（附录L 第二片：cards + 角色，故事里的事不进工作记忆）', async () => {
+    const chatCharacterId = '11111111-1111-4111-8111-111111111111'
+    mockGetAssistantPersonaByUserId.mockResolvedValue({
+      ...ASSISTANT_PERSONA_DEFAULTS,
+      avatarUrl: null,
+      characterCardId: chatCharacterId,
+      roleplay: { scenario: '', opening: '', examples: [] },
+    })
+    const { run, user } = await prepare({ chatCharacterId })
+    recordLedgerStep(run, ASSISTANT_OPERATOR_VERB_IDS.look, '看图', '黑长直')
+    mockLlmTextCompletion.mockResolvedValue(MEMORIES)
+
+    await closeRoundV3(run, { clerkId: 'clerk-1', userId: user.id })
+    await settleAfter()
+
+    expect(mockListMemoriesForReview.mock.calls[0]?.[3]).toBe(chatCharacterId)
+    expect(mockRecordMemories).toHaveBeenCalledTimes(1)
+    expect(mockRecordMemories.mock.calls[0]?.[0]).toMatchObject({
+      scope: 'cards',
+      characterCardId: chatCharacterId,
+    })
+  })
+
+  it('⛔ 会话角色没读成（卡删了，退回工作人设）：这一轮不自动记', async () => {
     const { run, user } = await prepare({
       chatCharacterId: '11111111-1111-4111-8111-111111111111',
     })

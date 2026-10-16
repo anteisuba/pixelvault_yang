@@ -460,6 +460,19 @@ export function subscribeOperatorAttachment(listener: () => void): () => void {
 export interface StudioOperatorChatRequest {
   character: StudioOperatorChatCharacter
   opening: string
+  /** 卡上的备选开场白（酒馆卡 `alternate_greetings`）：和开场白一起成为第一句的几版，左右切。 */
+  alternateOpenings?: readonly string[]
+}
+
+/** 开场白 + 备选 → 第一句的几版（去空、去重，最多 `maxVersions`）。 */
+function chatOpenings(chat: StudioOperatorChatRequest): string[] {
+  return [
+    ...new Set(
+      [chat.opening, ...(chat.alternateOpenings ?? [])]
+        .map((text) => text.trim())
+        .filter(Boolean),
+    ),
+  ].slice(0, STUDIO_OPERATOR_CHAT.maxVersions)
 }
 
 let pendingChat: StudioOperatorChatRequest | null = null
@@ -1546,6 +1559,25 @@ export function loadOperatorThread(args: {
 }
 
 /**
+ * 聊天会话的第一句（附录L）：卡上有开场白就是她先说；有备选开场白时这一条带几版，左右切。
+ */
+function openingHistory(
+  chat: StudioOperatorChatRequest | undefined,
+): readonly StudioOperatorHistoryEntry[] {
+  const openings = chat ? chatOpenings(chat) : []
+  const first = openings[0]
+  if (first === undefined) return EMPTY_HISTORY
+  return [
+    {
+      kind: 'message',
+      id: nextOperatorEntryId('message'),
+      text: first,
+      ...(openings.length > 1 ? { versions: openings, versionIndex: 0 } : {}),
+    },
+  ]
+}
+
+/**
  * 保存成功后回填库里那一行的身份。
  *
  * ⚠ `surface` 只在**第一次**落库时定下来（线程起始域），之后原样带回去 ——
@@ -1732,15 +1764,7 @@ export function resetOperatorThread(
     // 新会话只在隐身还开着时不存；上一段开过隐身不连累这一段。
     offTheRecord: current.incognito,
     status: 'idle',
-    history: chat?.opening.trim()
-      ? [
-          {
-            kind: 'message',
-            id: nextOperatorEntryId('message'),
-            text: chat.opening.trim(),
-          },
-        ]
-      : EMPTY_HISTORY,
+    history: openingHistory(chat),
     historyRounds: EMPTY_ROUNDS,
     chatCharacter: chat?.character ?? null,
     regeneration: null,

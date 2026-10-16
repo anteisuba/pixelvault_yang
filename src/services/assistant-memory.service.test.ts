@@ -18,11 +18,15 @@ const mockUpdate = vi.fn()
 const mockUpdateMany = vi.fn()
 const mockDeleteMany = vi.fn()
 const mockProjectFindFirst = vi.fn()
+const mockCardFindFirst = vi.fn()
 
 vi.mock('@/lib/db', () => ({
   db: {
     nodeWorkflowProject: {
       findFirst: (...args: unknown[]) => mockProjectFindFirst(...args),
+    },
+    characterCard: {
+      findFirst: (...args: unknown[]) => mockCardFindFirst(...args),
     },
     assistantMemory: {
       findMany: (...args: unknown[]) => mockFindMany(...args),
@@ -267,7 +271,7 @@ describe('listStandingRuleMemories', () => {
       userId: 'db_user_1',
       AND: [
         { OR: [{ source: 'CREATOR' }, { kind: 'RULE' }] },
-        { scope: { in: ['LORA', 'GLOBAL'] } },
+        { scope: { in: ['LORA', 'GLOBAL'] }, characterCardId: null },
       ],
     })
     expect(args.take).toBe(50)
@@ -281,6 +285,7 @@ describe('listStandingRuleMemories', () => {
     const { where } = mockFindMany.mock.calls[0][0]
     expect(where).not.toHaveProperty('scope')
     expect(where.AND[1]).toEqual({
+      characterCardId: null,
       OR: [{ projectId: null }, { projectId: 'proj-1' }],
     })
   })
@@ -759,6 +764,7 @@ describe('updateAssistantMemory', () => {
     expect(mockUpdate.mock.calls[0][0].data).toEqual({
       scope: 'GLOBAL',
       projectId: null,
+      characterCardId: null,
     })
   })
 })
@@ -809,7 +815,10 @@ describe('searchAssistantMemories', () => {
     const args = mockFindMany.mock.calls[0][0]
     expect(args.where.userId).toBe('db_user_1')
     expect(args.where.source).toBeUndefined()
-    expect(args.where.AND[0]).toEqual({ scope: { in: ['IMAGE', 'GLOBAL'] } })
+    expect(args.where.AND[0]).toEqual({
+      scope: { in: ['IMAGE', 'GLOBAL'] },
+      characterCardId: null,
+    })
     expect(args.where.AND[1]).toEqual({
       OR: [
         { text: { contains: '横构图', mode: 'insensitive' } },
@@ -850,5 +859,115 @@ describe('searchAssistantMemories', () => {
       query: '不存在',
     })
     expect(mockUpdateMany).not.toHaveBeenCalled()
+  })
+})
+
+describe('和角色聊天：记忆按角色分开（附录L 第二片）', () => {
+  const CHAT_ONLY = {
+    OR: [
+      { characterCardId: 'card-1' },
+      { scope: 'GLOBAL', source: 'CREATOR', characterCardId: null },
+    ],
+  }
+
+  it('注入只读这个角色的 + 你写的全局规矩，⛔ 不读工作里的', async () => {
+    await listAssistantMemoriesForPrompt(
+      'db_user_1',
+      ASSISTANT_MEMORY_SCOPE_IDS.image,
+      8,
+      null,
+      'card-1',
+    )
+    expect(mockFindMany.mock.calls[0][0].where).toEqual({
+      userId: 'db_user_1',
+      source: 'ASSISTANT',
+      ...CHAT_ONLY,
+    })
+  })
+
+  it('工作里的注入 ⛔ 不读任何角色的', async () => {
+    await listAssistantMemoriesForPrompt(
+      'db_user_1',
+      ASSISTANT_MEMORY_SCOPE_IDS.cards,
+      8,
+    )
+    expect(mockFindMany.mock.calls[0][0].where.characterCardId).toBeNull()
+  })
+
+  it('翻记忆同样只翻这个角色的 + 你写的全局规矩', async () => {
+    await searchAssistantMemories('db_user_1', {
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.image,
+      characterCardId: 'card-1',
+      query: '',
+    })
+    expect(mockFindMany.mock.calls[0][0].where.AND[0]).toEqual(CHAT_ONLY)
+  })
+
+  it('结账写进 cards + 这个角色，去重 / 上限也只看这个角色的', async () => {
+    mockCardFindFirst.mockResolvedValue({ id: 'card-1' })
+    mockCount.mockResolvedValue(1)
+    const written = await recordAssistantMemories({
+      userId: 'db_user_1',
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.image,
+      characterCardId: 'card-1',
+      candidates: [
+        { kind: ASSISTANT_MEMORY_KIND_IDS.fact, text: '我们约好周六去海边' },
+      ],
+    })
+    expect(written).toBe(1)
+    expect(mockCardFindFirst.mock.calls[0][0].where).toEqual({
+      id: 'card-1',
+      userId: 'db_user_1',
+      isDeleted: false,
+    })
+    expect(mockFindMany.mock.calls[0][0].where).toMatchObject({
+      scope: 'CARDS',
+      characterCardId: 'card-1',
+    })
+    expect(mockCreate.mock.calls[0][0].data).toMatchObject({
+      scope: 'CARDS',
+      characterCardId: 'card-1',
+    })
+    expect(mockCount.mock.calls[0][0].where).toMatchObject({
+      scope: 'CARDS',
+      characterCardId: 'card-1',
+    })
+  })
+
+  it('角色不是你的 / 删了：一条都不写，⛔ 不退成角色页的记忆', async () => {
+    mockCardFindFirst.mockResolvedValue(null)
+    const written = await recordAssistantMemories({
+      userId: 'db_user_1',
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.cards,
+      characterCardId: 'card-x',
+      candidates: [
+        { kind: ASSISTANT_MEMORY_KIND_IDS.fact, text: '我们约好周六去海边' },
+      ],
+    })
+    expect(written).toBe(0)
+    expect(mockCreate).not.toHaveBeenCalled()
+  })
+
+  it('聊天里记的规矩也归这个角色，回来的那条带角色名', async () => {
+    mockCardFindFirst.mockResolvedValue({ id: 'card-1' })
+    mockCreate.mockResolvedValue(
+      row({
+        id: 'rule-1',
+        scope: 'CARDS',
+        kind: 'RULE',
+        characterCardId: 'card-1',
+        characterCard: { name: '芙莉莲' },
+      }),
+    )
+    const { memory } = await addAssistantRuleMemory('db_user_1', {
+      text: '叫我旅人',
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.global,
+      characterCardId: 'card-1',
+    })
+    expect(mockCreate.mock.calls[0][0].data).toMatchObject({
+      scope: 'CARDS',
+      characterCardId: 'card-1',
+    })
+    expect(memory.characterName).toBe('芙莉莲')
   })
 })

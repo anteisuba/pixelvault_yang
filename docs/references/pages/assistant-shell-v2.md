@@ -891,18 +891,18 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 
 ⛔ 不接 Anthropic 原生 memory tool（05b）· ⛔ 与上下文卡**没有桥**（⛔ 不做「存为卡」，⛔ 不自动降级）· ⛔ 不分组 / 不做时间线分段 / 不画容量表 / 不做负规则 / 不做导出。owner 2026-09-19 打回过一版更复杂的形状。
 
-### 7.9 聊天会话（附录L · 第一片 + 第二片 A，2026-10-16）
+### 7.9 聊天会话（附录L · 第一片 + 第二片 A / B / 开场白，2026-10-16）
 
 - **模式跟会话走**：`StudioOperatorState.chatCharacter`（`{id, name}`）在新会话时定下（`resetOperatorThread(_, chat)`），载回历史时从会话菜单那一行带回；同一段会话不切。每轮上送 `chatCharacterId`，保存时服务端把它盖在首条消息上（`AssistantConversationMessageSchema.chatCharacterId`，同 `workspaceKey` 的做法，⛔ 不加列）。列表用子查询带回角色名（只认同一用户、没删的卡），读不到就当工作会话。
 - **入口**：角色页「用她 ▾ → 和她聊」（`requestOperatorChat` → 这一页 Dock 取走、开会话、打开面板）；会话菜单底部「和角色聊…」（`useChatCharacters`，菜单开着才取，只列主卡）。回工作 = 「新会话（工作）」或点开工作会话。菜单按「工作 / 和 X 聊」分组（只有一组时不画组名），头部一枚「和 X 聊」胶囊。
-- **开场白**：卡上有就作为她的第一句（`message` 历史条目）放进时间线；只有开场白、你还没开口时不落库。
+- **开场白**：卡上有就作为她的第一句（`message` 历史条目）放进时间线；只有开场白、你还没开口时不落库。卡上有备选开场白（酒馆卡 `alternate_greetings`）时第一句带几版（去空去重，≤`maxVersions`），和重新生成同一套「‹ 1 / 3 ›」左右切。`{{char}}` / `{{user}}`（含 `<BOT>` / `<USER>`）在放进时间线前换成名字（`fillOperatorChatMacros`，你的名字取人设「怎么称呼你」，没写是「你」）。服务端系统提示引的「她先说的那句」以对白第一条为准（`withChatOpening`），切了 / 改了都对得上。
 - **服务端**：`getAssistantPersonaByUserId(userId, chatCharacterId)` 按会话那张卡读人设（名字、口吻跟卡走，多带 `roleplay` 三样：场景 / 开场白 / 示例对白），⛔ 不看设置里用哪个角色；卡不是你的或删了就照工作模式。`buildCharacterSection` 在有 `roleplay` 时换成 ROLEPLAY 段：扮演是主要内容、回复长短按场景、工具 / 花钱确认 / 你的规矩照旧在前、查到的事实原样不演。
-- **记忆**：聊天会话这一版不自动记（`memoryWriteScopeForRequest`）——故事里的事落进工作记忆会串到各台；按角色分开存的那份是下一片。
+- **记忆按角色分开（第二片 B，owner 2026-10-16「现在上」）**：`AssistantMemory.characterCardId`（可空，FK → `CharacterCard`，`onDelete: Cascade`）。只认服务端按会话读成的那张卡（`chatMemoryCardId`：`persona.roleplay` 在才算），⛔ 不直接信请求体。聊天里学到的写进 `cards` + 这个角色（结账抽记忆、`add_project_rule` 都是），去重与每份 200 条上限也按角色单独算；聊天里注入 / 翻记忆 / 读规矩只读**这个角色的** + 你写的全局规矩（`promptWhere` 的聊天分支），工作里学到的 ⛔ 不带进故事。反过来工作里的所有读取都加 `characterCardId: null`，故事里的事 ⛔ 不串进工作台。会话角色没读成（卡删了）这一轮不自动记。记忆页范围那一格写「和 X 聊天」；在那里换范围就清掉角色。
 - **重新生成 / 左右切换 / 改 / 删（第二片 A，2026-10-16）**：只在聊天会话里，每条对白（你说的、她说的，本次会话与载回来的历史都算）底下一排小动作 `StudioOperatorChatLine`：改（原地文本框，Esc 取消、⌘/Ctrl+Enter 保存）、删（再点一下「确定删除？」）；你最后一句话之后她说的最后一段多「重新生成」，有几版时「‹ 2 / 3 ›」。平时淡出、悬停 / 聚焦出现，触屏与最后那段常显；跑着时都不给点。
   - 重新生成 = `beginOperatorRegenerate()` 拿掉那段（在历史里就改历史）、记下已有各版 → `regenerate()` 按你最后那句话再跑一轮（不另落一条你说的话）→ 这一轮停下时（`setOperatorStatus` 非 working）最后一段接成新一版；一个字都没写出来就把原来那条放回去。最多 `STUDIO_OPERATOR_CHAT.maxVersions` 版，超了丢最早的。
   - 切到哪版、改成什么，下一轮的对白就是什么（对白每轮从线程现算）。各版随会话落库（历史 `message` 条目的 `versions` / `versionIndex`，只有一版不存）。
   - ⚠ 改 / 删 / 切按**条目对象本身**找，⛔ 不按 id（历史里本来就会有两个 `user-1`，见面板历史那段头注）。只改了历史时 `historyRevision` 递增，保存的防抖也看它。
-- **未做**：按角色分开的记忆、世界书关键词、你在故事里的身份、面板拉宽。
+- **未做**：世界书关键词、你在故事里的身份。面板已能拖到 45%，不另做拉宽。
 
 ## 8. 上下文卡与用户偏好
 

@@ -8791,7 +8791,8 @@
       "delete": "削除",
       "confirmDelete": "削除する？",
       "save": "保存",
-      "cancel": "キャンセル"
+      "cancel": "キャンセル",
+      "you": "あなた"
     }
   },
   "GenerationCancel": {
@@ -9215,6 +9216,7 @@
       "chooseScope": "使う場所を選ぶ",
       "unassigned": "未割り当ての履歴",
       "canvasProject": "キャンバス · {name}",
+      "chatCharacter": "{name} とのチャット",
       "savedProject": "保存済みプロジェクト",
       "projectsLoading": "キャンバスを読み込み中…",
       "projectsEmpty": "先にキャンバスのプロジェクトを作成してください。",

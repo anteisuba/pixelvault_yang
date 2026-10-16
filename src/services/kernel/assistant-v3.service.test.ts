@@ -156,6 +156,7 @@ vi.mock('@/services/kernel/assistant-operator.service', () => ({
   memoryScopeForDomain: (domain: string) =>
     domain === 'cards' ? 'global' : domain,
   requestProjectId: () => null,
+  chatMemoryCardId: () => null,
   memoryAsRule: (memory: {
     id: string
     text: string
@@ -595,6 +596,7 @@ describe('v3 内核', () => {
     expect(searchMemories).toHaveBeenCalledWith('user-1', {
       scope: 'canvas',
       projectId: null,
+      characterCardId: null,
       query: '画幅',
     })
     expect(plan).not.toHaveBeenCalled()

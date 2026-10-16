@@ -87,6 +87,8 @@ const ACKNOWLEDGED: Record<string, string> = {
     '不需要连库验：外键列 "CharacterCard"."voiceCardId" 是同一条迁移里新加的**可空**列，ADD COLUMN 之后全表该列一律为 NULL，而 NULL 行不参与外键校验（SQL 标准的 MATCH SIMPLE，Postgres 默认）。所以 ADD CONSTRAINT 在任何存量数据上都成立——闸门认的是 ADD CONSTRAINT 这个语句形状，不是这条约束真有风险。⚠ 若日后有迁移往这一列写值，那条迁移得自己验。',
   '20260926120000_card_assistant':
     '不需要连库验：外键列 "AssistantPersona"."characterCardId" 是同一条迁移里新加的**可空**列，ADD COLUMN 之后全表该列为 NULL，NULL 行不参与外键校验（MATCH SIMPLE），所以 ADD CONSTRAINT 在任何存量数据上都成立。枚举只加值（ADD VALUE），不改不删旧值。⚠ 以后往这一列写值的代码（卡片施工第 5 片）只写本人的卡，由服务端校验归属。',
+  '20261016100000_assistant_memory_character':
+    '不需要连库验：外键列 "AssistantMemory"."characterCardId" 是同一条迁移里新加的**可空**列，ADD COLUMN 之后全表该列为 NULL，NULL 行不参与外键校验（MATCH SIMPLE）；这条迁移不回填。所以 ADD CONSTRAINT 在任何存量数据上都成立。',
   '20261009150000_assistant_memory_project':
     '不需要连库验：外键列 "AssistantMemory"."projectId" 是同一条迁移里新加的**可空**列，ADD COLUMN 之后全表该列为 NULL，NULL 行不参与外键校验（MATCH SIMPLE）。同一条迁移里的回填只写 EXISTS 校验过、确实在 "NodeWorkflowProject" 里的 id，所以 ADD CONSTRAINT 在任何存量数据上都成立。2026-10-09 盘点全库记忆 4 条，回填只动 1 条（画布范围、助手记的、会话上有项目）。',
   '20260925120000_card_bus_expand':

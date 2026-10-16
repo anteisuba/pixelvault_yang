@@ -48,6 +48,13 @@ export const AssistantMemorySchema = z.object({
   projectId: z.string().min(1).nullable().optional(),
   /** 那个项目现在叫什么（设置页那一列在范围那一格写它）。 */
   projectName: z.string().nullable().optional(),
+  /**
+   * 属于哪个角色（附录L：和她聊时学到的只留在和她的聊天里）。空 = 不归角色。
+   * ⚠ 有它时范围一定是 `cards`。
+   */
+  characterCardId: z.string().min(1).nullable().optional(),
+  /** 那个角色现在叫什么（设置页范围那一格写它）。 */
+  characterName: z.string().nullable().optional(),
   /** ISO 串。列表上那枚时间读 `updatedAt`（画板：今天 HH:mm · 昨天 · M/D）。 */
   createdAt: z.string(),
   updatedAt: z.string(),

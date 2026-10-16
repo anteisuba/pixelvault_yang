@@ -8779,8 +8779,7 @@
       "pill": "{name}とチャット中",
       "group": "{name}とのチャット",
       "workGroup": "作業",
-      "newWorkThread": "新しい会話（作業）",
-      "chatWith": "キャラと話す…",
+      "newChatThread": "{name}と新しいチャット",
       "noCharacters": "キャラクターがまだありません。キャラクターページで作成してください",
       "regenerate": "再生成",
       "previousVersion": "前の版",
@@ -8796,6 +8795,12 @@
       "roleLabel": "この物語でのあなた",
       "rolePlaceholder": "例：引っ越してきた隣人、{name}の幼なじみ",
       "roleHint": "このキャラとのチャットすべてで使われます。次の一言から反映されます"
+    },
+    "mode": {
+      "label": "モード",
+      "work": "作業",
+      "chat": "チャット",
+      "pickCharacter": "話す相手"
     }
   },
   "GenerationCancel": {

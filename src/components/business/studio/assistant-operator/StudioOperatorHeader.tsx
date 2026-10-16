@@ -56,7 +56,6 @@ import {
   MessageSquarePlus,
   ChevronDown,
   EyeOff,
-  MessagesSquare,
   MoreHorizontal,
   Settings2,
 } from '@/components/icons'
@@ -74,9 +73,6 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
@@ -93,6 +89,7 @@ import type { AssistantPersona } from '@/types/assistant-persona'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
 import { useSlowLoadingNotice } from '@/hooks/use-slow-loading-notice'
 import { StudioOperatorChatPill } from '@/components/business/studio/assistant-operator/StudioOperatorChatPill'
+import { StudioOperatorModeSwitch } from '@/components/business/studio/assistant-operator/StudioOperatorModeSwitch'
 import { StudioOperatorSessionRow } from '@/components/business/studio/assistant-operator/StudioOperatorSessionRow'
 import { deriveAssistantConversationTitle } from '@/lib/assistant-conversation-title'
 import {
@@ -503,44 +500,23 @@ export function StudioOperatorHeader({
             <DropdownMenuItem
               data-testid="operator-new-thread"
               disabled={working || Boolean(history.loadingSessionId)}
-              onSelect={() => onNewThread()}
+              /* 「新对话」照当前模式开（owner 2026-10-16：模式切换只在头部那颗按钮）：
+                 聊天里 = 和同一个角色新开一段（带开场白）；卡没取到就不带开场白。 */
+              onSelect={() =>
+                onNewThread(
+                  chatCharacter
+                    ? (chatCharacters.characters.find(
+                        (chat) => chat.character.id === chatCharacter.id,
+                      ) ?? { character: chatCharacter, opening: '' })
+                    : undefined,
+                )
+              }
             >
               <MessageSquarePlus className="size-4" aria-hidden />
-              {chatCharacter ? t('chat.newWorkThread') : t('newThread')}
+              {chatCharacter
+                ? t('chat.newChatThread', { name: chatCharacter.name })
+                : t('newThread')}
             </DropdownMenuItem>
-            {/* 「和角色聊…」（附录L）：选一个角色就开一段和她的聊天会话。 */}
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger
-                data-testid="operator-chat-with"
-                disabled={working || Boolean(history.loadingSessionId)}
-              >
-                <MessagesSquare className="size-4" aria-hidden />
-                {t('chat.chatWith')}
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="max-h-72 w-56 overflow-y-auto rounded-xl p-1.25 assistant-glass-overlay shadow-assistant-overlay">
-                {chatCharacters.isLoading &&
-                chatCharacters.characters.length === 0 ? (
-                  <DropdownMenuItem disabled className="text-2sm">
-                    {t('history.loading')}
-                  </DropdownMenuItem>
-                ) : chatCharacters.characters.length === 0 ? (
-                  <DropdownMenuItem disabled className="text-2sm">
-                    {t('chat.noCharacters')}
-                  </DropdownMenuItem>
-                ) : (
-                  chatCharacters.characters.map((chat) => (
-                    <DropdownMenuItem
-                      key={chat.character.id}
-                      onSelect={() => onNewThread(chat)}
-                    >
-                      <span className="min-w-0 truncate">
-                        {chat.character.name}
-                      </span>
-                    </DropdownMenuItem>
-                  ))
-                )}
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -581,6 +557,14 @@ export function StudioOperatorHeader({
 
         {/* 标题药丸 hug 之后靠这一格把右上三颗推到右边（⛔ 不靠 `flex-1` 撑标题）。 */}
         <span className="flex-1" />
+
+        {/* ── 工作 / 聊天切换（owner 2026-10-16）：换到哪一段会话的唯一入口。 */}
+        <StudioOperatorModeSwitch
+          chatCharacter={chatCharacter}
+          history={history}
+          disabled={working || Boolean(history.loadingSessionId)}
+          onNewThread={onNewThread}
+        />
 
         {/* ── 右上**一颗 ⋯**（D7b ④ · 画板 `DesignD7bToggle` 的「⋯ 菜单」）────
             设置 · 分隔线 · 隐身。⛔ 历史会话只走标题下拉（D12 B7：⋯ 里那一项与它

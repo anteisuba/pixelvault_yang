@@ -10,6 +10,7 @@ import {
   ASSISTANT_V3_LIMITS,
   ASSISTANT_V3_LORA_ITEM_IDS,
   ASSISTANT_V3_LORA_WRITE_FIELD_IDS,
+  ASSISTANT_V3_RESULT_PREFIX,
   ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS,
   ASSISTANT_V3_WEB_VIDEOS_SEARCH_KIND,
   ASSISTANT_V3_WRITE_MODE_IDS,
@@ -305,6 +306,16 @@ export async function* executeBenchWrite(
   return joinOutcomes(outcomes)
 }
 
+/** `result-2` → 舞台上最新一批的第几张（从 0 起）；对不上回 `null`。 */
+function resultIndexOf(context: V3Context, ref: string): number | null {
+  const key = ref.trim().toLowerCase()
+  if (!key.startsWith(ASSISTANT_V3_RESULT_PREFIX)) return null
+  const index = Number(key.slice(ASSISTANT_V3_RESULT_PREFIX.length)) - 1
+  return Number.isInteger(index) && context.request.snapshot.results?.[index]
+    ? index
+    : null
+}
+
 /** `video-2` → 视频台上第几段参考视频（从 0 起）；对不上回 `null`。 */
 function referenceVideoIndexOf(context: V3Context, ref: string): number | null {
   const match = /^video-(\d+)$/.exec(ref.trim().toLowerCase())
@@ -369,6 +380,17 @@ export async function* executeBenchLook(
       })
       continue
     }
+    const resultIndex = resultIndexOf(context, image)
+    if (resultIndex !== null) {
+      const result = context.request.snapshot.results![resultIndex]!
+      const name = `${ASSISTANT_V3_RESULT_PREFIX}${resultIndex + 1}`
+      targets.push({
+        url: result.url,
+        label: `${name}${result.label ? ` ${result.label}` : ''}`,
+        title: name,
+      })
+      continue
+    }
     const key = image.trim().toLowerCase()
     const pointedClip = boardClips.find(
       (clip) => clip.label.trim().toLowerCase() === key,
@@ -391,7 +413,7 @@ export async function* executeBenchLook(
     )
     if (!asset)
       unknown.push(
-        `Could not see "${image}": it is not a picture or clip attached to this message or a mounted reference. If it is a result, ask the creator to @ it.`,
+        `Could not see "${image}": it is not a picture or clip attached to this message, a mounted reference or a result on the stage (result-N). If it is an older result, ask the creator to @ it.`,
       )
     else targets.push({ url: asset.url, label: asset.label ?? image })
   }

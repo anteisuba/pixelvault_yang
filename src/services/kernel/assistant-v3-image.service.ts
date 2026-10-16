@@ -79,7 +79,7 @@ export function assistantV3ImageTools(strict: boolean) {
     }),
     [ASSISTANT_V3_TOOL_IDS.look]: tool({
       description:
-        'Put pictures in front of you for your next response, with one specific question: pictures attached to the message (by name) or mounted references ("ref-1").',
+        'Put pictures in front of you for your next response, with one specific question: pictures attached to the message (by name), mounted references ("ref-1") or the latest results on the stage ("result-1").',
       inputSchema: AssistantV3ImageLookInputSchema,
       strict,
     }),
@@ -132,7 +132,7 @@ export function assistantV3VideoTools(strict: boolean) {
     }),
     [ASSISTANT_V3_TOOL_IDS.look]: tool({
       description:
-        'Put pictures or clips in front of you for your next response, with one specific question: pictures or clips the creator pointed at (by name), mounted references ("ref-1") or mounted reference videos ("video-1").',
+        'Put pictures or clips in front of you for your next response, with one specific question: pictures or clips the creator pointed at (by name), mounted references ("ref-1"), the latest picture results on the stage ("result-1") or mounted reference videos ("video-1").',
       inputSchema: AssistantV3ImageLookInputSchema,
       strict,
     }),

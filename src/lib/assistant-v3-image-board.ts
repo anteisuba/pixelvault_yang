@@ -1,4 +1,7 @@
-import { ASSISTANT_V3_LORA_ITEM_IDS } from '@/constants/assistant-v3'
+import {
+  ASSISTANT_V3_LORA_ITEM_IDS,
+  ASSISTANT_V3_RESULT_PREFIX,
+} from '@/constants/assistant-v3'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
 
 /**
@@ -162,6 +165,18 @@ function referencesLine(snapshot: AssistantOperatorSnapshot): string {
     : `References: none mounted (${room}).`
 }
 
+/** 舞台上最新一批出好的图（`result-N`）—— look 直接看，⛔ 不用创作者再 @。 */
+function resultsLine(snapshot: AssistantOperatorSnapshot): string | null {
+  const results = snapshot.results
+  if (!results?.length) return null
+  return `Latest results on the stage (newest batch; look at them by these names, no @ needed): ${results
+    .map(
+      (result, index) =>
+        `${ASSISTANT_V3_RESULT_PREFIX}${index + 1}${result.label ? ` "${result.label}"` : ''}`,
+    )
+    .join(', ')}`
+}
+
 /** 视频台：时长 / 画幅 / 清晰度三格各自独立，有的模型只给其中一两格。 */
 function videoSpecsLine(snapshot: AssistantOperatorSnapshot): string | null {
   const specs = snapshot.videoSpecs
@@ -248,6 +263,7 @@ export function renderAssistantV3ImageBoard(input: {
     ...tagLines(snapshot),
     ...(video ? videoLines(snapshot) : []),
     referencesLine(snapshot),
+    ...[resultsLine(snapshot)].filter((line): line is string => line !== null),
     ...(input.attachedNames.length
       ? [
           `Pictures attached to this message (attached below; use these names with look and mount_reference): ${input.attachedNames.map((name) => `"${name}"`).join(', ')}`,

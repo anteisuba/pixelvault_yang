@@ -1067,6 +1067,14 @@ export const AssistantOperatorSnapshotSchema = z.object({
     .max(LIMITS.maxSpecOptions)
     .optional(),
   references: AssistantOperatorSnapshotReferencesSchema.optional(),
+  /**
+   * 工作台舞台上**最新一批**出好的图（`result-1` 是第一张）：v3 `look` 按它直接看，
+   * ⛔ 不用创作者再 @（owner 2026-10-16）。只有图片，只读，⛔ 不是参考位。
+   */
+  results: z
+    .array(AssistantOperatorSnapshotReferenceSchema)
+    .max(LIMITS.maxSnapshotResults)
+    .optional(),
   /** ⚠ 缺席 = 没有具名帧槽（图片档 / 多图参考档 / 全能参考档）。见 schema 头注。 */
   frameReferences: AssistantOperatorSnapshotFrameReferencesSchema.optional(),
   /** ⚠ 缺席 = 没有角色构图（非 NovelAI V4.5 / V5）。见 schema 头注。 */

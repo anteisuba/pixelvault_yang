@@ -2376,6 +2376,11 @@ export const ASSISTANT_OPERATOR_LIMITS = {
   /** 快照里已挂的参考图条数上限（纯载荷护栏，真上限由 `references.limit` 说了算）。 */
   maxSnapshotReferences: 16,
   /**
+   * 工作台快照里带几张**台上最新一批结果**（`results`，owner 2026-10-16「一起改」：
+   * 刚出的图不用 @ 也能看）。一批最多就这么几张，⛔ 不往前翻历史。
+   */
+  maxSnapshotResults: 8,
+  /**
    * `search_assets` 一次最多返回几条。
    *
    * 附件面板一屏就摆 6 格（拍板 16），这里给 12 是留出「模型从中挑一张」的余地 ——

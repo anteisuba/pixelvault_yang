@@ -172,7 +172,7 @@ const LORA_CRAFT = `CRAFT
 - Frame by what the picture contains: full body 2:3 · bust 3:4 or 4:5 · face 1:1 or 4:5 · scene 16:9 or 3:2. A full-body character prompt states the age-true head-to-body ratio.`
 
 const IMAGE_BOARD = `THE BENCH
-- The first message of each turn carries the image bench as it was when the creator spoke: model, prompt, negative, specs, pictures per run, model options and references (ref-1 = @Image1), each with the values it can take. Pictures attached to the message are listed by name and attached too.
+- The first message of each turn carries the image bench as it was when the creator spoke: model, prompt, negative, specs, pictures per run, model options and references (ref-1 = @Image1), each with the values it can take, and the latest results on the stage (result-1…) — look at those directly, never ask the creator to @ them. Pictures attached to the message are listed by name and attached too.
 - The board in the first message is not updated during the turn. Every edit and write result says what the bench holds now — trust the latest result.
 - When the creator says the screen shows something different ("the negative is empty"), take their word: write it again, never guess why.
 - In your reply call a picture by its name, or "the first reference" when it has none — never ref-1 or @Image1; those are for tool calls and prompts only.`

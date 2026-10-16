@@ -158,6 +158,9 @@ export const ASSISTANT_V3_LORA_ITEM_IDS = {
   loraPrefix: 'lora',
 } as const
 
+/** 工作台舞台上最新一批结果的名字前缀（`result-1`，`look` 用）。 */
+export const ASSISTANT_V3_RESULT_PREFIX = 'result-'
+
 /** `search_library` 在 LoRA 台多一种：找 LoRA。 */
 export const ASSISTANT_V3_LORA_SEARCH_KIND = 'lora'
 

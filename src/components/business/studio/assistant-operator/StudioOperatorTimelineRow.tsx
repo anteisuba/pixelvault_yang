@@ -307,6 +307,8 @@ export interface StudioOperatorThreadItem {
   key: string
   speaker: StudioOperatorSpeaker
   node: ReactNode
+  /** 分隔线（切模式标记）：自己占一行、把前后的框断开，⛔ 收进她那一框。 */
+  standalone?: boolean
 }
 
 /**
@@ -324,13 +326,25 @@ export function StudioOperatorTurns({
   items: readonly StudioOperatorThreadItem[]
   persona?: AssistantPersona
 }) {
-  const runs: { key: string; user: boolean; nodes: ReactNode[] }[] = []
+  const runs: {
+    key: string
+    user: boolean
+    standalone?: boolean
+    nodes: ReactNode[]
+  }[] = []
   for (const item of items) {
     if (item.node === null || item.node === undefined || item.node === false)
       continue
     const user = item.speaker === STUDIO_OPERATOR_SPEAKERS.user
     const last = runs.at(-1)
-    if (last && !last.user && !user) {
+    if (item.standalone) {
+      runs.push({
+        key: item.key,
+        user: false,
+        standalone: true,
+        nodes: [<Fragment key={item.key}>{item.node}</Fragment>],
+      })
+    } else if (last && !last.user && !last.standalone && !user) {
       last.nodes.push(<Fragment key={item.key}>{item.node}</Fragment>)
     } else {
       runs.push({
@@ -341,7 +355,11 @@ export function StudioOperatorTurns({
     }
   }
   return runs.map((run) =>
-    run.user ? (
+    run.standalone ? (
+      <div key={run.key} className="mt-3 min-w-0 first:mt-0">
+        {run.nodes}
+      </div>
+    ) : run.user ? (
       <Fragment key={run.key}>{run.nodes}</Fragment>
     ) : (
       <div

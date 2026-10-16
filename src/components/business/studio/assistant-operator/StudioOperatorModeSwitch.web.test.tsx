@@ -42,6 +42,12 @@ function startWorkThread() {
   })
 }
 
+function say(id: string) {
+  act(() => {
+    appendOperatorEntry({ kind: 'user', id, text: '嗯', attachments: [] })
+  })
+}
+
 function marks() {
   return getOperatorState().entries.filter((entry) => entry.kind === 'chatMark')
 }
@@ -63,15 +69,33 @@ describe('StudioOperatorModeSwitch', () => {
       expect.objectContaining({ character: { id: RIN.id, name: 'Rin' } }),
     ])
 
+    say('u-2')
     fireEvent.click(screen.getByTestId('operator-mode-work'))
     expect(getOperatorState().chatCharacter).toBeNull()
     expect(marks().at(-1)).toMatchObject({ character: null })
 
     // 聊过 Rin：再点「聊天」直接接着和她聊，带着卡上的身份。
+    say('u-3')
     fireEvent.click(screen.getByTestId('operator-mode-chat'))
     expect(getOperatorState().chatCharacter).toEqual(RIN)
     expect(screen.queryByTestId('operator-mode-characters')).toBeNull()
     expect(marks()).toHaveLength(3)
+  })
+
+  it('中间没说话的来回切只留一条；切回原样就一条都不留', () => {
+    startWorkThread()
+    render(<StudioOperatorModeSwitch disabled={false} />)
+    fireEvent.click(screen.getByTestId('operator-mode-chat'))
+    fireEvent.click(screen.getByText('Rin'))
+    fireEvent.click(screen.getByTestId('operator-mode-work'))
+    expect(marks()).toHaveLength(0)
+
+    fireEvent.click(screen.getByTestId('operator-mode-chat'))
+    fireEvent.click(screen.getByTestId('operator-mode-work'))
+    fireEvent.click(screen.getByTestId('operator-mode-chat'))
+    expect(marks()).toEqual([
+      expect.objectContaining({ character: { id: RIN.id, name: 'Rin' } }),
+    ])
   })
 
   it('在聊天里再点「聊天」弹列表换个人；点同一个人什么都不做', () => {
@@ -84,9 +108,11 @@ describe('StudioOperatorModeSwitch', () => {
     fireEvent.click(screen.getByText('Rin'))
     expect(marks()).toHaveLength(1)
 
+    say('u-2')
     fireEvent.click(screen.getByTestId('operator-mode-chat'))
     fireEvent.click(screen.getByText('Mio'))
     expect(getOperatorState().chatCharacter).toEqual(MIO)
+    expect(marks()).toHaveLength(2)
     expect(marks().at(-1)).toMatchObject({
       character: { id: MIO.id, name: 'Mio' },
     })

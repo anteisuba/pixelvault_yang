@@ -395,6 +395,12 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
   'workbenchHandoffAccepted',
   /** **先不换台**——也是一次表态：不落账的下场是模型下一轮重提同一张卡。 */
   'workbenchHandoffDeclined',
+  /** **按下了放大**（P6）——那几张卡开始放大，结果落成各自的新版本。 */
+  'upscaleAccepted',
+  /** **先不放大**——也是一次表态。 */
+  'upscaleDeclined',
+  /** 放大那一跳没成（某张卡）—— ⛔ 不静默：用户以为图已经变清楚了。 */
+  'upscaleFailed',
   /**
    * **应用了助手搭的那一套**（lora-assistant §12）——「已应用搭配：{卡头那一句}」。
    * ⭐ 判据与 `contextCardSaved` 同源：这一行同时是一条自带题面的 user 消息（`userText`

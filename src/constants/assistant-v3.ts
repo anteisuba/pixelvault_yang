@@ -45,13 +45,17 @@ export const ASSISTANT_V3_BENCH_FACES: readonly string[] = [
   ASSISTANT_V3_FACE_IDS.video,
 ]
 
-/** 八个工具。名字就是模型看到的工具名，⛔ 别改成旧内核那套动作名。 */
+/**
+ * 九个工具。名字就是模型看到的工具名，⛔ 别改成旧内核那套动作名。
+ * `upscale` 只在画布那张脸上（P6「修到 4K」走放大，⛔ 不是改分辨率再出一张）。
+ */
 export const ASSISTANT_V3_TOOL_IDS = {
   read: 'read',
   look: 'look',
   edit: 'edit',
   write: 'write',
   generate: 'generate',
+  upscale: 'upscale',
   searchWeb: 'search_web',
   searchLibrary: 'search_library',
   ask: 'ask',
@@ -63,6 +67,7 @@ export const ASSISTANT_V3_TOOLS = [
   ASSISTANT_V3_TOOL_IDS.edit,
   ASSISTANT_V3_TOOL_IDS.write,
   ASSISTANT_V3_TOOL_IDS.generate,
+  ASSISTANT_V3_TOOL_IDS.upscale,
   ASSISTANT_V3_TOOL_IDS.searchWeb,
   ASSISTANT_V3_TOOL_IDS.searchLibrary,
   ASSISTANT_V3_TOOL_IDS.ask,

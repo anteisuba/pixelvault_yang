@@ -2465,6 +2465,21 @@ export type AssistantOperatorWorkbenchHandoff = z.infer<
 >
 
 /**
+ * **画布上放大哪几张卡**（`confirm(upscale)` 的载荷，P6）。只有卡的 id 与名字：放大哪一版、
+ * 用哪个模型由客户端在按下那一刻按卡上当前那张图定（⛔ 载荷里没有地址）。
+ */
+export const AssistantOperatorUpscaleRequestSchema = z.object({
+  nodes: z
+    .array(z.object({ id: IdSchema, name: LabelSchema }))
+    .min(1)
+    .max(LIMITS.maxCanvasGenerateCards),
+})
+
+export type AssistantOperatorUpscaleRequest = z.infer<
+  typeof AssistantOperatorUpscaleRequestSchema
+>
+
+/**
  * **`add_project_rule` 的形状容错**（2026-09-12 实测第 9 步）。
  *
  * ⭐ 真机里这条工具**第一次调用一定被拒**、第二次才落 —— 用户读到的是一条
@@ -4964,6 +4979,11 @@ export const AssistantOperatorConfirmEventSchema = z.object({
     z.object({
       kind: z.literal(ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.workbenchHandoff),
       handoff: AssistantOperatorWorkbenchHandoffSchema,
+    }),
+    /** **画布上放大几张卡**（P6）—— 「放大 / 先不要」，结果是各自那张卡的新版本。 */
+    z.object({
+      kind: z.literal(ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.upscale),
+      request: AssistantOperatorUpscaleRequestSchema,
     }),
   ]),
 })

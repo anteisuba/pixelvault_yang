@@ -1405,6 +1405,64 @@ describe('v3 内核', () => {
     expect(promptText(next)).not.toContain('no picture of it reached you')
   })
 
+  it('upscale：有图的卡出放大确认卡停住；没图的卡写进待办 ⛔ 不放进卡', async () => {
+    const board = canvas(true)
+    const shot = board.shots[0]
+    if (shot?.expanded)
+      shot.nodes = shot.nodes.map((node) =>
+        node.id === HARRY ? { ...node, imageUrl: HARRY_PNG } : node,
+      )
+    script(
+      toolTurn({
+        id: 'call_1',
+        name: 'upscale',
+        input: { cards: ['img-249e8b', 'img-9c0d1e'] },
+      }),
+    )
+    const events = await collect(
+      runAssistantV3(
+        'clerk-1',
+        request({
+          snapshot: { prompt: '', canvas: board, availableModels: [] },
+        } as Partial<AssistantOperatorRequest>),
+      ),
+    )
+    expect(plan).not.toHaveBeenCalled()
+    expect(events.find((event) => event.type === 'confirm')).toMatchObject({
+      confirm: {
+        kind: 'upscale',
+        request: { nodes: [{ id: HARRY, name: '哈利 · 黑袍' }] },
+      },
+    })
+    expect(events.at(-1)).toMatchObject({
+      type: 'stopped',
+      reason: 'awaiting_confirm',
+    })
+  })
+
+  it('upscale：一张有图的都没有 —— 说清楚交回模型，⛔ 不出卡', async () => {
+    const mock = script(
+      toolTurn({
+        id: 'call_1',
+        name: 'upscale',
+        input: { cards: ['img-249e8b'] },
+      }),
+      textTurn('这张还没出图，先出图再放大。'),
+    )
+    const events = await collect(
+      runAssistantV3(
+        'clerk-1',
+        request({
+          snapshot: { prompt: '', canvas: canvas(true), availableModels: [] },
+        } as Partial<AssistantOperatorRequest>),
+      ),
+    )
+    expect(events.some((event) => event.type === 'confirm')).toBe(false)
+    expect(promptText(mock.doStreamCalls[1]!)).toContain(
+      'img-249e8b has no picture yet',
+    )
+  })
+
   it('look：图交到主模型眼前，只附给紧跟着的那一步；⛔ 不另起看图子调用', async () => {
     const run = preparedOnce(OPENAI, [HARRY_PNG, GOYLE_PNG])
     served.set(HARRY_PNG, 'png')

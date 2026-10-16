@@ -138,6 +138,7 @@ ${WEB_VIDEOS_LINE}
 const CANVAS_CRAFT = `CRAFT
 - When a result differs from its references, compare the result with the source images before changing the prompt: say which image supplies identity, body proportions and rendering style, and which parts are not evidenced. A prompt alone never guarantees exact preservation.
 - Frame by what the picture contains: full body 2:3 (3:4 where 2:3 is not offered) · bust 3:4 or 4:5 · face 1:1 or 4:5 · turnaround 16:9 · scene 16:9 or 3:2. Keep resolution at 1K and quality at high unless the creator asks for more.
+- To make a picture already on a card sharper or 4K, use upscale — it keeps the picture. Generating again at a higher resolution makes a different picture; do that only when they want a new one.
 - Dialogue must fit its time: about 2.5 English words per second of the shot it is spoken in. When a line does not fit, say so instead of writing it in.
 - Write a character's lines in their own voice — from how CAST ON THE BOARD says they talk and who they are, not in a generic voice.
 - A new card that joins a set (another character sheet beside the existing ones): read one card of the set first and keep its conventions — background, proportions, framing, style words — unless the creator asks for something else.

@@ -32,6 +32,7 @@ import type {
   AssistantOperatorCharacterProfileDraft,
   AssistantOperatorCharacterImagesProposal,
   AssistantOperatorImageHandoff,
+  AssistantOperatorUpscaleRequest,
   AssistantOperatorWorkbenchHandoff,
   AssistantOperatorContextCardDraft,
   AssistantOperatorCritiqueStep,
@@ -578,6 +579,11 @@ export type StudioOperatorConfirmPrompt = {
   | {
       kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.workbenchHandoff
       handoff: AssistantOperatorWorkbenchHandoff
+    }
+  /** 画布上放大几张卡（P6）—— 「放大 / 先不要」。 */
+  | {
+      kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.upscale
+      request: AssistantOperatorUpscaleRequest
     }
 )
 

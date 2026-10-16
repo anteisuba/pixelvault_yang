@@ -6328,6 +6328,10 @@
         "count": "{count} images in this shot",
         "limit": "This model takes up to {max} reference images · {used} in use (including the rail)"
       },
+      "upscale": {
+        "noImage": "This card has no picture to upscale yet",
+        "failed": "Upscale failed"
+      },
       "scriptRejected": {
         "alreadyProjected": "This script is already projected — use re-project to update the shots.",
         "notProjected": "This script has not been projected yet — project it first.",
@@ -8319,6 +8323,17 @@
         "accept": "Take me there",
         "dismiss": "Not now",
         "accepted": "Switched to the {bench} · {time}"
+      },
+      "upscale": {
+        "header": "Upscale to 4K · {count, plural, one {# image} other {# images}}",
+        "hint": "Runs on your own fal key, no credits. The enlarged picture becomes a new version of the same card; the original stays in its version strip.",
+        "accept": "Upscale",
+        "dismiss": "Not now",
+        "accepted": "Upscaling started · {time}",
+        "autoAccepted": "Auto-generate is on, so it started right away · {time}",
+        "acceptedText": "Upscale {names}",
+        "declinedText": "Don't upscale {names} for now",
+        "question": "Upscale {names} to 4K?"
       }
     },
     "system": {
@@ -8358,6 +8373,9 @@
       "imageHandoffDeclined": "Not handed to the image assistant: {subject}",
       "workbenchHandoffAccepted": "Switched workbench: {subject}",
       "workbenchHandoffDeclined": "Stayed on this workbench: {subject}",
+      "upscaleAccepted": "Upscaling: {subject}",
+      "upscaleDeclined": "Not upscaling: {subject}",
+      "upscaleFailed": "Upscale failed: {subject}",
       "autoGenerateHeld": "This card would make {subject} pictures, over the auto-generate limit of 4 per turn. It was not pressed for you; confirm it to run."
     },
     "attach": {
@@ -8544,6 +8562,7 @@
       "copied": "Copied",
       "missingKey": "The assistant needs your own AI text model key. Gemini keys are free to create in Google AI Studio.",
       "modelKeyMissing": "{model} has no {provider} key yet, so nothing ran — no other provider was used in its place. Add the key, or pick another model.",
+      "upscaleKeyMissing": "Upscaling runs on your own {provider} key, which isn't set up yet, so nothing was upscaled and no other provider's key was used. Add the key, then ask to upscale again.",
       "addKey": "Add a key",
       "addProviderKey": "Add {provider} key",
       "retry": "Retry",

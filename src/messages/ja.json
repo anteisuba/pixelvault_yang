@@ -6328,6 +6328,10 @@
         "count": "このカットで {count} 枚",
         "limit": "このモデルの参照画像は最大 {max} 枚 · 使用中 {used} 枚（レールの画像を含む）"
       },
+      "upscale": {
+        "noImage": "このカードにはまだ拡大できる画像がありません",
+        "failed": "拡大できませんでした"
+      },
       "scriptRejected": {
         "alreadyProjected": "この台本はすでに展開済みです。変更をショットに反映するには「再展開」を使ってください。",
         "notProjected": "この台本はまだ展開されていません。先に一度展開してください。",
@@ -8319,6 +8323,17 @@
         "accept": "移動する",
         "dismiss": "今はいい",
         "accepted": "{bench}へ切り替えました · {time}"
+      },
+      "upscale": {
+        "header": "4K にアップスケール · {count} 枚",
+        "hint": "あなたの fal キーで実行し、クレジットは使いません。拡大した画像はこのカードの新しいバージョンになり、元の画像はバージョン列に残ります。",
+        "accept": "拡大する",
+        "dismiss": "今はしない",
+        "accepted": "拡大を開始しました · {time}",
+        "autoAccepted": "自動生成がオンなので、そのまま拡大しました · {time}",
+        "acceptedText": "{names}を拡大",
+        "declinedText": "{names}は今は拡大しない",
+        "question": "{names}を 4K に拡大しますか？"
       }
     },
     "system": {
@@ -8358,6 +8373,9 @@
       "imageHandoffDeclined": "画像アシスタントには渡しませんでした：{subject}",
       "workbenchHandoffAccepted": "切り替えました：{subject}",
       "workbenchHandoffDeclined": "切り替えませんでした：{subject}",
+      "upscaleAccepted": "拡大中：{subject}",
+      "upscaleDeclined": "拡大しませんでした：{subject}",
+      "upscaleFailed": "拡大できませんでした：{subject}",
       "autoGenerateHeld": "このカードは {subject} 枚を生成します。自動生成の上限（1 ターン 4 枚）を超えるため自動では押していません。確認すると生成します。"
     },
     "attach": {
@@ -8544,6 +8562,7 @@
       "copied": "コピーしました",
       "missingKey": "アシスタントにはご自身の AI テキストモデルのキーが必要です。Gemini のキーは Google AI Studio で無料で作成できます。",
       "modelKeyMissing": "{model} の {provider} キーがまだないため、実行していません（他社のキーで代わりに動かすことはしません）。キーを追加するか、別のモデルを選んでください。",
+      "upscaleKeyMissing": "拡大にはあなたの {provider} キーが必要ですが、まだ設定されていないため拡大していません（他社のキーで代わりに動かすことはしません）。キーを設定してから、もう一度「拡大」と伝えてください。",
       "addKey": "キーを追加",
       "addProviderKey": "{provider} のキーを追加",
       "retry": "再試行",

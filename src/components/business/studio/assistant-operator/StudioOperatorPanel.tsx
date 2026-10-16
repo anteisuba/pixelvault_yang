@@ -31,6 +31,7 @@ import { StudioOperatorCharacterImagesCard } from './StudioOperatorCharacterImag
 import { StudioOperatorCharacterProfileCard } from './StudioOperatorCharacterProfileCard'
 import {
   StudioOperatorImageHandoffCard,
+  StudioOperatorUpscaleCard,
   StudioOperatorWorkbenchHandoffCard,
 } from './StudioOperatorHandoffCard'
 import { StudioOperatorLoraSetupCard } from './StudioOperatorLoraSetupCard'
@@ -574,6 +575,8 @@ export function StudioOperatorPanel({
     dismissImageHandoff,
     acceptWorkbenchHandoff,
     dismissWorkbenchHandoff,
+    acceptUpscale,
+    dismissUpscale,
     cancelGeneration,
     retryGeneration,
     rerunGeneration,
@@ -1621,6 +1624,14 @@ export function StudioOperatorPanel({
             prompt={confirm}
             onAccept={acceptWorkbenchHandoff}
             onDismiss={dismissWorkbenchHandoff}
+            formatTime={formatDecidedAt}
+          />
+        ) : confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.upscale ? (
+          /* ── 放大到 4K：结果做成原卡的新版本（P6）── */
+          <StudioOperatorUpscaleCard
+            prompt={confirm}
+            onAccept={acceptUpscale}
+            onDismiss={dismissUpscale}
             formatTime={formatDecidedAt}
           />
         ) : confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraSetup ? (

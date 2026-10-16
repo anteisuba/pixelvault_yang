@@ -1432,6 +1432,12 @@ export const ASSISTANT_OPERATOR_CONFIRM_KIND_IDS = {
    * ⛔ 不替用户发、不花钱。
    */
   workbenchHandoff: 'workbenchHandoff',
+  /**
+   * 画布上把卡的图放大到 4x（P6，owner 2026-10-16「修到 4K」走放大）：一行几张卡 + 两颗键。
+   * ⚠ 点「放大」由客户端调画布同一条放大能力（用户自己的 fal key，不扣积分），结果是那张卡的
+   *   新版本（owner 2026-10-15 手动放大定的规矩）；⛔ 服务端不调、不存。
+   */
+  upscale: 'upscale',
 } as const
 
 export const ASSISTANT_OPERATOR_CONFIRM_KINDS = [
@@ -1443,6 +1449,7 @@ export const ASSISTANT_OPERATOR_CONFIRM_KINDS = [
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterImages,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.imageHandoff,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.workbenchHandoff,
+  ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.upscale,
 ] as const
 
 export type AssistantOperatorConfirmKind =

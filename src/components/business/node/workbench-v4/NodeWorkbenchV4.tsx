@@ -122,6 +122,8 @@ import {
 } from '@/hooks/node/node-ingest-dom'
 import { changedNodeIds } from '@/lib/node-state-diff'
 import { readCanvasImageEditHandoff } from '@/lib/canvas-image-edit-handoff'
+import { canvasCapabilityRuntime } from '@/lib/canvas-capability-runtime'
+import type { StudioOperatorCanvasUpscaleOutcome } from '@/lib/studio-operator-apply'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type { NodeV4, NodeWorkflowStateV4 } from '@/types/node-workflow'
 import type { ScriptDoc } from '@/types/script-doc'
@@ -1549,6 +1551,49 @@ function NodeWorkbenchV4Inner() {
   }, [graph.nodes, modelOptionsByKind])
 
   /**
+   * 助手「放大到 4K」（P6）：用户自己那把 fal key 跑同一条放大，结果追加成**这张卡
+   * 的新版本**（owner 10-16 选「原卡新版本」，与手动放大同一条 `appendImageVersions`）。
+   * 失败时卡回到原来的状态 —— 原图还在，⛔ 不把卡钉成失败。
+   */
+  const upscaleNode = useCallback(
+    async (nodeId: string): Promise<StudioOperatorCanvasUpscaleOutcome> => {
+      const node = graph.nodes.find((candidate) => candidate.id === nodeId)
+      if (node?.data.kind !== NODE_MEDIA_KIND_IDS.image || !node.data.url) {
+        return { status: 'failed', reason: tV4('upscale.noImage') }
+      }
+      const statusBefore = node.data.status ?? NODE_STATUS_IDS.idle
+      graph.setRunState(nodeId, NODE_STATUS_IDS.running)
+      const result = await canvasCapabilityRuntime.run({
+        capability: 'upscale',
+        target: {
+          sourceUrl: node.data.url,
+          ...(node.data.generationId
+            ? { sourceGenerationId: node.data.generationId }
+            : {}),
+          sourceWidth: node.data.mediaWidth ?? 0,
+          sourceHeight: node.data.mediaHeight ?? 0,
+        },
+        targetScale: '4x',
+        modelId: canvasCapabilityRuntime.open('upscale').defaultModelId ?? '',
+      })
+      if (!result.success || result.outputs.length === 0) {
+        graph.setRunState(nodeId, statusBefore)
+        if (result.errorCode === 'MISSING_API_KEY') {
+          return { status: 'missingKey' }
+        }
+        return {
+          status: 'failed',
+          reason: result.error ?? tV4('upscale.failed'),
+        }
+      }
+      actions.appendImageVersions(nodeId, result.outputs)
+      graph.setRunState(nodeId, NODE_STATUS_IDS.done)
+      return { status: 'done' }
+    },
+    [actions, graph, tV4],
+  )
+
+  /**
    * ⭐ **画布这个宿主**（进度表 22「一张脸」）—— 面板从这里读画布、往这里落 op。
    * 三份宿主实现的差别正好只有域 / 快照 / 落笔的手，见那个 hook 的头注。
    */
@@ -1565,6 +1610,7 @@ function NodeWorkbenchV4Inner() {
     getApplyError,
     undo: graph.undo,
     generateNodes,
+    upscaleNode,
     open: assistantOpen,
     setOpen: setAssistantOpen,
     onLocate: locateNode,

@@ -109,6 +109,7 @@ import {
   AssistantV3ClipRefSchema,
   AssistantV3EditInputSchema,
   AssistantV3GenerateInputSchema,
+  AssistantV3UpscaleInputSchema,
   AssistantV3LookInputSchema,
   AssistantV3ReadInputSchema,
   AssistantV3SearchLibraryInputSchema,
@@ -372,6 +373,12 @@ const tools = (strict: boolean) => ({
     description:
       'Put a generation confirm card in front of the creator. It spends nothing until they press it. List every card they asked to generate in this one call: they all go on one confirm card.',
     inputSchema: AssistantV3GenerateInputSchema,
+    strict,
+  }),
+  [ASSISTANT_V3_TOOL_IDS.upscale]: tool({
+    description:
+      'Enlarge image cards\' current picture 4x (sharper, bigger — what "4K", "高清", "放大" mean for a picture that already exists). Puts a confirm card in front of the creator; the enlarged picture becomes a new version of the same card, the old one stays one version back. Nothing is regenerated. Runs on the creator\'s own fal.ai key, no credits.',
+    inputSchema: AssistantV3UpscaleInputSchema,
     strict,
   }),
   [ASSISTANT_V3_TOOL_IDS.searchWeb]: tool({
@@ -2337,6 +2344,11 @@ async function* executeCall(
         context,
         AssistantV3GenerateInputSchema.parse(input).cards,
       )
+    case ASSISTANT_V3_TOOL_IDS.upscale:
+      return yield* executeUpscale(
+        context,
+        AssistantV3UpscaleInputSchema.parse(input).cards,
+      )
     case ASSISTANT_V3_TOOL_IDS.look:
       return yield* executeLook(
         context,
@@ -2553,6 +2565,70 @@ async function* executeGenerate(
   return {
     kind: 'stop',
     todo: `等你确认生成${nodes.map((node) => `「${node.name}」`).join('')}`,
+  }
+}
+
+/**
+ * 放大（P6，owner 2026-10-16「修到 4K」走放大原图）：几张有图的图片卡一张确认卡。
+ * ⛔ 服务端不调放大、不存图：放大由客户端在创作者按下时走画布同一条放大能力（创作者自己的
+ *   fal key，不扣积分），结果追加成那张卡的新版本（owner 2026-10-15 手动放大的规矩）。
+ */
+async function* executeUpscale(
+  context: V3Context,
+  requested: readonly string[],
+): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
+  const cards = [...new Set(requested)].slice(
+    0,
+    ASSISTANT_OPERATOR_LIMITS.maxCanvasGenerateCards,
+  )
+  if (cards.length === 0)
+    return {
+      kind: 'result',
+      output: 'upscale needs the cards to enlarge.',
+      error: true,
+      failureKey: `${ASSISTANT_V3_TOOL_IDS.upscale}:empty`,
+    }
+  const problems: string[] = []
+  const nodes: { id: string; name: string }[] = []
+  for (const card of cards) {
+    const id = context.handles.idOf(card)
+    const node = id
+      ? context.nodes.find((candidate) => candidate.id === id)
+      : undefined
+    if (!node) {
+      const nearest = context.handles
+        .nearest(card)
+        .map((other) => context.handles.handleOf(other))
+      problems.push(
+        `no card "${card}"${nearest.length ? ` — did you mean ${nearest.join(', ')}?` : ''}`,
+      )
+    } else if (node.kind !== NODE_MEDIA_KIND_IDS.image)
+      problems.push(
+        `${context.handles.handleOf(node.id)} is not an image card — only pictures can be enlarged`,
+      )
+    else if (!node.imageUrl)
+      problems.push(
+        `${context.handles.handleOf(node.id)} has no picture yet — generate it first`,
+      )
+    else nodes.push({ id: node.id, name: node.name })
+  }
+  if (nodes.length === 0)
+    return {
+      kind: 'result',
+      output: problems.join('; '),
+      error: true,
+      failureKey: `${ASSISTANT_V3_TOOL_IDS.upscale}:none`,
+    }
+  yield {
+    type: ASSISTANT_OPERATOR_EVENTS.confirm,
+    confirm: {
+      kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.upscale,
+      request: { nodes },
+    },
+  }
+  return {
+    kind: 'stop',
+    todo: `等你确认放大${nodes.map((node) => `「${node.name}」`).join('')}${problems.length ? `（没放进来的：${problems.join('; ')}）` : ''}`,
   }
 }
 

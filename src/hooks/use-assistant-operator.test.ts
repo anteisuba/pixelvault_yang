@@ -142,6 +142,18 @@ const canvasBatchFailures = vi.hoisted(() => ({
 }))
 /** 画布那一枪的扳机（`StudioOperatorCanvasContext.generate`）。 */
 const canvasGenerate = vi.hoisted(() => vi.fn())
+/** 画布那张卡放大到 4K（`StudioOperatorCanvasContext.upscale`，P6）。 */
+const canvasUpscale = vi.hoisted(() =>
+  vi.fn(
+    async (
+      _nodeId: string,
+    ): Promise<
+      | { status: 'done' }
+      | { status: 'missingKey' }
+      | { status: 'failed'; reason: string }
+    > => ({ status: 'done' }),
+  ),
+)
 const canvasGenerationState = vi.hoisted(() => ({
   enabled: false,
   current: null as Record<string, unknown> | null,
@@ -191,6 +203,7 @@ vi.mock('@/contexts/studio-operator-host', () => ({
             : '模型无法解析，请重新选择模型',
         needsPromptInputSync: () => canvasInputSync.current,
         ...(generationEnabled.canvas ? { generate: canvasGenerate } : {}),
+        upscale: canvasUpscale,
       },
       ...(generationEnabled.workbench ? { triggerGeneration } : {}),
       getState: () => ({ prompt: '', advancedParams: {} }),
@@ -318,6 +331,7 @@ beforeEach(async () => {
   generationEnabled.canvas = true
   workbenchHandoffEnabled.current = false
   switchImageWorkbench.mockReset().mockReturnValue(true)
+  canvasUpscale.mockReset().mockResolvedValue({ status: 'done' })
   hostDomain.current = 'image'
   hostWorkspace.current = 'image-natural'
   canvasApply.mockReset().mockReturnValue(true)
@@ -461,6 +475,84 @@ describe('图片工作台转交按钮', () => {
     ).toHaveLength(1)
     expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(1)
     expect(triggerGeneration).not.toHaveBeenCalled()
+  })
+})
+
+describe('放大到 4K 确认卡（P6）', () => {
+  const nodes = [
+    { id: 'n1', name: '哈利' },
+    { id: 'n2', name: '高尔' },
+  ]
+
+  async function proposeUpscale() {
+    const hook = render()
+    act(() => hook.result.current.send('两张都放大到 4K'))
+    await settle()
+    streams[0].emit({
+      type: 'confirm',
+      confirm: { kind: 'upscale', request: { nodes } },
+    })
+    streams[0].emit({ type: 'stopped', reason: 'awaiting_confirm' })
+    streams[0].close()
+    await settle()
+    return hook
+  }
+
+  function systemCodes(): string[] {
+    return store
+      .getOperatorState()
+      .entries.flatMap((entry) => (entry.kind === 'system' ? [entry.code] : []))
+  }
+
+  it('按下放大：每张卡各放大一次，记一行表态，⛔ 不新开一轮', async () => {
+    const { result } = await proposeUpscale()
+    act(() => {
+      result.current.acceptUpscale()
+      result.current.acceptUpscale()
+      result.current.dismissUpscale()
+    })
+    await settle()
+    expect(canvasUpscale.mock.calls.map(([id]) => id)).toEqual(['n1', 'n2'])
+    expect(store.getOperatorState().confirm?.status).toBe('confirmed')
+    expect(
+      systemCodes().filter((code) => code === 'upscaleAccepted'),
+    ).toHaveLength(1)
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(1)
+  })
+
+  it('先不放大：不放大，只记一行', async () => {
+    const { result } = await proposeUpscale()
+    act(() => result.current.dismissUpscale())
+    await settle()
+    expect(canvasUpscale).not.toHaveBeenCalled()
+    expect(store.getOperatorState().confirm?.status).toBe('cancelled')
+    expect(systemCodes()).toContain('upscaleDeclined')
+  })
+
+  it('没配 fal key：错误条就地配 fal，⛔ 不借别家', async () => {
+    canvasUpscale.mockResolvedValue({ status: 'missingKey' })
+    const { result } = await proposeUpscale()
+    act(() => result.current.acceptUpscale())
+    await settle()
+    const state = store.getOperatorState()
+    expect(state.status).toBe('error')
+    expect(state.errorMissingKey).toMatchObject({ adapterType: 'fal' })
+  })
+
+  it('某张没放大成：那张单独说一行，⛔ 不静默', async () => {
+    canvasUpscale.mockImplementation(async (id) =>
+      id === 'n2' ? { status: 'failed', reason: '图太大' } : { status: 'done' },
+    )
+    const { result } = await proposeUpscale()
+    act(() => result.current.acceptUpscale())
+    await settle()
+    const failed = store
+      .getOperatorState()
+      .entries.filter(
+        (entry) => entry.kind === 'system' && entry.code === 'upscaleFailed',
+      )
+    expect(failed).toHaveLength(1)
+    expect(failed[0]).toMatchObject({ subject: '「高尔」：图太大' })
   })
 })
 

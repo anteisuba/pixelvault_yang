@@ -45,6 +45,25 @@ afterEach(() => {
 })
 
 describe('StudioOperatorLightbox', () => {
+  it('⭐ 挂在 pointer-events-none 的 rail 里也关得掉：portal 到 body，点遮罩 / Esc 都关', () => {
+    render(
+      <div data-testid="rail" className="pointer-events-none">
+        <StudioOperatorLightbox />
+      </div>,
+    )
+    act(() => openOperatorLightbox('https://cdn.test/own.png', '生成图'))
+    const dialog = screen.getByRole('dialog')
+    expect(screen.getByTestId('rail').contains(dialog)).toBe(false)
+    expect(dialog.parentElement).toBe(document.body)
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+
+    act(() => openOperatorLightbox('https://cdn.test/own.png', '生成图'))
+    fireEvent.click(screen.getByRole('dialog'))
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
   it('自家的图照原样取，⛔ 不改 Referer', () => {
     render(<StudioOperatorLightbox />)
     act(() => openOperatorLightbox('https://cdn.test/own.png', '自家'))

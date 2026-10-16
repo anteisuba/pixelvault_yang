@@ -8,7 +8,8 @@
  * prop。灯箱本来就是全屏单例，模块 store 与它的形状一致。
  */
 
-import { useCallback, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useSyncExternalStore } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, useReducedMotion } from 'motion/react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
@@ -82,62 +83,73 @@ export function StudioOperatorLightbox() {
     () => CLOSED,
   )
   const close = useCallback(() => closeOperatorLightbox(), [])
+  const isOpen = lightbox.url !== null
+
+  useEffect(() => {
+    if (!isOpen) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      close()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [close, isOpen])
+
+  if (!lightbox.url || typeof document === 'undefined') return null
 
   // ⚠ 只做入场，不做退场（同 `StudioOperatorDock` 的那段注释）：隐藏标签页里
   //    rAF 冻结 → `AnimatePresence` 的退场永远不完成 → 一个 opacity:0 的**全屏**
   //    遮罩留在 DOM 里吃掉所有点击。灯箱是四处里最危险的一处。
-  return (
-    <>
-      {lightbox.url ? (
-        <motion.div
-          key="operator-lightbox"
-          role="dialog"
-          aria-modal="true"
-          aria-label={t('lightboxLabel')}
-          onClick={close}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: reduceMotion ? 0 : DURATION.base }}
-          className="fixed inset-0 z-[60] grid cursor-zoom-out place-items-center bg-foreground/70 p-8 backdrop-blur-sm"
-        >
-          <motion.div
-            initial={reduceMotion ? false : { opacity: 0, scale: 0.86 }}
-            animate={{ opacity: 1, scale: 1 }}
-            /* 时长走脊柱的 slow 档（面板 / 对话框那一类），曲线走 `EASE_POP`
-               —— 过冲是这一拍的语义，⛔ 不退回 `EASE_STANDARD`。 */
-            transition={{
-              duration: reduceMotion ? 0 : DURATION.slow,
-              ease: EASE_POP,
-            }}
-            className="relative max-h-full w-full max-w-3xl overflow-hidden rounded-2xl shadow-lg"
-          >
-            {lightbox.thirdParty ? (
-              <ThirdPartyLightboxImage
-                url={lightbox.url}
-                fallbackUrl={lightbox.fallbackUrl}
-                alt={lightbox.caption ?? t('lightboxLabel')}
-                unavailableLabel={t('web.previewUnavailable')}
-              />
-            ) : (
-              /* ⚠ `unoptimized` 是全局默认（`next.config` 关了优化），这里跟着走 ——
-                 写 `sizes` / `quality` 在本仓是死配置（台账：next/image 全局关了优化）。 */
-              <Image
-                src={lightbox.url}
-                alt={lightbox.caption ?? t('lightboxLabel')}
-                width={1024}
-                height={1024}
-                className="h-auto max-h-full w-full object-contain"
-              />
-            )}
-          </motion.div>
-          {lightbox.caption ? (
-            <span className="pointer-events-none mt-4 text-2sm text-background/80">
-              {lightbox.caption}
-            </span>
-          ) : null}
-        </motion.div>
+  return createPortal(
+    <motion.div
+      key="operator-lightbox"
+      role="dialog"
+      aria-modal="true"
+      aria-label={t('lightboxLabel')}
+      onClick={close}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: reduceMotion ? 0 : DURATION.base }}
+      className="pointer-events-auto fixed inset-0 z-[60] grid cursor-zoom-out place-items-center bg-foreground/70 p-8 backdrop-blur-sm"
+    >
+      <motion.div
+        initial={reduceMotion ? false : { opacity: 0, scale: 0.86 }}
+        animate={{ opacity: 1, scale: 1 }}
+        /* 时长走脊柱的 slow 档（面板 / 对话框那一类），曲线走 `EASE_POP`
+           —— 过冲是这一拍的语义，⛔ 不退回 `EASE_STANDARD`。 */
+        transition={{
+          duration: reduceMotion ? 0 : DURATION.slow,
+          ease: EASE_POP,
+        }}
+        className="relative max-h-full w-full max-w-3xl overflow-hidden rounded-2xl shadow-lg"
+      >
+        {lightbox.thirdParty ? (
+          <ThirdPartyLightboxImage
+            url={lightbox.url}
+            fallbackUrl={lightbox.fallbackUrl}
+            alt={lightbox.caption ?? t('lightboxLabel')}
+            unavailableLabel={t('web.previewUnavailable')}
+          />
+        ) : (
+          /* ⚠ `unoptimized` 是全局默认（`next.config` 关了优化），这里跟着走 ——
+             写 `sizes` / `quality` 在本仓是死配置（台账：next/image 全局关了优化）。 */
+          <Image
+            src={lightbox.url}
+            alt={lightbox.caption ?? t('lightboxLabel')}
+            width={1024}
+            height={1024}
+            className="h-auto max-h-full w-full object-contain"
+          />
+        )}
+      </motion.div>
+      {lightbox.caption ? (
+        <span className="pointer-events-none mt-4 text-2sm text-background/80">
+          {lightbox.caption}
+        </span>
       ) : null}
-    </>
+    </motion.div>,
+    document.body,
   )
 }
 

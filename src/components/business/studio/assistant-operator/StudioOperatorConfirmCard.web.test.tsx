@@ -80,6 +80,7 @@ type ConfirmCardPrompt = Exclude<
       | 'characterImages'
       | 'imageHandoff'
       | 'workbenchHandoff'
+      | 'upscale'
   }
 >
 

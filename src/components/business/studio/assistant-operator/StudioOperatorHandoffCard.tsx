@@ -206,3 +206,57 @@ export function StudioOperatorWorkbenchHandoffCard({
     />
   )
 }
+
+type UpscalePrompt = Extract<
+  StudioOperatorConfirmPrompt,
+  { kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.upscale }
+>
+
+export interface StudioOperatorUpscaleCardProps {
+  prompt: UpscalePrompt
+  onAccept(): void
+  onDismiss(): void
+  formatTime(iso: string): string
+}
+
+/**
+ * 画布上放大几张卡（P6，owner 2026-10-16「修到 4K」走放大）。同一张卡的形状：要放大的那几张
+ * + 一行「会发生什么」（新版本、原图留着、你的 fal key、不扣积分）+ 两颗键。
+ */
+export function StudioOperatorUpscaleCard({
+  prompt,
+  onAccept,
+  onDismiss,
+  formatTime,
+}: StudioOperatorUpscaleCardProps) {
+  const t = useTranslations('StudioOperator')
+  const names = prompt.request.nodes.map((node) => `「${node.name}」`).join('')
+  return (
+    <StudioOperatorHandoffCard
+      testId="operator-upscale"
+      status={prompt.status}
+      decidedAt={prompt.decidedAt}
+      header={t('confirm.upscale.header', {
+        count: prompt.request.nodes.length,
+      })}
+      request={names}
+      hint={t('confirm.upscale.hint')}
+      acceptLabel={t('confirm.upscale.accept')}
+      dismissLabel={t('confirm.upscale.dismiss')}
+      acceptedLabel={(time) =>
+        t(
+          prompt.auto
+            ? 'confirm.upscale.autoAccepted'
+            : 'confirm.upscale.accepted',
+          {
+            time,
+          },
+        )
+      }
+      subject={names}
+      onAccept={onAccept}
+      onDismiss={onDismiss}
+      formatTime={formatTime}
+    />
+  )
+}

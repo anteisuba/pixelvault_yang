@@ -177,6 +177,10 @@ export const AssistantV3GenerateInputSchema = z.object({
   cards: z.array(CardHandleSchema),
 })
 
+export const AssistantV3UpscaleInputSchema = z.object({
+  cards: z.array(CardHandleSchema),
+})
+
 export const AssistantV3SearchWebInputSchema = z.object({
   goal: z.string(),
   entities: z.array(z.string()),

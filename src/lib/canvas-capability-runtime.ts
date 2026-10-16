@@ -78,6 +78,8 @@ export interface CanvasCapabilityResult {
   success: boolean
   outputs: CanvasDerivedImageOutput[]
   error?: string
+  /** 服务端的错误码（如 `MISSING_API_KEY`）—— 助手据此就地弹配 key，不只回一句没成。 */
+  errorCode?: string
   saveWarning?: boolean
 }
 
@@ -209,7 +211,12 @@ async function executeCanvasCapability(
         ...(request.targetScale === '4x' && { modelId: request.modelId }),
       })
       if (!response.success || !response.data) {
-        return { success: false, outputs: [], error: response.error }
+        return {
+          success: false,
+          outputs: [],
+          error: response.error,
+          ...(response.errorCode ? { errorCode: response.errorCode } : {}),
+        }
       }
       return {
         success: true,

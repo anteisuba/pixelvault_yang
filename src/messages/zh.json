@@ -6315,6 +6315,10 @@
         "count": "这一镜带 {count} 张",
         "limit": "这个模型一次最多收 {max} 张参考图 · 已用 {used} 张（含轨上挂的）"
       },
+      "upscale": {
+        "noImage": "这张卡还没有图，放大不了",
+        "failed": "放大没成"
+      },
       "scriptRejected": {
         "alreadyProjected": "这个剧本已经投影过了，要按改动更新镜头请用「重新投影」。",
         "notProjected": "这个剧本还没有投影过，先投影一次。",
@@ -8306,6 +8310,17 @@
         "accept": "带我过去",
         "dismiss": "先不要",
         "accepted": "已换到{bench} · {time}"
+      },
+      "upscale": {
+        "header": "放大到 4K · {count} 张",
+        "hint": "用你自己的 fal Key 放大，不花积分；放大后的图会成为这张卡的新版本，原图还在版本条里。",
+        "accept": "放大",
+        "dismiss": "先不要",
+        "accepted": "已开始放大 · {time}",
+        "autoAccepted": "自动生成开着，已直接放大 · {time}",
+        "acceptedText": "放大{names}",
+        "declinedText": "先不放大{names}",
+        "question": "要把{names}放大到 4K 吗？"
       }
     },
     "system": {
@@ -8345,6 +8360,9 @@
       "imageHandoffDeclined": "先不交给图片助手：{subject}",
       "workbenchHandoffAccepted": "已换台：{subject}",
       "workbenchHandoffDeclined": "先不换台：{subject}",
+      "upscaleAccepted": "开始放大：{subject}",
+      "upscaleDeclined": "先不放大：{subject}",
+      "upscaleFailed": "没放大成：{subject}",
       "autoGenerateHeld": "这次要出 {subject} 张，超过自动生成单轮 4 张的上限 —— 没替你按，确认后再出。"
     },
     "attach": {
@@ -8531,6 +8549,7 @@
       "copied": "已复制",
       "missingKey": "助手需要你自己的 AI 文本模型 Key。Gemini 的 Key 可以在 Google AI Studio 免费申请。",
       "modelKeyMissing": "{model} 还没有可用的 {provider} Key，这一轮没有跑，也没有改用别家的 Key。配好 Key，或者换个模型。",
+      "upscaleKeyMissing": "放大要用你自己的 {provider} Key，还没配，所以没有放大，也没有改用别家的 Key。配好后再说一次「放大」。",
       "addKey": "配置 Key",
       "addProviderKey": "配置 {provider} Key",
       "retry": "重试",

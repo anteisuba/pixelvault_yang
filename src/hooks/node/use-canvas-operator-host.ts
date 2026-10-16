@@ -53,7 +53,10 @@ import type {
   AssistantMentionKind,
 } from '@/types/assistant-mention'
 import type { NodeGraphV4BatchResult } from '@/hooks/node/use-node-graph-v4'
-import type { StudioOperatorCanvasBatchOutcome } from '@/lib/studio-operator-apply'
+import type {
+  StudioOperatorCanvasBatchOutcome,
+  StudioOperatorCanvasUpscaleOutcome,
+} from '@/lib/studio-operator-apply'
 import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
 import { useStudioOperatorFace } from '@/hooks/use-studio-operator-face'
 import { buildCanvasCharacters } from '@/lib/cards-operator-snapshot'
@@ -111,6 +114,11 @@ export interface UseCanvasOperatorHostInput {
   undo(): boolean
   /** 让一个节点出图 / 出片 —— **用户自己那颗生成键的同一条路**。 */
   generateNodes(nodeIds: readonly string[]): void
+  /**
+   * 把一张图片卡当前那张图放大到 4K，结果落成同一张卡的新版本（P6 · owner
+   * 10-16 选「原卡新版本」，与手动放大同一条路）。没给就不认 upscale。
+   */
+  upscaleNode?(nodeId: string): Promise<StudioOperatorCanvasUpscaleOutcome>
   open: boolean
   setOpen(open: boolean): void
   /** 改动清单点一行：镜头移到这张卡并让卡面闪一下（方向 B）。 */
@@ -197,6 +205,7 @@ export function useCanvasOperatorHost({
   getApplyError,
   undo,
   generateNodes,
+  upscaleNode,
   open,
   setOpen,
   onLocate,
@@ -603,6 +612,7 @@ export function useCanvasOperatorHost({
         needsPromptInputSync,
         revertOp: canvasRevert,
         generate: canvasGenerate,
+        ...(upscaleNode ? { upscale: upscaleNode } : {}),
         planRerunDownstream: canvasPlanRerun,
       },
     }
@@ -615,6 +625,7 @@ export function useCanvasOperatorHost({
     needsPromptInputSync,
     canvasRevert,
     canvasGenerate,
+    upscaleNode,
     canvasPlanRerun,
   ])
 

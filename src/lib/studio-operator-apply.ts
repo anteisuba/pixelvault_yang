@@ -162,11 +162,22 @@ export interface StudioOperatorCanvasContext {
    */
   generate(nodeId: string): void
   /**
+   * 放大那张卡当前的图（P6）：走画布同一条放大能力，结果追加成那张卡的新版本。
+   * ⚠ 异步：要等结果回来才知道成没成（缺 fal key / 服务商失败都要说给用户听）。
+   */
+  upscale?(nodeId: string): Promise<StudioOperatorCanvasUpscaleOutcome>
+  /**
    * 下游名单：沿具名槽边算一遍后继闭包。⚠ 由宿主算而不是服务端 —— 服务端那份
    * 快照是分层的，折叠的镜里没有边，闭包会漏。
    */
   planRerunDownstream(nodeId: string, includeSelf: boolean): readonly string[]
 }
+
+/** 放大一张卡的结果：成了 / 缺 fal key（就地配）/ 别的原因失败（原因照实说）。 */
+export type StudioOperatorCanvasUpscaleOutcome =
+  | { status: 'done' }
+  | { status: 'missingKey' }
+  | { status: 'failed'; reason: string }
 
 /**
  * `applyOperatorStep` / `revertOperatorStep` **真正读到的那两格**。

@@ -73,6 +73,7 @@ import {
 import { getAssistantRouteModelEntry } from '@/constants/assistant-persona'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import {
+  AI_ADAPTER_TYPES,
   getDefaultProviderConfig,
   getProviderLabel,
 } from '@/constants/providers'
@@ -130,6 +131,7 @@ import {
 } from '@/hooks/use-studio-operator-store'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import { assistantWorkspaceKey } from '@/lib/assistant-workspace'
+import { canvasCapabilityRuntime } from '@/lib/canvas-capability-runtime'
 import {
   describeMentionNote,
   isLookableMention,
@@ -896,6 +898,10 @@ export interface UseAssistantOperatorResult {
   acceptWorkbenchHandoff(): void
   /** **「先不要」** —— 什么都不动，落一行账。 */
   dismissWorkbenchHandoff(): void
+  /** **「放大」**（画布，P6）—— 那几张卡各自放大成新版本。 */
+  acceptUpscale(): void
+  /** **「先不要」** —— 什么都不放大，落一行账。 */
+  dismissUpscale(): void
   /** 「已取消」那一态上的「再来一次」—— 摆一张新的 `idle` 卡。 */
   retryGeneration(): void
   /**
@@ -1027,6 +1033,9 @@ export function useAssistantOperator(
    */
   const runRef = useRef<((options?: RunOptions) => void) | null>(null)
   /** `confirmGeneration` 的自引用口 —— 流收尾时按自动生成开关替你按下（D12 S-C）。 */
+  const decideUpscaleRef = useRef<
+    ((accepted: boolean, options?: { auto?: boolean }) => void) | null
+  >(null)
   const confirmGenerationRef = useRef<
     ((options?: { auto?: boolean }) => void) | null
   >(null)
@@ -1708,6 +1717,22 @@ export function useAssistantOperator(
                 setOperatorStatus('awaitingConfirm')
                 break
               }
+              /** **画布放大**（P6）—— 同上：什么都没调，放大等用户点下去（或自动生成开着时替你按）。 */
+              if (
+                event.confirm.kind ===
+                ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.upscale
+              ) {
+                flushPlanEntry()
+                setOpen(true)
+                setOperatorConfirm({
+                  id: nextOperatorEntryId('confirm'),
+                  kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.upscale,
+                  request: event.confirm.request,
+                  status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
+                })
+                setOperatorStatus('awaitingConfirm')
+                break
+              }
               flushPlanEntry()
               setOperatorConfirm({
                 id: nextOperatorEntryId('confirm'),
@@ -2181,6 +2206,15 @@ export function useAssistantOperator(
         waiting.confirm.status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle
       ) {
         confirmGenerationRef.current?.({ auto: true })
+      }
+      // 放大同一个开关（owner 2026-10-14「自动生成直接出」）：不扣积分，⛔ 也不过张数上限那道闸。
+      if (
+        waiting.status === 'awaitingConfirm' &&
+        waiting.autoGenerate &&
+        waiting.confirm?.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.upscale &&
+        waiting.confirm.status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle
+      ) {
+        decideUpscaleRef.current?.(true, { auto: true })
       }
       /**
        * ⭐ **跑完了就把续跑记录清掉**（第三期）。
@@ -3581,6 +3615,97 @@ export function useAssistantOperator(
   )
 
   /**
+   * **画布放大**（P6）：两颗键都落账（模型下一轮知道用户怎么定的）。按下去由画布那只手一张
+   * 一张放大，结果是各自那张卡的新版本。
+   * ⚠ 放大要几秒到几十秒：结果回来时这段对话可能已经换了 —— 失败那一行只在还是这段对话时落。
+   * ⚠ 缺 fal key：错误条点名缺哪一家，「配置 Key」就地开 `QuickSetupDialog`（Hard Rule 8），
+   *   配好接着跑刚才那句（她会再摆一张放大卡）。
+   */
+  const decideUpscale = useCallback(
+    (accepted: boolean, options: { auto?: boolean } = {}) => {
+      if (!isCurrentThread()) return
+      const confirm = getOperatorState().confirm
+      if (
+        !confirm ||
+        confirm.kind !== ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.upscale ||
+        confirm.status !== STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle
+      ) {
+        return
+      }
+      const upscale = applyContext.canvas?.upscale
+      if (accepted && !upscale) return
+      const { nodes } = confirm.request
+      const names = nodes.map((node) => `「${node.name}」`).join('')
+      const label = tConfirm(
+        accepted ? 'upscale.acceptedText' : 'upscale.declinedText',
+        {
+          names,
+        },
+      )
+      resolveOperatorConfirm(
+        accepted
+          ? STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed
+          : STUDIO_OPERATOR_CONFIRM_STATUS_IDS.cancelled,
+        { auto: options.auto },
+      )
+      setOperatorStatus('idle')
+      appendOperatorEntry({
+        kind: 'system',
+        id: nextOperatorEntryId('sys'),
+        code: accepted ? 'upscaleAccepted' : 'upscaleDeclined',
+        subject: names,
+        userText: label,
+        answered: {
+          questionId: `upscale:${nodes.map((node) => node.id).join(',')}`,
+          optionIds: [accepted ? 'accept' : 'decline'],
+          question: tConfirm('upscale.question', { names }),
+          optionLabels: [label],
+        },
+      })
+      if (!accepted || !upscale) return
+      for (const node of nodes) {
+        void upscale(node.id).then((outcome) => {
+          if (outcome.status === 'done' || !isCurrentThread()) return
+          if (outcome.status === 'missingKey') {
+            const modelId =
+              canvasCapabilityRuntime.open('upscale').defaultModelId ?? ''
+            setOperatorStatus(
+              'error',
+              tError('upscaleKeyMissing', {
+                provider: getProviderLabel(
+                  getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+                ),
+              }),
+              null,
+              ASSISTANT_OPERATOR_MODEL_KEY_MISSING_CODE,
+              { adapterType: AI_ADAPTER_TYPES.FAL, modelId },
+            )
+            return
+          }
+          appendOperatorEntry({
+            kind: 'system',
+            id: nextOperatorEntryId('sys'),
+            code: 'upscaleFailed',
+            subject: `「${node.name}」${outcome.reason ? `：${outcome.reason}` : ''}`,
+          })
+        })
+      }
+    },
+    [applyContext, isCurrentThread, tConfirm, tError],
+  )
+  const acceptUpscale = useCallback(() => decideUpscale(true), [decideUpscale])
+  const dismissUpscale = useCallback(
+    () => decideUpscale(false),
+    [decideUpscale],
+  )
+  useEffect(() => {
+    decideUpscaleRef.current = decideUpscale
+    return () => {
+      decideUpscaleRef.current = null
+    }
+  }, [decideUpscale])
+
+  /**
    * **搭配卡「应用这套搭配」**（lora-assistant §12，owner 2026-09-28「一张卡全包」）。
    *
    * ⭐ 客户端逐行应用，**每一行一条带 `inverse` 的 step**（与服务端那几条工具同一种
@@ -3955,6 +4080,8 @@ export function useAssistantOperator(
     dismissImageHandoff,
     acceptWorkbenchHandoff,
     dismissWorkbenchHandoff,
+    acceptUpscale,
+    dismissUpscale,
     applyLoraSetup,
     dismissLoraSetup,
     retryGeneration,

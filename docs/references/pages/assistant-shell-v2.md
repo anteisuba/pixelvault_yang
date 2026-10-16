@@ -1284,6 +1284,7 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 
 ### Last Verified
 
+- **2026-10-16 · 画布「放大到 4K」（P6 第一件，owner 选「原卡新版本」）**。v3 画布那张脸多一个工具 `upscale`（卡上已有的图放大 4 倍；⛔ 不是调高分辨率再出一张，提示词 CRAFT 一句说清）→ 出确认卡 `confirm(upscale)`（`StudioOperatorUpscaleCard`，同换台卡外壳）。按「放大」后客户端逐张走手动放大同一条 `canvasCapabilityRuntime.run({ capability: 'upscale', targetScale: '4x' })`，结果经 `appendImageVersions` 落成**同一张卡的新版本**（原图留在版本条）；只用创作者自己的 fal Key、不扣积分。没配 fal Key → 错误条走 `MODEL_KEY_MISSING` 就地配 fal（⛔ 不借别家）；某张失败单独记一行 `upscaleFailed`，卡回原状态（⛔ 不钉成失败）。自动生成开着时放大卡也自动按。宿主契约 `canvas.upscale?(nodeId)`，画布 `useCanvasOperatorHost({ upscaleNode })`；`CanvasCapabilityResult` 多带 `errorCode`。
 - **2026-10-16 · 工作台刚出的图也不用 @（owner「一起改」）**。工作台快照多一格 `results`（舞台上最新一批出好的图，≤ `maxSnapshotResults` 8 张，只收图片），板子列成 `result-1…`，v3 `look` 直接认；看不到的才说「更早的结果请创作者 @」。LoRA 台暂不带。
 - **2026-10-16 · 画布看图不用 @（owner 线上：马尔福画布出完分镜 5、6，她说「没把图递给我，请 @」）**。根因：画布节点只带 `referenceImageIndex`，服务端按它去 `references.items` 找地址，而那份名单最多 16 张、按先出现排 —— 图一多，新出的就排在外面。现在图片卡快照自带 `imageUrl`（同视频卡的 `videoUrl`），v3 `look` 与取图先认它；旧版看板（`canvasFullNode`）把它剥掉不给模型。
 - **2026-10-16 · P4 第四批：搜索结果与保存（owner 定稿样张）**。找到的图：电脑改按原比例铺满（`useJustifiedGrid`，`STUDIO_OPERATOR_WEB_GRID`，先露两行），手机仍胶片条；「附上」改「保存」= 只进素材库（`useStudioOperatorWebImport({ scopeKey })` 只剩 `saveCandidates`，⛔ 不挂输入框、⛔ 不占参考位、⛔ 不取下），宿主契约删 `referenceLimit`。找到的视频改单独一列，视频暂不保存（owner 选「视频先不存」，不改库）。回答底下的资料收成一行来源胶囊、行尾 ⋯ 收「深入调查 / 钉住」，媒体条删掉、投影去掉 `mediaUrl` / `durationSeconds`。

@@ -8811,6 +8811,13 @@
       "pickCharacter": "Chat with",
       "toChat": "Switched to chat · with {name}",
       "toWork": "Back to work"
+    },
+    "phoneAdd": {
+      "label": "Add",
+      "library": "Pick from assets",
+      "camera": "Take photo",
+      "upload": "Upload file",
+      "mention": "@ a character or asset"
     }
   },
   "GenerationCancel": {

@@ -175,6 +175,9 @@ import { openOperatorLightbox } from '@/components/business/studio/assistant-ope
 import { BlurSwap } from '@/components/ui/blur-swap'
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
+import { ResponsivePopoverPhoneCard } from '@/components/ui/responsive-popover'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { StudioOperatorPhoneAddCard } from '@/components/business/studio/assistant-operator/StudioOperatorPhoneAddCard'
 import { useStudioOperatorHost } from '@/contexts/studio-operator-host'
 import type { UseAssistantOperatorResult } from '@/hooks/use-assistant-operator'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
@@ -606,6 +609,8 @@ export function StudioOperatorPanel({
    * （首屏 10 张、文件夹分类、往下拉继续翻）。
    */
   const [libraryOpen, setLibraryOpen] = useState(false)
+  // 手机输入栏：三颗裸图标收进一颗 ＋ 小卡片（iOS 稿 v16）。
+  const isMobile = useIsMobile()
   /**
    * 错误条上「配置 Key」就地打开的那一家（Hard Rule 8，⛔ 跳 `/settings/keys`）：
    * 一把 key 都没有 → Gemini 免费档；选定的模型缺 key → 就是它那一家（owner 2026-10-15）。
@@ -3101,153 +3106,167 @@ export function StudioOperatorPanel({
             }
             className="max-h-40 min-h-9 w-full resize-none overflow-y-auto overscroll-contain bg-transparent px-1 py-1 text-md leading-reading outline-none placeholder:text-muted-foreground/70"
           />
-          <div
-            data-testid="operator-toolbar"
-            className="flex items-center gap-1 @container"
-          >
-            {/*
+          {/* 圈内的模型 / 思考 / ＋ 在手机上也从按钮正上方弹小卡片（iOS 稿 v19）。 */}
+          <ResponsivePopoverPhoneCard>
+            <div
+              data-testid="operator-toolbar"
+              className="flex items-center gap-1 @container"
+            >
+              {/*
               ⭐ 上传：三个手势仍是**一条通道**（拍板 16）：选文件 / 拖进输入框 / 粘贴，
                 全落到 `handleUploadFiles`。
               ⚠ 选完必须清 `value`：不清的话「同一个文件选第二次」不触发 change。
             */}
-            <button
-              type="button"
-              data-testid="operator-attach-toggle"
-              aria-label={t('attach.label')}
-              title={t('attach.label')}
-              onClick={() => uploadInputRef.current?.click()}
-              className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
-            >
-              <Paperclip className="size-4" aria-hidden />
-            </button>
-            <input
-              ref={uploadInputRef}
-              type="file"
-              multiple
-              accept={STUDIO_OPERATOR_UPLOAD_ACCEPT}
-              data-testid="operator-attach-file-input"
-              className="hidden"
-              onChange={(event) => {
-                const files = [...(event.target.files ?? [])]
-                event.target.value = ''
-                if (files.length > 0) handleUploadFiles(files)
-              }}
-            />
-            {/* 素材库（切片 #7c）：点开 `AssetSelectorDialog` 挑库里的图挂给助手。 */}
-            <button
-              type="button"
-              data-testid="operator-library-toggle"
-              aria-label={t('library.label')}
-              title={t('library.label')}
-              onClick={() => setLibraryOpen(true)}
-              className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
-            >
-              <Images className="size-4" aria-hidden />
-            </button>
-            {/* `@` 的触屏入口（§10b「输入框旁加 @ 按钮」）：在光标处写一个 `@` 并打开
+              {isMobile ? (
+                <StudioOperatorPhoneAddCard
+                  onPickLibrary={() => setLibraryOpen(true)}
+                  onPickFile={() => uploadInputRef.current?.click()}
+                  onCameraFiles={handleUploadFiles}
+                  onMention={() => inputRef.current?.openMention()}
+                />
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    data-testid="operator-attach-toggle"
+                    aria-label={t('attach.label')}
+                    title={t('attach.label')}
+                    onClick={() => uploadInputRef.current?.click()}
+                    className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                  >
+                    <Paperclip className="size-4" aria-hidden />
+                  </button>
+                  {/* 素材库（切片 #7c）：点开 `AssetSelectorDialog` 挑库里的图挂给助手。 */}
+                  <button
+                    type="button"
+                    data-testid="operator-library-toggle"
+                    aria-label={t('library.label')}
+                    title={t('library.label')}
+                    onClick={() => setLibraryOpen(true)}
+                    className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                  >
+                    <Images className="size-4" aria-hidden />
+                  </button>
+                  {/* `@` 的触屏入口（§10b「输入框旁加 @ 按钮」）：在光标处写一个 `@` 并打开
                 菜单。⚠ `onMouseDown` preventDefault：点它不能先让输入框失焦（光标位置
                 要留着）。 */}
-            <button
-              type="button"
-              data-testid="operator-mention-button"
-              aria-label={t('mention.button')}
-              title={t('mention.button')}
-              aria-haspopup="listbox"
-              aria-expanded={mentionMenu.open}
-              aria-controls={mentionMenu.binding.listId}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => inputRef.current?.openMention()}
-              className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none coarse:size-11"
-            >
-              <AtSign className="size-4" aria-hidden />
-            </button>
-            {/* 助手用的文本模型（§4.5）：选中即写 `AssistantPersona.routeModel`。 */}
-            <StudioOperatorModelChip
-              value={persona?.routeModel ?? ASSISTANT_ROUTE_MODEL_AUTO}
-              onChange={onSelectRouteModel}
-              open={modelPickerOpen}
-              onOpenChange={setModelPickerOpen}
-            />
-            <StudioOperatorEffortChip
-              value={
-                persona?.reasoningEffort ??
-                ASSISTANT_PERSONA_DEFAULTS.reasoningEffort
-              }
-              onChange={onSelectReasoningEffort}
-            />
-            <span className="flex-1" />
-            {/*
+                  <button
+                    type="button"
+                    data-testid="operator-mention-button"
+                    aria-label={t('mention.button')}
+                    title={t('mention.button')}
+                    aria-haspopup="listbox"
+                    aria-expanded={mentionMenu.open}
+                    aria-controls={mentionMenu.binding.listId}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => inputRef.current?.openMention()}
+                    className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none coarse:size-11"
+                  >
+                    <AtSign className="size-4" aria-hidden />
+                  </button>
+                </>
+              )}
+              <input
+                ref={uploadInputRef}
+                type="file"
+                multiple
+                accept={STUDIO_OPERATOR_UPLOAD_ACCEPT}
+                data-testid="operator-attach-file-input"
+                className="hidden"
+                onChange={(event) => {
+                  const files = [...(event.target.files ?? [])]
+                  event.target.value = ''
+                  if (files.length > 0) handleUploadFiles(files)
+                }}
+              />
+              {/* 助手用的文本模型（§4.5）：选中即写 `AssistantPersona.routeModel`。 */}
+              <StudioOperatorModelChip
+                value={persona?.routeModel ?? ASSISTANT_ROUTE_MODEL_AUTO}
+                onChange={onSelectRouteModel}
+                open={modelPickerOpen}
+                onOpenChange={setModelPickerOpen}
+              />
+              <StudioOperatorEffortChip
+                value={
+                  persona?.reasoningEffort ??
+                  ASSISTANT_PERSONA_DEFAULTS.reasoningEffort
+                }
+                onChange={onSelectReasoningEffort}
+              />
+              <span className="flex-1" />
+              {/*
               ⭐ **自动生成开关**（D12 S-C）：发送键左边，只管当前这段会话。开着时
                 生成确认卡一到就由客户端替你按下，卡直接收成「已自动生成」一行。
               ⚠ 只在有生成键的宿主上画：工作台那颗（图片 / 视频档）或画布卡自己那颗
                 （`canvas_generate` 同一张卡，node-canvas-v2 §13.2.1）。⛔ 不摆一颗没用的开关。
             */}
-            {operatorHost.apply.triggerGeneration ||
-            operatorHost.apply.canvas ? (
-              // ⚠ `shrink-0 whitespace-nowrap`：面板按屏宽三成算，窄屏上只有 320 宽，
-              //   让出空间的该是左边那颗模型灰字（它会截断），⛔ 不是把这几个字折成两行。
-              <label className="mr-1 flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap text-xs text-muted-foreground select-none">
-                {t('autoGenerate.label')}
-                <Switch
-                  size="sm"
-                  data-testid="operator-auto-generate"
-                  checked={autoGenerate}
-                  onCheckedChange={setOperatorAutoGenerate}
-                  aria-label={t('autoGenerate.label')}
-                  className="data-[state=checked]:bg-foreground"
-                />
-              </label>
-            ) : null}
-            {/*
+              {operatorHost.apply.triggerGeneration ||
+              operatorHost.apply.canvas ? (
+                // ⚠ `shrink-0 whitespace-nowrap`：面板按屏宽三成算，窄屏上只有 320 宽，
+                //   让出空间的该是左边那颗模型灰字（它会截断），⛔ 不是把这几个字折成两行。
+                <label className="mr-1 flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap text-xs text-muted-foreground select-none">
+                  {t('autoGenerate.label')}
+                  <Switch
+                    size="sm"
+                    data-testid="operator-auto-generate"
+                    checked={autoGenerate}
+                    onCheckedChange={setOperatorAutoGenerate}
+                    aria-label={t('autoGenerate.label')}
+                    className="data-[state=checked]:bg-foreground"
+                  />
+                </label>
+              ) : null}
+              {/*
               ⭐ 跑着且输入框是空的 → 这一颗就是**停止**（S2）；跑着但你打了字 →
                 仍是发送，这一句排队（§3.1 ㉒）。⛔ 不并排两颗。
               ⭐ **同一颗键变形**（owner 2026-10-07 动效方向）：发送 ↔ 停止是一颗键换底色、
                 图标糊着换过去，⛔ 不是两颗键互换 —— 眼睛不用重新找键。
             */}
-            {/* 回答时圆键往左拉长成黑底「■ 停止」，答完缩回（助手动效原型「出图」第 1 步）。 */}
-            <motion.button
-              type="button"
-              data-testid={showStop ? 'operator-stop' : 'operator-send'}
-              /**
-               * ⚠ 工作态下发送 = **排队**（§3.1 ㉒）：`send()` 把这一句放进队列，
-               * 到下一个工具步跑完才接住。等上传是**说出来的**等待：停用 +
-               * 一句「还有文件在传」，⛔ 不做「点了没反应」。
-               */
-              disabled={!showStop && uploading}
-              title={showStop ? t('stop') : sendLabel}
-              aria-label={showStop ? t('stop') : sendLabel}
-              onClick={showStop ? stop : () => submit(draft)}
-              initial={false}
-              animate={{ width: showStop ? 'auto' : SEND_BUTTON_SIZE_PX }}
-              transition={reducedMotion ? { duration: 0 } : SPRING.slot}
-              className={cn(
-                'flex h-8 shrink-0 items-center justify-center overflow-hidden whitespace-nowrap rounded-full bg-foreground text-background transition-[background-color,color,transform] duration-fast ease-standard hover:bg-foreground/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none disabled:cursor-not-allowed disabled:bg-surface-fill-track disabled:text-muted-foreground',
-                showStop && 'px-3.5',
-              )}
-            >
-              <BlurSwap
-                swapKey={showStop ? 'stop' : uploading ? 'uploading' : 'send'}
-                className="gap-1.5"
-              >
-                {showStop ? (
-                  <>
-                    <Square
-                      weight="fill"
-                      className="size-2.5 shrink-0"
-                      aria-hidden
-                    />
-                    <span className="text-xs font-medium">
-                      {t('stopShort')}
-                    </span>
-                  </>
-                ) : uploading ? (
-                  <Spinner size="sm" className="text-background" />
-                ) : (
-                  <ArrowUp className="size-4" aria-hidden />
+              {/* 回答时圆键往左拉长成黑底「■ 停止」，答完缩回（助手动效原型「出图」第 1 步）。 */}
+              <motion.button
+                type="button"
+                data-testid={showStop ? 'operator-stop' : 'operator-send'}
+                /**
+                 * ⚠ 工作态下发送 = **排队**（§3.1 ㉒）：`send()` 把这一句放进队列，
+                 * 到下一个工具步跑完才接住。等上传是**说出来的**等待：停用 +
+                 * 一句「还有文件在传」，⛔ 不做「点了没反应」。
+                 */
+                disabled={!showStop && uploading}
+                title={showStop ? t('stop') : sendLabel}
+                aria-label={showStop ? t('stop') : sendLabel}
+                onClick={showStop ? stop : () => submit(draft)}
+                initial={false}
+                animate={{ width: showStop ? 'auto' : SEND_BUTTON_SIZE_PX }}
+                transition={reducedMotion ? { duration: 0 } : SPRING.slot}
+                className={cn(
+                  'flex h-8 shrink-0 items-center justify-center overflow-hidden whitespace-nowrap rounded-full bg-foreground text-background transition-[background-color,color,transform] duration-fast ease-standard hover:bg-foreground/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none disabled:cursor-not-allowed disabled:bg-surface-fill-track disabled:text-muted-foreground',
+                  showStop && 'px-3.5',
                 )}
-              </BlurSwap>
-            </motion.button>
-          </div>
+              >
+                <BlurSwap
+                  swapKey={showStop ? 'stop' : uploading ? 'uploading' : 'send'}
+                  className="gap-1.5"
+                >
+                  {showStop ? (
+                    <>
+                      <Square
+                        weight="fill"
+                        className="size-2.5 shrink-0"
+                        aria-hidden
+                      />
+                      <span className="text-xs font-medium">
+                        {t('stopShort')}
+                      </span>
+                    </>
+                  ) : uploading ? (
+                    <Spinner size="sm" className="text-background" />
+                  ) : (
+                    <ArrowUp className="size-4" aria-hidden />
+                  )}
+                </BlurSwap>
+              </motion.button>
+            </div>
+          </ResponsivePopoverPhoneCard>
         </div>
       </div>
 

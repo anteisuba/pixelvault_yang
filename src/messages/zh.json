@@ -8811,6 +8811,13 @@
       "pickCharacter": "和谁聊",
       "toChat": "切到聊天 · 和 {name}",
       "toWork": "回到工作"
+    },
+    "phoneAdd": {
+      "label": "添加",
+      "library": "从素材挑图",
+      "camera": "拍照",
+      "upload": "上传文件",
+      "mention": "@ 角色或素材"
     }
   },
   "GenerationCancel": {

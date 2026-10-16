@@ -8811,6 +8811,13 @@
       "pickCharacter": "話す相手",
       "toChat": "チャットに切替 · {name}と",
       "toWork": "作業に戻る"
+    },
+    "phoneAdd": {
+      "label": "追加",
+      "library": "素材から選ぶ",
+      "camera": "写真を撮る",
+      "upload": "ファイルをアップロード",
+      "mention": "@ キャラクターや素材"
     }
   },
   "GenerationCancel": {

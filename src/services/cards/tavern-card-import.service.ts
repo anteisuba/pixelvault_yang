@@ -7,11 +7,11 @@ import {
 import type { CharacterCardRecord } from '@/types'
 import type { ImportTavernCardRequest } from '@/types/tavern-card'
 import { ApiRequestError } from '@/lib/errors'
+import { stripPngTextChunks } from '@/lib/png-text-chunks'
 import {
   extractTavernCardJson,
   mapTavernCard,
   parseTavernCard,
-  stripPngTextChunks,
 } from '@/lib/tavern-card'
 import { createImportedCharacterCard } from '@/services/cards/character-card.service'
 

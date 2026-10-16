@@ -176,6 +176,7 @@ export const AssistantMemoryScope = {
   VIDEO: 'VIDEO',
   CANVAS: 'CANVAS',
   LORA: 'LORA',
+  CARDS: 'CARDS',
   GLOBAL: 'GLOBAL'
 } as const
 

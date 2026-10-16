@@ -1572,6 +1572,8 @@ enum AssistantMemoryScope {
   VIDEO
   CANVAS
   LORA
+  /// 角色页（卡片助手）自己的记忆（P3 第二片）。
+  CARDS
   GLOBAL
 }
 

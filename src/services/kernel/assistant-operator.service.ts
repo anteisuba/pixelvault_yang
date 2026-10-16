@@ -12315,9 +12315,9 @@ export function memoryScopeForDomain(
 }
 
 /**
- * 这一轮学到的东西**写进**哪个域（P3 作用域修正）—— 只有四台工作台写；别的面（角色页）回 `null`，
- * 调用方据此**不自动记**。⚠ 读还是走 `memoryScopeForDomain`（角色页照样读 global）。
- * ⛔ 别退成 global：原来角色页的记忆全落进 global，所有工作台都被它影响。等角色有了自己的域再写。
+ * 这一轮学到的东西**写进**哪个域（P3 作用域修正）—— 每张脸写自己的域（角色页写 `cards`，P3 第二片）；
+ * 认不出的面回 `null`，调用方据此**不自动记**。
+ * ⛔ 别退成 global：原来角色页的记忆全落进 global，所有工作台都被它影响。
  */
 function memoryWriteScopeForDomain(
   domain: AssistantOperatorDomain,

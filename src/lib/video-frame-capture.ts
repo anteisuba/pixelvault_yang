@@ -8,6 +8,7 @@ import {
   planClipFrames,
   planVideoEndpointFrames,
   planVideoFrames,
+  planVideoSingleFrame,
   type VideoFramePlan,
 } from '@/lib/video-frame-plan'
 
@@ -293,5 +294,23 @@ export function captureClipFrames(
     source,
     planClipFrames,
     ASSISTANT_V3_CLIP_LIMITS.frameMaxEdgePixels,
+  )
+}
+
+/**
+ * **某一秒的那一帧**（画布视频卡「抽帧」），原分辨率。
+ *
+ * ⚠ 不从卡上那只悬停预览的 `<video>` 直接画：它只在鼠标停在画面上时才挂，手一挪去
+ * 工具条它就卸了；它也没打 `crossOrigin`，画出来的画布是污染的。这里走离屏那只，
+ * seek 到调用方记下的那一秒。
+ */
+export function captureVideoFrameAt(
+  source: string | File,
+  atSeconds: number,
+): Promise<VideoFrameCaptureResult> {
+  return captureFramesWithPlan(
+    source,
+    (duration) => planVideoSingleFrame(duration, atSeconds),
+    Number.POSITIVE_INFINITY,
   )
 }

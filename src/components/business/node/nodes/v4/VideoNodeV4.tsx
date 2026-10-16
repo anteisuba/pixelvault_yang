@@ -38,6 +38,7 @@ import {
   Download,
   Maximize2,
   MoreHorizontal,
+  Pause,
   Play,
   StepForward,
   Upload,
@@ -86,6 +87,7 @@ import {
 import { splitVersionOp, useNodeV4Canvas } from './NodeV4Context'
 import { NodeV4ContextMenu } from './NodeV4ContextMenu'
 import { triggerNodeV4Download } from './NodeV4SelectionToolbar'
+import { VideoFramePickPanel } from './video/VideoFramePickPanel'
 import { VideoNodeFrame } from './video/VideoNodeFrame'
 import { VideoAddMenuItems, VideoMoreMenuItems } from './video/VideoNodeMenus'
 import { VideoPlayer } from './video/VideoPlayer'
@@ -144,6 +146,27 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
   const [probedDuration, setProbedDuration] = useState<number | null>(null)
   const [frameReady, setFrameReady] = useState(false)
   const frameVideoRef = useRef<HTMLVideoElement | null>(null)
+  /**
+   * 抽帧取的那一秒 = 这一版悬停播放最后停在哪儿（没放过 / 换了版 = 0，即封面那帧）。
+   * ⚠ 悬停预览那只 `<video>` 在手挪去工具条时就卸了，所以位置得记下来，
+   * ⛔ 不能在点键那一刻去读它。
+   */
+  const lastViewedRef = useRef<{ url: string; sec: number } | null>(null)
+  /**
+   * 用户在卡上按了暂停：预览那只 `<video>` 停在这一帧、手移开也不卸（owner
+   * 2026-10-16「视频这边播放暂停的功能都没有」）。
+   */
+  const [pinned, setPinned] = useState(false)
+  const [previewPlaying, setPreviewPlaying] = useState(false)
+  /**
+   * 抽帧选帧（owner 2026-10-16「卡上拖选帧」）：`picking` 时卡上换成一只停住的
+   * `<video>`，提示词栏换成选帧条，拖到哪一秒就抽哪一帧。
+   */
+  const [picking, setPicking] = useState(false)
+  const [pickSec, setPickSec] = useState(0)
+  const [pickPlaying, setPickPlaying] = useState(false)
+  const pickVideoRef = useRef<HTMLVideoElement | null>(null)
+  const [previousShowChrome, setPreviousShowChrome] = useState(false)
   /** 画中框与快速看的来处（§1 第 12 条：从卡上长出来、缩回卡）。 */
   const cardRef = useRef<HTMLDivElement>(null)
   const promptInputRef = useRef<HTMLTextAreaElement>(null)
@@ -212,6 +235,8 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
   if (frameKey !== previousFrameKey) {
     setPreviousFrameKey(frameKey)
     setFrameReady(false)
+    setPinned(false)
+    setPicking(false)
   }
 
   /**
@@ -269,6 +294,11 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
     Boolean(selected) &&
     canvas.selectedNodeIds.length < 2 &&
     canvas.expandedNodeId === null
+  // 卡没选中 / 进了画中框：选帧条跟着收起，⛔ 留一只停住的 `<video>` 在卡上。
+  if (showChrome !== previousShowChrome) {
+    setPreviousShowChrome(showChrome)
+    if (!showChrome) setPicking(false)
+  }
   const width = NODE_V4_CARD.collapsedWidth
   const height = videoCardHeight(width)
   const durationSeconds =
@@ -352,11 +382,16 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
    * 抽帧：截当前画面 → 落成一张图片卡 → 连线**指回**这一段的参考槽。⚠ 没有
    * 参考槽的卡（退役的 `merge`）只落那张图、不连（⛔ 连一条不存在的入口 = 报错 + 孤卡）。
    */
-  const runExtract = async (video: HTMLVideoElement) => {
-    const grabbed = await frames.captureCurrentFrame(video, displayName)
+  const runExtract = async (atSec: number): Promise<boolean> => {
+    if (!videoData.url) return false
+    const grabbed = await frames.captureFrameAt(
+      videoData.url,
+      atSec,
+      displayName,
+    )
     if (!grabbed.ok) {
       reportCaptureFailure(grabbed.reasonKey)
-      return
+      return false
     }
     const position = canvas.onPlaceBeside(id, [
       {
@@ -385,6 +420,55 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
     ])
     const created = outcome?.createdNodeIds?.[0]
     if (created) backfillMedia(created, { url: grabbed.url })
+    return true
+  }
+
+  /** 进选帧：从用户眼下看到的那一帧起（预览正挂着读它，否则读这一版最后停下的位置）。 */
+  const startPick = () => {
+    const live = frameVideoRef.current
+    const last = lastViewedRef.current
+    const sec =
+      live?.currentTime ?? (last && last.url === videoData.url ? last.sec : 0)
+    live?.pause()
+    setPickSec(sec)
+    setPickPlaying(false)
+    setPinned(false)
+    setHovering(false)
+    setPicking(true)
+  }
+
+  const seekPick = (sec: number) => {
+    const video = pickVideoRef.current
+    if (video) {
+      video.pause()
+      video.currentTime = sec
+    }
+    setPickSec(sec)
+  }
+
+  const togglePickPlay = () => {
+    const video = pickVideoRef.current
+    if (!video) return
+    if (video.paused) void video.play().catch(() => {})
+    else video.pause()
+  }
+
+  const confirmPick = async () => {
+    pickVideoRef.current?.pause()
+    // 读 `pickSec` 不读 `<video>.currentTime`：元数据还没到时后者还是 0。
+    if (await runExtract(pickSec)) setPicking(false)
+  }
+
+  const togglePreviewPlay = () => {
+    const video = frameVideoRef.current
+    if (!video) return
+    if (video.paused) {
+      void video.play().catch(() => {})
+      setPinned(false)
+    } else {
+      video.pause()
+      setPinned(true)
+    }
   }
 
   const toolbarGroups: readonly NodeToolbarGroup[] = [
@@ -411,17 +495,10 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
         label: tVideo('toolbar.extract'),
         // 抽帧 = 抓一帧画面；⛔ 不用剪刀（剪刀只留给「裁剪」）。
         icon: Camera,
-        // 抽帧要一只**正在放**的 `<video>`（「当前」是它的 currentTime）——
-        // 卡上那只只在悬停时才挂，所以这颗键在画中框之外读的是卡上悬停的那只。
+        // 点一下进选帧（卡上停住 + 选帧条），再点一下退出。
         disabled: !videoData.url || frames.grabbing !== null,
-        onSelect: () => {
-          const video = frameVideoRef.current
-          if (!video) {
-            toast.error(tVideo('toolbar.extractNeedsPlayback'))
-            return
-          }
-          void runExtract(video)
-        },
+        active: picking,
+        onSelect: () => (picking ? setPicking(false) : startPick()),
       },
     ],
     [
@@ -686,13 +763,27 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
             className="relative bg-surface-fill-hover"
             style={{ height }}
             onMouseEnter={() => {
-              if (!videoData.url || !frameReady || generating || media.problem)
+              if (
+                !videoData.url ||
+                !frameReady ||
+                generating ||
+                media.problem ||
+                picking
+              )
                 return
               setHovering(true)
             }}
             onMouseLeave={() => {
+              const playing = frameVideoRef.current
+              if (playing && videoData.url) {
+                lastViewedRef.current = {
+                  url: videoData.url,
+                  sec: playing.currentTime,
+                }
+              }
               setHovering(false)
-              setHoverProgress(0)
+              // 暂停着的那一帧留在卡上（`pinned`），进度线也跟着留。
+              if (!pinned) setHoverProgress(0)
             }}
           >
             {/* 封面。⚠ 悬停时那只 `<video>` 盖在它上面 —— ⛔ 不换掉它：
@@ -772,7 +863,11 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
               <div className="size-full rounded-node bg-surface-sunken corner-squircle" />
             )}
 
-            {hovering && frameReady && videoData.url && !media.problem ? (
+            {(hovering || pinned) &&
+            !picking &&
+            frameReady &&
+            videoData.url &&
+            !media.problem ? (
               <>
                 <video
                   ref={frameVideoRef}
@@ -786,6 +881,8 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
                   aria-label={displayName}
                   data-video-hover-preview
                   className="absolute inset-0 size-full rounded-node object-cover corner-squircle"
+                  onPlay={() => setPreviewPlaying(true)}
+                  onPause={() => setPreviewPlaying(false)}
                   onTimeUpdate={(event) => {
                     const element = event.currentTarget
                     setHoverProgress(
@@ -805,6 +902,28 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
                     style={{ width: `${Math.round(hoverProgress * 100)}%` }}
                   />
                 </div>
+                {/* 左下播放 / 暂停（owner 2026-10-16）：停住的那一帧手移开也留着。 */}
+                <button
+                  type="button"
+                  data-video-play-toggle
+                  data-playing={previewPlaying ? 'true' : 'false'}
+                  aria-label={t(
+                    previewPlaying ? 'player.pause' : 'player.play',
+                  )}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    togglePreviewPlay()
+                  }}
+                  // 连点两下别被读成「双击 = 快速看」。
+                  onDoubleClick={(event) => event.stopPropagation()}
+                  className="nodrag nopan absolute bottom-2 left-2 flex size-6.5 items-center justify-center rounded-full surface-glass focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                >
+                  {previewPlaying ? (
+                    <Pause aria-hidden className="size-3.5" />
+                  ) : (
+                    <Play aria-hidden weight="fill" className="size-3.5" />
+                  )}
+                </button>
                 {/* 右上静音标：说明「现在是静音在放」，⛔ 不是开关。 */}
                 <span
                   data-video-muted-badge
@@ -828,8 +947,35 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
               </div>
             ) : null}
 
-            {/* 右下角只有时长（画板 65 行）。⛔ 没有播放钮、没有角标、没有槽。 */}
-            {videoData.url && durationSeconds > 0 && !hovering ? (
+            {/* 右下角只有时长（画板 65 行）。播放 / 暂停只在画面动起来时出现在左下。 */}
+            {picking && videoData.url && !media.problem ? (
+              <video
+                ref={pickVideoRef}
+                src={videoData.url}
+                poster={posterUrl}
+                muted
+                playsInline
+                preload="auto"
+                aria-label={displayName}
+                data-video-frame-pick
+                className="absolute inset-0 size-full rounded-node object-cover corner-squircle"
+                onLoadedMetadata={(event) => {
+                  event.currentTarget.currentTime = pickSec
+                }}
+                onTimeUpdate={(event) => {
+                  const element = event.currentTarget
+                  if (!element.paused) setPickSec(element.currentTime)
+                }}
+                onPlay={() => setPickPlaying(true)}
+                onPause={() => setPickPlaying(false)}
+              />
+            ) : null}
+
+            {videoData.url &&
+            durationSeconds > 0 &&
+            !hovering &&
+            !pinned &&
+            !picking ? (
               <span
                 data-video-duration
                 className="absolute right-2.5 bottom-2.25 bg-foreground/45 px-1.5 py-0.25 font-mono text-2xs leading-3.5 tabular-nums text-card"
@@ -868,78 +1014,95 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
               })
             }
           />
-          <NodePromptBar
-            safeLeftPx={canvas.safeLeftPx}
-            // 栏**内**首行：已挂的首帧 / 尾帧 / 语音（画板 `VideoSelected.dc.html`
-            // 第 57 行 —— 那排 chip 与正文同一片玻璃，⛔ 不是栏上方另一条）。
-            // 不收参考的卡不摆参考轨（判据查端口表，与图片卡 `image.reference` 同一条）。
-            leadingRow={
-              hasLeadingReferences ? (
-                <>
-                  {railItems.length > 0 || railProps.pending?.length ? (
-                    <VideoRefRail
-                      {...railProps}
-                      animateOnMount={railMountState.animate}
+          {picking && videoData.url ? (
+            // 选帧时**提示词栏换成选帧条**（与音频卡裁剪同一个做法），⛔ 不是又弹一层。
+            <VideoFramePickPanel
+              durationSec={durationSeconds}
+              sec={pickSec}
+              playing={pickPlaying}
+              busy={frames.grabbing !== null}
+              onSeek={seekPick}
+              onTogglePlay={togglePickPlay}
+              onCancel={() => setPicking(false)}
+              onConfirm={() => void confirmPick()}
+              className="w-160"
+            />
+          ) : (
+            <NodePromptBar
+              safeLeftPx={canvas.safeLeftPx}
+              // 栏**内**首行：已挂的首帧 / 尾帧 / 语音（画板 `VideoSelected.dc.html`
+              // 第 57 行 —— 那排 chip 与正文同一片玻璃，⛔ 不是栏上方另一条）。
+              // 不收参考的卡不摆参考轨（判据查端口表，与图片卡 `image.reference` 同一条）。
+              leadingRow={
+                hasLeadingReferences ? (
+                  <>
+                    {railItems.length > 0 || railProps.pending?.length ? (
+                      <VideoRefRail
+                        {...railProps}
+                        animateOnMount={railMountState.animate}
+                      />
+                    ) : null}
+                    <CharacterMentionRail
+                      nodeId={id}
+                      mentions={characterMentions}
+                      capacity={characterRail.capacity}
+                      usedImages={characterRail.usedImages}
+                      disabled={generating}
                     />
-                  ) : null}
-                  <CharacterMentionRail
-                    nodeId={id}
-                    mentions={characterMentions}
-                    capacity={characterRail.capacity}
-                    usedImages={characterRail.usedImages}
-                    disabled={generating}
-                  />
-                </>
-              ) : null
-            }
-            value={draft}
-            onValueChange={setDraft}
-            onSubmit={submitPrompt}
-            // 多渠道型号没选渠道 = 这一枪发不出去（D2 Q1：没有「自动」渠道）。
-            // 按钮上写「先选渠道」，点了打开这张卡的选择器并定位到那一行。
-            {...(channelGate.blocked
-              ? {
-                  blockedLabel: tPicker('pickChannel'),
-                  onBlockedClick: channelGate.requestPick,
-                }
-              : {})}
-            generating={generating}
-            onCancel={cancelGeneration}
-            placeholder={
-              empty
-                ? tVideo('emptyPromptPlaceholder')
-                : tVideo('promptPlaceholder')
-            }
-            ariaLabel={tVideo('promptLabel')}
-            // 素材横向滚动，正文与参数留在同一块编辑面。
-            className="w-160"
-            addMenu={
-              <VideoAddMenuItems
-                acceptsRefs={acceptsRefs}
-                canvasCandidates={canvasCandidates}
-                onPickSlotSource={railProps.onPickFromCanvas}
-                onUpload={() =>
-                  acceptsRefs ? openReferenceFilePicker() : openFilePicker(null)
-                }
-                onLibrary={() =>
-                  acceptsRefs
-                    ? railProps.onLibrary(VIDEO_RAIL_GROUP_IDS.image)
-                    : openLibrary(null)
-                }
-              />
-            }
-            inputRef={promptInputRef}
-            mentionOptions={mentionOptions}
-            slashOptions={recipeSlash.options}
-            onSlashSelect={(option) =>
-              recipeSlash.pick(option.id)?.compiledPrompt
-            }
-            renderValue={renderPromptValue}
-            chips={[paramsChip, modelChip].filter(Boolean)}
-            // chip 与发送钮之间那颗声音开关（画板「画布提示词栏 · 结果」）。
-            // ⛔ 不当第三颗 chip：出不出声是这一枪的开关，不是规格。
-            {...(audioToggle ? { trailing: audioToggle } : {})}
-          />
+                  </>
+                ) : null
+              }
+              value={draft}
+              onValueChange={setDraft}
+              onSubmit={submitPrompt}
+              // 多渠道型号没选渠道 = 这一枪发不出去（D2 Q1：没有「自动」渠道）。
+              // 按钮上写「先选渠道」，点了打开这张卡的选择器并定位到那一行。
+              {...(channelGate.blocked
+                ? {
+                    blockedLabel: tPicker('pickChannel'),
+                    onBlockedClick: channelGate.requestPick,
+                  }
+                : {})}
+              generating={generating}
+              onCancel={cancelGeneration}
+              placeholder={
+                empty
+                  ? tVideo('emptyPromptPlaceholder')
+                  : tVideo('promptPlaceholder')
+              }
+              ariaLabel={tVideo('promptLabel')}
+              // 素材横向滚动，正文与参数留在同一块编辑面。
+              className="w-160"
+              addMenu={
+                <VideoAddMenuItems
+                  acceptsRefs={acceptsRefs}
+                  canvasCandidates={canvasCandidates}
+                  onPickSlotSource={railProps.onPickFromCanvas}
+                  onUpload={() =>
+                    acceptsRefs
+                      ? openReferenceFilePicker()
+                      : openFilePicker(null)
+                  }
+                  onLibrary={() =>
+                    acceptsRefs
+                      ? railProps.onLibrary(VIDEO_RAIL_GROUP_IDS.image)
+                      : openLibrary(null)
+                  }
+                />
+              }
+              inputRef={promptInputRef}
+              mentionOptions={mentionOptions}
+              slashOptions={recipeSlash.options}
+              onSlashSelect={(option) =>
+                recipeSlash.pick(option.id)?.compiledPrompt
+              }
+              renderValue={renderPromptValue}
+              chips={[paramsChip, modelChip].filter(Boolean)}
+              // chip 与发送钮之间那颗声音开关（画板「画布提示词栏 · 结果」）。
+              // ⛔ 不当第三颗 chip：出不出声是这一枪的开关，不是规格。
+              {...(audioToggle ? { trailing: audioToggle } : {})}
+            />
+          )}
         </div>
       </NodeChromeLayer>
 
@@ -959,7 +1122,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
             headline={frameHeadline}
             url={videoData.url}
             posterUrl={posterUrl}
-            onExtractFrame={(video) => void runExtract(video)}
+            onExtractFrame={(video) => void runExtract(video.currentTime)}
             extracting={frames.grabbing !== null}
             onDownload={() =>
               videoData.url && triggerNodeV4Download(videoData.url)

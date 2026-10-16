@@ -3,6 +3,7 @@ import {
   VIDEO_FRAME_ENDPOINT_PLAN,
   VIDEO_FRAME_LIMITS,
   VIDEO_FRAME_PLAN,
+  VIDEO_FRAME_SINGLE_PLAN,
 } from '@/constants/video-analysis'
 
 /**
@@ -120,6 +121,39 @@ export function planVideoEndpointFrames(
     frameCount: entries.length,
     planVersion: VIDEO_FRAME_ENDPOINT_PLAN.planVersion,
     strategy: VIDEO_FRAME_ENDPOINT_PLAN.strategy,
+    entries,
+  }
+}
+
+/**
+ * **指定一秒的单帧**（画布视频卡「抽帧」）。`atSeconds` 夹进 `[0, 片尾 - 退量]`：
+ * 片子比调用方以为的短时取片尾那一帧，⛔ 不判失败。
+ */
+export function planVideoSingleFrame(
+  durationSeconds: number,
+  atSeconds: number,
+): VideoFramePlan {
+  const usable = Number.isFinite(durationSeconds) && durationSeconds > 0
+  const latest = Math.max(
+    0,
+    durationSeconds - VIDEO_FRAME_ENDPOINT_PLAN.endTrimSeconds,
+  )
+  const at = Number.isFinite(atSeconds) ? atSeconds : 0
+  const entries: VideoFramePlanEntry[] = usable
+    ? [
+        {
+          index: 0,
+          timestampSeconds: roundToPlanPrecision(
+            Math.min(latest, Math.max(0, at)),
+          ),
+        },
+      ]
+    : []
+  return {
+    durationSeconds: usable ? roundToPlanPrecision(durationSeconds) : 0,
+    frameCount: entries.length,
+    planVersion: VIDEO_FRAME_SINGLE_PLAN.planVersion,
+    strategy: VIDEO_FRAME_SINGLE_PLAN.strategy,
     entries,
   }
 }

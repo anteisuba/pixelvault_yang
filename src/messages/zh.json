@@ -6166,7 +6166,6 @@
           "label": "视频操作",
           "continue": "续拍",
           "extract": "抽帧",
-          "extractNeedsPlayback": "把鼠标移到画面上让它放起来，才能抽当前这一帧",
           "more": "更多",
           "expand": "展开"
         },
@@ -6263,6 +6262,13 @@
         "scriptShot": {
           "changed": "已变",
           "dropped": "剧本已删"
+        },
+        "framePick": {
+          "title": "选一帧抽出来",
+          "scrub": "拖动选帧",
+          "keyEsc": "Esc 取消",
+          "confirm": "抽这一帧",
+          "confirming": "抽帧中…"
         }
       },
       "connectToShot": {

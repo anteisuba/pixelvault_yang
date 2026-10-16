@@ -70,7 +70,7 @@ const captureLastFrame = vi.fn(async () => ({
   ok: true as const,
   url: 'https://cdn.test/tail.webp',
 }))
-const captureCurrentFrame = vi.fn(async () => ({
+const captureFrameAt = vi.fn(async () => ({
   ok: true as const,
   url: 'https://cdn.test/frame.webp',
 }))
@@ -79,7 +79,7 @@ vi.mock('@/hooks/node/use-video-reference-slots', () => ({
     grabbing: null,
     uploadError: null,
     captureLastFrame,
-    captureCurrentFrame,
+    captureFrameAt,
   }),
 }))
 
@@ -502,18 +502,38 @@ describe('选中：工具条与批操作', () => {
       'v_1',
       true,
     )
-    // 抽帧要一只正在放的 `<video>` —— 先悬停把它挂上来。
+    // 真实路径：悬停放到某一秒 → 手挪去工具条（预览卸掉）→ 点抽帧。
     fireEvent.load(document.querySelector('img') as HTMLImageElement)
-    fireEvent.mouseEnter(
-      document.querySelector('[data-video-surface="ready"]') as HTMLElement,
-    )
+    const surface = document.querySelector(
+      '[data-video-surface="ready"]',
+    ) as HTMLElement
+    fireEvent.mouseEnter(surface)
+    const preview = document.querySelector(
+      '[data-video-hover-preview]',
+    ) as HTMLVideoElement
+    Object.defineProperty(preview, 'currentTime', { value: 2.5 })
+    fireEvent.mouseLeave(surface)
+    expect(document.querySelector('[data-video-hover-preview]')).toBeNull()
     fireEvent.click(
       screen
         .getByTestId('flow-toolbar-top')
         .querySelector('[data-toolbar-action="extract"]') as HTMLElement,
     )
+    // 卡上停住、提示词栏换成选帧条，从刚才看到的那一秒起。
+    expect(document.querySelector('[data-video-frame-pick]')).not.toBeNull()
+    expect(
+      document.querySelector('[data-video-frame-pick-clock]')?.textContent,
+    ).toContain('0:02.5')
+    fireEvent.click(
+      document.querySelector('[data-video-frame-pick-confirm]') as HTMLElement,
+    )
 
     await waitFor(() => expect(onApplyBatch).toHaveBeenCalled())
+    expect(captureFrameAt).toHaveBeenLastCalledWith(
+      READY.url,
+      2.5,
+      expect.any(String),
+    )
     const ops = onApplyBatch.mock.calls[0]?.[0] as unknown as readonly Record<
       string,
       unknown
@@ -557,16 +577,21 @@ describe('片段卡与镜头卡同一套', () => {
       'v_1',
       true,
     )
-    fireEvent.load(document.querySelector('img') as HTMLImageElement)
-    fireEvent.mouseEnter(
-      document.querySelector('[data-video-surface="ready"]') as HTMLElement,
-    )
+    // 没悬停放过：从封面那一帧（第 0 秒）起选，⛔ 不再要求先把它放起来。
     fireEvent.click(
       screen
         .getByTestId('flow-toolbar-top')
         .querySelector('[data-toolbar-action="extract"]') as HTMLElement,
     )
+    fireEvent.click(
+      document.querySelector('[data-video-frame-pick-confirm]') as HTMLElement,
+    )
     await waitFor(() => expect(onApplyBatch).toHaveBeenCalled())
+    expect(captureFrameAt).toHaveBeenLastCalledWith(
+      CLIP.url,
+      0,
+      expect.any(String),
+    )
     const ops = onApplyBatch.mock.calls[0]?.[0] as unknown as readonly Record<
       string,
       unknown
@@ -1728,5 +1753,82 @@ describe('剧本投影角标与角色空槽（进度表 24）', () => {
       harness([videoNode('v_1', { ...READY, ...scriptShot('synced') })]),
     )
     expect(document.querySelector('[data-script-shot-badge]')).toBeNull()
+  })
+})
+
+// owner 2026-10-16：「抽帧完全用不了」+「播放暂停的功能都没有」。
+describe('卡上选帧与播放暂停', () => {
+  const openPick = () => {
+    fireEvent.load(document.querySelector('img') as HTMLImageElement)
+    fireEvent.click(
+      screen
+        .getByTestId('flow-toolbar-top')
+        .querySelector('[data-toolbar-action="extract"]') as HTMLElement,
+    )
+  }
+
+  it('Esc 退出选帧，提示词栏回来，不落图', () => {
+    const onApplyBatch = vi.fn()
+    renderVideo(
+      harness([videoNode('v_1', READY)], { onApplyBatch }),
+      'v_1',
+      true,
+    )
+    openPick()
+    const panel = document.querySelector(
+      '[data-video-frame-pick-panel]',
+    ) as HTMLElement
+    expect(panel).not.toBeNull()
+    fireEvent.keyDown(panel, { key: 'Escape' })
+    expect(document.querySelector('[data-video-frame-pick-panel]')).toBeNull()
+    expect(document.querySelector('[data-video-frame-pick]')).toBeNull()
+    expect(onApplyBatch).not.toHaveBeenCalled()
+  })
+
+  it('方向键一帧一帧挪，Enter 抽挪到的那一帧', async () => {
+    const onApplyBatch = vi.fn(
+      async (ops: readonly unknown[]) => (
+        void ops,
+        { createdNodeIds: ['img_new'] }
+      ),
+    )
+    renderVideo(
+      harness([videoNode('v_1', READY)], { onApplyBatch }),
+      'v_1',
+      true,
+    )
+    openPick()
+    const panel = document.querySelector(
+      '[data-video-frame-pick-panel]',
+    ) as HTMLElement
+    fireEvent.keyDown(panel, { key: 'ArrowRight' })
+    fireEvent.keyDown(panel, { key: 'ArrowRight' })
+    fireEvent.keyDown(panel, { key: 'Enter' })
+    await waitFor(() => expect(onApplyBatch).toHaveBeenCalled())
+    const [, at] = captureFrameAt.mock.lastCall as unknown as [string, number]
+    expect(at).toBeCloseTo(2 / 30, 5)
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-video-frame-pick-panel]'),
+      ).toBeNull(),
+    )
+  })
+
+  it('悬停时按暂停，手移开画面仍停在那一帧', () => {
+    renderVideo(harness([videoNode('v_1', READY)]), 'v_1', true)
+    fireEvent.load(document.querySelector('img') as HTMLImageElement)
+    const surface = document.querySelector(
+      '[data-video-surface="ready"]',
+    ) as HTMLElement
+    fireEvent.mouseEnter(surface)
+    const preview = document.querySelector(
+      '[data-video-hover-preview]',
+    ) as HTMLVideoElement
+    Object.defineProperty(preview, 'paused', { value: false })
+    fireEvent.click(
+      document.querySelector('[data-video-play-toggle]') as HTMLElement,
+    )
+    fireEvent.mouseLeave(surface)
+    expect(document.querySelector('[data-video-hover-preview]')).toBe(preview)
   })
 })

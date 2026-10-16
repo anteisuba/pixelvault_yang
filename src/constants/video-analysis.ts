@@ -157,6 +157,16 @@ export const VIDEO_FRAME_ENDPOINT_PLAN = {
 } as const
 
 /**
+ * 单帧计划：画布视频卡「抽帧」—— 抓用户最后看到的那一秒。
+ * 末端同样退 `endTrimSeconds`（seek 到片尾那一刻可能解不出画面）。
+ */
+export const VIDEO_FRAME_SINGLE_PLAN = {
+  frameCount: 1,
+  planVersion: 1,
+  strategy: 'single-at-timestamp',
+} as const
+
+/**
  * **按片长伸缩的段中点计划**：v3 助手（Denia）自己看片用（看图期第二段，owner
  * 2026-10-15 定「帧数随片长走」）。
  *

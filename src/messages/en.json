@@ -6166,7 +6166,6 @@
           "label": "Video actions",
           "continue": "Continue shot",
           "extract": "Extract frame",
-          "extractNeedsPlayback": "Hover the card so the clip plays, then extract the current frame",
           "more": "More",
           "expand": "Expand"
         },
@@ -6263,6 +6262,13 @@
         "scriptShot": {
           "changed": "Changed",
           "dropped": "Cut from script"
+        },
+        "framePick": {
+          "title": "Pick a frame to extract",
+          "scrub": "Scrub to a frame",
+          "keyEsc": "Esc to cancel",
+          "confirm": "Use this frame",
+          "confirming": "Extracting…"
         }
       },
       "connectToShot": {

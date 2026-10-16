@@ -146,6 +146,17 @@ export const RESULT_REVEAL = {
 } as const
 
 /**
+ * 助手出图中那根描边线（P4 第 8 项，owner 2026-10-16 样张 AG）：沿格子边慢慢描，
+ * 先快后慢、停在九成 —— 服务商不报进度，⛔ 画满一圈等于谎报「好了」。
+ */
+export const GENERATING_RING = {
+  maxLength: 0.9,
+  seconds: 45,
+  staggerSeconds: 0.12,
+  ease: [0.15, 0.6, 0.25, 1],
+} as const
+
+/**
  * 加载中（owner 2026-10-08 定稿，原型 `ThV7ucUtgNZS4zbGry9XPh`）：灰块静止不闪，数据到了
  * 内容在自己那一格里由糊变清。共享原语 `components/ui/load-reveal.tsx`，⛔ 页面里各抄一份。
  *

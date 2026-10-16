@@ -437,7 +437,7 @@ describe('StudioOperatorHeader', () => {
     }
   })
 
-  it('⭐ 聊天会话（附录L）：按「工作 / 和谁聊」分组，胶囊写和谁聊，「新对话」和同一个角色新开一段', () => {
+  it('⭐ 聊天会话（附录L）：按「工作 / 和谁聊」分组，「新对话」和同一个角色新开一段', () => {
     const rin = { id: 'card-rin', name: 'Rin' }
     const sessions = [
       { ...SESSIONS[0], chatCharacter: rin },
@@ -448,9 +448,8 @@ describe('StudioOperatorHeader', () => {
     const { onNewThread } = renderHeader({
       history: { ...HISTORY, sessions },
     })
-    expect(screen.getByTestId('operator-chat-pill').textContent).toContain(
-      'chat.pill',
-    )
+    // 「和 X 聊」胶囊收进了聊天弹层（P4 第 6 项）。
+    expect(screen.queryByTestId('operator-chat-pill')).toBeNull()
     expect(
       screen.getByTestId('operator-mode-chat').getAttribute('aria-pressed'),
     ).toBe('true')

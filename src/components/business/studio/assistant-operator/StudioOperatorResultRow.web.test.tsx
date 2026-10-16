@@ -27,7 +27,7 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('motion/react', () => ({
-  motion: { span: 'span', button: 'button' },
+  motion: { span: 'span', button: 'button', rect: 'rect' },
   useReducedMotion: () => true,
 }))
 
@@ -122,7 +122,9 @@ describe('StudioOperatorResultRow', () => {
     const pending = renderCard({ items: [], completed: 0, total: 1 })
     const placeholder = screen.getByTestId('operator-result-placeholder')
     expect(placeholder.style.aspectRatio).toBe('3 / 2')
-    expect(placeholder.className).toContain('animate-pulse')
+    // P4 第 8 项：⛔ 不闪骨架，一根描边线沿格子边慢慢描（停在九成，⛔ 不画满）。
+    expect(placeholder.className).not.toContain('animate-pulse')
+    expect(placeholder.querySelector('rect')).not.toBeNull()
     pending.view.unmount()
 
     renderCard()

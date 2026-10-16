@@ -903,7 +903,7 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
   - 切到哪版、改成什么，下一轮的对白就是什么（对白每轮从线程现算）。各版随会话落库（历史 `message` 条目的 `versions` / `versionIndex`，只有一版不存）。
   - ⚠ 改 / 删 / 切按**条目对象本身**找，⛔ 不按 id（历史里本来就会有两个 `user-1`，见面板历史那段头注）。只改了历史时 `historyRevision` 递增，保存的防抖也看它。
 - **世界书（第二片 C）**：酒馆卡原样存着的 `characterBook`（`extensions['st.card']`）由 `readTavernWorldBook` 读成「关键词 → 正文 / 常驻」几条（卡规范的数组与 SillyTavern 导出的对象 + `key` / `disable` 都认；关了的、没正文的、没关键词又不常驻的丢掉；按插入顺序，≤`maxWorldEntries`）。每轮 `pickWorldNotes` 看最近 `worldScanMessages` 条对白（含你这一句）里有没有出现关键词（不分大小写），常驻的一直在；清洗、填宏后条数 / 单条 / 总长封顶，在角色段之后单独一段 WORLD NOTES，写明是资料 ⛔ 不是指令。次关键词、概率、递归、插入位置这些酒馆机制 ⛔ 不照搬：代码只判「提到了没有」，正文怎么用交给模型。
-- **你在故事里是谁（第二片 C）**：**按角色记**（owner 2026-10-16「按角色记住，新开一段自动带上」）。点头部「和 X 聊」胶囊（`StudioOperatorChatPill`）写一句（≤`maxChatUserRoleChars`）；打字只改草稿，关上浮层才存（`saveOperatorChatUserRole` → 角色卡 PUT `extensions['pv.chatUserRole']`，空 = 删键；存失败退回原值）。服务端每轮在 `toChatPersona` 从卡上读进 `roleplay.userRole`，⛔ 不随请求、⛔ 不存会话；进 ROLEPLAY 段一行设定。前端那份只为胶囊回显：进聊天时从卡（`CharacterCardRecord.chatUserRole`）带，载回会话时会话列表从卡上一起查出。
+- **你在故事里是谁（第二片 C）**：**按角色记**（owner 2026-10-16「按角色记住，新开一段自动带上」）。聊天模式下点头部「聊天」，弹层顶上写一句（P4 起；原「和 X 聊」胶囊已删）（≤`maxChatUserRoleChars`）；打字只改草稿，关上浮层才存（`saveOperatorChatUserRole` → 角色卡 PUT `extensions['pv.chatUserRole']`，空 = 删键；存失败退回原值）。服务端每轮在 `toChatPersona` 从卡上读进 `roleplay.userRole`，⛔ 不随请求、⛔ 不存会话；进 ROLEPLAY 段一行设定。前端那份只为弹层回显：进聊天时从卡（`CharacterCardRecord.chatUserRole`）带，载回会话时会话列表从卡上一起查出。
 - 面板已能拖到 45%，不另做拉宽。
 
 ## 8. 上下文卡与用户偏好

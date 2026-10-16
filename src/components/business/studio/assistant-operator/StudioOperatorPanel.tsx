@@ -88,6 +88,7 @@ import {
 } from '@/constants/node-assistant-ops'
 import {
   STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
+  STUDIO_OPERATOR_GENERATE_KNOB_IDS,
   STUDIO_OPERATOR_HISTORY_OPEN_ROUNDS,
   STUDIO_OPERATOR_LIBRARY_PAGE_SIZE,
   STUDIO_OPERATOR_SHELL,
@@ -417,6 +418,9 @@ const MENTION_CARD_WIDTH_PX = 256
 
 /** 发送键收着时是一颗 32 的圆键。 */
 const SEND_BUTTON_SIZE_PX = 32
+/** 生成失败那一行尾的两颗小按钮（P4 第 2 项，与反问卡「跳过」同一身）。 */
+const FAIL_ACTION_CLASS =
+  'h-7 rounded-full border border-border px-3 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none coarse:min-h-11'
 
 export function StudioOperatorPanel({
   operator,
@@ -1648,6 +1652,8 @@ export function StudioOperatorPanel({
           />
         ) : (
           <StudioOperatorConfirmCard
+            /* 换一张卡就重挂：「换个模型」那张要一出来就展开模型那颗。 */
+            key={confirm.id}
             confirm={confirm}
             canGenerate={Boolean(
               confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate &&
@@ -2191,29 +2197,66 @@ export function StudioOperatorPanel({
             key={entry.id}
             card={STUDIO_OPERATOR_CARD_KINDS.system}
           >
-            <p
+            <div
               data-testid="operator-system-line"
-              className="text-xs leading-relaxed text-muted-foreground"
+              data-failed={entry.retry ? 'true' : undefined}
+              className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-relaxed text-muted-foreground"
             >
-              {/* ⚠ 两种 subject：`revertField` 存的是**字段 id**（要过词表
+              {/* P4 第 2 项：生成失败只一行 —— 红点 + 原因 +「重试」「换个模型」，
+                  ⛔ 不套框。两颗都出一张新的生成确认卡（钱闸照旧），「换个模型」
+                  那张一出来就展开模型那颗。 */}
+              {entry.retry ? (
+                <span
+                  aria-hidden
+                  className="size-1.5 shrink-0 rounded-full bg-status-risk"
+                />
+              ) : null}
+              <span className="min-w-0">
+                {/* ⚠ 两种 subject：`revertField` 存的是**字段 id**（要过词表
                           才是人话），`undoStep` 存的是模型写的那行标题（本来就是
                           人话，翻译它等于把它弄丢）。 */}
-              {/* ⚠ 第三种 subject：`videoFramesFailed` 存的是抽帧失败的**原因码**
+                {/* ⚠ 第三种 subject：`videoFramesFailed` 存的是抽帧失败的**原因码**
                           （六条修法各不相同，见常量头注），人话在这里过词表。 */}
-              {t(`system.${entry.code}`, {
-                subject: describeSystemSubjects(
-                  entry,
-                  (subject) =>
-                    entry.code === 'revertField'
-                      ? t(`field.${subject}`)
-                      : entry.code === 'videoFramesFailed'
-                        ? t(`videoFrameCaptureReason.${subject}`)
-                        : subject,
-                  (items) => format.list(items),
-                ),
-                count: entry.count ?? 0,
-              })}
-            </p>
+                {t(`system.${entry.code}`, {
+                  subject: describeSystemSubjects(
+                    entry,
+                    (subject) =>
+                      entry.code === 'revertField'
+                        ? t(`field.${subject}`)
+                        : entry.code === 'videoFramesFailed'
+                          ? t(`videoFrameCaptureReason.${subject}`)
+                          : subject,
+                    (items) => format.list(items),
+                  ),
+                  count: entry.count ?? 0,
+                })}
+              </span>
+              {entry.retry ? (
+                <span className="flex shrink-0 items-center gap-1.5">
+                  <button
+                    type="button"
+                    data-testid="operator-generation-retry"
+                    onClick={() => rerunGeneration(entry.retry!)}
+                    className={FAIL_ACTION_CLASS}
+                  >
+                    {t('error.retry')}
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="operator-generation-switch-model"
+                    onClick={() =>
+                      rerunGeneration(
+                        entry.retry!,
+                        STUDIO_OPERATOR_GENERATE_KNOB_IDS.model,
+                      )
+                    }
+                    className={FAIL_ACTION_CLASS}
+                  >
+                    {t('error.switchModel')}
+                  </button>
+                </span>
+              ) : null}
+            </div>
           </StudioOperatorTimelineRow>
         )
       /**

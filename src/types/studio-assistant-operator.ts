@@ -23,6 +23,7 @@ import type {
 import type {
   StudioOperatorConfirmStatus,
   StudioOperatorField,
+  StudioOperatorGenerateKnob,
   StudioOperatorSystemCode,
 } from '@/constants/studio-assistant-operator'
 import type {
@@ -155,6 +156,13 @@ export interface StudioOperatorSystemEntry {
   userText?: string
   /** 同一件事的结构化那一半 —— 服务端用它渲染「已经定下来的」那一段。 */
   answered?: AssistantOperatorPlanAnswer
+  /**
+   * 「这一批没有生成出来」那一行的**原参数**（P4 第 2 项）—— 行尾「重试 / 换个模型」
+   * 拿它出一张新的生成确认卡（钱闸照旧是那张卡）。
+   * ⚠ 只在内存里：不进库（`studio-operator-history.ts` 逐字段挑），刷新之后
+   *   这一行就只剩一句话。
+   */
+  retry?: AssistantOperatorGenerationRequest
 }
 
 /**
@@ -511,6 +519,8 @@ export type StudioOperatorConfirmPrompt = {
   | {
       kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate
       request: AssistantOperatorGenerationRequest
+      /** 卡一出来就展开的那颗（失败行「换个模型」→ 模型那颗）。 */
+      openKnob?: StudioOperatorGenerateKnob
     }
   /**
    * 助手提议记一张上下文卡（v2 §8.1）—— 卡上摆的是**草稿本身**（档 / 名字 /

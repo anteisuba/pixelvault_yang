@@ -248,6 +248,7 @@ const revisePlan = vi.fn()
 const confirmGeneration = vi.fn()
 const cancelGeneration = vi.fn()
 const retryGeneration = vi.fn()
+const rerunGeneration = vi.fn()
 const setGenerationKnob = vi.fn()
 
 /**
@@ -363,6 +364,7 @@ function PanelHarness() {
           confirmGeneration,
           cancelGeneration,
           retryGeneration,
+          rerunGeneration,
           setGenerationKnob,
           newThread: vi.fn(),
           regenerate,
@@ -1081,6 +1083,29 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     // 最近两轮摊在外面 —— ⛔ 不折掉「我刚才让它改的那件事」。
     expect(older).not.toContainElement(screen.getByText('第二轮'))
     expect(older).not.toContainElement(screen.getByText('第三轮'))
+  })
+
+  it('生成失败只一行：红点 + 原因 +「重试」「换个模型」，两颗都出新确认卡（P4 第 2 项）', () => {
+    const request = {
+      model: { id: 'seedream-4', label: 'Seedream 4' },
+      count: 1,
+      specs: { aspectRatio: '3:4', resolution: '2K', durationSeconds: null },
+    }
+    store.appendOperatorEntry({
+      kind: 'system',
+      id: 'sys-fail',
+      code: 'generationFailedWithReason',
+      subject: '超时了',
+      retry: request,
+    })
+    renderPanel()
+    const line = screen.getByTestId('operator-system-line')
+    expect(line).toHaveAttribute('data-failed', 'true')
+    expect(line.className).not.toContain('border')
+    fireEvent.click(screen.getByTestId('operator-generation-retry'))
+    expect(rerunGeneration).toHaveBeenLastCalledWith(request)
+    fireEvent.click(screen.getByTestId('operator-generation-switch-model'))
+    expect(rerunGeneration).toHaveBeenLastCalledWith(request, 'model')
   })
 
   it('② 确认卡（生成）四颗旋钮在场；点「确认生成」走 `confirmGeneration`', () => {

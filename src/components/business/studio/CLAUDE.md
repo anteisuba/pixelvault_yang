@@ -61,7 +61,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
         │       ├── 输入区（D12 T-A，P4 改）：**一个边框** = 文字 + 工具行（**＋**（`StudioOperatorAddMenu`：最近的图一行 +「全部」/ 从素材挑图 / 上传文件 / @ 角色或素材，⛔ 没有拍照，owner 2026-10-16）· 助手模型灰字（只列聊天模型；出图模型看输入框上方那行，跟当前台走）· 思考 · 自动生成开关 · 圆形发送 / 停止）。弹层都从自己按钮正上方长出来，同宽 `w-64`。⛔ 别复活旧 `StudioOperatorPlusMenu`（那颗管上下文卡 / 指定来源）：提及 = 打 `@` 或 ＋ 里的 `@`，指定来源在话里说（`research.onlySources`）；上下文卡只剩助手提议那张确认卡（设置里那一页 09-26 已删，09-25 定整体去掉）
         │       ├── StudioOperatorHistoryItem (会话历史条目)
         │       ├── StudioOperatorModeSwitch (头部右侧「工作 / 聊天」切换：同一段对话里换模式、记录不变，切的地方时间线留细线 `StudioOperatorChatMark`；聊过谁就接着聊，没聊过先选。v2 §7.9)
-        │       ├── StudioOperatorChatPill (头部「和 X 聊」胶囊：点开写「你在故事里是谁」，关浮层才存到角色卡上，按角色记。v2 §7.9)
+        │       ├── StudioOperatorModeSwitch（头部「工作 / 聊天」切换；聊天里点开的弹层顶上写「你在故事里是谁」，关弹层 / 换人才存到角色卡上，按角色记。原头部「和 X 聊」胶囊 `StudioOperatorChatPill` P4 已删，⛔ 别复活）
         │       ├── StudioOperatorChatLine (聊天会话里一条对白底下那排小动作：改 · 删（再点确认）· 她最后那段「重新生成」· 「‹ 2 / 3 ›」；按条目对象本身改，⛔ 按 id。工作会话不套。v2 §7.9)
         │       ├── StudioOperatorMessageBody (助手正文那一格：无气泡 / 长回话折首句 / `detail` 折成「为什么」 / 空正文时的「正在想…」行（`StudioOperatorThinkingRow`：<1 s 不露字 → 呼吸点 + 扫光 + 秒数，>6 s 慢提示，接力跳写「正在画布上落地…」；第一个字到了正文上方「想了 N 秒」。§9.1） / **句尾 `[n]` 角标**（56b 切片 1）· **`#n` 胶囊**（`findRefs`，搜索期第三片）· **末尾光标 + `motion-reduce` 扣住整段**（切片 3）)
         │       ├── StudioOperatorAnswerSources (回答底下那两样：媒体条（图片开灯箱 · 视频封面能嵌就在面板里播、嵌不了开新窗口）+ 一排来源卡（站点图标 + 标题 + 域名，角标点下来高亮；标成视频、能嵌的那张是按钮，同一个播放器）+ 「深入调查 / 钉住 / 回执」一行)

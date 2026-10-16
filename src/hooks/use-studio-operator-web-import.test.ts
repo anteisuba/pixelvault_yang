@@ -3,23 +3,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { GenerationRecord } from '@/types'
 import type { AssistantOperatorWebImage } from '@/types/assistant-operator'
-import type { StudioOperatorAttachment } from '@/types/studio-assistant-operator'
 
 import { useStudioOperatorWebImport } from './use-studio-operator-web-import'
 
 /**
- * 联网候选「看与选分开 + 零残留」的契约闸（P3-B → 2026-08-31 按拍板 21 重做）。
+ * 联网候选「保存」的契约闸（拍板 21 → P4 第 12 项：保存 = 只进素材库）。
  *
- * 钉五件事，每一件都是编译期看不见的失效：
- *  ① **点「选用」之前一次网络都不发**（这一层连「看」的入口都没有——看是灯箱的事）；
- *  ② 取消选用 = 摘附件 **+ 走既有删除路径把那条素材清掉**（拍板 21 的零残留）；
- *  ③ 选满之后再选 = 换掉最早那张，并把它一并清掉；
- *  ④ 在飞途中被取消的那次，成功回来时**也要把刚落库的那张删掉**（最隐蔽的残留）；
- *  ⑤ 失败不静默、按 entryId 各记各的。
+ *  ① 按「保存」之前一次网络都不发；只发 URL，⛔ 请求体里没有字节；
+ *  ② 存好就是「已存」，⛔ 不挂附件、⛔ 没有上限、⛔ 不删任何东西；
+ *  ③ 已存 / 在存的再存一次不重发；失败不静默，再存 = 重试；
+ *  ④ 来源不可作输入的那张不发，理由就地说；按 entryId 各记各的；换了作用域旧请求作废。
  */
 
 const importWebImageAPI = vi.hoisted(() => vi.fn())
-const deleteGenerationAPI = vi.hoisted(() => vi.fn())
 
 vi.mock('next-intl', () => ({
   useTranslations: () => {
@@ -30,7 +26,6 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('@/lib/api-client/web-image-import', () => ({ importWebImageAPI }))
-vi.mock('@/lib/api-client/gallery', () => ({ deleteGenerationAPI }))
 
 const CANDIDATE_A: AssistantOperatorWebImage = {
   imageUrl: 'https://cdn.example.com/a.jpg',
@@ -76,22 +71,15 @@ function generation(id: string): GenerationRecord {
   } as unknown as GenerationRecord
 }
 
-function setup(limit = 1) {
-  const imported: StudioOperatorAttachment[] = []
-  const removed: string[] = []
-  const hook = renderHook(() =>
-    useStudioOperatorWebImport({
-      scopeKey: 'user-a:image-natural:thread-1',
-      onImported: (attachment) => imported.push(attachment),
-      onRemoved: (attachmentId) => removed.push(attachmentId),
-      limit,
-    }),
+function setup(scopeKey = 'user-a:image-natural:thread-1') {
+  return renderHook(
+    ({ scope }) => useStudioOperatorWebImport({ scopeKey: scope }),
+    { initialProps: { scope: scopeKey } },
   )
-  return { hook, imported, removed }
 }
 
 function picksOf(
-  hook: ReturnType<typeof setup>['hook'],
+  hook: ReturnType<typeof setup>,
   entryId = 'entry-1',
 ): readonly { imageUrl: string; status: string; generationId?: string }[] {
   return hook.result.current.states[entryId]?.picks ?? []
@@ -103,23 +91,18 @@ beforeEach(() => {
     success: true,
     data: { generation: generation('gen-a') },
   })
-  deleteGenerationAPI.mockResolvedValue({ success: true })
 })
 
-describe('联网候选 · 选用才下载（拍板 21）', () => {
-  it('⛔ 没点「选用」之前一次网络都不发 —— 看大图那条路根本不经过这里', () => {
-    const { hook } = setup()
+describe('联网候选 · 保存才下载（拍板 21 → P4）', () => {
+  it('⛔ 没按「保存」之前一次网络都不发', () => {
+    const hook = setup()
     expect(hook.result.current.states).toEqual({})
     expect(importWebImageAPI).not.toHaveBeenCalled()
-    expect(deleteGenerationAPI).not.toHaveBeenCalled()
   })
 
-  it('点「选用」→ 只发 URL（⛔ 请求体里没有任何字节）→ 挂成附件', async () => {
-    const { hook, imported } = setup()
-    act(() => {
-      hook.result.current.toggleCandidate('entry-1', CANDIDATE_A)
-    })
-
+  it('保存 → 只发 URL（⛔ 没有字节）→ 那一张变「已存」，记下素材 id', async () => {
+    const hook = setup()
+    act(() => hook.result.current.saveCandidates('entry-1', [CANDIDATE_A]))
     expect(importWebImageAPI).toHaveBeenCalledWith({
       imageUrl: CANDIDATE_A.imageUrl,
       pageUrl: CANDIDATE_A.pageUrl,
@@ -127,326 +110,104 @@ describe('联网候选 · 选用才下载（拍板 21）', () => {
       title: CANDIDATE_A.title,
     })
     const body = importWebImageAPI.mock.calls[0][0] as Record<string, unknown>
-    expect(Object.keys(body).sort()).toEqual([
-      'domain',
-      'imageUrl',
-      'pageUrl',
-      'title',
-    ])
-    for (const value of Object.values(body)) {
+    for (const value of Object.values(body))
       expect(String(value)).not.toMatch(/^data:|^blob:/)
-    }
-
-    await waitFor(() => {
-      expect(picksOf(hook)[0]?.status).toBe('imported')
-    })
-    expect(imported).toHaveLength(1)
-    expect(imported[0].id).toBe('gen-a')
-    expect(imported[0].kind).toBe('image')
-  })
-})
-
-/**
- * ⭐ 拍板 21 的后半句。🔬 owner 真机：换个选择之后，被换掉的那张仍留在素材库里 ——
- * 浏览了几张就采购了几张。
- */
-describe('联网候选 · 换选零残留', () => {
-  it('取消选用 = 摘附件 + 走既有删除路径清掉那条素材', async () => {
-    const { hook, imported, removed } = setup()
-    act(() => {
-      hook.result.current.toggleCandidate('entry-1', CANDIDATE_A)
-    })
-    await waitFor(() => {
-      expect(picksOf(hook)[0]?.status).toBe('imported')
-    })
-
-    act(() => {
-      hook.result.current.toggleCandidate('entry-1', CANDIDATE_A)
-    })
-
-    expect(removed).toEqual(['gen-a'])
-    expect(deleteGenerationAPI).toHaveBeenCalledWith('gen-a')
-    expect(picksOf(hook)).toHaveLength(0)
-    // ⛔ 取消不该再发一次导入。
-    expect(importWebImageAPI).toHaveBeenCalledTimes(1)
-    expect(imported).toHaveLength(1)
+    expect(picksOf(hook)[0]?.status).toBe('saving')
+    await waitFor(() =>
+      expect(picksOf(hook)).toEqual([
+        {
+          imageUrl: CANDIDATE_A.imageUrl,
+          status: 'saved',
+          generationId: 'gen-a',
+        },
+      ]),
+    )
   })
 
-  it('选满之后再选 = 换掉最早那张，并把它一并清掉', async () => {
-    const { hook, imported, removed } = setup(1)
-    act(() => {
-      hook.result.current.toggleCandidate('entry-1', CANDIDATE_A)
-    })
-    await waitFor(() => {
-      expect(picksOf(hook)[0]?.status).toBe('imported')
-    })
-
-    importWebImageAPI.mockResolvedValue({
-      success: true,
-      data: { generation: generation('gen-b') },
-    })
-    act(() => {
-      hook.result.current.toggleCandidate('entry-1', CANDIDATE_B)
-    })
-    await waitFor(() => {
-      expect(picksOf(hook)[0]?.status).toBe('imported')
-    })
-
-    expect(picksOf(hook).map((pick) => pick.imageUrl)).toEqual([
-      CANDIDATE_B.imageUrl,
-    ])
-    expect(removed).toEqual(['gen-a'])
-    expect(deleteGenerationAPI).toHaveBeenCalledWith('gen-a')
-    expect(imported.map((item) => item.id)).toEqual(['gen-a', 'gen-b'])
-  })
-
-  it('⭐ 上限 > 1 时可以同时选好几张（受工作台参考位上限）', async () => {
-    const { hook, imported, removed } = setup(3)
-    importWebImageAPI
-      .mockResolvedValueOnce({
+  it('⭐ 一次存好几张，⛔ 没有参考位上限', async () => {
+    importWebImageAPI.mockImplementation(({ imageUrl }: { imageUrl: string }) =>
+      Promise.resolve({
         success: true,
-        data: { generation: generation('gen-a') },
-      })
-      .mockResolvedValueOnce({
-        success: true,
-        data: { generation: generation('gen-b') },
-      })
-      .mockResolvedValueOnce({
-        success: true,
-        data: { generation: generation('gen-c') },
-      })
-
-    for (const candidate of [CANDIDATE_A, CANDIDATE_B, CANDIDATE_C]) {
-      act(() => {
-        hook.result.current.toggleCandidate('entry-1', candidate)
-      })
-      // ⚠ 逐张等落地才验得出「三张同时在」——⛔ 并行发会让上限判断读到同一份旧态。
-      await waitFor(() => {
-        expect(
-          picksOf(hook).find((pick) => pick.imageUrl === candidate.imageUrl)
-            ?.status,
-        ).toBe('imported')
-      })
-    }
-
-    expect(picksOf(hook)).toHaveLength(3)
-    expect(imported.map((item) => item.id)).toEqual(['gen-a', 'gen-b', 'gen-c'])
-    // 没超上限就不该删任何东西。
-    expect(removed).toEqual([])
-    expect(deleteGenerationAPI).not.toHaveBeenCalled()
-  })
-
-  it('⭐ 在飞途中被取消的那次，成功回来时也要把刚落库的那张删掉', async () => {
-    const { hook, imported, removed } = setup()
-    let resolveFirst: (value: unknown) => void = () => {}
-    importWebImageAPI.mockReturnValueOnce(
-      new Promise((resolve) => {
-        resolveFirst = resolve
+        data: { generation: generation(imageUrl.slice(-5)) },
       }),
     )
-
-    act(() => {
-      hook.result.current.toggleCandidate('entry-1', CANDIDATE_A)
-    })
-    expect(picksOf(hook)[0]?.status).toBe('importing')
-
-    // 还没回来就取消了 —— 界面上那一格立刻不再是选中的。
-    act(() => {
-      hook.result.current.toggleCandidate('entry-1', CANDIDATE_A)
-    })
-    expect(picksOf(hook)).toHaveLength(0)
-
-    await act(async () => {
-      resolveFirst({ success: true, data: { generation: generation('gen-a') } })
-      await Promise.resolve()
-    })
-
-    // ⛔ 不许挂上去（用户已经不要了），且库里那条必须清掉。
-    expect(imported).toHaveLength(0)
-    expect(removed).toEqual([])
-    await waitFor(() => {
-      expect(deleteGenerationAPI).toHaveBeenCalledWith('gen-a')
-    })
-    expect(picksOf(hook)).toHaveLength(0)
+    const hook = setup()
+    act(() =>
+      hook.result.current.saveCandidates('entry-1', [
+        CANDIDATE_A,
+        CANDIDATE_B,
+        CANDIDATE_C,
+      ]),
+    )
+    expect(importWebImageAPI).toHaveBeenCalledTimes(3)
+    await waitFor(() =>
+      expect(picksOf(hook).map((pick) => pick.status)).toEqual([
+        'saved',
+        'saved',
+        'saved',
+      ]),
+    )
   })
 
-  it('⛔ 清理失败不静默：说出来，让人能去素材页手动删', async () => {
-    deleteGenerationAPI.mockResolvedValue({
-      success: false,
-      error: 'Generation not found or access denied',
-    })
-    const { hook } = setup()
+  it('已存 / 在存的再存一次不重发（同一帧连点也只发一次）', async () => {
+    const hook = setup()
     act(() => {
-      hook.result.current.toggleCandidate('entry-1', CANDIDATE_A)
+      hook.result.current.saveCandidates('entry-1', [CANDIDATE_A])
+      hook.result.current.saveCandidates('entry-1', [CANDIDATE_A])
     })
-    await waitFor(() => {
-      expect(picksOf(hook)[0]?.status).toBe('imported')
-    })
-
-    act(() => {
-      hook.result.current.toggleCandidate('entry-1', CANDIDATE_A)
-    })
-    await waitFor(() => {
-      expect(hook.result.current.states['entry-1']?.cleanupError).toBeTruthy()
-    })
+    expect(importWebImageAPI).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(picksOf(hook)[0]?.status).toBe('saved'))
+    act(() => hook.result.current.saveCandidates('entry-1', [CANDIDATE_A]))
+    expect(importWebImageAPI).toHaveBeenCalledTimes(1)
   })
 })
 
 describe('联网候选 · 失败与隔离', () => {
-  it('⛔ 失败不静默：那一格留着、带原因、不挂任何附件；再点 = 重试', async () => {
-    importWebImageAPI.mockResolvedValue({
-      success: false,
-      error: 'Failed to fetch image (403)',
-    })
-    const { hook, imported } = setup()
-    act(() => {
-      hook.result.current.toggleCandidate('entry-1', CANDIDATE_A)
-    })
-    await waitFor(() => {
-      expect(picksOf(hook)[0]?.status).toBe('error')
-    })
-    expect(picksOf(hook)[0]?.imageUrl).toBe(CANDIDATE_A.imageUrl)
-    expect(imported).toHaveLength(0)
-    // ⛔ 失败的那张没落库，也就没有东西要清。
-    expect(deleteGenerationAPI).not.toHaveBeenCalled()
-
-    importWebImageAPI.mockResolvedValue({
-      success: true,
-      data: { generation: generation('gen-a') },
-    })
-    act(() => {
-      hook.result.current.toggleCandidate('entry-1', CANDIDATE_A)
-    })
-    await waitFor(() => {
-      expect(picksOf(hook)[0]?.status).toBe('imported')
-    })
-    expect(importWebImageAPI).toHaveBeenCalledTimes(2)
-  })
-
-  it('失败的那张不占参考位（上限 1 时仍能选另一张，且不删任何东西）', async () => {
+  it('⛔ 失败不静默：那一格带原因；再存 = 重试', async () => {
     importWebImageAPI.mockResolvedValueOnce({
       success: false,
-      error: 'boom',
+      error: '对方站 403',
     })
-    const { hook, removed } = setup(1)
-    act(() => {
-      hook.result.current.toggleCandidate('entry-1', CANDIDATE_A)
-    })
-    await waitFor(() => {
-      expect(picksOf(hook)[0]?.status).toBe('error')
-    })
-
-    act(() => {
-      hook.result.current.toggleCandidate('entry-1', CANDIDATE_B)
-    })
-    await waitFor(() => {
-      expect(
-        picksOf(hook).find((pick) => pick.imageUrl === CANDIDATE_B.imageUrl)
-          ?.status,
-      ).toBe('imported')
-    })
-    expect(removed).toEqual([])
-    expect(deleteGenerationAPI).not.toHaveBeenCalled()
+    const hook = setup()
+    act(() => hook.result.current.saveCandidates('entry-1', [CANDIDATE_A]))
+    await waitFor(() => expect(picksOf(hook)[0]?.status).toBe('error'))
+    expect(picksOf(hook)[0]).toMatchObject({ error: expect.any(String) })
+    act(() => hook.result.current.saveCandidates('entry-1', [CANDIDATE_A]))
+    expect(importWebImageAPI).toHaveBeenCalledTimes(2)
+    await waitFor(() => expect(picksOf(hook)[0]?.status).toBe('saved'))
   })
 
-  /**
-   * ⭐ 来源闸（切片 3b）：格子上那颗按钮已经是禁用的，这一条钉的是**它背后那道**。
-   * ⚠ 判据是「一次导入都没发出去」+「拒绝理由说出来了」——静默 return 会让
-   * 「我点了但什么都没发生」重新长回来。
-   */
-  it('⛔ 来源不可作输入的候选：一次导入都不发，理由就地说出来', () => {
-    const { hook } = setup()
-    act(() => {
-      hook.result.current.toggleCandidate('entry-1', CANDIDATE_BLOCKED)
-    })
-
-    expect(importWebImageAPI).not.toHaveBeenCalled()
-    expect(picksOf(hook)).toHaveLength(0)
-    expect(hook.result.current.states['entry-1']?.refusalError).toBeTruthy()
-  })
-
-  it('两条日志条各自记自己的选中项（按 entryId 存，不串台）', async () => {
-    const { hook } = setup()
-    act(() => {
-      hook.result.current.toggleCandidate('entry-1', CANDIDATE_A)
-    })
-    await waitFor(() => {
-      expect(picksOf(hook, 'entry-1')[0]?.status).toBe('imported')
-    })
-    importWebImageAPI.mockResolvedValue({
-      success: true,
-      data: { generation: generation('gen-b') },
-    })
-    act(() => {
-      hook.result.current.toggleCandidate('entry-2', CANDIDATE_B)
-    })
-    await waitFor(() => {
-      expect(picksOf(hook, 'entry-2')[0]?.status).toBe('imported')
-    })
-
-    expect(picksOf(hook, 'entry-1')[0]?.generationId).toBe('gen-a')
-    expect(picksOf(hook, 'entry-2')[0]?.generationId).toBe('gen-b')
-    // ⚠ 换选是**条内**的事：entry-2 不该去动 entry-1 挂上的那条。
-    expect(deleteGenerationAPI).not.toHaveBeenCalled()
-  })
-})
-
-/**
- * 🔬 owner 2026-09-07 真机：素材库里出现**成对**重复。服务端已经加了幂等闸
- * （同一条来源已在库里就复用），这里钉的是客户端这一侧的两条。
- */
-describe('联网候选 · 不重复导入（2026-09-07）', () => {
-  it('⭐ 同一张连点两次（同一帧内）只发一次导入 —— ⛔ 不产生第二条资产', async () => {
-    const { hook } = setup(3)
-    act(() => {
-      hook.result.current.toggleCandidate('entry-1', CANDIDATE_A)
-      hook.result.current.toggleCandidate('entry-1', CANDIDATE_A)
-    })
-
+  it('⛔ 来源不可作输入的那张：一次导入都不发，理由就地说出来；能用的照存', () => {
+    const hook = setup()
+    act(() =>
+      hook.result.current.saveCandidates('entry-1', [
+        CANDIDATE_BLOCKED,
+        CANDIDATE_B,
+      ]),
+    )
     expect(importWebImageAPI).toHaveBeenCalledTimes(1)
-    await waitFor(() => {
-      expect(picksOf(hook)[0]?.status).toBe('imported')
+    expect(importWebImageAPI.mock.calls[0][0]).toMatchObject({
+      imageUrl: CANDIDATE_B.imageUrl,
     })
-    expect(picksOf(hook)).toHaveLength(1)
+    expect(hook.result.current.states['entry-1']?.refusalError).toBe(
+      'web.notUsable',
+    )
   })
 
-  it('隔一帧之后再点那一格仍然是**取消**（拍板 21 的可换选没被连点闸吃掉）', async () => {
-    const { hook, removed } = setup()
+  it('两条日志条各记各的（按 entryId 存，不串台）', async () => {
+    const hook = setup()
     act(() => {
-      hook.result.current.toggleCandidate('entry-1', CANDIDATE_A)
+      hook.result.current.saveCandidates('entry-1', [CANDIDATE_A])
+      hook.result.current.saveCandidates('entry-2', [CANDIDATE_B])
     })
     await waitFor(() => {
-      expect(picksOf(hook)[0]?.status).toBe('imported')
+      expect(picksOf(hook, 'entry-1').map((pick) => pick.imageUrl)).toEqual([
+        CANDIDATE_A.imageUrl,
+      ])
+      expect(picksOf(hook, 'entry-2').map((pick) => pick.imageUrl)).toEqual([
+        CANDIDATE_B.imageUrl,
+      ])
     })
-
-    act(() => {
-      hook.result.current.toggleCandidate('entry-1', CANDIDATE_A)
-    })
-    expect(picksOf(hook)).toHaveLength(0)
-    expect(removed).toEqual(['gen-a'])
-    await waitFor(() => {
-      expect(deleteGenerationAPI).toHaveBeenCalledWith('gen-a')
-    })
-  })
-
-  it('⛔ 复用回来的那条（reused）取消选用时**不删素材** —— 那是用户早先的东西', async () => {
-    importWebImageAPI.mockResolvedValue({
-      success: true,
-      data: { generation: generation('gen-a'), reused: true },
-    })
-    const { hook, removed } = setup()
-    act(() => {
-      hook.result.current.toggleCandidate('entry-1', CANDIDATE_A)
-    })
-    await waitFor(() => {
-      expect(picksOf(hook)[0]?.status).toBe('imported')
-    })
-
-    act(() => {
-      hook.result.current.toggleCandidate('entry-1', CANDIDATE_A)
-    })
-    expect(removed).toEqual(['gen-a'])
-    expect(deleteGenerationAPI).not.toHaveBeenCalled()
   })
 })
 
@@ -454,7 +215,7 @@ it.each([
   'user-a:image-tags:thread-2',
   'user-b:image-natural:thread-1',
   'user-a:image-natural:thread-new',
-])('旧转存不修改 %s 的附件或素材', async (nextScope) => {
+])('换到 %s 之后，旧的那次保存回来不写进新作用域', async (nextScope) => {
   let finish!: (value: unknown) => void
   importWebImageAPI.mockImplementationOnce(
     () =>
@@ -462,21 +223,12 @@ it.each([
         finish = resolve
       }),
   )
-  const onImported = vi.fn()
-  const onRemoved = vi.fn()
-  const view = renderHook(
-    ({ scopeKey }) =>
-      useStudioOperatorWebImport({ onImported, onRemoved, limit: 2, scopeKey }),
-    { initialProps: { scopeKey: 'user-a:image-natural:thread-1' } },
-  )
-  act(() => view.result.current.toggleCandidate('entry-old', CANDIDATE_A))
-  view.rerender({ scopeKey: nextScope })
+  const view = setup()
+  act(() => view.result.current.saveCandidates('entry-old', [CANDIDATE_A]))
+  view.rerender({ scope: nextScope })
   expect(view.result.current.states).toEqual({})
   await act(async () =>
     finish({ success: true, data: { generation: generation('late') } }),
   )
-  expect(onImported).not.toHaveBeenCalled()
-  expect(onRemoved).not.toHaveBeenCalled()
-  expect(deleteGenerationAPI).not.toHaveBeenCalled()
   expect(view.result.current.states).toEqual({})
 })

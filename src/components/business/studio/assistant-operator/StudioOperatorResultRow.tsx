@@ -34,7 +34,12 @@ import { motion, useReducedMotion } from 'motion/react'
 import Image from 'next/image'
 import { useFormatter, useTranslations } from 'next-intl'
 
-import { EASE_STANDARD, DURATION, RESULT_REVEAL } from '@/constants/motion'
+import {
+  EASE_STANDARD,
+  DURATION,
+  GENERATING_RING,
+  RESULT_REVEAL,
+} from '@/constants/motion'
 import { STUDIO_OPERATOR_RESULT_STAGGER } from '@/constants/studio-assistant-operator'
 import { BlurSwap } from '@/components/ui/blur-swap'
 import { openOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
@@ -161,6 +166,58 @@ function ResultThumb({
   )
 }
 
+/**
+ * 生成中的占位格（P4 第 8 项，样张 AG）：一根细线沿着格子边**慢慢描一圈**，
+ * 落图时整格由糊变清（`ResultThumb`）。
+ *
+ * ⚠ 服务商不报进度，这根线是**时间感**不是百分比：先快后慢、停在九成，
+ *   ⛔ 不画到头 —— 画满了图还没来，比不画更像卡住了。
+ * ⚠ 线宽不随格子缩放（`vectorEffect`），圆角跟格子的 `rounded-lg` 对齐。
+ */
+function GeneratingTile({
+  index,
+  aspect,
+}: {
+  index: number
+  aspect: { css: string; value: number }
+}) {
+  const reduceMotion = useReducedMotion()
+  return (
+    <span
+      data-testid="operator-result-placeholder"
+      style={tileStyle(aspect)}
+      className="relative overflow-hidden rounded-lg bg-muted"
+    >
+      {/* 内缩 1px 再让描边溢出 0.75px：整根线落在格子里面，⛔ 被 overflow 切掉一半。 */}
+      <span aria-hidden className="pointer-events-none absolute inset-px">
+        <svg className="size-full overflow-visible text-foreground/50">
+          <motion.rect
+            width="100%"
+            height="100%"
+            rx="7"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.5}
+            strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
+            initial={reduceMotion ? false : { pathLength: 0 }}
+            animate={{ pathLength: GENERATING_RING.maxLength }}
+            transition={
+              reduceMotion
+                ? { duration: 0 }
+                : {
+                    duration: GENERATING_RING.seconds,
+                    ease: GENERATING_RING.ease,
+                    delay: index * GENERATING_RING.staggerSeconds,
+                  }
+            }
+          />
+        </svg>
+      </span>
+    </span>
+  )
+}
+
 export function StudioOperatorResultRow({
   entry,
   searchGrounding,
@@ -208,16 +265,7 @@ export function StudioOperatorResultRow({
           </p>
           <div className={grid}>
             {Array.from({ length: count }, (_, index) => (
-              <span
-                key={index}
-                data-testid="operator-result-placeholder"
-                /* P4：图片占位允许骨架（助手文字态才禁骨架），尺寸 = 结果尺寸。 */
-                style={{
-                  ...tileStyle(aspect),
-                  animationDelay: `${index * 120}ms`,
-                }}
-                className="animate-pulse rounded-lg bg-muted motion-reduce:animate-none"
-              />
+              <GeneratingTile key={index} index={index} aspect={aspect} />
             ))}
           </div>
         </>

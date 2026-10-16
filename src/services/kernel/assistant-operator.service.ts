@@ -1554,6 +1554,8 @@ function canvasFullNode(
     referenceUrls: _referenceUrls,
     referencePromptContext: _referencePromptContext,
     reviewContextComplete: _reviewContextComplete,
+    // ⛔ 图地址只给 v3 `look` 取图用，不给模型：拿到地址它就会想贴进提示词。
+    imageUrl: _imageUrl,
     availableModels,
     parameters,
     text: rawText,

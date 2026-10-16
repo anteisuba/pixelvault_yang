@@ -903,7 +903,11 @@ export interface UseAssistantOperatorResult {
    *
    * ⚠ ⛔ 不直接扣扳机：花钱这件事只有确认卡一个入口（见实现处头注）。
    */
-  rerunGeneration(request: AssistantOperatorGenerationRequest): void
+  rerunGeneration(
+    request: AssistantOperatorGenerationRequest,
+    /** 卡一出来就展开的那颗（失败行「换个模型」）。 */
+    openKnob?: StudioOperatorGenerateKnob,
+  ): void
   /**
    * ＋新对话（拍板 10）—— 只清线程，改动与撤销本钱留着。
    * ⚠ 撤销 / 还原**不在这个接口里**：它们有两个宿主（日志条 + 参数栏的 ✦），
@@ -3857,13 +3861,17 @@ export function useAssistantOperator(
    *   绕过它的表现是「点一下『再来一组』，credits 就没了」。
    */
   const rerunGeneration = useCallback(
-    (request: AssistantOperatorGenerationRequest) => {
+    (
+      request: AssistantOperatorGenerationRequest,
+      openKnob?: StudioOperatorGenerateKnob,
+    ) => {
       if (!isCurrentThread()) return
       setOperatorConfirm({
         id: nextOperatorEntryId('confirm'),
         kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate,
         request,
         status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
+        ...(openKnob ? { openKnob } : {}),
       })
     },
     [isCurrentThread],

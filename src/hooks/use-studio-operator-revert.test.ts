@@ -43,7 +43,6 @@ vi.mock('@/contexts/studio-operator-host', () => ({
     domain: 'image',
     workspace: 'image-natural',
     buildSnapshot: () => ({ prompt: '', availableModels: [] }),
-    referenceLimit: 4,
     open: true,
     setOpen: () => {},
     apply: {

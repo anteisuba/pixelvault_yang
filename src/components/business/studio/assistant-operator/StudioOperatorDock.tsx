@@ -207,7 +207,6 @@ export function StudioOperatorDock() {
   const {
     open,
     setOpen,
-    referenceLimit,
     referenceImages,
     apply,
     buildSnapshot,
@@ -910,36 +909,8 @@ export function StudioOperatorDock() {
     return subscribeOperatorChat(consume)
   }, [newThread, setOpen, chatUserName])
 
-  const webImportedUrls = useRef(new Map<string, string>())
-  useLayoutEffect(() => {
-    webImportedUrls.current.clear()
-  }, [attachmentScope])
-  const handleWebImported = useCallback(
-    (attachment: StudioOperatorAttachment) => {
-      webImportedUrls.current.set(attachment.id, attachment.url)
-      handleUploaded(attachment)
-    },
-    [handleUploaded],
-  )
-  const handleWebRemoved = useCallback(
-    (attachmentId: string) => {
-      const url = webImportedUrls.current.get(attachmentId)
-      if (url) {
-        apply.removeReference(url)
-        webImportedUrls.current.delete(attachmentId)
-      }
-      setLocalAttachments((current) =>
-        current.filter((item) => item.id !== attachmentId),
-      )
-    },
-    [apply, setLocalAttachments],
-  )
-  const webImport = useStudioOperatorWebImport({
-    scopeKey: attachmentScope,
-    onImported: handleWebImported,
-    onRemoved: handleWebRemoved,
-    limit: referenceLimit,
-  })
+  /** 找到的图「保存」= 只进素材库（P4 第 12 项），⛔ 不再挂进附件、不占参考位。 */
+  const webImport = useStudioOperatorWebImport({ scopeKey: attachmentScope })
   const [isResizing, setIsResizing] = useState(false)
   const dragRef = useRef<{
     pointerId: number

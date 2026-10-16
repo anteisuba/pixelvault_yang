@@ -689,10 +689,6 @@ export function useLoraOperatorHost(
     hasGenerate,
   ])
 
-  const referenceLimit = Number.isFinite(input.imageUpload.maxImages)
-    ? input.imageUpload.maxImages
-    : ASSISTANT_OPERATOR_LIMITS.maxSnapshotReferences
-
   const results = input.results ?? NO_RESULTS
   const activeRun = input.activeRun
   const { threadScope, localThreadId, pendingResultId } =
@@ -770,7 +766,6 @@ export function useLoraOperatorHost(
       apply,
       results,
       ...(resultRun ? { resultRun } : {}),
-      referenceLimit,
       referenceImages: input.imageUpload.referenceEntries,
       mentions,
       open: input.open,
@@ -784,7 +779,6 @@ export function useLoraOperatorHost(
       input.open,
       input.setOpen,
       input.imageUpload.referenceEntries,
-      referenceLimit,
       results,
       resultRun,
     ],

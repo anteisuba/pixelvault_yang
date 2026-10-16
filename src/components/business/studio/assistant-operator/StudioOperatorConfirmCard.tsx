@@ -162,7 +162,10 @@ export function StudioOperatorConfirmCard({
    * ⚠ 这是**弹层开合**，不是参数：参数一个字都不住在卡里（见文件头注）。
    */
   const [openKnob, setOpenKnob] = useState<StudioOperatorGenerateKnob | null>(
-    null,
+    // 失败行「换个模型」出的卡：模型那颗一出来就展开（P4 第 2 项）。
+    confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate
+      ? (confirm.openKnob ?? null)
+      : null,
   )
   /** 上一次换模型顺手回落掉的那几颗（§5.1「已按 X 调整」那一行）。 */
   const [adjusted, setAdjusted] = useState<

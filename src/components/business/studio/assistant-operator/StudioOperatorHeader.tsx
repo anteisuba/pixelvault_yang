@@ -88,7 +88,6 @@ import { cn } from '@/lib/utils'
 import type { AssistantPersona } from '@/types/assistant-persona'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
 import { useSlowLoadingNotice } from '@/hooks/use-slow-loading-notice'
-import { StudioOperatorChatPill } from '@/components/business/studio/assistant-operator/StudioOperatorChatPill'
 import { StudioOperatorModeSwitch } from '@/components/business/studio/assistant-operator/StudioOperatorModeSwitch'
 import { StudioOperatorSessionRow } from '@/components/business/studio/assistant-operator/StudioOperatorSessionRow'
 import { deriveAssistantConversationTitle } from '@/lib/assistant-conversation-title'
@@ -520,11 +519,6 @@ export function StudioOperatorHeader({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-
-        {/* ── 聊天模式胶囊（附录L）：这段会话是和谁聊。工作会话不画。 */}
-        {chatCharacter ? (
-          <StudioOperatorChatPill character={chatCharacter} />
-        ) : null}
 
         {/* ── 隐身胶囊（56a · 画板 `DesignD56Simple`「隐身开着」）──────
             ⚠ **一枚文字胶囊**，⛔ 不用红点：红点说的是「有东西要你看」，而隐身

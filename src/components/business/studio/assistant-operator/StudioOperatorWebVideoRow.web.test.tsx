@@ -83,7 +83,7 @@ describe('找到的视频 · 一排卡片（搜索期第二片）', () => {
     expect(screen.queryByTestId('operator-web-videos')).toBeNull()
   })
 
-  it('头上一行写搜了什么、找到几个；一张卡：封面 / 平台 / 时长 / 标题 / 频道', () => {
+  it('头上一行写搜了什么、找到几个；一行：封面 / 时长 / 标题 / 频道 · 站', () => {
     renderRow([YOUTUBE, BILIBILI, UNKNOWN_SITE])
     expect(screen.getByTestId('operator-web-videos-caption').textContent).toBe(
       'web.videosFound {"query":"长离 PV","count":3}',
@@ -101,7 +101,8 @@ describe('找到的视频 · 一排卡片（搜索期第二片）', () => {
         .getAllByTestId('operator-web-video-platform')
         .map((badge) => badge.textContent),
     ).toEqual([
-      'web.videoPlatform.youtube',
+      // 封面右边第二行：频道 · 站（P4 竖排）。
+      'Wuthering Waves · web.videoPlatform.youtube',
       'web.videoPlatform.bilibili',
       // 别的站写域名。
       'tiktok.com',
@@ -116,6 +117,22 @@ describe('找到的视频 · 一排卡片（搜索期第二片）', () => {
     expect(
       screen.getAllByTestId('operator-web-video-cover-unavailable'),
     ).toHaveLength(2)
+  })
+
+  it('⭐ 竖着列，先露 3 个，「还有 N 个」放出来（P4 第 13 项）', () => {
+    const five = Array.from({ length: 5 }, (_, index) => ({
+      ...YOUTUBE,
+      url: `https://www.youtube.com/watch?v=video${index}xx`,
+    }))
+    renderRow(five)
+    const rows = screen
+      .getByTestId('operator-web-videos')
+      .querySelectorAll('li')
+    expect([...rows].filter((row) => !row.hidden)).toHaveLength(3)
+    const more = screen.getByTestId('operator-web-videos-more')
+    expect(more.textContent).toContain('"count":2')
+    fireEvent.click(more)
+    expect([...rows].filter((row) => row.hidden)).toHaveLength(0)
   })
 
   it('⭐ 点 YouTube 卡：在面板里播 youtube-nocookie，sandbox 不放行顶层导航，全屏放行', () => {

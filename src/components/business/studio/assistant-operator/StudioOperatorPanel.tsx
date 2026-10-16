@@ -47,11 +47,8 @@ import {
 } from 'react'
 import {
   ArrowUp,
-  AtSign,
   Box,
-  Images,
   Music,
-  Paperclip,
   Play,
   RotateCw,
   Square,
@@ -91,6 +88,7 @@ import {
 } from '@/constants/node-assistant-ops'
 import {
   STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
+  STUDIO_OPERATOR_GENERATE_KNOB_IDS,
   STUDIO_OPERATOR_HISTORY_OPEN_ROUNDS,
   STUDIO_OPERATOR_LIBRARY_PAGE_SIZE,
   STUDIO_OPERATOR_SHELL,
@@ -108,6 +106,7 @@ import {
 } from '@/constants/providers'
 import { SPRING } from '@/constants/motion'
 import { RuleChip } from '@/components/business/studio/assistant-operator/RuleChip'
+import { StudioOperatorAddMenu } from '@/components/business/studio/assistant-operator/StudioOperatorAddMenu'
 import { StudioOperatorEffortChip } from '@/components/business/studio/assistant-operator/StudioOperatorEffortChip'
 import { StudioOperatorModelChip } from '@/components/business/studio/assistant-operator/StudioOperatorModelChip'
 import { StudioOperatorSpecLine } from '@/components/business/studio/assistant-operator/StudioOperatorSpecLine'
@@ -422,6 +421,9 @@ const MENTION_CARD_WIDTH_PX = 256
 
 /** 发送键收着时是一颗 32 的圆键。 */
 const SEND_BUTTON_SIZE_PX = 32
+/** 生成失败那一行尾的两颗小按钮（P4 第 2 项，与反问卡「跳过」同一身）。 */
+const FAIL_ACTION_CLASS =
+  'h-7 rounded-full border border-border px-3 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none coarse:min-h-11'
 
 export function StudioOperatorPanel({
   operator,
@@ -1030,6 +1032,20 @@ export function StudioOperatorPanel({
     inputRef.current?.focus()
   }
 
+  /** ＋ 里点了最近的一张：与素材库挑图同一条路（登记 → 插胶囊 → 记进最近）。 */
+  const insertMentionCandidates = (candidate: AssistantMentionCandidate) => {
+    const key = mentionKey(candidate)
+    if (!draftMentionKeys.has(key)) {
+      composer.register(candidateToMention(candidate))
+      inputRef.current?.insertToken(
+        formatMentionToken(candidate),
+        mentionChipToken(candidate),
+      )
+      composer.remember([key])
+    }
+    inputRef.current?.focus()
+  }
+
   /**
    * 气泡里的 `@` 胶囊点一下（§10b「用户消息气泡里的 chip 也可点、可定位」）：
    * 画布上还在的卡 → 镜头移过去并闪一下；其余有地址的图 / 视频 → 看大图。
@@ -1528,8 +1544,7 @@ export function StudioOperatorPanel({
         }
         placeholderCount={step.payload.limit}
         webImport={webImport.states[item.id]}
-        limit={webImport.limit}
-        onToggle={webImport.toggleCandidate}
+        onSave={webImport.saveCandidates}
         namedFinds={findRefs.named}
       />
     )
@@ -1641,6 +1656,8 @@ export function StudioOperatorPanel({
           />
         ) : (
           <StudioOperatorConfirmCard
+            /* 换一张卡就重挂：「换个模型」那张要一出来就展开模型那颗。 */
+            key={confirm.id}
             confirm={confirm}
             canGenerate={Boolean(
               confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate &&
@@ -2184,29 +2201,66 @@ export function StudioOperatorPanel({
             key={entry.id}
             card={STUDIO_OPERATOR_CARD_KINDS.system}
           >
-            <p
+            <div
               data-testid="operator-system-line"
-              className="text-xs leading-relaxed text-muted-foreground"
+              data-failed={entry.retry ? 'true' : undefined}
+              className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-relaxed text-muted-foreground"
             >
-              {/* ⚠ 两种 subject：`revertField` 存的是**字段 id**（要过词表
+              {/* P4 第 2 项：生成失败只一行 —— 红点 + 原因 +「重试」「换个模型」，
+                  ⛔ 不套框。两颗都出一张新的生成确认卡（钱闸照旧），「换个模型」
+                  那张一出来就展开模型那颗。 */}
+              {entry.retry ? (
+                <span
+                  aria-hidden
+                  className="size-1.5 shrink-0 rounded-full bg-status-risk"
+                />
+              ) : null}
+              <span className="min-w-0">
+                {/* ⚠ 两种 subject：`revertField` 存的是**字段 id**（要过词表
                           才是人话），`undoStep` 存的是模型写的那行标题（本来就是
                           人话，翻译它等于把它弄丢）。 */}
-              {/* ⚠ 第三种 subject：`videoFramesFailed` 存的是抽帧失败的**原因码**
+                {/* ⚠ 第三种 subject：`videoFramesFailed` 存的是抽帧失败的**原因码**
                           （六条修法各不相同，见常量头注），人话在这里过词表。 */}
-              {t(`system.${entry.code}`, {
-                subject: describeSystemSubjects(
-                  entry,
-                  (subject) =>
-                    entry.code === 'revertField'
-                      ? t(`field.${subject}`)
-                      : entry.code === 'videoFramesFailed'
-                        ? t(`videoFrameCaptureReason.${subject}`)
-                        : subject,
-                  (items) => format.list(items),
-                ),
-                count: entry.count ?? 0,
-              })}
-            </p>
+                {t(`system.${entry.code}`, {
+                  subject: describeSystemSubjects(
+                    entry,
+                    (subject) =>
+                      entry.code === 'revertField'
+                        ? t(`field.${subject}`)
+                        : entry.code === 'videoFramesFailed'
+                          ? t(`videoFrameCaptureReason.${subject}`)
+                          : subject,
+                    (items) => format.list(items),
+                  ),
+                  count: entry.count ?? 0,
+                })}
+              </span>
+              {entry.retry ? (
+                <span className="flex shrink-0 items-center gap-1.5">
+                  <button
+                    type="button"
+                    data-testid="operator-generation-retry"
+                    onClick={() => rerunGeneration(entry.retry!)}
+                    className={FAIL_ACTION_CLASS}
+                  >
+                    {t('error.retry')}
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="operator-generation-switch-model"
+                    onClick={() =>
+                      rerunGeneration(
+                        entry.retry!,
+                        STUDIO_OPERATOR_GENERATE_KNOB_IDS.model,
+                      )
+                    }
+                    className={FAIL_ACTION_CLASS}
+                  >
+                    {t('error.switchModel')}
+                  </button>
+                </span>
+              ) : null}
+            </div>
           </StudioOperatorTimelineRow>
         )
       /**
@@ -3157,46 +3211,16 @@ export function StudioOperatorPanel({
                   onMention={() => inputRef.current?.openMention()}
                 />
               ) : (
-                <>
-                  <button
-                    type="button"
-                    data-testid="operator-attach-toggle"
-                    aria-label={t('attach.label')}
-                    title={t('attach.label')}
-                    onClick={() => uploadInputRef.current?.click()}
-                    className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
-                  >
-                    <Paperclip className="size-4" aria-hidden />
-                  </button>
-                  {/* 素材库（切片 #7c）：点开 `AssetSelectorDialog` 挑库里的图挂给助手。 */}
-                  <button
-                    type="button"
-                    data-testid="operator-library-toggle"
-                    aria-label={t('library.label')}
-                    title={t('library.label')}
-                    onClick={() => setLibraryOpen(true)}
-                    className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
-                  >
-                    <Images className="size-4" aria-hidden />
-                  </button>
-                  {/* `@` 的触屏入口（§10b「输入框旁加 @ 按钮」）：在光标处写一个 `@` 并打开
-                菜单。⚠ `onMouseDown` preventDefault：点它不能先让输入框失焦（光标位置
-                要留着）。 */}
-                  <button
-                    type="button"
-                    data-testid="operator-mention-button"
-                    aria-label={t('mention.button')}
-                    title={t('mention.button')}
-                    aria-haspopup="listbox"
-                    aria-expanded={mentionMenu.open}
-                    aria-controls={mentionMenu.binding.listId}
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => inputRef.current?.openMention()}
-                    className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none coarse:size-11"
-                  >
-                    <AtSign className="size-4" aria-hidden />
-                  </button>
-                </>
+                /*
+                  ⭐ 电脑上 **＋**（P4 第 4 项）：最近的图 / 从素材挑图 / 上传文件 / @ 角色或素材
+                    收进一个弹层，⛔ 不再并排三颗裸图标。
+                */
+                <StudioOperatorAddMenu
+                  onPickRecent={insertMentionCandidates}
+                  onOpenLibrary={() => setLibraryOpen(true)}
+                  onUpload={() => uploadInputRef.current?.click()}
+                  onMention={() => inputRef.current?.openMention()}
+                />
               )}
               <input
                 ref={uploadInputRef}

@@ -506,6 +506,17 @@ describe('StudioOperatorConfirmCard', () => {
     expect(onAdjust).toHaveBeenLastCalledWith('resolution', '2048')
   })
 
+  it('失败行「换个模型」出的卡：模型那颗一出来就展开（P4 第 2 项）', () => {
+    renderCard({ ...GENERATE, openKnob: 'model' } as ConfirmCardPrompt, {
+      controls: CONTROLS,
+    })
+    expect(
+      screen
+        .getAllByTestId('operator-confirm-knob-option')
+        .map((node) => node.dataset.value),
+    ).toEqual(['flux-2-flash', 'seedream-4'])
+  })
+
   it('⭐ 换模型：下拉列当前域全部模型，点中就写回，并就地写一行「已按 X 调整」', () => {
     const onAdjust = vi.fn(() => ['aspect', 'resolution'] as const)
     renderCard(GENERATE, { controls: CONTROLS, onAdjust })

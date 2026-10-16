@@ -8389,6 +8389,15 @@
       }
     },
     "web": {
+      "barSelected": "{count} 枚を選択",
+      "barSaving": "{count} 枚を素材に保存中…",
+      "clear": "クリア",
+      "save": "保存",
+      "saveFailed": "{handle} を保存できませんでした：{reason}",
+      "savedCandidate": "{handle} は素材に保存済み。@ で使えます",
+      "moreImages": "あと {count} 枚",
+      "moreVideos": "あと {count} 件",
+      "videoListLabel": "見つかった動画 {count} 件",
       "found": "Google 画像を検索：{query} · {count} 枚",
       "searching": "Google 画像を検索中：{query}…",
       "blockedNote": "{domains}：{reason}",
@@ -8396,11 +8405,9 @@
       "previewUnavailable": "この画像は元サイトから読み込めませんでした",
       "importFailedShort": "取得不可",
       "importFailed": "この画像は取得できませんでした",
-      "cleanupFailed": "入れ替えた方をライブラリから削除できませんでした。素材ページで削除してください",
       "publisherUnknown": "不明",
       "openPage": "掲載ページを開く",
       "notUsable": "このサイトは AI での利用を認めていないか、出所の分からない転載サイトです。元ページは開けますが、アセットには保存できません。",
-      "useAll": "{count} 枚を添付",
       "notUsableHotlink": "このサイトは他サイトからの画像取得を受け付けていません。元ページは開けますが、アセットには保存できません。",
       "videosFound": "動画を検索：{query} · {count} 本",
       "videosSearching": "動画を検索中：{query}…",
@@ -8423,29 +8430,9 @@
       "findNamed": "回答で挙げた候補",
       "readSnippetOnly": "ページ本文は読めませんでした（サイトに拒否されたか、読み込めませんでした）。以下は検索結果の抜粋だけです。",
       "stripLabel": "見つかった画像 {count} 枚。入りきらない分は横にスクロール",
-      "videoStripLabel": "見つかった動画 {count} 本。入りきらない分は横にスクロール",
-      "barIdle": "画像右上の丸をタップして選択（複数選べます）",
-      "barRoom": "あと {free} 枚添付できます · 画像をタップで拡大表示（ダウンロードしません）",
-      "barStaged": "{count} 枚選択中",
-      "barRoomCommit": "あと {free} 枚添付できます · 添付すると入力欄に入り、アセットにも保存されます",
-      "barNoRoomStaged": "これ以上添付できません。入れ替えるには選択を 1 枚外してください",
-      "barFull": "添付できる上限です（最大 {limit} 枚）",
-      "barFullHint": "「添付済み」の丸をタップすると外せます",
-      "barImporting": "{count} 枚をアセットに保存して添付中…",
-      "selectAll": "使えるものを全選択",
-      "statusUsable": "使用可",
-      "statusUsableUnknownLicense": "使用可 · ライセンス不明",
-      "statusStaged": "選択中",
-      "statusImported": "添付済み",
-      "statusImporting": "保存中…",
-      "statusViewOnly": "掲載ページでのみ閲覧可",
       "selectCandidate": "{handle} を選択",
       "unselectCandidate": "{handle} の選択を外す",
-      "reselectCandidate": "{handle} は前回取得できませんでした。選択して再試行",
-      "unmountCandidate": "{handle} は添付済み。タップで外す",
-      "namedBadge": "回答で言及",
       "openPageOf": "{site} の掲載ページを開く",
-      "videoModePlay": "ここで再生",
       "videoModePlaying": "下で再生中"
     },
     "queue": {
@@ -8506,6 +8493,16 @@
         "character": "キャラクター",
         "lora": "LoRA"
       }
+    },
+    "addMenu": {
+      "label": "追加",
+      "recent": "最近の画像",
+      "all": "すべて",
+      "loading": "読み込み中…",
+      "empty": "素材ライブラリにまだ画像がありません",
+      "library": "素材から選ぶ",
+      "upload": "ファイルをアップロード",
+      "mention": "@ キャラや素材"
     },
     "library": {
       "label": "素材ライブラリ",
@@ -8657,10 +8654,10 @@
       "estimateMinutes": "約 {count} 分"
     },
     "answer": {
-      "media": "資料",
       "sources": "出典",
       "citation": "出典 {index}",
       "deepResearch": "詳しく調べる",
+      "more": "その他",
       "searchXWithGrok": "Grok で X を検索 · Grok の利用枠を使用"
     },
     "message": {
@@ -8786,7 +8783,6 @@
     },
     "stopShort": "停止",
     "chat": {
-      "pill": "{name}とチャット中",
       "group": "{name}とのチャット",
       "workGroup": "作業",
       "newChatThread": "{name}と新しいチャット",

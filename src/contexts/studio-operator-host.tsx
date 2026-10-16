@@ -182,12 +182,7 @@ export interface StudioOperatorHost {
    * ⛔ 不进对话历史；那一批已经不是工作台当前这一轮了 / 刷新过 = `null`。
    */
   searchGroundingForResult?(resultId: string): SearchGroundingRailState | null
-  /**
-   * 参考位上限（拍板 21：联网候选一行能选几张）。
-   *
-   * ⚠ 宿主自己兜底 `Infinity`：工作台那边是 `StudioDockPanelArea` 的 effect 跑到
-   * 之前的中间态，装配台那边是「这个底模不吃参考图」（0）。
-   */
+  /** 工作台此刻挂着的参考图（助手看得见、能 @）。 */
   referenceImages: readonly {
     url: string
     name?: string
@@ -198,7 +193,6 @@ export interface StudioOperatorHost {
      */
     implicit?: boolean
   }[]
-  referenceLimit: number
   /**
    * 面板开合。
    *

@@ -80,6 +80,8 @@ export interface V4GenerationPlan {
   readonly kind: 'image' | 'audio' | 'video'
   readonly modelId: string
   readonly apiKeyId?: string
+  /** 产物在素材库里的名字用卡名（见 `NodeMediaGenerationInput.displayLabel`）。 */
+  readonly displayLabel?: string
   readonly prompt: string
   readonly negativePrompt?: string
   readonly aspectRatio?: AspectRatio
@@ -245,8 +247,10 @@ export function planV4Generation(
   const pickedCharacters = characters.filter(
     (character) => character.picks.length > 0,
   )
+  const displayLabel = data.name?.trim()
   const base = {
     modelId: data.model.modelId,
+    ...(displayLabel ? { displayLabel } : {}),
     ...(data.model.apiKeyId ? { apiKeyId: data.model.apiKeyId } : {}),
     ...(characters.length > 0
       ? { characterCardIds: characters.map((character) => character.card.id) }
@@ -748,6 +752,7 @@ export function useNodeMediaGenerationV4() {
             modelId: plan.modelId,
             prompt: plan.shotPrompts?.[index] ?? plan.prompt,
             ...(plan.apiKeyId ? { apiKeyId: plan.apiKeyId } : {}),
+            ...(plan.displayLabel ? { displayLabel: plan.displayLabel } : {}),
             ...(plan.aspectRatio ? { aspectRatio: plan.aspectRatio } : {}),
             ...(plan.resolution ? { resolution: plan.resolution } : {}),
             ...(plan.duration === undefined ? {} : { duration: plan.duration }),

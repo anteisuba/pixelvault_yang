@@ -761,6 +761,17 @@ export const AssistantOperatorCanvasNodeSchema = z.object({
     .url()
     .max(ASSISTANT_MEDIA_LIMITS.maxUrlLength)
     .optional(),
+  /**
+   * 图片卡自己那张图的地址：v3 `look` 看一张没被 @ 的图片卡时按它取（服务端下载，防 SSRF）。
+   * ⚠ 以前只靠 `referenceImageIndex` 去 `references.items`（最多 16 张、按先出现排）里找，
+   * 画布图一多，刚出的那几张排在 16 之外就看不到（owner 2026-10-16 马尔福画布）。
+   * 挂图、连线照旧只认节点 id，⛔ 别拿它当句柄。
+   */
+  imageUrl: z
+    .string()
+    .url()
+    .max(ASSISTANT_MEDIA_LIMITS.maxUrlLength)
+    .optional(),
   /** 正在生成（卡上转着圈）。不给的话问「哪些还没出」时模型只能逐张去读（v3 回放 T23）。 */
   generating: z.literal(true).optional(),
   /**
@@ -1056,6 +1067,14 @@ export const AssistantOperatorSnapshotSchema = z.object({
     .max(LIMITS.maxSpecOptions)
     .optional(),
   references: AssistantOperatorSnapshotReferencesSchema.optional(),
+  /**
+   * 工作台舞台上**最新一批**出好的图（`result-1` 是第一张）：v3 `look` 按它直接看，
+   * ⛔ 不用创作者再 @（owner 2026-10-16）。只有图片，只读，⛔ 不是参考位。
+   */
+  results: z
+    .array(AssistantOperatorSnapshotReferenceSchema)
+    .max(LIMITS.maxSnapshotResults)
+    .optional(),
   /** ⚠ 缺席 = 没有具名帧槽（图片档 / 多图参考档 / 全能参考档）。见 schema 头注。 */
   frameReferences: AssistantOperatorSnapshotFrameReferencesSchema.optional(),
   /** ⚠ 缺席 = 没有角色构图（非 NovelAI V4.5 / V5）。见 schema 头注。 */

@@ -1,35 +1,27 @@
 'use client'
 
 /**
- * 联网候选的**「选用」**（P3-B，2026-08-31 按拍板 21 重做）。
+ * 联网候选的**「保存」**（P3-B → 拍板 21 → P4 第 12 项，owner 2026-10-16）。
  *
  * ── 拍板 21：看与选是两件事 ──────────────────────────────────────
- * 🔬 owner 真机：点一下缩略图＝立刻下载一张进素材库。**浏览即采购** —— 想看清楚
- * 那张图长什么样，代价就是库里多一条记录；换个选择再多一条，而且换掉的还留着。
- * 现在：点图＝开灯箱（零网络零入库，那条链根本不经过这里），点「选用」＝才导入。
+ * 🔬 owner 真机：点一下缩略图＝立刻下载一张进素材库。**浏览即采购**。
+ * 现在：点图＝开灯箱（零网络零入库，那条链根本不经过这里），点圈＝只是选上（格子
+ * 自己的状态），按「保存」＝才导入。
  *
- * ── 一句话形状 ────────────────────────────────────────────────────
- * 用户在候选行上点「选用」→ 这里调 `POST /api/studio/web-image-import` 把那一张
- * 转存进 R2 并落成一条 Generation → 出口与上传、与素材库挑图**是同一个**：
- * `toOperatorAttachment` → 那唯一的附件数组。
- * ⭐ 这条是验收线：转存来的附件在下游必须与库里挑的分不出来。
+ * ── P4：保存 = 只进素材库，⛔ 不再挂进输入框 ──────────────────────
+ * owner 2026-10-16「直接保存吧，点击后放到素材库中。后面可以直接引用」。以前叫「附上」：
+ * 导入之后顺手塞进附件、占一个参考位 —— 用户读不懂「附上」是什么意思，参考位上限还
+ * 把「多存几张」也卡住了。现在存下来就是素材库里的一条，要用时 `@` 它（与库里别的
+ * 素材同一条路），⛔ 没有参考位上限、⛔ 没有「取下」。
  *
- * ── 「零残留」是什么意思（拍板 21 的后半句）──────────────────────
- * 取消选用 / 被换下来的那一张，**走产品既有的删除路径清掉**
- * （`deleteGenerationAPI` → `DELETE /api/generations/[id]`，带 ownership 校验与
- * R2 清理，素材页删素材走的就是它）。判据是「这张是本流程刚导入的」——
- * 也只有这些在表里，用户库里原有的东西这条链根本碰不到。
- * ⛔ 别在这里另写一条删除：那会绕开 ownership 校验与 R2 清理。
- *
- * ── 可以选几张 ────────────────────────────────────────────────────
- * 上限 = 工作台参考位（快照的 `references.limit`，由宿主传进来）。**按候选行计**：
- * 一行就是用户此刻在做的那一次挑选。满了再点 = 换掉**最早**那张（拍板 18 的
- * 「可换选」在多选下的自然推广），⛔ 不做「点了没反应」。
+ * ⚠ 存好的那张**不撤**：它已经是用户库里的东西（可能已经被 `@` 进了别处），
+ *   撤销保存 = 去素材页删，⛔ 这里不另写一条删除。
+ * ⚠ 服务端认出同一条来源已经在库里会直接复用（幂等闸），对这一格来说一样是「已存」。
  *
  * ── 状态为什么按 entryId 存 ───────────────────────────────────────
  * 一轮里可以有多条 `search_web_images` 日志（换个词再搜一次），每条各有自己的
- * 选中项。按工具名或按 step.id 存都会串台 —— 服务端每轮从 `step-1` 重新编号
- * （见 `operatorStepEntryId` 头注），只有线程里的 `entryId` 是全局唯一的。
+ * 选中项。服务端每轮从 `step-1` 重新编号（见 `operatorStepEntryId` 头注），只有
+ * 线程里的 `entryId` 是全局唯一的。
  */
 
 import {
@@ -42,76 +34,41 @@ import {
 import { useTranslations } from 'next-intl'
 
 import { getApiErrorMessage } from '@/lib/api-error-message'
-import { deleteGenerationAPI } from '@/lib/api-client/gallery'
 import { importWebImageAPI } from '@/lib/api-client/web-image-import'
-import { toOperatorAttachment } from '@/hooks/use-studio-operator-upload'
 import type { AssistantOperatorWebImage } from '@/types/assistant-operator'
-import type { StudioOperatorAttachment } from '@/types/studio-assistant-operator'
 
-/**
- * 一张被「选用」的候选。
- *
- * ⚠ `generationId` **同时就是附件 id**（`toOperatorAttachment` 拿
- * `generation.id` 当附件 id），所以不存两份：摘附件与删素材认的是同一个值，
- * 存两份只会制造「它们可能不一样」的错觉。
- */
+/** 一张按过「保存」的候选。 */
 export interface StudioOperatorWebImportPick {
-  /** 候选的原图直链 —— 候选行按它认自己这一格选没选。 */
+  /** 候选的原图直链 —— 格子按它认自己这一张存没存。 */
   imageUrl: string
-  status: 'importing' | 'imported' | 'error'
-  /** 落库那条记录的 id（`imported` 时才有）。取消选用时按它删。 */
+  status: 'saving' | 'saved' | 'error'
+  /** 素材库里那条记录的 id（`saved` 时才有）。 */
   generationId?: string
-  /**
-   * 这条素材**不是这一次导进来的**——服务端认出同一条来源已经在库里，直接复用了
-   * （2026-09-07 的幂等闸）。
-   *
-   * ⚠ 取消选用时**不删它**：拍板 21 的「零残留」说的是「清掉本流程刚导入的」，
-   * 而复用回来的这条是用户早先的东西（很可能还挂在别处当参考图）。删掉它就是
-   * 拿一条纪律去毁另一条。
-   */
-  reused?: boolean
   /** 失败原因，⛔ 大声显示不静默。 */
   error?: string
 }
 
 export interface StudioOperatorWebImportState {
-  /** 这一行此刻选用了哪些，**按点击先后**（满了之后换掉的就是第一个）。 */
   picks: readonly StudioOperatorWebImportPick[]
-  /** 清掉换下来那张时失败了 —— 说出来，否则那条残留没人知道（拍板 21）。 */
-  cleanupError?: string
   /**
-   * 这一行上有人点了一张**来源不可作输入**的候选（切片 3b）。
-   *
-   * ⚠ 与 `picks[].error` 分开：那条是「试过了，没成」（格子上还留着，可以重试），
-   * 这条是「压根没试」——它连一个 pick 都不该产生，否则那一格会长出一颗永远点不通
-   * 的「重试」。⛔ 也不做静默 return：本仓最难查的失败就是「我点了但什么都没发生」。
+   * 这一行上有人要存一张**来源不可作输入**的候选（切片 3b）——压根没试，
+   * ⛔ 也不做静默 return（「我点了但什么都没发生」）。
    */
   refusalError?: string
 }
 
 export interface UseStudioOperatorWebImportResult {
-  /** 按线程条目 id 取选用态。没点过「选用」的条目没有键。 */
+  /** 按线程条目 id 取保存态。没存过的条目没有键。 */
   states: Readonly<Record<string, StudioOperatorWebImportState>>
-  /** 一行最多能选几张 —— 候选行上「已选 n/m」写的就是它。 */
-  limit: number
-  /**
-   * 点「选用」：没选过 = 导入并挂上；已选 = 取消选用（摘附件 + 清素材）；
-   * 上次失败的那张 = 再试一次。
-   */
-  toggleCandidate(entryId: string, image: AssistantOperatorWebImage): void
+  /** 「保存」：把选上的几张导进素材库。已存 / 在存的跳过，上次失败的再试一次。 */
+  saveCandidates(
+    entryId: string,
+    images: readonly AssistantOperatorWebImage[],
+  ): void
 }
 
 interface UseStudioOperatorWebImportOptions {
   scopeKey: string | null
-  /** 转存成功 —— 宿主把它塞进那唯一的附件数组。 */
-  onImported(attachment: StudioOperatorAttachment): void
-  /** 取消选用 / 被换下来 —— 宿主把那条附件从消息上摘掉。 */
-  onRemoved(attachmentId: string): void
-  /**
-   * 参考位上限（快照的 `references.limit`）。
-   * ⚠ 必传：给个默认值的表现是「上限静默变成 1」，而那正是本轮要修的行为。
-   */
-  limit: number
 }
 
 /** 在飞请求的身份 —— 一行里可以同时飞好几张，所以按「行 + 图」计。 */
@@ -119,17 +76,7 @@ function inflightKey(entryId: string, imageUrl: string): string {
   return `${entryId}\u0000${imageUrl}`
 }
 
-/** 占着一个参考位的那些（失败的不占：它什么都没挂上）。 */
-function occupying(
-  picks: readonly StudioOperatorWebImportPick[],
-): readonly StudioOperatorWebImportPick[] {
-  return picks.filter((pick) => pick.status !== 'error')
-}
-
 export function useStudioOperatorWebImport({
-  onImported,
-  onRemoved,
-  limit,
   scopeKey,
 }: UseStudioOperatorWebImportOptions): UseStudioOperatorWebImportResult {
   const t = useTranslations('StudioOperator')
@@ -144,30 +91,18 @@ export function useStudioOperatorWebImport({
   }
   const scopeEpoch = useRef(0)
 
-  /**
-   * ⚠ 一次转存要几秒（服务端去第三方站取图 + 落 R2），跨很多次 render ——
-   * 回调走 latest-ref，与 `use-assistant-operator` / `use-studio-operator-upload`
-   * 同一个写法。⚠ 写在 effect 里，不在 render 阶段（`react-hooks/refs`）。
-   */
-  const latest = useRef({ onImported, onRemoved, limit, t, tErrors })
+  /** ⚠ 一次转存要几秒，跨很多次 render —— 文案走 latest-ref（写在 effect 里）。 */
+  const latest = useRef({ t, tErrors })
   useEffect(() => {
-    latest.current = { onImported, onRemoved, limit, t, tErrors }
-  }, [onImported, onRemoved, limit, t, tErrors])
+    latest.current = { t, tErrors }
+  }, [t, tErrors])
 
-  /**
-   * ⭐ 当前态也走 latest-ref，于是 `toggleCandidate` 的**引用是稳定的**。
-   *
-   * ⚠ 这不是洁癖：它作为 prop 传给 `memo` 过的 `StudioOperatorLogItem`。把
-   * `states` 写进依赖数组，每选一次就换一次函数引用，整条日志流的每一条都跟着
-   * 重渲染 —— 那个 `memo` 就白加了（而它看起来还在那儿，最难发现的一类失效）。
-   */
+  /** ⭐ 同一帧内的连点闸：`inflightRef` 是**同步**写的，认得出「这一格已经在路上了」。 */
+  const inflightRef = useRef<Set<string>>(new Set())
   const statesRef = useRef(states)
   useEffect(() => {
     statesRef.current = states
   }, [states])
-
-  const seqRef = useRef(0)
-  const inflightRef = useRef<Map<string, number>>(new Map())
   useLayoutEffect(() => {
     const inflight = inflightRef.current
     scopeEpoch.current += 1
@@ -194,61 +129,24 @@ export function useStudioOperatorWebImport({
     [],
   )
 
-  /**
-   * 清掉一张**本流程导入的**素材（拍板 21 的零残留）。
-   *
-   * ⚠ 复用产品既有的删除路径，⛔ 不新写：那条路由带着 ownership 校验与 R2 清理
-   * （素材页删素材走的就是它）。失败**说出来** —— 一条谁都不知道的残留比一条
-   * 看得见的残留糟得多。
-   */
-  const cleanup = useCallback(
-    (entryId: string, generationId: string) => {
-      const epoch = scopeEpoch.current
-      void deleteGenerationAPI(generationId).then((response) => {
-        if (scopeEpoch.current !== epoch) return
-        if (response.success) return
-        patch(entryId, (current) => ({
-          ...current,
-          cleanupError: response.error ?? latest.current.t('web.cleanupFailed'),
-        }))
-      })
-    },
-    [patch],
-  )
-
-  /** 取消选用：摘附件 + 清素材 + 从这一行的选中表里去掉。 */
-  const drop = useCallback(
-    (entryId: string, pick: StudioOperatorWebImportPick) => {
-      // 在飞的那次要知道自己已经过期了（下面 resolve 时按 key 对表）。
-      inflightRef.current.delete(inflightKey(entryId, pick.imageUrl))
-      patch(entryId, (current) => ({
-        ...current,
-        picks: current.picks.filter((item) => item.imageUrl !== pick.imageUrl),
-      }))
-      if (!pick.generationId) return
-      latest.current.onRemoved(pick.generationId)
-      // 复用回来的那条不是这一次导入的 —— 摘附件就够了，⛔ 不删素材。
-      if (pick.reused) return
-      cleanup(entryId, pick.generationId)
-    },
-    [cleanup, patch],
-  )
-
-  const startImport = useCallback(
-    (entryId: string, image: AssistantOperatorWebImage) => {
-      const epoch = scopeEpoch.current
-      const key = inflightKey(entryId, image.imageUrl)
-      seqRef.current += 1
-      const token = seqRef.current
-      inflightRef.current.set(key, token)
-
+  const setPick = useCallback(
+    (entryId: string, pick: StudioOperatorWebImportPick) =>
       patch(entryId, (current) => ({
         ...current,
         picks: [
-          ...current.picks.filter((item) => item.imageUrl !== image.imageUrl),
-          { imageUrl: image.imageUrl, status: 'importing' },
+          ...current.picks.filter((item) => item.imageUrl !== pick.imageUrl),
+          pick,
         ],
-      }))
+      })),
+    [patch],
+  )
+
+  const saveOne = useCallback(
+    (entryId: string, image: AssistantOperatorWebImage) => {
+      const epoch = scopeEpoch.current
+      const key = inflightKey(entryId, image.imageUrl)
+      inflightRef.current.add(key)
+      setPick(entryId, { imageUrl: image.imageUrl, status: 'saving' })
 
       void importWebImageAPI({
         imageUrl: image.imageUrl,
@@ -257,122 +155,59 @@ export function useStudioOperatorWebImport({
         ...(image.title ? { title: image.title } : {}),
       }).then((response) => {
         if (scopeEpoch.current !== epoch) return
-        /**
-         * 过期的那次：用户在网络往返途中把它取消了（或又点了一遍）。
-         * ⭐ 成功的那一半**必须把刚落库的那张删掉** —— 否则「我明明取消了」
-         * 的代价是库里静静躺着一张谁都没要的图，正是拍板 21 要消灭的残留。
-         */
-        if (inflightRef.current.get(key) !== token) {
-          // ⚠ 复用回来的那条不归这一次管（见 `reused` 头注）——⛔ 别删。
-          if (response.success && !response.data.reused) {
-            cleanup(entryId, response.data.generation.id)
-          }
-          return
-        }
         inflightRef.current.delete(key)
-
         if (!response.success) {
-          const message = getApiErrorMessage(
-            latest.current.tErrors,
-            response,
-            latest.current.t('web.importFailed'),
-          )
-          patch(entryId, (current) => ({
-            ...current,
-            picks: current.picks.map((item) =>
-              item.imageUrl === image.imageUrl
-                ? { imageUrl: item.imageUrl, status: 'error', error: message }
-                : item,
+          setPick(entryId, {
+            imageUrl: image.imageUrl,
+            status: 'error',
+            error: getApiErrorMessage(
+              latest.current.tErrors,
+              response,
+              latest.current.t('web.importFailed'),
             ),
-          }))
+          })
           return
         }
-
-        const attachment = toOperatorAttachment(
-          response.data.generation,
-          image.title || image.domain,
-        )
-        patch(entryId, (current) => ({
-          ...current,
-          picks: current.picks.map((item) =>
-            item.imageUrl === image.imageUrl
-              ? {
-                  imageUrl: item.imageUrl,
-                  status: 'imported',
-                  generationId: attachment.id,
-                  ...(response.data.reused ? { reused: true } : {}),
-                }
-              : item,
-          ),
-        }))
-        latest.current.onImported(attachment)
+        setPick(entryId, {
+          imageUrl: image.imageUrl,
+          status: 'saved',
+          generationId: response.data.generation.id,
+        })
       })
     },
-    [cleanup, patch],
+    [setPick],
   )
 
-  const toggleCandidate = useCallback(
-    (entryId: string, image: AssistantOperatorWebImage) => {
+  const saveCandidates = useCallback(
+    (entryId: string, images: readonly AssistantOperatorWebImage[]) => {
       if (!scopeKey) return
-      /**
-       * ⭐ 来源闸（切片 3b）：格子上那颗按钮已经是禁用的，这里再挡一道。
-       *
-       * ⚠ 两处写不是重复：按钮是**说给人听的**（禁用 + 就地一句理由），这一道是
-       * **真的守住的那道**——键盘、脚本、以及下一个人把 `disabled` 改掉的那天。
-       * 服务端 `import_user_url` 上还有第三道，判据是同一张表。
-       */
-      if (!image.usableAsInput) {
-        patch(entryId, (current) => ({
-          ...current,
-          refusalError: latest.current.t('web.notUsable'),
-        }))
-        return
-      }
-
-      // 上一次的拒绝理由**只说一次**：这次点的这张能用，那句话就该消失，
-      // ⛔ 别让它挂在行尾变成一条与当前动作无关的红字。
-      if (statesRef.current[entryId]?.refusalError) {
-        patch(entryId, (current) => ({ ...current, refusalError: undefined }))
-      }
-
-      /**
-       * ⭐ **同一帧内的连点闸**（2026-09-07）：`statesRef` 由 effect 同步，所以
-       * 「挂上 N 张」的循环与紧挨着的一次「选用」读到的是**同一份旧态** ——
-       * 两次都会走「没选过 → 导入」，于是同一张图飞出去两次。`inflightRef` 是
-       * **同步**写的，它才认得出「这一格已经在路上了」。
-       *
-       * ⚠ 判据是「这一格在飞 **而这一帧的选中表里还没有它**」：真人隔一帧再点
-       * 那一格的意思是取消（拍板 21，`picks` 那时已经有这一格了），⛔ 别把那条
-       * 也一起挡掉 —— 那会变成「在飞的取消不了」。
-       */
-      const flying = inflightRef.current.has(
-        inflightKey(entryId, image.imageUrl),
-      )
       const picks = statesRef.current[entryId]?.picks ?? []
-      const existing = picks.find((pick) => pick.imageUrl === image.imageUrl)
-      if (flying && !existing) return
-
-      if (existing) {
-        // 在飞的那张再点一次 = 取消（`drop` 会让回来的那次自己去清理）。
-        // 已入库的 = 取消选用。失败的 = 再试一次。
-        if (existing.status === 'error') {
-          startImport(entryId, image)
-          return
+      let refused = false
+      for (const image of images) {
+        /**
+         * ⭐ 来源闸（切片 3b）：格子上不给不可用的那张画圈，这里再挡一道 ——
+         * 键盘、脚本、以及下一个人把那道条件改掉的那天。服务端还有第三道。
+         */
+        if (!image.usableAsInput) {
+          refused = true
+          continue
         }
-        drop(entryId, existing)
-        return
+        if (inflightRef.current.has(inflightKey(entryId, image.imageUrl)))
+          continue
+        const status = picks.find(
+          (pick) => pick.imageUrl === image.imageUrl,
+        )?.status
+        if (status === 'saved' || status === 'saving') continue
+        saveOne(entryId, image)
       }
-
-      // 满了：换掉**最早**那张（`picks` 按点击先后存），⛔ 不做「点了没反应」。
-      const taken = occupying(picks)
-      const first = taken[0]
-      if (taken.length >= latest.current.limit && first) {
-        drop(entryId, first)
-      }
-      startImport(entryId, image)
+      // 拒绝理由只说这一次：这次全都能存，上一次那句就该消失。
+      patch(entryId, (current) => ({
+        ...current,
+        refusalError: refused ? latest.current.t('web.notUsable') : undefined,
+      }))
     },
-    [drop, patch, scopeKey, startImport],
+    [patch, saveOne, scopeKey],
   )
 
-  return { states, limit, toggleCandidate }
+  return { states, saveCandidates }
 }

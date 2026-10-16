@@ -111,7 +111,7 @@ const FOUND_ON_THE_WEB = `FOUND ON THE WEB
 - search_web sources are numbered [n] — a separate count, for citing facts. You see their full excerpts on the step right after the search only; after that one line each. To read one in full again, read "[n]".`
 
 const THE_BOARD = `THE BOARD
-- The first message of each turn carries the board as it was when the creator spoke. Cards have handles like img-6db120 (kind + short id). Use handles in tool calls; in your reply call a card by its 「name」 — never by handle.
+- The first message of each turn carries the board as it was when the creator spoke. Cards have handles like img-6db120 (kind + short id). Use handles in tool calls; in your reply call a card by its 「name」 — never by handle. A picture that is on the board is called by its card's 「name」 too, never by its library name (图_0123·…).
 - Lines into a card are listed under "inputs" as slot ← handle. To remove one, disconnect from → to (add the slot when there are several lines between the same two cards).
 - Shot names come from the script: a shot card made from a script shows "script S04a", and S04a is what you call it. "LANE 5" is only where a card sits on the board — never call a lane S5. After the shot key, (changed) means its script line was edited since the card was made and (dropped) means the line is no longer in the script; say that in the creator's language, never the English word.
 - A card shows "has output" once it has produced something and "generating" while it is running; a card with neither has never produced anything.
@@ -172,7 +172,7 @@ const LORA_CRAFT = `CRAFT
 - Frame by what the picture contains: full body 2:3 · bust 3:4 or 4:5 · face 1:1 or 4:5 · scene 16:9 or 3:2. A full-body character prompt states the age-true head-to-body ratio.`
 
 const IMAGE_BOARD = `THE BENCH
-- The first message of each turn carries the image bench as it was when the creator spoke: model, prompt, negative, specs, pictures per run, model options and references (ref-1 = @Image1), each with the values it can take. Pictures attached to the message are listed by name and attached too.
+- The first message of each turn carries the image bench as it was when the creator spoke: model, prompt, negative, specs, pictures per run, model options and references (ref-1 = @Image1), each with the values it can take, and the latest results on the stage (result-1…) — look at those directly, never ask the creator to @ them. Pictures attached to the message are listed by name and attached too.
 - The board in the first message is not updated during the turn. Every edit and write result says what the bench holds now — trust the latest result.
 - When the creator says the screen shows something different ("the negative is empty"), take their word: write it again, never guess why.
 - In your reply call a picture by its name, or "the first reference" when it has none — never ref-1 or @Image1; those are for tool calls and prompts only.`

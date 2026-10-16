@@ -29,6 +29,13 @@ import {
 const DEFAULT_OUTPUT_TYPE: GenerationNameOutputType = 'IMAGE'
 
 /** 提示词里点名参考图的记号（`@Image1` · reference image 1 · 「图1」 · 参考图1）。 */
+/**
+ * 画布发出去的提示词开头那段参考图图例（`node-slot-payload.ts` 的 `buildV4ImagePayload`）。
+ * ⚠ 它是写给模型的对照表，不是这张图画了什么 —— 不剥掉的话摘要全是「Referenc」。
+ */
+const CANVAS_REFERENCE_LEGEND =
+  /^Reference images in input order[^\n]*\n(?:Image \d+ = [^\n]*\n)*\s*/
+
 const REFERENCE_TOKEN =
   /@Image\d|reference\s+images?\s*\d|「\s*(?:图|画像|Image\s*)\d+\s*」|参考图\s*\d|参考画像\s*\d/i
 
@@ -77,6 +84,7 @@ export function buildGenerationSummary(
   source: string | null | undefined,
 ): string | undefined {
   if (typeof source !== 'string') return undefined
+  source = source.replace(CANVAS_REFERENCE_LEGEND, '')
   /**
    * ⚠ 先跳过**只在点名参考图的那几句**（2026-09-24 真机：名字成了「以referen…」）——
    * 那是写给模型的分工说明，不是这张图画的是什么。一句都不剩就退回原文。

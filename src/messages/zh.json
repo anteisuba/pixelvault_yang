@@ -8389,6 +8389,15 @@
       }
     },
     "web": {
+      "barSelected": "选了 {count} 张",
+      "barSaving": "正在收进素材库 {count} 张…",
+      "clear": "清空",
+      "save": "保存",
+      "saveFailed": "{handle} 没存上：{reason}",
+      "savedCandidate": "{handle} 已存进素材库，可以 @ 它",
+      "moreImages": "还有 {count} 张",
+      "moreVideos": "还有 {count} 个",
+      "videoListLabel": "找到的 {count} 个视频",
       "found": "搜索 Google 图片：{query} · {count} 张",
       "searching": "正在搜索 Google 图片：{query}…",
       "blockedNote": "{domains}：{reason}",
@@ -8396,11 +8405,9 @@
       "previewUnavailable": "这张图从原站取不到",
       "importFailedShort": "取不到",
       "importFailed": "这张没能取回来",
-      "cleanupFailed": "换下来的那张没能从素材库删掉，你可以去素材页手动删",
       "publisherUnknown": "未知",
       "openPage": "打开原页",
       "notUsable": "这个站不允许拿去给 AI 用，或是找不到原作者的转载站。只能点开原页看，收不进素材库。",
-      "useAll": "附上 {count} 张",
       "notUsableHotlink": "这个站不让外站取图，只能点开原页看，收不进素材库。",
       "videosFound": "搜索视频：{query} · {count} 个",
       "videosSearching": "正在搜索视频：{query}…",
@@ -8423,29 +8430,9 @@
       "findNamed": "回复里点到了这一项",
       "readSnippetOnly": "原页没读到（站点挡了，或者读不出来）——下面只是搜索结果里的那段摘要。",
       "stripLabel": "找到的 {count} 张图，放不下可以左右滑",
-      "videoStripLabel": "找到的 {count} 个视频，放不下可以左右滑",
-      "barIdle": "点图右上角的圈选上，可以多选",
-      "barRoom": "还能附 {free} 张 · 点图看大图（不下载）",
-      "barStaged": "已选 {count} 张",
-      "barRoomCommit": "还能附 {free} 张 · 附上后放进输入框，并收进素材库",
-      "barNoRoomStaged": "附不下了：要换一张，先点掉一张已选的",
-      "barFull": "附满了（最多 {limit} 张）",
-      "barFullHint": "点「已附上」那张的圈可以取下",
-      "barImporting": "正在收进素材库并附上 {count} 张…",
-      "selectAll": "全选能用的",
-      "statusUsable": "能用",
-      "statusUsableUnknownLicense": "能用 · 许可未知",
-      "statusStaged": "已选",
-      "statusImported": "已附上",
-      "statusImporting": "收进中…",
-      "statusViewOnly": "只能看原页",
       "selectCandidate": "选上 {handle}",
       "unselectCandidate": "取消选择 {handle}",
-      "reselectCandidate": "{handle} 上次没取回来，再选上重试",
-      "unmountCandidate": "{handle} 已附上，点一下取下",
-      "namedBadge": "回复提到",
       "openPageOf": "打开 {site} 的原页",
-      "videoModePlay": "在面板里播",
       "videoModePlaying": "正在下面播"
     },
     "queue": {
@@ -8506,6 +8493,16 @@
         "character": "角色",
         "lora": "LoRA"
       }
+    },
+    "addMenu": {
+      "label": "添加",
+      "recent": "最近的图",
+      "all": "全部",
+      "loading": "正在取…",
+      "empty": "素材库里还没有图",
+      "library": "从素材挑图",
+      "upload": "上传文件",
+      "mention": "@ 角色或素材"
     },
     "library": {
       "label": "素材库",
@@ -8657,10 +8654,10 @@
       "estimateMinutes": "约 {count} 分钟"
     },
     "answer": {
-      "media": "资料",
       "sources": "来源",
       "citation": "来源 {index}",
       "deepResearch": "深入调查",
+      "more": "更多",
       "searchXWithGrok": "用 Grok 搜 X · 花你的 Grok 额度"
     },
     "message": {
@@ -8786,7 +8783,6 @@
     },
     "stopShort": "停止",
     "chat": {
-      "pill": "和 {name} 聊",
       "group": "和 {name} 聊",
       "workGroup": "工作",
       "newChatThread": "和 {name} 新开一段",

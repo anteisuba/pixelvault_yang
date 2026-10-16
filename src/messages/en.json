@@ -8389,6 +8389,15 @@
       }
     },
     "web": {
+      "barSelected": "{count} selected",
+      "barSaving": "Saving {count} to your library…",
+      "clear": "Clear",
+      "save": "Save",
+      "saveFailed": "{handle} wasn't saved: {reason}",
+      "savedCandidate": "{handle} is in your library — @ it to use it",
+      "moreImages": "{count} more",
+      "moreVideos": "{count} more",
+      "videoListLabel": "{count} videos found",
       "found": "Google Images: {query} · {count, plural, one {# image} other {# images}}",
       "searching": "Searching Google Images: {query}…",
       "blockedNote": "{domains}: {reason}",
@@ -8396,11 +8405,9 @@
       "previewUnavailable": "This image could not be loaded from its site",
       "importFailedShort": "Blocked",
       "importFailed": "That image could not be fetched",
-      "cleanupFailed": "The one you swapped out could not be deleted from your library — remove it on the assets page",
       "publisherUnknown": "Unknown",
       "openPage": "Open the source page",
       "notUsable": "This site doesn’t allow use with AI, or reposts work without credit. You can open the original page, but it can’t be saved to your library.",
-      "useAll": "Attach {count}",
       "notUsableHotlink": "This site doesn’t let other sites fetch its images. You can open the original page, but it can’t be saved to your library.",
       "videosFound": "Videos: {query} · {count, plural, one {# video} other {# videos}}",
       "videosSearching": "Searching videos: {query}…",
@@ -8423,29 +8430,9 @@
       "findNamed": "Named in the reply",
       "readSnippetOnly": "The page itself could not be read (the site blocked it, or it would not load) — this is only the search-result excerpt.",
       "stripLabel": "{count, plural, one {# image found} other {# images found}}, scroll sideways for more",
-      "videoStripLabel": "{count, plural, one {# video found} other {# videos found}}, scroll sideways for more",
-      "barIdle": "Tap the circle on an image to select it — pick as many as you like",
-      "barRoom": "Room for {free} more · Tap an image to view it large (nothing is downloaded)",
-      "barStaged": "{count} selected",
-      "barRoomCommit": "Room for {free} more · Attached images go into the message box and your library",
-      "barNoRoomStaged": "No room for more — deselect one to swap it",
-      "barFull": "That’s the most you can attach ({limit})",
-      "barFullHint": "Tap the circle on an attached image to remove it",
-      "barImporting": "Saving and attaching {count}…",
-      "selectAll": "Select usable",
-      "statusUsable": "Usable",
-      "statusUsableUnknownLicense": "Usable · license unknown",
-      "statusStaged": "Selected",
-      "statusImported": "Attached",
-      "statusImporting": "Saving…",
-      "statusViewOnly": "View on its page only",
       "selectCandidate": "Select {handle}",
       "unselectCandidate": "Deselect {handle}",
-      "reselectCandidate": "{handle} could not be fetched last time — select it to retry",
-      "unmountCandidate": "{handle} is attached — tap to remove it",
-      "namedBadge": "In reply",
       "openPageOf": "Open the page on {site}",
-      "videoModePlay": "Plays here",
       "videoModePlaying": "Playing below"
     },
     "queue": {
@@ -8506,6 +8493,16 @@
         "character": "Character",
         "lora": "LoRA"
       }
+    },
+    "addMenu": {
+      "label": "Add",
+      "recent": "Recent images",
+      "all": "All",
+      "loading": "Loading…",
+      "empty": "No images in your library yet",
+      "library": "Pick from library",
+      "upload": "Upload files",
+      "mention": "@ a character or asset"
     },
     "library": {
       "label": "Asset library",
@@ -8657,10 +8654,10 @@
       "estimateMinutes": "about {count} min"
     },
     "answer": {
-      "media": "Attachments",
       "sources": "Sources",
       "citation": "Source {index}",
       "deepResearch": "Research deeper",
+      "more": "More",
       "searchXWithGrok": "Search X with Grok · uses your Grok quota"
     },
     "message": {
@@ -8786,7 +8783,6 @@
     },
     "stopShort": "Stop",
     "chat": {
-      "pill": "Chatting with {name}",
       "group": "With {name}",
       "workGroup": "Work",
       "newChatThread": "New chat with {name}",

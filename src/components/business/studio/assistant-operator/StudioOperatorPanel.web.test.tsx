@@ -207,7 +207,6 @@ vi.mock('@/contexts/studio-operator-host', () => ({
       references: { items: HOST_RESULTS.map(({ url }) => ({ url })), limit: 4 },
     }),
     results: HOST_RESULTS,
-    referenceLimit: 4,
     referenceImages: HOST_SPEC.noReferences
       ? []
       : [
@@ -248,6 +247,7 @@ const revisePlan = vi.fn()
 const confirmGeneration = vi.fn()
 const cancelGeneration = vi.fn()
 const retryGeneration = vi.fn()
+const rerunGeneration = vi.fn()
 const setGenerationKnob = vi.fn()
 
 /**
@@ -329,8 +329,7 @@ const UPLOAD = {
 
 const WEB_IMPORT = {
   states: {},
-  limit: 4,
-  toggleCandidate: vi.fn(),
+  saveCandidates: vi.fn(),
 } as unknown as UseStudioOperatorWebImportResult
 
 /** 素材库弹层里「挑中」的那些 —— 用例各自改。 */
@@ -363,6 +362,7 @@ function PanelHarness() {
           confirmGeneration,
           cancelGeneration,
           retryGeneration,
+          rerunGeneration,
           setGenerationKnob,
           newThread: vi.fn(),
           regenerate,
@@ -383,6 +383,11 @@ function PanelHarness() {
       headerAvatar="slot"
     />
   )
+}
+
+/** 点开输入区左下那颗 ＋（P4 第 4 项）。 */
+function openAddMenu() {
+  fireEvent.click(screen.getByTestId('operator-add-toggle'))
 }
 
 function renderPanel() {
@@ -1076,6 +1081,29 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     // 最近两轮摊在外面 —— ⛔ 不折掉「我刚才让它改的那件事」。
     expect(older).not.toContainElement(screen.getByText('第二轮'))
     expect(older).not.toContainElement(screen.getByText('第三轮'))
+  })
+
+  it('生成失败只一行：红点 + 原因 +「重试」「换个模型」，两颗都出新确认卡（P4 第 2 项）', () => {
+    const request = {
+      model: { id: 'seedream-4', label: 'Seedream 4' },
+      count: 1,
+      specs: { aspectRatio: '3:4', resolution: '2K', durationSeconds: null },
+    }
+    store.appendOperatorEntry({
+      kind: 'system',
+      id: 'sys-fail',
+      code: 'generationFailedWithReason',
+      subject: '超时了',
+      retry: request,
+    })
+    renderPanel()
+    const line = screen.getByTestId('operator-system-line')
+    expect(line).toHaveAttribute('data-failed', 'true')
+    expect(line.className).not.toContain('border')
+    fireEvent.click(screen.getByTestId('operator-generation-retry'))
+    expect(rerunGeneration).toHaveBeenLastCalledWith(request)
+    fireEvent.click(screen.getByTestId('operator-generation-switch-model'))
+    expect(rerunGeneration).toHaveBeenLastCalledWith(request, 'model')
   })
 
   it('② 确认卡（生成）四颗旋钮在场；点「确认生成」走 `confirmGeneration`', () => {
@@ -1822,15 +1850,14 @@ describe('StudioOperatorPanel · 找到的图（搜索期切片 1）', () => {
       within(underAnswer).getAllByTestId('operator-web-candidate'),
     ).toHaveLength(2)
     expect(screen.queryByTestId('operator-web-finds-pending')).toBeNull()
-    // 选上再挂上，照旧走宿主的 hook，认的是线程里那一条的 id。
+    // 选上再保存（只进素材库），走宿主的 hook，认的是线程里那一条的 id。
     fireEvent.click(
       within(underAnswer).getAllByTestId('operator-web-candidate-use')[0]!,
     )
-    fireEvent.click(within(underAnswer).getByTestId('operator-web-use-all'))
-    expect(WEB_IMPORT.toggleCandidate).toHaveBeenCalledWith(
-      'run-web:step-web',
+    fireEvent.click(within(underAnswer).getByTestId('operator-web-save'))
+    expect(WEB_IMPORT.saveCandidates).toHaveBeenCalledWith('run-web:step-web', [
       expect.objectContaining({ imageUrl: 'https://cdn.example.com/a.jpg' }),
-    )
+    ])
   })
 
   it('回答还在写：网格先就地留在那一块，⛔ 不跟着正文一起跳', () => {
@@ -2125,14 +2152,23 @@ describe('StudioOperatorPanel · v2 §4.4 输入区两行', () => {
     ).toBeTruthy()
   })
 
-  it('工具行：上传 · 素材库 · 文本模型 ……… 发送；⛔ 没有「+」（U2）', () => {
+  it('工具行：＋ · 文本模型 ……… 发送；上传 / 素材库 / @ 收进 ＋（P4 第 4 项）', () => {
     renderPanel()
     const toolbar = within(screen.getByTestId('operator-toolbar'))
-    expect(toolbar.getByTestId('operator-attach-toggle')).toBeTruthy()
-    expect(toolbar.getByTestId('operator-library-toggle')).toBeTruthy()
+    expect(toolbar.getByTestId('operator-add-toggle')).toBeTruthy()
     expect(toolbar.getByTestId('operator-model-chip')).toBeTruthy()
     expect(toolbar.getByTestId('operator-send')).toBeTruthy()
-    expect(screen.queryByTestId('operator-plus-toggle')).toBeNull()
+    for (const id of [
+      'operator-attach-toggle',
+      'operator-library-toggle',
+      'operator-mention-button',
+    ])
+      expect(screen.queryByTestId(id)).toBeNull()
+    openAddMenu()
+    const menu = within(screen.getByTestId('operator-add-menu'))
+    expect(menu.getByTestId('operator-add-library')).toBeTruthy()
+    expect(menu.getByTestId('operator-add-upload')).toBeTruthy()
+    expect(menu.getByTestId('operator-add-mention')).toBeTruthy()
   })
 
   /**
@@ -2142,7 +2178,7 @@ describe('StudioOperatorPanel · v2 §4.4 输入区两行', () => {
   it('⭐ T-A：图标无框，发送是圆形实底', () => {
     renderPanel()
     const toolbar = within(screen.getByTestId('operator-toolbar'))
-    for (const id of ['operator-attach-toggle', 'operator-library-toggle']) {
+    for (const id of ['operator-add-toggle']) {
       const className = toolbar.getByTestId(id).className
       expect(className).toContain('size-8')
       expect(className).not.toContain('border')
@@ -2198,7 +2234,8 @@ describe('StudioOperatorPanel · v2 §4.4 输入区两行', () => {
     ) as HTMLInputElement
     const openPicker = vi.spyOn(input, 'click')
 
-    fireEvent.click(screen.getByTestId('operator-attach-toggle'))
+    openAddMenu()
+    fireEvent.click(screen.getByTestId('operator-add-upload'))
     expect(openPicker).toHaveBeenCalledTimes(1)
 
     const file = new File(['x'], 'shot.png', { type: 'image/png' })
@@ -2224,11 +2261,9 @@ describe('StudioOperatorPanel · v2 §4.4 输入区两行', () => {
 describe('素材库按钮（切片 #7c）', () => {
   it('下行有素材库按钮，点一下开弹层，首屏页大小是 10', () => {
     renderPanel()
-    const toolbar = screen.getByTestId('operator-toolbar')
-    const button = within(toolbar).getByTestId('operator-library-toggle')
-
     expect(screen.queryByTestId('asset-selector-dialog')).toBeNull()
-    fireEvent.click(button)
+    openAddMenu()
+    fireEvent.click(screen.getByTestId('operator-add-library'))
 
     const dialog = screen.getByTestId('asset-selector-dialog')
     expect(dialog).toHaveAttribute('data-page-size', '10')
@@ -2239,7 +2274,8 @@ describe('素材库按钮（切片 #7c）', () => {
   it('挑两张：正文里各留一枚 @ 胶囊（按 id 指，⛔ 不再按「图N」编号）', () => {
     renderPanel()
     const editor = screen.getByRole('combobox', { name: editorName })
-    fireEvent.click(screen.getByTestId('operator-library-toggle'))
+    openAddMenu()
+    fireEvent.click(screen.getByTestId('operator-add-library'))
     fireEvent.click(screen.getByTestId('asset-selector-confirm-many'))
 
     expect(
@@ -2253,6 +2289,39 @@ describe('素材库按钮（切片 #7c）', () => {
       ['<@image:lib-1>', '<@image:lib-2>'],
     )
     expect(editor.textContent).not.toContain('@Image')
+  })
+
+  it('＋ 里最近那一行：开着才取，点一张直接成 @ 胶囊', async () => {
+    searchAssistantMentionLibraryAPI.mockResolvedValue({
+      success: true,
+      data: {
+        items: [
+          {
+            id: 'lib-9',
+            kind: 'image',
+            label: '图_009·海边',
+            url: 'https://cdn.test/lib-9.png',
+            seq: 9,
+            folders: [],
+            createdAt: '2026-10-01T00:00:00.000Z',
+          },
+        ],
+        folders: [],
+      },
+    })
+    renderPanel()
+    expect(searchAssistantMentionLibraryAPI).not.toHaveBeenCalled()
+    openAddMenu()
+    const recent = await screen.findByTestId('operator-add-recent-item')
+    expect(recent).toHaveAttribute('title', '图_009·海边')
+    fireEvent.click(recent)
+    await vi.waitFor(() =>
+      expect(store.getOperatorState().mentions.map((item) => item.id)).toEqual([
+        'lib-9',
+      ]),
+    )
+    const editor = screen.getByRole('combobox', { name: editorName })
+    expect(editor.querySelectorAll('[data-mention]')).toHaveLength(1)
   })
 
   it('已经在正文里的那张跳过 —— ⛔ 同一件不插第二枚', () => {
@@ -2272,7 +2341,8 @@ describe('素材库按钮（切片 #7c）', () => {
     ]
     renderPanel()
     const editor = screen.getByRole('combobox', { name: editorName })
-    fireEvent.click(screen.getByTestId('operator-library-toggle'))
+    openAddMenu()
+    fireEvent.click(screen.getByTestId('operator-add-library'))
     fireEvent.click(screen.getByTestId('asset-selector-confirm-many'))
     expect(editor.querySelectorAll('[data-mention]')).toHaveLength(1)
   })
@@ -2344,15 +2414,14 @@ describe('@ 菜单（§10b）', () => {
     expect(editor).toHaveAttribute('aria-expanded', 'false')
   })
 
-  it('触屏入口：输入框旁的 @ 按钮在光标处写一个 @ 并打开菜单', () => {
+  it('触屏入口：＋ 里的「@ 角色或素材」在光标处写一个 @ 并打开菜单', async () => {
     renderPanel()
-    const button = screen.getByTestId('operator-mention-button')
-    expect(button).toHaveAttribute('aria-haspopup', 'listbox')
-    fireEvent.click(button)
+    openAddMenu()
+    fireEvent.click(screen.getByTestId('operator-add-mention'))
     const editor = screen.getByRole('combobox', { name: editorName })
-    expect(editor.textContent).toBe('@')
+    await vi.waitFor(() => expect(editor.textContent).toBe('@'))
     expect(screen.getByRole('listbox')).toBeTruthy()
-    expect(button).toHaveAttribute('aria-expanded', 'true')
+    expect(editor).toHaveAttribute('aria-expanded', 'true')
   })
 
   it('选中的东西进「最近使用」，下次空查询排最上面', () => {

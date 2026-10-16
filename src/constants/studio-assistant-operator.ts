@@ -106,6 +106,16 @@ export const STUDIO_OPERATOR_UPLOAD_ACCEPT =
 export const STUDIO_OPERATOR_KEEP_OPEN_ATTR = 'data-operator-keep'
 
 /**
+ * 电脑上「找到的图」按原比例一行行铺满（P4 第 12 项，owner 2026-10-16）：目标行高、
+ * 间距、收着时先露几行（多的点「还有 N 张」）。与样张同一组数。
+ */
+export const STUDIO_OPERATOR_WEB_GRID = {
+  targetRowHeight: 118,
+  gap: 6,
+  collapsedRows: 2,
+} as const
+
+/**
  * 联网候选格子的**渲染像素**（P3-B，拍板 18「联网候选可换选」）。
  *
  * ⚠ 它不是 CSS 尺寸（那在类名里，`size-14` = 56px，切片 v4 的候选行就是这个数），

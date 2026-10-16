@@ -421,7 +421,6 @@ describe('canvas assistant image references', () => {
     expect(result.current.referenceImages).toEqual([
       { url: 'https://example.com/one.png', name: 'one', implicit: true },
     ])
-    expect(result.current.referenceLimit).toBeGreaterThan(0)
   })
 
   // owner 2026-09-29：画布上的图不摆成 chip（`implicit`），手动挂上的才摆；× 只是取消挂上。

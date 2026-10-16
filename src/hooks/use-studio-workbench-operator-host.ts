@@ -217,6 +217,8 @@ export function useStudioWorkbenchOperatorHost({
    * 「此刻的表单」喂进去。⛔ 别在这里补一个「两个域都给一份」的合并 —— 快照的
    * 每一节缺席都是一条闸（拍板 19）。
    */
+  /** 舞台上那一批结果（下面才算出来，快照现读，所以走 ref）。 */
+  const resultsRef = useRef<readonly StudioOperatorResultItem[]>([])
   const buildSnapshot = useCallback((): AssistantOperatorSnapshot => {
     const current = latest.current.state
     /**
@@ -251,22 +253,45 @@ export function useStudioWorkbenchOperatorHost({
       videoSoundEnabled: current.videoGenerateAudio,
     }
 
+    /**
+     * 舞台上最新一批出好的图（`result-N`）：v3 `look` 直接看，⛔ 不用创作者再 @
+     * （owner 2026-10-16）。只收图片、只收存好的地址。
+     */
+    const results = resultsRef.current
+      .filter(
+        (item) =>
+          (item.outputType ?? 'image') === 'image' &&
+          item.url.startsWith('http'),
+      )
+      .slice(0, ASSISTANT_OPERATOR_LIMITS.maxSnapshotResults)
+      .map((item) => ({
+        assetId: item.id,
+        url: item.url,
+        ...(item.label ? { label: item.label } : {}),
+      }))
+    const withResults = (snapshot: AssistantOperatorSnapshot) =>
+      results.length ? { ...snapshot, results } : snapshot
+
     if (domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video) {
-      return buildVideoOperatorSnapshot({
-        form,
-        modelOptions: latest.current.videoModels.modelOptions,
-        selectedModel: latest.current.videoModels.selectedModel,
-        references,
-      })
+      return withResults(
+        buildVideoOperatorSnapshot({
+          form,
+          modelOptions: latest.current.videoModels.modelOptions,
+          selectedModel: latest.current.videoModels.selectedModel,
+          references,
+        }),
+      )
     }
-    return buildImageOperatorSnapshot({
-      form,
-      modelOptions: latest.current.imageModels.modelOptions,
-      selectedModel: latest.current.imageModels.selectedModel,
-      runModels: latest.current.runModels,
-      references,
-      otherModelOptions: latest.current.otherImageModels,
-    })
+    return withResults(
+      buildImageOperatorSnapshot({
+        form,
+        modelOptions: latest.current.imageModels.modelOptions,
+        selectedModel: latest.current.imageModels.selectedModel,
+        runModels: latest.current.runModels,
+        references,
+        otherModelOptions: latest.current.otherImageModels,
+      }),
+    )
   }, [domain])
 
   const apply = useMemo<StudioOperatorApplyContext>(
@@ -549,15 +574,6 @@ export function useStudioWorkbenchOperatorHost({
   )
 
   /**
-   * 一行能选几张 = **工作台参考位上限**（拍板 21）。
-   * ⚠ `maxImages` 在 `StudioDockPanelArea` 那条 effect 跑到之前是 `Infinity`
-   * —— 与快照那边同一条兜底，回落到载荷护栏上限。
-   */
-  const referenceLimit = Number.isFinite(imageUpload.maxImages)
-    ? imageUpload.maxImages
-    : ASSISTANT_OPERATOR_LIMITS.maxSnapshotReferences
-
-  /**
    * **这一批结果**（§2.11 结果行卡）—— 映射见 `toOperatorRunResults`。此前这一段
    * 长在面板里（`useStudioGenOptional()`），搬到宿主上是因为 LoRA 装配台也要有
    * 结果行卡，而那条路由拿不到 `useStudioGen`。
@@ -575,6 +591,9 @@ export function useStudioWorkbenchOperatorHost({
     () => toOperatorRunResults(activeRun?.items ?? []),
     [activeRun],
   )
+  useEffect(() => {
+    resultsRef.current = results
+  }, [results])
 
   /**
    * 「先搜再画」：确认卡那一颗读写工作台同一份开关；结果卡上的资料只认工作台
@@ -734,7 +753,6 @@ export function useStudioWorkbenchOperatorHost({
       generationControls,
       ...(searchGrounding ? { searchGrounding } : {}),
       searchGroundingForResult,
-      referenceLimit,
       referenceImages: imageUpload.referenceEntries,
       mentions:
         domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video
@@ -753,7 +771,6 @@ export function useStudioWorkbenchOperatorHost({
       face,
       generationControls,
       open,
-      referenceLimit,
       imageUpload.referenceEntries,
       resultRun,
       results,

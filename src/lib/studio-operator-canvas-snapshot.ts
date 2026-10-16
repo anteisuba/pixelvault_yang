@@ -348,6 +348,12 @@ function toSnapshotNode(
       : { availableModels: [...new Set(availableModels)] }),
     ...(inputs.length === 0 ? {} : { inputs }),
     ...(nodeHasOutput(node) ? { hasOutput: true } : {}),
+    // v3 `look` 看一张没被 @ 的图片卡时按它取 —— ⛔ 不靠 16 张的参考名单。
+    ...(data.kind === NODE_MEDIA_KIND_IDS.image &&
+    data.url?.startsWith('http') &&
+    data.url.length <= ASSISTANT_MEDIA_LIMITS.maxUrlLength
+      ? { imageUrl: data.url }
+      : {}),
     // v3 `look` 看一张没被 @ 的视频卡时，Gemini 按它下载片子本体（看图期第二段）。
     ...(data.kind === NODE_MEDIA_KIND_IDS.video &&
     data.url?.startsWith('http') &&

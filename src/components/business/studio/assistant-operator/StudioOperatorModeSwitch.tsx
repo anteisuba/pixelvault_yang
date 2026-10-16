@@ -3,13 +3,16 @@
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 
+import { ASSISTANT_PERSONA_LIMITS } from '@/constants/assistant-persona'
 import {
   ResponsivePopover,
   ResponsivePopoverContent,
   ResponsivePopoverTrigger,
 } from '@/components/ui/responsive-popover'
+import { Textarea } from '@/components/ui/textarea'
 import { useChatCharacters } from '@/hooks/use-chat-characters'
 import {
+  saveOperatorChatUserRole,
   switchOperatorChatMode,
   useStudioOperatorState,
   type StudioOperatorChatCharacter,
@@ -41,6 +44,10 @@ function lastChatCharacter(
  *  - 点「聊天」：这段对话里聊过谁就接着和她聊；没聊过就弹角色列表先选。
  *  - 已经在聊天里再点「聊天」：弹列表换个人。
  * 切的地方时间线里留一条细线（`chatMark`，见 `switchOperatorChatMode`）。
+ *
+ * ⭐ 聊天里点开的这张弹层顶上是「你在故事里是谁」（P4 第 6 项：原来头部那枚「和 X 聊」
+ *   胶囊收进来）。按角色记（owner 2026-10-16），打字只改草稿，关上弹层 / 换人时才存
+ *   （`saveOperatorChatUserRole`，没改就不发请求）—— 关弹层就是「写完了」，⛔ 不另设保存键。
  */
 export function StudioOperatorModeSwitch({ disabled }: { disabled: boolean }) {
   const t = useTranslations('StudioOperator')
@@ -53,6 +60,7 @@ export function StudioOperatorModeSwitch({ disabled }: { disabled: boolean }) {
     useState<StudioOperatorChatCharacter | null>(null)
   const inChat = state.chatCharacter !== null
   const remembered = lastChatCharacter(state) ?? lastPicked
+  const [roleDraft, setRoleDraft] = useState('')
 
   const switchTo = (character: StudioOperatorChatCharacter) => {
     const full = chatCharacters.characters.find(
@@ -91,6 +99,8 @@ export function StudioOperatorModeSwitch({ disabled }: { disabled: boolean }) {
             switchTo(remembered)
             return
           }
+          if (next) setRoleDraft(state.chatCharacter?.userRole ?? '')
+          else if (inChat) void saveOperatorChatUserRole(roleDraft)
           setPickerOpen(next)
         }}
       >
@@ -113,9 +123,29 @@ export function StudioOperatorModeSwitch({ disabled }: { disabled: boolean }) {
         <ResponsivePopoverContent
           label={t('mode.pickCharacter')}
           align="end"
-          className="max-h-72 w-56 overflow-y-auto p-1.25"
+          className="max-h-96 w-64 overflow-y-auto p-1.5"
           mobileClassName="pb-6"
         >
+          {state.chatCharacter ? (
+            <label className="flex flex-col gap-1.5 border-b border-border/60 px-2 pt-1.5 pb-2.5">
+              <span className="text-2xs text-muted-foreground">
+                {t('chat.roleLabel')}
+              </span>
+              <Textarea
+                data-testid="operator-chat-role"
+                value={roleDraft}
+                maxLength={ASSISTANT_PERSONA_LIMITS.maxChatUserRoleChars}
+                placeholder={t('chat.rolePlaceholder', {
+                  name: state.chatCharacter.name,
+                })}
+                onChange={(event) => setRoleDraft(event.target.value)}
+                className="max-h-40 min-h-16 text-2sm"
+              />
+              <span className="text-2xs text-muted-foreground">
+                {t('chat.roleHint')}
+              </span>
+            </label>
+          ) : null}
           <p className="px-2 pb-1 pt-1.5 text-2xs text-muted-foreground">
             {t('mode.pickCharacter')}
           </p>
@@ -137,6 +167,8 @@ export function StudioOperatorModeSwitch({ disabled }: { disabled: boolean }) {
                       type="button"
                       aria-current={current ? 'true' : undefined}
                       onClick={() => {
+                        // 换人之前先把这位的那一句存上（存的是**当前**角色）。
+                        if (inChat) void saveOperatorChatUserRole(roleDraft)
                         setPickerOpen(false)
                         switchTo(chat.character)
                       }}

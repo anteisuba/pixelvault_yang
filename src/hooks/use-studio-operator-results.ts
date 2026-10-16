@@ -68,6 +68,11 @@ function pendingResultBindingKey(binding: PendingResultBinding): string {
  * 没有出图」，用户不知道该改提示词还是换模型）。
  */
 function failPendingResult(id: string, reason?: string): void {
+  // ⭐ 撤卡之前把原参数取下来：失败行尾「重试 / 换个模型」要用（P4 第 2 项）。
+  const failed = getOperatorState().entries.find(
+    (entry) => entry.kind === 'result' && entry.id === id,
+  )
+  const retry = failed?.kind === 'result' ? failed.request : undefined
   dropOperatorPendingResult(id)
   appendOperatorEntry({
     kind: 'system',
@@ -75,6 +80,7 @@ function failPendingResult(id: string, reason?: string): void {
     ...(reason
       ? { code: 'generationFailedWithReason', subject: reason }
       : { code: 'generationFailed' }),
+    ...(retry ? { retry } : {}),
   })
 }
 

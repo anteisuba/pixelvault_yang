@@ -166,7 +166,6 @@ vi.mock('@/contexts/studio-operator-host', () => ({
     projectId: hostDomain.current === 'canvas' ? 'project-1' : undefined,
     buildSnapshot: () => hostSnapshot.current,
     results: [],
-    referenceLimit: 4,
     open: true,
     setOpen: () => {},
     ...(canvasGenerationState.enabled

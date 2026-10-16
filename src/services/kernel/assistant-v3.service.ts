@@ -2067,6 +2067,7 @@ function askImageUrl(
   const node = id
     ? context.nodes.find((candidate) => candidate.id === id)
     : undefined
+  if (node?.imageUrl) return node.imageUrl
   return node?.referenceImageIndex !== undefined
     ? (context.prepared.run.state.referenceUrls[node.referenceImageIndex] ??
         undefined)
@@ -2633,10 +2634,13 @@ async function* executeLook(
           (candidate.label === card ||
             (node !== null && candidate.label === node.name)),
       )
+    // 卡自己带的地址优先：参考名单最多 16 张，画布图一多新出的就排不进去。
     const own =
-      node?.kind === NODE_MEDIA_KIND_IDS.image &&
-      node.referenceImageIndex !== undefined
-        ? referenceUrls[node.referenceImageIndex]
+      node?.kind === NODE_MEDIA_KIND_IDS.image
+        ? (node.imageUrl ??
+          (node.referenceImageIndex !== undefined
+            ? referenceUrls[node.referenceImageIndex]
+            : undefined))
         : undefined
     const url = asset?.url ?? own
     if (!url) {

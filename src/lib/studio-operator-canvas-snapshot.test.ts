@@ -363,7 +363,7 @@ describe('buildCanvasOperatorSnapshot', () => {
     const shot = snapshot.shots[0]
     expect(shot.expanded && shot.nodes[0].availableModels).toEqual(models)
   })
-  it('出了片的视频卡带成片地址（v3 look 看片用）；图片卡与没出片的视频卡不带', () => {
+  it('出了片的视频卡带成片地址、图片卡带图地址（v3 look 用）；没出片的不带', () => {
     const video = (id: string, url?: string): NodeV4 =>
       ({
         id,
@@ -394,6 +394,11 @@ describe('buildCanvasOperatorSnapshot', () => {
     expect(snapshotNode(snapshot, 'empty')?.videoUrl).toBeUndefined()
     expect(snapshotNode(snapshot, 'local')?.videoUrl).toBeUndefined()
     expect(snapshotNode(snapshot, 'still')?.videoUrl).toBeUndefined()
+    // 图片卡带自己那张图（v3 look 取图用，⛔ 不靠最多 16 张的参考名单）。
+    expect(snapshotNode(snapshot, 'still')?.imageUrl).toBe(
+      'https://cdn.example.com/a.png',
+    )
+    expect(snapshotNode(snapshot, 'done')?.imageUrl).toBeUndefined()
     expect(
       AssistantOperatorCanvasSnapshotSchema.safeParse(snapshot).success,
     ).toBe(true)

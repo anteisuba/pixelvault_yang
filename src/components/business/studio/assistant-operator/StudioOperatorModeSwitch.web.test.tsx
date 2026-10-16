@@ -8,6 +8,14 @@ import {
 } from '@/hooks/use-studio-operator-store'
 import { StudioOperatorModeSwitch } from '@/components/business/studio/assistant-operator/StudioOperatorModeSwitch'
 
+const { mockUpdateCharacterCard } = vi.hoisted(() => ({
+  mockUpdateCharacterCard: vi.fn(),
+}))
+vi.mock('@/lib/api-client/cards', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client/cards')>()),
+  updateCharacterCardAPI: mockUpdateCharacterCard,
+}))
+
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
@@ -53,6 +61,31 @@ function marks() {
 }
 
 describe('StudioOperatorModeSwitch', () => {
+  it('聊天里点开：顶上写「你在故事里是谁」，关上弹层才存到卡上（P4 第 6 项）', async () => {
+    mockUpdateCharacterCard.mockResolvedValue({ success: true })
+    act(() => resetOperatorThread(undefined, { character: MIO, opening: '' }))
+    render(<StudioOperatorModeSwitch disabled={false} />)
+    fireEvent.click(screen.getByTestId('operator-mode-chat'))
+    fireEvent.change(screen.getByTestId('operator-chat-role'), {
+      target: { value: '  刚搬来的邻居 ' },
+    })
+    expect(mockUpdateCharacterCard).not.toHaveBeenCalled()
+    // 浮层里刚有过一次交互的那一拍不算「关」（`Popover` 的内部交互闸），等它过去。
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
+    fireEvent.click(screen.getByTestId('operator-mode-chat'))
+    expect(mockUpdateCharacterCard).toHaveBeenCalledWith('card-mio', {
+      extensions: { 'pv.chatUserRole': '刚搬来的邻居' },
+    })
+    expect(getOperatorState().chatCharacter?.userRole).toBe('刚搬来的邻居')
+  })
+
+  it('工作模式下点开的列表没有「你在故事里是谁」', () => {
+    startWorkThread()
+    render(<StudioOperatorModeSwitch disabled={false} />)
+    fireEvent.click(screen.getByTestId('operator-mode-chat'))
+    expect(screen.queryByTestId('operator-chat-role')).toBeNull()
+  })
+
   it('⭐ 同一段对话里切：先选角色，记录不换，切的地方留一条标记', () => {
     startWorkThread()
     render(<StudioOperatorModeSwitch disabled={false} />)

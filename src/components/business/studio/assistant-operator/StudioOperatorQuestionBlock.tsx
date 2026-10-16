@@ -295,7 +295,7 @@ export function StudioOperatorQuestionBlock({
       <div className="flex min-w-0 items-baseline gap-2 px-1 pb-1">
         <p
           id={`${prompt.id}-${step}-question`}
-          className="min-w-0 flex-1 text-sm font-semibold leading-snug text-foreground"
+          className="min-w-0 flex-1 text-md font-semibold leading-snug text-foreground"
         >
           {question.question}
         </p>
@@ -407,7 +407,7 @@ export function StudioOperatorQuestionBlock({
               onClick={() => choose(option)}
               onKeyDown={onRowKeyDown}
               className={cn(
-                'flex min-w-0 cursor-pointer items-start gap-2.5 rounded-lg px-1.5 py-1.5 text-left transition-colors duration-fast ease-standard focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring aria-disabled:cursor-default aria-disabled:opacity-60 motion-reduce:transition-none coarse:min-h-11',
+                'group flex min-w-0 cursor-pointer items-start gap-2.5 rounded-lg px-1.5 py-1.5 text-left transition-colors duration-fast ease-standard focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring aria-disabled:cursor-default aria-disabled:opacity-60 motion-reduce:transition-none coarse:min-h-11',
                 cursor === index && 'bg-muted',
                 // 单选选中那一行：近黑实底 + 白字（信号位，§12.2），⛔ 不跟着锁定变淡。
                 picked === option.id &&
@@ -431,10 +431,13 @@ export function StudioOperatorQuestionBlock({
                 <span
                   aria-hidden
                   className={cn(
-                    'mt-px grid size-5 shrink-0 place-items-center rounded-md border border-border font-mono text-2xs tabular-nums text-muted-foreground transition-transform duration-fast ease-standard motion-reduce:transition-none',
+                    'mt-px grid size-5 shrink-0 place-items-center rounded-md border border-border font-mono text-2xs tabular-nums text-muted-foreground transition-[opacity,transform] duration-fast ease-standard motion-reduce:transition-none',
+                    // P4 第 11 项：键帽只在电脑上悬停 / 键盘聚焦时露出来（数字键直选是
+                    // 键盘的事），触屏上整颗不画。⚠ 占位留着，露出来时正文不跳。
+                    'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 coarse:hidden',
                     // 键帽按下去（「按数字键直选」）。
                     picked === option.id &&
-                      'scale-90 border-background/40 text-background',
+                      'scale-90 border-background/40 text-background opacity-100',
                   )}
                 >
                   {index + 1}
@@ -444,10 +447,10 @@ export function StudioOperatorQuestionBlock({
                 <Image
                   src={option.assetUrl}
                   alt={option.label}
-                  width={56}
-                  height={56}
+                  width={96}
+                  height={96}
                   unoptimized
-                  className="size-7 shrink-0 rounded object-cover"
+                  className="size-12 shrink-0 rounded-lg object-cover"
                 />
               ) : null}
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -523,13 +526,13 @@ export function StudioOperatorQuestionBlock({
       ) : null}
 
       {/* ── 底下一行：跳过 · 全部用推荐 ……（多选）确定（N）──────────── */}
-      <div className="mx-1 mt-1 flex min-w-0 items-center gap-3 border-t border-border pt-1.5 text-xs text-muted-foreground">
+      <div className="mx-1 mt-1 flex min-w-0 items-center gap-1.5 border-t border-border pt-2 text-xs text-muted-foreground">
         <button
           type="button"
           data-testid="operator-question-skip"
           disabled={submitted}
           onClick={skip}
-          className="rounded-sm transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-60 motion-reduce:transition-none coarse:min-h-11"
+          className="h-7 rounded-full border border-border px-3 transition-colors duration-fast ease-standard hover:bg-surface-fill hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 motion-reduce:transition-none coarse:min-h-11"
         >
           {t('question.skip')}
         </button>
@@ -539,7 +542,7 @@ export function StudioOperatorQuestionBlock({
             data-testid="operator-question-use-recommended"
             disabled={submitted}
             onClick={applyRecommended}
-            className="rounded-sm transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-60 motion-reduce:transition-none coarse:min-h-11"
+            className="h-7 rounded-full border border-border px-3 transition-colors duration-fast ease-standard hover:bg-surface-fill hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 motion-reduce:transition-none coarse:min-h-11"
           >
             {t('question.useRecommended')}
           </button>
@@ -550,7 +553,7 @@ export function StudioOperatorQuestionBlock({
             data-testid="operator-question-confirm"
             disabled={submitted || !canConfirm}
             onClick={confirm}
-            className="ml-auto h-7.5 rounded-full bg-foreground px-3.5 text-2sm font-semibold tabular-nums text-background transition-opacity duration-fast ease-standard hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none coarse:min-h-11"
+            className="ml-auto h-7 rounded-full bg-foreground px-3.5 text-2sm font-semibold tabular-nums text-background transition-opacity duration-fast ease-standard hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none coarse:min-h-11"
           >
             {t('question.confirm', { count: checkedIds.length })}
           </button>

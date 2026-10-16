@@ -47,11 +47,8 @@ import {
 } from 'react'
 import {
   ArrowUp,
-  AtSign,
   Box,
-  Images,
   Music,
-  Paperclip,
   Play,
   RotateCw,
   Square,
@@ -108,6 +105,7 @@ import {
 } from '@/constants/providers'
 import { SPRING } from '@/constants/motion'
 import { RuleChip } from '@/components/business/studio/assistant-operator/RuleChip'
+import { StudioOperatorAddMenu } from '@/components/business/studio/assistant-operator/StudioOperatorAddMenu'
 import { StudioOperatorEffortChip } from '@/components/business/studio/assistant-operator/StudioOperatorEffortChip'
 import { StudioOperatorModelChip } from '@/components/business/studio/assistant-operator/StudioOperatorModelChip'
 import { StudioOperatorSpecLine } from '@/components/business/studio/assistant-operator/StudioOperatorSpecLine'
@@ -1022,6 +1020,20 @@ export function StudioOperatorPanel({
       )
     }
     composer.remember(picked)
+    inputRef.current?.focus()
+  }
+
+  /** ＋ 里点了最近的一张：与素材库挑图同一条路（登记 → 插胶囊 → 记进最近）。 */
+  const insertMentionCandidates = (candidate: AssistantMentionCandidate) => {
+    const key = mentionKey(candidate)
+    if (!draftMentionKeys.has(key)) {
+      composer.register(candidateToMention(candidate))
+      inputRef.current?.insertToken(
+        formatMentionToken(candidate),
+        mentionChipToken(candidate),
+      )
+      composer.remember([key])
+    }
     inputRef.current?.focus()
   }
 
@@ -3106,20 +3118,18 @@ export function StudioOperatorPanel({
             className="flex items-center gap-1 @container"
           >
             {/*
-              ⭐ 上传：三个手势仍是**一条通道**（拍板 16）：选文件 / 拖进输入框 / 粘贴，
+              ⭐ **＋**（P4 第 4 项）：最近的图 / 从素材挑图 / 上传文件 / @ 角色或素材
+                收进一个弹层，⛔ 不再并排三颗裸图标。
+              ⭐ 上传三个手势仍是**一条通道**（拍板 16）：选文件 / 拖进输入框 / 粘贴，
                 全落到 `handleUploadFiles`。
               ⚠ 选完必须清 `value`：不清的话「同一个文件选第二次」不触发 change。
             */}
-            <button
-              type="button"
-              data-testid="operator-attach-toggle"
-              aria-label={t('attach.label')}
-              title={t('attach.label')}
-              onClick={() => uploadInputRef.current?.click()}
-              className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
-            >
-              <Paperclip className="size-4" aria-hidden />
-            </button>
+            <StudioOperatorAddMenu
+              onPickRecent={insertMentionCandidates}
+              onOpenLibrary={() => setLibraryOpen(true)}
+              onUpload={() => uploadInputRef.current?.click()}
+              onMention={() => inputRef.current?.openMention()}
+            />
             <input
               ref={uploadInputRef}
               type="file"
@@ -3133,34 +3143,6 @@ export function StudioOperatorPanel({
                 if (files.length > 0) handleUploadFiles(files)
               }}
             />
-            {/* 素材库（切片 #7c）：点开 `AssetSelectorDialog` 挑库里的图挂给助手。 */}
-            <button
-              type="button"
-              data-testid="operator-library-toggle"
-              aria-label={t('library.label')}
-              title={t('library.label')}
-              onClick={() => setLibraryOpen(true)}
-              className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
-            >
-              <Images className="size-4" aria-hidden />
-            </button>
-            {/* `@` 的触屏入口（§10b「输入框旁加 @ 按钮」）：在光标处写一个 `@` 并打开
-                菜单。⚠ `onMouseDown` preventDefault：点它不能先让输入框失焦（光标位置
-                要留着）。 */}
-            <button
-              type="button"
-              data-testid="operator-mention-button"
-              aria-label={t('mention.button')}
-              title={t('mention.button')}
-              aria-haspopup="listbox"
-              aria-expanded={mentionMenu.open}
-              aria-controls={mentionMenu.binding.listId}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => inputRef.current?.openMention()}
-              className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none coarse:size-11"
-            >
-              <AtSign className="size-4" aria-hidden />
-            </button>
             {/* 助手用的文本模型（§4.5）：选中即写 `AssistantPersona.routeModel`。 */}
             <StudioOperatorModelChip
               value={persona?.routeModel ?? ASSISTANT_ROUTE_MODEL_AUTO}

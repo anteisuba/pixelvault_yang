@@ -8504,6 +8504,16 @@
         "lora": "LoRA"
       }
     },
+    "addMenu": {
+      "label": "添加",
+      "recent": "最近的图",
+      "all": "全部",
+      "loading": "正在取…",
+      "empty": "素材库里还没有图",
+      "library": "从素材挑图",
+      "upload": "上传文件",
+      "mention": "@ 角色或素材"
+    },
     "library": {
       "label": "素材库",
       "title": "从素材库挑图",

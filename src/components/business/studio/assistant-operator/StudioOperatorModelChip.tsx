@@ -272,7 +272,7 @@ export function StudioOperatorModelChip({
           align="start"
           label={t('label')}
           /* 三层玻璃③：**浮层**（§12.1）。 */
-          className="w-72 rounded-xl border-assistant-line-strong p-0 assistant-glass-overlay shadow-assistant-overlay"
+          className="w-64 rounded-xl border-assistant-line-strong p-0 assistant-glass-overlay shadow-assistant-overlay"
           mobileClassName="px-0"
         >
           <div

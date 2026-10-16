@@ -89,7 +89,7 @@ export function StudioOperatorEffortChip({
         side="top"
         align="start"
         label={t('label')}
-        className="w-56 rounded-xl border-assistant-line-strong p-0 assistant-glass-overlay shadow-assistant-overlay"
+        className="w-64 rounded-xl border-assistant-line-strong p-0 assistant-glass-overlay shadow-assistant-overlay"
         mobileClassName="px-0"
       >
         <div

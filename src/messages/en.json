@@ -8504,6 +8504,16 @@
         "lora": "LoRA"
       }
     },
+    "addMenu": {
+      "label": "Add",
+      "recent": "Recent images",
+      "all": "All",
+      "loading": "Loading…",
+      "empty": "No images in your library yet",
+      "library": "Pick from library",
+      "upload": "Upload files",
+      "mention": "@ a character or asset"
+    },
     "library": {
       "label": "Asset library",
       "title": "Pick from your asset library",

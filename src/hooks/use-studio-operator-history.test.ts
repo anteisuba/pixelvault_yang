@@ -156,6 +156,64 @@ describe('会话历史落库', () => {
     expect(JSON.stringify(lastUpsertBody())).not.toContain('隐身时说的话')
   })
 
+  it('⭐ 聊天会话（附录L）：开场白是她的第一句，保存带上和谁聊；载回时还是这段聊天', async () => {
+    await mount()
+    const character = {
+      id: '11111111-1111-4111-8111-111111111111',
+      name: 'Rin',
+    }
+    act(() =>
+      store.resetOperatorThread(undefined, {
+        character,
+        opening: '欢迎光临喵',
+      }),
+    )
+    expect(store.getOperatorState().chatCharacter).toEqual(character)
+    expect(store.getOperatorState().history).toMatchObject([
+      { kind: 'message', text: '欢迎光临喵' },
+    ])
+    // 只有开场白、你还没开口 → 不落库。
+    await settleDebounce()
+    expect(upsertMock).not.toHaveBeenCalled()
+
+    act(() => say('u1', '你好'))
+    await settleDebounce()
+    expect(lastUpsertBody().chatCharacterId).toBe(character.id)
+    expect(lastUpsertBody().messages[0]).toMatchObject({
+      role: 'assistant',
+      content: '欢迎光临喵',
+    })
+
+    // 新会话（工作）：不再带。
+    act(() => store.resetOperatorThread())
+    expect(store.getOperatorState().chatCharacter).toBeNull()
+    act(() => say('u2', '干活'))
+    await settleDebounce()
+    expect(lastUpsertBody()).not.toHaveProperty('chatCharacterId')
+
+    // 从会话菜单载回那段聊天。
+    getMock.mockResolvedValue({
+      success: true,
+      data: {
+        id: 'conv-chat',
+        surface: 'IMAGE_STUDIO',
+        workspaceKey: 'image-natural',
+        messages: [{ role: 'user', content: '你好' }],
+      },
+    })
+    const { result } = await mount()
+    await act(async () => {
+      result.current.selectSession({
+        id: 'conv-chat',
+        surface: 'IMAGE_STUDIO',
+        workspaceKey: 'image-natural',
+        chatCharacter: character,
+      } as never)
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect(store.getOperatorState().chatCharacter).toEqual(character)
+  })
+
   it('一轮十几条只写一次库 —— 写入是防抖不是每帧', async () => {
     await mount()
 

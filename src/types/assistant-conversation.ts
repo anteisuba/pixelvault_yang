@@ -171,6 +171,14 @@ export const AssistantConversationMessageSchema = z.object({
    * ⚠ `.catch(undefined)`：读不出来就当没有戳，⛔ 不让一条坏值整段会话读不出来。
    */
   workspaceKey: AssistantWorkspaceKeySchema.optional().catch(undefined),
+  /**
+   * **这段会话是和哪张角色卡聊**（聊天模式，附录L）。缺席 = 工作会话。
+   *
+   * ⭐ 同 `workspaceKey`：只盖在**首条消息**上，由服务端按保存请求里的 `chatCharacterId` 盖；
+   * ⛔ 不加列、不写迁移。模式跟会话走，同一段会话不切。
+   * ⚠ `.catch(undefined)`：读不出来就当工作会话。
+   */
+  chatCharacterId: z.string().uuid().optional().catch(undefined),
 })
 
 export type AssistantConversationMessageStored = z.infer<
@@ -185,6 +193,8 @@ export const UpsertAssistantConversationRequestSchema = z.object({
   messages: z
     .array(AssistantConversationMessageSchema)
     .max(ASSISTANT_CONVERSATION_LIMITS.maxMessages),
+  /** 聊天会话绑的角色卡（附录L）；服务端盖到首条消息上。缺席 = 工作会话。 */
+  chatCharacterId: z.string().uuid().optional(),
 })
 
 export type UpsertAssistantConversationRequest = z.infer<
@@ -238,6 +248,8 @@ export interface AssistantConversationRecord {
   surface: AssistantSurfaceId
   projectId: string | null
   title: string | null
+  /** 聊天会话绑的角色卡（首条消息上的戳）；工作会话是 `null`。 */
+  chatCharacterId: string | null
   messages: AssistantConversationMessageStored[]
   /** 每轮结账的结论记录（§7.2）。⚠ 读不出来的条目按丢弃处理，⛔ 不作废整段会话。 */
   rounds: AssistantConversationRoundStored[]
@@ -253,6 +265,11 @@ export interface AssistantConversationSummary {
   title: string | null
   updatedAt: string
   messageCount: number
+  /**
+   * 聊天会话绑的角色（附录L）：会话菜单按它分组。卡删了 `name` 读不到时 `null` 整格 ——
+   * 照工作会话列（服务端那一轮也照工作模式答）。⚠ 可选：老测试里现造的 summary 不必给。
+   */
+  chatCharacter?: { id: string; name: string } | null
   /**
    * 这条会话是**操作员线程**（P4-B），不是旧助手那种纯对白。
    *

@@ -242,6 +242,21 @@ function stampWorkspace(
   })
 }
 
+/**
+ * 聊天会话的戳（附录L）：盖在首条消息上，别的消息上的一律去掉。⛔ 不信消息里自带的那一格 ——
+ * 只认保存请求顶上的 `chatCharacterId`。
+ */
+function stampChatCharacter(
+  messages: AssistantConversationMessageStored[],
+  chatCharacterId: string | undefined,
+): AssistantConversationMessageStored[] {
+  return messages.map((message, index) => {
+    const { chatCharacterId: _previous, ...rest } = message
+    void _previous
+    return index === 0 && chatCharacterId ? { ...rest, chatCharacterId } : rest
+  })
+}
+
 function toRecord(row: {
   id: string
   surface: AssistantSurface
@@ -267,6 +282,7 @@ function toRecord(row: {
     surface: row.surface as AssistantSurfaceId,
     projectId: row.projectId,
     title: row.title,
+    chatCharacterId: messages[0]?.chatCharacterId ?? null,
     messages,
     rounds: sanitizeRounds(row.rounds),
     createdAt: row.createdAt.toISOString(),
@@ -280,7 +296,10 @@ export async function upsertAssistantConversation(
 ): Promise<AssistantConversationRecord> {
   const user = await ensureUser(clerkId)
   const workspace = await resolveConversationWorkspace(user.id, input)
-  const messages = stampWorkspace(sanitizeMessages(input.messages), workspace)
+  const messages = stampChatCharacter(
+    stampWorkspace(sanitizeMessages(input.messages), workspace),
+    input.chatCharacterId,
+  )
   const title = titleFromMessages(messages)
 
   if (input.id) {
@@ -328,15 +347,27 @@ export async function listAssistantConversations(
   const limit = args.limit ?? 20
   const operatorPayload = Prisma.sql`COALESCE("messages"->0->'operator' <> 'null'::jsonb, false)`
   const rows = await db.$queryRaw<
-    (Omit<AssistantConversationSummary, 'updatedAt' | 'workspaceKey'> & {
+    (Omit<
+      AssistantConversationSummary,
+      'updatedAt' | 'workspaceKey' | 'chatCharacter'
+    > & {
       updatedAt: Date
       stamp: unknown
+      chatCharacterId: string | null
+      chatCharacterName: string | null
     })[]
   >(Prisma.sql`
     SELECT "id", "surface", "projectId", "title", "updatedAt",
       "messages"->0->>'workspaceKey' AS "stamp",
       CASE WHEN jsonb_typeof("messages") = 'array' THEN jsonb_array_length("messages") ELSE 0 END AS "messageCount",
-      ${operatorPayload} AS "operatorThread"
+      ${operatorPayload} AS "operatorThread",
+      "messages"->0->>'chatCharacterId' AS "chatCharacterId",
+      (
+        SELECT card."name" FROM "CharacterCard" card
+        WHERE card."id" = "AssistantConversation"."messages"->0->>'chatCharacterId'
+          AND card."userId" = "AssistantConversation"."userId"
+          AND card."isDeleted" = false
+      ) AS "chatCharacterName"
     FROM "AssistantConversation"
     WHERE "userId" = ${user.id}
       AND ${conversationScopeSql(workspace)}
@@ -344,15 +375,21 @@ export async function listAssistantConversations(
     ORDER BY "updatedAt" DESC
     LIMIT ${limit}
   `)
-  return rows.map(({ stamp, updatedAt, ...row }) => ({
-    ...row,
-    workspaceKey: assistantWorkspaceKeyOfRow({
-      surface: row.surface,
-      projectId: row.projectId,
-      stamp,
+  return rows.map(
+    ({ stamp, updatedAt, chatCharacterId, chatCharacterName, ...row }) => ({
+      ...row,
+      chatCharacter:
+        chatCharacterId && chatCharacterName
+          ? { id: chatCharacterId, name: chatCharacterName }
+          : null,
+      workspaceKey: assistantWorkspaceKeyOfRow({
+        surface: row.surface,
+        projectId: row.projectId,
+        stamp,
+      }),
+      updatedAt: updatedAt.toISOString(),
     }),
-    updatedAt: updatedAt.toISOString(),
-  }))
+  )
 }
 
 export async function deleteAssistantConversation(

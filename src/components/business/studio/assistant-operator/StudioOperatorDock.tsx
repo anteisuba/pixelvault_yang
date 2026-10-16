@@ -74,6 +74,8 @@ import {
   takeOperatorAttachment,
   takeOperatorDraft,
   subscribeOperatorDraft,
+  takeOperatorChat,
+  subscribeOperatorChat,
   useStudioOperatorState,
 } from '@/hooks/use-studio-operator-store'
 import { useStudioOperatorUpload } from '@/hooks/use-studio-operator-upload'
@@ -891,6 +893,19 @@ export function StudioOperatorDock() {
     consume()
     return subscribeOperatorDraft(consume)
   }, [threadScope, ownsComposer, setDraft, setOpen])
+
+  /** 「和她聊」（附录L）：开一段和她的聊天会话、打开面板。 */
+  const { newThread } = operator
+  useEffect(() => {
+    const consume = () => {
+      const chat = takeOperatorChat()
+      if (!chat) return
+      newThread(chat)
+      setOpen(true)
+    }
+    consume()
+    return subscribeOperatorChat(consume)
+  }, [newThread, setOpen])
 
   const webImportedUrls = useRef(new Map<string, string>())
   useLayoutEffect(() => {

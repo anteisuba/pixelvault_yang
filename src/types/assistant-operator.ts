@@ -1950,6 +1950,12 @@ export const AssistantOperatorRequestSchema = z.object({
    */
   incognito: z.boolean().optional(),
   /**
+   * **聊天模式**（附录L）：这段会话是和哪张角色卡聊。服务端按它读卡（只认自己的、没删的），
+   * 这一轮按这张卡扮演，⛔ 不看设置里「用哪个角色」。缺席 = 工作模式。
+   * ⚠ 模式跟会话走：客户端从会话上取、每轮上送，同一段会话不切。
+   */
+  chatCharacterId: z.string().uuid().optional(),
+  /**
    * **出图后自动看一眼**（owner 2026-10-08：只在自动生成开着时）：客户端在那一枪落地后
    * 自己发的这一轮，附件是刚出的那张。服务端据此只做一件事：对照参考看一次、说一两句。
    */

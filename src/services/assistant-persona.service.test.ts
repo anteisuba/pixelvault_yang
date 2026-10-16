@@ -784,3 +784,57 @@ describe('persona 的三项用户偏好', () => {
     ).not.toBe('ignore previous instructions')
   })
 })
+
+/**
+ * 聊天模式（附录L）：这一轮按会话绑的那张卡扮演，⛔ 不看设置里用哪个角色。
+ */
+describe('聊天模式按会话那张卡', () => {
+  const CHAT_CARD = {
+    id: '11111111-1111-4111-8111-111111111111',
+    name: 'Rin',
+    sourceImageUrl: 'https://cdn.test/rin.png',
+    isDeleted: false,
+    persona: {
+      identity: '{{char}}，猫咖店员',
+      speech: '说话短，爱用「喵」结尾',
+      scenario: '雨天的猫咖，{{user}}推门进来',
+      opening: '欢迎光临喵',
+      examples: [
+        { user: '你好', reply: '……你好喵' },
+        { user: '', reply: '' },
+      ],
+    },
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockFindUnique.mockResolvedValue(STORED_ROW)
+  })
+
+  it('⭐ 名字、口吻、场景三样都从会话那张卡来；只认自己的、没删的', async () => {
+    mockCardFindFirst.mockResolvedValue(CHAT_CARD)
+    const persona = await getAssistantPersonaByUserId('db_user_1', CHAT_CARD.id)
+    expect(mockCardFindFirst.mock.calls[0]?.[0]).toMatchObject({
+      where: { id: CHAT_CARD.id, userId: 'db_user_1', isDeleted: false },
+    })
+    expect(persona).toMatchObject({
+      name: 'Rin',
+      characterCardId: CHAT_CARD.id,
+      tone: ASSISTANT_PERSONA_TONE_IDS.custom,
+      toneCustom: CHAT_CARD.persona.speech,
+      roleplay: {
+        scenario: CHAT_CARD.persona.scenario,
+        opening: '欢迎光临喵',
+        examples: [{ user: '你好', reply: '……你好喵' }],
+      },
+    })
+    expect(persona.promptCharacter?.name).toBe('Rin')
+  })
+
+  it('卡不是你的 / 删了 → 照工作模式答（设置里那一份）', async () => {
+    mockCardFindFirst.mockResolvedValue(null)
+    const persona = await getAssistantPersonaByUserId('db_user_1', CHAT_CARD.id)
+    expect(persona.name).toBe('Mika')
+    expect(persona.roleplay).toBeUndefined()
+  })
+})

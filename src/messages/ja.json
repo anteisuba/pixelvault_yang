@@ -8774,7 +8774,15 @@
       "stop": "ここまで",
       "continuePrompt": "続けて"
     },
-    "stopShort": "停止"
+    "stopShort": "停止",
+    "chat": {
+      "pill": "{name}とチャット中",
+      "group": "{name}とのチャット",
+      "workGroup": "作業",
+      "newWorkThread": "新しい会話（作業）",
+      "chatWith": "キャラと話す…",
+      "noCharacters": "キャラクターがまだありません。キャラクターページで作成してください"
+    }
   },
   "GenerationCancel": {
     "cancel": "キャンセル",
@@ -9249,6 +9257,8 @@
     "title": "キャラクター",
     "useCharacter": "使う",
     "draftHint": "まず名前を決めてから、画像と設定を追加します",
+    "chatWith": "このキャラと話す",
+    "chatWithHint": "アシスタントパネルでこのキャラとのチャットを始めます",
     "useInStudio": "画像スタジオで使う",
     "useInStudioHint": "メイン画像とタグを持っていきます",
     "useAsPersona": "アシスタントの人格にする",

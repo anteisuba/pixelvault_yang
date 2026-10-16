@@ -8,6 +8,7 @@ import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator
 
 import {
   getOperatorState,
+  resetOperatorThread,
   setOperatorIncognito,
 } from '@/hooks/use-studio-operator-store'
 
@@ -103,8 +104,32 @@ vi.mock('@/components/ui/dropdown-menu', async () => {
       <div>{children}</div>
     ),
     DropdownMenuSeparator: () => <hr />,
+    DropdownMenuSub: ({ children }: { children: React.ReactNode }) => (
+      <div>{children}</div>
+    ),
+    DropdownMenuSubTrigger: ({
+      children,
+      ...props
+    }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+      <button {...props}>{children}</button>
+    ),
+    DropdownMenuSubContent: ({ children }: { children: React.ReactNode }) => (
+      <div data-testid="operator-chat-with-list">{children}</div>
+    ),
   }
 })
+
+vi.mock('@/hooks/use-chat-characters', () => ({
+  useChatCharacters: () => ({
+    characters: [
+      {
+        character: { id: 'card-rin', name: 'Rin' },
+        opening: '欢迎光临喵',
+      },
+    ],
+    isLoading: false,
+  }),
+}))
 
 const NOW = Date.now()
 const DAY_MS = 86_400_000
@@ -419,6 +444,45 @@ describe('StudioOperatorHeader', () => {
         'motion-reduce:transition-none',
       )
     }
+  })
+
+  it('⭐ 聊天会话（附录L）：按「工作 / 和谁聊」分组，胶囊写和谁聊，「和角色聊…」开一段聊天', () => {
+    const rin = { id: 'card-rin', name: 'Rin' }
+    const sessions = [
+      { ...SESSIONS[0], chatCharacter: rin },
+      SESSIONS[1],
+      { ...SESSIONS[2], chatCharacter: rin },
+    ] as unknown as UseStudioOperatorHistoryResult['sessions']
+    resetOperatorThread(undefined, { character: rin, opening: '' })
+    const { onNewThread } = renderHeader({
+      history: { ...HISTORY, sessions },
+    })
+    expect(screen.getByTestId('operator-chat-pill').textContent).toContain(
+      'chat.pill',
+    )
+    expect(screen.getByTestId('operator-new-thread').textContent).toContain(
+      'chat.newWorkThread',
+    )
+    fireEvent.click(screen.getByTestId('operator-session-menu'))
+    const content = screen.getAllByTestId(
+      'operator-session-dropdown-content',
+    )[0]
+    const text = content.textContent ?? ''
+    // 组按各组最近那一条排：Rin 那组在前，两条聊天归在一起，工作那组在后。
+    expect(text.indexOf('chat.group')).toBeLessThan(
+      text.indexOf('chat.workGroup'),
+    )
+    expect(text.indexOf('城市天台构图')).toBeLessThan(
+      text.indexOf('chat.workGroup'),
+    )
+
+    fireEvent.click(screen.getByText('Rin'))
+    expect(onNewThread).toHaveBeenCalledWith({
+      character: rin,
+      opening: '欢迎光临喵',
+    })
+    cleanup()
+    resetOperatorThread()
   })
 
   it('续跑 chip 只在空闲时露脸', () => {

@@ -456,6 +456,15 @@ export const ASSISTANT_PERSONA_LIMITS = {
   maxCharacterBackstoryChars: 1500,
   maxCharacterCatchphrases: 8,
   maxCharacterSectionChars: 4400,
+  /**
+   * 聊天模式多带的三样（附录L）：场景 / 开场白 / 示例对白各自上限 + 整段封顶。
+   * ⚠ 同样整段会话不变（吃缓存），但每一步都重发，所以示例只带前几组。
+   */
+  maxRoleplayScenarioChars: 800,
+  maxRoleplayOpeningChars: 1000,
+  maxRoleplayExamples: 4,
+  maxRoleplayExampleChars: 600,
+  maxRoleplaySectionChars: 4000,
   /** 每轮末尾那句「别出戏」里带的说话方式摘要（附录J ③）。 */
   maxCharacterReminderChars: 120,
   /**

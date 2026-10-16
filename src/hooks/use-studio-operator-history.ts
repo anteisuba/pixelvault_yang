@@ -153,6 +153,9 @@ function persistThread(request: ThreadSave): Promise<boolean> {
         surface: current.surface,
         workspaceKey: current.workspaceKey,
         ...(current.projectId ? { projectId: current.projectId } : {}),
+        ...(current.snapshot.chatCharacter
+          ? { chatCharacterId: current.snapshot.chatCharacter.id }
+          : {}),
         messages: toStoredOperatorMessages(
           history,
           pendingFromOperatorState(
@@ -419,7 +422,11 @@ export function useStudioOperatorHistory({
   )
 
   const applyConversation = useCallback(
-    async (id: string, surface: AssistantSurfaceId): Promise<boolean> => {
+    async (
+      id: string,
+      surface: AssistantSurfaceId,
+      chatCharacter: AssistantConversationSummary['chatCharacter'],
+    ): Promise<boolean> => {
       const epoch = lifecycle.current
       if (!isActive(epoch) || !workspaceKey) return false
       const intent = ++loadIntent.current
@@ -461,6 +468,8 @@ export function useStudioOperatorHistory({
           sessionSurface: result.data.surface,
           // 末尾还没决定的那一下放回面板（owner 09-27：刷新丢卡）。
           pending: pendingFromStoredMessages(result.data.messages),
+          // 聊天会话照旧是聊天会话（附录L）；卡删了就当工作会话。
+          chatCharacter: chatCharacter ?? null,
         })
         return true
       } catch {
@@ -531,7 +540,11 @@ export function useStudioOperatorHistory({
             current.sessionId
           )
             return
-          await applyConversation(latest.id, latest.surface)
+          await applyConversation(
+            latest.id,
+            latest.surface,
+            latest.chatCharacter,
+          )
         } catch {
           if (isActive(epoch)) setError(t('loadFailed'))
         } finally {
@@ -663,7 +676,7 @@ export function useStudioOperatorHistory({
     (session: AssistantConversationSummary) => {
       if (session.workspaceKey !== workspaceKey) return
       if (session.id === getOperatorState().sessionId) return
-      void applyConversation(session.id, session.surface)
+      void applyConversation(session.id, session.surface, session.chatCharacter)
     },
     [applyConversation, workspaceKey],
   )

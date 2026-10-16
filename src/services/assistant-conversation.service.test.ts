@@ -836,3 +836,79 @@ it('filters legacy text lists with false and leaves explicit combined lists unfi
     ])
   }
 })
+
+it('聊天会话（附录L）：和谁聊盖在首条消息上，⛔ 不信消息里自带的那一格', async () => {
+  const chatCharacterId = '11111111-1111-4111-8111-111111111111'
+  mocks.create.mockImplementation(async ({ data }) => ({
+    id: 'conv-chat',
+    surface: data.surface,
+    projectId: data.projectId,
+    title: data.title,
+    messages: data.messages,
+    rounds: [],
+    createdAt: new Date('2026-10-16T00:00:00Z'),
+    updatedAt: new Date('2026-10-16T00:00:00Z'),
+  }))
+  const record = await upsertAssistantConversation('clerk-owner', {
+    workspaceKey: 'cards',
+    surface: 'CARDS',
+    chatCharacterId,
+    messages: [
+      { role: 'assistant', content: '欢迎光临喵' },
+      {
+        role: 'user',
+        content: '你好',
+        chatCharacterId: '22222222-2222-4222-8222-222222222222',
+      },
+    ],
+  })
+  const saved = mocks.create.mock.calls[0]?.[0].data.messages
+  expect(saved[0].chatCharacterId).toBe(chatCharacterId)
+  expect(saved[1]).not.toHaveProperty('chatCharacterId')
+  expect(record.chatCharacterId).toBe(chatCharacterId)
+})
+
+it('会话列表带上和谁聊；卡读不到就当工作会话', async () => {
+  mocks.queryRaw.mockResolvedValue([
+    {
+      id: 'chat',
+      stamp: null,
+      surface: 'CARDS',
+      projectId: null,
+      title: '你好',
+      updatedAt: new Date('2026-10-16T00:00:00Z'),
+      messageCount: 2,
+      operatorThread: true,
+      chatCharacterId: '11111111-1111-4111-8111-111111111111',
+      chatCharacterName: 'Rin',
+    },
+    {
+      id: 'gone',
+      stamp: null,
+      surface: 'CARDS',
+      projectId: null,
+      title: '旧聊天',
+      updatedAt: new Date('2026-10-15T00:00:00Z'),
+      messageCount: 2,
+      operatorThread: true,
+      chatCharacterId: '22222222-2222-4222-8222-222222222222',
+      chatCharacterName: null,
+    },
+  ])
+  const result = await listAssistantConversations('clerk-owner', {
+    workspaceKey: 'cards',
+    surface: 'CARDS',
+    operatorOnly: true,
+  })
+  const query = mocks.queryRaw.mock.calls[0][0]
+  expect(query.sql).toContain('card."isDeleted" = false')
+  expect(query.sql).toContain(
+    'card."userId" = "AssistantConversation"."userId"',
+  )
+  expect(result[0].chatCharacter).toEqual({
+    id: '11111111-1111-4111-8111-111111111111',
+    name: 'Rin',
+  })
+  expect(result[1].chatCharacter).toBeNull()
+  expect(result[0]).not.toHaveProperty('chatCharacterName')
+})

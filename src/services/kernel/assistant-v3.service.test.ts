@@ -614,6 +614,21 @@ describe('v3 内核', () => {
     )
   })
 
+  it('⛔ 隐身：翻记忆不打库，告诉模型这段对话不用记忆', async () => {
+    searchMemories.mockClear()
+    const mock = script(
+      toolTurn({
+        id: 'call_mem',
+        name: 'search_library',
+        input: { query: '画幅', kind: 'memories', subject: null },
+      }),
+      textTurn('你平时用什么画幅？'),
+    )
+    await collect(runAssistantV3('clerk-1', { ...request(), incognito: true }))
+    expect(searchMemories).not.toHaveBeenCalled()
+    expect(promptText(mock.doStreamCalls[1]!)).toContain('Incognito is on')
+  })
+
   it('只回话：流式正文 + 定稿 + done，不发本轮记录', async () => {
     script(textTurn('S04b 现在接了高尔一张参考。'))
     const events = await collect(runAssistantV3('clerk-1', request()))

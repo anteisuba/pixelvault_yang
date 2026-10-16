@@ -249,11 +249,21 @@ function stampWorkspace(
 function stampChatCharacter(
   messages: AssistantConversationMessageStored[],
   chatCharacterId: string | undefined,
+  chatUserRole: string | undefined,
 ): AssistantConversationMessageStored[] {
   return messages.map((message, index) => {
-    const { chatCharacterId: _previous, ...rest } = message
+    const {
+      chatCharacterId: _previous,
+      chatUserRole: _previousRole,
+      ...rest
+    } = message
     void _previous
-    return index === 0 && chatCharacterId ? { ...rest, chatCharacterId } : rest
+    void _previousRole
+    if (index !== 0 || !chatCharacterId) return rest
+    // 你在故事里是谁只跟聊天会话走（附录L 第二片 C）。
+    return chatUserRole
+      ? { ...rest, chatCharacterId, chatUserRole }
+      : { ...rest, chatCharacterId }
   })
 }
 
@@ -283,6 +293,8 @@ function toRecord(row: {
     projectId: row.projectId,
     title: row.title,
     chatCharacterId: messages[0]?.chatCharacterId ?? null,
+    chatUserRole:
+      (messages[0]?.chatCharacterId && messages[0]?.chatUserRole) || null,
     messages,
     rounds: sanitizeRounds(row.rounds),
     createdAt: row.createdAt.toISOString(),
@@ -299,6 +311,7 @@ export async function upsertAssistantConversation(
   const messages = stampChatCharacter(
     stampWorkspace(sanitizeMessages(input.messages), workspace),
     input.chatCharacterId,
+    input.chatUserRole,
   )
   const title = titleFromMessages(messages)
 

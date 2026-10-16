@@ -8792,7 +8792,10 @@
       "confirmDelete": "确定删除？",
       "save": "保存",
       "cancel": "取消",
-      "you": "你"
+      "you": "你",
+      "roleLabel": "你在这段故事里是谁",
+      "rolePlaceholder": "比如：刚搬来的邻居，和{name}是青梅竹马",
+      "roleHint": "只用于这段聊天，下一句起生效"
     }
   },
   "GenerationCancel": {

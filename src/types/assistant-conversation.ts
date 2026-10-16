@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
+import { ASSISTANT_PERSONA_LIMITS } from '@/constants/assistant-persona'
 import {
   ASSISTANT_LORA_PICK_LIMITS,
   ASSISTANT_PROTOCOL_DOMAIN_IDS,
@@ -179,6 +180,12 @@ export const AssistantConversationMessageSchema = z.object({
    * ⚠ `.catch(undefined)`：读不出来就当工作会话。
    */
   chatCharacterId: z.string().uuid().optional().catch(undefined),
+  /** 聊天会话里你在故事里是谁（附录L 第二片 C）：同上，只盖在首条消息上。 */
+  chatUserRole: z
+    .string()
+    .max(ASSISTANT_PERSONA_LIMITS.maxChatUserRoleChars)
+    .optional()
+    .catch(undefined),
 })
 
 export type AssistantConversationMessageStored = z.infer<
@@ -195,6 +202,12 @@ export const UpsertAssistantConversationRequestSchema = z.object({
     .max(ASSISTANT_CONVERSATION_LIMITS.maxMessages),
   /** 聊天会话绑的角色卡（附录L）；服务端盖到首条消息上。缺席 = 工作会话。 */
   chatCharacterId: z.string().uuid().optional(),
+  /** 你在故事里是谁；只随聊天会话存，服务端盖到首条消息上。 */
+  chatUserRole: z
+    .string()
+    .trim()
+    .max(ASSISTANT_PERSONA_LIMITS.maxChatUserRoleChars)
+    .optional(),
 })
 
 export type UpsertAssistantConversationRequest = z.infer<
@@ -250,6 +263,8 @@ export interface AssistantConversationRecord {
   title: string | null
   /** 聊天会话绑的角色卡（首条消息上的戳）；工作会话是 `null`。 */
   chatCharacterId: string | null
+  /** 你在故事里是谁（首条消息上的戳）；没写 / 工作会话是 `null`。 */
+  chatUserRole: string | null
   messages: AssistantConversationMessageStored[]
   /** 每轮结账的结论记录（§7.2）。⚠ 读不出来的条目按丢弃处理，⛔ 不作废整段会话。 */
   rounds: AssistantConversationRoundStored[]

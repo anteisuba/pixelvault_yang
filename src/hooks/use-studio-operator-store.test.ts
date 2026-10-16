@@ -1040,6 +1040,30 @@ describe('聊天会话 · 重新生成 / 改 / 删（附录L 第二片）', () =
     })
   })
 
+  it('⭐ 你在故事里是谁：只在聊天会话里能改，改了算改历史（会存）；新会话清空', () => {
+    act(() => store.setOperatorChatUserRole('工作会话不收'))
+    expect(store.getOperatorState().chatUserRole).toBe('')
+    act(() => {
+      store.resetOperatorThread(undefined, {
+        character: CHARACTER,
+        opening: '你来了。',
+      })
+    })
+    const before = store.getOperatorState().historyRevision
+    act(() => store.setOperatorChatUserRole('刚搬来的邻居'))
+    expect(store.getOperatorState()).toMatchObject({
+      chatUserRole: '刚搬来的邻居',
+      historyRevision: before + 1,
+    })
+    act(() => {
+      store.resetOperatorThread(undefined, {
+        character: CHARACTER,
+        opening: '',
+      })
+    })
+    expect(store.getOperatorState().chatUserRole).toBe('')
+  })
+
   it('只有开场白时没有可重新生成的', () => {
     act(() => {
       store.resetOperatorThread(undefined, {

@@ -44,6 +44,28 @@ export const TavernCardKeptSchema = z.looseObject({
 
 export type TavernCardKept = z.infer<typeof TavernCardKeptSchema>
 
+/**
+ * 世界书的一条（V2 `character_book.entries[]`；SillyTavern 导出的世界书里是 `key` + `disable`，
+ * 一起认）。读不懂的格子当没写，⛔ 不让一条坏的连累整本。
+ */
+export const TavernWorldEntrySchema = z.looseObject({
+  keys: z.array(z.string()).optional().catch(undefined),
+  key: z.array(z.string()).optional().catch(undefined),
+  content: z.string().catch(''),
+  enabled: z.boolean().optional().catch(undefined),
+  disable: z.boolean().optional().catch(undefined),
+  constant: z.boolean().optional().catch(undefined),
+  insertion_order: z.number().optional().catch(undefined),
+  order: z.number().optional().catch(undefined),
+})
+
+/** 整本世界书：`entries` 是数组（卡规范）或以 id 为键的对象（SillyTavern 导出）。 */
+export const TavernWorldBookSchema = z.looseObject({
+  entries: z
+    .union([z.array(z.unknown()), z.record(z.string(), z.unknown())])
+    .catch([]),
+})
+
 /** V2 / V3 的外壳：`spec` 认得才拆 `data`，否则按 V1 平铺读。 */
 export const TavernCardEnvelopeSchema = z.object({
   spec: z.enum([TAVERN_CARD.SPEC_V2, TAVERN_CARD.SPEC_V3]),

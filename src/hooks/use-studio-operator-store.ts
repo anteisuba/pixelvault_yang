@@ -22,7 +22,10 @@ import {
   ASSISTANT_MENTION_LIMITS,
   ASSISTANT_MENTION_SCOPE_IDS,
 } from '@/constants/assistant-mention'
-import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
+import {
+  ASSISTANT_PERSONA_DEFAULTS,
+  ASSISTANT_PERSONA_LIMITS,
+} from '@/constants/assistant-persona'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import type { AssistantPersonaPlanMode } from '@/constants/assistant-persona'
 import type { AssistantOperatorDomain } from '@/constants/assistant-operator'
@@ -230,6 +233,11 @@ export interface StudioOperatorState {
    */
   chatCharacter: StudioOperatorChatCharacter | null
   /**
+   * 聊天会话里**你在故事里是谁**（附录L 第二片 C）：这段会话自己的一格，空 = 没写。每轮上送
+   * `chatUserRole`，保存时盖在会话首条消息上；改了算改历史（`historyRevision`）才会存。
+   */
+  chatUserRole: string
+  /**
    * 聊天会话里正在「重新生成」（附录L 第二片）：被拿掉的那条回复已有的各版。这一轮停下时
    * 新回复接成最后一版；没写出来就把原来那条放回去（⛔ 一次失败的重新生成吞掉她说过的话）。
    */
@@ -334,6 +342,7 @@ const INITIAL_STATE: StudioOperatorState = {
   incognito: false,
   offTheRecord: false,
   chatCharacter: null,
+  chatUserRole: '',
   regeneration: null,
   historyRevision: 0,
   outOfSteps: false,
@@ -1504,6 +1513,8 @@ export function loadOperatorThread(args: {
   pending?: StudioOperatorPending | null
   /** 这段会话是和谁聊（会话菜单那一行带来的）；缺席 = 工作会话。 */
   chatCharacter?: StudioOperatorChatCharacter | null
+  /** 你在故事里是谁（会话首条消息上的戳）。 */
+  chatUserRole?: string
 }): void {
   const pending = args.pending ?? null
   emit({
@@ -1552,10 +1563,25 @@ export function loadOperatorThread(args: {
     incognito: false,
     offTheRecord: false,
     chatCharacter: args.chatCharacter ?? null,
+    chatUserRole: args.chatCharacter ? (args.chatUserRole ?? '') : '',
     regeneration: null,
     historyRevision: 0,
   })
   hydrateOperatorResume()
+}
+
+/**
+ * 改「你在故事里是谁」（附录L 第二片 C）：只在聊天会话里有意义；下一轮起生效，随会话存。
+ */
+export function setOperatorChatUserRole(text: string): void {
+  if (!state.chatCharacter) return
+  const next = text.slice(0, ASSISTANT_PERSONA_LIMITS.maxChatUserRoleChars)
+  if (next === state.chatUserRole) return
+  emit({
+    ...state,
+    chatUserRole: next,
+    historyRevision: state.historyRevision + 1,
+  })
 }
 
 /**
@@ -1767,6 +1793,7 @@ export function resetOperatorThread(
     history: openingHistory(chat),
     historyRounds: EMPTY_ROUNDS,
     chatCharacter: chat?.character ?? null,
+    chatUserRole: '',
     regeneration: null,
     historyRevision: 0,
     sessionId: null,

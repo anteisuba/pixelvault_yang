@@ -3,10 +3,15 @@ import {
   CHARACTER_PERSONA_LIMITS,
 } from '@/constants/cards/character-card'
 import { TAVERN_CARD } from '@/constants/cards/tavern-card'
+import { ASSISTANT_PERSONA_LIMITS } from '@/constants/assistant-persona'
 import type { CardExtensions, CharacterPersona } from '@/types'
+import type { AssistantPromptWorldEntry } from '@/types/assistant-persona'
 import {
   TavernCardEnvelopeSchema,
   TavernCardFieldsSchema,
+  TavernCardKeptSchema,
+  TavernWorldBookSchema,
+  TavernWorldEntrySchema,
   type TavernCardFields,
 } from '@/types/tavern-card'
 import { readPngTextChunks } from '@/lib/png-text-chunks'
@@ -206,4 +211,49 @@ export function tavernCardMime(file: {
     return 'application/json'
   }
   return null
+}
+
+/**
+ * 卡上原样存着的世界书（`extensions['st.card'].characterBook`）→ 聊天时能用的几条（附录L 第二片 C）。
+ * 关了的、没正文的、既没关键词又不常驻的丢掉；按酒馆的插入顺序排；最多 `maxWorldEntries` 条。
+ * ⚠ 只取「关键词 → 正文」与常驻：酒馆的次关键词 / 概率 / 递归 / 插入位置这些 ⛔ 不照搬 ——
+ *   正文交给模型当资料自己判断，代码只做「对白里提到了没有」。
+ */
+export function readTavernWorldBook(
+  extensions: unknown,
+): AssistantPromptWorldEntry[] {
+  const kept =
+    extensions && typeof extensions === 'object'
+      ? (extensions as Record<string, unknown>)[TAVERN_CARD.EXTENSION_KEY]
+      : undefined
+  const keptParsed = TavernCardKeptSchema.safeParse(kept ?? {})
+  if (!keptParsed.success) return []
+  const book = TavernWorldBookSchema.safeParse(keptParsed.data.characterBook)
+  if (!book.success) return []
+  const raw = Array.isArray(book.data.entries)
+    ? book.data.entries
+    : Object.values(book.data.entries)
+  return raw
+    .map((value, index) => {
+      const entry = TavernWorldEntrySchema.safeParse(value)
+      if (!entry.success) return null
+      const { data } = entry
+      if (data.enabled === false || data.disable === true) return null
+      const content = data.content.trim()
+      const keys = [...(data.keys ?? []), ...(data.key ?? [])]
+        .map((key) => key.trim())
+        .filter(Boolean)
+        .slice(0, ASSISTANT_PERSONA_LIMITS.maxWorldKeys)
+      const constant = data.constant === true
+      if (!content || (!constant && keys.length === 0)) return null
+      return {
+        entry: { keys, content, constant },
+        order: data.insertion_order ?? data.order ?? 0,
+        index,
+      }
+    })
+    .filter((item) => item !== null)
+    .sort((a, b) => a.order - b.order || a.index - b.index)
+    .slice(0, ASSISTANT_PERSONA_LIMITS.maxWorldEntries)
+    .map((item) => item.entry)
 }

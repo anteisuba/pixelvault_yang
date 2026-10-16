@@ -204,6 +204,7 @@ import {
 import {
   isWebImageSourceUsableAsInput,
   judgeWebImageSource,
+  WEB_IMAGE_SOURCE_NOT_USABLE_MODEL_REASONS,
   webImageSourceRank,
 } from '@/constants/web-image-sources'
 import {
@@ -4043,7 +4044,7 @@ function planImportUserUrl(run: OperatorRun, args: { url: string }): ToolPlan {
   if (shownCandidate && !shownCandidate.usableAsInput) {
     return reject(
       REJECT.sourceNotUsable,
-      'That candidate is marked reference-only: the site asks not to be used as AI input, or republishes work without a traceable source. Attach the others and say plainly why that one stayed out.',
+      `That candidate is marked view only: ${WEB_IMAGE_SOURCE_NOT_USABLE_MODEL_REASONS[shownCandidate.sourceVerdict]}. Attach the others and say in one plain sentence why that one stayed out.`,
     )
   }
 
@@ -4069,7 +4070,7 @@ function planImportUserUrl(run: OperatorRun, args: { url: string }): ToolPlan {
   if (!isWebImageSourceUsableAsInput(verdict)) {
     return reject(
       REJECT.sourceNotUsable,
-      `${domain ?? 'That site'} asks not to be used as AI input, or republishes work without a traceable source. Tell the creator plainly and ask for another source — do not fetch it and do not look for the same picture elsewhere.`,
+      `${domain ?? 'That address'}: ${WEB_IMAGE_SOURCE_NOT_USABLE_MODEL_REASONS[verdict]}. Tell the creator in one plain sentence and ask for another source — do not fetch it and do not look for the same picture elsewhere.`,
     )
   }
 
@@ -11189,7 +11190,7 @@ HARD RULES — these are structural, not stylistic:
 - Never invent a model id or an asset id. Model ids come from the state block, asset ids come from search_assets results. A made-up id is refused and wastes a step.
 - Every asset the creator owns has a NAME, printed by search_assets and attached to what they hand you (图_012·silver-haired girl). Call it by that name whenever you talk about it — "the second one" is ambiguous the moment they scroll, and an asset id is a uuid neither of you can check by eye. Never read an id out loud; ids belong inside tool arguments only.
 ${frameRules}${importLinkRule}- Look facts up on the web whenever your answer depends on something you are not sure of or that may have changed — a work, an artist, a character, a technique, a model's abilities. Do not look up what you already know well. A question about a picture that is already attached is answered by looking at it, not by searching.
-- A web result may be marked view only: that site asks not to be used as AI input, or republishes work without a traceable source. The creator can still open it, but the app will not file it into their library and neither will you. Say so once and offer another source; never go hunting for the same picture on another site to get around it.
+- A web result may be marked view only, for one of two reasons: the site asks not to be used as AI input or republishes work without a traceable source, or the site (Pixiv, for one) refuses to hand its pictures to other sites so the app cannot fetch them. The creator can still open it, but the app will not file it into their library and neither will you. Say so once, in one plain sentence without technical terms, and offer another source; never go hunting for the same picture on another site to get around it.
 ${importCandidatesRule}- Never fill a gap with invention. One empty search is not an answer: change the query and go again, or say what you could not confirm.
 - When the creator says the screen shows something different from the state block ("the negative prompt is empty"), take their word: say what the state block holds, never guess why the screen differs (no "maybe it lagged"), and offer to write it again.
 ${domainRules}

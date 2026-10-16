@@ -106,7 +106,7 @@ const WATCHING = `WATCHING CLIPS
 const FOUND_ON_THE_WEB = `FOUND ON THE WEB
 - Every picture or video a web search finds gets a number, #1, #2 …, in the order found; the count carries on from last turn's finds, so a number always means one card. The creator sees that number on its card under your reply. You get one line per find: #n · title · site · size · usable as reference or view only.
 - Call a find by its number — in tool calls ("#3") and in your reply ("#3 is the closest"); the app rings the cards your final reply names. Never write a picture's or video's address, in a reply or a prompt.
-- Pictures marked view only and all videos cannot be imported, mounted or proposed.
+- Pictures marked view only and all videos cannot be imported, mounted or proposed. View only means its site forbids AI use or reposts without credit, or (like Pixiv) won't hand its pictures to other sites; say which in plain words.
 - While last turn's finds are still on screen, the turn opens with them as FOUND ON THE WEB LAST TURN — same numbers, so "use #2" or "the second one" means that list. Older finds are gone: search again.
 - search_web sources are numbered [n] — a separate count, for citing facts. You see their full excerpts on the step right after the search only; after that one line each. To read one in full again, read "[n]".`
 

@@ -255,6 +255,26 @@ export const WEB_IMAGE_SOURCE_NOT_USABLE_MESSAGE_KEYS: Record<
 }
 
 /**
+ * 同一件事**说给模型听**的那句（英文，进工具结果），与上面那张表逐档对上。
+ *
+ * ⭐ 由来（2026-10-16）：原来说给模型的只有「站方不许拿去给 AI 用」一种理由，
+ * 对 Pixiv 这种只是图取不回来的站是错的。⛔ 两句话不能互相冒充（同上面那档头注）。
+ */
+export const WEB_IMAGE_SOURCE_NOT_USABLE_MODEL_REASONS: Record<
+  WebImageSourceVerdict,
+  string
+> = {
+  [WEB_IMAGE_SOURCE_VERDICT_IDS.allowed]:
+    'that site cannot be used as an input',
+  [WEB_IMAGE_SOURCE_VERDICT_IDS.unknownLicense]:
+    'that site cannot be used as an input',
+  [WEB_IMAGE_SOURCE_VERDICT_IDS.blocked]:
+    'that site asks not to be used as AI input, or republishes work without a traceable source',
+  [WEB_IMAGE_SOURCE_VERDICT_IDS.hotlinkProtected]:
+    'that site refuses to hand its pictures to other sites, so the app cannot fetch them (nothing to do with permission)',
+}
+
+/**
  * 排序用的**来源优先级**（助手检索线，2026-09-06）。
  *
  * ⚠ 它与 `judgeWebImageSource` 是同一张表的两种读法，⛔ 不是第二张名单：

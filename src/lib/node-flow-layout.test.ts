@@ -68,17 +68,61 @@ describe('tidyByFlow（§7 摆放 A）', () => {
     expect(at(next, 'shot')).toEqual({ x: 40 + COLUMN * 2, y: 10 })
   })
 
-  it('没连线的卡按档位站列：文字在素材列、视频镜头在成片列', () => {
+  it('没连线的卡按类型分区：文本 · 图片 · 视频 · 声音，每区横着铺', () => {
     const next = tidyByFlow(
       state([
-        node('clip', 'video', 'shot', { x: 0, y: 0 }),
+        node('voice', 'audio', 'voice', { x: 0, y: 0 }),
+        node('clip', 'video', 'shot', { x: 0, y: 100 }),
+        node('img2', 'image', 'result', { x: 900, y: 50 }),
+        node('img1', 'image', 'result', { x: 400, y: 50 }),
         node('note', 'text', 'script', { x: 800, y: 0 }),
       ]),
       sizeOf,
     )
-    // 中间那列空着就收掉 —— 两张卡紧挨着两列。
+    const ZONE = SIZE.height + NODE_V4_LAYOUT.tidyZoneGap
     expect(at(next, 'note')).toEqual({ x: 0, y: 0 })
-    expect(at(next, 'clip')).toEqual({ x: COLUMN, y: 0 })
+    // 同一区按原来的先后横着排。
+    expect(at(next, 'img1')).toEqual({ x: 0, y: ZONE })
+    expect(at(next, 'img2')).toEqual({
+      x: SIZE.width + NODE_V4_LAYOUT.flowRowGap,
+      y: ZONE,
+    })
+    expect(at(next, 'clip')).toEqual({ x: 0, y: ZONE * 2 })
+    expect(at(next, 'voice')).toEqual({ x: 0, y: ZONE * 3 })
+  })
+
+  it('素材区一行铺满就换行', () => {
+    const many = Array.from({ length: 7 }, (_, index) =>
+      node(`img${index}`, 'image', 'result', { x: index * 10, y: 0 }),
+    )
+    const next = tidyByFlow(state(many), sizeOf)
+    const perRow = Math.floor(
+      (NODE_V4_LAYOUT.tidyZoneRowWidth + NODE_V4_LAYOUT.flowRowGap) /
+        (SIZE.width + NODE_V4_LAYOUT.flowRowGap),
+    )
+    expect(at(next, `img${perRow}`)).toEqual({ x: 0, y: ROW })
+  })
+
+  it('有连线的在上面一条链一行带，散卡在下面', () => {
+    const next = tidyByFlow(
+      state(
+        [
+          node('loose', 'image', 'result', { x: 0, y: 0 }),
+          node('a1', 'image', 'character', { x: 0, y: 500 }),
+          node('a2', 'video', 'shot', { x: 400, y: 500 }),
+          node('b1', 'image', 'character', { x: 0, y: 900 }),
+          node('b2', 'video', 'shot', { x: 400, y: 900 }),
+        ],
+        [edge('a1', 'a2', 'firstFrame'), edge('b1', 'b2', 'firstFrame')],
+      ),
+      sizeOf,
+    )
+    const BAND = SIZE.height + NODE_V4_LAYOUT.tidyZoneGap
+    expect(at(next, 'a1')).toEqual({ x: 0, y: 0 })
+    expect(at(next, 'a2').y).toBe(0)
+    expect(at(next, 'b1')).toEqual({ x: 0, y: BAND })
+    expect(at(next, 'b2').y).toBe(BAND)
+    expect(at(next, 'loose')).toEqual({ x: 0, y: BAND * 2 })
   })
 
   it('图连到图也往右推一列；几张素材从下游的顶边开始往下叠', () => {
@@ -124,6 +168,35 @@ describe('tidyByFlow（§7 摆放 A）', () => {
     expect(next.nodes.map((item) => item.data)).toEqual(
       before.nodes.map((item) => item.data),
     )
+  })
+
+  it('九宫格一组整块挪：组内 3×3 原样，⛔ 拆成一竖条', () => {
+    const cells = Array.from({ length: 9 }, (_, index) => {
+      const cell = node(`cell${index}`, 'image', 'shot', {
+        x: 1000 + (index % 3) * 320,
+        y: 800 + Math.floor(index / 3) * 220,
+      })
+      return {
+        ...cell,
+        data: { ...cell.data, storyboardCell: { groupId: 'g', cell: index } },
+      } as NodeV4
+    })
+    const next = tidyByFlow(
+      state([node('her', 'image', 'character', { x: 0, y: 0 }), ...cells]),
+      sizeOf,
+    )
+    // 同在图片区：九宫格整块排在「her」右边。
+    const origin = at(next, 'cell0')
+    expect(origin).toEqual({
+      x: SIZE.width + NODE_V4_LAYOUT.flowRowGap,
+      y: 0,
+    })
+    cells.forEach((cell, index) => {
+      expect(at(next, cell.id)).toEqual({
+        x: origin.x + (index % 3) * 320,
+        y: origin.y + Math.floor(index / 3) * 220,
+      })
+    })
   })
 })
 

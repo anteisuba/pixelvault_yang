@@ -284,14 +284,14 @@ describe('useNodeGraphV4 · 图动作', () => {
       view.result.current.tidyLayout()
     })
     const after = view.result.current.nodes
-    // 素材在左、视频镜头在右，同一个顶边。
+    // 都没连线：按类型分区，图片区在上、视频区在下，左边对齐。
     expect(after.find((item) => item.id === 'her')?.position).toEqual({
       x: 0,
       y: 0,
     })
     const shot = after.find((item) => item.id === 'shotA')!.position
-    expect(shot.y).toBe(0)
-    expect(shot.x).toBeGreaterThan(0)
+    expect(shot.x).toBe(0)
+    expect(shot.y).toBeGreaterThan(0)
     expect(view.result.current.layoutSlide?.from.get('shotA')).toEqual({
       x: 999,
       y: 999,

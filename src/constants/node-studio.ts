@@ -1428,6 +1428,10 @@ export const NODE_V4_LAYOUT = {
    */
   flowColumnGap: 160,
   flowRowGap: 48,
+  /** 「整理」分区：流程区里链与链、各素材区之间的间距。 */
+  tidyZoneGap: 160,
+  /** 素材区横着铺，一行铺到这么宽就换行（收起态 320 的卡约五张）。 */
+  tidyZoneRowWidth: 1800,
 } as const
 
 /**

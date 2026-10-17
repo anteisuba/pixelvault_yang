@@ -2219,6 +2219,8 @@
     }
   },
   "LoraWorkbench": {
+    "loraNotInLibrary": "你的库里没有 {names}，这次没带上",
+    "loraMountedFromPrompt": "已按提示词挂上 {names}",
     "coverPreviewPrevious": "上一张图片",
     "coverPreviewNext": "下一张图片",
     "tabs": {
@@ -5592,6 +5594,7 @@
       }
     },
     "v4": {
+      "loraDropped": "画布上没有能挂 LoRA 的模型，{names} 这次没带上。LoRA 要在 LoRA 台挂。",
       "untitledText": "未命名文本",
       "textMeta": "{chars} 字 · {paragraphs} 段",
       "editText": "编辑",
@@ -6726,6 +6729,7 @@
     "actionMore": "更多"
   },
   "StudioV2": {
+    "loraDroppedNote": "这一台没有能挂 LoRA 的模型，{names} 这次没带上。LoRA 要在 LoRA 台挂。",
     "costImageOutputOnly": "按当前尺寸与画质估算输出费用；提示词和参考图输入另计，自动画质及预览按实际用量结算。",
     "none": "不选择",
     "noCards": "还没有卡片，创建一张开始吧。",

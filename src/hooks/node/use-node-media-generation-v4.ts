@@ -43,6 +43,7 @@ import {
   startNodeSearchGrounding,
 } from '@/hooks/node/use-node-search-grounding'
 import { probeMediaDuration } from '@/lib/media-probe'
+import { listPromptLoraNames } from '@/lib/prompt-weight-syntax'
 import {
   buildV4AudioPayload,
   buildV4ImagePayload,
@@ -701,6 +702,13 @@ export function useNodeMediaGenerationV4() {
           success: false as const,
           error: 'blocked',
           blocked: blockers,
+        }
+      }
+      // 画布没有能挂 LoRA 的模型：正文里的 `<lora:…>` 服务端发之前会拿掉，先照实说一句。
+      if (plan.kind === 'image') {
+        const loraNames = listPromptLoraNames(plan.prompt)
+        if (loraNames.length > 0) {
+          toast.info(t('loraDropped', { names: loraNames.join('、') }))
         }
       }
       // ⚠ 档位在**服务端 schema 上收窄**（`AdvancedParamsSchema`），⛔ 不在这里

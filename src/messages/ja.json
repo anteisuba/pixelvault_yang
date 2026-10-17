@@ -2219,6 +2219,8 @@
     }
   },
   "LoraWorkbench": {
+    "loraNotInLibrary": "{names} はライブラリにないため、今回は外しました",
+    "loraMountedFromPrompt": "プロンプトの指定どおり {names} を載せました",
     "coverPreviewPrevious": "前の画像",
     "coverPreviewNext": "次の画像",
     "tabs": {
@@ -5592,6 +5594,7 @@
       }
     },
     "v4": {
+      "loraDropped": "キャンバスには LoRA を載せられるモデルがないため、{names} は今回外しました。LoRA は LoRA 台で載せます。",
       "untitledText": "無題のテキスト",
       "textMeta": "{chars} 文字 · {paragraphs} 段落",
       "editText": "編集",
@@ -6726,6 +6729,7 @@
     "actionMore": "その他"
   },
   "StudioV2": {
+    "loraDroppedNote": "ここには LoRA を載せられるモデルがないため、{names} は今回外しました。LoRA は LoRA 台で載せます。",
     "costImageOutputOnly": "選択したサイズと品質の出力料金目安です。テキスト・参照画像の入力は別料金。自動品質とプレビューは実際の使用量で課金されます。",
     "none": "未選択",
     "noCards": "カードがまだありません。作成して始めましょう。",

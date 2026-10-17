@@ -690,7 +690,9 @@ describe('submitImageGeneration', () => {
 describe('submitImageGeneration 先搜再画', () => {
   function dispatchedAdvancedParams() {
     const providerInput = vi.mocked(dispatchImageWorkerRun).mock.calls[0][0]
-      .providerInput as { advancedParams?: { searchGrounding?: boolean } }
+      .providerInput as {
+      advancedParams?: { searchGrounding?: boolean; negativePrompt?: string }
+    }
     return providerInput.advancedParams
   }
 
@@ -728,6 +730,35 @@ describe('submitImageGeneration 先搜再画', () => {
       vi.mocked(createGenerationJob).mock.calls[0][0].externalRequestId ?? '{}',
     )
     expect(metadata.advancedParams).toEqual({ quality: 'high' })
+  })
+
+  it('同一句提示词哪里都能用：权重翻成这家的写法，<lora:…> 拿掉', async () => {
+    setupResolve(AI_ADAPTER_TYPES.GEMINI)
+    vi.mocked(isExecutionWorkerDispatchConfigured).mockReturnValue(true)
+
+    await submitImageGeneration('clerk-1', {
+      ...INPUT,
+      prompt: 'masterpiece, <lora:style:0.7>, (1girl:1.2), {rain}',
+      advancedParams: { negativePrompt: '1.2::lowres::' },
+    })
+
+    const job = vi.mocked(createGenerationJob).mock.calls[0][0]
+    expect(job.prompt).toBe('masterpiece, 1girl, rain')
+    expect(dispatchedAdvancedParams()?.negativePrompt).toBe('lowres')
+  })
+
+  it('正文只剩一枚 <lora:…> 时照原样发，不发空提示词', async () => {
+    setupResolve(AI_ADAPTER_TYPES.GEMINI)
+    vi.mocked(isExecutionWorkerDispatchConfigured).mockReturnValue(true)
+
+    await submitImageGeneration('clerk-1', {
+      ...INPUT,
+      prompt: '<lora:style:0.7>',
+    })
+
+    expect(vi.mocked(createGenerationJob).mock.calls[0][0].prompt).toBe(
+      '<lora:style:0.7>',
+    )
   })
 })
 

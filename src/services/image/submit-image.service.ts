@@ -25,6 +25,7 @@ import type {
 } from '@/types'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
+import { normalizePromptForAdapter } from '@/lib/prompt-weight-syntax'
 import { GenerationStageTimer } from '@/lib/generation-observability'
 import { withoutSearchGrounding } from '@/lib/search-grounding'
 import {
@@ -113,6 +114,44 @@ export interface ImageQueueMetadata {
   }
 }
 
+function normalizeImagePromptSyntax(
+  input: GenerateRequest,
+  adapterType: AI_ADAPTER_TYPES,
+): GenerateRequest {
+  const normalize = (text: string) =>
+    normalizePromptForAdapter(text, adapterType)
+  const advanced = input.advancedParams
+  const layout = advanced?.novelAiLayout
+  // 正文只剩一枚 `<lora:…>` 的那种：拿空了就照原样发，⛔ 不发空提示词。
+  const prompt = normalize(input.prompt)
+  return {
+    ...input,
+    prompt: prompt.trim() ? prompt : input.prompt,
+    ...(advanced
+      ? {
+          advancedParams: {
+            ...advanced,
+            ...(advanced.negativePrompt
+              ? { negativePrompt: normalize(advanced.negativePrompt) }
+              : {}),
+            ...(layout
+              ? {
+                  novelAiLayout: {
+                    ...layout,
+                    characters: layout.characters.map((character) => ({
+                      ...character,
+                      prompt: normalize(character.prompt),
+                      negativePrompt: normalize(character.negativePrompt),
+                    })),
+                  },
+                }
+              : {}),
+          },
+        }
+      : {}),
+  }
+}
+
 /**
  * Submit an image generation to the execution worker. Next.js owns control
  * plane work only: validation, route/key selection, job creation, and signed
@@ -120,7 +159,7 @@ export interface ImageQueueMetadata {
  */
 export async function submitImageGeneration(
   clerkId: string,
-  input: GenerateRequest,
+  rawInput: GenerateRequest,
   deps: GenerateImageDeps = {},
   queueMetadataInput: Pick<
     ImageQueueMetadata,
@@ -141,9 +180,12 @@ export async function submitImageGeneration(
 
   const { dbUser, route, provider } = await resolveImageRouteAndValidate(
     clerkId,
-    input,
+    rawInput,
     deps,
   )
+  // 同一句提示词哪里都能用：别家的权重写法翻成这家认的，`<lora:…>` 拿掉。各台、
+  // 画布、助手的每一枪都经过这里 —— ⛔ 别在某一台另翻一遍。
+  const input = normalizeImagePromptSyntax(rawInput, route.adapterType)
 
   if (!isExecutionWorkerDispatchConfigured()) {
     throw new GenerateImageServiceError(

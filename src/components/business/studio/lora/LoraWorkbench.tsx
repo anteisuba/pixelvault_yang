@@ -166,6 +166,11 @@ import {
 import { getTagTemplateSource } from '@/lib/recipe-template-kind'
 import { tagPromptTextForLoraBase } from '@/lib/tag-composer'
 import {
+  listPromptLoraNames,
+  matchPromptLoras,
+  stripPromptLoras,
+} from '@/lib/prompt-weight-syntax'
+import {
   aggregateOftenMountedExtras,
   extraLoraKey,
   extraLoraLabel,
@@ -286,6 +291,10 @@ export function LoraWorkbench() {
     deleteAsset,
     isFavorited,
   } = useLoraAssets()
+  const libraryAssets = useMemo(
+    () => [...trainedAssets, ...favoriteAssets],
+    [trainedAssets, favoriteAssets],
+  )
 
   // 手机（<1024）的库：搜索框的 DOM 落点。搜索 state 仍留在各源 pane 的 hook
   // 里（civitai / HF 各一套），只把输入框 portal 进这个常驻槽，保住「这一格不随
@@ -418,6 +427,7 @@ export function LoraWorkbench() {
       assistantOpen={assistantOpen}
       onAssistantOpenChange={setAssistantOpen}
       onOpenLibrary={() => setActiveSection(LORA_WORKBENCH_SECTIONS.COMMUNITY)}
+      libraryAssets={libraryAssets}
     />
   ) : null
 
@@ -467,6 +477,7 @@ export function LoraWorkbench() {
             <GenerateBranch
               assistantOpen={assistantOpen}
               onAssistantOpenChange={setAssistantOpen}
+              libraryAssets={libraryAssets}
               onOpenLibrary={() => {
                 setPendingSection(LORA_WORKBENCH_SECTIONS.COMMUNITY)
                 setActiveSection(LORA_WORKBENCH_SECTIONS.COMMUNITY)
@@ -749,6 +760,8 @@ interface GenerateBranchProps {
    * 装配列「＋ 添加 LoRA」= 切到「库」（库 B 定案：⛔ 另开库弹窗）。手机切到库那一栏。
    */
   onOpenLibrary: () => void
+  /** 你自己库里的 LoRA（训练的 + 收藏的）：正文写 `<lora:名字>` 时按名字对上就挂。 */
+  libraryAssets: readonly LoraAssetRecord[]
 }
 
 function GenerateBranch({
@@ -757,6 +770,7 @@ function GenerateBranch({
   library = null,
   onReturnToGenerate,
   onOpenLibrary,
+  libraryAssets,
 }: GenerateBranchProps) {
   const { user } = useUser()
   const t = useTranslations('LoraWorkbench')
@@ -946,6 +960,29 @@ function GenerateBranch({
   // 触发词写在正文里（owner 2026-09-28「直接放到提示词框那边」）：看得见的那份就是
   // 发出去的那份，⛔ 出图时不再往正文前面偷偷拼一遍 —— 看不见就会自己再写一次。
   const [prompt, setPrompt] = useState('')
+  // 正文里写着 `<lora:名字:0.8>`、你库里有这一把 → 直接挂上、拿掉那段字（owner
+  // 2026-10-17「自动挂上」）。库里没有的留在正文，出图时说一句，服务端发之前拿掉。
+  // ⚠ 盯 `prompt` 而不是输入框事件：手打、粘贴、助手写、配方回灌都从这里过。
+  const { push: pushLora, setScale: setLoraScale } = stack
+  useEffect(() => {
+    const { matched } = matchPromptLoras(prompt, libraryAssets)
+    if (matched.length === 0) return
+    for (const { asset, scale } of matched) {
+      pushLora(asset, scale ?? undefined)
+      if (scale !== null) setLoraScale(asset.id, scale)
+    }
+    setPrompt((current) =>
+      stripPromptLoras(
+        current,
+        matched.map((entry) => entry.name),
+      ),
+    )
+    toast.success(
+      t('loraMountedFromPrompt', {
+        names: matched.map((entry) => entry.asset.name).join('、'),
+      }),
+    )
+  }, [prompt, libraryAssets, pushLora, setLoraScale, t])
   // §5 PromptTagAutocomplete 只拿 ref 挂监听，不拥有这两个 textarea 的 JSX
   // ——它们本来就长在下面的纸区里，改动面收在"加一个 ref 属性"。
   const promptTextareaRef = useRef<HTMLTextAreaElement>(null)
@@ -2144,6 +2181,11 @@ function GenerateBranch({
       setIsRunnerColdStart(
         isRunnerBase ? consumeRunnerColdStart(selectedBase.id) : false,
       )
+      // 还留在正文里的 `<lora:…>` = 你库里没有这一把：服务端会拿掉，这里先说一句。
+      const unknownLoras = listPromptLoraNames(prompt)
+      if (unknownLoras.length > 0) {
+        toast.info(t('loraNotInLibrary', { names: unknownLoras.join('、') }))
+      }
       // 停用（enabled === false）的挂载留在栈里但不送去出图——启停开关的语义就是
       // "先按住这个 LoRA 不参与本次出图"，见 useActiveLoraStack.StoredEntry.enabled。
       const enabledEntries = stack.items
@@ -2330,6 +2372,7 @@ function GenerateBranch({
       seed,
       selectedBase,
       stack,
+      t,
     ],
   )
 

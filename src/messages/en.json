@@ -2218,6 +2218,8 @@
     }
   },
   "LoraWorkbench": {
+    "loraNotInLibrary": "{names} isn’t in your library, so it was left out this time",
+    "loraMountedFromPrompt": "Mounted {names} from your prompt",
     "coverPreviewPrevious": "Previous image",
     "coverPreviewNext": "Next image",
     "tabs": {
@@ -5591,6 +5593,7 @@
       }
     },
     "v4": {
+      "loraDropped": "No model on the canvas can mount a LoRA, so {names} was left out this time. LoRAs mount on the LoRA bench.",
       "untitledText": "Untitled text",
       "textMeta": "{chars} chars · {paragraphs} paragraphs",
       "editText": "Edit",
@@ -6725,6 +6728,7 @@
     "actionMore": "More"
   },
   "StudioV2": {
+    "loraDroppedNote": "No model here can mount a LoRA, so {names} was left out this time. LoRAs mount on the LoRA bench.",
     "costImageOutputOnly": "Output estimate for the selected size and quality. Text and reference inputs cost extra; auto quality and previews are billed by actual usage.",
     "none": "None",
     "noCards": "No cards yet. Create one to get started.",

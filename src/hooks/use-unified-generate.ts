@@ -46,6 +46,7 @@ import {
   type PromptDialect,
 } from '@/constants/prompt-dialects'
 import { tailorImageRequestToModel } from '@/lib/studio/tailor-image-request'
+import { listPromptLoraNames } from '@/lib/prompt-weight-syntax'
 import { searchGroundingForRunItem } from '@/lib/search-grounding'
 import type { StudioOperatorResultOwner } from '@/types/studio-assistant-operator'
 import {
@@ -209,6 +210,21 @@ function announceRecipeFusionNote(
   if (data?.recipeFusionNote !== CARD_RECIPE_FUSION_NOTES.noAssistantKey) return
   toast.info(message(), { id: RECIPE_FUSION_NOTE_TOAST_ID })
 }
+
+/**
+ * 正文里写着 `<lora:…>`：这几台没有能挂 LoRA 的模型（LoRA 只在 LoRA 台挂），服务端
+ * 发之前会拿掉它 —— 先照实说一句是哪几把没带上，⛔ 不悄悄丢。
+ */
+function announceDroppedLoras(
+  prompt: string | undefined,
+  message: (names: string) => string,
+): void {
+  const names = listPromptLoraNames(prompt)
+  if (names.length === 0) return
+  toast.info(message(names.join('、')), { id: DROPPED_LORA_TOAST_ID })
+}
+
+const DROPPED_LORA_TOAST_ID = 'studio-dropped-lora-note'
 
 function waitForPollInterval(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
@@ -1644,6 +1660,9 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         // generation surface and injects loras there (see lora-domain-split).
         const dialect = input.promptDialect ?? DEFAULT_PROMPT_DIALECT
         const count = input.variantCount ?? 1
+        announceDroppedLoras(input.image.freePrompt, (names) =>
+          tStudio('loraDroppedNote', { names }),
+        )
         // 有额外模型 → 走矩阵（模型 × 张数）。单模型多张仍走 generateVariants，
         // 两者的 item 形状一致，图墙那一片会把它们合成同一个渲染。
         // ⚠ 矩阵那条**不在这里裁剪** —— 每一格的型号不同，裁剪逐格发生。
@@ -1686,6 +1705,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       generateVideo,
       generateAudio,
       generateAudioVariants,
+      tStudio,
     ],
   )
 

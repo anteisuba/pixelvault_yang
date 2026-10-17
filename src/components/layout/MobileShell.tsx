@@ -39,6 +39,7 @@ import {
   useMobileTabBarActionsActive,
   useMobileTabBarActionsHost,
 } from '@/hooks/use-mobile-tabbar-actions'
+import { useMobileTabBarHidden } from '@/hooks/use-mobile-tabbar-hidden'
 import { useToastLift } from '@/hooks/use-toast-lift'
 import { cn } from '@/lib/utils'
 
@@ -232,6 +233,8 @@ function MobileTabBar({ pathname }: { pathname: string }) {
   const [actionsHost, setActionsHost] = useState<HTMLDivElement | null>(null)
   useMobileTabBarActionsHost(actionsHost)
   const lent = useMobileTabBarActionsActive()
+  // 页面往下滑时收起（借给动作栏、＋面板开着时不收）。
+  const scrolledAway = useMobileTabBarHidden() && !lent && !open
   // 刚点的那一格（记下点时在哪一页）：灰块先滑过去，地址一换就交回给路由判定。
   const [pressedTabAt, setPressedTab] = useState<{
     id: string
@@ -279,7 +282,11 @@ function MobileTabBar({ pathname }: { pathname: string }) {
       <nav
         ref={barRef}
         aria-label={tMobile('tabs.label')}
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 px-4 pb-safe-inset-bottom lg:hidden"
+        data-scrolled-away={scrolledAway || undefined}
+        className={cn(
+          'pointer-events-none fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 px-4 pb-safe-inset-bottom transition-transform duration-base ease-standard motion-reduce:transition-none lg:hidden',
+          scrolledAway && 'translate-y-full',
+        )}
       >
         {/* iOS 26 式浮起的胶囊：四个去处；＋ 是旁边单独一颗黑圆键（iOS 稿 B）。 */}
         <div className="pointer-events-auto relative mb-2 h-15 min-w-0 flex-1 rounded-full border border-border p-1 shadow-overlay surface-glass">

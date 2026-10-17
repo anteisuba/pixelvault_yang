@@ -93,6 +93,7 @@ import { useLocalPreference } from '@/hooks/use-local-preference'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { usePinchStep } from '@/hooks/use-pinch-step'
 import { useTouchLongPress } from '@/hooks/use-touch-long-press'
+import { useHideMobileTabBar } from '@/hooks/use-mobile-tabbar-hidden'
 import {
   useAssetUploadQueue,
   type UploadQueueItem,
@@ -497,6 +498,8 @@ export function KreaAssetBrowser({
   const [facetsHidden, setFacetsHidden] = useState(false)
   const lastScrollTopRef = useRef(0)
   const facetsCollapsed = isPhone && facetsHidden
+  // 往下滑时底栏跟着收起（与分段条同一个判据），往上滑回来。
+  useHideMobileTabBar(facetsCollapsed)
   // 换了夹或筛选 = 查看器关上再换范围（pages/assets.md §3「详情」）。
   const [viewerFilters, setViewerFilters] = useState(filters)
   if (viewerFilters !== filters) {
@@ -1784,7 +1787,12 @@ export function KreaAssetBrowser({
 
   return (
     <div
-      className={cn('flex h-page flex-col bg-surface-workbench', className)}
+      className={cn(
+        'flex h-page flex-col bg-surface-workbench',
+        // 手机：图一直铺到屏幕底，从浮起的底栏后面滑过去（owner 2026-10-17）。
+        !isPickerMode && 'max-md:h-page-behind-tabbar',
+        className,
+      )}
       onDragEnter={handleRootDragEnter}
       onDragOver={handleRootDragOver}
       onDragLeave={handleRootDragLeave}
@@ -1815,10 +1823,13 @@ export function KreaAssetBrowser({
             <h1 className="truncate text-base font-semibold text-foreground max-md:hidden">
               {t('title')}
             </h1>
-            <RollingNumber
-              value={libraryTotal}
-              className="font-mono text-xs text-muted-foreground max-md:hidden"
-            />
+            {/* ⚠ 包一层再藏：`.number-roll` 是不进层的 CSS，`max-md:hidden` 压不过它。 */}
+            <span className="max-md:hidden">
+              <RollingNumber
+                value={libraryTotal}
+                className="font-mono text-xs text-muted-foreground"
+              />
+            </span>
             {/* 手机多选：胶囊糊掉，同一位置写「已选 N」（PC 是「选择」键拉长成的条）。 */}
             <span
               aria-hidden={!selectionMode}
@@ -2165,7 +2176,11 @@ export function KreaAssetBrowser({
             ) : null}
             <main
               ref={scrollElementRef}
-              className="studio-scrollbar assets-scroll-gutter min-h-0 flex-1 overflow-x-hidden overflow-y-auto pb-4 max-md:touch-pan-y"
+              className={cn(
+                'studio-scrollbar assets-scroll-gutter min-h-0 flex-1 overflow-x-hidden overflow-y-auto pb-4 max-md:touch-pan-y',
+                // 最后一行能滑到底栏上面。
+                !isPickerMode && 'max-md:pb-mobile-tabbar',
+              )}
               onScroll={(event) => {
                 const top = event.currentTarget.scrollTop
                 setIsToolbarStuck(top > 8)
@@ -2180,7 +2195,14 @@ export function KreaAssetBrowser({
               }}
             >
               {/* ─── 段头：当前范围 + 张数；在夹里时多「在 X 里」与置顶 / ⋯ ─── */}
-              <div className="mb-3 flex min-h-8.5 flex-wrap items-center gap-x-2.5 gap-y-1 px-0.5">
+              {/* 手机：范围名与张数胶囊里已经有了（owner 2026-10-17「删掉不显示」），
+                  只在文件夹里留置顶 / ⋯ 那几颗。 */}
+              <div
+                className={cn(
+                  'mb-3 flex min-h-8.5 flex-wrap items-center gap-x-2.5 gap-y-1 px-0.5',
+                  !scopeFolder && !isRenamingScope && 'max-md:hidden',
+                )}
+              >
                 {isRenamingScope && scopeFolder ? (
                   <ScopeNameInput
                     initial={scopeFolder.name}
@@ -2192,7 +2214,7 @@ export function KreaAssetBrowser({
                     }}
                   />
                 ) : (
-                  <h2 className="flex min-w-0 items-baseline gap-1.5 text-base font-semibold text-foreground">
+                  <h2 className="flex min-w-0 items-baseline gap-1.5 text-base font-semibold text-foreground max-md:hidden">
                     <span className="truncate">{scopeTitle}</span>
                     <RollingNumber
                       value={total}

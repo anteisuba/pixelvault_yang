@@ -2756,6 +2756,18 @@ html:lang(ja) {
   }
 }
 
+/* 手机上内容铺到屏幕底、从浮起的底栏后面滑过去（素材页，owner 2026-10-17「图片没有
+   占整个页面」）：高度只扣顶部安全区，再用负外边距吃回主区给底栏留的那截内边距；
+   滚动区自己在底部垫 `pb-mobile-tabbar`，最后一行能滑到栏上面。≥768 同 `h-page`。 */
+@utility h-page-behind-tabbar {
+  height: calc(100svh - env(safe-area-inset-top, 0px));
+  margin-bottom: calc(-1 * var(--spacing-mobile-tabbar));
+  @media (width >= 48rem) {
+    height: 100svh;
+    margin-bottom: 0;
+  }
+}
+
 /* 主区给手机外壳让位（`MobileShellInset`）。工作台：顶上一条 44px + 顶部安全区
    （顶栏 `MobileStudioBar` 自己让开刘海，主区跟着多让同一截）；
    其余页：底栏 + 顶部安全区（没有顶栏了，刘海要自己让）。≥768 归零。 */

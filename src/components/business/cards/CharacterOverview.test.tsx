@@ -1,11 +1,16 @@
-import { describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 
 import zhMessages from '@/messages/zh.json'
 import type { CharacterCardRecord } from '@/types'
+import { useIsMobile } from '@/hooks/use-mobile'
 
 import { CharacterOverview, type OverviewItem } from './CharacterOverview'
+
+vi.mock('@/hooks/use-mobile', () => ({
+  useIsMobile: vi.fn(() => false),
+}))
 
 vi.mock('next/image', () => ({
   default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => {
@@ -56,14 +61,18 @@ function card(id: string, work: string, urls: string[]): OverviewItem {
   }
 }
 
-function renderOverview(items: OverviewItem[]) {
+function renderOverview(
+  items: OverviewItem[],
+  extra: { onOpen?(id: string): void; onLongPress?(id: string): void } = {},
+) {
   return render(
     <NextIntlClientProvider locale="zh" messages={zhMessages}>
       <CharacterOverview
         items={items}
         reducedMotion
-        onOpen={vi.fn()}
+        onOpen={extra.onOpen ?? vi.fn()}
         query=""
+        {...(extra.onLongPress ? { onLongPress: extra.onLongPress } : {})}
       />
     </NextIntlClientProvider>,
   )
@@ -117,5 +126,54 @@ describe('CharacterOverview · 全部角色（owner 09-28）', () => {
       card('shiye', '无限大', ['https://cdn.test/shiye.png']),
     ])
     expect(screen.queryByRole('heading', { name: '全部角色' })).toBeNull()
+  })
+})
+
+describe('CharacterOverview · 手机（iOS 稿 v16）', () => {
+  afterEach(() => {
+    vi.mocked(useIsMobile).mockReturnValue(false)
+    vi.useRealTimers()
+  })
+
+  it('名字写在图下面：图那一格里没有字', () => {
+    vi.mocked(useIsMobile).mockReturnValue(true)
+    renderOverview([
+      card('denia', '鸣潮', ['https://cdn.test/denia.png']),
+      card('shiye', '无限大', ['https://cdn.test/shiye.png']),
+    ])
+    const tile = screen.getAllByTestId('roster-tile')[0]!
+    const picture = tile.querySelector('img')!.parentElement!
+    expect(picture.textContent).toBe('')
+    expect(tile.textContent).toContain('denia')
+  })
+
+  it('长按一张：交给 onLongPress，紧跟的那一下点击不打开详情；底下有一句提示', () => {
+    vi.mocked(useIsMobile).mockReturnValue(true)
+    vi.useFakeTimers()
+    const onOpen = vi.fn()
+    const onLongPress = vi.fn()
+    renderOverview(
+      [
+        card('denia', '鸣潮', ['https://cdn.test/denia.png']),
+        card('shiye', '无限大', ['https://cdn.test/shiye.png']),
+      ],
+      { onOpen, onLongPress },
+    )
+    const tile = screen.getAllByTestId('roster-tile')[0]!
+    fireEvent.pointerDown(tile, {
+      pointerType: 'touch',
+      isPrimary: true,
+      clientX: 10,
+      clientY: 10,
+    })
+    act(() => {
+      vi.advanceTimersByTime(600)
+    })
+    expect(onLongPress).toHaveBeenCalledWith('denia')
+    fireEvent.click(tile)
+    expect(onOpen).not.toHaveBeenCalled()
+    fireEvent.click(tile)
+    expect(onOpen).toHaveBeenCalledWith('denia')
+    expect(screen.getByText('长按一张卡：编辑 · 复制 · 删除')).toBeTruthy()
   })
 })

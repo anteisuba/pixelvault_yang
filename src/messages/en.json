@@ -530,7 +530,8 @@
     "loraTrainingFailed": "LoRA training failed",
     "signedIn": "Signed in",
     "characterCardImported": "Imported {name}",
-    "characterCardImportFailed": "Couldn't import that card. Try again."
+    "characterCardImportFailed": "Couldn't import that card. Try again.",
+    "characterCardDuplicated": "Copied as {name}"
   },
   "Projects": {
     "title": "Projects",
@@ -9458,7 +9459,21 @@
     "systemPromptWhat": "The card author's main instruction to the AI, like \"play this character well\". Saved only, not used yet.",
     "postHistoryWhat": "A reminder attached after the latest message every turn, like \"reply in three paragraphs at most\". Saved only, not used yet.",
     "lorebookWhat": "Keyword entries: when a word comes up in chat, the matching lore is handed to the AI. Saved only, not used yet.",
-    "lorebookCount": "{count} entries"
+    "lorebookCount": "{count} entries",
+    "phone": {
+      "search": "Search",
+      "searchCancel": "Cancel",
+      "add": "New character or import",
+      "actions": "Actions for {name}",
+      "edit": "Edit",
+      "duplicate": "Duplicate",
+      "delete": "Delete",
+      "copyName": "{name} copy",
+      "longPressHint": "Long-press a card: edit · duplicate · delete",
+      "libraryNote": "Public cards from chub.ai. Open one to read it, then “Make character” if you like it.",
+      "charactersCount": "{count}",
+      "worksCount": "{count}"
+    }
   },
   "StudioTemplates": {
     "titleImage": "My image templates · {count}",

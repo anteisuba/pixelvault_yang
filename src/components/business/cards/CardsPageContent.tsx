@@ -14,6 +14,7 @@ import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
  * ⚠ 恒绑同一个 motion 值、在变换里取值 —— ⛔ 不在 style 上把它换成 `undefined`
  *   （motion 的 style 从 motion 值换成静态值时不解绑，同图片台那条）。
  * ⚠ 只剩角色：画风卡、背景卡两个页签下线（owner 09-25）。
+ * ⭐ 手机没有地台（iOS 稿 v16）：`workbench-ground-flush-phone` 把内边距与灰底拿掉。
  */
 export function CardsPageContent() {
   const operatorYield = useStudioOperatorYield()
@@ -25,7 +26,7 @@ export function CardsPageContent() {
   return (
     <motion.main
       style={{ paddingRight }}
-      className="workbench-ground h-page flex-col gap-0 text-foreground"
+      className="workbench-ground workbench-ground-flush-phone h-page flex-col gap-0 text-foreground"
     >
       <CharacterRoster />
     </motion.main>

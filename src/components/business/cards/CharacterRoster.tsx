@@ -13,9 +13,15 @@ import {
 import { DURATION, DURATION_MS, EASE_STANDARD } from '@/constants/motion'
 import type { CharacterCardRecord } from '@/types'
 import type { AssistantOperatorCharacterProfileField } from '@/types/assistant-operator'
-import { Plus, Upload } from '@/components/icons'
+import { Copy, Pencil, Plus, Trash2, Upload } from '@/components/icons'
 import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
+import {
+  ResponsiveMenu,
+  ResponsiveMenuContent,
+  ResponsiveMenuItem,
+} from '@/components/ui/responsive-menu'
 import { Spinner } from '@/components/ui/spinner'
 import { StudioOperatorDock } from '@/components/business/studio/assistant-operator'
 import {
@@ -28,6 +34,7 @@ import {
   CharacterLibraryHeader,
   CharacterPageTabs,
 } from '@/components/business/cards/CharacterLibrary'
+import { CharacterPhoneBar } from '@/components/business/cards/CharacterPhoneBar'
 import {
   CharacterOverview,
   CharacterOverviewHeader,
@@ -39,6 +46,7 @@ import { useCardsOperatorHost } from '@/hooks/cards/use-cards-operator-host'
 import { appendSlotSources } from '@/hooks/cards/use-character-card-editor'
 import { useCharacterCards } from '@/hooks/cards/use-character-cards'
 import { useChubLibrary } from '@/hooks/cards/use-chub-library'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
 
 /**
@@ -52,6 +60,9 @@ import { cn } from '@/lib/utils'
  *   上移 8px（200ms）。⛔ 不做形状（液态长出来那版 owner 09-27 否了）。
  * ⚠ 总览在详情开着时**不卸载**（藏起 + `inert`）：回来时滚动位置、搜索词、作品筛选
  *   都还在。
+ * ⭐ 手机（iOS 稿 v16，owner 2026-10-16）：没有地台和白卡，总览顶上是吸住的磨砂胶囊
+ *   （`CharacterPhoneBar`：分段 · 搜索 · ＋），地台那一行只在详情 / 草稿时出现；
+ *   长按一张卡从底部升起「编辑 / 复制 / 删除」，删除走确认弹层。
  */
 
 /**
@@ -76,6 +87,7 @@ export function CharacterRoster() {
   const locale = useLocale()
   const characters = useCharacterCards()
   const reducedMotion = useReducedMotion() ?? false
+  const isMobile = useIsMobile()
   const items = useMemo(
     () => flattenRoster(characters.cards),
     [characters.cards],
@@ -106,9 +118,10 @@ export function CharacterRoster() {
   const onLibrary = tab === CHARACTER_PAGE_TABS.library
   const library = useChubLibrary(onLibrary)
   /** 卡库里正在建成角色的那一张（一次一张）。 */
-  const [libraryImporting, setLibraryImporting] = useState<string | null>(
-    null,
-  )
+  const [libraryImporting, setLibraryImporting] = useState<string | null>(null)
+  /** 手机长按的那一位（出「编辑 / 复制 / 删除」）与正在确认删除的那一位。 */
+  const [pressedId, setPressedId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   /** 导入酒馆卡：选文件那一下 / 拖进总览那一下（附录J ⑥）。 */
   const importInput = useRef<HTMLInputElement>(null)
   const [importing, setImporting] = useState(false)
@@ -268,6 +281,8 @@ export function CharacterRoster() {
     if (ok) closeDetail()
     return ok
   }
+  const pressedCard = flatCards.find((card) => card.id === pressedId) ?? null
+  const deletingCard = flatCards.find((card) => card.id === deletingId) ?? null
 
   /** 新的一层淡入并上移 8px；旧的一层淡出（原型「动画 2」）。 */
   const enter = reducedMotion ? false : { opacity: 0, y: 8 }
@@ -275,116 +290,107 @@ export function CharacterRoster() {
     ? { duration: 0 }
     : { duration: DURATION.base, delay: DURATION.fast, ease: EASE_STANDARD }
 
-  /** 手机上收成一颗圆形 ＋（字留给读屏），桌面照旧带字。 */
+  /** 桌面那一行的「新角色」（手机在顶上胶囊的 ＋ 里）。 */
   const newCharacterButton = (
     <Button
       type="button"
-      aria-label={t('newCharacter')}
-      className="shrink-0 rounded-full max-sm:size-9 max-sm:px-0"
+      className="shrink-0 rounded-full"
       onClick={() => setDrafting(true)}
     >
       <Plus className="size-4" />
-      <span className="max-sm:sr-only">{t('newCharacter')}</span>
+      {t('newCharacter')}
     </Button>
   )
-  /** 「导入酒馆卡」紧挨「新角色」，手机上同样收成圆形图标。 */
+  /** 选文件那颗隐藏的 input：桌面「导入酒馆卡」与手机 ＋ 菜单共用。 */
+  const importFileInput = (
+    <input
+      ref={importInput}
+      type="file"
+      accept=".png,.json,image/png,application/json"
+      className="hidden"
+      onChange={(event) => {
+        const file = event.target.files?.[0]
+        event.target.value = ''
+        void importCard(file)
+      }}
+    />
+  )
   const importButton = (
-    <>
-      <input
-        ref={importInput}
-        type="file"
-        accept=".png,.json,image/png,application/json"
-        className="hidden"
-        onChange={(event) => {
-          const file = event.target.files?.[0]
-          event.target.value = ''
-          void importCard(file)
-        }}
-      />
-      <Button
-        type="button"
-        variant="outline"
-        aria-label={t('importCard')}
-        title={t('importCardHint')}
-        disabled={importing}
-        className="shrink-0 rounded-full max-sm:size-9 max-sm:px-0"
-        onClick={() => importInput.current?.click()}
-      >
-        {importing ? (
-          <Spinner size="sm" />
-        ) : (
-          <Upload className="size-4" />
-        )}
-        <span className="max-sm:sr-only">{t('importCard')}</span>
-      </Button>
-    </>
+    <Button
+      type="button"
+      variant="outline"
+      title={t('importCardHint')}
+      disabled={importing}
+      className="shrink-0 rounded-full"
+      onClick={() => importInput.current?.click()}
+    >
+      {importing ? <Spinner size="sm" /> : <Upload className="size-4" />}
+      {t('importCard')}
+    </Button>
   )
 
   const tabs = <CharacterPageTabs tab={tab} onChange={setTab} />
 
   return (
     <StudioOperatorHostProvider host={operatorHost}>
+      {importFileInput}
       <div className="flex min-h-0 flex-1 flex-col gap-3">
         {/* ⚠ 不等旧的一行退场（AnimatePresence mode="wait" 的退场完成靠 rAF，后台标签页
           冻结时整行卡在旧内容上）：换 key 即换，新的一行淡入上移。 */}
-        <motion.div
-          key={
-            drafting
-              ? 'draft'
-              : selected
-                ? `detail:${selected.id}`
-                : `overview:${tab}`
-          }
-          initial={enter}
-          animate={{ opacity: 1, y: 0 }}
-          transition={
-            reducedMotion
-              ? { duration: 0 }
-              : { duration: DURATION.base, ease: EASE_STANDARD }
-          }
-          className={cn(
-            ROW_CLASS,
-            // 总览在手机上是两行（搜索在第二行、满宽）：头像的让位只给第一行，由那一行
-            // 右端的按钮自己留（`CharacterOverviewHeader`），⛔ 不压窄第二行的搜索框。
-            selected || drafting
-              ? !operatorHost.open && ROW_AVATAR_GAP_CLASS
-              : [
-                  // pt-2.5：头像固定在视口上缘 64，这一行在手机顶栏 44（`MobileShell`
-                  // h-11）+ 地台 10 = 54 处，下移 10 让「＋」与头像同一条中线。
-                  'max-sm:h-auto max-sm:flex-wrap max-sm:gap-y-3 max-sm:pt-2.5',
-                  !operatorHost.open && 'sm:pr-12',
-                ],
-          )}
-        >
-          {drafting ? (
-            <CharacterDetailHeader
-              card={null}
-              onBack={() => setDrafting(false)}
-            />
-          ) : selected ? (
-            <CharacterDetailHeader card={selected} onBack={closeDetail} />
-          ) : onLibrary ? (
-            <CharacterLibraryHeader tabs={tabs} library={library} />
-          ) : (
-            <CharacterOverviewHeader
-              tabs={tabs}
-              characters={items.length}
-              works={countCharacterWorks(items, locale)}
-              query={query}
-              onQueryChange={setQuery}
-              actions={
-                <>
-                  {importButton}
-                  {newCharacterButton}
-                </>
-              }
-            />
-          )}
-        </motion.div>
+        {/* 手机总览不要这一行（顶上是滚动区里的胶囊），详情 / 草稿才有。 */}
+        {isMobile && !selected && !drafting ? null : (
+          <motion.div
+            key={
+              drafting
+                ? 'draft'
+                : selected
+                  ? `detail:${selected.id}`
+                  : `overview:${tab}`
+            }
+            initial={enter}
+            animate={{ opacity: 1, y: 0 }}
+            transition={
+              reducedMotion
+                ? { duration: 0 }
+                : { duration: DURATION.base, ease: EASE_STANDARD }
+            }
+            className={cn(
+              ROW_CLASS,
+              // 手机没有地台内边距：左边自己留 10、上边 4（与胶囊同一条中线）。
+              'max-md:pl-2.5 max-md:pt-1',
+              !operatorHost.open && ROW_AVATAR_GAP_CLASS,
+            )}
+          >
+            {drafting ? (
+              <CharacterDetailHeader
+                card={null}
+                onBack={() => setDrafting(false)}
+              />
+            ) : selected ? (
+              <CharacterDetailHeader card={selected} onBack={closeDetail} />
+            ) : onLibrary ? (
+              <CharacterLibraryHeader tabs={tabs} library={library} />
+            ) : (
+              <CharacterOverviewHeader
+                tabs={tabs}
+                characters={items.length}
+                works={countCharacterWorks(items, locale)}
+                query={query}
+                onQueryChange={setQuery}
+                actions={
+                  <>
+                    {importButton}
+                    {newCharacterButton}
+                  </>
+                }
+              />
+            )}
+          </motion.div>
+        )}
 
         <div
           className={cn(
-            'relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-border bg-background',
+            'relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-border bg-background max-md:rounded-none max-md:border-0',
             dragOver && 'ring-2 ring-primary/40',
           )}
           // 酒馆卡 PNG / JSON 拖进总览即导入（详情、草稿开着时不接）。
@@ -416,8 +422,25 @@ export function CharacterRoster() {
                   ? { duration: DURATION.fast, ease: EASE_STANDARD }
                   : enterTransition
             }
-            className="h-full overflow-y-auto px-5 pb-12 pt-6 sm:px-8"
+            className="h-full overflow-y-auto px-5 pb-12 pt-6 max-md:px-4 max-md:pt-0 md:px-8"
           >
+            {isMobile ? (
+              <CharacterPhoneBar
+                tab={tab}
+                onTabChange={setTab}
+                query={onLibrary ? library.query : query}
+                onQueryChange={onLibrary ? library.setQuery : setQuery}
+                searchPlaceholder={
+                  onLibrary
+                    ? t('librarySearchPlaceholder')
+                    : t('searchPlaceholder')
+                }
+                importing={importing}
+                onNew={() => setDrafting(true)}
+                onImport={() => importInput.current?.click()}
+                reducedMotion={reducedMotion}
+              />
+            ) : null}
             {onLibrary ? (
               <CharacterLibrary
                 library={library}
@@ -450,6 +473,7 @@ export function CharacterRoster() {
                 reducedMotion={reducedMotion}
                 onOpen={openCharacter}
                 query={query}
+                {...(isMobile ? { onLongPress: setPressedId } : {})}
               />
             )}
           </motion.div>
@@ -500,6 +524,60 @@ export function CharacterRoster() {
           ) : null}
         </div>
       </div>
+
+      {/* 手机长按一张卡：从底部升起（只有触屏会触发，桌面不挂 trigger 也就打不开）。 */}
+      <ResponsiveMenu
+        open={pressedCard !== null}
+        onOpenChange={(open) => {
+          if (!open) setPressedId(null)
+        }}
+      >
+        <ResponsiveMenuContent
+          label={t('phone.actions', { name: pressedCard?.name ?? '' })}
+        >
+          <ResponsiveMenuItem
+            onSelect={() => {
+              if (pressedCard) openCharacter(pressedCard.id)
+            }}
+          >
+            <Pencil aria-hidden />
+            {t('phone.edit')}
+          </ResponsiveMenuItem>
+          <ResponsiveMenuItem
+            onSelect={() => {
+              if (!pressedCard) return
+              void characters.duplicate(
+                pressedCard,
+                t('phone.copyName', { name: pressedCard.name }),
+              )
+            }}
+          >
+            <Copy aria-hidden />
+            {t('phone.duplicate')}
+          </ResponsiveMenuItem>
+          <ResponsiveMenuItem
+            variant="destructive"
+            onSelect={() => setDeletingId(pressedId)}
+          >
+            <Trash2 aria-hidden />
+            {t('phone.delete')}
+          </ResponsiveMenuItem>
+        </ResponsiveMenuContent>
+      </ResponsiveMenu>
+      <ConfirmDialog
+        open={deletingCard !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeletingId(null)
+        }}
+        title={t('deleteCharacter')}
+        description={t('deleteConfirm', { name: deletingCard?.name ?? '' })}
+        cancelLabel={t('cancel')}
+        confirmLabel={t('delete')}
+        onConfirm={() => {
+          if (deletingCard) void characters.remove(deletingCard.id)
+          setDeletingId(null)
+        }}
+      />
 
       <StudioOperatorDock />
     </StudioOperatorHostProvider>

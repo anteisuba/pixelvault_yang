@@ -10,7 +10,10 @@ import type {
   CreateCharacterCardRequest,
   UpdateCharacterCardRequest,
 } from '@/types'
-import { CHARACTER_CARD } from '@/constants/cards/character-card'
+import {
+  CARD_EXTENSIONS,
+  CHARACTER_CARD,
+} from '@/constants/cards/character-card'
 import { TAVERN_CARD } from '@/constants/cards/tavern-card'
 import {
   listCharacterCardsAPI,
@@ -91,6 +94,14 @@ export interface UseCharacterCardsReturn {
   importChub: (fullPath: string) => Promise<CharacterCardRecord | null>
   update: (id: string, data: UpdateCharacterCardRequest) => Promise<boolean>
   remove: (id: string) => Promise<boolean>
+  /**
+   * 复制一位（手机长按菜单「复制」）：名字、设定、标签、图、LoRA 都带上，酒馆原样存的
+   * 那几格不带。新卡排最前；失败已 toast，返回 `null`。
+   */
+  duplicate: (
+    card: CharacterCardRecord,
+    name: string,
+  ) => Promise<CharacterCardRecord | null>
   refresh: () => Promise<void>
 }
 
@@ -374,6 +385,51 @@ export function useCharacterCards(): UseCharacterCardsReturn {
     [t],
   )
 
+  const duplicate = useCallback(
+    async (
+      card: CharacterCardRecord,
+      name: string,
+    ): Promise<CharacterCardRecord | null> => {
+      // 建卡那一步收不了图和提示词：先建（带设定与标签），再补上图那几样。
+      const created = await createCharacterCardAPI({
+        name,
+        sourceImages: [],
+        ...(card.description ? { description: card.description } : {}),
+        persona: card.persona,
+        summary: card.summary,
+        extensions: {
+          [CARD_EXTENSIONS.KEYS.tags]: card.cardTags,
+          ...(card.workOverride
+            ? { [CARD_EXTENSIONS.KEYS.work]: card.workOverride }
+            : {}),
+        },
+      })
+      if (!created.success || !created.data) {
+        toast.error(created.error ?? t('characterCardCreateFailed'))
+        return null
+      }
+      const patched = await updateCharacterCardAPI(created.data.id, {
+        characterPrompt: card.characterPrompt,
+        ...(card.attributes ? { attributes: card.attributes } : {}),
+        loras: card.loras,
+        ...(card.referenceSlots.length
+          ? { referenceSlots: card.referenceSlots }
+          : {}),
+      })
+      // 补图没成也留着这张（名字和设定已经在了），照实说一句。
+      const copy = patched.success && patched.data ? patched.data : created.data
+      setCards((prev) => {
+        const next = [copy, ...prev]
+        writeCardCache(CHARACTER_CARDS_CACHE_KEY, next)
+        return next
+      })
+      if (patched.success) toast.success(t('characterCardDuplicated', { name }))
+      else toast.error(patched.error ?? t('characterCardUpdateFailed'))
+      return copy
+    },
+    [t],
+  )
+
   return {
     cards,
     isLoading,
@@ -392,6 +448,7 @@ export function useCharacterCards(): UseCharacterCardsReturn {
     importChub,
     update,
     remove,
+    duplicate,
     refresh: fetchCards,
   }
 }

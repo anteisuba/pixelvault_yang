@@ -27,7 +27,10 @@ import { isTouchPrimary } from '@/lib/touch'
 import { cn } from '@/lib/utils'
 
 interface ConfirmDialogProps {
-  trigger: React.ReactNode
+  /** 不给 = 受控弹出（`open` / `onOpenChange`），比如长按菜单里点「删除」之后。 */
+  trigger?: React.ReactNode
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
   title: string
   description: string
   cancelLabel: string
@@ -59,12 +62,19 @@ export function ConfirmDialog({
   variant = 'destructive',
   confirmPhrase,
   confirmPhraseLabel,
+  open: openProp,
+  onOpenChange,
 }: ConfirmDialogProps) {
   const [typed, setTyped] = useState('')
   const inputId = useId()
   const phraseMatched =
     confirmPhrase === undefined || typed.trim() === confirmPhrase
-  const [sheetOpen, setSheetOpen] = useState(false)
+  const [innerOpen, setInnerOpen] = useState(false)
+  const sheetOpen = openProp ?? innerOpen
+  const setSheetOpen = (next: boolean) => {
+    if (openProp === undefined) setInnerOpen(next)
+    onOpenChange?.(next)
+  }
   const isMobile = useIsMobile()
 
   const phraseField =
@@ -92,7 +102,7 @@ export function ConfirmDialog({
           if (!open) setTyped('')
         }}
       >
-        <DrawerTrigger asChild>{trigger}</DrawerTrigger>
+        {trigger ? <DrawerTrigger asChild>{trigger}</DrawerTrigger> : null}
         <DrawerContent>
           <div
             className="flex flex-col gap-4 px-5 pt-4"
@@ -143,11 +153,15 @@ export function ConfirmDialog({
 
   return (
     <AlertDialog
+      open={sheetOpen}
       onOpenChange={(open) => {
+        setSheetOpen(open)
         if (!open) setTyped('')
       }}
     >
-      <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
+      {trigger ? (
+        <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
+      ) : null}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>

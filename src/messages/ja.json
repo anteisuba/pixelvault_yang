@@ -530,7 +530,8 @@
     "loraTrainingFailed": "LoRA学習に失敗しました",
     "signedIn": "ログインしました",
     "characterCardImported": "{name} を取り込みました",
-    "characterCardImportFailed": "カードを取り込めませんでした。もう一度お試しください。"
+    "characterCardImportFailed": "カードを取り込めませんでした。もう一度お試しください。",
+    "characterCardDuplicated": "{name} として複製しました"
   },
   "Projects": {
     "title": "プロジェクト",
@@ -9458,7 +9459,21 @@
     "systemPromptWhat": "カード作者が AI に出す全体の指示（例：「このキャラを演じきって」）。保存のみで、まだ使われません。",
     "postHistoryWhat": "毎ターン最新の発言の後に付けるリマインド（例：「返信は 3 段落まで」）。保存のみで、まだ使われません。",
     "lorebookWhat": "キーワード項目：会話にその言葉が出たときだけ設定を AI に渡します。保存のみで、まだ使われません。",
-    "lorebookCount": "{count} 件"
+    "lorebookCount": "{count} 件",
+    "phone": {
+      "search": "検索",
+      "searchCancel": "キャンセル",
+      "add": "新規キャラクターまたは読み込み",
+      "actions": "{name} の操作",
+      "edit": "編集",
+      "duplicate": "複製",
+      "delete": "削除",
+      "copyName": "{name} のコピー",
+      "longPressHint": "カードを長押し：編集 · 複製 · 削除",
+      "libraryNote": "chub.ai の公開カードです。開いて詳細を見て、気に入ったら「キャラにする」。",
+      "charactersCount": "{count} 人",
+      "worksCount": "{count} 作品"
+    }
   },
   "StudioTemplates": {
     "titleImage": "画像テンプレート · {count}",

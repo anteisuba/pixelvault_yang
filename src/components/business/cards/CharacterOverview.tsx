@@ -8,6 +8,8 @@ import { useLocale, useTranslations } from 'next-intl'
 import { LIQUID_SPRING } from '@/constants/motion'
 import type { CharacterCardRecord } from '@/types'
 import { Search } from '@/components/icons'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { useTouchLongPress } from '@/hooks/use-touch-long-press'
 import { referenceUrlKey } from '@/lib/card-bus'
 import { characterImageCount, characterWork } from '@/lib/character-works'
 import { cn } from '@/lib/utils'
@@ -20,6 +22,8 @@ import { cn } from '@/lib/utils'
  * ⭐ 张数 = 卡上的图 + 用她出过的图；作品从角色标签括号里取、可手改（`lib/character-works`）。
  * ⚠ 只有一位角色时**不排名次、不拼格子**：一张大图 + 一句提示（参考图是给上千位角色
  *   设计的，少量时硬排会很空）。
+ * ⭐ 手机（iOS 稿 v16，owner 2026-10-16）：「用得最多」与作品书架各是一行左右滑，
+ *   卡的名字写在图下面；长按一张出「编辑 / 复制 / 删除」（`onLongPress`）。
  */
 
 /** 排名只排前几位；其余从作品进。 */
@@ -48,8 +52,10 @@ interface CharacterOverviewProps {
   items: OverviewItem[]
   reducedMotion: boolean
   onOpen(id: string): void
-  /** 搜索词（搜索框住在地台上那一行，`CharacterOverviewHeader`）。 */
+  /** 搜索词（搜索框住在地台上那一行，`CharacterOverviewHeader`；手机在顶上胶囊里）。 */
   query: string
+  /** 触屏长按一张（手机）：调用方出「编辑 / 复制 / 删除」。 */
+  onLongPress?(id: string): void
 }
 
 const ORIGINAL_KEY = '\u0000original'
@@ -59,10 +65,13 @@ export function CharacterOverview({
   reducedMotion,
   onOpen,
   query,
+  onLongPress,
 }: CharacterOverviewProps) {
   const t = useTranslations('CharacterRoster')
   const locale = useLocale()
+  const isMobile = useIsMobile()
   const [workKey, setWorkKey] = useState<string | null>(null)
+  const longPress = useTouchLongPress<string>((id) => onLongPress?.(id))
 
   const entries = useMemo<Entry[]>(
     () =>
@@ -112,13 +121,28 @@ export function CharacterOverview({
   const activeGroup = groups.find((group) => group.key === workKey) ?? null
   const ranked = [...entries].sort(byImages).slice(0, RANKED_COUNT)
 
+  const pressProps = (id: string) =>
+    onLongPress
+      ? {
+          ...longPress.bind(id),
+          // 安卓长按后会补一个 contextmenu：吞掉，别弹系统菜单（桌面右键照旧）。
+          onContextMenu: (event: React.MouseEvent) => {
+            if (longPress.swallow()) event.preventDefault()
+          },
+        }
+      : {}
   const tile = (entry: Entry, rank: number | null) => (
     <CharacterTile
       key={entry.card.id}
       entry={entry}
       rank={rank}
       reducedMotion={reducedMotion}
-      onOpen={onOpen}
+      captionBelow={isMobile}
+      pressProps={pressProps(entry.card.id)}
+      onOpen={(id) => {
+        if (longPress.swallow()) return
+        onOpen(id)
+      }}
     />
   )
 
@@ -128,7 +152,7 @@ export function CharacterOverview({
         <div
           role="group"
           aria-label={t('worksLabel')}
-          className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1"
+          className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 max-md:-mx-4 max-md:gap-1.5 max-md:px-4 max-md:scrollbar-none"
         >
           <WorkChip
             label={t('overviewAll')}
@@ -175,18 +199,46 @@ export function CharacterOverview({
         </Section>
       ) : (
         <>
-          <Section title={t('mostUsed')} hint={t('mostUsedHint')}>
-            {/* owner 09-28：几张一样大，与作品页 / 搜索同一个网格（卡的大小不随人数变）。 */}
-            <CellGrid>
-              {ranked.map((entry, index) => tile(entry, index + 1))}
-            </CellGrid>
+          <Section
+            title={t('mostUsed')}
+            hint={isMobile ? undefined : t('mostUsedHint')}
+          >
+            {isMobile ? (
+              // 手机：一行左右滑、5 张一样大（v10 手机摆法 ①）。
+              <div className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 scrollbar-none">
+                {ranked.map((entry, index) => (
+                  <div key={entry.card.id} className="w-34 shrink-0 snap-start">
+                    {tile(entry, index + 1)}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              // owner 09-28：几张一样大，与作品页 / 搜索同一个网格（卡的大小不随人数变）。
+              <CellGrid>
+                {ranked.map((entry, index) => tile(entry, index + 1))}
+              </CellGrid>
+            )}
           </Section>
-          <Section title={t('works')} hint={t('byImages')}>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
+          <Section
+            title={t('works')}
+            hint={
+              isMobile
+                ? t('phone.worksCount', { count: groups.length })
+                : t('byImages')
+            }
+          >
+            <div
+              className={
+                isMobile
+                  ? '-mx-4 flex gap-3.5 overflow-x-auto px-4 pb-2 scrollbar-none'
+                  : 'grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5'
+              }
+            >
               {groups.map((group) => (
                 <WorkShelf
                   key={group.key}
                   group={group}
+                  compact={isMobile}
                   onOpen={() => setWorkKey(group.key)}
                   summary={t('workSummary', {
                     characters: group.entries.length,
@@ -201,7 +253,11 @@ export function CharacterOverview({
           {entries.length > RANKED_COUNT ? (
             <Section
               title={t('allCharacters')}
-              hint={t('allCharactersHint', { count: entries.length })}
+              hint={
+                isMobile
+                  ? t('phone.charactersCount', { count: entries.length })
+                  : t('allCharactersHint', { count: entries.length })
+              }
             >
               <CellGrid>
                 {[...entries]
@@ -214,6 +270,11 @@ export function CharacterOverview({
           ) : null}
         </>
       )}
+      {isMobile && onLongPress ? (
+        <p className="mt-6 text-center text-xs text-muted-foreground">
+          {t('phone.longPressHint')}
+        </p>
+      ) : null}
     </div>
   )
 }
@@ -236,9 +297,9 @@ function Section({
   children: React.ReactNode
 }) {
   return (
-    <section className="mt-7 flex flex-col gap-3">
-      <div className="flex items-baseline gap-2.5">
-        <h2 className="text-base font-semibold">{title}</h2>
+    <section className="mt-7 flex flex-col gap-3 max-md:mt-4 max-md:gap-2.5">
+      <div className="flex items-baseline gap-2.5 max-md:gap-2">
+        <h2 className="text-base font-semibold max-md:text-lg">{title}</h2>
         {hint ? (
           <span className="text-xs text-muted-foreground">{hint}</span>
         ) : null}
@@ -254,7 +315,7 @@ function Section({
  */
 function CellGrid({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-3 md:grid-cols-4 desk:grid-cols-6 2xl:grid-cols-8">
+    <div className="grid grid-cols-2 gap-x-3 gap-y-4 max-md:gap-x-2.5 max-md:gap-y-3.5 sm:grid-cols-3 md:grid-cols-4 desk:grid-cols-6 2xl:grid-cols-8">
       {children}
     </div>
   )
@@ -280,10 +341,12 @@ function WorkChip({
       aria-pressed={active}
       className={cn(
         'flex shrink-0 items-center gap-2 rounded-full py-1 pr-3.5 text-2sm transition-colors duration-fast',
-        cover ? 'pl-1' : 'pl-3.5',
+        // 手机（iOS 稿）：白底细线，选中近黑实底。
+        'max-md:h-8 max-md:gap-1.5 max-md:border max-md:pr-3',
+        cover ? 'pl-1' : 'pl-3.5 max-md:pl-3',
         active
-          ? 'bg-primary text-primary-foreground'
-          : 'bg-muted text-foreground hover:bg-accent',
+          ? 'bg-primary text-primary-foreground max-md:border-foreground max-md:bg-foreground max-md:text-background'
+          : 'bg-muted text-foreground hover:bg-accent max-md:border-border max-md:bg-background',
       )}
     >
       {cover ? (
@@ -302,7 +365,9 @@ function WorkChip({
         <span
           className={cn(
             'font-mono text-xs tabular-nums',
-            active ? 'text-primary-foreground/70' : 'text-muted-foreground',
+            active
+              ? 'text-primary-foreground/70 max-md:text-background/60'
+              : 'text-muted-foreground',
           )}
         >
           {count}
@@ -316,11 +381,23 @@ function CharacterTile({
   entry,
   rank,
   reducedMotion,
+  captionBelow,
+  pressProps,
   onOpen,
 }: {
   entry: Entry
   rank: number | null
   reducedMotion: boolean
+  /** 手机：名字与小字写在图下面（iOS 稿），排名数字在名字左边。 */
+  captionBelow: boolean
+  pressProps: Pick<
+    React.HTMLAttributes<HTMLButtonElement>,
+    | 'onPointerDown'
+    | 'onPointerMove'
+    | 'onPointerUp'
+    | 'onPointerCancel'
+    | 'onContextMenu'
+  >
   onOpen(id: string): void
 }) {
   const t = useTranslations('CharacterRoster')
@@ -329,12 +406,56 @@ function CharacterTile({
   const name = parentName
     ? t('variantOf', { parent: parentName, label: card.variantLabel ?? '' })
     : card.name
+  const meta = t('tileMeta', { work: entry.workLabel, images: entry.images })
+  if (captionBelow) {
+    return (
+      <motion.button
+        type="button"
+        layout={!reducedMotion}
+        transition={LIQUID_SPRING.unfold}
+        onClick={() => onOpen(card.id)}
+        {...pressProps}
+        data-testid="roster-tile"
+        className="group block w-full select-none text-left transition-transform duration-fast ease-standard active:scale-96 motion-reduce:transition-none"
+      >
+        <span className="relative block aspect-3/4 overflow-hidden rounded-2xl bg-muted">
+          {cover ? (
+            <Image
+              src={cover}
+              alt=""
+              fill
+              sizes="45vw"
+              draggable={false}
+              className="object-cover"
+            />
+          ) : null}
+        </span>
+        <span className="mt-2 flex items-start gap-2">
+          {rank !== null ? (
+            <span
+              aria-hidden
+              className="font-mono text-3xl font-light leading-none tabular-nums"
+            >
+              {rank}
+            </span>
+          ) : null}
+          <span className="flex min-w-0 flex-col">
+            <span className="truncate text-sm font-semibold">{name}</span>
+            <span className="truncate text-xs text-muted-foreground">
+              {meta}
+            </span>
+          </span>
+        </span>
+      </motion.button>
+    )
+  }
   return (
     <motion.button
       type="button"
       layout={!reducedMotion}
       transition={LIQUID_SPRING.unfold}
       onClick={() => onOpen(card.id)}
+      {...pressProps}
       data-testid="roster-tile"
       className="group relative block aspect-4/5 w-full text-left"
     >
@@ -350,9 +471,7 @@ function CharacterTile({
         ) : null}
         <span className="absolute inset-x-0 bottom-0 flex flex-col bg-linear-to-t from-foreground/60 to-transparent px-4 pb-3 pt-10 text-background">
           <span className="truncate text-base font-semibold">{name}</span>
-          <span className="truncate text-xs opacity-85">
-            {t('tileMeta', { work: entry.workLabel, images: entry.images })}
-          </span>
+          <span className="truncate text-xs opacity-85">{meta}</span>
         </span>
         {rank !== null ? (
           <span
@@ -371,10 +490,13 @@ function CharacterTile({
 function WorkShelf({
   group,
   summary,
+  compact,
   onOpen,
 }: {
   group: WorkGroup
   summary: string
+  /** 手机：小一号、排在横滑的一行里，按下时扇面再散开一点（iOS 稿）。 */
+  compact: boolean
   onOpen(): void
 }) {
   // 放最上面的是第一名；左右两张是第二、第三名。⛔ 不放两张一样的图（owner 09-28）：
@@ -394,6 +516,51 @@ function WorkShelf({
     for (const slot of entry.card.referenceSlots) push(slot.url)
   }
   const [front, left, right] = covers
+  if (compact) {
+    return (
+      <button
+        type="button"
+        onClick={onOpen}
+        className="group flex w-32 shrink-0 flex-col items-center text-center"
+      >
+        <span className="relative block h-30 w-full">
+          {[
+            {
+              url: left,
+              className:
+                '-translate-x-14.5 -rotate-12 group-active:-translate-x-16 group-active:-rotate-16',
+            },
+            {
+              url: right,
+              className:
+                'translate-x-3.5 rotate-10 group-active:translate-x-5 group-active:rotate-14',
+            },
+            { url: front, className: '-translate-x-9' },
+          ].map((layer, index) =>
+            layer.url ? (
+              <span
+                key={index}
+                className={cn(
+                  'absolute left-1/2 top-1 h-25 w-18 overflow-hidden rounded-xl border-2 border-background bg-muted shadow-sm transition-transform duration-slow ease-standard motion-reduce:transition-none',
+                  layer.className,
+                )}
+              >
+                <Image
+                  src={layer.url}
+                  alt=""
+                  fill
+                  sizes="72px"
+                  className="object-cover"
+                />
+              </span>
+            ) : null,
+          )}
+        </span>
+        <span className="text-sm font-semibold">{group.label}</span>
+        <span className="text-xs text-muted-foreground">{summary}</span>
+      </button>
+    )
+  }
   return (
     <button
       type="button"
@@ -451,7 +618,7 @@ export function countCharacterWorks(
 
 /**
  * 总览那一行（住在地台上、白卡外面，布局 A）：页签（我的角色 / 卡库）+ 计数 · 搜索 ·
- * 新角色。
+ * 新角色。桌面专用，手机是 `CharacterPhoneBar`。
  * ⚠ 右边留出助手头像那一格（头像是 Dock 的 fixed 元素，恒在这一行最右）。
  */
 export function CharacterOverviewHeader({
@@ -473,11 +640,10 @@ export function CharacterOverviewHeader({
   return (
     <>
       {tabs}
-      <span className="hidden text-2sm text-muted-foreground sm:inline">
+      <span className="text-2sm text-muted-foreground">
         {t('overviewCount', { characters, works })}
       </span>
-      {/* 手机上搜索换到第二行、满宽（owner 09-28「太挤」，iOS 通讯录的排法）。 */}
-      <label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-full bg-background px-3.5 text-2sm text-muted-foreground max-sm:order-last max-sm:basis-full sm:ml-auto sm:w-72 sm:flex-none">
+      <label className="ml-auto flex h-9 w-72 min-w-0 items-center gap-2 rounded-full bg-background px-3.5 text-2sm text-muted-foreground">
         <Search className="size-4 shrink-0" aria-hidden />
         <input
           id="character-search"
@@ -489,12 +655,7 @@ export function CharacterOverviewHeader({
           className="min-w-0 flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
         />
       </label>
-      {/* 手机上这一格顶着第一行右端，让出右上角的助手头像。头像固定在视口「距右 16 ·
-          36 宽」（`STUDIO_OPERATOR_MOBILE_SHELL`），这一行右缘在地台内边距 10 处：
-          54 = 16 + 36 + 12 间距 − 10。 */}
-      <div className="flex shrink-0 gap-2 max-sm:ml-auto max-sm:mr-13.5">
-        {actions}
-      </div>
+      <div className="flex shrink-0 gap-2">{actions}</div>
     </>
   )
 }

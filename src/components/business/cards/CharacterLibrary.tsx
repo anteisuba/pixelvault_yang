@@ -24,6 +24,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { useChubCard } from '@/hooks/cards/use-chub-card'
 import type { UseChubLibraryReturn } from '@/hooks/cards/use-chub-library'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
 
 /**
@@ -78,7 +79,7 @@ export function CharacterPageTabs({
   )
 }
 
-/** 卡库那一行：页签 · 搜 chub · 热门 / 最新。手机上搜索换到第二行（与总览同一条）。 */
+/** 卡库那一行：页签 · 搜 chub · 热门 / 最新（桌面；手机是 `CharacterPhoneBar`）。 */
 export function CharacterLibraryHeader({
   tabs,
   library,
@@ -90,7 +91,7 @@ export function CharacterLibraryHeader({
   return (
     <>
       {tabs}
-      <label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-full bg-background px-3.5 text-2sm text-muted-foreground max-sm:order-last max-sm:basis-full sm:ml-auto sm:w-72 sm:flex-none">
+      <label className="ml-auto flex h-9 w-72 min-w-0 items-center gap-2 rounded-full bg-background px-3.5 text-2sm text-muted-foreground">
         <Search className="size-4 shrink-0" aria-hidden />
         <input
           type="search"
@@ -102,11 +103,10 @@ export function CharacterLibraryHeader({
           className="min-w-0 flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
         />
       </label>
-      {/* 让位右上角助手头像的那段算术见 `CharacterOverviewHeader`。 */}
       <div
         role="group"
         aria-label={t('librarySort')}
-        className="flex h-9 shrink-0 items-center gap-0.5 rounded-full bg-background p-1 max-sm:ml-auto max-sm:mr-13.5"
+        className="flex h-9 shrink-0 items-center gap-0.5 rounded-full bg-background p-1"
       >
         {CHUB_LIBRARY_SORT_KEYS.map((key) => (
           <button
@@ -129,9 +129,35 @@ export function CharacterLibraryHeader({
   )
 }
 
+/** 手机卡库的排序：一排 chip，选中近黑实底（iOS 稿）。 */
+function LibrarySortChips({ library }: { library: UseChubLibraryReturn }) {
+  const t = useTranslations('CharacterRoster')
+  return (
+    <div role="group" aria-label={t('librarySort')} className="flex gap-1.5">
+      {CHUB_LIBRARY_SORT_KEYS.map((key) => (
+        <button
+          key={key}
+          type="button"
+          aria-pressed={library.sort === key}
+          data-testid={`library-phone-sort-${key}`}
+          onClick={() => library.setSort(key)}
+          className={cn(
+            'h-8 rounded-full px-3 text-2sm transition-colors duration-fast ease-standard',
+            library.sort === key
+              ? 'bg-foreground text-background'
+              : 'bg-muted text-foreground active:bg-accent',
+          )}
+        >
+          {t(key === 'popular' ? 'librarySortPopular' : 'librarySortRecent')}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 /** 与「我的角色」的 `CellGrid` 同一套列数（owner 2026-10-15：卡库卡与角色卡对齐）。 */
 const GRID_CLASS =
-  'grid grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-3 md:grid-cols-4 desk:grid-cols-6 2xl:grid-cols-8'
+  'grid grid-cols-2 gap-x-3 gap-y-4 max-md:gap-x-2.5 max-md:gap-y-3.5 sm:grid-cols-3 md:grid-cols-4 desk:grid-cols-6 2xl:grid-cols-8'
 
 function TileSkeletons({ count }: { count: number }) {
   return Array.from({ length: count }, (_, index) => (
@@ -196,14 +222,38 @@ function tileMeta(card: ChubCardSummary, compact: Intl.NumberFormat): string {
  */
 function LibraryTile({
   card,
+  captionBelow,
   onOpen,
 }: {
   card: ChubCardSummary
+  /** 手机：名字写在图下面，与「我的角色」手机那张同一种（iOS 稿）。 */
+  captionBelow: boolean
   onOpen(): void
 }) {
   const t = useTranslations('CharacterRoster')
   const compact = useCompactNumber()
   const meta = tileMeta(card, compact)
+  if (captionBelow) {
+    return (
+      <button
+        type="button"
+        data-testid="library-tile"
+        onClick={onOpen}
+        aria-label={t('libraryOpenDetail', { name: card.name })}
+        className="block w-full text-left transition-transform duration-fast ease-standard active:scale-96 motion-reduce:transition-none"
+      >
+        <ChubImage card={card} className="aspect-3/4 w-full rounded-2xl" />
+        <span className="mt-2 block truncate text-sm font-semibold">
+          {card.name}
+        </span>
+        {meta ? (
+          <span className="block truncate text-xs text-muted-foreground">
+            {meta}
+          </span>
+        ) : null}
+      </button>
+    )
+  }
   return (
     <button
       type="button"
@@ -417,6 +467,7 @@ export function CharacterLibrary({
   onImport(fullPath: string): void
 }) {
   const t = useTranslations('CharacterRoster')
+  const isMobile = useIsMobile()
   const sentinel = useRef<HTMLDivElement>(null)
   const { hasMore, loadMore, moreStatus, status } = library
   /** 详情开着的那一张。 */
@@ -436,7 +487,12 @@ export function CharacterLibrary({
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-2sm text-muted-foreground">{t('libraryNote')}</p>
+      {/* 手机：排序是胶囊下面一排 chip，说明挪到最底下一句（iOS 稿）。 */}
+      {isMobile ? (
+        <LibrarySortChips library={library} />
+      ) : (
+        <p className="text-2sm text-muted-foreground">{t('libraryNote')}</p>
+      )}
 
       {status === 'loading' ? (
         <div className={GRID_CLASS} aria-busy>
@@ -482,6 +538,7 @@ export function CharacterLibrary({
               <LibraryTile
                 key={card.fullPath}
                 card={card}
+                captionBelow={isMobile}
                 onOpen={() => setOpenCard(card)}
               />
             ))}
@@ -503,6 +560,11 @@ export function CharacterLibrary({
               <span>{t('libraryNoMore')}</span>
             ) : null}
           </div>
+          {isMobile ? (
+            <p className="text-center text-xs text-muted-foreground">
+              {t('phone.libraryNote')}
+            </p>
+          ) : null}
         </>
       )}
       <LibraryDetail

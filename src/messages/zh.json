@@ -530,7 +530,8 @@
     "loraTrainingFailed": "LoRA 训练失败",
     "signedIn": "已登录",
     "characterCardImported": "已导入 {name}",
-    "characterCardImportFailed": "这张卡没导进来，再试一次"
+    "characterCardImportFailed": "这张卡没导进来，再试一次",
+    "characterCardDuplicated": "已复制成 {name}"
   },
   "Projects": {
     "title": "项目",
@@ -9458,7 +9459,21 @@
     "systemPromptWhat": "卡作者写给 AI 的总指令，比如「你要演好这个角色」。现在只保存，不生效。",
     "postHistoryWhat": "每轮都附在最新一句后面的提醒，比如「回复不超过三段」。现在只保存，不生效。",
     "lorebookWhat": "关键词词条：聊天里提到某个词，才把对应设定交给 AI。现在只保存，不生效。",
-    "lorebookCount": "{count} 条"
+    "lorebookCount": "{count} 条",
+    "phone": {
+      "search": "搜索",
+      "searchCancel": "取消",
+      "add": "新角色或导入",
+      "actions": "{name} 的操作",
+      "edit": "编辑",
+      "duplicate": "复制",
+      "delete": "删除",
+      "copyName": "{name} 副本",
+      "longPressHint": "长按一张卡：编辑 · 复制 · 删除",
+      "libraryNote": "公开卡来自 chub.ai。点开看详情，满意再「做成角色」。",
+      "charactersCount": "{count} 位",
+      "worksCount": "{count} 部"
+    }
   },
   "StudioTemplates": {
     "titleImage": "我的图片模板 · {count}",

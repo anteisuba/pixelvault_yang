@@ -2738,6 +2738,24 @@ html:lang(ja) {
   }
 }
 
+/* 手机上不要地台（iOS 稿：角色页整页白底、内容贴边滑）：内边距变量归零、底色换白。
+   ⚠ 写成变量而不是 `p-0`：地台的右内边距是 motion 写在行内的
+   `max(var(--workbench-pad), 助手让位)`，只有变量能让它一起归零。 */
+@utility workbench-ground-flush-phone {
+  @media (width < 48rem) {
+    --workbench-pad: 0px;
+    background: var(--background);
+  }
+}
+
+/* 手机上横滑的一排（作品 chip、「用得最多」）：拇指滑，⛔ 画滚动条。 */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 /* 主区给手机外壳让位（`MobileShellInset`）。工作台：顶上一条 44px + 顶部安全区
    （顶栏 `MobileStudioBar` 自己让开刘海，主区跟着多让同一截）；
    其余页：底栏 + 顶部安全区（没有顶栏了，刘海要自己让）。≥768 归零。 */

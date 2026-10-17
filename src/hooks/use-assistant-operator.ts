@@ -1142,6 +1142,22 @@ export function useAssistantOperator(
         messageEntryId(),
         options.runKey ? 'landing' : undefined,
       )
+      /**
+       * ⭐ **⏹ / 插话掐掉这一轮时，占位行当场收掉**（2026-10-17 真机：按了 ⏹，
+       * 「你叫停了当前工作」已经落下，上面那行「正在想… 795 秒」还在一直数）。
+       * 下面每一条收尾路径都先判 `isCurrentRun()`，而 abort 之后它恒为假 ——
+       * 于是空占位行永远没人拆、写到一半的正文光标永远挂着。收尾挂在 abort 上，
+       * 与是从哪条路径掐的无关。⚠ 同步触发：插话的新一轮在 abort 之后才挂自己的占位行。
+       */
+      controller.signal.addEventListener(
+        'abort',
+        () => {
+          if (!isCurrentThread()) return
+          dropOperatorPending(messageEntryId())
+          settleOperatorStreaming()
+        },
+        { once: true },
+      )
 
       /**
        * 攒着的那份计划（第 2 件）—— `plan` 帧到达时只存不落，由紧跟的

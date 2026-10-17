@@ -485,6 +485,12 @@ export const STUDIO_OPERATOR_STREAMING = {
   thinkingSlowMs: 6_000,
   /** 占位行上那个秒数多久刷一次。⚠ 半秒：露字门槛是一秒，一秒一跳会晚到一整秒才露。 */
   thinkingTickMs: 500,
+  /**
+   * **多久一个字节都没来就当断流**（2026-10-17：连接被吊住时「正在想」会一直数）。
+   * ⚠ 必须大于服务端路由的 `maxDuration`（300 s）：服务端到点前自己收尾，平台到点
+   *   杀函数也会断连接 —— 过了这个数还在等，只可能是连接死了。
+   */
+  streamIdleTimeoutMs: 330_000,
 } as const
 
 /**

@@ -14,6 +14,7 @@
 
 import { API_ENDPOINTS } from '@/constants/config'
 import { ASSISTANT_OPERATOR_EVENTS } from '@/constants/assistant-operator'
+import { STUDIO_OPERATOR_STREAMING } from '@/constants/studio-assistant-operator'
 import { getErrorPayload } from '@/lib/api-client/shared'
 import { parseSseStream } from '@/lib/sse'
 import {
@@ -42,9 +43,51 @@ export type AssistantOperatorStreamApiResponse =
  * `type` 是同一个值**，所以这里只认载荷、不认事件名。多一条「事件名要和 type
  * 对上」的校验只会在将来某次改名时制造一个静默丢帧的分支。
  */
-export async function* readAssistantOperatorStream(
+/**
+ * **断流看门狗**（2026-10-17 真机：「正在想… 795 秒」一直数）。
+ *
+ * 服务端函数最多活 `maxDuration` 秒，到点前自己发 `stopped`；平台杀函数时连接也会断。
+ * 可连接若被中间层吊住（不关也不来字），`reader.read()` 会永远挂着 —— 界面就一直
+ * 「正在想」。这里给每一次读加一个上限：超过它一个字节都没来就当断流，按正常的
+ * 「缺终态 = 中断」收尾（见下面 `interrupted`）。
+ */
+function withIdleTimeout(
   body: ReadableStream<Uint8Array>,
+  idleMs: number,
+): ReadableStream<Uint8Array> {
+  const reader = body.getReader()
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      let timer: ReturnType<typeof setTimeout> | undefined
+      const idle = new Promise<'idle'>((resolve) => {
+        timer = setTimeout(() => resolve('idle'), idleMs)
+      })
+      try {
+        const result = await Promise.race([reader.read(), idle])
+        if (result === 'idle') {
+          await reader.cancel().catch(() => undefined)
+          controller.close()
+          return
+        }
+        if (result.done) controller.close()
+        else controller.enqueue(result.value)
+      } catch (error) {
+        controller.error(error)
+      } finally {
+        clearTimeout(timer)
+      }
+    },
+    cancel(reason) {
+      return reader.cancel(reason)
+    },
+  })
+}
+
+export async function* readAssistantOperatorStream(
+  rawBody: ReadableStream<Uint8Array>,
+  idleMs: number = STUDIO_OPERATOR_STREAMING.streamIdleTimeoutMs,
 ): AsyncIterable<AssistantOperatorEvent> {
+  const body = withIdleTimeout(rawBody, idleMs)
   const interrupted: AssistantOperatorEvent = {
     type: ASSISTANT_OPERATOR_EVENTS.error,
     error:

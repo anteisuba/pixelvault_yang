@@ -181,6 +181,20 @@ export const AssistantV3UpscaleInputSchema = z.object({
   cards: z.array(CardHandleSchema),
 })
 
+const HAND_OFF_NEXT_DESCRIPTION =
+  "One line in the creator's language for the assistant over there to pick up — what they want done next. It is typed into that assistant's input box, not sent."
+
+/** 图片台 → 画布：项目由创作者在卡上选。 */
+export const AssistantV3BenchHandOffInputSchema = z.object({
+  next: z.string().describe(HAND_OFF_NEXT_DESCRIPTION),
+})
+
+/** 画布 → 图片台：带走哪一张图片卡。 */
+export const AssistantV3CanvasHandOffInputSchema = z.object({
+  card: CardHandleSchema,
+  next: z.string().describe(HAND_OFF_NEXT_DESCRIPTION),
+})
+
 export const AssistantV3SearchWebInputSchema = z.object({
   goal: z.string(),
   entities: z.array(z.string()),

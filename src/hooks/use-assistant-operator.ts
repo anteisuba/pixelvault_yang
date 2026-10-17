@@ -898,6 +898,13 @@ export interface UseAssistantOperatorResult {
   acceptWorkbenchHandoff(): void
   /** **「先不要」** —— 什么都不动，落一行账。 */
   dismissWorkbenchHandoff(): void
+  /**
+   * **「交过去」**（P6 台间交接）—— 工作台 → 画布带着卡上选的项目（`new` = 新建一块）；
+   * 画布 → 工作台不带参数。
+   */
+  acceptMoveWork(projectId?: string): void
+  /** **「先不要」** —— 什么都不动，落一行账。 */
+  dismissMoveWork(): void
   /** **「放大」**（画布，P6）—— 那几张卡各自放大成新版本。 */
   acceptUpscale(): void
   /** **「先不要」** —— 什么都不放大，落一行账。 */
@@ -1727,6 +1734,22 @@ export function useAssistantOperator(
                 setOperatorConfirm({
                   id: nextOperatorEntryId('confirm'),
                   kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.upscale,
+                  request: event.confirm.request,
+                  status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
+                })
+                setOperatorStatus('awaitingConfirm')
+                break
+              }
+              /** **交到另一台接着做**（P6）—— 同上：什么都没带走，等用户点下去（工作台 → 画布时先选项目）。 */
+              if (
+                event.confirm.kind ===
+                ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.moveWork
+              ) {
+                flushPlanEntry()
+                setOpen(true)
+                setOperatorConfirm({
+                  id: nextOperatorEntryId('confirm'),
+                  kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.moveWork,
                   request: event.confirm.request,
                   status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
                 })
@@ -3693,6 +3716,87 @@ export function useAssistantOperator(
     },
     [applyContext, isCurrentThread, tConfirm, tError],
   )
+  /**
+   * **交到另一台接着做**（P6 台间交接）。⭐ 点了才走：带走的东西按这一刻的台面现取（宿主那只手），
+   * 下一句话填进那边助手的输入框，⛔ 不替用户发、不花钱。工作台 → 画布带着卡上选的项目。
+   * ⚠ 那边交不了（宿主没有那只手 / 卡不在了）就什么都不改，卡留着等下一次。
+   */
+  const decideMoveWork = useCallback(
+    (accepted: boolean, projectId?: string) => {
+      if (!isCurrentThread()) return
+      const confirm = getOperatorState().confirm
+      if (
+        !confirm ||
+        confirm.kind !== ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.moveWork ||
+        confirm.status !== STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle
+      ) {
+        return
+      }
+      const { request } = confirm
+      const toCanvas = request.to === 'canvas'
+      const subject = toCanvas ? '' : `「${request.node?.name ?? ''}」`
+      let dropped = 0
+      if (accepted) {
+        const moved = toCanvas
+          ? projectId
+            ? applyContext.moveToCanvas?.({
+                projectId,
+                ...(request.next ? { next: request.next } : {}),
+              })
+            : null
+          : request.node
+            ? applyContext.canvas?.moveToWorkbench?.(
+                request.node.id,
+                request.next,
+              )
+            : null
+        if (!moved) return
+        dropped = moved.droppedReferences
+      }
+      const label = tConfirm(
+        `moveWork.${toCanvas ? 'canvas' : 'workbench'}.${accepted ? 'acceptedText' : 'declinedText'}`,
+        { names: subject },
+      )
+      resolveOperatorConfirm(
+        accepted
+          ? STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed
+          : STUDIO_OPERATOR_CONFIRM_STATUS_IDS.cancelled,
+      )
+      setOperatorStatus('idle')
+      appendOperatorEntry({
+        kind: 'system',
+        id: nextOperatorEntryId('sys'),
+        code: accepted ? 'moveWorkAccepted' : 'moveWorkDeclined',
+        subject: label,
+        userText: label,
+        answered: {
+          questionId: `moveWork:${request.to}:${request.node?.id ?? ''}`,
+          optionIds: [accepted ? 'accept' : 'decline'],
+          question: tConfirm(
+            `moveWork.${toCanvas ? 'canvas' : 'workbench'}.question`,
+            { names: subject },
+          ),
+          optionLabels: [label],
+        },
+      })
+      if (dropped > 0)
+        appendOperatorEntry({
+          kind: 'system',
+          id: nextOperatorEntryId('sys'),
+          code: 'moveWorkDroppedReferences',
+          subject: String(dropped),
+        })
+    },
+    [applyContext, isCurrentThread, tConfirm],
+  )
+  const acceptMoveWork = useCallback(
+    (projectId?: string) => decideMoveWork(true, projectId),
+    [decideMoveWork],
+  )
+  const dismissMoveWork = useCallback(
+    () => decideMoveWork(false),
+    [decideMoveWork],
+  )
   const acceptUpscale = useCallback(() => decideUpscale(true), [decideUpscale])
   const dismissUpscale = useCallback(
     () => decideUpscale(false),
@@ -4080,6 +4184,8 @@ export function useAssistantOperator(
     dismissImageHandoff,
     acceptWorkbenchHandoff,
     dismissWorkbenchHandoff,
+    acceptMoveWork,
+    dismissMoveWork,
     acceptUpscale,
     dismissUpscale,
     applyLoraSetup,

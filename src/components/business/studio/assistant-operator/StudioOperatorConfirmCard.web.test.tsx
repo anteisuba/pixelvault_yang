@@ -81,6 +81,7 @@ type ConfirmCardPrompt = Exclude<
       | 'imageHandoff'
       | 'workbenchHandoff'
       | 'upscale'
+      | 'moveWork'
   }
 >
 

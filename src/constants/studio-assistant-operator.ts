@@ -401,6 +401,12 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
   'upscaleDeclined',
   /** 放大那一跳没成（某张卡）—— ⛔ 不静默：用户以为图已经变清楚了。 */
   'upscaleFailed',
+  /** **交到另一台接着做了**（P6 台间交接）——跳过去了，下一句话填在那边的输入框里。 */
+  'moveWorkAccepted',
+  /** **先不交过去**——也是一次表态。 */
+  'moveWorkDeclined',
+  /** 交过去时有几张参考图没带上（超了上限 / 还不是网上地址）—— ⛔ 不静默。 */
+  'moveWorkDroppedReferences',
   /**
    * **应用了助手搭的那一套**（lora-assistant §12）——「已应用搭配：{卡头那一句}」。
    * ⭐ 判据与 `contextCardSaved` 同源：这一行同时是一条自带题面的 user 消息（`userText`

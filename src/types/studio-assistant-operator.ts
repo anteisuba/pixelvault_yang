@@ -33,6 +33,7 @@ import type {
   AssistantOperatorCharacterImagesProposal,
   AssistantOperatorImageHandoff,
   AssistantOperatorUpscaleRequest,
+  AssistantOperatorMoveWorkRequest,
   AssistantOperatorWorkbenchHandoff,
   AssistantOperatorContextCardDraft,
   AssistantOperatorCritiqueStep,
@@ -584,6 +585,11 @@ export type StudioOperatorConfirmPrompt = {
   | {
       kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.upscale
       request: AssistantOperatorUpscaleRequest
+    }
+  /** 交到另一台接着做（P6）—— 「交过去 / 先不要」；工作台 → 画布时卡上选项目。 */
+  | {
+      kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.moveWork
+      request: AssistantOperatorMoveWorkRequest
     }
 )
 

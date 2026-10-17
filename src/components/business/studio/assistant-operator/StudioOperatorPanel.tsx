@@ -31,6 +31,7 @@ import { StudioOperatorCharacterImagesCard } from './StudioOperatorCharacterImag
 import { StudioOperatorCharacterProfileCard } from './StudioOperatorCharacterProfileCard'
 import {
   StudioOperatorImageHandoffCard,
+  StudioOperatorMoveWorkCard,
   StudioOperatorUpscaleCard,
   StudioOperatorWorkbenchHandoffCard,
 } from './StudioOperatorHandoffCard'
@@ -577,6 +578,8 @@ export function StudioOperatorPanel({
     dismissWorkbenchHandoff,
     acceptUpscale,
     dismissUpscale,
+    acceptMoveWork,
+    dismissMoveWork,
     cancelGeneration,
     retryGeneration,
     rerunGeneration,
@@ -1632,6 +1635,14 @@ export function StudioOperatorPanel({
             prompt={confirm}
             onAccept={acceptUpscale}
             onDismiss={dismissUpscale}
+            formatTime={formatDecidedAt}
+          />
+        ) : confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.moveWork ? (
+          /* ── 交到另一台接着做（P6 台间交接）── */
+          <StudioOperatorMoveWorkCard
+            prompt={confirm}
+            onAccept={acceptMoveWork}
+            onDismiss={dismissMoveWork}
             formatTime={formatDecidedAt}
           />
         ) : confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraSetup ? (

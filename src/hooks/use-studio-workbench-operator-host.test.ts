@@ -174,6 +174,7 @@ import {
   STUDIO_OPERATOR_FACE_PILL_LIMIT,
 } from '@/constants/studio-assistant-operator'
 import { useStudioWorkbenchOperatorHost } from '@/hooks/use-studio-workbench-operator-host'
+import { takeBenchToCanvasHandoff } from '@/lib/bench-canvas-handoff'
 import { buildGenerationDisplayName } from '@/lib/generation-name'
 import { buildImageGenerationControls } from '@/lib/studio-operator-snapshot'
 import {
@@ -294,6 +295,60 @@ describe('useStudioWorkbenchOperatorHost 的工作台转交回执', () => {
     expect(dispatch).not.toHaveBeenCalled()
     expect(routerPush).not.toHaveBeenCalled()
     expect(takeOperatorDraft('user-a:image-natural')).toBeNull()
+  })
+})
+
+describe('useStudioWorkbenchOperatorHost 交到画布（P6 台间交接）', () => {
+  afterEach(() => {
+    references.entries.splice(0)
+    formState.overrides = {}
+  })
+
+  it('带走提示词、挂着的参考图和刚出的那张，存好再跳画布', () => {
+    routerPush.mockClear()
+    formState.overrides = { prompt: '雨夜里的角色' }
+    references.entries.push(
+      { url: 'https://cdn.test/ref-1.png' },
+      { url: 'blob:local-upload' },
+    )
+    useStudioGenOptional.mockReturnValue({
+      activeRun: {
+        outputType: 'IMAGE',
+        items: [
+          runItem('item-1', 'completed', {
+            id: 'gen-1',
+            url: 'https://cdn.test/out.png',
+            outputType: 'IMAGE',
+          }),
+        ],
+      },
+    })
+    const { result } = renderHook(() => useStudioWorkbenchOperatorHost())
+    expect(
+      result.current.apply.moveToCanvas?.({
+        projectId: 'project-9',
+        next: '接着做',
+      }),
+    ).toEqual({ droppedReferences: 1 })
+    expect(takeBenchToCanvasHandoff()).toMatchObject({
+      projectId: 'project-9',
+      prompt: '雨夜里的角色',
+      referenceUrls: ['https://cdn.test/ref-1.png'],
+      result: { url: 'https://cdn.test/out.png', generationId: 'gen-1' },
+      next: '接着做',
+    })
+    expect(routerPush).toHaveBeenCalledExactlyOnceWith('/studio/node')
+  })
+
+  it('视频档不交（P6 只做图片台 ↔ 画布）', () => {
+    routerPush.mockClear()
+    formState.overrides = { outputType: 'video' }
+    const { result } = renderHook(() => useStudioWorkbenchOperatorHost())
+    expect(
+      result.current.apply.moveToCanvas?.({ projectId: 'project-9' }),
+    ).toBeNull()
+    expect(takeBenchToCanvasHandoff()).toBeNull()
+    expect(routerPush).not.toHaveBeenCalled()
   })
 })
 

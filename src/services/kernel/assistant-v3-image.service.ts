@@ -9,6 +9,7 @@ import {
 } from '@/constants/assistant-operator'
 import {
   ASSISTANT_V3_ASK_TOOL_DESCRIPTION,
+  ASSISTANT_V3_BENCH_HAND_OFF_DESCRIPTION,
   ASSISTANT_V3_FACE_IDS,
   ASSISTANT_V3_READ_SOURCE_NOTE,
   ASSISTANT_V3_IMAGE_EDIT_OP_IDS,
@@ -23,6 +24,7 @@ import {
 import { renderAssistantV3ImageItem } from '@/lib/assistant-v3-image-board'
 import {
   AssistantV3AskInputSchema,
+  AssistantV3BenchHandOffInputSchema,
   AssistantV3ImageEditInputSchema,
   AssistantV3ImageLookInputSchema,
   AssistantV3ImageReadInputSchema,
@@ -70,7 +72,8 @@ import {
 /** 没有清晰度档的模型那一格的值（旧执行器 `planSetSpecs` 收到就写 auto）。 */
 const SPECS_TIERLESS_RESOLUTION = 'auto'
 
-export function assistantV3ImageTools(strict: boolean) {
+/** 图片台与视频台共用的那一套（视频台再换掉 edit / look）。 */
+function assistantV3BenchTools(strict: boolean) {
   return {
     [ASSISTANT_V3_TOOL_IDS.read]: tool({
       description: `Read in full what the board shows clipped: "prompt", "negative" or a reference ("ref-1"). ${ASSISTANT_V3_READ_SOURCE_NOTE}`,
@@ -120,10 +123,24 @@ export function assistantV3ImageTools(strict: boolean) {
   }
 }
 
-/** 视频台：图片台同一套工具，edit 换成视频那一份（时长、首尾帧、参考声音、原声）。 */
+export function assistantV3ImageTools(strict: boolean) {
+  return {
+    ...assistantV3BenchTools(strict),
+    [ASSISTANT_V3_TOOL_IDS.handOff]: tool({
+      description: ASSISTANT_V3_BENCH_HAND_OFF_DESCRIPTION,
+      inputSchema: AssistantV3BenchHandOffInputSchema,
+      strict,
+    }),
+  }
+}
+
+/**
+ * 视频台：图片台同一套工具，edit 换成视频那一份（时长、首尾帧、参考声音、原声）。
+ * 没有交接（P6 只做图片台 ↔ 画布）。
+ */
 export function assistantV3VideoTools(strict: boolean) {
   return {
-    ...assistantV3ImageTools(strict),
+    ...assistantV3BenchTools(strict),
     [ASSISTANT_V3_TOOL_IDS.edit]: tool({
       description:
         'Change the bench: model, clip specs, model options, first/last frame or reference pictures, voice clips, the soundtrack switch, import a link. All ops of one request in ONE call.',

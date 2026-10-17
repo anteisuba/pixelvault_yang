@@ -20,6 +20,9 @@ vi.mock('@/lib/api-client/assistant-memories', () => ({
   deleteAssistantMemoryAPI,
 }))
 vi.mock('@/lib/api-client/assistant-persona', () => ({ deleteProjectRuleAPI }))
+vi.mock('@/i18n/navigation', () => ({
+  useRouter: () => ({ push: () => {} }),
+}))
 vi.mock('@/lib/api-client/assistant-operator', () => ({
   revertAssistantAssetWriteAPI,
 }))

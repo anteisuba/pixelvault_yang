@@ -27,9 +27,11 @@ import {
   ASSISTANT_OPERATOR_TOOL_IDS as TOOL,
   ASSISTANT_RESEARCH_LIMITS,
   ASSISTANT_WEB_FIND_LIMITS,
+  ASSISTANT_OPERATOR_CARDS_LIMITS,
 } from '@/constants/assistant-operator'
 import {
   ASSISTANT_V3_ASK_TOOL_DESCRIPTION,
+  ASSISTANT_V3_CANVAS_HAND_OFF_DESCRIPTION,
   ASSISTANT_V3_READ_SOURCE_NOTE,
   ASSISTANT_V3_CALL_TIMEOUT,
   ASSISTANT_V3_CLIP_LIMITS,
@@ -110,6 +112,8 @@ import {
   AssistantV3EditInputSchema,
   AssistantV3GenerateInputSchema,
   AssistantV3UpscaleInputSchema,
+  AssistantV3BenchHandOffInputSchema,
+  AssistantV3CanvasHandOffInputSchema,
   AssistantV3LookInputSchema,
   AssistantV3ReadInputSchema,
   AssistantV3SearchLibraryInputSchema,
@@ -379,6 +383,11 @@ const tools = (strict: boolean) => ({
     description:
       'Enlarge image cards\' current picture 4x (sharper, bigger — what "4K", "高清", "放大" mean for a picture that already exists). Puts a confirm card in front of the creator; the enlarged picture becomes a new version of the same card, the old one stays one version back. Nothing is regenerated. Runs on the creator\'s own fal.ai key, no credits.',
     inputSchema: AssistantV3UpscaleInputSchema,
+    strict,
+  }),
+  [ASSISTANT_V3_TOOL_IDS.handOff]: tool({
+    description: ASSISTANT_V3_CANVAS_HAND_OFF_DESCRIPTION,
+    inputSchema: AssistantV3CanvasHandOffInputSchema,
     strict,
   }),
   [ASSISTANT_V3_TOOL_IDS.searchWeb]: tool({
@@ -2267,6 +2276,13 @@ async function* executeCall(
   }
   if (
     context.face !== ASSISTANT_V3_FACE_IDS.canvas &&
+    name === ASSISTANT_V3_TOOL_IDS.handOff
+  )
+    return yield* executeBenchHandOff(
+      AssistantV3BenchHandOffInputSchema.parse(input).next,
+    )
+  if (
+    context.face !== ASSISTANT_V3_FACE_IDS.canvas &&
     (name === ASSISTANT_V3_TOOL_IDS.read ||
       name === ASSISTANT_V3_TOOL_IDS.look ||
       name === ASSISTANT_V3_TOOL_IDS.generate ||
@@ -2343,6 +2359,11 @@ async function* executeCall(
       return yield* executeGenerate(
         context,
         AssistantV3GenerateInputSchema.parse(input).cards,
+      )
+    case ASSISTANT_V3_TOOL_IDS.handOff:
+      return yield* executeCanvasHandOff(
+        context,
+        AssistantV3CanvasHandOffInputSchema.parse(input),
       )
     case ASSISTANT_V3_TOOL_IDS.upscale:
       return yield* executeUpscale(
@@ -2630,6 +2651,72 @@ async function* executeUpscale(
     kind: 'stop',
     todo: `等你确认放大${nodes.map((node) => `「${node.name}」`).join('')}${problems.length ? `（没放进来的：${problems.join('; ')}）` : ''}`,
   }
+}
+
+/**
+ * 交到另一台接着做（P6 台间交接）：一张确认卡，按下才走。带走什么（提示词、模型、参考图、
+ * 刚出的图）由客户端在按下那一刻从台面上取 —— 服务端只定方向与那一句接着说的话。
+ */
+function moveWorkNext(next: string): string | undefined {
+  const line = next
+    .trim()
+    .slice(0, ASSISTANT_OPERATOR_CARDS_LIMITS.maxHandoffChars)
+  return line || undefined
+}
+
+async function* executeBenchHandOff(
+  next: string,
+): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
+  const line = moveWorkNext(next)
+  yield {
+    type: ASSISTANT_OPERATOR_EVENTS.confirm,
+    confirm: {
+      kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.moveWork,
+      request: { to: 'canvas', ...(line ? { next: line } : {}) },
+    },
+  }
+  return { kind: 'stop', todo: '等你确认交到画布、选好项目' }
+}
+
+async function* executeCanvasHandOff(
+  context: V3Context,
+  input: { card: string; next: string },
+): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
+  const id = context.handles.idOf(input.card)
+  const node = id
+    ? context.nodes.find((candidate) => candidate.id === id)
+    : undefined
+  if (!node) {
+    const nearest = context.handles
+      .nearest(input.card)
+      .map((other) => context.handles.handleOf(other))
+    return {
+      kind: 'result',
+      output: `no card "${input.card}"${nearest.length ? ` — did you mean ${nearest.join(', ')}?` : ''}`,
+      error: true,
+      failureKey: `${ASSISTANT_V3_TOOL_IDS.handOff}:none`,
+    }
+  }
+  if (node.kind !== NODE_MEDIA_KIND_IDS.image)
+    return {
+      kind: 'result',
+      output: `${context.handles.handleOf(node.id)} is not an image card — only image cards go to the image workbench`,
+      error: true,
+      failureKey: `${ASSISTANT_V3_TOOL_IDS.handOff}:kind`,
+    }
+  const line = moveWorkNext(input.next)
+  yield {
+    type: ASSISTANT_OPERATOR_EVENTS.confirm,
+    confirm: {
+      kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.moveWork,
+      request: {
+        to: 'workbench',
+        node: { id: node.id, name: node.name },
+        ...(line ? { next: line } : {}),
+      },
+    },
+  }
+  return { kind: 'stop', todo: `等你确认把「${node.name}」交到图片工作台` }
 }
 
 /**

@@ -6,18 +6,15 @@ export const STUDIO_PREFILL_PROMPT_STORAGE_KEY =
   'pixelvault:studio-prefill-prompt' as const
 
 /**
- * Open-Image-Studio round-trip (canvas node ↔ Studio). The node writes a
- * HANDOFF (origin node id + prompt + reference images) before navigating to
- * Studio; Studio prefills from it and, on "回填", writes a RESULT (origin node
- * id + generated image url) and navigates back to the canvas, which applies it
- * to the origin node. Replaces the old one-way navigate-away dead-end.
+ * 工作台 ↔ 画布交接（P6 台间交接，`lib/bench-canvas-handoff.ts`）：按下交接卡的那一页把要带走的
+ * 东西写进 sessionStorage 再跳，那一页落地读一次就清掉。
+ * 参考图最多带几张 —— 多于这个数的照实说没带上。
  */
-export const STUDIO_NODE_HANDOFF_STORAGE_KEY =
-  'pixelvault:studio-node-handoff' as const
-export const STUDIO_NODE_RESULT_STORAGE_KEY =
-  'pixelvault:studio-node-result' as const
-/** Cap reference images carried into Studio from a node handoff. */
-export const STUDIO_NODE_HANDOFF_MAX_REFERENCES = 4 as const
+export const BENCH_CANVAS_HANDOFF = {
+  toCanvasStorageKey: 'pixelvault:bench-to-canvas',
+  toBenchStorageKey: 'pixelvault:canvas-to-bench',
+  maxReferences: 8,
+} as const
 
 /**
  * 图片工作台「上次使用的模型」——记的是 `StudioModelOption.optionId`

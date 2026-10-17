@@ -1438,6 +1438,13 @@ export const ASSISTANT_OPERATOR_CONFIRM_KIND_IDS = {
    *   新版本（owner 2026-10-15 手动放大定的规矩）；⛔ 服务端不调、不存。
    */
   upscale: 'upscale',
+  /**
+   * 把手上这件事交到另一台接着做（P6，owner 2026-10-16「工作台 ↔ 画布」）：工作台 → 画布时卡上
+   * 选项目（默认最近打开的，owner 2026-10-17），画布 → 工作台带走选中那张卡。
+   * ⚠ 点了才走：带走提示词、模型、参考图（与刚出的图），把下一句话填进那边助手的输入框，
+   *   ⛔ 不替用户发、不花钱。
+   */
+  moveWork: 'moveWork',
 } as const
 
 export const ASSISTANT_OPERATOR_CONFIRM_KINDS = [
@@ -1450,6 +1457,7 @@ export const ASSISTANT_OPERATOR_CONFIRM_KINDS = [
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.imageHandoff,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.workbenchHandoff,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.upscale,
+  ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.moveWork,
 ] as const
 
 export type AssistantOperatorConfirmKind =

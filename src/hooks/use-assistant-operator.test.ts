@@ -22,6 +22,7 @@ import type {
   AssistantOperatorEvent,
   AssistantOperatorGenerationRequest,
   AssistantOperatorMessage,
+  AssistantOperatorMoveWorkRequest,
 } from '@/types/assistant-operator'
 
 /**
@@ -154,6 +155,19 @@ const canvasUpscale = vi.hoisted(() =>
     > => ({ status: 'done' }),
   ),
 )
+/** 台间交接（P6）：工作台 → 画布 / 画布卡 → 工作台。 */
+const moveToCanvas = vi.hoisted(() =>
+  vi.fn(
+    (_target: { projectId: string; next?: string }) =>
+      ({ droppedReferences: 0 }) as { droppedReferences: number } | null,
+  ),
+)
+const canvasMoveToWorkbench = vi.hoisted(() =>
+  vi.fn(
+    (_nodeId: string, _next?: string) =>
+      ({ droppedReferences: 0 }) as { droppedReferences: number } | null,
+  ),
+)
 const canvasGenerationState = vi.hoisted(() => ({
   enabled: false,
   current: null as Record<string, unknown> | null,
@@ -193,7 +207,9 @@ vi.mock('@/contexts/studio-operator-host', () => ({
       : {}),
     apply: {
       ...(workbenchHandoffEnabled.current ? { switchImageWorkbench } : {}),
+      moveToCanvas,
       canvas: {
+        moveToWorkbench: canvasMoveToWorkbench,
         applyOp: canvasApply,
         applyOps: canvasApplyOps,
         getBatchFailures: () => canvasBatchFailures.current,
@@ -332,6 +348,8 @@ beforeEach(async () => {
   workbenchHandoffEnabled.current = false
   switchImageWorkbench.mockReset().mockReturnValue(true)
   canvasUpscale.mockReset().mockResolvedValue({ status: 'done' })
+  moveToCanvas.mockReset().mockReturnValue({ droppedReferences: 0 })
+  canvasMoveToWorkbench.mockReset().mockReturnValue({ droppedReferences: 0 })
   hostDomain.current = 'image'
   hostWorkspace.current = 'image-natural'
   canvasApply.mockReset().mockReturnValue(true)
@@ -553,6 +571,87 @@ describe('放大到 4K 确认卡（P6）', () => {
       )
     expect(failed).toHaveLength(1)
     expect(failed[0]).toMatchObject({ subject: '「高尔」：图太大' })
+  })
+})
+
+describe('交到另一台接着做（P6 台间交接）', () => {
+  async function proposeMoveWork(request: AssistantOperatorMoveWorkRequest) {
+    const hook = render()
+    act(() => hook.result.current.send('放到另一边接着做'))
+    await settle()
+    streams[0].emit({
+      type: 'confirm',
+      confirm: { kind: 'moveWork', request },
+    })
+    streams[0].emit({ type: 'stopped', reason: 'awaiting_confirm' })
+    streams[0].close()
+    await settle()
+    return hook
+  }
+
+  function systemCodes(): string[] {
+    return store
+      .getOperatorState()
+      .entries.flatMap((entry) => (entry.kind === 'system' ? [entry.code] : []))
+  }
+
+  it('工作台 → 画布：带着卡上选的项目和下一句话交过去，只记一次，⛔ 不新开一轮', async () => {
+    const { result } = await proposeMoveWork({ to: 'canvas', next: '接着做' })
+    act(() => {
+      result.current.acceptMoveWork('project-9')
+      result.current.acceptMoveWork('project-9')
+      result.current.dismissMoveWork()
+    })
+    expect(moveToCanvas).toHaveBeenCalledExactlyOnceWith({
+      projectId: 'project-9',
+      next: '接着做',
+    })
+    expect(store.getOperatorState().confirm?.status).toBe('confirmed')
+    expect(
+      systemCodes().filter((code) => code === 'moveWorkAccepted'),
+    ).toHaveLength(1)
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(1)
+    expect(triggerGeneration).not.toHaveBeenCalled()
+  })
+
+  it('画布 → 工作台：交那张卡；参考图超了上限说一行，⛔ 不静默', async () => {
+    canvasMoveToWorkbench.mockReturnValue({ droppedReferences: 2 })
+    const { result } = await proposeMoveWork({
+      to: 'workbench',
+      node: { id: 'n1', name: '哈利' },
+      next: '换成雪地',
+    })
+    act(() => result.current.acceptMoveWork())
+    expect(canvasMoveToWorkbench).toHaveBeenCalledExactlyOnceWith(
+      'n1',
+      '换成雪地',
+    )
+    const dropped = store
+      .getOperatorState()
+      .entries.find(
+        (entry) =>
+          entry.kind === 'system' && entry.code === 'moveWorkDroppedReferences',
+      )
+    expect(dropped).toMatchObject({ subject: '2' })
+  })
+
+  it('交不过去（那张卡没了）：什么都不改，卡留着', async () => {
+    canvasMoveToWorkbench.mockReturnValue(null)
+    const { result } = await proposeMoveWork({
+      to: 'workbench',
+      node: { id: 'n1', name: '哈利' },
+    })
+    act(() => result.current.acceptMoveWork())
+    expect(store.getOperatorState().confirm?.status).toBe('idle')
+    expect(systemCodes()).not.toContain('moveWorkAccepted')
+  })
+
+  it('先不要：不交，只记一行', async () => {
+    const { result } = await proposeMoveWork({ to: 'canvas' })
+    act(() => result.current.dismissMoveWork())
+    expect(moveToCanvas).not.toHaveBeenCalled()
+    expect(store.getOperatorState().confirm?.status).toBe('cancelled')
+    expect(systemCodes()).toContain('moveWorkDeclined')
   })
 })
 

@@ -1,10 +1,13 @@
 'use client'
 
+import { useEffect, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { STUDIO_OPERATOR_CONFIRM_STATUS_IDS } from '@/constants/studio-assistant-operator'
+import { CANVAS_NEW_PROJECT_QUERY_VALUE } from '@/constants/routes'
 import type { ASSISTANT_OPERATOR_CONFIRM_KIND_IDS } from '@/constants/assistant-operator'
 import type { StudioOperatorConfirmPrompt } from '@/types/studio-assistant-operator'
+import { useRecentCanvases } from '@/hooks/node/use-recent-canvases'
 
 /**
  * **把这件事交到另一处去**的卡 —— 一句要带过去的话 + 一行「会发生什么」+ 两颗键。
@@ -25,6 +28,8 @@ interface StudioOperatorHandoffCardProps {
   /** 要带过去的那句话；没有就不画那一格。 */
   request?: string
   hint: string
+  /** 两颗键上面的那一格（交到画布时选哪块画布）。 */
+  children?: ReactNode
   acceptLabel: string
   dismissLabel: string
   acceptedLabel(time: string): string
@@ -42,6 +47,7 @@ function StudioOperatorHandoffCard({
   header,
   request,
   hint,
+  children,
   acceptLabel,
   dismissLabel,
   acceptedLabel,
@@ -93,6 +99,7 @@ function StudioOperatorHandoffCard({
           </p>
         ) : null}
         <p className="text-2xs text-muted-foreground">{hint}</p>
+        {children}
         <div className="flex items-center justify-end gap-1.5 border-t border-border pt-2.5">
           <button
             type="button"
@@ -258,5 +265,129 @@ export function StudioOperatorUpscaleCard({
       onDismiss={onDismiss}
       formatTime={formatTime}
     />
+  )
+}
+
+type MoveWorkPrompt = Extract<
+  StudioOperatorConfirmPrompt,
+  { kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.moveWork }
+>
+
+export interface StudioOperatorMoveWorkCardProps {
+  prompt: MoveWorkPrompt
+  /** 工作台 → 画布带着选中的那块画布（`new` = 新建一块）。 */
+  onAccept(projectId?: string): void
+  onDismiss(): void
+  formatTime(iso: string): string
+}
+
+/** 卡上最多列几块最近的画布（再多就去画布里切）。 */
+const MOVE_WORK_RECENT_LIMIT = 4
+
+/**
+ * **交到另一台接着做**（P6 台间交接）。同一张卡的形状：下一句话 + 一行「会带过去什么」+ 两颗键。
+ * 工作台 → 画布多一格「交到哪块画布」（owner 2026-10-17「卡上让我选，默认最近」）：最近几块 +
+ * 新建一块，默认最近那块；一块都没有就默认新建。
+ */
+export function StudioOperatorMoveWorkCard({
+  prompt,
+  onAccept,
+  onDismiss,
+  formatTime,
+}: StudioOperatorMoveWorkCardProps) {
+  const t = useTranslations('StudioOperator')
+  const toCanvas = prompt.request.to === 'canvas'
+  const side = toCanvas ? 'canvas' : 'workbench'
+  const names = prompt.request.node ? `「${prompt.request.node.name}」` : ''
+  const recent = useRecentCanvases()
+  const { status: recentStatus, load: loadRecent } = recent
+  const idle = prompt.status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle
+  const [picked, setPicked] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (toCanvas && idle && recentStatus === 'idle') void loadRecent()
+  }, [idle, loadRecent, recentStatus, toCanvas])
+
+  const projects = recent.projects.slice(0, MOVE_WORK_RECENT_LIMIT)
+  const target =
+    picked ??
+    (recent.status === 'ready'
+      ? (projects[0]?.id ?? CANVAS_NEW_PROJECT_QUERY_VALUE)
+      : recent.status === 'failed'
+        ? CANVAS_NEW_PROJECT_QUERY_VALUE
+        : null)
+  const targetName =
+    target === CANVAS_NEW_PROJECT_QUERY_VALUE
+      ? t('confirm.moveWork.canvas.newProject')
+      : (projects.find((project) => project.id === target)?.name ?? '')
+
+  const options = [
+    ...projects.map((project) => ({ id: project.id, label: project.name })),
+    {
+      id: CANVAS_NEW_PROJECT_QUERY_VALUE,
+      label: t('confirm.moveWork.canvas.newProject'),
+    },
+  ]
+
+  return (
+    <StudioOperatorHandoffCard
+      testId="operator-move-work"
+      status={prompt.status}
+      decidedAt={prompt.decidedAt}
+      header={t(`confirm.moveWork.${side}.header`, { names })}
+      request={prompt.request.next}
+      hint={t(`confirm.moveWork.${side}.hint`, { names })}
+      acceptLabel={t(`confirm.moveWork.${side}.accept`)}
+      dismissLabel={t(`confirm.moveWork.${side}.dismiss`)}
+      acceptedLabel={(time) => t(`confirm.moveWork.${side}.accepted`, { time })}
+      subject={toCanvas ? targetName : names}
+      onAccept={() => {
+        if (!toCanvas) return onAccept()
+        // 列表还没回来时按下 = 还没得选：等它回来。
+        if (target) onAccept(target)
+      }}
+      onDismiss={onDismiss}
+      formatTime={formatTime}
+    >
+      {toCanvas ? (
+        <div
+          role="radiogroup"
+          aria-label={t('confirm.moveWork.canvas.pickLabel')}
+          data-testid="operator-move-work-projects"
+          className="flex flex-col gap-1"
+        >
+          <span className="text-2xs text-muted-foreground">
+            {t('confirm.moveWork.canvas.pickLabel')}
+          </span>
+          {recent.status === 'loading' || recent.status === 'idle' ? (
+            <p className="px-2 py-1 text-2sm text-muted-foreground">
+              {t('confirm.moveWork.canvas.loading')}
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {options.map((option) => {
+                const checked = option.id === target
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={checked}
+                    onClick={() => setPicked(option.id)}
+                    className={
+                      checked
+                        ? 'max-w-full truncate rounded-md border border-primary bg-primary/10 px-2.5 py-1 text-2sm text-foreground transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none'
+                        : 'max-w-full truncate rounded-md border border-border bg-card px-2.5 py-1 text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none'
+                    }
+                  >
+                    {option.label}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      ) : null}
+    </StudioOperatorHandoffCard>
   )
 }

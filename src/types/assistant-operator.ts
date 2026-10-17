@@ -2479,6 +2479,30 @@ export type AssistantOperatorUpscaleRequest = z.infer<
   typeof AssistantOperatorUpscaleRequestSchema
 >
 
+export const ASSISTANT_OPERATOR_MOVE_WORK_TARGETS = [
+  'canvas',
+  'workbench',
+] as const
+
+/**
+ * **交到另一台接着做**（`confirm(moveWork)` 的载荷，P6）。`to` 由服务端按当前那张脸定（⛔ 不收
+ * 模型写的）；`node` 只在画布 → 工作台时有：带走哪张卡。提示词、模型、参考图在按下那一刻由客户端
+ * 从台面上取（⛔ 载荷里没有地址）。`next` = 填进那边助手输入框的那一句。
+ */
+export const AssistantOperatorMoveWorkRequestSchema = z.object({
+  to: z.enum(ASSISTANT_OPERATOR_MOVE_WORK_TARGETS),
+  node: z.object({ id: IdSchema, name: LabelSchema }).optional(),
+  next: z
+    .string()
+    .trim()
+    .max(ASSISTANT_OPERATOR_CARDS_LIMITS.maxHandoffChars)
+    .optional(),
+})
+
+export type AssistantOperatorMoveWorkRequest = z.infer<
+  typeof AssistantOperatorMoveWorkRequestSchema
+>
+
 /**
  * **`add_project_rule` 的形状容错**（2026-09-12 实测第 9 步）。
  *
@@ -4984,6 +5008,11 @@ export const AssistantOperatorConfirmEventSchema = z.object({
     z.object({
       kind: z.literal(ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.upscale),
       request: AssistantOperatorUpscaleRequestSchema,
+    }),
+    /** **交到另一台接着做**（P6）—— 工作台 ↔ 画布，「交过去 / 先不要」。 */
+    z.object({
+      kind: z.literal(ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.moveWork),
+      request: AssistantOperatorMoveWorkRequestSchema,
     }),
   ]),
 })

@@ -167,6 +167,15 @@ export interface StudioOperatorCanvasContext {
    */
   upscale?(nodeId: string): Promise<StudioOperatorCanvasUpscaleOutcome>
   /**
+   * 把这张图片卡交到图片工作台接着做（P6 台间交接）：提示词、模型、连着的参考图填进工作台
+   * （按模型去自然语言台或标签台），`next` 填进那边助手的输入框。⛔ 不替用户发。
+   * 回 `null` = 这张卡交不了（不在了 / 不是图片卡）。
+   */
+  moveToWorkbench?(
+    nodeId: string,
+    next?: string,
+  ): { droppedReferences: number } | null
+  /**
    * 下游名单：沿具名槽边算一遍后继闭包。⚠ 由宿主算而不是服务端 —— 服务端那份
    * 快照是分层的，折叠的镜里没有边，闭包会漏。
    */
@@ -301,6 +310,16 @@ export interface StudioOperatorApplyContext {
    * ⚠ 可选：只有图片工作台有对面那一台。
    */
   switchImageWorkbench?(handoff: AssistantOperatorWorkbenchHandoff): boolean
+  /**
+   * **交到画布接着做**（P6 台间交接）：提示词、模型、参考图、刚出的那张图带去 `projectId`
+   * 那块画布（或新建一块），落成一张图片卡；`next` 填进画布助手的输入框。⛔ 不替用户发。
+   * 回 `null` = 这一台交不了（视频档）；`droppedReferences` = 超出上限没带上的参考图张数。
+   * ⚠ 可选：只有图片工作台有。
+   */
+  moveToCanvas?(input: {
+    projectId: string
+    next?: string
+  }): { droppedReferences: number } | null
   /**
    * **扣扳机的那只手**（§6 花钱档，拍板 2 的新形态）。
    *

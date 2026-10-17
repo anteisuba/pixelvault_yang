@@ -7,10 +7,18 @@ import {
   CHARACTER_PAGE_TABS,
   CHUB_LIBRARY,
   CHUB_LIBRARY_SORT_KEYS,
+  CHUB_LIBRARY_TAGS,
   type CharacterPageTab,
 } from '@/constants/cards/chub-library'
 import type { ChubCardSummary } from '@/types/chub-library'
-import { ExternalLink, Plus, Search, Users } from '@/components/icons'
+import {
+  Check,
+  ChevronDown,
+  ExternalLink,
+  Plus,
+  Search,
+  Users,
+} from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import {
@@ -20,6 +28,12 @@ import {
   ResponsiveDialogHeader,
   ResponsiveDialogTitle,
 } from '@/components/ui/responsive-dialog'
+import {
+  ResponsiveMenu,
+  ResponsiveMenuContent,
+  ResponsiveMenuItem,
+  ResponsiveMenuTrigger,
+} from '@/components/ui/responsive-menu'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { useChubCard } from '@/hooks/cards/use-chub-card'
@@ -103,6 +117,10 @@ export function CharacterLibraryHeader({
           className="min-w-0 flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
         />
       </label>
+      <LibraryTagMenu
+        library={library}
+        className="h-9 bg-background hover:bg-accent"
+      />
       <div
         role="group"
         aria-label={t('librarySort')}
@@ -129,6 +147,60 @@ export function CharacterLibraryHeader({
   )
 }
 
+/**
+ * 「标签 ▾」（owner 2026-10-17）：只看带某个标签的卡。桌面锚定的下拉、手机从底部升起；
+ * 选了标签这颗变近黑实底。
+ */
+function LibraryTagMenu({
+  library,
+  className,
+}: {
+  library: UseChubLibraryReturn
+  className?: string
+}) {
+  const t = useTranslations('CharacterRoster')
+  const pick = (tag: string | null) => library.setTag(tag)
+  return (
+    <ResponsiveMenu>
+      <ResponsiveMenuTrigger asChild>
+        <button
+          type="button"
+          data-testid="library-tag"
+          aria-label={t('libraryTagMenu')}
+          className={cn(
+            'flex shrink-0 items-center gap-1 rounded-full px-3 text-2sm transition-colors duration-fast ease-standard',
+            className,
+            library.tag &&
+              'bg-foreground text-background hover:bg-foreground/90',
+          )}
+        >
+          {t('libraryTag')} {library.tag ?? t('libraryTagAll')}
+          <ChevronDown className="size-3.5" aria-hidden />
+        </button>
+      </ResponsiveMenuTrigger>
+      <ResponsiveMenuContent
+        label={t('libraryTagMenu')}
+        align="end"
+        className="max-h-80 overflow-y-auto"
+      >
+        {[null, ...CHUB_LIBRARY_TAGS].map((tag) => (
+          <ResponsiveMenuItem
+            key={tag ?? 'all'}
+            data-testid={`library-tag-${tag ?? 'all'}`}
+            onSelect={() => pick(tag)}
+          >
+            <Check
+              aria-hidden
+              className={cn(library.tag === tag ? 'opacity-100' : 'opacity-0')}
+            />
+            {tag ?? t('libraryTagAll')}
+          </ResponsiveMenuItem>
+        ))}
+      </ResponsiveMenuContent>
+    </ResponsiveMenu>
+  )
+}
+
 /** 手机卡库的排序：一排 chip，选中近黑实底（iOS 稿）。 */
 function LibrarySortChips({ library }: { library: UseChubLibraryReturn }) {
   const t = useTranslations('CharacterRoster')
@@ -151,6 +223,10 @@ function LibrarySortChips({ library }: { library: UseChubLibraryReturn }) {
           {t(key === 'popular' ? 'librarySortPopular' : 'librarySortRecent')}
         </button>
       ))}
+      <LibraryTagMenu
+        library={library}
+        className="h-8 bg-muted text-foreground active:bg-accent"
+      />
     </div>
   )
 }

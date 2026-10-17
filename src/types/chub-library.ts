@@ -11,6 +11,13 @@ export const ChubSearchQuerySchema = z.object({
   q: z.string().trim().max(CHUB_LIBRARY.QUERY_MAX_LENGTH).catch(''),
   page: z.coerce.number().int().min(1).max(CHUB_LIBRARY.MAX_PAGE).catch(1),
   sort: z.enum(CHUB_LIBRARY_SORT_KEYS).catch('popular'),
+  /** 只看带这个标签的卡（chub 的 `topics`）；不给 = 全部。 */
+  tag: z
+    .string()
+    .trim()
+    .max(CHUB_LIBRARY.NODE_LIMITS.TOPIC)
+    .optional()
+    .catch(undefined),
 })
 
 export type ChubSearchQuery = z.infer<typeof ChubSearchQuerySchema>

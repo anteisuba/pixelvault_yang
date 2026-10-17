@@ -9504,7 +9504,10 @@
       "libraryNote": "Public cards from chub.ai. Open one to read it, then “Make character” if you like it.",
       "charactersCount": "{count}",
       "worksCount": "{count}"
-    }
+    },
+    "libraryTag": "Tag",
+    "libraryTagAll": "All",
+    "libraryTagMenu": "Filter by tag"
   },
   "StudioTemplates": {
     "titleImage": "My image templates · {count}",

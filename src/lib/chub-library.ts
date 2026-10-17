@@ -72,7 +72,7 @@ function encodeFullPath(fullPath: string): string {
 
 /** 搜一页的地址（太长的词、越界的页码先回到默认）。 */
 export function chubSearchUrl(query: ChubSearchQuery): string {
-  const { q, page, sort } = ChubSearchQuerySchema.parse(query)
+  const { q, page, sort, tag } = ChubSearchQuerySchema.parse(query)
   const params = new URLSearchParams({
     search: q,
     first: String(CHUB_LIBRARY.PAGE_SIZE),
@@ -82,6 +82,7 @@ export function chubSearchUrl(query: ChubSearchQuery): string {
     nsfw: 'true',
     nsfl: 'false',
   })
+  if (tag) params.set('topics', tag)
   return `${CHUB_LIBRARY.SEARCH_URL}?${params}`
 }
 

@@ -56,6 +56,15 @@ describe('chubSearchUrl', () => {
     })
   })
 
+  it('选了标签：带上 chub 的 topics；没选就不带', () => {
+    const tagged = new URL(
+      chubSearchUrl({ q: '', page: 1, sort: 'popular', tag: 'Fantasy' }),
+    )
+    expect(tagged.searchParams.get('topics')).toBe('Fantasy')
+    const plain = new URL(chubSearchUrl({ q: '', page: 1, sort: 'popular' }))
+    expect(plain.searchParams.has('topics')).toBe(false)
+  })
+
   it('越界的页码、太长的词回到默认', () => {
     const url = new URL(
       chubSearchUrl({

@@ -19,6 +19,9 @@ export interface UseChubLibraryReturn {
   setQuery: (query: string) => void
   sort: ChubLibrarySort
   setSort: (sort: ChubLibrarySort) => void
+  /** 只看这个标签（`null` = 全部）。 */
+  tag: string | null
+  setTag: (tag: string | null) => void
   items: readonly ChubCardSummary[]
   /** 第一页的状态（换词 / 换排序重来）。 */
   status: ChubLibraryStatus
@@ -39,13 +42,12 @@ export function useChubLibrary(enabled: boolean): UseChubLibraryReturn {
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [sort, setSort] = useState<ChubLibrarySort>('popular')
+  const [tag, setTag] = useState<string | null>(null)
   const [items, setItems] = useState<ChubCardSummary[]>([])
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
   const [status, setStatus] = useState<ChubLibraryStatus>('loading')
-  const [moreStatus, setMoreStatus] = useState<'loading' | 'error' | null>(
-    null,
-  )
+  const [moreStatus, setMoreStatus] = useState<'loading' | 'error' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [attempt, setAttempt] = useState(0)
   const controller = useRef<AbortController | null>(null)
@@ -59,12 +61,22 @@ export function useChubLibrary(enabled: boolean): UseChubLibraryReturn {
   }, [query])
 
   const fetchPage = useCallback(
-    async (q: string, nextSort: ChubLibrarySort, nextPage: number) => {
+    async (
+      q: string,
+      nextSort: ChubLibrarySort,
+      nextTag: string | null,
+      nextPage: number,
+    ) => {
       controller.current?.abort()
       const abort = new AbortController()
       controller.current = abort
       const response = await searchChubCardsAPI(
-        { q, sort: nextSort, page: nextPage },
+        {
+          q,
+          sort: nextSort,
+          page: nextPage,
+          ...(nextTag ? { tag: nextTag } : {}),
+        },
         abort.signal,
       )
       if (abort.signal.aborted) return null
@@ -88,7 +100,7 @@ export function useChubLibrary(enabled: boolean): UseChubLibraryReturn {
       setStatus('loading')
       setMoreStatus(null)
       setError(null)
-      void fetchPage(debouncedQuery, sort, 1).then((result) => {
+      void fetchPage(debouncedQuery, sort, tag, 1).then((result) => {
         if (!live) return
         if (!result) {
           setStatus('error')
@@ -104,14 +116,14 @@ export function useChubLibrary(enabled: boolean): UseChubLibraryReturn {
       live = false
       cancel()
     }
-  }, [attempt, debouncedQuery, enabled, fetchPage, sort])
+  }, [attempt, debouncedQuery, enabled, fetchPage, sort, tag])
 
   useEffect(() => () => controller.current?.abort(), [])
 
   const loadMore = useCallback(() => {
     if (status !== 'ready' || moreStatus === 'loading' || !hasMore) return
     setMoreStatus('loading')
-    void fetchPage(debouncedQuery, sort, page + 1).then((result) => {
+    void fetchPage(debouncedQuery, sort, tag, page + 1).then((result) => {
       if (!result) {
         setMoreStatus('error')
         return
@@ -124,7 +136,7 @@ export function useChubLibrary(enabled: boolean): UseChubLibraryReturn {
       setHasMore(result.hasMore)
       setMoreStatus(null)
     })
-  }, [debouncedQuery, fetchPage, hasMore, moreStatus, page, sort, status])
+  }, [debouncedQuery, fetchPage, hasMore, moreStatus, page, sort, status, tag])
 
   const retry = useCallback(() => {
     if (moreStatus === 'error') {
@@ -139,6 +151,8 @@ export function useChubLibrary(enabled: boolean): UseChubLibraryReturn {
     setQuery,
     sort,
     setSort,
+    tag,
+    setTag,
     items,
     status,
     moreStatus,

@@ -9504,7 +9504,10 @@
       "libraryNote": "chub.ai の公開カードです。開いて詳細を見て、気に入ったら「キャラにする」。",
       "charactersCount": "{count} 人",
       "worksCount": "{count} 作品"
-    }
+    },
+    "libraryTag": "タグ",
+    "libraryTagAll": "すべて",
+    "libraryTagMenu": "タグで絞り込む"
   },
   "StudioTemplates": {
     "titleImage": "画像テンプレート · {count}",

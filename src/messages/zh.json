@@ -9504,7 +9504,10 @@
       "libraryNote": "公开卡来自 chub.ai。点开看详情，满意再「做成角色」。",
       "charactersCount": "{count} 位",
       "worksCount": "{count} 部"
-    }
+    },
+    "libraryTag": "标签",
+    "libraryTagAll": "全部",
+    "libraryTagMenu": "按标签筛选"
   },
   "StudioTemplates": {
     "titleImage": "我的图片模板 · {count}",

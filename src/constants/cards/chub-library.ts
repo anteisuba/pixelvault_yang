@@ -55,6 +55,27 @@ export const CHUB_LIBRARY = {
   TAB_PARAM: 'tab',
 } as const
 
+/**
+ * 卡库「标签 ▾」里列的标签（owner 2026-10-17 要做）：chub 上最常见的那几个，原样传给
+ * 搜索的 `topics`（chub 的标签是英文，按原文显示）。
+ */
+export const CHUB_LIBRARY_TAGS = [
+  'Female',
+  'Male',
+  'Anime',
+  'Original Character',
+  'Game Characters',
+  'Fantasy',
+  'Romance',
+  'Roleplay',
+  'Scenario',
+  'Sci-Fi',
+  'Horror',
+  'Comedy',
+  'Monster Girl',
+  'Vtuber',
+] as const
+
 /** 卡库排序：键是我们的，值是 chub 的 `sort`。 */
 export const CHUB_LIBRARY_SORTS = {
   popular: 'download_count',

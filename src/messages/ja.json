@@ -1437,10 +1437,6 @@
     "workspaceTitle": "制作開始",
     "workspaceDescription": "モデルとルートを選び、プロンプトを入力して生成。",
     "skipToPrompt": "プロンプトへスキップ",
-    "nodeHandoffBanner": "キャンバスノード用に生成中 — 完了したらノードへ反映できます。",
-    "nodeHandoffAttach": "ノードへ反映",
-    "nodeHandoffNeedResult": "先に画像を生成してから反映してください。",
-    "nodeHandoffCancel": "キャンセル",
     "workflowEmptyHint": "ワークフローを選んで制作を始める",
     "modeLabel": "生成モード",
     "modeImage": "画像",
@@ -6332,6 +6328,9 @@
         "count": "このカットで {count} 枚",
         "limit": "このモデルの参照画像は最大 {max} 枚 · 使用中 {used} 枚（レールの画像を含む）"
       },
+      "handoff": {
+        "newProjectName": "ワークベンチから"
+      },
       "upscale": {
         "noImage": "このカードにはまだ拡大できる画像がありません",
         "failed": "拡大できませんでした"
@@ -8339,6 +8338,31 @@
         "acceptedText": "{names}を拡大",
         "declinedText": "{names}は今は拡大しない",
         "question": "{names}を 4K に拡大しますか？"
+      },
+      "moveWork": {
+        "canvas": {
+          "header": "キャンバスで続ける",
+          "hint": "この台のプロンプト・モデル・参照画像・直近の 1 枚をキャンバスに 1 枚のカードとして持っていきます。上の一言はキャンバスのアシスタント入力欄に入れるので、送信はご自身で。",
+          "accept": "移す",
+          "dismiss": "今はやめる",
+          "accepted": "キャンバスへ移しました · {time}",
+          "acceptedText": "キャンバスで続ける",
+          "declinedText": "キャンバスへは移さない",
+          "question": "この作業をキャンバスで続けますか？",
+          "pickLabel": "移す先のキャンバス",
+          "newProject": "新しいキャンバス",
+          "loading": "最近のキャンバスを探しています…"
+        },
+        "workbench": {
+          "header": "ワークベンチで続ける · {names}",
+          "hint": "{names}のプロンプト・モデル・参照画像を画像ワークベンチへ持っていきます。上の一言はそちらのアシスタント入力欄に入れるので、送信はご自身で。",
+          "accept": "移す",
+          "dismiss": "今はやめる",
+          "accepted": "ワークベンチへ移しました · {time}",
+          "acceptedText": "{names}をワークベンチで続ける",
+          "declinedText": "{names}はワークベンチへ移さない",
+          "question": "{names}をワークベンチで続けますか？"
+        }
       }
     },
     "system": {
@@ -8381,6 +8405,9 @@
       "upscaleAccepted": "拡大中：{subject}",
       "upscaleDeclined": "拡大しませんでした：{subject}",
       "upscaleFailed": "拡大できませんでした：{subject}",
+      "moveWorkAccepted": "{subject}",
+      "moveWorkDeclined": "{subject}",
+      "moveWorkDroppedReferences": "参照画像 {subject} 枚は持っていけませんでした（上限超過、またはアップロード未完了）。",
       "autoGenerateHeld": "このカードは {subject} 枚を生成します。自動生成の上限（1 ターン 4 枚）を超えるため自動では押していません。確認すると生成します。"
     },
     "attach": {

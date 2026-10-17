@@ -517,12 +517,20 @@ const draftListeners = new Set<() => void>()
 export function requestOperatorDraft(
   workspace: AssistantWorkspace,
   text: string,
+  /** 画布那一格要指名哪块画布（工作台交过来时刚切 / 刚建好）；缺席 = 眼前这块。 */
+  canvasProjectId?: string,
 ): void {
   const source = state.threadScope
   if (!source) return
   const account = source.slice(0, source.indexOf(':'))
-  const scope = workspace === 'canvas' ? source : `${account}:${workspace}`
-  if (workspace === 'canvas' && state.domain !== 'canvas') return
+  const scope =
+    workspace !== 'canvas'
+      ? `${account}:${workspace}`
+      : canvasProjectId
+        ? `${account}:canvas:${canvasProjectId}`
+        : source
+  if (workspace === 'canvas' && !canvasProjectId && state.domain !== 'canvas')
+    return
   pendingDraft = { scope, text }
   for (const listener of draftListeners) listener()
 }

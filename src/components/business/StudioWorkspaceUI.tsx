@@ -11,8 +11,6 @@ import { getProviderLabel } from '@/constants/providers'
 import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
 import { STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR } from '@/constants/studio-assistant-operator'
 import { landRecipeInComposer } from '@/lib/studio-workbench-motion'
-import { isStudioResultInWorkspace } from '@/lib/studio-operator-result-run'
-import { ROUTES } from '@/constants/routes'
 import {
   StudioAssistantDock,
   StudioAssistantFab,
@@ -37,7 +35,6 @@ import { StudioImageEditWorkspace } from '@/components/business/studio-shared/ed
 import type { StudioImageEditTarget } from '@/components/business/studio-shared/editor/StudioImageEditStage'
 import { StudioOperatorDock } from '@/components/business/studio/assistant-operator'
 import { StudioKeepChangePanel } from '@/components/business/image/StudioKeepChangePanel'
-import { Button } from '@/components/ui/button'
 
 import {
   useStudioData,
@@ -50,15 +47,9 @@ import { useStudioModeModelOptions } from '@/hooks/use-studio-mode-model-options
 import { useStudioTemplateApply } from '@/hooks/use-studio-template-apply'
 import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
 import { useStudioWorkbenchOperatorHost } from '@/hooks/use-studio-workbench-operator-host'
-import { useRouter } from '@/i18n/navigation'
 import { useStudioReplayFromUrl } from '@/hooks/use-studio-replay-from-url'
 import { useStudioDraft, type StudioDraft } from '@/hooks/use-studio-draft'
-import {
-  clearStudioNodeHandoff,
-  readStudioNodeHandoff,
-  writeStudioNodeResult,
-  type StudioNodeHandoff,
-} from '@/lib/studio-node-handoff'
+import { takeCanvasToBenchHandoff } from '@/lib/bench-canvas-handoff'
 
 const STUDIO_MODE_KEY = 'studio-workflow-mode'
 
@@ -95,19 +86,8 @@ export function StudioWorkspaceUI() {
   const t = useTranslations('StudioPage')
   const { state, dispatch } = useStudioForm()
   const { imageUpload } = useStudioData()
-  const { lastGeneration: rawLastGeneration, isGenerating } = useStudioGen()
-  const lastGeneration =
-    rawLastGeneration &&
-    isStudioResultInWorkspace(
-      rawLastGeneration.outputType,
-      rawLastGeneration.model,
-      state,
-    )
-      ? rawLastGeneration
-      : null
+  const { isGenerating } = useStudioGen()
   const tEmptyState = useTranslations('StudioEmptyState')
-  const router = useRouter()
-  const [nodeHandoff, setNodeHandoff] = useState<StudioNodeHandoff | null>(null)
   const [editTarget, setEditTarget] = useState<StudioImageEditTarget | null>(
     null,
   )
@@ -444,57 +424,38 @@ export function StudioWorkspaceUI() {
     }
   }, [dispatch])
 
-  // Open-Image-Studio round-trip: a canvas image node navigated here with a
-  // handoff. Prefill prompt + reference images, and keep the handoff live so
-  // the user can attach the generated result back to the origin node. Runs
-  // once on mount (the handoff is consumed on attach/cancel).
+  // 画布交过来的那张卡（P6 台间交接，`lib/bench-canvas-handoff.ts`）：提示词、参考图落进
+  // 表单；模型等这一档的选项表到了再选上（选项表首帧可能还是空的）。读一次就清掉。
   const didReadHandoffRef = useRef(false)
+  const arrivalModelRef = useRef<string | null>(null)
   useEffect(() => {
     if (didReadHandoffRef.current) return
     didReadHandoffRef.current = true
-    const handoff = readStudioNodeHandoff()
+    const handoff = takeCanvasToBenchHandoff()
     if (!handoff) return
-    // One-time sessionStorage hydration is an external browser sync on mount.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setNodeHandoff(handoff)
     if (handoff.prompt) {
       dispatch({ type: 'SET_PROMPT', payload: handoff.prompt })
     }
-    for (const url of handoff.referenceUrls) {
-      void imageUpload.addFromUrl(url)
+    if (handoff.referenceUrls.length > 0) {
+      imageUpload.clearAllImages()
+      for (const url of handoff.referenceUrls)
+        imageUpload.addReferenceImage(url)
     }
-    window.requestAnimationFrame(() => {
-      document.getElementById('studio-prompt')?.scrollIntoView({
-        block: 'center',
-        behavior: 'smooth',
-      })
-    })
+    arrivalModelRef.current = handoff.modelId ?? null
   }, [dispatch, imageUpload])
+  useEffect(() => {
+    const modelId = arrivalModelRef.current
+    if (!modelId) return
+    const option = modeModelOptions.find((item) => item.modelId === modelId)
+    if (!option) return
+    arrivalModelRef.current = null
+    dispatch({ type: 'SET_OPTION_ID', payload: option.optionId })
+  }, [dispatch, modeModelOptions])
 
   // Persist workflow mode changes
   useEffect(() => {
     localStorage.setItem(STUDIO_MODE_KEY, state.workflowMode)
   }, [state.workflowMode])
-
-  const canAttach = Boolean(lastGeneration?.url)
-
-  const handleAttachToNode = useCallback(() => {
-    if (!nodeHandoff || !lastGeneration?.url) return
-    writeStudioNodeResult({
-      originNodeId: nodeHandoff.originNodeId,
-      url: lastGeneration.url,
-      generationId: lastGeneration.id,
-      label: nodeHandoff.characterName ?? lastGeneration.model ?? undefined,
-    })
-    clearStudioNodeHandoff()
-    setNodeHandoff(null)
-    router.push(ROUTES.STUDIO_NODE)
-  }, [lastGeneration, nodeHandoff, router])
-
-  const handleCancelHandoff = useCallback(() => {
-    clearStudioNodeHandoff()
-    setNodeHandoff(null)
-  }, [])
 
   // 「保留与改变」的提交 —— 随 `StudioBottomDock` 一起搬过来（切片 A）。
   const handleKeepChangeSubmit = useCallback(
@@ -530,31 +491,6 @@ export function StudioWorkspaceUI() {
       >
         {t('skipToPrompt')}
       </a>
-
-      {nodeHandoff ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5 text-sm">
-          <span className="flex-1 text-foreground">
-            {t('nodeHandoffBanner')}
-          </span>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={handleCancelHandoff}
-          >
-            {t('nodeHandoffCancel')}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            disabled={!canAttach}
-            onClick={handleAttachToNode}
-            title={canAttach ? undefined : t('nodeHandoffNeedResult')}
-          >
-            {t('nodeHandoffAttach')}
-          </Button>
-        </div>
-      ) : null}
 
       <div
         role="tabpanel"

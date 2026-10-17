@@ -1437,10 +1437,6 @@
     "workspaceTitle": "Start creating",
     "workspaceDescription": "Select a model and route, enter your prompt to generate.",
     "skipToPrompt": "Skip to prompt",
-    "nodeHandoffBanner": "Generating for a canvas node — attach the result back when it's ready.",
-    "nodeHandoffAttach": "Attach to node",
-    "nodeHandoffNeedResult": "Generate an image first, then attach it.",
-    "nodeHandoffCancel": "Cancel",
     "workflowEmptyHint": "Choose a workflow to start creating",
     "modeLabel": "Generation mode",
     "modeImage": "Image",
@@ -6332,6 +6328,9 @@
         "count": "{count} images in this shot",
         "limit": "This model takes up to {max} reference images · {used} in use (including the rail)"
       },
+      "handoff": {
+        "newProjectName": "From the workbench"
+      },
       "upscale": {
         "noImage": "This card has no picture to upscale yet",
         "failed": "Upscale failed"
@@ -8339,6 +8338,31 @@
         "acceptedText": "Upscale {names}",
         "declinedText": "Don't upscale {names} for now",
         "question": "Upscale {names} to 4K?"
+      },
+      "moveWork": {
+        "canvas": {
+          "header": "Continue on the canvas",
+          "hint": "Brings this bench's prompt, model, references and latest image onto the canvas as one card. The line above goes into the canvas assistant's input; you press send.",
+          "accept": "Move it",
+          "dismiss": "Not now",
+          "accepted": "Moved to the canvas · {time}",
+          "acceptedText": "Continue on the canvas",
+          "declinedText": "Not moving to the canvas",
+          "question": "Continue this on the canvas?",
+          "pickLabel": "Which canvas",
+          "newProject": "New canvas",
+          "loading": "Finding recent canvases…"
+        },
+        "workbench": {
+          "header": "Continue on the workbench · {names}",
+          "hint": "Brings {names}'s prompt, model and references to the image workbench. The line above goes into that assistant's input; you press send.",
+          "accept": "Move it",
+          "dismiss": "Not now",
+          "accepted": "Moved to the workbench · {time}",
+          "acceptedText": "Continue {names} on the workbench",
+          "declinedText": "Not moving {names} to the workbench",
+          "question": "Continue {names} on the workbench?"
+        }
       }
     },
     "system": {
@@ -8381,6 +8405,9 @@
       "upscaleAccepted": "Upscaling: {subject}",
       "upscaleDeclined": "Not upscaling: {subject}",
       "upscaleFailed": "Upscale failed: {subject}",
+      "moveWorkAccepted": "{subject}",
+      "moveWorkDeclined": "{subject}",
+      "moveWorkDroppedReferences": "{subject} reference image(s) were left behind (over the limit or not uploaded yet).",
       "autoGenerateHeld": "This card would make {subject} pictures, over the auto-generate limit of 4 per turn. It was not pressed for you; confirm it to run."
     },
     "attach": {

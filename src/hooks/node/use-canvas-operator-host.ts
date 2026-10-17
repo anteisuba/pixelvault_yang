@@ -64,6 +64,18 @@ import { revertAssistantAssetWriteAPI } from '@/lib/api-client/assistant-operato
 import { deleteAssistantMemoryAPI } from '@/lib/api-client/assistant-memories'
 import { deleteProjectRuleAPI } from '@/lib/api-client/assistant-persona'
 import { collectDownstream } from '@/lib/node-downstream'
+import { buildV4ImagePayload } from '@/lib/node-slot-payload'
+import {
+  pickHandoffReferences,
+  writeCanvasToBenchHandoff,
+} from '@/lib/bench-canvas-handoff'
+import { requestOperatorDraft } from '@/hooks/use-studio-operator-store'
+import { useRouter } from '@/i18n/navigation'
+import { getModelById } from '@/constants/models'
+import {
+  getPromptDialect,
+  PROMPT_DIALECT_ROUTES,
+} from '@/constants/prompt-dialects'
 import {
   isCharacterCardNode,
   resolveMentionsToSlots,
@@ -576,6 +588,44 @@ export function useCanvasOperatorHost({
     [generateNodes],
   )
 
+  const router = useRouter()
+  /**
+   * **交到图片工作台**（P6 台间交接）：这张卡发出去时会带的那份提示词与参考图（与出图同一个
+   * `buildV4ImagePayload`），模型按写法去自然语言台或标签台。工作台在另一个 Provider 里，
+   * 所以写进 sessionStorage 再跳；下一句话交给那边助手的输入框。
+   */
+  const canvasMoveToWorkbench = useCallback(
+    (nodeId: string, next?: string) => {
+      const { nodes: currentNodes, edges: currentEdges } = graphRef.current
+      const node = currentNodes.find((candidate) => candidate.id === nodeId)
+      if (!node || node.data.kind !== NODE_MEDIA_KIND_IDS.image) return null
+      const payload = buildV4ImagePayload({
+        nodeId,
+        nodes: currentNodes,
+        edges: currentEdges,
+      })
+      const { urls, dropped } = pickHandoffReferences(payload.referenceUrls)
+      const modelId = node.data.model?.modelId
+      const dialect = getPromptDialect(
+        node.data.model?.adapterType ??
+          (modelId ? getModelById(modelId)?.adapterType : undefined),
+      )
+      writeCanvasToBenchHandoff({
+        prompt: payload.prompt,
+        ...(modelId ? { modelId } : {}),
+        referenceUrls: urls,
+      })
+      if (next)
+        requestOperatorDraft(
+          dialect === 'tags' ? 'image-tags' : 'image-natural',
+          next,
+        )
+      router.push(PROMPT_DIALECT_ROUTES[dialect])
+      return { droppedReferences: dropped }
+    },
+    [router],
+  )
+
   const apply = useMemo((): StudioOperatorApplyContext => {
     /**
      * ⚠ 表单那几只手在画布上无处可去 —— 见文件头注。它们**到不了**（域工具表
@@ -613,6 +663,7 @@ export function useCanvasOperatorHost({
         revertOp: canvasRevert,
         generate: canvasGenerate,
         ...(upscaleNode ? { upscale: upscaleNode } : {}),
+        moveToWorkbench: canvasMoveToWorkbench,
         planRerunDownstream: canvasPlanRerun,
       },
     }
@@ -626,6 +677,7 @@ export function useCanvasOperatorHost({
     canvasRevert,
     canvasGenerate,
     upscaleNode,
+    canvasMoveToWorkbench,
     canvasPlanRerun,
   ])
 

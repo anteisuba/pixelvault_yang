@@ -40,6 +40,12 @@ import { toModelChannelCandidate } from '@/lib/pick-default-model-option'
 import { resolveModelChannel } from '@/lib/resolve-model-channel'
 import { setOperatorGenerationLabel } from '@/lib/studio-operator-label'
 import {
+  pickHandoffReferences,
+  writeBenchToCanvasHandoff,
+} from '@/lib/bench-canvas-handoff'
+import { tagPromptTextForLoraBase } from '@/lib/tag-composer'
+import { ROUTES } from '@/constants/routes'
+import {
   requestOperatorDraft,
   setOperatorPrimed,
   setOperatorReviewState,
@@ -303,6 +309,42 @@ export function useStudioWorkbenchOperatorHost({
        * （`StudioDialectJumpHint`）同一条路：选中型号、带走提示词、换路由；再把要接着
        * 说的那句递给那一台的助手（`requestOperatorDraft`），由用户按发送。
        */
+      /**
+       * **交到画布**（P6 台间交接）：表单不跟着去（画布在 `StudioProvider` 外面），所以写进
+       * sessionStorage 再跳，画布落地读一次（`lib/bench-canvas-handoff.ts`）。标签台的统一串
+       * 先写成 `(tag:1.2)`：画布不认 `tag:1.2`，发图那一跳的翻译认得括号写法。
+       */
+      moveToCanvas: ({ projectId, next }) => {
+        const current = latest.current
+        if (current.state.outputType !== 'image') return null
+        // 挂着的全带上（含这台模型收不下而停用的那几张：画布上那张卡的模型未必收不下）。
+        const { urls, dropped } = pickHandoffReferences(
+          current.imageUpload.referenceEntries.map((entry) => entry.url),
+        )
+        // 结果的 `outputType` 是库里的大写（`IMAGE`），缺席按图算。
+        const result = resultsRef.current.find(
+          (item) =>
+            (item.outputType ?? 'image').toLowerCase() === 'image' &&
+            item.url.startsWith('http'),
+        )
+        const prompt =
+          current.state.promptDialect === 'tags'
+            ? tagPromptTextForLoraBase(current.state.prompt, true)
+            : current.state.prompt
+        const modelId = current.imageModels.selectedModel?.modelId
+        writeBenchToCanvasHandoff({
+          projectId,
+          prompt,
+          ...(modelId ? { modelId } : {}),
+          referenceUrls: urls,
+          ...(result
+            ? { result: { url: result.url, generationId: result.id } }
+            : {}),
+          ...(next ? { next } : {}),
+        })
+        current.router.push(ROUTES.STUDIO_NODE)
+        return { droppedReferences: dropped }
+      },
       switchImageWorkbench: (handoff) => {
         const dialect = handoff.workspace === 'image-tags' ? 'tags' : 'natural'
         const option = latest.current.otherImageModels.find(

@@ -1437,10 +1437,6 @@
     "workspaceTitle": "开始创作",
     "workspaceDescription": "选择模型和路由，输入提示词即可生成。",
     "skipToPrompt": "跳到提示词输入区",
-    "nodeHandoffBanner": "正在为画布节点生成 — 完成后可回填到该节点。",
-    "nodeHandoffAttach": "回填到节点",
-    "nodeHandoffNeedResult": "先生成一张图，再回填。",
-    "nodeHandoffCancel": "取消",
     "workflowEmptyHint": "选择一个工作流开始创作",
     "modeLabel": "生成模式",
     "modeImage": "图片",
@@ -6332,6 +6328,9 @@
         "count": "这一镜带 {count} 张",
         "limit": "这个模型一次最多收 {max} 张参考图 · 已用 {used} 张（含轨上挂的）"
       },
+      "handoff": {
+        "newProjectName": "从工作台交过来"
+      },
       "upscale": {
         "noImage": "这张卡还没有图，放大不了",
         "failed": "放大没成"
@@ -8339,6 +8338,31 @@
         "acceptedText": "放大{names}",
         "declinedText": "先不放大{names}",
         "question": "要把{names}放大到 4K 吗？"
+      },
+      "moveWork": {
+        "canvas": {
+          "header": "交到画布接着做",
+          "hint": "会把这台的提示词、模型、参考图和刚出的那张带到画布上，变成一张卡；上面这句填进画布助手的输入框，你来按发送。",
+          "accept": "交过去",
+          "dismiss": "先不要",
+          "accepted": "已交到画布 · {time}",
+          "acceptedText": "交到画布接着做",
+          "declinedText": "先不交到画布",
+          "question": "要把这件事交到画布上接着做吗？",
+          "pickLabel": "交到哪块画布",
+          "newProject": "新建画布",
+          "loading": "正在找最近的画布…"
+        },
+        "workbench": {
+          "header": "交到工作台接着做 · {names}",
+          "hint": "会把{names}的提示词、模型和参考图带到图片工作台；上面这句填进那边助手的输入框，你来按发送。",
+          "accept": "交过去",
+          "dismiss": "先不要",
+          "accepted": "已交到工作台 · {time}",
+          "acceptedText": "把{names}交到工作台接着做",
+          "declinedText": "先不把{names}交到工作台",
+          "question": "要把{names}交到工作台接着做吗？"
+        }
       }
     },
     "system": {
@@ -8381,6 +8405,9 @@
       "upscaleAccepted": "开始放大：{subject}",
       "upscaleDeclined": "先不放大：{subject}",
       "upscaleFailed": "没放大成：{subject}",
+      "moveWorkAccepted": "{subject}",
+      "moveWorkDeclined": "{subject}",
+      "moveWorkDroppedReferences": "有 {subject} 张参考图没带过去（超过上限或还没传完）。",
       "autoGenerateHeld": "这次要出 {subject} 张，超过自动生成单轮 4 张的上限 —— 没替你按，确认后再出。"
     },
     "attach": {

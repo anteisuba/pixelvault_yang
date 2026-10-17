@@ -48,6 +48,7 @@ export const ASSISTANT_V3_BENCH_FACES: readonly string[] = [
 /**
  * 九个工具。名字就是模型看到的工具名，⛔ 别改成旧内核那套动作名。
  * `upscale` 只在画布那张脸上（P6「修到 4K」走放大，⛔ 不是改分辨率再出一张）。
+ * `hand_off` 只在图片台与画布（P6 台间交接：工作台 ↔ 画布）。
  */
 export const ASSISTANT_V3_TOOL_IDS = {
   read: 'read',
@@ -56,6 +57,7 @@ export const ASSISTANT_V3_TOOL_IDS = {
   write: 'write',
   generate: 'generate',
   upscale: 'upscale',
+  handOff: 'hand_off',
   searchWeb: 'search_web',
   searchLibrary: 'search_library',
   ask: 'ask',
@@ -68,6 +70,7 @@ export const ASSISTANT_V3_TOOLS = [
   ASSISTANT_V3_TOOL_IDS.write,
   ASSISTANT_V3_TOOL_IDS.generate,
   ASSISTANT_V3_TOOL_IDS.upscale,
+  ASSISTANT_V3_TOOL_IDS.handOff,
   ASSISTANT_V3_TOOL_IDS.searchWeb,
   ASSISTANT_V3_TOOL_IDS.searchLibrary,
   ASSISTANT_V3_TOOL_IDS.ask,
@@ -80,6 +83,16 @@ export type AssistantV3Tool = (typeof ASSISTANT_V3_TOOLS)[number]
  * ⚠ 从前四份工具表各抄一句，且一字没提多选：OpenAI 严格模式下 `multiSelect` 必填，
  *   模型只能猜，于是永远填 `false`。何时多选的细则在系统提示的 ASKING 段。
  */
+/**
+ * `hand_off`（P6 台间交接）：两张脸各一句。⚠ 只在创作者要换地方接着做时用 —— 「拿到画布上」
+ * 「回工作台改」；能在这一台做完的事 ⛔ 不交。
+ */
+export const ASSISTANT_V3_BENCH_HAND_OFF_DESCRIPTION =
+  'Move this work onto a canvas when the creator wants to carry on there ("put it on the canvas", "continue on the board"). Puts a card in front of them where they pick the canvas project; on press their prompt, model, references and latest picture become a card on that canvas, and your next line waits in the canvas assistant\'s input box. Nothing is generated or spent.'
+
+export const ASSISTANT_V3_CANVAS_HAND_OFF_DESCRIPTION =
+  'Move one image card to the image workbench when the creator wants to carry on there ("take this to the workbench"). Puts a confirm card in front of them; on press the card\'s prompt, model and references fill the workbench (natural or tag bench by the model), and your next line waits in that assistant\'s input box. Nothing is generated or spent.'
+
 export const ASSISTANT_V3_ASK_TOOL_DESCRIPTION =
   'Ask the creator when you cannot go on without their choice. Every option needs a one-line description of what it means. Set multiSelect when several options can apply together; give image a picture handle when the choice is between pictures.'
 

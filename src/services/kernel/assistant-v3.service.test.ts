@@ -1463,6 +1463,62 @@ describe('v3 内核', () => {
     )
   })
 
+  it('hand_off：图片卡出「交到工作台」确认卡停住，带着下一句话', async () => {
+    script(
+      toolTurn({
+        id: 'call_1',
+        name: 'hand_off',
+        input: { card: 'img-249e8b', next: '  把背景换成雪地  ' },
+      }),
+    )
+    const events = await collect(
+      runAssistantV3(
+        'clerk-1',
+        request({
+          snapshot: { prompt: '', canvas: canvas(true), availableModels: [] },
+        } as Partial<AssistantOperatorRequest>),
+      ),
+    )
+    expect(plan).not.toHaveBeenCalled()
+    expect(events.find((event) => event.type === 'confirm')).toMatchObject({
+      confirm: {
+        kind: 'moveWork',
+        request: {
+          to: 'workbench',
+          node: { id: HARRY, name: '哈利 · 黑袍' },
+          next: '把背景换成雪地',
+        },
+      },
+    })
+    expect(events.at(-1)).toMatchObject({
+      type: 'stopped',
+      reason: 'awaiting_confirm',
+    })
+  })
+
+  it('hand_off：没有这张卡 —— 说清楚交回模型，⛔ 不出卡', async () => {
+    const mock = script(
+      toolTurn({
+        id: 'call_1',
+        name: 'hand_off',
+        input: { card: 'img-nope', next: '' },
+      }),
+      textTurn('没找到那张卡。'),
+    )
+    const events = await collect(
+      runAssistantV3(
+        'clerk-1',
+        request({
+          snapshot: { prompt: '', canvas: canvas(true), availableModels: [] },
+        } as Partial<AssistantOperatorRequest>),
+      ),
+    )
+    expect(events.some((event) => event.type === 'confirm')).toBe(false)
+    expect(promptText(mock.doStreamCalls[1]!)).toContain(
+      'did you mean img-249e8b',
+    )
+  })
+
   it('look：图交到主模型眼前，只附给紧跟着的那一步；⛔ 不另起看图子调用', async () => {
     const run = preparedOnce(OPENAI, [HARRY_PNG, GOYLE_PNG])
     served.set(HARRY_PNG, 'png')
@@ -2709,6 +2765,30 @@ describe('v3 内核 · 图片台', () => {
       kind: 'rejected',
       reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.repeatedStep,
       detail: 'already so',
+    })
+  })
+
+  it('图片台 hand_off：出「交到画布」确认卡停住，项目留给卡上选', async () => {
+    script(
+      toolTurn({
+        id: 'call_1',
+        name: 'hand_off',
+        input: { next: '接着把她放进森林那一镜' },
+      }),
+    )
+    const events = await collect(
+      runAssistantV3('clerk-1', imageRequest('放到画布上接着做')),
+    )
+    expect(plan).not.toHaveBeenCalled()
+    expect(events.find((event) => event.type === 'confirm')).toMatchObject({
+      confirm: {
+        kind: 'moveWork',
+        request: { to: 'canvas', next: '接着把她放进森林那一镜' },
+      },
+    })
+    expect(events.at(-1)).toMatchObject({
+      type: 'stopped',
+      reason: 'awaiting_confirm',
     })
   })
 

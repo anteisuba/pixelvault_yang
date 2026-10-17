@@ -1549,6 +1549,33 @@ describe('useAssistantOperator 的四条收尾路径', () => {
     ).toBe(true)
   })
 
+  it('c2) 还在等第一个字时按 ⏹ → 「正在想」占位行当场收掉，⛔ 不一直数秒', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('这个效果太糟糕了')
+    })
+    await settle()
+    const pending = () =>
+      store
+        .getOperatorState()
+        .entries.filter((entry) => entry.kind === 'message' && entry.streaming)
+    expect(pending()).toHaveLength(1)
+
+    act(() => {
+      result.current.stop()
+    })
+    await settle()
+
+    expect(pending()).toHaveLength(0)
+    expect(
+      store
+        .getOperatorState()
+        .entries.some(
+          (entry) => entry.kind === 'message' && entry.text.length === 0,
+        ),
+    ).toBe(false)
+  })
+
   it('d) 流真的炸了（不是 abort）→ error，⛔ 别被 aborted 判据一起吞掉', async () => {
     const { result } = render()
 

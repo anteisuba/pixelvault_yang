@@ -62,6 +62,37 @@ describe('readAssistantOperatorStream', () => {
     ])
     expect(cancel).toHaveBeenCalledTimes(1)
   })
+  it('连接吊住、一个字节都不来 → 到点按中断收尾并取消网络流', async () => {
+    vi.useFakeTimers()
+    try {
+      const cancel = vi.fn()
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(
+            new TextEncoder().encode(
+              encodeSseEvent(ASSISTANT_OPERATOR_EVENTS.open, {
+                type: ASSISTANT_OPERATOR_EVENTS.open,
+              }),
+            ),
+          )
+        },
+        cancel,
+      })
+      const events: AssistantOperatorEvent[] = []
+      const done = (async () => {
+        for await (const event of readAssistantOperatorStream(body, 1_000)) {
+          events.push(event)
+        }
+      })()
+      await vi.advanceTimersByTimeAsync(1_000)
+      await done
+      expect(events.map((event) => event.type)).toEqual(['open', 'error'])
+      expect(events[1]).toMatchObject({ errorCode: 'STREAM_INTERRUPTED' })
+      expect(cancel).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
   it('逐帧吐出校验过的事件', async () => {
     const events = await collect(
       toStream([

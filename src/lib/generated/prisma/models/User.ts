@@ -266,23 +266,16 @@ export type UserWhereInput = {
   userApiKeys?: Prisma.UserApiKeyListRelationFilter
   generationJobs?: Prisma.GenerationJobListRelationFilter
   apiUsageLedger?: Prisma.ApiUsageLedgerListRelationFilter
-  imageAnalyses?: Prisma.ImageAnalysisListRelationFilter
   projects?: Prisma.ProjectListRelationFilter
   characterCards?: Prisma.CharacterCardListRelationFilter
   likesGiven?: Prisma.UserLikeListRelationFilter
   followsGiven?: Prisma.UserFollowListRelationFilter
   followsReceived?: Prisma.UserFollowListRelationFilter
-  collections?: Prisma.CollectionListRelationFilter
-  backgroundCards?: Prisma.BackgroundCardListRelationFilter
-  styleCards?: Prisma.StyleCardListRelationFilter
-  cardRecipes?: Prisma.CardRecipeListRelationFilter
   recipes?: Prisma.RecipeListRelationFilter
   voiceCards?: Prisma.VoiceCardListRelationFilter
   creativePreference?: Prisma.XOR<Prisma.UserCreativePreferenceNullableScalarRelationFilter, Prisma.UserCreativePreferenceWhereInput> | null
-  videoPipelines?: Prisma.VideoPipelineListRelationFilter
   loraTrainingJobs?: Prisma.LoraTrainingJobListRelationFilter
   loraAssets?: Prisma.LoraAssetListRelationFilter
-  videoScripts?: Prisma.VideoScriptListRelationFilter
   extractedElements?: Prisma.ExtractedElementListRelationFilter
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectListRelationFilter
   assistantConversations?: Prisma.AssistantConversationListRelationFilter
@@ -317,23 +310,16 @@ export type UserOrderByWithRelationInput = {
   userApiKeys?: Prisma.UserApiKeyOrderByRelationAggregateInput
   generationJobs?: Prisma.GenerationJobOrderByRelationAggregateInput
   apiUsageLedger?: Prisma.ApiUsageLedgerOrderByRelationAggregateInput
-  imageAnalyses?: Prisma.ImageAnalysisOrderByRelationAggregateInput
   projects?: Prisma.ProjectOrderByRelationAggregateInput
   characterCards?: Prisma.CharacterCardOrderByRelationAggregateInput
   likesGiven?: Prisma.UserLikeOrderByRelationAggregateInput
   followsGiven?: Prisma.UserFollowOrderByRelationAggregateInput
   followsReceived?: Prisma.UserFollowOrderByRelationAggregateInput
-  collections?: Prisma.CollectionOrderByRelationAggregateInput
-  backgroundCards?: Prisma.BackgroundCardOrderByRelationAggregateInput
-  styleCards?: Prisma.StyleCardOrderByRelationAggregateInput
-  cardRecipes?: Prisma.CardRecipeOrderByRelationAggregateInput
   recipes?: Prisma.RecipeOrderByRelationAggregateInput
   voiceCards?: Prisma.VoiceCardOrderByRelationAggregateInput
   creativePreference?: Prisma.UserCreativePreferenceOrderByWithRelationInput
-  videoPipelines?: Prisma.VideoPipelineOrderByRelationAggregateInput
   loraTrainingJobs?: Prisma.LoraTrainingJobOrderByRelationAggregateInput
   loraAssets?: Prisma.LoraAssetOrderByRelationAggregateInput
-  videoScripts?: Prisma.VideoScriptOrderByRelationAggregateInput
   extractedElements?: Prisma.ExtractedElementOrderByRelationAggregateInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectOrderByRelationAggregateInput
   assistantConversations?: Prisma.AssistantConversationOrderByRelationAggregateInput
@@ -371,23 +357,16 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   userApiKeys?: Prisma.UserApiKeyListRelationFilter
   generationJobs?: Prisma.GenerationJobListRelationFilter
   apiUsageLedger?: Prisma.ApiUsageLedgerListRelationFilter
-  imageAnalyses?: Prisma.ImageAnalysisListRelationFilter
   projects?: Prisma.ProjectListRelationFilter
   characterCards?: Prisma.CharacterCardListRelationFilter
   likesGiven?: Prisma.UserLikeListRelationFilter
   followsGiven?: Prisma.UserFollowListRelationFilter
   followsReceived?: Prisma.UserFollowListRelationFilter
-  collections?: Prisma.CollectionListRelationFilter
-  backgroundCards?: Prisma.BackgroundCardListRelationFilter
-  styleCards?: Prisma.StyleCardListRelationFilter
-  cardRecipes?: Prisma.CardRecipeListRelationFilter
   recipes?: Prisma.RecipeListRelationFilter
   voiceCards?: Prisma.VoiceCardListRelationFilter
   creativePreference?: Prisma.XOR<Prisma.UserCreativePreferenceNullableScalarRelationFilter, Prisma.UserCreativePreferenceWhereInput> | null
-  videoPipelines?: Prisma.VideoPipelineListRelationFilter
   loraTrainingJobs?: Prisma.LoraTrainingJobListRelationFilter
   loraAssets?: Prisma.LoraAssetListRelationFilter
-  videoScripts?: Prisma.VideoScriptListRelationFilter
   extractedElements?: Prisma.ExtractedElementListRelationFilter
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectListRelationFilter
   assistantConversations?: Prisma.AssistantConversationListRelationFilter
@@ -464,23 +443,16 @@ export type UserCreateInput = {
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
@@ -515,23 +487,16 @@ export type UserUncheckedCreateInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
@@ -566,23 +531,16 @@ export type UserUpdateInput = {
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
@@ -617,23 +575,16 @@ export type UserUncheckedUpdateInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
@@ -1008,20 +959,6 @@ export type UserUpdateOneRequiredWithoutProjectRulesNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutProjectRulesInput, Prisma.UserUpdateWithoutProjectRulesInput>, Prisma.UserUncheckedUpdateWithoutProjectRulesInput>
 }
 
-export type UserCreateNestedOneWithoutImageAnalysesInput = {
-  create?: Prisma.XOR<Prisma.UserCreateWithoutImageAnalysesInput, Prisma.UserUncheckedCreateWithoutImageAnalysesInput>
-  connectOrCreate?: Prisma.UserCreateOrConnectWithoutImageAnalysesInput
-  connect?: Prisma.UserWhereUniqueInput
-}
-
-export type UserUpdateOneRequiredWithoutImageAnalysesNestedInput = {
-  create?: Prisma.XOR<Prisma.UserCreateWithoutImageAnalysesInput, Prisma.UserUncheckedCreateWithoutImageAnalysesInput>
-  connectOrCreate?: Prisma.UserCreateOrConnectWithoutImageAnalysesInput
-  upsert?: Prisma.UserUpsertWithoutImageAnalysesInput
-  connect?: Prisma.UserWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutImageAnalysesInput, Prisma.UserUpdateWithoutImageAnalysesInput>, Prisma.UserUncheckedUpdateWithoutImageAnalysesInput>
-}
-
 export type UserCreateNestedOneWithoutCharacterCardsInput = {
   create?: Prisma.XOR<Prisma.UserCreateWithoutCharacterCardsInput, Prisma.UserUncheckedCreateWithoutCharacterCardsInput>
   connectOrCreate?: Prisma.UserCreateOrConnectWithoutCharacterCardsInput
@@ -1078,76 +1015,6 @@ export type UserUpdateOneRequiredWithoutFollowsReceivedNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutFollowsReceivedInput, Prisma.UserUpdateWithoutFollowsReceivedInput>, Prisma.UserUncheckedUpdateWithoutFollowsReceivedInput>
 }
 
-export type UserCreateNestedOneWithoutCollectionsInput = {
-  create?: Prisma.XOR<Prisma.UserCreateWithoutCollectionsInput, Prisma.UserUncheckedCreateWithoutCollectionsInput>
-  connectOrCreate?: Prisma.UserCreateOrConnectWithoutCollectionsInput
-  connect?: Prisma.UserWhereUniqueInput
-}
-
-export type UserUpdateOneRequiredWithoutCollectionsNestedInput = {
-  create?: Prisma.XOR<Prisma.UserCreateWithoutCollectionsInput, Prisma.UserUncheckedCreateWithoutCollectionsInput>
-  connectOrCreate?: Prisma.UserCreateOrConnectWithoutCollectionsInput
-  upsert?: Prisma.UserUpsertWithoutCollectionsInput
-  connect?: Prisma.UserWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutCollectionsInput, Prisma.UserUpdateWithoutCollectionsInput>, Prisma.UserUncheckedUpdateWithoutCollectionsInput>
-}
-
-export type UserCreateNestedOneWithoutBackgroundCardsInput = {
-  create?: Prisma.XOR<Prisma.UserCreateWithoutBackgroundCardsInput, Prisma.UserUncheckedCreateWithoutBackgroundCardsInput>
-  connectOrCreate?: Prisma.UserCreateOrConnectWithoutBackgroundCardsInput
-  connect?: Prisma.UserWhereUniqueInput
-}
-
-export type UserUpdateOneRequiredWithoutBackgroundCardsNestedInput = {
-  create?: Prisma.XOR<Prisma.UserCreateWithoutBackgroundCardsInput, Prisma.UserUncheckedCreateWithoutBackgroundCardsInput>
-  connectOrCreate?: Prisma.UserCreateOrConnectWithoutBackgroundCardsInput
-  upsert?: Prisma.UserUpsertWithoutBackgroundCardsInput
-  connect?: Prisma.UserWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutBackgroundCardsInput, Prisma.UserUpdateWithoutBackgroundCardsInput>, Prisma.UserUncheckedUpdateWithoutBackgroundCardsInput>
-}
-
-export type UserCreateNestedOneWithoutStyleCardsInput = {
-  create?: Prisma.XOR<Prisma.UserCreateWithoutStyleCardsInput, Prisma.UserUncheckedCreateWithoutStyleCardsInput>
-  connectOrCreate?: Prisma.UserCreateOrConnectWithoutStyleCardsInput
-  connect?: Prisma.UserWhereUniqueInput
-}
-
-export type UserUpdateOneRequiredWithoutStyleCardsNestedInput = {
-  create?: Prisma.XOR<Prisma.UserCreateWithoutStyleCardsInput, Prisma.UserUncheckedCreateWithoutStyleCardsInput>
-  connectOrCreate?: Prisma.UserCreateOrConnectWithoutStyleCardsInput
-  upsert?: Prisma.UserUpsertWithoutStyleCardsInput
-  connect?: Prisma.UserWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutStyleCardsInput, Prisma.UserUpdateWithoutStyleCardsInput>, Prisma.UserUncheckedUpdateWithoutStyleCardsInput>
-}
-
-export type UserCreateNestedOneWithoutCardRecipesInput = {
-  create?: Prisma.XOR<Prisma.UserCreateWithoutCardRecipesInput, Prisma.UserUncheckedCreateWithoutCardRecipesInput>
-  connectOrCreate?: Prisma.UserCreateOrConnectWithoutCardRecipesInput
-  connect?: Prisma.UserWhereUniqueInput
-}
-
-export type UserUpdateOneRequiredWithoutCardRecipesNestedInput = {
-  create?: Prisma.XOR<Prisma.UserCreateWithoutCardRecipesInput, Prisma.UserUncheckedCreateWithoutCardRecipesInput>
-  connectOrCreate?: Prisma.UserCreateOrConnectWithoutCardRecipesInput
-  upsert?: Prisma.UserUpsertWithoutCardRecipesInput
-  connect?: Prisma.UserWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutCardRecipesInput, Prisma.UserUpdateWithoutCardRecipesInput>, Prisma.UserUncheckedUpdateWithoutCardRecipesInput>
-}
-
-export type UserCreateNestedOneWithoutVideoPipelinesInput = {
-  create?: Prisma.XOR<Prisma.UserCreateWithoutVideoPipelinesInput, Prisma.UserUncheckedCreateWithoutVideoPipelinesInput>
-  connectOrCreate?: Prisma.UserCreateOrConnectWithoutVideoPipelinesInput
-  connect?: Prisma.UserWhereUniqueInput
-}
-
-export type UserUpdateOneRequiredWithoutVideoPipelinesNestedInput = {
-  create?: Prisma.XOR<Prisma.UserCreateWithoutVideoPipelinesInput, Prisma.UserUncheckedCreateWithoutVideoPipelinesInput>
-  connectOrCreate?: Prisma.UserCreateOrConnectWithoutVideoPipelinesInput
-  upsert?: Prisma.UserUpsertWithoutVideoPipelinesInput
-  connect?: Prisma.UserWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutVideoPipelinesInput, Prisma.UserUpdateWithoutVideoPipelinesInput>, Prisma.UserUncheckedUpdateWithoutVideoPipelinesInput>
-}
-
 export type UserCreateNestedOneWithoutLoraTrainingJobsInput = {
   create?: Prisma.XOR<Prisma.UserCreateWithoutLoraTrainingJobsInput, Prisma.UserUncheckedCreateWithoutLoraTrainingJobsInput>
   connectOrCreate?: Prisma.UserCreateOrConnectWithoutLoraTrainingJobsInput
@@ -1176,20 +1043,6 @@ export type UserUpdateOneWithoutLoraAssetsNestedInput = {
   delete?: Prisma.UserWhereInput | boolean
   connect?: Prisma.UserWhereUniqueInput
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutLoraAssetsInput, Prisma.UserUpdateWithoutLoraAssetsInput>, Prisma.UserUncheckedUpdateWithoutLoraAssetsInput>
-}
-
-export type UserCreateNestedOneWithoutVideoScriptsInput = {
-  create?: Prisma.XOR<Prisma.UserCreateWithoutVideoScriptsInput, Prisma.UserUncheckedCreateWithoutVideoScriptsInput>
-  connectOrCreate?: Prisma.UserCreateOrConnectWithoutVideoScriptsInput
-  connect?: Prisma.UserWhereUniqueInput
-}
-
-export type UserUpdateOneRequiredWithoutVideoScriptsNestedInput = {
-  create?: Prisma.XOR<Prisma.UserCreateWithoutVideoScriptsInput, Prisma.UserUncheckedCreateWithoutVideoScriptsInput>
-  connectOrCreate?: Prisma.UserCreateOrConnectWithoutVideoScriptsInput
-  upsert?: Prisma.UserUpsertWithoutVideoScriptsInput
-  connect?: Prisma.UserWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutVideoScriptsInput, Prisma.UserUpdateWithoutVideoScriptsInput>, Prisma.UserUncheckedUpdateWithoutVideoScriptsInput>
 }
 
 export type UserCreateNestedOneWithoutExtractedElementsInput = {
@@ -1268,23 +1121,16 @@ export type UserCreateWithoutMcpTokensInput = {
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
@@ -1318,23 +1164,16 @@ export type UserUncheckedCreateWithoutMcpTokensInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
@@ -1384,23 +1223,16 @@ export type UserUpdateWithoutMcpTokensInput = {
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
@@ -1434,23 +1266,16 @@ export type UserUncheckedUpdateWithoutMcpTokensInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
@@ -1484,23 +1309,16 @@ export type UserCreateWithoutDanbooruFavoritesInput = {
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
@@ -1534,23 +1352,16 @@ export type UserUncheckedCreateWithoutDanbooruFavoritesInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
@@ -1600,23 +1411,16 @@ export type UserUpdateWithoutDanbooruFavoritesInput = {
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
@@ -1650,23 +1454,16 @@ export type UserUncheckedUpdateWithoutDanbooruFavoritesInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
@@ -1700,23 +1497,16 @@ export type UserCreateWithoutAssistantConversationsInput = {
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
@@ -1750,23 +1540,16 @@ export type UserUncheckedCreateWithoutAssistantConversationsInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
@@ -1816,23 +1599,16 @@ export type UserUpdateWithoutAssistantConversationsInput = {
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
@@ -1866,23 +1642,16 @@ export type UserUncheckedUpdateWithoutAssistantConversationsInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
@@ -1916,23 +1685,16 @@ export type UserCreateWithoutResearchRunsInput = {
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
@@ -1966,23 +1728,16 @@ export type UserUncheckedCreateWithoutResearchRunsInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
@@ -2032,23 +1787,16 @@ export type UserUpdateWithoutResearchRunsInput = {
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
@@ -2082,23 +1830,16 @@ export type UserUncheckedUpdateWithoutResearchRunsInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
@@ -2132,23 +1873,16 @@ export type UserCreateWithoutNodeWorkflowProjectsInput = {
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
@@ -2182,23 +1916,16 @@ export type UserUncheckedCreateWithoutNodeWorkflowProjectsInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
@@ -2248,23 +1975,16 @@ export type UserUpdateWithoutNodeWorkflowProjectsInput = {
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
@@ -2298,23 +2018,16 @@ export type UserUncheckedUpdateWithoutNodeWorkflowProjectsInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
@@ -2348,22 +2061,15 @@ export type UserCreateWithoutProjectsInput = {
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
@@ -2398,22 +2104,15 @@ export type UserUncheckedCreateWithoutProjectsInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
@@ -2464,22 +2163,15 @@ export type UserUpdateWithoutProjectsInput = {
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
@@ -2514,22 +2206,15 @@ export type UserUncheckedUpdateWithoutProjectsInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
@@ -2563,23 +2248,16 @@ export type UserCreateWithoutUserApiKeysInput = {
   generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
@@ -2613,23 +2291,16 @@ export type UserUncheckedCreateWithoutUserApiKeysInput = {
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
@@ -2679,23 +2350,16 @@ export type UserUpdateWithoutUserApiKeysInput = {
   generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
@@ -2729,23 +2393,16 @@ export type UserUncheckedUpdateWithoutUserApiKeysInput = {
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
@@ -2779,23 +2436,16 @@ export type UserCreateWithoutGenerationsInput = {
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
@@ -2829,23 +2479,16 @@ export type UserUncheckedCreateWithoutGenerationsInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
@@ -2895,23 +2538,16 @@ export type UserUpdateWithoutGenerationsInput = {
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
@@ -2945,23 +2581,16 @@ export type UserUncheckedUpdateWithoutGenerationsInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
@@ -2995,23 +2624,16 @@ export type UserCreateWithoutGenerationJobsInput = {
   generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
@@ -3045,23 +2667,16 @@ export type UserUncheckedCreateWithoutGenerationJobsInput = {
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
@@ -3111,23 +2726,16 @@ export type UserUpdateWithoutGenerationJobsInput = {
   generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
@@ -3161,23 +2769,16 @@ export type UserUncheckedUpdateWithoutGenerationJobsInput = {
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
@@ -3211,23 +2812,16 @@ export type UserCreateWithoutApiUsageLedgerInput = {
   generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
@@ -3261,23 +2855,16 @@ export type UserUncheckedCreateWithoutApiUsageLedgerInput = {
   generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
@@ -3327,23 +2914,16 @@ export type UserUpdateWithoutApiUsageLedgerInput = {
   generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
@@ -3377,23 +2957,16 @@ export type UserUncheckedUpdateWithoutApiUsageLedgerInput = {
   generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
@@ -3428,22 +3001,15 @@ export type UserCreateWithoutRecipesInput = {
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
@@ -3478,22 +3044,15 @@ export type UserUncheckedCreateWithoutRecipesInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
@@ -3544,22 +3103,15 @@ export type UserUpdateWithoutRecipesInput = {
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
@@ -3594,22 +3146,15 @@ export type UserUncheckedUpdateWithoutRecipesInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
@@ -3644,22 +3189,15 @@ export type UserCreateWithoutVoiceCardsInput = {
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
@@ -3694,22 +3232,15 @@ export type UserUncheckedCreateWithoutVoiceCardsInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
@@ -3760,22 +3291,15 @@ export type UserUpdateWithoutVoiceCardsInput = {
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
@@ -3810,22 +3334,15 @@ export type UserUncheckedUpdateWithoutVoiceCardsInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
@@ -3860,23 +3377,16 @@ export type UserCreateWithoutVoiceRoomsInput = {
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
@@ -3910,23 +3420,16 @@ export type UserUncheckedCreateWithoutVoiceRoomsInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
@@ -3976,23 +3479,16 @@ export type UserUpdateWithoutVoiceRoomsInput = {
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
@@ -4026,23 +3522,16 @@ export type UserUncheckedUpdateWithoutVoiceRoomsInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
@@ -4076,22 +3565,15 @@ export type UserCreateWithoutCreativePreferenceInput = {
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
@@ -4126,22 +3608,15 @@ export type UserUncheckedCreateWithoutCreativePreferenceInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
@@ -4192,22 +3667,15 @@ export type UserUpdateWithoutCreativePreferenceInput = {
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
@@ -4242,22 +3710,15 @@ export type UserUncheckedUpdateWithoutCreativePreferenceInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
@@ -4292,23 +3753,16 @@ export type UserCreateWithoutAssistantPersonaInput = {
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
@@ -4342,23 +3796,16 @@ export type UserUncheckedCreateWithoutAssistantPersonaInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
@@ -4408,23 +3855,16 @@ export type UserUpdateWithoutAssistantPersonaInput = {
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
@@ -4458,23 +3898,16 @@ export type UserUncheckedUpdateWithoutAssistantPersonaInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
@@ -4508,23 +3941,16 @@ export type UserCreateWithoutProjectRulesInput = {
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
@@ -4558,23 +3984,16 @@ export type UserUncheckedCreateWithoutProjectRulesInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
@@ -4624,23 +4043,16 @@ export type UserUpdateWithoutProjectRulesInput = {
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
@@ -4674,245 +4086,22 @@ export type UserUncheckedUpdateWithoutProjectRulesInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
   voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
-  contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
-  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
-  mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
-}
-
-export type UserCreateWithoutImageAnalysesInput = {
-  id?: string
-  clerkId: string
-  email: string
-  username?: string | null
-  displayName?: string | null
-  avatarUrl?: string | null
-  avatarStorageKey?: string | null
-  bannerUrl?: string | null
-  bannerStorageKey?: string | null
-  bio?: string | null
-  civitaiToken?: string | null
-  isPublic?: boolean
-  isDeleted?: boolean
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
-  userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
-  generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
-  characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
-  likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
-  followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
-  followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
-  recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
-  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
-  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
-  loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
-  extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
-  assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
-  researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
-  assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
-  projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
-  contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
-  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
-  mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
-}
-
-export type UserUncheckedCreateWithoutImageAnalysesInput = {
-  id?: string
-  clerkId: string
-  email: string
-  username?: string | null
-  displayName?: string | null
-  avatarUrl?: string | null
-  avatarStorageKey?: string | null
-  bannerUrl?: string | null
-  bannerStorageKey?: string | null
-  bio?: string | null
-  civitaiToken?: string | null
-  isPublic?: boolean
-  isDeleted?: boolean
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
-  userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
-  generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
-  characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
-  likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
-  followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
-  followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
-  recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
-  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
-  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
-  loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
-  extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
-  assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
-  researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
-  assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
-  projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
-  contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
-  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
-  mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
-}
-
-export type UserCreateOrConnectWithoutImageAnalysesInput = {
-  where: Prisma.UserWhereUniqueInput
-  create: Prisma.XOR<Prisma.UserCreateWithoutImageAnalysesInput, Prisma.UserUncheckedCreateWithoutImageAnalysesInput>
-}
-
-export type UserUpsertWithoutImageAnalysesInput = {
-  update: Prisma.XOR<Prisma.UserUpdateWithoutImageAnalysesInput, Prisma.UserUncheckedUpdateWithoutImageAnalysesInput>
-  create: Prisma.XOR<Prisma.UserCreateWithoutImageAnalysesInput, Prisma.UserUncheckedCreateWithoutImageAnalysesInput>
-  where?: Prisma.UserWhereInput
-}
-
-export type UserUpdateToOneWithWhereWithoutImageAnalysesInput = {
-  where?: Prisma.UserWhereInput
-  data: Prisma.XOR<Prisma.UserUpdateWithoutImageAnalysesInput, Prisma.UserUncheckedUpdateWithoutImageAnalysesInput>
-}
-
-export type UserUpdateWithoutImageAnalysesInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
-  email?: Prisma.StringFieldUpdateOperationsInput | string
-  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
-  userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
-  generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
-  characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
-  likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
-  followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
-  followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
-  recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
-  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
-  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
-  loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
-  extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
-  assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
-  researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
-  assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
-  projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
-  contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
-  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
-  mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
-}
-
-export type UserUncheckedUpdateWithoutImageAnalysesInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
-  email?: Prisma.StringFieldUpdateOperationsInput | string
-  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
-  userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
-  generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
-  characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
-  likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
-  followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
-  followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
-  recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
-  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
-  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
-  loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
-  extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
-  assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
-  researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
-  assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
-  projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
@@ -4940,22 +4129,15 @@ export type UserCreateWithoutCharacterCardsInput = {
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
@@ -4990,22 +4172,15 @@ export type UserUncheckedCreateWithoutCharacterCardsInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
@@ -5056,22 +4231,15 @@ export type UserUpdateWithoutCharacterCardsInput = {
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
@@ -5106,22 +4274,15 @@ export type UserUncheckedUpdateWithoutCharacterCardsInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
@@ -5156,22 +4317,15 @@ export type UserCreateWithoutLikesGivenInput = {
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
@@ -5206,22 +4360,15 @@ export type UserUncheckedCreateWithoutLikesGivenInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
@@ -5272,22 +4419,15 @@ export type UserUpdateWithoutLikesGivenInput = {
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
@@ -5322,22 +4462,15 @@ export type UserUncheckedUpdateWithoutLikesGivenInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
@@ -5372,22 +4505,15 @@ export type UserCreateWithoutFollowsGivenInput = {
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
   followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
@@ -5422,22 +4548,15 @@ export type UserUncheckedCreateWithoutFollowsGivenInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
   followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
@@ -5477,22 +4596,15 @@ export type UserCreateWithoutFollowsReceivedInput = {
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
@@ -5527,22 +4639,15 @@ export type UserUncheckedCreateWithoutFollowsReceivedInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
@@ -5593,22 +4698,15 @@ export type UserUpdateWithoutFollowsGivenInput = {
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
   followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
@@ -5643,22 +4741,15 @@ export type UserUncheckedUpdateWithoutFollowsGivenInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
   followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
@@ -5704,22 +4795,15 @@ export type UserUpdateWithoutFollowsReceivedInput = {
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
@@ -5754,1102 +4838,15 @@ export type UserUncheckedUpdateWithoutFollowsReceivedInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
-  recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
-  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
-  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
-  loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
-  extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
-  assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
-  researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
-  assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
-  projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
-  contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
-  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
-  mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
-}
-
-export type UserCreateWithoutCollectionsInput = {
-  id?: string
-  clerkId: string
-  email: string
-  username?: string | null
-  displayName?: string | null
-  avatarUrl?: string | null
-  avatarStorageKey?: string | null
-  bannerUrl?: string | null
-  bannerStorageKey?: string | null
-  bio?: string | null
-  civitaiToken?: string | null
-  isPublic?: boolean
-  isDeleted?: boolean
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
-  userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
-  generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
-  characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
-  likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
-  followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
-  followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
-  recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
-  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
-  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
-  loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
-  extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
-  assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
-  researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
-  assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
-  projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
-  contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
-  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
-  mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
-}
-
-export type UserUncheckedCreateWithoutCollectionsInput = {
-  id?: string
-  clerkId: string
-  email: string
-  username?: string | null
-  displayName?: string | null
-  avatarUrl?: string | null
-  avatarStorageKey?: string | null
-  bannerUrl?: string | null
-  bannerStorageKey?: string | null
-  bio?: string | null
-  civitaiToken?: string | null
-  isPublic?: boolean
-  isDeleted?: boolean
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
-  userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
-  generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
-  characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
-  likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
-  followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
-  followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
-  recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
-  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
-  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
-  loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
-  extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
-  assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
-  researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
-  assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
-  projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
-  contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
-  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
-  mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
-}
-
-export type UserCreateOrConnectWithoutCollectionsInput = {
-  where: Prisma.UserWhereUniqueInput
-  create: Prisma.XOR<Prisma.UserCreateWithoutCollectionsInput, Prisma.UserUncheckedCreateWithoutCollectionsInput>
-}
-
-export type UserUpsertWithoutCollectionsInput = {
-  update: Prisma.XOR<Prisma.UserUpdateWithoutCollectionsInput, Prisma.UserUncheckedUpdateWithoutCollectionsInput>
-  create: Prisma.XOR<Prisma.UserCreateWithoutCollectionsInput, Prisma.UserUncheckedCreateWithoutCollectionsInput>
-  where?: Prisma.UserWhereInput
-}
-
-export type UserUpdateToOneWithWhereWithoutCollectionsInput = {
-  where?: Prisma.UserWhereInput
-  data: Prisma.XOR<Prisma.UserUpdateWithoutCollectionsInput, Prisma.UserUncheckedUpdateWithoutCollectionsInput>
-}
-
-export type UserUpdateWithoutCollectionsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
-  email?: Prisma.StringFieldUpdateOperationsInput | string
-  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
-  userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
-  generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
-  characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
-  likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
-  followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
-  followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
-  recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
-  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
-  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
-  loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
-  extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
-  assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
-  researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
-  assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
-  projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
-  contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
-  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
-  mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
-}
-
-export type UserUncheckedUpdateWithoutCollectionsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
-  email?: Prisma.StringFieldUpdateOperationsInput | string
-  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
-  userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
-  generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
-  characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
-  likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
-  followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
-  followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
-  recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
-  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
-  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
-  loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
-  extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
-  assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
-  researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
-  assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
-  projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
-  contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
-  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
-  mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
-}
-
-export type UserCreateWithoutBackgroundCardsInput = {
-  id?: string
-  clerkId: string
-  email: string
-  username?: string | null
-  displayName?: string | null
-  avatarUrl?: string | null
-  avatarStorageKey?: string | null
-  bannerUrl?: string | null
-  bannerStorageKey?: string | null
-  bio?: string | null
-  civitaiToken?: string | null
-  isPublic?: boolean
-  isDeleted?: boolean
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
-  userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
-  generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
-  characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
-  likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
-  followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
-  followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
-  recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
-  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
-  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
-  loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
-  extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
-  assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
-  researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
-  assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
-  projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
-  contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
-  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
-  mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
-}
-
-export type UserUncheckedCreateWithoutBackgroundCardsInput = {
-  id?: string
-  clerkId: string
-  email: string
-  username?: string | null
-  displayName?: string | null
-  avatarUrl?: string | null
-  avatarStorageKey?: string | null
-  bannerUrl?: string | null
-  bannerStorageKey?: string | null
-  bio?: string | null
-  civitaiToken?: string | null
-  isPublic?: boolean
-  isDeleted?: boolean
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
-  userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
-  generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
-  characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
-  likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
-  followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
-  followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
-  recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
-  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
-  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
-  loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
-  extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
-  assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
-  researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
-  assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
-  projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
-  contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
-  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
-  mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
-}
-
-export type UserCreateOrConnectWithoutBackgroundCardsInput = {
-  where: Prisma.UserWhereUniqueInput
-  create: Prisma.XOR<Prisma.UserCreateWithoutBackgroundCardsInput, Prisma.UserUncheckedCreateWithoutBackgroundCardsInput>
-}
-
-export type UserUpsertWithoutBackgroundCardsInput = {
-  update: Prisma.XOR<Prisma.UserUpdateWithoutBackgroundCardsInput, Prisma.UserUncheckedUpdateWithoutBackgroundCardsInput>
-  create: Prisma.XOR<Prisma.UserCreateWithoutBackgroundCardsInput, Prisma.UserUncheckedCreateWithoutBackgroundCardsInput>
-  where?: Prisma.UserWhereInput
-}
-
-export type UserUpdateToOneWithWhereWithoutBackgroundCardsInput = {
-  where?: Prisma.UserWhereInput
-  data: Prisma.XOR<Prisma.UserUpdateWithoutBackgroundCardsInput, Prisma.UserUncheckedUpdateWithoutBackgroundCardsInput>
-}
-
-export type UserUpdateWithoutBackgroundCardsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
-  email?: Prisma.StringFieldUpdateOperationsInput | string
-  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
-  userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
-  generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
-  characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
-  likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
-  followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
-  followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
-  recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
-  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
-  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
-  loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
-  extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
-  assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
-  researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
-  assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
-  projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
-  contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
-  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
-  mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
-}
-
-export type UserUncheckedUpdateWithoutBackgroundCardsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
-  email?: Prisma.StringFieldUpdateOperationsInput | string
-  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
-  userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
-  generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
-  characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
-  likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
-  followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
-  followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
-  recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
-  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
-  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
-  loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
-  extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
-  assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
-  researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
-  assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
-  projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
-  contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
-  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
-  mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
-}
-
-export type UserCreateWithoutStyleCardsInput = {
-  id?: string
-  clerkId: string
-  email: string
-  username?: string | null
-  displayName?: string | null
-  avatarUrl?: string | null
-  avatarStorageKey?: string | null
-  bannerUrl?: string | null
-  bannerStorageKey?: string | null
-  bio?: string | null
-  civitaiToken?: string | null
-  isPublic?: boolean
-  isDeleted?: boolean
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
-  userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
-  generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
-  characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
-  likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
-  followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
-  followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
-  recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
-  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
-  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
-  loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
-  extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
-  assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
-  researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
-  assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
-  projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
-  contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
-  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
-  mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
-}
-
-export type UserUncheckedCreateWithoutStyleCardsInput = {
-  id?: string
-  clerkId: string
-  email: string
-  username?: string | null
-  displayName?: string | null
-  avatarUrl?: string | null
-  avatarStorageKey?: string | null
-  bannerUrl?: string | null
-  bannerStorageKey?: string | null
-  bio?: string | null
-  civitaiToken?: string | null
-  isPublic?: boolean
-  isDeleted?: boolean
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
-  userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
-  generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
-  characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
-  likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
-  followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
-  followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
-  recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
-  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
-  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
-  loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
-  extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
-  assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
-  researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
-  assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
-  projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
-  contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
-  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
-  mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
-}
-
-export type UserCreateOrConnectWithoutStyleCardsInput = {
-  where: Prisma.UserWhereUniqueInput
-  create: Prisma.XOR<Prisma.UserCreateWithoutStyleCardsInput, Prisma.UserUncheckedCreateWithoutStyleCardsInput>
-}
-
-export type UserUpsertWithoutStyleCardsInput = {
-  update: Prisma.XOR<Prisma.UserUpdateWithoutStyleCardsInput, Prisma.UserUncheckedUpdateWithoutStyleCardsInput>
-  create: Prisma.XOR<Prisma.UserCreateWithoutStyleCardsInput, Prisma.UserUncheckedCreateWithoutStyleCardsInput>
-  where?: Prisma.UserWhereInput
-}
-
-export type UserUpdateToOneWithWhereWithoutStyleCardsInput = {
-  where?: Prisma.UserWhereInput
-  data: Prisma.XOR<Prisma.UserUpdateWithoutStyleCardsInput, Prisma.UserUncheckedUpdateWithoutStyleCardsInput>
-}
-
-export type UserUpdateWithoutStyleCardsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
-  email?: Prisma.StringFieldUpdateOperationsInput | string
-  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
-  userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
-  generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
-  characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
-  likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
-  followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
-  followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
-  recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
-  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
-  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
-  loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
-  extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
-  assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
-  researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
-  assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
-  projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
-  contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
-  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
-  mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
-}
-
-export type UserUncheckedUpdateWithoutStyleCardsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
-  email?: Prisma.StringFieldUpdateOperationsInput | string
-  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
-  userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
-  generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
-  characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
-  likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
-  followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
-  followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
-  recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
-  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
-  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
-  loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
-  extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
-  assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
-  researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
-  assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
-  projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
-  contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
-  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
-  mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
-}
-
-export type UserCreateWithoutCardRecipesInput = {
-  id?: string
-  clerkId: string
-  email: string
-  username?: string | null
-  displayName?: string | null
-  avatarUrl?: string | null
-  avatarStorageKey?: string | null
-  bannerUrl?: string | null
-  bannerStorageKey?: string | null
-  bio?: string | null
-  civitaiToken?: string | null
-  isPublic?: boolean
-  isDeleted?: boolean
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
-  userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
-  generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
-  characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
-  likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
-  followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
-  followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
-  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
-  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
-  loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
-  extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
-  assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
-  researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
-  assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
-  projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
-  contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
-  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
-  mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
-}
-
-export type UserUncheckedCreateWithoutCardRecipesInput = {
-  id?: string
-  clerkId: string
-  email: string
-  username?: string | null
-  displayName?: string | null
-  avatarUrl?: string | null
-  avatarStorageKey?: string | null
-  bannerUrl?: string | null
-  bannerStorageKey?: string | null
-  bio?: string | null
-  civitaiToken?: string | null
-  isPublic?: boolean
-  isDeleted?: boolean
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
-  userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
-  generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
-  characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
-  likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
-  followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
-  followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
-  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
-  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
-  loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
-  extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
-  assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
-  researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
-  assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
-  projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
-  contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
-  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
-  mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
-}
-
-export type UserCreateOrConnectWithoutCardRecipesInput = {
-  where: Prisma.UserWhereUniqueInput
-  create: Prisma.XOR<Prisma.UserCreateWithoutCardRecipesInput, Prisma.UserUncheckedCreateWithoutCardRecipesInput>
-}
-
-export type UserUpsertWithoutCardRecipesInput = {
-  update: Prisma.XOR<Prisma.UserUpdateWithoutCardRecipesInput, Prisma.UserUncheckedUpdateWithoutCardRecipesInput>
-  create: Prisma.XOR<Prisma.UserCreateWithoutCardRecipesInput, Prisma.UserUncheckedCreateWithoutCardRecipesInput>
-  where?: Prisma.UserWhereInput
-}
-
-export type UserUpdateToOneWithWhereWithoutCardRecipesInput = {
-  where?: Prisma.UserWhereInput
-  data: Prisma.XOR<Prisma.UserUpdateWithoutCardRecipesInput, Prisma.UserUncheckedUpdateWithoutCardRecipesInput>
-}
-
-export type UserUpdateWithoutCardRecipesInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
-  email?: Prisma.StringFieldUpdateOperationsInput | string
-  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
-  userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
-  generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
-  characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
-  likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
-  followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
-  followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
-  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
-  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
-  loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
-  extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
-  assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
-  researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
-  assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
-  projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
-  contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
-  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
-  mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
-}
-
-export type UserUncheckedUpdateWithoutCardRecipesInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
-  email?: Prisma.StringFieldUpdateOperationsInput | string
-  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
-  userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
-  generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
-  characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
-  likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
-  followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
-  followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
-  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
-  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
-  loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
-  extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
-  assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
-  researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
-  assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
-  projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
-  contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
-  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
-  mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
-}
-
-export type UserCreateWithoutVideoPipelinesInput = {
-  id?: string
-  clerkId: string
-  email: string
-  username?: string | null
-  displayName?: string | null
-  avatarUrl?: string | null
-  avatarStorageKey?: string | null
-  bannerUrl?: string | null
-  bannerStorageKey?: string | null
-  bio?: string | null
-  civitaiToken?: string | null
-  isPublic?: boolean
-  isDeleted?: boolean
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
-  userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
-  generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
-  characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
-  likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
-  followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
-  followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
-  recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
-  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
-  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
-  loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
-  extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
-  assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
-  researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
-  assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
-  projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
-  contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
-  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
-  mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
-}
-
-export type UserUncheckedCreateWithoutVideoPipelinesInput = {
-  id?: string
-  clerkId: string
-  email: string
-  username?: string | null
-  displayName?: string | null
-  avatarUrl?: string | null
-  avatarStorageKey?: string | null
-  bannerUrl?: string | null
-  bannerStorageKey?: string | null
-  bio?: string | null
-  civitaiToken?: string | null
-  isPublic?: boolean
-  isDeleted?: boolean
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
-  userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
-  generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
-  characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
-  likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
-  followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
-  followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
-  recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
-  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
-  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
-  loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
-  extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
-  assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
-  researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
-  assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
-  projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
-  contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
-  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
-  mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
-}
-
-export type UserCreateOrConnectWithoutVideoPipelinesInput = {
-  where: Prisma.UserWhereUniqueInput
-  create: Prisma.XOR<Prisma.UserCreateWithoutVideoPipelinesInput, Prisma.UserUncheckedCreateWithoutVideoPipelinesInput>
-}
-
-export type UserUpsertWithoutVideoPipelinesInput = {
-  update: Prisma.XOR<Prisma.UserUpdateWithoutVideoPipelinesInput, Prisma.UserUncheckedUpdateWithoutVideoPipelinesInput>
-  create: Prisma.XOR<Prisma.UserCreateWithoutVideoPipelinesInput, Prisma.UserUncheckedCreateWithoutVideoPipelinesInput>
-  where?: Prisma.UserWhereInput
-}
-
-export type UserUpdateToOneWithWhereWithoutVideoPipelinesInput = {
-  where?: Prisma.UserWhereInput
-  data: Prisma.XOR<Prisma.UserUpdateWithoutVideoPipelinesInput, Prisma.UserUncheckedUpdateWithoutVideoPipelinesInput>
-}
-
-export type UserUpdateWithoutVideoPipelinesInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
-  email?: Prisma.StringFieldUpdateOperationsInput | string
-  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
-  userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
-  generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
-  characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
-  likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
-  followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
-  followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
-  recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
-  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
-  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
-  loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
-  extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
-  assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
-  researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
-  assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
-  projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
-  contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
-  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
-  mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
-}
-
-export type UserUncheckedUpdateWithoutVideoPipelinesInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
-  email?: Prisma.StringFieldUpdateOperationsInput | string
-  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
-  userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
-  generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
-  characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
-  likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
-  followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
-  followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
@@ -6884,22 +4881,15 @@ export type UserCreateWithoutLoraTrainingJobsInput = {
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
@@ -6934,22 +4924,15 @@ export type UserUncheckedCreateWithoutLoraTrainingJobsInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
@@ -7000,22 +4983,15 @@ export type UserUpdateWithoutLoraTrainingJobsInput = {
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
@@ -7050,22 +5026,15 @@ export type UserUncheckedUpdateWithoutLoraTrainingJobsInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
@@ -7100,22 +5069,15 @@ export type UserCreateWithoutLoraAssetsInput = {
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
@@ -7150,22 +5112,15 @@ export type UserUncheckedCreateWithoutLoraAssetsInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
@@ -7216,22 +5171,15 @@ export type UserUpdateWithoutLoraAssetsInput = {
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
@@ -7266,238 +5214,15 @@ export type UserUncheckedUpdateWithoutLoraAssetsInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
-  extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
-  assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
-  researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
-  assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
-  projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
-  contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
-  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
-  mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
-}
-
-export type UserCreateWithoutVideoScriptsInput = {
-  id?: string
-  clerkId: string
-  email: string
-  username?: string | null
-  displayName?: string | null
-  avatarUrl?: string | null
-  avatarStorageKey?: string | null
-  bannerUrl?: string | null
-  bannerStorageKey?: string | null
-  bio?: string | null
-  civitaiToken?: string | null
-  isPublic?: boolean
-  isDeleted?: boolean
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
-  userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
-  generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
-  projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
-  characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
-  likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
-  followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
-  followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
-  recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
-  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
-  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
-  loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
-  assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
-  researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
-  assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
-  projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
-  contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
-  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
-  mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
-}
-
-export type UserUncheckedCreateWithoutVideoScriptsInput = {
-  id?: string
-  clerkId: string
-  email: string
-  username?: string | null
-  displayName?: string | null
-  avatarUrl?: string | null
-  avatarStorageKey?: string | null
-  bannerUrl?: string | null
-  bannerStorageKey?: string | null
-  bio?: string | null
-  civitaiToken?: string | null
-  isPublic?: boolean
-  isDeleted?: boolean
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
-  userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
-  generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
-  projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
-  characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
-  likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
-  followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
-  followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
-  recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
-  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
-  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
-  loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
-  assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
-  researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
-  assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
-  projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
-  contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
-  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
-  mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
-}
-
-export type UserCreateOrConnectWithoutVideoScriptsInput = {
-  where: Prisma.UserWhereUniqueInput
-  create: Prisma.XOR<Prisma.UserCreateWithoutVideoScriptsInput, Prisma.UserUncheckedCreateWithoutVideoScriptsInput>
-}
-
-export type UserUpsertWithoutVideoScriptsInput = {
-  update: Prisma.XOR<Prisma.UserUpdateWithoutVideoScriptsInput, Prisma.UserUncheckedUpdateWithoutVideoScriptsInput>
-  create: Prisma.XOR<Prisma.UserCreateWithoutVideoScriptsInput, Prisma.UserUncheckedCreateWithoutVideoScriptsInput>
-  where?: Prisma.UserWhereInput
-}
-
-export type UserUpdateToOneWithWhereWithoutVideoScriptsInput = {
-  where?: Prisma.UserWhereInput
-  data: Prisma.XOR<Prisma.UserUpdateWithoutVideoScriptsInput, Prisma.UserUncheckedUpdateWithoutVideoScriptsInput>
-}
-
-export type UserUpdateWithoutVideoScriptsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
-  email?: Prisma.StringFieldUpdateOperationsInput | string
-  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
-  userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
-  generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
-  projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
-  characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
-  likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
-  followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
-  followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
-  recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
-  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
-  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
-  loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
-  assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
-  researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
-  assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
-  projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
-  contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
-  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
-  mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
-}
-
-export type UserUncheckedUpdateWithoutVideoScriptsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
-  email?: Prisma.StringFieldUpdateOperationsInput | string
-  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
-  userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
-  generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
-  projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
-  characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
-  likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
-  followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
-  followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
-  recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
-  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
-  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
-  loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
@@ -7532,23 +5257,16 @@ export type UserCreateWithoutExtractedElementsInput = {
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
@@ -7582,23 +5300,16 @@ export type UserUncheckedCreateWithoutExtractedElementsInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
@@ -7648,23 +5359,16 @@ export type UserUpdateWithoutExtractedElementsInput = {
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
@@ -7698,23 +5402,16 @@ export type UserUncheckedUpdateWithoutExtractedElementsInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
@@ -7748,23 +5445,16 @@ export type UserCreateWithoutContextCardsInput = {
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
@@ -7798,23 +5488,16 @@ export type UserUncheckedCreateWithoutContextCardsInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
@@ -7864,23 +5547,16 @@ export type UserUpdateWithoutContextCardsInput = {
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
@@ -7914,23 +5590,16 @@ export type UserUncheckedUpdateWithoutContextCardsInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
@@ -7964,23 +5633,16 @@ export type UserCreateWithoutAssistantMemoriesInput = {
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
@@ -8014,23 +5676,16 @@ export type UserUncheckedCreateWithoutAssistantMemoriesInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
@@ -8080,23 +5735,16 @@ export type UserUpdateWithoutAssistantMemoriesInput = {
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
@@ -8130,23 +5778,16 @@ export type UserUncheckedUpdateWithoutAssistantMemoriesInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
@@ -8180,23 +5821,16 @@ export type UserCreateWithoutAssistantTurnRecordsInput = {
   userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
@@ -8230,23 +5864,16 @@ export type UserUncheckedCreateWithoutAssistantTurnRecordsInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
   generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
   projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
   characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
   likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
   followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
   followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
-  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
-  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
   recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
   voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
   loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
@@ -8296,23 +5923,16 @@ export type UserUpdateWithoutAssistantTurnRecordsInput = {
   userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
@@ -8346,23 +5966,16 @@ export type UserUncheckedUpdateWithoutAssistantTurnRecordsInput = {
   userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
   generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
   projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
   characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
   likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
   followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
-  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
-  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
-  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
   voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
@@ -8386,22 +5999,15 @@ export type UserCountOutputType = {
   userApiKeys: number
   generationJobs: number
   apiUsageLedger: number
-  imageAnalyses: number
   projects: number
   characterCards: number
   likesGiven: number
   followsGiven: number
   followsReceived: number
-  collections: number
-  backgroundCards: number
-  styleCards: number
-  cardRecipes: number
   recipes: number
   voiceCards: number
-  videoPipelines: number
   loraTrainingJobs: number
   loraAssets: number
-  videoScripts: number
   extractedElements: number
   nodeWorkflowProjects: number
   assistantConversations: number
@@ -8420,22 +6026,15 @@ export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.I
   userApiKeys?: boolean | UserCountOutputTypeCountUserApiKeysArgs
   generationJobs?: boolean | UserCountOutputTypeCountGenerationJobsArgs
   apiUsageLedger?: boolean | UserCountOutputTypeCountApiUsageLedgerArgs
-  imageAnalyses?: boolean | UserCountOutputTypeCountImageAnalysesArgs
   projects?: boolean | UserCountOutputTypeCountProjectsArgs
   characterCards?: boolean | UserCountOutputTypeCountCharacterCardsArgs
   likesGiven?: boolean | UserCountOutputTypeCountLikesGivenArgs
   followsGiven?: boolean | UserCountOutputTypeCountFollowsGivenArgs
   followsReceived?: boolean | UserCountOutputTypeCountFollowsReceivedArgs
-  collections?: boolean | UserCountOutputTypeCountCollectionsArgs
-  backgroundCards?: boolean | UserCountOutputTypeCountBackgroundCardsArgs
-  styleCards?: boolean | UserCountOutputTypeCountStyleCardsArgs
-  cardRecipes?: boolean | UserCountOutputTypeCountCardRecipesArgs
   recipes?: boolean | UserCountOutputTypeCountRecipesArgs
   voiceCards?: boolean | UserCountOutputTypeCountVoiceCardsArgs
-  videoPipelines?: boolean | UserCountOutputTypeCountVideoPipelinesArgs
   loraTrainingJobs?: boolean | UserCountOutputTypeCountLoraTrainingJobsArgs
   loraAssets?: boolean | UserCountOutputTypeCountLoraAssetsArgs
-  videoScripts?: boolean | UserCountOutputTypeCountVideoScriptsArgs
   extractedElements?: boolean | UserCountOutputTypeCountExtractedElementsArgs
   nodeWorkflowProjects?: boolean | UserCountOutputTypeCountNodeWorkflowProjectsArgs
   assistantConversations?: boolean | UserCountOutputTypeCountAssistantConversationsArgs
@@ -8490,13 +6089,6 @@ export type UserCountOutputTypeCountApiUsageLedgerArgs<ExtArgs extends runtime.T
 /**
  * UserCountOutputType without action
  */
-export type UserCountOutputTypeCountImageAnalysesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  where?: Prisma.ImageAnalysisWhereInput
-}
-
-/**
- * UserCountOutputType without action
- */
 export type UserCountOutputTypeCountProjectsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.ProjectWhereInput
 }
@@ -8532,34 +6124,6 @@ export type UserCountOutputTypeCountFollowsReceivedArgs<ExtArgs extends runtime.
 /**
  * UserCountOutputType without action
  */
-export type UserCountOutputTypeCountCollectionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  where?: Prisma.CollectionWhereInput
-}
-
-/**
- * UserCountOutputType without action
- */
-export type UserCountOutputTypeCountBackgroundCardsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  where?: Prisma.BackgroundCardWhereInput
-}
-
-/**
- * UserCountOutputType without action
- */
-export type UserCountOutputTypeCountStyleCardsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  where?: Prisma.StyleCardWhereInput
-}
-
-/**
- * UserCountOutputType without action
- */
-export type UserCountOutputTypeCountCardRecipesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  where?: Prisma.CardRecipeWhereInput
-}
-
-/**
- * UserCountOutputType without action
- */
 export type UserCountOutputTypeCountRecipesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.RecipeWhereInput
 }
@@ -8574,13 +6138,6 @@ export type UserCountOutputTypeCountVoiceCardsArgs<ExtArgs extends runtime.Types
 /**
  * UserCountOutputType without action
  */
-export type UserCountOutputTypeCountVideoPipelinesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  where?: Prisma.VideoPipelineWhereInput
-}
-
-/**
- * UserCountOutputType without action
- */
 export type UserCountOutputTypeCountLoraTrainingJobsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.LoraTrainingJobWhereInput
 }
@@ -8590,13 +6147,6 @@ export type UserCountOutputTypeCountLoraTrainingJobsArgs<ExtArgs extends runtime
  */
 export type UserCountOutputTypeCountLoraAssetsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.LoraAssetWhereInput
-}
-
-/**
- * UserCountOutputType without action
- */
-export type UserCountOutputTypeCountVideoScriptsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  where?: Prisma.VideoScriptWhereInput
 }
 
 /**
@@ -8697,23 +6247,16 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   userApiKeys?: boolean | Prisma.User$userApiKeysArgs<ExtArgs>
   generationJobs?: boolean | Prisma.User$generationJobsArgs<ExtArgs>
   apiUsageLedger?: boolean | Prisma.User$apiUsageLedgerArgs<ExtArgs>
-  imageAnalyses?: boolean | Prisma.User$imageAnalysesArgs<ExtArgs>
   projects?: boolean | Prisma.User$projectsArgs<ExtArgs>
   characterCards?: boolean | Prisma.User$characterCardsArgs<ExtArgs>
   likesGiven?: boolean | Prisma.User$likesGivenArgs<ExtArgs>
   followsGiven?: boolean | Prisma.User$followsGivenArgs<ExtArgs>
   followsReceived?: boolean | Prisma.User$followsReceivedArgs<ExtArgs>
-  collections?: boolean | Prisma.User$collectionsArgs<ExtArgs>
-  backgroundCards?: boolean | Prisma.User$backgroundCardsArgs<ExtArgs>
-  styleCards?: boolean | Prisma.User$styleCardsArgs<ExtArgs>
-  cardRecipes?: boolean | Prisma.User$cardRecipesArgs<ExtArgs>
   recipes?: boolean | Prisma.User$recipesArgs<ExtArgs>
   voiceCards?: boolean | Prisma.User$voiceCardsArgs<ExtArgs>
   creativePreference?: boolean | Prisma.User$creativePreferenceArgs<ExtArgs>
-  videoPipelines?: boolean | Prisma.User$videoPipelinesArgs<ExtArgs>
   loraTrainingJobs?: boolean | Prisma.User$loraTrainingJobsArgs<ExtArgs>
   loraAssets?: boolean | Prisma.User$loraAssetsArgs<ExtArgs>
-  videoScripts?: boolean | Prisma.User$videoScriptsArgs<ExtArgs>
   extractedElements?: boolean | Prisma.User$extractedElementsArgs<ExtArgs>
   nodeWorkflowProjects?: boolean | Prisma.User$nodeWorkflowProjectsArgs<ExtArgs>
   assistantConversations?: boolean | Prisma.User$assistantConversationsArgs<ExtArgs>
@@ -8789,23 +6332,16 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   userApiKeys?: boolean | Prisma.User$userApiKeysArgs<ExtArgs>
   generationJobs?: boolean | Prisma.User$generationJobsArgs<ExtArgs>
   apiUsageLedger?: boolean | Prisma.User$apiUsageLedgerArgs<ExtArgs>
-  imageAnalyses?: boolean | Prisma.User$imageAnalysesArgs<ExtArgs>
   projects?: boolean | Prisma.User$projectsArgs<ExtArgs>
   characterCards?: boolean | Prisma.User$characterCardsArgs<ExtArgs>
   likesGiven?: boolean | Prisma.User$likesGivenArgs<ExtArgs>
   followsGiven?: boolean | Prisma.User$followsGivenArgs<ExtArgs>
   followsReceived?: boolean | Prisma.User$followsReceivedArgs<ExtArgs>
-  collections?: boolean | Prisma.User$collectionsArgs<ExtArgs>
-  backgroundCards?: boolean | Prisma.User$backgroundCardsArgs<ExtArgs>
-  styleCards?: boolean | Prisma.User$styleCardsArgs<ExtArgs>
-  cardRecipes?: boolean | Prisma.User$cardRecipesArgs<ExtArgs>
   recipes?: boolean | Prisma.User$recipesArgs<ExtArgs>
   voiceCards?: boolean | Prisma.User$voiceCardsArgs<ExtArgs>
   creativePreference?: boolean | Prisma.User$creativePreferenceArgs<ExtArgs>
-  videoPipelines?: boolean | Prisma.User$videoPipelinesArgs<ExtArgs>
   loraTrainingJobs?: boolean | Prisma.User$loraTrainingJobsArgs<ExtArgs>
   loraAssets?: boolean | Prisma.User$loraAssetsArgs<ExtArgs>
-  videoScripts?: boolean | Prisma.User$videoScriptsArgs<ExtArgs>
   extractedElements?: boolean | Prisma.User$extractedElementsArgs<ExtArgs>
   nodeWorkflowProjects?: boolean | Prisma.User$nodeWorkflowProjectsArgs<ExtArgs>
   assistantConversations?: boolean | Prisma.User$assistantConversationsArgs<ExtArgs>
@@ -8830,23 +6366,16 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     userApiKeys: Prisma.$UserApiKeyPayload<ExtArgs>[]
     generationJobs: Prisma.$GenerationJobPayload<ExtArgs>[]
     apiUsageLedger: Prisma.$ApiUsageLedgerPayload<ExtArgs>[]
-    imageAnalyses: Prisma.$ImageAnalysisPayload<ExtArgs>[]
     projects: Prisma.$ProjectPayload<ExtArgs>[]
     characterCards: Prisma.$CharacterCardPayload<ExtArgs>[]
     likesGiven: Prisma.$UserLikePayload<ExtArgs>[]
     followsGiven: Prisma.$UserFollowPayload<ExtArgs>[]
     followsReceived: Prisma.$UserFollowPayload<ExtArgs>[]
-    collections: Prisma.$CollectionPayload<ExtArgs>[]
-    backgroundCards: Prisma.$BackgroundCardPayload<ExtArgs>[]
-    styleCards: Prisma.$StyleCardPayload<ExtArgs>[]
-    cardRecipes: Prisma.$CardRecipePayload<ExtArgs>[]
     recipes: Prisma.$RecipePayload<ExtArgs>[]
     voiceCards: Prisma.$VoiceCardPayload<ExtArgs>[]
     creativePreference: Prisma.$UserCreativePreferencePayload<ExtArgs> | null
-    videoPipelines: Prisma.$VideoPipelinePayload<ExtArgs>[]
     loraTrainingJobs: Prisma.$LoraTrainingJobPayload<ExtArgs>[]
     loraAssets: Prisma.$LoraAssetPayload<ExtArgs>[]
-    videoScripts: Prisma.$VideoScriptPayload<ExtArgs>[]
     extractedElements: Prisma.$ExtractedElementPayload<ExtArgs>[]
     nodeWorkflowProjects: Prisma.$NodeWorkflowProjectPayload<ExtArgs>[]
     assistantConversations: Prisma.$AssistantConversationPayload<ExtArgs>[]
@@ -9274,23 +6803,16 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   userApiKeys<T extends Prisma.User$userApiKeysArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$userApiKeysArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UserApiKeyPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   generationJobs<T extends Prisma.User$generationJobsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$generationJobsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$GenerationJobPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   apiUsageLedger<T extends Prisma.User$apiUsageLedgerArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$apiUsageLedgerArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ApiUsageLedgerPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
-  imageAnalyses<T extends Prisma.User$imageAnalysesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$imageAnalysesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ImageAnalysisPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   projects<T extends Prisma.User$projectsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$projectsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ProjectPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   characterCards<T extends Prisma.User$characterCardsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$characterCardsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CharacterCardPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   likesGiven<T extends Prisma.User$likesGivenArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$likesGivenArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UserLikePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   followsGiven<T extends Prisma.User$followsGivenArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$followsGivenArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UserFollowPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   followsReceived<T extends Prisma.User$followsReceivedArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$followsReceivedArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UserFollowPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
-  collections<T extends Prisma.User$collectionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$collectionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CollectionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
-  backgroundCards<T extends Prisma.User$backgroundCardsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$backgroundCardsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$BackgroundCardPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
-  styleCards<T extends Prisma.User$styleCardsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$styleCardsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$StyleCardPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
-  cardRecipes<T extends Prisma.User$cardRecipesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$cardRecipesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CardRecipePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   recipes<T extends Prisma.User$recipesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$recipesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$RecipePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   voiceCards<T extends Prisma.User$voiceCardsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$voiceCardsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$VoiceCardPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   creativePreference<T extends Prisma.User$creativePreferenceArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$creativePreferenceArgs<ExtArgs>>): Prisma.Prisma__UserCreativePreferenceClient<runtime.Types.Result.GetResult<Prisma.$UserCreativePreferencePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
-  videoPipelines<T extends Prisma.User$videoPipelinesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$videoPipelinesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$VideoPipelinePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   loraTrainingJobs<T extends Prisma.User$loraTrainingJobsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$loraTrainingJobsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$LoraTrainingJobPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   loraAssets<T extends Prisma.User$loraAssetsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$loraAssetsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$LoraAssetPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
-  videoScripts<T extends Prisma.User$videoScriptsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$videoScriptsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$VideoScriptPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   extractedElements<T extends Prisma.User$extractedElementsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$extractedElementsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ExtractedElementPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   nodeWorkflowProjects<T extends Prisma.User$nodeWorkflowProjectsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$nodeWorkflowProjectsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$NodeWorkflowProjectPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   assistantConversations<T extends Prisma.User$assistantConversationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$assistantConversationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AssistantConversationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -9836,30 +7358,6 @@ export type User$apiUsageLedgerArgs<ExtArgs extends runtime.Types.Extensions.Int
 }
 
 /**
- * User.imageAnalyses
- */
-export type User$imageAnalysesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the ImageAnalysis
-   */
-  select?: Prisma.ImageAnalysisSelect<ExtArgs> | null
-  /**
-   * Omit specific fields from the ImageAnalysis
-   */
-  omit?: Prisma.ImageAnalysisOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.ImageAnalysisInclude<ExtArgs> | null
-  where?: Prisma.ImageAnalysisWhereInput
-  orderBy?: Prisma.ImageAnalysisOrderByWithRelationInput | Prisma.ImageAnalysisOrderByWithRelationInput[]
-  cursor?: Prisma.ImageAnalysisWhereUniqueInput
-  take?: number
-  skip?: number
-  distinct?: Prisma.ImageAnalysisScalarFieldEnum | Prisma.ImageAnalysisScalarFieldEnum[]
-}
-
-/**
  * User.projects
  */
 export type User$projectsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -9980,102 +7478,6 @@ export type User$followsReceivedArgs<ExtArgs extends runtime.Types.Extensions.In
 }
 
 /**
- * User.collections
- */
-export type User$collectionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the Collection
-   */
-  select?: Prisma.CollectionSelect<ExtArgs> | null
-  /**
-   * Omit specific fields from the Collection
-   */
-  omit?: Prisma.CollectionOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.CollectionInclude<ExtArgs> | null
-  where?: Prisma.CollectionWhereInput
-  orderBy?: Prisma.CollectionOrderByWithRelationInput | Prisma.CollectionOrderByWithRelationInput[]
-  cursor?: Prisma.CollectionWhereUniqueInput
-  take?: number
-  skip?: number
-  distinct?: Prisma.CollectionScalarFieldEnum | Prisma.CollectionScalarFieldEnum[]
-}
-
-/**
- * User.backgroundCards
- */
-export type User$backgroundCardsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the BackgroundCard
-   */
-  select?: Prisma.BackgroundCardSelect<ExtArgs> | null
-  /**
-   * Omit specific fields from the BackgroundCard
-   */
-  omit?: Prisma.BackgroundCardOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.BackgroundCardInclude<ExtArgs> | null
-  where?: Prisma.BackgroundCardWhereInput
-  orderBy?: Prisma.BackgroundCardOrderByWithRelationInput | Prisma.BackgroundCardOrderByWithRelationInput[]
-  cursor?: Prisma.BackgroundCardWhereUniqueInput
-  take?: number
-  skip?: number
-  distinct?: Prisma.BackgroundCardScalarFieldEnum | Prisma.BackgroundCardScalarFieldEnum[]
-}
-
-/**
- * User.styleCards
- */
-export type User$styleCardsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the StyleCard
-   */
-  select?: Prisma.StyleCardSelect<ExtArgs> | null
-  /**
-   * Omit specific fields from the StyleCard
-   */
-  omit?: Prisma.StyleCardOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.StyleCardInclude<ExtArgs> | null
-  where?: Prisma.StyleCardWhereInput
-  orderBy?: Prisma.StyleCardOrderByWithRelationInput | Prisma.StyleCardOrderByWithRelationInput[]
-  cursor?: Prisma.StyleCardWhereUniqueInput
-  take?: number
-  skip?: number
-  distinct?: Prisma.StyleCardScalarFieldEnum | Prisma.StyleCardScalarFieldEnum[]
-}
-
-/**
- * User.cardRecipes
- */
-export type User$cardRecipesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the CardRecipe
-   */
-  select?: Prisma.CardRecipeSelect<ExtArgs> | null
-  /**
-   * Omit specific fields from the CardRecipe
-   */
-  omit?: Prisma.CardRecipeOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.CardRecipeInclude<ExtArgs> | null
-  where?: Prisma.CardRecipeWhereInput
-  orderBy?: Prisma.CardRecipeOrderByWithRelationInput | Prisma.CardRecipeOrderByWithRelationInput[]
-  cursor?: Prisma.CardRecipeWhereUniqueInput
-  take?: number
-  skip?: number
-  distinct?: Prisma.CardRecipeScalarFieldEnum | Prisma.CardRecipeScalarFieldEnum[]
-}
-
-/**
  * User.recipes
  */
 export type User$recipesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -10143,30 +7545,6 @@ export type User$creativePreferenceArgs<ExtArgs extends runtime.Types.Extensions
 }
 
 /**
- * User.videoPipelines
- */
-export type User$videoPipelinesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the VideoPipeline
-   */
-  select?: Prisma.VideoPipelineSelect<ExtArgs> | null
-  /**
-   * Omit specific fields from the VideoPipeline
-   */
-  omit?: Prisma.VideoPipelineOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.VideoPipelineInclude<ExtArgs> | null
-  where?: Prisma.VideoPipelineWhereInput
-  orderBy?: Prisma.VideoPipelineOrderByWithRelationInput | Prisma.VideoPipelineOrderByWithRelationInput[]
-  cursor?: Prisma.VideoPipelineWhereUniqueInput
-  take?: number
-  skip?: number
-  distinct?: Prisma.VideoPipelineScalarFieldEnum | Prisma.VideoPipelineScalarFieldEnum[]
-}
-
-/**
  * User.loraTrainingJobs
  */
 export type User$loraTrainingJobsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -10212,30 +7590,6 @@ export type User$loraAssetsArgs<ExtArgs extends runtime.Types.Extensions.Interna
   take?: number
   skip?: number
   distinct?: Prisma.LoraAssetScalarFieldEnum | Prisma.LoraAssetScalarFieldEnum[]
-}
-
-/**
- * User.videoScripts
- */
-export type User$videoScriptsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the VideoScript
-   */
-  select?: Prisma.VideoScriptSelect<ExtArgs> | null
-  /**
-   * Omit specific fields from the VideoScript
-   */
-  omit?: Prisma.VideoScriptOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.VideoScriptInclude<ExtArgs> | null
-  where?: Prisma.VideoScriptWhereInput
-  orderBy?: Prisma.VideoScriptOrderByWithRelationInput | Prisma.VideoScriptOrderByWithRelationInput[]
-  cursor?: Prisma.VideoScriptWhereUniqueInput
-  take?: number
-  skip?: number
-  distinct?: Prisma.VideoScriptScalarFieldEnum | Prisma.VideoScriptScalarFieldEnum[]
 }
 
 /**

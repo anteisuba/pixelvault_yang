@@ -17,7 +17,7 @@ export const GET = createApiGetRoute<
   schema: Model3DStatusRequestSchema,
   routeName: 'GET /api/generate-3d/status',
   requireAuth: true,
-  rateLimit: RATE_LIMIT_CONFIGS.longVideoStatus,
+  rateLimit: RATE_LIMIT_CONFIGS.generationStatus,
   handler: async ({ clerkId, data }) => {
     return check3DGenerationStatus(clerkId!, data.jobId)
   },

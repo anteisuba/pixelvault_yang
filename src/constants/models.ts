@@ -5,7 +5,6 @@ import type {
   QualityTier,
   StyleTag,
   VideoDefaults,
-  VideoExtensionConfig,
 } from '@/constants/models/types'
 import {
   IMAGE_KIND,
@@ -25,13 +24,7 @@ import { MODEL_3D_OPTIONS } from '@/constants/models/model-3d'
 // Re-exports for backwards compatibility.
 export { AI_MODELS, IMAGE_KIND, resolveImageKind, VIDEO_KIND, resolveVideoKind }
 export type { ImageKind, VideoKind }
-export type {
-  ModelOption,
-  QualityTier,
-  StyleTag,
-  VideoDefaults,
-  VideoExtensionConfig,
-}
+export type { ModelOption, QualityTier, StyleTag, VideoDefaults }
 
 export const MODEL_MESSAGE_KEYS: Record<string, string> = {
   [AI_MODELS.QWEN_IMAGE_21_RUNNER]: 'qwenImage21Runner',
@@ -642,14 +635,3 @@ export const getModelTimeout = (modelId: string): number =>
 /** 「先搜再画」只对标了 `supportsSearchGrounding` 的型号出现。 */
 export const supportsSearchGrounding = (modelId: string): boolean =>
   getModelById(modelId)?.supportsSearchGrounding === true
-
-/** Check if a model supports long video extension. */
-export const supportsLongVideo = (modelId: string): boolean =>
-  getModelById(modelId)?.videoExtension != null
-
-/** Get only the video models that support long video extension. */
-export const getLongVideoModels = (): ModelOption[] =>
-  MODEL_OPTIONS.filter(
-    (model) =>
-      model.available && model.outputType === 'VIDEO' && model.videoExtension,
-  )

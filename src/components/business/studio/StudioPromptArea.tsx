@@ -14,7 +14,6 @@ import {
   ChevronDown,
   Download,
   FileAudio2,
-  FileText,
   Plus,
   X,
 } from '@/components/icons'
@@ -87,7 +86,6 @@ import {
   studioOutlineChipClass,
   studioOutlineChipCompactClass,
   studioOutlineChipCompactLabelClass,
-  studioOutlineChipOpenClass,
   studioOutlineChipSetClass,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 
@@ -162,7 +160,6 @@ export const StudioPromptArea = memo(function StudioPromptArea({
   const tModels = useTranslations('Models')
   // 模态专属那几颗丸的文案 —— 命名空间沿用 dock 时期的，文案一个字没改
   const tBar = useTranslations('StudioToolbar')
-  const tScript = useTranslations('VideoScript')
   const tVideo = useTranslations('VideoGenerate')
   const tSlots = useTranslations('StudioVideoSlots')
   const tSearch = useTranslations('SearchGrounding')
@@ -582,28 +579,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                   onToggle={templates.onToggle}
                   disabled={isGenerating}
                 />
-                {isVideoMode ? (
-                  <Toolbar.Button
-                    type="button"
-                    aria-haspopup="dialog"
-                    aria-expanded={state.panels.script}
-                    disabled={isGenerating}
-                    onClick={() =>
-                      dispatch({ type: 'TOGGLE_PANEL', payload: 'script' })
-                    }
-                    aria-label={tScript('panelTitle')}
-                    className={cn(
-                      studioOutlineChipClass,
-                      studioOutlineChipCompactClass,
-                      state.panels.script && studioOutlineChipOpenClass,
-                    )}
-                  >
-                    <FileText className="size-4" aria-hidden />
-                    <span className={studioOutlineChipCompactLabelClass}>
-                      {tScript('panelTitle')}
-                    </span>
-                  </Toolbar.Button>
-                ) : (
+                {isVideoMode ? null : (
                   <StudioCardsButton disabled={isGenerating} />
                 )}
                 {negativeAvailable ? (

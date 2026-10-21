@@ -114,7 +114,6 @@ const HEALTH_PATH = '/health'
 const ECHO_PATH = '/echo'
 const CINEMATIC_SHORT_VIDEO_PATH = '/workflows/cinematic-short-video'
 const FAL_QUEUE_PATH = '/workflows/fal-queue'
-const LONG_VIDEO_PIPELINE_PATH = '/workflows/long-video-pipeline'
 const HYPER3D_RODIN_PATH = '/workflows/hyper3d-rodin'
 const HUNYUAN3D_PATH = '/workflows/hunyuan3d'
 const EXECUTION_SIGNATURE_VERSION = 'v1'
@@ -128,7 +127,6 @@ const EXECUTION_MAX_CLOCK_SKEW_MS = 5 * 60 * 1000
 const JSON_CONTENT_TYPE = 'application/json'
 const CALLBACK_KINDS = ['ping', 'status', 'result'] as const
 const QUEUE_WORKFLOW_IDS = ['CINEMATIC_SHORT_VIDEO', 'FAL_QUEUE'] as const
-const LONG_VIDEO_PIPELINE_WORKFLOW_ID = 'LONG_VIDEO_PIPELINE'
 const HYPER3D_RODIN_WORKFLOW_ID = 'HYPER3D_RODIN'
 const HUNYUAN3D_WORKFLOW_ID = 'HUNYUAN3D'
 const HYPER3D_BASE_URL = 'https://api.hyper3d.com'
@@ -197,7 +195,6 @@ interface ExecutionEnv {
   /** wrangler secret；与 Modal Secret `pixelvault-runner-token` 同值。 */
   RUNNER_MODAL_TOKEN?: string
   CINEMATIC_SHORT_VIDEO_WORKFLOW: Workflow<WorkerRunContext>
-  LONG_VIDEO_PIPELINE_WORKFLOW: Workflow<LongVideoPipelineRunContext>
   HYPER3D_RODIN_WORKFLOW: Workflow<WorkerModel3DRunContext>
   HUNYUAN3D_WORKFLOW: Workflow<WorkerModel3DRunContext>
   IMAGE_QUEUE_WORKFLOW: Workflow<WorkerImageRunContext>
@@ -327,49 +324,6 @@ interface WorkerImageRunContext {
     providerBaseUrl?: string
     outputStorageKey?: string
   }
-}
-
-interface LongVideoPipelineRunContext {
-  runId: string
-  workflowId: typeof LONG_VIDEO_PIPELINE_WORKFLOW_ID
-  pipelineId: string
-  advanceUrl: string
-  providerId: string
-  apiKeyId?: string
-  useSystemKey?: boolean
-  resolveKeyUrl: string
-  timeoutMs: number
-  maxAttempts: number
-  pollIntervalMs: number
-  startClipIndex: number
-  initialVideoUrl?: string
-  initialFrameUrl?: string
-  providerInput: {
-    prompt: string
-    modelId: string
-    externalModelId: string
-    aspectRatio: '1:1' | '16:9' | '9:16' | '4:3' | '3:4'
-    firstClipDuration: number
-    extensionClipDuration: number
-    totalClips: number
-    extensionMethod: 'native_extend' | 'last_frame_chain'
-    extendEndpointId?: string
-    referenceImage?: string
-    negativePrompt?: string
-    resolution?: string
-    i2vModelId?: string
-    videoDefaults?: Record<string, unknown>
-    providerBaseUrl?: string
-    outputStorageKeys: string[]
-    width: number
-    height: number
-  }
-}
-
-interface LongVideoPipelineStatus {
-  pipelineId: string
-  status: 'RUNNING' | 'PAUSED' | 'COMPLETED' | 'FAILED' | 'CANCELLED'
-  errorMessage?: string | null
 }
 
 interface WorkerModel3DRunContext {
@@ -548,16 +502,6 @@ export function isCallbackKind(value: unknown): value is CallbackKind {
 
 export function isWorkerWorkflowId(value: unknown): value is WorkerWorkflowId {
   return QUEUE_WORKFLOW_IDS.some((candidate) => candidate === value)
-}
-
-export function isLongVideoPipelineWorkflowId(
-  value: unknown,
-): value is typeof LONG_VIDEO_PIPELINE_WORKFLOW_ID {
-  return value === LONG_VIDEO_PIPELINE_WORKFLOW_ID
-}
-
-function isLongVideoPipelineTerminalStatus(status: string): boolean {
-  return status === 'COMPLETED' || status === 'FAILED' || status === 'CANCELLED'
 }
 
 function isFalQueueFailureStatus(status: string): boolean {
@@ -1001,120 +945,6 @@ export function parseWorkerRunContext(input: unknown): WorkerRunContext | null {
         readStringField(providerInput, 'providerBaseUrl') ?? undefined,
       outputStorageKey:
         readStringField(providerInput, 'outputStorageKey') ?? undefined,
-      width,
-      height,
-    },
-  }
-}
-
-export function parseLongVideoPipelineRunContext(
-  input: unknown,
-): LongVideoPipelineRunContext | null {
-  if (!isRecord(input)) return null
-  const providerInput = input.providerInput
-  if (!isRecord(providerInput)) return null
-
-  const runId = readStringField(input, 'runId')
-  const workflowId = readStringField(input, 'workflowId')
-  const pipelineId = readStringField(input, 'pipelineId')
-  const advanceUrl = readStringField(input, 'advanceUrl')
-  const providerId = readStringField(input, 'providerId')
-  const apiKeyId = readStringField(input, 'apiKeyId') ?? undefined
-  const useSystemKey = readBooleanField(input, 'useSystemKey') ?? undefined
-  const resolveKeyUrl = readStringField(input, 'resolveKeyUrl')
-  const timeoutMs = readPositiveNumberField(input, 'timeoutMs')
-  const maxAttempts = readPositiveNumberField(input, 'maxAttempts')
-  const pollIntervalMs = readPositiveNumberField(input, 'pollIntervalMs')
-  const startClipIndex = readNumberField(input, 'startClipIndex') ?? 0
-  const prompt = readStringField(providerInput, 'prompt')
-  const modelId = readStringField(providerInput, 'modelId')
-  const externalModelId = readStringField(providerInput, 'externalModelId')
-  const aspectRatio = readStringField(providerInput, 'aspectRatio')
-  const firstClipDuration = readPositiveNumberField(
-    providerInput,
-    'firstClipDuration',
-  )
-  const extensionClipDuration = readPositiveNumberField(
-    providerInput,
-    'extensionClipDuration',
-  )
-  const totalClips = readPositiveNumberField(providerInput, 'totalClips')
-  const extensionMethod = readStringField(providerInput, 'extensionMethod')
-  const outputStorageKeys = readStringArrayField(
-    providerInput,
-    'outputStorageKeys',
-  )
-  const width = readPositiveNumberField(providerInput, 'width')
-  const height = readPositiveNumberField(providerInput, 'height')
-
-  if (
-    !runId ||
-    !isLongVideoPipelineWorkflowId(workflowId) ||
-    !pipelineId ||
-    !advanceUrl ||
-    !providerId ||
-    (!apiKeyId && !useSystemKey) ||
-    !resolveKeyUrl ||
-    !timeoutMs ||
-    !maxAttempts ||
-    !pollIntervalMs ||
-    startClipIndex < 0 ||
-    !prompt ||
-    !modelId ||
-    !externalModelId ||
-    !aspectRatio ||
-    !firstClipDuration ||
-    !extensionClipDuration ||
-    !totalClips ||
-    (extensionMethod !== 'native_extend' &&
-      extensionMethod !== 'last_frame_chain') ||
-    !outputStorageKeys ||
-    outputStorageKeys.length < totalClips ||
-    !width ||
-    !height
-  ) {
-    return null
-  }
-
-  return {
-    runId,
-    workflowId,
-    pipelineId,
-    advanceUrl,
-    providerId,
-    apiKeyId,
-    useSystemKey,
-    resolveKeyUrl,
-    timeoutMs,
-    maxAttempts,
-    pollIntervalMs,
-    startClipIndex,
-    initialVideoUrl: readStringField(input, 'initialVideoUrl') ?? undefined,
-    initialFrameUrl: readStringField(input, 'initialFrameUrl') ?? undefined,
-    providerInput: {
-      prompt,
-      modelId,
-      externalModelId,
-      aspectRatio:
-        aspectRatio as LongVideoPipelineRunContext['providerInput']['aspectRatio'],
-      firstClipDuration,
-      extensionClipDuration,
-      totalClips,
-      extensionMethod,
-      extendEndpointId:
-        readStringField(providerInput, 'extendEndpointId') ?? undefined,
-      referenceImage:
-        readStringField(providerInput, 'referenceImage') ?? undefined,
-      negativePrompt:
-        readStringField(providerInput, 'negativePrompt') ?? undefined,
-      resolution: readStringField(providerInput, 'resolution') ?? undefined,
-      i2vModelId: readStringField(providerInput, 'i2vModelId') ?? undefined,
-      videoDefaults: isRecord(providerInput.videoDefaults)
-        ? providerInput.videoDefaults
-        : undefined,
-      providerBaseUrl:
-        readStringField(providerInput, 'providerBaseUrl') ?? undefined,
-      outputStorageKeys,
       width,
       height,
     },
@@ -2062,53 +1892,6 @@ async function handleHunyuan3DDispatch(
   return jsonResponse({ workflowInstanceId: instance.id })
 }
 
-async function handleLongVideoPipelineDispatch(
-  request: Request,
-  env: ExecutionEnv,
-): Promise<Response> {
-  const secret = readRequiredSecret(env)
-  if (!secret) {
-    return jsonResponse(
-      { ok: false, error: 'Internal callback secret is not configured.' },
-      { status: 500 },
-    )
-  }
-
-  const rawBody = await verifySignedBody(request, secret)
-  if (!rawBody) {
-    return jsonResponse(
-      { ok: false, error: 'Invalid signature.' },
-      { status: 401 },
-    )
-  }
-
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(rawBody)
-  } catch {
-    return jsonResponse(
-      { ok: false, error: 'Invalid JSON body.' },
-      { status: 400 },
-    )
-  }
-
-  const runContext = parseLongVideoPipelineRunContext(parsed)
-  if (!runContext) {
-    return jsonResponse(
-      { ok: false, error: 'Invalid long-video pipeline context.' },
-      { status: 400 },
-    )
-  }
-
-  const instance = await getOrCreateWorkflowInstance(
-    env.LONG_VIDEO_PIPELINE_WORKFLOW,
-    runContext.runId,
-    runContext,
-  )
-
-  return jsonResponse({ workflowInstanceId: instance.id })
-}
-
 async function handleFalQueueDispatch(
   request: Request,
   env: ExecutionEnv,
@@ -2158,7 +1941,7 @@ async function handleFalQueueDispatch(
 
 async function resolveApiKey(
   env: ExecutionEnv,
-  context: WorkerRunContext | LongVideoPipelineRunContext,
+  context: WorkerRunContext,
 ): Promise<string> {
   if (!env.INTERNAL_CALLBACK_SECRET) {
     throw new Error('Internal callback secret is not configured.')
@@ -2234,18 +2017,6 @@ export async function submitFalQueue(
   context: WorkerRunContext,
   apiKey: string,
   env: ExecutionEnv,
-  /**
-   * The long-video per-clip path (`submitFalLongVideoClipQueue`) reuses this
-   * function but its `context.callbackUrl` is actually
-   * `LongVideoPipelineRunContext.advanceUrl` — a distinct, strictly-validated
-   * endpoint (`LongVideoPipelineAdvanceRequestSchema`) that 400s on an
-   * unrecognized `kind:'status'` payload. Its synthetic per-clip `runId`
-   * (`${runId}:clip-${clipIndex}`) also doesn't correspond to any
-   * GenerationJob row, so there's nowhere for the app to persist
-   * `providerJobId` even if the request succeeded. Callers on that path must
-   * pass `false` here; every other caller passes `true`.
-   */
-  reportProviderJob: boolean,
 ): Promise<FalQueueSubmitResult> {
   const queueBody = buildFalWorkerQueueRequest(context)
   const baseUrl = 'https://queue.fal.run'
@@ -2294,14 +2065,12 @@ export async function submitFalQueue(
     throw new Error('fal.ai queue submit returned an invalid response.')
   }
 
-  if (reportProviderJob) {
-    // fal's cancel endpoint is per-model (PUT
-    // https://queue.fal.run/{model_id}/requests/{request_id}/cancel), so the
-    // bare request_id alone can't address it — report the full path segment
-    // that cancelProviderJob already expects in `providerJobId`.
-    const providerJobId = `${queueBody.endpointModelId}/requests/${requestId}`
-    await reportProviderJobId(env, context, providerJobId)
-  }
+  // fal's cancel endpoint is per-model (PUT
+  // https://queue.fal.run/{model_id}/requests/{request_id}/cancel), so the
+  // bare request_id alone can't address it — report the full path segment
+  // that cancelProviderJob already expects in `providerJobId`.
+  const providerJobId = `${queueBody.endpointModelId}/requests/${requestId}`
+  await reportProviderJobId(env, context, providerJobId)
 
   return { requestId, statusUrl, responseUrl }
 }
@@ -2716,7 +2485,7 @@ async function submitProviderQueue(
   if (isVolcEngineProviderId(context.providerId)) {
     return submitVolcEngineQueue(context, apiKey, env)
   }
-  return submitFalQueue(context, apiKey, env, true)
+  return submitFalQueue(context, apiKey, env)
 }
 
 async function pollProviderQueue(
@@ -2734,184 +2503,6 @@ async function pollProviderQueue(
     return pollVolcEngineQueue(queue, apiKey, context.providerId)
   }
   return pollFalQueue(queue, apiKey, context.outputType)
-}
-
-function buildLongVideoClipQueueContext(
-  context: LongVideoPipelineRunContext,
-  clipIndex: number,
-  referenceImage: string | undefined,
-  duration: number,
-  outputStorageKey: string,
-): WorkerVideoRunContext {
-  return {
-    runId: `${context.runId}:clip-${clipIndex}`,
-    workflowId: 'FAL_QUEUE',
-    outputType: 'VIDEO',
-    providerId: context.providerId,
-    apiKeyId: context.apiKeyId,
-    useSystemKey: context.useSystemKey,
-    callbackUrl: context.advanceUrl,
-    resolveKeyUrl: context.resolveKeyUrl,
-    timeoutMs: context.timeoutMs,
-    maxAttempts: context.maxAttempts,
-    pollIntervalMs: context.pollIntervalMs,
-    providerInput: {
-      prompt: context.providerInput.prompt,
-      modelId: context.providerInput.modelId,
-      externalModelId: context.providerInput.externalModelId,
-      aspectRatio: context.providerInput.aspectRatio,
-      duration,
-      referenceImage,
-      negativePrompt: context.providerInput.negativePrompt,
-      resolution: context.providerInput.resolution,
-      i2vModelId: context.providerInput.i2vModelId,
-      videoDefaults: context.providerInput.videoDefaults,
-      providerBaseUrl: context.providerInput.providerBaseUrl,
-      outputStorageKey,
-      width: context.providerInput.width,
-      height: context.providerInput.height,
-    },
-  }
-}
-
-function getLongVideoClipDuration(
-  context: LongVideoPipelineRunContext,
-  clipIndex: number,
-): number {
-  return clipIndex === 0
-    ? context.providerInput.firstClipDuration
-    : context.providerInput.extensionClipDuration
-}
-
-function getFalExtendDurationValue(
-  context: LongVideoPipelineRunContext,
-  duration: number,
-): string {
-  const endpoint = context.providerInput.extendEndpointId ?? ''
-  if (endpoint.includes('veo3.1')) {
-    return `${duration}s`
-  }
-  return String(duration)
-}
-
-async function submitFalLongVideoExtendQueue(
-  context: LongVideoPipelineRunContext,
-  apiKey: string,
-  previousVideoUrl: string,
-  clipIndex: number,
-): Promise<FalQueueSubmitResult> {
-  const extendEndpointId = context.providerInput.extendEndpointId
-  if (!extendEndpointId) {
-    throw new Error('Long-video native extend endpoint is not configured.')
-  }
-
-  const duration = getLongVideoClipDuration(context, clipIndex)
-  const input: Record<string, unknown> = {
-    prompt: context.providerInput.prompt,
-    video_url: previousVideoUrl,
-    aspect_ratio: context.providerInput.aspectRatio,
-    duration: getFalExtendDurationValue(context, duration),
-  }
-
-  appendDefinedBodyValue(
-    input,
-    'negative_prompt',
-    context.providerInput.negativePrompt,
-  )
-  appendDefinedBodyValue(input, 'resolution', context.providerInput.resolution)
-
-  const response = await fetch(`https://queue.fal.run/${extendEndpointId}`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Key ${apiKey}`,
-      'Content-Type': JSON_CONTENT_TYPE,
-    },
-    body: JSON.stringify(input),
-  })
-
-  if (!response.ok) {
-    throw await createProviderResponseError(response, {
-      provider: 'fal',
-      phase: 'long_video_extend_submit',
-      fallbackMessage: `fal.ai long-video extend submit failed with status ${response.status}`,
-    })
-  }
-
-  const data = (await response.json()) as Record<string, unknown>
-  const submitFailure = createProviderPayloadError(data, {
-    provider: 'fal',
-    phase: 'long_video_extend_submit',
-    fallbackMessage: 'fal.ai long-video extend submit reported failure.',
-  })
-  if (submitFailure) throw submitFailure
-
-  const requestId = readStringField(data, 'request_id')
-  const statusUrl = readStringField(data, 'status_url')
-  const responseUrl = readStringField(data, 'response_url')
-
-  if (!requestId || !statusUrl || !responseUrl) {
-    throw new Error('fal.ai extend submit returned an invalid response.')
-  }
-
-  return { requestId, statusUrl, responseUrl }
-}
-
-export async function submitFalLongVideoClipQueue(
-  context: LongVideoPipelineRunContext,
-  apiKey: string,
-  clipIndex: number,
-  previousVideoUrl: string | undefined,
-  previousFrameUrl: string | undefined,
-  env: ExecutionEnv,
-): Promise<{
-  queue: FalQueueSubmitResult
-  inputVideoUrl?: string
-  inputFrameUrl?: string
-}> {
-  const duration = getLongVideoClipDuration(context, clipIndex)
-
-  if (
-    clipIndex > 0 &&
-    context.providerInput.extensionMethod === 'native_extend'
-  ) {
-    if (!previousVideoUrl) {
-      throw new Error('Long-video native extend is missing previous video URL.')
-    }
-    return {
-      queue: await submitFalLongVideoExtendQueue(
-        context,
-        apiKey,
-        previousVideoUrl,
-        clipIndex,
-      ),
-      inputVideoUrl: previousVideoUrl,
-    }
-  }
-
-  const referenceImage =
-    clipIndex === 0 ? context.providerInput.referenceImage : previousFrameUrl
-  if (
-    clipIndex > 0 &&
-    context.providerInput.extensionMethod === 'last_frame_chain' &&
-    !referenceImage
-  ) {
-    throw new Error(
-      'Long-video last-frame chain is missing previous frame URL.',
-    )
-  }
-
-  const queueContext = buildLongVideoClipQueueContext(
-    context,
-    clipIndex,
-    referenceImage,
-    duration,
-    context.providerInput.outputStorageKeys[clipIndex],
-  )
-
-  return {
-    queue: await submitFalQueue(queueContext, apiKey, env, false),
-    inputFrameUrl: clipIndex > 0 ? referenceImage : undefined,
-  }
 }
 
 interface FishAudioSubmitResult {
@@ -3774,358 +3365,6 @@ export class CinematicShortVideoWorkflow extends WorkflowEntrypoint<
       )
 
       return { status: 'FAILED', runId: context.runId }
-    }
-  }
-}
-
-type LongVideoPipelineWorkerAction =
-  | 'advance'
-  | 'clip-queued'
-  | 'clip-running'
-  | 'clip-completed'
-  | 'finalize'
-  | 'fail'
-
-interface LongVideoPipelineWorkerUpdateData {
-  attempt?: number
-  clipIndex?: number
-  requestId?: string
-  statusUrl?: string
-  responseUrl?: string
-  inputVideoUrl?: string
-  inputFrameUrl?: string
-  videoUrl?: string
-  storageKey?: string
-  lastFrameUrl?: string
-  durationSec?: number
-  requestCount?: number
-  width?: number
-  height?: number
-  providerMetadata?: Record<string, unknown>
-  error?: string
-}
-
-async function postLongVideoPipelineUpdate(
-  env: ExecutionEnv,
-  context: LongVideoPipelineRunContext,
-  action: LongVideoPipelineWorkerAction,
-  data: LongVideoPipelineWorkerUpdateData = {},
-): Promise<LongVideoPipelineStatus> {
-  if (!env.INTERNAL_CALLBACK_SECRET) {
-    throw new Error('Internal callback secret is not configured.')
-  }
-
-  const response = await postSignedJson(
-    context.advanceUrl,
-    env.INTERNAL_CALLBACK_SECRET,
-    {
-      runId: context.runId,
-      pipelineId: context.pipelineId,
-      action,
-      ...data,
-    },
-  )
-
-  if (!response.ok) {
-    throw new Error(
-      `Long-video pipeline update failed with status ${response.status}`,
-    )
-  }
-
-  const payload = (await response.json()) as {
-    success?: boolean
-    data?: unknown
-    error?: string
-  }
-
-  if (payload.success !== true || !isRecord(payload.data)) {
-    throw new Error(payload.error ?? 'Invalid long-video update response.')
-  }
-
-  const pipelineId = readStringField(payload.data, 'pipelineId')
-  const status = readStringField(payload.data, 'status')
-  if (!pipelineId || !status) {
-    throw new Error('Long-video update response is missing pipeline status.')
-  }
-
-  return {
-    pipelineId,
-    status: status as LongVideoPipelineStatus['status'],
-    errorMessage: readStringField(payload.data, 'errorMessage'),
-  }
-}
-
-export class LongVideoPipelineWorkflow extends WorkflowEntrypoint<
-  ExecutionEnv,
-  LongVideoPipelineRunContext
-> {
-  async run(
-    event: WorkflowEvent<LongVideoPipelineRunContext>,
-    rawStep: WorkflowStep,
-  ): Promise<unknown> {
-    const context = event.payload
-    // provider 失败要带着 errorCode / providerMetadata 活着走出 step 边界，
-    // 必须过这一层 —— 原因见 lib/step-failure.ts 顶部。
-    const step = guardWorkflowStep(rawStep)
-
-    try {
-      if (context.providerId !== 'fal') {
-        throw new Error('Only fal.ai long-video pipelines are worker-migrated.')
-      }
-
-      const encryptedApiKey = await step.do(
-        'resolve-api-key',
-        {
-          retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
-          timeout: '30 seconds',
-        },
-        async () => {
-          const plaintext = await resolveApiKey(this.env, context)
-          return encryptStateString(plaintext, this.env)
-        },
-      )
-
-      let previousVideoUrl = context.initialVideoUrl
-      let previousFrameUrl = context.initialFrameUrl
-      const attemptsPerClip = Math.max(
-        1,
-        Math.ceil(context.maxAttempts / context.providerInput.totalClips),
-      )
-
-      for (
-        let clipIndex = context.startClipIndex;
-        clipIndex < context.providerInput.totalClips;
-        clipIndex += 1
-      ) {
-        const pipelineStatus = await step.do(
-          `read-pipeline-${clipIndex}`,
-          {
-            retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
-            timeout: '30 seconds',
-          },
-          () =>
-            postLongVideoPipelineUpdate(this.env, context, 'advance', {
-              attempt: clipIndex + 1,
-            }),
-        )
-
-        if (isLongVideoPipelineTerminalStatus(pipelineStatus.status)) {
-          return {
-            status: pipelineStatus.status,
-            runId: context.runId,
-            pipelineId: context.pipelineId,
-          }
-        }
-
-        const outputStorageKey =
-          context.providerInput.outputStorageKeys[clipIndex]
-        if (!outputStorageKey) {
-          throw new Error(
-            `Missing output storage key for clip ${clipIndex + 1}.`,
-          )
-        }
-
-        const clipQueue = await step.do(
-          `submit-clip-${clipIndex}`,
-          {
-            retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
-            timeout: Math.min(context.timeoutMs, 1_800_000),
-          },
-          async () => {
-            const apiKey = await decryptStateString(encryptedApiKey, this.env)
-            return submitFalLongVideoClipQueue(
-              context,
-              apiKey,
-              clipIndex,
-              previousVideoUrl,
-              previousFrameUrl,
-              this.env,
-            )
-          },
-        )
-
-        const queuedStatus = await step.do(
-          `mark-clip-${clipIndex}-queued`,
-          {
-            retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
-            timeout: '30 seconds',
-          },
-          () =>
-            postLongVideoPipelineUpdate(this.env, context, 'clip-queued', {
-              clipIndex,
-              requestId: clipQueue.queue.requestId,
-              statusUrl: clipQueue.queue.statusUrl,
-              responseUrl: clipQueue.queue.responseUrl,
-              inputVideoUrl: clipQueue.inputVideoUrl,
-              inputFrameUrl: clipQueue.inputFrameUrl,
-              providerMetadata: { workflowInstanceId: event.instanceId },
-            }),
-        )
-        if (isLongVideoPipelineTerminalStatus(queuedStatus.status)) {
-          return {
-            status: queuedStatus.status,
-            runId: context.runId,
-            pipelineId: context.pipelineId,
-          }
-        }
-
-        let completedClip:
-          | { videoUrl: string; storageKey: string; lastFrameUrl?: string }
-          | undefined
-        let markedRunning = false
-
-        for (let attempt = 1; attempt <= attemptsPerClip; attempt += 1) {
-          await step.sleep(
-            `wait-clip-${clipIndex}-${attempt}`,
-            context.pollIntervalMs,
-          )
-
-          const pollResult = await step.do(
-            `poll-clip-${clipIndex}-${attempt}`,
-            {
-              retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
-              timeout: '30 seconds',
-            },
-            async () => {
-              const apiKey = await decryptStateString(encryptedApiKey, this.env)
-              return pollFalQueue(clipQueue.queue, apiKey, 'VIDEO')
-            },
-          )
-
-          if (pollResult.status === 'FAILED') {
-            throw new WorkerProviderError({
-              message:
-                pollResult.error ??
-                `Provider reported failed status for clip ${clipIndex + 1}.`,
-              provider: context.providerId,
-              phase: 'long_video_clip_poll',
-              errorCode: pollResult.errorCode,
-              providerMetadata: {
-                clipIndex,
-                ...pollResult.providerMetadata,
-              },
-            })
-          }
-
-          if (pollResult.status === 'IN_PROGRESS' && !markedRunning) {
-            await step.do(
-              `mark-clip-${clipIndex}-running`,
-              {
-                retries: {
-                  limit: 2,
-                  delay: '5 seconds',
-                  backoff: 'exponential',
-                },
-                timeout: '30 seconds',
-              },
-              () =>
-                postLongVideoPipelineUpdate(this.env, context, 'clip-running', {
-                  clipIndex,
-                }),
-            )
-            markedRunning = true
-          }
-
-          if (pollResult.status === 'COMPLETED' && pollResult.artifactUrl) {
-            const artifactUrl = pollResult.artifactUrl
-            const uploaded = await step.do(
-              `upload-clip-${clipIndex}`,
-              {
-                retries: {
-                  limit: 2,
-                  delay: '5 seconds',
-                  backoff: 'exponential',
-                },
-                timeout: '120 seconds',
-              },
-              () =>
-                downloadAndUploadVideoArtifactToKey(
-                  this.env,
-                  artifactUrl,
-                  pollResult.mimeType ?? 'video/mp4',
-                  outputStorageKey,
-                ),
-            )
-
-            completedClip = {
-              videoUrl: uploaded.artifactUrl,
-              storageKey: uploaded.videoR2Key,
-              lastFrameUrl: pollResult.thumbnailUrl,
-            }
-
-            await step.do(
-              `mark-clip-${clipIndex}-completed`,
-              {
-                retries: {
-                  limit: 2,
-                  delay: '5 seconds',
-                  backoff: 'exponential',
-                },
-                timeout: '30 seconds',
-              },
-              () =>
-                postLongVideoPipelineUpdate(
-                  this.env,
-                  context,
-                  'clip-completed',
-                  {
-                    clipIndex,
-                    videoUrl: completedClip?.videoUrl,
-                    storageKey: completedClip?.storageKey,
-                    lastFrameUrl: completedClip?.lastFrameUrl,
-                    durationSec: getLongVideoClipDuration(context, clipIndex),
-                    requestCount: 1,
-                    width: context.providerInput.width,
-                    height: context.providerInput.height,
-                    providerMetadata: pollResult.providerMetadata,
-                  },
-                ),
-            )
-
-            break
-          }
-        }
-
-        if (!completedClip) {
-          throw new Error(`Long-video clip ${clipIndex + 1} polling timed out.`)
-        }
-
-        previousVideoUrl = completedClip.videoUrl
-        previousFrameUrl = completedClip.lastFrameUrl
-      }
-
-      const finalStatus = await step.do(
-        'finalize-pipeline',
-        {
-          retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
-          timeout: '30 seconds',
-        },
-        () => postLongVideoPipelineUpdate(this.env, context, 'finalize'),
-      )
-
-      return {
-        status: finalStatus.status,
-        runId: context.runId,
-        pipelineId: context.pipelineId,
-      }
-    } catch (error) {
-      const failureData = buildWorkerFailureCallbackData(error, {
-        message: 'Long-video workflow execution failed.',
-        providerMetadata: { workflowInstanceId: event.instanceId },
-      })
-
-      await step.do('mark-pipeline-failed', async () =>
-        postLongVideoPipelineUpdate(this.env, context, 'fail', {
-          error: failureData.error,
-          providerMetadata: failureData.providerMetadata,
-        }),
-      )
-
-      return {
-        status: 'FAILED',
-        runId: context.runId,
-        pipelineId: context.pipelineId,
-      }
     }
   }
 }
@@ -8533,7 +7772,7 @@ interface CancelWorkflowResult {
 }
 
 /**
- * The cancel payload carries a bare `workflowInstanceId`, not which of the 5
+ * The cancel payload carries a bare `workflowInstanceId`, not which of the 4
  * Workflow bindings it belongs to (instance ids are namespaced per binding).
  * Try each binding's `.get()` in turn — wrong-binding lookups just throw
  * "not found", which is cheap — and terminate the first instance found.
@@ -8548,7 +7787,6 @@ export async function terminateWorkflowInstanceById(
 ): Promise<CancelWorkflowResult> {
   const lookups: Array<() => Promise<WorkflowInstance>> = [
     () => env.CINEMATIC_SHORT_VIDEO_WORKFLOW.get(workflowInstanceId),
-    () => env.LONG_VIDEO_PIPELINE_WORKFLOW.get(workflowInstanceId),
     () => env.HYPER3D_RODIN_WORKFLOW.get(workflowInstanceId),
     () => env.HUNYUAN3D_WORKFLOW.get(workflowInstanceId),
     () => env.IMAGE_QUEUE_WORKFLOW.get(workflowInstanceId),
@@ -8946,13 +8184,6 @@ const executionWorker = {
         url.pathname === CINEMATIC_SHORT_VIDEO_PATH)
     ) {
       return handleFalQueueDispatch(request, env)
-    }
-
-    if (
-      request.method === 'POST' &&
-      url.pathname === LONG_VIDEO_PIPELINE_PATH
-    ) {
-      return handleLongVideoPipelineDispatch(request, env)
     }
 
     if (request.method === 'POST' && url.pathname === HYPER3D_RODIN_PATH) {

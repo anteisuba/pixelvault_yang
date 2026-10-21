@@ -19,14 +19,6 @@ vi.mock('@/hooks/cards/use-character-cards', () => ({
   useCharacterCards: () => ({}),
 }))
 
-vi.mock('@/hooks/cards/use-background-cards', () => ({
-  useBackgroundCards: () => ({}),
-}))
-
-vi.mock('@/hooks/cards/use-style-cards', () => ({
-  useStyleCards: () => ({}),
-}))
-
 vi.mock('@/hooks/use-projects', () => ({
   useProjects: () => ({ activeProjectId: null }),
 }))

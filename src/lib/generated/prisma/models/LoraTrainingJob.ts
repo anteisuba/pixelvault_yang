@@ -730,6 +730,14 @@ export type EnumLoraTrainingStatusFieldUpdateOperationsInput = {
   set?: $Enums.LoraTrainingStatus
 }
 
+export type FloatFieldUpdateOperationsInput = {
+  set?: number
+  increment?: number
+  decrement?: number
+  multiply?: number
+  divide?: number
+}
+
 export type LoraTrainingJobCreateNestedOneWithoutLoraAssetInput = {
   create?: Prisma.XOR<Prisma.LoraTrainingJobCreateWithoutLoraAssetInput, Prisma.LoraTrainingJobUncheckedCreateWithoutLoraAssetInput>
   connectOrCreate?: Prisma.LoraTrainingJobCreateOrConnectWithoutLoraAssetInput

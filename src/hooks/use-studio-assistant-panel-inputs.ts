@@ -68,7 +68,7 @@ function toWorkbenchRun(run: ActiveRun): AssistantWorkbenchRun {
  */
 export function useStudioAssistantPanelInputs() {
   const { state, dispatch } = useStudioForm()
-  const { imageUpload, styles } = useStudioData()
+  const { imageUpload } = useStudioData()
   const { activeRun } = useStudioGen()
   // 当前模态对应的产出类型 —— 与 `StudioCanvas` 的 `expectedOutputType` 同一套
   // 映射（`GenerationRecord.outputType` / `ActiveRun.outputType` 的取值）。
@@ -86,13 +86,9 @@ export function useStudioAssistantPanelInputs() {
     .filter((k) => k.isActive && adapterHasCapability(k.adapterType, 'enhance'))
     .map((k) => ({ id: k.id, label: k.label || k.adapterType }))
 
-  const selectedStyleCard = styles.activeCard
   const selectedModel =
     state.outputType === 'audio' ? audioSelectedModel : imageSelectedModel
-  const modelId =
-    state.workflowMode === 'quick' && selectedModel
-      ? selectedModel.modelId
-      : (selectedStyleCard?.modelId ?? undefined)
+  const modelId = selectedModel?.modelId
 
   /**
    * `[[setup]]` 选模型提案的取值范围 —— **只放用户真能跑的**。

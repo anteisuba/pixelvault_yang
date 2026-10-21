@@ -336,6 +336,46 @@ describe('generation.service', () => {
       expect(data.snapshot.imageUrl).toBe('https://example.com/a.png')
     })
 
+    it('快照里的 data: 原文不落库，链接原样保留', async () => {
+      mockGenerationCreate.mockResolvedValue(BASE_GENERATION)
+
+      await createGeneration({
+        url: BASE_GENERATION.url,
+        storageKey: BASE_GENERATION.storageKey,
+        mimeType: BASE_GENERATION.mimeType,
+        width: BASE_GENERATION.width,
+        height: BASE_GENERATION.height,
+        prompt: BASE_GENERATION.prompt,
+        model: BASE_GENERATION.model,
+        provider: BASE_GENERATION.provider,
+        requestCount: 1,
+        userId: 'user-1',
+        snapshot: {
+          referenceImages: [
+            'data:image/png;base64,iVBORw0KGgo=',
+            'https://cdn.example.com/ref.png',
+          ],
+          multiViewImages: { backImageUrl: 'data:image/jpeg;base64,/9j/' },
+        },
+      })
+
+      const { data } = mockGenerationCreate.mock.calls[0]![0] as {
+        data: {
+          snapshot: {
+            referenceImages: string[]
+            multiViewImages: { backImageUrl: string }
+          }
+        }
+      }
+      expect(data.snapshot.referenceImages).toEqual([
+        '[inline data omitted]',
+        'https://cdn.example.com/ref.png',
+      ])
+      expect(data.snapshot.multiViewImages.backImageUrl).toBe(
+        '[inline data omitted]',
+      )
+    })
+
     it('视频产物用视频前缀', async () => {
       mockGenerationCreate.mockResolvedValue(BASE_GENERATION)
 

@@ -511,11 +511,11 @@ export type EnumCharacterCardStatusWithAggregatesFilter<$PrismaModel = never> = 
   _max?: Prisma.NestedEnumCharacterCardStatusFilter<$PrismaModel>
 }
 
-export type EnumVideoPipelineStatusFilter<$PrismaModel = never> = {
-  equals?: $Enums.VideoPipelineStatus | Prisma.EnumVideoPipelineStatusFieldRefInput<$PrismaModel>
-  in?: $Enums.VideoPipelineStatus[] | Prisma.ListEnumVideoPipelineStatusFieldRefInput<$PrismaModel>
-  notIn?: $Enums.VideoPipelineStatus[] | Prisma.ListEnumVideoPipelineStatusFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumVideoPipelineStatusFilter<$PrismaModel> | $Enums.VideoPipelineStatus
+export type EnumLoraTrainingStatusFilter<$PrismaModel = never> = {
+  equals?: $Enums.LoraTrainingStatus | Prisma.EnumLoraTrainingStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.LoraTrainingStatus[] | Prisma.ListEnumLoraTrainingStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.LoraTrainingStatus[] | Prisma.ListEnumLoraTrainingStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumLoraTrainingStatusFilter<$PrismaModel> | $Enums.LoraTrainingStatus
 }
 
 export type FloatFilter<$PrismaModel = never> = {
@@ -529,14 +529,14 @@ export type FloatFilter<$PrismaModel = never> = {
   not?: Prisma.NestedFloatFilter<$PrismaModel> | number
 }
 
-export type EnumVideoPipelineStatusWithAggregatesFilter<$PrismaModel = never> = {
-  equals?: $Enums.VideoPipelineStatus | Prisma.EnumVideoPipelineStatusFieldRefInput<$PrismaModel>
-  in?: $Enums.VideoPipelineStatus[] | Prisma.ListEnumVideoPipelineStatusFieldRefInput<$PrismaModel>
-  notIn?: $Enums.VideoPipelineStatus[] | Prisma.ListEnumVideoPipelineStatusFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumVideoPipelineStatusWithAggregatesFilter<$PrismaModel> | $Enums.VideoPipelineStatus
+export type EnumLoraTrainingStatusWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.LoraTrainingStatus | Prisma.EnumLoraTrainingStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.LoraTrainingStatus[] | Prisma.ListEnumLoraTrainingStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.LoraTrainingStatus[] | Prisma.ListEnumLoraTrainingStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumLoraTrainingStatusWithAggregatesFilter<$PrismaModel> | $Enums.LoraTrainingStatus
   _count?: Prisma.NestedIntFilter<$PrismaModel>
-  _min?: Prisma.NestedEnumVideoPipelineStatusFilter<$PrismaModel>
-  _max?: Prisma.NestedEnumVideoPipelineStatusFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumLoraTrainingStatusFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumLoraTrainingStatusFilter<$PrismaModel>
 }
 
 export type FloatWithAggregatesFilter<$PrismaModel = never> = {
@@ -553,74 +553,6 @@ export type FloatWithAggregatesFilter<$PrismaModel = never> = {
   _sum?: Prisma.NestedFloatFilter<$PrismaModel>
   _min?: Prisma.NestedFloatFilter<$PrismaModel>
   _max?: Prisma.NestedFloatFilter<$PrismaModel>
-}
-
-export type EnumPipelineClipStatusFilter<$PrismaModel = never> = {
-  equals?: $Enums.PipelineClipStatus | Prisma.EnumPipelineClipStatusFieldRefInput<$PrismaModel>
-  in?: $Enums.PipelineClipStatus[] | Prisma.ListEnumPipelineClipStatusFieldRefInput<$PrismaModel>
-  notIn?: $Enums.PipelineClipStatus[] | Prisma.ListEnumPipelineClipStatusFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumPipelineClipStatusFilter<$PrismaModel> | $Enums.PipelineClipStatus
-}
-
-export type EnumPipelineClipStatusWithAggregatesFilter<$PrismaModel = never> = {
-  equals?: $Enums.PipelineClipStatus | Prisma.EnumPipelineClipStatusFieldRefInput<$PrismaModel>
-  in?: $Enums.PipelineClipStatus[] | Prisma.ListEnumPipelineClipStatusFieldRefInput<$PrismaModel>
-  notIn?: $Enums.PipelineClipStatus[] | Prisma.ListEnumPipelineClipStatusFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumPipelineClipStatusWithAggregatesFilter<$PrismaModel> | $Enums.PipelineClipStatus
-  _count?: Prisma.NestedIntFilter<$PrismaModel>
-  _min?: Prisma.NestedEnumPipelineClipStatusFilter<$PrismaModel>
-  _max?: Prisma.NestedEnumPipelineClipStatusFilter<$PrismaModel>
-}
-
-export type EnumLoraTrainingStatusFilter<$PrismaModel = never> = {
-  equals?: $Enums.LoraTrainingStatus | Prisma.EnumLoraTrainingStatusFieldRefInput<$PrismaModel>
-  in?: $Enums.LoraTrainingStatus[] | Prisma.ListEnumLoraTrainingStatusFieldRefInput<$PrismaModel>
-  notIn?: $Enums.LoraTrainingStatus[] | Prisma.ListEnumLoraTrainingStatusFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumLoraTrainingStatusFilter<$PrismaModel> | $Enums.LoraTrainingStatus
-}
-
-export type EnumLoraTrainingStatusWithAggregatesFilter<$PrismaModel = never> = {
-  equals?: $Enums.LoraTrainingStatus | Prisma.EnumLoraTrainingStatusFieldRefInput<$PrismaModel>
-  in?: $Enums.LoraTrainingStatus[] | Prisma.ListEnumLoraTrainingStatusFieldRefInput<$PrismaModel>
-  notIn?: $Enums.LoraTrainingStatus[] | Prisma.ListEnumLoraTrainingStatusFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumLoraTrainingStatusWithAggregatesFilter<$PrismaModel> | $Enums.LoraTrainingStatus
-  _count?: Prisma.NestedIntFilter<$PrismaModel>
-  _min?: Prisma.NestedEnumLoraTrainingStatusFilter<$PrismaModel>
-  _max?: Prisma.NestedEnumLoraTrainingStatusFilter<$PrismaModel>
-}
-
-export type EnumVideoScriptStatusFilter<$PrismaModel = never> = {
-  equals?: $Enums.VideoScriptStatus | Prisma.EnumVideoScriptStatusFieldRefInput<$PrismaModel>
-  in?: $Enums.VideoScriptStatus[] | Prisma.ListEnumVideoScriptStatusFieldRefInput<$PrismaModel>
-  notIn?: $Enums.VideoScriptStatus[] | Prisma.ListEnumVideoScriptStatusFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumVideoScriptStatusFilter<$PrismaModel> | $Enums.VideoScriptStatus
-}
-
-export type EnumVideoScriptStatusWithAggregatesFilter<$PrismaModel = never> = {
-  equals?: $Enums.VideoScriptStatus | Prisma.EnumVideoScriptStatusFieldRefInput<$PrismaModel>
-  in?: $Enums.VideoScriptStatus[] | Prisma.ListEnumVideoScriptStatusFieldRefInput<$PrismaModel>
-  notIn?: $Enums.VideoScriptStatus[] | Prisma.ListEnumVideoScriptStatusFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumVideoScriptStatusWithAggregatesFilter<$PrismaModel> | $Enums.VideoScriptStatus
-  _count?: Prisma.NestedIntFilter<$PrismaModel>
-  _min?: Prisma.NestedEnumVideoScriptStatusFilter<$PrismaModel>
-  _max?: Prisma.NestedEnumVideoScriptStatusFilter<$PrismaModel>
-}
-
-export type EnumVideoScriptSceneStatusFilter<$PrismaModel = never> = {
-  equals?: $Enums.VideoScriptSceneStatus | Prisma.EnumVideoScriptSceneStatusFieldRefInput<$PrismaModel>
-  in?: $Enums.VideoScriptSceneStatus[] | Prisma.ListEnumVideoScriptSceneStatusFieldRefInput<$PrismaModel>
-  notIn?: $Enums.VideoScriptSceneStatus[] | Prisma.ListEnumVideoScriptSceneStatusFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumVideoScriptSceneStatusFilter<$PrismaModel> | $Enums.VideoScriptSceneStatus
-}
-
-export type EnumVideoScriptSceneStatusWithAggregatesFilter<$PrismaModel = never> = {
-  equals?: $Enums.VideoScriptSceneStatus | Prisma.EnumVideoScriptSceneStatusFieldRefInput<$PrismaModel>
-  in?: $Enums.VideoScriptSceneStatus[] | Prisma.ListEnumVideoScriptSceneStatusFieldRefInput<$PrismaModel>
-  notIn?: $Enums.VideoScriptSceneStatus[] | Prisma.ListEnumVideoScriptSceneStatusFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumVideoScriptSceneStatusWithAggregatesFilter<$PrismaModel> | $Enums.VideoScriptSceneStatus
-  _count?: Prisma.NestedIntFilter<$PrismaModel>
-  _min?: Prisma.NestedEnumVideoScriptSceneStatusFilter<$PrismaModel>
-  _max?: Prisma.NestedEnumVideoScriptSceneStatusFilter<$PrismaModel>
 }
 
 export type EnumContextCardKindFilter<$PrismaModel = never> = {
@@ -1153,56 +1085,6 @@ export type NestedEnumCharacterCardStatusWithAggregatesFilter<$PrismaModel = nev
   _max?: Prisma.NestedEnumCharacterCardStatusFilter<$PrismaModel>
 }
 
-export type NestedEnumVideoPipelineStatusFilter<$PrismaModel = never> = {
-  equals?: $Enums.VideoPipelineStatus | Prisma.EnumVideoPipelineStatusFieldRefInput<$PrismaModel>
-  in?: $Enums.VideoPipelineStatus[] | Prisma.ListEnumVideoPipelineStatusFieldRefInput<$PrismaModel>
-  notIn?: $Enums.VideoPipelineStatus[] | Prisma.ListEnumVideoPipelineStatusFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumVideoPipelineStatusFilter<$PrismaModel> | $Enums.VideoPipelineStatus
-}
-
-export type NestedEnumVideoPipelineStatusWithAggregatesFilter<$PrismaModel = never> = {
-  equals?: $Enums.VideoPipelineStatus | Prisma.EnumVideoPipelineStatusFieldRefInput<$PrismaModel>
-  in?: $Enums.VideoPipelineStatus[] | Prisma.ListEnumVideoPipelineStatusFieldRefInput<$PrismaModel>
-  notIn?: $Enums.VideoPipelineStatus[] | Prisma.ListEnumVideoPipelineStatusFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumVideoPipelineStatusWithAggregatesFilter<$PrismaModel> | $Enums.VideoPipelineStatus
-  _count?: Prisma.NestedIntFilter<$PrismaModel>
-  _min?: Prisma.NestedEnumVideoPipelineStatusFilter<$PrismaModel>
-  _max?: Prisma.NestedEnumVideoPipelineStatusFilter<$PrismaModel>
-}
-
-export type NestedFloatWithAggregatesFilter<$PrismaModel = never> = {
-  equals?: number | Prisma.FloatFieldRefInput<$PrismaModel>
-  in?: number[] | Prisma.ListFloatFieldRefInput<$PrismaModel>
-  notIn?: number[] | Prisma.ListFloatFieldRefInput<$PrismaModel>
-  lt?: number | Prisma.FloatFieldRefInput<$PrismaModel>
-  lte?: number | Prisma.FloatFieldRefInput<$PrismaModel>
-  gt?: number | Prisma.FloatFieldRefInput<$PrismaModel>
-  gte?: number | Prisma.FloatFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedFloatWithAggregatesFilter<$PrismaModel> | number
-  _count?: Prisma.NestedIntFilter<$PrismaModel>
-  _avg?: Prisma.NestedFloatFilter<$PrismaModel>
-  _sum?: Prisma.NestedFloatFilter<$PrismaModel>
-  _min?: Prisma.NestedFloatFilter<$PrismaModel>
-  _max?: Prisma.NestedFloatFilter<$PrismaModel>
-}
-
-export type NestedEnumPipelineClipStatusFilter<$PrismaModel = never> = {
-  equals?: $Enums.PipelineClipStatus | Prisma.EnumPipelineClipStatusFieldRefInput<$PrismaModel>
-  in?: $Enums.PipelineClipStatus[] | Prisma.ListEnumPipelineClipStatusFieldRefInput<$PrismaModel>
-  notIn?: $Enums.PipelineClipStatus[] | Prisma.ListEnumPipelineClipStatusFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumPipelineClipStatusFilter<$PrismaModel> | $Enums.PipelineClipStatus
-}
-
-export type NestedEnumPipelineClipStatusWithAggregatesFilter<$PrismaModel = never> = {
-  equals?: $Enums.PipelineClipStatus | Prisma.EnumPipelineClipStatusFieldRefInput<$PrismaModel>
-  in?: $Enums.PipelineClipStatus[] | Prisma.ListEnumPipelineClipStatusFieldRefInput<$PrismaModel>
-  notIn?: $Enums.PipelineClipStatus[] | Prisma.ListEnumPipelineClipStatusFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumPipelineClipStatusWithAggregatesFilter<$PrismaModel> | $Enums.PipelineClipStatus
-  _count?: Prisma.NestedIntFilter<$PrismaModel>
-  _min?: Prisma.NestedEnumPipelineClipStatusFilter<$PrismaModel>
-  _max?: Prisma.NestedEnumPipelineClipStatusFilter<$PrismaModel>
-}
-
 export type NestedEnumLoraTrainingStatusFilter<$PrismaModel = never> = {
   equals?: $Enums.LoraTrainingStatus | Prisma.EnumLoraTrainingStatusFieldRefInput<$PrismaModel>
   in?: $Enums.LoraTrainingStatus[] | Prisma.ListEnumLoraTrainingStatusFieldRefInput<$PrismaModel>
@@ -1220,38 +1102,20 @@ export type NestedEnumLoraTrainingStatusWithAggregatesFilter<$PrismaModel = neve
   _max?: Prisma.NestedEnumLoraTrainingStatusFilter<$PrismaModel>
 }
 
-export type NestedEnumVideoScriptStatusFilter<$PrismaModel = never> = {
-  equals?: $Enums.VideoScriptStatus | Prisma.EnumVideoScriptStatusFieldRefInput<$PrismaModel>
-  in?: $Enums.VideoScriptStatus[] | Prisma.ListEnumVideoScriptStatusFieldRefInput<$PrismaModel>
-  notIn?: $Enums.VideoScriptStatus[] | Prisma.ListEnumVideoScriptStatusFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumVideoScriptStatusFilter<$PrismaModel> | $Enums.VideoScriptStatus
-}
-
-export type NestedEnumVideoScriptStatusWithAggregatesFilter<$PrismaModel = never> = {
-  equals?: $Enums.VideoScriptStatus | Prisma.EnumVideoScriptStatusFieldRefInput<$PrismaModel>
-  in?: $Enums.VideoScriptStatus[] | Prisma.ListEnumVideoScriptStatusFieldRefInput<$PrismaModel>
-  notIn?: $Enums.VideoScriptStatus[] | Prisma.ListEnumVideoScriptStatusFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumVideoScriptStatusWithAggregatesFilter<$PrismaModel> | $Enums.VideoScriptStatus
+export type NestedFloatWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: number | Prisma.FloatFieldRefInput<$PrismaModel>
+  in?: number[] | Prisma.ListFloatFieldRefInput<$PrismaModel>
+  notIn?: number[] | Prisma.ListFloatFieldRefInput<$PrismaModel>
+  lt?: number | Prisma.FloatFieldRefInput<$PrismaModel>
+  lte?: number | Prisma.FloatFieldRefInput<$PrismaModel>
+  gt?: number | Prisma.FloatFieldRefInput<$PrismaModel>
+  gte?: number | Prisma.FloatFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedFloatWithAggregatesFilter<$PrismaModel> | number
   _count?: Prisma.NestedIntFilter<$PrismaModel>
-  _min?: Prisma.NestedEnumVideoScriptStatusFilter<$PrismaModel>
-  _max?: Prisma.NestedEnumVideoScriptStatusFilter<$PrismaModel>
-}
-
-export type NestedEnumVideoScriptSceneStatusFilter<$PrismaModel = never> = {
-  equals?: $Enums.VideoScriptSceneStatus | Prisma.EnumVideoScriptSceneStatusFieldRefInput<$PrismaModel>
-  in?: $Enums.VideoScriptSceneStatus[] | Prisma.ListEnumVideoScriptSceneStatusFieldRefInput<$PrismaModel>
-  notIn?: $Enums.VideoScriptSceneStatus[] | Prisma.ListEnumVideoScriptSceneStatusFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumVideoScriptSceneStatusFilter<$PrismaModel> | $Enums.VideoScriptSceneStatus
-}
-
-export type NestedEnumVideoScriptSceneStatusWithAggregatesFilter<$PrismaModel = never> = {
-  equals?: $Enums.VideoScriptSceneStatus | Prisma.EnumVideoScriptSceneStatusFieldRefInput<$PrismaModel>
-  in?: $Enums.VideoScriptSceneStatus[] | Prisma.ListEnumVideoScriptSceneStatusFieldRefInput<$PrismaModel>
-  notIn?: $Enums.VideoScriptSceneStatus[] | Prisma.ListEnumVideoScriptSceneStatusFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumVideoScriptSceneStatusWithAggregatesFilter<$PrismaModel> | $Enums.VideoScriptSceneStatus
-  _count?: Prisma.NestedIntFilter<$PrismaModel>
-  _min?: Prisma.NestedEnumVideoScriptSceneStatusFilter<$PrismaModel>
-  _max?: Prisma.NestedEnumVideoScriptSceneStatusFilter<$PrismaModel>
+  _avg?: Prisma.NestedFloatFilter<$PrismaModel>
+  _sum?: Prisma.NestedFloatFilter<$PrismaModel>
+  _min?: Prisma.NestedFloatFilter<$PrismaModel>
+  _max?: Prisma.NestedFloatFilter<$PrismaModel>
 }
 
 export type NestedEnumContextCardKindFilter<$PrismaModel = never> = {

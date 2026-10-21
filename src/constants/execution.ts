@@ -8,7 +8,7 @@ export const EXECUTION_SWEEPER = {
   /**
    * RUNNING jobs whose `startedAt` is older than this are treated as orphaned
    * (worker process crashed without ever calling back). Set far above the
-   * worker timeout (10 min) and the longest normal long-video run so in-flight
+   * worker timeout (10 min) and the longest normal workflow run so in-flight
    * work is never reaped. Reaping uses a `status: RUNNING` CAS, so a late
    * callback that finalizes first is left untouched.
    */
@@ -34,7 +34,6 @@ export const EXECUTION_INTERNAL = {
   NONCE_TTL_SECONDS: 10 * 60,
   CALLBACK_PATH: '/api/internal/execution/callback',
   RESOLVE_KEY_PATH: '/api/internal/execution/resolve-key',
-  LONG_VIDEO_ADVANCE_PATH: '/api/internal/execution/long-video/advance',
   FAL_WEBHOOK_PATH: '/api/internal/fal/webhook',
 } as const
 
@@ -64,7 +63,6 @@ export const FAL_WEBHOOK = {
 export const EXECUTION_WORKER = {
   CINEMATIC_SHORT_VIDEO_PATH: '/workflows/cinematic-short-video',
   FAL_QUEUE_PATH: '/workflows/fal-queue',
-  LONG_VIDEO_PIPELINE_PATH: '/workflows/long-video-pipeline',
   HYPER3D_RODIN_PATH: '/workflows/hyper3d-rodin',
   HUNYUAN3D_PATH: '/workflows/hunyuan3d',
   IMAGE_QUEUE_PATH: '/workflows/image-queue',
@@ -86,7 +84,6 @@ export const EXECUTION_WORKER = {
 export const EXECUTION_WORKFLOW_IDS = {
   CINEMATIC_SHORT_VIDEO: 'CINEMATIC_SHORT_VIDEO',
   FAL_QUEUE: 'FAL_QUEUE',
-  LONG_VIDEO_PIPELINE: 'LONG_VIDEO_PIPELINE',
   HYPER3D_RODIN: 'HYPER3D_RODIN',
   HUNYUAN3D: 'HUNYUAN3D',
   IMAGE_QUEUE: 'IMAGE_QUEUE',

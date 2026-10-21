@@ -329,8 +329,6 @@ export function StudioWorkspaceUI() {
       videoFrameSlots: state.videoFrameSlots,
       videoReferenceVideos: state.videoReferenceVideos,
       videoGenerateAudio: state.videoGenerateAudio,
-      longVideoMode: state.longVideoMode,
-      longVideoTargetDuration: state.longVideoTargetDuration,
     }),
     [
       state.aspectRatio,
@@ -351,8 +349,6 @@ export function StudioWorkspaceUI() {
       state.videoFrameSlots,
       state.videoReferenceVideos,
       state.videoGenerateAudio,
-      state.longVideoMode,
-      state.longVideoTargetDuration,
       imageUpload.referenceEntries,
     ],
   )

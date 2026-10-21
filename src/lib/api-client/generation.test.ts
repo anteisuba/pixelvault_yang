@@ -4,7 +4,6 @@ import { API_ENDPOINTS } from '@/constants/config'
 import {
   chatPromptAssistantAPI,
   submit3DAPI,
-  submitLongVideoAPI,
   submitVideoAPI,
   uploadAudioFileAPI,
   uploadImageFileAPI,
@@ -84,26 +83,6 @@ describe('generation api-client submit errors', () => {
     })
     expect(fetchMock).toHaveBeenCalledWith(
       API_ENDPOINTS.GENERATE_3D,
-      expect.objectContaining({ method: 'POST' }),
-    )
-  })
-
-  it('preserves errorCode and i18nKey from long-video submit HTTP errors', async () => {
-    const fetchMock = stubStructuredErrorFetch()
-
-    const result = await submitLongVideoAPI({
-      modelId: 'seedance-2.0',
-      prompt: 'ten second travel montage',
-      aspectRatio: '16:9',
-      targetDuration: 10,
-    })
-
-    expect(result).toEqual({
-      success: false,
-      ...STRUCTURED_ERROR_PAYLOAD,
-    })
-    expect(fetchMock).toHaveBeenCalledWith(
-      API_ENDPOINTS.GENERATE_LONG_VIDEO,
       expect.objectContaining({ method: 'POST' }),
     )
   })

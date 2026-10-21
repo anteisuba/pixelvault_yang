@@ -87,8 +87,6 @@ function makeInitialState(
     videoFrameSlots: { first: null, last: null },
     videoReferenceVideos: [],
     videoGenerateAudio: null,
-    longVideoMode: false,
-    longVideoTargetDuration: 30,
     generateRequestId: 0,
     panels: {
       cardManagement: false,
@@ -107,7 +105,6 @@ function makeInitialState(
       voiceTrainer: false,
       audioTranscribe: false,
       sfxParams: false,
-      script: false,
       videoAudio: false,
       keepChange: false,
     },

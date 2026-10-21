@@ -11,15 +11,11 @@ All hooks use `'use client'`. Less than half have a `.test` file — check for a
 - `use-unified-generate.ts` — **Core orchestrator**: image/video/audio routing (injected into StudioDataContext)
 - `use-studio-generate.ts` — Studio-specific generation with recipe compilation
 - `use-generate-video.ts` — Video generation + status polling
-- `use-generate-long-video.ts` — Long video pipeline
 - `use-generation-form.ts` — Form state management
 
 ### Cards (changes affect Studio card selection)
 
 - `use-character-cards.ts` — Character card CRUD (injected into StudioDataContext)
-- `use-background-cards.ts` — Background card CRUD (injected into StudioDataContext)
-- `use-style-cards.ts` — Style card CRUD (injected into StudioDataContext)
-- `use-card-recipes.ts` — Recipe compilation
 - `use-card-manager.ts` — Card selection state
 
 ### AI Text (changes affect prompt-related features)
@@ -34,7 +30,6 @@ All hooks use `'use client'`. Less than half have a `.test` file — check for a
 - `use-gallery.ts` — Gallery listing + pagination
 - `use-like.ts` — Like/unlike generations
 - `use-follow.ts` — Follow/unfollow users
-- `use-collections.ts` — Collection management
 - `use-character-card-gallery.ts` — Public card gallery
 
 ### Studio Infrastructure

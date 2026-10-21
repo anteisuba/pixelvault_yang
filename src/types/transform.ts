@@ -48,9 +48,8 @@ export const TransformSubjectSchema = z.object({
 export type TransformSubject = z.infer<typeof TransformSubjectSchema>
 
 export const TransformStyleSchema = z.object({
-  type: z.enum(['style_card', 'preset']),
-  cardId: z.string().optional(),
-  presetId: z.string().optional(),
+  type: z.literal('preset'),
+  presetId: z.string().min(1),
 })
 export type TransformStyle = z.infer<typeof TransformStyleSchema>
 
@@ -140,22 +139,6 @@ export const TransformInputSchema = z
     {
       message: 'imageData is required when subject type is "upload"',
       path: ['subject', 'imageData'],
-    },
-  )
-  .refine(
-    (data) => {
-      // Validate style has cardId or presetId
-      if (data.style.type === 'style_card' && !data.style.cardId) {
-        return false
-      }
-      if (data.style.type === 'preset' && !data.style.presetId) {
-        return false
-      }
-      return true
-    },
-    {
-      message: 'cardId is required for style_card, presetId for preset',
-      path: ['style'],
     },
   )
 

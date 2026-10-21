@@ -27,7 +27,7 @@ import type * as Prisma from "../internal/prismaNamespace"
  * 而且同一套列还要装风格与品牌。把两者并进一张表的表现是 `CharacterCard` 上
  * 多出一堆只有半数行会填的列，而 `sourceImageUrl` 的必填约束会挡住纯文字的卡。
  * 
- * ⛔ 同理不复用 `StyleCard` / `BackgroundCard`：它们是同一套生成侧卡片体系。
+ * ⛔ 同理不复用已下线的风格卡 / 背景卡（2026-10-21 删）。
  */
 export type ContextCardModel = runtime.Types.Result.DefaultSelection<Prisma.$ContextCardPayload>
 

@@ -78,11 +78,6 @@ const StudioDraftSchema = z.object({
     .default({ first: null, last: null }),
   videoReferenceVideos: z.array(ReferenceUrlSchema).default([]),
   videoGenerateAudio: z.boolean().nullable().default(null),
-  longVideoMode: z.boolean().default(false),
-  longVideoTargetDuration: z
-    .number()
-    .positive()
-    .default(VIDEO_GENERATION.LONG_VIDEO_DURATION_OPTIONS[1]),
 })
 
 export type StudioDraft = z.infer<typeof StudioDraftSchema>

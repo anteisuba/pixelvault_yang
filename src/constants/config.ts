@@ -255,12 +255,6 @@ export const API_ENDPOINTS = {
   /** Upload a poster PNG for a MODEL_3D generation (client-rendered thumbnail) */
   GENERATION_POSTER: '/api/generations',
 
-  /** Long video pipeline */
-  GENERATE_LONG_VIDEO: '/api/generate-long-video',
-  GENERATE_LONG_VIDEO_STATUS: '/api/generate-long-video/status',
-  GENERATE_LONG_VIDEO_RETRY: '/api/generate-long-video/retry',
-  GENERATE_LONG_VIDEO_CANCEL: '/api/generate-long-video/cancel',
-
   /** Projects */
   PROJECTS: '/api/projects',
 
@@ -292,9 +286,6 @@ export const API_ENDPOINTS = {
   /** 卡库：浏览器从 chub.ai 取来的一张卡建成角色卡（搜索由浏览器直接问 chub） */
   CHARACTER_CARDS_CHUB_IMPORT: '/api/character-cards/chub/import',
 
-  /** Video Script (VS1-VS11) */
-  VIDEO_SCRIPT: '/api/video-script',
-
   /** Public model list (merged DB + hardcoded) */
   MODELS: '/api/models',
 
@@ -321,13 +312,7 @@ export const API_ENDPOINTS = {
   /** Follows */
   FOLLOWS: '/api/follows',
 
-  /** Collections */
-  COLLECTIONS: '/api/collections',
-
   /** Composable Card System */
-  BACKGROUND_CARDS: '/api/background-cards',
-  STYLE_CARDS: '/api/style-cards',
-  CARD_RECIPES: '/api/card-recipes',
 
   /** Audio generation */
   GENERATE_AUDIO: '/api/generate-audio',
@@ -722,23 +707,11 @@ export const VIDEO_GENERATION = {
    * 出去。收窄它之前先确认目录里没有更长的模型。
    */
   MAX_DURATION: 30,
-  /**
-   * Long-video pipeline cap for the first clip's duration. Independent of
-   * MAX_DURATION because long-video runs on Veo/Kling/etc. extension models
-   * whose own per-clip limits sit around 8-10s — pushing past that wastes
-   * provider time on clips the extension can't use.
-   */
-  LONG_VIDEO_FIRST_CLIP_MAX_DURATION: 10,
   DEFAULT_DURATION: 5,
   DURATION_OPTIONS: [3, 5, 10] as const,
   POLL_INTERVAL_MS: 3000,
   MAX_POLL_ATTEMPTS: 200,
   DEFAULT_ASPECT_RATIO: '16:9' as const,
-  /** Long video pipeline */
-  LONG_VIDEO_DURATION_OPTIONS: [10, 30, 60, 120] as const,
-  MAX_LONG_VIDEO_DURATION: 120,
-  PIPELINE_POLL_INTERVAL_MS: 5000,
-  MAX_PIPELINE_POLL_ATTEMPTS: 600,
   /** Number of early 404 responses to tolerate before treating as error */
   EARLY_POLL_TOLERANCE: 5,
 } as const
@@ -907,18 +880,6 @@ export const RUNNER_MONTHLY_LIMIT = {
   ENABLED: true,
 } as const
 
-/** Collection configuration */
-export const COLLECTION = {
-  NAME_MAX_LENGTH: 60,
-  DESCRIPTION_MAX_LENGTH: 500,
-  /** Max collections per user */
-  MAX_COLLECTIONS_PER_USER: 50,
-  /** Max items per collection */
-  MAX_ITEMS_PER_COLLECTION: 200,
-  /** Items per page when listing collection contents */
-  PAGE_SIZE: 20,
-} as const
-
 /** Pagination defaults */
 export const PAGINATION = {
   DEFAULT_PAGE: 1,
@@ -960,12 +921,10 @@ export const RATE_LIMIT_CONFIGS = {
   studioGenerate: { limit: 10, windowSeconds: 60 },
   generateVideo: { limit: 5, windowSeconds: 60 },
   generateAudio: { limit: 5, windowSeconds: 60 },
-  generateLongVideo: { limit: 3, windowSeconds: 60 },
-  longVideoCancel: { limit: 10, windowSeconds: 60 },
   /** Cross-domain GenerationJob cancel — batch of up to GENERATION_CANCEL_MAX_BATCH per call */
   generationsCancel: { limit: 20, windowSeconds: 60 },
-  longVideoRetry: { limit: 5, windowSeconds: 60 },
-  longVideoStatus: { limit: 30, windowSeconds: 60 },
+  /** 各类生成的状态轮询口（视频 / 音频 / 3D / 多视角 / 工作室） */
+  generationStatus: { limit: 30, windowSeconds: 60 },
   imageEdit: { limit: 10, windowSeconds: 60 },
   imageAnalyze: { limit: 10, windowSeconds: 60 },
   promptEnhance: { limit: 20, windowSeconds: 60 },
@@ -996,8 +955,6 @@ export const MAX_DURATION_CONFIGS = {
   studioGenerate: 300,
   /** Video submission — 4 min (queue submission + initial processing) */
   generateVideo: 240,
-  /** Long video pipeline — 4 min */
-  generateLongVideo: 240,
   /** Image edit (upscale/remove-bg) — 2 min */
   imageEdit: 120,
   /** Audio generation — 2 min */

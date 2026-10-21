@@ -11,7 +11,7 @@
 
 ## 数据模型（注意与 cards 域区分）
 
-- `Recipe`：owner-scoped 模板（compiledPrompt / negativePrompt / modelId / provider / outputType / version / parentGenerationId）——**不是** cards 域的 `CardRecipe`。
+- `Recipe`：owner-scoped 模板（compiledPrompt / negativePrompt / modelId / provider / outputType / version / parentGenerationId）。（cards 域的 `CardRecipe` 表 2026-10-21 已删。）
 - `InspirationPrompt`：平台策展条目，**单向 clone** 成用户自己的 Recipe。
 - **共享库已落地（2026-07 路线 A）**：`Recipe.visibility=PUBLIC` 即发布共享，零迁移；`listInspirations` 分段 merge 公开 recipe（非 UNION），封面只取 public generation；clone 公开 recipe 走 `cloneSharedRecipe` 回退链。
 
@@ -24,7 +24,7 @@
 
 ## 不能破坏
 
-Recipe 与 CardRecipe 的模型分离 · 灵感→模板单向 clone（不反向写平台库）· owner-scoped 查询 · 公开 recipe 封面只取 public generation（隐私）· 模板→作品血缘链（parentGenerationId / recipe 关联）。
+灵感→模板单向 clone（不反向写平台库）· owner-scoped 查询 · 公开 recipe 封面只取 public generation（隐私）· 模板→作品血缘链（parentGenerationId / recipe 关联）。
 
 ## 已拍板收敛方向（未实施，2026-07-19）
 

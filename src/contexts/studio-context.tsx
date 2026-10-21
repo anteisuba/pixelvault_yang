@@ -76,8 +76,6 @@ import {
   type ImageBatchCount,
 } from '@/constants/studio'
 import { useCharacterCards } from '@/hooks/cards/use-character-cards'
-import { useBackgroundCards } from '@/hooks/cards/use-background-cards'
-import { useStyleCards } from '@/hooks/cards/use-style-cards'
 import { useProjects } from '@/hooks/use-projects'
 import { useCivitaiToken } from '@/hooks/use-civitai-token'
 import { usePromptEnhance } from '@/hooks/kernel/use-prompt-enhance'
@@ -86,8 +84,6 @@ import { removeReferenceMentions } from '@/lib/studio-reference-mentions'
 import { useUnifiedGenerate } from '@/hooks/use-unified-generate'
 import { useUsageSummary } from '@/hooks/use-usage-summary'
 import type { UseCharacterCardsReturn } from '@/hooks/cards/use-character-cards'
-import type { UseBackgroundCardsReturn } from '@/hooks/cards/use-background-cards'
-import type { UseStyleCardsReturn } from '@/hooks/cards/use-style-cards'
 import type { UseUnifiedGenerateReturn } from '@/hooks/use-unified-generate'
 
 // ═══════════════════════════════════════════════════════════════════
@@ -111,7 +107,6 @@ export type PanelName =
   | 'voiceTrainer'
   | 'audioTranscribe'
   | 'sfxParams'
-  | 'script'
   | 'videoAudio'
   | 'keepChange'
 
@@ -321,10 +316,6 @@ export interface StudioFormState {
    * 结果，用布尔两态会让「没设过」被当成用户主动关掉了声音。
    */
   videoGenerateAudio: boolean | null
-  /** Video-specific — long-video pipeline on/off */
-  longVideoMode: boolean
-  /** Video-specific — total target duration when long-video is on */
-  longVideoTargetDuration: number
   generateRequestId: number
   generateRequestOwner?: StudioOperatorResultOwner
   panels: Record<PanelName, boolean>
@@ -427,8 +418,6 @@ export type StudioAction =
     }
   | { type: 'SET_VIDEO_DURATION'; payload: number }
   | { type: 'SET_VIDEO_RESOLUTION'; payload: string | null }
-  | { type: 'SET_LONG_VIDEO_MODE'; payload: boolean }
-  | { type: 'SET_LONG_VIDEO_TARGET_DURATION'; payload: number }
   | {
       type: 'REQUEST_GENERATE'
       owner?: StudioOperatorResultOwner
@@ -465,7 +454,6 @@ const initialPanels: Record<PanelName, boolean> = {
   voiceTrainer: false,
   audioTranscribe: false,
   sfxParams: false,
-  script: false,
   videoAudio: false,
   keepChange: false,
 }
@@ -482,7 +470,6 @@ export const STUDIO_TOOL_PANEL_NAMES: PanelName[] = [
   'civitai',
   'audioReading',
   'musicSpec',
-  'script',
   'videoAudio',
   'voiceSelector',
   'voiceTrainer',
@@ -565,8 +552,6 @@ const initialFormState: StudioFormState = {
   videoGenerateAudio: null,
   videoFrameSlots: { first: null, last: null },
   videoReferenceVideos: [],
-  longVideoMode: false,
-  longVideoTargetDuration: VIDEO_GENERATION.LONG_VIDEO_DURATION_OPTIONS[1], // 30s
   generateRequestId: 0,
   panels: { ...initialPanels },
 }
@@ -892,10 +877,6 @@ export function studioFormReducer(
       return { ...state, videoAudioRefs: action.payload }
     case 'SET_VIDEO_GENERATE_AUDIO':
       return { ...state, videoGenerateAudio: action.payload }
-    case 'SET_LONG_VIDEO_MODE':
-      return { ...state, longVideoMode: action.payload }
-    case 'SET_LONG_VIDEO_TARGET_DURATION':
-      return { ...state, longVideoTargetDuration: action.payload }
     case 'REQUEST_GENERATE':
       return {
         ...state,
@@ -984,9 +965,6 @@ export function studioFormReducer(
         videoFrameSlots: { first: null, last: null },
         videoReferenceVideos: [],
         videoGenerateAudio: null,
-        longVideoMode: false,
-        longVideoTargetDuration:
-          VIDEO_GENERATION.LONG_VIDEO_DURATION_OPTIONS[1],
         generateRequestId: 0,
         generateRequestOwner: undefined,
         panels: { ...initialPanels },
@@ -1012,8 +990,6 @@ const StudioFormContext = createContext<StudioFormContextValue | null>(null)
 
 interface StudioDataContextValue {
   characters: UseCharacterCardsReturn
-  backgrounds: UseBackgroundCardsReturn
-  styles: UseStyleCardsReturn
   projects: ReturnType<typeof useProjects>
   imageUpload: ReturnType<typeof useImageUpload>
   promptEnhance: ReturnType<typeof usePromptEnhance>
@@ -1064,8 +1040,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   // WARM — data hooks
   const projects = useProjects()
   const characters = useCharacterCards()
-  const backgrounds = useBackgroundCards(projects.activeProjectId)
-  const styles = useStyleCards(projects.activeProjectId)
   const onReferencesRemoved = useCallback((index?: number) => {
     dispatch({ type: 'REMOVE_PROMPT_REFERENCE', payload: index })
   }, [])
@@ -1080,24 +1054,13 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const dataValue = useMemo<StudioDataContextValue>(
     () => ({
       characters,
-      backgrounds,
-      styles,
       projects,
       imageUpload,
       promptEnhance,
       civitai,
       usageSummary,
     }),
-    [
-      characters,
-      backgrounds,
-      styles,
-      projects,
-      imageUpload,
-      promptEnhance,
-      civitai,
-      usageSummary,
-    ],
+    [characters, projects, imageUpload, promptEnhance, civitai, usageSummary],
   )
 
   // COLD — generation

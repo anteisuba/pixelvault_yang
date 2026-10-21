@@ -5,10 +5,7 @@ import { Settings2, X } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { useStudioForm, useStudioData } from '@/contexts/studio-context'
-import { CardDropdown } from '@/components/business/cards/CardDropdown'
 import { CharacterCardManager } from '@/components/business/cards/CharacterCardManager'
-import { SimpleCardManager } from '@/components/business/cards/SimpleCardManager'
-import { StyleCardManager } from '@/components/business/cards/StyleCardManager'
 import { StudioErrorBoundary } from '@/components/business/studio-shared/chrome/StudioErrorBoundary'
 import {
   Sheet,
@@ -21,15 +18,13 @@ import { Button } from '@/components/ui/button'
 import { buildStudioCardUsageMap } from '@/lib/studio-history'
 
 /**
- * StudioCardSection — card mode only.
- * Contains: character/background/style dropdowns, API Keys sheet,
- * and Card Management sheet (with all three card managers).
+ * StudioCardSection — card mode only: the character card management sheet.
+ * （风格卡、背景卡 2026-10-21 下线，卡片模式只留角色。）
  */
 export const StudioCardSection = memo(function StudioCardSection() {
   const { state, dispatch } = useStudioForm()
-  const { characters, backgrounds, styles, projects } = useStudioData()
+  const { characters, projects } = useStudioData()
   const t = useTranslations('StudioV2')
-  const tBg = useTranslations('BackgroundCard')
   const tCommon = useTranslations('Common')
   const projectHistory = projects.history
 
@@ -40,44 +35,6 @@ export const StudioCardSection = memo(function StudioCardSection() {
 
   return (
     <>
-      {/* ── Card dropdowns + API Keys ──────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-2">
-        <CardDropdown
-          label={t('background')}
-          cards={backgrounds.cards.map((c) => ({
-            id: c.id,
-            name: c.name,
-            sourceImageUrl: c.sourceImageUrl ?? null,
-            tags: c.tags,
-            createdAt: c.createdAt,
-            lastUsedAt: cardUsage.background[c.id] ?? null,
-          }))}
-          selectedId={backgrounds.activeCardId}
-          onSelect={backgrounds.setActiveCardId}
-          onManage={() =>
-            dispatch({ type: 'TOGGLE_PANEL', payload: 'cardManagement' })
-          }
-          isLoading={backgrounds.isLoading}
-        />
-        <CardDropdown
-          label={t('style')}
-          cards={styles.cards.map((c) => ({
-            id: c.id,
-            name: c.name,
-            sourceImageUrl: c.sourceImageUrl ?? null,
-            tags: c.tags,
-            createdAt: c.createdAt,
-            lastUsedAt: cardUsage.style[c.id] ?? null,
-          }))}
-          selectedId={styles.activeCardId}
-          onSelect={styles.setActiveCardId}
-          onManage={() =>
-            dispatch({ type: 'TOGGLE_PANEL', payload: 'cardManagement' })
-          }
-          isLoading={styles.isLoading}
-        />
-      </div>
-
       {/* ── Card management Sheet ──────────────────────────────── */}
       <Sheet
         open={state.panels.cardManagement}
@@ -125,60 +82,6 @@ export const StudioCardSection = memo(function StudioCardSection() {
                 onCreate={characters.create}
                 onUpdate={characters.update}
                 onDelete={characters.remove}
-              />
-
-              <SimpleCardManager
-                cardType="BACKGROUND"
-                title={tBg('title')}
-                cards={backgrounds.cards.map((c) => ({
-                  id: c.id,
-                  name: c.name,
-                  description: c.description,
-                  sourceImageUrl: c.sourceImageUrl ?? null,
-                  prompt: c.backgroundPrompt,
-                  tags: c.tags,
-                  createdAt: c.createdAt,
-                  lastUsedAt: cardUsage.background[c.id] ?? null,
-                }))}
-                activeCardId={backgrounds.activeCardId}
-                isLoading={backgrounds.isLoading}
-                onSelect={backgrounds.setActiveCardId}
-                onCreate={async (data) => {
-                  await backgrounds.create({
-                    name: data.name,
-                    description: data.description,
-                    backgroundPrompt: data.prompt,
-                    sourceImageData: data.sourceImageData,
-                    tags: data.tags ?? [],
-                    projectId: projects.activeProjectId ?? undefined,
-                  })
-                }}
-                onUpdate={async (id, data) =>
-                  backgrounds.update(id, {
-                    ...(data.name ? { name: data.name } : {}),
-                    ...(data.prompt ? { backgroundPrompt: data.prompt } : {}),
-                  })
-                }
-                onDelete={backgrounds.remove}
-                supportsImageExtraction
-                promptLabel={tBg('prompt')}
-                promptPlaceholder={tBg('promptPlaceholder')}
-              />
-
-              <StyleCardManager
-                cards={styles.cards}
-                activeCardId={styles.activeCardId}
-                isLoading={styles.isLoading}
-                lastUsedAtById={cardUsage.style}
-                onSelect={styles.setActiveCardId}
-                onCreate={async (data) => {
-                  await styles.create({
-                    ...data,
-                    projectId: projects.activeProjectId ?? undefined,
-                  })
-                }}
-                onUpdate={styles.update}
-                onDelete={styles.remove}
               />
             </div>
           </StudioErrorBoundary>

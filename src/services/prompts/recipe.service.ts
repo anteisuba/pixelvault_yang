@@ -103,7 +103,6 @@ const RECIPE_GENERATION_SELECT = {
   isFeatured: true,
   userId: true,
   characterCardId: true,
-  cardRecipeId: true,
   snapshot: true,
   seed: true,
   runGroupId: true,

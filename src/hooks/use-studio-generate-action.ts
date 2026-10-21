@@ -81,8 +81,7 @@ export interface StudioBlockedReason {
  */
 export function useStudioGenerateAction() {
   const { state, dispatch } = useStudioForm()
-  const { styles, characters, backgrounds, imageUpload, projects } =
-    useStudioData()
+  const { characters, imageUpload, projects } = useStudioData()
   const { isGenerating, generate, elapsedSeconds, canQueueMoreVideo } =
     useStudioGen()
   const t = useTranslations('StudioV2')
@@ -91,7 +90,6 @@ export function useStudioGenerateAction() {
   const tPicker = useTranslations('ModelPicker')
   const locale = useLocale()
 
-  const selectedStyleCard = styles.activeCard
   const isAudioMode = state.outputType === 'audio'
   const isVideoMode = state.outputType === 'video'
   const isImageMode = !isAudioMode && !isVideoMode
@@ -192,9 +190,6 @@ export function useStudioGenerateAction() {
           credits: selectedModel.requestCount ?? 1,
         })
 
-  const selectedCharId =
-    characters.activeCardIds.length > 0 ? characters.activeCardIds[0] : null
-
   /**
    * 「选了型号但还没点渠道」闸（D2 Q1：没有「自动」渠道）。作用域就是当前模态 ——
    * 工作台一个模态只挂一个选择器，所以不传 `gateId`，与
@@ -205,11 +200,7 @@ export function useStudioGenerateAction() {
   )
 
   // ── canGenerate ────────────────────────────────────────────────
-  const usesStyleCardForModel =
-    !isVideoMode && !isAudioMode && state.workflowMode === 'card'
-  const currentModelId = usesStyleCardForModel
-    ? selectedStyleCard?.modelId
-    : selectedModel?.modelId
+  const currentModelId = selectedModel?.modelId
   const modelRequiresRef = currentModelId
     ? (getModelById(currentModelId)?.requiresReferenceImage ?? false)
     : false
@@ -223,9 +214,7 @@ export function useStudioGenerateAction() {
     (state.outputType === 'video' &&
       (state.videoFrameSlots.first !== null ||
         state.videoFrameSlots.last !== null))
-  const currentAdapterType = usesStyleCardForModel
-    ? (selectedStyleCard?.adapterType as AI_ADAPTER_TYPES | undefined)
-    : selectedModel?.adapterType
+  const currentAdapterType = selectedModel?.adapterType
   const currentMaxReferenceImages =
     currentAdapterType && currentModelId
       ? getReferenceCapabilityMax(
@@ -270,10 +259,8 @@ export function useStudioGenerateAction() {
       ).slots.audioRequiresVisual,
     )
   const canGenerate =
-    (usesStyleCardForModel
-      ? !!styles.activeCardId && !!selectedStyleCard?.modelId
-      : !!selectedModel?.modelId &&
-        (isAudioMode || isVideoMode ? !!trimmedPrompt : hasPromptForImage)) &&
+    !!selectedModel?.modelId &&
+    (isAudioMode || isVideoMode ? !!trimmedPrompt : hasPromptForImage) &&
     (!modelRequiresRef || hasRefImage) &&
     !modelRejectsRefImages &&
     !hasUnavailableMention &&
@@ -303,20 +290,6 @@ export function useStudioGenerateAction() {
       }
     }
   }, [state.outputType, state.selectedOptionId, modelOptions, dispatch])
-
-  // ── Reset advancedParams when adapter changes ─────────────────
-  const prevAdapterRef = useRef(selectedStyleCard?.adapterType)
-  useEffect(() => {
-    const currentAdapter = selectedStyleCard?.adapterType
-    if (
-      prevAdapterRef.current !== undefined &&
-      currentAdapter !== undefined &&
-      prevAdapterRef.current !== currentAdapter
-    ) {
-      dispatch({ type: 'RESET_ADVANCED_PARAMS' })
-    }
-    prevAdapterRef.current = currentAdapter
-  }, [selectedStyleCard?.adapterType, dispatch])
 
   const selectedVoiceCard = useMemo(
     () => (state.voiceCardId ? voiceCards.findCard(state.voiceCardId) : null),
@@ -695,7 +668,7 @@ export function useStudioGenerateAction() {
     }) => {
       const imageModelForGeneration = overrides?.selectedModel ?? selectedModel
 
-      if (state.workflowMode === 'quick' && imageModelForGeneration) {
+      if (imageModelForGeneration) {
         // 在场角色卡只送 id：正文前缀、卡图、角色负面都由服务端卡片总线编译
         // （进度表 35 ⑤），⛔ 这里不再拼。
         const characterCardIds = characters.activeCards.map((card) => card.id)
@@ -728,35 +701,15 @@ export function useStudioGenerateAction() {
             : {}),
         }
       }
-      if (state.workflowMode === 'card' && styles.activeCardId) {
-        return {
-          characterCardId: selectedCharId ?? undefined,
-          backgroundCardId: backgrounds.activeCardId ?? undefined,
-          styleCardId: styles.activeCardId,
-          freePrompt: composePrompt(state.prompt),
-          aspectRatio: state.aspectRatio,
-          projectId: projects.activeProjectId ?? undefined,
-          referenceImages:
-            imageUpload.referenceImages.length > 0
-              ? imageUpload.referenceImages
-              : undefined,
-          advancedParams: composeAdvancedParams(),
-          recipeUsage: state.recipeUsage ?? undefined,
-        }
-      }
       return null
     },
     [
-      state.workflowMode,
       state.prompt,
       state.recipeUsage,
       state.aspectRatio,
       composePrompt,
       composeAdvancedParams,
       selectedModel,
-      selectedCharId,
-      backgrounds.activeCardId,
-      styles.activeCardId,
       projects.activeProjectId,
       imageUpload.referenceImages,
       characters.activeCards,
@@ -960,16 +913,10 @@ export function useStudioGenerateAction() {
         focusPrompt: 'now',
       }
     }
-    if (usesStyleCardForModel && !styles.activeCardId) {
-      return { message: tPromptArea('blocked.styleCardRequired') }
-    }
-    if (!usesStyleCardForModel && !selectedModel?.modelId) {
+    if (!selectedModel?.modelId) {
       return { message: tPromptArea('blocked.modelRequired') }
     }
-    if (
-      !usesStyleCardForModel &&
-      !(isAudioMode || isVideoMode ? trimmedPrompt : hasPromptForImage)
-    ) {
+    if (!(isAudioMode || isVideoMode ? trimmedPrompt : hasPromptForImage)) {
       return {
         message: tPromptArea('blocked.promptRequired'),
         focusPrompt: 'now',
@@ -1023,8 +970,6 @@ export function useStudioGenerateAction() {
   }, [
     canGenerate,
     canQueueMoreVideo,
-    usesStyleCardForModel,
-    styles.activeCardId,
     selectedModel?.modelId,
     modelRequiresRef,
     hasRefImage,

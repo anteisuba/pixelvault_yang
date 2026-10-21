@@ -53,7 +53,7 @@ app/api routes（156 个 route.ts，以 glob 为准）  ← 只做三件事，�
 
 - 首行 `import 'server-only'`；命名 `<name>.service.ts`；测试同目录。
 - 日志一律 `lib/logger`；外部调用一律 `withRetry()`；per-provider `circuit-breaker`。读网页被站点挡住另有一张按主机记 30 分钟的表（`lib/read-url-blocks`，2026-10-15）：它记的是「这个站挡读者」而不是失败次数，⛔ 不走 `circuit-breaker`（那边按次数跳闸、跳一次记一条 error）。
-- **kernel/ = prompt 引擎族**：`prompt-guard`（用户 prompt 送 AI 前必过）· `prompt-compiler` / `scene-prompt-compiler` / `card-recipe-compiler` · `prompt-enhance` / `prompt-assistant` · `node-planner-route` / `research-route` / `inspiration-context`。LLM 输出使用前必过 `lib/llm-output-validator`。
+- **kernel/ = prompt 引擎族**：`prompt-guard`（用户 prompt 送 AI 前必过）· `prompt-compiler` · `prompt-enhance` / `prompt-assistant` · `node-planner-route` / `research-route` / `inspiration-context`。LLM 输出使用前必过 `lib/llm-output-validator`。
 - **提示词字数不设我们自己的上限**（owner 2026-09-27）：长度只认模型声明的 `maxPromptChars`（厂商硬上限——前端提前拦，生成服务按它拒）；请求边界只有防滥用护栏 `PROMPT_TEXT_GUARD_MAX_CHARS`（32000），画布节点字段与剧本正文是 `NODE_V4_PROMPT_MAX_LENGTH`（20000）；超过型号上限的服务端拒绝归 `prompt_too_long`，三语说人话。`validatePrompt` 缺省不查长度，要拦就传真实的数。⛔ 不悄悄截断用户写的提示词：剧本对话装配预算放不下时只截旧消息，最新一条放不下就报 `promptTooLong`；上下文预算（LoRA 参考素材、整板快照的节点摘要）另算。名字、标签、简介与局部重绘 / 3D / 语音室台词 / 剪辑台字幕的上限不在此列。
 - 可观测性：`lib/generation-observability`；错误层次在 `lib/errors`（AuthError / ApiRequestError / GenerationError / RateLimitError…）。
 
@@ -78,7 +78,7 @@ app/api routes（156 个 route.ts，以 glob 为准）  ← 只做三件事，�
 
 第一主路径：`选模型 → prompt/参考图 → 生成 → 永久保存 → 管理/复用`。Studio 是主入口；Node workflow 是长视频/高级编排层，不替代 Studio。
 
-- 入口分模态：`api/studio/generate` → `studio-generate.service` → `image/submit-image.service`；`api/generate-video` / `generate-audio` / `generate-3d` 各有 service；长视频 `api/generate-long-video` → `video-pipeline.service`；画布持久化 `api/node-workflow/projects/**` → `node/node-workflow.service`。
+- 入口分模态：`api/studio/generate` → `studio-generate.service` → `image/submit-image.service`；`api/generate-video` / `generate-audio` / `generate-3d` 各有 service；画布持久化 `api/node-workflow/projects/**` → `node/node-workflow.service`。
 - `image/generate-image.service`（~480 行）= 路由解析 + 校验 + 参考图上传模块（**高风险，8+ 依赖**）；**不再是 orchestrator**——2026-08-24 死执行链清理删掉了它内部的 provider 调用/fallback/落库路径（`generateImageForUser` 等），真正的 provider 调用现在只在 `workers/execution`。它现在只做「算出该用哪个 model/key/provider config」（`resolveGenerationRoute` / `resolveImageRouteAndValidate`），由 `image/submit-image.service` 拿着这份路由结果去签名派发给 Worker。
 - **`Generation` = 全模态统一资产记录**（outputType / status / url+storageKey / 缩略图 / 尺寸时长 / 3D 模型字段 / prompt / model+provider / 可见性 / userId / projectId / 卡片-配方-runGroup 元数据）；`generation.service` 拥有创建/查询/可见性/列表/删除。
 - 异步执行骨架：`GenerationJob` + `ApiUsageLedger`（`usage.service`：免费位预留 / job 创建 / 完成 / 失败 / 账本挂接）+ `execution-outbox` / `execution-callback` / `execution-sweeper` services + `/api/internal/execution/*`（签名回调）。**Comfy runner 复用此骨架**（见 `domains/runner.md`）。
@@ -111,7 +111,7 @@ app/api routes（156 个 route.ts，以 glob 为准）  ← 只做三件事，�
 | 图片 fal         | fal request id                     |
 | Hunyuan3D（fal） | fal request id                     |
 
-**不上报**（故意）：Rodin（无取消分支）· Fish 音频（无取消分支，靠 terminate 兜底）· 长视频逐片 fal（合成 `runId` 没有对应的单条 job 行，故意不报）。
+**不上报**（故意）：Rodin（无取消分支）· Fish 音频（无取消分支，靠 terminate 兜底）。
 
 边界：
 

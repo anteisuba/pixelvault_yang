@@ -17,7 +17,7 @@ export const GET = createApiGetRoute<
   schema: MultiViewStatusRequestSchema,
   routeName: 'GET /api/generate-multiview/status',
   requireAuth: true,
-  rateLimit: RATE_LIMIT_CONFIGS.longVideoStatus,
+  rateLimit: RATE_LIMIT_CONFIGS.generationStatus,
   handler: async ({ clerkId, data }) => {
     return checkMultiViewGenerationStatus(clerkId!, data)
   },

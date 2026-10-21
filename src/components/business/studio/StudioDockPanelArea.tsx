@@ -40,8 +40,8 @@ import { useStudioVideoAssets } from '@/hooks/use-studio-video-assets'
 /**
  * Shared spinner for panel bodies that ship as separate chunks. Without
  * this, the dialog mounts with an empty white box for the ~500ms it takes
- * to download the chunk (most visible on the Script panel, which is the
- * largest). The fallback matches the layout — same vertical rhythm as
+ * to download the chunk (most visible on the largest panels). The fallback
+ * matches the layout — same vertical rhythm as
  * the dialog body so the dialog doesn't visibly jump when the real panel
  * arrives.
  */
@@ -78,13 +78,6 @@ const AudioTranscribeDialog = dynamic(
   () =>
     import('@/components/business/studio/AudioTranscribeDialog').then(
       (mod) => mod.AudioTranscribeDialog,
-    ),
-  { loading: () => <PanelLoadingFallback /> },
-)
-const StudioScriptPanel = dynamic(
-  () =>
-    import('@/components/business/studio/StudioScriptPanel').then(
-      (mod) => mod.StudioScriptPanel,
     ),
   { loading: () => <PanelLoadingFallback /> },
 )
@@ -126,7 +119,7 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
   // 那 40 个受控 props 的拼装搬进了 hook —— 参数面板现在有三个宿主
   // （音色库这一份 + 参数栏的浮层与折叠行），拼装留在宿主里就会被复制三遍。
   const audioParamsProps = useStudioAudioParamsProps()
-  const { imageUpload, civitai, styles } = useStudioData()
+  const { imageUpload, civitai } = useStudioData()
   const t = useTranslations('StudioV2')
   const tPanels = useTranslations('StudioPanels')
   const tBar = useTranslations('StudioToolbar')
@@ -140,21 +133,13 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
   const isVideoMode = state.outputType === 'video'
   // Surface drives both the capability lookup *and* which model pool we read.
   // Video models live in useVideoModelOptions; otherwise we stay on the
-  // image pool (style cards retain image-only semantics).
+  // image pool.
   const surfaceSelectedModel = isVideoMode ? videoModel : imageModel
   const [speakerVoiceSelectionTarget, setSpeakerVoiceSelectionTarget] =
     useState<SpeakerVoiceSelectionTarget>(null)
 
-  const selectedStyleCard = styles.activeCard
-  const adapterType =
-    state.workflowMode === 'quick' && surfaceSelectedModel
-      ? surfaceSelectedModel.adapterType
-      : ((selectedStyleCard?.adapterType as AI_ADAPTER_TYPES) ??
-        AI_ADAPTER_TYPES.FAL)
-  const modelId =
-    state.workflowMode === 'quick' && surfaceSelectedModel
-      ? surfaceSelectedModel.modelId
-      : (selectedStyleCard?.modelId ?? undefined)
+  const adapterType = surfaceSelectedModel?.adapterType ?? AI_ADAPTER_TYPES.FAL
+  const modelId = surfaceSelectedModel?.modelId
   // Route by outputType: video models go through the video surface so
   // model-specific multi-reference limits override the FAL adapter default.
   const referenceCapability = getReferenceCapability(
@@ -405,24 +390,6 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
           </ResponsiveDialogDescription>
           <div className={DIALOG_BODY}>
             <StudioVideoAudioPanel />
-          </div>
-        </ResponsiveDialogContent>
-      </ResponsiveDialog>
-
-      {/* ── Video Script (video mode) ─────────────────────────── */}
-      <ResponsiveDialog
-        open={state.panels.script}
-        onOpenChange={(open) => {
-          if (!open) closePanel('script')
-        }}
-      >
-        <ResponsiveDialogContent className={`${DIALOG_BASE} !max-w-2xl`}>
-          <StudioPanelHeader>{tPanels('script')}</StudioPanelHeader>
-          <ResponsiveDialogDescription className="sr-only">
-            {tPanels('script')}
-          </ResponsiveDialogDescription>
-          <div className={DIALOG_BODY}>
-            <StudioScriptPanel />
           </div>
         </ResponsiveDialogContent>
       </ResponsiveDialog>

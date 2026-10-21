@@ -50,7 +50,6 @@ const EMPTY_PANELS: StudioFormState['panels'] = {
   voiceTrainer: false,
   audioTranscribe: false,
   sfxParams: false,
-  script: false,
   videoAudio: false,
   keepChange: false,
 }
@@ -76,9 +75,7 @@ vi.mock('@/lib/focus-studio-prompt', () => ({
 vi.mock('@/contexts/studio-context', () => ({
   useStudioForm: mockUseStudioForm,
   useStudioData: () => ({
-    styles: { activeCard: null, activeCardId: null },
     characters: { activeCardIds: [], activeCards: [] },
-    backgrounds: { activeCardId: null },
     imageUpload: { referenceEntries: [], referenceImages: [] },
     projects: { activeProjectId: null },
   }),

@@ -142,13 +142,9 @@ const WorkerJobMetadataSchema = ExecutionCallbackResultDataSchema.pick({
     displayLabel: z.string().min(1).max(160).optional(),
     studioSnapshot: z
       .object({
-        freePrompt: z.string().optional(),
-        characterCardId: z.string().optional(),
         characterCards: z
           .array(z.object({ id: z.string(), version: z.number().int() }))
           .optional(),
-        backgroundCardId: z.string().optional(),
-        styleCardId: z.string().optional(),
       })
       .optional(),
     /**

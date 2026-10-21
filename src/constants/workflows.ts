@@ -47,7 +47,6 @@ export type WorkflowDefaultOpenPanel =
   | 'refImage'
   | 'voiceSelector'
   | 'voiceTrainer'
-  | 'script'
 
 type WorkflowDefinition = {
   id: WorkflowIdValue

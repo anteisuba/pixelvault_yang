@@ -553,7 +553,7 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     qualityTier: 'standard',
     styleTag: 'general',
   },
-  // ─── Comfy Runner (RunPod Serverless ComfyUI) ──────────────────────
+  // ─── Comfy Runner (ComfyUI on Modal) ──────────────────────
   // Faithful Civitai-recipe clones for checkpoints hosted providers can't
   // run (community LoRA layer formats, dead/nonexistent hosted endpoints).
   // Gated behind FEATURE_FLAGS.comfyRunner — owner-only single endpoint with

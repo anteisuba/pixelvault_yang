@@ -44,7 +44,6 @@ import {
 import { ensureUser } from '@/services/user.service'
 import { checkNovelAiText, planNovelAiText } from '@/lib/novelai-compose'
 import { canUseQwenEvaluation } from '@/lib/qwen-evaluation-access'
-import { getSystemApiKey } from '@/lib/platform-keys'
 import { logger } from '@/lib/logger'
 import { validatePrompt } from '@/services/kernel/prompt-guard'
 import { getResolvedModelOption } from '@/services/model-config.service'
@@ -197,8 +196,9 @@ export async function resolveGenerationRoute(
     )
   }
 
-  // Comfy Runner has no BYOK path — it's always the platform's own key,
-  // gated by per-user and site monthly caps. See
+  // Comfy Runner has no BYOK path and no key on this side at all: the Worker
+  // calls Modal with its own RUNNER_MODAL_TOKEN. It is gated by per-user and
+  // site monthly caps. See
   // constants/config.ts RUNNER_MONTHLY_LIMIT and services/usage.service.ts.
   if (builtInModel.adapterType === AI_ADAPTER_TYPES.RUNNER) {
     try {
@@ -214,21 +214,13 @@ export async function resolveGenerationRoute(
       throw error
     }
 
-    const platformKey = getSystemApiKey(AI_ADAPTER_TYPES.RUNNER)
-    if (!platformKey) {
-      throw new GenerateImageServiceError(
-        'PLATFORM_KEY_MISSING',
-        'Comfy Runner is not configured yet (missing RUNPOD_KEY).',
-        503,
-      )
-    }
-
     return {
       modelId,
       externalModelId: builtInModel.externalModelId,
       adapterType: AI_ADAPTER_TYPES.RUNNER,
       providerConfig: builtInModel.providerConfig,
-      apiKey: platformKey,
+      // Runner 只走 Worker，这里没有供应商 key 可给（见上）。
+      apiKey: '',
       resolvedApiKeyId: null,
       isFreeGeneration: false,
       creditCost: builtInModel.cost,

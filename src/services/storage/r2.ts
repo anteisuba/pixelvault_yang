@@ -300,7 +300,7 @@ export async function createPresignedR2PutUrl(params: {
 /**
  * 预签名 GET —— 两个用途：
  * 1. v2 runner：app 为 R2 里的 LoRA 生成短时效下载链，交给 Cloudflare Worker
- *    塞进 RunPod job，fork worker 据此从 R2 拉（worker 不需 R2 凭证）。
+ *    塞进 runner job，Modal 上的 runner 据此从 R2 拉（worker 不需 R2 凭证）。
  * 2. `/api/download`：把自家资源的下载改成浏览器直连 R2 的 S3 端点，不再经
  *    Vercel 函数进出两次带宽。`contentDisposition` 走 SigV4 签名的
  *    `response-content-disposition` 查询参数——public bucket / custom domain

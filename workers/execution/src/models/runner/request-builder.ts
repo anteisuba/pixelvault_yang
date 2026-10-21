@@ -1,7 +1,7 @@
 /**
  * Comfy Runner request → ComfyUI workflow assembly. Combines the checkpoint
  * manifest lookup + LoRA allowlist resolution + workflow-builder into one
- * pure function the Worker calls right before POSTing to RunPod.
+ * pure function the Worker calls right before POSTing to the Modal runner.
  */
 
 import {
@@ -69,7 +69,7 @@ export interface RunnerGenerationRequestInput {
   loras: readonly RunnerLoraRequestInput[]
   /**
    * img2img: filename of the reference image uploaded alongside the workflow
-   * (RunPod `input.images[].name`). Omit for txt2img.
+   * (runner `input.images[].name`). Omit for txt2img.
    */
   referenceImageName?: string
   /**

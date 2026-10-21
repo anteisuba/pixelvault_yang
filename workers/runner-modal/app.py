@@ -1,7 +1,6 @@
-"""PixelVault Runner on Modal —— 与 RunPod 同一个 fork 镜像、同一份 job 契约。
+"""PixelVault Runner on Modal —— 与 RunPod 时期同一个 fork 镜像、同一份 job 契约。
 
-迁移方案（2026-10-06 owner 定）：Worker 加 `RUNNER_BACKEND` 开关切过来，观察一周后
-删掉 RunPod 分支、端点与卷。fork 的 `handler(job)` 本身是普通函数（经 127.0.0.1:8188
+2026-10-06 从 RunPod 切过来，2026-10-21 Worker 里的 RunPod 分支已删，Modal 是唯一后端。fork 的 `handler(job)` 本身是普通函数（经 127.0.0.1:8188
 跟 ComfyUI 通信），这里只负责：起 ComfyUI → 调它 → 把新下的模型提交进 Volume。
 
 HTTP（全部要 `Authorization: Bearer $RUNNER_MODAL_TOKEN`），形状照搬 RunPod：

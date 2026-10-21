@@ -385,37 +385,35 @@ describe('resolveGenerationRoute', () => {
     ).rejects.toThrow(expect.objectContaining({ code: 'MISSING_API_KEY' }))
   })
 
-  describe('RUNNER adapter (Comfy Runner / RunPod)', () => {
+  describe('RUNNER adapter (Comfy Runner on Modal)', () => {
     const RUNNER_MODEL = {
       id: 'illustrious-recipe-clone',
       adapterType: AI_ADAPTER_TYPES.RUNNER,
       providerConfig: {
         label: 'ANTEI Runner',
-        baseUrl: 'https://api.runpod.ai/v2',
+        baseUrl: 'https://runner.example.modal.run',
       },
       cost: 3,
       available: true,
     }
 
-    it('routes to the system key under the monthly budget cap', async () => {
+    it('routes without a provider key under the monthly budget cap', async () => {
       vi.mocked(getResolvedModelOption).mockResolvedValue(RUNNER_MODEL as never)
       vi.mocked(assertRunnerMonthlyLimitNotExceeded).mockResolvedValue(
         undefined,
       )
-      vi.mocked(getSystemApiKey).mockReturnValue('runpod-key')
-
       const route = await resolveGenerationRoute('user-1', {
         modelId: 'illustrious-recipe-clone',
       })
 
       expect(route.adapterType).toBe(AI_ADAPTER_TYPES.RUNNER)
-      expect(route.apiKey).toBe('runpod-key')
+      expect(route.apiKey).toBe('')
       expect(route.isFreeGeneration).toBe(false)
       expect(assertRunnerMonthlyLimitNotExceeded).toHaveBeenCalledWith('user-1')
       expect(findActiveKeyForAdapter).not.toHaveBeenCalled()
     })
 
-    it('allows authorized production Qwen requests through the existing Runner budget and key', async () => {
+    it('allows authorized production Qwen requests through the existing Runner budget', async () => {
       vi.stubEnv('NODE_ENV', 'production')
       vi.stubEnv('QWEN_EVALUATION_USER_IDS', 'user-1')
       try {
@@ -426,12 +424,11 @@ describe('resolveGenerationRoute', () => {
         vi.mocked(assertRunnerMonthlyLimitNotExceeded).mockResolvedValue(
           undefined,
         )
-        vi.mocked(getSystemApiKey).mockReturnValue('runpod-key')
         const route = await resolveGenerationRoute('user-1', {
           modelId: AI_MODELS.QWEN_IMAGE_21_RUNNER,
         })
         expect(route.adapterType).toBe(AI_ADAPTER_TYPES.RUNNER)
-        expect(route.apiKey).toBe('runpod-key')
+        expect(route.apiKey).toBe('')
         expect(assertRunnerMonthlyLimitNotExceeded).toHaveBeenCalledOnce()
       } finally {
         vi.unstubAllEnvs()
@@ -450,22 +447,6 @@ describe('resolveGenerationRoute', () => {
         }),
       ).rejects.toThrow(
         expect.objectContaining({ code: 'RUNNER_MONTHLY_LIMIT_EXCEEDED' }),
-      )
-    })
-
-    it('throws PLATFORM_KEY_MISSING when RUNPOD_KEY is not configured', async () => {
-      vi.mocked(getResolvedModelOption).mockResolvedValue(RUNNER_MODEL as never)
-      vi.mocked(assertRunnerMonthlyLimitNotExceeded).mockResolvedValue(
-        undefined,
-      )
-      vi.mocked(getSystemApiKey).mockReturnValue(null)
-
-      await expect(
-        resolveGenerationRoute('user-1', {
-          modelId: 'illustrious-recipe-clone',
-        }),
-      ).rejects.toThrow(
-        expect.objectContaining({ code: 'PLATFORM_KEY_MISSING' }),
       )
     })
   })

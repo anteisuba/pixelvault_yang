@@ -1396,7 +1396,7 @@ describe('execution-callback.service', () => {
 
   it.each([
     {
-      runpodJobId: 'runner-job-1',
+      runnerJobId: 'runner-job-1',
       runnerExecution: {
         version: 1,
         evidence: 'loader-output',
@@ -1419,7 +1419,7 @@ describe('execution-callback.service', () => {
         ],
       },
     },
-    { runpodJobId: 'runner-without-evidence', futureField: 'unknown-metadata' },
+    { runnerJobId: 'runner-without-evidence', futureField: 'unknown-metadata' },
     undefined,
   ])(
     'persists Runner callback metadata verbatim without inventing loaded models: %j',

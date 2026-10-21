@@ -114,11 +114,6 @@ describe('resolveGeneratingStageKey', () => {
     expect(resolveGeneratingStageKey(1, 'runnerQueued')).toBe('runnerQueued')
     expect(resolveGeneratingStageKey(120, 'runnerQueued')).toBe('runnerQueued')
     expect(resolveGeneratingStageKey(3, 'runnerRunning')).toBe('runnerRunning')
-    // 幻影名额自愈窗口（worker 回收端点 worker 再重排）——此时界面必须说
-    // 「正在重启」，而不是继续显示 runnerQueued 那句「首次要加载底模」。
-    expect(resolveGeneratingStageKey(200, 'runnerRecycling')).toBe(
-      'runnerRecycling',
-    )
   })
 
   it('falls back to the elapsed-time stage without a reported stage', () => {
@@ -166,7 +161,7 @@ describe('resolveGenerationProgress with an execution stage', () => {
 /**
  * 阶段值本身就是 `StudioV3.generatingOverlayStages.*` 的 message key —— 漏一条
  * 翻译，next-intl 会把 key 路径当文案渲染，用户看到的是一行
- * 「generatingOverlayStages.runnerRecycling」。所以键集合必须三语相等。
+ * 「generatingOverlayStages.runnerQueued」。所以键集合必须三语相等。
  */
 describe('执行阶段 × 三语文案', () => {
   const LOCALES = { zh: zhMessages, en: enMessages, ja: jaMessages } as const

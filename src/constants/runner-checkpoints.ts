@@ -1,5 +1,5 @@
 /**
- * Comfy Runner (RunPod Serverless ComfyUI) checkpoint manifest.
+ * Comfy Runner (ComfyUI on Modal) checkpoint manifest.
  *
  * Single source of truth on the Next.js side for which model id maps to which
  * checkpoint and its own sampling defaults. LoRAs are not listed: any Civitai /

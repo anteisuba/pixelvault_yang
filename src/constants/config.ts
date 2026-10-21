@@ -552,10 +552,10 @@ export const AI_PROVIDER_ENDPOINTS = {
   // Anthropic Messages API. `llmTextCompletion`'s anthropic branch appends
   // `/messages` — headers are `x-api-key` + `anthropic-version`, not Bearer.
   ANTHROPIC: 'https://api.anthropic.com/v1',
-  // RunPod Serverless REST API — the execution worker POSTs
-  // `${RUNPOD}/{endpoint}/run` and polls `${RUNPOD}/{endpoint}/status/{id}`.
-  // See docs/references/domains/runner.md.
-  RUNPOD: 'https://api.runpod.ai/v2',
+  // Comfy Runner on Modal — informational only: the execution worker reads the
+  // real URL from its `RUNNER_MODAL_URL` var (`/run`, `/status/{id}`,
+  // `/cancel/{id}`). See docs/references/domains/runner.md.
+  RUNNER_MODAL: 'https://xiuruisu--pixelvault-runner-api.modal.run',
 } as const
 
 /**
@@ -876,7 +876,7 @@ export const RUNAWAY_GENERATION_GUARD = {
  * Comfy Runner (Modal ComfyUI) budget guardrail — monthly only, no daily cap
  * (owner 2026-10-07).
  *
- * Neither Modal nor RunPod can cap "N generations per month", so it lives
+ * Modal can't cap "N generations per month", so it lives
  * here. Modal bills ~$0.03–0.05 per image on average (L40S $0.000542/s, plus
  * cold start and the 60s scaledown tail — an isolated image is ~$0.09), so the
  * site cap of 600 stays near the Starter plan's $30/month free credit.

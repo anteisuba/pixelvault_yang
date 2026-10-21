@@ -627,7 +627,7 @@ export const MODEL_UNIT_PRICES: Partial<Record<AI_MODELS, ModelUnitPrice>> = {
   //   · SEEDREAM_50_VOLCENGINE（基础款 `doubao-seedream-5-0-260128`）——
   //     火山模型价格页的图片表只列了 `-pro` / `-lite` / 4-5 / 4-0 **四条，没有
   //     不带后缀的 5-0**。基础款按哪档计费官方未公开 → 留空。pro / lite 两条已补。
-  //   · 五个 runner 模型（RunPod Serverless ComfyUI）—— 自托管按 GPU 秒计费，
+  //   · 五个 runner 模型（Modal 上的 ComfyUI）—— 自托管按 GPU 秒计费，
   //     没有「每张多少钱」这种东西；要报价得先定义一个平均出图耗时，那就是猜。
 }
 

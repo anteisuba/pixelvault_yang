@@ -384,7 +384,7 @@ const RUNNER_LORA_PRESIGN_TTL_SECONDS = 900
 
 /**
  * v2 ①a 收口：把一组 LoRA（主 + 挂载）逐个确保进 R2，并各生成 R2 预签名 GET，
- * 组成 `RunnerLoraSpec[]` 交给 Cloudflare Worker → RunPod fork。顺序保留（配方叠挂
+ * 组成 `RunnerLoraSpec[]` 交给 Cloudflare Worker → Modal runner。顺序保留（配方叠挂
  * 顺序有意义）。任一把失败即抛（RunnerLoraR2Error），上层归类成友好错误。
  */
 export async function prepareRunnerLoras(

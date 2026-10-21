@@ -644,7 +644,7 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
   it('needs no API key on the Comfy Runner base Illustrious now defaults to', () => {
     // 2026-09-17: every hosted LoRA base retired (ILLUSTRIOUS_XL / FLUX_LORA),
     // so an Illustrious LoRA defaults to the runner clone. The runner has no
-    // BYOK path — the platform's own RUNPOD_KEY resolves server-side — so the
+    // BYOK path — the Worker reaches the platform's Modal runner itself — so the
     // spine bar shows no needs-key badge and Generate runs straight through
     // even with an empty key list.
     mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })

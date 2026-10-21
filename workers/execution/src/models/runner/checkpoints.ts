@@ -1,5 +1,5 @@
 /**
- * Comfy Runner (RunPod Serverless ComfyUI) checkpoint manifest — Worker-side
+ * Comfy Runner (ComfyUI on Modal) checkpoint manifest — Worker-side
  * copy.
  *
  * Mirrors `src/constants/runner-checkpoints.ts` on the Next.js side. This

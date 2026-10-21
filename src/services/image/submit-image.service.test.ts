@@ -278,7 +278,7 @@ describe('submitImageGeneration', () => {
     )
   })
 
-  it('dispatches a platform-managed RUNNER run with useSystemKey and no user apiKey (MISSING_API_KEY regression)', async () => {
+  it('dispatches a platform-managed RUNNER run without any provider key (MISSING_API_KEY regression)', async () => {
     // RUNNER = 平台代付：resolvedApiKeyId null + isFreeGeneration false。修复前
     // 这被 gate 误抛 MISSING_API_KEY 400（线上「点出图无反应」根因）。
     vi.mocked(resolveImageRouteAndValidate).mockResolvedValue({
@@ -301,11 +301,11 @@ describe('submitImageGeneration', () => {
     })
 
     expect(result).toEqual({ jobId: 'job-1', requestId: 'wf-1' })
-    // worker 用 useSystemKey 回调解析平台 RUNPOD_KEY；无用户 apiKeyId。
+    // Worker 自带 RUNNER_MODAL_TOKEN、跳过 resolve-key：既无用户 apiKeyId 也不走系统 key。
     expect(dispatchImageWorkerRun).toHaveBeenCalledWith(
       expect.objectContaining({
         providerId: AI_ADAPTER_TYPES.RUNNER,
-        useSystemKey: true,
+        useSystemKey: undefined,
         apiKeyId: undefined,
       }),
     )

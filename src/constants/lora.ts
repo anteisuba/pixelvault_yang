@@ -478,12 +478,12 @@ export const CIVITAI_NAMED_BASE_MODEL_MEMBER_SET: ReadonlySet<string> = new Set(
 // 判断依据：
 //   Illustrious / SDXL 1.0：跑 delta-lock/noobai-xl (Replicate)，已验证
 //   Flux.1 D：跑 fal-ai/flux-lora，已验证
-//   Pony：Comfy Runner（RunPod）跑 Pony Diffusion V6 XL checkpoint，忠实复刻
+//   Pony：Comfy Runner（Modal）跑 Pony Diffusion V6 XL checkpoint，忠实复刻
 //   SD 1.5：项目没有 SD 1.5 推理端点（runner 范围也不含，见 HANDOFF §4.2b）
 //   Anima：作者 license 不授权第三方托管 hosted 端点，但 Comfy Runner 自建
 //          环境跑同一 checkpoint 不受此限制，已转 native
 //
-// Pony / Anima 2026-07 随 comfy runner（RunPod）交付翻转为 native，见
+// Pony / Anima 2026-07 随 comfy runner 交付翻转为 native，见
 // docs/references/domains/runner.md。实际可生成性仍受
 // FEATURE_FLAGS.comfyRunner 门控——flag 关闭时对应 AI_MODELS.available 为
 // false，isCivitaiBaseModelGeneratable() 只反映"有 native 路径"，不代表
@@ -1050,7 +1050,7 @@ export const REDUCED_MOTION_MEDIA_QUERY = '(prefers-reduced-motion: reduce)'
 export const LORA_PREVIEW_SWIPE_MIN_PX = 48
 
 // ── Runner 出图耗时提示（owner 2026-09-12）────────────────────────────────
-// Runner（Comfy/RunPod）出图前要把底模加载进 GPU worker：worker 还热着时只花
+// Runner（Comfy/Modal）出图前要把底模加载进 GPU worker：worker 还热着时只花
 // 推理时间，冷启动那一次要先拉底模。仓里没有任何实测耗时常量（execution 那边
 // 只有轮询窗口 200×3s=10min 的超时上限，不是期望值），所以这里给的是保守区间
 // 而不是精确估计——文案也按区间写，不承诺单个数字。

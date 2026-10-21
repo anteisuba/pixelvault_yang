@@ -11,8 +11,8 @@
 
 /**
  * Worker-reported execution stages — a real backend signal, unlike the
- * elapsed-time stages below. Today only the runner (self-hosted RunPod
- * ComfyUI) path reports them: a runner job sitting in `IN_QUEUE` is waiting
+ * elapsed-time stages below. Today only the runner (self-hosted ComfyUI on
+ * Modal) path reports them: a runner job sitting in `IN_QUEUE` is waiting
  * for a cold GPU + a 6.9GB checkpoint load, which elapsed time alone cannot
  * tell apart from "nobody picked the job up".
  *
@@ -21,13 +21,6 @@
 export const EXECUTION_PROGRESS_STAGES = {
   RUNNER_QUEUED: 'runnerQueued',
   RUNNER_RUNNING: 'runnerRunning',
-  /**
-   * 幻影名额自愈（2026-09-12）：端点声称有 worker 却零活跃、作业卡在队列里，
-   * worker 先回收端点 worker 再重排一次，而不是直接取消。这一档就是那段
-   * 回收窗口的用户可见解释 —— 没有它，界面只能继续显示 runnerQueued，
-   * 而实际发生的是「正在重启端点」。
-   */
-  RUNNER_RECYCLING: 'runnerRecycling',
 } as const
 
 export type ExecutionProgressStage =

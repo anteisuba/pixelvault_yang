@@ -94,7 +94,7 @@ export interface DitWorkflowInput {
   loras: readonly DitWorkflowLora[]
   /** SaveImage filename_prefix — defaults to 'pixelvault'. */
   filenamePrefix?: string
-  /** img2img: reference image filename (RunPod `input.images[].name`). */
+  /** img2img: reference image filename (runner `input.images[].name`). */
   referenceImageName?: string
   /** KSampler denoise (0.01–1.0). 1.0 = full txt2img. */
   denoise?: number

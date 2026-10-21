@@ -6,6 +6,11 @@
 
 设计全文：`docs/references/domains/runner.md`。
 
+> ⚠ 2026-10-21 起现网只跑 Modal（`workers/runner-modal/app.py` 直接拉本镜像，Volume 仍挂
+> `/runpod-volume` 所以路径不用改）。下文「现状」「发布」里的 RunPod 端点 / 模板 / `RUNPOD_ENDPOINT`
+> 是 RunPod 时期的记录，Worker 已不读这些值；换镜像 = 改 `app.py` 的 `MAIN_IMAGE` 后 `modal deploy`。
+> Modal 侧直接 import 镜像里的 `/handler.py` 调 `handler(job)`。
+
 ## 它怎么接进官方镜像（已按 worker-comfyui 5.8.6 / 5.10.0 核对，两版 handler.py 逐字相同）
 
 官方镜像的入口是 `CMD ["/start.sh"]`：start.sh 先**后台**起 ComfyUI（`python /comfyui/main.py &`），
@@ -148,7 +153,7 @@ python qwen_workflow.py --prompt '把 <image1> 的杯子改成蓝色，保留文
 [编辑模板](https://github.com/Comfy-Org/workflow_templates/blob/main/templates/image_qwen_image_2_1_image_edit.json)、
 [研究许可证](https://github.com/QwenLM/Qwen-Image-2.1/blob/main/LICENSE)。
 
-## 现状（镜像于 2026-09-13 经 RunPod / GitHub API 回读）
+## 现状（RunPod 时期，镜像于 2026-09-13 经 RunPod / GitHub API 回读；已退役）
 
 | 项             | 值                                                                                                        |
 | -------------- | --------------------------------------------------------------------------------------------------------- |

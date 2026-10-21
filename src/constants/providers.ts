@@ -42,7 +42,7 @@ export enum AI_ADAPTER_TYPES {
   /** Grok 4.7 — BYOK text/image input through Chat Completions. */
   XAI = 'xai',
   /**
-   * Self-hosted RunPod Serverless ComfyUI runner — faithful Civitai recipe
+   * Self-hosted ComfyUI runner on Modal — faithful Civitai recipe
    * clones (checkpoint + LoRA stack) that hosted providers can't run. Not a
    * BYOK adapter: intentionally absent from `AI_ADAPTER_TYPE_OPTIONS` so it
    * never appears in the "Add API Key" picker. See
@@ -183,7 +183,7 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<
   },
   [AI_ADAPTER_TYPES.RUNNER]: {
     label: 'ANTEI Runner',
-    baseUrl: AI_PROVIDER_ENDPOINTS.RUNPOD,
+    baseUrl: AI_PROVIDER_ENDPOINTS.RUNNER_MODAL,
   },
 }
 
@@ -374,9 +374,9 @@ export const ADAPTER_API_GUIDES: Record<AI_ADAPTER_TYPES, ProviderGuide> = {
     steps: 'Sign in → Console → API Keys → Create API key.',
   },
   [AI_ADAPTER_TYPES.RUNNER]: {
-    url: 'https://docs.runpod.io/serverless/overview',
+    url: 'https://modal.com/docs/guide',
     steps:
-      'Platform-managed RunPod Serverless endpoint — owner-only, configured via server secrets. Not user-configurable.',
+      'Platform-managed ComfyUI runner on Modal — owner-only, configured via Worker secrets. Not user-configurable.',
   },
 }
 

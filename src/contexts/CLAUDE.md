@@ -33,7 +33,7 @@ StudioGenContext   (COLD) — generation state — changes only during generatio
 
 StudioDataContext initializes these hooks at mount time:
 
-- `useCharacterCards`, `useBackgroundCards`, `useStyleCards` (card management)
+- `useCharacterCards` (card management)
 - `useProjects` (project CRUD)
 - `useCivitaiToken` (external token)
 - `usePromptEnhance` (LLM prompt enhancement)

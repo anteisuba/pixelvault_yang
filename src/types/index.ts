@@ -34,11 +34,6 @@ import {
   CHARACTER_CARD,
   CHARACTER_PERSONA_LIMITS,
 } from '@/constants/cards/character-card'
-import {
-  BACKGROUND_CARD,
-  STYLE_CARD,
-  type CardRecipeFusionNote,
-} from '@/constants/cards/card-types'
 import { API_KEY_ADAPTER_OPTIONS } from '@/constants/api-keys'
 import {
   EXECUTION_PROGRESS_STAGE_VALUES,
@@ -458,10 +453,8 @@ export const GenerationSnapshotSchema = z.object({
   advancedParams: AdvancedParamsSchema.optional(),
   /** Reference image URLs */
   referenceImages: z.array(z.string()).optional(),
-  /** Card IDs used (card mode only) */
+  /** 旧卡片模式用过的角色卡（2026-10-21 前的作品才有；风格 / 背景卡已下线）。 */
   characterCardId: z.string().optional(),
-  backgroundCardId: z.string().optional(),
-  styleCardId: z.string().optional(),
   /** API key ID used (BYOK route) */
   apiKeyId: z.string().optional(),
   /** Project ID */
@@ -1043,13 +1036,7 @@ export interface ImageStatusResponse {
   error?: string
 }
 
-export interface StudioGenerateResponseData extends ImageSubmitResponseData {
-  /**
-   * 卡片模式下融合没走助手、只按原文拼接时说为什么（界面照实说一句，owner 2026-10-15
-   * ⛔ 悄悄回落模板）。快速模式与融合成功时缺席。
-   */
-  recipeFusionNote?: CardRecipeFusionNote
-}
+export type StudioGenerateResponseData = ImageSubmitResponseData
 
 export interface StudioGenerateResponse {
   success: boolean
@@ -3834,238 +3821,6 @@ export interface UploadProfileImageResponse {
   i18nKey?: string
 }
 
-// ─── Composable Card System ─────────────────────────────────────
-
-// ── Background Card ─────────────────────────────────────────────
-
-export const BackgroundAttributesSchema = z.object({
-  setting: z.string().optional(),
-  lighting: z.string().optional(),
-  timeOfDay: z.string().optional(),
-  weather: z.string().optional(),
-  architectureStyle: z.string().optional(),
-  colorPalette: z.string().optional(),
-  mood: z.string().optional(),
-  perspective: z.string().optional(),
-  depth: z.string().optional(),
-  materialTexture: z.string().optional(),
-  freeformDescription: z.string().optional(),
-})
-
-export type BackgroundAttributes = z.infer<typeof BackgroundAttributesSchema>
-
-export const CreateBackgroundCardSchema = z.object({
-  name: z.string().trim().min(1).max(BACKGROUND_CARD.NAME_MAX_LENGTH),
-  description: z
-    .string()
-    .trim()
-    .max(BACKGROUND_CARD.DESCRIPTION_MAX_LENGTH)
-    .optional(),
-  backgroundPrompt: z.string().trim().min(1).max(PROMPT_TEXT_GUARD_MAX_CHARS),
-  sourceImageData: z.string().optional(),
-  attributes: BackgroundAttributesSchema.optional(),
-  tags: z
-    .array(z.string().trim().max(BACKGROUND_CARD.TAG_MAX_LENGTH))
-    .max(BACKGROUND_CARD.MAX_TAGS)
-    .default([]),
-  projectId: z.string().optional(),
-})
-
-export type CreateBackgroundCardRequest = z.infer<
-  typeof CreateBackgroundCardSchema
->
-
-export const UpdateBackgroundCardSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1)
-    .max(BACKGROUND_CARD.NAME_MAX_LENGTH)
-    .optional(),
-  description: z
-    .string()
-    .trim()
-    .max(BACKGROUND_CARD.DESCRIPTION_MAX_LENGTH)
-    .nullable()
-    .optional(),
-  backgroundPrompt: z
-    .string()
-    .trim()
-    .min(1)
-    .max(PROMPT_TEXT_GUARD_MAX_CHARS)
-    .optional(),
-  attributes: BackgroundAttributesSchema.optional(),
-  loras: z.array(LoraSchema).max(5).nullable().optional(),
-  tags: z
-    .array(z.string().trim().max(BACKGROUND_CARD.TAG_MAX_LENGTH))
-    .max(BACKGROUND_CARD.MAX_TAGS)
-    .optional(),
-  projectId: z.string().nullable().optional(),
-})
-
-export type UpdateBackgroundCardRequest = z.infer<
-  typeof UpdateBackgroundCardSchema
->
-
-export interface BackgroundCardRecord {
-  id: string
-  name: string
-  description: string | null
-  sourceImageUrl: string | null
-  backgroundPrompt: string
-  attributes: BackgroundAttributes | null
-  loras: z.infer<typeof LoraSchema>[] | null
-  tags: string[]
-  projectId: string | null
-  isDeleted: boolean
-  createdAt: Date
-  updatedAt: Date
-}
-
-export interface BackgroundCardResponse {
-  success: boolean
-  data?: BackgroundCardRecord
-  error?: string
-}
-
-export interface BackgroundCardsResponse {
-  success: boolean
-  data?: BackgroundCardRecord[]
-  error?: string
-}
-
-// ── Style Card ──────────────────────────────────────────────────
-
-export const StyleAttributesSchema = z.object({
-  artStyle: z.string().optional(),
-  medium: z.string().optional(),
-  colorPalette: z.string().optional(),
-  brushwork: z.string().optional(),
-  composition: z.string().optional(),
-  mood: z.string().optional(),
-  era: z.string().optional(),
-  influences: z.string().optional(),
-  detailLevel: z.string().optional(),
-  lineWeight: z.string().optional(),
-  contrast: z.string().optional(),
-  freeformDescription: z.string().optional(),
-})
-
-export type StyleAttributes = z.infer<typeof StyleAttributesSchema>
-
-export const CreateStyleCardSchema = z.object({
-  name: z.string().trim().min(1).max(STYLE_CARD.NAME_MAX_LENGTH),
-  description: z
-    .string()
-    .trim()
-    .max(STYLE_CARD.DESCRIPTION_MAX_LENGTH)
-    .optional(),
-  stylePrompt: z.string().trim().min(1).max(PROMPT_TEXT_GUARD_MAX_CHARS),
-  sourceImageData: z.string().optional(),
-  attributes: StyleAttributesSchema.optional(),
-  modelId: z.nativeEnum(AI_MODELS).optional(),
-  adapterType: z.nativeEnum(AI_ADAPTER_TYPES).optional(),
-  advancedParams: AdvancedParamsSchema.optional(),
-  tags: z
-    .array(z.string().trim().max(STYLE_CARD.TAG_MAX_LENGTH))
-    .max(STYLE_CARD.MAX_TAGS)
-    .default([]),
-  projectId: z.string().optional(),
-})
-
-export type CreateStyleCardRequest = z.infer<typeof CreateStyleCardSchema>
-
-export const UpdateStyleCardSchema = z.object({
-  name: z.string().trim().min(1).max(STYLE_CARD.NAME_MAX_LENGTH).optional(),
-  description: z
-    .string()
-    .trim()
-    .max(STYLE_CARD.DESCRIPTION_MAX_LENGTH)
-    .nullable()
-    .optional(),
-  stylePrompt: z
-    .string()
-    .trim()
-    .min(1)
-    .max(PROMPT_TEXT_GUARD_MAX_CHARS)
-    .optional(),
-  attributes: StyleAttributesSchema.optional(),
-  loras: z.array(LoraSchema).max(5).nullable().optional(),
-  modelId: z.nativeEnum(AI_MODELS).nullable().optional(),
-  adapterType: z.nativeEnum(AI_ADAPTER_TYPES).nullable().optional(),
-  advancedParams: AdvancedParamsSchema.nullable().optional(),
-  tags: z
-    .array(z.string().trim().max(STYLE_CARD.TAG_MAX_LENGTH))
-    .max(STYLE_CARD.MAX_TAGS)
-    .optional(),
-  projectId: z.string().nullable().optional(),
-})
-
-export type UpdateStyleCardRequest = z.infer<typeof UpdateStyleCardSchema>
-
-export interface StyleCardRecord {
-  id: string
-  name: string
-  description: string | null
-  sourceImageUrl: string | null
-  stylePrompt: string
-  attributes: StyleAttributes | null
-  loras: z.infer<typeof LoraSchema>[] | null
-  modelId: string | null
-  adapterType: string | null
-  advancedParams: AdvancedParams | null
-  tags: string[]
-  projectId: string | null
-  isDeleted: boolean
-  createdAt: Date
-  updatedAt: Date
-}
-
-export interface StyleCardResponse {
-  success: boolean
-  data?: StyleCardRecord
-  error?: string
-}
-
-export interface StyleCardsResponse {
-  success: boolean
-  data?: StyleCardRecord[]
-  error?: string
-}
-
-// ── Card Recipe snapshot ────────────────────────────────────────────────
-
-export const RecipeSnapshotSchema = z.object({
-  characterCard: z
-    .object({
-      id: z.string(),
-      name: z.string(),
-      characterPrompt: z.string(),
-    })
-    .optional(),
-  backgroundCard: z
-    .object({
-      id: z.string(),
-      name: z.string(),
-      backgroundPrompt: z.string(),
-    })
-    .optional(),
-  styleCard: z
-    .object({
-      id: z.string(),
-      name: z.string(),
-      stylePrompt: z.string(),
-      modelId: z.string().optional(),
-      adapterType: z.string().optional(),
-    })
-    .optional(),
-  freePrompt: z.string().optional(),
-  compiledPrompt: z.string(),
-  compiledAt: z.string().datetime(),
-})
-
-export type RecipeSnapshot = z.infer<typeof RecipeSnapshotSchema>
-
 // ── Civitai Token ────────────────────────────────────────────────
 
 export const CivitaiTokenSchema = z.object({
@@ -4098,72 +3853,59 @@ export {
   type CharacterImagePick,
 } from '@/types/character-image-pick'
 
-export const StudioGenerateSchema = z
-  .object({
-    /** Quick mode: direct model selection */
-    modelId: z.string().trim().min(1).max(160).optional(),
-    /** Quick mode: specific API key for saved route */
-    apiKeyId: z.string().trim().min(1).optional(),
-    /** Card mode: card IDs */
-    characterCardId: z.string().optional(),
-    /**
-     * Quick mode: 在场的角色卡（第一个 = 焦点角色）。服务端经卡片总线编译成
-     * 正文前缀 + 参考图 + 负面（进度表 35 ⑤），⛔ 客户端不再自己拼。
-     */
-    characterCardIds: z
-      .array(z.string().trim().min(1))
-      .max(CHARACTER_CARD.MAX_ACTIVE_CARDS)
-      .optional(),
-    /**
-     * 每个在场角色**挑了哪几张**（键 = 角色卡 id，顺序 = 送的顺序）。没挑的角色
-     * 仍由卡片总线按主图 → 身份图 → 其余自动排。
-     */
-    characterImagePicks: z
-      .record(
-        z.string().trim().min(1),
-        z
-          .array(CharacterImagePickSchema)
-          .min(1)
-          .max(CHARACTER_CARD.MAX_REFERENCE_SLOTS),
-      )
-      .optional(),
-    backgroundCardId: z.string().optional(),
-    styleCardId: z.string().optional(),
-    freePrompt: z.string().trim().max(PROMPT_TEXT_GUARD_MAX_CHARS).optional(),
-    aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']).default('1:1'),
-    projectId: z.string().optional(),
-    /** User-uploaded reference images (base64 or URL) from toolbar */
-    referenceImages: z.array(z.string()).optional(),
-    /** Advanced params override from toolbar Advanced Settings panel */
-    advancedParams: z.record(z.string(), z.unknown()).optional(),
-    /** B5: Seed override for variant generation */
-    seed: z.number().int().min(0).max(4294967295).optional(),
-    /** B5: Run group ID for variant/compare batches */
-    runGroupId: z.string().optional(),
-    /** B5: Run group type */
-    runGroupType: z.enum(['single', 'compare', 'variant']).optional(),
-    /** B5: Position within run group (0-based) */
-    runGroupIndex: z.number().int().min(0).optional(),
-    /** Prompt template usage metadata for generation lineage */
-    recipeUsage: RecipeUsageSchema.optional(),
-    /**
-     * 这一枪叫什么（切片 Y 的 `label` 透传）—— 落库时交给
-     * `createGeneration({ displayLabel })`，成为产物名的摘要段。
-     *
-     * ⚠ 缺席 = 没人给名字，落库那一跳照旧从提示词里摘一段。⛔ 别在客户端补一个
-     * 空串：空串会把摘要段整个盖成空白。
-     */
-    displayLabel: z.string().trim().min(1).max(160).optional(),
-    /** 产物来源 surface（LoRA 域生成传 LORA_WORKBENCH；缺省走 DB 默认 IMAGE_STUDIO）。 */
-    sourceSurface: GenerationSourceSurfaceSchema.optional(),
-  })
-  .refine((data) => !!(data.modelId || data.styleCardId), {
-    message: 'Either modelId or styleCardId is required',
-  })
-  .refine((data) => !(data.modelId && data.styleCardId), {
-    message: 'Cannot specify both modelId and styleCardId',
-    path: ['modelId'],
-  })
+export const StudioGenerateSchema = z.object({
+  modelId: z.string().trim().min(1).max(160),
+  /** Specific API key for saved route */
+  apiKeyId: z.string().trim().min(1).optional(),
+  /**
+   * 在场的角色卡（第一个 = 焦点角色）。服务端经卡片总线编译成
+   * 正文前缀 + 参考图 + 负面（进度表 35 ⑤），⛔ 客户端不再自己拼。
+   */
+  characterCardIds: z
+    .array(z.string().trim().min(1))
+    .max(CHARACTER_CARD.MAX_ACTIVE_CARDS)
+    .optional(),
+  /**
+   * 每个在场角色**挑了哪几张**（键 = 角色卡 id，顺序 = 送的顺序）。没挑的角色
+   * 仍由卡片总线按主图 → 身份图 → 其余自动排。
+   */
+  characterImagePicks: z
+    .record(
+      z.string().trim().min(1),
+      z
+        .array(CharacterImagePickSchema)
+        .min(1)
+        .max(CHARACTER_CARD.MAX_REFERENCE_SLOTS),
+    )
+    .optional(),
+  freePrompt: z.string().trim().max(PROMPT_TEXT_GUARD_MAX_CHARS).optional(),
+  aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']).default('1:1'),
+  projectId: z.string().optional(),
+  /** User-uploaded reference images (base64 or URL) from toolbar */
+  referenceImages: z.array(z.string()).optional(),
+  /** Advanced params override from toolbar Advanced Settings panel */
+  advancedParams: z.record(z.string(), z.unknown()).optional(),
+  /** B5: Seed override for variant generation */
+  seed: z.number().int().min(0).max(4294967295).optional(),
+  /** B5: Run group ID for variant/compare batches */
+  runGroupId: z.string().optional(),
+  /** B5: Run group type */
+  runGroupType: z.enum(['single', 'compare', 'variant']).optional(),
+  /** B5: Position within run group (0-based) */
+  runGroupIndex: z.number().int().min(0).optional(),
+  /** Prompt template usage metadata for generation lineage */
+  recipeUsage: RecipeUsageSchema.optional(),
+  /**
+   * 这一枪叫什么（切片 Y 的 `label` 透传）—— 落库时交给
+   * `createGeneration({ displayLabel })`，成为产物名的摘要段。
+   *
+   * ⚠ 缺席 = 没人给名字，落库那一跳照旧从提示词里摘一段。⛔ 别在客户端补一个
+   * 空串：空串会把摘要段整个盖成空白。
+   */
+  displayLabel: z.string().trim().min(1).max(160).optional(),
+  /** 产物来源 surface（LoRA 域生成传 LORA_WORKBENCH；缺省走 DB 默认 IMAGE_STUDIO）。 */
+  sourceSurface: GenerationSourceSurfaceSchema.optional(),
+})
 
 export type StudioGenerateRequest = z.infer<typeof StudioGenerateSchema>
 
@@ -4895,9 +4637,6 @@ export const ExtractedElementCreateRequestSchema = z.object({
 export type ExtractedElementCreateRequest = z.infer<
   typeof ExtractedElementCreateRequestSchema
 >
-
-// ─── Video Script (VS1-VS11) ─────────────────────────────────────
-export * from './video-script'
 
 // ─── Creative Control: Intent + Reference Asset ───────────────────
 

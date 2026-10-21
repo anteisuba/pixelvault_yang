@@ -114,18 +114,6 @@ export const LoraTrainingStatus = {
 export type LoraTrainingStatus = (typeof LoraTrainingStatus)[keyof typeof LoraTrainingStatus]
 
 
-export const VideoScriptStatus = {
-  DRAFT: 'DRAFT',
-  SCRIPT_READY: 'SCRIPT_READY',
-  FRAMES_READY: 'FRAMES_READY',
-  CLIPS_READY: 'CLIPS_READY',
-  COMPLETED: 'COMPLETED',
-  FAILED: 'FAILED'
-} as const
-
-export type VideoScriptStatus = (typeof VideoScriptStatus)[keyof typeof VideoScriptStatus]
-
-
 export const AssistantSurface = {
   IMAGE_STUDIO: 'IMAGE_STUDIO',
   VIDEO_STUDIO: 'VIDEO_STUDIO',
@@ -135,18 +123,6 @@ export const AssistantSurface = {
 } as const
 
 export type AssistantSurface = (typeof AssistantSurface)[keyof typeof AssistantSurface]
-
-
-export const VideoScriptSceneStatus = {
-  PENDING: 'PENDING',
-  FRAME_GENERATING: 'FRAME_GENERATING',
-  FRAME_READY: 'FRAME_READY',
-  CLIP_GENERATING: 'CLIP_GENERATING',
-  CLIP_READY: 'CLIP_READY',
-  FAILED: 'FAILED'
-} as const
-
-export type VideoScriptSceneStatus = (typeof VideoScriptSceneStatus)[keyof typeof VideoScriptSceneStatus]
 
 
 export const AssistantMemoryScope = {

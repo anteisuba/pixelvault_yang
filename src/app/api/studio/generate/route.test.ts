@@ -34,9 +34,8 @@ const QUICK_MODE_BODY = {
   aspectRatio: '1:1' as const,
 }
 
-const CARD_MODE_BODY = {
+const STYLE_CARD_BODY = {
   styleCardId: 'style-1',
-  characterCardId: 'char-1',
   freePrompt: 'add some sparkles',
   aspectRatio: '16:9' as const,
 }
@@ -122,24 +121,12 @@ describe('POST /api/studio/generate', () => {
     expect(json.data.jobId).toBe('job-1')
   })
 
-  it('succeeds with card mode input (styleCardId present)', async () => {
-    const req = createPOST('/api/studio/generate', CARD_MODE_BODY)
+  it('风格卡已下线：不带 modelId 的旧卡片模式请求 400', async () => {
+    const req = createPOST('/api/studio/generate', STYLE_CARD_BODY)
     const res = await POST(req)
-    const json = await parseJSON<{
-      success: boolean
-      data: { jobId: string; requestId: string }
-    }>(res)
 
-    expect(res.status).toBe(200)
-    expect(json.success).toBe(true)
-    expect(json.data.jobId).toBe('job-1')
-    expect(mockCompileAndGenerate).toHaveBeenCalledWith(
-      'clerk_test_user',
-      expect.objectContaining({
-        styleCardId: CARD_MODE_BODY.styleCardId,
-        characterCardId: CARD_MODE_BODY.characterCardId,
-      }),
-    )
+    expect(res.status).toBe(400)
+    expect(mockCompileAndGenerate).not.toHaveBeenCalled()
   })
 
   it('passes runGroup fields for batch generation', async () => {

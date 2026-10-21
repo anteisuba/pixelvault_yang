@@ -5,8 +5,8 @@
  *
  * Spec: docs/references/loading.md (algorithm skeleton + visual).
  *
- * NOT used by `StudioSceneProgress` (multi-shot / training real-progress —
- * out of scope, stays on shadcn `Progress`).
+ * NOT used by training real-progress (out of scope, stays on shadcn
+ * `Progress`).
  */
 
 /**

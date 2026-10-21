@@ -6,11 +6,11 @@
 
 ## 数据模型
 
-`CharacterCard`（含 `parentId` 变体树）· `GenerationCharacterCard`（生成↔角色卡 join）· `BackgroundCard` · `StyleCard` · `VoiceCard`（声音资产，2026-09-17 前与 `CharacterCard` 零关联）。
+`CharacterCard`（含 `parentId` 变体树）· `GenerationCharacterCard`（生成↔角色卡 join）· `VoiceCard`（声音资产，2026-09-17 前与 `CharacterCard` 零关联）。
 
 ## Service / API
 
-- `src/services/cards/character-card.service.ts`（CRUD + 属性抽取 + 一致性打分）· `character-sample-lines.service.ts`（试读：按设定写两句台词）· `character-card.mapper.ts`（行 → `CharacterCardRecord`）· `card-recipe-compiler.service.ts`（三卡 LLM 融合成单条 prompt）。
+- `src/services/cards/character-card.service.ts`（CRUD + 属性抽取 + 一致性打分）· `character-sample-lines.service.ts`（试读：按设定写两句台词）· `character-card.mapper.ts`（行 → `CharacterCardRecord`）。风格卡、背景卡与三卡融合编译 `card-recipe-compiler` 2026-10-21 下线（卡片模式只留角色，出图走选中的模型 + 卡片总线）。
 - API：`/api/character-cards`（GET/POST）· `/api/character-cards/import`（POST，酒馆卡导入）· `/api/character-cards/chub/import`（POST，卡库建卡；卡库搜索由浏览器直接问 chub，没有我们的路由）· `/api/character-cards/[id]`（GET/PATCH/DELETE）· `/api/character-cards/[id]/sample-lines` · `/api/character-cards/[id]/score`。
 - Hooks：`src/hooks/cards/`。
 
@@ -44,7 +44,7 @@
 
 目的：把角色卡从「一堆图 + 一段视觉描述」补齐成**命名实体**——图片、视频、语音、画布四条链都能引用同一张卡。方向依据见 `docs/design/roadmap-canvas/research/cards.md`（Kling 元素库 / Vidu `subjects[].voice_id` / Runway `{uri, tag}` / Gemini 分槽配额 / SillyTavern V2 / weavai）。
 
-**本轮只落数据层**：字段全部可空、不回填、不加业务约束，写入路径是角色卡 create / update 的透传。⛔ `card-recipe-compiler.service.ts` 本轮不改——编译期怎么用这些字段是下一片的事，在那一片之前它们没有读方。
+**本轮只落数据层**：字段全部可空、不回填、不加业务约束，写入路径是角色卡 create / update 的透传。编译期怎么用这些字段是下一片的事，在那一片之前它们没有读方。
 
 | 字段                | 类型（Prisma / Zod）                                                                                   | 语义                                                                                                   | 谁写                                                       | 谁读                                                                                     |
 | ------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------- |

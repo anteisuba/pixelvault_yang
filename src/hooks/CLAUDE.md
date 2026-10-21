@@ -16,8 +16,6 @@ All hooks use `'use client'`. Less than half have a `.test` file — check for a
 ### Cards (changes affect Studio card selection)
 
 - `use-character-cards.ts` — Character card CRUD (injected into StudioDataContext)
-- `use-background-cards.ts` — Background card CRUD (injected into StudioDataContext)
-- `use-style-cards.ts` — Style card CRUD (injected into StudioDataContext)
 - `use-card-manager.ts` — Card selection state
 
 ### AI Text (changes affect prompt-related features)

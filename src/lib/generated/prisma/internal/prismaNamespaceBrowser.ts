@@ -78,12 +78,8 @@ export const ModelName = {
   GenerationCharacterCard: 'GenerationCharacterCard',
   UserLike: 'UserLike',
   UserFollow: 'UserFollow',
-  BackgroundCard: 'BackgroundCard',
-  StyleCard: 'StyleCard',
   LoraTrainingJob: 'LoraTrainingJob',
   LoraAsset: 'LoraAsset',
-  VideoScript: 'VideoScript',
-  VideoScriptScene: 'VideoScriptScene',
   ExtractedElement: 'ExtractedElement',
   GenerationLayer: 'GenerationLayer',
   InspirationPrompt: 'InspirationPrompt',
@@ -625,49 +621,6 @@ export const UserFollowScalarFieldEnum = {
 export type UserFollowScalarFieldEnum = (typeof UserFollowScalarFieldEnum)[keyof typeof UserFollowScalarFieldEnum]
 
 
-export const BackgroundCardScalarFieldEnum = {
-  id: 'id',
-  userId: 'userId',
-  projectId: 'projectId',
-  name: 'name',
-  description: 'description',
-  sourceImageUrl: 'sourceImageUrl',
-  sourceStorageKey: 'sourceStorageKey',
-  backgroundPrompt: 'backgroundPrompt',
-  attributes: 'attributes',
-  loras: 'loras',
-  tags: 'tags',
-  isDeleted: 'isDeleted',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type BackgroundCardScalarFieldEnum = (typeof BackgroundCardScalarFieldEnum)[keyof typeof BackgroundCardScalarFieldEnum]
-
-
-export const StyleCardScalarFieldEnum = {
-  id: 'id',
-  userId: 'userId',
-  projectId: 'projectId',
-  name: 'name',
-  description: 'description',
-  sourceImageUrl: 'sourceImageUrl',
-  sourceStorageKey: 'sourceStorageKey',
-  stylePrompt: 'stylePrompt',
-  attributes: 'attributes',
-  loras: 'loras',
-  modelId: 'modelId',
-  adapterType: 'adapterType',
-  advancedParams: 'advancedParams',
-  tags: 'tags',
-  isDeleted: 'isDeleted',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type StyleCardScalarFieldEnum = (typeof StyleCardScalarFieldEnum)[keyof typeof StyleCardScalarFieldEnum]
-
-
 export const LoraTrainingJobScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -720,45 +673,6 @@ export const LoraAssetScalarFieldEnum = {
 } as const
 
 export type LoraAssetScalarFieldEnum = (typeof LoraAssetScalarFieldEnum)[keyof typeof LoraAssetScalarFieldEnum]
-
-
-export const VideoScriptScalarFieldEnum = {
-  id: 'id',
-  userId: 'userId',
-  topic: 'topic',
-  targetDuration: 'targetDuration',
-  totalScenes: 'totalScenes',
-  status: 'status',
-  consistencyMode: 'consistencyMode',
-  characterCardId: 'characterCardId',
-  styleCardId: 'styleCardId',
-  videoModelId: 'videoModelId',
-  finalVideoUrl: 'finalVideoUrl',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type VideoScriptScalarFieldEnum = (typeof VideoScriptScalarFieldEnum)[keyof typeof VideoScriptScalarFieldEnum]
-
-
-export const VideoScriptSceneScalarFieldEnum = {
-  id: 'id',
-  scriptId: 'scriptId',
-  orderIndex: 'orderIndex',
-  duration: 'duration',
-  cameraShot: 'cameraShot',
-  action: 'action',
-  dialogue: 'dialogue',
-  transition: 'transition',
-  frameGenerationId: 'frameGenerationId',
-  clipGenerationId: 'clipGenerationId',
-  status: 'status',
-  errorMessage: 'errorMessage',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type VideoScriptSceneScalarFieldEnum = (typeof VideoScriptSceneScalarFieldEnum)[keyof typeof VideoScriptSceneScalarFieldEnum]
 
 
 export const ExtractedElementScalarFieldEnum = {

@@ -30,10 +30,7 @@ interface MigrationTask {
 const TASKS: MigrationTask[] = [
   { table: 'User', columns: ['avatarUrl', 'bannerUrl'] },
   { table: 'Generation', columns: ['url', 'referenceImageUrl'] },
-  { table: 'ImageAnalysis', columns: ['sourceImageUrl'] },
   { table: 'CharacterCard', columns: ['sourceImageUrl'] },
-  { table: 'BackgroundCard', columns: ['sourceImageUrl'] },
-  { table: 'StyleCard', columns: ['coverUrl'] },
   { table: 'VideoGeneration', columns: ['finalVideoUrl', 'referenceImageUrl'] },
   {
     table: 'VideoClip',
@@ -76,7 +73,7 @@ async function migrateTable(task: MigrationTask) {
   return totalUpdated
 }
 
-// Also migrate JSON fields that contain URLs (e.g., CharacterCard.loras, StyleCard.advancedParams)
+// Also migrate JSON fields that contain URLs (e.g., CharacterCard.loras)
 async function migrateJsonFields() {
   let totalUpdated = 0
 

@@ -3,7 +3,7 @@ import 'server-only'
 /**
  * Phase 1 style transformation handler.
  *
- * Resolves style from card or preset → submits worker jobs for variants
+ * Resolves style from a preset → submits worker jobs for variants
  * via Promise.allSettled → aggregates results.
  *
  * @see 02-功能/功能-實作落地清單.md §1.2
@@ -15,8 +15,6 @@ import {
   submitImageGeneration,
   waitForImageGenerationResult,
 } from '@/services/image/submit-image.service'
-import { compileRecipe } from '@/services/kernel/card-recipe-compiler.service'
-import { ensureUser } from '@/services/user.service'
 import type {
   TransformInput,
   TransformOutput,
@@ -30,32 +28,12 @@ export async function handleStyleTransform(
   const startTime = Date.now()
 
   // ─── 1. Resolve style → prompt + model ────────────────────────
-  let compiledPrompt: string
-  let modelId: string | undefined
-  let apiKeyId: string | undefined
-
-  if (input.style.type === 'style_card' && input.style.cardId) {
-    // Use recipe compiler for card-based styles. ⚠ 编译器要库里的用户 id（查卡、找助手那把
-    // key 都按它），⛔ 不是 Clerk id。
-    const user = await ensureUser(clerkId)
-    const recipe = await compileRecipe({
-      userId: user.id,
-      styleCardId: input.style.cardId,
-      freePrompt: 'Apply style transformation',
-    })
-    compiledPrompt = recipe.compiledPrompt
-    modelId = recipe.modelId
-  } else if (input.style.type === 'preset' && input.style.presetId) {
-    // Use preset config directly
-    const preset = getTransformPresetById(input.style.presetId)
-    if (!preset) {
-      throw new Error(`Unknown preset: ${input.style.presetId}`)
-    }
-    compiledPrompt = `${preset.name} style transformation, preserve original subject`
-    modelId = preset.modelId
-  } else {
-    throw new Error('Style must specify either cardId or presetId')
+  const preset = getTransformPresetById(input.style.presetId)
+  if (!preset) {
+    throw new Error(`Unknown preset: ${input.style.presetId}`)
   }
+  const compiledPrompt = `${preset.name} style transformation, preserve original subject`
+  const modelId = preset.modelId
 
   // ─── 2. Generate N variants in parallel ───────────────────────
   const variantCount = input.variants
@@ -71,10 +49,9 @@ export async function handleStyleTransform(
     Array.from({ length: variantCount }, async () => {
       const submitted = await submitImageGeneration(clerkId, {
         prompt: compiledPrompt,
-        modelId: modelId!,
+        modelId,
         aspectRatio: '1:1',
         referenceImage,
-        apiKeyId,
         advancedParams: {
           referenceStrength: input.preservation.structure,
         },

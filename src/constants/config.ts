@@ -286,9 +286,6 @@ export const API_ENDPOINTS = {
   /** 卡库：浏览器从 chub.ai 取来的一张卡建成角色卡（搜索由浏览器直接问 chub） */
   CHARACTER_CARDS_CHUB_IMPORT: '/api/character-cards/chub/import',
 
-  /** Video Script (VS1-VS11) */
-  VIDEO_SCRIPT: '/api/video-script',
-
   /** Public model list (merged DB + hardcoded) */
   MODELS: '/api/models',
 
@@ -316,8 +313,6 @@ export const API_ENDPOINTS = {
   FOLLOWS: '/api/follows',
 
   /** Composable Card System */
-  BACKGROUND_CARDS: '/api/background-cards',
-  STYLE_CARDS: '/api/style-cards',
 
   /** Audio generation */
   GENERATE_AUDIO: '/api/generate-audio',

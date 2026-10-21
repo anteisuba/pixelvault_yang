@@ -114,15 +114,6 @@ enum LoraTrainingStatus {
   CANCELED
 }
 
-enum VideoScriptStatus {
-  DRAFT
-  SCRIPT_READY
-  FRAMES_READY
-  CLIPS_READY
-  COMPLETED
-  FAILED
-}
-
 /// Surface that owns an assistant chat transcript — one slot per domain.
 /// Before 2026-08-08 this was STUDIO + NODE_CANVAS, so image / video / LoRA
 /// all shared a single `STUDIO` bucket and their histories were interleaved.
@@ -135,15 +126,6 @@ enum AssistantSurface {
   NODE_CANVAS
   /// 卡片助手（第五张脸，owner 09-26）：卡片页右上角头像打开，查图 · 写设定。
   CARDS
-}
-
-enum VideoScriptSceneStatus {
-  PENDING
-  FRAME_GENERATING
-  FRAME_READY
-  CLIP_GENERATING
-  CLIP_READY
-  FAILED
 }
 
 // ─── Models ───────────────────────────────────────────────────────
@@ -174,14 +156,11 @@ model User {
   likesGiven             UserLike[]              @relation("LikesGiven")
   followsGiven           UserFollow[]            @relation("FollowsGiven")
   followsReceived        UserFollow[]            @relation("FollowsReceived")
-  backgroundCards        BackgroundCard[]
-  styleCards             StyleCard[]
   recipes                Recipe[]
   voiceCards             VoiceCard[]
   creativePreference     UserCreativePreference?
   loraTrainingJobs       LoraTrainingJob[]
   loraAssets             LoraAsset[]
-  videoScripts           VideoScript[]
   extractedElements      ExtractedElement[]
   nodeWorkflowProjects   NodeWorkflowProject[]
   assistantConversations AssistantConversation[]
@@ -366,11 +345,9 @@ model Project {
 
   // ⚠ 旧的单值归属（`Generation.projectId`）分两次删：代码已只读写 `items`，
   //   这一侧和那一列等上线稳定后由单独一条迁移删掉。
-  generations     Generation[]
-  items           ProjectItem[]
-  characterCards  CharacterCard[]
-  backgroundCards BackgroundCard[]
-  styleCards      StyleCard[]
+  generations    Generation[]
+  items          ProjectItem[]
+  characterCards CharacterCard[]
 
   @@index([userId, isDeleted, updatedAt(sort: Desc)])
   @@index([userId, parentId, isDeleted, updatedAt(sort: Desc)])
@@ -1020,53 +997,6 @@ model UserFollow {
   @@index([followerId, createdAt(sort: Desc)])
 }
 
-// ─── Composable Card System ─────────────────────────────────────
-
-model BackgroundCard {
-  id               String   @id @default(uuid())
-  userId           String
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  projectId        String?
-  project          Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  name             String
-  description      String?  @db.Text
-  sourceImageUrl   String?
-  sourceStorageKey String?
-  backgroundPrompt String   @db.Text
-  attributes       Json?
-  loras            Json? // Lora[] — background-specific LoRA models
-  tags             String[] @default([])
-  isDeleted        Boolean  @default(false)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  @@index([userId, projectId, isDeleted, updatedAt(sort: Desc)])
-}
-
-model StyleCard {
-  id               String   @id @default(uuid())
-  userId           String
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  projectId        String?
-  project          Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  name             String
-  description      String?  @db.Text
-  sourceImageUrl   String?
-  sourceStorageKey String?
-  stylePrompt      String   @db.Text
-  attributes       Json?
-  loras            Json? // Lora[] — style-specific LoRA models
-  modelId          String? // AI_MODELS enum value (replaces ModelCard)
-  adapterType      String? // AI_ADAPTER_TYPES value
-  advancedParams   Json? // AdvancedParams (guidance, steps, seed, loras)
-  tags             String[] @default([])
-  isDeleted        Boolean  @default(false)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  @@index([userId, projectId, isDeleted, updatedAt(sort: Desc)])
-}
-
 // ─── LoRA Training ────────────────────────────────────────────────
 
 model LoraTrainingJob {
@@ -1165,51 +1095,6 @@ model LoraAsset {
   @@unique([userId, loraUrl])
   @@index([userId, createdAt(sort: Desc)])
   @@index([source, isPublic, createdAt(sort: Desc)])
-}
-
-// ─── Video Script (VS1-VS11) ──────────────────────────────────────
-
-model VideoScript {
-  id              String             @id @default(cuid())
-  userId          String
-  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  topic           String             @db.Text
-  targetDuration  Int // 30 | 60 | 120 (seconds)
-  totalScenes     Int // derived from targetDuration
-  status          VideoScriptStatus  @default(DRAFT)
-  consistencyMode String // 'character_card' | 'first_frame_ref'
-  characterCardId String? // required when consistencyMode = 'character_card'
-  styleCardId     String? // optional global style
-  videoModelId    String // 'seedance-2-fast' | 'kling-pro'
-  finalVideoUrl   String?
-  scenes          VideoScriptScene[]
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
-
-  @@index([userId, createdAt(sort: Desc)])
-  @@index([userId, status, createdAt(sort: Desc)])
-}
-
-model VideoScriptScene {
-  id                String                 @id @default(cuid())
-  scriptId          String
-  script            VideoScript            @relation(fields: [scriptId], references: [id], onDelete: Cascade)
-  orderIndex        Int
-  duration          Int
-  cameraShot        String
-  action            String                 @db.Text
-  dialogue          String?                @db.Text
-  transition        String // 'cut' | 'fade' | 'dissolve' (Phase 1 only 'cut')
-  frameGenerationId String? // VS10: plain string, no FK
-  clipGenerationId  String? // VS10: plain string, no FK
-  status            VideoScriptSceneStatus @default(PENDING)
-  errorMessage      String?                @db.Text
-  createdAt         DateTime               @default(now())
-  updatedAt         DateTime               @updatedAt
-
-  @@unique([scriptId, orderIndex])
-  @@index([scriptId, orderIndex])
-  @@index([status, createdAt(sort: Desc)])
 }
 
 // ─── Extracted Element (reusable subject/material cutout) ────────
@@ -1350,7 +1235,7 @@ model InspirationPrompt {
 /// 而且同一套列还要装风格与品牌。把两者并进一张表的表现是 `CharacterCard` 上
 /// 多出一堆只有半数行会填的列，而 `sourceImageUrl` 的必填约束会挡住纯文字的卡。
 ///
-/// ⛔ 同理不复用 `StyleCard` / `BackgroundCard`：它们是同一套生成侧卡片体系。
+/// ⛔ 同理不复用已下线的风格卡 / 背景卡（2026-10-21 删）。
 model ContextCard {
   id     String @id @default(uuid())
   userId String

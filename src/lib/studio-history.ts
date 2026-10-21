@@ -6,8 +6,6 @@ type TimestampLike = Date | string | number | null | undefined
 
 export interface StudioCardUsageMap {
   character: Record<string, number>
-  background: Record<string, number>
-  style: Record<string, number>
 }
 
 function toTimestampMs(value: TimestampLike): number {
@@ -47,8 +45,6 @@ export function buildStudioCardUsageMap(
 ): StudioCardUsageMap {
   const usage: StudioCardUsageMap = {
     character: {},
-    background: {},
-    style: {},
   }
 
   for (const generation of history) {
@@ -59,12 +55,6 @@ export function buildStudioCardUsageMap(
 
     const timestamp = toTimestampMs(generation.createdAt)
     setMostRecentTimestamp(usage.character, snapshot.characterCardId, timestamp)
-    setMostRecentTimestamp(
-      usage.background,
-      snapshot.backgroundCardId,
-      timestamp,
-    )
-    setMostRecentTimestamp(usage.style, snapshot.styleCardId, timestamp)
   }
 
   return usage

@@ -109,7 +109,6 @@ export const StudioMobileComposer = memo(function StudioMobileComposer({
   const tImageChip = useTranslations('ImageChip')
   const tImageUpload = useTranslations('ImageUpload')
   const tTemplates = useTranslations('PromptLibrary')
-  const tScript = useTranslations('VideoScript')
   const {
     selectedModel,
     runModels,
@@ -174,7 +173,7 @@ export const StudioMobileComposer = memo(function StudioMobileComposer({
   const openTemplates = () => {
     if (!templates.open) templates.onToggle()
   }
-  // 「＋」下半截：模板（开舞台面板）· 角色（抽屉里推进一页）；视频：模板 · 剧本。
+  // 「＋」下半截：模板（开舞台面板）· 角色（抽屉里推进一页）；视频只有模板。
   const addRows: StudioMobileAddRow[] = [
     {
       key: 'templates',
@@ -182,20 +181,17 @@ export const StudioMobileComposer = memo(function StudioMobileComposer({
       label: tTemplates('templatePicker'),
       onSelect: openTemplates,
     },
-    isVideo
-      ? {
-          key: 'script',
-          icon: <FileText className="size-4" />,
-          label: tScript('panelTitle'),
-          onSelect: () => dispatch({ type: 'OPEN_PANEL', payload: 'script' }),
-        }
-      : {
-          key: 'characters',
-          icon: <UserRound className="size-4" />,
-          label: tV2('characters'),
-          detail: cardCount > 0 ? String(cardCount) : undefined,
-          page: <StudioCardPicker />,
-        },
+    ...(isVideo
+      ? []
+      : [
+          {
+            key: 'characters',
+            icon: <UserRound className="size-4" />,
+            label: tV2('characters'),
+            detail: cardCount > 0 ? String(cardCount) : undefined,
+            page: <StudioCardPicker />,
+          },
+        ]),
     // 「先搜再画」只对支持的型号出现（owner 2026-10-07 B 定稿：开关在「＋」抽屉里）。
     ...(!isVideo && searchGrounding.available
       ? [

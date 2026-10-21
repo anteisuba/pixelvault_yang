@@ -76,8 +76,6 @@ import {
   type ImageBatchCount,
 } from '@/constants/studio'
 import { useCharacterCards } from '@/hooks/cards/use-character-cards'
-import { useBackgroundCards } from '@/hooks/cards/use-background-cards'
-import { useStyleCards } from '@/hooks/cards/use-style-cards'
 import { useProjects } from '@/hooks/use-projects'
 import { useCivitaiToken } from '@/hooks/use-civitai-token'
 import { usePromptEnhance } from '@/hooks/kernel/use-prompt-enhance'
@@ -86,8 +84,6 @@ import { removeReferenceMentions } from '@/lib/studio-reference-mentions'
 import { useUnifiedGenerate } from '@/hooks/use-unified-generate'
 import { useUsageSummary } from '@/hooks/use-usage-summary'
 import type { UseCharacterCardsReturn } from '@/hooks/cards/use-character-cards'
-import type { UseBackgroundCardsReturn } from '@/hooks/cards/use-background-cards'
-import type { UseStyleCardsReturn } from '@/hooks/cards/use-style-cards'
 import type { UseUnifiedGenerateReturn } from '@/hooks/use-unified-generate'
 
 // ═══════════════════════════════════════════════════════════════════
@@ -111,7 +107,6 @@ export type PanelName =
   | 'voiceTrainer'
   | 'audioTranscribe'
   | 'sfxParams'
-  | 'script'
   | 'videoAudio'
   | 'keepChange'
 
@@ -459,7 +454,6 @@ const initialPanels: Record<PanelName, boolean> = {
   voiceTrainer: false,
   audioTranscribe: false,
   sfxParams: false,
-  script: false,
   videoAudio: false,
   keepChange: false,
 }
@@ -476,7 +470,6 @@ export const STUDIO_TOOL_PANEL_NAMES: PanelName[] = [
   'civitai',
   'audioReading',
   'musicSpec',
-  'script',
   'videoAudio',
   'voiceSelector',
   'voiceTrainer',
@@ -997,8 +990,6 @@ const StudioFormContext = createContext<StudioFormContextValue | null>(null)
 
 interface StudioDataContextValue {
   characters: UseCharacterCardsReturn
-  backgrounds: UseBackgroundCardsReturn
-  styles: UseStyleCardsReturn
   projects: ReturnType<typeof useProjects>
   imageUpload: ReturnType<typeof useImageUpload>
   promptEnhance: ReturnType<typeof usePromptEnhance>
@@ -1049,8 +1040,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   // WARM — data hooks
   const projects = useProjects()
   const characters = useCharacterCards()
-  const backgrounds = useBackgroundCards(projects.activeProjectId)
-  const styles = useStyleCards(projects.activeProjectId)
   const onReferencesRemoved = useCallback((index?: number) => {
     dispatch({ type: 'REMOVE_PROMPT_REFERENCE', payload: index })
   }, [])
@@ -1065,24 +1054,13 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const dataValue = useMemo<StudioDataContextValue>(
     () => ({
       characters,
-      backgrounds,
-      styles,
       projects,
       imageUpload,
       promptEnhance,
       civitai,
       usageSummary,
     }),
-    [
-      characters,
-      backgrounds,
-      styles,
-      projects,
-      imageUpload,
-      promptEnhance,
-      civitai,
-      usageSummary,
-    ],
+    [characters, projects, imageUpload, promptEnhance, civitai, usageSummary],
   )
 
   // COLD — generation

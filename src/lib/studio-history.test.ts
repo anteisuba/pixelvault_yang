@@ -29,7 +29,7 @@ function makeGeneration(
 }
 
 describe('studio-history helpers', () => {
-  it('tracks the most recent usage timestamp for each card type', () => {
+  it('tracks the most recent usage timestamp for each character card', () => {
     const usage = buildStudioCardUsageMap([
       makeGeneration('gen_old', {
         createdAt: new Date('2026-03-30T10:00:00.000Z'),
@@ -39,7 +39,6 @@ describe('studio-history helpers', () => {
           modelId: 'gemini-3.1-flash-image-preview',
           aspectRatio: '1:1',
           characterCardId: 'char_1',
-          backgroundCardId: 'bg_1',
         },
       }),
       makeGeneration('gen_new', {
@@ -50,13 +49,10 @@ describe('studio-history helpers', () => {
           modelId: 'gemini-3.1-flash-image-preview',
           aspectRatio: '16:9',
           characterCardId: 'char_1',
-          styleCardId: 'style_1',
         },
       }),
     ])
 
     expect(usage.character.char_1).toBe(Date.parse('2026-04-01T12:00:00.000Z'))
-    expect(usage.background.bg_1).toBe(Date.parse('2026-03-30T10:00:00.000Z'))
-    expect(usage.style.style_1).toBe(Date.parse('2026-04-01T12:00:00.000Z'))
   })
 })

@@ -98,7 +98,6 @@ const EMPTY_PANELS: StudioFormState['panels'] = {
   voiceTrainer: false,
   audioTranscribe: false,
   sfxParams: false,
-  script: false,
   videoAudio: false,
   keepChange: false,
 }
@@ -147,23 +146,15 @@ vi.mock('@/contexts/studio-context', () => ({
     'batchCount',
     'spec',
     'videoParams',
-    'script',
     'voiceSelector',
     'voiceTrainer',
     'audioTranscribe',
   ],
   useStudioForm: mockUseStudioForm,
   useStudioData: () => ({
-    styles: {
-      activeCard: null,
-      activeCardId: null,
-    },
     characters: {
       activeCardIds: [],
       activeCards: [],
-    },
-    backgrounds: {
-      activeCardId: null,
     },
     imageUpload: {
       isUploading: mockImageUploadState.isUploading,
@@ -804,11 +795,11 @@ describe('StudioPromptArea', () => {
   })
 
   /**
-   * 视频台 A（owner 2026-09-27「素材在输入框里」）：工具行左组是 素材 · 模板 · 剧本，
+   * 视频台 A（owner 2026-09-27「素材在输入框里」）：工具行左组是 素材 · 模板（剧本 2026-10-21 下线），
    * ⛔ 没有参考图 chip；拖放落点是整个输入框，走视频素材那一个入口。
    */
   describe('视频台（底部输入框）', () => {
-    it('工具行左组是 素材 · 模板 · 剧本，⛔ 没有参考图 / 卡片 / 遮罩', () => {
+    it('工具行左组是 素材 · 模板，⛔ 没有参考图 / 卡片 / 遮罩 / 剧本', () => {
       setupStudioForm(WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO)
       renderVideoBottom()
       // 规格 chip 的无障碍名也叫 `chipLabel`（另一个命名空间），按测试 id 认素材那颗。
@@ -818,16 +809,6 @@ describe('StudioPromptArea', () => {
       ).toBeVisible()
       // ReferenceImageChip 的无障碍名是 ImageChip.label。
       expect(screen.queryByRole('button', { name: 'label' })).toBeNull()
-    })
-
-    it('「剧本」开合剧本面板', () => {
-      setupStudioForm(WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO)
-      renderVideoBottom()
-      fireEvent.click(screen.getByRole('button', { name: 'panelTitle' }))
-      expect(mockDispatch).toHaveBeenCalledWith({
-        type: 'TOGGLE_PANEL',
-        payload: 'script',
-      })
     })
 
     it('拖进输入框走视频素材那条，⛔ 不经参考图的 handleDrop', () => {

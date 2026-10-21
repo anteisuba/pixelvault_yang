@@ -411,12 +411,8 @@ export const ModelName = {
   GenerationCharacterCard: 'GenerationCharacterCard',
   UserLike: 'UserLike',
   UserFollow: 'UserFollow',
-  BackgroundCard: 'BackgroundCard',
-  StyleCard: 'StyleCard',
   LoraTrainingJob: 'LoraTrainingJob',
   LoraAsset: 'LoraAsset',
-  VideoScript: 'VideoScript',
-  VideoScriptScene: 'VideoScriptScene',
   ExtractedElement: 'ExtractedElement',
   GenerationLayer: 'GenerationLayer',
   InspirationPrompt: 'InspirationPrompt',
@@ -438,7 +434,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "modelConfig" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "backgroundCard" | "styleCard" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement" | "generationLayer" | "inspirationPrompt" | "contextCard" | "assistantMemory" | "assistantTurnRecord"
+    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "modelConfig" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "loraTrainingJob" | "loraAsset" | "extractedElement" | "generationLayer" | "inspirationPrompt" | "contextCard" | "assistantMemory" | "assistantTurnRecord"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2440,154 +2436,6 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
-    BackgroundCard: {
-      payload: Prisma.$BackgroundCardPayload<ExtArgs>
-      fields: Prisma.BackgroundCardFieldRefs
-      operations: {
-        findUnique: {
-          args: Prisma.BackgroundCardFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackgroundCardPayload> | null
-        }
-        findUniqueOrThrow: {
-          args: Prisma.BackgroundCardFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackgroundCardPayload>
-        }
-        findFirst: {
-          args: Prisma.BackgroundCardFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackgroundCardPayload> | null
-        }
-        findFirstOrThrow: {
-          args: Prisma.BackgroundCardFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackgroundCardPayload>
-        }
-        findMany: {
-          args: Prisma.BackgroundCardFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackgroundCardPayload>[]
-        }
-        create: {
-          args: Prisma.BackgroundCardCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackgroundCardPayload>
-        }
-        createMany: {
-          args: Prisma.BackgroundCardCreateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        createManyAndReturn: {
-          args: Prisma.BackgroundCardCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackgroundCardPayload>[]
-        }
-        delete: {
-          args: Prisma.BackgroundCardDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackgroundCardPayload>
-        }
-        update: {
-          args: Prisma.BackgroundCardUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackgroundCardPayload>
-        }
-        deleteMany: {
-          args: Prisma.BackgroundCardDeleteManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateMany: {
-          args: Prisma.BackgroundCardUpdateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateManyAndReturn: {
-          args: Prisma.BackgroundCardUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackgroundCardPayload>[]
-        }
-        upsert: {
-          args: Prisma.BackgroundCardUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackgroundCardPayload>
-        }
-        aggregate: {
-          args: Prisma.BackgroundCardAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregateBackgroundCard>
-        }
-        groupBy: {
-          args: Prisma.BackgroundCardGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.BackgroundCardGroupByOutputType>[]
-        }
-        count: {
-          args: Prisma.BackgroundCardCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.BackgroundCardCountAggregateOutputType> | number
-        }
-      }
-    }
-    StyleCard: {
-      payload: Prisma.$StyleCardPayload<ExtArgs>
-      fields: Prisma.StyleCardFieldRefs
-      operations: {
-        findUnique: {
-          args: Prisma.StyleCardFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StyleCardPayload> | null
-        }
-        findUniqueOrThrow: {
-          args: Prisma.StyleCardFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StyleCardPayload>
-        }
-        findFirst: {
-          args: Prisma.StyleCardFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StyleCardPayload> | null
-        }
-        findFirstOrThrow: {
-          args: Prisma.StyleCardFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StyleCardPayload>
-        }
-        findMany: {
-          args: Prisma.StyleCardFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StyleCardPayload>[]
-        }
-        create: {
-          args: Prisma.StyleCardCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StyleCardPayload>
-        }
-        createMany: {
-          args: Prisma.StyleCardCreateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        createManyAndReturn: {
-          args: Prisma.StyleCardCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StyleCardPayload>[]
-        }
-        delete: {
-          args: Prisma.StyleCardDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StyleCardPayload>
-        }
-        update: {
-          args: Prisma.StyleCardUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StyleCardPayload>
-        }
-        deleteMany: {
-          args: Prisma.StyleCardDeleteManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateMany: {
-          args: Prisma.StyleCardUpdateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateManyAndReturn: {
-          args: Prisma.StyleCardUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StyleCardPayload>[]
-        }
-        upsert: {
-          args: Prisma.StyleCardUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$StyleCardPayload>
-        }
-        aggregate: {
-          args: Prisma.StyleCardAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregateStyleCard>
-        }
-        groupBy: {
-          args: Prisma.StyleCardGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.StyleCardGroupByOutputType>[]
-        }
-        count: {
-          args: Prisma.StyleCardCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.StyleCardCountAggregateOutputType> | number
-        }
-      }
-    }
     LoraTrainingJob: {
       payload: Prisma.$LoraTrainingJobPayload<ExtArgs>
       fields: Prisma.LoraTrainingJobFieldRefs
@@ -2733,154 +2581,6 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.LoraAssetCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.LoraAssetCountAggregateOutputType> | number
-        }
-      }
-    }
-    VideoScript: {
-      payload: Prisma.$VideoScriptPayload<ExtArgs>
-      fields: Prisma.VideoScriptFieldRefs
-      operations: {
-        findUnique: {
-          args: Prisma.VideoScriptFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptPayload> | null
-        }
-        findUniqueOrThrow: {
-          args: Prisma.VideoScriptFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptPayload>
-        }
-        findFirst: {
-          args: Prisma.VideoScriptFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptPayload> | null
-        }
-        findFirstOrThrow: {
-          args: Prisma.VideoScriptFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptPayload>
-        }
-        findMany: {
-          args: Prisma.VideoScriptFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptPayload>[]
-        }
-        create: {
-          args: Prisma.VideoScriptCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptPayload>
-        }
-        createMany: {
-          args: Prisma.VideoScriptCreateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        createManyAndReturn: {
-          args: Prisma.VideoScriptCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptPayload>[]
-        }
-        delete: {
-          args: Prisma.VideoScriptDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptPayload>
-        }
-        update: {
-          args: Prisma.VideoScriptUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptPayload>
-        }
-        deleteMany: {
-          args: Prisma.VideoScriptDeleteManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateMany: {
-          args: Prisma.VideoScriptUpdateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateManyAndReturn: {
-          args: Prisma.VideoScriptUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptPayload>[]
-        }
-        upsert: {
-          args: Prisma.VideoScriptUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptPayload>
-        }
-        aggregate: {
-          args: Prisma.VideoScriptAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregateVideoScript>
-        }
-        groupBy: {
-          args: Prisma.VideoScriptGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.VideoScriptGroupByOutputType>[]
-        }
-        count: {
-          args: Prisma.VideoScriptCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.VideoScriptCountAggregateOutputType> | number
-        }
-      }
-    }
-    VideoScriptScene: {
-      payload: Prisma.$VideoScriptScenePayload<ExtArgs>
-      fields: Prisma.VideoScriptSceneFieldRefs
-      operations: {
-        findUnique: {
-          args: Prisma.VideoScriptSceneFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptScenePayload> | null
-        }
-        findUniqueOrThrow: {
-          args: Prisma.VideoScriptSceneFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptScenePayload>
-        }
-        findFirst: {
-          args: Prisma.VideoScriptSceneFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptScenePayload> | null
-        }
-        findFirstOrThrow: {
-          args: Prisma.VideoScriptSceneFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptScenePayload>
-        }
-        findMany: {
-          args: Prisma.VideoScriptSceneFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptScenePayload>[]
-        }
-        create: {
-          args: Prisma.VideoScriptSceneCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptScenePayload>
-        }
-        createMany: {
-          args: Prisma.VideoScriptSceneCreateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        createManyAndReturn: {
-          args: Prisma.VideoScriptSceneCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptScenePayload>[]
-        }
-        delete: {
-          args: Prisma.VideoScriptSceneDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptScenePayload>
-        }
-        update: {
-          args: Prisma.VideoScriptSceneUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptScenePayload>
-        }
-        deleteMany: {
-          args: Prisma.VideoScriptSceneDeleteManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateMany: {
-          args: Prisma.VideoScriptSceneUpdateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateManyAndReturn: {
-          args: Prisma.VideoScriptSceneUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptScenePayload>[]
-        }
-        upsert: {
-          args: Prisma.VideoScriptSceneUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoScriptScenePayload>
-        }
-        aggregate: {
-          args: Prisma.VideoScriptSceneAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregateVideoScriptScene>
-        }
-        groupBy: {
-          args: Prisma.VideoScriptSceneGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.VideoScriptSceneGroupByOutputType>[]
-        }
-        count: {
-          args: Prisma.VideoScriptSceneCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.VideoScriptSceneCountAggregateOutputType> | number
         }
       }
     }
@@ -3884,49 +3584,6 @@ export const UserFollowScalarFieldEnum = {
 export type UserFollowScalarFieldEnum = (typeof UserFollowScalarFieldEnum)[keyof typeof UserFollowScalarFieldEnum]
 
 
-export const BackgroundCardScalarFieldEnum = {
-  id: 'id',
-  userId: 'userId',
-  projectId: 'projectId',
-  name: 'name',
-  description: 'description',
-  sourceImageUrl: 'sourceImageUrl',
-  sourceStorageKey: 'sourceStorageKey',
-  backgroundPrompt: 'backgroundPrompt',
-  attributes: 'attributes',
-  loras: 'loras',
-  tags: 'tags',
-  isDeleted: 'isDeleted',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type BackgroundCardScalarFieldEnum = (typeof BackgroundCardScalarFieldEnum)[keyof typeof BackgroundCardScalarFieldEnum]
-
-
-export const StyleCardScalarFieldEnum = {
-  id: 'id',
-  userId: 'userId',
-  projectId: 'projectId',
-  name: 'name',
-  description: 'description',
-  sourceImageUrl: 'sourceImageUrl',
-  sourceStorageKey: 'sourceStorageKey',
-  stylePrompt: 'stylePrompt',
-  attributes: 'attributes',
-  loras: 'loras',
-  modelId: 'modelId',
-  adapterType: 'adapterType',
-  advancedParams: 'advancedParams',
-  tags: 'tags',
-  isDeleted: 'isDeleted',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type StyleCardScalarFieldEnum = (typeof StyleCardScalarFieldEnum)[keyof typeof StyleCardScalarFieldEnum]
-
-
 export const LoraTrainingJobScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -3979,45 +3636,6 @@ export const LoraAssetScalarFieldEnum = {
 } as const
 
 export type LoraAssetScalarFieldEnum = (typeof LoraAssetScalarFieldEnum)[keyof typeof LoraAssetScalarFieldEnum]
-
-
-export const VideoScriptScalarFieldEnum = {
-  id: 'id',
-  userId: 'userId',
-  topic: 'topic',
-  targetDuration: 'targetDuration',
-  totalScenes: 'totalScenes',
-  status: 'status',
-  consistencyMode: 'consistencyMode',
-  characterCardId: 'characterCardId',
-  styleCardId: 'styleCardId',
-  videoModelId: 'videoModelId',
-  finalVideoUrl: 'finalVideoUrl',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type VideoScriptScalarFieldEnum = (typeof VideoScriptScalarFieldEnum)[keyof typeof VideoScriptScalarFieldEnum]
-
-
-export const VideoScriptSceneScalarFieldEnum = {
-  id: 'id',
-  scriptId: 'scriptId',
-  orderIndex: 'orderIndex',
-  duration: 'duration',
-  cameraShot: 'cameraShot',
-  action: 'action',
-  dialogue: 'dialogue',
-  transition: 'transition',
-  frameGenerationId: 'frameGenerationId',
-  clipGenerationId: 'clipGenerationId',
-  status: 'status',
-  errorMessage: 'errorMessage',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type VideoScriptSceneScalarFieldEnum = (typeof VideoScriptSceneScalarFieldEnum)[keyof typeof VideoScriptSceneScalarFieldEnum]
 
 
 export const ExtractedElementScalarFieldEnum = {
@@ -4437,34 +4055,6 @@ export type ListEnumLoraTrainingStatusFieldRefInput<$PrismaModel> = FieldRefInpu
 
 
 /**
- * Reference to a field of type 'VideoScriptStatus'
- */
-export type EnumVideoScriptStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'VideoScriptStatus'>
-    
-
-
-/**
- * Reference to a field of type 'VideoScriptStatus[]'
- */
-export type ListEnumVideoScriptStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'VideoScriptStatus[]'>
-    
-
-
-/**
- * Reference to a field of type 'VideoScriptSceneStatus'
- */
-export type EnumVideoScriptSceneStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'VideoScriptSceneStatus'>
-    
-
-
-/**
- * Reference to a field of type 'VideoScriptSceneStatus[]'
- */
-export type ListEnumVideoScriptSceneStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'VideoScriptSceneStatus[]'>
-    
-
-
-/**
  * Reference to a field of type 'ContextCardKind'
  */
 export type EnumContextCardKindFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ContextCardKind'>
@@ -4655,12 +4245,8 @@ export type GlobalOmitConfig = {
   generationCharacterCard?: Prisma.GenerationCharacterCardOmit
   userLike?: Prisma.UserLikeOmit
   userFollow?: Prisma.UserFollowOmit
-  backgroundCard?: Prisma.BackgroundCardOmit
-  styleCard?: Prisma.StyleCardOmit
   loraTrainingJob?: Prisma.LoraTrainingJobOmit
   loraAsset?: Prisma.LoraAssetOmit
-  videoScript?: Prisma.VideoScriptOmit
-  videoScriptScene?: Prisma.VideoScriptSceneOmit
   extractedElement?: Prisma.ExtractedElementOmit
   generationLayer?: Prisma.GenerationLayerOmit
   inspirationPrompt?: Prisma.InspirationPromptOmit

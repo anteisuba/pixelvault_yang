@@ -105,7 +105,6 @@ function makeInitialState(
       voiceTrainer: false,
       audioTranscribe: false,
       sfxParams: false,
-      script: false,
       videoAudio: false,
       keepChange: false,
     },

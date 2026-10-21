@@ -98,7 +98,7 @@
 
 ⚠ **文本 / 视觉 LLM 路由也没有平台兜底**（owner 2026-10-07「平台 key 直接清空」）：
 `llm-text.service.ts`、`vision-route.service.ts`、`research-route.service.ts`、
-`node-planner-route.service.ts`、`video-script.service.ts` 与图片编辑（fal）都只认用户自己的 key，
+`node-planner-route.service.ts` 与图片编辑（fal）都只认用户自己的 key，
 缺 key 抛 `MISSING_API_KEY`；助手错误条上给「配置 Key」，直接配 Gemini（AI Studio 文本模型有免费档）。
 平台掏钱的只剩 `runner`（见上方 `RUNNER_MONTHLY_LIMIT`），它本来就没有 BYOK 通道。
 `model-health.service.ts` 仍读平台 key 做免费的元数据探测，env 清空后对应厂商报「无系统 key」降级，不影响用户。

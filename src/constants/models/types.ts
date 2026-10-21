@@ -26,18 +26,6 @@ export interface VideoDefaults {
   generateAudio?: boolean
 }
 
-/** Video extension configuration for long video pipeline */
-export interface VideoExtensionConfig {
-  /** FAL extend endpoint ID (for native_extend method) */
-  extendEndpointId?: string
-  /** Extension method */
-  extensionMethod: 'native_extend' | 'last_frame_chain'
-  /** Duration per extension clip in seconds */
-  extensionClipDuration: number
-  /** Maximum total achievable duration in seconds */
-  maxTotalDuration: number
-}
-
 /** Model option configuration */
 export interface ModelOption {
   id: AI_MODELS
@@ -75,7 +63,6 @@ export interface ModelOption {
    * 那句「搜网页和图片」对它不成立（owner 2026-10-07）。
    */
   supportsSearchGrounding?: boolean
-  videoExtension?: VideoExtensionConfig
   requiresReferenceImage?: boolean
   /**
    * Vendor-documented max prompt characters — the only prompt length limit the

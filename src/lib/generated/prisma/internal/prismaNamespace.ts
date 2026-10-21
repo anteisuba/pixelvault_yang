@@ -406,19 +406,13 @@ export const ModelName = {
   UserCreativePreference: 'UserCreativePreference',
   AssistantPersona: 'AssistantPersona',
   ProjectRule: 'ProjectRule',
-  ImageAnalysis: 'ImageAnalysis',
   ModelConfig: 'ModelConfig',
   CharacterCard: 'CharacterCard',
   GenerationCharacterCard: 'GenerationCharacterCard',
   UserLike: 'UserLike',
   UserFollow: 'UserFollow',
-  Collection: 'Collection',
-  CollectionItem: 'CollectionItem',
   BackgroundCard: 'BackgroundCard',
   StyleCard: 'StyleCard',
-  CardRecipe: 'CardRecipe',
-  VideoPipeline: 'VideoPipeline',
-  VideoPipelineClip: 'VideoPipelineClip',
   LoraTrainingJob: 'LoraTrainingJob',
   LoraAsset: 'LoraAsset',
   VideoScript: 'VideoScript',
@@ -444,7 +438,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "imageAnalysis" | "modelConfig" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement" | "generationLayer" | "inspirationPrompt" | "contextCard" | "assistantMemory" | "assistantTurnRecord"
+    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "modelConfig" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "backgroundCard" | "styleCard" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement" | "generationLayer" | "inspirationPrompt" | "contextCard" | "assistantMemory" | "assistantTurnRecord"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2076,80 +2070,6 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
-    ImageAnalysis: {
-      payload: Prisma.$ImageAnalysisPayload<ExtArgs>
-      fields: Prisma.ImageAnalysisFieldRefs
-      operations: {
-        findUnique: {
-          args: Prisma.ImageAnalysisFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ImageAnalysisPayload> | null
-        }
-        findUniqueOrThrow: {
-          args: Prisma.ImageAnalysisFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ImageAnalysisPayload>
-        }
-        findFirst: {
-          args: Prisma.ImageAnalysisFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ImageAnalysisPayload> | null
-        }
-        findFirstOrThrow: {
-          args: Prisma.ImageAnalysisFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ImageAnalysisPayload>
-        }
-        findMany: {
-          args: Prisma.ImageAnalysisFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ImageAnalysisPayload>[]
-        }
-        create: {
-          args: Prisma.ImageAnalysisCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ImageAnalysisPayload>
-        }
-        createMany: {
-          args: Prisma.ImageAnalysisCreateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        createManyAndReturn: {
-          args: Prisma.ImageAnalysisCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ImageAnalysisPayload>[]
-        }
-        delete: {
-          args: Prisma.ImageAnalysisDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ImageAnalysisPayload>
-        }
-        update: {
-          args: Prisma.ImageAnalysisUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ImageAnalysisPayload>
-        }
-        deleteMany: {
-          args: Prisma.ImageAnalysisDeleteManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateMany: {
-          args: Prisma.ImageAnalysisUpdateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateManyAndReturn: {
-          args: Prisma.ImageAnalysisUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ImageAnalysisPayload>[]
-        }
-        upsert: {
-          args: Prisma.ImageAnalysisUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$ImageAnalysisPayload>
-        }
-        aggregate: {
-          args: Prisma.ImageAnalysisAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregateImageAnalysis>
-        }
-        groupBy: {
-          args: Prisma.ImageAnalysisGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.ImageAnalysisGroupByOutputType>[]
-        }
-        count: {
-          args: Prisma.ImageAnalysisCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.ImageAnalysisCountAggregateOutputType> | number
-        }
-      }
-    }
     ModelConfig: {
       payload: Prisma.$ModelConfigPayload<ExtArgs>
       fields: Prisma.ModelConfigFieldRefs
@@ -2520,154 +2440,6 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
-    Collection: {
-      payload: Prisma.$CollectionPayload<ExtArgs>
-      fields: Prisma.CollectionFieldRefs
-      operations: {
-        findUnique: {
-          args: Prisma.CollectionFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CollectionPayload> | null
-        }
-        findUniqueOrThrow: {
-          args: Prisma.CollectionFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CollectionPayload>
-        }
-        findFirst: {
-          args: Prisma.CollectionFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CollectionPayload> | null
-        }
-        findFirstOrThrow: {
-          args: Prisma.CollectionFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CollectionPayload>
-        }
-        findMany: {
-          args: Prisma.CollectionFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CollectionPayload>[]
-        }
-        create: {
-          args: Prisma.CollectionCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CollectionPayload>
-        }
-        createMany: {
-          args: Prisma.CollectionCreateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        createManyAndReturn: {
-          args: Prisma.CollectionCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CollectionPayload>[]
-        }
-        delete: {
-          args: Prisma.CollectionDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CollectionPayload>
-        }
-        update: {
-          args: Prisma.CollectionUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CollectionPayload>
-        }
-        deleteMany: {
-          args: Prisma.CollectionDeleteManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateMany: {
-          args: Prisma.CollectionUpdateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateManyAndReturn: {
-          args: Prisma.CollectionUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CollectionPayload>[]
-        }
-        upsert: {
-          args: Prisma.CollectionUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CollectionPayload>
-        }
-        aggregate: {
-          args: Prisma.CollectionAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregateCollection>
-        }
-        groupBy: {
-          args: Prisma.CollectionGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.CollectionGroupByOutputType>[]
-        }
-        count: {
-          args: Prisma.CollectionCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.CollectionCountAggregateOutputType> | number
-        }
-      }
-    }
-    CollectionItem: {
-      payload: Prisma.$CollectionItemPayload<ExtArgs>
-      fields: Prisma.CollectionItemFieldRefs
-      operations: {
-        findUnique: {
-          args: Prisma.CollectionItemFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CollectionItemPayload> | null
-        }
-        findUniqueOrThrow: {
-          args: Prisma.CollectionItemFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CollectionItemPayload>
-        }
-        findFirst: {
-          args: Prisma.CollectionItemFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CollectionItemPayload> | null
-        }
-        findFirstOrThrow: {
-          args: Prisma.CollectionItemFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CollectionItemPayload>
-        }
-        findMany: {
-          args: Prisma.CollectionItemFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CollectionItemPayload>[]
-        }
-        create: {
-          args: Prisma.CollectionItemCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CollectionItemPayload>
-        }
-        createMany: {
-          args: Prisma.CollectionItemCreateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        createManyAndReturn: {
-          args: Prisma.CollectionItemCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CollectionItemPayload>[]
-        }
-        delete: {
-          args: Prisma.CollectionItemDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CollectionItemPayload>
-        }
-        update: {
-          args: Prisma.CollectionItemUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CollectionItemPayload>
-        }
-        deleteMany: {
-          args: Prisma.CollectionItemDeleteManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateMany: {
-          args: Prisma.CollectionItemUpdateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateManyAndReturn: {
-          args: Prisma.CollectionItemUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CollectionItemPayload>[]
-        }
-        upsert: {
-          args: Prisma.CollectionItemUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CollectionItemPayload>
-        }
-        aggregate: {
-          args: Prisma.CollectionItemAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregateCollectionItem>
-        }
-        groupBy: {
-          args: Prisma.CollectionItemGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.CollectionItemGroupByOutputType>[]
-        }
-        count: {
-          args: Prisma.CollectionItemCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.CollectionItemCountAggregateOutputType> | number
-        }
-      }
-    }
     BackgroundCard: {
       payload: Prisma.$BackgroundCardPayload<ExtArgs>
       fields: Prisma.BackgroundCardFieldRefs
@@ -2813,228 +2585,6 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.StyleCardCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.StyleCardCountAggregateOutputType> | number
-        }
-      }
-    }
-    CardRecipe: {
-      payload: Prisma.$CardRecipePayload<ExtArgs>
-      fields: Prisma.CardRecipeFieldRefs
-      operations: {
-        findUnique: {
-          args: Prisma.CardRecipeFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CardRecipePayload> | null
-        }
-        findUniqueOrThrow: {
-          args: Prisma.CardRecipeFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CardRecipePayload>
-        }
-        findFirst: {
-          args: Prisma.CardRecipeFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CardRecipePayload> | null
-        }
-        findFirstOrThrow: {
-          args: Prisma.CardRecipeFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CardRecipePayload>
-        }
-        findMany: {
-          args: Prisma.CardRecipeFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CardRecipePayload>[]
-        }
-        create: {
-          args: Prisma.CardRecipeCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CardRecipePayload>
-        }
-        createMany: {
-          args: Prisma.CardRecipeCreateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        createManyAndReturn: {
-          args: Prisma.CardRecipeCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CardRecipePayload>[]
-        }
-        delete: {
-          args: Prisma.CardRecipeDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CardRecipePayload>
-        }
-        update: {
-          args: Prisma.CardRecipeUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CardRecipePayload>
-        }
-        deleteMany: {
-          args: Prisma.CardRecipeDeleteManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateMany: {
-          args: Prisma.CardRecipeUpdateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateManyAndReturn: {
-          args: Prisma.CardRecipeUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CardRecipePayload>[]
-        }
-        upsert: {
-          args: Prisma.CardRecipeUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$CardRecipePayload>
-        }
-        aggregate: {
-          args: Prisma.CardRecipeAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregateCardRecipe>
-        }
-        groupBy: {
-          args: Prisma.CardRecipeGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.CardRecipeGroupByOutputType>[]
-        }
-        count: {
-          args: Prisma.CardRecipeCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.CardRecipeCountAggregateOutputType> | number
-        }
-      }
-    }
-    VideoPipeline: {
-      payload: Prisma.$VideoPipelinePayload<ExtArgs>
-      fields: Prisma.VideoPipelineFieldRefs
-      operations: {
-        findUnique: {
-          args: Prisma.VideoPipelineFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPipelinePayload> | null
-        }
-        findUniqueOrThrow: {
-          args: Prisma.VideoPipelineFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPipelinePayload>
-        }
-        findFirst: {
-          args: Prisma.VideoPipelineFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPipelinePayload> | null
-        }
-        findFirstOrThrow: {
-          args: Prisma.VideoPipelineFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPipelinePayload>
-        }
-        findMany: {
-          args: Prisma.VideoPipelineFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPipelinePayload>[]
-        }
-        create: {
-          args: Prisma.VideoPipelineCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPipelinePayload>
-        }
-        createMany: {
-          args: Prisma.VideoPipelineCreateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        createManyAndReturn: {
-          args: Prisma.VideoPipelineCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPipelinePayload>[]
-        }
-        delete: {
-          args: Prisma.VideoPipelineDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPipelinePayload>
-        }
-        update: {
-          args: Prisma.VideoPipelineUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPipelinePayload>
-        }
-        deleteMany: {
-          args: Prisma.VideoPipelineDeleteManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateMany: {
-          args: Prisma.VideoPipelineUpdateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateManyAndReturn: {
-          args: Prisma.VideoPipelineUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPipelinePayload>[]
-        }
-        upsert: {
-          args: Prisma.VideoPipelineUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPipelinePayload>
-        }
-        aggregate: {
-          args: Prisma.VideoPipelineAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregateVideoPipeline>
-        }
-        groupBy: {
-          args: Prisma.VideoPipelineGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.VideoPipelineGroupByOutputType>[]
-        }
-        count: {
-          args: Prisma.VideoPipelineCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.VideoPipelineCountAggregateOutputType> | number
-        }
-      }
-    }
-    VideoPipelineClip: {
-      payload: Prisma.$VideoPipelineClipPayload<ExtArgs>
-      fields: Prisma.VideoPipelineClipFieldRefs
-      operations: {
-        findUnique: {
-          args: Prisma.VideoPipelineClipFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPipelineClipPayload> | null
-        }
-        findUniqueOrThrow: {
-          args: Prisma.VideoPipelineClipFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPipelineClipPayload>
-        }
-        findFirst: {
-          args: Prisma.VideoPipelineClipFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPipelineClipPayload> | null
-        }
-        findFirstOrThrow: {
-          args: Prisma.VideoPipelineClipFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPipelineClipPayload>
-        }
-        findMany: {
-          args: Prisma.VideoPipelineClipFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPipelineClipPayload>[]
-        }
-        create: {
-          args: Prisma.VideoPipelineClipCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPipelineClipPayload>
-        }
-        createMany: {
-          args: Prisma.VideoPipelineClipCreateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        createManyAndReturn: {
-          args: Prisma.VideoPipelineClipCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPipelineClipPayload>[]
-        }
-        delete: {
-          args: Prisma.VideoPipelineClipDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPipelineClipPayload>
-        }
-        update: {
-          args: Prisma.VideoPipelineClipUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPipelineClipPayload>
-        }
-        deleteMany: {
-          args: Prisma.VideoPipelineClipDeleteManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateMany: {
-          args: Prisma.VideoPipelineClipUpdateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateManyAndReturn: {
-          args: Prisma.VideoPipelineClipUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPipelineClipPayload>[]
-        }
-        upsert: {
-          args: Prisma.VideoPipelineClipUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$VideoPipelineClipPayload>
-        }
-        aggregate: {
-          args: Prisma.VideoPipelineClipAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregateVideoPipelineClip>
-        }
-        groupBy: {
-          args: Prisma.VideoPipelineClipGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.VideoPipelineClipGroupByOutputType>[]
-        }
-        count: {
-          args: Prisma.VideoPipelineClipCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.VideoPipelineClipCountAggregateOutputType> | number
         }
       }
     }
@@ -4241,19 +3791,6 @@ export const ProjectRuleScalarFieldEnum = {
 export type ProjectRuleScalarFieldEnum = (typeof ProjectRuleScalarFieldEnum)[keyof typeof ProjectRuleScalarFieldEnum]
 
 
-export const ImageAnalysisScalarFieldEnum = {
-  id: 'id',
-  userId: 'userId',
-  sourceImageUrl: 'sourceImageUrl',
-  sourceStorageKey: 'sourceStorageKey',
-  generatedPrompt: 'generatedPrompt',
-  modelUsed: 'modelUsed',
-  createdAt: 'createdAt'
-} as const
-
-export type ImageAnalysisScalarFieldEnum = (typeof ImageAnalysisScalarFieldEnum)[keyof typeof ImageAnalysisScalarFieldEnum]
-
-
 export const ModelConfigScalarFieldEnum = {
   id: 'id',
   modelId: 'modelId',
@@ -4347,32 +3884,6 @@ export const UserFollowScalarFieldEnum = {
 export type UserFollowScalarFieldEnum = (typeof UserFollowScalarFieldEnum)[keyof typeof UserFollowScalarFieldEnum]
 
 
-export const CollectionScalarFieldEnum = {
-  id: 'id',
-  userId: 'userId',
-  name: 'name',
-  description: 'description',
-  coverUrl: 'coverUrl',
-  isPublic: 'isPublic',
-  isDeleted: 'isDeleted',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type CollectionScalarFieldEnum = (typeof CollectionScalarFieldEnum)[keyof typeof CollectionScalarFieldEnum]
-
-
-export const CollectionItemScalarFieldEnum = {
-  id: 'id',
-  collectionId: 'collectionId',
-  generationId: 'generationId',
-  orderIndex: 'orderIndex',
-  addedAt: 'addedAt'
-} as const
-
-export type CollectionItemScalarFieldEnum = (typeof CollectionItemScalarFieldEnum)[keyof typeof CollectionItemScalarFieldEnum]
-
-
 export const BackgroundCardScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -4414,75 +3925,6 @@ export const StyleCardScalarFieldEnum = {
 } as const
 
 export type StyleCardScalarFieldEnum = (typeof StyleCardScalarFieldEnum)[keyof typeof StyleCardScalarFieldEnum]
-
-
-export const CardRecipeScalarFieldEnum = {
-  id: 'id',
-  userId: 'userId',
-  projectId: 'projectId',
-  name: 'name',
-  characterCardId: 'characterCardId',
-  backgroundCardId: 'backgroundCardId',
-  styleCardId: 'styleCardId',
-  freePrompt: 'freePrompt',
-  isDeleted: 'isDeleted',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type CardRecipeScalarFieldEnum = (typeof CardRecipeScalarFieldEnum)[keyof typeof CardRecipeScalarFieldEnum]
-
-
-export const VideoPipelineScalarFieldEnum = {
-  id: 'id',
-  userId: 'userId',
-  status: 'status',
-  prompt: 'prompt',
-  modelId: 'modelId',
-  adapterType: 'adapterType',
-  aspectRatio: 'aspectRatio',
-  resolution: 'resolution',
-  negativePrompt: 'negativePrompt',
-  extensionMethod: 'extensionMethod',
-  targetDurationSec: 'targetDurationSec',
-  currentDurationSec: 'currentDurationSec',
-  totalClips: 'totalClips',
-  completedClips: 'completedClips',
-  finalVideoUrl: 'finalVideoUrl',
-  finalStorageKey: 'finalStorageKey',
-  generationId: 'generationId',
-  characterCardIds: 'characterCardIds',
-  referenceImageUrl: 'referenceImageUrl',
-  apiKeyId: 'apiKeyId',
-  errorMessage: 'errorMessage',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type VideoPipelineScalarFieldEnum = (typeof VideoPipelineScalarFieldEnum)[keyof typeof VideoPipelineScalarFieldEnum]
-
-
-export const VideoPipelineClipScalarFieldEnum = {
-  id: 'id',
-  pipelineId: 'pipelineId',
-  clipIndex: 'clipIndex',
-  status: 'status',
-  generationJobId: 'generationJobId',
-  externalRequestId: 'externalRequestId',
-  videoUrl: 'videoUrl',
-  storageKey: 'storageKey',
-  lastFrameUrl: 'lastFrameUrl',
-  durationSec: 'durationSec',
-  inputVideoUrl: 'inputVideoUrl',
-  inputFrameUrl: 'inputFrameUrl',
-  errorMessage: 'errorMessage',
-  startedAt: 'startedAt',
-  completedAt: 'completedAt',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type VideoPipelineClipScalarFieldEnum = (typeof VideoPipelineClipScalarFieldEnum)[keyof typeof VideoPipelineClipScalarFieldEnum]
 
 
 export const LoraTrainingJobScalarFieldEnum = {
@@ -4981,34 +4423,6 @@ export type ListEnumCharacterCardStatusFieldRefInput<$PrismaModel> = FieldRefInp
 
 
 /**
- * Reference to a field of type 'VideoPipelineStatus'
- */
-export type EnumVideoPipelineStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'VideoPipelineStatus'>
-    
-
-
-/**
- * Reference to a field of type 'VideoPipelineStatus[]'
- */
-export type ListEnumVideoPipelineStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'VideoPipelineStatus[]'>
-    
-
-
-/**
- * Reference to a field of type 'PipelineClipStatus'
- */
-export type EnumPipelineClipStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'PipelineClipStatus'>
-    
-
-
-/**
- * Reference to a field of type 'PipelineClipStatus[]'
- */
-export type ListEnumPipelineClipStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'PipelineClipStatus[]'>
-    
-
-
-/**
  * Reference to a field of type 'LoraTrainingStatus'
  */
 export type EnumLoraTrainingStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'LoraTrainingStatus'>
@@ -5236,19 +4650,13 @@ export type GlobalOmitConfig = {
   userCreativePreference?: Prisma.UserCreativePreferenceOmit
   assistantPersona?: Prisma.AssistantPersonaOmit
   projectRule?: Prisma.ProjectRuleOmit
-  imageAnalysis?: Prisma.ImageAnalysisOmit
   modelConfig?: Prisma.ModelConfigOmit
   characterCard?: Prisma.CharacterCardOmit
   generationCharacterCard?: Prisma.GenerationCharacterCardOmit
   userLike?: Prisma.UserLikeOmit
   userFollow?: Prisma.UserFollowOmit
-  collection?: Prisma.CollectionOmit
-  collectionItem?: Prisma.CollectionItemOmit
   backgroundCard?: Prisma.BackgroundCardOmit
   styleCard?: Prisma.StyleCardOmit
-  cardRecipe?: Prisma.CardRecipeOmit
-  videoPipeline?: Prisma.VideoPipelineOmit
-  videoPipelineClip?: Prisma.VideoPipelineClipOmit
   loraTrainingJob?: Prisma.LoraTrainingJobOmit
   loraAsset?: Prisma.LoraAssetOmit
   videoScript?: Prisma.VideoScriptOmit

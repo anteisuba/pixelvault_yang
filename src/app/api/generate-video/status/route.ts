@@ -17,7 +17,7 @@ export const GET = createApiGetRoute<
   schema: VideoStatusRequestSchema,
   routeName: 'GET /api/generate-video/status',
   requireAuth: true,
-  rateLimit: RATE_LIMIT_CONFIGS.longVideoStatus,
+  rateLimit: RATE_LIMIT_CONFIGS.generationStatus,
   handler: async ({ clerkId, data }) => {
     return checkVideoGenerationStatus(clerkId!, data.jobId)
   },

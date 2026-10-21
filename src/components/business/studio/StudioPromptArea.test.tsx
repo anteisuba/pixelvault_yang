@@ -392,8 +392,6 @@ function setupStudioForm(
     videoFrameSlots: { first: null, last: null },
     videoReferenceVideos: [],
     videoGenerateAudio: null,
-    longVideoMode: false,
-    longVideoTargetDuration: 10,
     generateRequestId: 0,
     panels: { ...EMPTY_PANELS },
     ...overrides,

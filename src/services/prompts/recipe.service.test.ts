@@ -115,7 +115,6 @@ const FAKE_GENERATION = {
   isFeatured: false,
   projectId: null,
   characterCardId: null,
-  cardRecipeId: null,
   snapshot: {
     compiledPrompt: 'A useful prompt',
     modelId: 'flux-2-pro',

@@ -321,10 +321,6 @@ export interface StudioFormState {
    * 结果，用布尔两态会让「没设过」被当成用户主动关掉了声音。
    */
   videoGenerateAudio: boolean | null
-  /** Video-specific — long-video pipeline on/off */
-  longVideoMode: boolean
-  /** Video-specific — total target duration when long-video is on */
-  longVideoTargetDuration: number
   generateRequestId: number
   generateRequestOwner?: StudioOperatorResultOwner
   panels: Record<PanelName, boolean>
@@ -427,8 +423,6 @@ export type StudioAction =
     }
   | { type: 'SET_VIDEO_DURATION'; payload: number }
   | { type: 'SET_VIDEO_RESOLUTION'; payload: string | null }
-  | { type: 'SET_LONG_VIDEO_MODE'; payload: boolean }
-  | { type: 'SET_LONG_VIDEO_TARGET_DURATION'; payload: number }
   | {
       type: 'REQUEST_GENERATE'
       owner?: StudioOperatorResultOwner
@@ -565,8 +559,6 @@ const initialFormState: StudioFormState = {
   videoGenerateAudio: null,
   videoFrameSlots: { first: null, last: null },
   videoReferenceVideos: [],
-  longVideoMode: false,
-  longVideoTargetDuration: VIDEO_GENERATION.LONG_VIDEO_DURATION_OPTIONS[1], // 30s
   generateRequestId: 0,
   panels: { ...initialPanels },
 }
@@ -892,10 +884,6 @@ export function studioFormReducer(
       return { ...state, videoAudioRefs: action.payload }
     case 'SET_VIDEO_GENERATE_AUDIO':
       return { ...state, videoGenerateAudio: action.payload }
-    case 'SET_LONG_VIDEO_MODE':
-      return { ...state, longVideoMode: action.payload }
-    case 'SET_LONG_VIDEO_TARGET_DURATION':
-      return { ...state, longVideoTargetDuration: action.payload }
     case 'REQUEST_GENERATE':
       return {
         ...state,
@@ -984,9 +972,6 @@ export function studioFormReducer(
         videoFrameSlots: { first: null, last: null },
         videoReferenceVideos: [],
         videoGenerateAudio: null,
-        longVideoMode: false,
-        longVideoTargetDuration:
-          VIDEO_GENERATION.LONG_VIDEO_DURATION_OPTIONS[1],
         generateRequestId: 0,
         generateRequestOwner: undefined,
         panels: { ...initialPanels },

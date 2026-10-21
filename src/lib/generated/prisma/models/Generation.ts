@@ -524,13 +524,10 @@ export type GenerationWhereInput = {
   project?: Prisma.XOR<Prisma.ProjectNullableScalarRelationFilter, Prisma.ProjectWhereInput> | null
   characterCard?: Prisma.XOR<Prisma.CharacterCardNullableScalarRelationFilter, Prisma.CharacterCardWhereInput> | null
   characterCards?: Prisma.GenerationCharacterCardListRelationFilter
-  cardRecipe?: Prisma.XOR<Prisma.CardRecipeNullableScalarRelationFilter, Prisma.CardRecipeWhereInput> | null
   generationJob?: Prisma.XOR<Prisma.GenerationJobNullableScalarRelationFilter, Prisma.GenerationJobWhereInput> | null
   apiUsageLedger?: Prisma.ApiUsageLedgerListRelationFilter
   likes?: Prisma.UserLikeListRelationFilter
-  collectionItems?: Prisma.CollectionItemListRelationFilter
   folders?: Prisma.ProjectItemListRelationFilter
-  videoPipeline?: Prisma.XOR<Prisma.VideoPipelineNullableScalarRelationFilter, Prisma.VideoPipelineWhereInput> | null
   extractedElements?: Prisma.ExtractedElementListRelationFilter
   layers?: Prisma.GenerationLayerListRelationFilter
 }
@@ -582,13 +579,10 @@ export type GenerationOrderByWithRelationInput = {
   project?: Prisma.ProjectOrderByWithRelationInput
   characterCard?: Prisma.CharacterCardOrderByWithRelationInput
   characterCards?: Prisma.GenerationCharacterCardOrderByRelationAggregateInput
-  cardRecipe?: Prisma.CardRecipeOrderByWithRelationInput
   generationJob?: Prisma.GenerationJobOrderByWithRelationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerOrderByRelationAggregateInput
   likes?: Prisma.UserLikeOrderByRelationAggregateInput
-  collectionItems?: Prisma.CollectionItemOrderByRelationAggregateInput
   folders?: Prisma.ProjectItemOrderByRelationAggregateInput
-  videoPipeline?: Prisma.VideoPipelineOrderByWithRelationInput
   extractedElements?: Prisma.ExtractedElementOrderByRelationAggregateInput
   layers?: Prisma.GenerationLayerOrderByRelationAggregateInput
 }
@@ -643,13 +637,10 @@ export type GenerationWhereUniqueInput = Prisma.AtLeast<{
   project?: Prisma.XOR<Prisma.ProjectNullableScalarRelationFilter, Prisma.ProjectWhereInput> | null
   characterCard?: Prisma.XOR<Prisma.CharacterCardNullableScalarRelationFilter, Prisma.CharacterCardWhereInput> | null
   characterCards?: Prisma.GenerationCharacterCardListRelationFilter
-  cardRecipe?: Prisma.XOR<Prisma.CardRecipeNullableScalarRelationFilter, Prisma.CardRecipeWhereInput> | null
   generationJob?: Prisma.XOR<Prisma.GenerationJobNullableScalarRelationFilter, Prisma.GenerationJobWhereInput> | null
   apiUsageLedger?: Prisma.ApiUsageLedgerListRelationFilter
   likes?: Prisma.UserLikeListRelationFilter
-  collectionItems?: Prisma.CollectionItemListRelationFilter
   folders?: Prisma.ProjectItemListRelationFilter
-  videoPipeline?: Prisma.XOR<Prisma.VideoPipelineNullableScalarRelationFilter, Prisma.VideoPipelineWhereInput> | null
   extractedElements?: Prisma.ExtractedElementListRelationFilter
   layers?: Prisma.GenerationLayerListRelationFilter
 }, "id">
@@ -780,6 +771,7 @@ export type GenerationCreateInput = {
   isPromptPublic?: boolean
   isFeatured?: boolean
   searchGrounded?: boolean
+  cardRecipeId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -795,13 +787,10 @@ export type GenerationCreateInput = {
   project?: Prisma.ProjectCreateNestedOneWithoutGenerationsInput
   characterCard?: Prisma.CharacterCardCreateNestedOneWithoutGenerationsInput
   characterCards?: Prisma.GenerationCharacterCardCreateNestedManyWithoutGenerationInput
-  cardRecipe?: Prisma.CardRecipeCreateNestedOneWithoutGenerationsInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
-  collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemCreateNestedManyWithoutGenerationInput
-  videoPipeline?: Prisma.VideoPipelineCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutSourceGenerationInput
   layers?: Prisma.GenerationLayerCreateNestedManyWithoutGenerationInput
 }
@@ -853,9 +842,7 @@ export type GenerationUncheckedCreateInput = {
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
-  collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutGenerationInput
-  videoPipeline?: Prisma.VideoPipelineUncheckedCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutSourceGenerationInput
   layers?: Prisma.GenerationLayerUncheckedCreateNestedManyWithoutGenerationInput
 }
@@ -888,6 +875,7 @@ export type GenerationUpdateInput = {
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
   searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -903,13 +891,10 @@ export type GenerationUpdateInput = {
   project?: Prisma.ProjectUpdateOneWithoutGenerationsNestedInput
   characterCard?: Prisma.CharacterCardUpdateOneWithoutGenerationsNestedInput
   characterCards?: Prisma.GenerationCharacterCardUpdateManyWithoutGenerationNestedInput
-  cardRecipe?: Prisma.CardRecipeUpdateOneWithoutGenerationsNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
-  collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUpdateManyWithoutGenerationNestedInput
-  videoPipeline?: Prisma.VideoPipelineUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutSourceGenerationNestedInput
   layers?: Prisma.GenerationLayerUpdateManyWithoutGenerationNestedInput
 }
@@ -961,9 +946,7 @@ export type GenerationUncheckedUpdateInput = {
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
-  collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUncheckedUpdateManyWithoutGenerationNestedInput
-  videoPipeline?: Prisma.VideoPipelineUncheckedUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutSourceGenerationNestedInput
   layers?: Prisma.GenerationLayerUncheckedUpdateManyWithoutGenerationNestedInput
 }
@@ -1041,6 +1024,7 @@ export type GenerationUpdateManyMutationInput = {
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
   searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1494,78 +1478,6 @@ export type GenerationUpdateOneRequiredWithoutLikesNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.GenerationUpdateToOneWithWhereWithoutLikesInput, Prisma.GenerationUpdateWithoutLikesInput>, Prisma.GenerationUncheckedUpdateWithoutLikesInput>
 }
 
-export type GenerationCreateNestedOneWithoutCollectionItemsInput = {
-  create?: Prisma.XOR<Prisma.GenerationCreateWithoutCollectionItemsInput, Prisma.GenerationUncheckedCreateWithoutCollectionItemsInput>
-  connectOrCreate?: Prisma.GenerationCreateOrConnectWithoutCollectionItemsInput
-  connect?: Prisma.GenerationWhereUniqueInput
-}
-
-export type GenerationUpdateOneRequiredWithoutCollectionItemsNestedInput = {
-  create?: Prisma.XOR<Prisma.GenerationCreateWithoutCollectionItemsInput, Prisma.GenerationUncheckedCreateWithoutCollectionItemsInput>
-  connectOrCreate?: Prisma.GenerationCreateOrConnectWithoutCollectionItemsInput
-  upsert?: Prisma.GenerationUpsertWithoutCollectionItemsInput
-  connect?: Prisma.GenerationWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.GenerationUpdateToOneWithWhereWithoutCollectionItemsInput, Prisma.GenerationUpdateWithoutCollectionItemsInput>, Prisma.GenerationUncheckedUpdateWithoutCollectionItemsInput>
-}
-
-export type GenerationCreateNestedManyWithoutCardRecipeInput = {
-  create?: Prisma.XOR<Prisma.GenerationCreateWithoutCardRecipeInput, Prisma.GenerationUncheckedCreateWithoutCardRecipeInput> | Prisma.GenerationCreateWithoutCardRecipeInput[] | Prisma.GenerationUncheckedCreateWithoutCardRecipeInput[]
-  connectOrCreate?: Prisma.GenerationCreateOrConnectWithoutCardRecipeInput | Prisma.GenerationCreateOrConnectWithoutCardRecipeInput[]
-  createMany?: Prisma.GenerationCreateManyCardRecipeInputEnvelope
-  connect?: Prisma.GenerationWhereUniqueInput | Prisma.GenerationWhereUniqueInput[]
-}
-
-export type GenerationUncheckedCreateNestedManyWithoutCardRecipeInput = {
-  create?: Prisma.XOR<Prisma.GenerationCreateWithoutCardRecipeInput, Prisma.GenerationUncheckedCreateWithoutCardRecipeInput> | Prisma.GenerationCreateWithoutCardRecipeInput[] | Prisma.GenerationUncheckedCreateWithoutCardRecipeInput[]
-  connectOrCreate?: Prisma.GenerationCreateOrConnectWithoutCardRecipeInput | Prisma.GenerationCreateOrConnectWithoutCardRecipeInput[]
-  createMany?: Prisma.GenerationCreateManyCardRecipeInputEnvelope
-  connect?: Prisma.GenerationWhereUniqueInput | Prisma.GenerationWhereUniqueInput[]
-}
-
-export type GenerationUpdateManyWithoutCardRecipeNestedInput = {
-  create?: Prisma.XOR<Prisma.GenerationCreateWithoutCardRecipeInput, Prisma.GenerationUncheckedCreateWithoutCardRecipeInput> | Prisma.GenerationCreateWithoutCardRecipeInput[] | Prisma.GenerationUncheckedCreateWithoutCardRecipeInput[]
-  connectOrCreate?: Prisma.GenerationCreateOrConnectWithoutCardRecipeInput | Prisma.GenerationCreateOrConnectWithoutCardRecipeInput[]
-  upsert?: Prisma.GenerationUpsertWithWhereUniqueWithoutCardRecipeInput | Prisma.GenerationUpsertWithWhereUniqueWithoutCardRecipeInput[]
-  createMany?: Prisma.GenerationCreateManyCardRecipeInputEnvelope
-  set?: Prisma.GenerationWhereUniqueInput | Prisma.GenerationWhereUniqueInput[]
-  disconnect?: Prisma.GenerationWhereUniqueInput | Prisma.GenerationWhereUniqueInput[]
-  delete?: Prisma.GenerationWhereUniqueInput | Prisma.GenerationWhereUniqueInput[]
-  connect?: Prisma.GenerationWhereUniqueInput | Prisma.GenerationWhereUniqueInput[]
-  update?: Prisma.GenerationUpdateWithWhereUniqueWithoutCardRecipeInput | Prisma.GenerationUpdateWithWhereUniqueWithoutCardRecipeInput[]
-  updateMany?: Prisma.GenerationUpdateManyWithWhereWithoutCardRecipeInput | Prisma.GenerationUpdateManyWithWhereWithoutCardRecipeInput[]
-  deleteMany?: Prisma.GenerationScalarWhereInput | Prisma.GenerationScalarWhereInput[]
-}
-
-export type GenerationUncheckedUpdateManyWithoutCardRecipeNestedInput = {
-  create?: Prisma.XOR<Prisma.GenerationCreateWithoutCardRecipeInput, Prisma.GenerationUncheckedCreateWithoutCardRecipeInput> | Prisma.GenerationCreateWithoutCardRecipeInput[] | Prisma.GenerationUncheckedCreateWithoutCardRecipeInput[]
-  connectOrCreate?: Prisma.GenerationCreateOrConnectWithoutCardRecipeInput | Prisma.GenerationCreateOrConnectWithoutCardRecipeInput[]
-  upsert?: Prisma.GenerationUpsertWithWhereUniqueWithoutCardRecipeInput | Prisma.GenerationUpsertWithWhereUniqueWithoutCardRecipeInput[]
-  createMany?: Prisma.GenerationCreateManyCardRecipeInputEnvelope
-  set?: Prisma.GenerationWhereUniqueInput | Prisma.GenerationWhereUniqueInput[]
-  disconnect?: Prisma.GenerationWhereUniqueInput | Prisma.GenerationWhereUniqueInput[]
-  delete?: Prisma.GenerationWhereUniqueInput | Prisma.GenerationWhereUniqueInput[]
-  connect?: Prisma.GenerationWhereUniqueInput | Prisma.GenerationWhereUniqueInput[]
-  update?: Prisma.GenerationUpdateWithWhereUniqueWithoutCardRecipeInput | Prisma.GenerationUpdateWithWhereUniqueWithoutCardRecipeInput[]
-  updateMany?: Prisma.GenerationUpdateManyWithWhereWithoutCardRecipeInput | Prisma.GenerationUpdateManyWithWhereWithoutCardRecipeInput[]
-  deleteMany?: Prisma.GenerationScalarWhereInput | Prisma.GenerationScalarWhereInput[]
-}
-
-export type GenerationCreateNestedOneWithoutVideoPipelineInput = {
-  create?: Prisma.XOR<Prisma.GenerationCreateWithoutVideoPipelineInput, Prisma.GenerationUncheckedCreateWithoutVideoPipelineInput>
-  connectOrCreate?: Prisma.GenerationCreateOrConnectWithoutVideoPipelineInput
-  connect?: Prisma.GenerationWhereUniqueInput
-}
-
-export type GenerationUpdateOneWithoutVideoPipelineNestedInput = {
-  create?: Prisma.XOR<Prisma.GenerationCreateWithoutVideoPipelineInput, Prisma.GenerationUncheckedCreateWithoutVideoPipelineInput>
-  connectOrCreate?: Prisma.GenerationCreateOrConnectWithoutVideoPipelineInput
-  upsert?: Prisma.GenerationUpsertWithoutVideoPipelineInput
-  disconnect?: Prisma.GenerationWhereInput | boolean
-  delete?: Prisma.GenerationWhereInput | boolean
-  connect?: Prisma.GenerationWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.GenerationUpdateToOneWithWhereWithoutVideoPipelineInput, Prisma.GenerationUpdateWithoutVideoPipelineInput>, Prisma.GenerationUncheckedUpdateWithoutVideoPipelineInput>
-}
-
 export type GenerationCreateNestedOneWithoutExtractedElementsInput = {
   create?: Prisma.XOR<Prisma.GenerationCreateWithoutExtractedElementsInput, Prisma.GenerationUncheckedCreateWithoutExtractedElementsInput>
   connectOrCreate?: Prisma.GenerationCreateOrConnectWithoutExtractedElementsInput
@@ -1624,6 +1536,7 @@ export type GenerationCreateWithoutUserInput = {
   isPromptPublic?: boolean
   isFeatured?: boolean
   searchGrounded?: boolean
+  cardRecipeId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1638,13 +1551,10 @@ export type GenerationCreateWithoutUserInput = {
   project?: Prisma.ProjectCreateNestedOneWithoutGenerationsInput
   characterCard?: Prisma.CharacterCardCreateNestedOneWithoutGenerationsInput
   characterCards?: Prisma.GenerationCharacterCardCreateNestedManyWithoutGenerationInput
-  cardRecipe?: Prisma.CardRecipeCreateNestedOneWithoutGenerationsInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
-  collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemCreateNestedManyWithoutGenerationInput
-  videoPipeline?: Prisma.VideoPipelineCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutSourceGenerationInput
   layers?: Prisma.GenerationLayerCreateNestedManyWithoutGenerationInput
 }
@@ -1695,9 +1605,7 @@ export type GenerationUncheckedCreateWithoutUserInput = {
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
-  collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutGenerationInput
-  videoPipeline?: Prisma.VideoPipelineUncheckedCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutSourceGenerationInput
   layers?: Prisma.GenerationLayerUncheckedCreateNestedManyWithoutGenerationInput
 }
@@ -1804,6 +1712,7 @@ export type GenerationCreateWithoutProjectInput = {
   isPromptPublic?: boolean
   isFeatured?: boolean
   searchGrounded?: boolean
+  cardRecipeId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1818,13 +1727,10 @@ export type GenerationCreateWithoutProjectInput = {
   user?: Prisma.UserCreateNestedOneWithoutGenerationsInput
   characterCard?: Prisma.CharacterCardCreateNestedOneWithoutGenerationsInput
   characterCards?: Prisma.GenerationCharacterCardCreateNestedManyWithoutGenerationInput
-  cardRecipe?: Prisma.CardRecipeCreateNestedOneWithoutGenerationsInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
-  collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemCreateNestedManyWithoutGenerationInput
-  videoPipeline?: Prisma.VideoPipelineCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutSourceGenerationInput
   layers?: Prisma.GenerationLayerCreateNestedManyWithoutGenerationInput
 }
@@ -1875,9 +1781,7 @@ export type GenerationUncheckedCreateWithoutProjectInput = {
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
-  collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutGenerationInput
-  videoPipeline?: Prisma.VideoPipelineUncheckedCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutSourceGenerationInput
   layers?: Prisma.GenerationLayerUncheckedCreateNestedManyWithoutGenerationInput
 }
@@ -1936,6 +1840,7 @@ export type GenerationCreateWithoutFoldersInput = {
   isPromptPublic?: boolean
   isFeatured?: boolean
   searchGrounded?: boolean
+  cardRecipeId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1951,12 +1856,9 @@ export type GenerationCreateWithoutFoldersInput = {
   project?: Prisma.ProjectCreateNestedOneWithoutGenerationsInput
   characterCard?: Prisma.CharacterCardCreateNestedOneWithoutGenerationsInput
   characterCards?: Prisma.GenerationCharacterCardCreateNestedManyWithoutGenerationInput
-  cardRecipe?: Prisma.CardRecipeCreateNestedOneWithoutGenerationsInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
-  collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
-  videoPipeline?: Prisma.VideoPipelineCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutSourceGenerationInput
   layers?: Prisma.GenerationLayerCreateNestedManyWithoutGenerationInput
 }
@@ -2008,8 +1910,6 @@ export type GenerationUncheckedCreateWithoutFoldersInput = {
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
-  collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
-  videoPipeline?: Prisma.VideoPipelineUncheckedCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutSourceGenerationInput
   layers?: Prisma.GenerationLayerUncheckedCreateNestedManyWithoutGenerationInput
 }
@@ -2058,6 +1958,7 @@ export type GenerationUpdateWithoutFoldersInput = {
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
   searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2073,12 +1974,9 @@ export type GenerationUpdateWithoutFoldersInput = {
   project?: Prisma.ProjectUpdateOneWithoutGenerationsNestedInput
   characterCard?: Prisma.CharacterCardUpdateOneWithoutGenerationsNestedInput
   characterCards?: Prisma.GenerationCharacterCardUpdateManyWithoutGenerationNestedInput
-  cardRecipe?: Prisma.CardRecipeUpdateOneWithoutGenerationsNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
-  collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
-  videoPipeline?: Prisma.VideoPipelineUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutSourceGenerationNestedInput
   layers?: Prisma.GenerationLayerUpdateManyWithoutGenerationNestedInput
 }
@@ -2130,8 +2028,6 @@ export type GenerationUncheckedUpdateWithoutFoldersInput = {
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
-  collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
-  videoPipeline?: Prisma.VideoPipelineUncheckedUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutSourceGenerationNestedInput
   layers?: Prisma.GenerationLayerUncheckedUpdateManyWithoutGenerationNestedInput
 }
@@ -2164,6 +2060,7 @@ export type GenerationCreateWithoutGenerationJobInput = {
   isPromptPublic?: boolean
   isFeatured?: boolean
   searchGrounded?: boolean
+  cardRecipeId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2179,12 +2076,9 @@ export type GenerationCreateWithoutGenerationJobInput = {
   project?: Prisma.ProjectCreateNestedOneWithoutGenerationsInput
   characterCard?: Prisma.CharacterCardCreateNestedOneWithoutGenerationsInput
   characterCards?: Prisma.GenerationCharacterCardCreateNestedManyWithoutGenerationInput
-  cardRecipe?: Prisma.CardRecipeCreateNestedOneWithoutGenerationsInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
-  collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemCreateNestedManyWithoutGenerationInput
-  videoPipeline?: Prisma.VideoPipelineCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutSourceGenerationInput
   layers?: Prisma.GenerationLayerCreateNestedManyWithoutGenerationInput
 }
@@ -2235,9 +2129,7 @@ export type GenerationUncheckedCreateWithoutGenerationJobInput = {
   characterCards?: Prisma.GenerationCharacterCardUncheckedCreateNestedManyWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
-  collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutGenerationInput
-  videoPipeline?: Prisma.VideoPipelineUncheckedCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutSourceGenerationInput
   layers?: Prisma.GenerationLayerUncheckedCreateNestedManyWithoutGenerationInput
 }
@@ -2286,6 +2178,7 @@ export type GenerationUpdateWithoutGenerationJobInput = {
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
   searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2301,12 +2194,9 @@ export type GenerationUpdateWithoutGenerationJobInput = {
   project?: Prisma.ProjectUpdateOneWithoutGenerationsNestedInput
   characterCard?: Prisma.CharacterCardUpdateOneWithoutGenerationsNestedInput
   characterCards?: Prisma.GenerationCharacterCardUpdateManyWithoutGenerationNestedInput
-  cardRecipe?: Prisma.CardRecipeUpdateOneWithoutGenerationsNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
-  collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUpdateManyWithoutGenerationNestedInput
-  videoPipeline?: Prisma.VideoPipelineUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutSourceGenerationNestedInput
   layers?: Prisma.GenerationLayerUpdateManyWithoutGenerationNestedInput
 }
@@ -2357,9 +2247,7 @@ export type GenerationUncheckedUpdateWithoutGenerationJobInput = {
   characterCards?: Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
-  collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUncheckedUpdateManyWithoutGenerationNestedInput
-  videoPipeline?: Prisma.VideoPipelineUncheckedUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutSourceGenerationNestedInput
   layers?: Prisma.GenerationLayerUncheckedUpdateManyWithoutGenerationNestedInput
 }
@@ -2392,6 +2280,7 @@ export type GenerationCreateWithoutApiUsageLedgerInput = {
   isPromptPublic?: boolean
   isFeatured?: boolean
   searchGrounded?: boolean
+  cardRecipeId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2407,12 +2296,9 @@ export type GenerationCreateWithoutApiUsageLedgerInput = {
   project?: Prisma.ProjectCreateNestedOneWithoutGenerationsInput
   characterCard?: Prisma.CharacterCardCreateNestedOneWithoutGenerationsInput
   characterCards?: Prisma.GenerationCharacterCardCreateNestedManyWithoutGenerationInput
-  cardRecipe?: Prisma.CardRecipeCreateNestedOneWithoutGenerationsInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
-  collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemCreateNestedManyWithoutGenerationInput
-  videoPipeline?: Prisma.VideoPipelineCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutSourceGenerationInput
   layers?: Prisma.GenerationLayerCreateNestedManyWithoutGenerationInput
 }
@@ -2463,9 +2349,7 @@ export type GenerationUncheckedCreateWithoutApiUsageLedgerInput = {
   characterCards?: Prisma.GenerationCharacterCardUncheckedCreateNestedManyWithoutGenerationInput
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
-  collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutGenerationInput
-  videoPipeline?: Prisma.VideoPipelineUncheckedCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutSourceGenerationInput
   layers?: Prisma.GenerationLayerUncheckedCreateNestedManyWithoutGenerationInput
 }
@@ -2514,6 +2398,7 @@ export type GenerationUpdateWithoutApiUsageLedgerInput = {
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
   searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2529,12 +2414,9 @@ export type GenerationUpdateWithoutApiUsageLedgerInput = {
   project?: Prisma.ProjectUpdateOneWithoutGenerationsNestedInput
   characterCard?: Prisma.CharacterCardUpdateOneWithoutGenerationsNestedInput
   characterCards?: Prisma.GenerationCharacterCardUpdateManyWithoutGenerationNestedInput
-  cardRecipe?: Prisma.CardRecipeUpdateOneWithoutGenerationsNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
-  collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUpdateManyWithoutGenerationNestedInput
-  videoPipeline?: Prisma.VideoPipelineUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutSourceGenerationNestedInput
   layers?: Prisma.GenerationLayerUpdateManyWithoutGenerationNestedInput
 }
@@ -2585,9 +2467,7 @@ export type GenerationUncheckedUpdateWithoutApiUsageLedgerInput = {
   characterCards?: Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutGenerationNestedInput
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
-  collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUncheckedUpdateManyWithoutGenerationNestedInput
-  videoPipeline?: Prisma.VideoPipelineUncheckedUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutSourceGenerationNestedInput
   layers?: Prisma.GenerationLayerUncheckedUpdateManyWithoutGenerationNestedInput
 }
@@ -2620,6 +2500,7 @@ export type GenerationCreateWithoutCharacterCardInput = {
   isPromptPublic?: boolean
   isFeatured?: boolean
   searchGrounded?: boolean
+  cardRecipeId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2634,13 +2515,10 @@ export type GenerationCreateWithoutCharacterCardInput = {
   user?: Prisma.UserCreateNestedOneWithoutGenerationsInput
   project?: Prisma.ProjectCreateNestedOneWithoutGenerationsInput
   characterCards?: Prisma.GenerationCharacterCardCreateNestedManyWithoutGenerationInput
-  cardRecipe?: Prisma.CardRecipeCreateNestedOneWithoutGenerationsInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
-  collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemCreateNestedManyWithoutGenerationInput
-  videoPipeline?: Prisma.VideoPipelineCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutSourceGenerationInput
   layers?: Prisma.GenerationLayerCreateNestedManyWithoutGenerationInput
 }
@@ -2691,9 +2569,7 @@ export type GenerationUncheckedCreateWithoutCharacterCardInput = {
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
-  collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutGenerationInput
-  videoPipeline?: Prisma.VideoPipelineUncheckedCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutSourceGenerationInput
   layers?: Prisma.GenerationLayerUncheckedCreateNestedManyWithoutGenerationInput
 }
@@ -2752,6 +2628,7 @@ export type GenerationCreateWithoutCharacterCardsInput = {
   isPromptPublic?: boolean
   isFeatured?: boolean
   searchGrounded?: boolean
+  cardRecipeId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2766,13 +2643,10 @@ export type GenerationCreateWithoutCharacterCardsInput = {
   user?: Prisma.UserCreateNestedOneWithoutGenerationsInput
   project?: Prisma.ProjectCreateNestedOneWithoutGenerationsInput
   characterCard?: Prisma.CharacterCardCreateNestedOneWithoutGenerationsInput
-  cardRecipe?: Prisma.CardRecipeCreateNestedOneWithoutGenerationsInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
-  collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemCreateNestedManyWithoutGenerationInput
-  videoPipeline?: Prisma.VideoPipelineCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutSourceGenerationInput
   layers?: Prisma.GenerationLayerCreateNestedManyWithoutGenerationInput
 }
@@ -2823,9 +2697,7 @@ export type GenerationUncheckedCreateWithoutCharacterCardsInput = {
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
-  collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutGenerationInput
-  videoPipeline?: Prisma.VideoPipelineUncheckedCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutSourceGenerationInput
   layers?: Prisma.GenerationLayerUncheckedCreateNestedManyWithoutGenerationInput
 }
@@ -2874,6 +2746,7 @@ export type GenerationUpdateWithoutCharacterCardsInput = {
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
   searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2888,13 +2761,10 @@ export type GenerationUpdateWithoutCharacterCardsInput = {
   user?: Prisma.UserUpdateOneWithoutGenerationsNestedInput
   project?: Prisma.ProjectUpdateOneWithoutGenerationsNestedInput
   characterCard?: Prisma.CharacterCardUpdateOneWithoutGenerationsNestedInput
-  cardRecipe?: Prisma.CardRecipeUpdateOneWithoutGenerationsNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
-  collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUpdateManyWithoutGenerationNestedInput
-  videoPipeline?: Prisma.VideoPipelineUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutSourceGenerationNestedInput
   layers?: Prisma.GenerationLayerUpdateManyWithoutGenerationNestedInput
 }
@@ -2945,9 +2815,7 @@ export type GenerationUncheckedUpdateWithoutCharacterCardsInput = {
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
-  collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUncheckedUpdateManyWithoutGenerationNestedInput
-  videoPipeline?: Prisma.VideoPipelineUncheckedUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutSourceGenerationNestedInput
   layers?: Prisma.GenerationLayerUncheckedUpdateManyWithoutGenerationNestedInput
 }
@@ -2980,6 +2848,7 @@ export type GenerationCreateWithoutLikesInput = {
   isPromptPublic?: boolean
   isFeatured?: boolean
   searchGrounded?: boolean
+  cardRecipeId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2995,12 +2864,9 @@ export type GenerationCreateWithoutLikesInput = {
   project?: Prisma.ProjectCreateNestedOneWithoutGenerationsInput
   characterCard?: Prisma.CharacterCardCreateNestedOneWithoutGenerationsInput
   characterCards?: Prisma.GenerationCharacterCardCreateNestedManyWithoutGenerationInput
-  cardRecipe?: Prisma.CardRecipeCreateNestedOneWithoutGenerationsInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
-  collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemCreateNestedManyWithoutGenerationInput
-  videoPipeline?: Prisma.VideoPipelineCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutSourceGenerationInput
   layers?: Prisma.GenerationLayerCreateNestedManyWithoutGenerationInput
 }
@@ -3051,9 +2917,7 @@ export type GenerationUncheckedCreateWithoutLikesInput = {
   characterCards?: Prisma.GenerationCharacterCardUncheckedCreateNestedManyWithoutGenerationInput
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
-  collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutGenerationInput
-  videoPipeline?: Prisma.VideoPipelineUncheckedCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutSourceGenerationInput
   layers?: Prisma.GenerationLayerUncheckedCreateNestedManyWithoutGenerationInput
 }
@@ -3102,6 +2966,7 @@ export type GenerationUpdateWithoutLikesInput = {
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
   searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -3117,12 +2982,9 @@ export type GenerationUpdateWithoutLikesInput = {
   project?: Prisma.ProjectUpdateOneWithoutGenerationsNestedInput
   characterCard?: Prisma.CharacterCardUpdateOneWithoutGenerationsNestedInput
   characterCards?: Prisma.GenerationCharacterCardUpdateManyWithoutGenerationNestedInput
-  cardRecipe?: Prisma.CardRecipeUpdateOneWithoutGenerationsNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
-  collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUpdateManyWithoutGenerationNestedInput
-  videoPipeline?: Prisma.VideoPipelineUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutSourceGenerationNestedInput
   layers?: Prisma.GenerationLayerUpdateManyWithoutGenerationNestedInput
 }
@@ -3173,596 +3035,6 @@ export type GenerationUncheckedUpdateWithoutLikesInput = {
   characterCards?: Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutGenerationNestedInput
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
-  collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
-  folders?: Prisma.ProjectItemUncheckedUpdateManyWithoutGenerationNestedInput
-  videoPipeline?: Prisma.VideoPipelineUncheckedUpdateOneWithoutGenerationNestedInput
-  extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutSourceGenerationNestedInput
-  layers?: Prisma.GenerationLayerUncheckedUpdateManyWithoutGenerationNestedInput
-}
-
-export type GenerationCreateWithoutCollectionItemsInput = {
-  id?: string
-  createdAt?: Date | string
-  outputType?: $Enums.OutputType
-  status?: $Enums.GenerationStatus
-  url: string
-  storageKey: string
-  mimeType?: string
-  thumbnailUrl?: string | null
-  thumbnailStorageKey?: string | null
-  previewUrl?: string | null
-  previewStorageKey?: string | null
-  width?: number
-  height?: number
-  duration?: number | null
-  modelUrl?: string | null
-  modelStorageKey?: string | null
-  referenceImageUrl?: string | null
-  prompt: string
-  negativePrompt?: string | null
-  model: string
-  provider: string
-  requestCount?: number
-  isFreeGeneration?: boolean
-  isPublic?: boolean
-  isPromptPublic?: boolean
-  isFeatured?: boolean
-  searchGrounded?: boolean
-  recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  sourceSurface?: $Enums.GenerationSourceSurface
-  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  seq?: number | null
-  snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  runGroupId?: string | null
-  runGroupType?: string
-  runGroupIndex?: number
-  isWinner?: boolean
-  seed?: bigint | number | null
-  user?: Prisma.UserCreateNestedOneWithoutGenerationsInput
-  project?: Prisma.ProjectCreateNestedOneWithoutGenerationsInput
-  characterCard?: Prisma.CharacterCardCreateNestedOneWithoutGenerationsInput
-  characterCards?: Prisma.GenerationCharacterCardCreateNestedManyWithoutGenerationInput
-  cardRecipe?: Prisma.CardRecipeCreateNestedOneWithoutGenerationsInput
-  generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
-  likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
-  folders?: Prisma.ProjectItemCreateNestedManyWithoutGenerationInput
-  videoPipeline?: Prisma.VideoPipelineCreateNestedOneWithoutGenerationInput
-  extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutSourceGenerationInput
-  layers?: Prisma.GenerationLayerCreateNestedManyWithoutGenerationInput
-}
-
-export type GenerationUncheckedCreateWithoutCollectionItemsInput = {
-  id?: string
-  createdAt?: Date | string
-  outputType?: $Enums.OutputType
-  status?: $Enums.GenerationStatus
-  url: string
-  storageKey: string
-  mimeType?: string
-  thumbnailUrl?: string | null
-  thumbnailStorageKey?: string | null
-  previewUrl?: string | null
-  previewStorageKey?: string | null
-  width?: number
-  height?: number
-  duration?: number | null
-  modelUrl?: string | null
-  modelStorageKey?: string | null
-  referenceImageUrl?: string | null
-  prompt: string
-  negativePrompt?: string | null
-  model: string
-  provider: string
-  requestCount?: number
-  isFreeGeneration?: boolean
-  isPublic?: boolean
-  isPromptPublic?: boolean
-  isFeatured?: boolean
-  searchGrounded?: boolean
-  userId?: string | null
-  projectId?: string | null
-  characterCardId?: string | null
-  cardRecipeId?: string | null
-  recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  sourceSurface?: $Enums.GenerationSourceSurface
-  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  seq?: number | null
-  snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  runGroupId?: string | null
-  runGroupType?: string
-  runGroupIndex?: number
-  isWinner?: boolean
-  seed?: bigint | number | null
-  characterCards?: Prisma.GenerationCharacterCardUncheckedCreateNestedManyWithoutGenerationInput
-  generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
-  likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
-  folders?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutGenerationInput
-  videoPipeline?: Prisma.VideoPipelineUncheckedCreateNestedOneWithoutGenerationInput
-  extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutSourceGenerationInput
-  layers?: Prisma.GenerationLayerUncheckedCreateNestedManyWithoutGenerationInput
-}
-
-export type GenerationCreateOrConnectWithoutCollectionItemsInput = {
-  where: Prisma.GenerationWhereUniqueInput
-  create: Prisma.XOR<Prisma.GenerationCreateWithoutCollectionItemsInput, Prisma.GenerationUncheckedCreateWithoutCollectionItemsInput>
-}
-
-export type GenerationUpsertWithoutCollectionItemsInput = {
-  update: Prisma.XOR<Prisma.GenerationUpdateWithoutCollectionItemsInput, Prisma.GenerationUncheckedUpdateWithoutCollectionItemsInput>
-  create: Prisma.XOR<Prisma.GenerationCreateWithoutCollectionItemsInput, Prisma.GenerationUncheckedCreateWithoutCollectionItemsInput>
-  where?: Prisma.GenerationWhereInput
-}
-
-export type GenerationUpdateToOneWithWhereWithoutCollectionItemsInput = {
-  where?: Prisma.GenerationWhereInput
-  data: Prisma.XOR<Prisma.GenerationUpdateWithoutCollectionItemsInput, Prisma.GenerationUncheckedUpdateWithoutCollectionItemsInput>
-}
-
-export type GenerationUpdateWithoutCollectionItemsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  outputType?: Prisma.EnumOutputTypeFieldUpdateOperationsInput | $Enums.OutputType
-  status?: Prisma.EnumGenerationStatusFieldUpdateOperationsInput | $Enums.GenerationStatus
-  url?: Prisma.StringFieldUpdateOperationsInput | string
-  storageKey?: Prisma.StringFieldUpdateOperationsInput | string
-  mimeType?: Prisma.StringFieldUpdateOperationsInput | string
-  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  width?: Prisma.IntFieldUpdateOperationsInput | number
-  height?: Prisma.IntFieldUpdateOperationsInput | number
-  duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
-  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  prompt?: Prisma.StringFieldUpdateOperationsInput | string
-  negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  model?: Prisma.StringFieldUpdateOperationsInput | string
-  provider?: Prisma.StringFieldUpdateOperationsInput | string
-  requestCount?: Prisma.IntFieldUpdateOperationsInput | number
-  isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
-  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
-  snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
-  runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
-  isWinner?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  seed?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
-  user?: Prisma.UserUpdateOneWithoutGenerationsNestedInput
-  project?: Prisma.ProjectUpdateOneWithoutGenerationsNestedInput
-  characterCard?: Prisma.CharacterCardUpdateOneWithoutGenerationsNestedInput
-  characterCards?: Prisma.GenerationCharacterCardUpdateManyWithoutGenerationNestedInput
-  cardRecipe?: Prisma.CardRecipeUpdateOneWithoutGenerationsNestedInput
-  generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
-  likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
-  folders?: Prisma.ProjectItemUpdateManyWithoutGenerationNestedInput
-  videoPipeline?: Prisma.VideoPipelineUpdateOneWithoutGenerationNestedInput
-  extractedElements?: Prisma.ExtractedElementUpdateManyWithoutSourceGenerationNestedInput
-  layers?: Prisma.GenerationLayerUpdateManyWithoutGenerationNestedInput
-}
-
-export type GenerationUncheckedUpdateWithoutCollectionItemsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  outputType?: Prisma.EnumOutputTypeFieldUpdateOperationsInput | $Enums.OutputType
-  status?: Prisma.EnumGenerationStatusFieldUpdateOperationsInput | $Enums.GenerationStatus
-  url?: Prisma.StringFieldUpdateOperationsInput | string
-  storageKey?: Prisma.StringFieldUpdateOperationsInput | string
-  mimeType?: Prisma.StringFieldUpdateOperationsInput | string
-  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  width?: Prisma.IntFieldUpdateOperationsInput | number
-  height?: Prisma.IntFieldUpdateOperationsInput | number
-  duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
-  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  prompt?: Prisma.StringFieldUpdateOperationsInput | string
-  negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  model?: Prisma.StringFieldUpdateOperationsInput | string
-  provider?: Prisma.StringFieldUpdateOperationsInput | string
-  requestCount?: Prisma.IntFieldUpdateOperationsInput | number
-  isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
-  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
-  snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
-  runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
-  isWinner?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  seed?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
-  characterCards?: Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutGenerationNestedInput
-  generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
-  likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
-  folders?: Prisma.ProjectItemUncheckedUpdateManyWithoutGenerationNestedInput
-  videoPipeline?: Prisma.VideoPipelineUncheckedUpdateOneWithoutGenerationNestedInput
-  extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutSourceGenerationNestedInput
-  layers?: Prisma.GenerationLayerUncheckedUpdateManyWithoutGenerationNestedInput
-}
-
-export type GenerationCreateWithoutCardRecipeInput = {
-  id?: string
-  createdAt?: Date | string
-  outputType?: $Enums.OutputType
-  status?: $Enums.GenerationStatus
-  url: string
-  storageKey: string
-  mimeType?: string
-  thumbnailUrl?: string | null
-  thumbnailStorageKey?: string | null
-  previewUrl?: string | null
-  previewStorageKey?: string | null
-  width?: number
-  height?: number
-  duration?: number | null
-  modelUrl?: string | null
-  modelStorageKey?: string | null
-  referenceImageUrl?: string | null
-  prompt: string
-  negativePrompt?: string | null
-  model: string
-  provider: string
-  requestCount?: number
-  isFreeGeneration?: boolean
-  isPublic?: boolean
-  isPromptPublic?: boolean
-  isFeatured?: boolean
-  searchGrounded?: boolean
-  recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  sourceSurface?: $Enums.GenerationSourceSurface
-  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  seq?: number | null
-  snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  runGroupId?: string | null
-  runGroupType?: string
-  runGroupIndex?: number
-  isWinner?: boolean
-  seed?: bigint | number | null
-  user?: Prisma.UserCreateNestedOneWithoutGenerationsInput
-  project?: Prisma.ProjectCreateNestedOneWithoutGenerationsInput
-  characterCard?: Prisma.CharacterCardCreateNestedOneWithoutGenerationsInput
-  characterCards?: Prisma.GenerationCharacterCardCreateNestedManyWithoutGenerationInput
-  generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
-  likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
-  collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
-  folders?: Prisma.ProjectItemCreateNestedManyWithoutGenerationInput
-  videoPipeline?: Prisma.VideoPipelineCreateNestedOneWithoutGenerationInput
-  extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutSourceGenerationInput
-  layers?: Prisma.GenerationLayerCreateNestedManyWithoutGenerationInput
-}
-
-export type GenerationUncheckedCreateWithoutCardRecipeInput = {
-  id?: string
-  createdAt?: Date | string
-  outputType?: $Enums.OutputType
-  status?: $Enums.GenerationStatus
-  url: string
-  storageKey: string
-  mimeType?: string
-  thumbnailUrl?: string | null
-  thumbnailStorageKey?: string | null
-  previewUrl?: string | null
-  previewStorageKey?: string | null
-  width?: number
-  height?: number
-  duration?: number | null
-  modelUrl?: string | null
-  modelStorageKey?: string | null
-  referenceImageUrl?: string | null
-  prompt: string
-  negativePrompt?: string | null
-  model: string
-  provider: string
-  requestCount?: number
-  isFreeGeneration?: boolean
-  isPublic?: boolean
-  isPromptPublic?: boolean
-  isFeatured?: boolean
-  searchGrounded?: boolean
-  userId?: string | null
-  projectId?: string | null
-  characterCardId?: string | null
-  recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  sourceSurface?: $Enums.GenerationSourceSurface
-  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  seq?: number | null
-  snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  runGroupId?: string | null
-  runGroupType?: string
-  runGroupIndex?: number
-  isWinner?: boolean
-  seed?: bigint | number | null
-  characterCards?: Prisma.GenerationCharacterCardUncheckedCreateNestedManyWithoutGenerationInput
-  generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
-  likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
-  collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
-  folders?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutGenerationInput
-  videoPipeline?: Prisma.VideoPipelineUncheckedCreateNestedOneWithoutGenerationInput
-  extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutSourceGenerationInput
-  layers?: Prisma.GenerationLayerUncheckedCreateNestedManyWithoutGenerationInput
-}
-
-export type GenerationCreateOrConnectWithoutCardRecipeInput = {
-  where: Prisma.GenerationWhereUniqueInput
-  create: Prisma.XOR<Prisma.GenerationCreateWithoutCardRecipeInput, Prisma.GenerationUncheckedCreateWithoutCardRecipeInput>
-}
-
-export type GenerationCreateManyCardRecipeInputEnvelope = {
-  data: Prisma.GenerationCreateManyCardRecipeInput | Prisma.GenerationCreateManyCardRecipeInput[]
-  skipDuplicates?: boolean
-}
-
-export type GenerationUpsertWithWhereUniqueWithoutCardRecipeInput = {
-  where: Prisma.GenerationWhereUniqueInput
-  update: Prisma.XOR<Prisma.GenerationUpdateWithoutCardRecipeInput, Prisma.GenerationUncheckedUpdateWithoutCardRecipeInput>
-  create: Prisma.XOR<Prisma.GenerationCreateWithoutCardRecipeInput, Prisma.GenerationUncheckedCreateWithoutCardRecipeInput>
-}
-
-export type GenerationUpdateWithWhereUniqueWithoutCardRecipeInput = {
-  where: Prisma.GenerationWhereUniqueInput
-  data: Prisma.XOR<Prisma.GenerationUpdateWithoutCardRecipeInput, Prisma.GenerationUncheckedUpdateWithoutCardRecipeInput>
-}
-
-export type GenerationUpdateManyWithWhereWithoutCardRecipeInput = {
-  where: Prisma.GenerationScalarWhereInput
-  data: Prisma.XOR<Prisma.GenerationUpdateManyMutationInput, Prisma.GenerationUncheckedUpdateManyWithoutCardRecipeInput>
-}
-
-export type GenerationCreateWithoutVideoPipelineInput = {
-  id?: string
-  createdAt?: Date | string
-  outputType?: $Enums.OutputType
-  status?: $Enums.GenerationStatus
-  url: string
-  storageKey: string
-  mimeType?: string
-  thumbnailUrl?: string | null
-  thumbnailStorageKey?: string | null
-  previewUrl?: string | null
-  previewStorageKey?: string | null
-  width?: number
-  height?: number
-  duration?: number | null
-  modelUrl?: string | null
-  modelStorageKey?: string | null
-  referenceImageUrl?: string | null
-  prompt: string
-  negativePrompt?: string | null
-  model: string
-  provider: string
-  requestCount?: number
-  isFreeGeneration?: boolean
-  isPublic?: boolean
-  isPromptPublic?: boolean
-  isFeatured?: boolean
-  searchGrounded?: boolean
-  recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  sourceSurface?: $Enums.GenerationSourceSurface
-  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  seq?: number | null
-  snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  runGroupId?: string | null
-  runGroupType?: string
-  runGroupIndex?: number
-  isWinner?: boolean
-  seed?: bigint | number | null
-  user?: Prisma.UserCreateNestedOneWithoutGenerationsInput
-  project?: Prisma.ProjectCreateNestedOneWithoutGenerationsInput
-  characterCard?: Prisma.CharacterCardCreateNestedOneWithoutGenerationsInput
-  characterCards?: Prisma.GenerationCharacterCardCreateNestedManyWithoutGenerationInput
-  cardRecipe?: Prisma.CardRecipeCreateNestedOneWithoutGenerationsInput
-  generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
-  likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
-  collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
-  folders?: Prisma.ProjectItemCreateNestedManyWithoutGenerationInput
-  extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutSourceGenerationInput
-  layers?: Prisma.GenerationLayerCreateNestedManyWithoutGenerationInput
-}
-
-export type GenerationUncheckedCreateWithoutVideoPipelineInput = {
-  id?: string
-  createdAt?: Date | string
-  outputType?: $Enums.OutputType
-  status?: $Enums.GenerationStatus
-  url: string
-  storageKey: string
-  mimeType?: string
-  thumbnailUrl?: string | null
-  thumbnailStorageKey?: string | null
-  previewUrl?: string | null
-  previewStorageKey?: string | null
-  width?: number
-  height?: number
-  duration?: number | null
-  modelUrl?: string | null
-  modelStorageKey?: string | null
-  referenceImageUrl?: string | null
-  prompt: string
-  negativePrompt?: string | null
-  model: string
-  provider: string
-  requestCount?: number
-  isFreeGeneration?: boolean
-  isPublic?: boolean
-  isPromptPublic?: boolean
-  isFeatured?: boolean
-  searchGrounded?: boolean
-  userId?: string | null
-  projectId?: string | null
-  characterCardId?: string | null
-  cardRecipeId?: string | null
-  recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  sourceSurface?: $Enums.GenerationSourceSurface
-  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  seq?: number | null
-  snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  runGroupId?: string | null
-  runGroupType?: string
-  runGroupIndex?: number
-  isWinner?: boolean
-  seed?: bigint | number | null
-  characterCards?: Prisma.GenerationCharacterCardUncheckedCreateNestedManyWithoutGenerationInput
-  generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
-  likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
-  collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
-  folders?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutGenerationInput
-  extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutSourceGenerationInput
-  layers?: Prisma.GenerationLayerUncheckedCreateNestedManyWithoutGenerationInput
-}
-
-export type GenerationCreateOrConnectWithoutVideoPipelineInput = {
-  where: Prisma.GenerationWhereUniqueInput
-  create: Prisma.XOR<Prisma.GenerationCreateWithoutVideoPipelineInput, Prisma.GenerationUncheckedCreateWithoutVideoPipelineInput>
-}
-
-export type GenerationUpsertWithoutVideoPipelineInput = {
-  update: Prisma.XOR<Prisma.GenerationUpdateWithoutVideoPipelineInput, Prisma.GenerationUncheckedUpdateWithoutVideoPipelineInput>
-  create: Prisma.XOR<Prisma.GenerationCreateWithoutVideoPipelineInput, Prisma.GenerationUncheckedCreateWithoutVideoPipelineInput>
-  where?: Prisma.GenerationWhereInput
-}
-
-export type GenerationUpdateToOneWithWhereWithoutVideoPipelineInput = {
-  where?: Prisma.GenerationWhereInput
-  data: Prisma.XOR<Prisma.GenerationUpdateWithoutVideoPipelineInput, Prisma.GenerationUncheckedUpdateWithoutVideoPipelineInput>
-}
-
-export type GenerationUpdateWithoutVideoPipelineInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  outputType?: Prisma.EnumOutputTypeFieldUpdateOperationsInput | $Enums.OutputType
-  status?: Prisma.EnumGenerationStatusFieldUpdateOperationsInput | $Enums.GenerationStatus
-  url?: Prisma.StringFieldUpdateOperationsInput | string
-  storageKey?: Prisma.StringFieldUpdateOperationsInput | string
-  mimeType?: Prisma.StringFieldUpdateOperationsInput | string
-  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  width?: Prisma.IntFieldUpdateOperationsInput | number
-  height?: Prisma.IntFieldUpdateOperationsInput | number
-  duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
-  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  prompt?: Prisma.StringFieldUpdateOperationsInput | string
-  negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  model?: Prisma.StringFieldUpdateOperationsInput | string
-  provider?: Prisma.StringFieldUpdateOperationsInput | string
-  requestCount?: Prisma.IntFieldUpdateOperationsInput | number
-  isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
-  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
-  snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
-  runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
-  isWinner?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  seed?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
-  user?: Prisma.UserUpdateOneWithoutGenerationsNestedInput
-  project?: Prisma.ProjectUpdateOneWithoutGenerationsNestedInput
-  characterCard?: Prisma.CharacterCardUpdateOneWithoutGenerationsNestedInput
-  characterCards?: Prisma.GenerationCharacterCardUpdateManyWithoutGenerationNestedInput
-  cardRecipe?: Prisma.CardRecipeUpdateOneWithoutGenerationsNestedInput
-  generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
-  likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
-  collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
-  folders?: Prisma.ProjectItemUpdateManyWithoutGenerationNestedInput
-  extractedElements?: Prisma.ExtractedElementUpdateManyWithoutSourceGenerationNestedInput
-  layers?: Prisma.GenerationLayerUpdateManyWithoutGenerationNestedInput
-}
-
-export type GenerationUncheckedUpdateWithoutVideoPipelineInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  outputType?: Prisma.EnumOutputTypeFieldUpdateOperationsInput | $Enums.OutputType
-  status?: Prisma.EnumGenerationStatusFieldUpdateOperationsInput | $Enums.GenerationStatus
-  url?: Prisma.StringFieldUpdateOperationsInput | string
-  storageKey?: Prisma.StringFieldUpdateOperationsInput | string
-  mimeType?: Prisma.StringFieldUpdateOperationsInput | string
-  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  width?: Prisma.IntFieldUpdateOperationsInput | number
-  height?: Prisma.IntFieldUpdateOperationsInput | number
-  duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
-  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  prompt?: Prisma.StringFieldUpdateOperationsInput | string
-  negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  model?: Prisma.StringFieldUpdateOperationsInput | string
-  provider?: Prisma.StringFieldUpdateOperationsInput | string
-  requestCount?: Prisma.IntFieldUpdateOperationsInput | number
-  isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
-  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
-  snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
-  runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
-  isWinner?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  seed?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
-  characterCards?: Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutGenerationNestedInput
-  generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
-  likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
-  collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUncheckedUpdateManyWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutSourceGenerationNestedInput
   layers?: Prisma.GenerationLayerUncheckedUpdateManyWithoutGenerationNestedInput
@@ -3796,6 +3068,7 @@ export type GenerationCreateWithoutExtractedElementsInput = {
   isPromptPublic?: boolean
   isFeatured?: boolean
   searchGrounded?: boolean
+  cardRecipeId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -3811,13 +3084,10 @@ export type GenerationCreateWithoutExtractedElementsInput = {
   project?: Prisma.ProjectCreateNestedOneWithoutGenerationsInput
   characterCard?: Prisma.CharacterCardCreateNestedOneWithoutGenerationsInput
   characterCards?: Prisma.GenerationCharacterCardCreateNestedManyWithoutGenerationInput
-  cardRecipe?: Prisma.CardRecipeCreateNestedOneWithoutGenerationsInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
-  collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemCreateNestedManyWithoutGenerationInput
-  videoPipeline?: Prisma.VideoPipelineCreateNestedOneWithoutGenerationInput
   layers?: Prisma.GenerationLayerCreateNestedManyWithoutGenerationInput
 }
 
@@ -3868,9 +3138,7 @@ export type GenerationUncheckedCreateWithoutExtractedElementsInput = {
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
-  collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutGenerationInput
-  videoPipeline?: Prisma.VideoPipelineUncheckedCreateNestedOneWithoutGenerationInput
   layers?: Prisma.GenerationLayerUncheckedCreateNestedManyWithoutGenerationInput
 }
 
@@ -3918,6 +3186,7 @@ export type GenerationUpdateWithoutExtractedElementsInput = {
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
   searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -3933,13 +3202,10 @@ export type GenerationUpdateWithoutExtractedElementsInput = {
   project?: Prisma.ProjectUpdateOneWithoutGenerationsNestedInput
   characterCard?: Prisma.CharacterCardUpdateOneWithoutGenerationsNestedInput
   characterCards?: Prisma.GenerationCharacterCardUpdateManyWithoutGenerationNestedInput
-  cardRecipe?: Prisma.CardRecipeUpdateOneWithoutGenerationsNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
-  collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUpdateManyWithoutGenerationNestedInput
-  videoPipeline?: Prisma.VideoPipelineUpdateOneWithoutGenerationNestedInput
   layers?: Prisma.GenerationLayerUpdateManyWithoutGenerationNestedInput
 }
 
@@ -3990,9 +3256,7 @@ export type GenerationUncheckedUpdateWithoutExtractedElementsInput = {
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
-  collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUncheckedUpdateManyWithoutGenerationNestedInput
-  videoPipeline?: Prisma.VideoPipelineUncheckedUpdateOneWithoutGenerationNestedInput
   layers?: Prisma.GenerationLayerUncheckedUpdateManyWithoutGenerationNestedInput
 }
 
@@ -4024,6 +3288,7 @@ export type GenerationCreateWithoutLayersInput = {
   isPromptPublic?: boolean
   isFeatured?: boolean
   searchGrounded?: boolean
+  cardRecipeId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -4039,13 +3304,10 @@ export type GenerationCreateWithoutLayersInput = {
   project?: Prisma.ProjectCreateNestedOneWithoutGenerationsInput
   characterCard?: Prisma.CharacterCardCreateNestedOneWithoutGenerationsInput
   characterCards?: Prisma.GenerationCharacterCardCreateNestedManyWithoutGenerationInput
-  cardRecipe?: Prisma.CardRecipeCreateNestedOneWithoutGenerationsInput
   generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
-  collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemCreateNestedManyWithoutGenerationInput
-  videoPipeline?: Prisma.VideoPipelineCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutSourceGenerationInput
 }
 
@@ -4096,9 +3358,7 @@ export type GenerationUncheckedCreateWithoutLayersInput = {
   generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
-  collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   folders?: Prisma.ProjectItemUncheckedCreateNestedManyWithoutGenerationInput
-  videoPipeline?: Prisma.VideoPipelineUncheckedCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutSourceGenerationInput
 }
 
@@ -4146,6 +3406,7 @@ export type GenerationUpdateWithoutLayersInput = {
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
   searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -4161,13 +3422,10 @@ export type GenerationUpdateWithoutLayersInput = {
   project?: Prisma.ProjectUpdateOneWithoutGenerationsNestedInput
   characterCard?: Prisma.CharacterCardUpdateOneWithoutGenerationsNestedInput
   characterCards?: Prisma.GenerationCharacterCardUpdateManyWithoutGenerationNestedInput
-  cardRecipe?: Prisma.CardRecipeUpdateOneWithoutGenerationsNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
-  collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUpdateManyWithoutGenerationNestedInput
-  videoPipeline?: Prisma.VideoPipelineUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutSourceGenerationNestedInput
 }
 
@@ -4218,9 +3476,7 @@ export type GenerationUncheckedUpdateWithoutLayersInput = {
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
-  collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUncheckedUpdateManyWithoutGenerationNestedInput
-  videoPipeline?: Prisma.VideoPipelineUncheckedUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutSourceGenerationNestedInput
 }
 
@@ -4296,6 +3552,7 @@ export type GenerationUpdateWithoutUserInput = {
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
   searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -4310,13 +3567,10 @@ export type GenerationUpdateWithoutUserInput = {
   project?: Prisma.ProjectUpdateOneWithoutGenerationsNestedInput
   characterCard?: Prisma.CharacterCardUpdateOneWithoutGenerationsNestedInput
   characterCards?: Prisma.GenerationCharacterCardUpdateManyWithoutGenerationNestedInput
-  cardRecipe?: Prisma.CardRecipeUpdateOneWithoutGenerationsNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
-  collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUpdateManyWithoutGenerationNestedInput
-  videoPipeline?: Prisma.VideoPipelineUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutSourceGenerationNestedInput
   layers?: Prisma.GenerationLayerUpdateManyWithoutGenerationNestedInput
 }
@@ -4367,9 +3621,7 @@ export type GenerationUncheckedUpdateWithoutUserInput = {
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
-  collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUncheckedUpdateManyWithoutGenerationNestedInput
-  videoPipeline?: Prisma.VideoPipelineUncheckedUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutSourceGenerationNestedInput
   layers?: Prisma.GenerationLayerUncheckedUpdateManyWithoutGenerationNestedInput
 }
@@ -4490,6 +3742,7 @@ export type GenerationUpdateWithoutProjectInput = {
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
   searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -4504,13 +3757,10 @@ export type GenerationUpdateWithoutProjectInput = {
   user?: Prisma.UserUpdateOneWithoutGenerationsNestedInput
   characterCard?: Prisma.CharacterCardUpdateOneWithoutGenerationsNestedInput
   characterCards?: Prisma.GenerationCharacterCardUpdateManyWithoutGenerationNestedInput
-  cardRecipe?: Prisma.CardRecipeUpdateOneWithoutGenerationsNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
-  collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUpdateManyWithoutGenerationNestedInput
-  videoPipeline?: Prisma.VideoPipelineUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutSourceGenerationNestedInput
   layers?: Prisma.GenerationLayerUpdateManyWithoutGenerationNestedInput
 }
@@ -4561,9 +3811,7 @@ export type GenerationUncheckedUpdateWithoutProjectInput = {
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
-  collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUncheckedUpdateManyWithoutGenerationNestedInput
-  videoPipeline?: Prisma.VideoPipelineUncheckedUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutSourceGenerationNestedInput
   layers?: Prisma.GenerationLayerUncheckedUpdateManyWithoutGenerationNestedInput
 }
@@ -4684,6 +3932,7 @@ export type GenerationUpdateWithoutCharacterCardInput = {
   isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
   searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
   loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -4698,13 +3947,10 @@ export type GenerationUpdateWithoutCharacterCardInput = {
   user?: Prisma.UserUpdateOneWithoutGenerationsNestedInput
   project?: Prisma.ProjectUpdateOneWithoutGenerationsNestedInput
   characterCards?: Prisma.GenerationCharacterCardUpdateManyWithoutGenerationNestedInput
-  cardRecipe?: Prisma.CardRecipeUpdateOneWithoutGenerationsNestedInput
   generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
-  collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUpdateManyWithoutGenerationNestedInput
-  videoPipeline?: Prisma.VideoPipelineUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutSourceGenerationNestedInput
   layers?: Prisma.GenerationLayerUpdateManyWithoutGenerationNestedInput
 }
@@ -4755,9 +4001,7 @@ export type GenerationUncheckedUpdateWithoutCharacterCardInput = {
   generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
-  collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   folders?: Prisma.ProjectItemUncheckedUpdateManyWithoutGenerationNestedInput
-  videoPipeline?: Prisma.VideoPipelineUncheckedUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutSourceGenerationNestedInput
   layers?: Prisma.GenerationLayerUncheckedUpdateManyWithoutGenerationNestedInput
 }
@@ -4806,200 +4050,6 @@ export type GenerationUncheckedUpdateManyWithoutCharacterCardInput = {
   seed?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
 }
 
-export type GenerationCreateManyCardRecipeInput = {
-  id?: string
-  createdAt?: Date | string
-  outputType?: $Enums.OutputType
-  status?: $Enums.GenerationStatus
-  url: string
-  storageKey: string
-  mimeType?: string
-  thumbnailUrl?: string | null
-  thumbnailStorageKey?: string | null
-  previewUrl?: string | null
-  previewStorageKey?: string | null
-  width?: number
-  height?: number
-  duration?: number | null
-  modelUrl?: string | null
-  modelStorageKey?: string | null
-  referenceImageUrl?: string | null
-  prompt: string
-  negativePrompt?: string | null
-  model: string
-  provider: string
-  requestCount?: number
-  isFreeGeneration?: boolean
-  isPublic?: boolean
-  isPromptPublic?: boolean
-  isFeatured?: boolean
-  searchGrounded?: boolean
-  userId?: string | null
-  projectId?: string | null
-  characterCardId?: string | null
-  recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  sourceSurface?: $Enums.GenerationSourceSurface
-  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  seq?: number | null
-  snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  runGroupId?: string | null
-  runGroupType?: string
-  runGroupIndex?: number
-  isWinner?: boolean
-  seed?: bigint | number | null
-}
-
-export type GenerationUpdateWithoutCardRecipeInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  outputType?: Prisma.EnumOutputTypeFieldUpdateOperationsInput | $Enums.OutputType
-  status?: Prisma.EnumGenerationStatusFieldUpdateOperationsInput | $Enums.GenerationStatus
-  url?: Prisma.StringFieldUpdateOperationsInput | string
-  storageKey?: Prisma.StringFieldUpdateOperationsInput | string
-  mimeType?: Prisma.StringFieldUpdateOperationsInput | string
-  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  width?: Prisma.IntFieldUpdateOperationsInput | number
-  height?: Prisma.IntFieldUpdateOperationsInput | number
-  duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
-  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  prompt?: Prisma.StringFieldUpdateOperationsInput | string
-  negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  model?: Prisma.StringFieldUpdateOperationsInput | string
-  provider?: Prisma.StringFieldUpdateOperationsInput | string
-  requestCount?: Prisma.IntFieldUpdateOperationsInput | number
-  isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
-  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
-  snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
-  runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
-  isWinner?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  seed?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
-  user?: Prisma.UserUpdateOneWithoutGenerationsNestedInput
-  project?: Prisma.ProjectUpdateOneWithoutGenerationsNestedInput
-  characterCard?: Prisma.CharacterCardUpdateOneWithoutGenerationsNestedInput
-  characterCards?: Prisma.GenerationCharacterCardUpdateManyWithoutGenerationNestedInput
-  generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
-  likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
-  collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
-  folders?: Prisma.ProjectItemUpdateManyWithoutGenerationNestedInput
-  videoPipeline?: Prisma.VideoPipelineUpdateOneWithoutGenerationNestedInput
-  extractedElements?: Prisma.ExtractedElementUpdateManyWithoutSourceGenerationNestedInput
-  layers?: Prisma.GenerationLayerUpdateManyWithoutGenerationNestedInput
-}
-
-export type GenerationUncheckedUpdateWithoutCardRecipeInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  outputType?: Prisma.EnumOutputTypeFieldUpdateOperationsInput | $Enums.OutputType
-  status?: Prisma.EnumGenerationStatusFieldUpdateOperationsInput | $Enums.GenerationStatus
-  url?: Prisma.StringFieldUpdateOperationsInput | string
-  storageKey?: Prisma.StringFieldUpdateOperationsInput | string
-  mimeType?: Prisma.StringFieldUpdateOperationsInput | string
-  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  width?: Prisma.IntFieldUpdateOperationsInput | number
-  height?: Prisma.IntFieldUpdateOperationsInput | number
-  duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
-  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  prompt?: Prisma.StringFieldUpdateOperationsInput | string
-  negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  model?: Prisma.StringFieldUpdateOperationsInput | string
-  provider?: Prisma.StringFieldUpdateOperationsInput | string
-  requestCount?: Prisma.IntFieldUpdateOperationsInput | number
-  isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
-  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
-  snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
-  runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
-  isWinner?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  seed?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
-  characterCards?: Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutGenerationNestedInput
-  generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
-  likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
-  collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
-  folders?: Prisma.ProjectItemUncheckedUpdateManyWithoutGenerationNestedInput
-  videoPipeline?: Prisma.VideoPipelineUncheckedUpdateOneWithoutGenerationNestedInput
-  extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutSourceGenerationNestedInput
-  layers?: Prisma.GenerationLayerUncheckedUpdateManyWithoutGenerationNestedInput
-}
-
-export type GenerationUncheckedUpdateManyWithoutCardRecipeInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  outputType?: Prisma.EnumOutputTypeFieldUpdateOperationsInput | $Enums.OutputType
-  status?: Prisma.EnumGenerationStatusFieldUpdateOperationsInput | $Enums.GenerationStatus
-  url?: Prisma.StringFieldUpdateOperationsInput | string
-  storageKey?: Prisma.StringFieldUpdateOperationsInput | string
-  mimeType?: Prisma.StringFieldUpdateOperationsInput | string
-  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  width?: Prisma.IntFieldUpdateOperationsInput | number
-  height?: Prisma.IntFieldUpdateOperationsInput | number
-  duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
-  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  prompt?: Prisma.StringFieldUpdateOperationsInput | string
-  negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  model?: Prisma.StringFieldUpdateOperationsInput | string
-  provider?: Prisma.StringFieldUpdateOperationsInput | string
-  requestCount?: Prisma.IntFieldUpdateOperationsInput | number
-  isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
-  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
-  snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
-  runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
-  isWinner?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  seed?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
-}
-
 
 /**
  * Count Type GenerationCountOutputType
@@ -5009,7 +4059,6 @@ export type GenerationCountOutputType = {
   characterCards: number
   apiUsageLedger: number
   likes: number
-  collectionItems: number
   folders: number
   extractedElements: number
   layers: number
@@ -5019,7 +4068,6 @@ export type GenerationCountOutputTypeSelect<ExtArgs extends runtime.Types.Extens
   characterCards?: boolean | GenerationCountOutputTypeCountCharacterCardsArgs
   apiUsageLedger?: boolean | GenerationCountOutputTypeCountApiUsageLedgerArgs
   likes?: boolean | GenerationCountOutputTypeCountLikesArgs
-  collectionItems?: boolean | GenerationCountOutputTypeCountCollectionItemsArgs
   folders?: boolean | GenerationCountOutputTypeCountFoldersArgs
   extractedElements?: boolean | GenerationCountOutputTypeCountExtractedElementsArgs
   layers?: boolean | GenerationCountOutputTypeCountLayersArgs
@@ -5054,13 +4102,6 @@ export type GenerationCountOutputTypeCountApiUsageLedgerArgs<ExtArgs extends run
  */
 export type GenerationCountOutputTypeCountLikesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.UserLikeWhereInput
-}
-
-/**
- * GenerationCountOutputType without action
- */
-export type GenerationCountOutputTypeCountCollectionItemsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  where?: Prisma.CollectionItemWhereInput
 }
 
 /**
@@ -5132,13 +4173,10 @@ export type GenerationSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   project?: boolean | Prisma.Generation$projectArgs<ExtArgs>
   characterCard?: boolean | Prisma.Generation$characterCardArgs<ExtArgs>
   characterCards?: boolean | Prisma.Generation$characterCardsArgs<ExtArgs>
-  cardRecipe?: boolean | Prisma.Generation$cardRecipeArgs<ExtArgs>
   generationJob?: boolean | Prisma.Generation$generationJobArgs<ExtArgs>
   apiUsageLedger?: boolean | Prisma.Generation$apiUsageLedgerArgs<ExtArgs>
   likes?: boolean | Prisma.Generation$likesArgs<ExtArgs>
-  collectionItems?: boolean | Prisma.Generation$collectionItemsArgs<ExtArgs>
   folders?: boolean | Prisma.Generation$foldersArgs<ExtArgs>
-  videoPipeline?: boolean | Prisma.Generation$videoPipelineArgs<ExtArgs>
   extractedElements?: boolean | Prisma.Generation$extractedElementsArgs<ExtArgs>
   layers?: boolean | Prisma.Generation$layersArgs<ExtArgs>
   _count?: boolean | Prisma.GenerationCountOutputTypeDefaultArgs<ExtArgs>
@@ -5190,7 +4228,6 @@ export type GenerationSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   user?: boolean | Prisma.Generation$userArgs<ExtArgs>
   project?: boolean | Prisma.Generation$projectArgs<ExtArgs>
   characterCard?: boolean | Prisma.Generation$characterCardArgs<ExtArgs>
-  cardRecipe?: boolean | Prisma.Generation$cardRecipeArgs<ExtArgs>
 }, ExtArgs["result"]["generation"]>
 
 export type GenerationSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -5239,7 +4276,6 @@ export type GenerationSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   user?: boolean | Prisma.Generation$userArgs<ExtArgs>
   project?: boolean | Prisma.Generation$projectArgs<ExtArgs>
   characterCard?: boolean | Prisma.Generation$characterCardArgs<ExtArgs>
-  cardRecipe?: boolean | Prisma.Generation$cardRecipeArgs<ExtArgs>
 }, ExtArgs["result"]["generation"]>
 
 export type GenerationSelectScalar = {
@@ -5293,13 +4329,10 @@ export type GenerationInclude<ExtArgs extends runtime.Types.Extensions.InternalA
   project?: boolean | Prisma.Generation$projectArgs<ExtArgs>
   characterCard?: boolean | Prisma.Generation$characterCardArgs<ExtArgs>
   characterCards?: boolean | Prisma.Generation$characterCardsArgs<ExtArgs>
-  cardRecipe?: boolean | Prisma.Generation$cardRecipeArgs<ExtArgs>
   generationJob?: boolean | Prisma.Generation$generationJobArgs<ExtArgs>
   apiUsageLedger?: boolean | Prisma.Generation$apiUsageLedgerArgs<ExtArgs>
   likes?: boolean | Prisma.Generation$likesArgs<ExtArgs>
-  collectionItems?: boolean | Prisma.Generation$collectionItemsArgs<ExtArgs>
   folders?: boolean | Prisma.Generation$foldersArgs<ExtArgs>
-  videoPipeline?: boolean | Prisma.Generation$videoPipelineArgs<ExtArgs>
   extractedElements?: boolean | Prisma.Generation$extractedElementsArgs<ExtArgs>
   layers?: boolean | Prisma.Generation$layersArgs<ExtArgs>
   _count?: boolean | Prisma.GenerationCountOutputTypeDefaultArgs<ExtArgs>
@@ -5308,13 +4341,11 @@ export type GenerationIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.E
   user?: boolean | Prisma.Generation$userArgs<ExtArgs>
   project?: boolean | Prisma.Generation$projectArgs<ExtArgs>
   characterCard?: boolean | Prisma.Generation$characterCardArgs<ExtArgs>
-  cardRecipe?: boolean | Prisma.Generation$cardRecipeArgs<ExtArgs>
 }
 export type GenerationIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.Generation$userArgs<ExtArgs>
   project?: boolean | Prisma.Generation$projectArgs<ExtArgs>
   characterCard?: boolean | Prisma.Generation$characterCardArgs<ExtArgs>
-  cardRecipe?: boolean | Prisma.Generation$cardRecipeArgs<ExtArgs>
 }
 
 export type $GenerationPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -5324,13 +4355,10 @@ export type $GenerationPayload<ExtArgs extends runtime.Types.Extensions.Internal
     project: Prisma.$ProjectPayload<ExtArgs> | null
     characterCard: Prisma.$CharacterCardPayload<ExtArgs> | null
     characterCards: Prisma.$GenerationCharacterCardPayload<ExtArgs>[]
-    cardRecipe: Prisma.$CardRecipePayload<ExtArgs> | null
     generationJob: Prisma.$GenerationJobPayload<ExtArgs> | null
     apiUsageLedger: Prisma.$ApiUsageLedgerPayload<ExtArgs>[]
     likes: Prisma.$UserLikePayload<ExtArgs>[]
-    collectionItems: Prisma.$CollectionItemPayload<ExtArgs>[]
     folders: Prisma.$ProjectItemPayload<ExtArgs>[]
-    videoPipeline: Prisma.$VideoPipelinePayload<ExtArgs> | null
     extractedElements: Prisma.$ExtractedElementPayload<ExtArgs>[]
     layers: Prisma.$GenerationLayerPayload<ExtArgs>[]
   }
@@ -5775,13 +4803,10 @@ export interface Prisma__GenerationClient<T, Null = never, ExtArgs extends runti
   project<T extends Prisma.Generation$projectArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$projectArgs<ExtArgs>>): Prisma.Prisma__ProjectClient<runtime.Types.Result.GetResult<Prisma.$ProjectPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   characterCard<T extends Prisma.Generation$characterCardArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$characterCardArgs<ExtArgs>>): Prisma.Prisma__CharacterCardClient<runtime.Types.Result.GetResult<Prisma.$CharacterCardPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   characterCards<T extends Prisma.Generation$characterCardsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$characterCardsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$GenerationCharacterCardPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
-  cardRecipe<T extends Prisma.Generation$cardRecipeArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$cardRecipeArgs<ExtArgs>>): Prisma.Prisma__CardRecipeClient<runtime.Types.Result.GetResult<Prisma.$CardRecipePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   generationJob<T extends Prisma.Generation$generationJobArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$generationJobArgs<ExtArgs>>): Prisma.Prisma__GenerationJobClient<runtime.Types.Result.GetResult<Prisma.$GenerationJobPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   apiUsageLedger<T extends Prisma.Generation$apiUsageLedgerArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$apiUsageLedgerArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ApiUsageLedgerPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   likes<T extends Prisma.Generation$likesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$likesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UserLikePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
-  collectionItems<T extends Prisma.Generation$collectionItemsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$collectionItemsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CollectionItemPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   folders<T extends Prisma.Generation$foldersArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$foldersArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ProjectItemPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
-  videoPipeline<T extends Prisma.Generation$videoPipelineArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$videoPipelineArgs<ExtArgs>>): Prisma.Prisma__VideoPipelineClient<runtime.Types.Result.GetResult<Prisma.$VideoPipelinePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   extractedElements<T extends Prisma.Generation$extractedElementsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$extractedElementsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ExtractedElementPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   layers<T extends Prisma.Generation$layersArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$layersArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$GenerationLayerPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
@@ -6337,25 +5362,6 @@ export type Generation$characterCardsArgs<ExtArgs extends runtime.Types.Extensio
 }
 
 /**
- * Generation.cardRecipe
- */
-export type Generation$cardRecipeArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the CardRecipe
-   */
-  select?: Prisma.CardRecipeSelect<ExtArgs> | null
-  /**
-   * Omit specific fields from the CardRecipe
-   */
-  omit?: Prisma.CardRecipeOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.CardRecipeInclude<ExtArgs> | null
-  where?: Prisma.CardRecipeWhereInput
-}
-
-/**
  * Generation.generationJob
  */
 export type Generation$generationJobArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -6423,30 +5429,6 @@ export type Generation$likesArgs<ExtArgs extends runtime.Types.Extensions.Intern
 }
 
 /**
- * Generation.collectionItems
- */
-export type Generation$collectionItemsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the CollectionItem
-   */
-  select?: Prisma.CollectionItemSelect<ExtArgs> | null
-  /**
-   * Omit specific fields from the CollectionItem
-   */
-  omit?: Prisma.CollectionItemOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.CollectionItemInclude<ExtArgs> | null
-  where?: Prisma.CollectionItemWhereInput
-  orderBy?: Prisma.CollectionItemOrderByWithRelationInput | Prisma.CollectionItemOrderByWithRelationInput[]
-  cursor?: Prisma.CollectionItemWhereUniqueInput
-  take?: number
-  skip?: number
-  distinct?: Prisma.CollectionItemScalarFieldEnum | Prisma.CollectionItemScalarFieldEnum[]
-}
-
-/**
  * Generation.folders
  */
 export type Generation$foldersArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -6468,25 +5450,6 @@ export type Generation$foldersArgs<ExtArgs extends runtime.Types.Extensions.Inte
   take?: number
   skip?: number
   distinct?: Prisma.ProjectItemScalarFieldEnum | Prisma.ProjectItemScalarFieldEnum[]
-}
-
-/**
- * Generation.videoPipeline
- */
-export type Generation$videoPipelineArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the VideoPipeline
-   */
-  select?: Prisma.VideoPipelineSelect<ExtArgs> | null
-  /**
-   * Omit specific fields from the VideoPipeline
-   */
-  omit?: Prisma.VideoPipelineOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.VideoPipelineInclude<ExtArgs> | null
-  where?: Prisma.VideoPipelineWhereInput
 }
 
 /**

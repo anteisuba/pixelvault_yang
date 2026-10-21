@@ -1,6 +1,6 @@
 /**
  * Card system configuration constants
- * Shared limits for BackgroundCard, StyleCard, and CardRecipe
+ * Shared limits for BackgroundCard and StyleCard, plus card compile settings
  */
 
 /** Card types in the composable generation system */
@@ -25,10 +25,8 @@ export const STYLE_CARD = {
   MAX_CARDS_PER_USER: 100,
 } as const
 
-/** Card recipe configuration */
+/** Card compile (cards → prompt) configuration */
 export const CARD_RECIPE = {
-  NAME_MAX_LENGTH: 60,
-  MAX_RECIPES_PER_USER: 200,
   /** Compiled prompt cache TTL in milliseconds (1 hour) */
   CACHE_TTL_MS: 60 * 60 * 1000,
   /** LLM fusion timeout in milliseconds */

@@ -229,7 +229,6 @@ export const LIST_GENERATION_SELECT = {
   searchGrounded: true,
   userId: true,
   characterCardId: true,
-  cardRecipeId: true,
   runGroupId: true,
   runGroupType: true,
   runGroupIndex: true,

@@ -244,7 +244,6 @@ export type BackgroundCardWhereInput = {
   updatedAt?: Prisma.DateTimeFilter<"BackgroundCard"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   project?: Prisma.XOR<Prisma.ProjectNullableScalarRelationFilter, Prisma.ProjectWhereInput> | null
-  recipesAsBg?: Prisma.CardRecipeListRelationFilter
 }
 
 export type BackgroundCardOrderByWithRelationInput = {
@@ -264,7 +263,6 @@ export type BackgroundCardOrderByWithRelationInput = {
   updatedAt?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
   project?: Prisma.ProjectOrderByWithRelationInput
-  recipesAsBg?: Prisma.CardRecipeOrderByRelationAggregateInput
 }
 
 export type BackgroundCardWhereUniqueInput = Prisma.AtLeast<{
@@ -287,7 +285,6 @@ export type BackgroundCardWhereUniqueInput = Prisma.AtLeast<{
   updatedAt?: Prisma.DateTimeFilter<"BackgroundCard"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   project?: Prisma.XOR<Prisma.ProjectNullableScalarRelationFilter, Prisma.ProjectWhereInput> | null
-  recipesAsBg?: Prisma.CardRecipeListRelationFilter
 }, "id">
 
 export type BackgroundCardOrderByWithAggregationInput = {
@@ -345,7 +342,6 @@ export type BackgroundCardCreateInput = {
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutBackgroundCardsInput
   project?: Prisma.ProjectCreateNestedOneWithoutBackgroundCardsInput
-  recipesAsBg?: Prisma.CardRecipeCreateNestedManyWithoutBackgroundCardInput
 }
 
 export type BackgroundCardUncheckedCreateInput = {
@@ -363,7 +359,6 @@ export type BackgroundCardUncheckedCreateInput = {
   isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
-  recipesAsBg?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutBackgroundCardInput
 }
 
 export type BackgroundCardUpdateInput = {
@@ -381,7 +376,6 @@ export type BackgroundCardUpdateInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutBackgroundCardsNestedInput
   project?: Prisma.ProjectUpdateOneWithoutBackgroundCardsNestedInput
-  recipesAsBg?: Prisma.CardRecipeUpdateManyWithoutBackgroundCardNestedInput
 }
 
 export type BackgroundCardUncheckedUpdateInput = {
@@ -399,7 +393,6 @@ export type BackgroundCardUncheckedUpdateInput = {
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  recipesAsBg?: Prisma.CardRecipeUncheckedUpdateManyWithoutBackgroundCardNestedInput
 }
 
 export type BackgroundCardCreateManyInput = {
@@ -506,11 +499,6 @@ export type BackgroundCardMinOrderByAggregateInput = {
   updatedAt?: Prisma.SortOrder
 }
 
-export type BackgroundCardNullableScalarRelationFilter = {
-  is?: Prisma.BackgroundCardWhereInput | null
-  isNot?: Prisma.BackgroundCardWhereInput | null
-}
-
 export type BackgroundCardCreateNestedManyWithoutUserInput = {
   create?: Prisma.XOR<Prisma.BackgroundCardCreateWithoutUserInput, Prisma.BackgroundCardUncheckedCreateWithoutUserInput> | Prisma.BackgroundCardCreateWithoutUserInput[] | Prisma.BackgroundCardUncheckedCreateWithoutUserInput[]
   connectOrCreate?: Prisma.BackgroundCardCreateOrConnectWithoutUserInput | Prisma.BackgroundCardCreateOrConnectWithoutUserInput[]
@@ -604,22 +592,6 @@ export type BackgroundCardUpdatetagsInput = {
   push?: string | string[]
 }
 
-export type BackgroundCardCreateNestedOneWithoutRecipesAsBgInput = {
-  create?: Prisma.XOR<Prisma.BackgroundCardCreateWithoutRecipesAsBgInput, Prisma.BackgroundCardUncheckedCreateWithoutRecipesAsBgInput>
-  connectOrCreate?: Prisma.BackgroundCardCreateOrConnectWithoutRecipesAsBgInput
-  connect?: Prisma.BackgroundCardWhereUniqueInput
-}
-
-export type BackgroundCardUpdateOneWithoutRecipesAsBgNestedInput = {
-  create?: Prisma.XOR<Prisma.BackgroundCardCreateWithoutRecipesAsBgInput, Prisma.BackgroundCardUncheckedCreateWithoutRecipesAsBgInput>
-  connectOrCreate?: Prisma.BackgroundCardCreateOrConnectWithoutRecipesAsBgInput
-  upsert?: Prisma.BackgroundCardUpsertWithoutRecipesAsBgInput
-  disconnect?: Prisma.BackgroundCardWhereInput | boolean
-  delete?: Prisma.BackgroundCardWhereInput | boolean
-  connect?: Prisma.BackgroundCardWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.BackgroundCardUpdateToOneWithWhereWithoutRecipesAsBgInput, Prisma.BackgroundCardUpdateWithoutRecipesAsBgInput>, Prisma.BackgroundCardUncheckedUpdateWithoutRecipesAsBgInput>
-}
-
 export type BackgroundCardCreateWithoutUserInput = {
   id?: string
   name: string
@@ -634,7 +606,6 @@ export type BackgroundCardCreateWithoutUserInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   project?: Prisma.ProjectCreateNestedOneWithoutBackgroundCardsInput
-  recipesAsBg?: Prisma.CardRecipeCreateNestedManyWithoutBackgroundCardInput
 }
 
 export type BackgroundCardUncheckedCreateWithoutUserInput = {
@@ -651,7 +622,6 @@ export type BackgroundCardUncheckedCreateWithoutUserInput = {
   isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
-  recipesAsBg?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutBackgroundCardInput
 }
 
 export type BackgroundCardCreateOrConnectWithoutUserInput = {
@@ -714,7 +684,6 @@ export type BackgroundCardCreateWithoutProjectInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutBackgroundCardsInput
-  recipesAsBg?: Prisma.CardRecipeCreateNestedManyWithoutBackgroundCardInput
 }
 
 export type BackgroundCardUncheckedCreateWithoutProjectInput = {
@@ -731,7 +700,6 @@ export type BackgroundCardUncheckedCreateWithoutProjectInput = {
   isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
-  recipesAsBg?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutBackgroundCardInput
 }
 
 export type BackgroundCardCreateOrConnectWithoutProjectInput = {
@@ -758,90 +726,6 @@ export type BackgroundCardUpdateWithWhereUniqueWithoutProjectInput = {
 export type BackgroundCardUpdateManyWithWhereWithoutProjectInput = {
   where: Prisma.BackgroundCardScalarWhereInput
   data: Prisma.XOR<Prisma.BackgroundCardUpdateManyMutationInput, Prisma.BackgroundCardUncheckedUpdateManyWithoutProjectInput>
-}
-
-export type BackgroundCardCreateWithoutRecipesAsBgInput = {
-  id?: string
-  name: string
-  description?: string | null
-  sourceImageUrl?: string | null
-  sourceStorageKey?: string | null
-  backgroundPrompt: string
-  attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  tags?: Prisma.BackgroundCardCreatetagsInput | string[]
-  isDeleted?: boolean
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  user: Prisma.UserCreateNestedOneWithoutBackgroundCardsInput
-  project?: Prisma.ProjectCreateNestedOneWithoutBackgroundCardsInput
-}
-
-export type BackgroundCardUncheckedCreateWithoutRecipesAsBgInput = {
-  id?: string
-  userId: string
-  projectId?: string | null
-  name: string
-  description?: string | null
-  sourceImageUrl?: string | null
-  sourceStorageKey?: string | null
-  backgroundPrompt: string
-  attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  tags?: Prisma.BackgroundCardCreatetagsInput | string[]
-  isDeleted?: boolean
-  createdAt?: Date | string
-  updatedAt?: Date | string
-}
-
-export type BackgroundCardCreateOrConnectWithoutRecipesAsBgInput = {
-  where: Prisma.BackgroundCardWhereUniqueInput
-  create: Prisma.XOR<Prisma.BackgroundCardCreateWithoutRecipesAsBgInput, Prisma.BackgroundCardUncheckedCreateWithoutRecipesAsBgInput>
-}
-
-export type BackgroundCardUpsertWithoutRecipesAsBgInput = {
-  update: Prisma.XOR<Prisma.BackgroundCardUpdateWithoutRecipesAsBgInput, Prisma.BackgroundCardUncheckedUpdateWithoutRecipesAsBgInput>
-  create: Prisma.XOR<Prisma.BackgroundCardCreateWithoutRecipesAsBgInput, Prisma.BackgroundCardUncheckedCreateWithoutRecipesAsBgInput>
-  where?: Prisma.BackgroundCardWhereInput
-}
-
-export type BackgroundCardUpdateToOneWithWhereWithoutRecipesAsBgInput = {
-  where?: Prisma.BackgroundCardWhereInput
-  data: Prisma.XOR<Prisma.BackgroundCardUpdateWithoutRecipesAsBgInput, Prisma.BackgroundCardUncheckedUpdateWithoutRecipesAsBgInput>
-}
-
-export type BackgroundCardUpdateWithoutRecipesAsBgInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  name?: Prisma.StringFieldUpdateOperationsInput | string
-  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  sourceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  sourceStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  backgroundPrompt?: Prisma.StringFieldUpdateOperationsInput | string
-  attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  tags?: Prisma.BackgroundCardUpdatetagsInput | string[]
-  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  user?: Prisma.UserUpdateOneRequiredWithoutBackgroundCardsNestedInput
-  project?: Prisma.ProjectUpdateOneWithoutBackgroundCardsNestedInput
-}
-
-export type BackgroundCardUncheckedUpdateWithoutRecipesAsBgInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  userId?: Prisma.StringFieldUpdateOperationsInput | string
-  projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  name?: Prisma.StringFieldUpdateOperationsInput | string
-  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  sourceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  sourceStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  backgroundPrompt?: Prisma.StringFieldUpdateOperationsInput | string
-  attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  tags?: Prisma.BackgroundCardUpdatetagsInput | string[]
-  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type BackgroundCardCreateManyUserInput = {
@@ -874,7 +758,6 @@ export type BackgroundCardUpdateWithoutUserInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   project?: Prisma.ProjectUpdateOneWithoutBackgroundCardsNestedInput
-  recipesAsBg?: Prisma.CardRecipeUpdateManyWithoutBackgroundCardNestedInput
 }
 
 export type BackgroundCardUncheckedUpdateWithoutUserInput = {
@@ -891,7 +774,6 @@ export type BackgroundCardUncheckedUpdateWithoutUserInput = {
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  recipesAsBg?: Prisma.CardRecipeUncheckedUpdateManyWithoutBackgroundCardNestedInput
 }
 
 export type BackgroundCardUncheckedUpdateManyWithoutUserInput = {
@@ -940,7 +822,6 @@ export type BackgroundCardUpdateWithoutProjectInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutBackgroundCardsNestedInput
-  recipesAsBg?: Prisma.CardRecipeUpdateManyWithoutBackgroundCardNestedInput
 }
 
 export type BackgroundCardUncheckedUpdateWithoutProjectInput = {
@@ -957,7 +838,6 @@ export type BackgroundCardUncheckedUpdateWithoutProjectInput = {
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  recipesAsBg?: Prisma.CardRecipeUncheckedUpdateManyWithoutBackgroundCardNestedInput
 }
 
 export type BackgroundCardUncheckedUpdateManyWithoutProjectInput = {
@@ -977,35 +857,6 @@ export type BackgroundCardUncheckedUpdateManyWithoutProjectInput = {
 }
 
 
-/**
- * Count Type BackgroundCardCountOutputType
- */
-
-export type BackgroundCardCountOutputType = {
-  recipesAsBg: number
-}
-
-export type BackgroundCardCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  recipesAsBg?: boolean | BackgroundCardCountOutputTypeCountRecipesAsBgArgs
-}
-
-/**
- * BackgroundCardCountOutputType without action
- */
-export type BackgroundCardCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the BackgroundCardCountOutputType
-   */
-  select?: Prisma.BackgroundCardCountOutputTypeSelect<ExtArgs> | null
-}
-
-/**
- * BackgroundCardCountOutputType without action
- */
-export type BackgroundCardCountOutputTypeCountRecipesAsBgArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  where?: Prisma.CardRecipeWhereInput
-}
-
 
 export type BackgroundCardSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -1024,8 +875,6 @@ export type BackgroundCardSelect<ExtArgs extends runtime.Types.Extensions.Intern
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   project?: boolean | Prisma.BackgroundCard$projectArgs<ExtArgs>
-  recipesAsBg?: boolean | Prisma.BackgroundCard$recipesAsBgArgs<ExtArgs>
-  _count?: boolean | Prisma.BackgroundCardCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["backgroundCard"]>
 
 export type BackgroundCardSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -1087,8 +936,6 @@ export type BackgroundCardOmit<ExtArgs extends runtime.Types.Extensions.Internal
 export type BackgroundCardInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   project?: boolean | Prisma.BackgroundCard$projectArgs<ExtArgs>
-  recipesAsBg?: boolean | Prisma.BackgroundCard$recipesAsBgArgs<ExtArgs>
-  _count?: boolean | Prisma.BackgroundCardCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type BackgroundCardIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -1104,7 +951,6 @@ export type $BackgroundCardPayload<ExtArgs extends runtime.Types.Extensions.Inte
   objects: {
     user: Prisma.$UserPayload<ExtArgs>
     project: Prisma.$ProjectPayload<ExtArgs> | null
-    recipesAsBg: Prisma.$CardRecipePayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1517,7 +1363,6 @@ export interface Prisma__BackgroundCardClient<T, Null = never, ExtArgs extends r
   readonly [Symbol.toStringTag]: "PrismaPromise"
   user<T extends Prisma.UserDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.UserDefaultArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   project<T extends Prisma.BackgroundCard$projectArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.BackgroundCard$projectArgs<ExtArgs>>): Prisma.Prisma__ProjectClient<runtime.Types.Result.GetResult<Prisma.$ProjectPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
-  recipesAsBg<T extends Prisma.BackgroundCard$recipesAsBgArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.BackgroundCard$recipesAsBgArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CardRecipePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1978,30 +1823,6 @@ export type BackgroundCard$projectArgs<ExtArgs extends runtime.Types.Extensions.
    */
   include?: Prisma.ProjectInclude<ExtArgs> | null
   where?: Prisma.ProjectWhereInput
-}
-
-/**
- * BackgroundCard.recipesAsBg
- */
-export type BackgroundCard$recipesAsBgArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the CardRecipe
-   */
-  select?: Prisma.CardRecipeSelect<ExtArgs> | null
-  /**
-   * Omit specific fields from the CardRecipe
-   */
-  omit?: Prisma.CardRecipeOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.CardRecipeInclude<ExtArgs> | null
-  where?: Prisma.CardRecipeWhereInput
-  orderBy?: Prisma.CardRecipeOrderByWithRelationInput | Prisma.CardRecipeOrderByWithRelationInput[]
-  cursor?: Prisma.CardRecipeWhereUniqueInput
-  take?: number
-  skip?: number
-  distinct?: Prisma.CardRecipeScalarFieldEnum | Prisma.CardRecipeScalarFieldEnum[]
 }
 
 /**

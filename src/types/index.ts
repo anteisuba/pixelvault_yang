@@ -37,7 +37,6 @@ import {
 import {
   BACKGROUND_CARD,
   STYLE_CARD,
-  CARD_RECIPE,
   type CardRecipeFusionNote,
 } from '@/constants/cards/card-types'
 import { API_KEY_ADAPTER_OPTIONS } from '@/constants/api-keys'
@@ -2135,57 +2134,6 @@ export const WorkerDispatchResultSchema = z.object({
 export type WorkerRunContext = z.infer<typeof WorkerRunContextSchema>
 export type WorkerDispatchResult = z.infer<typeof WorkerDispatchResultSchema>
 
-export const LongVideoPipelineWorkerRunContextSchema = z
-  .object({
-    runId: z.string().trim().min(1),
-    workflowId: z.literal(EXECUTION_WORKFLOW_IDS.LONG_VIDEO_PIPELINE),
-    pipelineId: z.string().trim().min(1),
-    advanceUrl: z.string().trim().url(),
-    providerId: z.string().trim().min(1),
-    apiKeyId: z.string().trim().min(1).optional(),
-    useSystemKey: z.boolean().optional(),
-    resolveKeyUrl: z.string().trim().url(),
-    timeoutMs: z.number().int().positive(),
-    maxAttempts: z.number().int().positive(),
-    pollIntervalMs: z.number().int().positive(),
-    startClipIndex: z.number().int().min(0).default(0),
-    initialVideoUrl: z.string().trim().url().optional(),
-    initialFrameUrl: z.string().trim().url().optional(),
-    providerInput: z.object({
-      prompt: z.string().trim().min(1),
-      modelId: z.string().trim().min(1),
-      externalModelId: z.string().trim().min(1),
-      aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']),
-      firstClipDuration: z.number().int().positive(),
-      extensionClipDuration: z.number().int().positive(),
-      totalClips: z.number().int().positive(),
-      extensionMethod: z.enum(['native_extend', 'last_frame_chain']),
-      extendEndpointId: z.string().trim().min(1).optional(),
-      referenceImage: z.string().trim().url().optional(),
-      negativePrompt: z.string().trim().min(1).optional(),
-      resolution: z.string().trim().min(1).optional(),
-      i2vModelId: z.string().trim().min(1).optional(),
-      videoDefaults: z.record(z.string(), z.unknown()).optional(),
-      providerBaseUrl: z.string().trim().url().optional(),
-      outputStorageKeys: z.array(z.string().trim().min(1)).min(1),
-      width: z.number().int().positive(),
-      height: z.number().int().positive(),
-    }),
-  })
-  .superRefine((value, ctx) => {
-    if (value.apiKeyId || value.useSystemKey) return
-
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['apiKeyId'],
-      message: 'Either API key ID or system key flag is required',
-    })
-  })
-
-export type LongVideoPipelineWorkerRunContext = z.infer<
-  typeof LongVideoPipelineWorkerRunContextSchema
->
-
 export const WorkerModel3DRunContextSchema = z.object({
   runId: z.string().trim().min(1),
   workflowId: z.enum([
@@ -2253,10 +2201,9 @@ export type WorkerModel3DRunContext = z.infer<
 //
 // Cross-domain "cancel this job" for anything backed by a `GenerationJob`
 // row (image / video / audio / 3D, dispatched through the execution
-// worker). Distinct from the older per-domain cancel endpoints
-// (`/api/generate-3d/cancel`, `/api/generate-long-video/cancel`), which
-// mark the row FAILED with a sentinel rather than the new CANCELLED
-// status — those are untouched by this contract.
+// worker). Distinct from the older per-domain cancel endpoint
+// (`/api/generate-3d/cancel`), which marks the row FAILED with a sentinel
+// rather than the new CANCELLED status — untouched by this contract.
 
 /** POST /api/generations/cancel request body. */
 export const cancelGenerationsRequestSchema = z.object({
@@ -2303,125 +2250,6 @@ export const workerCancelRequestSchema = z.object({
 })
 
 export type WorkerCancelRequest = z.infer<typeof workerCancelRequestSchema>
-
-// ─── Long Video Pipeline ──────────────────────────────────────────
-
-export const LongVideoRequestSchema = z.object({
-  prompt: z
-    .string()
-    .trim()
-    .min(1, 'Prompt is required')
-    .max(PROMPT_TEXT_GUARD_MAX_CHARS),
-  modelId: z.string().trim().min(1, 'Model is required').max(160),
-  aspectRatio: z
-    .enum(['1:1', '16:9', '9:16', '4:3', '3:4'])
-    .default(VIDEO_GENERATION.DEFAULT_ASPECT_RATIO),
-  targetDuration: z
-    .number()
-    .int()
-    .min(10)
-    .max(VIDEO_GENERATION.MAX_LONG_VIDEO_DURATION),
-  referenceImage: z.string().optional(),
-  negativePrompt: z.string().trim().max(PROMPT_TEXT_GUARD_MAX_CHARS).optional(),
-  resolution: z.enum(VIDEO_RESOLUTIONS).optional(),
-  apiKeyId: z.string().trim().min(1).optional(),
-  characterCardIds: z.array(z.string().trim().min(1)).max(5).optional(),
-})
-
-export type LongVideoRequest = z.infer<typeof LongVideoRequestSchema>
-
-export const LongVideoStatusRequestSchema = z.object({
-  pipelineId: z.string().trim().min(1, 'Pipeline ID is required'),
-})
-
-export const LongVideoPipelineAdvanceRequestSchema = z.object({
-  runId: z.string().trim().min(1, 'Run ID is required'),
-  pipelineId: z.string().trim().min(1, 'Pipeline ID is required'),
-  action: z
-    .enum([
-      'advance',
-      'clip-queued',
-      'clip-running',
-      'clip-completed',
-      'finalize',
-      'fail',
-    ])
-    .default('advance'),
-  attempt: z.number().int().positive().optional(),
-  clipIndex: z.number().int().min(0).optional(),
-  requestId: z.string().trim().min(1).optional(),
-  statusUrl: z.string().trim().url().optional(),
-  responseUrl: z.string().trim().url().optional(),
-  inputVideoUrl: z.string().trim().url().optional(),
-  inputFrameUrl: z.string().trim().url().optional(),
-  videoUrl: z.string().trim().url().optional(),
-  storageKey: z.string().trim().min(1).optional(),
-  lastFrameUrl: z.string().trim().url().optional(),
-  durationSec: z.number().positive().optional(),
-  requestCount: z.number().int().positive().optional(),
-  width: z.number().int().positive().optional(),
-  height: z.number().int().positive().optional(),
-  providerMetadata: z.record(z.string(), z.unknown()).optional(),
-  error: z.string().trim().max(2000).optional(),
-})
-
-export type LongVideoPipelineAdvanceRequest = z.infer<
-  typeof LongVideoPipelineAdvanceRequestSchema
->
-
-export type PipelineClipStatus =
-  | 'PENDING'
-  | 'QUEUED'
-  | 'RUNNING'
-  | 'COMPLETED'
-  | 'FAILED'
-
-export type VideoPipelineStatus =
-  | 'RUNNING'
-  | 'PAUSED'
-  | 'COMPLETED'
-  | 'FAILED'
-  | 'CANCELLED'
-
-export interface PipelineClipRecord {
-  clipIndex: number
-  status: PipelineClipStatus
-  videoUrl?: string | null
-  durationSec?: number | null
-  errorMessage?: string | null
-}
-
-export interface PipelineStatusRecord {
-  pipelineId: string
-  status: VideoPipelineStatus
-  totalClips: number
-  completedClips: number
-  currentDurationSec: number
-  targetDurationSec: number
-  clips: PipelineClipRecord[]
-  generation?: GenerationRecord
-  errorMessage?: string | null
-}
-
-export interface LongVideoSubmitResponseData {
-  pipelineId: string
-  totalClips: number
-  estimatedDurationSec: number
-}
-
-export interface LongVideoSubmitResponse {
-  success: boolean
-  data?: LongVideoSubmitResponseData
-  error?: string
-  errorCode?: string
-  i18nKey?: string
-}
-
-export interface LongVideoStatusResponse {
-  success: boolean
-  data?: PipelineStatusRecord
-  error?: string
-}
 
 // ─── Image Record ─────────────────────────────────────────────────
 
@@ -4006,77 +3834,6 @@ export interface UploadProfileImageResponse {
   i18nKey?: string
 }
 
-// ─── Collections ────────────────────────────────────────────────
-
-export const CreateCollectionSchema = z.object({
-  name: z.string().trim().min(1, 'Name is required').max(60),
-  description: z.string().trim().max(500).optional(),
-  isPublic: z.boolean().default(false),
-})
-
-export type CreateCollectionRequest = z.infer<typeof CreateCollectionSchema>
-
-export const UpdateCollectionSchema = z.object({
-  name: z.string().trim().min(1).max(60).optional(),
-  description: z.string().trim().max(500).nullable().optional(),
-  isPublic: z.boolean().optional(),
-})
-
-export type UpdateCollectionRequest = z.infer<typeof UpdateCollectionSchema>
-
-export const AddToCollectionSchema = z.object({
-  generationIds: z.array(z.string().trim().min(1)).min(1).max(50),
-})
-
-export type AddToCollectionRequest = z.infer<typeof AddToCollectionSchema>
-
-export interface CollectionRecord {
-  id: string
-  name: string
-  description: string | null
-  coverUrl: string | null
-  isPublic: boolean
-  itemCount: number
-  createdAt: Date
-  updatedAt: Date
-}
-
-export interface CollectionDetailRecord extends CollectionRecord {
-  generations: GenerationRecord[]
-  total: number
-  hasMore: boolean
-  /** Owner info — present in public context */
-  owner?: {
-    username: string
-    displayName: string | null
-    avatarUrl: string | null
-  }
-}
-
-export interface CollectionsResponse {
-  success: boolean
-  data?: CollectionRecord[]
-  error?: string
-}
-
-export interface CollectionResponse {
-  success: boolean
-  data?: CollectionRecord
-  error?: string
-}
-
-export interface CollectionDetailResponse {
-  success: boolean
-  data?: CollectionDetailRecord
-  error?: string
-}
-
-export interface CollectionItemsResponse {
-  success: boolean
-  data?: { added: number }
-  error?: string
-}
-
 // ─── Composable Card System ─────────────────────────────────────
 
 // ── Background Card ─────────────────────────────────────────────
@@ -4276,34 +4033,7 @@ export interface StyleCardsResponse {
   error?: string
 }
 
-// ── Card Recipe ─────────────────────────────────────────────────
-
-export const CreateCardRecipeSchema = z.object({
-  name: z.string().trim().min(1).max(CARD_RECIPE.NAME_MAX_LENGTH),
-  characterCardId: z.string().optional(),
-  backgroundCardId: z.string().optional(),
-  styleCardId: z.string().optional(),
-  freePrompt: z.string().trim().max(PROMPT_TEXT_GUARD_MAX_CHARS).optional(),
-  projectId: z.string().optional(),
-})
-
-export type CreateCardRecipeRequest = z.infer<typeof CreateCardRecipeSchema>
-
-export const UpdateCardRecipeSchema = z.object({
-  name: z.string().trim().min(1).max(CARD_RECIPE.NAME_MAX_LENGTH).optional(),
-  characterCardId: z.string().nullable().optional(),
-  backgroundCardId: z.string().nullable().optional(),
-  styleCardId: z.string().nullable().optional(),
-  freePrompt: z
-    .string()
-    .trim()
-    .max(PROMPT_TEXT_GUARD_MAX_CHARS)
-    .nullable()
-    .optional(),
-  projectId: z.string().nullable().optional(),
-})
-
-export type UpdateCardRecipeRequest = z.infer<typeof UpdateCardRecipeSchema>
+// ── Card Recipe snapshot ────────────────────────────────────────────────
 
 export const RecipeSnapshotSchema = z.object({
   characterCard: z
@@ -4335,52 +4065,6 @@ export const RecipeSnapshotSchema = z.object({
 })
 
 export type RecipeSnapshot = z.infer<typeof RecipeSnapshotSchema>
-
-export interface CardRecipeRecord {
-  id: string
-  name: string
-  characterCardId: string | null
-  backgroundCardId: string | null
-  styleCardId: string | null
-  freePrompt: string | null
-  projectId: string | null
-  isDeleted: boolean
-  createdAt: Date
-  updatedAt: Date
-}
-
-export interface CardRecipeDetailRecord extends CardRecipeRecord {
-  characterCard: { id: string; name: string } | null
-  backgroundCard: { id: string; name: string } | null
-  styleCard: { id: string; name: string } | null
-}
-
-export interface CardRecipeResponse {
-  success: boolean
-  data?: CardRecipeDetailRecord
-  error?: string
-}
-
-export interface CardRecipesResponse {
-  success: boolean
-  data?: CardRecipeDetailRecord[]
-  error?: string
-}
-
-export interface CompileRecipeResponse {
-  success: boolean
-  data?: {
-    compiledPrompt: string
-    modelId: string
-    adapterType: string
-    advancedParams: AdvancedParams | null
-    referenceImages: string[]
-    snapshot: RecipeSnapshot
-    /** 没走助手融合、只按原文拼接时说为什么；融合成功为 `null`。 */
-    fusionNote: CardRecipeFusionNote | null
-  }
-  error?: string
-}
 
 // ── Civitai Token ────────────────────────────────────────────────
 

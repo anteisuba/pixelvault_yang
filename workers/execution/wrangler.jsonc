@@ -35,11 +35,6 @@
       "class_name": "CinematicShortVideoWorkflow",
     },
     {
-      "name": "pixelvault-long-video-pipeline",
-      "binding": "LONG_VIDEO_PIPELINE_WORKFLOW",
-      "class_name": "LongVideoPipelineWorkflow",
-    },
-    {
       "name": "pixelvault-hyper3d-rodin",
       "binding": "HYPER3D_RODIN_WORKFLOW",
       "class_name": "Hyper3DRodinWorkflow",

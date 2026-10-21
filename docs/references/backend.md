@@ -78,7 +78,7 @@ app/api routes（156 个 route.ts，以 glob 为准）  ← 只做三件事，�
 
 第一主路径：`选模型 → prompt/参考图 → 生成 → 永久保存 → 管理/复用`。Studio 是主入口；Node workflow 是长视频/高级编排层，不替代 Studio。
 
-- 入口分模态：`api/studio/generate` → `studio-generate.service` → `image/submit-image.service`；`api/generate-video` / `generate-audio` / `generate-3d` 各有 service；长视频 `api/generate-long-video` → `video-pipeline.service`；画布持久化 `api/node-workflow/projects/**` → `node/node-workflow.service`。
+- 入口分模态：`api/studio/generate` → `studio-generate.service` → `image/submit-image.service`；`api/generate-video` / `generate-audio` / `generate-3d` 各有 service；画布持久化 `api/node-workflow/projects/**` → `node/node-workflow.service`。
 - `image/generate-image.service`（~480 行）= 路由解析 + 校验 + 参考图上传模块（**高风险，8+ 依赖**）；**不再是 orchestrator**——2026-08-24 死执行链清理删掉了它内部的 provider 调用/fallback/落库路径（`generateImageForUser` 等），真正的 provider 调用现在只在 `workers/execution`。它现在只做「算出该用哪个 model/key/provider config」（`resolveGenerationRoute` / `resolveImageRouteAndValidate`），由 `image/submit-image.service` 拿着这份路由结果去签名派发给 Worker。
 - **`Generation` = 全模态统一资产记录**（outputType / status / url+storageKey / 缩略图 / 尺寸时长 / 3D 模型字段 / prompt / model+provider / 可见性 / userId / projectId / 卡片-配方-runGroup 元数据）；`generation.service` 拥有创建/查询/可见性/列表/删除。
 - 异步执行骨架：`GenerationJob` + `ApiUsageLedger`（`usage.service`：免费位预留 / job 创建 / 完成 / 失败 / 账本挂接）+ `execution-outbox` / `execution-callback` / `execution-sweeper` services + `/api/internal/execution/*`（签名回调）。**Comfy runner 复用此骨架**（见 `domains/runner.md`）。
@@ -111,7 +111,7 @@ app/api routes（156 个 route.ts，以 glob 为准）  ← 只做三件事，�
 | 图片 fal         | fal request id                     |
 | Hunyuan3D（fal） | fal request id                     |
 
-**不上报**（故意）：Rodin（无取消分支）· Fish 音频（无取消分支，靠 terminate 兜底）· 长视频逐片 fal（合成 `runId` 没有对应的单条 job 行，故意不报）。
+**不上报**（故意）：Rodin（无取消分支）· Fish 音频（无取消分支，靠 terminate 兜底）。
 
 边界：
 

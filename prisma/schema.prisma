@@ -114,22 +114,6 @@ enum LoraTrainingStatus {
   CANCELED
 }
 
-enum VideoPipelineStatus {
-  RUNNING
-  PAUSED
-  COMPLETED
-  FAILED
-  CANCELLED
-}
-
-enum PipelineClipStatus {
-  PENDING
-  QUEUED
-  RUNNING
-  COMPLETED
-  FAILED
-}
-
 enum VideoScriptStatus {
   DRAFT
   SCRIPT_READY
@@ -185,20 +169,16 @@ model User {
   userApiKeys            UserApiKey[]
   generationJobs         GenerationJob[]
   apiUsageLedger         ApiUsageLedger[]
-  imageAnalyses          ImageAnalysis[]
   projects               Project[]
   characterCards         CharacterCard[]
   likesGiven             UserLike[]              @relation("LikesGiven")
   followsGiven           UserFollow[]            @relation("FollowsGiven")
   followsReceived        UserFollow[]            @relation("FollowsReceived")
-  collections            Collection[]
   backgroundCards        BackgroundCard[]
   styleCards             StyleCard[]
-  cardRecipes            CardRecipe[]
   recipes                Recipe[]
   voiceCards             VoiceCard[]
   creativePreference     UserCreativePreference?
-  videoPipelines         VideoPipeline[]
   loraTrainingJobs       LoraTrainingJob[]
   loraAssets             LoraAsset[]
   videoScripts           VideoScript[]
@@ -391,7 +371,6 @@ model Project {
   characterCards  CharacterCard[]
   backgroundCards BackgroundCard[]
   styleCards      StyleCard[]
-  cardRecipes     CardRecipe[]
 
   @@index([userId, isDeleted, updatedAt(sort: Desc)])
   @@index([userId, parentId, isDeleted, updatedAt(sort: Desc)])
@@ -495,8 +474,8 @@ model Generation {
   characterCardId String?
   characterCard   CharacterCard?            @relation(fields: [characterCardId], references: [id], onDelete: SetNull)
   characterCards  GenerationCharacterCard[]
+  // ⚠ 卡片配方表已删（20261021120000）；这一列等新版本稳定后单独迁移删掉，代码不再读写
   cardRecipeId    String?
-  cardRecipe      CardRecipe?               @relation(fields: [cardRecipeId], references: [id], onDelete: SetNull)
   recipeSnapshot  Json?
 
   // ── 来源血缘 ──────────────────────────────────────────────────
@@ -526,9 +505,7 @@ model Generation {
   generationJob     GenerationJob?     @relation("GenerationToJob")
   apiUsageLedger    ApiUsageLedger[]   @relation("GenerationToUsage")
   likes             UserLike[]
-  collectionItems   CollectionItem[]
   folders           ProjectItem[]
-  videoPipeline     VideoPipeline?
   extractedElements ExtractedElement[] @relation("ExtractedElementSource")
   layers            GenerationLayer[]  @relation("GenerationLayers")
 
@@ -900,19 +877,6 @@ model ProjectRule {
   @@index([userId, kind])
 }
 
-model ImageAnalysis {
-  id               String   @id @default(uuid())
-  userId           String
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sourceImageUrl   String
-  sourceStorageKey String
-  generatedPrompt  String   @db.Text
-  modelUsed        String
-  createdAt        DateTime @default(now())
-
-  @@index([userId, createdAt(sort: Desc)])
-}
-
 model ModelConfig {
   id              String     @id @default(uuid())
   modelId         String     @unique
@@ -1007,7 +971,6 @@ model CharacterCard {
 
   generations      Generation[]
   generationLinks  GenerationCharacterCard[]
-  recipesAsChar    CardRecipe[]              @relation("RecipeCharacter")
   loraTrainingJobs LoraTrainingJob[]
 
   @@unique([userId, handle])
@@ -1057,38 +1020,6 @@ model UserFollow {
   @@index([followerId, createdAt(sort: Desc)])
 }
 
-model Collection {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name        String
-  description String?  @db.Text
-  coverUrl    String?
-  isPublic    Boolean  @default(false)
-  isDeleted   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  items CollectionItem[]
-
-  @@index([userId, isDeleted, updatedAt(sort: Desc)])
-  @@index([isPublic, isDeleted, updatedAt(sort: Desc)])
-}
-
-model CollectionItem {
-  id           String     @id @default(uuid())
-  collectionId String
-  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
-  generationId String
-  generation   Generation @relation(fields: [generationId], references: [id], onDelete: Cascade)
-  orderIndex   Int        @default(0)
-  addedAt      DateTime   @default(now())
-
-  @@unique([collectionId, generationId])
-  @@index([collectionId, orderIndex])
-  @@index([generationId])
-}
-
 // ─── Composable Card System ─────────────────────────────────────
 
 model BackgroundCard {
@@ -1108,8 +1039,6 @@ model BackgroundCard {
   isDeleted        Boolean  @default(false)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
-
-  recipesAsBg CardRecipe[] @relation("RecipeBackground")
 
   @@index([userId, projectId, isDeleted, updatedAt(sort: Desc)])
 }
@@ -1135,110 +1064,7 @@ model StyleCard {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  recipesAsStyle CardRecipe[] @relation("RecipeStyle")
-
   @@index([userId, projectId, isDeleted, updatedAt(sort: Desc)])
-}
-
-model CardRecipe {
-  id               String          @id @default(uuid())
-  userId           String
-  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  projectId        String?
-  project          Project?        @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  name             String
-  characterCardId  String?
-  characterCard    CharacterCard?  @relation("RecipeCharacter", fields: [characterCardId], references: [id], onDelete: SetNull)
-  backgroundCardId String?
-  backgroundCard   BackgroundCard? @relation("RecipeBackground", fields: [backgroundCardId], references: [id], onDelete: SetNull)
-  styleCardId      String?
-  styleCard        StyleCard?      @relation("RecipeStyle", fields: [styleCardId], references: [id], onDelete: SetNull)
-  freePrompt       String?         @db.Text
-  isDeleted        Boolean         @default(false)
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-
-  generations Generation[]
-
-  @@index([userId, projectId, isDeleted, updatedAt(sort: Desc)])
-}
-
-// ─── Long Video Pipeline ────────────────────────────────────────
-
-model VideoPipeline {
-  id     String              @id @default(uuid())
-  userId String
-  user   User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  status VideoPipelineStatus @default(RUNNING)
-
-  // Generation parameters (frozen at pipeline creation)
-  prompt         String  @db.Text
-  modelId        String
-  adapterType    String
-  aspectRatio    String  @default("16:9")
-  resolution     String?
-  negativePrompt String? @db.Text
-
-  // Extension method: "native_extend" | "last_frame_chain"
-  extensionMethod String @default("native_extend")
-
-  // Target & progress
-  targetDurationSec  Int
-  currentDurationSec Float @default(0)
-  totalClips         Int   @default(1)
-  completedClips     Int   @default(0)
-
-  // Final output
-  finalVideoUrl   String?
-  finalStorageKey String?
-  generationId    String?     @unique
-  generation      Generation? @relation(fields: [generationId], references: [id], onDelete: SetNull)
-
-  // Reference for character consistency
-  characterCardIds  String[] @default([])
-  referenceImageUrl String?
-  apiKeyId          String?
-
-  errorMessage String?  @db.Text
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  clips VideoPipelineClip[]
-
-  @@index([userId, createdAt(sort: Desc)])
-  @@index([status, createdAt(sort: Desc)])
-}
-
-model VideoPipelineClip {
-  id         String             @id @default(uuid())
-  pipelineId String
-  pipeline   VideoPipeline      @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
-  clipIndex  Int
-  status     PipelineClipStatus @default(PENDING)
-
-  // Job tracking
-  generationJobId   String?
-  externalRequestId String? @db.Text
-
-  // Clip result
-  videoUrl     String?
-  storageKey   String?
-  lastFrameUrl String?
-  durationSec  Float?
-
-  // Extension input
-  inputVideoUrl String? // For native extend: previous clip's video URL
-  inputFrameUrl String? // For last-frame chain: previous clip's last frame
-
-  errorMessage String?   @db.Text
-  startedAt    DateTime?
-  completedAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-
-  @@unique([pipelineId, clipIndex])
-  @@index([pipelineId, clipIndex])
-  @@index([status, createdAt(sort: Desc)])
 }
 
 // ─── LoRA Training ────────────────────────────────────────────────

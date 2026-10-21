@@ -114,28 +114,6 @@ export const LoraTrainingStatus = {
 export type LoraTrainingStatus = (typeof LoraTrainingStatus)[keyof typeof LoraTrainingStatus]
 
 
-export const VideoPipelineStatus = {
-  RUNNING: 'RUNNING',
-  PAUSED: 'PAUSED',
-  COMPLETED: 'COMPLETED',
-  FAILED: 'FAILED',
-  CANCELLED: 'CANCELLED'
-} as const
-
-export type VideoPipelineStatus = (typeof VideoPipelineStatus)[keyof typeof VideoPipelineStatus]
-
-
-export const PipelineClipStatus = {
-  PENDING: 'PENDING',
-  QUEUED: 'QUEUED',
-  RUNNING: 'RUNNING',
-  COMPLETED: 'COMPLETED',
-  FAILED: 'FAILED'
-} as const
-
-export type PipelineClipStatus = (typeof PipelineClipStatus)[keyof typeof PipelineClipStatus]
-
-
 export const VideoScriptStatus = {
   DRAFT: 'DRAFT',
   SCRIPT_READY: 'SCRIPT_READY',

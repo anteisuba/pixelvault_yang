@@ -20,9 +20,6 @@ import type {
   GenerationEvaluation,
   GenerationPlanRequest,
   GenerationPlanResponse,
-  LongVideoRequest,
-  LongVideoStatusResponse,
-  LongVideoSubmitResponse,
   PromptFeedbackRequest,
   PromptFeedbackResponse,
   RetryMesh3DRequest,
@@ -796,8 +793,8 @@ export async function cancel3DAPI(
 /**
  * Cancel one or more in-flight `GenerationJob` rows (image/video/audio/3D),
  * regardless of which domain submitted them. Distinct from the older
- * per-domain `cancel3DAPI` / `cancelLongVideoAPI`, which target their own
- * cancel endpoints and status shapes.
+ * per-domain `cancel3DAPI`, which targets its own
+ * cancel endpoint and status shape.
  */
 export async function cancelGenerationsAPI(
   jobIds: string[],
@@ -1283,129 +1280,6 @@ export async function extractElementAPI(params: {
     }
   }
 }
-
-export async function submitLongVideoAPI(
-  params: LongVideoRequest,
-): Promise<LongVideoSubmitResponse> {
-  try {
-    const response = await fetch(API_ENDPOINTS.GENERATE_LONG_VIDEO, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-    })
-
-    if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Long video generation failed with status ${response.status}`,
-      )
-      return {
-        success: false,
-        error: payload.error,
-        errorCode: payload.errorCode,
-        i18nKey: payload.i18nKey,
-      }
-    }
-
-    return await response.json()
-  } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
-    }
-  }
-}
-
-export async function checkLongVideoStatusAPI(
-  pipelineId: string,
-): Promise<LongVideoStatusResponse> {
-  try {
-    const response = await fetch(
-      `${API_ENDPOINTS.GENERATE_LONG_VIDEO_STATUS}?pipelineId=${encodeURIComponent(pipelineId)}`,
-    )
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: await getErrorMessage(
-          response,
-          `Status check failed with status ${response.status}`,
-        ),
-      }
-    }
-
-    return await response.json()
-  } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
-    }
-  }
-}
-
-export async function retryLongVideoClipAPI(
-  pipelineId: string,
-  clipIndex: number,
-): Promise<LongVideoStatusResponse> {
-  try {
-    const response = await fetch(API_ENDPOINTS.GENERATE_LONG_VIDEO_RETRY, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pipelineId, clipIndex }),
-    })
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: await getErrorMessage(
-          response,
-          `Retry failed with status ${response.status}`,
-        ),
-      }
-    }
-
-    return await response.json()
-  } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
-    }
-  }
-}
-
-export async function cancelLongVideoAPI(
-  pipelineId: string,
-): Promise<LongVideoStatusResponse> {
-  try {
-    const response = await fetch(API_ENDPOINTS.GENERATE_LONG_VIDEO_CANCEL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pipelineId }),
-    })
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: await getErrorMessage(
-          response,
-          `Cancel failed with status ${response.status}`,
-        ),
-      }
-    }
-
-    return await response.json()
-  } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
-    }
-  }
-}
-
 export async function checkImageGenerationStatusAPI(
   jobId: string,
   signal?: AbortSignal,

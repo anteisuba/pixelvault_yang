@@ -264,7 +264,6 @@ export type StyleCardWhereInput = {
   updatedAt?: Prisma.DateTimeFilter<"StyleCard"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   project?: Prisma.XOR<Prisma.ProjectNullableScalarRelationFilter, Prisma.ProjectWhereInput> | null
-  recipesAsStyle?: Prisma.CardRecipeListRelationFilter
 }
 
 export type StyleCardOrderByWithRelationInput = {
@@ -287,7 +286,6 @@ export type StyleCardOrderByWithRelationInput = {
   updatedAt?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
   project?: Prisma.ProjectOrderByWithRelationInput
-  recipesAsStyle?: Prisma.CardRecipeOrderByRelationAggregateInput
 }
 
 export type StyleCardWhereUniqueInput = Prisma.AtLeast<{
@@ -313,7 +311,6 @@ export type StyleCardWhereUniqueInput = Prisma.AtLeast<{
   updatedAt?: Prisma.DateTimeFilter<"StyleCard"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   project?: Prisma.XOR<Prisma.ProjectNullableScalarRelationFilter, Prisma.ProjectWhereInput> | null
-  recipesAsStyle?: Prisma.CardRecipeListRelationFilter
 }, "id">
 
 export type StyleCardOrderByWithAggregationInput = {
@@ -380,7 +377,6 @@ export type StyleCardCreateInput = {
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutStyleCardsInput
   project?: Prisma.ProjectCreateNestedOneWithoutStyleCardsInput
-  recipesAsStyle?: Prisma.CardRecipeCreateNestedManyWithoutStyleCardInput
 }
 
 export type StyleCardUncheckedCreateInput = {
@@ -401,7 +397,6 @@ export type StyleCardUncheckedCreateInput = {
   isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
-  recipesAsStyle?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutStyleCardInput
 }
 
 export type StyleCardUpdateInput = {
@@ -422,7 +417,6 @@ export type StyleCardUpdateInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutStyleCardsNestedInput
   project?: Prisma.ProjectUpdateOneWithoutStyleCardsNestedInput
-  recipesAsStyle?: Prisma.CardRecipeUpdateManyWithoutStyleCardNestedInput
 }
 
 export type StyleCardUncheckedUpdateInput = {
@@ -443,7 +437,6 @@ export type StyleCardUncheckedUpdateInput = {
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  recipesAsStyle?: Prisma.CardRecipeUncheckedUpdateManyWithoutStyleCardNestedInput
 }
 
 export type StyleCardCreateManyInput = {
@@ -566,11 +559,6 @@ export type StyleCardMinOrderByAggregateInput = {
   updatedAt?: Prisma.SortOrder
 }
 
-export type StyleCardNullableScalarRelationFilter = {
-  is?: Prisma.StyleCardWhereInput | null
-  isNot?: Prisma.StyleCardWhereInput | null
-}
-
 export type StyleCardCreateNestedManyWithoutUserInput = {
   create?: Prisma.XOR<Prisma.StyleCardCreateWithoutUserInput, Prisma.StyleCardUncheckedCreateWithoutUserInput> | Prisma.StyleCardCreateWithoutUserInput[] | Prisma.StyleCardUncheckedCreateWithoutUserInput[]
   connectOrCreate?: Prisma.StyleCardCreateOrConnectWithoutUserInput | Prisma.StyleCardCreateOrConnectWithoutUserInput[]
@@ -664,22 +652,6 @@ export type StyleCardUpdatetagsInput = {
   push?: string | string[]
 }
 
-export type StyleCardCreateNestedOneWithoutRecipesAsStyleInput = {
-  create?: Prisma.XOR<Prisma.StyleCardCreateWithoutRecipesAsStyleInput, Prisma.StyleCardUncheckedCreateWithoutRecipesAsStyleInput>
-  connectOrCreate?: Prisma.StyleCardCreateOrConnectWithoutRecipesAsStyleInput
-  connect?: Prisma.StyleCardWhereUniqueInput
-}
-
-export type StyleCardUpdateOneWithoutRecipesAsStyleNestedInput = {
-  create?: Prisma.XOR<Prisma.StyleCardCreateWithoutRecipesAsStyleInput, Prisma.StyleCardUncheckedCreateWithoutRecipesAsStyleInput>
-  connectOrCreate?: Prisma.StyleCardCreateOrConnectWithoutRecipesAsStyleInput
-  upsert?: Prisma.StyleCardUpsertWithoutRecipesAsStyleInput
-  disconnect?: Prisma.StyleCardWhereInput | boolean
-  delete?: Prisma.StyleCardWhereInput | boolean
-  connect?: Prisma.StyleCardWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.StyleCardUpdateToOneWithWhereWithoutRecipesAsStyleInput, Prisma.StyleCardUpdateWithoutRecipesAsStyleInput>, Prisma.StyleCardUncheckedUpdateWithoutRecipesAsStyleInput>
-}
-
 export type StyleCardCreateWithoutUserInput = {
   id?: string
   name: string
@@ -697,7 +669,6 @@ export type StyleCardCreateWithoutUserInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   project?: Prisma.ProjectCreateNestedOneWithoutStyleCardsInput
-  recipesAsStyle?: Prisma.CardRecipeCreateNestedManyWithoutStyleCardInput
 }
 
 export type StyleCardUncheckedCreateWithoutUserInput = {
@@ -717,7 +688,6 @@ export type StyleCardUncheckedCreateWithoutUserInput = {
   isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
-  recipesAsStyle?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutStyleCardInput
 }
 
 export type StyleCardCreateOrConnectWithoutUserInput = {
@@ -786,7 +756,6 @@ export type StyleCardCreateWithoutProjectInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutStyleCardsInput
-  recipesAsStyle?: Prisma.CardRecipeCreateNestedManyWithoutStyleCardInput
 }
 
 export type StyleCardUncheckedCreateWithoutProjectInput = {
@@ -806,7 +775,6 @@ export type StyleCardUncheckedCreateWithoutProjectInput = {
   isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
-  recipesAsStyle?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutStyleCardInput
 }
 
 export type StyleCardCreateOrConnectWithoutProjectInput = {
@@ -833,102 +801,6 @@ export type StyleCardUpdateWithWhereUniqueWithoutProjectInput = {
 export type StyleCardUpdateManyWithWhereWithoutProjectInput = {
   where: Prisma.StyleCardScalarWhereInput
   data: Prisma.XOR<Prisma.StyleCardUpdateManyMutationInput, Prisma.StyleCardUncheckedUpdateManyWithoutProjectInput>
-}
-
-export type StyleCardCreateWithoutRecipesAsStyleInput = {
-  id?: string
-  name: string
-  description?: string | null
-  sourceImageUrl?: string | null
-  sourceStorageKey?: string | null
-  stylePrompt: string
-  attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  modelId?: string | null
-  adapterType?: string | null
-  advancedParams?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  tags?: Prisma.StyleCardCreatetagsInput | string[]
-  isDeleted?: boolean
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  user: Prisma.UserCreateNestedOneWithoutStyleCardsInput
-  project?: Prisma.ProjectCreateNestedOneWithoutStyleCardsInput
-}
-
-export type StyleCardUncheckedCreateWithoutRecipesAsStyleInput = {
-  id?: string
-  userId: string
-  projectId?: string | null
-  name: string
-  description?: string | null
-  sourceImageUrl?: string | null
-  sourceStorageKey?: string | null
-  stylePrompt: string
-  attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  modelId?: string | null
-  adapterType?: string | null
-  advancedParams?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  tags?: Prisma.StyleCardCreatetagsInput | string[]
-  isDeleted?: boolean
-  createdAt?: Date | string
-  updatedAt?: Date | string
-}
-
-export type StyleCardCreateOrConnectWithoutRecipesAsStyleInput = {
-  where: Prisma.StyleCardWhereUniqueInput
-  create: Prisma.XOR<Prisma.StyleCardCreateWithoutRecipesAsStyleInput, Prisma.StyleCardUncheckedCreateWithoutRecipesAsStyleInput>
-}
-
-export type StyleCardUpsertWithoutRecipesAsStyleInput = {
-  update: Prisma.XOR<Prisma.StyleCardUpdateWithoutRecipesAsStyleInput, Prisma.StyleCardUncheckedUpdateWithoutRecipesAsStyleInput>
-  create: Prisma.XOR<Prisma.StyleCardCreateWithoutRecipesAsStyleInput, Prisma.StyleCardUncheckedCreateWithoutRecipesAsStyleInput>
-  where?: Prisma.StyleCardWhereInput
-}
-
-export type StyleCardUpdateToOneWithWhereWithoutRecipesAsStyleInput = {
-  where?: Prisma.StyleCardWhereInput
-  data: Prisma.XOR<Prisma.StyleCardUpdateWithoutRecipesAsStyleInput, Prisma.StyleCardUncheckedUpdateWithoutRecipesAsStyleInput>
-}
-
-export type StyleCardUpdateWithoutRecipesAsStyleInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  name?: Prisma.StringFieldUpdateOperationsInput | string
-  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  sourceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  sourceStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  stylePrompt?: Prisma.StringFieldUpdateOperationsInput | string
-  attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  modelId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  adapterType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  advancedParams?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  tags?: Prisma.StyleCardUpdatetagsInput | string[]
-  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  user?: Prisma.UserUpdateOneRequiredWithoutStyleCardsNestedInput
-  project?: Prisma.ProjectUpdateOneWithoutStyleCardsNestedInput
-}
-
-export type StyleCardUncheckedUpdateWithoutRecipesAsStyleInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  userId?: Prisma.StringFieldUpdateOperationsInput | string
-  projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  name?: Prisma.StringFieldUpdateOperationsInput | string
-  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  sourceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  sourceStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  stylePrompt?: Prisma.StringFieldUpdateOperationsInput | string
-  attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  modelId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  adapterType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  advancedParams?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  tags?: Prisma.StyleCardUpdatetagsInput | string[]
-  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type StyleCardCreateManyUserInput = {
@@ -967,7 +839,6 @@ export type StyleCardUpdateWithoutUserInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   project?: Prisma.ProjectUpdateOneWithoutStyleCardsNestedInput
-  recipesAsStyle?: Prisma.CardRecipeUpdateManyWithoutStyleCardNestedInput
 }
 
 export type StyleCardUncheckedUpdateWithoutUserInput = {
@@ -987,7 +858,6 @@ export type StyleCardUncheckedUpdateWithoutUserInput = {
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  recipesAsStyle?: Prisma.CardRecipeUncheckedUpdateManyWithoutStyleCardNestedInput
 }
 
 export type StyleCardUncheckedUpdateManyWithoutUserInput = {
@@ -1045,7 +915,6 @@ export type StyleCardUpdateWithoutProjectInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutStyleCardsNestedInput
-  recipesAsStyle?: Prisma.CardRecipeUpdateManyWithoutStyleCardNestedInput
 }
 
 export type StyleCardUncheckedUpdateWithoutProjectInput = {
@@ -1065,7 +934,6 @@ export type StyleCardUncheckedUpdateWithoutProjectInput = {
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  recipesAsStyle?: Prisma.CardRecipeUncheckedUpdateManyWithoutStyleCardNestedInput
 }
 
 export type StyleCardUncheckedUpdateManyWithoutProjectInput = {
@@ -1088,35 +956,6 @@ export type StyleCardUncheckedUpdateManyWithoutProjectInput = {
 }
 
 
-/**
- * Count Type StyleCardCountOutputType
- */
-
-export type StyleCardCountOutputType = {
-  recipesAsStyle: number
-}
-
-export type StyleCardCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  recipesAsStyle?: boolean | StyleCardCountOutputTypeCountRecipesAsStyleArgs
-}
-
-/**
- * StyleCardCountOutputType without action
- */
-export type StyleCardCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the StyleCardCountOutputType
-   */
-  select?: Prisma.StyleCardCountOutputTypeSelect<ExtArgs> | null
-}
-
-/**
- * StyleCardCountOutputType without action
- */
-export type StyleCardCountOutputTypeCountRecipesAsStyleArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  where?: Prisma.CardRecipeWhereInput
-}
-
 
 export type StyleCardSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -1138,8 +977,6 @@ export type StyleCardSelect<ExtArgs extends runtime.Types.Extensions.InternalArg
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   project?: boolean | Prisma.StyleCard$projectArgs<ExtArgs>
-  recipesAsStyle?: boolean | Prisma.StyleCard$recipesAsStyleArgs<ExtArgs>
-  _count?: boolean | Prisma.StyleCardCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["styleCard"]>
 
 export type StyleCardSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -1210,8 +1047,6 @@ export type StyleCardOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs 
 export type StyleCardInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   project?: boolean | Prisma.StyleCard$projectArgs<ExtArgs>
-  recipesAsStyle?: boolean | Prisma.StyleCard$recipesAsStyleArgs<ExtArgs>
-  _count?: boolean | Prisma.StyleCardCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type StyleCardIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -1227,7 +1062,6 @@ export type $StyleCardPayload<ExtArgs extends runtime.Types.Extensions.InternalA
   objects: {
     user: Prisma.$UserPayload<ExtArgs>
     project: Prisma.$ProjectPayload<ExtArgs> | null
-    recipesAsStyle: Prisma.$CardRecipePayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1643,7 +1477,6 @@ export interface Prisma__StyleCardClient<T, Null = never, ExtArgs extends runtim
   readonly [Symbol.toStringTag]: "PrismaPromise"
   user<T extends Prisma.UserDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.UserDefaultArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   project<T extends Prisma.StyleCard$projectArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.StyleCard$projectArgs<ExtArgs>>): Prisma.Prisma__ProjectClient<runtime.Types.Result.GetResult<Prisma.$ProjectPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
-  recipesAsStyle<T extends Prisma.StyleCard$recipesAsStyleArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.StyleCard$recipesAsStyleArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CardRecipePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2107,30 +1940,6 @@ export type StyleCard$projectArgs<ExtArgs extends runtime.Types.Extensions.Inter
    */
   include?: Prisma.ProjectInclude<ExtArgs> | null
   where?: Prisma.ProjectWhereInput
-}
-
-/**
- * StyleCard.recipesAsStyle
- */
-export type StyleCard$recipesAsStyleArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the CardRecipe
-   */
-  select?: Prisma.CardRecipeSelect<ExtArgs> | null
-  /**
-   * Omit specific fields from the CardRecipe
-   */
-  omit?: Prisma.CardRecipeOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.CardRecipeInclude<ExtArgs> | null
-  where?: Prisma.CardRecipeWhereInput
-  orderBy?: Prisma.CardRecipeOrderByWithRelationInput | Prisma.CardRecipeOrderByWithRelationInput[]
-  cursor?: Prisma.CardRecipeWhereUniqueInput
-  take?: number
-  skip?: number
-  distinct?: Prisma.CardRecipeScalarFieldEnum | Prisma.CardRecipeScalarFieldEnum[]
 }
 
 /**

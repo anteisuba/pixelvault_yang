@@ -29,12 +29,10 @@ import {
   hexToBytes,
   isCallbackKind,
   isImageResolutionTier,
-  isLongVideoPipelineWorkflowId,
   isModel3DWorkflowId,
   isWorkerWorkflowId,
   parseCancelRequest,
   parseLlmCallLog,
-  parseLongVideoPipelineRunContext,
   parseModel3DRunContext,
   parseWorkerRunContext,
   pollAndPersistRunnerImageJob,
@@ -42,7 +40,6 @@ import {
   reportProviderJobId,
   resolveFalImageModelId,
   submitFalImageQueue,
-  submitFalLongVideoClipQueue,
   submitFalModel3DQueue,
   submitFalQueue,
   submitMiniMaxQueue,
@@ -310,37 +307,6 @@ function makeAudioInput(overrides: Record<string, unknown> = {}) {
   }
 }
 
-function makeLongVideoInput(overrides: Record<string, unknown> = {}) {
-  return {
-    runId: 'r1',
-    workflowId: 'LONG_VIDEO_PIPELINE',
-    pipelineId: 'p1',
-    advanceUrl: 'https://advance.example.com',
-    providerId: 'fal',
-    apiKeyId: 'k1',
-    resolveKeyUrl: 'https://resolve.example.com',
-    timeoutMs: 60000,
-    maxAttempts: 5,
-    pollIntervalMs: 2000,
-    startClipIndex: 0,
-    ...overrides,
-    providerInput: {
-      prompt: 'x',
-      modelId: 'm',
-      externalModelId: 'e',
-      aspectRatio: '16:9',
-      firstClipDuration: 5,
-      extensionClipDuration: 5,
-      totalClips: 2,
-      extensionMethod: 'native_extend',
-      outputStorageKeys: ['key-1', 'key-2'],
-      width: 1280,
-      height: 720,
-      ...(overrides.providerInput as Record<string, unknown> | undefined),
-    },
-  }
-}
-
 function makeModel3DInput(overrides: Record<string, unknown> = {}) {
   return {
     runId: 'run-3d',
@@ -426,12 +392,7 @@ describe('type guards', () => {
   it('isWorkerWorkflowId accepts only the queue workflow ids', () => {
     expect(isWorkerWorkflowId('CINEMATIC_SHORT_VIDEO')).toBe(true)
     expect(isWorkerWorkflowId('FAL_QUEUE')).toBe(true)
-    expect(isWorkerWorkflowId('LONG_VIDEO_PIPELINE')).toBe(false)
-  })
-
-  it('isLongVideoPipelineWorkflowId accepts only its own id', () => {
-    expect(isLongVideoPipelineWorkflowId('LONG_VIDEO_PIPELINE')).toBe(true)
-    expect(isLongVideoPipelineWorkflowId('FAL_QUEUE')).toBe(false)
+    expect(isWorkerWorkflowId('HYPER3D_RODIN')).toBe(false)
   })
 
   it('isModel3DWorkflowId accepts Rodin and Hunyuan3D', () => {
@@ -502,28 +463,6 @@ describe('parseWorkerRunContext', () => {
     expect(
       parseWorkerRunContext(makeVideoInput({ outputType: 'TEXT' })),
     ).toBeNull()
-  })
-})
-
-describe('parseLongVideoPipelineRunContext', () => {
-  it('parses a valid pipeline context', () => {
-    expect(
-      parseLongVideoPipelineRunContext(makeLongVideoInput()),
-    ).not.toBeNull()
-  })
-
-  it('rejects when outputStorageKeys is shorter than totalClips', () => {
-    const input = makeLongVideoInput({
-      providerInput: { outputStorageKeys: ['only-one'] },
-    })
-    expect(parseLongVideoPipelineRunContext(input)).toBeNull()
-  })
-
-  it('rejects an invalid extensionMethod', () => {
-    const input = makeLongVideoInput({
-      providerInput: { extensionMethod: 'not_a_method' },
-    })
-    expect(parseLongVideoPipelineRunContext(input)).toBeNull()
   })
 })
 
@@ -2195,7 +2134,6 @@ describe('/cancel route', () => {
       {
         INTERNAL_CALLBACK_SECRET: secret,
         CINEMATIC_SHORT_VIDEO_WORKFLOW: { get: notFound },
-        LONG_VIDEO_PIPELINE_WORKFLOW: { get: notFound },
         HYPER3D_RODIN_WORKFLOW: { get: notFound },
         HUNYUAN3D_WORKFLOW: { get: notFound },
         IMAGE_QUEUE_WORKFLOW: {
@@ -2231,7 +2169,6 @@ describe('/cancel route', () => {
       {
         INTERNAL_CALLBACK_SECRET: secret,
         CINEMATIC_SHORT_VIDEO_WORKFLOW: { get: notFound },
-        LONG_VIDEO_PIPELINE_WORKFLOW: { get: notFound },
         HYPER3D_RODIN_WORKFLOW: { get: notFound },
         HUNYUAN3D_WORKFLOW: { get: notFound },
         IMAGE_QUEUE_WORKFLOW: { get: notFound },
@@ -2259,7 +2196,6 @@ describe('/cancel route', () => {
       {
         INTERNAL_CALLBACK_SECRET: secret,
         CINEMATIC_SHORT_VIDEO_WORKFLOW: { get: notFound },
-        LONG_VIDEO_PIPELINE_WORKFLOW: { get: notFound },
         HYPER3D_RODIN_WORKFLOW: { get: notFound },
         HUNYUAN3D_WORKFLOW: { get: notFound },
         IMAGE_QUEUE_WORKFLOW: {
@@ -2307,7 +2243,6 @@ describe('/cancel route', () => {
         RUNNER_MODAL_URL: 'https://runner.test',
         RUNNER_MODAL_TOKEN: 'modal-token',
         CINEMATIC_SHORT_VIDEO_WORKFLOW: { get: notFound },
-        LONG_VIDEO_PIPELINE_WORKFLOW: { get: notFound },
         HYPER3D_RODIN_WORKFLOW: { get: notFound },
         HUNYUAN3D_WORKFLOW: { get: notFound },
         IMAGE_QUEUE_WORKFLOW: { get: notFound },
@@ -2339,7 +2274,6 @@ describe('/cancel route', () => {
         INTERNAL_CALLBACK_SECRET: secret,
         INTERNAL_CALLBACK_URL: callbackUrl,
         CINEMATIC_SHORT_VIDEO_WORKFLOW: { get: notFound },
-        LONG_VIDEO_PIPELINE_WORKFLOW: { get: notFound },
         HYPER3D_RODIN_WORKFLOW: { get: notFound },
         HUNYUAN3D_WORKFLOW: { get: notFound },
         IMAGE_QUEUE_WORKFLOW: { get: notFound },
@@ -2391,7 +2325,6 @@ describe('/cancel route', () => {
         INTERNAL_CALLBACK_SECRET: secret,
         INTERNAL_CALLBACK_URL: callbackUrl,
         CINEMATIC_SHORT_VIDEO_WORKFLOW: { get: notFound },
-        LONG_VIDEO_PIPELINE_WORKFLOW: { get: notFound },
         HYPER3D_RODIN_WORKFLOW: { get: notFound },
         HUNYUAN3D_WORKFLOW: { get: notFound },
         IMAGE_QUEUE_WORKFLOW: { get: notFound },
@@ -2443,7 +2376,6 @@ describe('/cancel route', () => {
         INTERNAL_CALLBACK_SECRET: secret,
         INTERNAL_CALLBACK_URL: callbackUrl,
         CINEMATIC_SHORT_VIDEO_WORKFLOW: { get: notFound },
-        LONG_VIDEO_PIPELINE_WORKFLOW: { get: notFound },
         HYPER3D_RODIN_WORKFLOW: { get: notFound },
         HUNYUAN3D_WORKFLOW: { get: notFound },
         IMAGE_QUEUE_WORKFLOW: { get: notFound },
@@ -2568,7 +2500,7 @@ describe('provider submit reports providerJobId', () => {
     )
     if (!context) throw new Error('expected a valid video context')
 
-    await submitFalQueue(context, 'fal-key', env, true)
+    await submitFalQueue(context, 'fal-key', env)
 
     const reportCall = fetchMock.mock.calls.find(
       ([input]) => String(input) === context.callbackUrl,
@@ -3027,66 +2959,11 @@ describe('provider submit reports providerJobId', () => {
     )
     if (!context) throw new Error('expected a valid video context')
 
-    await expect(
-      submitFalQueue(context, 'fal-key', env, true),
-    ).resolves.toEqual({
+    await expect(submitFalQueue(context, 'fal-key', env)).resolves.toEqual({
       requestId: 'req-1',
       statusUrl: 'https://queue.fal.run/ext-1/requests/req-1/status',
       responseUrl: 'https://queue.fal.run/ext-1/requests/req-1',
     })
-  })
-
-  it('long-video clip path never reports providerJobId (its callbackUrl is the pipeline advanceUrl, not a GenerationJob callback)', async () => {
-    // owner 2026-09-04: LongVideoPipelineAdvanceRequestSchema (see
-    // src/app/api/internal/execution/long-video/advance/route.ts) 400s on an
-    // unrecognized kind:'status' payload, and the per-clip synthetic runId
-    // (`${runId}:clip-${clipIndex}`) doesn't correspond to any GenerationJob
-    // row anyway — so this path must never call reportProviderJobId. That's
-    // wired via submitFalLongVideoClipQueue → submitFalQueue(..., false);
-    // this test locks the call-site wiring itself, not just submitFalQueue's
-    // own reportProviderJob flag, since a flipped `false` → `true` at the
-    // call site is exactly the regression that shipped for a day.
-    const fetchMock = vi
-      .fn()
-      .mockImplementation(async (input: RequestInfo | URL) => {
-        const requestUrl = String(input)
-        if (requestUrl === 'https://queue.fal.run/e') {
-          return new Response(
-            JSON.stringify({
-              request_id: 'req-clip-1',
-              status_url: 'https://queue.fal.run/e/requests/req-clip-1/status',
-              response_url: 'https://queue.fal.run/e/requests/req-clip-1',
-            }),
-            { status: 200, headers: { 'content-type': 'application/json' } },
-          )
-        }
-        // Any other call (in particular a report POST to advanceUrl) is the
-        // exact bug this test guards against.
-        throw new Error(`Unexpected fetch: ${requestUrl}`)
-      })
-    vi.stubGlobal('fetch', fetchMock)
-
-    const context = parseLongVideoPipelineRunContext(
-      makeLongVideoInput({ providerInput: { modelId: 'kling-v3-pro' } }),
-    )
-    if (!context) throw new Error('expected a valid long-video context')
-
-    const result = await submitFalLongVideoClipQueue(
-      context,
-      'fal-key',
-      0,
-      undefined,
-      undefined,
-      env,
-    )
-
-    expect(result.queue.requestId).toBe('req-clip-1')
-    expect(
-      fetchMock.mock.calls.some(
-        ([input]) => String(input) === context.advanceUrl,
-      ),
-    ).toBe(false)
-    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })
 

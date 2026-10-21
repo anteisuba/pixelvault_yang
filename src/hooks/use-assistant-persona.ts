@@ -87,7 +87,7 @@ export function useAssistantPersona(
   /**
    * ⚠ 走 `deferEffectTask`：React 19 的 lint 不允许在 effect 体里同步启动会
    * setState 的活（`react-hooks/set-state-in-effect`）。全仓既有 hook 都是这个
-   * 形状（`use-collections.ts` 等），⛔ 别在这里另发明一套。
+   * 形状（`use-character-cards.ts` 等），⛔ 别在这里另发明一套。
    */
   useEffect(() => {
     if (!enabled) return

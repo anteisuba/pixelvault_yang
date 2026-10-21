@@ -177,11 +177,6 @@ export type AssistantPersona = Prisma.AssistantPersonaModel
  */
 export type ProjectRule = Prisma.ProjectRuleModel
 /**
- * Model ImageAnalysis
- * 
- */
-export type ImageAnalysis = Prisma.ImageAnalysisModel
-/**
  * Model ModelConfig
  * 
  */
@@ -207,16 +202,6 @@ export type UserLike = Prisma.UserLikeModel
  */
 export type UserFollow = Prisma.UserFollowModel
 /**
- * Model Collection
- * 
- */
-export type Collection = Prisma.CollectionModel
-/**
- * Model CollectionItem
- * 
- */
-export type CollectionItem = Prisma.CollectionItemModel
-/**
  * Model BackgroundCard
  * 
  */
@@ -226,21 +211,6 @@ export type BackgroundCard = Prisma.BackgroundCardModel
  * 
  */
 export type StyleCard = Prisma.StyleCardModel
-/**
- * Model CardRecipe
- * 
- */
-export type CardRecipe = Prisma.CardRecipeModel
-/**
- * Model VideoPipeline
- * 
- */
-export type VideoPipeline = Prisma.VideoPipelineModel
-/**
- * Model VideoPipelineClip
- * 
- */
-export type VideoPipelineClip = Prisma.VideoPipelineClipModel
 /**
  * Model LoraTrainingJob
  * 

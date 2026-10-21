@@ -1,12 +1,12 @@
 # Cards 域 — 可复用创作上下文（现状事实）
 
-> 职责：把「同一个角色 / 同一处场景 / 同一种画风 / 同一副嗓子」固化成可复用实体，供图片、视频、语音、画布四条生成链引用。**不负责**：执行生成，也不负责 `Recipe`（那是 prompts 域的 owner-scoped 模板，与本域的 `CardRecipe` 是两个模型）。
+> 职责：把「同一个角色 / 同一处场景 / 同一种画风 / 同一副嗓子」固化成可复用实体，供图片、视频、语音、画布四条生成链引用。**不负责**：执行生成，也不负责 `Recipe`（那是 prompts 域的 owner-scoped 模板）。
 
 ⚠ **记忆 ≠ 卡，两者之间没有桥**（56a，owner 2026-09-19）：卡是用户**亲手经营**的实体（正文 · 图 · 硬否定 · 常挂范围 · `@` 点名）；`AssistantMemory` 的一条是助手**观察到**的一行字，由每轮结账自动写、用户在 `/settings/assistant` 里改删。⛔ 不做「把这条记忆存成卡」、⛔ 也不把卡自动降级成记忆——助手能自己写的东西和用户亲手放进去的东西混成一摊，是这一层最贵的那种错。记忆的形状见 [`references/database.md`](../database.md) 与 [`pages/assistant-shell-v2.md`](../pages/assistant-shell-v2.md) §7.8。
 
 ## 数据模型
 
-`CharacterCard`（含 `parentId` 变体树）· `GenerationCharacterCard`（生成↔角色卡 join）· `BackgroundCard` · `StyleCard` · `CardRecipe`（character + background + style + freePrompt 的组合）· `VoiceCard`（声音资产，2026-09-17 前与 `CharacterCard` 零关联）。
+`CharacterCard`（含 `parentId` 变体树）· `GenerationCharacterCard`（生成↔角色卡 join）· `BackgroundCard` · `StyleCard` · `VoiceCard`（声音资产，2026-09-17 前与 `CharacterCard` 零关联）。
 
 ## Service / API
 
@@ -52,7 +52,7 @@
 | `voiceProfile`      | `Json?` — `{ emotions: [{ label, params }], sampleLines: string[] }`                                   | 该角色的情绪档与示例台词。`params` 是 provider 无关的参数袋（语速/音高等），不在这一层收敛到某家 API   | 角色卡 create / update                                     | 待接：配音间试听与情绪切换                                                               |
 | `persona`           | `Json?` — `{ behavior, speech, catchphrases[], scenario, opening, examples: [{ user, reply }] }`       | 人设（**写具体行为，不写形容词**：「紧张时搓手指」优于「温柔体贴」）。与 `description`（视觉描述）分开 | 角色卡 create / update                                     | 助手 `CHARACTER` 段（2026-10-14）· 视频脚本主角 · 画布 v3 `CAST ON THE BOARD`            |
 | `referenceRoles`    | `Json?` — `Record<url, role>`，`role` ∈ 画布 11 类词表                                                 | 给已有参考图标用途槽位。**键是图片 URL**，值取 `NODE_STUDIO_REFERENCE_ROLES`                           | 角色卡 update                                              | 待接：各 adapter 的分槽映射（MJ `--oref`/`--sref`、Gemini 角色/物体/风格槽、Runway tag） |
-| `allowedStyleRange` | `Json?` — `{ allowStyleCardIds: string[], denyTags: string[] }`                                        | 这张卡允许搭配的画风白名单与禁用标签。空数组 = 不限制                                                  | 角色卡 create / update                                     | 待接：`CardRecipe` 组卡时的可选性过滤                                                    |
+| `allowedStyleRange` | `Json?` — `{ allowStyleCardIds: string[], denyTags: string[] }`                                        | 这张卡允许搭配的画风白名单与禁用标签。空数组 = 不限制                                                  | 角色卡 create / update                                     | 待接：组卡编译时的可选性过滤                                                             |
 | `provenance`        | `Json?` — `{ sourceGenerationIds: string[], loraJobId?, derivedFromCardId?, derivedFromCardVersion? }` | 这张卡的素材从哪来：哪几次生成、哪个 LoRA 训练 job、从哪张卡的哪个版本派生                             | 角色卡 create / update（精修落好图时由服务端补，属下一片） | 待接：卡片详情的血缘展示                                                                 |
 | `version`           | `Int @default(1)`，非空                                                                                | 卡内容的单调版本号，供 `provenance.derivedFromCardVersion` 指认「派生自哪一版」                        | 角色卡 create（默认 1）；递增时机属下一片                  | `provenance` 的读方                                                                      |
 
@@ -181,7 +181,7 @@
 
 ## 不能破坏
 
-`Recipe` 与 `CardRecipe` 的模型分离 · 卡与 `AssistantMemory` 的分界（⛔ 不许长出互相转换的路） · 角色卡 owner-scoped 查询与 ownership 服务端校验 · 变体树 `parentId` 的级联语义（变体随父卡删）· `VoiceCard` 的软引用语义（删音色不删角色）· `referenceRoles` 值域与画布词表同源。
+卡与 `AssistantMemory` 的分界（⛔ 不许长出互相转换的路） · 角色卡 owner-scoped 查询与 ownership 服务端校验 · 变体树 `parentId` 的级联语义（变体随父卡删）· `VoiceCard` 的软引用语义（删音色不删角色）· `referenceRoles` 值域与画布词表同源。
 
 ## Source of Truth
 

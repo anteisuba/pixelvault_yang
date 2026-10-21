@@ -17,7 +17,7 @@ export const GET = createApiGetRoute<
   schema: AudioStatusRequestSchema,
   routeName: 'GET /api/studio/generate/status',
   requireAuth: true,
-  rateLimit: RATE_LIMIT_CONFIGS.longVideoStatus,
+  rateLimit: RATE_LIMIT_CONFIGS.generationStatus,
   handler: async ({ clerkId, data }) => {
     return checkImageGenerationStatus(clerkId!, data.jobId)
   },

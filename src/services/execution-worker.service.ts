@@ -3,7 +3,6 @@ import 'server-only'
 import { EXECUTION_WORKER, LOOPBACK_HOSTNAMES } from '@/constants/execution'
 import { createInternalExecutionHeaders } from '@/lib/signature-verifiers/internal-execution'
 import type {
-  LongVideoPipelineWorkerRunContext,
   WorkerCancelRequest,
   WorkerDispatchResult,
   WorkerModel3DRunContext,
@@ -143,15 +142,6 @@ export async function dispatchImageWorkerRun(
   return dispatchSignedWorkerRun(runContext, EXECUTION_WORKER.IMAGE_QUEUE_PATH)
 }
 
-export async function dispatchLongVideoPipelineWorkerRun(
-  runContext: LongVideoPipelineWorkerRunContext,
-): Promise<WorkerDispatchResult> {
-  return dispatchSignedWorkerRun(
-    runContext,
-    EXECUTION_WORKER.LONG_VIDEO_PIPELINE_PATH,
-  )
-}
-
 export async function dispatchHyper3DRodinWorkerRun(
   runContext: WorkerModel3DRunContext,
 ): Promise<WorkerDispatchResult> {
@@ -168,10 +158,7 @@ export async function dispatchHunyuan3DWorkerRun(
 }
 
 async function dispatchSignedWorkerRun(
-  runContext:
-    | WorkerRunContext
-    | LongVideoPipelineWorkerRunContext
-    | WorkerModel3DRunContext,
+  runContext: WorkerRunContext | WorkerModel3DRunContext,
   path: string,
 ): Promise<WorkerDispatchResult> {
   const body = JSON.stringify(runContext)

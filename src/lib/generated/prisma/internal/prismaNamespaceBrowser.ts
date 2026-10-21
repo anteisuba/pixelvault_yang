@@ -73,19 +73,13 @@ export const ModelName = {
   UserCreativePreference: 'UserCreativePreference',
   AssistantPersona: 'AssistantPersona',
   ProjectRule: 'ProjectRule',
-  ImageAnalysis: 'ImageAnalysis',
   ModelConfig: 'ModelConfig',
   CharacterCard: 'CharacterCard',
   GenerationCharacterCard: 'GenerationCharacterCard',
   UserLike: 'UserLike',
   UserFollow: 'UserFollow',
-  Collection: 'Collection',
-  CollectionItem: 'CollectionItem',
   BackgroundCard: 'BackgroundCard',
   StyleCard: 'StyleCard',
-  CardRecipe: 'CardRecipe',
-  VideoPipeline: 'VideoPipeline',
-  VideoPipelineClip: 'VideoPipelineClip',
   LoraTrainingJob: 'LoraTrainingJob',
   LoraAsset: 'LoraAsset',
   VideoScript: 'VideoScript',
@@ -538,19 +532,6 @@ export const ProjectRuleScalarFieldEnum = {
 export type ProjectRuleScalarFieldEnum = (typeof ProjectRuleScalarFieldEnum)[keyof typeof ProjectRuleScalarFieldEnum]
 
 
-export const ImageAnalysisScalarFieldEnum = {
-  id: 'id',
-  userId: 'userId',
-  sourceImageUrl: 'sourceImageUrl',
-  sourceStorageKey: 'sourceStorageKey',
-  generatedPrompt: 'generatedPrompt',
-  modelUsed: 'modelUsed',
-  createdAt: 'createdAt'
-} as const
-
-export type ImageAnalysisScalarFieldEnum = (typeof ImageAnalysisScalarFieldEnum)[keyof typeof ImageAnalysisScalarFieldEnum]
-
-
 export const ModelConfigScalarFieldEnum = {
   id: 'id',
   modelId: 'modelId',
@@ -644,32 +625,6 @@ export const UserFollowScalarFieldEnum = {
 export type UserFollowScalarFieldEnum = (typeof UserFollowScalarFieldEnum)[keyof typeof UserFollowScalarFieldEnum]
 
 
-export const CollectionScalarFieldEnum = {
-  id: 'id',
-  userId: 'userId',
-  name: 'name',
-  description: 'description',
-  coverUrl: 'coverUrl',
-  isPublic: 'isPublic',
-  isDeleted: 'isDeleted',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type CollectionScalarFieldEnum = (typeof CollectionScalarFieldEnum)[keyof typeof CollectionScalarFieldEnum]
-
-
-export const CollectionItemScalarFieldEnum = {
-  id: 'id',
-  collectionId: 'collectionId',
-  generationId: 'generationId',
-  orderIndex: 'orderIndex',
-  addedAt: 'addedAt'
-} as const
-
-export type CollectionItemScalarFieldEnum = (typeof CollectionItemScalarFieldEnum)[keyof typeof CollectionItemScalarFieldEnum]
-
-
 export const BackgroundCardScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -711,75 +666,6 @@ export const StyleCardScalarFieldEnum = {
 } as const
 
 export type StyleCardScalarFieldEnum = (typeof StyleCardScalarFieldEnum)[keyof typeof StyleCardScalarFieldEnum]
-
-
-export const CardRecipeScalarFieldEnum = {
-  id: 'id',
-  userId: 'userId',
-  projectId: 'projectId',
-  name: 'name',
-  characterCardId: 'characterCardId',
-  backgroundCardId: 'backgroundCardId',
-  styleCardId: 'styleCardId',
-  freePrompt: 'freePrompt',
-  isDeleted: 'isDeleted',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type CardRecipeScalarFieldEnum = (typeof CardRecipeScalarFieldEnum)[keyof typeof CardRecipeScalarFieldEnum]
-
-
-export const VideoPipelineScalarFieldEnum = {
-  id: 'id',
-  userId: 'userId',
-  status: 'status',
-  prompt: 'prompt',
-  modelId: 'modelId',
-  adapterType: 'adapterType',
-  aspectRatio: 'aspectRatio',
-  resolution: 'resolution',
-  negativePrompt: 'negativePrompt',
-  extensionMethod: 'extensionMethod',
-  targetDurationSec: 'targetDurationSec',
-  currentDurationSec: 'currentDurationSec',
-  totalClips: 'totalClips',
-  completedClips: 'completedClips',
-  finalVideoUrl: 'finalVideoUrl',
-  finalStorageKey: 'finalStorageKey',
-  generationId: 'generationId',
-  characterCardIds: 'characterCardIds',
-  referenceImageUrl: 'referenceImageUrl',
-  apiKeyId: 'apiKeyId',
-  errorMessage: 'errorMessage',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type VideoPipelineScalarFieldEnum = (typeof VideoPipelineScalarFieldEnum)[keyof typeof VideoPipelineScalarFieldEnum]
-
-
-export const VideoPipelineClipScalarFieldEnum = {
-  id: 'id',
-  pipelineId: 'pipelineId',
-  clipIndex: 'clipIndex',
-  status: 'status',
-  generationJobId: 'generationJobId',
-  externalRequestId: 'externalRequestId',
-  videoUrl: 'videoUrl',
-  storageKey: 'storageKey',
-  lastFrameUrl: 'lastFrameUrl',
-  durationSec: 'durationSec',
-  inputVideoUrl: 'inputVideoUrl',
-  inputFrameUrl: 'inputFrameUrl',
-  errorMessage: 'errorMessage',
-  startedAt: 'startedAt',
-  completedAt: 'completedAt',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type VideoPipelineClipScalarFieldEnum = (typeof VideoPipelineClipScalarFieldEnum)[keyof typeof VideoPipelineClipScalarFieldEnum]
 
 
 export const LoraTrainingJobScalarFieldEnum = {

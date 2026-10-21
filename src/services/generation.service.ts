@@ -533,7 +533,47 @@ function withGenerationDisplayName(
   const snapshot = input.snapshot
   if (snapshot === undefined || snapshot === null) return { displayName }
   if (typeof snapshot !== 'object' || Array.isArray(snapshot)) return snapshot
-  return { ...(snapshot as Record<string, unknown>), displayName }
+  const omitted: string[] = []
+  const cleaned = omitInlineDataUris(snapshot, '', omitted)
+  if (omitted.length > 0) {
+    logger.warn('Generation snapshot carried inline data URIs; omitted', {
+      paths: omitted,
+    })
+  }
+  return { ...(cleaned as Record<string, unknown>), displayName }
+}
+
+/**
+ * 快照只存链接，⛔ 一个 base64 字节都不落库。2026-04～06 有 56 张作品把参考图整张
+ * 以 `data:` 原文写进了快照（51 MB，是作品表的三分之二），10-21 已转存 R2。这里是
+ * 那件事的闸：调用方漏传了原文，宁可在快照里丢掉这一格并记一条警告，也不让它进库。
+ */
+const INLINE_DATA_URI_PLACEHOLDER = '[inline data omitted]'
+
+function omitInlineDataUris(
+  value: unknown,
+  path: string,
+  omitted: string[],
+): unknown {
+  if (typeof value === 'string') {
+    if (!value.startsWith('data:')) return value
+    omitted.push(path || '(root)')
+    return INLINE_DATA_URI_PLACEHOLDER
+  }
+  if (Array.isArray(value)) {
+    return value.map((item, index) =>
+      omitInlineDataUris(item, `${path}[${index}]`, omitted),
+    )
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [
+        key,
+        omitInlineDataUris(item, path ? `${path}.${key}` : key, omitted),
+      ]),
+    )
+  }
+  return value
 }
 
 /**

@@ -1,9 +1,54 @@
 #!/bin/sh
+# Pre-push：只查本次改动相关的部分，全量交给 CI（ci.yml 的 lint + 3 片 vitest）。
+# 例外：推 main = 生产部署，仍跑全量三关（见 docs/WORKFLOW.md「push main」）。
+# husky 以 `sh -e` 执行：grep 无匹配会直接退出，所以取值处都带 `|| true`。
 
-echo "🔍 Pre-push check: tsc + lint + vitest..."
+FULL=0
+# stdin 每行：<local ref> <local sha> <remote ref> <remote sha>
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+  [ "$remote_ref" = "refs/heads/main" ] && FULL=1
+done
 
+if [ "$FULL" = "1" ]; then
+  echo "🔍 Pre-push (main, full): tsc + lint + vitest..."
+  npx tsc --noEmit || { echo "❌ Type check failed"; exit 1; }
+  npm run lint || { echo "❌ Lint failed"; exit 1; }
+  npx vitest run --reporter=verbose --maxWorkers=2 || { echo "❌ Tests failed"; exit 1; }
+  echo "✅ All checks passed"
+  exit 0
+fi
+
+BASE=$(git merge-base HEAD origin/main 2>/dev/null || true)
+if [ -z "$BASE" ]; then
+  echo "⚠️  No origin/main merge-base; running full checks"
+  npx tsc --noEmit && npm run lint && npx vitest run --maxWorkers=2 || exit 1
+  exit 0
+fi
+
+CHANGED=$(git diff --name-only --diff-filter=ACMR "$BASE" HEAD)
+CODE=$(echo "$CHANGED" | grep -E '^(src/|prisma/|e2e/.*\.ts$|[^/]*\.config\.(ts|mjs)$|tsconfig\.json$|package(-lock)?\.json$)' || true)
+
+if [ -z "$CODE" ]; then
+  echo "✅ Pre-push: no code changes since origin/main (docs/tools only), skipping"
+  exit 0
+fi
+
+echo "🔍 Pre-push (changed since $(git rev-parse --short "$BASE")): tsc + lint + related vitest..."
+
+# tsconfig 已开 incremental：第二次起只重查变化部分。
 npx tsc --noEmit || { echo "❌ Type check failed"; exit 1; }
-npm run lint || { echo "❌ Lint failed"; exit 1; }
-npx vitest run --reporter=verbose --maxWorkers=2 || { echo "❌ Tests failed"; exit 1; }
 
-echo "✅ All checks passed"
+LINT_FILES=$(echo "$CHANGED" | grep -E '^src/.*\.(ts|tsx)$' || true)
+if [ -n "$LINT_FILES" ]; then
+  # shellcheck disable=SC2086
+  npx eslint $LINT_FILES || { echo "❌ Lint failed"; exit 1; }
+fi
+
+# 依赖 / 测试配置变了，影响面算不准 → 全量。
+if echo "$CHANGED" | grep -qE '^(package(-lock)?\.json|vitest\.config\.ts|tsconfig\.json)$'; then
+  npx vitest run --maxWorkers=2 || { echo "❌ Tests failed"; exit 1; }
+else
+  npx vitest run --changed "$BASE" --passWithNoTests --maxWorkers=2 || { echo "❌ Tests failed"; exit 1; }
+fi
+
+echo "✅ Related checks passed (full suite runs in CI)"

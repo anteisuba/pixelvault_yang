@@ -4,13 +4,13 @@
 
 ## 命令与闸门（2026-07-10 核验）
 
-| 闸门                              | 内容                                                                                                                                                                                                                            |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run test` / `test:run`       | Vitest（watch / 单次）                                                                                                                                                                                                          |
-| `npm run test:replay`             | 助手回放基线（`src/test/assistant-replay/`，约 15 秒）；也在 `npx vitest run` 里，pre-push 一起跑                                                                                                                               |
-| pre-commit（husky + lint-staged） | `*.{ts,tsx}` → prettier + eslint --fix；`*.{json,css,md}` → prettier                                                                                                                                                            |
-| **pre-push（husky）**             | `tsc --noEmit` → `npm run lint` → `npx vitest run --reporter=verbose`——**三关全过才能推**（本机实测 2026-07-10：tsc 185s + lint 350s + vitest 412s ≈ **合计 15.8 分钟**，比旧口径"约 8–9 分钟"慢近一倍；不许 --no-verify 跳过） |
-| CI `ci.yml`                       | push/PR 跑 tsc + lint、应用 unit、Execution Worker unit、依赖审计、Prisma drift + fresh-database replay 和生产 build（见 cicd.md）                                                                                              |
+| 闸门                              | 内容                                                                                                                                                                                                                                                                                                                                                                          |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run test` / `test:run`       | Vitest（watch / 单次）                                                                                                                                                                                                                                                                                                                                                        |
+| `npm run test:replay`             | 助手回放基线（`src/test/assistant-replay/`，约 15 秒）；也在 `npx vitest run` 里，CI 全量带上                                                                                                                                                                                                                                                                                 |
+| pre-commit（husky + lint-staged） | `*.{ts,tsx}` → prettier + eslint --fix；`*.{json,css,md}` → prettier                                                                                                                                                                                                                                                                                                          |
+| **pre-push（husky）**             | **非 main**：只查相对 `origin/main` 的改动——`tsc --noEmit`（incremental）→ 改动的 `src/**/*.ts(x)` 跑 eslint → `vitest run --changed <merge-base>`；只改文档/工具直接跳过；动了 `package*.json` / `vitest.config.ts` / `tsconfig.json` 时 vitest 全量。**推 main**：仍跑全量三关。全量把关在 CI（owner 2026-10-21 拍板：旧版每次全量实测 ≈ 15.8 分钟）。不许 --no-verify 跳过 |
+| CI `ci.yml`                       | push/PR 跑 tsc + lint、应用 unit、Execution Worker unit、依赖审计、Prisma drift + fresh-database replay 和生产 build（见 cicd.md）                                                                                                                                                                                                                                            |
 
 - **验证范围**：按 `docs/WORKFLOW.md` 的影响面分级。局部定向通过只报告定向通过；高风险共享改动和发布跑全量。长命令保留日志与真实退出码，不过滤错误来判绿，不无依据重复跑套件。
 
@@ -24,7 +24,7 @@
 
 ## 助手回放基线（`src/test/assistant-replay/`，2026-10-15）
 
-附录M 五.6：**每期改完助手都跑一遍**（`npm run test:replay`），修 A 不悄悄弄坏 B；它也在 `npx vitest run` 里，pre-push 闸门自动带上。
+附录M 五.6：**每期改完助手都跑一遍**（`npm run test:replay`），修 A 不悄悄弄坏 B；它也在 `npx vitest run` 里，CI 与推 main 的 pre-push 全量闸门会带上。
 
 - **跑的是真的那一条**：真路由 `POST` → `runAssistantV3` → 执行器 / 规划器 → 系统提示 → `resolveAssistantRoute`（库里的 key + 人设）→ AI SDK 的五家。只换最外圈：`fetch`（录好的模型回复、按扩展名现做的图 / 片子字节）、`@/lib/db`（`fake-db.ts`，任何写库都判红 —— 只有每轮的过程记录那一行例外，存进 `turnRecords` 另行对账）、Clerk 与限流、`decryptApiKey`。前端那一半（拼请求、读流、落 `canvas_batch`、`canvas_sync` 接力）在 `runner.ts` 里用前端同一批纯函数复现。
 - **每题都判**：落了哪几种 op、起始 → 收尾画布的**完整**差异（没列的变了就算多改）、问题卡 / 确认卡、回复包含 / 不包含、第几次模型调用发出去的请求里含 / 不含哪几句（`stepPrompts`，查上下文瘦身：R02 查证短版、P01 / P02 板上型号的整份写法在系统提示里、别的型号 `read "guide:"`、L01 / L02 本轮记录瘦身、B01 板子分级）、录好的主步回复不多不少、没有意外的网络，以及硬约束 `expectSelectedProviderOnly`：每一次碰模型（含收尾后在后台抽记忆那一跳）都是选定的那一家、那个型号、那把 key。`graders.test.ts` 是判分器自己的反例（每条硬约束都要真的会红）。

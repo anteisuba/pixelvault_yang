@@ -45,12 +45,26 @@ export function getAppOrigin() {
   return configuredOrigin ?? DEFAULT_APP_ORIGIN
 }
 
+/**
+ * Vercel preview 部署自身的域名（Vercel 注入的系统变量，不带协议）。
+ * 不放行的话，preview 上签发的 session 的 azp 是 preview 域名，
+ * 会被只认 NEXT_PUBLIC_APP_URL 的 authorizedParties 拒掉 → 永远弹回 sign-in。
+ * 只在 VERCEL_ENV=preview 时生效，生产不受影响。
+ */
+function getVercelPreviewOrigins() {
+  if (process.env.VERCEL_ENV !== 'preview') return []
+  return [process.env.VERCEL_URL, process.env.VERCEL_BRANCH_URL].map((host) =>
+    host ? toHttpOrigin(`https://${host}`) : null,
+  )
+}
+
 export function getClerkAllowedOrigins(extraOrigins: readonly string[] = []) {
   const localOrigins =
     process.env.NODE_ENV === 'development' ? LOCAL_APP_ORIGINS : []
 
   return uniqueOrigins([
     getAppOrigin(),
+    ...getVercelPreviewOrigins(),
     ...localOrigins.map((origin) => toHttpOrigin(origin)),
     ...extraOrigins.map((origin) => toHttpOrigin(origin)),
   ])

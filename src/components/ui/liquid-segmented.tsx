@@ -236,6 +236,10 @@ export function LiquidSegmented<T extends string>({
             }}
             className={cn(
               ITEM_CLASS[size],
+              // sm / row 的格子只有 25–26px 高，又不能像 xs / md 那样 coarse 下撑高
+              // （工具行、32px 按钮行会被撑乱）—— 只补看不见的 44px 命中区。
+              // ⚠ 只加在按钮上：反色那层 span 不吃点击。
+              (size === 'sm' || size === 'row') && 'touch-target-y',
               fill && 'flex-1 text-center',
               'text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-disabled:hover:text-muted-foreground',
             )}

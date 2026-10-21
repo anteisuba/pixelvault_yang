@@ -9,6 +9,7 @@ description: Verify a UI change on the real running app via claude-in-chrome —
 
 ## 环境
 
+- **云端 / 无浏览器工具时**：跑 `node e2e/tools/ui-check.mjs <preview 或 localhost> <path>`（用法与环境变量见 `docs/references/testing.md`「UI 验收」节）。默认只读 stdout 摘要，不打开 png；owner 要求优化时才看图。
 - 用 **claude-in-chrome**（有登录态）。本机 `preview_*` 连不上 localhost。
 - 3000 被占 = owner 自己开的 dev server，**直接复用别另起**（双实例毁 `.next`）。
 - dev 跑着时**别并行 build**。

@@ -227,11 +227,31 @@
     }
   }
 
+  /**
+   * 命中区可能由绝对定位的伪元素补足（`.touch-target-y` 的 ::before 撑到 44px），
+   * 它不改 getBoundingClientRect —— 不算进去就会把已修好的按钮一直报成太小。
+   */
+  const hitSize = (el, r) => {
+    let { width, height } = r
+    for (const pseudo of ['::before', '::after']) {
+      const cs = getComputedStyle(el, pseudo)
+      if (cs.content === 'none' || cs.position !== 'absolute') continue
+      width = Math.max(width, parseFloat(cs.width) || 0)
+      height = Math.max(height, parseFloat(cs.height) || 0)
+    }
+    return { width, height }
+  }
+
   const findSmallTapTargets = (els) =>
     els
       .map((el) => ({ el, r: rectOf(el) }))
-      .filter(({ r }) => r.width < MIN_TAP_PX || r.height < MIN_TAP_PX)
-      .map(({ el, r }) => ({ element: idOf(el), rect: round(r) }))
+      .map(({ el, r }) => ({ el, r, hit: hitSize(el, r) }))
+      .filter(({ hit }) => hit.width < MIN_TAP_PX || hit.height < MIN_TAP_PX)
+      .map(({ el, r, hit }) => ({
+        element: idOf(el),
+        rect: round(r),
+        hit: { w: Math.round(hit.width), h: Math.round(hit.height) },
+      }))
 
   window.__uiProbe = (opts = {}) => {
     const root = opts.root ? document.querySelector(opts.root) : document.body

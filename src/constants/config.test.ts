@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { IMAGE_GENERATION } from '@/constants/config'
+import { getClerkAllowedOrigins, IMAGE_GENERATION } from '@/constants/config'
 import { EXECUTION_WORKER } from '@/constants/execution'
 
 describe('IMAGE_GENERATION poll window', () => {
@@ -18,5 +18,25 @@ describe('IMAGE_GENERATION poll window', () => {
     expect(pollWindowMs).toBeGreaterThanOrEqual(
       EXECUTION_WORKER.DEFAULT_TIMEOUT_MS,
     )
+  })
+})
+
+describe('getClerkAllowedOrigins', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
+  it('allows the Vercel preview origins only on preview deployments', () => {
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://www.example.com')
+    vi.stubEnv('VERCEL_URL', 'app-abc123.vercel.app')
+    vi.stubEnv('VERCEL_BRANCH_URL', 'app-git-feat.vercel.app')
+
+    vi.stubEnv('VERCEL_ENV', 'preview')
+    expect(getClerkAllowedOrigins()).toEqual([
+      'https://www.example.com',
+      'https://app-abc123.vercel.app',
+      'https://app-git-feat.vercel.app',
+    ])
+
+    vi.stubEnv('VERCEL_ENV', 'production')
+    expect(getClerkAllowedOrigins()).toEqual(['https://www.example.com'])
   })
 })

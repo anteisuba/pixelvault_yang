@@ -50,6 +50,15 @@
 - **视觉基线按 OS 分套**（`-win32` / `-darwin` / `-linux`，Playwright 自动选）：Mac + PC 双机开发，换机先 `--update-snapshots` 生成该 OS 的套；两套各自提交。
 - 有意改动 UI 时更新基线并在报告里点名改了哪些快照——截图不是断言的替代品，具体值用 `toHaveCSS` / `toHaveClass` / `getByRole` 断。
 
+## UI 验收（登录后截图 + 动效参数，2026-10-21 owner 拍板）
+
+`node e2e/tools/ui-check.mjs <baseURL> [path ...] [--video]`：登录测试用户 → 每个 path 截桌面 1440 / 手机 390 → 录入场动画参数（`getAnimations()`）、`reduced-motion` 下残留动画、`scripts/ui-probe.js` 几何探针、console error / 失败请求 → `scratchpad/ui-check/report.json` + png（`--video` 加 webm），stdout 只打精简摘要。
+
+- **目标优先 Vercel Preview**（每个改 `src/` 的 PR 自动部署）；本地 dev 也能跑。Preview 开了 Deployment Protection，需 `VERCEL_AUTOMATION_BYPASS_SECRET`；Preview 的 Clerk 必须与跑脚本处的 `CLERK_SECRET_KEY` 是**同一个 dev 实例**，否则 testing token 无效。
+- ⚠ Preview 的 `DATABASE_URL` 与生产共用（owner 2026-10-21 知情接受）：测试账号只读浏览，别在 preview 上点生成 / 删除。
+- **分档与 token**：小改只给 preview 链接；中改跑脚本，Claude 只读文字摘要、图片直接转 owner 不打开；**视觉判断归 owner**，owner 说要优化时 Claude 才打开截图看实际样子再改。
+- 云端容器：出网只有 HTTPS 代理，Node 侧要 `NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt`（脚本与 dev server 都要）；Postgres 直连（5432）不通，本地 dev 在云端只能看 UI 外壳、DB 接口 500。
+
 ## 环境与安全
 
 - 测试用 key / 账号必须一次性 / dev 实例 / 限额；**严禁生产 key**。
@@ -59,7 +68,7 @@
 
 ## Source of Truth
 
-- `vitest.config.ts` · `playwright.config.ts` · `e2e/` · `.husky/{pre-commit,pre-push}` · `package.json`（scripts + lint-staged）· `src/test/api-helpers.ts` · `src/i18n/completeness.test.ts` · `src/test/assistant-replay/`
+- `vitest.config.ts` · `playwright.config.ts` · `e2e/`（含 `e2e/tools/ui-check.mjs`）· `.husky/{pre-commit,pre-push}` · `package.json`（scripts + lint-staged）· `src/test/api-helpers.ts` · `src/i18n/completeness.test.ts` · `src/test/assistant-replay/`
 
 ## Last Verified
 

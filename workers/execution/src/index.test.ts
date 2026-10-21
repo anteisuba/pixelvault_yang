@@ -38,7 +38,6 @@ import {
   parseModel3DRunContext,
   parseWorkerRunContext,
   pollAndPersistRunnerImageJob,
-  recycleRunnerEndpointWorkers,
   reportExecutionStage,
   reportProviderJobId,
   resolveFalImageModelId,
@@ -601,7 +600,8 @@ describe('pollAndPersistRunnerImageJob', () => {
       ),
     )
     const env = {
-      RUNPOD_ENDPOINT: 'runner-endpoint',
+      RUNNER_MODAL_URL: 'https://runner.test',
+      RUNNER_MODAL_TOKEN: 'modal-token',
       R2_PUBLIC_URL: 'https://cdn.example.com',
       GENERATION_BUCKET: { put },
     } as unknown as Parameters<typeof pollAndPersistRunnerImageJob>[1]
@@ -610,8 +610,8 @@ describe('pollAndPersistRunnerImageJob', () => {
       result: pollAndPersistRunnerImageJob(
         'runner-job-1',
         env,
-        'runpod-key',
         'image/audited.png',
+        false,
       ),
     }
   }
@@ -656,7 +656,8 @@ describe('pollAndPersistRunnerImageJob', () => {
     )
 
     const env = {
-      RUNPOD_ENDPOINT: 'runner-endpoint',
+      RUNNER_MODAL_URL: 'https://runner.test',
+      RUNNER_MODAL_TOKEN: 'modal-token',
       R2_PUBLIC_URL: 'https://cdn.example.com',
       GENERATION_BUCKET: { put },
     } as unknown as Parameters<typeof pollAndPersistRunnerImageJob>[1]
@@ -664,8 +665,8 @@ describe('pollAndPersistRunnerImageJob', () => {
     const result = await pollAndPersistRunnerImageJob(
       'runner-job-1',
       env,
-      'runpod-key',
       'image/run-1.png',
+      false,
     )
 
     expect(result).toEqual({
@@ -2273,30 +2274,17 @@ describe('/cancel route', () => {
     expect(payload.workflow.terminated).toBe(false)
   })
 
-  it('dispatches a RunPod provider cancel using the resolved system key', async () => {
+  it('dispatches a Modal runner cancel with the Worker-held token', async () => {
     const fetchMock = vi
       .fn()
       .mockImplementation(
         async (input: RequestInfo | URL, init?: RequestInit) => {
           const requestUrl = String(input)
-          if (requestUrl.endsWith('/resolve-key')) {
-            expect(init?.method).toBe('POST')
-            const parsedBody = JSON.parse(String(init?.body))
-            expect(parsedBody).toEqual({
-              runId: 'job-1',
-              adapterType: 'runner',
-              useSystemKey: true,
-            })
-            return new Response(
-              JSON.stringify({ success: true, data: { apiKey: 'runpod-key' } }),
-              { status: 200, headers: { 'content-type': 'application/json' } },
-            )
-          }
-          if (requestUrl.includes('/cancel/provider-job-1')) {
+          if (requestUrl === 'https://runner.test/cancel/provider-job-1') {
             expect(init?.method).toBe('POST')
             expect(
               (init?.headers as Record<string, string>).Authorization,
-            ).toBe('Bearer runpod-key')
+            ).toBe('Bearer modal-token')
             return new Response(null, { status: 200 })
           }
           throw new Error(`Unexpected fetch: ${requestUrl}`)
@@ -2316,7 +2304,8 @@ describe('/cancel route', () => {
       {
         INTERNAL_CALLBACK_SECRET: secret,
         INTERNAL_CALLBACK_URL: callbackUrl,
-        RUNPOD_ENDPOINT: 'endpoint-1',
+        RUNNER_MODAL_URL: 'https://runner.test',
+        RUNNER_MODAL_TOKEN: 'modal-token',
         CINEMATIC_SHORT_VIDEO_WORKFLOW: { get: notFound },
         LONG_VIDEO_PIPELINE_WORKFLOW: { get: notFound },
         HYPER3D_RODIN_WORKFLOW: { get: notFound },
@@ -2330,8 +2319,10 @@ describe('/cancel route', () => {
     expect(payload.provider).toEqual({
       attempted: true,
       ok: true,
-      detail: 'RunPod cancel requested.',
+      detail: 'Modal cancel requested.',
     })
+    // 不再回调 Next 解析 key：Runner 的凭证只在 Worker 里。
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
   it('reports an unsupported provider without throwing', async () => {
@@ -2782,13 +2773,13 @@ describe('provider submit reports providerJobId', () => {
     expect(body.data).toEqual({ providerJobId: 'replicate-pred-1' })
   })
 
-  it('RunPod (runner): reports the bare job id', async () => {
+  it('Runner: reports the bare Modal job id', async () => {
     const fetchMock = vi
       .fn()
       .mockImplementation(async (input: RequestInfo | URL) => {
         const requestUrl = String(input)
-        if (requestUrl === 'https://api.runpod.ai/v2/runner-endpoint/run') {
-          return new Response(JSON.stringify({ id: 'runpod-job-1' }), {
+        if (requestUrl === 'https://runner.test/run') {
+          return new Response(JSON.stringify({ id: 'fc-runner-job-1' }), {
             status: 200,
             headers: { 'content-type': 'application/json' },
           })
@@ -2803,14 +2794,11 @@ describe('provider submit reports providerJobId', () => {
     }) as Parameters<typeof submitRunnerImageJob>[0]
     const runnerEnv = {
       INTERNAL_CALLBACK_SECRET: 'secret-1',
-      RUNPOD_ENDPOINT: 'runner-endpoint',
+      RUNNER_MODAL_URL: 'https://runner.test',
+      RUNNER_MODAL_TOKEN: 'modal-token',
     } as unknown as Parameters<typeof submitRunnerImageJob>[1]
 
-    await submitRunnerImageJob(
-      { ...context, providerId: 'runner' },
-      runnerEnv,
-      'runpod-key',
-    )
+    await submitRunnerImageJob({ ...context, providerId: 'runner' }, runnerEnv)
 
     const reportCall = fetchMock.mock.calls.find(
       ([input]) => String(input) === context.callbackUrl,
@@ -2821,7 +2809,7 @@ describe('provider submit reports providerJobId', () => {
       unknown
     >
     expect(body.kind).toBe('status')
-    expect(body.data).toEqual({ providerJobId: 'runpod-job-1' })
+    expect(body.data).toEqual({ providerJobId: 'fc-runner-job-1' })
   })
 
   it('DiT bases fetch the fixed checkpoint they run on, pinned by SHA-256', async () => {
@@ -2838,7 +2826,8 @@ describe('provider submit reports providerJobId', () => {
     )
     const env = {
       INTERNAL_CALLBACK_SECRET: 'secret-1',
-      RUNPOD_ENDPOINT: 'runner-endpoint',
+      RUNNER_MODAL_URL: 'https://runner.test',
+      RUNNER_MODAL_TOKEN: 'modal-token',
     } as unknown as Parameters<typeof submitRunnerImageJob>[1]
     for (const externalModelId of [
       'animaTurbo_v11',
@@ -2849,7 +2838,7 @@ describe('provider submit reports providerJobId', () => {
         externalModelId,
         aspectRatio: '1:1',
       }) as Parameters<typeof submitRunnerImageJob>[0]
-      await submitRunnerImageJob({ ...context, providerId: 'runner' }, env, 'k')
+      await submitRunnerImageJob({ ...context, providerId: 'runner' }, env)
     }
     const unetFiles = runs.map((input) =>
       (input.companions_to_fetch as Array<{ target_dir: string }>).filter(
@@ -2890,21 +2879,24 @@ describe('provider submit reports providerJobId', () => {
       )
   })
 
-  it('Qwen submits all references to the evaluation endpoint and preserves its route for polling and cancel', async () => {
-    const requests: Array<{ url: string; body: Record<string, unknown> }> = []
+  it('Qwen goes to the qwen target with all references; poll and cancel use the bare id', async () => {
+    const requests: Array<{
+      url: string
+      auth: string | null
+      body: Record<string, unknown>
+    }> = []
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
         requests.push({
           url: String(url),
+          auth: new Headers(init?.headers).get('Authorization'),
           body: init?.body ? JSON.parse(String(init.body)) : {},
         })
         if (String(url).endsWith('/run'))
-          return Response.json({ id: 'qwen-job' })
+          return Response.json({ id: 'fc-qwen-job' })
         if (String(url).includes('/status/'))
           return Response.json({ status: 'IN_QUEUE' })
-        if (String(url).includes('resolve-key'))
-          return Response.json({ success: true, data: { apiKey: 'test' } })
         return new Response(null, { status: 200 })
       }),
     )
@@ -2912,8 +2904,8 @@ describe('provider submit reports providerJobId', () => {
       INTERNAL_CALLBACK_SECRET: 'secret',
       INTERNAL_CALLBACK_URL:
         'https://app.example.com/api/internal/execution/callback',
-      RUNPOD_ENDPOINT: 'sdxl-endpoint',
-      RUNPOD_QWEN_ENDPOINT: 'qwen-endpoint',
+      RUNNER_MODAL_URL: 'https://runner.modal.example/',
+      RUNNER_MODAL_TOKEN: 'modal-token',
     } as never
     const context = {
       ...makeFalImageContext({
@@ -2925,11 +2917,13 @@ describe('provider submit reports providerJobId', () => {
       }),
       providerId: 'runner',
     }
-    const job = await submitRunnerImageJob(context, env, 'test')
-    expect(job.id).toBe('qwen-endpoint/qwen-job')
+    const job = await submitRunnerImageJob(context, env)
+    expect(job.id).toBe('fc-qwen-job')
     expect(requests.find((r) => r.url.endsWith('/run'))).toMatchObject({
-      url: 'https://api.runpod.ai/v2/qwen-endpoint/run',
+      url: 'https://runner.modal.example/run',
+      auth: 'Bearer modal-token',
       body: {
+        target: 'qwen',
         input: {
           images_to_fetch: [
             { name: 'reference-1.png' },
@@ -2947,105 +2941,64 @@ describe('provider submit reports providerJobId', () => {
         },
       },
     })
-    await pollAndPersistRunnerImageJob(job.id, env, 'test', 'image/test.png')
-    expect(
-      await cancelProviderJob(env, 'job-1', 'runner', job.id),
-    ).toMatchObject({ ok: true })
-    expect(requests.map((r) => r.url)).toContain(
-      'https://api.runpod.ai/v2/qwen-endpoint/status/qwen-job',
-    )
-    expect(requests.map((r) => r.url)).toContain(
-      'https://api.runpod.ai/v2/qwen-endpoint/cancel/qwen-job',
-    )
-    expect(requests.some((r) => r.url.includes('sdxl-endpoint'))).toBe(false)
-    await expect(
-      pollAndPersistRunnerImageJob(
-        'foreign/job',
-        env,
-        'test',
-        'image/test.png',
-      ),
-    ).rejects.toThrow('Unknown Runner job endpoint')
-  })
-
-  it('RUNNER_BACKEND=modal sends the same input to Modal and routes fc- ids there for polling and cancel', async () => {
-    const requests: Array<{
-      url: string
-      auth: string | null
-      body: Record<string, unknown>
-    }> = []
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
-        requests.push({
-          url: String(url),
-          auth: new Headers(init?.headers).get('Authorization'),
-          body: init?.body ? JSON.parse(String(init.body)) : {},
-        })
-        if (String(url).endsWith('/run'))
-          return Response.json({ id: 'fc-modal-job' })
-        if (String(url).includes('/status/'))
-          return Response.json({ status: 'IN_PROGRESS' })
-        return new Response(null, { status: 200 })
-      }),
-    )
-    const env = {
-      INTERNAL_CALLBACK_SECRET: 'secret',
-      INTERNAL_CALLBACK_URL:
-        'https://app.example.com/api/internal/execution/callback',
-      RUNPOD_ENDPOINT: 'sdxl-endpoint',
-      RUNNER_BACKEND: 'modal',
-      RUNNER_MODAL_URL: 'https://runner.modal.example/',
-      RUNNER_MODAL_TOKEN: 'modal-token',
-    } as never
-    const context = {
-      ...makeFalImageContext({ externalModelId: 'waiIllustriousSDXL_v150' }),
-      providerId: 'runner',
-    }
-
-    const job = await submitRunnerImageJob(context, env, 'runpod-key')
-    expect(job.id).toBe('fc-modal-job')
-    const submit = requests.find((r) => r.url.endsWith('/run'))
-    expect(submit).toMatchObject({
-      url: 'https://runner.modal.example/run',
-      auth: 'Bearer modal-token',
-      body: { target: 'main', input: { workflow: expect.any(Object) } },
-    })
-    expect(submit?.body).not.toHaveProperty('policy')
-
-    await pollAndPersistRunnerImageJob(job.id, env, 'runpod-key', 'image/t.png')
+    await pollAndPersistRunnerImageJob(job.id, env, 'image/test.png', true)
     expect(
       await cancelProviderJob(env, 'job-1', 'runner', job.id),
     ).toMatchObject({ ok: true })
     expect(requests.map((r) => r.url)).toEqual(
       expect.arrayContaining([
-        'https://runner.modal.example/status/fc-modal-job',
-        'https://runner.modal.example/cancel/fc-modal-job',
+        'https://runner.modal.example/status/fc-qwen-job',
+        'https://runner.modal.example/cancel/fc-qwen-job',
       ]),
     )
-    expect(requests.some((r) => r.url.includes('api.runpod.ai'))).toBe(false)
+    // Runner 的凭证只在 Worker 里：不回调 Next 解析 key。
+    expect(requests.some((r) => r.url.includes('resolve-key'))).toBe(false)
   })
 
-  it('keeps polling RunPod for jobs submitted before the switch', async () => {
-    const urls: string[] = []
+  it('non-Qwen bases go to the main target', async () => {
+    const bodies: Array<Record<string, unknown>> = []
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (url: RequestInfo | URL) => {
-        urls.push(String(url))
-        return Response.json({ status: 'IN_QUEUE' })
+      vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+        if (String(url).endsWith('/run')) {
+          bodies.push(JSON.parse(String(init?.body)))
+          return Response.json({ id: 'fc-main-job' })
+        }
+        return new Response(null, { status: 200 })
       }),
     )
     const env = {
-      RUNPOD_ENDPOINT: 'sdxl-endpoint',
-      RUNNER_BACKEND: 'modal',
+      INTERNAL_CALLBACK_SECRET: 'secret',
       RUNNER_MODAL_URL: 'https://runner.modal.example',
       RUNNER_MODAL_TOKEN: 'modal-token',
     } as never
-
-    await pollAndPersistRunnerImageJob('runpod-job', env, 'k', 'image/t.png')
-    expect(urls).toEqual([
-      'https://api.runpod.ai/v2/sdxl-endpoint/status/runpod-job',
+    await submitRunnerImageJob(
+      {
+        ...makeFalImageContext({ externalModelId: 'waiIllustriousSDXL_v150' }),
+        providerId: 'runner',
+      },
+      env,
+    )
+    expect(bodies).toEqual([
+      { target: 'main', input: { workflow: expect.any(Object) } },
     ])
+  })
+
+  it('fails loudly when the Modal runner is not configured', async () => {
+    vi.stubGlobal('fetch', vi.fn())
+    await expect(
+      submitRunnerImageJob(
+        {
+          ...makeFalImageContext({
+            externalModelId: 'waiIllustriousSDXL_v150',
+          }),
+          providerId: 'runner',
+        },
+        { INTERNAL_CALLBACK_SECRET: 'secret' } as never,
+      ),
+    ).rejects.toThrow(
+      'RUNNER_MODAL_URL / RUNNER_MODAL_TOKEN are not configured.',
+    )
   })
 
   it('a failed report callback does not affect the returned submit result', async () => {
@@ -4178,7 +4131,7 @@ describe('VolcEngine layer decomposition', () => {
 })
 
 /**
- * Runner（自建 RunPod ComfyUI）是唯一会长时间停在 IN_QUEUE 的图片通道：冷启动
+ * Runner（Modal 上自建的 ComfyUI）是唯一会长时间停在 IN_QUEUE 的图片通道：冷启动
  * 要载 6.9GB 底模。此前 worker 的图片路径不回报任何阶段，主站分不清「排队等
  * GPU 冷启动」和「没人接单」，于是把两种情况显示成同一个「生成中」。
  * 这一节锁的是回报本身：提交后一次 runnerQueued，首次离开队列一次
@@ -4247,8 +4200,8 @@ describe('reportExecutionStage', () => {
     const fetchMock = vi
       .fn()
       .mockImplementation(async (input: RequestInfo | URL) => {
-        if (String(input) === 'https://api.runpod.ai/v2/runner-endpoint/run') {
-          return Response.json({ id: 'runpod-job-1' })
+        if (String(input) === 'https://runner.test/run') {
+          return Response.json({ id: 'fc-runner-job-1' })
         }
         return new Response(null, { status: 200 })
       })
@@ -4259,14 +4212,11 @@ describe('reportExecutionStage', () => {
       aspectRatio: '1:1',
     }) as Parameters<typeof submitRunnerImageJob>[0]
 
-    await submitRunnerImageJob(
-      { ...context, providerId: 'runner' },
-      {
-        INTERNAL_CALLBACK_SECRET: 'secret-1',
-        RUNPOD_ENDPOINT: 'runner-endpoint',
-      } as unknown as Parameters<typeof submitRunnerImageJob>[1],
-      'runpod-key',
-    )
+    await submitRunnerImageJob({ ...context, providerId: 'runner' }, {
+      INTERNAL_CALLBACK_SECRET: 'secret-1',
+      RUNNER_MODAL_URL: 'https://runner.test',
+      RUNNER_MODAL_TOKEN: 'modal-token',
+    } as unknown as Parameters<typeof submitRunnerImageJob>[1])
 
     const stageCallbacks = fetchMock.mock.calls
       .filter(([input]) => String(input) === context.callbackUrl)
@@ -4287,18 +4237,11 @@ describe('reportExecutionStage', () => {
       .fn()
       .mockImplementation(async (input: RequestInfo | URL) => {
         const url = String(input)
-        if (url === 'https://resolve.example.com')
-          return Response.json({
-            success: true,
-            data: { apiKey: 'runpod-key' },
-          })
         if (url === 'https://cb.example.com')
           return Response.json({ success: true })
-        if (url === 'https://api.runpod.ai/v2/runner-endpoint/run')
-          return Response.json({ id: 'runpod-job-1' })
-        if (
-          url === 'https://api.runpod.ai/v2/runner-endpoint/status/runpod-job-1'
-        ) {
+        if (url === 'https://runner.test/run')
+          return Response.json({ id: 'fc-runner-job-1' })
+        if (url === 'https://runner.test/status/fc-runner-job-1') {
           const status =
             pollStatuses[Math.min(pollIndex, pollStatuses.length - 1)]
           pollIndex += 1
@@ -4323,7 +4266,8 @@ describe('reportExecutionStage', () => {
     workflow.setEnv({
       INTERNAL_CALLBACK_SECRET: 'secret-1',
       STATE_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString('base64'),
-      RUNPOD_ENDPOINT: 'runner-endpoint',
+      RUNNER_MODAL_URL: 'https://runner.test',
+      RUNNER_MODAL_TOKEN: 'modal-token',
       R2_PUBLIC_URL: 'https://cdn.example.com',
       GENERATION_BUCKET: { put },
     })
@@ -4357,413 +4301,6 @@ describe('reportExecutionStage', () => {
       .map((body) => body.data?.executionStage)
       .filter((stage) => stage !== undefined)
     expect(stages).toEqual(['runnerQueued', 'runnerRunning'])
-  })
-})
-
-/**
- * Runner 幻影名额自愈（2026-09-12，owner 拍板）。
- *
- * 在此之前，判定幻影 = 直接取消出图并报 `runner_queue_stuck` —— 用户拿到的是一条
- * 「端点需要人工看一眼」的失败，而实测里真正要做的事只是把占着名额的僵尸 worker
- * 踢掉（REST `workersMax` 0 → 原值）再重排一次，端点就恢复了。这一节锁的是那条
- * 自愈路径的每一个硬约束：
- * - REST 请求形状（只能打 rest.runpod.io/v1，PATCH 只带 workersMax）；
- * - 失败也必须把 `workersMax` 恢复原值 —— 漏恢复 = 端点被永久缩到 0，比卡死更糟；
- * - 自愈只给一次，第二次幻影照旧取消（文案不变），否则一个真坏掉的端点会让
- *   同一单在回收/重排之间无限打转。
- */
-const RUNNER_REST_ENDPOINT_URL =
-  'https://rest.runpod.io/v1/endpoints/runner-endpoint'
-
-interface RunnerRecycleHarnessOptions {
-  /** GET /endpoints/<id> 的返回体；缺省报 workersMax=2。 */
-  endpointBody?: Record<string, unknown>
-  /** GET /endpoints/<id> 的状态码。 */
-  endpointStatus?: number
-  /** PATCH workersMax=0 的状态码（用来造「缩容失败」）。 */
-  scaleDownStatus?: number
-  /** 第二次轮询 /health 时是否已排空（缺省真）。 */
-  drains?: boolean
-}
-
-interface RunnerRecycleHarness {
-  fetchMock: ReturnType<typeof vi.fn>
-  patchBodies: () => unknown[]
-  patchCalls: () => RequestInit[]
-  submittedJobIds: () => string[]
-  cancelledJobIds: () => string[]
-  stages: () => (string | undefined)[]
-  callbackBodies: () => CallbackBody[]
-  put: ReturnType<typeof vi.fn>
-}
-
-/**
- * 一个「永远卡在 IN_QUEUE 且 /health 报幻影签名」的端点。回收（PATCH 0）之后
- * /health 转为全 0，重排出来的第二个 job 立刻 COMPLETED。
- */
-function stubRunnerRecycleEndpoint(
-  options: RunnerRecycleHarnessOptions = {},
-): RunnerRecycleHarness {
-  const {
-    endpointBody = { workersMax: 2 },
-    endpointStatus = 200,
-    scaleDownStatus = 200,
-    drains = true,
-  } = options
-  const put = vi.fn().mockResolvedValue(undefined)
-  let scaledDown = false
-  let submitCount = 0
-
-  const fetchMock = vi
-    .fn()
-    .mockImplementation(
-      async (input: RequestInfo | URL, init?: RequestInit) => {
-        const url = String(input)
-        const method = init?.method ?? 'GET'
-
-        if (url === 'https://resolve.example.com')
-          return Response.json({
-            success: true,
-            data: { apiKey: 'runpod-key' },
-          })
-        if (url === 'https://cb.example.com')
-          return Response.json({ success: true })
-
-        if (url === 'https://api.runpod.ai/v2/runner-endpoint/run') {
-          submitCount += 1
-          return Response.json({ id: `runpod-job-${submitCount}` })
-        }
-        if (
-          url.startsWith('https://api.runpod.ai/v2/runner-endpoint/status/')
-        ) {
-          // 第一单永远排队（幻影），回收后重排的第二单立刻出图。
-          if (url.endsWith('/runpod-job-1'))
-            return Response.json({ status: 'IN_QUEUE' })
-          return Response.json({
-            status: 'COMPLETED',
-            output: {
-              images: [{ data: bytesToBase64(new Uint8Array([1, 2, 3])) }],
-            },
-          })
-        }
-        if (url.startsWith('https://api.runpod.ai/v2/runner-endpoint/cancel/'))
-          return Response.json({ status: 'CANCELLED' })
-
-        if (url === 'https://api.runpod.ai/v2/runner-endpoint/health') {
-          // 幻影签名：声称有 worker（idle 1）却零活跃。缩容后全 0 = 排空。
-          const drained = scaledDown && drains
-          return Response.json({
-            workers: {
-              idle: drained ? 0 : 1,
-              ready: 0,
-              running: 0,
-              initializing: 0,
-              throttled: 0,
-            },
-          })
-        }
-
-        if (url === RUNNER_REST_ENDPOINT_URL) {
-          if (method === 'GET') {
-            if (endpointStatus !== 200)
-              return new Response(null, { status: endpointStatus })
-            return Response.json(endpointBody)
-          }
-          if (method === 'PATCH') {
-            const body = JSON.parse(String(init?.body)) as {
-              workersMax: number
-            }
-            if (body.workersMax === 0) {
-              if (scaleDownStatus !== 200)
-                return new Response(null, { status: scaleDownStatus })
-              scaledDown = true
-            } else {
-              scaledDown = false
-            }
-            return Response.json({ id: 'runner-endpoint' })
-          }
-        }
-
-        throw new Error(`Unexpected fetch: ${method} ${url}`)
-      },
-    )
-
-  vi.stubGlobal('fetch', fetchMock)
-  // 回收的排空轮询是 5s 一次、上限 90s。测试里把等待折叠成同步，逻辑一字不改。
-  vi.stubGlobal('setTimeout', (callback: () => void) => {
-    callback()
-    return 0 as unknown as ReturnType<typeof setTimeout>
-  })
-
-  const restCalls = (method: string) =>
-    fetchMock.mock.calls.filter(
-      ([input, init]) =>
-        String(input) === RUNNER_REST_ENDPOINT_URL &&
-        ((init as RequestInit | undefined)?.method ?? 'GET') === method,
-    )
-
-  const callbackBodies = () =>
-    fetchMock.mock.calls
-      .filter(([input]) => String(input) === 'https://cb.example.com')
-      .map(([, init]) => readCallbackBody(init as RequestInit))
-
-  return {
-    fetchMock,
-    put,
-    patchCalls: () => restCalls('PATCH').map(([, init]) => init as RequestInit),
-    patchBodies: () =>
-      restCalls('PATCH').map(([, init]) =>
-        JSON.parse(String((init as RequestInit).body)),
-      ),
-    submittedJobIds: () =>
-      fetchMock.mock.calls
-        .filter(
-          ([input]) =>
-            String(input) === 'https://api.runpod.ai/v2/runner-endpoint/run',
-        )
-        .map((_call, index) => `runpod-job-${index + 1}`),
-    cancelledJobIds: () =>
-      fetchMock.mock.calls
-        .map(([input]) => String(input))
-        .filter((url) =>
-          url.startsWith('https://api.runpod.ai/v2/runner-endpoint/cancel/'),
-        )
-        .map((url) => url.split('/').pop() as string),
-    stages: () =>
-      callbackBodies()
-        .map((body) => body.data?.executionStage)
-        .filter((stage) => stage !== undefined),
-    callbackBodies,
-  }
-}
-
-async function runRunnerImageWorkflow(
-  put: ReturnType<typeof vi.fn>,
-): Promise<unknown> {
-  class TestWorkflow extends ImageQueueWorkflow {
-    setEnv(env: unknown) {
-      this.env = env as never
-    }
-  }
-  const workflow = new TestWorkflow()
-  workflow.setEnv({
-    INTERNAL_CALLBACK_SECRET: 'secret-1',
-    STATE_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString('base64'),
-    RUNPOD_ENDPOINT: 'runner-endpoint',
-    R2_PUBLIC_URL: 'https://cdn.example.com',
-    GENERATION_BUCKET: { put },
-  })
-
-  const context = {
-    ...makeFalImageContext({
-      externalModelId: 'waiIllustriousSDXL_v150',
-      aspectRatio: '1:1',
-    }),
-    providerId: 'runner',
-    // 幻影探测每 60 攻一次、连续两次才判定 → 第 120 攻命中。留足余量到第二轮。
-    maxAttempts: 300,
-    pollIntervalMs: 1,
-  }
-  return workflow.run(
-    { payload: context, instanceId: 'instance-1' } as never,
-    {
-      do: vi.fn(async (_name: string, ...args: unknown[]) => {
-        const callback = args[args.length - 1] as () => Promise<unknown>
-        return callback()
-      }),
-      sleep: vi.fn(),
-    } as never,
-  )
-}
-
-describe('recycleRunnerEndpointWorkers', () => {
-  const env = { RUNPOD_ENDPOINT: 'runner-endpoint' } as Parameters<
-    typeof recycleRunnerEndpointWorkers
-  >[0]
-
-  it('打的是 REST v1：GET 读原值 → PATCH 0 → PATCH 回原值，body 只带 workersMax', async () => {
-    const harness = stubRunnerRecycleEndpoint()
-
-    const result = await recycleRunnerEndpointWorkers(env, 'runpod-key')
-
-    expect(result.ok).toBe(true)
-    const restCalls = harness.fetchMock.mock.calls.filter(
-      ([input]) => String(input) === RUNNER_REST_ENDPOINT_URL,
-    )
-    expect(restCalls).toHaveLength(3)
-    expect((restCalls[0][1] as RequestInit | undefined)?.method ?? 'GET').toBe(
-      'GET',
-    )
-    expect(restCalls[0][1]?.headers).toMatchObject({
-      Authorization: 'Bearer runpod-key',
-    })
-    expect(harness.patchCalls().every((init) => init.method === 'PATCH')).toBe(
-      true,
-    )
-    // ⛔ workersStandby 不在 PATCH schema 里（传了 400）—— body 必须只有这一个键。
-    expect(harness.patchBodies()).toEqual([
-      { workersMax: 0 },
-      { workersMax: 2 },
-    ])
-  })
-
-  it('缩容失败也把 workersMax 恢复原值，并返回失败原因（绝不抛）', async () => {
-    const harness = stubRunnerRecycleEndpoint({ scaleDownStatus: 500 })
-
-    const result = await recycleRunnerEndpointWorkers(env, 'runpod-key')
-
-    expect(result.ok).toBe(false)
-    expect(harness.patchBodies()).toEqual([
-      { workersMax: 0 },
-      { workersMax: 2 },
-    ])
-  })
-
-  it('读不到端点（非 200）时不动 workersMax，直接报失败', async () => {
-    const harness = stubRunnerRecycleEndpoint({ endpointStatus: 404 })
-
-    const result = await recycleRunnerEndpointWorkers(env, 'runpod-key')
-
-    expect(result).toMatchObject({ ok: false })
-    expect(harness.patchBodies()).toEqual([])
-  })
-
-  it('没配端点 id 时不发任何请求', async () => {
-    const harness = stubRunnerRecycleEndpoint()
-
-    const result = await recycleRunnerEndpointWorkers(
-      {} as Parameters<typeof recycleRunnerEndpointWorkers>[0],
-      'runpod-key',
-    )
-
-    expect(result).toMatchObject({ ok: false })
-    expect(harness.fetchMock).not.toHaveBeenCalled()
-  })
-})
-
-describe('runner 幻影名额自愈（工作流）', () => {
-  it('幻影 → 回收 → 重排 → 完成，阶段序列里出现 runnerRecycling', async () => {
-    const harness = stubRunnerRecycleEndpoint()
-
-    const result = await runRunnerImageWorkflow(harness.put)
-
-    expect(result).toMatchObject({ status: 'COMPLETED' })
-    expect(harness.stages()).toEqual([
-      'runnerQueued',
-      'runnerRecycling',
-      'runnerQueued',
-    ])
-    // 卡住的那一单被撤掉，重排换了新 job id。
-    expect(harness.cancelledJobIds()).toEqual(['runpod-job-1'])
-    expect(harness.submittedJobIds()).toEqual(['runpod-job-1', 'runpod-job-2'])
-    expect(harness.patchBodies()).toEqual([
-      { workersMax: 0 },
-      { workersMax: 2 },
-    ])
-    expect(harness.put).toHaveBeenCalled()
-  })
-
-  it('回收失败：workersMax 仍恢复原值，且照旧走取消 + runner_queue_stuck', async () => {
-    const harness = stubRunnerRecycleEndpoint({ scaleDownStatus: 500 })
-
-    const result = await runRunnerImageWorkflow(harness.put)
-
-    expect(result).toMatchObject({ status: 'FAILED' })
-    expect(harness.patchBodies()).toEqual([
-      { workersMax: 0 },
-      { workersMax: 2 },
-    ])
-    // 重排一次都没发生。
-    expect(harness.submittedJobIds()).toEqual(['runpod-job-1'])
-    const failure = harness
-      .callbackBodies()
-      .map((body) => JSON.stringify(body))
-      .join('\n')
-    expect(failure).toContain('runner_queue_stuck')
-  })
-
-  it('第二次幻影不再回收，直接取消（自愈每单只给一次）', async () => {
-    // 重排出来的第二单同样卡在 IN_QUEUE，且端点恢复后 /health 又是幻影签名。
-    const put = vi.fn().mockResolvedValue(undefined)
-    let submitCount = 0
-    let scaledDown = false
-    const fetchMock = vi
-      .fn()
-      .mockImplementation(
-        async (input: RequestInfo | URL, init?: RequestInit) => {
-          const url = String(input)
-          const method = init?.method ?? 'GET'
-          if (url === 'https://resolve.example.com')
-            return Response.json({
-              success: true,
-              data: { apiKey: 'runpod-key' },
-            })
-          if (url === 'https://cb.example.com')
-            return Response.json({ success: true })
-          if (url === 'https://api.runpod.ai/v2/runner-endpoint/run') {
-            submitCount += 1
-            return Response.json({ id: `runpod-job-${submitCount}` })
-          }
-          if (
-            url.startsWith('https://api.runpod.ai/v2/runner-endpoint/status/')
-          )
-            return Response.json({ status: 'IN_QUEUE' })
-          if (
-            url.startsWith('https://api.runpod.ai/v2/runner-endpoint/cancel/')
-          )
-            return Response.json({ status: 'CANCELLED' })
-          if (url === 'https://api.runpod.ai/v2/runner-endpoint/health')
-            return Response.json({
-              workers: {
-                idle: scaledDown ? 0 : 1,
-                ready: 0,
-                running: 0,
-                initializing: 0,
-                throttled: 0,
-              },
-            })
-          if (url === RUNNER_REST_ENDPOINT_URL) {
-            if (method === 'GET') return Response.json({ workersMax: 2 })
-            const body = JSON.parse(String(init?.body)) as {
-              workersMax: number
-            }
-            scaledDown = body.workersMax === 0
-            return Response.json({ id: 'runner-endpoint' })
-          }
-          throw new Error(`Unexpected fetch: ${method} ${url}`)
-        },
-      )
-    vi.stubGlobal('fetch', fetchMock)
-    vi.stubGlobal('setTimeout', (callback: () => void) => {
-      callback()
-      return 0 as unknown as ReturnType<typeof setTimeout>
-    })
-
-    const result = await runRunnerImageWorkflow(put)
-
-    expect(result).toMatchObject({ status: 'FAILED' })
-    // 只回收过一次（一对 PATCH），只重排过一次。
-    expect(
-      fetchMock.mock.calls.filter(
-        ([input, init]) =>
-          String(input) === RUNNER_REST_ENDPOINT_URL &&
-          (init as RequestInit | undefined)?.method === 'PATCH',
-      ),
-    ).toHaveLength(2)
-    expect(submitCount).toBe(2)
-    const cancelled = fetchMock.mock.calls
-      .map(([input]) => String(input))
-      .filter((url) =>
-        url.startsWith('https://api.runpod.ai/v2/runner-endpoint/cancel/'),
-      )
-      .map((url) => url.split('/').pop())
-    // 第一单在回收前撤掉，第二单在第二次判定幻影时撤掉。
-    expect(cancelled).toEqual(['runpod-job-1', 'runpod-job-2'])
-    const failure = fetchMock.mock.calls
-      .filter(([input]) => String(input) === 'https://cb.example.com')
-      .map(([, init]) => String((init as RequestInit).body))
-      .join('\n')
-    expect(failure).toContain('runner_queue_stuck')
   })
 })
 

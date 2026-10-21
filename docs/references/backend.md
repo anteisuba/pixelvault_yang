@@ -107,7 +107,7 @@ app/api routes（156 个 route.ts，以 glob 为准）  ← 只做三件事，�
 | MiniMax          | `taskId`                           |
 | VolcEngine       | `taskId`                           |
 | 图片 Replicate   | `prediction.id`                    |
-| RunPod           | job id                             |
+| Runner（Modal）  | Modal call id（`fc-…`）            |
 | 图片 fal         | fal request id                     |
 | Hunyuan3D（fal） | fal request id                     |
 

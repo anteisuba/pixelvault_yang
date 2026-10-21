@@ -55,7 +55,7 @@ owner 已选择接入 [H3 Max Turbo](https://fal.ai/models/minimax/h3-max-turbo/
 >
 > 📊 视频那 26 条的结构（2026-08-21 盘点）：**只有 8 个真模型**，其余 14 条是站点克隆（火山 / BytePlus / MiniMax CN）、4 条是端点克隆（reference）。即约 69% 的条目与「档位」无关，是渠道与端点的展开——讨论「模型是不是太多」之前先做这个切分。
 
-2026-09-21：新增本地内部评估条目 `QWEN_IMAGE_21_RUNNER` → `qwen-image-2.1`，仅 development 模式可见且可提交，使用独立 RunPod 端点；不计入公开模型。文生图／最多 10 张参考图编辑、默认 CFG 1 与 25 步，契约及验收状态见 [Runner 域](domains/runner.md#qwen-image-21-内部评估2026-09-21)。
+2026-09-21：新增本地内部评估条目 `QWEN_IMAGE_21_RUNNER` → `qwen-image-2.1`，仅 development 模式可见且可提交，现由 Modal 的 `qwen` target 承接（最初是独立 RunPod 端点）；不计入公开模型。文生图／最多 10 张参考图编辑、默认 CFG 1 与 25 步，契约及验收状态见 [Runner 域](domains/runner.md#qwen-image-21-内部评估2026-09-21)。
 
 ### 图像（13 + 5 runner）
 
@@ -316,7 +316,7 @@ curl -s "https://fal.ai/api/models?keywords=seedance&total=100&page=1" | python 
 
 **和 Seedance 2.5 正好相反：三条通道全开，没有任何白名单。** owner 拍板：**先用 fal playground 花几美元验质量（重点试音频参考 + 动作迁移），过关直接上原生 adapter**——不走「先接 fal 再迁原生」的双份工。
 
-**模型事实**：Hailuo 家族继任者，2026-07-31 发布。Artificial Analysis **视频编辑 #1**、T2V（有音频）#2、I2V（无音频）#2。4~15 秒 / 2K / 24fps / 原生立体声。多模态统一输入（文·图·视频·音频），能力含 t2v、首尾帧、参考生成、**动作迁移**、生成式视频编辑。权重承诺按 MiniMax Community License 开源（<$20M 营收可商用 + 显著署名），官方说法 "coming days" —— 若兑现是最强开源视频模型（超过 LTX-2.3），届时可进 RunPod runner 线，成本结构完全改写。
+**模型事实**：Hailuo 家族继任者，2026-07-31 发布。Artificial Analysis **视频编辑 #1**、T2V（有音频）#2、I2V（无音频）#2。4~15 秒 / 2K / 24fps / 原生立体声。多模态统一输入（文·图·视频·音频），能力含 t2v、首尾帧、参考生成、**动作迁移**、生成式视频编辑。权重承诺按 MiniMax Community License 开源（<$20M 营收可商用 + 显著署名），官方说法 "coming days" —— 若兑现是最强开源视频模型（超过 LTX-2.3），届时可进自建 runner 线，成本结构完全改写。
 
 **原生比 fal 便宜整整一倍**（这是选原生的硬理由，与 owner「直连优先」规则同向）：
 

@@ -1,30 +1,33 @@
-# Runner 域 — 自建 ComfyUI 执行通道（RunPod serverless）
+# Runner 域 — 自建 ComfyUI 执行通道（Modal）
 
 > 定位：**运维事实的唯一常驻处**。这些值代码里没有、控制台之外查不到，任务包删干净后只剩这份。
 > 讨论过程、方案对比、施工步骤一律不进来——那些从 git 历史取。
 > 上游关系：LoRA 侧的产品约束见 `domains/lora.md`；provider 名册见 `references/providers.md`。
 
-基础设施标识于 2026-09-21 通过 RunPod CLI 回读；下方注明日期的历史 Volume 清单与性能记录不代表当前库存或价格。
+2026-10-06 起生产跑在 Modal；2026-10-21 Worker 里的 RunPod 分支已删（owner 定）。下文带「RunPod 时期」字样的段落是历史记录，只为解释 fork 镜像里的路径与约束，不再描述现网。
 
 ---
 
 ## 1. 基础设施标识
 
-| 项              | 当前生产值                                                           | 核验范围                                                                                                                                      |
-| --------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Network Volume  | `ivchraoqjv` · `pixelvault-models-eu-ro-1` · 150 GB · EU-RO-1        | 2026-09-28 从 80 GB 扩容（80 GB 已写满，见下「5.10 底座」一节）；API 回读确认                                                                 |
-| Serverless 端点 | `dt0wyuid7lywic` · `pixelvault-runner-eu-ro-1`                       | Execution Worker 的 `RUNPOD_ENDPOINT` 同值                                                                                                    |
-| Template        | `pmh4gs9eht`                                                         | 镜像 `ghcr.io/anteisuba/pixelvault-runner-fork:5.10.0-f3b77c521de6c8caf44e6054497f053ba459fe4e`（2026-09-28 切换；回滚目标 `5.8.6-92ef778…`） |
-| 端点参数        | Min 0 / Max 2 / Idle 60s / Execution Timeout 600000ms / FlashBoot 开 | 单 Worker 一张 GPU，QUEUE_DELAY 4；`allowedCudaVersions` 12.8 / 12.9 / 13.0（5.10 底座要求）                                                  |
-| GPU 型号        | 4090 → A5000 / L4 / 3090 → A40 / A6000（优先级顺序）                 | 2026-09-28 REST 回读；48G 档是当天加的回退，见「5.10 底座」一节「没机器可用」                                                                 |
-| API 凭证        | 应用 resolve-key 提供 `RUNPOD_KEY`；CLI 使用 `~/.runpod/config.toml` | 不记录值；本地开发凭证可访问评估端点，旧 CLI 凭证权限不足                                                                                     |
-| 端点配置真值    | `workers/execution/wrangler.jsonc`                                   | 本机环境变量可能过时，不用它判断生产端点                                                                                                      |
+| 项           | 当前生产值                                                                                     | 说明                                                                                     |
+| ------------ | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Modal App    | `pixelvault-runner`（`workers/runner-modal/app.py`，`modal deploy` 发布）                      | `MainRunner`（target `main`）与 `QwenRunner`（target `qwen`）两个类                      |
+| HTTP 入口    | `RUNNER_MODAL_URL`（`workers/execution/wrangler.jsonc`）                                       | `POST /run` · `GET /status/{id}` · `POST /cancel/{id}` · `GET /health`，全部 Bearer 鉴权 |
+| 凭证         | Worker secret `RUNNER_MODAL_TOKEN` ↔ Modal Secret `pixelvault-runner-token`                    | Next 侧不持有任何 Runner 凭证，Worker 不再为 Runner 回调 resolve-key                     |
+| 下载凭证     | Modal Secret `pixelvault-runner`（`CIVITAI_KEY`）                                              | fork 下 Civitai 底模用，不进 job 载荷                                                    |
+| Volume       | `pixelvault-runner-models`，挂 `/runpod-volume`（沿用 fork 的路径，不用改镜像）                | 无硬配额；fork LRU 按 `RUNNER_VOLUME_QUOTA_BYTES=300000000000` 清缓存                    |
+| 镜像         | main `ghcr.io/anteisuba/pixelvault-runner-fork:5.10.0-f3b77c5…`；qwen `…:qwen21-eval-a156ba3…` | 与 RunPod 时期同一个 fork 镜像（`workers/runner-comfyui-fork`），换平台没改镜像          |
+| GPU / 伸缩   | L40S → A100-40GB；main 最多 2 个容器、空闲 60s 缩容；qwen 最多 1 个、10s 缩容；单次时限 600s   | 以 `app.py` 为准                                                                         |
+| 端点配置真值 | `workers/runner-modal/app.py` + `workers/execution/wrangler.jsonc`                             | 本机环境变量可能过时                                                                     |
 
-2026-09-21 Qwen 评估部署未改动上述生产端点。当前价格与显存／耗时须实测，旧的每图费用估算不再作为现行依据。
+⚠ Modal 的 `/status` 只回 `IN_PROGRESS` / `COMPLETED` / `FAILED`，没有 `IN_QUEUE`：Worker 首次轮询就会报 `runnerRunning`，主站分不出「排队等 GPU」和「正在出图」。待 Worker 设计第 3 步统一处理。
+
+RunPod 时期的端点（`dt0wyuid7lywic`、Qwen 评估 `ok6riemrmpdiic`）、模板与 Network Volume `ivchraoqjv` 由 owner 在 RunPod 控制台删除；代码里已无任何引用。
 
 ---
 
-## 2. 协议与路径（stock worker 的硬约束）
+## 2. 协议与路径（fork 镜像的约束，RunPod 时期定下）
 
 - 挂载点两套：**Pod 挂 `/workspace`**，**serverless worker 挂 `/runpod-volume`**；worker 的
   `extra_model_paths.yaml` 自动发现。写路径时别混。
@@ -39,8 +42,8 @@
 - Runner 源码将 ComfyUI 固定到 v0.37.0（`73c9bad4d21e7addbe1d13bc92eee0f1431b017d`）；评估 target `qwen-evaluation` 预置 INT8 diffusion、INT8 Qwen3-VL 8B、BF16 专用 VAE，固定 HF revision 并校验 SHA-256 与文件长度。
 - `workers/runner-comfyui-fork/qwen_workflow.py` 生成 API 工作流：文生图用 `TextEncodeQwenImage21` + Euler/simple；编辑通过同节点接入图片与 VAE 参考条件，最多 10 张，latent 随首图缩放尺寸。不是 SDXL 低 denoise 图生图。
 - 基础镜像构建已通过 CPU 启动检查，实际 PyTorch 为 `2.12.0+cu130`；GPU 部署需选择 CUDA 13.0 驱动兼容机器。CPU 启动不能替代显存和真实出图验收。
-- 已创建独立端点 `ok6riemrmpdiic`（`pixelvault-qwen21-internal-eval`），模板 `sw8qiqhsa9`，RTX 4090，Min 0 / Max 1 / Idle 5s。Worker 的 `RUNPOD_QWEN_ENDPOINT` 指向它；Qwen 任务 ID 携带端点前缀，提交、轮询、取消与队列回收均使用专属端点。
-- 工作台默认 CFG 1、25 步，支持负面提示词、seed 与最多 10 张原生参考图；使用服务端 Runner 凭证，不弹用户 key 配置。编辑结果按 PNG 实际尺寸归档。当前未核实每图金额，界面不显示估算美元价；实际由 RunPod 计费。
+- 已创建独立端点 `ok6riemrmpdiic`（`pixelvault-qwen21-internal-eval`），模板 `sw8qiqhsa9`，RTX 4090，Min 0 / Max 1 / Idle 5s。（RunPod 时期）现由 Modal 的 `qwen` target 承接，任务 ID 不再带端点前缀。
+- 工作台默认 CFG 1、25 步，支持负面提示词、seed 与最多 10 张原生参考图；使用服务端 Runner 凭证，不弹用户 key 配置。编辑结果按 PNG 实际尺寸归档。当前未核实每图金额，界面不显示估算美元价；实际由 Modal 计费。
 - GPU 实际验收与 Worker 部署状态见 `docs/status.md`；端点创建和代码测试不替代真实成图。
 
 核验来源：[官方模型仓](https://github.com/QwenLM/Qwen-Image-2.1)、[ComfyUI v0.37.0](https://github.com/Comfy-Org/ComfyUI/releases/tag/v0.37.0)、[官方工作流](https://github.com/Comfy-Org/workflow_templates/blob/main/templates/image_qwen_image_2_1_image_edit.json)、[研究许可证](https://github.com/QwenLM/Qwen-Image-2.1/blob/main/LICENSE)。
@@ -52,7 +55,7 @@
 - 来源 `Latent` 配方映射 `runnerHires`：第一遍 latent → bilinear `LatentUpscale` → 第二遍 `KSampler` → VAE；第二遍共用模型、LoRA、正负 conditioning 与 seed，独立 denoise / 可选 steps / CFG，步骤 0 或缺失继承第一遍。目标尺寸向下对齐 8、每边不超过 2048；Anima 不接受该设置。
 - Sue 来源：672×984、Latent ×1.45、denoise 0.45、25 步、CFG 7 → 968×1424。未改原 prompt 或三枚 LoRA 权重；与 Forge 的 RNG/采样实现仍可能不同，不能承诺逐像素复现。
 - `PixelVaultCheckpointLoader` / `PixelVaultLoraLoader` 在调用原加载器时核对文件 SHA-256、大小和变更；audit 与模型输出同链传入 `PixelVaultSaveImage`，写入 PNG `pixelvaultExecution`。Comfy 缓存复用时保留对应加载输出的证据；零权重跳过的 LoRA 不记为已加载。
-- fork 从成图读取证据并附加图像 SHA-256，Execution Worker 校验结构及图像绑定后，将 `runnerExecution` 连同 `runpodJobId` 送入现有 `executionCallback.providerMetadata` 快照。普通 Anima/旧结果缺证据时不伪造；记录证明文件经过加载器，不证明所有 LoRA key 都匹配或出图质量达标。
+- fork 从成图读取证据并附加图像 SHA-256，Execution Worker 校验结构及图像绑定后，将 `runnerExecution` 连同 `runnerJobId`（RunPod 时期的历史记录里叫 `runpodJobId`）送入现有 `executionCallback.providerMetadata` 快照。普通 Anima/旧结果缺证据时不伪造；记录证明文件经过加载器，不证明所有 LoRA key 都匹配或出图质量达标。
 - 官方 5.8.6 的 `src/start.sh` 在两个启动分支均传入 `--disable-metadata`；fork 构建时移除该参数，否则自定义保存节点在二次采样完成后拒绝保存，无法输出模型文件证据。
 - 实测镜像 `92ef778b5d6bab2cf1981b2eecb8311a92460a12` 返回 968×1424 PNG；加载证据确认 RIN v4 SHA-256 `29d5281e0adba1cf2dc8795e9016d3bf6e8c06b71630492b49468b7be8411bdf` 与三枚 LoRA 的 0.9/0.8/0.8 权重。随后应用端任务 `f6521add-8454-4ab0-aad1-7d32bc53e311` 成功归档；回调保存的完整加载证据（含图片 hash）与直接 RunPod 实测一致，提示词逐字一致。
 - 发布顺序：先构建并更新 RunPod fork（含 `/comfyui/custom_nodes/pixelvault_model_evidence`），验收自定义节点可见，再发布 Execution Worker 与应用。新工作流不能交给缺这些节点的旧镜像；本地单元测试没有替代真实 GPU 验收。
@@ -140,13 +143,13 @@
 ## 6. 怎么核对本页是否过期
 
 ```bash
-# 端点存活与健康
-curl -s -H "Authorization: Bearer $RUNPOD_KEY" https://api.runpod.ai/v2/<endpointId>/health
+# Modal 入口存活（token 只在 Worker secret / Modal Secret 里，别贴进对话）
+curl -s -H "Authorization: Bearer $RUNNER_MODAL_TOKEN" "$RUNNER_MODAL_URL/health"
+# 部署状态、容器与日志
+modal app list && modal app logs pixelvault-runner
 ```
 
-- **端点僵死的判据**：`health` 显示 idle ≥ 1 且 running = 0，而请求全程停在 `IN_QUEUE`
-  —— 这不是排队，是端点卡死；秒失败则是另一回事（平台总闸 `PLATFORM_GENERATION_ENABLED`）。
-- Volume 用量与明细只能走 **RunPod S3 API（SigV4 只读）**，控制台不给明细。
+- 秒失败先看平台总闸 `PLATFORM_GENERATION_ENABLED`，再看 Worker 是否缺 `RUNNER_MODAL_URL` / `RUNNER_MODAL_TOKEN`（会直接报 not configured）。
 - ⛔ 别信 95% 这类进度数字，那是假进度。
 
 ## Last Verified

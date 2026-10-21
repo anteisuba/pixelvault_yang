@@ -3962,7 +3962,7 @@
     },
     "qwenImage21Runner": {
       "label": "qwen2.1",
-      "description": "Local research only. Dedicated RunPod endpoint; text-to-image and editing with up to 10 references. GPU usage is billed by RunPod."
+      "description": "Local research only. Dedicated Modal runner; text-to-image and editing with up to 10 references. GPU usage is billed by Modal."
     },
     "animaDitRunner": {
       "label": "Anima (Runner)",
@@ -7112,8 +7112,7 @@
       "rendering": "Generating image",
       "waiting": "Still generating, please wait",
       "runnerQueued": "Runner is starting up — the first run loads the base model, usually 1-3 minutes",
-      "runnerRunning": "GPU is rendering",
-      "runnerRecycling": "Runner is not responding — restarting it, hold on"
+      "runnerRunning": "GPU is rendering"
     },
     "generateFailed": "Generation failed",
     "elapsed": "Elapsed: {seconds}",

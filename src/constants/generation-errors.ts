@@ -43,14 +43,8 @@ export const GENERATION_ERROR_CODES = {
   /** A requested LoRA isn't pre-baked on the runner's Network Volume yet. */
   RUNNER_LORA_UNAVAILABLE: 'runner_lora_unavailable',
   /**
-   * RunPod 收下了作业，但没有任何 worker 来跑它 —— 端点零活跃 worker 且作业
-   * 从未离开 IN_QUEUE（实测成因：已退出的 worker 仍被计为 ready，占住
-   * workersMax 名额；也可能是长时间抢不到 GPU）。
-   *
-   * 单列一个码而不是复用 PROVIDER_TIMEOUT，是因为这两件事对用户的含义完全
-   * 相反：超时值得重试，这个**重试只会再排一次队**，得先有人去看端点。
-   * 由 Worker 的轮询僵死探测显式设置（约 3 分钟即判定，不再拖满整个轮询
-   * 窗口）。
+   * 只为显示历史记录保留：RunPod 时期 Worker 判定端点僵死时写入的码。
+   * Runner 迁到 Modal（2026-10）后不再产生，⛔ 别给它加新的写入方。
    */
   RUNNER_QUEUE_STUCK: 'runner_queue_stuck',
   /**

@@ -217,7 +217,7 @@ export const LoraSchema = z.object({
 
 // app 侧 `prepareRunnerLoras`
 // 把每把 LoRA 确保进 R2 后产出的规格——文件名 + R2 预签名下载链 + 权重。经
-// advancedParams 透传给 Cloudflare Worker → RunPod fork（fork 据 downloadUrl 拉、
+// advancedParams 透传给 Cloudflare Worker → Modal runner（fork 据 downloadUrl 拉、
 // 据 filename 挂）。
 export const RunnerLoraSpecSchema = z.object({
   filename: z.string().min(1),
@@ -383,7 +383,7 @@ export const AdvancedParamsSchema = z.object({
 
 export type AdvancedParams = z.infer<typeof AdvancedParamsSchema>
 
-// ─── Comfy Runner (RunPod Serverless ComfyUI) ────────────────────
+// ─── Comfy Runner (ComfyUI on Modal) ────────────────────
 // Recipe→workflow mapping itself lives in the Cloudflare Worker (a separate
 // package that can't import these); these schemas describe the recipe shape
 // on the Next.js side — request validation and any future direct "clone this

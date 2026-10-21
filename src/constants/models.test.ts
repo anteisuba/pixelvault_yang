@@ -165,7 +165,7 @@ describe('models', () => {
 
     for (const model of MODEL_OPTIONS) {
       if (!model.available) {
-        // Comfy Runner (RunPod) models are unavailable-by-default behind
+        // Comfy Runner (Modal) models are unavailable-by-default behind
         // FEATURE_FLAGS.comfyRunner in test/CI envs — not permanently dead
         // like RETIRED_MODEL_IDS entries. See
         // docs/references/domains/runner.md.

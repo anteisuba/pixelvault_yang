@@ -727,8 +727,8 @@ function resolveBaseKeySetup(
   const hasUsableRoute = options.some(
     (option) =>
       option.sourceType === 'saved' ||
-      // Comfy Runner has no BYOK path — it's always the platform's own
-      // RUNPOD_KEY, resolved server-side. There's nothing to configure, so
+      // Comfy Runner has no BYOK path — the Worker reaches the platform's
+      // own Modal runner with its own secret. There's nothing to configure, so
       // it never needs the "add an API key" QuickSetupDialog.
       option.adapterType === AI_ADAPTER_TYPES.RUNNER,
   )

@@ -84,15 +84,15 @@ export enum AI_MODELS {
   ANIMA_PENCIL_XL = 'anima-pencil-xl',
   RECRAFT_V4_PRO = 'recraft-v4-pro',
   FLUX_KONTEXT_MAX = 'flux-kontext-max',
-  /** Comfy Runner (RunPod) — faithful WAI-Illustrious recipe clone. */
+  /** Comfy Runner (Modal) — faithful WAI-Illustrious recipe clone. */
   ILLUSTRIOUS_RECIPE_CLONE = 'illustrious-recipe-clone',
-  /** Comfy Runner (RunPod) — Anima Pencil-XL (Replicate has no live endpoint). */
+  /** Comfy Runner (Modal) — Anima Pencil-XL (Replicate has no live endpoint). */
   ANIMA_PENCIL_XL_RUNNER = 'anima-pencil-xl-runner',
-  /** Comfy Runner (RunPod) — Pony Diffusion V6 XL, runner-only (no hosted endpoint). */
+  /** Comfy Runner (Modal) — Pony Diffusion V6 XL, runner-only (no hosted endpoint). */
   PONY_DIFFUSION_V6 = 'pony-diffusion-v6',
-  /** Comfy Runner (RunPod) — plain SDXL 1.0, faithful recipe clone path. */
+  /** Comfy Runner (Modal) — plain SDXL 1.0, faithful recipe clone path. */
   SDXL_10_RUNNER = 'sdxl-10-runner',
-  /** Comfy Runner (RunPod) — Anima (Cosmos-Predict2 DiT), its own Qwen-Image workflow. */
+  /** Comfy Runner (Modal) — Anima (Cosmos-Predict2 DiT), its own Qwen-Image workflow. */
   ANIMA_DIT_RUNNER = 'anima-dit-runner',
   /** Comfy Runner — Anima Turbo v1.1 (step-distilled; the pure-base default). */
   ANIMA_TURBO_RUNNER = 'anima-turbo-runner',

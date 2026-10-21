@@ -135,7 +135,7 @@ flowchart LR
 ### 🧬 LoRA　🔧
 
 - 🎯 你想做：参考 novelai 升级生成页；检索功能（人物 lora / 衣服 lora / 表情 lora …）；生成时自由搭配组合 lora。
-- 📍 现状：已拆独立域（/studio/lora：生成/训练/库[公开|我的]）；recipe-first（还原 + 定制）；**多 LoRA 混挂 + 配方面板是现状已有**（别重造）；danbooru 词库 + prompt-tag 引擎；runner（RunPod ComfyUI）已上线、底模按需下载；搜索走 multi-search。
+- 📍 现状：已拆独立域（/studio/lora：生成/训练/库[公开|我的]）；recipe-first（还原 + 定制）；**多 LoRA 混挂 + 配方面板是现状已有**（别重造）；danbooru 词库 + prompt-tag 引擎；runner（Modal 上的 ComfyUI）已上线、底模按需下载；搜索走 multi-search。
 - 💡 衔接：你要的"自由搭配组合"——多挂已有基础，**缺的是按类型（人物/衣服/表情）检索的分类标签 + 组合 UI**。NovelAI 方向明确。当前业务收口施工图见 `docs/references/pages/lora-workbench.md`；旧评审 LoRA 域 UI review v1（已随 archive 清理删除，见 git 历史） 仅作历史依据，未来视觉需重新走域级确认。
   ![](assets/project-map/lora-01.png)
 - ![](assets/project-map/lora-02.png)
@@ -192,7 +192,7 @@ flowchart LR
 
 ### ⚙ 底座（全域共享，你没提，仅登记）
 
-- Providers ×10 · Runner(ComfyUI/RunPod) · R2 归档 · Clerk/Credit/i18n · model-router/model-health。一般不作为需求域，除非要动模型阵容或执行架构。
+- Providers ×10 · Runner(ComfyUI/Modal) · R2 归档 · Clerk/Credit/i18n · model-router/model-health。一般不作为需求域，除非要动模型阵容或执行架构。
 
 > **次要域**（3D）：你这次没提，按 `product.md` 是「可用 · 非北极星」，先不展开。
 

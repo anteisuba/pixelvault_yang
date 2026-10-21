@@ -243,9 +243,6 @@ describe('isNonRetryableProviderFailure', () => {
       })
 
     expect(isNonRetryableProviderFailure(build('content_filtered'))).toBe(true)
-    expect(isNonRetryableProviderFailure(build('runner_queue_stuck'))).toBe(
-      true,
-    )
     expect(isNonRetryableProviderFailure(build('provider_overloaded'))).toBe(
       false,
     )

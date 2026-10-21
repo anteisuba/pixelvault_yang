@@ -154,26 +154,6 @@ const GEMINI_VIDEO_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta'
 const HUGGINGFACE_IMAGE_BASE_URL =
   'https://router.huggingface.co/hf-inference/models'
 const REPLICATE_BASE_URL = 'https://api.replicate.com/v1'
-const RUNPOD_BASE_URL = 'https://api.runpod.ai/v2'
-// Runner 队列卫生（2026-08-18，起因：EXITED worker 仍被计为 ready，占住
-// workersMax=1 名额 → job 排满 10 分钟窗口，孤儿 job 又永久堵队列）：
-// - TTL 略长于轮询窗口（200×3s），窗口外没人再管的 job 由 RunPod 自动过期出队；
-// - 幻影名额探测按攻数取模触发（60 攻 ≈ 3 分钟），连续 2 次命中才取消（≈6 分钟）。
-//   判据见 isRunnerQueuePhantomWedge —— 只有「声称有 worker 却零活跃」才算，
-//   全零是 scale-to-zero 的正常态。
-const RUNNER_JOB_TTL_MS = 660_000
-const RUNNER_QUEUE_WEDGE_CHECK_EVERY_ATTEMPTS = 60
-const RUNNER_QUEUE_WEDGE_CONFIRMATIONS = 2
-// Runner 幻影名额自愈（2026-09-12，owner 拍板）：判定幻影后不再直接取消，先把端点
-// worker 回收掉（workersMax → 0 → 原值，等于强制踢掉占着名额的僵尸 worker），再把
-// 这一单重排一次。回收 + 重排都不灵才走原来的取消路径。同一单只自愈一次。
-//
-// 回收只能走 REST v1（api.runpod.ai/v2 是作业面，没有端点配置）。本机实测：
-// PATCH {"workersMax":0} → 200，约 20s 后 /health 的 workers 全 0；PATCH 回原值 → 200。
-// ⛔ `workersStandby` 不在 PATCH schema 里（传了 400），别顺手加。
-const RUNPOD_REST_BASE_URL = 'https://rest.runpod.io/v1'
-const RUNNER_RECYCLE_DRAIN_TIMEOUT_MS = 90_000
-const RUNNER_RECYCLE_DRAIN_POLL_MS = 5_000
 const NOVELAI_IMAGE_BASE_URL = 'https://image.novelai.net'
 const VOLCENGINE_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3'
 const OLD_R2_DEV_PATTERN = /^https:\/\/pub-[a-f0-9]+\.r2\.dev\//
@@ -212,19 +192,7 @@ interface ExecutionEnv {
    * Set via: npx wrangler secret put STATE_ENCRYPTION_KEY
    */
   STATE_ENCRYPTION_KEY?: string
-  /**
-   * RunPod Serverless endpoint id for the Comfy Runner (pixelvault-runner).
-   * Not secret by itself (protected by RUNPOD_KEY bearer auth) — set as a
-   * plain wrangler.jsonc var. See docs/references/domains/runner.md.
-   */
-  RUNPOD_ENDPOINT?: string
-  RUNPOD_QWEN_ENDPOINT?: string
-  /**
-   * Runner 后端开关（2026-10-06 迁 Modal）：`modal` = 新作业发到 `workers/runner-modal`，
-   * 其余（含缺省）仍走 RunPod。在飞作业按 id 判后端（Modal 的是 `fc-` 开头），
-   * 所以切开关不影响已提交的作业。观察期结束后删掉 RunPod 分支与这个开关。
-   */
-  RUNNER_BACKEND?: string
+  /** Comfy Runner 的 Modal 入口（`workers/runner-modal`）。 */
   RUNNER_MODAL_URL?: string
   /** wrangler secret；与 Modal Secret `pixelvault-runner-token` 同值。 */
   RUNNER_MODAL_TOKEN?: string
@@ -3556,7 +3524,7 @@ export async function reportProviderJobId(
  * drawing". Runner-only today — every other image provider leaves the stage
  * unset and the UI keeps its elapsed-time estimate.
  *
- * Reporting only. It never changes polling, wedge detection or timeouts, and
+ * Reporting only. It never changes polling or timeouts, and
  * — like `reportProviderJobId` — swallows every failure so a lost progress
  * ping can never take down a healthy generation.
  */
@@ -6441,7 +6409,7 @@ function extractReplicateImageUrl(output: unknown): string {
   throw new Error('Replicate output did not include an image URL.')
 }
 
-// ─── Comfy Runner (RunPod Serverless ComfyUI) ────────────────────────────
+// ─── Comfy Runner (ComfyUI on Modal) ─────────────────────────────────────
 
 interface RunnerSubmitResult {
   id: string
@@ -6573,22 +6541,16 @@ function readRunnerUpscaler(advancedParams: Record<string, unknown>) {
 
 /**
  * Builds the ComfyUI workflow via the pure recipe→workflow mapping, then
- * POSTs it to RunPod's `/run` endpoint. Unlike Replicate/fal, the runner has
- * no BYOK path (RUNPOD_KEY is a platform secret) and no per-request model
- * lookup call — the checkpoint/LoRA manifest is fully static (models/runner/
+ * POSTs it to the Modal runner's `/run`. Unlike Replicate/fal, the runner has
+ * no BYOK path (the Worker authenticates with its own RUNNER_MODAL_TOKEN) and
+ * no per-request model lookup call — the checkpoint/LoRA manifest is fully static (models/runner/
  * checkpoints.ts), so this is a single request.
  */
 export async function submitRunnerImageJob(
   context: WorkerImageRunContext,
   env: ExecutionEnv,
-  apiKey: string,
 ): Promise<RunnerSubmitResult> {
-  const qwen = context.providerInput.externalModelId === QWEN_IMAGE_21_MODEL
-  if (qwen) env = qwenRunnerEnvironment(env)
-  const modal = usesModalRunner(env)
-  if (!modal && !env.RUNPOD_ENDPOINT) {
-    throw new Error('RUNPOD_ENDPOINT is not configured.')
-  }
+  const qwen = isQwenRunnerContext(context)
 
   const advancedParams = readAdvancedRecord(context)
   const runnerLoras = getRunnerLoraSpecs(context)
@@ -6614,12 +6576,12 @@ export async function submitRunnerImageJob(
   )
 
   // img2img: when the request carries a reference image (base-model capability
-  // maxReferenceImages > 0), hand RunPod the R2 URL via `input.images_to_fetch`
+  // maxReferenceImages > 0), hand the runner the R2 URL via `input.images_to_fetch`
   // and map referenceStrength → KSampler denoise with the same inversion the
   // fal/replicate paths use. No reference → txt2img (workflow-builder default).
   //
   // ⚠ 别改回「在这里 base64」：这个 Worker 只有 128MB 内存，整张图转 base64 会把它
-  // 撑爆；就算侥幸编完，膨胀 4/3 后的请求体又会顶穿 RunPod /run 的 10MiB 上限。一张
+  // 撑爆；就算侥幸编完，膨胀 4/3 后的请求体也会大得离谱（RunPod 时期就撞过 /run 的 10MiB 上限）。一张
   // ~8MB 的参考图正好卡在两堵墙之间（2026-08-24 同一张图连点两次分别撞上了两者）。
   // fork 侧 `ensure_input_images` 负责拉图并就地 base64——那台机器内存以 GB 计。
   // 契约见 workers/runner-comfyui-fork/README.md。
@@ -6717,15 +6679,15 @@ export async function submitRunnerImageJob(
     source: 'r2' as const,
   }))
 
-  const runpodInput: Record<string, unknown> = { workflow }
+  const runnerInput: Record<string, unknown> = { workflow }
   if (referenceImagesToFetch)
-    runpodInput.images_to_fetch = referenceImagesToFetch
-  if (lorasToFetch.length > 0) runpodInput.loras_to_fetch = lorasToFetch
+    runnerInput.images_to_fetch = referenceImagesToFetch
+  if (lorasToFetch.length > 0) runnerInput.loras_to_fetch = lorasToFetch
   // v3 T1：fork GPU 侧据此从 Civitai 直下底模到 models/checkpoints/（缺则下、有则跳）。
   // url 不带 token（不进 job 载荷）——fork 用自己的 CIVITAI_KEY secret 加鉴权，公开
   // 底模匿名也能下。source 限 'civitai'（fork 侧域白名单，防 SSRF）。
   if (runnerCheckpoint) {
-    runpodInput.checkpoint_to_fetch = {
+    runnerInput.checkpoint_to_fetch = {
       filename: runnerCheckpoint.filename,
       url: runnerCheckpoint.downloadUrl,
       source: 'civitai' as const,
@@ -6752,12 +6714,12 @@ export async function submitRunnerImageJob(
         errorCode: 'model_unavailable',
       })
     }
-    runpodInput.companions_to_fetch = checkpointCompanion
+    runnerInput.companions_to_fetch = checkpointCompanion
       ? [...companions.shared, checkpointCompanion]
       : companions.shared
   }
   if (upscaler) {
-    runpodInput.upscaler_to_fetch = {
+    runnerInput.upscaler_to_fetch = {
       filename: upscaler.filename,
       url: upscaler.downloadUrl,
       source: 'huggingface' as const,
@@ -6766,24 +6728,11 @@ export async function submitRunnerImageJob(
     }
   }
 
-  const response = modal
-    ? // 同一份 input；Modal 侧的单次时限（600s）就是这里的 TTL 兜底。
-      await modalRunnerRequest(env, '/run', {
-        method: 'POST',
-        body: { input: runpodInput, target: qwen ? 'qwen' : 'main' },
-      })
-    : await fetch(`${RUNPOD_BASE_URL}/${env.RUNPOD_ENDPOINT}/run`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': JSON_CONTENT_TYPE,
-        },
-        body: JSON.stringify({
-          input: runpodInput,
-          // 孤儿闸：轮询窗口耗尽/工作流被杀后没人再管的 job，到 TTL 自动出队。
-          policy: { ttl: RUNNER_JOB_TTL_MS },
-        }),
-      })
+  // Modal 侧的单次时限（600s）就是没人再管的作业的兜底。
+  const response = await modalRunnerRequest(env, '/run', {
+    method: 'POST',
+    body: { input: runnerInput, target: qwen ? 'qwen' : 'main' },
+  })
 
   if (!response.ok) {
     throw await createProviderResponseError(response, {
@@ -6798,8 +6747,7 @@ export async function submitRunnerImageJob(
   if (!id) {
     throw new Error('Runner submit response did not include a job id.')
   }
-  const routedId = qwen && !modal ? `${env.RUNPOD_ENDPOINT}/${id}` : id
-  await reportProviderJobId(env, context, routedId)
+  await reportProviderJobId(env, context, id)
   await reportExecutionStage(
     env,
     context,
@@ -6807,7 +6755,7 @@ export async function submitRunnerImageJob(
   )
   const outputScale = upscaler?.scale ?? 1
   return {
-    id: routedId,
+    id,
     width: (hires?.width ?? dimensions.width) * outputScale,
     height: (hires?.height ?? dimensions.height) * outputScale,
   }
@@ -6815,14 +6763,9 @@ export async function submitRunnerImageJob(
 
 type RunnerPollStatus = 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
 
-const MODAL_RUNNER_JOB_PREFIX = 'fc-'
-
-function usesModalRunner(env: ExecutionEnv): boolean {
-  return env.RUNNER_BACKEND === 'modal'
-}
-
-function isModalRunnerJob(jobId: string): boolean {
-  return jobId.startsWith(MODAL_RUNNER_JOB_PREFIX)
+/** Qwen-Image 2.1 评估走 Modal 的 `qwen` 目标，工作流与出图尺寸读法都不同。 */
+function isQwenRunnerContext(context: WorkerImageRunContext): boolean {
+  return context.providerInput.externalModelId === QWEN_IMAGE_21_MODEL
 }
 
 function modalRunnerRequest(
@@ -6841,22 +6784,6 @@ function modalRunnerRequest(
     },
     ...(init.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
   })
-}
-
-function qwenRunnerEnvironment(env: ExecutionEnv): ExecutionEnv {
-  // Modal 按请求里的 target 分主端点 / Qwen，不需要换端点 id。
-  if (usesModalRunner(env)) return env
-  if (!env.RUNPOD_QWEN_ENDPOINT)
-    throw new Error('Qwen evaluation endpoint is not configured.')
-  return { ...env, RUNPOD_ENDPOINT: env.RUNPOD_QWEN_ENDPOINT }
-}
-
-function runnerJobRoute(jobId: string, env: ExecutionEnv) {
-  const parts = jobId.split('/')
-  if (parts.length === 1) return { endpoint: env.RUNPOD_ENDPOINT, id: jobId }
-  if (parts.length !== 2 || parts[0] !== env.RUNPOD_QWEN_ENDPOINT || !parts[1])
-    throw new Error('Unknown Runner job endpoint.')
-  return { endpoint: env.RUNPOD_QWEN_ENDPOINT, id: parts[1] }
 }
 
 type RunnerPollResult =
@@ -6886,7 +6813,7 @@ type CompletedPersistedRunnerPollResult = Extract<
   { status: 'COMPLETED' }
 >
 
-function normalizeRunPodStatus(raw: string): RunnerPollStatus {
+function normalizeRunnerStatus(raw: string): RunnerPollStatus {
   const normalized = raw.toUpperCase()
   if (normalized === 'COMPLETED') return 'COMPLETED'
   if (normalized === 'IN_PROGRESS') return 'IN_PROGRESS'
@@ -6903,19 +6830,8 @@ function normalizeRunPodStatus(raw: string): RunnerPollStatus {
 async function pollRunnerImageJob(
   jobId: string,
   env: ExecutionEnv,
-  apiKey: string,
 ): Promise<RunnerPollResult> {
-  const response = isModalRunnerJob(jobId)
-    ? await modalRunnerRequest(env, `/status/${jobId}`)
-    : await (() => {
-        const route = runnerJobRoute(jobId, env)
-        return fetch(
-          `${RUNPOD_BASE_URL}/${route.endpoint}/status/${route.id}`,
-          {
-            headers: { Authorization: `Bearer ${apiKey}` },
-          },
-        )
-      })()
+  const response = await modalRunnerRequest(env, `/status/${jobId}`)
 
   if (!response.ok) {
     throw await createProviderResponseError(response, {
@@ -6927,7 +6843,7 @@ async function pollRunnerImageJob(
   }
 
   const data = (await response.json()) as Record<string, unknown>
-  const status = normalizeRunPodStatus(readStringField(data, 'status') ?? '')
+  const status = normalizeRunnerStatus(readStringField(data, 'status') ?? '')
 
   if (status === 'FAILED') {
     const errorField = data.error
@@ -6966,31 +6882,19 @@ async function pollRunnerImageJob(
 }
 
 /**
- * Best-effort cancel：工作流停止轮询（窗口耗尽或僵死快败）时把 RunPod 侧
- * job 撤出队列，不留孤儿。失败静默——调用方正在抛真正的错误，取消失败
- * 还有 TTL 兜底。也被 `/cancel` 路由（用户主动取消）复用，那边关心结果，
+ * Best-effort cancel：工作流停止轮询（窗口耗尽）时把 Modal 侧作业撤掉，
+ * 不留孤儿。失败静默——调用方正在抛真正的错误，取消失败还有 Modal 单次
+ * 时限兜底。也被 `/cancel` 路由（用户主动取消）复用，那边关心结果，
  * 所以返回是否成功而不是吞掉。
  */
 async function cancelRunnerImageJob(
   jobId: string,
   env: ExecutionEnv,
-  apiKey: string,
 ): Promise<boolean> {
   try {
-    if (isModalRunnerJob(jobId)) {
-      const response = await modalRunnerRequest(env, `/cancel/${jobId}`, {
-        method: 'POST',
-      })
-      return response.ok
-    }
-    const route = runnerJobRoute(jobId, env)
-    const response = await fetch(
-      `${RUNPOD_BASE_URL}/${route.endpoint}/cancel/${route.id}`,
-      {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${apiKey}` },
-      },
-    )
+    const response = await modalRunnerRequest(env, `/cancel/${jobId}`, {
+      method: 'POST',
+    })
     return response.ok
   } catch {
     // 主错误由调用方抛出；这里只是队列卫生。
@@ -6998,227 +6902,13 @@ async function cancelRunnerImageJob(
   }
 }
 
-interface RunnerWorkerCounts {
-  idle: number
-  ready: number
-  running: number
-  initializing: number
-  throttled: number
-}
-
-/**
- * 读端点 worker 计数。读不到（网络/非 200/字段缺）返回 null —— 调用方一律按
- * 「不判僵死」处理，宁可等满轮询窗口也不误杀。
- */
-async function readRunnerWorkerCounts(
-  env: ExecutionEnv,
-  apiKey: string,
-): Promise<RunnerWorkerCounts | null> {
-  const response = await fetch(
-    `${RUNPOD_BASE_URL}/${env.RUNPOD_ENDPOINT}/health`,
-    { headers: { Authorization: `Bearer ${apiKey}` } },
-  )
-  if (!response.ok) return null
-  const data = (await response.json()) as Record<string, unknown>
-  const workers = isRecord(data.workers) ? data.workers : null
-  if (!workers) return null
-  return {
-    idle: readNumberField(workers, 'idle') ?? 0,
-    ready: readNumberField(workers, 'ready') ?? 0,
-    running: readNumberField(workers, 'running') ?? 0,
-    initializing: readNumberField(workers, 'initializing') ?? 0,
-    throttled: readNumberField(workers, 'throttled') ?? 0,
-  }
-}
-
-/**
- * 幻影名额签名：端点**声称**有可用 worker（idle/ready ≥ 1）却零活跃
- * （running/initializing/throttled 全 0）。实测成因是已退出的 worker 仍被
- * 计为 ready，占住 workersMax 名额 → 调度器认为「已有人待命」不再起新的，
- * 作业永远排队。
- *
- * ⚠ 必须要求「声称有 worker」这一半。只看「零活跃」会把 scale-to-zero 下
- * 「还没起 worker」的正常冷启动判成僵死 —— 2026-08-18 就是这么误杀了两次
- * 用户出图（作业排队 3 分钟被取消，而端点只是还没拉起 worker）。全零 = 没
- * 人待命也没人在跑 = 正常等调度，绝不在这里下判断，交给轮询窗口兜底。
- */
-function isRunnerQueuePhantomWedge(counts: RunnerWorkerCounts | null): boolean {
-  if (!counts) return false
-  const claimsAvailableWorker = counts.idle + counts.ready > 0
-  const activeWorkers = counts.running + counts.initializing + counts.throttled
-  return claimsAvailableWorker && activeWorkers === 0
-}
-
-export type RunnerRecycleResult =
-  | { ok: true; workersMax: number; elapsedMs: number }
-  | { ok: false; reason: string; elapsedMs: number }
-
-function runnerRecycleDelay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-/**
- * PATCH 端点的 `workersMax`。返回失败原因而不是抛 —— 调用方在 finally 里也会用它
- * 做恢复，那条路径不允许有异常逃逸。
- */
-async function patchRunnerEndpointWorkersMax(
-  endpointId: string,
-  workersMax: number,
-  apiKey: string,
-): Promise<{ ok: true } | { ok: false; reason: string }> {
-  try {
-    const response = await fetch(
-      `${RUNPOD_REST_BASE_URL}/endpoints/${endpointId}`,
-      {
-        method: 'PATCH',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': JSON_CONTENT_TYPE,
-        },
-        body: JSON.stringify({ workersMax }),
-      },
-    )
-    if (!response.ok) {
-      return {
-        ok: false,
-        reason: `patch workersMax=${workersMax} failed with status ${response.status}`,
-      }
-    }
-    return { ok: true }
-  } catch (error) {
-    return {
-      ok: false,
-      reason: `patch workersMax=${workersMax} threw: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    }
-  }
-}
-
-/**
- * 回收端点 worker：读原 `workersMax` → PATCH 0 → 轮询 `/health` 等 worker 全部退干净
- * → PATCH 回原值。用来踢掉「已退出却仍被计为 ready、占住名额」的僵尸 worker
- * （判据见 isRunnerQueuePhantomWedge）。
- *
- * 契约：
- * - **绝不抛**。任何一步失败都返回 `{ ok: false, reason }`，调用方据此决定走取消。
- * - 只要原值读到了，`workersMax` 一定在 finally 里恢复 —— 否则端点会被永久缩到 0，
- *   比卡死更糟（后续每一单都起不来 worker）。
- * - `apiKey` 就是 RUNPOD_KEY：runner 是 system-key 通道，worker 侧没有这个 env，
- *   key 与出图/轮询一样由 resolve-key 取回后逐步传入。端点 id 走 `env.RUNPOD_ENDPOINT`。
- */
-export async function recycleRunnerEndpointWorkers(
-  env: ExecutionEnv,
-  apiKey: string,
-): Promise<RunnerRecycleResult> {
-  const startedAt = Date.now()
-  const endpointId = env.RUNPOD_ENDPOINT
-  if (!endpointId) {
-    return {
-      ok: false,
-      reason: 'RUNPOD_ENDPOINT is not configured.',
-      elapsedMs: 0,
-    }
-  }
-
-  let originalWorkersMax: number | null = null
-  let failureReason: string | null = null
-
-  try {
-    const readResponse = await fetch(
-      `${RUNPOD_REST_BASE_URL}/endpoints/${endpointId}`,
-      { headers: { Authorization: `Bearer ${apiKey}` } },
-    )
-    if (!readResponse.ok) {
-      failureReason = `read endpoint failed with status ${readResponse.status}`
-    } else {
-      const endpoint = (await readResponse.json()) as Record<string, unknown>
-      const workersMax = readNumberField(endpoint, 'workersMax')
-      if (workersMax === null || workersMax <= 0) {
-        failureReason = 'endpoint did not report a positive workersMax'
-      } else {
-        originalWorkersMax = workersMax
-        console.info(
-          `[runner-recycle] endpoint=${endpointId} scaling down workersMax ${workersMax} -> 0`,
-        )
-        const scaledDown = await patchRunnerEndpointWorkersMax(
-          endpointId,
-          0,
-          apiKey,
-        )
-        if (!scaledDown.ok) {
-          failureReason = scaledDown.reason
-        } else {
-          const drainDeadline = Date.now() + RUNNER_RECYCLE_DRAIN_TIMEOUT_MS
-          let drained = false
-          while (!drained && Date.now() < drainDeadline) {
-            await runnerRecycleDelay(RUNNER_RECYCLE_DRAIN_POLL_MS)
-            const counts = await readRunnerWorkerCounts(env, apiKey)
-            // 读不到计数不算排空 —— 宁可等满 90s 再报失败，也不要在 worker
-            // 还占着名额时就把 workersMax 拉回去（那等于什么都没做）。
-            if (
-              counts &&
-              counts.idle +
-                counts.ready +
-                counts.running +
-                counts.initializing +
-                counts.throttled ===
-                0
-            ) {
-              drained = true
-            }
-          }
-          if (!drained) {
-            failureReason = `workers did not drain within ${RUNNER_RECYCLE_DRAIN_TIMEOUT_MS}ms`
-          }
-        }
-      }
-    }
-  } catch (error) {
-    failureReason = `recycle threw: ${
-      error instanceof Error ? error.message : String(error)
-    }`
-  } finally {
-    if (originalWorkersMax !== null) {
-      const restored = await patchRunnerEndpointWorkersMax(
-        endpointId,
-        originalWorkersMax,
-        apiKey,
-      )
-      if (!restored.ok) {
-        console.error(
-          `[runner-recycle] endpoint=${endpointId} FAILED to restore workersMax=${originalWorkersMax}: ${restored.reason}`,
-        )
-        failureReason = restored.reason
-      } else {
-        console.info(
-          `[runner-recycle] endpoint=${endpointId} restored workersMax=${originalWorkersMax}`,
-        )
-      }
-    }
-  }
-
-  const elapsedMs = Date.now() - startedAt
-  if (failureReason !== null || originalWorkersMax === null) {
-    const reason = failureReason ?? 'recycle did not run'
-    console.warn(
-      `[runner-recycle] endpoint=${endpointId} failed after ${elapsedMs}ms: ${reason}`,
-    )
-    return { ok: false, reason, elapsedMs }
-  }
-  console.info(
-    `[runner-recycle] endpoint=${endpointId} recycled in ${elapsedMs}ms (workersMax=${originalWorkersMax})`,
-  )
-  return { ok: true, workersMax: originalWorkersMax, elapsedMs }
-}
-
 export async function pollAndPersistRunnerImageJob(
   jobId: string,
   env: ExecutionEnv,
-  apiKey: string,
   imageR2Key: string,
+  qwen: boolean,
 ): Promise<PersistedRunnerPollResult> {
-  const pollResult = await pollRunnerImageJob(jobId, env, apiKey)
+  const pollResult = await pollRunnerImageJob(jobId, env)
   if (pollResult.status !== 'COMPLETED') return pollResult
 
   const imageBytes = base64ToBytes(pollResult.imageBase64)
@@ -7243,7 +6933,7 @@ export async function pollAndPersistRunnerImageJob(
   return {
     status: 'COMPLETED',
     ...uploaded,
-    ...(jobId.includes('/') ? readQwenPngDimensions(imageBytes) : {}),
+    ...(qwen ? readQwenPngDimensions(imageBytes) : {}),
     ...(pollResult.runnerExecution
       ? { runnerExecution: pollResult.runnerExecution }
       : {}),
@@ -8274,18 +7964,27 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
 
     try {
       // Resolve + AES-GCM encrypt the API key once before persisting in
-      // workflow state (same pattern as the 3D/video workflows).
-      const encryptedApiKey = await step.do(
-        'resolve-api-key',
-        {
-          retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
-          timeout: '30 seconds',
-        },
-        async () => {
-          const plaintext = await resolveApiKeyImage(this.env, context)
-          return encryptStateString(plaintext, this.env)
-        },
-      )
+      // workflow state (same pattern as the 3D/video workflows). The runner
+      // branch never reads it: Modal is authenticated with the Worker's own
+      // RUNNER_MODAL_TOKEN, so there is no provider key to resolve.
+      const encryptedApiKey =
+        context.providerId === RUNNER_PROVIDER_ID
+          ? ''
+          : await step.do(
+              'resolve-api-key',
+              {
+                retries: {
+                  limit: 2,
+                  delay: '5 seconds',
+                  backoff: 'exponential',
+                },
+                timeout: '30 seconds',
+              },
+              async () => {
+                const plaintext = await resolveApiKeyImage(this.env, context)
+                return encryptStateString(plaintext, this.env)
+              },
+            )
 
       let result: WorkerImageGenerationResult
 
@@ -8533,32 +8232,18 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
           providerMetadata: { predictionId: completedPrediction.id },
         }
       } else if (context.providerId === 'runner') {
-        const runnerEnv =
-          context.providerInput.externalModelId === QWEN_IMAGE_21_MODEL
-            ? qwenRunnerEnvironment(this.env)
-            : this.env
+        const qwen = isQwenRunnerContext(context)
         const submitted = await step.do(
           'submit-runner-image',
           {
             retries: { limit: 1, delay: '5 seconds', backoff: 'exponential' },
             timeout: '30 seconds',
           },
-          async () => {
-            const apiKey = await decryptStateString(encryptedApiKey, runnerEnv)
-            return submitRunnerImageJob(context, runnerEnv, apiKey)
-          },
+          () => submitRunnerImageJob(context, this.env),
         )
 
         let completed: CompletedPersistedRunnerPollResult | undefined
         let leftQueue = false
-        let phantomWedgeStreak = 0
-        // 自愈状态：当前在跑的 RunPod job（重排后会换 id / 尺寸）、自提交起的攻数
-        // （重排后归零，幻影探测重新按新 job 计时）、以及「这一单已经自愈过一次」。
-        // 都是普通局部变量 —— 和 phantomWedgeStreak 一样，Workflow 重放时由同一串
-        // step 结果确定性地重算出来。
-        let currentJob = submitted
-        let attemptsSinceSubmit = 0
-        let selfHealUsed = false
         for (
           let attempt = 1;
           !completed && attempt <= context.maxAttempts;
@@ -8568,7 +8253,6 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
             `wait-runner-image-${attempt}`,
             context.pollIntervalMs,
           )
-          attemptsSinceSubmit += 1
 
           const pollResult = await step.do(
             `poll-runner-image-${attempt}`,
@@ -8576,21 +8260,16 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
               retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
               timeout: '30 seconds',
             },
-            async () => {
-              const apiKey = await decryptStateString(
-                encryptedApiKey,
-                runnerEnv,
-              )
-              // A completed RunPod response contains the full image as base64.
-              // Persist it before this step returns so Workflow state only stores
-              // the compact R2 reference (non-stream step results are capped at 1 MiB).
-              return pollAndPersistRunnerImageJob(
-                currentJob.id,
-                runnerEnv,
-                apiKey,
+            // A completed runner response contains the full image as base64.
+            // Persist it before this step returns so Workflow state only stores
+            // the compact R2 reference (non-stream step results are capped at 1 MiB).
+            () =>
+              pollAndPersistRunnerImageJob(
+                submitted.id,
+                this.env,
                 getWorkerImageOutputKey(context),
-              )
-            },
+                qwen,
+              ),
           )
 
           if (pollResult.status === 'FAILED') {
@@ -8598,7 +8277,7 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
               message: `Runner image generation failed: ${pollResult.error ?? 'unknown'}`,
               provider: context.providerId,
               phase: 'status_poll',
-              requestId: currentJob.id,
+              requestId: submitted.id,
             })
           }
 
@@ -8620,136 +8299,13 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
                 },
                 () =>
                   reportExecutionStage(
-                    runnerEnv,
+                    this.env,
                     context,
                     EXECUTION_PROGRESS_STAGES.RUNNER_RUNNING,
                   ),
               )
             }
             leftQueue = true
-          }
-
-          // 幻影名额快败：从未离开 IN_QUEUE 的 job 每 60 攻（≈3 分钟）核对一次
-          // 端点计数，连续两次都是幻影签名才取消（≈6 分钟，仍早于 10 分钟窗口）。
-          // ⚠ 要求连续两次，是因为单次采样可能撞上 worker 状态切换的空档；
-          // 误杀一次正在正常冷启动的作业，比等满窗口糟得多。
-          if (
-            !completed &&
-            !leftQueue &&
-            // 幻影名额是 RunPod 端点的病；Modal 作业没有 IN_QUEUE 也没有端点计数。
-            !isModalRunnerJob(currentJob.id) &&
-            attemptsSinceSubmit % RUNNER_QUEUE_WEDGE_CHECK_EVERY_ATTEMPTS === 0
-          ) {
-            // 步骤返回计数本身（不是布尔）：判据留在工作流日志里，事后能直接
-            // 区分「幻影占位」和「压根还没起 worker」。
-            const counts = await step.do(
-              `check-runner-queue-wedged-${attempt}`,
-              {
-                retries: {
-                  limit: 1,
-                  delay: '5 seconds',
-                  backoff: 'exponential',
-                },
-                timeout: '30 seconds',
-              },
-              async () => {
-                const apiKey = await decryptStateString(
-                  encryptedApiKey,
-                  runnerEnv,
-                )
-                return readRunnerWorkerCounts(runnerEnv, apiKey)
-              },
-            )
-            phantomWedgeStreak = isRunnerQueuePhantomWedge(counts)
-              ? phantomWedgeStreak + 1
-              : 0
-            if (phantomWedgeStreak >= RUNNER_QUEUE_WEDGE_CONFIRMATIONS) {
-              // 自愈一次：撤掉卡住的 job → 回收端点 worker → 重排。回收/重排任何一
-              // 步不灵，或者重排后又判一次幻影，都落回下面的取消路径（文案不变）。
-              if (!selfHealUsed) {
-                selfHealUsed = true
-                const wedgedJobId = currentJob.id
-                await step.do(
-                  `mark-runner-image-recycling-${attempt}`,
-                  {
-                    retries: {
-                      limit: 2,
-                      delay: '5 seconds',
-                      backoff: 'exponential',
-                    },
-                    timeout: '30 seconds',
-                  },
-                  () =>
-                    reportExecutionStage(
-                      runnerEnv,
-                      context,
-                      EXECUTION_PROGRESS_STAGES.RUNNER_RECYCLING,
-                    ),
-                )
-                const recycled = await step.do(
-                  `recycle-runner-endpoint-${attempt}`,
-                  { timeout: '180 seconds' },
-                  async () => {
-                    const apiKey = await decryptStateString(
-                      encryptedApiKey,
-                      runnerEnv,
-                    )
-                    // 先撤 job：回收期间端点会被缩到 0，留着的 job 只会在恢复后
-                    // 和重排的那一单抢同一个名额。
-                    await cancelRunnerImageJob(wedgedJobId, runnerEnv, apiKey)
-                    return recycleRunnerEndpointWorkers(runnerEnv, apiKey)
-                  },
-                )
-                if (recycled.ok) {
-                  console.info(
-                    `[runner-recycle] run=${context.runId} resubmitting after recycle (previous job ${wedgedJobId})`,
-                  )
-                  currentJob = await step.do(
-                    `resubmit-runner-image-${attempt}`,
-                    {
-                      retries: {
-                        limit: 1,
-                        delay: '5 seconds',
-                        backoff: 'exponential',
-                      },
-                      timeout: '30 seconds',
-                    },
-                    async () => {
-                      const apiKey = await decryptStateString(
-                        encryptedApiKey,
-                        runnerEnv,
-                      )
-                      return submitRunnerImageJob(context, runnerEnv, apiKey)
-                    },
-                  )
-                  attemptsSinceSubmit = 0
-                  phantomWedgeStreak = 0
-                  continue
-                }
-                console.warn(
-                  `[runner-recycle] run=${context.runId} recycle failed (${recycled.reason}) — cancelling`,
-                )
-              }
-              await step.do(
-                `cancel-runner-image-wedged-${attempt}`,
-                { timeout: '30 seconds' },
-                async () => {
-                  const apiKey = await decryptStateString(
-                    encryptedApiKey,
-                    runnerEnv,
-                  )
-                  await cancelRunnerImageJob(currentJob.id, runnerEnv, apiKey)
-                },
-              )
-              throw new WorkerProviderError({
-                message:
-                  'Runner queue is stuck: the endpoint reports an available worker that never picks anything up, and the job never left the queue. The job was cancelled — the endpoint needs attention (stale worker holding the slot).',
-                provider: context.providerId,
-                phase: 'status_poll',
-                errorCode: WORKER_GENERATION_ERROR_CODES.RUNNER_QUEUE_STUCK,
-                requestId: currentJob.id,
-              })
-            }
           }
         }
 
@@ -8758,11 +8314,7 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
             'cancel-runner-image-timeout',
             { timeout: '30 seconds' },
             async () => {
-              const apiKey = await decryptStateString(
-                encryptedApiKey,
-                runnerEnv,
-              )
-              await cancelRunnerImageJob(currentJob.id, runnerEnv, apiKey)
+              await cancelRunnerImageJob(submitted.id, this.env)
             },
           )
           throw new Error(
@@ -8774,10 +8326,10 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
           artifactUrl: completed.artifactUrl,
           imageR2Key: completed.imageR2Key,
           mimeType: completed.mimeType,
-          width: completed.width ?? currentJob.width,
-          height: completed.height ?? currentJob.height,
+          width: completed.width ?? submitted.width,
+          height: completed.height ?? submitted.height,
           providerMetadata: {
-            runpodJobId: currentJob.id,
+            runnerJobId: submitted.id,
             ...(completed.runnerExecution
               ? { runnerExecution: completed.runnerExecution }
               : {}),
@@ -9092,34 +8644,11 @@ export async function cancelProviderJob(
   providerJobId: string,
 ): Promise<CancelProviderResult> {
   if (provider === RUNNER_PROVIDER_ID) {
-    if (isModalRunnerJob(providerJobId)) {
-      const ok = await cancelRunnerImageJob(providerJobId, env, '')
-      return {
-        attempted: true,
-        ok,
-        detail: ok ? 'Modal cancel requested.' : 'Modal cancel request failed.',
-      }
-    }
-    if (!env.RUNPOD_ENDPOINT) {
-      return {
-        attempted: false,
-        ok: false,
-        detail: 'RUNPOD_ENDPOINT is not configured.',
-      }
-    }
-    const apiKey = await resolveSystemApiKeyForCancel(env, jobId, provider)
-    if (!apiKey) {
-      return {
-        attempted: false,
-        ok: false,
-        detail: 'No RunPod system API key available for cancel.',
-      }
-    }
-    const ok = await cancelRunnerImageJob(providerJobId, env, apiKey)
+    const ok = await cancelRunnerImageJob(providerJobId, env)
     return {
       attempted: true,
       ok,
-      detail: ok ? 'RunPod cancel requested.' : 'RunPod cancel request failed.',
+      detail: ok ? 'Modal cancel requested.' : 'Modal cancel request failed.',
     }
   }
 

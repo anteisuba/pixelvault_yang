@@ -37,7 +37,7 @@ export interface RunnerWorkflowInput {
   filenamePrefix?: string
   /**
    * img2img: exact filename of a reference image uploaded alongside the
-   * workflow (RunPod `input.images[].name`). When set, the graph swaps
+   * workflow (runner `input.images[].name`). When set, the graph swaps
    * EmptyLatentImage for LoadImage → ImageScale → VAEEncode, and the sampler
    * denoises from that latent instead of pure noise.
    */

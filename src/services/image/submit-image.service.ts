@@ -204,20 +204,16 @@ export async function submitImageGeneration(
   }
 
   const apiKeyId = route.resolvedApiKeyId ?? input.apiKeyId
-  // Comfy Runner is platform-managed (no BYOK): RUNPOD_KEY is resolved
-  // server-side and gated by a monthly budget cap, so a RUNNER run legitimately
-  // carries no user apiKeyId. Like the free-tier system-key path, it must use
-  // the platform key — resolve-key returns getSystemApiKey(RUNNER) when
-  // useSystemKey is set (see api-key-resolver.service). Without including RUNNER
-  // here the gate below wrongly rejects it as MISSING_API_KEY even though the
-  // route already verified the platform key exists + enforced the monthly cap.
-  // Billing is unaffected: credit charging keys off route.isFreeGeneration
-  // (false for RUNNER), not useSystemKey.
+  // Comfy Runner is platform-managed (no BYOK) and needs no provider key: the
+  // Worker authenticates to Modal with its own RUNNER_MODAL_TOKEN and skips
+  // resolve-key for it. So a RUNNER run legitimately carries no apiKeyId and
+  // must not be rejected as MISSING_API_KEY. The monthly cap was enforced when
+  // the route was resolved. Billing keys off route.isFreeGeneration (false for
+  // RUNNER).
   const useSystemKey =
-    (route.isFreeGeneration === true ||
-      route.adapterType === AI_ADAPTER_TYPES.RUNNER) &&
-    !route.resolvedApiKeyId
-  if (!apiKeyId && !useSystemKey) {
+    route.isFreeGeneration === true && !route.resolvedApiKeyId
+  const needsProviderKey = route.adapterType !== AI_ADAPTER_TYPES.RUNNER
+  if (needsProviderKey && !apiKeyId && !useSystemKey) {
     throw new GenerateImageServiceError(
       'MISSING_API_KEY',
       'Execution worker runs require a saved API key or platform key',
@@ -337,7 +333,7 @@ export async function submitImageGeneration(
   try {
     // RUNNER 路径把每把
     // LoRA 确保进 R2 + 生成预签名下载链，注入 advancedParams.runnerLoras 供 Worker →
-    // RunPod fork。非 runner 原样透传。⚠ 下载同步跑在本请求里——大/多 LoRA 有超 Vercel
+    // Modal runner。非 runner 原样透传。⚠ 下载同步跑在本请求里——大/多 LoRA 有超 Vercel
     // Hobby 60s 的风险，撞到再迁到 Cloudflare Worker（设计包 §5 caveat）。
     let runnerAdvancedParams = workerAdvancedParams
     if (route.adapterType === AI_ADAPTER_TYPES.RUNNER) {
@@ -416,7 +412,7 @@ export async function submitImageGeneration(
         route.adapterType === AI_ADAPTER_TYPES.FAL ||
         route.adapterType === AI_ADAPTER_TYPES.REPLICATE ||
         route.adapterType === AI_ADAPTER_TYPES.IDEOGRAM ||
-        // RunPod cold starts (scale-to-zero) can run 150s+ before the job even
+        // Runner cold starts (scale-to-zero) can run minutes before the job even
         // starts running — needs the full poll window, not the single-shot
         // path used by adapters that resolve synchronously inside one step.do.
         route.adapterType === AI_ADAPTER_TYPES.RUNNER

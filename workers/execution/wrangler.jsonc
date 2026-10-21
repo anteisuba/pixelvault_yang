@@ -13,23 +13,9 @@
   "vars": {
     "INTERNAL_CALLBACK_URL": "https://www.anteisuba.com/api/internal/execution/callback",
     "R2_PUBLIC_URL": "https://cdn.anteisuba.com",
-    // Comfy Runner (RunPod Serverless) endpoint id — not secret by itself,
-    // protected by the RUNPOD_KEY bearer token (wrangler secret, owner-set).
-    // See docs/references/domains/runner.md（基础设施标识 / 限额 / 已知坑）。
-    //
-    // EU-RO-1（2026-07-21 迁移）：US-CA-2 长期抢不到 GPU，模型从 CA 迁到 EU。
-    // 端点 dt0wyuid7lywic（name=pixelvault-runner-eu-ro-1，template pmh4gs9eht，
-    // 网络卷 ivchraoqjv / 80GB）。
-    //
-    // ⚠ 没有回滚目标了：旧端点 p4qb5294ma1qzi 与更早的 01g8rrmixe4hah 都已删除
-    // （2026-07-26 核对 RunPod：账号下只剩这一个端点），旧卷 rk3t3mb1ko 也一并
-    // 没了。要退回 US-CA-2 得重新建卷 + 重灌 checkpoint，不是改一行就能回。
-    "RUNPOD_ENDPOINT": "dt0wyuid7lywic",
-    "RUNPOD_QWEN_ENDPOINT": "ok6riemrmpdiic",
-    // Runner 迁 Modal（2026-10-06）：切到 "modal" 前先 `wrangler secret put
-    // RUNNER_MODAL_TOKEN`（值 = Modal Secret `pixelvault-runner-token`）。在飞作业按 id
-    // 前缀判后端，切开关不影响已提交的。观察期后删掉这三项与上面两个 RunPod 端点。
-    "RUNNER_BACKEND": "modal",
+    // Comfy Runner = ComfyUI on Modal（`workers/runner-modal`，2026-10-06 起）。
+    // 鉴权用 wrangler secret `RUNNER_MODAL_TOKEN`（值 = Modal Secret
+    // `pixelvault-runner-token`）。见 docs/references/domains/runner.md。
     "RUNNER_MODAL_URL": "https://xiuruisu--pixelvault-runner-api.modal.run",
   },
   "r2_buckets": [

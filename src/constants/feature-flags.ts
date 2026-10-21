@@ -26,7 +26,7 @@ export const FEATURE_FLAGS = {
   seriesMode: process.env.NEXT_PUBLIC_FF_SERIES_MODE === 'true',
 
   /**
-   * Comfy Runner (RunPod Serverless ComfyUI) — faithful Civitai recipe
+   * Comfy Runner (ComfyUI on Modal) — faithful Civitai recipe
    * clones for Illustrious/Anima/Pony/SDXL. Owner-only single-endpoint infra
    * (scale-to-zero, $10/month prepaid budget), so it stays behind a flag even
    * once the code ships. See docs/references/domains/runner.md.

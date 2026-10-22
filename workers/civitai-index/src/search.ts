@@ -87,6 +87,25 @@ export const TOTAL_CAP = 10_000
  * 照下载量接着排——整体排序要把十几万行全读一遍。
  */
 const RELEVANCE_POOL_SIZE = 1000
+/**
+ * 按 model_id 只含筛选列的覆盖索引（迁移 0006）。从全文命中往外接 lora 时指定
+ * 走它：筛选只看底模与分级，不用把一行 1.3 KB 的大行（图片、版本 JSON）读进来。
+ * 回表时「girl + Illustrious」冷的计数 4 秒以上（应用侧 8 秒超时，LoRA 库刷新
+ * 不出来）。⚠ buildSearchQuery 的 WHERE 只能引用这几列，加筛选列要一起加进索引。
+ */
+const FILTER_INDEX = 'lora_filter'
+
+/**
+ * 有搜索词时筛选从哪儿读：长词从全文命中往外接覆盖索引，只有短词时按 lora_term
+ * 的 model_id 查覆盖索引。没有搜索词返回 null——那时按底模 / 分级索引取更省，
+ * 强制走它反倒要扫整份索引。
+ */
+function filterSource(input: SearchInput, joinsFts: boolean): string | null {
+  if (joinsFts) {
+    return `lora_fts JOIN lora INDEXED BY ${FILTER_INDEX} ON lora.model_id = lora_fts.rowid`
+  }
+  return input.q ? `lora INDEXED BY ${FILTER_INDEX}` : null
+}
 
 function charLength(text: string): number {
   return [...text].length
@@ -120,7 +139,10 @@ export function buildSearchQuery(
     driveFromFts = false,
   }: {
     walkOrderIndex?: boolean
-    /** 计数用：从全文索引的命中流往外接 lora，数够上限就停（不先把命中集整个取出来）。 */
+    /**
+     * 计数与取候选用：从全文索引的命中流往外接 lora（经覆盖索引，见 filterSource），
+     * 数够上限就停，不先把命中集整个取出来。
+     */
     driveFromFts?: boolean
   } = {},
 ): BuiltQuery {
@@ -371,9 +393,7 @@ async function countMatches(
   const cacheKey = input.q
     ? null
     : JSON.stringify([counting.where, whereParams])
-  const from = counting.joinsFts
-    ? 'lora_fts JOIN lora ON lora.model_id = lora_fts.rowid'
-    : 'lora'
+  const from = filterSource(input, counting.joinsFts) ?? 'lora'
   const countStatement = db
     .prepare(
       `SELECT count(*) AS count FROM (
@@ -475,22 +495,62 @@ async function readRelevancePage(
   return results.flatMap((result) => result.results)
 }
 
+/**
+ * 命中少于切换线时取这一页：按过滤条件取出再排序。有搜索词时先经覆盖索引筛出
+ * 候选（少于切换线，几千条以内），只有候选才回表读大行排序——直接在 lora 上按
+ * 条件取，规划器会沿底模索引把几十万行逐条回表（0.5 秒上下）。
+ */
+async function readFilteredPage(
+  db: D1Database,
+  input: SearchInput,
+  offset: number,
+): Promise<RawRow[]> {
+  const { where, orderBy, params, joinsFts } = buildSearchQuery(input, {
+    driveFromFts: true,
+  })
+  const source = filterSource(input, joinsFts)
+  const candidates = source
+    ? `lora.model_id IN (SELECT lora.model_id FROM ${source} WHERE ${where})`
+    : where
+  const pageParam = params.length + 1
+  const { results } = await db
+    .prepare(
+      `SELECT ${ROW_COLUMNS} FROM lora WHERE ${candidates}
+       ORDER BY ${orderBy} LIMIT ?${pageParam} OFFSET ?${pageParam + 1}`,
+    )
+    .bind(...params, input.pageSize, offset)
+    .all<RawRow>()
+  return results
+}
+
+/** 各段耗时（毫秒），给 Server-Timing 与慢查询日志（见 index.ts）。 */
+export interface SearchTimings {
+  countMs: number
+  pageMs: number
+}
+
 export async function searchIndex(
   db: D1Database,
   input: SearchInput,
+  timings?: SearchTimings,
 ): Promise<SearchResult> {
   // 先数，按总数决定取这一页时走哪条路。
+  const countStartedAt = Date.now()
   const { total, totalCapped, syncedAt } = await countMatches(db, input)
+  const pageStartedAt = Date.now()
+  if (timings) timings.countMs = pageStartedAt - countStartedAt
   const offset = (input.page - 1) * input.pageSize
   if (offset >= total) return { rows: [], total, totalCapped, syncedAt }
 
   const large = total >= WALK_ORDER_INDEX_MIN_TOTAL
   let rows: RawRow[]
-  if (large && input.sort === 'relevance' && input.q) {
+  if (!large) {
+    rows = await readFilteredPage(db, input, offset)
+  } else if (input.sort === 'relevance' && input.q) {
     rows = await readRelevancePage(db, input, offset)
   } else {
     const { where, orderBy, params } = buildSearchQuery(input, {
-      walkOrderIndex: large,
+      walkOrderIndex: true,
     })
     const pageParam = params.length + 1
     const { results } = await db
@@ -502,6 +562,7 @@ export async function searchIndex(
       .all<RawRow>()
     rows = results
   }
+  if (timings) timings.pageMs = Date.now() - pageStartedAt
   return {
     rows: rows.map((row) => toSearchRow(row, input)),
     total,

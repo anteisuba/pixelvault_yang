@@ -450,6 +450,53 @@ describe('searchIndex', () => {
     expect(page2.rows.map((row) => row.modelId)).toEqual([7, 6, 5])
   })
 
+  it('combines a search word with base model, rating and content filters', async () => {
+    await syncAll(
+      db,
+      new FakeUpstream([
+        ...SEARCH_FIXTURE,
+        {
+          id: 8,
+          name: 'Silver armor',
+          tags: ['clothing'],
+          nsfwLevel: [16],
+          downloadCount: 800,
+        },
+        {
+          id: 9,
+          name: 'Silver dress',
+          tags: ['clothing'],
+          baseModel: 'Pony',
+          otherVersions: [{ baseModel: 'Illustrious' }],
+          downloadCount: 5,
+        },
+      ]),
+    )
+    const filters: Partial<SearchInput> = {
+      q: 'silver',
+      baseModels: ['Illustrious'],
+      nsfw: { someImageAtMost: 2 },
+      sort: 'relevance',
+    }
+    // 8 只有 NSFW 图、2 只有 Pony 版：筛掉。9 凭另一个版本进来，名字以词开头排第一。
+    const result = await search(db, filters)
+    expect(result.total).toBe(3)
+    expect(result.rows.map((row) => row.modelId)).toEqual([9, 1, 3])
+    expect(result.rows[0]?.baseModel).toBe('Illustrious')
+    expect(
+      (await search(db, { ...filters, pageSize: 2, page: 2 })).rows.map(
+        (row) => row.modelId,
+      ),
+    ).toEqual([3])
+
+    const clothing = await search(db, {
+      q: 'silver',
+      contentType: { tags: ['clothing'], nameKeywords: [] },
+    })
+    expect(clothing.total).toBe(2)
+    expect(clothing.rows.map((row) => row.modelId)).toEqual([8, 9])
+  })
+
   it('walks the sort index for large result sets and keeps the same order', async () => {
     const catalog = Array.from({ length: 2_600 }, (_, index) => ({
       id: 100 + index,

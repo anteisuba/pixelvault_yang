@@ -4,6 +4,21 @@ import '@testing-library/jest-dom/vitest'
 vi.mock('server-only', () => ({}))
 
 /**
+ * 单测只认 CI 那份环境：不连真服务，功能开关全按默认。
+ *
+ * 开发机或云会话的 shell 里常带着线上的值。带着 Upstash 的 URL / token 时，
+ * 没 mock 缓存的用例会真去读写线上 Redis（还会等到 15 秒超时）；带着
+ * `NEXT_PUBLIC_FF_*` 时，按开关算出来的常量（如 runner 模型可不可用）就和 CI
+ * 不一样。这里在任何模块 import 之前删掉；要测「配置了」的用例自己
+ * `vi.stubEnv`，`vi.unstubAllEnvs()` 会还原成这里删掉之后的样子。
+ */
+for (const name of Object.keys(process.env)) {
+  if (name.startsWith('UPSTASH_') || name.startsWith('NEXT_PUBLIC_FF_')) {
+    delete process.env[name]
+  }
+}
+
+/**
  * 单测一律不做真实 DNS 解析。
  *
  * `safeFetch`（`src/lib/url-guard.ts`）现在会在每一跳之前解析 hostname 并校验

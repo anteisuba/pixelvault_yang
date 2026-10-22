@@ -172,6 +172,8 @@ export function useGallery({
   const [error, setError] = useState<string | null>(null)
   const [appendError, setAppendError] = useState<string | null>(null)
   const [isFetching, setIsFetching] = useState(false)
+  /** 每结束一次请求（含静默刷新）加一：哨兵据此重挂观察器，见下面无限滚动那段。 */
+  const [settledFetches, setSettledFetches] = useState(0)
   const [isPending, startTransition] = useTransition()
   const [filters, setFiltersState] = useState<GalleryFilters>({
     ...DEFAULT_FILTERS,
@@ -347,6 +349,7 @@ export function useGallery({
         if (requestId === requestIdRef.current) {
           isFetchingRef.current = false
           setIsFetching(false)
+          setSettledFetches((count) => count + 1)
         }
       }
     },
@@ -362,6 +365,7 @@ export function useGallery({
       startTransition,
       tErrors,
       setIsFetching,
+      setSettledFetches,
       setHasLoaded,
       setError,
       setAppendError,
@@ -463,7 +467,8 @@ export function useGallery({
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting) {
+        // 读 ref：请求刚结束时 `hasMore` 还在 transition 里没落定。
+        if (entries[0]?.isIntersecting && hasMoreRef.current) {
           void fetchPage(pageRef.current + 1, true)
         }
       },
@@ -475,10 +480,13 @@ export function useGallery({
     return () => {
       observer.disconnect()
     }
-    // ⚠ `generations.length` 在依赖里是故意的：提前一屏就开始拿，一批接上之后哨兵
-    // 常常**还在**那一屏里 —— 观察器不会为「一直相交」再报一次，于是会停住不拿。
-    // 每接上一批重挂一次观察器，挂上那一刻它会按当前位置补报一次。
-  }, [hasMore, appendError, fetchPage, generations.length])
+    // ⚠ 接上一批（`generations.length`）和每结束一次请求（`settledFetches`）都重挂
+    // 一次观察器，挂上那一刻它会按当前位置补报一次。观察器不会为「一直相交」再报：
+    // - 提前一屏就开始拿，一批接上之后哨兵常常**还在**那一屏里；
+    // - 哨兵报到时正赶上另一发请求（重开弹层时的静默刷新），这次翻页被挡掉，刷新
+    //   回来条数没变——一页填不满弹层、没有滚动条，就永远停在第一页（10-22 助手
+    //   素材弹层「滑不下去」）。只盯条数接不住这一种。
+  }, [hasMore, appendError, fetchPage, generations.length, settledFetches])
 
   const removeGeneration = useCallback(
     (id: string) => {

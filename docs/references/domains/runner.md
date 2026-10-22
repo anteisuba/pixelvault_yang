@@ -137,6 +137,11 @@ RunPod 时期的端点（`dt0wyuid7lywic`、Qwen 评估 `ok6riemrmpdiic`）、�
 - 托管 LoRA 底模 2026-09-17 全部退役。它们挂社区 LoRA 报的 `layer ... not supported`（错误码
   `lora_incompatible_hosted`）只为历史记录的文案保留；为它而设的「能力路由」（托管 Illustrious 遇到
   白名单 LoRA 升到 Runner）与 LoRA 白名单 2026-09-28 删除——任意 LoRA 早已按需从 R2 下到卷上。
+- **没缓存过的 LoRA 在出图请求里下进 R2**（`prepareRunnerLoras`，R2 `runner-loras/`）。2026-10-21
+  两次 `/api/studio/generate` 内存不足被杀（新 LoCon 整个读进内存再上传，Vercel 函数 2 GB），留下两条
+  RUNNING 任务等 sweeper 收。现在边下边传（8 MB 分片 × 4），超过 512 MB 当场掐断，SHA-256 对不上时
+  分片上传取消、R2 不落对象；几把并行，每把 240 s 截止，入口路由 `maxDuration` 300。若 300 s 也不够，
+  再把下载挪到 Cloudflare Worker。
 
 ---
 

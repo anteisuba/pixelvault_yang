@@ -6,7 +6,7 @@ import {
   type WorkflowStepConfig,
 } from 'cloudflare:workers'
 
-import { SearchInputSchema, searchIndex } from './search'
+import { SearchInputSchema, searchIndex, type SearchTimings } from './search'
 import {
   PAGES_PER_STEP,
   recordSyncCompleted,
@@ -33,15 +33,19 @@ const SYNC_STEP_CONFIG: WorkflowStepConfig = {
   timeout: '15 minutes',
 }
 
-function json(body: unknown, status = 200, startedAt?: number): Response {
+/**
+ * 慢于它的搜索在 Workers Logs 里留一行 `slow_search`（条件 + 各段耗时）。应用侧
+ * 每次等 8 秒，这条线远低于它，变慢的苗头在超时之前就看得见。
+ */
+const SLOW_SEARCH_MS = 2000
+
+function json(body: unknown, status = 200, serverTiming?: string): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
       'Content-Type': 'application/json',
       'Cache-Control': 'no-store',
-      ...(startedAt === undefined
-        ? {}
-        : { 'Server-Timing': `index;dur=${Date.now() - startedAt}` }),
+      ...(serverTiming === undefined ? {} : { 'Server-Timing': serverTiming }),
     },
   })
 }
@@ -63,7 +67,11 @@ async function startSync(env: Env, id: string): Promise<string> {
 }
 
 const civitaiIndexWorker = {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(
+    request: Request,
+    env: Env,
+    ctx: ExecutionContext,
+  ): Promise<Response> {
     if (!isAuthorized(request, env)) {
       return json({ error: 'Unauthorized' }, 401)
     }
@@ -77,7 +85,27 @@ const civitaiIndexWorker = {
         return json({ error: 'Invalid search input' }, 400)
       }
       const startedAt = Date.now()
-      return json(await searchIndex(env.DB, parsed.data), 200, startedAt)
+      const timings: SearchTimings = { countMs: 0, pageMs: 0 }
+      const search = searchIndex(env.DB, parsed.data, timings).finally(() => {
+        const totalMs = Date.now() - startedAt
+        if (totalMs < SLOW_SEARCH_MS) return
+        console.log(
+          JSON.stringify({
+            event: 'slow_search',
+            totalMs,
+            ...timings,
+            input: parsed.data,
+          }),
+        )
+      })
+      // 应用侧超时断开后照样跑完、留下日志：最慢的那些正是要看的。
+      ctx.waitUntil(search.catch(() => undefined))
+      const result = await search
+      return json(
+        result,
+        200,
+        `index;dur=${Date.now() - startedAt}, count;dur=${timings.countMs}, page;dur=${timings.pageMs}`,
+      )
     }
 
     if (request.method === 'GET' && pathname === '/status') {

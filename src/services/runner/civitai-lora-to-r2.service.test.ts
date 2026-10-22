@@ -6,7 +6,7 @@ import {
   createPresignedR2GetUrl,
   R2SourceChecksumMismatchError,
   r2ObjectExists,
-  uploadBufferedHttpToR2,
+  uploadVerifiedHttpToR2,
 } from '@/services/storage/r2'
 
 import {
@@ -22,7 +22,7 @@ import {
 
 vi.mock('@/services/storage/r2', () => ({
   r2ObjectExists: vi.fn(),
-  uploadBufferedHttpToR2: vi.fn(),
+  uploadVerifiedHttpToR2: vi.fn(),
   createPresignedR2GetUrl: vi.fn(),
   R2SourceChecksumMismatchError: class extends Error {
     constructor(
@@ -44,7 +44,7 @@ vi.mock('@/lib/logger', () => ({
 }))
 
 const mockExists = vi.mocked(r2ObjectExists)
-const mockUpload = vi.mocked(uploadBufferedHttpToR2)
+const mockUpload = vi.mocked(uploadVerifiedHttpToR2)
 const mockToken = vi.mocked(getSystemCivitaiToken)
 const mockPresign = vi.mocked(createPresignedR2GetUrl)
 const mockCivitaiSha = vi.mocked(fetchCivitaiModelFileSha256s)
@@ -130,6 +130,7 @@ describe('civitai-lora-to-r2.service', () => {
         sourceUrl: URL_3118200,
         key: R2_KEY,
         fetchHeaders: { Authorization: 'Bearer civitai-token' },
+        timeoutMs: 240_000,
         maxBytes: RUNNER_LORA_MAX_BYTES,
       }),
     )
@@ -172,9 +173,7 @@ describe('civitai-lora-to-r2.service', () => {
     mockExists.mockResolvedValue(false)
     mockUpload
       .mockRejectedValueOnce(
-        new Error(
-          `Failed to fetch file for buffered upload (401): ${URL_3118200}`,
-        ),
+        new Error(`Failed to fetch file for upload (401): ${URL_3118200}`),
       )
       .mockResolvedValueOnce({
         publicUrl: 'x',
@@ -226,9 +225,7 @@ describe('civitai-lora-to-r2.service', () => {
   it('classifies exhausted Civitai authentication attempts as AUTH_REQUIRED', async () => {
     mockExists.mockResolvedValue(false)
     mockUpload.mockRejectedValue(
-      new Error(
-        `Failed to fetch file for buffered upload (401): ${URL_3118200}`,
-      ),
+      new Error(`Failed to fetch file for upload (401): ${URL_3118200}`),
     )
 
     await expect(
@@ -246,7 +243,21 @@ describe('civitai-lora-to-r2.service', () => {
 
     await expect(ensureHuggingFaceLoraInR2(HF_URL)).rejects.toMatchObject({
       code: 'TOO_LARGE',
-      message: expect.stringContaining('512 MB'),
+      message: expect.stringContaining('3988 MB, over the 512 MB limit'),
+    })
+  })
+
+  it('says only "over the limit" when the download was cut off without a declared size', async () => {
+    mockExists.mockResolvedValue(false)
+    mockUpload.mockRejectedValue(
+      new Error(
+        `Remote file exceeds maximum size of ${RUNNER_LORA_MAX_BYTES} bytes (stopped at ${RUNNER_LORA_MAX_BYTES + 65536}).`,
+      ),
+    )
+
+    await expect(ensureCivitaiLoraInR2(URL_3118200)).rejects.toMatchObject({
+      code: 'TOO_LARGE',
+      message: expect.stringMatching(/^Runner LoRA is over the 512 MB limit\./),
     })
   })
 
@@ -343,6 +354,35 @@ describe('civitai-lora-to-r2.service', () => {
         downloadUrl: expect.stringMatching(/^https:\/\/r2\/runner-loras\/hf-/),
         scale: 1,
       })
+    })
+
+    // 一把一把排着下，三把没缓存过的就能吃满出图请求的时限。
+    it('downloads uncached LoRAs at the same time and keeps their order', async () => {
+      mockExists.mockResolvedValue(false)
+      mockPresign.mockImplementation(async ({ key }) => `https://r2/${key}?sig`)
+      const started: string[] = []
+      const release: Array<() => void> = []
+      mockUpload.mockImplementation(({ key }) => {
+        started.push(key)
+        return new Promise((resolve) =>
+          release.push(() =>
+            resolve({ publicUrl: key, mimeType: 'x', sizeBytes: 1 }),
+          ),
+        )
+      })
+
+      const pending = prepareRunnerLoras([
+        { url: 'https://civitai.com/api/download/models/111', scale: 0.9 },
+        { url: 'https://civitai.com/api/download/models/222', scale: 0.5 },
+      ])
+      await vi.waitFor(() => expect(started).toHaveLength(2))
+      release[1]!()
+      release[0]!()
+
+      expect((await pending).map((spec) => spec.filename)).toEqual([
+        'civitai-111.safetensors',
+        'civitai-222.safetensors',
+      ])
     })
 
     it('propagates a per-LoRA failure', async () => {

@@ -457,6 +457,32 @@ export const DANBOORU_REQUEST = {
   copyrightTagCategory: 3,
   /** 通用（特征）tag 的 danbooru category 编号。 */
   generalTagCategory: 0,
+  /**
+   * meta tag 的 danbooru category 编号。画风页的「画法」从这一类里挑：只要说画面的
+   * （见 `isStyleMediumTag`），highres / translated / commentary 这类说帖子的不要。
+   */
+  metaTagCategory: 5,
+  /**
+   * 画法：meta 里除了 `*_(medium)`（watercolor_(medium) 这类画材）以外，也说画面的几个
+   * （owner 2026-10-22 画风页分「画师 + 画法」两段）。
+   */
+  styleMetaTags: [
+    'traditional_media',
+    'official_art',
+    'anime_screenshot',
+    'game_cg',
+    'concept_art',
+    'oekaki',
+    'unfinished',
+    'colorized',
+  ],
+  /**
+   * 画风页一次搜索里 meta 那一类先多取一些再挑出画法：短词在 meta 里先撞上的多是
+   * commentary / translated 这类作品数大的噪音，取少了画法会被挤掉。
+   */
+  metaMatchLimit: 40,
+  /** 画风页「画法」那一段最多几行（搜索与随便看看一样）。 */
+  mediumCandidateLimit: 3,
   /** 查资料左栏最多列几个候选（每个都要再查样图，多了拖慢且容易被限流）。 */
   catalogCandidateLimit: 6,
   /** 查资料详情：共现特征取样张数。 */
@@ -539,6 +565,31 @@ export const DANBOORU_REQUEST = {
     'forest',
     'field',
     'cafe',
+  ],
+  /** 画风页「画法」那一段的随便看看从这里抽：画材与几种画面类型，全是全年龄常见的。 */
+  mediumRandomPool: [
+    'watercolor_(medium)',
+    'traditional_media',
+    'colored_pencil_(medium)',
+    'marker_(medium)',
+    'graphite_(medium)',
+    'pen_(medium)',
+    'painting_(medium)',
+    'oil_painting_(medium)',
+    'acrylic_paint_(medium)',
+    'pastel_(medium)',
+    'crayon_(medium)',
+    'ink_(medium)',
+    'ballpoint_pen_(medium)',
+    'gouache_(medium)',
+    'nib_pen_(medium)',
+    'brush_(medium)',
+    'chalk_(medium)',
+    'charcoal_(medium)',
+    'airbrush_(medium)',
+    'anime_screenshot',
+    'game_cg',
+    'official_art',
   ],
   /**
    * 角色 / 特征详情里剔掉的通用 tag：人数、构图、表情这些几乎每张图都有，

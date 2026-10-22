@@ -56,7 +56,7 @@ const STORED_ROW = {
   characterCard: null as null | {
     id: string
     name: string
-    sourceImageUrl: string
+    referenceSlots: unknown
     persona: unknown
     isDeleted: boolean
   },
@@ -128,7 +128,14 @@ const BASE_UPDATE: UpdateAssistantPersonaRequest = {
 const DENIA_CARD = {
   id: 'card_denia',
   name: 'Denia',
-  sourceImageUrl: 'https://cdn.test/denia.png',
+  referenceSlots: [
+    {
+      id: 'slot-1',
+      role: 'identity',
+      url: 'https://cdn.test/denia.png',
+      isPrimary: true,
+    },
+  ],
   persona: { speech: '说话短，爱用反问。' },
   isDeleted: false,
 }
@@ -486,13 +493,13 @@ describe('用角色', () => {
     await expect(getAssistantPersona('clerk_1')).resolves.toMatchObject({
       name: 'Denia',
       avatarChoice: ASSISTANT_AVATAR_CHOICE_IDS.character,
-      avatarUrl: DENIA_CARD.sourceImageUrl,
+      avatarUrl: 'https://cdn.test/denia.png',
       uploadedAvatarUrl: 'https://cdn.test/me.png',
       characterCardId: DENIA_CARD.id,
       character: {
         id: DENIA_CARD.id,
         name: 'Denia',
-        faceUrl: DENIA_CARD.sourceImageUrl,
+        faceUrl: 'https://cdn.test/denia.png',
         hasSpeech: true,
       },
       nameFromCharacter: true,
@@ -793,7 +800,14 @@ describe('聊天模式按会话那张卡', () => {
   const CHAT_CARD = {
     id: '11111111-1111-4111-8111-111111111111',
     name: 'Rin',
-    sourceImageUrl: 'https://cdn.test/rin.png',
+    referenceSlots: [
+      {
+        id: 'slot-1',
+        role: 'identity',
+        url: 'https://cdn.test/rin.png',
+        isPrimary: true,
+      },
+    ],
     isDeleted: false,
     persona: {
       identity: '{{char}}，猫咖店员',

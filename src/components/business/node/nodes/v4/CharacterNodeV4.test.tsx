@@ -81,7 +81,6 @@ const DENIA = {
     { id: 's_main', url: 'https://cdn.test/main.png', isPrimary: true },
     { id: 's_back', url: 'https://cdn.test/back.png', isPrimary: false },
   ],
-  sourceImageUrl: null,
   description: '粉色长卷发、发梢浅蓝',
   variants: [],
   persona: {

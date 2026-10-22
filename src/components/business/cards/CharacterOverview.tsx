@@ -10,7 +10,7 @@ import type { CharacterCardRecord } from '@/types'
 import { Search } from '@/components/icons'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useTouchLongPress } from '@/hooks/use-touch-long-press'
-import { referenceUrlKey } from '@/lib/card-bus'
+import { characterCoverUrl, referenceUrlKey } from '@/lib/card-bus'
 import { characterImageCount, characterWork } from '@/lib/character-works'
 import { cn } from '@/lib/utils'
 
@@ -164,7 +164,7 @@ export function CharacterOverview({
               key={group.key}
               label={group.label}
               count={group.images}
-              cover={coverOf(group.entries[0]!.card)}
+              cover={characterCoverUrl(group.entries[0]!.card)}
               active={workKey === group.key}
               onClick={() => setWorkKey(group.key)}
             />
@@ -283,10 +283,6 @@ function byImages(a: Entry, b: Entry): number {
   return b.images - a.images
 }
 
-function coverOf(card: CharacterCardRecord): string | null {
-  return card.referenceSlots[0]?.url ?? card.sourceImageUrl ?? null
-}
-
 function Section({
   title,
   hint,
@@ -402,7 +398,7 @@ function CharacterTile({
 }) {
   const t = useTranslations('CharacterRoster')
   const { card, parentName } = entry
-  const cover = coverOf(card)
+  const cover = characterCoverUrl(card)
   const name = parentName
     ? t('variantOf', { parent: parentName, label: card.variantLabel ?? '' })
     : card.name
@@ -511,7 +507,7 @@ function WorkShelf({
     covers.push(url)
   }
   const top = group.entries.slice(0, 3)
-  for (const entry of top) push(coverOf(entry.card))
+  for (const entry of top) push(characterCoverUrl(entry.card))
   for (const entry of top) {
     for (const slot of entry.card.referenceSlots) push(slot.url)
   }

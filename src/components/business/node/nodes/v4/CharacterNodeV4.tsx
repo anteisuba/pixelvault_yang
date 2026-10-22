@@ -29,7 +29,6 @@ import {
   NODE_V4_IMAGE_SUBTYPE_IDS,
 } from '@/constants/node-types'
 import { NODE_V4_CARD, NODE_V4_CHARACTER_CARD } from '@/constants/node-studio'
-import type { CharacterCardRecord } from '@/types'
 import type { NodeV4ImageData } from '@/types/node-workflow'
 import { ArrowUpRight } from '@/components/icons'
 import { Button } from '@/components/ui/button'
@@ -37,6 +36,7 @@ import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import { useCharacterCardUsage } from '@/hooks/cards/use-character-card-usage'
 import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
 import { requestOperatorDraft } from '@/hooks/use-studio-operator-store'
+import { characterCoverUrl } from '@/lib/card-bus'
 import { cn } from '@/lib/utils'
 
 import { NodeCardShell } from './chrome'
@@ -52,16 +52,6 @@ interface CharacterTile {
   readonly height?: number
   readonly generationId?: string
   readonly primary: boolean
-}
-
-/** 她的主图：主图槽 → 第一张槽 → 建卡时的源图。 */
-function mainImageOf(card: CharacterCardRecord): string | undefined {
-  return (
-    card.referenceSlots.find((slot) => slot.isPrimary)?.url ??
-    card.referenceSlots[0]?.url ??
-    card.sourceImageUrl ??
-    undefined
-  )
 }
 
 /** 同一种「开 / 关」节拍：reduced motion 下全部直接到位。 */
@@ -180,7 +170,7 @@ export function CharacterNodeV4({ id, data, selected }: NodeProps) {
   const removeFromCanvas = () =>
     void canvas.onApplyOp({ op: NODE_ASSISTANT_OP_V4_IDS.delete, target: id })
 
-  const mainImage = card ? mainImageOf(card) : undefined
+  const mainImage = card ? (characterCoverUrl(card) ?? undefined) : undefined
   const tiles: CharacterTile[] = card
     ? [
         ...card.referenceSlots.map((slot) => ({

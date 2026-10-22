@@ -49,7 +49,14 @@ vi.mock('@/lib/api-client', () => api)
 const DENIA = {
   id: 'card_denia',
   name: 'Denia',
-  sourceImageUrl: 'https://cdn.test/denia.png',
+  referenceSlots: [
+    {
+      id: 'slot-1',
+      role: 'identity',
+      url: 'https://cdn.test/denia.png',
+      isPrimary: true,
+    },
+  ],
   persona: { speech: '' },
   variants: [],
 }
@@ -225,11 +232,11 @@ describe('AssistantSettings · 人设', () => {
       character: {
         id: DENIA.id,
         name: DENIA.name,
-        faceUrl: DENIA.sourceImageUrl,
+        faceUrl: 'https://cdn.test/denia.png',
         hasSpeech: false,
       },
       avatarChoice: 'character',
-      avatarUrl: DENIA.sourceImageUrl,
+      avatarUrl: 'https://cdn.test/denia.png',
       uploadedAvatarUrl: 'https://cdn.test/upload.png',
     })
     await screen.findByDisplayValue('达妮娅')

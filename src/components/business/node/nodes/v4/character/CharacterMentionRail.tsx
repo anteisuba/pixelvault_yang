@@ -16,10 +16,8 @@ import { useTranslations } from 'next-intl'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import type { CharacterImagePick } from '@/types'
 import { CharacterImagePickGrid } from '@/components/business/cards/CharacterImagePickGrid'
-import {
-  characterMainImage,
-  type NodeCharacterMention,
-} from '@/lib/node-character-mentions'
+import { characterCoverUrl } from '@/lib/card-bus'
+import type { NodeCharacterMention } from '@/lib/node-character-mentions'
 import { cn } from '@/lib/utils'
 
 import { ChipPopover } from '../chrome'
@@ -76,7 +74,7 @@ export function CharacterMentionRail({
       )}
     >
       {mentions.map(({ card, picks }) => {
-        const thumb = characterMainImage(card)
+        const thumb = characterCoverUrl(card)
         return (
           <div
             key={card.id}

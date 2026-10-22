@@ -18,8 +18,7 @@ const ROW = {
   version: 2,
   handle: 'Denia',
   name: 'Denia',
-  characterPrompt: 'pink hair',
-  description: null,
+  description: 'pink hair',
   extensions: null,
   referenceSlots: [
     {
@@ -41,11 +40,6 @@ const ROW = {
       isPrimary: false,
     },
   ],
-  sourceImageUrl: 'https://cdn.test/1.png',
-  sourceImages: [],
-  sourceImageEntries: null,
-  referenceImages: null,
-  referenceRoles: null,
 }
 
 beforeEach(() => {

@@ -40,6 +40,14 @@
 - **图**：搜索结果的头像只认 chub 图床（`*.charhub.io` / `*.chub.ai`），不认就按路径拼 `avatar.webp`（`<img>` 直接显示；CSP 没有 `img-src` / `connect-src`，不用另开）；导入时卡图 `max_res_url` 由服务端只从图床取（防 SSRF；avatars.charhub.io 从机房能取），≤ 8 MB、png / webp / jpeg，PNG 去掉文本块；取不到就建一张没图的卡，⛔ 不因此拒整张卡。
 - 失败带 `i18nKey`（`Errors.chubLibrary.*`：`unavailable` 没回 · `countryBlocked` chub 的 403 说这个国家不可用，照实说「这个网络不可用」· `notFound` · `tooLarge`）；第一页没拿到是整块出错（空态模板 `tone="error"`），往下接没拿到只在底部说「这批没拿到 · 重试」。
 
+## 外观收口（2026-10-22，角色②）
+
+现行口径，下面几节里与它冲突的旧说法以这里为准：
+
+- **外观只有一列 `description`**（上限 2000 字），编译器的视觉文字就是它。旧的「角色提示词」`characterPrompt` 已并进来（提示词在前、外观在后）；视觉「属性」（`attributes`，看图提取的 13 项）删除，建卡 ⛔ 不再看图、不联网取材。
+- **图只认 `referenceSlots`**：封面 = `isPrimary` 那一槽（没有取第一槽），统一用 `lib/card-bus.ts` 的 `characterCoverUrl`。旧图列与反向双写删除；建卡只收名字（外观 / 设定 / 标签可选），图在详情里加进参考槽。
+- `status` / `stabilityScore` / `modelPrompts` / `referenceRoles` / `allowedStyleRange` / `provenance` / `projectId` 与作品上的单角色列 `Generation.characterCardId` 停读停写，下一次部署删列（见 `database.md`）。
+
 ## 角色卡字段 v2（2026-09-17）
 
 目的：把角色卡从「一堆图 + 一段视觉描述」补齐成**命名实体**——图片、视频、语音、画布四条链都能引用同一张卡。方向依据见 `docs/design/roadmap-canvas/research/cards.md`（Kling 元素库 / Vidu `subjects[].voice_id` / Runway `{uri, tag}` / Gemini 分槽配额 / SillyTavern V2 / weavai）。
@@ -145,7 +153,7 @@
 
 **施工第 3 片（卡片页 K3 骨架）**：`/cards` 只剩角色——`CharacterRoster`（网格 + 侧栏）+ `CharacterCardPanel`（头部 · 外观 / 设定 / 用在哪三行；A2 起由整页 `CharacterDetail` 取代）；画风卡、背景卡两个页签下线。侧栏从点中的卡长出来，走共享 hook `hooks/use-liquid-reveal.ts`（与画布左侧栏同一套相位机与 `LIQUID_SPRING` / `LIQUID_TIMING`）；形状起步带那张卡的图、线性退白；网格让位走 motion `layout`，选中框 `layoutId` 跟着卡；收起时网格等侧栏收完才回位；手机走底部抽屉。读方切换（⑧ 的一半）：`CharacterCardRecord` 新增 `handle` · `referenceSlots`（新列坏 / 空就从旧四列现算）· `persona` · `cardTags`。「＋ 新角色」09-28 起 = 直接进一张空的详情页（草稿），光标在名字格；名字写好离开才建卡（只有名字：⛔ 不上传、不提取属性、不联网搜，handle 从真名派生），空着返回什么都不建。旧的新建表单随工作台卡片模式 2026-10-22 删除。没图的角色读出来 `sourceImageUrl = null`。
 
-**施工第 4 片（侧栏里编辑 + 试读）**：「编辑」就在侧栏里换成编辑态（`use-character-card-editor.ts`）：名字、图、一句外观、角色 / 外观标签、LoRA 触发词、身份 / 性格 / 说话方式 / 经历；保存时整份人设合并回去，没改的格不丢。图的基础编辑提前到这一片：设为主图（强制 identity 并排到第一）、移除（主图让给下一张 identity，至少留一张）、每张都能「换一张」（同一格换图，用途与主图不变）；`PATCH` 带 `referenceSlots` 时服务端同时写旧四列（`legacyColumnsFromReferenceSlots`）。设定行的「试读」按设定写两句台词，「不像」直接进编辑。精修（`/refine`）与 AI 渲染卡牌（Cardify）下线，代码删除。
+**施工第 4 片（侧栏里编辑 + 试读）**：「编辑」就在侧栏里换成编辑态（`use-character-card-editor.ts`）：名字、图、一句外观、角色 / 外观标签、LoRA 触发词、身份 / 性格 / 说话方式 / 经历；保存时整份人设合并回去，没改的格不丢。图的基础编辑提前到这一片：设为主图（强制 identity 并排到第一）、移除（主图让给下一张 identity，至少留一张）、每张都能「换一张」（同一格换图，用途与主图不变）；`PATCH` 带 `referenceSlots` 时只写参考槽（10-22 起旧四列停写）。设定行的「试读」按设定写两句台词，「不像」直接进编辑。精修（`/refine`）与 AI 渲染卡牌（Cardify）下线，代码删除。
 
 **施工第 6 片（从素材库挑图）**：「添加图片」「换一张」都打开共享的 `AssetSelectorDialog`（锁图片；加 = 多选、容量传剩余格数，换 = 单选）；可跨文件夹挑，新图在选择器首格上传、先进素材库。卡片侧 ⛔ 不另开上传。已在卡上的图不重复挂（url 不重复是槽的不变量）；来源按生成的 provider 记 `upload` / `generation`。侧栏的 Esc 让叠在上面的弹层先吃（`defaultPrevented` 就不收侧栏）。
 

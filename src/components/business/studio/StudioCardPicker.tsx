@@ -17,6 +17,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { CharacterImagePickGrid } from '@/components/business/cards/CharacterImagePickGrid'
 import { useStudioData } from '@/contexts/studio-context'
 import { Link } from '@/i18n/navigation'
+import { characterCoverUrl } from '@/lib/card-bus'
 import { characterWork } from '@/lib/character-works'
 import { filterByQuery } from '@/lib/search-utils'
 import { buildStudioCardUsageMap } from '@/lib/studio-history'
@@ -175,9 +176,7 @@ export function StudioCardPicker() {
               const picks = characters.imagePicks[card.id] ?? []
               const expanded = expandedId === card.id
               const work = characterWork(card, locale).label
-              const thumb =
-                card.referenceSlots.find((slot) => slot.isPrimary)?.url ??
-                card.sourceImageUrl
+              const thumb = characterCoverUrl(card)
               return (
                 <li
                   key={card.id}

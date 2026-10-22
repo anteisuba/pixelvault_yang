@@ -23,7 +23,6 @@ const card = (
     id,
     name: id,
     description: null,
-    sourceImageUrl: `https://cdn.test/${id}.png`,
     referenceSlots: [
       {
         id: 's1',

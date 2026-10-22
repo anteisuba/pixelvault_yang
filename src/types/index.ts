@@ -3092,58 +3092,6 @@ export interface ProjectHistoryResponse {
 
 // ─── Character Card ─────────────────────────────────────────────
 
-/** Character card status enum */
-export const CharacterCardStatusSchema = z.enum(CHARACTER_CARD.STATUSES)
-export type CharacterCardStatusType = z.infer<typeof CharacterCardStatusSchema>
-
-/** Structured source image entry with view type (for multi-angle references) */
-export const SourceImageEntrySchema = z.object({
-  url: z.string().min(1),
-  viewType: z.enum(CHARACTER_CARD.VIEW_TYPES).default('other'),
-  label: z.string().max(60).optional(),
-})
-export type SourceImageEntry = z.infer<typeof SourceImageEntrySchema>
-
-/** Structured character attributes extracted by LLM */
-export const CharacterAttributesSchema = z.object({
-  hairColor: z.string().max(50).optional(),
-  hairStyle: z.string().max(100).optional(),
-  eyeColor: z.string().max(50).optional(),
-  skinTone: z.string().max(50).optional(),
-  bodyType: z.string().max(100).optional(),
-  outfit: z.string().max(300).optional(),
-  accessories: z.string().max(300).optional(),
-  pose: z.string().max(200).optional(),
-  expression: z.string().max(100).optional(),
-  artStyle: z.string().max(200).optional(),
-  colorPalette: z.string().max(200).optional(),
-  distinguishingFeatures: z.string().max(500).optional(),
-  freeformDescription: z.string().max(2000).optional(),
-})
-
-export type CharacterAttributes = z.infer<typeof CharacterAttributesSchema>
-
-const sourceImageDataValidator = z
-  .string()
-  .min(1)
-  .refine(
-    (data) =>
-      data.startsWith('data:image/png') ||
-      data.startsWith('data:image/jpeg') ||
-      data.startsWith('data:image/webp') ||
-      data.startsWith('data:image/gif') ||
-      data.startsWith('https://'),
-    'Each image must be a valid image data URL or HTTPS URL',
-  )
-
-/** Source image upload with optional view type metadata */
-export const SourceImageUploadSchema = z.object({
-  data: sourceImageDataValidator,
-  viewType: z.enum(CHARACTER_CARD.VIEW_TYPES).default('other'),
-  label: z.string().max(60).optional(),
-})
-export type SourceImageUpload = z.infer<typeof SourceImageUploadSchema>
-
 /**
  * ── 角色卡字段 v2（2026-09-17）────────────────────────────────
  *
@@ -3241,45 +3189,6 @@ export const CardTagsSchema = z.object({
     .default(''),
 })
 export type CardTags = z.infer<typeof CardTagsSchema>
-
-/**
- * 参考图的用途槽位：`Record<图片 URL, role>`，role 的值域**直接复用**画布的
- * `NODE_STUDIO_REFERENCE_ROLES`（11 类）——⛔ 不在卡片层另造一套同义词表。
- *
- * ⚠ 这是旁挂表，不是长期形状：v3 会把它与 `referenceImages` 合并成
- * `referenceSlots: { role, url, cardId, cardName }[]`，别在它上面再叠语义。
- */
-export const CharacterReferenceRolesSchema = z.record(
-  z.string().trim().min(1).max(4000),
-  z.enum(NODE_STUDIO_REFERENCE_ROLES),
-)
-export type CharacterReferenceRoles = z.infer<
-  typeof CharacterReferenceRolesSchema
->
-
-/** 这张卡允许搭配的画风范围。两个数组都为空 = 不限制。 */
-export const CharacterAllowedStyleRangeSchema = z.object({
-  allowStyleCardIds: z
-    .array(z.string().trim().min(1).max(64))
-    .max(50)
-    .default([]),
-  denyTags: z.array(z.string().trim().max(60)).max(50).default([]),
-})
-export type CharacterAllowedStyleRange = z.infer<
-  typeof CharacterAllowedStyleRangeSchema
->
-
-/** 这张卡的素材血缘：来自哪几次生成 / 哪个 LoRA 训练 job / 从哪张卡的哪一版派生。 */
-export const CharacterProvenanceSchema = z.object({
-  sourceGenerationIds: z
-    .array(z.string().trim().min(1).max(64))
-    .max(100)
-    .default([]),
-  loraJobId: z.string().trim().min(1).max(64).optional(),
-  derivedFromCardId: z.string().trim().min(1).max(64).optional(),
-  derivedFromCardVersion: z.number().int().min(1).optional(),
-})
-export type CharacterProvenance = z.infer<typeof CharacterProvenanceSchema>
 
 /**
  * ── 卡片总线 v3（进度表 35）────────────────────────────────────
@@ -3400,10 +3309,6 @@ export const CreateCharacterCardSchema = z.object({
     .trim()
     .min(1, 'Name is required')
     .max(CHARACTER_CARD.NAME_MAX_LENGTH),
-  /** 可以不给图：角色页「新角色」先只建名字，图在详情里从素材库加。 */
-  sourceImages: z
-    .array(z.union([sourceImageDataValidator, SourceImageUploadSchema]))
-    .max(CHARACTER_CARD.MAX_SOURCE_IMAGES),
   description: z
     .string()
     .trim()
@@ -3425,10 +3330,7 @@ export const CreateCharacterCardSchema = z.object({
   voiceCardId: z.string().trim().min(1).max(64).nullable().optional(),
   voiceProfile: CharacterVoiceProfileSchema.nullable().optional(),
   persona: CharacterPersonaSchema.nullable().optional(),
-  referenceRoles: CharacterReferenceRolesSchema.nullable().optional(),
-  allowedStyleRange: CharacterAllowedStyleRangeSchema.nullable().optional(),
-  provenance: CharacterProvenanceSchema.nullable().optional(),
-  /** ── 卡片总线 v3（双写期，读方未切）── */
+  /** ── 卡片总线 v3 ── */
   summary: z
     .string()
     .trim()
@@ -3456,25 +3358,13 @@ export const UpdateCharacterCardSchema = z.object({
     .array(z.string().trim().max(CHARACTER_CARD.TAG_MAX_LENGTH))
     .max(CHARACTER_CARD.MAX_TAGS)
     .optional(),
-  status: CharacterCardStatusSchema.optional(),
-  characterPrompt: z
-    .string()
-    .trim()
-    .max(PROMPT_TEXT_GUARD_MAX_CHARS)
-    .optional(),
-  attributes: CharacterAttributesSchema.optional(),
   variantLabel: z
     .string()
     .trim()
     .max(CHARACTER_CARD.VARIANT_LABEL_MAX_LENGTH)
     .nullable()
     .optional(),
-  /** Replace source images with structured entries */
-  sourceImageEntries: z.array(SourceImageEntrySchema).optional(),
-  /**
-   * 直接改参考槽（卡片页编辑，09-26）：删一张、换主图、加一张。服务端按不变量校验，
-   * 并同步写回旧图片列（主图 · 上传列表 · 精修列表 · 用途表），读旧列的地方不漂。
-   */
+  /** 改参考槽：删一张、换主图、加一张。服务端按不变量校验。 */
   referenceSlots: CharacterReferenceSlotsSchema.optional(),
   /** Character-specific LoRA models */
   loras: z.array(LoraSchema).max(5).nullable().optional(),
@@ -3482,10 +3372,7 @@ export const UpdateCharacterCardSchema = z.object({
   voiceCardId: z.string().trim().min(1).max(64).nullable().optional(),
   voiceProfile: CharacterVoiceProfileSchema.nullable().optional(),
   persona: CharacterPersonaSchema.nullable().optional(),
-  referenceRoles: CharacterReferenceRolesSchema.nullable().optional(),
-  allowedStyleRange: CharacterAllowedStyleRangeSchema.nullable().optional(),
-  provenance: CharacterProvenanceSchema.nullable().optional(),
-  /** ── 卡片总线 v3（双写期，读方未切）── */
+  /** ── 卡片总线 v3 ── */
   summary: z
     .string()
     .trim()
@@ -3505,19 +3392,8 @@ export interface CharacterCardRecord {
   id: string
   name: string
   description: string | null
-  /** 主图（旧列）。`null` = 这位还没有图（新建的空角色 / 图全移除了）。 */
-  sourceImageUrl: string | null
-  sourceImages: string[]
-  /** Structured source images with view types (for multi-angle references) */
-  sourceImageEntries: SourceImageEntry[]
-  characterPrompt: string
-  modelPrompts: Record<string, string> | null
-  referenceImages: string[] | null
-  attributes: CharacterAttributes | null
   loras: z.infer<typeof LoraSchema>[] | null
   tags: string[]
-  status: CharacterCardStatusType
-  stabilityScore: number | null
   /** Parent card ID (null for root cards) */
   parentId: string | null
   /** Variant label (e.g. "Anime Style", "3D Model") */
@@ -3526,7 +3402,7 @@ export interface CharacterCardRecord {
   variants: CharacterCardRecord[]
   /** `@名字`（卡片总线 v3）；回填前的旧卡可能为空。 */
   handle: string | null
-  /** 参考槽：主图在前；新列空着时由旧图列表现算（卡片总线第 ⑧ 片读方切换）。 */
+  /** 参考槽：卡上全部的图，`isPrimary` 那一张是封面。 */
   referenceSlots: CharacterReferenceSlot[]
   /** 设定：身份 · 性格 · 说话方式 · 经历……（卡片重设计 09-26）。 */
   persona: CharacterPersona | null

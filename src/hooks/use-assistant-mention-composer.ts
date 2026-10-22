@@ -46,6 +46,7 @@ import {
 } from '@/hooks/use-studio-operator-store'
 import { toOperatorAttachment } from '@/hooks/use-studio-operator-upload'
 import { parseDroppedAssetIds } from '@/lib/asset-dnd'
+import { characterCoverUrl } from '@/lib/card-bus'
 import { fetchGenerationByIdAPI } from '@/lib/api-client/gallery'
 import {
   lookupAssistantMentionAssetsAPI,
@@ -422,7 +423,7 @@ export function useAssistantMentionComposer({
       },
     )
     const characters = characterCards.map((card): AssistantMentionCandidate => {
-      const thumb = card.sourceImageUrl ?? card.referenceSlots[0]?.url
+      const thumb = characterCoverUrl(card)
       return {
         kind: ASSISTANT_MENTION_KIND_IDS.character,
         id: card.id,

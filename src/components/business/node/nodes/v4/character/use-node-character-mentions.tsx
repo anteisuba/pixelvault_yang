@@ -17,10 +17,8 @@ import type {
   MentionToken,
 } from '@/components/ui/mention-input'
 import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
-import {
-  characterMainImage,
-  mentionedCharacters,
-} from '@/lib/node-character-mentions'
+import { characterCoverUrl } from '@/lib/card-bus'
+import { mentionedCharacters } from '@/lib/node-character-mentions'
 
 import type { MentionPickerOption } from '../chrome'
 
@@ -35,7 +33,7 @@ export function useNodeCharacterMentions({
   const library = useCharacterLibrary()
   const mentions = mentionedCharacters(prompt, library.cards, characterPicks)
   const options: MentionPickerOption[] = library.cards.map((card) => {
-    const thumbnailUrl = characterMainImage(card)
+    const thumbnailUrl = characterCoverUrl(card)
     return {
       id: `character:${card.id}`,
       name: card.name,
@@ -47,7 +45,7 @@ export function useNodeCharacterMentions({
   })
   // 画中框（`MentionInput`）那一套：胶囊 + 候选。
   const tokens: MentionToken[] = library.cards.map((card) => {
-    const thumbnailUrl = characterMainImage(card)
+    const thumbnailUrl = characterCoverUrl(card)
     return {
       name: card.name,
       kind: 'character',

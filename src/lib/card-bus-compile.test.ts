@@ -52,14 +52,13 @@ const MULTI: ImageOutletOptions = {
 }
 
 describe('toCardBusCharacter', () => {
-  it('主图排最前、身份槽次之，视觉文字合并描述，读出角色负面', () => {
+  it('主图排最前、身份槽次之，视觉文字取外观，读出角色负面', () => {
     const result = toCardBusCharacter({
       id: 'c',
       version: 2,
       handle: '林夏',
       name: '林夏',
-      characterPrompt: 'red eyes',
-      description: 'black hoodie',
+      description: 'red eyes\nblack hoodie',
       extensions: {
         'pv.negative': 'glasses',
         'pv.tags': { character: ['lin_xia'], loraTrigger: 'lx' },
@@ -91,7 +90,6 @@ describe('toCardBusCharacter', () => {
       version: 1,
       handle: 'a',
       name: 'a',
-      characterPrompt: null,
       description: null,
       extensions: null,
       slots: [
@@ -105,7 +103,7 @@ describe('toCardBusCharacter', () => {
     expect(result.slots.map((item) => item.id)).toEqual(['main'])
   })
 
-  it('描述与提示词相同时只写一遍；都空时是 null', () => {
+  it('外观去首尾空白；空白时是 null', () => {
     const base = {
       id: 'c',
       version: 1,
@@ -114,14 +112,8 @@ describe('toCardBusCharacter', () => {
       extensions: null,
       slots: [],
     }
-    expect(
-      toCardBusCharacter({ ...base, characterPrompt: 'x', description: 'x' })
-        .visual,
-    ).toBe('x')
-    expect(
-      toCardBusCharacter({ ...base, characterPrompt: ' ', description: null })
-        .visual,
-    ).toBeNull()
+    expect(toCardBusCharacter({ ...base, description: ' x ' }).visual).toBe('x')
+    expect(toCardBusCharacter({ ...base, description: ' ' }).visual).toBeNull()
   })
 })
 

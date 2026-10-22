@@ -17,7 +17,6 @@ function card(
     id,
     name,
     referenceSlots: slots.map((slot) => ({ isPrimary: false, ...slot })),
-    sourceImageUrl: null,
     variants: [],
   } as unknown as CharacterCardRecord
 }

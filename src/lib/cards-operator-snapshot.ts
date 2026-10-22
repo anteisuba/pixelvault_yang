@@ -8,6 +8,7 @@ import type {
   AssistantOperatorCardsSnapshot,
   AssistantOperatorSnapshot,
 } from '@/types/assistant-operator'
+import { characterCoverUrl } from '@/lib/card-bus'
 import { characterImageCount, characterWork } from '@/lib/character-works'
 
 /**
@@ -45,15 +46,6 @@ function summarize(card: CharacterCardRecord, locale: string) {
   }
 }
 
-function primaryImage(card: CharacterCardRecord): string | null {
-  return (
-    card.referenceSlots.find((slot) => slot.isPrimary)?.url ??
-    card.referenceSlots[0]?.url ??
-    card.sourceImageUrl ??
-    null
-  )
-}
-
 export function buildCardsOperatorSnapshot(
   cards: readonly CharacterCardRecord[],
   openId: string | null,
@@ -65,7 +57,7 @@ export function buildCardsOperatorSnapshot(
   const openCard = openId
     ? (cards.find((card) => card.id === openId) ?? null)
     : null
-  const openImage = openCard ? primaryImage(openCard) : null
+  const openImage = openCard ? characterCoverUrl(openCard) : null
 
   const snapshot: AssistantOperatorCardsSnapshot = {
     total: cards.length,

@@ -1,14 +1,12 @@
 -- 数据库收尾（2026-10-22 owner 定 4 项）。删前备份：角色卡整表 R2 backups/character-cards-2026-10-23-290fd4698f48e24441df4e53610b4755.json；3D 任务与 LoRA 底模 R2 backups/2026-10-22-db-cleanup-5dab655032821164fcfb1dd996762304.json。
 
--- ① 角色卡旧列（角色④ 已搬到 CharacterLook、停读停写）+ ② 作品上没人写的 loraLineage。
+-- ① 角色卡旧列（角色④ 已搬到 CharacterLook、停读停写，线上那版已不查它们）。
+-- ② Generation.loraLineage 这次只从默认查询拿掉：线上那版还会查它，下一次部署才删列。
 -- DropForeignKey
 ALTER TABLE "CharacterCard" DROP CONSTRAINT "CharacterCard_parentId_fkey";
 
 -- DropIndex
 DROP INDEX "CharacterCard_parentId_isDeleted_updatedAt_idx";
-
--- AlterTable
-ALTER TABLE "Generation" DROP COLUMN "loraLineage";
 
 -- AlterTable
 ALTER TABLE "CharacterCard" DROP COLUMN "description",

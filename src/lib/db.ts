@@ -13,8 +13,17 @@ function createPrismaClient() {
     connectionTimeoutMillis: DATABASE_POOL.CONNECTION_TIMEOUT_MS,
     idleTimeoutMillis: DATABASE_POOL.IDLE_TIMEOUT_MS,
   })
-  return new PrismaClient({ adapter })
+  return new PrismaClient({ adapter, omit: RETIRED_COLUMNS })
 }
+
+/**
+ * 已停读停写、下一次部署删掉的列：先从默认查询里拿掉，删列那次迁移跑起来时
+ * 还在线的这一版就不会去查一个已经没有的列。删列后连同这里一起删。
+ */
+const RETIRED_COLUMNS = {
+  // 0 行有值、没有读方（数据库收尾）。
+  generation: { loraLineage: true },
+} as const
 
 const globalForPrisma = globalThis as typeof globalThis & {
   prisma?: ReturnType<typeof createPrismaClient>

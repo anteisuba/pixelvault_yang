@@ -445,7 +445,9 @@ model Generation {
 
   // ── 来源血缘 ──────────────────────────────────────────────────
   // sourceSurface 是顶层可查询列（默认 IMAGE_STUDIO；存量不回填）。
+  // loraLineage 停用（0 行有值、无读方）：从默认查询拿掉（lib/db.ts），下一次部署删列。
   sourceSurface GenerationSourceSurface @default(IMAGE_STUDIO)
+  loraLineage   Json?
 
   // ── 产物序号 ──────────────────────────────────────────────────
   // 用户内递增的真计数器（切片 N1 改序号语义）：`图_012` 就是这个用户的第 12 件。

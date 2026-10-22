@@ -156,6 +156,7 @@ export type GenerationCountAggregateOutputType = {
   projectId: number
   recipeSnapshot: number
   sourceSurface: number
+  loraLineage: number
   seq: number
   snapshot: number
   evaluation: number
@@ -298,6 +299,7 @@ export type GenerationCountAggregateInputType = {
   projectId?: true
   recipeSnapshot?: true
   sourceSurface?: true
+  loraLineage?: true
   seq?: true
   snapshot?: true
   evaluation?: true
@@ -427,6 +429,7 @@ export type GenerationGroupByOutputType = {
   projectId: string | null
   recipeSnapshot: runtime.JsonValue | null
   sourceSurface: $Enums.GenerationSourceSurface
+  loraLineage: runtime.JsonValue | null
   seq: number | null
   snapshot: runtime.JsonValue | null
   evaluation: runtime.JsonValue | null
@@ -492,6 +495,7 @@ export type GenerationWhereInput = {
   projectId?: Prisma.StringNullableFilter<"Generation"> | string | null
   recipeSnapshot?: Prisma.JsonNullableFilter<"Generation">
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFilter<"Generation"> | $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.JsonNullableFilter<"Generation">
   seq?: Prisma.IntNullableFilter<"Generation"> | number | null
   snapshot?: Prisma.JsonNullableFilter<"Generation">
   evaluation?: Prisma.JsonNullableFilter<"Generation">
@@ -543,6 +547,7 @@ export type GenerationOrderByWithRelationInput = {
   projectId?: Prisma.SortOrderInput | Prisma.SortOrder
   recipeSnapshot?: Prisma.SortOrderInput | Prisma.SortOrder
   sourceSurface?: Prisma.SortOrder
+  loraLineage?: Prisma.SortOrderInput | Prisma.SortOrder
   seq?: Prisma.SortOrderInput | Prisma.SortOrder
   snapshot?: Prisma.SortOrderInput | Prisma.SortOrder
   evaluation?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -597,6 +602,7 @@ export type GenerationWhereUniqueInput = Prisma.AtLeast<{
   projectId?: Prisma.StringNullableFilter<"Generation"> | string | null
   recipeSnapshot?: Prisma.JsonNullableFilter<"Generation">
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFilter<"Generation"> | $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.JsonNullableFilter<"Generation">
   seq?: Prisma.IntNullableFilter<"Generation"> | number | null
   snapshot?: Prisma.JsonNullableFilter<"Generation">
   evaluation?: Prisma.JsonNullableFilter<"Generation">
@@ -648,6 +654,7 @@ export type GenerationOrderByWithAggregationInput = {
   projectId?: Prisma.SortOrderInput | Prisma.SortOrder
   recipeSnapshot?: Prisma.SortOrderInput | Prisma.SortOrder
   sourceSurface?: Prisma.SortOrder
+  loraLineage?: Prisma.SortOrderInput | Prisma.SortOrder
   seq?: Prisma.SortOrderInput | Prisma.SortOrder
   snapshot?: Prisma.SortOrderInput | Prisma.SortOrder
   evaluation?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -698,6 +705,7 @@ export type GenerationScalarWhereWithAggregatesInput = {
   projectId?: Prisma.StringNullableWithAggregatesFilter<"Generation"> | string | null
   recipeSnapshot?: Prisma.JsonNullableWithAggregatesFilter<"Generation">
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceWithAggregatesFilter<"Generation"> | $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.JsonNullableWithAggregatesFilter<"Generation">
   seq?: Prisma.IntNullableWithAggregatesFilter<"Generation"> | number | null
   snapshot?: Prisma.JsonNullableWithAggregatesFilter<"Generation">
   evaluation?: Prisma.JsonNullableWithAggregatesFilter<"Generation">
@@ -738,6 +746,7 @@ export type GenerationCreateInput = {
   searchGrounded?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -789,6 +798,7 @@ export type GenerationUncheckedCreateInput = {
   projectId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -836,6 +846,7 @@ export type GenerationUpdateInput = {
   searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -887,6 +898,7 @@ export type GenerationUncheckedUpdateInput = {
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -936,6 +948,7 @@ export type GenerationCreateManyInput = {
   projectId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -976,6 +989,7 @@ export type GenerationUpdateManyMutationInput = {
   searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1018,6 +1032,7 @@ export type GenerationUncheckedUpdateManyInput = {
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1075,6 +1090,7 @@ export type GenerationCountOrderByAggregateInput = {
   projectId?: Prisma.SortOrder
   recipeSnapshot?: Prisma.SortOrder
   sourceSurface?: Prisma.SortOrder
+  loraLineage?: Prisma.SortOrder
   seq?: Prisma.SortOrder
   snapshot?: Prisma.SortOrder
   evaluation?: Prisma.SortOrder
@@ -1434,6 +1450,7 @@ export type GenerationCreateWithoutUserInput = {
   searchGrounded?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1483,6 +1500,7 @@ export type GenerationUncheckedCreateWithoutUserInput = {
   projectId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1561,6 +1579,7 @@ export type GenerationScalarWhereInput = {
   projectId?: Prisma.StringNullableFilter<"Generation"> | string | null
   recipeSnapshot?: Prisma.JsonNullableFilter<"Generation">
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFilter<"Generation"> | $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.JsonNullableFilter<"Generation">
   seq?: Prisma.IntNullableFilter<"Generation"> | number | null
   snapshot?: Prisma.JsonNullableFilter<"Generation">
   evaluation?: Prisma.JsonNullableFilter<"Generation">
@@ -1601,6 +1620,7 @@ export type GenerationCreateWithoutProjectInput = {
   searchGrounded?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1650,6 +1670,7 @@ export type GenerationUncheckedCreateWithoutProjectInput = {
   userId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1723,6 +1744,7 @@ export type GenerationCreateWithoutFoldersInput = {
   searchGrounded?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1773,6 +1795,7 @@ export type GenerationUncheckedCreateWithoutFoldersInput = {
   projectId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1835,6 +1858,7 @@ export type GenerationUpdateWithoutFoldersInput = {
   searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1885,6 +1909,7 @@ export type GenerationUncheckedUpdateWithoutFoldersInput = {
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1931,6 +1956,7 @@ export type GenerationCreateWithoutGenerationJobInput = {
   searchGrounded?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1981,6 +2007,7 @@ export type GenerationUncheckedCreateWithoutGenerationJobInput = {
   projectId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2043,6 +2070,7 @@ export type GenerationUpdateWithoutGenerationJobInput = {
   searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2093,6 +2121,7 @@ export type GenerationUncheckedUpdateWithoutGenerationJobInput = {
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2139,6 +2168,7 @@ export type GenerationCreateWithoutApiUsageLedgerInput = {
   searchGrounded?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2189,6 +2219,7 @@ export type GenerationUncheckedCreateWithoutApiUsageLedgerInput = {
   projectId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2251,6 +2282,7 @@ export type GenerationUpdateWithoutApiUsageLedgerInput = {
   searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2301,6 +2333,7 @@ export type GenerationUncheckedUpdateWithoutApiUsageLedgerInput = {
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2347,6 +2380,7 @@ export type GenerationCreateWithoutCharacterCardsInput = {
   searchGrounded?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2397,6 +2431,7 @@ export type GenerationUncheckedCreateWithoutCharacterCardsInput = {
   projectId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2459,6 +2494,7 @@ export type GenerationUpdateWithoutCharacterCardsInput = {
   searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2509,6 +2545,7 @@ export type GenerationUncheckedUpdateWithoutCharacterCardsInput = {
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2555,6 +2592,7 @@ export type GenerationCreateWithoutLikesInput = {
   searchGrounded?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2605,6 +2643,7 @@ export type GenerationUncheckedCreateWithoutLikesInput = {
   projectId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2667,6 +2706,7 @@ export type GenerationUpdateWithoutLikesInput = {
   searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2717,6 +2757,7 @@ export type GenerationUncheckedUpdateWithoutLikesInput = {
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2763,6 +2804,7 @@ export type GenerationCreateWithoutExtractedElementsInput = {
   searchGrounded?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2813,6 +2855,7 @@ export type GenerationUncheckedCreateWithoutExtractedElementsInput = {
   projectId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2875,6 +2918,7 @@ export type GenerationUpdateWithoutExtractedElementsInput = {
   searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2925,6 +2969,7 @@ export type GenerationUncheckedUpdateWithoutExtractedElementsInput = {
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2971,6 +3016,7 @@ export type GenerationCreateWithoutLayersInput = {
   searchGrounded?: boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -3021,6 +3067,7 @@ export type GenerationUncheckedCreateWithoutLayersInput = {
   projectId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -3083,6 +3130,7 @@ export type GenerationUpdateWithoutLayersInput = {
   searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -3133,6 +3181,7 @@ export type GenerationUncheckedUpdateWithoutLayersInput = {
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -3180,6 +3229,7 @@ export type GenerationCreateManyUserInput = {
   projectId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -3220,6 +3270,7 @@ export type GenerationUpdateWithoutUserInput = {
   searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -3269,6 +3320,7 @@ export type GenerationUncheckedUpdateWithoutUserInput = {
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -3317,6 +3369,7 @@ export type GenerationUncheckedUpdateManyWithoutUserInput = {
   projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -3358,6 +3411,7 @@ export type GenerationCreateManyProjectInput = {
   userId?: string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -3398,6 +3452,7 @@ export type GenerationUpdateWithoutProjectInput = {
   searchGrounded?: Prisma.BoolFieldUpdateOperationsInput | boolean
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -3447,6 +3502,7 @@ export type GenerationUncheckedUpdateWithoutProjectInput = {
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -3495,6 +3551,7 @@ export type GenerationUncheckedUpdateManyWithoutProjectInput = {
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -3613,6 +3670,7 @@ export type GenerationSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   projectId?: boolean
   recipeSnapshot?: boolean
   sourceSurface?: boolean
+  loraLineage?: boolean
   seq?: boolean
   snapshot?: boolean
   evaluation?: boolean
@@ -3665,6 +3723,7 @@ export type GenerationSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   projectId?: boolean
   recipeSnapshot?: boolean
   sourceSurface?: boolean
+  loraLineage?: boolean
   seq?: boolean
   snapshot?: boolean
   evaluation?: boolean
@@ -3709,6 +3768,7 @@ export type GenerationSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   projectId?: boolean
   recipeSnapshot?: boolean
   sourceSurface?: boolean
+  loraLineage?: boolean
   seq?: boolean
   snapshot?: boolean
   evaluation?: boolean
@@ -3753,6 +3813,7 @@ export type GenerationSelectScalar = {
   projectId?: boolean
   recipeSnapshot?: boolean
   sourceSurface?: boolean
+  loraLineage?: boolean
   seq?: boolean
   snapshot?: boolean
   evaluation?: boolean
@@ -3763,7 +3824,7 @@ export type GenerationSelectScalar = {
   seed?: boolean
 }
 
-export type GenerationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "createdAt" | "outputType" | "status" | "url" | "storageKey" | "mimeType" | "thumbnailUrl" | "thumbnailStorageKey" | "previewUrl" | "previewStorageKey" | "width" | "height" | "duration" | "modelUrl" | "modelStorageKey" | "referenceImageUrl" | "prompt" | "negativePrompt" | "model" | "provider" | "requestCount" | "isFreeGeneration" | "isPublic" | "isPromptPublic" | "isFeatured" | "searchGrounded" | "userId" | "projectId" | "recipeSnapshot" | "sourceSurface" | "seq" | "snapshot" | "evaluation" | "runGroupId" | "runGroupType" | "runGroupIndex" | "isWinner" | "seed", ExtArgs["result"]["generation"]>
+export type GenerationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "createdAt" | "outputType" | "status" | "url" | "storageKey" | "mimeType" | "thumbnailUrl" | "thumbnailStorageKey" | "previewUrl" | "previewStorageKey" | "width" | "height" | "duration" | "modelUrl" | "modelStorageKey" | "referenceImageUrl" | "prompt" | "negativePrompt" | "model" | "provider" | "requestCount" | "isFreeGeneration" | "isPublic" | "isPromptPublic" | "isFeatured" | "searchGrounded" | "userId" | "projectId" | "recipeSnapshot" | "sourceSurface" | "loraLineage" | "seq" | "snapshot" | "evaluation" | "runGroupId" | "runGroupType" | "runGroupIndex" | "isWinner" | "seed", ExtArgs["result"]["generation"]>
 export type GenerationInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.Generation$userArgs<ExtArgs>
   project?: boolean | Prisma.Generation$projectArgs<ExtArgs>
@@ -3830,6 +3891,7 @@ export type $GenerationPayload<ExtArgs extends runtime.Types.Extensions.Internal
     projectId: string | null
     recipeSnapshot: runtime.JsonValue | null
     sourceSurface: $Enums.GenerationSourceSurface
+    loraLineage: runtime.JsonValue | null
     seq: number | null
     snapshot: runtime.JsonValue | null
     evaluation: runtime.JsonValue | null
@@ -4301,6 +4363,7 @@ export interface GenerationFieldRefs {
   readonly projectId: Prisma.FieldRef<"Generation", 'String'>
   readonly recipeSnapshot: Prisma.FieldRef<"Generation", 'Json'>
   readonly sourceSurface: Prisma.FieldRef<"Generation", 'GenerationSourceSurface'>
+  readonly loraLineage: Prisma.FieldRef<"Generation", 'Json'>
   readonly seq: Prisma.FieldRef<"Generation", 'Int'>
   readonly snapshot: Prisma.FieldRef<"Generation", 'Json'>
   readonly evaluation: Prisma.FieldRef<"Generation", 'Json'>

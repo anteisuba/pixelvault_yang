@@ -16,7 +16,6 @@ import {
   mapCharacterCardRow,
   mergeCardExtensions,
   serializeCharacterCardV2Fields,
-  serializeCharacterLoras,
   serializeReferenceSlots,
 } from '@/services/cards/character-card.mapper'
 import { generateStorageKey, uploadToR2 } from '@/services/storage/r2'
@@ -236,8 +235,6 @@ export async function updateCharacterCard(
   if (data.tags !== undefined) updateData.tags = data.tags
   if (data.variantLabel !== undefined)
     updateData.variantLabel = data.variantLabel
-  if (data.loras !== undefined)
-    updateData.loras = data.loras ? serializeCharacterLoras(data.loras) : null
   // 角色卡字段 v2 —— 透传落库，⛔ 不在这里加业务逻辑（cards.md「角色卡字段 v2」）。
   Object.assign(updateData, serializeCharacterCardV2Fields(data))
   if (data.referenceSlots !== undefined)

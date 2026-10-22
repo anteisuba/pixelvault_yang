@@ -964,7 +964,6 @@ export const AssistantOperatorCardsOpenCharacterSchema =
     backstory: CardsFieldSchema,
     characterTags: CardsTagsSchema,
     appearanceTags: CardsTagsSchema,
-    loraTrigger: z.string().max(LIMITS.maxLabelChars),
     /** 卡上挂着几张图（主图算在内）。 */
     imagesOnCard: z.number().int().min(0),
     /**

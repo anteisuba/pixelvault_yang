@@ -32,7 +32,7 @@ const card = (
       },
     ],
     persona: null,
-    cardTags: { character: [], appearance: [], loraTrigger: '' },
+    cardTags: { character: [], appearance: [] },
     workOverride: null,
     summary: null,
     tavern: null,
@@ -50,7 +50,6 @@ describe('buildCardsOperatorSnapshot（卡片助手的 read_state）', () => {
           cardTags: {
             character: ['denia_(wuthering_waves)'],
             appearance: [],
-            loraTrigger: '',
           },
           persona: {
             identity: '魔术师',
@@ -107,7 +106,6 @@ describe('buildCardsOperatorSnapshot（卡片助手的 read_state）', () => {
           cardTags: {
             character: ['denia_(wuthering_waves)'],
             appearance: ['pink_hair'],
-            loraTrigger: 'dnw',
           },
         }),
       ],
@@ -122,7 +120,6 @@ describe('buildCardsOperatorSnapshot（卡片助手的 read_state）', () => {
       speech: '叫对方「观众先生」',
       characterTags: ['denia_(wuthering_waves)'],
       appearanceTags: ['pink_hair'],
-      loraTrigger: 'dnw',
       imagesOnCard: 1,
     })
     expect(open?.behavior).toHaveLength(

@@ -202,6 +202,12 @@ export type UserLike = Prisma.UserLikeModel
  */
 export type UserFollow = Prisma.UserFollowModel
 /**
+ * Model CharacterCardLora
+ * 角色收的 LoRA（角色③，2026-10-22）。只记「谁收了哪个」：权重用 LoRA 自己的
+ * 默认值，触发词读 LoRA 本身。角色或 LoRA 删掉，这一行跟着没。
+ */
+export type CharacterCardLora = Prisma.CharacterCardLoraModel
+/**
  * Model LoraTrainingJob
  * 
  */

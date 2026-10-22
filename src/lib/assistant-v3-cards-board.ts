@@ -63,7 +63,7 @@ function openLines(
     ...CARDS_PROFILE_PARTS.map(
       (part) => `  ${part}: ${quote(open[part], BOARD_FIELD_CHARS)}`,
     ),
-    `  character tags: ${open.characterTags.join(', ') || '(none)'} · appearance tags: ${open.appearanceTags.join(', ') || '(none)'} · LoRA trigger: ${open.loraTrigger || '(none)'}`,
+    `  character tags: ${open.characterTags.join(', ') || '(none)'} · appearance tags: ${open.appearanceTags.join(', ') || '(none)'}`,
   ]
 }
 
@@ -107,6 +107,6 @@ export function renderAssistantV3CardsItem(
   const part = CARDS_PROFILE_PARTS.find((entry) => entry === key)
   if (part) return `${part} (full): ${quote(open[part], null)}`
   if (key === 'tags')
-    return `character tags: ${open.characterTags.join(', ') || '(none)'}\nappearance tags: ${open.appearanceTags.join(', ') || '(none)'}\nLoRA trigger: ${open.loraTrigger || '(none)'}`
+    return `character tags: ${open.characterTags.join(', ') || '(none)'}\nappearance tags: ${open.appearanceTags.join(', ') || '(none)'}`
   return null
 }

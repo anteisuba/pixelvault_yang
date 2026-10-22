@@ -75,7 +75,6 @@ export function buildCardsOperatorSnapshot(
           backstory: clip(openCard.persona?.backstory),
           characterTags: tags(openCard.cardTags.character),
           appearanceTags: tags(openCard.cardTags.appearance),
-          loraTrigger: openCard.cardTags.loraTrigger.trim(),
           imagesOnCard: openCard.referenceSlots.length,
           // 只给服务端看图用（C3），⛔ 服务端不把它写进模型读的状态。
           ...(openImage ? { primaryImageUrl: openImage } : {}),

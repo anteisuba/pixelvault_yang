@@ -302,7 +302,6 @@ describe('ShellSidePanels · 角色库（画布用角色 ④）', () => {
     cardTags: {
       character: ['denia_(wuthering_waves)'],
       appearance: [],
-      loraTrigger: '',
     },
   }
 

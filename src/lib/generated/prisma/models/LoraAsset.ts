@@ -382,6 +382,7 @@ export type LoraAssetWhereInput = {
   updatedAt?: Prisma.DateTimeFilter<"LoraAsset"> | Date | string
   user?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
   trainingJob?: Prisma.XOR<Prisma.LoraTrainingJobNullableScalarRelationFilter, Prisma.LoraTrainingJobWhereInput> | null
+  characterLinks?: Prisma.CharacterCardLoraListRelationFilter
 }
 
 export type LoraAssetOrderByWithRelationInput = {
@@ -412,6 +413,7 @@ export type LoraAssetOrderByWithRelationInput = {
   updatedAt?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
   trainingJob?: Prisma.LoraTrainingJobOrderByWithRelationInput
+  characterLinks?: Prisma.CharacterCardLoraOrderByRelationAggregateInput
 }
 
 export type LoraAssetWhereUniqueInput = Prisma.AtLeast<{
@@ -446,6 +448,7 @@ export type LoraAssetWhereUniqueInput = Prisma.AtLeast<{
   updatedAt?: Prisma.DateTimeFilter<"LoraAsset"> | Date | string
   user?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
   trainingJob?: Prisma.XOR<Prisma.LoraTrainingJobNullableScalarRelationFilter, Prisma.LoraTrainingJobWhereInput> | null
+  characterLinks?: Prisma.CharacterCardLoraListRelationFilter
 }, "id" | "styleCode" | "trainingJobId" | "userId_loraUrl">
 
 export type LoraAssetOrderByWithAggregationInput = {
@@ -538,6 +541,7 @@ export type LoraAssetCreateInput = {
   updatedAt?: Date | string
   user?: Prisma.UserCreateNestedOneWithoutLoraAssetsInput
   trainingJob?: Prisma.LoraTrainingJobCreateNestedOneWithoutLoraAssetInput
+  characterLinks?: Prisma.CharacterCardLoraCreateNestedManyWithoutLoraAssetInput
 }
 
 export type LoraAssetUncheckedCreateInput = {
@@ -566,6 +570,7 @@ export type LoraAssetUncheckedCreateInput = {
   lastUsedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  characterLinks?: Prisma.CharacterCardLoraUncheckedCreateNestedManyWithoutLoraAssetInput
 }
 
 export type LoraAssetUpdateInput = {
@@ -594,6 +599,7 @@ export type LoraAssetUpdateInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneWithoutLoraAssetsNestedInput
   trainingJob?: Prisma.LoraTrainingJobUpdateOneWithoutLoraAssetNestedInput
+  characterLinks?: Prisma.CharacterCardLoraUpdateManyWithoutLoraAssetNestedInput
 }
 
 export type LoraAssetUncheckedUpdateInput = {
@@ -622,6 +628,7 @@ export type LoraAssetUncheckedUpdateInput = {
   lastUsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  characterLinks?: Prisma.CharacterCardLoraUncheckedUpdateManyWithoutLoraAssetNestedInput
 }
 
 export type LoraAssetCreateManyInput = {
@@ -714,6 +721,11 @@ export type LoraAssetListRelationFilter = {
 
 export type LoraAssetOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
+}
+
+export type LoraAssetScalarRelationFilter = {
+  is?: Prisma.LoraAssetWhereInput
+  isNot?: Prisma.LoraAssetWhereInput
 }
 
 export type LoraAssetNullableScalarRelationFilter = {
@@ -862,6 +874,20 @@ export type LoraAssetUncheckedUpdateManyWithoutUserNestedInput = {
   deleteMany?: Prisma.LoraAssetScalarWhereInput | Prisma.LoraAssetScalarWhereInput[]
 }
 
+export type LoraAssetCreateNestedOneWithoutCharacterLinksInput = {
+  create?: Prisma.XOR<Prisma.LoraAssetCreateWithoutCharacterLinksInput, Prisma.LoraAssetUncheckedCreateWithoutCharacterLinksInput>
+  connectOrCreate?: Prisma.LoraAssetCreateOrConnectWithoutCharacterLinksInput
+  connect?: Prisma.LoraAssetWhereUniqueInput
+}
+
+export type LoraAssetUpdateOneRequiredWithoutCharacterLinksNestedInput = {
+  create?: Prisma.XOR<Prisma.LoraAssetCreateWithoutCharacterLinksInput, Prisma.LoraAssetUncheckedCreateWithoutCharacterLinksInput>
+  connectOrCreate?: Prisma.LoraAssetCreateOrConnectWithoutCharacterLinksInput
+  upsert?: Prisma.LoraAssetUpsertWithoutCharacterLinksInput
+  connect?: Prisma.LoraAssetWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.LoraAssetUpdateToOneWithWhereWithoutCharacterLinksInput, Prisma.LoraAssetUpdateWithoutCharacterLinksInput>, Prisma.LoraAssetUncheckedUpdateWithoutCharacterLinksInput>
+}
+
 export type LoraAssetCreateNestedOneWithoutTrainingJobInput = {
   create?: Prisma.XOR<Prisma.LoraAssetCreateWithoutTrainingJobInput, Prisma.LoraAssetUncheckedCreateWithoutTrainingJobInput>
   connectOrCreate?: Prisma.LoraAssetCreateOrConnectWithoutTrainingJobInput
@@ -919,6 +945,7 @@ export type LoraAssetCreateWithoutUserInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   trainingJob?: Prisma.LoraTrainingJobCreateNestedOneWithoutLoraAssetInput
+  characterLinks?: Prisma.CharacterCardLoraCreateNestedManyWithoutLoraAssetInput
 }
 
 export type LoraAssetUncheckedCreateWithoutUserInput = {
@@ -946,6 +973,7 @@ export type LoraAssetUncheckedCreateWithoutUserInput = {
   lastUsedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  characterLinks?: Prisma.CharacterCardLoraUncheckedCreateNestedManyWithoutLoraAssetInput
 }
 
 export type LoraAssetCreateOrConnectWithoutUserInput = {
@@ -1005,6 +1033,134 @@ export type LoraAssetScalarWhereInput = {
   updatedAt?: Prisma.DateTimeFilter<"LoraAsset"> | Date | string
 }
 
+export type LoraAssetCreateWithoutCharacterLinksInput = {
+  id?: string
+  name: string
+  styleCode: string
+  source?: string
+  type?: string
+  baseModelFamily?: string
+  provider?: string
+  triggerWord: string
+  loraUrl: string
+  storageKey?: string | null
+  previewImageUrls?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  coverImageUrl?: string | null
+  defaultScale?: number
+  civitaiModelId?: number | null
+  civitaiModelVersionId?: number | null
+  civitaiFileHashAutoV3?: string | null
+  recommendedPrompt?: string | null
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  isPublic?: boolean
+  usageCount?: number
+  lastUsedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  user?: Prisma.UserCreateNestedOneWithoutLoraAssetsInput
+  trainingJob?: Prisma.LoraTrainingJobCreateNestedOneWithoutLoraAssetInput
+}
+
+export type LoraAssetUncheckedCreateWithoutCharacterLinksInput = {
+  id?: string
+  userId?: string | null
+  name: string
+  styleCode: string
+  source?: string
+  type?: string
+  baseModelFamily?: string
+  provider?: string
+  triggerWord: string
+  loraUrl: string
+  storageKey?: string | null
+  previewImageUrls?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  coverImageUrl?: string | null
+  defaultScale?: number
+  civitaiModelId?: number | null
+  civitaiModelVersionId?: number | null
+  civitaiFileHashAutoV3?: string | null
+  recommendedPrompt?: string | null
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  trainingJobId?: string | null
+  isPublic?: boolean
+  usageCount?: number
+  lastUsedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+export type LoraAssetCreateOrConnectWithoutCharacterLinksInput = {
+  where: Prisma.LoraAssetWhereUniqueInput
+  create: Prisma.XOR<Prisma.LoraAssetCreateWithoutCharacterLinksInput, Prisma.LoraAssetUncheckedCreateWithoutCharacterLinksInput>
+}
+
+export type LoraAssetUpsertWithoutCharacterLinksInput = {
+  update: Prisma.XOR<Prisma.LoraAssetUpdateWithoutCharacterLinksInput, Prisma.LoraAssetUncheckedUpdateWithoutCharacterLinksInput>
+  create: Prisma.XOR<Prisma.LoraAssetCreateWithoutCharacterLinksInput, Prisma.LoraAssetUncheckedCreateWithoutCharacterLinksInput>
+  where?: Prisma.LoraAssetWhereInput
+}
+
+export type LoraAssetUpdateToOneWithWhereWithoutCharacterLinksInput = {
+  where?: Prisma.LoraAssetWhereInput
+  data: Prisma.XOR<Prisma.LoraAssetUpdateWithoutCharacterLinksInput, Prisma.LoraAssetUncheckedUpdateWithoutCharacterLinksInput>
+}
+
+export type LoraAssetUpdateWithoutCharacterLinksInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  styleCode?: Prisma.StringFieldUpdateOperationsInput | string
+  source?: Prisma.StringFieldUpdateOperationsInput | string
+  type?: Prisma.StringFieldUpdateOperationsInput | string
+  baseModelFamily?: Prisma.StringFieldUpdateOperationsInput | string
+  provider?: Prisma.StringFieldUpdateOperationsInput | string
+  triggerWord?: Prisma.StringFieldUpdateOperationsInput | string
+  loraUrl?: Prisma.StringFieldUpdateOperationsInput | string
+  storageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewImageUrls?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  coverImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  defaultScale?: Prisma.FloatFieldUpdateOperationsInput | number
+  civitaiModelId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  civitaiModelVersionId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  civitaiFileHashAutoV3?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  recommendedPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  usageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  lastUsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  user?: Prisma.UserUpdateOneWithoutLoraAssetsNestedInput
+  trainingJob?: Prisma.LoraTrainingJobUpdateOneWithoutLoraAssetNestedInput
+}
+
+export type LoraAssetUncheckedUpdateWithoutCharacterLinksInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  styleCode?: Prisma.StringFieldUpdateOperationsInput | string
+  source?: Prisma.StringFieldUpdateOperationsInput | string
+  type?: Prisma.StringFieldUpdateOperationsInput | string
+  baseModelFamily?: Prisma.StringFieldUpdateOperationsInput | string
+  provider?: Prisma.StringFieldUpdateOperationsInput | string
+  triggerWord?: Prisma.StringFieldUpdateOperationsInput | string
+  loraUrl?: Prisma.StringFieldUpdateOperationsInput | string
+  storageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewImageUrls?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  coverImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  defaultScale?: Prisma.FloatFieldUpdateOperationsInput | number
+  civitaiModelId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  civitaiModelVersionId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  civitaiFileHashAutoV3?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  recommendedPrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sourceSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  trainingJobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  usageCount?: Prisma.IntFieldUpdateOperationsInput | number
+  lastUsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
 export type LoraAssetCreateWithoutTrainingJobInput = {
   id?: string
   name: string
@@ -1030,6 +1186,7 @@ export type LoraAssetCreateWithoutTrainingJobInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   user?: Prisma.UserCreateNestedOneWithoutLoraAssetsInput
+  characterLinks?: Prisma.CharacterCardLoraCreateNestedManyWithoutLoraAssetInput
 }
 
 export type LoraAssetUncheckedCreateWithoutTrainingJobInput = {
@@ -1057,6 +1214,7 @@ export type LoraAssetUncheckedCreateWithoutTrainingJobInput = {
   lastUsedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  characterLinks?: Prisma.CharacterCardLoraUncheckedCreateNestedManyWithoutLoraAssetInput
 }
 
 export type LoraAssetCreateOrConnectWithoutTrainingJobInput = {
@@ -1100,6 +1258,7 @@ export type LoraAssetUpdateWithoutTrainingJobInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneWithoutLoraAssetsNestedInput
+  characterLinks?: Prisma.CharacterCardLoraUpdateManyWithoutLoraAssetNestedInput
 }
 
 export type LoraAssetUncheckedUpdateWithoutTrainingJobInput = {
@@ -1127,6 +1286,7 @@ export type LoraAssetUncheckedUpdateWithoutTrainingJobInput = {
   lastUsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  characterLinks?: Prisma.CharacterCardLoraUncheckedUpdateManyWithoutLoraAssetNestedInput
 }
 
 export type LoraAssetCreateManyUserInput = {
@@ -1181,6 +1341,7 @@ export type LoraAssetUpdateWithoutUserInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   trainingJob?: Prisma.LoraTrainingJobUpdateOneWithoutLoraAssetNestedInput
+  characterLinks?: Prisma.CharacterCardLoraUpdateManyWithoutLoraAssetNestedInput
 }
 
 export type LoraAssetUncheckedUpdateWithoutUserInput = {
@@ -1208,6 +1369,7 @@ export type LoraAssetUncheckedUpdateWithoutUserInput = {
   lastUsedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  characterLinks?: Prisma.CharacterCardLoraUncheckedUpdateManyWithoutLoraAssetNestedInput
 }
 
 export type LoraAssetUncheckedUpdateManyWithoutUserInput = {
@@ -1238,6 +1400,35 @@ export type LoraAssetUncheckedUpdateManyWithoutUserInput = {
 }
 
 
+/**
+ * Count Type LoraAssetCountOutputType
+ */
+
+export type LoraAssetCountOutputType = {
+  characterLinks: number
+}
+
+export type LoraAssetCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  characterLinks?: boolean | LoraAssetCountOutputTypeCountCharacterLinksArgs
+}
+
+/**
+ * LoraAssetCountOutputType without action
+ */
+export type LoraAssetCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the LoraAssetCountOutputType
+   */
+  select?: Prisma.LoraAssetCountOutputTypeSelect<ExtArgs> | null
+}
+
+/**
+ * LoraAssetCountOutputType without action
+ */
+export type LoraAssetCountOutputTypeCountCharacterLinksArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.CharacterCardLoraWhereInput
+}
+
 
 export type LoraAssetSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -1267,6 +1458,8 @@ export type LoraAssetSelect<ExtArgs extends runtime.Types.Extensions.InternalArg
   updatedAt?: boolean
   user?: boolean | Prisma.LoraAsset$userArgs<ExtArgs>
   trainingJob?: boolean | Prisma.LoraAsset$trainingJobArgs<ExtArgs>
+  characterLinks?: boolean | Prisma.LoraAsset$characterLinksArgs<ExtArgs>
+  _count?: boolean | Prisma.LoraAssetCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["loraAsset"]>
 
 export type LoraAssetSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -1361,6 +1554,8 @@ export type LoraAssetOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs 
 export type LoraAssetInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.LoraAsset$userArgs<ExtArgs>
   trainingJob?: boolean | Prisma.LoraAsset$trainingJobArgs<ExtArgs>
+  characterLinks?: boolean | Prisma.LoraAsset$characterLinksArgs<ExtArgs>
+  _count?: boolean | Prisma.LoraAssetCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type LoraAssetIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.LoraAsset$userArgs<ExtArgs>
@@ -1376,6 +1571,10 @@ export type $LoraAssetPayload<ExtArgs extends runtime.Types.Extensions.InternalA
   objects: {
     user: Prisma.$UserPayload<ExtArgs> | null
     trainingJob: Prisma.$LoraTrainingJobPayload<ExtArgs> | null
+    /**
+     * 收了这个 LoRA 的角色（角色③）。
+     */
+    characterLinks: Prisma.$CharacterCardLoraPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1799,6 +1998,7 @@ export interface Prisma__LoraAssetClient<T, Null = never, ExtArgs extends runtim
   readonly [Symbol.toStringTag]: "PrismaPromise"
   user<T extends Prisma.LoraAsset$userArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.LoraAsset$userArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   trainingJob<T extends Prisma.LoraAsset$trainingJobArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.LoraAsset$trainingJobArgs<ExtArgs>>): Prisma.Prisma__LoraTrainingJobClient<runtime.Types.Result.GetResult<Prisma.$LoraTrainingJobPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  characterLinks<T extends Prisma.LoraAsset$characterLinksArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.LoraAsset$characterLinksArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CharacterCardLoraPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2289,6 +2489,30 @@ export type LoraAsset$trainingJobArgs<ExtArgs extends runtime.Types.Extensions.I
    */
   include?: Prisma.LoraTrainingJobInclude<ExtArgs> | null
   where?: Prisma.LoraTrainingJobWhereInput
+}
+
+/**
+ * LoraAsset.characterLinks
+ */
+export type LoraAsset$characterLinksArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the CharacterCardLora
+   */
+  select?: Prisma.CharacterCardLoraSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the CharacterCardLora
+   */
+  omit?: Prisma.CharacterCardLoraOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.CharacterCardLoraInclude<ExtArgs> | null
+  where?: Prisma.CharacterCardLoraWhereInput
+  orderBy?: Prisma.CharacterCardLoraOrderByWithRelationInput | Prisma.CharacterCardLoraOrderByWithRelationInput[]
+  cursor?: Prisma.CharacterCardLoraWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.CharacterCardLoraScalarFieldEnum | Prisma.CharacterCardLoraScalarFieldEnum[]
 }
 
 /**

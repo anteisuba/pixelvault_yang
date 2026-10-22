@@ -9,7 +9,6 @@ import {
 const tags = (character: string[]) => ({
   character,
   appearance: [],
-  loraTrigger: '',
 })
 
 describe('characterWork', () => {

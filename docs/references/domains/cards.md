@@ -6,7 +6,7 @@
 
 ## 数据模型
 
-`CharacterCard`（含 `parentId` 变体树）· `GenerationCharacterCard`（生成↔角色卡 join）· `VoiceCard`（声音资产，2026-09-17 前与 `CharacterCard` 零关联）。
+`CharacterCard`（含 `parentId` 变体树）· `GenerationCharacterCard`（生成↔角色卡 join）· `CharacterCardLora`（角色收的 LoRA，见「角色 ↔ LoRA」）· `VoiceCard`（声音资产，2026-09-17 前与 `CharacterCard` 零关联）。
 
 ## Service / API
 
@@ -47,6 +47,18 @@
 - **外观只有一列 `description`**（上限 2000 字），编译器的视觉文字就是它。旧的「角色提示词」`characterPrompt` 已并进来（提示词在前、外观在后）；视觉「属性」（`attributes`，看图提取的 13 项）删除，建卡 ⛔ 不再看图、不联网取材。
 - **图只认 `referenceSlots`**：封面 = `isPrimary` 那一槽（没有取第一槽），统一用 `lib/card-bus.ts` 的 `characterCoverUrl`。旧图列与反向双写删除；建卡只收名字（外观 / 设定 / 标签可选），图在详情里加进参考槽。
 - `status` / `stabilityScore` / `modelPrompts` / `referenceRoles` / `allowedStyleRange` / `provenance` / `projectId` 与作品上的单角色列 `Generation.characterCardId` 已删列（见 `database.md`）；作品 ↔ 角色只走 `GenerationCharacterCard`。
+
+## 角色 ↔ LoRA（2026-10-22，角色③）
+
+owner 逐项定的口径（对齐稿 https://claude.ai/artifact/FTTAHbuCwHmnMcProcJ2WL ，角色拆分地图 https://claude.ai/artifact/RKtX2Eh3ThjEpdYV7cFzU1 ），下面几节里与它冲突的旧说法以这里为准：
+
+- **角色只负责收集**：关联表 `CharacterCardLora`（角色 + LoRA，联合主键）只记「谁收了哪个」。一个角色多个 LoRA、一个 LoRA 可属多个角色；角色或 LoRA 删掉关联跟着没。⛔ 不按角色另存权重 / 备注（权重用 LoRA 的 `defaultScale`），⛔ 改关联不动卡的 `version`（LoRA 只在 LoRA 台挂，出图快照记的是挂上的 LoRA 本身）。
+- **只收自己名下的 LoRA**（收藏或自训各是自己名下的一行）；别人公开的先收藏。取消收藏 = 删那一行，也就从所有角色里拿掉。
+- **三个入口**：从角色发起的训练训完自动收（`ensureLoraAssetFromTrainingJob` 建资产时一并建关联）；LoRA 库详情右栏「角色」一段的「加到角色…」（整组替换）；角色详情「她的 LoRA」**只读**。
+- **用在哪**：只在 LoRA 台。「添加 LoRA」旁「从角色选」→ 点她 → 挑一个挂上；她有外观标签时提示里给一颗「加上外观标签」，⛔ 自动写进正文。图片工作台 / 画布不挂 LoRA。
+- 手填的「LoRA 触发词」（`pv.tags.loraTrigger`）删除：触发词读 LoRA 本身。编译层随之去掉 `hasLoras` 选项。旧 JSON 里的 `loraTrigger` 读出来丢掉。旧列 `CharacterCard.loras` 停读停写，下一次部署删列。
+- 接口：`GET /api/character-loras`（每个角色一组，可带 `characterCardId`）· `PUT /api/lora-assets/[id]/characters`（`{ characterCardIds }` 整组替换，LoRA 或任一角色不是自己的 → 404）。服务在 `services/cards/character-lora.service.ts`，前端一份 `useCharacterLoras`，LoRA 台整页经 `character-loras-context` 共用。
+- 推后（角色④，owner 已同意）：标签并进外观（每套造型各有文字 + 标签 + 图）、LoRA 可挂在某套造型下、训练时先放进该造型的参考图。收藏太多难找记在施工单「统一库组件」。
 
 ## 角色卡字段 v2（2026-09-17）
 

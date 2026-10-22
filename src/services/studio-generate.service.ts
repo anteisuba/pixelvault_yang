@@ -68,7 +68,6 @@ export async function compileAndGenerate(
       : 1,
     userReferenceCount: userReferences.length,
     hasNovelAiLayout: advanced.novelAiLayout !== undefined,
-    hasLoras: Array.isArray(advanced.loras) && advanced.loras.length > 0,
   })
 
   const freePrompt = [

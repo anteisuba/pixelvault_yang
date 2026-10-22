@@ -58,7 +58,7 @@ function toSourceSnapshot(value: unknown): LoraSourceSnapshot | null {
   return parsed.success ? parsed.data : null
 }
 
-function toRecord(
+export function toLoraAssetRecord(
   row: LoraAssetRow,
   viewerUserId: string | null,
 ): LoraAssetRecord {
@@ -133,7 +133,7 @@ export async function getLoraAssetByStyleCode(
     return null
   }
 
-  return toRecord(row, viewerUserId)
+  return toLoraAssetRecord(row, viewerUserId)
 }
 
 /**
@@ -177,7 +177,7 @@ export async function findLoraAssetsByUrls(
     const candidates = byUrl.get(url)
     if (!candidates || candidates.length === 0) continue
     const picked = pickVisible(candidates)
-    if (picked) out.push(toRecord(picked, viewerUserId))
+    if (picked) out.push(toLoraAssetRecord(picked, viewerUserId))
   }
   return out
 }
@@ -205,13 +205,13 @@ export async function findLoraAssetByExtraReference(
     const row = await db.loraAsset.findFirst({
       where: { civitaiFileHashAutoV3: ref.hash.toLowerCase(), ...visibility },
     })
-    if (row) return toRecord(row, viewerUserId)
+    if (row) return toLoraAssetRecord(row, viewerUserId)
   }
   if (ref.modelVersionId) {
     const row = await db.loraAsset.findFirst({
       where: { civitaiModelVersionId: ref.modelVersionId, ...visibility },
     })
-    if (row) return toRecord(row, viewerUserId)
+    if (row) return toLoraAssetRecord(row, viewerUserId)
   }
   if (ref.name) {
     // 名字归一比对需要 JS 侧进行 — 候选集是可见行的小集合（库有上限）。
@@ -222,7 +222,7 @@ export async function findLoraAssetByExtraReference(
       take: 200,
     })
     const hit = rows.find((row) => normalizeLoraNameKey(row.name) === key)
-    if (hit) return toRecord(hit, viewerUserId)
+    if (hit) return toLoraAssetRecord(hit, viewerUserId)
   }
   return null
 }
@@ -320,7 +320,9 @@ export async function listLoraAssetsForUser(
 
   const healedOwned = await healCivitaiIdentifiers(owned)
 
-  return [...healedOwned, ...curated].map((row) => toRecord(row, user.id))
+  return [...healedOwned, ...curated].map((row) =>
+    toLoraAssetRecord(row, user.id),
+  )
 }
 
 /**
@@ -344,7 +346,7 @@ export async function listDiscoverLoraAssets(
     take: 60,
   })
 
-  return rows.map((row) => toRecord(row, viewerUserId))
+  return rows.map((row) => toLoraAssetRecord(row, viewerUserId))
 }
 
 /**
@@ -376,7 +378,7 @@ export async function setLoraAssetVisibility(
     isPublic,
   })
 
-  return toRecord(updated, user.id)
+  return toLoraAssetRecord(updated, user.id)
 }
 
 /**
@@ -412,7 +414,7 @@ export async function updateLoraAssetCover(
     coverImageUrl,
   })
 
-  return toRecord(updated, user.id)
+  return toLoraAssetRecord(updated, user.id)
 }
 
 /**
@@ -458,7 +460,7 @@ export async function favoriteExternalLora(
   const existing = await db.loraAsset.findFirst({
     where: { userId: user.id, loraUrl: input.loraUrl },
   })
-  if (existing) return toRecord(existing, user.id)
+  if (existing) return toLoraAssetRecord(existing, user.id)
 
   const styleCode = await reserveUniqueStyleCode(input.name, input.type)
   let created: Awaited<ReturnType<typeof db.loraAsset.create>>
@@ -505,7 +507,7 @@ export async function favoriteExternalLora(
       loraUrl: input.loraUrl,
       styleCode: raced.styleCode,
     })
-    return toRecord(raced, user.id)
+    return toLoraAssetRecord(raced, user.id)
   }
 
   logger.info('LoraAsset favorited (imported)', {
@@ -517,7 +519,7 @@ export async function favoriteExternalLora(
     hasSourceSnapshot: Boolean(input.sourceSnapshot),
   })
 
-  return toRecord(created, user.id)
+  return toLoraAssetRecord(created, user.id)
 }
 
 /**
@@ -652,6 +654,14 @@ export async function ensureLoraAssetFromTrainingJob(
       defaultScale: 1.0,
       isPublic: false,
       trainingJobId: job.id,
+      // 从角色发起的训练：训完自动收进她的 LoRA（角色③）。
+      ...(job.characterCardId
+        ? {
+            characterLinks: {
+              create: { characterCardId: job.characterCardId },
+            },
+          }
+        : {}),
     },
   })
 
@@ -659,6 +669,7 @@ export async function ensureLoraAssetFromTrainingJob(
     jobId,
     styleCode,
     userId: job.userId,
+    characterCardId: job.characterCardId,
     coverImageUrl,
     previewCount: imageUrls.length,
   })

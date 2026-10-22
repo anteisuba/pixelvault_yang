@@ -43,7 +43,6 @@ const CARD = {
   cardTags: {
     character: ['denia'],
     appearance: ['pink_hair'],
-    loraTrigger: '',
   },
   referenceSlots: [slot('a', { isPrimary: true }), slot('b')],
   workOverride: null,
@@ -145,7 +144,6 @@ describe('updateFromDraft', () => {
       behavior: '先替别人撑好伞',
       description: '  ',
       characterTags: 'denia_(wuthering_waves)， extra',
-      loraTrigger: ' dnw ',
     }
     const update = updateFromDraft(CARD, draft)
     expect(update.description).toBeNull()
@@ -160,7 +158,6 @@ describe('updateFromDraft', () => {
       'pv.tags': {
         character: ['denia_(wuthering_waves)', 'extra'],
         appearance: ['pink_hair'],
-        loraTrigger: 'dnw',
       },
       // 作品没填 = 删键，回到从角色标签取。
       'pv.work': null,

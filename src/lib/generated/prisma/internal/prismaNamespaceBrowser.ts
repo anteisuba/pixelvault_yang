@@ -78,6 +78,7 @@ export const ModelName = {
   GenerationCharacterCard: 'GenerationCharacterCard',
   UserLike: 'UserLike',
   UserFollow: 'UserFollow',
+  CharacterCardLora: 'CharacterCardLora',
   LoraTrainingJob: 'LoraTrainingJob',
   LoraAsset: 'LoraAsset',
   ExtractedElement: 'ExtractedElement',
@@ -603,6 +604,15 @@ export const UserFollowScalarFieldEnum = {
 } as const
 
 export type UserFollowScalarFieldEnum = (typeof UserFollowScalarFieldEnum)[keyof typeof UserFollowScalarFieldEnum]
+
+
+export const CharacterCardLoraScalarFieldEnum = {
+  characterCardId: 'characterCardId',
+  loraAssetId: 'loraAssetId',
+  createdAt: 'createdAt'
+} as const
+
+export type CharacterCardLoraScalarFieldEnum = (typeof CharacterCardLoraScalarFieldEnum)[keyof typeof CharacterCardLoraScalarFieldEnum]
 
 
 export const LoraTrainingJobScalarFieldEnum = {

@@ -912,6 +912,8 @@ model CharacterCard {
 
   generationLinks  GenerationCharacterCard[]
   loraTrainingJobs LoraTrainingJob[]
+  /// 她收的 LoRA（角色③）。角色只负责收集，挂在哪由 LoRA 台决定。
+  loraLinks        CharacterCardLora[]
 
   @@unique([userId, handle])
   @@index([userId, isDeleted, updatedAt(sort: Desc)])
@@ -959,6 +961,19 @@ model UserFollow {
 }
 
 // ─── LoRA Training ────────────────────────────────────────────────
+
+/// 角色收的 LoRA（角色③，2026-10-22）。只记「谁收了哪个」：权重用 LoRA 自己的
+/// 默认值，触发词读 LoRA 本身。角色或 LoRA 删掉，这一行跟着没。
+model CharacterCardLora {
+  characterCardId String
+  characterCard   CharacterCard @relation(fields: [characterCardId], references: [id], onDelete: Cascade)
+  loraAssetId     String
+  loraAsset       LoraAsset     @relation(fields: [loraAssetId], references: [id], onDelete: Cascade)
+  createdAt       DateTime      @default(now())
+
+  @@id([characterCardId, loraAssetId])
+  @@index([loraAssetId])
+}
 
 model LoraTrainingJob {
   id                 String             @id @default(uuid())
@@ -1037,6 +1052,9 @@ model LoraAsset {
 
   trainingJobId String?          @unique
   trainingJob   LoraTrainingJob? @relation(fields: [trainingJobId], references: [id], onDelete: SetNull)
+
+  /// 收了这个 LoRA 的角色（角色③）。
+  characterLinks CharacterCardLora[]
 
   isPublic   Boolean   @default(false)
   usageCount Int       @default(0)

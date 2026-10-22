@@ -3124,7 +3124,6 @@ describe('v3 内核 · 角色页', () => {
       backstory: '',
       characterTags: [],
       appearanceTags: [],
-      loraTrigger: '',
       imagesOnCard: 1,
       cardImageUrls: ['https://cdn.test/ron.png'],
     }

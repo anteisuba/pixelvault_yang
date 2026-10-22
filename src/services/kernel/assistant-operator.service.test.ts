@@ -3160,7 +3160,6 @@ describe('read_state', () => {
       backstory: '',
       characterTags: ['denia_(wuthering_waves)'],
       appearanceTags: ['pink_hair'],
-      loraTrigger: '',
       imagesOnCard: 1,
     }
     const events = await collect(
@@ -3546,7 +3545,6 @@ describe('read_state', () => {
                 backstory: '',
                 characterTags: [],
                 appearanceTags: [],
-                loraTrigger: '',
                 imagesOnCard: 1,
                 primaryImageUrl: 'https://cdn.example.test/main.png',
               },
@@ -3682,7 +3680,6 @@ describe('read_state', () => {
               backstory: '',
               characterTags: [],
               appearanceTags: [],
-              loraTrigger: '',
               imagesOnCard: 1,
               primaryImageUrl: 'https://cdn.example.test/main.png',
             },
@@ -3773,7 +3770,6 @@ describe('read_state', () => {
                 backstory: '',
                 characterTags: [],
                 appearanceTags: ['short_hair'],
-                loraTrigger: '',
                 imagesOnCard: 2,
                 primaryImageUrl: 'https://cdn.example.test/main.png',
                 cardImageUrls: [

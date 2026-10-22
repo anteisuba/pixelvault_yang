@@ -312,6 +312,7 @@ export type CharacterCardWhereInput = {
   variants?: Prisma.CharacterCardListRelationFilter
   generationLinks?: Prisma.GenerationCharacterCardListRelationFilter
   loraTrainingJobs?: Prisma.LoraTrainingJobListRelationFilter
+  loraLinks?: Prisma.CharacterCardLoraListRelationFilter
 }
 
 export type CharacterCardOrderByWithRelationInput = {
@@ -342,6 +343,7 @@ export type CharacterCardOrderByWithRelationInput = {
   variants?: Prisma.CharacterCardOrderByRelationAggregateInput
   generationLinks?: Prisma.GenerationCharacterCardOrderByRelationAggregateInput
   loraTrainingJobs?: Prisma.LoraTrainingJobOrderByRelationAggregateInput
+  loraLinks?: Prisma.CharacterCardLoraOrderByRelationAggregateInput
 }
 
 export type CharacterCardWhereUniqueInput = Prisma.AtLeast<{
@@ -376,6 +378,7 @@ export type CharacterCardWhereUniqueInput = Prisma.AtLeast<{
   variants?: Prisma.CharacterCardListRelationFilter
   generationLinks?: Prisma.GenerationCharacterCardListRelationFilter
   loraTrainingJobs?: Prisma.LoraTrainingJobListRelationFilter
+  loraLinks?: Prisma.CharacterCardLoraListRelationFilter
 }, "id" | "userId_handle">
 
 export type CharacterCardOrderByWithAggregationInput = {
@@ -455,6 +458,7 @@ export type CharacterCardCreateInput = {
   variants?: Prisma.CharacterCardCreateNestedManyWithoutParentInput
   generationLinks?: Prisma.GenerationCharacterCardCreateNestedManyWithoutCharacterCardInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutCharacterCardInput
+  loraLinks?: Prisma.CharacterCardLoraCreateNestedManyWithoutCharacterCardInput
 }
 
 export type CharacterCardUncheckedCreateInput = {
@@ -482,6 +486,7 @@ export type CharacterCardUncheckedCreateInput = {
   variants?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutParentInput
   generationLinks?: Prisma.GenerationCharacterCardUncheckedCreateNestedManyWithoutCharacterCardInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutCharacterCardInput
+  loraLinks?: Prisma.CharacterCardLoraUncheckedCreateNestedManyWithoutCharacterCardInput
 }
 
 export type CharacterCardUpdateInput = {
@@ -509,6 +514,7 @@ export type CharacterCardUpdateInput = {
   variants?: Prisma.CharacterCardUpdateManyWithoutParentNestedInput
   generationLinks?: Prisma.GenerationCharacterCardUpdateManyWithoutCharacterCardNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutCharacterCardNestedInput
+  loraLinks?: Prisma.CharacterCardLoraUpdateManyWithoutCharacterCardNestedInput
 }
 
 export type CharacterCardUncheckedUpdateInput = {
@@ -536,6 +542,7 @@ export type CharacterCardUncheckedUpdateInput = {
   variants?: Prisma.CharacterCardUncheckedUpdateManyWithoutParentNestedInput
   generationLinks?: Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutCharacterCardNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutCharacterCardNestedInput
+  loraLinks?: Prisma.CharacterCardLoraUncheckedUpdateManyWithoutCharacterCardNestedInput
 }
 
 export type CharacterCardCreateManyInput = {
@@ -869,6 +876,20 @@ export type CharacterCardUpdateOneRequiredWithoutGenerationLinksNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.CharacterCardUpdateToOneWithWhereWithoutGenerationLinksInput, Prisma.CharacterCardUpdateWithoutGenerationLinksInput>, Prisma.CharacterCardUncheckedUpdateWithoutGenerationLinksInput>
 }
 
+export type CharacterCardCreateNestedOneWithoutLoraLinksInput = {
+  create?: Prisma.XOR<Prisma.CharacterCardCreateWithoutLoraLinksInput, Prisma.CharacterCardUncheckedCreateWithoutLoraLinksInput>
+  connectOrCreate?: Prisma.CharacterCardCreateOrConnectWithoutLoraLinksInput
+  connect?: Prisma.CharacterCardWhereUniqueInput
+}
+
+export type CharacterCardUpdateOneRequiredWithoutLoraLinksNestedInput = {
+  create?: Prisma.XOR<Prisma.CharacterCardCreateWithoutLoraLinksInput, Prisma.CharacterCardUncheckedCreateWithoutLoraLinksInput>
+  connectOrCreate?: Prisma.CharacterCardCreateOrConnectWithoutLoraLinksInput
+  upsert?: Prisma.CharacterCardUpsertWithoutLoraLinksInput
+  connect?: Prisma.CharacterCardWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.CharacterCardUpdateToOneWithWhereWithoutLoraLinksInput, Prisma.CharacterCardUpdateWithoutLoraLinksInput>, Prisma.CharacterCardUncheckedUpdateWithoutLoraLinksInput>
+}
+
 export type CharacterCardCreateNestedOneWithoutLoraTrainingJobsInput = {
   create?: Prisma.XOR<Prisma.CharacterCardCreateWithoutLoraTrainingJobsInput, Prisma.CharacterCardUncheckedCreateWithoutLoraTrainingJobsInput>
   connectOrCreate?: Prisma.CharacterCardCreateOrConnectWithoutLoraTrainingJobsInput
@@ -925,6 +946,7 @@ export type CharacterCardCreateWithoutUserInput = {
   variants?: Prisma.CharacterCardCreateNestedManyWithoutParentInput
   generationLinks?: Prisma.GenerationCharacterCardCreateNestedManyWithoutCharacterCardInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutCharacterCardInput
+  loraLinks?: Prisma.CharacterCardLoraCreateNestedManyWithoutCharacterCardInput
 }
 
 export type CharacterCardUncheckedCreateWithoutUserInput = {
@@ -951,6 +973,7 @@ export type CharacterCardUncheckedCreateWithoutUserInput = {
   variants?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutParentInput
   generationLinks?: Prisma.GenerationCharacterCardUncheckedCreateNestedManyWithoutCharacterCardInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutCharacterCardInput
+  loraLinks?: Prisma.CharacterCardLoraUncheckedCreateNestedManyWithoutCharacterCardInput
 }
 
 export type CharacterCardCreateOrConnectWithoutUserInput = {
@@ -1028,6 +1051,7 @@ export type CharacterCardCreateWithoutVoiceCardInput = {
   variants?: Prisma.CharacterCardCreateNestedManyWithoutParentInput
   generationLinks?: Prisma.GenerationCharacterCardCreateNestedManyWithoutCharacterCardInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutCharacterCardInput
+  loraLinks?: Prisma.CharacterCardLoraCreateNestedManyWithoutCharacterCardInput
 }
 
 export type CharacterCardUncheckedCreateWithoutVoiceCardInput = {
@@ -1054,6 +1078,7 @@ export type CharacterCardUncheckedCreateWithoutVoiceCardInput = {
   variants?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutParentInput
   generationLinks?: Prisma.GenerationCharacterCardUncheckedCreateNestedManyWithoutCharacterCardInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutCharacterCardInput
+  loraLinks?: Prisma.CharacterCardLoraUncheckedCreateNestedManyWithoutCharacterCardInput
 }
 
 export type CharacterCardCreateOrConnectWithoutVoiceCardInput = {
@@ -1106,6 +1131,7 @@ export type CharacterCardCreateWithoutAssistantPersonasInput = {
   variants?: Prisma.CharacterCardCreateNestedManyWithoutParentInput
   generationLinks?: Prisma.GenerationCharacterCardCreateNestedManyWithoutCharacterCardInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutCharacterCardInput
+  loraLinks?: Prisma.CharacterCardLoraCreateNestedManyWithoutCharacterCardInput
 }
 
 export type CharacterCardUncheckedCreateWithoutAssistantPersonasInput = {
@@ -1132,6 +1158,7 @@ export type CharacterCardUncheckedCreateWithoutAssistantPersonasInput = {
   variants?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutParentInput
   generationLinks?: Prisma.GenerationCharacterCardUncheckedCreateNestedManyWithoutCharacterCardInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutCharacterCardInput
+  loraLinks?: Prisma.CharacterCardLoraUncheckedCreateNestedManyWithoutCharacterCardInput
 }
 
 export type CharacterCardCreateOrConnectWithoutAssistantPersonasInput = {
@@ -1174,6 +1201,7 @@ export type CharacterCardUpdateWithoutAssistantPersonasInput = {
   variants?: Prisma.CharacterCardUpdateManyWithoutParentNestedInput
   generationLinks?: Prisma.GenerationCharacterCardUpdateManyWithoutCharacterCardNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutCharacterCardNestedInput
+  loraLinks?: Prisma.CharacterCardLoraUpdateManyWithoutCharacterCardNestedInput
 }
 
 export type CharacterCardUncheckedUpdateWithoutAssistantPersonasInput = {
@@ -1200,6 +1228,7 @@ export type CharacterCardUncheckedUpdateWithoutAssistantPersonasInput = {
   variants?: Prisma.CharacterCardUncheckedUpdateManyWithoutParentNestedInput
   generationLinks?: Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutCharacterCardNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutCharacterCardNestedInput
+  loraLinks?: Prisma.CharacterCardLoraUncheckedUpdateManyWithoutCharacterCardNestedInput
 }
 
 export type CharacterCardCreateWithoutVariantsInput = {
@@ -1226,6 +1255,7 @@ export type CharacterCardCreateWithoutVariantsInput = {
   parent?: Prisma.CharacterCardCreateNestedOneWithoutVariantsInput
   generationLinks?: Prisma.GenerationCharacterCardCreateNestedManyWithoutCharacterCardInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutCharacterCardInput
+  loraLinks?: Prisma.CharacterCardLoraCreateNestedManyWithoutCharacterCardInput
 }
 
 export type CharacterCardUncheckedCreateWithoutVariantsInput = {
@@ -1252,6 +1282,7 @@ export type CharacterCardUncheckedCreateWithoutVariantsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutCharacterCardInput
   generationLinks?: Prisma.GenerationCharacterCardUncheckedCreateNestedManyWithoutCharacterCardInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutCharacterCardInput
+  loraLinks?: Prisma.CharacterCardLoraUncheckedCreateNestedManyWithoutCharacterCardInput
 }
 
 export type CharacterCardCreateOrConnectWithoutVariantsInput = {
@@ -1283,6 +1314,7 @@ export type CharacterCardCreateWithoutParentInput = {
   variants?: Prisma.CharacterCardCreateNestedManyWithoutParentInput
   generationLinks?: Prisma.GenerationCharacterCardCreateNestedManyWithoutCharacterCardInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutCharacterCardInput
+  loraLinks?: Prisma.CharacterCardLoraCreateNestedManyWithoutCharacterCardInput
 }
 
 export type CharacterCardUncheckedCreateWithoutParentInput = {
@@ -1309,6 +1341,7 @@ export type CharacterCardUncheckedCreateWithoutParentInput = {
   variants?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutParentInput
   generationLinks?: Prisma.GenerationCharacterCardUncheckedCreateNestedManyWithoutCharacterCardInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutCharacterCardInput
+  loraLinks?: Prisma.CharacterCardLoraUncheckedCreateNestedManyWithoutCharacterCardInput
 }
 
 export type CharacterCardCreateOrConnectWithoutParentInput = {
@@ -1356,6 +1389,7 @@ export type CharacterCardUpdateWithoutVariantsInput = {
   parent?: Prisma.CharacterCardUpdateOneWithoutVariantsNestedInput
   generationLinks?: Prisma.GenerationCharacterCardUpdateManyWithoutCharacterCardNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutCharacterCardNestedInput
+  loraLinks?: Prisma.CharacterCardLoraUpdateManyWithoutCharacterCardNestedInput
 }
 
 export type CharacterCardUncheckedUpdateWithoutVariantsInput = {
@@ -1382,6 +1416,7 @@ export type CharacterCardUncheckedUpdateWithoutVariantsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutCharacterCardNestedInput
   generationLinks?: Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutCharacterCardNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutCharacterCardNestedInput
+  loraLinks?: Prisma.CharacterCardLoraUncheckedUpdateManyWithoutCharacterCardNestedInput
 }
 
 export type CharacterCardUpsertWithWhereUniqueWithoutParentInput = {
@@ -1424,6 +1459,7 @@ export type CharacterCardCreateWithoutGenerationLinksInput = {
   parent?: Prisma.CharacterCardCreateNestedOneWithoutVariantsInput
   variants?: Prisma.CharacterCardCreateNestedManyWithoutParentInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutCharacterCardInput
+  loraLinks?: Prisma.CharacterCardLoraCreateNestedManyWithoutCharacterCardInput
 }
 
 export type CharacterCardUncheckedCreateWithoutGenerationLinksInput = {
@@ -1450,6 +1486,7 @@ export type CharacterCardUncheckedCreateWithoutGenerationLinksInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutCharacterCardInput
   variants?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutParentInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutCharacterCardInput
+  loraLinks?: Prisma.CharacterCardLoraUncheckedCreateNestedManyWithoutCharacterCardInput
 }
 
 export type CharacterCardCreateOrConnectWithoutGenerationLinksInput = {
@@ -1492,6 +1529,7 @@ export type CharacterCardUpdateWithoutGenerationLinksInput = {
   parent?: Prisma.CharacterCardUpdateOneWithoutVariantsNestedInput
   variants?: Prisma.CharacterCardUpdateManyWithoutParentNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutCharacterCardNestedInput
+  loraLinks?: Prisma.CharacterCardLoraUpdateManyWithoutCharacterCardNestedInput
 }
 
 export type CharacterCardUncheckedUpdateWithoutGenerationLinksInput = {
@@ -1517,6 +1555,131 @@ export type CharacterCardUncheckedUpdateWithoutGenerationLinksInput = {
   assistantPersonas?: Prisma.AssistantPersonaUncheckedUpdateManyWithoutCharacterCardNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutCharacterCardNestedInput
   variants?: Prisma.CharacterCardUncheckedUpdateManyWithoutParentNestedInput
+  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutCharacterCardNestedInput
+  loraLinks?: Prisma.CharacterCardLoraUncheckedUpdateManyWithoutCharacterCardNestedInput
+}
+
+export type CharacterCardCreateWithoutLoraLinksInput = {
+  id?: string
+  name: string
+  description?: string | null
+  loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  tags?: Prisma.CharacterCardCreatetagsInput | string[]
+  isDeleted?: boolean
+  voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  version?: number
+  handle?: string | null
+  summary?: string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  variantLabel?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  user: Prisma.UserCreateNestedOneWithoutCharacterCardsInput
+  voiceCard?: Prisma.VoiceCardCreateNestedOneWithoutCharacterCardsInput
+  assistantPersonas?: Prisma.AssistantPersonaCreateNestedManyWithoutCharacterCardInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutCharacterCardInput
+  parent?: Prisma.CharacterCardCreateNestedOneWithoutVariantsInput
+  variants?: Prisma.CharacterCardCreateNestedManyWithoutParentInput
+  generationLinks?: Prisma.GenerationCharacterCardCreateNestedManyWithoutCharacterCardInput
+  loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutCharacterCardInput
+}
+
+export type CharacterCardUncheckedCreateWithoutLoraLinksInput = {
+  id?: string
+  userId: string
+  name: string
+  description?: string | null
+  loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  tags?: Prisma.CharacterCardCreatetagsInput | string[]
+  isDeleted?: boolean
+  voiceCardId?: string | null
+  voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  version?: number
+  handle?: string | null
+  summary?: string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  parentId?: string | null
+  variantLabel?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  assistantPersonas?: Prisma.AssistantPersonaUncheckedCreateNestedManyWithoutCharacterCardInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutCharacterCardInput
+  variants?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutParentInput
+  generationLinks?: Prisma.GenerationCharacterCardUncheckedCreateNestedManyWithoutCharacterCardInput
+  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutCharacterCardInput
+}
+
+export type CharacterCardCreateOrConnectWithoutLoraLinksInput = {
+  where: Prisma.CharacterCardWhereUniqueInput
+  create: Prisma.XOR<Prisma.CharacterCardCreateWithoutLoraLinksInput, Prisma.CharacterCardUncheckedCreateWithoutLoraLinksInput>
+}
+
+export type CharacterCardUpsertWithoutLoraLinksInput = {
+  update: Prisma.XOR<Prisma.CharacterCardUpdateWithoutLoraLinksInput, Prisma.CharacterCardUncheckedUpdateWithoutLoraLinksInput>
+  create: Prisma.XOR<Prisma.CharacterCardCreateWithoutLoraLinksInput, Prisma.CharacterCardUncheckedCreateWithoutLoraLinksInput>
+  where?: Prisma.CharacterCardWhereInput
+}
+
+export type CharacterCardUpdateToOneWithWhereWithoutLoraLinksInput = {
+  where?: Prisma.CharacterCardWhereInput
+  data: Prisma.XOR<Prisma.CharacterCardUpdateWithoutLoraLinksInput, Prisma.CharacterCardUncheckedUpdateWithoutLoraLinksInput>
+}
+
+export type CharacterCardUpdateWithoutLoraLinksInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  tags?: Prisma.CharacterCardUpdatetagsInput | string[]
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  handle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  variantLabel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  user?: Prisma.UserUpdateOneRequiredWithoutCharacterCardsNestedInput
+  voiceCard?: Prisma.VoiceCardUpdateOneWithoutCharacterCardsNestedInput
+  assistantPersonas?: Prisma.AssistantPersonaUpdateManyWithoutCharacterCardNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutCharacterCardNestedInput
+  parent?: Prisma.CharacterCardUpdateOneWithoutVariantsNestedInput
+  variants?: Prisma.CharacterCardUpdateManyWithoutParentNestedInput
+  generationLinks?: Prisma.GenerationCharacterCardUpdateManyWithoutCharacterCardNestedInput
+  loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutCharacterCardNestedInput
+}
+
+export type CharacterCardUncheckedUpdateWithoutLoraLinksInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  userId?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  loras?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  tags?: Prisma.CharacterCardUpdatetagsInput | string[]
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  voiceCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  version?: Prisma.IntFieldUpdateOperationsInput | number
+  handle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  parentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  variantLabel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  assistantPersonas?: Prisma.AssistantPersonaUncheckedUpdateManyWithoutCharacterCardNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutCharacterCardNestedInput
+  variants?: Prisma.CharacterCardUncheckedUpdateManyWithoutParentNestedInput
+  generationLinks?: Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutCharacterCardNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutCharacterCardNestedInput
 }
 
@@ -1544,6 +1707,7 @@ export type CharacterCardCreateWithoutLoraTrainingJobsInput = {
   parent?: Prisma.CharacterCardCreateNestedOneWithoutVariantsInput
   variants?: Prisma.CharacterCardCreateNestedManyWithoutParentInput
   generationLinks?: Prisma.GenerationCharacterCardCreateNestedManyWithoutCharacterCardInput
+  loraLinks?: Prisma.CharacterCardLoraCreateNestedManyWithoutCharacterCardInput
 }
 
 export type CharacterCardUncheckedCreateWithoutLoraTrainingJobsInput = {
@@ -1570,6 +1734,7 @@ export type CharacterCardUncheckedCreateWithoutLoraTrainingJobsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutCharacterCardInput
   variants?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutParentInput
   generationLinks?: Prisma.GenerationCharacterCardUncheckedCreateNestedManyWithoutCharacterCardInput
+  loraLinks?: Prisma.CharacterCardLoraUncheckedCreateNestedManyWithoutCharacterCardInput
 }
 
 export type CharacterCardCreateOrConnectWithoutLoraTrainingJobsInput = {
@@ -1612,6 +1777,7 @@ export type CharacterCardUpdateWithoutLoraTrainingJobsInput = {
   parent?: Prisma.CharacterCardUpdateOneWithoutVariantsNestedInput
   variants?: Prisma.CharacterCardUpdateManyWithoutParentNestedInput
   generationLinks?: Prisma.GenerationCharacterCardUpdateManyWithoutCharacterCardNestedInput
+  loraLinks?: Prisma.CharacterCardLoraUpdateManyWithoutCharacterCardNestedInput
 }
 
 export type CharacterCardUncheckedUpdateWithoutLoraTrainingJobsInput = {
@@ -1638,6 +1804,7 @@ export type CharacterCardUncheckedUpdateWithoutLoraTrainingJobsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutCharacterCardNestedInput
   variants?: Prisma.CharacterCardUncheckedUpdateManyWithoutParentNestedInput
   generationLinks?: Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutCharacterCardNestedInput
+  loraLinks?: Prisma.CharacterCardLoraUncheckedUpdateManyWithoutCharacterCardNestedInput
 }
 
 export type CharacterCardCreateWithoutAssistantMemoriesInput = {
@@ -1664,6 +1831,7 @@ export type CharacterCardCreateWithoutAssistantMemoriesInput = {
   variants?: Prisma.CharacterCardCreateNestedManyWithoutParentInput
   generationLinks?: Prisma.GenerationCharacterCardCreateNestedManyWithoutCharacterCardInput
   loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutCharacterCardInput
+  loraLinks?: Prisma.CharacterCardLoraCreateNestedManyWithoutCharacterCardInput
 }
 
 export type CharacterCardUncheckedCreateWithoutAssistantMemoriesInput = {
@@ -1690,6 +1858,7 @@ export type CharacterCardUncheckedCreateWithoutAssistantMemoriesInput = {
   variants?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutParentInput
   generationLinks?: Prisma.GenerationCharacterCardUncheckedCreateNestedManyWithoutCharacterCardInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutCharacterCardInput
+  loraLinks?: Prisma.CharacterCardLoraUncheckedCreateNestedManyWithoutCharacterCardInput
 }
 
 export type CharacterCardCreateOrConnectWithoutAssistantMemoriesInput = {
@@ -1732,6 +1901,7 @@ export type CharacterCardUpdateWithoutAssistantMemoriesInput = {
   variants?: Prisma.CharacterCardUpdateManyWithoutParentNestedInput
   generationLinks?: Prisma.GenerationCharacterCardUpdateManyWithoutCharacterCardNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutCharacterCardNestedInput
+  loraLinks?: Prisma.CharacterCardLoraUpdateManyWithoutCharacterCardNestedInput
 }
 
 export type CharacterCardUncheckedUpdateWithoutAssistantMemoriesInput = {
@@ -1758,6 +1928,7 @@ export type CharacterCardUncheckedUpdateWithoutAssistantMemoriesInput = {
   variants?: Prisma.CharacterCardUncheckedUpdateManyWithoutParentNestedInput
   generationLinks?: Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutCharacterCardNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutCharacterCardNestedInput
+  loraLinks?: Prisma.CharacterCardLoraUncheckedUpdateManyWithoutCharacterCardNestedInput
 }
 
 export type CharacterCardCreateManyUserInput = {
@@ -1805,6 +1976,7 @@ export type CharacterCardUpdateWithoutUserInput = {
   variants?: Prisma.CharacterCardUpdateManyWithoutParentNestedInput
   generationLinks?: Prisma.GenerationCharacterCardUpdateManyWithoutCharacterCardNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutCharacterCardNestedInput
+  loraLinks?: Prisma.CharacterCardLoraUpdateManyWithoutCharacterCardNestedInput
 }
 
 export type CharacterCardUncheckedUpdateWithoutUserInput = {
@@ -1831,6 +2003,7 @@ export type CharacterCardUncheckedUpdateWithoutUserInput = {
   variants?: Prisma.CharacterCardUncheckedUpdateManyWithoutParentNestedInput
   generationLinks?: Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutCharacterCardNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutCharacterCardNestedInput
+  loraLinks?: Prisma.CharacterCardLoraUncheckedUpdateManyWithoutCharacterCardNestedInput
 }
 
 export type CharacterCardUncheckedUpdateManyWithoutUserInput = {
@@ -1899,6 +2072,7 @@ export type CharacterCardUpdateWithoutVoiceCardInput = {
   variants?: Prisma.CharacterCardUpdateManyWithoutParentNestedInput
   generationLinks?: Prisma.GenerationCharacterCardUpdateManyWithoutCharacterCardNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutCharacterCardNestedInput
+  loraLinks?: Prisma.CharacterCardLoraUpdateManyWithoutCharacterCardNestedInput
 }
 
 export type CharacterCardUncheckedUpdateWithoutVoiceCardInput = {
@@ -1925,6 +2099,7 @@ export type CharacterCardUncheckedUpdateWithoutVoiceCardInput = {
   variants?: Prisma.CharacterCardUncheckedUpdateManyWithoutParentNestedInput
   generationLinks?: Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutCharacterCardNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutCharacterCardNestedInput
+  loraLinks?: Prisma.CharacterCardLoraUncheckedUpdateManyWithoutCharacterCardNestedInput
 }
 
 export type CharacterCardUncheckedUpdateManyWithoutVoiceCardInput = {
@@ -1993,6 +2168,7 @@ export type CharacterCardUpdateWithoutParentInput = {
   variants?: Prisma.CharacterCardUpdateManyWithoutParentNestedInput
   generationLinks?: Prisma.GenerationCharacterCardUpdateManyWithoutCharacterCardNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutCharacterCardNestedInput
+  loraLinks?: Prisma.CharacterCardLoraUpdateManyWithoutCharacterCardNestedInput
 }
 
 export type CharacterCardUncheckedUpdateWithoutParentInput = {
@@ -2019,6 +2195,7 @@ export type CharacterCardUncheckedUpdateWithoutParentInput = {
   variants?: Prisma.CharacterCardUncheckedUpdateManyWithoutParentNestedInput
   generationLinks?: Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutCharacterCardNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutCharacterCardNestedInput
+  loraLinks?: Prisma.CharacterCardLoraUncheckedUpdateManyWithoutCharacterCardNestedInput
 }
 
 export type CharacterCardUncheckedUpdateManyWithoutParentInput = {
@@ -2053,6 +2230,7 @@ export type CharacterCardCountOutputType = {
   variants: number
   generationLinks: number
   loraTrainingJobs: number
+  loraLinks: number
 }
 
 export type CharacterCardCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -2061,6 +2239,7 @@ export type CharacterCardCountOutputTypeSelect<ExtArgs extends runtime.Types.Ext
   variants?: boolean | CharacterCardCountOutputTypeCountVariantsArgs
   generationLinks?: boolean | CharacterCardCountOutputTypeCountGenerationLinksArgs
   loraTrainingJobs?: boolean | CharacterCardCountOutputTypeCountLoraTrainingJobsArgs
+  loraLinks?: boolean | CharacterCardCountOutputTypeCountLoraLinksArgs
 }
 
 /**
@@ -2108,6 +2287,13 @@ export type CharacterCardCountOutputTypeCountLoraTrainingJobsArgs<ExtArgs extend
   where?: Prisma.LoraTrainingJobWhereInput
 }
 
+/**
+ * CharacterCardCountOutputType without action
+ */
+export type CharacterCardCountOutputTypeCountLoraLinksArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.CharacterCardLoraWhereInput
+}
+
 
 export type CharacterCardSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -2137,6 +2323,7 @@ export type CharacterCardSelect<ExtArgs extends runtime.Types.Extensions.Interna
   variants?: boolean | Prisma.CharacterCard$variantsArgs<ExtArgs>
   generationLinks?: boolean | Prisma.CharacterCard$generationLinksArgs<ExtArgs>
   loraTrainingJobs?: boolean | Prisma.CharacterCard$loraTrainingJobsArgs<ExtArgs>
+  loraLinks?: boolean | Prisma.CharacterCard$loraLinksArgs<ExtArgs>
   _count?: boolean | Prisma.CharacterCardCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["characterCard"]>
 
@@ -2222,6 +2409,7 @@ export type CharacterCardInclude<ExtArgs extends runtime.Types.Extensions.Intern
   variants?: boolean | Prisma.CharacterCard$variantsArgs<ExtArgs>
   generationLinks?: boolean | Prisma.CharacterCard$generationLinksArgs<ExtArgs>
   loraTrainingJobs?: boolean | Prisma.CharacterCard$loraTrainingJobsArgs<ExtArgs>
+  loraLinks?: boolean | Prisma.CharacterCard$loraLinksArgs<ExtArgs>
   _count?: boolean | Prisma.CharacterCardCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type CharacterCardIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -2252,6 +2440,10 @@ export type $CharacterCardPayload<ExtArgs extends runtime.Types.Extensions.Inter
     variants: Prisma.$CharacterCardPayload<ExtArgs>[]
     generationLinks: Prisma.$GenerationCharacterCardPayload<ExtArgs>[]
     loraTrainingJobs: Prisma.$LoraTrainingJobPayload<ExtArgs>[]
+    /**
+     * 她收的 LoRA（角色③）。角色只负责收集，挂在哪由 LoRA 台决定。
+     */
+    loraLinks: Prisma.$CharacterCardLoraPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -2700,6 +2892,7 @@ export interface Prisma__CharacterCardClient<T, Null = never, ExtArgs extends ru
   variants<T extends Prisma.CharacterCard$variantsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.CharacterCard$variantsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CharacterCardPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   generationLinks<T extends Prisma.CharacterCard$generationLinksArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.CharacterCard$generationLinksArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$GenerationCharacterCardPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   loraTrainingJobs<T extends Prisma.CharacterCard$loraTrainingJobsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.CharacterCard$loraTrainingJobsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$LoraTrainingJobPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  loraLinks<T extends Prisma.CharacterCard$loraLinksArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.CharacterCard$loraLinksArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CharacterCardLoraPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -3304,6 +3497,30 @@ export type CharacterCard$loraTrainingJobsArgs<ExtArgs extends runtime.Types.Ext
   take?: number
   skip?: number
   distinct?: Prisma.LoraTrainingJobScalarFieldEnum | Prisma.LoraTrainingJobScalarFieldEnum[]
+}
+
+/**
+ * CharacterCard.loraLinks
+ */
+export type CharacterCard$loraLinksArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the CharacterCardLora
+   */
+  select?: Prisma.CharacterCardLoraSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the CharacterCardLora
+   */
+  omit?: Prisma.CharacterCardLoraOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.CharacterCardLoraInclude<ExtArgs> | null
+  where?: Prisma.CharacterCardLoraWhereInput
+  orderBy?: Prisma.CharacterCardLoraOrderByWithRelationInput | Prisma.CharacterCardLoraOrderByWithRelationInput[]
+  cursor?: Prisma.CharacterCardLoraWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.CharacterCardLoraScalarFieldEnum | Prisma.CharacterCardLoraScalarFieldEnum[]
 }
 
 /**

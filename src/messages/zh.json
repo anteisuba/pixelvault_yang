@@ -2778,6 +2778,23 @@
       "emptyBodyLoosen": "在 {scope} 里一个都没有。放宽一项试试：",
       "mountChoose": "挂载…",
       "mountChooseLabel": "挂载 {name}（先选文件）"
+    },
+    "characterLoras": {
+      "pickEntry": "从角色选",
+      "pickTitle": "从角色选",
+      "back": "返回",
+      "mounted": "已挂上",
+      "emptyCharacters": "还没有角色收了 LoRA",
+      "loraCount": "{count} 个 LoRA",
+      "mountedFromCharacter": "已挂上 {lora}（{character}）",
+      "addAppearanceTags": "加上外观标签",
+      "sectionTitle": "角色",
+      "addToCharacter": "加到角色…",
+      "noCharacters": "还没有角色",
+      "cancel": "取消",
+      "save": "保存",
+      "loadFailed": "角色的 LoRA 没读出来",
+      "saveFailed": "没存上，再试一次"
     }
   },
   "UseLoraButton": {
@@ -9138,7 +9155,6 @@
     "fieldLooks": "一句外观",
     "fieldCharacterTags": "角色标签（NAI / LoRA 认人用）",
     "fieldAppearanceTags": "外观标签",
-    "fieldLoraTrigger": "LoRA 触发词",
     "behaviorHint": "写她会做什么，不写形容词：「先替别人撑好伞」比「温柔」有用。",
     "primary": "主图",
     "makePrimary": "设为主图",
@@ -9232,7 +9248,9 @@
     },
     "libraryTag": "标签",
     "libraryTagAll": "全部",
-    "libraryTagMenu": "按标签筛选"
+    "libraryTagMenu": "按标签筛选",
+    "fieldLoras": "她的 LoRA",
+    "lorasEmpty": "还没有"
   },
   "StudioTemplates": {
     "titleImage": "我的图片模板 · {count}",

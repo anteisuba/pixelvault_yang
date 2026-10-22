@@ -2778,6 +2778,23 @@
       "emptyBodyLoosen": "Nothing in {scope}. Try loosening one filter:",
       "mountChoose": "Mount…",
       "mountChooseLabel": "Mount {name} (choose a file first)"
+    },
+    "characterLoras": {
+      "pickEntry": "From character",
+      "pickTitle": "From character",
+      "back": "Back",
+      "mounted": "Mounted",
+      "emptyCharacters": "No character has LoRAs yet",
+      "loraCount": "{count, plural, one {# LoRA} other {# LoRAs}}",
+      "mountedFromCharacter": "Mounted {lora} ({character})",
+      "addAppearanceTags": "Add appearance tags",
+      "sectionTitle": "Characters",
+      "addToCharacter": "Add to character…",
+      "noCharacters": "No characters yet",
+      "cancel": "Cancel",
+      "save": "Save",
+      "loadFailed": "Couldn’t load character LoRAs",
+      "saveFailed": "Couldn’t save. Try again."
     }
   },
   "UseLoraButton": {
@@ -9138,7 +9155,6 @@
     "fieldLooks": "Look in one line",
     "fieldCharacterTags": "Character tags (for NAI / LoRA)",
     "fieldAppearanceTags": "Appearance tags",
-    "fieldLoraTrigger": "LoRA trigger word",
     "behaviorHint": "Write what they do, not adjectives: “holds the umbrella over others first” beats “kind”.",
     "primary": "Main",
     "makePrimary": "Make main",
@@ -9232,7 +9248,9 @@
     },
     "libraryTag": "Tag",
     "libraryTagAll": "All",
-    "libraryTagMenu": "Filter by tag"
+    "libraryTagMenu": "Filter by tag",
+    "fieldLoras": "LoRAs",
+    "lorasEmpty": "None yet"
   },
   "StudioTemplates": {
     "titleImage": "My image templates · {count}",

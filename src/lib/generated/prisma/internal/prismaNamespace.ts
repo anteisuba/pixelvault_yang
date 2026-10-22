@@ -411,6 +411,7 @@ export const ModelName = {
   GenerationCharacterCard: 'GenerationCharacterCard',
   UserLike: 'UserLike',
   UserFollow: 'UserFollow',
+  CharacterCardLora: 'CharacterCardLora',
   LoraTrainingJob: 'LoraTrainingJob',
   LoraAsset: 'LoraAsset',
   ExtractedElement: 'ExtractedElement',
@@ -434,7 +435,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "modelConfig" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "loraTrainingJob" | "loraAsset" | "extractedElement" | "generationLayer" | "inspirationPrompt" | "contextCard" | "assistantMemory" | "assistantTurnRecord"
+    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "modelConfig" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "characterCardLora" | "loraTrainingJob" | "loraAsset" | "extractedElement" | "generationLayer" | "inspirationPrompt" | "contextCard" | "assistantMemory" | "assistantTurnRecord"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2436,6 +2437,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    CharacterCardLora: {
+      payload: Prisma.$CharacterCardLoraPayload<ExtArgs>
+      fields: Prisma.CharacterCardLoraFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.CharacterCardLoraFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardLoraPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.CharacterCardLoraFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardLoraPayload>
+        }
+        findFirst: {
+          args: Prisma.CharacterCardLoraFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardLoraPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.CharacterCardLoraFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardLoraPayload>
+        }
+        findMany: {
+          args: Prisma.CharacterCardLoraFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardLoraPayload>[]
+        }
+        create: {
+          args: Prisma.CharacterCardLoraCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardLoraPayload>
+        }
+        createMany: {
+          args: Prisma.CharacterCardLoraCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.CharacterCardLoraCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardLoraPayload>[]
+        }
+        delete: {
+          args: Prisma.CharacterCardLoraDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardLoraPayload>
+        }
+        update: {
+          args: Prisma.CharacterCardLoraUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardLoraPayload>
+        }
+        deleteMany: {
+          args: Prisma.CharacterCardLoraDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.CharacterCardLoraUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.CharacterCardLoraUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardLoraPayload>[]
+        }
+        upsert: {
+          args: Prisma.CharacterCardLoraUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardLoraPayload>
+        }
+        aggregate: {
+          args: Prisma.CharacterCardLoraAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCharacterCardLora>
+        }
+        groupBy: {
+          args: Prisma.CharacterCardLoraGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CharacterCardLoraGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.CharacterCardLoraCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CharacterCardLoraCountAggregateOutputType> | number
+        }
+      }
+    }
     LoraTrainingJob: {
       payload: Prisma.$LoraTrainingJobPayload<ExtArgs>
       fields: Prisma.LoraTrainingJobFieldRefs
@@ -3568,6 +3643,15 @@ export const UserFollowScalarFieldEnum = {
 export type UserFollowScalarFieldEnum = (typeof UserFollowScalarFieldEnum)[keyof typeof UserFollowScalarFieldEnum]
 
 
+export const CharacterCardLoraScalarFieldEnum = {
+  characterCardId: 'characterCardId',
+  loraAssetId: 'loraAssetId',
+  createdAt: 'createdAt'
+} as const
+
+export type CharacterCardLoraScalarFieldEnum = (typeof CharacterCardLoraScalarFieldEnum)[keyof typeof CharacterCardLoraScalarFieldEnum]
+
+
 export const LoraTrainingJobScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -4215,6 +4299,7 @@ export type GlobalOmitConfig = {
   generationCharacterCard?: Prisma.GenerationCharacterCardOmit
   userLike?: Prisma.UserLikeOmit
   userFollow?: Prisma.UserFollowOmit
+  characterCardLora?: Prisma.CharacterCardLoraOmit
   loraTrainingJob?: Prisma.LoraTrainingJobOmit
   loraAsset?: Prisma.LoraAssetOmit
   extractedElement?: Prisma.ExtractedElementOmit

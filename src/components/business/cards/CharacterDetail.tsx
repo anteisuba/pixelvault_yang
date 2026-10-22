@@ -33,6 +33,7 @@ import {
   updateFromDraft,
 } from '@/hooks/cards/use-character-card-editor'
 import { useCharacterCardUsage } from '@/hooks/cards/use-character-card-usage'
+import { useCharacterLoras } from '@/hooks/cards/use-character-loras'
 import { useCharacterSampleLines } from '@/hooks/cards/use-character-sample-lines'
 import {
   characterImageCount,
@@ -41,6 +42,7 @@ import {
   workTagFromCharacterTag,
 } from '@/lib/character-works'
 import { getApiErrorMessage } from '@/lib/api-error-message'
+import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'
 import { cn } from '@/lib/utils'
 
 /**
@@ -48,7 +50,7 @@ import { cn } from '@/lib/utils'
  *
  * ⭐ 白卡里从上到下：图片带（滚动区的 5/12 ≈ 扣掉上下留白后白卡的四成，横滑，
  *   「全部 / 卡上 / 用她出的」）→ 名字 · 作品与张数 · 一句外观 → 设定四格（两栏）→
- *   标签 · 作品 · 触发词 → 删除。
+ *   标签 · 作品 → 她的 LoRA（只读）→ 删除。
  * ⭐ ⛔ 没有编辑态：每一格本身就是输入框（`CharacterInlineField`），离开就存；图片悬停
  *   露出「换一张 / 设为主图 / 移除」，图片带末尾常驻一格「添加图片」（图少时占住空位）。
  * ⚠ 每次只存改动的那一格：以**当前角色记录**为底合进这一格再发整份更新（设定里没露出来的
@@ -181,6 +183,7 @@ export function CharacterDetailBody({
 
       <SettingModule card={card} save={save} />
       <TagsModule card={card} save={save} />
+      <LorasModule cardId={card.id} />
       <DeleteCharacter name={card.name} onDelete={onDelete} />
     </div>
   )
@@ -693,19 +696,51 @@ function TagsModule({ card, save }: { card: CharacterCardRecord; save: Save }) {
             className="text-base lg:text-sm"
           />
         </div>
-        <div className="flex min-w-0 flex-col gap-1">
-          <p className="text-xs text-muted-foreground">
-            {t('fieldLoraTrigger')}
-          </p>
-          <CharacterInlineField
-            value={card.cardTags.loraTrigger}
-            label={t('fieldLoraTrigger')}
-            placeholder={t('emptyField')}
-            onCommit={(loraTrigger) => save({ loraTrigger })}
-            className="font-mono text-base lg:text-sm"
-          />
-        </div>
       </div>
+    </section>
+  )
+}
+
+/**
+ * 她的 LoRA（角色③，owner 2026-10-22「顶多可以查看」）：只读。收进来在 LoRA 库详情
+ * 「加到角色…」或从「用她 ▾」训练，挂在 LoRA 台「从角色选」。
+ */
+function LorasModule({ cardId }: { cardId: string }) {
+  const t = useTranslations('CharacterRoster')
+  const { groups, isLoading } = useCharacterLoras(cardId)
+  const loras = groups[0]?.loras ?? []
+  return (
+    <section className="mb-8 flex flex-col gap-3 border-t border-border pt-6">
+      <p className="text-xs text-muted-foreground">{t('fieldLoras')}</p>
+      {isLoading && loras.length === 0 ? (
+        <Spinner />
+      ) : loras.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{t('lorasEmpty')}</p>
+      ) : (
+        <ul className="flex max-w-3xl flex-wrap gap-2">
+          {loras.map((lora) => (
+            <li
+              key={lora.id}
+              className="flex min-w-0 items-center gap-2 rounded-lg bg-muted/60 py-1 pl-1 pr-3 text-sm"
+            >
+              {lora.coverImageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={proxyCivitaiImageUrl(lora.coverImageUrl)}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  className="size-8 shrink-0 rounded-md bg-muted object-cover"
+                />
+              ) : null}
+              <span className="min-w-0 truncate">{lora.name}</span>
+              <span className="shrink-0 text-xs text-muted-foreground">
+                {lora.baseModelFamily}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   )
 }

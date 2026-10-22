@@ -469,6 +469,60 @@ describe('ensureLoraAssetFromTrainingJob', () => {
     expect(callArg.data.styleCode).toMatch(/^pv-c-forest-[a-f0-9]{4}$/)
   })
 
+  it('从角色发起的训练：训完自动收进她的 LoRA（角色③）', async () => {
+    mockJobFindUnique.mockResolvedValue({
+      id: 'job_2',
+      userId: OWNER.id,
+      name: 'Denia',
+      triggerWord: 'dnw',
+      loraType: 'subject',
+      baseModel: 'flux-dev-fal',
+      status: 'COMPLETED',
+      loraUrl: 'https://r2.example.com/denia.safetensors',
+      loraStorageKey: null,
+      trainingImageKeys: [],
+      characterCardId: 'card_denia',
+      loraAsset: null,
+    })
+    mockAssetFindUnique.mockResolvedValue(null)
+    mockAssetCreate.mockResolvedValue({ id: 'asset_denia' })
+
+    await ensureLoraAssetFromTrainingJob('job_2')
+
+    const callArg = mockAssetCreate.mock.calls[0][0] as {
+      data: Record<string, unknown>
+    }
+    expect(callArg.data.characterLinks).toEqual({
+      create: { characterCardId: 'card_denia' },
+    })
+  })
+
+  it('没带角色的训练不建关联', async () => {
+    mockJobFindUnique.mockResolvedValue({
+      id: 'job_3',
+      userId: OWNER.id,
+      name: 'Forest',
+      triggerWord: 'pv_forest',
+      loraType: 'subject',
+      baseModel: 'flux-dev-fal',
+      status: 'COMPLETED',
+      loraUrl: 'https://r2.example.com/x.safetensors',
+      loraStorageKey: null,
+      trainingImageKeys: [],
+      characterCardId: null,
+      loraAsset: null,
+    })
+    mockAssetFindUnique.mockResolvedValue(null)
+    mockAssetCreate.mockResolvedValue({ id: 'asset_x' })
+
+    await ensureLoraAssetFromTrainingJob('job_3')
+
+    const callArg = mockAssetCreate.mock.calls[0][0] as {
+      data: Record<string, unknown>
+    }
+    expect(callArg.data).not.toHaveProperty('characterLinks')
+  })
+
   it('maps SDXL-family trainer base models to the sdxl bucket', async () => {
     process.env.NEXT_PUBLIC_STORAGE_BASE_URL = 'https://cdn.test'
     mockJobFindUnique.mockResolvedValue({

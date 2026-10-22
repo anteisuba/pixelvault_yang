@@ -37,7 +37,7 @@ const DENIA = {
   id: 'denia',
   name: 'Denia',
   createdAt: new Date(0),
-  cardTags: { character: [], appearance: [], loraTrigger: '' },
+  cardTags: { character: [], appearance: [] },
   workOverride: '鸣潮',
   summary: null,
   tavern: null,

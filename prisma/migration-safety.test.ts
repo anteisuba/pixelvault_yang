@@ -93,6 +93,8 @@ const ACKNOWLEDGED: Record<string, string> = {
     '不需要连库验：外键列 "AssistantMemory"."projectId" 是同一条迁移里新加的**可空**列，ADD COLUMN 之后全表该列为 NULL，NULL 行不参与外键校验（MATCH SIMPLE）。同一条迁移里的回填只写 EXISTS 校验过、确实在 "NodeWorkflowProject" 里的 id，所以 ADD CONSTRAINT 在任何存量数据上都成立。2026-10-09 盘点全库记忆 4 条，回填只动 1 条（画布范围、助手记的、会话上有项目）。',
   '20260925120000_card_bus_expand':
     '不需要连库验：唯一索引 ("userId", "handle") 里的 handle 是同一条迁移新加的**可空**列，建索引时全表为 NULL，而 Postgres 唯一索引里多个 NULL 互不冲突（NULLS DISTINCT 默认）。所以在任何存量数据上都建得上。⚠ 回填 handle 的脚本（卡片总线第 ④ 片）自己保证同一用户内不重复（冲突加 -2、-3），那一步另有只读核查。',
+  '20261023090000_character_looks':
+    '外键列 "GenerationCharacterCard" / "CharacterCardLora" / "LoraTrainingJob" 的 "lookId" 都是同一条迁移新加的**可空**列，ADD CONSTRAINT 时全表为 NULL（MATCH SIMPLE 不校验）。之后的回填只写两种值：没删的变体卡 id（第 2 步已用同一个 id 建成 CharacterLook）与同卡默认造型的 id（第 1 步建的），都确实存在。改挂父卡前先删掉父卡已有的同一张图 / 同一个 LoRA。2026-10-22 连生产只读核对：变体卡 2 张、都没删；挂在已删变体上的出图 0 条；同一张图同时挂两张同父变体的 0 条（否则改挂会撞联合主键）。本地 Postgres 用样本数据跑通整条迁移。',
 }
 
 interface ConstraintHit {

@@ -1480,7 +1480,22 @@ describe('step 契约 · inverse 完备性', () => {
       ],
     })
     expect(withRow.success).toBe(true)
-    // 形态是封闭词表 —— `textarea` / `seed` / `lora` 不进这一行（派生层已滤掉）。
+    // 种子没有缺省值：`null` = 每次随机（只有标签台给这一格）。
+    expect(
+      AssistantOperatorSnapshotSchema.safeParse({
+        ...snapshot,
+        capabilities: [
+          {
+            key: 'seed',
+            kind: 'seed',
+            value: null,
+            range: { min: 0, max: 4294967295, step: 1 },
+            available: true,
+          },
+        ],
+      }).success,
+    ).toBe(true)
+    // 形态是封闭词表 —— `textarea` / `lora` 不进这一行（派生层已滤掉）。
     expect(
       AssistantOperatorSnapshotSchema.safeParse({
         ...snapshot,

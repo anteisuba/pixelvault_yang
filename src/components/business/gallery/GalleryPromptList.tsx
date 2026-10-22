@@ -79,21 +79,31 @@ function GalleryPromptCard({
 }) {
   const t = useTranslations('GalleryPage')
   const tModels = useTranslations('Models')
-  const thumbnail =
-    generation.thumbnailUrl ?? getGenerationPreviewUrl(generation)
+  // 视频没有封面图时，`url` 是 mp4，不能塞进 <img>：退回视频首帧。
+  const stillUrl =
+    generation.outputType === 'IMAGE'
+      ? (generation.thumbnailUrl ?? getGenerationPreviewUrl(generation))
+      : (generation.thumbnailUrl ?? generation.previewUrl ?? null)
+  const thumbClass = 'size-20 shrink-0 rounded-xl bg-muted object-cover'
   const author =
     generation.creator?.displayName || generation.creator?.username || null
 
   return (
     <article className="relative flex gap-3 rounded-2xl border border-border/70 bg-background p-3 shadow-sm transition-shadow duration-fast ease-linear hover:shadow-md">
-      {thumbnail ? (
-        <img
-          src={thumbnail}
-          alt=""
-          loading="lazy"
-          className="size-20 shrink-0 rounded-xl bg-muted object-cover"
+      {stillUrl ? (
+        <img src={stillUrl} alt="" loading="lazy" className={thumbClass} />
+      ) : generation.outputType === 'VIDEO' ? (
+        <video
+          src={generation.url}
+          muted
+          playsInline
+          preload="metadata"
+          aria-hidden
+          className={thumbClass}
         />
-      ) : null}
+      ) : (
+        <span aria-hidden className={thumbClass} />
+      )}
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         {onOpen ? (
           <button

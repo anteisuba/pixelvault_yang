@@ -99,13 +99,6 @@ enum ExecutionOutboxStatus {
   FAILED
 }
 
-enum CharacterCardStatus {
-  DRAFT
-  REFINING
-  STABLE
-  ARCHIVED
-}
-
 enum LoraTrainingStatus {
   QUEUED
   TRAINING
@@ -345,9 +338,8 @@ model Project {
 
   // ⚠ 旧的单值归属（`Generation.projectId`）分两次删：代码已只读写 `items`，
   //   这一侧和那一列等上线稳定后由单独一条迁移删掉。
-  generations    Generation[]
-  items          ProjectItem[]
-  characterCards CharacterCard[]
+  generations Generation[]
+  items       ProjectItem[]
 
   @@index([userId, isDeleted, updatedAt(sort: Desc)])
   @@index([userId, parentId, isDeleted, updatedAt(sort: Desc)])
@@ -444,14 +436,12 @@ model Generation {
   searchGrounded Boolean @default(false)
 
   // ── 關聯 ──────────────────────────────────────────────────────
-  userId          String?
-  user            User?                     @relation(fields: [userId], references: [id])
-  projectId       String?
-  project         Project?                  @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  characterCardId String?
-  characterCard   CharacterCard?            @relation(fields: [characterCardId], references: [id], onDelete: SetNull)
-  characterCards  GenerationCharacterCard[]
-  recipeSnapshot  Json?
+  userId         String?
+  user           User?                     @relation(fields: [userId], references: [id])
+  projectId      String?
+  project        Project?                  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  characterCards GenerationCharacterCard[]
+  recipeSnapshot Json?
 
   // ── 来源血缘 ──────────────────────────────────────────────────
   // sourceSurface 是顶层可查询列（默认 IMAGE_STUDIO；存量不回填）。
@@ -494,7 +484,6 @@ model Generation {
   @@index([userId, sourceSurface, createdAt(sort: Desc)])
   @@index([projectId, createdAt(sort: Desc)])
   @@index([userId, projectId, createdAt(sort: Desc)])
-  @@index([characterCardId, createdAt(sort: Desc)])
   @@index([runGroupId])
   @@index([prompt(ops: raw("gin_trgm_ops"))], type: Gin, map: "idx_generation_prompt_trgm")
 }
@@ -876,57 +865,33 @@ model ModelConfig {
 }
 
 model CharacterCard {
-  id                 String              @id @default(uuid())
-  userId             String
-  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  projectId          String?
-  project            Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  name               String
-  description        String?             @db.Text
-  /// ⚠ 下面这组旧列已停读停写（图只认 referenceSlots，外观只认 description），下一次部署删列。
-  sourceImageUrl     String              @default("")
-  sourceStorageKey   String              @default("")
-  sourceImages       Json? // string[] — all uploaded source image URLs (legacy flat)
-  sourceImageEntries Json? // SourceImageEntry[] — structured with viewType
-  characterPrompt    String              @default("") @db.Text
-  modelPrompts       Json? // Record<adapterType, optimizedPrompt>
-  referenceImages    Json? // string[] — best generation R2 URLs
-  attributes         Json? // CharacterAttributes structured data
-  loras              Json? // Lora[] — character-specific LoRA models [{url, scale}]
-  tags               String[]            @default([])
-  status             CharacterCardStatus @default(DRAFT)
-  stabilityScore     Float?
-  isDeleted          Boolean             @default(false)
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  description String?  @db.Text
+  loras       Json? // Lora[] — character-specific LoRA models [{url, scale}]
+  tags        String[] @default([])
+  isDeleted   Boolean  @default(false)
 
-  // ── 角色卡字段 v2（2026-09-17，见 docs/references/domains/cards.md）──
-  // 把图片 / 视频 / 语音 / 画布串成同一个命名实体。全部可空、无回填、无业务约束；
-  // 本轮写入只走角色卡 create / update 的透传，⛔ card-recipe-compiler 未接。
+  // ── 角色卡字段 v2（见 docs/references/domains/cards.md）──
   /// 默认嗓子。软引用：删音色卡只清绑定，不删角色卡。
-  voiceCardId       String?
-  voiceCard         VoiceCard? @relation(fields: [voiceCardId], references: [id], onDelete: SetNull)
+  voiceCardId  String?
+  voiceCard    VoiceCard? @relation(fields: [voiceCardId], references: [id], onDelete: SetNull)
   /// `{ emotions: [{ label, params }], sampleLines: string[] }`
-  voiceProfile      Json?
+  voiceProfile Json?
   /// `{ behavior, speech, catchphrases[], scenario, opening, examples[] }`——人设写
   /// 具体行为不写形容词，与 `description`（视觉描述）分开。
-  persona           Json?
-  /// `Record<url, role>`，role 取 `NODE_STUDIO_REFERENCE_ROLES` 的 11 类。
-  /// ⚠ 旁挂而不是改 `referenceImages` 的形状；v3 两者合并成 referenceSlots。
-  referenceRoles    Json?
-  /// `{ allowStyleCardIds: string[], denyTags: string[] }`，空数组 = 不限制。
-  allowedStyleRange Json?
-  /// `{ sourceGenerationIds[], loraJobId?, derivedFromCardId?, derivedFromCardVersion? }`
-  provenance        Json?
-  /// 卡内容的单调版本号，供 `provenance.derivedFromCardVersion` 指认派生自哪一版。
-  version           Int        @default(1)
+  persona      Json?
+  /// 卡内容的单调版本号：进生成快照，指认出图用的是哪一版卡。
+  version      Int        @default(1)
 
   // ── 卡片总线 v3（进度表 35，见 docs/references/domains/cards.md）──
-  // expand 期：全部可空、写方双写、读方未切。contract 迁移时 handle 改非空、
-  // 删掉被 referenceSlots 吞掉的四列旧图片列表。
   /// `@名字` 的稳定锚点，同一用户内唯一。只有角色卡有（owner 09-25：背景卡下线）。
   handle         String?
   /// 给人看的简介。⛔ 任何面都不进 prompt（含助手）。
   summary        String? @db.Text
-  /// `CharacterReferenceSlot[]`，吞掉 referenceImages / referenceRoles / sourceImages / sourceImageEntries。
+  /// `CharacterReferenceSlot[]`：卡上全部的图，`isPrimary` 那一张是封面。
   referenceSlots Json?
   /// 带命名空间的扩展键袋（`pv.*` 归本产品）。认不出的键原样保留。
   extensions     Json?
@@ -945,15 +910,12 @@ model CharacterCard {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  generations      Generation[]
   generationLinks  GenerationCharacterCard[]
   loraTrainingJobs LoraTrainingJob[]
 
   @@unique([userId, handle])
   @@index([userId, isDeleted, updatedAt(sort: Desc)])
-  @@index([userId, status, isDeleted])
   @@index([parentId, isDeleted, updatedAt(sort: Desc)])
-  @@index([userId, projectId, isDeleted, updatedAt(sort: Desc)])
   @@index([voiceCardId])
 }
 

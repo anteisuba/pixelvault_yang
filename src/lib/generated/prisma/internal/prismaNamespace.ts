@@ -3252,7 +3252,6 @@ export const GenerationScalarFieldEnum = {
   searchGrounded: 'searchGrounded',
   userId: 'userId',
   projectId: 'projectId',
-  characterCardId: 'characterCardId',
   recipeSnapshot: 'recipeSnapshot',
   sourceSurface: 'sourceSurface',
   loraLineage: 'loraLineage',
@@ -3517,28 +3516,14 @@ export type ModelConfigScalarFieldEnum = (typeof ModelConfigScalarFieldEnum)[key
 export const CharacterCardScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
-  projectId: 'projectId',
   name: 'name',
   description: 'description',
-  sourceImageUrl: 'sourceImageUrl',
-  sourceStorageKey: 'sourceStorageKey',
-  sourceImages: 'sourceImages',
-  sourceImageEntries: 'sourceImageEntries',
-  characterPrompt: 'characterPrompt',
-  modelPrompts: 'modelPrompts',
-  referenceImages: 'referenceImages',
-  attributes: 'attributes',
   loras: 'loras',
   tags: 'tags',
-  status: 'status',
-  stabilityScore: 'stabilityScore',
   isDeleted: 'isDeleted',
   voiceCardId: 'voiceCardId',
   voiceProfile: 'voiceProfile',
   persona: 'persona',
-  referenceRoles: 'referenceRoles',
-  allowedStyleRange: 'allowedStyleRange',
-  provenance: 'provenance',
   version: 'version',
   handle: 'handle',
   summary: 'summary',
@@ -4022,20 +4007,6 @@ export type EnumProjectRuleKindFieldRefInput<$PrismaModel> = FieldRefInputType<$
  * Reference to a field of type 'ProjectRuleKind[]'
  */
 export type ListEnumProjectRuleKindFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ProjectRuleKind[]'>
-    
-
-
-/**
- * Reference to a field of type 'CharacterCardStatus'
- */
-export type EnumCharacterCardStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'CharacterCardStatus'>
-    
-
-
-/**
- * Reference to a field of type 'CharacterCardStatus[]'
- */
-export type ListEnumCharacterCardStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'CharacterCardStatus[]'>
     
 
 

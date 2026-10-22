@@ -93,16 +93,6 @@ export const ExecutionOutboxStatus = {
 export type ExecutionOutboxStatus = (typeof ExecutionOutboxStatus)[keyof typeof ExecutionOutboxStatus]
 
 
-export const CharacterCardStatus = {
-  DRAFT: 'DRAFT',
-  REFINING: 'REFINING',
-  STABLE: 'STABLE',
-  ARCHIVED: 'ARCHIVED'
-} as const
-
-export type CharacterCardStatus = (typeof CharacterCardStatus)[keyof typeof CharacterCardStatus]
-
-
 export const LoraTrainingStatus = {
   QUEUED: 'QUEUED',
   TRAINING: 'TRAINING',

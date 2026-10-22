@@ -494,23 +494,6 @@ export type EnumProjectRuleKindWithAggregatesFilter<$PrismaModel = never> = {
   _max?: Prisma.NestedEnumProjectRuleKindFilter<$PrismaModel>
 }
 
-export type EnumCharacterCardStatusFilter<$PrismaModel = never> = {
-  equals?: $Enums.CharacterCardStatus | Prisma.EnumCharacterCardStatusFieldRefInput<$PrismaModel>
-  in?: $Enums.CharacterCardStatus[] | Prisma.ListEnumCharacterCardStatusFieldRefInput<$PrismaModel>
-  notIn?: $Enums.CharacterCardStatus[] | Prisma.ListEnumCharacterCardStatusFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumCharacterCardStatusFilter<$PrismaModel> | $Enums.CharacterCardStatus
-}
-
-export type EnumCharacterCardStatusWithAggregatesFilter<$PrismaModel = never> = {
-  equals?: $Enums.CharacterCardStatus | Prisma.EnumCharacterCardStatusFieldRefInput<$PrismaModel>
-  in?: $Enums.CharacterCardStatus[] | Prisma.ListEnumCharacterCardStatusFieldRefInput<$PrismaModel>
-  notIn?: $Enums.CharacterCardStatus[] | Prisma.ListEnumCharacterCardStatusFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumCharacterCardStatusWithAggregatesFilter<$PrismaModel> | $Enums.CharacterCardStatus
-  _count?: Prisma.NestedIntFilter<$PrismaModel>
-  _min?: Prisma.NestedEnumCharacterCardStatusFilter<$PrismaModel>
-  _max?: Prisma.NestedEnumCharacterCardStatusFilter<$PrismaModel>
-}
-
 export type EnumLoraTrainingStatusFilter<$PrismaModel = never> = {
   equals?: $Enums.LoraTrainingStatus | Prisma.EnumLoraTrainingStatusFieldRefInput<$PrismaModel>
   in?: $Enums.LoraTrainingStatus[] | Prisma.ListEnumLoraTrainingStatusFieldRefInput<$PrismaModel>
@@ -1066,23 +1049,6 @@ export type NestedEnumProjectRuleKindWithAggregatesFilter<$PrismaModel = never> 
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedEnumProjectRuleKindFilter<$PrismaModel>
   _max?: Prisma.NestedEnumProjectRuleKindFilter<$PrismaModel>
-}
-
-export type NestedEnumCharacterCardStatusFilter<$PrismaModel = never> = {
-  equals?: $Enums.CharacterCardStatus | Prisma.EnumCharacterCardStatusFieldRefInput<$PrismaModel>
-  in?: $Enums.CharacterCardStatus[] | Prisma.ListEnumCharacterCardStatusFieldRefInput<$PrismaModel>
-  notIn?: $Enums.CharacterCardStatus[] | Prisma.ListEnumCharacterCardStatusFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumCharacterCardStatusFilter<$PrismaModel> | $Enums.CharacterCardStatus
-}
-
-export type NestedEnumCharacterCardStatusWithAggregatesFilter<$PrismaModel = never> = {
-  equals?: $Enums.CharacterCardStatus | Prisma.EnumCharacterCardStatusFieldRefInput<$PrismaModel>
-  in?: $Enums.CharacterCardStatus[] | Prisma.ListEnumCharacterCardStatusFieldRefInput<$PrismaModel>
-  notIn?: $Enums.CharacterCardStatus[] | Prisma.ListEnumCharacterCardStatusFieldRefInput<$PrismaModel>
-  not?: Prisma.NestedEnumCharacterCardStatusWithAggregatesFilter<$PrismaModel> | $Enums.CharacterCardStatus
-  _count?: Prisma.NestedIntFilter<$PrismaModel>
-  _min?: Prisma.NestedEnumCharacterCardStatusFilter<$PrismaModel>
-  _max?: Prisma.NestedEnumCharacterCardStatusFilter<$PrismaModel>
 }
 
 export type NestedEnumLoraTrainingStatusFilter<$PrismaModel = never> = {

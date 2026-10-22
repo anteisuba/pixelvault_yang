@@ -45,6 +45,19 @@ const nextConfig: NextConfig = {
     ],
   },
   outputFileTracingRoot: PROJECT_ROOT,
+  // Vercel stores a copy of every retained deployment's function bundle
+  // (Function Storage quota), so keep files that can never run there out of
+  // the trace: sharp's musl/wasm builds (Vercel Functions run on glibc x64)
+  // and shiki, which code-block.tsx only imports inside useEffect.
+  outputFileTracingExcludes: {
+    '*': [
+      'node_modules/@img/sharp-libvips-linuxmusl-*/**',
+      'node_modules/@img/sharp-linuxmusl-*/**',
+      'node_modules/@img/sharp-wasm32/**',
+      'node_modules/shiki/**',
+      'node_modules/@shikijs/**',
+    ],
+  },
   turbopack: {
     root: PROJECT_ROOT,
   },

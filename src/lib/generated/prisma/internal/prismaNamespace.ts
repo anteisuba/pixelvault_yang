@@ -418,7 +418,6 @@ export const ModelName = {
   LoraAsset: 'LoraAsset',
   ExtractedElement: 'ExtractedElement',
   GenerationLayer: 'GenerationLayer',
-  InspirationPrompt: 'InspirationPrompt',
   ContextCard: 'ContextCard',
   AssistantMemory: 'AssistantMemory',
   AssistantTurnRecord: 'AssistantTurnRecord'
@@ -437,7 +436,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "promptTagStack" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "modelConfig" | "characterCard" | "characterLook" | "generationCharacterCard" | "userLike" | "userFollow" | "characterCardLora" | "loraTrainingJob" | "loraAsset" | "extractedElement" | "generationLayer" | "inspirationPrompt" | "contextCard" | "assistantMemory" | "assistantTurnRecord"
+    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "promptTagStack" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "modelConfig" | "characterCard" | "characterLook" | "generationCharacterCard" | "userLike" | "userFollow" | "characterCardLora" | "loraTrainingJob" | "loraAsset" | "extractedElement" | "generationLayer" | "contextCard" | "assistantMemory" | "assistantTurnRecord"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2957,80 +2956,6 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
-    InspirationPrompt: {
-      payload: Prisma.$InspirationPromptPayload<ExtArgs>
-      fields: Prisma.InspirationPromptFieldRefs
-      operations: {
-        findUnique: {
-          args: Prisma.InspirationPromptFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$InspirationPromptPayload> | null
-        }
-        findUniqueOrThrow: {
-          args: Prisma.InspirationPromptFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$InspirationPromptPayload>
-        }
-        findFirst: {
-          args: Prisma.InspirationPromptFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$InspirationPromptPayload> | null
-        }
-        findFirstOrThrow: {
-          args: Prisma.InspirationPromptFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$InspirationPromptPayload>
-        }
-        findMany: {
-          args: Prisma.InspirationPromptFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$InspirationPromptPayload>[]
-        }
-        create: {
-          args: Prisma.InspirationPromptCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$InspirationPromptPayload>
-        }
-        createMany: {
-          args: Prisma.InspirationPromptCreateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        createManyAndReturn: {
-          args: Prisma.InspirationPromptCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$InspirationPromptPayload>[]
-        }
-        delete: {
-          args: Prisma.InspirationPromptDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$InspirationPromptPayload>
-        }
-        update: {
-          args: Prisma.InspirationPromptUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$InspirationPromptPayload>
-        }
-        deleteMany: {
-          args: Prisma.InspirationPromptDeleteManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateMany: {
-          args: Prisma.InspirationPromptUpdateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateManyAndReturn: {
-          args: Prisma.InspirationPromptUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$InspirationPromptPayload>[]
-        }
-        upsert: {
-          args: Prisma.InspirationPromptUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$InspirationPromptPayload>
-        }
-        aggregate: {
-          args: Prisma.InspirationPromptAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregateInspirationPrompt>
-        }
-        groupBy: {
-          args: Prisma.InspirationPromptGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.InspirationPromptGroupByOutputType>[]
-        }
-        count: {
-          args: Prisma.InspirationPromptCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.InspirationPromptCountAggregateOutputType> | number
-        }
-      }
-    }
     ContextCard: {
       payload: Prisma.$ContextCardPayload<ExtArgs>
       fields: Prisma.ContextCardFieldRefs
@@ -3920,30 +3845,6 @@ export const GenerationLayerScalarFieldEnum = {
 export type GenerationLayerScalarFieldEnum = (typeof GenerationLayerScalarFieldEnum)[keyof typeof GenerationLayerScalarFieldEnum]
 
 
-export const InspirationPromptScalarFieldEnum = {
-  id: 'id',
-  source: 'source',
-  rank: 'rank',
-  prompt: 'prompt',
-  author: 'author',
-  authorName: 'authorName',
-  likes: 'likes',
-  views: 'views',
-  imageUrl: 'imageUrl',
-  modelHint: 'modelHint',
-  categories: 'categories',
-  sourceUrl: 'sourceUrl',
-  rating: 'rating',
-  score: 'score',
-  publishedAt: 'publishedAt',
-  isPublic: 'isPublic',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type InspirationPromptScalarFieldEnum = (typeof InspirationPromptScalarFieldEnum)[keyof typeof InspirationPromptScalarFieldEnum]
-
-
 export const ContextCardScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -4480,7 +4381,6 @@ export type GlobalOmitConfig = {
   loraAsset?: Prisma.LoraAssetOmit
   extractedElement?: Prisma.ExtractedElementOmit
   generationLayer?: Prisma.GenerationLayerOmit
-  inspirationPrompt?: Prisma.InspirationPromptOmit
   contextCard?: Prisma.ContextCardOmit
   assistantMemory?: Prisma.AssistantMemoryOmit
   assistantTurnRecord?: Prisma.AssistantTurnRecordOmit

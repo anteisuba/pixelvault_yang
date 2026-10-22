@@ -216,11 +216,6 @@ export type ExtractedElement = Prisma.ExtractedElementModel
  */
 export type GenerationLayer = Prisma.GenerationLayerModel
 /**
- * Model InspirationPrompt
- * 
- */
-export type InspirationPrompt = Prisma.InspirationPromptModel
-/**
  * Model ContextCard
  * **上下文卡**（第三期 K1）—— 账号级、可 `@` 注入、可在工作台常挂的持久上下文。
  * 

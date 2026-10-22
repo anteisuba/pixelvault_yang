@@ -35,5 +35,9 @@ export function buildGalleryQueryString(filters: GalleryFilters): string {
     params.set('projectId', filters.projectId)
   }
 
+  if (filters.view === 'prompts') {
+    params.set('view', 'prompts')
+  }
+
   return params.toString()
 }

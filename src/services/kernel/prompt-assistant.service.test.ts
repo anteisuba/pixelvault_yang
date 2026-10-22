@@ -51,12 +51,6 @@ vi.mock('@/services/llm-text.service', () => ({
   isLlmTextTransientError: () => false,
 }))
 
-const mockBuildInspirationContext = vi.fn()
-vi.mock('@/services/kernel/inspiration-context.service', () => ({
-  buildInspirationContext: (...a: unknown[]) =>
-    mockBuildInspirationContext(...a),
-}))
-
 // 检索管线（切片 1）。这里只验**接线**：回执有没有带回来、证据块有没有以带边界
 // 标记的形态进用户提示、幻引用会不会被打回。管线本身在
 // `services/research/*.test.ts` 里覆盖。
@@ -156,7 +150,6 @@ describe('chatPromptAssistant', () => {
       )) as { adapterType: string } | undefined
       return route ? [{ id: 'key_route', adapterType: route.adapterType }] : []
     })
-    mockBuildInspirationContext.mockResolvedValue('')
     // 默认：这一轮规划器判定不需要检索（返回 null = 完全没打源）
     mockRunResearch.mockResolvedValue(null)
     // 默认：不取元数据（`[]` = 一条已挂载链接都没有 → 不出块也不加规矩）。
@@ -485,70 +478,6 @@ describe('chatPromptAssistant', () => {
     expect(call.systemPrompt).toContain('Output the prompt in English')
     expect(call.systemPrompt).toContain('Preserve existing LoRA trigger words')
     expect(call.systemPrompt).not.toContain('Simplified Chinese')
-  })
-
-  // ── RAG: useInspirationContext ─────────────────────────────────
-
-  it('does NOT query the inspiration library when useInspirationContext is false', async () => {
-    mockLlmCompletion.mockResolvedValue('```\na sleepy cat\n```')
-
-    await runGeneralTurn('clerk_1', {
-      messages: [{ role: 'user', content: 'a cat under a tree' }],
-      useInspirationContext: false,
-    })
-
-    expect(mockBuildInspirationContext).not.toHaveBeenCalled()
-  })
-
-  it('injects inspiration context into the system prompt on the first turn', async () => {
-    const INSPIRATION_BLOCK =
-      '\n\n# Reference Examples (from a curated prompt library)\n... Example 1: dramatic cat scene ...'
-    mockBuildInspirationContext.mockResolvedValue(INSPIRATION_BLOCK)
-    mockLlmCompletion.mockResolvedValue('```\na cat in golden hour\n```')
-
-    await runGeneralTurn('clerk_1', {
-      messages: [{ role: 'user', content: 'a cat under a tree' }],
-      useInspirationContext: true,
-    })
-
-    expect(mockBuildInspirationContext).toHaveBeenCalledWith(
-      'a cat under a tree',
-    )
-    const call = mockLlmCompletion.mock.calls[0]?.[0] as {
-      systemPrompt: string
-    }
-    expect(call.systemPrompt).toContain('Reference Examples')
-    expect(call.systemPrompt).toContain('dramatic cat scene')
-  })
-
-  it('does NOT inject inspiration context on follow-up turns', async () => {
-    mockLlmCompletion.mockResolvedValue('```\nrefined prompt\n```')
-
-    await runGeneralTurn('clerk_1', {
-      messages: [
-        { role: 'user', content: 'a cat under a tree' },
-        { role: 'assistant', content: 'A tabby cat resting beneath...' },
-        { role: 'user', content: 'make it more dramatic' },
-      ],
-      useInspirationContext: true,
-    })
-
-    expect(mockBuildInspirationContext).not.toHaveBeenCalled()
-  })
-
-  it('prefers currentPrompt over the first message when seeding inspiration lookup', async () => {
-    mockBuildInspirationContext.mockResolvedValue('')
-    mockLlmCompletion.mockResolvedValue('```\nok\n```')
-
-    await runGeneralTurn('clerk_1', {
-      messages: [{ role: 'user', content: 'make it cinematic' }],
-      currentPrompt: 'an existing prompt about a cat',
-      useInspirationContext: true,
-    })
-
-    expect(mockBuildInspirationContext).toHaveBeenCalledWith(
-      'an existing prompt about a cat',
-    )
   })
 
   // ── 检索管线接线（AI 导演内核切片 1）──────────────────────────
@@ -1293,7 +1222,6 @@ describe('chatPromptAssistant', () => {
           'lora',
           undefined,
           undefined,
-          undefined,
           [],
           'image',
           { llmModelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO },
@@ -1379,7 +1307,6 @@ describe('chatPromptAssistant', () => {
         'lora',
         undefined,
         undefined,
-        undefined,
         imageReferences(10),
       )
 
@@ -1398,7 +1325,6 @@ describe('chatPromptAssistant', () => {
         undefined,
         'english',
         'lora',
-        undefined,
         undefined,
         undefined,
         imageReferences(2),
@@ -1461,7 +1387,6 @@ describe('chatPromptAssistant', () => {
         'english',
         'lora',
         undefined,
-        undefined,
         { mounts: [], trayTags: [] },
       )
 
@@ -1497,7 +1422,6 @@ describe('chatPromptAssistant', () => {
         'english',
         'lora',
         undefined,
-        undefined,
         {
           mounts: [
             {
@@ -1532,7 +1456,6 @@ describe('chatPromptAssistant', () => {
         'english',
         'lora',
         undefined,
-        undefined,
         { mounts: [], trayTags: ['1girl'] },
       )
 
@@ -1557,7 +1480,6 @@ describe('chatPromptAssistant', () => {
         undefined,
         'chinese',
         'lora',
-        undefined,
         undefined,
         { mounts: [], trayTags: [] },
       )
@@ -1587,7 +1509,6 @@ describe('chatPromptAssistant', () => {
         'english',
         'lora',
         undefined,
-        undefined,
         { mounts: [], trayTags: [] },
       )
 
@@ -1608,7 +1529,6 @@ describe('chatPromptAssistant', () => {
           undefined,
           'english',
           'lora',
-          undefined,
           undefined,
           { mounts: [], trayTags: [] },
         ),

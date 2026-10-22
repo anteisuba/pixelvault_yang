@@ -7,18 +7,12 @@ import { z } from 'zod'
 import { ROUTES } from '@/constants/routes'
 import { PromptTemplateCreatePanel } from '@/components/business/prompts/PromptTemplateCreatePanel'
 import { PromptTemplateList } from '@/components/business/prompts/PromptTemplateList'
-import { InspirationGrid } from '@/components/business/prompts/inspiration/InspirationGrid'
-import {
-  PromptLibraryTabs,
-  type PromptLibraryTab,
-} from '@/components/business/prompts/inspiration/PromptLibraryTabs'
 import { Button } from '@/components/ui/button'
 import { Link } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'
 import { listRecipeSummaries } from '@/services/prompts/recipe.service'
 
 const PromptCreateQuerySchema = z.object({
-  tab: z.enum(['mine', 'inspiration']).optional(),
   create: z.enum(['1']).optional(),
   name: z.string().trim().max(200).optional(),
   prompt: z.string().trim().max(5000).optional(),
@@ -32,7 +26,6 @@ const PromptCreateQuerySchema = z.object({
 interface PromptsPageProps {
   params: Promise<{ locale: AppLocale }>
   searchParams: Promise<{
-    tab?: string
     create?: string
     name?: string
     prompt?: string
@@ -69,10 +62,7 @@ export default async function PromptsPage({
   ])
   const { userId: clerkId } = authState
 
-  const currentTab: PromptLibraryTab =
-    query?.tab === 'inspiration' ? 'inspiration' : 'mine'
-
-  // 提示词页 A（pages/prompts.md）：灰底地台 + 顶行（标题 · 分段 · 新建）+ 一张白卡舞台，
+  // 提示词页 A（pages/prompts.md）：灰底地台 + 顶行（标题 · 新建）+ 一张白卡舞台，
   // 与 LoRA 台同一副外壳。
   return (
     <main className="workbench-ground h-page flex-col text-foreground">
@@ -80,9 +70,8 @@ export default async function PromptsPage({
         <h1 className="text-sm font-semibold text-muted-foreground">
           {t('pageTitle')}
         </h1>
-        <PromptLibraryTabs currentTab={currentTab} />
         <span className="flex-1" />
-        {clerkId && currentTab === 'mine' && (
+        {clerkId && (
           <PromptTemplateCreatePanel
             initialOpen={query?.create === '1'}
             initialValues={{
@@ -99,13 +88,7 @@ export default async function PromptsPage({
       </div>
 
       <section aria-label={t('title')} className="workbench-card">
-        {currentTab === 'inspiration' ? (
-          <div className="min-h-0 flex-1 overflow-y-auto p-5">
-            <InspirationGrid />
-          </div>
-        ) : (
-          <MineTab clerkId={clerkId} locale={locale} t={t} />
-        )}
+        <MineTab clerkId={clerkId} locale={locale} t={t} />
       </section>
     </main>
   )
@@ -168,7 +151,6 @@ async function MineTab({ clerkId, locale, t }: MineTabProps) {
             compiledPrompt: recipe.compiledPrompt,
             modelId: recipe.modelId,
             version: recipe.version,
-            visibility: recipe.visibility,
             createdAt: recipe.createdAt.toISOString(),
             coverThumbnailUrl: recipe.coverThumbnailUrl,
             templateKind: recipe.templateKind,

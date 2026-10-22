@@ -37,12 +37,6 @@ vi.mock('@/services/llm-text.service', async (importOriginal) => ({
   llmTextCompletion: (...a: unknown[]) => mockLlmCompletion(...a),
 }))
 
-const mockBuildInspirationContext = vi.fn()
-vi.mock('@/services/kernel/inspiration-context.service', () => ({
-  buildInspirationContext: (...a: unknown[]) =>
-    mockBuildInspirationContext(...a),
-}))
-
 import { enhancePrompt } from '@/services/kernel/prompt-enhance.service'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
@@ -75,7 +69,6 @@ describe('enhancePrompt', () => {
     seedAssistantRoute(keyStore, {
       keys: [assistantKey(AI_ADAPTER_TYPES.GEMINI)],
     })
-    mockBuildInspirationContext.mockResolvedValue('')
   })
 
   it.each(PROMPT_ENHANCE.STYLES)(
@@ -238,66 +231,5 @@ describe('enhancePrompt', () => {
       enhancePrompt('clerk_1', ORIGINAL_PROMPT, 'detailed'),
     ).rejects.toBeInstanceOf(AssistantModelKeyMissingError)
     expect(mockLlmCompletion).not.toHaveBeenCalled()
-  })
-
-  // ── RAG: useInspirationContext ─────────────────────────────────
-
-  it('does NOT query the inspiration library when useInspirationContext is false', async () => {
-    mockLlmCompletion.mockResolvedValue(ENHANCED_REPLY)
-
-    await enhancePrompt(
-      'clerk_1',
-      ORIGINAL_PROMPT,
-      'detailed',
-      undefined,
-      undefined,
-      false,
-    )
-
-    expect(mockBuildInspirationContext).not.toHaveBeenCalled()
-  })
-
-  it('appends the inspiration context to the system prompt when enabled', async () => {
-    const INSPIRATION_BLOCK =
-      '\n\n# Reference Examples (from a curated prompt library)\n... Example 1: cat scene ...'
-    mockBuildInspirationContext.mockResolvedValue(INSPIRATION_BLOCK)
-    mockLlmCompletion.mockResolvedValue(ENHANCED_REPLY)
-
-    await enhancePrompt(
-      'clerk_1',
-      ORIGINAL_PROMPT,
-      'photorealistic',
-      undefined,
-      undefined,
-      true,
-    )
-
-    expect(mockBuildInspirationContext).toHaveBeenCalledWith(ORIGINAL_PROMPT)
-    const call = mockLlmCompletion.mock.calls[0]?.[0] as
-      | { systemPrompt: string }
-      | undefined
-    expect(call?.systemPrompt).toContain('Reference Examples')
-    expect(call?.systemPrompt).toContain('Example 1: cat scene')
-  })
-
-  it('falls back gracefully when inspiration context lookup returns empty', async () => {
-    mockBuildInspirationContext.mockResolvedValue('') // no matches / failure
-    mockLlmCompletion.mockResolvedValue(ENHANCED_REPLY)
-
-    const result = await enhancePrompt(
-      'clerk_1',
-      ORIGINAL_PROMPT,
-      'detailed',
-      undefined,
-      undefined,
-      true,
-    )
-
-    // Should still produce a valid enhanced prompt; system prompt has no RAG block
-    expect(result.enhanced).toBe(ENHANCED_REPLY)
-    const call = mockLlmCompletion.mock.calls[0]?.[0] as
-      | { systemPrompt: string }
-      | undefined
-    expect(call?.systemPrompt).not.toContain('Reference Examples')
   })
 })

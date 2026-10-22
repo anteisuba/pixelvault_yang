@@ -13,6 +13,7 @@ import {
 import { DURATION, EASE_STANDARD, SPRING } from '@/constants/motion'
 import { AssetFacetBar } from '@/components/business/assets/AssetFacetBar'
 import { BlurSwap } from '@/components/ui/blur-swap'
+import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import type { GalleryFilters } from '@/hooks/use-gallery'
 import { toastError } from '@/lib/toast'
 import { cn } from '@/lib/utils'
@@ -219,6 +220,17 @@ export const GalleryHeader = memo(function GalleryHeader({
           className="flex min-h-14 w-full flex-wrap items-center gap-2 px-4 py-2"
         >
           <h1 className="sr-only">{t('feedEyebrow')}</h1>
+
+          <LiquidSegmented
+            ariaLabel={t('viewLabel')}
+            semantics="tabs"
+            value={filters.view ?? 'images'}
+            items={[
+              { value: 'images', label: t('viewImages') },
+              { value: 'prompts', label: t('viewPrompts') },
+            ]}
+            onChange={(view) => onFiltersChange({ ...filters, view })}
+          />
 
           <AssetFacetBar
             filters={filters}

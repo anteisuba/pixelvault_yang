@@ -167,6 +167,8 @@ export interface GalleryQueryOptions {
   /** When set, only return generations liked by this user */
   likedByUserId?: string
   published?: boolean
+  /** 只要提示词公开的作品（画廊「提示词」看法）。 */
+  promptPublic?: boolean
   /** When set, include isLiked for this viewer */
   viewerUserId?: string
   /**
@@ -315,6 +317,7 @@ async function buildGalleryWhere(options: {
   userId?: string
   likedByUserId?: string
   published?: boolean
+  promptPublic?: boolean
   projectId?: string
   provider?: string
 }) {
@@ -328,6 +331,10 @@ async function buildGalleryWhere(options: {
 
   if (options.published) {
     where.isPublic = true
+  }
+
+  if (options.promptPublic) {
+    where.isPromptPublic = true
   }
 
   // 文件夹范围：夹 id（连所有层子孙夹）/ "none"（未归档）/ 不传 = 不限。
@@ -780,6 +787,7 @@ async function getPublicGenerationSlice({
   userId,
   likedByUserId,
   published,
+  promptPublic,
   viewerUserId,
   projectId,
   provider,
@@ -820,6 +828,7 @@ async function getPublicGenerationSlice({
     userId,
     likedByUserId,
     published,
+    promptPublic,
     projectId,
     provider,
   })
@@ -901,6 +910,7 @@ export async function getPublicGenerationPage(
           userId: options.userId,
           likedByUserId: options.likedByUserId,
           published: options.published,
+          promptPublic: options.promptPublic,
           projectId: options.projectId,
           provider: options.provider,
         })
@@ -1321,6 +1331,7 @@ export async function countPublicGenerations(
     | 'userId'
     | 'likedByUserId'
     | 'published'
+    | 'promptPublic'
     | 'projectId'
     | 'provider'
   > = {},
@@ -1349,6 +1360,7 @@ type PublicGalleryCacheKey = {
   type?: OutputTypeValue[]
   timeRange?: GalleryTimeRange
   published?: boolean
+  promptPublic?: boolean
   projectId?: string
 }
 

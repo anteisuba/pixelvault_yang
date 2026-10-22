@@ -280,31 +280,10 @@ describe('user-preference.service', () => {
 
     await updatePreferenceOnRecipeSaved('user-1', {
       id: 'recipe-1',
-      userId: 'user-1',
-      outputType: 'IMAGE',
-      name: 'Recipe',
       userIntent: null,
       compiledPrompt: 'anime portrait',
       negativePrompt: 'blur, bad hands',
       modelId: 'model-a',
-      provider: 'fal',
-      params: null,
-      referenceAssets: null,
-      seed: null,
-      parentGenerationId: null,
-      version: 1,
-      evaluationSummary: null,
-      isDeleted: false,
-      createdAt: new Date('2026-05-04T10:00:00.000Z'),
-      updatedAt: new Date('2026-05-04T10:00:00.000Z'),
-      coverGenerationId: null,
-      coverImageUrl: null,
-      favoriteCount: 0,
-      lastUsedAt: null,
-      remixSourceRecipeId: null,
-      tags: [],
-      usageCount: 0,
-      visibility: 'PRIVATE',
     })
 
     expect(mockPreferenceUpsert).toHaveBeenCalledWith(

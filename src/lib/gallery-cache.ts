@@ -14,6 +14,7 @@
 import type {
   GallerySortOption,
   GalleryTimeRange,
+  GalleryView,
   GenerationRecord,
   OutputTypeValue,
 } from '@/types'
@@ -28,6 +29,7 @@ export interface GalleryFilterShape {
   published: boolean
   projectId: string
   provider?: string
+  view?: GalleryView
 }
 
 export interface GalleryCacheEntry {
@@ -59,6 +61,7 @@ export function makeGalleryCacheKey(
     published: filters.published,
     p: filters.projectId,
     provider: filters.provider || '',
+    view: filters.view ?? 'images',
     mine,
     limit,
     scope,

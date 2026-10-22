@@ -21,6 +21,7 @@ interface GalleryPageProps {
     type?: string
     timeRange?: string
     liked?: string
+    view?: string
   }>
 }
 
@@ -56,6 +57,7 @@ export default async function GalleryPage({ searchParams }: GalleryPageProps) {
         liked: filterResult.data.liked === '1',
         published: filterResult.data.published === '1',
         projectId: filterResult.data.projectId ?? '',
+        view: filterResult.data.view,
       }
     : {
         search: '',
@@ -66,6 +68,7 @@ export default async function GalleryPage({ searchParams }: GalleryPageProps) {
         liked: false,
         published: false,
         projectId: '',
+        view: 'images' as const,
       }
   const initialPage = await getPublicGenerationPage({
     page: PAGINATION.DEFAULT_PAGE,
@@ -76,6 +79,7 @@ export default async function GalleryPage({ searchParams }: GalleryPageProps) {
     type: initialFilters.types,
     timeRange: initialFilters.timeRange,
     published: initialFilters.published,
+    promptPublic: initialFilters.view === 'prompts',
   })
   const total = initialPage.total ?? initialPage.generations.length
 

@@ -10,7 +10,7 @@
  */
 
 export const FEATURE_FLAGS = {
-  /** B6: Model-aware prompt suggestions, scenario templates, inspiration presets */
+  /** B6: Model-aware prompt suggestions, scenario templates */
   smartPrompt: process.env.NEXT_PUBLIC_FF_SMART_PROMPT === 'true',
 
   /** B5: Same-model 4-variant generation with different seeds */

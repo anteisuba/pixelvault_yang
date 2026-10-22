@@ -4,7 +4,7 @@ import {
   ASSISTANT_OPERATOR_CANVAS_LIMITS,
   ASSISTANT_OPERATOR_CARDS_LIMITS,
 } from '@/constants/assistant-operator'
-import type { CharacterCardRecord } from '@/types'
+import type { CharacterCardRecord, CharacterLookRecord } from '@/types'
 import {
   AssistantOperatorCanvasSnapshotSchema,
   AssistantOperatorSnapshotSchema,
@@ -15,24 +15,36 @@ import {
   buildCardsOperatorSnapshot,
 } from './cards-operator-snapshot'
 
+/** `look` 改默认造型；`extraLooks` 追加其余造型。 */
 const card = (
   id: string,
   overrides: Partial<CharacterCardRecord> = {},
+  look: Partial<CharacterLookRecord> = {},
+  extraLooks: CharacterLookRecord[] = [],
 ): CharacterCardRecord =>
   ({
     id,
     name: id,
-    description: null,
-    referenceSlots: [
+    looks: [
       {
-        id: 's1',
-        role: 'identity',
-        url: `https://cdn.test/${id}.png`,
-        isPrimary: true,
+        id: `${id}-look`,
+        label: null,
+        isDefault: true,
+        description: null,
+        tags: [],
+        referenceSlots: [
+          {
+            id: 's1',
+            role: 'identity',
+            url: `https://cdn.test/${id}.png`,
+            isPrimary: true,
+          },
+        ],
+        ...look,
       },
+      ...extraLooks,
     ],
     persona: null,
-    cardTags: { character: [], appearance: [] },
     workOverride: null,
     summary: null,
     tavern: null,
@@ -45,23 +57,23 @@ describe('buildCardsOperatorSnapshot（卡片助手的 read_state）', () => {
     const snapshot = buildCardsOperatorSnapshot(
       [
         card('rixi'),
-        card('denia', {
-          generationCount: 5,
-          cardTags: {
-            character: ['denia_(wuthering_waves)'],
-            appearance: [],
+        card(
+          'denia',
+          {
+            generationCount: 5,
+            persona: {
+              identity: '魔术师',
+              behavior: '',
+              speech: '',
+              catchphrases: [],
+              scenario: '',
+              opening: '',
+              examples: [],
+              backstory: '',
+            },
           },
-          persona: {
-            identity: '魔术师',
-            behavior: '',
-            speech: '',
-            catchphrases: [],
-            scenario: '',
-            opening: '',
-            examples: [],
-            backstory: '',
-          },
-        }),
+          { tags: ['denia_(wuthering_waves)'] },
+        ),
       ],
       null,
       'zh',
@@ -91,23 +103,42 @@ describe('buildCardsOperatorSnapshot（卡片助手的 read_state）', () => {
     const long = 'x'.repeat(ASSISTANT_OPERATOR_CARDS_LIMITS.maxFieldChars + 50)
     const snapshot = buildCardsOperatorSnapshot(
       [
-        card('denia', {
-          description: '粉发红眼',
-          persona: {
-            identity: '魔术师',
-            behavior: long,
-            speech: '叫对方「观众先生」',
-            catchphrases: [],
-            scenario: '',
-            opening: '',
-            examples: [],
-            backstory: '',
+        card(
+          'denia',
+          {
+            persona: {
+              identity: '魔术师',
+              behavior: long,
+              speech: '叫对方「观众先生」',
+              catchphrases: [],
+              scenario: '',
+              opening: '',
+              examples: [],
+              backstory: '',
+            },
           },
-          cardTags: {
-            character: ['denia_(wuthering_waves)'],
-            appearance: ['pink_hair'],
+          {
+            description: '粉发红眼',
+            tags: ['denia_(wuthering_waves)', 'pink_hair'],
           },
-        }),
+          [
+            {
+              id: 'denia-q',
+              label: 'Q版',
+              isDefault: false,
+              description: '三头身',
+              tags: ['chibi'],
+              referenceSlots: [
+                {
+                  id: 'q1',
+                  role: 'identity',
+                  url: 'https://cdn.test/denia-q.png',
+                  isPrimary: true,
+                },
+              ],
+            },
+          ],
+        ),
       ],
       'denia',
       'zh',
@@ -118,8 +149,8 @@ describe('buildCardsOperatorSnapshot（卡片助手的 read_state）', () => {
       look: '粉发红眼',
       identity: '魔术师',
       speech: '叫对方「观众先生」',
-      characterTags: ['denia_(wuthering_waves)'],
-      appearanceTags: ['pink_hair'],
+      tags: ['denia_(wuthering_waves)', 'pink_hair'],
+      otherLooks: ['Q版'],
       imagesOnCard: 1,
     })
     expect(open?.behavior).toHaveLength(
@@ -159,7 +190,7 @@ describe('buildCanvasCharacters（画布助手写剧本 / 台词时 @ 谁）', (
     const characters = buildCanvasCharacters(
       [
         card('rixi', { generationCount: 9 }),
-        card('denia', { description: '粉发红眼', persona }),
+        card('denia', { persona }, { description: '粉发红眼' }),
       ],
       new Set(['denia']),
       'zh',

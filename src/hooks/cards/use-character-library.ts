@@ -65,17 +65,19 @@ function subscribe(listener: () => void) {
 
 const getSnapshot = () => state
 
-/** 找她：根卡或变体都认（旧画布可能绑过变体 id）。 */
+/**
+ * 找她：按角色 id；旧画布可能绑过变体 id —— 变体 2026-10-22 并成了父卡的造型，造型 id
+ * 沿用变体卡 id（角色④），所以按造型 id 也认得回她。
+ */
 export function findLibraryCharacter(
   cards: readonly CharacterCardRecord[],
   id: string,
 ): CharacterCardRecord | null {
-  for (const card of cards) {
-    if (card.id === id) return card
-    const variant = card.variants.find((item) => item.id === id)
-    if (variant) return variant
-  }
-  return null
+  return (
+    cards.find((card) => card.id === id) ??
+    cards.find((card) => card.looks.some((look) => look.id === id)) ??
+    null
+  )
 }
 
 export function useCharacterLibrary() {

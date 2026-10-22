@@ -34,9 +34,10 @@ function character(
     version: 1,
     handle,
     name: handle,
+    lookId: null,
     visual: `${handle} looks`,
     negative: null,
-    tags: { character: [], appearance: [] },
+    tags: [],
     slots,
     ...overrides,
   }
@@ -51,16 +52,17 @@ const MULTI: ImageOutletOptions = {
 }
 
 describe('toCardBusCharacter', () => {
-  it('主图排最前、身份槽次之，视觉文字取外观，读出角色负面', () => {
+  it('主图排最前、身份槽次之，视觉文字与标签取造型，读出角色负面', () => {
     const result = toCardBusCharacter({
       id: 'c',
       version: 2,
       handle: '林夏',
       name: '林夏',
+      lookId: 'look-1',
       description: 'red eyes\nblack hoodie',
+      tags: ['lin_xia', 'black_hoodie'],
       extensions: {
         'pv.negative': 'glasses',
-        'pv.tags': { character: ['lin_xia'], loraTrigger: 'lx' },
         'x.other': 1,
       },
       slots: [
@@ -76,8 +78,8 @@ describe('toCardBusCharacter', () => {
     ])
     expect(result.visual).toBe('red eyes\nblack hoodie')
     expect(result.negative).toBe('glasses')
-    // 旧卡上手填的触发词（角色③ 之前）读出来就丢掉，⛔ 再进提示词。
-    expect(result.tags).toEqual({ character: ['lin_xia'], appearance: [] })
+    expect(result.lookId).toBe('look-1')
+    expect(result.tags).toEqual(['lin_xia', 'black_hoodie'])
   })
 
   it('同一张图换了域名只留一份（旧卡的自有 CDN 与 r2.dev 公链）', () => {
@@ -86,7 +88,9 @@ describe('toCardBusCharacter', () => {
       version: 1,
       handle: 'a',
       name: 'a',
+      lookId: null,
       description: null,
+      tags: [],
       extensions: null,
       slots: [
         slot('main', {
@@ -105,6 +109,8 @@ describe('toCardBusCharacter', () => {
       version: 1,
       handle: 'a',
       name: 'a',
+      lookId: null,
+      tags: [],
       extensions: null,
       slots: [],
     }
@@ -223,12 +229,9 @@ describe('compileImageOutlet', () => {
     expect(outlet.promptPrefix).toBe('[Character: @A]\nA looks')
   })
 
-  it('NovelAI 用标签认人：角色标签 + 外观标签', () => {
+  it('NovelAI 用这套造型的标签认人', () => {
     const denia = character('Denia', [slot('d1', { isPrimary: true })], {
-      tags: {
-        character: ['denia_(wuthering_waves)'],
-        appearance: ['pink_hair'],
-      },
+      tags: ['denia_(wuthering_waves)', 'pink_hair'],
     })
     const nai = {
       ...MULTI,
@@ -242,7 +245,7 @@ describe('compileImageOutlet', () => {
 
   it('分到图的角色不写视觉文字（靠图认人）', () => {
     const denia = character('Denia', [slot('d1', { isPrimary: true })], {
-      tags: { character: ['denia_(wuthering_waves)'], appearance: [] },
+      tags: ['denia_(wuthering_waves)'],
     })
     const plain = compileImageOutlet([denia], MULTI).promptPrefix
     expect(plain).toContain('[Character: @Denia]\n\nReference images:')

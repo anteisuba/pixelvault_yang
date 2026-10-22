@@ -75,6 +75,7 @@ export const ModelName = {
   ProjectRule: 'ProjectRule',
   ModelConfig: 'ModelConfig',
   CharacterCard: 'CharacterCard',
+  CharacterLook: 'CharacterLook',
   GenerationCharacterCard: 'GenerationCharacterCard',
   UserLike: 'UserLike',
   UserFollow: 'UserFollow',
@@ -575,10 +576,27 @@ export const CharacterCardScalarFieldEnum = {
 export type CharacterCardScalarFieldEnum = (typeof CharacterCardScalarFieldEnum)[keyof typeof CharacterCardScalarFieldEnum]
 
 
+export const CharacterLookScalarFieldEnum = {
+  id: 'id',
+  characterCardId: 'characterCardId',
+  label: 'label',
+  isDefault: 'isDefault',
+  description: 'description',
+  tags: 'tags',
+  referenceSlots: 'referenceSlots',
+  sortOrder: 'sortOrder',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CharacterLookScalarFieldEnum = (typeof CharacterLookScalarFieldEnum)[keyof typeof CharacterLookScalarFieldEnum]
+
+
 export const GenerationCharacterCardScalarFieldEnum = {
   id: 'id',
   generationId: 'generationId',
   characterCardId: 'characterCardId',
+  lookId: 'lookId',
   createdAt: 'createdAt'
 } as const
 
@@ -608,6 +626,7 @@ export type UserFollowScalarFieldEnum = (typeof UserFollowScalarFieldEnum)[keyof
 export const CharacterCardLoraScalarFieldEnum = {
   characterCardId: 'characterCardId',
   loraAssetId: 'loraAssetId',
+  lookId: 'lookId',
   createdAt: 'createdAt'
 } as const
 
@@ -631,7 +650,8 @@ export const LoraTrainingJobScalarFieldEnum = {
   createdAt: 'createdAt',
   startedAt: 'startedAt',
   completedAt: 'completedAt',
-  characterCardId: 'characterCardId'
+  characterCardId: 'characterCardId',
+  lookId: 'lookId'
 } as const
 
 export type LoraTrainingJobScalarFieldEnum = (typeof LoraTrainingJobScalarFieldEnum)[keyof typeof LoraTrainingJobScalarFieldEnum]

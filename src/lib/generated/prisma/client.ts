@@ -187,6 +187,12 @@ export type ModelConfig = Prisma.ModelConfigModel
  */
 export type CharacterCard = Prisma.CharacterCardModel
 /**
+ * Model CharacterLook
+ * 角色的一套造型（角色④，2026-10-22）。人设、声音、经历只在角色上存一份；
+ * 外观文字、标签、参考图每套各一份。每个角色恰有一套 `isDefault`（服务端保证）。
+ */
+export type CharacterLook = Prisma.CharacterLookModel
+/**
  * Model GenerationCharacterCard
  * 
  */

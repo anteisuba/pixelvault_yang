@@ -232,12 +232,18 @@ describe('generation.service', () => {
         provider: BASE_GENERATION.provider,
         requestCount: 1,
         characterCardIds: ['card-1', 'card-2'],
+        characterLookIds: { 'card-2': 'look-q' },
       })
 
+      // 用的哪套造型一起记下（角色④）；没给的留空。
       expect(mockGenerationCharacterCardCreateMany).toHaveBeenCalledWith({
         data: [
-          { generationId: 'gen-2', characterCardId: 'card-1' },
-          { generationId: 'gen-2', characterCardId: 'card-2' },
+          { generationId: 'gen-2', characterCardId: 'card-1', lookId: null },
+          {
+            generationId: 'gen-2',
+            characterCardId: 'card-2',
+            lookId: 'look-q',
+          },
         ],
       })
     })

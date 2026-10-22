@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type {
   CharacterCardRecord,
+  CharacterLookRecord,
   CharacterReferenceSlot,
   GenerationRecord,
 } from '@/types'
@@ -9,6 +10,7 @@ import type {
 import {
   appendSlotImages,
   draftFromCard,
+  lookUpdateFromDraft,
   makePrimary,
   removeSlot,
   replaceSlotImage,
@@ -26,10 +28,18 @@ const slot = (
   ...overrides,
 })
 
+const LOOK: CharacterLookRecord = {
+  id: 'look',
+  label: null,
+  isDefault: true,
+  description: '粉发',
+  tags: ['denia', 'pink_hair'],
+  referenceSlots: [slot('a', { isPrimary: true }), slot('b')],
+}
+
 const CARD = {
   id: 'c',
   name: 'Denia',
-  description: '粉发',
   persona: {
     identity: '魔术师',
     behavior: '',
@@ -40,11 +50,7 @@ const CARD = {
     examples: [{ user: 'hi', reply: 'yo' }],
     backstory: '',
   },
-  cardTags: {
-    character: ['denia'],
-    appearance: ['pink_hair'],
-  },
-  referenceSlots: [slot('a', { isPrimary: true }), slot('b')],
+  looks: [LOOK],
   workOverride: null,
   summary: null,
   tavern: null,
@@ -138,15 +144,12 @@ describe('appendSlotImages', () => {
 })
 
 describe('updateFromDraft', () => {
-  it('设定没编辑的格原样带回；标签按逗号拆；空外观写成 null', () => {
+  it('设定没编辑的格原样带回；作品清空 = 删键', () => {
     const draft = {
       ...draftFromCard(CARD),
       behavior: '先替别人撑好伞',
-      description: '  ',
-      characterTags: 'denia_(wuthering_waves)， extra',
     }
     const update = updateFromDraft(CARD, draft)
-    expect(update.description).toBeNull()
     expect(update.persona).toMatchObject({
       identity: '魔术师',
       behavior: '先替别人撑好伞',
@@ -154,15 +157,11 @@ describe('updateFromDraft', () => {
       scenario: 's',
       examples: [{ user: 'hi', reply: 'yo' }],
     })
-    expect(update.extensions).toEqual({
-      'pv.tags': {
-        character: ['denia_(wuthering_waves)', 'extra'],
-        appearance: ['pink_hair'],
-      },
-      // 作品没填 = 删键，回到从角色标签取。
-      'pv.work': null,
-    })
-    expect(update.referenceSlots).toHaveLength(2)
+    // 作品没填 = 删键，回到从角色标签取。
+    expect(update.extensions).toEqual({ 'pv.work': null })
+    // 外观 / 标签 / 图在造型上，⛔ 不再随卡一起写。
+    expect(update).not.toHaveProperty('description')
+    expect(update).not.toHaveProperty('referenceSlots')
   })
 
   it('酒馆字段：没卡外字段时不写 st.card；对话示例没改原样带回，改了按 <START> 重新切', () => {
@@ -237,5 +236,26 @@ describe('经历完整原文（旧卡导入被截在 6000）', () => {
       description: original,
       spec: 'chara_card_v2',
     })
+  })
+})
+
+describe('lookUpdateFromDraft（角色④）', () => {
+  it('只带改了的格：空外观写 null，标签去空白去重', () => {
+    expect(
+      lookUpdateFromDraft(LOOK, {
+        description: '  ',
+        tags: [' pink_hair', 'pink_hair', '', 'chibi'],
+      }),
+    ).toEqual({ description: null, tags: ['pink_hair', 'chibi'] })
+  })
+
+  it('图没变或被清空：不写图', () => {
+    expect(lookUpdateFromDraft(LOOK, { slots: LOOK.referenceSlots })).toEqual(
+      {},
+    )
+    expect(lookUpdateFromDraft(LOOK, { slots: [] })).toEqual({})
+    expect(
+      lookUpdateFromDraft(LOOK, { slots: [slot('c', { isPrimary: true })] }),
+    ).toHaveProperty('referenceSlots')
   })
 })

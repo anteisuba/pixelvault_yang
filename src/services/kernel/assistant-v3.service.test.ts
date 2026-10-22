@@ -3122,8 +3122,8 @@ describe('v3 内核 · 角色页', () => {
       behavior: '',
       speech: '',
       backstory: '',
-      characterTags: [],
-      appearanceTags: [],
+      tags: [],
+      otherLooks: [],
       imagesOnCard: 1,
       cardImageUrls: ['https://cdn.test/ron.png'],
     }

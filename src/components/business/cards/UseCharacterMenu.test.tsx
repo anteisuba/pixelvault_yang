@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 
 import zhMessages from '@/messages/zh.json'
-import type { CharacterCardRecord } from '@/types'
+import type { CharacterCardRecord, CharacterLookRecord } from '@/types'
 
 import { UseCharacterMenu } from './UseCharacterMenu'
 
@@ -57,11 +57,19 @@ vi.mock('@/components/business/LoraTrainingDialog', () => ({
 }))
 
 const CARD = { id: 'denia', name: 'Denia' } as CharacterCardRecord
+const LOOK: CharacterLookRecord = {
+  id: 'denia-look',
+  label: null,
+  isDefault: true,
+  description: null,
+  tags: [],
+  referenceSlots: [],
+}
 
 function renderMenu() {
   return render(
     <NextIntlClientProvider locale="zh" messages={zhMessages}>
-      <UseCharacterMenu card={CARD} />
+      <UseCharacterMenu card={CARD} look={LOOK} />
     </NextIntlClientProvider>,
   )
 }

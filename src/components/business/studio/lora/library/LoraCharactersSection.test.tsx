@@ -22,11 +22,22 @@ const LORA: FavoriteLoraRequest = {
   provider: 'civitai',
 }
 
-const group = (id: string, name: string): CharacterLoraGroup => ({
+const look = (id: string, label: string | null, isDefault: boolean) => ({
+  id,
+  label,
+  isDefault,
+  tags: [],
+})
+
+const group = (
+  id: string,
+  name: string,
+  looks = [look(`${id}-look`, null, true)],
+): CharacterLoraGroup => ({
   characterCardId: id,
   name,
   coverUrl: null,
-  appearanceTags: [],
+  looks,
   loras: [],
 })
 
@@ -57,7 +68,31 @@ describe('LoraCharactersSection', () => {
     fireEvent.click(screen.getByText(`${NS}:save`))
 
     await waitFor(() =>
-      expect(value.setLoraCharacters).toHaveBeenCalledWith(LORA, ['denia']),
+      expect(value.setLoraCharacters).toHaveBeenCalledWith(LORA, [
+        { characterCardId: 'denia', lookId: null },
+      ]),
+    )
+  })
+
+  it('她有几套造型：勾上后可挂到某一套（默认全部造型通用）', async () => {
+    const denia = group('denia', 'Denia', [
+      look('denia-main', null, true),
+      look('denia-q', 'Q版', false),
+    ])
+    const value = renderSection({ groups: [denia] })
+
+    fireEvent.click(screen.getByText(`${NS}:addToCharacter`))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Denia' }))
+    expect(
+      screen.getByRole('button', { name: 'CharacterLooks:allLooks' }),
+    ).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'Q版' }))
+    fireEvent.click(screen.getByText(`${NS}:save`))
+
+    await waitFor(() =>
+      expect(value.setLoraCharacters).toHaveBeenCalledWith(LORA, [
+        { characterCardId: 'denia', lookId: 'denia-q' },
+      ]),
     )
   })
 

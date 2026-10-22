@@ -8,7 +8,7 @@ import type {
   AssistantOperatorCardsSnapshot,
   AssistantOperatorSnapshot,
 } from '@/types/assistant-operator'
-import { characterCoverUrl } from '@/lib/card-bus'
+import { characterCoverUrl, defaultLook } from '@/lib/card-bus'
 import { characterImageCount, characterWork } from '@/lib/character-works'
 
 /**
@@ -58,6 +58,8 @@ export function buildCardsOperatorSnapshot(
     ? (cards.find((card) => card.id === openId) ?? null)
     : null
   const openImage = openCard ? characterCoverUrl(openCard) : null
+  // 卡片助手看的是默认造型（角色④）；其他造型只报名字。
+  const openLook = openCard ? defaultLook(openCard) : null
 
   const snapshot: AssistantOperatorCardsSnapshot = {
     total: cards.length,
@@ -65,32 +67,41 @@ export function buildCardsOperatorSnapshot(
       0,
       ASSISTANT_OPERATOR_CARDS_LIMITS.maxCharacters,
     ),
-    open: openCard
-      ? {
-          ...summarize(openCard, locale),
-          look: clip(openCard.description),
-          identity: clip(openCard.persona?.identity),
-          behavior: clip(openCard.persona?.behavior),
-          speech: clip(openCard.persona?.speech),
-          backstory: clip(openCard.persona?.backstory),
-          characterTags: tags(openCard.cardTags.character),
-          appearanceTags: tags(openCard.cardTags.appearance),
-          imagesOnCard: openCard.referenceSlots.length,
-          // 只给服务端看图用（C3），⛔ 服务端不把它写进模型读的状态。
-          ...(openImage ? { primaryImageUrl: openImage } : {}),
-          // 卡上的图（主图在前），同样只给服务端看图用（S14 对一下设定和外观）。
-          ...(openCard.referenceSlots.length
-            ? {
-                cardImageUrls: [
-                  ...openCard.referenceSlots.filter((slot) => slot.isPrimary),
-                  ...openCard.referenceSlots.filter((slot) => !slot.isPrimary),
-                ]
-                  .map((slot) => slot.url)
-                  .slice(0, ASSISTANT_OPERATOR_CARDS_LIMITS.maxLookCheckImages),
-              }
-            : {}),
-        }
-      : null,
+    open:
+      openCard && openLook
+        ? {
+            ...summarize(openCard, locale),
+            look: clip(openLook.description),
+            identity: clip(openCard.persona?.identity),
+            behavior: clip(openCard.persona?.behavior),
+            speech: clip(openCard.persona?.speech),
+            backstory: clip(openCard.persona?.backstory),
+            tags: tags(openLook.tags),
+            otherLooks: openCard.looks
+              .filter((look) => !look.isDefault && look.label)
+              .map((look) => look.label!)
+              .slice(0, ASSISTANT_OPERATOR_CARDS_LIMITS.maxTags),
+            imagesOnCard: openLook.referenceSlots.length,
+            // 只给服务端看图用（C3），⛔ 服务端不把它写进模型读的状态。
+            ...(openImage ? { primaryImageUrl: openImage } : {}),
+            // 默认造型的图（主图在前），同样只给服务端看图用（S14 对一下设定和外观）。
+            ...(openLook.referenceSlots.length
+              ? {
+                  cardImageUrls: [
+                    ...openLook.referenceSlots.filter((slot) => slot.isPrimary),
+                    ...openLook.referenceSlots.filter(
+                      (slot) => !slot.isPrimary,
+                    ),
+                  ]
+                    .map((slot) => slot.url)
+                    .slice(
+                      0,
+                      ASSISTANT_OPERATOR_CARDS_LIMITS.maxLookCheckImages,
+                    ),
+                }
+              : {}),
+          }
+        : null,
   }
   // 角色页上没有提示词框：`prompt` 恒空串（契约要求这一格在）。
   return { prompt: '', availableModels: [], cards: snapshot }
@@ -131,7 +142,7 @@ export function buildCanvasCharacters(
           ...(withProfile
             ? {
                 profile: {
-                  look: clip(card.description),
+                  look: clip(defaultLook(card).description),
                   identity: clip(card.persona?.identity),
                   behavior: clip(card.persona?.behavior),
                   speech: clip(card.persona?.speech),

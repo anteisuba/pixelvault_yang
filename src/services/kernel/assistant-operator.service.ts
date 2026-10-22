@@ -9320,7 +9320,7 @@ function planCheckCharacterLook(
           look: open.look,
           identity: open.identity,
           backstory: open.backstory,
-          tags: [...open.characterTags, ...open.appearanceTags],
+          tags: open.tags,
         },
         imageUrls: images,
       })

@@ -1,15 +1,32 @@
 import { describe, expect, it } from 'vitest'
 
+import type { CharacterLookRecord } from '@/types'
+
 import {
   characterImageCount,
   characterWork,
   workTagFromCharacterTag,
 } from './character-works'
 
-const tags = (character: string[]) => ({
-  character,
-  appearance: [],
+const look = (
+  tags: string[],
+  urls: string[] = [],
+  isDefault = true,
+): CharacterLookRecord => ({
+  id: `look-${tags.join()}-${isDefault}`,
+  label: null,
+  isDefault,
+  description: null,
+  tags,
+  referenceSlots: urls.map((url, index) => ({
+    id: url,
+    role: 'identity',
+    url,
+    isPrimary: index === 0,
+  })),
 })
+
+const looks = (tags: string[]) => [look(tags)]
 
 describe('characterWork', () => {
   it('从角色标签最后一组括号取作品，表里有的给三语名', () => {
@@ -18,13 +35,13 @@ describe('characterWork', () => {
     )
     expect(
       characterWork(
-        { workOverride: null, cardTags: tags(['denia_(wuthering_waves)']) },
+        { workOverride: null, looks: looks(['denia_(wuthering_waves)']) },
         'zh',
       ),
     ).toEqual({ label: '鸣潮', source: 'tag', tag: 'wuthering_waves' })
     expect(
       characterWork(
-        { workOverride: null, cardTags: tags(['denia_(wuthering_waves)']) },
+        { workOverride: null, looks: looks(['denia_(wuthering_waves)']) },
         'en',
       ).label,
     ).toBe('Wuthering Waves')
@@ -33,7 +50,7 @@ describe('characterWork', () => {
   it('表里没有的把标签还原成词；手改值优先；都没有归原创', () => {
     expect(
       characterWork(
-        { workOverride: null, cardTags: tags(['x_(some_new_game)']) },
+        { workOverride: null, looks: looks(['x_(some_new_game)']) },
         'zh',
       ).label,
     ).toBe('Some New Game')
@@ -41,24 +58,37 @@ describe('characterWork', () => {
       characterWork(
         {
           workOverride: '我的世界观',
-          cardTags: tags(['denia_(wuthering_waves)']),
+          looks: looks(['denia_(wuthering_waves)']),
         },
         'zh',
       ),
     ).toMatchObject({ label: '我的世界观', source: 'override' })
     expect(
-      characterWork({ workOverride: null, cardTags: tags(['amamiya']) }, 'zh'),
+      characterWork({ workOverride: null, looks: looks(['amamiya']) }, 'zh'),
     ).toEqual({ label: null, source: 'original', tag: null })
   })
 
-  it('张数 = 卡上的图 + 用她出过的图', () => {
+  it('作品看默认造型的标签', () => {
+    expect(
+      characterWork(
+        {
+          workOverride: null,
+          looks: [
+            look(['chibi'], [], false),
+            look(['denia_(wuthering_waves)']),
+          ],
+        },
+        'zh',
+      ).label,
+    ).toBe('鸣潮')
+  })
+
+  it('张数 = 所有造型上的图 + 用她出过的图', () => {
     expect(
       characterImageCount({
-        referenceSlots: [
-          { id: 'a', role: 'identity', url: 'u', isPrimary: true },
-        ],
+        looks: [look([], ['a']), look([], ['b', 'c'], false)],
         generationCount: 4,
       }),
-    ).toBe(5)
+    ).toBe(7)
   })
 })

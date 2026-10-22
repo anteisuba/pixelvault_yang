@@ -77,12 +77,19 @@ import {
 const DENIA = {
   id: 'denia',
   name: 'Denia',
-  referenceSlots: [
-    { id: 's_main', url: 'https://cdn.test/main.png', isPrimary: true },
-    { id: 's_back', url: 'https://cdn.test/back.png', isPrimary: false },
+  looks: [
+    {
+      id: 'denia-main',
+      label: null,
+      isDefault: true,
+      description: '粉色长卷发、发梢浅蓝',
+      tags: [],
+      referenceSlots: [
+        { id: 's_main', url: 'https://cdn.test/main.png', isPrimary: true },
+        { id: 's_back', url: 'https://cdn.test/back.png', isPrimary: false },
+      ],
+    },
   ],
-  description: '粉色长卷发、发梢浅蓝',
-  variants: [],
   persona: {
     identity: '舞台魔术师',
     behavior: '温柔、爱照顾人',
@@ -276,7 +283,9 @@ describe('画布上的角色卡（画布用角色 ④ 方向 A）', () => {
 
   it('她还没有图：灰底「还没有图」+ 去角色页加图，⛔ 不画空虚线框', () => {
     mockLibrary.value = {
-      cards: [{ ...DENIA, referenceSlots: [] }],
+      cards: [
+        { ...DENIA, looks: [{ ...DENIA.looks[0]!, referenceSlots: [] }] },
+      ],
       loaded: true,
     }
     renderRole(harness({ selectedNodeIds: [] }))

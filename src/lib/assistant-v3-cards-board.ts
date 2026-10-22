@@ -63,7 +63,12 @@ function openLines(
     ...CARDS_PROFILE_PARTS.map(
       (part) => `  ${part}: ${quote(open[part], BOARD_FIELD_CHARS)}`,
     ),
-    `  character tags: ${open.characterTags.join(', ') || '(none)'} · appearance tags: ${open.appearanceTags.join(', ') || '(none)'}`,
+    `  tags: ${open.tags.join(', ') || '(none)'}`,
+    ...(open.otherLooks.length
+      ? [
+          `  other looks (outfits; you read the default one): ${open.otherLooks.join(', ')}`,
+        ]
+      : []),
   ]
 }
 
@@ -106,7 +111,6 @@ export function renderAssistantV3CardsItem(
   const key = item.trim().toLowerCase()
   const part = CARDS_PROFILE_PARTS.find((entry) => entry === key)
   if (part) return `${part} (full): ${quote(open[part], null)}`
-  if (key === 'tags')
-    return `character tags: ${open.characterTags.join(', ') || '(none)'}\nappearance tags: ${open.appearanceTags.join(', ') || '(none)'}`
+  if (key === 'tags') return `tags: ${open.tags.join(', ') || '(none)'}`
   return null
 }

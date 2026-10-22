@@ -324,10 +324,16 @@ describe('planV4Generation · 镜头里 @她（画布用角色 ④ 第 2 片）'
   const DENIA = {
     id: 'denia',
     name: 'Denia',
-    referenceSlots: [
-      { id: 's_main', url: 'https://cdn/denia.png', isPrimary: true },
+    looks: [
+      {
+        id: 'denia-main',
+        isDefault: true,
+        tags: [],
+        referenceSlots: [
+          { id: 's_main', url: 'https://cdn/denia.png', isPrimary: true },
+        ],
+      },
     ],
-    variants: [],
   } as unknown as CharacterCardRecord
 
   it('只挂首帧 + @她：带上她和勾的图，端点换成参考变体，正文里的 @ 去掉', () => {
@@ -394,10 +400,16 @@ describe('preflightV4Plan · 发送前校验（owner 09-28：不发送 + 说清�
   const DENIA = {
     id: 'denia',
     name: 'Denia',
-    referenceSlots: [
-      { id: 's_main', url: 'https://cdn/denia.png', isPrimary: true },
+    looks: [
+      {
+        id: 'denia-main',
+        isDefault: true,
+        tags: [],
+        referenceSlots: [
+          { id: 's_main', url: 'https://cdn/denia.png', isPrimary: true },
+        ],
+      },
     ],
-    variants: [],
   } as unknown as CharacterCardRecord
 
   /** 一张挂了 n 张参考图的 2.0 镜头（参考槽，全部走参考端点）。 */

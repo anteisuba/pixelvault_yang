@@ -6,8 +6,9 @@ import { useTranslations } from 'next-intl'
 import { Check } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
-import type { FavoriteLoraRequest } from '@/types'
+import type { CharacterLoraGroup, FavoriteLoraRequest } from '@/types'
 import { useCharacterLorasContext } from '@/components/business/studio/lora/character-loras-context'
+import { lookLabel } from '@/lib/character-looks'
 import { cn } from '@/lib/utils'
 
 interface LoraCharactersSectionProps {
@@ -20,6 +21,7 @@ interface LoraCharactersSectionProps {
 /**
  * LoRA 库详情右栏「角色」一段（角色③，owner 2026-10-22）：它属于哪些角色 +
  * 「加到角色…」。没收藏的也能加（加到角色≠收藏，不进「我的收藏」）。
+ * 有几套造型的角色可以把它挂在某一套下（角色④），默认「全部造型」。
  *
  * ⚠ 现阶段用现有弹层拼最简版本，统一样式留到 UI 地基「统一库组件 + 选择器」。
  */
@@ -28,24 +30,31 @@ export function LoraCharactersSection({
   titleClassName,
 }: LoraCharactersSectionProps) {
   const t = useTranslations('LoraWorkbench.characterLoras')
+  const tLooks = useTranslations('CharacterLooks')
   const context = useCharacterLorasContext()
   const [open, setOpen] = useState(false)
   if (!context) return null
 
   const owners = context.charactersOf(lora.loraUrl)
+  const lookIdIn = (group: CharacterLoraGroup) =>
+    group.loras.find((item) => item.loraUrl === lora.loraUrl)?.lookId ?? null
   return (
     <section className="flex flex-col gap-2">
       <h5 className={titleClassName}>{t('sectionTitle')}</h5>
       {owners.length > 0 ? (
         <div className="flex flex-wrap gap-1.5 text-xs">
-          {owners.map((group) => (
-            <span
-              key={group.characterCardId}
-              className="rounded-full bg-muted px-2 py-0.5 text-foreground/80"
-            >
-              {group.name}
-            </span>
-          ))}
+          {owners.map((group) => {
+            const look = group.looks.find((item) => item.id === lookIdIn(group))
+            return (
+              <span
+                key={group.characterCardId}
+                className="rounded-full bg-muted px-2 py-0.5 text-foreground/80"
+              >
+                {group.name}
+                {look ? ` · ${lookLabel(look, group.looks, tLooks)}` : null}
+              </span>
+            )
+          })}
         </div>
       ) : null}
       <button
@@ -58,7 +67,10 @@ export function LoraCharactersSection({
       {open ? (
         <LoraCharactersDialog
           lora={lora}
-          initialIds={owners.map((group) => group.characterCardId)}
+          initial={owners.map((group) => ({
+            characterCardId: group.characterCardId,
+            lookId: lookIdIn(group),
+          }))}
           onClose={() => setOpen(false)}
         />
       ) : null}
@@ -68,31 +80,44 @@ export function LoraCharactersSection({
 
 function LoraCharactersDialog({
   lora,
-  initialIds,
+  initial,
   onClose,
 }: {
   lora: FavoriteLoraRequest
-  initialIds: readonly string[]
+  initial: readonly { characterCardId: string; lookId: string | null }[]
   onClose: () => void
 }) {
   const t = useTranslations('LoraWorkbench.characterLoras')
+  const tLooks = useTranslations('CharacterLooks')
   const context = useCharacterLorasContext()
-  const [picked, setPicked] = useState(() => new Set(initialIds))
+  /** 勾上的角色 → 挂在哪套造型（`null` = 全部造型）。 */
+  const [picked, setPicked] = useState(
+    () => new Map(initial.map((item) => [item.characterCardId, item.lookId])),
+  )
   const [saving, setSaving] = useState(false)
   if (!context) return null
   const { groups, setLoraCharacters } = context
 
   const toggle = (id: string) =>
     setPicked((prev) => {
-      const next = new Set(prev)
+      const next = new Map(prev)
       if (next.has(id)) next.delete(id)
-      else next.add(id)
+      else next.set(id, null)
       return next
     })
 
+  const pickLook = (id: string, lookId: string | null) =>
+    setPicked((prev) => new Map(prev).set(id, lookId))
+
   const save = async () => {
     setSaving(true)
-    const ok = await setLoraCharacters(lora, [...picked])
+    const ok = await setLoraCharacters(
+      lora,
+      [...picked].map(([characterCardId, lookId]) => ({
+        characterCardId,
+        lookId,
+      })),
+    )
     setSaving(false)
     if (ok) onClose()
   }
@@ -131,6 +156,35 @@ function LoraCharactersDialog({
                     </span>
                     <span className="min-w-0 truncate">{group.name}</span>
                   </button>
+                  {on && group.looks.length > 1 ? (
+                    <div className="flex flex-wrap gap-1 pb-1.5 pl-8">
+                      {[null, ...group.looks].map((look) => {
+                        const lookId = look?.id ?? null
+                        const active =
+                          (picked.get(group.characterCardId) ?? null) === lookId
+                        return (
+                          <button
+                            key={lookId ?? 'all'}
+                            type="button"
+                            aria-pressed={active}
+                            onClick={() =>
+                              pickLook(group.characterCardId, lookId)
+                            }
+                            className={cn(
+                              'rounded-full px-2 py-0.5 text-xs transition-colors duration-fast',
+                              active
+                                ? 'bg-foreground text-background'
+                                : 'bg-muted text-muted-foreground hover:text-foreground',
+                            )}
+                          >
+                            {look
+                              ? lookLabel(look, group.looks, tLooks)
+                              : tLooks('allLooks')}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  ) : null}
                 </li>
               )
             })}

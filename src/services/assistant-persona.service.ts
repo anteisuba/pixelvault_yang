@@ -15,7 +15,7 @@ import {
   normalizeRouteModel,
   type AssistantAvatarChoice,
 } from '@/constants/assistant-persona'
-import { characterCoverUrl } from '@/lib/card-bus'
+import { slotsCoverUrl } from '@/lib/card-bus'
 import { ApiRequestError } from '@/lib/errors'
 import { readTavernWorldBook } from '@/lib/tavern-card'
 import { readChatUserRole } from '@/services/cards/character-card.mapper'
@@ -56,7 +56,8 @@ import {
 interface PersonaCharacterRow {
   id: string
   name: string
-  referenceSlots: unknown
+  /** 只取默认造型（头像 = 它的封面）。 */
+  looks: { referenceSlots: unknown }[]
   persona: unknown
   isDeleted: boolean
 }
@@ -130,7 +131,9 @@ function toPromptCharacter(
 }
 
 function readSlots(card: PersonaCharacterRow) {
-  const parsed = CharacterReferenceSlotsSchema.safeParse(card.referenceSlots)
+  const parsed = CharacterReferenceSlotsSchema.safeParse(
+    card.looks[0]?.referenceSlots,
+  )
   return parsed.success ? parsed.data : []
 }
 
@@ -143,7 +146,7 @@ function toCharacter(
     id: card.id,
     /** ⚠ 与助手名字同一档上限 —— 角色名更长时截断，⛔ 不让整份 persona 读不出来。 */
     name: card.name.slice(0, ASSISTANT_PERSONA_LIMITS.maxNameChars),
-    faceUrl: characterCoverUrl({ referenceSlots: readSlots(card) }),
+    faceUrl: slotsCoverUrl(readSlots(card)),
     hasSpeech: readCharacterSpeech(card).length > 0,
   }
 }
@@ -267,7 +270,7 @@ const PERSONA_SELECT = {
     select: {
       id: true,
       name: true,
-      referenceSlots: true,
+      looks: { where: { isDefault: true }, select: { referenceSlots: true } },
       persona: true,
       isDeleted: true,
     },

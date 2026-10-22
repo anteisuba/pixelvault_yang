@@ -28,18 +28,21 @@ export type AggregateCharacterCardLora = {
 export type CharacterCardLoraMinAggregateOutputType = {
   characterCardId: string | null
   loraAssetId: string | null
+  lookId: string | null
   createdAt: Date | null
 }
 
 export type CharacterCardLoraMaxAggregateOutputType = {
   characterCardId: string | null
   loraAssetId: string | null
+  lookId: string | null
   createdAt: Date | null
 }
 
 export type CharacterCardLoraCountAggregateOutputType = {
   characterCardId: number
   loraAssetId: number
+  lookId: number
   createdAt: number
   _all: number
 }
@@ -48,18 +51,21 @@ export type CharacterCardLoraCountAggregateOutputType = {
 export type CharacterCardLoraMinAggregateInputType = {
   characterCardId?: true
   loraAssetId?: true
+  lookId?: true
   createdAt?: true
 }
 
 export type CharacterCardLoraMaxAggregateInputType = {
   characterCardId?: true
   loraAssetId?: true
+  lookId?: true
   createdAt?: true
 }
 
 export type CharacterCardLoraCountAggregateInputType = {
   characterCardId?: true
   loraAssetId?: true
+  lookId?: true
   createdAt?: true
   _all?: true
 }
@@ -139,6 +145,7 @@ export type CharacterCardLoraGroupByArgs<ExtArgs extends runtime.Types.Extension
 export type CharacterCardLoraGroupByOutputType = {
   characterCardId: string
   loraAssetId: string
+  lookId: string | null
   createdAt: Date
   _count: CharacterCardLoraCountAggregateOutputType | null
   _min: CharacterCardLoraMinAggregateOutputType | null
@@ -166,17 +173,21 @@ export type CharacterCardLoraWhereInput = {
   NOT?: Prisma.CharacterCardLoraWhereInput | Prisma.CharacterCardLoraWhereInput[]
   characterCardId?: Prisma.StringFilter<"CharacterCardLora"> | string
   loraAssetId?: Prisma.StringFilter<"CharacterCardLora"> | string
+  lookId?: Prisma.StringNullableFilter<"CharacterCardLora"> | string | null
   createdAt?: Prisma.DateTimeFilter<"CharacterCardLora"> | Date | string
   characterCard?: Prisma.XOR<Prisma.CharacterCardScalarRelationFilter, Prisma.CharacterCardWhereInput>
   loraAsset?: Prisma.XOR<Prisma.LoraAssetScalarRelationFilter, Prisma.LoraAssetWhereInput>
+  look?: Prisma.XOR<Prisma.CharacterLookNullableScalarRelationFilter, Prisma.CharacterLookWhereInput> | null
 }
 
 export type CharacterCardLoraOrderByWithRelationInput = {
   characterCardId?: Prisma.SortOrder
   loraAssetId?: Prisma.SortOrder
+  lookId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   characterCard?: Prisma.CharacterCardOrderByWithRelationInput
   loraAsset?: Prisma.LoraAssetOrderByWithRelationInput
+  look?: Prisma.CharacterLookOrderByWithRelationInput
 }
 
 export type CharacterCardLoraWhereUniqueInput = Prisma.AtLeast<{
@@ -186,14 +197,17 @@ export type CharacterCardLoraWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.CharacterCardLoraWhereInput | Prisma.CharacterCardLoraWhereInput[]
   characterCardId?: Prisma.StringFilter<"CharacterCardLora"> | string
   loraAssetId?: Prisma.StringFilter<"CharacterCardLora"> | string
+  lookId?: Prisma.StringNullableFilter<"CharacterCardLora"> | string | null
   createdAt?: Prisma.DateTimeFilter<"CharacterCardLora"> | Date | string
   characterCard?: Prisma.XOR<Prisma.CharacterCardScalarRelationFilter, Prisma.CharacterCardWhereInput>
   loraAsset?: Prisma.XOR<Prisma.LoraAssetScalarRelationFilter, Prisma.LoraAssetWhereInput>
+  look?: Prisma.XOR<Prisma.CharacterLookNullableScalarRelationFilter, Prisma.CharacterLookWhereInput> | null
 }, "characterCardId_loraAssetId">
 
 export type CharacterCardLoraOrderByWithAggregationInput = {
   characterCardId?: Prisma.SortOrder
   loraAssetId?: Prisma.SortOrder
+  lookId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.CharacterCardLoraCountOrderByAggregateInput
   _max?: Prisma.CharacterCardLoraMaxOrderByAggregateInput
@@ -206,6 +220,7 @@ export type CharacterCardLoraScalarWhereWithAggregatesInput = {
   NOT?: Prisma.CharacterCardLoraScalarWhereWithAggregatesInput | Prisma.CharacterCardLoraScalarWhereWithAggregatesInput[]
   characterCardId?: Prisma.StringWithAggregatesFilter<"CharacterCardLora"> | string
   loraAssetId?: Prisma.StringWithAggregatesFilter<"CharacterCardLora"> | string
+  lookId?: Prisma.StringNullableWithAggregatesFilter<"CharacterCardLora"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"CharacterCardLora"> | Date | string
 }
 
@@ -213,11 +228,13 @@ export type CharacterCardLoraCreateInput = {
   createdAt?: Date | string
   characterCard: Prisma.CharacterCardCreateNestedOneWithoutLoraLinksInput
   loraAsset: Prisma.LoraAssetCreateNestedOneWithoutCharacterLinksInput
+  look?: Prisma.CharacterLookCreateNestedOneWithoutLoraLinksInput
 }
 
 export type CharacterCardLoraUncheckedCreateInput = {
   characterCardId: string
   loraAssetId: string
+  lookId?: string | null
   createdAt?: Date | string
 }
 
@@ -225,17 +242,20 @@ export type CharacterCardLoraUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   characterCard?: Prisma.CharacterCardUpdateOneRequiredWithoutLoraLinksNestedInput
   loraAsset?: Prisma.LoraAssetUpdateOneRequiredWithoutCharacterLinksNestedInput
+  look?: Prisma.CharacterLookUpdateOneWithoutLoraLinksNestedInput
 }
 
 export type CharacterCardLoraUncheckedUpdateInput = {
   characterCardId?: Prisma.StringFieldUpdateOperationsInput | string
   loraAssetId?: Prisma.StringFieldUpdateOperationsInput | string
+  lookId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type CharacterCardLoraCreateManyInput = {
   characterCardId: string
   loraAssetId: string
+  lookId?: string | null
   createdAt?: Date | string
 }
 
@@ -246,6 +266,7 @@ export type CharacterCardLoraUpdateManyMutationInput = {
 export type CharacterCardLoraUncheckedUpdateManyInput = {
   characterCardId?: Prisma.StringFieldUpdateOperationsInput | string
   loraAssetId?: Prisma.StringFieldUpdateOperationsInput | string
+  lookId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -267,18 +288,21 @@ export type CharacterCardLoraCharacterCardIdLoraAssetIdCompoundUniqueInput = {
 export type CharacterCardLoraCountOrderByAggregateInput = {
   characterCardId?: Prisma.SortOrder
   loraAssetId?: Prisma.SortOrder
+  lookId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
 export type CharacterCardLoraMaxOrderByAggregateInput = {
   characterCardId?: Prisma.SortOrder
   loraAssetId?: Prisma.SortOrder
+  lookId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
 export type CharacterCardLoraMinOrderByAggregateInput = {
   characterCardId?: Prisma.SortOrder
   loraAssetId?: Prisma.SortOrder
+  lookId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -321,6 +345,48 @@ export type CharacterCardLoraUncheckedUpdateManyWithoutCharacterCardNestedInput 
   connect?: Prisma.CharacterCardLoraWhereUniqueInput | Prisma.CharacterCardLoraWhereUniqueInput[]
   update?: Prisma.CharacterCardLoraUpdateWithWhereUniqueWithoutCharacterCardInput | Prisma.CharacterCardLoraUpdateWithWhereUniqueWithoutCharacterCardInput[]
   updateMany?: Prisma.CharacterCardLoraUpdateManyWithWhereWithoutCharacterCardInput | Prisma.CharacterCardLoraUpdateManyWithWhereWithoutCharacterCardInput[]
+  deleteMany?: Prisma.CharacterCardLoraScalarWhereInput | Prisma.CharacterCardLoraScalarWhereInput[]
+}
+
+export type CharacterCardLoraCreateNestedManyWithoutLookInput = {
+  create?: Prisma.XOR<Prisma.CharacterCardLoraCreateWithoutLookInput, Prisma.CharacterCardLoraUncheckedCreateWithoutLookInput> | Prisma.CharacterCardLoraCreateWithoutLookInput[] | Prisma.CharacterCardLoraUncheckedCreateWithoutLookInput[]
+  connectOrCreate?: Prisma.CharacterCardLoraCreateOrConnectWithoutLookInput | Prisma.CharacterCardLoraCreateOrConnectWithoutLookInput[]
+  createMany?: Prisma.CharacterCardLoraCreateManyLookInputEnvelope
+  connect?: Prisma.CharacterCardLoraWhereUniqueInput | Prisma.CharacterCardLoraWhereUniqueInput[]
+}
+
+export type CharacterCardLoraUncheckedCreateNestedManyWithoutLookInput = {
+  create?: Prisma.XOR<Prisma.CharacterCardLoraCreateWithoutLookInput, Prisma.CharacterCardLoraUncheckedCreateWithoutLookInput> | Prisma.CharacterCardLoraCreateWithoutLookInput[] | Prisma.CharacterCardLoraUncheckedCreateWithoutLookInput[]
+  connectOrCreate?: Prisma.CharacterCardLoraCreateOrConnectWithoutLookInput | Prisma.CharacterCardLoraCreateOrConnectWithoutLookInput[]
+  createMany?: Prisma.CharacterCardLoraCreateManyLookInputEnvelope
+  connect?: Prisma.CharacterCardLoraWhereUniqueInput | Prisma.CharacterCardLoraWhereUniqueInput[]
+}
+
+export type CharacterCardLoraUpdateManyWithoutLookNestedInput = {
+  create?: Prisma.XOR<Prisma.CharacterCardLoraCreateWithoutLookInput, Prisma.CharacterCardLoraUncheckedCreateWithoutLookInput> | Prisma.CharacterCardLoraCreateWithoutLookInput[] | Prisma.CharacterCardLoraUncheckedCreateWithoutLookInput[]
+  connectOrCreate?: Prisma.CharacterCardLoraCreateOrConnectWithoutLookInput | Prisma.CharacterCardLoraCreateOrConnectWithoutLookInput[]
+  upsert?: Prisma.CharacterCardLoraUpsertWithWhereUniqueWithoutLookInput | Prisma.CharacterCardLoraUpsertWithWhereUniqueWithoutLookInput[]
+  createMany?: Prisma.CharacterCardLoraCreateManyLookInputEnvelope
+  set?: Prisma.CharacterCardLoraWhereUniqueInput | Prisma.CharacterCardLoraWhereUniqueInput[]
+  disconnect?: Prisma.CharacterCardLoraWhereUniqueInput | Prisma.CharacterCardLoraWhereUniqueInput[]
+  delete?: Prisma.CharacterCardLoraWhereUniqueInput | Prisma.CharacterCardLoraWhereUniqueInput[]
+  connect?: Prisma.CharacterCardLoraWhereUniqueInput | Prisma.CharacterCardLoraWhereUniqueInput[]
+  update?: Prisma.CharacterCardLoraUpdateWithWhereUniqueWithoutLookInput | Prisma.CharacterCardLoraUpdateWithWhereUniqueWithoutLookInput[]
+  updateMany?: Prisma.CharacterCardLoraUpdateManyWithWhereWithoutLookInput | Prisma.CharacterCardLoraUpdateManyWithWhereWithoutLookInput[]
+  deleteMany?: Prisma.CharacterCardLoraScalarWhereInput | Prisma.CharacterCardLoraScalarWhereInput[]
+}
+
+export type CharacterCardLoraUncheckedUpdateManyWithoutLookNestedInput = {
+  create?: Prisma.XOR<Prisma.CharacterCardLoraCreateWithoutLookInput, Prisma.CharacterCardLoraUncheckedCreateWithoutLookInput> | Prisma.CharacterCardLoraCreateWithoutLookInput[] | Prisma.CharacterCardLoraUncheckedCreateWithoutLookInput[]
+  connectOrCreate?: Prisma.CharacterCardLoraCreateOrConnectWithoutLookInput | Prisma.CharacterCardLoraCreateOrConnectWithoutLookInput[]
+  upsert?: Prisma.CharacterCardLoraUpsertWithWhereUniqueWithoutLookInput | Prisma.CharacterCardLoraUpsertWithWhereUniqueWithoutLookInput[]
+  createMany?: Prisma.CharacterCardLoraCreateManyLookInputEnvelope
+  set?: Prisma.CharacterCardLoraWhereUniqueInput | Prisma.CharacterCardLoraWhereUniqueInput[]
+  disconnect?: Prisma.CharacterCardLoraWhereUniqueInput | Prisma.CharacterCardLoraWhereUniqueInput[]
+  delete?: Prisma.CharacterCardLoraWhereUniqueInput | Prisma.CharacterCardLoraWhereUniqueInput[]
+  connect?: Prisma.CharacterCardLoraWhereUniqueInput | Prisma.CharacterCardLoraWhereUniqueInput[]
+  update?: Prisma.CharacterCardLoraUpdateWithWhereUniqueWithoutLookInput | Prisma.CharacterCardLoraUpdateWithWhereUniqueWithoutLookInput[]
+  updateMany?: Prisma.CharacterCardLoraUpdateManyWithWhereWithoutLookInput | Prisma.CharacterCardLoraUpdateManyWithWhereWithoutLookInput[]
   deleteMany?: Prisma.CharacterCardLoraScalarWhereInput | Prisma.CharacterCardLoraScalarWhereInput[]
 }
 
@@ -369,10 +435,12 @@ export type CharacterCardLoraUncheckedUpdateManyWithoutLoraAssetNestedInput = {
 export type CharacterCardLoraCreateWithoutCharacterCardInput = {
   createdAt?: Date | string
   loraAsset: Prisma.LoraAssetCreateNestedOneWithoutCharacterLinksInput
+  look?: Prisma.CharacterLookCreateNestedOneWithoutLoraLinksInput
 }
 
 export type CharacterCardLoraUncheckedCreateWithoutCharacterCardInput = {
   loraAssetId: string
+  lookId?: string | null
   createdAt?: Date | string
 }
 
@@ -408,16 +476,57 @@ export type CharacterCardLoraScalarWhereInput = {
   NOT?: Prisma.CharacterCardLoraScalarWhereInput | Prisma.CharacterCardLoraScalarWhereInput[]
   characterCardId?: Prisma.StringFilter<"CharacterCardLora"> | string
   loraAssetId?: Prisma.StringFilter<"CharacterCardLora"> | string
+  lookId?: Prisma.StringNullableFilter<"CharacterCardLora"> | string | null
   createdAt?: Prisma.DateTimeFilter<"CharacterCardLora"> | Date | string
+}
+
+export type CharacterCardLoraCreateWithoutLookInput = {
+  createdAt?: Date | string
+  characterCard: Prisma.CharacterCardCreateNestedOneWithoutLoraLinksInput
+  loraAsset: Prisma.LoraAssetCreateNestedOneWithoutCharacterLinksInput
+}
+
+export type CharacterCardLoraUncheckedCreateWithoutLookInput = {
+  characterCardId: string
+  loraAssetId: string
+  createdAt?: Date | string
+}
+
+export type CharacterCardLoraCreateOrConnectWithoutLookInput = {
+  where: Prisma.CharacterCardLoraWhereUniqueInput
+  create: Prisma.XOR<Prisma.CharacterCardLoraCreateWithoutLookInput, Prisma.CharacterCardLoraUncheckedCreateWithoutLookInput>
+}
+
+export type CharacterCardLoraCreateManyLookInputEnvelope = {
+  data: Prisma.CharacterCardLoraCreateManyLookInput | Prisma.CharacterCardLoraCreateManyLookInput[]
+  skipDuplicates?: boolean
+}
+
+export type CharacterCardLoraUpsertWithWhereUniqueWithoutLookInput = {
+  where: Prisma.CharacterCardLoraWhereUniqueInput
+  update: Prisma.XOR<Prisma.CharacterCardLoraUpdateWithoutLookInput, Prisma.CharacterCardLoraUncheckedUpdateWithoutLookInput>
+  create: Prisma.XOR<Prisma.CharacterCardLoraCreateWithoutLookInput, Prisma.CharacterCardLoraUncheckedCreateWithoutLookInput>
+}
+
+export type CharacterCardLoraUpdateWithWhereUniqueWithoutLookInput = {
+  where: Prisma.CharacterCardLoraWhereUniqueInput
+  data: Prisma.XOR<Prisma.CharacterCardLoraUpdateWithoutLookInput, Prisma.CharacterCardLoraUncheckedUpdateWithoutLookInput>
+}
+
+export type CharacterCardLoraUpdateManyWithWhereWithoutLookInput = {
+  where: Prisma.CharacterCardLoraScalarWhereInput
+  data: Prisma.XOR<Prisma.CharacterCardLoraUpdateManyMutationInput, Prisma.CharacterCardLoraUncheckedUpdateManyWithoutLookInput>
 }
 
 export type CharacterCardLoraCreateWithoutLoraAssetInput = {
   createdAt?: Date | string
   characterCard: Prisma.CharacterCardCreateNestedOneWithoutLoraLinksInput
+  look?: Prisma.CharacterLookCreateNestedOneWithoutLoraLinksInput
 }
 
 export type CharacterCardLoraUncheckedCreateWithoutLoraAssetInput = {
   characterCardId: string
+  lookId?: string | null
   createdAt?: Date | string
 }
 
@@ -449,41 +558,73 @@ export type CharacterCardLoraUpdateManyWithWhereWithoutLoraAssetInput = {
 
 export type CharacterCardLoraCreateManyCharacterCardInput = {
   loraAssetId: string
+  lookId?: string | null
   createdAt?: Date | string
 }
 
 export type CharacterCardLoraUpdateWithoutCharacterCardInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   loraAsset?: Prisma.LoraAssetUpdateOneRequiredWithoutCharacterLinksNestedInput
+  look?: Prisma.CharacterLookUpdateOneWithoutLoraLinksNestedInput
 }
 
 export type CharacterCardLoraUncheckedUpdateWithoutCharacterCardInput = {
   loraAssetId?: Prisma.StringFieldUpdateOperationsInput | string
+  lookId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type CharacterCardLoraUncheckedUpdateManyWithoutCharacterCardInput = {
+  loraAssetId?: Prisma.StringFieldUpdateOperationsInput | string
+  lookId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type CharacterCardLoraCreateManyLookInput = {
+  characterCardId: string
+  loraAssetId: string
+  createdAt?: Date | string
+}
+
+export type CharacterCardLoraUpdateWithoutLookInput = {
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  characterCard?: Prisma.CharacterCardUpdateOneRequiredWithoutLoraLinksNestedInput
+  loraAsset?: Prisma.LoraAssetUpdateOneRequiredWithoutCharacterLinksNestedInput
+}
+
+export type CharacterCardLoraUncheckedUpdateWithoutLookInput = {
+  characterCardId?: Prisma.StringFieldUpdateOperationsInput | string
+  loraAssetId?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type CharacterCardLoraUncheckedUpdateManyWithoutLookInput = {
+  characterCardId?: Prisma.StringFieldUpdateOperationsInput | string
   loraAssetId?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type CharacterCardLoraCreateManyLoraAssetInput = {
   characterCardId: string
+  lookId?: string | null
   createdAt?: Date | string
 }
 
 export type CharacterCardLoraUpdateWithoutLoraAssetInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   characterCard?: Prisma.CharacterCardUpdateOneRequiredWithoutLoraLinksNestedInput
+  look?: Prisma.CharacterLookUpdateOneWithoutLoraLinksNestedInput
 }
 
 export type CharacterCardLoraUncheckedUpdateWithoutLoraAssetInput = {
   characterCardId?: Prisma.StringFieldUpdateOperationsInput | string
+  lookId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type CharacterCardLoraUncheckedUpdateManyWithoutLoraAssetInput = {
   characterCardId?: Prisma.StringFieldUpdateOperationsInput | string
+  lookId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -492,45 +633,55 @@ export type CharacterCardLoraUncheckedUpdateManyWithoutLoraAssetInput = {
 export type CharacterCardLoraSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   characterCardId?: boolean
   loraAssetId?: boolean
+  lookId?: boolean
   createdAt?: boolean
   characterCard?: boolean | Prisma.CharacterCardDefaultArgs<ExtArgs>
   loraAsset?: boolean | Prisma.LoraAssetDefaultArgs<ExtArgs>
+  look?: boolean | Prisma.CharacterCardLora$lookArgs<ExtArgs>
 }, ExtArgs["result"]["characterCardLora"]>
 
 export type CharacterCardLoraSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   characterCardId?: boolean
   loraAssetId?: boolean
+  lookId?: boolean
   createdAt?: boolean
   characterCard?: boolean | Prisma.CharacterCardDefaultArgs<ExtArgs>
   loraAsset?: boolean | Prisma.LoraAssetDefaultArgs<ExtArgs>
+  look?: boolean | Prisma.CharacterCardLora$lookArgs<ExtArgs>
 }, ExtArgs["result"]["characterCardLora"]>
 
 export type CharacterCardLoraSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   characterCardId?: boolean
   loraAssetId?: boolean
+  lookId?: boolean
   createdAt?: boolean
   characterCard?: boolean | Prisma.CharacterCardDefaultArgs<ExtArgs>
   loraAsset?: boolean | Prisma.LoraAssetDefaultArgs<ExtArgs>
+  look?: boolean | Prisma.CharacterCardLora$lookArgs<ExtArgs>
 }, ExtArgs["result"]["characterCardLora"]>
 
 export type CharacterCardLoraSelectScalar = {
   characterCardId?: boolean
   loraAssetId?: boolean
+  lookId?: boolean
   createdAt?: boolean
 }
 
-export type CharacterCardLoraOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"characterCardId" | "loraAssetId" | "createdAt", ExtArgs["result"]["characterCardLora"]>
+export type CharacterCardLoraOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"characterCardId" | "loraAssetId" | "lookId" | "createdAt", ExtArgs["result"]["characterCardLora"]>
 export type CharacterCardLoraInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   characterCard?: boolean | Prisma.CharacterCardDefaultArgs<ExtArgs>
   loraAsset?: boolean | Prisma.LoraAssetDefaultArgs<ExtArgs>
+  look?: boolean | Prisma.CharacterCardLora$lookArgs<ExtArgs>
 }
 export type CharacterCardLoraIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   characterCard?: boolean | Prisma.CharacterCardDefaultArgs<ExtArgs>
   loraAsset?: boolean | Prisma.LoraAssetDefaultArgs<ExtArgs>
+  look?: boolean | Prisma.CharacterCardLora$lookArgs<ExtArgs>
 }
 export type CharacterCardLoraIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   characterCard?: boolean | Prisma.CharacterCardDefaultArgs<ExtArgs>
   loraAsset?: boolean | Prisma.LoraAssetDefaultArgs<ExtArgs>
+  look?: boolean | Prisma.CharacterCardLora$lookArgs<ExtArgs>
 }
 
 export type $CharacterCardLoraPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -538,10 +689,15 @@ export type $CharacterCardLoraPayload<ExtArgs extends runtime.Types.Extensions.I
   objects: {
     characterCard: Prisma.$CharacterCardPayload<ExtArgs>
     loraAsset: Prisma.$LoraAssetPayload<ExtArgs>
+    look: Prisma.$CharacterLookPayload<ExtArgs> | null
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     characterCardId: string
     loraAssetId: string
+    /**
+     * 挂在哪套造型下（角色④）；空 = 全部造型通用。造型删了回到通用。
+     */
+    lookId: string | null
     createdAt: Date
   }, ExtArgs["result"]["characterCardLora"]>
   composites: {}
@@ -939,6 +1095,7 @@ export interface Prisma__CharacterCardLoraClient<T, Null = never, ExtArgs extend
   readonly [Symbol.toStringTag]: "PrismaPromise"
   characterCard<T extends Prisma.CharacterCardDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.CharacterCardDefaultArgs<ExtArgs>>): Prisma.Prisma__CharacterCardClient<runtime.Types.Result.GetResult<Prisma.$CharacterCardPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   loraAsset<T extends Prisma.LoraAssetDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.LoraAssetDefaultArgs<ExtArgs>>): Prisma.Prisma__LoraAssetClient<runtime.Types.Result.GetResult<Prisma.$LoraAssetPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  look<T extends Prisma.CharacterCardLora$lookArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.CharacterCardLora$lookArgs<ExtArgs>>): Prisma.Prisma__CharacterLookClient<runtime.Types.Result.GetResult<Prisma.$CharacterLookPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -970,6 +1127,7 @@ export interface Prisma__CharacterCardLoraClient<T, Null = never, ExtArgs extend
 export interface CharacterCardLoraFieldRefs {
   readonly characterCardId: Prisma.FieldRef<"CharacterCardLora", 'String'>
   readonly loraAssetId: Prisma.FieldRef<"CharacterCardLora", 'String'>
+  readonly lookId: Prisma.FieldRef<"CharacterCardLora", 'String'>
   readonly createdAt: Prisma.FieldRef<"CharacterCardLora", 'DateTime'>
 }
     
@@ -1369,6 +1527,25 @@ export type CharacterCardLoraDeleteManyArgs<ExtArgs extends runtime.Types.Extens
    * Limit how many CharacterCardLoras to delete.
    */
   limit?: number
+}
+
+/**
+ * CharacterCardLora.look
+ */
+export type CharacterCardLora$lookArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the CharacterLook
+   */
+  select?: Prisma.CharacterLookSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the CharacterLook
+   */
+  omit?: Prisma.CharacterLookOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.CharacterLookInclude<ExtArgs> | null
+  where?: Prisma.CharacterLookWhereInput
 }
 
 /**

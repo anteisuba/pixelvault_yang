@@ -36,7 +36,7 @@ import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import { useCharacterCardUsage } from '@/hooks/cards/use-character-card-usage'
 import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
 import { requestOperatorDraft } from '@/hooks/use-studio-operator-store'
-import { characterCoverUrl } from '@/lib/card-bus'
+import { allLookSlots, characterCoverUrl, defaultLook } from '@/lib/card-bus'
 import { cn } from '@/lib/utils'
 
 import { NodeCardShell } from './chrome'
@@ -171,9 +171,11 @@ export function CharacterNodeV4({ id, data, selected }: NodeProps) {
     void canvas.onApplyOp({ op: NODE_ASSISTANT_OP_V4_IDS.delete, target: id })
 
   const mainImage = card ? (characterCoverUrl(card) ?? undefined) : undefined
+  // 她全部造型的图（默认造型在前，角色④）。
+  const cardSlots = card ? allLookSlots(card) : []
   const tiles: CharacterTile[] = card
     ? [
-        ...card.referenceSlots.map((slot) => ({
+        ...cardSlots.map((slot) => ({
           key: `slot:${slot.id}`,
           url: slot.url,
           primary: slot.isPrimary,
@@ -182,7 +184,7 @@ export function CharacterNodeV4({ id, data, selected }: NodeProps) {
         ...usage.generations
           .filter(
             (generation) =>
-              !card.referenceSlots.some((slot) => slot.url === generation.url),
+              !cardSlots.some((slot) => slot.url === generation.url),
           )
           .map((generation) => ({
             key: `generation:${generation.id}`,
@@ -194,7 +196,7 @@ export function CharacterNodeV4({ id, data, selected }: NodeProps) {
           })),
       ]
     : []
-  const onCardCount = card?.referenceSlots.length ?? 0
+  const onCardCount = cardSlots.length
 
   /** 卡面：读不到她 / 她还没有图时是灰底一句话（画板 S1 / S2），⛔ 不画空虚线框。 */
   const face = !library.loaded ? (
@@ -249,7 +251,11 @@ export function CharacterNodeV4({ id, data, selected }: NodeProps) {
   /** 她的文字：外观在前（角色页头上那一句），再是设定四格；只列写了的。 */
   const fields: { key: string; label: string; text: string }[] = card
     ? [
-        { key: 'look', label: 'fieldLooks', text: card.description ?? '' },
+        {
+          key: 'look',
+          label: 'fieldLooks',
+          text: defaultLook(card).description ?? '',
+        },
         ...(
           [
             ['identity', 'fieldIdentity'],

@@ -53,11 +53,12 @@ import {
 } from '@/services/cards/character-card.service'
 
 const FAKE_USER = { id: 'db_user_1', clerkId: 'clerk_1' }
-const FAKE_CARD = {
-  id: 'card_1',
-  userId: 'db_user_1',
-  name: 'Rei',
+const FAKE_LOOK = {
+  id: 'look_1',
+  label: null,
+  isDefault: true,
   description: 'blue hair anime girl',
+  tags: [],
   referenceSlots: [
     {
       id: 'slot-1',
@@ -66,13 +67,35 @@ const FAKE_CARD = {
       isPrimary: true,
     },
   ],
+}
+const FAKE_CARD = {
+  id: 'card_1',
+  userId: 'db_user_1',
+  name: 'Rei',
   tags: [],
-  parentId: null,
-  variantLabel: null,
   isDeleted: false,
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
   updatedAt: new Date('2026-01-01T00:00:00.000Z'),
-  variants: [],
+  looks: [FAKE_LOOK],
+}
+
+/** `create` 的嵌套默认造型 → 读出来的那一行。 */
+function createdRow({ data }: { data: Record<string, unknown> }) {
+  const nested = (data.looks as { create: Record<string, unknown> }).create
+  return Promise.resolve({
+    ...FAKE_CARD,
+    ...data,
+    id: 'card_new',
+    looks: [
+      {
+        id: 'look_new',
+        label: null,
+        tags: [],
+        description: null,
+        ...nested,
+      },
+    ],
+  })
 }
 
 describe('listCharacterCards', () => {
@@ -90,7 +113,7 @@ describe('listCharacterCards', () => {
     expect(result[0]?.name).toBe('Rei')
     expect(mockFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { userId: 'db_user_1', isDeleted: false, parentId: null },
+        where: { userId: 'db_user_1', isDeleted: false },
       }),
     )
   })
@@ -103,11 +126,7 @@ describe('getCharacterCard', () => {
   })
 
   it('returns null when card belongs to another user', async () => {
-    mockFindUnique.mockResolvedValue({
-      ...FAKE_CARD,
-      userId: 'other',
-      variants: [],
-    })
+    mockFindUnique.mockResolvedValue({ ...FAKE_CARD, userId: 'other' })
 
     const result = await getCharacterCard('clerk_1', 'card_1')
 
@@ -150,32 +169,16 @@ describe('updateCharacterCard', () => {
     mockUpdate.mockImplementation(async ({ data }) => ({
       ...FAKE_CARD,
       ...data,
-      variants: [],
     }))
   })
 
-  it('只改名字时不碰参考槽', async () => {
+  it('改名只写名字；外观 / 图在造型上，⛔ 不碰', async () => {
     mockFindUnique.mockResolvedValue(FAKE_CARD)
     await updateCharacterCard('clerk_1', 'card_1', { name: 'Rei 2' })
-    expect(mockUpdate.mock.calls[0]![0].data).not.toHaveProperty(
-      'referenceSlots',
-    )
-  })
-
-  it('改参考槽只写参考槽，⛔ 不再碰旧图片列', async () => {
-    mockFindUnique.mockResolvedValue(FAKE_CARD)
-    const referenceSlots = [
-      {
-        id: 'slot-2',
-        role: 'identity' as const,
-        url: 'https://example.com/new-main.png',
-        isPrimary: true,
-        origin: 'upload' as const,
-      },
-    ]
-    await updateCharacterCard('clerk_1', 'card_1', { referenceSlots })
     const { data } = mockUpdate.mock.calls[0]![0]
-    expect(data).toEqual({ referenceSlots })
+    expect(data.name).toBe('Rei 2')
+    expect(data).not.toHaveProperty('referenceSlots')
+    expect(data).not.toHaveProperty('description')
   })
 
   it('扩展键按键合并：null 删键，⛔ 认不出的键原样保留；简介照写', async () => {
@@ -198,23 +201,29 @@ describe('createCharacterCard', () => {
     vi.clearAllMocks()
     mockEnsureUser.mockResolvedValue(FAKE_USER)
     mockCount.mockResolvedValue(0)
-    mockCardCreate.mockImplementation(({ data }: { data: object }) =>
-      Promise.resolve({ ...FAKE_CARD, ...data, id: 'card_new' }),
-    )
+    mockCardCreate.mockImplementation(createdRow)
   })
 
   it('只建名字：⛔ 不上传；读出来没有图', async () => {
     const card = await createCharacterCard('clerk_1', { name: '时夜' })
 
     expect(uploadToR2).not.toHaveBeenCalled()
-    expect(mockCardCreate).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        name: '时夜',
-        handle: '时夜',
-        referenceSlots: [],
+    expect(mockCardCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          name: '时夜',
+          handle: '时夜',
+          looks: {
+            create: expect.objectContaining({
+              isDefault: true,
+              referenceSlots: [],
+            }),
+          },
+        }),
       }),
-    })
-    expect(card.referenceSlots).toEqual([])
+    )
+    expect(card.looks).toHaveLength(1)
+    expect(card.looks[0]!.referenceSlots).toEqual([])
   })
 })
 
@@ -223,9 +232,7 @@ describe('createImportedCharacterCard（导入的酒馆卡，附录J ⑥）', ()
     vi.clearAllMocks()
     mockEnsureUser.mockResolvedValue(FAKE_USER)
     mockCount.mockResolvedValue(0)
-    mockCardCreate.mockImplementation(({ data }: { data: object }) =>
-      Promise.resolve({ ...FAKE_CARD, ...data, id: 'card_new' }),
-    )
+    mockCardCreate.mockImplementation(createdRow)
   })
 
   const imported = {
@@ -254,29 +261,36 @@ describe('createImportedCharacterCard（导入的酒馆卡，附录J ⑥）', ()
     expect(uploadToR2).toHaveBeenCalledWith(
       expect.objectContaining({ mimeType: 'image/webp' }),
     )
-    expect(mockCardCreate).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        name: '时夜',
-        summary: '雨夜里的店主',
-        tags: ['原创'],
-        referenceSlots: [
-          expect.objectContaining({
-            url: 'https://r2.example.com/abc.jpg',
-            isPrimary: true,
-          }),
-        ],
-        persona: imported.persona,
-        extensions: { 'st.card': { spec: 'chara_card_v2' } },
+    expect(mockCardCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          name: '时夜',
+          summary: '雨夜里的店主',
+          tags: ['原创'],
+          looks: {
+            create: expect.objectContaining({
+              isDefault: true,
+              referenceSlots: [
+                expect.objectContaining({
+                  url: 'https://r2.example.com/abc.jpg',
+                  isPrimary: true,
+                }),
+              ],
+            }),
+          },
+          persona: imported.persona,
+          extensions: { 'st.card': { spec: 'chara_card_v2' } },
+        }),
       }),
-    })
-    expect(card.referenceSlots).toHaveLength(1)
+    )
+    expect(card.looks[0]!.referenceSlots).toHaveLength(1)
   })
 
   it('JSON 卡没有图：不上传，建一张没有主图的角色', async () => {
     const card = await createImportedCharacterCard('clerk_1', imported, null)
 
     expect(uploadToR2).not.toHaveBeenCalled()
-    expect(card.referenceSlots).toEqual([])
+    expect(card.looks[0]!.referenceSlots).toEqual([])
   })
 
   it('角色数到上限：带 i18nKey 的错，⛔ 不建卡', async () => {

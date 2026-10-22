@@ -16,11 +16,7 @@ import {
   supportsNovelAiCharacters,
 } from '@/constants/novelai'
 import { referenceUrlKey } from '@/lib/card-bus'
-import {
-  CardTagsSchema,
-  type CardTags,
-  type CharacterReferenceSlot,
-} from '@/types'
+import type { CharacterReferenceSlot } from '@/types'
 import type { NovelAiCharacterLayout } from '@/types/novelai'
 
 // ─── 中间形态 ────────────────────────────────────────────────────
@@ -31,12 +27,14 @@ export interface CardBusCharacter {
   version: number
   handle: string
   name: string
-  /** 视觉文字 = 卡上的外观（`description`）。 */
+  /** 用的哪套造型（角色④）；进生成记录。 */
+  lookId: string | null
+  /** 视觉文字 = 这套造型的外观文字。 */
   visual: string | null
   /** 角色硬否定（`extensions['pv.negative']`）。 */
   negative: string | null
-  /** 标签（`extensions['pv.tags']`）：NovelAI 用它认人。 */
-  tags: CardTags
+  /** 这套造型的标签：NovelAI 用它认人。 */
+  tags: string[]
   /**
    * 主图在最前，其次其余身份槽，再其次别的用途，同档保持卡上的顺序。
    * ⚠ 同一张图（路径相同、域名不同）只留排在前面的那个。
@@ -49,14 +47,14 @@ export interface CardBusCharacterSource {
   version: number
   handle: string
   name: string
+  lookId: string | null
   description: string | null
+  tags: readonly string[]
   extensions: unknown
   slots: readonly CharacterReferenceSlot[]
   /** 用户亲手挑的图：按挑的顺序送，⛔ 不再按主图 / 身份重排。 */
   keepOrder?: boolean
 }
-
-const EMPTY_TAGS: CardTags = { character: [], appearance: [] }
 
 function readExtension(extensions: unknown, key: string): unknown {
   if (!extensions || typeof extensions !== 'object') return undefined
@@ -66,14 +64,6 @@ function readExtension(extensions: unknown, key: string): unknown {
 function readNegative(extensions: unknown): string | null {
   const value = readExtension(extensions, CARD_EXTENSIONS.KEYS.negative)
   return typeof value === 'string' && value.trim() ? value.trim() : null
-}
-
-/** 坏的标签当缺席（契约：已知键逐键解析，坏键编译时当缺席，磁盘上保留）。 */
-function readTags(extensions: unknown): CardTags {
-  const parsed = CardTagsSchema.safeParse(
-    readExtension(extensions, CARD_EXTENSIONS.KEYS.tags),
-  )
-  return parsed.success ? parsed.data : EMPTY_TAGS
 }
 
 function slotRank(slot: CharacterReferenceSlot): number {
@@ -89,9 +79,10 @@ export function toCardBusCharacter(
     version: source.version,
     handle: source.handle,
     name: source.name,
+    lookId: source.lookId,
     visual: source.description?.trim() || null,
     negative: readNegative(source.extensions),
-    tags: readTags(source.extensions),
+    tags: [...source.tags],
     slots: source.slots
       .map((slot, index) => ({ slot, index }))
       .sort((a, b) =>
@@ -169,10 +160,9 @@ function allocateSlots(
   return picked
 }
 
-/** NovelAI 认人用的那串：角色标签 + 外观标签；没有标签就退回视觉文字。 */
+/** NovelAI 认人用的那串：这套造型的标签；没有标签就退回视觉文字。 */
 function tagText(character: CardBusCharacter): string | null {
-  const tags = [...character.tags.character, ...character.tags.appearance]
-  return tags.length ? tags.join(', ') : null
+  return character.tags.length ? character.tags.join(', ') : null
 }
 
 function characterBlock(

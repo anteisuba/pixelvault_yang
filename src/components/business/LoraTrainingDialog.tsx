@@ -102,6 +102,10 @@ const TRAINING_PROVIDER_QUICK_SETUP: Record<
 
 interface LoraTrainingFormProps {
   characterCardId?: string
+  /** 从角色的哪套造型发起（角色④）：训完的 LoRA 挂在这套下。 */
+  characterLookId?: string
+  /** 先放进训练图的几张（这套造型的参考图），用户再自己增删。 */
+  initialImageUrls?: readonly string[]
   onSubmitted?: () => void
   showHeading?: boolean
   /** Hide the in-form recent-jobs list. The Studio /lora?section=train page
@@ -130,6 +134,8 @@ interface LoraTrainingFormProps {
 
 export function LoraTrainingForm({
   characterCardId,
+  characterLookId,
+  initialImageUrls,
   onSubmitted,
   showHeading = false,
   hideRecentJobs = false,
@@ -158,6 +164,13 @@ export function LoraTrainingForm({
     imageUrls,
   } = useLoraTraining()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // 造型的参考图只在打开时放一次（之后用户自己增删，⛔ 每次渲染又塞回来）。
+  const seededImagesRef = useRef(false)
+  useEffect(() => {
+    if (seededImagesRef.current || !initialImageUrls?.length) return
+    seededImagesRef.current = true
+    adoptExistingUrls([...initialImageUrls])
+  }, [adoptExistingUrls, initialImageUrls])
 
   const [name, setName] = useState('')
   const [triggerWord, setTriggerWord] = useState('')
@@ -336,6 +349,7 @@ export function LoraTrainingForm({
       loraType,
       trainingImages: imageUrls,
       characterCardId,
+      characterLookId,
       apiKeyId: selectedKeyId,
       provider,
       baseModel,
@@ -359,6 +373,7 @@ export function LoraTrainingForm({
     baseModel,
     imageUrls,
     characterCardId,
+    characterLookId,
     submit,
     clearImages,
     onPresetClear,
@@ -1248,6 +1263,9 @@ function TrainingImageTile({
 
 interface LoraTrainingDialogProps {
   characterCardId?: string
+  /** 从哪套造型发起 + 先放进训练图的那几张（角色④）。 */
+  characterLookId?: string
+  initialImageUrls?: readonly string[]
   trigger?: React.ReactNode
   /** Controlled open state (optional — uses internal state if omitted) */
   open?: boolean
@@ -1257,6 +1275,8 @@ interface LoraTrainingDialogProps {
 
 export function LoraTrainingDialog({
   characterCardId,
+  characterLookId,
+  initialImageUrls,
   trigger,
   open: controlledOpen,
   onOpenChange,
@@ -1288,6 +1308,8 @@ export function LoraTrainingDialog({
         <div className="pt-2">
           <LoraTrainingForm
             characterCardId={characterCardId}
+            characterLookId={characterLookId}
+            initialImageUrls={initialImageUrls}
             onSubmitted={() => setOpen(false)}
           />
         </div>

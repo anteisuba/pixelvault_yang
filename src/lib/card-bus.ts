@@ -7,19 +7,60 @@
  */
 
 import { CHARACTER_CARD } from '@/constants/cards/character-card'
-import type { CharacterReferenceSlot } from '@/types'
+import type { CharacterLookRecord, CharacterReferenceSlot } from '@/types'
+
+// ─── 造型（角色④）─────────────────────────────────────────────────
+
+const EMPTY_LOOK: CharacterLookRecord = {
+  id: '',
+  label: null,
+  isDefault: true,
+  description: null,
+  tags: [],
+  referenceSlots: [],
+}
+
+/** 默认造型；读到的卡一套造型都没有（不该发生）时给一套空的，⛔ 不让页面失败。 */
+export function defaultLook(card: {
+  looks: readonly CharacterLookRecord[]
+}): CharacterLookRecord {
+  return (
+    card.looks.find((look) => look.isDefault) ?? card.looks[0] ?? EMPTY_LOOK
+  )
+}
+
+/** 按 id 找造型；没给或认不出就用默认造型。 */
+export function findLook(
+  card: { looks: readonly CharacterLookRecord[] },
+  lookId: string | null | undefined,
+): CharacterLookRecord {
+  return (
+    (lookId && card.looks.find((look) => look.id === lookId)) ||
+    defaultLook(card)
+  )
+}
+
+/** 角色全部造型的图（默认造型在前）：张数、「卡上的图」都按这个算。 */
+export function allLookSlots(card: {
+  looks: readonly CharacterLookRecord[]
+}): CharacterReferenceSlot[] {
+  return card.looks.flatMap((look) => look.referenceSlots)
+}
 
 // ─── 同一张图 ─────────────────────────────────────────────────────
 
-/** 角色封面：主图那一槽，没有主图取第一槽；一张图都没有 = `null`。 */
+/** 一组参考槽的封面：主图那一槽，没有主图取第一槽；一张图都没有 = `null`。 */
+export function slotsCoverUrl(
+  slots: readonly CharacterReferenceSlot[],
+): string | null {
+  return slots.find((slot) => slot.isPrimary)?.url ?? slots[0]?.url ?? null
+}
+
+/** 角色封面 = 默认造型的封面。 */
 export function characterCoverUrl(card: {
-  referenceSlots: readonly CharacterReferenceSlot[]
+  looks: readonly CharacterLookRecord[]
 }): string | null {
-  return (
-    card.referenceSlots.find((slot) => slot.isPrimary)?.url ??
-    card.referenceSlots[0]?.url ??
-    null
-  )
+  return slotsCoverUrl(defaultLook(card).referenceSlots)
 }
 
 /**
@@ -62,18 +103,6 @@ export function deriveCardHandleBase(name: string): string {
     [...cleaned].slice(0, CHARACTER_CARD.HANDLE_MAX_LENGTH).join('') ||
     HANDLE_FALLBACK
   )
-}
-
-/** 变体的 handle 底子：`父-变体`（`林夏-雨夜`）。没有变体名就只用父的。 */
-export function deriveVariantHandleBase(
-  parentHandle: string,
-  variantLabel: string | null | undefined,
-): string {
-  const suffix = variantLabel ? deriveCardHandleBase(variantLabel) : ''
-  if (!suffix || suffix === HANDLE_FALLBACK) return parentHandle
-  return [...`${parentHandle}-${suffix}`]
-    .slice(0, CHARACTER_CARD.HANDLE_MAX_LENGTH)
-    .join('')
 }
 
 /**

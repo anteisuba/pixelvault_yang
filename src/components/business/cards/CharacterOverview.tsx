@@ -10,7 +10,11 @@ import type { CharacterCardRecord } from '@/types'
 import { Search } from '@/components/icons'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useTouchLongPress } from '@/hooks/use-touch-long-press'
-import { characterCoverUrl, referenceUrlKey } from '@/lib/card-bus'
+import {
+  allLookSlots,
+  characterCoverUrl,
+  referenceUrlKey,
+} from '@/lib/card-bus'
 import { characterImageCount, characterWork } from '@/lib/character-works'
 import { cn } from '@/lib/utils'
 
@@ -29,13 +33,8 @@ import { cn } from '@/lib/utils'
 /** 排名只排前几位；其余从作品进。 */
 const RANKED_COUNT = 5
 
-export interface OverviewItem {
+interface Entry {
   card: CharacterCardRecord
-  /** 变体跟在父卡后面，副标题写「父卡 · 变体名」。 */
-  parentName: string | null
-}
-
-interface Entry extends OverviewItem {
   images: number
   workKey: string
   workLabel: string
@@ -49,7 +48,7 @@ interface WorkGroup {
 }
 
 interface CharacterOverviewProps {
-  items: OverviewItem[]
+  cards: CharacterCardRecord[]
   reducedMotion: boolean
   onOpen(id: string): void
   /** 搜索词（搜索框住在地台上那一行，`CharacterOverviewHeader`；手机在顶上胶囊里）。 */
@@ -61,7 +60,7 @@ interface CharacterOverviewProps {
 const ORIGINAL_KEY = '\u0000original'
 
 export function CharacterOverview({
-  items,
+  cards,
   reducedMotion,
   onOpen,
   query,
@@ -75,16 +74,16 @@ export function CharacterOverview({
 
   const entries = useMemo<Entry[]>(
     () =>
-      items.map((item) => {
-        const work = characterWork(item.card, locale)
+      cards.map((card) => {
+        const work = characterWork(card, locale)
         return {
-          ...item,
-          images: characterImageCount(item.card),
+          card,
+          images: characterImageCount(card),
           workKey: work.label ?? ORIGINAL_KEY,
           workLabel: work.label ?? t('workOriginal'),
         }
       }),
-    [items, locale, t],
+    [cards, locale, t],
   )
 
   const groups = useMemo<WorkGroup[]>(() => {
@@ -113,7 +112,10 @@ export function CharacterOverview({
             entry.card.name,
             entry.card.handle ?? '',
             entry.workLabel,
-            ...entry.card.cardTags.character,
+            ...entry.card.looks.flatMap((look) => [
+              look.label ?? '',
+              ...look.tags,
+            ]),
           ].some((text) => text.toLowerCase().includes(needle)),
         )
         .sort(byImages)
@@ -397,11 +399,9 @@ function CharacterTile({
   onOpen(id: string): void
 }) {
   const t = useTranslations('CharacterRoster')
-  const { card, parentName } = entry
+  const { card } = entry
   const cover = characterCoverUrl(card)
-  const name = parentName
-    ? t('variantOf', { parent: parentName, label: card.variantLabel ?? '' })
-    : card.name
+  const name = card.name
   const meta = t('tileMeta', { work: entry.workLabel, images: entry.images })
   if (captionBelow) {
     return (
@@ -509,7 +509,7 @@ function WorkShelf({
   const top = group.entries.slice(0, 3)
   for (const entry of top) push(characterCoverUrl(entry.card))
   for (const entry of top) {
-    for (const slot of entry.card.referenceSlots) push(slot.url)
+    for (const slot of allLookSlots(entry.card)) push(slot.url)
   }
   const [front, left, right] = covers
   if (compact) {
@@ -604,11 +604,11 @@ function WorkShelf({
 
 /** 这页有几部作品（地台那一行的计数用，判据与总览分组同一套）。 */
 export function countCharacterWorks(
-  items: readonly OverviewItem[],
+  cards: readonly CharacterCardRecord[],
   locale: string,
 ): number {
   return new Set(
-    items.map((item) => characterWork(item.card, locale).label ?? ORIGINAL_KEY),
+    cards.map((card) => characterWork(card, locale).label ?? ORIGINAL_KEY),
   ).size
 }
 

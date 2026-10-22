@@ -4,9 +4,7 @@
 export const CHARACTER_CARD = {
   /** Maximum length for character card name */
   NAME_MAX_LENGTH: 60,
-  /** Maximum length for variant label */
-  VARIANT_LABEL_MAX_LENGTH: 40,
-  /** 外观（`description`）上限：旧的角色提示词并进来后最长的一位约 2000 字。 */
+  /** 外观文字（造型的 `description`）上限：旧的角色提示词并进来后最长的一位约 2000 字。 */
   DESCRIPTION_MAX_LENGTH: 2000,
   /** Maximum number of tags per card */
   MAX_TAGS: 20,
@@ -14,8 +12,11 @@ export const CHARACTER_CARD = {
   TAG_MAX_LENGTH: 30,
   /** Maximum character cards per user */
   MAX_CARDS_PER_USER: 100,
-  /** Maximum variants per parent card */
-  MAX_VARIANTS_PER_CARD: 20,
+  /** 造型（角色④）：名字上限、每个角色最多几套、每套标签上限。 */
+  LOOK_LABEL_MAX_LENGTH: 40,
+  MAX_LOOKS_PER_CARD: 20,
+  LOOK_TAG_MAX_LENGTH: 80,
+  MAX_LOOK_TAGS: 60,
   /** Maximum character cards selected simultaneously for generation */
   MAX_ACTIVE_CARDS: 5,
   /**
@@ -27,7 +28,7 @@ export const CHARACTER_CARD = {
   HANDLE_MAX_LENGTH: 32,
   /** 给人看的简介。⛔ 任何面都不进 prompt（含助手）。 */
   SUMMARY_MAX_LENGTH: 500,
-  /** 一张卡最多几张参考图。 */
+  /** 一套造型最多几张参考图。 */
   MAX_REFERENCE_SLOTS: 15,
   /** `custom` 用途的槽必须自带一个名字。 */
   CUSTOM_SLOT_LABEL_MAX_LENGTH: 40,
@@ -88,9 +89,7 @@ export const CARD_EXTENSIONS = {
   KEYS: {
     /** 角色硬否定（一句负面）。 */
     negative: 'pv.negative',
-    /** 标签：给 NovelAI / LoRA 这类只认标签的模型（owner 09-26）。 */
-    tags: 'pv.tags',
-    /** 作品手改值（角色页按作品分组；没有就从角色标签括号里取，owner 09-26）。 */
+    /** 作品手改值（角色页按作品分组；没有就从默认造型标签的括号里取，owner 09-26）。 */
     work: 'pv.work',
     /** 经历超长时存的总结 `{ hash, text }`（助手角色段用，服务端写，owner 10-15）。 */
     backstorySummary: 'pv.backstorySummary',
@@ -99,8 +98,4 @@ export const CARD_EXTENSIONS = {
   },
   /** 作品名最长多少字符。 */
   WORK_MAX_LENGTH: 60,
-  /** 标签的上限。 */
-  TAG_MAX_LENGTH: 80,
-  MAX_CHARACTER_TAGS: 20,
-  MAX_APPEARANCE_TAGS: 40,
 } as const

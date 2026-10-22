@@ -3,13 +3,17 @@
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 
-import type { CharacterCardRecord, CharacterImagePick } from '@/types'
+import type {
+  CharacterCardRecord,
+  CharacterImagePick,
+  CharacterLookRecord,
+} from '@/types'
 import { Check } from '@/components/icons'
 import { useCharacterCardUsage } from '@/hooks/cards/use-character-card-usage'
 import { cn } from '@/lib/utils'
 
 /**
- * 一位角色的**勾图格子**：卡上的图在前（主图 / 卡上），用她出的在后；勾一张或几张 =
+ * 一位角色的**勾图格子**：这套造型的图在前（主图 / 卡上），用她出的在后；勾一张或几张 =
  * 这一次带这几张（owner 09-27 工作台「角色」弹层；09-28 画布镜头里 @她 同一套）。
  *
  * ⚠ 张数按「这个模型一次能收几张参考图」卡住：到上限，没勾的格子勾不上并写明原因。
@@ -27,12 +31,15 @@ export function sameCharacterPick(
 
 export function CharacterImagePickGrid({
   card,
+  look,
   picks,
   remaining,
   onChange,
   className,
 }: {
   card: CharacterCardRecord
+  /** 用的哪套造型（角色④）：卡上的图只列这一套的。 */
+  look: CharacterLookRecord
   picks: readonly CharacterImagePick[]
   /** 还能再勾几张（`Infinity` = 不限）。 */
   remaining: number
@@ -46,7 +53,7 @@ export function CharacterImagePickGrid({
     url: string
     badge: string | null
   }[] = [
-    ...card.referenceSlots.map((slot) => ({
+    ...look.referenceSlots.map((slot) => ({
       pick: { slotId: slot.id } as CharacterImagePick,
       url: slot.url,
       badge: slot.isPrimary ? t('primary') : t('onCard'),
@@ -54,7 +61,7 @@ export function CharacterImagePickGrid({
     ...usage.generations
       .filter(
         (generation) =>
-          !card.referenceSlots.some((slot) => slot.url === generation.url),
+          !look.referenceSlots.some((slot) => slot.url === generation.url),
       )
       .map((generation) => ({
         pick: { generationId: generation.id } as CharacterImagePick,

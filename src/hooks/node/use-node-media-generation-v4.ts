@@ -42,6 +42,7 @@ import {
   finishNodeSearchGrounding,
   startNodeSearchGrounding,
 } from '@/hooks/node/use-node-search-grounding'
+import { defaultLook } from '@/lib/card-bus'
 import { probeMediaDuration } from '@/lib/media-probe'
 import { listPromptLoraNames } from '@/lib/prompt-weight-syntax'
 import {
@@ -418,7 +419,8 @@ function countCharacterImageExtras(
     name: character.card.name,
     images: character.picks.filter((pick) => {
       if (!('slotId' in pick)) return true
-      const url = character.card.referenceSlots.find(
+      // 画布用默认造型（角色④）。
+      const url = defaultLook(character.card).referenceSlots.find(
         (slot) => slot.id === pick.slotId,
       )?.url
       return !url || !attached.has(url)

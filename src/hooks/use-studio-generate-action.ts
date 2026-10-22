@@ -649,6 +649,13 @@ export function useStudioGenerateAction() {
             return picks?.length ? [[id, [...picks]]] : []
           }),
         )
+        // 切了造型的角色（角色④）；没有键 = 默认造型。
+        const characterLookIds = Object.fromEntries(
+          characterCardIds.flatMap((id) => {
+            const lookId = characters.lookIds[id]
+            return lookId ? [[id, lookId]] : []
+          }),
+        )
         const baseAdvancedParams = composeAdvancedParams(
           overrides?.negativePrompt,
         )
@@ -669,6 +676,7 @@ export function useStudioGenerateAction() {
           ...(Object.keys(characterImagePicks).length
             ? { characterImagePicks }
             : {}),
+          ...(Object.keys(characterLookIds).length ? { characterLookIds } : {}),
         }
       }
       return null
@@ -684,6 +692,7 @@ export function useStudioGenerateAction() {
       imageUpload.referenceImages,
       characters.activeCards,
       characters.imagePicks,
+      characters.lookIds,
     ],
   )
 

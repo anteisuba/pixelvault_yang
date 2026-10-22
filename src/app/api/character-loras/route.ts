@@ -24,5 +24,5 @@ export const PUT = createApiRoute({
   routeName: 'PUT /api/character-loras',
   rateLimit: RATE_LIMIT_CONFIGS.authedWrite,
   handler: (clerkId, data) =>
-    setLoraCharacters(clerkId, data.lora, data.characterCardIds),
+    setLoraCharacters(clerkId, data.lora, data.characters),
 })

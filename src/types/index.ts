@@ -1,6 +1,9 @@
 import { z } from 'zod'
 
-import { CharacterImagePickSchema } from '@/types/character-image-pick'
+import {
+  CharacterImagePickSchema,
+  CharacterLookIdsSchema,
+} from '@/types/character-image-pick'
 import type { StudioOperatorResultOwner } from '@/types/studio-assistant-operator'
 import type { TavernCardKept } from '@/types/tavern-card'
 import {
@@ -606,6 +609,8 @@ export const GenerateRequestSchema = z.object({
   advancedParams: AdvancedParamsSchema.optional(),
   /** Optional character card IDs to link to this generation (multi-card) */
   characterCardIds: z.array(z.string().trim().min(1)).max(5).optional(),
+  /** 每位角色用的哪套造型（角色④）：随出图记录一起记下。 */
+  characterLookIds: CharacterLookIdsSchema.optional(),
   /** Optional project ID to associate this generation with */
   projectId: z.string().trim().min(1).optional(),
   /** Optional prompt template usage metadata for generation lineage */
@@ -773,6 +778,8 @@ const GenerateVideoRequestObjectSchema = z.object({
         .max(CHARACTER_CARD.MAX_REFERENCE_SLOTS),
     )
     .optional(),
+  /** 每位在场角色用哪套造型（角色④）；没有键 = 默认造型。 */
+  characterLookIds: CharacterLookIdsSchema.optional(),
   /** 这一枪叫什么（切片 Y）—— 判据与 `StudioGenerateSchema.displayLabel` 同源。 */
   displayLabel: z.string().trim().min(1).max(160).optional(),
 })
@@ -3170,21 +3177,12 @@ export const CharacterPersonaSchema = z.object({
 export type CharacterPersona = z.infer<typeof CharacterPersonaSchema>
 
 /**
- * 卡的标签（`extensions['pv.tags']`，owner 09-26）：给 NovelAI / LoRA 这类只认标签的
- * 模型认人。角色标签如 `denia_(wuthering_waves)`。LoRA 触发词不存在这里，读她收的 LoRA 本身
- * （角色③ 2026-10-22，`CharacterCardLora`）。
+ * 一套造型的标签（角色④ 2026-10-22，不再分角色 / 外观两组）：给 NovelAI 这类只认标签的
+ * 模型认人，如 `denia_(wuthering_waves)`、`red_hair`。LoRA 触发词不在这里，读她收的 LoRA 本身。
  */
-export const CardTagsSchema = z.object({
-  character: z
-    .array(z.string().trim().min(1).max(CARD_EXTENSIONS.TAG_MAX_LENGTH))
-    .max(CARD_EXTENSIONS.MAX_CHARACTER_TAGS)
-    .default([]),
-  appearance: z
-    .array(z.string().trim().min(1).max(CARD_EXTENSIONS.TAG_MAX_LENGTH))
-    .max(CARD_EXTENSIONS.MAX_APPEARANCE_TAGS)
-    .default([]),
-})
-export type CardTags = z.infer<typeof CardTagsSchema>
+export const CharacterLookTagsSchema = z
+  .array(z.string().trim().min(1).max(CHARACTER_CARD.LOOK_TAG_MAX_LENGTH))
+  .max(CHARACTER_CARD.MAX_LOOK_TAGS)
 
 /**
  * ── 卡片总线 v3（进度表 35）────────────────────────────────────
@@ -3305,6 +3303,7 @@ export const CreateCharacterCardSchema = z.object({
     .trim()
     .min(1, 'Name is required')
     .max(CHARACTER_CARD.NAME_MAX_LENGTH),
+  /** 默认造型的外观文字。 */
   description: z
     .string()
     .trim()
@@ -3313,14 +3312,6 @@ export const CreateCharacterCardSchema = z.object({
   tags: z
     .array(z.string().trim().max(CHARACTER_CARD.TAG_MAX_LENGTH))
     .max(CHARACTER_CARD.MAX_TAGS)
-    .optional(),
-  /** Parent card ID to create this as a variant */
-  parentId: z.string().trim().min(1).optional(),
-  /** Variant label (e.g. "Anime Style", "Realistic", "Chibi") */
-  variantLabel: z
-    .string()
-    .trim()
-    .max(CHARACTER_CARD.VARIANT_LABEL_MAX_LENGTH)
     .optional(),
   /** ── 角色卡字段 v2（透传落库，无业务逻辑）── */
   voiceCardId: z.string().trim().min(1).max(64).nullable().optional(),
@@ -3344,25 +3335,10 @@ export type CreateCharacterCardRequest = z.infer<
 /** Update character card request */
 export const UpdateCharacterCardSchema = z.object({
   name: z.string().trim().min(1).max(CHARACTER_CARD.NAME_MAX_LENGTH).optional(),
-  description: z
-    .string()
-    .trim()
-    .max(CHARACTER_CARD.DESCRIPTION_MAX_LENGTH)
-    .nullable()
-    .optional(),
   tags: z
     .array(z.string().trim().max(CHARACTER_CARD.TAG_MAX_LENGTH))
     .max(CHARACTER_CARD.MAX_TAGS)
     .optional(),
-  variantLabel: z
-    .string()
-    .trim()
-    .max(CHARACTER_CARD.VARIANT_LABEL_MAX_LENGTH)
-    .nullable()
-    .optional(),
-  /** 改参考槽：删一张、换主图、加一张。服务端按不变量校验。 */
-  referenceSlots: CharacterReferenceSlotsSchema.optional(),
-  /** Character-specific LoRA models */
   /** ── 角色卡字段 v2（透传落库，无业务逻辑）── */
   voiceCardId: z.string().trim().min(1).max(64).nullable().optional(),
   voiceProfile: CharacterVoiceProfileSchema.nullable().optional(),
@@ -3382,26 +3358,74 @@ export type UpdateCharacterCardRequest = z.infer<
   typeof UpdateCharacterCardSchema
 >
 
+/** 复制一位：新名字。 */
+export const DuplicateCharacterCardSchema = z.object({
+  name: z.string().trim().min(1).max(CHARACTER_CARD.NAME_MAX_LENGTH),
+})
+
+/** 新造型：起个名字；带 `copyFromLookId` = 从那套造型复制文字、标签和图。 */
+export const CreateCharacterLookSchema = z.object({
+  label: z.string().trim().min(1).max(CHARACTER_CARD.LOOK_LABEL_MAX_LENGTH),
+  copyFromLookId: z.string().trim().min(1).max(64).optional(),
+})
+export type CreateCharacterLookRequest = z.infer<
+  typeof CreateCharacterLookSchema
+>
+
+/**
+ * 改一套造型：名字 · 外观文字 · 标签 · 参考图；`isDefault: true` = 设为默认（原默认让位）。
+ * 名字可以清空（界面显示「默认」或「造型 N」）。
+ */
+export const UpdateCharacterLookSchema = z.object({
+  label: z
+    .string()
+    .trim()
+    .max(CHARACTER_CARD.LOOK_LABEL_MAX_LENGTH)
+    .nullable()
+    .optional(),
+  description: z
+    .string()
+    .trim()
+    .max(CHARACTER_CARD.DESCRIPTION_MAX_LENGTH)
+    .nullable()
+    .optional(),
+  tags: CharacterLookTagsSchema.optional(),
+  /** 改参考槽：删一张、换主图、加一张。服务端按不变量校验。 */
+  referenceSlots: CharacterReferenceSlotsSchema.optional(),
+  isDefault: z.literal(true).optional(),
+})
+export type UpdateCharacterLookRequest = z.infer<
+  typeof UpdateCharacterLookSchema
+>
+
+/** 角色的一套造型（角色④）。 */
+export interface CharacterLookRecord {
+  id: string
+  /** 造型名；空 = 界面显示「默认」或「造型 N」。 */
+  label: string | null
+  isDefault: boolean
+  /** 外观文字：编译器的视觉文字就是它。 */
+  description: string | null
+  tags: string[]
+  /** 参考槽：这套造型的图，`isPrimary` 那一张是封面。 */
+  referenceSlots: CharacterReferenceSlot[]
+}
+
 /** Character card record returned from API */
 export interface CharacterCardRecord {
   id: string
   name: string
-  description: string | null
+  /** 酒馆卡带来的标签（给人看，⛔ 不进 prompt）；出图用的标签在造型上。 */
   tags: string[]
-  /** Parent card ID (null for root cards) */
-  parentId: string | null
-  /** Variant label (e.g. "Anime Style", "3D Model") */
-  variantLabel: string | null
-  /** Child variant cards */
-  variants: CharacterCardRecord[]
   /** `@名字`（卡片总线 v3）；回填前的旧卡可能为空。 */
   handle: string | null
-  /** 参考槽：卡上全部的图，`isPrimary` 那一张是封面。 */
-  referenceSlots: CharacterReferenceSlot[]
+  /**
+   * 造型（角色④）：外观文字、标签、参考图都在这里。默认造型排第一，其余按顺序；
+   * 恰有一套 `isDefault`。取用走 `lib/card-bus.ts` 的 `defaultLook` / `findLook`。
+   */
+  looks: CharacterLookRecord[]
   /** 设定：身份 · 性格 · 说话方式 · 经历……（卡片重设计 09-26）。 */
   persona: CharacterPersona | null
-  /** 标签（`extensions['pv.tags']`）。 */
-  cardTags: CardTags
   /** 作品手改值（`extensions['pv.work']`）；null = 从角色标签取。 */
   workOverride: string | null
   /** 简介 / 酒馆的「作者备注」。⛔ 任何面都不进 prompt。 */
@@ -3691,7 +3715,9 @@ export type GenerationSourceSurface = z.infer<
 
 export {
   CharacterImagePickSchema,
+  CharacterLookIdsSchema,
   type CharacterImagePick,
+  type CharacterLookIds,
 } from '@/types/character-image-pick'
 
 export const StudioGenerateSchema = z.object({
@@ -3719,6 +3745,8 @@ export const StudioGenerateSchema = z.object({
         .max(CHARACTER_CARD.MAX_REFERENCE_SLOTS),
     )
     .optional(),
+  /** 每个在场角色用哪套造型（角色④，工作台角色胶囊上切）；没有键 = 默认造型。 */
+  characterLookIds: CharacterLookIdsSchema.optional(),
   freePrompt: z.string().trim().max(PROMPT_TEXT_GUARD_MAX_CHARS).optional(),
   aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']).default('1:1'),
   projectId: z.string().optional(),
@@ -3854,6 +3882,8 @@ export const SubmitLoraTrainingSchema = z.object({
   loraType: z.enum(['subject', 'style']).default('subject'),
   trainingImages: z.array(z.string()).min(5).max(50),
   characterCardId: z.string().uuid().optional(),
+  /** 从角色的哪套造型发起（角色④）：训完的 LoRA 挂在这套造型下。 */
+  characterLookId: z.string().uuid().optional(),
   apiKeyId: z.string().uuid(),
   provider: z.enum(['replicate', 'fal']).default('replicate'),
   // User-selected base model. Only 'flux-1-d' has a wired-up trainer today;
@@ -4014,9 +4044,22 @@ export const CharacterLoraGroupSchema = z.object({
   characterCardId: z.string(),
   name: z.string(),
   coverUrl: z.string().nullable(),
-  /** 挂上她的 LoRA 后问一句要不要加进提示词（默认不加）。 */
-  appearanceTags: z.array(z.string()),
-  loras: z.array(LoraAssetRecordSchema),
+  /**
+   * 她的造型（角色④，默认在前）：「从角色选」按造型分组；挂上 LoRA 后问一句要不要
+   * 把那套造型的标签加进提示词（默认不加）。
+   */
+  looks: z.array(
+    z.object({
+      id: z.string(),
+      label: z.string().nullable(),
+      isDefault: z.boolean(),
+      tags: z.array(z.string()),
+    }),
+  ),
+  /** `lookId` = 挂在哪套造型下；空 = 全部造型通用。 */
+  loras: z.array(
+    LoraAssetRecordSchema.extend({ lookId: z.string().nullable() }),
+  ),
 })
 export type CharacterLoraGroup = z.infer<typeof CharacterLoraGroupSchema>
 
@@ -4168,8 +4211,14 @@ export type FavoriteLoraRequest = z.infer<typeof FavoriteLoraRequestSchema>
  */
 export const SetLoraCharactersSchema = z.object({
   lora: FavoriteLoraRequestSchema,
-  characterCardIds: z
-    .array(z.string().min(1))
+  /** 收它的角色；`lookId` = 挂在她哪套造型下（角色④），空 = 全部造型通用。 */
+  characters: z
+    .array(
+      z.object({
+        characterCardId: z.string().min(1),
+        lookId: z.string().min(1).nullable(),
+      }),
+    )
     .max(CHARACTER_CARD.MAX_CARDS_PER_USER),
 })
 export type SetLoraCharactersRequest = z.infer<typeof SetLoraCharactersSchema>

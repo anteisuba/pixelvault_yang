@@ -436,7 +436,7 @@ export function useAssistantMentionComposer({
         keywords: [
           ...card.tags,
           card.handle ?? '',
-          card.description ?? '',
+          ...card.looks.map((look) => look.label ?? ''),
         ].filter(Boolean),
       }
     })

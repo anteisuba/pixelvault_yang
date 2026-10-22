@@ -3,7 +3,9 @@ import type {
   CharacterCardResponse,
   CharacterCardsResponse,
   CreateCharacterCardRequest,
+  CreateCharacterLookRequest,
   UpdateCharacterCardRequest,
+  UpdateCharacterLookRequest,
 } from '@/types'
 import {
   ChubFullPathSchema,
@@ -301,6 +303,87 @@ export async function deleteCharacterCardAPI(
       }
     }
     return { success: true }
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+/** 发一个返回整个角色的写请求（造型增改、复制都走它）。 */
+async function sendCharacterCardWrite(
+  url: string,
+  method: 'POST' | 'PUT',
+  body: unknown,
+): Promise<CharacterCardResponse & { i18nKey?: string }> {
+  try {
+    const response = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (!response.ok) {
+      const payload = await getErrorPayload(
+        response,
+        `Failed with status ${response.status}`,
+      )
+      return { success: false, error: payload.error, i18nKey: payload.i18nKey }
+    }
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+/** 复制一位：名字换新，设定、全部造型和她收的 LoRA 都带上（服务端一次做完）。 */
+export function duplicateCharacterCardAPI(id: string, name: string) {
+  return sendCharacterCardWrite(
+    `${API_ENDPOINTS.CHARACTER_CARDS}/${id}/duplicate`,
+    'POST',
+    { name },
+  )
+}
+
+/** 给角色加一套造型；返回整个角色。 */
+export function createCharacterLookAPI(
+  cardId: string,
+  data: CreateCharacterLookRequest,
+) {
+  return sendCharacterCardWrite(
+    `${API_ENDPOINTS.CHARACTER_CARDS}/${cardId}/looks`,
+    'POST',
+    data,
+  )
+}
+
+/** 改一套造型（名字 · 外观 · 标签 · 图 · 设为默认）；返回整个角色。 */
+export function updateCharacterLookAPI(
+  lookId: string,
+  data: UpdateCharacterLookRequest,
+) {
+  return sendCharacterCardWrite(
+    `${API_ENDPOINTS.CHARACTER_LOOKS}/${lookId}`,
+    'PUT',
+    data,
+  )
+}
+
+/** 删一套造型（最后一套删不掉）。 */
+export async function deleteCharacterLookAPI(
+  lookId: string,
+): Promise<{ success: boolean; error?: string; i18nKey?: string }> {
+  try {
+    const response = await fetch(`${API_ENDPOINTS.CHARACTER_LOOKS}/${lookId}`, {
+      method: 'DELETE',
+    })
+    if (response.ok || response.status === 204) return { success: true }
+    const payload = await getErrorPayload(
+      response,
+      `Failed with status ${response.status}`,
+    )
+    return { success: false, error: payload.error, i18nKey: payload.i18nKey }
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'An unexpected error occurred'

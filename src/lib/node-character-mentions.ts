@@ -9,18 +9,22 @@
 
 import { parseMentions } from '@/components/business/node/nodes/v4/chrome/parse-mentions'
 import type { CharacterCardRecord, CharacterImagePick } from '@/types'
+import { defaultLook } from '@/lib/card-bus'
 
 export interface NodeCharacterMention {
   readonly card: CharacterCardRecord
   readonly picks: readonly CharacterImagePick[]
 }
 
-/** 没勾过 = 主图 1 张（与工作台第一次展开默认勾主图同一条）。没有槽 = 空（交给卡片总线）。 */
+/**
+ * 没勾过 = 默认造型的主图 1 张（与工作台第一次展开默认勾主图同一条）。没有槽 = 空
+ * （交给卡片总线）。
+ */
 export function defaultCharacterPicks(
   card: CharacterCardRecord,
 ): CharacterImagePick[] {
-  const primary =
-    card.referenceSlots.find((slot) => slot.isPrimary) ?? card.referenceSlots[0]
+  const slots = defaultLook(card).referenceSlots
+  const primary = slots.find((slot) => slot.isPrimary) ?? slots[0]
   return primary ? [{ slotId: primary.id }] : []
 }
 

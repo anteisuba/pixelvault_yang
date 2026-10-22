@@ -85,7 +85,7 @@ import {
   liftMediaDragGhost,
 } from '@/hooks/node/node-media-drag-ghost'
 import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
-import { characterCoverUrl } from '@/lib/card-bus'
+import { allLookSlots, characterCoverUrl } from '@/lib/card-bus'
 import { characterWork } from '@/lib/character-works'
 import { useProjects } from '@/hooks/use-projects'
 import {
@@ -536,7 +536,7 @@ function ShellCardsPanel({
                 {card.name}
               </span>
               <span className="truncate text-2xs text-node-muted">
-                {t('cardsMeta', { work, count: card.referenceSlots.length })}
+                {t('cardsMeta', { work, count: allLookSlots(card).length })}
               </span>
             </span>
             {onCanvas ? (

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import type { CharacterLoraGroup, LoraAssetRecord } from '@/types'
+import type { CharacterLoraGroup } from '@/types'
 
 import { CharacterLoraPickDialog } from './CharacterLoraPickDialog'
 
@@ -11,7 +11,11 @@ vi.mock('next-intl', () => ({
       values ? `${ns}:${key}:${JSON.stringify(values)}` : `${ns}:${key}`,
 }))
 
-const lora = (id: string, name: string): LoraAssetRecord => ({
+const lora = (
+  id: string,
+  name: string,
+): CharacterLoraGroup['loras'][number] => ({
+  lookId: null,
   id,
   styleCode: `pv-${id}`,
   name,
@@ -32,12 +36,12 @@ const lora = (id: string, name: string): LoraAssetRecord => ({
 const group = (
   id: string,
   name: string,
-  loras: LoraAssetRecord[],
+  loras: CharacterLoraGroup['loras'],
 ): CharacterLoraGroup => ({
   characterCardId: id,
   name,
   coverUrl: null,
-  appearanceTags: [],
+  looks: [{ id: `${id}-look`, label: null, isDefault: true, tags: [] }],
   loras,
 })
 

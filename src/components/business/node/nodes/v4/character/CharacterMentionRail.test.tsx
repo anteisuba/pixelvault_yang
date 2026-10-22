@@ -33,10 +33,16 @@ import { CharacterMentionRail } from './CharacterMentionRail'
 const DENIA = {
   id: 'denia',
   name: 'Denia',
-  referenceSlots: [
-    { id: 's_main', url: 'https://cdn/main.png', isPrimary: true },
+  looks: [
+    {
+      id: 'denia-main',
+      isDefault: true,
+      tags: [],
+      referenceSlots: [
+        { id: 's_main', url: 'https://cdn/main.png', isPrimary: true },
+      ],
+    },
   ],
-  variants: [],
 } as unknown as CharacterCardRecord
 
 function renderRail(

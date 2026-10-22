@@ -39,11 +39,11 @@ import {
   CharacterOverview,
   CharacterOverviewHeader,
   countCharacterWorks,
-  type OverviewItem,
 } from '@/components/business/cards/CharacterOverview'
 import { StudioOperatorHostProvider } from '@/contexts/studio-operator-host'
 import { useCardsOperatorHost } from '@/hooks/cards/use-cards-operator-host'
 import { appendSlotSources } from '@/hooks/cards/use-character-card-editor'
+import { defaultLook } from '@/lib/card-bus'
 import { useCharacterCards } from '@/hooks/cards/use-character-cards'
 import { useChubLibrary } from '@/hooks/cards/use-chub-library'
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -72,27 +72,13 @@ import { cn } from '@/lib/utils'
 const ROW_CLASS = 'flex h-9 shrink-0 items-center gap-3'
 const ROW_AVATAR_GAP_CLASS = 'pr-12'
 
-function flattenRoster(cards: CharacterCardRecord[]): OverviewItem[] {
-  return cards.flatMap((card) => [
-    { card, parentName: null },
-    ...card.variants.map((variant) => ({
-      card: variant,
-      parentName: card.name,
-    })),
-  ])
-}
-
 export function CharacterRoster() {
   const t = useTranslations('CharacterRoster')
   const locale = useLocale()
   const characters = useCharacterCards()
   const reducedMotion = useReducedMotion() ?? false
   const isMobile = useIsMobile()
-  const items = useMemo(
-    () => flattenRoster(characters.cards),
-    [characters.cards],
-  )
-  const flatCards = useMemo(() => items.map((item) => item.card), [items])
+  const flatCards = characters.cards
 
   // 画布「在角色页打开」带 `?character=<id>` 进来：直接打开那一位（找不到就是总览）。
   const searchParams = useSearchParams()
@@ -106,6 +92,8 @@ export function CharacterRoster() {
    *   完成回调可能永远不来 —— 09-27 真机上留下一层透明详情吞掉点击。
    */
   const closeTimer = useRef<number | null>(null)
+  /** 详情里正看着的那套造型（`null` = 默认）：图片带、外观、标签和「用她 ▾」训练都跟它。 */
+  const [detailLookId, setDetailLookId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   /** 「新角色」草稿开着（owner 09-28：直接进空详情页，名字写好才建卡）。 */
   const [drafting, setDrafting] = useState(false)
@@ -128,14 +116,14 @@ export function CharacterRoster() {
   const [dragOver, setDragOver] = useState(false)
 
   const selected = useMemo(
-    () => items.find((item) => item.card.id === openId)?.card ?? null,
-    [items, openId],
+    () => flatCards.find((card) => card.id === openId) ?? null,
+    [flatCards, openId],
   )
   /**
    * 设定提议卡「收下勾选的」（卡片助手 C2）：勾中的几格合进这个角色已有的设定，
    * 其余格原样保留，再走角色页自己的更新。
    */
-  const { update } = characters
+  const { update, updateLook } = characters
   const applyProfile = useCallback(
     async (
       characterId: string,
@@ -157,18 +145,21 @@ export function CharacterRoster() {
         examples: [],
         ...card.persona,
       }
-      // 「一句外观」住在角色卡的 `description` 上，其余几格在设定里（S14 起多了 look）。
+      // 「一句外观」住在默认造型上（角色④），其余几格在设定里（S14 起多了 look）。
       let description: string | undefined
       for (const { field, text } of fields) {
         if (field === 'look') description = text
         else persona[field] = text
       }
-      return update(characterId, {
-        persona,
-        ...(description !== undefined ? { description } : {}),
-      })
+      const look = defaultLook(card)
+      const personaChanged = fields.some(({ field }) => field !== 'look')
+      const personaOk = personaChanged
+        ? await update(characterId, { persona })
+        : true
+      if (!personaOk || description === undefined || !look.id) return personaOk
+      return updateLook(characterId, look.id, { description })
     },
-    [flatCards, update],
+    [flatCards, update, updateLook],
   )
   /**
    * 候选图卡「挂上勾选的」（卡片助手 C3）：图都已在素材库里，追加到这个角色的参考槽
@@ -185,13 +176,18 @@ export function CharacterRoster() {
     ) => {
       const card = flatCards.find((item) => item.id === characterId)
       if (!card) return null
-      const slots = appendSlotSources(card.referenceSlots, images)
-      const added = slots.length - card.referenceSlots.length
+      // 挂到默认造型上（角色④）：卡片助手看的就是默认造型。
+      const look = defaultLook(card)
+      if (!look.id) return null
+      const slots = appendSlotSources(look.referenceSlots, images)
+      const added = slots.length - look.referenceSlots.length
       if (added === 0) return null
-      const ok = await update(characterId, { referenceSlots: slots })
+      const ok = await updateLook(characterId, look.id, {
+        referenceSlots: slots,
+      })
       return ok ? added : null
     },
-    [flatCards, update],
+    [flatCards, updateLook],
   )
   /** 卡片助手（第五张脸）：读这页上有谁 + 打开着的那一位。 */
   const operatorHost = useCardsOperatorHost({
@@ -204,6 +200,7 @@ export function CharacterRoster() {
   const openCharacter = useCallback((id: string) => {
     if (closeTimer.current) window.clearTimeout(closeTimer.current)
     setClosingId(null)
+    setDetailLookId(null)
     setOpenId(id)
   }, [])
   useEffect(
@@ -226,10 +223,8 @@ export function CharacterRoster() {
     )
   }, [openId, reducedMotion])
   const detailCard = useMemo(
-    () =>
-      items.find((item) => item.card.id === (openId ?? closingId))?.card ??
-      null,
-    [closingId, items, openId],
+    () => flatCards.find((card) => card.id === (openId ?? closingId)) ?? null,
+    [closingId, flatCards, openId],
   )
 
   useEffect(() => {
@@ -367,14 +362,18 @@ export function CharacterRoster() {
                 onBack={() => setDrafting(false)}
               />
             ) : selected ? (
-              <CharacterDetailHeader card={selected} onBack={closeDetail} />
+              <CharacterDetailHeader
+                card={selected}
+                lookId={detailLookId}
+                onBack={closeDetail}
+              />
             ) : onLibrary ? (
               <CharacterLibraryHeader tabs={tabs} library={library} />
             ) : (
               <CharacterOverviewHeader
                 tabs={tabs}
-                characters={items.length}
-                works={countCharacterWorks(items, locale)}
+                characters={flatCards.length}
+                works={countCharacterWorks(flatCards, locale)}
                 query={query}
                 onQueryChange={setQuery}
                 actions={
@@ -451,7 +450,7 @@ export function CharacterRoster() {
               <div className="flex justify-center py-16">
                 <Spinner size="lg" className="text-muted-foreground" />
               </div>
-            ) : items.length === 0 ? (
+            ) : flatCards.length === 0 ? (
               <EmptyState
                 icon={<Plus aria-hidden />}
                 title={t('emptyTitle')}
@@ -469,7 +468,7 @@ export function CharacterRoster() {
               />
             ) : (
               <CharacterOverview
-                items={items}
+                cards={flatCards}
                 reducedMotion={reducedMotion}
                 onOpen={openCharacter}
                 query={query}
@@ -517,7 +516,18 @@ export function CharacterRoster() {
             >
               <CharacterDetailBody
                 card={detailCard}
+                lookId={detailLookId}
+                onLookChange={setDetailLookId}
                 onUpdate={(data) => characters.update(detailCard.id, data)}
+                onCreateLook={(data) =>
+                  characters.createLook(detailCard.id, data)
+                }
+                onUpdateLook={(lookId, data) =>
+                  characters.updateLook(detailCard.id, lookId, data)
+                }
+                onDeleteLook={(lookId) =>
+                  characters.removeLook(detailCard.id, lookId)
+                }
                 onDelete={() => deleteCharacter(detailCard.id)}
               />
             </motion.div>

@@ -16,7 +16,7 @@ import { useTranslations } from 'next-intl'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import type { CharacterImagePick } from '@/types'
 import { CharacterImagePickGrid } from '@/components/business/cards/CharacterImagePickGrid'
-import { characterCoverUrl } from '@/lib/card-bus'
+import { characterCoverUrl, defaultLook } from '@/lib/card-bus'
 import type { NodeCharacterMention } from '@/lib/node-character-mentions'
 import { cn } from '@/lib/utils'
 
@@ -148,6 +148,7 @@ export function CharacterMentionRail({
                 )}
                 <CharacterImagePickGrid
                   card={card}
+                  look={defaultLook(card)}
                   picks={picks}
                   remaining={remaining}
                   onChange={(next) => setPicks(card.id, next)}

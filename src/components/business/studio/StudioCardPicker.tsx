@@ -17,7 +17,8 @@ import { Spinner } from '@/components/ui/spinner'
 import { CharacterImagePickGrid } from '@/components/business/cards/CharacterImagePickGrid'
 import { useStudioData } from '@/contexts/studio-context'
 import { Link } from '@/i18n/navigation'
-import { characterCoverUrl } from '@/lib/card-bus'
+import { findLook, slotsCoverUrl } from '@/lib/card-bus'
+import { lookLabel } from '@/lib/character-looks'
 import { characterWork } from '@/lib/character-works'
 import { filterByQuery } from '@/lib/search-utils'
 import { buildStudioCardUsageMap } from '@/lib/studio-history'
@@ -31,7 +32,10 @@ import { cn } from '@/lib/utils'
  *   她不在场。第一次展开默认勾主图。
  * ⭐ 张数按**这个模型一次能收的参考图**卡住（含你自己挂的参考图）：到上限，没勾的格子
  *   勾不上并写明原因。模型不收参考图时不展开，点一下只是让她在场（名字和标签进文字）。
- * ⚠ 挑的图住在 `characters.imagePicks`；出图时随请求送给卡片总线，服务端按本人校验。
+ * ⭐ 她有好几套造型时（角色④），展开那一行顶上一排造型可切；默认用默认造型。切了造型，
+ *   挑的图跟着清掉（图属于原来那套），再按新造型的主图默认勾一张。
+ * ⚠ 挑的图住在 `characters.imagePicks`、造型住在 `characters.lookIds`；出图时随请求送给
+ *   卡片总线，服务端按本人校验。
  */
 
 function toTimestampMs(value: Date | string | number | null | undefined) {
@@ -47,6 +51,7 @@ function toTimestampMs(value: Date | string | number | null | undefined) {
 export function StudioCardPicker() {
   const { characters, projects, imageUpload } = useStudioData()
   const t = useTranslations('StudioV2')
+  const tLooks = useTranslations('CharacterLooks')
   const locale = useLocale()
   const [query, setQuery] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -68,7 +73,7 @@ export function StudioCardPicker() {
 
   const visible = filterByQuery(characters.cards, query, (card) => [
     card.name,
-    ...card.cardTags.character,
+    ...card.looks.flatMap((look) => [look.label ?? '', ...look.tags]),
     characterWork(card, locale).label ?? '',
   ]).sort((left, right) => {
     const rightUsed = toTimestampMs(usage.character[right.id])
@@ -91,12 +96,32 @@ export function StudioCardPicker() {
     }
     setExpandedId(card.id)
     // 第一次展开一个还没挑图的角色：默认勾主图（有位子的话）。
-    const primary =
-      card.referenceSlots.find((slot) => slot.isPrimary) ??
-      card.referenceSlots[0]
-    if (!characters.imagePicks[card.id]?.length && primary && remaining > 0) {
+    if (!characters.imagePicks[card.id]?.length)
+      pickPrimary(card, characters.lookIds[card.id] ?? null, remaining)
+  }
+
+  /** 勾这套造型的主图（有位子的话）。 */
+  const pickPrimary = (
+    card: CharacterCardRecord,
+    lookId: string | null,
+    room: number,
+  ) => {
+    const slots = findLook(card, lookId).referenceSlots
+    const primary = slots.find((slot) => slot.isPrimary) ?? slots[0]
+    if (primary && room > 0)
       characters.setImagePicks(card.id, [{ slotId: primary.id }])
-    }
+  }
+
+  /** 切造型：挑的图属于原来那套，清掉后按新造型的主图重勾。 */
+  const switchLook = (card: CharacterCardRecord, lookId: string) => {
+    const look = findLook(card, lookId)
+    characters.setLookId(card.id, look.isDefault ? null : look.id)
+    // 原来那套挑的图马上清掉，它们占的位子也让出来。
+    pickPrimary(
+      card,
+      look.id,
+      remaining + (characters.imagePicks[card.id]?.length ?? 0),
+    )
   }
 
   return (
@@ -176,7 +201,8 @@ export function StudioCardPicker() {
               const picks = characters.imagePicks[card.id] ?? []
               const expanded = expandedId === card.id
               const work = characterWork(card, locale).label
-              const thumb = characterCoverUrl(card)
+              const look = findLook(card, characters.lookIds[card.id])
+              const thumb = slotsCoverUrl(look.referenceSlots)
               return (
                 <li
                   key={card.id}
@@ -211,6 +237,9 @@ export function StudioCardPicker() {
                       <span className="truncate text-xs text-muted-foreground">
                         {[
                           work ?? t('originalWork'),
+                          look.isDefault
+                            ? null
+                            : lookLabel(look, card.looks, tLooks),
                           active
                             ? picks.length
                               ? t('pickedImages', { count: picks.length })
@@ -235,9 +264,34 @@ export function StudioCardPicker() {
                       />
                     )}
                   </button>
+                  {expanded && card.looks.length > 1 ? (
+                    <div
+                      role="group"
+                      aria-label={tLooks('title')}
+                      className="flex flex-wrap gap-1 px-2 pb-2"
+                    >
+                      {card.looks.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          aria-pressed={item.id === look.id}
+                          onClick={() => switchLook(card, item.id)}
+                          className={cn(
+                            'rounded-full px-2.5 py-0.5 text-xs transition-colors duration-fast coarse:min-h-11',
+                            item.id === look.id
+                              ? 'bg-foreground text-background'
+                              : 'bg-background text-muted-foreground hover:text-foreground',
+                          )}
+                        >
+                          {lookLabel(item, card.looks, tLooks)}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
                   {expanded ? (
                     <CharacterImagePickGrid
                       card={card}
+                      look={look}
                       picks={picks}
                       remaining={remaining}
                       onChange={(next) =>

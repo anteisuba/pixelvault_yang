@@ -1,0 +1,397 @@
+{
+  "ModelRanking": {
+    "tabImage": "图片",
+    "tabVideo": "视频",
+    "imageTitle": "2026 图片 AI 排名",
+    "imageSubtitle": "Artificial Analysis 综合评测 · 标记「已接入」的模型可绑定 API Key 使用。",
+    "videoTitle": "2026 视频 AI 排名",
+    "videoSubtitle": "Artificial Analysis ELO 排名 · 标记「已接入」的模型可绑定 API Key 使用。",
+    "supported": "已接入",
+    "noApi": "无 API",
+    "tiers": {
+      "premium": "旗舰",
+      "standard": "标准"
+    },
+    "strengths": {
+      "photorealism": "写实 · 光影",
+      "overall": "综合最强 · 文字渲染",
+      "logos": "Logo · 矢量设计",
+      "textInImage": "文字嵌入图像",
+      "multimodal": "提示词理解 · 多模态",
+      "cinematic": "电影质感 · 空间理解",
+      "videoMotion": "运动流畅 · 物理仿真",
+      "videoRealism": "超写实 · 音频同步",
+      "videoCreative": "创意表达 · 镜头语言",
+      "videoConsistency": "角色一致性 · 稳定性",
+      "videoSpeed": "快速生成 · 性价比高",
+      "videoCinematic": "电影感 · 光影氛围"
+    }
+  },
+  "Models": {
+    "geminiFlashImage": {
+      "label": "Gemini 3.1 Flash Image",
+      "description": "由 Google 最新一代模型驱动的快速图像探索。"
+    },
+    "openaiGptImage25Flare": {
+      "label": "OpenAI GPT Image 2.5 Flare",
+      "description": "快速、高质量的日常图像生成与参考图编辑。"
+    },
+    "openaiGptImage25Sunburst": {
+      "label": "OpenAI GPT Image 2.5 Sunburst",
+      "description": "面向精细创作的高精度图像生成与编辑，生成耗时较长。"
+    },
+    "openaiGptImage2": {
+      "label": "OpenAI GPT Image 2",
+      "description": "OpenAI 当前旗舰图像模型，适合高速高质量的图像生成与编辑。"
+    },
+    "flux2Pro": {
+      "label": "Flux 2 Pro",
+      "description": "Black Forest Labs 出品的顶级图像模型，质量排名第一。"
+    },
+    "flux2ProEdit": {
+      "label": "FLUX.2 Pro 编辑",
+      "description": "多参考图编辑 — 用提示词与多张源图做专业级变换。"
+    },
+    "flux2Flash": {
+      "label": "FLUX 2 Flash",
+      "description": "通过 fal.ai 提供的低成本 FLUX 2，适合快速草稿与多轮迭代。"
+    },
+    "fluxLora": {
+      "label": "FLUX LoRA",
+      "description": "支持 LoRA 的 FLUX 模型。可加载自定义 LoRA 实现动漫、3D、角色一致性等风格控制。"
+    },
+    "geminiProImage": {
+      "label": "Gemini 3 Pro Image",
+      "description": "Google 旗舰级图像模型，工作室品质 4K 视觉效果。"
+    },
+    "geminiFlashLiteImage": {
+      "label": "Gemini 3.1 Flash Lite Image",
+      "description": "Google 最快、成本最低的图像档位——适合快速草稿与大批量迭代。"
+    },
+    "geminiNanoBanana21": {
+      "label": "Gemini Nano Banana 2.1",
+      "description": "Google 最新的 Gemini 图像模型——图中文字更清晰，多轮修改角色更稳定，支持 1K 到 4K。"
+    },
+    "ideogram45": {
+      "label": "Ideogram 4.5",
+      "description": "通过 Ideogram 官方接口生成图片与精确编辑。"
+    },
+    "ideogram3": {
+      "label": "Ideogram V4",
+      "description": "专注设计的图像模型，擅长文字渲染与图形构图。"
+    },
+    "seedream45": {
+      "label": "Seedream 4.5",
+      "description": "字节跳动统一生成与编辑模型，最高 4MP 输出。"
+    },
+    "seedream45Volcengine": {
+      "label": "Seedream 4.5（火山引擎）",
+      "description": "经火山方舟（Ark）直连 API 调用的 Seedream 4.5 — 国内区域。"
+    },
+    "seedream50Pro": {
+      "label": "Seedream 5.0 Pro",
+      "description": "字节跳动旗舰图像模型——深度思考式提示词理解，14 种语言原生文字渲染。"
+    },
+    "seedream50Lite": {
+      "label": "Seedream 5.0 Lite",
+      "description": "Seedream 5.0 性价比档——提示词可触发联网搜索，适合时效性主题。"
+    },
+    "seedream50Volcengine": {
+      "label": "Seedream 5.0（火山引擎）",
+      "description": "经火山方舟（Ark）直连 API 调用的 Seedream 5.0 — 国内区域。"
+    },
+    "seedream50ProVolcengine": {
+      "label": "Seedream 5.0 Pro（火山引擎）",
+      "description": "经火山方舟（Ark）直连的 Seedream 5.0 Pro 档 — 比同款走 fal 便宜；只出单图，不支持组图生成。"
+    },
+    "seedream50LiteVolcengine": {
+      "label": "Seedream 5.0 Lite（火山引擎）",
+      "description": "经火山方舟（Ark）直连的 Seedream 5.0 实惠档 — 国内区域，比同款走 fal 便宜。"
+    },
+    "seedream50ProByteplus": {
+      "label": "Seedream 5.0 Pro（BytePlus）",
+      "description": "经 BytePlus ModelArk（方舟国际站）直连的 Seedream 5.0 Pro 档 — 美元计价；只出单图，不支持组图生成。"
+    },
+    "seedream50LiteByteplus": {
+      "label": "Seedream 5.0 Lite（BytePlus）",
+      "description": "经 BytePlus ModelArk（方舟国际站）直连的 Seedream 5.0 实惠档 — 美元计价。"
+    },
+    "novelaiV45Full": {
+      "label": "NovelAI Diffusion V4.5 Full",
+      "description": "上一代 NovelAI Full，支持多角色和文字渲染。Opus 默认尺寸仍不限次数。使用你自己的 NovelAI token。"
+    },
+    "novelaiV45Curated": {
+      "label": "NovelAI Diffusion V4.5 Curated",
+      "description": "上一代 NovelAI Curated，数据更干净、更好控。Opus 默认尺寸仍不限次数。使用你自己的 NovelAI token。"
+    },
+    "novelaiV5Full": {
+      "label": "NovelAI Diffusion V5 Full",
+      "description": "最新 NovelAI 动漫模型。自然语言与多角色更强。走你自己的 NovelAI 订阅；V5 在 Opus 会计入用量。"
+    },
+    "novelaiV5Curated": {
+      "label": "NovelAI Diffusion V5 Curated",
+      "description": "V5 精选档，数据更干净、更好控。走你自己的 NovelAI 订阅；V5 在 Opus 会计入用量。"
+    },
+    "illustriousXl": {
+      "label": "Illustrious XL",
+      "description": "动漫/插画特化模型，Civitai 上 LoRA 生态最丰富。支持双 LoRA 叠加。"
+    },
+    "animaPencilXl": {
+      "label": "Anima Base LoRA",
+      "description": "Civitai 的 Anima 系 LoRA 针对的是无托管端点的 Cosmos 系模型，请在 Civitai 上生成。"
+    },
+    "recraftV4Pro": {
+      "label": "Recraft V4 Pro",
+      "description": "设计专用模型，适合 Logo、图标和品牌级图像。"
+    },
+    "fluxKontextMax": {
+      "label": "FLUX Kontext Max",
+      "description": "多参考图编辑。最多组合 4 张参考图实现一致性生成。"
+    },
+    "illustriousRecipeClone": {
+      "label": "WAI-Illustrious（Runner）",
+      "description": "通过 ANTEI Runner 忠实复刻 Civitai 来源图配方——同一 checkpoint、同一 LoRA 组合、同一采样器参数，专治托管模型加载不了的社区 LoRA。"
+    },
+    "animaPencilXlRunner": {
+      "label": "Anima Pencil-XL（Runner）",
+      "description": "通过 ANTEI Runner 跑 Anima Pencil-XL——这个 checkpoint 没有托管端点，这是在 ANTEI 内生成它的唯一途径。"
+    },
+    "ponyDiffusionV6": {
+      "label": "Pony Diffusion V6 XL（Runner）",
+      "description": "通过 ANTEI Runner 跑 Pony Diffusion V6 XL——忠实复刻配方，覆盖 Civitai 上体量庞大的 Pony LoRA 生态。"
+    },
+    "sdxl10Runner": {
+      "label": "SDXL 1.0（Runner）",
+      "description": "通过 ANTEI Runner 跑基础版 SDXL 1.0——与托管路线并行的忠实复刻配方通道。"
+    },
+    "qwenImage21Runner": {
+      "label": "qwen2.1",
+      "description": "仅本地研究评估。独立 Modal runner，支持文生图与最多 10 张参考图编辑；GPU 使用由 Modal 计费。"
+    },
+    "animaDitRunner": {
+      "label": "Anima（Runner）",
+      "description": "通过 ANTEI Runner 跑 Anima（Cosmos-Predict2 DiT）——Civitai 上庞大 Anima LoRA 生态的原生通道。"
+    },
+    "animaTurboRunner": {
+      "label": "Anima Turbo（Runner）",
+      "description": "通过 ANTEI Runner 跑 Anima 的步数蒸馏档——10 步、CFG 1，出图快；CFG 1 下负面词不起作用。"
+    },
+    "zImageTurboRunner": {
+      "label": "Z-Image Turbo（Runner）",
+      "description": "通过 ANTEI Runner 跑通义 Z-Image 的步数蒸馏档——9 步、CFG 1，擅长写实与中英文字，Apache-2.0；CFG 1 下负面词不起作用。"
+    },
+    "krea2TurboRunner": {
+      "label": "Krea 2 Turbo（Runner）",
+      "description": "Krea 的 12B 步数蒸馏模型 Krea 2，经 ANTEI Runner 出图：CFG 1、8 步，适合自然语言提示词，风格化和写实都强；Krea 2 Community License。CFG 1 时负面提示词不起作用。"
+    },
+    "fishAudioS2Pro": {
+      "label": "Fish Audio S2.1 Pro",
+      "description": "官方推荐生产 TTS — 83 语言、自然语言情绪标签、声音克隆"
+    },
+    "elevenV3": {
+      "label": "ElevenLabs v3",
+      "description": "高品质、富有表现力的文字转语音，声音自然逼真"
+    },
+    "elevenSfxV2": {
+      "label": "ElevenLabs SFX v2",
+      "description": "用文字提示生成音效与拟音"
+    },
+    "elevenMusicV2": {
+      "label": "ElevenLabs Music v2.5",
+      "description": "生成器乐或人声配乐，音质与提示词遵循能力进一步提升。"
+    },
+    "happyhorse10": {
+      "label": "HappyHorse 1.1",
+      "description": "通过 fal.ai 提供的 Alibaba 视频模型，支持原生音频、文生视频和图生视频。"
+    },
+    "wan30": {
+      "label": "Wan 3.0",
+      "description": "单次最长 30 秒，自带原生音频。支持文生视频与首尾帧控制。"
+    },
+    "wan30Reference": {
+      "label": "Wan 3.0（参考生成）",
+      "description": "参考生视频——最多 10 张图、5 段视频、5 段音频一起参与生成。"
+    },
+    "klingV3Pro": {
+      "label": "可灵 3.0 Pro",
+      "description": "多镜头分镜、原生音频、角色一致性"
+    },
+    "klingO3Pro": {
+      "label": "可灵 O3 Pro（Omni）",
+      "description": "Omni 轨 — 元素/视频参考工作流、原生音频、电影级多镜"
+    },
+    "klingO3StandardV2vEdit": {
+      "label": "可灵 O3 Standard — 视频编辑",
+      "description": "编辑已有镜头：保持原镜头运动与节奏，改写材质、主体或场景"
+    },
+    "klingO3ProV2vEdit": {
+      "label": "可灵 O3 Pro — 视频编辑",
+      "description": "最高档视频编辑：同一段镜头、同一套运镜，只换观感；支持元素与图片参考"
+    },
+    "klingO34kV2vEdit": {
+      "label": "可灵 O3 4K — 视频编辑",
+      "description": "以原生 4K 编辑已有镜头，保留原镜头运动与节奏，支持图片参考。"
+    },
+    "ltx23": {
+      "label": "LTX 2.3",
+      "description": "适合快速生成 1080p 短片的 fal.ai 视频模型，可选生成音频。"
+    },
+    "seedance20": {
+      "label": "Seedance 2.0",
+      "description": "字节跳动 — 原生音频+口型同步、导演级镜头、4-15秒"
+    },
+    "seedance20Fast": {
+      "label": "Seedance 2.0 Fast",
+      "description": "字节跳动 — 快速版、原生音频、4-15秒"
+    },
+    "seedance20Reference": {
+      "label": "Seedance 2.0（参考端点）",
+      "description": "reference-to-video — 支持声音克隆，通过 audio_urls 传参考音频"
+    },
+    "seedance20FastReference": {
+      "label": "Seedance 2.0 Fast（参考端点）",
+      "description": "reference-to-video 快速版 — 支持声音克隆"
+    },
+    "seedance20Volcengine": {
+      "label": "Seedance 2.0（火山引擎）",
+      "description": "经火山方舟（Ark）直连 API 调用 — 国内区域，原生音频、4-15秒"
+    },
+    "seedance20FastVolcengine": {
+      "label": "Seedance 2.0 Fast（火山引擎）",
+      "description": "经火山方舟（Ark）直连 API 调用的快速版 — 国内区域，原生音频"
+    },
+    "seedance20ReferenceVolcengine": {
+      "label": "Seedance 2.0 参考（火山引擎）",
+      "description": "reference-to-video 经火山方舟（Ark）直连 — 国内区域，支持声音克隆"
+    },
+    "seedance20FastReferenceVolcengine": {
+      "label": "Seedance 2.0 Fast 参考（火山引擎）",
+      "description": "reference-to-video 快速版经火山方舟（Ark）直连 — 国内区域"
+    },
+    "veo31": {
+      "label": "Veo 3.1",
+      "description": "Google 最新 — 4K、原生音频、对话同步"
+    },
+    "geminiOmniFlash": {
+      "label": "Gemini Omni 1.1 Flash",
+      "description": "根据文字和参考图生成带原生音频的视频。"
+    },
+    "seedance25Volcengine": {
+      "label": "Seedance 2.5（火山方舟）",
+      "description": "字节 30 秒单次直出模型，走火山方舟直连。480p/720p，4-30 秒"
+    },
+    "seedance25ReferenceVolcengine": {
+      "label": "Seedance 2.5（参考，火山方舟）",
+      "description": "Seedance 2.5 的参考生视频。最多 30 图 / 10 视频 / 10 音频，支持纯音频参考"
+    },
+    "minimaxH3MaxTurbo": {
+      "label": "H3 Max Turbo",
+      "description": "fal 优化的 MiniMax H3 快速版，支持原生音频、首尾帧和 5–15 秒视频。原生 480p/768p，1080p 由 768p 高精细化。"
+    },
+    "minimaxH3": {
+      "label": "MiniMax H3",
+      "description": "MiniMax 直连 — 2K、原生立体声、4-15 秒。Artificial Analysis 视频编辑榜第一"
+    },
+    "minimaxH3Reference": {
+      "label": "MiniMax H3（参考）",
+      "description": "参考生视频 — 最多 9 张主体图 + 3 段动作视频 + 3 段音色片段（合计 12 个文件）"
+    },
+    "minimaxH3Cn": {
+      "label": "MiniMax H3（国内）",
+      "description": "走 MiniMax 国内站（minimaxi.com）— 账号与密钥和国际站互相独立"
+    },
+    "minimaxH3ReferenceCn": {
+      "label": "MiniMax H3（参考，国内）",
+      "description": "参考生视频，走国内站 — 账号与密钥和国际站互相独立"
+    },
+    "hunyuan3d21": {
+      "label": "Hunyuan3D 2.1",
+      "description": "腾讯图生 3D，高保真几何 + PBR 纹理"
+    },
+    "hunyuan3dV3": {
+      "label": "Hunyuan3D v3",
+      "description": "多视角图生 3D，支持 PBR 材质和高面数输出"
+    },
+    "hunyuan3dV31Pro": {
+      "label": "Hunyuan3D v3.1 Pro",
+      "description": "高质量多视角重建，适合精细模型和 PBR 资产"
+    },
+    "trellis2": {
+      "label": "Trellis 2",
+      "description": "可调结构分辨率、贴图尺寸和重拓扑的高细节 3D 模型"
+    },
+    "triposr": {
+      "label": "TripoSR",
+      "description": "秒级几何重建，无纹理快速预览"
+    },
+    "rodinGen25": {
+      "label": "Rodin Gen-2.5",
+      "description": "Hyper3D 官方 API — 最多 5 张参考图、GLB 输出、5 档质量层级。需要 BYOK（Business 订阅）。"
+    },
+    "seedance20Byteplus": {
+      "label": "Seedance 2.0（BytePlus）",
+      "description": "通过 BytePlus ModelArk 国际站调用 Seedance 2.0，支持原生音频，时长 4–15 秒。"
+    },
+    "seedance20FastByteplus": {
+      "label": "Seedance 2.0 Fast（BytePlus）",
+      "description": "通过 BytePlus ModelArk 国际站调用的 Seedance 2.0 快速版，支持原生音频。"
+    },
+    "seedance20ReferenceByteplus": {
+      "label": "Seedance 2.0 参考（BytePlus）",
+      "description": "通过 BytePlus ModelArk 国际站进行多模态参考视频生成，支持声音参考。"
+    },
+    "seedance20FastReferenceByteplus": {
+      "label": "Seedance 2.0 Fast 参考（BytePlus）",
+      "description": "通过 BytePlus ModelArk 国际站进行快速多模态参考视频生成。"
+    },
+    "seedance25": {
+      "label": "Seedance 2.5（fal.ai）",
+      "description": "通过 fal.ai 调用 Seedance 2.5，支持 480p/720p 与 4–30 秒视频。"
+    },
+    "seedance25Reference": {
+      "label": "Seedance 2.5 参考（fal.ai）",
+      "description": "fal.ai 的多模态参考端点，最多 30 图 / 10 视频 / 10 音频。"
+    },
+    "seedance25Byteplus": {
+      "label": "Seedance 2.5（BytePlus）",
+      "description": "通过 BytePlus ModelArk 国际站调用 Seedance 2.5，支持 480p/720p 与 4–30 秒视频。"
+    },
+    "seedance25ReferenceByteplus": {
+      "label": "Seedance 2.5 参考（BytePlus）",
+      "description": "BytePlus 国际站的多模态参考视频生成，最多 30 图 / 10 视频 / 10 音频。"
+    },
+    "fishAudioS2ProFree": {
+      "label": "Fish Audio S2.1 Pro Free",
+      "description": "上游免费 TTS，需自备 Fish API Key，受公平使用政策限制"
+    },
+    "pixaiTsubaki2": {
+      "label": "PixAI Tsubaki.2",
+      "description": "PixAI 的旗舰 DiT 动漫模型，仅支持文生图。"
+    },
+    "pixaiHarukaV2": {
+      "label": "PixAI Haruka v2",
+      "description": "PixAI 的经典 SDXL 动漫线路，仅支持文生图。"
+    },
+    "pixaiHoshinoV2": {
+      "label": "PixAI Hoshino v2",
+      "description": "PixAI 偏风格化的 SDXL 线路，仅支持文生图。"
+    }
+  },
+  "ModelPicker": {
+    "recent": "最近",
+    "searchPlaceholder": "搜索模型…",
+    "channelUnset": "—",
+    "pickChannel": "先选渠道",
+    "missingKey": "缺 key",
+    "missingKeyConfigure": "缺 key · 点了去配置",
+    "channelsCount": "{count} 渠道",
+    "usageBilled": "按用量计费",
+    "channelPanelLabel": "{model} 的渠道",
+    "manageChannels": "配置渠道与 key…",
+    "kinds": {
+      "speech": "语音",
+      "music": "配乐",
+      "sfx": "音效"
+    }
+  }
+}

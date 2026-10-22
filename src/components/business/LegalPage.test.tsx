@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { describe, expect, it, vi } from 'vitest'
 
 import { LEGAL_DOCS } from '@/constants/legal'
+import type { AppLocale } from '@/i18n/routing'
+import { MESSAGES } from '@/messages'
 
 import { LegalPage } from './LegalPage'
 
@@ -15,12 +15,8 @@ vi.mock('@/i18n/navigation', () => ({
   ),
 }))
 
-function loadMessages(locale: string): Record<string, unknown> {
-  const raw = readFileSync(
-    join(process.cwd(), 'src', 'messages', `${locale}.json`),
-    'utf-8',
-  )
-  return JSON.parse(raw) as Record<string, unknown>
+function loadMessages(locale: AppLocale): Record<string, unknown> {
+  return MESSAGES[locale]
 }
 
 const DASH = /[—–]/
@@ -62,7 +58,7 @@ describe('LegalPage', () => {
   })
 
   it('keeps Legal copy free of em/en dashes in all locales (anti-slop)', () => {
-    for (const locale of ['en', 'zh', 'ja']) {
+    for (const locale of ['en', 'zh', 'ja'] as const) {
       const legal = JSON.stringify(loadMessages(locale).Legal)
       expect(DASH.test(legal), `${locale} Legal contains a banned dash`).toBe(
         false,

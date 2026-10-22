@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
+import { MESSAGES } from '@/messages'
+
 // 2026-08-18：导航条目已收敛成单一来源。桌面与移动曾各抄一份，结果漂了
 // （「敬请期待」三项在小屏不可达）—— 现在只有这一个文件能定义条目。
 const NAVIGATION_SOURCES = ['src/constants/navigation.ts'] as const
@@ -44,9 +46,7 @@ function readSource(relativePath: string): string {
 }
 
 function readMessages(locale: keyof typeof EXPECTED_COPY) {
-  return JSON.parse(
-    readSource(`src/messages/${locale}.json`),
-  ) as CanvasNavigationMessages
+  return MESSAGES[locale] as unknown as CanvasNavigationMessages
 }
 
 describe('Canvas navigation contract', () => {

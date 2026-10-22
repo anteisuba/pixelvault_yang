@@ -119,14 +119,14 @@
 
 ## 事实出处
 
-| 东西                      | 唯一出处                                                           |
-| ------------------------- | ------------------------------------------------------------------ |
-| 引擎参数 / 页表 / 站表    | `src/constants/homepage-v4.ts`                                     |
-| 皮肤                      | `src/app/home-v4.css`（全部规则挂 `.home-v4` 下）                  |
-| 组件                      | `src/components/business/home-v4/`                                 |
-| 图片资产                  | `public/homepage/v4/`（清单见同目录 `_manifest.md`）               |
-| 文案                      | `src/messages/{en,ja,zh}.json` 的 `Homepage.v4.*` + 6 个顶层键     |
-| 口径数字（模型/供应商数） | `HOMEPAGE_MODEL_COUNTS`（`src/constants/homepage.ts`，实时数目录） |
+| 东西                      | 唯一出处                                                                 |
+| ------------------------- | ------------------------------------------------------------------------ |
+| 引擎参数 / 页表 / 站表    | `src/constants/homepage-v4.ts`                                           |
+| 皮肤                      | `src/app/home-v4.css`（全部规则挂 `.home-v4` 下）                        |
+| 组件                      | `src/components/business/home-v4/`                                       |
+| 图片资产                  | `public/homepage/v4/`（清单见同目录 `_manifest.md`）                     |
+| 文案                      | `src/messages/marketing/{en,ja,zh}.json` 的 `Homepage.v4.*` + 6 个顶层键 |
+| 口径数字（模型/供应商数） | `HOMEPAGE_MODEL_COUNTS`（`src/constants/homepage.ts`，实时数目录）       |
 
 **动效时钟只有一份。** `HOME_V4_ENGINE`（`PAGE_MS: 850` / `LOCK_MS: 900` / `WHEEL_THRESHOLD: 46` / `TOUCH_THRESHOLD_PX: 52`）由 `HomeV4Shell` 作为 CSS 自定义属性推到域根；`home-v4.css` 里的同名值只是 fallback。**改时长改常量，不要改 CSS**，否则两个钟会漂。
 

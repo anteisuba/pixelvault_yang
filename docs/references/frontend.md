@@ -128,7 +128,17 @@ StudioBottomDock · StudioCanvas · **StudioResizableLayout（导出 `StudioFlow
 
 - next-intl；`en` / `ja` / `zh`；locale 前缀恒在；路由事实源 `src/i18n/routing.ts`；Clerk 本地化 `src/i18n/clerk.ts`。
 - **双层 message 包**：根 layout 只发 marketing 子集，`(main)/layout.tsx` 用全量包重新包一层——use-intl 4.x 嵌套是**替换不是合并**（layout 内注释，2026-07-10 核验）。
-- 三语必须同步（约 80 命名空间 / 3456 键，2026-06-02 口径）；守护：`src/i18n/completeness.test.ts`（键齐全 + AI_MODELS 标签 + providers）+ `e2e/i18n.spec.ts`。
+- **文件布局（2026-10-22 owner 定）**：`src/messages/<模块>/{en,ja,zh}.json`，每个模块一个文件夹、三语并排；`src/messages/index.ts` 把各模块拼回每种语言一整份（`en` / `ja` / `zh` / `MESSAGES`），命名空间与键名不随文件夹变。读文案一律经 `@/messages`；`global-error.tsx` 是客户端组件，只引 `common/` 那三份。
+- 模块（14 个，对齐第 3 批 `features/<域>`）：common · marketing · models · studio · media（视频 / 音频 / 3D）· canvas · assistant · prompts · tags · lora · characters · gallery · assets · settings。
+- **三语怎么写、怎么维护（owner 2026-10-22 定）**：
+  1. 同一个改动里三语一起加，⛔ 先写一种语言以后补。`en` 是默认语言，必须完整。
+  2. Claude 写三语；中文以 owner 的说法为准，日文跟着术语表走。
+  3. 产品固定词先查 [i18n-glossary.md](i18n-glossary.md)，同一个东西三语只用一种叫法；新出现的固定词先补进术语表。
+  4. 新命名空间放进所属模块的文件夹；拿不准放 `common`，并在交付时说明。
+  5. 删组件 / 删功能时，只给它用的键同一个改动里删掉（owner 定：不加「没人用的键」自动测试，靠删的人顺手清）。
+  6. 文案风格沿用 UI 规矩：短，不加多余副标题和说明，让布局表达。
+- 三语必须同步；守护：`src/i18n/completeness.test.ts`（每个模块文件夹三语键一致、每个命名空间只属于一个模块、代码引用的键都存在、AI_MODELS 标签）+ `e2e/i18n.spec.ts`。
+- 按页面只把需要的文案发给浏览器（现在 `(main)` 每页带整份约 330KB）：owner 同意留到第 3 批按域搬家时做。
 - ⚠ Studio 命名空间碎片化（StudioV2 / V3 / Form / PromptArea / Page / Panels / Toolbar…）：新 key 优先并入既有页面域命名空间，**不再新开版本号空间**。
 
 ## Source of Truth

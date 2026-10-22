@@ -1,0 +1,2086 @@
+{
+  "StudioNode": {
+    "emptyGuide": {
+      "title": "空のキャンバス — ここから",
+      "subtitle": "物語を聞かせてください。アシスタントがノードを並べます。",
+      "chatOutline": "アシスタントと構成を相談",
+      "addNode": "ノードを手動で追加（キャラ / 背景 / ショット / 画像…）"
+    },
+    "appearance": {
+      "trigger": "キャンバスの外観を設定",
+      "title": "キャンバスの外観",
+      "description": "色と背景画像は現在のプロジェクトに保存されます。",
+      "colorLabel": "背景色",
+      "customColor": "カスタムカラー",
+      "presetColor": "色 {color} を使用",
+      "imageLabel": "背景画像",
+      "chooseImage": "画像を選択またはアップロード",
+      "replaceImage": "画像を変更",
+      "removeImage": "画像を削除",
+      "fitLabel": "表示方法",
+      "fitCover": "全体を覆う",
+      "fitContain": "画像全体を表示",
+      "opacityLabel": "画像の不透明度",
+      "restoreDefault": "デフォルトの外観に戻す",
+      "dialogTitle": "キャンバスの背景を選択",
+      "dialogDescription": "素材から選ぶか、背景画像をアップロードします。",
+      "previewAlt": "キャンバス背景のプレビュー",
+      "triggerShort": "表示"
+    },
+    "eyebrow": "キャンバス",
+    "projectUntitled": "無題のプロジェクト",
+    "projectNewDefaultName": "無題のプロジェクト {n}",
+    "nodeCount": "{count} 個のノード",
+    "addMenuTitle": "キャンバスに追加",
+    "nodeTypes": {
+      "shotText": "ショット文",
+      "shot": "ショット画像",
+      "characterImage": "キャラクター",
+      "backgroundImage": "カード",
+      "frameImage": "キーフレーム",
+      "image": "画像",
+      "voice": "音色",
+      "seedance": "動画生成",
+      "videoReference": "参考動画",
+      "typeNameAria": "{type}：{name}",
+      "text": "テキスト",
+      "audio": "オーディオ",
+      "video": "ビデオ"
+    },
+    "addMenuHelpers": {
+      "shotText": "ショット説明、動き、カメラ指示を整理します。",
+      "shot": "ショットプロンプトから静止画を生成します。",
+      "characterImage": "キャラクタープロンプトから立ち絵やデザイン案を生成します。",
+      "backgroundImage": "シーン背景と空気感のある画像を生成します。",
+      "frameImage": "動画生成前のキーフレーム画像を生成します。",
+      "image": "アップロード・素材ライブラリ・AI 生成のいずれかで画像を用意——追加後に名前と分類を設定できます。キャラクター・シーンは Cast ドックから新規作成します。",
+      "voice": "動画内のキャラクター音声用に音色を選択またはアップロードします。",
+      "seedance": "つないだ画像、キーフレーム、声を使って動画を生成します。",
+      "videoReference": "参考用の動画（≤15秒 / ≤50MB）をアップロードして Seedance Reference の 40% 割引を有効化します。"
+    },
+    "addCatalog": {
+      "groups": {
+        "text": "テキスト",
+        "image": "画像",
+        "audio": "サウンド",
+        "video": "動画"
+      },
+      "items": {
+        "textScript": {
+          "label": "脚本",
+          "helper": "この一幕の情景・動き・カメラ・セリフを書き出します。"
+        },
+        "textRule": {
+          "label": "ルール",
+          "helper": "画風や制作上の制約。つないだ先のノードだけに効きます。"
+        },
+        "textNote": {
+          "label": "メモ",
+          "helper": "自分用の覚え書き。制約としてモデルには渡しません。"
+        },
+        "imageShot": {
+          "label": "カットの静止画",
+          "helper": "脚本とキャラ・背景の参照から一枚の画を生成します。"
+        },
+        "imageCharacter": {
+          "label": "キャラクター",
+          "helper": "この人物の見た目：メイン画・寄り・ひも付けた声。"
+        },
+        "imageBackground": {
+          "label": "背景",
+          "helper": "この場所の見た目：情景・空気感・ライティング。"
+        },
+        "imageResult": {
+          "label": "生成画像",
+          "helper": "アップロード・貼り付け・素材から選択、あとで AI 生成も可。"
+        },
+        "audioVoice": {
+          "label": "ボイス",
+          "helper": "このセリフの音声。生成またはアップロード。"
+        },
+        "audioTimbre": {
+          "label": "声色",
+          "helper": "繰り返し使える声。カットやキャラクターにつないで、声を指定できます。"
+        },
+        "videoShot": {
+          "label": "カット",
+          "helper": "1つのカットに、最初・最後のフレーム、参照素材、声、テキストをつなげられます。"
+        },
+        "videoClip": {
+          "label": "クリップ",
+          "helper": "動きや画の参照にする動画をアップロードします。"
+        }
+      },
+      "cast": "キャスト一覧",
+      "upload": "画像をアップロード",
+      "pickFromLibrary": "素材ライブラリから選ぶ"
+    },
+    "statuses": {
+      "idle": "待機中",
+      "queued": "待機",
+      "ready": "準備完了",
+      "running": "撮影中",
+      "done": "収録済み",
+      "failed": "NG",
+      "stale": "更新が必要",
+      "disabled": "無効"
+    },
+    "imageSourceStarter": {
+      "uploadTitle": "画像をアップロード",
+      "uploadHint": "ドラッグしてアップロード",
+      "library": "素材ライブラリ",
+      "libraryDialogTitle": "画像素材を選択",
+      "libraryDialogDescription": "ライブラリから画像を選び、このカードの内容にします。",
+      "untitled": "無題の画像",
+      "uploadFailed": "画像のアップロードに失敗しました",
+      "generationFailed": "画像の生成に失敗しました",
+      "categoryLabel": "分類",
+      "uploading": "アップロード中 {percent}%",
+      "cancelUpload": "アップロードをキャンセル",
+      "generating": "生成中...",
+      "retry": "再試行",
+      "replace": "差し替え"
+    },
+    "characterImage": {
+      "voiceBound": {
+        "unnamed": "🎙 接続した声を使用します（動画プロンプトの @AudioN にキャラクター名が付きます）",
+        "remove": "声の接続を解除"
+      },
+      "promptLabel": "キャラクター画像プロンプト",
+      "promptPlaceholder": "外見、衣装、ムード、スタイルを記述...",
+      "cardLibrary": {
+        "title": "キャラクター",
+        "hint": "保存済みのキャラクターを選んでノードを自動入力します。",
+        "searchPlaceholder": "名前 / タグを検索…",
+        "loading": "キャラクターを読み込み中…",
+        "empty": "保存済みのキャラクターがありません。キャラクターページで作成してください。",
+        "variantCount": "{count} 個の派生カード",
+        "applied": "キャラクター「{name}」を適用しました。",
+        "bound": "📇 キャラクター由来：{name}"
+      },
+      "generate": "生成",
+      "regenerate": "再生成",
+      "generating": "生成中...",
+      "noModel": "先に画像モデルを選択してください。",
+      "noPrompt": "先にキャラクタープロンプトを入力してください。",
+      "fallbackError": "キャラクター画像の生成に失敗しました。",
+      "imageAlt": "{name} の生成キャラクター画像",
+      "sourceExisting": "既存画像",
+      "sourceGenerated": "AI 生成",
+      "replaceImage": "置き換え",
+      "clearImage": "画像をクリア",
+      "existing": {
+        "title": "画像を使用",
+        "hint": "アップロード、素材から選択、またはクリップボード画像を貼り付けます。",
+        "upload": "画像をアップロード",
+        "asset": "素材から選択",
+        "paste": "画像を貼り付け",
+        "pasteMeta": "ここを選択して、画像を貼り付けてください。",
+        "pasteEmpty": "クリップボードに画像がありません。",
+        "uploadFailed": "画像のアップロードに失敗しました。"
+      },
+      "reference": {
+        "title": "参考画像",
+        "hint": "アップロードまたは素材から選び、各画像の役割を指定します。",
+        "uploadTab": "アップロード",
+        "assetTab": "素材",
+        "pasteTab": "貼り付け",
+        "canvasTab": "キャンバス",
+        "canvasEmpty": "キャンバスにまだ画像がありません",
+        "uploadTitle": "参考画像をアップロード",
+        "uploadMeta": "JPG / PNG / WebP",
+        "pasteTitle": "参考画像を貼り付け",
+        "pasteMeta": "ここを選択して、画像を貼り付けてください。",
+        "pasteEmpty": "クリップボードに画像がありません。",
+        "selectAsset": "素材ライブラリを開き直す",
+        "assetDialogOpened": "素材ライブラリを開きました",
+        "empty": "参考画像はまだありません。",
+        "uploadFailed": "参考画像のアップロードに失敗しました。",
+        "remove": "参考画像を削除",
+        "assetDialogTitle": "参考画像を選択",
+        "assetDialogDescription": "キャラクター画像の参考にする画像素材を選択します。",
+        "roles": {
+          "identity": "同一性",
+          "pose": "ポーズ",
+          "style": "スタイル",
+          "composition": "構図",
+          "background": "背景",
+          "faceCloseup": "顔クローズアップ",
+          "costume": "衣装",
+          "prop": "小道具",
+          "frameStart": "開始フレーム",
+          "frameEnd": "終了フレーム",
+          "custom": "カスタム"
+        }
+      }
+    },
+    "voiceProfile": {
+      "title": "音色入力",
+      "description": "キャラクターやナレーションに使う声を設定します。動画ノードにつないで使えます。",
+      "emptyTitle": "音色未設定",
+      "emptyDescription": "音声ライブラリから選択、モデル音色 ID を貼り付け、または参考音声をアップロードします。",
+      "providerLabel": "ソース",
+      "providerFallback": "手動音色",
+      "noSample": "サンプルなし",
+      "referenceLabel": "参考音声",
+      "uploadAudio": "音声をアップロード",
+      "toasts": {
+        "voiceSelected": "音色を選択しました。",
+        "uploadFailed": "参考音声のアップロードに失敗しました。"
+      },
+      "kindSpeech": "音声",
+      "retry": "再試行"
+    },
+    "videoGeneration": {
+      "timeline": {
+        "title": "ショットタイムライン"
+      },
+      "generating": "生成中...",
+      "durationLabel": "長さ",
+      "resolutionLabel": "解像度",
+      "aspectRatioLabel": "アスペクト比",
+      "negativePromptLabel": "ネガティブプロンプト",
+      "negativePromptPlaceholder": "避けたい内容（例：ぼやけ、変形、低画質）…",
+      "referenceCount": "参考 {count}/{max}",
+      "upstreamGroups": {
+        "visual": "キャラクター / 背景 / ショット",
+        "keyframe": "キーフレーム",
+        "video": "参考動画",
+        "text": "カットの説明",
+        "voice": "音色"
+      },
+      "upstreamEmpty": {
+        "visual": "画像ノードはまだ接続されていません。",
+        "keyframe": "キーフレームはまだ接続されていません。",
+        "video": "参考動画はまだ接続されていません。参考動画を追加すると、Seedance Reference が 40% オフになります。",
+        "text": "カットの説明はまだ接続されていません。",
+        "voice": "音色ノードはまだ接続されていません。"
+      },
+      "capabilities": {
+        "referenceRequired": "選択中のモデルは少なくとも 1 枚の参考画像が必要です。"
+      },
+      "audioCapabilities": {
+        "referenceAudio": "声の情報をプロンプトに追加します。参考音声を直接送れるかどうかは、選んだルートによって異なります。",
+        "voiceId": "モデル専用のボイス ID に対応しています。ボイスノードに、対応する ID を入力してください。"
+      },
+      "audioCallout": {
+        "ignored": {
+          "title": "音色ノードはこのモデルでは反映されません",
+          "body": "Veo / Kling / 通常版 Seedance は、プロンプトから音声を自動合成するだけで、アップロードした参考音声を受け付けません。発話自体は生成されますが、音色ノードの声色はコピーされません。\n声をクローンしたい場合は、Seedance 2.0 Reference エンドポイントに切り替えてください。"
+        },
+        "cloning": {
+          "title": "ボイスクローニングが有効です",
+          "body": "Seedance は音色ノードの参考音声を使い、\nプロンプト内の \"ダブルクォート\" で囲まれた台詞を読み上げます。"
+        }
+      },
+      "videoDiscount": {
+        "badge": "40% オフ",
+        "tooltip": "参考動画を接続すると、Seedance Reference の料金が40%オフになります。"
+      },
+      "noModel": "先に動画モデルを選択してください。",
+      "audioRequiresVisual": "参照音声だけでは送信できません。画像または動画を1つ以上接続してください。",
+      "generate": "動画を生成",
+      "regenerate": "動画を再生成",
+      "sidecar": {
+        "ariaLabel": "動画構成エディター",
+        "eyebrow": "動画構成 · 右側編集",
+        "close": "動画構成エディターを閉じる"
+      }
+    },
+    "videoReference": {
+      "title": "参考動画",
+      "description": "動画をアップロードして、つないだ Seedance Reference ノードの参考素材に使えます。参考動画を接続すると、料金が自動で40%オフになります。",
+      "upload": "動画をアップロード",
+      "replace": "動画を差し替え",
+      "clear": "クリア",
+      "uploading": "アップロード中",
+      "uploaded": "動画をアップロードしました",
+      "play": "動画を再生",
+      "pause": "動画を一時停止",
+      "mute": "ミュート",
+      "unmute": "ミュート解除",
+      "constraints": "MP4 / MOV / WebM に対応。1本あたり15秒以内、50 MB 以下です。",
+      "errors": {
+        "tooLong": "動画は {actual} 秒で、{max} 秒の上限を超えています。",
+        "uploadFailed": "動画のアップロードに失敗しました。再度お試しください。"
+      }
+    },
+    "mediaNodes": {
+      "promptLabel": "プロンプト",
+      "promptPlaceholder": "このノードで生成する内容を説明...",
+      "imageAlt": "ノード生成画像",
+      "sourceExisting": "既存画像",
+      "sourceGenerated": "AI 生成",
+      "cardLibrary": {
+        "title": "背景カード",
+        "hint": "保存済みの背景カードを選んでノードを自動入力します。",
+        "searchPlaceholder": "名前 / タグを検索…",
+        "loading": "カードを読み込み中…",
+        "empty": "保存済みの背景カードがありません。Studio で作成してください。",
+        "applied": "背景カード「{name}」を適用しました。",
+        "bound": "📇 カード由来：{name}"
+      },
+      "replaceImage": "画像を置き換え",
+      "clearImage": "画像をクリア",
+      "existing": {
+        "title": "既存画像を使う",
+        "hint": "アップロード、貼り付け、または素材から選びます。",
+        "upload": "画像をアップロード",
+        "asset": "素材から選択",
+        "paste": "画像を貼り付け",
+        "pasteMeta": "画像をコピーしてここに貼り付け",
+        "pasteEmpty": "クリップボードに画像がありません。",
+        "uploadFailed": "画像のアップロードに失敗しました。"
+      },
+      "emptyChoice": {
+        "uploadHint": "ファイルをドラッグしてもOK"
+      },
+      "generate": "生成",
+      "regenerate": "再実行（上書き）",
+      "generating": "生成中...",
+      "noModel": "先にモデルを選択してください。",
+      "noPrompt": "先にプロンプトを入力してください。",
+      "fallbackError": "ノード素材の生成に失敗しました。"
+    },
+    "videoComposer": {
+      "monitor": {
+        "empty": "生成後にここにプレビューが表示されます"
+      },
+      "studio": {
+        "composition": "今回の構成"
+      },
+      "variant": {
+        "standard": "標準",
+        "fast": "高速",
+        "v3": "3.0 Pro",
+        "o3": "O3 Pro (Omni)"
+      },
+      "provider": {
+        "fal": "fal",
+        "volcengine": "VolcEngine",
+        "byteplus": "BytePlus"
+      },
+      "sidecar": {
+        "modeLabel": "動画生成モード",
+        "addReference": "参照素材を追加",
+        "promptPlaceholder": "生成したいショット、動き、音を説明…"
+      },
+      "autoName": {
+        "character": "キャラクター",
+        "background": "シーン",
+        "shot": "ショット",
+        "video": "動画",
+        "closeup": "クローズアップ"
+      },
+      "cameraGrammar": {
+        "label": "カメラの演出",
+        "groups": {
+          "size": "ショットサイズ",
+          "angle": "アングル",
+          "move": "動き"
+        }
+      },
+      "modelRail": {
+        "label": "モデル",
+        "ready": "自分のキー",
+        "needsKey": "キー設定"
+      },
+      "pickModel": "モデルを選択",
+      "refKind": {
+        "character": "キャラクター",
+        "background": "背景",
+        "shot": "ショット",
+        "voice": "ボイス",
+        "video": "参照動画",
+        "keyframe": "キーフレーム",
+        "closeup": "クローズアップ"
+      },
+      "slotRack": {
+        "zones": {
+          "images": "画像 {count}",
+          "audio": "音声 {count}",
+          "videos": "動画 {count}"
+        },
+        "zoneLabel": {
+          "images": "画像",
+          "audio": "音声",
+          "videos": "動画"
+        },
+        "zoneCount": "{held}/{limit}",
+        "total": "合計 {held}/{total}",
+        "slotHint": "{name} · クリックでプロンプトに引用、ダブルクリックでノードにフォーカス",
+        "remove": "{name} を外す（接続を切断、ノードは残ります）",
+        "notSendingOverflow": "{name} · 今回は送信されません（上限超過）",
+        "notSendingUnready": "{name} · 今回は送信されません（音声が未設定）",
+        "heldVsSending": "保持 {held} · 送信 {sending}"
+      },
+      "references": {
+        "label": "引用済み",
+        "counter": "引用済み {referenced} / 接続済み {connected}",
+        "slotLabel": "画像 {index}",
+        "unnamed": "名前を付けてください",
+        "locate": "キャンバス上のノードに移動",
+        "addVoice": "「{name}」に音色を追加",
+        "remove": "「{name}」の接続を解除（ノードは保持）",
+        "searchPlaceholder": "名前または @token で検索",
+        "tabs": {
+          "all": "すべて",
+          "character": "キャラクター",
+          "scene": "シーン",
+          "shot": "ショット",
+          "voice": "音声"
+        },
+        "addButtons": {
+          "character": "キャラクターを追加",
+          "scene": "シーンを追加",
+          "shotImage": "ショット画像を追加",
+          "video": "参照動画を追加",
+          "voice": "ナレーションを追加"
+        },
+        "onStageBadge": "登場",
+        "addGroups": {
+          "image": "画像",
+          "voice": "音声",
+          "video": "動画"
+        }
+      },
+      "sendPreview": {
+        "toggle": "送信内容を確認",
+        "promptLabel": "最終プロンプト",
+        "legendLabel": "自動追加される参考説明",
+        "imagesLabel": "参考画像（{count} 枚）",
+        "imageBadge": "画像{index}",
+        "unnamed": "未命名",
+        "avLabel": "動画 / 音声の参照",
+        "videoBadge": "動画{index}：参考動画",
+        "audioBadge": "音声{index}",
+        "empty": "（今回は追加のプロンプトはありません）"
+      },
+      "generateAudioLabel": "音声を生成",
+      "seedRandom": "毎回ランダム",
+      "rebind": {
+        "title": "{brand} に切り替えますか？",
+        "map": "引き継がれます",
+        "ignore": "無視されます",
+        "confirm": "切り替える",
+        "cancel": "キャンセル"
+      }
+    },
+    "nodeToolbar": {
+      "expand": "拡大",
+      "delete": "削除",
+      "toolbar": "ノード操作",
+      "more": "その他",
+      "download": "ダウンロード",
+      "rename": "名前",
+      "category": "分類",
+      "preview": "プレビュー",
+      "reorder": "並べ替え",
+      "compose": "{count}本を合成",
+      "composeAria": "選択した{count}本の動画を、結合用にまとめます"
+    },
+    "nodeDetail": {
+      "close": "折りたたむ",
+      "generate": "生成",
+      "upload": "アップロード",
+      "openStudio": "Studio ↗",
+      "sampleWillSend": "生成時に送信する内容"
+    },
+    "voiceDetail": {
+      "speedLabel": "速度",
+      "volumeLabel": "音量",
+      "emotionLabel": "感情",
+      "emotions": {
+        "none": "なし",
+        "calm": "落ち着き",
+        "angry": "怒り",
+        "sad": "悲しみ",
+        "surprised": "驚き"
+      },
+      "coverAlt": "音色カバー"
+    },
+    "workflowFields": {
+      "prompt": {
+        "label": "生成プロンプト",
+        "placeholder": "このノードの最終出力を説明..."
+      },
+      "scene": {
+        "label": "シーン",
+        "placeholder": "このショットの場所と時間..."
+      },
+      "action": {
+        "label": "アクション",
+        "placeholder": "キャラクターの動きや画面の変化..."
+      },
+      "camera": {
+        "label": "カメラ",
+        "placeholder": "クローズアップ、ゆっくり寄る、手持ち、俯瞰など…"
+      },
+      "composition": {
+        "label": "構図",
+        "placeholder": "被写体位置、画角、前景と背景..."
+      },
+      "location": {
+        "label": "場所",
+        "placeholder": "背景となる空間や環境..."
+      },
+      "mood": {
+        "label": "ムード",
+        "placeholder": "感情、季節、天気、色温度..."
+      },
+      "lighting": {
+        "label": "光",
+        "placeholder": "光源、コントラスト、影、反射..."
+      },
+      "frameIntent": {
+        "label": "キーフレーム意図",
+        "placeholder": "固定したい動作と画面状態..."
+      },
+      "dialogue": {
+        "label": "台詞",
+        "placeholder": "読み上げる台詞やナレーション..."
+      },
+      "voiceName": {
+        "label": "音色名",
+        "placeholder": "例：キャラクターA、ナレーター、優しい少女..."
+      },
+      "voiceProvider": {
+        "label": "音色ソース",
+        "placeholder": "例：Fish Audio、Kling Voice..."
+      },
+      "voiceId": {
+        "label": "音色 ID",
+        "placeholder": "モデルの音色 ID を貼り付けるか、音声ライブラリから選択..."
+      },
+      "voiceStyle": {
+        "label": "音色スタイル",
+        "placeholder": "声色、年齢感、速度、アクセント、質感..."
+      },
+      "voiceEmotion": {
+        "label": "感情 / 話し方",
+        "placeholder": "落ち着き、緊張、優しさ、抑制..."
+      },
+      "motion": {
+        "label": "動き",
+        "placeholder": "キャラクター、カメラ、画面の動き..."
+      },
+      "duration": {
+        "label": "長さ",
+        "placeholder": "例：4s、6s、8s...",
+        "auto": "自動（モデルが決定）",
+        "custom": "カスタム",
+        "seconds": "{value} 秒"
+      },
+      "audioIntent": {
+        "label": "音声 / 音色指示",
+        "placeholder": "例：音色1はナレーション、音色2はキャラクターAの短い台詞..."
+      }
+    },
+    "workflowNodes": {
+      "shotText": {
+        "emptyState": "ショット文はまだありません",
+        "editText": "テキストを編集"
+      },
+      "characterImage": {
+        "emptyState": "キャラクター画像はまだありません"
+      },
+      "shot": {
+        "emptyState": "ショット画像はまだありません"
+      },
+      "backgroundImage": {
+        "emptyState": "背景画像はまだありません"
+      },
+      "frameImage": {
+        "emptyState": "キーフレームはまだありません"
+      }
+    },
+    "topbar": {
+      "addNode": "ノードを追加",
+      "save": "保存",
+      "startReview": "未確認 {count} 枚 · 確認を始める",
+      "collapse": "トップバーを閉じてキャンバスを広げる",
+      "expand": "トップバーを開く",
+      "defaultModel": "既定",
+      "createProjectPrompt": "プロジェクト名",
+      "deleteProjectConfirm": "「{name}」を削除しますか？このキャンバスプロジェクトは削除されます。"
+    },
+    "projectMenu": {
+      "triggerLabel": "プロジェクトメニューを開く",
+      "current": "現在のプロジェクト",
+      "switch": "プロジェクトを切り替え",
+      "create": "新規プロジェクト",
+      "rename": "名前を変更",
+      "delete": "現在のプロジェクトを削除",
+      "updatedAt": "{time} 更新",
+      "unsaved": "未保存",
+      "saving": "保存中..."
+    },
+    "projectDialog": {
+      "createTitle": "新規プロジェクト",
+      "renameTitle": "プロジェクト名を変更",
+      "cancel": "キャンセル",
+      "createSubmit": "作成",
+      "renameSubmit": "保存",
+      "deleteTitle": "プロジェクトを削除",
+      "deleteConfirm": "削除"
+    },
+    "assistant": {
+      "toggle": "アシスタント",
+      "streamFailed": "アシスタントの返信が途中で止まりました"
+    },
+    "dock": {
+      "title": "アシスタントドック",
+      "expand": "構成ワークスペースを展開",
+      "restore": "ドックに戻す",
+      "scriptDocApply": "ノードを生成",
+      "clarify": {
+        "title": "いくつか確認させてください",
+        "customPlaceholder": "自由に入力…",
+        "skip": "スキップ",
+        "submit": "回答を送る",
+        "skipped": "スキップ",
+        "answerPrefix": "回答:"
+      },
+      "scriptDocDepthSimple": "簡易",
+      "scriptDocDepthStandard": "標準",
+      "scriptDocDepthCinematic": "フル",
+      "scriptDocDepthSimpleHint": "キャラと台詞のみ",
+      "scriptDocDepthStandardHint": "+ 感情・尺・スタイル",
+      "scriptDocDepthCinematicHint": "+ 世界観・心理描写・映画のようなカット",
+      "scriptDocViewEdit": "編集",
+      "leanOpener": "キャンバスはまだ空です。まず物語の構成から相談しましょうか？",
+      "leanOpenerActive": "キャンバスにすでにノードがあります——ストーリー構成にまとめましょうか？",
+      "starters": {
+        "scriptOutline": {
+          "label": "構成・あらすじ",
+          "prompt": "まずこの物語の構成を相談させてください。"
+        },
+        "castStyle": {
+          "label": "キャラと画風",
+          "prompt": "登場するキャラクターと全体の画風について話しましょう。"
+        },
+        "firstPhase": {
+          "label": "第一段階",
+          "prompt": "第一段階——短いショット群（60秒以内）を計画しましょう。"
+        },
+        "videoShot": {
+          "label": "ショット計画",
+          "prompt": "キャンバス上の動画ショットを計画してください：被写体、動き、カメラ、尺。"
+        }
+      },
+      "welcomeTitle": "ノードを選んで詳細を確認",
+      "welcomeDescription": "キャンバスの確認、プロンプト調整、次に実行するノードの提案を手伝います。",
+      "welcomeSkillScript": "Composer のアイデアを実行可能な制作ステップに分解します。",
+      "welcomeSkillRoute": "実行前にモデルルートと不足しているキーを確認します。",
+      "welcomeSkillGenerate": "キャラクター画像のプロンプト、参照画像、LoRA 選択を確認します。",
+      "newConversation": "新しい会話",
+      "assistantCanvas": "キャンバスアシスタント",
+      "collapse": "アシスタントドックを閉じる",
+      "drag": "アシスタントパネルを移動",
+      "resize": {
+        "widthLabel": "ドック幅を調整",
+        "splitLabel": "インスペクタとアシスタントの分割比率を調整"
+      }
+    },
+    "assistantRoute": {
+      "fieldLabel": "アシスタントの接続先",
+      "setupGemini": "Gemini",
+      "setupDeepSeek": "DeepSeek",
+      "setupChatGpt": "OpenAI",
+      "setupClaude": "Claude",
+      "setupGrok": "Grok"
+    },
+    "inspector": {
+      "unsupported": "このノードの設定パネルは、まだ用意されていません。"
+    },
+    "conversation": {
+      "empty": "現在のワークフロー、選択中ノード、プロンプト品質、次に実行する内容を相談できます。",
+      "thinking": "考えています...",
+      "retry": "再試行",
+      "placeholder": "キャンバスアシスタントに相談…",
+      "modeHint": "配置は自動で反映 · 生成前には確認",
+      "research": "参考作品",
+      "researchHint": "映画/アニメ/短編をWeb検索し、オリジナル脚本のアイデアに変換（Gemini/OpenAIルート）",
+      "send": "送信",
+      "expandMessage": "全文を表示",
+      "collapseMessage": "1段落に戻す",
+      "unknownNodeReference": "削除済みノード",
+      "references": "キャンバスの参照素材",
+      "addReference": "画像または動画の参照を追加",
+      "removeReference": "参照素材を削除",
+      "capabilityUnavailable": "キャンバス上の画像は利用できなくなりました。",
+      "capabilityFailed": "キャンバス機能の実行に失敗しました。もう一度お試しください。",
+      "referencePickerTitle": "参照素材を追加",
+      "imageDropHint": "画像をドロップ、貼り付け、またはアップロード",
+      "recentImages": "最近の画像",
+      "recentImagesEmpty": "最近の画像はありません",
+      "openImageLibrary": "画像ライブラリを開く",
+      "imageLibraryTitle": "参照画像を選択",
+      "imageLibraryDescription": "メッセージに添付する画像を選んでください。",
+      "openVideoLibrary": "動画ライブラリを開く",
+      "videoLibraryTitle": "参照動画を選択",
+      "videoLibraryDescription": "メッセージに添付する動画を選んでください。",
+      "canvasReferences": "現在のキャンバス",
+      "uploadVideo": "参照動画をアップロード",
+      "galleryImageLabel": "ギャラリー画像",
+      "galleryVideoLabel": "ギャラリー動画",
+      "referenceUploadFailed": "参照素材のアップロードに失敗しました",
+      "referenceOnlyPrompt": "添付した参照素材を分析し、キャンバスで次に行う具体的な手順を提案してください。",
+      "opsMalformed": "アシスタントがキャンバスを変更しようとしましたが、指示を読み取れませんでした——変更は行われていません。"
+    },
+    "minimapTitle": "ミニマップ",
+    "castDock": {
+      "title": "ノード",
+      "locatorTitle": "キャンバス上の全ノード",
+      "rosterTitle": "再利用できるキャラクターとシーン",
+      "rosterHint": "ノードにドラッグして参照素材に追加。長押しで追加先も選べます",
+      "searchLabel": "キャンバスのノードを検索",
+      "searchPlaceholder": "ノードを検索…",
+      "groups": {
+        "text": "テキスト",
+        "image": "画像",
+        "audio": "音声",
+        "video": "動画"
+      },
+      "referenceCount": "参照 {count} 件",
+      "empty": "キャンバスにノードがありません",
+      "noResults": "一致するノードがありません",
+      "locateNode": "{name}を表示",
+      "expand": "キャストドックを展開",
+      "collapse": "キャストドックを折りたたむ",
+      "collapsePanel": "左パネルを折りたたむ",
+      "handle": "キャスト · {count}",
+      "sections": {
+        "character": "キャラクター",
+        "background": "シーン",
+        "voice": "ボイス",
+        "videoReference": "参考動画"
+      },
+      "performanceCount": "{count}カットに登場",
+      "referenceCountAria": "参照画像 {count} 枚",
+      "voiceBoundAria": "ボイス紐付け済み",
+      "create": "新規",
+      "deleteCard": "{name}を削除",
+      "openDetail": "{name}を開く"
+    },
+    "ingest": {
+      "reasons": {
+        "typeMismatch": "このノードでは、このカードを使えません",
+        "duplicate": "すでに含まれています",
+        "capacityFull": "参照枠が満杯です",
+        "capacityFullWithLimit": "参照枠が満杯です（{current}/{limit}）",
+        "capacityFullIn": "{zone}枠が満杯です（{current}/{limit}）。1 つ外してから追加してください",
+        "capacityFullByTotal": "素材の合計数に上限があるため、{zone}枠は残り{limit}個です。動画や音声を外すと空きを増やせます"
+      },
+      "preview": {
+        "images": "参照×{count}",
+        "voice": "音声",
+        "slots": "参照枠 {current}/{limit}",
+        "fallbackName": "無題"
+      },
+      "quickThrow": {
+        "toggleAria": "{name} をすばやく追加",
+        "hint": "{name} を追加するカットを選んでください。Esc でキャンセル",
+        "alreadyIncluded": "すでに含まれています"
+      },
+      "uploadFailed": "「{name}」をアップロードできませんでした",
+      "looseImageFused": "画像をキャラクターの参照ギャラリーに追加しました",
+      "looseImageFuseRejected": "追加できませんでした——キャラクターか背景カードにドロップしてください",
+      "canvasNodeSigned": "参照を関連付けました（本体はキャンバスに残ります）",
+      "canvasNodeIngestRejected": "関連付けできません——この 2 枚のカードは参照できません",
+      "looseImage": {
+        "uploading": "{count} 枚の画像をアップロード中…",
+        "uploaded": "{count} 枚の画像をキャンバスに配置しました",
+        "uploadFailed": "画像のアップロードに失敗しました",
+        "untitled": "無題の画像",
+        "cardAlt": "まだつながっていない画像"
+      }
+    },
+    "toasts": {
+      "projectCreated": "プロジェクト「{name}」を作成しました。",
+      "projectDeleted": "プロジェクト「{name}」を削除しました。",
+      "localCacheFull": "このブラウザのローカルキャッシュが満杯です。キャンバスはここに保持されなくなりました。作業内容はクラウドに保存されています。",
+      "localCacheUnavailable": "このブラウザがローカル保存を拒否しました。キャンバスはここに保持されません。作業内容はクラウドに保存されています。",
+      "cloudSaveFailed": "クラウドに接続できません。最近のキャンバスの変更は保存されていません。このタブを開いたまま、接続を確認してください。",
+      "v3UpgradeReadOnly": "このプロジェクトの旧データのバックアップがまだ成功していないため、原本の上書きを防ぐためキャンバスは読み取り専用です。再読み込みして再試行してください。解消しない場合はサポートにご連絡ください。",
+      "cloudSaveRejected": "クラウドがこの保存を拒否しました。最近のキャンバスの変更は保存されていません。接続の問題ではありません。詳細は下記をご覧ください。",
+      "conflict": "このキャンバスは別の場所（別のタブや端末）で新しい版が保存されたため、ここでの保存を一時停止しました。",
+      "conflictLoadLatest": "最新を読み込む",
+      "conflictSaveAsCopy": "コピーとして保存",
+      "conflictLoadFailed": "最新の版を取得できませんでした。接続を確認して再試行してください。"
+    },
+    "quickEdit": {
+      "placeholder": "この画像をどう編集するか書いてください",
+      "editing": "編集中 [{name}]",
+      "run": "実行",
+      "back": "ツールに戻る",
+      "title": "クイック編集",
+      "hint": "抽出したい要素を書いてください。結果は新しい画像としてキャンバスに置かれます。"
+    },
+    "generateComposer": {
+      "addReference": "参考画像を追加",
+      "removeReference": "{name} を削除",
+      "expand": "展開",
+      "collapse": "折りたたむ",
+      "send": "送信",
+      "historyTitle": "最近使ったプロンプト",
+      "historyEmpty": "まだ履歴がありません",
+      "modeImage": "画像",
+      "modeAudio": "音声",
+      "audioPlaceholder": "ここでは、音声の設定はまだ使えません。",
+      "templateFilterLabel": {
+        "recent": "最近使った",
+        "all": "すべて",
+        "mostUsed": "よく使う"
+      }
+    },
+    "history": {
+      "title": "履歴",
+      "search": "キーワードで検索",
+      "empty": "履歴はまだありません",
+      "new": "新しい会話",
+      "share": "読み取り専用リンクを共有",
+      "shareCopied": "読み取り専用リンクをコピーしました",
+      "shareFailed": "共有リンクを作成できませんでした"
+    },
+    "review": {
+      "approve": "承認",
+      "reject": "差し戻し",
+      "awaitingReview": "未確認",
+      "rejected": "差し戻し済み"
+    },
+    "reviewMode": {
+      "title": "確認中",
+      "remaining": "残り {count} 枚",
+      "previous": "前へ",
+      "next": "次へ",
+      "exit": "確認を終了",
+      "previousVersion": "前の版",
+      "currentVersion": "今の版",
+      "reasonLabel": "差し戻し理由",
+      "reasonPlaceholder": "作り直したい理由（任意）",
+      "promptPatchLabel": "プロンプト修正",
+      "promptPatchPlaceholder": "次はどう変えたいですか？",
+      "regenerate": "修正して再生成",
+      "regenerating": "再生成中"
+    },
+    "mobileRail": {
+      "assistant": "アシスタント",
+      "listLabel": "表示するリスト",
+      "tab": {
+        "shots": "カット",
+        "images": "画像",
+        "voices": "音声",
+        "texts": "テキスト"
+      },
+      "empty": {
+        "shots": "カットがありません。右下の + から追加します。",
+        "images": "画像がありません。右下の + からアップロードします。",
+        "voices": "音声がありません。",
+        "texts": "テキストがありません。"
+      },
+      "add": "追加",
+      "newShot": "カットを追加",
+      "upload": "アップロード（写真 / ファイル）",
+      "addReference": "参照を追加",
+      "fromDevice": "写真またはファイル",
+      "play": "再生",
+      "pause": "一時停止",
+      "emptyShot": "映像がありません。タップしてプロンプトを書きます。",
+      "versionReadout": "{index} / {total}"
+    },
+    "canvasOps": {
+      "title": "キャンバスの変更案",
+      "unnamed": "名称未設定",
+      "unknownTarget": "削除されたノード",
+      "apply": "{count} 件を適用",
+      "appliedSummary": "{applied} 件を適用しました",
+      "appliedSummaryWithSkipped": "{applied} 件を適用、{skipped} 件をスキップしました",
+      "appliedToast": "キャンバスの変更を {count} 件適用しました",
+      "confirmGenerate": "生成を確認（クレジット消費）",
+      "confirmReview": "レビュー状態の変更を確認",
+      "autoApplied": "{count}件をキャンバスに配置しました。クレジットはまだ使っていません",
+      "autoConnectsFailed": "接続 {count} 件が作成されませんでした",
+      "undoAutoApplied": "元に戻す",
+      "generateSeparateHint": "生成は個別に確認します",
+      "rejectedPrefix": "実行しません：{reason}",
+      "describe": {
+        "addNode": "{kind}「{name}」を追加",
+        "connect": "「{source}」を「{target}」につなぐ",
+        "rename": "「{target}」を「{name}」に改名",
+        "setPrompt": "「{target}」のプロンプトを書き換える",
+        "setImageCategory": "「{target}」を{category}にする",
+        "setModel": "「{target}」のモデルを {model} に変更",
+        "setParams": "「{target}」を{params}に設定",
+        "attachAsset": "「{source}」を「{target}」に{category}として追加",
+        "reject": "「{target}」を差し戻す",
+        "approve": "「{target}」を承認済みにする",
+        "awaitReview": "「{target}」を未確認にする",
+        "generate": "「{target}」を生成",
+        "connectSlot": "「{source}」を「{target}」の{slot}につなぐ",
+        "disconnect": "接続を 1 本外す",
+        "delete": "「{target}」を削除する",
+        "moveToShot": "「{target}」をカット {shotNo} に移す",
+        "moveOutOfShot": "「{target}」をカット帯の外に出す",
+        "reorderShot": "カット {from} を {to} 番目に移す",
+        "setText": "「{target}」の本文を書き換える",
+        "setField": "「{target}」の {field} を {value} にする",
+        "attachAssetSlot": "「{source}」を「{target}」の{slot}に入れる",
+        "setSlotVersion": "「{target}」の{slot}の現在のバージョンを切り替える",
+        "blockVersion": "「{target}」の{slot}のこのバージョンを不採用にする",
+        "unblockVersion": "「{target}」の{slot}のこのバージョンの不採用を解除する",
+        "setParamsV4": "「{target}」の生成設定を変更する",
+        "setVoiceProfile": "「{target}」の音声設定を変更する",
+        "setCharacterPicks": "「{target}」でキャラクターが使う画像を変更"
+      },
+      "params": {
+        "duration": "{value}秒",
+        "durationAuto": "長さ自動",
+        "audioOn": "音声あり",
+        "audioOff": "音声なし",
+        "seed": "シード {value}"
+      },
+      "reasons": {
+        "unknownNode": "そのノードが見つかりません",
+        "duplicateRef": "同じ別名が二度使われていて参照が特定できません",
+        "approvalForbidden": "結果の承認は、ご自身で行ってください",
+        "noMedia": "このノードにはまだ画像がなく、マークできません",
+        "notGeneratable": "この種類のノードはメディアを生成しません",
+        "noModel": "モデルが未選択です",
+        "notCategorizable": "この種類のノードに画像分類はありません",
+        "unknownCategory": "画像分類にない値です",
+        "missingCategoryLabel": "カスタム分類には名前が必要です",
+        "notModelTargetable": "この種類のノードではモデルを使いません",
+        "unknownModel": "そのモデルはこのノードの一覧にありません",
+        "modelNeedsKey": "そのモデルは先に API キーの設定が必要です",
+        "notParameterizable": "画像のサイズと品質は、生成バーで調整できます",
+        "emptyParams": "設定が一つも指定されておらず、何も変わりません",
+        "unsupportedParam": "選択中のモデルはその設定を受け付けません",
+        "unknownParamValue": "選択中のモデルが受け付ける値ではありません",
+        "notAttachable": "参考画像を集められるのはキャラクターと背景カードだけです。代わりにノードをつないでください"
+      },
+      "confirmDelete": "削除を確認",
+      "overwriteQuestion": "そこにはすでにあなたが書いた内容があります：",
+      "overwriteChoice": {
+        "append": "後ろに追記",
+        "replace": "上書き",
+        "keep": "そのまま"
+      }
+    },
+    "v4": {
+      "loraDropped": "キャンバスには LoRA を載せられるモデルがないため、{names} は今回外しました。LoRA は LoRA 台で載せます。",
+      "untitledText": "無題のテキスト",
+      "textMeta": "{chars} 文字 · {paragraphs} 段落",
+      "editText": "編集",
+      "previewText": "プレビュー",
+      "setCurrent": "現在の版にする",
+      "versionPrev": "前の版",
+      "versionNext": "次の版",
+      "slotDisconnect": "切断",
+      "slotEmpty": "空",
+      "changedBadge": "今回の変更あり",
+      "blocked": "不採用：{reason}",
+      "audioDuration": "{seconds} 秒",
+      "audioEmpty": "音声なし",
+      "audioOwner": "声：{name}",
+      "addCanvasTitle": "キャンバス上",
+      "addCanvasHint": "クリックして追加",
+      "addCanvasEmpty": "追加できる素材はありません",
+      "addCanvasAttach": "{name} を追加",
+      "legacyMigrated": "旧ノードは移行済み",
+      "tidy": "整列",
+      "slots": {
+        "firstFrame": "開始フレーム",
+        "lastFrame": "終了フレーム",
+        "reference": "参照",
+        "voice": "音声",
+        "text": "テキスト",
+        "timbre": "音色",
+        "closeup": "クローズアップ",
+        "clip": "クリップ",
+        "source": "ソース"
+      },
+      "textRoles": {
+        "script": "脚本",
+        "style": "スタイル",
+        "character": "キャラクター"
+      },
+      "ports": {
+        "input": "入力",
+        "output": "出力"
+      },
+      "edgeRole": {
+        "menu": "このつながりの役割",
+        "firstFrame": "開始フレームにする",
+        "lastFrame": "終了フレームにする",
+        "reference": "参照にする"
+      },
+      "outputs": {
+        "out": "出力",
+        "tailFrame": "末尾フレーム"
+      },
+      "statuses": {
+        "idle": "待機",
+        "queued": "待ち",
+        "running": "生成中",
+        "ready": "準備完了",
+        "done": "完了",
+        "failed": "失敗",
+        "stale": "更新が必要",
+        "disabled": "無効"
+      },
+      "kinds": {
+        "text": "テキスト",
+        "image": "画像",
+        "audio": "音声",
+        "video": "動画"
+      },
+      "derive": {
+        "shotImage": "ショット画像を作る",
+        "video": "動画を作る",
+        "character": "キャラ設定を作る",
+        "background": "背景設定を作る",
+        "askAssistant": "アシスタントに聞く"
+      },
+      "connectRejected": {
+        "selfLoop": "自分自身には接続できません",
+        "unknownSlot": "このノードにその入力はありません",
+        "kindNotAllowed": "この入力はその種類の素材を受け付けません",
+        "subtypeNotAllowed": "この入力は参照画像かキャラ画像のみ受け付けます",
+        "slotFull": "この入力は満杯です",
+        "blockedSource": "この素材は不採用のため開始フレームにできません",
+        "duplicateEdge": "すでに接続済みです",
+        "unknownNode": "ノードが見つかりません",
+        "blockedVersion": "その版は無効のため現在の版にできません"
+      },
+      "upgrade": {
+        "backupFailed": "このプロジェクトの旧データをバックアップできなかったため、保存を一時停止しています。もう一度試すか、サポートにご連絡ください。",
+        "migrationFailed": "このプロジェクトのデータを読めないため、上書きを防ぐ目的で書き込みを停止しました。"
+      },
+      "versionAdded": "第 {count} 版として追加し、現在の版にしました",
+      "opFailed": "この操作を適用できませんでした：{reason}",
+      "slotIssue": {
+        "belowMin": "{slot} がまだ足りません。生成できません"
+      },
+      "preflight": {
+        "blocked": "送信していません：{reason}",
+        "blockedMore": "送信していません：{reason}（ほかに {more} 件）",
+        "nameSeparator": "、",
+        "slot": {
+          "belowMin": "{slot}がまだ足りません",
+          "currentMissing": "{slot}で使うバージョンを選んでください",
+          "blockedSource": "{slot}に使用不可の素材があります。差し替えるか接続を外してください"
+        },
+        "tooMany": {
+          "image": "参考画像が {count} 枚あります。このモデルは最大 {max} 枚です",
+          "video": "参考動画が {count} 本あります。このモデルは最大 {max} 本です",
+          "audio": "参考音声が {count} 本あります。このモデルは最大 {max} 本です",
+          "total": "参考素材が合計 {count} 件あります。このモデルは最大 {max} 件です"
+        },
+        "tooManyWithCharacters": {
+          "image": "参考画像が {count} 枚あります（{names} の {characterImages} 枚を含む）。このモデルは最大 {max} 枚です",
+          "total": "参考素材が合計 {count} 件あります（{names} の画像 {characterImages} 枚を含む）。このモデルは最大 {max} 件です"
+        },
+        "unsupported": {
+          "image": "このモデルは参考画像を受け付けません。接続を外すか別のモデルを選んでください",
+          "video": "このモデルは参考動画を受け付けません。接続を外すか対応モデルを選んでください",
+          "audio": "このモデルは参考音声を受け付けません。接続を外すか対応モデルを選んでください",
+          "total": "このモデルは参考素材を受け付けません"
+        },
+        "audioOnly": "このモデルは参考音声だけでは送れません。画像か動画を追加してください",
+        "clipTooLong": {
+          "video": "「{name}」は {seconds} 秒です。このモデルの参考動画は 1 本 {limit} 秒までです",
+          "audio": "「{name}」は {seconds} 秒です。このモデルの参考音声は 1 本 {limit} 秒までです"
+        },
+        "clipTooShort": {
+          "video": "「{name}」は {seconds} 秒しかありません。このモデルの参考動画は 1 本 {limit} 秒以上必要です",
+          "audio": "「{name}」は {seconds} 秒しかありません。このモデルの参考音声は 1 本 {limit} 秒以上必要です"
+        },
+        "totalTooLong": {
+          "video": "参考動画の合計が {seconds} 秒です。このモデルは合計 {max} 秒までです",
+          "audio": "参考音声の合計が {seconds} 秒です。このモデルは合計 {max} 秒までです"
+        }
+      },
+      "generateDesk": {
+        "failed": "生成に失敗：{reason}",
+        "noModel": "まずモデルを選択",
+        "noGenerate": "このテキストから生成するには、つながるノードを作ってください"
+      },
+      "renameNode": "ノード名を変更",
+      "expandNode": "展開",
+      "collapseNode": "折りたたむ",
+      "renameTaken": "その名前は他のノードが使用中です",
+      "toolbar": {
+        "download": "ダウンロード",
+        "clone": "空ノードを複製",
+        "tidy": "整列",
+        "delete": "ノードを削除"
+      },
+      "review": {
+        "approve": "承認",
+        "reject": "差し戻し",
+        "state": {
+          "awaiting_review": "確認待ち",
+          "rejected": "差し戻し済み",
+          "approved": "承認済み"
+        }
+      },
+      "readout": {
+        "dimensions": "{width}×{height}",
+        "sourceGenerated": "生成画像",
+        "sourceExisting": "既存画像"
+      },
+      "relations": {
+        "title": "使用先",
+        "empty": "まだ使われていません",
+        "chip": "{name} · {slot}"
+      },
+      "evidence": {
+        "title": "送信プレビュー（{count}）",
+        "model": "モデル",
+        "prompt": "プロンプト",
+        "blocked": "実行できません",
+        "none": "—",
+        "slotValue": "{name}（全 {count} 版）"
+      },
+      "gallery": {
+        "title": "{slot}ギャラリー（{count}）",
+        "add": "＋追加",
+        "empty": "ギャラリーは空です",
+        "remove": "外す",
+        "extract": "切り離す"
+      },
+      "voice": {
+        "slotStates": {
+          "empty": "音声未選択",
+          "loading": "処理中",
+          "bound": "音声設定済み",
+          "failed": "失敗"
+        },
+        "providerFallback": "提供元不明",
+        "noSample": "試聴サンプルはまだありません",
+        "openLibrary": "ボイスライブラリ",
+        "uploadAudio": "音声をアップロード",
+        "uploading": "アップロード中…",
+        "uploadFailed": "アップロード失敗：{reason}",
+        "uploadRetry": "再アップロード",
+        "ownerLabel": "担当キャラクター",
+        "ownerNone": "ナレーション",
+        "ownerCustom": "手入力…",
+        "ownerCustomPlaceholder": "キャラクター名",
+        "speedLabel": "話す速さ",
+        "volumeLabel": "音量",
+        "emotionLabel": "感情",
+        "emotions": {
+          "none": "なし",
+          "calm": "落ち着き",
+          "angry": "怒り",
+          "sad": "悲しみ",
+          "surprised": "驚き"
+        }
+      },
+      "mentionGroups": {
+        "text": "テキスト",
+        "image": "画像",
+        "audio": "音声",
+        "video": "動画"
+      },
+      "player": {
+        "empty": "動画はまだありません",
+        "play": "再生",
+        "pause": "一時停止",
+        "mute": "ミュート",
+        "unmute": "ミュート解除",
+        "progress": "再生位置",
+        "download": "ダウンロード",
+        "captureFrames": "サムネイルを取得"
+      },
+      "ingest": {
+        "chooseSlot": "どのスロットに？",
+        "chooseSlotCancel": "キャンセル"
+      },
+      "chrome": {
+        "add": "追加",
+        "send": "送信",
+        "cancel": "キャンセル",
+        "close": "閉じる",
+        "download": "ダウンロード",
+        "charCount": "{count} 文字",
+        "versions": "バージョン",
+        "versionOf": "{total} 件中 {index} 件目",
+        "emptyHint": "アップロード · 貼り付け · またはプロンプトを入力",
+        "emptyUpload": "アップロード",
+        "emptyLibrary": "素材ライブラリ",
+        "mentionPicker": "メンション候補",
+        "mediaMissing": {
+          "gone": {
+            "image": "この画像はアセットから削除されました",
+            "video": "この動画はアセットから削除されました",
+            "audio": "この音声はアセットから削除されました"
+          },
+          "unreachable": {
+            "image": "この画像を今は読み込めません",
+            "video": "この動画を今は読み込めません",
+            "audio": "この音声を今は読み込めません"
+          },
+          "remove": "キャンバスから外す",
+          "removeVersion": "この版を外す",
+          "retry": "再試行"
+        },
+        "slashPicker": "テンプレート候補",
+        "myTemplates": "マイテンプレート"
+      },
+      "text": {
+        "empty": "続きを書く……",
+        "emptyStart": "ダブルクリックして書く",
+        "emptyAssist": "またはアシスタントに書いてもらう",
+        "editAriaLabel": "本文を編集",
+        "roles": {
+          "script": "脚本",
+          "style": "スタイル",
+          "character": "キャラクター"
+        },
+        "toolbar": {
+          "ariaLabel": "テキストノードの操作",
+          "shotImage": "画像を作る",
+          "video": "カットを作る",
+          "more": "その他",
+          "split": "段落ごとに分割",
+          "renameNode": "このテキストの名前を変更",
+          "cloneNode": "このテキストカードを複製",
+          "deleteNode": "このテキストを削除",
+          "expand": "展開",
+          "download": "ダウンロード"
+        },
+        "assist": {
+          "placeholder": "アシスタントに書いてもらう……",
+          "ariaLabel": "アシスタントに書いてもらう",
+          "continue": "続きを書く",
+          "rewrite": "書き直す",
+          "model": "執筆モデル"
+        },
+        "card": {
+          "resize": "ドラッグして高さを変更"
+        },
+        "tag": {
+          "title": "種別と役割",
+          "subtype": "種別",
+          "role": "役割"
+        },
+        "subtypes": {
+          "script": "脚本",
+          "shotNote": "カット説明",
+          "rule": "ルール"
+        },
+        "doc": {
+          "title": "{name}.md",
+          "formatAriaLabel": "書式",
+          "heading": "見出しレベル",
+          "h1": "見出し 1",
+          "h2": "見出し 2",
+          "h3": "見出し 3",
+          "bulleted": "箇条書き",
+          "numbered": "番号付きリスト",
+          "bold": "太字",
+          "strike": "取り消し線",
+          "italic": "斜体",
+          "underline": "下線",
+          "mentionAriaLabel": "引用候補",
+          "mentionEmpty": "引用できるカードがありません"
+        },
+        "script": {
+          "metaShots": "{count} カット",
+          "metaActs": "{acts} 幕 · {shots} カット",
+          "seconds": "{seconds}s",
+          "more": "+ {count} カット…",
+          "empty": "カットがまだありません —— 「カット1」「S01」や # 見出しで本文を区切ってください",
+          "changed": "変更あり",
+          "listAriaLabel": "カット一覧",
+          "project": "確認 · {count} カットを投影",
+          "projected": "投影済み · {count} カット",
+          "reproject": "再投影 · {count} カット変更"
+        }
+      },
+      "image": {
+        "uploading": "画像をアップロード中…",
+        "toolbar": {
+          "label": "画像操作",
+          "edit": "編集",
+          "more": "その他",
+          "connect": "ショットに接続",
+          "storyboard": "絵コンテ"
+        },
+        "edit": {
+          "inpaint": "部分描き直し",
+          "upscale": "アップスケール",
+          "cutout": "背景除去",
+          "background": "背景差し替え"
+        },
+        "add": {
+          "upload": "ファイルをアップロード",
+          "library": "素材ライブラリから選ぶ…",
+          "canvas": "キャンバス上の画像",
+          "canvasEmpty": "追加できる画像はまだありません"
+        },
+        "rail": {
+          "title": "参考画像",
+          "group": "画像",
+          "open": "開く",
+          "remove": "外す",
+          "upload": "アップロード",
+          "library": "素材ライブラリから",
+          "itemLabel": "画像{index}：{name}",
+          "full": "上限です（{limit}）",
+          "mentionGroup": "参考画像",
+          "retry": "再試行",
+          "uploading": "{name} をアップロード中",
+          "uploadFailed": "{name} のアップロードに失敗"
+        },
+        "more": {
+          "setCharacter": "キャラクターにする",
+          "rename": "この画像の名前を変更",
+          "duplicate": "この画像カードを複製",
+          "splitVersion": "現在のバージョンを切り出す",
+          "source": "出所",
+          "delete": "この画像を削除",
+          "newShot": "新規ショット"
+        },
+        "frame": {
+          "title": "画面",
+          "referenceLabel": "参照",
+          "dropOrPaste": "ここにドロップ、または ⌘V",
+          "aspectRatio": "比率",
+          "quality": "品質",
+          "resolution": "解像度",
+          "count": "枚数"
+        },
+        "storyboard": {
+          "split3": "3×3 に分割",
+          "split2": "2×2 に分割",
+          "splitting": "分割中…",
+          "notDetected": "9 コマとして認識できませんでした",
+          "manualSplit": "手動で分割",
+          "dismiss": "閉じる",
+          "fallbackName": "絵コンテ",
+          "cellName": "{name} · {n}",
+          "sourceLabel": "9 コマ · {name} · {n} コマ目",
+          "unreadable": "この画像のピクセルを読めないため分割できません",
+          "uploadFailed": "{n} コマ目を素材ライブラリに保存できなかったため、分割しませんでした",
+          "failed": "分割できませんでした。元の画像はそのままです"
+        },
+        "batchPick": {
+          "label": "{count} 枚できました。今使う 1 枚を選んでください",
+          "option": "{n} 枚目"
+        },
+        "promptPlaceholder": "この画像を説明…",
+        "promptLabel": "画像プロンプト",
+        "advanced": {
+          "label": "詳細設定",
+          "labelChanged": "詳細設定 · 変更あり",
+          "seed": "シード",
+          "seedRandom": "ランダム",
+          "seedShuffle": "シードを変える",
+          "seedLock": "シードを固定（毎回同じ値で送信）",
+          "seedUnlock": "固定を解除（毎回ランダム）",
+          "seedBatchHint": "複数枚のときは 1 枚ごとに +1",
+          "negative": "ネガティブプロンプト",
+          "negativePlaceholder": "入れたくないもの（例：文字、透かし）"
+        },
+        "send": {
+          "estimate": "≈{amount}",
+          "estimateLabel": "今回は約 {amount}。開くと計算を表示",
+          "estimateTitle": "今回のおおよその費用",
+          "estimateDetail": "{unit} / 枚 × {count} 枚 ≈ {amount}",
+          "estimateNote": "このチャネルの単価からの参考価格で、請求額ではありません。",
+          "needsKey": "キーを設定",
+          "needsKeyLabel": "このモデルはまだキーがありません。クリックしてその場で設定",
+          "switchChannel": "{from} はキー未設定 · {to} に切り替え",
+          "switchChannelPrice": "{from} はキー未設定 · {to} に切り替え {price}",
+          "switchChannelLabel": "このカードの {from} はキー未設定ですが、同じモデルの {to} は設定済みです。クリックで {to} に切り替え"
+        },
+        "template": {
+          "remove": "絵コンテなし",
+          "countLocked": "絵コンテで枚数固定",
+          "fullTextShow": "送信時に絵コンテ文を付加 · 全文を見る",
+          "fullTextHide": "絵コンテ文を閉じる",
+          "storyPlaceholder": "（あなたの一文）",
+          "grid3": {
+            "name": "9 コマ絵コンテ",
+            "short": "9 コマ",
+            "hint": "3×3 の連続コマを 1 枚で生成し、9 枚のカードに分割"
+          },
+          "grid2": {
+            "name": "4 コマストーリー",
+            "short": "4 コマ",
+            "hint": "2×2 の起承転合を 1 枚で生成し、4 枚のカードに分割"
+          },
+          "sequence4": {
+            "name": "連続ショット",
+            "short": "連続ショット",
+            "hint": "4 枚を同時に生成、1 枚 1 場面・同じ絵柄でバージョンに入る"
+          }
+        }
+      },
+      "audio": {
+        "toolbar": {
+          "label": "音声操作",
+          "tone": "話し方を加える",
+          "transcribe": "文字起こし",
+          "transcribeFailed": "文字起こしに失敗しました",
+          "shot": "カット生成",
+          "more": "その他",
+          "transcribing": "文字起こし中…",
+          "trimming": "トリム中…",
+          "trim": "トリム",
+          "connect": "ショットに接続"
+        },
+        "add": {
+          "upload": "ファイルをアップロード",
+          "library": "素材ライブラリから選ぶ…",
+          "voiceLibrary": "ボイスライブラリ…",
+          "referenceUnavailable": "参考音声には正確な書き起こしが必要なため、キャンバスの音声はまだ追加できません",
+          "uploadShortcut": "⌘U"
+        },
+        "emptyHint": "アップロード · 既存から選ぶ · またはセリフを書いて生成",
+        "emptyVoiceLibrary": "ボイスライブラリ",
+        "emptyNextStep": "またはセリフを書いて生成",
+        "promptPlaceholder": "セリフを書く、または音声をアップロード…",
+        "promptPlaceholderMusic": "作りたい音楽を説明…",
+        "promptPlaceholderSfx": "この効果音を説明…",
+        "promptLabel": "セリフ",
+        "play": "再生",
+        "pause": "一時停止",
+        "voice": {
+          "title": "声",
+          "mine": "マイボイス",
+          "cloned": "クローン",
+          "favorited": "保存済み",
+          "preview": "試聴",
+          "clone": "自分の声をクローン…",
+          "speed": "速度",
+          "volume": "音量",
+          "loading": "読み込み中…",
+          "empty": "まだ声がありません。ライブラリから選んでください",
+          "more": "もっと見る…"
+        },
+        "model": {
+          "title": "モデル",
+          "kinds": {
+            "speech": "音声",
+            "music": "音楽",
+            "sfx": "効果音"
+          }
+        },
+        "tone": {
+          "title": "このセリフに話し方を加える",
+          "hint": "文頭に挿入、2 つまで",
+          "emotionLabel": "感情",
+          "toneLabel": "話し方",
+          "intensityLabel": "強さ",
+          "intensities": {
+            "light": "弱",
+            "medium": "中",
+            "strong": "強"
+          },
+          "customLabel": "話し方を自由に指定",
+          "customPlaceholder": "カスタム：例「笑いをこらえて」…",
+          "apply": "挿入",
+          "chipTitle": "{intensity}・{label}"
+        },
+        "owner": {
+          "title": "キャラクターを割り当て…",
+          "none": "ナレーション"
+        },
+        "durationUnknown": "--:--",
+        "more": {
+          "splitVersion": "このバージョンを切り出す",
+          "source": "出どころ",
+          "rename": "この音声の名前を変更",
+          "duplicate": "この音声カードを複製",
+          "delete": "この音声を削除"
+        },
+        "source": {
+          "platformSample": "ボイスライブラリ · サンプル音声",
+          "history": "ボイスライブラリ · 自分の履歴",
+          "voiceRoom": "ボイスライブラリ · アフレコ室",
+          "library": "素材ライブラリ",
+          "upload": "アップロード",
+          "generated": "このカードで生成",
+          "trim": "前のバージョンからトリム"
+        },
+        "library": {
+          "title": "ボイスライブラリ",
+          "searchLabel": "声を検索",
+          "searchPlaceholder": "声・キャラ・セリフを検索…",
+          "tabsLabel": "出どころで絞り込む",
+          "tabs": {
+            "platformSample": "公式",
+            "history": "履歴",
+            "voiceRoom": "アフレコ室",
+            "library": "素材",
+            "favorites": "お気に入り"
+          },
+          "loading": "読み込み中…",
+          "empty": "まだ何もありません",
+          "durationUnknown": "--:--",
+          "preview": "試聴",
+          "use": "これを使う",
+          "useFailed": "この音声を取得できませんでした。もう一度お試しください。",
+          "setVoice": "声に設定",
+          "footerHint": "これを使う = カードに音声を追加 · 声に設定 = これからのセリフをこの声で",
+          "clone": "自分の声をクローン…",
+          "groups": {
+            "today": "今日",
+            "yesterday": "昨日",
+            "earlier": "それ以前"
+          },
+          "dateGroups": {
+            "today": "今日",
+            "yesterday": "昨日",
+            "earlier": "それ以前"
+          }
+        },
+        "trim": {
+          "title": "トリム",
+          "selectionWindow": "選択範囲",
+          "inPoint": "開始位置",
+          "outPoint": "終了位置",
+          "range": "選択 {start} – {end}",
+          "preview": "選択範囲を試聴",
+          "pausePreview": "試聴を一時停止",
+          "keyEsc": "Esc キャンセル",
+          "confirm": "確定",
+          "confirming": "トリム中…",
+          "failed": "トリムに失敗しました",
+          "derivedName": "{name} · トリム"
+        }
+      },
+      "video": {
+        "emptyHint": "動画をアップロード · またはこのカットの撮り方を書く",
+        "emptyPromptPlaceholder": "このカットの撮り方を書く…",
+        "toolbar": {
+          "label": "動画の操作",
+          "continue": "続きを撮る",
+          "extract": "フレーム抽出",
+          "more": "その他",
+          "expand": "展開"
+        },
+        "add": {
+          "upload": "ファイルをアップロード",
+          "uploadForSlot": "アップロード…",
+          "library": "素材ライブラリから選ぶ…"
+        },
+        "more": {
+          "rename": "名前を変更",
+          "quickLook": "クイックルック",
+          "splitVersion": "このバージョンを切り出す",
+          "addToEditDesk": "編集台に追加",
+          "duplicate": "この動画カードを複製",
+          "delete": "このショットを削除",
+          "renameNode": "このショットの名前を変更",
+          "source": "出どころ"
+        },
+        "frame": {
+          "title": "映像",
+          "duration": "長さ",
+          "aspectRatio": "比率",
+          "resolution": "解像度",
+          "generateAudio": "音声を生成",
+          "generateAudioHint": "動画と一緒に音声を生成します。オフにすると音声なしの動画になります。",
+          "audioSuffix": "音声あり",
+          "regenerate": "再生成",
+          "regenerateShortcut": "⌘↵",
+          "generate": "生成",
+          "askAssistant": "アシスタントに書かせる",
+          "referenceLabel": "参照",
+          "referenceHint": "ここにドロップ、または ⌘V",
+          "referenceAdd": "参照を追加",
+          "upload": "アップロード",
+          "library": "素材",
+          "emptyNote": "このカットの撮り方を書く…",
+          "editAriaLabel": "カット説明を編集",
+          "readout": "{chars} 文字 · {slots} 件を接続中",
+          "pickModel": "モデルを選ぶ",
+          "audioOn": "音声あり — クリックでオフ",
+          "audioOff": "音声なし — クリックでオン"
+        },
+        "model": {
+          "title": "モデル"
+        },
+        "promptPlaceholder": "このカットを説明…",
+        "promptLabel": "カットのプロンプト",
+        "tailFrameName": "{name} の最終フレーム",
+        "mode": {
+          "omniReference": "マルチモーダル参照",
+          "firstLastFrame": "開始・終了フレーム",
+          "imageToVideo": "画像から動画",
+          "textToVideo": "テキストから動画"
+        },
+        "rail": {
+          "title": "参照 · ドロップまたは ⌘V",
+          "badge": {
+            "image": "画{index}",
+            "video": "動{index}",
+            "voice": "音{index}"
+          },
+          "group": {
+            "image": "画像",
+            "video": "動画",
+            "voice": "音声"
+          },
+          "roleBadge": {
+            "firstFrame": "開始",
+            "lastFrame": "終了"
+          },
+          "setRole": {
+            "firstFrame": "開始フレームにする",
+            "lastFrame": "終了フレームにする",
+            "reference": "参照にする"
+          },
+          "open": "開く",
+          "remove": "外す",
+          "upload": "アップロード",
+          "library": "ライブラリから",
+          "fromCanvas": {
+            "image": "キャンバスの画像",
+            "video": "キャンバスの動画",
+            "voice": "キャンバスの音声"
+          },
+          "itemLabel": "{group}{index}：{name}",
+          "addLabel": "{group}を追加",
+          "full": "上限に達しました（最大 {limit}）",
+          "referenceUnavailable": "このモデルは参照素材に対応していないため、添付した素材は送信されません",
+          "mentionGroup": "参照レーン",
+          "retry": "再試行",
+          "uploading": "{name} をアップロード中",
+          "uploadFailed": "{name} のアップロードに失敗しました"
+        },
+        "scriptShot": {
+          "changed": "変更あり",
+          "dropped": "脚本から削除"
+        },
+        "framePick": {
+          "title": "抽出するフレームを選ぶ",
+          "scrub": "ドラッグしてフレームを選ぶ",
+          "keyEsc": "Esc でキャンセル",
+          "confirm": "このフレームを使う",
+          "confirming": "抽出中…"
+        }
+      },
+      "connectToShot": {
+        "searchLabel": "ショットを検索",
+        "searchPlaceholder": "ショットを検索…",
+        "new": "新しいショット",
+        "newHint": "右側にカードを作成して接続",
+        "listLabel": "キャンバス上のショット · ショット順",
+        "empty": "キャンバスにショットがありません",
+        "noMatch": "一致するショットがありません",
+        "durationUnknown": "--:--",
+        "occupied": "{slot}あり · 差し替え",
+        "connectInto": "{name} の{slot}に接続",
+        "replaceIn": "{name} の{slot}を差し替え"
+      },
+      "character": {
+        "imagesTab": "画像",
+        "textTab": "テキスト",
+        "tabsLabel": "キャラクターの内容",
+        "placeImage": "キャンバスに置く",
+        "placedName": "{name} · 画像 {index}",
+        "imagesHint": "カード {onCard} 枚 · このキャラで生成 {made} 枚 · クリックでキャンバスに置く",
+        "imagesLoading": "このキャラで生成した画像を探しています…",
+        "readOnly": "閲覧のみ · 編集はキャラクターページで",
+        "writeScript": "アシスタントに脚本を頼む",
+        "writeLines": "セリフを書く",
+        "writeScriptDraft": "@{name} で脚本を書いて：",
+        "writeLinesDraft": "@{name} のセリフを書いて：",
+        "noText": "設定はまだありません",
+        "deleted": "このキャラクターは削除されました",
+        "noImages": "画像がまだありません",
+        "noImagesHint": "@ では名前と外見の説明だけを渡します",
+        "addImages": "キャラクターページで画像を追加"
+      },
+      "characterMention": {
+        "group": "キャラクター",
+        "pickerLabel": "{name} がこのカットで使う画像",
+        "chipLabel": "{name} · {count} 枚",
+        "count": "このカットで {count} 枚",
+        "limit": "このモデルの参照画像は最大 {max} 枚 · 使用中 {used} 枚（レールの画像を含む）"
+      },
+      "handoff": {
+        "newProjectName": "ワークベンチから"
+      },
+      "upscale": {
+        "noImage": "このカードにはまだ拡大できる画像がありません",
+        "failed": "拡大できませんでした"
+      },
+      "scriptRejected": {
+        "alreadyProjected": "この台本はすでに展開済みです。変更をショットに反映するには「再展開」を使ってください。",
+        "notProjected": "この台本はまだ展開されていません。先に一度展開してください。",
+        "emptyScript": "台本にショットに分けられる段落がありません。",
+        "notScriptNode": "ショットに展開できるのは台本カードだけです。"
+      }
+    },
+    "rerunDownstream": {
+      "title": "「{origin}」を変更しました。影響する{count}件のノードが再実行の対象です",
+      "free": "クレジット不要",
+      "estimate": "クレジットが必要：{summary}",
+      "noCost": "このバッチはクレジットを使いません",
+      "menu": "影響するノードを再実行",
+      "ask": "「{name}」を変更しました。影響を受けるノードを、再実行する前に一覧で見せてください。"
+    },
+    "textAssist": {
+      "continue": "「{name}」の本文の続きを書いてください：{prompt}",
+      "rewrite": "「{name}」の本文を書き直してください：{prompt}",
+      "plain": "「{name}」の本文について：{prompt}"
+    },
+    "shell": {
+      "project": {
+        "saved": "保存済み",
+        "saving": "保存中",
+        "open": "プロジェクト",
+        "search": "プロジェクトを検索…",
+        "empty": "該当するプロジェクトがありません",
+        "nodeCount": "{count} ノード",
+        "new": "新規プロジェクト",
+        "more": "その他",
+        "rename": "名前を変更",
+        "duplicate": "複製",
+        "delete": "削除",
+        "duplicateSuffix": "{name} のコピー"
+      },
+      "editDesk": "編集台",
+      "assistant": "アシスタント",
+      "panels": {
+        "addNode": "ノードを追加",
+        "nodes": "ノード",
+        "project": "現在のプロジェクト",
+        "history": "履歴",
+        "cards": "キャラクター",
+        "library": "素材ライブラリ",
+        "searchNodes": "ノードを検索…",
+        "refCount": "参照 {count}",
+        "cardsHint": "クリックでキャンバスに置く",
+        "libraryHint": "アップロードと生成 · 新しい順",
+        "libraryAll": "すべて",
+        "libraryImage": "画像",
+        "libraryVideo": "動画",
+        "libraryAudio": "音声",
+        "loadMore": "もっと読み込む",
+        "placeHint": "クリックで中央に配置 · ドラッグでも可",
+        "empty": "まだ何もありません",
+        "loading": "読み込み中…",
+        "close": "パネルを閉じる",
+        "libraryUpload": "アップロード",
+        "libraryManageFolders": "フォルダと素材を管理 ↗",
+        "libraryLoadFailed": "読み込み失敗。クリックして再試行",
+        "cardsEmpty": "キャラクターはまだいません",
+        "cardsEmptyHint": "キャラクターページで作成するとここに表示されます。",
+        "cardsOpenRoster": "キャラクターページへ",
+        "cardsMeta": "{work} · {count} 枚",
+        "cardsOnCanvas": "キャンバス上",
+        "cardsOriginal": "オリジナル"
+      },
+      "add": {
+        "text": "テキスト",
+        "image": "画像",
+        "audio": "音声",
+        "video": "動画",
+        "group": "新規",
+        "paste": "貼り付け",
+        "tidy": "レイアウト整理",
+        "fit": "全体表示",
+        "menu": "キャンバスメニュー",
+        "upload": "アップロード",
+        "uploadMenu": "アップロード…"
+      },
+      "palette": {
+        "title": "コマンドパレット",
+        "placeholder": "ノード検索 · 新規 · 質問…",
+        "nodes": "ノード",
+        "actions": "アクション",
+        "projects": "プロジェクト",
+        "locate": "移動",
+        "create": "{kind}「{query}」を新規作成",
+        "createEmpty": "{kind}を新規作成",
+        "ask": "アシスタントに質問：{query}",
+        "askEmpty": "アシスタントに質問",
+        "openEditDesk": "編集台を開く",
+        "switchTo": "「{name}」に切り替え",
+        "empty": "該当なし",
+        "upload": "素材をアップロード…"
+      },
+      "bottom": {
+        "select": "選択",
+        "hand": "ハンド",
+        "zoomOut": "縮小",
+        "zoomIn": "拡大",
+        "fit": "全体表示",
+        "tidy": "レイアウト整理",
+        "undo": "元に戻す",
+        "redo": "やり直す",
+        "zoom": "ズーム {percent}%"
+      },
+      "assistantDock": {
+        "collapse": "アシスタントを閉じる",
+        "expand": "アシスタントを開く",
+        "resize": "ドラッグで幅を調整"
+      },
+      "minimap": {
+        "collapse": "ミニマップを閉じる",
+        "expand": "ミニマップを開く"
+      }
+    },
+    "editDesk": {
+      "title": "編集台",
+      "back": "キャンバスに戻る",
+      "readout": "{duration} · {aspect} · {resolution}",
+      "undo": "取り消す",
+      "export": "書き出し",
+      "untitled": "無題のカット",
+      "panels": {
+        "canvas": "キャンバス素材",
+        "library": "ライブラリ",
+        "audio": "オーディオ",
+        "text": "テキスト",
+        "transition": "トランジション",
+        "dragHint": "タイムラインへドラッグ",
+        "empty": "このプロジェクトにはまだ使えるクリップがありません",
+        "textEmpty": "キャンバスにテキストカードがまだありません",
+        "loading": "読み込み中…",
+        "loadMore": "もっと読み込む",
+        "libraryEmpty": "素材ライブラリに動画も音声もまだありません",
+        "title": "素材",
+        "addCaption": "再生ヘッド位置に字幕を追加",
+        "short": {
+          "canvas": "素材",
+          "library": "ライブラリ",
+          "audio": "音声",
+          "text": "テキスト",
+          "transition": "つなぎ"
+        }
+      },
+      "tracks": {
+        "video": "メイン",
+        "audio": "セリフ",
+        "music": "音楽",
+        "empty": "ここに素材をドロップ",
+        "text": "字幕",
+        "textEmpty": "左の「テキスト」から追加"
+      },
+      "tools": {
+        "split": "分割",
+        "remove": "削除",
+        "removeConfirm": "削除を確定"
+      },
+      "overview": "全体",
+      "versions": {
+        "title": "テイク",
+        "hint": "{name} · ホバーで比較",
+        "take": "テイク {n}",
+        "seconds": "{sec}s",
+        "fromCanvas": "キャンバス",
+        "compareInUse": "使用中",
+        "fresh": "{from} · 新",
+        "badge": "テイク {n}/{count}",
+        "badgeFresh": "テイク {n}/{count} · キャンバスに新しいテイク"
+      },
+      "retake": {
+        "action": "撮り直し",
+        "generate": "生成",
+        "generating": "生成中",
+        "previewGenerating": "テイク {n} 生成中",
+        "failed": "テイク {n} を生成できませんでした：{reason}。プロンプトを直してもう一度どうぞ。",
+        "failedBadge": "撮り直しに失敗 · 開いて理由を見る"
+      },
+      "continue": {
+        "action": "続きを撮る",
+        "pending": "未生成",
+        "previewPending": "このカットはまだ映像がありません · プロンプトを書いて生成"
+      },
+      "clipTag": "{name} · {duration}",
+      "previewTitle": "プレビュー · {name}",
+      "previewEmpty": "再生ヘッドの位置にクリップがありません",
+      "stage": "プレビュー",
+      "stageEmpty": "まだクリップがありません",
+      "stageEmptyAction": "キャンバスの素材からショットを追加",
+      "play": "再生",
+      "pause": "一時停止",
+      "mute": "ミュート",
+      "unmute": "ミュート解除",
+      "clipDuration": "{seconds}s",
+      "trim": "{edge} {from} → {to} · 長さ {length}s",
+      "zoom": {
+        "label": "タイムラインのズーム",
+        "in": "拡大",
+        "out": "縮小",
+        "fit": "全体表示"
+      },
+      "clock": "{at} / {total}",
+      "inspector": {
+        "empty": "クリップを選ぶと設定が出ます",
+        "sourceGone": "ソースカードは削除済み",
+        "inPoint": "開始位置",
+        "outPoint": "終了位置",
+        "speed": "速度",
+        "speedOption": "{speed}×",
+        "sound": "元の音声",
+        "soundOn": "オン",
+        "soundOff": "オフ",
+        "gain": "音量",
+        "transition": "トランジション",
+        "transitions": {
+          "none": "なし",
+          "crossfade": "クロスフェード",
+          "black": "暗転",
+          "wipe": "ワイプ",
+          "push": "プッシュ",
+          "zoom": "ズーム",
+          "iris": "アイリス"
+        },
+        "backToNode": "このカットをノードで再生成",
+        "backToNodeShort": "ノードへ"
+      },
+      "exportDialog": {
+        "title": "カットを書き出す",
+        "description": "範囲と解像度を選びます。レンダリングはサーバー側で走るのでページを離れても大丈夫です。",
+        "range": "範囲",
+        "ranges": {
+          "all": "全体",
+          "inOut": "イン/アウト区間",
+          "clip": "選択中のクリップ"
+        },
+        "toCanvas": "キャンバスへ書き出す（カットが動画カードになります）",
+        "resolution": "解像度",
+        "confirm": "書き出し開始",
+        "pending": "「{range}」の書き出しは、まだ準備中です。"
+      },
+      "shotTag": "カット {n} · {name}",
+      "render": {
+        "exporting": "書き出し中 · {step} {percent}%",
+        "done": "カットができました",
+        "cancel": "キャンセル",
+        "dismiss": "閉じる",
+        "download": "ダウンロード",
+        "sourceLabel": "編集台から · {name}",
+        "landed": "「{name}」をキャンバスに置きました",
+        "failed": "書き出しに失敗しました。もう一度試すか、範囲を変えてみてください。",
+        "resume": "前回の書き出し「{name}」がまだ終わっていません",
+        "resumeContinue": "続ける",
+        "resumeRestart": "やり直す",
+        "status": {
+          "queued": "待機中",
+          "running": "レンダリング中",
+          "completed": "完了",
+          "failed": "失敗",
+          "cancelled": "キャンセル済み"
+        },
+        "steps": {
+          "download": "素材の取得",
+          "normalize": "形式を調整中",
+          "compose": "組み合わせ中",
+          "encode": "エンコード",
+          "poster": "サムネイル",
+          "upload": "アップロード"
+        },
+        "planError": {
+          "emptyTimeline": "タイムラインにまだ映像がありません。動画カードをドラッグしてください。",
+          "missingSource": "あるクリップの素材が見つかりません。元のノードが残っているか確認してください。",
+          "pendingSource": "まだ生成されていないクリップがあります（続きの仮クリップ）。生成するか削除してから書き出してください。",
+          "emptyRange": "この範囲には書き出せるものがありません。",
+          "zeroDuration": "書き出しの長さが 0 秒です。",
+          "tooManySegments": "クリップが多すぎます。いくつか減らしてから書き出してください。",
+          "tooLong": "一度のレンダリングの上限より長いカットです。"
+        }
+      },
+      "receipt": {
+        "claudeChanged": "Claude が {count} クリップを変更しました",
+        "undo": "元に戻す",
+        "undone": "元に戻しました",
+        "claudeExported": "Claude がカットを書き出しました · キャンバスに置きました",
+        "look": "見る",
+        "backToCanvas": "キャンバスで見る",
+        "removed": "「{name}」を削除",
+        "removedWith": "「{name}」を削除（{riders}も一緒に）",
+        "riderLines": "セリフ {count} 件",
+        "riderCaptions": "字幕 {count} 件",
+        "ridersJoiner": "・"
+      },
+      "audioFilters": {
+        "all": "すべて",
+        "voice": "音声",
+        "music": "BGM"
+      },
+      "libraryFilters": {
+        "all": "すべて",
+        "video": "動画",
+        "audio": "オーディオ"
+      },
+      "transitionPanel": {
+        "hint": "2 つのクリップの継ぎ目にドロップ"
+      },
+      "seam": {
+        "title": "トランジション",
+        "between": "ショット {from} → ショット {to}",
+        "duration": "長さ",
+        "durationHint": "2 つのクリップが書き出しで重なる長さです。そのぶん全体が短くなります。",
+        "seconds": "{sec}s",
+        "hardCut": "カットに戻す",
+        "markerAdd": "トランジションを追加",
+        "markerSet": "トランジション · {name}"
+      },
+      "library": {
+        "sourceLabel": "素材ライブラリより · {name}",
+        "landFailed": "この素材をキャンバスに配置できませんでした。もう一度お試しください。"
+      },
+      "text": {
+        "placeholder": "ダブルクリックで編集",
+        "editInPreview": "プレビュー上で編集",
+        "doubleClickHint": "ダブルクリックで編集",
+        "anchor": "位置",
+        "anchors": {
+          "tl": "左上",
+          "tc": "上中央",
+          "tr": "右上",
+          "ml": "左中央",
+          "mc": "中央",
+          "mr": "右中央",
+          "bl": "左下",
+          "bc": "下中央",
+          "br": "右下"
+        },
+        "size": "サイズ",
+        "sizes": {
+          "s": "小",
+          "m": "中",
+          "l": "大"
+        },
+        "tone": "色",
+        "tones": {
+          "light": "白",
+          "dark": "黒"
+        },
+        "inPoint": "開始位置",
+        "outPoint": "終了位置",
+        "fade": "フェード",
+        "fadeNone": "なし",
+        "fadeSeconds": "{fadeSec}s"
+      },
+      "shortcuts": {
+        "title": "ショートカットのプリセット",
+        "presets": {
+          "premiere": "Premiere",
+          "finalCut": "Final Cut"
+        },
+        "actions": {
+          "play": "再生 / 一時停止",
+          "split": "分割",
+          "inOut": "開始 / 終了",
+          "remove": "クリップ削除",
+          "undo": "取り消し",
+          "back": "キャンバスへ戻る"
+        },
+        "finalCutHint": "Final Cut プリセット：分割 ⌘B · その他は同じ。S は常に有効。"
+      }
+    }
+  }
+}

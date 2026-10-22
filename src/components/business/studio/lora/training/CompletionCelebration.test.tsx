@@ -6,7 +6,7 @@ import type { LoraTrainingRecord } from '@/types'
 
 import { CompletionCelebration } from './CompletionCelebration'
 
-import en from '@/messages/en.json'
+import { en } from '@/messages'
 
 const pushMock = vi.fn()
 

@@ -8,6 +8,7 @@ import {
   MARKETING_NAMESPACES,
   OUTSIDE_APP_NAMESPACES,
 } from '@/i18n/messages-split'
+import { en } from '@/messages'
 
 /**
  * ── The ruler for message-bundle slicing ──────────────────────────────
@@ -38,7 +39,6 @@ import {
 
 const SRC_DIR = join(process.cwd(), 'src')
 const APP_DIR = join(SRC_DIR, 'app')
-const MESSAGES_FILE = join(SRC_DIR, 'messages', 'en.json')
 
 const MODULE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mts', '.mjs']
 
@@ -728,16 +728,7 @@ const KNOWN_DYNAMIC_NAMESPACE_SITES: Readonly<
  */
 const KNOWN_DYNAMIC_IMPORT_SITES: Readonly<
   Record<string, { reason: string; calls: readonly string[] }>
-> = {
-  'i18n/request.ts': {
-    // line 14 as of 2026-08-25
-    reason:
-      'Loads the locale message bundle itself (`../messages/<locale>.json`). ' +
-      'Data, not code — a JSON file has no `useTranslations` call to miss. ' +
-      'This is the server-side request config; it never reaches a provider.',
-    calls: ['import(`../messages/${locale}.json`)'],
-  },
-}
+> = {}
 
 /* ═══════════════════ 6. Route model ═══════════════════ */
 
@@ -798,9 +789,7 @@ function discoverRoutes(): Route[] {
 
 /* ═══════════════════ 7. The replaceable input ═══════════════════ */
 
-const ALL_NAMESPACES: readonly string[] = Object.keys(
-  JSON.parse(readFileSync(MESSAGES_FILE, 'utf-8')) as Record<string, unknown>,
-)
+const ALL_NAMESPACES: readonly string[] = Object.keys(en)
 
 /**
  * Namespaces the `NextIntlClientProvider` nearest to `routeDir` ships.

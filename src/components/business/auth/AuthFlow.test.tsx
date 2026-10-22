@@ -3,7 +3,7 @@ import { NextIntlClientProvider } from 'next-intl'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { EmailCodeAuth } from '@/hooks/use-email-code-auth'
-import zh from '@/messages/zh.json'
+import { zh } from '@/messages'
 
 import { AuthFlow } from './AuthFlow'
 

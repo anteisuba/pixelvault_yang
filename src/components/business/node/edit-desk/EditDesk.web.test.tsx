@@ -102,7 +102,7 @@ vi.mock('@/hooks/node/use-video-reference-slots', () => ({
   }),
 }))
 
-import messages from '@/messages/zh.json'
+import { zh as messages } from '@/messages'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import {
   EDIT_DESK_LIBRARY_DRAG_MIME,

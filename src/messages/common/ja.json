@@ -1,0 +1,461 @@
+{
+  "NotFound": {
+    "title": "このページはありません",
+    "description": "お探しのページは移動したか、存在しない可能性があります。ギャラリーに戻りましょう。",
+    "backHome": "ホームに戻る"
+  },
+  "PrivacyConsent": {
+    "label": "プライバシーのお知らせ",
+    "body": "ログイン状態と言語設定のための Cookie、エラー報告のための Sentry は ANTEI の動作に必要です。任意のセッション録画は、テキストをすべてマスクした状態で操作を記録し、不具合の原因把握に使います。",
+    "policyLink": "プライバシーポリシー",
+    "rejectAction": "必要なものだけ",
+    "acceptAction": "同意する"
+  },
+  "Common": {
+    "brand": "ANTEI",
+    "providerGroups": {
+      "ideogram": "Ideogram",
+      "openai": "OpenAI",
+      "google": "Google",
+      "deepseek": "DeepSeek",
+      "novelai": "NovelAI",
+      "fal": "fal.ai",
+      "runway": "Runway",
+      "volcengine": "VolcEngine",
+      "opensource": "オープンソース",
+      "replicate": "Replicate",
+      "runner": "ANTEI Runner",
+      "hyper3d": "Hyper3D",
+      "byteplus": "BytePlus"
+    },
+    "styleGroups": {
+      "photorealistic": "フォトリアル",
+      "anime": "アニメ・イラスト",
+      "design": "デザイン・タイポグラフィ",
+      "artistic": "アート・シネマ",
+      "general": "汎用"
+    },
+    "qualityTiers": {
+      "premium": "プレミアム",
+      "standard": "スタンダード",
+      "budget": "お手頃"
+    },
+    "model": "モデル",
+    "cost": "コスト",
+    "capabilities": "機能",
+    "close": "閉じる",
+    "cancel": "キャンセル",
+    "sidebar": "サイドバー",
+    "sidebarDescription": "モバイル用サイドバーを表示します。",
+    "toggleSidebar": "サイドバーを切り替え",
+    "selectModel": "モデルを選択",
+    "searchModels": "モデル・プロバイダーを検索...",
+    "noModelsFound": "モデルが見つかりません",
+    "savedKey": "自分のキー",
+    "modelCount": "{count, plural, other {# モデル}}",
+    "channelCount": "{count, plural, other {# チャネル}}",
+    "modelFamily": "シリーズ",
+    "modelVariant": "モデル",
+    "unitPrice": {
+      "second": "${amount} / 秒",
+      "image": "${amount} / 枚",
+      "kchars": "${amount} / 1000文字"
+    },
+    "skipToMainContent": "メインコンテンツへ移動",
+    "requestCount": "{count} リクエスト",
+    "loading": "読み込み中",
+    "copy": "コピー",
+    "copied": "コピーしました"
+  },
+  "Toasts": {
+    "createSuccess": "作成しました",
+    "createFailed": "作成に失敗しました",
+    "updateSuccess": "更新しました",
+    "updateFailed": "更新に失敗しました",
+    "deleteSuccess": "削除しました",
+    "deleteFailed": "削除に失敗しました",
+    "apiKeyCreated": "APIキーを追加しました",
+    "apiKeyLoadFailed": "APIキーを読み込めませんでした",
+    "apiKeyCreateFailed": "APIキーの追加に失敗しました",
+    "apiKeyUpdated": "APIキーを更新しました",
+    "apiKeyUpdateFailed": "APIキーの更新に失敗しました",
+    "apiKeyDeleted": "APIキーを削除しました",
+    "apiKeyDeleteFailed": "APIキーの削除に失敗しました",
+    "storyDeleted": "ストーリーを削除しました",
+    "storyDeleteFailed": "ストーリーの削除に失敗しました",
+    "storyCreated": "ストーリーを作成しました",
+    "narrativeGenerated": "ストーリーの文章を生成しました",
+    "narrativeGenerateFailed": "ストーリーの文章を生成できませんでした",
+    "projectCreated": "プロジェクトを作成しました",
+    "projectLoadFailed": "プロジェクトを読み込めませんでした",
+    "projectCreateFailed": "プロジェクトの作成に失敗しました",
+    "projectUpdated": "プロジェクトを更新しました",
+    "projectUpdateFailed": "プロジェクトの更新に失敗しました",
+    "projectDeleted": "プロジェクトを削除しました",
+    "projectDeleteFailed": "プロジェクトの削除に失敗しました",
+    "characterCardCreated": "キャラクターを作成しました",
+    "characterCardLoadFailed": "キャラクターを読み込めませんでした",
+    "characterCardCreateFailed": "キャラクターの作成に失敗しました",
+    "characterCardUpdated": "キャラクターを更新しました",
+    "characterCardUpdateFailed": "キャラクターの更新に失敗しました",
+    "characterCardDeleted": "キャラクターを削除しました",
+    "characterCardDeleteFailed": "キャラクターの削除に失敗しました",
+    "featuredAdded": "プロフィールにピン留めしました",
+    "featuredRemoved": "ピン留めを解除しました",
+    "featuredFailed": "ピン留めの更新に失敗しました",
+    "featuredLimitReached": "ピン留めは最大9件までです",
+    "loraTrainingSubmitted": "LoRA学習を開始しました",
+    "loraTrainingSubmitFailed": "LoRA学習の開始に失敗しました",
+    "loraTrainingComplete": "LoRA の学習が完了しました。モデルを使ってみましょう。",
+    "loraTrainingFailed": "LoRA学習に失敗しました",
+    "signedIn": "ログインしました",
+    "characterCardImported": "{name} を取り込みました",
+    "characterCardImportFailed": "カードを取り込めませんでした。もう一度お試しください。",
+    "characterCardDuplicated": "{name} として複製しました"
+  },
+  "Projects": {
+    "title": "プロジェクト",
+    "allGenerations": "すべての生成",
+    "newProject": "新規プロジェクト",
+    "newProjectPlaceholder": "プロジェクト名",
+    "descriptionPlaceholder": "説明（任意）",
+    "rename": "名前変更",
+    "delete": "削除",
+    "deleteConfirm": "「{name}」を削除しますか？生成物は「すべての生成」に移動します。",
+    "empty": "プロジェクトがありません",
+    "emptyHint": "プロジェクトを作成して生成物を整理しましょう",
+    "generationCount": "{count}件の生成",
+    "history": "履歴",
+    "historyEmpty": "このプロジェクトに生成物はありません",
+    "historyLoadMore": "もっと読み込む",
+    "filterAll": "すべて",
+    "filterImage": "画像",
+    "filterVideo": "動画",
+    "filterAudio": "音声",
+    "cancel": "キャンセル",
+    "save": "保存",
+    "create": "作成",
+    "close": "閉じる"
+  },
+  "Navbar": {
+    "brand": "ANTEI",
+    "signIn": "ログイン",
+    "account": "アカウント",
+    "settings": "設定",
+    "menu": "メニュー",
+    "openMenu": "メニューを開く",
+    "mobileNavigation": "モバイルナビゲーション",
+    "links": {
+      "gallery": "ギャラリー",
+      "create": "作成",
+      "prompts": "プロンプト",
+      "studio": "スタジオ",
+      "library": "アーカイブ",
+      "assets": "アセット",
+      "cards": "キャラクター",
+      "profile": "マイページ"
+    },
+    "groupLabel": "移動先"
+  },
+  "MobileNav": {
+    "create": "新規作成",
+    "close": "閉じる",
+    "quickPlaceholder": "描きたいものを一言で",
+    "quickGo": "生成",
+    "last": "前回",
+    "back": "戻る",
+    "switchTool": "ツールを切り替え",
+    "tabs": {
+      "label": "メインナビゲーション",
+      "profile": "マイ"
+    },
+    "me": {
+      "prompts": "プロンプト",
+      "profileHint": "プロフィールと情報"
+    }
+  },
+  "LocaleSwitcher": {
+    "label": "言語",
+    "options": {
+      "en": "EN",
+      "ja": "JA",
+      "zh": "ZH"
+    },
+    "names": {
+      "en": "English",
+      "ja": "日本語",
+      "zh": "简体中文"
+    }
+  },
+  "Onboarding": {
+    "steps": {
+      "welcome": {
+        "title": "ANTEI へようこそ",
+        "description": "API キーなしで、1日5回まで無料で始められます。あとからキーを追加すると全モデルを選べるようになり、1日の無料枠ではなく各プロバイダーの利用枠で生成できます。"
+      },
+      "model": {
+        "title": "モデルを選択",
+        "description": "「無料」マーク付きモデルは API キー不要で1日5回まで使えます。全モデルを使うには自分のキーを追加してください。"
+      },
+      "samplePrompt": {
+        "title": "サンプルプロンプト準備完了",
+        "description": "サンプルプロンプトを用意しました — 生成ボタンを押してみてください！"
+      },
+      "apiKey": {
+        "title": "自分の API キーを使いますか？",
+        "description": "独自のプロバイダーキーを追加すると無制限に生成できます。デフォルトキーを使う場合はスキップしてください。"
+      },
+      "generate": {
+        "title": "生成！",
+        "description": "準備ができたらこのボタンを押してください。画像はプロンプトとモデル情報とともに自動保存されます。"
+      }
+    }
+  },
+  "Feedback": {
+    "notifications": "通知",
+    "downloadStarted": "ダウンロードを開始しました",
+    "deleteConfirm": "削除を確定",
+    "undo": "元に戻す",
+    "slowLoading": "通信が遅いようです。読み込みを続けています",
+    "batchFailed": "この分を読み込めませんでした",
+    "retry": "再試行",
+    "retrying": "再試行中",
+    "loadingMore": "さらに読み込み中",
+    "endOfList": "これで全部です",
+    "pageLoadFailedHint": "通信が一瞬途切れたかもしれません。再試行しても何も失われません。",
+    "previewFallback": "ひとまず縮小版を表示しています"
+  },
+  "ErrorBoundary": {
+    "title": "エラーが発生しました",
+    "sectionError": "{section}でエラーが発生しました",
+    "description": "予期しないエラーが発生しました。もう一度お試しください。",
+    "retry": "再試行",
+    "retrying": "再試行中",
+    "home": "ホームに戻る"
+  },
+  "GlobalError": {
+    "title": "問題が発生しました",
+    "description": "予期しないエラーが発生しました。チームに通知済みです。",
+    "action": "再試行"
+  },
+  "QuickSetup": {
+    "channelPick": "どのプロバイダーのキーを設定しますか？",
+    "ideogramGuide": "Ideogram にログイン → API Keys → Create key でキーを作成。",
+    "title": "{model} を設定",
+    "description": "2分でAPIキーを取得して、このモデルを使えるようにします。",
+    "step1": "1. APIキーを取得",
+    "step2": "2. ここに貼り付け",
+    "step3": "3. 名前を付ける",
+    "labelPlaceholder": "キーを区別するための名前",
+    "labelHint": "アカウントや用途を入れると見分けやすくなります（例：「Gemini メイン」）",
+    "keyPlaceholder": "APIキーを貼り付け...",
+    "anthropicWorkspaceId": "ワークスペース ID（任意）",
+    "anthropicWorkspaceHint": "この Claude キーが単一のワークスペースに限定されていない場合のみ必要です。",
+    "verify": "検証して有効化",
+    "checking": "確認中",
+    "saved": "保存しました",
+    "verifyFailed": "無効なAPIキーです。確認してもう一度お試しください。",
+    "available": "利用可能",
+    "configuredKeys": "設定済み API キー",
+    "needsKey": "APIキーが必要",
+    "manageAllKeys": "すべてのキーを管理 →"
+  },
+  "Errors": {
+    "voice": {
+      "libraryUnavailable": "ボイスライブラリに今つながりません。少し待ってからもう一度お試しください。",
+      "sampleMissing": "このボイスには使えるサンプルがありません。"
+    },
+    "voiceRoom": {
+      "notFound": "部屋が見つかりません",
+      "lineNotFound": "台詞が見つかりません",
+      "castFull": "1つのルームに追加できる声は8つまでです。別の声を追加するには、1つ外してください",
+      "castDuplicate": "その音声はすでにキャストにいます",
+      "modelUnavailable": "利用可能な音声モデルがありません",
+      "speakerNotInCast": "その話者はこの部屋にいません",
+      "speakerCannotSpeak": "BGM はルーム全体に流す音楽なので、話者には指定できません",
+      "voiceCardUnavailable": "その音声は利用できなくなりました",
+      "roomFull": "この部屋は満杯です——新しい部屋を作ってください",
+      "lineEmpty": "読み上げるセリフを入力してください"
+    },
+    "common": {
+      "unexpected": "予期しないエラーが発生しました。もう一度お試しください。",
+      "databaseUnavailable": "データベースサービスを一時的に利用できません。しばらくしてから再度お試しください。"
+    },
+    "webImageImport": {
+      "unreachable": "この画像を配信しているサイトがダウンロードを拒否しました。別の候補をお試しください。",
+      "unsupported": "このリンクは対応する画像形式ではありません（JPEG / PNG / WebP / GIF）。",
+      "tooLarge": "この画像は大きすぎて取り込めません。",
+      "noImageOnPage": "これはウェブページで、メイン画像が指定されていません。画像そのもののアドレスを送ってください（画像を右クリックして「画像アドレスをコピー」）。",
+      "forbidden": "この画像のサイトがダウンロードを拒否しました（直リンク対策またはボット対策）。別の候補を試してください。",
+      "notFound": "この画像アドレスはすでに存在しません（元サイトが削除・移動）。別の候補を試してください。",
+      "rateLimited": "このサイトから一時的にアクセス制限を受けています。少し待ってからもう一度「使う」を押してください。",
+      "serverError": "この画像のサイト側でエラーが発生しました。時間をおいて再試行するか、別の候補を選んでください。",
+      "timeout": "この画像の取得がタイムアウトしました。時間をおいて再試行するか、より小さいものを選んでください。"
+    },
+    "assistant": {
+      "audioUnsupported": "このモデルは音声を分析できません。Gemini を選択するか、音声の添付を削除してください。",
+      "videoUnsupported": "このモデルは動画を分析できません。Geminiを選ぶか、動画の参考素材を削除してください。",
+      "imageUnsupported": "このモデルは画像を分析できません。「画像の理解に対応」と表示されたモデルを選ぶか、画像の参考素材を削除してください。",
+      "modelKeyMissing": "選んだアシスタントのモデルに、そのプロバイダーのキーがないため実行していません（他社のキーで代わりに動かすことはしません）。キーを追加するか、別のモデルを選んでください。",
+      "modelCannotSee": "アシスタントが使っているモデルは画像を見られないため、送信していません（他社のキーで代わりに動かすことはしません）。使うには、アシスタントのモデルメニューで画像を見られるモデルを選んでください。",
+      "contentBlocked": "プロバイダーが安全ポリシーによりこのリクエストをブロックしました。表現を変えるか、アシスタントのルートを切り替えてください。",
+      "outputTruncated": "回答の長さの上限に達して、途中で止まりました。もう一度試すか、短い会話でやり直してください。",
+      "noTextResponse": "モデルが空の回答を返しました。再試行するか、アシスタントのルートを切り替えてください。",
+      "phantomCitation": "引用した出典を確認できなかったため、回答を表示していません。もう一度試すか、今回はウェブ検索をオフにしてください。",
+      "videoUnreachable": "この動画を取得できませんでした（削除済み、非公開、または外部アクセスが許可されていない可能性があります）。公開リンクに変えるか、クリップをダウンロードしてドロップしてください。",
+      "timelinePlanFailed": "タイムラインを作れませんでした。もう一度試すか、並べたい順番を具体的に教えてください。",
+      "timelinePlanEmpty": "並べられる完成済みの動画カードがまだありません。先に生成またはアップロードしてください。"
+    },
+    "provider": {
+      "failed": "AIプロバイダーエラーが発生しました。もう一度お試しください。",
+      "insufficientBalance": "選択中の Agent Key はプロバイダー残高が不足しています。チャージするか、別の Agent Key に切り替えてください。",
+      "invalidStructuredOutput": "選択中のプランナーモデルが不完全な応答を返しました。再試行するか、別の Agent Key に切り替えてください。",
+      "invalidApiKey": "選択中の Agent Key は無効、または認証が失効しています。再設定するか、別の Agent Key に切り替えてください。",
+      "rateLimited": "選択中のプランナールートがプロバイダーのレート制限を受けています。少し待つか、別の Agent Key に切り替えてください。",
+      "safetyBlocked": "このモデルは安全ポリシーによりリクエストを拒否しました。別のモデルに切り替えて再試行してください（例: GPT から Gemini へ、またはその逆）。",
+      "temporarilyUnavailable": "選択中のプランナーモデルは一時的に利用できないか、混雑しています。少し待つか、別の Agent Key に切り替えてください。",
+      "timeout": "AIプロバイダーがタイムアウトしました。もう一度お試しください。",
+      "unsupportedOpenAiReferenceImage": "OpenAI は JPEG、PNG、WebP の参照画像を受け付けます。画像形式を変換してから再試行してください。",
+      "unsupportedGeminiReferenceImage": "Gemini は PNG、JPEG、WebP、HEIC、HEIF の参照画像を受け付けます。画像形式を変換してから再試行してください。",
+      "unsupportedFalReferenceImage": "fal.ai がこの参照画像を読み取れませんでした。PNG、JPEG、WebP、GIF のいずれかを使い、画像URLがサーバーから直接アクセスできることを確認してください。",
+      "unsupportedVolcengineReferenceImage": "Seedream がこの参照画像を読み取れませんでした。JPEG、PNG、WebP など一般的な形式を使い、画像URLがサーバーから直接アクセスできることを確認してください。",
+      "unsupportedReferenceImage": "このモデルは現在の参照画像形式を読み取れません。JPEG、PNG、WebP のいずれかに変更してから再生成してください。",
+      "referenceImageTooLarge": "参照画像がこのモデルの上限を超えています。画像を圧縮するか、より小さい画像に変更してから再試行してください。",
+      "requestTooLarge": "テキストと添付ファイルの合計サイズが、このモデルのリクエスト上限を超えています。添付数を減らすか、ファイルを小さくするか、テキストを短くしてください。",
+      "executionWorkerUnavailable": "生成サービスに接続できません。しばらくして再試行し、解消しない場合は管理者にお問い合わせください。",
+      "referenceImageUnreachable": "プロバイダーが参照画像をダウンロードできませんでした。直接アクセスできる公開画像URLを使うか、画像を再アップロードしてください。",
+      "referenceImageLimitExceeded": "参照画像の数がこのモデルの上限を超えています。参照画像を減らしてから再試行してください。",
+      "transparentBackgroundRequiresSingleReference": "透明背景は、アルファチャンネル付きの参照画像がちょうど 1 枚必要です。透過 PNG を 1 枚だけ添付するか、背景チップを不透明に戻してください。",
+      "layerDecompositionRequiresSingleReference": "レイヤー分解は参照画像をちょうど 1 枚だけ受け取ります。画像を 1 枚だけ添付するか、レイヤーチップをオフにしてください。",
+      "promptTooLong": "このモデルに送るプロンプトが文字数上限を超えています。プロンプト（カードモードではカードの内容も含む）を短くしてから再試行してください。",
+      "invalidReferenceImageDimensions": "参照画像のサイズまたはアスペクト比がこのモデルに対応していません。別のサイズの画像で再試行してください。",
+      "accountLimitReached": "プロバイダーのアカウントでこのモデルに設定された利用上限に達し、モデルサービスが停止されています。再試行しても解決しません。プロバイダーのコンソールで上限を引き上げるか解除するか、別のモデルに切り替えてください。",
+      "outputBudgetExhausted": "この推論モデルは、返信を書く前に出力枠を使い切りました。再試行するか、非推論モデル（例: Gemini / DeepSeek）に切り替えるか、プロンプトを短くしてください。",
+      "contextLimitExceeded": "古いメッセージを短くしても、このモデルが扱える長さを超えています。新しい会話を始めるか、大きな参照素材を外してください。",
+      "refused": "選択したモデルはコンテンツポリシーによりこのリクエストを拒否しました。言い換えるか、別の Agent Key を選んでください。",
+      "noOutput": "プロバイダーは処理を完了しましたが、利用できるメディアを返しませんでした。プロンプトを調整するか、別のモデルを試してください。",
+      "callbackTimeout": "生成結果をまだ受信できていません。再試行する前に生成履歴を確認してください。",
+      "storageUploadFailed": "プロバイダーはメディアを返しましたが、保存に失敗しました。もう一度試してください。",
+      "loraIncompatibleHosted": "この LoRA のレイヤー形式はホスト型モデルではサポートされていません。可能であれば ANTEI Runner モデル（忠実なレシピ複製）をお試しください。",
+      "runnerMonthlyLimitExceeded": "ANTEI Runner の月間生成上限に達しました。来月お試しいただくか、ホスト型モデルをご利用ください。",
+      "runnerLoraUnavailable": "現在の生成サービスではこの LoRA を利用できません。別の LoRA または対応モデルを選んでください。",
+      "loraDownloadDisabled": "この LoRA は作者が Civitai でダウンロードを無効にしているため、ここでは読み込めません。別の LoRA を選んでください。"
+    },
+    "generation": {
+      "provider_timeout": "生成に時間がかかりすぎました。しばらくして再試行するか、別のモデルを選んでください。",
+      "provider_rate_limit": "リクエストが多すぎます。しばらくお待ちください",
+      "provider_overloaded": "このモデルは現在混雑しています。別のモデルをお試しください。",
+      "invalid_api_key": "プロバイダーの API キーが無効か期限切れです。設定で更新してから再試行してください。",
+      "content_filtered": "プロバイダーのコンテンツ審査を通過しませんでした。プロンプトと参考素材がコンテンツポリシーに沿っているか確認し、修正して再送信してください。",
+      "model_unavailable": "このモデルは現在利用できません。しばらくして再試行するか、別のモデルを選んでください。",
+      "provider_no_output": "プロバイダーが利用できるメディアを返しませんでした",
+      "callback_timeout": "生成結果をまだ受信できていません。再試行する前に生成履歴を確認してください。",
+      "storage_upload_failed": "生成メディアの保存に失敗しました",
+      "provider_insufficient_balance": "プロバイダーアカウントの残高が不足しています",
+      "insufficient_credits": "本日の無料生成上限に達しました",
+      "unsupported_reference_image_format": "このモデルは現在の参照画像形式を読み取れません",
+      "reference_image_too_large": "参照画像がこのモデルの上限を超えています",
+      "reference_image_unreachable": "プロバイダーが参照画像をダウンロードできませんでした",
+      "reference_image_limit_exceeded": "参照画像の数がこのモデルの上限を超えています",
+      "transparent_background_requires_single_reference": "透明背景には、アルファチャンネル付きの参照画像がちょうど 1 枚必要です。",
+      "layer_decomposition_requires_single_reference": "レイヤー分解には、分解する参照画像がちょうど 1 枚必要です。",
+      "novelai_anlas_shortfall": "NovelAI アカウントの Anlas が足りません：この画像には {required} 必要で、残りは {available} です。Anlas を消費しないのは Opus 加入時の無料枠（1 枚 · 1024² 以下 · 28 ステップ以下）だけです。NovelAI でプランを確認するか Anlas を補充してください。再試行しても変わりません。",
+      "prompt_too_long": "プロンプトがこのモデルの文字数上限を超えています。",
+      "invalid_reference_image_dimensions": "参照画像のサイズまたはアスペクト比がこのモデルに対応していません",
+      "provider_account_limit_reached": "プロバイダーのアカウントで設定された利用上限に達し、モデルサービスが停止されています。再試行しても解決しません。コンソールで上限を調整してください。",
+      "provider_model_not_activated": "プロバイダーのアカウントでこのモデルがまだ有効化されていません。プロバイダーのコンソール（火山方舟 / BytePlus のモデル有効化ページなど）で有効化してから再試行してください。そのまま再試行しても解決しません。",
+      "provider_server_error": "サービス提供元のサーバーでエラーが発生しました（500）。設定の問題ではなく、多くは一時的な障害です。少し待って再試行するか、モデルを切り替えてください。",
+      "runner_queue_stuck": "生成を開始できない状態が続いたため、キャンセルされました。別の利用可能なモデルを選ぶか、後ほど再試行してください。",
+      "runner_download_mismatch": "ダウンロードしたモデルファイルが配布元の公開チェックサムと一致しないため、生成しませんでした。再試行すると再ダウンロードします。解決しない場合は別の LoRA またはベースモデルを選んでください。",
+      "runner_storage_full": "Runner のモデル保存領域がいっぱいのため、生成しませんでした。しばらくしてから再試行してください。解決しない場合は管理者に容量の追加を依頼してください。",
+      "execution_worker_unavailable": "生成サービスに接続できません。しばらくして再試行し、解消しない場合は管理者にお問い合わせください。",
+      "lora_incompatible_hosted": "このモデルは LoRA の形式に対応していません。対応モデルまたは別の LoRA を選んでください。",
+      "runner_monthly_limit_exceeded": "今月の Runner 生成クォータを使い切りました。当面はホスト型モデルに切り替えるか、来月のリセットをお待ちください。",
+      "runner_lora_unavailable": "現在の生成サービスではこの LoRA を利用できません。別の LoRA または対応モデルを選んでください。",
+      "lora_download_disabled": "この LoRA は作者がダウンロードを無効にしているため、Civitai 内でのみ使えます。ここで生成するには、別の LoRA を選んでください。",
+      "publish_blocked": "プロンプトに未成年を示す語と性的な語が両方含まれているため、この作品は公開できません。ライブラリには残ります。",
+      "publish_blocked_search": "生成時に Google 検索を使ったため、規約上あなただけが見られます。公開はできません。",
+      "unknown": "原因を特定できないエラーで生成に失敗しました。しばらくして再試行し、解消しない場合はエラー詳細を管理者にお伝えください。",
+      "unknownWithDetail": "生成に失敗しました。プロバイダーからの応答：{detail}"
+    },
+    "validation": {
+      "invalidInput": "入力が無効です。パラメータを確認してください。",
+      "invalidJson": "リクエスト本文を読み取れませんでした。"
+    },
+    "rateLimit": "リクエストが多すぎます。しばらくお待ちください。",
+    "runawayGeneration": "短時間に同じ生成リクエストが繰り返されたため、一時停止しました。自動再試行が繰り返されている可能性があります。数分待ってから、もう一度お試しください。",
+    "platformGenerationDisabled": "プラットフォーム負担での生成は現在オフです。ご自身の API キーを使うモデルを選ぶか、サイト管理者に有効化を依頼してください。",
+    "auth": {
+      "unauthorized": "続行するにはログインしてください。"
+    },
+    "gallery": {
+      "invalidQuery": "選択したフィルターが無効です。",
+      "loadFailed": "ギャラリーの読み込みに失敗しました。"
+    },
+    "credits": {
+      "exceeded": "本日の無料生成制限に達しました。"
+    },
+    "apiKey": {
+      "missing": "このモデルにはAPIキーが必要です。",
+      "invalid": "無効なAPIキーです。確認してもう一度お試しください。"
+    },
+    "profile": {
+      "loadFailed": "プロフィールの読み込みに失敗しました。",
+      "updateFailed": "プロフィールの更新に失敗しました。",
+      "usernameTaken": "このユーザー名は既に使用されています。",
+      "usernameReserved": "このユーザー名は予約済みです。",
+      "usernameInvalid": "ユーザー名は3〜30文字で、先頭は英字、使用できるのは英字・数字・ハイフンのみです。",
+      "avatarUploadFailed": "アバターのアップロードに失敗しました。",
+      "bannerUploadFailed": "カバー画像のアップロードに失敗しました。",
+      "unsupportedImageType": "JPEG、PNG、WebP形式を使用してください。",
+      "avatarTooLarge": "アバターは5MB以下にしてください。",
+      "bannerTooLarge": "カバー画像は10MB以下にしてください。"
+    },
+    "notImplemented": "この機能は近日公開予定です。",
+    "upload": {
+      "storageUnreachable": "画像をアップロードできませんでした。接続を確認して、もう一度お試しください。解決しない場合は、管理者にお問い合わせください。",
+      "storageRejected": "画像ストレージがアップロードを拒否しました。再試行してください。続く場合は管理者にお問い合わせください。"
+    },
+    "scriptDoc": {
+      "promptTooLong": "脚本とこのメッセージを合わせると長すぎて、一度に修正できません。メッセージを短くするか、カットの説明を短くするか、カット数を減らしてください。"
+    },
+    "vision": {
+      "invalidOutput": "分析結果を読み取れませんでした。別の画像を試すか、時間をおいてもう一度お試しください。",
+      "insufficientMedia": "比較には最低 2 枚の画像が必要です。",
+      "framesInvalid": "予定した位置のフレームを取得できませんでした。もう一度抽出してください。"
+    },
+    "projectRule": {
+      "limitReached": "ソースリストの上限に達しています。1 件削除してから追加してください。"
+    },
+    "contextCard": {
+      "limitReached": "コンテキストカードの上限に達しています。1 件削除してから追加してください。",
+      "imageLimitReached": "このカードの参考画像は上限です。1 枚削除してください。",
+      "imageTooLarge": "参考画像は 10 MB 未満にしてください。"
+    },
+    "assistantPersona": {
+      "characterNotFound": "そのキャラクターはもう存在しません。別のキャラクターを選ぶか「使わない」を選んでください。"
+    },
+    "assistantMemory": {
+      "limitReached": "あなたが書いた記憶が上限に達しました。一つ削除してから書いてください。"
+    },
+    "promptTags": {
+      "unusable": "アシスタントがタグに変換できませんでした。"
+    },
+    "tavernCard": {
+      "notACard": "SillyTavern のキャラクターカード（PNG または JSON）ではありません。",
+      "tooLarge": "カードのファイルが 3 MB を超えています。",
+      "limitReached": "キャラクターの上限に達しました。1 体削除してから取り込んでください。"
+    },
+    "chubLibrary": {
+      "unavailable": "chub.ai から応答がありません。少し待ってからお試しください。",
+      "notFound": "このカードは chub.ai にもうありません。",
+      "countryBlocked": "お使いのネットワークでは chub.ai を利用できません。",
+      "tooLarge": "このカードは 3 MB を超えているため取り込めません。"
+    },
+    "characterLook": {
+      "notFound": "衣装が見つかりません",
+      "limit": "衣装の数が上限に達しました",
+      "lastLook": "衣装は最低 1 つ必要です"
+    }
+  }
+}

@@ -46,10 +46,8 @@ vi.mock('@/services/generation.service', () => ({
 
 vi.mock('next-intl/server', async () => {
   const { createTranslator } = await import('next-intl')
-  const bundles = {
-    en: (await import('@/messages/en.json')).default,
-    zh: (await import('@/messages/zh.json')).default,
-  }
+  const { en, zh } = await import('@/messages')
+  const bundles = { en, zh }
   return {
     getTranslations: async (options: {
       locale: keyof typeof bundles

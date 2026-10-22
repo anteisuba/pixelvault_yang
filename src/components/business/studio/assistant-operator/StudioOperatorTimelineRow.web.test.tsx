@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
 
-import zhMessages from '@/messages/zh.json'
+import { zh as zhMessages } from '@/messages'
 
 import {
   STUDIO_OPERATOR_CARD_KINDS,

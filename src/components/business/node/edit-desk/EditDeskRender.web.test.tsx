@@ -25,7 +25,7 @@ import {
   vi,
 } from 'vitest'
 
-import messages from '@/messages/zh.json'
+import { zh as messages } from '@/messages'
 import type { NodeV4, NodeWorkflowStateV4 } from '@/types/node-workflow'
 
 const mockSubmit = vi.fn()

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import { EXECUTION_PROGRESS_STAGE_VALUES } from '@/constants/generation-progress'
-import enMessages from '@/messages/en.json'
-import jaMessages from '@/messages/ja.json'
-import zhMessages from '@/messages/zh.json'
+import { en as enMessages } from '@/messages'
+import { ja as jaMessages } from '@/messages'
+import { zh as zhMessages } from '@/messages'
 
 import {
   buildGenerationEdgePath,

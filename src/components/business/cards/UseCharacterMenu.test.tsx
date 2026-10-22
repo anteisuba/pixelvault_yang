@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 
-import zhMessages from '@/messages/zh.json'
+import { zh as zhMessages } from '@/messages'
 import type { CharacterCardRecord, CharacterLookRecord } from '@/types'
 
 import { UseCharacterMenu } from './UseCharacterMenu'

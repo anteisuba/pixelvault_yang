@@ -1,0 +1,397 @@
+{
+  "ModelRanking": {
+    "tabImage": "画像",
+    "tabVideo": "動画",
+    "imageTitle": "2026 画像AIランキング",
+    "imageSubtitle": "Artificial Analysis 総合評価 · 「対応」マークのモデルはAPIキーで利用可能。",
+    "videoTitle": "2026 動画AIランキング",
+    "videoSubtitle": "Artificial Analysis ELO · 「対応」マークのモデルはAPIキーで利用可能。",
+    "supported": "対応",
+    "noApi": "API なし",
+    "tiers": {
+      "premium": "プレミアム",
+      "standard": "スタンダード"
+    },
+    "strengths": {
+      "photorealism": "フォトリアリズム · ライティング",
+      "overall": "総合最強 · テキスト描画",
+      "logos": "ロゴ · ベクターデザイン",
+      "textInImage": "画像内テキスト",
+      "multimodal": "プロンプト理解 · マルチモーダル",
+      "cinematic": "シネマティック · 空間表現",
+      "videoMotion": "滑らかな動き · 物理演算",
+      "videoRealism": "超リアル · 音声同期",
+      "videoCreative": "クリエイティブ表現 · 映画的演出",
+      "videoConsistency": "キャラクター一貫性 · 安定性",
+      "videoSpeed": "高速生成 · コスパ良し",
+      "videoCinematic": "映画的雰囲気 · ライティング"
+    }
+  },
+  "Models": {
+    "geminiFlashImage": {
+      "label": "Gemini 3.1 Flash Image",
+      "description": "Google の最新世代モデルで、画像のアイデアをすばやく試せます。"
+    },
+    "openaiGptImage25Flare": {
+      "label": "OpenAI GPT Image 2.5 Flare",
+      "description": "日常の画像制作に適した高速・高品質な画像生成と参照画像を使った編集。"
+    },
+    "openaiGptImage25Sunburst": {
+      "label": "OpenAI GPT Image 2.5 Sunburst",
+      "description": "細部にこだわる制作向けの高精度な画像生成・編集。生成にはより時間がかかります。"
+    },
+    "openaiGptImage2": {
+      "label": "OpenAI GPT Image 2",
+      "description": "OpenAI の現行フラッグシップ画像モデルによる、高速かつ高品質な画像生成と編集。"
+    },
+    "flux2Pro": {
+      "label": "Flux 2 Pro",
+      "description": "Black Forest Labs による最高品質の画像生成モデル。"
+    },
+    "flux2ProEdit": {
+      "label": "FLUX.2 Pro Edit",
+      "description": "複数参照画像での編集 — プロンプトと複数ソース画像で変換。"
+    },
+    "flux2Flash": {
+      "label": "FLUX 2 Flash",
+      "description": "fal.ai 経由の低コストな FLUX 2。ラフ生成と高速な反復に適しています。"
+    },
+    "fluxLora": {
+      "label": "FLUX LoRA",
+      "description": "LoRA対応のFLUX。アニメ、3D、キャラクター一貫性など、カスタムLoRAモデルを適用可能。"
+    },
+    "geminiProImage": {
+      "label": "Gemini 3 Pro Image",
+      "description": "Google のプレミアム画像モデル。スタジオ品質の4Kビジュアル。"
+    },
+    "geminiFlashLiteImage": {
+      "label": "Gemini 3.1 Flash Lite Image",
+      "description": "Google の最速・最安の画像モデル。ラフを作ったり、何度も試したりする用途に。"
+    },
+    "geminiNanoBanana21": {
+      "label": "Gemini Nano Banana 2.1",
+      "description": "Google の最新 Gemini 画像モデル。画像内の文字がより鮮明に、編集を重ねてもキャラクターが崩れにくい。1K〜4K 対応。"
+    },
+    "ideogram45": {
+      "label": "Ideogram 4.5",
+      "description": "Ideogram 公式 API による画像生成と精密な編集。"
+    },
+    "ideogram3": {
+      "label": "Ideogram V4",
+      "description": "文字表現とグラフィック構成に強い、デザイン特化の画像モデル。"
+    },
+    "seedream45": {
+      "label": "Seedream 4.5",
+      "description": "ByteDanceの統合生成・編集モデル。最大4MP出力。"
+    },
+    "seedream45Volcengine": {
+      "label": "Seedream 4.5（VolcEngine）",
+      "description": "VolcEngine（Ark）直接 API 経由の Seedream 4.5 — 中国リージョン。"
+    },
+    "seedream50Pro": {
+      "label": "Seedream 5.0 Pro",
+      "description": "ByteDanceのフラッグシップ画像モデル。深い思考によるプロンプト理解と14言語のネイティブ文字描画。"
+    },
+    "seedream50Lite": {
+      "label": "Seedream 5.0 Lite",
+      "description": "Seedream 5.0 のコスパ重視ティア。プロンプトからWeb検索を実行し、時事的な題材にも対応。"
+    },
+    "seedream50Volcengine": {
+      "label": "Seedream 5.0（VolcEngine）",
+      "description": "VolcEngine（Ark）直接 API 経由の Seedream 5.0 — 中国リージョン。"
+    },
+    "seedream50ProVolcengine": {
+      "label": "Seedream 5.0 Pro（VolcEngine）",
+      "description": "VolcEngine（Ark）直接 API 経由の Seedream 5.0 Pro — fal 経由の同モデルより安価。単一画像のみで、グループ生成は非対応。"
+    },
+    "seedream50LiteVolcengine": {
+      "label": "Seedream 5.0 Lite（VolcEngine）",
+      "description": "VolcEngine（Ark）直接 API 経由の Seedream 5.0 バリュー版 — 中国リージョン、fal 経由の同モデルより安価。"
+    },
+    "seedream50ProByteplus": {
+      "label": "Seedream 5.0 Pro（BytePlus）",
+      "description": "BytePlus ModelArk（Ark 国際リージョン）直接 API 経由の Seedream 5.0 Pro — 米ドル建て。単一画像のみで、バッチ生成は非対応。"
+    },
+    "seedream50LiteByteplus": {
+      "label": "Seedream 5.0 Lite（BytePlus）",
+      "description": "BytePlus ModelArk（Ark 国際リージョン）直接 API 経由の Seedream 5.0 バリュー版 — 米ドル建て。"
+    },
+    "novelaiV45Full": {
+      "label": "NovelAI Diffusion V4.5 Full",
+      "description": "前世代の NovelAI Full。複数キャラとテキスト描画に対応。Opus の標準サイズは回数無制限。自分の NovelAI トークンを使う。"
+    },
+    "novelaiV45Curated": {
+      "label": "NovelAI Diffusion V4.5 Curated",
+      "description": "前世代の NovelAI Curated。データがきれいで扱いやすい。Opus の標準サイズは回数無制限。自分の NovelAI トークンを使う。"
+    },
+    "novelaiV5Full": {
+      "label": "NovelAI Diffusion V5 Full",
+      "description": "NovelAI の最新アニメモデル。自然な文章での指示や複数キャラクターの描画が向上。ご自身の NovelAI プランで利用でき、V5 は Opus でも従量課金です。"
+    },
+    "novelaiV5Curated": {
+      "label": "NovelAI Diffusion V5 Curated",
+      "description": "厳選したデータで学習した、扱いやすい V5。ご自身の NovelAI プランで利用でき、V5 は Opus でも従量課金です。"
+    },
+    "illustriousXl": {
+      "label": "Illustrious XL",
+      "description": "アニメ・イラスト特化モデル。CivitaiのLoRAエコシステムが最も充実。デュアルLoRA対応。"
+    },
+    "animaPencilXl": {
+      "label": "Anima Base LoRA",
+      "description": "Civitai の Anima 系 LoRA は、ホスティング対応のない Cosmos 系モデル向けです。生成は Civitai 側で行ってください。"
+    },
+    "recraftV4Pro": {
+      "label": "Recraft V4 Pro",
+      "description": "デザイン特化モデル。ロゴ、アイコン、ブランド品質の画像に最適。"
+    },
+    "fluxKontextMax": {
+      "label": "FLUX Kontext Max",
+      "description": "マルチ参照編集。最大4枚の参照画像を組み合わせて一貫性のある生成。"
+    },
+    "illustriousRecipeClone": {
+      "label": "WAI-Illustrious（Runner）",
+      "description": "ANTEI Runner による Civitai レシピの忠実な複製 — 元画像と同じチェックポイント・LoRA構成・サンプラー設定を使用。ホスト型モデルが読み込めないコミュニティ LoRA に対応。"
+    },
+    "animaPencilXlRunner": {
+      "label": "Anima Pencil-XL（Runner）",
+      "description": "ANTEI Runner による Anima Pencil-XL — このチェックポイントにはホスト型エンドポイントが存在しないため、ANTEI 内で生成できる唯一の経路です。"
+    },
+    "ponyDiffusionV6": {
+      "label": "Pony Diffusion V6 XL（Runner）",
+      "description": "ANTEI Runner による Pony Diffusion V6 XL — Civitai の大規模な Pony LoRA エコシステム向けの忠実なレシピ複製。"
+    },
+    "sdxl10Runner": {
+      "label": "SDXL 1.0（Runner）",
+      "description": "ANTEI Runner によるプレーンな SDXL 1.0 — ホスト型ルートと並ぶ忠実なレシピ複製経路。"
+    },
+    "qwenImage21Runner": {
+      "label": "qwen2.1",
+      "description": "ローカル研究評価専用。専用 Modal ランナーで画像生成と最大10枚の参照画像による編集に対応。GPU 利用は Modal が課金します。"
+    },
+    "animaDitRunner": {
+      "label": "Anima（Runner）",
+      "description": "ANTEI Runner による Anima（Cosmos-Predict2 DiT）— Civitai の大規模な Anima LoRA エコシステム向けのネイティブ経路。"
+    },
+    "animaTurboRunner": {
+      "label": "Anima Turbo（Runner）",
+      "description": "ANTEI Runner による Anima のステップ蒸留版 — 10 ステップ・CFG 1 で高速。CFG 1 ではネガティブプロンプトは効きません。"
+    },
+    "zImageTurboRunner": {
+      "label": "Z-Image Turbo（Runner）",
+      "description": "ANTEI Runner による Tongyi-MAI の Z-Image ステップ蒸留版 — 9 ステップ・CFG 1。写実表現と英語 / 中国語の文字描画が得意、Apache-2.0。CFG 1 ではネガティブプロンプトは効きません。"
+    },
+    "krea2TurboRunner": {
+      "label": "Krea 2 Turbo（Runner）",
+      "description": "Krea の 12B ステップ蒸留モデル Krea 2 を ANTEI Runner で実行。CFG 1・8 ステップ、自然文プロンプト向きで、スタイル表現と写実の両方に強い。Krea 2 Community License。CFG 1 ではネガティブプロンプトは効きません。"
+    },
+    "fishAudioS2Pro": {
+      "label": "Fish Audio S2.1 Pro",
+      "description": "完成作品にもおすすめの読み上げモデル。83言語、感情タグ、ボイスクローンに対応"
+    },
+    "elevenV3": {
+      "label": "ElevenLabs v3",
+      "description": "自然で表現豊かな高品質テキスト読み上げ"
+    },
+    "elevenSfxV2": {
+      "label": "ElevenLabs SFX v2",
+      "description": "テキストプロンプトから効果音・フォーリーを生成"
+    },
+    "elevenMusicV2": {
+      "label": "ElevenLabs Music v2.5",
+      "description": "音質と指示への忠実度が向上した音楽生成。インストゥルメンタル・歌声付きに対応。"
+    },
+    "happyhorse10": {
+      "label": "HappyHorse 1.1",
+      "description": "fal.ai 経由の Alibaba 動画モデル。テキストや画像から、音声付きの動画を生成できます。"
+    },
+    "wan30": {
+      "label": "Wan 3.0",
+      "description": "一度に最長30秒の音声付き動画を生成。テキストからの動画生成と、最初・最後のフレーム指定に対応。"
+    },
+    "wan30Reference": {
+      "label": "Wan 3.0（参照生成）",
+      "description": "参照動画生成——画像 10 枚、動画 5 本、音声 5 本までをまとめて参照。"
+    },
+    "klingV3Pro": {
+      "label": "Kling 3.0 Pro",
+      "description": "マルチショット絵コンテ、ネイティブ音声、キャラ一貫性"
+    },
+    "klingO3Pro": {
+      "label": "Kling O3 Pro (Omni)",
+      "description": "Omni トラック — 要素・動画参照、ネイティブ音声、映画的マルチショット"
+    },
+    "klingO3StandardV2vEdit": {
+      "label": "Kling O3 Standard — 動画編集",
+      "description": "既存クリップを編集 — 元のカメラワークとタイミングを保ったまま素材・被写体・舞台を書き換え"
+    },
+    "klingO3ProV2vEdit": {
+      "label": "Kling O3 Pro — 動画編集",
+      "description": "最上位の動画編集 — 同じクリップ、同じカメラで見た目だけ刷新。要素・画像参照に対応"
+    },
+    "klingO34kV2vEdit": {
+      "label": "Kling O3 4K — 動画編集",
+      "description": "元のカメラワークとタイミングを保ち、既存クリップをネイティブ4Kで編集。画像参照に対応。"
+    },
+    "ltx23": {
+      "label": "LTX 2.3",
+      "description": "音声生成にも対応する、高速な 1080p クリップ向け fal.ai 動画モデル。"
+    },
+    "seedance20": {
+      "label": "Seedance 2.0",
+      "description": "ByteDance — 音声+リップシンク、監督レベルのカメラ、4-15秒"
+    },
+    "seedance20Fast": {
+      "label": "Seedance 2.0 Fast",
+      "description": "ByteDance — 高速版、音声付き、4-15秒"
+    },
+    "seedance20Reference": {
+      "label": "Seedance 2.0（リファレンス）",
+      "description": "参照素材から動画を生成。参考音声を使ったボイスクローンにも対応"
+    },
+    "seedance20FastReference": {
+      "label": "Seedance 2.0 Fast（リファレンス）",
+      "description": "参照素材からすばやく動画を生成。ボイスクローンにも対応"
+    },
+    "seedance20Volcengine": {
+      "label": "Seedance 2.0（VolcEngine）",
+      "description": "VolcEngine（Ark）直接 API 経由 — 中国リージョン、音声付き、4-15秒"
+    },
+    "seedance20FastVolcengine": {
+      "label": "Seedance 2.0 Fast（VolcEngine）",
+      "description": "VolcEngine（Ark）直接 API 経由の高速版 — 中国リージョン、音声付き"
+    },
+    "seedance20ReferenceVolcengine": {
+      "label": "Seedance 2.0 リファレンス（VolcEngine）",
+      "description": "VolcEngine（Ark）経由で参照素材から動画を生成。中国リージョン、ボイスクローン対応"
+    },
+    "seedance20FastReferenceVolcengine": {
+      "label": "Seedance 2.0 Fast リファレンス（VolcEngine）",
+      "description": "VolcEngine（Ark）経由で参照素材からすばやく動画を生成。中国リージョン"
+    },
+    "veo31": {
+      "label": "Veo 3.1",
+      "description": "Google最新 — 4K、ネイティブ音声、対話同期"
+    },
+    "geminiOmniFlash": {
+      "label": "Gemini Omni 1.1 Flash",
+      "description": "テキストと参照画像から音声付きの動画を生成。"
+    },
+    "seedance25Volcengine": {
+      "label": "Seedance 2.5（VolcEngine）",
+      "description": "ByteDance の 30 秒ワンパス生成モデル、火山方舟の直接 API 経由。480p/720p、4〜30 秒。"
+    },
+    "seedance25ReferenceVolcengine": {
+      "label": "Seedance 2.5（参照・VolcEngine）",
+      "description": "Seedance 2.5 で参照素材から動画を生成。画像30枚・動画10本・音声10本まで。音声だけの参照にも対応。"
+    },
+    "minimaxH3MaxTurbo": {
+      "label": "H3 Max Turbo",
+      "description": "fal による高速な MiniMax H3 派生モデル。音声・最初と最後のフレーム、5〜15秒に対応。480p/768p、1080pは768pから高精細化。"
+    },
+    "minimaxH3": {
+      "label": "MiniMax H3",
+      "description": "MiniMax 直接接続 — 2K、ネイティブステレオ音声、4〜15 秒。Artificial Analysis の動画編集で 1 位。"
+    },
+    "minimaxH3Reference": {
+      "label": "MiniMax H3（参照）",
+      "description": "参照から動画生成 — 被写体画像 9 枚 + モーション動画 3 本 + 音声 3 本（合計 12 ファイルまで）"
+    },
+    "minimaxH3Cn": {
+      "label": "MiniMax H3（中国）",
+      "description": "MiniMax 中国サイト（minimaxi.com）経由 — アカウントと API キーはグローバル版と別。"
+    },
+    "minimaxH3ReferenceCn": {
+      "label": "MiniMax H3（参照・中国）",
+      "description": "参照から動画生成、中国サイト経由 — アカウントと API キーはグローバル版と別。"
+    },
+    "hunyuan3d21": {
+      "label": "Hunyuan3D 2.1",
+      "description": "テンセントの画像→3D、高忠実度ジオメトリ + PBRテクスチャ"
+    },
+    "hunyuan3dV3": {
+      "label": "Hunyuan3D v3",
+      "description": "マルチビュー画像→3D。PBRマテリアルと高面数出力に対応"
+    },
+    "hunyuan3dV31Pro": {
+      "label": "Hunyuan3D v3.1 Pro",
+      "description": "高精細PBRアセット向けの高品質マルチビュー再構成"
+    },
+    "trellis2": {
+      "label": "Trellis 2",
+      "description": "構造、テクスチャ、リメッシュを調整できる高精細3Dモデル"
+    },
+    "triposr": {
+      "label": "TripoSR",
+      "description": "1秒未満で形状を再構成。テクスチャなしでプレビュー"
+    },
+    "rodinGen25": {
+      "label": "Rodin Gen-2.5",
+      "description": "Hyper3D 公式 API。最大5枚の参照画像、GLB 出力、5段階の品質に対応。Business プランの API キーが必要です。"
+    },
+    "seedance20Byteplus": {
+      "label": "Seedance 2.0（BytePlus）",
+      "description": "BytePlus ModelArk 国際リージョン経由の Seedance 2.0。ネイティブ音声、4～15秒に対応。"
+    },
+    "seedance20FastByteplus": {
+      "label": "Seedance 2.0 Fast（BytePlus）",
+      "description": "BytePlus ModelArk 国際リージョン経由の高速版。ネイティブ音声に対応。"
+    },
+    "seedance20ReferenceByteplus": {
+      "label": "Seedance 2.0（参照・BytePlus）",
+      "description": "BytePlus ModelArk 経由の参照動画生成。音声参照に対応。"
+    },
+    "seedance20FastReferenceByteplus": {
+      "label": "Seedance 2.0 Fast（参照・BytePlus）",
+      "description": "BytePlus ModelArk 経由の高速な参照動画生成。"
+    },
+    "seedance25": {
+      "label": "Seedance 2.5（fal.ai）",
+      "description": "fal.ai 経由の Seedance 2.5。480p/720p、4〜30 秒に対応。"
+    },
+    "seedance25Reference": {
+      "label": "Seedance 2.5（参照・fal.ai）",
+      "description": "fal.ai の参照素材を使った動画生成。画像30枚・動画10本・音声10本まで対応。"
+    },
+    "seedance25Byteplus": {
+      "label": "Seedance 2.5（BytePlus）",
+      "description": "BytePlus ModelArk 国際リージョン経由の Seedance 2.5。480p/720p、4〜30 秒に対応。"
+    },
+    "seedance25ReferenceByteplus": {
+      "label": "Seedance 2.5（参照・BytePlus）",
+      "description": "BytePlus 国際リージョンの参照素材を使った動画生成。画像30枚・動画10本・音声10本まで対応。"
+    },
+    "fishAudioS2ProFree": {
+      "label": "Fish Audio S2.1 Pro Free",
+      "description": "ご自身の Fish API キーで無料の音声生成を利用できます。フェアユースの制限があります。"
+    },
+    "pixaiTsubaki2": {
+      "label": "PixAI Tsubaki.2",
+      "description": "PixAI のフラッグシップ DiT アニメモデル。テキストから画像のみ。"
+    },
+    "pixaiHarukaV2": {
+      "label": "PixAI Haruka v2",
+      "description": "PixAI の定番 SDXL アニメ系列。テキストから画像のみ。"
+    },
+    "pixaiHoshinoV2": {
+      "label": "PixAI Hoshino v2",
+      "description": "PixAI のスタイライズ寄り SDXL 系列。テキストから画像のみ。"
+    }
+  },
+  "ModelPicker": {
+    "recent": "最近",
+    "searchPlaceholder": "モデルを検索…",
+    "channelUnset": "—",
+    "pickChannel": "ルートを選択",
+    "missingKey": "キーが必要",
+    "missingKeyConfigure": "キーが必要 · クリックして設定",
+    "channelsCount": "{count} チャネル",
+    "usageBilled": "使用量に応じて課金",
+    "channelPanelLabel": "{model} のルート",
+    "manageChannels": "チャネルとキーを設定…",
+    "kinds": {
+      "speech": "音声",
+      "music": "BGM",
+      "sfx": "効果音"
+    }
+  }
+}

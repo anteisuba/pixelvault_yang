@@ -1,0 +1,1004 @@
+{
+  "Legal": {
+    "backHome": "Back home",
+    "updatedLabel": "Last updated",
+    "privacy": {
+      "title": "Privacy Policy",
+      "updated": "October 15, 2026",
+      "intro": "ANTEI is a bring-your-own-key AI gallery. This policy explains what we store, what leaves our servers, who processes it on our behalf, and the control you have over it.",
+      "sections": [
+        {
+          "heading": "What we store",
+          "body": "We keep as little as the product allows and no advertising profile of any kind.",
+          "items": [
+            "Account details from Clerk when you sign in: an identifier, your email address, and any name or avatar you chose there.",
+            "Generation records: prompts, model and provider chosen, parameters such as seed and resolution, timing, and success or failure.",
+            "The files you generate or upload, and the collections, canvases and LoRA recipes you build from them.",
+            "Credit balance and deduction history where a model runs on platform credits.",
+            "A record of each assistant turn: the canvas at the time, the steps it took and the model it used (never the key itself), kept for troubleshooting and replay testing and never included in shares or exports.",
+            "Support messages you send us, and error reports (see «Error monitoring»)."
+          ]
+        },
+        {
+          "heading": "Your API keys",
+          "body": "Keys you connect are stored encrypted and used only to reach the provider you connected them for. We do not read them, resell capacity through them, or use them for our own generation. You can remove a key at any time, which stops it being used immediately."
+        },
+        {
+          "heading": "What we send to AI providers",
+          "body": "When you generate, the prompt and any reference material for that job are sent to the provider you selected, for example OpenAI, Google, fal.ai, ByteDance, ElevenLabs or Fish Audio. What they do with it is governed by their own policies, and some providers retain inputs for a period for abuse monitoring. We do not send them your account email or your archive."
+        },
+        {
+          "heading": "Service providers we use",
+          "body": "We rely on a small set of companies to run ANTEI. They process data on our instructions and only for these purposes:",
+          "items": [
+            "Clerk: authentication and account records.",
+            "Neon: the application database.",
+            "Cloudflare R2: storage and delivery of your generated and uploaded files.",
+            "Vercel: hosting and request serving.",
+            "Sentry: error and performance monitoring.",
+            "The AI providers you connect or select, for the jobs you run."
+          ]
+        },
+        {
+          "heading": "Where your data is processed",
+          "body": "These providers operate in several countries, so your data may be processed outside where you live, including outside the EEA and the UK. Where that happens we rely on the transfer safeguards those providers offer, such as standard contractual clauses."
+        },
+        {
+          "heading": "How long we keep it",
+          "body": "Files and generation records stay until you delete them or close your account. When you close an account we delete your files and records; backups holding copies roll off within 30 days. Credit and payment records are kept as long as accounting rules require. Assistant turn records are kept for 30 days, and only your latest 200. Error reports are kept for up to 90 days."
+        },
+        {
+          "heading": "Cookies and local storage",
+          "body": "We use cookies that keep you signed in and hold your language choice. We use no advertising or cross-site tracking cookies. The browser also stores some workspace state locally, such as canvas layout, panel sizes and drafts, which never leaves your device and clears when you clear site data."
+        },
+        {
+          "heading": "Error monitoring",
+          "body": "Sentry receives a report when something breaks: the error, the page, browser and version, and an account identifier so we can tell whether one person hit a problem or everyone did. Reports can include the URL you were on. We do not send prompts or generated files into error reports."
+        },
+        {
+          "heading": "Session replay",
+          "body": "Session replay (Sentry Session Replay) reconstructs what happened in the interface before a problem: clicks, navigation, console and network activity. It is off until you accept it in the privacy banner, and you can withdraw consent by clearing this site's data. All text is masked and all media blocked before anything is sent, so prompts, generated images and file names are never captured. We sample 1% of sessions and keep a replay for up to 90 days, alongside the matching error report."
+        },
+        {
+          "heading": "Your rights",
+          "body": "Wherever you live, you can ask us to do the following, and we answer within 30 days:",
+          "items": [
+            "Get a copy of the data we hold about you.",
+            "Correct anything inaccurate.",
+            "Delete an individual result, a whole collection, or your entire account.",
+            "Export your files and generation records.",
+            "Object to or restrict a particular use of your data.",
+            "Complain to your local data protection authority if you think we got it wrong."
+          ]
+        },
+        {
+          "heading": "Children",
+          "body": "ANTEI is not intended for children under 13, or under 16 in the European Economic Area and the United Kingdom, and we do not knowingly collect their data. If you believe a child has created an account, write to privacy@antei.app and we will remove it."
+        },
+        {
+          "heading": "Security",
+          "body": "Traffic is encrypted in transit, files are stored in access-controlled buckets, API keys are encrypted at rest, and access to production data is limited to what operating the service requires. No system is perfectly secure; if a breach affects your data we will notify you and the relevant authority as the law requires."
+        },
+        {
+          "heading": "Changes to this policy",
+          "body": "We update this policy as the product and its processors change. The date at the top reflects the current version, and we give notice in the product before a material change takes effect."
+        },
+        {
+          "heading": "Contact",
+          "body": "Data questions, access requests and deletion requests: privacy@antei.app."
+        }
+      ]
+    },
+    "terms": {
+      "title": "Terms of Service",
+      "updated": "August 2, 2026",
+      "intro": "These terms cover your use of ANTEI. By creating an account or using the service you agree to them. If you do not agree, do not use ANTEI.",
+      "sections": [
+        {
+          "heading": "The service",
+          "body": "ANTEI is a personal gallery for generating images, video, audio and 3D assets with multiple AI models, and for keeping every result in one archive. Generation runs either through your own provider API keys or through platform credits, depending on the model. Which models are available changes as providers add, retire and reprice them."
+        },
+        {
+          "heading": "Who may use ANTEI",
+          "body": "You must be at least 13 years old, or 16 if you are in the European Economic Area or the United Kingdom, and old enough to enter a contract where you live. Mature content features are restricted further; see the mature content section below. If you use ANTEI on behalf of an organisation, you confirm you are authorised to accept these terms for it."
+        },
+        {
+          "heading": "Your account",
+          "body": "Sign-in is handled by Clerk. You are responsible for the activity under your account, for the keys and credentials you connect, and for keeping your sign-in details secure. Tell us promptly if you believe someone else has access."
+        },
+        {
+          "heading": "Keys, credits and payment",
+          "body": "Where you connect your own API key, you contract directly with that provider and pay them at their rates; we do not resell their capacity and cannot control their pricing. Where a model runs on platform credits, credits are deducted server-side when a job is accepted.",
+          "items": [
+            "A job that fails before a provider accepts it does not consume credits.",
+            "A job that a provider runs and returns is charged even if you dislike the result.",
+            "Credits have no cash value and are not transferable between accounts.",
+            "Provider prices shown in the product are indicative and can change without notice."
+          ]
+        },
+        {
+          "heading": "What you may not generate or upload",
+          "body": "Some limits are absolute and apply regardless of which model or key you use. Do not use ANTEI to create, upload or distribute:",
+          "items": [
+            "Sexual content involving minors, or any material that sexualises a person under 18, whether real or generated and in any style.",
+            "Sexual or intimate imagery of a real, identifiable person made or shared without their consent.",
+            "Impersonation of a real person or organisation intended to deceive, defraud, or influence an election.",
+            "Content that harasses, threatens or incites violence against a person or group.",
+            "Material that infringes someone else's copyright, trademark, likeness or other rights.",
+            "Malware, credential-harvesting material, or content designed to defeat security or age controls."
+          ]
+        },
+        {
+          "heading": "Mature content",
+          "body": "ANTEI can surface and generate adult material where a model and its licence permit it. Those features are for users aged 18 or over, are off by default, and remain subject to the prohibitions above without exception. Enabling them is a statement that you are of age in your jurisdiction."
+        },
+        {
+          "heading": "Your content and your outputs",
+          "body": "You keep the rights you already hold in the prompts, reference images and files you bring. As between you and us we claim no ownership of what you generate. We need a limited licence to run the service: to store your files, transmit them to the provider you selected, and display them back to you in your archive, canvas and any surfaces you choose to publish."
+        },
+        {
+          "heading": "Model and LoRA licences",
+          "body": "Models, checkpoints and LoRAs reached through ANTEI carry their own licences from their authors, including the ones listed from public libraries. Some forbid commercial use, some forbid certain subjects, some require attribution. Those terms bind you directly, and we cannot grant you rights their authors did not."
+        },
+        {
+          "heading": "Third-party providers",
+          "body": "Generation happens on infrastructure we do not operate. Your prompt and any reference material are transmitted to the provider you selected for that job, and their terms and policies apply to that processing. Provider outages, content filters and model changes are outside our control."
+        },
+        {
+          "heading": "Reporting and takedowns",
+          "body": "If something on ANTEI infringes your rights or depicts you without consent, write to legal@antei.app with the location of the material and enough detail to identify it. We remove material that breaks these terms and act on valid infringement notices. We may reinstate material if a complaint turns out to be unfounded."
+        },
+        {
+          "heading": "Suspension and termination",
+          "body": "We may suspend or close an account that breaks these terms, and we will act immediately and without notice where content in the absolute-prohibition list is involved. You can close your account at any time. On closure we delete your stored files and generation records; see the privacy policy for what survives and for how long."
+        },
+        {
+          "heading": "Availability and changes",
+          "body": "ANTEI is provided as-is and as-available. We work to keep it running but do not promise uninterrupted service, and we may add, change or withdraw features and models. Where a change materially reduces what you already paid for, we will say so in advance where we reasonably can."
+        },
+        {
+          "heading": "Disclaimers",
+          "body": "Generated output is produced by statistical models and can be wrong, offensive, or resemble existing work. We do not warrant that output is accurate, original, or fit for any particular purpose, and we do not review what you generate before you see it. Judgement about whether an output is safe to publish or use commercially is yours."
+        },
+        {
+          "heading": "Limitation of liability",
+          "body": "To the extent the law allows, we are not liable for lost profits, lost data, or indirect or consequential loss, and our total liability for any claim is limited to what you paid us in the three months before it arose. Nothing here limits liability that cannot lawfully be limited, including for death, personal injury, or fraud."
+        },
+        {
+          "heading": "Indemnity",
+          "body": "You agree to cover our reasonable costs if a third party brings a claim against us because of content you generated, uploaded or published through ANTEI, or because you used the service in breach of these terms."
+        },
+        {
+          "heading": "Governing law and disputes",
+          "body": "These terms are governed by the law of the operator’s principal place of business, and disputes go to the courts there. If you are a consumer, mandatory protections and courts available to you where you live are unaffected. Talk to us first at legal@antei.app; most issues are faster to fix than to litigate."
+        },
+        {
+          "heading": "Changes to these terms",
+          "body": "We update these terms as the product changes. The date at the top always reflects the current version. For material changes we give notice in the product before they take effect; continuing to use ANTEI afterwards means you accept them."
+        },
+        {
+          "heading": "Contact",
+          "body": "Questions about these terms, takedowns and account issues: legal@antei.app. Questions about data: privacy@antei.app."
+        }
+      ]
+    }
+  },
+  "Metadata": {
+    "title": "ANTEI | Personal AI Gallery",
+    "description": "Generate images, videos, and audio with Gemini, FLUX, and other top AI models — then archive every result in one personal gallery.",
+    "keywords": "AI image generator, AI art, Gemini image, FLUX AI, personal AI gallery, AI video generator, text to image",
+    "studio": {
+      "title": "Studio — ANTEI",
+      "description": "Generate images and videos with multiple AI models in one workspace.",
+      "image": {
+        "title": "Image Studio — ANTEI",
+        "description": "Generate images with multiple AI models in one workspace."
+      },
+      "video": {
+        "title": "Video Studio — ANTEI",
+        "description": "Turn shots, motion, and scene beats into video with AI."
+      },
+      "audio": {
+        "title": "Audio Studio — ANTEI",
+        "description": "Generate audio with text-to-speech and voice cloning."
+      },
+      "edit": {
+        "title": "Image Edit — ANTEI",
+        "description": "Edit generated images with inpaint, super resolution, background removal, and element extraction."
+      },
+      "node": {
+        "title": "Canvas — ANTEI",
+        "description": "Create and orchestrate image, video, and audio workflows on one visual canvas."
+      },
+      "imageTags": {
+        "title": "Tag Studio — ANTEI",
+        "description": "Compose danbooru-style tag prompts for NovelAI and PixAI."
+      }
+    },
+    "gallery": {
+      "title": "Gallery — ANTEI",
+      "description": "Browse the public archive of AI-generated images."
+    },
+    "prompts": {
+      "title": "Prompt Engineering — ANTEI",
+      "description": "Save reusable prompt templates and see what you've created with each one."
+    },
+    "profile": {
+      "title": "Profile — ANTEI",
+      "description": "Your generation history, credits, and saved API routes."
+    },
+    "assets": {
+      "title": "Assets — ANTEI",
+      "description": "Browse and manage every generation you've made, organised by project and folder."
+    },
+    "cards": {
+      "title": "Characters — ANTEI",
+      "description": "Your characters: images and profiles for generating, scripting and assistant personas."
+    },
+    "signIn": {
+      "title": "Sign In — ANTEI",
+      "description": "Sign in to return to your saved archive, API keys, and generation history."
+    },
+    "signUp": {
+      "title": "Create Account — ANTEI",
+      "description": "Create an account to start generating and saving your AI images, video, prompts, and seeds."
+    }
+  },
+  "Homepage": {
+    "heroStat": "{models} MODELS · {providers} PROVIDERS · {modalities} MODALITIES",
+    "heroLine1": "Generate with every model.",
+    "heroLine2": "Keep every result.",
+    "v4": {
+      "nav": {
+        "label": "Page navigation",
+        "pageLabel": "Page index",
+        "close": "Close",
+        "stationPages": "{count, plural, one {# page} other {# pages}}",
+        "prevModel": "Previous model",
+        "nextModel": "Next model"
+      },
+      "groups": {
+        "opening": "Opening",
+        "feature": "Features",
+        "models": "Models",
+        "finale": "Closing"
+      },
+      "opening": {
+        "note": "Made here · From the public gallery · Updated continuously",
+        "cuePc": "SCROLL",
+        "cueMobile": "SWIPE"
+      },
+      "finale": {
+        "title": "Generating is where it starts.",
+        "cta": "Open the canvas",
+        "guidelines": "Content guidelines"
+      },
+      "fn": {
+        "image": {
+          "workbench": "Image workspace",
+          "meta": "1024×1365 · 1 image per model · same prompt",
+          "prompt": "Ginger cat curator in round glasses at a museum desk, framed art behind, warm light",
+          "generate": "Generate",
+          "moreModels": "{count, plural, one {# model} other {# models}}"
+        },
+        "lora": {
+          "workbench": "LoRA workspace",
+          "mounted": "<b>{count}</b> added · no limit",
+          "search": "Search Civitai / Hugging Face…",
+          "add": "Add",
+          "mountedKicker": "Added LoRAs · weights",
+          "promptKicker": "PROMPT · trigger words are added automatically",
+          "freeText": ", full body, standing, cream coat, holding a black book",
+          "outKicker": "Same LoRAs · same seed · only the style weights change",
+          "outAlt": "The same character at flat-line weight {cel} and figure weight {solid}",
+          "cards": {
+            "flatline": {
+              "name": "Flatline",
+              "short": "Flatline"
+            },
+            "figure": {
+              "name": "Anime Figure",
+              "short": "Anime Figure"
+            },
+            "pose": {
+              "name": "Dynamic Poses",
+              "short": "Dynamic Poses"
+            },
+            "detail": {
+              "name": "Detail Tweaker",
+              "short": "Detail Tweaker"
+            },
+            "light": {
+              "name": "Light Concepts",
+              "short": "Light Concepts"
+            },
+            "water": {
+              "name": "Watercolor",
+              "short": "Watercolor"
+            }
+          }
+        },
+        "audio": {
+          "room": "Voice room",
+          "meta": "8 speakers · voice library + cloning · Fish S2.1",
+          "lines": {
+            "qing": {
+              "avatar": "Q",
+              "who": "Qing · Fish soft female",
+              "text": "The show opens tonight at eight.",
+              "duration": "0:02",
+              "playLabel": "Play Qing's voice note",
+              "pauseLabel": "Pause Qing's voice note"
+            },
+            "lei": {
+              "avatar": "L",
+              "who": "Lei · Fish young male",
+              "text": "Got it. I'll do one more pass on the poster.",
+              "duration": "0:03",
+              "playLabel": "Play Lei's voice note",
+              "pauseLabel": "Pause Lei's voice note"
+            },
+            "ke": {
+              "avatar": "N",
+              "who": "Narrator · cloned voice",
+              "text": "And just then, the lamps in the hall came on one by one.",
+              "duration": "0:04",
+              "playLabel": "Play the narrator's voice note",
+              "pauseLabel": "Pause the narrator's voice note"
+            }
+          },
+          "addVoice": "Add a voice",
+          "placeholder": "Type a line, pick a voice, hit generate…",
+          "generate": "Generate"
+        },
+        "video": {
+          "workbench": "Video workspace",
+          "meta": "Seedance 2.5 reference endpoint · 30s in one pass · 720p",
+          "refs": {
+            "shot": {
+              "label": "shot01-entrance",
+              "say": "match this shot"
+            },
+            "anchor": {
+              "label": "character-anchor-her.webp",
+              "say": "match this character"
+            },
+            "voice": {
+              "label": "line-her-umbrella 0:03",
+              "say": "match this voice"
+            }
+          },
+          "prompt": "Rainy June walk home. No umbrella for her; he tilts his over, right shoulder soaking. Three shots: entrance, slope, arcade. Cel-shaded 2D.",
+          "toolsMeta": "4 references · any type · voice cloning ×3",
+          "submit": "Send",
+          "outTag": "Seedance · made here · The Borrowed Umbrella"
+        },
+        "canvas": {
+          "assistant": {
+            "title": "Assistant",
+            "meta": "Script assistant",
+            "meAvatar": "Me",
+            "me": "Rainy season, a girl forgets her umbrella — turn it into a short.",
+            "botAvatar": "AI",
+            "bot": "Three shots: waiting at the entrance, sharing the umbrella, parting at the arcade. Here is the script.",
+            "chip": "Script · The Borrowed Umbrella v1"
+          },
+          "script": {
+            "title": "Script",
+            "meta": "3 shots · The Borrowed Umbrella",
+            "toNode": "node",
+            "rows": {
+              "deck": {
+                "index": "Shot 01",
+                "text": "At the entrance, she watches the rain with no umbrella"
+              },
+              "departure": {
+                "index": "Shot 02",
+                "text": "He tilts the umbrella her way, his right shoulder wet"
+              },
+              "pullback": {
+                "index": "Shot 03",
+                "text": "Under the arcade, the rain suddenly goes quiet"
+              }
+            }
+          },
+          "board": {
+            "title": "Canvas",
+            "meta": "4 nodes · 3 wires",
+            "nodes": {
+              "deck": "Shot 01 · entrance",
+              "departure": "Shot 02 · shared umbrella",
+              "pullback": "Shot 03 · arcade"
+            },
+            "cut": "Cut · SEEDANCE · made here"
+          }
+        },
+        "vault": {
+          "title": "Vault",
+          "meta": "Images · video · audio · LoRA · kept for good",
+          "filters": {
+            "all": "All",
+            "image": "Images",
+            "video": "Video",
+            "audio": "Audio",
+            "lora": "LoRA"
+          },
+          "cells": {
+            "cut": "05 · The Borrowed Umbrella",
+            "anchor": "04 · character reference",
+            "voice": "03 · line 0:03",
+            "shotDeck": "Image",
+            "shotPullback": "Image",
+            "shotDeparture": "Image",
+            "lora": "LoRA · Ghibli Soft",
+            "prompt": "PROMPT",
+            "threed": "3D · RODIN",
+            "count": "still in the vault"
+          },
+          "promptText": "Rainy season, walking home — he tilts the umbrella her way, his right shoulder soaked.",
+          "archived": "+ {count, number}",
+          "reuseKicker": "REUSE",
+          "slotEmpty": "Reference slot · empty",
+          "slotFilled": "Reference added · canvas",
+          "note": "Drag anything from your library into the canvas or a workspace to use it as a reference for your next creation.",
+          "cta": "Start creating"
+        }
+      },
+      "pages": {
+        "opening": {
+          "nav": "Opening"
+        },
+        "image": {
+          "nav": "Image",
+          "title": "One prompt. Four AI models create."
+        },
+        "lora": {
+          "nav": "LoRA",
+          "title": "Find a LoRA and add it. Combine as many as you like."
+        },
+        "audio": {
+          "nav": "Audio",
+          "title": "Pick a voice, type a line, and hear it speak."
+        },
+        "video": {
+          "nav": "Video",
+          "title": "Image, voice, footage, text — all of it can be a reference."
+        },
+        "canvas": {
+          "nav": "Canvas",
+          "title": "Chat to write a script. Connect the nodes to make a video."
+        },
+        "vault": {
+          "nav": "Vault",
+          "title": "Everything you keep can go back on stage."
+        },
+        "modelsImage": {
+          "nav": "Models · Image"
+        },
+        "modelsLora": {
+          "nav": "Models · LoRA"
+        },
+        "modelsVideo": {
+          "nav": "Models · Video"
+        },
+        "modelsAudio": {
+          "nav": "Models · Audio"
+        },
+        "models3d": {
+          "nav": "Models · 3D"
+        },
+        "finale": {
+          "nav": "Closing"
+        }
+      },
+      "modelPage": {
+        "plus": "Strong at",
+        "minus": "Limitations",
+        "more": "Details · strengths and specs ↑",
+        "close": "Close details",
+        "want": "Backdrop pending · to be generated in-app",
+        "coverAlt": "{model} sample output"
+      },
+      "models": {
+        "gpt": {
+          "pos": "The all-rounder: top of the blind-test boards, and the best at reading a complicated brief.",
+          "fare": "Usage-based",
+          "routes": "On ANTEI · 1 route",
+          "src": "Made here · GPT Image 2",
+          "tags": {
+            "0": "Poster layout",
+            "1": "Long briefs",
+            "2": "Multilingual type"
+          },
+          "plus": {
+            "0": "Text inside the image lands almost every time — poster-grade",
+            "1": "Highest fidelity on long multi-condition prompts; nothing gets dropped",
+            "2": "Chinese, Japanese and Korean render just as cleanly"
+          },
+          "minus": {
+            "0": "Thinking mode adds latency; it is on the slow side",
+            "1": "Expensive in bulk, and transparency support is only fair"
+          }
+        },
+        "gemini": {
+          "pos": "Fast and steady workhorse: 2–5 seconds an image, and the finest editing control here.",
+          "fare": "$0.13 / image · Flash tier $0.03–0.07",
+          "routes": "On ANTEI · 3 routes",
+          "src": "Made here · Gemini 3 Pro Image",
+          "tags": {
+            "0": "Quick revisions",
+            "1": "Local edits",
+            "2": "Real places"
+          },
+          "plus": {
+            "0": "2–5 seconds an image — editing never breaks your rhythm",
+            "1": "Finest control over inpainting, relighting and camera moves",
+            "2": "Uses search results to ground real landmarks and lighting in reference material."
+          },
+          "minus": {
+            "0": "Holds back on the surreal and the heavily stylised",
+            "1": "Small faces and small type still break"
+          }
+        },
+        "flux": {
+          "pos": "Natural textures: skin and fabric without a plastic sheen, with reliable results from long prompts.",
+          "fare": "$0.03 / image · edit $0.04 · Flash $0.005",
+          "routes": "On ANTEI · 5 routes",
+          "src": "fal.ai official demo output",
+          "tags": {
+            "0": "Product texture",
+            "1": "Concept art",
+            "2": "Value"
+          },
+          "plus": {
+            "0": "Real texture: little of the plastic sheen, sharp on objects and materials",
+            "1": "Dual-stream architecture holds long descriptive prompts precisely",
+            "2": "Best value at this quality tier, with no parameter fiddling"
+          },
+          "minus": {
+            "0": "Portraits drift towards a porcelain-doll over-retouch",
+            "1": "Text inside the image is still unreliable"
+          }
+        },
+        "seedream": {
+          "pos": "A designer's eye: understands layout and Chinese text, with web search during generation.",
+          "fare": "$0.03–0.09 / image · three integrations",
+          "routes": "On ANTEI · 5 routes",
+          "src": "Made here · Seedream 5.0",
+          "tags": {
+            "0": "Chinese posters",
+            "1": "Infographics",
+            "2": "Layout"
+          },
+          "plus": {
+            "0": "Design-grade sense of layout: a magazine cover in one pass",
+            "1": "Native type in 10+ languages, strongest in Chinese",
+            "2": "Searches the web mid-generation, so the facts have a source"
+          },
+          "minus": {
+            "0": "Long strings of text still come out wrong, and it takes 8–15 seconds",
+            "1": "Photographic texture reads AI-ish; weaker than Gemini at realism"
+          }
+        },
+        "recraft": {
+          "pos": "Made for designers: the only option here with native SVG output and readable paragraphs.",
+          "fare": "$0.21 / image",
+          "routes": "On ANTEI · 1 route",
+          "src": "Made here · Recraft V4 Pro",
+          "tags": {
+            "0": "Vector logos",
+            "1": "Brand collateral",
+            "2": "Full paragraphs"
+          },
+          "plus": {
+            "0": "The only model that generates true vector SVG",
+            "1": "Readable paragraphs where others manage 2–3 words",
+            "2": "Top of the HF text-to-image arena since October 2024"
+          },
+          "minus": {
+            "0": "$0.21 an image is the most expensive in the image section",
+            "1": "Design-specialised: general photorealism is not its ground"
+          }
+        },
+        "novelai": {
+          "pos": "The newest anime specialist: 22 characters in one frame without blending, and a whole comic page in one pass.",
+          "fare": "Usage-based · V4.5 tier from $0.01 / image",
+          "routes": "On ANTEI · 4 routes (V5 ×2 + V4.5 ×2)",
+          "src": "Made here · NovelAI Diffusion V5",
+          "tags": {
+            "0": "Anime figures",
+            "1": "Many characters",
+            "2": "Comic panels"
+          },
+          "plus": {
+            "0": "Twice the size plus a 32-channel VAE: detail down to hair strands and trinkets",
+            "1": "Up to 22 characters in one frame — multi-panel comics lay out directly",
+            "2": "Prompts in Japanese, traditional Chinese and more; transparency supported"
+          },
+          "minus": {
+            "0": "Anime-specialised; not for realistic scenes",
+            "1": "Not included in the unlimited tier; costs more than V4.5."
+          }
+        },
+        "wai": {
+          "pos": "The crowd-favourite tune: a polished anime face straight out of the box.",
+          "fare": "Usage-based (Runner)",
+          "routes": "On ANTEI · self-hosted Runner",
+          "src": "In-app base-model cover",
+          "tags": {
+            "0": "Community favourite",
+            "1": "No setup",
+            "2": "Anime characters"
+          },
+          "plus": {
+            "0": "A fixture on the community charts — good-looking on default settings",
+            "1": "Takes Illustrious-family LoRAs, so characters reproduce reliably",
+            "2": "Runs directly on Runner, with all parameters available."
+          },
+          "minus": {
+            "0": "Leans sweet; not the one for hard realism",
+            "1": "Queue depends on Runner load"
+          }
+        },
+        "pencil": {
+          "pos": "Pencil and clean line: sketch-feel illustration in one pass.",
+          "fare": "Usage-based (Runner)",
+          "routes": "On ANTEI · self-hosted Runner",
+          "src": "In-app base-model cover",
+          "tags": {
+            "0": "Clean line",
+            "1": "Sketch feel",
+            "2": "Illustration"
+          },
+          "plus": {
+            "0": "A pencil and clean-line texture nothing else here has",
+            "1": "Works for line art and for finished colour alike",
+            "2": "Runs directly on Runner, with all parameters available."
+          },
+          "minus": {
+            "0": "Narrow subject range: illustration is the point",
+            "1": "Not made for thick-paint realism"
+          }
+        },
+        "pony": {
+          "pos": "A long-standing base for a huge range of styles, with community models for almost any look.",
+          "fare": "Usage-based (Runner)",
+          "routes": "On ANTEI · self-hosted Runner",
+          "src": "In-app base-model cover",
+          "tags": {
+            "0": "Style variety",
+            "1": "The elder",
+            "2": "Broad support"
+          },
+          "plus": {
+            "0": "The widest LoRA compatibility of any base here",
+            "1": "A mature system of style trigger words",
+            "2": "The deepest community back catalogue"
+          },
+          "minus": {
+            "0": "Plain faces out of the box; LoRAs do the lifting",
+            "1": "Prompt syntax has a learning curve (the score terms)"
+          }
+        },
+        "sdxl": {
+          "pos": "A versatile classic for everything from photorealism to illustration.",
+          "fare": "Usage-based (Runner)",
+          "routes": "On ANTEI · self-hosted Runner",
+          "src": "In-app base-model cover",
+          "tags": {
+            "0": "General purpose",
+            "1": "Veteran",
+            "2": "Realism-capable"
+          },
+          "plus": {
+            "0": "The open base with the broadest ecosystem coverage",
+            "1": "Realism, design and illustration all run on it",
+            "2": "The most mature tooling and the most documentation"
+          },
+          "minus": {
+            "0": "Raw quality has been left behind by newer models",
+            "1": "Standing out takes a LoRA stack"
+          }
+        },
+        "anima": {
+          "pos": "A new anime model built on DiT, with room to experiment.",
+          "fare": "Usage-based (Runner)",
+          "routes": "On ANTEI · self-hosted Runner (v4 pipeline)",
+          "src": "In-app base-model cover",
+          "tags": {
+            "0": "DiT architecture",
+            "1": "Newcomer",
+            "2": "Testbed"
+          },
+          "plus": {
+            "0": "A new DiT architecture with plenty of potential for fine detail.",
+            "1": "The v4 pipeline is already deployed here",
+            "2": "A fresh option on the anime side"
+          },
+          "minus": {
+            "0": "The scene is only starting; few LoRAs",
+            "1": "Generation takes longer"
+          }
+        },
+        "seedance": {
+          "pos": "A versatile video model with reference input and 18 available routes.",
+          "fare": "$0.12–0.30 / second",
+          "routes": "On ANTEI · 18 routes (fal / VolcEngine / BytePlus / Ark)",
+          "src": "Made here · Seedance 2.0 Fast",
+          "tags": {
+            "0": "Reference input",
+            "1": "Many routes",
+            "2": "Voice cloning"
+          },
+          "plus": {
+            "0": "Reference endpoint: an image and three voice samples, fed together",
+            "1": "Every tier from 2.0 to 2.5 is live, with four integrations backing each other up",
+            "2": "The steadiest first-frame image-to-video here"
+          },
+          "minus": {
+            "0": "Top-end 2.5 is the priciest per second",
+            "1": "Past 10 seconds you have to stitch"
+          }
+        },
+        "minimax": {
+          "pos": "Good value, with both international and China routes supporting reference input.",
+          "fare": "$0.11–0.13 / second",
+          "routes": "On ANTEI · 4 routes (overseas + China × reference)",
+          "src": "Made here · MiniMax H3",
+          "tags": {
+            "0": "Two regions",
+            "1": "Value",
+            "2": "Reference input"
+          },
+          "plus": {
+            "0": "A reference endpoint even at the low tier",
+            "1": "Low latency on the China routes.",
+            "2": "Well regarded for natural human motion"
+          },
+          "minus": {
+            "0": "Limited 1080p options",
+            "1": "Weaker than Kling on stylised camera work"
+          }
+        },
+        "wan30": {
+          "pos": "Alibaba's video model. Available now, with more routes being added to ANTEI.",
+          "fare": "$0.10 / second",
+          "routes": "On ANTEI · 2 routes (text-to-video / reference) · more to come",
+          "src": "Made here · Wan 3.0",
+          "tags": {
+            "0": "Reference input",
+            "1": "Low price",
+            "2": "Growing"
+          },
+          "plus": {
+            "0": "The lowest unit price on the whole site, at $0.10 a second",
+            "1": "Generate videos from reference material.",
+            "2": "New options are being added as Alibaba releases them."
+          },
+          "minus": {
+            "0": "Limited camera movement",
+            "1": "Consistency can slip in longer shots."
+          }
+        },
+        "horse": {
+          "pos": "A fast, affordable option in the blind-test top five.",
+          "fare": "$0.14 / second",
+          "routes": "On ANTEI · 1 route",
+          "src": "Made here · HappyHorse 1.1",
+          "tags": {
+            "0": "Fast generation",
+            "1": "Blind-test board",
+            "2": "Value"
+          },
+          "plus": {
+            "0": "Top five on the Artificial Analysis blind-test board (v1.1 and v1.0 share the ranking — our note)",
+            "1": "Quick to finish a clip",
+            "2": "Friendly unit price"
+          },
+          "minus": {
+            "0": "Limited style control",
+            "1": "Little written about it"
+          }
+        },
+        "kling": {
+          "pos": "Known for expressive camera movement and convincing textures.",
+          "fare": "$0.14–0.17 / second",
+          "routes": "On ANTEI · 2 routes (3.0 Pro / O3 Pro Omni)",
+          "src": "Made here · Kling 3.0 Pro",
+          "tags": {
+            "0": "Camera work",
+            "1": "Texture",
+            "2": "Omni"
+          },
+          "plus": {
+            "0": "Leading quality for camera movement and physical textures.",
+            "1": "O3 Pro Omni is the all-round endpoint",
+            "2": "Delicate human performance"
+          },
+          "minus": {
+            "0": "3.0 Pro does not take reference input (our note)",
+            "1": "Upper-middle unit price"
+          }
+        },
+        "gomni": {
+          "pos": "The quick all-rounder: get the idea moving, cheaply.",
+          "fare": "Usage-based",
+          "routes": "On ANTEI · 1 route",
+          "src": "Made here · GPT Image 2",
+          "tags": {
+            "0": "All-round",
+            "1": "Fast",
+            "2": "Usage-based"
+          },
+          "plus": {
+            "0": "Text-to-video and image-to-video in one place",
+            "1": "Fast and cheap — right for a rough pass",
+            "2": "Strong image understanding powered by Google."
+          },
+          "minus": {
+            "0": "Quality falls short of dedicated video models.",
+            "1": "Coarse style control"
+          }
+        },
+        "fish": {
+          "pos": "A reliable choice for dialogue, known for natural Chinese speech.",
+          "fare": "Free tier $0; paid tier $15 / million UTF-8 bytes",
+          "routes": "On ANTEI · S2.1 Pro free / paid tiers",
+          "src": "fish.audio official artwork",
+          "tags": {
+            "0": "Chinese dialogue",
+            "1": "Voice library",
+            "2": "Free / paid options"
+          },
+          "plus": {
+            "0": "First rank for natural spoken Chinese",
+            "1": "Pick from the in-app voice library, or clone",
+            "2": "S2.1 Pro free and paid tiers connected"
+          },
+          "minus": {
+            "0": "Slightly flat English accent",
+            "1": "Extreme emotion needs the temperature adjusted"
+          }
+        },
+        "eleven": {
+          "pos": "Effects and score: SFX and Music, two routes.",
+          "fare": "Usage-based – $0.15 / second",
+          "routes": "On ANTEI · 2 routes (SFX v2 + Music v2.5)",
+          "src": "elevenlabs.io official artwork",
+          "tags": {
+            "0": "Sound effects",
+            "1": "Score",
+            "2": "Two routes"
+          },
+          "plus": {
+            "0": "SFX: describe a sound in a sentence to generate it.",
+            "1": "Music: control the structure of a complete track.",
+            "2": "The industry benchmark for audio quality"
+          },
+          "minus": {
+            "0": "Less reliable with Chinese lyrics",
+            "1": "Billed per second, so length has to be watched"
+          }
+        },
+        "rodin": {
+          "pos": "Shape your 3D model with up to 5 reference images.",
+          "fare": "Usage-based",
+          "routes": "On ANTEI · 1 route",
+          "src": "hyper3d.ai official artwork",
+          "tags": {
+            "0": "Multi-view",
+            "1": "Controllable",
+            "2": "Ready for editing"
+          },
+          "plus": {
+            "0": "Up to 5 reference images (our cap)",
+            "1": "Topology clean enough to keep editing afterwards",
+            "2": "A four-view workflow"
+          },
+          "minus": {
+            "0": "Slower generation",
+            "1": "Limited texture detail"
+          }
+        },
+        "hunyuan": {
+          "pos": "For detailed 3D work, with up to 1.5 million faces.",
+          "fare": "Usage-based",
+          "routes": "On ANTEI · 2 routes (v3.1 Pro / v3)",
+          "src": "Made here · Hunyuan3D render",
+          "tags": {
+            "0": "High poly",
+            "1": "Detail",
+            "2": "Two versions"
+          },
+          "plus": {
+            "0": "40k to 1.5M faces, adjustable (500k by default)",
+            "1": "Textured mesh in one pass",
+            "2": "v3.1 Pro sharpens the detail further"
+          },
+          "minus": {
+            "0": "High-poly exports are large files",
+            "1": "Better at organic forms than hard surfaces"
+          }
+        },
+        "trellis": {
+          "pos": "Fine-tune resolution, textures, and polygon reduction to suit your project.",
+          "fare": "Usage-based",
+          "routes": "On ANTEI · 1 route",
+          "src": "microsoft.github.io/TRELLIS official teaser",
+          "tags": {
+            "0": "Full control",
+            "1": "Decimation",
+            "2": "Game pipeline"
+          },
+          "plus": {
+            "0": "Three resolution tiers: 512 / 1024 / 1536",
+            "1": "Textures from 1K to 4K",
+            "2": "Adjust the face count from 5K to 2M to fit your game workflow."
+          },
+          "minus": {
+            "0": "Average generation speed",
+            "1": "Stylised input trips it up"
+          }
+        },
+        "tripo": {
+          "pos": "Turn one image into an untextured 3D model in seconds.",
+          "fare": "Usage-based",
+          "routes": "On ANTEI · 1 route",
+          "src": "tripo3d.ai official artwork",
+          "tags": {
+            "0": "Seconds",
+            "1": "Lightweight",
+            "2": "Mockups"
+          },
+          "plus": {
+            "0": "The fastest model here",
+            "1": "Lightweight, untextured models for quick mockups.",
+            "2": "Open-source roots with accessible community tools."
+          },
+          "minus": {
+            "0": "No texture detail",
+            "1": "Complex structures blur"
+          }
+        }
+      }
+    },
+    "foot": {
+      "tagline": "Generate, archive and reuse in one place. Every result keeps its key settings.",
+      "privacy": "Privacy policy",
+      "terms": "Terms of service"
+    }
+  },
+  "Auth": {
+    "open": "Sign in",
+    "enterStudio": "Open studio",
+    "title": "Welcome to {brand}",
+    "subtitle": "Sign in or create an account to continue",
+    "terms": "By continuing you agree to our <terms>terms of service</terms> and <privacy>privacy policy</privacy>.",
+    "backHome": "Back to home",
+    "close": "Close",
+    "continueWith": "Continue with {provider}",
+    "lastUsed": "Last used",
+    "or": "or",
+    "emailLabel": "Email address",
+    "emailPlaceholder": "Enter your email address",
+    "continue": "Continue",
+    "sending": "Sending",
+    "redirecting": "Redirecting to {provider}",
+    "codeSentTo": "Code sent to <b>{email}</b>",
+    "changeEmail": "Use a different email",
+    "codeLabel": "Verification code",
+    "verifying": "Verifying",
+    "signedIn": "Signed in",
+    "resendIn": "Didn't get it? Resend in <seconds></seconds>s",
+    "resendPrompt": "Didn't get it?",
+    "resend": "Resend",
+    "errors": {
+      "emailInvalid": "That email address doesn't look right",
+      "codeIncorrect": "That code isn't right — try again",
+      "codeExpired": "That code has expired — send a new one",
+      "tooManyAttempts": "Too many tries — wait a moment and try again",
+      "providerUnavailable": "This sign-in option isn't available right now",
+      "generic": "That didn't work — try again"
+    }
+  }
+}

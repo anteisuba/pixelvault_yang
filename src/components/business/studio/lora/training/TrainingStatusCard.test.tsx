@@ -6,7 +6,7 @@ import type { LoraTrainingRecord } from '@/types'
 
 import { TrainingStatusCard } from './TrainingStatusCard'
 
-import en from '@/messages/en.json'
+import { en } from '@/messages'
 
 function baseJob(
   overrides: Partial<LoraTrainingRecord> = {},

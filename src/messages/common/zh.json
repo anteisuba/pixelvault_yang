@@ -1,0 +1,461 @@
+{
+  "NotFound": {
+    "title": "这个页面不在这里",
+    "description": "你要找的页面可能已经移动，或者从未存在。回到画廊看看吧。",
+    "backHome": "返回首页"
+  },
+  "PrivacyConsent": {
+    "label": "隐私提示",
+    "body": "保持登录状态和记住语言的 Cookie、以及用于错误上报的 Sentry，是 ANTEI 运行所必需的。可选的会话录制会在全部文本遮罩的前提下记录你的操作，帮我们看清哪里出了问题。",
+    "policyLink": "隐私政策",
+    "rejectAction": "仅必要",
+    "acceptAction": "接受"
+  },
+  "Common": {
+    "brand": "ANTEI",
+    "providerGroups": {
+      "ideogram": "Ideogram",
+      "openai": "OpenAI",
+      "google": "Google",
+      "deepseek": "DeepSeek",
+      "novelai": "NovelAI",
+      "fal": "fal.ai",
+      "runway": "Runway",
+      "volcengine": "火山引擎",
+      "opensource": "开源",
+      "replicate": "Replicate",
+      "runner": "ANTEI Runner",
+      "hyper3d": "Hyper3D",
+      "byteplus": "BytePlus"
+    },
+    "styleGroups": {
+      "photorealistic": "写实摄影",
+      "anime": "动漫插画",
+      "design": "设计排版",
+      "artistic": "艺术电影",
+      "general": "通用"
+    },
+    "qualityTiers": {
+      "premium": "高端",
+      "standard": "标准",
+      "budget": "入门"
+    },
+    "model": "模型",
+    "cost": "消费",
+    "capabilities": "功能",
+    "close": "关闭",
+    "cancel": "取消",
+    "sidebar": "侧边栏",
+    "sidebarDescription": "显示移动端侧边栏。",
+    "toggleSidebar": "切换侧边栏",
+    "selectModel": "选择模型",
+    "searchModels": "搜索模型或厂商...",
+    "noModelsFound": "未找到模型",
+    "savedKey": "你的 key",
+    "modelCount": "{count, plural, other {# 个模型}}",
+    "channelCount": "{count, plural, other {# 个渠道}}",
+    "modelFamily": "系列",
+    "modelVariant": "型号",
+    "unitPrice": {
+      "second": "${amount} / 秒",
+      "image": "${amount} / 张",
+      "kchars": "${amount} / 千字"
+    },
+    "skipToMainContent": "跳到主内容",
+    "requestCount": "{count} 次请求",
+    "loading": "加载中",
+    "copy": "复制",
+    "copied": "已复制"
+  },
+  "Toasts": {
+    "createSuccess": "创建成功",
+    "createFailed": "创建失败",
+    "updateSuccess": "更新成功",
+    "updateFailed": "更新失败",
+    "deleteSuccess": "删除成功",
+    "deleteFailed": "删除失败",
+    "apiKeyCreated": "API 密钥添加成功",
+    "apiKeyLoadFailed": "API 密钥加载失败",
+    "apiKeyCreateFailed": "添加 API 密钥失败",
+    "apiKeyUpdated": "API 密钥已更新",
+    "apiKeyUpdateFailed": "更新 API 密钥失败",
+    "apiKeyDeleted": "API 密钥已删除",
+    "apiKeyDeleteFailed": "删除 API 密钥失败",
+    "storyDeleted": "故事已删除",
+    "storyDeleteFailed": "删除故事失败",
+    "storyCreated": "故事创建成功",
+    "narrativeGenerated": "剧本生成完成",
+    "narrativeGenerateFailed": "生成剧本失败",
+    "projectCreated": "项目已创建",
+    "projectLoadFailed": "项目加载失败",
+    "projectCreateFailed": "创建项目失败",
+    "projectUpdated": "项目已更新",
+    "projectUpdateFailed": "更新项目失败",
+    "projectDeleted": "项目已删除",
+    "projectDeleteFailed": "删除项目失败",
+    "characterCardCreated": "角色已创建",
+    "characterCardLoadFailed": "角色加载失败",
+    "characterCardCreateFailed": "创建角色失败",
+    "characterCardUpdated": "角色已更新",
+    "characterCardUpdateFailed": "更新角色失败",
+    "characterCardDeleted": "角色已删除",
+    "characterCardDeleteFailed": "删除角色失败",
+    "featuredAdded": "已置顶到主页",
+    "featuredRemoved": "已取消置顶",
+    "featuredFailed": "置顶状态更新失败",
+    "featuredLimitReached": "最多可置顶 9 个作品",
+    "loraTrainingSubmitted": "LoRA 训练已开始",
+    "loraTrainingSubmitFailed": "LoRA 训练启动失败",
+    "loraTrainingComplete": "LoRA 训练完成！模型已可使用。",
+    "loraTrainingFailed": "LoRA 训练失败",
+    "signedIn": "已登录",
+    "characterCardImported": "已导入 {name}",
+    "characterCardImportFailed": "这张卡没导进来，再试一次",
+    "characterCardDuplicated": "已复制成 {name}"
+  },
+  "Projects": {
+    "title": "项目",
+    "allGenerations": "全部生成",
+    "newProject": "新建项目",
+    "newProjectPlaceholder": "项目名称",
+    "descriptionPlaceholder": "描述（可选）",
+    "rename": "重命名",
+    "delete": "删除",
+    "deleteConfirm": "确定删除「{name}」吗？生成记录将移至全部生成。",
+    "empty": "暂无项目",
+    "emptyHint": "创建项目来整理你的生成作品",
+    "generationCount": "{count} 次生成",
+    "history": "历史记录",
+    "historyEmpty": "该项目暂无生成记录",
+    "historyLoadMore": "加载更多",
+    "filterAll": "全部",
+    "filterImage": "图片",
+    "filterVideo": "视频",
+    "filterAudio": "音频",
+    "cancel": "取消",
+    "save": "保存",
+    "create": "创建",
+    "close": "关闭"
+  },
+  "Navbar": {
+    "brand": "ANTEI",
+    "signIn": "登录",
+    "account": "账号",
+    "settings": "设置",
+    "menu": "菜单",
+    "openMenu": "打开菜单",
+    "mobileNavigation": "移动端导航",
+    "links": {
+      "gallery": "画廊",
+      "create": "创作",
+      "prompts": "提示词",
+      "studio": "工作台",
+      "library": "档案",
+      "assets": "素材",
+      "cards": "角色",
+      "profile": "我的主页"
+    },
+    "groupLabel": "去处"
+  },
+  "MobileNav": {
+    "create": "新建",
+    "close": "收起",
+    "quickPlaceholder": "想画什么，打一句就出图",
+    "quickGo": "生成",
+    "last": "上次",
+    "back": "返回",
+    "switchTool": "切换工具",
+    "tabs": {
+      "label": "主导航",
+      "profile": "我的"
+    },
+    "me": {
+      "prompts": "提示词",
+      "profileHint": "主页与资料"
+    }
+  },
+  "LocaleSwitcher": {
+    "label": "语言",
+    "options": {
+      "en": "EN",
+      "ja": "JA",
+      "zh": "ZH"
+    },
+    "names": {
+      "en": "English",
+      "ja": "日本語",
+      "zh": "简体中文"
+    }
+  },
+  "Onboarding": {
+    "steps": {
+      "welcome": {
+        "title": "欢迎来到 ANTEI",
+        "description": "无需 API 密钥即可免费开始，每天 5 次免费生成。之后绑定自己的密钥即可解锁全部模型和无限使用。"
+      },
+      "model": {
+        "title": "选择模型",
+        "description": "标有「免费」的模型无需 API key，每天可用 5 次。绑定自己的 key 即可解锁全部模型。"
+      },
+      "samplePrompt": {
+        "title": "示例 prompt 已就绪",
+        "description": "已为你填好示例 prompt，点击生成按钮试试看！"
+      },
+      "apiKey": {
+        "title": "想使用自己的 API 密钥吗？",
+        "description": "你可以添加自己的 API 密钥来无限生成。如果想使用默认的工作区密钥，可以跳过这一步。"
+      },
+      "generate": {
+        "title": "开始生成！",
+        "description": "准备好后点击这个按钮。你的图像将自动归档，保留提示词和模型信息。"
+      }
+    }
+  },
+  "Feedback": {
+    "notifications": "通知",
+    "downloadStarted": "已开始下载",
+    "deleteConfirm": "确认删除",
+    "undo": "撤销",
+    "slowLoading": "网有点慢，还在加载",
+    "batchFailed": "这批没拿到",
+    "retry": "重试",
+    "retrying": "重试中",
+    "loadingMore": "正在加载更多",
+    "endOfList": "没有更多了",
+    "pageLoadFailedHint": "可能是网断了一下。点重试，不会丢东西。",
+    "previewFallback": "先给你看小图"
+  },
+  "ErrorBoundary": {
+    "title": "出了点问题",
+    "sectionError": "{section}遇到了错误",
+    "description": "发生了意外错误，请重试。",
+    "retry": "重试",
+    "retrying": "重试中",
+    "home": "返回首页"
+  },
+  "GlobalError": {
+    "title": "出了点问题",
+    "description": "发生了意外错误，我们已经收到通知。",
+    "action": "重试"
+  },
+  "QuickSetup": {
+    "channelPick": "先选一家：配哪家的 key？",
+    "ideogramGuide": "登录 Ideogram → API Keys → Create key，创建密钥。",
+    "title": "设置 {model}",
+    "description": "2 分钟获取 API key，解锁该模型。",
+    "step1": "1. 获取 API key",
+    "step2": "2. 粘贴到这里",
+    "step3": "3. 自定义名称",
+    "labelPlaceholder": "用来区分不同 key 的名称",
+    "labelHint": "建议带上账号或用途，例如「Gemini 主账号」",
+    "keyPlaceholder": "粘贴你的 API key...",
+    "anthropicWorkspaceId": "Workspace ID（可选）",
+    "anthropicWorkspaceHint": "仅当这个 Claude key 未绑定到单一 Workspace 时需要填写。",
+    "verify": "验证并激活",
+    "checking": "检查中",
+    "saved": "已保存",
+    "verifyFailed": "API key 无效，请检查后重试。",
+    "available": "可用",
+    "configuredKeys": "已配置 API Key",
+    "needsKey": "需要 API key",
+    "manageAllKeys": "管理全部 key →"
+  },
+  "Errors": {
+    "voice": {
+      "libraryUnavailable": "声音库暂时连不上，稍后再试。",
+      "sampleMissing": "这副音色没有可用的示例。"
+    },
+    "voiceRoom": {
+      "notFound": "房间不存在",
+      "lineNotFound": "台词不存在",
+      "castFull": "班底满了，一个房间最多 8 个人声",
+      "castDuplicate": "这个音色已经在班底里了",
+      "modelUnavailable": "当前没有可用的音频模型",
+      "speakerNotInCast": "这位不在本房间的班底里",
+      "speakerCannotSpeak": "配乐是房间底垫，不能说台词",
+      "voiceCardUnavailable": "这个音色已不可用",
+      "roomFull": "这个房间的台词满了，新开一个吧",
+      "lineEmpty": "台词不能为空"
+    },
+    "common": {
+      "unexpected": "发生了意外错误，请重试。",
+      "databaseUnavailable": "数据库服务暂时不可用，请稍后再试。"
+    },
+    "webImageImport": {
+      "unreachable": "这张图所在的站点不让我们下载它。换一张候选试试。",
+      "unsupported": "这个链接不是能收下的图片格式（支持 JPEG / PNG / WebP / GIF）。",
+      "tooLarge": "这张图太大了，收不下。",
+      "noImageOnPage": "这是一个网页，而它没有标出主图。把图片本身的地址给我（在图上右键「复制图片地址」）。",
+      "forbidden": "这张图所在的站点拒绝了我们的下载（热链保护或反爬）。换一张候选试试。",
+      "notFound": "这条图片地址已经失效了（原站删了或换了地址）。换一张候选试试。",
+      "rateLimited": "这个站点暂时限制了我们的访问频率。等一会儿再点「选用」。",
+      "serverError": "这张图所在的站点自己出错了，与这张图无关。稍后重试或换一张。",
+      "timeout": "取这张图超时了。稍后重试或换一张更小的。"
+    },
+    "assistant": {
+      "audioUnsupported": "当前模型无法分析音频。请选择 Gemini，或移除音频附件。",
+      "videoUnsupported": "当前模型无法分析视频。请选择 Gemini，或移除视频参考。",
+      "imageUnsupported": "当前模型无法分析图片。请选择标注为“图片视觉”的模型，或移除图片参考。",
+      "modelKeyMissing": "你选的助手模型还没有它那一家的 Key，这一轮没有跑，也没有改用别家的 Key。配好 Key，或者换个模型。",
+      "modelCannotSee": "助手现在用的模型看不了图，这一项没有发出去，也没有改用别家的 Key。要用它，就在助手的模型菜单里换一个能看图的模型。",
+      "contentBlocked": "模型的安全策略拦下了这次请求。换个说法，或切换助手路由。",
+      "outputTruncated": "模型还没写出正文就停了（输出预算用尽）。可以缩短对话后重试。",
+      "noTextResponse": "模型返回了空回复。重试，或切换助手路由。",
+      "phantomCitation": "助手引用了不存在的证据，这条回答已被拦下。重试，或把这一轮的联网检索关掉。",
+      "videoUnreachable": "这个视频取不到（可能已删除、设为私享，或不允许外部访问）。换一条公开链接，或把片段下载后拖进来。",
+      "timelinePlanFailed": "排片没有返回一份能用的时间线。重试，或把话说得更直白一点。",
+      "timelinePlanEmpty": "画布上还没有出片的视频卡可排，先生成或上传一张。"
+    },
+    "provider": {
+      "failed": "AI 提供商错误，请重试。",
+      "insufficientBalance": "当前 Agent Key 的服务商余额不足。请充值，或为这个 Agent 切换另一个 Key。",
+      "invalidStructuredOutput": "当前规划模型返回了不完整结果。请重试，或为这个 Agent 切换另一个 Key。",
+      "invalidApiKey": "当前 Agent Key 无效或已失去授权。请重新配置，或切换另一个 Agent Key。",
+      "rateLimited": "当前规划路由触发了服务商限流。请稍后重试，或切换另一个 Agent Key。",
+      "safetyBlocked": "该模型基于安全策略拒绝处理此内容。换一个模型试试（例如从 GPT 切到 Gemini，或反之）。",
+      "temporarilyUnavailable": "当前规划模型暂时不可用或容量已满。请稍后重试，或切换另一个 Agent Key。",
+      "timeout": "AI 提供商超时，请重试。",
+      "unsupportedOpenAiReferenceImage": "OpenAI 只接受 JPEG、PNG 或 WebP 参考图。请转换图片格式后再试。",
+      "unsupportedGeminiReferenceImage": "Gemini 接受 PNG、JPEG、WebP、HEIC 或 HEIF 参考图。请转换图片格式后再试。",
+      "unsupportedFalReferenceImage": "fal.ai 无法读取这张参考图。请使用 PNG、JPEG、WebP 或 GIF，并确认图片链接可被服务端直接访问。",
+      "unsupportedVolcengineReferenceImage": "Seedream 无法读取这张参考图。请使用 JPEG、PNG 或 WebP 等通用格式，并确认图片链接可被服务端直接访问。",
+      "unsupportedReferenceImage": "该模型无法读取当前参考图格式。请改用 JPEG、PNG 或 WebP 后再生成。",
+      "referenceImageTooLarge": "参考图文件过大，超出该模型限制。请压缩图片或换一张更小的图片后再试。",
+      "requestTooLarge": "文字和附件的合计大小超过该模型的请求上限。请减少附件、使用更小的文件，或缩短文字。",
+      "executionWorkerUnavailable": "生成服务暂时无法连接。请稍后重试；如果一直失败，请联系管理员。",
+      "referenceImageUnreachable": "服务商无法下载这张参考图。请使用可直接访问的公开图片链接，或重新上传图片。",
+      "referenceImageLimitExceeded": "参考图数量超过该模型限制。请减少参考图后再试。",
+      "transparentBackgroundRequiresSingleReference": "透明底只收一张带透明通道的参考图（PNG）。请只挂一张透明 PNG，或把背景 chip 调回不透明。",
+      "layerDecompositionRequiresSingleReference": "图层拆分只收一张待拆分的参考图。请只挂一张图，或把图层 chip 关掉。",
+      "promptTooLong": "发给这个模型的提示词超过了它的字数上限。请缩短提示词（卡片模式含卡片内容）后再试。",
+      "invalidReferenceImageDimensions": "参考图尺寸或比例不符合该模型要求。请换一张尺寸合规的图片后再试。",
+      "accountLimitReached": "服务商账号为该模型设置的用量上限已触顶，模型服务已被暂停。重试不会有变化——请到服务商控制台调高或关闭该模型的用量限额，或先改用其它模型。",
+      "outputBudgetExhausted": "该推理模型在写出回复前就用尽了输出额度。请重试、换非推理模型（如 Gemini / DeepSeek），或缩短提示词。",
+      "contextLimitExceeded": "ANTEI 已压缩较早历史并自动重试一次，但仍超过该模型的上下文上限。请新建对话或移除较大的参考内容。",
+      "refused": "所选模型依据其内容政策拒绝了本次请求。请换个说法，或选择其他 Agent Key。",
+      "noOutput": "服务商完成了请求，但没有返回可用媒体。请调整提示词，或换一个模型重试。",
+      "callbackTimeout": "暂时没有收到这次生成的结果。请先查看生成记录，确认结果后再决定是否重试。",
+      "storageUploadFailed": "服务商已返回媒体，但保存失败。请重试。",
+      "loraIncompatibleHosted": "这个 LoRA 的层格式托管模型不支持。如果有 ANTEI Runner 模型（忠实复刻）可用，试试切换过去。",
+      "runnerMonthlyLimitExceeded": "ANTEI Runner 本月生成额度已用完。请下月再试，或改用托管模型。",
+      "runnerLoraUnavailable": "当前生成服务还不能使用这个 LoRA。请更换 LoRA，或选择支持它的模型。",
+      "loraDownloadDisabled": "这把 LoRA 的作者在 Civitai 关掉了下载，任何后端都取不到它的权重。请换一把 LoRA。"
+    },
+    "generation": {
+      "provider_timeout": "这次生成等待时间过长。请稍后重试，或换一个模型。",
+      "provider_rate_limit": "请求过于频繁，请稍后再试",
+      "provider_overloaded": "该模型当前需求过高，服务商容量已满。请换个模型试试。",
+      "invalid_api_key": "当前服务商的 API Key 无效或已过期。请到设置中更新后再试。",
+      "content_filtered": "服务商的内容审核未通过。请检查提示词和参考素材是否符合其内容政策，再调整后提交。",
+      "model_unavailable": "这个模型暂时无法使用。请稍后重试，或选择其他模型。",
+      "provider_no_output": "服务商没有返回可用媒体",
+      "callback_timeout": "暂时没有收到这次生成的结果。请先查看生成记录，确认结果后再决定是否重试。",
+      "storage_upload_failed": "保存生成媒体失败",
+      "provider_insufficient_balance": "服务商账户余额不足",
+      "insufficient_credits": "今日免费生成次数已用完",
+      "unsupported_reference_image_format": "该模型无法读取当前参考图格式",
+      "reference_image_too_large": "参考图文件过大，超出该模型限制",
+      "reference_image_unreachable": "服务商无法下载这张参考图",
+      "reference_image_limit_exceeded": "参考图数量超过该模型限制",
+      "transparent_background_requires_single_reference": "透明底需要且只需要一张带透明通道的参考图（PNG）。",
+      "layer_decomposition_requires_single_reference": "图层拆分需要且只需要一张待拆分的参考图。",
+      "novelai_anlas_shortfall": "NovelAI 账户的 Anlas 不够：这张要 {required}，只剩 {available}。只有 Opus 订阅在免费范围内（单张 · ≤1024² · ≤28 步）出图才不扣 Anlas——请到 NovelAI 检查订阅或补充 Anlas，直接重试无效。",
+      "prompt_too_long": "提示词超过了这个模型的字数上限。",
+      "invalid_reference_image_dimensions": "参考图尺寸或比例不符合该模型要求",
+      "provider_account_limit_reached": "服务商账号为该模型设置的用量上限已触顶，模型服务被暂停。重试无效，需到服务商控制台调整限额。",
+      "provider_model_not_activated": "服务商账号还没有开通这个模型。请到服务商控制台（如火山方舟 / BytePlus 的模型开通页）开通后再试，直接重试无效。",
+      "provider_server_error": "服务商那边的服务器出错了（返回 500），不是你的设置问题。一般是对方临时故障，稍后重试，或先换个模型。",
+      "runner_queue_stuck": "这次生成因长时间未能开始而已取消。请换一个可用模型，或稍后再试。",
+      "runner_download_mismatch": "下载的模型文件和来源公布的不一致，这次没有出图。重试会重新下载；一直不行就换一个 LoRA 或底模。",
+      "runner_storage_full": "Runner 的模型存储已满，这次没有出图。请稍后重试；一直失败请联系管理员扩容。",
+      "execution_worker_unavailable": "生成服务暂时无法连接。请稍后重试；如果一直失败，请联系管理员。",
+      "lora_incompatible_hosted": "当前模型不支持这个 LoRA 的格式。请选择兼容的模型，或更换 LoRA。",
+      "runner_monthly_limit_exceeded": "本月 Runner 的出图额度已经用完。可以先改用托管模型，或等下个月额度重置。",
+      "runner_lora_unavailable": "当前生成服务还不能使用这个 LoRA。请更换 LoRA，或选择支持它的模型。",
+      "lora_download_disabled": "这把 LoRA 的作者在 Civitai 关掉了下载，它只能在 Civitai 站内出图。这跟 API Key 无关，换任何 token 都取不到权重——请换一把 LoRA。",
+      "publish_blocked": "提示词里同时有未成年相关词和性相关词，这件作品不能公开。它仍留在你的素材库里。",
+      "publish_blocked_search": "出图时用了 Google 搜索，按条款只能自己看，不能发布。",
+      "unknown": "这次生成没有成功，暂时无法确定原因。请稍后重试；如果仍然失败，可将错误详情提供给管理员。",
+      "unknownWithDetail": "这次生成没有成功，服务商返回：{detail}"
+    },
+    "validation": {
+      "invalidInput": "输入无效，请检查参数。",
+      "invalidJson": "无法读取请求内容。"
+    },
+    "rateLimit": "请求过于频繁，请稍候再试。",
+    "runawayGeneration": "该账号的生成请求呈现出密集重复的模式，已被自动暂停——这通常意味着某处卡在了重试循环或自动化脚本里，不是你的操作有问题。请稍等几分钟后再试。",
+    "platformGenerationDisabled": "平台出资的生成当前已关闭——这是站点配置状态，不是临时故障，重试不会成功。请改用已绑定自己 API key 的模型，或联系站点管理员开启。",
+    "auth": {
+      "unauthorized": "请登录后继续。"
+    },
+    "gallery": {
+      "invalidQuery": "当前筛选条件无效。",
+      "loadFailed": "加载画廊失败。"
+    },
+    "credits": {
+      "exceeded": "今日免费生成次数已用完。"
+    },
+    "apiKey": {
+      "missing": "此模型需要 API Key。",
+      "invalid": "API Key 无效，请检查后重试。"
+    },
+    "profile": {
+      "loadFailed": "加载资料失败。",
+      "updateFailed": "更新资料失败。",
+      "usernameTaken": "该用户名已被占用。",
+      "usernameReserved": "该用户名为保留词。",
+      "usernameInvalid": "用户名需为 3-30 个字符，以字母开头，且只能包含字母、数字或连字符。",
+      "avatarUploadFailed": "上传头像失败。",
+      "bannerUploadFailed": "上传封面图片失败。",
+      "unsupportedImageType": "请使用 JPEG、PNG 或 WebP 格式。",
+      "avatarTooLarge": "头像不能超过 5 MB。",
+      "bannerTooLarge": "封面图片不能超过 10 MB。"
+    },
+    "notImplemented": "此功能即将推出。",
+    "upload": {
+      "storageUnreachable": "无法上传到图片存储，通常是网络或存储跨域（CORS）配置问题。请重试，若持续请联系管理员。",
+      "storageRejected": "图片存储拒绝了本次上传。请重试，若持续请联系管理员。"
+    },
+    "scriptDoc": {
+      "promptTooLong": "剧本加上这条消息太长，一次改不完。请缩短这条消息、精简镜头描述，或拆成更少的镜头。"
+    },
+    "vision": {
+      "invalidOutput": "看图结果没能整理成结构化结论（已重试一次）。换一张图或稍后再试。",
+      "insufficientMedia": "对比至少需要两张图片。",
+      "framesInvalid": "抽出的帧与确定性计划对不上，请重新抽帧。"
+    },
+    "projectRule": {
+      "limitReached": "来源名单已经到上限了，先删掉一条再加。"
+    },
+    "contextCard": {
+      "limitReached": "上下文卡已经到上限了，先删掉一张再加。",
+      "imageLimitReached": "这张卡的参考图满了，先摘掉一张。",
+      "imageTooLarge": "参考图得小于 10 MB。"
+    },
+    "assistantPersona": {
+      "characterNotFound": "这个角色已经不在了，换一个或者选「不用角色」。"
+    },
+    "assistantMemory": {
+      "limitReached": "你写的记忆已经到上限了，先删掉一条再写。"
+    },
+    "promptTags": {
+      "unusable": "助手没翻出标签，整句先留着。"
+    },
+    "tavernCard": {
+      "notACard": "这个文件不是酒馆角色卡（PNG 或 JSON）",
+      "tooLarge": "卡文件超过 3 MB 了",
+      "limitReached": "角色数到上限了，删掉一个再导入"
+    },
+    "chubLibrary": {
+      "unavailable": "chub.ai 暂时没回应，过一会儿再试",
+      "notFound": "这张卡在 chub.ai 上已经找不到了",
+      "countryBlocked": "chub.ai 在你所在的网络不可用",
+      "tooLarge": "这张卡超过 3 MB 了，没法建成角色"
+    },
+    "characterLook": {
+      "notFound": "找不到这套造型",
+      "limit": "造型数到上限了",
+      "lastLook": "至少要留一套造型"
+    }
+  }
+}

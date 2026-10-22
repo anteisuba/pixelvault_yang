@@ -10,6 +10,7 @@ import {
   OUTSIDE_APP_NAMESPACES,
   pickMessages,
 } from '@/i18n/messages-split'
+import { MESSAGES } from '@/messages'
 
 const SRC_DIR = join(process.cwd(), 'src')
 const LOCALES = ['en', 'ja', 'zh'] as const
@@ -102,9 +103,7 @@ describe('messages-split', () => {
   it.each(LOCALES)(
     '`(main)` bundle for %s keeps every namespace except the outside-app ones',
     (locale) => {
-      const messages = JSON.parse(
-        readFileSync(join(SRC_DIR, 'messages', `${locale}.json`), 'utf-8'),
-      ) as AbstractIntlMessages
+      const messages = MESSAGES[locale] as unknown as AbstractIntlMessages
 
       const appMessages = omitMessages(messages, OUTSIDE_APP_NAMESPACES)
       const kept = Object.keys(appMessages)
@@ -121,9 +120,7 @@ describe('messages-split', () => {
   )
 
   it('every outside-app namespace exists in the message bundle', () => {
-    const messages = JSON.parse(
-      readFileSync(join(SRC_DIR, 'messages', 'en.json'), 'utf-8'),
-    ) as Record<string, unknown>
+    const messages: Record<string, unknown> = MESSAGES.en
     for (const namespace of OUTSIDE_APP_NAMESPACES) {
       expect(Object.keys(messages)).toContain(namespace)
     }
@@ -151,9 +148,7 @@ describe('messages-split', () => {
   })
 
   it('the marketing subset stays a subset of the full bundle', () => {
-    const messages = JSON.parse(
-      readFileSync(join(SRC_DIR, 'messages', 'en.json'), 'utf-8'),
-    ) as Record<string, unknown>
+    const messages: Record<string, unknown> = MESSAGES.en
     for (const namespace of MARKETING_NAMESPACES) {
       expect(Object.keys(messages)).toContain(namespace)
     }

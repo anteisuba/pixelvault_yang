@@ -1,12 +1,11 @@
 import type { ReactNode } from 'react'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { CONSENT_STORAGE_KEY } from '@/constants/privacy-consent'
 import { ROUTES } from '@/constants/routes'
+import { en } from '@/messages'
 
 import { PrivacyConsentBanner } from './PrivacyConsentBanner'
 
@@ -22,9 +21,7 @@ vi.mock('@/i18n/navigation', () => ({
   ),
 }))
 
-const messages = JSON.parse(
-  readFileSync(join(process.cwd(), 'src', 'messages', 'en.json'), 'utf-8'),
-) as Record<string, unknown>
+const messages: Record<string, unknown> = en
 
 function renderBanner() {
   return render(

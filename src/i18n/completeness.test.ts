@@ -23,6 +23,7 @@ import {
   STUDIO_OPERATOR_SYSTEM_CODES,
 } from '@/constants/studio-assistant-operator'
 import { VIDEO_SEND_MODES } from '@/constants/video-node-modes'
+import { MESSAGES, type Messages } from '@/messages'
 
 const LOCALES = ['en', 'ja', 'zh'] as const
 const SRC_DIR = join(process.cwd(), 'src')
@@ -68,7 +69,7 @@ it('translates every derived model capability chip in all locales', () => {
     const onError = vi.fn()
     const translate = createTranslator({
       locale,
-      messages: messages as typeof import('@/messages/en.json'),
+      messages: messages as Messages,
       onError,
     })
     for (const key of needed) {
@@ -82,9 +83,36 @@ it('translates every derived model capability chip in all locales', () => {
   }
 })
 
-function loadMessages(locale: string): Record<string, unknown> {
-  const raw = readFileSync(join(MESSAGES_DIR, `${locale}.json`), 'utf-8')
-  return JSON.parse(raw)
+function loadMessages(
+  locale: (typeof LOCALES)[number],
+): Record<string, unknown> {
+  return MESSAGES[locale]
+}
+
+/** 每个模块文件夹：`<模块>/{en,ja,zh}.json`。 */
+function readModuleMessages(): Map<
+  string,
+  Record<string, Record<string, unknown>>
+> {
+  const modules = new Map<string, Record<string, Record<string, unknown>>>()
+  for (const entry of readdirSync(MESSAGES_DIR, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue
+    modules.set(
+      entry.name,
+      Object.fromEntries(
+        LOCALES.map((locale) => [
+          locale,
+          JSON.parse(
+            readFileSync(
+              join(MESSAGES_DIR, entry.name, `${locale}.json`),
+              'utf-8',
+            ),
+          ) as Record<string, unknown>,
+        ]),
+      ),
+    )
+  }
+  return modules
 }
 
 /**
@@ -485,6 +513,37 @@ describe('i18n completeness', () => {
     },
   )
 
+  // 拆成模块文件夹后，三语漏键直接报到模块，不用在整份里找。
+  it('every module folder has the same keys in all three locales', () => {
+    for (const [moduleName, byLocale] of readModuleMessages()) {
+      const enKeys = collectKeys(byLocale.en).sort()
+      for (const locale of ['ja', 'zh'] as const) {
+        expect(
+          collectKeys(byLocale[locale]).sort(),
+          `${moduleName}/${locale}.json vs ${moduleName}/en.json`,
+        ).toEqual(enKeys)
+      }
+    }
+  })
+
+  // index.ts 用展开拼模块：同一个命名空间出现在两个模块里会被后一个静默覆盖。
+  it('every namespace lives in exactly one module folder', () => {
+    const owner = new Map<string, string>()
+    const duplicated: string[] = []
+    for (const [moduleName, byLocale] of readModuleMessages()) {
+      for (const namespace of Object.keys(byLocale.en)) {
+        const previous = owner.get(namespace)
+        if (previous)
+          duplicated.push(`${namespace}: ${previous} + ${moduleName}`)
+        owner.set(namespace, moduleName)
+      }
+    }
+    expect(duplicated).toEqual([])
+    expect([...owner.keys()].sort()).toEqual(
+      Object.keys(messagesByLocale.en).sort(),
+    )
+  })
+
   it('all locales have the same top-level key set', () => {
     const enKeys = collectKeys(messagesByLocale.en).sort()
     for (const locale of ['ja', 'zh'] as const) {
@@ -494,11 +553,11 @@ describe('i18n completeness', () => {
 
       expect(
         missingInLocale,
-        `Keys in en.json missing from ${locale}.json`,
+        `Keys in en missing from ${locale}`,
       ).toEqual([])
       expect(
         extraInLocale,
-        `Keys in ${locale}.json not found in en.json`,
+        `Keys in ${locale} not found in en`,
       ).toEqual([])
     }
   })

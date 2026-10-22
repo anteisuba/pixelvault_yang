@@ -1,0 +1,1367 @@
+{
+  "XiaoheiGuide": {
+    "stepCounter": "第 {current} / {total} 步",
+    "previous": "上一张教程图",
+    "next": "下一张教程图",
+    "goToStep": "切换到第 {step} 步",
+    "image": {
+      "label": "图像生成操作教程",
+      "slides": {
+        "model": {
+          "title": "先选择图片模型",
+          "description": "在完善提示词前，先选好模型和画幅，让这次生成走对路线。",
+          "alt": "小黑用模型选择机准备空白图片画布的手绘教程图"
+        },
+        "prompt": {
+          "title": "把想法写成提示词",
+          "description": "把主体和关键细节写清楚，让模型知道该跟着什么方向画。",
+          "alt": "小黑把粗糙想法压成清晰图像提示词的手绘教程图"
+        },
+        "reference": {
+          "title": "需要一致性时加参照图",
+          "description": "当主体、风格或构图不能跑偏时，用参照图把结果锚住。",
+          "alt": "小黑在生成前把参照图夹到草图板上的手绘教程图"
+        },
+        "reuse": {
+          "title": "生成后保存并继续复用",
+          "description": "检查结果，保存可用版本，再把它拿去做变体或下一次参照。",
+          "alt": "小黑把生成结果保存后用于变体或参照的手绘教程图"
+        }
+      }
+    },
+    "video": {
+      "label": "视频生成操作教程",
+      "slides": {
+        "input": {
+          "title": "先写清楚镜头要发生什么",
+          "description": "在底部输入动作、场景变化和镜头方向，先把画面节奏说清楚。",
+          "alt": "小黑在视频输入框旁写镜头想法的手绘教程图"
+        },
+        "settings": {
+          "title": "再调整时长、比例和参考图",
+          "description": "选择模型后补齐时长、画幅和参考素材，减少生成结果跑偏。",
+          "alt": "小黑调整视频生成设置的手绘教程图"
+        },
+        "preview": {
+          "title": "发送后在上方预览结果",
+          "description": "点击发送，等待成片出现在预览区，再决定是否重试或继续改。",
+          "alt": "小黑点击发送后视频结果飞入预览区的手绘教程图"
+        }
+      }
+    },
+    "audio": {
+      "label": "声音生成操作教程",
+      "slides": {
+        "input": {
+          "title": "输入要被读出来的文本",
+          "description": "这里不是写声音描述，而是直接写你希望听到的台词或旁白。",
+          "alt": "小黑在声音输入框里写文本的手绘教程图"
+        },
+        "voice": {
+          "title": "选择音色并补充参考",
+          "description": "选好模型和音色，需要时加入参考音频，让声音更接近预期。",
+          "alt": "小黑调整音色和参考声音的手绘教程图"
+        },
+        "preview": {
+          "title": "生成后检查波形和试听",
+          "description": "结果会出现在预览区，先试听，再用反馈按钮继续微调。",
+          "alt": "小黑查看声音波形预览的手绘教程图"
+        }
+      }
+    },
+    "model3d": {
+      "label": "3D 生成操作教程",
+      "slides": {
+        "source": {
+          "title": "先上传或选择一张源图",
+          "description": "清晰、完整、主体单一的图片更适合转成可旋转的 3D 模型。",
+          "alt": "小黑从素材中选择源图制作 3D 模型的手绘教程图"
+        },
+        "settings": {
+          "title": "确认质量、网格和贴图设置",
+          "description": "右侧参数会影响细节、面数、贴图和等待时间，先选一个合适档位。",
+          "alt": "小黑调整 3D 质量和网格设置的手绘教程图"
+        },
+        "preview": {
+          "title": "生成后旋转检查模型",
+          "description": "模型出现后可以旋转查看轮廓和细节，再下载或继续精修。",
+          "alt": "小黑查看可旋转 3D 方块预览的手绘教程图"
+        }
+      }
+    },
+    "node": {
+      "label": "画布操作教程",
+      "slides": {
+        "add": {
+          "title": "先添加第一个节点",
+          "description": "用顶部添加按钮或画布菜单放入 Composer、角色、声音或视频节点。",
+          "alt": "小黑在节点画布上添加节点的手绘教程图"
+        },
+        "connect": {
+          "title": "把节点连成创作路径",
+          "description": "用连线把想法、角色、声音、镜头和生成节点串起来，形成可执行步骤。",
+          "alt": "小黑连接多个节点的手绘教程图"
+        },
+        "run": {
+          "title": "选中节点后在检查器运行",
+          "description": "点击节点，在右侧检查参数和模型路由，再运行当前步骤。",
+          "alt": "小黑选中节点并在检查器运行的手绘教程图"
+        }
+      }
+    }
+  },
+  "PromptAssistant": {
+    "turn": {
+      "answerPrefix": "我的回答：",
+      "skipped": "跳过这条",
+      "skip": "跳过",
+      "customPlaceholder": "或者用你自己的话回答",
+      "submitAnswers": "发送回答",
+      "satisfiedPrefix": "就这个方向 —— ",
+      "adjustFallback": "需要调整？告诉我方向",
+      "askedTitle": "已询问 · {count}",
+      "malformed": "助手本想在这里给你几个选项，但那段回复读不出来。可以再问一次，或者直接用你自己的话回答。"
+    },
+    "title": "提示词助手",
+    "placeholder": "描述你想要创作的内容...",
+    "send": "发送",
+    "usePrompt": "填入提示词",
+    "useNegativePrompt": "填入负面",
+    "useAspectRatio": "设为 {ratio}",
+    "useModel": "换用 {model}",
+    "useBatchCount": "每模型 {count} 张",
+    "applied": "已应用",
+    "undoApply": "撤销",
+    "undoApplyAria": "撤销：{action}",
+    "apply": "应用",
+    "actionsHeading": "同时调整工作台",
+    "rowPrompt": "提示词",
+    "rowNegative": "负面",
+    "rowRatio": "规格",
+    "rowModel": "模型",
+    "rowBatch": "张数",
+    "unavailableHere": "这个工作台没有这一项",
+    "modelAlreadyCompared": "它已在对比名单里，换过去会少跑一个模型",
+    "moreSuggestions": "另有 {count} 项配置建议",
+    "appendPrompt": "追加",
+    "copyPrompt": "复制",
+    "copied": "已复制",
+    "clear": "清空",
+    "failed": "提示词生成失败",
+    "loading": "正在生成提示词...",
+    "emptyHint": "添加图片提取风格，或输入指令优化提示词。",
+    "starterA": "雨夜霓虹下的赛博朋克街道，一位撑透明伞的少女",
+    "starterB": "夏日山谷里的木造小屋，云影掠过麦田，吉卜力气息",
+    "starterC": "穿宇航服的橘猫漂浮在空间站舷窗前，背景是地球",
+    "targetModel": "目标模型",
+    "selectApiKey": "选择 API 密钥",
+    "responseLanguage": "回复语言",
+    "responseLanguageEnglish": "英文",
+    "responseLanguageJapanese": "日文",
+    "responseLanguageChinese": "中文",
+    "referenceImage": "参考图",
+    "referenceDescription": "使用参考图生成带有图片风格的提示词。",
+    "addImage": "添加图片",
+    "replaceImage": "替换图片",
+    "selectAsset": "选择素材",
+    "referenceUploadHint": "JPG、PNG、WebP — 最大 10MB",
+    "referencePasteHint": "粘贴图片",
+    "referenceImageAlt": "参考图",
+    "removeImage": "移除图片",
+    "imageError": "无法读取这张图片。请使用 10MB 以内的 JPG、PNG 或 WebP。",
+    "presetImageStyle": "图片风格",
+    "presetDetailed": "详细",
+    "presetArtistic": "艺术",
+    "presetPhoto": "摄影",
+    "presetAnime": "动漫",
+    "presetLora": "LoRA 转换",
+    "presetTags": "标签",
+    "research": {
+      "label": "联网检索",
+      "modeAuto": "自动",
+      "modeAutoHint": "只在问题需要实时资料时才打源",
+      "modeForced": "每轮必检索",
+      "modeForcedHint": "这一轮一定联网，跳过「要不要搜」的判断",
+      "modeOff": "关闭",
+      "modeOffHint": "完全不打源，只用模型自身知识作答",
+      "searching": "正在检索…",
+      "loading": "正在读取证据…",
+      "loadFailed": "这次检索的记录读不出来。",
+      "historyLabel": "这条回答的来源",
+      "statusSucceeded": "已联网检索",
+      "statusNoEvidence": "没查到可用资料",
+      "statusFailed": "检索失败",
+      "statusQuotaExceeded": "今日检索额度已用完",
+      "noEvidenceNextSteps": "源里没有可用的资料。换个关键词、直接贴一条链接，或者自己上传参考图。",
+      "failedHint": "源没打通，这条回答没有联网证据。稍后重试，或贴一条链接给我。",
+      "quotaHint": "今天的检索次数用完了，这条回答来自模型自身知识。明天恢复。",
+      "evidenceCount": "{count} 条证据",
+      "notGrounded": "未取得联网证据",
+      "expand": "展开检索详情",
+      "collapse": "收起检索详情",
+      "queriesLabel": "本轮查询",
+      "runQueryLabel": "原问题",
+      "viaFallback": "退路",
+      "sourceOk": "成功",
+      "sourceEmpty": "无结果",
+      "sourceUnrelated": "搜到的不是它",
+      "sourceFailed": "失败",
+      "sourceCircuitOpen": "暂不可用",
+      "sourceSkipped": "未使用",
+      "sourceMoegirl": "萌娘百科",
+      "sourceWikipediaZh": "维基百科",
+      "sourceFandom": "Fandom",
+      "sourceDanbooru": "Danbooru",
+      "sourceBilibili": "哔哩哔哩",
+      "sourceWebSearch": "网页搜索",
+      "sourceUrlReader": "链接原文",
+      "sourceVisionInput": "你提供的图片",
+      "tierOfficial": "官方",
+      "tierCommunity": "社区",
+      "tierSocial": "社交",
+      "retrievedAt": "取得于",
+      "openSource": "查看原文",
+      "imageEvidence": "证据图片",
+      "untrusted": "已降级",
+      "untrustedHint": "这个页面里混进了指令样文本，摘录已被换成占位。点开链接自己读原文。",
+      "citationAria": "引用 {index}",
+      "citationUnavailable": "这条回答的证据已经不可用。",
+      "citationMissing": "这条引用指向的证据不存在。"
+    },
+    "imageButton": "参考图",
+    "imageDropHint": "拖拽 / 粘贴 / 点击上传",
+    "recentAssets": "最近素材",
+    "recentAssetsEmpty": "暂无素材",
+    "openLibrary": "素材库",
+    "dockLabel": "助手面板",
+    "dockTitle": "助手",
+    "dockCollapse": "收起助手",
+    "dockResizeLabel": "调整助手面板宽度",
+    "dockDropHint": "松开，设为助手参考图",
+    "assistantResultPositive": "正向",
+    "assistantResultNegative": "负向",
+    "assistantFreeWord": "自由词",
+    "assistantNormalized": "已规范化",
+    "assistantTriggerNote": "触发词由上方 chips 行负责，这里不会重复写入。",
+    "assistantRemoveChip": "删除 {tag}",
+    "assistantEmptyHint": "用自己的话描述想要的画面——已挂载的 LoRA、底模、tray 标签会自动读取。",
+    "assistantStarterA": "银发少女在雪地里，黄昏逆光",
+    "assistantStarterB": "把服装换成雨中风衣，姿势不变",
+    "assistantRefineLabel": "继续调：",
+    "assistantRefineComposition": "换一个构图",
+    "assistantRefineLighting": "加强一点光影氛围",
+    "assistantRefineStyle": "再贴近 LoRA 的风格一些",
+    "assistantRetry": "重试",
+    "assistantEscapeToSelfBuild": "切到自己搭配",
+    "contextMounts": "挂载 ×{count}",
+    "contextTriggers": "触发词 ×{count}",
+    "contextBase": "底模",
+    "assistantStageForReview": "加入搭配提醒",
+    "assistantStageHint": "建议不直接出图，应用前可在搭配提醒里审阅。",
+    "referenceOnlyPrompt": "分析已添加的参考素材，并帮我继续完善这个想法。",
+    "audioUnsupported": "当前模型无法分析音频。请选择 Gemini，或移除音频附件。",
+    "videoUnsupported": "当前模型无法分析视频。请选择 Gemini，或移除视频参考。",
+    "imageUnsupported": "当前模型无法分析图片。请选择标注为“图片视觉”的模型，或移除图片参考。",
+    "routeAuto": "自动路由",
+    "loraCandidate": {
+      "sourceCivitai": "Civitai",
+      "sourceHuggingFace": "Hugging Face",
+      "authorUnknown": "作者未知",
+      "baseModelUnknown": "底模未知",
+      "sizeUnknown": "大小未知",
+      "licenseUnknown": "许可未知",
+      "licenseCommercial": "商用",
+      "licenseDerivatives": "衍生",
+      "licenseNoCredit": "免署名",
+      "permissionAllowed": "允许",
+      "permissionDenied": "不允许",
+      "permissionUnknown": "未知",
+      "downloads": "{count} 次下载",
+      "alreadyMounted": "已挂载",
+      "alreadyImported": "已收藏",
+      "alreadyInStack": "已在栈中",
+      "confirm": "导入并挂载",
+      "confirmImportOnly": "导入并填入触发词",
+      "confirmedMounted": "已导入、已挂载、触发词已填入",
+      "confirmedImported": "已导入，触发词已填入",
+      "openSource": "打开来源页",
+      "detailsTrimmed": "这一轮的候选详情太大没能完整下发，这条无法从卡片导入。再问一次可以拿到新的一批。",
+      "mountElsewhere": "当前工作台没有挂载栈，所以没有挂载。",
+      "goToLoraWorkbench": "去 LoRA 工作台挂载",
+      "type": {
+        "subject": "角色",
+        "style": "画风"
+      },
+      "metadataCompleteness": {
+        "complete": "元数据完整",
+        "partial": "元数据部分",
+        "minimal": "元数据很少"
+      },
+      "notImportable": {
+        "unknown_base_model": "定不出底模家族，这条只能推荐、不能导入。",
+        "no_weight_file": "没有可直接下载的权重文件，这条只能推荐、不能导入。",
+        "gated_repo": "这个 Hugging Face 仓库需要先在对方页面接受条款，之后再从库里导入。"
+      },
+      "failed": {
+        "import": "导入失败 —— 库里没有新增任何东西。",
+        "mount": "已导入，但挂载失败。它已经在你的库里，去挂载栈手动挂上即可。",
+        "trigger_words": "已导入并挂载，但触发词没能写进提示词，请从卡片上复制。"
+      }
+    }
+  },
+  "StudioOperator": {
+    "collapsedActivity": {
+      "running": "正在处理",
+      "done": "有新回复",
+      "failed": "出错了"
+    },
+    "live": {
+      "start": "助手开始处理",
+      "done": "助手已回复",
+      "stopped": "助手已停止",
+      "failed": "助手出错了"
+    },
+    "running": {
+      "look": "正在看图…",
+      "research": "正在查资料…",
+      "webImages": "正在搜索图片…",
+      "webVideos": "正在搜索视频…",
+      "library": "正在查素材…",
+      "ask": "正在想问题…",
+      "apply": "正在改参数…",
+      "generate": "准备生成…"
+    },
+    "title": "助手",
+    "domainName": {
+      "image": "图片工作台",
+      "video": "视频工作台",
+      "lora": "LoRA 工作台",
+      "canvas": "画布",
+      "cards": "角色页"
+    },
+    "session": "会话",
+    "newThread": "新对话",
+    "emptyState": {
+      "title": "我是 {name}，你的画面搭档",
+      "description": "丢一张参考图给我，或者直接说你想要什么感觉。我会看图、查资料、把参数改好，出图之前把模型和张数摆给你看。"
+    },
+    "history": {
+      "heading": "以前的会话",
+      "today": "今天",
+      "yesterday": "昨天",
+      "empty": "还没有别的会话",
+      "loading": "读取中…",
+      "untitled": "未命名会话",
+      "earlierRounds": "更早的 {count} 条",
+      "deleteLabel": "删除对话：{title}",
+      "deleteConfirmInline": "再点一次就永久删除“{title}”",
+      "deleteConfirm": "确认",
+      "deleting": "删除中…",
+      "deleteFailed": "删除失败，请重试。",
+      "deleteBusy": "请等待当前回复结束后再删除这段对话。",
+      "loadFailed": "对话列表加载失败，请重新打开列表重试。",
+      "renameLabel": "重命名 {title}",
+      "renameHint": "回车保存 · Esc 取消",
+      "renaming": "保存中…",
+      "renameFailed": "修改失败，请重试。",
+      "switching": "正在加载对话…",
+      "saveFailed": "对话保存失败，草稿仍保留在当前页面。",
+      "retrySave": "重试保存"
+    },
+    "more": "更多",
+    "share": "分享这段会话",
+    "feedback": "问题反馈",
+    "collapse": "收起助手",
+    "collapseHint": "收起 · Esc",
+    "expand": "展开助手",
+    "resize": "拖动调整助手宽度",
+    "planFold": "计划 · {count} 步",
+    "placeholderIdle": "继续说，或把素材挂进来…",
+    "placeholderWorking": "说，我在听 —— 你打的这句会排队，下一个停顿点处理",
+    "specLine": {
+      "adjust": "调整规格"
+    },
+    "send": "发送",
+    "stop": "停止当前工作",
+    "lightboxLabel": "看大图",
+    "mobile": {
+      "sheetTitle": "助手",
+      "sheetDescription": "半屏助手面板 —— 把手向上拖是全屏，向下拖关闭。"
+    },
+    "toolGroup": {
+      "title": "{count} 个操作",
+      "elapsed": "用时 {seconds}s",
+      "succeeded": "{count} 成功",
+      "skipped": "{count} 步跳过",
+      "failed": "{count} 步没做成",
+      "running": "进行中",
+      "details": "做了 {count} 步",
+      "promptUnchanged": "提示词尚未修改",
+      "blocked": "操作未完成",
+      "inspectFailure": "展开执行记录查看原因，可在下方补充或调整要求。",
+      "tagFixed": "有 {count} 个按 Danbooru 换了写法：{list}。",
+      "tagUnknown": "{list}{more, plural, =0 { } other { 等 # 个}}没查到，原样保留。",
+      "tagListSeparator": "，",
+      "tagSentenceSeparator": "",
+      "negativeFolded": "{model} 没有负面提示词这一栏，所以写进了正文。"
+    },
+    "checkpoint": {
+      "summary": "改了{fields}",
+      "undo": "撤销",
+      "reverted": "已撤销"
+    },
+    "reject": {
+      "partialText": "只读到了这段文本的开头，没有整段替换——@ 或选中这个节点后再试",
+      "referenceAnalysisRequired": "需要先分析当前参考图",
+      "referenceImageUnavailable": "参考图无法读取，请重新上传或替换失效图片",
+      "referenceAnalysisFailed": "参考图分析不完整，尚未采用分析结果",
+      "referenceBriefFailed": "图片已分析，但参考用途分配未通过校验；提示词未修改",
+      "referenceInputsChanged": "先更新参考连线，再检查这段提示词",
+      "canvasBatchPartial": "这一批有几条没落地，展开看哪几条",
+      "noSuchControl": "这个工作台上没有这个控件",
+      "unknownModel": "这个模型不在你能选的名单里",
+      "unknownValue": "这个值不在可选档位里",
+      "unknownAsset": "这条素材不在本轮检索结果里",
+      "unknownFolder": "这个文件夹不在本轮列出的结果里",
+      "referencesFull": "参考图位已满",
+      "emptyValue": "要写的内容是空的",
+      "userDeclined": "你选了保留，这一步没做",
+      "noModelSelected": "还没选模型",
+      "emptyPrompt": "提示词还是空的",
+      "malformedArgs": "参数形状不对",
+      "searchUnavailable": "联网搜图暂时不可用",
+      "noResultToCritique": "这一轮没有指定要看哪张图",
+      "visionUnavailable": "助手现在用的模型看不了图，没有改用别家的 Key。要看图就在模型菜单里换一个能看图的",
+      "critiqueFailed": "看过了，但没读出可用的评价",
+      "urlNotFromUser": "这条链接不是你给的，助手不能自己收下",
+      "repeatedStep": "这一步刚才做过了，跳过",
+      "ruleLimitReached": "来源名单已达上限，先删掉一条再添加。",
+      "memoryOff": "记忆关着（隐身或「让助手记住」已关），这条没记",
+      "ruleTooLong": "这条规矩太长，没记下",
+      "folderLimitReached": "文件夹数量已达上限，先删掉一个旧文件夹再新建。",
+      "unknownLora": "这把 LoRA 不在这一轮搜到的结果里",
+      "loraNotMounted": "这把 LoRA 没挂在装配台上",
+      "loraNotImportable": "这把 LoRA 收不进你的库，只能去它的来源页看",
+      "loraIncompatibleBase": "这把 LoRA 是给另一族底模训的，助手不会把它挂到当前底模上",
+      "sourceNotUsable": "这个站点声明不接受作为 AI 输入，或是溯源不到原作者的转载",
+      "researchRoundsExhausted": "这一轮能查的次数已经用完了 —— 它在用已经查到的东西继续",
+      "unknownEvidenceRef": "这段对话里没有这个证据编号",
+      "evidenceRecallsExhausted": "这一轮翻证据本的次数已经用完了",
+      "urlNotReadable": "这条地址在这里读不了",
+      "urlUnreadable": "这一页没能读出来",
+      "aspectLockedByFirstFrame": "挂了首帧，这个模型的宽高比就只剩自适应",
+      "videoFramesMissing": "这段片子没能取出可看的帧",
+      "blockedSource": "这张被你判过失败，不能再作首帧或尾帧",
+      "toolFailed": "这一步暂时没做成（技术故障），可以稍后再试",
+      "timeBudget": "这一步跑太久了，挪到下一段接着做。"
+    },
+    "field": {
+      "prompt": "提示词",
+      "negative": "负面提示词",
+      "model": "模型",
+      "specs": "规格",
+      "count": "张数",
+      "capabilities": "专属参数",
+      "characters": "角色构图",
+      "sceneTexts": "画面文字",
+      "references": "参考图",
+      "audioReferences": "音频参考",
+      "sound": "出声",
+      "loras": "LoRA 挂载",
+      "canvasNodes": "画布节点"
+    },
+    "changeSubject": {
+      "rule": "项目规则",
+      "reviewState": "审核态",
+      "assetTags": "素材标签",
+      "assetFavorite": "素材收藏",
+      "assetFolder": "新建文件夹",
+      "assetAddToFolder": "加入文件夹"
+    },
+    "confirm": {
+      "generate": {
+        "title": "确认生成 {count} 张？",
+        "titleVideo": "确认生成这段 {seconds} 秒视频？",
+        "titleNode": "确认生成「{name}」？",
+        "count": "{count} 张",
+        "countVideo": "{count, plural, =1 {{seconds} 秒视频} other {# 段 {seconds} 秒视频}}",
+        "countLabel": "张数",
+        "confirm": "确认生成",
+        "cancel": "先不要",
+        "retry": "再来一次",
+        "model": "模型",
+        "aspect": "宽高比",
+        "resolution": "分辨率",
+        "quality": "画质",
+        "modelDefault": "模型默认",
+        "duration": "时长",
+        "seconds": "{seconds} 秒",
+        "audio": "音轨",
+        "enabled": "开启",
+        "disabled": "关闭",
+        "nodeUnavailable": "目标节点或模型不可用，请重新选择。",
+        "adjusted": "已按该模型调整：{fields}",
+        "knobStepTitle": "在确认卡上改了参数",
+        "knobStepReason": "你在确认卡上改的"
+      },
+      "batch": {
+        "title": "生成这几张",
+        "confirm": "生成 <n>{count}</n> 张",
+        "cost": "约 <a>{amount}</a>",
+        "costFrom": "约 <a>{amount}</a> 起",
+        "summary": "{count} 张卡",
+        "failed": "{name} 没出来"
+      },
+      "multistep": {
+        "title": "{count} 步计划",
+        "start": "开始",
+        "stepByStep": "一步一步来",
+        "stoppable": " —— 随时可以叫停"
+      },
+      "state": {
+        "submitting": "确认中…",
+        "confirmed": "已确认 · {time}",
+        "cancelled": "已取消 · {time}",
+        "auto": "已自动生成 · {time}"
+      },
+      "contextCard": {
+        "title": "记住这张卡？",
+        "save": "存这张卡",
+        "dismiss": "不用",
+        "saved": "已存下",
+        "notSaved": "没有存",
+        "negative": "硬否定：{value}"
+      },
+      "loraSetup": {
+        "apply": "应用这套搭配",
+        "applying": "应用中…",
+        "applied": "已应用 · {time}",
+        "appliedPartial": "已应用 · {time} · {count} 处没成",
+        "dismiss": "先不用",
+        "unmount": "卸下",
+        "mountSr": "新挂",
+        "parameters": "参数",
+        "paramDefault": "默认",
+        "paramRandom": "随机",
+        "tally": "应用后总权重",
+        "overBudget": "总权重超过 {limit} 了 —— 画面可能糊，可以把哪一把调低一点。",
+        "param": {
+          "runnerSampler": "采样器",
+          "runnerScheduler": "调度器",
+          "steps": "步数",
+          "guidanceScale": "CFG",
+          "runnerSeed": "Seed",
+          "size": "尺寸"
+        }
+      },
+      "characterProfile": {
+        "header": "{name} 起草的设定 · {count} 格",
+        "question": "收进「{name}」？",
+        "fields": {
+          "look": "外观",
+          "identity": "身份",
+          "behavior": "性格",
+          "speech": "说话方式",
+          "backstory": "经历"
+        },
+        "ownWordsOnly": "只留我写的",
+        "keepAdded": "连补充一起收",
+        "keep": "收下勾选的 · {count}",
+        "dismiss": "不用",
+        "kept": "已收下 {count} 格 · {time}"
+      },
+      "characterImages": {
+        "header": "{name} 找了 {count} 张",
+        "question": "挂到「{name}」上？",
+        "fromLibrary": "素材库",
+        "fromLibraryNamed": "素材库 · {name}",
+        "keep": "挂上勾选的 · {count}",
+        "keeping": "正在挂上…",
+        "dismiss": "不用",
+        "kept": "已挂上 {count} 张 · {time}"
+      },
+      "imageHandoff": {
+        "header": "{name} · 交给图片助手",
+        "hint": "会跳到图片工作台、带上「{name}」，这句话填进图片助手的输入框，你来按发送。",
+        "accept": "交给图片助手",
+        "dismiss": "先不要",
+        "accepted": "已交给图片助手 · {time}"
+      },
+      "workbenchHandoff": {
+        "header": "换到{bench} · {model}",
+        "tags": "标签台",
+        "natural": "自然语言台",
+        "hint": "会选中这个模型、带上已填的提示词，跳到{bench}；上面这句填进那边助手的输入框，你来按发送。",
+        "accept": "带我过去",
+        "dismiss": "先不要",
+        "accepted": "已换到{bench} · {time}"
+      },
+      "upscale": {
+        "header": "放大到 4K · {count} 张",
+        "hint": "用你自己的 fal Key 放大，不花积分；放大后的图会成为这张卡的新版本，原图还在版本条里。",
+        "accept": "放大",
+        "dismiss": "先不要",
+        "accepted": "已开始放大 · {time}",
+        "autoAccepted": "自动生成开着，已直接放大 · {time}",
+        "acceptedText": "放大{names}",
+        "declinedText": "先不放大{names}",
+        "question": "要把{names}放大到 4K 吗？"
+      },
+      "moveWork": {
+        "canvas": {
+          "header": "交到画布接着做",
+          "hint": "会把这台的提示词、模型、参考图和刚出的那张带到画布上，变成一张卡；上面这句填进画布助手的输入框，你来按发送。",
+          "accept": "交过去",
+          "dismiss": "先不要",
+          "accepted": "已交到画布 · {time}",
+          "acceptedText": "交到画布接着做",
+          "declinedText": "先不交到画布",
+          "question": "要把这件事交到画布上接着做吗？",
+          "pickLabel": "交到哪块画布",
+          "newProject": "新建画布",
+          "loading": "正在找最近的画布…"
+        },
+        "workbench": {
+          "header": "交到工作台接着做 · {names}",
+          "hint": "会把{names}的提示词、模型和参考图带到图片工作台；上面这句填进那边助手的输入框，你来按发送。",
+          "accept": "交过去",
+          "dismiss": "先不要",
+          "accepted": "已交到工作台 · {time}",
+          "acceptedText": "把{names}交到工作台接着做",
+          "declinedText": "先不把{names}交到工作台",
+          "question": "要把{names}交到工作台接着做吗？"
+        }
+      }
+    },
+    "system": {
+      "undoStep": "你撤销了：{subject}（助手已知晓，下一轮不再重做）",
+      "revertField": "你还原了：{subject}（助手已知晓）",
+      "revertAll": "你清掉了助手的全部改动（{count} 处）—— 助手已知晓",
+      "stopped": "你叫停了当前工作",
+      "interrupted": "你插话了 —— 助手已转向",
+      "streamInterrupted": "这一轮还没跑完，连接就断了。",
+      "revertRound": "你还原了这一轮的 {count} 处改动（助手已知晓）",
+      "revertFailed": "有一处改动没能还原，剩余改动已保留，请重试。",
+      "queuePicked": "停顿点到了 —— 接住你排的 {count} 句",
+      "queueDropped": "你撤回了排着的那句：{subject}",
+      "urlImportFailed": "你给的那条链接没取回来：{subject}",
+      "generationFailed": "这一批没有生成出来 —— 助手不会接着看了",
+      "generationResultInterrupted": "这一批结果的回流已中断，可到素材库查看。",
+      "generationFailedWithReason": "这一批没有生成出来：{subject}",
+      "loraMountFailed": "{subject} 没挂上——装配台上什么都没多出来",
+      "loraLibraryPickMounted": "你挂上了「{subject}」",
+      "loraWeightOverBudget": "总权重 {subject} — 超过这个底模的预算，画面容易糊或串味。我没有动任何权重，要收的话告诉我收哪一把。",
+      "videoFramesFailed": "这段片子没能抽出帧 —— 助手这一轮可能看不了它（{subject}）",
+      "clipsOverCap": "这一轮只看你指的前 {count} 段片子",
+      "checkpointRestored": "已恢复到所选步骤的配置，后续操作以当前表单为准。",
+      "questionAnswered": "{subject}",
+      "contextCardSaved": "已存上下文卡：{subject}",
+      "contextCardDeclined": "没记这张上下文卡：{subject}",
+      "contextCardSaveFailed": "没能存下「{subject}」—— 再试一次？",
+      "loraSetupApplied": "已应用搭配：{subject}",
+      "loraSetupDismissed": "这套搭配先不用（{subject}）",
+      "characterProfileSaved": "{subject}",
+      "characterProfileDeclined": "没收这份设定：{subject}",
+      "characterProfileSaveFailed": "没能写进「{subject}」—— 再试一次？",
+      "characterImagesAttached": "{subject}",
+      "characterImagesDeclined": "没挂这几张图：{subject}",
+      "characterImagesAttachFailed": "没能挂到「{subject}」上 —— 再试一次？",
+      "imageHandoffAccepted": "已交给图片助手：{subject}",
+      "imageHandoffDeclined": "先不交给图片助手：{subject}",
+      "workbenchHandoffAccepted": "已换台：{subject}",
+      "workbenchHandoffDeclined": "先不换台：{subject}",
+      "upscaleAccepted": "开始放大：{subject}",
+      "upscaleDeclined": "先不放大：{subject}",
+      "upscaleFailed": "没放大成：{subject}",
+      "moveWorkAccepted": "{subject}",
+      "moveWorkDeclined": "{subject}",
+      "moveWorkDroppedReferences": "有 {subject} 张参考图没带过去（超过上限或还没传完）。",
+      "autoGenerateHeld": "这次要出 {subject} 张，超过自动生成单轮 4 张的上限 —— 没替你按，确认后再出。"
+    },
+    "attach": {
+      "latestResult": "最新 · {label}",
+      "label": "上传图片 / 音频 / 视频",
+      "remove": "摘掉这个附件",
+      "upload": {
+        "compressing": "图太大，正在压到能传的尺寸…",
+        "compressed": "已压缩：{from}MB → {to}MB",
+        "gifTooLarge": "这张动图超过 {maxMb}MB，压不动 —— 换一张吧",
+        "tooLargeImage": "图片最大 {maxMb}MB",
+        "tooLargeVideo": "视频最大 {maxGb}GB",
+        "tooLargeAudio": "音频最大 {maxGb}GB",
+        "unsupported": "这种文件传不了（支持图片 / 音频 / 视频）",
+        "failed": "上传失败",
+        "retry": "重试这次上传",
+        "waiting": "还有文件在传 —— 传完就能发"
+      }
+    },
+    "modelChip": {
+      "label": "文本模型",
+      "auto": "自动",
+      "autoHint": "用你配了 key 的第一家",
+      "autoResolved": "自动 · {model}",
+      "autoHintResolved": "现在用 {model}（你配了 key 的第一家）",
+      "autoHintNoKey": "还没有 key，点这里配一把",
+      "needsKey": "待配置",
+      "search": "搜索模型",
+      "noMatch": "没找到这个模型"
+    },
+    "effortChip": {
+      "label": "思考",
+      "levels": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High"
+      },
+      "hints": {
+        "low": "最快，复杂的事可能想不周全",
+        "medium": "平衡速度和质量",
+        "high": "最慢，最仔细"
+      }
+    },
+    "web": {
+      "barSelected": "选了 {count} 张",
+      "barSaving": "正在收进素材库 {count} 张…",
+      "clear": "清空",
+      "save": "保存",
+      "saveFailed": "{handle} 没存上：{reason}",
+      "savedCandidate": "{handle} 已存进素材库，可以 @ 它",
+      "moreImages": "还有 {count} 张",
+      "moreVideos": "还有 {count} 个",
+      "videoListLabel": "找到的 {count} 个视频",
+      "found": "搜索 Google 图片：{query} · {count} 张",
+      "searching": "正在搜索 Google 图片：{query}…",
+      "blockedNote": "{domains}：{reason}",
+      "viewLarge": "看大图",
+      "previewUnavailable": "这张图从原站取不到",
+      "importFailedShort": "取不到",
+      "importFailed": "这张没能取回来",
+      "publisherUnknown": "未知",
+      "openPage": "打开原页",
+      "notUsable": "这个站不允许拿去给 AI 用，或是找不到原作者的转载站。只能点开原页看，收不进素材库。",
+      "notUsableHotlink": "这个站不让外站取图，只能点开原页看，收不进素材库。",
+      "videosFound": "搜索视频：{query} · {count} 个",
+      "videosSearching": "正在搜索视频：{query}…",
+      "videoPlay": "在这里播放：{title}",
+      "videoOpenExternal": "在新标签页打开 {site}：{title}",
+      "videoPlayerTitle": "{site} 播放器：{title}",
+      "videoOpenSource": "去 {site} 看",
+      "videoClose": "关上播放器",
+      "videoEnlarge": "放大",
+      "videoShrink": "收回",
+      "videoEnlarged": "在大窗口里播",
+      "videoPlatform": {
+        "youtube": "YouTube",
+        "bilibili": "B站",
+        "niconico": "niconico",
+        "vimeo": "Vimeo"
+      },
+      "findRef": "查看找到的 #{n}：{label}",
+      "findRefPlain": "查看找到的 #{n}",
+      "findNamed": "回复里点到了这一项",
+      "readSnippetOnly": "原页没读到（站点挡了，或者读不出来）——下面只是搜索结果里的那段摘要。",
+      "stripLabel": "找到的 {count} 张图，放不下可以左右滑",
+      "selectCandidate": "选上 {handle}",
+      "unselectCandidate": "取消选择 {handle}",
+      "openPageOf": "打开 {site} 的原页",
+      "videoModePlaying": "正在下面播"
+    },
+    "queue": {
+      "badge": "已排队",
+      "hint": "下一个停顿点处理",
+      "cancel": "撤回"
+    },
+    "mention": {
+      "pickerLabel": "@ 引用：挑给助手看的东西",
+      "button": "@ 引用",
+      "empty": "没找到 —— 接着打字试试",
+      "searching": "正在搜素材库…",
+      "libraryHint": "打字搜：名字 · #序号 · 文件夹 · 提示词",
+      "viewAll": "查看全部（{count}）",
+      "showLess": "收起",
+      "back": "返回上一层",
+      "openFolder": "打开文件夹「{name}」",
+      "mentionAll": "全部 @",
+      "remove": "去掉这个引用",
+      "locate": "在画布上定位",
+      "preview": "看大图",
+      "role": "当作",
+      "roleNone": "只是看看",
+      "roles": {
+        "subject": "主体",
+        "style": "风格",
+        "composition": "构图",
+        "first_frame": "首帧",
+        "last_frame": "尾帧"
+      },
+      "deleted": "已删除",
+      "deletedNamed": "{label}（已删除）",
+      "blockedDeleted": "有引用的东西已经不在了 —— 先移除灰色的引用再发送。",
+      "count": "将看 {count} 张",
+      "countWarn": "共 {count} 张 · 只细看前 {limit} 张",
+      "results": "{count} 个候选",
+      "matches": "匹配的",
+      "notProduced": "未产出",
+      "shotNo": "第 {no} 镜",
+      "slot": "参考位 {index}",
+      "groups": {
+        "recent": "最近使用",
+        "selected": "选中的卡",
+        "canvas": "画布上的卡",
+        "references": "参考位",
+        "attachments": "这条消息的附件",
+        "results": "本次对话的生成",
+        "characters": "角色",
+        "loras": "LoRA",
+        "library": "素材库"
+      },
+      "kinds": {
+        "image": "图",
+        "video": "视频",
+        "audio": "音频",
+        "model3d": "3D",
+        "text": "文本",
+        "character": "角色",
+        "lora": "LoRA"
+      }
+    },
+    "addMenu": {
+      "label": "添加",
+      "recent": "最近的图",
+      "all": "全部",
+      "loading": "正在取…",
+      "empty": "素材库里还没有图",
+      "library": "从素材挑图",
+      "upload": "上传文件",
+      "mention": "@ 角色或素材"
+    },
+    "library": {
+      "label": "素材库",
+      "title": "从素材库挑图",
+      "description": "按文件夹浏览素材，挑出来挂给助手看。"
+    },
+    "result": {
+      "stored": "已入库",
+      "storedCount": "已入库 {count} 张",
+      "generating": "正在出图 · {done} / {total}",
+      "generatingVideo": "正在生成视频",
+      "rerun": "再来一组",
+      "useAsReference": "用它当参考"
+    },
+    "error": {
+      "generic": "助手这一轮没跑完",
+      "internal": "这次请求在我们这边出了问题",
+      "streamInterrupted": "连接在本轮完成前中断了。已完成的操作已保留，请检查结果后再继续。",
+      "failed": "助手这一轮中途出错了",
+      "emptyStream": "没收到助手的回应",
+      "unauthorized": "登录状态过期了，重新登录再试",
+      "rateLimited": "太快了 —— 缓一会儿再发",
+      "invalidRequest": "这一轮的请求服务端没认下来",
+      "traceLabel": "错误编号 {traceId}",
+      "copyDetail": "复制详情",
+      "copied": "已复制",
+      "missingKey": "助手需要你自己的 AI 文本模型 Key。Gemini 的 Key 可以在 Google AI Studio 免费申请。",
+      "modelKeyMissing": "{model} 还没有可用的 {provider} Key，这一轮没有跑，也没有改用别家的 Key。配好 Key，或者换个模型。",
+      "upscaleKeyMissing": "放大要用你自己的 {provider} Key，还没配，所以没有放大，也没有改用别家的 Key。配好后再说一次「放大」。",
+      "addKey": "配置 Key",
+      "addProviderKey": "配置 {provider} Key",
+      "retry": "重试",
+      "retryPrompt": "刚才中断了，接着把上一条做完（已经落下的别重做）。",
+      "switchModel": "换个模型"
+    },
+    "assistantSettings": "助手设置",
+    "rule": {
+      "recordedOn": "记于 {date}",
+      "sourceAssistant": "来自对话",
+      "sourceCreator": "你写的",
+      "view": "查看规则",
+      "scopeAll": "全部工作台"
+    },
+    "plan": {
+      "revisePrefill": "修改计划："
+    },
+    "planVisual": {
+      "comp": {
+        "fullBody": "全身",
+        "halfBody": "半身",
+        "closeUp": "特写",
+        "birdsEye": "俯视",
+        "wormsEye": "仰视",
+        "fromBehind": "背影"
+      },
+      "ratio": {
+        "1x1": "1:1 方形",
+        "3x4": "3:4 竖幅",
+        "4x3": "4:3 横幅",
+        "16x9": "16:9 宽幅",
+        "9x16": "9:16 竖屏"
+      },
+      "time": {
+        "day": "白天",
+        "dusk": "黄昏",
+        "night": "夜晚",
+        "dawn": "拂晓"
+      },
+      "weather": {
+        "clear": "晴",
+        "rain": "雨",
+        "snow": "雪",
+        "fog": "雾"
+      },
+      "cam": {
+        "push": "推镜",
+        "pull": "拉镜",
+        "pan": "摇镜",
+        "track": "移镜",
+        "static": "固定"
+      },
+      "light": {
+        "front": "顺光",
+        "back": "逆光",
+        "side": "侧光",
+        "soft": "柔光"
+      },
+      "style": {
+        "anime": "动画",
+        "realistic": "写实",
+        "painterly": "绘画",
+        "lineart": "线稿"
+      }
+    },
+    "sendQueue": "排队 — 下一个停顿点处理",
+    "timeline": {
+      "listLabel": "助手工作日志",
+      "rowUser": "你",
+      "rowAssistant": "{name}",
+      "rowSystem": "系统",
+      "rowTool": "工具步",
+      "rowAction": "待你定",
+      "assistantFallback": "ANTEI",
+      "avatarUser": "你的头像",
+      "avatarAssistant": "{name}的头像"
+    },
+    "evidence": {
+      "kind": {
+        "text": "正文",
+        "tags": "标签",
+        "image": "图片",
+        "video": "视频"
+      },
+      "confidence": {
+        "high": "官方",
+        "medium": "资料",
+        "low": "社区"
+      },
+      "credibility": {
+        "official": "官方",
+        "officialMirror": "官方转载",
+        "reference": "资料",
+        "communityDigest": "玩家整理"
+      },
+      "scope": {
+        "character": "这个角色",
+        "work": "作品级",
+        "unknown": "未判定"
+      }
+    },
+    "research": {
+      "pin": "钉住",
+      "unpin": "取消钉住",
+      "pinned": "已钉住",
+      "sourceCount": "{count} 个来源",
+      "corroborated": "{count} 源印证",
+      "expandPrompt": "深入调查一次：多找几个来源、读全文，尽量全。",
+      "xWithGrokPrompt": "用 Grok 在 X 上搜一下这件事。",
+      "pinnedHeading": "钉住的证据"
+    },
+    "researchProgress": {
+      "runningQuick": "查资料中",
+      "runningDeep": "深入调查中",
+      "doneQuick": "搜了 {count} 条",
+      "doneDeep": "深入调查 · 查了 {count} 条",
+      "readPages": "读了 {count} 页",
+      "xVideosWatched": "看了 X 上 {count} 段视频",
+      "serperFallback": "自带联网没成，改用平台 Google 搜索",
+      "estimateSeconds": "约 {count} 秒",
+      "estimateMinutes": "约 {count} 分钟"
+    },
+    "answer": {
+      "sources": "来源",
+      "citation": "来源 {index}",
+      "deepResearch": "深入调查",
+      "more": "更多",
+      "searchXWithGrok": "用 Grok 搜 X · 花你的 Grok 额度"
+    },
+    "message": {
+      "expand": "展开全文",
+      "collapse": "收起"
+    },
+    "streaming": {
+      "pending": "助手正在思考",
+      "thinking": "正在想…",
+      "landing": "正在画布上落地…",
+      "seconds": "{count} 秒",
+      "slow": "比平时久一点，还在等模型回话",
+      "thought": "想了 {count} 秒"
+    },
+    "question": {
+      "step": "{step} / {total}",
+      "recommended": "推荐",
+      "current": "当前提示词",
+      "proposed": "助手建议的提示词",
+      "sourceNotes": "可参考的材料",
+      "negativeDiff": "负面提示词要补的词：",
+      "edit": "改",
+      "other": "其他…",
+      "otherHint": "在下面的输入框里写你的答案",
+      "multiHint": "可多选",
+      "confirm": "确定（{count}）",
+      "skip": "跳过",
+      "useRecommended": "全部用推荐",
+      "skipped": "已跳过",
+      "quote": "「{label}」",
+      "answerText": "已选择{labels}（针对问题「{question}」）",
+      "answerOther": "回答「{other}」（针对问题「{question}」）",
+      "answerBoth": "已选择{labels}，并补充「{other}」（针对问题「{question}」）",
+      "skippedText": "跳过了问题「{question}」，由你决定"
+    },
+    "videoFrameCaptureReason": {
+      "unsupported-environment": "这个环境读不了视频",
+      "load-failed": "视频加载不出来",
+      "unreadable-duration": "读不出这段片子的时长",
+      "tainted-canvas": "视频跨域被挡，画布取不到像素",
+      "timeout": "抽帧超时",
+      "encode-failed": "帧编码失败"
+    },
+    "resume": {
+      "continue": "从第 {step} 步继续",
+      "failed": "失败：{reason}",
+      "band": "有未完成计划 · 从第 {step} 步继续"
+    },
+    "verb": {
+      "look": "看",
+      "research": "查",
+      "ask": "问",
+      "apply": "改",
+      "request_generation": "生成"
+    },
+    "verbStrip": {
+      "label": "本轮进度"
+    },
+    "placeholderQuestion": "或者直接写你的想法…",
+    "collapsedTodo": "{count} 件等你处理",
+    "incognito": "隐身 · 不记也不存",
+    "face": {
+      "noModel": "未选模型",
+      "pill": {
+        "writePrompt": "把这句写成好提示词",
+        "compareModels": "换个模型看差别",
+        "useReference": "照这张参考图来",
+        "fourVariants": "出 4 张对比",
+        "writeShots": "写一段分镜",
+        "animateThis": "让这张图动起来",
+        "whichLoras": "这个题材该挂哪些 LoRA",
+        "loraPrompt": "帮我写这张的提示词",
+        "weightCheck": "权重这样对不对",
+        "trialShot": "试一张看看",
+        "scriptToBoard": "把这段剧本排成分镜",
+        "refToCharacter": "从参考图做角色资产",
+        "assetsToBoard": "用资产排分镜",
+        "boardToVideo": "分镜出视频",
+        "autoWire": "帮我连线",
+        "researchProfile": "帮我查一个角色的设定",
+        "originalCharacter": "帮我想一个原创角色",
+        "findImages": "给这个角色找几张图",
+        "checkLook": "对一下设定和外观"
+      },
+      "image": {
+        "empty": "说你想要的画面，我来写提示词、挑模型、配参考。",
+        "placeholder": "描述画面，或把参考图挂进来…",
+        "context": "{model} · {ratio} · {count} 张"
+      },
+      "video": {
+        "empty": "给我一张图或一句话，我来让它动起来。",
+        "placeholder": "描述镜头，或挂一张首帧…",
+        "context": "{model} · {seconds} 秒 · {ratio}"
+      },
+      "lora": {
+        "empty": "告诉我想出什么图，我来帮你挑 LoRA、写触发词、调权重。",
+        "placeholder": "想出什么图？",
+        "context": "{base} · 挂了 {count} 个"
+      },
+      "canvas": {
+        "empty": "从剧本、参考图或一句话开始，我把它排成分镜、连成片。",
+        "placeholder": "继续说，或把素材挂进来…",
+        "context": "{project} · 选中 {count} 个节点"
+      },
+      "cards": {
+        "empty": "说一个角色名，我去查设定、找图；原创的话，我先给你几个方向。",
+        "placeholder": "说个角色名，或者说说你想要的原创角色…",
+        "context": "{count} 位角色",
+        "contextOpen": "正在看 {name}"
+      }
+    },
+    "autoReview": {
+      "message": "出图了，对照参考图帮我看一眼哪里不对。"
+    },
+    "autoGenerate": {
+      "label": "自动生成"
+    },
+    "outOfSteps": {
+      "note": "这一轮的步数用完了，已经落下的改动都保留着。",
+      "continue": "继续",
+      "stop": "先到这里",
+      "continuePrompt": "继续"
+    },
+    "stopShort": "停止",
+    "chat": {
+      "group": "和 {name} 聊",
+      "workGroup": "工作",
+      "newChatThread": "和 {name} 新开一段",
+      "noCharacters": "还没有角色，先去角色页建一个",
+      "regenerate": "重新生成",
+      "previousVersion": "上一版",
+      "nextVersion": "下一版",
+      "versionOf": "{index} / {total}",
+      "edit": "改这条",
+      "editLabel": "改这条消息",
+      "delete": "删这条",
+      "confirmDelete": "确定删除？",
+      "save": "保存",
+      "cancel": "取消",
+      "you": "你",
+      "roleLabel": "你在故事里是谁",
+      "rolePlaceholder": "比如：刚搬来的邻居，和{name}是青梅竹马",
+      "roleHint": "记在这个角色上，以后每段聊天都带；下一句起生效"
+    },
+    "mode": {
+      "label": "模式",
+      "work": "工作",
+      "chat": "聊天",
+      "pickCharacter": "和谁聊",
+      "toChat": "切到聊天 · 和 {name}",
+      "toWork": "回到工作"
+    },
+    "phoneAdd": {
+      "label": "添加",
+      "library": "从素材挑图",
+      "camera": "拍照",
+      "upload": "上传文件",
+      "mention": "@ 角色或素材",
+      "recent": "最近的素材",
+      "all": "全部"
+    }
+  },
+  "ContextCards": {
+    "kind": {
+      "character": "角色",
+      "style": "风格",
+      "brand": "品牌"
+    }
+  },
+  "AssistantSettings": {
+    "title": "助手设置",
+    "description": "这个助手是谁、怎么说话、记得什么。一份设置，四台工作台通用。",
+    "pageDescription": "这个助手是谁、怎么说话、记得什么。工作台右上角头像 ⋯ 里的「助手设置」打开的是同一份。",
+    "close": "关闭",
+    "tabs": {
+      "label": "助手设置分页",
+      "persona": "人设",
+      "memory": "记忆",
+      "memoryCount": "记忆 · {count}"
+    },
+    "status": {
+      "saving": "保存中",
+      "saved": "已保存",
+      "failed": "没保存上",
+      "retry": "重试"
+    },
+    "identity": {
+      "title": "身份",
+      "changeAvatar": "换头像",
+      "avatarLabel": "头像"
+    },
+    "avatar": {
+      "character": "{name} 的头像",
+      "upload": "我上传的",
+      "mark": "默认头像",
+      "uploadNew": "上传一张新的…",
+      "tooLarge": "这张图超过 5 MB 了。",
+      "unsupported": "换一张 JPEG、PNG 或 WebP。"
+    },
+    "character": {
+      "label": "用角色",
+      "none": "不用角色",
+      "noSpeech": "说话方式还没写",
+      "create": "去角色页新建一个",
+      "caption": "头像、名字、语气先用 {name} 的，下面还能单独改。",
+      "captionNoSpeech": "头像和名字先用 {name} 的，下面还能单独改。"
+    },
+    "name": {
+      "label": "名字",
+      "placeholder": "留空时使用 ANTEI"
+    },
+    "address": {
+      "label": "怎么称呼你",
+      "placeholder": "留空时用你的账号名"
+    },
+    "style": {
+      "title": "说话方式"
+    },
+    "archetype": {
+      "cautious": {
+        "name": "谨慎",
+        "line": "动手前多问两句 · 两步以上先给你看计划 · 回复偏短，只说结论"
+      },
+      "balanced": {
+        "name": "平衡",
+        "line": "拿不准才问，一次一个 · 多步和生成才确认 · 正常长度，附一条下一步"
+      },
+      "handsOff": {
+        "name": "放手",
+        "line": "基本不问，直接做 · 只在多步之前打个招呼 · 回复很短，只报结果"
+      },
+      "custom": {
+        "name": "自定义",
+        "line": "你在高级里改过，这份设置不再对上任何一档。"
+      }
+    },
+    "preview": {
+      "label": "示例回复",
+      "address": "{name}，",
+      "opener": {
+        "professional": "看过了。三张里第二张的逆光散射最接近你要的黄昏光，另外两张暖色压得太满。",
+        "friendly": "看过啦——三张里第二张最接近你要的黄昏光，另外两张暖色压得有点满。",
+        "terse": "第二张最接近。另外两张暖色过满。",
+        "custom": "按你写的那句话来说：三张里第二张最接近你要的黄昏光。",
+        "character": "按 {name} 的说话方式来说：三张里第二张最接近你要的黄昏光。"
+      },
+      "nextStep": "下一步：要我按第二张再来一组吗？"
+    },
+    "advanced": {
+      "label": "高级",
+      "on": "开",
+      "off": "关",
+      "summary": {
+        "tone": "语气 {value}",
+        "length": "长度 {value}",
+        "language": "语言 {value}",
+        "nextStep": "下一步建议 {value}",
+        "myWords": "用我的词 {value}"
+      }
+    },
+    "tone": {
+      "label": "语气",
+      "professional": "专业",
+      "friendly": "亲和",
+      "terse": "干脆",
+      "custom": "自定义",
+      "character": "{name} 的说话方式",
+      "customLabel": "自定义语气",
+      "customPlaceholder": "一句话说清你想要的说话方式",
+      "customRequired": "写上那一句，或者换一档语气。",
+      "characterNote": "取自 {name} 角色设定里的「说话方式」，那边改了这里跟着变。",
+      "characterMissing": "{name} 的角色设定里还没写「说话方式」，写了这一格才能选。",
+      "characterMissingLink": "去写"
+    },
+    "length": {
+      "label": "回复长度",
+      "concise": "简短",
+      "standard": "标准",
+      "detailed": "详细"
+    },
+    "language": {
+      "label": "回复语言",
+      "ui": "跟界面",
+      "chinese": "中文",
+      "english": "英文"
+    },
+    "nextStep": {
+      "label": "下一步建议",
+      "hint": "每条回复末尾给一条建议"
+    },
+    "myWords": {
+      "label": "用我的词",
+      "hint": "沿用我在提示词里的说法"
+    },
+    "memory": {
+      "caption": "助手记忆按工作台分别保存。需要在所有工作台共用的记忆，可以在这里明确共享。",
+      "captionPaused": "助手不再记新的；已有记忆只在各自选定的工作台生效。",
+      "capture": "让助手记住",
+      "newLabel": "写一条记忆",
+      "newPlaceholder": "写一条，回车存下。例：以后都用中文回复",
+      "filters": {
+        "label": "按谁写的筛选",
+        "all": "全部",
+        "creator": "你写的",
+        "assistant": "助手记的"
+      },
+      "clear": {
+        "all": "全部清空",
+        "creator": "清空你写的",
+        "assistant": "清空助手记的",
+        "titleAll": "清空全部 {count} 条记忆？",
+        "titleCreator": "清空你写的 {count} 条？",
+        "titleAssistant": "清空助手记的 {count} 条？",
+        "descAll": "删了找不回来。",
+        "descAllWithMine": "你写的 {count} 条也会一起删掉。删了找不回来。",
+        "descCreator": "助手记的留着。删了找不回来。",
+        "descAssistant": "你写的留着。删了找不回来。",
+        "cancel": "取消"
+      },
+      "source": {
+        "creator": "你写的",
+        "assistant": "助手记的"
+      },
+      "meta": "{source} · {time}",
+      "today": "今天 {time}",
+      "yesterday": "昨天",
+      "edit": "改这条记忆：{text}",
+      "editLabel": "改这条记忆",
+      "editHint": "回车保存 · Esc 取消 · 右边选它用在哪",
+      "scopeLabel": "用在哪",
+      "scopeAria": "用在哪：{scope}",
+      "chooseScope": "选择用在哪",
+      "unassigned": "未归属的历史记忆",
+      "canvasProject": "画布 · {name}",
+      "chatCharacter": "和 {name} 聊天",
+      "savedProject": "已保存项目",
+      "projectsLoading": "正在读取画布项目…",
+      "projectsEmpty": "请先创建一个画布项目。",
+      "projectsRetry": "项目没读出来，重试",
+      "scope": {
+        "global": "全部工作台",
+        "image": "自然语言图片",
+        "tags": "标签图片",
+        "video": "只在视频",
+        "canvas": "所有画布",
+        "lora": "只在 LoRA",
+        "cards": "只在卡片"
+      },
+      "delete": "删",
+      "deleteConfirm": "确认删除",
+      "deleteAria": "删掉这条记忆",
+      "deleted": "已删除一条记忆",
+      "undo": "撤销",
+      "saved": "已保存",
+      "filteredEmpty": "这一类还没有。",
+      "emptyTitle": "还没有记忆",
+      "emptyDescription": "助手会在每轮结束时记下你的偏好和事实。这里随时能改、能删。",
+      "emptyAction": "写第一条",
+      "loading": "正在读记忆…",
+      "failed": "没存上，再试一次。"
+    },
+    "sources": {
+      "title": "搜图来源",
+      "caption": "搜图时直接按名单过滤，不靠助手自觉",
+      "allow": "只从这些站找",
+      "deny": "不从这些站找",
+      "add": "添加",
+      "addLabel": "添加一个站点",
+      "placeholder": "站点或域名",
+      "remove": "移除 {token}",
+      "invalid": "填一个站点域名，比如 danbooru.donmai.us。",
+      "failed": "没存上，再试一次。"
+    }
+  }
+}

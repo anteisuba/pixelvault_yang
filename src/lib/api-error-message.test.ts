@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { createTranslator } from 'next-intl'
-import zhMessages from '@/messages/zh.json'
-import enMessages from '@/messages/en.json'
-import jaMessages from '@/messages/ja.json'
+import { zh as zhMessages } from '@/messages'
+import { en as enMessages } from '@/messages'
+import { ja as jaMessages } from '@/messages'
 
 import {
   getApiErrorMessage,

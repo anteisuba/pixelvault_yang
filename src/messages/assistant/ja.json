@@ -1,0 +1,1367 @@
+{
+  "XiaoheiGuide": {
+    "stepCounter": "{current} / {total} ステップ",
+    "previous": "前のガイド画像",
+    "next": "次のガイド画像",
+    "goToStep": "{step} 番目のステップへ移動",
+    "image": {
+      "label": "画像生成ガイド",
+      "slides": {
+        "model": {
+          "title": "最初に画像モデルを選ぶ",
+          "description": "プロンプトを仕上げる前に、モデルと縦横比を選びましょう。",
+          "alt": "小黒がモデル選択機で空の画像キャンバスを準備する手描きガイド"
+        },
+        "prompt": {
+          "title": "アイデアをプロンプトにする",
+          "description": "描きたいものや大事なポイントを、モデルに伝わるよう具体的に書きましょう。",
+          "alt": "小黒が粗いアイデアを画像プロンプトに押し出す手描きガイド"
+        },
+        "reference": {
+          "title": "必要なら参照画像を足す",
+          "description": "被写体、スタイル、構図を固定したいときは参照画像を使います。",
+          "alt": "小黒が生成前に参照画像をスケッチボードへ留める手描きガイド"
+        },
+        "reuse": {
+          "title": "生成して保存し、次の作品にも使う",
+          "description": "気に入った結果を保存して、アレンジしたり、次の生成の参照画像に使ったりしましょう。",
+          "alt": "小黒が生成した画像を保存しリミックスや参照に使う手描きガイド"
+        }
+      }
+    },
+    "video": {
+      "label": "動画生成ガイド",
+      "slides": {
+        "input": {
+          "title": "まず作りたいショットを書く",
+          "description": "下の入力欄に、動き、場面の変化、カメラの方向を具体的に書きます。",
+          "alt": "小黒が動画プロンプトを書く手描きガイド"
+        },
+        "settings": {
+          "title": "秒数、比率、参考素材を調整",
+          "description": "モデルを選び、長さ、画角、必要な参考素材を整えてから送信します。",
+          "alt": "小黒が動画生成設定を調整する手描きガイド"
+        },
+        "preview": {
+          "title": "送信してプレビューを確認",
+          "description": "送信後は上のプレビューに結果が表示されます。そこから再試行や調整を行います。",
+          "alt": "小黒が動画フレームのプレビューを見る手描きガイド"
+        }
+      }
+    },
+    "audio": {
+      "label": "音声生成ガイド",
+      "slides": {
+        "input": {
+          "title": "読み上げたい文章を入力",
+          "description": "音の説明ではなく、実際に聞きたい台詞やナレーションを書きます。",
+          "alt": "小黒が音声用の文章を入力する手描きガイド"
+        },
+        "voice": {
+          "title": "声と参考音声を選ぶ",
+          "description": "モデルと声を選び、必要なら参考音声を追加して仕上がりを寄せます。",
+          "alt": "小黒が声と参考音声を調整する手描きガイド"
+        },
+        "preview": {
+          "title": "波形を見て試聴する",
+          "description": "結果はプレビューに表示されます。聞いてからフィードバックで調整します。",
+          "alt": "小黒が音声波形プレビューを見る手描きガイド"
+        }
+      }
+    },
+    "model3d": {
+      "label": "3D生成ガイド",
+      "slides": {
+        "source": {
+          "title": "元画像をアップロードまたは選択",
+          "description": "輪郭がはっきりした単一の被写体ほど、回転できる3Dモデルにしやすくなります。",
+          "alt": "小黒が3D生成用の元画像を選ぶ手描きガイド"
+        },
+        "settings": {
+          "title": "品質、メッシュ、テクスチャを確認",
+          "description": "右側の設定は、細部、面数、テクスチャ、待ち時間に影響します。",
+          "alt": "小黒が3D品質とメッシュ設定を調整する手描きガイド"
+        },
+        "preview": {
+          "title": "生成後にモデルを回して確認",
+          "description": "プレビューで形と細部を確認し、必要に応じてダウンロードや再調整をします。",
+          "alt": "小黒が回転できる3Dプレビューを見る手描きガイド"
+        }
+      }
+    },
+    "node": {
+      "label": "キャンバスガイド",
+      "slides": {
+        "add": {
+          "title": "最初のノードを追加",
+          "description": "上部の追加ボタンやキャンバスメニューから Composer、キャラクター、声、メディアのノードを置きます。",
+          "alt": "小黒がキャンバスにノードを追加する手描きガイド"
+        },
+        "connect": {
+          "title": "ノードをつないで制作の流れを作る",
+          "description": "アイデア、キャラクター、声、ショット、生成ノードを線でつなぎます。",
+          "alt": "小黒が複数のワークフローノードを接続する手描きガイド"
+        },
+        "run": {
+          "title": "ノードを選んで実行",
+          "description": "ノードをクリックし、右側の検査パネルで設定とモデルルートを確認して実行します。",
+          "alt": "小黒が選択したノードを検査パネルで実行する手描きガイド"
+        }
+      }
+    }
+  },
+  "PromptAssistant": {
+    "turn": {
+      "answerPrefix": "私の回答：",
+      "skipped": "これはスキップ",
+      "skip": "スキップ",
+      "customPlaceholder": "自分の言葉で答えることもできます",
+      "submitAnswers": "回答を送信",
+      "satisfiedPrefix": "この方向でお願いします：",
+      "adjustFallback": "変えたいところがあれば、教えてください",
+      "askedTitle": "回答済み · {count}",
+      "malformed": "アシスタントはここに選択肢を出そうとしましたが、その部分が読み取れませんでした。もう一度聞くか、自分の言葉で答えてください。"
+    },
+    "title": "プロンプトアシスタント",
+    "placeholder": "作りたいものを説明してください...",
+    "send": "送信",
+    "usePrompt": "プロンプトとして使用",
+    "useNegativePrompt": "ネガティブプロンプトに使う",
+    "useAspectRatio": "{ratio} に設定",
+    "useModel": "{model} に切り替え",
+    "useBatchCount": "モデルごとに {count} 枚",
+    "applied": "適用済み",
+    "undoApply": "元に戻す",
+    "undoApplyAria": "元に戻す：{action}",
+    "apply": "適用",
+    "actionsHeading": "ワークスペースもあわせて調整",
+    "rowPrompt": "プロンプト",
+    "rowNegative": "ネガティブ",
+    "rowRatio": "比率",
+    "rowModel": "モデル",
+    "rowBatch": "枚数",
+    "unavailableHere": "このワークスペースにはありません",
+    "modelAlreadyCompared": "比較リストに既にあります。切り替えると実行するモデルが 1 つ減ります",
+    "moreSuggestions": "他に {count} 件の設定提案",
+    "appendPrompt": "追記",
+    "copyPrompt": "コピー",
+    "copied": "コピーしました",
+    "clear": "クリア",
+    "failed": "プロンプト生成に失敗しました",
+    "loading": "プロンプトを生成中...",
+    "emptyHint": "画像からスタイルを抽出するか、指示を入力してプロンプトを改善します。",
+    "starterA": "ネオン輝く雨夜のサイバーパンク街、透明な傘をさす少女",
+    "starterB": "夏の谷あいの木造小屋、麦畑を流れる雲影、ジブリの空気感",
+    "starterC": "宇宙服を着た茶トラ猫がステーションの窓辺に浮かぶ、背景には地球",
+    "targetModel": "対象モデル",
+    "selectApiKey": "APIキーを選択",
+    "responseLanguage": "返信言語",
+    "responseLanguageEnglish": "英語",
+    "responseLanguageJapanese": "日本語",
+    "responseLanguageChinese": "中国語",
+    "referenceImage": "参照画像",
+    "referenceDescription": "参照画像を使ってスタイルを反映したプロンプトを作成します。",
+    "addImage": "画像を追加",
+    "replaceImage": "画像を差し替え",
+    "selectAsset": "素材を選択",
+    "referenceUploadHint": "JPG、PNG、WebP — 最大10MB",
+    "referencePasteHint": "画像をペースト",
+    "referenceImageAlt": "参照画像",
+    "removeImage": "画像を削除",
+    "imageError": "この画像を読み込めません。10MB未満のJPG、PNG、WebPを使用してください。",
+    "presetImageStyle": "画像スタイル",
+    "presetDetailed": "詳細",
+    "presetArtistic": "アート",
+    "presetPhoto": "写真",
+    "presetAnime": "アニメ",
+    "presetLora": "LoRA変換",
+    "presetTags": "タグ",
+    "research": {
+      "label": "ウェブ検索",
+      "modeAuto": "自動",
+      "modeAutoHint": "最新の事実が必要な質問のときだけ検索します",
+      "modeForced": "常に検索",
+      "modeForcedHint": "返信するたびにウェブで検索します",
+      "modeOff": "オフ",
+      "modeOffHint": "検索せず、モデル自身の知識だけで回答します",
+      "searching": "検索中…",
+      "loading": "参考資料を読み込み中…",
+      "loadFailed": "この検索の記録を読み込めませんでした。",
+      "historyLabel": "この回答の出典",
+      "statusSucceeded": "ウェブ検索済み",
+      "statusNoEvidence": "使える資料が見つかりません",
+      "statusFailed": "検索に失敗しました",
+      "statusQuotaExceeded": "本日の検索上限に達しました",
+      "noEvidenceNextSteps": "ソースから使える資料が返りませんでした。キーワードを変える、リンクを貼る、または参考画像をアップロードしてください。",
+      "failedHint": "参考資料に接続できず、ウェブの情報を確認できませんでした。時間をおいて試すか、リンクを貼ってください。",
+      "quotaHint": "本日の検索回数を使い切りました。この回答はモデル自身の知識によるものです。明日回復します。",
+      "evidenceCount": "参考資料 {count}件",
+      "notGrounded": "ウェブの参考資料なし",
+      "expand": "検索の詳細を表示",
+      "collapse": "検索の詳細を隠す",
+      "queriesLabel": "検索クエリ",
+      "runQueryLabel": "元の質問",
+      "viaFallback": "代替",
+      "sourceOk": "成功",
+      "sourceEmpty": "結果なし",
+      "sourceUnrelated": "関連のない検索結果",
+      "sourceFailed": "失敗",
+      "sourceCircuitOpen": "一時的に利用不可",
+      "sourceSkipped": "未使用",
+      "sourceMoegirl": "萌娘百科",
+      "sourceWikipediaZh": "ウィキペディア（中国語）",
+      "sourceFandom": "Fandom",
+      "sourceDanbooru": "Danbooru",
+      "sourceBilibili": "bilibili",
+      "sourceWebSearch": "ウェブ検索",
+      "sourceUrlReader": "リンク先ページ",
+      "sourceVisionInput": "あなたが渡した画像",
+      "tierOfficial": "公式",
+      "tierCommunity": "コミュニティ",
+      "tierSocial": "ソーシャル",
+      "retrievedAt": "取得",
+      "openSource": "原文を開く",
+      "imageEvidence": "参考画像",
+      "untrusted": "信頼度を下げて表示",
+      "untrustedHint": "アシスタントの動作に干渉する可能性のある文が含まれるため、抜粋を表示していません。リンク先で内容を確認できます。",
+      "citationAria": "引用 {index}",
+      "citationUnavailable": "この回答の参考資料は、現在確認できません。",
+      "citationMissing": "この引用の出典が見つかりません。"
+    },
+    "imageButton": "参考画像",
+    "imageDropHint": "ドラッグ / ペースト / クリックでアップロード",
+    "recentAssets": "最近の素材",
+    "recentAssetsEmpty": "素材がありません",
+    "openLibrary": "素材ライブラリ",
+    "dockLabel": "アシスタントパネル",
+    "dockTitle": "アシスタント",
+    "dockCollapse": "アシスタントを閉じる",
+    "dockResizeLabel": "アシスタントパネルの幅を調整",
+    "dockDropHint": "ドロップしてアシスタントの参考画像に設定",
+    "assistantResultPositive": "ポジティブ",
+    "assistantResultNegative": "ネガティブ",
+    "assistantFreeWord": "自由入力",
+    "assistantNormalized": "正規化済み",
+    "assistantTriggerNote": "トリガーワードは上の欄にまとめて表示しています。",
+    "assistantRemoveChip": "{tag} を削除",
+    "assistantEmptyHint": "作りたいものを自由に教えてください。追加した LoRA、ベースモデル、選択中のタグも自動で参考にします。",
+    "assistantStarterA": "雪の中の銀髪の少女、夕暮れの逆光",
+    "assistantStarterB": "衣装を雨に濡れたトレンチコートに変更、ポーズはそのまま",
+    "assistantRefineLabel": "さらに調整：",
+    "assistantRefineComposition": "構図を変える",
+    "assistantRefineLighting": "光の演出をもっと強く",
+    "assistantRefineStyle": "LoRAのスタイルにもっと寄せる",
+    "assistantRetry": "再試行",
+    "assistantEscapeToSelfBuild": "「自分で組む」に切り替え",
+    "contextMounts": "LoRA ×{count}",
+    "contextTriggers": "トリガー ×{count}",
+    "contextBase": "ベース",
+    "assistantStageForReview": "組み合わせを確認",
+    "assistantStageHint": "すぐ生成せず、組み合わせバーで変更を確認してから適用することをおすすめします。",
+    "referenceOnlyPrompt": "添付した参考素材を分析し、アイデアを発展させてください。",
+    "audioUnsupported": "このモデルは音声を分析できません。Gemini を選択するか、音声の添付を削除してください。",
+    "videoUnsupported": "このモデルは動画を分析できません。Geminiを選ぶか、動画の参考素材を削除してください。",
+    "imageUnsupported": "このモデルは画像を分析できません。「画像の理解に対応」と表示されたモデルを選ぶか、画像の参考素材を削除してください。",
+    "routeAuto": "自動ルート",
+    "loraCandidate": {
+      "sourceCivitai": "Civitai",
+      "sourceHuggingFace": "Hugging Face",
+      "authorUnknown": "作者不明",
+      "baseModelUnknown": "ベースモデル不明",
+      "sizeUnknown": "サイズ不明",
+      "licenseUnknown": "ライセンス不明",
+      "licenseCommercial": "商用利用",
+      "licenseDerivatives": "改変",
+      "licenseNoCredit": "クレジット表記不要",
+      "permissionAllowed": "可",
+      "permissionDenied": "不可",
+      "permissionUnknown": "不明",
+      "downloads": "{count} 回ダウンロード",
+      "alreadyMounted": "追加済み",
+      "alreadyImported": "ライブラリにあり",
+      "alreadyInStack": "スタックに追加済み",
+      "confirm": "取り込んで追加",
+      "confirmImportOnly": "取り込んでトリガーワードを入力",
+      "confirmedMounted": "取り込み・追加・トリガーワード入力まで完了",
+      "confirmedImported": "取り込みとトリガーワードの入力が完了",
+      "openSource": "配布ページを開く",
+      "detailsTrimmed": "この候補の詳細をすべて読み込めなかったため、取り込めません。もう一度候補を探してみてください。",
+      "mountElsewhere": "このワークスペースにはLoRAスタックがないため、追加はしていません。",
+      "goToLoraWorkbench": "LoRAワークスペースで追加する",
+      "type": {
+        "subject": "キャラクター",
+        "style": "画風"
+      },
+      "metadataCompleteness": {
+        "complete": "詳細情報あり",
+        "partial": "一部の情報のみ",
+        "minimal": "情報が少ない"
+      },
+      "notImportable": {
+        "unknown_base_model": "ベースモデルの系統を特定できないため、推奨のみで取り込みはできません。",
+        "no_weight_file": "ダウンロードできる重みファイルがないため、推奨のみで取り込みはできません。",
+        "gated_repo": "このHugging Faceリポジトリは利用条件への同意が必要です。先に同意してから、ライブラリ経由で取り込んでください。"
+      },
+      "failed": {
+        "import": "取り込みに失敗しました。ライブラリには何も追加されていません。",
+        "mount": "取り込みは成功しましたが、追加に失敗しました。ライブラリにはあるので、スタックから手動で追加してください。",
+        "trigger_words": "取り込みと追加は完了しましたが、トリガーワードをプロンプトに書き込めませんでした。カードからコピーしてください。"
+      }
+    }
+  },
+  "StudioOperator": {
+    "collapsedActivity": {
+      "running": "作業中",
+      "done": "新しい返信",
+      "failed": "エラー"
+    },
+    "live": {
+      "start": "アシスタントが作業を開始しました",
+      "done": "アシスタントの作業が完了しました",
+      "stopped": "アシスタントを停止しました",
+      "failed": "アシスタントでエラーが発生しました"
+    },
+    "running": {
+      "look": "画像を見ています…",
+      "research": "調べています…",
+      "webImages": "画像を探しています…",
+      "webVideos": "動画を探しています…",
+      "library": "素材を探しています…",
+      "ask": "質問を考えています…",
+      "apply": "パラメータを変更しています…",
+      "generate": "生成の準備をしています…"
+    },
+    "title": "アシスタント",
+    "domainName": {
+      "image": "画像ワークスペース",
+      "video": "動画ワークスペース",
+      "lora": "LoRA ワークスペース",
+      "canvas": "キャンバス",
+      "cards": "キャラクターページ"
+    },
+    "session": "セッション",
+    "newThread": "新しい会話",
+    "emptyState": {
+      "title": "{name} です。画づくりの相棒です",
+      "description": "参考画像を追加するか、作りたい雰囲気を教えてください。画像を見たり調べたりしながら設定を整え、生成前にモデルと枚数をお見せします。"
+    },
+    "history": {
+      "heading": "これまでの会話",
+      "today": "今日",
+      "yesterday": "昨日",
+      "empty": "ほかの会話はまだありません",
+      "loading": "読み込み中…",
+      "untitled": "無題の会話",
+      "earlierRounds": "それ以前の {count} 件",
+      "deleteLabel": "会話を削除：{title}",
+      "deleteConfirmInline": "もう一度押すと「{title}」を完全に削除します",
+      "deleteConfirm": "確認",
+      "deleting": "削除中…",
+      "deleteFailed": "削除できませんでした。もう一度お試しください。",
+      "deleteBusy": "現在の応答が完了してから、この会話を削除してください。",
+      "loadFailed": "会話一覧を読み込めませんでした。一覧を開き直してください。",
+      "renameLabel": "{title} の名前を変更",
+      "renameHint": "Enter で保存 · Esc でキャンセル",
+      "renaming": "保存中…",
+      "renameFailed": "名前を変更できませんでした。再試行してください。",
+      "switching": "会話を読み込み中…",
+      "saveFailed": "会話を保存できませんでした。下書きはこの画面に残っています。",
+      "retrySave": "保存を再試行"
+    },
+    "more": "その他",
+    "share": "この会話を共有",
+    "feedback": "フィードバック",
+    "collapse": "アシスタントを畳む",
+    "collapseHint": "畳む · Esc",
+    "expand": "アシスタントを開く",
+    "resize": "ドラッグで幅を変更",
+    "planFold": "計画 · {count} ステップ",
+    "placeholderIdle": "続きを聞かせてください。参考素材も添付できます…",
+    "placeholderWorking": "続けて入力できます。次の区切りでメッセージを確認します",
+    "specLine": {
+      "adjust": "出力設定を変更"
+    },
+    "send": "送信",
+    "stop": "作業を止める",
+    "lightboxLabel": "拡大表示",
+    "mobile": {
+      "sheetTitle": "アシスタント",
+      "sheetDescription": "ハンドルを上にドラッグすると全画面に、下にドラッグすると閉じます。"
+    },
+    "toolGroup": {
+      "title": "{count} 件の操作",
+      "elapsed": "所要 {seconds}s",
+      "succeeded": "{count} 成功",
+      "skipped": "{count} 件スキップ",
+      "failed": "{count} 件失敗",
+      "running": "進行中",
+      "details": "{count} ステップ実行",
+      "promptUnchanged": "プロンプトは未変更です",
+      "blocked": "操作が完了していません",
+      "inspectFailure": "実行記録で理由を確認するか、下で要望を補足・修正してください。",
+      "tagFixed": "{count} 件を Danbooru の表記に直しました：{list}。",
+      "tagUnknown": "{list}{more, plural, =0 {} other { ほか #件}}は見つからなかったため、そのまま残しました。",
+      "tagListSeparator": "、",
+      "tagSentenceSeparator": "",
+      "negativeFolded": "{model} にはネガティブプロンプト欄がないため、本文に書き込みました。"
+    },
+    "checkpoint": {
+      "summary": "{fields}を変更",
+      "undo": "取り消す",
+      "reverted": "取り消しました"
+    },
+    "reject": {
+      "partialText": "このテキストの一部しか読めていないため置き換えませんでした。ノードを @ するか選択してから、もう一度お試しください",
+      "referenceAnalysisRequired": "現在の参照画像を先に分析してください",
+      "referenceImageUnavailable": "参照画像を読み込めません。該当する画像を再アップロードするか差し替えてください。",
+      "referenceAnalysisFailed": "参照画像の分析が不完全なため、結果は採用されていません。",
+      "referenceBriefFailed": "画像の分析は完了しましたが、参照用途の検証に失敗しました。プロンプトは変更していません。",
+      "referenceInputsChanged": "参照の接続を更新してから、このプロンプトを確認します",
+      "canvasBatchPartial": "このバッチの一部が反映されませんでした。展開して確認してください",
+      "noSuchControl": "このワークスペースにその項目はありません",
+      "unknownModel": "そのモデルは選べる一覧にありません",
+      "unknownValue": "その値は選択肢にありません",
+      "unknownAsset": "その素材は今回の検索結果にありません",
+      "unknownFolder": "そのフォルダは今回の一覧にありません",
+      "referencesFull": "参照画像の枠が埋まっています",
+      "emptyValue": "書き込む内容が空でした",
+      "userDeclined": "「そのまま」を選んだので実行しませんでした",
+      "noModelSelected": "モデルがまだ選ばれていません",
+      "emptyPrompt": "プロンプトがまだ空です",
+      "malformedArgs": "操作に必要な情報の形式が正しくありません",
+      "searchUnavailable": "ウェブ画像検索は現在利用できません",
+      "noResultToCritique": "確認する画像が指定されていません",
+      "visionUnavailable": "アシスタントのモデルは画像を見られません。他社のキーには切り替えていません。画像を見るにはモデルメニューで画像対応のモデルを選んでください",
+      "critiqueFailed": "結果の評価を読み取れませんでした",
+      "urlNotFromUser": "そのリンクはあなたが渡したものではないため、そのまま取り込めません",
+      "repeatedStep": "同じ手順をすでに実行済みのため、見送りました",
+      "ruleLimitReached": "ソースリストの上限に達しました。1 件削除してから追加してください。",
+      "memoryOff": "記憶がオフ（シークレット、または「アシスタントに覚えさせる」がオフ）なので、保存していません",
+      "ruleTooLong": "このルールは長すぎるため、保存していません",
+      "folderLimitReached": "フォルダ数が上限に達しました。新規作成の前に古いフォルダを削除してください。",
+      "unknownLora": "その LoRA は今回の検索結果にありません",
+      "loraNotMounted": "その LoRA は、このワークスペースには追加されていません",
+      "loraNotImportable": "その LoRA はライブラリに取り込めません。配布元ページでのみ確認できます",
+      "loraIncompatibleBase": "その LoRA は別系統のベースモデル向けなので、現在のベースモデルとは組み合わせられません",
+      "sourceNotUsable": "このサイトは AI の入力に使わないよう求めているか、出所をたどれない転載です",
+      "researchRoundsExhausted": "今回の調査回数の上限に達しました。ここまでに見つけた情報で進めます",
+      "unknownEvidenceRef": "その出典番号は、この会話にありません",
+      "evidenceRecallsExhausted": "今回確認できる参考資料の上限に達しました",
+      "urlNotReadable": "このアドレスはここでは読み込めません",
+      "urlUnreadable": "そのページを読み込めませんでした",
+      "aspectLockedByFirstFrame": "最初のフレームがあるため、このモデルはアスペクト比「自動（adaptive）」しか受け付けません",
+      "videoFramesMissing": "この動画からフレームを取り出せませんでした",
+      "blockedSource": "不採用にした素材なので、開始フレームにも終了フレームにも使えません",
+      "toolFailed": "この手順は技術的な問題で完了しませんでした。少し待ってからもう一度お試しください。",
+      "timeBudget": "この手順は時間がかかりすぎたため、次の区切りでやり直します。"
+    },
+    "field": {
+      "prompt": "プロンプト",
+      "negative": "ネガティブプロンプト",
+      "model": "モデル",
+      "specs": "仕様",
+      "count": "枚数",
+      "capabilities": "モデル専用",
+      "characters": "キャラクター配置",
+      "sceneTexts": "画面の文字",
+      "references": "参照画像",
+      "audioReferences": "参照音声",
+      "sound": "音声出力",
+      "loras": "LoRA 構成",
+      "canvasNodes": "キャンバスのノード"
+    },
+    "changeSubject": {
+      "rule": "プロジェクトルール",
+      "reviewState": "レビュー状態",
+      "assetTags": "素材タグ",
+      "assetFavorite": "素材のお気に入り",
+      "assetFolder": "新規フォルダ",
+      "assetAddToFolder": "フォルダに追加"
+    },
+    "confirm": {
+      "generate": {
+        "title": "{count} 枚を生成しますか？",
+        "titleVideo": "この {seconds} 秒の動画を生成しますか？",
+        "titleNode": "「{name}」を生成しますか？",
+        "count": "{count} 枚",
+        "countVideo": "{count, plural, =1 {{seconds}秒の動画} other {{seconds}秒の動画 # 本}}",
+        "countLabel": "枚数",
+        "confirm": "生成する",
+        "cancel": "今はしない",
+        "retry": "もう一度",
+        "model": "モデル",
+        "aspect": "アスペクト比",
+        "resolution": "解像度",
+        "quality": "画質",
+        "modelDefault": "モデルの既定値",
+        "duration": "長さ",
+        "seconds": "{seconds} 秒",
+        "audio": "音声",
+        "enabled": "オン",
+        "disabled": "オフ",
+        "nodeUnavailable": "対象ノードまたはモデルを利用できません。選択し直してください。",
+        "adjusted": "このモデルに合わせて調整しました：{fields}",
+        "knobStepTitle": "確認カードで変更",
+        "knobStepReason": "確認カードであなたが変更しました"
+      },
+      "batch": {
+        "title": "これを生成",
+        "confirm": "<n>{count}</n> 枚を生成",
+        "cost": "約 <a>{amount}</a>",
+        "costFrom": "約 <a>{amount}</a>〜",
+        "summary": "{count} 枚のカード",
+        "failed": "「{name}」は生成できませんでした"
+      },
+      "multistep": {
+        "title": "{count} ステップのプラン",
+        "start": "開始",
+        "stepByStep": "一歩ずつ進める",
+        "stoppable": "  ——  いつでも止められます"
+      },
+      "state": {
+        "submitting": "確定中…",
+        "confirmed": "確定済み · {time}",
+        "cancelled": "キャンセル済み · {time}",
+        "auto": "自動生成済み · {time}"
+      },
+      "contextCard": {
+        "title": "このカードを保存しますか？",
+        "save": "保存する",
+        "dismiss": "不要",
+        "saved": "保存済み",
+        "notSaved": "未保存",
+        "negative": "必ず除外する要素：{value}"
+      },
+      "loraSetup": {
+        "apply": "この構成を適用",
+        "applying": "適用中…",
+        "applied": "適用済み · {time}",
+        "appliedPartial": "適用済み · {time} · {count} 件は反映できず",
+        "dismiss": "今はやめておく",
+        "unmount": "外す",
+        "mountSr": "追加",
+        "parameters": "パラメータ",
+        "paramDefault": "既定",
+        "paramRandom": "ランダム",
+        "tally": "適用後の合計ウェイト",
+        "overBudget": "合計ウェイトが {limit} を超えます —— 画面がにごるかもしれません。どれか一つを下げてみてください。",
+        "param": {
+          "runnerSampler": "サンプラー",
+          "runnerScheduler": "スケジューラ",
+          "steps": "ステップ",
+          "guidanceScale": "CFG",
+          "runnerSeed": "Seed",
+          "size": "サイズ"
+        }
+      },
+      "characterProfile": {
+        "header": "{name} の下書き · {count} 項目",
+        "question": "「{name}」に入れますか？",
+        "fields": {
+          "look": "見た目",
+          "identity": "身分",
+          "behavior": "性格",
+          "speech": "話し方",
+          "backstory": "経歴"
+        },
+        "ownWordsOnly": "自分の文だけ残す",
+        "keepAdded": "補足も含める",
+        "keep": "選んだものを入れる · {count}",
+        "dismiss": "今はいい",
+        "kept": "{count} 項目を入れました · {time}"
+      },
+      "characterImages": {
+        "header": "{name} が {count} 枚見つけました",
+        "question": "「{name}」に付けますか？",
+        "fromLibrary": "素材ライブラリ",
+        "fromLibraryNamed": "素材ライブラリ · {name}",
+        "keep": "選んだものを付ける · {count}",
+        "keeping": "付けています…",
+        "dismiss": "今はいい",
+        "kept": "{count} 枚付けました · {time}"
+      },
+      "imageHandoff": {
+        "header": "{name} · 画像アシスタントに渡す",
+        "hint": "画像ワークベンチを開いて「{name}」を選び、この一文を画像アシスタントの入力欄に入れます。送信はあなたが押します。",
+        "accept": "画像アシスタントに渡す",
+        "dismiss": "今はいい",
+        "accepted": "画像アシスタントに渡しました · {time}"
+      },
+      "workbenchHandoff": {
+        "header": "{bench}へ切り替え · {model}",
+        "tags": "タグ台",
+        "natural": "自然言語台",
+        "hint": "このモデルを選び、入力済みのプロンプトを持って{bench}へ移動します。上の一文は向こうのアシスタント入力欄に入れます。送信はあなたが押します。",
+        "accept": "移動する",
+        "dismiss": "今はいい",
+        "accepted": "{bench}へ切り替えました · {time}"
+      },
+      "upscale": {
+        "header": "4K にアップスケール · {count} 枚",
+        "hint": "あなたの fal キーで実行し、クレジットは使いません。拡大した画像はこのカードの新しいバージョンになり、元の画像はバージョン列に残ります。",
+        "accept": "拡大する",
+        "dismiss": "今はしない",
+        "accepted": "拡大を開始しました · {time}",
+        "autoAccepted": "自動生成がオンなので、そのまま拡大しました · {time}",
+        "acceptedText": "{names}を拡大",
+        "declinedText": "{names}は今は拡大しない",
+        "question": "{names}を 4K に拡大しますか？"
+      },
+      "moveWork": {
+        "canvas": {
+          "header": "キャンバスで続ける",
+          "hint": "この台のプロンプト・モデル・参照画像・直近の 1 枚をキャンバスに 1 枚のカードとして持っていきます。上の一言はキャンバスのアシスタント入力欄に入れるので、送信はご自身で。",
+          "accept": "移す",
+          "dismiss": "今はやめる",
+          "accepted": "キャンバスへ移しました · {time}",
+          "acceptedText": "キャンバスで続ける",
+          "declinedText": "キャンバスへは移さない",
+          "question": "この作業をキャンバスで続けますか？",
+          "pickLabel": "移す先のキャンバス",
+          "newProject": "新しいキャンバス",
+          "loading": "最近のキャンバスを探しています…"
+        },
+        "workbench": {
+          "header": "ワークベンチで続ける · {names}",
+          "hint": "{names}のプロンプト・モデル・参照画像を画像ワークベンチへ持っていきます。上の一言はそちらのアシスタント入力欄に入れるので、送信はご自身で。",
+          "accept": "移す",
+          "dismiss": "今はやめる",
+          "accepted": "ワークベンチへ移しました · {time}",
+          "acceptedText": "{names}をワークベンチで続ける",
+          "declinedText": "{names}はワークベンチへ移さない",
+          "question": "{names}をワークベンチで続けますか？"
+        }
+      }
+    },
+    "system": {
+      "undoStep": "取り消しました：{subject}（アシスタントは把握済み、やり直しません）",
+      "revertField": "元に戻しました：{subject}（アシスタントは把握済み）",
+      "revertAll": "アシスタントの変更を{count}件すべて元に戻しました。アシスタントにも伝わっています",
+      "stopped": "作業を止めました",
+      "interrupted": "メッセージに合わせて、進め方を変更しました",
+      "streamInterrupted": "このターンが終わる前に接続が切れました。",
+      "revertRound": "このラウンドの変更 {count} 件を元に戻しました（アシスタントは把握済み）",
+      "revertFailed": "変更を1件元に戻せませんでした。残りの変更は保持されています。もう一度お試しください。",
+      "queuePicked": "区切りになったので、待機中のメッセージ{count}件を確認しています",
+      "queueDropped": "並んでいたメッセージを取り消しました：{subject}",
+      "urlImportFailed": "渡されたリンクを取得できませんでした：{subject}",
+      "generationFailed": "生成結果がなかったため、アシスタントによる確認は行いません",
+      "generationResultInterrupted": "このバッチの結果の受信が中断しました。素材ライブラリで確認できます。",
+      "generationFailedWithReason": "生成されませんでした：{subject}",
+      "loraMountFailed": "{subject} を追加できませんでした。ワークスペースには追加されていません",
+      "loraLibraryPickMounted": "「{subject}」を装着しました",
+      "loraWeightOverBudget": "重みの合計は{subject}で、このベースモデルの範囲を超えています。画像がぼやけたり、画風が混ざったりすることがあります。重みはまだ変えていません。どれを下げましょうか？",
+      "videoFramesFailed": "このクリップからフレームを取り出せませんでした —— 今回アシスタントは見られないかもしれません（{subject}）",
+      "clipsOverCap": "今回見るのは、指定したクリップのうち最初の{count}本だけです",
+      "checkpointRestored": "選択したステップの設定を復元しました。以後は現在のフォームに従って操作してください。",
+      "questionAnswered": "{subject}",
+      "contextCardSaved": "コンテキストカードを保存しました：{subject}",
+      "contextCardDeclined": "コンテキストカードは保存しませんでした：{subject}",
+      "contextCardSaveFailed": "「{subject}」を保存できませんでした。もう一度お試しください。",
+      "loraSetupApplied": "構成を適用しました：{subject}",
+      "loraSetupDismissed": "この構成は今は使いません（{subject}）",
+      "characterProfileSaved": "{subject}",
+      "characterProfileDeclined": "この設定は入れませんでした：{subject}",
+      "characterProfileSaveFailed": "「{subject}」に書き込めませんでした —— もう一度？",
+      "characterImagesAttached": "{subject}",
+      "characterImagesDeclined": "この画像は付けませんでした：{subject}",
+      "characterImagesAttachFailed": "「{subject}」に付けられませんでした —— もう一度？",
+      "imageHandoffAccepted": "画像アシスタントに渡しました：{subject}",
+      "imageHandoffDeclined": "画像アシスタントには渡しませんでした：{subject}",
+      "workbenchHandoffAccepted": "切り替えました：{subject}",
+      "workbenchHandoffDeclined": "切り替えませんでした：{subject}",
+      "upscaleAccepted": "拡大中：{subject}",
+      "upscaleDeclined": "拡大しませんでした：{subject}",
+      "upscaleFailed": "拡大できませんでした：{subject}",
+      "moveWorkAccepted": "{subject}",
+      "moveWorkDeclined": "{subject}",
+      "moveWorkDroppedReferences": "参照画像 {subject} 枚は持っていけませんでした（上限超過、またはアップロード未完了）。",
+      "autoGenerateHeld": "このカードは {subject} 枚を生成します。自動生成の上限（1 ターン 4 枚）を超えるため自動では押していません。確認すると生成します。"
+    },
+    "attach": {
+      "latestResult": "最新 · {label}",
+      "label": "画像 / 音声 / 動画をアップロード",
+      "remove": "この添付を外す",
+      "upload": {
+        "compressing": "大きすぎるので、送れるサイズまで圧縮しています…",
+        "compressed": "圧縮しました：{from}MB → {to}MB",
+        "gifTooLarge": "このアニメーション画像は {maxMb}MB を超えていて圧縮できません — 別のものをお試しください",
+        "tooLargeImage": "画像は最大 {maxMb}MB です",
+        "tooLargeVideo": "動画は最大 {maxGb}GB です",
+        "tooLargeAudio": "音声は最大 {maxGb}GB です",
+        "unsupported": "この種類のファイルはアップロードできません（画像 / 音声 / 動画のみ）",
+        "failed": "アップロードに失敗しました",
+        "retry": "このアップロードを再試行",
+        "waiting": "アップロード中です — 完了すると送信できます"
+      }
+    },
+    "modelChip": {
+      "label": "テキストモデル",
+      "auto": "自動",
+      "autoHint": "キーを設定した最初のモデル",
+      "autoResolved": "自動 · {model}",
+      "autoHintResolved": "{model} を使用（キーを設定した最初のモデル）",
+      "autoHintNoKey": "キーがまだありません。ここで設定",
+      "needsKey": "設定する",
+      "search": "モデルを検索",
+      "noMatch": "該当するモデルがありません"
+    },
+    "effortChip": {
+      "label": "思考",
+      "levels": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High"
+      },
+      "hints": {
+        "low": "最速。複雑な作業では詰めが甘くなることも",
+        "medium": "速さと質のバランス",
+        "high": "最も遅く、最も丁寧"
+      }
+    },
+    "web": {
+      "barSelected": "{count} 枚を選択",
+      "barSaving": "{count} 枚を素材に保存中…",
+      "clear": "クリア",
+      "save": "保存",
+      "saveFailed": "{handle} を保存できませんでした：{reason}",
+      "savedCandidate": "{handle} は素材に保存済み。@ で使えます",
+      "moreImages": "あと {count} 枚",
+      "moreVideos": "あと {count} 件",
+      "videoListLabel": "見つかった動画 {count} 件",
+      "found": "Google 画像を検索：{query} · {count} 枚",
+      "searching": "Google 画像を検索中：{query}…",
+      "blockedNote": "{domains}：{reason}",
+      "viewLarge": "拡大表示",
+      "previewUnavailable": "この画像は元サイトから読み込めませんでした",
+      "importFailedShort": "取得不可",
+      "importFailed": "この画像は取得できませんでした",
+      "publisherUnknown": "不明",
+      "openPage": "掲載ページを開く",
+      "notUsable": "このサイトは AI での利用を認めていないか、出所の分からない転載サイトです。元ページは開けますが、アセットには保存できません。",
+      "notUsableHotlink": "このサイトは他サイトからの画像取得を受け付けていません。元ページは開けますが、アセットには保存できません。",
+      "videosFound": "動画を検索：{query} · {count} 本",
+      "videosSearching": "動画を検索中：{query}…",
+      "videoPlay": "ここで再生：{title}",
+      "videoOpenExternal": "{site} を新しいタブで開く：{title}",
+      "videoPlayerTitle": "{site} プレーヤー：{title}",
+      "videoOpenSource": "{site} で開く",
+      "videoClose": "プレーヤーを閉じる",
+      "videoEnlarge": "拡大",
+      "videoShrink": "戻す",
+      "videoEnlarged": "大きいウィンドウで再生中",
+      "videoPlatform": {
+        "youtube": "YouTube",
+        "bilibili": "ビリビリ",
+        "niconico": "ニコニコ",
+        "vimeo": "Vimeo"
+      },
+      "findRef": "見つけた #{n} を表示：{label}",
+      "findRefPlain": "見つけた #{n} を表示",
+      "findNamed": "回答で挙げた候補",
+      "readSnippetOnly": "ページ本文は読めませんでした（サイトに拒否されたか、読み込めませんでした）。以下は検索結果の抜粋だけです。",
+      "stripLabel": "見つかった画像 {count} 枚。入りきらない分は横にスクロール",
+      "selectCandidate": "{handle} を選択",
+      "unselectCandidate": "{handle} の選択を外す",
+      "openPageOf": "{site} の掲載ページを開く",
+      "videoModePlaying": "下で再生中"
+    },
+    "queue": {
+      "badge": "順番待ち",
+      "hint": "次の区切りで処理します",
+      "cancel": "取り消す"
+    },
+    "mention": {
+      "pickerLabel": "アシスタントに見せるものを選ぶ",
+      "button": "@ で参照",
+      "empty": "見つかりません —— そのまま入力してください",
+      "searching": "ライブラリを検索中…",
+      "libraryHint": "入力して検索：名前・#番号・フォルダ・プロンプト",
+      "viewAll": "すべて表示（{count}）",
+      "showLess": "閉じる",
+      "back": "戻る",
+      "openFolder": "フォルダ「{name}」を開く",
+      "mentionAll": "すべて参照",
+      "remove": "この参照を外す",
+      "locate": "キャンバスで表示",
+      "preview": "プレビュー",
+      "role": "用途",
+      "roleNone": "見るだけ",
+      "roles": {
+        "subject": "被写体",
+        "style": "スタイル",
+        "composition": "構図",
+        "first_frame": "開始フレーム",
+        "last_frame": "終了フレーム"
+      },
+      "deleted": "削除済み",
+      "deletedNamed": "{label}（削除済み）",
+      "blockedDeleted": "参照先が削除されています。グレーの参照を外してから送信してください。",
+      "count": "{count} 枚を見ます",
+      "countWarn": "{count}枚 · 詳しく見るのは最初の{limit}枚だけ",
+      "results": "候補 {count} 件",
+      "matches": "一致する候補",
+      "notProduced": "未生成",
+      "shotNo": "カット{no}",
+      "slot": "参照枠 {index}",
+      "groups": {
+        "recent": "最近使った",
+        "selected": "選択中のカード",
+        "canvas": "キャンバス上のカード",
+        "references": "参照枠",
+        "attachments": "このメッセージの添付",
+        "results": "この会話の生成",
+        "characters": "キャラクター",
+        "loras": "LoRA",
+        "library": "ライブラリ"
+      },
+      "kinds": {
+        "image": "画像",
+        "video": "動画",
+        "audio": "音声",
+        "model3d": "3D",
+        "text": "テキスト",
+        "character": "キャラクター",
+        "lora": "LoRA"
+      }
+    },
+    "addMenu": {
+      "label": "追加",
+      "recent": "最近の画像",
+      "all": "すべて",
+      "loading": "読み込み中…",
+      "empty": "素材ライブラリにまだ画像がありません",
+      "library": "素材から選ぶ",
+      "upload": "ファイルをアップロード",
+      "mention": "@ キャラや素材"
+    },
+    "library": {
+      "label": "素材ライブラリ",
+      "title": "素材ライブラリから選ぶ",
+      "description": "フォルダごとに素材を見て、アシスタントに見せる画像を添付します。"
+    },
+    "result": {
+      "stored": "ライブラリに保存済み",
+      "storedCount": "ライブラリに {count} 枚保存済み",
+      "generating": "生成中 · {done} / {total}",
+      "generatingVideo": "動画を生成中",
+      "rerun": "もう一組",
+      "useAsReference": "これを参照にする"
+    },
+    "error": {
+      "generic": "アシスタントの作業が完了しませんでした",
+      "internal": "このリクエストの処理中に、こちら側で問題が発生しました",
+      "streamInterrupted": "応答が完了する前に接続が切れました。完了済みの操作は残っています。結果を確認してから続けてください。",
+      "failed": "アシスタントの作業中にエラーが発生しました",
+      "emptyStream": "アシスタントから応答が返りませんでした",
+      "unauthorized": "セッションが切れました —— もう一度ログインしてください",
+      "rateLimited": "リクエストが集中しています。少し待ってから、もう一度お試しください",
+      "invalidRequest": "このリクエストはサーバーに受け付けられませんでした",
+      "traceLabel": "エラー ID {traceId}",
+      "copyDetail": "詳細をコピー",
+      "copied": "コピーしました",
+      "missingKey": "アシスタントにはご自身の AI テキストモデルのキーが必要です。Gemini のキーは Google AI Studio で無料で作成できます。",
+      "modelKeyMissing": "{model} の {provider} キーがまだないため、実行していません（他社のキーで代わりに動かすことはしません）。キーを追加するか、別のモデルを選んでください。",
+      "upscaleKeyMissing": "拡大にはあなたの {provider} キーが必要ですが、まだ設定されていないため拡大していません（他社のキーで代わりに動かすことはしません）。キーを設定してから、もう一度「拡大」と伝えてください。",
+      "addKey": "キーを追加",
+      "addProviderKey": "{provider} のキーを追加",
+      "retry": "再試行",
+      "retryPrompt": "途中で止まりました。前の依頼の続きをお願いします（反映済みの分はやり直さないで）。",
+      "switchModel": "別のモデルにする"
+    },
+    "assistantSettings": "アシスタント設定",
+    "rule": {
+      "recordedOn": "{date} に記録",
+      "sourceAssistant": "会話から",
+      "sourceCreator": "自分で記入",
+      "view": "ルールを見る",
+      "scopeAll": "全ワークスペース"
+    },
+    "plan": {
+      "revisePrefill": "計画を変更："
+    },
+    "planVisual": {
+      "comp": {
+        "fullBody": "全身",
+        "halfBody": "半身",
+        "closeUp": "クローズアップ",
+        "birdsEye": "俯瞰",
+        "wormsEye": "あおり",
+        "fromBehind": "後ろ姿"
+      },
+      "ratio": {
+        "1x1": "1:1 スクエア",
+        "3x4": "3:4 縦",
+        "4x3": "4:3 横",
+        "16x9": "16:9 ワイド",
+        "9x16": "9:16 縦長"
+      },
+      "time": {
+        "day": "昼",
+        "dusk": "夕暮れ",
+        "night": "夜",
+        "dawn": "夜明け"
+      },
+      "weather": {
+        "clear": "晴れ",
+        "rain": "雨",
+        "snow": "雪",
+        "fog": "霧"
+      },
+      "cam": {
+        "push": "寄り",
+        "pull": "引き",
+        "pan": "パン",
+        "track": "トラック",
+        "static": "フィックス"
+      },
+      "light": {
+        "front": "順光",
+        "back": "逆光",
+        "side": "サイド光",
+        "soft": "柔らかい光"
+      },
+      "style": {
+        "anime": "アニメ",
+        "realistic": "リアル",
+        "painterly": "絵画的",
+        "lineart": "線画"
+      }
+    },
+    "sendQueue": "順番待ちに入れる — 次の区切りで処理されます",
+    "timeline": {
+      "listLabel": "アシスタントの作業ログ",
+      "rowUser": "あなた",
+      "rowAssistant": "{name}",
+      "rowSystem": "システム",
+      "rowTool": "ツールステップ",
+      "rowAction": "確認待ち",
+      "assistantFallback": "ANTEI",
+      "avatarUser": "あなたのアバター",
+      "avatarAssistant": "{name}のアバター"
+    },
+    "evidence": {
+      "kind": {
+        "text": "本文",
+        "tags": "タグ",
+        "image": "画像",
+        "video": "動画"
+      },
+      "confidence": {
+        "high": "公式",
+        "medium": "資料",
+        "low": "コミュニティ"
+      },
+      "credibility": {
+        "official": "公式",
+        "officialMirror": "公式転載",
+        "reference": "資料",
+        "communityDigest": "ファンまとめ"
+      },
+      "scope": {
+        "character": "このキャラ",
+        "work": "作品全体",
+        "unknown": "不明"
+      }
+    },
+    "research": {
+      "pin": "ピン留め",
+      "unpin": "ピンを外す",
+      "pinned": "ピン留め済み",
+      "sourceCount": "出典 {count} 件",
+      "corroborated": "{count}件の出典で一致",
+      "expandPrompt": "詳しく調べ直して：出典を増やして全文を読み、できるだけ網羅して。",
+      "xWithGrokPrompt": "Grok で X を検索して。",
+      "pinnedHeading": "ピン留めした根拠"
+    },
+    "researchProgress": {
+      "runningQuick": "調べています",
+      "runningDeep": "詳しく調べています",
+      "doneQuick": "{count} 件を検索",
+      "doneDeep": "詳細調査 · {count} 件",
+      "readPages": "{count} ページを読了",
+      "xVideosWatched": "X の動画を{count}本視聴",
+      "serperFallback": "モデル内蔵の Web 検索が使えず、プラットフォームの Google 検索で代替",
+      "estimateSeconds": "約 {count} 秒",
+      "estimateMinutes": "約 {count} 分"
+    },
+    "answer": {
+      "sources": "出典",
+      "citation": "出典 {index}",
+      "deepResearch": "詳しく調べる",
+      "more": "その他",
+      "searchXWithGrok": "Grok で X を検索 · Grok の利用枠を使用"
+    },
+    "message": {
+      "expand": "全文を表示",
+      "collapse": "折りたたむ"
+    },
+    "streaming": {
+      "pending": "アシスタントが考えています",
+      "thinking": "考えています…",
+      "landing": "キャンバスに反映しています…",
+      "seconds": "{count} 秒",
+      "slow": "いつもより時間がかかっています。モデルの応答を待っています",
+      "thought": "{count} 秒考えました"
+    },
+    "question": {
+      "step": "{step} / {total}",
+      "recommended": "おすすめ",
+      "current": "現在のプロンプト",
+      "proposed": "提案されたプロンプト",
+      "sourceNotes": "参照できる資料",
+      "negativeDiff": "ネガティブに足す語：",
+      "edit": "変更",
+      "other": "その他…",
+      "otherHint": "下の入力欄に自分の答えを書いてください",
+      "multiHint": "複数選択可",
+      "confirm": "確定（{count}）",
+      "skip": "スキップ",
+      "useRecommended": "すべておすすめで",
+      "skipped": "スキップ済み",
+      "quote": "「{label}」",
+      "answerText": "{labels}を選択（質問「{question}」への回答）",
+      "answerOther": "「{other}」と回答（質問「{question}」への回答）",
+      "answerBoth": "{labels}を選択し、「{other}」と補足（質問「{question}」への回答）",
+      "skippedText": "質問「{question}」はスキップ（判断はお任せ）"
+    },
+    "videoFrameCaptureReason": {
+      "unsupported-environment": "この環境では動画を読めません",
+      "load-failed": "動画を読み込めませんでした",
+      "unreadable-duration": "クリップの長さを読み取れません",
+      "tainted-canvas": "動画のアクセス設定により、フレームを取得できません",
+      "timeout": "フレーム抽出がタイムアウトしました",
+      "encode-failed": "フレームのエンコードに失敗しました"
+    },
+    "resume": {
+      "continue": "ステップ {step} から続行",
+      "failed": "失敗：{reason}",
+      "band": "未完了の計画 · ステップ {step} から続行"
+    },
+    "verb": {
+      "look": "見る",
+      "research": "調べる",
+      "ask": "聞く",
+      "apply": "直す",
+      "request_generation": "生成"
+    },
+    "verbStrip": {
+      "label": "今回のやり取り"
+    },
+    "placeholderQuestion": "または、そのまま書いてください…",
+    "collapsedTodo": "返答待ち {count}件",
+    "incognito": "シークレット · 記憶も保存もしない",
+    "face": {
+      "noModel": "モデル未選択",
+      "pill": {
+        "writePrompt": "この一文をいいプロンプトに",
+        "compareModels": "モデルを変えて違いを見る",
+        "useReference": "この参考画像に寄せて",
+        "fourVariants": "4 枚出して比べる",
+        "writeShots": "カット割りを書いて",
+        "animateThis": "この画像を動かして",
+        "whichLoras": "この題材に合う LoRA は？",
+        "loraPrompt": "この一枚のプロンプトを書いて",
+        "weightCheck": "この重みで合ってる？",
+        "trialShot": "一枚試してみる",
+        "scriptToBoard": "この脚本を絵コンテに",
+        "refToCharacter": "参考画像からキャラ素材を作る",
+        "assetsToBoard": "素材で絵コンテを組む",
+        "boardToVideo": "絵コンテから動画に",
+        "autoWire": "つなぎ方はおまかせ",
+        "researchProfile": "キャラの設定を調べて",
+        "originalCharacter": "オリジナルキャラを一緒に考えて",
+        "findImages": "このキャラの画像を探して",
+        "checkLook": "設定と見た目を照らし合わせる"
+      },
+      "image": {
+        "empty": "欲しい画を言ってください。プロンプト・モデル・参考はこちらで用意します。",
+        "placeholder": "画を説明するか、参考画像を入れて…",
+        "context": "{model} · {ratio} · {count} 枚"
+      },
+      "video": {
+        "empty": "画像か一言をもらえれば、動かします。",
+        "placeholder": "カットを説明するか、最初のフレームを…",
+        "context": "{model} · {seconds}秒 · {ratio}"
+      },
+      "lora": {
+        "empty": "作りたい画を教えてください。LoRA 選び・トリガー・重みまで一緒に。",
+        "placeholder": "どんな画を作りますか？",
+        "context": "{base} · {count} 個装着"
+      },
+      "canvas": {
+        "empty": "脚本でも参考画像でも一言でも。絵コンテに並べて、つないで仕上げます。",
+        "placeholder": "続けて話すか、素材を入れて…",
+        "context": "{project} · {count} 個のノードを選択中"
+      },
+      "cards": {
+        "empty": "キャラ名を教えてくれれば、設定を調べて画像を探します。オリジナルなら、まず方向性をいくつか出します。",
+        "placeholder": "キャラ名、または作りたいオリジナルキャラを…",
+        "context": "{count} 人のキャラクター",
+        "contextOpen": "{name} を表示中"
+      }
+    },
+    "autoReview": {
+      "message": "画像ができました。参照と見比べて、ずれているところを教えて。"
+    },
+    "autoGenerate": {
+      "label": "自動生成"
+    },
+    "outOfSteps": {
+      "note": "このターンのステップ数が上限に達しました。反映済みの変更はそのまま残っています。",
+      "continue": "続ける",
+      "stop": "ここまで",
+      "continuePrompt": "続けて"
+    },
+    "stopShort": "停止",
+    "chat": {
+      "group": "{name}とのチャット",
+      "workGroup": "作業",
+      "newChatThread": "{name}と新しいチャット",
+      "noCharacters": "キャラクターがまだありません。キャラクターページで作成してください",
+      "regenerate": "再生成",
+      "previousVersion": "前の版",
+      "nextVersion": "次の版",
+      "versionOf": "{index} / {total}",
+      "edit": "編集",
+      "editLabel": "このメッセージを編集",
+      "delete": "削除",
+      "confirmDelete": "削除する？",
+      "save": "保存",
+      "cancel": "キャンセル",
+      "you": "あなた",
+      "roleLabel": "この物語でのあなた",
+      "rolePlaceholder": "例：引っ越してきた隣人、{name}の幼なじみ",
+      "roleHint": "このキャラとのチャットすべてで使われます。次の一言から反映されます"
+    },
+    "mode": {
+      "label": "モード",
+      "work": "作業",
+      "chat": "チャット",
+      "pickCharacter": "話す相手",
+      "toChat": "チャットに切替 · {name}と",
+      "toWork": "作業に戻る"
+    },
+    "phoneAdd": {
+      "label": "追加",
+      "library": "素材から選ぶ",
+      "camera": "写真を撮る",
+      "upload": "ファイルをアップロード",
+      "mention": "@ キャラクターや素材",
+      "recent": "最近の素材",
+      "all": "すべて"
+    }
+  },
+  "ContextCards": {
+    "kind": {
+      "character": "キャラクター",
+      "style": "スタイル",
+      "brand": "ブランド"
+    }
+  },
+  "AssistantSettings": {
+    "title": "アシスタント設定",
+    "description": "アシスタントの名前、話し方、覚えていること。設定はすべてのワークスペースで共通です。",
+    "pageDescription": "アシスタントの名前、話し方、覚えていること。ワークベンチ右上の ⋯ にある「アシスタント設定」も同じ内容です。",
+    "close": "閉じる",
+    "tabs": {
+      "label": "アシスタント設定のページ",
+      "persona": "人物設定",
+      "memory": "記憶",
+      "memoryCount": "記憶 · {count}"
+    },
+    "status": {
+      "saving": "保存中",
+      "saved": "保存しました",
+      "failed": "保存できませんでした",
+      "retry": "再試行"
+    },
+    "identity": {
+      "title": "プロフィール",
+      "changeAvatar": "アイコンを変更",
+      "avatarLabel": "アイコン"
+    },
+    "avatar": {
+      "character": "{name} の画像",
+      "upload": "アップロードした画像",
+      "mark": "デフォルトのアバター",
+      "uploadNew": "新しい画像をアップロード…",
+      "tooLarge": "画像が 5 MB を超えています。",
+      "unsupported": "JPEG・PNG・WebP のいずれかを使ってください。"
+    },
+    "character": {
+      "label": "キャラクターを使う",
+      "none": "使わない",
+      "noSpeech": "話し方が未記入",
+      "create": "キャラクターページで作成",
+      "caption": "アイコン・名前・口調は {name} のものになります。下で個別に変更できます。",
+      "captionNoSpeech": "アイコンと名前は {name} のものになります。下で個別に変更できます。"
+    },
+    "name": {
+      "label": "名前",
+      "placeholder": "空欄の場合は ANTEI を使います"
+    },
+    "address": {
+      "label": "呼び方",
+      "placeholder": "空欄の場合はアカウント名を使います"
+    },
+    "style": {
+      "title": "進め方"
+    },
+    "archetype": {
+      "cautious": {
+        "name": "慎重",
+        "line": "始める前に、いくつか質問する · 2手順以上は先に計画を見せる · 返信は短め、結論だけ"
+      },
+      "balanced": {
+        "name": "バランス",
+        "line": "迷ったときだけ、一度に一つ聞く · 複数手順と生成のときだけ確認 · 普通の長さ＋次の一手を一つ"
+      },
+      "handsOff": {
+        "name": "おまかせ",
+        "line": "ほとんど聞かずに進める · 複数手順の前に一声かけるだけ · とても短く、結果だけ"
+      },
+      "custom": {
+        "name": "カスタム",
+        "line": "詳細設定を変更したため、どの設定にも当てはまらなくなりました。"
+      }
+    },
+    "preview": {
+      "label": "返答の例",
+      "address": "{name}さん、",
+      "opener": {
+        "professional": "3枚を確認しました。2枚目の逆光が、ご希望の夕暮れの光に最も近いです。残りの2枚は暖色が強めです。",
+        "friendly": "見てみました——3 枚のうち 2 枚目がご希望の夕暮れの光に一番近いですね。あとの 2 枚は少し暖色が強めです。",
+        "terse": "2 枚目が最も近いです。他の 2 枚は暖色が強すぎます。",
+        "custom": "ご指定の言い方でいうと、2 枚目がご希望の夕暮れの光に一番近いです。",
+        "character": "{name} の話し方でいうと、2 枚目がご希望の夕暮れの光に一番近いです。"
+      },
+      "nextStep": "次は、2 枚目をもとにもう一組つくりましょうか？"
+    },
+    "advanced": {
+      "label": "詳細設定",
+      "on": "オン",
+      "off": "オフ",
+      "summary": {
+        "tone": "口調 {value}",
+        "length": "長さ {value}",
+        "language": "言語 {value}",
+        "nextStep": "次の一手 {value}",
+        "myWords": "自分の言葉 {value}"
+      }
+    },
+    "tone": {
+      "label": "口調",
+      "professional": "プロフェッショナル",
+      "friendly": "フレンドリー",
+      "terse": "ストレート",
+      "custom": "カスタム",
+      "character": "{name} の話し方",
+      "customLabel": "カスタムの口調",
+      "customPlaceholder": "どんな話し方がいいか、一行で",
+      "customRequired": "希望の話し方を一行で入力するか、用意された口調を選んでください。",
+      "characterNote": "{name} のキャラクター設定の「話し方」を使います。向こうを変えるとこちらも変わります。",
+      "characterMissing": "{name} のキャラクター設定に「話し方」がまだありません。書くと選べるようになります。",
+      "characterMissingLink": "書く"
+    },
+    "length": {
+      "label": "返答の長さ",
+      "concise": "短め",
+      "standard": "標準",
+      "detailed": "詳しく"
+    },
+    "language": {
+      "label": "返答の言語",
+      "ui": "画面に合わせる",
+      "chinese": "中国語",
+      "english": "英語"
+    },
+    "nextStep": {
+      "label": "次の一手を提案",
+      "hint": "返信の最後に次の一手を一つ添える"
+    },
+    "myWords": {
+      "label": "自分の言葉を使う",
+      "hint": "プロンプトで使った言い方をそのまま使う"
+    },
+    "memory": {
+      "caption": "アシスタントの記憶はワークベンチごとに分かれています。すべてのワークベンチで使う記憶は、ここで明示的に共有できます。",
+      "captionPaused": "アシスタントは新しく覚えません。既存の記憶は、選択されたワークベンチ内だけで使われます。",
+      "capture": "アシスタントに覚えさせる",
+      "newLabel": "記憶を書く",
+      "newPlaceholder": "一つ書いて Enter で保存。例：いつも日本語で返事して",
+      "filters": {
+        "label": "書いた人で絞り込む",
+        "all": "すべて",
+        "creator": "あなたが書いた",
+        "assistant": "アシスタントが覚えた"
+      },
+      "clear": {
+        "all": "すべて消去",
+        "creator": "あなたが書いたものを消去",
+        "assistant": "アシスタントが覚えたものを消去",
+        "titleAll": "記憶 {count} 件をすべて消去しますか？",
+        "titleCreator": "あなたが書いた {count} 件を消去しますか？",
+        "titleAssistant": "アシスタントが覚えた {count} 件を消去しますか？",
+        "descAll": "元に戻せません。",
+        "descAllWithMine": "あなたが書いた {count} 件も一緒に消えます。元に戻せません。",
+        "descCreator": "アシスタントが覚えたものは残ります。元に戻せません。",
+        "descAssistant": "あなたが書いたものは残ります。元に戻せません。",
+        "cancel": "キャンセル"
+      },
+      "source": {
+        "creator": "あなたが書いた",
+        "assistant": "アシスタントが覚えた"
+      },
+      "meta": "{source} · {time}",
+      "today": "今日 {time}",
+      "yesterday": "昨日",
+      "edit": "この記憶を編集：{text}",
+      "editLabel": "この記憶を編集",
+      "editHint": "Enter で保存 · Esc でキャンセル · 右で使う場所を選ぶ",
+      "scopeLabel": "使う場所",
+      "scopeAria": "使う場所：{scope}",
+      "chooseScope": "使う場所を選ぶ",
+      "unassigned": "未割り当ての履歴",
+      "canvasProject": "キャンバス · {name}",
+      "chatCharacter": "{name} とのチャット",
+      "savedProject": "保存済みプロジェクト",
+      "projectsLoading": "キャンバスを読み込み中…",
+      "projectsEmpty": "先にキャンバスのプロジェクトを作成してください。",
+      "projectsRetry": "読み込めませんでした。再試行",
+      "scope": {
+        "global": "すべてのワークベンチ",
+        "image": "自然文の画像",
+        "tags": "タグの画像",
+        "video": "動画だけ",
+        "canvas": "すべてのキャンバス",
+        "lora": "LoRA だけ",
+        "cards": "カードだけ"
+      },
+      "delete": "削除",
+      "deleteConfirm": "削除する",
+      "deleteAria": "この記憶を削除",
+      "deleted": "記憶を 1 件削除しました",
+      "undo": "元に戻す",
+      "saved": "保存しました",
+      "filteredEmpty": "この種類はまだありません。",
+      "emptyTitle": "まだ記憶がありません",
+      "emptyDescription": "アシスタントは毎回の終わりに、あなたの好みや事実を覚えます。ここでいつでも編集・削除できます。",
+      "emptyAction": "最初の一つを書く",
+      "loading": "記憶を読み込み中…",
+      "failed": "保存できませんでした。もう一度お試しください。"
+    },
+    "sources": {
+      "title": "画像検索のソース",
+      "caption": "画像検索はこのリストで直接絞り込みます。アシスタント任せにはしません",
+      "allow": "このサイトだけから探す",
+      "deny": "このサイトからは探さない",
+      "add": "追加",
+      "addLabel": "サイトを追加",
+      "placeholder": "サイトまたはドメイン",
+      "remove": "{token} を削除",
+      "invalid": "サイトのドメインを入力してください（例：danbooru.donmai.us）。",
+      "failed": "保存できませんでした。もう一度お試しください。"
+    }
+  }
+}

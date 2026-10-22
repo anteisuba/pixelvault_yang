@@ -4,7 +4,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { LORA_TRAINING_PRESETS } from '@/constants/lora'
 
-import en from '@/messages/en.json'
+import { en } from '@/messages'
 
 const mockIsMobile = vi.hoisted(() => vi.fn(() => false))
 

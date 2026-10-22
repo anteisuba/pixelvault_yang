@@ -1,0 +1,2086 @@
+{
+  "StudioNode": {
+    "emptyGuide": {
+      "title": "空画布 — 从这里开始",
+      "subtitle": "聊聊故事，助手帮你把节点铺上。",
+      "chatOutline": "跟助手聊大纲",
+      "addNode": "手动加节点（角色 / 背景 / 镜头 / 图像…）"
+    },
+    "appearance": {
+      "trigger": "设置画布外观",
+      "title": "画布外观",
+      "description": "颜色与背景图会随当前项目保存。",
+      "colorLabel": "背景颜色",
+      "customColor": "自定义颜色",
+      "presetColor": "使用颜色 {color}",
+      "imageLabel": "背景图片",
+      "chooseImage": "选择或上传图片",
+      "replaceImage": "更换图片",
+      "removeImage": "移除图片",
+      "fitLabel": "适配方式",
+      "fitCover": "填满画布",
+      "fitContain": "完整显示",
+      "opacityLabel": "图片透明度",
+      "restoreDefault": "恢复默认外观",
+      "dialogTitle": "选择画布背景",
+      "dialogDescription": "从素材库选择，或上传一张背景图片。",
+      "previewAlt": "画布背景预览",
+      "triggerShort": "桌面"
+    },
+    "eyebrow": "画布",
+    "projectUntitled": "未命名项目",
+    "projectNewDefaultName": "未命名项目 {n}",
+    "nodeCount": "{count} 个节点",
+    "addMenuTitle": "添加到画布",
+    "nodeTypes": {
+      "shotText": "镜头文本",
+      "shot": "镜头图",
+      "characterImage": "角色",
+      "backgroundImage": "卡片",
+      "frameImage": "关键帧",
+      "image": "图片",
+      "voice": "音色",
+      "seedance": "视频生成",
+      "videoReference": "参考视频",
+      "typeNameAria": "{type}：{name}",
+      "text": "文本",
+      "audio": "音频",
+      "video": "视频"
+    },
+    "addMenuHelpers": {
+      "shotText": "整理镜头说明、动作和画面调度。",
+      "shot": "根据镜头提示词生成单张镜头图。",
+      "characterImage": "根据角色提示词生成角色设定图或肖像。",
+      "backgroundImage": "生成场景背景和空间氛围图。",
+      "frameImage": "生成视频前使用的关键帧画面。",
+      "image": "上传、从素材库选，或 AI 生成一张图——落地后可命名并归类。角色、场景从 Cast 卡匣新建。",
+      "voice": "选择或上传音色，作为视频角色声音线索。",
+      "seedance": "聚合上游图像、关键帧和音色，生成最终视频。",
+      "videoReference": "上传一段视频（≤15s / ≤50MB）作为参考，享 Seedance Reference 6 折。"
+    },
+    "addCatalog": {
+      "groups": {
+        "text": "文本",
+        "image": "图片",
+        "audio": "声音",
+        "video": "视频"
+      },
+      "items": {
+        "textScript": {
+          "label": "剧本",
+          "helper": "写下这一段的场景、动作、镜头与台词，供下游生成使用。"
+        },
+        "textRule": {
+          "label": "规则",
+          "helper": "一条画风或制作约束，连到哪个节点就管住哪个。"
+        },
+        "textNote": {
+          "label": "备注",
+          "helper": "只给自己看的说明，不作为约束发给模型。"
+        },
+        "imageShot": {
+          "label": "镜头图",
+          "helper": "用剧本和角色、背景参考生成单张画面。"
+        },
+        "imageCharacter": {
+          "label": "角色",
+          "helper": "这个人长什么样：主图、特写与绑定音色。"
+        },
+        "imageBackground": {
+          "label": "背景",
+          "helper": "这个地方长什么样：场景、氛围与光线。"
+        },
+        "imageResult": {
+          "label": "生成图",
+          "helper": "上传、粘贴、从素材选择，或稍后用 AI 生成。"
+        },
+        "audioVoice": {
+          "label": "语音",
+          "helper": "这一句台词的音频：生成或上传。"
+        },
+        "audioTimbre": {
+          "label": "音色",
+          "helper": "可复用的声音身份，连到镜头或角色上定下他怎么说话。"
+        },
+        "videoShot": {
+          "label": "镜头",
+          "helper": "一个镜头：首帧、尾帧、参考、语音与文本各有其口。"
+        },
+        "videoClip": {
+          "label": "片段",
+          "helper": "上传一段视频，作为运动或画面参考。"
+        }
+      },
+      "cast": "卡匣",
+      "upload": "上传图片",
+      "pickFromLibrary": "从素材库选择"
+    },
+    "statuses": {
+      "idle": "空闲",
+      "queued": "待拍",
+      "ready": "就绪",
+      "running": "拍摄中",
+      "done": "已收",
+      "failed": "NG",
+      "stale": "过期",
+      "disabled": "停用"
+    },
+    "imageSourceStarter": {
+      "uploadTitle": "上传图片",
+      "uploadHint": "拖入即可上传",
+      "library": "素材库",
+      "libraryDialogTitle": "选择图片素材",
+      "libraryDialogDescription": "从素材库选一张图，直接作为这张图片卡的内容。",
+      "untitled": "未命名图片",
+      "uploadFailed": "图片上传失败",
+      "generationFailed": "图片生成失败",
+      "categoryLabel": "分类",
+      "uploading": "上传中 {percent}%",
+      "cancelUpload": "取消上传",
+      "generating": "生成中...",
+      "retry": "重试",
+      "replace": "替换"
+    },
+    "characterImage": {
+      "voiceBound": {
+        "unnamed": "🎙 已绑定上游音色（视频生成时会标注角色名）",
+        "remove": "解除音色绑定"
+      },
+      "promptLabel": "角色图提示词",
+      "promptPlaceholder": "描述角色外观、服装、情绪和画面风格...",
+      "cardLibrary": {
+        "title": "角色库",
+        "hint": "选一个已有角色，自动套用到这个节点。",
+        "searchPlaceholder": "搜索角色名称 / 标签…",
+        "loading": "正在加载角色…",
+        "empty": "还没有保存过角色。先去角色页建一个吧。",
+        "variantCount": "{count} 个衍生卡",
+        "applied": "已套用角色「{name}」。",
+        "bound": "📇 来自角色：{name}"
+      },
+      "generate": "生成",
+      "regenerate": "重新生成",
+      "generating": "生成中...",
+      "noModel": "请先选择图像模型。",
+      "noPrompt": "请先填写角色提示词。",
+      "fallbackError": "角色图生成失败。",
+      "imageAlt": "{name} 的生成角色图",
+      "sourceExisting": "已有图片",
+      "sourceGenerated": "AI 生成",
+      "replaceImage": "替换",
+      "clearImage": "清空图片",
+      "existing": {
+        "title": "使用图片",
+        "hint": "上传、从素材库选择，或直接粘贴剪贴板图片。",
+        "upload": "上传图片",
+        "asset": "从素材库选择",
+        "paste": "粘贴图片",
+        "pasteMeta": "聚焦这里后粘贴图片。",
+        "pasteEmpty": "剪贴板里没有图片。",
+        "uploadFailed": "图片上传失败。"
+      },
+      "reference": {
+        "title": "参考图",
+        "hint": "上传或从素材库选择，指定每张图在生成里的作用。",
+        "uploadTab": "上传",
+        "assetTab": "素材库",
+        "pasteTab": "粘贴",
+        "canvasTab": "从画布",
+        "canvasEmpty": "画布上还没有可用的图",
+        "uploadTitle": "点击上传参考图",
+        "uploadMeta": "JPG / PNG / WebP",
+        "pasteTitle": "粘贴参考图",
+        "pasteMeta": "聚焦这里后粘贴图片。",
+        "pasteEmpty": "剪贴板里没有图片。",
+        "selectAsset": "重新打开素材库",
+        "assetDialogOpened": "素材库已打开",
+        "empty": "还没有参考图。",
+        "uploadFailed": "参考图上传失败。",
+        "remove": "移除参考图",
+        "assetDialogTitle": "选择参考图",
+        "assetDialogDescription": "选择一个或多个图像素材作为角色图参考。",
+        "roles": {
+          "identity": "身份",
+          "pose": "姿势",
+          "style": "风格",
+          "composition": "构图",
+          "background": "背景",
+          "faceCloseup": "面部特写",
+          "costume": "服装造型",
+          "prop": "道具",
+          "frameStart": "首帧",
+          "frameEnd": "尾帧",
+          "custom": "自定义"
+        }
+      }
+    },
+    "voiceProfile": {
+      "title": "音色输入",
+      "description": "这个节点只负责定义声音身份，视频节点会把它作为角色或旁白的音色线索。",
+      "emptyTitle": "未设置音色",
+      "emptyDescription": "选择声音库音色、粘贴模型音色 ID，或上传参考音频。",
+      "providerLabel": "来源",
+      "providerFallback": "手动音色",
+      "noSample": "暂无试听样本",
+      "referenceLabel": "参考音频",
+      "uploadAudio": "上传音频",
+      "toasts": {
+        "voiceSelected": "音色已选择。",
+        "uploadFailed": "参考音频上传失败。"
+      },
+      "kindSpeech": "语音",
+      "retry": "重试"
+    },
+    "videoGeneration": {
+      "timeline": {
+        "title": "分镜时间轴"
+      },
+      "generating": "生成中...",
+      "durationLabel": "时长",
+      "resolutionLabel": "分辨率",
+      "aspectRatioLabel": "画幅比例",
+      "negativePromptLabel": "负面提示词",
+      "negativePromptPlaceholder": "不希望出现的内容，例如：模糊、变形、低画质…",
+      "referenceCount": "{count}/{max} 参考图",
+      "upstreamGroups": {
+        "visual": "角色 / 背景 / 镜头图",
+        "keyframe": "关键帧",
+        "video": "参考视频",
+        "text": "镜头文本",
+        "voice": "音色"
+      },
+      "upstreamEmpty": {
+        "visual": "还没有连接图像节点。",
+        "keyframe": "还没有连接关键帧。",
+        "video": "还没有连接参考视频。带视频参考可享 6 折价格。",
+        "text": "还没有连接镜头文本。",
+        "voice": "还没有连接音色节点。"
+      },
+      "capabilities": {
+        "referenceRequired": "当前模型需要至少一张参考图才能生成。"
+      },
+      "audioCapabilities": {
+        "referenceAudio": "支持参考音频/音色线索；当前版本会把音色节点写入提示词，后续接模型直传音频。",
+        "voiceId": "支持模型专属音色 ID；请在音色节点填写可用于该模型的 voice ID。"
+      },
+      "audioCallout": {
+        "ignored": {
+          "title": "音色节点不会用于此模型",
+          "body": "Veo / Kling / 普通 Seedance 只能根据 prompt 自动合成音频，不接受上传的参考音频。声音会按 prompt 描述生成，但无法复刻音色节点的音色。\n如需声音克隆，请切换到 Seedance 2.0 Reference 端点。"
+        },
+        "cloning": {
+          "title": "声音克隆已激活",
+          "body": "Seedance 会用音色节点的参考音频，\n读出 prompt 里 \"双引号\" 包起来的台词。"
+        }
+      },
+      "videoDiscount": {
+        "badge": "立省 40%",
+        "tooltip": "Seedance Reference 接视频参考自动 0.6x 价格"
+      },
+      "noModel": "请先选择视频模型。",
+      "audioRequiresVisual": "参考音频不能单独发送，请再连接一张图片或一个视频。",
+      "generate": "生成视频",
+      "regenerate": "重新生成视频",
+      "sidecar": {
+        "ariaLabel": "视频编排器",
+        "eyebrow": "视频编排 · 右侧编辑",
+        "close": "关闭视频编排器"
+      }
+    },
+    "videoReference": {
+      "title": "参考视频",
+      "description": "上传一段视频片段，作为下游视频生成节点的参考。Seedance Reference 接到参考视频时会自动应用 6 折价格。",
+      "upload": "上传视频",
+      "replace": "替换视频",
+      "clear": "清空",
+      "uploading": "上传中",
+      "uploaded": "视频已上传",
+      "play": "播放视频",
+      "pause": "暂停视频",
+      "mute": "静音",
+      "unmute": "取消静音",
+      "constraints": "支持 mp4 / mov / webm，单个片段 ≤ 15 秒、≤ 50 MB。",
+      "errors": {
+        "tooLong": "视频时长 {actual}s 超过 {max}s 的上限。",
+        "uploadFailed": "视频上传失败，请重试。"
+      }
+    },
+    "mediaNodes": {
+      "promptLabel": "提示词",
+      "promptPlaceholder": "描述这个节点要生成的内容...",
+      "imageAlt": "节点生成图片",
+      "sourceExisting": "已有图片",
+      "sourceGenerated": "AI 生成",
+      "cardLibrary": {
+        "title": "背景卡库",
+        "hint": "选一张已有背景卡，自动套用到这个节点。",
+        "searchPlaceholder": "搜索背景卡名称 / 标签…",
+        "loading": "正在加载背景卡…",
+        "empty": "还没有保存过背景卡。先去 Studio 创建一张吧。",
+        "applied": "已套用背景卡「{name}」。",
+        "bound": "📇 来自背景卡：{name}"
+      },
+      "replaceImage": "替换图片",
+      "clearImage": "清除图片",
+      "existing": {
+        "title": "使用已有图",
+        "hint": "上传、粘贴或从素材库选择一张图。",
+        "upload": "上传图片",
+        "asset": "从素材库选择",
+        "paste": "粘贴图片",
+        "pasteMeta": "复制图片后在这里粘贴",
+        "pasteEmpty": "剪贴板里没有图片。",
+        "uploadFailed": "图片上传失败。"
+      },
+      "emptyChoice": {
+        "uploadHint": "也可以直接拖文件进来"
+      },
+      "generate": "生成",
+      "regenerate": "重跑（覆盖）",
+      "generating": "生成中...",
+      "noModel": "请先选择模型。",
+      "noPrompt": "请先填写提示词。",
+      "fallbackError": "节点素材生成失败。"
+    },
+    "videoComposer": {
+      "monitor": {
+        "empty": "生成后在此预览"
+      },
+      "studio": {
+        "composition": "本次编排"
+      },
+      "variant": {
+        "standard": "标准",
+        "fast": "快速",
+        "v3": "3.0 Pro",
+        "o3": "O3 Pro（Omni）"
+      },
+      "provider": {
+        "fal": "fal",
+        "volcengine": "火山方舟",
+        "byteplus": "BytePlus"
+      },
+      "sidecar": {
+        "modeLabel": "视频生成模式",
+        "addReference": "添加参考素材",
+        "promptPlaceholder": "描述你想生成的镜头、动作与声音…"
+      },
+      "autoName": {
+        "character": "角色",
+        "background": "场景",
+        "shot": "镜头",
+        "video": "视频",
+        "closeup": "特写"
+      },
+      "cameraGrammar": {
+        "label": "运镜语法",
+        "groups": {
+          "size": "景别",
+          "angle": "角度",
+          "move": "运动"
+        }
+      },
+      "modelRail": {
+        "label": "模型",
+        "ready": "我的密钥",
+        "needsKey": "需配置"
+      },
+      "pickModel": "选择模型",
+      "refKind": {
+        "character": "角色",
+        "background": "背景",
+        "shot": "镜头",
+        "voice": "声音",
+        "video": "参考视频",
+        "keyframe": "关键帧",
+        "closeup": "特写"
+      },
+      "slotRack": {
+        "zones": {
+          "images": "图 {count}",
+          "audio": "音 {count}",
+          "videos": "视频 {count}"
+        },
+        "zoneLabel": {
+          "images": "图片",
+          "audio": "音频",
+          "videos": "视频"
+        },
+        "zoneCount": "{held}/{limit}",
+        "total": "总额 {held}/{total}",
+        "slotHint": "{name} · 点击引用到提示词，双击可聚焦至节点",
+        "remove": "移除 {name}（断开连线，节点保留）",
+        "notSendingOverflow": "{name} · 本次不会发送（超出上限）",
+        "notSendingUnready": "{name} · 本次不会发送（还没有可用音频）",
+        "heldVsSending": "持有 {held} · 本次发送 {sending}"
+      },
+      "references": {
+        "label": "已引用",
+        "counter": "已引用 {referenced} / 已连接 {connected}",
+        "slotLabel": "图 {index}",
+        "unnamed": "需命名",
+        "locate": "定位到画布对应节点",
+        "addVoice": "给「{name}」配音色",
+        "remove": "断开「{name}」的连线（节点保留）",
+        "searchPlaceholder": "搜索名称或 @token",
+        "tabs": {
+          "all": "全部",
+          "character": "角色",
+          "scene": "场景",
+          "shot": "镜头",
+          "voice": "声音"
+        },
+        "addButtons": {
+          "character": "添加角色",
+          "scene": "添加场景",
+          "shotImage": "添加镜头图",
+          "video": "添加参考视频",
+          "voice": "添加配音"
+        },
+        "onStageBadge": "出场",
+        "addGroups": {
+          "image": "图片",
+          "voice": "音频",
+          "video": "视频"
+        }
+      },
+      "sendPreview": {
+        "toggle": "查看发送内容",
+        "promptLabel": "最终提示词",
+        "legendLabel": "自动追加的参考说明",
+        "imagesLabel": "参考图（{count} 张）",
+        "imageBadge": "图{index}",
+        "unnamed": "未命名",
+        "avLabel": "视频 / 音频引用",
+        "videoBadge": "视{index}：参考视频",
+        "audioBadge": "音{index}",
+        "empty": "（本次没有额外提示词）"
+      },
+      "generateAudioLabel": "生成音频",
+      "seedRandom": "每次随机",
+      "rebind": {
+        "title": "切换到 {brand}？",
+        "map": "将映射",
+        "ignore": "将忽略",
+        "confirm": "切换",
+        "cancel": "取消"
+      }
+    },
+    "nodeToolbar": {
+      "expand": "展开",
+      "delete": "删除",
+      "toolbar": "节点操作",
+      "more": "更多",
+      "download": "下载",
+      "rename": "命名",
+      "category": "分类",
+      "preview": "预览",
+      "reorder": "排序",
+      "compose": "合成 {count} 段",
+      "composeAria": "把选中的 {count} 段视频合成到片盒"
+    },
+    "nodeDetail": {
+      "close": "收起",
+      "generate": "生成",
+      "upload": "上传",
+      "openStudio": "Studio ↗",
+      "sampleWillSend": "取样将发送"
+    },
+    "voiceDetail": {
+      "speedLabel": "语速",
+      "volumeLabel": "音量",
+      "emotionLabel": "情绪",
+      "emotions": {
+        "none": "无",
+        "calm": "沉稳",
+        "angry": "愤怒",
+        "sad": "悲伤",
+        "surprised": "惊讶"
+      },
+      "coverAlt": "音色封面"
+    },
+    "workflowFields": {
+      "prompt": {
+        "label": "生成提示词",
+        "placeholder": "描述这个节点最终要生成的内容..."
+      },
+      "scene": {
+        "label": "场景",
+        "placeholder": "这段镜头发生在哪里、什么时间..."
+      },
+      "action": {
+        "label": "动作",
+        "placeholder": "角色做什么，画面里发生什么..."
+      },
+      "camera": {
+        "label": "镜头",
+        "placeholder": "例如：近景、推镜、手持、俯拍..."
+      },
+      "composition": {
+        "label": "构图",
+        "placeholder": "主体位置、景别、前后景关系..."
+      },
+      "location": {
+        "label": "地点",
+        "placeholder": "背景所在的空间或环境..."
+      },
+      "mood": {
+        "label": "氛围",
+        "placeholder": "情绪、季节、天气、色调..."
+      },
+      "lighting": {
+        "label": "光线",
+        "placeholder": "光源、明暗、阴影、反射..."
+      },
+      "frameIntent": {
+        "label": "关键帧目标",
+        "placeholder": "这张关键帧要锁定的动作和画面..."
+      },
+      "dialogue": {
+        "label": "台词",
+        "placeholder": "输入角色要说的台词或旁白..."
+      },
+      "voiceName": {
+        "label": "音色名称",
+        "placeholder": "例如：角色 A、旁白、温柔少女..."
+      },
+      "voiceProvider": {
+        "label": "音色来源",
+        "placeholder": "例如：Fish Audio、Kling Voice..."
+      },
+      "voiceId": {
+        "label": "音色 ID",
+        "placeholder": "粘贴模型音色 ID，或从声音库选择..."
+      },
+      "voiceStyle": {
+        "label": "音色风格",
+        "placeholder": "音色、年龄感、语速、口音、质感..."
+      },
+      "voiceEmotion": {
+        "label": "情绪 / 语气",
+        "placeholder": "平静、紧张、温柔、克制..."
+      },
+      "motion": {
+        "label": "运动",
+        "placeholder": "描述角色、镜头和画面的运动..."
+      },
+      "duration": {
+        "label": "时长",
+        "placeholder": "例如：4s、6s、8s...",
+        "auto": "自动（由模型决定）",
+        "custom": "自定义",
+        "seconds": "{value} 秒"
+      },
+      "audioIntent": {
+        "label": "音频 / 音色说明",
+        "placeholder": "例如：音色 1 说旁白，音色 2 用于角色 A 的短句..."
+      }
+    },
+    "workflowNodes": {
+      "shotText": {
+        "emptyState": "还没有镜头文本",
+        "editText": "编辑文本"
+      },
+      "characterImage": {
+        "emptyState": "还没有角色图"
+      },
+      "shot": {
+        "emptyState": "还没有镜头图"
+      },
+      "backgroundImage": {
+        "emptyState": "还没有背景图"
+      },
+      "frameImage": {
+        "emptyState": "还没有关键帧"
+      }
+    },
+    "topbar": {
+      "addNode": "添加节点",
+      "save": "保存",
+      "startReview": "{count} 张待审 · 开始审阅",
+      "collapse": "收起顶栏，展开画布",
+      "expand": "展开顶栏",
+      "defaultModel": "默认",
+      "createProjectPrompt": "项目名称",
+      "deleteProjectConfirm": "确定删除「{name}」吗？这个画布项目会被移除。"
+    },
+    "projectMenu": {
+      "triggerLabel": "打开项目菜单",
+      "current": "当前项目",
+      "switch": "切换项目",
+      "create": "新建项目",
+      "rename": "重命名",
+      "delete": "删除当前项目",
+      "updatedAt": "更新于 {time}",
+      "unsaved": "尚未保存",
+      "saving": "保存中..."
+    },
+    "projectDialog": {
+      "createTitle": "新建项目",
+      "renameTitle": "重命名项目",
+      "cancel": "取消",
+      "createSubmit": "创建",
+      "renameSubmit": "保存",
+      "deleteTitle": "删除项目",
+      "deleteConfirm": "删除"
+    },
+    "assistant": {
+      "toggle": "助手",
+      "streamFailed": "助手流式响应失败"
+    },
+    "dock": {
+      "title": "助手面板",
+      "expand": "展开剧本工作区",
+      "restore": "收回 dock",
+      "scriptDocApply": "生成到画布",
+      "clarify": {
+        "title": "先确认几个问题",
+        "customPlaceholder": "或自己填…",
+        "skip": "跳过",
+        "submit": "提交回答",
+        "skipped": "跳过",
+        "answerPrefix": "我的回答："
+      },
+      "scriptDocDepthSimple": "精简",
+      "scriptDocDepthStandard": "标准",
+      "scriptDocDepthCinematic": "完整",
+      "scriptDocDepthSimpleHint": "只要角色 + 台词",
+      "scriptDocDepthStandardHint": "+ 情感 · 时长 · 风格",
+      "scriptDocDepthCinematicHint": "+ 背景 · 性格 · 电影级镜头",
+      "scriptDocViewEdit": "编辑",
+      "leanOpener": "看了你的画布，还空着。先聊聊故事大纲？",
+      "leanOpenerActive": "画布上已经有节点了——要我帮你把它们捋成故事大纲吗？",
+      "starters": {
+        "scriptOutline": {
+          "label": "剧本大纲",
+          "prompt": "帮我先聊聊这个故事的大纲。"
+        },
+        "castStyle": {
+          "label": "角色与画风",
+          "prompt": "聊聊有哪些角色、整体画风是什么。"
+        },
+        "firstPhase": {
+          "label": "第一阶段",
+          "prompt": "先规划第一阶段——一组短镜头（≤60 秒）。"
+        },
+        "videoShot": {
+          "label": "规划镜头",
+          "prompt": "帮我在画布上规划一个视频镜头：主体、运动、机位与时长。"
+        }
+      },
+      "welcomeTitle": "选择节点查看检查器",
+      "welcomeDescription": "我可以帮你检查画布、收紧提示词，并建议下一步运行哪个节点。",
+      "welcomeSkillScript": "把 Composer 想法拆成可执行的制作步骤。",
+      "welcomeSkillRoute": "运行节点前检查模型路由和缺失的 Key。",
+      "welcomeSkillGenerate": "检查角色图提示词、参考图和 LoRA 选择。",
+      "newConversation": "新建对话",
+      "assistantCanvas": "画布助手",
+      "collapse": "收起助手面板",
+      "drag": "移动助手面板",
+      "resize": {
+        "widthLabel": "拖动调整面板宽度",
+        "splitLabel": "拖动调整检查器与助手对话的比例"
+      }
+    },
+    "assistantRoute": {
+      "fieldLabel": "助手路由",
+      "setupGemini": "Gemini",
+      "setupDeepSeek": "DeepSeek",
+      "setupChatGpt": "OpenAI",
+      "setupClaude": "Claude",
+      "setupGrok": "Grok"
+    },
+    "inspector": {
+      "unsupported": "这个节点类型暂时还没有检查器。"
+    },
+    "conversation": {
+      "empty": "可以询问当前工作流、选中节点、提示词质量，或下一步该运行什么。",
+      "thinking": "思考中...",
+      "retry": "重试",
+      "placeholder": "询问画布助手...",
+      "modeHint": "结构直接落 · 生成要确认",
+      "research": "参考作品",
+      "researchHint": "联网查某部电影/动漫/短片，转成原创剧本建议（走 Gemini/OpenAI 路由）",
+      "send": "发送",
+      "expandMessage": "展开全文",
+      "collapseMessage": "收成一段",
+      "unknownNodeReference": "已删除节点",
+      "references": "画布参考素材",
+      "addReference": "添加图片或视频参考",
+      "removeReference": "移除参考素材",
+      "capabilityUnavailable": "画布上的这张图片已不可用。",
+      "capabilityFailed": "画布能力执行失败，请重试。",
+      "referencePickerTitle": "添加参考素材",
+      "imageDropHint": "拖入、粘贴或上传图片",
+      "recentImages": "最近图片",
+      "recentImagesEmpty": "还没有最近图片",
+      "openImageLibrary": "打开图片素材库",
+      "imageLibraryTitle": "选择参考图片",
+      "imageLibraryDescription": "从已有素材中选择一张图片，附加到本轮助手对话。",
+      "openVideoLibrary": "打开视频素材库",
+      "videoLibraryTitle": "选择参考视频",
+      "videoLibraryDescription": "从已有素材中选择一段视频，附加到本轮助手对话。",
+      "canvasReferences": "当前画布素材",
+      "uploadVideo": "上传参考视频",
+      "galleryImageLabel": "素材库图片",
+      "galleryVideoLabel": "素材库视频",
+      "referenceUploadFailed": "参考素材上传失败",
+      "referenceOnlyPrompt": "分析已附加的参考素材，并建议接下来在画布上的具体操作。",
+      "opsMalformed": "助手想改画布，但这段指令没写清楚——画布没有任何改动。"
+    },
+    "minimapTitle": "小地图",
+    "castDock": {
+      "title": "节点",
+      "locatorTitle": "画布上的全部节点",
+      "rosterTitle": "可复用的角色与场景",
+      "rosterHint": "拖到节点上即喂入 —— 长按可挑目标",
+      "searchLabel": "搜索画布节点",
+      "searchPlaceholder": "搜索节点…",
+      "groups": {
+        "text": "文本",
+        "image": "图片",
+        "audio": "声音",
+        "video": "视频"
+      },
+      "referenceCount": "{count} 个引用",
+      "empty": "画布还没有节点",
+      "noResults": "没有匹配节点",
+      "locateNode": "定位{name}",
+      "expand": "展开 Cast 卡匣",
+      "collapse": "折叠 Cast 卡匣",
+      "collapsePanel": "收起左侧面板",
+      "handle": "Cast · {count}",
+      "sections": {
+        "character": "角色",
+        "background": "场景",
+        "voice": "音色",
+        "videoReference": "参考视频"
+      },
+      "performanceCount": "出演 {count} 镜",
+      "referenceCountAria": "{count} 张参考图",
+      "voiceBoundAria": "已绑音色",
+      "create": "新建",
+      "deleteCard": "删除{name}",
+      "openDetail": "打开{name}"
+    },
+    "ingest": {
+      "reasons": {
+        "typeMismatch": "这张卡吃不进这个目标",
+        "duplicate": "已经含有这张卡了",
+        "capacityFull": "参考位已满",
+        "capacityFullWithLimit": "参考位已满 {current}/{limit}",
+        "capacityFullIn": "{zone}位已满 {current}/{limit}，移除一条再加",
+        "capacityFullByTotal": "{zone}位只剩 {limit} 个：素材总数已到上限，减掉视频或音频才能再加"
+      },
+      "preview": {
+        "images": "图集×{count}",
+        "voice": "音色",
+        "slots": "参考位 {current}/{limit}",
+        "fallbackName": "未命名"
+      },
+      "quickThrow": {
+        "toggleAria": "快投 {name}",
+        "hint": "投放 {name} — 点击目标镜头，Esc 退出",
+        "alreadyIncluded": "已含该卡"
+      },
+      "uploadFailed": "「{name}」上传失败",
+      "looseImageFused": "图已收进角色参考图集",
+      "looseImageFuseRejected": "没收进——请拖到角色或背景卡上",
+      "canvasNodeSigned": "已建立引用，本体留在画布上",
+      "canvasNodeIngestRejected": "没连上——这两张卡不能建立引用",
+      "looseImage": {
+        "uploading": "正在上传 {count} 张图片…",
+        "uploaded": "已落 {count} 张散图到画布",
+        "uploadFailed": "图片上传失败",
+        "untitled": "未命名图片",
+        "cardAlt": "画布散图"
+      }
+    },
+    "toasts": {
+      "projectCreated": "项目「{name}」已创建。",
+      "projectDeleted": "项目「{name}」已删除。",
+      "localCacheFull": "本地缓存已满，画布不再本地暂存。你的内容仍在保存到云端。",
+      "localCacheUnavailable": "浏览器拒绝了本地存储，画布不再本地暂存。你的内容仍在保存到云端。",
+      "cloudSaveFailed": "连不上云端，最近的画布改动没有保存。请保持此标签页打开并检查网络连接。",
+      "v3UpgradeReadOnly": "这个项目的旧版数据还没备份成功，为避免覆盖原件，画布暂时只读。请刷新重试；若仍失败，请联系支持。",
+      "cloudSaveRejected": "云端拒绝了这次保存，最近的画布改动没有保存。这不是网络问题——详情见下方错误信息。",
+      "conflict": "这个画布在别处（另一个标签页或设备）存过更新的版本，这里的改动已暂停保存。",
+      "conflictLoadLatest": "载入最新",
+      "conflictSaveAsCopy": "另存为副本",
+      "conflictLoadFailed": "没取到最新的版本，请检查网络后再试。"
+    },
+    "quickEdit": {
+      "placeholder": "描述你想如何编辑这张图片",
+      "editing": "正在编辑 [{name}]",
+      "run": "运行",
+      "back": "返回工具条",
+      "title": "快捷编辑",
+      "hint": "描述要提取的元素。结果会作为新图片放在画布上。"
+    },
+    "generateComposer": {
+      "addReference": "添加参考图",
+      "removeReference": "移除 {name}",
+      "expand": "展开",
+      "collapse": "收起",
+      "send": "发送",
+      "historyTitle": "最近用过",
+      "historyEmpty": "还没有历史记录",
+      "modeImage": "图片",
+      "modeAudio": "音频",
+      "audioPlaceholder": "音频参数条留到声音卡那一轮接入",
+      "templateFilterLabel": {
+        "recent": "最近用",
+        "all": "全部",
+        "mostUsed": "用得最多"
+      }
+    },
+    "history": {
+      "title": "历史对话",
+      "search": "请输入搜索关键词",
+      "empty": "暂无历史对话",
+      "new": "新对话",
+      "share": "分享只读链接",
+      "shareCopied": "只读链接已复制",
+      "shareFailed": "无法创建分享链接"
+    },
+    "review": {
+      "approve": "通过",
+      "reject": "打回",
+      "awaitingReview": "已出未审",
+      "rejected": "已打回"
+    },
+    "reviewMode": {
+      "title": "审阅中",
+      "remaining": "还剩 {count} 张",
+      "previous": "上一张",
+      "next": "下一张",
+      "exit": "退出审阅",
+      "previousVersion": "上一版",
+      "currentVersion": "这一版",
+      "reasonLabel": "打回理由",
+      "reasonPlaceholder": "这张为什么不要（可留空）",
+      "promptPatchLabel": "改词",
+      "promptPatchPlaceholder": "补一句要改成什么样",
+      "regenerate": "改词再来",
+      "regenerating": "重新生成中"
+    },
+    "mobileRail": {
+      "assistant": "助手",
+      "listLabel": "看哪一类",
+      "tab": {
+        "shots": "镜头",
+        "images": "图",
+        "voices": "语音",
+        "texts": "文本"
+      },
+      "empty": {
+        "shots": "还没有镜头。点右下角 + 新建一个。",
+        "images": "还没有图。点右下角 + 上传。",
+        "voices": "还没有语音。",
+        "texts": "还没有文本。"
+      },
+      "add": "新建",
+      "newShot": "新建镜头",
+      "upload": "上传（相册 / 文件）",
+      "addReference": "加参考",
+      "fromDevice": "从相册或文件选",
+      "play": "播放",
+      "pause": "暂停",
+      "emptyShot": "还没有画面。点这里写提示词。",
+      "versionReadout": "{index} / {total} 版"
+    },
+    "canvasOps": {
+      "title": "助手想改画布",
+      "unnamed": "未命名",
+      "unknownTarget": "已删除节点",
+      "apply": "应用 {count} 项",
+      "appliedSummary": "已应用 {applied} 项",
+      "appliedSummaryWithSkipped": "已应用 {applied} 项，跳过 {skipped} 项",
+      "appliedToast": "已应用 {count} 项画布改动",
+      "confirmGenerate": "确认生成（消耗积分）",
+      "confirmReview": "确认改审核态",
+      "autoApplied": "已落 {count} 个到画布 — 还没花积分",
+      "autoConnectsFailed": "{count} 条连线未建立",
+      "undoAutoApplied": "撤销",
+      "generateSeparateHint": "生成需要单独确认",
+      "rejectedPrefix": "不会执行：{reason}",
+      "describe": {
+        "addNode": "新建{kind}「{name}」",
+        "connect": "把「{source}」连到「{target}」",
+        "rename": "把「{target}」改名为「{name}」",
+        "setPrompt": "改写「{target}」的提示词",
+        "setImageCategory": "把「{target}」标为{category}",
+        "setModel": "把「{target}」换成 {model}",
+        "setParams": "把「{target}」设为{params}",
+        "attachAsset": "把「{source}」挂到「{target}」，作为{category}",
+        "reject": "打回「{target}」",
+        "approve": "把「{target}」标为通过",
+        "awaitReview": "把「{target}」标为待审",
+        "generate": "生成「{target}」",
+        "connectSlot": "把「{source}」连到「{target}」的{slot}",
+        "disconnect": "断开一条连线",
+        "delete": "删除「{target}」",
+        "moveToShot": "把「{target}」移到第 {shotNo} 镜",
+        "moveOutOfShot": "把「{target}」移出镜头带",
+        "reorderShot": "把第 {from} 镜移到第 {to} 位",
+        "setText": "改写「{target}」的正文",
+        "setField": "把「{target}」的 {field} 设为 {value}",
+        "attachAssetSlot": "把「{source}」挂到「{target}」的{slot}",
+        "setSlotVersion": "切换「{target}」{slot}的当前版本",
+        "blockVersion": "把「{target}」{slot}的这一版判为不用",
+        "unblockVersion": "解除「{target}」{slot}这一版的不用标记",
+        "setParamsV4": "改「{target}」的生成档位",
+        "setVoiceProfile": "改「{target}」的音色档",
+        "setCharacterPicks": "改了「{target}」里角色带的图"
+      },
+      "params": {
+        "duration": "{value} 秒",
+        "durationAuto": "时长自动",
+        "audioOn": "带音频",
+        "audioOff": "不带音频",
+        "seed": "种子 {value}"
+      },
+      "reasons": {
+        "unknownNode": "找不到这个节点",
+        "duplicateRef": "同一个名字被用了两次，指向不明",
+        "approvalForbidden": "助手不能替你放行，通过只能由你点",
+        "noMedia": "这个节点上还没有图，无从标记",
+        "notGeneratable": "这类节点不产出媒体",
+        "noModel": "还没选模型",
+        "notCategorizable": "这类节点没有图片分类",
+        "unknownCategory": "这不是图片分类里的值",
+        "missingCategoryLabel": "自定义分类得给个名字",
+        "notModelTargetable": "这类节点不选模型",
+        "unknownModel": "这个模型不在该节点的可选列表里",
+        "modelNeedsKey": "这个模型要先配好 API key 才能用",
+        "notParameterizable": "这类节点的参数不在节点上——图片的比例和清晰度在生成条上",
+        "emptyParams": "一个参数都没给，落下去什么也不会变",
+        "unsupportedParam": "当前模型不吃这个参数",
+        "unknownParamValue": "这个值不在当前模型给的档位里",
+        "notAttachable": "只有角色和背景卡才收参考图，其余节点请改用连线"
+      },
+      "confirmDelete": "确认删除",
+      "overwriteQuestion": "这里已经有你写的内容：",
+      "overwriteChoice": {
+        "append": "追加在后",
+        "replace": "覆盖",
+        "keep": "保留"
+      }
+    },
+    "v4": {
+      "loraDropped": "画布上没有能挂 LoRA 的模型，{names} 这次没带上。LoRA 要在 LoRA 台挂。",
+      "untitledText": "未命名文本",
+      "textMeta": "{chars} 字 · {paragraphs} 段",
+      "editText": "编辑",
+      "previewText": "预览",
+      "setCurrent": "设为当前",
+      "versionPrev": "上一版",
+      "versionNext": "下一版",
+      "slotDisconnect": "断开",
+      "slotEmpty": "空",
+      "changedBadge": "本轮有改动",
+      "blocked": "已判失败：{reason}",
+      "audioDuration": "{seconds} 秒",
+      "audioEmpty": "无音频",
+      "audioOwner": "音色：{name}",
+      "addCanvasTitle": "画布上的",
+      "addCanvasHint": "点一下就挂上",
+      "addCanvasEmpty": "暂无可挂素材",
+      "addCanvasAttach": "挂上 {name}",
+      "legacyMigrated": "旧节点已迁移",
+      "tidy": "整理",
+      "slots": {
+        "firstFrame": "首帧",
+        "lastFrame": "尾帧",
+        "reference": "参考",
+        "voice": "语音",
+        "text": "文本",
+        "timbre": "音色",
+        "closeup": "特写",
+        "clip": "片段",
+        "source": "来源"
+      },
+      "textRoles": {
+        "script": "剧本",
+        "style": "风格",
+        "character": "角色"
+      },
+      "ports": {
+        "input": "入口",
+        "output": "出口"
+      },
+      "edgeRole": {
+        "menu": "这条线的用途",
+        "firstFrame": "作首帧",
+        "lastFrame": "作尾帧",
+        "reference": "作参考"
+      },
+      "outputs": {
+        "out": "出口",
+        "tailFrame": "末帧"
+      },
+      "statuses": {
+        "idle": "待办",
+        "queued": "排队中",
+        "running": "生成中",
+        "ready": "就绪",
+        "done": "完成",
+        "failed": "失败",
+        "stale": "已过期",
+        "disabled": "已停用"
+      },
+      "kinds": {
+        "text": "文本",
+        "image": "图片",
+        "audio": "音频",
+        "video": "视频"
+      },
+      "derive": {
+        "shotImage": "出镜头图",
+        "video": "出视频",
+        "character": "做角色设定",
+        "background": "做背景设定",
+        "askAssistant": "问助手"
+      },
+      "connectRejected": {
+        "selfLoop": "不能连到自己",
+        "unknownSlot": "这个节点没有这个入口",
+        "kindNotAllowed": "这个入口不收这种素材",
+        "subtypeNotAllowed": "这个入口只收参考图或角色图",
+        "slotFull": "这个入口已满",
+        "blockedSource": "该素材已判失败，不能作首帧",
+        "duplicateEdge": "已经连过了",
+        "unknownNode": "找不到节点",
+        "blockedVersion": "该版本已停用，不能设为当前"
+      },
+      "upgrade": {
+        "backupFailed": "备份 v3 数据失败，画布暂不保存——请重试或联系支持",
+        "migrationFailed": "这个项目的数据读不出来，已停止写入以免覆盖"
+      },
+      "versionAdded": "已加为第 {count} 版并设为当前",
+      "opFailed": "这一步没能应用：{reason}",
+      "slotIssue": {
+        "belowMin": "{slot} 还没填够，暂时不能生成"
+      },
+      "preflight": {
+        "blocked": "没发出去：{reason}",
+        "blockedMore": "没发出去：{reason}（还有 {more} 处要改）",
+        "nameSeparator": "、",
+        "slot": {
+          "belowMin": "{slot}还没填够",
+          "currentMissing": "{slot}还没选当前用哪一版",
+          "blockedSource": "{slot}里有一张标成不能用的素材，换掉或断开"
+        },
+        "tooMany": {
+          "image": "参考图 {count} 张，这个模型最多收 {max} 张",
+          "video": "参考视频 {count} 段，这个模型最多收 {max} 段",
+          "audio": "参考音频 {count} 段，这个模型最多收 {max} 段",
+          "total": "参考素材一共 {count} 个，这个模型最多收 {max} 个"
+        },
+        "tooManyWithCharacters": {
+          "image": "参考图 {count} 张（含 {names} 的 {characterImages} 张），这个模型最多收 {max} 张",
+          "total": "参考素材一共 {count} 个（含 {names} 的 {characterImages} 张图），这个模型最多收 {max} 个"
+        },
+        "unsupported": {
+          "image": "这个模型不收参考图，先断开或换一个模型",
+          "video": "这个模型不收参考视频，先断开或换一个支持参考的模型",
+          "audio": "这个模型不收参考音频，先断开或换一个支持参考的模型",
+          "total": "这个模型不收参考素材"
+        },
+        "audioOnly": "这个模型不能只带参考音频，再挂一张图或一段视频",
+        "clipTooLong": {
+          "video": "「{name}」{seconds} 秒，这个模型的参考视频单段最长 {limit} 秒",
+          "audio": "「{name}」{seconds} 秒，这个模型的参考音频单段最长 {limit} 秒"
+        },
+        "clipTooShort": {
+          "video": "「{name}」只有 {seconds} 秒，这个模型的参考视频单段至少 {limit} 秒",
+          "audio": "「{name}」只有 {seconds} 秒，这个模型的参考音频单段至少 {limit} 秒"
+        },
+        "totalTooLong": {
+          "video": "参考视频加起来 {seconds} 秒，这个模型最多 {max} 秒",
+          "audio": "参考音频加起来 {seconds} 秒，这个模型最多 {max} 秒"
+        }
+      },
+      "generateDesk": {
+        "failed": "生成失败：{reason}",
+        "noModel": "先选一个模型",
+        "noGenerate": "文本节点没有生成，只能派生"
+      },
+      "renameNode": "重命名节点",
+      "expandNode": "展开",
+      "collapseNode": "收起",
+      "renameTaken": "这个名字已经被别的节点用了",
+      "toolbar": {
+        "download": "下载",
+        "clone": "克隆空节点",
+        "tidy": "整理排布",
+        "delete": "删除节点"
+      },
+      "review": {
+        "approve": "通过",
+        "reject": "打回",
+        "state": {
+          "awaiting_review": "待审",
+          "rejected": "已打回",
+          "approved": "已通过"
+        }
+      },
+      "readout": {
+        "dimensions": "{width}×{height}",
+        "sourceGenerated": "生成图",
+        "sourceExisting": "已有图"
+      },
+      "relations": {
+        "title": "下游用途",
+        "empty": "还没有节点用到它",
+        "chip": "{name} · {slot}"
+      },
+      "evidence": {
+        "title": "发送预览（{count}）",
+        "model": "模型",
+        "prompt": "提示词",
+        "blocked": "已判失败",
+        "none": "—",
+        "slotValue": "{name}（共 {count} 版）"
+      },
+      "gallery": {
+        "title": "{slot}图集（{count}）",
+        "add": "＋加入",
+        "empty": "图集为空",
+        "remove": "移除",
+        "extract": "拆出"
+      },
+      "voice": {
+        "slotStates": {
+          "empty": "未选音色",
+          "loading": "处理中",
+          "bound": "已绑音色",
+          "failed": "失败"
+        },
+        "providerFallback": "未知来源",
+        "noSample": "暂无试听样本",
+        "openLibrary": "声音库",
+        "uploadAudio": "上传音频",
+        "uploading": "上传中…",
+        "uploadFailed": "上传失败：{reason}",
+        "uploadRetry": "重试上传",
+        "ownerLabel": "归属角色",
+        "ownerNone": "旁白",
+        "ownerCustom": "手填…",
+        "ownerCustomPlaceholder": "角色名",
+        "speedLabel": "语速",
+        "volumeLabel": "音量",
+        "emotionLabel": "情绪",
+        "emotions": {
+          "none": "无",
+          "calm": "平静",
+          "angry": "愤怒",
+          "sad": "悲伤",
+          "surprised": "惊讶"
+        }
+      },
+      "mentionGroups": {
+        "text": "文本",
+        "image": "图片",
+        "audio": "音频",
+        "video": "视频"
+      },
+      "player": {
+        "empty": "还没有视频",
+        "play": "播放",
+        "pause": "暂停",
+        "mute": "静音",
+        "unmute": "取消静音",
+        "progress": "播放进度",
+        "download": "下载",
+        "captureFrames": "抓封面帧"
+      },
+      "ingest": {
+        "chooseSlot": "落到哪个口？",
+        "chooseSlotCancel": "取消"
+      },
+      "chrome": {
+        "add": "添加",
+        "send": "发送",
+        "cancel": "取消",
+        "close": "关闭",
+        "download": "下载",
+        "charCount": "{count} 字",
+        "versions": "版本",
+        "versionOf": "第 {index} 版，共 {total} 版",
+        "emptyHint": "上传 · 粘贴 · 或写提示词",
+        "emptyUpload": "上传",
+        "emptyLibrary": "素材库",
+        "mentionPicker": "引用候选",
+        "mediaMissing": {
+          "gone": {
+            "image": "这张图已从素材库删除",
+            "video": "这段视频已从素材库删除",
+            "audio": "这段音频已从素材库删除"
+          },
+          "unreachable": {
+            "image": "这张图暂时读不到",
+            "video": "这段视频暂时读不到",
+            "audio": "这段音频暂时读不到"
+          },
+          "remove": "从画布移除",
+          "removeVersion": "去掉这一版",
+          "retry": "重试"
+        },
+        "slashPicker": "模板候选",
+        "myTemplates": "我的模板"
+      },
+      "text": {
+        "empty": "继续写……",
+        "emptyStart": "双击开始写",
+        "emptyAssist": "或让助手写一段",
+        "editAriaLabel": "编辑正文",
+        "roles": {
+          "script": "剧本",
+          "style": "风格",
+          "character": "角色"
+        },
+        "toolbar": {
+          "ariaLabel": "文本节点动作",
+          "shotImage": "生图",
+          "video": "生镜头",
+          "more": "更多",
+          "split": "拆成多段",
+          "renameNode": "重命名这段文本",
+          "cloneNode": "复制这张文本卡",
+          "deleteNode": "删除这段文本",
+          "expand": "展开",
+          "download": "下载"
+        },
+        "assist": {
+          "placeholder": "让助手写一段……",
+          "ariaLabel": "让助手写一段",
+          "continue": "续写",
+          "rewrite": "改写",
+          "model": "写作模型"
+        },
+        "card": {
+          "resize": "拖动改变卡片高度"
+        },
+        "tag": {
+          "title": "归属与子型",
+          "subtype": "子型",
+          "role": "归属"
+        },
+        "subtypes": {
+          "script": "剧本",
+          "shotNote": "镜头说明",
+          "rule": "规则"
+        },
+        "doc": {
+          "title": "{name}.md",
+          "formatAriaLabel": "格式",
+          "heading": "标题级",
+          "h1": "标题 1",
+          "h2": "标题 2",
+          "h3": "标题 3",
+          "bulleted": "无序列表",
+          "numbered": "有序列表",
+          "bold": "加粗",
+          "strike": "删除线",
+          "italic": "斜体",
+          "underline": "下划线",
+          "mentionAriaLabel": "引用候选",
+          "mentionEmpty": "没有可引用的卡"
+        },
+        "script": {
+          "metaShots": "{count} 镜",
+          "metaActs": "{acts} 幕 · {shots} 镜",
+          "seconds": "{seconds}s",
+          "more": "+ {count} 镜…",
+          "empty": "还没有分镜 —— 用「镜 1」「S01」或 # 小标题给正文分段",
+          "changed": "已变",
+          "listAriaLabel": "分镜列表",
+          "project": "确认 · 投影 {count} 镜",
+          "projected": "已投影 · {count} 镜",
+          "reproject": "重投影 · {count} 镜变"
+        }
+      },
+      "image": {
+        "uploading": "图片上传中…",
+        "toolbar": {
+          "label": "图片操作",
+          "edit": "编辑",
+          "more": "更多",
+          "connect": "连到镜头",
+          "storyboard": "分镜"
+        },
+        "edit": {
+          "inpaint": "局部重绘",
+          "upscale": "放大",
+          "cutout": "抠图 / 去背景",
+          "background": "换背景"
+        },
+        "add": {
+          "upload": "上传文件",
+          "library": "从素材库选…",
+          "canvas": "画布上的图",
+          "canvasEmpty": "还没有能挂的图"
+        },
+        "rail": {
+          "title": "参考图",
+          "group": "图",
+          "open": "打开",
+          "remove": "移除",
+          "upload": "上传",
+          "library": "从素材库",
+          "itemLabel": "图{index}：{name}",
+          "full": "已满（上限 {limit}）",
+          "mentionGroup": "参考图",
+          "retry": "重试",
+          "uploading": "正在上传 {name}",
+          "uploadFailed": "{name} 上传失败"
+        },
+        "more": {
+          "setCharacter": "设为角色",
+          "rename": "重命名这张图",
+          "duplicate": "复制这张图片卡",
+          "splitVersion": "拆出当前版本",
+          "source": "来源",
+          "delete": "删除这张图",
+          "newShot": "新建镜头"
+        },
+        "frame": {
+          "title": "画面",
+          "referenceLabel": "参考",
+          "dropOrPaste": "拖进来或 ⌘V",
+          "aspectRatio": "比例",
+          "quality": "质量",
+          "resolution": "分辨率",
+          "count": "张数"
+        },
+        "storyboard": {
+          "split3": "切宫格 3×3",
+          "split2": "切宫格 2×2",
+          "splitting": "正在切开…",
+          "notDetected": "没认出九宫格",
+          "manualSplit": "手动切",
+          "dismiss": "关掉这条提示",
+          "fallbackName": "分镜",
+          "cellName": "{name} · {n}",
+          "sourceLabel": "九宫格 · {name} · 第 {n} 格",
+          "unreadable": "这张图读不到像素，没法切",
+          "uploadFailed": "第 {n} 格没存进素材库，这次没切",
+          "failed": "切宫格没成功，原图没动"
+        },
+        "batchPick": {
+          "label": "这一批出了 {count} 张，挑一张作当前",
+          "option": "第 {n} 张"
+        },
+        "promptPlaceholder": "描述这张图……",
+        "promptLabel": "图片提示词",
+        "advanced": {
+          "label": "高级参数",
+          "labelChanged": "高级参数 · 已改",
+          "seed": "种子",
+          "seedRandom": "随机",
+          "seedShuffle": "换一个种子",
+          "seedLock": "锁住种子，每次发送同一颗",
+          "seedUnlock": "解锁，每次随机",
+          "seedBatchHint": "一次多张时每张依次 +1",
+          "negative": "反向提示词",
+          "negativePlaceholder": "不想出现的东西，比如 文字、水印"
+        },
+        "send": {
+          "estimate": "≈{amount}",
+          "estimateLabel": "这一次约 {amount}，点开看算法",
+          "estimateTitle": "这一次大约多少钱",
+          "estimateDetail": "{unit} / 张 × {count} 张 ≈ {amount}",
+          "estimateNote": "参考价，按这条渠道的单价估算，不是计费依据。",
+          "needsKey": "先配 key",
+          "needsKeyLabel": "这个模型还没配 key，点一下就地配置",
+          "switchChannel": "{from} 没 key，改走 {to}",
+          "switchChannelPrice": "{from} 没 key，改走 {to} {price}",
+          "switchChannelLabel": "这张卡选的 {from} 没配 key，同一个模型的 {to} 已配好。点一下改走 {to}"
+        },
+        "template": {
+          "remove": "不用分镜",
+          "countLocked": "分镜定了张数",
+          "fullTextShow": "发送时接上分镜模板 · 看全文",
+          "fullTextHide": "收起分镜模板",
+          "storyPlaceholder": "（你写的那一句）",
+          "grid3": {
+            "name": "九宫格多机位",
+            "short": "九宫格",
+            "hint": "一张 3×3 连续分镜，出完自动切成 9 张卡"
+          },
+          "grid2": {
+            "name": "四宫格剧情",
+            "short": "四宫格",
+            "hint": "一张 2×2 起承转合，出完自动切成 4 张卡"
+          },
+          "sequence4": {
+            "name": "连贯分镜",
+            "short": "连贯分镜",
+            "hint": "同时出 4 张，每张一拍、人物画风一致，进版本条"
+          }
+        }
+      },
+      "audio": {
+        "toolbar": {
+          "label": "音频操作",
+          "tone": "加语气",
+          "transcribe": "转文字",
+          "transcribeFailed": "转写失败",
+          "shot": "生镜头",
+          "more": "更多",
+          "transcribing": "转写中…",
+          "trimming": "裁剪中…",
+          "trim": "裁剪",
+          "connect": "连到镜头"
+        },
+        "add": {
+          "upload": "上传文件",
+          "library": "从素材库选…",
+          "voiceLibrary": "声音库…",
+          "referenceUnavailable": "参考音频需要准确的逐字稿，当前画布音频暂不能直接挂载",
+          "uploadShortcut": "⌘U"
+        },
+        "emptyHint": "上传 · 选一段现成的 · 或写台词生成",
+        "emptyVoiceLibrary": "声音库",
+        "emptyNextStep": "或写台词生成",
+        "promptPlaceholder": "写台词，或上传一段声音……",
+        "promptPlaceholderMusic": "描述这段配乐……",
+        "promptPlaceholderSfx": "描述这个音效……",
+        "promptLabel": "台词",
+        "play": "播放",
+        "pause": "暂停",
+        "voice": {
+          "title": "音色",
+          "mine": "我的音色",
+          "cloned": "我克隆的",
+          "favorited": "收藏的",
+          "preview": "试听",
+          "clone": "克隆我的声音…",
+          "speed": "语速",
+          "volume": "音量",
+          "loading": "加载中…",
+          "empty": "还没有音色，去平台音色库挑一个",
+          "more": "更多…"
+        },
+        "model": {
+          "title": "模型",
+          "kinds": {
+            "speech": "语音",
+            "music": "配乐",
+            "sfx": "音效"
+          }
+        },
+        "tone": {
+          "title": "给这句加语气",
+          "hint": "插在句首，可叠两个",
+          "emotionLabel": "情绪",
+          "toneLabel": "语气",
+          "intensityLabel": "强度",
+          "intensities": {
+            "light": "轻",
+            "medium": "中",
+            "strong": "强"
+          },
+          "customLabel": "自定义语气描述",
+          "customPlaceholder": "自定义：例如「像在憋着笑」…",
+          "apply": "插入",
+          "chipTitle": "{intensity}·{label}"
+        },
+        "owner": {
+          "title": "归属角色…",
+          "none": "旁白"
+        },
+        "durationUnknown": "--:--",
+        "more": {
+          "splitVersion": "拆出当前版本",
+          "source": "来源",
+          "rename": "重命名这段声音",
+          "duplicate": "复制这张音频卡",
+          "delete": "删除这段声音"
+        },
+        "source": {
+          "platformSample": "来自声音库 · 平台样本",
+          "history": "来自声音库 · 我的历史",
+          "voiceRoom": "来自声音库 · 配音间",
+          "library": "来自素材库",
+          "upload": "上传",
+          "generated": "本卡生成",
+          "trim": "裁剪自 上一版"
+        },
+        "library": {
+          "title": "声音库",
+          "searchLabel": "搜索声音",
+          "searchPlaceholder": "搜声音、角色、台词…",
+          "tabsLabel": "按来源筛选",
+          "tabs": {
+            "platformSample": "平台",
+            "history": "历史",
+            "voiceRoom": "配音间",
+            "library": "素材库",
+            "favorites": "收藏"
+          },
+          "loading": "加载中…",
+          "empty": "这一栏还没有声音",
+          "durationUnknown": "--:--",
+          "preview": "试听",
+          "use": "用这段",
+          "useFailed": "这一段没取到，再试一次。",
+          "setVoice": "设为音色",
+          "footerHint": "用这段 = 原声落进卡 · 设为音色 = 之后写台词用它的声",
+          "clone": "克隆我的声音…",
+          "groups": {
+            "today": "今天",
+            "yesterday": "昨天",
+            "earlier": "更早"
+          },
+          "dateGroups": {
+            "today": "今天",
+            "yesterday": "昨天",
+            "earlier": "更早"
+          }
+        },
+        "trim": {
+          "title": "裁剪",
+          "selectionWindow": "选区",
+          "inPoint": "入点",
+          "outPoint": "出点",
+          "range": "选区 {start} – {end}",
+          "preview": "试听选区",
+          "pausePreview": "暂停试听",
+          "keyEsc": "Esc 取消",
+          "confirm": "确认",
+          "confirming": "裁剪中…",
+          "failed": "裁剪失败",
+          "derivedName": "{name} · 裁剪"
+        }
+      },
+      "video": {
+        "emptyHint": "上传一段 · 或写这个镜头怎么拍",
+        "emptyPromptPlaceholder": "写下这个镜头怎么拍……",
+        "toolbar": {
+          "label": "视频操作",
+          "continue": "续拍",
+          "extract": "抽帧",
+          "more": "更多",
+          "expand": "展开"
+        },
+        "add": {
+          "upload": "上传文件",
+          "uploadForSlot": "上传…",
+          "library": "从素材库选…"
+        },
+        "more": {
+          "rename": "改名",
+          "quickLook": "快速看",
+          "splitVersion": "拆出当前版本",
+          "addToEditDesk": "加入剪辑台",
+          "duplicate": "复制这张视频卡",
+          "delete": "删除这个镜头",
+          "renameNode": "重命名这个镜头",
+          "source": "来源"
+        },
+        "frame": {
+          "title": "画面",
+          "duration": "时长",
+          "aspectRatio": "比例",
+          "resolution": "清晰度",
+          "generateAudio": "生成声音",
+          "generateAudioHint": "模型自带音轨；关了只出画面",
+          "audioSuffix": "有声",
+          "regenerate": "重新生成",
+          "regenerateShortcut": "⌘↵",
+          "generate": "生成",
+          "askAssistant": "让助手写",
+          "referenceLabel": "参考",
+          "referenceHint": "拖进来或 ⌘V",
+          "referenceAdd": "添加参考",
+          "upload": "上传",
+          "library": "素材库",
+          "emptyNote": "写下这个镜头怎么拍……",
+          "editAriaLabel": "编辑镜头说明",
+          "readout": "{chars} 字 · 已挂 {slots} 项",
+          "pickModel": "选模型",
+          "audioOn": "这条会出声，点一下关掉",
+          "audioOff": "这条不出声，点一下打开"
+        },
+        "model": {
+          "title": "模型"
+        },
+        "promptPlaceholder": "描述这个镜头……",
+        "promptLabel": "镜头提示词",
+        "tailFrameName": "{name} 末帧",
+        "mode": {
+          "omniReference": "全能参考",
+          "firstLastFrame": "首尾帧",
+          "imageToVideo": "图生视频",
+          "textToVideo": "文生视频"
+        },
+        "rail": {
+          "title": "参考 · 拖进来或 ⌘V",
+          "badge": {
+            "image": "图{index}",
+            "video": "视{index}",
+            "voice": "语{index}"
+          },
+          "group": {
+            "image": "图",
+            "video": "视频",
+            "voice": "语音"
+          },
+          "roleBadge": {
+            "firstFrame": "首",
+            "lastFrame": "尾"
+          },
+          "setRole": {
+            "firstFrame": "作首帧",
+            "lastFrame": "作尾帧",
+            "reference": "作参考"
+          },
+          "open": "打开",
+          "remove": "移除",
+          "upload": "上传",
+          "library": "从素材库",
+          "fromCanvas": {
+            "image": "画布上的图",
+            "video": "画布上的视频",
+            "voice": "画布上的语音"
+          },
+          "itemLabel": "{group}{index}：{name}",
+          "addLabel": "添加{group}",
+          "full": "已满（上限 {limit}）",
+          "referenceUnavailable": "这个模型没有参考变体，挂上去也发不出去",
+          "mentionGroup": "参考轨",
+          "retry": "重试",
+          "uploading": "正在上传 {name}",
+          "uploadFailed": "{name} 上传失败"
+        },
+        "scriptShot": {
+          "changed": "已变",
+          "dropped": "剧本已删"
+        },
+        "framePick": {
+          "title": "选一帧抽出来",
+          "scrub": "拖动选帧",
+          "keyEsc": "Esc 取消",
+          "confirm": "抽这一帧",
+          "confirming": "抽帧中…"
+        }
+      },
+      "connectToShot": {
+        "searchLabel": "搜镜头",
+        "searchPlaceholder": "搜镜头…",
+        "new": "新建镜头",
+        "newHint": "在右侧落卡并连线",
+        "listLabel": "画布上的镜头 · 按镜头带顺序",
+        "empty": "画布上还没有镜头",
+        "noMatch": "没有匹配的镜头",
+        "durationUnknown": "--:--",
+        "occupied": "已有{slot} · 替换",
+        "connectInto": "连到 {name} 的{slot}",
+        "replaceIn": "替换 {name} 的{slot}"
+      },
+      "character": {
+        "imagesTab": "图片",
+        "textTab": "文字",
+        "tabsLabel": "她的两部分",
+        "placeImage": "放到画布",
+        "placedName": "{name} · 图 {index}",
+        "imagesHint": "卡上 {onCard} 张 · 用她出的 {made} 张 · 点一张 = 放到画布上",
+        "imagesLoading": "正在找用她出过的图…",
+        "readOnly": "只读 · 要改去角色页",
+        "writeScript": "让助手写剧本",
+        "writeLines": "写台词",
+        "writeScriptDraft": "用 @{name} 写一段剧本：",
+        "writeLinesDraft": "给 @{name} 写几句台词：",
+        "noText": "还没写设定",
+        "deleted": "这位已从角色库删除",
+        "noImages": "还没有图",
+        "noImagesHint": "@ 她只带名字和外观描述",
+        "addImages": "去角色页加图"
+      },
+      "characterMention": {
+        "group": "角色",
+        "pickerLabel": "{name} 这一镜带哪几张",
+        "chipLabel": "{name} · 带 {count} 张",
+        "count": "这一镜带 {count} 张",
+        "limit": "这个模型一次最多收 {max} 张参考图 · 已用 {used} 张（含轨上挂的）"
+      },
+      "handoff": {
+        "newProjectName": "从工作台交过来"
+      },
+      "upscale": {
+        "noImage": "这张卡还没有图，放大不了",
+        "failed": "放大没成"
+      },
+      "scriptRejected": {
+        "alreadyProjected": "这个剧本已经投影过了，要按改动更新镜头请用「重新投影」。",
+        "notProjected": "这个剧本还没有投影过，先投影一次。",
+        "emptyScript": "剧本里没有可以拆成镜头的段落。",
+        "notScriptNode": "只有剧本卡可以投影成镜头。"
+      }
+    },
+    "rerunDownstream": {
+      "title": "改了「{origin}」→ 下游 {count} 个要重跑",
+      "free": "不花积分",
+      "estimate": "预估会花积分的：{summary}",
+      "noCost": "这一批都不花积分",
+      "menu": "重跑下游",
+      "ask": "我把「{name}」改了，只重跑它的下游，先给我名单。"
+    },
+    "textAssist": {
+      "continue": "接着「{name}」的正文往下写：{prompt}",
+      "rewrite": "把「{name}」的正文改写一遍：{prompt}",
+      "plain": "针对「{name}」的正文：{prompt}"
+    },
+    "shell": {
+      "project": {
+        "saved": "已保存",
+        "saving": "保存中",
+        "open": "项目",
+        "search": "搜项目…",
+        "empty": "没有匹配的项目",
+        "nodeCount": "{count} 节点",
+        "new": "新建项目",
+        "more": "更多",
+        "rename": "重命名",
+        "duplicate": "复制",
+        "delete": "删除",
+        "duplicateSuffix": "{name} 副本"
+      },
+      "editDesk": "剪辑台",
+      "assistant": "助手",
+      "panels": {
+        "addNode": "添加节点",
+        "nodes": "节点",
+        "project": "当前项目",
+        "history": "历史对话",
+        "cards": "角色",
+        "library": "素材库",
+        "searchNodes": "搜节点…",
+        "refCount": "{count} 引用",
+        "cardsHint": "点一位 = 放到画布上",
+        "libraryHint": "上传与生成 · 最近优先",
+        "libraryAll": "全部",
+        "libraryImage": "图",
+        "libraryVideo": "视频",
+        "libraryAudio": "音频",
+        "loadMore": "加载更多",
+        "placeHint": "点一下落到画布中央 · 或拖进去",
+        "empty": "这里还什么都没有",
+        "loading": "加载中…",
+        "close": "收起面板",
+        "libraryUpload": "上传",
+        "libraryManageFolders": "管理文件夹与素材 ↗",
+        "libraryLoadFailed": "加载失败，点击重试",
+        "cardsEmpty": "还没有角色",
+        "cardsEmptyHint": "在角色页建一个，这里就会出现。",
+        "cardsOpenRoster": "去角色页",
+        "cardsMeta": "{work} · {count} 张",
+        "cardsOnCanvas": "在画布上",
+        "cardsOriginal": "原创"
+      },
+      "add": {
+        "text": "文本",
+        "image": "图片",
+        "audio": "声音",
+        "video": "视频",
+        "group": "新建",
+        "paste": "粘贴",
+        "tidy": "整理布局",
+        "fit": "适配视图",
+        "menu": "画布菜单",
+        "upload": "上传",
+        "uploadMenu": "上传…"
+      },
+      "palette": {
+        "title": "命令面板",
+        "placeholder": "搜节点 · 新建 · 问助手…",
+        "nodes": "节点",
+        "actions": "动作",
+        "projects": "项目",
+        "locate": "定位",
+        "create": "新建{kind}「{query}」",
+        "createEmpty": "新建{kind}",
+        "ask": "问助手：{query}",
+        "askEmpty": "问助手",
+        "openEditDesk": "打开剪辑台",
+        "switchTo": "切到「{name}」",
+        "empty": "没有匹配项",
+        "upload": "上传素材…"
+      },
+      "bottom": {
+        "select": "选择",
+        "hand": "抓手",
+        "zoomOut": "缩小",
+        "zoomIn": "放大",
+        "fit": "适配视图",
+        "tidy": "整理布局",
+        "undo": "撤销",
+        "redo": "重做",
+        "zoom": "缩放 {percent}%"
+      },
+      "assistantDock": {
+        "collapse": "收起助手",
+        "expand": "展开助手",
+        "resize": "拖动调整助手宽度"
+      },
+      "minimap": {
+        "collapse": "收起小地图",
+        "expand": "展开小地图"
+      }
+    },
+    "editDesk": {
+      "title": "剪辑台",
+      "back": "回画布",
+      "readout": "{duration} · {aspect} · {resolution}",
+      "undo": "撤销",
+      "export": "导出",
+      "untitled": "未命名成片",
+      "panels": {
+        "canvas": "画布素材",
+        "library": "素材库",
+        "audio": "音频",
+        "text": "文字",
+        "transition": "转场",
+        "dragHint": "拖进时间线",
+        "empty": "这个项目还没有可用的片段",
+        "textEmpty": "画布上还没有文本卡",
+        "loading": "加载中…",
+        "loadMore": "加载更多",
+        "libraryEmpty": "素材库里还没有视频或音频",
+        "title": "素材",
+        "addCaption": "在播放头处加一条字幕",
+        "short": {
+          "canvas": "素材",
+          "library": "素材库",
+          "audio": "音频",
+          "text": "文字",
+          "transition": "转场"
+        }
+      },
+      "tracks": {
+        "video": "主线",
+        "audio": "台词",
+        "music": "配乐",
+        "empty": "把素材拖到这里",
+        "text": "字幕",
+        "textEmpty": "在左边「文字」里加一条"
+      },
+      "tools": {
+        "split": "分割",
+        "remove": "删除",
+        "removeConfirm": "确认删除"
+      },
+      "overview": "全片条",
+      "versions": {
+        "title": "版本",
+        "hint": "{name} · 悬停对比",
+        "take": "第 {n} 版",
+        "seconds": "{sec}s",
+        "fromCanvas": "画布",
+        "compareInUse": "在用",
+        "fresh": "{from} · 新",
+        "badge": "版本 {n}/{count}",
+        "badgeFresh": "版本 {n}/{count} · 画布上换了新版"
+      },
+      "retake": {
+        "action": "重拍",
+        "generate": "生成",
+        "generating": "生成中",
+        "previewGenerating": "第 {n} 版生成中",
+        "failed": "第 {n} 版没生成出来：{reason}。改一下提示词再试。",
+        "failedBadge": "重拍失败 · 点开看原因"
+      },
+      "continue": {
+        "action": "续拍",
+        "pending": "待生成",
+        "previewPending": "这一镜还没有片子 · 写一句提示词生成"
+      },
+      "clipTag": "{name} · {duration}",
+      "previewTitle": "预览 · {name}",
+      "previewEmpty": "播放头下没有片段",
+      "stage": "预览",
+      "stageEmpty": "还没有片段",
+      "stageEmptyAction": "从画布素材加镜头",
+      "play": "播放",
+      "pause": "暂停",
+      "mute": "静音",
+      "unmute": "打开声音",
+      "clipDuration": "{seconds}s",
+      "trim": "{edge} {from} → {to} · 长 {length}s",
+      "zoom": {
+        "label": "时间线缩放",
+        "in": "放大",
+        "out": "缩小",
+        "fit": "铺满"
+      },
+      "clock": "{at} / {total}",
+      "inspector": {
+        "empty": "选中一段看它的属性",
+        "sourceGone": "来源卡已删除",
+        "inPoint": "入点",
+        "outPoint": "出点",
+        "speed": "速度",
+        "speedOption": "{speed}×",
+        "sound": "原声",
+        "soundOn": "开",
+        "soundOff": "关",
+        "gain": "音量",
+        "transition": "转场",
+        "transitions": {
+          "none": "无",
+          "crossfade": "叠化",
+          "black": "黑场",
+          "wipe": "擦除",
+          "push": "推移",
+          "zoom": "缩放",
+          "iris": "圆形"
+        },
+        "backToNode": "回节点重生成这段",
+        "backToNodeShort": "回节点"
+      },
+      "exportDialog": {
+        "title": "导出成片",
+        "description": "选范围与清晰度；渲染在服务端跑，可以离开这个页面。",
+        "range": "范围",
+        "ranges": {
+          "all": "整条",
+          "inOut": "I·O 区间",
+          "clip": "选中的这一段"
+        },
+        "toCanvas": "导出到画布（成片落成一张视频卡）",
+        "resolution": "清晰度",
+        "confirm": "开始导出",
+        "pending": "渲染层还在路上（S9）——「{range}」的导出很快就能按下去"
+      },
+      "shotTag": "镜 {n} · {name}",
+      "render": {
+        "exporting": "导出中 · {step} {percent}%",
+        "done": "成片已就绪",
+        "cancel": "取消",
+        "dismiss": "收起",
+        "download": "下载成片",
+        "sourceLabel": "来自剪辑台 · {name}",
+        "landed": "「{name}」已落到画布",
+        "failed": "导出失败了。稍后再试一次，或换一个范围。",
+        "resume": "上次的导出「{name}」还没跑完",
+        "resumeContinue": "继续",
+        "resumeRestart": "重来",
+        "status": {
+          "queued": "排队中",
+          "running": "渲染中",
+          "completed": "已完成",
+          "failed": "失败",
+          "cancelled": "已取消"
+        },
+        "steps": {
+          "download": "取素材",
+          "normalize": "规格化",
+          "compose": "编排",
+          "encode": "编码",
+          "poster": "抽封面",
+          "upload": "上传"
+        },
+        "planError": {
+          "emptyTimeline": "时间线上还没有画面，先拖一张视频卡进来。",
+          "missingSource": "有一段的来源素材找不到了 —— 检查一下它的来源节点还在不在。",
+          "pendingSource": "还有一段没生成出来（续拍的占位段）—— 先生成它，或者把它删掉再导出。",
+          "emptyRange": "这个范围里没有东西可导出。",
+          "zeroDuration": "导出的长度是 0 秒。",
+          "tooManySegments": "段太多了，先删掉一些再导出。",
+          "tooLong": "成片太长了，超过一次渲染的上限。"
+        }
+      },
+      "receipt": {
+        "claudeChanged": "Claude 改了 {count} 段",
+        "undo": "撤销",
+        "undone": "已撤销",
+        "claudeExported": "Claude 导出了成片 · 已落到画布",
+        "look": "看看",
+        "backToCanvas": "回画布看",
+        "removed": "删了「{name}」",
+        "removedWith": "删了「{name}」，带走 {riders}",
+        "riderLines": "{count} 条台词",
+        "riderCaptions": "{count} 条字幕",
+        "ridersJoiner": "、"
+      },
+      "audioFilters": {
+        "all": "全部",
+        "voice": "语音",
+        "music": "配乐"
+      },
+      "libraryFilters": {
+        "all": "全部",
+        "video": "视频",
+        "audio": "音频"
+      },
+      "transitionPanel": {
+        "hint": "拖到两段之间的缝上"
+      },
+      "seam": {
+        "title": "转场",
+        "between": "镜 {from} → 镜 {to}",
+        "duration": "时长",
+        "durationHint": "两段在成片里重叠这么久，成片会短这么多秒。",
+        "seconds": "{sec}s",
+        "hardCut": "改回硬切",
+        "markerAdd": "加转场",
+        "markerSet": "转场 · {name}"
+      },
+      "library": {
+        "sourceLabel": "来自素材库 · {name}",
+        "landFailed": "这条素材没能落到画布上，再试一次。"
+      },
+      "text": {
+        "placeholder": "双击改文字",
+        "editInPreview": "在预览上改字",
+        "doubleClickHint": "双击直接改字",
+        "anchor": "位置",
+        "anchors": {
+          "tl": "左上",
+          "tc": "上中",
+          "tr": "右上",
+          "ml": "左中",
+          "mc": "正中",
+          "mr": "右中",
+          "bl": "左下",
+          "bc": "下中",
+          "br": "右下"
+        },
+        "size": "字号",
+        "sizes": {
+          "s": "小",
+          "m": "中",
+          "l": "大"
+        },
+        "tone": "颜色",
+        "tones": {
+          "light": "白",
+          "dark": "黑"
+        },
+        "inPoint": "入点",
+        "outPoint": "出点",
+        "fade": "淡入淡出",
+        "fadeNone": "无",
+        "fadeSeconds": "{fadeSec}s"
+      },
+      "shortcuts": {
+        "title": "快捷键预设",
+        "presets": {
+          "premiere": "Premiere",
+          "finalCut": "Final Cut"
+        },
+        "actions": {
+          "play": "播放 / 暂停",
+          "split": "分割",
+          "inOut": "入点 / 出点",
+          "remove": "删段",
+          "undo": "撤销",
+          "back": "回画布"
+        },
+        "finalCutHint": "Final Cut 预设：分割 ⌘B · 其余相同。S 一直有效。"
+      }
+    }
+  }
+}

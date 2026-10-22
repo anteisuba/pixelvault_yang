@@ -1,0 +1,119 @@
+{
+  "Settings": {
+    "title": "Settings",
+    "description": "API keys, usage, preferences and assistant settings.",
+    "back": "Back",
+    "backToList": "Back to Me",
+    "signOut": "Sign out",
+    "signingOut": "Signing out",
+    "sections": {
+      "keys": "API keys",
+      "usage": "Usage",
+      "preferences": "Preferences",
+      "assistant": "Assistant",
+      "connections": "Connections"
+    },
+    "keys": {
+      "caption": "Every route runs on your own key — only Gemini text runs on the platform.",
+      "loading": "Loading your keys…",
+      "monthlySpend": "{amount} this month",
+      "invalidSummary": "{count, plural, one {# key failing} other {# keys failing}}",
+      "status": {
+        "healthy": "Healthy",
+        "healthyWithStamp": "Healthy · verified {stamp}",
+        "invalid": "Key rejected",
+        "invalidWithStamp": "Key rejected · checked {stamp}",
+        "unverified": "Configured · never verified",
+        "unconfigured": "Not configured"
+      },
+      "configure": "Set up",
+      "replaceKey": "Replace key",
+      "toggleKeys": "Show {provider} keys",
+      "addAnother": "Add another key",
+      "reverify": "Re-check",
+      "lastVerified": "Verified {stamp}",
+      "neverVerified": "Never verified",
+      "deleteKey": "Delete key {label}",
+      "deleteDialog": {
+        "title": "Delete this key?",
+        "description": "“{label}” will be removed. Models that run on it stop working until you add another key.",
+        "cancel": "Cancel",
+        "confirm": "Delete"
+      }
+    },
+    "usage": {
+      "estimateNote": "estimate — your provider's invoice is the source of truth",
+      "loading": "Loading usage…",
+      "empty": "No requests this month yet.",
+      "columnProvider": "provider",
+      "columnRequests": "requests",
+      "columnCost": "estimated cost",
+      "runnerLabel": "Runner · self-hosted",
+      "runnerQuota": "{used} / {limit}",
+      "runnerCost": "$0 · resets {date}",
+      "total": "Total",
+      "footnote": "Requests come from your own usage ledger; cost is requests × that model's unit price. Models with no published unit price show a request count only."
+    },
+    "preferences": {
+      "language": "Language",
+      "displayName": "Display name",
+      "displayNamePlaceholder": "Your name",
+      "saving": "Saving",
+      "saved": "Saved",
+      "displayNameFailed": "Could not save the display name",
+      "defaultWorkbench": "Open by default",
+      "notifyOnComplete": "Notify me when a generation finishes",
+      "reduceMotion": "Reduce motion",
+      "workbench": {
+        "/studio/image": "Image workbench",
+        "/studio/video": "Video workbench",
+        "/studio/audio": "Audio workbench",
+        "/studio/node": "Canvas",
+        "/gallery": "Gallery"
+      }
+    },
+    "connections": {
+      "caption": "Let Claude read and edit your canvas projects · it can't spend credits",
+      "claudeCode": {
+        "title": "Claude Code",
+        "description": "Paste a token into Claude Code and Claude can read your canvas projects, cut edits and render drafts. Anything that spends credits is still your own click in the browser."
+      },
+      "create": "Create token",
+      "limit": "Up to {count} tokens. Revoke one you no longer use.",
+      "loading": "Loading tokens…",
+      "empty": "No tokens yet. Create one and paste it into Claude Code so Claude can edit for you.",
+      "retry": "Retry",
+      "nameLabel": "Token name",
+      "nameHint": "Name it after the computer it's for · Enter to create, Esc to cancel",
+      "generate": "Create",
+      "cancel": "Cancel",
+      "copy": "Copy",
+      "copyCommand": "Copy command",
+      "copied": "Copied",
+      "live": "Claude is using it",
+      "usedAt": "Used {stamp}",
+      "neverUsed": "Never used",
+      "createdOn": "Created {date}",
+      "revoke": "Revoke",
+      "revoked": "Revoked “{name}”",
+      "revokeDialog": {
+        "title": "Revoke “{name}”?",
+        "description": "Claude disconnects right away and this can't be undone. To reconnect, create a new token and paste it again."
+      },
+      "created": {
+        "title": "“{name}” is ready",
+        "once": "This token is shown only once",
+        "tokenLabel": "Token",
+        "commandLabel": "Connect Claude Code: run this in a terminal",
+        "verify": "Once connected, type /mcp in Claude Code to see antei.",
+        "done": "I've copied it"
+      },
+      "failed": {
+        "load": "Couldn't load tokens: the network didn't respond.",
+        "create": "Couldn't create the token. Try again.",
+        "limit": "You can have up to {count} active tokens. Revoke one you no longer use.",
+        "revoke": "Couldn't revoke the token. Try again."
+      }
+    }
+  }
+}

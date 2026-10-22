@@ -20735,6 +20735,47 @@ describe('set_capability · 专属 chip（进度表 21）', () => {
     expect(done.at(-1)).toMatchObject({ inverse: { value: 9 } })
   })
 
+  /** 标签台那格种子（10-21 真机：助手说「这个工作台没有种子选项」）。 */
+  it('⭐ 种子：锁成整数，撤销回「每次随机」；小数与出界都拒', async () => {
+    const request = buildRequest({
+      snapshot: {
+        ...SNAPSHOT,
+        capabilities: [
+          {
+            key: 'seed',
+            kind: 'seed',
+            value: null,
+            range: { min: 0, max: 4294967295, step: 1 },
+            available: true,
+          },
+        ],
+      },
+    })
+    queueTurns({ finished: true })
+    await collect(runAssistantOperator('clerk-1', request))
+    expect(lastUserPrompt()).toContain(
+      'seed: (not set — a new random seed every run) — a whole number from 0 to 4294967295',
+    )
+
+    callSetCapability({ key: 'seed', value: 3513516593 })
+    expect(
+      stepsOf(await collect(runAssistantOperator('clerk-1', request))).at(-1),
+    ).toMatchObject({
+      status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+      payload: { key: 'seed', value: 3513516593 },
+      inverse: { key: 'seed', value: null },
+    })
+
+    for (const value of [1.5, 4294967296]) {
+      callSetCapability({ key: 'seed', value })
+      expect(
+        stepsOf(await collect(runAssistantOperator('clerk-1', request))).at(-1),
+      ).toMatchObject({
+        error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.unknownValue },
+      })
+    }
+  })
+
   /**
    * 一轮多个模型（owner 2026-09-26）：这一行是整轮的并集，只看主模型的下场是
    * 主模型为 Lite 时 Pro 才有的 `background` 设不进去。

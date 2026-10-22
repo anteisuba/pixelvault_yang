@@ -1,5 +1,6 @@
+import { useEffect } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { act, renderHook, waitFor } from '@testing-library/react'
+import { act, render, renderHook, waitFor } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 
 import type { GalleryResponse, GenerationRecord } from '@/types'
@@ -230,6 +231,73 @@ describe('useGallery', () => {
     await waitFor(() => {
       expect(result.current.generations.map((item) => item.id)).toEqual(['cat'])
     })
+  })
+
+  // 助手里的素材弹层（10-22 bug「滑不下去」）：第二次打开先铺缓存的那一页、后台静默
+  // 刷新；哨兵一挂上就在视口里（一页填不满弹层，没有滚动条），可翻页被正在刷新的
+  // 那一发挡掉。刷新回来条数没变，观察器不重挂，就再也不翻页了。
+  it('keeps paging after a silent refresh swallowed the first load-more', async () => {
+    const observed: Element[] = []
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(private callback: IntersectionObserverCallback) {}
+        observe(target: Element) {
+          observed.push(target)
+          // 和浏览器一样：挂上之后异步报一次当前位置（哨兵在视口里）。
+          setTimeout(() =>
+            this.callback(
+              [{ isIntersecting: true, target } as IntersectionObserverEntry],
+              this as unknown as IntersectionObserver,
+            ),
+          )
+        }
+        disconnect() {}
+      },
+    )
+    writeGalleryCache(makeGalleryCacheKey(DEFAULT_FILTERS, true, 2), {
+      generations: [generation('a'), generation('b')],
+      total: 3,
+      hasMore: true,
+      nextCursor: 'cursor-1',
+    })
+    const refresh = deferred<GalleryResponse>()
+    mockFetchGalleryImages.mockImplementation((page) =>
+      page === 1
+        ? refresh.promise
+        : Promise.resolve(response([generation('c')], 2)),
+    )
+    function Picker() {
+      const { generations, hasMore, sentinelRef, setFilters } = useGallery({
+        mine: true,
+        limit: 2,
+      })
+      // 和 AssetPickerBrowser 一样：挂载后按自己的筛选取一次（命中缓存 → 静默刷新）。
+      useEffect(() => {
+        setFilters(DEFAULT_FILTERS)
+      }, [setFilters])
+      return (
+        <>
+          <p data-testid="ids">
+            {generations.map((item) => item.id).join(',')}
+          </p>
+          {hasMore ? <div ref={sentinelRef} /> : null}
+        </>
+      )
+    }
+    const { getByTestId } = render(<Picker />, { wrapper })
+
+    // 第一次「看见哨兵」落在刷新途中，被挡掉。
+    await waitFor(() => expect(observed.length).toBeGreaterThan(0))
+    await act(async () => new Promise((resolve) => setTimeout(resolve)))
+    expect(mockFetchGalleryImages).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      refresh.resolve(response([generation('a'), generation('b')], 1, true))
+      await refresh.promise
+    })
+    await waitFor(() => expect(getByTestId('ids').textContent).toBe('a,b,c'))
+    vi.unstubAllGlobals()
   })
 
   it('merges loadMore results in order without duplicate ids', async () => {

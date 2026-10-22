@@ -19,6 +19,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
+  User,
   X,
 } from '@/components/icons'
 import { LORA_ASSEMBLY_COLUMN_PX } from '@/constants/lora'
@@ -74,6 +75,8 @@ interface LoraAssemblyColumnProps {
   /** 底模给的权重值域；不给时行里只写 `×1.00`、没有滑杆。 */
   loraScaleConfig: NumericRange | undefined
   onAddLora: () => void
+  /** 「从角色选」：点她 → 从她收的 LoRA 里挑一个挂上（角色③）。 */
+  onPickFromCharacter: () => void
   collapsed: boolean
   onCollapsedChange: (collapsed: boolean) => void
   /**
@@ -106,6 +109,7 @@ export function LoraAssemblyColumn({
   onRequestKeySetup,
   loraScaleConfig,
   onAddLora,
+  onPickFromCharacter,
   collapsed,
   onCollapsedChange,
   onReturn,
@@ -461,14 +465,24 @@ export function LoraAssemblyColumn({
         </p>
       )}
 
-      <button
-        type="button"
-        onClick={onAddLora}
-        className="flex h-8.5 w-full shrink-0 items-center justify-center gap-1.5 rounded-xl border border-dashed border-foreground/20 text-xs text-muted-foreground transition-colors duration-fast hover:border-foreground/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <Plus className="size-3.5" aria-hidden />
-        {t('spine.addLoraFull')}
-      </button>
+      <div className="flex shrink-0 gap-1.5">
+        <button
+          type="button"
+          onClick={onAddLora}
+          className="flex h-8.5 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl border border-dashed border-foreground/20 text-xs text-muted-foreground transition-colors duration-fast hover:border-foreground/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Plus className="size-3.5" aria-hidden />
+          {t('spine.addLoraFull')}
+        </button>
+        <button
+          type="button"
+          onClick={onPickFromCharacter}
+          className="flex h-8.5 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-dashed border-foreground/20 px-3 text-xs text-muted-foreground transition-colors duration-fast hover:border-foreground/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <User className="size-3.5" aria-hidden />
+          {t('characterLoras.pickEntry')}
+        </button>
+      </div>
 
       {oftenMounted}
 

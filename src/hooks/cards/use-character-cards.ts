@@ -407,20 +407,21 @@ export function useCharacterCards(): UseCharacterCardsReturn {
         toast.error(created.error ?? t('characterCardCreateFailed'))
         return null
       }
-      const patched = await updateCharacterCardAPI(created.data.id, {
-        loras: card.loras,
-        ...(card.referenceSlots.length
-          ? { referenceSlots: card.referenceSlots }
-          : {}),
-      })
+      const patched = card.referenceSlots.length
+        ? await updateCharacterCardAPI(created.data.id, {
+            referenceSlots: card.referenceSlots,
+          })
+        : null
       // 补图没成也留着这张（名字和设定已经在了），照实说一句。
-      const copy = patched.success && patched.data ? patched.data : created.data
+      const copy =
+        patched?.success && patched.data ? patched.data : created.data
       setCards((prev) => {
         const next = [copy, ...prev]
         writeCardCache(CHARACTER_CARDS_CACHE_KEY, next)
         return next
       })
-      if (patched.success) toast.success(t('characterCardDuplicated', { name }))
+      if (!patched || patched.success)
+        toast.success(t('characterCardDuplicated', { name }))
       else toast.error(patched.error ?? t('characterCardUpdateFailed'))
       return copy
     },

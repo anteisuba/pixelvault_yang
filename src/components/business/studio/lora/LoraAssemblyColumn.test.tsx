@@ -54,6 +54,7 @@ function columnProps(props: { onReturn?: () => void } = {}) {
     onRequestKeySetup: vi.fn(),
     loraScaleConfig: undefined,
     onAddLora: vi.fn(),
+    onPickFromCharacter: vi.fn(),
     collapsed: true,
     onCollapsedChange: vi.fn(),
     ...props,

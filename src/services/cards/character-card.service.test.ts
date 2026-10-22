@@ -72,7 +72,6 @@ const FAKE_CARD = {
   isDeleted: false,
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
   updatedAt: new Date('2026-01-01T00:00:00.000Z'),
-  loras: null,
   variants: [],
 }
 

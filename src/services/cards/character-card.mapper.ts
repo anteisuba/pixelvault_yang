@@ -9,15 +9,12 @@ import {
   CharacterReferenceSlotsSchema,
   type CardTags,
   type CharacterReferenceSlot,
-  LoraSchema,
   type CharacterCardRecord,
   type CharacterPersona,
   type CharacterVoiceProfile,
 } from '@/types'
 import { TavernCardKeptSchema, type TavernCardKept } from '@/types/tavern-card'
 import { z } from 'zod'
-
-const NullableLorasSchema = z.array(LoraSchema).max(5).nullable()
 
 type JsonPrimitive = string | number | boolean | null
 type JsonValue =
@@ -29,7 +26,6 @@ export interface DbCharacterCardRow {
   id: string
   name: string
   description: string | null
-  loras: unknown
   tags: string[]
   parentId: string | null
   variantLabel: string | null
@@ -73,15 +69,13 @@ function readReferenceSlots(row: DbCharacterCardRow): CharacterReferenceSlot[] {
   return stored.success ? stored.data : []
 }
 
-function readCardTags(extensions: unknown): CardTags {
+export function readCardTags(extensions: unknown): CardTags {
   const value =
     extensions && typeof extensions === 'object'
       ? (extensions as Record<string, unknown>)[CARD_EXTENSIONS.KEYS.tags]
       : undefined
   const parsed = CardTagsSchema.safeParse(value)
-  return parsed.success
-    ? parsed.data
-    : { character: [], appearance: [], loraTrigger: '' }
+  return parsed.success ? parsed.data : { character: [], appearance: [] }
 }
 
 function readTavernKept(extensions: unknown): TavernCardKept | null {
@@ -120,7 +114,6 @@ export function mapCharacterCardRow(
     id: row.id,
     name: row.name,
     description: row.description,
-    loras: parseWithFallback(NullableLorasSchema, row.loras, null),
     tags: row.tags,
     parentId: row.parentId,
     variantLabel: row.variantLabel,
@@ -183,10 +176,4 @@ export function serializeCharacterCardV2Fields(input: {
   if (input.persona !== undefined)
     data.persona = input.persona ? toPrismaJson(input.persona) : null
   return data
-}
-
-export function serializeCharacterLoras(
-  loras: NonNullable<CharacterCardRecord['loras']>,
-): Prisma.InputJsonValue {
-  return toPrismaJson(loras)
 }

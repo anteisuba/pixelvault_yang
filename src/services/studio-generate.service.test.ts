@@ -170,7 +170,7 @@ describe('compileAndGenerate 卡片总线（进度表 35 ⑤）', () => {
     name: 'Denia',
     visual: 'red eyes, dark blue hair',
     negative: 'extra fingers',
-    tags: { character: [], appearance: [], loraTrigger: '' },
+    tags: { character: [], appearance: [] },
     slots: [
       {
         id: 'slot-1',

@@ -48,6 +48,7 @@ import type {
   LoraCandidateLicense,
 } from '@/types'
 
+import { LoraCharactersSection } from './LoraCharactersSection'
 import { LoraSampleVideo } from './LoraSampleVideo'
 
 /** ⋯ 菜单里宿主自己加的项（收藏里的自训：公开 / 私有、删除）。 */
@@ -810,6 +811,11 @@ export function LoraLibraryDetailPage({
                   </p>
                 )}
               </section>
+
+              <LoraCharactersSection
+                loraUrl={current.loraUrl}
+                titleClassName={blockTitle}
+              />
 
               {rating !== null || license ? (
                 <section className="flex flex-col gap-2">

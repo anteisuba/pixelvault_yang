@@ -3171,7 +3171,8 @@ export type CharacterPersona = z.infer<typeof CharacterPersonaSchema>
 
 /**
  * 卡的标签（`extensions['pv.tags']`，owner 09-26）：给 NovelAI / LoRA 这类只认标签的
- * 模型认人。角色标签如 `denia_(wuthering_waves)`；LoRA 只存触发词，⛔ 不记对应的 LoRA。
+ * 模型认人。角色标签如 `denia_(wuthering_waves)`。LoRA 触发词不存在这里，读她收的 LoRA 本身
+ * （角色③ 2026-10-22，`CharacterCardLora`）。
  */
 export const CardTagsSchema = z.object({
   character: z
@@ -3182,11 +3183,6 @@ export const CardTagsSchema = z.object({
     .array(z.string().trim().min(1).max(CARD_EXTENSIONS.TAG_MAX_LENGTH))
     .max(CARD_EXTENSIONS.MAX_APPEARANCE_TAGS)
     .default([]),
-  loraTrigger: z
-    .string()
-    .trim()
-    .max(CARD_EXTENSIONS.LORA_TRIGGER_MAX_LENGTH)
-    .default(''),
 })
 export type CardTags = z.infer<typeof CardTagsSchema>
 
@@ -3367,7 +3363,6 @@ export const UpdateCharacterCardSchema = z.object({
   /** 改参考槽：删一张、换主图、加一张。服务端按不变量校验。 */
   referenceSlots: CharacterReferenceSlotsSchema.optional(),
   /** Character-specific LoRA models */
-  loras: z.array(LoraSchema).max(5).nullable().optional(),
   /** ── 角色卡字段 v2（透传落库，无业务逻辑）── */
   voiceCardId: z.string().trim().min(1).max(64).nullable().optional(),
   voiceProfile: CharacterVoiceProfileSchema.nullable().optional(),
@@ -3392,7 +3387,6 @@ export interface CharacterCardRecord {
   id: string
   name: string
   description: string | null
-  loras: z.infer<typeof LoraSchema>[] | null
   tags: string[]
   /** Parent card ID (null for root cards) */
   parentId: string | null
@@ -4010,6 +4004,33 @@ export const LoraAssetRecordSchema = z.object({
 })
 
 export type LoraAssetRecord = z.infer<typeof LoraAssetRecordSchema>
+
+/**
+ * 角色收的 LoRA（角色③，2026-10-22）：一个角色一组。角色只负责收集 ——
+ * 挂在 LoRA 台「从角色选」，收进来在 LoRA 库详情「加到角色…」或训练完自动收。
+ * 权重用 LoRA 自己的 `defaultScale`，⛔ 不按角色另存。
+ */
+export const CharacterLoraGroupSchema = z.object({
+  characterCardId: z.string(),
+  name: z.string(),
+  coverUrl: z.string().nullable(),
+  /** 挂上她的 LoRA 后问一句要不要加进提示词（默认不加）。 */
+  appearanceTags: z.array(z.string()),
+  loras: z.array(LoraAssetRecordSchema),
+})
+export type CharacterLoraGroup = z.infer<typeof CharacterLoraGroupSchema>
+
+export const ListCharacterLorasQuerySchema = z.object({
+  characterCardId: z.string().min(1).optional(),
+})
+
+/** 这个 LoRA 属于哪些角色 —— 整组替换（勾掉的就不再收）。 */
+export const SetLoraCharactersSchema = z.object({
+  characterCardIds: z
+    .array(z.string().min(1))
+    .max(CHARACTER_CARD.MAX_CARDS_PER_USER),
+})
+export type SetLoraCharactersRequest = z.infer<typeof SetLoraCharactersSchema>
 
 // ─── Hugging Face LoRA discovery ─────────────────────────────────
 

@@ -37,6 +37,7 @@ import {
   PanelLeftOpen,
   Plus,
   RefreshCw,
+  User,
   RotateCcw,
   Search,
   SlidersHorizontal,
@@ -58,6 +59,7 @@ import {
   LORA_RUNNER_COLD_START_MINUTES,
   LORA_RUNNER_ETA_SECONDS,
   LORA_RUNNER_WARM_STORAGE_PREFIX,
+  LORA_TOAST_DURATION_MS,
   LORA_WORKBENCH_SEARCH_PARAM,
   LORA_WORKBENCH_SECTIONS,
   REDUCED_MOTION_MEDIA_QUERY,
@@ -90,6 +92,7 @@ import {
   RunnerSeedStringSchema,
   type AdvancedParams,
   type CivitaiImageRecipe,
+  type CharacterLoraGroup,
   type CivitaiRecipeExtraLora,
   type LoraAssetRecord,
   type RecipeLoraSetup,
@@ -108,6 +111,12 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { TrainWizard } from '@/components/business/studio/lora/training/TrainWizard'
 import { LoraAssetCard } from '@/components/business/studio/lora/LoraAssetCard'
 import { LoraAssemblyColumn } from '@/components/business/studio/lora/LoraAssemblyColumn'
+import { CharacterLoraPickDialog } from '@/components/business/studio/lora/CharacterLoraPickDialog'
+import {
+  CharacterLorasProvider,
+  useCharacterLorasContext,
+} from '@/components/business/studio/lora/character-loras-context'
+import { useCharacterLoras } from '@/hooks/cards/use-character-loras'
 import { LoraNegativeInertHint } from '@/components/business/studio/lora/LoraNegativeInertHint'
 import { LoraParamsChip } from '@/components/business/studio/lora/LoraParamsChip'
 import {
@@ -294,6 +303,16 @@ export function LoraWorkbench() {
   const libraryAssets = useMemo(
     () => [...trainedAssets, ...favoriteAssets],
     [trainedAssets, favoriteAssets],
+  )
+  // 角色收的 LoRA（角色③）：「从角色选」与库详情的「加到角色…」共用这一份。
+  const characterLoras = useCharacterLoras()
+  const characterLorasContext = useMemo(
+    () => ({
+      characterLoras,
+      ownedAssetFor: (loraUrl: string) =>
+        libraryAssets.find((asset) => asset.loraUrl === loraUrl) ?? null,
+    }),
+    [characterLoras, libraryAssets],
   )
 
   // 手机（<1024）的库：搜索框的 DOM 落点。搜索 state 仍留在各源 pane 的 hook
@@ -544,68 +563,70 @@ export function LoraWorkbench() {
   }
 
   return (
-    <div
-      className={cn(
-        // 手机（<1024，owner 2026-09-03 契约）：整页一张 workbench-card，卡内页头
-        // tab 行 + 助手在顶。四个 tab 统一锁高——卡片始终撑满地台，内容区自己滚。
-        // ⚠ 不能直接用 `h-dvh`：`/studio/lora` 在 <1024 上方还有一条 App 顶栏，
-        // `.lora-locked-height`（lora.css）扣掉它。
-        'domain-lora lora-locked-height flex w-full min-h-0 flex-col overflow-hidden',
-      )}
-    >
-      <div className="lora-ground flex min-h-0 flex-1 flex-col">
-        <div className="workbench-card lora-card flex min-w-0 flex-1 flex-col">
-          <div className="lora-bar flex w-full shrink-0 items-center gap-2 border-b border-border">
-            <Tabs value={tabValue} onValueChange={handleTabChange}>
-              <TabsList variant="line" className="h-8">
-                <TabsTrigger
-                  value={LORA_WORKBENCH_SECTIONS.GENERATE}
-                  className="px-3 text-sm"
-                >
-                  {t('tabs.generate')}
-                </TabsTrigger>
-                <TabsTrigger
-                  value={LORA_WORKBENCH_SECTIONS.COMMUNITY}
-                  className="px-3 text-sm"
-                >
-                  {t('tabs.library')}
-                </TabsTrigger>
-                <TabsTrigger
-                  value={LORA_WORKBENCH_SECTIONS.MINE}
-                  className="px-3 text-sm"
-                >
-                  {t('tabs.favorites')}
-                </TabsTrigger>
-                <TabsTrigger
-                  value={LORA_WORKBENCH_SECTIONS.TRAIN}
-                  className="px-3 text-sm"
-                >
-                  {t('tabs.train')}
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
+    <CharacterLorasProvider value={characterLorasContext}>
+      <div
+        className={cn(
+          // 手机（<1024，owner 2026-09-03 契约）：整页一张 workbench-card，卡内页头
+          // tab 行 + 助手在顶。四个 tab 统一锁高——卡片始终撑满地台，内容区自己滚。
+          // ⚠ 不能直接用 `h-dvh`：`/studio/lora` 在 <1024 上方还有一条 App 顶栏，
+          // `.lora-locked-height`（lora.css）扣掉它。
+          'domain-lora lora-locked-height flex w-full min-h-0 flex-col overflow-hidden',
+        )}
+      >
+        <div className="lora-ground flex min-h-0 flex-1 flex-col">
+          <div className="workbench-card lora-card flex min-w-0 flex-1 flex-col">
+            <div className="lora-bar flex w-full shrink-0 items-center gap-2 border-b border-border">
+              <Tabs value={tabValue} onValueChange={handleTabChange}>
+                <TabsList variant="line" className="h-8">
+                  <TabsTrigger
+                    value={LORA_WORKBENCH_SECTIONS.GENERATE}
+                    className="px-3 text-sm"
+                  >
+                    {t('tabs.generate')}
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value={LORA_WORKBENCH_SECTIONS.COMMUNITY}
+                    className="px-3 text-sm"
+                  >
+                    {t('tabs.library')}
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value={LORA_WORKBENCH_SECTIONS.MINE}
+                    className="px-3 text-sm"
+                  >
+                    {t('tabs.favorites')}
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value={LORA_WORKBENCH_SECTIONS.TRAIN}
+                    className="px-3 text-sm"
+                  >
+                    {t('tabs.train')}
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
 
-          <div
-            key={bodyKey}
-            className={cn(
-              'min-h-0 flex-1 animate-in fade-in duration-200',
-              isGenerate
-                ? 'flex min-h-0 flex-col overflow-hidden'
-                : activeSection === LORA_WORKBENCH_SECTIONS.COMMUNITY
-                  ? 'flex flex-col overflow-hidden p-3'
-                  : 'overflow-y-auto p-3',
-            )}
-          >
-            {generateBranch}
-            {libraryBody}
-            {activeSection === LORA_WORKBENCH_SECTIONS.TRAIN ? (
-              <TrainWizard />
-            ) : null}
+            <div
+              key={bodyKey}
+              className={cn(
+                'min-h-0 flex-1 animate-in fade-in duration-200',
+                isGenerate
+                  ? 'flex min-h-0 flex-col overflow-hidden'
+                  : activeSection === LORA_WORKBENCH_SECTIONS.COMMUNITY
+                    ? 'flex flex-col overflow-hidden p-3'
+                    : 'overflow-y-auto p-3',
+              )}
+            >
+              {generateBranch}
+              {libraryBody}
+              {activeSection === LORA_WORKBENCH_SECTIONS.TRAIN ? (
+                <TrainWizard />
+              ) : null}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </CharacterLorasProvider>
   )
 }
 
@@ -2021,6 +2042,42 @@ function GenerateBranch({
       })),
     [compatibleBases, operatorBaseLabel],
   )
+  // 「从角色选」（角色③，owner 2026-10-22）：点她 → 挑她收的一个 LoRA 挂上；她有外观
+  // 标签就在提示里问一句要不要加进正文（默认不加，⛔ 自动写）。
+  const characterLorasContext = useCharacterLorasContext()
+  const tCharacterLoras = useTranslations('LoraWorkbench.characterLoras')
+  const [characterPickOpen, setCharacterPickOpen] = useState(false)
+  const openCharacterPick = useCallback(() => {
+    setCharacterPickOpen(true)
+    void characterLorasContext?.characterLoras.refresh()
+  }, [characterLorasContext])
+  const handlePickCharacterLora = useCallback(
+    (group: CharacterLoraGroup, lora: LoraAssetRecord) => {
+      setCharacterPickOpen(false)
+      if (!stack.items.some((item) => item.asset.id === lora.id)) {
+        stack.push(lora)
+      }
+      const tags = group.appearanceTags.join(', ')
+      toast.success(
+        tCharacterLoras('mountedFromCharacter', {
+          lora: lora.name,
+          character: group.name,
+        }),
+        tags
+          ? {
+              duration: LORA_TOAST_DURATION_MS,
+              action: {
+                label: tCharacterLoras('addAppearanceTags'),
+                onClick: () =>
+                  setPrompt((prev) => appendPromptFragments(prev, tags)),
+              },
+            }
+          : { duration: LORA_TOAST_DURATION_MS },
+      )
+    },
+    [stack, tCharacterLoras],
+  )
+
   // 库 / 收藏住在这副舞台里：它们判断「装不装得上」要的底模从这里给（lora-library.md §4）。
   const stageContext = useMemo(
     () => ({
@@ -2885,6 +2942,7 @@ function GenerateBranch({
         activeRecipeGroupId={recipeGroupKey}
         onSelectRecipeGroup={setRecipeGroupAssetId}
         onAddLora={onOpenLibrary}
+        onPickFromCharacter={openCharacterPick}
         triggerEntries={triggerChipEntries}
         disabledTriggerIds={disabledTriggerIds}
         onToggleTrigger={handleToggleTriggerChip}
@@ -3032,6 +3090,18 @@ function GenerateBranch({
   // 两套骨架共用的弹层：缺 key 快速配置 · 结果大图 · 库。
   const sharedDialogs = (
     <>
+      {characterLorasContext ? (
+        <CharacterLoraPickDialog
+          open={characterPickOpen}
+          onOpenChange={setCharacterPickOpen}
+          groups={characterLorasContext.characterLoras.groups}
+          isLoading={characterLorasContext.characterLoras.isLoading}
+          isMounted={(assetId) =>
+            stack.items.some((item) => item.asset.id === assetId)
+          }
+          onPick={handlePickCharacterLora}
+        />
+      ) : null}
       {quickSetup && (
         <QuickSetupDialog
           open={quickSetup.open}
@@ -4029,6 +4099,7 @@ function GenerateBranch({
           }
           loraScaleConfig={loraScaleConfig}
           onAddLora={onOpenLibrary}
+          onPickFromCharacter={openCharacterPick}
           // 在库里整列让成竖条；回到生成台时回到你自己收没收的那一档。
           collapsed={libraryActive || assemblyCollapsed}
           onCollapsedChange={setAssemblyCollapsed}
@@ -4639,6 +4710,8 @@ interface LoraSpineBarProps {
   onSelectRecipeGroup: (assetId: string) => void
   /** G1（R3 装配行）：容量位「+添加」路由去库挑 LoRA。 */
   onAddLora: () => void
+  /** 「从角色选」（角色③）。 */
+  onPickFromCharacter: () => void
   /** CD 装配栏「触发词」段：挂载 LoRA 的触发词 chips，可单独停用（虚线 + 删除
    *  线）。与搭配审阅卡里那份共用同一套 disabled 状态，两处互为镜像。 */
   triggerEntries: readonly TriggerChipEntry[]
@@ -4661,6 +4734,7 @@ function LoraSpineBar({
   activeRecipeGroupId,
   onSelectRecipeGroup,
   onAddLora,
+  onPickFromCharacter,
   triggerEntries,
   disabledTriggerIds,
   onToggleTrigger,
@@ -5100,14 +5174,24 @@ function LoraSpineBar({
       {/* CD：「＋ 添加 LoRA」是整宽虚线按钮（栈的收尾位·点开库 modal）。原先按钮
           下方那行 `N/M` 余量小字已删——挂载不设上限后没有 M 可言，而「已挂 N」
           在本栏顶部早就有了，再放一个只会让人以为还有个上限。 */}
-      <button
-        type="button"
-        onClick={onAddLora}
-        className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border/60 py-2.5 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground"
-      >
-        <Plus className="size-3.5" aria-hidden />
-        {t('spine.addLoraFull')}
-      </button>
+      <div className="flex gap-1.5">
+        <button
+          type="button"
+          onClick={onAddLora}
+          className="flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border border-dashed border-border/60 py-2.5 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground"
+        >
+          <Plus className="size-3.5" aria-hidden />
+          {t('spine.addLoraFull')}
+        </button>
+        <button
+          type="button"
+          onClick={onPickFromCharacter}
+          className="flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-dashed border-border/60 px-3 py-2.5 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground"
+        >
+          <User className="size-3.5" aria-hidden />
+          {t('characterLoras.pickEntry')}
+        </button>
+      </div>
       {/* CD 装配栏「触发词」段：可单独停用的高亮 chips（停用=虚线 + 删除线，
           不进编译）。与搭配审阅卡里那份共用同一套 disabled 状态。 */}
       {triggerEntries.length > 0 ? (

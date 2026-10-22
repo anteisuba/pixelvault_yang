@@ -798,21 +798,6 @@ export async function checkLoraTrainingStatus(
     include: { loraAsset: { select: { styleCode: true } } },
   })
 
-  // If completed and linked to a character card, auto-bind the LoRA
-  if (newStatus === 'COMPLETED' && loraUrl && updated.characterCardId) {
-    await db.characterCard.update({
-      where: { id: updated.characterCardId },
-      data: {
-        loras: [{ url: loraUrl, scale: 1.0 }],
-      },
-    })
-    logger.info('LoRA auto-bound to character card', {
-      jobId,
-      characterCardId: updated.characterCardId,
-      loraUrl,
-    })
-  }
-
   if (newStatus === 'COMPLETED') {
     await ensureLoraAssetFromTrainingJob(jobId)
   }

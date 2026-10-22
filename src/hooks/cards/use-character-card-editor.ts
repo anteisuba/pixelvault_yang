@@ -34,7 +34,6 @@ export interface CharacterCardDraft {
   backstory: string
   characterTags: string
   appearanceTags: string
-  loraTrigger: string
   /** 作品手改值；空 = 从角色标签取。 */
   work: string
   slots: CharacterReferenceSlot[]
@@ -119,7 +118,6 @@ export function draftFromCard(card: CharacterCardRecord): CharacterCardDraft {
     backstory: fullBackstory(card),
     characterTags: card.cardTags.character.join(', '),
     appearanceTags: card.cardTags.appearance.join(', '),
-    loraTrigger: card.cardTags.loraTrigger,
     work: card.workOverride ?? '',
     slots: card.referenceSlots,
     scenario: card.persona?.scenario ?? '',
@@ -164,7 +162,6 @@ export function updateFromDraft(
       [CARD_EXTENSIONS.KEYS.tags]: {
         character: splitTags(draft.characterTags),
         appearance: splitTags(draft.appearanceTags),
-        loraTrigger: draft.loraTrigger.trim(),
       },
       // 清空 = 删键（回到从标签取）。
       [CARD_EXTENSIONS.KEYS.work]:

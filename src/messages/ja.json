@@ -2778,6 +2778,23 @@
       "emptyBodyLoosen": "{scope} には一件もありません。条件を一つゆるめてみてください：",
       "mountChoose": "マウント…",
       "mountChooseLabel": "{name} をマウント（先にファイルを選ぶ）"
+    },
+    "characterLoras": {
+      "pickEntry": "キャラから選ぶ",
+      "pickTitle": "キャラから選ぶ",
+      "back": "戻る",
+      "mounted": "適用中",
+      "emptyCharacters": "LoRA を持つキャラはまだいません",
+      "loraCount": "LoRA {count} 個",
+      "mountedFromCharacter": "{lora} を適用しました（{character}）",
+      "addAppearanceTags": "外見タグを追加",
+      "sectionTitle": "キャラ",
+      "addToCharacter": "キャラに追加…",
+      "noCharacters": "キャラがまだいません",
+      "cancel": "キャンセル",
+      "save": "保存",
+      "loadFailed": "キャラの LoRA を読み込めませんでした",
+      "saveFailed": "保存できませんでした。もう一度お試しください"
     }
   },
   "UseLoraButton": {
@@ -9138,7 +9155,6 @@
     "fieldLooks": "外見をひとこと",
     "fieldCharacterTags": "キャラタグ（NAI / LoRA 用）",
     "fieldAppearanceTags": "外見タグ",
-    "fieldLoraTrigger": "LoRA トリガーワード",
     "behaviorHint": "形容詞ではなく行動で書きます。「まず相手に傘を差しかける」は「優しい」より伝わります。",
     "primary": "メイン",
     "makePrimary": "メインにする",
@@ -9232,7 +9248,9 @@
     },
     "libraryTag": "タグ",
     "libraryTagAll": "すべて",
-    "libraryTagMenu": "タグで絞り込む"
+    "libraryTagMenu": "タグで絞り込む",
+    "fieldLoras": "LoRA",
+    "lorasEmpty": "まだありません"
   },
   "StudioTemplates": {
     "titleImage": "画像テンプレート · {count}",

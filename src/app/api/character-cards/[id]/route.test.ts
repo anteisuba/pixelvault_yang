@@ -36,7 +36,6 @@ const FAKE_CHARACTER_CARD = {
   id: CARD_ID,
   name: 'Mira',
   description: null,
-  loras: null,
   tags: [],
   parentId: null,
   variantLabel: null,

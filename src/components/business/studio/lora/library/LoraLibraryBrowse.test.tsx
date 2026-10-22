@@ -294,6 +294,58 @@ describe('LoraLibraryBrowse（库 B · Civitai）', () => {
     expect(mockSetNsfwFilter).toHaveBeenCalledWith('unrestricted')
   })
 
+  it('points at results the base model hides when a search does find some', async () => {
+    const setBaseModel = vi.fn()
+    mockLibrary = libraryState({
+      total: 2,
+      hasNextPage: false,
+      debouncedSearch: 'jinhsi',
+      baseModel: 'Illustrious',
+      setBaseModel,
+    })
+    mockListAPI.mockImplementation(async (params: Record<string, unknown>) => ({
+      success: true,
+      data: { items: [], total: params.baseModel === 'all' ? 5 : 2 },
+    }))
+    renderBrowse()
+
+    await waitFor(() =>
+      expect(
+        screen.getByText('LoraWorkbench.browse:relaxCount:{"count":5}'),
+      ).toBeInTheDocument(),
+    )
+    // 只问底模这一项（分级是 safe 也不问）。
+    expect(mockListAPI).toHaveBeenCalledTimes(1)
+    fireEvent.click(
+      screen.getByRole('button', { name: /LoraWorkbench\.browse:relaxBase/ }),
+    )
+    expect(setBaseModel).toHaveBeenCalledWith('all')
+  })
+
+  it('says nothing about the base model when it hides nothing, or when only browsing', async () => {
+    mockLibrary = libraryState({
+      total: 2,
+      hasNextPage: false,
+      debouncedSearch: 'jinhsi',
+      baseModel: 'Illustrious',
+    })
+    mockListAPI.mockResolvedValue({
+      success: true,
+      data: { items: [], total: 2 },
+    })
+    const { unmount } = renderBrowse()
+    await waitFor(() => expect(mockListAPI).toHaveBeenCalledTimes(1))
+    expect(
+      screen.queryByRole('button', { name: /LoraWorkbench\.browse:relaxBase/ }),
+    ).toBeNull()
+    unmount()
+
+    mockListAPI.mockClear()
+    mockLibrary = libraryState({ baseModel: 'Illustrious' })
+    renderBrowse()
+    expect(mockListAPI).not.toHaveBeenCalled()
+  })
+
   it('raises the detail page over the grid and puts it back on ‹', async () => {
     renderBrowse()
 

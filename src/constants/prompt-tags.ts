@@ -6,7 +6,11 @@ export const PROMPT_TAG_DEFINITIONS = [
   ...PROMPT_TAG_DANBOORU_DEFINITIONS,
 ] as const
 
-export const PROMPT_TAG_RECENT_STORAGE_PREFIX = 'pv.prompt-tags.recent.v1'
+/** 标签堆每一面（正 / 负）最多几个；账号里那份按它校验。 */
+export const PROMPT_TAG_STACK_MAX_SELECTIONS = 200
+
+/** 标签堆改动后等这么久再存到账号里，连续点几下只存一次。 */
+export const PROMPT_TAG_STACK_SAVE_DEBOUNCE_MS = 800
 
 // lora-workbench.md §5：PromptTagAutocomplete（正文 inline 补全）配置。
 /** 词段长度达到这个阈值才触发搜索/浮层。 */

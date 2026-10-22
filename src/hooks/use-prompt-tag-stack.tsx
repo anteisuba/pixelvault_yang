@@ -12,88 +12,52 @@ import {
 } from 'react'
 import { useAuth } from '@clerk/nextjs'
 
-import { PROMPT_TAG_RECENT_STORAGE_PREFIX } from '@/constants/prompt-tags'
-import type {
-  PromptPolarity,
-  PromptTagDefinition,
-  PromptTagSelection,
-  PromptTagStack,
+import { PROMPT_TAG_STACK_SAVE_DEBOUNCE_MS } from '@/constants/prompt-tags'
+import {
+  getPromptTagStackAPI,
+  savePromptTagStackAPI,
+} from '@/lib/api-client/prompt-tag-stack'
+import {
+  PromptTagSelectionSchema,
+  type PromptPolarity,
+  type PromptTagDefinition,
+  type PromptTagSelection,
+  type PromptTagStack,
+  type PromptTagStackSides,
 } from '@/types/prompt-tags'
 
-const STORAGE_KEY_PREFIX = 'pv.prompt-tag-stack.v1'
+/**
+ * 标签堆存在账号里（`/api/prompt-tags/stack`）。2026-10-22 之前只存在这个浏览器
+ * key 下：账号里还没有那一份时读一次、传上去，之后不再读写它。
+ */
+const LEGACY_STORAGE_KEY_PREFIX = 'pv.prompt-tag-stack.v1'
 
-function getStorageKey(clerkId: string): string {
-  return `${STORAGE_KEY_PREFIX}.${clerkId}`
+function readSelections(value: unknown): PromptTagSelection[] {
+  if (!Array.isArray(value)) return []
+  return value.flatMap((item) => {
+    const parsed = PromptTagSelectionSchema.safeParse(item)
+    return parsed.success ? [parsed.data] : []
+  })
 }
 
-function isPolarity(value: unknown): value is PromptPolarity {
-  return value === 'positive' || value === 'negative'
-}
-
-function isPromptTagSelection(value: unknown): value is PromptTagSelection {
-  if (!value || typeof value !== 'object') return false
-  const record = value as Record<string, unknown>
-  return (
-    typeof record.id === 'string' &&
-    typeof record.tagId === 'string' &&
-    typeof record.promptText === 'string' &&
-    typeof record.label === 'string' &&
-    isPolarity(record.polarity) &&
-    typeof record.source === 'string' &&
-    typeof record.type === 'string' &&
-    typeof record.enabled === 'boolean' &&
-    typeof record.orderIndex === 'number' &&
-    typeof record.insertedAt === 'string' &&
-    (record.weight === undefined || typeof record.weight === 'number')
-  )
-}
-
-function readFromStorage(clerkId: string): {
-  positive: PromptTagSelection[]
-  negative: PromptTagSelection[]
-} {
-  if (typeof window === 'undefined') return { positive: [], negative: [] }
+function readLegacyStack(clerkId: string): PromptTagStackSides {
+  const empty = { positive: [], negative: [] }
+  if (typeof window === 'undefined') return empty
   try {
-    const raw = window.localStorage.getItem(getStorageKey(clerkId))
-    if (!raw) return { positive: [], negative: [] }
-    const parsed = JSON.parse(raw) as unknown
-    if (!parsed || typeof parsed !== 'object') {
-      return { positive: [], negative: [] }
-    }
-    const stack = parsed as Partial<PromptTagStack>
-    if (stack.ownerClerkId !== clerkId || stack.version !== 1) {
-      return { positive: [], negative: [] }
+    const raw = window.localStorage.getItem(
+      `${LEGACY_STORAGE_KEY_PREFIX}.${clerkId}`,
+    )
+    if (!raw) return empty
+    const stack = JSON.parse(raw) as Partial<PromptTagStack> | null
+    if (!stack || stack.ownerClerkId !== clerkId || stack.version !== 1) {
+      return empty
     }
     return {
-      positive: Array.isArray(stack.positive)
-        ? stack.positive.filter(isPromptTagSelection)
-        : [],
-      negative: Array.isArray(stack.negative)
-        ? stack.negative.filter(isPromptTagSelection)
-        : [],
+      positive: readSelections(stack.positive),
+      negative: readSelections(stack.negative),
     }
   } catch {
-    return { positive: [], negative: [] }
-  }
-}
-
-function writeToStorage(
-  clerkId: string,
-  positive: PromptTagSelection[],
-  negative: PromptTagSelection[],
-): void {
-  if (typeof window === 'undefined') return
-  try {
-    const stack: PromptTagStack = {
-      ownerClerkId: clerkId,
-      version: 1,
-      positive,
-      negative,
-      updatedAt: new Date().toISOString(),
-    }
-    window.localStorage.setItem(getStorageKey(clerkId), JSON.stringify(stack))
-  } catch {
-    // Storage can be full or disabled; keep the in-memory stack usable.
+    return empty
   }
 }
 
@@ -140,33 +104,84 @@ const PromptTagStackContext = createContext<PromptTagStackValue | null>(null)
 export function PromptTagProvider({ children }: { children: ReactNode }) {
   const [positive, setPositive] = useState<PromptTagSelection[]>([])
   const [negative, setNegative] = useState<PromptTagSelection[]>([])
+  // 只有从账号里读到（或首次传上去）之后才往回存：读失败时 ⛔ 不拿空堆盖掉账号里那份。
   const hasHydrated = useRef(false)
   const loadedForClerkId = useRef<string | null>(null)
+  const lastSavedJson = useRef<string | null>(null)
+  const pendingSave = useRef<PromptTagStackSides | null>(null)
   const { isLoaded, userId } = useAuth()
   const activeClerkId = isLoaded ? userId : null
 
   useEffect(() => {
     hasHydrated.current = false
-    if (activeClerkId === null) {
-      loadedForClerkId.current = null
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setPositive([])
-      setNegative([])
-      return
-    }
-
+    pendingSave.current = null
     loadedForClerkId.current = activeClerkId
-    const stored = readFromStorage(activeClerkId)
-    setPositive(stored.positive)
-    setNegative(stored.negative)
-    hasHydrated.current = true
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPositive([])
+    setNegative([])
+    if (activeClerkId === null) return
+
+    let cancelled = false
+    const apply = (stack: PromptTagStackSides) => {
+      setPositive(stack.positive)
+      setNegative(stack.negative)
+      lastSavedJson.current = JSON.stringify(stack)
+      hasHydrated.current = true
+    }
+    getPromptTagStackAPI()
+      .then(async (stored) => {
+        if (cancelled) return
+        if (stored) {
+          apply(stored)
+          return
+        }
+        const legacy = readLegacyStack(activeClerkId)
+        if (legacy.positive.length > 0 || legacy.negative.length > 0) {
+          await savePromptTagStackAPI(legacy)
+          if (cancelled) return
+        }
+        apply(legacy)
+      })
+      .catch(() => {
+        // 读不到就先空着、不存；下次进页面再读。
+      })
+    return () => {
+      cancelled = true
+    }
   }, [activeClerkId])
+
+  const flushSave = useCallback(() => {
+    const stack = pendingSave.current
+    if (!stack) return
+    pendingSave.current = null
+    const json = JSON.stringify(stack)
+    if (json === lastSavedJson.current) return
+    lastSavedJson.current = json
+    void savePromptTagStackAPI(stack).catch(() => {
+      // 下一次改动会再存整份；这里不重试。
+      lastSavedJson.current = null
+    })
+  }, [])
 
   useEffect(() => {
     if (!hasHydrated.current || activeClerkId === null) return
     if (loadedForClerkId.current !== activeClerkId) return
-    writeToStorage(activeClerkId, positive, negative)
-  }, [activeClerkId, positive, negative])
+    pendingSave.current = { positive, negative }
+    const timer = window.setTimeout(
+      flushSave,
+      PROMPT_TAG_STACK_SAVE_DEBOUNCE_MS,
+    )
+    return () => window.clearTimeout(timer)
+  }, [activeClerkId, positive, negative, flushSave])
+
+  // 离开 LoRA 台或关页时，没等到的那次也存掉。
+  useEffect(() => {
+    window.addEventListener('pagehide', flushSave)
+    return () => {
+      window.removeEventListener('pagehide', flushSave)
+      flushSave()
+    }
+  }, [flushSave])
 
   const addTag = useCallback((tag: PromptTagDefinition) => {
     const update = (prev: PromptTagSelection[]) => {
@@ -247,8 +262,4 @@ export function usePromptTagStack(): PromptTagStackValue {
     )
   }
   return ctx
-}
-
-export function getPromptTagRecentStorageKey(clerkId: string): string {
-  return `${PROMPT_TAG_RECENT_STORAGE_PREFIX}.${clerkId}`
 }

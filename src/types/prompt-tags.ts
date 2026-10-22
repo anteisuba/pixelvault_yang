@@ -1,3 +1,7 @@
+import { z } from 'zod'
+
+import { PROMPT_TAG_STACK_MAX_SELECTIONS } from '@/constants/prompt-tags'
+
 export const PROMPT_TAG_TYPE_VALUES = [
   'quality',
   'aesthetic',
@@ -68,20 +72,35 @@ export interface PromptTagDefinition {
   requires?: readonly string[]
 }
 
-export interface PromptTagSelection {
-  id: string
-  tagId: string
-  promptText: string
-  label: string
-  polarity: PromptPolarity
-  source: PromptTagSource
-  type: PromptTagType
-  weight?: number
-  enabled: boolean
-  orderIndex: number
-  insertedAt: string
-}
+export const PromptTagSelectionSchema = z.object({
+  id: z.string().min(1).max(200),
+  tagId: z.string().min(1).max(500),
+  promptText: z.string().max(2000),
+  label: z.string().max(500),
+  polarity: z.enum(PROMPT_POLARITY_VALUES),
+  source: z.enum(PROMPT_TAG_SOURCE_VALUES),
+  type: z.enum(PROMPT_TAG_TYPE_VALUES),
+  weight: z.number().finite().optional(),
+  enabled: z.boolean(),
+  orderIndex: z.number().finite(),
+  insertedAt: z.string().max(64),
+})
 
+export type PromptTagSelection = z.infer<typeof PromptTagSelectionSchema>
+
+/** 账号里存的那份标签堆（`PromptTagStack` 表）：读写接口的形状。 */
+export const PromptTagStackSidesSchema = z.object({
+  positive: z
+    .array(PromptTagSelectionSchema)
+    .max(PROMPT_TAG_STACK_MAX_SELECTIONS),
+  negative: z
+    .array(PromptTagSelectionSchema)
+    .max(PROMPT_TAG_STACK_MAX_SELECTIONS),
+})
+
+export type PromptTagStackSides = z.infer<typeof PromptTagStackSidesSchema>
+
+/** 旧版只存在浏览器里的那份（`pv.prompt-tag-stack.v1.<clerkId>`）：只在首次上传时读。 */
 export interface PromptTagStack {
   ownerClerkId: string
   version: 1

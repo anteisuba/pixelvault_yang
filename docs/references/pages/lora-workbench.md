@@ -37,7 +37,7 @@
 - 全局字体/材质切换、任何新颜料。
 
 **别重造清单**（改动必须复用，grep 过 exports）：
-`LoraCoverTile`（封面瓦）· `CivitaiLoraInspector`（抽屉基底）· `LoraScaleChip` / `LoraAspectRatioChip` / `LoraReferenceImageChip` · `useActiveLoraStack` / `LoraStackProvider` · `useCivitaiMinedPrompts`（推荐搭配数据源）· `searchPromptTags` + `usePromptTagStack` + `PromptTagTray`（danbooru 引擎三件套）· `isLoraBaseModelMountCompatible`（兼容判定）· `civitai-search-history.ts` · `QuickSetupDialog` · ResponsiveOverlay 家族（桌面 Popover ↔ 手机 Drawer，见 `references/frontend.md` 强约定矩阵）。
+`LoraCoverTile`（封面瓦）· `CivitaiLoraInspector`（抽屉基底）· `LoraScaleChip` / `LoraAspectRatioChip` / `LoraReferenceImageChip` · `useActiveLoraStack` / `LoraStackProvider` · `useCivitaiMinedPrompts`（推荐搭配数据源）· `searchPromptTags` + `usePromptTagStack`（标签堆存在账号里，`/api/prompt-tags/stack`，改动 0.8 秒后整份保存）+ `PromptTagTray`（danbooru 引擎三件套）· `isLoraBaseModelMountCompatible`（兼容判定）· `civitai-search-history.ts` · `QuickSetupDialog` · ResponsiveOverlay 家族（桌面 Popover ↔ 手机 Drawer，见 `references/frontend.md` 强约定矩阵）。
 
 ## 1. 现状 → 缺口对照（2026-07-17 代码核实）
 

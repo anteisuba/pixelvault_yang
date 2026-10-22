@@ -36,6 +36,12 @@ export type McpToken = Prisma.McpTokenModel
  */
 export type DanbooruFavorite = Prisma.DanbooruFavoriteModel
 /**
+ * Model PromptTagStack
+ * LoRA 台挑好的标签堆（正面 / 负面），一个用户一份，跨设备同步。
+ * 两列都是 `PromptTagSelection[]`（`types/prompt-tags.ts` 的 `PromptTagSelectionsSchema`）。
+ */
+export type PromptTagStack = Prisma.PromptTagStackModel
+/**
  * Model AssistantConversation
  * Persisted assistant chat (Node canvas and Studio). Messages are JSON
  * text-only (plus remote media URLs) — never base64 payloads.

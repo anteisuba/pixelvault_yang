@@ -18,6 +18,7 @@ import { Prisma } from '@/lib/generated/prisma/client'
 import {
   assistantKey,
   seedAssistantRoute,
+  type AssistantKeyRow,
   type AssistantKeyStoreMocks,
 } from '@/test/assistant-route-fixture'
 
@@ -289,6 +290,8 @@ function createReplayDb() {
     /** 每道题开跑前：清账、配 key、写人设、认这块画布。 */
     reset(setup: {
       keys: readonly AI_ADAPTER_TYPES[]
+      /** 整行给的 key（实跑评测用库里那把真密文）；给了就不用 `keys`。 */
+      keyRows?: readonly AssistantKeyRow[]
       routeModel: string
       projectId: string
       conversationId?: string
@@ -301,7 +304,9 @@ function createReplayDb() {
       keyStore.findMany.mockReset()
       keyStore.personaFindUnique.mockReset()
       seedAssistantRoute(keyStore, {
-        keys: setup.keys.map((adapterType) => assistantKey(adapterType)),
+        keys:
+          setup.keyRows ??
+          setup.keys.map((adapterType) => assistantKey(adapterType)),
         routeModel: setup.routeModel,
       })
       keyStore.personaFindUnique.mockResolvedValue(personaRow(setup.routeModel))

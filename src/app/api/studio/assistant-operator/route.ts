@@ -10,6 +10,8 @@ import {
 } from '@/constants/assistant-v3'
 import { runAssistantOperator } from '@/services/kernel/assistant-operator.service'
 import { runAssistantV3 } from '@/services/kernel/assistant-v3.service'
+import { ASSISTANT_NEXT_DOMAINS } from '@/features/assistant/constants'
+import { runAssistantNext } from '@/features/assistant/kernel'
 import { isAdmin } from '@/lib/admin'
 import { toAssistantOperatorSseResponse } from '@/lib/assistant-operator-stream'
 import { isGenerationError } from '@/lib/errors'
@@ -109,6 +111,14 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
     const useV3 =
       ASSISTANT_V3_FACES.includes(parsed.data.domain) && !legacyKernelAllowed
+    /**
+     * 重设计的新内核（第 2 步骨架）：同样只有 owner 认，先只接图片台与 LoRA 台。
+     * 别的台、别人发了 `next` 照走 v3。
+     */
+    const useNext =
+      parsed.data.kernel === ASSISTANT_KERNEL_IDS.next &&
+      ASSISTANT_NEXT_DOMAINS.includes(parsed.data.domain) &&
+      isAdmin(clerkId)
 
     // ⚠ 工具环是惰性的（async generator）：它到成帧器 `for await` 才开始跑，所以
     //    `open` 帧一定排在第一次 LLM 往返之前。别在这里先 await 一下"预热"。
@@ -116,9 +126,11 @@ export async function POST(request: NextRequest): Promise<Response> {
       routeName,
       signal: request.signal,
       events: (signal) =>
-        useV3
-          ? runAssistantV3(clerkId, parsed.data, { signal })
-          : runAssistantOperator(clerkId, parsed.data, { signal }),
+        useNext
+          ? runAssistantNext(clerkId, parsed.data, { signal })
+          : useV3
+            ? runAssistantV3(clerkId, parsed.data, { signal })
+            : runAssistantOperator(clerkId, parsed.data, { signal }),
     })
   } catch (error) {
     // 只有「还没开始出流」的失败会落到这里。流开始之后再挂，是成帧器补的

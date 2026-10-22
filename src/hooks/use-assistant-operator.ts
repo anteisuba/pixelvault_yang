@@ -83,6 +83,7 @@ import {
   ASSISTANT_V3_CLIP_LIMITS,
   ASSISTANT_V3_FACES,
 } from '@/constants/assistant-v3'
+import { ASSISTANT_NEXT_DOMAINS } from '@/features/assistant/constants'
 import { CONTEXT_CARD_STATUS_IDS } from '@/constants/context-cards'
 import {
   STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
@@ -760,14 +761,26 @@ function browserTimeZone(): string | undefined {
  * ⚠ 服务端只对 owner（`isAdmin`）认它（owner 2026-10-15）：别人写了也照走 v3。
  */
 function readsLegacyKernel(): boolean {
-  if (typeof window === 'undefined') return false
+  return readKernelChoice() === ASSISTANT_KERNEL_IDS.v2
+}
+
+/**
+ * 本地开关选了重设计的新内核（`next`，第 2 步起只接图片台与 LoRA 台）。
+ * ⚠ 同样只有 owner 认：别人写了服务端照走 v3。
+ */
+function readsNextKernel(domain: AssistantOperatorDomain): boolean {
+  return (
+    ASSISTANT_NEXT_DOMAINS.includes(domain) &&
+    readKernelChoice() === ASSISTANT_KERNEL_IDS.next
+  )
+}
+
+function readKernelChoice(): string | null {
+  if (typeof window === 'undefined') return null
   try {
-    return (
-      window.localStorage.getItem(ASSISTANT_KERNEL_STORAGE_KEY) ===
-      ASSISTANT_KERNEL_IDS.v2
-    )
+    return window.localStorage.getItem(ASSISTANT_KERNEL_STORAGE_KEY)
   } catch {
-    return false
+    return null
   }
 }
 
@@ -1276,6 +1289,7 @@ export function useAssistantOperator(
       const { entries, history, sessionId } = getOperatorState()
       /** 这一轮走 v3（看图期第二段：片子由 Denia 自己看）还是旧内核（三帧评审）。 */
       const usesV3 = ASSISTANT_V3_FACES.includes(domain) && !readsLegacyKernel()
+      const usesNext = readsNextKernel(domain)
       const mentionedAssets = buildMentionedAssets(
         entries,
         !usesV3 && domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video,
@@ -1476,7 +1490,9 @@ export function useAssistantOperator(
           responseLanguage: toResponseLanguage(locale),
           ...(ASSISTANT_V3_FACES.includes(domain) && readsLegacyKernel()
             ? { kernel: ASSISTANT_KERNEL_IDS.v2 }
-            : {}),
+            : usesNext
+              ? { kernel: ASSISTANT_KERNEL_IDS.next }
+              : {}),
           ...(options.v3Transcript
             ? { v3: { transcript: options.v3Transcript } }
             : {}),
@@ -2113,7 +2129,11 @@ export function useAssistantOperator(
                * 要同步画布，是时间到了；其他域没有接力，出「继续 / 先到这里」。
                */
               if (event.reason === ASSISTANT_OPERATOR_STOP_REASONS.timeBudget) {
-                if (domain === 'canvas') {
+                // 新内核：所有台都接力（服务端交了接力条才接，没交就照常收尾）。
+                if (
+                  domain === 'canvas' ||
+                  (usesNext && v3Transcript !== null)
+                ) {
                   canvasSync = true
                   break
                 }
@@ -2207,7 +2227,11 @@ export function useAssistantOperator(
         return
       }
       if (canvasSync) {
-        if (canvasSteps < ASSISTANT_OPERATOR_LIMITS.maxCanvasSteps) {
+        // 新内核不设接力上限：停只有创作者按停（owner 2026-10-22）。
+        if (
+          usesNext ||
+          canvasSteps < ASSISTANT_OPERATOR_LIMITS.maxCanvasSteps
+        ) {
           const resume = getOperatorState().resume
           runRef.current?.({
             ...options,

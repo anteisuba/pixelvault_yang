@@ -57,6 +57,8 @@ export interface AssistantTurnDraft {
   readonly apiKeyId: string | null
   /** 只取 sha256，⛔ 正文不落库。 */
   readonly systemPrompt: string
+  /** 哪一版提示跑的；缺席 = v3 现行那一版。新内核填自己的（`ASSISTANT_NEXT_PROMPT_VERSION`）。 */
+  readonly promptVersion?: string
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -193,7 +195,7 @@ export async function writeAssistantTurnRecord(
         routeModel: draft.routeModel,
         apiKeyId: draft.apiKeyId,
         systemPromptHash: sha256(draft.systemPrompt),
-        promptVersion: ASSISTANT_V3_PROMPT_VERSION,
+        promptVersion: draft.promptVersion ?? ASSISTANT_V3_PROMPT_VERSION,
         input: toJson(fitted.input),
         snapshot: keptSnapshot ? toJson(keptSnapshot) : Prisma.DbNull,
         transcript: toJson(fitted.transcript),

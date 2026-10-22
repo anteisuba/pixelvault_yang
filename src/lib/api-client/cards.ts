@@ -2,7 +2,6 @@ import type {
   CharacterCardGalleryResponse,
   CharacterCardResponse,
   CharacterCardsResponse,
-  ConsistencyScoreResponse,
   CreateCharacterCardRequest,
   UpdateCharacterCardRequest,
 } from '@/types'
@@ -344,33 +343,6 @@ export async function sampleCharacterLinesAPI(id: string): Promise<{
   }
 }
 
-export async function scoreCharacterCardAPI(
-  id: string,
-  generationId: string,
-): Promise<ConsistencyScoreResponse> {
-  try {
-    const response = await fetch(
-      `${API_ENDPOINTS.CHARACTER_CARDS}/${id}/score`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ generationId }),
-      },
-    )
-    if (!response.ok) {
-      return {
-        success: false,
-        error: await getErrorMessage(response, 'Scoring failed'),
-      }
-    }
-    return await response.json()
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return { success: false, error: message }
-  }
-}
-
 export async function getCharacterCardGenerationsAPI(
   cardId: string,
   page: number = 1,
@@ -386,28 +358,6 @@ export async function getCharacterCardGenerationsAPI(
     const response = await fetch(
       `/api/character-cards/${cardId}/generations?${params}`,
     )
-    return await response.json()
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    return { success: false, error: message }
-  }
-}
-
-export async function getCharacterCombinationGenerationsAPI(
-  cardIds: string[],
-  page: number = 1,
-  limit: number = 20,
-  cursor?: string | null,
-): Promise<CharacterCardGalleryResponse> {
-  try {
-    const params = new URLSearchParams({
-      cardIds: cardIds.join(','),
-      page: String(page),
-      limit: String(limit),
-    })
-    if (cursor) params.set('cursor', cursor)
-    const response = await fetch(`/api/character-cards/generations?${params}`)
     return await response.json()
   } catch (error) {
     const message =

@@ -82,7 +82,6 @@ import { SAMPLE_PROMPT_STORAGE_KEY } from '@/constants/sample-prompts'
 const SAMPLE_PROMPT_FLAG_KEY = SAMPLE_PROMPT_STORAGE_KEY
 
 const EMPTY_PANELS: StudioFormState['panels'] = {
-  cardManagement: false,
   projectHistory: false,
   modelSelector: false,
   civitai: false,
@@ -259,14 +258,10 @@ vi.mock('@/components/business/studio/StudioEnhanceButton', () => ({
   StudioEnhanceButton: () => <button type="button">enhance</button>,
 }))
 
-// 卡片那两颗拖着整条卡片管理链（角色卡管理 → LoRA 训练对话框 → …），
-// 与本文件要验的提示词 / 负面提示词 / 模型名单无关，替身掉保持单测聚焦。
+// 角色那颗拖着角色选择链，与本文件要验的提示词 / 负面提示词 / 模型名单无关，
+// 替身掉保持单测聚焦。
 vi.mock('@/components/business/studio/StudioCardsButton', () => ({
   StudioCardsButton: () => <button type="button">cards</button>,
-}))
-
-vi.mock('@/components/business/studio/StudioCardSection', () => ({
-  StudioCardSection: () => <div data-testid="studio-card-section" />,
 }))
 
 vi.mock('@/components/ui/prompt-input', () => ({
@@ -332,7 +327,6 @@ function setupStudioForm(
   const state: StudioFormState = {
     selectedWorkflowId: workflowId,
     outputType: 'video',
-    workflowMode: 'quick',
     selectedOptionId: 'video-option',
     prompt: 'Make a cinematic establishing shot',
     promptDialect: 'natural',
@@ -1133,24 +1127,6 @@ describe('StudioPromptArea', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /^generate$/ }))
     await waitFor(() => expect(mockGenerate).toHaveBeenCalled())
-  })
-
-  // ⭐ owner 2026-09-27：卡片工作流那条 freePrompt 也不设上限了（原来是卡片配方的
-  // 2000）。它先进卡片融合，发给模型的是融合后的整串，由服务端按那一型号的上限兜住。
-  it('⭐ 卡片工作流不设前置闸 —— 不印计数、不锁按钮', () => {
-    setupStudioForm(WORKFLOW_IDS.CHARACTER_CONSISTENCY_IMAGE, {
-      outputType: 'image',
-      workflowMode: 'card',
-      selectedOptionId: null,
-      prompt: 'a'.repeat(2001),
-    })
-
-    renderPromptArea()
-
-    expect(screen.queryByText(/^2001\//)).not.toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: /^generate$/ }),
-    ).not.toBeDisabled()
   })
 
   it('caps the prompt at the model-specific maxPromptChars (Ideogram V4 = 1000)', () => {

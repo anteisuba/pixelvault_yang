@@ -47,7 +47,7 @@ interface CardTileBaseProps {
  * selection button with its hover/selected/focus states, the next/image fill,
  * the bottom gradient slot, and the top-right info affordance.
  *
- * Domain-specific cards (`MediaCardTile`, `CharacterCardTile`, future ones)
+ * Domain-specific cards (`MediaCardTile`, future ones)
  * compose this and pass their own `bottomOverlay` + `topLeftBadge` + aspect.
  * Keep this file purely presentational — no i18n, no domain types, no fetches.
  */

@@ -51,7 +51,6 @@ import { useStudioReplayFromUrl } from '@/hooks/use-studio-replay-from-url'
 import { useStudioDraft, type StudioDraft } from '@/hooks/use-studio-draft'
 import { takeCanvasToBenchHandoff } from '@/lib/bench-canvas-handoff'
 
-const STUDIO_MODE_KEY = 'studio-workflow-mode'
 
 /** 把「保留 / 改变」的标签拼回提示词尾巴。原样搬自退役的 `StudioBottomDock`。 */
 function buildRefinePrompt(
@@ -320,7 +319,6 @@ export function StudioWorkspaceUI() {
       imageBatchCount: state.imageBatchCount,
       extraModelOptionIds: state.extraModelOptionIds,
       recipeUsage: state.recipeUsage,
-      workflowMode: state.workflowMode,
       tagChips: state.tagChips,
       tagNegativeChips: state.tagNegativeChips,
       videoDuration: state.videoDuration,
@@ -340,7 +338,6 @@ export function StudioWorkspaceUI() {
       state.imageBatchCount,
       state.extraModelOptionIds,
       state.recipeUsage,
-      state.workflowMode,
       state.tagChips,
       state.tagNegativeChips,
       state.videoDuration,
@@ -392,17 +389,12 @@ export function StudioWorkspaceUI() {
   // `useActiveLoraStack`; together the two cover the full replay path.
   useStudioReplayFromUrl()
 
-  // Restore workflow mode from localStorage on mount.
-  // Also close any panels left open from the previous session — the
+  // Close any panels left open from the previous session — the
   // reducer's initialState keeps panels closed, but a stale tab restore
   // (or hot-reload in dev) can resurrect an open panel and pop a Dialog
   // the moment the user lands on /studio/{image,video,audio}.
   useEffect(() => {
     dispatch({ type: 'CLOSE_ALL_PANELS' })
-    const saved = localStorage.getItem(STUDIO_MODE_KEY)
-    if (saved === 'card' || saved === 'quick') {
-      dispatch({ type: 'SET_WORKFLOW_MODE', payload: saved })
-    }
 
     const prefillPrompt = sessionStorage.getItem(
       STUDIO_PREFILL_PROMPT_STORAGE_KEY,
@@ -447,11 +439,6 @@ export function StudioWorkspaceUI() {
     arrivalModelRef.current = null
     dispatch({ type: 'SET_OPTION_ID', payload: option.optionId })
   }, [dispatch, modeModelOptions])
-
-  // Persist workflow mode changes
-  useEffect(() => {
-    localStorage.setItem(STUDIO_MODE_KEY, state.workflowMode)
-  }, [state.workflowMode])
 
   // 「保留与改变」的提交 —— 随 `StudioBottomDock` 一起搬过来（切片 A）。
   const handleKeepChangeSubmit = useCallback(

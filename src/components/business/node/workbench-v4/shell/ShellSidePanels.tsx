@@ -478,7 +478,7 @@ function ShellCardsPanel({
         <p className="text-xs text-node-foreground">{t('cardsEmpty')}</p>
         <p className="text-2xs text-node-muted">{t('cardsEmptyHint')}</p>
         <a
-          href={`/${locale}${cardManagementPath({ tab: 'characters' })}`}
+          href={`/${locale}${cardManagementPath()}`}
           target="_blank"
           rel="noopener"
           className="inline-flex h-8 items-center rounded-full border border-border bg-background px-3.5 text-xs font-medium text-foreground transition-colors duration-fast hover:bg-surface-fill"

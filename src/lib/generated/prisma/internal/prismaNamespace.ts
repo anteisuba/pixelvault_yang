@@ -3253,7 +3253,6 @@ export const GenerationScalarFieldEnum = {
   userId: 'userId',
   projectId: 'projectId',
   characterCardId: 'characterCardId',
-  cardRecipeId: 'cardRecipeId',
   recipeSnapshot: 'recipeSnapshot',
   sourceSurface: 'sourceSurface',
   loraLineage: 'loraLineage',

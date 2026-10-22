@@ -16,7 +16,6 @@ vi.mock('@/i18n/navigation', () => ({
 
 import {
   DEFAULT_WORKFLOW_ID,
-  getWorkflowStudioDefaults,
   WORKFLOW_IDS,
 } from '@/constants/workflows'
 import {
@@ -36,7 +35,6 @@ function makeInitialState(
   return {
     selectedWorkflowId: DEFAULT_WORKFLOW_ID,
     outputType: 'image',
-    workflowMode: 'quick',
     selectedOptionId: null,
     prompt: '',
     promptDialect: 'natural',
@@ -89,7 +87,6 @@ function makeInitialState(
     videoGenerateAudio: null,
     generateRequestId: 0,
     panels: {
-      cardManagement: false,
       projectHistory: false,
       modelSelector: false,
       civitai: false,
@@ -133,19 +130,6 @@ describe('studioFormReducer', () => {
       payload: WORKFLOW_IDS.VOICE_NARRATION_DIALOGUE,
     })
     expect(next.outputType).toBe('audio')
-  })
-
-  it('SET_SELECTED_WORKFLOW_ID syncs workflowMode from workflow defaults', () => {
-    const state = makeInitialState()
-    const workflowId = WORKFLOW_IDS.CHARACTER_CONSISTENCY_IMAGE
-    const next = studioFormReducer(state, {
-      type: 'SET_SELECTED_WORKFLOW_ID',
-      payload: workflowId,
-    })
-
-    expect(next.workflowMode).toBe(
-      getWorkflowStudioDefaults(workflowId).workflowMode,
-    )
   })
 
   it('SET_SELECTED_WORKFLOW_ID opens default tool panel and closes existing tool panels', () => {
@@ -216,26 +200,6 @@ describe('studioFormReducer', () => {
       payload: 'video',
     })
     expect(next.prompt).toBe('hello')
-  })
-
-  // ── SET_WORKFLOW_MODE ──
-
-  it('SET_WORKFLOW_MODE switches to card mode', () => {
-    const state = makeInitialState()
-    const next = studioFormReducer(state, {
-      type: 'SET_WORKFLOW_MODE',
-      payload: 'card',
-    })
-    expect(next.workflowMode).toBe('card')
-  })
-
-  it('SET_WORKFLOW_MODE switches back to quick mode', () => {
-    const state = makeInitialState({ workflowMode: 'card' })
-    const next = studioFormReducer(state, {
-      type: 'SET_WORKFLOW_MODE',
-      payload: 'quick',
-    })
-    expect(next.workflowMode).toBe('quick')
   })
 
   // ── SET_OPTION_ID ──
@@ -567,13 +531,13 @@ describe('studioFormReducer', () => {
 
   it('TOGGLE_PANEL does not affect non-toolbar panels', () => {
     const state = makeInitialState()
-    state.panels.cardManagement = true
+    state.panels.projectHistory = true
     const next = studioFormReducer(state, {
       type: 'TOGGLE_PANEL',
       payload: 'reverse',
     })
-    // cardManagement is not a toolbar panel, so it stays open
-    expect(next.panels.cardManagement).toBe(true)
+    // projectHistory is not a toolbar panel, so it stays open
+    expect(next.panels.projectHistory).toBe(true)
     expect(next.panels.reverse).toBe(true)
   })
 
@@ -628,7 +592,7 @@ describe('studioFormReducer', () => {
     const state = makeInitialState()
     state.panels.reverse = true
     state.panels.enhance = true
-    state.panels.cardManagement = true
+    state.panels.projectHistory = true
 
     const next = studioFormReducer(state, {
       type: 'CLOSE_ALL_PANELS',
@@ -641,7 +605,6 @@ describe('studioFormReducer', () => {
 
   it('CLOSE_ALL_PANELS preserves non-panel form state', () => {
     const state = makeInitialState({
-      workflowMode: 'card',
       prompt: 'keep me',
       selectedOptionId: 'workspace:gemini',
     })
@@ -651,7 +614,6 @@ describe('studioFormReducer', () => {
       type: 'CLOSE_ALL_PANELS',
     })
 
-    expect(next.workflowMode).toBe('card')
     expect(next.prompt).toBe('keep me')
     expect(next.selectedOptionId).toBe('workspace:gemini')
   })
@@ -685,12 +647,6 @@ describe('studioFormReducer', () => {
     expect(next.outputType).toBe('video')
   })
 
-  it('RESET_FORM preserves workflowMode', () => {
-    const state = makeInitialState({ workflowMode: 'card', prompt: 'test' })
-    const next = studioFormReducer(state, { type: 'RESET_FORM' })
-    expect(next.workflowMode).toBe('card')
-  })
-
   it('RESET_FORM preserves tokenInput', () => {
     const state = makeInitialState({ tokenInput: 'mytoken' })
     const next = studioFormReducer(state, { type: 'RESET_FORM' })
@@ -719,7 +675,6 @@ describe('studioFormReducer', () => {
   // ── All panel names work with TOGGLE_PANEL ──
 
   it.each<PanelName>([
-    'cardManagement',
     'projectHistory',
     'modelSelector',
     'civitai',

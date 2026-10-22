@@ -63,7 +63,6 @@ import { StudioSearchGroundingChip } from '@/components/business/studio/StudioSe
 import { SearchGroundingSlot } from '@/components/business/studio-shared/search-grounding/SearchGroundingSlot'
 import { useStudioSearchGrounding } from '@/hooks/use-studio-search-grounding'
 import { StudioTemplatesChip } from '@/components/business/studio/templates/StudioTemplatesChip'
-import { StudioCardSection } from '@/components/business/studio/StudioCardSection'
 // 规格收成**一颗 chip**（D2 ④，第 12 项）：图片与视频共用同一颗，档位各自从能力表
 // 派生；张数 / 声音在它底部的「更多」折叠区里。
 import { StudioSpecChip } from '@/components/business/studio/StudioSpecChip'
@@ -149,7 +148,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
   const hasImageReferences =
     imageUpload.referenceImages.length > 0
       ? true
-      : characters.activeCardIds.length > 0 || state.workflowMode === 'card'
+      : characters.activeCardIds.length > 0
         ? undefined
         : false
   const t = useTranslations('StudioV2')
@@ -553,8 +552,6 @@ export const StudioPromptArea = memo(function StudioPromptArea({
             </div>
           ) : null}
 
-          {state.workflowMode === 'card' ? <StudioCardSection /> : null}
-
           {/* 工具行 —— 左：往这一枪里加料；右：谁来画、画成什么样、多少钱、发。
               整行 chip 一种外观（描边药丸），⚠ 整行挡住冒泡，理由同负面词那一行。 */}
           <StudioChipLookProvider value="outline">
@@ -629,72 +626,70 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                 {blockedHintVisible ? (blockedReason?.message ?? '') : ''}
               </span>
               <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-                {state.workflowMode === 'quick' ? (
-                  <span
-                    data-assistant-field="model"
-                    data-studio-recipe-chip="0"
-                    className="inline-flex"
-                  >
-                    {isVideoMode ? (
-                      // 视频**单选**：没有对比路径，一枪恒一条（`generateVideo` 恒 single）。
-                      <MainModelPicker
-                        modality="video"
-                        value={state.selectedOptionId ?? null}
-                        onChange={handleSelectSingleModel}
-                        filterOption={filterVideoModelOption}
-                        triggerEmptyLabel={t('noModelHint')}
-                        searchPlaceholder={tForm(
-                          'modelSelector.searchPlaceholder',
-                        )}
-                        emptySearchText={tForm('modelSelector.emptySearch')}
-                        popoverSide="top"
-                        popoverAlign="end"
-                        contentClassName="w-80"
-                        // ⚠ 视频 chip 上写「型号名 · 版本 · 单价」（触发器五处同一形状）：
-                        //   用它自己的 240 宽，⛔ 压到 192 把名字挤成「Seed… 2…」——
-                        //   助手展开、输入框变窄时也不压（画板：让位时收的是左边那几颗的字）。
-                        className={cn(
-                          'h-8 font-medium',
-                          state.selectedOptionId && studioOutlineChipSetClass,
-                          'data-[active=true]:border-foreground data-[active=true]:ring-3 data-[active=true]:ring-muted',
-                        )}
-                      />
-                    ) : (
-                      <MainModelPicker
-                        modality="image"
-                        // ⚠ 恒为 null：chip 上写的是这一轮名单的摘要（一个模型写名字，
-                        //   多个写「N 个模型」），勾选状态走 selectedOptionIds。
-                        value={null}
-                        onChange={(option) =>
-                          dispatch({
-                            type: 'SET_OPTION_ID',
-                            payload: option.optionId,
-                          })
-                        }
-                        selectedOptionIds={runModelIds}
-                        onToggleOption={handleToggleRunModel}
-                        filterOption={filterModelByDialect}
-                        renderSearchFallback={(query, close) => (
-                          <StudioDialectJumpHint query={query} close={close} />
-                        )}
-                        triggerEmptyLabel={modelChipLabel}
-                        searchPlaceholder={tForm(
-                          'modelSelector.searchPlaceholder',
-                        )}
-                        emptySearchText={tForm('modelSelector.emptySearch')}
-                        popoverSide="top"
-                        popoverAlign="end"
-                        contentClassName="w-80"
-                        className={cn(
-                          'h-8 max-w-48 font-medium @max-4xl/composer:max-w-36',
-                          runModels.length > 0 && studioOutlineChipSetClass,
-                          // 开着 = 与其余 chip 的 open 同一档（`ModelChip` 把 open 写在 data-active）。
-                          'data-[active=true]:border-foreground data-[active=true]:ring-3 data-[active=true]:ring-muted',
-                        )}
-                      />
-                    )}
-                  </span>
-                ) : null}
+                <span
+                  data-assistant-field="model"
+                  data-studio-recipe-chip="0"
+                  className="inline-flex"
+                >
+                  {isVideoMode ? (
+                    // 视频**单选**：没有对比路径，一枪恒一条（`generateVideo` 恒 single）。
+                    <MainModelPicker
+                      modality="video"
+                      value={state.selectedOptionId ?? null}
+                      onChange={handleSelectSingleModel}
+                      filterOption={filterVideoModelOption}
+                      triggerEmptyLabel={t('noModelHint')}
+                      searchPlaceholder={tForm(
+                        'modelSelector.searchPlaceholder',
+                      )}
+                      emptySearchText={tForm('modelSelector.emptySearch')}
+                      popoverSide="top"
+                      popoverAlign="end"
+                      contentClassName="w-80"
+                      // ⚠ 视频 chip 上写「型号名 · 版本 · 单价」（触发器五处同一形状）：
+                      //   用它自己的 240 宽，⛔ 压到 192 把名字挤成「Seed… 2…」——
+                      //   助手展开、输入框变窄时也不压（画板：让位时收的是左边那几颗的字）。
+                      className={cn(
+                        'h-8 font-medium',
+                        state.selectedOptionId && studioOutlineChipSetClass,
+                        'data-[active=true]:border-foreground data-[active=true]:ring-3 data-[active=true]:ring-muted',
+                      )}
+                    />
+                  ) : (
+                    <MainModelPicker
+                      modality="image"
+                      // ⚠ 恒为 null：chip 上写的是这一轮名单的摘要（一个模型写名字，
+                      //   多个写「N 个模型」），勾选状态走 selectedOptionIds。
+                      value={null}
+                      onChange={(option) =>
+                        dispatch({
+                          type: 'SET_OPTION_ID',
+                          payload: option.optionId,
+                        })
+                      }
+                      selectedOptionIds={runModelIds}
+                      onToggleOption={handleToggleRunModel}
+                      filterOption={filterModelByDialect}
+                      renderSearchFallback={(query, close) => (
+                        <StudioDialectJumpHint query={query} close={close} />
+                      )}
+                      triggerEmptyLabel={modelChipLabel}
+                      searchPlaceholder={tForm(
+                        'modelSelector.searchPlaceholder',
+                      )}
+                      emptySearchText={tForm('modelSelector.emptySearch')}
+                      popoverSide="top"
+                      popoverAlign="end"
+                      contentClassName="w-80"
+                      className={cn(
+                        'h-8 max-w-48 font-medium @max-4xl/composer:max-w-36',
+                        runModels.length > 0 && studioOutlineChipSetClass,
+                        // 开着 = 与其余 chip 的 open 同一档（`ModelChip` 把 open 写在 data-active）。
+                        'data-[active=true]:border-foreground data-[active=true]:ring-3 data-[active=true]:ring-muted',
+                      )}
+                    />
+                  )}
+                </span>
                 <span
                   data-assistant-field="specs"
                   data-studio-recipe-chip="1"
@@ -992,12 +987,10 @@ export const StudioPromptArea = memo(function StudioPromptArea({
           {isImageMode ? (
             <StudioInpaintMaskChip disabled={isGenerating} />
           ) : null}
-          {/* 卡片入口 —— 切片 A 从退役的 `StudioToolbar` 搬过来的唯一一颗。
+          {/* 角色入口 —— 切片 A 从退役的 `StudioToolbar` 搬过来的唯一一颗。
               其余四颗（助手 / 参考图 / 比例 / 张数）参数栏本来就有：比例与张数
               在「规格」浮层里，参考图就在左边，助手是右上角浮标。
-              ⚠ 不搬这一颗的话，卡片工作流在工作台里**没有任何入口** ——
-              `workflowMode` 从 localStorage 恢复成 `card` 时，模型名单被
-              `workflowMode === 'quick'` 挡掉，而卡片选择器又不在，整栏是死的。 */}
+              （卡片模式 2026-10-22 下线：选了角色就带上，不再另切模式。） */}
           {isImageMode ? <StudioCardsButton disabled={isGenerating} /> : null}
           {/* 助手在 lg 以上由右上角的 StudioAssistantFab 承担（owner
                 2026-08-14），这里只留小屏那份 —— 不是重复：小屏没有浮标，
@@ -1006,12 +999,6 @@ export const StudioPromptArea = memo(function StudioPromptArea({
             <StudioEnhanceButton disabled={isGenerating} />
           </span>
         </Toolbar.Root>
-
-        {/* 卡片工作流的下拉组 —— 原来长在 `StudioBottomDock` 里，随 dock 一起
-            退役，改挂这里。条件与旧版逐字一致（音频没有卡片）。 */}
-        {state.workflowMode === 'card' && !isAudioMode ? (
-          <StudioCardSection />
-        ) : null}
 
         {isAudioMode ? (
           <>
@@ -1086,7 +1073,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
 
         {/* 模型（音频）—— **单选**：音频只有音效档有 `variantCount`，给它一份多选
             名单会画出一个发不出去的矩阵。 */}
-        {state.workflowMode === 'quick' && isAudioMode && (
+        {isAudioMode && (
           // `data-assistant-field` = 助手改到这一格时闪一次（进度表 21）。
           <div className="flex flex-col gap-1.5" data-assistant-field="model">
             <span className="text-2xs font-medium text-muted-foreground/70">
@@ -1110,7 +1097,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
         {/* 模型（图片）—— 这一轮的名单。行不是丸：行能装下单价，缺价一眼看得出来。
               主模型 + 额外模型都在这里，选择器是多选的（三栏居中 modal，不受
               这 288px 的栏宽约束）。 */}
-        {state.workflowMode === 'quick' && isImageMode && (
+        {isImageMode && (
           <div className="flex flex-col gap-1.5" data-assistant-field="model">
             <span className="flex items-center text-2xs font-medium text-muted-foreground/70">
               {tForm('modelLabel')}

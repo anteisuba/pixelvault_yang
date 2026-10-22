@@ -451,8 +451,6 @@ model Generation {
   characterCardId String?
   characterCard   CharacterCard?            @relation(fields: [characterCardId], references: [id], onDelete: SetNull)
   characterCards  GenerationCharacterCard[]
-  // ⚠ 卡片配方表已删（20261021120000）；这一列等新版本稳定后单独迁移删掉，代码不再读写
-  cardRecipeId    String?
   recipeSnapshot  Json?
 
   // ── 来源血缘 ──────────────────────────────────────────────────

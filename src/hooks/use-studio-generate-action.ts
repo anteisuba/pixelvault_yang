@@ -84,8 +84,6 @@ export function useStudioGenerateAction() {
   const { characters, imageUpload, projects } = useStudioData()
   const { isGenerating, generate, elapsedSeconds, canQueueMoreVideo } =
     useStudioGen()
-  const t = useTranslations('StudioV2')
-  const tV3 = useTranslations('StudioV3')
   const tPromptArea = useTranslations('StudioPromptArea')
   const tPicker = useTranslations('ModelPicker')
   const locale = useLocale()
@@ -126,13 +124,10 @@ export function useStudioGenerateAction() {
   const imagePromptLength = isImageMode ? trimmedPrompt.length : 0
   /**
    * 图片提示词上限 —— **只认模型自己声明的那个数**（厂商硬上限，owner 2026-08-24）。
-   * 卡片模式那条 freePrompt 不设上限（owner 2026-09-27）：它先进卡片融合，真正发给
-   * 模型的是融合后的整串，由服务端按那一型号的上限兜住。
    */
-  const imagePromptMaxChars =
-    isImageMode && state.workflowMode === 'quick'
-      ? getModelById(selectedModel?.modelId ?? '')?.maxPromptChars
-      : undefined
+  const imagePromptMaxChars = isImageMode
+    ? getModelById(selectedModel?.modelId ?? '')?.maxPromptChars
+    : undefined
   const isImagePromptOverLimit =
     imagePromptMaxChars !== undefined && imagePromptLength > imagePromptMaxChars
   /**
@@ -350,30 +345,9 @@ export function useStudioGenerateAction() {
     const sentAudioRefs = state.videoAudioRefs.slice(0, plan.audioCount)
     const videoAudioUrls = sentAudioRefs.map((ref) => ref.url)
 
-    let finalPrompt = composePrompt(state.prompt) ?? ''
-    const appliedCharacterIds: string[] = []
-    if (
-      state.workflowMode === 'card' &&
-      characters.activeCards.length > 0 &&
-      finalPrompt
-    ) {
-      const charPrompts = characters.activeCards
-        .map((c) => c.characterPrompt?.trim())
-        .filter((p): p is string => !!p)
-      if (charPrompts.length > 0) {
-        const base =
-          charPrompts.length === 1
-            ? charPrompts[0]
-            : charPrompts
-                .map(
-                  (p, i) =>
-                    `[Character ${i + 1}: ${characters.activeCards[i].name}]\n${p}`,
-                )
-                .join('\n\n')
-        finalPrompt = `${base}\n\n${finalPrompt}`
-        appliedCharacterIds.push(...characters.activeCards.map((c) => c.id))
-      }
-    }
+    // ⚠ 视频档不带角色：角色的视频出口（卡片总线 ⑦）还没做。原来只有卡片模式会把角色
+    //   提示词拼到前面，卡片模式 2026-10-22 下线（角色①），快速模式一直不带。
+    const finalPrompt = composePrompt(state.prompt) ?? ''
     const selectedWorkflow = getWorkflowById(state.selectedWorkflowId)
     const videoWorkflowId =
       selectedWorkflow?.mediaGroup === WORKFLOW_MEDIA_GROUPS.VIDEO
@@ -416,8 +390,6 @@ export function useStudioGenerateAction() {
       resolution:
         resolution && isVideoResolution(resolution) ? resolution : undefined,
       ...(videoWorkflowId ? { workflowId: videoWorkflowId } : {}),
-      characterCardIds:
-        appliedCharacterIds.length > 0 ? appliedCharacterIds : undefined,
       /**
        * 原生出声：`null` = 用户没设过 → **不发这个字段**，最终值落到模型目录的
        * `videoDefaults.generateAudio`。发一个 `false` 与「没设过」在目录默认为 true
@@ -446,8 +418,6 @@ export function useStudioGenerateAction() {
     state.advancedParams.negativePrompt,
     state.videoAudioRefs,
     state.videoGenerateAudio,
-    state.workflowMode,
-    characters.activeCards,
     composePrompt,
     imageUpload.referenceEntries,
     state.videoFrameSlots,
@@ -798,7 +768,7 @@ export function useStudioGenerateAction() {
       }
       const image = buildImageInput()
       if (!image) return
-      const result = await generate({
+      await generate({
         mode: 'image',
         operatorResultOwner,
         image: displayLabel ? { ...image, displayLabel } : image,
@@ -813,29 +783,6 @@ export function useStudioGenerateAction() {
             ? runModels.map((o) => ({ modelId: o.modelId, apiKeyId: o.keyId }))
             : undefined,
       })
-
-      // Nudge: after 3 successful quick-mode generations, suggest Pro mode
-      if (result && state.workflowMode === 'quick') {
-        const NUDGE_KEY = 'studio-quick-gen-count'
-        const NUDGE_DISMISSED_KEY = 'studio-pro-nudge-dismissed'
-        if (!localStorage.getItem(NUDGE_DISMISSED_KEY)) {
-          const count = Number(localStorage.getItem(NUDGE_KEY) || '0') + 1
-          localStorage.setItem(NUDGE_KEY, String(count))
-          if (count === 3) {
-            toast(tV3('cardMode'), {
-              description: t('proModeNudge'),
-              action: {
-                label: t('tryProMode'),
-                onClick: () => {
-                  dispatch({ type: 'SET_WORKFLOW_MODE', payload: 'card' })
-                  localStorage.setItem(NUDGE_DISMISSED_KEY, '1')
-                },
-              },
-              onDismiss: () => localStorage.setItem(NUDGE_DISMISSED_KEY, '1'),
-            })
-          }
-        }
-      }
     },
     [
       canGenerate,
@@ -873,7 +820,6 @@ export function useStudioGenerateAction() {
       state.audioSpeakerVoiceIds,
       state.audioReferenceUrl,
       state.audioReferenceText,
-      state.workflowMode,
       // ⚠ 整颗卡而不是四个字段：React Compiler 推出来的依赖就是整颗，逐字段写
       //   会被 `preserve-manual-memoization` 判为「不够具体」而拒绝优化整个 hook。
       selectedVoiceCard,
@@ -882,9 +828,6 @@ export function useStudioGenerateAction() {
       buildImageInput,
       buildVideoInput,
       generate,
-      dispatch,
-      t,
-      tV3,
     ],
   )
 

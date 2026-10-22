@@ -33,7 +33,6 @@ vi.mock('@/contexts/studio-context', () => ({
   useStudioForm: () => ({
     state: {
       selectedWorkflowId: 'quick-image',
-      workflowMode: 'quick',
       selectedOptionId: 'workspace:seedream-5.0-lite',
       prompt: '原来的提示词',
       aspectRatio: '1:1',

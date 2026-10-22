@@ -160,7 +160,7 @@ export function StudioCardPicker() {
                 {t('noCharacterCards')}
               </p>
               <Link
-                href={cardManagementPath({ tab: 'characters' })}
+                href={cardManagementPath()}
                 className="inline-flex h-8 items-center gap-1.5 rounded-md bg-foreground px-3 text-xs font-semibold text-background transition-colors hover:bg-foreground/90"
               >
                 {t('openCardManagement')}

@@ -44,6 +44,18 @@ vi.mock('@/lib/api-client/node-workflow', () => ({
   listRecentNodeWorkflowProjectsAPI: () => listRecent(),
 }))
 
+// 训练表单整套状态机（上传 / 配置 / 提交 / 轮询）有自己的测试；这里只验入口把谁、开没开交过去。
+vi.mock('@/components/business/LoraTrainingDialog', () => ({
+  LoraTrainingDialog: ({
+    characterCardId,
+    open,
+  }: {
+    characterCardId?: string
+    open?: boolean
+  }) =>
+    open ? <div role="dialog" aria-label={`train ${characterCardId}`} /> : null,
+}))
+
 const CARD = { id: 'denia', name: 'Denia' } as CharacterCardRecord
 
 function renderMenu() {
@@ -135,5 +147,15 @@ describe('UseCharacterMenu（用她 ▾）', () => {
     expect(push).toHaveBeenLastCalledWith(
       '/studio/node?project=new&character=denia',
     )
+  })
+
+  it('训练 LoRA：菜单收起，训练对话框带着她打开', () => {
+    renderMenu()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /用她/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /训练 LoRA/ }))
+    expect(
+      screen.getByRole('dialog', { name: 'train denia' }),
+    ).toBeInTheDocument()
   })
 })

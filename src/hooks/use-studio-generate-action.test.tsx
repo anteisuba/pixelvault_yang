@@ -34,7 +34,6 @@ const mockUseImageModelOptions = vi.hoisted(() => vi.fn())
 const mockToastInfo = vi.hoisted(() => vi.fn())
 
 const EMPTY_PANELS: StudioFormState['panels'] = {
-  cardManagement: false,
   projectHistory: false,
   modelSelector: false,
   civitai: false,
@@ -126,7 +125,6 @@ function makeState(overrides: Partial<StudioFormState> = {}) {
     tagChips: [],
     tagNegativeChips: [],
     activeTagCharacterIndex: null,
-    workflowMode: 'quick',
     selectedWorkflowId: 'quick-image',
     selectedOptionId: null,
     extraModelOptionIds: [],

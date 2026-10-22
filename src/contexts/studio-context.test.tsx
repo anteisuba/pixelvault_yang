@@ -144,26 +144,6 @@ describe('StudioProvider workflow selection', () => {
     )
   })
 
-  it('applies workflowMode defaults when switching workflow through the hook', () => {
-    const { result } = renderHook(() => useStudioContext(), { wrapper })
-
-    act(() => {
-      result.current.dispatch({
-        type: 'SET_PROMPT',
-        payload: 'Keep the character setup',
-      })
-    })
-
-    act(() => {
-      result.current.setSelectedWorkflowId(
-        WORKFLOW_IDS.CHARACTER_CONSISTENCY_IMAGE,
-      )
-    })
-
-    expect(result.current.state.workflowMode).toBe('card')
-    expect(result.current.state.prompt).toBe('Keep the character setup')
-  })
-
   it('opens default workflow panel when switching workflow through the hook', () => {
     const { result } = renderHook(() => useStudioContext(), { wrapper })
 

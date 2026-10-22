@@ -169,7 +169,6 @@ export const StudioGallery = memo(function StudioGallery() {
             ? 'audio'
             : 'image'
       dispatch({ type: 'SET_OUTPUT_TYPE', payload: sourceOutputType })
-      dispatch({ type: 'SET_WORKFLOW_MODE', payload: 'quick' })
       dispatch({ type: 'SET_PROMPT', payload: preset.prompt })
       dispatch({ type: 'SET_ASPECT_RATIO', payload: preset.aspectRatio })
       dispatch({ type: 'CLOSE_ALL_PANELS' })

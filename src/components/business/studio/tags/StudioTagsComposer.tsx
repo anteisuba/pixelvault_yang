@@ -873,8 +873,7 @@ function TagQuotaLine({
           hasReferenceImage:
             imageUpload.referenceImages.length > 0
               ? true
-              : characters.activeCardIds.length > 0 ||
-                  state.workflowMode === 'card'
+              : characters.activeCardIds.length > 0
                 ? undefined
                 : false,
           preview: state.advancedParams.preview,

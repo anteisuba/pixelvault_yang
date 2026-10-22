@@ -23,22 +23,13 @@ export const WORKFLOW_LAUNCH_TIERS = {
   WAVE_2: 'wave-2',
 } as const
 
-export const WORKFLOW_MODES = {
-  QUICK: 'quick',
-  CARD: 'card',
-} as const
-
 type WorkflowIdValue = (typeof WORKFLOW_IDS)[keyof typeof WORKFLOW_IDS]
 type WorkflowMediaGroupValue =
   (typeof WORKFLOW_MEDIA_GROUPS)[keyof typeof WORKFLOW_MEDIA_GROUPS]
 type WorkflowLaunchTierValue =
   (typeof WORKFLOW_LAUNCH_TIERS)[keyof typeof WORKFLOW_LAUNCH_TIERS]
 
-export type WorkflowModeDefault =
-  (typeof WORKFLOW_MODES)[keyof typeof WORKFLOW_MODES]
-
 export type WorkflowDefaultOpenPanel =
-  | 'cardManagement'
   | 'projectHistory'
   | 'modelSelector'
   | 'civitai'
@@ -56,7 +47,6 @@ type WorkflowDefinition = {
   publicNameKey: string
   descriptionKey: string
   advancedModeAllowed: boolean
-  defaultWorkflowMode?: WorkflowModeDefault
   recommendedModelIds?: readonly string[]
   defaultOpenPanel?: WorkflowDefaultOpenPanel | null
 }
@@ -144,7 +134,6 @@ export type WorkflowLaunchTier = Workflow['launchTier']
 export const DEFAULT_WORKFLOW_ID = WORKFLOW_IDS.QUICK_IMAGE
 
 type WorkflowStudioDefaultOverrides = {
-  workflowMode?: WorkflowModeDefault
   openPanel?: WorkflowDefaultOpenPanel | null
   recommendedModelIds?: readonly string[]
 }
@@ -159,7 +148,6 @@ const WORKFLOW_STUDIO_DEFAULT_OVERRIDES: Partial<
     ],
   },
   [WORKFLOW_IDS.CHARACTER_CONSISTENCY_IMAGE]: {
-    workflowMode: WORKFLOW_MODES.CARD,
     openPanel: 'refImage',
     recommendedModelIds: [AI_MODELS.GEMINI_PRO_IMAGE, AI_MODELS.FLUX_2_PRO],
   },
@@ -217,10 +205,6 @@ export const getWorkflowStudioDefaults = (workflowId: WorkflowId) => {
   return {
     outputType:
       workflowConfig?.defaultOutputType ?? WORKFLOW_MEDIA_GROUPS.IMAGE,
-    workflowMode:
-      override?.workflowMode ??
-      workflowConfig?.defaultWorkflowMode ??
-      WORKFLOW_MODES.QUICK,
     openPanel: override?.openPanel ?? workflowConfig?.defaultOpenPanel ?? null,
     recommendedModelIds:
       override?.recommendedModelIds ?? workflowConfig?.recommendedModelIds,

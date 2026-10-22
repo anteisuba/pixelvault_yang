@@ -105,7 +105,7 @@ export function CharacterNodeV4({ id, data, selected }: NodeProps) {
   const openInCharacterPage = useCallback(() => {
     if (!nodeData.characterId) return
     window.open(
-      `/${locale}${cardManagementPath({ tab: 'characters', character: nodeData.characterId })}`,
+      `/${locale}${cardManagementPath({ character: nodeData.characterId })}`,
       '_blank',
       'noopener',
     )

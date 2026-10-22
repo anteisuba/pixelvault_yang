@@ -103,7 +103,7 @@ Model = PascalCase（`UserApiKey`）· 字段 = camelCase（`createdAt`）· 枚
 
 - `Generation` 与 `User` 引用面广，改字段先搜索全部调用方并同步修改。数据库变更须核对当前构建脚本和新旧部署并存的影响；不因历史文档建议 expand-contract 就覆盖 AGENTS 的 owner 原则。
 - `Generation` 承载全模态（图/视频/音频/3D）+ 卡片/配方/runGroup 元数据，往里加字段前先确认不是该拆去 `GenerationJob` / 专属表的东西（长期建模优先）。
-- 2026-10-21 删掉没有入口的表：合集（`Collection` / `CollectionItem`）、图片分析（`ImageAnalysis`）、卡片配方（`CardRecipe`）、长视频管线（`VideoPipeline` / `VideoPipelineClip`），删前整表备份在 R2 `backups/2026-10-21-dropped-tables-*.json`。`Generation.cardRecipeId` 只摘了外键，列等新版本稳定后单独迁移删。同日又删风格卡 / 背景卡（`StyleCard` / `BackgroundCard`，9 张）与视频脚本（`VideoScript` / `VideoScriptScene`），备份 `backups/2026-10-21-dropped-cards-scripts-*.json`。
+- 2026-10-21 删掉没有入口的表：合集（`Collection` / `CollectionItem`）、图片分析（`ImageAnalysis`）、卡片配方（`CardRecipe`）、长视频管线（`VideoPipeline` / `VideoPipelineClip`），删前整表备份在 R2 `backups/2026-10-21-dropped-tables-*.json`。同日又删风格卡 / 背景卡（`StyleCard` / `BackgroundCard`，9 张）与视频脚本（`VideoScript` / `VideoScriptScene`），备份 `backups/2026-10-21-dropped-cards-scripts-*.json`。`Generation.cardRecipeId` 当时只摘外键，2026-10-22 单独迁移删列（0 行有值，未备份）。
 
 ## Source of Truth
 

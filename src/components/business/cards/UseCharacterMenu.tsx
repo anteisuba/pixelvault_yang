@@ -20,6 +20,7 @@ import {
 import type { CharacterCardRecord } from '@/types'
 import { withAssistantCharacter } from '@/types/assistant-persona'
 import { Check, ChevronDown, ChevronRight } from '@/components/icons'
+import { LoraTrainingDialog } from '@/components/business/LoraTrainingDialog'
 import { Spinner } from '@/components/ui/spinner'
 import { useRecentCanvases } from '@/hooks/node/use-recent-canvases'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
@@ -30,8 +31,10 @@ import { cn } from '@/lib/utils'
 
 /**
  * **用她 ▾**（角色详情右上，卡片重设计第 5 片）：一个角色四处用——和她聊（附录L）· 出图 · 助手人设 ·
- * 画布。「放进画布 ›」在菜单里往下展开最近几块画布 + 新画布；选一块 = 打开它，她落在
+ * 画布 · 训练 LoRA。「放进画布 ›」在菜单里往下展开最近几块画布 + 新画布；选一块 = 打开它，她落在
  * 视口中间并选中（画布用角色 ④ 画板 S5，深链见 `canvasWithCharacterPath`）。
+ * 「训练 LoRA」从工作台卡片模式的旧管理抽屉搬来（角色① 2026-10-22，那套抽屉已删）：
+ * 菜单先收，训练对话框挂在菜单外面，⛔ 别放进菜单层，菜单一卸载它就跟着没了。
  *
  * ⭐ 菜单**从按钮长出来**（interaction.md §2.1，`useLiquidReveal`）：先横成一条
  *   （按钮那么高、菜单那么宽），再往下落；收回反过来。菜单顶上那一行就是按钮本身，
@@ -53,6 +56,7 @@ export function UseCharacterMenu({ card }: { card: CharacterCardRecord }) {
   const [closing, setClosing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [canvasOpen, setCanvasOpen] = useState(false)
+  const [trainOpen, setTrainOpen] = useState(false)
   const recent = useRecentCanvases()
   const format = useFormatter()
   // `relativeTime` 的参照时刻取一次（同 `ShellProjectPill`）：不传会每行报一次 fallback。
@@ -314,9 +318,22 @@ export function UseCharacterMenu({ card }: { card: CharacterCardRecord }) {
                 </motion.div>
               ) : null}
             </AnimatePresence>
+            <MenuItem
+              title={t('trainLora')}
+              hint={t('trainLoraHint')}
+              onSelect={() => {
+                close()
+                setTrainOpen(true)
+              }}
+            />
           </div>
         </motion.div>
       ) : null}
+      <LoraTrainingDialog
+        characterCardId={card.id}
+        open={trainOpen}
+        onOpenChange={setTrainOpen}
+      />
     </div>
   )
 }

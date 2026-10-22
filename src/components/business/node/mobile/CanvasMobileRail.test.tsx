@@ -168,7 +168,7 @@ describe('CanvasMobileRail', () => {
       'https://cdn.test/denia.png',
     )
     fireEvent.click(row)
-    expect(push).toHaveBeenCalledWith('/cards?tab=characters&character=denia')
+    expect(push).toHaveBeenCalledWith('/cards?character=denia')
     expect(screen.getByTestId('sheet')).toHaveTextContent('closed')
   })
 

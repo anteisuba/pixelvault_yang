@@ -1,4 +1,4 @@
-# PixelVault 总逻辑思维导图
+# ANTEI 总逻辑思维导图
 
 > 核对日期：2026-09-23（首轮 09-20）。代码基线：`5e422f97`（= origin/main = 生产）；本轮仅改文档，其他会话的 Worker 依赖修改保留。
 > 来源：[Claude 生成方向图](https://claude.ai/artifact/AGugEALDdyBLHMqDeNjaTD)（09-23 起浓缩为 5 页；本文核对时为 19 页 / 86 张画板），以及实际路由 / 组件 / 服务 / Prisma。逐项证据见 [18 页核对报告](../design/roadmap-canvas/research/audit-18-pages-2026-09-20.md)。覆盖全部画板不代表每项外部契约或运行效果通过。
@@ -8,7 +8,7 @@
 
 ```mermaid
 flowchart TB
-  PV["PixelVault · 个人 AI 创作工作台"]
+  PV["ANTEI · 个人 AI 创作工作台"]
   PV --> CORE["双核创作"]
   PV --> CAP["生成与编辑能力"]
   PV --> REUSE["资产与知识复用"]

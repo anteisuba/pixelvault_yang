@@ -81,7 +81,7 @@ export const ImageCard = memo(function ImageCard({
         const ext = generation.mimeType.split('/')[1] || 'png'
         const result = await downloadRemoteAsset(
           generation.url,
-          `pixelvault-${generation.id.slice(0, 8)}.${ext}`,
+          `antei-${generation.id.slice(0, 8)}.${ext}`,
         )
         if (!result.success) {
           toast.error(getApiErrorMessage(tErrors, result, t('downloadFailed')))

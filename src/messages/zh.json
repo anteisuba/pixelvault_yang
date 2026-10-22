@@ -8503,7 +8503,7 @@
       "rowSystem": "系统",
       "rowTool": "工具步",
       "rowAction": "待你定",
-      "assistantFallback": "ANTI",
+      "assistantFallback": "ANTEI",
       "avatarUser": "你的头像",
       "avatarAssistant": "{name}的头像"
     },
@@ -8964,7 +8964,7 @@
         "once": "这串令牌只显示这一次",
         "tokenLabel": "令牌",
         "commandLabel": "接入 Claude Code：在终端里运行",
-        "verify": "接上后在 Claude Code 里输入 /mcp 能看到 pixelvault。",
+        "verify": "接上后在 Claude Code 里输入 /mcp 能看到 antei。",
         "done": "我复制好了"
       },
       "failed": {
@@ -9015,7 +9015,7 @@
     },
     "name": {
       "label": "名字",
-      "placeholder": "留空时使用 ANTI"
+      "placeholder": "留空时使用 ANTEI"
     },
     "address": {
       "label": "怎么称呼你",

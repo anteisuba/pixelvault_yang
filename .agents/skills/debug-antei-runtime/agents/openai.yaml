@@ -1,0 +1,4 @@
+interface:
+  display_name: "Debug ANTEI Runtime"
+  short_description: "Runtime, build, and deploy triage"
+  default_prompt: "Use $debug-antei-runtime to diagnose an ANTEI runtime, build, or deploy failure."

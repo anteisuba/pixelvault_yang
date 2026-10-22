@@ -1,22 +1,24 @@
-# PixelVault 品牌与设计治理 — brand-dna.md
+# ANTEI 品牌与设计治理 — brand-dna.md
 
 > 状态：**现行规则（2026-07-19 owner 逐项确认；2026-09-03 owner 收紧：字体与 semantic 颜色收回脊柱）**。
 > 本文只定义全局品牌脊柱、设计权力边界与品质底线。默认值（字体三槽、颜色脊柱、动效配方、移动端配方、完成定义）在 [`references/ui-defaults.md`](references/ui-defaults.md)，动 UI 先读它。
 
 ## 品牌脊柱
 
-PixelVault 是以创作控制为核心的个人 AI 创作工作台：生成、永久归档、资产复用，并允许用户选择性公开作品。
+ANTEI 是以创作控制为核心的个人 AI 创作工作台：生成、永久归档、资产复用，并允许用户选择性公开作品。
+
+名字只有一个：**ANTEI**（2026-10-22 owner 定）。站点名、文案、下载文件名、助手默认名、MCP 服务名都用它，不再出现 PixelVault 或 ANTI。代码里仍带 `pixelvault` 的只有两类，不随品牌改：浏览器本地存储键（改了用户会丢本地设置和隐私选择）；外部资源名（仓库名、Vercel 项目、Cloudflare Worker / Workflow / 队列、Modal App / Secret / Volume、Runner 镜像与 ComfyUI 节点类名），要改得先在平台上重建。
 
 全站共同身份只由以下内容构成：
 
-- PixelVault 名称、Logo 与产品叙事。
+- ANTEI 名称、Logo 与产品叙事。
 - 应用壳、全局导航位置与导航行为。
 - 文案语气、术语、图标体系（lucide 单库）和反馈语义。
 - **字体三槽**（正文 Geist + Noto Sans CJK · 等宽 Geist Mono · 展示 Fraunces + Noto Serif CJK），全站同一套，域只能选槽不能引字体。
 - **semantic 颜色一套**（background / muted / surface-sunken 三层浅底、foreground、primary 纯黑、border、ring、destructive、status、modality 三色），域不得覆盖。
 - 可访问性、响应式、状态真实性与交互品质。
 
-PixelVault 的一致性来自“这是同一个产品、拥有同一套可靠行为、同一套字体与颜色语义”；域之间的差异来自结构、比例、信息层级、交互关系和材质密度，**不来自各自的字体、调色板或强调色**——强调色全站只有 `--primary`（2026-09-06 owner 定）。
+ANTEI 的一致性来自“这是同一个产品、拥有同一套可靠行为、同一套字体与颜色语义”；域之间的差异来自结构、比例、信息层级、交互关系和材质密度，**不来自各自的字体、调色板或强调色**——强调色全站只有 `--primary`（2026-09-06 owner 定）。
 
 ## 设计权力分层
 

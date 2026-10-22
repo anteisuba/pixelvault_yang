@@ -724,7 +724,7 @@ function isSupportedDiffusionLora(
 
   // `filter=lora` is global across the Hub and includes LLM, audio and video
   // adapters. Require image-diffusion evidence before admitting a repository
-  // to the PixelVault image LoRA library.
+  // to the ANTEI image LoRA library.
   return (
     [
       'diffusers',

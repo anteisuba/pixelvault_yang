@@ -6,7 +6,7 @@
  *
  *   PixelVaultUNETLoader(diffusion_models/<model>) ─MODEL─▶ PixelVaultLoraLoaderModelOnly chain
  *     ─▶ ModelSamplingAuraFlow(shift) ─MODEL─▶ KSampler
- *   (the PixelVault loaders also thread a load-evidence STRING into PixelVaultSaveImage —
+ *   (the ANTEI loaders also thread a load-evidence STRING into PixelVaultSaveImage —
  *    same contract as the SDXL graph; nodes live in the fork's model_evidence.py)
  *   CLIPLoader(text_encoders/<encoder>, type=<profile>) ─CLIP─▶ CLIPTextEncode
  *   VAELoader(vae/<vae>) ─VAE─▶ VAEDecode

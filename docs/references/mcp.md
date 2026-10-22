@@ -32,7 +32,7 @@
 - 接入就一条命令（scope 用 `user`，所有目录都能用）：
 
 ```bash
-claude mcp add --transport http --scope user pixelvault https://www.anteisuba.com/api/mcp --header "Authorization: Bearer <令牌>"
+claude mcp add --transport http --scope user antei https://www.anteisuba.com/api/mcp --header "Authorization: Bearer <令牌>"
 ```
 
 - ⚠ Claude Code 配了 `Authorization` 头却被拒时**不会回退到 OAuth**，直接显示连不上——吊销后要重新贴。

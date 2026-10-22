@@ -2,7 +2,7 @@
 
 # ANTEI — a personal AI creative studio
 
-ANTEI (codename **PixelVault**) is a multi-model creative workbench for images, video, audio and 3D. It puts the strongest generation models behind one interface, keeps every result in a permanent archive, and turns what you make into reusable assets — characters, styles, voices, prompts and LoRAs — that feed the next piece of work.
+ANTEI is a multi-model creative workbench for images, video, audio and 3D. It puts the strongest generation models behind one interface, keeps every result in a permanent archive, and turns what you make into reusable assets — characters, styles, voices, prompts and LoRAs — that feed the next piece of work.
 
 **Live:** [www.anteisuba.com](https://www.anteisuba.com) · English / 日本語 / 中文
 

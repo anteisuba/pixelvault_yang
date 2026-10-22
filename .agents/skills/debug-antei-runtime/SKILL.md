@@ -1,13 +1,13 @@
 ---
-name: debug-pixelvault-runtime
-description: 调查或修复 PixelVault 运行、构建、部署及生成链路故障时，定位日志与相关模块。
+name: debug-antei-runtime
+description: 调查或修复 ANTEI 运行、构建、部署及生成链路故障时，定位日志与相关模块。
 ---
 
-# Debug PixelVault Runtime
+# Debug ANTEI Runtime
 
 ## Overview
 
-Investigate PixelVault failures with evidence first and only patch after a root cause is plausible. This skill exists because build logs, provider failures, missing messages, Prisma issues, and Vercel/local mismatches recur in this project.
+Investigate ANTEI failures with evidence first and only patch after a root cause is plausible. This skill exists because build logs, provider failures, missing messages, Prisma issues, and Vercel/local mismatches recur in this project.
 
 ## Triage Workflow
 

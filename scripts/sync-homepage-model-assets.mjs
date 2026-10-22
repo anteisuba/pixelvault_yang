@@ -13,7 +13,7 @@ const OUTPUT_DIRS = {
 /**
  * Prefer owner-published model art. Provider variants of the same underlying
  * model intentionally share its official art. Runner entries use the preview
- * attached to the exact checkpoint version installed by PixelVault.
+ * attached to the exact checkpoint version installed by ANTEI.
  */
 const SOURCES = {
   image: {
@@ -107,7 +107,7 @@ for (const dir of Object.values(OUTPUT_DIRS)) {
 for (const { group, id, source } of entries) {
   const response = await fetch(source, {
     redirect: 'follow',
-    headers: { 'user-agent': 'PixelVault homepage asset sync' },
+    headers: { 'user-agent': 'ANTEI homepage asset sync' },
     signal: AbortSignal.timeout(30_000),
   })
 

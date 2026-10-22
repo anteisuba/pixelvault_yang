@@ -1,4 +1,4 @@
-# PixelVault Runner — worker-comfyui fork (v2 runtime LoRA download).
+# ANTEI Runner — worker-comfyui fork (v2 runtime LoRA download).
 # 包装官方 handler 下载模型，并安装随生成 PNG 输出文件证据的加载节点。
 # 关键：不覆盖 CMD —— 继承官方 `CMD ["/start.sh"]`，ComfyUI 仍由 start.sh 后台启动，
 # start.sh 末尾的 `python -u /handler.py` 于是跑我们的 wrapper。

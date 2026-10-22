@@ -1,6 +1,6 @@
-# PixelVault — Cursor IDE Rules
+# ANTEI — Cursor IDE Rules
 
-You are working on PixelVault, a multi-model AI image/video generation + permanent archive platform.
+You are working on ANTEI, a multi-model AI image/video generation + permanent archive platform.
 
 ## Stack
 Next.js 16 (App Router + Turbopack) · TypeScript · Clerk · Prisma 7 + PostgreSQL (Neon) · Cloudflare R2 · next-intl (en/ja/zh)

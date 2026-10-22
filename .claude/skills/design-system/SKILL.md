@@ -1,6 +1,6 @@
 ---
 name: design-system
-description: 调整 PixelVault 的设计 token 分层、组件状态与 variant；不用于幻灯片生成或自动重建全站主题。
+description: 调整 ANTEI 的设计 token 分层、组件状态与 variant；不用于幻灯片生成或自动重建全站主题。
 argument-hint: '[component or token]'
 license: MIT
 metadata:
@@ -10,7 +10,7 @@ metadata:
 
 # Token 与组件规范
 
-适用于现有设计 token、组件状态/variant 与样式作用域调整。PixelVault 使用 primitive → semantic → domain/component/page 分层，保持业务域外观自主；页面方向以确认文档为准。
+适用于现有设计 token、组件状态/variant 与样式作用域调整。ANTEI 使用 primitive → semantic → domain/component/page 分层，保持业务域外观自主；页面方向以确认文档为准。
 
 先检查 `src/app/globals.css`、现有组件与 `docs/references/frontend.md`，复用已有语义。修改共享 token 前搜索消费者；只为当前真实重复或语义差异增加 token，不启动全站主题重建。
 

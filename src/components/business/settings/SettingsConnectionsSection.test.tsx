@@ -89,7 +89,7 @@ describe('SettingsConnectionsSection', () => {
     expect(
       screen.getByText(
         new RegExp(
-          `claude mcp add .* pixelvault .*/api/mcp --header "Authorization: Bearer ${TOKEN}"`,
+          `claude mcp add .* antei .*/api/mcp --header "Authorization: Bearer ${TOKEN}"`,
         ),
       ),
     ).toBeInTheDocument()

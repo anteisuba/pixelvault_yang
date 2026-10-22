@@ -119,7 +119,7 @@ Plain English, concise — but the architectural nouns and verbs come straight f
 
 **Use exactly:** module, interface, implementation, depth, deep, shallow, seam, adapter, leverage, locality.
 
-**Prefer these over loose synonyms** (unit, wrapper, layer), but keep PixelVault's own terms — service, component, API route, domain boundary — when naming real code.
+**Prefer these over loose synonyms** (unit, wrapper, layer), but keep ANTEI's own terms — service, component, API route, domain boundary — when naming real code.
 
 **Phrasings that fit the style:**
 

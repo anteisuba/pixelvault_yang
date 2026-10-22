@@ -28,7 +28,7 @@
 
 - 助手 LLM 是同步 text/vision 会话路径，不属于媒体生成 adapter，也不改 worker-only 的媒体生成边界。
 - 默认 OpenAI 助手模型为原生 `gpt-6.1-sol`；无媒体引用时画布可走 AI Gateway 的
-  `openai/gpt-6.1-sol`。当前 PixelVault OpenAI 助手只声明文本与图片输入，不接收原生视频；与
+  `openai/gpt-6.1-sol`。当前 ANTEI OpenAI 助手只声明文本与图片输入，不接收原生视频；与
   [OpenAI GPT-6.1 Sol 模型能力页](https://developers.openai.com/api/docs/models/gpt-6.1-sol) 一致。
 - OpenAI 助手的流式与非流式图片输入统一由服务端安全下载后发送原字节 data URL，保留参考顺序，不再让 provider 下载 CDN URL。图片大小按下节官方请求限额校验，不再耦合站内图片导入的单图 20 MiB 限制。图片不可达、格式及大小错误保留具体错误码，真正的 401/403 仍按鉴权失败处理。
 - Gemini 助手支持真实视频理解：小视频可用 inline data，大视频经 Gemini Files API
@@ -37,7 +37,7 @@
   [Files API](https://ai.google.dev/api/files)。
 - DeepSeek 的 `deepseek-v4-pro` 继续按纯文本路由处理；视觉档是 `deepseek-flash`，
   可在同一 OpenAI-compatible Chat Completions 接口中接收 `text + image_url` 内容块，
-  PixelVault 自 2026-10-01 将它作为默认助手与文本档位；默认能力支持图片，显式型号仍单独判断。
+  ANTEI 自 2026-10-01 将它作为默认助手与文本档位；默认能力支持图片，显式型号仍单独判断。
   图片只允许进入该视觉档：显式选 V4 Pro 仍在能力闸和请求构造器两层拒绝；调用方**未指定型号**
   且带图时，请求构造器直接用 `deepseek-flash`（2026-10-01 起无图请求也默认此型号）。
   ⚠ 2026-10-15「全跟助手」起，助手与小功能（标签台翻译、「满意」评估、卡片取材、3D 预检、试读）
@@ -256,7 +256,7 @@ adapter / Worker 抛错
 - Anima uses the Hub's exact `base_model:adapter:circlestone-labs/Anima` relation and also pins `circlestone-labs/Anima-Official-LoRAs`, whose card lacks a normal `lora` tag. Missing trigger metadata remains empty; repository names are never invented as trigger words.
 - A repository may contain weights for several architectures. File-name metadata is used to refine the family per SafeTensors file; a family-filtered page exposes only matching files, and import persists the selected file's family instead of blindly reusing the repository-level family.
 - Every accepted repository must expose a concrete SafeTensors file with a verified size. Files larger than 2 GiB are excluded, removing the 4.18 GB (3.90 GiB) `LyliaEngine/anima_baseV10` checkpoint that is incorrectly tagged as `lora` while retaining adapter weights.
-- The client bypasses stale browser HTTP responses so a server-side reclassification is reflected immediately. Imported families without a compatible PixelVault base can be stored in My Library but are not presented as locally generatable. Base models remain owned by the separate Runner/base catalog.
+- The client bypasses stale browser HTTP responses so a server-side reclassification is reflected immediately. Imported families without a compatible ANTEI base can be stored in My Library but are not presented as locally generatable. Base models remain owned by the separate Runner/base catalog.
 
 ### RunPod volume inventory (historical, verified 2026-07-14 — RunPod retired 2026-10-21)
 

@@ -150,8 +150,7 @@ export const CANVAS_SHELL_PALETTE_MAX_ROWS = 6
  * ⚠ 与文件拖入**同一个** drop 出口（`useWorkbenchDndV4().onDrop`），差别只在
  * 「媒体已经在 R2 上、不用再传一遍」，⛔ 不另起一条落物路径。
  */
-export const CANVAS_SHELL_MEDIA_DRAG_MIME =
-  'application/x-pixelvault-canvas-media'
+export const CANVAS_SHELL_MEDIA_DRAG_MIME = 'application/x-antei-canvas-media'
 
 /**
  * 三条加节点路里那颗**上传**接受的文件（S7 §7 owner 追加）。

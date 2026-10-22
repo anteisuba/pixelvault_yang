@@ -189,7 +189,7 @@ describe('StudioOperatorTimelineRow', () => {
     )
     expect(screen.getByTestId('operator-timeline-row')).toHaveAttribute(
       'aria-label',
-      'rowUser:ANTI',
+      'rowUser:ANTEI',
     )
 
     rerender(
@@ -199,7 +199,7 @@ describe('StudioOperatorTimelineRow', () => {
     )
     expect(screen.getByTestId('operator-timeline-row')).toHaveAttribute(
       'aria-label',
-      'rowTool:ANTI',
+      'rowTool:ANTEI',
     )
 
     rerender(

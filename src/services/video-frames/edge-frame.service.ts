@@ -28,7 +28,7 @@ export type EdgeFrame =
   | { readonly label: string; readonly ok: false; readonly reason: string }
 
 export const EDGE_FRAME_NOT_ON_CDN =
-  'this media is not a PixelVault-hosted MP4/image, so no frame can be taken'
+  'this media is not an ANTEI-hosted MP4/image, so no frame can be taken'
 
 export function formatFrameSec(seconds: number): string {
   return `${Math.round(seconds * 1000) / 1000}s`

@@ -1,4 +1,4 @@
-# 角色卡调研：对话类规范 · 生成类一致性机制 · PixelVault 数据模型建议
+# 角色卡调研：对话类规范 · 生成类一致性机制 · ANTEI 数据模型建议
 
 ## A · 对照矩阵（产品 → 一致性机制 → 参考素材 → 引用方式）
 
@@ -25,10 +25,10 @@
 **跨产品共识（三条）**
 
 1. 主体锚点正在从「一张图 + 一个权重」走向**命名实体 + 多图槽位 + prompt 内 `@名字`**（Kling / Vidu / Runway 三家写法一致）。角色卡不该是「一堆图」，应该是「一个有名字的实体」。
-2. **视觉槽位要分角色**：Gemini 明确区分「角色图 / 物体图 / 风格图」三类配额；Midjourney 用 `--oref` vs `--sref` 分道；PixelVault 现在把所有图平铺成一个无标注数组（见 B）。
+2. **视觉槽位要分角色**：Gemini 明确区分「角色图 / 物体图 / 风格图」三类配额；Midjourney 用 `--oref` vs `--sref` 分道；ANTEI 现在把所有图平铺成一个无标注数组（见 B）。
 3. **声音已经进入角色资产**：Kling 元素支持绑音色，Vidu `subjects[].voice_id` 直接挂在主体上，Hailuo 支持参考音频。owner「角色卡 = 信息 + 参考图 + 声音参考」与业界方向一致，不是超前设想。
 
-## B · PixelVault 角色卡数据模型建议
+## B · ANTEI 角色卡数据模型建议
 
 现状（读码核对：`prisma/schema.prisma:915-955`、`src/types/index.ts:3096-3260`、`src/constants/cards/character-card.ts`）
 
@@ -59,6 +59,6 @@
 2. **风格卡对角色卡是「改写」不是「追加」**。这条编译器已经写对了（fusion system prompt 明确要求 style 去改写 character/background 的描述而非尾部拼接），与 MJ「keep text prompts simple、别写指令写内容」一致——保留这条规则，别在补参考槽时退化成关键词拼接。来源：`card-recipe-compiler.service.ts:44-80` · 同上 MJ Style Reference
 3. **背景卡应升级成「场景元素」而非一段文字**。Kling 把场景与道具和角色平级做成可复用元素，Vidu 的 `subjects` 也不区分人与物。建议 `BackgroundCard` 补 `role` 化的参考图槽与 `@名字` 可引用性（画布已有 `backgroundName`），这样「同一条街道跨 8 个镜头」才稳。来源：https://kling.ai/quickstart/klingai-element-library-3-user-guide
 4. **建 recipe 级冲突护栏**。角色卡的 `attributes.artStyle`/`colorPalette` 与风格卡天然打架（MJ 文档明确提醒 stylize/exp/ow 会互相抢影响力）。建议角色卡加 `allowedStyleRange` + `negativeConstraints`，编译时由风格卡改写视觉语言、角色卡的负面约束**最后覆盖**，并在 UI 提示「该风格会覆盖角色卡的 artStyle」。来源：https://docs.midjourney.com/hc/en-us/articles/36285124473997-Omni-Reference
-5. **参考图质量规范写进建卡引导**。Runway 官方给的是可直接抄的验收标准：高质量照片、均匀自然光、中性表情作「空白画布」、复杂改动逐元素迭代并把结果当新参考。Kling 则证明「一张主图 + AI 自动补视角」可行——PixelVault 已有 `viewType` 与 `refine` 流程，把这两条合成建卡向导（主图 → 自动补 front/side/back → 精修入 `referenceImages` → `stabilityScore` 达 0.75 转 STABLE），比让用户自己传 10 张更可靠。来源：https://help.runwayml.com/hc/en-us/articles/40042718905875-Creating-with-Gen-4-Image-References · https://kling.ai/quickstart/klingai-element-library-3-user-guide
+5. **参考图质量规范写进建卡引导**。Runway 官方给的是可直接抄的验收标准：高质量照片、均匀自然光、中性表情作「空白画布」、复杂改动逐元素迭代并把结果当新参考。Kling 则证明「一张主图 + AI 自动补视角」可行——ANTEI 已有 `viewType` 与 `refine` 流程，把这两条合成建卡向导（主图 → 自动补 front/side/back → 精修入 `referenceImages` → `stabilityScore` 达 0.75 转 STABLE），比让用户自己传 10 张更可靠。来源：https://help.runwayml.com/hc/en-us/articles/40042718905875-Creating-with-Gen-4-Image-References · https://kling.ai/quickstart/klingai-element-library-3-user-guide
 
 **未核实**：Character.AI 官方角色定义字段（help.character.ai 未能解析）；Seedance 2.0 参考图上限与主体参考参数（火山方舟官方文档为 JS 渲染，未取到正文，仅见二手来源称 0–5 张）；Seedream 4.0 风格参考的具体参数形态（官方页仅有能力展示无参数文档）。

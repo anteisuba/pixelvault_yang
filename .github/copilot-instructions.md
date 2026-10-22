@@ -1,4 +1,4 @@
-# PixelVault — GitHub Copilot Instructions
+# ANTEI — GitHub Copilot Instructions
 
 ## Project
 Multi-model AI image/video generation + permanent archive. Next.js 16 + TypeScript + Prisma 7 + Clerk + Cloudflare R2.

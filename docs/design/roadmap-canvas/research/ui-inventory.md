@@ -2,7 +2,7 @@
 
 ---
 
-# PixelVault 现有 UI 与交互全清单（只读盘点 · 2026-09-17）
+# ANTEI 现有 UI 与交互全清单（只读盘点 · 2026-09-17）
 
 > 事实来源：`rg` 统计 + 逐文件阅读。文中所有路径相对 `/Users/fulina/Code/pixelvault_yang`。
 > 未核实项已显式标注。未读 `node_modules`。

@@ -340,7 +340,7 @@ LORA_STACK_WEIGHT_BUDGET = { default: 2.0, distilled: 1.0 }
 
 | 项目       | 来源                                                   | 生成记录 / 执行核查                                                                                                                              |
 | ---------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 通道       | 来源工具版本字段为 Forge/A1111 系版本串                | `illustrious-recipe-clone` / PixelVault Runner；本个案没有走上表的默认 NoobAI 路径                                                               |
+| 通道       | 来源工具版本字段为 Forge/A1111 系版本串                | `illustrious-recipe-clone` / ANTEI Runner；本个案没有走上表的默认 NoobAI 路径                                                               |
 | checkpoint | `rinFlanimeIllustrious_v40`，hash `29d5281e0a`         | 记录仅有名字，无版本 ID；按当前解析器与 Worker manifest 重建会落至 WAI v15。历史 GPU graph 未留存，因此此项是代码推导，不是捕获到的历史 GPU 参数 |
 | LoRA 栈    | Sue 0.9、EnchantingEyes 0.8、detailed hand focus 0.8   | 记录只有 Sue 版本 3139260 / 0.9 与 Eyes 版本 1463317 / 0.8；缺手部 LoRA                                                                          |
 | 初始尺寸   | metadata width/height 与 `Original Size` 均为 672×984  | 768×1024；提取器只读 `Size/size`，漏掉本图的两个有效尺寸来源                                                                                     |
@@ -404,7 +404,7 @@ owner 定：助手找 LoRA 改成**切到「库」页、在搜索框里搜给你
 ### 13.2 客户端
 
 - `search_loras` 步骤完成 → 宿主发一次「库页搜索请求」（词 + 底模）并切到「库」；库页若在 Hugging Face 先切回 Civitai。库页收到请求照「点一条搜索历史」那条路设词、再设底模筛选（旧结果变淡 42% → 新的淡入，同 `lora-library.md` §3）。
-- `show_lora_picks` → 网格里这几张加圈（封面外黑边 + 左上黑底「助手推荐」小标），已挂载的不圈；搜索框右端小标「ANTI 在搜… / ANTI 搜的」。
+- `show_lora_picks` → 网格里这几张加圈（封面外黑边 + 左上黑底「助手推荐」小标），已挂载的不圈；搜索框右端小标「ANTEI 在搜… / ANTEI 搜的」。
 - 撤圈：你改了搜索词或任何一个筛选、点了圈里那张的「＋ 挂载」（那一张换成 ✓）。开新对话不撤（圈在你眼前的库页上，留着无害）。
 - 你挂上圈里那张 → 线程里落一行「你挂上了「…」」（系统行 `loraLibraryPickMounted`）。
 - 搜索框小标写「助手在搜… / 助手搜的」，不带人设名字（人设只在 Dock 取一次，库页不另取）。

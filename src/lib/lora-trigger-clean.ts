@@ -1,6 +1,6 @@
 /**
  * Civitai `trainedWords` 字段里塞的是 SD 训练数据集的原始 caption，常带
- * 一些只有 SD WebUI 才识别的元字符。把这些 token 直接写进 PixelVault 的
+ * 一些只有 SD WebUI 才识别的元字符。把这些 token 直接写进 ANTEI 的
  * 通用 prompt 会被某些 provider 拒绝或转义两次，因此先洗一遍。
  *
  * 这一层只做「字符串清洗」，**不**做语义判断（不知道哪个 token 是触发
@@ -13,7 +13,7 @@
 const LORA_SYNTAX_RE = /<lora:[^>]+>/g
 
 // SD prompt 的转义括号：`\(text\)` 表示字面括号。Civitai trainedWords
-// 直接给 `'\\(...\\)'` —— JSON 解码后是 `\(...\)`，写进 PixelVault prompt
+// 直接给 `'\\(...\\)'` —— JSON 解码后是 `\(...\)`，写进 ANTEI prompt
 // 会被某些 provider 二次转义。统一去掉反斜杠保留括号本身。
 const ESCAPED_PAREN_RE = /\\([()])/g
 

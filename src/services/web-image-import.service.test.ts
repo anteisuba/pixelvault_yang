@@ -71,9 +71,9 @@ beforeEach(() => {
     width: 1600,
     height: 1200,
   })
-  vi.mocked(uploadToR2).mockResolvedValue('https://cdn.pixelvault.test/a.jpg')
+  vi.mocked(uploadToR2).mockResolvedValue('https://cdn.antei.test/a.jpg')
   vi.mocked(createImageThumbnailAsset).mockResolvedValue({
-    thumbnailUrl: 'https://cdn.pixelvault.test/a.thumbnail.webp',
+    thumbnailUrl: 'https://cdn.antei.test/a.thumbnail.webp',
     thumbnailStorageKey: 'generations/db_user_123/image/a.thumbnail.webp',
   })
   vi.mocked(createGeneration).mockResolvedValue(

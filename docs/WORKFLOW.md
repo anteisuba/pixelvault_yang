@@ -1,4 +1,4 @@
-# PixelVault 工作流
+# ANTEI 工作流
 
 本文件拥有任务路由、澄清、验证和交付流程。AGENTS 保留项目原则，scene 只补充场景特有契约，skill 提供可复用方法，不重复建立审批体系。
 
@@ -40,7 +40,7 @@
 | Bug 修复                      | scenes/bugfix.md              | 对应域 checklist       |
 | 调查 / 技术选型               | scenes/research.md            | 官方出处与明确结论     |
 | 发布                          | scenes/deploy-release.md      | checklists/release.md  |
-| 文档 / AGENTS / skills / 流程 | 本文件 + sync-pixelvault-docs | diff、引用、指令一致性 |
+| 文档 / AGENTS / skills / 流程 | 本文件 + sync-antei-docs | diff、引用、指令一致性 |
 
 业务域按需补读 `references/domains/<域>.md`；画布读 `references/pages/node-canvas-v2.md`；LoRA 当前工作台读 `references/pages/lora-workbench.md`。代码是实现事实源，文档中的已确认目标是意图；两者不一致先区分过时记录与未实现目标，不能机械地覆盖任一方。
 

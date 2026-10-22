@@ -1,5 +1,5 @@
 /**
- * Structured logging utility for PixelVault.
+ * Structured logging utility for ANTEI.
  *
  * Usage:
  *   import { logger } from '@/lib/logger'

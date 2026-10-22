@@ -44,7 +44,7 @@ const params = Promise.resolve({ locale: 'zh' as const })
 describe('/u/me metadata', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://pixelvault.app')
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://antei.app')
     mockAuth.mockResolvedValue({ userId: 'clerk-1' })
     mockEnsureUser.mockResolvedValue({
       id: 'db-user-1',
@@ -60,15 +60,13 @@ describe('/u/me metadata', () => {
   it('names the username address as the canonical, not itself', async () => {
     const metadata = await generateMetadata({ params })
     expect(metadata.alternates?.canonical).toBe(
-      'https://pixelvault.app/zh/u/yining120224',
+      'https://antei.app/zh/u/yining120224',
     )
   })
 
   it('sends og:url to that same address so the two signals agree', async () => {
     const metadata = await generateMetadata({ params })
-    expect(metadata.openGraph?.url).toBe(
-      'https://pixelvault.app/zh/u/yining120224',
-    )
+    expect(metadata.openGraph?.url).toBe('https://antei.app/zh/u/yining120224')
   })
 
   it('stays out of hreflang — the canonical already points elsewhere', async () => {

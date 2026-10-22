@@ -1,0 +1,4 @@
+interface:
+  display_name: "Improve ANTEI UI"
+  short_description: "Project UI workflow for ANTEI"
+  default_prompt: "Use $improve-antei-ui to improve an ANTEI page or component."

@@ -603,7 +603,7 @@ flowchart LR
 
 | 字段                    | 控件                              | 取值                                             | 默认             | 落到哪                                        |
 | ----------------------- | --------------------------------- | ------------------------------------------------ | ---------------- | --------------------------------------------- |
-| **助手名字**            | 单行输入，≤24 字                  | 自由文本，可空                                   | 空 = 显示 `ANTI` | 沟里头像兜底首字母 · 系统提示第一句           |
+| **助手名字**            | 单行输入，≤24 字                  | 自由文本，可空                                   | 空 = 显示 `ANTEI` | 沟里头像兜底首字母 · 系统提示第一句           |
 | **AI 头像**             | **2 格**预设 + 「上传」           | `avatarPreset` 枚举 或 `avatarUrl`               | 预设第一款       | §11.3 `TimelineAvatar`                        |
 | **语气**                | 四段分段控件                      | `professional` / `friendly` / `terse` / `custom` | `professional`   | 系统提示风格段                                |
 | **语气 · 自定义一句话** | 单行输入 ≤80 字，仅 `custom` 出现 | 自由文本                                         | —                | 同上，原样引在风格段里                        |
@@ -679,7 +679,7 @@ export const UpdateAssistantPersonaSchema = AssistantPersonaShapeSchema.omit({ a
 落点 `src/services/kernel/assistant-operator.service.ts:2019` 的 `buildOperatorSystemPrompt`。现在的拼接顺序：域人设（`src/constants/assistant-protocol.ts:172` 的 `ASSISTANT_DOMAIN_BRIEFS`）→ 域槽位 → 域规矩 → HOW YOU TALK → TOOLS → OUTPUT。**风格段插在 HOW YOU TALK 末尾，`TOOLS:` 之前。**
 
 - 请求侧：`AssistantOperatorRequest` 加可选 `persona`，**服务端自己按 `clerkId` 读**。⛔ 不从客户端收——它直连系统提示。
-- **名字**非空时首句改 `You are ${name}, PixelVault's workbench operator.`，⛔ 不覆盖域人设。
+- **名字**非空时首句改 `You are ${name}, ANTEI's workbench operator.`，⛔ 不覆盖域人设。
 - **语气**四档各一句英文指令；`custom` 原样单引号引入，前缀「the creator described how they want you to sound:」。⚠ 先过 `prompt-guard` 再拼。
 - **长度**三档映射成**字数区间**（`under 2 sentences` / `2–4` / `up to 6`），⛔ 不给无边界形容词。
 - **默认行为**：`always` → 「Always open with a plan card before touching anything」；`direct` → 「Skip the plan unless the request spends credits or needs more than three steps」；`auto` → 不写。⚠ 单轮「先问我」**永远压过** persona。
@@ -800,7 +800,7 @@ When the choice is "which reference image", put the asset URL in "assetUrl" inst
 
 ### 11.3 时间线沟：头像 + 形状节点分级
 
-用户与助手的消息首行显示「头像 + 名称」，正文从下一行开始并与名称左对齐。用户优先显示账号显示名，其次用户名；助手默认显示 `ANTI`，可在助手设置的「名字」中修改，清空后恢复默认。实时消息与会话历史共用此布局。
+用户与助手的消息首行显示「头像 + 名称」，正文从下一行开始并与名称左对齐。用户优先显示账号显示名，其次用户名；助手默认显示 `ANTEI`，可在助手设置的「名字」中修改，清空后恢复默认。实时消息与会话历史共用此布局。
 
 > 层级靠形状与缩进，不靠颜色和底色块。**会说话的两方用头像，其余仍用形状**。头像与形状节点**同轴**（沟内 x=18px，`STUDIO_OPERATOR_TIMELINE.linePx`），**沟宽 24px**（`gutterPx`，owner 2026-09-06 由 78 收到 24），头像 **32px**（由 20 放大）。⚠ 沟宽走行内 `gridTemplateColumns` 而不是 Tailwind arbitrary value（Hard Rule 5；24 这个数是面板私有的，不配进 `globals.css` 的 `@theme inline`）。
 

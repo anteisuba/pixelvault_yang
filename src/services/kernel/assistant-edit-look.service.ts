@@ -123,7 +123,7 @@ export function planEditDeskFrames(
         ok: false,
         reason: clip.sourceMissing
           ? 'The card this clip came from is gone from the board, so there is nothing to look at.'
-          : `The video behind this clip is not on PixelVault's CDN, so no frame can be taken.`,
+          : `The video behind this clip is not on ANTEI's CDN, so no frame can be taken.`,
       }
     }
     const times =
@@ -160,7 +160,7 @@ export function planEditDeskFrames(
   if (!url) {
     return {
       ok: false,
-      reason: `The video of ${asset.name} is not on PixelVault's CDN, so no frame can be taken.`,
+      reason: `The video of ${asset.name} is not on ANTEI's CDN, so no frame can be taken.`,
     }
   }
   const times =

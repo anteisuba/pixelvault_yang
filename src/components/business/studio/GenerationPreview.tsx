@@ -415,7 +415,7 @@ export const GenerationPreview = memo(function GenerationPreview({
           : 'png'
     const result = await downloadRemoteAsset(
       generation.url,
-      `pixelvault-${generation.id}.${ext}`,
+      `antei-${generation.id}.${ext}`,
     )
     if (!result.success) {
       window.open(generation.url, '_blank', 'noopener,noreferrer')

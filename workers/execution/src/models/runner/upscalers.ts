@@ -14,7 +14,7 @@ export interface RunnerUpscalerManifestEntry {
 
 /**
  * Fixed, hash-pinned post-processing assets. 4x-AnimeSharp is published by
- * its author under a non-commercial license; PixelVault's current project
+ * its author under a non-commercial license; ANTEI's current project
  * scope is explicitly non-commercial.
  */
 export const RUNNER_UPSCALER_MANIFEST: Record<

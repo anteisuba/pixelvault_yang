@@ -1,6 +1,6 @@
 ---
 name: frontend-design
-description: 页面视觉方向与设计实现；按 PixelVault 的域和页面确认流程工作，不用于非视觉工程任务。
+description: 页面视觉方向与设计实现；按 ANTEI 的域和页面确认流程工作，不用于非视觉工程任务。
 license: Complete terms in LICENSE.txt
 ---
 

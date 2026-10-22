@@ -5,12 +5,15 @@
  */
 
 import { createHash } from 'node:crypto'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import sharp from 'sharp'
 
 // ─── Mocks (must precede imports) ───────────────────────────────
 
-const { mockSend } = vi.hoisted(() => ({ mockSend: vi.fn() }))
+const { mockSend, mockUploadDone } = vi.hoisted(() => ({
+  mockSend: vi.fn(),
+  mockUploadDone: vi.fn(),
+}))
 
 vi.mock('@aws-sdk/client-s3', () => {
   // Must use `function` keyword for `new` — arrow functions are not constructors
@@ -39,8 +42,8 @@ vi.mock('@aws-sdk/client-s3', () => {
 })
 
 vi.mock('@aws-sdk/lib-storage', () => {
-  function MockUpload() {
-    return { done: () => Promise.resolve() }
+  function MockUpload(options: { params: unknown }) {
+    return { done: async () => mockUploadDone(options.params) }
   }
   return { Upload: MockUpload }
 })
@@ -70,7 +73,8 @@ import {
   fetchAsBuffer,
   uploadToR2,
   streamUploadToR2,
-  uploadBufferedHttpToR2,
+  uploadVerifiedHttpToR2,
+  R2SourceChecksumMismatchError,
   deleteFromR2,
   isOwnedStorageUrl,
   uploadFromHttpToR2,
@@ -582,21 +586,60 @@ describe('streamUploadToR2', () => {
   })
 })
 
-describe('uploadBufferedHttpToR2', () => {
+describe('uploadVerifiedHttpToR2', () => {
+  /** 像 lib-storage 一样把 Body 读到底；读的时候出错 = 没有对象落地。 */
+  const stored = new Map<string, Buffer>()
+
   beforeEach(() => {
     vi.clearAllMocks()
-    mockSend.mockResolvedValue({})
+    stored.clear()
+    mockUploadDone.mockImplementation(
+      async (params: { Key: string; Body: ReadableStream<Uint8Array> }) => {
+        const reader = params.Body.getReader()
+        const chunks: Uint8Array[] = []
+        for (;;) {
+          const { done, value } = await reader.read()
+          if (done) break
+          chunks.push(value)
+        }
+        stored.set(params.Key, Buffer.concat(chunks))
+      },
+    )
   })
 
-  it('buffers a remote file before uploading it to R2', async () => {
-    const body = new Uint8Array([1, 2, 3, 4])
+  afterEach(() => {
+    mockUploadDone.mockReset()
+  })
+
+  function respondWith(
+    chunks: number[][],
+    headers: Record<string, string> = {},
+    onCancel?: () => void,
+  ) {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      arrayBuffer: () => Promise.resolve(body.buffer),
-      headers: new Headers({ 'content-type': 'model/gltf-binary' }),
+      status: 200,
+      headers: new Headers(headers),
+      body: new ReadableStream<Uint8Array>({
+        start(controller) {
+          for (const chunk of chunks) controller.enqueue(new Uint8Array(chunk))
+          controller.close()
+        },
+        cancel: onCancel,
+      }),
     })
+  }
 
-    const result = await uploadBufferedHttpToR2({
+  it('streams a remote file into R2 and reports its size', async () => {
+    respondWith(
+      [
+        [1, 2],
+        [3, 4],
+      ],
+      { 'content-type': 'model/gltf-binary' },
+    )
+
+    const result = await uploadVerifiedHttpToR2({
       sourceUrl: 'https://example.com/model.glb',
       key: 'test/model.glb',
     })
@@ -604,54 +647,92 @@ describe('uploadBufferedHttpToR2', () => {
     expect(result.publicUrl).toBe('https://cdn.test.com/test/model.glb')
     expect(result.mimeType).toBe('model/gltf-binary')
     expect(result.sizeBytes).toBe(4)
-    expect(mockSend).toHaveBeenCalledOnce()
+    expect(stored.get('test/model.glb')).toEqual(Buffer.from([1, 2, 3, 4]))
+    expect(mockSend).not.toHaveBeenCalled()
   })
 
-  it('refuses to store a file whose SHA-256 differs from the published one', async () => {
-    const body = new Uint8Array([1, 2, 3, 4])
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      arrayBuffer: () => Promise.resolve(body.buffer),
-      headers: new Headers(),
-    })
+  it('refuses a declared size over the limit before reading the body', async () => {
+    respondWith([[1]], { 'content-length': '100' })
 
     await expect(
-      uploadBufferedHttpToR2({
+      uploadVerifiedHttpToR2({
+        sourceUrl: 'https://example.com/lora.safetensors',
+        key: 'runner-loras/x.safetensors',
+        maxBytes: 10,
+      }),
+    ).rejects.toThrow(
+      'Remote file exceeds maximum size of 10 bytes (declared 100).',
+    )
+    expect(mockUploadDone).not.toHaveBeenCalled()
+  })
+
+  // 来源不报大小时，旧做法要整个读进内存才知道超了（2026-10-21 内存不足被杀）。
+  it('stops the download once an undeclared file passes the limit', async () => {
+    const cancel = vi.fn()
+    respondWith(
+      [
+        [1, 2, 3, 4],
+        [5, 6, 7, 8],
+        [9, 10, 11, 12],
+      ],
+      {},
+      cancel,
+    )
+
+    await expect(
+      uploadVerifiedHttpToR2({
+        sourceUrl: 'https://example.com/lora.safetensors',
+        key: 'runner-loras/x.safetensors',
+        maxBytes: 6,
+      }),
+    ).rejects.toThrow(
+      'Remote file exceeds maximum size of 6 bytes (stopped at 8).',
+    )
+    expect(stored.size).toBe(0)
+    expect(cancel).toHaveBeenCalled()
+  })
+
+  it('leaves no object behind when the SHA-256 differs from the published one', async () => {
+    respondWith([
+      [1, 2],
+      [3, 4],
+    ])
+
+    await expect(
+      uploadVerifiedHttpToR2({
         sourceUrl: 'https://example.com/lora.safetensors',
         key: 'runner-loras/x.safetensors',
         acceptedSha256s: ['ab'.repeat(32)],
       }),
-    ).rejects.toThrow(/SHA-256 mismatch/)
+    ).rejects.toBeInstanceOf(R2SourceChecksumMismatchError)
     expect(global.fetch).toHaveBeenCalledOnce()
-    expect(mockSend).not.toHaveBeenCalled()
+    expect(stored.size).toBe(0)
   })
 
   it('stores the file when it matches one of the published SHA-256 values', async () => {
-    const body = new Uint8Array([1, 2, 3, 4])
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      arrayBuffer: () => Promise.resolve(body.buffer),
-      headers: new Headers(),
-    })
-    const actual = createHash('sha256').update(body).digest('hex')
+    respondWith([
+      [1, 2],
+      [3, 4],
+    ])
+    const actual = createHash('sha256')
+      .update(new Uint8Array([1, 2, 3, 4]))
+      .digest('hex')
 
-    await uploadBufferedHttpToR2({
+    await uploadVerifiedHttpToR2({
       sourceUrl: 'https://example.com/lora.safetensors',
       key: 'runner-loras/x.safetensors',
       acceptedSha256s: ['ab'.repeat(32), actual],
     })
 
-    expect(mockSend).toHaveBeenCalledOnce()
+    expect(stored.get('runner-loras/x.safetensors')).toEqual(
+      Buffer.from([1, 2, 3, 4]),
+    )
   })
 
   it('prefers explicit mimeType when provided', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      arrayBuffer: () => Promise.resolve(new Uint8Array([1]).buffer),
-      headers: new Headers({ 'content-type': 'application/octet-stream' }),
-    })
+    respondWith([[1]], { 'content-type': 'application/octet-stream' })
 
-    const result = await uploadBufferedHttpToR2({
+    const result = await uploadVerifiedHttpToR2({
       sourceUrl: 'https://example.com/model.glb',
       key: 'test/model.glb',
       mimeType: 'model/gltf-binary',
@@ -664,11 +745,11 @@ describe('uploadBufferedHttpToR2', () => {
     global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 403 })
 
     await expect(
-      uploadBufferedHttpToR2({
+      uploadVerifiedHttpToR2({
         sourceUrl: 'https://example.com/nope.glb',
         key: 'test/nope.glb',
       }),
-    ).rejects.toThrow('Failed to fetch file for buffered upload (403)')
+    ).rejects.toThrow('Failed to fetch file for upload (403)')
   })
 })
 

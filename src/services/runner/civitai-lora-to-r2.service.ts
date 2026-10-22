@@ -10,7 +10,7 @@ import {
   createPresignedR2GetUrl,
   R2SourceChecksumMismatchError,
   r2ObjectExists,
-  uploadBufferedHttpToR2,
+  uploadVerifiedHttpToR2,
 } from '@/services/storage/r2'
 import type { RunnerLoraSpec } from '@/types'
 
@@ -28,6 +28,12 @@ const CIVITAI_DOWNLOAD_VERSION_PATTERN =
  * Vercel request and leave GenerationJob stuck RUNNING forever).
  */
 export const RUNNER_LORA_MAX_BYTES = 512 * 1024 * 1024
+
+/**
+ * 每把 LoRA 下载 + 写入 R2 的截止时间。它跑在出图请求里（`/api/studio/generate`、
+ * `/api/generate` 的 `maxDuration` 都是 300 s），留出建任务、checkpoint 与派发的余量。
+ */
+const RUNNER_LORA_DOWNLOAD_TIMEOUT_MS = 240_000
 
 export interface EnsuredRunnerLora {
   /** ComfyUI 挂载用文件名（fork worker 下到 models/loras/ 后按此名挂）。 */
@@ -53,11 +59,15 @@ export class RunnerLoraR2Error extends Error {
   }
 }
 
-function toRunnerLoraTooLargeError(sizeBytes: number): RunnerLoraR2Error {
-  const sizeMb = Math.round(sizeBytes / (1024 * 1024))
+/** 来源报了大小就带上；没报、下到一半超限被掐断的，只说超了。 */
+function toRunnerLoraTooLargeError(error: Error): RunnerLoraR2Error {
+  const declared = error.message.match(/declared (\d+)/)
   const maxMb = Math.round(RUNNER_LORA_MAX_BYTES / (1024 * 1024))
+  const size = declared
+    ? `${Math.round(Number(declared[1]) / (1024 * 1024))} MB, over`
+    : 'over'
   return new RunnerLoraR2Error(
-    `Runner LoRA is ${sizeMb} MB, over the ${maxMb} MB limit. Base checkpoints belong in the checkpoint path, not as LoRA attachments.`,
+    `Runner LoRA is ${size} the ${maxMb} MB limit. Base checkpoints belong in the checkpoint path, not as LoRA attachments.`,
     'TOO_LARGE',
   )
 }
@@ -106,7 +116,7 @@ function isRemoteFileTooLargeError(error: unknown): error is Error {
 function isRemoteAuthenticationError(error: unknown): error is Error {
   return (
     error instanceof Error &&
-    /buffered upload \((?:401|403)\)/.test(error.message)
+    /file for upload \((?:401|403)\)/.test(error.message)
   )
 }
 
@@ -245,11 +255,12 @@ export async function ensureCivitaiLoraInR2(
   let lastAuthenticationError: Error | null = null
   for (const token of getCivitaiTokenCandidates(preferredToken)) {
     try {
-      await uploadBufferedHttpToR2({
+      await uploadVerifiedHttpToR2({
         sourceUrl: loraDownloadUrl,
         key: r2Key,
         mimeType: 'application/octet-stream',
         fetchHeaders: token ? { Authorization: `Bearer ${token}` } : undefined,
+        timeoutMs: RUNNER_LORA_DOWNLOAD_TIMEOUT_MS,
         maxBytes: RUNNER_LORA_MAX_BYTES,
         acceptedSha256s,
       })
@@ -272,11 +283,7 @@ export async function ensureCivitaiLoraInR2(
         error: error instanceof Error ? error.message : 'Unknown',
       })
       if (isRemoteFileTooLargeError(error)) {
-        const match = error.message.match(/declared (\d+)|got (\d+)/)
-        const size = Number(
-          match?.[1] ?? match?.[2] ?? RUNNER_LORA_MAX_BYTES + 1,
-        )
-        throw toRunnerLoraTooLargeError(size)
+        throw toRunnerLoraTooLargeError(error)
       }
       throw new RunnerLoraR2Error(
         `Failed to download Civitai LoRA ${versionId} to R2`,
@@ -319,10 +326,11 @@ export async function ensureHuggingFaceLoraInR2(
     // Public HF model files do not need a token. Keeping the worker contract
     // R2-only also prevents user-supplied URLs from becoming a worker SSRF
     // surface and makes cache reuse independent of HF availability.
-    await uploadBufferedHttpToR2({
+    await uploadVerifiedHttpToR2({
       sourceUrl: loraDownloadUrl,
       key: r2Key,
       mimeType: 'application/octet-stream',
+      timeoutMs: RUNNER_LORA_DOWNLOAD_TIMEOUT_MS,
       maxBytes: RUNNER_LORA_MAX_BYTES,
       acceptedSha256s,
     })
@@ -342,12 +350,7 @@ export async function ensureHuggingFaceLoraInR2(
       error: error instanceof Error ? error.message : 'Unknown',
     })
     if (isRemoteFileTooLargeError(error)) {
-      const match =
-        error instanceof Error
-          ? error.message.match(/declared (\d+)|got (\d+)/)
-          : null
-      const size = Number(match?.[1] ?? match?.[2] ?? RUNNER_LORA_MAX_BYTES + 1)
-      throw toRunnerLoraTooLargeError(size)
+      throw toRunnerLoraTooLargeError(error)
     }
     throw new RunnerLoraR2Error(
       `Failed to download Hugging Face LoRA ${reference.repoId}/${reference.filename} to R2`,
@@ -383,25 +386,26 @@ export async function ensureRunnerLoraInR2(
 const RUNNER_LORA_PRESIGN_TTL_SECONDS = 900
 
 /**
- * v2 ①a 收口：把一组 LoRA（主 + 挂载）逐个确保进 R2，并各生成 R2 预签名 GET，
- * 组成 `RunnerLoraSpec[]` 交给 Cloudflare Worker → Modal runner。顺序保留（配方叠挂
- * 顺序有意义）。任一把失败即抛（RunnerLoraR2Error），上层归类成友好错误。
+ * v2 ①a 收口：把一组 LoRA（主 + 挂载）确保进 R2，并各生成 R2 预签名 GET，组成
+ * `RunnerLoraSpec[]` 交给 Cloudflare Worker → Modal runner。几把同时下（每把只占几个
+ * 分片的内存，见 `uploadVerifiedHttpToR2`），结果按原顺序排（配方叠挂顺序有意义）。
+ * 任一把失败即抛（RunnerLoraR2Error），上层归类成友好错误。
  */
 export async function prepareRunnerLoras(
   loras: readonly { url: string; scale?: number | null }[],
   preferredCivitaiToken?: string | null,
 ): Promise<RunnerLoraSpec[]> {
-  const specs: RunnerLoraSpec[] = []
-  for (const lora of loras) {
-    const { filename, r2Key } = await ensureRunnerLoraInR2(
-      lora.url,
-      preferredCivitaiToken,
-    )
-    const downloadUrl = await createPresignedR2GetUrl({
-      key: r2Key,
-      expiresInSeconds: RUNNER_LORA_PRESIGN_TTL_SECONDS,
-    })
-    specs.push({ filename, downloadUrl, scale: lora.scale ?? 1 })
-  }
-  return specs
+  return Promise.all(
+    loras.map(async (lora) => {
+      const { filename, r2Key } = await ensureRunnerLoraInR2(
+        lora.url,
+        preferredCivitaiToken,
+      )
+      const downloadUrl = await createPresignedR2GetUrl({
+        key: r2Key,
+        expiresInSeconds: RUNNER_LORA_PRESIGN_TTL_SECONDS,
+      })
+      return { filename, downloadUrl, scale: lora.scale ?? 1 }
+    }),
+  )
 }

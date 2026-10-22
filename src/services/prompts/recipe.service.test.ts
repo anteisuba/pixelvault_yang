@@ -14,7 +14,6 @@ const mockUpdateMany = vi.fn()
 const mockLoraAssetFindMany = vi.fn()
 const mockGenerationFindFirst = vi.fn()
 const mockGenerationFindMany = vi.fn()
-const mockInspirationPromptFindMany = vi.fn()
 const mockQueryRaw = vi.fn()
 const mockUpdatePreferenceOnRecipeSaved = vi.fn()
 
@@ -44,9 +43,6 @@ vi.mock('@/lib/db', () => ({
       findFirst: (...args: unknown[]) => mockGenerationFindFirst(...args),
       findMany: (...args: unknown[]) => mockGenerationFindMany(...args),
     },
-    inspirationPrompt: {
-      findMany: (...args: unknown[]) => mockInspirationPromptFindMany(...args),
-    },
     $queryRaw: (...args: unknown[]) => mockQueryRaw(...args),
   },
 }))
@@ -62,7 +58,6 @@ import {
   getRecipe,
   deleteRecipe,
   markRecipeUsed,
-  setRecipeVisibility,
 } from '@/services/prompts/recipe.service'
 
 const FAKE_USER = { id: 'db_user_123', clerkId: 'clerk_test_user' }
@@ -473,7 +468,6 @@ describe('listRecipes', () => {
     mockFindMany.mockResolvedValue([FAKE_RECIPE])
     mockCount.mockResolvedValue(1)
     mockGenerationFindMany.mockResolvedValue([FAKE_COVER_GENERATION])
-    mockInspirationPromptFindMany.mockResolvedValue([])
     mockQueryRaw.mockResolvedValue([])
   })
 
@@ -565,7 +559,7 @@ describe('listRecipes', () => {
     })
   })
 
-  it('skips parent and inspiration cover queries for plain text-only recipes', async () => {
+  it('skips the parent cover query for plain text-only recipes', async () => {
     mockFindMany.mockResolvedValueOnce([
       { ...FAKE_RECIPE, parentGenerationId: null },
     ])
@@ -573,44 +567,7 @@ describe('listRecipes', () => {
     const result = await listRecipes('clerk_test_user', 1, 20)
 
     expect(mockGenerationFindMany).not.toHaveBeenCalled()
-    expect(mockInspirationPromptFindMany).not.toHaveBeenCalled()
     expect(result.recipes[0]?.coverThumbnailUrl).toBeNull()
-  })
-
-  it('falls back to the source inspiration image for cloned shared prompts', async () => {
-    mockFindMany.mockResolvedValueOnce([
-      {
-        ...FAKE_RECIPE,
-        parentGenerationId: null,
-        userIntent: {
-          source: 'inspiration',
-          inspirationId: 'insp_1',
-        },
-      },
-    ])
-    mockInspirationPromptFindMany.mockResolvedValueOnce([
-      {
-        id: 'insp_1',
-        imageUrl: 'https://images.meigen.ai/tweets/1/0.jpg',
-      },
-    ])
-
-    const result = await listRecipes('clerk_test_user', 1, 20)
-
-    expect(mockGenerationFindMany).not.toHaveBeenCalled()
-    expect(mockInspirationPromptFindMany).toHaveBeenCalledWith({
-      where: {
-        id: { in: ['insp_1'] },
-        isPublic: true,
-      },
-      select: {
-        id: true,
-        imageUrl: true,
-      },
-    })
-    expect(result.recipes[0]?.coverThumbnailUrl).toBe(
-      'https://images.meigen.ai/tweets/1/0.jpg',
-    )
   })
 })
 
@@ -621,7 +578,6 @@ describe('listRecipeSummaries', () => {
     mockFindMany.mockResolvedValue([FAKE_RECIPE])
     mockQueryRaw.mockResolvedValue([])
     mockGenerationFindMany.mockResolvedValue([])
-    mockInspirationPromptFindMany.mockResolvedValue([])
   })
 
   it('selects list fields plus the parent generation, without counting rows', async () => {
@@ -638,9 +594,9 @@ describe('listRecipeSummaries', () => {
           compiledPrompt: true,
           modelId: true,
           version: true,
-          visibility: true,
           createdAt: true,
           parentGenerationId: true,
+          coverImageUrl: true,
           userIntent: true,
           params: true,
           lastUsedAt: true,
@@ -789,28 +745,19 @@ describe('listRecipeSummaries', () => {
     )
   })
 
-  it('uses the source inspiration image when no generation cover exists', async () => {
+  it('falls back to the stored coverImageUrl when no generation cover exists', async () => {
     mockFindMany.mockResolvedValueOnce([
       {
         ...FAKE_RECIPE,
         parentGenerationId: null,
-        userIntent: {
-          source: 'inspiration',
-          inspirationId: 'insp_1',
-        },
-      },
-    ])
-    mockInspirationPromptFindMany.mockResolvedValueOnce([
-      {
-        id: 'insp_1',
-        imageUrl: 'https://images.meigen.ai/tweets/1/0.jpg',
+        coverImageUrl: 'https://cdn.example.com/stored-cover.jpg',
       },
     ])
 
     const result = await listRecipeSummaries('clerk_test_user', 1, 20)
 
     expect(result[0]?.coverThumbnailUrl).toBe(
-      'https://images.meigen.ai/tweets/1/0.jpg',
+      'https://cdn.example.com/stored-cover.jpg',
     )
   })
 })
@@ -901,54 +848,13 @@ describe('deleteRecipe', () => {
   })
 })
 
-describe('setRecipeVisibility', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    mockEnsureUser.mockResolvedValue(FAKE_USER)
-    mockFindFirst.mockResolvedValue({ id: 'recipe_abc' })
-    mockUpdate.mockResolvedValue({ ...FAKE_RECIPE, visibility: 'PUBLIC' })
-  })
-
-  it('publishes an owned recipe (PRIVATE → PUBLIC)', async () => {
-    const result = await setRecipeVisibility(
-      'clerk_test_user',
-      'recipe_abc',
-      'PUBLIC',
-    )
-
-    expect(mockFindFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: 'recipe_abc', userId: 'db_user_123', isDeleted: false },
-      }),
-    )
-    expect(mockUpdate).toHaveBeenCalledWith({
-      where: { id: 'recipe_abc' },
-      data: { visibility: 'PUBLIC' },
-    })
-    expect(result?.visibility).toBe('PUBLIC')
-  })
-
-  it('returns null when the recipe is missing or not owned', async () => {
-    mockFindFirst.mockResolvedValue(null)
-
-    const result = await setRecipeVisibility(
-      'clerk_test_user',
-      'recipe_missing',
-      'PUBLIC',
-    )
-
-    expect(result).toBeNull()
-    expect(mockUpdate).not.toHaveBeenCalled()
-  })
-})
-
 describe('markRecipeUsed', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockEnsureUser.mockResolvedValue(FAKE_USER)
   })
 
-  it('只记最近使用时间，⛔ 动 usageCount（那是别人 clone 的计数）', async () => {
+  it('只记最近使用时间，⛔ 动 usageCount（那是旧共享库的复制计数）', async () => {
     mockUpdateMany.mockResolvedValueOnce({ count: 1 })
 
     const result = await markRecipeUsed('clerk_test_user', 'recipe_abc')

@@ -21,6 +21,7 @@ import {
 import type {
   GallerySortOption,
   GalleryTimeRange,
+  GalleryView,
   GenerationRecord,
   OutputTypeValue,
 } from '@/types'
@@ -46,6 +47,8 @@ export interface GalleryFilters {
   projectId: string
   /** Filter by Generation.provider (e.g. USER_UPLOAD_PROVIDER for local uploads). */
   provider?: string
+  /** 画廊看法：`prompts` 只拿提示词公开的作品。不传 = 以图为主。 */
+  view?: GalleryView
 }
 
 interface UseGalleryOptions {
@@ -273,6 +276,7 @@ export function useGallery({
           ...(includeTotal ? {} : { includeTotal: false }),
           projectId: f.projectId || undefined,
           provider: f.provider || undefined,
+          view: f.view,
         }
         const response = await fetchGalleryImages(
           targetPage,

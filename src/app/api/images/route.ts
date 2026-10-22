@@ -46,6 +46,7 @@ export const GET = createApiGetRoute<
       const mine = data.mine === '1'
       const liked = data.liked === '1'
       const published = data.published === '1'
+      const promptPublic = data.view === 'prompts'
       let userId: string | undefined
       let likedByUserId: string | undefined
       let viewerUserId: string | undefined
@@ -77,6 +78,7 @@ export const GET = createApiGetRoute<
             type: data.type,
             timeRange: data.timeRange,
             published,
+            promptPublic,
             projectId: data.projectId,
           })
         : await getPublicGenerationPage({
@@ -91,6 +93,7 @@ export const GET = createApiGetRoute<
             userId,
             likedByUserId,
             published,
+            promptPublic,
             viewerUserId,
             projectId: data.projectId,
             provider: data.provider,

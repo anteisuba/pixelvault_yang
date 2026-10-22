@@ -16,17 +16,20 @@
 
 ## 组件分工
 
-| 组件            | 职责                                                                                          |
-| --------------- | --------------------------------------------------------------------------------------------- |
-| `GalleryFeed`   | filter 状态接线 · URL query 替换 · 加载/错误 · 无限滚动（哨兵）· 空态回 Studio                |
-| `GalleryHeader` | 一条顶栏：类型 / 模型 / 时间 / 排序分面（复用素材页分面弹层）· 搜索 · 我赞过的；下滚收线      |
-| `GalleryGrid`   | 瀑布流分批渐进渲染 · 近视口预量图 · 键盘空间导航 · 空态                                       |
-| `ImageCard`     | 单卡：媒体 + 悬停的作者小签与 ♥ · 下载；点开交给查看器（平板 768–1023 开 `ImageDetailModal`） |
-| `GalleryViewer` | 就地查看器：大图 + 缩略轨 + 作者与配方栏（与素材页共用查看器外壳）                            |
+| 组件                | 职责                                                                                          |
+| ------------------- | --------------------------------------------------------------------------------------------- |
+| `GalleryFeed`       | filter 状态接线 · URL query 替换 · 加载/错误 · 无限滚动（哨兵）· 空态回 Studio                |
+| `GalleryHeader`     | 一条顶栏：类型 / 模型 / 时间 / 排序分面（复用素材页分面弹层）· 搜索 · 我赞过的；下滚收线      |
+| `GalleryGrid`       | 瀑布流分批渐进渲染 · 近视口预量图 · 键盘空间导航 · 空态                                       |
+| `GalleryPromptList` | 「提示词」看法：提示词大卡 + 角上小图 · 复制 · 点开同一个查看器                               |
+| `ImageCard`         | 单卡：媒体 + 悬停的作者小签与 ♥ · 下载；点开交给查看器（平板 768–1023 开 `ImageDetailModal`） |
+| `GalleryViewer`     | 就地查看器：大图 + 缩略轨 + 作者与配方栏（与素材页共用查看器外壳）                            |
 
-filter 维度：search / model / sort / outputType / timeRange / liked / published / projectId。
+filter 维度：search / model / sort / outputType / timeRange / liked / published / projectId / view。
 
-## 已拍板方向（未实施，2026-07-19）
+**两种看法（2026-10-23 落地，owner 10-22 定）**：顶栏最左一颗「图片 / 提示词」分段（`?view=prompts`，地址可分享）。「提示词」= 同一批公开作品，服务端只给 `isPromptPublic=true` 的（`GalleryQueryOptions.promptPublic`），排成提示词大卡、图缩成角上一块；点卡开同一个就地查看器（平板只读 + 复制）。两种看法都是公开的。
+
+## 已拍板方向（2026-07-19；共享提示词并入画廊已于 2026-10-23 落地）
 
 - Gallery 成为**公开作品与公开配方的唯一发现入口**；不再由 Prompts 维护第二套共享 feed。
 - 公开单位仍是 Generation/作品或图集，不是脱离作品的 Prompt 卡。配方是作品的可展开、可比较、可复用层。

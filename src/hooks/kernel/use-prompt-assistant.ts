@@ -297,7 +297,6 @@ export interface PromptAssistantSendOptions {
   llmModelId?: string
   responseLanguage?: PromptAssistantResponseLanguage
   mode?: PromptAssistantMode
-  useInspirationContext?: boolean
   /**
    * 联网检索三态（AI 导演内核 · 切片 1）。
    *
@@ -553,7 +552,6 @@ export function usePromptAssistant(
         apiKeyId: opts?.apiKeyId,
         llmModelId: opts?.llmModelId,
         responseLanguage: opts?.responseLanguage,
-        useInspirationContext: opts?.useInspirationContext,
         researchMode: opts?.researchMode,
         workbenchState: opts?.workbenchState,
       }

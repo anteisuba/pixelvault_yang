@@ -1,6 +1,7 @@
 import type {
   AssetSectionCounts,
   GalleryResponse,
+  GalleryView,
   GenerationRecord,
   OutputTypeValue,
 } from '@/types'
@@ -30,6 +31,7 @@ export async function fetchGalleryImages(
     projectId?: string
     /** Filter by Generation.provider (e.g. 'user-upload' for local assets). */
     provider?: string
+    view?: GalleryView
   },
   cursor?: string | null,
 ): Promise<GalleryResponse> {
@@ -52,6 +54,7 @@ export async function fetchGalleryImages(
     if (filters?.includeTotal === false) params.set('includeTotal', '0')
     if (filters?.projectId) params.set('projectId', filters.projectId)
     if (filters?.provider) params.set('provider', filters.provider)
+    if (filters?.view === 'prompts') params.set('view', 'prompts')
 
     const response = await fetch(`${API_ENDPOINTS.IMAGES}?${params.toString()}`)
     if (!response.ok) {

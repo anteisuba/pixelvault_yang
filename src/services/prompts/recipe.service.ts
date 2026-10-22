@@ -1,12 +1,11 @@
 import 'server-only'
 
 import { db } from '@/lib/db'
-import { Prisma, type Recipe } from '@/lib/generated/prisma/client'
+import { Prisma, type Recipe as RecipeRow } from '@/lib/generated/prisma/client'
 import { ApiRequestError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { ensureUser } from '@/services/user.service'
 import { updatePreferenceOnRecipeSaved } from '@/services/user-preference.service'
-import type { RecipeVisibility } from '@/constants/prompt-library'
 import {
   readRecipeLoraSetup,
   type RecipeLoraRead,
@@ -26,6 +25,9 @@ import {
   type RecipeUsage,
 } from '@/types'
 
+/** `visibility` 已停读（`lib/db.ts` 的 RETIRED_COLUMNS），删列时连这里一起收。 */
+type Recipe = Omit<RecipeRow, 'visibility'>
+
 export interface ListRecipesResult {
   recipes: RecipeWithCover[]
   total: number
@@ -43,7 +45,6 @@ export type RecipeListItem = Pick<
   | 'compiledPrompt'
   | 'modelId'
   | 'version'
-  | 'visibility'
   | 'createdAt'
 >
 
@@ -70,7 +71,6 @@ const RECIPE_LIST_ITEM_SELECT = {
   compiledPrompt: true,
   modelId: true,
   version: true,
-  visibility: true,
   createdAt: true,
 } as const satisfies Prisma.RecipeSelect
 
@@ -221,22 +221,6 @@ function getGenerationCoverThumbnailUrl(generation: {
 }): string | null {
   if (generation.outputType !== 'IMAGE') return generation.thumbnailUrl
   return generation.thumbnailUrl ?? generation.previewUrl ?? generation.url
-}
-
-function isJsonRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function getInspirationIdFromUserIntent(userIntent: unknown): string | null {
-  if (!isJsonRecord(userIntent)) return null
-  const source = userIntent.source
-  const inspirationId = userIntent.inspirationId
-  if (source !== 'inspiration' || typeof inspirationId !== 'string') {
-    return null
-  }
-
-  const trimmed = inspirationId.trim()
-  return trimmed.length > 0 ? trimmed : null
 }
 
 function getGenerationReferenceAssets(generation: {
@@ -427,9 +411,9 @@ export async function listRecipes(
  *      whose recipeSnapshot.recipeId matches (a deleted first image naturally
  *      falls back to the next-earliest, since only live rows are returned);
  *   2. the recipe's parent generation (the image it was saved from);
- *   3. the source InspirationPrompt image for cloned shared prompts;
+ *   3. the recipe's own stored `coverImageUrl`;
  *   4. null → caller renders a text/icon fallback.
- * One JSONB DISTINCT ON query for (1) + batched fetches for (2)/(3) — no
+ * One JSONB DISTINCT ON query for (1) + one batched fetch for (2) — no
  * per-recipe fan-out.
  */
 async function resolveRecipeCovers(
@@ -437,7 +421,7 @@ async function resolveRecipeCovers(
   recipes: Array<{
     id: string
     parentGenerationId: string | null
-    userIntent?: unknown
+    coverImageUrl: string | null
   }>,
 ): Promise<Map<string, string | null>> {
   const coverByRecipeId = new Map<string, string | null>()
@@ -491,39 +475,9 @@ async function resolveRecipeCovers(
     }
   }
 
-  const inspirationIdByRecipeId = new Map(
-    recipes
-      .filter((recipe) => !coverByRecipeId.get(recipe.id))
-      .map((recipe) => [
-        recipe.id,
-        getInspirationIdFromUserIntent(recipe.userIntent),
-      ])
-      .filter(
-        (entry): entry is [string, string] =>
-          typeof entry[1] === 'string' && entry[1].length > 0,
-      ),
-  )
-  const inspirationIds = Array.from(new Set(inspirationIdByRecipeId.values()))
-
-  if (inspirationIds.length > 0) {
-    const inspirations = await db.inspirationPrompt.findMany({
-      where: {
-        id: { in: inspirationIds },
-        isPublic: true,
-      },
-      select: {
-        id: true,
-        imageUrl: true,
-      },
-    })
-    const inspirationCoverById = new Map(
-      inspirations.map((inspiration) => [inspiration.id, inspiration.imageUrl]),
-    )
-
-    for (const [recipeId, inspirationId] of inspirationIdByRecipeId) {
-      if (coverByRecipeId.get(recipeId)) continue
-      const cover = inspirationCoverById.get(inspirationId)
-      if (cover) coverByRecipeId.set(recipeId, cover)
+  for (const recipe of recipes) {
+    if (!coverByRecipeId.get(recipe.id) && recipe.coverImageUrl) {
+      coverByRecipeId.set(recipe.id, recipe.coverImageUrl)
     }
   }
 
@@ -546,6 +500,7 @@ export async function listRecipeSummaries(
     select: {
       ...RECIPE_LIST_ITEM_SELECT,
       parentGenerationId: true,
+      coverImageUrl: true,
       userIntent: true,
       params: true,
       lastUsedAt: true,
@@ -570,7 +525,6 @@ export async function listRecipeSummaries(
     compiledPrompt: recipe.compiledPrompt,
     modelId: recipe.modelId,
     version: recipe.version,
-    visibility: recipe.visibility,
     createdAt: recipe.createdAt,
     coverThumbnailUrl: coverByRecipeId.get(recipe.id) ?? null,
     lastUsedAt: recipe.lastUsedAt,
@@ -582,7 +536,7 @@ export async function listRecipeSummaries(
 
 /**
  * 「使用」记一次最近使用时间（pages/prompts.md：「最近用过」按它排）。⚠ 只动
- * `lastUsedAt`：`usageCount` 另有语义（别人 clone 你公开的模板才 +1），⛔ 混进来。
+ * `lastUsedAt`：`usageCount` 是旧的「被别人复制」计数，共享库拿掉后不再增长。
  */
 export async function markRecipeUsed(
   clerkId: string,
@@ -595,30 +549,6 @@ export async function markRecipeUsed(
     data: { lastUsedAt },
   })
   return result.count > 0 ? { id, lastUsedAt } : null
-}
-
-/**
- * Flip a recipe's visibility (PRIVATE ⇄ PUBLIC). Publishing surfaces the
- * template in the shared prompt library; unpublishing removes it. Owner-scoped
- * — returns null when the recipe is missing or not owned by the caller.
- */
-export async function setRecipeVisibility(
-  clerkId: string,
-  id: string,
-  visibility: RecipeVisibility,
-): Promise<Recipe | null> {
-  const user = await ensureUser(clerkId)
-  const existing = await db.recipe.findFirst({
-    where: { id, userId: user.id, isDeleted: false },
-    select: { id: true },
-  })
-
-  if (!existing) return null
-
-  return db.recipe.update({
-    where: { id },
-    data: { visibility },
-  })
 }
 
 export async function createRecipeFromGeneration(

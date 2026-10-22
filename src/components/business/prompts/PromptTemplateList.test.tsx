@@ -78,7 +78,6 @@ vi.mock('@/lib/api-client/recipes', () => ({
     mockListGenerations(...args),
   updateRecipeAPI: (...args: unknown[]) => mockUpdateRecipe(...args),
   markRecipeUsedAPI: (...args: unknown[]) => mockMarkUsed(...args),
-  setRecipeVisibilityAPI: vi.fn(),
 }))
 
 class ResizeObserverMock {

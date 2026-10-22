@@ -6,7 +6,7 @@ import { AnimatePresence } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
-import { Globe, Search, X } from '@/components/icons'
+import { Search, X } from '@/components/icons'
 import { PROMPT_OUTPUT_TYPE_LABEL_KEYS } from '@/constants/prompt-library'
 import { ROUTES } from '@/constants/routes'
 import { usePromptTemplateModelLabel } from '@/hooks/use-prompt-template-model-label'
@@ -43,8 +43,6 @@ export interface PromptTemplateListItem {
   compiledPrompt: string
   modelId: string
   version: number
-  /** 'PRIVATE' | 'PUBLIC' — PUBLIC shows a "published" badge + is in the shared library. */
-  visibility?: string
   createdAt: string
   /** First image generated with this template (cover). Null → text fallback. */
   coverThumbnailUrl?: string | null
@@ -364,12 +362,6 @@ function PromptTemplateCard({
           {recipe.tagSource ? (
             <PromptTemplateSourceMark source={recipe.tagSource} />
           ) : null}
-          {recipe.visibility === 'PUBLIC' ? (
-            <span className="inline-flex items-center gap-1 text-2xs text-muted-foreground">
-              <Globe aria-hidden className="size-3" />
-              {t('publishedBadge')}
-            </span>
-          ) : null}
         </div>
         <h3 className="pointer-events-none line-clamp-2 text-sm font-semibold leading-5 text-foreground">
           {title}
@@ -527,11 +519,6 @@ function PromptTemplateListEmpty({
               {t('clearSearch')}
             </Button>
           ) : null}
-          <Button asChild variant="outline" className="rounded-full">
-            <Link href={`${ROUTES.PROMPTS}?tab=inspiration`}>
-              {t('goInspiration')}
-            </Link>
-          </Button>
         </div>
       </div>
     </div>

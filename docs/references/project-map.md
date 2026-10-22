@@ -89,7 +89,7 @@ flowchart LR
 | E7 总结仍写 33 → 34；34 明细已完成                            | 训练分支已抽出 TrainWizard，仍在 LoRA 的 section=train 内                                  | 34 的拆分已落，不能误写成新增独立路由；[TrainWizard](../../src/components/business/studio/lora/training/TrainWizard.tsx)                                                                                                           |
 | E9 仍是“首页 B 等设计”                                        | 首页入口使用 HomeV4Shell；B 已撤回，09-22 又去掉 v4 的前后景错速                           | 不应继续推进已撤回的 B；[HomeV4Shell](../../src/components/business/home-v4/HomeV4Shell.tsx)                                                                                                                                       |
 
-仍一致的主要缺口：35 卡片总线未贯通；Prompts 仍有 InspirationGrid；剪辑台助手排片回程未接。剧本投影已有 ScriptCardBody 与 project_script，不能把“卡片总线未做”扩大成“剧本节点完全未做”。[剧本卡](../../src/components/business/node/nodes/v4/text/ScriptCardBody.tsx)
+仍一致的主要缺口：35 卡片总线未贯通；剪辑台助手排片回程未接。剧本投影已有 ScriptCardBody 与 project_script，不能把“卡片总线未做”扩大成“剧本节点完全未做”。[剧本卡](../../src/components/business/node/nodes/v4/text/ScriptCardBody.tsx)
 
 ### 文档编辑边界
 
@@ -168,7 +168,7 @@ flowchart LR
 ### 💡 提示词　🔧（产品边界已重定，待 UI 试点）
 
 - 🎯 你想做：收敛为个人配方工作区；删除“我的模板/共享提示词库”双层级；把类型导航放到最上层，以 `/prompts/image`、`/prompts/video`、`/prompts/lora`、`/prompts/audio` 独立路由承载各自配方结构；进入类型页先找和复用已有配方，新建/编辑居次。
-- 📍 现状：`/prompts` 仍是 Recipe 模板 + `InspirationPrompt` 灵感库双 Tab；共享库、clone API/service/hook 和公开 Recipe merge 均仍在运行，尚未删除。
+- 📍 现状：`/prompts` 只有「我的模板」；共享库与 `InspirationPrompt` 2026-10-23 已删，公开提示词在画廊「提示词」看法里。
 - 💡 衔接：公共配方发现并入 Gallery；Prompts 只保留草稿、从 Gallery 保存、编辑、版本、标签、作品血缘和送往创作域。后续删除范围与未决项见 `domains/prompts.md`；进入 UI 设计时按 `../scenes/ui-page.md` 单独启动该域流程。
 - 🧭 设计边界：Image / Video / LoRA / Audio 不是通用配方表单的四个筛选态，而是四份独立契约；例如 Image 只负责 Prompt / Negative Prompt，不出现 LoRA 参数。
 

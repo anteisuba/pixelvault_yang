@@ -7,7 +7,6 @@ import {
 } from '@/constants/model-strengths'
 import { getModelById } from '@/constants/models'
 import { resolveKeyOrAssistantRoute } from '@/services/kernel/assistant-route.service'
-import { buildInspirationContext } from '@/services/kernel/inspiration-context.service'
 import { llmTextCompletion } from '@/services/llm-text.service'
 import { ensureUser } from '@/services/user.service'
 import { logger } from '@/lib/logger'
@@ -112,7 +111,6 @@ export async function enhancePrompt(
   style: PromptEnhanceStyle,
   modelId?: string,
   apiKeyId?: string,
-  useInspirationContext?: boolean,
 ): Promise<{ original: string; enhanced: string; style: string }> {
   const dbUser = await ensureUser(clerkId)
 
@@ -138,12 +136,6 @@ export async function enhancePrompt(
     if (hint) {
       systemPrompt = `${systemPrompt}\n\nModel-specific guidance: ${hint}`
     }
-  }
-
-  // Optional RAG: append top-3 curated examples as a few-shot block
-  if (useInspirationContext) {
-    const contextBlock = await buildInspirationContext(prompt)
-    if (contextBlock) systemPrompt = `${systemPrompt}${contextBlock}`
   }
 
   const rawEnhanced = await llmTextCompletion({

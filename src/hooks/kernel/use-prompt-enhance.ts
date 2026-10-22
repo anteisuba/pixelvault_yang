@@ -25,12 +25,7 @@ export function usePromptEnhance() {
   })
 
   const enhance = useCallback(
-    async (
-      prompt: string,
-      style: PromptEnhanceStyle,
-      apiKeyId?: string,
-      useInspirationContext?: boolean,
-    ) => {
+    async (prompt: string, style: PromptEnhanceStyle, apiKeyId?: string) => {
       setState((prev) => ({
         ...prev,
         isEnhancing: true,
@@ -41,7 +36,6 @@ export function usePromptEnhance() {
         prompt,
         style,
         apiKeyId,
-        useInspirationContext,
       })
 
       if (result.success && result.data) {

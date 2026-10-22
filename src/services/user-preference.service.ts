@@ -290,8 +290,16 @@ function extractRecipeIntent(recipe: PreferenceRecipeRecord): unknown {
   return recipe.userIntent
 }
 
+/** 只读这几列：调用方拿到的行不一定是整行（停用列在默认查询里被 omit）。 */
+type PreferenceRecipeSource =
+  | Pick<
+      Recipe,
+      'id' | 'modelId' | 'negativePrompt' | 'compiledPrompt' | 'userIntent'
+    >
+  | RecipeRecord
+
 function toPreferenceRecipeRecord(
-  recipe: Recipe | RecipeRecord,
+  recipe: PreferenceRecipeSource,
 ): PreferenceRecipeRecord {
   return {
     id: recipe.id,
@@ -426,7 +434,7 @@ export async function updatePreferenceOnDeleted(
 
 export async function updatePreferenceOnRecipeSaved(
   userId: string,
-  recipe: Recipe | RecipeRecord,
+  recipe: PreferenceRecipeSource,
 ): Promise<void> {
   const currentRecipe = toPreferenceRecipeRecord(recipe)
   const [existing, recentRecipes] = await Promise.all([

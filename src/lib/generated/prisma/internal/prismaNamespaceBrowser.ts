@@ -85,7 +85,6 @@ export const ModelName = {
   LoraAsset: 'LoraAsset',
   ExtractedElement: 'ExtractedElement',
   GenerationLayer: 'GenerationLayer',
-  InspirationPrompt: 'InspirationPrompt',
   ContextCard: 'ContextCard',
   AssistantMemory: 'AssistantMemory',
   AssistantTurnRecord: 'AssistantTurnRecord'
@@ -733,30 +732,6 @@ export const GenerationLayerScalarFieldEnum = {
 } as const
 
 export type GenerationLayerScalarFieldEnum = (typeof GenerationLayerScalarFieldEnum)[keyof typeof GenerationLayerScalarFieldEnum]
-
-
-export const InspirationPromptScalarFieldEnum = {
-  id: 'id',
-  source: 'source',
-  rank: 'rank',
-  prompt: 'prompt',
-  author: 'author',
-  authorName: 'authorName',
-  likes: 'likes',
-  views: 'views',
-  imageUrl: 'imageUrl',
-  modelHint: 'modelHint',
-  categories: 'categories',
-  sourceUrl: 'sourceUrl',
-  rating: 'rating',
-  score: 'score',
-  publishedAt: 'publishedAt',
-  isPublic: 'isPublic',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type InspirationPromptScalarFieldEnum = (typeof InspirationPromptScalarFieldEnum)[keyof typeof InspirationPromptScalarFieldEnum]
 
 
 export const ContextCardScalarFieldEnum = {

@@ -15,6 +15,7 @@ import { ROUTES } from '@/constants/routes'
 import { buildGalleryQueryString } from '@/lib/gallery-query'
 
 import { GalleryHeader } from '@/components/business/gallery/GalleryHeader'
+import { GalleryPromptList } from '@/components/business/gallery/GalleryPromptList'
 import { GalleryViewer } from '@/components/business/gallery/GalleryViewer'
 import { GallerySkeletonGrid } from '@/components/business/gallery/GallerySkeleton'
 import { FeedTail } from '@/components/business/FeedTail'
@@ -164,6 +165,16 @@ export function GalleryFeed({
           <PageLoadError title={error} onRetry={retry} retrying={isLoading} />
         ) : generations.length === 0 && isLoading ? (
           <GallerySkeletonGrid rows={3} />
+        ) : filters.view === 'prompts' ? (
+          <GalleryPromptList
+            generations={generations}
+            emptyTitle={t('promptsEmptyTitle')}
+            emptyDescription={t('promptsEmptyDescription')}
+            emptyActionHref={ROUTES.STUDIO}
+            emptyActionLabel={t('emptyAction')}
+            feedLabel={t('feedLabel')}
+            onOpen={isTablet ? undefined : openViewer}
+          />
         ) : (
           <GalleryGrid
             generations={generations}

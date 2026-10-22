@@ -8,16 +8,13 @@ import { toast } from 'sonner'
 
 import {
   ChevronLeft,
-  Globe,
   ImageOff,
-  Lock,
   MoreHorizontal,
   Pencil,
   Trash2,
 } from '@/components/icons'
 import { MODEL_OPTIONS } from '@/constants/models'
 import { DURATION, EASE_STANDARD } from '@/constants/motion'
-import { RECIPE_VISIBILITY } from '@/constants/prompt-library'
 import { getDefaultProviderConfig } from '@/constants/providers'
 import { usePromptTemplateModelLabel } from '@/hooks/use-prompt-template-model-label'
 import { usePromptTemplateUse } from '@/hooks/use-prompt-template-use'
@@ -27,7 +24,6 @@ import {
   deleteRecipeAPI,
   getRecipeAPI,
   listRecipeGenerationsAPI,
-  setRecipeVisibilityAPI,
   updateRecipeAPI,
 } from '@/lib/api-client/recipes'
 import { getGenerationPreviewUrl } from '@/lib/generation-media'
@@ -140,7 +136,6 @@ export function PromptTemplateDetailPage({
   const [draft, setDraft] = useState<Draft | null>(null)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
-  const [publishing, setPublishing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -189,8 +184,6 @@ export function PromptTemplateDetailPage({
   /** 标签台存的与这里新建的：编辑时用格子；LoRA 台存的原文送回 LoRA 台，仍是原文框。 */
   const editsAsChips = source === 'tags' || source === 'prompts'
   const characters = detail ? readRecipeNovelAiCharacters(detail.params) : []
-  const visibility = detail?.visibility ?? recipe.visibility
-  const isPublic = visibility === RECIPE_VISIBILITY.PUBLIC
   const date = new Intl.DateTimeFormat(locale, {
     month: 'short',
     day: 'numeric',
@@ -316,23 +309,6 @@ export function PromptTemplateDetailPage({
     }
   }
 
-  const togglePublish = async () => {
-    const next = isPublic ? RECIPE_VISIBILITY.PRIVATE : RECIPE_VISIBILITY.PUBLIC
-    setPublishing(true)
-    try {
-      const response = await setRecipeVisibilityAPI(recipe.id, next)
-      if (response.success) {
-        setDetail((prev) => (prev ? { ...prev, visibility: next } : prev))
-        onChanged({ id: recipe.id, visibility: next })
-        toast.success(isPublic ? t('unpublishSuccess') : t('publishSuccess'))
-        return
-      }
-      toast.error(response.error ?? t('publishFailed'))
-    } finally {
-      setPublishing(false)
-    }
-  }
-
   const handleDelete = async () => {
     setDeleting(true)
     try {
@@ -405,12 +381,6 @@ export function PromptTemplateDetailPage({
           <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
             <PromptTemplateKindBadge kind={recipe.templateKind} />
             {source ? <PromptTemplateSourceMark source={source} /> : null}
-            {isPublic ? (
-              <span className="inline-flex shrink-0 items-center gap-1">
-                <Globe aria-hidden className="size-3" />
-                {t('publishedBadge')}
-              </span>
-            ) : null}
             <span className="truncate font-mono">
               {source === 'prompts'
                 ? t('templateMetaVersion', {
@@ -468,17 +438,6 @@ export function PromptTemplateDetailPage({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem
-                  disabled={publishing || loadState !== 'ready'}
-                  onSelect={() => void togglePublish()}
-                >
-                  {isPublic ? (
-                    <Lock aria-hidden className="size-4" />
-                  ) : (
-                    <Globe aria-hidden className="size-4" />
-                  )}
-                  {isPublic ? t('unpublishAction') : t('publishAction')}
-                </DropdownMenuItem>
                 <DropdownMenuItem
                   variant="destructive"
                   onSelect={() => setConfirmDelete(true)}

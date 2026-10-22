@@ -44,7 +44,6 @@ import {
 } from '@/constants/generation-progress'
 import { AI_MODELS, getModelById } from '@/constants/models'
 import { NODE_STUDIO_REFERENCE_ROLES } from '@/constants/node-studio'
-import { RECIPE_VISIBILITY_VALUES } from '@/constants/prompt-library'
 import { RESEARCH_MODE_VALUES } from '@/constants/research'
 import { RUNNER_SAMPLERS, RUNNER_SCHEDULERS } from '@/constants/runner-sampling'
 import {
@@ -2436,6 +2435,13 @@ export const GALLERY_SORT_OPTIONS = ['newest', 'oldest'] as const
 export type GallerySortOption = (typeof GALLERY_SORT_OPTIONS)[number]
 
 /**
+ * 画廊两种看法（domains/gallery.md）：以图为主 / 以提示词为主。提示词那一面
+ * 只列提示词公开的作品，同一批公开作品换成提示词大卡。
+ */
+export const GALLERY_VIEWS = ['images', 'prompts'] as const
+export type GalleryView = (typeof GALLERY_VIEWS)[number]
+
+/**
  * 媒体类型分面的取值。⛔ **没有 `'all'` 这一档** —— 「不选就是全部」，
  * 空数组即不限类型（`docs/references/pages/assets.md` §3.1）。多选可叠加，
  * 所以它在链路上一律是数组，不是单值。
@@ -2515,6 +2521,7 @@ export const GallerySearchSchema = z.object({
    */
   provider: z.string().trim().max(64).optional(),
   published: z.enum(['1']).optional(),
+  view: z.enum(GALLERY_VIEWS).default('images'),
   cursor: z.string().trim().max(256).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),
@@ -2596,9 +2603,6 @@ export const EnhancePromptRequestSchema = z.object({
   /** Current model ID for model-aware enhancement hints */
   modelId: z.string().optional(),
   apiKeyId: z.string().optional(),
-  /** When true, search the curated inspiration library and inject top-3
-   *  matches as a few-shot reference block into the system prompt. */
-  useInspirationContext: z.boolean().optional(),
 })
 
 export type EnhancePromptRequest = z.infer<typeof EnhancePromptRequestSchema>
@@ -2814,9 +2818,6 @@ export const PromptAssistantRequestSchema = z.object({
   responseLanguage: PromptAssistantResponseLanguageSchema.optional(),
   /** Specialized prompt conversion mode */
   mode: PromptAssistantModeSchema.optional(),
-  /** When true (and only on the first turn), inject top-3 curated
-   *  inspiration prompts as a few-shot reference block. */
-  useInspirationContext: z.boolean().optional(),
   /**
    * @deprecated 用 `researchMode` —— 布尔表达不了「auto」这个新默认。
    * `true` 仍等价于 `researchMode:'forced'`；缺省落到 `auto`。
@@ -2850,7 +2851,6 @@ export const PromptAssistantStreamRequestSchema = z.object({
   /** 同非流式版：用户选的 LLM 档位（非生成模型），服务端对表校验。 */
   llmModelId: z.string().optional(),
   responseLanguage: PromptAssistantResponseLanguageSchema.optional(),
-  useInspirationContext: z.boolean().optional(),
   /** @deprecated 见 `PromptAssistantRequestSchema.research`。 */
   research: z.boolean().optional(),
   researchMode: ResearchModeSchema.optional(),
@@ -4825,8 +4825,6 @@ export type RecipeRecord = {
   parentGenerationId: string | null
   coverThumbnailUrl?: string | null
   version: number
-  /** 'PRIVATE' | 'PUBLIC' — PUBLIC recipes appear in the shared library. */
-  visibility?: string
   evaluationSummary?: unknown
   isDeleted: boolean
   createdAt: string
@@ -4835,75 +4833,12 @@ export type RecipeRecord = {
    * /prompts「最近用 / 用得最多」轻筛选读的两个字段 —
    * schema 里一直都有（Recipe.usageCount/lastUsedAt），运行时的 API 响应也一
    * 直带着（listRecipes 直接展开 Prisma Recipe），只是这个 wire 类型历史上没
-   * 声明。⚠ 实读代码库：`lastUsedAt` 目前全项目零写入点，永远是 null；
-   * `usageCount` 只在别人 clone 你公开发布的模板时 +1
-   * （inspiration.service.ts cloneSharedRecipe），不是"我自己用过几次"的信
-   * 号——两个轻筛选 tab 在当前数据下大概率长期空/无区分度，这是既有数据面的
-   * 缺口，不是本次改动引入的。
+   * 声明。`lastUsedAt` 由「用模板」写入；`usageCount` 是旧共享库「被别人复制」
+   * 的计数，共享库拿掉后不再增长，不是"我自己用过几次"的信号。
    */
   usageCount?: number
   lastUsedAt?: string | null
   tags?: string[]
-}
-
-export const SetRecipeVisibilityRequestSchema = z.object({
-  visibility: z.enum(RECIPE_VISIBILITY_VALUES),
-})
-
-export type SetRecipeVisibilityRequest = z.infer<
-  typeof SetRecipeVisibilityRequestSchema
->
-
-// ─── Inspiration Library (public curated prompts) ─────────────────
-
-export const INSPIRATION_SORT_BY = ['rank', 'likes', 'views', 'recent'] as const
-export type InspirationSortBy = (typeof INSPIRATION_SORT_BY)[number]
-
-export const ListInspirationsQuerySchema = z.object({
-  category: z.string().trim().max(80).optional(),
-  query: z.string().trim().max(200).optional(),
-  sortBy: z.enum(INSPIRATION_SORT_BY).default('rank'),
-  limit: z.coerce.number().int().positive().max(60).default(24),
-  offset: z.coerce.number().int().nonnegative().default(0),
-})
-
-export type ListInspirationsQuery = z.infer<typeof ListInspirationsQuerySchema>
-
-export const CloneInspirationRequestSchema = z.object({
-  modelId: z.string().trim().min(1).max(100).optional(),
-  provider: z.string().trim().min(1).max(100).optional(),
-  outputType: z.enum(['IMAGE', 'VIDEO', 'AUDIO', 'MODEL_3D']).optional(),
-})
-
-export type CloneInspirationRequest = z.infer<
-  typeof CloneInspirationRequestSchema
->
-
-/** Wire-format inspiration record returned from the API (dates ISO strings) */
-export type InspirationRecord = {
-  id: string
-  source: string
-  rank: number
-  prompt: string
-  author: string
-  authorName: string
-  likes: number
-  views: number
-  imageUrl: string
-  modelHint: string | null
-  categories: string[]
-  sourceUrl: string
-  rating: number | null
-  score: number | null
-  publishedAt: string | null
-  isPublic: boolean
-  createdAt: string
-  updatedAt: string
-}
-
-export type ListInspirationsResponse = {
-  inspirations: InspirationRecord[]
-  total: number
 }
 
 // ─── Voice Card Persistence ──────────────────────────────────────

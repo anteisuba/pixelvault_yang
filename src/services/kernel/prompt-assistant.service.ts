@@ -43,7 +43,6 @@ import {
   VIDEO_METADATA_DIRECTIVE,
   type VideoLinkPlatform,
 } from '@/constants/video-link'
-import { buildInspirationContext } from '@/services/kernel/inspiration-context.service'
 import { resolveAssistantRoute } from '@/services/kernel/assistant-route.service'
 import {
   buildAssistantConversation,
@@ -1076,7 +1075,6 @@ async function prepareAssistantTurn(params: {
   llmModelId?: string
   responseLanguage: PromptAssistantResponseLanguage
   mode: PromptAssistantMode
-  useInspirationContext?: boolean
   researchMode: ResearchMode
   conversationId?: string | null
   projectId?: string | null
@@ -1091,16 +1089,6 @@ async function prepareAssistantTurn(params: {
     params.mode,
     params.assistantDomain,
   )
-
-  // RAG: inject curated examples only on the first turn — later turns are
-  // iterative refinements where extra reference examples would dilute the
-  // user's evolving intent.
-  if (params.useInspirationContext && params.messages.length === 1) {
-    const seedPrompt =
-      params.currentPrompt?.trim() || params.messages[0]?.content || ''
-    const contextBlock = await buildInspirationContext(seedPrompt)
-    if (contextBlock) systemPrompt = `${systemPrompt}${contextBlock}`
-  }
 
   const { route, modelId: routeModelId } = await resolvePromptAssistantRoute(
     params.userId,
@@ -1330,7 +1318,6 @@ export async function createPromptAssistantStream(
     /** 用户选的 LLM 档位（非生成模型 `modelId`）。 */
     llmModelId?: string
     responseLanguage?: PromptAssistantResponseLanguage
-    useInspirationContext?: boolean
     research?: boolean
     researchMode?: ResearchMode
     conversationId?: string | null
@@ -1371,7 +1358,6 @@ export async function createPromptAssistantStream(
     llmModelId: params.llmModelId,
     responseLanguage: params.responseLanguage ?? 'english',
     mode: 'general',
-    useInspirationContext: params.useInspirationContext,
     researchMode: resolveResearchMode(params),
     conversationId: params.conversationId ?? null,
     references: params.references ?? [],
@@ -1488,7 +1474,6 @@ export async function chatPromptAssistant(
   apiKeyId?: string,
   responseLanguage: PromptAssistantResponseLanguage = 'english',
   mode: PromptAssistantMode = 'general',
-  useInspirationContext?: boolean,
   research?: boolean,
   loraContext?: LoraAssistantContext,
   references: AssistantMediaReference[] = [],
@@ -1545,7 +1530,6 @@ export async function chatPromptAssistant(
     llmModelId: options.llmModelId,
     responseLanguage,
     mode,
-    useInspirationContext,
     researchMode: resolveResearchMode({
       research,
       researchMode: options.researchMode,

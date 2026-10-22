@@ -7,6 +7,7 @@
 | 闸门                              | 内容                                                                                                                                                                                                                                                                                                                                                                          |
 | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run test` / `test:run`       | Vitest（watch / 单次）                                                                                                                                                                                                                                                                                                                                                        |
+| `npm run test:eval`               | 助手实跑评测（打真模型、花钱；没设 `ASSISTANT_EVAL_DIR` 就跳过），见下文「助手实跑评测」                                                                                                                                                                                                                                                                                      |
 | `npm run test:replay`             | 助手回放基线（`src/test/assistant-replay/`，约 15 秒）；也在 `npx vitest run` 里，CI 全量带上                                                                                                                                                                                                                                                                                 |
 | pre-commit（husky + lint-staged） | `*.{ts,tsx}` → prettier + eslint --fix；`*.{json,css,md}` → prettier                                                                                                                                                                                                                                                                                                          |
 | **pre-push（husky）**             | **非 main**：只查相对 `origin/main` 的改动——`tsc --noEmit`（incremental）→ 改动的 `src/**/*.ts(x)` 跑 eslint → `vitest run --changed <merge-base>`；只改文档/工具直接跳过；动了 `package*.json` / `vitest.config.ts` / `tsconfig.json` 时 vitest 全量。**推 main**：仍跑全量三关。全量把关在 CI（owner 2026-10-21 拍板：旧版每次全量实测 ≈ 15.8 分钟）。不许 --no-verify 跳过 |
@@ -35,6 +36,15 @@
 - **长对话**（P2 第三片，`long-conversation.test.ts`）：同一段会话连着跑 32 轮（DeepSeek V4.1 Flash 与 Claude Sonnet 5.5 各一遍；第 30 轮走一次画布接力），断言 ① 每轮第一步封顶在「第一轮 + 对白上限 + 一轮」之内（照从前历史全带会线性涨过去）；② 窗口起点只落在 8 的整数倍上，32 轮里对白那一段断缓存（起点或摘要变了）最多 4 次（与常量无关的一条线，每轮滑会断 11 次），两次滑动之间这一轮逐字以上一轮的「工具 + 系统提示 + 对白」开头，接力那一跳的系统提示（含摘要）逐字不变；③ 第 2 轮定下的事每一轮都看得见（在窗口里或摘要里），第 30 轮起只在摘要里；写摘要那一跳是同一家、同一型号、同一把 key。摘要存储换成内存里的一份（真的那一份在会话那一行的 `historySummary`，这里不碰库），写摘要的「模型」是假的（照原料里「定了：」那几句记）。`REPLAY_BUDGET=print` 打每轮的窗口起点、对白字数、首步字数与要重算的字数。
 - **收尾后的后台调用**（`after()`，如 v3 抽记忆）：两个回放测试把 `next/server` 的 `after` 换成 `after-tasks.ts` 的 `collectAfterTask`，`runner.ts` 一轮（含接力各跳）跑完后 `settleAfterTasks()` 等完再判，后台那一跳记在发起它的那一轮里；录好的文本回复用完时回 `EMPTY_TEXT_REPLY`（`{"memories":[]}`）。
 - 题单与覆盖面见 `assistant-v3.md` §3「自动回放基线」。
+
+## 助手实跑评测（`src/test/assistant-eval/`，2026-10-22）
+
+助手重设计第 1 步：拿真实过程记录当考题、用真模型重跑，量完成率、工具错误率、往返数、改一处是否变成整段重写、花费与时长。**要花钱，只在本地手动跑**；没设 `ASSISTANT_EVAL_DIR` 时整组跳过（CI 不跑）。
+
+- ⛔ 题目是创作者的真实对话：`scripts/assistant-eval-export.mjs` 只读导出到仓库外的 `ASSISTANT_EVAL_DIR`（`turns/<id>.json` + 分层抽样的 `cases.json`），结果写回 `runs/<label>/`（逐题 JSON、`summary.md`），⛔ 不进仓库。
+- 跑法：`ASSISTANT_EVAL_DIR=… npm run test:eval`；可选 `ASSISTANT_EVAL_ONLY=<id,…>`、`ASSISTANT_EVAL_SHARD=1/4`（多进程并行）、`ASSISTANT_EVAL_LABEL=<名字>`。云会话要 `NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt`。
+- 与回放共用 `fake-db.ts`：只有用户、key（库里那把的密文，真解密）、人设有内容，查素材库一律查不到。
+- 每题量两遍同一套指标：线上那一次（记录里的 transcript）与这次重跑，判分（Sonnet 5.5）也各判一次；判分只看文字、看不到图。
 
 ## E2E / 视觉回归（Playwright，`e2e/` 2026-07-10 清点）
 

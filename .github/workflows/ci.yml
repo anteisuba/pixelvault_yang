@@ -16,7 +16,9 @@ jobs:
   lint:
     name: Type Check & Lint
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # 顺的时候也要 4 分钟（装依赖 35 s + tsc 80 s + lint 2 min）；装依赖偶尔慢到
+    # 几分钟（2026-10-22 两个 PR 在 npm ci 上被 5 分钟上限取消），留足余量。
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v4
@@ -130,7 +132,8 @@ jobs:
   audit:
     name: Security & Schema Check
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # 本身 1 分钟出头，时间都在 npm ci 上；它慢的时候别被上限误杀（同 lint）。
+    timeout-minutes: 10
     services:
       postgres:
         image: postgres:16

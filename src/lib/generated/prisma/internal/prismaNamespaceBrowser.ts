@@ -556,7 +556,6 @@ export const CharacterCardScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
   name: 'name',
-  description: 'description',
   tags: 'tags',
   isDeleted: 'isDeleted',
   voiceCardId: 'voiceCardId',
@@ -565,10 +564,7 @@ export const CharacterCardScalarFieldEnum = {
   version: 'version',
   handle: 'handle',
   summary: 'summary',
-  referenceSlots: 'referenceSlots',
   extensions: 'extensions',
-  parentId: 'parentId',
-  variantLabel: 'variantLabel',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

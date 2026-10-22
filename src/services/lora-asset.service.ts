@@ -3,6 +3,7 @@ import 'server-only'
 import { randomBytes } from 'node:crypto'
 
 import { LORA_CIVITAI_BACKFILL_MAX_PER_REQUEST } from '@/constants/lora'
+import { canonicalLoraBaseModelLabel } from '@/constants/lora-base-models'
 import { parseCivitaiVersionIdFromDownloadUrl } from '@/lib/civitai-lora-url'
 import { db, isUniqueConstraintError } from '@/lib/db'
 import { logger } from '@/lib/logger'
@@ -483,7 +484,7 @@ export async function upsertImportedLora(
         styleCode,
         source: 'imported',
         type: input.type,
-        baseModelFamily: input.baseModelFamily,
+        baseModelFamily: canonicalLoraBaseModelLabel(input.baseModelFamily),
         provider: input.provider,
         triggerWord: input.triggerWord,
         loraUrl: input.loraUrl,
@@ -673,7 +674,9 @@ export async function ensureLoraAssetFromTrainingJob(
       styleCode,
       source: 'trained',
       type,
-      baseModelFamily: inferBaseModelFamily(job.baseModel),
+      baseModelFamily: canonicalLoraBaseModelLabel(
+        inferBaseModelFamily(job.baseModel),
+      ),
       provider: job.baseModel.endsWith('-fal') ? 'fal' : 'replicate',
       triggerWord: job.triggerWord,
       loraUrl: job.loraUrl,

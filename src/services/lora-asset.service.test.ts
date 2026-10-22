@@ -461,8 +461,8 @@ describe('ensureLoraAssetFromTrainingJob', () => {
       name: 'Forest',
       source: 'trained',
       type: 'subject',
-      // flux-dev-fal → flux family bucket
-      baseModelFamily: 'flux',
+      // flux-dev-fal → flux family，存 Civitai 显示名
+      baseModelFamily: 'Flux.1 D',
       provider: 'fal',
       triggerWord: 'pv_forest',
       loraUrl: 'https://r2.example.com/x.safetensors',
@@ -556,7 +556,7 @@ describe('ensureLoraAssetFromTrainingJob', () => {
     const data = (
       mockAssetCreate.mock.calls[0][0] as { data: Record<string, unknown> }
     ).data
-    expect(data.baseModelFamily).toBe('sdxl')
+    expect(data.baseModelFamily).toBe('SDXL 1.0')
     // illustrious-xl doesn't end with '-fal', so falls through to replicate.
     expect(data.provider).toBe('replicate')
   })

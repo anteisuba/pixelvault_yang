@@ -35,11 +35,8 @@ const CREATED_AT = new Date('2026-01-01T00:00:00.000Z')
 const FAKE_CHARACTER_CARD = {
   id: CARD_ID,
   name: 'Mira',
-  description: null,
   tags: [],
-  parentId: null,
-  variantLabel: null,
-  variants: [],
+  looks: [],
   createdAt: CREATED_AT,
   updatedAt: CREATED_AT,
 }

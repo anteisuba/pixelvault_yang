@@ -11,6 +11,7 @@ import {
   LORA_BASE_MODELS,
   LORA_BASE_ONLY_DEFAULT_ID,
   LORA_STACK_WEIGHT_BUDGET,
+  canonicalLoraBaseModelLabel,
   getBaseOnlyGenerationBases,
   getCompatibleBases,
   getDefaultBaseOnlyGenerationBase,
@@ -252,5 +253,30 @@ describe('resolveLoraStackWeightBudget', () => {
         LORA_BASE_MODELS.find((base) => base.id === 'krea2-turbo-runner')!,
       ),
     ).toBe(4)
+  })
+})
+
+describe('canonicalLoraBaseModelLabel', () => {
+  it('turns slugs into the Civitai display name, and both normalize to the same family', () => {
+    for (const [slug, label] of [
+      ['sdxl', 'SDXL 1.0'],
+      [' anima-dit ', 'Anima'],
+      ['FLUX', 'Flux.1 D'],
+      ['sd15', 'SD 1.5'],
+      ['krea2', 'Krea 2'],
+    ] as const) {
+      expect(canonicalLoraBaseModelLabel(slug)).toBe(label)
+      expect(normalizeToLoraBaseFamily(label)).toBe(
+        normalizeToLoraBaseFamily(slug.trim()),
+      )
+    }
+  })
+
+  it('keeps display names and unknown values as they are (trimmed)', () => {
+    expect(canonicalLoraBaseModelLabel('Illustrious')).toBe('Illustrious')
+    expect(canonicalLoraBaseModelLabel(' Pony ')).toBe('Pony')
+    expect(canonicalLoraBaseModelLabel('Wan Video 14B t2v')).toBe(
+      'Wan Video 14B t2v',
+    )
   })
 })

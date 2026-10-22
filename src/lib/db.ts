@@ -21,13 +21,8 @@ function createPrismaClient() {
  * 还在线的这一版就不会去查一个已经没有的列。删列后连同这里一起删。
  */
 const RETIRED_COLUMNS = {
-  // 角色④：外观、标签、图搬到 `CharacterLook`；变体变成造型。
-  characterCard: {
-    description: true,
-    referenceSlots: true,
-    parentId: true,
-    variantLabel: true,
-  },
+  // 0 行有值、没有读方（数据库收尾）。
+  generation: { loraLineage: true },
 } as const
 
 const globalForPrisma = globalThis as typeof globalThis & {

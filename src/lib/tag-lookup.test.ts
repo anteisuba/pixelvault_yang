@@ -7,8 +7,10 @@ import {
   danbooruTagSearchUrl,
   displayDanbooruTag,
   hasTag,
+  isStyleMediumTag,
   lookupAliasLine,
-  toggleArtistTag,
+  stylePromptTag,
+  toggleStyleTag,
 } from '@/lib/tag-lookup'
 
 const chip = (text: string) => ({ text, weight: 1 })
@@ -44,10 +46,34 @@ describe('tag lookup rules', () => {
   })
 
   it('toggles an artist tag at the very front', () => {
-    const on = toggleArtistTag([chip('1girl')], 'artist:mizuiro sora')
+    const on = toggleStyleTag([chip('1girl')], 'mizuiro_sora')
     expect(on).toEqual([chip('artist:mizuiro sora'), chip('1girl')])
     expect(hasTag(on, 'ARTIST:Mizuiro Sora')).toBe(true)
-    expect(toggleArtistTag(on, 'artist:mizuiro sora')).toEqual([chip('1girl')])
+    expect(toggleStyleTag(on, 'mizuiro_sora')).toEqual([chip('1girl')])
+  })
+
+  /** 画风页「画法」那一段（owner 2026-10-22）：原样加、不带 artist:，接在画师后面。 */
+  it('tells a medium from an artist and toggles it as-is after the artist tags', () => {
+    expect(isStyleMediumTag('watercolor_(medium)')).toBe(true)
+    expect(isStyleMediumTag('traditional_media')).toBe(true)
+    expect(isStyleMediumTag('mizuiro_sora')).toBe(false)
+    expect(isStyleMediumTag('highres')).toBe(false)
+    expect(stylePromptTag('watercolor_(medium)')).toBe('watercolor (medium)')
+    expect(stylePromptTag('mizuiro_sora')).toBe('artist:mizuiro sora')
+
+    const on = toggleStyleTag(
+      [chip('artist:sora'), chip('1girl')],
+      'watercolor_(medium)',
+    )
+    expect(on).toEqual([
+      chip('artist:sora'),
+      chip('watercolor (medium)'),
+      chip('1girl'),
+    ])
+    expect(toggleStyleTag(on, 'watercolor_(medium)')).toEqual([
+      chip('artist:sora'),
+      chip('1girl'),
+    ])
   })
 
   it('reads aliases the way people write them: spaces, no repeats of the title, the first few', () => {

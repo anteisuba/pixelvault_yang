@@ -22,15 +22,16 @@ import { flashTagTarget } from '@/hooks/use-tag-target-flash'
 import { parseTagChips, serializeTagChips } from '@/lib/tag-composer'
 import {
   addLookupTags,
-  artistPromptTag,
   compactPostCount,
   danbooruPostsUrl,
   danbooruPostUrl,
   danbooruTagSearchUrl,
   displayDanbooruTag,
   hasTag,
+  isStyleMediumTag,
   lookupAliasLine,
-  toggleArtistTag,
+  stylePromptTag,
+  toggleStyleTag,
 } from '@/lib/tag-lookup'
 import { cn } from '@/lib/utils'
 import {
@@ -152,6 +153,39 @@ const KIND_TEXT: Record<
 
 type ByKind<T> = Record<DanbooruCatalogKind, T>
 
+/** 一行是哪一类（类别小签 · 行副标题 · 分段标题）：画风页的画法按名字认出来。 */
+function kindLabelKey(kind: DanbooruCatalogKind, name: string): string {
+  return kind === 'artist' && isStyleMediumTag(name)
+    ? 'kindMedium'
+    : KIND_TEXT[kind].kind
+}
+
+/**
+ * 画风页两段（owner 2026-10-22）：画法在前、画师在后，各自保持原来的先后。
+ * 别的页只有一段。收藏页的「画风」也这样分。
+ */
+function styleSections<T extends { name: string }>(
+  kind: DanbooruCatalogKind,
+  items: readonly T[],
+): { key: string; label: string; items: T[] }[] {
+  const sections =
+    kind === 'artist'
+      ? [
+          {
+            key: 'medium',
+            label: 'kindMedium',
+            items: items.filter((item) => isStyleMediumTag(item.name)),
+          },
+          {
+            key: 'artist',
+            label: 'kindArtist',
+            items: items.filter((item) => !isStyleMediumTag(item.name)),
+          },
+        ]
+      : [{ key: kind, label: KIND_TEXT[kind].kind, items: [...items] }]
+  return sections.filter((section) => section.items.length > 0)
+}
+
 /** 五个页签：四类查询 + 收藏（owner 2026-09-28：收藏单独一页，按类别分段）。 */
 type LookupTab = DanbooruCatalogKind | 'favorites'
 
@@ -175,7 +209,9 @@ function byKind<T>(value: T): ByKind<T> {
  * - 角色 / 作品 / 特征：名字默认选上，下面的点选（角色 = 常见特征，作品 = 里面的角色，
  *   特征 = 常一起出现的）；加到 整体 / 角色 N / ＋新角色，默认跟着输入框当前那一页；
  *   模型没有角色构图就只剩整体。已在目标里的不重复加。
- * - 画风：加入 = `artist:名字` 放在正向标签最前面，是开关。「常画的」只是参考，⛔ 不跟着加。
+ * - 画风：两段，画法在前、画师在后（owner 2026-10-22）。画师加入 = `artist:名字` 放在正向
+ *   标签最前面；画法（`*_(medium)` 等说画面的 meta tag）原样加、接在画师标签后面。都是
+ *   开关。「常画的 / 常一起出现的」只是参考，⛔ 不跟着加。
  * - 这一页查不到而别的页有：说「它是画师 / 作品…」，点了带着同一个词过去。
  * - 收藏（owner 2026-09-28）：详情标题旁一颗星，存账号里；第五页「收藏」按类别分段、
  *   默认选中第一条，⛔ 不再置顶在各页「随便看看」上面（收多了挤）。
@@ -361,13 +397,13 @@ export function StudioDanbooruPanel({
     ack()
   }
 
-  const toggleArtist = (name: string) => {
+  const toggleStyle = (name: string) => {
     if (isGenerating) return
     dispatch({
       type: 'SET_TAG_CHIPS',
       payload: {
         polarity: 'positive',
-        chips: toggleArtistTag(state.tagChips, artistPromptTag(name)),
+        chips: toggleStyleTag(state.tagChips, name),
       },
     })
   }
@@ -391,7 +427,7 @@ export function StudioDanbooruPanel({
     if (phone) setPhoneDetail(true)
   }
   const nameOf = (name: string, kind: DanbooruCatalogKind = activeKind) =>
-    kind === 'artist' ? artistPromptTag(name) : displayDanbooruTag(name)
+    kind === 'artist' ? stylePromptTag(name) : displayDanbooruTag(name)
 
   // ── 左栏 ───────────────────────────────────────────────────────
   const list = lists[activeKind]
@@ -424,7 +460,7 @@ export function StudioDanbooruPanel({
       ? {
           title: t('crossTitle', { page: t(text.tab), query }),
           text: t('crossText', {
-            kind: t(KIND_TEXT[cross.kind].kind),
+            kind: t(kindLabelKey(cross.kind, cross.name)),
             posts: posts(cross.count),
             page: t(KIND_TEXT[cross.kind].tab),
           }),
@@ -454,11 +490,13 @@ export function StudioDanbooruPanel({
             posts: posts(item.count),
           })
         : kind === 'artist'
-          ? t('rowArtist', { posts: posts(item.count) })
+          ? t(isStyleMediumTag(item.name) ? 'rowMedium' : 'rowArtist', {
+              posts: posts(item.count),
+            })
           : posts(item.count),
     previews: item.previews,
     added:
-      kind === 'artist' && hasTag(state.tagChips, artistPromptTag(item.name)),
+      kind === 'artist' && hasTag(state.tagChips, stylePromptTag(item.name)),
     selected: !phone && kind === activeKind && item.name === candidate?.name,
   })
   const favorite = candidate
@@ -539,6 +577,31 @@ export function StudioDanbooruPanel({
         <LookupSkeletonRows label={t('loading')} />
       ) : say ? (
         <LookupSay {...say} />
+      ) : activeKind === 'artist' ? (
+        // 画风页两段同一个滚动区；按名单认（同下）。
+        <div
+          key={`${activeKind}:${candidates.map((item) => item.name).join('|')}`}
+          className="-mx-1.5 flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-1.5"
+        >
+          {styleSections(activeKind, candidates).map((section) => (
+            <section key={section.key} className="flex flex-col gap-1.5">
+              <b className="flex min-h-6.5 items-center text-2sm font-semibold text-foreground">
+                {t('section', {
+                  kind: t(section.label),
+                  count: section.items.length,
+                })}
+              </b>
+              <LookupRows
+                kind={activeKind}
+                rows={section.items.map((item) => toRow(item, activeKind))}
+                contained
+                addedLabel={t('added')}
+                phone={phone}
+                onPick={(name) => pick(activeKind, name)}
+              />
+            </section>
+          ))}
+        </div>
       ) : (
         <LookupRows
           // 按名单认：换词重搜期间名单没变就不重演入场，换成新名单时才升起。
@@ -553,32 +616,34 @@ export function StudioDanbooruPanel({
     </>
   )
 
-  // 收藏页左栏：四类各一段（空的段不画），同一个滚动区。
+  // 收藏页左栏：按页签顺序一类一段（画风再分画法 / 画师，空的段不画），同一个滚动区。
   const favoritesColumn = !favorites.loaded ? (
     <LookupSkeletonRows label={t('loading')} />
   ) : favoriteList.length ? (
     <div className="-mx-1.5 flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-1.5">
-      {DanbooruCatalogKindSchema.options.map((kind) => {
-        const items = favorites.of(kind)
-        return items.length ? (
-          <section key={kind} className="flex flex-col gap-1.5">
+      {DanbooruCatalogKindSchema.options.flatMap((kind) =>
+        styleSections(kind, favorites.of(kind)).map((section) => (
+          <section
+            key={`${kind}:${section.key}`}
+            className="flex flex-col gap-1.5"
+          >
             <b className="flex min-h-6.5 items-center text-2sm font-semibold text-foreground">
-              {t('favoritesSection', {
-                kind: t(KIND_TEXT[kind].kind),
-                count: items.length,
+              {t('section', {
+                kind: t(section.label),
+                count: section.items.length,
               })}
             </b>
             <LookupRows
               kind={kind}
-              rows={items.map((item) => toRow(item, kind))}
+              rows={section.items.map((item) => toRow(item, kind))}
               contained
               addedLabel={t('added')}
               phone={phone}
               onPick={(name) => pick(kind, name)}
             />
           </section>
-        ) : null
-      })}
+        )),
+      )}
     </div>
   ) : (
     <LookupBlank text={t('favoritesEmpty')} />
@@ -674,15 +739,16 @@ export function StudioDanbooruPanel({
       />
     ) : null
 
-  const artistAdded = candidate
-    ? hasTag(state.tagChips, artistPromptTag(candidate.name))
+  const medium = candidate ? isStyleMediumTag(candidate.name) : false
+  const styleAdded = candidate
+    ? hasTag(state.tagChips, stylePromptTag(candidate.name))
     : false
-  const artistPane =
+  const stylePane =
     candidate && detail && isArtist ? (
-      <ArtistPane
+      <StylePane
         phone={phone}
-        title={artistPromptTag(candidate.name)}
-        kind={t('kindArtist')}
+        title={stylePromptTag(candidate.name)}
+        kind={t(kindLabelKey(activeKind, candidate.name))}
         favorite={favorite}
         lines={[
           t('artistSub', {
@@ -690,7 +756,7 @@ export function StudioDanbooruPanel({
             shown: shots.length,
             sample: detail.sampleSize,
           }),
-          t('artistShotsNote'),
+          t(medium ? 'mediumShotsNote' : 'artistShotsNote'),
         ]}
         link={{
           label: 'Danbooru',
@@ -703,19 +769,19 @@ export function StudioDanbooruPanel({
           count: `${trait.count}/${detail.sampleSize}`,
         }))}
         texts={{
-          refsTitle: t('artistRefsTitle'),
+          refsTitle: t(medium ? 'mediumRefsTitle' : 'artistRefsTitle'),
           refsHint: t('artistRefsHint'),
           addTo: t('addTo'),
           whole: t('targetWhole'),
-          where: t('artistWhere'),
+          where: t(medium ? 'mediumWhere' : 'artistWhere'),
         }}
         add={{
-          label: artistAdded
+          label: styleAdded
             ? t('artistAdded')
-            : t('addArtist', { tag: artistPromptTag(candidate.name) }),
-          done: artistAdded,
+            : t('addArtist', { tag: stylePromptTag(candidate.name) }),
+          done: styleAdded,
           disabled: isGenerating,
-          onClick: () => toggleArtist(candidate.name),
+          onClick: () => toggleStyle(candidate.name),
         }}
       />
     ) : null
@@ -725,7 +791,7 @@ export function StudioDanbooruPanel({
     : `${tab}:blank`
   const pane = candidate ? (
     detail ? (
-      (tagPane ?? artistPane)
+      (tagPane ?? stylePane)
     ) : detailQuery.error ? (
       <LookupBlank text={t('detailError')} />
     ) : (
@@ -871,7 +937,7 @@ export function StudioDanbooruPanel({
                   {nameOf(candidate.name)}
                 </h3>
                 <span className="inline-flex h-5 shrink-0 items-center rounded-md bg-muted px-1.75 text-2xs font-semibold text-foreground/75">
-                  {t(text.kind)}
+                  {t(kindLabelKey(activeKind, candidate.name))}
                 </span>
                 {favorite ? <LookupFavoriteButton phone {...favorite} /> : null}
               </div>
@@ -1080,8 +1146,8 @@ function TagPane({
   )
 }
 
-/** 画师详情：样图 · 常画的（只是参考）· 加入 artist:名字。 */
-function ArtistPane({
+/** 画风详情（画师 / 画法）：样图 · 常画的 / 常一起出现的（只是参考）· 加入（开关）。 */
+function StylePane({
   phone,
   title,
   kind,

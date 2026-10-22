@@ -1,6 +1,9 @@
 import { z } from 'zod'
 
-/** 查资料四页：角色 · 画风（画师）· 作品 · 特征（通用标签）。 */
+/**
+ * 查资料四页：角色 · 画风（画师 + 画法，owner 2026-10-22）· 作品 · 特征（通用标签）。
+ * 画法不另成一类：它是画风页里的一段，按名字认（`isStyleMediumTag`）。
+ */
 export const DanbooruCatalogKindSchema = z.enum([
   'character',
   'artist',

@@ -298,7 +298,6 @@ describe('ShellSidePanels · 角色库（画布用角色 ④）', () => {
     referenceSlots: [
       { id: 's1', url: 'https://cdn.test/denia.png', isPrimary: true },
     ],
-    sourceImageUrl: null,
     variants: [],
     cardTags: {
       character: ['denia_(wuthering_waves)'],

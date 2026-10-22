@@ -27,6 +27,7 @@ import { ROUTES } from '@/constants/routes'
 import { useCharacterCards } from '@/hooks/cards'
 import type { UseAssistantPersonaAutosaveValue } from '@/hooks/use-assistant-persona'
 import { Link } from '@/i18n/navigation'
+import { characterCoverUrl } from '@/lib/card-bus'
 import { cn } from '@/lib/utils'
 import {
   withAssistantCharacter,
@@ -162,7 +163,7 @@ export function AssistantPersonaPane({
   const characterOptions: CharacterOption[] = cards.map((card) => ({
     id: card.id,
     name: card.name.slice(0, ASSISTANT_PERSONA_LIMITS.maxNameChars),
-    faceUrl: card.sourceImageUrl || null,
+    faceUrl: characterCoverUrl(card),
     hasSpeech: Boolean(card.persona?.speech?.trim()),
   }))
   /**

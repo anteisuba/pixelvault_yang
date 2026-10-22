@@ -247,7 +247,7 @@ export function CharacterRoster() {
 
   /** 草稿的名字写好了：这才建卡（只有名字，⛔ 不跑旧的上传 + 分析），建好直接打开她。 */
   const createFromDraft = async (name: string) => {
-    const card = await characters.create({ name, sourceImages: [] })
+    const card = await characters.create({ name })
     if (!card) return false
     setDrafting(false)
     openCharacter(card.id)

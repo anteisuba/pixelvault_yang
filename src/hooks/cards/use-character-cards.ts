@@ -393,7 +393,6 @@ export function useCharacterCards(): UseCharacterCardsReturn {
       // 建卡那一步收不了图和提示词：先建（带设定与标签），再补上图那几样。
       const created = await createCharacterCardAPI({
         name,
-        sourceImages: [],
         ...(card.description ? { description: card.description } : {}),
         persona: card.persona,
         summary: card.summary,
@@ -409,8 +408,6 @@ export function useCharacterCards(): UseCharacterCardsReturn {
         return null
       }
       const patched = await updateCharacterCardAPI(created.data.id, {
-        characterPrompt: card.characterPrompt,
-        ...(card.attributes ? { attributes: card.attributes } : {}),
         loras: card.loras,
         ...(card.referenceSlots.length
           ? { referenceSlots: card.referenceSlots }

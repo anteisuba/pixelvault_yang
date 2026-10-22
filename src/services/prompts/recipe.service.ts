@@ -102,7 +102,6 @@ const RECIPE_GENERATION_SELECT = {
   isPromptPublic: true,
   isFeatured: true,
   userId: true,
-  characterCardId: true,
   snapshot: true,
   seed: true,
   runGroupId: true,

@@ -59,17 +59,8 @@ function card(
     id,
     name,
     description: null,
-    sourceImageUrl: `https://cdn.test/${id}.png`,
-    sourceImages: [],
-    sourceImageEntries: [],
-    characterPrompt: '',
-    modelPrompts: null,
-    referenceImages: null,
-    attributes: null,
     loras: null,
     tags: [],
-    status: 'DRAFT',
-    stabilityScore: null,
     parentId: null,
     variantLabel: null,
     variants: [],
@@ -281,7 +272,6 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
     await vi.waitFor(() =>
       expect(mockCreate).toHaveBeenCalledWith({
         name: '时夜',
-        sourceImages: [],
       }),
     )
     await vi.waitFor(() =>

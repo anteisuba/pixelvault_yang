@@ -15,16 +15,6 @@ export interface NodeCharacterMention {
   readonly picks: readonly CharacterImagePick[]
 }
 
-/** 她的主图：主图槽 → 第一张槽 → 建卡时的源图。 */
-export function characterMainImage(card: CharacterCardRecord) {
-  return (
-    card.referenceSlots.find((slot) => slot.isPrimary)?.url ??
-    card.referenceSlots[0]?.url ??
-    card.sourceImageUrl ??
-    undefined
-  )
-}
-
 /** 没勾过 = 主图 1 张（与工作台第一次展开默认勾主图同一条）。没有槽 = 空（交给卡片总线）。 */
 export function defaultCharacterPicks(
   card: CharacterCardRecord,

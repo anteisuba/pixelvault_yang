@@ -30,19 +30,8 @@ const FAKE_CHARACTER_CARD = {
   id: 'char_123',
   name: 'Mira',
   description: null,
-  sourceImageUrl: 'https://example.com/mira.png',
-  sourceImages: ['https://example.com/mira.png'],
-  sourceImageEntries: [
-    { url: 'https://example.com/mira.png', viewType: 'front' },
-  ],
-  characterPrompt: 'silver hair, blue eyes',
-  modelPrompts: null,
-  referenceImages: null,
-  attributes: null,
   loras: null,
   tags: [],
-  status: 'DRAFT',
-  stabilityScore: null,
   parentId: null,
   variantLabel: null,
   variants: [],
@@ -52,7 +41,6 @@ const FAKE_CHARACTER_CARD = {
 
 const VALID_BODY = {
   name: 'Mira',
-  sourceImages: ['https://example.com/mira.png'],
 }
 
 beforeEach(() => {

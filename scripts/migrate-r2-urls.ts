@@ -30,7 +30,6 @@ interface MigrationTask {
 const TASKS: MigrationTask[] = [
   { table: 'User', columns: ['avatarUrl', 'bannerUrl'] },
   { table: 'Generation', columns: ['url', 'referenceImageUrl'] },
-  { table: 'CharacterCard', columns: ['sourceImageUrl'] },
   { table: 'VideoGeneration', columns: ['finalVideoUrl', 'referenceImageUrl'] },
   {
     table: 'VideoClip',

@@ -580,11 +580,11 @@ export type CharacterCardCreateInput = {
   id?: string
   name: string
   description?: string | null
-  sourceImageUrl: string
-  sourceStorageKey: string
+  sourceImageUrl?: string
+  sourceStorageKey?: string
   sourceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceImageEntries?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  characterPrompt: string
+  characterPrompt?: string
   modelPrompts?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   referenceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -624,11 +624,11 @@ export type CharacterCardUncheckedCreateInput = {
   projectId?: string | null
   name: string
   description?: string | null
-  sourceImageUrl: string
-  sourceStorageKey: string
+  sourceImageUrl?: string
+  sourceStorageKey?: string
   sourceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceImageEntries?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  characterPrompt: string
+  characterPrompt?: string
   modelPrompts?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   referenceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -750,11 +750,11 @@ export type CharacterCardCreateManyInput = {
   projectId?: string | null
   name: string
   description?: string | null
-  sourceImageUrl: string
-  sourceStorageKey: string
+  sourceImageUrl?: string
+  sourceStorageKey?: string
   sourceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceImageEntries?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  characterPrompt: string
+  characterPrompt?: string
   modelPrompts?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   referenceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1242,11 +1242,11 @@ export type CharacterCardCreateWithoutUserInput = {
   id?: string
   name: string
   description?: string | null
-  sourceImageUrl: string
-  sourceStorageKey: string
+  sourceImageUrl?: string
+  sourceStorageKey?: string
   sourceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceImageEntries?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  characterPrompt: string
+  characterPrompt?: string
   modelPrompts?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   referenceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1284,11 +1284,11 @@ export type CharacterCardUncheckedCreateWithoutUserInput = {
   projectId?: string | null
   name: string
   description?: string | null
-  sourceImageUrl: string
-  sourceStorageKey: string
+  sourceImageUrl?: string
+  sourceStorageKey?: string
   sourceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceImageEntries?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  characterPrompt: string
+  characterPrompt?: string
   modelPrompts?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   referenceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1389,11 +1389,11 @@ export type CharacterCardCreateWithoutProjectInput = {
   id?: string
   name: string
   description?: string | null
-  sourceImageUrl: string
-  sourceStorageKey: string
+  sourceImageUrl?: string
+  sourceStorageKey?: string
   sourceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceImageEntries?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  characterPrompt: string
+  characterPrompt?: string
   modelPrompts?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   referenceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1431,11 +1431,11 @@ export type CharacterCardUncheckedCreateWithoutProjectInput = {
   userId: string
   name: string
   description?: string | null
-  sourceImageUrl: string
-  sourceStorageKey: string
+  sourceImageUrl?: string
+  sourceStorageKey?: string
   sourceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceImageEntries?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  characterPrompt: string
+  characterPrompt?: string
   modelPrompts?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   referenceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1497,11 +1497,11 @@ export type CharacterCardCreateWithoutGenerationsInput = {
   id?: string
   name: string
   description?: string | null
-  sourceImageUrl: string
-  sourceStorageKey: string
+  sourceImageUrl?: string
+  sourceStorageKey?: string
   sourceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceImageEntries?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  characterPrompt: string
+  characterPrompt?: string
   modelPrompts?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   referenceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1540,11 +1540,11 @@ export type CharacterCardUncheckedCreateWithoutGenerationsInput = {
   projectId?: string | null
   name: string
   description?: string | null
-  sourceImageUrl: string
-  sourceStorageKey: string
+  sourceImageUrl?: string
+  sourceStorageKey?: string
   sourceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceImageEntries?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  characterPrompt: string
+  characterPrompt?: string
   modelPrompts?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   referenceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1677,11 +1677,11 @@ export type CharacterCardCreateWithoutVoiceCardInput = {
   id?: string
   name: string
   description?: string | null
-  sourceImageUrl: string
-  sourceStorageKey: string
+  sourceImageUrl?: string
+  sourceStorageKey?: string
   sourceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceImageEntries?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  characterPrompt: string
+  characterPrompt?: string
   modelPrompts?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   referenceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1720,11 +1720,11 @@ export type CharacterCardUncheckedCreateWithoutVoiceCardInput = {
   projectId?: string | null
   name: string
   description?: string | null
-  sourceImageUrl: string
-  sourceStorageKey: string
+  sourceImageUrl?: string
+  sourceStorageKey?: string
   sourceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceImageEntries?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  characterPrompt: string
+  characterPrompt?: string
   modelPrompts?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   referenceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1785,11 +1785,11 @@ export type CharacterCardCreateWithoutAssistantPersonasInput = {
   id?: string
   name: string
   description?: string | null
-  sourceImageUrl: string
-  sourceStorageKey: string
+  sourceImageUrl?: string
+  sourceStorageKey?: string
   sourceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceImageEntries?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  characterPrompt: string
+  characterPrompt?: string
   modelPrompts?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   referenceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1828,11 +1828,11 @@ export type CharacterCardUncheckedCreateWithoutAssistantPersonasInput = {
   projectId?: string | null
   name: string
   description?: string | null
-  sourceImageUrl: string
-  sourceStorageKey: string
+  sourceImageUrl?: string
+  sourceStorageKey?: string
   sourceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceImageEntries?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  characterPrompt: string
+  characterPrompt?: string
   modelPrompts?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   referenceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1965,11 +1965,11 @@ export type CharacterCardCreateWithoutVariantsInput = {
   id?: string
   name: string
   description?: string | null
-  sourceImageUrl: string
-  sourceStorageKey: string
+  sourceImageUrl?: string
+  sourceStorageKey?: string
   sourceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceImageEntries?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  characterPrompt: string
+  characterPrompt?: string
   modelPrompts?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   referenceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2008,11 +2008,11 @@ export type CharacterCardUncheckedCreateWithoutVariantsInput = {
   projectId?: string | null
   name: string
   description?: string | null
-  sourceImageUrl: string
-  sourceStorageKey: string
+  sourceImageUrl?: string
+  sourceStorageKey?: string
   sourceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceImageEntries?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  characterPrompt: string
+  characterPrompt?: string
   modelPrompts?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   referenceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2052,11 +2052,11 @@ export type CharacterCardCreateWithoutParentInput = {
   id?: string
   name: string
   description?: string | null
-  sourceImageUrl: string
-  sourceStorageKey: string
+  sourceImageUrl?: string
+  sourceStorageKey?: string
   sourceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceImageEntries?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  characterPrompt: string
+  characterPrompt?: string
   modelPrompts?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   referenceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2095,11 +2095,11 @@ export type CharacterCardUncheckedCreateWithoutParentInput = {
   projectId?: string | null
   name: string
   description?: string | null
-  sourceImageUrl: string
-  sourceStorageKey: string
+  sourceImageUrl?: string
+  sourceStorageKey?: string
   sourceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceImageEntries?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  characterPrompt: string
+  characterPrompt?: string
   modelPrompts?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   referenceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2253,11 +2253,11 @@ export type CharacterCardCreateWithoutGenerationLinksInput = {
   id?: string
   name: string
   description?: string | null
-  sourceImageUrl: string
-  sourceStorageKey: string
+  sourceImageUrl?: string
+  sourceStorageKey?: string
   sourceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceImageEntries?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  characterPrompt: string
+  characterPrompt?: string
   modelPrompts?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   referenceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2296,11 +2296,11 @@ export type CharacterCardUncheckedCreateWithoutGenerationLinksInput = {
   projectId?: string | null
   name: string
   description?: string | null
-  sourceImageUrl: string
-  sourceStorageKey: string
+  sourceImageUrl?: string
+  sourceStorageKey?: string
   sourceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceImageEntries?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  characterPrompt: string
+  characterPrompt?: string
   modelPrompts?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   referenceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2433,11 +2433,11 @@ export type CharacterCardCreateWithoutLoraTrainingJobsInput = {
   id?: string
   name: string
   description?: string | null
-  sourceImageUrl: string
-  sourceStorageKey: string
+  sourceImageUrl?: string
+  sourceStorageKey?: string
   sourceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceImageEntries?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  characterPrompt: string
+  characterPrompt?: string
   modelPrompts?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   referenceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2476,11 +2476,11 @@ export type CharacterCardUncheckedCreateWithoutLoraTrainingJobsInput = {
   projectId?: string | null
   name: string
   description?: string | null
-  sourceImageUrl: string
-  sourceStorageKey: string
+  sourceImageUrl?: string
+  sourceStorageKey?: string
   sourceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceImageEntries?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  characterPrompt: string
+  characterPrompt?: string
   modelPrompts?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   referenceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2613,11 +2613,11 @@ export type CharacterCardCreateWithoutAssistantMemoriesInput = {
   id?: string
   name: string
   description?: string | null
-  sourceImageUrl: string
-  sourceStorageKey: string
+  sourceImageUrl?: string
+  sourceStorageKey?: string
   sourceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceImageEntries?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  characterPrompt: string
+  characterPrompt?: string
   modelPrompts?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   referenceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2656,11 +2656,11 @@ export type CharacterCardUncheckedCreateWithoutAssistantMemoriesInput = {
   projectId?: string | null
   name: string
   description?: string | null
-  sourceImageUrl: string
-  sourceStorageKey: string
+  sourceImageUrl?: string
+  sourceStorageKey?: string
   sourceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceImageEntries?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  characterPrompt: string
+  characterPrompt?: string
   modelPrompts?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   referenceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2794,11 +2794,11 @@ export type CharacterCardCreateManyUserInput = {
   projectId?: string | null
   name: string
   description?: string | null
-  sourceImageUrl: string
-  sourceStorageKey: string
+  sourceImageUrl?: string
+  sourceStorageKey?: string
   sourceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceImageEntries?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  characterPrompt: string
+  characterPrompt?: string
   modelPrompts?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   referenceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2946,11 +2946,11 @@ export type CharacterCardCreateManyProjectInput = {
   userId: string
   name: string
   description?: string | null
-  sourceImageUrl: string
-  sourceStorageKey: string
+  sourceImageUrl?: string
+  sourceStorageKey?: string
   sourceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceImageEntries?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  characterPrompt: string
+  characterPrompt?: string
   modelPrompts?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   referenceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -3099,11 +3099,11 @@ export type CharacterCardCreateManyVoiceCardInput = {
   projectId?: string | null
   name: string
   description?: string | null
-  sourceImageUrl: string
-  sourceStorageKey: string
+  sourceImageUrl?: string
+  sourceStorageKey?: string
   sourceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceImageEntries?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  characterPrompt: string
+  characterPrompt?: string
   modelPrompts?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   referenceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -3251,11 +3251,11 @@ export type CharacterCardCreateManyParentInput = {
   projectId?: string | null
   name: string
   description?: string | null
-  sourceImageUrl: string
-  sourceStorageKey: string
+  sourceImageUrl?: string
+  sourceStorageKey?: string
   sourceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sourceImageEntries?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
-  characterPrompt: string
+  characterPrompt?: string
   modelPrompts?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   referenceImages?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -3689,6 +3689,9 @@ export type $CharacterCardPayload<ExtArgs extends runtime.Types.Extensions.Inter
     projectId: string | null
     name: string
     description: string | null
+    /**
+     * ⚠ 下面这组旧列已停读停写（图只认 referenceSlots，外观只认 description），下一次部署删列。
+     */
     sourceImageUrl: string
     sourceStorageKey: string
     sourceImages: runtime.JsonValue | null

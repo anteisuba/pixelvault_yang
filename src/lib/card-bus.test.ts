@@ -1,82 +1,32 @@
 import { describe, expect, it } from 'vitest'
 
-import { CHARACTER_CARD } from '@/constants/cards/character-card'
 import {
   allocateCardHandle,
   cardHandleKey,
+  characterCoverUrl,
   deriveCardHandleBase,
   deriveVariantHandleBase,
   findCardHandleMentions,
-  legacyImagesToReferenceSlots,
 } from '@/lib/card-bus'
-import { CharacterReferenceSlotsSchema } from '@/types'
 
 const url = (name: string) => `https://cdn.test/${name}.png`
 
-describe('legacyImagesToReferenceSlots', () => {
-  it('主图是身份槽且唯一主图；上传在前、精修在后；结果过得了不变量', () => {
-    const slots = legacyImagesToReferenceSlots({
-      sourceImageUrl: url('main'),
-      sourceImages: [url('main'), url('side')],
-      referenceImages: [url('refined')],
-      referenceRoles: { [url('side')]: 'costume' },
-    })
-    expect(slots.map((slot) => [slot.url, slot.role, slot.origin])).toEqual([
-      [url('main'), 'identity', 'upload'],
-      [url('side'), 'costume', 'upload'],
-      [url('refined'), 'identity', 'refine'],
-    ])
-    expect(slots.filter((slot) => slot.isPrimary)).toHaveLength(1)
-    expect(CharacterReferenceSlotsSchema.safeParse(slots).success).toBe(true)
+describe('characterCoverUrl', () => {
+  const slot = (id: string, isPrimary = false) => ({
+    id,
+    role: 'identity' as const,
+    url: url(id),
+    isPrimary,
   })
 
-  it('同一张图换了域名算一张（自有 CDN 与旧 r2.dev 公链）', () => {
-    const slots = legacyImagesToReferenceSlots({
-      sourceImageUrl: 'https://cdn.example.com/generations/u/a.png',
-      sourceImages: ['https://pub-x.r2.dev/generations/u/a.png'],
-    })
-    expect(slots.map((slot) => slot.url)).toEqual([
-      'https://cdn.example.com/generations/u/a.png',
-    ])
-  })
-
-  it('⭐ 用途表给主图记了别的用途，也以主图为准记成身份', () => {
-    const slots = legacyImagesToReferenceSlots({
-      sourceImageUrl: url('main'),
-      referenceRoles: { [url('main')]: 'style' },
-    })
-    expect(slots[0]).toMatchObject({ role: 'identity', isPrimary: true })
-  })
-
-  it('结构化列表优先；视角带过来；custom 用途补上名字', () => {
-    const slots = legacyImagesToReferenceSlots({
-      sourceImageUrl: url('main'),
-      sourceImages: [url('ignored')],
-      sourceImageEntries: [
-        { url: url('back'), viewType: 'back' },
-        { url: url('weapon'), label: '武器' },
-      ],
-      referenceRoles: { [url('weapon')]: 'custom' },
-    })
-    expect(slots.map((slot) => slot.url)).not.toContain(url('ignored'))
-    expect(slots.find((slot) => slot.url === url('back'))?.viewType).toBe(
-      'back',
+  it('主图那一槽；没有主图取第一槽；没有槽是 null', () => {
+    expect(
+      characterCoverUrl({ referenceSlots: [slot('a'), slot('b', true)] }),
+    ).toBe(url('b'))
+    expect(characterCoverUrl({ referenceSlots: [slot('a'), slot('b')] })).toBe(
+      url('a'),
     )
-    expect(slots.find((slot) => slot.url === url('weapon'))).toMatchObject({
-      role: 'custom',
-      customLabel: '武器',
-    })
-    expect(CharacterReferenceSlotsSchema.safeParse(slots).success).toBe(true)
-  })
-
-  it('超出上限从尾部丢，⛔ 不丢主图；id 确定', () => {
-    const many = Array.from({ length: 20 }, (_, i) => url(`u${i}`))
-    const slots = legacyImagesToReferenceSlots({
-      sourceImageUrl: url('main'),
-      sourceImages: many,
-    })
-    expect(slots).toHaveLength(CHARACTER_CARD.MAX_REFERENCE_SLOTS)
-    expect(slots[0]).toMatchObject({ url: url('main'), id: 'slot-1' })
+    expect(characterCoverUrl({ referenceSlots: [] })).toBeNull()
   })
 })
 

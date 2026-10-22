@@ -36,7 +36,6 @@ vi.mock('@/contexts/studio-context', () => ({
 const DENIA = {
   id: 'denia',
   name: 'Denia',
-  sourceImageUrl: 'https://cdn.test/1.png',
   createdAt: new Date(0),
   cardTags: { character: [], appearance: [], loraTrigger: '' },
   workOverride: '鸣潮',

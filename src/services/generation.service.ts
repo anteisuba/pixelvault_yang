@@ -228,7 +228,6 @@ export const LIST_GENERATION_SELECT = {
   /** 素材库要在列表态就把「发布」置灰（「先搜再画」出的图不能公开）。 */
   searchGrounded: true,
   userId: true,
-  characterCardId: true,
   runGroupId: true,
   runGroupType: true,
   runGroupIndex: true,

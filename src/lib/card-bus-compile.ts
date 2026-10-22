@@ -31,7 +31,7 @@ export interface CardBusCharacter {
   version: number
   handle: string
   name: string
-  /** 视觉文字：`characterPrompt` 在前、`description` 在后（只写视觉）。 */
+  /** 视觉文字 = 卡上的外观（`description`）。 */
   visual: string | null
   /** 角色硬否定（`extensions['pv.negative']`）。 */
   negative: string | null
@@ -49,7 +49,6 @@ export interface CardBusCharacterSource {
   version: number
   handle: string
   name: string
-  characterPrompt: string | null
   description: string | null
   extensions: unknown
   slots: readonly CharacterReferenceSlot[]
@@ -85,18 +84,12 @@ function slotRank(slot: CharacterReferenceSlot): number {
 export function toCardBusCharacter(
   source: CardBusCharacterSource,
 ): CardBusCharacter {
-  const prompt = source.characterPrompt?.trim() || ''
-  const description = source.description?.trim() || ''
-  const visual =
-    [prompt, description && description !== prompt ? description : '']
-      .filter(Boolean)
-      .join('\n') || null
   return {
     cardId: source.id,
     version: source.version,
     handle: source.handle,
     name: source.name,
-    visual,
+    visual: source.description?.trim() || null,
     negative: readNegative(source.extensions),
     tags: readTags(source.extensions),
     slots: source.slots

@@ -327,7 +327,6 @@ describe('planV4Generation · 镜头里 @她（画布用角色 ④ 第 2 片）'
     referenceSlots: [
       { id: 's_main', url: 'https://cdn/denia.png', isPrimary: true },
     ],
-    sourceImageUrl: null,
     variants: [],
   } as unknown as CharacterCardRecord
 
@@ -398,7 +397,6 @@ describe('preflightV4Plan · 发送前校验（owner 09-28：不发送 + 说清�
     referenceSlots: [
       { id: 's_main', url: 'https://cdn/denia.png', isPrimary: true },
     ],
-    sourceImageUrl: null,
     variants: [],
   } as unknown as CharacterCardRecord
 

@@ -28,7 +28,7 @@ import { cardManagementPath } from '@/constants/routes'
 import { useBackToClose } from '@/hooks/use-back-to-close'
 import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
 import { useRouter } from '@/i18n/navigation'
-import { characterMainImage } from '@/lib/node-character-mentions'
+import { characterCoverUrl } from '@/lib/card-bus'
 import { isCharacterCardNode } from '@/lib/node-mentions-to-slots'
 import { pickDefaultModelOption } from '@/lib/pick-default-model-option'
 import { cn } from '@/lib/utils'
@@ -238,7 +238,9 @@ export function CanvasMobileRail({
                 : undefined
             if (characterId) {
               const card = library.find(characterId)
-              const image = card ? characterMainImage(card) : undefined
+              const image = card
+                ? (characterCoverUrl(card) ?? undefined)
+                : undefined
               return (
                 <MediaRow
                   key={node.id}
@@ -248,9 +250,7 @@ export function CanvasMobileRail({
                     ...(image ? { image } : {}),
                   }}
                   onOpen={() =>
-                    router.push(
-                      cardManagementPath({ character: characterId }),
-                    )
+                    router.push(cardManagementPath({ character: characterId }))
                   }
                 />
               )

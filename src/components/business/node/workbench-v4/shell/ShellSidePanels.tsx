@@ -85,6 +85,7 @@ import {
   liftMediaDragGhost,
 } from '@/hooks/node/node-media-drag-ghost'
 import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
+import { characterCoverUrl } from '@/lib/card-bus'
 import { characterWork } from '@/lib/character-works'
 import { useProjects } from '@/hooks/use-projects'
 import {
@@ -495,11 +496,7 @@ function ShellCardsPanel({
       data-testid="shell-cards-panel"
     >
       {cards.map((card) => {
-        const url =
-          card.referenceSlots.find((slot) => slot.isPrimary)?.url ??
-          card.referenceSlots[0]?.url ??
-          card.sourceImageUrl ??
-          undefined
+        const url = characterCoverUrl(card) ?? undefined
         const onCanvas = placedCharacterIds.has(card.id)
         const work = characterWork(card, locale).label ?? t('cardsOriginal')
         return (

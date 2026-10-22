@@ -883,11 +883,12 @@ model CharacterCard {
   project            Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
   name               String
   description        String?             @db.Text
-  sourceImageUrl     String // Primary source image URL (first uploaded)
-  sourceStorageKey   String
+  /// ⚠ 下面这组旧列已停读停写（图只认 referenceSlots，外观只认 description），下一次部署删列。
+  sourceImageUrl     String              @default("")
+  sourceStorageKey   String              @default("")
   sourceImages       Json? // string[] — all uploaded source image URLs (legacy flat)
   sourceImageEntries Json? // SourceImageEntry[] — structured with viewType
-  characterPrompt    String              @db.Text
+  characterPrompt    String              @default("") @db.Text
   modelPrompts       Json? // Record<adapterType, optimizedPrompt>
   referenceImages    Json? // string[] — best generation R2 URLs
   attributes         Json? // CharacterAttributes structured data

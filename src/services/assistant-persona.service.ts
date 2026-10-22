@@ -15,12 +15,17 @@ import {
   normalizeRouteModel,
   type AssistantAvatarChoice,
 } from '@/constants/assistant-persona'
+import { characterCoverUrl } from '@/lib/card-bus'
 import { ApiRequestError } from '@/lib/errors'
 import { readTavernWorldBook } from '@/lib/tavern-card'
 import { readChatUserRole } from '@/services/cards/character-card.mapper'
 import { sanitizePrompt } from '@/services/kernel/prompt-guard'
 import { ensureUser } from '@/services/user.service'
-import { CharacterPersonaSchema, type CharacterPersona } from '@/types'
+import {
+  CharacterPersonaSchema,
+  CharacterReferenceSlotsSchema,
+  type CharacterPersona,
+} from '@/types'
 import {
   AssistantPersonaSchema,
   type AssistantPersona,
@@ -51,7 +56,7 @@ import {
 interface PersonaCharacterRow {
   id: string
   name: string
-  sourceImageUrl: string
+  referenceSlots: unknown
   persona: unknown
   isDeleted: boolean
 }
@@ -124,6 +129,11 @@ function toPromptCharacter(
   return empty ? null : character
 }
 
+function readSlots(card: PersonaCharacterRow) {
+  const parsed = CharacterReferenceSlotsSchema.safeParse(card.referenceSlots)
+  return parsed.success ? parsed.data : []
+}
+
 /** 正在用的角色（界面要的四样）。卡删了（软删）就当没用。 */
 function toCharacter(
   card: PersonaCharacterRow | null,
@@ -133,7 +143,7 @@ function toCharacter(
     id: card.id,
     /** ⚠ 与助手名字同一档上限 —— 角色名更长时截断，⛔ 不让整份 persona 读不出来。 */
     name: card.name.slice(0, ASSISTANT_PERSONA_LIMITS.maxNameChars),
-    faceUrl: card.sourceImageUrl || null,
+    faceUrl: characterCoverUrl({ referenceSlots: readSlots(card) }),
     hasSpeech: readCharacterSpeech(card).length > 0,
   }
 }
@@ -257,7 +267,7 @@ const PERSONA_SELECT = {
     select: {
       id: true,
       name: true,
-      sourceImageUrl: true,
+      referenceSlots: true,
       persona: true,
       isDeleted: true,
     },

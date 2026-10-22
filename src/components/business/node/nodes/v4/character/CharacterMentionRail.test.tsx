@@ -36,7 +36,6 @@ const DENIA = {
   referenceSlots: [
     { id: 's_main', url: 'https://cdn/main.png', isPrimary: true },
   ],
-  sourceImageUrl: null,
   variants: [],
 } as unknown as CharacterCardRecord
 

@@ -819,15 +819,8 @@ export async function uploadFromHttpToR2(params: {
   )
 }
 
-// ─── Buffered HTTP Upload (for provider files that stall under streaming) ──
+// ─── Verified HTTP Upload (Runner LoRA cache) ────────────────────
 
-/**
- * Fetch a remote HTTP file into a Buffer, then upload it to R2.
- *
- * This is intentionally used for medium-sized 3D model files. Some provider
- * CDNs terminate long-lived streamed downloads while R2 multipart upload is
- * applying backpressure; buffering decouples provider download from R2 upload.
- */
 /** 下载到的文件和来源公布的 SHA-256 对不上（消息里的 `SHA-256 mismatch` 是生成错误归类的判据）。 */
 export class R2SourceChecksumMismatchError extends Error {
   constructor(
@@ -839,87 +832,116 @@ export class R2SourceChecksumMismatchError extends Error {
   }
 }
 
-export async function uploadBufferedHttpToR2(params: {
+/** 分片大小 × 并发 ≈ 这一路占的内存上限（还有一份拼片时的拷贝）。 */
+const VERIFIED_UPLOAD_PART_BYTES = 8 * 1024 * 1024
+const VERIFIED_UPLOAD_QUEUE_SIZE = 4
+
+/**
+ * 把远端大文件（Runner 的 LoRA 权重，几十到几百 MB）边下边传进 R2，同时数字节、算 SHA-256。
+ *
+ * 2026-10-21 线上两次 `/api/studio/generate` 内存不足被杀：旧做法把整个文件读进内存再一次性
+ * PUT，一把几百 MB 的 LoCon 加上 Fluid 同实例的并发请求就撑爆 2 GB。现在内存只占几个分片：
+ *
+ * - 超过 `maxBytes` 当场中断，不等下完（来源没给 content-length 时也拦得住）；
+ * - 哈希对不上时在流结束前报错，分片上传随之取消，**R2 里不会出现这个对象** ——
+ *   key 同时是缓存命中的判据，坏文件一旦落地就会被当成已缓存反复使用。
+ *
+ * `timeoutMs` 是整次调用（含重试）的截止时间，调用方按所在路由的 `maxDuration` 留余量。
+ */
+export async function uploadVerifiedHttpToR2(params: {
   sourceUrl: string
   key: string
   mimeType?: string
   fetchHeaders?: Record<string, string>
   timeoutMs?: number
-  /** Reject before/after download when the remote file exceeds this size. */
+  /** Reject as soon as the remote file is known to exceed this size. */
   maxBytes?: number
   /**
-   * 来源公布的 SHA-256（小写）；给了就在写入 R2 之前核对，任一个对上即可（Civitai 一个
+   * 来源公布的 SHA-256（小写）；给了就在对象落地之前核对，任一个对上即可（Civitai 一个
    * 版本可能有多个模型文件）。不给 = 来源没公布，照写。
    */
   acceptedSha256s?: readonly string[]
 }): Promise<{ publicUrl: string; mimeType: string; sizeBytes: number }> {
   assertSafeUrl(params.sourceUrl)
+  const deadline = AbortSignal.timeout(params.timeoutMs ?? 180_000)
+  const { maxBytes, acceptedSha256s } = params
 
   return withRetry(
     async () => {
       const response = await safeFetch(params.sourceUrl, {
         headers: params.fetchHeaders,
-        signal: AbortSignal.timeout(params.timeoutMs ?? 180_000),
+        signal: deadline,
       })
-      if (!response.ok) {
+      if (!response.ok || !response.body) {
         throw new Error(
-          `Failed to fetch file for buffered upload (${response.status}): ${params.sourceUrl}`,
+          `Failed to fetch file for upload (${response.status}): ${params.sourceUrl}`,
         )
       }
 
-      if (params.maxBytes !== undefined) {
+      if (maxBytes !== undefined) {
         const declared = Number(response.headers.get('content-length'))
-        if (Number.isFinite(declared) && declared > params.maxBytes) {
+        if (Number.isFinite(declared) && declared > maxBytes) {
           throw new Error(
-            `Remote file exceeds maximum size of ${params.maxBytes} bytes (declared ${declared}).`,
+            `Remote file exceeds maximum size of ${maxBytes} bytes (declared ${declared}).`,
           )
         }
       }
 
-      const arrayBuffer = await response.arrayBuffer()
-      const buffer = Buffer.from(arrayBuffer)
-      if (
-        params.maxBytes !== undefined &&
-        buffer.byteLength > params.maxBytes
-      ) {
-        throw new Error(
-          `Remote file exceeds maximum size of ${params.maxBytes} bytes (got ${buffer.byteLength}).`,
-        )
-      }
-      if (params.acceptedSha256s && params.acceptedSha256s.length > 0) {
-        const actualSha256 = createHash('sha256').update(buffer).digest('hex')
-        if (!params.acceptedSha256s.includes(actualSha256)) {
-          throw new R2SourceChecksumMismatchError(params.key, actualSha256)
-        }
-      }
+      const hash = createHash('sha256')
+      let sizeBytes = 0
+      const verified = response.body.pipeThrough(
+        new TransformStream<Uint8Array, Uint8Array>({
+          transform(chunk, controller) {
+            sizeBytes += chunk.byteLength
+            if (maxBytes !== undefined && sizeBytes > maxBytes) {
+              throw new Error(
+                `Remote file exceeds maximum size of ${maxBytes} bytes (stopped at ${sizeBytes}).`,
+              )
+            }
+            hash.update(chunk)
+            controller.enqueue(chunk)
+          },
+          // 抛在这里 = 读的一方拿到错误而不是「读完了」，最后一片和收尾都不会发出去。
+          flush() {
+            if (!acceptedSha256s || acceptedSha256s.length === 0) return
+            const actualSha256 = hash.digest('hex')
+            if (!acceptedSha256s.includes(actualSha256)) {
+              throw new R2SourceChecksumMismatchError(params.key, actualSha256)
+            }
+          },
+        }),
+      )
       const mimeType =
         params.mimeType ??
         response.headers.get('content-type') ??
         'application/octet-stream'
 
-      await r2.send(
-        new PutObjectCommand({
+      await new Upload({
+        client: r2,
+        params: {
           Bucket: process.env.R2_BUCKET_NAME!,
           Key: params.key,
-          Body: buffer,
+          Body: verified,
           ContentType: mimeType,
           CacheControl: 'public, max-age=31536000, immutable',
-        }),
-      )
+        },
+        queueSize: VERIFIED_UPLOAD_QUEUE_SIZE,
+        partSize: VERIFIED_UPLOAD_PART_BYTES,
+      }).done()
 
-      logger.info('Buffered HTTP source uploaded to R2', {
+      logger.info('Verified HTTP source uploaded to R2', {
         key: params.key,
-        sizeBytes: buffer.byteLength,
+        sizeBytes,
         mimeType,
       })
 
       return {
         publicUrl: `${process.env.NEXT_PUBLIC_STORAGE_BASE_URL}/${params.key}`,
         mimeType,
-        sizeBytes: buffer.byteLength,
+        sizeBytes,
       }
     },
-    { maxAttempts: 3, baseDelayMs: 2000, label: 'r2.uploadBufferedHttp' },
+    { maxAttempts: 3, baseDelayMs: 2000, label: 'r2.uploadVerifiedHttp' },
   )
 }
 

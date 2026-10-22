@@ -1614,63 +1614,6 @@ export async function getGenerationsByCharacterCard(
   }
 }
 
-/**
- * Get generations linked to ALL of the given character card IDs (intersection).
- * Used for "Character A + Character B" combination filtering.
- */
-export async function getGenerationsByCharacterCombination(
-  characterCardIds: string[],
-  userId: string,
-  { page = 1, limit = 20, cursor }: CharacterCardGalleryOptions = {},
-): Promise<CharacterCardGenerationPage> {
-  if (characterCardIds.length === 0) {
-    return { generations: [], total: 0, hasMore: false, nextCursor: null }
-  }
-
-  if (characterCardIds.length === 1) {
-    return getGenerationsByCharacterCard(characterCardIds[0], userId, {
-      page,
-      limit,
-      cursor,
-    })
-  }
-
-  // Find generations that have ALL specified character cards
-  // by intersecting: each card must appear in the join table for that generation
-  const baseWhere = {
-    userId,
-    AND: characterCardIds.map((cardId) => ({
-      characterCards: { some: { characterCardId: cardId } },
-    })),
-  }
-  const decodedCursor = decodeGalleryCursor(cursor)
-  const cursorWhere = buildGalleryCursorWhere(decodedCursor, 'newest')
-  const where = cursorWhere ? { AND: [baseWhere, cursorWhere] } : baseWhere
-
-  const [results, total] = await Promise.all([
-    db.generation.findMany({
-      where,
-      orderBy: getGalleryOrderBy('newest'),
-      ...(decodedCursor ? {} : { skip: (page - 1) * limit }),
-      take: limit + 1,
-      select: LIST_GENERATION_SELECT,
-    }),
-    decodedCursor ? Promise.resolve(null) : db.generation.count({ where }),
-  ])
-  const hasMore = results.length > limit
-  const generations = hasMore ? results.slice(0, limit) : results
-  const lastGeneration = generations[generations.length - 1]
-  const nextCursor =
-    hasMore && lastGeneration ? encodeGalleryCursor(lastGeneration) : null
-
-  return {
-    generations: generations as GenerationRecord[],
-    total,
-    hasMore,
-    nextCursor,
-  }
-}
-
 // ── B5: Variant Winner Selection ──────────────────────────────────
 
 export async function selectVariantWinner(

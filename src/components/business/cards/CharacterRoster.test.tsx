@@ -216,7 +216,7 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
   })
 
   it('画布「在角色页打开」带 ?character= 进来：直接打开那一位', () => {
-    mockSearch.value = 'tab=characters&character=rixi'
+    mockSearch.value = 'character=rixi'
     renderRoster()
     expect(screen.getByRole('region', { name: '里希' })).toBeTruthy()
   })

@@ -52,7 +52,6 @@ vi.mock('@/contexts/studio-context', () => ({
     state: {
       outputType: 'video',
       selectedOptionId: null,
-      workflowMode: 'quick',
     },
     dispatch: harness.dispatch,
   })),

@@ -14,8 +14,6 @@ import {
   ImageIcon,
   Film,
   Mic,
-  Wand2,
-  Layers,
   Search,
   Cpu,
 } from '@/components/icons'
@@ -95,14 +93,6 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
     [dispatch],
   )
 
-  const switchWorkflow = useCallback(
-    (mode: 'quick' | 'card') => {
-      dispatch({ type: 'SET_WORKFLOW_MODE', payload: mode })
-      setOpen(false)
-    },
-    [dispatch],
-  )
-
   return (
     <>
       <CommandDialog
@@ -152,36 +142,6 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
               <Mic className="size-4 text-muted-foreground" />
               <span>{t('commands.audioMode')}</span>
               {state.outputType === 'audio' && (
-                <span className="ml-auto text-xs text-primary">
-                  {t('active')}
-                </span>
-              )}
-            </CommandItem>
-          </CommandGroup>
-
-          <CommandSeparator />
-
-          {/* Workflow */}
-          <CommandGroup heading={t('groups.workflow')}>
-            <CommandItem
-              onSelect={() => switchWorkflow('quick')}
-              className="studio-command-item"
-            >
-              <Wand2 className="size-4 text-muted-foreground" />
-              <span>{t('commands.quickGenerate')}</span>
-              {state.workflowMode === 'quick' && (
-                <span className="ml-auto text-xs text-primary">
-                  {t('active')}
-                </span>
-              )}
-            </CommandItem>
-            <CommandItem
-              onSelect={() => switchWorkflow('card')}
-              className="studio-command-item"
-            >
-              <Layers className="size-4 text-muted-foreground" />
-              <span>{t('commands.cardGenerate')}</span>
-              {state.workflowMode === 'card' && (
                 <span className="ml-auto text-xs text-primary">
                   {t('active')}
                 </span>

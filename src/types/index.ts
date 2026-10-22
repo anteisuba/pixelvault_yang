@@ -3500,13 +3500,6 @@ export type UpdateCharacterCardRequest = z.infer<
   typeof UpdateCharacterCardSchema
 >
 
-/** Score consistency request */
-export const ScoreConsistencySchema = z.object({
-  generationId: z.string().trim().min(1),
-})
-
-export type ScoreConsistencyRequest = z.infer<typeof ScoreConsistencySchema>
-
 /** Character card record returned from API */
 export interface CharacterCardRecord {
   id: string
@@ -3553,22 +3546,6 @@ export interface CharacterCardRecord {
   updatedAt: Date
 }
 
-/** Consistency score breakdown */
-export interface ConsistencyScoreBreakdown {
-  face: number
-  hair: number
-  outfit: number
-  pose: number
-  style: number
-}
-
-/** Consistency score result */
-export interface ConsistencyScoreResult {
-  overallScore: number
-  breakdown: ConsistencyScoreBreakdown
-  suggestions: string[]
-}
-
 /** Character card API responses */
 export interface CharacterCardResponse {
   success: boolean
@@ -3579,12 +3556,6 @@ export interface CharacterCardResponse {
 export interface CharacterCardsResponse {
   success: boolean
   data?: CharacterCardRecord[]
-  error?: string
-}
-
-export interface ConsistencyScoreResponse {
-  success: boolean
-  data?: ConsistencyScoreResult
   error?: string
 }
 

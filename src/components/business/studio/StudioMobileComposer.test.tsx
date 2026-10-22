@@ -28,7 +28,6 @@ const mockVideoAssets = vi.hoisted(() => ({ images: [], videos: [] }))
 const mockReferenceEntries = vi.hoisted(() => ({ value: [] as unknown[] }))
 
 const EMPTY_PANELS: StudioFormState['panels'] = {
-  cardManagement: false,
   projectHistory: false,
   modelSelector: false,
   civitai: false,

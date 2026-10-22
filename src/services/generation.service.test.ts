@@ -62,7 +62,6 @@ import {
   getOwnedGenerationWithSnapshot,
   getGenerationByIdForUser,
   getGenerationsByCharacterCard,
-  getGenerationsByCharacterCombination,
   getPublicGenerationPage,
   getPublicGenerations,
   getUserGenerations,
@@ -1542,18 +1541,6 @@ describe('generation.service', () => {
   })
 
   describe('character card queries', () => {
-    it('returns empty result for empty character combinations', async () => {
-      await expect(
-        getGenerationsByCharacterCombination([], 'user-1'),
-      ).resolves.toEqual({
-        generations: [],
-        total: 0,
-        hasMore: false,
-        nextCursor: null,
-      })
-      expect(mockGenerationFindMany).not.toHaveBeenCalled()
-    })
-
     it('returns a cursor page for a single character card without counting follow-up pages', async () => {
       const cursor = Buffer.from(
         JSON.stringify({

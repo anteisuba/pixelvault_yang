@@ -249,10 +249,7 @@ export function CanvasMobileRail({
                   }}
                   onOpen={() =>
                     router.push(
-                      cardManagementPath({
-                        tab: 'characters',
-                        character: characterId,
-                      }),
+                      cardManagementPath({ character: characterId }),
                     )
                   }
                 />

@@ -17,5 +17,4 @@ export { StudioAssistantFab } from './StudioAssistantFab'
 // or by individual L2 module specs.
 export { StudioPromptArea } from './StudioPromptArea'
 export { GenerationPreview } from './GenerationPreview'
-export { StudioCardSection } from './StudioCardSection'
 export { StudioGallery } from './StudioGallery'

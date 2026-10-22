@@ -83,26 +83,16 @@ export interface PromptCreatePathOptions {
   generationId?: string
 }
 
-export const CARD_MANAGEMENT_TABS = [
-  'characters',
-  'styles',
-  'backgrounds',
-] as const
-
-export type CardManagementTab = (typeof CARD_MANAGEMENT_TABS)[number]
-
 export interface CardManagementPathOptions {
-  tab?: CardManagementTab
   /** 打开哪一位角色（画布「在角色页打开」）。 */
   character?: string
 }
 
-/** Build a Cards management URL with an optional active tab. */
+/** Build the character page URL, optionally opening one character. */
 export function cardManagementPath(
   options: CardManagementPathOptions = {},
 ): string {
   const params = new URLSearchParams()
-  if (options.tab) params.set('tab', options.tab)
   if (options.character) params.set('character', options.character)
   const query = params.toString()
   return query ? `${ROUTES.CARDS}?${query}` : ROUTES.CARDS

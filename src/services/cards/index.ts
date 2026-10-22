@@ -7,5 +7,4 @@
  */
 export * from './character-card.service'
 export * from './character-card.mapper'
-export * from './character-scoring.service'
 export * from './voice-card.service'

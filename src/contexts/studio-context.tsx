@@ -91,7 +91,6 @@ import type { UseUnifiedGenerateReturn } from '@/hooks/use-unified-generate'
 // ═══════════════════════════════════════════════════════════════════
 
 export type PanelName =
-  | 'cardManagement'
   | 'projectHistory'
   | 'modelSelector'
   | 'civitai'
@@ -111,7 +110,6 @@ export type PanelName =
   | 'keepChange'
 
 type OutputType = 'image' | 'video' | 'audio'
-type WorkflowMode = 'quick' | 'card'
 
 /**
  * 一条视频音频参考。`ownerName` 对应 worker 那边的
@@ -130,7 +128,6 @@ export interface VideoAudioReference {
 export interface StudioFormState {
   selectedWorkflowId: WorkflowId
   outputType: OutputType
-  workflowMode: WorkflowMode
   selectedOptionId: string | null
   /**
    * 用户是否**显式**动过主模型（选中 / 换掉 / 把最后一行删掉）。
@@ -328,7 +325,6 @@ export type StudioAction =
       openDefaultPanel?: boolean
     }
   | { type: 'SET_OUTPUT_TYPE'; payload: OutputType }
-  | { type: 'SET_WORKFLOW_MODE'; payload: WorkflowMode }
   | { type: 'SET_OPTION_ID'; payload: string | null }
   /**
    * 默认模型自动补位专用（图片档）。与 `SET_OPTION_ID` 的唯一区别是**不算
@@ -438,7 +434,6 @@ export type StudioAction =
   | { type: 'RESET_FORM' }
 
 const initialPanels: Record<PanelName, boolean> = {
-  cardManagement: false,
   projectHistory: false,
   modelSelector: false,
   civitai: false,
@@ -499,7 +494,6 @@ const initialWorkflowDefaults = getWorkflowStudioDefaults(DEFAULT_WORKFLOW_ID)
 const initialFormState: StudioFormState = {
   selectedWorkflowId: DEFAULT_WORKFLOW_ID,
   outputType: initialWorkflowDefaults.outputType,
-  workflowMode: initialWorkflowDefaults.workflowMode ?? 'quick',
   selectedOptionId: null,
   modelSelectionTouched: false,
   prompt: '',
@@ -589,7 +583,6 @@ export function studioFormReducer(
         ...state,
         selectedWorkflowId: action.payload,
         outputType: defaults.outputType,
-        workflowMode: defaults.workflowMode ?? state.workflowMode,
         prompt: isChangingMediaGroup ? '' : state.prompt,
         recipeUsage: isChangingMediaGroup ? null : state.recipeUsage,
         // 台账 A：音频参考与提示词同档 —— 换了媒体大类（视频 → 图片/音频）
@@ -676,8 +669,6 @@ export function studioFormReducer(
       return { ...state, audioReferenceText: action.payload }
     case 'SET_PRONUNCIATION_DICTIONARY':
       return { ...state, pronunciationDictionary: action.payload }
-    case 'SET_WORKFLOW_MODE':
-      return { ...state, workflowMode: action.payload }
     case 'SET_OPTION_ID':
       return {
         ...state,

@@ -16,7 +16,6 @@ import type { StudioModelOption } from '@/types/model-option'
 type TemplateApplySnapshot = Pick<
   StudioFormState,
   | 'selectedWorkflowId'
-  | 'workflowMode'
   | 'selectedOptionId'
   | 'prompt'
   | 'aspectRatio'
@@ -52,7 +51,6 @@ export function useStudioTemplateApply(modelOptions: StudioModelOption[]) {
     (recipe: RecipeRecord) => {
       const snapshot: TemplateApplySnapshot = {
         selectedWorkflowId: state.selectedWorkflowId,
-        workflowMode: state.workflowMode,
         selectedOptionId: state.selectedOptionId,
         prompt: state.prompt,
         aspectRatio: state.aspectRatio,
@@ -85,7 +83,6 @@ export function useStudioTemplateApply(modelOptions: StudioModelOption[]) {
       payload: saved.selectedWorkflowId,
       openDefaultPanel: false,
     })
-    dispatch({ type: 'SET_WORKFLOW_MODE', payload: saved.workflowMode })
     dispatch({ type: 'SET_OPTION_ID', payload: saved.selectedOptionId })
     dispatch({ type: 'SET_ASPECT_RATIO', payload: saved.aspectRatio })
     // 先放回参数，再放回角色位：参数里的角色比当前那一位少时，reducer 会把它清掉。

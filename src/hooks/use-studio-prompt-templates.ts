@@ -103,7 +103,6 @@ export function useStudioPromptTemplates(modelOptions: StudioModelOption[]) {
       const advancedParams = getRecipeAdvancedParams(recipe)
 
       dispatch({ type: 'SET_SELECTED_WORKFLOW_ID', payload: workflowId })
-      dispatch({ type: 'SET_WORKFLOW_MODE', payload: 'quick' })
       dispatch({
         type: 'SET_OPTION_ID',
         payload: matchedOption?.optionId ?? `workspace:${recipe.modelId}`,
@@ -169,7 +168,6 @@ export function useStudioPromptTemplates(modelOptions: StudioModelOption[]) {
         type: 'SET_SELECTED_WORKFLOW_ID',
         payload: WORKFLOW_IDS.QUICK_IMAGE,
       })
-      dispatch({ type: 'SET_WORKFLOW_MODE', payload: 'quick' })
       dispatch({
         type: 'SET_OPTION_ID',
         payload: matchedOption?.optionId ?? `workspace:${recipe.modelId}`,

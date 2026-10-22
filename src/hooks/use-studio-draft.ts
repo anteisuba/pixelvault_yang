@@ -51,7 +51,6 @@ const StudioDraftSchema = z.object({
     .default(DEFAULT_IMAGE_BATCH_COUNT),
   extraModelOptionIds: z.array(z.string()).default([]),
   recipeUsage: RecipeUsageSchema.nullable().default(null),
-  workflowMode: z.enum(['quick', 'card']).default('quick'),
   tagChips: TagChipListSchema.default([]),
   tagNegativeChips: TagChipListSchema.default([]),
   referenceImages: z.array(ReferenceUrlSchema).default([]),

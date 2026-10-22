@@ -78,7 +78,6 @@ vi.mock('@/contexts/studio-context', () => ({
       advancedParams: {},
       aspectRatio: '1:1',
       imageBatchCount: 1,
-      workflowMode: 'quick',
       recipeUsage: null,
       extraModelOptionIds: [],
       videoDuration: 5,

@@ -611,13 +611,17 @@ export const ASSISTANT_V3_CALL_TIMEOUT = {
  * 只为对比，删旧内核时一起删。⚠ **只有 owner 认**（服务端 `isAdmin`，owner 2026-10-15）：
  * 别人的浏览器里写了 `v2`，服务端照走 v3。
  * ⚠ `v3` 还收着：开关切换前打开的页面仍会发它。
+ * ⭐ `next` = 重设计的新内核（`src/features/assistant/`，第 2 步起）：同样只有 owner 认，
+ *   先只接图片台与 LoRA 台；别的台、别人照走 v3。第 8 步评测不差就一次切换。
  */
 export const ASSISTANT_KERNEL_STORAGE_KEY = 'antei:assistant-kernel'
 export const ASSISTANT_KERNEL_IDS = {
   v2: 'v2',
   v3: 'v3',
+  next: 'next',
 } as const
 export const ASSISTANT_KERNELS = [
   ASSISTANT_KERNEL_IDS.v2,
   ASSISTANT_KERNEL_IDS.v3,
+  ASSISTANT_KERNEL_IDS.next,
 ] as const

@@ -12,6 +12,9 @@ vi.mock('@/services/kernel/assistant-operator.service', () => ({
 vi.mock('@/services/kernel/assistant-v3.service', () => ({
   runAssistantV3: vi.fn(async function* () {}),
 }))
+vi.mock('@/features/assistant/kernel', () => ({
+  runAssistantNext: vi.fn(async function* () {}),
+}))
 /** owner = `ADMIN_USER_IDS` 里的那一位（`isAdmin`）。 */
 const adminState = vi.hoisted(() => ({ isAdmin: true }))
 vi.mock('@/lib/admin', () => ({
@@ -28,12 +31,13 @@ vi.mock('@/lib/assistant-operator-stream', () => ({
 
 import { runAssistantOperator } from '@/services/kernel/assistant-operator.service'
 import { runAssistantV3 } from '@/services/kernel/assistant-v3.service'
+import { runAssistantNext } from '@/features/assistant/kernel'
 
 import { POST } from './route'
 
 function body(
   domain: 'canvas' | 'image' | 'lora' | 'video',
-  kernel?: 'v2' | 'v3',
+  kernel?: 'v2' | 'v3' | 'next',
 ) {
   return {
     messages: [{ role: 'user', content: '看看这张' }],
@@ -140,5 +144,38 @@ describe('POST /api/studio/assistant-operator · 旧内核开关只有 owner 认
     adminState.isAdmin = false
     await POST(createPOST('/api/studio/assistant-operator', body('image')))
     expect(runAssistantV3).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('POST /api/studio/assistant-operator · 新内核（next）只给 owner、只接图片台与 LoRA 台', () => {
+  it.each(['image', 'lora'] as const)(
+    'owner：%s 发了 next 走新内核',
+    async (domain) => {
+      await POST(
+        createPOST('/api/studio/assistant-operator', body(domain, 'next')),
+      )
+      expect(runAssistantNext).toHaveBeenCalledTimes(1)
+      expect(runAssistantV3).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each(['canvas', 'video'] as const)(
+    '还没接的台（%s）发了 next 照走 v3',
+    async (domain) => {
+      await POST(
+        createPOST('/api/studio/assistant-operator', body(domain, 'next')),
+      )
+      expect(runAssistantV3).toHaveBeenCalledTimes(1)
+      expect(runAssistantNext).not.toHaveBeenCalled()
+    },
+  )
+
+  it('⛔ 不是 owner：发了 next 照走 v3', async () => {
+    adminState.isAdmin = false
+    await POST(
+      createPOST('/api/studio/assistant-operator', body('image', 'next')),
+    )
+    expect(runAssistantV3).toHaveBeenCalledTimes(1)
+    expect(runAssistantNext).not.toHaveBeenCalled()
   })
 })

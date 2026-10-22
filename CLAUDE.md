@@ -39,7 +39,7 @@ Personal AI Gallery — multi-model AI 生成（图/视频/音频/3D）+ 永久�
 | `src/components/business/` | Stateful UI (uses hooks, no direct API)               |
 | `src/components/ui/`       | Stateless shadcn primitives                           |
 | `src/app/api/`             | API routes（工厂式）                                  |
-| `src/messages/`            | i18n JSON (en/ja/zh — 三个必须同步)                   |
+| `src/messages/`            | i18n：`<模块>/{en,ja,zh}.json` 三语并排，同改动三语齐 |
 
 命名：Component=PascalCase · Hook=`use`+camelCase · Service=`<name>.service.ts` · Constant=SCREAMING_SNAKE。Resilience 工具清单（logger/withRetry/breaker/prompt-guard/llm-output-validator）见 `docs/references/backend.md`。
 

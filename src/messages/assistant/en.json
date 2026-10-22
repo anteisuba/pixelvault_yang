@@ -1,0 +1,1367 @@
+{
+  "XiaoheiGuide": {
+    "stepCounter": "Step {current} / {total}",
+    "previous": "Previous guide image",
+    "next": "Next guide image",
+    "goToStep": "Go to guide step {step}",
+    "image": {
+      "label": "Image generation guide",
+      "slides": {
+        "model": {
+          "title": "Choose the image model first",
+          "description": "Pick a model and aspect ratio before you finish your prompt.",
+          "alt": "Hand-drawn Xiaohei guide showing a model selector machine preparing a blank image canvas"
+        },
+        "prompt": {
+          "title": "Turn the idea into a prompt",
+          "description": "Write the subject and key details clearly enough for the model to follow.",
+          "alt": "Hand-drawn Xiaohei guide showing a rough idea being pressed into a clear image prompt"
+        },
+        "reference": {
+          "title": "Add a reference when it matters",
+          "description": "Use a reference image when the subject, style, or composition needs to stay anchored.",
+          "alt": "Hand-drawn Xiaohei guide showing a reference image pinned to a sketch board before generation"
+        },
+        "reuse": {
+          "title": "Generate, save, then reuse",
+          "description": "Review the output, save the useful result, then remix it or use it as the next reference.",
+          "alt": "Hand-drawn Xiaohei guide showing a generated image saved and reused for remix or reference"
+        }
+      }
+    },
+    "video": {
+      "label": "Video generation guide",
+      "slides": {
+        "input": {
+          "title": "Start with the shot you want",
+          "description": "Describe the action, scene change, and camera direction in the bottom prompt box.",
+          "alt": "Hand-drawn Xiaohei guide showing a video prompt being written"
+        },
+        "settings": {
+          "title": "Tune duration, ratio, and references",
+          "description": "Pick a model, then set timing, framing, and optional reference material before sending.",
+          "alt": "Hand-drawn Xiaohei guide showing video generation settings"
+        },
+        "preview": {
+          "title": "Send and review the preview",
+          "description": "Use the send button, wait for the result above, then retry or refine from there.",
+          "alt": "Hand-drawn Xiaohei guide showing video frames appearing in the preview"
+        }
+      }
+    },
+    "audio": {
+      "label": "Audio generation guide",
+      "slides": {
+        "input": {
+          "title": "Type the text you want spoken",
+          "description": "This field takes the exact line or narration you want to hear, not a sound description.",
+          "alt": "Hand-drawn Xiaohei guide showing text entered for audio generation"
+        },
+        "voice": {
+          "title": "Choose a voice and reference",
+          "description": "Select the model and voice, then add a reference when you need a more specific result.",
+          "alt": "Hand-drawn Xiaohei guide showing voice and audio reference settings"
+        },
+        "preview": {
+          "title": "Preview the waveform and listen",
+          "description": "The result appears in the preview area so you can listen and adjust with feedback.",
+          "alt": "Hand-drawn Xiaohei guide showing an audio waveform preview"
+        }
+      }
+    },
+    "model3d": {
+      "label": "3D generation guide",
+      "slides": {
+        "source": {
+          "title": "Upload or choose a source image",
+          "description": "Clear images with one complete subject work best for a rotatable 3D model.",
+          "alt": "Hand-drawn Xiaohei guide showing a source image selected for 3D generation"
+        },
+        "settings": {
+          "title": "Check quality, mesh, and texture",
+          "description": "The right-side settings affect detail, face count, texture, and waiting time.",
+          "alt": "Hand-drawn Xiaohei guide showing 3D quality and mesh settings"
+        },
+        "preview": {
+          "title": "Rotate the model after generation",
+          "description": "Inspect the shape and details in the preview, then download or refine the result.",
+          "alt": "Hand-drawn Xiaohei guide showing a rotatable 3D preview"
+        }
+      }
+    },
+    "node": {
+      "label": "Canvas guide",
+      "slides": {
+        "add": {
+          "title": "Add the first node",
+          "description": "Use the top add button or canvas menu to place Composer, character, voice, or media nodes.",
+          "alt": "Hand-drawn Xiaohei guide showing a node added to the canvas"
+        },
+        "connect": {
+          "title": "Connect nodes into a path",
+          "description": "Wire ideas, characters, voices, shots, and generation nodes into executable steps.",
+          "alt": "Hand-drawn Xiaohei guide showing connected workflow nodes"
+        },
+        "run": {
+          "title": "Select a node and run it",
+          "description": "Click a node, check parameters and model routing in the inspector, then run that step.",
+          "alt": "Hand-drawn Xiaohei guide showing a selected node with an inspector run button"
+        }
+      }
+    }
+  },
+  "PromptAssistant": {
+    "turn": {
+      "answerPrefix": "Here are my answers:",
+      "skipped": "skip this one",
+      "skip": "Skip",
+      "customPlaceholder": "Or answer in your own words",
+      "submitAnswers": "Send answers",
+      "satisfiedPrefix": "Looks good — ",
+      "adjustFallback": "Want to change something? Tell me what you'd like.",
+      "askedTitle": "Already answered · {count}",
+      "malformed": "The assistant meant to offer options here but the reply was unreadable. Ask again, or just answer in your own words."
+    },
+    "title": "Prompt Assistant",
+    "placeholder": "Describe what you want...",
+    "send": "Send",
+    "usePrompt": "Use as Prompt",
+    "useNegativePrompt": "Use as negative prompt",
+    "useAspectRatio": "Set {ratio}",
+    "useModel": "Switch to {model}",
+    "useBatchCount": "{count} per model",
+    "applied": "Applied",
+    "undoApply": "Undo",
+    "undoApplyAria": "Undo: {action}",
+    "apply": "Apply",
+    "actionsHeading": "Also adjust the workspace",
+    "rowPrompt": "Prompt",
+    "rowNegative": "Negative",
+    "rowRatio": "Aspect",
+    "rowModel": "Model",
+    "rowBatch": "Count",
+    "unavailableHere": "Not available in this workspace",
+    "modelAlreadyCompared": "Already in the compare list — switching drops one model from the run",
+    "moreSuggestions": "{count} more setup suggestions",
+    "appendPrompt": "Append",
+    "copyPrompt": "Copy",
+    "copied": "Copied",
+    "clear": "Clear",
+    "failed": "Couldn't generate prompt",
+    "loading": "Generating prompt...",
+    "emptyHint": "Add an image to extract its style, or type an instruction to improve the prompt.",
+    "starterA": "A cyberpunk street in neon rain, a girl holding a transparent umbrella",
+    "starterB": "A wooden cabin in a summer valley, cloud shadows drifting over wheat fields, Ghibli mood",
+    "starterC": "An orange cat in a spacesuit floating by a space-station window, Earth in the background",
+    "targetModel": "Target model",
+    "selectApiKey": "Select API key",
+    "responseLanguage": "Response language",
+    "responseLanguageEnglish": "English",
+    "responseLanguageJapanese": "Japanese",
+    "responseLanguageChinese": "Chinese",
+    "referenceImage": "Reference image",
+    "referenceDescription": "Use a reference image for style-aware prompt writing.",
+    "addImage": "Add image",
+    "replaceImage": "Replace image",
+    "selectAsset": "Choose asset",
+    "referenceUploadHint": "JPG, PNG, WebP — max 10MB",
+    "referencePasteHint": "Paste image",
+    "referenceImageAlt": "Reference image",
+    "removeImage": "Remove image",
+    "imageError": "Could not read this image. Use a JPG, PNG, or WebP under 10MB.",
+    "presetImageStyle": "Image style",
+    "presetDetailed": "Detailed",
+    "presetArtistic": "Artistic",
+    "presetPhoto": "Photo",
+    "presetAnime": "Anime",
+    "presetLora": "LoRA Convert",
+    "presetTags": "Tags",
+    "research": {
+      "label": "Web research",
+      "modeAuto": "Auto",
+      "modeAutoHint": "Searches only when the question needs live facts",
+      "modeForced": "Always search",
+      "modeForcedHint": "Searches the web with every reply",
+      "modeOff": "Off",
+      "modeOffHint": "Never searches — answers from the model's own knowledge",
+      "searching": "Searching sources…",
+      "loading": "Loading sources…",
+      "loadFailed": "This research run could not be loaded.",
+      "historyLabel": "Sources behind this answer",
+      "statusSucceeded": "Searched the web",
+      "statusNoEvidence": "Nothing usable found",
+      "statusFailed": "Search failed",
+      "statusQuotaExceeded": "Daily research limit reached",
+      "noEvidenceNextSteps": "The sources came back empty. Try different keywords, paste a link, or upload a reference yourself.",
+      "failedHint": "Couldn't reach the sources, so this answer isn't backed by web results. Try again later or paste a link.",
+      "quotaHint": "Today's research quota is used up — this answer comes from the model's own knowledge. It resets tomorrow.",
+      "evidenceCount": "{count, plural, one {# item} other {# items}}",
+      "notGrounded": "No web sources",
+      "expand": "Show search details",
+      "collapse": "Hide search details",
+      "queriesLabel": "Queries",
+      "runQueryLabel": "Question",
+      "viaFallback": "fallback",
+      "sourceOk": "OK",
+      "sourceEmpty": "No results",
+      "sourceUnrelated": "Unrelated result",
+      "sourceFailed": "Failed",
+      "sourceCircuitOpen": "Temporarily unavailable",
+      "sourceSkipped": "Not used",
+      "sourceMoegirl": "Moegirl",
+      "sourceWikipediaZh": "Wikipedia (zh)",
+      "sourceFandom": "Fandom",
+      "sourceDanbooru": "Danbooru",
+      "sourceBilibili": "Bilibili",
+      "sourceWebSearch": "Web search",
+      "sourceUrlReader": "Linked page",
+      "sourceVisionInput": "Your image",
+      "tierOfficial": "Official",
+      "tierCommunity": "Community",
+      "tierSocial": "Social",
+      "retrievedAt": "Retrieved",
+      "openSource": "Open original",
+      "imageEvidence": "Reference image",
+      "untrusted": "Lower confidence",
+      "untrustedHint": "This page contains text that could interfere with the assistant, so the excerpt isn't shown. You can still open the source link.",
+      "citationAria": "Citation {index}",
+      "citationUnavailable": "The source material for this answer is no longer available.",
+      "citationMissing": "The source for this citation could not be found."
+    },
+    "imageButton": "Reference image",
+    "imageDropHint": "Drag, paste, or click to upload",
+    "recentAssets": "Recent assets",
+    "recentAssetsEmpty": "No assets yet",
+    "openLibrary": "Asset library",
+    "dockLabel": "Assistant panel",
+    "dockTitle": "Assistant",
+    "dockCollapse": "Collapse assistant",
+    "dockResizeLabel": "Resize assistant panel",
+    "dockDropHint": "Drop to set as assistant reference",
+    "assistantResultPositive": "Positive",
+    "assistantResultNegative": "Negative",
+    "assistantFreeWord": "Custom text",
+    "assistantNormalized": "Normalized",
+    "assistantTriggerNote": "Trigger words appear in the row above and aren't repeated here.",
+    "assistantRemoveChip": "Remove {tag}",
+    "assistantEmptyHint": "Describe what you'd like. Your LoRAs, base model, and selected tags are included automatically.",
+    "assistantStarterA": "Silver-haired girl in the snow, dusk backlighting",
+    "assistantStarterB": "Change the outfit to a rain-soaked trench coat, keep the pose",
+    "assistantRefineLabel": "Keep tuning:",
+    "assistantRefineComposition": "Change the composition",
+    "assistantRefineLighting": "Add more dramatic lighting",
+    "assistantRefineStyle": "Lean harder into the LoRA's style",
+    "assistantRetry": "Retry",
+    "assistantEscapeToSelfBuild": "Switch to build-your-own",
+    "contextMounts": "LoRAs ×{count}",
+    "contextTriggers": "Triggers ×{count}",
+    "contextBase": "Base",
+    "assistantStageForReview": "Review combination",
+    "assistantStageHint": "Review the suggested changes in the combination bar before applying them.",
+    "referenceOnlyPrompt": "Analyze the attached reference and help me develop the idea.",
+    "audioUnsupported": "This model cannot analyze audio. Select Gemini or remove the audio attachment.",
+    "videoUnsupported": "This model cannot analyze video. Choose Gemini or remove the video reference.",
+    "imageUnsupported": "This model cannot analyze images. Choose a model labeled for image vision, or remove the image reference.",
+    "routeAuto": "Auto route",
+    "loraCandidate": {
+      "sourceCivitai": "Civitai",
+      "sourceHuggingFace": "Hugging Face",
+      "authorUnknown": "Author unknown",
+      "baseModelUnknown": "Base model unknown",
+      "sizeUnknown": "Size unknown",
+      "licenseUnknown": "Licence unknown",
+      "licenseCommercial": "Commercial use",
+      "licenseDerivatives": "Derivatives",
+      "licenseNoCredit": "No attribution required",
+      "permissionAllowed": "allowed",
+      "permissionDenied": "not allowed",
+      "permissionUnknown": "unknown",
+      "downloads": "{count, plural, one {# download} other {# downloads}}",
+      "alreadyMounted": "Added",
+      "alreadyImported": "In your library",
+      "alreadyInStack": "Already in the stack",
+      "confirm": "Import and add",
+      "confirmImportOnly": "Import and add trigger words",
+      "confirmedMounted": "Imported, added, and trigger words inserted",
+      "confirmedImported": "Imported, trigger words added",
+      "openSource": "Open source page",
+      "detailsTrimmed": "This candidate's details couldn't be loaded in full. Ask again for a new set of candidates to import.",
+      "mountElsewhere": "This workspace doesn't have a LoRA stack, so no LoRA was added.",
+      "goToLoraWorkbench": "Add it in the LoRA workspace",
+      "type": {
+        "subject": "Character",
+        "style": "Style"
+      },
+      "metadataCompleteness": {
+        "complete": "Full metadata",
+        "partial": "Partial metadata",
+        "minimal": "Minimal metadata"
+      },
+      "notImportable": {
+        "unknown_base_model": "The base model family could not be determined, so this one can only be recommended, not imported.",
+        "no_weight_file": "No downloadable weight file, so this one can only be recommended, not imported.",
+        "gated_repo": "This repository is gated on Hugging Face — accept its terms there first, then import it from the library."
+      },
+      "failed": {
+        "import": "Import failed — nothing was added to your library.",
+        "mount": "Imported to your library, but couldn't add it to the workspace. Add it from the LoRA stack.",
+        "trigger_words": "Imported and added, but couldn't insert the trigger words. Copy them from the card."
+      }
+    }
+  },
+  "StudioOperator": {
+    "collapsedActivity": {
+      "running": "working",
+      "done": "new reply",
+      "failed": "ran into an error"
+    },
+    "live": {
+      "start": "Assistant started",
+      "done": "Assistant finished",
+      "stopped": "Assistant stopped",
+      "failed": "Assistant ran into an error"
+    },
+    "running": {
+      "look": "Looking at the picture…",
+      "research": "Searching…",
+      "webImages": "Searching for images…",
+      "webVideos": "Searching for videos…",
+      "library": "Searching your library…",
+      "ask": "Thinking of a question…",
+      "apply": "Changing settings…",
+      "generate": "Getting ready to generate…"
+    },
+    "title": "Assistant",
+    "domainName": {
+      "image": "the image workspace",
+      "video": "the video workspace",
+      "lora": "the LoRA workspace",
+      "canvas": "the canvas",
+      "cards": "the Characters page"
+    },
+    "session": "Session",
+    "newThread": "New chat",
+    "emptyState": {
+      "title": "I'm {name}, your image partner",
+      "description": "Add a reference image or tell me the look you're after. I'll help with research and settings, then show you the models and image count before generating."
+    },
+    "history": {
+      "heading": "Earlier chats",
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "empty": "No earlier chats yet",
+      "loading": "Loading…",
+      "untitled": "Untitled chat",
+      "earlierRounds": "{count} earlier entries",
+      "deleteLabel": "Delete conversation: {title}",
+      "deleteConfirmInline": "Click delete again to remove “{title}” for good",
+      "deleteConfirm": "Confirm",
+      "deleting": "Deleting…",
+      "deleteFailed": "Could not delete the conversation. Try again.",
+      "deleteBusy": "Wait for the current response to finish before deleting this conversation.",
+      "loadFailed": "Could not load conversations. Reopen the list to try again.",
+      "renameLabel": "Rename {title}",
+      "renameHint": "Enter to save · Esc to cancel",
+      "renaming": "Saving…",
+      "renameFailed": "Could not rename. Please try again.",
+      "switching": "Loading conversation…",
+      "saveFailed": "Conversation could not be saved. Your draft is still here.",
+      "retrySave": "Retry save"
+    },
+    "more": "More",
+    "share": "Share this chat",
+    "feedback": "Send feedback",
+    "collapse": "Collapse assistant",
+    "collapseHint": "Collapse · Esc",
+    "expand": "Expand assistant",
+    "resize": "Drag to resize the assistant",
+    "planFold": "Plan · {count, plural, one {# step} other {# steps}}",
+    "placeholderIdle": "Tell me more, or attach a reference…",
+    "placeholderWorking": "You can keep typing. Your message will be read at the next pause.",
+    "specLine": {
+      "adjust": "Adjust output spec"
+    },
+    "send": "Send",
+    "stop": "Stop the current work",
+    "lightboxLabel": "View full size",
+    "mobile": {
+      "sheetTitle": "Assistant",
+      "sheetDescription": "Drag the handle up for full screen, or down to close the assistant."
+    },
+    "toolGroup": {
+      "title": "{count, plural, one {# operation} other {# operations}}",
+      "elapsed": "took {seconds}s",
+      "succeeded": "{count} ok",
+      "skipped": "{count} skipped",
+      "failed": "{count} failed",
+      "running": "in progress",
+      "details": "Did {count} {count, plural, one {step} other {steps}}",
+      "promptUnchanged": "Prompt unchanged",
+      "blocked": "Action incomplete",
+      "inspectFailure": "Expand the execution details for the reason, or clarify your request below.",
+      "tagFixed": "{count, plural, one {# tag} other {# tags}} rewritten to the Danbooru spelling: {list}.",
+      "tagUnknown": "Not found, kept as written: {list}{more, plural, =0 {} other { and # more}}.",
+      "tagListSeparator": ", ",
+      "tagSentenceSeparator": " ",
+      "negativeFolded": "{model} has no negative-prompt field, so this went into the prompt."
+    },
+    "checkpoint": {
+      "summary": "changed {fields}",
+      "undo": "Undo",
+      "reverted": "Undone"
+    },
+    "reject": {
+      "partialText": "Only part of this text was read, so it was not replaced — @ the node or select it, then try again",
+      "referenceAnalysisRequired": "Analyze the current references first",
+      "referenceImageUnavailable": "A reference image could not be read. Re-upload or replace the unavailable image.",
+      "referenceAnalysisFailed": "Reference analysis was incomplete; no analysis was accepted.",
+      "referenceBriefFailed": "Images were analyzed, but reference-role validation failed; the prompt was not changed.",
+      "referenceInputsChanged": "Reference connections must be updated before checking this prompt",
+      "canvasBatchPartial": "Part of this batch did not land; expand to see which",
+      "noSuchControl": "This workspace doesn't have that setting",
+      "unknownModel": "That model is not in the list you can pick from",
+      "unknownValue": "That value is not one of the options",
+      "unknownAsset": "That asset was not in this run's search results",
+      "unknownFolder": "That folder was not listed in this run",
+      "referencesFull": "Reference slots are full",
+      "emptyValue": "There was nothing to write",
+      "userDeclined": "You chose to keep yours, so this step was skipped",
+      "noModelSelected": "No model picked yet",
+      "emptyPrompt": "The prompt is still empty",
+      "malformedArgs": "The request details weren't valid",
+      "searchUnavailable": "Web image search isn't available right now",
+      "noResultToCritique": "No picture was @-mentioned to review",
+      "visionUnavailable": "The assistant's model can't look at pictures — no other provider was used. Pick one that can in the model menu",
+      "critiqueFailed": "The result review couldn't be read",
+      "urlNotFromUser": "That link did not come from you, so it cannot be taken directly",
+      "repeatedStep": "It already ran this exact step — skipped",
+      "ruleLimitReached": "Source-list limit reached — delete one before adding another.",
+      "memoryOff": "Memory is off (incognito, or \"Let the assistant remember\" is off), so this wasn't saved",
+      "ruleTooLong": "This rule is too long to save",
+      "folderLimitReached": "Folder limit reached — delete an old folder before making another.",
+      "unknownLora": "That LoRA was not in this run's search results",
+      "loraNotMounted": "That LoRA hasn't been added to this workspace",
+      "loraNotImportable": "That LoRA can't be filed into your library — it can only be opened on its source page",
+      "loraIncompatibleBase": "That LoRA requires a different base model family and can't be used with the current base.",
+      "sourceNotUsable": "That site asks not to be used as AI input, or republishes work without a traceable source",
+      "researchRoundsExhausted": "This reply has reached its research limit. I'll continue with the information found so far.",
+      "unknownEvidenceRef": "That source number isn't in this conversation",
+      "evidenceRecallsExhausted": "This reply has reached its source-reading limit.",
+      "urlNotReadable": "That address can't be read here",
+      "urlUnreadable": "That page could not be read",
+      "aspectLockedByFirstFrame": "A first frame is set, so this model only accepts the adaptive aspect ratio",
+      "videoFramesMissing": "Could not read frames from this clip",
+      "blockedSource": "You rejected this asset, so it can't be used as a first or last frame.",
+      "toolFailed": "This step hit a technical problem and didn't go through — you can try again in a moment.",
+      "timeBudget": "This step ran too long; it will be redone in the next round of work."
+    },
+    "field": {
+      "prompt": "Prompt",
+      "negative": "Negative prompt",
+      "model": "Model",
+      "specs": "Specs",
+      "count": "Count",
+      "capabilities": "Model controls",
+      "characters": "Character layout",
+      "sceneTexts": "Text in the picture",
+      "references": "References",
+      "audioReferences": "Voice references",
+      "sound": "Soundtrack",
+      "loras": "LoRA stack",
+      "canvasNodes": "Canvas nodes"
+    },
+    "changeSubject": {
+      "rule": "Project rule",
+      "reviewState": "Review state",
+      "assetTags": "Asset tags",
+      "assetFavorite": "Asset stars",
+      "assetFolder": "New folder",
+      "assetAddToFolder": "Add to folder"
+    },
+    "confirm": {
+      "generate": {
+        "title": "Generate {count, plural, one {# image} other {# images}}?",
+        "titleVideo": "Generate this {seconds}s clip?",
+        "titleNode": "Generate “{name}”?",
+        "count": "{count, plural, one {# image} other {# images}}",
+        "countVideo": "{count, plural, =1 {{seconds}s video} other {# × {seconds}s videos}}",
+        "countLabel": "Count",
+        "confirm": "Confirm generation",
+        "cancel": "Not now",
+        "retry": "Try again",
+        "model": "Model",
+        "aspect": "Aspect ratio",
+        "resolution": "Resolution",
+        "quality": "Quality",
+        "modelDefault": "Model default",
+        "duration": "Duration",
+        "seconds": "{seconds} s",
+        "audio": "Audio",
+        "enabled": "On",
+        "disabled": "Off",
+        "nodeUnavailable": "The target node or model is unavailable. Select it again.",
+        "adjusted": "Adjusted for this model: {fields}",
+        "knobStepTitle": "Changed on the confirm card",
+        "knobStepReason": "You changed this on the confirm card"
+      },
+      "batch": {
+        "title": "Generate these",
+        "confirm": "Generate <n>{count}</n>",
+        "cost": "About <a>{amount}</a>",
+        "costFrom": "From about <a>{amount}</a>",
+        "summary": "{count, plural, one {# card} other {# cards}}",
+        "failed": "{name} did not come out"
+      },
+      "multistep": {
+        "title": "{count}-step plan",
+        "start": "Start",
+        "stepByStep": "Step by step",
+        "stoppable": " — you can stop it anytime"
+      },
+      "state": {
+        "submitting": "Confirming…",
+        "confirmed": "Confirmed · {time}",
+        "cancelled": "Cancelled · {time}",
+        "auto": "Auto-generated · {time}"
+      },
+      "contextCard": {
+        "title": "Save this card?",
+        "save": "Keep it",
+        "dismiss": "No thanks",
+        "saved": "Kept",
+        "notSaved": "Not kept",
+        "negative": "Always exclude: {value}"
+      },
+      "loraSetup": {
+        "apply": "Apply this setup",
+        "applying": "Applying…",
+        "applied": "Applied · {time}",
+        "appliedPartial": "Applied · {time} · {count, plural, one {# change} other {# changes}} didn't land",
+        "dismiss": "Not now",
+        "unmount": "Remove",
+        "mountSr": "Add",
+        "parameters": "Parameters",
+        "paramDefault": "default",
+        "paramRandom": "random",
+        "tally": "Total weight after",
+        "overBudget": "Total weight goes over {limit} — the picture may turn muddy; consider easing one of them.",
+        "param": {
+          "runnerSampler": "Sampler",
+          "runnerScheduler": "Scheduler",
+          "steps": "Steps",
+          "guidanceScale": "CFG",
+          "runnerSeed": "Seed",
+          "size": "Size"
+        }
+      },
+      "characterProfile": {
+        "header": "{name} drafted · {count, plural, one {# field} other {# fields}}",
+        "question": "Keep this for {name}?",
+        "fields": {
+          "look": "Look",
+          "identity": "Identity",
+          "behavior": "Personality",
+          "speech": "Way of speaking",
+          "backstory": "History"
+        },
+        "ownWordsOnly": "Keep only my words",
+        "keepAdded": "Keep the additions too",
+        "keep": "Keep selected · {count}",
+        "dismiss": "Not now",
+        "kept": "Kept {count, plural, one {# field} other {# fields}} · {time}"
+      },
+      "characterImages": {
+        "header": "{name} found {count, plural, one {# image} other {# images}}",
+        "question": "Attach to {name}?",
+        "fromLibrary": "Library",
+        "fromLibraryNamed": "Library · {name}",
+        "keep": "Attach selected · {count}",
+        "keeping": "Attaching…",
+        "dismiss": "Not now",
+        "kept": "Attached {count, plural, one {# image} other {# images}} · {time}"
+      },
+      "imageHandoff": {
+        "header": "{name} · hand to the image assistant",
+        "hint": "Opens the image workbench with {name} selected and types this into the image assistant's box — you press send.",
+        "accept": "Hand to the image assistant",
+        "dismiss": "Not now",
+        "accepted": "Handed to the image assistant · {time}"
+      },
+      "workbenchHandoff": {
+        "header": "Switch to the {bench} · {model}",
+        "tags": "tag workbench",
+        "natural": "natural-language workbench",
+        "hint": "Selects this model, carries your prompt over and opens the {bench}; the line above goes into the assistant's box there — you press send.",
+        "accept": "Take me there",
+        "dismiss": "Not now",
+        "accepted": "Switched to the {bench} · {time}"
+      },
+      "upscale": {
+        "header": "Upscale to 4K · {count, plural, one {# image} other {# images}}",
+        "hint": "Runs on your own fal key, no credits. The enlarged picture becomes a new version of the same card; the original stays in its version strip.",
+        "accept": "Upscale",
+        "dismiss": "Not now",
+        "accepted": "Upscaling started · {time}",
+        "autoAccepted": "Auto-generate is on, so it started right away · {time}",
+        "acceptedText": "Upscale {names}",
+        "declinedText": "Don't upscale {names} for now",
+        "question": "Upscale {names} to 4K?"
+      },
+      "moveWork": {
+        "canvas": {
+          "header": "Continue on the canvas",
+          "hint": "Brings this bench's prompt, model, references and latest image onto the canvas as one card. The line above goes into the canvas assistant's input; you press send.",
+          "accept": "Move it",
+          "dismiss": "Not now",
+          "accepted": "Moved to the canvas · {time}",
+          "acceptedText": "Continue on the canvas",
+          "declinedText": "Not moving to the canvas",
+          "question": "Continue this on the canvas?",
+          "pickLabel": "Which canvas",
+          "newProject": "New canvas",
+          "loading": "Finding recent canvases…"
+        },
+        "workbench": {
+          "header": "Continue on the workbench · {names}",
+          "hint": "Brings {names}'s prompt, model and references to the image workbench. The line above goes into that assistant's input; you press send.",
+          "accept": "Move it",
+          "dismiss": "Not now",
+          "accepted": "Moved to the workbench · {time}",
+          "acceptedText": "Continue {names} on the workbench",
+          "declinedText": "Not moving {names} to the workbench",
+          "question": "Continue {names} on the workbench?"
+        }
+      }
+    },
+    "system": {
+      "undoStep": "You undid: {subject} (the assistant knows and will not redo it)",
+      "revertField": "You reverted: {subject} (the assistant knows)",
+      "revertAll": "Undid all {count} assistant changes. The assistant has been informed.",
+      "stopped": "You stopped the current work",
+      "interrupted": "Your message changed the assistant's direction.",
+      "streamInterrupted": "The connection dropped before this turn finished.",
+      "revertRound": "You reverted this round's {count, plural, one {# change} other {# changes}} (the assistant knows)",
+      "revertFailed": "A change could not be reverted. The remaining changes are preserved; please try again.",
+      "queuePicked": "Reading your {count, plural, one {# queued message} other {# queued messages}} at this pause.",
+      "queueDropped": "You pulled back the queued message: {subject}",
+      "urlImportFailed": "The link you gave could not be fetched: {subject}",
+      "generationFailed": "No results were generated, so there's nothing for the assistant to review.",
+      "generationResultInterrupted": "Results from this batch are no longer returning here. You can check the asset library.",
+      "generationFailedWithReason": "Nothing came back: {subject}",
+      "loraMountFailed": "Couldn't add {subject}. Nothing was added to the workspace.",
+      "loraLibraryPickMounted": "You mounted “{subject}”",
+      "loraWeightOverBudget": "Total LoRA weight is {subject}, above this base model's range. This may blur the image or mix styles. The weights are unchanged. Which one would you like to lower?",
+      "videoFramesFailed": "No frames could be taken from this clip — the assistant may not be able to watch it this turn ({subject})",
+      "clipsOverCap": "Only the first {count} clips you point at are watched this turn",
+      "checkpointRestored": "Restored the selected step’s configuration. Use the current form for subsequent actions.",
+      "questionAnswered": "{subject}",
+      "contextCardSaved": "Context card kept: {subject}",
+      "contextCardDeclined": "Context card not kept: {subject}",
+      "contextCardSaveFailed": "Couldn't save “{subject}”. Please try again.",
+      "loraSetupApplied": "Applied the setup: {subject}",
+      "loraSetupDismissed": "Left this setup unapplied ({subject})",
+      "characterProfileSaved": "{subject}",
+      "characterProfileDeclined": "Didn't keep this profile: {subject}",
+      "characterProfileSaveFailed": "Couldn't save it to {subject} — try again?",
+      "characterImagesAttached": "{subject}",
+      "characterImagesDeclined": "Didn't attach these images: {subject}",
+      "characterImagesAttachFailed": "Couldn't attach them to {subject} — try again?",
+      "imageHandoffAccepted": "Handed to the image assistant: {subject}",
+      "imageHandoffDeclined": "Not handed to the image assistant: {subject}",
+      "workbenchHandoffAccepted": "Switched workbench: {subject}",
+      "workbenchHandoffDeclined": "Stayed on this workbench: {subject}",
+      "upscaleAccepted": "Upscaling: {subject}",
+      "upscaleDeclined": "Not upscaling: {subject}",
+      "upscaleFailed": "Upscale failed: {subject}",
+      "moveWorkAccepted": "{subject}",
+      "moveWorkDeclined": "{subject}",
+      "moveWorkDroppedReferences": "{subject} reference image(s) were left behind (over the limit or not uploaded yet).",
+      "autoGenerateHeld": "This card would make {subject} pictures, over the auto-generate limit of 4 per turn. It was not pressed for you; confirm it to run."
+    },
+    "attach": {
+      "latestResult": "Latest · {label}",
+      "label": "Upload image / audio / video",
+      "remove": "Remove this attachment",
+      "upload": {
+        "compressing": "Too big — squeezing it down to fit…",
+        "compressed": "Compressed: {from}MB → {to}MB",
+        "gifTooLarge": "This animated image is over {maxMb}MB and can't be shrunk — try another one",
+        "tooLargeImage": "Images max out at {maxMb}MB",
+        "tooLargeVideo": "Videos max out at {maxGb}GB",
+        "tooLargeAudio": "Audio maxes out at {maxGb}GB",
+        "unsupported": "Can't upload this kind of file (images / audio / video only)",
+        "failed": "Upload failed",
+        "retry": "Retry this upload",
+        "waiting": "Still uploading — you can send once it lands"
+      }
+    },
+    "modelChip": {
+      "label": "Text model",
+      "auto": "Auto",
+      "autoHint": "The first model you have a key for",
+      "autoResolved": "Auto · {model}",
+      "autoHintResolved": "Uses {model} — the first one you have a key for",
+      "autoHintNoKey": "No key yet — set one up",
+      "needsKey": "Set up",
+      "search": "Search models",
+      "noMatch": "No model matches"
+    },
+    "effortChip": {
+      "label": "Thinking",
+      "levels": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High"
+      },
+      "hints": {
+        "low": "Fastest; may miss details on complex tasks",
+        "medium": "Balances speed and quality",
+        "high": "Slowest, most careful"
+      }
+    },
+    "web": {
+      "barSelected": "{count} selected",
+      "barSaving": "Saving {count} to your library…",
+      "clear": "Clear",
+      "save": "Save",
+      "saveFailed": "{handle} wasn't saved: {reason}",
+      "savedCandidate": "{handle} is in your library — @ it to use it",
+      "moreImages": "{count} more",
+      "moreVideos": "{count} more",
+      "videoListLabel": "{count} videos found",
+      "found": "Google Images: {query} · {count, plural, one {# image} other {# images}}",
+      "searching": "Searching Google Images: {query}…",
+      "blockedNote": "{domains}: {reason}",
+      "viewLarge": "View full size",
+      "previewUnavailable": "This image could not be loaded from its site",
+      "importFailedShort": "Blocked",
+      "importFailed": "That image could not be fetched",
+      "publisherUnknown": "Unknown",
+      "openPage": "Open the source page",
+      "notUsable": "This site doesn’t allow use with AI, or reposts work without credit. You can open the original page, but it can’t be saved to your library.",
+      "notUsableHotlink": "This site doesn’t let other sites fetch its images. You can open the original page, but it can’t be saved to your library.",
+      "videosFound": "Videos: {query} · {count, plural, one {# video} other {# videos}}",
+      "videosSearching": "Searching videos: {query}…",
+      "videoPlay": "Play here: {title}",
+      "videoOpenExternal": "Open on {site} in a new tab: {title}",
+      "videoPlayerTitle": "{site} player: {title}",
+      "videoOpenSource": "Open on {site}",
+      "videoClose": "Close the player",
+      "videoEnlarge": "Enlarge",
+      "videoShrink": "Shrink back",
+      "videoEnlarged": "Playing in the big window",
+      "videoPlatform": {
+        "youtube": "YouTube",
+        "bilibili": "bilibili",
+        "niconico": "niconico",
+        "vimeo": "Vimeo"
+      },
+      "findRef": "Show find #{n}: {label}",
+      "findRefPlain": "Show find #{n}",
+      "findNamed": "Named in the reply",
+      "readSnippetOnly": "The page itself could not be read (the site blocked it, or it would not load) — this is only the search-result excerpt.",
+      "stripLabel": "{count, plural, one {# image found} other {# images found}}, scroll sideways for more",
+      "selectCandidate": "Select {handle}",
+      "unselectCandidate": "Deselect {handle}",
+      "openPageOf": "Open the page on {site}",
+      "videoModePlaying": "Playing below"
+    },
+    "queue": {
+      "badge": "Queued",
+      "hint": "handled at the next pause point",
+      "cancel": "Pull back"
+    },
+    "mention": {
+      "pickerLabel": "Mention something for the assistant",
+      "button": "Mention (@)",
+      "empty": "Nothing matches — keep typing",
+      "searching": "Searching your library…",
+      "libraryHint": "Type to search: name · #number · folder · prompt",
+      "viewAll": "View all ({count})",
+      "showLess": "Show less",
+      "back": "Back",
+      "openFolder": "Open folder “{name}”",
+      "mentionAll": "Mention all",
+      "remove": "Remove this reference",
+      "locate": "Show on canvas",
+      "preview": "Open preview",
+      "role": "Use as",
+      "roleNone": "Just look",
+      "roles": {
+        "subject": "Subject",
+        "style": "Style",
+        "composition": "Composition",
+        "first_frame": "First frame",
+        "last_frame": "Last frame"
+      },
+      "deleted": "Deleted",
+      "deletedNamed": "{label} (deleted)",
+      "blockedDeleted": "Something you mentioned no longer exists — remove the grey mention before sending.",
+      "count": "will look at {count}",
+      "countWarn": "{count} images · only the first {limit} are looked at closely",
+      "results": "{count, plural, one {# option} other {# options}}",
+      "matches": "Matches",
+      "notProduced": "Not generated yet",
+      "shotNo": "Shot {no}",
+      "slot": "Reference slot {index}",
+      "groups": {
+        "recent": "Recently used",
+        "selected": "Selected cards",
+        "canvas": "Cards on the canvas",
+        "references": "Reference slots",
+        "attachments": "Attached to this message",
+        "results": "Generated in this chat",
+        "characters": "Characters",
+        "loras": "LoRAs",
+        "library": "Library"
+      },
+      "kinds": {
+        "image": "Image",
+        "video": "Video",
+        "audio": "Audio",
+        "model3d": "3D",
+        "text": "Text",
+        "character": "Character",
+        "lora": "LoRA"
+      }
+    },
+    "addMenu": {
+      "label": "Add",
+      "recent": "Recent images",
+      "all": "All",
+      "loading": "Loading…",
+      "empty": "No images in your library yet",
+      "library": "Pick from library",
+      "upload": "Upload files",
+      "mention": "@ a character or asset"
+    },
+    "library": {
+      "label": "Asset library",
+      "title": "Pick from your asset library",
+      "description": "Browse your assets by folder and attach them for the assistant to look at."
+    },
+    "result": {
+      "stored": "Saved to library",
+      "storedCount": "Saved {count} to library",
+      "generating": "Generating · {done} / {total}",
+      "generatingVideo": "Generating video",
+      "rerun": "One more set",
+      "useAsReference": "Use as reference"
+    },
+    "error": {
+      "generic": "The assistant didn't finish this request",
+      "internal": "Something broke on our side while running this request",
+      "streamInterrupted": "The connection ended before this turn finished. Completed steps are preserved; check the result before continuing.",
+      "failed": "The assistant ran into an error during this request",
+      "emptyStream": "No response came back from the assistant",
+      "unauthorized": "Your session expired — sign in again",
+      "rateLimited": "Too many requests. Wait a moment and try again.",
+      "invalidRequest": "The server did not accept this request",
+      "traceLabel": "Error ID {traceId}",
+      "copyDetail": "Copy details",
+      "copied": "Copied",
+      "missingKey": "The assistant needs your own AI text model key. Gemini keys are free to create in Google AI Studio.",
+      "modelKeyMissing": "{model} has no {provider} key yet, so nothing ran — no other provider was used in its place. Add the key, or pick another model.",
+      "upscaleKeyMissing": "Upscaling runs on your own {provider} key, which isn't set up yet, so nothing was upscaled and no other provider's key was used. Add the key, then ask to upscale again.",
+      "addKey": "Add a key",
+      "addProviderKey": "Add {provider} key",
+      "retry": "Retry",
+      "retryPrompt": "That got cut off. Finish my last request, without redoing what already landed.",
+      "switchModel": "Try another model"
+    },
+    "assistantSettings": "Assistant settings",
+    "rule": {
+      "recordedOn": "recorded {date}",
+      "sourceAssistant": "from your conversation",
+      "sourceCreator": "written by you",
+      "view": "View rule",
+      "scopeAll": "all workspaces"
+    },
+    "plan": {
+      "revisePrefill": "Change the plan: "
+    },
+    "planVisual": {
+      "comp": {
+        "fullBody": "Full body",
+        "halfBody": "Half body",
+        "closeUp": "Close-up",
+        "birdsEye": "Bird's eye",
+        "wormsEye": "Worm's eye",
+        "fromBehind": "From behind"
+      },
+      "ratio": {
+        "1x1": "Square 1:1",
+        "3x4": "Portrait 3:4",
+        "4x3": "Landscape 4:3",
+        "16x9": "Wide 16:9",
+        "9x16": "Vertical 9:16"
+      },
+      "time": {
+        "day": "Daytime",
+        "dusk": "Dusk",
+        "night": "Night",
+        "dawn": "Dawn"
+      },
+      "weather": {
+        "clear": "Clear",
+        "rain": "Rain",
+        "snow": "Snow",
+        "fog": "Fog"
+      },
+      "cam": {
+        "push": "Push in",
+        "pull": "Pull out",
+        "pan": "Pan",
+        "track": "Track",
+        "static": "Static"
+      },
+      "light": {
+        "front": "Front light",
+        "back": "Back light",
+        "side": "Side light",
+        "soft": "Soft light"
+      },
+      "style": {
+        "anime": "Anime",
+        "realistic": "Realistic",
+        "painterly": "Painterly",
+        "lineart": "Line art"
+      }
+    },
+    "sendQueue": "Queue this — it lands at the next pause point",
+    "timeline": {
+      "listLabel": "Assistant work log",
+      "rowUser": "You",
+      "rowAssistant": "{name}",
+      "rowSystem": "System",
+      "rowTool": "Tool step",
+      "rowAction": "Needs your call",
+      "assistantFallback": "ANTEI",
+      "avatarUser": "Your avatar",
+      "avatarAssistant": "{name}'s avatar"
+    },
+    "evidence": {
+      "kind": {
+        "text": "passage",
+        "tags": "tags",
+        "image": "picture",
+        "video": "Video"
+      },
+      "confidence": {
+        "high": "official",
+        "medium": "reference",
+        "low": "community"
+      },
+      "credibility": {
+        "official": "official",
+        "officialMirror": "official mirror",
+        "reference": "reference",
+        "communityDigest": "fan-compiled"
+      },
+      "scope": {
+        "character": "this character",
+        "work": "the work",
+        "unknown": "unspecified"
+      }
+    },
+    "research": {
+      "pin": "Pin",
+      "unpin": "Unpin",
+      "pinned": "Pinned",
+      "sourceCount": "{count, plural, one {# source} other {# sources}}",
+      "corroborated": "{count, plural, one {# source} other {# sources}} agree",
+      "expandPrompt": "Research this properly: more sources, read them in full, be thorough.",
+      "xWithGrokPrompt": "Search X for this with Grok.",
+      "pinnedHeading": "Pinned evidence"
+    },
+    "researchProgress": {
+      "runningQuick": "Looking things up",
+      "runningDeep": "Researching deeply",
+      "doneQuick": "{count} results",
+      "doneDeep": "Deep research · {count} results",
+      "readPages": "{count} pages read",
+      "xVideosWatched": "watched {count} videos on X",
+      "serperFallback": "native web search didn't come through · used the platform's Google search",
+      "estimateSeconds": "about {count}s",
+      "estimateMinutes": "about {count} min"
+    },
+    "answer": {
+      "sources": "Sources",
+      "citation": "Source {index}",
+      "deepResearch": "Research deeper",
+      "more": "More",
+      "searchXWithGrok": "Search X with Grok · uses your Grok quota"
+    },
+    "message": {
+      "expand": "Show all",
+      "collapse": "Show less"
+    },
+    "streaming": {
+      "pending": "The assistant is thinking",
+      "thinking": "Thinking…",
+      "landing": "Landing it on the canvas…",
+      "seconds": "{count}s",
+      "slow": "Taking longer than usual — still waiting on the model",
+      "thought": "Thought for {count}s"
+    },
+    "question": {
+      "step": "{step} / {total}",
+      "recommended": "Recommended",
+      "current": "Current prompt",
+      "proposed": "Suggested prompt",
+      "sourceNotes": "Available reference material",
+      "negativeDiff": "To add to the negative prompt:",
+      "edit": "Change",
+      "other": "Other…",
+      "otherHint": "Type your own answer in the box below",
+      "multiHint": "Pick any",
+      "confirm": "Confirm ({count})",
+      "skip": "Skip",
+      "useRecommended": "Use all recommended",
+      "skipped": "Skipped",
+      "quote": "\"{label}\"",
+      "answerText": "Chose {labels} (for the question \"{question}\")",
+      "answerOther": "Answered \"{other}\" (for the question \"{question}\")",
+      "answerBoth": "Chose {labels} and added \"{other}\" (for the question \"{question}\")",
+      "skippedText": "Skipped the question \"{question}\" — your call"
+    },
+    "videoFrameCaptureReason": {
+      "unsupported-environment": "this environment cannot read video",
+      "load-failed": "the video would not load",
+      "unreadable-duration": "the clip's duration could not be read",
+      "tainted-canvas": "the video's access settings blocked frame extraction",
+      "timeout": "frame capture timed out",
+      "encode-failed": "the frames could not be encoded"
+    },
+    "resume": {
+      "continue": "Continue from step {step}",
+      "failed": "Failed: {reason}",
+      "band": "Unfinished plan · continue from step {step}"
+    },
+    "verb": {
+      "look": "Look",
+      "research": "Check",
+      "ask": "Ask",
+      "apply": "Adjust",
+      "request_generation": "Generate"
+    },
+    "verbStrip": {
+      "label": "This exchange"
+    },
+    "placeholderQuestion": "Or just write what you want…",
+    "collapsedTodo": "{count} awaiting your response",
+    "incognito": "Incognito · not remembered or saved",
+    "face": {
+      "noModel": "No model yet",
+      "pill": {
+        "writePrompt": "Turn this into a good prompt",
+        "compareModels": "Try another model, show the difference",
+        "useReference": "Follow this reference",
+        "fourVariants": "Give me 4 to compare",
+        "writeShots": "Write a shot list",
+        "animateThis": "Make this image move",
+        "whichLoras": "Which LoRAs suit this subject?",
+        "loraPrompt": "Write the prompt for this shot",
+        "weightCheck": "Are these weights right?",
+        "trialShot": "Try one and see",
+        "scriptToBoard": "Lay this script out as a storyboard",
+        "refToCharacter": "Make a character asset from this reference",
+        "assetsToBoard": "Build a storyboard from my assets",
+        "boardToVideo": "Turn the storyboard into video",
+        "autoWire": "Wire it up for me",
+        "researchProfile": "Look up a character's profile",
+        "originalCharacter": "Help me invent an original character",
+        "findImages": "Find a few images of this character",
+        "checkLook": "Check the profile against the images"
+      },
+      "image": {
+        "empty": "Tell me the picture you want — I will write the prompt, pick the model, set the references.",
+        "placeholder": "Describe the shot, or drop a reference in…",
+        "context": "{model} · {ratio} · {count} images"
+      },
+      "video": {
+        "empty": "Give me an image or a sentence and I will make it move.",
+        "placeholder": "Describe the shot, or attach a first frame…",
+        "context": "{model} · {seconds}s · {ratio}"
+      },
+      "lora": {
+        "empty": "Tell me what you want to see — I will pick the LoRAs, write the triggers, tune the weights.",
+        "placeholder": "What do you want to make?",
+        "context": "{base} · {count} mounted"
+      },
+      "canvas": {
+        "empty": "Start from a script, a reference or a sentence — I will board it and wire it together.",
+        "placeholder": "Keep going, or drop material in…",
+        "context": "{project} · {count} nodes selected"
+      },
+      "cards": {
+        "empty": "Name a character and I'll look up their profile and find images; for an original, I'll start with a few directions.",
+        "placeholder": "Name a character, or describe an original…",
+        "context": "{count, plural, one {# character} other {# characters}}",
+        "contextOpen": "Looking at {name}"
+      }
+    },
+    "autoReview": {
+      "message": "The picture is out — check it against the references and tell me what is off."
+    },
+    "autoGenerate": {
+      "label": "Auto-generate"
+    },
+    "outOfSteps": {
+      "note": "This turn ran out of steps. Everything that already landed is kept.",
+      "continue": "Continue",
+      "stop": "Stop here",
+      "continuePrompt": "Continue"
+    },
+    "stopShort": "Stop",
+    "chat": {
+      "group": "With {name}",
+      "workGroup": "Work",
+      "newChatThread": "New chat with {name}",
+      "noCharacters": "No characters yet. Create one on the Characters page first",
+      "regenerate": "Regenerate",
+      "previousVersion": "Previous version",
+      "nextVersion": "Next version",
+      "versionOf": "{index} / {total}",
+      "edit": "Edit",
+      "editLabel": "Edit this message",
+      "delete": "Delete",
+      "confirmDelete": "Delete?",
+      "save": "Save",
+      "cancel": "Cancel",
+      "you": "you",
+      "roleLabel": "Who you are in the story",
+      "rolePlaceholder": "e.g. the new neighbour, {name}'s childhood friend",
+      "roleHint": "Saved on this character for every chat; takes effect from your next line"
+    },
+    "mode": {
+      "label": "Mode",
+      "work": "Work",
+      "chat": "Chat",
+      "pickCharacter": "Chat with",
+      "toChat": "Switched to chat · with {name}",
+      "toWork": "Back to work"
+    },
+    "phoneAdd": {
+      "label": "Add",
+      "library": "Pick from assets",
+      "camera": "Take photo",
+      "upload": "Upload file",
+      "mention": "@ a character or asset",
+      "recent": "Recent asset",
+      "all": "All"
+    }
+  },
+  "ContextCards": {
+    "kind": {
+      "character": "Character",
+      "style": "Style",
+      "brand": "Brand"
+    }
+  },
+  "AssistantSettings": {
+    "title": "Assistant settings",
+    "description": "Who your assistant is, how it talks and what it remembers. One set of settings for every workspace.",
+    "pageDescription": "Who your assistant is, how it talks and what it remembers. \"Assistant settings\" in the workbench ⋯ menu opens this same page.",
+    "close": "Close",
+    "tabs": {
+      "label": "Assistant settings sections",
+      "persona": "Persona",
+      "memory": "Memory",
+      "memoryCount": "Memory · {count}"
+    },
+    "status": {
+      "saving": "Saving",
+      "saved": "Saved",
+      "failed": "Not saved",
+      "retry": "Retry"
+    },
+    "identity": {
+      "title": "Identity",
+      "changeAvatar": "Change avatar",
+      "avatarLabel": "Avatar"
+    },
+    "avatar": {
+      "character": "{name}'s picture",
+      "upload": "My upload",
+      "mark": "Default avatar",
+      "uploadNew": "Upload a new one…",
+      "tooLarge": "That image is over 5 MB.",
+      "unsupported": "Use a JPEG, PNG or WebP image."
+    },
+    "character": {
+      "label": "Use a character",
+      "none": "No character",
+      "noSpeech": "No speaking style yet",
+      "create": "Create one on the Characters page",
+      "caption": "Avatar, name and tone start from {name}. You can still change each one below.",
+      "captionNoSpeech": "Avatar and name start from {name}. You can still change each one below."
+    },
+    "name": {
+      "label": "Name",
+      "placeholder": "Leave empty to use ANTEI"
+    },
+    "address": {
+      "label": "What to call you",
+      "placeholder": "Leave empty to use your account name"
+    },
+    "style": {
+      "title": "Working style"
+    },
+    "archetype": {
+      "cautious": {
+        "name": "Cautious",
+        "line": "Asks a couple of questions first · Shows you the plan before two or more steps · Short replies, conclusions only"
+      },
+      "balanced": {
+        "name": "Balanced",
+        "line": "Asks only when unsure, one at a time · Confirms multi-step work and generations · Normal length, plus one next step"
+      },
+      "handsOff": {
+        "name": "Hands off",
+        "line": "Barely asks, just does it · Only flags multi-step work up front · Very short, results only"
+      },
+      "custom": {
+        "name": "Custom",
+        "line": "You changed something under Advanced, so this no longer matches any preset."
+      }
+    },
+    "preview": {
+      "label": "Sample reply",
+      "address": "{name}, ",
+      "opener": {
+        "professional": "I've reviewed all three. The second image's backlighting is closest to the dusk light you requested. The other two are too warm.",
+        "friendly": "Had a look — the second one is closest to the dusk light you wanted, the other two lean a bit too warm.",
+        "terse": "Second one is closest. The other two are too warm.",
+        "custom": "Putting it the way you asked: the second one is closest to the dusk light you wanted.",
+        "character": "In {name}'s voice: the second one is closest to the dusk light you wanted."
+      },
+      "nextStep": "Next: want another set based on the second one?"
+    },
+    "advanced": {
+      "label": "Advanced",
+      "on": "on",
+      "off": "off",
+      "summary": {
+        "tone": "Tone {value}",
+        "length": "Length {value}",
+        "language": "Language {value}",
+        "nextStep": "Next step {value}",
+        "myWords": "My words {value}"
+      }
+    },
+    "tone": {
+      "label": "Tone",
+      "professional": "Professional",
+      "friendly": "Friendly",
+      "terse": "Direct",
+      "custom": "Custom",
+      "character": "{name}'s voice",
+      "customLabel": "Custom tone",
+      "customPlaceholder": "Describe how it should sound, in one line",
+      "customRequired": "Describe a tone in one line, or choose a preset.",
+      "characterNote": "Taken from the speaking style in {name}'s character profile. It follows any change there.",
+      "characterMissing": "{name}'s character profile has no speaking style yet. Write one to use this.",
+      "characterMissingLink": "Write it"
+    },
+    "length": {
+      "label": "Reply length",
+      "concise": "Concise",
+      "standard": "Standard",
+      "detailed": "Detailed"
+    },
+    "language": {
+      "label": "Reply language",
+      "ui": "Interface",
+      "chinese": "Chinese",
+      "english": "English"
+    },
+    "nextStep": {
+      "label": "Suggest a next step",
+      "hint": "End every reply with one suggestion"
+    },
+    "myWords": {
+      "label": "Use my words",
+      "hint": "Keep the wording I use in my prompts"
+    },
+    "memory": {
+      "caption": "Assistant memories stay in their own workspace. You can explicitly share a memory across all workbenches.",
+      "captionPaused": "The assistant won't save new memories. Existing memories apply only in their selected workspace.",
+      "capture": "Let the assistant remember",
+      "newLabel": "Write a memory",
+      "newPlaceholder": "Write one, press Enter to save. e.g. Always reply in English",
+      "filters": {
+        "label": "Filter by who wrote it",
+        "all": "All",
+        "creator": "Yours",
+        "assistant": "Assistant's"
+      },
+      "clear": {
+        "all": "Clear all",
+        "creator": "Clear yours",
+        "assistant": "Clear the assistant's",
+        "titleAll": "{count, plural, one {Clear # memory?} other {Clear all # memories?}}",
+        "titleCreator": "{count, plural, one {Clear the # you wrote?} other {Clear the # you wrote?}}",
+        "titleAssistant": "{count, plural, one {Clear the assistant's # memory?} other {Clear the assistant's # memories?}}",
+        "descAll": "This can't be undone.",
+        "descAllWithMine": "{count, plural, one {The one you wrote goes too.} other {The # you wrote go too.}} This can't be undone.",
+        "descCreator": "The assistant's stay. This can't be undone.",
+        "descAssistant": "Yours stay. This can't be undone.",
+        "cancel": "Cancel"
+      },
+      "source": {
+        "creator": "Yours",
+        "assistant": "Assistant's"
+      },
+      "meta": "{source} · {time}",
+      "today": "Today {time}",
+      "yesterday": "Yesterday",
+      "edit": "Edit this memory: {text}",
+      "editLabel": "Edit this memory",
+      "editHint": "Enter to save · Esc to cancel · pick where it applies on the right",
+      "scopeLabel": "Where it applies",
+      "scopeAria": "Where it applies: {scope}",
+      "chooseScope": "Choose where it applies",
+      "unassigned": "Unassigned history",
+      "canvasProject": "Canvas · {name}",
+      "chatCharacter": "Chat with {name}",
+      "savedProject": "Saved project",
+      "projectsLoading": "Loading canvas projects…",
+      "projectsEmpty": "Create a canvas project first.",
+      "projectsRetry": "Couldn't load projects. Retry",
+      "scope": {
+        "global": "All workbenches",
+        "image": "Natural-language images",
+        "tags": "Tag-based images",
+        "video": "Video only",
+        "canvas": "All canvases",
+        "lora": "LoRA only",
+        "cards": "Cards only"
+      },
+      "delete": "Delete",
+      "deleteConfirm": "Confirm delete",
+      "deleteAria": "Delete this memory",
+      "deleted": "Memory deleted",
+      "undo": "Undo",
+      "saved": "Saved",
+      "filteredEmpty": "Nothing here yet.",
+      "emptyTitle": "No memories yet",
+      "emptyDescription": "At the end of each turn the assistant notes your preferences and facts. You can edit or delete them here anytime.",
+      "emptyAction": "Write the first one",
+      "loading": "Loading memories…",
+      "failed": "Couldn't save. Try again."
+    },
+    "sources": {
+      "title": "Image search sources",
+      "caption": "Image search filters by this list directly — it doesn't rely on the assistant",
+      "allow": "Only search these sites",
+      "deny": "Never search these sites",
+      "add": "Add",
+      "addLabel": "Add a site",
+      "placeholder": "Site or domain",
+      "remove": "Remove {token}",
+      "invalid": "Enter a site domain, like danbooru.donmai.us.",
+      "failed": "Couldn't save. Try again."
+    }
+  }
+}

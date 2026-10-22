@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import { GENERATION_ERROR_CODES } from '@/constants/generation-errors'
-import enMessages from '@/messages/en.json'
-import jaMessages from '@/messages/ja.json'
-import zhMessages from '@/messages/zh.json'
+import { en as enMessages } from '@/messages'
+import { ja as jaMessages } from '@/messages'
+import { zh as zhMessages } from '@/messages'
 
 /**
  * 每个生成错误码都要有三语文案 —— 否则用户看到的是 key 路径本身。

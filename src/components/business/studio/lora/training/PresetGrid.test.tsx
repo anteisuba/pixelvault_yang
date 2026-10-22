@@ -6,7 +6,7 @@ import { LORA_TRAINING_PRESETS } from '@/constants/lora'
 
 import { PresetGrid } from './PresetGrid'
 
-import en from '@/messages/en.json'
+import { en } from '@/messages'
 
 function renderGrid(selectedId: string | null = null, onSelect = vi.fn()) {
   return render(

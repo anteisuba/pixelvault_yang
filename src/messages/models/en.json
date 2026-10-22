@@ -1,0 +1,397 @@
+{
+  "ModelRanking": {
+    "tabImage": "Image",
+    "tabVideo": "Video",
+    "imageTitle": "2026 Image AI Rankings",
+    "imageSubtitle": "Artificial Analysis benchmarks · Models marked 'Supported' can be used with your API key.",
+    "videoTitle": "2026 Video AI Rankings",
+    "videoSubtitle": "Artificial Analysis ELO · Models marked 'Supported' can be used with your API key.",
+    "supported": "Supported",
+    "noApi": "No API",
+    "tiers": {
+      "premium": "Premium",
+      "standard": "Standard"
+    },
+    "strengths": {
+      "photorealism": "Photorealism & lighting",
+      "overall": "Best overall & text rendering",
+      "logos": "Logos & vector design",
+      "textInImage": "Text in images",
+      "multimodal": "Prompt understanding & multimodal",
+      "cinematic": "Cinematic style & spatial detail",
+      "videoMotion": "Smooth motion & physics",
+      "videoRealism": "Ultra-realism & audio sync",
+      "videoCreative": "Creative expression & cinematography",
+      "videoConsistency": "Character consistency & stability",
+      "videoSpeed": "Fast, cost-effective generation",
+      "videoCinematic": "Cinematic feel & lighting"
+    }
+  },
+  "Models": {
+    "geminiFlashImage": {
+      "label": "Gemini 3.1 Flash Image",
+      "description": "Explore image ideas quickly with Google's latest-generation model."
+    },
+    "openaiGptImage25Flare": {
+      "label": "OpenAI GPT Image 2.5 Flare",
+      "description": "Fast, high-quality everyday image generation and reference-guided editing."
+    },
+    "openaiGptImage25Sunburst": {
+      "label": "OpenAI GPT Image 2.5 Sunburst",
+      "description": "Precise image generation and editing for detailed creative work, with longer generation times."
+    },
+    "openaiGptImage2": {
+      "label": "OpenAI GPT Image 2",
+      "description": "Fast, high-quality image generation and editing with OpenAI's current flagship image model."
+    },
+    "flux2Pro": {
+      "label": "Flux 2 Pro",
+      "description": "Top-ranked image model by Black Forest Labs with exceptional quality."
+    },
+    "flux2ProEdit": {
+      "label": "FLUX.2 Pro Edit",
+      "description": "Edit images with FLUX.2 Pro using a prompt and multiple reference images."
+    },
+    "flux2Flash": {
+      "label": "FLUX 2 Flash",
+      "description": "Low-cost FLUX 2 route for quick drafts and iteration through fal.ai."
+    },
+    "fluxLora": {
+      "label": "FLUX LoRA",
+      "description": "FLUX with LoRA support. Apply custom LoRA models for anime, 3D, character consistency, and more."
+    },
+    "geminiProImage": {
+      "label": "Gemini 3 Pro Image",
+      "description": "Google's premium image model with studio-quality 4K visuals."
+    },
+    "geminiFlashLiteImage": {
+      "label": "Gemini 3.1 Flash Lite Image",
+      "description": "Google's fastest, lowest-cost image tier — quick drafts and high-volume iteration."
+    },
+    "geminiNanoBanana21": {
+      "label": "Gemini Nano Banana 2.1",
+      "description": "Google's newest Gemini image model — sharper text in images, steadier characters across edits, 1K to 4K."
+    },
+    "ideogram45": {
+      "label": "Ideogram 4.5",
+      "description": "Image generation and precise editing through the official Ideogram API."
+    },
+    "ideogram3": {
+      "label": "Ideogram V4",
+      "description": "Design-focused image model with strong typography and graphic composition."
+    },
+    "seedream45": {
+      "label": "Seedream 4.5",
+      "description": "ByteDance's unified generation and editing model with up to 4MP output."
+    },
+    "seedream45Volcengine": {
+      "label": "Seedream 4.5 (VolcEngine)",
+      "description": "Seedream 4.5 via VolcEngine (Ark) direct API — China region."
+    },
+    "seedream50Pro": {
+      "label": "Seedream 5.0 Pro",
+      "description": "ByteDance's flagship image model — deep-thinking prompt understanding and native text in 14 languages."
+    },
+    "seedream50Lite": {
+      "label": "Seedream 5.0 Lite",
+      "description": "Value tier of Seedream 5.0 — prompts can trigger a web search for time-sensitive subjects."
+    },
+    "seedream50Volcengine": {
+      "label": "Seedream 5.0 (VolcEngine)",
+      "description": "Seedream 5.0 via VolcEngine (Ark) direct API — China region."
+    },
+    "seedream50ProVolcengine": {
+      "label": "Seedream 5.0 Pro (VolcEngine)",
+      "description": "Pro tier of Seedream 5.0 via VolcEngine (Ark) direct API — cheaper than the same model on fal. Single images only, no group output."
+    },
+    "seedream50LiteVolcengine": {
+      "label": "Seedream 5.0 Lite (VolcEngine)",
+      "description": "Value tier of Seedream 5.0 via VolcEngine (Ark) direct API — China region, cheaper than the same model on fal."
+    },
+    "seedream50ProByteplus": {
+      "label": "Seedream 5.0 Pro (BytePlus)",
+      "description": "Seedream 5.0 Pro via BytePlus ModelArk's international API, billed in USD. Single images only; batch generation isn't supported."
+    },
+    "seedream50LiteByteplus": {
+      "label": "Seedream 5.0 Lite (BytePlus)",
+      "description": "The lower-cost Seedream 5.0 option via BytePlus ModelArk's international API, billed in USD."
+    },
+    "novelaiV45Full": {
+      "label": "NovelAI Diffusion V4.5 Full",
+      "description": "Previous NovelAI Full model with multi-character prompting and text rendering. Unlimited on Opus at default size. Bring your own NovelAI token."
+    },
+    "novelaiV45Curated": {
+      "label": "NovelAI Diffusion V4.5 Curated",
+      "description": "Previous NovelAI Curated model trained on cleaner data — easier to steer. Unlimited on Opus at default size. Bring your own NovelAI token."
+    },
+    "novelaiV5Full": {
+      "label": "NovelAI Diffusion V5 Full",
+      "description": "Latest NovelAI anime model. Stronger natural-language and multi-character prompting. Uses your NovelAI subscription; V5 is metered on Opus."
+    },
+    "novelaiV5Curated": {
+      "label": "NovelAI Diffusion V5 Curated",
+      "description": "Cleaner-dataset V5 variant — easier to steer. Uses your NovelAI subscription; V5 is metered on Opus."
+    },
+    "illustriousXl": {
+      "label": "Illustrious XL",
+      "description": "Anime/illustration-specialized model with the largest LoRA ecosystem on Civitai. Supports dual LoRA."
+    },
+    "animaPencilXl": {
+      "label": "Anima Base LoRA",
+      "description": "Civitai Anima-family LoRAs target a Cosmos-based model with no hosted endpoint — open them on Civitai to generate."
+    },
+    "recraftV4Pro": {
+      "label": "Recraft V4 Pro",
+      "description": "Design-focused model for logos, icons, and brand-quality imagery."
+    },
+    "fluxKontextMax": {
+      "label": "FLUX Kontext Max",
+      "description": "Multi-reference editing. Combine up to 4 reference images for consistent generation."
+    },
+    "illustriousRecipeClone": {
+      "label": "WAI-Illustrious (Runner)",
+      "description": "Faithful Civitai recipe clone via ANTEI Runner — the same checkpoint, LoRA stack, and sampler settings the source image used, for community LoRAs the hosted model can't load."
+    },
+    "animaPencilXlRunner": {
+      "label": "Anima Pencil-XL (Runner)",
+      "description": "Anima Pencil-XL via ANTEI Runner — no hosted endpoint exists for this checkpoint, so this is the only way to generate with it in ANTEI."
+    },
+    "ponyDiffusionV6": {
+      "label": "Pony Diffusion V6 XL (Runner)",
+      "description": "Pony Diffusion V6 XL via ANTEI Runner — faithful recipe clone for the large Pony LoRA ecosystem on Civitai."
+    },
+    "sdxl10Runner": {
+      "label": "SDXL 1.0 (Runner)",
+      "description": "Plain SDXL 1.0 via ANTEI Runner — a faithful recipe-clone path alongside the hosted route."
+    },
+    "qwenImage21Runner": {
+      "label": "qwen2.1",
+      "description": "Local research only. Dedicated Modal runner; text-to-image and editing with up to 10 references. GPU usage is billed by Modal."
+    },
+    "animaDitRunner": {
+      "label": "Anima (Runner)",
+      "description": "Anima (Cosmos-Predict2 DiT) via ANTEI Runner — the native path for the large Anima LoRA ecosystem on Civitai."
+    },
+    "animaTurboRunner": {
+      "label": "Anima Turbo (Runner)",
+      "description": "Anima's step-distilled cut via ANTEI Runner — 10 steps at CFG 1, so it is fast; negative prompts have no effect at CFG 1."
+    },
+    "zImageTurboRunner": {
+      "label": "Z-Image Turbo (Runner)",
+      "description": "Tongyi-MAI's step-distilled Z-Image via ANTEI Runner — 9 steps at CFG 1, strong at photoreal images and English / Chinese text; Apache-2.0. Negative prompts have no effect at CFG 1."
+    },
+    "krea2TurboRunner": {
+      "label": "Krea 2 Turbo (Runner)",
+      "description": "Krea's 12B step-distilled Krea 2 via ANTEI Runner — 8 steps at CFG 1, natural-language prompts, strong at stylized and photoreal images; Krea 2 Community License. Negative prompts have no effect at CFG 1."
+    },
+    "fishAudioS2Pro": {
+      "label": "Fish Audio S2.1 Pro",
+      "description": "A recommended choice for finished voice work, with 83 languages, emotion tags, and voice cloning."
+    },
+    "elevenV3": {
+      "label": "ElevenLabs v3",
+      "description": "Premium expressive text-to-speech with natural, lifelike voices"
+    },
+    "elevenSfxV2": {
+      "label": "ElevenLabs SFX v2",
+      "description": "Generate sound effects and foley from a text prompt"
+    },
+    "elevenMusicV2": {
+      "label": "ElevenLabs Music v2.5",
+      "description": "Generate instrumental or vocal music with improved audio quality and prompt adherence."
+    },
+    "happyhorse10": {
+      "label": "HappyHorse 1.1",
+      "description": "Alibaba video model on fal.ai with native audio, text-to-video, and image-to-video support."
+    },
+    "wan30": {
+      "label": "Wan 3.0",
+      "description": "Up to 30 seconds in one pass, with native audio. Text-to-video plus first- and last-frame control."
+    },
+    "wan30Reference": {
+      "label": "Wan 3.0 (Reference)",
+      "description": "Reference-to-video — combines up to 10 images, 5 video clips, and 5 audio clips in one shot."
+    },
+    "klingV3Pro": {
+      "label": "Kling 3.0 Pro",
+      "description": "Multi-shot storyboarding, native audio, character consistency"
+    },
+    "klingO3Pro": {
+      "label": "Kling O3 Pro (Omni)",
+      "description": "Omni track — element and video reference workflows, native audio, cinematic multi-shot"
+    },
+    "klingO3StandardV2vEdit": {
+      "label": "Kling O3 Standard — Video Edit",
+      "description": "Edits an existing clip: rewrites materials, subjects or setting while the original camera motion and timing stay put"
+    },
+    "klingO3ProV2vEdit": {
+      "label": "Kling O3 Pro — Video Edit",
+      "description": "Top-tier video-to-video edit: same clip, same camera, new look — element and image references supported"
+    },
+    "klingO34kV2vEdit": {
+      "label": "Kling O3 4K — Video Edit",
+      "description": "Edits an existing clip in native 4K, preserving its camera motion and timing. Supports image references."
+    },
+    "ltx23": {
+      "label": "LTX 2.3",
+      "description": "Efficient fal.ai video model for quick 1080p clips with optional generated audio."
+    },
+    "seedance20": {
+      "label": "Seedance 2.0",
+      "description": "ByteDance — native audio + lipsync, director-level camera, 4-15s"
+    },
+    "seedance20Fast": {
+      "label": "Seedance 2.0 Fast",
+      "description": "ByteDance — faster variant, native audio, 4-15s"
+    },
+    "seedance20Reference": {
+      "label": "Seedance 2.0 (Reference)",
+      "description": "Generate video from reference material, with voice cloning from audio references."
+    },
+    "seedance20FastReference": {
+      "label": "Seedance 2.0 Fast (Reference)",
+      "description": "Faster video generation from reference material, with voice cloning."
+    },
+    "seedance20Volcengine": {
+      "label": "Seedance 2.0 (VolcEngine)",
+      "description": "Seedance 2.0 via VolcEngine (Ark) direct API — China region, native audio, 4-15s"
+    },
+    "seedance20FastVolcengine": {
+      "label": "Seedance 2.0 Fast (VolcEngine)",
+      "description": "Faster Seedance 2.0 via VolcEngine (Ark) direct API — China region, native audio"
+    },
+    "seedance20ReferenceVolcengine": {
+      "label": "Seedance 2.0 (Reference, VolcEngine)",
+      "description": "Generate video from reference material via VolcEngine (Ark), with voice cloning. China region."
+    },
+    "seedance20FastReferenceVolcengine": {
+      "label": "Seedance 2.0 Fast (Reference, VolcEngine)",
+      "description": "Faster video generation from reference material via VolcEngine (Ark). China region."
+    },
+    "veo31": {
+      "label": "Veo 3.1",
+      "description": "Google's latest — 4K, native audio, dialogue sync"
+    },
+    "geminiOmniFlash": {
+      "label": "Gemini Omni 1.1 Flash",
+      "description": "Generate video with native audio from text and reference images."
+    },
+    "seedance25Volcengine": {
+      "label": "Seedance 2.5 (VolcEngine)",
+      "description": "ByteDance's 30s single-pass model via VolcEngine direct API. 480p/720p, 4-30 seconds."
+    },
+    "seedance25ReferenceVolcengine": {
+      "label": "Seedance 2.5 (Reference, VolcEngine)",
+      "description": "Reference-to-video for Seedance 2.5. Up to 30 images / 10 videos / 10 audio clips, audio-only references supported."
+    },
+    "minimaxH3MaxTurbo": {
+      "label": "H3 Max Turbo",
+      "description": "Fast MiniMax H3 variant by fal. Native audio, first and last frames, 5–15 seconds. 480p/768p; 1080p refined from 768p."
+    },
+    "minimaxH3": {
+      "label": "MiniMax H3",
+      "description": "MiniMax direct — 2K, native stereo audio, 4-15s. #1 in video editing on Artificial Analysis."
+    },
+    "minimaxH3Reference": {
+      "label": "MiniMax H3 (Reference)",
+      "description": "Reference-to-video — up to 9 subject images, 3 motion videos, 3 voice clips (12 files total)."
+    },
+    "minimaxH3Cn": {
+      "label": "MiniMax H3 (CN)",
+      "description": "MiniMax H3 via the China API (minimaxi.com). Uses a separate account and key from the global API."
+    },
+    "minimaxH3ReferenceCn": {
+      "label": "MiniMax H3 (Reference, CN)",
+      "description": "Generate video from references via the China API. Uses a separate account and key from the global API."
+    },
+    "hunyuan3d21": {
+      "label": "Hunyuan3D 2.1",
+      "description": "Tencent image-to-3D, high-fidelity geometry + PBR textures"
+    },
+    "hunyuan3dV3": {
+      "label": "Hunyuan3D v3",
+      "description": "Multi-view image-to-3D with PBR materials and high face counts"
+    },
+    "hunyuan3dV31Pro": {
+      "label": "Hunyuan3D v3.1 Pro",
+      "description": "High-quality multi-view reconstruction for detailed PBR assets"
+    },
+    "trellis2": {
+      "label": "Trellis 2",
+      "description": "High-detail 3D with adjustable structure, texture, and remesh controls"
+    },
+    "triposr": {
+      "label": "TripoSR",
+      "description": "Sub-second geometry reconstruction, untextured preview"
+    },
+    "rodinGen25": {
+      "label": "Rodin Gen-2.5",
+      "description": "Official Hyper3D API with up to 5 reference images, GLB output, and 5 quality levels. Requires your own API key with a Business subscription."
+    },
+    "seedance20Byteplus": {
+      "label": "Seedance 2.0 (BytePlus)",
+      "description": "Seedance 2.0 via BytePlus ModelArk — international region, native audio, 4–15 seconds."
+    },
+    "seedance20FastByteplus": {
+      "label": "Seedance 2.0 Fast (BytePlus)",
+      "description": "Faster Seedance 2.0 via BytePlus ModelArk — international region with native audio."
+    },
+    "seedance20ReferenceByteplus": {
+      "label": "Seedance 2.0 (Reference, BytePlus)",
+      "description": "Reference-to-video via BytePlus ModelArk with voice-reference support."
+    },
+    "seedance20FastReferenceByteplus": {
+      "label": "Seedance 2.0 Fast (Reference, BytePlus)",
+      "description": "Faster reference-to-video via BytePlus ModelArk."
+    },
+    "seedance25": {
+      "label": "Seedance 2.5 (fal.ai)",
+      "description": "Seedance 2.5 through fal.ai, with 480p/720p output and 4–30 second clips."
+    },
+    "seedance25Reference": {
+      "label": "Seedance 2.5 (Reference, fal.ai)",
+      "description": "fal.ai multimodal reference endpoint with up to 30 images, 10 videos, and 10 audio clips."
+    },
+    "seedance25Byteplus": {
+      "label": "Seedance 2.5 (BytePlus)",
+      "description": "Seedance 2.5 via BytePlus ModelArk's international API, with 480p/720p output and 4–30 second clips."
+    },
+    "seedance25ReferenceByteplus": {
+      "label": "Seedance 2.5 (Reference, BytePlus)",
+      "description": "BytePlus international multimodal reference generation with up to 30 images, 10 videos, and 10 audio clips."
+    },
+    "fishAudioS2ProFree": {
+      "label": "Fish Audio S2.1 Pro Free",
+      "description": "Free speech generation with your own Fish API key, subject to fair-use limits."
+    },
+    "pixaiTsubaki2": {
+      "label": "PixAI Tsubaki.2",
+      "description": "PixAI's flagship DiT anime model. Text-to-image only."
+    },
+    "pixaiHarukaV2": {
+      "label": "PixAI Haruka v2",
+      "description": "Classic SDXL anime line on PixAI. Text-to-image only."
+    },
+    "pixaiHoshinoV2": {
+      "label": "PixAI Hoshino v2",
+      "description": "Stylised SDXL anime line on PixAI. Text-to-image only."
+    }
+  },
+  "ModelPicker": {
+    "recent": "Recent",
+    "searchPlaceholder": "Search models…",
+    "channelUnset": "—",
+    "pickChannel": "Pick a route",
+    "missingKey": "Needs a key",
+    "missingKeyConfigure": "Needs a key · Click to configure",
+    "channelsCount": "{count} channels",
+    "usageBilled": "Billed by usage",
+    "channelPanelLabel": "Routes for {model}",
+    "manageChannels": "Manage channels and keys…",
+    "kinds": {
+      "speech": "Speech",
+      "music": "Music",
+      "sfx": "Sound effects"
+    }
+  }
+}

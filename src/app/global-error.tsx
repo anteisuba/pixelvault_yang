@@ -4,9 +4,9 @@ import * as Sentry from '@sentry/nextjs'
 import { useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 
-import enMessages from '@/messages/en.json'
-import jaMessages from '@/messages/ja.json'
-import zhMessages from '@/messages/zh.json'
+import enMessages from '@/messages/common/en.json'
+import jaMessages from '@/messages/common/ja.json'
+import zhMessages from '@/messages/common/zh.json'
 import { DEFAULT_LOCALE, isAppLocale, type AppLocale } from '@/i18n/routing'
 
 const GLOBAL_ERROR_COPY: Record<

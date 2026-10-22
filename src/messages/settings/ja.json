@@ -1,0 +1,119 @@
+{
+  "Settings": {
+    "title": "設定",
+    "description": "API キー・使用量・環境設定・アシスタントの設定。",
+    "back": "戻る",
+    "backToList": "マイに戻る",
+    "signOut": "ログアウト",
+    "signingOut": "ログアウト中",
+    "sections": {
+      "keys": "API キー",
+      "usage": "使用量",
+      "preferences": "環境設定",
+      "assistant": "アシスタント",
+      "connections": "連携"
+    },
+    "keys": {
+      "caption": "すべて自分のキーで動きます。プラットフォーム経由は Gemini のテキストのみ。",
+      "loading": "キーを読み込み中…",
+      "monthlySpend": "今月 {amount}",
+      "invalidSummary": "{count, plural, other {# 本が無効}}",
+      "status": {
+        "healthy": "正常",
+        "healthyWithStamp": "正常 · {stamp}に確認",
+        "invalid": "キーが拒否されました",
+        "invalidWithStamp": "キーが拒否されました · {stamp}に確認",
+        "unverified": "設定済み · 未確認",
+        "unconfigured": "未設定"
+      },
+      "configure": "設定する",
+      "replaceKey": "差し替える",
+      "toggleKeys": "{provider} のキーを表示",
+      "addAnother": "キーを追加",
+      "reverify": "再確認",
+      "lastVerified": "{stamp}に確認",
+      "neverVerified": "未確認",
+      "deleteKey": "キー {label} を削除",
+      "deleteDialog": {
+        "title": "このキーを削除しますか？",
+        "description": "「{label}」を削除します。このキーで動くモデルは、別のキーを追加するまで使えません。",
+        "cancel": "キャンセル",
+        "confirm": "削除"
+      }
+    },
+    "usage": {
+      "estimateNote": "推定値 — 正確な金額は各プロバイダーの請求書をご確認ください",
+      "loading": "使用量を読み込み中…",
+      "empty": "今月のリクエストはまだありません。",
+      "columnProvider": "プロバイダー",
+      "columnRequests": "リクエスト数",
+      "columnCost": "推定費用",
+      "runnerLabel": "Runner · セルフホスト",
+      "runnerQuota": "{used} / {limit}",
+      "runnerCost": "$0 · {date} にリセット",
+      "total": "合計",
+      "footnote": "リクエスト数は利用履歴から、費用は「リクエスト数 × そのモデルの単価」で算出しています。単価が公開されていないモデルはリクエスト数のみ表示します。"
+    },
+    "preferences": {
+      "language": "言語",
+      "displayName": "表示名",
+      "displayNamePlaceholder": "あなたの名前",
+      "saving": "保存中",
+      "saved": "保存しました",
+      "displayNameFailed": "表示名を保存できませんでした",
+      "defaultWorkbench": "最初に開く画面",
+      "notifyOnComplete": "生成が終わったら通知する",
+      "reduceMotion": "動きを減らす",
+      "workbench": {
+        "/studio/image": "画像ワークベンチ",
+        "/studio/video": "動画ワークベンチ",
+        "/studio/audio": "音声ワークベンチ",
+        "/studio/node": "キャンバス",
+        "/gallery": "ギャラリー"
+      }
+    },
+    "connections": {
+      "caption": "Claude がキャンバスのプロジェクトを読み書きします · クレジットは使えません",
+      "claudeCode": {
+        "title": "Claude Code",
+        "description": "トークンを Claude Code に貼ると、Claude がキャンバスのプロジェクトを読み、編集し、試写を書き出せます。クレジットを使う生成は、これまでどおりブラウザでご自身が押します。"
+      },
+      "create": "トークンを作成",
+      "limit": "最大 {count} 個まで。使っていないものを無効にしてください",
+      "loading": "トークンを読み込み中…",
+      "empty": "まだトークンがありません。作成して Claude Code に貼ると、Claude が編集を手伝います。",
+      "retry": "再試行",
+      "nameLabel": "トークン名",
+      "nameHint": "どのパソコン用か分かる名前に · Enter で作成、Esc で取消",
+      "generate": "作成",
+      "cancel": "キャンセル",
+      "copy": "コピー",
+      "copyCommand": "コマンドをコピー",
+      "copied": "コピーしました",
+      "live": "Claude が使用中",
+      "usedAt": "{stamp}に使用",
+      "neverUsed": "未使用",
+      "createdOn": "{date} 作成",
+      "revoke": "無効にする",
+      "revoked": "「{name}」を無効にしました",
+      "revokeDialog": {
+        "title": "「{name}」を無効にしますか？",
+        "description": "このトークンで接続中の Claude はすぐに切断され、元に戻せません。再接続するには新しいトークンを作成して貼り直してください。"
+      },
+      "created": {
+        "title": "「{name}」を作成しました",
+        "once": "このトークンは一度だけ表示されます",
+        "tokenLabel": "トークン",
+        "commandLabel": "Claude Code に接続：ターミナルで実行",
+        "verify": "接続後、Claude Code で /mcp と入力すると antei が表示されます。",
+        "done": "完了"
+      },
+      "failed": {
+        "load": "トークンを読み込めませんでした：ネットワークに接続できません。",
+        "create": "作成できませんでした。もう一度お試しください。",
+        "limit": "有効なトークンは最大 {count} 個です。使っていないものを無効にしてください。",
+        "revoke": "無効にできませんでした。もう一度お試しください。"
+      }
+    }
+  }
+}

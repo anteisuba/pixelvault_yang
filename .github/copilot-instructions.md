@@ -11,7 +11,7 @@ src/services/   → server-only business logic (DB, R2, AI providers)
 src/hooks/      → client state (all API via src/lib/api-client.ts)
 src/components/ → ui/ (stateless) | business/ (stateful) | layout/
 src/app/api/    → routes: auth → validate → delegate to service
-src/messages/   → i18n JSON (en/ja/zh — keep in sync)
+src/messages/   → i18n JSON per module: <module>/{en,ja,zh}.json (keep all three in sync)
 ```
 
 ## Rules

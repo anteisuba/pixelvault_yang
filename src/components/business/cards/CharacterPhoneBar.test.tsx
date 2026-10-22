@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 
 import { CHARACTER_PAGE_TABS } from '@/constants/cards/chub-library'
-import zhMessages from '@/messages/zh.json'
+import { zh as zhMessages } from '@/messages'
 
 import { CharacterPhoneBar } from './CharacterPhoneBar'
 

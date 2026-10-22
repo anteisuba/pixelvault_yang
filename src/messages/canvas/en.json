@@ -1,0 +1,2086 @@
+{
+  "StudioNode": {
+    "emptyGuide": {
+      "title": "Empty canvas — start here",
+      "subtitle": "Tell me the story and the assistant lays the nodes out for you.",
+      "chatOutline": "Plan the outline with the assistant",
+      "addNode": "Add a node manually (character / background / shot / image…)"
+    },
+    "appearance": {
+      "trigger": "Set canvas appearance",
+      "title": "Canvas appearance",
+      "description": "Color and wallpaper are saved with this project.",
+      "colorLabel": "Background color",
+      "customColor": "Custom color",
+      "presetColor": "Use color {color}",
+      "imageLabel": "Background image",
+      "chooseImage": "Choose or upload image",
+      "replaceImage": "Replace image",
+      "removeImage": "Remove image",
+      "fitLabel": "Fit",
+      "fitCover": "Fill canvas",
+      "fitContain": "Show full image",
+      "opacityLabel": "Image opacity",
+      "restoreDefault": "Restore default appearance",
+      "dialogTitle": "Choose canvas background",
+      "dialogDescription": "Select from assets or upload a background image.",
+      "previewAlt": "Canvas background preview",
+      "triggerShort": "Surface"
+    },
+    "eyebrow": "Canvas",
+    "projectUntitled": "Untitled project",
+    "projectNewDefaultName": "Untitled project {n}",
+    "nodeCount": "{count, plural, one {# node} other {# nodes}}",
+    "addMenuTitle": "Add to canvas",
+    "nodeTypes": {
+      "shotText": "Shot Text",
+      "shot": "Shot Image",
+      "characterImage": "Character",
+      "backgroundImage": "Card",
+      "frameImage": "Frame Image",
+      "image": "Image",
+      "voice": "Voice Profile",
+      "seedance": "Video Generation",
+      "videoReference": "Reference Video",
+      "typeNameAria": "{type}: {name}",
+      "text": "Text",
+      "audio": "Audio",
+      "video": "Video"
+    },
+    "addMenuHelpers": {
+      "shotText": "Draft shot direction, action, and camera notes.",
+      "shot": "Generate a still shot from a shot prompt.",
+      "characterImage": "Generate a portrait or design pass from a character prompt.",
+      "backgroundImage": "Generate a scene background and atmosphere plate.",
+      "frameImage": "Generate a keyframe image before video creation.",
+      "image": "Upload, pick from the library, or generate with AI — name and categorize it once it lands. Characters and scenes come from the Cast dock.",
+      "voice": "Select or upload a voice profile for video character voices.",
+      "seedance": "Combine connected images, keyframes, and voices into a video.",
+      "videoReference": "Upload a clip (≤15s / ≤50MB) as a reference. Unlocks the 0.6x Seedance Reference discount."
+    },
+    "addCatalog": {
+      "groups": {
+        "text": "Text",
+        "image": "Images",
+        "audio": "Sound",
+        "video": "Video"
+      },
+      "items": {
+        "textScript": {
+          "label": "Script",
+          "helper": "The scene, action, camera and dialogue this beat is made of."
+        },
+        "textRule": {
+          "label": "Rule",
+          "helper": "A style or production constraint — it governs whatever you wire it into."
+        },
+        "textNote": {
+          "label": "Note",
+          "helper": "Remarks for yourself. Never sent to a model as a constraint."
+        },
+        "imageShot": {
+          "label": "Shot still",
+          "helper": "One frame generated from the script plus character and background references."
+        },
+        "imageCharacter": {
+          "label": "Character",
+          "helper": "The character's look: main image, close-ups, and a linked voice."
+        },
+        "imageBackground": {
+          "label": "Background",
+          "helper": "What this place looks like: scene, mood and lighting."
+        },
+        "imageResult": {
+          "label": "Generated image",
+          "helper": "Upload, paste, pick from assets, or generate with AI later."
+        },
+        "audioVoice": {
+          "label": "Voice line",
+          "helper": "The audio for one spoken line — generated or uploaded."
+        },
+        "audioTimbre": {
+          "label": "Timbre",
+          "helper": "A reusable voice. Connect it to a shot or character to set how they sound."
+        },
+        "videoShot": {
+          "label": "Shot",
+          "helper": "One shot, with its own first frame, last frame, reference, voice and text ports."
+        },
+        "videoClip": {
+          "label": "Clip",
+          "helper": "Upload a video to use as a motion or look reference."
+        }
+      },
+      "cast": "Cast",
+      "upload": "Upload image",
+      "pickFromLibrary": "Pick from library"
+    },
+    "statuses": {
+      "idle": "Idle",
+      "queued": "Standby",
+      "ready": "Ready",
+      "running": "Rolling",
+      "done": "Wrapped",
+      "failed": "NG",
+      "stale": "Needs updating",
+      "disabled": "Disabled"
+    },
+    "imageSourceStarter": {
+      "uploadTitle": "Upload image",
+      "uploadHint": "Drag in to upload",
+      "library": "Library",
+      "libraryDialogTitle": "Choose an image asset",
+      "libraryDialogDescription": "Pick an image from your library to use as this card's content.",
+      "untitled": "Untitled image",
+      "uploadFailed": "Image upload failed",
+      "generationFailed": "Image generation failed",
+      "categoryLabel": "Category",
+      "uploading": "Uploading {percent}%",
+      "cancelUpload": "Cancel upload",
+      "generating": "Generating...",
+      "retry": "Retry",
+      "replace": "Replace"
+    },
+    "characterImage": {
+      "voiceBound": {
+        "unnamed": "🎙 Connected voice will be labeled with the character name in the video's @AudioN slot.",
+        "remove": "Disconnect voice"
+      },
+      "promptLabel": "Character image prompt",
+      "promptPlaceholder": "Describe the character appearance, wardrobe, mood, and style...",
+      "cardLibrary": {
+        "title": "Characters",
+        "hint": "Pick a saved character to populate this node.",
+        "searchPlaceholder": "Search name or tags…",
+        "loading": "Loading characters…",
+        "empty": "No characters yet. Create one on the Characters page first.",
+        "variantCount": "{count, plural, one {# variant} other {# variants}}",
+        "applied": "Applied character \"{name}\".",
+        "bound": "📇 From character: {name}"
+      },
+      "generate": "Generate",
+      "regenerate": "Regenerate",
+      "generating": "Generating...",
+      "noModel": "Select an image model first.",
+      "noPrompt": "Add a character prompt first.",
+      "fallbackError": "Character image generation failed.",
+      "imageAlt": "{name} generated character image",
+      "sourceExisting": "Existing image",
+      "sourceGenerated": "AI generated",
+      "replaceImage": "Replace",
+      "clearImage": "Clear image",
+      "existing": {
+        "title": "Use image",
+        "hint": "Upload, pick from assets, or paste an image from the clipboard.",
+        "upload": "Upload image",
+        "asset": "Select from assets",
+        "paste": "Paste image",
+        "pasteMeta": "Focus here, then paste an image.",
+        "pasteEmpty": "No image found in the clipboard.",
+        "uploadFailed": "Image upload failed."
+      },
+      "reference": {
+        "title": "Reference images",
+        "hint": "Upload or pick assets, then define how each image should guide generation.",
+        "uploadTab": "Upload",
+        "assetTab": "Assets",
+        "pasteTab": "Paste",
+        "canvasTab": "Canvas",
+        "canvasEmpty": "No images on the canvas yet",
+        "uploadTitle": "Upload reference images",
+        "uploadMeta": "JPG / PNG / WebP",
+        "pasteTitle": "Paste reference images",
+        "pasteMeta": "Focus here, then paste an image.",
+        "pasteEmpty": "No image found in the clipboard.",
+        "selectAsset": "Reopen the asset library",
+        "assetDialogOpened": "Asset library opened",
+        "empty": "No reference images yet.",
+        "uploadFailed": "Reference image upload failed.",
+        "remove": "Remove reference image",
+        "assetDialogTitle": "Select reference images",
+        "assetDialogDescription": "Choose one or more image assets as character image references.",
+        "roles": {
+          "identity": "Identity",
+          "pose": "Pose",
+          "style": "Style",
+          "composition": "Composition",
+          "background": "Background",
+          "faceCloseup": "Face close-up",
+          "costume": "Costume",
+          "prop": "Prop",
+          "frameStart": "First frame",
+          "frameEnd": "Last frame",
+          "custom": "Custom"
+        }
+      }
+    },
+    "voiceProfile": {
+      "title": "Voice input",
+      "description": "Sets the voice to use for a character or narrator. Connect it to a video node to use it.",
+      "emptyTitle": "No voice set",
+      "emptyDescription": "Choose a library voice, paste a model voice ID, or upload reference audio.",
+      "providerLabel": "Source",
+      "providerFallback": "Manual voice",
+      "noSample": "No sample yet",
+      "referenceLabel": "Reference audio",
+      "uploadAudio": "Upload audio",
+      "toasts": {
+        "voiceSelected": "Voice selected.",
+        "uploadFailed": "Reference audio upload failed."
+      },
+      "kindSpeech": "Speech",
+      "retry": "Retry"
+    },
+    "videoGeneration": {
+      "timeline": {
+        "title": "Shot timeline"
+      },
+      "generating": "Generating...",
+      "durationLabel": "Duration",
+      "resolutionLabel": "Resolution",
+      "aspectRatioLabel": "Aspect ratio",
+      "negativePromptLabel": "Negative prompt",
+      "negativePromptPlaceholder": "What to avoid (e.g. blurry, distorted, low quality)…",
+      "referenceCount": "{count}/{max} refs",
+      "upstreamGroups": {
+        "visual": "Characters / backgrounds / shots",
+        "keyframe": "Keyframes",
+        "video": "Reference videos",
+        "text": "Shot description",
+        "voice": "Voices"
+      },
+      "upstreamEmpty": {
+        "visual": "No image nodes connected.",
+        "keyframe": "No keyframes connected.",
+        "video": "No reference videos connected. Adding one unlocks 40% off on Seedance Reference.",
+        "text": "No shot text connected.",
+        "voice": "No voice nodes connected."
+      },
+      "capabilities": {
+        "referenceRequired": "The selected model requires at least one reference image."
+      },
+      "audioCapabilities": {
+        "referenceAudio": "Voice details are added to the prompt. Sending reference audio directly depends on the selected provider route.",
+        "voiceId": "Supports model-specific voice IDs. Fill a compatible voice ID on the voice node."
+      },
+      "audioCallout": {
+        "ignored": {
+          "title": "Voice node won't apply to this model",
+          "body": "Veo, Kling, and the non-Reference Seedance endpoints only let the model synthesize audio from your prompt — they don't accept uploaded reference clips. Speech will be generated, but the voice node's timbre is ignored.\nSwitch to a Seedance 2.0 Reference endpoint to actually clone the voice."
+        },
+        "cloning": {
+          "title": "Voice cloning is active",
+          "body": "Seedance will use the voice node's reference audio\nto read prompt lines wrapped in \"double quotes\"."
+        }
+      },
+      "videoDiscount": {
+        "badge": "Save 40%",
+        "tooltip": "Seedance Reference applies a 0.6x discount when a reference video is connected."
+      },
+      "noModel": "Select a video model first.",
+      "audioRequiresVisual": "Reference audio cannot be sent alone. Connect at least one image or video.",
+      "generate": "Generate video",
+      "regenerate": "Regenerate video",
+      "sidecar": {
+        "ariaLabel": "Video assembly editor",
+        "eyebrow": "Video assembly · right editor",
+        "close": "Close video assembly editor"
+      }
+    },
+    "videoReference": {
+      "title": "Reference video",
+      "description": "Upload a video clip as a reference for a connected Seedance Reference node. This automatically applies a 40% discount.",
+      "upload": "Upload video",
+      "replace": "Replace video",
+      "clear": "Clear",
+      "uploading": "Uploading",
+      "uploaded": "Video uploaded",
+      "play": "Play video",
+      "pause": "Pause video",
+      "mute": "Mute",
+      "unmute": "Unmute",
+      "constraints": "Supports mp4 / mov / webm; up to 15 seconds and 50 MB per clip.",
+      "errors": {
+        "tooLong": "Video is {actual}s — longer than the {max}s cap.",
+        "uploadFailed": "Video upload failed. Please try again."
+      }
+    },
+    "mediaNodes": {
+      "promptLabel": "Prompt",
+      "promptPlaceholder": "Describe what this node should create...",
+      "imageAlt": "Generated node image",
+      "sourceExisting": "Existing image",
+      "sourceGenerated": "AI generated",
+      "cardLibrary": {
+        "title": "Background cards",
+        "hint": "Pick a saved card to populate this node.",
+        "searchPlaceholder": "Search name or tags…",
+        "loading": "Loading cards…",
+        "empty": "No background cards yet. Create one in Studio first.",
+        "applied": "Applied background card \"{name}\".",
+        "bound": "📇 From card: {name}"
+      },
+      "replaceImage": "Replace image",
+      "clearImage": "Clear image",
+      "existing": {
+        "title": "Use existing image",
+        "hint": "Upload, paste, or choose an image asset.",
+        "upload": "Upload image",
+        "asset": "Choose from assets",
+        "paste": "Paste image",
+        "pasteMeta": "Copy an image, then paste it here",
+        "pasteEmpty": "Clipboard has no image.",
+        "uploadFailed": "Image upload failed."
+      },
+      "emptyChoice": {
+        "uploadHint": "You can also drag a file in"
+      },
+      "generate": "Generate",
+      "regenerate": "Rerun (overwrite)",
+      "generating": "Generating...",
+      "noModel": "Select a model first.",
+      "noPrompt": "Write a prompt first.",
+      "fallbackError": "Node media generation failed."
+    },
+    "videoComposer": {
+      "monitor": {
+        "empty": "Preview appears here once generated"
+      },
+      "studio": {
+        "composition": "This generation"
+      },
+      "variant": {
+        "standard": "Standard",
+        "fast": "Fast",
+        "v3": "3.0 Pro",
+        "o3": "O3 Pro (Omni)"
+      },
+      "provider": {
+        "fal": "fal",
+        "volcengine": "VolcEngine",
+        "byteplus": "BytePlus"
+      },
+      "sidecar": {
+        "modeLabel": "Video generation mode",
+        "addReference": "Add reference asset",
+        "promptPlaceholder": "Describe the shot, motion, and sound you want…"
+      },
+      "autoName": {
+        "character": "Character",
+        "background": "Scene",
+        "shot": "Shot",
+        "video": "Video",
+        "closeup": "Closeup"
+      },
+      "cameraGrammar": {
+        "label": "Camera direction",
+        "groups": {
+          "size": "Shot size",
+          "angle": "Angle",
+          "move": "Movement"
+        }
+      },
+      "modelRail": {
+        "label": "Model",
+        "ready": "Your key",
+        "needsKey": "Set up key"
+      },
+      "pickModel": "Pick a model",
+      "refKind": {
+        "character": "Character",
+        "background": "Background",
+        "shot": "Shot",
+        "voice": "Voice",
+        "video": "Reference video",
+        "keyframe": "Keyframe",
+        "closeup": "Close-up"
+      },
+      "slotRack": {
+        "zones": {
+          "images": "{count} img",
+          "audio": "{count} audio",
+          "videos": "{count} video"
+        },
+        "zoneLabel": {
+          "images": "Images",
+          "audio": "Audio",
+          "videos": "Video"
+        },
+        "zoneCount": "{held}/{limit}",
+        "total": "Total {held}/{total}",
+        "slotHint": "{name} · click to reference in the prompt, double-click to focus the node",
+        "remove": "Remove {name} (disconnects the edge, keeps the node)",
+        "notSendingOverflow": "{name} · not sent this time (over the limit)",
+        "notSendingUnready": "{name} · not sent this time (no audio yet)",
+        "heldVsSending": "held {held} · sending {sending}"
+      },
+      "references": {
+        "label": "Referenced",
+        "counter": "{referenced} referenced / {connected} connected",
+        "slotLabel": "Image {index}",
+        "unnamed": "needs a name",
+        "locate": "Locate this node on canvas",
+        "addVoice": "Add a voice to \"{name}\"",
+        "remove": "Disconnect \"{name}\" (node kept)",
+        "searchPlaceholder": "Search by name or @token",
+        "tabs": {
+          "all": "All",
+          "character": "Character",
+          "scene": "Scene",
+          "shot": "Shot",
+          "voice": "Voice"
+        },
+        "addButtons": {
+          "character": "Add character",
+          "scene": "Add scene",
+          "shotImage": "Add shot image",
+          "video": "Add reference video",
+          "voice": "Add narration"
+        },
+        "onStageBadge": "On stage",
+        "addGroups": {
+          "image": "Image",
+          "voice": "Audio",
+          "video": "Video"
+        }
+      },
+      "sendPreview": {
+        "toggle": "Preview what will be sent",
+        "promptLabel": "Final prompt",
+        "legendLabel": "Auto-appended reference legend",
+        "imagesLabel": "Reference images ({count})",
+        "imageBadge": "Img{index}",
+        "unnamed": "Unnamed",
+        "avLabel": "Video / audio references",
+        "videoBadge": "Video{index}: reference clip",
+        "audioBadge": "Audio{index}",
+        "empty": "(no extra prompt text this time)"
+      },
+      "generateAudioLabel": "Generate audio",
+      "seedRandom": "Random each run",
+      "rebind": {
+        "title": "Switch to {brand}?",
+        "map": "will map",
+        "ignore": "will be ignored",
+        "confirm": "Switch",
+        "cancel": "Cancel"
+      }
+    },
+    "nodeToolbar": {
+      "expand": "Expand",
+      "delete": "Delete",
+      "toolbar": "Node actions",
+      "more": "More",
+      "download": "Download",
+      "rename": "Name",
+      "category": "Category",
+      "preview": "Preview",
+      "reorder": "Reorder",
+      "compose": "Compose {count, plural, one {# clip} other {# clips}}",
+      "composeAria": "Group the selected {count, plural, one {# clip} other {# clips}} for merging."
+    },
+    "nodeDetail": {
+      "close": "Collapse",
+      "generate": "Generate",
+      "upload": "Upload",
+      "openStudio": "Studio ↗",
+      "sampleWillSend": "Sent when generating"
+    },
+    "voiceDetail": {
+      "speedLabel": "Speed",
+      "volumeLabel": "Volume",
+      "emotionLabel": "Emotion",
+      "emotions": {
+        "none": "None",
+        "calm": "Calm",
+        "angry": "Angry",
+        "sad": "Sad",
+        "surprised": "Surprised"
+      },
+      "coverAlt": "Voice cover"
+    },
+    "workflowFields": {
+      "prompt": {
+        "label": "Generation prompt",
+        "placeholder": "Describe the final output this node should generate..."
+      },
+      "scene": {
+        "label": "Scene",
+        "placeholder": "Where and when this shot happens..."
+      },
+      "action": {
+        "label": "Action",
+        "placeholder": "What the character does and what changes on screen..."
+      },
+      "camera": {
+        "label": "Camera",
+        "placeholder": "Close-up, push-in, handheld, overhead..."
+      },
+      "composition": {
+        "label": "Composition",
+        "placeholder": "Subject placement, shot size, foreground and background..."
+      },
+      "location": {
+        "label": "Location",
+        "placeholder": "The space or environment for the background..."
+      },
+      "mood": {
+        "label": "Mood",
+        "placeholder": "Emotion, season, weather, color temperature..."
+      },
+      "lighting": {
+        "label": "Lighting",
+        "placeholder": "Light source, contrast, shadows, reflections..."
+      },
+      "frameIntent": {
+        "label": "Keyframe intent",
+        "placeholder": "The action and image state this keyframe should lock..."
+      },
+      "dialogue": {
+        "label": "Dialogue",
+        "placeholder": "Enter the line or narration to speak..."
+      },
+      "voiceName": {
+        "label": "Voice name",
+        "placeholder": "e.g. Character A, narrator, gentle heroine..."
+      },
+      "voiceProvider": {
+        "label": "Voice source",
+        "placeholder": "e.g. Fish Audio, Kling Voice..."
+      },
+      "voiceId": {
+        "label": "Voice ID",
+        "placeholder": "Paste a model voice ID, or choose from the voice library..."
+      },
+      "voiceStyle": {
+        "label": "Voice style",
+        "placeholder": "Tone, age, pace, accent, texture..."
+      },
+      "voiceEmotion": {
+        "label": "Emotion / delivery",
+        "placeholder": "Calm, tense, gentle, restrained..."
+      },
+      "motion": {
+        "label": "Motion",
+        "placeholder": "Describe character, camera, and scene motion..."
+      },
+      "duration": {
+        "label": "Duration",
+        "placeholder": "e.g. 4s, 6s, 8s...",
+        "auto": "Auto (let model decide)",
+        "custom": "Custom",
+        "seconds": "{value}s"
+      },
+      "audioIntent": {
+        "label": "Audio / voice direction",
+        "placeholder": "e.g. Voice 1 handles narration, Voice 2 is Character A's line..."
+      }
+    },
+    "workflowNodes": {
+      "shotText": {
+        "emptyState": "No shot text yet",
+        "editText": "Edit text"
+      },
+      "characterImage": {
+        "emptyState": "No character image yet"
+      },
+      "shot": {
+        "emptyState": "No shot image yet"
+      },
+      "backgroundImage": {
+        "emptyState": "No background image yet"
+      },
+      "frameImage": {
+        "emptyState": "No keyframe yet"
+      }
+    },
+    "topbar": {
+      "addNode": "Add node",
+      "save": "Save",
+      "startReview": "{count} awaiting review · start reviewing",
+      "collapse": "Collapse topbar to show the full canvas",
+      "expand": "Expand topbar",
+      "defaultModel": "Default",
+      "createProjectPrompt": "Project name",
+      "deleteProjectConfirm": "Delete \"{name}\"? This removes this canvas project."
+    },
+    "projectMenu": {
+      "triggerLabel": "Open project menu",
+      "current": "Current project",
+      "switch": "Switch project",
+      "create": "New project",
+      "rename": "Rename",
+      "delete": "Delete current project",
+      "updatedAt": "Updated {time}",
+      "unsaved": "Not saved yet",
+      "saving": "Saving..."
+    },
+    "projectDialog": {
+      "createTitle": "New project",
+      "renameTitle": "Rename project",
+      "cancel": "Cancel",
+      "createSubmit": "Create",
+      "renameSubmit": "Save",
+      "deleteTitle": "Delete project",
+      "deleteConfirm": "Delete"
+    },
+    "assistant": {
+      "toggle": "Assistant",
+      "streamFailed": "The assistant's response was interrupted"
+    },
+    "dock": {
+      "title": "Assistant dock",
+      "expand": "Expand to outline workspace",
+      "restore": "Back to dock",
+      "scriptDocApply": "Generate nodes",
+      "clarify": {
+        "title": "A few quick questions",
+        "customPlaceholder": "Or type your own…",
+        "skip": "Skip",
+        "submit": "Send answers",
+        "skipped": "skipped",
+        "answerPrefix": "My answers:"
+      },
+      "scriptDocDepthSimple": "Lean",
+      "scriptDocDepthStandard": "Standard",
+      "scriptDocDepthCinematic": "Full",
+      "scriptDocDepthSimpleHint": "Roles + dialogue only",
+      "scriptDocDepthStandardHint": "+ emotion, length, style",
+      "scriptDocDepthCinematicHint": "+ world, psychology, cinematic shots",
+      "scriptDocViewEdit": "Edit",
+      "leanOpener": "Your canvas is still empty. Shall we start with the story outline?",
+      "leanOpenerActive": "Your canvas already has nodes — want me to shape them into a story outline?",
+      "starters": {
+        "scriptOutline": {
+          "label": "Story outline",
+          "prompt": "Let's start with this story's outline."
+        },
+        "castStyle": {
+          "label": "Cast & style",
+          "prompt": "Let's talk about the characters and the overall visual style."
+        },
+        "firstPhase": {
+          "label": "First phase",
+          "prompt": "Let's plan the first phase — a short series of shots (≤60s)."
+        },
+        "videoShot": {
+          "label": "Plan a shot",
+          "prompt": "Help me plan a video shot on this canvas: subject, motion, camera, and duration."
+        }
+      },
+      "welcomeTitle": "Select a node to see its details",
+      "welcomeDescription": "I can help review the canvas, tighten prompts, and suggest the next node to run.",
+      "welcomeSkillScript": "Break down a Composer idea into production steps.",
+      "welcomeSkillRoute": "Check model routes and missing keys before running nodes.",
+      "welcomeSkillGenerate": "Inspect character image prompts, references, and LoRA choices.",
+      "newConversation": "New conversation",
+      "assistantCanvas": "Canvas assistant",
+      "collapse": "Collapse assistant dock",
+      "drag": "Move assistant panel",
+      "resize": {
+        "widthLabel": "Resize dock width",
+        "splitLabel": "Resize inspector and assistant split"
+      }
+    },
+    "assistantRoute": {
+      "fieldLabel": "Assistant route",
+      "setupGemini": "Gemini",
+      "setupDeepSeek": "DeepSeek",
+      "setupChatGpt": "OpenAI",
+      "setupClaude": "Claude",
+      "setupGrok": "Grok"
+    },
+    "inspector": {
+      "unsupported": "This node doesn't have a settings panel yet."
+    },
+    "conversation": {
+      "empty": "Ask about the current workflow, selected nodes, prompt quality, or what to run next.",
+      "thinking": "Thinking...",
+      "retry": "Retry",
+      "placeholder": "Ask the canvas assistant...",
+      "modeHint": "Layout changes apply automatically · generation needs confirmation",
+      "research": "Reference work",
+      "researchHint": "Search the web for a film/anime/short and turn it into original script ideas (Gemini/OpenAI routes)",
+      "send": "Send",
+      "expandMessage": "Show full reply",
+      "collapseMessage": "Show one paragraph",
+      "unknownNodeReference": "Removed node",
+      "references": "Canvas references",
+      "addReference": "Add an image or video reference",
+      "removeReference": "Remove reference",
+      "capabilityUnavailable": "That canvas image is no longer available.",
+      "capabilityFailed": "The canvas capability failed. Try again.",
+      "referencePickerTitle": "Add reference media",
+      "imageDropHint": "Drop, paste, or upload an image",
+      "recentImages": "Recent images",
+      "recentImagesEmpty": "No recent images",
+      "openImageLibrary": "Open image library",
+      "imageLibraryTitle": "Select a reference image",
+      "imageLibraryDescription": "Choose an image to attach to your message.",
+      "openVideoLibrary": "Open video library",
+      "videoLibraryTitle": "Select a reference video",
+      "videoLibraryDescription": "Choose a video to attach to your message.",
+      "canvasReferences": "On this canvas",
+      "uploadVideo": "Upload reference video",
+      "galleryImageLabel": "Gallery image",
+      "galleryVideoLabel": "Gallery video",
+      "referenceUploadFailed": "Reference upload failed",
+      "referenceOnlyPrompt": "Analyze the attached reference media and suggest the next practical canvas steps.",
+      "opsMalformed": "The assistant tried to change the canvas but the instruction wasn't readable — nothing was changed."
+    },
+    "minimapTitle": "Minimap",
+    "castDock": {
+      "title": "Nodes",
+      "locatorTitle": "All nodes on the canvas",
+      "rosterTitle": "Reusable characters & scenes",
+      "rosterHint": "Drag onto a node to use as a reference, or press and hold to choose a target.",
+      "searchLabel": "Search canvas nodes",
+      "searchPlaceholder": "Search nodes…",
+      "groups": {
+        "text": "Text",
+        "image": "Images",
+        "audio": "Audio",
+        "video": "Video"
+      },
+      "referenceCount": "{count, plural, one {# reference} other {# references}}",
+      "empty": "No nodes on the canvas yet",
+      "noResults": "No matching nodes",
+      "locateNode": "Locate {name}",
+      "expand": "Expand Cast dock",
+      "collapse": "Collapse Cast dock",
+      "collapsePanel": "Collapse left panel",
+      "handle": "Cast · {count}",
+      "sections": {
+        "character": "Characters",
+        "background": "Scenes",
+        "voice": "Voices",
+        "videoReference": "Reference Videos"
+      },
+      "performanceCount": "{count, plural, one {In # shot} other {In # shots}}",
+      "referenceCountAria": "{count, plural, one {# reference image} other {# reference images}}",
+      "voiceBoundAria": "Voice linked",
+      "create": "New",
+      "deleteCard": "Delete {name}",
+      "openDetail": "Open {name}"
+    },
+    "ingest": {
+      "reasons": {
+        "typeMismatch": "This card can't be used by that node",
+        "duplicate": "Already included",
+        "capacityFull": "Reference slots are full",
+        "capacityFullWithLimit": "Reference slots are full ({current}/{limit})",
+        "capacityFullIn": "{zone} slots are full ({current}/{limit}) — remove one to add another",
+        "capacityFullByTotal": "Only {limit} {zone} slots available because of the total asset limit. Remove a video or audio clip to make room."
+      },
+      "preview": {
+        "images": "{count} refs",
+        "voice": "Voice",
+        "slots": "Slots {current}/{limit}",
+        "fallbackName": "Untitled"
+      },
+      "quickThrow": {
+        "toggleAria": "Quick-add {name}",
+        "hint": "Choose a shot for {name}. Press Esc to cancel.",
+        "alreadyIncluded": "Already included"
+      },
+      "uploadFailed": "Couldn't upload “{name}”",
+      "looseImageFused": "Image added to the character's references",
+      "looseImageFuseRejected": "Couldn't add that image — drop it on a character or background card",
+      "canvasNodeSigned": "Reference linked — the card stays on the canvas",
+      "canvasNodeIngestRejected": "Not linked — these two cards can't reference each other",
+      "looseImage": {
+        "uploading": "Uploading {count, plural, one {# image} other {# images}}...",
+        "uploaded": "{count, plural, one {# image} other {# images}} added to the canvas",
+        "uploadFailed": "Image upload failed",
+        "untitled": "Untitled image",
+        "cardAlt": "Unconnected canvas image"
+      }
+    },
+    "toasts": {
+      "projectCreated": "Project \"{name}\" created.",
+      "projectDeleted": "Project \"{name}\" deleted.",
+      "localCacheFull": "This browser's local cache is full — the canvas is no longer kept here. Your work is still saved to the cloud.",
+      "localCacheUnavailable": "This browser refused local storage — the canvas is no longer kept here. Your work is still saved to the cloud.",
+      "cloudSaveFailed": "Can't reach the cloud — recent canvas changes aren't saved. Keep this tab open and check your connection.",
+      "v3UpgradeReadOnly": "This project's legacy data hasn't been backed up yet, so the canvas is read-only to avoid overwriting the original. Refresh to retry; contact support if it keeps failing.",
+      "cloudSaveRejected": "The cloud rejected this save — recent canvas changes aren't saved. This is not a connection problem; the details are below.",
+      "conflict": "This canvas was saved elsewhere (another tab or device) with newer changes, so saving here is paused.",
+      "conflictLoadLatest": "Load latest",
+      "conflictSaveAsCopy": "Save as copy",
+      "conflictLoadFailed": "Couldn't load the latest version. Check your connection and try again."
+    },
+    "quickEdit": {
+      "placeholder": "Describe how you want to edit this image",
+      "editing": "Editing [{name}]",
+      "run": "Run",
+      "back": "Back to tools",
+      "title": "Quick edit",
+      "hint": "Describe the element to extract. Result is a new image on the canvas."
+    },
+    "generateComposer": {
+      "addReference": "Add reference",
+      "removeReference": "Remove {name}",
+      "expand": "Expand",
+      "collapse": "Collapse",
+      "send": "Send",
+      "historyTitle": "Recently used",
+      "historyEmpty": "No history yet",
+      "modeImage": "Image",
+      "modeAudio": "Audio",
+      "audioPlaceholder": "Audio settings aren't available here yet.",
+      "templateFilterLabel": {
+        "recent": "Recent",
+        "all": "All",
+        "mostUsed": "Most used"
+      }
+    },
+    "history": {
+      "title": "History",
+      "search": "Search conversations",
+      "empty": "No conversations yet",
+      "new": "New chat",
+      "share": "Share read-only link",
+      "shareCopied": "Read-only link copied",
+      "shareFailed": "Could not create a share link"
+    },
+    "review": {
+      "approve": "Approve",
+      "reject": "Send back",
+      "awaitingReview": "Awaiting review",
+      "rejected": "Sent back"
+    },
+    "reviewMode": {
+      "title": "Reviewing",
+      "remaining": "{count} left",
+      "previous": "Previous",
+      "next": "Next",
+      "exit": "Exit review",
+      "previousVersion": "Previous",
+      "currentVersion": "Current",
+      "reasonLabel": "Reason",
+      "reasonPlaceholder": "Why does this need another try? (optional)",
+      "promptPatchLabel": "Prompt tweak",
+      "promptPatchPlaceholder": "What would you like to change?",
+      "regenerate": "Tweak & retry",
+      "regenerating": "Regenerating"
+    },
+    "mobileRail": {
+      "assistant": "Assistant",
+      "listLabel": "List",
+      "tab": {
+        "shots": "Shots",
+        "images": "Images",
+        "voices": "Voice",
+        "texts": "Text"
+      },
+      "empty": {
+        "shots": "No shots yet. Tap + to add one.",
+        "images": "No images yet. Tap + to upload.",
+        "voices": "No voice clips yet.",
+        "texts": "No text nodes yet."
+      },
+      "add": "Add",
+      "newShot": "New shot",
+      "upload": "Upload (photos / files)",
+      "addReference": "Add reference",
+      "fromDevice": "Photos or files",
+      "play": "Play",
+      "pause": "Pause",
+      "emptyShot": "No footage yet. Tap to write a prompt.",
+      "versionReadout": "{index} / {total}"
+    },
+    "canvasOps": {
+      "title": "Suggested canvas changes",
+      "unnamed": "Untitled",
+      "unknownTarget": "Deleted node",
+      "apply": "Apply {count}",
+      "appliedSummary": "Applied {applied}",
+      "appliedSummaryWithSkipped": "Applied {applied}, skipped {skipped}",
+      "appliedToast": "Applied {count} canvas changes",
+      "confirmGenerate": "Confirm generation (uses credits)",
+      "confirmReview": "Confirm review change",
+      "autoApplied": "{count, plural, one {# item} other {# items}} placed on the canvas. No credits used yet.",
+      "autoConnectsFailed": "{count, plural, one {# connection} other {# connections}} not created",
+      "undoAutoApplied": "Undo",
+      "generateSeparateHint": "Generation is confirmed separately",
+      "rejectedPrefix": "Won't run: {reason}",
+      "describe": {
+        "addNode": "Add {kind} “{name}”",
+        "connect": "Connect “{source}” into “{target}”",
+        "rename": "Rename “{target}” to “{name}”",
+        "setPrompt": "Rewrite the prompt of “{target}”",
+        "setImageCategory": "Tag “{target}” as {category}",
+        "setModel": "Switch “{target}” to {model}",
+        "setParams": "Set “{target}” to {params}",
+        "attachAsset": "Attach “{source}” to “{target}” as {category}",
+        "reject": "Send back “{target}”",
+        "approve": "Mark “{target}” as approved",
+        "awaitReview": "Mark “{target}” as awaiting review",
+        "generate": "Generate “{target}”",
+        "connectSlot": "Wire “{source}” into “{target}” · {slot}",
+        "disconnect": "Remove a connection",
+        "delete": "Delete “{target}”",
+        "moveToShot": "Move “{target}” to shot {shotNo}",
+        "moveOutOfShot": "Move “{target}” out of the shot lanes",
+        "reorderShot": "Move shot {from} to position {to}",
+        "setText": "Rewrite the text of “{target}”",
+        "setField": "Set {field} of “{target}” to {value}",
+        "attachAssetSlot": "Attach “{source}” to “{target}” · {slot}",
+        "setSlotVersion": "Switch the current version of “{target}” · {slot}",
+        "blockVersion": "Mark the “{target}” · {slot} version as rejected",
+        "unblockVersion": "Clear the rejection for “{target}” · {slot}",
+        "setParamsV4": "Change the generation dials of “{target}”",
+        "setVoiceProfile": "Change the voice settings of “{target}”",
+        "setCharacterPicks": "Changed which character images “{target}” uses"
+      },
+      "params": {
+        "duration": "{value}s",
+        "durationAuto": "auto length",
+        "audioOn": "with audio",
+        "audioOff": "no audio",
+        "seed": "seed {value}"
+      },
+      "reasons": {
+        "unknownNode": "That node can't be found",
+        "duplicateRef": "The same alias is used twice, so the reference is ambiguous",
+        "approvalForbidden": "Only you can approve results.",
+        "noMedia": "This node has no image yet, so there is nothing to mark",
+        "notGeneratable": "This kind of node produces no media",
+        "noModel": "No model selected yet",
+        "notCategorizable": "This kind of node has no image category",
+        "unknownCategory": "That isn't one of the image categories",
+        "missingCategoryLabel": "A custom category needs a name",
+        "notModelTargetable": "This node type doesn't use a model",
+        "unknownModel": "That model isn't in this node's list",
+        "modelNeedsKey": "That model needs its API key set up first",
+        "notParameterizable": "Adjust image size and quality in the generation bar.",
+        "emptyParams": "No setting was given, so nothing would change",
+        "unsupportedParam": "The selected model doesn't take that setting",
+        "unknownParamValue": "That value isn't one the selected model accepts",
+        "notAttachable": "Only character and background cards collect reference images — connect the node instead"
+      },
+      "confirmDelete": "Confirm delete",
+      "overwriteQuestion": "You already wrote something there:",
+      "overwriteChoice": {
+        "append": "Append after",
+        "replace": "Overwrite",
+        "keep": "Keep mine"
+      }
+    },
+    "v4": {
+      "loraDropped": "No model on the canvas can mount a LoRA, so {names} was left out this time. LoRAs mount on the LoRA bench.",
+      "untitledText": "Untitled text",
+      "textMeta": "{chars} chars · {paragraphs} paragraphs",
+      "editText": "Edit",
+      "previewText": "Preview",
+      "setCurrent": "Set as current",
+      "versionPrev": "Previous version",
+      "versionNext": "Next version",
+      "slotDisconnect": "Disconnect",
+      "slotEmpty": "Empty",
+      "changedBadge": "Changed this turn",
+      "blocked": "Rejected: {reason}",
+      "audioDuration": "{seconds}s",
+      "audioEmpty": "No audio",
+      "audioOwner": "Voice: {name}",
+      "addCanvasTitle": "On this canvas",
+      "addCanvasHint": "Click to attach",
+      "addCanvasEmpty": "Nothing to attach yet",
+      "addCanvasAttach": "Attach {name}",
+      "legacyMigrated": "Legacy node migrated",
+      "tidy": "Tidy",
+      "slots": {
+        "firstFrame": "First frame",
+        "lastFrame": "Last frame",
+        "reference": "Reference",
+        "voice": "Voice",
+        "text": "Text",
+        "timbre": "Timbre",
+        "closeup": "Close-up",
+        "clip": "Clip",
+        "source": "Source"
+      },
+      "textRoles": {
+        "script": "Script",
+        "style": "Style",
+        "character": "Character"
+      },
+      "ports": {
+        "input": "Input",
+        "output": "Output"
+      },
+      "edgeRole": {
+        "menu": "What this link does",
+        "firstFrame": "Use as first frame",
+        "lastFrame": "Use as last frame",
+        "reference": "Use as reference"
+      },
+      "outputs": {
+        "out": "Output",
+        "tailFrame": "Tail frame"
+      },
+      "statuses": {
+        "idle": "Idle",
+        "queued": "Queued",
+        "running": "Running",
+        "ready": "Ready",
+        "done": "Done",
+        "failed": "Failed",
+        "stale": "Needs updating",
+        "disabled": "Disabled"
+      },
+      "kinds": {
+        "text": "text",
+        "image": "image",
+        "audio": "audio",
+        "video": "video"
+      },
+      "derive": {
+        "shotImage": "Make shot image",
+        "video": "Make video",
+        "character": "Make character sheet",
+        "background": "Make background",
+        "askAssistant": "Ask assistant"
+      },
+      "connectRejected": {
+        "selfLoop": "Can't connect a node to itself",
+        "unknownSlot": "This node has no such input",
+        "kindNotAllowed": "This input doesn't take that kind of asset",
+        "subtypeNotAllowed": "This input only takes reference or character images",
+        "slotFull": "This input is full",
+        "blockedSource": "This asset was rejected and can't be used as a first frame",
+        "duplicateEdge": "Already connected",
+        "unknownNode": "Node not found",
+        "blockedVersion": "That version is disabled and can't be made current"
+      },
+      "upgrade": {
+        "backupFailed": "Couldn't back up this project's older data, so saving is paused. Try again or contact support.",
+        "migrationFailed": "This project's data can't be read; writes are stopped so nothing is overwritten."
+      },
+      "versionAdded": "Added as version {count} and set as current",
+      "opFailed": "Could not apply this step: {reason}",
+      "slotIssue": {
+        "belowMin": "{slot} is not filled yet — cannot generate"
+      },
+      "preflight": {
+        "blocked": "Not sent: {reason}",
+        "blockedMore": "Not sent: {reason} ({more, plural, one {# more thing to fix} other {# more things to fix}})",
+        "nameSeparator": ", ",
+        "slot": {
+          "belowMin": "{slot} isn't filled yet",
+          "currentMissing": "Pick which version {slot} should use",
+          "blockedSource": "{slot} holds an asset marked as unusable — swap it out or disconnect it"
+        },
+        "tooMany": {
+          "image": "{count, plural, one {# reference image} other {# reference images}}; this model takes at most {max}",
+          "video": "{count, plural, one {# reference video} other {# reference videos}}; this model takes at most {max}",
+          "audio": "{count, plural, one {# reference audio clip} other {# reference audio clips}}; this model takes at most {max}",
+          "total": "{count, plural, one {# reference} other {# references}} in total; this model takes at most {max}"
+        },
+        "tooManyWithCharacters": {
+          "image": "{count, plural, one {# reference image} other {# reference images}}, including {characterImages} from {names}; this model takes at most {max}",
+          "total": "{count, plural, one {# reference} other {# references}} in total, including {characterImages} images from {names}; this model takes at most {max}"
+        },
+        "unsupported": {
+          "image": "This model doesn't take reference images — disconnect them or pick another model",
+          "video": "This model doesn't take reference videos — disconnect them or pick a model that does",
+          "audio": "This model doesn't take reference audio — disconnect it or pick a model that does",
+          "total": "This model doesn't take references"
+        },
+        "audioOnly": "This model can't take reference audio on its own — add an image or a video",
+        "clipTooLong": {
+          "video": "“{name}” runs {seconds}s; this model takes reference videos up to {limit}s each",
+          "audio": "“{name}” runs {seconds}s; this model takes reference audio up to {limit}s each"
+        },
+        "clipTooShort": {
+          "video": "“{name}” is only {seconds}s; this model needs reference videos of at least {limit}s",
+          "audio": "“{name}” is only {seconds}s; this model needs reference audio of at least {limit}s"
+        },
+        "totalTooLong": {
+          "video": "Reference videos add up to {seconds}s; this model takes at most {max}s",
+          "audio": "Reference audio adds up to {seconds}s; this model takes at most {max}s"
+        }
+      },
+      "generateDesk": {
+        "failed": "Generation failed: {reason}",
+        "noModel": "Pick a model first",
+        "noGenerate": "Create a connected node to generate from this text."
+      },
+      "renameNode": "Rename node",
+      "expandNode": "Expand",
+      "collapseNode": "Collapse",
+      "renameTaken": "Another node already uses that name",
+      "toolbar": {
+        "download": "Download",
+        "clone": "Clone empty node",
+        "tidy": "Tidy layout",
+        "delete": "Delete node"
+      },
+      "review": {
+        "approve": "Approve",
+        "reject": "Reject",
+        "state": {
+          "awaiting_review": "Awaiting review",
+          "rejected": "Rejected",
+          "approved": "Approved"
+        }
+      },
+      "readout": {
+        "dimensions": "{width}×{height}",
+        "sourceGenerated": "Generated",
+        "sourceExisting": "Existing"
+      },
+      "relations": {
+        "title": "Used by",
+        "empty": "Nothing uses it yet",
+        "chip": "{name} · {slot}"
+      },
+      "evidence": {
+        "title": "Send preview ({count})",
+        "model": "Model",
+        "prompt": "Prompt",
+        "blocked": "Blocked",
+        "none": "—",
+        "slotValue": "{name} ({count, plural, one {# version} other {# versions}})"
+      },
+      "gallery": {
+        "title": "{slot} gallery ({count})",
+        "add": "+ Add",
+        "empty": "Gallery is empty",
+        "remove": "Remove",
+        "extract": "Detach"
+      },
+      "voice": {
+        "slotStates": {
+          "empty": "No voice",
+          "loading": "Working",
+          "bound": "Voice set",
+          "failed": "Failed"
+        },
+        "providerFallback": "Unknown source",
+        "noSample": "No preview sample yet",
+        "openLibrary": "Voice library",
+        "uploadAudio": "Upload audio",
+        "uploading": "Uploading…",
+        "uploadFailed": "Upload failed: {reason}",
+        "uploadRetry": "Retry upload",
+        "ownerLabel": "Owner character",
+        "ownerNone": "Narration",
+        "ownerCustom": "Type a name…",
+        "ownerCustomPlaceholder": "Character name",
+        "speedLabel": "Speed",
+        "volumeLabel": "Volume",
+        "emotionLabel": "Emotion",
+        "emotions": {
+          "none": "None",
+          "calm": "Calm",
+          "angry": "Angry",
+          "sad": "Sad",
+          "surprised": "Surprised"
+        }
+      },
+      "mentionGroups": {
+        "text": "Text",
+        "image": "Image",
+        "audio": "Audio",
+        "video": "Video"
+      },
+      "player": {
+        "empty": "No video yet",
+        "play": "Play",
+        "pause": "Pause",
+        "mute": "Mute",
+        "unmute": "Unmute",
+        "progress": "Playback progress",
+        "download": "Download",
+        "captureFrames": "Capture poster frame"
+      },
+      "ingest": {
+        "chooseSlot": "Which slot?",
+        "chooseSlotCancel": "Cancel"
+      },
+      "chrome": {
+        "add": "Add",
+        "send": "Send",
+        "cancel": "Cancel",
+        "close": "Close",
+        "download": "Download",
+        "charCount": "{count} chars",
+        "versions": "Versions",
+        "versionOf": "Version {index} of {total}",
+        "emptyHint": "Upload · paste · or write a prompt",
+        "emptyUpload": "Upload",
+        "emptyLibrary": "Library",
+        "mentionPicker": "Mention suggestions",
+        "mediaMissing": {
+          "gone": {
+            "image": "This image was deleted from Assets",
+            "video": "This video was deleted from Assets",
+            "audio": "This audio was deleted from Assets"
+          },
+          "unreachable": {
+            "image": "This image can’t be loaded right now",
+            "video": "This video can’t be loaded right now",
+            "audio": "This audio can’t be loaded right now"
+          },
+          "remove": "Remove from canvas",
+          "removeVersion": "Remove this version",
+          "retry": "Retry"
+        },
+        "slashPicker": "Templates",
+        "myTemplates": "My templates"
+      },
+      "text": {
+        "empty": "Keep writing…",
+        "emptyStart": "Double-click to write",
+        "emptyAssist": "Or ask the assistant to write a passage",
+        "editAriaLabel": "Edit body",
+        "roles": {
+          "script": "Script",
+          "style": "Style",
+          "character": "Character"
+        },
+        "toolbar": {
+          "ariaLabel": "Text node actions",
+          "shotImage": "Make image",
+          "video": "Make shot",
+          "more": "More",
+          "split": "Split into paragraphs",
+          "renameNode": "Rename this text",
+          "cloneNode": "Duplicate this text card",
+          "deleteNode": "Delete this text",
+          "expand": "Expand",
+          "download": "Download"
+        },
+        "assist": {
+          "placeholder": "Ask the assistant to write…",
+          "ariaLabel": "Ask the assistant to write",
+          "continue": "Continue",
+          "rewrite": "Rewrite",
+          "model": "Writing model"
+        },
+        "card": {
+          "resize": "Drag to resize the card"
+        },
+        "tag": {
+          "title": "Kind and role",
+          "subtype": "Kind",
+          "role": "Role"
+        },
+        "subtypes": {
+          "script": "Script",
+          "shotNote": "Shot note",
+          "rule": "Rule"
+        },
+        "doc": {
+          "title": "{name}.md",
+          "formatAriaLabel": "Formatting",
+          "heading": "Heading level",
+          "h1": "Heading 1",
+          "h2": "Heading 2",
+          "h3": "Heading 3",
+          "bulleted": "Bulleted list",
+          "numbered": "Numbered list",
+          "bold": "Bold",
+          "strike": "Strikethrough",
+          "italic": "Italic",
+          "underline": "Underline",
+          "mentionAriaLabel": "Mention candidates",
+          "mentionEmpty": "No cards to mention"
+        },
+        "script": {
+          "metaShots": "{count} shots",
+          "metaActs": "{acts} acts · {shots} shots",
+          "seconds": "{seconds}s",
+          "more": "+ {count} more…",
+          "empty": "No shots yet — split the text with “Shot 1”, “S01” or # headings",
+          "changed": "Changed",
+          "listAriaLabel": "Shot list",
+          "project": "Confirm · project {count} shots",
+          "projected": "Projected · {count} shots",
+          "reproject": "Re-project · {count} changed"
+        }
+      },
+      "image": {
+        "uploading": "Uploading image…",
+        "toolbar": {
+          "label": "Image actions",
+          "edit": "Edit",
+          "more": "More",
+          "connect": "Connect to shot",
+          "storyboard": "Storyboard"
+        },
+        "edit": {
+          "inpaint": "Inpaint",
+          "upscale": "Upscale",
+          "cutout": "Remove background",
+          "background": "Replace background"
+        },
+        "add": {
+          "upload": "Upload file",
+          "library": "Choose from library…",
+          "canvas": "Images on canvas",
+          "canvasEmpty": "No images to attach yet"
+        },
+        "rail": {
+          "title": "Reference images",
+          "group": "image",
+          "open": "Open",
+          "remove": "Remove",
+          "upload": "Upload",
+          "library": "From library",
+          "itemLabel": "Image {index}: {name}",
+          "full": "Full (limit {limit})",
+          "mentionGroup": "References",
+          "retry": "Retry",
+          "uploading": "Uploading {name}",
+          "uploadFailed": "{name} failed to upload"
+        },
+        "more": {
+          "setCharacter": "Set as character",
+          "rename": "Rename this image",
+          "duplicate": "Duplicate this image card",
+          "splitVersion": "Split out current version",
+          "source": "Source",
+          "delete": "Delete this image",
+          "newShot": "New shot"
+        },
+        "frame": {
+          "title": "Frame",
+          "referenceLabel": "Reference",
+          "dropOrPaste": "Drop here or ⌘V",
+          "aspectRatio": "Aspect ratio",
+          "quality": "Quality",
+          "resolution": "Resolution",
+          "count": "Count"
+        },
+        "storyboard": {
+          "split3": "Split into 3×3",
+          "split2": "Split into 2×2",
+          "splitting": "Splitting…",
+          "notDetected": "Couldn’t find a grid in this image",
+          "manualSplit": "Split anyway",
+          "dismiss": "Dismiss",
+          "fallbackName": "Storyboard",
+          "cellName": "{name} · {n}",
+          "sourceLabel": "Grid · {name} · panel {n}",
+          "unreadable": "Can’t read this image’s pixels, so it can’t be split",
+          "uploadFailed": "Panel {n} didn’t save to your library, so nothing was split",
+          "failed": "Couldn’t split the grid. The original is unchanged"
+        },
+        "batchPick": {
+          "label": "This batch made {count} images. Pick one to keep as current",
+          "option": "Image {n}"
+        },
+        "promptPlaceholder": "Describe this image…",
+        "promptLabel": "Image prompt",
+        "advanced": {
+          "label": "Advanced",
+          "labelChanged": "Advanced · changed",
+          "seed": "Seed",
+          "seedRandom": "Random",
+          "seedShuffle": "New seed",
+          "seedLock": "Lock seed: every send uses the same one",
+          "seedUnlock": "Unlock: random every time",
+          "seedBatchHint": "With several images, each one adds 1",
+          "negative": "Negative prompt",
+          "negativePlaceholder": "Things to keep out, e.g. text, watermark"
+        },
+        "send": {
+          "estimate": "≈{amount}",
+          "estimateLabel": "About {amount} for this send. Open to see how",
+          "estimateTitle": "Estimated cost",
+          "estimateDetail": "{unit} / image × {count} ≈ {amount}",
+          "estimateNote": "Reference price from this channel's unit price, not what you are billed.",
+          "needsKey": "Add key",
+          "needsKeyLabel": "This model has no API key yet. Click to add one here",
+          "switchChannel": "No {from} key · use {to}",
+          "switchChannelPrice": "No {from} key · use {to} {price}",
+          "switchChannelLabel": "This card uses {from}, which has no key, but {to} is set up for the same model. Click to switch to {to}"
+        },
+        "template": {
+          "remove": "No storyboard",
+          "countLocked": "Set by the storyboard",
+          "fullTextShow": "Storyboard text is added at send · see full text",
+          "fullTextHide": "Hide storyboard text",
+          "storyPlaceholder": "(your line)",
+          "grid3": {
+            "name": "3×3 storyboard",
+            "short": "3×3",
+            "hint": "One 3×3 storyboard image, split into 9 cards when done"
+          },
+          "grid2": {
+            "name": "2×2 story",
+            "short": "2×2",
+            "hint": "One 2×2 four-beat image, split into 4 cards when done"
+          },
+          "sequence4": {
+            "name": "Shot sequence",
+            "short": "Sequence",
+            "hint": "4 images at once, one beat each, same look, into versions"
+          }
+        }
+      },
+      "audio": {
+        "toolbar": {
+          "label": "Audio actions",
+          "tone": "Add tone",
+          "transcribe": "To text",
+          "transcribeFailed": "Transcription failed",
+          "shot": "New shot",
+          "more": "More",
+          "transcribing": "Transcribing…",
+          "trimming": "Trimming…",
+          "trim": "Trim",
+          "connect": "Connect to shot"
+        },
+        "add": {
+          "upload": "Upload file",
+          "library": "From asset library…",
+          "voiceLibrary": "Voice library…",
+          "referenceUnavailable": "Reference audio needs an accurate transcript; canvas audio cannot be attached yet",
+          "uploadShortcut": "⌘U"
+        },
+        "emptyHint": "Upload audio, choose a clip, or write a line",
+        "emptyVoiceLibrary": "Voice library",
+        "emptyNextStep": "Or write a line",
+        "promptPlaceholder": "Write a line, or upload audio…",
+        "promptPlaceholderMusic": "Describe this music…",
+        "promptPlaceholderSfx": "Describe this sound effect…",
+        "promptLabel": "Line",
+        "play": "Play",
+        "pause": "Pause",
+        "voice": {
+          "title": "Voice",
+          "mine": "My voices",
+          "cloned": "Cloned",
+          "favorited": "Saved",
+          "preview": "Preview",
+          "clone": "Clone my voice…",
+          "speed": "Speed",
+          "volume": "Volume",
+          "loading": "Loading…",
+          "empty": "No voices yet — pick one from the platform library",
+          "more": "More…"
+        },
+        "model": {
+          "title": "Model",
+          "kinds": {
+            "speech": "Speech",
+            "music": "Music",
+            "sfx": "Sound effects"
+          }
+        },
+        "tone": {
+          "title": "Add tone to this line",
+          "hint": "Inserted at the sentence head, up to two",
+          "emotionLabel": "Emotion",
+          "toneLabel": "Delivery",
+          "intensityLabel": "Intensity",
+          "intensities": {
+            "light": "Light",
+            "medium": "Medium",
+            "strong": "Strong"
+          },
+          "customLabel": "Custom tone description",
+          "customPlaceholder": "Custom: e.g. “holding back a laugh”…",
+          "apply": "Insert",
+          "chipTitle": "{intensity} · {label}"
+        },
+        "owner": {
+          "title": "Assign character…",
+          "none": "Narrator"
+        },
+        "durationUnknown": "--:--",
+        "more": {
+          "splitVersion": "Split out this version",
+          "source": "Source",
+          "rename": "Rename this audio",
+          "duplicate": "Duplicate this audio card",
+          "delete": "Delete this audio"
+        },
+        "source": {
+          "platformSample": "From voice library · platform sample",
+          "history": "From voice library · my history",
+          "voiceRoom": "From voice library · voice room",
+          "library": "From asset library",
+          "upload": "Uploaded",
+          "generated": "Generated here",
+          "trim": "Trimmed from the previous version"
+        },
+        "library": {
+          "title": "Voice library",
+          "searchLabel": "Search voices",
+          "searchPlaceholder": "Search voices, characters, lines…",
+          "tabsLabel": "Filter by source",
+          "tabs": {
+            "platformSample": "Platform",
+            "history": "History",
+            "voiceRoom": "Voice room",
+            "library": "Assets",
+            "favorites": "Favorites"
+          },
+          "loading": "Loading…",
+          "empty": "Nothing here yet",
+          "durationUnknown": "--:--",
+          "preview": "Preview",
+          "use": "Use this",
+          "useFailed": "Couldn't get this clip. Try again.",
+          "setVoice": "Set as voice",
+          "footerHint": "Use this = drop the clip onto the card · Set as voice = speak future lines in it",
+          "clone": "Clone my voice…",
+          "groups": {
+            "today": "Today",
+            "yesterday": "Yesterday",
+            "earlier": "Earlier"
+          },
+          "dateGroups": {
+            "today": "Today",
+            "yesterday": "Yesterday",
+            "earlier": "Earlier"
+          }
+        },
+        "trim": {
+          "title": "Trim",
+          "selectionWindow": "Selection window",
+          "inPoint": "Start",
+          "outPoint": "End",
+          "range": "Selection {start} – {end}",
+          "preview": "Preview selection",
+          "pausePreview": "Pause preview",
+          "keyEsc": "Esc cancel",
+          "confirm": "Confirm",
+          "confirming": "Trimming…",
+          "failed": "Trim failed",
+          "derivedName": "{name} · Trim"
+        }
+      },
+      "video": {
+        "emptyHint": "Upload a clip · or describe how to shoot this scene",
+        "emptyPromptPlaceholder": "Describe how to shoot this scene…",
+        "toolbar": {
+          "label": "Video actions",
+          "continue": "Continue shot",
+          "extract": "Extract frame",
+          "more": "More",
+          "expand": "Expand"
+        },
+        "add": {
+          "upload": "Upload file",
+          "uploadForSlot": "Upload…",
+          "library": "Choose from library…"
+        },
+        "more": {
+          "rename": "Rename",
+          "quickLook": "Quick look",
+          "splitVersion": "Split out this version",
+          "addToEditDesk": "Add to edit desk",
+          "duplicate": "Duplicate this video card",
+          "delete": "Delete this shot",
+          "renameNode": "Rename this shot",
+          "source": "Source"
+        },
+        "frame": {
+          "title": "Frame",
+          "duration": "Duration",
+          "aspectRatio": "Aspect ratio",
+          "resolution": "Resolution",
+          "generateAudio": "Generate audio",
+          "generateAudioHint": "Generate audio with the video. Turn off for a silent video.",
+          "audioSuffix": "with audio",
+          "regenerate": "Regenerate",
+          "regenerateShortcut": "⌘↵",
+          "generate": "Generate",
+          "askAssistant": "Ask the assistant",
+          "referenceLabel": "Reference",
+          "referenceHint": "Drop here or ⌘V",
+          "referenceAdd": "Add reference",
+          "upload": "Upload",
+          "library": "Library",
+          "emptyNote": "Write how this shot plays…",
+          "editAriaLabel": "Edit shot notes",
+          "readout": "{chars} chars · {slots} attached",
+          "pickModel": "Pick a model",
+          "audioOn": "Audio on — click to mute",
+          "audioOff": "Audio off — click to unmute"
+        },
+        "model": {
+          "title": "Model"
+        },
+        "promptPlaceholder": "Describe this shot…",
+        "promptLabel": "Shot prompt",
+        "tailFrameName": "{name} last frame",
+        "mode": {
+          "omniReference": "Omni reference",
+          "firstLastFrame": "First & last frame",
+          "imageToVideo": "Image to video",
+          "textToVideo": "Text to video"
+        },
+        "rail": {
+          "title": "References · drop or ⌘V",
+          "badge": {
+            "image": "Img{index}",
+            "video": "Vid{index}",
+            "voice": "Aud{index}"
+          },
+          "group": {
+            "image": "Images",
+            "video": "Videos",
+            "voice": "Voice"
+          },
+          "roleBadge": {
+            "firstFrame": "1st",
+            "lastFrame": "Last"
+          },
+          "setRole": {
+            "firstFrame": "Use as first frame",
+            "lastFrame": "Use as last frame",
+            "reference": "Use as reference"
+          },
+          "open": "Open",
+          "remove": "Remove",
+          "upload": "Upload",
+          "library": "From library",
+          "fromCanvas": {
+            "image": "Images on canvas",
+            "video": "Videos on canvas",
+            "voice": "Voice on canvas"
+          },
+          "itemLabel": "{group} {index}: {name}",
+          "addLabel": "Add {group}",
+          "full": "Full (max {limit})",
+          "referenceUnavailable": "This model doesn't support reference input, so attachments won't be sent.",
+          "mentionGroup": "On the rail",
+          "retry": "Retry",
+          "uploading": "Uploading {name}",
+          "uploadFailed": "{name} failed to upload"
+        },
+        "scriptShot": {
+          "changed": "Changed",
+          "dropped": "Cut from script"
+        },
+        "framePick": {
+          "title": "Pick a frame to extract",
+          "scrub": "Scrub to a frame",
+          "keyEsc": "Esc to cancel",
+          "confirm": "Use this frame",
+          "confirming": "Extracting…"
+        }
+      },
+      "connectToShot": {
+        "searchLabel": "Search shots",
+        "searchPlaceholder": "Search shots…",
+        "new": "New shot",
+        "newHint": "Adds a card on the right and connects it",
+        "listLabel": "Shots on the canvas · in shot-strip order",
+        "empty": "No shots on the canvas yet",
+        "noMatch": "No matching shot",
+        "durationUnknown": "--:--",
+        "occupied": "Has {slot} · replace",
+        "connectInto": "Connect into {slot} of {name}",
+        "replaceIn": "Replace {slot} of {name}"
+      },
+      "character": {
+        "imagesTab": "Images",
+        "textTab": "Text",
+        "tabsLabel": "Character sections",
+        "placeImage": "Place on canvas",
+        "placedName": "{name} · Image {index}",
+        "imagesHint": "{onCard} on the card · {made} made with them · click one to place it",
+        "imagesLoading": "Finding images made with this character…",
+        "readOnly": "Read-only · edit on the Characters page",
+        "writeScript": "Ask the assistant for a script",
+        "writeLines": "Write lines",
+        "writeScriptDraft": "Write a script with @{name}: ",
+        "writeLinesDraft": "Write a few lines for @{name}: ",
+        "noText": "No profile written yet",
+        "deleted": "This character was deleted from Characters",
+        "noImages": "No images yet",
+        "noImagesHint": "@ mentions carry only the name and look",
+        "addImages": "Add images on the Characters page"
+      },
+      "characterMention": {
+        "group": "Characters",
+        "pickerLabel": "Which images {name} brings to this shot",
+        "chipLabel": "{name} · {count} images",
+        "count": "{count} images in this shot",
+        "limit": "This model takes up to {max} reference images · {used} in use (including the rail)"
+      },
+      "handoff": {
+        "newProjectName": "From the workbench"
+      },
+      "upscale": {
+        "noImage": "This card has no picture to upscale yet",
+        "failed": "Upscale failed"
+      },
+      "scriptRejected": {
+        "alreadyProjected": "This script is already projected — use re-project to update the shots.",
+        "notProjected": "This script has not been projected yet — project it first.",
+        "emptyScript": "The script has no sections to split into shots.",
+        "notScriptNode": "Only a script card can be projected into shots."
+      }
+    },
+    "rerunDownstream": {
+      "title": "Changed “{origin}”. {count} connected nodes need to run again.",
+      "free": "no credits",
+      "estimate": "Would spend credits on: {summary}",
+      "noCost": "None of these spend credits",
+      "menu": "Rerun affected nodes",
+      "ask": "I changed “{name}”. Show me which nodes depend on it before running them again."
+    },
+    "textAssist": {
+      "continue": "Continue the body of “{name}”: {prompt}",
+      "rewrite": "Rewrite the body of “{name}”: {prompt}",
+      "plain": "About the body of “{name}”: {prompt}"
+    },
+    "shell": {
+      "project": {
+        "saved": "Saved",
+        "saving": "Saving",
+        "open": "Project",
+        "search": "Search projects…",
+        "empty": "No matching project",
+        "nodeCount": "{count, plural, one {# node} other {# nodes}}",
+        "new": "New project",
+        "more": "More",
+        "rename": "Rename",
+        "duplicate": "Duplicate",
+        "delete": "Delete",
+        "duplicateSuffix": "{name} copy"
+      },
+      "editDesk": "Edit desk",
+      "assistant": "Assistant",
+      "panels": {
+        "addNode": "Add node",
+        "nodes": "Nodes",
+        "project": "Current project",
+        "history": "History",
+        "cards": "Characters",
+        "library": "Library",
+        "searchNodes": "Search nodes…",
+        "refCount": "{count} refs",
+        "cardsHint": "Click one to place it on the canvas",
+        "libraryHint": "Uploads & generations · newest first",
+        "libraryAll": "All",
+        "libraryImage": "Images",
+        "libraryVideo": "Video",
+        "libraryAudio": "Audio",
+        "loadMore": "Load more",
+        "placeHint": "Click to drop it in the middle · or drag it in",
+        "empty": "Nothing here yet",
+        "loading": "Loading…",
+        "close": "Collapse panel",
+        "libraryUpload": "Upload",
+        "libraryManageFolders": "Manage folders and assets ↗",
+        "libraryLoadFailed": "Could not load. Click to retry",
+        "cardsEmpty": "No characters yet",
+        "cardsEmptyHint": "Create one on the Characters page and it shows up here.",
+        "cardsOpenRoster": "Open Characters",
+        "cardsMeta": "{work} · {count} images",
+        "cardsOnCanvas": "On canvas",
+        "cardsOriginal": "Original"
+      },
+      "add": {
+        "text": "Text",
+        "image": "Image",
+        "audio": "Audio",
+        "video": "Video",
+        "group": "New",
+        "paste": "Paste",
+        "tidy": "Tidy layout",
+        "fit": "Fit view",
+        "menu": "Canvas menu",
+        "upload": "Upload",
+        "uploadMenu": "Upload…"
+      },
+      "palette": {
+        "title": "Command palette",
+        "placeholder": "Find a node · create · ask…",
+        "nodes": "Nodes",
+        "actions": "Actions",
+        "projects": "Projects",
+        "locate": "Locate",
+        "create": "New {kind} “{query}”",
+        "createEmpty": "New {kind}",
+        "ask": "Ask the assistant: {query}",
+        "askEmpty": "Ask the assistant",
+        "openEditDesk": "Open the edit desk",
+        "switchTo": "Switch to “{name}”",
+        "empty": "No matches",
+        "upload": "Upload media…"
+      },
+      "bottom": {
+        "select": "Select",
+        "hand": "Hand",
+        "zoomOut": "Zoom out",
+        "zoomIn": "Zoom in",
+        "fit": "Fit view",
+        "tidy": "Tidy layout",
+        "undo": "Undo",
+        "redo": "Redo",
+        "zoom": "Zoom {percent}%"
+      },
+      "assistantDock": {
+        "collapse": "Collapse assistant",
+        "expand": "Expand assistant",
+        "resize": "Drag to resize the assistant"
+      },
+      "minimap": {
+        "collapse": "Collapse minimap",
+        "expand": "Expand minimap"
+      }
+    },
+    "editDesk": {
+      "title": "Edit desk",
+      "back": "Back to canvas",
+      "readout": "{duration} · {aspect} · {resolution}",
+      "undo": "Undo",
+      "export": "Export",
+      "untitled": "Untitled cut",
+      "panels": {
+        "canvas": "Canvas media",
+        "library": "Library",
+        "audio": "Audio",
+        "text": "Text",
+        "transition": "Transitions",
+        "dragHint": "Drag onto the timeline",
+        "empty": "No usable clips in this project yet",
+        "textEmpty": "No text cards on the canvas yet",
+        "loading": "Loading…",
+        "loadMore": "Load more",
+        "libraryEmpty": "No video or audio in your library yet",
+        "title": "Materials",
+        "addCaption": "Add a caption at the playhead",
+        "short": {
+          "canvas": "Media",
+          "library": "Library",
+          "audio": "Audio",
+          "text": "Text",
+          "transition": "Seams"
+        }
+      },
+      "tracks": {
+        "video": "Main",
+        "audio": "Lines",
+        "music": "Music",
+        "empty": "Drop media here",
+        "text": "Captions",
+        "textEmpty": "Add one from Text on the left"
+      },
+      "tools": {
+        "split": "Split",
+        "remove": "Delete",
+        "removeConfirm": "Confirm delete"
+      },
+      "overview": "Whole cut",
+      "versions": {
+        "title": "Takes",
+        "hint": "{name} · hover to compare",
+        "take": "Take {n}",
+        "seconds": "{sec}s",
+        "fromCanvas": "Canvas",
+        "compareInUse": "In use",
+        "fresh": "{from} · new",
+        "badge": "Take {n}/{count}",
+        "badgeFresh": "Take {n}/{count} · a newer take is on the canvas"
+      },
+      "retake": {
+        "action": "Retake",
+        "generate": "Generate",
+        "generating": "Generating",
+        "previewGenerating": "Take {n} generating",
+        "failed": "Take {n} didn't come out: {reason}. Adjust the prompt and try again.",
+        "failedBadge": "Retake failed · open to see why"
+      },
+      "continue": {
+        "action": "Continue",
+        "pending": "Not generated yet",
+        "previewPending": "This shot has no take yet · write a prompt to generate it"
+      },
+      "clipTag": "{name} · {duration}",
+      "previewTitle": "Preview · {name}",
+      "previewEmpty": "No clip under the playhead",
+      "stage": "Preview",
+      "stageEmpty": "No clips yet",
+      "stageEmptyAction": "Add shots from the canvas",
+      "play": "Play",
+      "pause": "Pause",
+      "mute": "Mute",
+      "unmute": "Unmute",
+      "clipDuration": "{seconds}s",
+      "trim": "{edge} {from} → {to} · {length}s long",
+      "zoom": {
+        "label": "Timeline zoom",
+        "in": "Zoom in",
+        "out": "Zoom out",
+        "fit": "Fit"
+      },
+      "clock": "{at} / {total}",
+      "inspector": {
+        "empty": "Select a clip to see its settings",
+        "sourceGone": "Source card deleted",
+        "inPoint": "Start",
+        "outPoint": "End",
+        "speed": "Speed",
+        "speedOption": "{speed}×",
+        "sound": "Original audio",
+        "soundOn": "On",
+        "soundOff": "Off",
+        "gain": "Volume",
+        "transition": "Transition",
+        "transitions": {
+          "none": "None",
+          "crossfade": "Crossfade",
+          "black": "To black",
+          "wipe": "Wipe",
+          "push": "Push",
+          "zoom": "Zoom",
+          "iris": "Iris"
+        },
+        "backToNode": "Regenerate this shot on its node",
+        "backToNodeShort": "Back to node"
+      },
+      "exportDialog": {
+        "title": "Export the cut",
+        "description": "Pick a range and a resolution. Rendering runs server-side, you can leave this page.",
+        "range": "Range",
+        "ranges": {
+          "all": "Whole timeline",
+          "inOut": "In/Out range",
+          "clip": "Selected clip"
+        },
+        "toCanvas": "Export to canvas (the cut lands as a video card)",
+        "resolution": "Resolution",
+        "confirm": "Start export",
+        "pending": "Exporting “{range}” isn't available yet."
+      },
+      "shotTag": "Shot {n} · {name}",
+      "render": {
+        "exporting": "Exporting · {step} {percent}%",
+        "done": "The cut is ready",
+        "cancel": "Cancel",
+        "dismiss": "Dismiss",
+        "download": "Download",
+        "sourceLabel": "From the edit desk · {name}",
+        "landed": "“{name}” landed on the canvas",
+        "failed": "The export failed. Try again, or pick a different range.",
+        "resume": "Your last export “{name}” never finished",
+        "resumeContinue": "Continue",
+        "resumeRestart": "Start over",
+        "status": {
+          "queued": "Queued",
+          "running": "Rendering",
+          "completed": "Done",
+          "failed": "Failed",
+          "cancelled": "Cancelled"
+        },
+        "steps": {
+          "download": "Fetching media",
+          "normalize": "Normalizing",
+          "compose": "Composing",
+          "encode": "Encoding",
+          "poster": "Poster frame",
+          "upload": "Uploading"
+        },
+        "planError": {
+          "emptyTimeline": "The timeline has no video yet — drag a video card in first.",
+          "missingSource": "One clip's source is missing — check whether its source node is still there.",
+          "pendingSource": "One clip hasn't been generated yet (a continue placeholder) — generate it, or delete it, then export.",
+          "emptyRange": "There is nothing to export in this range.",
+          "zeroDuration": "The export would be zero seconds long.",
+          "tooManySegments": "Too many clips to render — remove a few and try again.",
+          "tooLong": "The cut is longer than a single render allows."
+        }
+      },
+      "receipt": {
+        "claudeChanged": "Claude changed {count, plural, one {# clip} other {# clips}}",
+        "undo": "Undo",
+        "undone": "Undone",
+        "claudeExported": "Claude exported the cut · it’s on the canvas",
+        "look": "Show me",
+        "backToCanvas": "View on canvas",
+        "removed": "Deleted “{name}”",
+        "removedWith": "Deleted “{name}” with {riders}",
+        "riderLines": "{count, plural, one {# line} other {# lines}}",
+        "riderCaptions": "{count, plural, one {# caption} other {# captions}}",
+        "ridersJoiner": " and "
+      },
+      "audioFilters": {
+        "all": "All",
+        "voice": "Voice",
+        "music": "Music"
+      },
+      "libraryFilters": {
+        "all": "All",
+        "video": "Video",
+        "audio": "Audio"
+      },
+      "transitionPanel": {
+        "hint": "Drop it on the seam between two clips"
+      },
+      "seam": {
+        "title": "Transition",
+        "between": "Shot {from} → Shot {to}",
+        "duration": "Length",
+        "durationHint": "How long the two clips overlap in the cut — the cut gets this much shorter.",
+        "seconds": "{sec}s",
+        "hardCut": "Back to a hard cut",
+        "markerAdd": "Add a transition",
+        "markerSet": "Transition · {name}"
+      },
+      "library": {
+        "sourceLabel": "From library · {name}",
+        "landFailed": "That asset could not land on the canvas. Try again."
+      },
+      "text": {
+        "placeholder": "Double-click to edit",
+        "editInPreview": "Edit on the preview",
+        "doubleClickHint": "Double-click to edit",
+        "anchor": "Position",
+        "anchors": {
+          "tl": "Top left",
+          "tc": "Top center",
+          "tr": "Top right",
+          "ml": "Middle left",
+          "mc": "Center",
+          "mr": "Middle right",
+          "bl": "Bottom left",
+          "bc": "Bottom center",
+          "br": "Bottom right"
+        },
+        "size": "Size",
+        "sizes": {
+          "s": "S",
+          "m": "M",
+          "l": "L"
+        },
+        "tone": "Color",
+        "tones": {
+          "light": "White",
+          "dark": "Black"
+        },
+        "inPoint": "Start",
+        "outPoint": "End",
+        "fade": "Fade",
+        "fadeNone": "None",
+        "fadeSeconds": "{fadeSec}s"
+      },
+      "shortcuts": {
+        "title": "Shortcut preset",
+        "presets": {
+          "premiere": "Premiere",
+          "finalCut": "Final Cut"
+        },
+        "actions": {
+          "play": "Play / pause",
+          "split": "Split",
+          "inOut": "Start / end",
+          "remove": "Delete clip",
+          "undo": "Undo",
+          "back": "Back to canvas"
+        },
+        "finalCutHint": "Final Cut preset: split ⌘B · everything else the same. S always works."
+      }
+    }
+  }
+}

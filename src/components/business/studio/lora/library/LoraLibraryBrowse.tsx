@@ -77,14 +77,22 @@ interface LoraLibraryBrowseProps {
   isFavorited: (loraUrl: string) => boolean
 }
 
-type Relaxation = {
-  key: 'nsfw' | 'base' | 'type'
-  label: string
-  params: {
+type RelaxationKey = 'nsfw' | 'base' | 'type'
+
+type Relaxation = { key: RelaxationKey; label: string }
+
+/** 放宽一项 = 这一项换成什么。 */
+const RELAXATION_PARAMS: Record<
+  RelaxationKey,
+  {
     nsfwFilter?: LoraNsfwFilter
     baseModel?: 'all'
     contentType?: typeof DEFAULT_LORA_CONTENT_TYPE
   }
+> = {
+  nsfw: { nsfwFilter: 'unrestricted' },
+  base: { baseModel: 'all' },
+  type: { contentType: DEFAULT_LORA_CONTENT_TYPE },
 }
 
 /**
@@ -96,6 +104,9 @@ type Relaxation = {
  * ⭐ 挂载 = 过下载闸 → `push`，⛔ toast、⛔ 跳到生成台（左边竖条会多一张小封面）。
  * ⚠ 搜不到时给「放宽一项」，每颗带放宽以后的**真实**数量（只在结果为空时各问一次
  *   上游，⛔ 猜数）。
+ * ⚠ 搜到了、但底模筛掉了一些：数量旁边给「去掉底模」和放宽以后的真实数量——按名字
+ *   搜别的底模的 LoRA 时结果不空，没这一句就不知道它被筛掉了。只放宽底模这一项：
+ *   底模记在网址里、常被忘掉；分级和类型每次搜都提示是噪音。
  */
 export function LoraLibraryBrowse({
   sourceSwitch,
@@ -277,21 +288,18 @@ export function LoraLibraryBrowse({
       out.push({
         key: 'nsfw',
         label: tb('relaxNsfw', { label: t('nsfwFilterUnrestricted') }),
-        params: { nsfwFilter: 'unrestricted' },
       })
     }
     if (library.baseModel !== 'all') {
       out.push({
         key: 'base',
         label: tb('relaxBase', { label: familyLabel }),
-        params: { baseModel: 'all' },
       })
     }
     if (library.contentType !== DEFAULT_LORA_CONTENT_TYPE) {
       out.push({
         key: 'type',
         label: tb('relaxType', { label: typeLabel }),
-        params: { contentType: DEFAULT_LORA_CONTENT_TYPE },
       })
     }
     return out
@@ -304,11 +312,20 @@ export function LoraLibraryBrowse({
     tb,
     typeLabel,
   ])
-  const settledEmpty =
-    !library.isLoading &&
-    !library.isRevalidating &&
-    library.items.length === 0 &&
-    !library.error
+  const settled =
+    !library.isLoading && !library.isRevalidating && !library.error
+  const settledEmpty = settled && library.items.length === 0
+  // 问哪几项放宽以后的数：空了全问；搜到了只问底模（数到上限的不问，比不出多少）。
+  // 拼成字符串当依赖：文案一变 relaxations 就是新数组，⛔ 因此重问。
+  const probeKeys = (
+    settledEmpty
+      ? relaxations
+      : settled && library.debouncedSearch && !library.totalCapped
+        ? relaxations.filter((relaxation) => relaxation.key === 'base')
+        : []
+  )
+    .map((relaxation) => relaxation.key)
+    .join(',')
   const queryKey = [
     library.debouncedSearch,
     library.baseModel,
@@ -318,13 +335,13 @@ export function LoraLibraryBrowse({
   ].join('|')
   const [relaxCounts, setRelaxCounts] = useState<{
     key: string
-    counts: Partial<Record<Relaxation['key'], number | null>>
+    counts: Partial<Record<RelaxationKey, number | null>>
   } | null>(null)
   useEffect(() => {
-    if (!settledEmpty || relaxations.length === 0) return
+    if (!probeKeys) return
     const controller = new AbortController()
     void Promise.all(
-      relaxations.map(async (relaxation) => {
+      (probeKeys.split(',') as RelaxationKey[]).map(async (key) => {
         const response = await listCivitaiLoraAssetsAPI({
           page: 1,
           pageSize: 1,
@@ -333,11 +350,11 @@ export function LoraLibraryBrowse({
           baseModel: library.baseModel,
           nsfwFilter: library.nsfwFilter,
           contentType: library.contentType,
-          ...relaxation.params,
+          ...RELAXATION_PARAMS[key],
           signal: controller.signal,
         })
         return [
-          relaxation.key,
+          key,
           response.success && response.data ? response.data.total : null,
         ] as const
       }),
@@ -352,11 +369,25 @@ export function LoraLibraryBrowse({
     library.debouncedSearch,
     library.nsfwFilter,
     library.sort,
+    probeKeys,
     queryKey,
-    relaxations,
-    settledEmpty,
   ])
-  const applyRelaxation = (key: Relaxation['key']) => {
+  // 搜到了、底模又筛掉了一些：去掉底模以后的总数（没有多出来就是 null）。
+  const unfilteredTotal =
+    !settledEmpty && relaxCounts?.key === queryKey
+      ? relaxCounts.counts.base
+      : undefined
+  const baseHint =
+    typeof unfilteredTotal === 'number' &&
+    library.total !== null &&
+    unfilteredTotal > library.total
+      ? {
+          count: unfilteredTotal,
+          label: relaxations.find((relaxation) => relaxation.key === 'base')
+            ?.label,
+        }
+      : null
+  const applyRelaxation = (key: RelaxationKey) => {
     if (key === 'nsfw') library.setNsfwFilter('unrestricted')
     else if (key === 'base') library.setBaseModel('all')
     else library.setContentType(DEFAULT_LORA_CONTENT_TYPE)
@@ -464,6 +495,18 @@ export function LoraLibraryBrowse({
                 {totalLabel}
               </b>
               <span>{tb('countUnit', { count: library.total })}</span>
+              {baseHint ? (
+                <button
+                  type="button"
+                  onClick={() => applyRelaxation('base')}
+                  className="ml-auto inline-flex h-7 items-center gap-1.5 self-center rounded-full border border-border px-2.5 text-xs text-foreground transition-colors duration-fast ease-linear hover:border-foreground/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {baseHint.label}
+                  <small className="font-mono text-2xs text-muted-foreground">
+                    {tb('relaxCount', { count: baseHint.count })}
+                  </small>
+                </button>
+              ) : null}
             </>
           ) : null}
         </p>

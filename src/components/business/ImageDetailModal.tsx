@@ -121,7 +121,7 @@ export function ImageDetailModal({
   const handleDownload = async () => {
     if (isDownloading) return
     const ext = generation.mimeType.split('/')[1] || 'png'
-    const fileName = `pixelvault-${generation.id.slice(0, 8)}.${ext}`
+    const fileName = `antei-${generation.id.slice(0, 8)}.${ext}`
 
     if (!isSignedIn) {
       triggerDirectAssetDownload(generation.url, fileName)

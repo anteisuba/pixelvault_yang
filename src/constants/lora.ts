@@ -150,7 +150,7 @@ export const CIVITAI_LORA_PAGE_SIZE = 12
 export const LORA_LIBRARY_BROWSE_PAGE_SIZE = 24
 
 // Hugging Face LoRA browser/import contract. The Hub remains the source of
-// truth; PixelVault admits public image-diffusion SafeTensors adapters and
+// truth; ANTEI admits public image-diffusion SafeTensors adapters and
 // caches the exact file selected by the user in R2.
 export const HUGGINGFACE_LORA_API_BASE_URL = 'https://huggingface.co/api'
 // 封面解析链（thumbnail → widget → 仓内图片文件 → 社交缩略图兜底）。社交
@@ -285,7 +285,7 @@ export const HUGGINGFACE_LORA_DEFAULT_LIMIT = 12
 export const HUGGINGFACE_LORA_MAX_LIMIT = 40
 // A Hub page can contain non-image LoRAs or weights that fail our file-size
 // verification. Continue through a bounded number of cursor pages to fill one
-// PixelVault page without ever skipping accepted results.
+// ANTEI page without ever skipping accepted results.
 export const HUGGINGFACE_LORA_MAX_CURSOR_SCANS = 8
 export const HUGGINGFACE_LORA_MAX_SEARCH_LENGTH = 120
 export const HUGGINGFACE_LORA_MAX_CURSOR_LENGTH = 4096
@@ -470,8 +470,8 @@ export const CIVITAI_NAMED_BASE_MODEL_MEMBER_SET: ReadonlySet<string> = new Set(
   Object.values(CIVITAI_BASE_MODEL_FAMILY_MEMBERS).flat(),
 )
 
-// 每个 base model family 在 PixelVault 上能不能跑生成：
-//   - 'native':   有 native 端点，用户能在 PixelVault 内部生成
+// 每个 base model family 在 ANTEI 上能不能跑生成：
+//   - 'native':   有 native 端点，用户能在 ANTEI 内部生成
 //   - 'external': 没有可用端点（权重结构不兼容 / license 限制 / 缺端点），
 //                 引导用户去 Civitai 自己跑
 //
@@ -509,7 +509,7 @@ export const CIVITAI_BASE_MODEL_GENERATABILITY = {
 >
 
 /**
- * 判断一个 LoRA 的 baseModel 字符串能不能在 PixelVault 内部生成。接受 Civitai
+ * 判断一个 LoRA 的 baseModel 字符串能不能在 ANTEI 内部生成。接受 Civitai
  * 返回的原始 baseModel（如 'Illustrious'、'NoobAI'、'Flux.1 D' 等），自动映射
  * 到 family bucket 后查 generatability。
  */

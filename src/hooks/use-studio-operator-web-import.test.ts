@@ -63,8 +63,8 @@ const CANDIDATE_BLOCKED: AssistantOperatorWebImage = {
 function generation(id: string): GenerationRecord {
   return {
     id,
-    url: `https://cdn.pixelvault.test/${id}.jpg`,
-    thumbnailUrl: `https://cdn.pixelvault.test/${id}.thumbnail.webp`,
+    url: `https://cdn.antei.test/${id}.jpg`,
+    thumbnailUrl: `https://cdn.antei.test/${id}.thumbnail.webp`,
     outputType: 'IMAGE',
     prompt: '',
     model: 'user-upload',

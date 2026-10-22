@@ -20,7 +20,7 @@ export const MCP_TOKEN_VISIBLE_SUFFIX_LENGTH = 4
 export const MCP_TOKEN_DEFAULT_NAME = 'Claude Code'
 
 /** 接进 Claude Code 时这台服务器叫什么（`claude mcp add` 的名字，`/mcp` 里也显示它）。 */
-export const MCP_CLAUDE_CODE_SERVER_NAME = 'pixelvault'
+export const MCP_CLAUDE_CODE_SERVER_NAME = 'antei'
 
 /**
  * 接入 Claude Code 的那一条命令（§3.1）：scope 用 user，所有目录都能用。
@@ -44,7 +44,7 @@ export const MCP_LIST_PROJECTS_LIMIT = 50
 /** `look_at` 一次最多几个时间点（§4.2）；帧宽见 `LOOK_FRAME_WIDTH`。 */
 export const MCP_LOOK_AT_MAX_TIMES = 8
 
-export const MCP_SERVER_INFO = { name: 'pixelvault', version: '1.0.0' } as const
+export const MCP_SERVER_INFO = { name: 'antei', version: '1.0.0' } as const
 
 /** `apply_ops` 一批最多几条（§5）。 */
 export const MCP_APPLY_OPS_MAX = 50
@@ -66,7 +66,7 @@ export type McpRenderKind = (typeof MCP_RENDER_KINDS)[number]
  * 服务端 instructions：只写原则（§4），⚠ 客户端会把它当系统提示读。
  */
 export const MCP_SERVER_INSTRUCTIONS = [
-  'PixelVault canvas projects: shots are video/image/audio/text nodes; the edit desk timeline lives in the project.',
+  'ANTEI canvas projects: shots are video/image/audio/text nodes; the edit desk timeline lives in the project.',
   'All times are in seconds. Timeline times are seconds on the cut; look_at converts them to source time for you.',
   'Look before you cut: use look_at on a shot or a timeline clip to see actual frames.',
   'The video track is the main line. Voice lines (audio track) and captions hang on a frame of a main-line clip (attachedTo): moving, trimming or deleting that clip carries them along. To move one, set its startSec and it re-attaches to whatever clip is under that moment. A line marked cut lost its frame to a trim and stays silent until moved.',

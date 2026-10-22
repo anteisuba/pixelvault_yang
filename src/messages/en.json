@@ -8498,7 +8498,7 @@
       "rowSystem": "System",
       "rowTool": "Tool step",
       "rowAction": "Needs your call",
-      "assistantFallback": "ANTI",
+      "assistantFallback": "ANTEI",
       "avatarUser": "Your avatar",
       "avatarAssistant": "{name}'s avatar"
     },
@@ -8959,7 +8959,7 @@
         "once": "This token is shown only once",
         "tokenLabel": "Token",
         "commandLabel": "Connect Claude Code: run this in a terminal",
-        "verify": "Once connected, type /mcp in Claude Code to see pixelvault.",
+        "verify": "Once connected, type /mcp in Claude Code to see antei.",
         "done": "I've copied it"
       },
       "failed": {
@@ -9010,7 +9010,7 @@
     },
     "name": {
       "label": "Name",
-      "placeholder": "Leave empty to use ANTI"
+      "placeholder": "Leave empty to use ANTEI"
     },
     "address": {
       "label": "What to call you",

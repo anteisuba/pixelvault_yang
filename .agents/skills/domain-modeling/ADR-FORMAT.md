@@ -1,6 +1,6 @@
 # ADR Format
 
-PixelVault has no `docs/adr/`. Record the decision in the `docs/references/` doc that owns the fact; borrow only the fields below.
+ANTEI has no `docs/adr/`. Record the decision in the `docs/references/` doc that owns the fact; borrow only the fields below.
 
 ## Template
 

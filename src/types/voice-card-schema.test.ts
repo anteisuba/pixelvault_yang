@@ -40,9 +40,9 @@ describe('CreateVoiceCardRequestSchema', () => {
       pace: 'slow',
       pitch: 'medium',
       pronunciationDictionary: {
-        PixelVault: 'pixel vault',
+        ANTEI: 'an tei',
       },
-      sampleText: 'Welcome to PixelVault.',
+      sampleText: 'Welcome to ANTEI.',
     })
 
     expect(result.success).toBe(true)

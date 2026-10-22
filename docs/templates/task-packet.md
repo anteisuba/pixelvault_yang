@@ -1,4 +1,4 @@
-# PixelVault Task Packet Template
+# ANTEI Task Packet Template
 
 Last updated: 2026-07-08
 

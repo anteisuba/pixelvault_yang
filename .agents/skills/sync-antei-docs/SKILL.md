@@ -1,9 +1,9 @@
 ---
-name: sync-pixelvault-docs
-description: 同步 PixelVault 的规则、技能、架构契约与当前状态文档；用于明确文档请求或有稳定事实变化的任务收尾。
+name: sync-antei-docs
+description: 同步 ANTEI 的规则、技能、架构契约与当前状态文档；用于明确文档请求或有稳定事实变化的任务收尾。
 ---
 
-# PixelVault 文档同步
+# ANTEI 文档同步
 
 适用于规则、架构、契约或当前状态的实际变化；局部机械修复不强制写文档。通用流程见 `docs/WORKFLOW.md`，同一会话已读内容不重复读取。
 

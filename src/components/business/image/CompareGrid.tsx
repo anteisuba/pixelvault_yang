@@ -203,7 +203,7 @@ export const CompareGrid = memo(function CompareGrid({
       const ext = focusedGeneration.mimeType?.split('/')[1] || 'png'
       const result = await downloadRemoteAsset(
         focusedGeneration.url,
-        `pixelvault-${focusedGeneration.id.slice(0, 8)}.${ext}`,
+        `antei-${focusedGeneration.id.slice(0, 8)}.${ext}`,
       )
       if (!result.success) {
         toast.error(

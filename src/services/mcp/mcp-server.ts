@@ -73,13 +73,13 @@ async function guard(
   run: (owner: McpTokenOwner) => Promise<CallToolResult>,
 ): Promise<CallToolResult> {
   const parsed = OwnerSchema.safeParse(authInfo?.extra)
-  if (!parsed.success) return textResult('Not signed in to PixelVault.', true)
+  if (!parsed.success) return textResult('Not signed in to ANTEI.', true)
   const owner = parsed.data
 
   const limited = await rateLimit(`mcp:${owner.userId}`, MCP_RATE_LIMIT)
   if (!limited.success) {
     return textResult(
-      'Too many PixelVault calls in the last minute; wait a moment and try again.',
+      'Too many ANTEI calls in the last minute; wait a moment and try again.',
       true,
     )
   }
@@ -101,10 +101,7 @@ async function guard(
       durationMs: Date.now() - startedAt,
       error: error instanceof Error ? error.message : String(error),
     })
-    return textResult(
-      'Something went wrong on PixelVault’s side; try again.',
-      true,
-    )
+    return textResult('Something went wrong on ANTEI’s side; try again.', true)
   }
 }
 
@@ -114,7 +111,7 @@ export function registerMcpTools(server: McpServer): void {
     {
       title: 'List canvas projects',
       description:
-        'Lists your PixelVault canvas projects, most recently active first: id, name, last change, node count, and the edit timeline length if there is one.',
+        'Lists your ANTEI canvas projects, most recently active first: id, name, last change, node count, and the edit timeline length if there is one.',
       inputSchema: McpListProjectsInputSchema,
       annotations: { readOnlyHint: true },
     },

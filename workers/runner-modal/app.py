@@ -1,4 +1,4 @@
-"""PixelVault Runner on Modal —— 与 RunPod 时期同一个 fork 镜像、同一份 job 契约。
+"""ANTEI Runner on Modal —— 与 RunPod 时期同一个 fork 镜像、同一份 job 契约。
 
 2026-10-06 从 RunPod 切过来，2026-10-21 Worker 里的 RunPod 分支已删，Modal 是唯一后端。fork 的 `handler(job)` 本身是普通函数（经 127.0.0.1:8188
 跟 ComfyUI 通信），这里只负责：起 ComfyUI → 调它 → 把新下的模型提交进 Volume。

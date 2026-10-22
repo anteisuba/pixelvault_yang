@@ -6,4 +6,4 @@
  * dragged on its own, or the whole multi-select set when the dragged tile is
  * part of an active selection.
  */
-export const ASSET_DND_MIME = 'application/x-pixelvault-asset-ids'
+export const ASSET_DND_MIME = 'application/x-antei-asset-ids'

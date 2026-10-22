@@ -8498,7 +8498,7 @@
       "rowSystem": "システム",
       "rowTool": "ツールステップ",
       "rowAction": "確認待ち",
-      "assistantFallback": "ANTI",
+      "assistantFallback": "ANTEI",
       "avatarUser": "あなたのアバター",
       "avatarAssistant": "{name}のアバター"
     },
@@ -8959,7 +8959,7 @@
         "once": "このトークンは一度だけ表示されます",
         "tokenLabel": "トークン",
         "commandLabel": "Claude Code に接続：ターミナルで実行",
-        "verify": "接続後、Claude Code で /mcp と入力すると pixelvault が表示されます。",
+        "verify": "接続後、Claude Code で /mcp と入力すると antei が表示されます。",
         "done": "完了"
       },
       "failed": {
@@ -9010,7 +9010,7 @@
     },
     "name": {
       "label": "名前",
-      "placeholder": "空欄の場合は ANTI を使います"
+      "placeholder": "空欄の場合は ANTEI を使います"
     },
     "address": {
       "label": "呼び方",

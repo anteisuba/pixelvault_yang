@@ -58,7 +58,7 @@
 
   <!-- footer takeaway -->
   <rect x="34" y="470" width="872" height="102" rx="12" fill="#2f3b4a"/>
-  <text x="470" y="500" font-size="15" font-weight="700" fill="#f7f3ea" text-anchor="middle">对 PixelVault 的启示</text>
+  <text x="470" y="500" font-size="15" font-weight="700" fill="#f7f3ea" text-anchor="middle">对 ANTEI 的启示</text>
   <text x="470" y="526" font-size="12.5" fill="#c7d0da" text-anchor="middle">项目已有 Danbooru 词库 + tag 补全（复刻这套语法）——建议把「质量 tag 阶梯 / {}·[]·:: 权重 / tag 顺序」</text>
   <text x="470" y="548" font-size="12.5" fill="#c7d0da" text-anchor="middle">作为动漫底模场景的「推荐写法」内建进 prompt 助手，属补齐而非重造（引擎已 80%）。</text>
 </svg>

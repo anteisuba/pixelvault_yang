@@ -1,4 +1,4 @@
-# PixelVault architectural constraints for Sentrux
+# ANTEI architectural constraints for Sentrux
 # Only enforce genuine quality constraints; layer ordering reflects
 # the actual Next.js App Router dependency flow.
 

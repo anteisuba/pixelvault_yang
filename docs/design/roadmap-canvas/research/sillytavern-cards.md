@@ -1,7 +1,7 @@
-# SillyTavern 角色卡调研 —— 给 PixelVault「卡片」域做参考
+# SillyTavern 角色卡调研 —— 给 ANTEI「卡片」域做参考
 
 调研日期：2026-09-19。除注明外，所有事实均取自一手来源（官方规范仓库、官方文档站、项目仓库本身），URL 逐条列在正文里。
-调研目的：PixelVault 正在设计角色卡 / 风格卡 / 场景卡 / 音色绑定，owner 希望参考酒馆（SillyTavern）的角色卡设计。**PixelVault 的角色卡服务的是「生成图 / 视频时的角色一致性」，不是聊天角色扮演**，所以本文对每条机制都给出「借 / 不借」的判断，而不是照搬。
+调研目的：ANTEI 正在设计角色卡 / 风格卡 / 场景卡 / 音色绑定，owner 希望参考酒馆（SillyTavern）的角色卡设计。**ANTEI 的角色卡服务的是「生成图 / 视频时的角色一致性」，不是聊天角色扮演**，所以本文对每条机制都给出「借 / 不借」的判断，而不是照搬。
 
 ---
 
@@ -13,7 +13,7 @@
 2. **卡自带一本"按关键词触发"的私有知识库**（character_book / lorebook），而不是把所有设定塞进一段死 prompt；注入是**条件的、有预算的、有位置的**。
 3. **`extensions` 是规范级的逃生舱**——所有实现方自有的东西都往这里放，且规范强制「不认识的键不许在导入导出时销毁」，这让生态能在不改规范的前提下演化。
 
-对话导向的字段（first_mes / mes_example / post_history_instructions / talkativeness 等）对 PixelVault **不适用**，不要为了"对齐酒馆"而建这些列。
+对话导向的字段（first_mes / mes_example / post_history_instructions / talkativeness 等）对 ANTEI **不适用**，不要为了"对齐酒馆"而建这些列。
 
 ---
 
@@ -42,7 +42,7 @@ V2 把 V1 的 6 个字段挪进 `data` 对象，并新增：
 | `character_version`         | **MUST NOT** 进提示词；**MAY** 用于展示和排序                                                                        | 否             |
 | `extensions`                | **MUST** 默认 `{}`；可放任意 JSON；**导入导出时 MUST NOT 销毁不认识的键**；**SHOULD** 用命名空间前缀防冲突           | 否             |
 
-**关键设计点（对 PixelVault 有直接价值）**：规范把字段按「进不进提示词」硬性二分，并对每个字段写死 MUST/SHOULD。PixelVault 的卡也应该在字段注释里写死「这个字段进不进编译器」——项目里 `prisma/schema.prisma` 的角色卡 v2 字段注释已经在这么做（例如标注 "⛔ card-recipe-compiler 未接"），这个习惯值得保持。
+**关键设计点（对 ANTEI 有直接价值）**：规范把字段按「进不进提示词」硬性二分，并对每个字段写死 MUST/SHOULD。ANTEI 的卡也应该在字段注释里写死「这个字段进不进编译器」——项目里 `prisma/schema.prisma` 的角色卡 v2 字段注释已经在这么做（例如标注 "⛔ card-recipe-compiler 未接"），这个习惯值得保持。
 
 ### 1.3 V3（`spec: 'chara_card_v3'`，`spec_version: '3.0'`）
 
@@ -69,7 +69,7 @@ V3 是 V2 的超集。新增字段：
 - **JSON**：文件本身就是一个 CharacterCardV3 对象。
 - **`.charx`**：一个 zip，根目录必须有 `card.json`，其余资产按 `assets/{type}/images|audio|video|l2d|3d|ai|fonts|code|other/` 分目录；页面用 `embeded://path/to/asset.png` 引用。zip **SHOULD NOT** 加密，路径 **SHOULD** 只用 ASCII。规范明确说：新应用**不要**再用 PNG 多 tEXt chunk 塞资产，**改用 .charx**。
 
-**这是全篇对 PixelVault 最有价值的一条**：`.charx` = 「一张卡 + 它的全部素材」打成一个压缩包，路径语义化、资产按用途分目录。PixelVault 的角色卡天然就是「一堆参考图 + 一段设定 + 一个音色」，`.charx` 的形状几乎是现成的答案。
+**这是全篇对 ANTEI 最有价值的一条**：`.charx` = 「一张卡 + 它的全部素材」打成一个压缩包，路径语义化、资产按用途分目录。ANTEI 的角色卡天然就是「一堆参考图 + 一段设定 + 一个音色」，`.charx` 的形状几乎是现成的答案。
 
 ---
 
@@ -109,7 +109,7 @@ V3 规范用 `content` 正文里以 `@@` 开头的行来表达这些高级行为
 另有花括号宏：`{{char}}` `{{user}}` `{{random:A,B,C}}` `{{pick:A,B,C}}` `{{roll:N}}` `{{// A}}` `{{hidden_key:A}}` `{{comment: A}}`。
 （一手来源：V3 规范文档 Decorators 与 Curly Braced Syntaxes 两节，2026-09-19 查阅）
 
-**对 PixelVault 的判断**：装饰器这种「把控制信息写进正文」的做法**不要借**——它是为了在既定 JSON 规范里塞新语义的妥协，PixelVault 自己定 schema，没有这个约束，写进正文只会让编译器解析变脆。但「一条设定 = 关键词 + 正文 + 位置 + 预算权重」这个条目模型值得借。
+**对 ANTEI 的判断**：装饰器这种「把控制信息写进正文」的做法**不要借**——它是为了在既定 JSON 规范里塞新语义的妥协，ANTEI 自己定 schema，没有这个约束，写进正文只会让编译器解析变脆。但「一条设定 = 关键词 + 正文 + 位置 + 预算权重」这个条目模型值得借。
 
 ---
 
@@ -124,7 +124,7 @@ V3 规范用 `content` 正文里以 `@@` 开头的行来表达这些高级行为
 - 任何角色卡可以「Convert to Persona」，但只带过去 name 和 description，scenario / personality 不带。
 - Persona 也能绑一本自己的世界书（Persona Lore），只要该 persona 激活就生效，与开哪个角色无关。
 
-**对 PixelVault 的判断**：PixelVault 没有"用户扮演的一方"，Persona 这个概念**整体不适用**。但**「同一个实体可以携带自己的一本知识库 / 一组默认注入」这个正交性**值得借：PixelVault 里能携带注入的实体有角色卡、风格卡、场景卡、项目（Project）四类，它们的注入合并顺序需要像酒馆的 Lore Insertion Strategy 一样**明确写死并可配**，否则三卡融合会出现谁盖谁的歧义（项目里 `card-recipe-compiler.service.ts` 正是这个合并点）。
+**对 ANTEI 的判断**：ANTEI 没有"用户扮演的一方"，Persona 这个概念**整体不适用**。但**「同一个实体可以携带自己的一本知识库 / 一组默认注入」这个正交性**值得借：ANTEI 里能携带注入的实体有角色卡、风格卡、场景卡、项目（Project）四类，它们的注入合并顺序需要像酒馆的 Lore Insertion Strategy 一样**明确写死并可配**，否则三卡融合会出现谁盖谁的歧义（项目里 `card-recipe-compiler.service.ts` 正是这个合并点）。
 
 ---
 
@@ -136,7 +136,7 @@ V3 规范用 `content` 正文里以 `@@` 开头的行来表达这些高级行为
 - **Character's Note（角色自带的深度注入）**：角色卡编辑器 Advanced Definitions 里的字段，按 `@ Depth` + `Role`（User / System / Assistant）**固定钉在聊天历史的某个深度**，不随对话推进而漂走，用来反复强化某个特征。
 - 注意联动：**如果 Author's Note 的频率设为 0，世界书里所有 Top of AN / Bottom of AN 位置的条目会被直接忽略**——这是一个典型的"位置依赖另一个开关"的坑。
 
-**对 PixelVault 的判断**：「深度注入」在对话里的意义是"抗遗忘"；在图像 / 视频生成里没有聊天历史，所以**深度机制不适用**。但它背后的诉求——**「有些约束必须每次生成都在场，且要放在提示词里最有分量的位置」**——完全适用，对应到 PixelVault 就是「角色卡的身份锚点（identity）必须无条件进每一条编译产物，且放在 provider 最吃的那个槽位」。
+**对 ANTEI 的判断**：「深度注入」在对话里的意义是"抗遗忘"；在图像 / 视频生成里没有聊天历史，所以**深度机制不适用**。但它背后的诉求——**「有些约束必须每次生成都在场，且要放在提示词里最有分量的位置」**——完全适用，对应到 ANTEI 就是「角色卡的身份锚点（identity）必须无条件进每一条编译产物，且放在 provider 最吃的那个槽位」。
 
 ---
 
@@ -153,7 +153,7 @@ V3 规范用 `content` 正文里以 `@@` 开头的行来表达这些高级行为
 - 成员可被 Mute。
 - V3 的 `group_only_greetings` 就是为群聊准备的额外开场白。
 
-**对 PixelVault 的判断**：这一段的价值在于那句警告。**「把多张卡的文本拼成一段 prompt 会让角色互相串味」正是多角色同框生成最典型的失败模式**（A 的服装长到 B 身上）。酒馆的解法是默认 swap（一次只放一个），PixelVault 做多角色同框时对应的解法应该是：**按角色分槽而不是拼文本**——每个角色占据独立的 referenceSlot 组 + 独立的 `@名字` 锚，而不是把两段 characterPrompt 串起来交给 LLM 融合。Join 模式的 Prefix/Suffix 分隔思路，可以作为退化路径（provider 不支持多参考图时）的兜底。
+**对 ANTEI 的判断**：这一段的价值在于那句警告。**「把多张卡的文本拼成一段 prompt 会让角色互相串味」正是多角色同框生成最典型的失败模式**（A 的服装长到 B 身上）。酒馆的解法是默认 swap（一次只放一个），ANTEI 做多角色同框时对应的解法应该是：**按角色分槽而不是拼文本**——每个角色占据独立的 referenceSlot 组 + 独立的 `@名字` 锚，而不是把两段 characterPrompt 串起来交给 LLM 融合。Join 模式的 Prefix/Suffix 分隔思路，可以作为退化路径（provider 不支持多参考图时）的兜底。
 
 ---
 
@@ -186,7 +186,7 @@ V3 规范用 `content` 正文里以 `@@` 开头的行来表达这些高级行为
 - **扩展菜单**：世界书关联 · **卡内世界书导入（Card lore import）** · 场景覆盖 · 转为 Persona · 重命名 · **Source linking** · **Replace/Update（用新卡替换旧卡但保留聊天）** · 标签导入 · **Gallery view**。
 - 卡详情页显示 **Token Count** 和使用统计（聊过多少次）。
 
-**对 PixelVault 的价值**：这是一个"卡越来越多之后必须长出来的"完整功能集。其中三条特别值得抄：**按使用度排序**（归档产品里"最近用过的角色"比"最近创建的角色"有用得多）、**Duplicate**（做变体的最短路径，PixelVault 的变体树需要这个入口）、**Replace/Update**（用新版卡替换旧卡但保留下游关联——对应 PixelVault 的"重新建卡但保留 `GenerationCharacterCard` 关联"）。
+**对 ANTEI 的价值**：这是一个"卡越来越多之后必须长出来的"完整功能集。其中三条特别值得抄：**按使用度排序**（归档产品里"最近用过的角色"比"最近创建的角色"有用得多）、**Duplicate**（做变体的最短路径，ANTEI 的变体树需要这个入口）、**Replace/Update**（用新版卡替换旧卡但保留下游关联——对应 ANTEI 的"重新建卡但保留 `GenerationCharacterCard` 关联"）。
 
 - 角色卡分享站：社区主要在 chub.ai / characterhub 这类站点流通 PNG 与 JSON；SillyTavern 提供「Import content from external URL」按钮直接按 URL 拉卡。（该按钮见上述 tags 文档中对导入流程的描述；卡站本身属于第三方社区，未在官方文档中背书。）
 
@@ -226,7 +226,7 @@ V3 规范用 `content` 正文里以 `@@` 开头的行来表达这些高级行为
 - https://sillytaverncn.com/static/chatbox.png 、`chatmessage.png`、`input_spec.png` —— 聊天界面
 - https://sillytaverncn.com/static/extensions/regex-editor.png 、`regex-listview.png` —— 正则扩展编辑器
 - https://sillytaverncn.com/static/extensions/note-panel.png 、`note-menu.png` —— 作者注释面板
-- https://sillytaverncn.com/static/extensions/expression-drawer.png —— 表情素材抽屉（多姿态素材管理界面，对 PixelVault 的三视图管理最有参考价值的一张）
+- https://sillytaverncn.com/static/extensions/expression-drawer.png —— 表情素材抽屉（多姿态素材管理界面，对 ANTEI 的三视图管理最有参考价值的一张）
 
 （均未下载，仅做可达性校验。这几张官方站同样提供，路径相同。）
 
@@ -277,13 +277,13 @@ V3 规范用 `content` 正文里以 `@@` 开头的行来表达这些高级行为
 
 **值得借**（按可借鉴度）：
 
-1. **导入前先解析元数据并展示，再让用户确认落库**——不是黑箱进度条。PixelVault 导入外部图片建卡时应同样：先抽出角色属性 / 生成参数 / 来源，展示，再写。
-2. **冲突合并向导**：多来源 + 分类排除 + 「优先来源」+ 逐项覆盖/跳过 + 批量键 + 实时汇总 + 结构化文件自动深合。PixelVault 的对应场景是「同一个角色被建了两张卡」「导入他人卡与自有卡重名」。
+1. **导入前先解析元数据并展示，再让用户确认落库**——不是黑箱进度条。ANTEI 导入外部图片建卡时应同样：先抽出角色属性 / 生成参数 / 来源，展示，再写。
+2. **冲突合并向导**：多来源 + 分类排除 + 「优先来源」+ 逐项覆盖/跳过 + 批量键 + 实时汇总 + 结构化文件自动深合。ANTEI 的对应场景是「同一个角色被建了两张卡」「导入他人卡与自有卡重名」。
 3. **一个页面 tab 化收纳异构资产**：角色卡 / 风格卡 / 场景卡 / 音色卡本质是四种卡，应该同页切 tab，不是四个路由。
 4. **"内置库 / 我的库"分栏**：官方精选素材与用户归档并列但不混流。
 5. **"选择模式"而非常驻复选框**：保持画廊纯净又能批量操作。
 6. **"移出列表"与"永久删除"是两个动作、两种文案**（它的"解绑"vs"删除"）——对一个以永久归档为卖点的产品尤其重要。
-7. **能力缺失不禁用 UI 而是给直达安装入口**——与 PixelVault 现有 Hard Rule 8（缺 API key 路由到 `QuickSetupDialog`）是同一条原则的独立佐证。
+7. **能力缺失不禁用 UI 而是给直达安装入口**——与 ANTEI 现有 Hard Rule 8（缺 API key 路由到 `QuickSetupDialog`）是同一条原则的独立佐证。
 8. **风险操作给具体后果清单而非泛泛警告**（公网模式那四条）。
 
 **明确不要抄的**：
@@ -293,62 +293,62 @@ V3 规范用 `content` 正文里以 `@@` 开头的行来表达这些高级行为
 
 ---
 
-## 9. 对 PixelVault 的逐条取舍
+## 9. 对 ANTEI 的逐条取舍
 
-PixelVault 的现状（读自 `prisma/schema.prisma` 与 `docs/references/domains/cards.md`，2026-09-19）：`CharacterCard` 已有 `name` / `description` / `characterPrompt` / `modelPrompts` / `attributes` / `referenceImages` / `referenceRoles` / `loras` / `tags[]` / `stabilityScore` / `voiceCardId` / `voiceProfile` / `persona` / `allowedStyleRange` / `provenance` / `version` / 变体树 `parentId`；v3 方向已定为把 `referenceImages` + `referenceRoles` 合并成 `referenceSlots{role,url,cardId,cardName}[]`。下面的取舍以这个现状为基准。
+ANTEI 的现状（读自 `prisma/schema.prisma` 与 `docs/references/domains/cards.md`，2026-09-19）：`CharacterCard` 已有 `name` / `description` / `characterPrompt` / `modelPrompts` / `attributes` / `referenceImages` / `referenceRoles` / `loras` / `tags[]` / `stabilityScore` / `voiceCardId` / `voiceProfile` / `persona` / `allowedStyleRange` / `provenance` / `version` / 变体树 `parentId`；v3 方向已定为把 `referenceImages` + `referenceRoles` 合并成 `referenceSlots{role,url,cardId,cardName}[]`。下面的取舍以这个现状为基准。
 
 ### 9.1 可直接借（附借的理由和落点）
 
-| 酒馆机制                                                                                                                                                                               | 借成 PixelVault 的什么                                                                                                                                           | 为什么值得借                                                                                                                              |
+| 酒馆机制                                                                                                                                                                               | 借成 ANTEI 的什么                                                                                                                                           | 为什么值得借                                                                                                                              |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `extensions` + "导入导出不许销毁不认识的键" + 键要带命名空间                                                                                                                           | 卡上加一个 `extensions Json` 逃生舱，并把这条规则写进 `docs/references/domains/cards.md`                                                                         | 卡片域还在长，每加一个想法就加一列会把 schema 拖死。酒馆用这一个字段撑住了整个第三方生态三年                                              |
 | 字段按"进不进提示词"硬性二分（`creator_notes` **MUST NOT**，`system_prompt` **MUST**）                                                                                                 | 每个卡字段的 Prisma 注释里写死"进不进 `card-recipe-compiler`"                                                                                                    | 项目里已经在这么写（角色卡 v2 字段注释标了 "⛔ compiler 未接"），继续保持；这是防止"字段悄悄进了 prompt"的唯一办法                        |
 | `character_book` / lorebook：关键词触发的条目注入                                                                                                                                      | **条件提示词条目**：`{ keys[], content, slot, order, enabled }`。例：keys=["雨","雨夜"] → content="撑一把黑伞，发梢湿"；keys=["战斗"] → content="左颊疤痕更明显" | 现在一张卡只有一段死的 `characterPrompt`，要么全塞（撑爆 prompt、稀释重点）要么不塞。条件注入是**用 prompt 预算换表达力**的唯一正解       |
-| lorebook 的 `token_budget` + "预算耗尽即使命中也不插" + 常驻优先、Order 大者优先                                                                                                       | 编译器的 prompt 预算裁剪策略                                                                                                                                     | 各 provider 的 prompt 长度上限差异很大（这是 PixelVault 真实存在的问题），裁剪必须是**确定性的、可解释的**，不能让 LLM 随机丢             |
+| lorebook 的 `token_budget` + "预算耗尽即使命中也不插" + 常驻优先、Order 大者优先                                                                                                       | 编译器的 prompt 预算裁剪策略                                                                                                                                     | 各 provider 的 prompt 长度上限差异很大（这是 ANTEI 真实存在的问题），裁剪必须是**确定性的、可解释的**，不能让 LLM 随机丢             |
 | `constant`（无需关键词、永远在场）                                                                                                                                                     | 角色卡的**身份锚点**永远无条件进每一条编译产物                                                                                                                   | 对应 Author's Note 那条原则："必须每次都在场的约束，要放在最有分量的位置"                                                                 |
 | "Match whole words 默认开，但中日文必须关"（官方明确警示）                                                                                                                             | 若做关键词触发，**中文默认 `matchWholeWords=false`**                                                                                                             | 直接避坑，不用自己踩                                                                                                                      |
 | `alternate_greetings`（一张卡携带多个可切换的起手）                                                                                                                                    | **多个默认起手镜头 / 姿态预设**：一张卡带 3~5 个预置构图，生成时切换                                                                                             | 借的是"一张卡携带多个可切换的默认值"这个**形状**，不是对话语义                                                                            |
-| V3 `assets[]` 的 `{type, uri, name, ext}`，且"多个 icon 时必须**恰有一个** `name:'main'`"                                                                                              | `referenceSlots[]` 的形状，并给 `identity` 槽加**恰有一个 primary** 的硬约束                                                                                     | 这是酒馆已经踩过的坑：一个角色有多张图时，下游必须能无歧义地拿到"主图"。PixelVault 的 `identity` 槽同理，没有这个约束，编译器只能靠顺序猜 |
+| V3 `assets[]` 的 `{type, uri, name, ext}`，且"多个 icon 时必须**恰有一个** `name:'main'`"                                                                                              | `referenceSlots[]` 的形状，并给 `identity` 槽加**恰有一个 primary** 的硬约束                                                                                     | 这是酒馆已经踩过的坑：一个角色有多张图时，下游必须能无歧义地拿到"主图"。ANTEI 的 `identity` 槽同理，没有这个约束，编译器只能靠顺序猜 |
 | V3 `source[]` 的"只追加、不删改他人写入的元素"                                                                                                                                         | `provenance` 的写入语义定为**追加**，不覆盖                                                                                                                      | 归档产品的血缘链一旦可被覆盖就失去价值                                                                                                    |
 | V3 `nickname`（提示词里替换 `{{char}}` 的短名）                                                                                                                                        | **`handle`**：prompt 里 `@名字` 的稳定锚点，与展示名分开                                                                                                         | 展示名会变（"林夏（雨夜版）"），prompt 锚点不能变，否则跨次生成的一致性断掉。owner 提的"代表角色说话"就落在这个字段上                     |
 | `creator_notes`（给人看，**不给模型看**）                                                                                                                                              | 卡上单独一个"简介"字段                                                                                                                                           | 现在 `description` 语义混淆：既像给人看的简介，又被当视觉描述编译。必须拆开                                                               |
-| `tags` 的整套生态：导入时弹「Existing / New」两栏确认框可逐条裁剪、三态筛选（有 → 无 → 不筛）、标签当虚拟文件夹（开 / 关两态）、批量打标（含"移除这批卡的公共标签"）、标签整体备份还原 | 卡库的组织方式                                                                                                                                                   | 这套交互是被几万用户的卡库验证过的。PixelVault 已有 `tags[]` 但没有这套 UI                                                                |
+| `tags` 的整套生态：导入时弹「Existing / New」两栏确认框可逐条裁剪、三态筛选（有 → 无 → 不筛）、标签当虚拟文件夹（开 / 关两态）、批量打标（含"移除这批卡的公共标签"）、标签整体备份还原 | 卡库的组织方式                                                                                                                                                   | 这套交互是被几万用户的卡库验证过的。ANTEI 已有 `tags[]` 但没有这套 UI                                                                |
 | 表情素材包 **ZIP 批量导入**（平铺 + 约定文件名 → 落到该角色目录）                                                                                                                      | 三视图 / 多姿态参考图的批量导入                                                                                                                                  | 建卡向导"补三视图"那一步的现成交互                                                                                                        |
 | Lore Insertion Strategy 三种排序（Sorted Evenly / Character First / Global First）                                                                                                     | **三卡 + 项目级设定的合并顺序必须显式定义并可配**                                                                                                                | 角色卡 / 风格卡 / 场景卡融合时谁盖谁，现在靠 `card-recipe-compiler` 的 LLM 隐式决定。酒馆的做法是把它变成一个明确的、用户可见的策略       |
 | 群聊 Join 模式的官方警告："合并多张卡会导致角色串味、人格融合"                                                                                                                         | **多角色同框时按槽分，不拼文本**                                                                                                                                 | 这是最值钱的一条负面经验，见下                                                                                                            |
 
-另外三条来自卡库界面（第 6.1 节），单独点名：**按使用度排序**（归档产品里"最近用过的角色"远比"最近创建的角色"有用）、**Duplicate**（做变体的最短路径，PixelVault 的变体树正缺这个入口）、**Replace/Update**（用新版卡替换旧卡但保留下游关联——对应 PixelVault 的"重新建卡但保留 `GenerationCharacterCard` 关联与 provenance"）。
+另外三条来自卡库界面（第 6.1 节），单独点名：**按使用度排序**（归档产品里"最近用过的角色"远比"最近创建的角色"有用）、**Duplicate**（做变体的最短路径，ANTEI 的变体树正缺这个入口）、**Replace/Update**（用新版卡替换旧卡但保留下游关联——对应 ANTEI 的"重新建卡但保留 `GenerationCharacterCard` 关联与 provenance"）。
 
-**关于多角色同框，展开说**：酒馆默认用 Swap（一次只把当前发言者的卡放进上下文），而不是 Join，就是因为 Join 会串味。映射到 PixelVault，「A 的服装长到 B 身上」正是同一个失败模式。所以多角色同框的正确形状是：**每个角色占据独立的 referenceSlot 组 + 独立的 `@handle` 锚**，而不是把两段 `characterPrompt` 串起来交给 LLM 融合。酒馆 Join 模式的 Prefix/Suffix 分隔思路，只能当 provider 不支持多参考图时的退化兜底。
+**关于多角色同框，展开说**：酒馆默认用 Swap（一次只把当前发言者的卡放进上下文），而不是 Join，就是因为 Join 会串味。映射到 ANTEI，「A 的服装长到 B 身上」正是同一个失败模式。所以多角色同框的正确形状是：**每个角色占据独立的 referenceSlot 组 + 独立的 `@handle` 锚**，而不是把两段 `characterPrompt` 串起来交给 LLM 融合。酒馆 Join 模式的 Prefix/Suffix 分隔思路，只能当 provider 不支持多参考图时的退化兜底。
 
 ### 9.2 明确不适用（不要为了"对齐酒馆"而建这些列）
 
 | 酒馆字段 / 机制                                                                | 不适用的理由                                                                                                                                                                                                   |
 | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `first_mes` · `mes_example`（含 `<START>` 分隔） · `post_history_instructions` | 纯对话导向。PixelVault 的生成没有"第一条消息"和"对话样例"                                                                                                                                                      |
+| `first_mes` · `mes_example`（含 `<START>` 分隔） · `post_history_instructions` | 纯对话导向。ANTEI 的生成没有"第一条消息"和"对话样例"                                                                                                                                                      |
 | `system_prompt`（默认**替换**用户全局 system prompt）                          | 让一张用户导入的卡有权覆盖全局系统提示词，在一个有 credit 扣减和内容合规要求的产品里是安全问题，不是特性                                                                                                       |
 | `talkativeness` · 群聊四种回复顺序策略                                         | 依赖"轮流发言"这个时间轴，图像 / 视频生成没有                                                                                                                                                                  |
-| Persona（用户人设）                                                            | PixelVault 没有"用户扮演的一方"。⚠ **PixelVault 现有的 `persona` JSON 字段与酒馆的 Persona 同名异义**（PixelVault 的是"角色的行为与说话方式"，服务于对白和音色），文档里必须写清，否则每个读过酒馆的人都会误解 |
+| Persona（用户人设）                                                            | ANTEI 没有"用户扮演的一方"。⚠ **ANTEI 现有的 `persona` JSON 字段与酒馆的 Persona 同名异义**（ANTEI 的是"角色的行为与说话方式"，服务于对白和音色），文档里必须写清，否则每个读过酒馆的人都会误解 |
 | Author's Note / Character's Note 的 `@Depth` 深度注入                          | 深度是"距离聊天历史末尾第几条"，没有聊天历史就没有深度。诉求（"必须每次在场的强约束"）用 `constant` 条目承接即可                                                                                               |
 | Timed Effects：`sticky` / `cooldown` / `delay`                                 | 时间轴单位是"消息条数"                                                                                                                                                                                         |
 | 递归触发（recursive scanning）                                                 | 在图像 prompt 场景里价值低、风险高：容易把 prompt 递归撑爆且结果不可预测。真要做也应该是显式的"条目引用条目"，不是靠正文里恰好出现关键词                                                                       |
 | `probability`（Trigger %）随机插入                                             | 生成要可复现（同 seed 同结果）。随机性交给 seed，不要交给 prompt 装配                                                                                                                                          |
-| V3 的 `@@` 装饰器（把控制信息写进 content 正文）                               | 那是为了在既定 JSON 规范里塞新语义的妥协。PixelVault 自己定 schema，没有这个约束，写进正文只会让编译器解析变脆                                                                                                 |
-| PNG tEXt chunk 塞多个资产                                                      | **V3 规范自己都说新应用不要这么做，改用 `.charx`**。PixelVault 一张角色卡有 3~10 张参考图，塞 PNG 更不现实                                                                                                     |
+| V3 的 `@@` 装饰器（把控制信息写进 content 正文）                               | 那是为了在既定 JSON 规范里塞新语义的妥协。ANTEI 自己定 schema，没有这个约束，写进正文只会让编译器解析变脆                                                                                                 |
+| PNG tEXt chunk 塞多个资产                                                      | **V3 规范自己都说新应用不要这么做，改用 `.charx`**。ANTEI 一张角色卡有 3~10 张参考图，塞 PNG 更不现实                                                                                                     |
 
-### 9.3 PixelVault 独有、酒馆完全没有的（这些是不能靠抄解决的）
+### 9.3 ANTEI 独有、酒馆完全没有的（这些是不能靠抄解决的）
 
-1. **参考图槽（referenceSlots）带生成语义**。酒馆 V3 的 `assets` 只有 `icon` / `background` / `user_icon` / `emotion` 四种，全是**展示用途**。PixelVault 的 11 类 role（`identity` / `pose` / `style` / `composition` / `background` / `faceCloseup` / `costume` / `prop` / `frameStart` / `frameEnd` / `custom`，见 `src/constants/node-studio.ts`）是**给生成器用的功能语义**——"这张图在这次生成里承担什么职责"。酒馆没有任何对应概念。
-2. **音色绑定是一等公民**。酒馆的 TTS 是第三方扩展，规范层面没有 voice 字段（V3 `assets` 允许 audio 但没有语义）。PixelVault 的 `voiceCardId`（软引用）+ `voiceProfile{emotions, sampleLines}` 要参与**视频编译**（例如 Vidu 的 `voice_id`）和配音间 `VoiceRoom.cast`。
-3. **一致性检查闭环（stabilityScore + 精修）**。聊天没有客观的"像不像"，图像有。PixelVault 有 `stabilityScore` 和 `character-refine.service.ts`——**卡能自我评估、能被修**。酒馆整个生态里没有任何等价物。
-4. **跨 provider 编译**。酒馆的 prompt 是纯文本，所有 LLM 接口同构，所以规范只需要定义文本字段。PixelVault 面对的是形状各异的 API：有的吃一张参考图、有的吃多张带 role、有的只吃文本、有的吃 LoRA 权重。**「一张卡 → N 个 provider 的参考槽」这个编译是 PixelVault 的核心难题，酒馆完全没有对应物**，`modelPrompts: Record<adapterType, prompt>` 已经是这条路的雏形。
+1. **参考图槽（referenceSlots）带生成语义**。酒馆 V3 的 `assets` 只有 `icon` / `background` / `user_icon` / `emotion` 四种，全是**展示用途**。ANTEI 的 11 类 role（`identity` / `pose` / `style` / `composition` / `background` / `faceCloseup` / `costume` / `prop` / `frameStart` / `frameEnd` / `custom`，见 `src/constants/node-studio.ts`）是**给生成器用的功能语义**——"这张图在这次生成里承担什么职责"。酒馆没有任何对应概念。
+2. **音色绑定是一等公民**。酒馆的 TTS 是第三方扩展，规范层面没有 voice 字段（V3 `assets` 允许 audio 但没有语义）。ANTEI 的 `voiceCardId`（软引用）+ `voiceProfile{emotions, sampleLines}` 要参与**视频编译**（例如 Vidu 的 `voice_id`）和配音间 `VoiceRoom.cast`。
+3. **一致性检查闭环（stabilityScore + 精修）**。聊天没有客观的"像不像"，图像有。ANTEI 有 `stabilityScore` 和 `character-refine.service.ts`——**卡能自我评估、能被修**。酒馆整个生态里没有任何等价物。
+4. **跨 provider 编译**。酒馆的 prompt 是纯文本，所有 LLM 接口同构，所以规范只需要定义文本字段。ANTEI 面对的是形状各异的 API：有的吃一张参考图、有的吃多张带 role、有的只吃文本、有的吃 LoRA 权重。**「一张卡 → N 个 provider 的参考槽」这个编译是 ANTEI 的核心难题，酒馆完全没有对应物**，`modelPrompts: Record<adapterType, prompt>` 已经是这条路的雏形。
 5. **LoRA 绑定与训练血缘**。卡可以携带为它训练出来的 LoRA（`loras` + `LoraTrainingJob` 关系）。酒馆没有。
 6. **变体树**（`parentId` / `variantLabel`）。同一角色的"动画版 / 3D 版 / Q 版"是父子关系且变体随父卡删。酒馆只有扁平卡列表 + 一个 `character_version` 字符串。
 7. **生成物反向关联**（`GenerationCharacterCard`）。归档产品必须能回答"这张卡生成过哪些图 / 哪些视频"。酒馆的卡与聊天记录是弱关联。
 
 ---
 
-## 10. PixelVault 角色卡 v3 字段草案
+## 10. ANTEI 角色卡 v3 字段草案
 
 **落 Prisma 还是 JSON `extensions` 的判据**（先写死，再填表）：
 
@@ -399,7 +399,7 @@ PixelVault 的现状（读自 `prisma/schema.prisma` 与 `docs/references/domain
 
 | 字段            | 来源                    | 用途                                                                                                                                                                                                  | 落点                                                                                          |
 | --------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `loreEntries[]` | **借 `character_book`** | `{ keys[], useRegex, content, slot, order, enabled, comment }`。`slot` 是 **PixelVault 的编译槽**（positive 前缀 / positive 后缀 / negative / 参考图选择），**不是**酒馆的 `before_char`/`after_char` | **先进 `extensions` 观察；验证后提成独立表 `CharacterLoreEntry`**（会有按 cardId 查询的需求） |
+| `loreEntries[]` | **借 `character_book`** | `{ keys[], useRegex, content, slot, order, enabled, comment }`。`slot` 是 **ANTEI 的编译槽**（positive 前缀 / positive 后缀 / negative / 参考图选择），**不是**酒馆的 `before_char`/`after_char` | **先进 `extensions` 观察；验证后提成独立表 `CharacterLoreEntry`**（会有按 cardId 查询的需求） |
 | `loreConfig`    | 借                      | `{ caseSensitive, matchWholeWords, tokenBudget }`，**中文默认 `matchWholeWords: false`**                                                                                                              | 同上                                                                                          |
 
 ### 归档元数据
@@ -484,7 +484,7 @@ Instruct Mode 不是插在中间的一段，而是**包在外面的一层**：`i
 
 还有一条架构细节值得抄：**条目的最终位置由用户的 `prompt_order` 决定，而装配代码里的添加顺序只决定「谁先抢 token 预算」**。位置和优先级是两个正交的维度。
 
-> **对 PixelVault 的直接启发**：这两条路径的差别是「模板渲染」vs「有序条目列表」。前者产出一整块文本、适合一次喂满；后者每一项独立可开关、可预算、可重排。`card-recipe-compiler` 现在更像前者；一旦引入第 11 节已拍板的 `loreEntries` 条件注入 + 预算裁剪，它必须变成后者——**先建有序条目列表，最后才 join 成 prompt**，并且把「位置」和「预算优先级」拆成两个字段。
+> **对 ANTEI 的直接启发**：这两条路径的差别是「模板渲染」vs「有序条目列表」。前者产出一整块文本、适合一次喂满；后者每一项独立可开关、可预算、可重排。`card-recipe-compiler` 现在更像前者；一旦引入第 11 节已拍板的 `loreEntries` 条件注入 + 预算裁剪，它必须变成后者——**先建有序条目列表，最后才 join 成 prompt**，并且把「位置」和「预算优先级」拆成两个字段。
 
 #### 这些字段里，真正承载「语气」的是哪个
 
@@ -611,7 +611,7 @@ TTS 实际有的是另一套东西：
 
 社区的常见拼法就是：正文里让模型输出 `[joy]` → Regex 隐藏标签 → 脚本调 `/expression-set`。**零件是官方的，链路是用户自己拼的。**（属社区实践，未在官方文档中作为推荐方案出现。）
 
-> **对 PixelVault 的意义（重要）**：酒馆之所以选「事后分类」，是因为它的输出是**要念给人听的聊天正文**——在正文里塞标签会污染阅读。PixelVault 不一样：**我们要的是台词稿和配音指令，标签本来就是产物的一部分，不是污染。** 所以这一点**不该照抄**，详见 12.8 第 3 条。
+> **对 ANTEI 的意义（重要）**：酒馆之所以选「事后分类」，是因为它的输出是**要念给人听的聊天正文**——在正文里塞标签会污染阅读。ANTEI 不一样：**我们要的是台词稿和配音指令，标签本来就是产物的一部分，不是污染。** 所以这一点**不该照抄**，详见 12.8 第 3 条。
 
 ---
 
@@ -686,7 +686,7 @@ Chat Completion 路径上（`public/scripts/openai.js`）额外插一条提示�
 
 点名匹配用的是 `\b\w+\b` 分词后求交集。`\w` **不含 CJK**，所以中文 / 日文角色名基本切不出词——「@林夏」这种点名在中文场景下大概率不生效。
 
-（源码可推出，但**未实跑验证**，标注为待验证。）这与第 2.3 节世界书那条官方警示「中日文应关掉 Match whole words」是同一个根因。**PixelVault 做 `@角色` 锚点时必须避开基于 `\b\w+\b` 的整词匹配。**
+（源码可推出，但**未实跑验证**，标注为待验证。）这与第 2.3 节世界书那条官方警示「中日文应关掉 Match whole words」是同一个根因。**ANTEI 做 `@角色` 锚点时必须避开基于 `\b\w+\b` 的整词匹配。**
 
 ---
 
@@ -772,7 +772,7 @@ Lore Insertion Strategy：顺序固定为 **Chat Lore → Persona Lore →（Cha
 
 **但注意 12.6 的坑二**：群聊里角色专属世界书只有当前发言者的生效。所以「让模型同时知道所有角色」在酒馆里**只有三条可行路径**：共享设定放全局 / 聊天级世界书；切 Join 模式（接受串味风险）；用群聊 Scenario Override 统一场景文本。
 
-> **对 PixelVault 的直接启发**：分层的语义划分本身是对的——**世界级 / 角色级 / 本场级**，我们对应的是**项目 / 卡 / 本次生成**，形状完全一致。第 3 节已记下「合并顺序必须显式写死并可配」；这里补充两条：一是**分层的语义边界要提前定死**（什么设定该放哪一层），二是**不要复刻酒馆那个「只加载当前角色的书」的限制**——多角色同框时，所有在场角色的卡级设定都该在场。
+> **对 ANTEI 的直接启发**：分层的语义划分本身是对的——**世界级 / 角色级 / 本场级**，我们对应的是**项目 / 卡 / 本次生成**，形状完全一致。第 3 节已记下「合并顺序必须显式写死并可配」；这里补充两条：一是**分层的语义边界要提前定死**（什么设定该放哪一层），二是**不要复刻酒馆那个「只加载当前角色的书」的限制**——多角色同框时，所有在场角色的卡级设定都该在场。
 
 #### 记忆与结构类扩展（官方内置或官方组织维护）
 
@@ -785,25 +785,25 @@ Lore Insertion Strategy：顺序固定为 **Chat Lore → Persona Lore →（Cha
 | **Quick Reply**                | 把 STscript 绑成按钮或自动触发器（**官方文档站没有独立页**，语法在 STscript 参考页）                                                                                   |
 | **Timelines**                  | 官方组织下的第三方扩展，聊天分支的时间线可视化。123★，**最后推送 2025-06-24，已一年多无更新**                                                                          |
 
-**这个架构值得看**：酒馆没有为「摘要」「向量」「作者注」各开一条特殊通道，而是把它们都做成**上下文里的一个具名条目**，在 Prompt Manager 里与卡字段平起平坐。PixelVault 的编译器要接第三方注入源（项目设定、剧本节点、助手上下文）时，应该用同一个形状——**统一的有序条目列表，而不是一堆 if 分支**。
+**这个架构值得看**：酒馆没有为「摘要」「向量」「作者注」各开一条特殊通道，而是把它们都做成**上下文里的一个具名条目**，在 Prompt Manager 里与卡字段平起平坐。ANTEI 的编译器要接第三方注入源（项目设定、剧本节点、助手上下文）时，应该用同一个形状——**统一的有序条目列表，而不是一堆 if 分支**。
 
 「Objective」的形状对我们的剧本节点（24）尤其对口：**把一个长目标拆成可推进的任务树，每次生成只注入当前这一步**——这正是「排剧本」需要的结构，比一次性把整个大纲塞进 prompt 更省预算也更可控。
 
 ---
 
-### 12.8 映射到 PixelVault
+### 12.8 映射到 ANTEI
 
 我们不是陪聊，是**写台词 / 配音 / 排剧本 / 生成一致的画面**。逐条给结论。
 
 1. **`persona` 要补 `examples[]`（示例对白），这是最该补的一件事。** 酒馆全套字段里唯一真正传递「嗓音」的就是示例对白；`behavior` / `speech` / `catchphrases` 都是描述性的，模型读完只会写出「一个被描述成这样的人」。形态要抄对：**按场景切成多个独立 block**（对应 `<START>`），每块是完整的一小段对白；喂 LLM 时按**真实轮次**渲染，不要拼成散文。可借 CC 路径那个折中——**用可区分的角色标记（如 system + name）让示例既与真实输入同构、又不被误认为真实发生过**。
 2. **预算裁剪按 block 砍，不按句子砍。** 抄 gradual push-out 的两段式确定性流程（预估 → 超限时逐块回退），并抄它的最小单位约定。这条同样适用于第 11 节拍板的 `loreEntries` 最小版。同时把「位置」和「预算优先级」拆成两个正交字段。
 3. **情绪标签走「模型输出」，不走「事后分类」。** 酒馆选事后分类是因为输出是给人读的聊天正文，塞标签是污染；我们的输出是**台词稿 + 配音指令**，情绪标签本来就是产物的一部分。让台词生成直接产出 `{ line, emotion, delivery }` 的结构化结果，一次调用拿到，而不是生成完再回头问一次模型。
-4. **要有情绪词表，但不要抄那 28 类；闭集要靠解码器兜，不靠提示词祈祷。** 酒馆的 28 类是跟着 go-emotions 模型走的、面向立绘的分类标签，含大量对配音无意义的细分（admiration / approval / realization）。PixelVault 应自定一个**面向表演**的小词表（十几个量级），同时服务三处：配音的情绪参数、台词稿的表演提示、角色卡表情参考图的槽位命名。三条实现纪律直接抄它的 `llm` 模式：
+4. **要有情绪词表，但不要抄那 28 类；闭集要靠解码器兜，不靠提示词祈祷。** 酒馆的 28 类是跟着 go-emotions 模型走的、面向立绘的分类标签，含大量对配音无意义的细分（admiration / approval / realization）。ANTEI 应自定一个**面向表演**的小词表（十几个量级），同时服务三处：配音的情绪参数、台词稿的表演提示、角色卡表情参考图的槽位命名。三条实现纪律直接抄它的 `llm` 模式：
    - **把可选值写进 prompt**（`{{labels}}` 那个做法）**并且下发 JSON Schema `enum` 约束**——双保险；
    - **多级解析容错**（严格解析 → 模糊匹配 → 兜底），不要一次解析失败就整条生成作废；
    - **抄 `filterAvailable`**：候选标签按「这张卡**实际有的**表情参考图 / 音色情绪档」裁剪后再给模型。这样模型永远不会选出一个我们无法落地的情绪——对「情绪标签要驱动画面和音色」的我们，这条比酒馆更刚需。
 5. **TTS 侧要抄 voice map 的两个形状，并且从一开始就修掉酒馆那个结构缺陷。** 借：一是 `{ 角色 → 音色 }` 映射（对应 `voiceCardId` + `VoiceRoom.cast`）；二是**按文本形态分轨**（引号内台词 / 星号内动作用不同音色）——这对「旁白 + 对白」混排的剧本是现成解法。修：酒馆把分段语义塞进一个字符串 key、只传到第三个参数、且只有一个 provider 接收，情绪因此在接口层就丢了。**我们的配音单元从第一天起就该是 `{ text, speakerCardId, emotion, delivery }` 的结构化对象，由各 adapter 自己决定映射到哪个 provider 参数（或降级忽略）**，而不是先拍平成字符串再想办法塞回去。
-6. **`relations[]` 要结构化字段，不要只借 lorebook 的关键词机制——两者都要。** 酒馆没有关系字段是为了保住「一张 PNG 自包含可交换」；**PixelVault 的卡活在自己的库里、有 `cardId`、本就有变体树和 `GenerationCharacterCard` 反向关联，那个约束对我们不成立**，放弃结构化是白白丢掉已有优势。所以：
+6. **`relations[]` 要结构化字段，不要只借 lorebook 的关键词机制——两者都要。** 酒馆没有关系字段是为了保住「一张 PNG 自包含可交换」；**ANTEI 的卡活在自己的库里、有 `cardId`、本就有变体树和 `GenerationCharacterCard` 反向关联，那个约束对我们不成立**，放弃结构化是白白丢掉已有优势。所以：
    - **`relations[]: { targetCardId, relation, note }` 作为事实层**——可双向展示、可在剧本节点里按 `@角色` 投影、可回答「这两个角色一起出现过几次」。这是酒馆给不了的。
    - **注入时降解成 lorebook 式条目**（`keys = [对方 handle / 展示名]`），只在对方真的出场时才花预算。这是酒馆验证过的、用预算换表达力的正解。
    - 借 `st-dynamic-relationships` 那条判断：**存储形态 ≠ 注入形态**——结构化存（含双向、含强度），注入时降解成自然语言、并按视角裁剪（这个角色不知道的事不要注入）。

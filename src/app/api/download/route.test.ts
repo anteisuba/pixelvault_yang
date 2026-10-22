@@ -121,7 +121,7 @@ describe('GET /api/download', () => {
   it('returns a presigned attachment URL for our own storage asset', async () => {
     const req = createGET('/api/download', {
       url: ASSET_URL,
-      filename: 'pixelvault-video.mp4',
+      filename: 'antei-video.mp4',
     })
     const res = await GET(req)
     const body = await parseJSON<ApiEnvelope>(res)
@@ -132,7 +132,7 @@ describe('GET /api/download', () => {
     expect(createPresignedR2GetUrl).toHaveBeenCalledWith({
       key: 'generations/video.mp4',
       expiresInSeconds: DOWNLOAD_URL_TTL_SECONDS,
-      contentDisposition: 'attachment; filename="pixelvault-video.mp4"',
+      contentDisposition: 'attachment; filename="antei-video.mp4"',
     })
     // The whole point: no bytes pass through the function.
     expect(fetchMock).not.toHaveBeenCalled()
@@ -169,13 +169,13 @@ describe('GET /api/download', () => {
   it('proxies a trusted fal.ai temporary asset as an attachment', async () => {
     const req = createGET('/api/download', {
       url: FAL_ASSET_URL,
-      filename: 'pixelvault-edit-upscale.png',
+      filename: 'antei-edit-upscale.png',
     })
     const res = await GET(req)
 
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Disposition')).toBe(
-      'attachment; filename="pixelvault-edit-upscale.png"',
+      'attachment; filename="antei-edit-upscale.png"',
     )
     expect(await res.text()).toBe('asset-body')
     expect(fetchMock).toHaveBeenCalledWith(

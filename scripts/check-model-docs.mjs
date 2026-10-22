@@ -22,7 +22,7 @@ const MODEL_CATALOG_FILES = [
   path.join(MODELS_DIR, 'model-3d.ts'),
 ]
 const DEFAULT_TIMEOUT_MS = 20_000
-const USER_AGENT = 'pixelvault-model-doc-monitor/1.0'
+const USER_AGENT = 'antei-model-doc-monitor/1.0'
 const DEPRECATION_KEYWORDS = [
   'deprecated',
   'deprecation',

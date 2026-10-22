@@ -53,7 +53,7 @@ export function triggerNodeV4Download(url: string) {
   const fileName =
     decodeURIComponent(new URL(url, window.location.href).pathname)
       .split('/')
-      .pop() || 'pixelvault-download'
+      .pop() || 'antei-download'
   void downloadRemoteAsset(url, fileName).then((result) => {
     if (!result.success) window.open(url, '_blank', 'noopener,noreferrer')
   })

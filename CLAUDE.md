@@ -1,4 +1,4 @@
-# CLAUDE.md — PixelVault
+# CLAUDE.md — ANTEI
 
 Personal AI Gallery — multi-model AI 生成（图/视频/音频/3D）+ 永久归档。
 
@@ -87,10 +87,10 @@ Per-directory CLAUDE.md 存在于：`types/`、`contexts/`、`components/busines
 
 按当前客户端实际可用的技能选择，不因关键词把整套技能串联起来。Codex 从 `.agents/skills/` 发现，Claude Code 从 `.claude/skills/` 发现；缺少快捷工具时可读取实际存在的 SKILL.md，不虚构调用成功。
 
-- Bug：`debug-pixelvault-runtime`（Codex 项目入口）或 `diagnosing-bugs`（复杂诊断）。
+- Bug：`debug-antei-runtime`（Codex 项目入口）或 `diagnosing-bugs`（复杂诊断）。
 - UI：由 `docs/scenes/ui-page.md` / `ui-marketing.md` 选择设计、审计或打磨技能。
 - 测试：用户要求测试先行时用 `tdd`；需要全量闸门时 Claude Code 可用 `full-gate`。
-- 文档：Codex 用 `sync-pixelvault-docs`；其他客户端遵循 WORKFLOW 文档同步节。
+- 文档：Codex 用 `sync-antei-docs`；其他客户端遵循 WORKFLOW 文档同步节。
 - OpenCLI：仅在实际使用时读 `opencli-usage`，再按需进入浏览器或 adapter 技能。
 
 动画库：app 内部只用 `motion`（从 `motion/react` 引入；`framer-motion` 被 eslint 拦截）；GSAP 仅用于首页营销域且动态导入。GSAP 技能的推荐不覆盖此边界。

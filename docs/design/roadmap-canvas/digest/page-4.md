@@ -30,7 +30,7 @@ _PixelVault · 4 进度表 · 2026-09-27_
 | D5          | 参考素材入口 + 列表页头 + 文件夹 + 空态引导（15 · 19 · 52）                      | D4   | 待设计          |
 | 55          | 手机统一：底部输入条 + 参数抽屉 + 助手半屏 Sheet                                 | —    | 待设计          |
 | 60b         | FreeTierSlot 表 drop · image-edit 的 fal 平台 key 兜底去留                       | —    | 待 owner        |
-| E1-c · E1-d | 业务对象图标（先讨论怎么设计）· 品牌标 ANTI（owner 另开 chat）                   | —    | 待 owner        |
+| E1-c · E1-d | 业务对象图标（先讨论怎么设计）· 品牌标 ANTEI（owner 另开 chat）                   | —    | 待 owner        |
 | —           | icon 桶 `use client` 与 `dist/ssr` 服务端出口取舍                                | —    | 待 owner        |
 | —           | 动效命名时长类：修了不出 CSS 的问题（62b7cef8）· 全站改写（5d42c49c · 6ccf3e29） | —    | 待上线          |
 

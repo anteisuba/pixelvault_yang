@@ -69,7 +69,7 @@ export default function VideoPlayer({
   }, [])
 
   const handleDownload = useCallback(async () => {
-    const result = await downloadRemoteAsset(src, 'pixelvault-video.mp4')
+    const result = await downloadRemoteAsset(src, 'antei-video.mp4')
     if (!result.success) {
       window.open(src, '_blank', 'noopener,noreferrer')
     }

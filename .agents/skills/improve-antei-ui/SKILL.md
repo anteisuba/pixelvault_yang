@@ -1,9 +1,9 @@
 ---
-name: improve-pixelvault-ui
-description: PixelVault 的 UI 审计、局部修复、已确认页面实现与改版路由；保留领域设计确认和三语约束。
+name: improve-antei-ui
+description: ANTEI 的 UI 审计、局部修复、已确认页面实现与改版路由；保留领域设计确认和三语约束。
 ---
 
-# PixelVault UI 工作流
+# ANTEI UI 工作流
 
 先区分事实审计、局部修复、按已确认 page 文档实现和整页改版。仅审计不自动改代码；改版按 `docs/scenes/ui-page.md` 完成方向和关键切片确认。已授权实现不重新走门。
 

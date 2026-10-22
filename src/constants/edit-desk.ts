@@ -428,8 +428,7 @@ export const EDIT_TRANSITIONS_TUPLE = [
  * 一张卡）；这条带的是**节点 id**（画布上已经有的那张卡），时间线上的段永远指向
  * 一个节点而不是一个 url —— 那正是「段永远记得来源节点」的下半句。
  */
-export const EDIT_DESK_NODE_DRAG_MIME =
-  'application/x-pixelvault-canvas-node-id'
+export const EDIT_DESK_NODE_DRAG_MIME = 'application/x-antei-canvas-node-id'
 
 /**
  * 「把**素材库**里的一条产物拖进时间线」的载荷 MIME（S8c）。
@@ -440,7 +439,7 @@ export const EDIT_DESK_NODE_DRAG_MIME =
  * ⛔ 不让段直接指向一条素材库记录。
  */
 export const EDIT_DESK_LIBRARY_DRAG_MIME =
-  'application/x-pixelvault-edit-library-asset'
+  'application/x-antei-edit-library-asset'
 
 /**
  * 「把一个转场预设拖到两段之间的缝上」的载荷 MIME（S8c）。
@@ -449,7 +448,7 @@ export const EDIT_DESK_LIBRARY_DRAG_MIME =
  * 与右栏「转场 →」写的是同一个字段。
  */
 export const EDIT_DESK_TRANSITION_DRAG_MIME =
-  'application/x-pixelvault-edit-transition'
+  'application/x-antei-edit-transition'
 
 /** 素材库页一页拉几条 / 一次「加载更多」再拉几条。 */
 export const EDIT_DESK_LIBRARY_PAGE_SIZE = 24

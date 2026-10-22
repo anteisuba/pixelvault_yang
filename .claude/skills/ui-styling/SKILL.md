@@ -1,6 +1,6 @@
 ---
 name: ui-styling
-description: 在现有 PixelVault shadcn/Radix 与 Tailwind 体系内实现样式、交互状态和响应式布局。
+description: 在现有 ANTEI shadcn/Radix 与 Tailwind 体系内实现样式、交互状态和响应式布局。
 argument-hint: '[component or layout]'
 license: MIT
 metadata:

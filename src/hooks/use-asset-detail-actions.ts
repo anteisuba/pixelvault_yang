@@ -52,10 +52,10 @@ function getDownloadTarget(generation: GenerationRecord): string {
 
 function getAssetFileName(generation: GenerationRecord): string {
   if (generation.outputType === 'MODEL_3D' && generation.modelUrl) {
-    return `pixelvault-${generation.id.slice(0, 8)}.glb`
+    return `antei-${generation.id.slice(0, 8)}.glb`
   }
   const ext = generation.mimeType.split('/')[1] || 'bin'
-  return `pixelvault-${generation.id.slice(0, 8)}.${ext}`
+  return `antei-${generation.id.slice(0, 8)}.${ext}`
 }
 
 /**

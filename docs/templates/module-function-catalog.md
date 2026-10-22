@@ -1,4 +1,4 @@
-# PixelVault 模块功能清单模板
+# ANTEI 模块功能清单模板
 
 Last updated: 2026-07-13
 

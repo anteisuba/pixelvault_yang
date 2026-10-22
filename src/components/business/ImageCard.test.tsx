@@ -240,7 +240,7 @@ describe('ImageCard', () => {
 
     expect(mockDownloadRemoteAsset).toHaveBeenCalledWith(
       BASE_GEN.url,
-      'pixelvault-gen_card.png',
+      'antei-gen_card.png',
     )
     expect(onOpen).not.toHaveBeenCalled()
   })

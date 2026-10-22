@@ -47,7 +47,7 @@ const scene = new THREE.Scene()
 scene.name = 'Moon Lantern Fox'
 scene.userData = {
   title: 'Moon Lantern Fox',
-  author: 'PixelVault',
+  author: 'ANTEI',
   source: 'Original procedural homepage asset',
   version: 1,
 }

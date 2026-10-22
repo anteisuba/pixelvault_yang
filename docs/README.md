@@ -1,4 +1,4 @@
-# PixelVault 文档入口
+# ANTEI 文档入口
 
 本目录是 Agent 可执行的标准体系，参照 [Esther 设计系统](https://hiesther.me/tutorials/esther-design-system/) 的「流程 + 规范 + 起点」模型并扩展到全栈。核心逻辑：**流程与品质底线保持一致，视觉答案按业务域形成**。
 

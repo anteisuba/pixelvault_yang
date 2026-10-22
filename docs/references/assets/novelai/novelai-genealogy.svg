@@ -77,6 +77,6 @@
 
   <!-- bottom banner -->
   <rect x="40" y="600" width="860" height="56" rx="12" fill="#2f3b4a"/>
-  <text x="470" y="626" font-size="14.5" font-weight="700" fill="#f7f3ea" text-anchor="middle">PixelVault 已「双线接入」</text>
+  <text x="470" y="626" font-size="14.5" font-weight="700" fill="#f7f3ea" text-anchor="middle">ANTEI 已「双线接入」</text>
   <text x="470" y="646" font-size="12.5" fill="#c7d0da" text-anchor="middle">novelai.adapter（V4.5 闭源锚点）　＋　runner（Illustrious / NoobAI / Pony ＋ LoRA · 开源可定制）</text>
 </svg>

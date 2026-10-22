@@ -193,7 +193,7 @@ const rel = t => { if (!t) return '从未使用'; const m = Math.round((now - t)
 const live = t => t && now - t < 120e3;
 const date = t => { const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()} 生成`; };
 const randTok = () => 'pvmcp_' + Array.from(crypto.getRandomValues(new Uint8Array(32)), b => 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'[b & 63]).join('');
-const cmd = tok => `claude mcp add --transport http --scope user pixelvault ${ORIGIN}/api/mcp --header "Authorization: Bearer ${tok}"`;
+const cmd = tok => `claude mcp add --transport http --scope user antei ${ORIGIN}/api/mcp --header "Authorization: Bearer ${tok}"`;
 
 function view() {
   const full = S.tokens.length >= 10;
@@ -209,7 +209,7 @@ function view() {
     if (S.created) top = `<li class="once" id="once"><div class="once-h"><b>「${esc(S.created.name)}」生成好了</b><span>这串令牌只显示这一次</span></div>
       <div class="k">令牌</div><div class="code"><code>${S.created.token}</code><button class="cp ${S.copied === 'tok' ? 'ok' : ''}" data-a="copy-tok">${S.copied === 'tok' ? '已复制 ✓' : '复制'}</button></div>
       <div class="k">接入 Claude Code：在终端里运行</div><div class="code"><code>${esc(cmd(S.created.token))}</code><button class="cp ${S.copied === 'cmd' ? 'ok' : ''}" data-a="copy-cmd">${S.copied === 'cmd' ? '已复制 ✓' : '复制命令'}</button></div>
-      <div class="once-f"><p>接上后在 Claude Code 里输入 /mcp 能看到 pixelvault。</p><button class="btn" data-a="done">我复制好了</button></div></li>`;
+      <div class="once-f"><p>接上后在 Claude Code 里输入 /mcp 能看到 antei。</p><button class="btn" data-a="done">我复制好了</button></div></li>`;
     const rows = S.tokens.map(t => `<li class="row" data-id="${t.id}"><span class="dot ${live(t.lastUsedAt) ? 'live' : ''}"></span><span class="nm">${esc(t.name)}</span><span class="l4">…${t.last4}</span><span class="st ${live(t.lastUsedAt) ? 'live' : ''}">${live(t.lastUsedAt) ? 'Claude 在用' : rel(t.lastUsedAt)} · ${date(t.createdAt)}</span><button class="rv" data-a="revoke" data-id="${t.id}">吊销</button></li>`).join('');
     body = (top || rows) ? `<ul class="rows">${top}${rows}</ul>` : `<div class="empty">还没有令牌。生成一个贴进 Claude Code，Claude 就能帮你剪片。</div>`;
   }

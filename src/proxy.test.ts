@@ -61,7 +61,7 @@ describe('proxy internal execution routes', () => {
       {
         nextUrl: {
           pathname: '/api/internal/execution/sweep',
-          origin: 'https://pixelvault.example.com',
+          origin: 'https://antei.example.com',
         },
       } as never,
       {} as never,
@@ -81,7 +81,7 @@ describe('proxy internal execution routes', () => {
       // （2026-08-20 civitai-mirror/sync 就是这么漏的。）
       await middleware(
         {
-          nextUrl: { pathname, origin: 'https://pixelvault.example.com' },
+          nextUrl: { pathname, origin: 'https://antei.example.com' },
         } as never,
         {} as never,
       )
@@ -118,7 +118,7 @@ describe('proxy internal execution routes', () => {
     async (pathname) => {
       await middleware(
         {
-          nextUrl: { pathname, origin: 'https://pixelvault.example.com' },
+          nextUrl: { pathname, origin: 'https://antei.example.com' },
         } as never,
         {} as never,
       )
@@ -132,7 +132,7 @@ describe('proxy internal execution routes', () => {
       {
         nextUrl: {
           pathname: '/api/mcp',
-          origin: 'https://pixelvault.example.com',
+          origin: 'https://antei.example.com',
         },
       } as never,
       {} as never,
@@ -146,7 +146,7 @@ describe('proxy internal execution routes', () => {
       {
         nextUrl: {
           pathname: '/api/mcp/tokens',
-          origin: 'https://pixelvault.example.com',
+          origin: 'https://antei.example.com',
         },
       } as never,
       {} as never,
@@ -162,7 +162,7 @@ describe('proxy internal execution routes', () => {
       {
         nextUrl: {
           pathname: '/api/health/crons',
-          origin: 'https://pixelvault.example.com',
+          origin: 'https://antei.example.com',
         },
       } as never,
       {} as never,
@@ -183,7 +183,7 @@ describe('proxy internal execution routes', () => {
     ]) {
       await middleware(
         {
-          nextUrl: { pathname, origin: 'https://pixelvault.example.com' },
+          nextUrl: { pathname, origin: 'https://antei.example.com' },
         } as never,
         {} as never,
       )
@@ -200,7 +200,7 @@ describe('proxy internal execution routes', () => {
       {
         nextUrl: {
           pathname: '/api/og',
-          origin: 'https://pixelvault.example.com',
+          origin: 'https://antei.example.com',
         },
       } as never,
       {} as never,
@@ -214,7 +214,7 @@ describe('proxy internal execution routes', () => {
       {
         nextUrl: {
           pathname: '/api/users/admin/export',
-          origin: 'https://pixelvault.example.com',
+          origin: 'https://antei.example.com',
         },
       } as never,
       {} as never,

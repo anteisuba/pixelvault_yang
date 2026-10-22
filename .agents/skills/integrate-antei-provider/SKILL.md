@@ -1,13 +1,13 @@
 ---
-name: integrate-pixelvault-provider
-description: 新增或修改 PixelVault 模型目录、provider adapter、参数、计费或 BYOK 契约时使用。
+name: integrate-antei-provider
+description: 新增或修改 ANTEI 模型目录、provider adapter、参数、计费或 BYOK 契约时使用。
 ---
 
-# Integrate PixelVault Provider
+# Integrate ANTEI Provider
 
 ## Overview
 
-Change PixelVault's media generation stack through the project layers instead of scattering provider details through UI or routes. This skill captures the repeated model audit, provider update, BYOK, and image/video/audio generation debugging workflow.
+Change ANTEI's media generation stack through the project layers instead of scattering provider details through UI or routes. This skill captures the repeated model audit, provider update, BYOK, and image/video/audio generation debugging workflow.
 
 ## Workflow
 

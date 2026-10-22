@@ -204,7 +204,7 @@ export function buildAssistantConversation(
 /**
  * Shared non-streaming assistant completion policy.
  *
- * The selected provider owns input/output ceilings. PixelVault sends the full
+ * The selected provider owns input/output ceilings. ANTEI sends the full
  * sanitized context first and retries exactly once: compacted when the
  * provider reports an input-context overflow, unchanged after a short wait
  * when it reports a transient outage (see `promptForRetry`).

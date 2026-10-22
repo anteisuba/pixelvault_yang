@@ -130,7 +130,7 @@ Volume 现状：80GB / 已用 47.4 / 剩 **32.6GB**（只能扩不能缩，$0.07
     但 `RUNNER_MONTHLY_LIMIT=300/月` 会被一次 3×3 网格吃掉 3% —— **要先解限额，否则做了不敢用**。
 12. **触发词自动化**：已有 `TriggerChipRow` + trainedWords。缺权重语法 `(word:1.2)` 和多 LoRA 触发词冲突提示。增量小。
 13. **权重预算**：已有总和判（1.5 / 蒸馏 1.0）。缺单条上限与"同类型 LoRA 叠加"告警。低成本补足。
-14. **per-block / block weight**：要 Inspire Pack 的 `LoraLoaderBlockWeight`。高级玩家功能，与 PixelVault 用户面不符。**最低优先**。
+14. **per-block / block weight**：要 Inspire Pack 的 `LoraLoaderBlockWeight`。高级玩家功能，与 ANTEI 用户面不符。**最低优先**。
 
 **未核实**：Anima 的 `ANIMA_MODEL_SAMPLING_SHIFT = 3.0` 硬编码 —— 作者是否对 base / aesthetic / turbo 各档推荐不同 shift，
 我没在 HF 卡上找到明确表述。加新 Anima 档前需要读一遍对应版本的 `anima_comparison.json`。

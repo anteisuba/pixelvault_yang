@@ -152,7 +152,7 @@ class PixelVaultSaveImage(nodes.SaveImage):
 
     def save_verified(self, images, audit, filename_prefix="pixelvault", prompt=None, extra_pnginfo=None):
         if args.disable_metadata:
-            raise RuntimeError("PixelVault requires PNG metadata for model load evidence")
+            raise RuntimeError("ANTEI requires PNG metadata for model load evidence")
         evidence = {"version": 1, "evidence": "loader-output", "models": json.loads(audit)}
         return super().save_images(
             images, filename_prefix, prompt,

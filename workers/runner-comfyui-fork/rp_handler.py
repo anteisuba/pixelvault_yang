@@ -1,5 +1,5 @@
 """
-PixelVault Runner — worker-comfyui fork handler (runtime LoRA + checkpoint download).
+ANTEI Runner — worker-comfyui fork handler (runtime LoRA + checkpoint download).
 
 设计：docs/references/domains/runner.md（v2 运行时 LoRA + v3 底模按需下载）。
 

@@ -1,4 +1,4 @@
-# AGENTS.md — PixelVault
+# AGENTS.md — ANTEI
 
 Personal AI Gallery：多模型图像、视频、音频、3D 生成，永久归档与资产复用。Next.js App Router + TypeScript；新用户可见文案同步 en/ja/zh。默认中文回复，commit message 用英文。
 
@@ -32,7 +32,7 @@ Personal AI Gallery：多模型图像、视频、音频、3D 生成，永久归�
 - 搜索优先 `rg`；独立只读检查可批量执行。限制输出长度，但测试/构建必须保留完整日志与真实退出码，不能用 `head` 截断进程来判成功。
 - 验证按 WORKFLOW 的影响面分级，准确区分定向通过与全量通过；无新变化或未决问题不重复跑检查。
 - 报告改了什么、现在的行为、验证与未验证项，必要时附文件链接；不强制图示或长篇报告。
-- 文档变更用 `sync-pixelvault-docs`：状态覆盖更新至 `docs/status.md`，稳定事实进入已有 `docs/references/`。在飞约束留在对话，不重建 `docs/plans/` 或归档目录。
+- 文档变更用 `sync-antei-docs`：状态覆盖更新至 `docs/status.md`，稳定事实进入已有 `docs/references/`。在飞约束留在对话，不重建 `docs/plans/` 或归档目录。
 
 <!-- BEGIN:nextjs-agent-rules -->
 

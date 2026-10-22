@@ -57,7 +57,7 @@ const BROWSER_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'
 
 /** MediaWiki 官方礼仪要求的联系式 UA（真上线该用这种）。 */
-const BOT_UA = 'PixelVaultResearchProbe/0.1 (contact: owner via github)'
+const BOT_UA = 'ANTEIResearchProbe/0.1 (contact: owner via github)'
 
 const HEADERS_OF_INTEREST = [
   'server',

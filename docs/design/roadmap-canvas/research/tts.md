@@ -61,7 +61,7 @@ ComfyUI 一站集成参考：[TTS-Audio-Suite](https://github.com/diodiogod/TTS-
 - **云端情绪特档：ElevenLabs v3 保留**，只在"角色台词 / 多人对白出彩"时按 Text-to-Dialogue 走（stability 三档已是 A3 默认逻辑的落点）。价高，定位成高价档而非默认。
 - **中文 / 方言特档：豆包语音合成 2.0（BYOK）**是最值得新接的一家——¥5/万字符（约合 $0.07/K 字符，低于 ElevenLabs 一档）、400+ 音色、粤/沪等方言、复刻 5–10s、首包 <300ms。代价是要把 L2 行内标记编译成指令句，属于 per-provider 编译层已规划的工作量。
 - **观望：Seed-Audio 1.0**——一条 prompt 出对白+BGM+音效，正好覆盖 audio.md 的 speech/sfx/music 三个 kind，但仍在邀测且官方定价未公布，先记入远期插座（与 A4 的"MiniMax / ACE-Step 留远期"同档）。
-- **自托管备档（RunPod 单卡 24G）：Qwen3-TTS-1.7B（Apache-2.0）为主 + Fun-CosyVoice3-0.5B（Apache-2.0）为副**。两者都是自由许可、中日英全覆盖、显存小、有 ComfyUI 集成，可商用无附加条款。情绪做到"到位"再上 **IndexTTS-2**（情绪控制最强，但 bilibili 许可商用需申请，上线前必须先拿授权）。**避开**：Fish-Speech 权重（研究许可）、Higgs v3（非商用）、F5-TTS（CC-BY-NC）——PixelVault 是收费产品，这三条在商用上都不干净。
+- **自托管备档（RunPod 单卡 24G）：Qwen3-TTS-1.7B（Apache-2.0）为主 + Fun-CosyVoice3-0.5B（Apache-2.0）为副**。两者都是自由许可、中日英全覆盖、显存小、有 ComfyUI 集成，可商用无附加条款。情绪做到"到位"再上 **IndexTTS-2**（情绪控制最强，但 bilibili 许可商用需申请，上线前必须先拿授权）。**避开**：Fish-Speech 权重（研究许可）、Higgs v3（非商用）、F5-TTS（CC-BY-NC）——ANTEI 是收费产品，这三条在商用上都不干净。
 
 ## 「字节 sudo」核实结果
 

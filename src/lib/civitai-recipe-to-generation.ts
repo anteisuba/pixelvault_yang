@@ -12,7 +12,7 @@ import {
   type CivitaiRecipeExtraLora,
 } from '@/types'
 
-/** Pure Civitai source-image recipe to PixelVault request mapping. */
+/** Pure Civitai source-image recipe to ANTEI request mapping. */
 export interface CivitaiRecipeGenerationPlan {
   prompt: string
   advancedParams: AdvancedParams | undefined

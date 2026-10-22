@@ -230,7 +230,7 @@ python qwen_workflow.py --prompt '把 <image1> 的杯子改成蓝色，保留文
 LRU 按「配额 − 卷上实际文件大小」判断要不要清；写盘仍撞配额时报 `Runner volume has insufficient
 free space`，app 归到「Runner 存储已满」。
 
-缓存 LRU **只删** PixelVault 动态命名的 `civitai-*`、`hf-*` LoRA 和 `civitai-ckpt-*`
+缓存 LRU **只删** ANTEI 动态命名的 `civitai-*`、`hf-*` LoRA 和 `civitai-ckpt-*`
 checkpoint，不碰手工放入或预置的模型。每次下载完成后原子更新
 `/runpod-volume/pixelvault-cache-manifest.json`，事件追加到
 `/runpod-volume/pixelvault-download-history.jsonl`，两者都不写下载 URL 或密钥。

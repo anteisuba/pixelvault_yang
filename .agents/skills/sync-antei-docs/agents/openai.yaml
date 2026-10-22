@@ -1,0 +1,4 @@
+interface:
+  display_name: "Sync ANTEI Docs"
+  short_description: "Keep project maps and docs aligned"
+  default_prompt: "Use $sync-antei-docs to update ANTEI documentation after a meaningful change."

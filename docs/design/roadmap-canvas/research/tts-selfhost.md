@@ -2,7 +2,7 @@ CDP 不可用（Chrome 调试授权超时），全程用 WebSearch + WebFetch + 
 
 ---
 
-# PixelVault 自托管 TTS 调研（RunPod Serverless 24G）
+# ANTEI 自托管 TTS 调研（RunPod Serverless 24G）
 
 ## 1. 部署路径现状
 

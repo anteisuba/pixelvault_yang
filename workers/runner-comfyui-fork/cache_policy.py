@@ -35,7 +35,7 @@ def _managed_in_dir(path, root, prefixes):
 
 
 def list_managed_files(lora_dir, checkpoint_dir, diffusion_dir=None):
-    """Only files created by PixelVault's dynamic paths are evictable."""
+    """Only files created by ANTEI's dynamic paths are evictable."""
     managed = []
     roots = [
         (lora_dir, ("civitai-", "hf-")),

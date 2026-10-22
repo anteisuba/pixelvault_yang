@@ -24,7 +24,7 @@ const note = (text, tone) => ({ t: 'note', text, tone })
 const OVERVIEW = {
   file: 'DigestOverview.dc.html',
   title: '总览',
-  eyebrow: `PixelVault · 1 总览 · ${DATE}`,
+  eyebrow: `ANTEI · 1 总览 · ${DATE}`,
   heading: '做什么、分几块、谁挡着谁、现在到哪',
   sub: `本画布由原 19 页浓缩而来，只留结论。五页：总览 · 业务设计 · UI 总纲 · 进度表 · 厂商速查。${BASE}。仓库里有同内容的 Markdown 镜像：\`docs/design/roadmap-canvas/digest/\`。`,
   blocks: [
@@ -101,7 +101,7 @@ const OVERVIEW = {
 const biz = (n, layer, file, title, heading, sub, blocks) => ({
   file,
   title,
-  eyebrow: `PixelVault · 2 业务设计 · ${n} / 10 · ${layer}`,
+  eyebrow: `ANTEI · 2 业务设计 · ${n} / 10 · ${layer}`,
   heading,
   sub,
   blocks,
@@ -430,7 +430,7 @@ const BIZ_HOME = biz(
 const UI_VISUAL = {
   file: 'DigestUiVisual.dc.html',
   title: '视觉语言',
-  eyebrow: `PixelVault · 3 UI 总纲 · 1 / 3`,
+  eyebrow: `ANTEI · 3 UI 总纲 · 1 / 3`,
   heading: '视觉语言：一张表定全站',
   sub: 'D1 已通过。数值都在 `globals.css` 的 token 里，这里只写规则；细则见仓库 `docs/references/ui-defaults.md`。Apple HIG 通则作底色（材质 · 动效），颜色走脊柱。',
   blocks: [
@@ -443,7 +443,7 @@ const UI_VISUAL = {
         ['材质四层', '底（`--surface-sunken` / `--surface-workbench`）· 卡（白 + border + shadow-card）· 浮层（磨砂 + shadow-float）· 弹层（实底 + shadow-overlay，不磨砂）；阴影收成 card / float / overlay / pressed 四个；同屏最多两层带影'],
         ['两种面', '去处页（画廊 · 素材 · 卡片 · 提示词）纯白浏览面；工具页灰底白卡工作面'],
         ['圆角', '`--radius` 0.625rem 派生七档 6 · 8 · 10 · 14 · 18 · 22 · 26；节点卡 18；chip 999'],
-        ['图标', 'Phosphor（bold 档），统一走桶 `@/components/icons`，lucide 已全删；业务对象图标抽象几何（E1-c 待讨论）；品牌标 ANTI 另开 chat 设计，留 favicon · 胶囊 · 助手头像三个插槽'],
+        ['图标', 'Phosphor（bold 档），统一走桶 `@/components/icons`，lucide 已全删；业务对象图标抽象几何（E1-c 待讨论）；品牌标 ANTEI 另开 chat 设计，留 favicon · 胶囊 · 助手头像三个插槽'],
         ['空态 C', '图标位 → 展示槽标题 → 一句话 → 一枚主动作 → 可选次动作；不放插画；EmptyState 原语已收 11 处'],
         ['动效', '时长 token 120 · 200 · 320 · 500；只动 transform / opacity；全部 motion-reduce；app 只用 `motion/react`（framer-motion 被 lint 拦）；GSAP 只许首页；每张画板配一张动效表'],
       ],
@@ -454,7 +454,7 @@ const UI_VISUAL = {
 const UI_SHARED = {
   file: 'DigestUiShared.dc.html',
   title: '交互原则与共享组件',
-  eyebrow: `PixelVault · 3 UI 总纲 · 2 / 3`,
+  eyebrow: `ANTEI · 3 UI 总纲 · 2 / 3`,
   heading: '交互原则与共享组件',
   sub: '同一件事在全站只长一种样子。',
   blocks: [
@@ -492,7 +492,7 @@ const UI_SHARED = {
 const UI_PAGES = {
   file: 'DigestUiPages.dc.html',
   title: '页面与一致性',
-  eyebrow: `PixelVault · 3 UI 总纲 · 3 / 3`,
+  eyebrow: `ANTEI · 3 UI 总纲 · 3 / 3`,
   heading: '页面清单与仍存在的不一致',
   sub: '页面规范的全文在仓库 `docs/references/pages/` 与 `domains/`；这里是索引。不一致项 09-23 按代码复核过，已解决的不再列。',
   blocks: [
@@ -535,7 +535,7 @@ const ptable = (rows) => table(['#', '改什么', '依赖', '状态'], rows, { w
 const PROGRESS = {
   file: 'DigestProgress.dc.html',
   title: '进度表',
-  eyebrow: `PixelVault · 4 进度表 · ${PROGRESS_DATE}`,
+  eyebrow: `ANTEI · 4 进度表 · ${PROGRESS_DATE}`,
   heading: '进度表：按业务分组，业务按依赖排序',
   sub: `只列没做完的；已完成的压在最后一段。# 沿用原编号，方便对 commit。${BASE}。09-26–27 三条线并行：角色（角色页改版 + 卡片助手 C1–C3 · S14）· 图片 / 标签 / 视频工作台改舞台 + 底部输入框与加载态 · 助手（记忆 M-A · 对话框 B-C · 设置 B），全部在本地 main「待上线」。下一件：画布怎么用角色卡（在设计）。`,
   blocks: [
@@ -547,7 +547,7 @@ const PROGRESS = {
       P('D5', '参考素材入口 + 列表页头 + 文件夹 + 空态引导（15 · 19 · 52）', 'D4', '待设计'),
       P('55', '手机统一：底部输入条 + 参数抽屉 + 助手半屏 Sheet', '—', '待设计'),
       P('60b', 'FreeTierSlot 表 drop · image-edit 的 fal 平台 key 兜底去留', '—', '待 owner'),
-      P('E1-c · E1-d', '业务对象图标（先讨论怎么设计）· 品牌标 ANTI（owner 另开 chat）', '—', '待 owner'),
+      P('E1-c · E1-d', '业务对象图标（先讨论怎么设计）· 品牌标 ANTEI（owner 另开 chat）', '—', '待 owner'),
       P('—', 'icon 桶 `use client` 与 `dist/ssr` 服务端出口取舍', '—', '待 owner'),
       P('—', '动效命名时长类：修了不出 CSS 的问题（62b7cef8）· 全站改写（5d42c49c · 6ccf3e29）', '—', '待上线'),
     ]),
@@ -651,7 +651,7 @@ const PROGRESS = {
 const VENDOR_IMAGE = {
   file: 'DigestVendorImage.dc.html',
   title: '图片厂商',
-  eyebrow: 'PixelVault · 5 厂商速查 · 1 / 5 · 2026-09-17 一手核对',
+  eyebrow: 'ANTEI · 5 厂商速查 · 1 / 5 · 2026-09-17 一手核对',
   heading: '图片：四家自然语言 + NAI + Runner',
   sub: '只列影响决策的事实；全文与来源链接在仓库 `docs/design/roadmap-canvas/research/image-nl.md` · `novelai-pixai.md`。价格为当时官方标价。',
   blocks: [
@@ -670,7 +670,7 @@ const VENDOR_IMAGE = {
 const VENDOR_VIDEO = {
   file: 'DigestVendorVideo.dc.html',
   title: '视频厂商',
-  eyebrow: 'PixelVault · 5 厂商速查 · 2 / 5 · 2026-09-17 一手核对',
+  eyebrow: 'ANTEI · 5 厂商速查 · 2 / 5 · 2026-09-17 一手核对',
   heading: '视频：六族',
   sub: '全文在 `research/video.md`。',
   blocks: [
@@ -692,7 +692,7 @@ const VENDOR_VIDEO = {
 const VENDOR_VOICE = {
   file: 'DigestVendorVoice.dc.html',
   title: '语音厂商',
-  eyebrow: 'PixelVault · 5 厂商速查 · 3 / 5 · 2026-09-17 一手核对',
+  eyebrow: 'ANTEI · 5 厂商速查 · 3 / 5 · 2026-09-17 一手核对',
   heading: '语音：云端 · 自托管 · 人声提取',
   sub: '全文在 `research/tts.md` · `tts-doubao.md` · `tts-selfhost.md` · `vocal-separation.md`。',
   blocks: [
@@ -716,7 +716,7 @@ const VENDOR_VOICE = {
 const VENDOR_TEXT = {
   file: 'DigestVendorText.dc.html',
   title: '文字厂商',
-  eyebrow: 'PixelVault · 5 厂商速查 · 4 / 5 · 2026-09-23 型号已更新',
+  eyebrow: 'ANTEI · 5 厂商速查 · 4 / 5 · 2026-09-23 型号已更新',
   heading: '文字：五家 LLM + 搜索',
   sub: '三条路由（增强 · 规划 · 助手）服务四模态。全文在 `research/llm-agent.md`。',
   blocks: [
@@ -738,7 +738,7 @@ const VENDOR_TEXT = {
 const VENDOR_RUNNER = {
   file: 'DigestVendorRunner.dc.html',
   title: 'Runner / RunPod',
-  eyebrow: 'PixelVault · 5 厂商速查 · 5 / 5 · 2026-09-17 控制台实看',
+  eyebrow: 'ANTEI · 5 厂商速查 · 5 / 5 · 2026-09-17 控制台实看',
   heading: 'Runner：RunPod · ComfyUI · 底模',
   sub: '全文在 `research/runner-lora.md` 与仓库 `docs/references/domains/runner.md`。',
   blocks: [
@@ -761,7 +761,7 @@ const g = (text, kids) => ({ text, kids })
 const D12_MAP = {
   file: 'DesignD12Map.dc.html',
   title: 'D12 助手 · ② 思维导图',
-  eyebrow: 'PixelVault · 6 在设计 · D12 助手 · ② 思维导图 · 2026-09-24',
+  eyebrow: 'ANTEI · 6 在设计 · D12 助手 · ② 思维导图 · 2026-09-24',
   heading: '助手：怎么做出用户想要的结果',
   sub: '① 09-23 已答：范围全选（问 / 做 · 界面 · 各页分工 · 画布导演）+ 主线「分析能力与做出想要的结果」；生成键做成开关；出图后不自检。③ 09-24 已答 Q1–Q4（全部取最简）；④ 09-24 已定生成开关摆法 A、只管当前会话（下一张画板）。owner 定施工前先盘点助手 UI 现状与优化点；施工验证用 owner 给的图做「只换衣服」与「三渲二 → 2D 赛璐璐」。绿 = 已定 / 已落，紫 = 我的建议（无异议即按此施工），灰虚线 = 依赖别的条目，红虚线 = 缺。',
   blocks: [
@@ -943,7 +943,7 @@ const TOGGLE_DIRECTIONS = `<div style="margin-top:14px;display:grid;grid-templat
 const D12_GEN_TOGGLE = {
   file: 'DesignD12Toggle.dc.html',
   title: 'D12 助手 · ④ 生成开关',
-  eyebrow: 'PixelVault · 6 在设计 · D12 助手 · ④ 画板 · 生成开关 · 2026-09-24',
+  eyebrow: 'ANTEI · 6 在设计 · D12 助手 · ④ 画板 · 生成开关 · 2026-09-24',
   heading: '确认卡上的生成开关',
   sub: '③ 已定：默认关，放在确认卡的生成键旁；这是这一轮唯一新增的界面元素。三种摆法并排，每种画 ① 默认 → ② 开着时下一张 → ③ 关掉。卡的皮肤原样取自助手 v2 画板 BCards「确认」那一节。**09-24 owner 定：A 行尾一颗开关；只管当前这段会话**（新会话回到默认关）。',
   blocks: [
@@ -976,7 +976,7 @@ const D12_GEN_TOGGLE = {
 const D12_UI_AUDIT = {
   file: 'DesignD12UiAudit.dc.html',
   title: 'D12 助手 · UI 盘点',
-  eyebrow: 'PixelVault · 6 在设计 · D12 助手 · UI 盘点 · 2026-09-24',
+  eyebrow: 'ANTEI · 6 在设计 · D12 助手 · UI 盘点 · 2026-09-24',
   heading: '助手 UI 盘点：现状与要改的地方',
   sub: 'owner 定：⑤ 施工前先盘点助手 UI、过一轮 UI 设计。本页是 09-24 在 Chrome 里的真机结果（桌面 1440 · 手机布局 520 宽）：收起态、空态、两段历史会话（含 102 条历史）、一轮实跑（反问两题 → 写提示词 → 确认卡 → 先不要）、各菜单。**没看到**：结果卡实况（要真出一张图，随施工验证一起看）、助手设置弹层。',
   blocks: [
@@ -1086,7 +1086,7 @@ const UI_CHANGE_MOCKS = `<div style="margin-top:14px;display:grid;grid-template-
 const D12_UI_DESIGN = {
   file: 'DesignD12UiDesign.dc.html',
   title: 'D12 助手 · ④ UI 改动',
-  eyebrow: 'PixelVault · 6 在设计 · D12 助手 · ④ 画板 · UI 改动 · 2026-09-24',
+  eyebrow: 'ANTEI · 6 在设计 · D12 助手 · ④ 画板 · UI 改动 · 2026-09-24',
   heading: '助手 UI 改动：改后的样子',
   sub: '对应盘点里已定的 U1 · U2 · U3 · U5（U4 只是去入口、U6 不动，不另画）。皮肤沿用助手 v2 与手机 M2 壳，只画变化的部分；B1–B9 是 bug 与已定未落地，不需要新画面。',
   blocks: [
@@ -1177,7 +1177,7 @@ const CONV_MOCKS = `<div style="margin-top:14px;display:grid;grid-template-colum
 const D12_CONV_DESIGN = {
   file: 'DesignD12ConvDirections.dc.html',
   title: 'D12 助手 · ④ 对话与反问 · 三方向',
-  eyebrow: 'PixelVault · 6 在设计 · D12 助手 · ④ 画板 · 对话与反问 · 2026-09-24',
+  eyebrow: 'ANTEI · 6 在设计 · D12 助手 · ④ 画板 · 对话与反问 · 2026-09-24',
   heading: '对话与反问：三个方向',
   sub: '**09-24 owner 定：A 对话流。**全状态见下一张「A 对话流：全状态」。同一个场景（画风冲突 → 反问 → 写提示词 → 确认卡），每个方向画两态。三个方向共用的底线：字号只剩三档（正文 14 · 名字 13 中粗 · 辅助 12 灰）、不再有卡中卡与图标圆圈、一轮只出一次头像名字、执行步骤与撤销默认收起、问题不预选且点一下即提交、答完留「问题 · 答案」一行（对应盘点 C1–C4 · Q5–Q8）。',
   blocks: [
@@ -1287,7 +1287,7 @@ const A_SPEC_TABLE = table(
 const D12_A_STATES = {
   file: 'DesignD12AStates.dc.html',
   title: 'D12 助手 · ④ A 对话流 · 全状态',
-  eyebrow: 'PixelVault · 6 在设计 · D12 助手 · ④ 画板 · A 对话流全状态 · 2026-09-24',
+  eyebrow: 'ANTEI · 6 在设计 · D12 助手 · ④ 画板 · A 对话流全状态 · 2026-09-24',
   heading: 'A 对话流：全状态（定稿）',
   sub: 'owner 09-24 定 A；三处细节定 T-A 裸图标 · R-C 三点 + 正在思考 + 流式 · S-C 开关在发送键旁，二过清单 P1–P8 已并入本版。场景用测试图做「只换衣服」，14 态 + 手机。**这张是施工依据**；对应盘点 C1–C11 · Q1–Q8 · B1 · B3 · B4。 ⚠ 施工后 owner 09-24 追加改动（以代码为准）：S4 / S5 里的问答对、每轮的「本轮记录」与没开跑的「计划 · N 步」不再显示；S13 的「恢复到这一步」与逐步撤销删除，撤回只剩每轮过程行上的「撤销」（点一下即撤）；S9 的清单已落。',
   blocks: [
@@ -1343,7 +1343,7 @@ const TOGGLE_DIRS = grid3([
 const D12_DETAIL_DIRS = {
   file: 'DesignD12DetailDirs.dc.html',
   title: 'D12 助手 · ④ 三处细节 · 方向',
-  eyebrow: 'PixelVault · 6 在设计 · D12 助手 · ④ 画板 · 三处细节 · 2026-09-24',
+  eyebrow: 'ANTEI · 6 在设计 · D12 助手 · ④ 画板 · 三处细节 · 2026-09-24',
   heading: '三处细节：各三个方向',
   sub: 'owner 看过「A 对话流：全状态」后指出三处：输入区工具行不好看、运行中那一行不好看、生成开关位置不对。每处三个方向并排；下面是我二过整张画板挑出的其它可改点。**09-24 owner 定：T-A · R-C（状态词改成「正在思考」，正文一字一字流式出现）· S-C；P1–P8 全部采纳**，已并回「A 对话流：全状态」定稿。',
   blocks: [
@@ -1401,7 +1401,7 @@ const SR_PHONE = `<div style="display:flex;gap:18px;align-items:flex-start"><div
 const SPLIT_REVERSE = {
   file: 'DesignSplitReverse.dc.html',
   title: '拆分与反推 · ④ 全状态',
-  eyebrow: 'PixelVault · 6 在设计 · 拆分与反推 · ④ 画板 · 2026-09-24',
+  eyebrow: 'ANTEI · 6 在设计 · 拆分与反推 · ④ 画板 · 2026-09-24',
   heading: '拆分与反推：全状态',
   sub: '⚠ 09-24 已施工（9f6f8a22 · b8300847），实跑 X1–X8 通过；实跑后补：查不到的先退回改写一次、「相近」只认形态差异、NAI 拦 @ImageN 与整句、换台型号跟着换台、NAI 能改比例；助手写下的提示词按域落盘，刷新后不再问「追加 / 覆盖 / 保留」（90b84b54）；换写法那句灰字进历史，刷新后照画（eff047d0）。owner 09-24 ① 七问全选最简：不设模式、不加入口、不列对照、自动核对、只要文字给复制块、孤立反推面板删掉；追问定「NAI V5 + 换场景」当场问一次。新画面只有两样：**代码块的复制键**和 **X7 那一题**，其余全部沿用「A 对话流：全状态」。场景用同一张测试图。',
   blocks: [
@@ -1525,7 +1525,7 @@ const VD_PHONE = `<div style="display:flex;gap:18px;align-items:flex-start"><div
 const CARDS_MAP = {
   file: 'DesignCardsMap.dc.html',
   title: '卡片 · ② 思维导图',
-  eyebrow: 'PixelVault · 6 在设计 · 卡片（35 卡片总线）· ② 思维导图 · 2026-09-25',
+  eyebrow: 'ANTEI · 6 在设计 · 卡片（35 卡片总线）· ② 思维导图 · 2026-09-25',
   heading: '卡片：每块从哪来、为什么有',
   sub: '回答两个问题：**卡片不是照酒馆设计的**——卡的主体（参考图、用途、音色、变体）是我们自己为「生成一致的画面 / 视频 / 配音」做的；酒馆只在 09-19 你点名参考后，借了文字那一侧的三件。**情绪**来自 09-19 你提的「AI 按角色的语气 / 情感回复」，加上配音间本来就有的 9 档；它只服务台词稿和配音，而语音 09-17 已定后置，所以我建议把它从 35 拿掉。绿 = 已定 / 已落，紫 = 我的建议，黄虚线 = 等你定，灰虚线 = 依赖别的条目。',
   blocks: [
@@ -1615,7 +1615,7 @@ const CARDS_MAP = {
 const MEMORY_MAP = {
   file: 'DesignMemoryMap.dc.html',
   title: '记忆 · ② 思维导图',
-  eyebrow: 'PixelVault · 6 在设计 · 记忆 · ② 思维导图 · 2026-09-25',
+  eyebrow: 'ANTEI · 6 在设计 · 记忆 · ② 思维导图 · 2026-09-25',
   heading: '记忆：一个账户一份，助手自动记，你能看能删',
   sub: 'owner 09-25 ① 四问全选最简：一个账户一份 · 助手自动记、你能看能删 · 规矩和偏好合成一份清单 · 上下文卡整体去掉。起因：同一个账户下有三套互相独立的「记住」（长期记忆 · 项目规则 · 上下文卡），现在三套都几乎是空的（0 · 0 · 4 张测试卡），用户分不清。绿 = 已定 / 已落，紫 = 我的建议，黄虚线 = 等你定。',
   blocks: [
@@ -1746,7 +1746,7 @@ const MM_PHONE = `<div style="display:flex;gap:18px;align-items:flex-start"><div
 const MEMORY_UI = {
   file: 'DesignMemoryUi.dc.html',
   title: '记忆 · ④ 全状态',
-  eyebrow: 'PixelVault · 6 在设计 · 记忆 · ④ 画板 · 2026-09-25',
+  eyebrow: 'ANTEI · 6 在设计 · 记忆 · ④ 画板 · 2026-09-25',
   heading: '记忆：一份清单，你写的优先',
   sub: '✅ owner 09-25 选 **M-A 平铺一列**。owner 09-25：① 四问全选最简 + ② 建议全过；搜图来源白 / 黑名单**保留结构化**（程序强制执行）。新画面只有两处：**设置 › 助手的记忆区块**与**对话里「已记住」那一行**；助手设置弹窗减到只剩人设。三个方向只差在记忆区块怎么排，其余状态、手机、动效三个方向共用。',
   blocks: [
@@ -1846,7 +1846,7 @@ const BB_PHONE = `<div style="display:flex;gap:18px;align-items:flex-start"><div
 const BUBBLE_UI = {
   file: 'DesignAssistantBubbles.dc.html',
   title: '助手对话框 · ④ 全状态',
-  eyebrow: 'PixelVault · 6 在设计 · 助手对话框 · ④ 画板 · 2026-09-25',
+  eyebrow: 'ANTEI · 6 在设计 · 助手对话框 · ④ 画板 · 2026-09-25',
   heading: '助手对话框：一轮一个框，直到你开口',
   sub: '✅ owner 09-25 选 **B-C**；你的气泡原画浅蓝，违背颜色脊柱（强调色只有 --primary），owner 从四种合规配色里选了**输入条象牙**。已施工（534a2301）：`StudioOperatorTurns` 把连续助手条目收进一框，确认卡 / 结果卡 / LoRA 推荐卡去掉描边与投影。owner 09-25：助手回复用对话框框住，直到我发言；我的发言也用对话框。现在的样子：助手一轮是头像 + 名字 + 一串裸文字和卡片，你的话是右侧浅灰气泡，两轮之间只靠留白分。⭐ 规则：**你每开口一次，助手就另起一个框**，框里装本轮所有东西（查、说、确认卡、结果、续跑）。⚠ 09-24 定过「线和框层层套是乱的原因之一」，所以框里的卡片都去掉自己的边框。三个方向只差材质、头像位置和你的气泡颜色，状态、手机、动效共用。',
   blocks: [
@@ -1966,7 +1966,7 @@ const CF_LIMITS = table(
 const CARD_FLOW_ANSWERS = {
   file: 'DesignCardFlowAnswers.dc.html',
   title: '卡片 · ① 三个问题',
-  eyebrow: 'PixelVault · 7 卡片重设计 · ① · 2026-09-26',
+  eyebrow: 'ANTEI · 7 卡片重设计 · ① · 2026-09-26',
   heading: '什么图能用于生成、给什么图最好、一张卡放几张',
   sub: '起因：09-26 用 Denia 卡实跑 GPT Image 2，出图看不出是同一个人。编译本身是对的（身份句、图例、卡图都进了请求），问题出在卡上：身份图是整张官方宣传立绘，她本人只占中间一小块，**脸约 30 像素宽**，两侧的大脸还是她的另一形态；自动提取的描述把两种形态和「3D 渲染立绘」画风混在一起；出口也没有明确要求「照这张图保持」。所以卡片要有一个帮你**查图、挑图、整理图**的流程，而不是随手传一张。',
   blocks: [
@@ -1998,7 +1998,7 @@ const CARD_FLOW_ANSWERS = {
 const CARD_FLOW_MAP = {
   file: 'DesignCardFlowMap.dc.html',
   title: '卡片 · ② 关系图',
-  eyebrow: 'PixelVault · 7 卡片重设计 · ② 思维导图（连线）v3 · 2026-09-26',
+  eyebrow: 'ANTEI · 7 卡片重设计 · ② 思维导图（连线）v3 · 2026-09-26',
   heading: '卡片：一个角色，三处用',
   sub: 'owner 09-26 v3：卡片的初衷是**一个角色，三处用**——出图、画布写剧本分镜、让助手变成她（头像 + 语气）。所以一张卡分两半：**外观**（参考图 + 一句外观 + **标签**，给出图和头像；标签给 NAI / LoRA 这类看不到图的模型）与**设定**（性格 · 说话方式 · 背景 · 关系 · 示例对白，给剧本和助手语气）。两半各有来源、各有验证（试镜 / 试读），⛔ 互不串用：设定不进出图提示词，外观之外的文字不影响画面。v2.1 的决定都保留：出图只在工作台，图都在素材库、卡可跨文件夹挑图，卡片页的精修 / AI 渲染下线。',
   blocks: [
@@ -2050,7 +2050,7 @@ const CC_EDGES = [
 const CANVAS_CHAR_MAP = {
   file: 'DesignCanvasCharacterMap.dc.html',
   title: '画布 · ② 用角色',
-  eyebrow: 'PixelVault · 7 卡片重设计 · 画布用角色 · ② 思维导图（连线）· ③ 已确认 · 2026-09-27',
+  eyebrow: 'ANTEI · 7 卡片重设计 · 画布用角色 · ② 思维导图（连线）· ③ 已确认 · 2026-09-27',
   heading: '画布怎么用角色',
   sub: '现状（09-27 读码）：画布**一处都没有用到角色库**——左栏「角色·风格卡」读的是旧上下文卡，拖进来只拷一张图的地址；节点里 @ 只认画布上的节点名；剧本投影只留空位或新建一张不连角色库的角色节点；卡片总线只接了图片工作台。owner 09-27 定：**角色在画布上是一张节点，点开分两部分**——图片（挑一张她的图放到画布上）与文字（她的设定给助手写剧本、分镜、台词）；左栏换成角色库。同步与剧本投影 owner 没有偏好，按最省事的给建议。',
   blocks: [
@@ -2144,7 +2144,7 @@ const CU_PHONE = `<div style="margin-top:14px;display:flex;gap:28px;align-items:
 const CANVAS_CHAR_UI = {
   file: 'DesignCanvasCharacterUi.dc.html',
   title: '画布 · 角色 ④',
-  eyebrow: 'PixelVault · 7 卡片重设计 · 画布用角色 · ④ 画板 · 2026-09-28 v3',
+  eyebrow: 'ANTEI · 7 卡片重设计 · 画布用角色 · ④ 画板 · 2026-09-28 v3',
   heading: '画布里的角色：原地展开，用 @ 不用线',
   sub: '✅ owner 09-27 选原型 **A 原地展开**；「图片 / 文字」用液态分段；收起也要有动效。三问全选最简：选中只原地展开 · 挑出来的图不连线 · 旧上下文卡不再显示。**v2（owner 看画板后）**：角色**不连线**——去掉「连到镜头」和进出口，镜头用她只走 **@她**；@她 带哪几张 = **每次 @ 时自己勾**（chip 写张数）；左栏**不拖**，点一位放到画布；来源被删的卡要有设计好的样子，⛔ 不是裂图（已修 a2684d4a）。**v3（09-28 按实做同步）**：没有工具条，右键只有「整理排布 · 删除」；勾图挂在**参考轨**上（提示词框里的胶囊点不到）；尺寸 320 → 480；第 1 + 2 片已提交 a0eaa0dc · 88b9d2b4。',
   blocks: [
@@ -2246,7 +2246,7 @@ const KQ_PHONE = `<div style="display:flex;gap:24px;align-items:flex-start"><div
 const CARD_UI = {
   file: 'DesignCardUi.dc.html',
   title: '卡片 · ④ 全状态',
-  eyebrow: 'PixelVault · 7 卡片重设计 · ④ 画板 · 2026-09-26',
+  eyebrow: 'ANTEI · 7 卡片重设计 · ④ 画板 · 2026-09-26',
   heading: '卡片界面：网格 + 侧栏',
   sub: 'owner 09-26 选 **K3 网格 + 侧栏**（v1 太挤后重画）。卡片页是一排角色大图；点一个，右侧滑出一栏：头像名字、「用她 ▾」（设为助手人设 · 在工作台用 · 放进画布），下面三行「外观 · 设定 · 用在哪」，一次只展开一行。原则：一页一个主角 · 不框里套框 · 次要收起、有问题才冒出。侧栏里的状态按真实宽度 380 画。',
   blocks: [
@@ -2276,7 +2276,7 @@ const CARD_UI = {
 const VIDEO_ASSISTANT = {
   file: 'DesignVideoAssistant.dc.html',
   title: '视频助手 + 左栏 · ④ 全状态',
-  eyebrow: 'PixelVault · 6 在设计 · 视频助手 · ④ 画板 · 2026-09-24',
+  eyebrow: 'ANTEI · 6 在设计 · 视频助手 · ④ 画板 · 2026-09-24',
   heading: '视频助手 + 左栏：全状态',
   sub: '⚠ 09-24 已施工（94e058b5 … 14f65dca），实跑 BytePlus 2.5 与 Wan 3.0（fal）出片；实跑后补：失败原因说具体、结果卡说视频且占位封顶、视频尺寸按清晰度记、音频胶囊带图标、助手看得到自己写的全文。owner 09-24 ① 八问：时间轴「镜头N（a-b秒）」两种都写（09-24 追加：**按模型写它自己的格式**，见④）· 写作分两档（简单需求 / 剧本）· UI 范围 = 左栏参数区 + 助手视频脸 · 去掉三个模式、按挂了什么判断 · 素材按图片1 / 视频1 / 音频1 编号 · 分镜是纯文本逐行 · 规格行只写一行短规格。anima-tagger 的 Anima 格式规则放 LoRA 侧，里面的 Danbooru 校验规则留给 NAI 标签检查。助手面板沿用「A 对话流：全状态」，新画面只有**左栏**和**规格浮层**。',
   blocks: [
@@ -2350,7 +2350,7 @@ const VIDEO_ASSISTANT = {
 const RUNNER_MAP = {
   file: 'DesignRunnerMap.dc.html',
   title: 'Runner 底模 · ②③ 思维导图',
-  eyebrow: 'PixelVault · 6 在设计 · 45 Runner 底模 · ②③ 思维导图 · 2026-09-28',
+  eyebrow: 'ANTEI · 6 在设计 · 45 Runner 底模 · ②③ 思维导图 · 2026-09-28',
   heading: 'Runner：多两个底模插槽，下载更稳',
   sub: '盘点先纠正一件事：进度表 45 写的「白名单只 1 条、要做运行时下载」**已过时**——运行时下载 LoRA 与来源底模按需下载早就接通了。这一轮做：**Anima Turbo 与 Z-Image Turbo 两个插槽、下载核对 SHA、DiT 也记加载证据、主端点换官方 worker-comfyui 5.10 底座（ComfyUI 0.34）、Volume 扩到 150G**。Krea 2 下一轮。owner 09-28 ① 两轮反问、二次调查（一手来源 + 端点只读回读）后 ③ 全部确认；下一步 ④ 只画界面上变的两处。',
   blocks: [
@@ -2561,7 +2561,7 @@ const RB_PHONE = `<div style="display:flex;gap:18px;align-items:flex-start;margi
 const RUNNER_UI = {
   file: 'DesignRunnerUI.dc.html',
   title: 'Runner 底模 · ④ 画板',
-  eyebrow: 'PixelVault · 6 在设计 · 45 Runner 底模 · ④ 画板 · 2026-09-28',
+  eyebrow: 'ANTEI · 6 在设计 · 45 Runner 底模 · ④ 画板 · 2026-09-28',
   heading: '换底模弹层多两张卡，负面词遇到 CFG 1 让开',
   sub: 'owner 09-28：画一个方向 + 全状态 + 手机 + 动效表（两处都沿用现有写法，没有结构分歧）；弹层里 09-17 退役的东西这次一起清；负面那行在 CFG 1 底模时收起、内容留着。画前在真机（owner 的 Chrome，localhost:3000）看过现状：Pony 底模 + Roxy LoRA。封面是占位色块，Z-Image 的封面待出。',
   blocks: [
@@ -2598,7 +2598,7 @@ const RUNNER_UI = {
 const EDIT_DESK_MAP = {
   file: 'DesignEditDeskMap.dc.html',
   title: '剪辑台 × Claude · ② 流程图',
-  eyebrow: 'PixelVault · 6 在设计 · 37 剪辑台 × Claude · ② 流程图 · 2026-09-28',
+  eyebrow: 'ANTEI · 6 在设计 · 37 剪辑台 × Claude · ② 流程图 · 2026-09-28',
   heading: '剪辑台：Claude 剪，你看着改',
   sub: '① 09-28 owner：「用 Claude 控制我的项目剪片，它需要什么功能就做什么」—— 出片到剪片一条线，外部 Claude 走 MCP、站内助手用同一套工具，顺手重排台面。③ 当天「全部按建议」。④ 开画前又定两条：剪辑台里的助手就是画布那块右侧面板（底部排片栏删掉）；Claude 导出成片只在落卡时说一句。契约见 `docs/references/mcp.md`。',
   blocks: [
@@ -2884,7 +2884,7 @@ const ED_VERDICT = {
 const edDirBoard = (key, file, name, line, main, mainMd, states, statesMd, pros, motion) => ({
   file,
   title: `剪辑台 · ④ 方向 ${key}`,
-  eyebrow: `PixelVault · 6 在设计 · 37 剪辑台 × Claude · ④ 台面三方向 · ${key} · 2026-09-28`,
+  eyebrow: `ANTEI · 6 在设计 · 37 剪辑台 × Claude · ④ 台面三方向 · ${key} · 2026-09-28`,
   heading: `方向 ${key} · ${name}`,
   sub: `${ED_VERDICT[key]} ${line} 三个方向同一份内容：「便利店 · 初剪」四镜 24 秒，站内助手刚排完一版，外部 Claude Code 也连着。三个方向共用的已定项：顶栏右端是和画布同一颗助手头像；底部排片栏、幽灵段、提案卡删掉；时间线默认铺满整条。手机只读剪辑台三个方向都不动。`,
   blocks: [
@@ -2992,7 +2992,7 @@ const edPhone = `<div style="display:flex;gap:24px;align-items:flex-start"><div 
 const EDIT_DESK_A_SLICE = {
   file: 'DesignEditDeskASlice.dc.html',
   title: '剪辑台 · ④ A 关键切片',
-  eyebrow: 'PixelVault · 6 在设计 · 37 剪辑台 × Claude · ④ A 关键切片 · 2026-09-28',
+  eyebrow: 'ANTEI · 6 在设计 · 37 剪辑台 × Claude · ④ A 关键切片 · 2026-09-28',
   heading: 'A 舞台 · 关键切片：字幕那一行 · 回执与段闪 · 手机',
   sub: 'owner 09-28 选 A。这一张只深化三处最容易出问题的地方；手感在下面的可点原型里试（开合助手、选段、双击字幕改字、三种回执、段闪、撤销）。',
   blocks: [
@@ -3061,7 +3061,7 @@ const tkNav = `<div style="${TK.nav}"><div style="font-size:16px;font-weight:600
 const tkHead = `<div style="display:flex;align-items:flex-start;gap:16px"><div><div style="font-size:20px;font-weight:600">连接 Claude</div><div style="${TK.muted};margin-top:4px">让 Claude Code 读写你的画布项目、帮你剪片。令牌对整个账号有效、不会过期；不用了就吊销。它不能花钱，生成永远要你自己点。</div></div><span style="margin-left:auto;${TK.primary}">生成令牌</span></div>`
 const tkRow = (name, last4, used, extra = '') =>
   `<div style="${TK.row}"><span style="width:8px;height:8px;border-radius:999px;background:${used.includes('分钟') ? '#16794c' : '#d4d4d4'}"></span><b style="font-weight:600;min-width:170px">${name}</b><span style="font-family:'Geist Mono',ui-monospace,monospace;font-size:12px;color:#737373">pvmcp_…${last4}</span><span style="color:#737373;font-size:12.5px">${used}</span><span style="margin-left:auto;font-size:13px;color:#525252">${extra || '吊销'}</span></div>`
-const TK_CMD = 'claude mcp add --transport http --scope user pixelvault https://www.anteisuba.com/api/mcp --header "Authorization: Bearer pvmcp_Qx7…a3F9"'
+const TK_CMD = 'claude mcp add --transport http --scope user antei https://www.anteisuba.com/api/mcp --header "Authorization: Bearer pvmcp_Qx7…a3F9"'
 const tkList = `<div style="display:flex;flex-direction:column;gap:10px">${tkRow('MacBook · Claude Code', 'a3F9', '3 分钟前用过')}${tkRow('公司台式机', 'K2mP', '9 月 21 日用过')}</div><div style="${TK.muted}">最多 10 个。连不上的时候先看令牌还在不在 —— 吊销后要重新生成、重新贴。</div>`
 const TK_MAIN = `<div style="${TK.page}">${tkNav}<div style="${TK.main}">${tkHead}${tkList}</div></div>`
 const tkDialogName = `<div style="${TK.dialog}"><div style="font-size:16px;font-weight:600">生成令牌</div><div style="${TK.muted}">起个名字，方便以后认出是哪台电脑。</div><div style="height:38px;border:1px solid #d4d4d4;border-radius:9px;display:flex;align-items:center;padding:0 12px;font-size:13.5px">MacBook · Claude Code</div><div style="display:flex;justify-content:flex-end;gap:10px"><span style="${TK.secondary}">取消</span><span style="${TK.primary}">生成</span></div></div>`
@@ -3074,7 +3074,7 @@ const tkPhone = `<div style="display:flex;gap:24px;align-items:flex-start"><div 
 const MCP_TOKENS = {
   file: 'DesignMcpTokens.dc.html',
   title: '剪辑台 · ④ 令牌页',
-  eyebrow: 'PixelVault · 6 在设计 · 37 剪辑台 × Claude · ④ 令牌页 · 2026-09-28',
+  eyebrow: 'ANTEI · 6 在设计 · 37 剪辑台 × Claude · ④ 令牌页 · 2026-09-28',
   heading: '/settings 多一节「连接 Claude」',
   sub: '接口 S2 已落（列出 / 生成 / 吊销）。这一页与「API key」同一写法：一行一个、右端一个动作，没有结构分歧，所以只画一个方向。明文只在生成那一刻出现一次，直接给整条 `claude mcp add` 命令（令牌已填好），复制一次就接上。',
   blocks: [
@@ -3119,9 +3119,9 @@ const MCP_TOKENS = {
 const RUNNER_SD15_MAP = {
   file: 'DesignRunnerSd15Map.dc.html',
   title: 'Runner 底模 · SD 1.5 · ②③ 思维导图（暂缓）',
-  eyebrow: 'PixelVault · 6 在设计 · 45 Runner 底模 · SD 1.5 · ②③ 思维导图 · 2026-09-28',
+  eyebrow: 'ANTEI · 6 在设计 · 45 Runner 底模 · SD 1.5 · ②③ 思维导图 · 2026-09-28',
   heading: 'SD 1.5 回来：跟着来源图走，连负面 embedding 和 VAE 一起还原',
-  sub: '**09-28 暂缓**：近 30 / 90 天新发或更新的 LoRA 里 SD 1.5 只占 1.2%（owner 库 2 / 180），先不做，恢复时从这张接。Krea 2 同日也暂缓：许可证要求年收入低于 100 万美元且有内容过滤，PixelVault 还没有出图过滤。以下为暂缓前的导图。7 月没接 SD 1.5 不是因为空间，而是它要另一套尺寸与采样默认（原生 512×768）。owner 09-28 ① 定：Z-Image 之后接着做；只有「来源图底模（自动）」、不设固定档；按配方把负面 embedding 和 VAE 一起下；库里「没有底模的家族」的文案一起改。依据：读码摸底 + LoRA 会话 250 条真实配方（29 个 LoRA，另用 2,352 条交叉核对）+ 20 把热门 LoRA 的作者样图抽查。',
+  sub: '**09-28 暂缓**：近 30 / 90 天新发或更新的 LoRA 里 SD 1.5 只占 1.2%（owner 库 2 / 180），先不做，恢复时从这张接。Krea 2 同日也暂缓：许可证要求年收入低于 100 万美元且有内容过滤，ANTEI 还没有出图过滤。以下为暂缓前的导图。7 月没接 SD 1.5 不是因为空间，而是它要另一套尺寸与采样默认（原生 512×768）。owner 09-28 ① 定：Z-Image 之后接着做；只有「来源图底模（自动）」、不设固定档；按配方把负面 embedding 和 VAE 一起下；库里「没有底模的家族」的文案一起改。依据：读码摸底 + LoRA 会话 250 条真实配方（29 个 LoRA，另用 2,352 条交叉核对）+ 20 把热门 LoRA 的作者样图抽查。',
   blocks: [
     {
       t: 'treeLegend',

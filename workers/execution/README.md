@@ -1,4 +1,4 @@
-# PixelVault Execution Worker
+# ANTEI Execution Worker
 
 This workspace hosts the execution-plane Worker for Phase 3. It still keeps the
 original pipe-check endpoints:

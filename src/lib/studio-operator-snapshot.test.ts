@@ -740,6 +740,48 @@ describe('buildImageOperatorSnapshot', () => {
     expect(snapshot.capabilities).toBeUndefined()
   })
 
+  /**
+   * 种子（10-21 真机：助手说「这个工作台没有种子选项，我没法替你锁」）。
+   * 判据与标签台参数弹层那格同源；自然语言台没有那一格，⛔ 不给。
+   */
+  it('⭐ 标签台多一格种子，自然语言台的模型认 seed 也不给', () => {
+    mockGetCapabilityConfig.mockReturnValue({
+      capabilities: ['seed'],
+      resolutionOptions: [],
+    })
+    const nai = option({
+      optionId: 'nai',
+      modelId: AI_MODELS.NOVELAI_V5_FULL,
+      adapterType: AI_ADAPTER_TYPES.NOVELAI,
+    })
+    const tags = buildImageOperatorSnapshot({
+      form: { ...FORM, advancedParams: { seed: 3513516593 } },
+      modelOptions: [nai],
+      selectedModel: nai,
+      runModels: [nai],
+      references: { items: [], limit: 1 },
+    })
+    expect(tags.capabilities).toEqual([
+      {
+        key: 'seed',
+        kind: 'seed',
+        value: 3513516593,
+        range: { min: 0, max: 4294967295, step: 1 },
+        available: true,
+      },
+    ])
+    expect(AssistantOperatorSnapshotSchema.safeParse(tags).success).toBe(true)
+
+    const natural = buildImageOperatorSnapshot({
+      form: { ...FORM, advancedParams: { seed: 7 } },
+      modelOptions: [option({ optionId: 'a', modelId: 'flux' })],
+      selectedModel: option({ optionId: 'a', modelId: 'flux' }),
+      runModels: [option({ optionId: 'a', modelId: 'flux' })],
+      references: { items: [], limit: 4 },
+    })
+    expect(natural.capabilities).toBeUndefined()
+  })
+
   it('只放用户真能跑的模型 —— 推荐一个跑不了的等于把人推去配置页', () => {
     const snapshot = buildImageOperatorSnapshot({
       form: FORM,

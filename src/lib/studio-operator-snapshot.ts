@@ -28,6 +28,8 @@ import { ASSISTANT_OPERATOR_LIMITS } from '@/constants/assistant-operator'
 import { getProviderLabel, type AI_ADAPTER_TYPES } from '@/constants/providers'
 import { foldChannels } from '@/lib/group-models-for-picker'
 import { getCapabilityConfig } from '@/constants/provider-capabilities'
+import { isTagDialectAdapter } from '@/constants/prompt-dialects'
+import { VARIANT_MAX_SEED } from '@/constants/studio'
 import { getRunCapabilityChips } from '@/lib/model-capability-chips'
 import { getModelById } from '@/constants/models'
 import {
@@ -142,17 +144,16 @@ function emptyToNull(value: string | null, max?: number): string | null {
  *
  * 服务端 `set_model` 之后重算这一节也走它（拆分与反推 X8：同一轮里换到 V4.5
  * 就得马上认得「角色参考」那颗）。
+ * 标签台多一格种子（`operatorSeedOption`），排在 chip 后面。
  */
 export function buildOperatorCapabilities(
   models: readonly { adapterType: AI_ADAPTER_TYPES; modelId: string }[],
   params: Partial<Record<string, unknown>>,
   hasReferenceImage: boolean,
 ): AssistantOperatorSnapshot['capabilities'] {
-  const chips = getRunCapabilityChips(models)
-  if (chips.length === 0) return undefined
-  return chips
-    .slice(0, ASSISTANT_OPERATOR_LIMITS.maxSpecOptions)
-    .map((chip) => {
+  const seed = operatorSeedOption(models, params)
+  const options = [
+    ...getRunCapabilityChips(models).map((chip) => {
       const raw = params[chip.capability]
       return {
         key: chip.capability,
@@ -186,7 +187,43 @@ export function buildOperatorCapabilities(
             }
           : {}),
       }
-    })
+    }),
+    ...(seed ? [seed] : []),
+  ]
+  if (options.length === 0) return undefined
+  return options.slice(0, ASSISTANT_OPERATOR_LIMITS.maxSpecOptions)
+}
+
+/**
+ * 标签台参数弹层里那格种子（`StudioTagsComposer` 的 `takesSeed`，判据同源）。
+ * 有了它助手才能「锁住这张的种子再改」（10-21 真机：助手说「这个工作台没有种子
+ * 选项，我没法替你锁」）。
+ * ⚠ 只在标签台给：自然语言台没有种子那一格（owner 2026-08-22「图片工作台 seed
+ * 不介入」），给了助手就会设一个界面上看不见、也清不掉的值。
+ */
+function operatorSeedOption(
+  models: readonly { adapterType: AI_ADAPTER_TYPES; modelId: string }[],
+  params: Partial<Record<string, unknown>>,
+): NonNullable<AssistantOperatorSnapshot['capabilities']>[number] | null {
+  const takers = models.filter(
+    (model) =>
+      isTagDialectAdapter(model.adapterType) &&
+      getCapabilityConfig(
+        model.adapterType,
+        model.modelId,
+      ).capabilities.includes('seed'),
+  )
+  if (takers.length === 0) return null
+  return {
+    key: 'seed',
+    kind: 'seed',
+    value: typeof params.seed === 'number' ? params.seed : null,
+    range: { min: 0, max: VARIANT_MAX_SEED, step: 1 },
+    available: true,
+    ...(takers.length < models.length
+      ? { models: takers.map((model) => model.modelId) }
+      : {}),
+  }
 }
 
 function buildReferencesNode(

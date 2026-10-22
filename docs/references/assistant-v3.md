@@ -49,7 +49,7 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
   - write：提示词 / 负面，替换 · 追加 · 找句换句；⛔ 不再问「你写过了，覆盖吗」（创作者叫助手改就是要改，每步可撤）。追加由 v3 拼好整段再写。
   - search_library：`kind: "lora"` 在库页当面搜，另有 `web_images` / `web_videos`（见下「找图 / 找视频」；这一台没有导入工具，找到的图只能由创作者点「选用」挂到下一句话）；look：@ 来的图 · `ref-N` · `sample`（示例图已跟着板子附上，look 只指给模型看）；generate：只在创作者要图时摆确认卡。
   - 系统提示的方言段只注入当前底模那一族（`lib/lora-dialect-section.ts`，旧内核同用）。
-- **图片台**（`assistant-v3-image.service.ts` · `lib/assistant-v3-image-board.ts`）：自然语言台与标签台同一张脸。板子一行一格，每个旋钮带可选值：模型（多渠道的列出渠道）、提示词、负面（模型没有负面就说没有）、画幅 / 清晰度 / 质量 / 背景、每次张数、模型选项（`set_option` 按 key）、标签台的分角色与画面文字、参考图 `ref-N`。
+- **图片台**（`assistant-v3-image.service.ts` · `lib/assistant-v3-image-board.ts`）：自然语言台与标签台同一张脸。板子一行一格，每个旋钮带可选值：模型（多渠道的列出渠道）、提示词、负面（模型没有负面就说没有）、画幅 / 清晰度 / 质量 / 背景、每次张数、模型选项（`set_option` 按 key；标签台多一格 `seed`，与参数弹层那格同一个值，没设过 = 每次随机，自然语言台没有那一格就不给）、标签台的分角色与画面文字、参考图 `ref-N`。
   - edit：`set_model`（带渠道）· `set_specs`（没说的那一格沿用台上的值；没有清晰度档的模型写 auto）· `set_count` · `set_option` · `mount_reference`（按附图名或检索结果的资产 id）· `unmount_reference` · `import_url` · 标签台 `set_people` / `set_scene_texts`。
   - 写提示词不走旧内核的「参考图证据简报」闸（`run.skipReferenceReview`，五张脸都设）：v3 的模型自己用 look 看参考图再写。NAI 标签核对照旧（查不到的退回改写一次）。
   - search_library：自己的素材，或 `kind: "web_images"` 联网找图（结果摆在面板上由创作者选用；2026-10-15 起网格摆在回答正文底下，见 `pages/assistant-shell-v2.md` §3.5「找到的图」），或 `kind: "web_videos"` 联网找视频（见下「找图 / 找视频」）。

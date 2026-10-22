@@ -456,17 +456,20 @@ export const AssistantOperatorSnapshotCountSchema = z.object({
 export const AssistantOperatorSnapshotCapabilitySchema = z.object({
   /** 键 = `ProviderCapability`（`quality` / `guidanceScale` / `preview` …）。 */
   key: ParamValueSchema,
-  /** 四种形态，与 `getCapabilityFieldType` 逐字同源。 */
-  kind: z.enum(['select', 'slider', 'toggle', 'text']),
-  /** 现值。`null` = 用户没设过（跟着缺省值走）。 */
+  /**
+   * 五种形态，与 `getCapabilityFieldType` 逐字同源。`seed` 不在专属 chip 行里，
+   * 只有标签台参数弹层里那格种子（`buildOperatorCapabilities` 只在那台给它）。
+   */
+  kind: z.enum(['select', 'slider', 'toggle', 'text', 'seed']),
+  /** 现值。`null` = 用户没设过（跟着缺省值走；种子是每次随机）。 */
   value: z.union([z.string(), z.number(), z.boolean()]).nullable(),
-  /** 缺省值 —— 撤销回 `null` 之后实际生效的那个。 */
-  defaultValue: z.union([z.string(), z.number(), z.boolean()]),
+  /** 缺省值 —— 撤销回 `null` 之后实际生效的那个。种子没有（`null` = 每次随机）。 */
+  defaultValue: z.union([z.string(), z.number(), z.boolean()]).optional(),
   /** `select` 的候选。⛔ 空表不下发这颗 chip（派生层已经滤过）。 */
   options: z.array(ParamValueSchema).max(LIMITS.maxSpecOptions).optional(),
   /** `text` 的字数上限（超了规划器就拒，⛔ 不截断）。 */
   maxLength: z.number().int().positive().optional(),
-  /** `slider` 的值域。 */
+  /** `slider` 与 `seed` 的值域。 */
   range: z
     .object({
       min: z.number(),

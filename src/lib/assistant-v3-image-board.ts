@@ -97,6 +97,10 @@ function optionLines(snapshot: AssistantOperatorSnapshot): string[] {
   return [
     'Model options (set_option by key):',
     ...options.map((option) => {
+      if (option.kind === 'seed')
+        return `- ${option.key}: ${
+          option.value === null ? 'random every run' : String(option.value)
+        } (whole number ${option.range?.min ?? 0}–${option.range?.max ?? '?'}; same seed + same prompt and settings = same picture)`
       const domain = option.options?.length
         ? `one of ${option.options.join(', ')}`
         : option.range

@@ -519,13 +519,16 @@ describe('catalog used by the tag workbench', () => {
       expect(artist.name).not.toBe('artist_0')
       expect(artist.previews).toHaveLength(3)
     }
+    const asked = mockFetch.mock.calls.filter(([url]) =>
+      String(url).includes('/tags.json'),
+    ).length
     await fetchDanbooruCatalog({ kind: 'artist', random: '1' })
-    // 画师名单只问一次（服务端缓存）。
+    // 画师名单与画法名单都只问一次（服务端缓存）。
     expect(
       mockFetch.mock.calls.filter(([url]) =>
         String(url).includes('/tags.json'),
       ),
-    ).toHaveLength(1)
+    ).toHaveLength(asked)
     vi.mocked(Math.random).mockRestore()
   })
 
@@ -690,6 +693,123 @@ describe('catalog used by the tag workbench', () => {
       kind: 'copyright',
       name: 'genshin_impact',
       count: 90000,
+    })
+  })
+
+  /** owner 2026-10-22：画风页分「画师 + 画法」两段（10-21 真机：搜 watercolor 一个都没有）。 */
+  it('searches the style page in two parts: media from meta first, then artists — post noise left out', async () => {
+    mockFetch.mockImplementation(async (raw: string) => {
+      const url = new URL(raw)
+      if (url.pathname === '/wiki_pages.json') return jsonResponse([])
+      if (url.pathname === '/posts.json') return jsonResponse([])
+      if (url.searchParams.get('search[category]') === '5')
+        return jsonResponse([
+          { name: 'watercolor_(medium)', category: 5, post_count: 150000 },
+          { name: 'watercolor_commentary', category: 5, post_count: 900 },
+          { name: 'watercolor_pencil_(medium)', category: 5, post_count: 4000 },
+        ])
+      if (url.searchParams.get('search[category]') === '1')
+        return jsonResponse([
+          { name: 'watercolorlily', category: 1, post_count: 300 },
+        ])
+      return jsonResponse([])
+    })
+    const { fetchDanbooruCatalog } = await import('./danbooru.connector')
+    const result = await fetchDanbooruCatalog({
+      query: 'watercolor',
+      kind: 'artist',
+    })
+    expect(result.candidates.map((tag) => tag.name)).toEqual([
+      'watercolor_(medium)',
+      'watercolor_pencil_(medium)',
+      'watercolorlily',
+    ])
+  })
+
+  it('opens a medium on the style page, but not a post-noise meta tag', async () => {
+    mockFetch.mockImplementation(async (raw: string) => {
+      const url = new URL(raw)
+      const name = url.searchParams.get('search[name]')
+      if (url.pathname === '/tags.json' && name === 'traditional_media')
+        return jsonResponse([
+          { name: 'traditional_media', category: 5, post_count: 300000 },
+        ])
+      if (url.pathname === '/tags.json' && name === 'highres')
+        return jsonResponse([
+          { name: 'highres', category: 5, post_count: 5000000 },
+        ])
+      if (url.pathname === '/wiki_pages.json') return jsonResponse([])
+      return jsonResponse([
+        post(1, 'g', 'flower 1girl'),
+        post(2, 'g', 'flower'),
+      ])
+    })
+    const { fetchDanbooruCatalog } = await import('./danbooru.connector')
+    const medium = await fetchDanbooruCatalog({
+      kind: 'artist',
+      tag: 'traditional_media',
+    })
+    expect(medium.detail?.tag).toBe('traditional_media')
+    expect(medium.detail?.traits[0]).toEqual({ tag: 'flower', count: 2 })
+    const noise = await fetchDanbooruCatalog({ kind: 'artist', tag: 'highres' })
+    expect(noise.detail).toBeNull()
+  })
+
+  it('puts a few random media above the random artists on the style page', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5)
+    mockFetch.mockImplementation(async (raw: string) => {
+      const url = new URL(raw)
+      if (url.searchParams.get('search[name_comma]'))
+        return jsonResponse([
+          { name: 'watercolor_(medium)', category: 5, post_count: 150000 },
+          { name: 'traditional_media', category: 5, post_count: 300000 },
+          { name: 'marker_(medium)', category: 5, post_count: 40000 },
+          { name: 'graphite_(medium)', category: 5, post_count: 30000 },
+          // 名单里的名字要是不在 meta（比如被改成了通用 tag），不算画法。
+          { name: 'game_cg', category: 0, post_count: 90000 },
+        ])
+      if (url.pathname === '/tags.json')
+        return jsonResponse([
+          { name: 'artist_a', category: 1, post_count: 5000 },
+        ])
+      const tag = url.searchParams.get('tags')?.split(' ')[0] ?? ''
+      return jsonResponse([
+        {
+          id: 1,
+          rating: 'g',
+          preview_file_url: `https://cdn.donmai.us/${tag}.jpg`,
+        },
+      ])
+    })
+    const { fetchDanbooruCatalog } = await import('./danbooru.connector')
+    const result = await fetchDanbooruCatalog({ kind: 'artist', random: '1' })
+    const names = result.candidates.map((tag) => tag.name)
+    expect(names).toHaveLength(4)
+    expect(names.at(-1)).toBe('artist_a')
+    expect(names.slice(0, 3).every((name) => name !== 'game_cg')).toBe(true)
+    vi.mocked(Math.random).mockRestore()
+  })
+
+  it('points to the style page when a feature search finds only a medium', async () => {
+    mockFetch.mockImplementation(async (raw: string) => {
+      const url = new URL(raw)
+      if (url.pathname === '/wiki_pages.json') return jsonResponse([])
+      if (url.searchParams.get('search[category]') === '5')
+        return jsonResponse([
+          { name: 'translated', category: 5, post_count: 900000 },
+          { name: 'pastel_(medium)', category: 5, post_count: 8000 },
+        ])
+      return jsonResponse([])
+    })
+    const { fetchDanbooruCatalog } = await import('./danbooru.connector')
+    const result = await fetchDanbooruCatalog({
+      query: 'pastel',
+      kind: 'general',
+    })
+    expect(result.crossHint).toEqual({
+      kind: 'artist',
+      name: 'pastel_(medium)',
+      count: 8000,
     })
   })
 

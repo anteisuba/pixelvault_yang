@@ -22,6 +22,7 @@ import {
 } from '@/constants/models'
 import { LORA_BASE_MODELS } from '@/constants/lora-base-models'
 import { getWorkflowStudioDefaults, WORKFLOWS } from '@/constants/workflows'
+import { FEATURE_FLAGS } from '@/constants/feature-flags'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 describe('models', () => {
@@ -237,7 +238,8 @@ describe('models', () => {
       )
       if (model.id === AI_MODELS.QWEN_IMAGE_21_RUNNER) {
         expect(kind).toBe(IMAGE_KIND.GENERATE)
-        expect(model.available).toBe(false)
+        // Availability follows the runner flag, like every other runner entry.
+        expect(model.available).toBe(FEATURE_FLAGS.comfyRunner)
       } else if (model.adapterType === AI_ADAPTER_TYPES.RUNNER) {
         expect(kind, model.id).toBe(IMAGE_KIND.LORA_BASE)
       }

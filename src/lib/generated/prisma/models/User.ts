@@ -287,6 +287,7 @@ export type UserWhereInput = {
   assistantMemories?: Prisma.AssistantMemoryListRelationFilter
   mcpTokens?: Prisma.McpTokenListRelationFilter
   danbooruFavorites?: Prisma.DanbooruFavoriteListRelationFilter
+  promptTagStack?: Prisma.XOR<Prisma.PromptTagStackNullableScalarRelationFilter, Prisma.PromptTagStackWhereInput> | null
   assistantTurnRecords?: Prisma.AssistantTurnRecordListRelationFilter
 }
 
@@ -331,6 +332,7 @@ export type UserOrderByWithRelationInput = {
   assistantMemories?: Prisma.AssistantMemoryOrderByRelationAggregateInput
   mcpTokens?: Prisma.McpTokenOrderByRelationAggregateInput
   danbooruFavorites?: Prisma.DanbooruFavoriteOrderByRelationAggregateInput
+  promptTagStack?: Prisma.PromptTagStackOrderByWithRelationInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordOrderByRelationAggregateInput
 }
 
@@ -378,6 +380,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   assistantMemories?: Prisma.AssistantMemoryListRelationFilter
   mcpTokens?: Prisma.McpTokenListRelationFilter
   danbooruFavorites?: Prisma.DanbooruFavoriteListRelationFilter
+  promptTagStack?: Prisma.XOR<Prisma.PromptTagStackNullableScalarRelationFilter, Prisma.PromptTagStackWhereInput> | null
   assistantTurnRecords?: Prisma.AssistantTurnRecordListRelationFilter
 }, "id" | "clerkId" | "email" | "username">
 
@@ -464,6 +467,7 @@ export type UserCreateInput = {
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
 }
 
@@ -508,6 +512,7 @@ export type UserUncheckedCreateInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -552,6 +557,7 @@ export type UserUpdateInput = {
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
 }
 
@@ -596,6 +602,7 @@ export type UserUncheckedUpdateInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -759,6 +766,20 @@ export type UserUpdateOneRequiredWithoutDanbooruFavoritesNestedInput = {
   upsert?: Prisma.UserUpsertWithoutDanbooruFavoritesInput
   connect?: Prisma.UserWhereUniqueInput
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutDanbooruFavoritesInput, Prisma.UserUpdateWithoutDanbooruFavoritesInput>, Prisma.UserUncheckedUpdateWithoutDanbooruFavoritesInput>
+}
+
+export type UserCreateNestedOneWithoutPromptTagStackInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutPromptTagStackInput, Prisma.UserUncheckedCreateWithoutPromptTagStackInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutPromptTagStackInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutPromptTagStackNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutPromptTagStackInput, Prisma.UserUncheckedCreateWithoutPromptTagStackInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutPromptTagStackInput
+  upsert?: Prisma.UserUpsertWithoutPromptTagStackInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutPromptTagStackInput, Prisma.UserUpdateWithoutPromptTagStackInput>, Prisma.UserUncheckedUpdateWithoutPromptTagStackInput>
 }
 
 export type UserCreateNestedOneWithoutAssistantConversationsInput = {
@@ -1141,6 +1162,7 @@ export type UserCreateWithoutMcpTokensInput = {
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
 }
 
@@ -1184,6 +1206,7 @@ export type UserUncheckedCreateWithoutMcpTokensInput = {
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -1243,6 +1266,7 @@ export type UserUpdateWithoutMcpTokensInput = {
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
 }
 
@@ -1286,6 +1310,7 @@ export type UserUncheckedUpdateWithoutMcpTokensInput = {
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -1329,6 +1354,7 @@ export type UserCreateWithoutDanbooruFavoritesInput = {
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
 }
 
@@ -1372,6 +1398,7 @@ export type UserUncheckedCreateWithoutDanbooruFavoritesInput = {
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -1431,6 +1458,7 @@ export type UserUpdateWithoutDanbooruFavoritesInput = {
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
 }
 
@@ -1474,6 +1502,199 @@ export type UserUncheckedUpdateWithoutDanbooruFavoritesInput = {
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
+  assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
+}
+
+export type UserCreateWithoutPromptTagStackInput = {
+  id?: string
+  clerkId: string
+  email: string
+  username?: string | null
+  displayName?: string | null
+  avatarUrl?: string | null
+  avatarStorageKey?: string | null
+  bannerUrl?: string | null
+  bannerStorageKey?: string | null
+  bio?: string | null
+  civitaiToken?: string | null
+  isPublic?: boolean
+  isDeleted?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
+  userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
+  generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
+  projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
+  characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
+  likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
+  followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
+  followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
+  recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
+  loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
+  loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
+  extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
+  assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
+  researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
+  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
+  assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
+  projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
+  contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
+  mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
+  danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
+  assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
+}
+
+export type UserUncheckedCreateWithoutPromptTagStackInput = {
+  id?: string
+  clerkId: string
+  email: string
+  username?: string | null
+  displayName?: string | null
+  avatarUrl?: string | null
+  avatarStorageKey?: string | null
+  bannerUrl?: string | null
+  bannerStorageKey?: string | null
+  bio?: string | null
+  civitaiToken?: string | null
+  isPublic?: boolean
+  isDeleted?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
+  userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
+  generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
+  projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
+  characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
+  likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
+  followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
+  followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
+  recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
+  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
+  loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
+  extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
+  assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
+  researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
+  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
+  assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
+  projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
+  contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
+  mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
+  danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
+  assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type UserCreateOrConnectWithoutPromptTagStackInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutPromptTagStackInput, Prisma.UserUncheckedCreateWithoutPromptTagStackInput>
+}
+
+export type UserUpsertWithoutPromptTagStackInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutPromptTagStackInput, Prisma.UserUncheckedUpdateWithoutPromptTagStackInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutPromptTagStackInput, Prisma.UserUncheckedCreateWithoutPromptTagStackInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutPromptTagStackInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutPromptTagStackInput, Prisma.UserUncheckedUpdateWithoutPromptTagStackInput>
+}
+
+export type UserUpdateWithoutPromptTagStackInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
+  userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
+  generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
+  projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
+  characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
+  likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
+  followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
+  followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
+  recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
+  loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
+  loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
+  extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
+  assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
+  researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
+  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
+  assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
+  projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
+  contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
+  mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
+  danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
+  assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutPromptTagStackInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
+  userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
+  generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
+  projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
+  characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
+  likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
+  followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
+  followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
+  recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
+  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
+  loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
+  extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
+  assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
+  researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
+  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
+  assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
+  projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
+  contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
+  mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
+  danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -1517,6 +1738,7 @@ export type UserCreateWithoutAssistantConversationsInput = {
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
 }
 
@@ -1560,6 +1782,7 @@ export type UserUncheckedCreateWithoutAssistantConversationsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -1619,6 +1842,7 @@ export type UserUpdateWithoutAssistantConversationsInput = {
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
 }
 
@@ -1662,6 +1886,7 @@ export type UserUncheckedUpdateWithoutAssistantConversationsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -1705,6 +1930,7 @@ export type UserCreateWithoutResearchRunsInput = {
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
 }
 
@@ -1748,6 +1974,7 @@ export type UserUncheckedCreateWithoutResearchRunsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -1807,6 +2034,7 @@ export type UserUpdateWithoutResearchRunsInput = {
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
 }
 
@@ -1850,6 +2078,7 @@ export type UserUncheckedUpdateWithoutResearchRunsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -1893,6 +2122,7 @@ export type UserCreateWithoutNodeWorkflowProjectsInput = {
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
 }
 
@@ -1936,6 +2166,7 @@ export type UserUncheckedCreateWithoutNodeWorkflowProjectsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -1995,6 +2226,7 @@ export type UserUpdateWithoutNodeWorkflowProjectsInput = {
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
 }
 
@@ -2038,6 +2270,7 @@ export type UserUncheckedUpdateWithoutNodeWorkflowProjectsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -2081,6 +2314,7 @@ export type UserCreateWithoutProjectsInput = {
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
 }
 
@@ -2124,6 +2358,7 @@ export type UserUncheckedCreateWithoutProjectsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -2183,6 +2418,7 @@ export type UserUpdateWithoutProjectsInput = {
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
 }
 
@@ -2226,6 +2462,7 @@ export type UserUncheckedUpdateWithoutProjectsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -2269,6 +2506,7 @@ export type UserCreateWithoutUserApiKeysInput = {
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
 }
 
@@ -2312,6 +2550,7 @@ export type UserUncheckedCreateWithoutUserApiKeysInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -2371,6 +2610,7 @@ export type UserUpdateWithoutUserApiKeysInput = {
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
 }
 
@@ -2414,6 +2654,7 @@ export type UserUncheckedUpdateWithoutUserApiKeysInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -2457,6 +2698,7 @@ export type UserCreateWithoutGenerationsInput = {
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
 }
 
@@ -2500,6 +2742,7 @@ export type UserUncheckedCreateWithoutGenerationsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -2559,6 +2802,7 @@ export type UserUpdateWithoutGenerationsInput = {
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
 }
 
@@ -2602,6 +2846,7 @@ export type UserUncheckedUpdateWithoutGenerationsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -2645,6 +2890,7 @@ export type UserCreateWithoutGenerationJobsInput = {
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
 }
 
@@ -2688,6 +2934,7 @@ export type UserUncheckedCreateWithoutGenerationJobsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -2747,6 +2994,7 @@ export type UserUpdateWithoutGenerationJobsInput = {
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
 }
 
@@ -2790,6 +3038,7 @@ export type UserUncheckedUpdateWithoutGenerationJobsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -2833,6 +3082,7 @@ export type UserCreateWithoutApiUsageLedgerInput = {
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
 }
 
@@ -2876,6 +3126,7 @@ export type UserUncheckedCreateWithoutApiUsageLedgerInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -2935,6 +3186,7 @@ export type UserUpdateWithoutApiUsageLedgerInput = {
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
 }
 
@@ -2978,6 +3230,7 @@ export type UserUncheckedUpdateWithoutApiUsageLedgerInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -3021,6 +3274,7 @@ export type UserCreateWithoutRecipesInput = {
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
 }
 
@@ -3064,6 +3318,7 @@ export type UserUncheckedCreateWithoutRecipesInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -3123,6 +3378,7 @@ export type UserUpdateWithoutRecipesInput = {
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
 }
 
@@ -3166,6 +3422,7 @@ export type UserUncheckedUpdateWithoutRecipesInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -3209,6 +3466,7 @@ export type UserCreateWithoutVoiceCardsInput = {
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
 }
 
@@ -3252,6 +3510,7 @@ export type UserUncheckedCreateWithoutVoiceCardsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -3311,6 +3570,7 @@ export type UserUpdateWithoutVoiceCardsInput = {
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
 }
 
@@ -3354,6 +3614,7 @@ export type UserUncheckedUpdateWithoutVoiceCardsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -3397,6 +3658,7 @@ export type UserCreateWithoutVoiceRoomsInput = {
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
 }
 
@@ -3440,6 +3702,7 @@ export type UserUncheckedCreateWithoutVoiceRoomsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -3499,6 +3762,7 @@ export type UserUpdateWithoutVoiceRoomsInput = {
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
 }
 
@@ -3542,6 +3806,7 @@ export type UserUncheckedUpdateWithoutVoiceRoomsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -3585,6 +3850,7 @@ export type UserCreateWithoutCreativePreferenceInput = {
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
 }
 
@@ -3628,6 +3894,7 @@ export type UserUncheckedCreateWithoutCreativePreferenceInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -3687,6 +3954,7 @@ export type UserUpdateWithoutCreativePreferenceInput = {
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
 }
 
@@ -3730,6 +3998,7 @@ export type UserUncheckedUpdateWithoutCreativePreferenceInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -3773,6 +4042,7 @@ export type UserCreateWithoutAssistantPersonaInput = {
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
 }
 
@@ -3816,6 +4086,7 @@ export type UserUncheckedCreateWithoutAssistantPersonaInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -3875,6 +4146,7 @@ export type UserUpdateWithoutAssistantPersonaInput = {
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
 }
 
@@ -3918,6 +4190,7 @@ export type UserUncheckedUpdateWithoutAssistantPersonaInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -3961,6 +4234,7 @@ export type UserCreateWithoutProjectRulesInput = {
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
 }
 
@@ -4004,6 +4278,7 @@ export type UserUncheckedCreateWithoutProjectRulesInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -4063,6 +4338,7 @@ export type UserUpdateWithoutProjectRulesInput = {
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
 }
 
@@ -4106,6 +4382,7 @@ export type UserUncheckedUpdateWithoutProjectRulesInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -4149,6 +4426,7 @@ export type UserCreateWithoutCharacterCardsInput = {
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
 }
 
@@ -4192,6 +4470,7 @@ export type UserUncheckedCreateWithoutCharacterCardsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -4251,6 +4530,7 @@ export type UserUpdateWithoutCharacterCardsInput = {
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
 }
 
@@ -4294,6 +4574,7 @@ export type UserUncheckedUpdateWithoutCharacterCardsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -4337,6 +4618,7 @@ export type UserCreateWithoutLikesGivenInput = {
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
 }
 
@@ -4380,6 +4662,7 @@ export type UserUncheckedCreateWithoutLikesGivenInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -4439,6 +4722,7 @@ export type UserUpdateWithoutLikesGivenInput = {
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
 }
 
@@ -4482,6 +4766,7 @@ export type UserUncheckedUpdateWithoutLikesGivenInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -4525,6 +4810,7 @@ export type UserCreateWithoutFollowsGivenInput = {
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
 }
 
@@ -4568,6 +4854,7 @@ export type UserUncheckedCreateWithoutFollowsGivenInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -4616,6 +4903,7 @@ export type UserCreateWithoutFollowsReceivedInput = {
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
 }
 
@@ -4659,6 +4947,7 @@ export type UserUncheckedCreateWithoutFollowsReceivedInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -4718,6 +5007,7 @@ export type UserUpdateWithoutFollowsGivenInput = {
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
 }
 
@@ -4761,6 +5051,7 @@ export type UserUncheckedUpdateWithoutFollowsGivenInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -4815,6 +5106,7 @@ export type UserUpdateWithoutFollowsReceivedInput = {
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
 }
 
@@ -4858,6 +5150,7 @@ export type UserUncheckedUpdateWithoutFollowsReceivedInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -4901,6 +5194,7 @@ export type UserCreateWithoutLoraTrainingJobsInput = {
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
 }
 
@@ -4944,6 +5238,7 @@ export type UserUncheckedCreateWithoutLoraTrainingJobsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -5003,6 +5298,7 @@ export type UserUpdateWithoutLoraTrainingJobsInput = {
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
 }
 
@@ -5046,6 +5342,7 @@ export type UserUncheckedUpdateWithoutLoraTrainingJobsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -5089,6 +5386,7 @@ export type UserCreateWithoutLoraAssetsInput = {
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
 }
 
@@ -5132,6 +5430,7 @@ export type UserUncheckedCreateWithoutLoraAssetsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -5191,6 +5490,7 @@ export type UserUpdateWithoutLoraAssetsInput = {
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
 }
 
@@ -5234,6 +5534,7 @@ export type UserUncheckedUpdateWithoutLoraAssetsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -5277,6 +5578,7 @@ export type UserCreateWithoutExtractedElementsInput = {
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
 }
 
@@ -5320,6 +5622,7 @@ export type UserUncheckedCreateWithoutExtractedElementsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -5379,6 +5682,7 @@ export type UserUpdateWithoutExtractedElementsInput = {
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
 }
 
@@ -5422,6 +5726,7 @@ export type UserUncheckedUpdateWithoutExtractedElementsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -5465,6 +5770,7 @@ export type UserCreateWithoutContextCardsInput = {
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
 }
 
@@ -5508,6 +5814,7 @@ export type UserUncheckedCreateWithoutContextCardsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -5567,6 +5874,7 @@ export type UserUpdateWithoutContextCardsInput = {
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
 }
 
@@ -5610,6 +5918,7 @@ export type UserUncheckedUpdateWithoutContextCardsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -5653,6 +5962,7 @@ export type UserCreateWithoutAssistantMemoriesInput = {
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
 }
 
@@ -5696,6 +6006,7 @@ export type UserUncheckedCreateWithoutAssistantMemoriesInput = {
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
 }
 
@@ -5755,6 +6066,7 @@ export type UserUpdateWithoutAssistantMemoriesInput = {
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
 }
 
@@ -5798,6 +6110,7 @@ export type UserUncheckedUpdateWithoutAssistantMemoriesInput = {
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
   assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
 }
 
@@ -5842,6 +6155,7 @@ export type UserCreateWithoutAssistantTurnRecordsInput = {
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutAssistantTurnRecordsInput = {
@@ -5885,6 +6199,7 @@ export type UserUncheckedCreateWithoutAssistantTurnRecordsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutAssistantTurnRecordsInput = {
@@ -5944,6 +6259,7 @@ export type UserUpdateWithoutAssistantTurnRecordsInput = {
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutAssistantTurnRecordsInput = {
@@ -5987,6 +6303,7 @@ export type UserUncheckedUpdateWithoutAssistantTurnRecordsInput = {
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
 }
 
 
@@ -6268,6 +6585,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   assistantMemories?: boolean | Prisma.User$assistantMemoriesArgs<ExtArgs>
   mcpTokens?: boolean | Prisma.User$mcpTokensArgs<ExtArgs>
   danbooruFavorites?: boolean | Prisma.User$danbooruFavoritesArgs<ExtArgs>
+  promptTagStack?: boolean | Prisma.User$promptTagStackArgs<ExtArgs>
   assistantTurnRecords?: boolean | Prisma.User$assistantTurnRecordsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["user"]>
@@ -6353,6 +6671,7 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   assistantMemories?: boolean | Prisma.User$assistantMemoriesArgs<ExtArgs>
   mcpTokens?: boolean | Prisma.User$mcpTokensArgs<ExtArgs>
   danbooruFavorites?: boolean | Prisma.User$danbooruFavoritesArgs<ExtArgs>
+  promptTagStack?: boolean | Prisma.User$promptTagStackArgs<ExtArgs>
   assistantTurnRecords?: boolean | Prisma.User$assistantTurnRecordsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }
@@ -6387,6 +6706,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     assistantMemories: Prisma.$AssistantMemoryPayload<ExtArgs>[]
     mcpTokens: Prisma.$McpTokenPayload<ExtArgs>[]
     danbooruFavorites: Prisma.$DanbooruFavoritePayload<ExtArgs>[]
+    promptTagStack: Prisma.$PromptTagStackPayload<ExtArgs> | null
     assistantTurnRecords: Prisma.$AssistantTurnRecordPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
@@ -6824,6 +7144,7 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   assistantMemories<T extends Prisma.User$assistantMemoriesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$assistantMemoriesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AssistantMemoryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   mcpTokens<T extends Prisma.User$mcpTokensArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$mcpTokensArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$McpTokenPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   danbooruFavorites<T extends Prisma.User$danbooruFavoritesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$danbooruFavoritesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$DanbooruFavoritePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  promptTagStack<T extends Prisma.User$promptTagStackArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$promptTagStackArgs<ExtArgs>>): Prisma.Prisma__PromptTagStackClient<runtime.Types.Result.GetResult<Prisma.$PromptTagStackPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   assistantTurnRecords<T extends Prisma.User$assistantTurnRecordsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$assistantTurnRecordsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AssistantTurnRecordPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -7849,6 +8170,25 @@ export type User$danbooruFavoritesArgs<ExtArgs extends runtime.Types.Extensions.
   take?: number
   skip?: number
   distinct?: Prisma.DanbooruFavoriteScalarFieldEnum | Prisma.DanbooruFavoriteScalarFieldEnum[]
+}
+
+/**
+ * User.promptTagStack
+ */
+export type User$promptTagStackArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the PromptTagStack
+   */
+  select?: Prisma.PromptTagStackSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the PromptTagStack
+   */
+  omit?: Prisma.PromptTagStackOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.PromptTagStackInclude<ExtArgs> | null
+  where?: Prisma.PromptTagStackWhereInput
 }
 
 /**

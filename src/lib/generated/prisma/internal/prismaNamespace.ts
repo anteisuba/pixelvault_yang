@@ -387,6 +387,7 @@ export const ModelName = {
   User: 'User',
   McpToken: 'McpToken',
   DanbooruFavorite: 'DanbooruFavorite',
+  PromptTagStack: 'PromptTagStack',
   AssistantConversation: 'AssistantConversation',
   AssistantConversationShare: 'AssistantConversationShare',
   ResearchRun: 'ResearchRun',
@@ -436,7 +437,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "modelConfig" | "characterCard" | "characterLook" | "generationCharacterCard" | "userLike" | "userFollow" | "characterCardLora" | "loraTrainingJob" | "loraAsset" | "extractedElement" | "generationLayer" | "inspirationPrompt" | "contextCard" | "assistantMemory" | "assistantTurnRecord"
+    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "promptTagStack" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "modelConfig" | "characterCard" | "characterLook" | "generationCharacterCard" | "userLike" | "userFollow" | "characterCardLora" | "loraTrainingJob" | "loraAsset" | "extractedElement" | "generationLayer" | "inspirationPrompt" | "contextCard" | "assistantMemory" | "assistantTurnRecord"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -659,6 +660,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.DanbooruFavoriteCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.DanbooruFavoriteCountAggregateOutputType> | number
+        }
+      }
+    }
+    PromptTagStack: {
+      payload: Prisma.$PromptTagStackPayload<ExtArgs>
+      fields: Prisma.PromptTagStackFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.PromptTagStackFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromptTagStackPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.PromptTagStackFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromptTagStackPayload>
+        }
+        findFirst: {
+          args: Prisma.PromptTagStackFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromptTagStackPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.PromptTagStackFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromptTagStackPayload>
+        }
+        findMany: {
+          args: Prisma.PromptTagStackFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromptTagStackPayload>[]
+        }
+        create: {
+          args: Prisma.PromptTagStackCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromptTagStackPayload>
+        }
+        createMany: {
+          args: Prisma.PromptTagStackCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.PromptTagStackCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromptTagStackPayload>[]
+        }
+        delete: {
+          args: Prisma.PromptTagStackDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromptTagStackPayload>
+        }
+        update: {
+          args: Prisma.PromptTagStackUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromptTagStackPayload>
+        }
+        deleteMany: {
+          args: Prisma.PromptTagStackDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.PromptTagStackUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.PromptTagStackUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromptTagStackPayload>[]
+        }
+        upsert: {
+          args: Prisma.PromptTagStackUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromptTagStackPayload>
+        }
+        aggregate: {
+          args: Prisma.PromptTagStackAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregatePromptTagStack>
+        }
+        groupBy: {
+          args: Prisma.PromptTagStackGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PromptTagStackGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.PromptTagStackCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PromptTagStackCountAggregateOutputType> | number
         }
       }
     }
@@ -3266,6 +3341,16 @@ export const DanbooruFavoriteScalarFieldEnum = {
 export type DanbooruFavoriteScalarFieldEnum = (typeof DanbooruFavoriteScalarFieldEnum)[keyof typeof DanbooruFavoriteScalarFieldEnum]
 
 
+export const PromptTagStackScalarFieldEnum = {
+  userId: 'userId',
+  positive: 'positive',
+  negative: 'negative',
+  updatedAt: 'updatedAt'
+} as const
+
+export type PromptTagStackScalarFieldEnum = (typeof PromptTagStackScalarFieldEnum)[keyof typeof PromptTagStackScalarFieldEnum]
+
+
 export const AssistantConversationScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -3404,7 +3489,6 @@ export const GenerationScalarFieldEnum = {
   projectId: 'projectId',
   recipeSnapshot: 'recipeSnapshot',
   sourceSurface: 'sourceSurface',
-  loraLineage: 'loraLineage',
   seq: 'seq',
   snapshot: 'snapshot',
   evaluation: 'evaluation',
@@ -4365,6 +4449,7 @@ export type GlobalOmitConfig = {
   user?: Prisma.UserOmit
   mcpToken?: Prisma.McpTokenOmit
   danbooruFavorite?: Prisma.DanbooruFavoriteOmit
+  promptTagStack?: Prisma.PromptTagStackOmit
   assistantConversation?: Prisma.AssistantConversationOmit
   assistantConversationShare?: Prisma.AssistantConversationShareOmit
   researchRun?: Prisma.ResearchRunOmit

@@ -9,7 +9,6 @@ import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
-import { ErrorAlert } from '@/components/ui/error-alert'
 import { useThings } from '@/hooks/use-things' // 数据一律经 hook → api-client，组件里禁 fetch
 
 interface ThingPanelProps {
@@ -22,7 +21,8 @@ export function ThingPanel({ projectId, onSelect }: ThingPanelProps) {
   const { things, isLoading, error } = useThings(projectId)
 
   if (error)
-    return <ErrorAlert message={t('loadError')}>{/* 重试按钮 */}</ErrorAlert>
+    // 整块出错与空态同一模板（ui-defaults §错误）
+    return <EmptyState tone="error" title={t('loadError')} />
 
   if (!isLoading && things.length === 0) {
     // 空态只走原语；新落点登记进 src/test/empty-state.contract.test.ts 的 LANDING_POINTS

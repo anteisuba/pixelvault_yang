@@ -94,7 +94,7 @@
 
 ### 4.1 · 画布级粘贴 ✅ owner 2026-07-27 拍板要做
 
-**现状：没做。** 全仓只有输入框内的 `onPaste`（`MentionInput` / `CharacterImageReferenceControls` 的粘贴 tab / `NodeMediaInspector`），**画布本身零监听**。上传节点与拖文件进画布都已实现（`ImageSourceStarter` · `StudioNodeWorkbench` 的 `handleCanvasDrop`），粘贴是这条链上唯一缺的一环。
+**现状：没做。** 全仓只有输入框内的 `onPaste`（`MentionInput` / `NodeMediaInspector`），**画布本身零监听**。上传节点与拖文件进画布都已实现（`ImageSourceStarter` · `StudioNodeWorkbench` 的 `handleCanvasDrop`），粘贴是这条链上唯一缺的一环。
 
 owner 原话：「**画布级粘贴做。并且有上传中的 UI。上传后直接是图片节点。**」
 

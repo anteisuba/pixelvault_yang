@@ -482,8 +482,6 @@
     "updateFailed": "更新に失敗しました",
     "deleteSuccess": "削除しました",
     "deleteFailed": "削除に失敗しました",
-    "visibilityUpdated": "公開設定を更新しました",
-    "visibilityFailed": "公開設定の更新に失敗しました",
     "apiKeyCreated": "APIキーを追加しました",
     "apiKeyLoadFailed": "APIキーを読み込めませんでした",
     "apiKeyCreateFailed": "APIキーの追加に失敗しました",
@@ -2062,15 +2060,7 @@
       "triggerWithCount": "{count}個のプロンプトタグを使用中"
     },
     "tray": {
-      "empty": "タグを追加",
-      "positiveTrack": "タグ",
-      "negativeTrack": "ネガティブ",
-      "addPositive": "ポジティブタグを追加",
-      "addNegative": "ネガティブタグを追加",
-      "collapse": "閉じる"
-    },
-    "chip": {
-      "remove": "削除"
+      "empty": "タグを追加"
     },
     "library": {
       "title": "プロンプトタグライブラリ",
@@ -2802,13 +2792,6 @@
       "loadFailed": "キャラの LoRA を読み込めませんでした",
       "saveFailed": "保存できませんでした。もう一度お試しください"
     }
-  },
-  "UseLoraButton": {
-    "action": "LoRAを使う",
-    "failed": "この画像のLoRAを読み込めませんでした",
-    "noneAvailable": "この画像はLoRAを使っていません",
-    "allHidden": "この画像の LoRA は非公開です",
-    "someHidden": "この画像の LoRA の一部は非公開のため、適用されませんでした"
   },
   "ImageChip": {
     "label": "画像",
@@ -3747,10 +3730,6 @@
     }
   },
   "Onboarding": {
-    "next": "次へ",
-    "finish": "了解",
-    "dismiss": "ガイドを閉じる",
-    "skipStep": "スキップ",
     "steps": {
       "welcome": {
         "title": "ANTEI へようこそ",
@@ -4152,8 +4131,7 @@
     "loading": "分析中...",
     "title": "AIプロンプトコーチ",
     "improvedPrompt": "改善バージョン",
-    "applyImproved": "このプロンプトを使用",
-    "requestFailed": "フィードバックの取得に失敗しました"
+    "applyImproved": "このプロンプトを使用"
   },
   "GenerationFeedback": {
     "useAsReference": "参考画像として使用",
@@ -4166,9 +4144,7 @@
     "apply": "プロンプトを適用",
     "applyAndReference": "適用して参考画像にする",
     "negativeAdditions": "推奨ネガティブプロンプト",
-    "conversationDone": "調整したプロンプトができました",
-    "startFailed": "会話の開始に失敗しました",
-    "responseFailed": "応答の取得に失敗しました"
+    "conversationDone": "調整したプロンプトができました"
   },
   "Feedback": {
     "notifications": "通知",
@@ -4518,9 +4494,7 @@
       },
       "reference": {
         "title": "参考画像",
-        "chip": "参考 {count}/{max}",
         "hint": "アップロードまたは素材から選び、各画像の役割を指定します。",
-        "unsupported": "現在のモデルは参考画像に対応していません。",
         "uploadTab": "アップロード",
         "assetTab": "素材",
         "pasteTab": "貼り付け",
@@ -4535,8 +4509,6 @@
         "assetDialogOpened": "素材ライブラリを開きました",
         "empty": "参考画像はまだありません。",
         "uploadFailed": "参考画像のアップロードに失敗しました。",
-        "roleLabel": "参考画像の役割",
-        "weightLabel": "参考画像の強度",
         "remove": "参考画像を削除",
         "assetDialogTitle": "参考画像を選択",
         "assetDialogDescription": "キャラクター画像の参考にする画像素材を選択します。",
@@ -4552,10 +4524,7 @@
           "frameStart": "開始フレーム",
           "frameEnd": "終了フレーム",
           "custom": "カスタム"
-        },
-        "customLabelPlaceholder": "カスタム分類名…",
-        "setPrimary": "メイン画像に設定",
-        "unsetPrimary": "メイン画像を解除"
+        }
       }
     },
     "voiceProfile": {
@@ -4762,13 +4731,8 @@
         "label": "引用済み",
         "counter": "引用済み {referenced} / 接続済み {connected}",
         "slotLabel": "画像 {index}",
-        "insertHint": "スロットをクリックしてプロンプトに挿入",
         "unnamed": "名前を付けてください",
-        "unnamedHint": "ノードに名前を付けるとタグとして挿入できます",
         "locate": "キャンバス上のノードに移動",
-        "videoAutoHint": "参照動画は接続に従って自動送信されます。挿入は不要です",
-        "keyframeHint": "先頭/末尾フレームは接続に従って自動送信されます。挿入は不要です",
-        "voiceNotReadyHint": "参考音声が選ばれていないため、今回の生成には使われません",
         "addVoice": "「{name}」に音色を追加",
         "remove": "「{name}」の接続を解除（ノードは保持）",
         "searchPlaceholder": "名前または @token で検索",
@@ -4981,15 +4945,7 @@
       "title": "アシスタントドック",
       "expand": "構成ワークスペースを展開",
       "restore": "ドックに戻す",
-      "scriptDoc": "構成 / あらすじ",
-      "scriptDocDraft": "会話から構成を作成",
-      "scriptDocUpdate": "会話から構成を更新",
       "scriptDocApply": "ノードを生成",
-      "scriptDocEmptyTitle": "まだ構成がありません",
-      "scriptDocEmptyHint": "左で構成をまとめてから、ここで作成します。確定すると対応ノードが生成されます。",
-      "scriptDocNeedChat": "まずはストーリーについて少し話してください。",
-      "scriptDocTrimMessages": "会話が長くなってきたため、今回は直近{count}件のメッセージを送信しました。",
-      "scriptDocTrimFields": "脚本が長くなってきたため、任意の項目を{count}件、今回の更新から外しました。保存済みの内容はそのままです。",
       "clarify": {
         "title": "いくつか確認させてください",
         "customPlaceholder": "自由に入力…",
@@ -4998,61 +4954,13 @@
         "skipped": "スキップ",
         "answerPrefix": "回答:"
       },
-      "scriptDocRolesLabel": "キャラクター · {count}",
-      "scriptDocShotsLabel": "ショット · {count}",
-      "scriptDocApplyResult": "キャンバスを同期しました：新規 {created}、更新 {updated}、削除 {removed}、再利用 {skipped}。",
-      "scriptDocApplyNothing": "キャンバスは構成と一致しています。生成する新規ノードはありません。",
-      "scriptDocProjectionTitle": "キャンバスへの変更内容",
-      "scriptDocProjectionCreate": "{count} 個のノードを作成",
-      "scriptDocProjectionUpdate": "{count} 個のノードを更新",
-      "scriptDocProjectionRemove": "{count} 個のノードと {edges} 本の接続を削除 —— 対応する役 / ショット / セリフが脚本から削除されています",
-      "scriptDocProjectionCancel": "キャンセル",
-      "scriptDocProjectionConfirm": "キャンバスに反映",
-      "scriptDocApplyEmpty": "先に構成へキャラクターかショットを追加してください。",
-      "scriptDocStepOutline": "構成",
-      "scriptDocStepShots": "ショット",
-      "scriptDocStepNodes": "ノード",
-      "scriptDocConfirmOutline": "構成を確定",
-      "scriptDocBreakShots": "カットに分ける",
-      "scriptDocRebreakShots": "カット分けをやり直す",
-      "scriptDocConfirmShots": "ショットを確定",
-      "scriptDocShotStills": "ショットごとに静止画",
-      "scriptDocShotStillsHint": "ショット確定時に各ショットの静止画ノードを作成します。オフにしても新規作成が止まるだけで、既にキャンバスにある静止画は削除されません。",
-      "scriptDocBackToOutline": "構成へ戻る",
-      "scriptDocBackgroundLabel": "背景",
       "scriptDocDepthSimple": "簡易",
       "scriptDocDepthStandard": "標準",
       "scriptDocDepthCinematic": "フル",
       "scriptDocDepthSimpleHint": "キャラと台詞のみ",
       "scriptDocDepthStandardHint": "+ 感情・尺・スタイル",
       "scriptDocDepthCinematicHint": "+ 世界観・心理描写・映画のようなカット",
-      "scriptDocNewRole": "新キャラ",
-      "scriptDocNewShot": "新ショット",
-      "scriptDocNewLine": "新台詞",
-      "scriptDocAddRole": "キャラ追加",
-      "scriptDocAddShot": "ショット追加",
-      "scriptDocAddLine": "台詞追加",
-      "scriptDocDelete": "削除",
-      "scriptDocLockHint": "手動編集 · クリックでAI上書き許可",
-      "scriptDocFieldTitle": "タイトル",
-      "scriptDocFieldLogline": "ログライン",
-      "scriptDocFieldStyle": "スタイル",
-      "scriptDocFieldDuration": "尺",
-      "scriptDocFieldRoleName": "キャラ名",
-      "scriptDocFieldRoleDescription": "外見",
-      "scriptDocFieldRolePersonality": "性格",
-      "scriptDocFieldRoleGoal": "目的",
-      "scriptDocFieldShotSummary": "ショット内容",
-      "scriptDocFieldShotEmotion": "感情",
-      "scriptDocFieldShotCamera": "カメラ",
-      "scriptDocFieldLine": "台詞",
-      "scriptDocFieldSpeaker": "話者",
       "scriptDocViewEdit": "編集",
-      "scriptDocViewRead": "読む",
-      "scriptDocFocusButton": "AIで修正",
-      "scriptDocFocusPlaceholder": "ここをどう変えたいですか？",
-      "scriptDocFocusSend": "適用",
-      "scriptDocFocusCancel": "キャンセル",
       "leanOpener": "キャンバスはまだ空です。まず物語の構成から相談しましょうか？",
       "leanOpenerActive": "キャンバスにすでにノードがあります——ストーリー構成にまとめましょうか？",
       "starters": {
@@ -5200,20 +5108,6 @@
         "untitled": "無題の画像",
         "cardAlt": "まだつながっていない画像"
       }
-    },
-    "dossier": {
-      "gallerySourceCanvas": "キャンバスから",
-      "gallerySourceCloseup": "クローズアップ",
-      "galleryExtract": "キャンバスに取り出す",
-      "galleryAdd": "追加",
-      "galleryAddAria": "参照画像を追加",
-      "primaryBadge": "メイン画像",
-      "onStageBadge": "登場",
-      "onStageAlwaysOn": "メイン画像は常に登場",
-      "onStageOn": "登場中",
-      "onStageOff": "未登場",
-      "onStageToggleOn": "登場に設定",
-      "onStageToggleOff": "登場を解除"
     },
     "toasts": {
       "projectCreated": "プロジェクト「{name}」を作成しました。",

@@ -123,7 +123,7 @@ Runner 族（`FEATURE_FLAGS.comfyRunner` 闸下）：ILLUSTRIOUS_RECIPE_CLONE ·
 - 价：standard **$0.126/s**、pro **$0.168/s**（fal `pricingInfoOverride` 原文，
   2026-09-17 核；两条都**没有** audio on/off 分档）
 - 「转白模」固定模板常量：`VIDEO_EDIT_WHITE_CLAY_PROMPT`
-  （`src/constants/video-edit-prompts.ts`，2026-09-17 实测通过后的措辞）
+  （2026-09-17 实测通过；常量文件因未接 UI 于 2026-10-22 删，接 UI 时从 git 历史取回措辞）
 - ⚠ **未接 UI** —— 目录、worker builder、校验与计价已通，动作按钮在设计阶段 D4
   之后另派
 
@@ -242,11 +242,11 @@ LoRA 底模（2026-07-30 社区对账；调研全文《LoRA底模与工作流调
 
 ### ⑥ 待接（本轮未做，各有明确阻塞）
 
-| 模型                  | 状态                                                                                                                                                                                                                                                                                                                                                                          |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 模型                  | 状态                                                                                                                                                                                                                                                                                                                                                                     |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Seedance 2.5          | **已 GA（2026-08-07 火山上线 API，见下节 ⑬）**——唯一剩余阻塞是带日期 model id 未证实。以下为 07-31 复核时的 fal 侧结论，仍然成立：fal 模型页 `bytedance/seedance-2.5/text-to-video` 存在但挂 early access 白名单，terms 写死 **B2B only**（须校验终端用户为企业、非个人消费者）——ANTEI 是个人消费者产品，**不符合准入**。火山方舟 / BytePlus 两条直连线均无 2.5 model id |
-| ~~Gemini Omni Flash~~ | **已于 2026-07-26 接入**，见下节 ⑦                                                                                                                                                                                                                                                                                                                                            |
-| Seedream 5.0 edit     | Pro/Lite 都有 edit 端点，低幻觉可控编辑对编辑工作台是能力升级，未接                                                                                                                                                                                                                                                                                                           |
+| ~~Gemini Omni Flash~~ | **已于 2026-07-26 接入**，见下节 ⑦                                                                                                                                                                                                                                                                                                                                       |
+| Seedream 5.0 edit     | Pro/Lite 都有 edit 端点，低幻觉可控编辑对编辑工作台是能力升级，未接                                                                                                                                                                                                                                                                                                      |
 
 ### ⑦ Gemini Omni 1.1 Flash — Worker 执行链（2026-09-06）
 
@@ -347,7 +347,7 @@ curl -s "https://fal.ai/api/models?keywords=seedance&total=100&page=1" | python 
 - **一个实现两个 adapterType**：`minimaxAdapter` / `minimaxCnAdapter` 共享同一份实现，只换 `adapterType` 标签 —— 两站线材格式相同，差的只是 baseUrl 与 key 槽
 - 分辨率：`VIDEO_RESOLUTIONS` 加了 `'2k'`，同时新建 `DEFAULT_VIDEO_RESOLUTIONS`（不含 2k）供 `DEFAULT_VIDEO_MODEL_CAPABILITIES` 用 —— 否则每个没显式声明的模型都会白捡 2K
 - 测试：`minimax.adapter.test.ts` 15 例（2K 固定 / 时长夹取 / 首帧 vs 参考角色 / 顺序保序 / 9-3-3-封顶-12 / 音频不得独存 / 目录接线 / execution ready）。⚠ vitest 配置 `exclude: ['workers/**']`，worker 那份是镜像、测不到，改一边要手动同步另一边
-- 文件足迹：19 个（config · providers · video-options · video-model-capabilities · provider-capabilities · reference-image-capabilities · video-model-send-plan · models/enum · models/video · models.ts · llm-capability · platform-keys · validate-api-key · apiKey.service · registry · minimax.adapter + test · worker index + builder · i18n ×3）
+- 文件足迹：19 个（config · providers · video-options · video-model-capabilities · provider-capabilities · reference-image-capabilities · video-model-send-plan · models/enum · models/video · models.ts · llm-capability · platform-keys · apiKey.service · registry · minimax.adapter + test · worker index + builder · i18n ×3）
 
 **两个真障碍：**
 
@@ -556,7 +556,7 @@ model id 与下列字段约束均取自火山方舟官方文档 `https://docs.vo
   - ✅ **同日已补齐（08-24）**：`streamOpenAiCompatibleChat` 一份 SSE 解析给 OpenAI / DeepSeek / Qwen / Grok 四家共用（Qwen 线 2026-09-17 退役，现为三家）（事件格式完全一致，差异全在请求侧的 `build*ChatRequest`）；`XAI` / `DEEPSEEK` / `DASHSCOPE` 三家一并补上流式（它们有同样的缺口）；助手三条路由 `maxDuration` 60 → 300；`llm-text.service.ts` 里所有 provider 的主请求 fetch 都加了超时（`LLM_TEXT_TIMEOUTS_MS`），挂住时报 `PROVIDER_TIMEOUT` / 504 而不是等平台杀函数。
   - ✅ **08-25 收口：漏写 SSE 现在编译不过。** 08-24 补完三家之后，「谁支持流式」仍是一张手工维护的 `Set` + 「不在集合里就缓冲」的降级——而那条降级正是 08-23 漏写能活到生产的原因（形态一样、行为天差地别，编译器和测试都不说话）。08-25 把它换成穷举 `Record<LlmTextAdapterType, …>`（`LLM_TEXT_STREAMS`）：接第七家 LLM 文本 provider 时漏写 stream 实现，`tsc` 当场报 `Property '<家>' is missing`。Claude 的 SSE 同批补齐（Anthropic 自己的事件格式：`content_block_delta` → `delta.text`，`message_stop` 收尾；⚠ 只取 `text_delta`，`thinking_delta` 绝不当正文转发）。`supportsLlmTextStreaming` / `LLM_TEXT_STREAMING_ADAPTERS` 已随之删除——**六家全部真流式，「支不支持」这个问题本身不存在了**。
   - ✅ **2026-09-15 Grok 助手接续超时**：`grok-4.6` 推理默认 `"high"`、不能关；流式在推理结束前可不发首个 SSE，官方要求加长超时，否则会「prematurely closing connection」。助手原先 30s 首包窗口会自己掐断，界面像连不上。现发 `reasoning_effort: "low"`（官方给 latency-sensitive agentic / tool-calling 的档），流式首包窗口 `XAI_STREAM_HEADERS = 90s`；token 预算走现行字段 `max_completion_tokens`（只盖可见输出，省略时官方默认 128k），不再发已弃用的 `max_tokens`。核验（2026-09-15）：[Reasoning](https://docs.x.ai/developers/model-capabilities/text/reasoning) · [Streaming](https://docs.x.ai/developers/model-capabilities/text/streaming) · [Chat Completions](https://docs.x.ai/developers/rest-api-reference/inference/chat-completions)。
-  - ⚠ `ADAPTER_KEY_HINTS` 里的 `xai-...` 是**观察值不是官方口径**（xAI 文档只给 `<YOUR_XAI_API_KEY_HERE>` 占位符）。因此 `validate-api-key.ts` **故意没有加 xAI 前缀规则**——真校验交给 `verifyAdapterKey` 打 `GET /v1/models`。
+  - ⚠ `ADAPTER_KEY_HINTS` 里的 `xai-...` 是**观察值不是官方口径**（xAI 文档只给 `<YOUR_XAI_API_KEY_HERE>` 占位符）。因此**不做 xAI 前缀校验**——真校验交给 `verifyAdapterKey` 打 `GET /v1/models`。
   - 未接的档：`grok-4.5`（与 4.6 同价更旧，被严格支配）、`grok-4.3`（1M 上下文、$1.25/$2.50，是便宜档候选，owner 本轮决定不接）、`grok-4.20-*` 三变体、`grok-build-0.1`。
   - ⛔ 视频线 `xai/grok-imagine-video/v1.5`（fal，480p $0.08/s）仍未接：**违规请求照样计费**且只给 16:9 一种比例（本仓是五档）。
 - ~~`qwen3-vl-plus` 是**死常量**~~ → **2026-09-17 整线退役**：Qwen 文字 / LLM 线（DASHSCOPE adapterType + 四个文本模型 id + DashScope 分支 + enhance/planner 候选）已整删，`TEXT_MODEL_STRENGTHS` 随之清空并删除。Qwen 的图像 / LoRA 底模与 runner 的 Anima 工作流不受影响。

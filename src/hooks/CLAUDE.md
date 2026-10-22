@@ -9,9 +9,6 @@ All hooks use `'use client'`. Less than half have a `.test` file — check for a
 ### Generation (core — changes affect Studio + all generation flows)
 
 - `use-unified-generate.ts` — **Core orchestrator**: image/video/audio routing (injected into StudioDataContext)
-- `use-studio-generate.ts` — Studio-specific generation with recipe compilation
-- `use-generate-video.ts` — Video generation + status polling
-- `use-generation-form.ts` — Form state management
 
 ### Cards (changes affect Studio card selection)
 
@@ -22,8 +19,6 @@ All hooks use `'use client'`. Less than half have a `.test` file — check for a
 
 - `use-prompt-enhance.ts` — LLM prompt enhancement (injected into StudioDataContext)
 - `use-prompt-assistant.ts` — Interactive prompt suggestions
-- `use-prompt-feedback.ts` — Prompt quality feedback
-- `use-generation-feedback.ts` — Post-generation coaching
 
 ### Gallery & Community
 
@@ -41,7 +36,6 @@ All hooks use `'use client'`. Less than half have a `.test` file — check for a
 
 ### Utility
 
-- `use-async-action.ts` — Generic async state wrapper (loading/error/data)
 - `use-mobile.ts` — Mobile viewport detection
 - `use-api-keys.ts` — User API key management
 - `use-civitai-token.ts` — Civitai integration token

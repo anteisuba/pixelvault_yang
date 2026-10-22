@@ -36,7 +36,7 @@
    | 抽屉内选型号               | 行按压态 + 选中 check 立即出现                             | `transition-colors duration-fast`                            | 写入选中模型，抽屉保留在型号列表（不自动关闭），footer 按钮更新为该模型名 |
    | 点 footer「使用 <model>」  | 按钮按压态                                                 | 抽屉关闭动画（内置）                                         | 关闭抽屉，chip 文案更新为新模型，生成按钮解除禁用（若 prompt 非空）       |
    | 点「规格」chip             | chip 按压态                                                | 底部 sheet 滑入（内置）                                      | 打开规格 sheet，比例/张数当前值高亮                                       |
-   | 展开负面提示词折叠区       | 箭头旋转 + 区域展开                                        | `animated-collapse`                                          | 显示负面提示词输入框                                                      |
+   | 展开负面提示词折叠区       | 箭头旋转 + 区域展开                                        | 折叠展开                                                     | 显示负面提示词输入框                                                      |
    | 点「＋参考图」chip         | chip 按压态                                                | 沿用既有参考图面板动效                                       | 打开参考图选择，选定后 chip 显示数量角标                                  |
    | 聚焦 prompt 输入           | 输入框获得焦点环                                           | 软键盘弹出，composer 随 `keyboard-aware-bottom-padding` 上移 | 输入区域不被遮挡，生成按钮保持可见                                        |
    | 点「模板」                 | chip 高亮；舞台换成模板面板（模板 C · 手机）               | 结果淡出一拍，面板淡入上浮（`StudioStageSwap`）              | 只列这一台的模板，点一张即套用并回到结果，输入条上沿 5 秒「撤销」         |
@@ -44,7 +44,7 @@
    | 点生成（disabled：无模型） | 无 hover/press 视觉，`aria-disabled`                       | 无                                                           | 不提交；点击改为跳转/打开 `QuickSetupDialog`（Hard Rule 8，缺 key 场景）  |
    | 生成结果到达               | 舞台自动滚动到结果卡顶部（每轮一次，`scrollIntoView`）     | `duration-base` 平滑滚动，`motion-reduce:` 降级为跳转        | 结果卡置顶可见，动作行随即出现                                            |
    | 点结果动作行「更多」       | 抽屉按压态                                                 | vaul 抽屉滑入（内置）                                        | 展开完整动作列表（下载/编辑/当参考图/定最佳等，同桌面唯一动作栏语义）     |
-   | 生成失败                   | 该结果格显示失败原因 + 「重试」按钮                        | `error-alert.tsx` 既有样式                                   | 点「重试」重新提交同一请求，composer 状态不变                             |
+   | 生成失败                   | 该结果格显示失败原因 + 「重试」按钮                        | 结果格内就地显示                                             | 点「重试」重新提交同一请求，composer 状态不变                             |
 
 7. 非目标： 不改 `StudioOperatorDock`（移动端继续 `return null`）；不做视频/音频/enhance/analyze 模式的移动端专项验收（同壳复用但本轮只验证图片）；不改 `LoraWorkbench`（已完成）；不改桌面 `≥1024` 布局；不新增默认模型的选型算法之外的持久化机制（localStorage key 待在 `src/constants` 定义，命名遵循现有 SCREAMING_SNAKE 常量风格）；不碰 service/API 契约。
 8. 参考（可选）： 本卡的模型抽屉 `layout="drill"` 复用 LoRA 库手机端（[`lora-library.md`](lora-library.md) §8）已验证的 vaul 抽屉与 sheet 分层方法（不借视觉皮肤，只借结构）。

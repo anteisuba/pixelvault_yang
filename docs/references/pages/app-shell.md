@@ -238,7 +238,7 @@ studio 内容裁出视口，是因为侧栏能展开到 144；平板档现在钉
   - ⚠ 键盘：Radix 菜单吃掉 Tab、方向键只在菜单项之间走，分段条里的格子键盘到不了 —— 所以整行是一颗 `menuitem`，焦点落在这一行上按 ←/→ 换语言；`onSelect` 拦掉「选完就关」。
 - **收起 40**：底部只剩头像，是一颗**真 `button`**，tooltip「账号」，菜单锚到右侧。⚠ 那一档它是**唯一**的账号入口，键盘必须到得了。
 - **退出登录**只有一条路（`src/hooks/use-sign-out.ts`）：Clerk `signOut` + 回首页。`/settings` 的两处导航底部与这颗菜单共用它，⛔ 别再抄第四份。
-- **引导锚点 `data-onboarding="apiKey"` 挂在账号触发器上**，⛔ 不在菜单内容里 —— 菜单只在打开后才挂载，挂进去就是死锚点（`OnboardingTooltip` 找不到目标只能把气泡居中）。
+- **引导锚点 `data-onboarding="apiKey"` 挂在账号触发器上**，⛔ 不在菜单内容里 —— 菜单只在打开后才挂载，挂进去就是死锚点（引导气泡找不到目标只能居中）。
 - **动效**（2026-10-08 侧栏原型 v1，覆盖 D11 ④ 的 `lift`）：菜单从触发行**长出来** —— 靠触发器那条边不动，另一条边走 `--spring-slot` 推出去（clip-path，四边多放 1.5rem 给投影）+ 由糊变清；侧栏展开往上、收起 40 往右、手机顶栏往下（按 Radix `data-side`）。收回反着走、`--duration-fast`。⛔ 不缩放（菜单是底行的延伸，缩放会读成独立弹窗）。底行 hover / pressed 只过渡背景色，⛔ 不动字重、⛔ 行不抖。全部带 `motion-reduce:` 降级。浮层动效住在 `ui/dropdown-menu.tsx` 的 `motionPreset`（`zoom` 默认 / `grow` 账号菜单，keyframes 在 `globals.css` 的 `menu-grow` / `menu-shrink`），⛔ 不在调用方用 className 覆盖。
 - ⚠ **底色仍走侧栏的反极性**：hover 往暗（`--sidebar-accent`）、pressed / 菜单打开更暗（`--sidebar-accent-strong`）、激活浮片往亮（`--sidebar-active-surface`）。⛔ 账号入口不许自己破例。
 - **手机同一颗**：「我的」页封面右上 ⚙ 挂**同一颗** `AccountMenu`（§6 手机 P3）。⛔ 底栏、工作台顶栏都不再挂账号入口 —— 两个入口并存就是下一次漂移的起点。

@@ -91,12 +91,12 @@ primitive → semantic → domain/component → page
 
 ### `ui/` 原语分类（58 文件，2026-07-10 清点）
 
-- **基础控件**：button（cva 变体：default/destructive/outline/secondary/ghost/link + xs/icon-xs）· input · textarea · label · select · slider · switch · tabs（default/line）· toggle-group · param-slider · seed-input
+- **基础控件**：button（cva 变体：default/destructive/outline/secondary/ghost/link + xs/icon-xs）· input · textarea · label · select · slider · switch · tabs（default/line）· toggle-group · param-slider
 - **覆层**：dialog · sheet · drawer(vaul) · responsive-dialog · responsive-popover · responsive-menu · popover（带交互守卫）· alert-dialog · confirm-dialog · dropdown-menu · tooltip（delay 0）· command(cmdk)
-- **反馈**：skeleton（静止灰块，⛔ pulse）· load-reveal（数据到了由糊变清，`loading.md`）· progress · badge · error-alert · sonner（底部黑条）· feedback-button（键上结果 / 两段删除）· empty-state（空态 / 出错 / 404 同一模板）
-- **内容展示**：card · card-tile-base · markdown · code-block · message · metadata-list · audio-player · optimized-image · image-compare · tree-view · collapsible-panel · animated-collapse
-- **输入复合**：prompt-input（约 41 处）· placeholders-input · image-drop-zone · reference-image-section
-- **装饰/动效**：blur-fade · hyper-text · number-ticker · particles · pulsating-button · brand-mark；使用时验证任务价值、性能与 reduced-motion，不因存在而默认复用
+- **反馈**：skeleton（静止灰块，⛔ pulse）· load-reveal（数据到了由糊变清，`loading.md`）· progress · badge · sonner（底部黑条）· feedback-button（键上结果 / 两段删除）· empty-state（空态 / 出错 / 404 同一模板）
+- **内容展示**：card · card-tile-base · markdown · code-block · message · metadata-list · audio-player · optimized-image · image-compare
+- **输入复合**：prompt-input（约 41 处）
+- **装饰/动效**：number-ticker · brand-mark；使用时验证任务价值、性能与 reduced-motion，不因存在而默认复用
 
 ### Studio 共享 chrome（`studio-shared/chrome`）
 
@@ -115,7 +115,7 @@ StudioBottomDock · StudioCanvas · **StudioResizableLayout（导出 `StudioFlow
 
 ### 画布域（`business/node/`）要点
 
-画布是 v4：工作台外壳在 `node/workbench-v4/`（`NodeWorkbenchV4` / `CanvasV4` / 工具条 / 快捷键 / 拖放），四类节点卡在 `node/nodes/v4/`，外壳组件（CanvasTopBar / CanvasBottomDock / CanvasMiniMap / CastDock / ScriptDocWorkspace / StudioNodeAssistantDock / NodeCanvasEmptyGuide）留在 `node/` 根。**改画布先读 `pages/node-canvas-v2.md`（现行基准）与 `ui-defaults.md §3.1 / §4.1`（节点卡的圆角例外与弹簧三档）；组件分层与禁改见 `src/components/business/node/CLAUDE.md`。**
+画布是 v4：工作台外壳在 `node/workbench-v4/`（`NodeWorkbenchV4` / `CanvasV4` / 工具条 / 快捷键 / 拖放），四类节点卡在 `node/nodes/v4/`，外壳组件（CanvasTopBar / CanvasBottomDock / CanvasMiniMap / CastDock / StudioNodeAssistantDock / NodeCanvasEmptyGuide）留在 `node/` 根。**改画布先读 `pages/node-canvas-v2.md`（现行基准）与 `ui-defaults.md §3.1 / §4.1`（节点卡的圆角例外与弹簧三档）；组件分层与禁改见 `src/components/business/node/CLAUDE.md`。**
 
 ## 移动端范式
 

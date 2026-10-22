@@ -13,6 +13,7 @@ import {
   RESEARCH_SOURCE_IDS,
 } from '@/constants/research'
 import type { EvidenceItem } from '@/types/research'
+import { isStyleMediumTag } from '@/lib/tag-lookup'
 import {
   clampExcerpt,
   getResearchBreaker,
@@ -312,6 +313,22 @@ const CATALOG_CATEGORY: Record<DanbooruCatalogKind, number> = {
   general: DANBOORU_REQUEST.generalTagCategory,
 }
 
+/** 画风页的「画法」：meta 那一类里说画面的（owner 2026-10-22，见 `isStyleMediumTag`）。 */
+function isStyleMedium(tag: CatalogTag): boolean {
+  return (
+    tag.category === DANBOORU_REQUEST.metaTagCategory &&
+    isStyleMediumTag(tag.name)
+  )
+}
+
+/** 这个 tag 归不归这一页：画风页除了画师，还收画法。 */
+function belongsTo(tag: CatalogTag, kind: DanbooruCatalogKind): boolean {
+  return (
+    tag.category === CATALOG_CATEGORY[kind] ||
+    (kind === 'artist' && isStyleMedium(tag))
+  )
+}
+
 function readCatalog(path: string, params: Record<string, string>) {
   return researchFetchJson(
     RESEARCH_SOURCE_IDS.danbooru,
@@ -440,6 +457,7 @@ async function matchTags(
   text: string,
   category: number,
   aliases: readonly CatalogTag[],
+  limit: number = DANBOORU_REQUEST.catalogCandidateLimit,
 ): Promise<CatalogTag[]> {
   const slug = text.toLowerCase().replace(/\s+/g, '_')
   const fuzzy = CatalogTagsSchema.parse(
@@ -447,7 +465,7 @@ async function matchTags(
       'search[name_matches]': `*${slug}*`,
       'search[category]': String(category),
       'search[order]': 'count',
-      limit: String(DANBOORU_REQUEST.catalogCandidateLimit),
+      limit: String(limit),
     }),
   )
   const byCount = (a: CatalogTag, b: CatalogTag) => b.post_count - a.post_count
@@ -456,6 +474,46 @@ async function matchTags(
     ...aliases.filter((tag) => tag.category === category).sort(byCount),
     ...fuzzy.filter((tag) => tag.category === category).sort(byCount),
   ].filter((tag) => !seen.has(tag.name) && Boolean(seen.add(tag.name)))
+}
+
+/**
+ * 这一页的候选。画风页两段（owner 2026-10-22）：**画法在前** —— 说画面的 meta 词就那么
+ * 几十个，对上了多半就是要找的它，而且最多几行，不会把画师挤出视线；**画师在后**。
+ */
+async function matchPage(
+  text: string,
+  kind: DanbooruCatalogKind,
+  aliases: readonly CatalogTag[],
+): Promise<CatalogTag[]> {
+  if (kind !== 'artist')
+    return (await matchTags(text, CATALOG_CATEGORY[kind], aliases)).slice(
+      0,
+      DANBOORU_REQUEST.catalogCandidateLimit,
+    )
+  const [meta, artists] = await Promise.all([
+    matchTags(
+      text,
+      DANBOORU_REQUEST.metaTagCategory,
+      aliases,
+      DANBOORU_REQUEST.metaMatchLimit,
+    ),
+    matchTags(text, CATALOG_CATEGORY.artist, aliases),
+  ])
+  return [
+    ...meta
+      .filter(isStyleMedium)
+      .slice(0, DANBOORU_REQUEST.mediumCandidateLimit),
+    ...artists.slice(0, DANBOORU_REQUEST.catalogCandidateLimit),
+  ]
+}
+
+function shuffled<T>(items: readonly T[]): T[] {
+  const draw = [...items]
+  for (let i = draw.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[draw[i], draw[j]] = [draw[j]!, draw[i]!]
+  }
+  return draw
 }
 
 /**
@@ -487,18 +545,31 @@ async function randomCatalog(
         tag.category === CATALOG_CATEGORY[kind] && !placeholders.has(tag.name),
     ),
   )
-  const draw = [...pool]
-  for (let i = draw.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[draw[i], draw[j]] = [draw[j]!, draw[i]!]
-  }
   const picked = await withPreviews(
-    draw.slice(0, DANBOORU_REQUEST.randomDraw),
+    shuffled(pool).slice(0, DANBOORU_REQUEST.randomDraw),
     kind,
   )
   return picked
     .filter((item) => item.previews.length > 0)
     .slice(0, DANBOORU_REQUEST.randomShow)
+}
+
+/** 画风页「画法」那一段的随便看看：从一张画材名单里抽，同样剔掉没有全年龄样图的。 */
+async function randomMedia(): Promise<DanbooruCatalog['candidates']> {
+  const pool = await cached('top-medium', async () =>
+    CatalogTagsSchema.parse(
+      await readCatalog('/tags.json', {
+        'search[name_comma]': DANBOORU_REQUEST.mediumRandomPool.join(','),
+        limit: String(DANBOORU_REQUEST.mediumRandomPool.length),
+      }),
+    ).filter(isStyleMedium),
+  )
+  const limit = DANBOORU_REQUEST.mediumCandidateLimit
+  const picked = await withPreviews(
+    shuffled(pool).slice(0, limit + 2),
+    'artist',
+  )
+  return picked.filter((item) => item.previews.length > 0).slice(0, limit)
 }
 
 async function readCatalogDetail(
@@ -513,9 +584,7 @@ async function readCatalogDetail(
   const tags = CatalogTagsSchema.parse(
     await readCatalog('/tags.json', { 'search[name]': tag, limit: '1' }),
   )
-  const hit = tags.find(
-    (item) => item.name === tag && item.category === CATALOG_CATEGORY[kind],
-  )
+  const hit = tags.find((item) => item.name === tag && belongsTo(item, kind))
   if (!hit) return empty
   const [wikiRaw, posts] = await Promise.all([
     readCatalog('/wiki_pages.json', { 'search[title]': tag, limit: '1' }),
@@ -571,24 +640,22 @@ async function readDanbooruCatalog(
 ): Promise<DanbooruCatalog> {
   if (query.tag) return readCatalogDetail(query.tag, query.kind)
   if (!query.query) {
+    // 画风页：画法一段在前（同 matchPage）。
+    const [media, picked] = await Promise.all([
+      query.kind === 'artist' ? randomMedia() : [],
+      randomCatalog(query.kind),
+    ])
     return {
-      candidates: await randomCatalog(query.kind),
+      candidates: [...media, ...picked],
       crossHint: null,
       detail: null,
     }
   }
   const aliases = await aliasTags(query.query)
-  const found = await matchTags(
-    query.query,
-    CATALOG_CATEGORY[query.kind],
-    aliases,
-  )
+  const found = await matchPage(query.query, query.kind, aliases)
   if (found.length > 0) {
     return {
-      candidates: await withPreviews(
-        found.slice(0, DANBOORU_REQUEST.catalogCandidateLimit),
-        query.kind,
-      ),
+      candidates: await withPreviews(found, query.kind),
       crossHint: null,
       detail: null,
     }
@@ -599,9 +666,7 @@ async function readDanbooruCatalog(
    */
   for (const otherKind of DanbooruCatalogKindSchema.options) {
     if (otherKind === query.kind) continue
-    const other = (
-      await matchTags(query.query, CATALOG_CATEGORY[otherKind], aliases)
-    )[0]
+    const other = (await matchPage(query.query, otherKind, aliases))[0]
     if (other) {
       return {
         candidates: [],

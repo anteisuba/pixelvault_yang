@@ -17,6 +17,23 @@ export function artistPromptTag(name: string): string {
   return `artist:${displayDanbooruTag(name)}`
 }
 
+const STYLE_META_TAGS = new Set<string>(DANBOORU_REQUEST.styleMetaTags)
+
+/**
+ * 画风页里这个 tag 是「画法」不是画师：`*_(medium)` 与几个说画面的 meta tag
+ * （owner 2026-10-22）。只看名字 —— 画师 tag 不会叫这些名字，收藏里没存类别也认得出。
+ */
+export function isStyleMediumTag(name: string): boolean {
+  return name.endsWith('_(medium)') || STYLE_META_TAGS.has(name)
+}
+
+/** 画风页加进正向标签的那一格：画师写 `artist:名字`，画法原样写。 */
+export function stylePromptTag(name: string): string {
+  return isStyleMediumTag(name)
+    ? displayDanbooruTag(name)
+    : artistPromptTag(name)
+}
+
 /** 作品张数的短写：15.2万 / 152K。 */
 export function compactPostCount(count: number, locale: string): string {
   return new Intl.NumberFormat(locale, {
@@ -90,14 +107,20 @@ export function addLookupTags(
   return [...chips.slice(0, at), ...fresh, ...chips.slice(at)]
 }
 
-/** 画风页的「加入」是开关：没有就放到最前面，有了就拿掉。 */
-export function toggleArtistTag(
+/**
+ * 画风页的「加入」是开关：有了就拿掉；没有时画师放到最前面，画法接在开头那几个画师
+ * 标签后面（与查资料别的页加进来的同一个位置）。
+ */
+export function toggleStyleTag(
   chips: readonly TagChip[],
-  tag: string,
+  name: string,
 ): TagChip[] {
+  const tag = stylePromptTag(name)
   const key = tag.toLowerCase()
-  return chips.some((chip) => chip.text.toLowerCase() === key)
-    ? chips.filter((chip) => chip.text.toLowerCase() !== key)
+  if (chips.some((chip) => chip.text.toLowerCase() === key))
+    return chips.filter((chip) => chip.text.toLowerCase() !== key)
+  return isStyleMediumTag(name)
+    ? addLookupTags(chips, [tag])
     : [{ text: tag, weight: PROMPT_TAG_WEIGHT.DEFAULT }, ...chips]
 }
 

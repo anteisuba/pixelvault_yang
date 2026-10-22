@@ -8,6 +8,7 @@ import type {
   FavoriteLoraRequest,
   HuggingFaceLoraFile,
   HuggingFaceLoraSearchItem,
+  LoraAssetRecord,
   LoraCandidateLicense,
   LoraSourceSnapshot,
 } from '@/types'
@@ -198,5 +199,27 @@ export function buildHuggingFaceFavoriteRequest(input: {
     provider: 'huggingface',
     coverImageUrl: item.coverImageUrl,
     sourceSnapshot: buildHuggingFaceSourceSnapshot(input),
+  }
+}
+
+/**
+ * 库里的一条（Civitai 公开库、发现流、收藏 / 自训详情）→ 收藏（导入）载荷。带上
+ * Civitai 出处，重载后「贴近来源图」才还原得出来源 prompt。收藏与「加到角色」共用。
+ */
+export function buildLibraryFavoriteRequest(
+  item: LoraAssetRecord,
+): FavoriteLoraRequest {
+  return {
+    name: item.name,
+    triggerWord: item.triggerWord,
+    loraUrl: item.loraUrl,
+    type: item.type,
+    baseModelFamily: item.baseModelFamily,
+    provider: item.provider,
+    coverImageUrl: item.coverImageUrl,
+    recommendedPrompt: item.recommendedPrompt,
+    modelId: item.modelId,
+    modelVersionId: item.modelVersionId,
+    fileHashAutoV3: item.fileHashAutoV3,
   }
 }

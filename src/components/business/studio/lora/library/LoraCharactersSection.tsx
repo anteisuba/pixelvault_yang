@@ -6,33 +6,33 @@ import { useTranslations } from 'next-intl'
 import { Check } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import type { FavoriteLoraRequest } from '@/types'
 import { useCharacterLorasContext } from '@/components/business/studio/lora/character-loras-context'
 import { cn } from '@/lib/utils'
 
 interface LoraCharactersSectionProps {
-  /** 详情页当前这一版的下载链接：按它找你名下的那一行。 */
-  loraUrl: string
+  /** 详情页当前这一版（与收藏同一份描述）：没收藏的第一次加到角色时服务端按它记一行。 */
+  lora: FavoriteLoraRequest
   /** 右栏小标题的样式（与同栏别的段一致）。 */
   titleClassName: string
 }
 
 /**
- * LoRA 库详情右栏「角色」一段（角色③，owner 2026-10-22）：她属于哪些角色 +
- * 「加到角色…」。只有收进来的（收藏或自训）才有这一段 —— 还没收藏的先点收藏。
+ * LoRA 库详情右栏「角色」一段（角色③，owner 2026-10-22）：它属于哪些角色 +
+ * 「加到角色…」。没收藏的也能加（加到角色≠收藏，不进「我的收藏」）。
  *
  * ⚠ 现阶段用现有弹层拼最简版本，统一样式留到 UI 地基「统一库组件 + 选择器」。
  */
 export function LoraCharactersSection({
-  loraUrl,
+  lora,
   titleClassName,
 }: LoraCharactersSectionProps) {
   const t = useTranslations('LoraWorkbench.characterLoras')
   const context = useCharacterLorasContext()
   const [open, setOpen] = useState(false)
-  const asset = context?.ownedAssetFor(loraUrl) ?? null
-  if (!context || !asset) return null
+  if (!context) return null
 
-  const owners = context.characterLoras.charactersOf(asset.id)
+  const owners = context.charactersOf(lora.loraUrl)
   return (
     <section className="flex flex-col gap-2">
       <h5 className={titleClassName}>{t('sectionTitle')}</h5>
@@ -57,7 +57,7 @@ export function LoraCharactersSection({
       </button>
       {open ? (
         <LoraCharactersDialog
-          loraAssetId={asset.id}
+          lora={lora}
           initialIds={owners.map((group) => group.characterCardId)}
           onClose={() => setOpen(false)}
         />
@@ -67,11 +67,11 @@ export function LoraCharactersSection({
 }
 
 function LoraCharactersDialog({
-  loraAssetId,
+  lora,
   initialIds,
   onClose,
 }: {
-  loraAssetId: string
+  lora: FavoriteLoraRequest
   initialIds: readonly string[]
   onClose: () => void
 }) {
@@ -80,7 +80,7 @@ function LoraCharactersDialog({
   const [picked, setPicked] = useState(() => new Set(initialIds))
   const [saving, setSaving] = useState(false)
   if (!context) return null
-  const { groups, setLoraCharacters } = context.characterLoras
+  const { groups, setLoraCharacters } = context
 
   const toggle = (id: string) =>
     setPicked((prev) => {
@@ -92,7 +92,7 @@ function LoraCharactersDialog({
 
   const save = async () => {
     setSaving(true)
-    const ok = await setLoraCharacters(loraAssetId, [...picked])
+    const ok = await setLoraCharacters(lora, [...picked])
     setSaving(false)
     if (ok) onClose()
   }

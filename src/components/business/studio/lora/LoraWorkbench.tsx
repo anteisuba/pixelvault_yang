@@ -306,14 +306,6 @@ export function LoraWorkbench() {
   )
   // 角色收的 LoRA（角色③）：「从角色选」与库详情的「加到角色…」共用这一份。
   const characterLoras = useCharacterLoras()
-  const characterLorasContext = useMemo(
-    () => ({
-      characterLoras,
-      ownedAssetFor: (loraUrl: string) =>
-        libraryAssets.find((asset) => asset.loraUrl === loraUrl) ?? null,
-    }),
-    [characterLoras, libraryAssets],
-  )
 
   // 手机（<1024）的库：搜索框的 DOM 落点。搜索 state 仍留在各源 pane 的 hook
   // 里（civitai / HF 各一套），只把输入框 portal 进这个常驻槽，保住「这一格不随
@@ -563,7 +555,7 @@ export function LoraWorkbench() {
   }
 
   return (
-    <CharacterLorasProvider value={characterLorasContext}>
+    <CharacterLorasProvider value={characterLoras}>
       <div
         className={cn(
           // 手机（<1024，owner 2026-09-03 契约）：整页一张 workbench-card，卡内页头
@@ -2049,7 +2041,7 @@ function GenerateBranch({
   const [characterPickOpen, setCharacterPickOpen] = useState(false)
   const openCharacterPick = useCallback(() => {
     setCharacterPickOpen(true)
-    void characterLorasContext?.characterLoras.refresh()
+    void characterLorasContext?.refresh()
   }, [characterLorasContext])
   const handlePickCharacterLora = useCallback(
     (group: CharacterLoraGroup, lora: LoraAssetRecord) => {
@@ -3094,8 +3086,8 @@ function GenerateBranch({
         <CharacterLoraPickDialog
           open={characterPickOpen}
           onOpenChange={setCharacterPickOpen}
-          groups={characterLorasContext.characterLoras.groups}
-          isLoading={characterLorasContext.characterLoras.isLoading}
+          groups={characterLorasContext.groups}
+          isLoading={characterLorasContext.isLoading}
           isMounted={(assetId) =>
             stack.items.some((item) => item.asset.id === assetId)
           }

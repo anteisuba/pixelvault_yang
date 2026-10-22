@@ -502,6 +502,8 @@ async function annotateOwnership(
       ? await db.loraAsset.findMany({
           where: {
             userId: input.userId,
+            // 只被角色收着的不算「已在库里」（角色③）。
+            inLibrary: true,
             OR: [
               ...(loraUrls.length ? [{ loraUrl: { in: loraUrls } }] : []),
               ...(versionIds.length

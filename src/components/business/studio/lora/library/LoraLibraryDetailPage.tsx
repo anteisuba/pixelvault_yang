@@ -40,11 +40,13 @@ import {
 import { formatCompactNumber } from '@/lib/format-compact-number'
 import { parseHuggingFaceLoraSourceUrl } from '@/lib/huggingface-lora-source'
 import { extraLoraKey } from '@/lib/lora-recipe-extra-mount'
+import { buildLibraryFavoriteRequest } from '@/lib/lora-source-snapshot'
 import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
 import { cn } from '@/lib/utils'
 import type {
   CivitaiImageRecipe,
   CivitaiLoraLibraryItem,
+  FavoriteLoraRequest,
   LoraCandidateLicense,
 } from '@/types'
 
@@ -126,6 +128,11 @@ interface LoraLibraryDetailPageProps {
    */
   versions?: readonly CivitaiLoraLibraryItem[]
   extraMenu?: readonly LoraLibraryDetailMenuItem[]
+  /**
+   * 「加到角色…」带的那一份描述（与收藏同一份）。缺省按条目本身拼；Hugging Face
+   * 要带出处快照、收藏里要用收藏记录自己的下载链接，由宿主给。
+   */
+  characterLoraFor?: (item: CivitaiLoraLibraryItem) => FavoriteLoraRequest
 }
 
 interface Sample {
@@ -157,6 +164,7 @@ export function LoraLibraryDetailPage({
   origin = 'civitai',
   versions: givenVersions,
   extraMenu = [],
+  characterLoraFor = buildLibraryFavoriteRequest,
 }: LoraLibraryDetailPageProps) {
   const t = useTranslations('LoraWorkbench')
   const tb = useTranslations('LoraWorkbench.browse')
@@ -813,7 +821,7 @@ export function LoraLibraryDetailPage({
               </section>
 
               <LoraCharactersSection
-                loraUrl={current.loraUrl}
+                lora={characterLoraFor(current)}
                 titleClassName={blockTitle}
               />
 

@@ -2,19 +2,24 @@ import 'server-only'
 
 import { characterCoverUrl } from '@/lib/card-bus'
 import { db } from '@/lib/db'
+import { ApiRequestError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { readCardTags } from '@/services/cards/character-card.mapper'
-import { toLoraAssetRecord } from '@/services/lora-asset.service'
+import {
+  toLoraAssetRecord,
+  upsertImportedLora,
+} from '@/services/lora-asset.service'
 import { ensureUser } from '@/services/user.service'
 import { CharacterReferenceSlotsSchema } from '@/types'
-import type { CharacterLoraGroup } from '@/types'
+import type { CharacterLoraGroup, FavoriteLoraRequest } from '@/types'
 
 /**
  * 角色收的 LoRA（角色③，2026-10-22）。契约见 `docs/references/domains/cards.md`
  * 「角色 ↔ LoRA」。
  *
  * ⭐ 角色只负责收集：只记「谁收了哪个」，权重 / 触发词都读 LoRA 本身。
- * ⭐ 只收自己名下的 LoRA（收藏与自训都是自己名下的一行）；别人公开的先收藏再加。
+ * ⭐ 关联挂在你名下的那一行上：收藏 / 自训的直接用；没收藏的外部 LoRA 加到角色时
+ *   记一行但不进库（`LoraAsset.inLibrary = false`），取消收藏也不会把它从角色里拿掉。
  */
 
 /**
@@ -62,44 +67,70 @@ export async function listCharacterLoraGroups(
 }
 
 /**
- * 这个 LoRA 属于哪些角色 —— 整组替换。LoRA 或任何一位角色不是自己的 → null（404）。
- * 返回替换后所有角色的分组，调用方直接换掉手上的那份。
+ * 这个 LoRA 属于哪些角色 —— 整组替换，返回替换后所有角色的分组。
+ *
+ * 按 `loraUrl` 认你名下的那一行；没收藏的外部 LoRA 第一次加到角色时在你名下记
+ * 一行但不进库（`inLibrary: false`，owner 2026-10-22「加到角色≠收藏」），全部勾掉
+ * 时这一行随之删掉。有角色不是你的（或已删）→ 404，什么都不写。
  */
 export async function setLoraCharacters(
   clerkId: string,
-  loraAssetId: string,
+  lora: FavoriteLoraRequest,
   characterCardIds: readonly string[],
-): Promise<CharacterLoraGroup[] | null> {
+): Promise<CharacterLoraGroup[]> {
   const user = await ensureUser(clerkId)
   const wanted = [...new Set(characterCardIds)]
 
-  const [asset, ownedCards] = await Promise.all([
-    db.loraAsset.findFirst({
-      where: { id: loraAssetId, userId: user.id },
-      select: { id: true },
-    }),
-    wanted.length
-      ? db.characterCard.count({
-          where: { id: { in: wanted }, userId: user.id, isDeleted: false },
-        })
-      : Promise.resolve(0),
-  ])
-  if (!asset || ownedCards !== wanted.length) return null
+  if (wanted.length > 0) {
+    const ownedCards = await db.characterCard.count({
+      where: { id: { in: wanted }, userId: user.id, isDeleted: false },
+    })
+    if (ownedCards !== wanted.length) throw characterNotFoundError()
+  }
+
+  const existing = await db.loraAsset.findFirst({
+    where: { userId: user.id, loraUrl: lora.loraUrl },
+    select: { id: true, source: true, inLibrary: true },
+  })
+  if (!existing && wanted.length === 0) {
+    return listCharacterLoraGroups(clerkId)
+  }
+  const asset =
+    existing ?? (await upsertImportedLora(user.id, lora, { inLibrary: false }))
 
   await db.$transaction([
     db.characterCardLora.deleteMany({
-      where: { loraAssetId, characterCardId: { notIn: wanted } },
+      where: { loraAssetId: asset.id, characterCardId: { notIn: wanted } },
     }),
     db.characterCardLora.createMany({
-      data: wanted.map((characterCardId) => ({ characterCardId, loraAssetId })),
+      data: wanted.map((characterCardId) => ({
+        characterCardId,
+        loraAssetId: asset.id,
+      })),
       skipDuplicates: true,
     }),
   ])
 
+  // 没收藏、也没有角色再收它了：这一行没有存在的理由。
+  const orphaned =
+    wanted.length === 0 && asset.source === 'imported' && !asset.inLibrary
+  if (orphaned) await db.loraAsset.delete({ where: { id: asset.id } })
+
   logger.info('LoRA characters set', {
     userId: user.id,
-    loraAssetId,
+    loraAssetId: asset.id,
     characters: wanted.length,
+    created: !existing,
+    removed: orphaned,
   })
   return listCharacterLoraGroups(clerkId)
+}
+
+function characterNotFoundError(): ApiRequestError {
+  return new ApiRequestError(
+    'NOT_FOUND',
+    404,
+    'errors.characterLora.notFound',
+    'Character not found',
+  )
 }

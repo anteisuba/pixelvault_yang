@@ -13,22 +13,8 @@ function createPrismaClient() {
     connectionTimeoutMillis: DATABASE_POOL.CONNECTION_TIMEOUT_MS,
     idleTimeoutMillis: DATABASE_POOL.IDLE_TIMEOUT_MS,
   })
-  return new PrismaClient({ adapter, omit: RETIRED_COLUMNS })
+  return new PrismaClient({ adapter })
 }
-
-/**
- * 已停读停写、下一次部署删掉的列：先从默认查询里拿掉，删列那次迁移跑起来时
- * 还在线的这一版就不会去查一个已经没有的列。删列后连同这里一起删。
- */
-const RETIRED_COLUMNS = {
-  // 角色④：外观、标签、图搬到 `CharacterLook`；变体变成造型。
-  characterCard: {
-    description: true,
-    referenceSlots: true,
-    parentId: true,
-    variantLabel: true,
-  },
-} as const
 
 const globalForPrisma = globalThis as typeof globalThis & {
   prisma?: ReturnType<typeof createPrismaClient>

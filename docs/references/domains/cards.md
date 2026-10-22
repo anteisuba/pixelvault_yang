@@ -57,7 +57,7 @@ owner 逐项定的口径（设计稿 https://claude.ai/artifact/JwhJdzReiFh8VHRh
 - **角色页**：详情顶上一排造型（默认 · 其他 · ＋），图 / 外观 / 标签跟着切；正看着的那套可改名 / 设为默认 / 删除（最后一套不能删，删默认由排最前那套接任）。＋ 可「从当前造型复制」。总览一位角色一张卡，封面 = 默认造型的主图，张数算全部造型。复制角色走服务端（造型与 LoRA 关联一并复制，⛔ 不带 `st.card`）。
 - **出图**：图片工作台「角色」弹层里展开她 → 造型胶囊切换；挑的图属于当前那套，切了就清掉、勾新那套的主图。请求带 `characterLookIds`（`{cardId: lookId}`，没给 = 默认），编译总线按它取外观 / 标签 / 图；生成记录在 `GenerationCharacterCard.lookId` 记下用的哪套。视频出口同。**画布暂只用默认造型**（画布切造型未做）；卡片助手读默认造型，其他造型只报名字（快照 `open.tags` / `open.otherLooks`）。
 - **LoRA**：`CharacterCardLora.lookId` 可空——挂在某套造型下，空 = 全部造型通用；「加到角色…」勾上她后可选一套。LoRA 台「从角色选」按造型标出、提示的「加上造型标签」读那一套的标签。从角色发起的训练带当前造型（参考图预填那套的图），训完关联挂在那套下（`LoraTrainingJob.lookId`）。
-- 迁移 `20261023090000_character_looks`：每张根卡建默认造型（`description` / `referenceSlots` / `pv.tags` 两组标签合并搬过去），变体建成造型，作品 / LoRA / 训练 / 助手人设 / 记忆的关联改指父卡，再删变体卡；删前整表备份 R2 `backups/character-cards-2026-10-23-290fd4698f48e24441df4e53610b4755.json`。卡上旧列（`description` · `referenceSlots` · `parentId` · `variantLabel`）停读停写、从默认查询里拿掉（`lib/db.ts` 的 `RETIRED_COLUMNS`），下一次部署删列并清 `pv.tags`。
+- 迁移 `20261023090000_character_looks`：每张根卡建默认造型（`description` / `referenceSlots` / `pv.tags` 两组标签合并搬过去），变体建成造型，作品 / LoRA / 训练 / 助手人设 / 记忆的关联改指父卡，再删变体卡；删前整表备份 R2 `backups/character-cards-2026-10-23-290fd4698f48e24441df4e53610b4755.json`。卡上旧列（`description` · `referenceSlots` · `parentId` · `variantLabel`）与 `extensions.pv.tags` 已由 `20261023120000_db_cleanup` 删掉。
 
 ## 角色 ↔ LoRA（2026-10-22，角色③）
 

@@ -1383,15 +1383,25 @@ export interface UploadAudioResponse {
 
 // ─── 3D Generate Request + Queue (submit + poll) ─────────────────
 
+/**
+ * 侧视图只收 http(s) 地址：`data:` 内嵌图会原样进任务状态（2026-05 有 5 条任务各存了
+ * 几 MB 的 base64，数据库收尾 2026-10-22 清掉）。生成的侧视图与手动上传都先落 R2。
+ */
+const Model3DViewImageUrlSchema = z
+  .string()
+  .trim()
+  .url()
+  .refine((value) => /^https?:\/\//i.test(value), 'Expected an http(s) URL')
+
 export const Model3DMultiViewImagesSchema = z
   .object({
-    backImageUrl: z.string().trim().url().optional(),
-    leftImageUrl: z.string().trim().url().optional(),
-    rightImageUrl: z.string().trim().url().optional(),
-    topImageUrl: z.string().trim().url().optional(),
-    bottomImageUrl: z.string().trim().url().optional(),
-    leftFrontImageUrl: z.string().trim().url().optional(),
-    rightFrontImageUrl: z.string().trim().url().optional(),
+    backImageUrl: Model3DViewImageUrlSchema.optional(),
+    leftImageUrl: Model3DViewImageUrlSchema.optional(),
+    rightImageUrl: Model3DViewImageUrlSchema.optional(),
+    topImageUrl: Model3DViewImageUrlSchema.optional(),
+    bottomImageUrl: Model3DViewImageUrlSchema.optional(),
+    leftFrontImageUrl: Model3DViewImageUrlSchema.optional(),
+    rightFrontImageUrl: Model3DViewImageUrlSchema.optional(),
   })
   .partial()
 

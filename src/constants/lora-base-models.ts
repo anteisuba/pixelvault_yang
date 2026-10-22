@@ -244,6 +244,28 @@ export function normalizeToLoraBaseFamily(raw: string): LoraBaseFamily | null {
   return null
 }
 
+/**
+ * 存进 `LoraAsset.baseModelFamily` 的写法统一成 Civitai 的显示名（数据库收尾，
+ * 2026-10-22）：HF 导入 / 自训写的是我们的家族 slug（`anima-dit` · `sdxl`），
+ * Civitai 导入写的是 `Anima` · `SDXL 1.0`，库里同一个底模出现两种写法。只换认得的
+ * slug，其余原样存（Civitai 的值本来就是显示名）。读的一侧照旧走
+ * `normalizeToLoraBaseFamily`，两种写法都认。
+ */
+const LORA_BASE_MODEL_LABEL_BY_SLUG: Record<string, string> = {
+  'anima-dit': 'Anima',
+  sdxl: 'SDXL 1.0',
+  sd15: 'SD 1.5',
+  flux: 'Flux.1 D',
+  illustrious: 'Illustrious',
+  pony: 'Pony',
+  krea2: 'Krea 2',
+}
+
+export function canonicalLoraBaseModelLabel(raw: string): string {
+  const value = raw.trim()
+  return LORA_BASE_MODEL_LABEL_BY_SLUG[value.toLowerCase()] ?? value
+}
+
 /** 给定 LoRA 家族（原始字符串），返回兼容的底模条目（含 available=false 的）。 */
 export function getCompatibleBases(rawBaseModel: string): LoraBaseModel[] {
   const family = normalizeToLoraBaseFamily(rawBaseModel)

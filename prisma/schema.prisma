@@ -445,9 +445,7 @@ model Generation {
 
   // ── 来源血缘 ──────────────────────────────────────────────────
   // sourceSurface 是顶层可查询列（默认 IMAGE_STUDIO；存量不回填）。
-  // loraLineage 记录 LoRA 域生成用到的 loraAssetId / scale / recipe 来源（变长，不索引）。
   sourceSurface GenerationSourceSurface @default(IMAGE_STUDIO)
-  loraLineage   Json?
 
   // ── 产物序号 ──────────────────────────────────────────────────
   // 用户内递增的真计数器（切片 N1 改序号语义）：`图_012` 就是这个用户的第 12 件。
@@ -865,13 +863,12 @@ model ModelConfig {
 }
 
 model CharacterCard {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name        String
-  description String?  @db.Text
-  tags        String[] @default([])
-  isDeleted   Boolean  @default(false)
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  tags      String[] @default([])
+  isDeleted Boolean  @default(false)
 
   // ── 角色卡字段 v2（见 docs/references/domains/cards.md）──
   /// 默认嗓子。软引用：删音色卡只清绑定，不删角色卡。
@@ -880,31 +877,23 @@ model CharacterCard {
   /// `{ emotions: [{ label, params }], sampleLines: string[] }`
   voiceProfile Json?
   /// `{ behavior, speech, catchphrases[], scenario, opening, examples[] }`——人设写
-  /// 具体行为不写形容词，与 `description`（视觉描述）分开。
+  /// 具体行为不写形容词；外观在造型（`CharacterLook.description`）上。
   persona      Json?
   /// 卡内容的单调版本号：进生成快照，指认出图用的是哪一版卡。
   version      Int        @default(1)
 
   // ── 卡片总线 v3（进度表 35，见 docs/references/domains/cards.md）──
   /// `@名字` 的稳定锚点，同一用户内唯一。只有角色卡有（owner 09-25：背景卡下线）。
-  handle         String?
+  handle     String?
   /// 给人看的简介。⛔ 任何面都不进 prompt（含助手）。
-  summary        String? @db.Text
-  /// `CharacterReferenceSlot[]`：卡上全部的图，`isPrimary` 那一张是封面。
-  referenceSlots Json?
+  summary    String? @db.Text
   /// 带命名空间的扩展键袋（`pv.*` 归本产品）。认不出的键原样保留。
-  extensions     Json?
+  extensions Json?
 
   /// 把这张卡当人设的助手（最多每个用户一行）。
   assistantPersonas AssistantPersona[]
   /// 和这个角色聊天时记下的事（附录L 第二片 B）。
   assistantMemories AssistantMemory[]
-
-  // ── Variant system (folder-like) ────────────────────────────
-  parentId     String? // null = root card, set = variant of parent
-  parent       CharacterCard?  @relation("CharacterCardVariants", fields: [parentId], references: [id], onDelete: Cascade)
-  variants     CharacterCard[] @relation("CharacterCardVariants")
-  variantLabel String? // e.g. "Anime Style", "3D Model", "Chibi"
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -918,7 +907,6 @@ model CharacterCard {
 
   @@unique([userId, handle])
   @@index([userId, isDeleted, updatedAt(sort: Desc)])
-  @@index([parentId, isDeleted, updatedAt(sort: Desc)])
   @@index([voiceCardId])
 }
 

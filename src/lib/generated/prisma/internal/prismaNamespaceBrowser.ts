@@ -293,7 +293,6 @@ export const GenerationScalarFieldEnum = {
   projectId: 'projectId',
   recipeSnapshot: 'recipeSnapshot',
   sourceSurface: 'sourceSurface',
-  loraLineage: 'loraLineage',
   seq: 'seq',
   snapshot: 'snapshot',
   evaluation: 'evaluation',
@@ -556,7 +555,6 @@ export const CharacterCardScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
   name: 'name',
-  description: 'description',
   tags: 'tags',
   isDeleted: 'isDeleted',
   voiceCardId: 'voiceCardId',
@@ -565,10 +563,7 @@ export const CharacterCardScalarFieldEnum = {
   version: 'version',
   handle: 'handle',
   summary: 'summary',
-  referenceSlots: 'referenceSlots',
   extensions: 'extensions',
-  parentId: 'parentId',
-  variantLabel: 'variantLabel',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

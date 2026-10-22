@@ -78,6 +78,7 @@ export interface ImageQueueMetadata {
   referenceImageUrl?: string
   referenceImages?: string[]
   characterCardIds?: string[]
+  characterLookIds?: Record<string, string>
   projectId?: string
   apiKeyId?: string
   /** Model the user originally requested — survives a provider fallback. */
@@ -294,6 +295,7 @@ export async function submitImageGeneration(
     referenceImageUrl,
     referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
     characterCardIds: input.characterCardIds,
+    characterLookIds: input.characterLookIds,
     projectId: input.projectId,
     apiKeyId: apiKeyId ?? undefined,
     originalModelId: input.modelId,

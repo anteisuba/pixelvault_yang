@@ -2787,7 +2787,7 @@
       "emptyCharacters": "LoRA を持つキャラはまだいません",
       "loraCount": "LoRA {count} 個",
       "mountedFromCharacter": "{lora} を適用しました（{character}）",
-      "addAppearanceTags": "外見タグを追加",
+      "addAppearanceTags": "衣装タグを追加",
       "sectionTitle": "キャラ",
       "addToCharacter": "キャラに追加…",
       "noCharacters": "キャラがまだいません",
@@ -7435,6 +7435,11 @@
       "notFound": "このカードは chub.ai にもうありません。",
       "countryBlocked": "お使いのネットワークでは chub.ai を利用できません。",
       "tooLarge": "このカードは 3 MB を超えているため取り込めません。"
+    },
+    "characterLook": {
+      "notFound": "衣装が見つかりません",
+      "limit": "衣装の数が上限に達しました",
+      "lastLook": "衣装は最低 1 つ必要です"
     }
   },
   "Transform": {
@@ -9150,11 +9155,9 @@
     "fieldBehavior": "性格",
     "fieldSpeech": "話し方",
     "fieldBackstory": "経歴",
-    "variantOf": "{parent} · {label}",
     "fieldName": "名前",
     "fieldLooks": "外見をひとこと",
-    "fieldCharacterTags": "キャラタグ（NAI / LoRA 用）",
-    "fieldAppearanceTags": "外見タグ",
+    "fieldTags": "タグ（NAI / LoRA 用）",
     "behaviorHint": "形容詞ではなく行動で書きます。「まず相手に傘を差しかける」は「優しい」より伝わります。",
     "primary": "メイン",
     "makePrimary": "メインにする",
@@ -9355,5 +9358,21 @@
     "bulkConfirmTitle": "{count} 件の素材を公開ギャラリーに公開しますか？",
     "bulkConfirmAction": "{count} 件を公開",
     "bulkPublishedKept": "{published} 件を公開 · {kept} 件は非公開のまま"
+  },
+  "CharacterLooks": {
+    "title": "衣装",
+    "default": "デフォルト",
+    "numbered": "衣装 {n}",
+    "add": "新しい衣装",
+    "rename": "名前を変更",
+    "makeDefault": "デフォルトにする",
+    "delete": "削除",
+    "deleteTitle": "衣装「{name}」を削除しますか？",
+    "deleteHint": "この衣装の外見テキスト・タグ・画像も削除されます。紐づいた LoRA はすべての衣装共通に戻ります。",
+    "cancel": "キャンセル",
+    "save": "保存",
+    "namePlaceholder": "例：ちびキャラ、水着",
+    "copyFrom": "「{name}」からテキスト・タグ・画像をコピー",
+    "allLooks": "すべての衣装"
   }
 }

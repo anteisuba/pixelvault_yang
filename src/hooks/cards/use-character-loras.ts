@@ -6,7 +6,11 @@ import { toast } from 'sonner'
 
 import { listCharacterLorasAPI, setLoraCharactersAPI } from '@/lib/api-client'
 import { deferEffectTask } from '@/lib/defer-effect-task'
-import type { CharacterLoraGroup, FavoriteLoraRequest } from '@/types'
+import type {
+  CharacterLoraGroup,
+  FavoriteLoraRequest,
+  SetLoraCharactersRequest,
+} from '@/types'
 
 export interface UseCharacterLorasReturn {
   groups: CharacterLoraGroup[]
@@ -15,10 +19,10 @@ export interface UseCharacterLorasReturn {
   refresh: () => Promise<void>
   /** 收了这个 LoRA 的角色（按下载链接认：没收藏的 LoRA 前端没有记录 id）。 */
   charactersOf: (loraUrl: string) => CharacterLoraGroup[]
-  /** 这个 LoRA 属于哪些角色（整组替换）。成功后分组换成服务端那份。 */
+  /** 这个 LoRA 属于哪些角色、挂在哪套造型下（整组替换）。成功后分组换成服务端那份。 */
   setLoraCharacters: (
     lora: FavoriteLoraRequest,
-    characterCardIds: readonly string[],
+    characters: SetLoraCharactersRequest['characters'],
   ) => Promise<boolean>
 }
 
@@ -61,8 +65,11 @@ export function useCharacterLoras(
   )
 
   const setLoraCharacters = useCallback(
-    async (lora: FavoriteLoraRequest, characterCardIds: readonly string[]) => {
-      const result = await setLoraCharactersAPI(lora, characterCardIds)
+    async (
+      lora: FavoriteLoraRequest,
+      characters: SetLoraCharactersRequest['characters'],
+    ) => {
+      const result = await setLoraCharactersAPI(lora, characters)
       if (!result.success || !result.data) {
         toast.error(result.error ?? t('saveFailed'))
         return false

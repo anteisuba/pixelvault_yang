@@ -170,7 +170,8 @@ describe('compileAndGenerate 卡片总线（进度表 35 ⑤）', () => {
     name: 'Denia',
     visual: 'red eyes, dark blue hair',
     negative: 'extra fingers',
-    tags: { character: [], appearance: [] },
+    lookId: 'look-q',
+    tags: [],
     slots: [
       {
         id: 'slot-1',
@@ -196,6 +197,7 @@ describe('compileAndGenerate 卡片总线（进度表 35 ⑤）', () => {
       'user-1',
       ['card-1'],
       undefined,
+      undefined,
     )
     const [, request, , meta] = vi.mocked(submitImageGeneration).mock.calls[0]!
     expect(request.referenceImages).toEqual([
@@ -210,6 +212,8 @@ describe('compileAndGenerate 卡片总线（进度表 35 ⑤）', () => {
       negativePrompt: 'blurry, extra fingers',
     })
     expect(request.characterCardIds).toEqual(['card-1'])
+    // 出图用的造型随记录记下（角色④）。
+    expect(request.characterLookIds).toEqual({ 'card-1': 'look-q' })
     expect(meta?.studioSnapshot).toEqual({
       characterCards: [{ id: 'card-1', version: 3 }],
     })
@@ -225,11 +229,13 @@ describe('compileAndGenerate 卡片总线（进度表 35 ⑤）', () => {
       modelId: AI_MODELS.GEMINI_FLASH_IMAGE,
       characterCardIds: ['card-1'],
       characterImagePicks: picks,
+      characterLookIds: { 'card-1': 'look-q' },
     })
     expect(loadCardBusCharacters).toHaveBeenCalledWith(
       'user-1',
       ['card-1'],
       picks,
+      { 'card-1': 'look-q' },
     )
   })
 

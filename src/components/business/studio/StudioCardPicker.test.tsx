@@ -27,6 +27,7 @@ vi.mock('@/hooks/cards/use-character-card-usage', () => ({
 }))
 
 const setImagePicks = vi.fn()
+const setLookId = vi.fn()
 const toggleCardSelection = vi.fn()
 let data: Record<string, unknown>
 vi.mock('@/contexts/studio-context', () => ({
@@ -37,22 +38,45 @@ const DENIA = {
   id: 'denia',
   name: 'Denia',
   createdAt: new Date(0),
-  cardTags: { character: [], appearance: [] },
   workOverride: '鸣潮',
   summary: null,
   tavern: null,
-  referenceSlots: [
+  looks: [
     {
-      id: 'slot-1',
-      role: 'identity',
-      url: 'https://cdn.test/1.png',
-      isPrimary: true,
+      id: 'denia-main',
+      label: null,
+      isDefault: true,
+      description: null,
+      tags: [],
+      referenceSlots: [
+        {
+          id: 'slot-1',
+          role: 'identity',
+          url: 'https://cdn.test/1.png',
+          isPrimary: true,
+        },
+        {
+          id: 'slot-2',
+          role: 'identity',
+          url: 'https://cdn.test/2.png',
+          isPrimary: false,
+        },
+      ],
     },
     {
-      id: 'slot-2',
-      role: 'identity',
-      url: 'https://cdn.test/2.png',
-      isPrimary: false,
+      id: 'denia-q',
+      label: 'Q版',
+      isDefault: false,
+      description: null,
+      tags: [],
+      referenceSlots: [
+        {
+          id: 'slot-q',
+          role: 'identity',
+          url: 'https://cdn.test/q.png',
+          isPrimary: true,
+        },
+      ],
     },
   ],
 }
@@ -62,6 +86,7 @@ function setup(overrides: {
   references?: string[]
   activeCardIds?: string[]
   imagePicks?: Record<string, unknown[]>
+  lookIds?: Record<string, string>
 }) {
   data = {
     characters: {
@@ -70,6 +95,8 @@ function setup(overrides: {
       activeCardIds: overrides.activeCardIds ?? [],
       imagePicks: overrides.imagePicks ?? {},
       setImagePicks,
+      lookIds: overrides.lookIds ?? {},
+      setLookId,
       toggleCardSelection,
       setActiveCardIds: vi.fn(),
     },
@@ -140,5 +167,26 @@ describe('StudioCardPicker（工作台「角色」弹层，owner 09-27）', () =
     fireEvent.click(screen.getByRole('button', { name: /Denia/ }))
     expect(toggleCardSelection).toHaveBeenCalledWith('denia')
     expect(screen.queryByTestId('card-picker-image')).toBeNull()
+  })
+
+  it('切造型（角色④）：记下她用哪套，挑的图换成那套的主图', () => {
+    setup({
+      activeCardIds: ['denia'],
+      imagePicks: { denia: [{ slotId: 'slot-1' }, { slotId: 'slot-2' }] },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Denia/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Q版' }))
+    expect(setLookId).toHaveBeenCalledWith('denia', 'denia-q')
+    expect(setImagePicks).toHaveBeenLastCalledWith('denia', [
+      { slotId: 'slot-q' },
+    ])
+  })
+
+  it('选着别的造型：图格只列那套的图，名字下面写出造型名', () => {
+    setup({ activeCardIds: ['denia'], lookIds: { denia: 'denia-q' } })
+    expect(screen.getByRole('button', { name: /Q版/ })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /Denia/ }))
+    // 这套 1 张 + 用她出的 1 张。
+    expect(screen.getAllByTestId('card-picker-image')).toHaveLength(2)
   })
 })

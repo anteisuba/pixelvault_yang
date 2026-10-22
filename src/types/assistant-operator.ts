@@ -962,9 +962,11 @@ export const AssistantOperatorCardsOpenCharacterSchema =
     behavior: CardsFieldSchema,
     speech: CardsFieldSchema,
     backstory: CardsFieldSchema,
-    characterTags: CardsTagsSchema,
-    appearanceTags: CardsTagsSchema,
-    /** 卡上挂着几张图（主图算在内）。 */
+    /** 默认造型的标签（角色④ 起不再分角色 / 外观两组）。 */
+    tags: CardsTagsSchema.default([]),
+    /** 其他造型的名字（角色④）：助手只读默认造型，这里让它知道还有别的。 */
+    otherLooks: CardsTagsSchema.default([]),
+    /** 默认造型挂着几张图（主图算在内）。 */
     imagesOnCard: z.number().int().min(0),
     /**
      * 主图地址 —— **只给服务端看图用**（C3：联网候选逐张和她比「是不是她」）。

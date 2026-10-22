@@ -23,6 +23,7 @@ export async function withCharacterVideoReferences(
     userId,
     input.characterCardIds,
     input.characterImagePicks,
+    input.characterLookIds,
   )
   const model = getModelById(input.modelId)
   const cap = model

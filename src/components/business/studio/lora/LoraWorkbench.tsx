@@ -2049,7 +2049,12 @@ function GenerateBranch({
       if (!stack.items.some((item) => item.asset.id === lora.id)) {
         stack.push(lora)
       }
-      const tags = group.appearanceTags.join(', ')
+      // 这个 LoRA 挂在哪套造型下就给哪套的标签；通用的给默认造型的（角色④）。
+      const lookId = group.loras.find((item) => item.id === lora.id)?.lookId
+      const look =
+        group.looks.find((item) => item.id === lookId) ??
+        group.looks.find((item) => item.isDefault)
+      const tags = (look?.tags ?? []).join(', ')
       toast.success(
         tCharacterLoras('mountedFromCharacter', {
           lora: lora.name,

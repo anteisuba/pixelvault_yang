@@ -25,17 +25,15 @@ export function useChatCharacters(enabled: boolean): {
     void listCharacterCardsAPI().then((result) => {
       if (!active) return
       setCharacters(
-        (result.success ? (result.data ?? []) : [])
-          .filter((card) => card.parentId === null)
-          .map((card) => ({
-            character: {
-              id: card.id,
-              name: card.name,
-              userRole: card.chatUserRole,
-            },
-            opening: card.persona?.opening ?? '',
-            alternateOpenings: card.tavern?.alternateGreetings ?? [],
-          })),
+        (result.success ? (result.data ?? []) : []).map((card) => ({
+          character: {
+            id: card.id,
+            name: card.name,
+            userRole: card.chatUserRole,
+          },
+          opening: card.persona?.opening ?? '',
+          alternateOpenings: card.tavern?.alternateGreetings ?? [],
+        })),
       )
     })
     return () => {

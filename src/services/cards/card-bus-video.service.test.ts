@@ -57,11 +57,15 @@ describe('卡片总线的视频出口（镜头里 @她）', () => {
         characterImagePicks: {
           denia: [{ slotId: 'a' }, { generationId: 'g' }],
         },
+        characterLookIds: { denia: 'denia-q' },
       }),
     )
-    expect(mockLoad).toHaveBeenCalledWith('u', ['denia', 'rixi'], {
-      denia: [{ slotId: 'a' }, { generationId: 'g' }],
-    })
+    expect(mockLoad).toHaveBeenCalledWith(
+      'u',
+      ['denia', 'rixi'],
+      { denia: [{ slotId: 'a' }, { generationId: 'g' }] },
+      { denia: 'denia-q' },
+    )
     expect(out.referenceImages).toEqual(['own/1', 'd/1', 'd/2', 'r/main'])
   })
 

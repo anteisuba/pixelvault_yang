@@ -49,16 +49,22 @@ vi.mock('@/lib/api-client', () => api)
 const DENIA = {
   id: 'card_denia',
   name: 'Denia',
-  referenceSlots: [
+  looks: [
     {
-      id: 'slot-1',
-      role: 'identity',
-      url: 'https://cdn.test/denia.png',
-      isPrimary: true,
+      id: 'denia-main',
+      isDefault: true,
+      tags: [],
+      referenceSlots: [
+        {
+          id: 'slot-1',
+          role: 'identity',
+          url: 'https://cdn.test/denia.png',
+          isPrimary: true,
+        },
+      ],
     },
   ],
   persona: { speech: '' },
-  variants: [],
 }
 vi.mock('@/hooks/cards', () => ({
   useCharacterCards: () => ({ cards: [DENIA] }),

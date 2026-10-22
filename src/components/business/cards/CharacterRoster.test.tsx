@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 
 import zhMessages from '@/messages/zh.json'
-import type { CharacterCardRecord } from '@/types'
+import type { CharacterCardRecord, CharacterLookRecord } from '@/types'
 
 import { CharacterRoster } from './CharacterRoster'
 
@@ -50,6 +50,22 @@ vi.mock('@/hooks/cards/use-character-card-usage', () => ({
   }),
 }))
 
+function look(
+  id: string,
+  label: string | null,
+  isDefault: boolean,
+  url: string,
+): CharacterLookRecord {
+  return {
+    id,
+    label,
+    isDefault,
+    description: null,
+    tags: [],
+    referenceSlots: [{ id: 'slot-1', role: 'identity', url, isPrimary: true }],
+  }
+}
+
 function card(
   id: string,
   name: string,
@@ -58,22 +74,10 @@ function card(
   return {
     id,
     name,
-    description: null,
     tags: [],
-    parentId: null,
-    variantLabel: null,
-    variants: [],
     handle: name,
-    referenceSlots: [
-      {
-        id: 'slot-1',
-        role: 'identity',
-        url: `https://cdn.test/${id}.png`,
-        isPrimary: true,
-      },
-    ],
+    looks: [look(`${id}-look`, null, true, `https://cdn.test/${id}.png`)],
     persona: null,
-    cardTags: { character: [], appearance: [] },
     workOverride: null,
     summary: null,
     tavern: null,
@@ -163,12 +167,9 @@ const CARDS = [
       alternateGreetings: ['雨停了。'],
       characterBook: { entries: [{ key: 'a' }, { key: 'b' }] },
     },
-    variants: [
-      card('denia-q', 'Denia', {
-        parentId: 'denia',
-        variantLabel: 'Q版',
-        handle: 'Denia-Q版',
-      }),
+    looks: [
+      look('denia-look', null, true, 'https://cdn.test/denia.png'),
+      look('denia-q', 'Q版', false, 'https://cdn.test/denia-q.png'),
     ],
   }),
   card('rixi', '里希'),
@@ -180,10 +181,7 @@ vi.mock('@/hooks/cards/use-character-cards', () => ({
     isLoading: false,
     activeCardIds: [],
     toggleCardSelection: vi.fn(),
-    findCard: (id: string) =>
-      CARDS.flatMap((item) => [item, ...item.variants]).find(
-        (item) => item.id === id,
-      ) ?? null,
+    findCard: (id: string) => CARDS.find((item) => item.id === id) ?? null,
     create: (...a: unknown[]) => mockCreate(...a),
     importTavern: (...a: unknown[]) => mockImportTavern(...a),
     importChub: (...a: unknown[]) => mockImportChub(...a),
@@ -211,11 +209,13 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
     expect(screen.getByRole('region', { name: '里希' })).toBeTruthy()
   })
 
-  it('总览按张数列出角色，变体跟在父卡后面并写明是谁的变体', () => {
+  it('总览一位角色一张卡；造型在详情顶上切换（角色④）', () => {
     renderRoster()
-    const tiles = screen.getAllByTestId('roster-tile')
-    expect(tiles).toHaveLength(3)
-    expect(screen.getByText('Denia · Q版')).toBeTruthy()
+    expect(screen.getAllByTestId('roster-tile')).toHaveLength(2)
+    fireEvent.click(screen.getAllByTestId('roster-tile')[0]!)
+    const looks = screen.getByRole('group', { name: '造型' })
+    expect(looks).toHaveTextContent('默认')
+    expect(looks).toHaveTextContent('Q版')
   })
 
   it('点一个角色进整页详情：图片在上、设定在下；「‹ 角色」回总览', () => {
@@ -348,7 +348,7 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
     fireEvent.click(screen.getByRole('button', { name: /新角色/ }))
     fireEvent.click(screen.getByRole('button', { name: '角色' }))
     expect(screen.queryByRole('textbox', { name: '名字' })).toBeNull()
-    expect(screen.getAllByTestId('roster-tile')).toHaveLength(3)
+    expect(screen.getAllByTestId('roster-tile')).toHaveLength(2)
     expect(mockCreate).not.toHaveBeenCalled()
   })
 

@@ -913,6 +913,8 @@ model CharacterCard {
   loraTrainingJobs LoraTrainingJob[]
   /// 她收的 LoRA（角色③）。角色只负责收集，挂在哪由 LoRA 台决定。
   loraLinks        CharacterCardLora[]
+  /// 她的造型（角色④）：外观文字、标签、参考图都在造型上，恰有一套是默认。
+  looks            CharacterLook[]
 
   @@unique([userId, handle])
   @@index([userId, isDeleted, updatedAt(sort: Desc)])
@@ -920,13 +922,42 @@ model CharacterCard {
   @@index([voiceCardId])
 }
 
-model GenerationCharacterCard {
+/// 角色的一套造型（角色④，2026-10-22）。人设、声音、经历只在角色上存一份；
+/// 外观文字、标签、参考图每套各一份。每个角色恰有一套 `isDefault`（服务端保证）。
+model CharacterLook {
   id              String        @id @default(uuid())
-  generationId    String
-  generation      Generation    @relation(fields: [generationId], references: [id], onDelete: Cascade)
   characterCardId String
   characterCard   CharacterCard @relation(fields: [characterCardId], references: [id], onDelete: Cascade)
+  /// 造型名；空 = 界面显示「默认」或「造型 N」。
+  label           String?
+  isDefault       Boolean       @default(false)
+  /// 外观文字：编译器的视觉文字就是它。
+  description     String?       @db.Text
+  /// 一组标签（不再分角色 / 外观两组）：给 NovelAI 这类只认标签的模型认人。
+  tags            String[]      @default([])
+  /// `CharacterReferenceSlot[]`：这套造型的图，`isPrimary` 那一张是封面。
+  referenceSlots  Json          @default("[]")
+  sortOrder       Int           @default(0)
   createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  generationLinks  GenerationCharacterCard[]
+  loraLinks        CharacterCardLora[]
+  loraTrainingJobs LoraTrainingJob[]
+
+  @@index([characterCardId, sortOrder])
+}
+
+model GenerationCharacterCard {
+  id              String         @id @default(uuid())
+  generationId    String
+  generation      Generation     @relation(fields: [generationId], references: [id], onDelete: Cascade)
+  characterCardId String
+  characterCard   CharacterCard  @relation(fields: [characterCardId], references: [id], onDelete: Cascade)
+  /// 出这张图用的是哪套造型；造型删了留空。
+  lookId          String?
+  look            CharacterLook? @relation(fields: [lookId], references: [id], onDelete: SetNull)
+  createdAt       DateTime       @default(now())
 
   @@unique([generationId, characterCardId])
   @@index([characterCardId, createdAt(sort: Desc)])
@@ -965,10 +996,13 @@ model UserFollow {
 /// 默认值，触发词读 LoRA 本身。角色或 LoRA 删掉，这一行跟着没。
 model CharacterCardLora {
   characterCardId String
-  characterCard   CharacterCard @relation(fields: [characterCardId], references: [id], onDelete: Cascade)
+  characterCard   CharacterCard  @relation(fields: [characterCardId], references: [id], onDelete: Cascade)
   loraAssetId     String
-  loraAsset       LoraAsset     @relation(fields: [loraAssetId], references: [id], onDelete: Cascade)
-  createdAt       DateTime      @default(now())
+  loraAsset       LoraAsset      @relation(fields: [loraAssetId], references: [id], onDelete: Cascade)
+  /// 挂在哪套造型下（角色④）；空 = 全部造型通用。造型删了回到通用。
+  lookId          String?
+  look            CharacterLook? @relation(fields: [lookId], references: [id], onDelete: SetNull)
+  createdAt       DateTime       @default(now())
 
   @@id([characterCardId, loraAssetId])
   @@index([loraAssetId])
@@ -995,6 +1029,9 @@ model LoraTrainingJob {
 
   characterCardId String?
   characterCard   CharacterCard? @relation(fields: [characterCardId], references: [id], onDelete: SetNull)
+  /// 从哪套造型发起的训练（角色④）：训完的 LoRA 挂在这套造型下。
+  lookId          String?
+  look            CharacterLook? @relation(fields: [lookId], references: [id], onDelete: SetNull)
 
   loraAsset LoraAsset?
 

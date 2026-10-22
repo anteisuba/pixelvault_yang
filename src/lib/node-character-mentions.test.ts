@@ -16,8 +16,14 @@ function card(
   return {
     id,
     name,
-    referenceSlots: slots.map((slot) => ({ isPrimary: false, ...slot })),
-    variants: [],
+    looks: [
+      {
+        id: `${id}-look`,
+        isDefault: true,
+        tags: [],
+        referenceSlots: slots.map((slot) => ({ isPrimary: false, ...slot })),
+      },
+    ],
   } as unknown as CharacterCardRecord
 }
 

@@ -281,6 +281,8 @@ export const API_ENDPOINTS = {
 
   /** Character Cards */
   CHARACTER_CARDS: '/api/character-cards',
+  /** 角色的一套造型（角色④）：PUT 改 · DELETE 删；新建走 `CHARACTER_CARDS/<id>/looks`。 */
+  CHARACTER_LOOKS: '/api/character-looks',
   /** 每个角色收的 LoRA（角色③）。 */
   CHARACTER_LORAS: '/api/character-loras',
   /** 导入酒馆卡（PNG / JSON，附录J ⑥） */

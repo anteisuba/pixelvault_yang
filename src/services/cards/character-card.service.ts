@@ -2,17 +2,21 @@ import 'server-only'
 
 import { db } from '@/lib/db'
 import { CHARACTER_CARD } from '@/constants/cards/character-card'
-import { TAVERN_CARD_IMPORT_ERRORS } from '@/constants/cards/tavern-card'
+import {
+  TAVERN_CARD,
+  TAVERN_CARD_IMPORT_ERRORS,
+} from '@/constants/cards/tavern-card'
 import {
   type CharacterCardRecord,
   type CreateCharacterCardRequest,
   type UpdateCharacterCardRequest,
 } from '@/types'
-import { deriveCardHandleBase, deriveVariantHandleBase } from '@/lib/card-bus'
+import { deriveCardHandleBase } from '@/lib/card-bus'
 import { ApiRequestError } from '@/lib/errors'
 import type { TavernCardImport } from '@/lib/tavern-card'
 import { allocateHandleForNewCard } from '@/services/cards/card-handle.service'
 import {
+  CHARACTER_LOOKS_INCLUDE,
   mapCharacterCardRow,
   mergeCardExtensions,
   serializeCharacterCardV2Fields,
@@ -25,8 +29,8 @@ import { ownedBy } from '@/lib/db-scope'
 // ─── CRUD Operations ───────────────────────────────────────────
 
 /**
- * 建卡：只有名字（外观 / 设定 / 标签可选）；图之后在详情里从素材库加进参考槽。
- * 带 `parentId` = 建在某张卡下面的造型。
+ * 建卡：只有名字（外观 / 设定 / 标签可选）；同时建好默认造型，外观文字落在它上面。
+ * 图之后在详情里从素材库加进造型的参考槽。
  */
 export async function createCharacterCard(
   clerkId: string,
@@ -44,50 +48,32 @@ export async function createCharacterCard(
     )
   }
 
-  // If creating as variant, verify parent ownership + variant limit
-  const parent = input.parentId
-    ? await db.characterCard.findUnique({
-        where: { id: input.parentId },
-        include: {
-          _count: { select: { variants: { where: { isDeleted: false } } } },
-        },
-      })
-    : null
-  if (input.parentId) {
-    if (!parent || parent.userId !== dbUser.id || parent.isDeleted) {
-      throw new Error('Parent card not found')
-    }
-    if (parent._count.variants >= CHARACTER_CARD.MAX_VARIANTS_PER_CARD) {
-      throw new Error(
-        `Maximum ${CHARACTER_CARD.MAX_VARIANTS_PER_CARD} variants per card`,
-      )
-    }
-  }
-
   // handle 跨两张表查重，所以读已占用与建卡放在同一个事务里。
-  const handleBase = parent
-    ? deriveVariantHandleBase(
-        parent.handle ?? deriveCardHandleBase(parent.name),
-        input.variantLabel,
-      )
-    : deriveCardHandleBase(input.name)
   const card = await db.$transaction(async (tx) =>
     tx.characterCard.create({
       data: {
         userId: dbUser.id,
-        handle: await allocateHandleForNewCard(tx, dbUser.id, handleBase),
+        handle: await allocateHandleForNewCard(
+          tx,
+          dbUser.id,
+          deriveCardHandleBase(input.name),
+        ),
         name: input.name,
-        description: input.description ?? null,
         summary: input.summary ?? null,
         ...(input.extensions
           ? { extensions: mergeCardExtensions(null, input.extensions) }
           : {}),
-        referenceSlots: [],
         tags: input.tags ?? [],
-        parentId: input.parentId ?? null,
-        variantLabel: input.variantLabel ?? null,
         ...serializeCharacterCardV2Fields(input),
+        looks: {
+          create: {
+            isDefault: true,
+            description: input.description || null,
+            referenceSlots: [],
+          },
+        },
       },
+      include: CHARACTER_LOOKS_INCLUDE,
     }),
   )
 
@@ -140,48 +126,47 @@ export async function createImportedCharacterCard(
           deriveCardHandleBase(imported.name),
         ),
         name: imported.name,
-        description: null,
         summary: imported.summary,
         extensions: mergeCardExtensions(null, imported.extensions),
-        referenceSlots: upload
-          ? serializeReferenceSlots([
-              {
-                id: 'slot-1',
-                role: 'identity',
-                url: upload.url,
-                isPrimary: true,
-                origin: 'upload',
-              },
-            ])
-          : [],
         tags: imported.tags,
         ...serializeCharacterCardV2Fields({ persona: imported.persona }),
+        looks: {
+          create: {
+            isDefault: true,
+            referenceSlots: upload
+              ? serializeReferenceSlots([
+                  {
+                    id: 'slot-1',
+                    role: 'identity',
+                    url: upload.url,
+                    isPrimary: true,
+                    origin: 'upload',
+                  },
+                ])
+              : [],
+          },
+        },
       },
+      include: CHARACTER_LOOKS_INCLUDE,
     }),
   )
 
   return mapCharacterCardRow(card)
 }
 
-/**
- * List all non-deleted root character cards for a user, with their variants nested.
- */
+/** 一个用户全部没删的角色（连同造型）。 */
 export async function listCharacterCards(
   clerkId: string,
 ): Promise<CharacterCardRecord[]> {
   const dbUser = await ensureUser(clerkId)
 
   const cards = await db.characterCard.findMany({
-    where: { userId: dbUser.id, isDeleted: false, parentId: null },
+    where: { userId: dbUser.id, isDeleted: false },
     orderBy: { updatedAt: 'desc' },
     include: {
       // 角色页按张数排名：卡上的图 + 用她出过的图（owner 09-26）。
       _count: { select: { generationLinks: true } },
-      variants: {
-        where: { isDeleted: false },
-        orderBy: { updatedAt: 'desc' },
-        include: { _count: { select: { generationLinks: true } } },
-      },
+      ...CHARACTER_LOOKS_INCLUDE,
     },
   })
 
@@ -199,12 +184,7 @@ export async function getCharacterCard(
 
   const card = await db.characterCard.findUnique({
     where: { id: cardId },
-    include: {
-      variants: {
-        where: { isDeleted: false },
-        orderBy: { updatedAt: 'desc' },
-      },
-    },
+    include: CHARACTER_LOOKS_INCLUDE,
   })
 
   if (!card || card.userId !== dbUser.id || card.isDeleted) return null
@@ -231,14 +211,9 @@ export async function updateCharacterCard(
 
   const updateData: Record<string, unknown> = {}
   if (data.name !== undefined) updateData.name = data.name
-  if (data.description !== undefined) updateData.description = data.description
   if (data.tags !== undefined) updateData.tags = data.tags
-  if (data.variantLabel !== undefined)
-    updateData.variantLabel = data.variantLabel
   // 角色卡字段 v2 —— 透传落库，⛔ 不在这里加业务逻辑（cards.md「角色卡字段 v2」）。
   Object.assign(updateData, serializeCharacterCardV2Fields(data))
-  if (data.referenceSlots !== undefined)
-    updateData.referenceSlots = serializeReferenceSlots(data.referenceSlots)
   if (data.summary !== undefined) updateData.summary = data.summary
   if (data.extensions !== undefined)
     updateData.extensions = mergeCardExtensions(
@@ -249,12 +224,7 @@ export async function updateCharacterCard(
   const card = await db.characterCard.update({
     where: { id: cardId },
     data: updateData,
-    include: {
-      variants: {
-        where: { isDeleted: false },
-        orderBy: { updatedAt: 'desc' },
-      },
-    },
+    include: CHARACTER_LOOKS_INCLUDE,
   })
 
   return mapCharacterCardRow(card)
@@ -282,4 +252,82 @@ export async function deleteCharacterCard(
   })
 
   return true
+}
+
+/**
+ * 复制一位（手机长按菜单「复制」）：名字换新，设定、标签、全部造型（文字 · 标签 · 图）
+ * 和她收的 LoRA 都带上；酒馆原样存的那几格不带。
+ */
+export async function duplicateCharacterCard(
+  clerkId: string,
+  cardId: string,
+  name: string,
+): Promise<CharacterCardRecord | null> {
+  const dbUser = await ensureUser(clerkId)
+
+  const source = await db.characterCard.findUnique({
+    where: { id: cardId },
+    include: { ...CHARACTER_LOOKS_INCLUDE, loraLinks: true },
+  })
+  if (!source || source.userId !== dbUser.id || source.isDeleted) return null
+
+  const count = await db.characterCard.count({
+    where: { ...ownedBy(dbUser.id), isDeleted: false },
+  })
+  if (count >= CHARACTER_CARD.MAX_CARDS_PER_USER) {
+    throw new Error(
+      `Maximum ${CHARACTER_CARD.MAX_CARDS_PER_USER} character cards allowed`,
+    )
+  }
+
+  const card = await db.$transaction(async (tx) => {
+    const created = await tx.characterCard.create({
+      data: {
+        userId: dbUser.id,
+        handle: await allocateHandleForNewCard(
+          tx,
+          dbUser.id,
+          deriveCardHandleBase(name),
+        ),
+        name,
+        summary: source.summary,
+        tags: source.tags,
+        ...serializeCharacterCardV2Fields({
+          persona: mapCharacterCardRow(source).persona,
+        }),
+        extensions: mergeCardExtensions(source.extensions, {
+          [TAVERN_CARD.EXTENSION_KEY]: null,
+        }),
+      },
+    })
+    const lookIds = new Map<string, string>()
+    for (const [index, look] of source.looks.entries()) {
+      const copy = await tx.characterLook.create({
+        data: {
+          characterCardId: created.id,
+          label: look.label,
+          isDefault: look.isDefault,
+          description: look.description,
+          tags: look.tags,
+          referenceSlots: look.referenceSlots ?? [],
+          sortOrder: index,
+        },
+      })
+      lookIds.set(look.id, copy.id)
+    }
+    if (source.loraLinks.length)
+      await tx.characterCardLora.createMany({
+        data: source.loraLinks.map((link) => ({
+          characterCardId: created.id,
+          loraAssetId: link.loraAssetId,
+          lookId: link.lookId ? (lookIds.get(link.lookId) ?? null) : null,
+        })),
+      })
+    return tx.characterCard.findUniqueOrThrow({
+      where: { id: created.id },
+      include: CHARACTER_LOOKS_INCLUDE,
+    })
+  })
+
+  return mapCharacterCardRow(card)
 }

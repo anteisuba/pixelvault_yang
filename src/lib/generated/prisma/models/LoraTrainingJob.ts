@@ -51,6 +51,7 @@ export type LoraTrainingJobMinAggregateOutputType = {
   startedAt: Date | null
   completedAt: Date | null
   characterCardId: string | null
+  lookId: string | null
 }
 
 export type LoraTrainingJobMaxAggregateOutputType = {
@@ -70,6 +71,7 @@ export type LoraTrainingJobMaxAggregateOutputType = {
   startedAt: Date | null
   completedAt: Date | null
   characterCardId: string | null
+  lookId: string | null
 }
 
 export type LoraTrainingJobCountAggregateOutputType = {
@@ -90,6 +92,7 @@ export type LoraTrainingJobCountAggregateOutputType = {
   startedAt: number
   completedAt: number
   characterCardId: number
+  lookId: number
   _all: number
 }
 
@@ -119,6 +122,7 @@ export type LoraTrainingJobMinAggregateInputType = {
   startedAt?: true
   completedAt?: true
   characterCardId?: true
+  lookId?: true
 }
 
 export type LoraTrainingJobMaxAggregateInputType = {
@@ -138,6 +142,7 @@ export type LoraTrainingJobMaxAggregateInputType = {
   startedAt?: true
   completedAt?: true
   characterCardId?: true
+  lookId?: true
 }
 
 export type LoraTrainingJobCountAggregateInputType = {
@@ -158,6 +163,7 @@ export type LoraTrainingJobCountAggregateInputType = {
   startedAt?: true
   completedAt?: true
   characterCardId?: true
+  lookId?: true
   _all?: true
 }
 
@@ -265,6 +271,7 @@ export type LoraTrainingJobGroupByOutputType = {
   startedAt: Date | null
   completedAt: Date | null
   characterCardId: string | null
+  lookId: string | null
   _count: LoraTrainingJobCountAggregateOutputType | null
   _avg: LoraTrainingJobAvgAggregateOutputType | null
   _sum: LoraTrainingJobSumAggregateOutputType | null
@@ -308,8 +315,10 @@ export type LoraTrainingJobWhereInput = {
   startedAt?: Prisma.DateTimeNullableFilter<"LoraTrainingJob"> | Date | string | null
   completedAt?: Prisma.DateTimeNullableFilter<"LoraTrainingJob"> | Date | string | null
   characterCardId?: Prisma.StringNullableFilter<"LoraTrainingJob"> | string | null
+  lookId?: Prisma.StringNullableFilter<"LoraTrainingJob"> | string | null
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   characterCard?: Prisma.XOR<Prisma.CharacterCardNullableScalarRelationFilter, Prisma.CharacterCardWhereInput> | null
+  look?: Prisma.XOR<Prisma.CharacterLookNullableScalarRelationFilter, Prisma.CharacterLookWhereInput> | null
   loraAsset?: Prisma.XOR<Prisma.LoraAssetNullableScalarRelationFilter, Prisma.LoraAssetWhereInput> | null
 }
 
@@ -331,8 +340,10 @@ export type LoraTrainingJobOrderByWithRelationInput = {
   startedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   completedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   characterCardId?: Prisma.SortOrderInput | Prisma.SortOrder
+  lookId?: Prisma.SortOrderInput | Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
   characterCard?: Prisma.CharacterCardOrderByWithRelationInput
+  look?: Prisma.CharacterLookOrderByWithRelationInput
   loraAsset?: Prisma.LoraAssetOrderByWithRelationInput
 }
 
@@ -357,8 +368,10 @@ export type LoraTrainingJobWhereUniqueInput = Prisma.AtLeast<{
   startedAt?: Prisma.DateTimeNullableFilter<"LoraTrainingJob"> | Date | string | null
   completedAt?: Prisma.DateTimeNullableFilter<"LoraTrainingJob"> | Date | string | null
   characterCardId?: Prisma.StringNullableFilter<"LoraTrainingJob"> | string | null
+  lookId?: Prisma.StringNullableFilter<"LoraTrainingJob"> | string | null
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   characterCard?: Prisma.XOR<Prisma.CharacterCardNullableScalarRelationFilter, Prisma.CharacterCardWhereInput> | null
+  look?: Prisma.XOR<Prisma.CharacterLookNullableScalarRelationFilter, Prisma.CharacterLookWhereInput> | null
   loraAsset?: Prisma.XOR<Prisma.LoraAssetNullableScalarRelationFilter, Prisma.LoraAssetWhereInput> | null
 }, "id">
 
@@ -380,6 +393,7 @@ export type LoraTrainingJobOrderByWithAggregationInput = {
   startedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   completedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   characterCardId?: Prisma.SortOrderInput | Prisma.SortOrder
+  lookId?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.LoraTrainingJobCountOrderByAggregateInput
   _avg?: Prisma.LoraTrainingJobAvgOrderByAggregateInput
   _max?: Prisma.LoraTrainingJobMaxOrderByAggregateInput
@@ -408,6 +422,7 @@ export type LoraTrainingJobScalarWhereWithAggregatesInput = {
   startedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"LoraTrainingJob"> | Date | string | null
   completedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"LoraTrainingJob"> | Date | string | null
   characterCardId?: Prisma.StringNullableWithAggregatesFilter<"LoraTrainingJob"> | string | null
+  lookId?: Prisma.StringNullableWithAggregatesFilter<"LoraTrainingJob"> | string | null
 }
 
 export type LoraTrainingJobCreateInput = {
@@ -428,6 +443,7 @@ export type LoraTrainingJobCreateInput = {
   completedAt?: Date | string | null
   user: Prisma.UserCreateNestedOneWithoutLoraTrainingJobsInput
   characterCard?: Prisma.CharacterCardCreateNestedOneWithoutLoraTrainingJobsInput
+  look?: Prisma.CharacterLookCreateNestedOneWithoutLoraTrainingJobsInput
   loraAsset?: Prisma.LoraAssetCreateNestedOneWithoutTrainingJobInput
 }
 
@@ -449,6 +465,7 @@ export type LoraTrainingJobUncheckedCreateInput = {
   startedAt?: Date | string | null
   completedAt?: Date | string | null
   characterCardId?: string | null
+  lookId?: string | null
   loraAsset?: Prisma.LoraAssetUncheckedCreateNestedOneWithoutTrainingJobInput
 }
 
@@ -470,6 +487,7 @@ export type LoraTrainingJobUpdateInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   user?: Prisma.UserUpdateOneRequiredWithoutLoraTrainingJobsNestedInput
   characterCard?: Prisma.CharacterCardUpdateOneWithoutLoraTrainingJobsNestedInput
+  look?: Prisma.CharacterLookUpdateOneWithoutLoraTrainingJobsNestedInput
   loraAsset?: Prisma.LoraAssetUpdateOneWithoutTrainingJobNestedInput
 }
 
@@ -491,6 +509,7 @@ export type LoraTrainingJobUncheckedUpdateInput = {
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lookId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   loraAsset?: Prisma.LoraAssetUncheckedUpdateOneWithoutTrainingJobNestedInput
 }
 
@@ -512,6 +531,7 @@ export type LoraTrainingJobCreateManyInput = {
   startedAt?: Date | string | null
   completedAt?: Date | string | null
   characterCardId?: string | null
+  lookId?: string | null
 }
 
 export type LoraTrainingJobUpdateManyMutationInput = {
@@ -550,6 +570,7 @@ export type LoraTrainingJobUncheckedUpdateManyInput = {
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lookId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type LoraTrainingJobListRelationFilter = {
@@ -580,6 +601,7 @@ export type LoraTrainingJobCountOrderByAggregateInput = {
   startedAt?: Prisma.SortOrder
   completedAt?: Prisma.SortOrder
   characterCardId?: Prisma.SortOrder
+  lookId?: Prisma.SortOrder
 }
 
 export type LoraTrainingJobAvgOrderByAggregateInput = {
@@ -603,6 +625,7 @@ export type LoraTrainingJobMaxOrderByAggregateInput = {
   startedAt?: Prisma.SortOrder
   completedAt?: Prisma.SortOrder
   characterCardId?: Prisma.SortOrder
+  lookId?: Prisma.SortOrder
 }
 
 export type LoraTrainingJobMinOrderByAggregateInput = {
@@ -622,6 +645,7 @@ export type LoraTrainingJobMinOrderByAggregateInput = {
   startedAt?: Prisma.SortOrder
   completedAt?: Prisma.SortOrder
   characterCardId?: Prisma.SortOrder
+  lookId?: Prisma.SortOrder
 }
 
 export type LoraTrainingJobSumOrderByAggregateInput = {
@@ -717,6 +741,48 @@ export type LoraTrainingJobUncheckedUpdateManyWithoutCharacterCardNestedInput = 
   deleteMany?: Prisma.LoraTrainingJobScalarWhereInput | Prisma.LoraTrainingJobScalarWhereInput[]
 }
 
+export type LoraTrainingJobCreateNestedManyWithoutLookInput = {
+  create?: Prisma.XOR<Prisma.LoraTrainingJobCreateWithoutLookInput, Prisma.LoraTrainingJobUncheckedCreateWithoutLookInput> | Prisma.LoraTrainingJobCreateWithoutLookInput[] | Prisma.LoraTrainingJobUncheckedCreateWithoutLookInput[]
+  connectOrCreate?: Prisma.LoraTrainingJobCreateOrConnectWithoutLookInput | Prisma.LoraTrainingJobCreateOrConnectWithoutLookInput[]
+  createMany?: Prisma.LoraTrainingJobCreateManyLookInputEnvelope
+  connect?: Prisma.LoraTrainingJobWhereUniqueInput | Prisma.LoraTrainingJobWhereUniqueInput[]
+}
+
+export type LoraTrainingJobUncheckedCreateNestedManyWithoutLookInput = {
+  create?: Prisma.XOR<Prisma.LoraTrainingJobCreateWithoutLookInput, Prisma.LoraTrainingJobUncheckedCreateWithoutLookInput> | Prisma.LoraTrainingJobCreateWithoutLookInput[] | Prisma.LoraTrainingJobUncheckedCreateWithoutLookInput[]
+  connectOrCreate?: Prisma.LoraTrainingJobCreateOrConnectWithoutLookInput | Prisma.LoraTrainingJobCreateOrConnectWithoutLookInput[]
+  createMany?: Prisma.LoraTrainingJobCreateManyLookInputEnvelope
+  connect?: Prisma.LoraTrainingJobWhereUniqueInput | Prisma.LoraTrainingJobWhereUniqueInput[]
+}
+
+export type LoraTrainingJobUpdateManyWithoutLookNestedInput = {
+  create?: Prisma.XOR<Prisma.LoraTrainingJobCreateWithoutLookInput, Prisma.LoraTrainingJobUncheckedCreateWithoutLookInput> | Prisma.LoraTrainingJobCreateWithoutLookInput[] | Prisma.LoraTrainingJobUncheckedCreateWithoutLookInput[]
+  connectOrCreate?: Prisma.LoraTrainingJobCreateOrConnectWithoutLookInput | Prisma.LoraTrainingJobCreateOrConnectWithoutLookInput[]
+  upsert?: Prisma.LoraTrainingJobUpsertWithWhereUniqueWithoutLookInput | Prisma.LoraTrainingJobUpsertWithWhereUniqueWithoutLookInput[]
+  createMany?: Prisma.LoraTrainingJobCreateManyLookInputEnvelope
+  set?: Prisma.LoraTrainingJobWhereUniqueInput | Prisma.LoraTrainingJobWhereUniqueInput[]
+  disconnect?: Prisma.LoraTrainingJobWhereUniqueInput | Prisma.LoraTrainingJobWhereUniqueInput[]
+  delete?: Prisma.LoraTrainingJobWhereUniqueInput | Prisma.LoraTrainingJobWhereUniqueInput[]
+  connect?: Prisma.LoraTrainingJobWhereUniqueInput | Prisma.LoraTrainingJobWhereUniqueInput[]
+  update?: Prisma.LoraTrainingJobUpdateWithWhereUniqueWithoutLookInput | Prisma.LoraTrainingJobUpdateWithWhereUniqueWithoutLookInput[]
+  updateMany?: Prisma.LoraTrainingJobUpdateManyWithWhereWithoutLookInput | Prisma.LoraTrainingJobUpdateManyWithWhereWithoutLookInput[]
+  deleteMany?: Prisma.LoraTrainingJobScalarWhereInput | Prisma.LoraTrainingJobScalarWhereInput[]
+}
+
+export type LoraTrainingJobUncheckedUpdateManyWithoutLookNestedInput = {
+  create?: Prisma.XOR<Prisma.LoraTrainingJobCreateWithoutLookInput, Prisma.LoraTrainingJobUncheckedCreateWithoutLookInput> | Prisma.LoraTrainingJobCreateWithoutLookInput[] | Prisma.LoraTrainingJobUncheckedCreateWithoutLookInput[]
+  connectOrCreate?: Prisma.LoraTrainingJobCreateOrConnectWithoutLookInput | Prisma.LoraTrainingJobCreateOrConnectWithoutLookInput[]
+  upsert?: Prisma.LoraTrainingJobUpsertWithWhereUniqueWithoutLookInput | Prisma.LoraTrainingJobUpsertWithWhereUniqueWithoutLookInput[]
+  createMany?: Prisma.LoraTrainingJobCreateManyLookInputEnvelope
+  set?: Prisma.LoraTrainingJobWhereUniqueInput | Prisma.LoraTrainingJobWhereUniqueInput[]
+  disconnect?: Prisma.LoraTrainingJobWhereUniqueInput | Prisma.LoraTrainingJobWhereUniqueInput[]
+  delete?: Prisma.LoraTrainingJobWhereUniqueInput | Prisma.LoraTrainingJobWhereUniqueInput[]
+  connect?: Prisma.LoraTrainingJobWhereUniqueInput | Prisma.LoraTrainingJobWhereUniqueInput[]
+  update?: Prisma.LoraTrainingJobUpdateWithWhereUniqueWithoutLookInput | Prisma.LoraTrainingJobUpdateWithWhereUniqueWithoutLookInput[]
+  updateMany?: Prisma.LoraTrainingJobUpdateManyWithWhereWithoutLookInput | Prisma.LoraTrainingJobUpdateManyWithWhereWithoutLookInput[]
+  deleteMany?: Prisma.LoraTrainingJobScalarWhereInput | Prisma.LoraTrainingJobScalarWhereInput[]
+}
+
 export type LoraTrainingJobCreatetrainingImageKeysInput = {
   set: string[]
 }
@@ -771,6 +837,7 @@ export type LoraTrainingJobCreateWithoutUserInput = {
   startedAt?: Date | string | null
   completedAt?: Date | string | null
   characterCard?: Prisma.CharacterCardCreateNestedOneWithoutLoraTrainingJobsInput
+  look?: Prisma.CharacterLookCreateNestedOneWithoutLoraTrainingJobsInput
   loraAsset?: Prisma.LoraAssetCreateNestedOneWithoutTrainingJobInput
 }
 
@@ -791,6 +858,7 @@ export type LoraTrainingJobUncheckedCreateWithoutUserInput = {
   startedAt?: Date | string | null
   completedAt?: Date | string | null
   characterCardId?: string | null
+  lookId?: string | null
   loraAsset?: Prisma.LoraAssetUncheckedCreateNestedOneWithoutTrainingJobInput
 }
 
@@ -841,6 +909,7 @@ export type LoraTrainingJobScalarWhereInput = {
   startedAt?: Prisma.DateTimeNullableFilter<"LoraTrainingJob"> | Date | string | null
   completedAt?: Prisma.DateTimeNullableFilter<"LoraTrainingJob"> | Date | string | null
   characterCardId?: Prisma.StringNullableFilter<"LoraTrainingJob"> | string | null
+  lookId?: Prisma.StringNullableFilter<"LoraTrainingJob"> | string | null
 }
 
 export type LoraTrainingJobCreateWithoutCharacterCardInput = {
@@ -860,6 +929,7 @@ export type LoraTrainingJobCreateWithoutCharacterCardInput = {
   startedAt?: Date | string | null
   completedAt?: Date | string | null
   user: Prisma.UserCreateNestedOneWithoutLoraTrainingJobsInput
+  look?: Prisma.CharacterLookCreateNestedOneWithoutLoraTrainingJobsInput
   loraAsset?: Prisma.LoraAssetCreateNestedOneWithoutTrainingJobInput
 }
 
@@ -880,6 +950,7 @@ export type LoraTrainingJobUncheckedCreateWithoutCharacterCardInput = {
   createdAt?: Date | string
   startedAt?: Date | string | null
   completedAt?: Date | string | null
+  lookId?: string | null
   loraAsset?: Prisma.LoraAssetUncheckedCreateNestedOneWithoutTrainingJobInput
 }
 
@@ -909,6 +980,74 @@ export type LoraTrainingJobUpdateManyWithWhereWithoutCharacterCardInput = {
   data: Prisma.XOR<Prisma.LoraTrainingJobUpdateManyMutationInput, Prisma.LoraTrainingJobUncheckedUpdateManyWithoutCharacterCardInput>
 }
 
+export type LoraTrainingJobCreateWithoutLookInput = {
+  id?: string
+  name: string
+  triggerWord: string
+  loraType?: string
+  baseModel?: string
+  trainingImageKeys?: Prisma.LoraTrainingJobCreatetrainingImageKeysInput | string[]
+  status?: $Enums.LoraTrainingStatus
+  externalTrainingId?: string | null
+  progress?: number
+  errorMessage?: string | null
+  loraUrl?: string | null
+  loraStorageKey?: string | null
+  createdAt?: Date | string
+  startedAt?: Date | string | null
+  completedAt?: Date | string | null
+  user: Prisma.UserCreateNestedOneWithoutLoraTrainingJobsInput
+  characterCard?: Prisma.CharacterCardCreateNestedOneWithoutLoraTrainingJobsInput
+  loraAsset?: Prisma.LoraAssetCreateNestedOneWithoutTrainingJobInput
+}
+
+export type LoraTrainingJobUncheckedCreateWithoutLookInput = {
+  id?: string
+  userId: string
+  name: string
+  triggerWord: string
+  loraType?: string
+  baseModel?: string
+  trainingImageKeys?: Prisma.LoraTrainingJobCreatetrainingImageKeysInput | string[]
+  status?: $Enums.LoraTrainingStatus
+  externalTrainingId?: string | null
+  progress?: number
+  errorMessage?: string | null
+  loraUrl?: string | null
+  loraStorageKey?: string | null
+  createdAt?: Date | string
+  startedAt?: Date | string | null
+  completedAt?: Date | string | null
+  characterCardId?: string | null
+  loraAsset?: Prisma.LoraAssetUncheckedCreateNestedOneWithoutTrainingJobInput
+}
+
+export type LoraTrainingJobCreateOrConnectWithoutLookInput = {
+  where: Prisma.LoraTrainingJobWhereUniqueInput
+  create: Prisma.XOR<Prisma.LoraTrainingJobCreateWithoutLookInput, Prisma.LoraTrainingJobUncheckedCreateWithoutLookInput>
+}
+
+export type LoraTrainingJobCreateManyLookInputEnvelope = {
+  data: Prisma.LoraTrainingJobCreateManyLookInput | Prisma.LoraTrainingJobCreateManyLookInput[]
+  skipDuplicates?: boolean
+}
+
+export type LoraTrainingJobUpsertWithWhereUniqueWithoutLookInput = {
+  where: Prisma.LoraTrainingJobWhereUniqueInput
+  update: Prisma.XOR<Prisma.LoraTrainingJobUpdateWithoutLookInput, Prisma.LoraTrainingJobUncheckedUpdateWithoutLookInput>
+  create: Prisma.XOR<Prisma.LoraTrainingJobCreateWithoutLookInput, Prisma.LoraTrainingJobUncheckedCreateWithoutLookInput>
+}
+
+export type LoraTrainingJobUpdateWithWhereUniqueWithoutLookInput = {
+  where: Prisma.LoraTrainingJobWhereUniqueInput
+  data: Prisma.XOR<Prisma.LoraTrainingJobUpdateWithoutLookInput, Prisma.LoraTrainingJobUncheckedUpdateWithoutLookInput>
+}
+
+export type LoraTrainingJobUpdateManyWithWhereWithoutLookInput = {
+  where: Prisma.LoraTrainingJobScalarWhereInput
+  data: Prisma.XOR<Prisma.LoraTrainingJobUpdateManyMutationInput, Prisma.LoraTrainingJobUncheckedUpdateManyWithoutLookInput>
+}
+
 export type LoraTrainingJobCreateWithoutLoraAssetInput = {
   id?: string
   name: string
@@ -927,6 +1066,7 @@ export type LoraTrainingJobCreateWithoutLoraAssetInput = {
   completedAt?: Date | string | null
   user: Prisma.UserCreateNestedOneWithoutLoraTrainingJobsInput
   characterCard?: Prisma.CharacterCardCreateNestedOneWithoutLoraTrainingJobsInput
+  look?: Prisma.CharacterLookCreateNestedOneWithoutLoraTrainingJobsInput
 }
 
 export type LoraTrainingJobUncheckedCreateWithoutLoraAssetInput = {
@@ -947,6 +1087,7 @@ export type LoraTrainingJobUncheckedCreateWithoutLoraAssetInput = {
   startedAt?: Date | string | null
   completedAt?: Date | string | null
   characterCardId?: string | null
+  lookId?: string | null
 }
 
 export type LoraTrainingJobCreateOrConnectWithoutLoraAssetInput = {
@@ -983,6 +1124,7 @@ export type LoraTrainingJobUpdateWithoutLoraAssetInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   user?: Prisma.UserUpdateOneRequiredWithoutLoraTrainingJobsNestedInput
   characterCard?: Prisma.CharacterCardUpdateOneWithoutLoraTrainingJobsNestedInput
+  look?: Prisma.CharacterLookUpdateOneWithoutLoraTrainingJobsNestedInput
 }
 
 export type LoraTrainingJobUncheckedUpdateWithoutLoraAssetInput = {
@@ -1003,6 +1145,7 @@ export type LoraTrainingJobUncheckedUpdateWithoutLoraAssetInput = {
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lookId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type LoraTrainingJobCreateManyUserInput = {
@@ -1022,6 +1165,7 @@ export type LoraTrainingJobCreateManyUserInput = {
   startedAt?: Date | string | null
   completedAt?: Date | string | null
   characterCardId?: string | null
+  lookId?: string | null
 }
 
 export type LoraTrainingJobUpdateWithoutUserInput = {
@@ -1041,6 +1185,7 @@ export type LoraTrainingJobUpdateWithoutUserInput = {
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   characterCard?: Prisma.CharacterCardUpdateOneWithoutLoraTrainingJobsNestedInput
+  look?: Prisma.CharacterLookUpdateOneWithoutLoraTrainingJobsNestedInput
   loraAsset?: Prisma.LoraAssetUpdateOneWithoutTrainingJobNestedInput
 }
 
@@ -1061,6 +1206,7 @@ export type LoraTrainingJobUncheckedUpdateWithoutUserInput = {
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lookId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   loraAsset?: Prisma.LoraAssetUncheckedUpdateOneWithoutTrainingJobNestedInput
 }
 
@@ -1081,6 +1227,7 @@ export type LoraTrainingJobUncheckedUpdateManyWithoutUserInput = {
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lookId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type LoraTrainingJobCreateManyCharacterCardInput = {
@@ -1100,6 +1247,7 @@ export type LoraTrainingJobCreateManyCharacterCardInput = {
   createdAt?: Date | string
   startedAt?: Date | string | null
   completedAt?: Date | string | null
+  lookId?: string | null
 }
 
 export type LoraTrainingJobUpdateWithoutCharacterCardInput = {
@@ -1119,6 +1267,7 @@ export type LoraTrainingJobUpdateWithoutCharacterCardInput = {
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   user?: Prisma.UserUpdateOneRequiredWithoutLoraTrainingJobsNestedInput
+  look?: Prisma.CharacterLookUpdateOneWithoutLoraTrainingJobsNestedInput
   loraAsset?: Prisma.LoraAssetUpdateOneWithoutTrainingJobNestedInput
 }
 
@@ -1139,6 +1288,7 @@ export type LoraTrainingJobUncheckedUpdateWithoutCharacterCardInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lookId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   loraAsset?: Prisma.LoraAssetUncheckedUpdateOneWithoutTrainingJobNestedInput
 }
 
@@ -1159,6 +1309,89 @@ export type LoraTrainingJobUncheckedUpdateManyWithoutCharacterCardInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lookId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+}
+
+export type LoraTrainingJobCreateManyLookInput = {
+  id?: string
+  userId: string
+  name: string
+  triggerWord: string
+  loraType?: string
+  baseModel?: string
+  trainingImageKeys?: Prisma.LoraTrainingJobCreatetrainingImageKeysInput | string[]
+  status?: $Enums.LoraTrainingStatus
+  externalTrainingId?: string | null
+  progress?: number
+  errorMessage?: string | null
+  loraUrl?: string | null
+  loraStorageKey?: string | null
+  createdAt?: Date | string
+  startedAt?: Date | string | null
+  completedAt?: Date | string | null
+  characterCardId?: string | null
+}
+
+export type LoraTrainingJobUpdateWithoutLookInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  triggerWord?: Prisma.StringFieldUpdateOperationsInput | string
+  loraType?: Prisma.StringFieldUpdateOperationsInput | string
+  baseModel?: Prisma.StringFieldUpdateOperationsInput | string
+  trainingImageKeys?: Prisma.LoraTrainingJobUpdatetrainingImageKeysInput | string[]
+  status?: Prisma.EnumLoraTrainingStatusFieldUpdateOperationsInput | $Enums.LoraTrainingStatus
+  externalTrainingId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  progress?: Prisma.FloatFieldUpdateOperationsInput | number
+  errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  loraUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  loraStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  user?: Prisma.UserUpdateOneRequiredWithoutLoraTrainingJobsNestedInput
+  characterCard?: Prisma.CharacterCardUpdateOneWithoutLoraTrainingJobsNestedInput
+  loraAsset?: Prisma.LoraAssetUpdateOneWithoutTrainingJobNestedInput
+}
+
+export type LoraTrainingJobUncheckedUpdateWithoutLookInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  userId?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  triggerWord?: Prisma.StringFieldUpdateOperationsInput | string
+  loraType?: Prisma.StringFieldUpdateOperationsInput | string
+  baseModel?: Prisma.StringFieldUpdateOperationsInput | string
+  trainingImageKeys?: Prisma.LoraTrainingJobUpdatetrainingImageKeysInput | string[]
+  status?: Prisma.EnumLoraTrainingStatusFieldUpdateOperationsInput | $Enums.LoraTrainingStatus
+  externalTrainingId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  progress?: Prisma.FloatFieldUpdateOperationsInput | number
+  errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  loraUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  loraStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  loraAsset?: Prisma.LoraAssetUncheckedUpdateOneWithoutTrainingJobNestedInput
+}
+
+export type LoraTrainingJobUncheckedUpdateManyWithoutLookInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  userId?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  triggerWord?: Prisma.StringFieldUpdateOperationsInput | string
+  loraType?: Prisma.StringFieldUpdateOperationsInput | string
+  baseModel?: Prisma.StringFieldUpdateOperationsInput | string
+  trainingImageKeys?: Prisma.LoraTrainingJobUpdatetrainingImageKeysInput | string[]
+  status?: Prisma.EnumLoraTrainingStatusFieldUpdateOperationsInput | $Enums.LoraTrainingStatus
+  externalTrainingId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  progress?: Prisma.FloatFieldUpdateOperationsInput | number
+  errorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  loraUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  loraStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  startedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 
@@ -1181,8 +1414,10 @@ export type LoraTrainingJobSelect<ExtArgs extends runtime.Types.Extensions.Inter
   startedAt?: boolean
   completedAt?: boolean
   characterCardId?: boolean
+  lookId?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   characterCard?: boolean | Prisma.LoraTrainingJob$characterCardArgs<ExtArgs>
+  look?: boolean | Prisma.LoraTrainingJob$lookArgs<ExtArgs>
   loraAsset?: boolean | Prisma.LoraTrainingJob$loraAssetArgs<ExtArgs>
 }, ExtArgs["result"]["loraTrainingJob"]>
 
@@ -1204,8 +1439,10 @@ export type LoraTrainingJobSelectCreateManyAndReturn<ExtArgs extends runtime.Typ
   startedAt?: boolean
   completedAt?: boolean
   characterCardId?: boolean
+  lookId?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   characterCard?: boolean | Prisma.LoraTrainingJob$characterCardArgs<ExtArgs>
+  look?: boolean | Prisma.LoraTrainingJob$lookArgs<ExtArgs>
 }, ExtArgs["result"]["loraTrainingJob"]>
 
 export type LoraTrainingJobSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -1226,8 +1463,10 @@ export type LoraTrainingJobSelectUpdateManyAndReturn<ExtArgs extends runtime.Typ
   startedAt?: boolean
   completedAt?: boolean
   characterCardId?: boolean
+  lookId?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   characterCard?: boolean | Prisma.LoraTrainingJob$characterCardArgs<ExtArgs>
+  look?: boolean | Prisma.LoraTrainingJob$lookArgs<ExtArgs>
 }, ExtArgs["result"]["loraTrainingJob"]>
 
 export type LoraTrainingJobSelectScalar = {
@@ -1248,21 +1487,25 @@ export type LoraTrainingJobSelectScalar = {
   startedAt?: boolean
   completedAt?: boolean
   characterCardId?: boolean
+  lookId?: boolean
 }
 
-export type LoraTrainingJobOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "name" | "triggerWord" | "loraType" | "baseModel" | "trainingImageKeys" | "status" | "externalTrainingId" | "progress" | "errorMessage" | "loraUrl" | "loraStorageKey" | "createdAt" | "startedAt" | "completedAt" | "characterCardId", ExtArgs["result"]["loraTrainingJob"]>
+export type LoraTrainingJobOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "name" | "triggerWord" | "loraType" | "baseModel" | "trainingImageKeys" | "status" | "externalTrainingId" | "progress" | "errorMessage" | "loraUrl" | "loraStorageKey" | "createdAt" | "startedAt" | "completedAt" | "characterCardId" | "lookId", ExtArgs["result"]["loraTrainingJob"]>
 export type LoraTrainingJobInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   characterCard?: boolean | Prisma.LoraTrainingJob$characterCardArgs<ExtArgs>
+  look?: boolean | Prisma.LoraTrainingJob$lookArgs<ExtArgs>
   loraAsset?: boolean | Prisma.LoraTrainingJob$loraAssetArgs<ExtArgs>
 }
 export type LoraTrainingJobIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   characterCard?: boolean | Prisma.LoraTrainingJob$characterCardArgs<ExtArgs>
+  look?: boolean | Prisma.LoraTrainingJob$lookArgs<ExtArgs>
 }
 export type LoraTrainingJobIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   characterCard?: boolean | Prisma.LoraTrainingJob$characterCardArgs<ExtArgs>
+  look?: boolean | Prisma.LoraTrainingJob$lookArgs<ExtArgs>
 }
 
 export type $LoraTrainingJobPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1270,6 +1513,7 @@ export type $LoraTrainingJobPayload<ExtArgs extends runtime.Types.Extensions.Int
   objects: {
     user: Prisma.$UserPayload<ExtArgs>
     characterCard: Prisma.$CharacterCardPayload<ExtArgs> | null
+    look: Prisma.$CharacterLookPayload<ExtArgs> | null
     loraAsset: Prisma.$LoraAssetPayload<ExtArgs> | null
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
@@ -1290,6 +1534,10 @@ export type $LoraTrainingJobPayload<ExtArgs extends runtime.Types.Extensions.Int
     startedAt: Date | null
     completedAt: Date | null
     characterCardId: string | null
+    /**
+     * 从哪套造型发起的训练（角色④）：训完的 LoRA 挂在这套造型下。
+     */
+    lookId: string | null
   }, ExtArgs["result"]["loraTrainingJob"]>
   composites: {}
 }
@@ -1686,6 +1934,7 @@ export interface Prisma__LoraTrainingJobClient<T, Null = never, ExtArgs extends 
   readonly [Symbol.toStringTag]: "PrismaPromise"
   user<T extends Prisma.UserDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.UserDefaultArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   characterCard<T extends Prisma.LoraTrainingJob$characterCardArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.LoraTrainingJob$characterCardArgs<ExtArgs>>): Prisma.Prisma__CharacterCardClient<runtime.Types.Result.GetResult<Prisma.$CharacterCardPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  look<T extends Prisma.LoraTrainingJob$lookArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.LoraTrainingJob$lookArgs<ExtArgs>>): Prisma.Prisma__CharacterLookClient<runtime.Types.Result.GetResult<Prisma.$CharacterLookPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   loraAsset<T extends Prisma.LoraTrainingJob$loraAssetArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.LoraTrainingJob$loraAssetArgs<ExtArgs>>): Prisma.Prisma__LoraAssetClient<runtime.Types.Result.GetResult<Prisma.$LoraAssetPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -1733,6 +1982,7 @@ export interface LoraTrainingJobFieldRefs {
   readonly startedAt: Prisma.FieldRef<"LoraTrainingJob", 'DateTime'>
   readonly completedAt: Prisma.FieldRef<"LoraTrainingJob", 'DateTime'>
   readonly characterCardId: Prisma.FieldRef<"LoraTrainingJob", 'String'>
+  readonly lookId: Prisma.FieldRef<"LoraTrainingJob", 'String'>
 }
     
 
@@ -2150,6 +2400,25 @@ export type LoraTrainingJob$characterCardArgs<ExtArgs extends runtime.Types.Exte
    */
   include?: Prisma.CharacterCardInclude<ExtArgs> | null
   where?: Prisma.CharacterCardWhereInput
+}
+
+/**
+ * LoraTrainingJob.look
+ */
+export type LoraTrainingJob$lookArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the CharacterLook
+   */
+  select?: Prisma.CharacterLookSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the CharacterLook
+   */
+  omit?: Prisma.CharacterLookOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.CharacterLookInclude<ExtArgs> | null
+  where?: Prisma.CharacterLookWhereInput
 }
 
 /**

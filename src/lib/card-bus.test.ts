@@ -4,9 +4,11 @@ import {
   allocateCardHandle,
   cardHandleKey,
   characterCoverUrl,
+  defaultLook,
   deriveCardHandleBase,
-  deriveVariantHandleBase,
   findCardHandleMentions,
+  findLook,
+  slotsCoverUrl,
 } from '@/lib/card-bus'
 
 const url = (name: string) => `https://cdn.test/${name}.png`
@@ -20,13 +22,28 @@ describe('characterCoverUrl', () => {
   })
 
   it('主图那一槽；没有主图取第一槽；没有槽是 null', () => {
-    expect(
-      characterCoverUrl({ referenceSlots: [slot('a'), slot('b', true)] }),
-    ).toBe(url('b'))
-    expect(characterCoverUrl({ referenceSlots: [slot('a'), slot('b')] })).toBe(
-      url('a'),
-    )
-    expect(characterCoverUrl({ referenceSlots: [] })).toBeNull()
+    expect(slotsCoverUrl([slot('a'), slot('b', true)])).toBe(url('b'))
+    expect(slotsCoverUrl([slot('a'), slot('b')])).toBe(url('a'))
+    expect(slotsCoverUrl([])).toBeNull()
+  })
+
+  it('角色封面 = 默认造型的封面', () => {
+    const look = (id: string, isDefault: boolean, slots: string[]) => ({
+      id,
+      label: null,
+      isDefault,
+      description: null,
+      tags: [],
+      referenceSlots: slots.map((name, index) => slot(name, index === 0)),
+    })
+    const card = {
+      looks: [look('chibi', false, ['c']), look('main', true, ['m'])],
+    }
+    expect(characterCoverUrl(card)).toBe(url('m'))
+    expect(defaultLook(card).id).toBe('main')
+    expect(findLook(card, 'chibi').id).toBe('chibi')
+    expect(findLook(card, 'gone').id).toBe('main')
+    expect(findLook(card, null).id).toBe('main')
   })
 })
 
@@ -35,11 +52,6 @@ describe('handle', () => {
     expect(deriveCardHandleBase('林夏')).toBe('林夏')
     expect(deriveCardHandleBase('Lin Xia（雨夜）')).toBe('Lin-Xia雨夜')
     expect(deriveCardHandleBase('★☆')).toBe('card')
-  })
-
-  it('变体写成 父-变体', () => {
-    expect(deriveVariantHandleBase('林夏', '雨夜版')).toBe('林夏-雨夜版')
-    expect(deriveVariantHandleBase('林夏', null)).toBe('林夏')
   })
 
   it('冲突依次加 -2 -3，比较不分全半角和 ASCII 大小写', () => {

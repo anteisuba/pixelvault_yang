@@ -3,7 +3,10 @@ import 'server-only'
 import type { StudioGenerateRequest, StudioGenerateResponseData } from '@/types'
 import { getModelById } from '@/constants/models'
 import { getMaxReferenceImages } from '@/constants/provider-capabilities'
-import { compileImageOutlet } from '@/lib/card-bus-compile'
+import {
+  compileImageOutlet,
+  type CardBusCharacter,
+} from '@/lib/card-bus-compile'
 import { loadCardBusCharacters } from '@/services/cards/card-bus.service'
 import { submitImageGeneration } from '@/services/image/submit-image.service'
 import { ensureUser } from '@/services/user.service'
@@ -58,6 +61,7 @@ export async function compileAndGenerate(
         dbUser.id,
         input.characterCardIds,
         input.characterImagePicks,
+        input.characterLookIds,
       )
     : []
   const outlet = compileImageOutlet(characters, {
@@ -124,7 +128,10 @@ export async function compileAndGenerate(
     projectId: input.projectId,
     recipeUsage: input.recipeUsage,
     ...(characters.length
-      ? { characterCardIds: characters.map((character) => character.cardId) }
+      ? {
+          characterCardIds: characters.map((character) => character.cardId),
+          characterLookIds: characterLookIdsOf(characters),
+        }
       : {}),
   }
 
@@ -150,5 +157,16 @@ export async function compileAndGenerate(
           }
         : {}),
     },
+  )
+}
+
+/** 出图用的造型，随出图记录记下（角色④）。 */
+function characterLookIdsOf(
+  characters: readonly CardBusCharacter[],
+): Record<string, string> {
+  return Object.fromEntries(
+    characters.flatMap((character) =>
+      character.lookId ? [[character.cardId, character.lookId]] : [],
+    ),
   )
 }

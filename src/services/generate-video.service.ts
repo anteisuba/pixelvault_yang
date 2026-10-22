@@ -271,6 +271,7 @@ async function submitFalVideoWorkerRun(params: {
     executionWorkflowId: EXECUTION_WORKFLOW_IDS.FAL_QUEUE,
     referenceImageUrl,
     characterCardIds: input.characterCardIds,
+    characterLookIds: input.characterLookIds,
     isFreeGeneration,
     /**
      * 助手给这一枪起的名（切片 Y）。⭐ 只能搭这趟队列元数据走：视频生成是异步的，

@@ -408,6 +408,7 @@ export const ModelName = {
   ProjectRule: 'ProjectRule',
   ModelConfig: 'ModelConfig',
   CharacterCard: 'CharacterCard',
+  CharacterLook: 'CharacterLook',
   GenerationCharacterCard: 'GenerationCharacterCard',
   UserLike: 'UserLike',
   UserFollow: 'UserFollow',
@@ -435,7 +436,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "modelConfig" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "characterCardLora" | "loraTrainingJob" | "loraAsset" | "extractedElement" | "generationLayer" | "inspirationPrompt" | "contextCard" | "assistantMemory" | "assistantTurnRecord"
+    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "modelConfig" | "characterCard" | "characterLook" | "generationCharacterCard" | "userLike" | "userFollow" | "characterCardLora" | "loraTrainingJob" | "loraAsset" | "extractedElement" | "generationLayer" | "inspirationPrompt" | "contextCard" | "assistantMemory" | "assistantTurnRecord"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2215,6 +2216,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    CharacterLook: {
+      payload: Prisma.$CharacterLookPayload<ExtArgs>
+      fields: Prisma.CharacterLookFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.CharacterLookFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterLookPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.CharacterLookFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterLookPayload>
+        }
+        findFirst: {
+          args: Prisma.CharacterLookFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterLookPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.CharacterLookFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterLookPayload>
+        }
+        findMany: {
+          args: Prisma.CharacterLookFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterLookPayload>[]
+        }
+        create: {
+          args: Prisma.CharacterLookCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterLookPayload>
+        }
+        createMany: {
+          args: Prisma.CharacterLookCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.CharacterLookCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterLookPayload>[]
+        }
+        delete: {
+          args: Prisma.CharacterLookDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterLookPayload>
+        }
+        update: {
+          args: Prisma.CharacterLookUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterLookPayload>
+        }
+        deleteMany: {
+          args: Prisma.CharacterLookDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.CharacterLookUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.CharacterLookUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterLookPayload>[]
+        }
+        upsert: {
+          args: Prisma.CharacterLookUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterLookPayload>
+        }
+        aggregate: {
+          args: Prisma.CharacterLookAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCharacterLook>
+        }
+        groupBy: {
+          args: Prisma.CharacterLookGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CharacterLookGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.CharacterLookCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CharacterLookCountAggregateOutputType> | number
+        }
+      }
+    }
     GenerationCharacterCard: {
       payload: Prisma.$GenerationCharacterCardPayload<ExtArgs>
       fields: Prisma.GenerationCharacterCardFieldRefs
@@ -3612,10 +3687,27 @@ export const CharacterCardScalarFieldEnum = {
 export type CharacterCardScalarFieldEnum = (typeof CharacterCardScalarFieldEnum)[keyof typeof CharacterCardScalarFieldEnum]
 
 
+export const CharacterLookScalarFieldEnum = {
+  id: 'id',
+  characterCardId: 'characterCardId',
+  label: 'label',
+  isDefault: 'isDefault',
+  description: 'description',
+  tags: 'tags',
+  referenceSlots: 'referenceSlots',
+  sortOrder: 'sortOrder',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CharacterLookScalarFieldEnum = (typeof CharacterLookScalarFieldEnum)[keyof typeof CharacterLookScalarFieldEnum]
+
+
 export const GenerationCharacterCardScalarFieldEnum = {
   id: 'id',
   generationId: 'generationId',
   characterCardId: 'characterCardId',
+  lookId: 'lookId',
   createdAt: 'createdAt'
 } as const
 
@@ -3645,6 +3737,7 @@ export type UserFollowScalarFieldEnum = (typeof UserFollowScalarFieldEnum)[keyof
 export const CharacterCardLoraScalarFieldEnum = {
   characterCardId: 'characterCardId',
   loraAssetId: 'loraAssetId',
+  lookId: 'lookId',
   createdAt: 'createdAt'
 } as const
 
@@ -3668,7 +3761,8 @@ export const LoraTrainingJobScalarFieldEnum = {
   createdAt: 'createdAt',
   startedAt: 'startedAt',
   completedAt: 'completedAt',
-  characterCardId: 'characterCardId'
+  characterCardId: 'characterCardId',
+  lookId: 'lookId'
 } as const
 
 export type LoraTrainingJobScalarFieldEnum = (typeof LoraTrainingJobScalarFieldEnum)[keyof typeof LoraTrainingJobScalarFieldEnum]
@@ -4296,6 +4390,7 @@ export type GlobalOmitConfig = {
   projectRule?: Prisma.ProjectRuleOmit
   modelConfig?: Prisma.ModelConfigOmit
   characterCard?: Prisma.CharacterCardOmit
+  characterLook?: Prisma.CharacterLookOmit
   generationCharacterCard?: Prisma.GenerationCharacterCardOmit
   userLike?: Prisma.UserLikeOmit
   userFollow?: Prisma.UserFollowOmit

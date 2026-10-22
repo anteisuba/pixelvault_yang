@@ -103,6 +103,8 @@ export interface CreateGenerationInput {
   userId?: string
   /** Character card IDs to link via join table (multi-card) */
   characterCardIds?: string[]
+  /** 每位角色用的哪套造型（角色④），记进关联行。 */
+  characterLookIds?: Record<string, string>
   /** 落进哪个文件夹（生成台当前夹 / 上传目标夹）。只认这个用户自己的活夹。 */
   projectId?: string
   /** B0: Full input parameter snapshot (JSON) */
@@ -678,6 +680,7 @@ async function createGenerationWithin(
       data: input.characterCardIds.map((cardId) => ({
         generationId: generation.id,
         characterCardId: cardId,
+        lookId: input.characterLookIds?.[cardId] ?? null,
       })),
     })
   }

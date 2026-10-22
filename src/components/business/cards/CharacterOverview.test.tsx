@@ -6,7 +6,7 @@ import zhMessages from '@/messages/zh.json'
 import type { CharacterCardRecord } from '@/types'
 import { useIsMobile } from '@/hooks/use-mobile'
 
-import { CharacterOverview, type OverviewItem } from './CharacterOverview'
+import { CharacterOverview } from './CharacterOverview'
 
 vi.mock('@/hooks/use-mobile', () => ({
   useIsMobile: vi.fn(() => false),
@@ -20,45 +20,46 @@ vi.mock('next/image', () => ({
   },
 }))
 
-function card(id: string, work: string, urls: string[]): OverviewItem {
+function card(id: string, work: string, urls: string[]): CharacterCardRecord {
   return {
-    parentName: null,
-    card: {
-      id,
-      name: id,
-      description: null,
-      tags: [],
-      parentId: null,
-      variantLabel: null,
-      variants: [],
-      handle: id,
-      referenceSlots: urls.map((url, index) => ({
-        id: `slot-${index + 1}`,
-        role: 'identity',
-        url,
-        isPrimary: index === 0,
-      })),
-      persona: null,
-      cardTags: { character: [], appearance: [] },
-      workOverride: work,
-      summary: null,
-      tavern: null,
-      chatUserRole: '',
-      generationCount: 0,
-      createdAt: new Date(0),
-      updatedAt: new Date(0),
-    } as CharacterCardRecord,
+    id,
+    name: id,
+    tags: [],
+    handle: id,
+    looks: [
+      {
+        id: `${id}-look`,
+        label: null,
+        isDefault: true,
+        description: null,
+        tags: [],
+        referenceSlots: urls.map((url, index) => ({
+          id: `slot-${index + 1}`,
+          role: 'identity',
+          url,
+          isPrimary: index === 0,
+        })),
+      },
+    ],
+    persona: null,
+    workOverride: work,
+    summary: null,
+    tavern: null,
+    chatUserRole: '',
+    generationCount: 0,
+    createdAt: new Date(0),
+    updatedAt: new Date(0),
   }
 }
 
 function renderOverview(
-  items: OverviewItem[],
+  cards: CharacterCardRecord[],
   extra: { onOpen?(id: string): void; onLongPress?(id: string): void } = {},
 ) {
   return render(
     <NextIntlClientProvider locale="zh" messages={zhMessages}>
       <CharacterOverview
-        items={items}
+        cards={cards}
         reducedMotion
         onOpen={extra.onOpen ?? vi.fn()}
         query=""

@@ -4,7 +4,7 @@ import { z } from 'zod'
 
 import { GENERATION_ERROR_CODES } from '@/constants/generation-errors'
 import { EXECUTION_PROGRESS_STAGE_VALUES } from '@/constants/generation-progress'
-import type { ExecutionCallbackPayload } from '@/types'
+import { CharacterLookIdsSchema, type ExecutionCallbackPayload } from '@/types'
 import {
   executionCallbackStatusDataSchema,
   ExecutionCallbackErrorDataSchema,
@@ -113,6 +113,7 @@ const WorkerJobMetadataSchema = ExecutionCallbackResultDataSchema.pick({
     referenceImageUrl: z.string().url().optional(),
     referenceImages: z.array(z.string().url()).optional(),
     characterCardIds: z.array(z.string().min(1)).optional(),
+    characterLookIds: CharacterLookIdsSchema.optional(),
     projectId: z.string().min(1).optional(),
     isFreeGeneration: z.boolean().optional(),
     audioFormat: z.string().min(1).optional(),
@@ -673,6 +674,8 @@ async function finalizeExecutionResult(
             userId: job.userId,
             characterCardIds:
               outputType === 'VIDEO' ? metadata.characterCardIds : undefined,
+            characterLookIds:
+              outputType === 'VIDEO' ? metadata.characterLookIds : undefined,
             projectId: metadata.projectId,
             isFreeGeneration: metadata.isFreeGeneration,
             displayLabel: metadata.displayLabel,
@@ -1049,6 +1052,7 @@ async function finalizeImageResult(
                 ?.searchGrounding === true,
             userId: job.userId,
             characterCardIds: metadata.characterCardIds,
+            characterLookIds: metadata.characterLookIds,
             projectId: metadata.projectId,
             recipeSnapshot,
             seed: seedValue != null ? BigInt(seedValue) : undefined,

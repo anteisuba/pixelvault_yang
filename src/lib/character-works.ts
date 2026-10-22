@@ -1,10 +1,12 @@
 import { CHARACTER_WORK_NAMES } from '@/constants/cards'
 import type { CharacterCardRecord } from '@/types'
+import { allLookSlots, defaultLook } from '@/lib/card-bus'
 
 /**
  * 角色属于哪部作品（角色页按作品分组，owner 09-26）。
  *
- * 顺序：手改值（`workOverride`）→ 第一个角色标签括号里的 copyright 标签 → 原创。
+ * 顺序：手改值（`workOverride`）→ 默认造型里第一个带括号的标签（`denia_(wuthering_waves)`）
+ * 的 copyright → 原创。
  * ⚠ 分组按**显示名**认：手写「鸣潮」和标签取出的「鸣潮」是同一组。
  */
 
@@ -43,12 +45,12 @@ export function workLabelFromTag(tag: string, locale: string): string {
 }
 
 export function characterWork(
-  card: Pick<CharacterCardRecord, 'workOverride' | 'cardTags'>,
+  card: Pick<CharacterCardRecord, 'workOverride' | 'looks'>,
   locale: string,
 ): CharacterWork {
   const tag =
-    card.cardTags.character
-      .map(workTagFromCharacterTag)
+    defaultLook(card)
+      .tags.map(workTagFromCharacterTag)
       .find((value): value is string => value !== null) ?? null
   if (card.workOverride)
     return { label: card.workOverride, source: 'override', tag }
@@ -56,9 +58,9 @@ export function characterWork(
   return { label: null, source: 'original', tag: null }
 }
 
-/** 一个角色的张数 = 卡上的图 + 用她出过的图（owner 09-26）。 */
+/** 一个角色的张数 = 她全部造型的图 + 用她出过的图（owner 09-26）。 */
 export function characterImageCount(
-  card: Pick<CharacterCardRecord, 'referenceSlots' | 'generationCount'>,
+  card: Pick<CharacterCardRecord, 'looks' | 'generationCount'>,
 ): number {
-  return card.referenceSlots.length + card.generationCount
+  return allLookSlots(card).length + card.generationCount
 }

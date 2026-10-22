@@ -6,12 +6,12 @@
 
 ## 数据模型
 
-`CharacterCard`（含 `parentId` 变体树）· `GenerationCharacterCard`（生成↔角色卡 join）· `CharacterCardLora`（角色收的 LoRA，见「角色 ↔ LoRA」）· `VoiceCard`（声音资产，2026-09-17 前与 `CharacterCard` 零关联）。
+`CharacterCard` · `CharacterLook`（造型：外观 / 标签 / 图，见「造型」）· `GenerationCharacterCard`（生成↔角色卡 join，带用的哪套造型）· `CharacterCardLora`（角色收的 LoRA，见「角色 ↔ LoRA」）· `VoiceCard`（声音资产，2026-09-17 前与 `CharacterCard` 零关联）。
 
 ## Service / API
 
-- `src/services/cards/character-card.service.ts`（CRUD + 属性抽取）· `character-sample-lines.service.ts`（试读：按设定写两句台词）· `character-card.mapper.ts`（行 → `CharacterCardRecord`）。风格卡、背景卡与三卡融合编译 `card-recipe-compiler` 2026-10-21 下线（卡片模式只留角色，出图走选中的模型 + 卡片总线）。工作台卡片模式本身、旧管理抽屉（`CharacterCardManager` 等 5 个组件）、一致性打分接口与组合作品接口 2026-10-22 删除（角色①）：工作台只剩一种模式，选了角色就带上；「训练 LoRA」搬进角色详情「用她 ▾」。
-- API：`/api/character-cards`（GET/POST）· `/api/character-cards/import`（POST，酒馆卡导入）· `/api/character-cards/chub/import`（POST，卡库建卡；卡库搜索由浏览器直接问 chub，没有我们的路由）· `/api/character-cards/[id]`（GET/PATCH/DELETE）· `/api/character-cards/[id]/sample-lines`。
+- `src/services/cards/character-card.service.ts`（CRUD + 复制）· `character-look.service.ts`（造型增改删、设默认）· `character-sample-lines.service.ts`（试读：按设定写两句台词）· `character-card.mapper.ts`（行 → `CharacterCardRecord`）。风格卡、背景卡与三卡融合编译 `card-recipe-compiler` 2026-10-21 下线（卡片模式只留角色，出图走选中的模型 + 卡片总线）。工作台卡片模式本身、旧管理抽屉（`CharacterCardManager` 等 5 个组件）、一致性打分接口与组合作品接口 2026-10-22 删除（角色①）：工作台只剩一种模式，选了角色就带上；「训练 LoRA」搬进角色详情「用她 ▾」。
+- API：`/api/character-cards`（GET/POST）· `/api/character-cards/import`（POST，酒馆卡导入）· `/api/character-cards/chub/import`（POST，卡库建卡；卡库搜索由浏览器直接问 chub，没有我们的路由）· `/api/character-cards/[id]`（GET/PATCH/DELETE）· `/api/character-cards/[id]/duplicate`（POST，服务端复制整个角色含造型与 LoRA）· `/api/character-cards/[id]/looks`（POST，加造型）· `/api/character-looks/[id]`（PUT/DELETE）· `/api/character-cards/[id]/sample-lines`。
 - Hooks：`src/hooks/cards/`。
 
 ## 酒馆卡导入（2026-10-14，owner「进提示词加导入」）
@@ -48,6 +48,17 @@
 - **图只认 `referenceSlots`**：封面 = `isPrimary` 那一槽（没有取第一槽），统一用 `lib/card-bus.ts` 的 `characterCoverUrl`。旧图列与反向双写删除；建卡只收名字（外观 / 设定 / 标签可选），图在详情里加进参考槽。
 - `status` / `stabilityScore` / `modelPrompts` / `referenceRoles` / `allowedStyleRange` / `provenance` / `projectId` 与作品上的单角色列 `Generation.characterCardId` 已删列（见 `database.md`）；作品 ↔ 角色只走 `GenerationCharacterCard`。
 
+## 造型（2026-10-23，角色④）
+
+owner 逐项定的口径（设计稿 https://claude.ai/artifact/JwhJdzReiFh8VHRhLLR32K ），**下面几节里与它冲突的旧说法（`description` / `referenceSlots` / `pv.tags` 在卡上、变体树 `parentId`）以这里为准**：
+
+- **一个角色 = 设定一份 + 造型若干**：人设、声音、作品、简介、酒馆字段在卡上，只有一份；**外观文字、出图标签（一列，不再分角色 / 外观）、参考图在造型 `CharacterLook` 上**。每个角色至少一套、恰有一套默认（`isDefault`）；名字可空（界面显示「默认」/「造型 N」）。上限 `CHARACTER_CARD.MAX_LOOKS_PER_CARD`。⛔ 没有按造型的负面（owner 选不做）。
+- **变体并进造型**：旧变体卡变成父卡的一套造型（造型 id = 原变体卡 id，旧画布绑定照常认），变体卡删掉；`@名字-变体` 句柄随之没了，`@` 只认角色。
+- **角色页**：详情顶上一排造型（默认 · 其他 · ＋），图 / 外观 / 标签跟着切；正看着的那套可改名 / 设为默认 / 删除（最后一套不能删，删默认由排最前那套接任）。＋ 可「从当前造型复制」。总览一位角色一张卡，封面 = 默认造型的主图，张数算全部造型。复制角色走服务端（造型与 LoRA 关联一并复制，⛔ 不带 `st.card`）。
+- **出图**：图片工作台「角色」弹层里展开她 → 造型胶囊切换；挑的图属于当前那套，切了就清掉、勾新那套的主图。请求带 `characterLookIds`（`{cardId: lookId}`，没给 = 默认），编译总线按它取外观 / 标签 / 图；生成记录在 `GenerationCharacterCard.lookId` 记下用的哪套。视频出口同。**画布暂只用默认造型**（画布切造型未做）；卡片助手读默认造型，其他造型只报名字（快照 `open.tags` / `open.otherLooks`）。
+- **LoRA**：`CharacterCardLora.lookId` 可空——挂在某套造型下，空 = 全部造型通用；「加到角色…」勾上她后可选一套。LoRA 台「从角色选」按造型标出、提示的「加上造型标签」读那一套的标签。从角色发起的训练带当前造型（参考图预填那套的图），训完关联挂在那套下（`LoraTrainingJob.lookId`）。
+- 迁移 `20261023090000_character_looks`：每张根卡建默认造型（`description` / `referenceSlots` / `pv.tags` 两组标签合并搬过去），变体建成造型，作品 / LoRA / 训练 / 助手人设 / 记忆的关联改指父卡，再删变体卡；删前整表备份 R2 `backups/character-cards-2026-10-23-290fd4698f48e24441df4e53610b4755.json`。卡上旧列（`description` · `referenceSlots` · `parentId` · `variantLabel`）停读停写、从默认查询里拿掉（`lib/db.ts` 的 `RETIRED_COLUMNS`），下一次部署删列并清 `pv.tags`。
+
 ## 角色 ↔ LoRA（2026-10-22，角色③）
 
 owner 逐项定的口径（对齐稿 https://claude.ai/artifact/FTTAHbuCwHmnMcProcJ2WL ，角色拆分地图 https://claude.ai/artifact/RKtX2Eh3ThjEpdYV7cFzU1 ），下面几节里与它冲突的旧说法以这里为准：
@@ -57,8 +68,8 @@ owner 逐项定的口径（对齐稿 https://claude.ai/artifact/FTTAHbuCwHmnMcPr
 - **三个入口**：从角色发起的训练训完自动收（`ensureLoraAssetFromTrainingJob` 建资产时一并建关联）；LoRA 库详情右栏「角色」一段的「加到角色…」（整组替换，任何一条都有，收没收藏都行；描述由宿主给：Hugging Face 带出处快照、收藏里用收藏记录自己的下载链接）；角色详情「她的 LoRA」**只读**。前端按下载链接认「属于哪些角色」（没收藏的前端没有记录 id）。
 - **用在哪**：只在 LoRA 台。「添加 LoRA」旁「从角色选」→ 点她 → 挑一个挂上；她有外观标签时提示里给一颗「加上外观标签」，⛔ 自动写进正文。图片工作台 / 画布不挂 LoRA。
 - 手填的「LoRA 触发词」（`pv.tags.loraTrigger`）删除：触发词读 LoRA 本身。编译层随之去掉 `hasLoras` 选项。旧列 `CharacterCard.loras` 与卡上残留的 `loraTrigger` 键已由迁移删掉（`20261022180000_character_lora_contract`）。
-- 接口：`GET /api/character-loras`（每个角色一组，可带 `characterCardId`）· `PUT /api/character-loras`（`{ lora: 收藏描述, characterCardIds }` 整组替换，任一角色不是自己的 → 404）。服务在 `services/cards/character-lora.service.ts`，前端一份 `useCharacterLoras`，LoRA 台整页经 `character-loras-context` 共用。
-- 推后（角色④，owner 已同意）：标签并进外观（每套造型各有文字 + 标签 + 图）、LoRA 可挂在某套造型下、训练时先放进该造型的参考图。收藏太多难找记在施工单「统一库组件」。
+- 接口：`GET /api/character-loras`（每个角色一组，可带 `characterCardId`）· `PUT /api/character-loras`（`{ lora: 收藏描述, characters: [{ characterCardId, lookId }] }` 整组替换，任一角色或造型不是自己的 → 404）。服务在 `services/cards/character-lora.service.ts`，前端一份 `useCharacterLoras`，LoRA 台整页经 `character-loras-context` 共用。
+- 角色④ 已落地：见「造型」。收藏太多难找记在施工单「统一库组件」。
 
 ## 角色卡字段 v2（2026-09-17）
 
@@ -183,7 +194,7 @@ owner 逐项定的口径（对齐稿 https://claude.ai/artifact/FTTAHbuCwHmnMcPr
 - **卡片助手 C2（写设定）**：助手起草完用 `propose_character_profile`（归「问」组）交出来 —— 服务端**一行库都不写**，只吐一帧 `confirm(characterProfile)`；时间线上是设定提议卡（`StudioOperatorCharacterProfileCard`）：每格一个勾、下面一行来源（可点开），助手补的那几句浅底标出、可「只留我写的」；点「收下勾选的」由角色页（宿主 `apply.cards.applyProfile`）把勾中的几格合进已有设定写进去，其余格不动；「不用」什么都不写。收下 / 没收都落一行带题面的系统行，模型下一轮知道哪几格已收。规划器挡掉不在这页上的角色、同一格只留一份、丢掉对不上正文的「补充」。规则：原作用深度调查、先读 wiki 角色页 / 角色故事 / 语音页；百科类 wiki（官方图鉴、萌娘百科、Fandom、维基）算来源，同人与论坛猜测不算；有来源撑得住的格当轮就交，缺的说清楚（09-27 实跑：旧规则让它把条目整理当成「非原文」不敢交，改后交出三格）。原创先用「问」给 2–3 个方向（名字 + 一句行为），挑了再展开。
 - **卡片助手 C3（查图，owner 09-27 选「候选卡」+「跳过去，话填好你来发」）**：先翻素材库、再上网找；好的用 `propose_character_images` 交一张**候选图卡**（每张一个勾、一句为什么选它、一行出处；点缩略图只开灯箱不算选），点「挂上勾选的」—— 网上那几张这时才存进素材库，然后追加进角色的参考槽（已在卡上的不重复、满了就停），落一行「已给 X 挂上 N 张图」。规划器只收本轮真查到过的图（素材库查 `searchIndex`、网上查 `webImageIndex`），网上标「仅参考」的不收。都没有合适的就 `hand_off_to_image_assistant`：卡上写出要对图片助手说的那句话，点「交给图片助手」跳到带着这个角色的图片工作台、图片助手面板打开、话填进输入框，**你来按发送**；卡片助手不报价（价钱在工作台看）。角色页上联网候选网格只能看（原先那颗「选用」导进素材库却挂不到任何地方，一并去掉）。
 - **S14 对一下设定和外观（owner 09-27）**：**用户说了才对**（⛔ 不自动；空态药丸「对一下设定和外观」），只能对打开着的那一位。`check_character_look`（归「看」）把卡上的图（主图在前，最多 6 张；地址随快照来、只给服务端看图用）连同一句外观 / 身份 / 经历 / 标签交给看图模型，只报**身份级**矛盾（发色 · 瞳色 · 年龄 · 体型 · 种族 · 伤疤犄角这类）；⛔ 衣服、姿势、表情、画风不同不算（同一个角色本来就可以有好几套衣服）。结果在卡片助手的对话里：一句「设定里说……，但图上是……」，改法走设定提议卡（多了「外观」一格 = 角色卡的一句外观），标签只点名不代改。⛔ 不建变体：变体是旧卡片的结构，等「给角色设计新衣服」时一起重新设计。
-- 之后：给角色设计新衣服（含变体怎么处理）—— 先设计。
+- 给角色设计新衣服（含变体怎么处理）：见「造型」（角色④）。
 
 1. **expand（D1）**：只加列 + 唯一索引（登记 ACK：索引列是同迁移新加的可空列，全表 NULL 时建）；写方**双写**，读方一行不改。
 2. **backfill（D1 上线后 owner 手动）**：回填脚本默认只出报告，`--apply` 每次都要 owner 当次授权；只动新列仍是初始值的行，重跑安全；按用户 → 根卡 → 变体的确定性顺序分配 handle，冲突加 `-2`、`-3`；persona 旧形改写前先把原值导出到本机。
@@ -201,7 +212,7 @@ owner 逐项定的口径（对齐稿 https://claude.ai/artifact/FTTAHbuCwHmnMcPr
 
 ## 不能破坏
 
-卡与 `AssistantMemory` 的分界（⛔ 不许长出互相转换的路） · 角色卡 owner-scoped 查询与 ownership 服务端校验 · 变体树 `parentId` 的级联语义（变体随父卡删）· `VoiceCard` 的软引用语义（删音色不删角色）· `referenceRoles` 值域与画布词表同源。
+卡与 `AssistantMemory` 的分界（⛔ 不许长出互相转换的路） · 角色卡 owner-scoped 查询与 ownership 服务端校验 · 每个角色至少一套造型、恰有一套默认（造型随角色删）· `VoiceCard` 的软引用语义（删音色不删角色）· `referenceRoles` 值域与画布词表同源。
 
 ## Source of Truth
 
@@ -210,6 +221,8 @@ owner 逐项定的口径（对齐稿 https://claude.ai/artifact/FTTAHbuCwHmnMcPr
 `prisma/schema.prisma`（`CharacterCard` / `VoiceCard`）· `src/types/index.ts`（Character Card 段）· `src/constants/cards/character-card.ts` · `src/constants/node-studio.ts` · 调研证据 `docs/design/roadmap-canvas/research/cards.md`。
 
 ## Last Verified
+
+- Date: 2026-10-23 · Method: 角色④ 施工时对照代码写「造型」一节；迁移在本地 Postgres 用样本数据跑过（默认造型、变体转造型、关联改指、变体卡删除）。
 
 - Date: 2026-09-20 · Method: 只核了**记忆 vs 卡**那条分界（56a 落地时补写），对照 `src/constants/assistant-memory.ts` 与 `src/services/assistant-memory.service.ts` 确认两边确实没有互转的代码路径。本文其余各节未在本轮复核。
 - Date: 2026-09-24 · Method: 写「卡片总线 v3 契约」时对照代码复核了：v2 七个字段只有 mapper 在写、`CharacterCardRecord` 不带任何一个；画布侧栏读 `ContextCard`（`useContextCards`）；画布镜头空位 `role` 存的是角色名；画布视频载荷不读空位；LLM 文本层只有系统提示 + 用户提示；`StudioGenerateSchema` 没有 `characterCardIds`（quick 出图丢 id 未实跑）。

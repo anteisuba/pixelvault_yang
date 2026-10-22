@@ -4,12 +4,12 @@ import { CARD_EXTENSIONS } from '@/constants/cards/character-card'
 import { TAVERN_CARD } from '@/constants/cards/tavern-card'
 import type { Prisma } from '@/lib/generated/prisma/client'
 import {
-  CardTagsSchema,
+  CharacterLookTagsSchema,
   CharacterPersonaSchema,
   CharacterReferenceSlotsSchema,
-  type CardTags,
   type CharacterReferenceSlot,
   type CharacterCardRecord,
+  type CharacterLookRecord,
   type CharacterPersona,
   type CharacterVoiceProfile,
 } from '@/types'
@@ -22,22 +22,38 @@ type JsonValue =
   | JsonValue[]
   | { [key: string]: JsonValue | undefined }
 
+export interface DbCharacterLookRow {
+  id: string
+  label: string | null
+  isDefault: boolean
+  description: string | null
+  tags: string[]
+  referenceSlots: unknown
+}
+
 export interface DbCharacterCardRow {
   id: string
   name: string
-  description: string | null
   tags: string[]
-  parentId: string | null
-  variantLabel: string | null
   createdAt: Date
   updatedAt: Date
-  variants?: DbCharacterCardRow[]
+  looks: DbCharacterLookRow[]
   _count?: { generationLinks: number }
   handle?: string | null
-  referenceSlots?: unknown
   persona?: unknown
   extensions?: unknown
   summary?: string | null
+}
+
+/** 读卡时一起读造型：默认在前，其余按顺序。所有返回 `CharacterCardRecord` 的查询都用它。 */
+export const CHARACTER_LOOKS_INCLUDE = {
+  looks: {
+    orderBy: [
+      { isDefault: 'desc' as const },
+      { sortOrder: 'asc' as const },
+      { createdAt: 'asc' as const },
+    ],
+  },
 }
 
 function parseWithFallback<T>(
@@ -64,18 +80,23 @@ export function serializeReferenceSlots(
 }
 
 /** 参考槽坏了给空数组，⛔ 不让列表失败。 */
-function readReferenceSlots(row: DbCharacterCardRow): CharacterReferenceSlot[] {
-  const stored = CharacterReferenceSlotsSchema.safeParse(row.referenceSlots)
+export function readReferenceSlots(value: unknown): CharacterReferenceSlot[] {
+  const stored = CharacterReferenceSlotsSchema.safeParse(value)
   return stored.success ? stored.data : []
 }
 
-export function readCardTags(extensions: unknown): CardTags {
-  const value =
-    extensions && typeof extensions === 'object'
-      ? (extensions as Record<string, unknown>)[CARD_EXTENSIONS.KEYS.tags]
-      : undefined
-  const parsed = CardTagsSchema.safeParse(value)
-  return parsed.success ? parsed.data : { character: [], appearance: [] }
+export function mapCharacterLookRow(
+  row: DbCharacterLookRow,
+): CharacterLookRecord {
+  const tags = CharacterLookTagsSchema.safeParse(row.tags)
+  return {
+    id: row.id,
+    label: row.label,
+    isDefault: row.isDefault,
+    description: row.description,
+    tags: tags.success ? tags.data : [],
+    referenceSlots: readReferenceSlots(row.referenceSlots),
+  }
 }
 
 function readTavernKept(extensions: unknown): TavernCardKept | null {
@@ -113,19 +134,14 @@ export function mapCharacterCardRow(
   return {
     id: row.id,
     name: row.name,
-    description: row.description,
     tags: row.tags,
-    parentId: row.parentId,
-    variantLabel: row.variantLabel,
-    variants: (row.variants ?? []).map(mapCharacterCardRow),
     handle: row.handle ?? null,
-    referenceSlots: readReferenceSlots(row),
+    looks: row.looks.map(mapCharacterLookRow),
     persona: parseWithFallback(
       CharacterPersonaSchema.nullable(),
       row.persona ?? null,
       null,
     ),
-    cardTags: readCardTags(row.extensions),
     workOverride: readWorkOverride(row.extensions),
     summary: row.summary ?? null,
     tavern: readTavernKept(row.extensions),

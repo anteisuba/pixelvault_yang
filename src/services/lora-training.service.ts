@@ -597,6 +597,21 @@ export async function submitLoraTraining(
     throw new LoraTrainingError(mapped.code, mapped.message, mapped.fieldKey)
   }
 
+  // 造型只认这个角色自己的（角色④）；认不出就当从角色整体发起。
+  const lookId =
+    data.characterLookId && data.characterCardId
+      ? ((
+          await db.characterLook.findFirst({
+            where: {
+              id: data.characterLookId,
+              characterCardId: data.characterCardId,
+              characterCard: { userId: dbUser.id },
+            },
+            select: { id: true },
+          })
+        )?.id ?? null)
+      : null
+
   // Create DB record
   const job = await db.loraTrainingJob.create({
     data: {
@@ -612,6 +627,7 @@ export async function submitLoraTraining(
       status: 'TRAINING',
       startedAt: new Date(),
       characterCardId: data.characterCardId ?? null,
+      lookId: lookId ?? null,
     },
   })
 

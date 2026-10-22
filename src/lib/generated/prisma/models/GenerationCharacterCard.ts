@@ -28,6 +28,7 @@ export type GenerationCharacterCardMinAggregateOutputType = {
   id: string | null
   generationId: string | null
   characterCardId: string | null
+  lookId: string | null
   createdAt: Date | null
 }
 
@@ -35,6 +36,7 @@ export type GenerationCharacterCardMaxAggregateOutputType = {
   id: string | null
   generationId: string | null
   characterCardId: string | null
+  lookId: string | null
   createdAt: Date | null
 }
 
@@ -42,6 +44,7 @@ export type GenerationCharacterCardCountAggregateOutputType = {
   id: number
   generationId: number
   characterCardId: number
+  lookId: number
   createdAt: number
   _all: number
 }
@@ -51,6 +54,7 @@ export type GenerationCharacterCardMinAggregateInputType = {
   id?: true
   generationId?: true
   characterCardId?: true
+  lookId?: true
   createdAt?: true
 }
 
@@ -58,6 +62,7 @@ export type GenerationCharacterCardMaxAggregateInputType = {
   id?: true
   generationId?: true
   characterCardId?: true
+  lookId?: true
   createdAt?: true
 }
 
@@ -65,6 +70,7 @@ export type GenerationCharacterCardCountAggregateInputType = {
   id?: true
   generationId?: true
   characterCardId?: true
+  lookId?: true
   createdAt?: true
   _all?: true
 }
@@ -145,6 +151,7 @@ export type GenerationCharacterCardGroupByOutputType = {
   id: string
   generationId: string
   characterCardId: string
+  lookId: string | null
   createdAt: Date
   _count: GenerationCharacterCardCountAggregateOutputType | null
   _min: GenerationCharacterCardMinAggregateOutputType | null
@@ -173,18 +180,22 @@ export type GenerationCharacterCardWhereInput = {
   id?: Prisma.StringFilter<"GenerationCharacterCard"> | string
   generationId?: Prisma.StringFilter<"GenerationCharacterCard"> | string
   characterCardId?: Prisma.StringFilter<"GenerationCharacterCard"> | string
+  lookId?: Prisma.StringNullableFilter<"GenerationCharacterCard"> | string | null
   createdAt?: Prisma.DateTimeFilter<"GenerationCharacterCard"> | Date | string
   generation?: Prisma.XOR<Prisma.GenerationScalarRelationFilter, Prisma.GenerationWhereInput>
   characterCard?: Prisma.XOR<Prisma.CharacterCardScalarRelationFilter, Prisma.CharacterCardWhereInput>
+  look?: Prisma.XOR<Prisma.CharacterLookNullableScalarRelationFilter, Prisma.CharacterLookWhereInput> | null
 }
 
 export type GenerationCharacterCardOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   generationId?: Prisma.SortOrder
   characterCardId?: Prisma.SortOrder
+  lookId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   generation?: Prisma.GenerationOrderByWithRelationInput
   characterCard?: Prisma.CharacterCardOrderByWithRelationInput
+  look?: Prisma.CharacterLookOrderByWithRelationInput
 }
 
 export type GenerationCharacterCardWhereUniqueInput = Prisma.AtLeast<{
@@ -195,15 +206,18 @@ export type GenerationCharacterCardWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.GenerationCharacterCardWhereInput | Prisma.GenerationCharacterCardWhereInput[]
   generationId?: Prisma.StringFilter<"GenerationCharacterCard"> | string
   characterCardId?: Prisma.StringFilter<"GenerationCharacterCard"> | string
+  lookId?: Prisma.StringNullableFilter<"GenerationCharacterCard"> | string | null
   createdAt?: Prisma.DateTimeFilter<"GenerationCharacterCard"> | Date | string
   generation?: Prisma.XOR<Prisma.GenerationScalarRelationFilter, Prisma.GenerationWhereInput>
   characterCard?: Prisma.XOR<Prisma.CharacterCardScalarRelationFilter, Prisma.CharacterCardWhereInput>
+  look?: Prisma.XOR<Prisma.CharacterLookNullableScalarRelationFilter, Prisma.CharacterLookWhereInput> | null
 }, "id" | "generationId_characterCardId">
 
 export type GenerationCharacterCardOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   generationId?: Prisma.SortOrder
   characterCardId?: Prisma.SortOrder
+  lookId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.GenerationCharacterCardCountOrderByAggregateInput
   _max?: Prisma.GenerationCharacterCardMaxOrderByAggregateInput
@@ -217,6 +231,7 @@ export type GenerationCharacterCardScalarWhereWithAggregatesInput = {
   id?: Prisma.StringWithAggregatesFilter<"GenerationCharacterCard"> | string
   generationId?: Prisma.StringWithAggregatesFilter<"GenerationCharacterCard"> | string
   characterCardId?: Prisma.StringWithAggregatesFilter<"GenerationCharacterCard"> | string
+  lookId?: Prisma.StringNullableWithAggregatesFilter<"GenerationCharacterCard"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"GenerationCharacterCard"> | Date | string
 }
 
@@ -225,12 +240,14 @@ export type GenerationCharacterCardCreateInput = {
   createdAt?: Date | string
   generation: Prisma.GenerationCreateNestedOneWithoutCharacterCardsInput
   characterCard: Prisma.CharacterCardCreateNestedOneWithoutGenerationLinksInput
+  look?: Prisma.CharacterLookCreateNestedOneWithoutGenerationLinksInput
 }
 
 export type GenerationCharacterCardUncheckedCreateInput = {
   id?: string
   generationId: string
   characterCardId: string
+  lookId?: string | null
   createdAt?: Date | string
 }
 
@@ -239,12 +256,14 @@ export type GenerationCharacterCardUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generation?: Prisma.GenerationUpdateOneRequiredWithoutCharacterCardsNestedInput
   characterCard?: Prisma.CharacterCardUpdateOneRequiredWithoutGenerationLinksNestedInput
+  look?: Prisma.CharacterLookUpdateOneWithoutGenerationLinksNestedInput
 }
 
 export type GenerationCharacterCardUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   generationId?: Prisma.StringFieldUpdateOperationsInput | string
   characterCardId?: Prisma.StringFieldUpdateOperationsInput | string
+  lookId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -252,6 +271,7 @@ export type GenerationCharacterCardCreateManyInput = {
   id?: string
   generationId: string
   characterCardId: string
+  lookId?: string | null
   createdAt?: Date | string
 }
 
@@ -264,6 +284,7 @@ export type GenerationCharacterCardUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   generationId?: Prisma.StringFieldUpdateOperationsInput | string
   characterCardId?: Prisma.StringFieldUpdateOperationsInput | string
+  lookId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -286,6 +307,7 @@ export type GenerationCharacterCardCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   generationId?: Prisma.SortOrder
   characterCardId?: Prisma.SortOrder
+  lookId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -293,6 +315,7 @@ export type GenerationCharacterCardMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   generationId?: Prisma.SortOrder
   characterCardId?: Prisma.SortOrder
+  lookId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -300,6 +323,7 @@ export type GenerationCharacterCardMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   generationId?: Prisma.SortOrder
   characterCardId?: Prisma.SortOrder
+  lookId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -387,15 +411,59 @@ export type GenerationCharacterCardUncheckedUpdateManyWithoutCharacterCardNested
   deleteMany?: Prisma.GenerationCharacterCardScalarWhereInput | Prisma.GenerationCharacterCardScalarWhereInput[]
 }
 
+export type GenerationCharacterCardCreateNestedManyWithoutLookInput = {
+  create?: Prisma.XOR<Prisma.GenerationCharacterCardCreateWithoutLookInput, Prisma.GenerationCharacterCardUncheckedCreateWithoutLookInput> | Prisma.GenerationCharacterCardCreateWithoutLookInput[] | Prisma.GenerationCharacterCardUncheckedCreateWithoutLookInput[]
+  connectOrCreate?: Prisma.GenerationCharacterCardCreateOrConnectWithoutLookInput | Prisma.GenerationCharacterCardCreateOrConnectWithoutLookInput[]
+  createMany?: Prisma.GenerationCharacterCardCreateManyLookInputEnvelope
+  connect?: Prisma.GenerationCharacterCardWhereUniqueInput | Prisma.GenerationCharacterCardWhereUniqueInput[]
+}
+
+export type GenerationCharacterCardUncheckedCreateNestedManyWithoutLookInput = {
+  create?: Prisma.XOR<Prisma.GenerationCharacterCardCreateWithoutLookInput, Prisma.GenerationCharacterCardUncheckedCreateWithoutLookInput> | Prisma.GenerationCharacterCardCreateWithoutLookInput[] | Prisma.GenerationCharacterCardUncheckedCreateWithoutLookInput[]
+  connectOrCreate?: Prisma.GenerationCharacterCardCreateOrConnectWithoutLookInput | Prisma.GenerationCharacterCardCreateOrConnectWithoutLookInput[]
+  createMany?: Prisma.GenerationCharacterCardCreateManyLookInputEnvelope
+  connect?: Prisma.GenerationCharacterCardWhereUniqueInput | Prisma.GenerationCharacterCardWhereUniqueInput[]
+}
+
+export type GenerationCharacterCardUpdateManyWithoutLookNestedInput = {
+  create?: Prisma.XOR<Prisma.GenerationCharacterCardCreateWithoutLookInput, Prisma.GenerationCharacterCardUncheckedCreateWithoutLookInput> | Prisma.GenerationCharacterCardCreateWithoutLookInput[] | Prisma.GenerationCharacterCardUncheckedCreateWithoutLookInput[]
+  connectOrCreate?: Prisma.GenerationCharacterCardCreateOrConnectWithoutLookInput | Prisma.GenerationCharacterCardCreateOrConnectWithoutLookInput[]
+  upsert?: Prisma.GenerationCharacterCardUpsertWithWhereUniqueWithoutLookInput | Prisma.GenerationCharacterCardUpsertWithWhereUniqueWithoutLookInput[]
+  createMany?: Prisma.GenerationCharacterCardCreateManyLookInputEnvelope
+  set?: Prisma.GenerationCharacterCardWhereUniqueInput | Prisma.GenerationCharacterCardWhereUniqueInput[]
+  disconnect?: Prisma.GenerationCharacterCardWhereUniqueInput | Prisma.GenerationCharacterCardWhereUniqueInput[]
+  delete?: Prisma.GenerationCharacterCardWhereUniqueInput | Prisma.GenerationCharacterCardWhereUniqueInput[]
+  connect?: Prisma.GenerationCharacterCardWhereUniqueInput | Prisma.GenerationCharacterCardWhereUniqueInput[]
+  update?: Prisma.GenerationCharacterCardUpdateWithWhereUniqueWithoutLookInput | Prisma.GenerationCharacterCardUpdateWithWhereUniqueWithoutLookInput[]
+  updateMany?: Prisma.GenerationCharacterCardUpdateManyWithWhereWithoutLookInput | Prisma.GenerationCharacterCardUpdateManyWithWhereWithoutLookInput[]
+  deleteMany?: Prisma.GenerationCharacterCardScalarWhereInput | Prisma.GenerationCharacterCardScalarWhereInput[]
+}
+
+export type GenerationCharacterCardUncheckedUpdateManyWithoutLookNestedInput = {
+  create?: Prisma.XOR<Prisma.GenerationCharacterCardCreateWithoutLookInput, Prisma.GenerationCharacterCardUncheckedCreateWithoutLookInput> | Prisma.GenerationCharacterCardCreateWithoutLookInput[] | Prisma.GenerationCharacterCardUncheckedCreateWithoutLookInput[]
+  connectOrCreate?: Prisma.GenerationCharacterCardCreateOrConnectWithoutLookInput | Prisma.GenerationCharacterCardCreateOrConnectWithoutLookInput[]
+  upsert?: Prisma.GenerationCharacterCardUpsertWithWhereUniqueWithoutLookInput | Prisma.GenerationCharacterCardUpsertWithWhereUniqueWithoutLookInput[]
+  createMany?: Prisma.GenerationCharacterCardCreateManyLookInputEnvelope
+  set?: Prisma.GenerationCharacterCardWhereUniqueInput | Prisma.GenerationCharacterCardWhereUniqueInput[]
+  disconnect?: Prisma.GenerationCharacterCardWhereUniqueInput | Prisma.GenerationCharacterCardWhereUniqueInput[]
+  delete?: Prisma.GenerationCharacterCardWhereUniqueInput | Prisma.GenerationCharacterCardWhereUniqueInput[]
+  connect?: Prisma.GenerationCharacterCardWhereUniqueInput | Prisma.GenerationCharacterCardWhereUniqueInput[]
+  update?: Prisma.GenerationCharacterCardUpdateWithWhereUniqueWithoutLookInput | Prisma.GenerationCharacterCardUpdateWithWhereUniqueWithoutLookInput[]
+  updateMany?: Prisma.GenerationCharacterCardUpdateManyWithWhereWithoutLookInput | Prisma.GenerationCharacterCardUpdateManyWithWhereWithoutLookInput[]
+  deleteMany?: Prisma.GenerationCharacterCardScalarWhereInput | Prisma.GenerationCharacterCardScalarWhereInput[]
+}
+
 export type GenerationCharacterCardCreateWithoutGenerationInput = {
   id?: string
   createdAt?: Date | string
   characterCard: Prisma.CharacterCardCreateNestedOneWithoutGenerationLinksInput
+  look?: Prisma.CharacterLookCreateNestedOneWithoutGenerationLinksInput
 }
 
 export type GenerationCharacterCardUncheckedCreateWithoutGenerationInput = {
   id?: string
   characterCardId: string
+  lookId?: string | null
   createdAt?: Date | string
 }
 
@@ -432,6 +500,7 @@ export type GenerationCharacterCardScalarWhereInput = {
   id?: Prisma.StringFilter<"GenerationCharacterCard"> | string
   generationId?: Prisma.StringFilter<"GenerationCharacterCard"> | string
   characterCardId?: Prisma.StringFilter<"GenerationCharacterCard"> | string
+  lookId?: Prisma.StringNullableFilter<"GenerationCharacterCard"> | string | null
   createdAt?: Prisma.DateTimeFilter<"GenerationCharacterCard"> | Date | string
 }
 
@@ -439,11 +508,13 @@ export type GenerationCharacterCardCreateWithoutCharacterCardInput = {
   id?: string
   createdAt?: Date | string
   generation: Prisma.GenerationCreateNestedOneWithoutCharacterCardsInput
+  look?: Prisma.CharacterLookCreateNestedOneWithoutGenerationLinksInput
 }
 
 export type GenerationCharacterCardUncheckedCreateWithoutCharacterCardInput = {
   id?: string
   generationId: string
+  lookId?: string | null
   createdAt?: Date | string
 }
 
@@ -473,9 +544,50 @@ export type GenerationCharacterCardUpdateManyWithWhereWithoutCharacterCardInput 
   data: Prisma.XOR<Prisma.GenerationCharacterCardUpdateManyMutationInput, Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutCharacterCardInput>
 }
 
+export type GenerationCharacterCardCreateWithoutLookInput = {
+  id?: string
+  createdAt?: Date | string
+  generation: Prisma.GenerationCreateNestedOneWithoutCharacterCardsInput
+  characterCard: Prisma.CharacterCardCreateNestedOneWithoutGenerationLinksInput
+}
+
+export type GenerationCharacterCardUncheckedCreateWithoutLookInput = {
+  id?: string
+  generationId: string
+  characterCardId: string
+  createdAt?: Date | string
+}
+
+export type GenerationCharacterCardCreateOrConnectWithoutLookInput = {
+  where: Prisma.GenerationCharacterCardWhereUniqueInput
+  create: Prisma.XOR<Prisma.GenerationCharacterCardCreateWithoutLookInput, Prisma.GenerationCharacterCardUncheckedCreateWithoutLookInput>
+}
+
+export type GenerationCharacterCardCreateManyLookInputEnvelope = {
+  data: Prisma.GenerationCharacterCardCreateManyLookInput | Prisma.GenerationCharacterCardCreateManyLookInput[]
+  skipDuplicates?: boolean
+}
+
+export type GenerationCharacterCardUpsertWithWhereUniqueWithoutLookInput = {
+  where: Prisma.GenerationCharacterCardWhereUniqueInput
+  update: Prisma.XOR<Prisma.GenerationCharacterCardUpdateWithoutLookInput, Prisma.GenerationCharacterCardUncheckedUpdateWithoutLookInput>
+  create: Prisma.XOR<Prisma.GenerationCharacterCardCreateWithoutLookInput, Prisma.GenerationCharacterCardUncheckedCreateWithoutLookInput>
+}
+
+export type GenerationCharacterCardUpdateWithWhereUniqueWithoutLookInput = {
+  where: Prisma.GenerationCharacterCardWhereUniqueInput
+  data: Prisma.XOR<Prisma.GenerationCharacterCardUpdateWithoutLookInput, Prisma.GenerationCharacterCardUncheckedUpdateWithoutLookInput>
+}
+
+export type GenerationCharacterCardUpdateManyWithWhereWithoutLookInput = {
+  where: Prisma.GenerationCharacterCardScalarWhereInput
+  data: Prisma.XOR<Prisma.GenerationCharacterCardUpdateManyMutationInput, Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutLookInput>
+}
+
 export type GenerationCharacterCardCreateManyGenerationInput = {
   id?: string
   characterCardId: string
+  lookId?: string | null
   createdAt?: Date | string
 }
 
@@ -483,23 +595,27 @@ export type GenerationCharacterCardUpdateWithoutGenerationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   characterCard?: Prisma.CharacterCardUpdateOneRequiredWithoutGenerationLinksNestedInput
+  look?: Prisma.CharacterLookUpdateOneWithoutGenerationLinksNestedInput
 }
 
 export type GenerationCharacterCardUncheckedUpdateWithoutGenerationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   characterCardId?: Prisma.StringFieldUpdateOperationsInput | string
+  lookId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type GenerationCharacterCardUncheckedUpdateManyWithoutGenerationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   characterCardId?: Prisma.StringFieldUpdateOperationsInput | string
+  lookId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type GenerationCharacterCardCreateManyCharacterCardInput = {
   id?: string
   generationId: string
+  lookId?: string | null
   createdAt?: Date | string
 }
 
@@ -507,17 +623,48 @@ export type GenerationCharacterCardUpdateWithoutCharacterCardInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generation?: Prisma.GenerationUpdateOneRequiredWithoutCharacterCardsNestedInput
+  look?: Prisma.CharacterLookUpdateOneWithoutGenerationLinksNestedInput
 }
 
 export type GenerationCharacterCardUncheckedUpdateWithoutCharacterCardInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   generationId?: Prisma.StringFieldUpdateOperationsInput | string
+  lookId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type GenerationCharacterCardUncheckedUpdateManyWithoutCharacterCardInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   generationId?: Prisma.StringFieldUpdateOperationsInput | string
+  lookId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type GenerationCharacterCardCreateManyLookInput = {
+  id?: string
+  generationId: string
+  characterCardId: string
+  createdAt?: Date | string
+}
+
+export type GenerationCharacterCardUpdateWithoutLookInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  generation?: Prisma.GenerationUpdateOneRequiredWithoutCharacterCardsNestedInput
+  characterCard?: Prisma.CharacterCardUpdateOneRequiredWithoutGenerationLinksNestedInput
+}
+
+export type GenerationCharacterCardUncheckedUpdateWithoutLookInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  generationId?: Prisma.StringFieldUpdateOperationsInput | string
+  characterCardId?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type GenerationCharacterCardUncheckedUpdateManyWithoutLookInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  generationId?: Prisma.StringFieldUpdateOperationsInput | string
+  characterCardId?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -527,48 +674,58 @@ export type GenerationCharacterCardSelect<ExtArgs extends runtime.Types.Extensio
   id?: boolean
   generationId?: boolean
   characterCardId?: boolean
+  lookId?: boolean
   createdAt?: boolean
   generation?: boolean | Prisma.GenerationDefaultArgs<ExtArgs>
   characterCard?: boolean | Prisma.CharacterCardDefaultArgs<ExtArgs>
+  look?: boolean | Prisma.GenerationCharacterCard$lookArgs<ExtArgs>
 }, ExtArgs["result"]["generationCharacterCard"]>
 
 export type GenerationCharacterCardSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   generationId?: boolean
   characterCardId?: boolean
+  lookId?: boolean
   createdAt?: boolean
   generation?: boolean | Prisma.GenerationDefaultArgs<ExtArgs>
   characterCard?: boolean | Prisma.CharacterCardDefaultArgs<ExtArgs>
+  look?: boolean | Prisma.GenerationCharacterCard$lookArgs<ExtArgs>
 }, ExtArgs["result"]["generationCharacterCard"]>
 
 export type GenerationCharacterCardSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   generationId?: boolean
   characterCardId?: boolean
+  lookId?: boolean
   createdAt?: boolean
   generation?: boolean | Prisma.GenerationDefaultArgs<ExtArgs>
   characterCard?: boolean | Prisma.CharacterCardDefaultArgs<ExtArgs>
+  look?: boolean | Prisma.GenerationCharacterCard$lookArgs<ExtArgs>
 }, ExtArgs["result"]["generationCharacterCard"]>
 
 export type GenerationCharacterCardSelectScalar = {
   id?: boolean
   generationId?: boolean
   characterCardId?: boolean
+  lookId?: boolean
   createdAt?: boolean
 }
 
-export type GenerationCharacterCardOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "generationId" | "characterCardId" | "createdAt", ExtArgs["result"]["generationCharacterCard"]>
+export type GenerationCharacterCardOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "generationId" | "characterCardId" | "lookId" | "createdAt", ExtArgs["result"]["generationCharacterCard"]>
 export type GenerationCharacterCardInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   generation?: boolean | Prisma.GenerationDefaultArgs<ExtArgs>
   characterCard?: boolean | Prisma.CharacterCardDefaultArgs<ExtArgs>
+  look?: boolean | Prisma.GenerationCharacterCard$lookArgs<ExtArgs>
 }
 export type GenerationCharacterCardIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   generation?: boolean | Prisma.GenerationDefaultArgs<ExtArgs>
   characterCard?: boolean | Prisma.CharacterCardDefaultArgs<ExtArgs>
+  look?: boolean | Prisma.GenerationCharacterCard$lookArgs<ExtArgs>
 }
 export type GenerationCharacterCardIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   generation?: boolean | Prisma.GenerationDefaultArgs<ExtArgs>
   characterCard?: boolean | Prisma.CharacterCardDefaultArgs<ExtArgs>
+  look?: boolean | Prisma.GenerationCharacterCard$lookArgs<ExtArgs>
 }
 
 export type $GenerationCharacterCardPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -576,11 +733,16 @@ export type $GenerationCharacterCardPayload<ExtArgs extends runtime.Types.Extens
   objects: {
     generation: Prisma.$GenerationPayload<ExtArgs>
     characterCard: Prisma.$CharacterCardPayload<ExtArgs>
+    look: Prisma.$CharacterLookPayload<ExtArgs> | null
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
     generationId: string
     characterCardId: string
+    /**
+     * 出这张图用的是哪套造型；造型删了留空。
+     */
+    lookId: string | null
     createdAt: Date
   }, ExtArgs["result"]["generationCharacterCard"]>
   composites: {}
@@ -978,6 +1140,7 @@ export interface Prisma__GenerationCharacterCardClient<T, Null = never, ExtArgs 
   readonly [Symbol.toStringTag]: "PrismaPromise"
   generation<T extends Prisma.GenerationDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.GenerationDefaultArgs<ExtArgs>>): Prisma.Prisma__GenerationClient<runtime.Types.Result.GetResult<Prisma.$GenerationPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   characterCard<T extends Prisma.CharacterCardDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.CharacterCardDefaultArgs<ExtArgs>>): Prisma.Prisma__CharacterCardClient<runtime.Types.Result.GetResult<Prisma.$CharacterCardPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  look<T extends Prisma.GenerationCharacterCard$lookArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.GenerationCharacterCard$lookArgs<ExtArgs>>): Prisma.Prisma__CharacterLookClient<runtime.Types.Result.GetResult<Prisma.$CharacterLookPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1010,6 +1173,7 @@ export interface GenerationCharacterCardFieldRefs {
   readonly id: Prisma.FieldRef<"GenerationCharacterCard", 'String'>
   readonly generationId: Prisma.FieldRef<"GenerationCharacterCard", 'String'>
   readonly characterCardId: Prisma.FieldRef<"GenerationCharacterCard", 'String'>
+  readonly lookId: Prisma.FieldRef<"GenerationCharacterCard", 'String'>
   readonly createdAt: Prisma.FieldRef<"GenerationCharacterCard", 'DateTime'>
 }
     
@@ -1409,6 +1573,25 @@ export type GenerationCharacterCardDeleteManyArgs<ExtArgs extends runtime.Types.
    * Limit how many GenerationCharacterCards to delete.
    */
   limit?: number
+}
+
+/**
+ * GenerationCharacterCard.look
+ */
+export type GenerationCharacterCard$lookArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the CharacterLook
+   */
+  select?: Prisma.CharacterLookSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the CharacterLook
+   */
+  omit?: Prisma.CharacterLookOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.CharacterLookInclude<ExtArgs> | null
+  where?: Prisma.CharacterLookWhereInput
 }
 
 /**

@@ -20,8 +20,19 @@ vi.mock('@/hooks/cards/use-character-library', () => ({
         ? {
             id: 'denia',
             name: 'Denia',
-            referenceSlots: [
-              { id: 's1', url: 'https://cdn.test/denia.png', isPrimary: true },
+            looks: [
+              {
+                id: 'denia-main',
+                isDefault: true,
+                tags: [],
+                referenceSlots: [
+                  {
+                    id: 's1',
+                    url: 'https://cdn.test/denia.png',
+                    isPrimary: true,
+                  },
+                ],
+              },
             ],
           }
         : null,

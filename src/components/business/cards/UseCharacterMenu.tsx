@@ -17,7 +17,7 @@ import {
   canvasWithCharacterPath,
   studioImageWithCharacterPath,
 } from '@/constants/routes'
-import type { CharacterCardRecord } from '@/types'
+import type { CharacterCardRecord, CharacterLookRecord } from '@/types'
 import { withAssistantCharacter } from '@/types/assistant-persona'
 import { Check, ChevronDown, ChevronRight } from '@/components/icons'
 import { LoraTrainingDialog } from '@/components/business/LoraTrainingDialog'
@@ -48,7 +48,14 @@ const TRIGGER_HEIGHT_PX = 36
 const TRIGGER_RADIUS_PX = 18
 const MENU_RADIUS_PX = 14
 
-export function UseCharacterMenu({ card }: { card: CharacterCardRecord }) {
+export function UseCharacterMenu({
+  card,
+  look,
+}: {
+  card: CharacterCardRecord
+  /** 详情里正看着的那套造型（角色④）：训练 LoRA 先放进它的参考图，训完挂在它下面。 */
+  look: CharacterLookRecord
+}) {
   const t = useTranslations('CharacterRoster')
   const router = useRouter()
   const reducedMotion = useReducedMotion() ?? false
@@ -330,7 +337,14 @@ export function UseCharacterMenu({ card }: { card: CharacterCardRecord }) {
         </motion.div>
       ) : null}
       <LoraTrainingDialog
+        key={look.id}
         characterCardId={card.id}
+        {...(look.id
+          ? {
+              characterLookId: look.id,
+              initialImageUrls: look.referenceSlots.map((slot) => slot.url),
+            }
+          : {})}
         open={trainOpen}
         onOpenChange={setTrainOpen}
       />

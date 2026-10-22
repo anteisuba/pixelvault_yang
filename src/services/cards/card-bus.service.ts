@@ -6,11 +6,8 @@ import {
   type CardBusCharacter,
 } from '@/lib/card-bus-compile'
 import { db } from '@/lib/db'
-import {
-  CharacterReferenceSlotsSchema,
-  type CharacterImagePick,
-  type CharacterReferenceSlot,
-} from '@/types'
+import { readReferenceSlots } from '@/services/cards/character-card.mapper'
+import type { CharacterImagePick, CharacterReferenceSlot } from '@/types'
 
 /**
  * **卡片总线唯一的读卡入口**（进度表 35 · 第 ⑤ 片）：按 id 读一组角色卡，产出
@@ -28,6 +25,11 @@ export async function loadCardBusCharacters(
    * 挑的全都认不出时退回自动排，⛔ 不让这个角色一张图都不带。
    */
   picks?: Readonly<Record<string, readonly CharacterImagePick[]>>,
+  /**
+   * 每位用哪套造型（角色④，键 = 角色卡 id）。没给或认不出 = 默认造型。
+   * 挑的图（`picks` 的槽 id）在这套造型的参考槽里认。
+   */
+  lookIds?: Readonly<Record<string, string>>,
 ): Promise<CardBusCharacter[]> {
   const ids = [...new Set(cardIds)]
   if (ids.length === 0) return []
@@ -38,9 +40,16 @@ export async function loadCardBusCharacters(
       version: true,
       handle: true,
       name: true,
-      description: true,
       extensions: true,
-      referenceSlots: true,
+      looks: {
+        select: {
+          id: true,
+          isDefault: true,
+          description: true,
+          tags: true,
+          referenceSlots: true,
+        },
+      },
     },
   })
   const byId = new Map(rows.map((row) => [row.id, row]))
@@ -70,8 +79,12 @@ export async function loadCardBusCharacters(
   return ids.flatMap((id) => {
     const row = byId.get(id)
     if (!row) return []
-    const stored = CharacterReferenceSlotsSchema.safeParse(row.referenceSlots)
-    const cardSlots = stored.success ? stored.data : []
+    const wanted = lookIds?.[id]
+    const look =
+      (wanted && row.looks.find((item) => item.id === wanted)) ||
+      row.looks.find((item) => item.isDefault) ||
+      row.looks[0]
+    const cardSlots = readReferenceSlots(look?.referenceSlots)
     const chosen = pickedSlots(picks?.[id], cardSlots, generationUrls)
     const slots = chosen.length ? chosen : cardSlots
     return [
@@ -80,7 +93,9 @@ export async function loadCardBusCharacters(
         version: row.version,
         handle: row.handle ?? deriveCardHandleBase(row.name),
         name: row.name,
-        description: row.description,
+        lookId: look?.id ?? null,
+        description: look?.description ?? null,
+        tags: look?.tags ?? [],
         extensions: row.extensions,
         slots,
         ...(chosen.length ? { keepOrder: true } : {}),

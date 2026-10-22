@@ -2787,7 +2787,7 @@
       "emptyCharacters": "还没有角色收了 LoRA",
       "loraCount": "{count} 个 LoRA",
       "mountedFromCharacter": "已挂上 {lora}（{character}）",
-      "addAppearanceTags": "加上外观标签",
+      "addAppearanceTags": "加上造型标签",
       "sectionTitle": "角色",
       "addToCharacter": "加到角色…",
       "noCharacters": "还没有角色",
@@ -7435,6 +7435,11 @@
       "notFound": "这张卡在 chub.ai 上已经找不到了",
       "countryBlocked": "chub.ai 在你所在的网络不可用",
       "tooLarge": "这张卡超过 3 MB 了，没法建成角色"
+    },
+    "characterLook": {
+      "notFound": "找不到这套造型",
+      "limit": "造型数到上限了",
+      "lastLook": "至少要留一套造型"
     }
   },
   "Transform": {
@@ -9150,11 +9155,9 @@
     "fieldBehavior": "性格",
     "fieldSpeech": "说话方式",
     "fieldBackstory": "经历",
-    "variantOf": "{parent} · {label}",
     "fieldName": "名字",
     "fieldLooks": "一句外观",
-    "fieldCharacterTags": "角色标签（NAI / LoRA 认人用）",
-    "fieldAppearanceTags": "外观标签",
+    "fieldTags": "标签（NAI / LoRA 认人用）",
     "behaviorHint": "写她会做什么，不写形容词：「先替别人撑好伞」比「温柔」有用。",
     "primary": "主图",
     "makePrimary": "设为主图",
@@ -9355,5 +9358,21 @@
     "bulkConfirmTitle": "把 {count} 个素材发布到公开画廊？",
     "bulkConfirmAction": "发布 {count} 个",
     "bulkPublishedKept": "已发布 {published} 个 · {kept} 个留在私密"
+  },
+  "CharacterLooks": {
+    "title": "造型",
+    "default": "默认",
+    "numbered": "造型 {n}",
+    "add": "新造型",
+    "rename": "改名",
+    "makeDefault": "设为默认",
+    "delete": "删除",
+    "deleteTitle": "删除造型「{name}」？",
+    "deleteHint": "这套造型的外观文字、标签和图一起删掉；挂在它下面的 LoRA 回到全部造型通用。",
+    "cancel": "取消",
+    "save": "保存",
+    "namePlaceholder": "比如 Q版、泳装",
+    "copyFrom": "从「{name}」复制文字、标签和图",
+    "allLooks": "全部造型"
   }
 }

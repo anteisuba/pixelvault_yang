@@ -9,7 +9,13 @@ import {
   CHARACTER_PERSONA_LIMITS,
 } from '@/constants/cards/character-card'
 import { TAVERN_CARD } from '@/constants/cards/tavern-card'
-import type { CharacterCardRecord, UpdateCharacterCardRequest } from '@/types'
+import type {
+  CharacterCardRecord,
+  CharacterLookRecord,
+  CreateCharacterLookRequest,
+  UpdateCharacterCardRequest,
+  UpdateCharacterLookRequest,
+} from '@/types'
 import { ChevronDown, ChevronLeft, Plus } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
@@ -22,11 +28,14 @@ import {
   CharacterFieldEditor,
   CharacterTextField,
 } from '@/components/business/cards/CharacterTextField'
+import { CharacterLookStrip } from '@/components/business/cards/CharacterLookStrip'
 import { UseCharacterMenu } from '@/components/business/cards/UseCharacterMenu'
 import {
   appendSlotImages,
   type CharacterCardDraft,
+  type CharacterLookDraft,
   draftFromCard,
+  lookUpdateFromDraft,
   makePrimary,
   removeSlot,
   replaceSlotImage,
@@ -39,18 +48,19 @@ import {
   characterImageCount,
   characterWork,
   workLabelFromTag,
-  workTagFromCharacterTag,
 } from '@/lib/character-works'
 import { getApiErrorMessage } from '@/lib/api-error-message'
+import { findLook } from '@/lib/card-bus'
+import { lookLabel } from '@/lib/character-looks'
 import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'
 import { cn } from '@/lib/utils'
 
 /**
  * **角色详情**（owner 09-27：图片放顶上占四成左右 · 点哪改哪，原型 B）。
  *
- * ⭐ 白卡里从上到下：图片带（滚动区的 5/12 ≈ 扣掉上下留白后白卡的四成，横滑，
- *   「全部 / 卡上 / 用她出的」）→ 名字 · 作品与张数 · 一句外观 → 设定四格（两栏）→
- *   标签 · 作品 → 她的 LoRA（只读）→ 删除。
+ * ⭐ 白卡里从上到下：造型切换（角色④）→ 图片带（滚动区的 5/12 ≈ 扣掉上下留白后白卡的
+ *   四成，横滑，「全部 / 这套造型 / 用她出的」）→ 名字 · 作品与张数 · 一句外观 → 设定四格
+ *   （两栏）→ 标签 · 作品 → 她的 LoRA（只读）→ 删除。图、外观文字、标签跟着造型切。
  * ⭐ ⛔ 没有编辑态：每一格本身就是输入框（`CharacterInlineField`），离开就存；图片悬停
  *   露出「换一张 / 设为主图 / 移除」，图片带末尾常驻一格「添加图片」（图少时占住空位）。
  * ⚠ 每次只存改动的那一格：以**当前角色记录**为底合进这一格再发整份更新（设定里没露出来的
@@ -61,13 +71,17 @@ import { cn } from '@/lib/utils'
 
 type ImageScope = 'all' | 'card' | 'made'
 type Save = (patch: Partial<CharacterCardDraft>) => Promise<boolean>
+type SaveLook = (patch: Partial<CharacterLookDraft>) => Promise<boolean>
 
 export function CharacterDetailHeader({
   card,
+  lookId = null,
   onBack,
 }: {
   /** `null` = 「新角色」草稿：还没建，没有「用她 ▾」。 */
   card: CharacterCardRecord | null
+  /** 详情里正看着的那套造型（`null` = 默认）。 */
+  lookId?: string | null
   onBack(): void
 }) {
   const t = useTranslations('CharacterRoster')
@@ -83,7 +97,7 @@ export function CharacterDetailHeader({
       </button>
       {card ? (
         <div className="ml-auto flex items-center gap-2">
-          <UseCharacterMenu card={card} />
+          <UseCharacterMenu card={card} look={findLook(card, lookId)} />
         </div>
       ) : null}
     </>
@@ -137,22 +151,54 @@ export function CharacterDraftBody({
 
 export function CharacterDetailBody({
   card,
+  lookId,
+  onLookChange,
   onUpdate,
+  onCreateLook,
+  onUpdateLook,
+  onDeleteLook,
   onDelete,
 }: {
   card: CharacterCardRecord
+  /** 正看着的那套造型（`null` = 默认）；与地台那一行的「用她 ▾」共用。 */
+  lookId: string | null
+  onLookChange(lookId: string | null): void
   onUpdate(data: UpdateCharacterCardRequest): Promise<boolean>
+  onCreateLook(data: CreateCharacterLookRequest): Promise<string | null>
+  onUpdateLook(
+    lookId: string,
+    data: UpdateCharacterLookRequest,
+  ): Promise<boolean>
+  onDeleteLook(lookId: string): Promise<boolean>
   onDelete(): Promise<boolean>
 }) {
   const t = useTranslations('CharacterRoster')
   const locale = useLocale()
+  const look = findLook(card, lookId)
   const save: Save = (patch) =>
     onUpdate(updateFromDraft(card, { ...draftFromCard(card), ...patch }))
+  const saveLook: SaveLook = (patch) =>
+    look.id
+      ? onUpdateLook(look.id, lookUpdateFromDraft(look, patch))
+      : Promise.resolve(false)
   const work = characterWork(card, locale)
 
   return (
     <div className="h-full overflow-y-auto px-5 pb-12 pt-6 sm:px-8 sm:pt-7">
-      <ImageBand card={card} save={save} />
+      <CharacterLookStrip
+        card={card}
+        lookId={look.id}
+        onSelect={onLookChange}
+        onCreate={onCreateLook}
+        onRename={(id, label) => onUpdateLook(id, { label })}
+        onMakeDefault={(id) => onUpdateLook(id, { isDefault: true })}
+        onDelete={async (id) => {
+          const ok = await onDeleteLook(id)
+          if (ok) onLookChange(null)
+          return ok
+        }}
+      />
+      <ImageBand card={card} look={look} save={saveLook} />
 
       <div className="mb-8 flex max-w-3xl flex-col gap-1">
         <CharacterInlineField
@@ -170,26 +216,34 @@ export function CharacterDetailBody({
         </p>
         <CharacterTextField
           label={t('fieldLooks')}
-          value={card.description ?? ''}
+          value={look.description ?? ''}
           placeholder={t('fieldLooks')}
           limit={CHARACTER_CARD.DESCRIPTION_MAX_LENGTH}
           showLabel={false}
           clamp={false}
-          onSave={(description) => save({ description })}
+          onSave={(description) => saveLook({ description })}
           className="mt-1"
           textClassName="lg:text-md"
         />
       </div>
 
       <SettingModule card={card} save={save} />
-      <TagsModule card={card} save={save} />
-      <LorasModule cardId={card.id} />
+      <TagsModule card={card} look={look} save={save} saveLook={saveLook} />
+      <LorasModule card={card} />
       <DeleteCharacter name={card.name} onDelete={onDelete} />
     </div>
   )
 }
 
-function ImageBand({ card, save }: { card: CharacterCardRecord; save: Save }) {
+function ImageBand({
+  card,
+  look,
+  save,
+}: {
+  card: CharacterCardRecord
+  look: CharacterLookRecord
+  save: SaveLook
+}) {
   const t = useTranslations('CharacterRoster')
   const [scope, setScope] = useState<ImageScope>('all')
   /** 素材库选择器开着时在做什么：加几张，或换掉某一格。 */
@@ -198,7 +252,7 @@ function ImageBand({ card, save }: { card: CharacterCardRecord; save: Save }) {
   >(null)
   const usage = useCharacterCardUsage(card.id, true)
   const madeCount = usage.total ?? card.generationCount
-  const slots = card.referenceSlots
+  const slots = look.referenceSlots
   const remaining = CHARACTER_CARD.MAX_REFERENCE_SLOTS - slots.length
 
   const scopes: { id: ImageScope; label: string }[] = [
@@ -648,37 +702,32 @@ function SettingTavernGroups({
   )
 }
 
-function TagsModule({ card, save }: { card: CharacterCardRecord; save: Save }) {
+function TagsModule({
+  card,
+  look,
+  save,
+  saveLook,
+}: {
+  card: CharacterCardRecord
+  look: CharacterLookRecord
+  save: Save
+  saveLook: SaveLook
+}) {
   const t = useTranslations('CharacterRoster')
   const locale = useLocale()
-  const tagWork = card.cardTags.character
-    .map(workTagFromCharacterTag)
-    .find((tag): tag is string => tag !== null)
+  const tagWork = characterWork(card, locale).tag
   const tagWorkLabel = tagWork ? workLabelFromTag(tagWork, locale) : null
   const removeLabel = (tag: string) => t('removeTag', { tag })
 
   return (
     <section className="mb-8 flex flex-col gap-4 border-t border-border pt-6">
       <div className="flex flex-col gap-1.5">
-        <p className="text-xs text-muted-foreground">
-          {t('fieldCharacterTags')}
-        </p>
+        <p className="text-xs text-muted-foreground">{t('fieldTags')}</p>
         <CharacterTagChips
-          tags={card.cardTags.character}
+          tags={look.tags}
           addLabel={t('tagsTitle')}
           removeLabel={removeLabel}
-          onCommit={(tags) => save({ characterTags: tags.join(', ') })}
-        />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <p className="text-xs text-muted-foreground">
-          {t('fieldAppearanceTags')}
-        </p>
-        <CharacterTagChips
-          tags={card.cardTags.appearance}
-          addLabel={t('tagsTitle')}
-          removeLabel={removeLabel}
-          onCommit={(tags) => save({ appearanceTags: tags.join(', ') })}
+          onCommit={(tags) => saveLook({ tags })}
         />
       </div>
       <div className="grid max-w-3xl gap-x-11 gap-y-4 sm:grid-cols-2">
@@ -703,12 +752,20 @@ function TagsModule({ card, save }: { card: CharacterCardRecord; save: Save }) {
 
 /**
  * 她的 LoRA（角色③，owner 2026-10-22「顶多可以查看」）：只读。收进来在 LoRA 库详情
- * 「加到角色…」或从「用她 ▾」训练，挂在 LoRA 台「从角色选」。
+ * 「加到角色…」或从「用她 ▾」训练，挂在 LoRA 台「从角色选」。挂在某套造型下的
+ * 标出造型名（角色④）。
  */
-function LorasModule({ cardId }: { cardId: string }) {
+function LorasModule({ card }: { card: CharacterCardRecord }) {
   const t = useTranslations('CharacterRoster')
-  const { groups, isLoading } = useCharacterLoras(cardId)
+  const tLooks = useTranslations('CharacterLooks')
+  const { groups, isLoading } = useCharacterLoras(card.id)
   const loras = groups[0]?.loras ?? []
+  const lookName = (lookId: string | null) => {
+    const look = lookId
+      ? card.looks.find((item) => item.id === lookId)
+      : undefined
+    return look ? lookLabel(look, card.looks, tLooks) : null
+  }
   return (
     <section className="mb-8 flex flex-col gap-3 border-t border-border pt-6">
       <p className="text-xs text-muted-foreground">{t('fieldLoras')}</p>
@@ -735,7 +792,9 @@ function LorasModule({ cardId }: { cardId: string }) {
               ) : null}
               <span className="min-w-0 truncate">{lora.name}</span>
               <span className="shrink-0 text-xs text-muted-foreground">
-                {lora.baseModelFamily}
+                {[lookName(lora.lookId), lora.baseModelFamily]
+                  .filter(Boolean)
+                  .join(' · ')}
               </span>
             </li>
           ))}

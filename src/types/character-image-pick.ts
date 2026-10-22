@@ -12,3 +12,13 @@ export const CharacterImagePickSchema = z.union([
   z.object({ generationId: z.string().trim().min(1).max(64) }),
 ])
 export type CharacterImagePick = z.infer<typeof CharacterImagePickSchema>
+
+/**
+ * 每位在场角色用**哪套造型**（角色④，键 = 角色卡 id，值 = 造型 id）。没有键 = 默认造型。
+ * 服务端在本人的卡上认，认不出也回到默认造型。
+ */
+export const CharacterLookIdsSchema = z.record(
+  z.string().trim().min(1).max(64),
+  z.string().trim().min(1).max(64),
+)
+export type CharacterLookIds = z.infer<typeof CharacterLookIdsSchema>

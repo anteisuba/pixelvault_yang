@@ -2787,7 +2787,7 @@
       "emptyCharacters": "No character has LoRAs yet",
       "loraCount": "{count, plural, one {# LoRA} other {# LoRAs}}",
       "mountedFromCharacter": "Mounted {lora} ({character})",
-      "addAppearanceTags": "Add appearance tags",
+      "addAppearanceTags": "Add look tags",
       "sectionTitle": "Characters",
       "addToCharacter": "Add to character…",
       "noCharacters": "No characters yet",
@@ -7435,6 +7435,11 @@
       "notFound": "That card is no longer on chub.ai.",
       "countryBlocked": "chub.ai isn't available on your network.",
       "tooLarge": "That card is over 3 MB, too large to import."
+    },
+    "characterLook": {
+      "notFound": "Look not found",
+      "limit": "This character has the maximum number of looks",
+      "lastLook": "A character needs at least one look"
     }
   },
   "Transform": {
@@ -9150,11 +9155,9 @@
     "fieldBehavior": "Personality",
     "fieldSpeech": "Way of speaking",
     "fieldBackstory": "Backstory",
-    "variantOf": "{parent} · {label}",
     "fieldName": "Name",
     "fieldLooks": "Look in one line",
-    "fieldCharacterTags": "Character tags (for NAI / LoRA)",
-    "fieldAppearanceTags": "Appearance tags",
+    "fieldTags": "Tags (for NAI / LoRA)",
     "behaviorHint": "Write what they do, not adjectives: “holds the umbrella over others first” beats “kind”.",
     "primary": "Main",
     "makePrimary": "Make main",
@@ -9355,5 +9358,21 @@
     "bulkConfirmTitle": "Publish {count, plural, one {# asset} other {# assets}} to the public gallery?",
     "bulkConfirmAction": "Publish {count}",
     "bulkPublishedKept": "Published {published} · {kept} kept private"
+  },
+  "CharacterLooks": {
+    "title": "Looks",
+    "default": "Default",
+    "numbered": "Look {n}",
+    "add": "New look",
+    "rename": "Rename",
+    "makeDefault": "Make default",
+    "delete": "Delete",
+    "deleteTitle": "Delete look “{name}”?",
+    "deleteHint": "Its appearance text, tags and images are deleted too; LoRAs attached to it go back to all looks.",
+    "cancel": "Cancel",
+    "save": "Save",
+    "namePlaceholder": "e.g. Chibi, Swimsuit",
+    "copyFrom": "Copy text, tags and images from “{name}”",
+    "allLooks": "All looks"
   }
 }

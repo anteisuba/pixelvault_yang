@@ -56,7 +56,7 @@ const STORED_ROW = {
   characterCard: null as null | {
     id: string
     name: string
-    referenceSlots: unknown
+    looks: { referenceSlots: unknown }[]
     persona: unknown
     isDeleted: boolean
   },
@@ -128,12 +128,16 @@ const BASE_UPDATE: UpdateAssistantPersonaRequest = {
 const DENIA_CARD = {
   id: 'card_denia',
   name: 'Denia',
-  referenceSlots: [
+  looks: [
     {
-      id: 'slot-1',
-      role: 'identity',
-      url: 'https://cdn.test/denia.png',
-      isPrimary: true,
+      referenceSlots: [
+        {
+          id: 'slot-1',
+          role: 'identity',
+          url: 'https://cdn.test/denia.png',
+          isPrimary: true,
+        },
+      ],
     },
   ],
   persona: { speech: '说话短，爱用反问。' },
@@ -800,12 +804,16 @@ describe('聊天模式按会话那张卡', () => {
   const CHAT_CARD = {
     id: '11111111-1111-4111-8111-111111111111',
     name: 'Rin',
-    referenceSlots: [
+    looks: [
       {
-        id: 'slot-1',
-        role: 'identity',
-        url: 'https://cdn.test/rin.png',
-        isPrimary: true,
+        referenceSlots: [
+          {
+            id: 'slot-1',
+            role: 'identity',
+            url: 'https://cdn.test/rin.png',
+            isPrimary: true,
+          },
+        ],
       },
     ],
     isDeleted: false,

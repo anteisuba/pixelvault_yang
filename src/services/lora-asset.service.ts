@@ -683,11 +683,14 @@ export async function ensureLoraAssetFromTrainingJob(
       defaultScale: 1.0,
       isPublic: false,
       trainingJobId: job.id,
-      // 从角色发起的训练：训完自动收进她的 LoRA（角色③）。
+      // 从角色发起的训练：训完自动收进她的 LoRA（角色③），从哪套造型发起就挂在哪套下（角色④）。
       ...(job.characterCardId
         ? {
             characterLinks: {
-              create: { characterCardId: job.characterCardId },
+              create: {
+                characterCardId: job.characterCardId,
+                lookId: job.lookId,
+              },
             },
           }
         : {}),

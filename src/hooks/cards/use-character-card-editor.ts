@@ -7,10 +7,12 @@ import { TAVERN_CARD } from '@/constants/cards/tavern-card'
 import { USER_UPLOAD_PROVIDER } from '@/constants/uploads'
 import type {
   CharacterCardRecord,
+  CharacterLookRecord,
   CharacterPersona,
   CharacterReferenceSlot,
   GenerationRecord,
   UpdateCharacterCardRequest,
+  UpdateCharacterLookRequest,
 } from '@/types'
 import type { TavernCardKept } from '@/types/tavern-card'
 import { parseTavernExamples } from '@/lib/tavern-card'
@@ -18,6 +20,7 @@ import { parseTavernExamples } from '@/lib/tavern-card'
 /**
  * 角色详情**点哪改哪**用的纯函数（owner 09-27 原型 B）：一格改完 → 以当前角色记录为底
  * 合进这一格（`draftFromCard` + 改动）→ `updateFromDraft` 出整份更新请求。
+ * 外观文字、标签、图属于**造型**（角色④）：走 `lookUpdateFromDraft`，只发改了的那几格。
  *
  * ⭐ 图片直接改参考槽（换一张 / 删一张 / 设为主图 / 加几张），服务端按不变量校验并反向写回
  *   旧图片列。图一律从**素材库**来（owner 09-26：图都在素材库，卡跨文件夹挑图）；
@@ -27,16 +30,12 @@ import { parseTavernExamples } from '@/lib/tavern-card'
 
 export interface CharacterCardDraft {
   name: string
-  description: string
   identity: string
   behavior: string
   speech: string
   backstory: string
-  characterTags: string
-  appearanceTags: string
-  /** 作品手改值；空 = 从角色标签取。 */
+  /** 作品手改值；空 = 从默认造型的标签取。 */
   work: string
-  slots: CharacterReferenceSlot[]
   // ── 酒馆卡字段（owner 2026-10-15「字段对齐酒馆」：详情里全显示、能改）──
   scenario: string
   /** 开场白（酒馆 first_mes）。 */
@@ -49,12 +48,6 @@ export interface CharacterCardDraft {
   systemPrompt: string
   postHistoryInstructions: string
 }
-
-const splitTags = (text: string): string[] =>
-  text
-    .split(/[,，\n]/)
-    .map((tag) => tag.trim())
-    .filter(Boolean)
 
 const clip = (text: string, max: number): string => text.trim().slice(0, max)
 
@@ -111,15 +104,11 @@ function tavernFromDraft(
 export function draftFromCard(card: CharacterCardRecord): CharacterCardDraft {
   return {
     name: card.name,
-    description: card.description ?? '',
     identity: card.persona?.identity ?? '',
     behavior: card.persona?.behavior ?? '',
     speech: card.persona?.speech ?? '',
     backstory: fullBackstory(card),
-    characterTags: card.cardTags.character.join(', '),
-    appearanceTags: card.cardTags.appearance.join(', '),
     work: card.workOverride ?? '',
-    slots: card.referenceSlots,
     scenario: card.persona?.scenario ?? '',
     opening: card.persona?.opening ?? '',
     examples: examplesToTavernText(card.persona?.examples ?? []),
@@ -144,7 +133,6 @@ export function updateFromDraft(
   const tavern = tavernFromDraft(card.tavern, draft)
   return {
     name: draft.name.trim() || card.name,
-    description: draft.description.trim() || null,
     summary: clip(draft.summary, CHARACTER_CARD.SUMMARY_MAX_LENGTH) || null,
     persona: {
       catchphrases: [],
@@ -159,15 +147,39 @@ export function updateFromDraft(
     },
     extensions: {
       ...(tavern ? { [TAVERN_CARD.EXTENSION_KEY]: tavern } : {}),
-      [CARD_EXTENSIONS.KEYS.tags]: {
-        character: splitTags(draft.characterTags),
-        appearance: splitTags(draft.appearanceTags),
-      },
       // 清空 = 删键（回到从标签取）。
       [CARD_EXTENSIONS.KEYS.work]:
         draft.work.trim().slice(0, CARD_EXTENSIONS.WORK_MAX_LENGTH) || null,
     },
-    ...(draft.slots.length ? { referenceSlots: draft.slots } : {}),
+  }
+}
+
+/** 一套造型上能改的几格（角色④）。 */
+export interface CharacterLookDraft {
+  description: string
+  tags: string[]
+  slots: CharacterReferenceSlot[]
+}
+
+/** 造型的一格改动 → 更新请求：只带改了的格；图清空不发（参考槽至少一张）。 */
+export function lookUpdateFromDraft(
+  look: CharacterLookRecord,
+  patch: Partial<CharacterLookDraft>,
+): UpdateCharacterLookRequest {
+  return {
+    ...(patch.description !== undefined
+      ? { description: patch.description.trim() || null }
+      : {}),
+    ...(patch.tags !== undefined
+      ? {
+          tags: [
+            ...new Set(patch.tags.map((tag) => tag.trim()).filter(Boolean)),
+          ].slice(0, CHARACTER_CARD.MAX_LOOK_TAGS),
+        }
+      : {}),
+    ...(patch.slots?.length && patch.slots !== look.referenceSlots
+      ? { referenceSlots: patch.slots }
+      : {}),
   }
 }
 

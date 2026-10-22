@@ -288,10 +288,17 @@ describe('canvas assistant image references', () => {
       {
         id: 'denia',
         name: 'Denia',
-        description: '粉发红眼',
-        referenceSlots: [],
+        looks: [
+          {
+            id: 'look',
+            label: null,
+            isDefault: true,
+            description: '粉发红眼',
+            tags: [],
+            referenceSlots: [],
+          },
+        ],
         persona: null,
-        cardTags: { character: [], appearance: [] },
         workOverride: null,
         summary: null,
         tavern: null,
@@ -300,10 +307,17 @@ describe('canvas assistant image references', () => {
       {
         id: 'rixi',
         name: 'Rixi',
-        description: null,
-        referenceSlots: [],
+        looks: [
+          {
+            id: 'look',
+            label: null,
+            isDefault: true,
+            description: null,
+            tags: [],
+            referenceSlots: [],
+          },
+        ],
         persona: null,
-        cardTags: { character: [], appearance: [] },
         workOverride: null,
         summary: null,
         tavern: null,

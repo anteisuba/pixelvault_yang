@@ -1,17 +1,23 @@
 import 'server-only'
 
-import { characterCoverUrl } from '@/lib/card-bus'
+import { slotsCoverUrl } from '@/lib/card-bus'
 import { db } from '@/lib/db'
 import { ApiRequestError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
-import { readCardTags } from '@/services/cards/character-card.mapper'
+import {
+  CHARACTER_LOOKS_INCLUDE,
+  readReferenceSlots,
+} from '@/services/cards/character-card.mapper'
 import {
   toLoraAssetRecord,
   upsertImportedLora,
 } from '@/services/lora-asset.service'
 import { ensureUser } from '@/services/user.service'
-import { CharacterReferenceSlotsSchema } from '@/types'
-import type { CharacterLoraGroup, FavoriteLoraRequest } from '@/types'
+import type {
+  CharacterLoraGroup,
+  FavoriteLoraRequest,
+  SetLoraCharactersRequest,
+} from '@/types'
 
 /**
  * 角色收的 LoRA（角色③，2026-10-22）。契约见 `docs/references/domains/cards.md`
@@ -41,29 +47,38 @@ export async function listCharacterLoraGroups(
     select: {
       id: true,
       name: true,
-      extensions: true,
-      referenceSlots: true,
+      looks: {
+        ...CHARACTER_LOOKS_INCLUDE.looks,
+        select: {
+          id: true,
+          label: true,
+          isDefault: true,
+          tags: true,
+          referenceSlots: true,
+        },
+      },
       loraLinks: {
         orderBy: { createdAt: 'asc' },
-        select: { loraAsset: true },
+        select: { loraAsset: true, lookId: true },
       },
     },
   })
 
-  return cards.map((card) => {
-    const slots = CharacterReferenceSlotsSchema.safeParse(card.referenceSlots)
-    return {
-      characterCardId: card.id,
-      name: card.name,
-      coverUrl: characterCoverUrl({
-        referenceSlots: slots.success ? slots.data : [],
-      }),
-      appearanceTags: readCardTags(card.extensions).appearance,
-      loras: card.loraLinks.map((link) =>
-        toLoraAssetRecord(link.loraAsset, user.id),
-      ),
-    }
-  })
+  return cards.map((card) => ({
+    characterCardId: card.id,
+    name: card.name,
+    coverUrl: slotsCoverUrl(readReferenceSlots(card.looks[0]?.referenceSlots)),
+    looks: card.looks.map((look) => ({
+      id: look.id,
+      label: look.label,
+      isDefault: look.isDefault,
+      tags: look.tags,
+    })),
+    loras: card.loraLinks.map((link) => ({
+      ...toLoraAssetRecord(link.loraAsset, user.id),
+      lookId: link.lookId,
+    })),
+  }))
 }
 
 /**
@@ -76,16 +91,26 @@ export async function listCharacterLoraGroups(
 export async function setLoraCharacters(
   clerkId: string,
   lora: FavoriteLoraRequest,
-  characterCardIds: readonly string[],
+  characters: SetLoraCharactersRequest['characters'],
 ): Promise<CharacterLoraGroup[]> {
   const user = await ensureUser(clerkId)
-  const wanted = [...new Set(characterCardIds)]
+  const lookOf = new Map(
+    characters.map((item) => [item.characterCardId, item.lookId]),
+  )
+  const wanted = [...lookOf.keys()]
 
   if (wanted.length > 0) {
-    const ownedCards = await db.characterCard.count({
+    const ownedCards = await db.characterCard.findMany({
       where: { id: { in: wanted }, userId: user.id, isDeleted: false },
+      select: { id: true, looks: { select: { id: true } } },
     })
-    if (ownedCards !== wanted.length) throw characterNotFoundError()
+    if (ownedCards.length !== wanted.length) throw characterNotFoundError()
+    // 造型必须是她自己的。
+    const lookMismatch = ownedCards.some((card) => {
+      const lookId = lookOf.get(card.id)
+      return lookId && !card.looks.some((look) => look.id === lookId)
+    })
+    if (lookMismatch) throw characterNotFoundError()
   }
 
   const existing = await db.loraAsset.findFirst({
@@ -102,13 +127,22 @@ export async function setLoraCharacters(
     db.characterCardLora.deleteMany({
       where: { loraAssetId: asset.id, characterCardId: { notIn: wanted } },
     }),
-    db.characterCardLora.createMany({
-      data: wanted.map((characterCardId) => ({
-        characterCardId,
-        loraAssetId: asset.id,
-      })),
-      skipDuplicates: true,
-    }),
+    ...wanted.map((characterCardId) =>
+      db.characterCardLora.upsert({
+        where: {
+          characterCardId_loraAssetId: {
+            characterCardId,
+            loraAssetId: asset.id,
+          },
+        },
+        create: {
+          characterCardId,
+          loraAssetId: asset.id,
+          lookId: lookOf.get(characterCardId) ?? null,
+        },
+        update: { lookId: lookOf.get(characterCardId) ?? null },
+      }),
+    ),
   ])
 
   // 没收藏、也没有角色再收它了：这一行没有存在的理由。

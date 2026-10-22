@@ -295,14 +295,18 @@ describe('ShellSidePanels · 角色库（画布用角色 ④）', () => {
   const DENIA = {
     id: 'denia',
     name: 'Denia',
-    referenceSlots: [
-      { id: 's1', url: 'https://cdn.test/denia.png', isPrimary: true },
+    looks: [
+      {
+        id: 'denia-main',
+        label: null,
+        isDefault: true,
+        description: null,
+        tags: ['denia_(wuthering_waves)'],
+        referenceSlots: [
+          { id: 's1', url: 'https://cdn.test/denia.png', isPrimary: true },
+        ],
+      },
     ],
-    variants: [],
-    cardTags: {
-      character: ['denia_(wuthering_waves)'],
-      appearance: [],
-    },
   }
 
   function renderCards(placed: string[] = []) {

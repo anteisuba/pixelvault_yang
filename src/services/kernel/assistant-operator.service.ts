@@ -1478,17 +1478,21 @@ function describeCapability(
   capability: AssistantOperatorSnapshotCapability,
 ): string {
   const current =
-    capability.value === null
-      ? `(not set — falls back to ${String(capability.defaultValue)})`
-      : String(capability.value)
+    capability.value !== null
+      ? String(capability.value)
+      : capability.kind === 'seed'
+        ? '(not set — a new random seed every run)'
+        : `(not set — falls back to ${String(capability.defaultValue)})`
   const domain =
     capability.kind === 'select'
       ? `one of: ${capability.options?.join(', ') ?? '(none)'}`
       : capability.kind === 'slider'
         ? `a number from ${capability.range?.min ?? '?'} to ${capability.range?.max ?? '?'}`
-        : capability.kind === 'text'
-          ? `text of at most ${capability.maxLength ?? '?'} characters`
-          : 'true or false'
+        : capability.kind === 'seed'
+          ? `a whole number from ${capability.range?.min ?? '?'} to ${capability.range?.max ?? '?'}; the same seed with the same prompt and settings draws the same picture`
+          : capability.kind === 'text'
+            ? `text of at most ${capability.maxLength ?? '?'} characters`
+            : 'true or false'
   const blocked = capability.available
     ? ''
     : ' — NOT settable right now: it needs a reference image mounted first'
@@ -6140,18 +6144,19 @@ function planSetCapability(
       )
     }
   }
-  if (chip.kind === 'slider') {
+  if (chip.kind === 'slider' || chip.kind === 'seed') {
     const range = chip.range
     if (
       typeof args.value !== 'number' ||
       !Number.isFinite(args.value) ||
+      (chip.kind === 'seed' && !Number.isInteger(args.value)) ||
       !range ||
       args.value < range.min ||
       args.value > range.max
     ) {
       return reject(
         REJECT.unknownValue,
-        `${chip.key} takes a number from ${range?.min ?? '?'} to ${range?.max ?? '?'}.`,
+        `${chip.key} takes a ${chip.kind === 'seed' ? 'whole ' : ''}number from ${range?.min ?? '?'} to ${range?.max ?? '?'}.`,
       )
     }
   }

@@ -14,6 +14,7 @@ import { isOwnedStorageUrl } from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
 import { LoraSourceSnapshotSchema } from '@/types'
 import type {
+  FavoriteLoraRequest,
   LoraAssetRecord,
   LoraAssetSource,
   LoraAssetType,
@@ -36,6 +37,8 @@ interface LoraAssetRow {
   previewImageUrls: unknown
   defaultScale: number
   isPublic: boolean
+  /** 在不在「我的库」里；false = 只被角色收着（角色③）。 */
+  inLibrary: boolean
   createdAt: Date
   civitaiModelId: number | null
   civitaiModelVersionId: number | null
@@ -307,7 +310,8 @@ export async function listLoraAssetsForUser(
 
   const [owned, curated] = await Promise.all([
     db.loraAsset.findMany({
-      where: { userId: user.id },
+      // 只被角色收着、没收藏的外部 LoRA 不在库里（角色③「加到角色≠收藏」）。
+      where: { userId: user.id, inLibrary: true },
       orderBy: { createdAt: 'desc' },
       take: 100,
     }),
@@ -435,39 +439,46 @@ export async function updateLoraAssetCover(
  */
 export async function favoriteExternalLora(
   clerkId: string,
-  input: {
-    name: string
-    triggerWord: string
-    loraUrl: string
-    type: LoraAssetType
-    baseModelFamily: string
-    provider: string
-    coverImageUrl?: string | null
-    recommendedPrompt?: string | null
-    modelId?: number
-    modelVersionId?: number
-    fileHashAutoV3?: string | null
-    /**
-     * 来源快照（策略 C，已拍板边界 7）。**双源都该带** —— 上面那三个 civitai
-     * 标识符在 HF 导入时全是 null，作者/许可/revision 此前根本没有落点，于是
-     * HF 收藏的行看不出是谁做的、什么许可、锁的哪个 commit。
-     */
-    sourceSnapshot?: LoraSourceSnapshot
-  },
+  input: FavoriteLoraRequest,
 ): Promise<LoraAssetRecord> {
   const user = await ensureUser(clerkId)
+  const row = await upsertImportedLora(user.id, input, { inLibrary: true })
+  return toLoraAssetRecord(row, user.id)
+}
 
+/**
+ * 你名下的那一行（按 `(userId, loraUrl)`，没有就建）。收藏与「加到角色」共用。
+ *
+ * - `inLibrary: true` = 收藏：已有的、只被角色收着的行顺带收进库。
+ * - `inLibrary: false` = 只为了被角色收（角色③，owner 2026-10-22「加到角色≠收藏」）：
+ *   新建的行不进「我的收藏」；已有的行原样返回。
+ */
+export async function upsertImportedLora(
+  userId: string,
+  input: FavoriteLoraRequest,
+  { inLibrary }: { inLibrary: boolean },
+): Promise<LoraAssetRow> {
   const existing = await db.loraAsset.findFirst({
-    where: { userId: user.id, loraUrl: input.loraUrl },
+    where: { userId, loraUrl: input.loraUrl },
   })
-  if (existing) return toLoraAssetRecord(existing, user.id)
+  if (existing) {
+    if (!inLibrary || existing.inLibrary) return existing
+    logger.info('LoraAsset moved into library', {
+      userId,
+      loraAssetId: existing.id,
+    })
+    return db.loraAsset.update({
+      where: { id: existing.id },
+      data: { inLibrary: true },
+    })
+  }
 
   const styleCode = await reserveUniqueStyleCode(input.name, input.type)
-  let created: Awaited<ReturnType<typeof db.loraAsset.create>>
+  let created: LoraAssetRow
   try {
     created = await db.loraAsset.create({
       data: {
-        userId: user.id,
+        userId,
         name: input.name,
         styleCode,
         source: 'imported',
@@ -479,6 +490,7 @@ export async function favoriteExternalLora(
         coverImageUrl: input.coverImageUrl ?? null,
         defaultScale: 1.0,
         isPublic: false,
+        inLibrary,
         recommendedPrompt: input.recommendedPrompt ?? null,
         civitaiModelId: input.modelId ?? null,
         civitaiModelVersionId: input.modelVersionId ?? null,
@@ -497,21 +509,22 @@ export async function favoriteExternalLora(
     if (!isUniqueConstraintError(error)) throw error
 
     const raced = await db.loraAsset.findFirst({
-      where: { userId: user.id, loraUrl: input.loraUrl },
+      where: { userId, loraUrl: input.loraUrl },
     })
     // 查不到只可能是约束因别的列冲突（styleCode），那是真错，照抛。
     if (!raced) throw error
 
     logger.info('LoraAsset favorite raced; returning existing row', {
-      userId: user.id,
+      userId,
       loraUrl: input.loraUrl,
       styleCode: raced.styleCode,
     })
-    return toLoraAssetRecord(raced, user.id)
+    return raced
   }
 
   logger.info('LoraAsset favorited (imported)', {
-    userId: user.id,
+    userId,
+    inLibrary,
     styleCode,
     loraUrl: input.loraUrl,
     // 快照缺失要在日志里看得见：手机库那几条老路（CivitaiLibraryPane /
@@ -519,12 +532,13 @@ export async function favoriteExternalLora(
     hasSourceSnapshot: Boolean(input.sourceSnapshot),
   })
 
-  return toLoraAssetRecord(created, user.id)
+  return created
 }
 
 /**
  * Remove a user's favorite (only imported assets — trained/curated stay put).
- * Returns true if a row was deleted.
+ * A row some character still collects is kept and only leaves the library.
+ * Returns true when the favorite was removed.
  */
 export async function unfavoriteLora(
   clerkId: string,
@@ -536,8 +550,23 @@ export async function unfavoriteLora(
   if (row.source !== 'imported') {
     throw new Error('Only imported favorites can be removed this way')
   }
-  await db.loraAsset.delete({ where: { id: loraAssetId } })
-  logger.info('LoraAsset unfavorited', { userId: user.id, loraAssetId })
+  // 还被角色收着：只移出库，角色那边照旧（owner 2026-10-22「加到角色≠收藏」）。
+  const characterLinks = await db.characterCardLora.count({
+    where: { loraAssetId },
+  })
+  if (characterLinks > 0) {
+    await db.loraAsset.update({
+      where: { id: loraAssetId },
+      data: { inLibrary: false },
+    })
+  } else {
+    await db.loraAsset.delete({ where: { id: loraAssetId } })
+  }
+  logger.info('LoraAsset unfavorited', {
+    userId: user.id,
+    loraAssetId,
+    keptForCharacters: characterLinks > 0,
+  })
   return true
 }
 

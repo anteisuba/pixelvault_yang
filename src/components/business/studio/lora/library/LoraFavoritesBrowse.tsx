@@ -18,6 +18,7 @@ import { useCivitaiDownloadGate } from '@/hooks/use-civitai-download-gate'
 import { useLocalPreference } from '@/hooks/use-local-preference'
 import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'
 import { getLoraAssetSourceUrl } from '@/lib/lora-asset-source-url'
+import { buildLibraryFavoriteRequest } from '@/lib/lora-source-snapshot'
 import { cn } from '@/lib/utils'
 import type { CivitaiLoraLibraryItem, LoraAssetRecord } from '@/types'
 import {
@@ -455,6 +456,9 @@ export function LoraFavoritesBrowse({
                 void onFavoriteCivitai(target)
               }
             }}
+            characterLoraFor={(target) =>
+              buildLibraryFavoriteRequest(favoriteFor(target) ?? target)
+            }
             nsfwFilter={nsfwFilter}
             onClose={() => setOpenAsset(null)}
             origin={

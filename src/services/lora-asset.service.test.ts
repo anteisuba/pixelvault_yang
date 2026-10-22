@@ -16,6 +16,7 @@ const mockAssetUpdate = vi.fn()
 const mockAssetDelete = vi.fn()
 const mockAssetFindFirst = vi.fn()
 const mockJobFindUnique = vi.fn()
+const mockLinkCount = vi.fn()
 
 vi.mock('@/lib/db', () => ({
   db: {
@@ -29,6 +30,9 @@ vi.mock('@/lib/db', () => ({
     },
     loraTrainingJob: {
       findUnique: (...a: unknown[]) => mockJobFindUnique(...a),
+    },
+    characterCardLora: {
+      count: (...a: unknown[]) => mockLinkCount(...a),
     },
   },
   // ⚠ 用**真实现**而不是 vi.fn()：这个判据（P2002）本身就是被测行为的一部分，
@@ -88,6 +92,7 @@ function buildRow(overrides: Partial<Record<string, unknown>> = {}) {
     previewImageUrls: null,
     defaultScale: 1.0,
     isPublic: false,
+    inLibrary: true,
     createdAt: new Date('2026-01-01T00:00:00Z'),
     civitaiModelId: null,
     civitaiModelVersionId: null,
@@ -176,6 +181,11 @@ describe('listLoraAssetsForUser', () => {
     expect(result.map((r) => r.id)).toEqual(['owned_1', 'owned_2', 'curated_1'])
     expect(result[0]?.isOwn).toBe(true)
     expect(result[2]?.isOwn).toBe(false)
+    // 只被角色收着、没收藏的不进库（角色③）。
+    expect(mockAssetFindMany.mock.calls[0]![0].where).toEqual({
+      userId: OWNER.id,
+      inLibrary: true,
+    })
     // Non-civitai rows never trigger the backfill fetch.
     expect(mockFetchCivitaiVersionIdentifiers).not.toHaveBeenCalled()
   })
@@ -736,9 +746,31 @@ describe('favoriteExternalLora', () => {
       loraUrl: civitaiInput.loraUrl,
       coverImageUrl: civitaiInput.coverImageUrl,
       isPublic: false,
+      inLibrary: true,
     })
     expect(result.id).toBe('fav_1')
     expect(result.isOwn).toBe(true)
+  })
+
+  it('收藏一个只被角色收着的 LoRA：同一行收进库，不另建', async () => {
+    mockEnsureUser.mockResolvedValue(OWNER)
+    const row = buildRow({
+      id: 'linked',
+      source: 'imported',
+      inLibrary: false,
+      ...civitaiInput,
+    })
+    mockAssetFindFirst.mockResolvedValue(row)
+    mockAssetUpdate.mockResolvedValue({ ...row, inLibrary: true })
+
+    const result = await favoriteExternalLora(OWNER.clerkId, civitaiInput)
+
+    expect(mockAssetCreate).not.toHaveBeenCalled()
+    expect(mockAssetUpdate).toHaveBeenCalledWith({
+      where: { id: 'linked' },
+      data: { inLibrary: true },
+    })
+    expect(result.id).toBe('linked')
   })
 
   it('并发双击撞唯一约束时返回既有行，而不是把 500 甩给用户', async () => {
@@ -935,10 +967,26 @@ describe('unfavoriteLora', () => {
     mockAssetFindUnique.mockResolvedValue(
       buildRow({ source: 'imported', userId: OWNER.id }),
     )
+    mockLinkCount.mockResolvedValue(0)
     mockAssetDelete.mockResolvedValue({})
     const result = await unfavoriteLora(OWNER.clerkId, 'asset_1')
     expect(result).toBe(true)
     expect(mockAssetDelete).toHaveBeenCalledWith({ where: { id: 'asset_1' } })
+  })
+
+  it('还被角色收着：只移出库，不删行（角色里照旧）', async () => {
+    mockEnsureUser.mockResolvedValue(OWNER)
+    mockAssetFindUnique.mockResolvedValue(
+      buildRow({ source: 'imported', userId: OWNER.id }),
+    )
+    mockLinkCount.mockResolvedValue(2)
+    const result = await unfavoriteLora(OWNER.clerkId, 'asset_1')
+    expect(result).toBe(true)
+    expect(mockAssetDelete).not.toHaveBeenCalled()
+    expect(mockAssetUpdate).toHaveBeenCalledWith({
+      where: { id: 'asset_1' },
+      data: { inLibrary: false },
+    })
   })
 })
 

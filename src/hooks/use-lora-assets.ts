@@ -14,6 +14,7 @@ import {
 } from '@/lib/api-client/lora-assets'
 import { LORA_TOAST_DURATION_MS } from '@/constants/lora'
 import { deferEffectTask } from '@/lib/defer-effect-task'
+import { buildLibraryFavoriteRequest } from '@/lib/lora-source-snapshot'
 import type { FavoriteLoraRequest, LoraAssetRecord } from '@/types'
 
 export interface UseLoraAssetsReturn {
@@ -141,25 +142,8 @@ export function useLoraAssets(): UseLoraAssetsReturn {
   // discover feed. HF imports use the generic request above because the user
   // must choose a concrete repository file before importing it.
   const favoriteCivitaiLora = useCallback(
-    async (item: LoraAssetRecord): Promise<LoraAssetRecord | null> => {
-      const payload: FavoriteLoraRequest = {
-        name: item.name,
-        triggerWord: item.triggerWord,
-        loraUrl: item.loraUrl,
-        type: item.type,
-        baseModelFamily: item.baseModelFamily,
-        provider: item.provider,
-        coverImageUrl: item.coverImageUrl,
-        // Carry Civitai provenance so "贴近来源图" still works after a reload —
-        // these are dropped on the wire today, leaving favorited LoRAs unable
-        // to reconstruct their source prompt.
-        recommendedPrompt: item.recommendedPrompt,
-        modelId: item.modelId,
-        modelVersionId: item.modelVersionId,
-        fileHashAutoV3: item.fileHashAutoV3,
-      }
-      return favoriteExternalLora(payload)
-    },
+    (item: LoraAssetRecord): Promise<LoraAssetRecord | null> =>
+      favoriteExternalLora(buildLibraryFavoriteRequest(item)),
     [favoriteExternalLora],
   )
 

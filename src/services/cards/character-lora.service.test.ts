@@ -12,6 +12,8 @@ vi.mock('@/services/user.service', () => ({
 const mockCardFindMany = vi.fn()
 const mockCardCount = vi.fn()
 const mockAssetFindFirst = vi.fn()
+const mockAssetDelete = vi.fn()
+const mockUpsertImportedLora = vi.fn()
 const mockLinkDeleteMany = vi.fn()
 const mockLinkCreateMany = vi.fn()
 const mockTransaction = vi.fn()
@@ -24,6 +26,7 @@ vi.mock('@/lib/db', () => ({
     },
     loraAsset: {
       findFirst: (...a: unknown[]) => mockAssetFindFirst(...a),
+      delete: (...a: unknown[]) => mockAssetDelete(...a),
     },
     characterCardLora: {
       deleteMany: (...a: unknown[]) => mockLinkDeleteMany(...a),
@@ -31,6 +34,11 @@ vi.mock('@/lib/db', () => ({
     },
     $transaction: (...a: unknown[]) => mockTransaction(...a),
   },
+}))
+
+vi.mock('@/services/lora-asset.service', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/lora-asset.service')>()),
+  upsertImportedLora: (...a: unknown[]) => mockUpsertImportedLora(...a),
 }))
 
 import {
@@ -137,12 +145,25 @@ describe('listCharacterLoraGroups', () => {
 })
 
 describe('setLoraCharacters', () => {
+  const LORA = {
+    name: 'Denia',
+    triggerWord: 'denia',
+    loraUrl: 'https://cdn.test/a.safetensors',
+    type: 'subject' as const,
+    baseModelFamily: 'sdxl' as const,
+    provider: 'runner',
+  }
+
   it('整组替换：勾掉的删、新勾的加（重复的去掉）', async () => {
-    mockAssetFindFirst.mockResolvedValue({ id: 'a' })
+    mockAssetFindFirst.mockResolvedValue({
+      id: 'a',
+      source: 'imported',
+      inLibrary: true,
+    })
     mockCardCount.mockResolvedValue(2)
     mockCardFindMany.mockResolvedValue([])
 
-    const result = await setLoraCharacters('clerk_1', 'a', [
+    const result = await setLoraCharacters('clerk_1', LORA, [
       'denia',
       'ron',
       'denia',
@@ -150,9 +171,10 @@ describe('setLoraCharacters', () => {
 
     expect(result).toEqual([])
     expect(mockAssetFindFirst.mock.calls[0]![0].where).toEqual({
-      id: 'a',
       userId: USER.id,
+      loraUrl: LORA.loraUrl,
     })
+    expect(mockUpsertImportedLora).not.toHaveBeenCalled()
     expect(mockLinkDeleteMany).toHaveBeenCalledWith({
       where: { loraAssetId: 'a', characterCardId: { notIn: ['denia', 'ron'] } },
     })
@@ -164,35 +186,77 @@ describe('setLoraCharacters', () => {
       skipDuplicates: true,
     })
     expect(mockTransaction).toHaveBeenCalledTimes(1)
+    expect(mockAssetDelete).not.toHaveBeenCalled()
   })
 
-  it('全部勾掉 = 从所有角色里拿掉', async () => {
-    mockAssetFindFirst.mockResolvedValue({ id: 'a' })
+  it('没收藏的 LoRA：在你名下记一行但不进库，再收进角色', async () => {
+    mockAssetFindFirst.mockResolvedValue(null)
+    mockUpsertImportedLora.mockResolvedValue({
+      id: 'new',
+      source: 'imported',
+      inLibrary: false,
+    })
+    mockCardCount.mockResolvedValue(1)
     mockCardFindMany.mockResolvedValue([])
 
-    await setLoraCharacters('clerk_1', 'a', [])
+    await setLoraCharacters('clerk_1', LORA, ['denia'])
+
+    expect(mockUpsertImportedLora).toHaveBeenCalledWith(USER.id, LORA, {
+      inLibrary: false,
+    })
+    expect(mockLinkCreateMany).toHaveBeenCalledWith({
+      data: [{ characterCardId: 'denia', loraAssetId: 'new' }],
+      skipDuplicates: true,
+    })
+  })
+
+  it('全部勾掉：收藏的只拿掉关联，行留着', async () => {
+    mockAssetFindFirst.mockResolvedValue({
+      id: 'a',
+      source: 'imported',
+      inLibrary: true,
+    })
+    mockCardFindMany.mockResolvedValue([])
+
+    await setLoraCharacters('clerk_1', LORA, [])
 
     expect(mockCardCount).not.toHaveBeenCalled()
     expect(mockLinkDeleteMany).toHaveBeenCalledWith({
       where: { loraAssetId: 'a', characterCardId: { notIn: [] } },
     })
+    expect(mockAssetDelete).not.toHaveBeenCalled()
   })
 
-  it('LoRA 不是你名下的 → null，什么都不写', async () => {
-    mockAssetFindFirst.mockResolvedValue(null)
-    mockCardCount.mockResolvedValue(1)
+  it('全部勾掉：只被角色收着、没收藏的那一行随之删掉', async () => {
+    mockAssetFindFirst.mockResolvedValue({
+      id: 'a',
+      source: 'imported',
+      inLibrary: false,
+    })
+    mockCardFindMany.mockResolvedValue([])
 
-    expect(await setLoraCharacters('clerk_1', 'a', ['denia'])).toBeNull()
+    await setLoraCharacters('clerk_1', LORA, [])
+
+    expect(mockAssetDelete).toHaveBeenCalledWith({ where: { id: 'a' } })
+  })
+
+  it('没收藏、也一个角色都没勾：什么都不写', async () => {
+    mockAssetFindFirst.mockResolvedValue(null)
+    mockCardFindMany.mockResolvedValue([])
+
+    await setLoraCharacters('clerk_1', LORA, [])
+
+    expect(mockUpsertImportedLora).not.toHaveBeenCalled()
     expect(mockTransaction).not.toHaveBeenCalled()
   })
 
-  it('有角色不是你的（或已删）→ null，什么都不写', async () => {
-    mockAssetFindFirst.mockResolvedValue({ id: 'a' })
+  it('有角色不是你的（或已删）→ 404，什么都不写', async () => {
     mockCardCount.mockResolvedValue(1)
 
-    expect(
-      await setLoraCharacters('clerk_1', 'a', ['denia', 'someone_else']),
-    ).toBeNull()
+    await expect(
+      setLoraCharacters('clerk_1', LORA, ['denia', 'someone_else']),
+    ).rejects.toMatchObject({ httpStatus: 404 })
+    expect(mockAssetFindFirst).not.toHaveBeenCalled()
     expect(mockTransaction).not.toHaveBeenCalled()
   })
 })

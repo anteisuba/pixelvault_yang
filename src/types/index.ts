@@ -4024,14 +4024,6 @@ export const ListCharacterLorasQuerySchema = z.object({
   characterCardId: z.string().min(1).optional(),
 })
 
-/** 这个 LoRA 属于哪些角色 —— 整组替换（勾掉的就不再收）。 */
-export const SetLoraCharactersSchema = z.object({
-  characterCardIds: z
-    .array(z.string().min(1))
-    .max(CHARACTER_CARD.MAX_CARDS_PER_USER),
-})
-export type SetLoraCharactersRequest = z.infer<typeof SetLoraCharactersSchema>
-
 // ─── Hugging Face LoRA discovery ─────────────────────────────────
 
 /** A concrete SafeTensors file inside a public Hugging Face model repo. */
@@ -4169,6 +4161,18 @@ export const FavoriteLoraRequestSchema = z.object({
   sourceSnapshot: LoraSourceSnapshotSchema.optional(),
 })
 export type FavoriteLoraRequest = z.infer<typeof FavoriteLoraRequestSchema>
+
+/**
+ * 这个 LoRA 属于哪些角色 —— 整组替换（勾掉的就不再收）。带的是收藏同一份 LoRA
+ * 描述：没收藏的外部 LoRA 第一次加到角色时，服务端按它在你名下记一行（不进库）。
+ */
+export const SetLoraCharactersSchema = z.object({
+  lora: FavoriteLoraRequestSchema,
+  characterCardIds: z
+    .array(z.string().min(1))
+    .max(CHARACTER_CARD.MAX_CARDS_PER_USER),
+})
+export type SetLoraCharactersRequest = z.infer<typeof SetLoraCharactersSchema>
 
 export const ActiveLoraSchema = z.object({
   assetId: z.string(),

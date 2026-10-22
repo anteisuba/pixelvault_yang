@@ -1,5 +1,5 @@
 import { API_ENDPOINTS } from '@/constants/config'
-import type { CharacterLoraGroup } from '@/types'
+import type { CharacterLoraGroup, FavoriteLoraRequest } from '@/types'
 
 import { getErrorMessage } from '@/lib/api-client/shared'
 
@@ -44,17 +44,14 @@ export function listCharacterLorasAPI(
 
 /** 这个 LoRA 属于哪些角色（整组替换），返回替换后所有角色的分组。 */
 export function setLoraCharactersAPI(
-  loraAssetId: string,
+  lora: FavoriteLoraRequest,
   characterCardIds: readonly string[],
 ): Promise<CharacterLoraGroupsResponse> {
   return readGroups(
-    fetch(
-      `${API_ENDPOINTS.LORA_ASSETS}/${encodeURIComponent(loraAssetId)}/characters`,
-      {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ characterCardIds }),
-      },
-    ),
+    fetch(API_ENDPOINTS.CHARACTER_LORAS, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lora, characterCardIds }),
+    }),
   )
 }

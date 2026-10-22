@@ -870,7 +870,6 @@ model CharacterCard {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   name        String
   description String?  @db.Text
-  loras       Json? // Lora[] — character-specific LoRA models [{url, scale}]
   tags        String[] @default([])
   isDeleted   Boolean  @default(false)
 
@@ -1027,6 +1026,11 @@ model LoraAsset {
   coverImageUrl    String? // single hero image for cards
 
   defaultScale Float @default(1.0)
+
+  /// 在不在「我的库」里（收藏或自训）。false = 没收藏、只因为被角色收了才记在
+  /// 你名下的外部 LoRA（角色③，owner 2026-10-22 定「加到角色≠收藏」）：不进
+  /// 「我的收藏」；取消收藏时被角色收着的行改成 false 而不是删掉。
+  inLibrary Boolean @default(true)
 
   // Civitai-source provenance — populated only for source='imported' rows
   // favorited from the Civitai browser. Persisting these lets "贴近来源图"

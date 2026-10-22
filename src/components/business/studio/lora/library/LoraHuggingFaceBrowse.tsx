@@ -33,6 +33,7 @@ import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
 import {
   buildHuggingFaceFavoriteRequest,
   buildHuggingFaceSourceSnapshot,
+  buildLibraryFavoriteRequest,
   huggingFaceAuthor,
 } from '@/lib/lora-source-snapshot'
 import { cn } from '@/lib/utils'
@@ -559,6 +560,16 @@ export function LoraHuggingFaceBrowse({
             onToggleFavorite={(target) => {
               const file = fileOf(openRepo, target.loraUrl)
               if (file) toggleFavorite(openRepo, file)
+            }}
+            characterLoraFor={(target) => {
+              const file = fileOf(openRepo, target.loraUrl)
+              return file
+                ? buildHuggingFaceFavoriteRequest({
+                    item: openRepo,
+                    file,
+                    retrievedAt: retrievedAtFor(openRepo.repoId),
+                  })
+                : buildLibraryFavoriteRequest(target)
             }}
             nsfwFilter={DEFAULT_LORA_NSFW_FILTER}
             onClose={() => setOpenRepo(null)}

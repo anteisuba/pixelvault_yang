@@ -37,7 +37,7 @@
 - 全局字体/材质切换、任何新颜料。
 
 **别重造清单**（改动必须复用，grep 过 exports）：
-`LoraCoverTile`（封面瓦）· `CivitaiLoraInspector`（抽屉基底）· `LoraScaleChip` / `LoraAspectRatioChip` / `LoraReferenceImageChip` · `useActiveLoraStack` / `LoraStackProvider` · `useCivitaiMinedPrompts`（推荐搭配数据源）· `searchPromptTags` + `usePromptTagStack`（标签堆存在账号里，`/api/prompt-tags/stack`，改动 0.8 秒后整份保存）+ `PromptTagTray`（danbooru 引擎三件套）· `isLoraBaseModelMountCompatible`（兼容判定）· `civitai-search-history.ts` · `QuickSetupDialog` · ResponsiveOverlay 家族（桌面 Popover ↔ 手机 Drawer，见 `references/frontend.md` 强约定矩阵）。
+`LoraCoverTile`（封面瓦）· `CivitaiLoraInspector`（抽屉基底）· `LoraScaleChip` / `LoraAspectRatioChip` / `LoraReferenceImageChip` · `useActiveLoraStack` / `LoraStackProvider` · `useCivitaiMinedPrompts`（推荐搭配数据源）· `searchPromptTags` + `usePromptTagStack`（标签堆存在账号里，`/api/prompt-tags/stack`，改动 0.8 秒后整份保存）· `isLoraBaseModelMountCompatible`（兼容判定）· `civitai-search-history.ts` · `QuickSetupDialog` · ResponsiveOverlay 家族（桌面 Popover ↔ 手机 Drawer，见 `references/frontend.md` 强约定矩阵）。
 
 ## 1. 现状 → 缺口对照（2026-07-17 代码核实）
 
@@ -390,7 +390,7 @@ HF 卡面移除的键（file select/import 在卡上的文案）迁移到抽屉�
 
 ## Source of Truth
 
-- 代码现状：`LoraWorkbench.tsx`（4625 行，锚点见 §9；⚠ §9 的行号锚点写于 4268 行时代，已漂移）· `HuggingFaceLoraLibrary.tsx` · `use-civitai-lora-library.ts` / `use-huggingface-lora-library.ts` / `use-active-lora-stack.tsx` · `constants/lora.ts` · `lib/lora-model-compatibility.ts` · `lib/prompt-tag-search.ts` + `constants/prompt-tags.*` · `prompt-tags/PromptTagTray.tsx`
+- 代码现状：`LoraWorkbench.tsx`（4625 行，锚点见 §9；⚠ §9 的行号锚点写于 4268 行时代，已漂移）· `HuggingFaceLoraLibrary.tsx` · `use-civitai-lora-library.ts` / `use-huggingface-lora-library.ts` / `use-active-lora-stack.tsx` · `constants/lora.ts` · `lib/lora-model-compatibility.ts` · `lib/prompt-tag-search.ts` + `constants/prompt-tags.*`
 - 上游决策：`lora-search-redesign-2026-07.md`（调查简报）· LoRA 域 UI review v1（v1 施工基准，D1–D9/B1–B11，已随 archive 清理删除）· `lora-search-image-audit-2026-07.md`（S0 工程前置）—— 两份任务包均已随 plans 清理，全部见 git 历史
 - 规矩：当前功能施工读本文；未来视觉改版同时读 `lora-library.md` / `lora-generate.md`、`docs/brand-dna.md`、`docs/scenes/ui-page.md`、`docs/checklists/ui.md` 与 `docs/references/frontend.md`，不得从本文现有皮肤反推新方向。
 

@@ -482,8 +482,6 @@
     "updateFailed": "更新失败",
     "deleteSuccess": "删除成功",
     "deleteFailed": "删除失败",
-    "visibilityUpdated": "可见性已更新",
-    "visibilityFailed": "更新可见性失败",
     "apiKeyCreated": "API 密钥添加成功",
     "apiKeyLoadFailed": "API 密钥加载失败",
     "apiKeyCreateFailed": "添加 API 密钥失败",
@@ -2062,15 +2060,7 @@
       "triggerWithCount": "已启用 {count} 个 prompt 标签"
     },
     "tray": {
-      "empty": "添加标签",
-      "positiveTrack": "Tags",
-      "negativeTrack": "负向",
-      "addPositive": "添加正向标签",
-      "addNegative": "添加负向标签",
-      "collapse": "收起"
-    },
-    "chip": {
-      "remove": "移除"
+      "empty": "添加标签"
     },
     "library": {
       "title": "Prompt 标签库",
@@ -2802,13 +2792,6 @@
       "loadFailed": "角色的 LoRA 没读出来",
       "saveFailed": "没存上，再试一次"
     }
-  },
-  "UseLoraButton": {
-    "action": "使用 LoRA",
-    "failed": "无法加载这张图的 LoRA",
-    "noneAvailable": "这张图没有使用 LoRA",
-    "allHidden": "这张图的 LoRA 是私有的",
-    "someHidden": "这张图的部分 LoRA 是私有的，未被应用"
   },
   "ImageChip": {
     "label": "图像",
@@ -3747,10 +3730,6 @@
     }
   },
   "Onboarding": {
-    "next": "下一步",
-    "finish": "知道了",
-    "dismiss": "关闭引导",
-    "skipStep": "跳过",
     "steps": {
       "welcome": {
         "title": "欢迎来到 ANTEI",
@@ -4152,8 +4131,7 @@
     "loading": "分析中...",
     "title": "AI 提示词教练",
     "improvedPrompt": "改进版本",
-    "applyImproved": "使用此提示词",
-    "requestFailed": "反馈请求失败"
+    "applyImproved": "使用此提示词"
   },
   "GenerationFeedback": {
     "useAsReference": "用作参考",
@@ -4166,9 +4144,7 @@
     "apply": "应用提示词",
     "applyAndReference": "应用并用作参考",
     "negativeAdditions": "建议负面提示词",
-    "conversationDone": "优化后的提示词已就绪！",
-    "startFailed": "启动对话失败",
-    "responseFailed": "获取回复失败"
+    "conversationDone": "优化后的提示词已就绪！"
   },
   "Feedback": {
     "notifications": "通知",
@@ -4518,9 +4494,7 @@
       },
       "reference": {
         "title": "参考图",
-        "chip": "参考图 {count}/{max}",
         "hint": "上传或从素材库选择，指定每张图在生成里的作用。",
-        "unsupported": "当前模型不支持参考图。",
         "uploadTab": "上传",
         "assetTab": "素材库",
         "pasteTab": "粘贴",
@@ -4535,8 +4509,6 @@
         "assetDialogOpened": "素材库已打开",
         "empty": "还没有参考图。",
         "uploadFailed": "参考图上传失败。",
-        "roleLabel": "参考图作用",
-        "weightLabel": "参考图权重",
         "remove": "移除参考图",
         "assetDialogTitle": "选择参考图",
         "assetDialogDescription": "选择一个或多个图像素材作为角色图参考。",
@@ -4552,10 +4524,7 @@
           "frameStart": "首帧",
           "frameEnd": "尾帧",
           "custom": "自定义"
-        },
-        "customLabelPlaceholder": "自定义分类名…",
-        "setPrimary": "设为主图",
-        "unsetPrimary": "取消主图"
+        }
       }
     },
     "voiceProfile": {
@@ -4762,13 +4731,8 @@
         "label": "已引用",
         "counter": "已引用 {referenced} / 已连接 {connected}",
         "slotLabel": "图 {index}",
-        "insertHint": "点击槽位插入到提示词",
         "unnamed": "需命名",
-        "unnamedHint": "给该节点命名后即可作为标签插入",
         "locate": "定位到画布对应节点",
-        "videoAutoHint": "参考视频随连线自动发送，无需插入提示词",
-        "keyframeHint": "首/尾帧随连线自动发送，无需插入提示词",
-        "voiceNotReadyHint": "未上传/选择参考音频 — 本次生成不会发送",
         "addVoice": "给「{name}」配音色",
         "remove": "断开「{name}」的连线（节点保留）",
         "searchPlaceholder": "搜索名称或 @token",
@@ -4981,15 +4945,7 @@
       "title": "助手面板",
       "expand": "展开剧本工作区",
       "restore": "收回 dock",
-      "scriptDoc": "剧本 / 大纲",
-      "scriptDocDraft": "按对话生成大纲",
-      "scriptDocUpdate": "按对话更新大纲",
       "scriptDocApply": "生成到画布",
-      "scriptDocEmptyTitle": "还没有大纲",
-      "scriptDocEmptyHint": "在左侧把大纲聊定，再在这里生成；确认后会自动创建对应节点。",
-      "scriptDocNeedChat": "先和助手聊几句你的故事。",
-      "scriptDocTrimMessages": "剧本变长了——本次只带上了最近 {count} 条对话。",
-      "scriptDocTrimFields": "剧本变长了——{count} 个可选字段（世界设定 / 风格注记 / 目标时长）本轮未参与改写，原值已保留。",
       "clarify": {
         "title": "先确认几个问题",
         "customPlaceholder": "或自己填…",
@@ -4998,61 +4954,13 @@
         "skipped": "跳过",
         "answerPrefix": "我的回答："
       },
-      "scriptDocRolesLabel": "角色 · {count}",
-      "scriptDocShotsLabel": "镜头 · {count}",
-      "scriptDocApplyResult": "画布已同步：新增 {created} 个，更新 {updated} 个，删除 {removed} 个，复用 {skipped} 个。",
-      "scriptDocApplyNothing": "画布已与大纲一致，没有新节点要生成。",
-      "scriptDocProjectionTitle": "投影会改动什么",
-      "scriptDocProjectionCreate": "新建 {count} 个节点",
-      "scriptDocProjectionUpdate": "更新 {count} 个节点",
-      "scriptDocProjectionRemove": "移除 {count} 个节点、{edges} 条连线 —— 它们对应的角色 / 镜头 / 台词已被你从剧本里删掉",
-      "scriptDocProjectionCancel": "取消",
-      "scriptDocProjectionConfirm": "投影",
-      "scriptDocApplyEmpty": "请先在大纲里添加角色或镜头。",
-      "scriptDocStepOutline": "大纲",
-      "scriptDocStepShots": "镜头",
-      "scriptDocStepNodes": "节点",
-      "scriptDocConfirmOutline": "确认大纲",
-      "scriptDocBreakShots": "拆镜头",
-      "scriptDocRebreakShots": "重拆镜头",
-      "scriptDocConfirmShots": "确认镜头",
-      "scriptDocShotStills": "每镜出静帧",
-      "scriptDocShotStillsHint": "确认镜头时为每一镜建一个静帧图节点。关掉只是不再新建，画布上已有的静帧不会被删。",
-      "scriptDocBackToOutline": "返回大纲",
-      "scriptDocBackgroundLabel": "背景",
       "scriptDocDepthSimple": "精简",
       "scriptDocDepthStandard": "标准",
       "scriptDocDepthCinematic": "完整",
       "scriptDocDepthSimpleHint": "只要角色 + 台词",
       "scriptDocDepthStandardHint": "+ 情感 · 时长 · 风格",
       "scriptDocDepthCinematicHint": "+ 背景 · 性格 · 电影级镜头",
-      "scriptDocNewRole": "新角色",
-      "scriptDocNewShot": "新镜头",
-      "scriptDocNewLine": "新台词",
-      "scriptDocAddRole": "加角色",
-      "scriptDocAddShot": "加镜头",
-      "scriptDocAddLine": "加台词",
-      "scriptDocDelete": "删除",
-      "scriptDocLockHint": "已手改 · 点击允许 AI 覆盖",
-      "scriptDocFieldTitle": "标题",
-      "scriptDocFieldLogline": "一句话简介",
-      "scriptDocFieldStyle": "风格",
-      "scriptDocFieldDuration": "时长",
-      "scriptDocFieldRoleName": "角色名",
-      "scriptDocFieldRoleDescription": "外观",
-      "scriptDocFieldRolePersonality": "性格",
-      "scriptDocFieldRoleGoal": "目标",
-      "scriptDocFieldShotSummary": "镜头内容",
-      "scriptDocFieldShotEmotion": "情感",
-      "scriptDocFieldShotCamera": "镜头语言",
-      "scriptDocFieldLine": "台词",
-      "scriptDocFieldSpeaker": "说话人",
       "scriptDocViewEdit": "编辑",
-      "scriptDocViewRead": "通读",
-      "scriptDocFocusButton": "让 AI 改这块",
-      "scriptDocFocusPlaceholder": "这里想怎么改？",
-      "scriptDocFocusSend": "应用",
-      "scriptDocFocusCancel": "取消",
       "leanOpener": "看了你的画布，还空着。先聊聊故事大纲？",
       "leanOpenerActive": "画布上已经有节点了——要我帮你把它们捋成故事大纲吗？",
       "starters": {
@@ -5200,20 +5108,6 @@
         "untitled": "未命名图片",
         "cardAlt": "画布散图"
       }
-    },
-    "dossier": {
-      "gallerySourceCanvas": "来自画布",
-      "gallerySourceCloseup": "特写",
-      "galleryExtract": "拆出到画布",
-      "galleryAdd": "添加",
-      "galleryAddAria": "添加参考图",
-      "primaryBadge": "主图",
-      "onStageBadge": "出场",
-      "onStageAlwaysOn": "主图恒出场",
-      "onStageOn": "已出场",
-      "onStageOff": "未出场",
-      "onStageToggleOn": "标记出场",
-      "onStageToggleOff": "取消出场"
     },
     "toasts": {
       "projectCreated": "项目「{name}」已创建。",

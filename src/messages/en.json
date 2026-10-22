@@ -482,8 +482,6 @@
     "updateFailed": "Couldn't update",
     "deleteSuccess": "Deleted successfully",
     "deleteFailed": "Couldn't delete",
-    "visibilityUpdated": "Visibility updated",
-    "visibilityFailed": "Couldn't update visibility",
     "apiKeyCreated": "API key added successfully",
     "apiKeyLoadFailed": "Couldn't load API keys",
     "apiKeyCreateFailed": "Couldn't add API key",
@@ -2062,15 +2060,7 @@
       "triggerWithCount": "{count} prompt tags active"
     },
     "tray": {
-      "empty": "Add tags",
-      "positiveTrack": "Tags",
-      "negativeTrack": "Neg",
-      "addPositive": "Add positive tags",
-      "addNegative": "Add negative tags",
-      "collapse": "Collapse"
-    },
-    "chip": {
-      "remove": "Remove"
+      "empty": "Add tags"
     },
     "library": {
       "title": "Prompt tag library",
@@ -2802,13 +2792,6 @@
       "loadFailed": "Couldn’t load character LoRAs",
       "saveFailed": "Couldn’t save. Try again."
     }
-  },
-  "UseLoraButton": {
-    "action": "Use LoRA",
-    "failed": "Couldn't load this image's LoRAs",
-    "noneAvailable": "This image wasn't made with a LoRA",
-    "allHidden": "This image's LoRAs are private",
-    "someHidden": "Some of this image's LoRAs are private and weren't applied"
   },
   "ImageChip": {
     "label": "Image",
@@ -3747,10 +3730,6 @@
     }
   },
   "Onboarding": {
-    "next": "Next",
-    "finish": "Got it",
-    "dismiss": "Close guide",
-    "skipStep": "Skip",
     "steps": {
       "welcome": {
         "title": "Welcome to ANTEI",
@@ -4152,8 +4131,7 @@
     "loading": "Analyzing...",
     "title": "AI Prompt Coach",
     "improvedPrompt": "Improved Version",
-    "applyImproved": "Use this prompt",
-    "requestFailed": "Feedback request failed"
+    "applyImproved": "Use this prompt"
   },
   "GenerationFeedback": {
     "useAsReference": "Use as Reference",
@@ -4166,9 +4144,7 @@
     "apply": "Apply Prompt",
     "applyAndReference": "Apply & use as reference",
     "negativeAdditions": "Suggested negative prompt",
-    "conversationDone": "Your updated prompt is ready.",
-    "startFailed": "Couldn't start conversation",
-    "responseFailed": "Couldn't get response"
+    "conversationDone": "Your updated prompt is ready."
   },
   "Feedback": {
     "notifications": "Notifications",
@@ -4518,9 +4494,7 @@
       },
       "reference": {
         "title": "Reference images",
-        "chip": "Refs {count}/{max}",
         "hint": "Upload or pick assets, then define how each image should guide generation.",
-        "unsupported": "The current model does not support reference images.",
         "uploadTab": "Upload",
         "assetTab": "Assets",
         "pasteTab": "Paste",
@@ -4535,8 +4509,6 @@
         "assetDialogOpened": "Asset library opened",
         "empty": "No reference images yet.",
         "uploadFailed": "Reference image upload failed.",
-        "roleLabel": "Reference role",
-        "weightLabel": "Reference weight",
         "remove": "Remove reference image",
         "assetDialogTitle": "Select reference images",
         "assetDialogDescription": "Choose one or more image assets as character image references.",
@@ -4552,10 +4524,7 @@
           "frameStart": "First frame",
           "frameEnd": "Last frame",
           "custom": "Custom"
-        },
-        "customLabelPlaceholder": "Custom category name…",
-        "setPrimary": "Set as primary",
-        "unsetPrimary": "Unset primary"
+        }
       }
     },
     "voiceProfile": {
@@ -4762,13 +4731,8 @@
         "label": "Referenced",
         "counter": "{referenced} referenced / {connected} connected",
         "slotLabel": "Image {index}",
-        "insertHint": "Click a slot to insert it into the prompt",
         "unnamed": "needs a name",
-        "unnamedHint": "Name this node to use it as an insertable tag",
         "locate": "Locate this node on canvas",
-        "videoAutoHint": "Reference videos are sent automatically with the wire — nothing to insert",
-        "keyframeHint": "First/last frames are sent automatically with the wire — nothing to insert",
-        "voiceNotReadyHint": "No reference audio selected. It won't be sent with this generation.",
         "addVoice": "Add a voice to \"{name}\"",
         "remove": "Disconnect \"{name}\" (node kept)",
         "searchPlaceholder": "Search by name or @token",
@@ -4981,15 +4945,7 @@
       "title": "Assistant dock",
       "expand": "Expand to outline workspace",
       "restore": "Back to dock",
-      "scriptDoc": "Script / outline",
-      "scriptDocDraft": "Draft outline from chat",
-      "scriptDocUpdate": "Update outline from chat",
       "scriptDocApply": "Generate nodes",
-      "scriptDocEmptyTitle": "No outline yet",
-      "scriptDocEmptyHint": "Talk the outline through on the left, then draft it here — confirming spawns the matching nodes.",
-      "scriptDocNeedChat": "Say a few words about your story first.",
-      "scriptDocTrimMessages": "This conversation is getting long. Only your last {count, plural, one {# message} other {# messages}} were sent this time.",
-      "scriptDocTrimFields": "The script is getting long. {count, plural, one {# optional field was} other {# optional fields were}} left out of this update. Your saved values are unchanged.",
       "clarify": {
         "title": "A few quick questions",
         "customPlaceholder": "Or type your own…",
@@ -4998,61 +4954,13 @@
         "skipped": "skipped",
         "answerPrefix": "My answers:"
       },
-      "scriptDocRolesLabel": "Roles · {count}",
-      "scriptDocShotsLabel": "Shots · {count}",
-      "scriptDocApplyResult": "Canvas synced: {created} new, {updated} updated, {removed} removed, {skipped} reused.",
-      "scriptDocApplyNothing": "Canvas already matches the outline — nothing new to generate.",
-      "scriptDocProjectionTitle": "Changes to the canvas",
-      "scriptDocProjectionCreate": "Create {count, plural, one {# node} other {# nodes}}",
-      "scriptDocProjectionUpdate": "Update {count, plural, one {# node} other {# nodes}}",
-      "scriptDocProjectionRemove": "Remove {count, plural, one {# node} other {# nodes}} and {edges, plural, one {# edge} other {# edges}} whose role / shot / line you deleted from the script",
-      "scriptDocProjectionCancel": "Cancel",
-      "scriptDocProjectionConfirm": "Apply to canvas",
-      "scriptDocApplyEmpty": "Add roles or shots to the outline first.",
-      "scriptDocStepOutline": "Outline",
-      "scriptDocStepShots": "Shots",
-      "scriptDocStepNodes": "Nodes",
-      "scriptDocConfirmOutline": "Confirm outline",
-      "scriptDocBreakShots": "Split into shots",
-      "scriptDocRebreakShots": "Revise shot breakdown",
-      "scriptDocConfirmShots": "Confirm shots",
-      "scriptDocShotStills": "Still frame per shot",
-      "scriptDocShotStillsHint": "Confirming shots also creates one still-image node per shot. Turning this off only stops new ones — stills already on the canvas are kept.",
-      "scriptDocBackToOutline": "Back to outline",
-      "scriptDocBackgroundLabel": "Background",
       "scriptDocDepthSimple": "Lean",
       "scriptDocDepthStandard": "Standard",
       "scriptDocDepthCinematic": "Full",
       "scriptDocDepthSimpleHint": "Roles + dialogue only",
       "scriptDocDepthStandardHint": "+ emotion, length, style",
       "scriptDocDepthCinematicHint": "+ world, psychology, cinematic shots",
-      "scriptDocNewRole": "New role",
-      "scriptDocNewShot": "New shot",
-      "scriptDocNewLine": "New line",
-      "scriptDocAddRole": "Add role",
-      "scriptDocAddShot": "Add shot",
-      "scriptDocAddLine": "Add line",
-      "scriptDocDelete": "Delete",
-      "scriptDocLockHint": "Hand-edited — click to let AI overwrite",
-      "scriptDocFieldTitle": "Title",
-      "scriptDocFieldLogline": "Logline",
-      "scriptDocFieldStyle": "Style",
-      "scriptDocFieldDuration": "Duration",
-      "scriptDocFieldRoleName": "Role name",
-      "scriptDocFieldRoleDescription": "Look",
-      "scriptDocFieldRolePersonality": "Personality",
-      "scriptDocFieldRoleGoal": "Goal",
-      "scriptDocFieldShotSummary": "Shot",
-      "scriptDocFieldShotEmotion": "Emotion",
-      "scriptDocFieldShotCamera": "Camera",
-      "scriptDocFieldLine": "Line",
-      "scriptDocFieldSpeaker": "Speaker",
       "scriptDocViewEdit": "Edit",
-      "scriptDocViewRead": "Read",
-      "scriptDocFocusButton": "Ask AI to change this",
-      "scriptDocFocusPlaceholder": "What should change here?",
-      "scriptDocFocusSend": "Apply",
-      "scriptDocFocusCancel": "Cancel",
       "leanOpener": "Your canvas is still empty. Shall we start with the story outline?",
       "leanOpenerActive": "Your canvas already has nodes — want me to shape them into a story outline?",
       "starters": {
@@ -5200,20 +5108,6 @@
         "untitled": "Untitled image",
         "cardAlt": "Unconnected canvas image"
       }
-    },
-    "dossier": {
-      "gallerySourceCanvas": "From canvas",
-      "gallerySourceCloseup": "Closeup",
-      "galleryExtract": "Extract to canvas",
-      "galleryAdd": "Add",
-      "galleryAddAria": "Add a reference image",
-      "primaryBadge": "Primary",
-      "onStageBadge": "On stage",
-      "onStageAlwaysOn": "Primary is always on stage",
-      "onStageOn": "On stage",
-      "onStageOff": "Not on stage",
-      "onStageToggleOn": "Mark on stage",
-      "onStageToggleOff": "Remove from stage"
     },
     "toasts": {
       "projectCreated": "Project \"{name}\" created.",

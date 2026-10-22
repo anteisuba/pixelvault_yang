@@ -497,6 +497,77 @@ describe('查资料 B · 画风', () => {
     expect(screen.getByText('flower')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /flower/ })).toBeNull()
   })
+
+  /** owner 2026-10-22：画风页分「画师 + 画法」两段，画法原样加、⛔ 不带 artist:。 */
+  it('两段：画法在前、画师在后；画法原样加，接在画师标签后面', () => {
+    mocks.chips = [
+      { text: 'artist:sora', weight: 1 },
+      { text: '1girl', weight: 1 },
+    ]
+    mocks.answer = (request) =>
+      request.tag === 'watercolor_(medium)'
+        ? {
+            data: catalog({
+              detail: {
+                tag: 'watercolor_(medium)',
+                count: 150000,
+                work: null,
+                aliases: [],
+                sampleSize: 20,
+                traits: [{ tag: 'flower', count: 9 }],
+                images: [],
+              },
+            }),
+          }
+        : request.kind === 'artist' && !request.tag
+          ? {
+              data: catalog({
+                candidates: [
+                  {
+                    name: 'watercolor_(medium)',
+                    count: 150000,
+                    category: 5,
+                    work: null,
+                    previews: [],
+                  },
+                  ...artists.candidates,
+                ],
+              }),
+            }
+          : answerFixtures(request)
+    render(<StudioDanbooruPanel onClose={vi.fn()} />)
+    fireEvent.click(screen.getByRole('tab', { name: 'tabStyle' }))
+
+    const media = screen.getByText('section(kindMedium|1)')
+    const painters = screen.getByText('section(kindArtist|1)')
+    expect(
+      media.compareDocumentPosition(painters) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    // 一行写原样的名字，副标题说是画法；默认选中第一行，右边是它的详情。
+    expect(
+      screen.getByRole('button', { name: /^watercolor \(medium\)/ }),
+    ).toHaveAttribute('aria-current', 'true')
+    expect(screen.getByText('rowMedium(posts(150K))')).toBeInTheDocument()
+    expect(screen.getByText('kindMedium')).toBeInTheDocument()
+    expect(screen.getByText('mediumRefsTitle')).toBeInTheDocument()
+    expect(screen.getByText(/mediumWhere/)).toBeInTheDocument()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'addArtist(watercolor (medium))' }),
+    )
+    expect(mocks.dispatch).toHaveBeenLastCalledWith({
+      type: 'SET_TAG_CHIPS',
+      payload: {
+        polarity: 'positive',
+        chips: [
+          { text: 'artist:sora', weight: 1 },
+          { text: 'watercolor (medium)', weight: 1 },
+          { text: '1girl', weight: 1 },
+        ],
+      },
+    })
+  })
 })
 
 describe('查资料 · 作品 / 特征', () => {
@@ -568,13 +639,9 @@ describe('查资料 · 收藏', () => {
     ]
     render(<StudioDanbooruPanel onClose={vi.fn()} />)
     fireEvent.click(screen.getByRole('tab', { name: 'tabFavorites' }))
-    expect(
-      screen.getByText('favoritesSection(kindCharacter|1)'),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText('favoritesSection(kindArtist|1)'),
-    ).toBeInTheDocument()
-    expect(screen.queryByText(/favoritesSection\(kindWork/)).toBeNull()
+    expect(screen.getByText('section(kindCharacter|1)')).toBeInTheDocument()
+    expect(screen.getByText('section(kindArtist|1)')).toBeInTheDocument()
+    expect(screen.queryByText(/section\(kindWork/)).toBeNull()
     expect(screen.getByRole('button', { name: /^snow miku/ })).toHaveAttribute(
       'aria-current',
       'true',
@@ -585,6 +652,26 @@ describe('查资料 · 收藏', () => {
           request?.kind === 'character' && request.tag === 'snow_miku',
       ),
     ).toBe(true)
+  })
+
+  it('收藏里的画风也分画法 / 画师两段', () => {
+    mocks.favorites = [
+      { ...snowMiku, id: 'fav_2', kind: 'artist', name: 'mizuiro_sora' },
+      {
+        ...snowMiku,
+        id: 'fav_3',
+        kind: 'artist',
+        name: 'watercolor_(medium)',
+        work: null,
+      },
+    ]
+    render(<StudioDanbooruPanel onClose={vi.fn()} />)
+    fireEvent.click(screen.getByRole('tab', { name: 'tabFavorites' }))
+    expect(screen.getByText('section(kindMedium|1)')).toBeInTheDocument()
+    expect(screen.getByText('section(kindArtist|1)')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /^watercolor \(medium\)/ }),
+    ).toBeInTheDocument()
   })
 
   it('收藏页点一个画师：右边换成画师详情', () => {
@@ -611,7 +698,7 @@ describe('查资料 · 收藏', () => {
   it('其余四页不再置顶收藏', () => {
     mocks.favorites = [snowMiku]
     render(<StudioDanbooruPanel onClose={vi.fn()} />)
-    expect(screen.queryByText(/favoritesSection/)).toBeNull()
+    expect(screen.queryByText(/^section\(/)).toBeNull()
   })
 
   it('点星收藏这一条：存左栏那一行的快照', () => {

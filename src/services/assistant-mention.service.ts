@@ -83,7 +83,11 @@ function termWhere(term: string): Prisma.GenerationWhereInput {
                 some: { project: { isDeleted: false, name: contains } },
               },
             },
-            { characterCard: { isDeleted: false, name: contains } },
+            {
+              characterCards: {
+                some: { characterCard: { isDeleted: false, name: contains } },
+              },
+            },
           ]),
     ],
   }

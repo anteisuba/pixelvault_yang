@@ -46,7 +46,7 @@
 
 - **外观只有一列 `description`**（上限 2000 字），编译器的视觉文字就是它。旧的「角色提示词」`characterPrompt` 已并进来（提示词在前、外观在后）；视觉「属性」（`attributes`，看图提取的 13 项）删除，建卡 ⛔ 不再看图、不联网取材。
 - **图只认 `referenceSlots`**：封面 = `isPrimary` 那一槽（没有取第一槽），统一用 `lib/card-bus.ts` 的 `characterCoverUrl`。旧图列与反向双写删除；建卡只收名字（外观 / 设定 / 标签可选），图在详情里加进参考槽。
-- `status` / `stabilityScore` / `modelPrompts` / `referenceRoles` / `allowedStyleRange` / `provenance` / `projectId` 与作品上的单角色列 `Generation.characterCardId` 停读停写，下一次部署删列（见 `database.md`）。
+- `status` / `stabilityScore` / `modelPrompts` / `referenceRoles` / `allowedStyleRange` / `provenance` / `projectId` 与作品上的单角色列 `Generation.characterCardId` 已删列（见 `database.md`）；作品 ↔ 角色只走 `GenerationCharacterCard`。
 
 ## 角色卡字段 v2（2026-09-17）
 

@@ -4,6 +4,10 @@ import { DATABASE_POOL } from '@/constants/config'
 import { PrismaClient } from '@/lib/generated/prisma/client'
 import { normalizeDatabaseConnectionString } from '@/lib/database-utils'
 
+const globalForPrisma = globalThis as typeof globalThis & {
+  prisma?: PrismaClient
+}
+
 function createPrismaClient() {
   const adapter = new PrismaPg({
     connectionString: normalizeDatabaseConnectionString(
@@ -13,35 +17,7 @@ function createPrismaClient() {
     connectionTimeoutMillis: DATABASE_POOL.CONNECTION_TIMEOUT_MS,
     idleTimeoutMillis: DATABASE_POOL.IDLE_TIMEOUT_MS,
   })
-  return new PrismaClient({ adapter, omit: RETIRED_COLUMNS })
-}
-
-/**
- * 已停读停写、下一次部署删掉的列：先从默认查询里拿掉，删列那次迁移跑起来时
- * 还在线的这一版就不会去查一个已经没有的列。删列后连同这里一起删。
- */
-const RETIRED_COLUMNS = {
-  characterCard: {
-    projectId: true,
-    sourceImageUrl: true,
-    sourceStorageKey: true,
-    sourceImages: true,
-    sourceImageEntries: true,
-    characterPrompt: true,
-    modelPrompts: true,
-    referenceImages: true,
-    attributes: true,
-    status: true,
-    stabilityScore: true,
-    referenceRoles: true,
-    allowedStyleRange: true,
-    provenance: true,
-  },
-  generation: { characterCardId: true },
-} as const
-
-const globalForPrisma = globalThis as typeof globalThis & {
-  prisma?: ReturnType<typeof createPrismaClient>
+  return new PrismaClient({ adapter })
 }
 
 export const db = globalForPrisma.prisma ?? createPrismaClient()

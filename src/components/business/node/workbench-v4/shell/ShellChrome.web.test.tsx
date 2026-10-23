@@ -120,6 +120,7 @@ import {
   CANVAS_SHELL_PANEL_IDS,
   type CanvasShellPanelId,
 } from '@/constants/canvas-shell'
+import { SHELL_CANVAS_DESK_BOTTOM_ENTRIES } from '@/constants/navigation'
 import { LIQUID_TIMING } from '@/constants/motion'
 import { NODE_STUDIO_TOOL_MODE_IDS } from '@/constants/node-studio'
 import { fetchGalleryImages } from '@/lib/api-client'
@@ -570,8 +571,14 @@ describe('ShellBottomBar · 无加号', () => {
     expect(screen.getByTestId('shell-zoom-level').textContent).toBe('80%')
     const bar = screen.getByTestId('shell-bottom-bar')
     // ⛔ 底栏不该再有加号：八颗相机 / 编辑键（缩放百分比不是按钮）；角色 / 素材库已进侧栏。
-    expect(bar.querySelectorAll('button')).toHaveLength(8)
+    // ≥1024 的 `/studio` 外壳里侧栏不在，那几格只在 `desk:` 露出来（第 9f 步），另算。
+    const deskEntries = bar.querySelectorAll(
+      '[data-testid^="shell-bottom-desk-"]',
+    )
+    expect(deskEntries).toHaveLength(SHELL_CANVAS_DESK_BOTTOM_ENTRIES.length)
+    expect(bar.querySelectorAll('button').length - deskEntries.length).toBe(8)
     expect(screen.queryByTestId('shell-bottom-cards')).toBeNull()
+    expect(screen.queryByTestId('shell-bottom-desk-history')).toBeNull()
     fireEvent.click(screen.getByTestId('shell-tool-select'))
     expect(screen.getByTestId('shell-fit-view')).toBeTruthy()
     expect(props.onUndo).not.toHaveBeenCalled()

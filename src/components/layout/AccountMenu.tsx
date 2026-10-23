@@ -1,6 +1,6 @@
 'use client'
 
-import { Globe, LogOut, Settings } from '@/components/icons'
+import { Globe, LogOut, Settings, User } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { ROUTES, settingsPath } from '@/constants/routes'
@@ -44,6 +44,7 @@ export function AccountMenu({
   side = 'top',
   align = 'start',
   tooltip,
+  showProfile = false,
 }: {
   /** 触发器。必须是一颗真的可聚焦控件 —— 收起 40 档它是唯一的账号入口。 */
   children: React.ReactNode
@@ -51,6 +52,11 @@ export function AccountMenu({
   align?: 'start' | 'center' | 'end'
   /** 只在触发器没有可见文字时传（收起 40 档）。 */
   tooltip?: string
+  /**
+   * 菜单里多一行「我的主页」。只给 `/studio` 外壳左栏（第 9f 步）：那里没有全站侧栏的
+   * 「我的主页」那一项；⛔ 侧栏 / 手机顶栏别开 —— 一件事只留一个入口。
+   */
+  showProfile?: boolean
 }) {
   const trigger = <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
 
@@ -78,6 +84,7 @@ export function AccountMenu({
         <AccountMenuHeader />
         <DropdownMenuSeparator />
         <AccountMenuLanguage />
+        {showProfile ? <AccountMenuProfile /> : null}
         <AccountMenuSettings />
         <DropdownMenuSeparator />
         <AccountMenuSignOut />
@@ -169,6 +176,19 @@ function AccountMenuLanguage() {
           title: t(`names.${option}`),
         }))}
       />
+    </DropdownMenuItem>
+  )
+}
+
+function AccountMenuProfile() {
+  const t = useTranslations('Navbar.links')
+
+  return (
+    <DropdownMenuItem asChild className="h-8 rounded-lg px-2">
+      <Link href={ROUTES.MY_PROFILE}>
+        <User />
+        <span className="flex-1 truncate">{t('profile')}</span>
+      </Link>
     </DropdownMenuItem>
   )
 }

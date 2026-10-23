@@ -317,7 +317,8 @@
       "video": "视频工作台",
       "lora": "LoRA 工作台",
       "canvas": "画布",
-      "cards": "角色页"
+      "cards": "角色页",
+      "home": "首页"
     },
     "session": "会话",
     "newThread": "新对话",
@@ -1039,6 +1040,11 @@
         "placeholder": "说个角色名，或者说说你想要的原创角色…",
         "context": "{count} 位角色",
         "contextOpen": "正在看 {name}"
+      },
+      "home": {
+        "empty": "想做点什么？",
+        "placeholder": "说说你想做什么…",
+        "context": "首页"
       }
     },
     "autoGenerate": {

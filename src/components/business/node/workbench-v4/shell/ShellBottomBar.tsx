@@ -35,7 +35,10 @@ import {
   type CanvasShellPanelId,
 } from '@/constants/canvas-shell'
 import { SPRING } from '@/constants/motion'
-import { SHELL_CANVAS_BOTTOM_ENTRIES } from '@/constants/navigation'
+import {
+  SHELL_CANVAS_BOTTOM_ENTRIES,
+  SHELL_CANVAS_DESK_BOTTOM_ENTRIES,
+} from '@/constants/navigation'
 import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
 import { useToastLift } from '@/hooks/use-toast-lift'
 import {
@@ -189,6 +192,21 @@ export function ShellBottomBar({
           onClick={() => onTogglePanel(entry.id)}
         />
       ))}
+      {/* ≥1024 `/studio` 外壳里侧栏不在了（第 9f 步）：侧栏下面那几格搬到这里。 */}
+      <span className="hidden desk:contents">
+        <span className="mx-1 h-5 w-px bg-node-panel-inner" aria-hidden />
+        {SHELL_CANVAS_DESK_BOTTOM_ENTRIES.map((entry) => (
+          <ShellIconButton
+            key={entry.id}
+            icon={entry.icon}
+            label={tPanels(entry.id)}
+            testId={`shell-bottom-desk-${entry.id}`}
+            panelEntry={entry.id}
+            active={activePanel === entry.id}
+            onClick={() => onTogglePanel(entry.id)}
+          />
+        ))}
+      </span>
     </motion.div>
   )
 }

@@ -35,6 +35,8 @@ export const ASSISTANT_SURFACE_IDS = {
   nodeCanvas: 'NODE_CANVAS',
   /** 卡片助手（第五张脸）：会话单独一份，只在角色页里看得到（owner 09-26）。 */
   cards: 'CARDS',
+  /** 首页（第 9f 步）：还没开台就开口的那段对话记在这里；开过的台记在 `domainMark`。 */
+  home: 'HOME',
 } as const
 
 export const ASSISTANT_SURFACES = [
@@ -43,6 +45,7 @@ export const ASSISTANT_SURFACES = [
   ASSISTANT_SURFACE_IDS.lora,
   ASSISTANT_SURFACE_IDS.nodeCanvas,
   ASSISTANT_SURFACE_IDS.cards,
+  ASSISTANT_SURFACE_IDS.home,
 ] as const
 export type AssistantSurfaceId = (typeof ASSISTANT_SURFACES)[number]
 
@@ -61,6 +64,7 @@ export const ASSISTANT_SURFACE_BY_DOMAIN: Record<
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.lora]: ASSISTANT_SURFACE_IDS.lora,
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas]: ASSISTANT_SURFACE_IDS.nodeCanvas,
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.cards]: ASSISTANT_SURFACE_IDS.cards,
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.home]: ASSISTANT_SURFACE_IDS.home,
 }
 
 /**

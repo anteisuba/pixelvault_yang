@@ -40,6 +40,7 @@ vi.mock('next-intl', () => {
 })
 
 vi.mock('@/contexts/studio-operator-host', () => ({
+  useStudioOperatorBenchKey: () => undefined,
   useStudioOperatorHost: () => ({
     domain: hostDomain.current,
     workspace: hostDomain.current === 'image' ? 'image-natural' : 'video',

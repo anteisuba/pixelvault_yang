@@ -448,7 +448,10 @@ export function MobileShellInset({ children }: { children: React.ReactNode }) {
     <SidebarInset
       id="main-content"
       className={
-        isStudioPath(pathname) ? 'mobile-inset-topbar' : 'mobile-inset-tabbar'
+        isStudioPath(pathname)
+          ? // ≥1024 侧栏让给外壳的左栏（第 9f 步）：主卡不再浮起。
+            'mobile-inset-topbar desk:rounded-none desk:border-l-0 desk:shadow-none'
+          : 'mobile-inset-tabbar'
       }
     >
       {children}

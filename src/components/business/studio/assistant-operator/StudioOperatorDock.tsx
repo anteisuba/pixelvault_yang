@@ -63,13 +63,20 @@ import {
   getStudioOperatorPanelWidthPx,
 } from '@/constants/studio-assistant-operator'
 import { getReferenceImageAttachmentId } from '@/lib/studio-reference-mentions'
-import { useStudioOperatorHost } from '@/contexts/studio-operator-host'
+import {
+  useStudioOperatorDockPlacement,
+  useStudioOperatorHost,
+} from '@/contexts/studio-operator-host'
 import { useIsMobile, useIsTablet } from '@/hooks/use-mobile'
 import { useAssistantOperator } from '@/hooks/use-assistant-operator'
 import { useCanvasOperatorRequests } from '@/hooks/node/use-canvas-operator-requests'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import { useStudioOperatorResults } from '@/hooks/use-studio-operator-results'
-import { useStudioOperatorHistory } from '@/hooks/use-studio-operator-history'
+import {
+  useStudioOperatorHistory,
+  type StudioOperatorHistoryRestore,
+} from '@/hooks/use-studio-operator-history'
+import { publishStudioOperatorActions } from '@/hooks/use-studio-operator-actions'
 import { fillOperatorChatMacros } from '@/lib/studio-operator-chat'
 import {
   getOperatorState,
@@ -198,7 +205,26 @@ function writeWidth(next: number): void {
   writeRatio(Math.min(max, Math.max(min, next)) / viewport)
 }
 
-export function StudioOperatorDock() {
+/**
+ * 面板挂在哪种容器里。
+ *
+ * - `floating`（缺省）：右侧那颗浮起的 `<aside>` + 头像开关 + 收放法则 + 拖宽；手机是底部 Sheet。
+ *   `/cards` 角色页与 `/studio` 外壳的窄屏（<1024 开着台）用它。
+ * - `column`（第 9f 步方向 E）：`/studio` 外壳中间那一栏本身就是对话 —— 面板整块铺满那一栏，
+ *   ⛔ 没有头像开关、点台就收、自己拖宽与让位（宽窄只归外壳那一根分隔线）。
+ */
+export type StudioOperatorDockVariant = 'floating' | 'column'
+
+export function StudioOperatorDock({
+  variant = 'floating',
+  restore,
+}: {
+  variant?: StudioOperatorDockVariant
+  /** 一进来载回哪一段（`/studio` 外壳按地址给，见 `StudioOperatorHistoryRestore`）。 */
+  restore?: StudioOperatorHistoryRestore
+} = {}) {
+  const column = variant === 'column'
+  const placement = useStudioOperatorDockPlacement()
   const t = useTranslations('StudioOperator')
   const tReference = useTranslations('StudioPromptArea.referenceMention')
   /**
@@ -208,7 +234,7 @@ export function StudioOperatorDock() {
    * `<StudioProvider>`。见 `contexts/studio-operator-host.tsx` 的头注。
    */
   const {
-    open,
+    open: hostOpen,
     setOpen,
     referenceImages,
     apply,
@@ -222,6 +248,8 @@ export function StudioOperatorDock() {
     attachmentsMountReferences = false,
     results,
   } = useStudioOperatorHost()
+  /** 中间那一栏就是对话本身：在场即开着（收起归外壳那根分隔线）。 */
+  const open = column || hostOpen
   const { user } = useUser()
   const userId = user?.id ?? null
   const scope = assistantThreadScope(userId)
@@ -230,6 +258,7 @@ export function StudioOperatorDock() {
     userId,
     workspace,
     projectId: hostProjectId,
+    restore: restore ?? placement.restore,
   })
   /**
    * 头像与面板落在视口的哪两个角（D7b ④）。
@@ -607,7 +636,7 @@ export function StudioOperatorDock() {
   const yieldReserve =
     width + anchor.panelRightPx + STUDIO_OPERATOR_SHELL.yieldGapPx
   useEffect(() => {
-    if (isMobile) {
+    if (isMobile || column) {
       studioOperatorYield.jump(0)
       return
     }
@@ -649,7 +678,7 @@ export function StudioOperatorDock() {
     if (!studioOperatorYield.isAnimating()) {
       studioOperatorYield.jump(phase === 'open' ? yieldReserve : 0)
     }
-  }, [phase, open, yieldReserve, isMobile, reducedMotion, slides])
+  }, [phase, open, yieldReserve, isMobile, column, reducedMotion, slides])
   /**
    * 布局 A 的面板位移：让位量走到哪，面板就滑到哪（收起位 = 整块推出右缘）。
    * ⚠ 由让位量**推出来**而不是另起一根弹簧：两根弹簧各走各的，面板与工作台之间
@@ -901,6 +930,12 @@ export function StudioOperatorDock() {
 
   /** 「和她聊」（附录L）：开一段和她的聊天会话、打开面板。 */
   const { newThread } = operator
+  /** 外壳左边列表的「新对话」用的是同一只手（第 9f 步）。 */
+  useEffect(() => {
+    const actions = { newThread: () => newThread() }
+    publishStudioOperatorActions(actions)
+    return () => publishStudioOperatorActions(null)
+  }, [newThread])
   const chatUserName = persona.addressUserAs?.trim() || tChat('you')
   useEffect(() => {
     const consume = () => {
@@ -934,7 +969,8 @@ export function StudioOperatorDock() {
    *   （画布是右上角那颗 toggle + Esc 梯），见 `studio-operator-host.tsx`。
    */
   useEffect(() => {
-    if (!open || isMobile || collapseOnOutsidePointer === false) return
+    if (!open || isMobile || column || collapseOnOutsidePointer === false)
+      return
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target
       if (!(target instanceof Element)) return
@@ -955,7 +991,7 @@ export function StudioOperatorDock() {
     document.addEventListener('pointerdown', onPointerDown, true)
     return () =>
       document.removeEventListener('pointerdown', onPointerDown, true)
-  }, [collapseOnOutsidePointer, isMobile, open, setOpen])
+  }, [collapseOnOutsidePointer, column, isMobile, open, setOpen])
 
   const handlePointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -1048,9 +1084,49 @@ export function StudioOperatorDock() {
        * ⚠ 手机是 `own`：Sheet 那条路没有 morph，头部那颗由面板自己画。
        * ⚠ 头像留在原位的宿主（布局 A）是 `none`：头像就在面板正上方那一行里。
        */
-      headerAvatar={isMobile ? 'own' : anchor.avatarStays ? 'none' : 'slot'}
+      headerAvatar={
+        column
+          ? 'none'
+          : isMobile
+            ? 'own'
+            : anchor.avatarStays
+              ? 'none'
+              : 'slot'
+      }
     />
   )
+
+  /** 设置弹层与灯箱：三种容器都要有（⋯ 菜单的落点、点图看大图的唯一去处）。 */
+  const shellLayers = (
+    <>
+      <AssistantSettingsDialog
+        open={settingsSection !== null}
+        section={settingsSection ?? ASSISTANT_SETTINGS_SECTIONS.persona}
+        onOpenChange={(next) => {
+          if (!next) setSettingsSection(null)
+        }}
+      />
+      <StudioOperatorLightbox />
+    </>
+  )
+
+  if (column) {
+    return (
+      <>
+        <section
+          aria-label={t('title')}
+          {...{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}
+          data-testid="operator-panel"
+          data-open="true"
+          data-variant="column"
+          className="assistant-type flex size-full min-h-0 min-w-0 flex-col bg-card"
+        >
+          {panel}
+        </section>
+        {shellLayers}
+      </>
+    )
+  }
 
   /**
    * ── 手机：半屏可拖 Sheet + 右下浮标（v2 §4.6 · `ui-defaults.md §6`）───────
@@ -1095,15 +1171,7 @@ export function StudioOperatorDock() {
 
         {/* 设置弹层与灯箱两条**手机上照样要有**：前者是 ⋯ 菜单的落点，后者是
             面板里点图看大图的唯一去处。⛔ 别只挂在桌面分支上。 */}
-        <AssistantSettingsDialog
-          open={settingsSection !== null}
-          section={settingsSection ?? ASSISTANT_SETTINGS_SECTIONS.persona}
-          onOpenChange={(next) => {
-            if (!next) setSettingsSection(null)
-          }}
-        />
-
-        <StudioOperatorLightbox />
+        {shellLayers}
       </>
     )
   }
@@ -1267,15 +1335,7 @@ export function StudioOperatorDock() {
       {/* 助手设置（§8.1）—— ⚠ 弹层挂在**外壳**里，与面板同生共死会被收放法则
           随手卸载掉。⛔ 别把它塞进面板：那是「点开设置、光标滑出面板，弹层
           自己没了」。 */}
-      <AssistantSettingsDialog
-        open={settingsSection !== null}
-        section={settingsSection ?? ASSISTANT_SETTINGS_SECTIONS.persona}
-        onOpenChange={(next) => {
-          if (!next) setSettingsSection(null)
-        }}
-      />
-
-      <StudioOperatorLightbox />
+      {shellLayers}
     </>
   )
 }

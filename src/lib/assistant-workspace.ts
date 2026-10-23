@@ -78,6 +78,8 @@ export function assistantWorkspaceKeyOfRow(row: {
       return 'lora'
     case 'CARDS':
       return 'cards'
+    case 'HOME':
+      return 'home'
     case 'NODE_CANVAS':
       return row.projectId ? `canvas:${row.projectId}` : null
     case 'IMAGE_STUDIO':
@@ -93,6 +95,7 @@ const BENCH_ROUTE: Record<
   'image-tags': ROUTES.STUDIO_IMAGE_TAGS,
   video: ROUTES.STUDIO_VIDEO,
   lora: ROUTES.STUDIO_LORA,
+  home: ROUTES.STUDIO,
 }
 
 /** 开台（第 9e 步）去哪一页：画布带 `?project=<id|new>`，角色页带打开哪一位。 */

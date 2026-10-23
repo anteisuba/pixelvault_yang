@@ -311,6 +311,7 @@ const HISTORY = {
   isHydrating: false,
   error: null,
   selectSession: vi.fn(),
+  openSession: vi.fn(),
   retrySave: vi.fn().mockResolvedValue(true),
   loadingSessionId: null,
   renamingSessionId: null,

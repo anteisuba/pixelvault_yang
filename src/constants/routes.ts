@@ -19,6 +19,11 @@ export const ROUTES = {
 
   /** Protected pages */
   STUDIO: '/studio',
+  /**
+   * 一段对话自己的地址（第 9f 步方向 E）：`/studio/c/<编号>` = 只有对话、没开台；
+   * 开着台时对话跟在台的地址后面（`?c=<编号>`，见 `STUDIO_CONVERSATION_QUERY`）。
+   */
+  STUDIO_CONVERSATION: '/studio/c',
   STUDIO_IMAGE: '/studio/image',
   /**
    * 标签台（D10 ⑤）。与 `/studio/image` **同壳**：结果区 / 参考轨 / 助手 /
@@ -59,6 +64,14 @@ export const ROUTES = {
    */
   MY_PROFILE: '/u/me',
 } as const
+
+/** 开着台时，对话编号跟在台地址后面的那一格（`/studio/image?c=<编号>`）。 */
+export const STUDIO_CONVERSATION_QUERY = 'c'
+
+/** `/studio/c/<编号>`：只有对话、没开台的那段对话。 */
+export function studioConversationPath(id: string): string {
+  return `${ROUTES.STUDIO_CONVERSATION}/${encodeURIComponent(id)}`
+}
 
 /** Build a creator profile URL from username */
 export function creatorProfilePath(username: string): string {

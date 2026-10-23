@@ -173,6 +173,7 @@ const hostDomain = vi.hoisted(() => ({
 const hostWorkspace = vi.hoisted(() => ({ current: 'image-natural' }))
 
 vi.mock('@/contexts/studio-operator-host', () => ({
+  useStudioOperatorBenchKey: () => undefined,
   useStudioOperatorHost: () => ({
     domain: hostDomain.current,
     workspace:

@@ -31,7 +31,7 @@ import { StudioStageSwap } from '@/components/business/studio-shared/chrome/Stud
 import { StudioDialectHeader } from '@/components/business/studio/tags/StudioDialectHeader'
 import { StudioImageEditWorkspace } from '@/components/business/studio-shared/editor/StudioImageEditWorkspace'
 import type { StudioImageEditTarget } from '@/components/business/studio-shared/editor/StudioImageEditStage'
-import { StudioOperatorDock } from '@/components/business/studio/assistant-operator'
+import { StudioOperatorBenchDock } from '@/components/business/studio/assistant-operator'
 import { StudioKeepChangePanel } from '@/components/business/image/StudioKeepChangePanel'
 
 import {
@@ -595,7 +595,7 @@ export function StudioWorkspaceUI() {
           </StudioImageEditWorkspace>
         </motion.div>
         {/* 助手：三档（图片 / 视频 / 配音）都是同一个操作员面板（第 9c 步切给所有人）。 */}
-        <StudioOperatorDock />
+        <StudioOperatorBenchDock />
       </div>
 
       {/* 工具面板 —— 原来挂在 `StudioBottomDock` 上，dock 一退役就必须改挂

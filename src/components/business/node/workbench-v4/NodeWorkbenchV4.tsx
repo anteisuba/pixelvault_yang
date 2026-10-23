@@ -178,7 +178,10 @@ import { useWorkbenchRosterDropV4 } from './WorkbenchRosterDropV4'
 import { useOpenKeySettings } from '@/hooks/use-open-key-settings'
 import { KeySettingsContext } from './shell/ShellKeySettings'
 import { StudioOperatorDock } from '@/components/business/studio/assistant-operator'
-import { StudioOperatorHostProvider } from '@/contexts/studio-operator-host'
+import {
+  StudioOperatorHostProvider,
+  useStudioOperatorDockPlacement,
+} from '@/contexts/studio-operator-host'
 import { useCanvasOperatorHost } from '@/hooks/node/use-canvas-operator-host'
 import { ShellBottomBar } from './shell/ShellBottomBar'
 import { ShellPaneMenu, ShellQuickAdd } from './shell/ShellCanvasMenus'
@@ -318,6 +321,7 @@ function NodeWorkbenchV4Inner() {
   const openKeySettings = useContext(KeySettingsContext)
   /** < 768 = 镜头带视图（桌面 ReactFlow 不挂载）。 */
   const isPhone = useIsMobile()
+  const dockPlacement = useStudioOperatorDockPlacement()
 
   // Clerk userId 给 store 划分本地槽与服务端调用；未加载时传 null = 停在空态，
   // ⛔ 不泄漏上一个账号的快照。
@@ -1783,6 +1787,13 @@ function NodeWorkbenchV4Inner() {
    * 剪辑台在手机上**只看不剪**（`readOnly`）：时间线不可拖、工具条与右栏不出，
    * 只留 预览 + 导出进度 + 下载成片。
    */
+  /**
+   * 助手面板（第 9f 步）：≥1024 由 `/studio` 外壳中间那一栏挂着，画布这里 ⛔ 再挂一份；
+   * 更窄照旧挂在画布自己的助手槽里。
+   */
+  const benchDock =
+    dockPlacement.owner === 'bench' ? <StudioOperatorDock /> : null
+
   if (isPhone) {
     return (
       <StudioOperatorHostProvider host={operatorHost}>
@@ -1816,7 +1827,7 @@ function NodeWorkbenchV4Inner() {
                 onOpenAssistant={() => {
                   setAssistantOpen(!assistantOpen)
                 }}
-                assistant={<StudioOperatorDock />}
+                assistant={benchDock}
                 onAddShot={addShotAtRailEnd}
                 onUploadFiles={(files) =>
                   dnd.dropFilesAtFlow(files, looseAreaSpawn(graph.nodes.length))
@@ -1867,7 +1878,7 @@ function NodeWorkbenchV4Inner() {
            * 三处共用同一份行为）。留着它等于两层各管一半宽度 —— 那是「拖到一半
            * 弹回去」的形状。
            */
-          assistant={editMode ? null : <StudioOperatorDock />}
+          assistant={editMode ? null : benchDock}
         >
           <IngestDragProviderV4
             nodes={graph.nodes}
@@ -2107,7 +2118,7 @@ function NodeWorkbenchV4Inner() {
                     onBackToNode={backToNodeFromEditDesk}
                     initialNodeIds={editDeskSeed}
                     onInitialConsumed={() => setEditDeskSeed([])}
-                    assistant={<StudioOperatorDock />}
+                    assistant={benchDock}
                     subscribeRemoteChange={subscribeDeskRemoteChange}
                     restoreState={restoreDeskState}
                   />

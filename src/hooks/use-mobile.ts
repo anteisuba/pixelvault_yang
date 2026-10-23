@@ -55,3 +55,26 @@ export function useIsTablet() {
     isTabletWidth,
   )
 }
+
+/**
+ * ≥1024（`desk:`）：`/studio` 外壳三层摆开的那一档（第 9f 步）。
+ * ⚠ 三态：还没量出来 = `undefined`（首帧，与 SSR 一致）—— 外壳靠它决定面板挂在哪儿，
+ *   量出来之前哪边都不挂，⛔ 先挂一份再换一份（会多开一条流、多认领一次作用域）。
+ */
+export function useIsDesk(): boolean | undefined {
+  const [flag, setFlag] = React.useState<boolean | undefined>(undefined)
+
+  React.useEffect(() => {
+    if (typeof window.matchMedia !== 'function') {
+      setFlag(false)
+      return
+    }
+    const mql = window.matchMedia(`(min-width: ${DESK_BREAKPOINT}px)`)
+    const onChange = () => setFlag(mql.matches)
+    mql.addEventListener('change', onChange)
+    setFlag(mql.matches)
+    return () => mql.removeEventListener('change', onChange)
+  }, [])
+
+  return flag
+}

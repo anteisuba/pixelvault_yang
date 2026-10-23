@@ -13,16 +13,16 @@ import { test, expect } from '@playwright/test'
  * regions via the `mask` option (e.g. mask: [page.locator('[data-canvas]')]).
  */
 test('studio shell', async ({ page }) => {
-  await page.goto('/en/studio')
-  await page.waitForURL(/\/studio\/image/) // follow the thin redirect to workspace
+  // `/studio` 本身是创作首页（第 9f 步），工作台壳从图片台看。
+  await page.goto('/en/studio/image')
 
   // Never baseline / diff against a broken route (404 keeps the /studio URL).
   await expect(page.getByText('This page could not be found')).toHaveCount(0)
 
   // studio is app-like (HMR socket, Clerk polling) so `networkidle` never
-  // settles — wait for the sidebar shell to render instead. toHaveScreenshot's
+  // settles — wait for the studio shell to render instead. toHaveScreenshot's
   // retry handles the remaining settle (fonts/animations frozen below).
-  await expect(page.locator('[data-sidebar="sidebar"]').first()).toBeVisible()
+  await expect(page.getByTestId('studio-shell')).toBeVisible()
 
   await expect(page).toHaveScreenshot('studio.png', {
     fullPage: true,

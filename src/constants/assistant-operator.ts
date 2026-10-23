@@ -1749,6 +1749,7 @@ export const ASSISTANT_OPERATOR_DOMAINS = [
   ASSISTANT_PROTOCOL_DOMAIN_IDS.lora,
   ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas,
   ASSISTANT_PROTOCOL_DOMAIN_IDS.cards,
+  ASSISTANT_PROTOCOL_DOMAIN_IDS.home,
 ] as const satisfies readonly AssistantProtocolDomain[]
 
 export type AssistantOperatorDomain =
@@ -2069,6 +2070,22 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
     ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages,
     /** S14：用户说了才对一下设定和外观（只报身份级矛盾，衣服不算）。 */
     ASSISTANT_OPERATOR_TOOL_IDS.checkCharacterLook,
+  ],
+  /**
+   * 首页（第 9f 步）：还没开台。只读、搜库搜网、查证据本 —— ⛔ 没有表单旋钮、没有花钱档；
+   * 要干活就开台（新内核 `open`）。
+   */
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.home]: [
+    ASSISTANT_OPERATOR_TOOL_IDS.readState,
+    ASSISTANT_OPERATOR_TOOL_IDS.searchAssets,
+    ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders,
+    ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder,
+    ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+    ASSISTANT_OPERATOR_TOOL_IDS.searchWebVideos,
+    ASSISTANT_OPERATOR_TOOL_IDS.searchWeb,
+    ASSISTANT_OPERATOR_TOOL_IDS.research,
+    ASSISTANT_OPERATOR_TOOL_IDS.readUrl,
+    ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence,
   ],
 }
 

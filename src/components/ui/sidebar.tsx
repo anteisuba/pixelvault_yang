@@ -193,12 +193,15 @@ function Sidebar({
   variant = 'sidebar',
   collapsible = 'offcanvas',
   className,
+  rootClassName,
   children,
   ...props
 }: React.ComponentProps<'div'> & {
   side?: 'left' | 'right'
   variant?: 'sidebar' | 'floating' | 'inset'
   collapsible?: 'offcanvas' | 'icon' | 'none'
+  /** 桌面档最外那一层（含让位的缝）的类，如在某些路由上整条藏起来。 */
+  rootClassName?: string
 }) {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
   const t = useTranslations('Common')
@@ -246,7 +249,10 @@ function Sidebar({
 
   return (
     <div
-      className="group peer hidden text-sidebar-foreground lg:block"
+      className={cn(
+        'group peer hidden text-sidebar-foreground lg:block',
+        rootClassName,
+      )}
       data-state={state}
       data-collapsible={state === 'collapsed' ? collapsible : ''}
       data-variant={variant}

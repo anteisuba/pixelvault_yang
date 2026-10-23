@@ -120,7 +120,8 @@ export const SHELL_NAV_TOOLS: readonly ShellNavItem[] = [
     href: ROUTES.STUDIO_IMAGE,
     icon: ImageIcon,
     labelKey: 'StudioTools.tools.image.label',
-    activePaths: [ROUTES.STUDIO, ROUTES.STUDIO_IMAGE, ROUTES.STUDIO_IMAGE_TAGS],
+    // ⚠ `/studio` 本身是创作首页（第 9f 步），⛔ 再算进图片台。
+    activePaths: [ROUTES.STUDIO_IMAGE, ROUTES.STUDIO_IMAGE_TAGS],
   },
   {
     id: 'video',
@@ -316,3 +317,12 @@ export const SHELL_CANVAS_BOTTOM_ENTRIES: readonly ShellNavCanvasEntry[] =
   SHELL_NAV_CANVAS_ORDER.filter(
     (id) => !SHELL_NAV_CANVAS_SIDEBAR_IDS.includes(id),
   ).map((id) => SHELL_NAV_CANVAS_ENTRY_BY_ID[id])
+
+/**
+ * ≥1024 的 `/studio` 外壳里全站侧栏让给了外壳左栏（第 9f 步），侧栏「画布」下面那几格
+ * 改长在画布底栏上（只在 `desk:` 露出来）。「历史对话」不搬 —— 外壳左栏就是对话列表。
+ */
+export const SHELL_CANVAS_DESK_BOTTOM_ENTRIES: readonly ShellNavCanvasEntry[] =
+  SHELL_NAV_CANVAS_ENTRIES.filter(
+    (entry) => entry.id !== CANVAS_SHELL_PANEL_IDS.history,
+  )

@@ -25,9 +25,19 @@
  * 模块单例反而会在两个页面之间留一份陈旧的手 —— 而那是没人会去查的失败。
  */
 
-import { createContext, useContext, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 
 import type { LucideIcon } from '@/components/icons'
+import type { StudioOperatorHistoryRestore } from '@/hooks/use-studio-operator-history'
 
 import type { AssistantOperatorDomain } from '@/constants/assistant-operator'
 import type { NodeWorkflowStatus } from '@/constants/node-types'
@@ -284,6 +294,29 @@ export interface StudioOperatorHost {
 
 const StudioOperatorHostContext = createContext<StudioOperatorHost | null>(null)
 
+/**
+ * **台登记口**（第 9f 步，方向 E）：`/studio` 外壳只挂**一份**面板，台反过来把自己交给它。
+ *
+ * ⭐ 台照旧用 `StudioOperatorHostProvider` 包住自己（台里的 ✦ 归属标记、就地确认条读的
+ *   还是最近那一层）；外壳在的时候，同一个 Provider 顺手把宿主登记上去 —— 进场登记、
+ *   每次换新宿主就换上去、离场注销。外壳里的面板读登记口最新那一份。
+ * ⚠ 嵌套时取**最里面**那一份（按层数，同层取后登记的）。
+ * ⚠ 没有外壳（`/cards` 角色页）时 Provider 只做原来那件事，面板照旧挂在页面里。
+ */
+interface StudioOperatorHostSlot {
+  set(token: string, host: StudioOperatorHost, depth: number): void
+  remove(token: string): void
+}
+
+/** 第几层台（外层 1、嵌进去的 2…）：子组件的 layout effect 先跑，挂载顺序说明不了谁在里面。 */
+const StudioOperatorHostDepthContext = createContext(0)
+
+const StudioOperatorHostSlotContext =
+  createContext<StudioOperatorHostSlot | null>(null)
+
+/** 此刻在场的是哪一次登记（`null` = 首页，没有台）。换了 = 换了台。 */
+const StudioOperatorBenchKeyContext = createContext<string | null>(null)
+
 export function StudioOperatorHostProvider({
   host,
   children,
@@ -291,10 +324,72 @@ export function StudioOperatorHostProvider({
   host: StudioOperatorHost
   children: ReactNode
 }) {
+  const slot = useContext(StudioOperatorHostSlotContext)
+  const depth = useContext(StudioOperatorHostDepthContext) + 1
+  const token = useId()
+  // ⚠ layout effect：台挂上的那一帧面板就该换到这个台，⛔ 不先画一帧「首页」。
+  useLayoutEffect(() => {
+    slot?.set(token, host, depth)
+  }, [slot, token, host, depth])
+  useLayoutEffect(() => () => slot?.remove(token), [slot, token])
   return (
-    <StudioOperatorHostContext.Provider value={host}>
-      {children}
-    </StudioOperatorHostContext.Provider>
+    <StudioOperatorHostDepthContext.Provider value={depth}>
+      <StudioOperatorHostContext.Provider value={host}>
+        {children}
+      </StudioOperatorHostContext.Provider>
+    </StudioOperatorHostDepthContext.Provider>
+  )
+}
+
+/**
+ * 外壳那一层：收台登记、把**此刻在场的台**（没有台 = `fallback`，首页那张脸）交给
+ * `children` 里的面板。返回值的 `bench` = 有没有台登记着。
+ */
+export function StudioOperatorHostSlotProvider({
+  fallback,
+  children,
+}: {
+  fallback: StudioOperatorHost
+  children: (state: { host: StudioOperatorHost; bench: boolean }) => ReactNode
+}) {
+  const [entries, setEntries] = useState<
+    readonly { token: string; host: StudioOperatorHost; depth: number }[]
+  >([])
+  const set = useCallback(
+    (token: string, host: StudioOperatorHost, depth: number) => {
+      setEntries((current) => {
+        const index = current.findIndex((entry) => entry.token === token)
+        if (index === -1) return [...current, { token, host, depth }]
+        const existing = current[index]!
+        if (existing.host === host && existing.depth === depth) return current
+        const next = [...current]
+        next[index] = { token, host, depth }
+        return next
+      })
+    },
+    [],
+  )
+  const remove = useCallback((token: string) => {
+    setEntries((current) =>
+      current.some((entry) => entry.token === token)
+        ? current.filter((entry) => entry.token !== token)
+        : current,
+    )
+  }, [])
+  const slot = useMemo(() => ({ set, remove }), [set, remove])
+  const active = entries.reduce<(typeof entries)[number] | null>(
+    (best, entry) => (!best || entry.depth >= best.depth ? entry : best),
+    null,
+  )
+  const host = active?.host ?? fallback
+  return (
+    <StudioOperatorHostSlotContext.Provider value={slot}>
+      <StudioOperatorBenchKeyContext.Provider value={active?.token ?? null}>
+        <StudioOperatorHostContext.Provider value={host}>
+          {children({ host, bench: active !== null })}
+        </StudioOperatorHostContext.Provider>
+      </StudioOperatorBenchKeyContext.Provider>
+    </StudioOperatorHostSlotContext.Provider>
   )
 }
 
@@ -310,4 +405,44 @@ export function useStudioOperatorHost(): StudioOperatorHost {
     )
   }
   return host
+}
+
+/**
+ * 外壳里此刻是哪个台（登记号）；不在外壳里 = `undefined`。
+ * ⚠ 面板只挂一份之后换台不再卸载面板 —— 「换台就掐掉在飞的流」靠它判。
+ */
+export function useStudioOperatorBenchKey(): string | null | undefined {
+  const inShell = useContext(StudioOperatorHostSlotContext) !== null
+  const key = useContext(StudioOperatorBenchKeyContext)
+  return inShell ? key : undefined
+}
+
+/** 这一层在不在 `/studio` 外壳里（在的话面板由外壳挂，台上别再挂一份）。 */
+export function useInStudioOperatorShell(): boolean {
+  return useContext(StudioOperatorHostSlotContext) !== null
+}
+
+/**
+ * 面板这一份挂在哪儿（第 9f 步）：
+ * - `shell`：≥1024，外壳中间那一栏挂着 —— 台上 ⛔ 再挂；
+ * - `bench`：更窄（或不在外壳里，如 `/cards`）—— 台照旧自己挂（浮起的那一颗）；
+ * - `pending`：外壳还没量出屏宽 —— 哪边都先别挂。
+ * `restore` = 这次页面加载一进来载回哪一段（地址说了算），挂在哪儿都按它水化。
+ */
+export interface StudioOperatorDockPlacement {
+  owner: 'shell' | 'bench' | 'pending'
+  restore: StudioOperatorHistoryRestore
+}
+
+const StudioOperatorDockPlacementContext =
+  createContext<StudioOperatorDockPlacement>({
+    owner: 'bench',
+    restore: 'latest',
+  })
+
+export const StudioOperatorDockPlacementProvider =
+  StudioOperatorDockPlacementContext.Provider
+
+export function useStudioOperatorDockPlacement(): StudioOperatorDockPlacement {
+  return useContext(StudioOperatorDockPlacementContext)
 }

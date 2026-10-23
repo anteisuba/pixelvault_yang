@@ -128,6 +128,7 @@ export type BenchFace =
   | typeof ASSISTANT_V3_FACE_IDS.video
   | typeof ASSISTANT_V3_FACE_IDS.cards
   | typeof ASSISTANT_V3_FACE_IDS.canvas
+  | typeof ASSISTANT_V3_FACE_IDS.home
 
 const BENCH_FACES: readonly string[] = [
   ASSISTANT_V3_FACE_IDS.image,
@@ -135,6 +136,7 @@ const BENCH_FACES: readonly string[] = [
   ASSISTANT_V3_FACE_IDS.video,
   ASSISTANT_V3_FACE_IDS.cards,
   ASSISTANT_V3_FACE_IDS.canvas,
+  ASSISTANT_V3_FACE_IDS.home,
 ]
 
 /** 每台 `edit` 能用哪几种改法（台上没有的那一格回一句说明，列出这台有的）。 */
@@ -179,7 +181,12 @@ const OPS_BY_FACE: Record<BenchFace, readonly AssistantNextEditOp[]> = {
   ],
   [ASSISTANT_V3_FACE_IDS.cards]: [OP.proposeProfile, OP.proposeImages],
   [ASSISTANT_V3_FACE_IDS.canvas]: CANVAS_OPS,
+  // 首页没有台：只有到哪儿都能用的改库 / 设置 / 记忆那几种（`isLibraryOp`）。
+  [ASSISTANT_V3_FACE_IDS.home]: [],
 }
+
+/** 首页的板子（第 9f 步）：没有台，说清能做什么、要干活先开台。 */
+const HOME_BOARD = `HOME — no bench is open: the creator is on the home page, talking with you before any work starts. There is no form here to change and nothing to generate. Talk the idea through; find and look work as usual, and library / settings / memory edits work everywhere. When it is time to make something, open the bench it belongs on (image, tags, video, lora, canvas, character) and carry on there.`
 
 export interface BenchResult {
   readonly output: string
@@ -273,6 +280,8 @@ export function renderBench(
       ? '\nLET AI GENERATE: on — generate starts at once, every card you list (no picture limit on the canvas).'
       : `\nLET AI GENERATE: on — generate starts at once, at most ${ASSISTANT_AUTO_GENERATE_LIMITS.maxOutputsPerRound} pictures in this message.`
     : ''
+  if (context.face === ASSISTANT_V3_FACE_IDS.home)
+    return HOME_BOARD.concat(aliases ? `\n${aliases}` : '')
   if (context.face === ASSISTANT_V3_FACE_IDS.canvas)
     return renderCanvasBoard(context, attachedNames, latestUserText)
       .concat(aliases ? `\n${aliases}` : '')
@@ -1081,6 +1090,12 @@ export async function* runGenerate(
   context: V3Context,
   input: GenerateInput,
 ): AsyncGenerator<AssistantOperatorEvent, BenchResult> {
+  if (context.face === ASSISTANT_V3_FACE_IDS.home)
+    return {
+      output:
+        'Nothing is generated on the home page. Open the bench the picture belongs on (open image / tags / video / lora / canvas), set it up there, then generate.',
+      error: true,
+    }
   if (context.face === ASSISTANT_V3_FACE_IDS.cards)
     return {
       output:

@@ -676,7 +676,7 @@
       "moveWorkAccepted": "{subject}",
       "moveWorkDeclined": "{subject}",
       "moveWorkDroppedReferences": "有 {subject} 张参考图没带过去（超过上限或还没传完）。",
-      "autoGenerateHeld": "这次要出 {subject} 张，超过自动生成单轮 4 张的上限 —— 没替你按，确认后再出。"
+      "autoGenerateHeld": "这次要出 {subject} 张，超过「交给 AI 出图」每句话 4 张的上限 —— 没替你按，确认后再出。"
     },
     "attach": {
       "latestResult": "最新 · {label}",
@@ -1105,7 +1105,15 @@
       "message": "出图了，对照参考图帮我看一眼哪里不对。"
     },
     "autoGenerate": {
-      "label": "自动生成"
+      "label": "交给 AI 出图"
+    },
+    "continueAsk": {
+      "header": "接下来",
+      "question": "按这个方向继续吗？",
+      "continue": "继续",
+      "continueDescription": "看看这批图，按这个方向改着再出",
+      "change": "换个方向",
+      "changeDescription": "先停在这里，告诉我想换成什么样"
     },
     "outOfSteps": {
       "note": "这一轮的步数用完了，已经落下的改动都保留着。",

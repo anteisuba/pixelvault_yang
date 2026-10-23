@@ -495,7 +495,7 @@ const DESCRIPTIONS = {
   edit: 'Change the bench, the creator\'s library (pictures, folders, characters and looks, LoRAs, saved prompts), or their settings (model channels, assistant settings, search source lists). All changes for one request go in ONE call, applied in order; each lands at once and can be undone. For the prompt prefer mode "edit" with exact {find, replace} pairs so everything else stays as it is.',
   ask: 'Ask the creator when you cannot go on without their choice. Puts a card with options in front of them and ends this turn until they answer.',
   generate:
-    'Put a generation confirm card in front of the creator for what is on the bench now. Nothing is spent until they press it. Ends this turn.',
+    'Generate one batch of what is on the bench now: starts at once when LET AI GENERATE is on, otherwise a confirm card the creator presses. Ends this turn.',
 } as const
 
 /** 交给 `streamText` 的那一份：只有描述与 JSON schema，⛔ 没有 execute（循环自己执行）。 */

@@ -57,6 +57,13 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
   - `search_source`：搜图来源白 / 黑名单加一项（全部台）或拿掉一项；撤销删掉刚加的 / 按原样记回去。
 - `look 设置` 现在列出渠道、助手设置每一格的当前值、两张来源名单。
 
+**第 5 步**（owner 10-23）：
+
+- 5a 按账号排队在 Worker 里（见 `backend.md`「按账号排队」）：同一账号同时几张见 `IMAGE_ACCOUNT_CONCURRENCY`，429 退回去等。
+- 5b 面板开关改名「交给 AI 出图」。开着时浏览器替创作者按出图卡（一句话最多 4 张，超了照旧摆卡），关着时创作者自己按；台面末尾多一行 `LET AI GENERATE: on` 告诉模型。
+  - 不管开不开，图落地后 ⛔ 不自动看图，钉一张「按这个方向继续吗？」（继续 / 换个方向，`use-assistant-operator` 的 `then: 'ask'`）。点了或直接打字，助手才看 `result-N`、接着改。
+  - 「先问我」（`planMode`）新内核本来就不读，不管出图。
+
 **过程记录**：照写 `AssistantTurnRecord`，`promptVersion = next-YYYY-MM-DD`；本轮记录投成 v3 形状（自带联网记成 `search_web`、`find` 记成 `search_library`），评测工具照用。
 
 ## 3. 没验证的（2026-10-23）

@@ -676,7 +676,7 @@
       "moveWorkAccepted": "{subject}",
       "moveWorkDeclined": "{subject}",
       "moveWorkDroppedReferences": "{subject} reference image(s) were left behind (over the limit or not uploaded yet).",
-      "autoGenerateHeld": "This card would make {subject} pictures, over the auto-generate limit of 4 per turn. It was not pressed for you; confirm it to run."
+      "autoGenerateHeld": "This card would make {subject} pictures, over the Let AI generate limit of 4 per message. It was not pressed for you; confirm it to run."
     },
     "attach": {
       "latestResult": "Latest · {label}",
@@ -1105,7 +1105,15 @@
       "message": "The picture is out — check it against the references and tell me what is off."
     },
     "autoGenerate": {
-      "label": "Auto-generate"
+      "label": "Let AI generate"
+    },
+    "continueAsk": {
+      "header": "Next",
+      "question": "Keep going in this direction?",
+      "continue": "Continue",
+      "continueDescription": "Look at this batch, refine it and generate again",
+      "change": "Change direction",
+      "changeDescription": "Stop here and tell me what you want instead"
     },
     "outOfSteps": {
       "note": "This turn ran out of steps. Everything that already landed is kept.",

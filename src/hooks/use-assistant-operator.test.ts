@@ -4516,3 +4516,75 @@ describe('聊天会话 · 重新生成（附录L 第二片）', () => {
     expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(1)
   })
 })
+
+/**
+ * 新内核「交给 AI 出图」（第 5b 步）：⛔ 不自动看图；出完都停下问「按这个方向继续吗？」。
+ */
+describe('新内核：出完就停，问要不要继续', () => {
+  async function generateOnNext(autoGenerate: boolean) {
+    localStorage.setItem('antei:assistant-kernel', 'next')
+    generationControls.current = null
+    const hook = render()
+    if (autoGenerate) act(() => store.setOperatorAutoGenerate(true))
+    act(() => hook.result.current.send('出一张看看'))
+    await settle()
+    streams[0].emit(generateConfirmEvent())
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.stopped,
+      reason: 'awaiting_confirm',
+    })
+    streams[0].close()
+    await settle()
+    return hook
+  }
+
+  function landResult() {
+    const result = store
+      .getOperatorState()
+      .entries.find((entry) => entry.kind === 'result')
+    if (!result || result.kind !== 'result') throw new Error('no result card')
+    act(() =>
+      store.updateOperatorResult(result.id, {
+        items: [{ id: 'gen-1', url: 'https://cdn.test/1.png', label: '图_1' }],
+        completed: 1,
+      }),
+    )
+  }
+
+  it.each([true, false])(
+    '交给 AI 出图 = %s：图落地后挂一张「继续 / 换个方向」，⛔ 不自己发一轮去看',
+    async (autoGenerate) => {
+      const { result, rerender } = await generateOnNext(autoGenerate)
+      if (!autoGenerate) act(() => result.current.confirmGeneration())
+      expect(triggerGeneration).toHaveBeenCalledTimes(1)
+      expect(store.getOperatorState().question).toBeNull()
+
+      landResult()
+      rerender()
+      await settle()
+
+      expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(1)
+      const question = store.getOperatorState().question?.questions[0]
+      expect(question).toMatchObject({
+        question: 'i18n:question',
+        options: [
+          expect.objectContaining({ label: 'i18n:continue' }),
+          expect.objectContaining({ label: 'i18n:change' }),
+        ],
+      })
+    },
+  )
+
+  it('用户先开口了：这一批不再问', async () => {
+    const { result, rerender } = await generateOnNext(true)
+    act(() => result.current.send('先别管这张'))
+    await settle()
+    streams[1].emit({ type: 'done' })
+    streams[1].close()
+    await settle()
+    landResult()
+    rerender()
+    await settle()
+    expect(store.getOperatorState().question).toBeNull()
+  })
+})

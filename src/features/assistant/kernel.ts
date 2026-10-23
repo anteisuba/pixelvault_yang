@@ -121,7 +121,8 @@ import {
  *  · 思考档整轮用创作者选的那一档；
  *  · 工具入参宽进（`parseToolInput`），读不懂才回一句哪一格不对，⛔ 不按家族判死。
  *
- * ⛔ 钱闸不变：`generate` 只出确认卡，按下去的是创作者。
+ * ⛔ 钱闸不变：`generate` 只出确认卡；扳机在浏览器——「交给 AI 出图」开着时浏览器替创作者按
+ *   （一句话最多 4 张），关着时创作者自己按。出完都停下问「按这个方向继续吗？」（第 5b 步）。
  */
 
 const EMPTY_REPLY: Record<PromptAssistantResponseLanguage, string> = {

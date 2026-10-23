@@ -676,7 +676,7 @@
       "moveWorkAccepted": "{subject}",
       "moveWorkDeclined": "{subject}",
       "moveWorkDroppedReferences": "参照画像 {subject} 枚は持っていけませんでした（上限超過、またはアップロード未完了）。",
-      "autoGenerateHeld": "このカードは {subject} 枚を生成します。自動生成の上限（1 ターン 4 枚）を超えるため自動では押していません。確認すると生成します。"
+      "autoGenerateHeld": "このカードは {subject} 枚を生成します。「AI に生成を任せる」の上限（1 メッセージ 4 枚）を超えるため自動では押していません。確認すると生成します。"
     },
     "attach": {
       "latestResult": "最新 · {label}",
@@ -1105,7 +1105,15 @@
       "message": "画像ができました。参照と見比べて、ずれているところを教えて。"
     },
     "autoGenerate": {
-      "label": "自動生成"
+      "label": "AI に生成を任せる"
+    },
+    "continueAsk": {
+      "header": "次は",
+      "question": "この方向で続けますか？",
+      "continue": "続ける",
+      "continueDescription": "この結果を見て、同じ方向で直してもう一度生成します",
+      "change": "方向を変える",
+      "changeDescription": "ここで止めて、どう変えたいか教えてください"
     },
     "outOfSteps": {
       "note": "このターンのステップ数が上限に達しました。反映済みの変更はそのまま残っています。",

@@ -5,6 +5,7 @@ import {
   assistantAdapterVideoTier,
 } from '@/constants/assistant'
 import {
+  ASSISTANT_AUTO_GENERATE_LIMITS,
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_LIMITS,
   ASSISTANT_OPERATOR_TOOL_IDS,
@@ -280,6 +281,11 @@ export function renderBench(
       'use these names with look and edit add_reference',
     )
     .concat(aliases ? `\n${aliases}` : '')
+    .concat(
+      context.request.autoGenerate
+        ? `\nLET AI GENERATE: on — generate starts at once, at most ${ASSISTANT_AUTO_GENERATE_LIMITS.maxOutputsPerRound} pictures in this message.`
+        : '',
+    )
 }
 
 const NOTHING_TO_DO = 'Nothing was changed.'

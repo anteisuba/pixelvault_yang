@@ -140,7 +140,7 @@ export const ASSISTANT_NEXT_LORA_PARAM_KEYS: Readonly<Record<string, string>> =
   }
 
 /** 过程记录里标「这一轮是新内核跑的」（`AssistantTurnRecord.promptVersion`）。改系统提示时一起换。 */
-export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-10-23d'
+export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-10-23e'
 
 export const ASSISTANT_NEXT_LIMITS = {
   /** 带给模型的对话：最近这么多条、这么多字以内（上下文压缩是第 6 步）。 */

@@ -9671,8 +9671,12 @@ export async function planTool(
     run.nextKernel === true &&
     tool === TOOL.mountLora &&
     run.request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.lora
+  // 新内核在任何台上都能改素材库（第 4b 步），角色页也一样。
+  const nextKernelLibrary =
+    run.nextKernel === true && NEXT_KERNEL_LIBRARY_TOOLS.has(tool)
   if (
     !nextKernelMount &&
+    !nextKernelLibrary &&
     !isAssistantOperatorToolInDomain(tool, run.request.domain)
   ) {
     return reject(
@@ -10068,10 +10072,22 @@ export async function planTool(
         parsed.data as { characterId: string },
         userId,
       )
+    // 新内核改库（第 4b 步）自己落、自己出步骤，⛔ 不经这里。
+    case TOOL.libraryWrite:
+      return reject(REJECT.noSuchControl, `${tool} is not planned here.`)
     default:
       return assertNever(tool)
   }
 }
+
+/** 新内核任何台都能用的素材库那几条（准入按 userId 查库，与台无关）。 */
+const NEXT_KERNEL_LIBRARY_TOOLS: ReadonlySet<AssistantOperatorTool> = new Set([
+  TOOL.tagAsset,
+  TOOL.favoriteAsset,
+  TOOL.createFolder,
+  TOOL.addToFolder,
+  TOOL.setReviewState,
+])
 
 function assertNever(value: never): never {
   throw new Error(`Unhandled assistant operator tool: ${String(value)}`)

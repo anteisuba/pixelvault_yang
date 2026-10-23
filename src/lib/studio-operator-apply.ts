@@ -27,6 +27,7 @@ import {
   ASSISTANT_OPERATOR_TOOL_IDS,
   ASSISTANT_OPERATOR_VERB_IDS,
   ASSISTANT_OPERATOR_WRITE_MODES,
+  type AssistantLibraryWriteKind,
   type AssistantOperatorDomain,
   type AssistantOperatorReferenceSlot,
   type GenerationReviewState,
@@ -384,6 +385,11 @@ export interface StudioOperatorApplyContext {
    * ⚠ 返回真实撤销回执；缺席或未撤完整时调用方保留可重试的步骤。
    */
   revertAssetWrite?(input: AssistantAssetWriteRevert): Promise<boolean>
+  /**
+   * 新内核改了库（第 4b 步：角色、造型、LoRA、提示词库）或撤销了一条：页上手里那份要重读。
+   * 宿主没接就不刷新（换页时自然是新的）。
+   */
+  libraryChanged?(kind: AssistantLibraryWriteKind): void
 }
 
 /** 清晰度的收窄 —— 直接问 schema，不在这里抄一份 `['auto','1K','2K','4K']`。 */
@@ -926,6 +932,10 @@ export function applyOperatorStep(
     case ASSISTANT_OPERATOR_TOOL_IDS.createFolder:
     case ASSISTANT_OPERATOR_TOOL_IDS.addToFolder:
       return null
+    /** 新内核改库（第 4b 步）：同上，后果在库里；页上那份重读一下。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.libraryWrite:
+      ctx.libraryChanged?.(step.payload.kind)
+      return null
 
     /**
      * 请求发送（§6 花钱档）—— 这一跳就是「客户端扣扳机」本身。
@@ -1293,6 +1303,18 @@ export function revertOperatorStep(
           assetIds: step.inverse.assetIds,
         }) ?? false
       )
+    /** 新内核改库（第 4b 步）：原值交回服务端写回；成了页上那份重读。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.libraryWrite: {
+      const undo = ctx.revertAssetWrite?.({
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.libraryWrite,
+        inverse: step.inverse,
+      })
+      if (!undo) return false
+      return undo.then((ok) => {
+        if (ok) ctx.libraryChanged?.(step.payload.kind)
+        return ok
+      })
+    }
   }
 }
 

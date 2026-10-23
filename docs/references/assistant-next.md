@@ -34,11 +34,20 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 **第 4a 步**（owner 10-23：拆 4a 台 / 4b 库 / 4c 设置）：
 
 - 接上的台：图片、LoRA、视频、角色页（`ASSISTANT_NEXT_DOMAINS`）。画布还走旧内核（落改动要「浏览器落完再接着跑」那条通道，单列一份）；配音台第 9 步。
-- 每台能用哪些改法在 `bench.ts` 的 `OPS_BY_FACE`；不在单子上的改法直接退回并列出这台有的。角色页只出提议卡（设定 / 挑图 / 交给图片助手），没有出图。
+- 每台能用哪些改法在 `bench.ts` 的 `OPS_BY_FACE`；不在单子上的改法直接退回并列出这台有的。角色页没有出图；助手自己拟的设定 / 挑的图照旧出提议卡（4b 起创作者明说要改的直接写）。
 - 「只改那一处」：`edit` 模式的提示词改动随步骤带 `edits`，浏览器在台上**现在的文字**上重换一遍（`src/lib/prompt-find-replace.ts`，两边同一份），对不上才整段覆盖。
 - 两道旧闸（`run.nextKernel`）：NAI 标签核对不再退回整段重写；中文 / 整句这类真写不进去的照旧报，但只要模型改那一处；视频「挂了参考图须先问分辨率」跳过。
 - `add_lora`：按名字查 LoRA 库并挂上（旧执行器 `search_loras` → `mount_lora`，新内核才放行）。
 - `apply_recipe`：读 `图_N` 的配方（`readPictureRecipe`），展开成本台能用的普通改动；套不上的写进结果里的 `not applied`。
+
+**第 4b 步**（owner 10-23：明说要改的设定直接写、删除和公开不做、标签库先不接）：
+
+- `edit` 多了一组改库的改法，**任何台上都能用**（`library.ts` 的 `LIBRARY_OPS`，`bench.ts` 先分给它）。
+- 素材五种（`tag_pictures` / `favorite_pictures` / `new_folder` / `put_in_folder` / `verdict`）交给旧执行器现成的那五条；`run.nextKernel` 时任何台都放行（`NEXT_KERNEL_LIBRARY_TOOLS`）。
+- 角色 / 造型 / LoRA / 提示词库走新工具 `library_write`（只由新内核发，旧 `planTool` 拒）：`services/assistant-library-write.service.ts`，每条记原值做 `inverse`（按 `kind` 区分），撤销走同一条 `asset-writes/revert`。
+  - 新建角色 / 造型的撤销只在它还没被用过（没有出图、LoRA 关联）时删；LoRA 取消收藏只是移出收藏、不删行；LoRA 只认自己库里的。
+  - 角色页写完刷新名册（`use-cards-operator-host` 的 `libraryChanged`）。
+- 没有删除、公开的工具：提示里叫助手告诉创作者去哪里点。
 
 **过程记录**：照写 `AssistantTurnRecord`，`promptVersion = next-YYYY-MM-DD`；本轮记录投成 v3 形状（自带联网记成 `search_web`、`find` 记成 `search_library`），评测工具照用。
 
@@ -53,6 +62,8 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 - 接口与搜索调研：项目文件 `assistant-reliability/model-interfaces.md`
 
 ## Last Verified
+
+- 2026-10-23 · 第 4b 步：`tsc` 0 error、相关定向 vitest 4951 条全绿（含改库做 → 撤 → 回原状）。未跑评测（owner 10-23：等全部改完再统一跑）。
 
 - 2026-10-23 · 第 4a 步：`tsc` 0 error、`src/features/assistant` + v3 内核 + operator 服务 / hook 定向全绿。
 

@@ -1,6 +1,7 @@
 import { jsonSchema, tool } from 'ai'
 import { z } from 'zod'
 
+import { GENERATION_REVIEW_STATES } from '@/constants/assistant-operator'
 import { NOVELAI_SCENE_TEXT_KINDS } from '@/constants/novelai'
 import {
   ASSISTANT_V3_CARDS_PROFILE_PARTS,
@@ -129,12 +130,14 @@ export const EditChangeSchema = z.object({
     .string()
     .nullish()
     .describe('option: the option key; lora_param: the parameter.'),
-  value: ValueSchema.nullish().describe('option / lora_param: the new value.'),
+  value: ValueSchema.nullish().describe(
+    'option / lora_param: the new value. favorite_pictures / favorite_lora: true to favourite, false to take it out.',
+  ),
   picture: z
     .string()
     .nullish()
     .describe(
-      'add_reference / apply_recipe: a picture number ("图_1624") or name (attached picture, "result-N"); remove_reference: "ref-N" (video: also "first" / "last").',
+      'add_reference / apply_recipe / verdict / lora_cover: a picture number ("图_1624") or name (attached picture, "result-N"); remove_reference: "ref-N" (video: also "first" / "last").',
     ),
   slot: z
     .enum(ASSISTANT_V3_VIDEO_REFERENCE_SLOTS)
@@ -186,7 +189,7 @@ export const EditChangeSchema = z.object({
     .string()
     .nullish()
     .describe(
-      'lora_weight / remove_lora: the mounted LoRA, by handle or name. add_lora: a LoRA by name ("LoRA·<name>" or its title).',
+      'lora_weight / remove_lora: the mounted LoRA, by handle or name. add_lora / lora_to_character / favorite_lora / lora_cover: a LoRA by name ("LoRA·<name>" or its title).',
     ),
   weight: z
     .number()
@@ -196,7 +199,7 @@ export const EditChangeSchema = z.object({
     .string()
     .nullish()
     .describe(
-      'propose_profile / propose_images / hand_off: the character, by its handle on the page ("char-b27ce8") or "角色·<name>".',
+      'propose_profile / propose_images / hand_off: the character, by its handle on the page ("char-b27ce8") or "角色·<name>". character_profile / lora_to_character / new_character_look: "角色·<name>" (lora_to_character may add "/<look>"). character_look: "角色·<name>/<look>" (no look = the default one).',
     ),
   say: z
     .string()
@@ -221,7 +224,9 @@ export const EditChangeSchema = z.object({
       }),
     )
     .nullish()
-    .describe('propose_profile: the profile parts you drafted.'),
+    .describe(
+      'propose_profile: the profile parts you drafted. character_profile / new_character: the parts to write ("look" is the appearance of the default look).',
+    ),
   images: z
     .array(
       z.object({
@@ -239,6 +244,56 @@ export const EditChangeSchema = z.object({
     .string()
     .nullish()
     .describe('hand_off: the one message the image assistant should get.'),
+  pictures: z
+    .array(z.string())
+    .nullish()
+    .describe(
+      'tag_pictures / favorite_pictures / put_in_folder: the creator\'s pictures by number ("图_1624"), up to 20. character_look / new_character_look: pictures to add to that look.',
+    ),
+  tags: z
+    .array(z.string())
+    .nullish()
+    .describe(
+      "tag_pictures: short tags in the creator's words (up to 5). character_profile / new_character: the character's tags. character_look / new_character_look: the look's tags (the full new list).",
+    ),
+  name: z
+    .string()
+    .nullish()
+    .describe(
+      'new_folder / new_character / save_prompt: the name. character_profile / update_prompt: a new name, or null to keep it.',
+    ),
+  folder: z
+    .string()
+    .nullish()
+    .describe(
+      'put_in_folder: the folder, by name. new_folder: the folder to put it inside, or null for the top level.',
+    ),
+  state: z
+    .enum(GENERATION_REVIEW_STATES)
+    .nullish()
+    .describe(
+      'verdict: "approved" (they settled on it) or "blocked" (it did not work; it will not be offered again).',
+    ),
+  reason: z
+    .string()
+    .nullish()
+    .describe('verdict: why, in a few of their words.'),
+  label: z
+    .string()
+    .nullish()
+    .describe(
+      "new_character_look: the look's name. character_look: a new name, or null to keep it.",
+    ),
+  saved: z
+    .string()
+    .nullish()
+    .describe('update_prompt: the saved prompt ("提示词·<name>").'),
+  negativeText: z
+    .string()
+    .nullish()
+    .describe(
+      'save_prompt / update_prompt: the negative prompt (save_prompt: null = the one on the bench).',
+    ),
 })
 export type EditChange = z.infer<typeof EditChangeSchema>
 
@@ -354,7 +409,14 @@ function loosenChange(change: unknown): unknown {
     )
       out[field] = Number(value)
   }
-  for (const field of ['edits', 'parts', 'fields', 'images'] as const)
+  for (const field of [
+    'edits',
+    'parts',
+    'fields',
+    'images',
+    'pictures',
+    'tags',
+  ] as const)
     if (out[field] !== undefined) out[field] = asArray(out[field]) as JsonValue
   if (typeof out.op === 'string') out.op = out.op.trim().toLowerCase()
   if (typeof out.mode === 'string') out.mode = out.mode.trim().toLowerCase()
@@ -412,7 +474,7 @@ export function parseToolInput<T>(
 const DESCRIPTIONS = {
   find: "Search the creator's workspace: their pictures, characters and looks, LoRA library, saved prompts, earlier conversations on every bench, and what you remember about them. Returns numbered lines; open any of them with look.",
   look: 'Read the bench as it is right now, and optionally open things by number or name: pictures (with their full recipe), characters, LoRAs, saved prompts, earlier conversations, settings. Pictures you open stay in front of you.',
-  edit: 'Change the bench. All changes for one request go in ONE call, applied in order; each lands on the bench at once. For the prompt prefer mode "edit" with exact {find, replace} pairs so everything else stays as it is.',
+  edit: 'Change the bench, or the creator\'s library (pictures, folders, characters and looks, LoRAs, saved prompts). All changes for one request go in ONE call, applied in order; each lands at once and can be undone. For the prompt prefer mode "edit" with exact {find, replace} pairs so everything else stays as it is.',
   ask: 'Ask the creator when you cannot go on without their choice. Puts a card with options in front of them and ends this turn until they answer.',
   generate:
     'Put a generation confirm card in front of the creator for what is on the bench now. Nothing is spent until they press it. Ends this turn.',

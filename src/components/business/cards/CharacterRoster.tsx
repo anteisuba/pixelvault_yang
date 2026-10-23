@@ -195,6 +195,7 @@ export function CharacterRoster() {
     openId: selected?.id ?? null,
     applyProfile,
     attachImages,
+    refresh: characters.refresh,
   })
 
   const openCharacter = useCallback((id: string) => {

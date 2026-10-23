@@ -260,6 +260,19 @@ async function pictureRecipe(userId: string, row: PictureRow): Promise<string> {
   return lines.filter(Boolean).join('\n')
 }
 
+/** 改库用（第 4b 步）：`图_N` → 那一张的 generationId 与原图地址；不是她的 / 认不出回 null。 */
+export async function resolvePicture(
+  owner: WorkspaceOwner,
+  raw: string,
+): Promise<{ generationId: string; url: string; label: string } | null> {
+  const handle = parseWorkspaceHandle(raw)
+  if (handle?.kind !== 'picture') return null
+  const row = await readPicture(owner.userId, handle)
+  return row
+    ? { generationId: row.id, url: row.url, label: pictureTag(row) }
+    : null
+}
+
 /** 一张图的配方，拆成能逐格放回台上的样子（`apply_recipe`）。 */
 export interface PictureRecipeParts {
   readonly tag: string

@@ -35,7 +35,7 @@ function getAspectRatioValue(ratio: SupportedStudioAspectRatio): number {
   return width / height
 }
 
-function resolveClosestStudioAspectRatio(
+export function resolveClosestStudioAspectRatio(
   width: number,
   height: number,
 ): SupportedStudioAspectRatio {

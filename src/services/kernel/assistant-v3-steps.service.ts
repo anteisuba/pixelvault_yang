@@ -91,6 +91,8 @@ export const TITLE_TEXT: Record<
     count: string
     option: string
     mountReference: string
+    /** 新内核直接挂 LoRA（`mount_lora`）。 */
+    mountLora: string
     importUrl: string
     searchImages: string
     searchVideos: string
@@ -137,6 +139,7 @@ export const TITLE_TEXT: Record<
     count: '设张数',
     option: '设选项',
     mountReference: '挂参考图',
+    mountLora: '挂 LoRA',
     importUrl: '导入链接',
     searchImages: '联网找图',
     searchVideos: '联网找视频',
@@ -181,6 +184,7 @@ export const TITLE_TEXT: Record<
     count: '枚数を設定',
     option: 'オプションを設定',
     mountReference: '参照画像を追加',
+    mountLora: 'LoRA を追加',
     importUrl: 'リンクを取り込む',
     searchImages: 'Web で画像検索',
     searchVideos: 'Web で動画検索',
@@ -225,6 +229,7 @@ export const TITLE_TEXT: Record<
     count: 'Set count',
     option: 'Set option',
     mountReference: 'Mount reference',
+    mountLora: 'Mount LoRA',
     importUrl: 'Import link',
     searchImages: 'Search web images for',
     searchVideos: 'Search web videos for',

@@ -36,7 +36,7 @@ import { runAssistantNext } from '@/features/assistant/kernel'
 import { POST } from './route'
 
 function body(
-  domain: 'canvas' | 'image' | 'lora' | 'video',
+  domain: 'canvas' | 'image' | 'lora' | 'video' | 'cards',
   kernel?: 'v2' | 'v3' | 'next',
 ) {
   return {
@@ -45,7 +45,7 @@ function body(
     workspaceKey:
       domain === 'canvas'
         ? 'canvas:project-1'
-        : domain === 'lora' || domain === 'video'
+        : domain === 'lora' || domain === 'video' || domain === 'cards'
           ? domain
           : 'image-natural',
     snapshot: {
@@ -147,8 +147,8 @@ describe('POST /api/studio/assistant-operator · 旧内核开关只有 owner 认
   })
 })
 
-describe('POST /api/studio/assistant-operator · 新内核（next）只给 owner、只接图片台与 LoRA 台', () => {
-  it.each(['image', 'lora'] as const)(
+describe('POST /api/studio/assistant-operator · 新内核（next）只给 owner、只接 ASSISTANT_NEXT_DOMAINS 的台', () => {
+  it.each(['image', 'lora', 'video', 'cards'] as const)(
     'owner：%s 发了 next 走新内核',
     async (domain) => {
       await POST(
@@ -159,7 +159,7 @@ describe('POST /api/studio/assistant-operator · 新内核（next）只给 owner
     },
   )
 
-  it.each(['canvas', 'video'] as const)(
+  it.each(['canvas'] as const)(
     '还没接的台（%s）发了 next 照走 v3',
     async (domain) => {
       await POST(

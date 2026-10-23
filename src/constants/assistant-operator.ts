@@ -2376,6 +2376,8 @@ export const ASSISTANT_OPERATOR_LIMITS = {
    * ⚠ LoRA 素材的上下文**预算**不跟它走，见下面两格。
    */
   maxPromptChars: PROMPT_TEXT_GUARD_MAX_CHARS,
+  /** 一次找句换句最多几处（不少于新内核的 `maxFindReplace`）。 */
+  maxPromptEdits: 30,
   /** LoRA 参考素材（作者推荐词 + 来源图提示词）进上下文的总预算 —— 外部素材，不是用户写的字。 */
   maxLoraMaterialChars: 8000,
   /** 同上，上下文被拒后压缩重试时的预算 —— 压缩就是要把它收紧。 */

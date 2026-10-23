@@ -15,9 +15,10 @@ import type { AssistantV3Transcript } from '@/types/assistant-v3'
 
 vi.mock('server-only', () => ({}))
 
-const { plan, closeRound, legacy, recordTurn, soft, models, run } = vi.hoisted(
-  () => ({
+const { plan, closeRound, legacy, recordTurn, soft, models, run, recipe } =
+  vi.hoisted(() => ({
     plan: vi.fn(),
+    recipe: vi.fn(),
     closeRound: vi.fn(async () => undefined),
     legacy: vi.fn(),
     recordTurn: vi.fn(),
@@ -31,6 +32,8 @@ const { plan, closeRound, legacy, recordTurn, soft, models, run } = vi.hoisted(
       signal: undefined as AbortSignal | undefined,
       skipReferenceReview: false,
       mainModelLooks: false,
+      nextKernel: false,
+      loraIndex: new Map<string, { candidateId: string; name: string }>(),
       apiKeyId: 'key-1',
       state: {
         prompt: 'a girl in a garden',
@@ -39,10 +42,15 @@ const { plan, closeRound, legacy, recordTurn, soft, models, run } = vi.hoisted(
         referenceUrls: [],
       },
     },
-  }),
-)
+  }))
 
 vi.mock('@/lib/db', () => ({ db: {} }))
+vi.mock('@/features/assistant/workspace.service', async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import('@/features/assistant/workspace.service')
+  >()),
+  readPictureRecipe: recipe,
+}))
 vi.mock('@/services/storage/r2', () => ({
   fetchAsBuffer: vi.fn(async () => {
     throw new Error('no pictures in this test')
@@ -262,6 +270,9 @@ beforeEach(() => {
   run.stepSeq = 0
   run.ledgerSteps = 0
   run.state.prompt = 'a girl in a garden'
+  run.nextKernel = false
+  run.loraIndex.clear()
+  recipe.mockReset()
   plan.mockImplementation(
     async (_run, tool: string, args: { value?: string }) => ({
       kind: 'mutate',
@@ -285,7 +296,12 @@ describe('新内核主循环', () => {
     expect(plan).toHaveBeenCalledWith(
       expect.anything(),
       'set_prompt',
-      { value: 'a boy in a garden', overwrite: true },
+      {
+        value: 'a boy in a garden',
+        overwrite: true,
+        // 找句换句的那几处一起下发：浏览器在台上此刻的文字上照换（只改那一处）。
+        edits: [{ find: 'girl', replace: 'boy' }],
+      },
       'user-1',
     )
     expect(events.map((event) => event.type)).toEqual([
@@ -546,5 +562,175 @@ describe('新内核主循环', () => {
       ['search_web', 'done'],
     ])
     expect(steps[0]!.step.title).toContain('长离 官方设定')
+  })
+})
+
+describe('第 4 步：各台的改法', () => {
+  const resultsOf = (main: MockLanguageModelV3) =>
+    promptOf(main.doStreamCalls[1]!)
+
+  it('新内核借旧执行器时打上 nextKernel（只修不拒那几道闸认它）', async () => {
+    models.main = mockModel([textTurn('好。')])
+    await collect(runAssistantNext('clerk-1', imageRequest('你好')))
+    expect(run.nextKernel).toBe(true)
+  })
+
+  it('LoRA 台 add_lora：按名字搜一遍（不出过程行），挑名字对得上的那把挂上', async () => {
+    plan.mockImplementation(async (_run, tool: string, args: unknown) => {
+      if (tool === 'search_loras')
+        return {
+          kind: 'read',
+          payload: args,
+          run: async () => {
+            run.loraIndex.set('c-other', {
+              candidateId: 'c-other',
+              name: 'malfoid style',
+            })
+            run.loraIndex.set('c-1', { candidateId: 'c-1', name: 'Malfoid' })
+            return { result: {}, observation: '' }
+          },
+        }
+      // 挂上那一步的载荷要整份候选（导入在浏览器），这里只看路由对不对。
+      return { kind: 'rejected', reason: 'unknownValue', detail: 'stub mount' }
+    })
+    const main = mockModel([
+      toolTurn({
+        id: 'call_1',
+        name: 'edit',
+        input: {
+          changes: [{ op: 'add_lora', lora: 'LoRA·malfoid', weight: 0.8 }],
+        },
+      }),
+      textTurn('挂好了。'),
+    ])
+    models.main = main
+    const events = await collect(
+      runAssistantNext(
+        'clerk-1',
+        imageRequest('挂上 malfoid', {
+          domain: 'lora',
+          snapshot: {
+            prompt: '1boy',
+            model: { id: 'illustrious', label: 'Illustrious' },
+            availableModels: [{ id: 'illustrious', label: 'Illustrious' }],
+            loras: {
+              items: [],
+              baseFamily: 'illustrious',
+              minWeight: 0,
+              maxWeight: 2,
+            },
+          },
+        } as unknown as Partial<AssistantOperatorRequest>),
+      ),
+    )
+    expect(plan.mock.calls.map((call) => call[1])).toEqual([
+      'search_loras',
+      'mount_lora',
+    ])
+    expect(plan.mock.calls[1]![2]).toEqual({ candidateId: 'c-1', weight: 0.8 })
+    // 搜的那一下不出过程行，只有挂上那一行。
+    expect(events.filter((event) => event.type === 'step')).toHaveLength(1)
+    expect(resultsOf(main)).toContain('stub mount')
+  })
+
+  it('套用配方：拆成这台有的那几格逐条落，这台没有的说清楚', async () => {
+    recipe.mockResolvedValue({
+      tag: '图_12',
+      prompt: '1girl, red hair',
+      negative: 'lowres',
+      model: 'seedream-5.0-pro',
+      aspectRatio: '3:4',
+      width: 768,
+      height: 1024,
+      options: { guidanceScale: 5, notOnBench: 1 },
+      loras: [{ name: 'malfoid', weight: 0.8 }],
+      references: ['图_3', null],
+    })
+    plan.mockImplementation(
+      async (_run, tool: string, args: { value?: string }) =>
+        tool === 'set_prompt' || tool === 'set_negative'
+          ? {
+              kind: 'mutate',
+              payload: { value: args.value, mode: 'replace' },
+              inverse: { value: '' },
+              observation: `${tool} landed`,
+              apply: () => {},
+            }
+          : {
+              kind: 'rejected',
+              reason: 'unknownValue',
+              detail: `${tool} stub`,
+            },
+    )
+    const main = mockModel([
+      toolTurn({
+        id: 'call_1',
+        name: 'edit',
+        input: { changes: [{ op: 'apply_recipe', picture: '图_12' }] },
+      }),
+      textTurn('套好了。'),
+    ])
+    models.main = main
+    await collect(
+      runAssistantNext(
+        'clerk-1',
+        imageRequest('套用图_12的配方', {
+          snapshot: {
+            ...imageRequest('').snapshot,
+            capabilities: [
+              {
+                key: 'guidanceScale',
+                kind: 'slider',
+                value: null,
+                available: true,
+              },
+            ],
+          },
+        } as unknown as Partial<AssistantOperatorRequest>),
+      ),
+    )
+    const calls = plan.mock.calls.map((call) => [call[1], call[2]])
+    // 型号与台上相同不换；提示词、负面词整段写；台上有的参数才套；参考图按编号挂。
+    expect(calls).toContainEqual([
+      'set_prompt',
+      { value: '1girl, red hair', overwrite: true },
+    ])
+    expect(calls).toContainEqual([
+      'set_negative',
+      { value: 'lowres', overwrite: true },
+    ])
+    expect(calls).toContainEqual([
+      'set_capability',
+      { key: 'guidanceScale', value: 5 },
+    ])
+    expect(calls.some((call) => call[0] === 'set_model')).toBe(false)
+    expect(
+      calls.some(
+        (call) =>
+          call[0] === 'set_capability' &&
+          (call[1] as { key: string }).key === 'notOnBench',
+      ),
+    ).toBe(false)
+    expect(calls.some((call) => call[0] === 'mount_reference')).toBe(true)
+    const results = resultsOf(main)
+    expect(results).toContain('图_12')
+    expect(results).toContain('they only go on the LoRA bench')
+    expect(results).toContain('uploaded picture')
+  })
+
+  it('套用配方：查不到那张图就只回这一条', async () => {
+    recipe.mockResolvedValue(null)
+    const main = mockModel([
+      toolTurn({
+        id: 'call_1',
+        name: 'edit',
+        input: { changes: [{ op: 'apply_recipe', picture: '图_99999' }] },
+      }),
+      textTurn('没找到。'),
+    ])
+    models.main = main
+    await collect(runAssistantNext('clerk-1', imageRequest('套用图_99999')))
+    expect(plan).not.toHaveBeenCalled()
+    expect(resultsOf(main)).toContain("no such picture of the creator's")
   })
 })

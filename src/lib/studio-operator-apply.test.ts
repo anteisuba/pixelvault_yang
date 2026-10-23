@@ -255,6 +255,28 @@ describe('applyOperatorStep', () => {
     expect(replaceCtx.state.prompt).toBe('新的')
   })
 
+  it('带着找句换句的那几处：在台上此刻的文字上照换，创作者刚改的地方留着；换不上才落整段', () => {
+    // 助手开轮时读到的是「a girl in a garden」；这一轮创作者自己加了 ", sunset"。
+    const { ctx, state } = makeContext({ prompt: 'a girl in a garden, sunset' })
+    const step = {
+      ...BASE,
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+      verb: 'apply',
+      payload: {
+        value: 'a boy in a garden',
+        mode: 'replace',
+        edits: [{ find: 'girl', replace: 'boy' }],
+      },
+      inverse: { value: 'a girl in a garden' },
+    } satisfies AssistantOperatorAppliedStep
+    applyOperatorStep(step, ctx)
+    expect(state.prompt).toBe('a boy in a garden, sunset')
+
+    const gone = makeContext({ prompt: 'a cat on a roof' })
+    applyOperatorStep(step, gone.ctx)
+    expect(gone.state.prompt).toBe('a boy in a garden')
+  })
+
   it('空框上的 append 退化成整段写入 —— 不会留下一个前导分隔符', () => {
     const { ctx, state } = makeContext({ prompt: '' })
     applyOperatorStep(

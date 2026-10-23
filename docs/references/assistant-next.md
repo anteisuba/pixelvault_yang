@@ -31,12 +31,20 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 
 **编号**（第 3 步，owner 10-23）：编号只给模型用，界面换缩略图是第 9 步。板子末尾写出 `ref-N` / `result-N` 各是哪个 `图_N`；`edit add_reference` 认 `图_N`（查到 / 打开过的图记进本轮准入名单 `run.searchIndex`，旧执行器只认名单里的）。`find` 的对话覆盖所有台、每条标台与日期；隐身时对话与记忆都不翻。「套用某张图的配方」是第 4 步。
 
+**第 4a 步**（owner 10-23：拆 4a 台 / 4b 库 / 4c 设置）：
+
+- 接上的台：图片、LoRA、视频、角色页（`ASSISTANT_NEXT_DOMAINS`）。画布还走旧内核（落改动要「浏览器落完再接着跑」那条通道，单列一份）；配音台第 9 步。
+- 每台能用哪些改法在 `bench.ts` 的 `OPS_BY_FACE`；不在单子上的改法直接退回并列出这台有的。角色页只出提议卡（设定 / 挑图 / 交给图片助手），没有出图。
+- 「只改那一处」：`edit` 模式的提示词改动随步骤带 `edits`，浏览器在台上**现在的文字**上重换一遍（`src/lib/prompt-find-replace.ts`，两边同一份），对不上才整段覆盖。
+- 两道旧闸（`run.nextKernel`）：NAI 标签核对不再退回整段重写；中文 / 整句这类真写不进去的照旧报，但只要模型改那一处；视频「挂了参考图须先问分辨率」跳过。
+- `add_lora`：按名字查 LoRA 库并挂上（旧执行器 `search_loras` → `mount_lora`，新内核才放行）。
+- `apply_recipe`：读 `图_N` 的配方（`readPictureRecipe`），展开成本台能用的普通改动；套不上的写进结果里的 `not applied`。
+
 **过程记录**：照写 `AssistantTurnRecord`，`promptVersion = next-YYYY-MM-DD`；本轮记录投成 v3 形状（自带联网记成 `search_web`、`find` 记成 `search_library`），评测工具照用。
 
 ## 3. 没验证的（2026-10-23）
 
 - DeepSeek Anthropic 兼容入口跑主循环、Grok Responses、Claude adaptive 思考、OpenAI `store:false` 下联网结果的回传，都只在单测里用假模型跑过；被拒会自动退回 v3 接法，但要用真 key 跑一次评测才算数。
-- 还不能挂新 LoRA（第 4 步）。
 - 评测（`ASSISTANT_EVAL_KERNEL=next`，2026-10-23 新 72% / 旧 69%）用的是假库：`find` / 按编号打开在评测里查不到东西，第 3 步的效果要在 owner 账号上实跑验证。
 
 ## Source of Truth
@@ -45,6 +53,8 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 - 接口与搜索调研：项目文件 `assistant-reliability/model-interfaces.md`
 
 ## Last Verified
+
+- 2026-10-23 · 第 4a 步：`tsc` 0 error、`src/features/assistant` + v3 内核 + operator 服务 / hook 定向全绿。
 
 - 2026-10-23 · 第 3 步：`tsc` 0 error、eslint 0 problem、`src/features/assistant` 43 条全绿。
 

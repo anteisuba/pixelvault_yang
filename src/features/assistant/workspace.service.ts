@@ -149,12 +149,15 @@ interface PictureRow {
   createdAt: Date
   advancedParams: Record<string, unknown> | null
   referenceImages: unknown
+  aspectRatio: string | null
+  freePrompt: string | null
 }
 
 /** ⚠ 整份快照能到 7 MB：只取 `advancedParams` 与参考图那两格（同 `readOwnRecipes`）。 */
 const PICTURE_COLUMNS = Prisma.sql`"id", "seq", "outputType"::text AS "outputType", "url", "thumbnailUrl",
   "prompt", "negativePrompt", "model", "width", "height", "seed"::text AS "seed", "createdAt",
-  "snapshot"->'advancedParams' AS "advancedParams", "snapshot"->'referenceImages' AS "referenceImages"`
+  "snapshot"->'advancedParams' AS "advancedParams", "snapshot"->'referenceImages' AS "referenceImages",
+  "snapshot"->>'aspectRatio' AS "aspectRatio", "snapshot"->>'freePrompt' AS "freePrompt"`
 
 function pictureTag(row: Pick<PictureRow, 'seq' | 'outputType'>): string {
   return buildGenerationTag({ seq: row.seq, outputType: row.outputType }) ?? ''
@@ -255,6 +258,87 @@ async function pictureRecipe(userId: string, row: PictureRow): Promise<string> {
     )
   }
   return lines.filter(Boolean).join('\n')
+}
+
+/** 一张图的配方，拆成能逐格放回台上的样子（`apply_recipe`）。 */
+export interface PictureRecipeParts {
+  readonly tag: string
+  readonly prompt: string
+  readonly negative: string
+  readonly model: string
+  /** 记下的比例；老图没记就按宽高。 */
+  readonly aspectRatio: string | null
+  readonly width: number
+  readonly height: number
+  /** 记下的模型参数（只留简单值；LoRA、负面词、参考图另有各自那一格）。 */
+  readonly options: Readonly<Record<string, string | number | boolean>>
+  readonly loras: readonly { readonly name: string; readonly weight: number }[]
+  /** 参考图：认得出是库里哪一张的给编号，认不出（上传的）是 null。 */
+  readonly references: readonly (string | null)[]
+}
+
+const RECIPE_OPTION_SKIP = new Set(['loras', 'negativePrompt'])
+
+/** 套用配方用：按编号读那张图，拆成一格一格。不是图的编号 / 查不到回 null。 */
+export async function readPictureRecipe(
+  owner: WorkspaceOwner,
+  raw: string,
+): Promise<PictureRecipeParts | null> {
+  const handle = parseWorkspaceHandle(raw)
+  if (handle?.kind !== 'picture') return null
+  const row = await readPicture(owner.userId, handle)
+  if (!row) return null
+  const params = row.advancedParams ?? {}
+  const options: Record<string, string | number | boolean> = {}
+  for (const [key, value] of Object.entries(params))
+    if (
+      !RECIPE_OPTION_SKIP.has(key) &&
+      (typeof value === 'string' ||
+        typeof value === 'number' ||
+        typeof value === 'boolean')
+    )
+      options[key] = value
+  const loraRefs = Array.isArray(params.loras)
+    ? (params.loras as { url?: unknown; scale?: unknown }[]).flatMap((lora) =>
+        typeof lora.url === 'string'
+          ? [
+              {
+                url: lora.url,
+                weight: typeof lora.scale === 'number' ? lora.scale : 1,
+              },
+            ]
+          : [],
+      )
+    : []
+  const named = loraRefs.length
+    ? await findLoraAssetsByUrls(
+        loraRefs.map((lora) => lora.url),
+        owner.userId,
+      ).catch(() => [])
+    : []
+  const references = Array.isArray(row.referenceImages)
+    ? row.referenceImages.filter(
+        (url): url is string => typeof url === 'string',
+      )
+    : []
+  const known = await picturesByUrl(owner.userId, references)
+  return {
+    tag: pictureTag(row),
+    prompt: row.freePrompt?.trim() || row.prompt,
+    negative:
+      row.negativePrompt ??
+      (typeof params.negativePrompt === 'string' ? params.negativePrompt : ''),
+    model: row.model,
+    aspectRatio: row.aspectRatio,
+    width: row.width,
+    height: row.height,
+    options,
+    loras: loraRefs.flatMap((lora) => {
+      const name = named.find((asset) => asset.loraUrl === lora.url)?.name
+      return name ? [{ name, weight: lora.weight }] : []
+    }),
+    references: references.map((url) => known.get(url) ?? null),
+  }
 }
 
 /** 这几个地址里哪几张是创作者库里的图 → 地址 → 编号（台上的 ref-N / result-N 也这样认出编号）。 */

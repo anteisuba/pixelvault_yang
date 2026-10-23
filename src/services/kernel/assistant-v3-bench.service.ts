@@ -16,6 +16,7 @@ import {
   ASSISTANT_V3_WRITE_MODE_IDS,
   type AssistantV3WebSearchKind,
 } from '@/constants/assistant-v3'
+import { applyPromptFindReplace } from '@/lib/prompt-find-replace'
 import {
   AssistantV3LoraGenerateInputSchema,
   AssistantV3LoraWriteInputSchema,
@@ -235,38 +236,11 @@ function writtenText(
           : text,
     }
   }
-  const edits = (entry.edits ?? []).slice(0, ASSISTANT_V3_LIMITS.maxWriteEdits)
-  if (edits.length === 0)
-    return {
-      ok: false,
-      error: 'mode "edit" needs at least one {find, replace}.',
-    }
-  const spans: { start: number; end: number; replace: string }[] = []
-  for (const edit of edits) {
-    const start = current.indexOf(edit.find)
-    if (!edit.find || start < 0)
-      return {
-        ok: false,
-        error: `"${edit.find}" does not occur in the ${entry.field}. Read it and copy the words exactly.`,
-      }
-    if (current.indexOf(edit.find, start + 1) >= 0)
-      return {
-        ok: false,
-        error: `"${edit.find}" occurs more than once in the ${entry.field}; take a few more words around it.`,
-      }
-    const end = start + edit.find.length
-    if (spans.some((span) => start < span.end && span.start < end))
-      return { ok: false, error: `"${edit.find}" overlaps another find.` }
-    spans.push({ start, end, replace: edit.replace })
-  }
-  const value = spans
-    .sort((left, right) => right.start - left.start)
-    .reduce(
-      (text, span) =>
-        `${text.slice(0, span.start)}${span.replace}${text.slice(span.end)}`,
-      current,
-    )
-  return { ok: true, value }
+  return applyPromptFindReplace(
+    current,
+    (entry.edits ?? []).slice(0, ASSISTANT_V3_LIMITS.maxWriteEdits),
+    entry.field,
+  )
 }
 
 /**
@@ -296,10 +270,16 @@ export async function* executeBenchWrite(
       outcomes.push(yield* refused(context, tool, title, written.error))
       continue
     }
+    // 找句换句的那几处一起带上：浏览器在台上此刻的文字上照换（创作者自己改的不被冲掉）。
+    const edits =
+      entry.mode === ASSISTANT_V3_WRITE_MODE_IDS.edit && entry.edits?.length
+        ? entry.edits.slice(0, ASSISTANT_V3_LIMITS.maxWriteEdits)
+        : null
     outcomes.push(
       yield* runOldTool(context, tool, title, {
         value: written.value,
         overwrite: true,
+        ...(edits ? { edits } : {}),
       }),
     )
   }

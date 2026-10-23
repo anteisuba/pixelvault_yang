@@ -201,7 +201,10 @@ async function* runVideoEditOp(
     case ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setSpecs: {
       // ⭐ 清晰度是花钱的那一格：创作者没提就不动（2026-10-10 回放 V1：没人要，模型两次都
       //   自己挑了 1080p；提示词里写了也不听）。
-      const askedResolution = creatorSaid(context, RESOLUTION_WORDS)
+      // 新内核不设这道闸（owner 2026-10-22「花钱格子不设硬规矩」，见 `run.nextKernel`）。
+      const askedResolution =
+        context.prepared.run.nextKernel === true ||
+        creatorSaid(context, RESOLUTION_WORDS)
       const resolution = askedResolution ? op.resolution : null
       const dropped = Boolean(op.resolution) && !askedResolution
       if (op.duration === null && !op.aspectRatio && !resolution)

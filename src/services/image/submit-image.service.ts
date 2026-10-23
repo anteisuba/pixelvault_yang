@@ -53,6 +53,7 @@ import {
   failGenerationJob,
 } from '@/services/usage.service'
 import { ensureUser } from '@/services/user.service'
+import { isWaitingForSlot } from '@/services/execution-slot.service'
 import { getCivitaiTokenByInternalUserId } from '@/services/civitai-token.service'
 import { findCivitaiLorasWithDownloadDisabled } from '@/services/civitai-lora.service'
 import { generateStorageKey } from '@/services/storage/r2'
@@ -63,6 +64,7 @@ import {
   STALE_EXECUTION_FAILURE_MESSAGE,
 } from '@/services/execution-sweeper.service'
 import { GENERATION_ERROR_CODES } from '@/constants/generation-errors'
+import { EXECUTION_PROGRESS_STAGES } from '@/constants/generation-progress'
 
 /**
  * Worker job metadata persisted on `GenerationJob.externalRequestId` at submit
@@ -405,6 +407,7 @@ export async function submitImageGeneration(
       useSystemKey: useSystemKey || undefined,
       callbackUrl: buildInternalUrl(EXECUTION_INTERNAL.CALLBACK_PATH),
       resolveKeyUrl: buildInternalUrl(EXECUTION_INTERNAL.RESOLVE_KEY_PATH),
+      slotUrl: buildInternalUrl(EXECUTION_INTERNAL.SLOT_PATH),
       timeoutMs: EXECUTION_WORKER.DEFAULT_TIMEOUT_MS,
       maxAttempts:
         route.adapterType === AI_ADAPTER_TYPES.FAL ||
@@ -522,6 +525,8 @@ export async function checkImageGenerationStatus(
       errorCode: true,
       startedAt: true,
       externalRequestId: true,
+      slotKey: true,
+      slotAcquiredAt: true,
     },
   })
 
@@ -580,13 +585,14 @@ export async function checkImageGenerationStatus(
   }
 
   const metadata = parseWorkerJobMetadata(job.externalRequestId)
+  const executionStage = isWaitingForSlot(job)
+    ? EXECUTION_PROGRESS_STAGES.ACCOUNT_QUEUED
+    : metadata?.executionStage
   return {
     jobId: job.id,
     status: 'IN_PROGRESS',
     ...(metadata?.previewUrl ? { previewUrl: metadata.previewUrl } : {}),
-    ...(metadata?.executionStage
-      ? { executionStage: metadata.executionStage }
-      : {}),
+    ...(executionStage ? { executionStage } : {}),
   }
 }
 

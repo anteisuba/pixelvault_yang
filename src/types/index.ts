@@ -1960,6 +1960,19 @@ export const ResolveKeyResponseSchema = z.object({
   apiKey: z.string().min(1),
 })
 
+/** Worker 出图前来问「这个账号轮到我了吗」（按账号排队，见 EXECUTION_SLOT）。 */
+export const ExecutionSlotRequestSchema = z.object({
+  runId: z.string().trim().min(1, 'Run ID is required'),
+  apiKeyId: z.string().trim().min(1).optional(),
+  useSystemKey: z.boolean().optional(),
+})
+
+export type ExecutionSlotRequest = z.infer<typeof ExecutionSlotRequestSchema>
+export type ExecutionSlotResponse =
+  | { state: 'granted' }
+  | { state: 'waiting'; ahead: number }
+  | { state: 'cancelled' }
+
 export type ResolveKeyRequest = z.infer<typeof ResolveKeyRequestSchema>
 export type ResolveKeyResponse = z.infer<typeof ResolveKeyResponseSchema>
 
@@ -1975,6 +1988,8 @@ const WorkerRunContextBaseSchema = z.object({
   useSystemKey: z.boolean().optional(),
   callbackUrl: z.string().trim().url(),
   resolveKeyUrl: z.string().trim().url(),
+  /** 只有出图带：Worker 出图前在这里排队等位。没带 = 不排队。 */
+  slotUrl: z.string().trim().url().optional(),
   timeoutMs: z.number().int().positive(),
   maxAttempts: z.number().int().positive(),
   pollIntervalMs: z.number().int().positive(),

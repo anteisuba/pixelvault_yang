@@ -22,6 +22,31 @@ export const EXECUTION_SWEEPER = {
   SEARCH_GROUNDING_SWEEP_LIMIT: 500,
 } as const
 
+/**
+ * 按账号排队（出图）：同一个账号同时最多几张在出，其余在 Worker 里排队等位。
+ * 哪家报了并发锁 / 429 就改那一格（2026-10-23 owner 定的初值）。不在表里的
+ * adapter 不排队。整条链路见 docs/references/backend.md「按账号排队」。
+ */
+export const IMAGE_ACCOUNT_CONCURRENCY: Partial<Record<string, number>> = {
+  [AI_ADAPTER_TYPES.NOVELAI]: 1,
+  [AI_ADAPTER_TYPES.FAL]: 2,
+  [AI_ADAPTER_TYPES.OPENAI]: 2,
+  [AI_ADAPTER_TYPES.GEMINI]: 2,
+  [AI_ADAPTER_TYPES.VOLCENGINE]: 4,
+  [AI_ADAPTER_TYPES.BYTEPLUS]: 4,
+  [AI_ADAPTER_TYPES.REPLICATE]: 4,
+  [AI_ADAPTER_TYPES.PIXAI]: 1,
+  [AI_ADAPTER_TYPES.RUNNER]: 1,
+  [AI_ADAPTER_TYPES.HUGGINGFACE]: 1,
+}
+
+export const EXECUTION_SLOT = {
+  /** 排上号的任务多久没出完就不再算占位（Worker 死了没回调的兜底；最长正常一单约 10 分钟）。 */
+  HOLDER_TTL_MS: 20 * 60 * 1000,
+  /** 排队的任务多久没来问就当已经走了（Worker 每几秒问一次）。 */
+  WAITER_HEARTBEAT_MS: 60 * 1000,
+} as const
+
 export const EXECUTION_INTERNAL = {
   SIGNATURE_VERSION: 'v1',
   SIGNATURE_HEADER: 'X-Execution-Signature',
@@ -34,6 +59,7 @@ export const EXECUTION_INTERNAL = {
   NONCE_TTL_SECONDS: 10 * 60,
   CALLBACK_PATH: '/api/internal/execution/callback',
   RESOLVE_KEY_PATH: '/api/internal/execution/resolve-key',
+  SLOT_PATH: '/api/internal/execution/slot',
   FAL_WEBHOOK_PATH: '/api/internal/fal/webhook',
 } as const
 

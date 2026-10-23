@@ -739,7 +739,8 @@
       "rendering": "正在生成图像",
       "waiting": "仍在生成，请稍候",
       "runnerQueued": "Runner 正在启动，首次要加载底模，通常 1–3 分钟",
-      "runnerRunning": "GPU 正在出图"
+      "runnerRunning": "GPU 正在出图",
+      "accountQueued": "排队中，等这个账号前面的图出完"
     },
     "generateFailed": "生成失败",
     "elapsed": "已等待 {seconds}",

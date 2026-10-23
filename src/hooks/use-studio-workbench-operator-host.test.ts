@@ -262,9 +262,11 @@ describe('useStudioWorkbenchOperatorHost 的工作台转交回执', () => {
       payload: { dialect: 'tags', optionId: tagOption.optionId },
     })
     expect(routerPush).toHaveBeenCalledExactlyOnceWith('/studio/image/tags')
-    expect(takeOperatorDraft('user-a:image-natural')).toBeNull()
-    expect(takeOperatorDraft('user-a:image-tags')).toBe(handoff.request)
-    expect(takeOperatorDraft('user-a:image-tags')).toBeNull()
+    expect(takeOperatorDraft('user-a:assistant', 'image-natural')).toBeNull()
+    expect(takeOperatorDraft('user-a:assistant', 'image-tags')).toBe(
+      handoff.request,
+    )
+    expect(takeOperatorDraft('user-a:assistant', 'image-tags')).toBeNull()
   })
 
   it('确认前模型被移除时返回失败，不转移提示词、跳转或预填', () => {
@@ -278,7 +280,7 @@ describe('useStudioWorkbenchOperatorHost 的工作台转交回执', () => {
     expect(result.current.apply.switchImageWorkbench?.(handoff)).toBe(false)
     expect(dispatch).not.toHaveBeenCalled()
     expect(routerPush).not.toHaveBeenCalled()
-    expect(takeOperatorDraft('user-a:image-tags')).toBeNull()
+    expect(takeOperatorDraft('user-a:assistant', 'image-tags')).toBeNull()
   })
 
   it('目标工作台与当前模型方言不匹配时不转交', () => {
@@ -291,7 +293,7 @@ describe('useStudioWorkbenchOperatorHost 的工作台转交回执', () => {
     ).toBe(false)
     expect(dispatch).not.toHaveBeenCalled()
     expect(routerPush).not.toHaveBeenCalled()
-    expect(takeOperatorDraft('user-a:image-natural')).toBeNull()
+    expect(takeOperatorDraft('user-a:assistant', 'image-natural')).toBeNull()
   })
 })
 

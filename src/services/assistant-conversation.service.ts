@@ -75,44 +75,19 @@ export async function assertAssistantWorkspaceAccess(
 }
 
 /**
- * 这个工作区在 `AssistantConversation` 上怎么圈一行（原生 SQL 片段）。
+ * 归他的那一行的 id；`lock` 时顺手锁行（结账那条事务用）。
  *
- * ⭐ 不靠专门的列：`surface` + `projectId` 就能圈出 LoRA / 角色页 / 画布；图片槽与视频槽
- * 再加一道首条消息上的戳：标签台 / 配音台只圈戳着自己的，其余（含没有戳的旧会话）都归
- * 这一槽本来那一台 —— 判据与 `assistantWorkspaceKeyOfRow` 逐字同源。
+ * ⭐ 会话不按台分（第 9d 步，owner 10-23）：一段对话可以从图片台聊到视频台、画布，
+ *   所以只认「是不是他的」，⛔ 不再按工作区圈。工作区本身归不归他（画布项目）仍由
+ *   `assertAssistantWorkspaceAccess` 按这一轮所在的台核。
  */
-function conversationScopeSql(workspace: {
-  workspaceKey: string
-  surface: AssistantSurfaceId
-  projectId: string | null
-}): Prisma.Sql {
-  const base = Prisma.sql`"surface" = ${workspace.surface}::"AssistantSurface" AND "projectId" IS NOT DISTINCT FROM ${workspace.projectId}`
-  const stamped = ASSISTANT_STAMPED_WORKSPACE_BY_SURFACE[workspace.surface]
-  if (!stamped) return base
-  const stamp = Prisma.sql`("messages"->0->>'workspaceKey')`
-  return workspace.workspaceKey === stamped
-    ? Prisma.sql`${base} AND ${stamp} = ${stamped}`
-    : Prisma.sql`${base} AND ${stamp} IS DISTINCT FROM ${stamped}`
-}
-
-/** 归他、且在这个工作区里的那一行的 id；`lock` 时顺手锁行（结账那条事务用）。 */
-export async function findConversationInWorkspace(
+export async function findOwnConversation(
   client: Pick<Prisma.TransactionClient, '$queryRaw'>,
-  args: {
-    id: string
-    userId: string
-    workspace: {
-      workspaceKey: string
-      surface: AssistantSurfaceId
-      projectId: string | null
-    }
-    lock?: boolean
-  },
+  args: { id: string; userId: string; lock?: boolean },
 ): Promise<string | null> {
   const rows = await client.$queryRaw<{ id: string }[]>(Prisma.sql`
     SELECT "id" FROM "AssistantConversation"
     WHERE "id" = ${args.id} AND "userId" = ${args.userId}
-      AND ${conversationScopeSql(args.workspace)}
     ${args.lock ? Prisma.sql`FOR UPDATE` : Prisma.empty}
   `)
   return rows[0]?.id ?? null
@@ -123,18 +98,14 @@ export async function assertAssistantConversationWorkspaceAccess(
   conversationId: string,
   workspaceKey: string,
 ): Promise<void> {
-  const workspace = await assertAssistantWorkspaceAccess(userId, workspaceKey)
-  const id = await findConversationInWorkspace(db, {
-    id: conversationId,
-    userId,
-    workspace,
-  })
+  await assertAssistantWorkspaceAccess(userId, workspaceKey)
+  const id = await findOwnConversation(db, { id: conversationId, userId })
   if (!id) {
     throw new ApiRequestError(
       'ASSISTANT_CONVERSATION_NOT_FOUND',
       404,
       'errors.assistantConversation.notFound',
-      'Conversation not found in this workspace',
+      'Conversation not found',
     )
   }
 }
@@ -297,35 +268,55 @@ export async function upsertAssistantConversation(
 ): Promise<AssistantConversationRecord> {
   const user = await ensureUser(clerkId)
   const workspace = await resolveConversationWorkspace(user.id, input)
-  const messages = stampChatCharacter(
-    stampWorkspace(sanitizeMessages(input.messages), workspace),
-    input.chatCharacterId,
-  )
-  const title = titleFromMessages(messages)
+  const sanitized = sanitizeMessages(input.messages)
 
   if (input.id) {
-    const existingId = await findConversationInWorkspace(db, {
-      id: input.id,
-      userId: user.id,
-      workspace,
+    const existing = await db.assistantConversation.findFirst({
+      where: { id: input.id, userId: user.id },
+      select: { id: true, surface: true, projectId: true, messages: true },
     })
-    if (!existingId) {
+    if (!existing) {
       throw new ApiRequestError(
         'ASSISTANT_CONVERSATION_NOT_FOUND',
         404,
         'errors.assistantConversation.notFound',
-        'Conversation not found in this workspace',
+        'Conversation not found',
       )
     }
-
+    /**
+     * ⭐ 戳照这一行**起始**的那个台盖（第 9d 步）：对话后来聊到别的台，⛔ 不改它归哪儿 ——
+     *   历史下拉上「从哪儿开始的」读的就是它；中途去过哪些台记在 `domainMark` 里。
+     */
+    const home = {
+      surface: existing.surface as AssistantSurfaceId,
+      workspaceKey:
+        assistantWorkspaceKeyOfRow({
+          surface: existing.surface as AssistantSurfaceId,
+          projectId: existing.projectId,
+          stamp: Array.isArray(existing.messages)
+            ? (existing.messages[0] as { workspaceKey?: unknown } | undefined)
+                ?.workspaceKey
+            : undefined,
+        }) ?? workspace.workspaceKey,
+    }
+    const messages = stampChatCharacter(
+      stampWorkspace(sanitized, home),
+      input.chatCharacterId,
+    )
     const updated = await db.assistantConversation.update({
-      where: { id: existingId, userId: user.id },
+      where: { id: existing.id, userId: user.id },
       data: {
         messages: messages as unknown as Prisma.InputJsonValue,
       },
     })
     return toRecord(updated)
   }
+
+  const messages = stampChatCharacter(
+    stampWorkspace(sanitized, workspace),
+    input.chatCharacterId,
+  )
+  const title = titleFromMessages(messages)
 
   const created = await db.assistantConversation.create({
     data: {
@@ -349,7 +340,6 @@ export async function listAssistantConversations(
   args: ListAssistantConversationsQuery,
 ): Promise<AssistantConversationSummary[]> {
   const user = await ensureUser(clerkId)
-  const workspace = await resolveConversationWorkspace(user.id, args)
   const limit = args.limit ?? 20
   const operatorPayload = Prisma.sql`COALESCE("messages"->0->'operator' <> 'null'::jsonb, false)`
   const rows = await db.$queryRaw<
@@ -383,7 +373,6 @@ export async function listAssistantConversations(
       ) AS "chatCharacterRole"
     FROM "AssistantConversation"
     WHERE "userId" = ${user.id}
-      AND ${conversationScopeSql(workspace)}
       ${args.operatorOnly !== undefined ? Prisma.sql`AND ${operatorPayload} = ${args.operatorOnly}` : Prisma.empty}
     ORDER BY "updatedAt" DESC
     LIMIT ${limit}
@@ -432,12 +421,10 @@ export async function getAssistantConversation(
   args: GetAssistantConversationQuery,
 ): Promise<AssistantConversationRecord | null> {
   const user = await ensureUser(clerkId)
-  const workspace = await resolveConversationWorkspace(user.id, args)
   const rows = await db.$queryRaw<Parameters<typeof toRecord>[0][]>(Prisma.sql`
     SELECT "id", "surface", "projectId", "title", "messages", "rounds", "createdAt", "updatedAt"
     FROM "AssistantConversation"
     WHERE "userId" = ${user.id}
-      AND ${conversationScopeSql(workspace)}
       ${args.id ? Prisma.sql`AND "id" = ${args.id}` : Prisma.empty}
       ${args.operatorOnly !== undefined ? Prisma.sql`AND COALESCE("messages"->0->'operator' <> 'null'::jsonb, false) = ${args.operatorOnly}` : Prisma.empty}
     ORDER BY "updatedAt" DESC
@@ -542,17 +529,9 @@ export async function renameAssistantConversation(
 
 async function readLockedConversationRounds(
   tx: Prisma.TransactionClient,
-  args: {
-    id: string
-    userId: string
-    workspace: {
-      workspaceKey: string
-      surface: AssistantSurfaceId
-      projectId: string | null
-    }
-  },
+  args: { id: string; userId: string },
 ) {
-  const lockedId = await findConversationInWorkspace(tx, {
+  const lockedId = await findOwnConversation(tx, {
     ...args,
     lock: true,
   })
@@ -589,13 +568,12 @@ export async function appendAssistantConversationRound(
   workspaceKey: string,
 ): Promise<AssistantConversationRoundStored | null> {
   const user = await ensureUser(clerkId)
-  const workspace = await assertAssistantWorkspaceAccess(user.id, workspaceKey)
+  await assertAssistantWorkspaceAccess(user.id, workspaceKey)
   const stored = await db.$transaction(
     async (tx) => {
       const existing = await readLockedConversationRounds(tx, {
         id: conversationId,
         userId: user.id,
-        workspace,
       })
       if (!existing) return null
 
@@ -657,13 +635,12 @@ export async function updateAssistantConversationRound(
   workspaceKey: string,
 ): Promise<AssistantConversationRoundStored | null> {
   const user = await ensureUser(clerkId)
-  const workspace = await assertAssistantWorkspaceAccess(user.id, workspaceKey)
+  await assertAssistantWorkspaceAccess(user.id, workspaceKey)
   const updated = await db.$transaction(
     async (tx) => {
       const existing = await readLockedConversationRounds(tx, {
         id: conversationId,
         userId: user.id,
-        workspace,
       })
       if (!existing) return null
 
@@ -721,15 +698,8 @@ export async function listAssistantConversationRounds(
   conversationId: string,
   args: { limit: number; workspaceKey: string },
 ): Promise<AssistantConversationRoundStored[]> {
-  const workspace = await assertAssistantWorkspaceAccess(
-    userId,
-    args.workspaceKey,
-  )
-  const id = await findConversationInWorkspace(db, {
-    id: conversationId,
-    userId,
-    workspace,
-  })
+  await assertAssistantWorkspaceAccess(userId, args.workspaceKey)
+  const id = await findOwnConversation(db, { id: conversationId, userId })
   if (!id) return []
   const row = await db.assistantConversation.findUnique({
     where: { id },

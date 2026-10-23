@@ -43,7 +43,10 @@ import { GripVertical } from '@/components/icons'
 import { animate, motion, useMotionValue, useTransform } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import { useUser } from '@clerk/nextjs'
-import { assistantWorkspaceScope } from '@/lib/assistant-workspace'
+import {
+  assistantThreadScope,
+  assistantWorkspaceKey,
+} from '@/lib/assistant-workspace'
 import { setAssistantCursorLabel } from '@/lib/studio-operator-cursor'
 
 import type { AssistantReasoningEffort } from '@/constants/assistant-persona'
@@ -221,7 +224,8 @@ export function StudioOperatorDock() {
   } = useStudioOperatorHost()
   const { user } = useUser()
   const userId = user?.id ?? null
-  const scope = assistantWorkspaceScope(userId, workspace, hostProjectId)
+  const scope = assistantThreadScope(userId)
+  const workspaceKey = assistantWorkspaceKey(workspace, hostProjectId)
   const history = useStudioOperatorHistory({
     userId,
     workspace,
@@ -886,14 +890,14 @@ export function StudioOperatorDock() {
   useEffect(() => {
     const consume = () => {
       if (!ownsComposer()) return
-      const text = takeOperatorDraft(threadScope)
+      const text = takeOperatorDraft(threadScope, workspaceKey)
       if (text === null) return
       setDraft(text)
       setOpen(true)
     }
     consume()
     return subscribeOperatorDraft(consume)
-  }, [threadScope, ownsComposer, setDraft, setOpen])
+  }, [threadScope, workspaceKey, ownsComposer, setDraft, setOpen])
 
   /** 「和她聊」（附录L）：开一段和她的聊天会话、打开面板。 */
   const { newThread } = operator

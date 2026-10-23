@@ -1155,7 +1155,8 @@
       "chat": "聊天",
       "pickCharacter": "和谁聊",
       "toChat": "切到聊天 · 和 {name}",
-      "toWork": "回到工作"
+      "toWork": "回到工作",
+      "toDomain": "切到{domain}"
     },
     "phoneAdd": {
       "label": "添加",

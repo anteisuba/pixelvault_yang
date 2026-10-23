@@ -9,7 +9,7 @@ import {
 import { RESEARCH_RUN_STATUSES } from '@/constants/research'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
-import { findConversationInWorkspace } from '@/services/assistant-conversation.service'
+import { findOwnConversation } from '@/services/assistant-conversation.service'
 import type { AssistantSurfaceId } from '@/types/assistant-conversation'
 import {
   EvidenceItemSchema,
@@ -107,14 +107,9 @@ export async function appendAssistantEvidenceBook(args: {
   try {
     return await db.$transaction(
       async (tx) => {
-        const locked = await findConversationInWorkspace(tx, {
+        const locked = await findOwnConversation(tx, {
           id: args.conversationId,
           userId: args.userId,
-          workspace: {
-            workspaceKey: args.workspaceKey,
-            surface: args.surface,
-            projectId: args.projectId ?? null,
-          },
           lock: true,
         })
         if (!locked) return { refs: [], researchRunIds: [] }

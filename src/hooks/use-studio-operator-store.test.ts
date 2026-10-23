@@ -49,37 +49,63 @@ const DONE: AssistantOperatorAppliedStep = { ...RUNNING, status: 'done' }
 const RUN = 'run-1'
 
 describe('显式跨工作区交接', () => {
-  it('角色台交接文字只在同账号自然语言图片台消费一次', () => {
-    store.claimOperatorThreadScope('account-a:cards', 'cards')
+  it('角色台交接文字只在同账号自然语言图片台消费一次（线程一个人一段，按台认）', () => {
+    store.claimOperatorThreadScope('account-a:assistant', 'cards')
     store.requestOperatorDraft('image-natural', '给这个角色做一张立绘')
-    expect(store.takeOperatorDraft('account-a:cards')).toBeNull()
-    store.claimOperatorThreadScope('account-a:image-tags', 'image')
-    expect(store.takeOperatorDraft('account-a:image-tags')).toBeNull()
-    store.claimOperatorThreadScope('account-a:image-natural', 'image')
-    expect(store.takeOperatorDraft('account-a:image-natural')).toBe(
-      '给这个角色做一张立绘',
-    )
-    expect(store.takeOperatorDraft('account-a:image-natural')).toBeNull()
+    expect(store.takeOperatorDraft('account-a:assistant', 'cards')).toBeNull()
+    expect(
+      store.takeOperatorDraft('account-a:assistant', 'image-tags'),
+    ).toBeNull()
+    expect(
+      store.takeOperatorDraft('account-a:assistant', 'image-natural'),
+    ).toBe('给这个角色做一张立绘')
+    expect(
+      store.takeOperatorDraft('account-a:assistant', 'image-natural'),
+    ).toBeNull()
   })
 
   it('换账号清掉前一账号未消费的交接', () => {
-    store.claimOperatorThreadScope('account-a:cards', 'cards')
+    store.claimOperatorThreadScope('account-a:assistant', 'cards')
     store.requestOperatorDraft('image-natural', '账号 A 的角色')
-    store.claimOperatorThreadScope('account-b:image-natural', 'image')
-    expect(store.takeOperatorDraft('account-b:image-natural')).toBeNull()
-    store.claimOperatorThreadScope('account-a:image-natural', 'image')
-    expect(store.takeOperatorDraft('account-a:image-natural')).toBeNull()
+    store.claimOperatorThreadScope('account-b:assistant', 'image')
+    expect(
+      store.takeOperatorDraft('account-b:assistant', 'image-natural'),
+    ).toBeNull()
+    store.claimOperatorThreadScope('account-a:assistant', 'image')
+    expect(
+      store.takeOperatorDraft('account-a:assistant', 'image-natural'),
+    ).toBeNull()
   })
 
-  it('画布节点请求绑定当前项目，另一个画布项目不能消费', () => {
-    store.claimOperatorThreadScope('account-a:canvas:project-a', 'canvas')
-    store.requestOperatorDraft('canvas', '写这位角色的台词')
-    store.claimOperatorThreadScope('account-a:canvas:project-b', 'canvas')
-    expect(store.takeOperatorDraft('account-a:canvas:project-b')).toBeNull()
-    store.claimOperatorThreadScope('account-a:canvas:project-a', 'canvas')
-    expect(store.takeOperatorDraft('account-a:canvas:project-a')).toBe(
-      '写这位角色的台词',
-    )
+  it('画布节点请求绑定指名的项目，另一个画布项目不能消费', () => {
+    store.claimOperatorThreadScope('account-a:assistant', 'canvas')
+    store.requestOperatorDraft('canvas', '写这位角色的台词', 'project-a')
+    expect(
+      store.takeOperatorDraft('account-a:assistant', 'canvas:project-b'),
+    ).toBeNull()
+    expect(
+      store.takeOperatorDraft('account-a:assistant', 'canvas:project-a'),
+    ).toBe('写这位角色的台词')
+  })
+})
+
+describe('换台细线（第 9d 步：一段对话跨台）', () => {
+  it('聊过之后换台落一条细线；连着换只留最后一条；空线程不落', () => {
+    store.claimOperatorThreadScope('account-a:assistant', 'image')
+    store.claimOperatorThreadScope('account-a:assistant', 'video')
+    expect(store.getOperatorState().entries).toEqual([])
+    store.appendOperatorEntry({
+      kind: 'user',
+      id: 'u1',
+      text: '出一张',
+      attachments: [],
+    })
+    store.claimOperatorThreadScope('account-a:assistant', 'canvas')
+    store.claimOperatorThreadScope('account-a:assistant', 'lora')
+    const entries = store.getOperatorState().entries
+    expect(entries.map((entry) => entry.kind)).toEqual(['user', 'domainMark'])
+    expect(entries[1]).toMatchObject({ kind: 'domainMark', domain: 'lora' })
+    expect(store.getOperatorState().domain).toBe('lora')
   })
 })
 

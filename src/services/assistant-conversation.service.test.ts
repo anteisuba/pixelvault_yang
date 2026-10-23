@@ -129,7 +129,7 @@ it('renames an unstamped image conversation but not a canvas one without a proje
   expect(mocks.update).toHaveBeenCalledTimes(1)
 })
 
-it('lists only the current workspace without mixing operator histories', async () => {
+it('lists every conversation of theirs, across workspaces (9d)', async () => {
   mocks.queryRaw.mockResolvedValue([
     {
       id: 'one',
@@ -143,21 +143,13 @@ it('lists only the current workspace without mixing operator histories', async (
     },
   ])
   const result = await listAssistantConversations('clerk-owner', {
-    workspaceKey: 'image-natural',
-    surface: 'IMAGE_STUDIO',
     operatorOnly: true,
     limit: 20,
   })
   expect(mocks.queryRaw).toHaveBeenCalledOnce()
   const query = mocks.queryRaw.mock.calls[0][0]
-  expect(query.values).toEqual([
-    'owner-id',
-    'IMAGE_STUDIO',
-    null,
-    'image-tags',
-    true,
-    20,
-  ])
+  expect(query.values).toEqual(['owner-id', true, 20])
+  expect(query.sql).not.toContain('"surface" =')
   expect(query.sql).toContain('jsonb_array_length')
   expect(query.sql).toContain('AND COALESCE')
   expect(query.sql).not.toMatch(/SELECT[^]*,\s*"messages"\s*[,\n]/)
@@ -170,21 +162,6 @@ it('lists only the current workspace without mixing operator histories', async (
   expect(result[0]).not.toHaveProperty('messages')
   expect(result[0]).not.toHaveProperty('stamp')
 })
-it('keeps canvas lists scoped to their project', async () => {
-  mocks.queryRaw.mockResolvedValue([])
-  await listAssistantConversations('clerk-owner', {
-    workspaceKey: 'canvas:project-one',
-    surface: 'NODE_CANVAS',
-    projectId: 'project-one',
-  })
-  const query = mocks.queryRaw.mock.calls[0][0]
-  expect(query.values).toEqual(['owner-id', 'NODE_CANVAS', 'project-one', 20])
-  expect(mocks.findProject).toHaveBeenCalledWith({
-    where: { id: 'project-one', userId: 'owner-id', isDeleted: false },
-    select: { id: true },
-  })
-})
-
 // ─── 每轮结账（assistant-shell-v2 §7.2 / §7.5）────────────────────
 
 const ROUND = {
@@ -300,7 +277,7 @@ it('同时编辑不同栏位时读取锁内的新版本，保留两处编辑', a
   expect(read()[0]).toMatchObject({ facts: ['edited'], todos: ['next action'] })
 })
 
-it('会话行锁按所有者与工作区过滤，锁不到就不读取或修改轮次', async () => {
+it('会话行锁按所有者过滤（不分台，9d），锁不到就不读取或修改轮次', async () => {
   mocks.lockConversation.mockResolvedValueOnce([])
   expect(
     await appendAssistantConversationRound(
@@ -312,13 +289,7 @@ it('会话行锁按所有者与工作区过滤，锁不到就不读取或修改�
   ).toBeNull()
   const query = mocks.lockConversation.mock.calls[0][0]
   expect(query.sql).toContain('FOR UPDATE')
-  expect(query.values).toEqual([
-    'conv-1',
-    'owner-id',
-    'IMAGE_STUDIO',
-    null,
-    'image-tags',
-  ])
+  expect(query.values).toEqual(['conv-1', 'owner-id'])
   expect(mocks.findUnique).not.toHaveBeenCalled()
   expect(mocks.update).not.toHaveBeenCalled()
 })
@@ -457,7 +428,6 @@ it('读回来时坏掉的那一条丢掉，⛔ 不作废整段会话', async () 
 
   const record = await getAssistantConversation('clerk-owner', {
     id: 'conv-1',
-    workspaceKey: 'image-natural',
   })
 
   expect(record?.rounds).toEqual([{ ...ROUND, roundIndex: 0 }])
@@ -486,13 +456,7 @@ it('注入读：按 userId 核所有权，只回最近几条', async () => {
     limit: 2,
   })
 
-  expect(mocks.queryRaw.mock.calls[0][0].values).toEqual([
-    'conv-1',
-    'owner-id',
-    'IMAGE_STUDIO',
-    null,
-    'image-tags',
-  ])
+  expect(mocks.queryRaw.mock.calls[0][0].values).toEqual(['conv-1', 'owner-id'])
   expect(mocks.findUnique).toHaveBeenCalledWith({
     where: { id: 'conv-1' },
     select: { rounds: true },
@@ -618,24 +582,18 @@ it('没有这一号 / 不归他时不写库，返回 null', async () => {
   expect(mocks.update).not.toHaveBeenCalled()
 })
 
-it('does not resume a natural-language conversation from the tag workspace', async () => {
-  mocks.queryRaw.mockImplementation(async (query: { values: unknown[] }) =>
-    query.values.includes('image-natural') ? [{ id: 'conv-1' }] : [],
-  )
-  expect(
-    await getAssistantConversation('clerk-owner', {
-      id: 'conv-1',
-      workspaceKey: 'image-tags',
-      surface: 'IMAGE_STUDIO',
-    }),
-  ).toBeNull()
+it('⭐ 同一段对话换了台照样读得到（9d：对话不按台分）', async () => {
+  mocks.queryRaw.mockResolvedValue([{ id: 'conv-1' }])
+  mocks.findUnique.mockResolvedValue({
+    rounds: [{ ...ROUND, roundIndex: 0 }],
+  })
   expect(
     await listAssistantConversationRounds('owner-id', 'conv-1', {
       workspaceKey: 'image-tags',
       limit: 8,
     }),
-  ).toEqual([])
-  expect(mocks.findUnique).not.toHaveBeenCalled()
+  ).toHaveLength(1)
+  expect(mocks.queryRaw.mock.calls[0][0].values).toEqual(['conv-1', 'owner-id'])
 })
 
 it('rejects contradictory surface and project classifications before saving', async () => {
@@ -661,16 +619,16 @@ it('rejects contradictory surface and project classifications before saving', as
 it('rejects inaccessible canvas projects before reading conversations', async () => {
   mocks.findProject.mockResolvedValue(null)
   await expect(
-    getAssistantConversation('clerk-owner', {
+    listAssistantConversationRounds('owner-id', 'conv-1', {
       workspaceKey: 'canvas:someone-elses-project',
-      surface: 'NODE_CANVAS',
+      limit: 8,
     }),
   ).rejects.toMatchObject({ errorCode: 'ASSISTANT_WORKSPACE_NOT_FOUND' })
   expect(mocks.queryRaw).not.toHaveBeenCalled()
 })
 
-it('will not reassign an existing conversation', async () => {
-  mocks.queryRaw.mockResolvedValue([])
+it('will not save into a conversation that is not theirs', async () => {
+  mocks.findFirst.mockResolvedValue(null)
   await expect(
     upsertAssistantConversation('clerk-owner', {
       id: '00000000-0000-4000-8000-000000000001',
@@ -682,13 +640,43 @@ it('will not reassign an existing conversation', async () => {
     errorCode: 'ASSISTANT_CONVERSATION_NOT_FOUND',
     httpStatus: 404,
   })
-  expect(mocks.queryRaw.mock.calls[0][0].values).toEqual([
-    '00000000-0000-4000-8000-000000000001',
-    'owner-id',
-    'LORA',
-    null,
-  ])
+  expect(mocks.findFirst.mock.calls[0][0].where).toEqual({
+    id: '00000000-0000-4000-8000-000000000001',
+    userId: 'owner-id',
+  })
   expect(mocks.update).not.toHaveBeenCalled()
+})
+
+it('⭐ 换到别的台接着存：这一行仍记在起始的那个台（9d）', async () => {
+  mocks.findFirst.mockResolvedValue({
+    id: 'conv-1',
+    surface: 'IMAGE_STUDIO',
+    projectId: null,
+    messages: [{ role: 'user', content: 'a', workspaceKey: 'image-tags' }],
+  })
+  mocks.update.mockImplementation(async (input: { data: object }) => ({
+    id: 'conv-1',
+    surface: 'IMAGE_STUDIO',
+    projectId: null,
+    title: null,
+    rounds: [],
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...input.data,
+  }))
+  const record = await upsertAssistantConversation('clerk-owner', {
+    id: '00000000-0000-4000-8000-000000000001',
+    workspaceKey: 'video',
+    surface: 'VIDEO_STUDIO',
+    messages: [
+      { role: 'user', content: 'a' },
+      { role: 'assistant', content: 'b' },
+    ],
+  })
+  const data = mocks.update.mock.calls[0][0].data
+  expect(data).not.toHaveProperty('surface')
+  expect(data.messages[0]).toMatchObject({ workspaceKey: 'image-tags' })
+  expect(record.workspaceKey).toBe('image-tags')
 })
 
 it('stamps the image workbench on the first message only, and nothing elsewhere', async () => {
@@ -744,21 +732,8 @@ it('unstamped image conversations belong to the natural workbench, never to the 
       operatorThread: true,
     },
   ])
-  const natural = await listAssistantConversations('clerk-owner', {
-    workspaceKey: 'image-natural',
-    surface: 'IMAGE_STUDIO',
-  })
-  expect(mocks.queryRaw.mock.lastCall![0].sql).toContain('IS DISTINCT FROM')
+  const natural = await listAssistantConversations('clerk-owner', {})
   expect(natural[0]?.workspaceKey).toBe('image-natural')
-
-  mocks.queryRaw.mockResolvedValue([])
-  await listAssistantConversations('clerk-owner', {
-    workspaceKey: 'image-tags',
-    surface: 'IMAGE_STUDIO',
-  })
-  const tags = mocks.queryRaw.mock.lastCall![0]
-  expect(tags.sql).not.toContain('IS DISTINCT FROM')
-  expect(tags.values).toContain('image-tags')
 })
 
 it('derives the workspace of video, lora and canvas rows from the row itself', async () => {
@@ -778,10 +753,7 @@ it('derives the workspace of video, lora and canvas rows from the row itself', a
       operatorThread: true,
     })),
   )
-  const result = await listAssistantConversations('clerk-owner', {
-    workspaceKey: 'video',
-    surface: 'VIDEO_STUDIO',
-  })
+  const result = await listAssistantConversations('clerk-owner', {})
   expect(result.map((row) => row.workspaceKey)).toEqual([
     'video',
     'lora',
@@ -795,20 +767,12 @@ it.each([true, false])(
     mocks.queryRaw.mockResolvedValue([])
     for (const id of [undefined, '00000000-0000-4000-8000-000000000001']) {
       expect(
-        await getAssistantConversation('clerk-owner', {
-          workspaceKey: 'image-tags',
-          surface: 'IMAGE_STUDIO',
-          operatorOnly,
-          id,
-        }),
+        await getAssistantConversation('clerk-owner', { operatorOnly, id }),
       ).toBeNull()
       const query = mocks.queryRaw.mock.lastCall![0]
       expect(query.sql).toContain('COALESCE("messages"->0->\'operator\'')
       expect(query.values).toEqual([
         'owner-id',
-        'IMAGE_STUDIO',
-        null,
-        'image-tags',
         ...(id ? [id] : []),
         operatorOnly,
       ])
@@ -820,17 +784,10 @@ it.each([true, false])(
 it('filters legacy text lists with false and leaves explicit combined lists unfiltered', async () => {
   mocks.queryRaw.mockResolvedValue([])
   for (const operatorOnly of [false, undefined]) {
-    await listAssistantConversations('clerk-owner', {
-      workspaceKey: 'image-natural',
-      surface: 'IMAGE_STUDIO',
-      operatorOnly,
-    })
+    await listAssistantConversations('clerk-owner', { operatorOnly })
     const query = mocks.queryRaw.mock.lastCall![0]
     expect(query.values).toEqual([
       'owner-id',
-      'IMAGE_STUDIO',
-      null,
-      'image-tags',
       ...(operatorOnly === false ? [false] : []),
       20,
     ])
@@ -897,8 +854,6 @@ it('会话列表带上和谁聊；卡读不到就当工作会话', async () => {
     },
   ])
   const result = await listAssistantConversations('clerk-owner', {
-    workspaceKey: 'cards',
-    surface: 'CARDS',
     operatorOnly: true,
   })
   const query = mocks.queryRaw.mock.calls[0][0]

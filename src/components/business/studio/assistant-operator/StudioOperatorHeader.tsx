@@ -61,7 +61,6 @@ import {
 } from '@/components/icons'
 import { useFormatter, useTranslations } from 'next-intl'
 
-import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import {
   STUDIO_OPERATOR_KEEP_OPEN_ATTR,
   STUDIO_OPERATOR_SHELL,
@@ -92,17 +91,10 @@ import { StudioOperatorModeSwitch } from '@/components/business/studio/assistant
 import { StudioOperatorSessionRow } from '@/components/business/studio/assistant-operator/StudioOperatorSessionRow'
 import { deriveAssistantConversationTitle } from '@/lib/assistant-conversation-title'
 import {
-  ASSISTANT_SURFACE_IDS,
-  type AssistantSurfaceId,
-} from '@/types/assistant-conversation'
+  assistantWorkspaceDomain,
+  assistantWorkspaceFromKey,
+} from '@/lib/assistant-workspace'
 
-/**
- * 会话行上那枚域标签读哪条词条。
- *
- * ⚠ `Record<Surface, …>`：surface 表加一档而这里没跟上，编译期就红 ——
- * 漏掉的表现是菜单上一枚印着 `undefined` 的标签。
- * ⚠ 画布不是操作员的域，`domainName` 里也没有它的词条 —— 不画标签。
- */
 /**
  * 历史图标身上的标记 —— 菜单的 `onInteractOutside` 靠它认出「点的是我自己的
  * 第二个入口」（见头注）。⚠ 用属性不用 `data-testid`：testid 是给用例的，
@@ -159,15 +151,17 @@ const HEADER_ICON_BUTTON_CLASS =
 /** 头部左上那个头像位怎么处理 —— 见头注「左上那个头像位」。 */
 export type StudioOperatorHeaderAvatar = 'slot' | 'own' | 'none'
 
-const SESSION_DOMAIN_BY_SURFACE: Record<
-  AssistantSurfaceId,
-  AssistantOperatorDomain | null
-> = {
-  [ASSISTANT_SURFACE_IDS.imageStudio]: ASSISTANT_PROTOCOL_DOMAIN_IDS.image,
-  [ASSISTANT_SURFACE_IDS.videoStudio]: ASSISTANT_PROTOCOL_DOMAIN_IDS.video,
-  [ASSISTANT_SURFACE_IDS.lora]: ASSISTANT_PROTOCOL_DOMAIN_IDS.lora,
-  [ASSISTANT_SURFACE_IDS.nodeCanvas]: null,
-  [ASSISTANT_SURFACE_IDS.cards]: ASSISTANT_PROTOCOL_DOMAIN_IDS.cards,
+/**
+ * 会话行上那枚台标签：读这段对话**起始**的那个台（`workspaceKey`，配音台 / 标签台靠首条的戳
+ * 认得出来）。中途换过哪些台在线程里的换台细线上（第 9d 步）。归不到台的旧画布会话不画。
+ */
+function sessionDomain(
+  workspaceKey: string | null,
+): AssistantOperatorDomain | null {
+  const workspace = workspaceKey
+    ? assistantWorkspaceFromKey(workspaceKey)
+    : null
+  return workspace ? assistantWorkspaceDomain(workspace.workspace) : null
 }
 
 interface StudioOperatorHeaderProps {
@@ -440,21 +434,12 @@ export function StudioOperatorHeader({
                     </DropdownMenuLabel>
                   ) : null}
                   {group.sessions.map((session) => {
-                    /* ⚠ 域标签读的是 `surface`（线程**起始**域）—— 一条线程后来切去
-                 哪儿只在它自己的域标记里，列表这一层看不到，也不该猜。
-                 ⚠ 先取出来再判：直接把索引表达式塞进模板串，`null` 会一起进
-                 `t()` 的键类型里（编译期就红）。 */
-                    const sessionDomain =
-                      SESSION_DOMAIN_BY_SURFACE[session.surface]
+                    const domain = sessionDomain(session.workspaceKey)
                     return (
                       <StudioOperatorSessionRow
                         key={session.id}
                         session={session}
-                        domainLabel={
-                          sessionDomain
-                            ? t(`domainName.${sessionDomain}`)
-                            : null
-                        }
+                        domainLabel={domain ? t(`domainName.${domain}`) : null}
                         dateLabel={sessionDateLabel(session.updatedAt)}
                         current={session.id === history.currentSessionId}
                         selectDisabled={

@@ -267,7 +267,7 @@ function createReplayDb() {
             state.writes.push({ model: '$raw', method: prop, args })
             return 0
           }
-        // 认会话那一句（`findConversationInWorkspace`）：只认这一题的那段、这一位的。
+        // 认会话那一句（`findOwnConversation`）：只认这一题的那段、这一位的。
         if (prop === '$queryRaw')
           return async (query: unknown) =>
             query instanceof Prisma.Sql &&

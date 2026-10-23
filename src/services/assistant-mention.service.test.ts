@@ -112,4 +112,14 @@ describe('lookupMentionAssets', () => {
     await lookupMentionAssets('user-1', ['https://cdn.test/gen-1.png'])
     expect(generationArgs().where).toMatchObject({ userId: 'user-1' })
   })
+
+  it('按图的编号查（回复里的 图_N 换缩略图，第 9d 步），只查这个人的', async () => {
+    mockGenerationFindMany.mockResolvedValueOnce([ROW])
+    const items = await lookupMentionAssets('user-1', [], [12])
+    expect(generationArgs().where).toEqual({
+      userId: 'user-1',
+      OR: [{ seq: { in: [12] } }],
+    })
+    expect(items[0]).toMatchObject({ seq: 12, thumb: ROW.url })
+  })
 })

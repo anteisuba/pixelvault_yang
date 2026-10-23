@@ -18,13 +18,12 @@ export function assistantWorkspaceKey(
   return workspace
 }
 
-export function assistantWorkspaceScope(
-  userId: string | null,
-  workspace: AssistantWorkspace,
-  projectId?: string,
-): string | null {
-  const key = assistantWorkspaceKey(workspace, projectId)
-  return userId && key ? `${encodeURIComponent(userId)}:${key}` : null
+/**
+ * 助手线程的作用域：**一个人一段**（第 9d 步，owner 10-23：对话不按台分，换台不断）。
+ * 这一轮在哪个台由请求里的 `workspaceKey` 说，⛔ 不再进作用域。
+ */
+export function assistantThreadScope(userId: string | null): string | null {
+  return userId ? `${encodeURIComponent(userId)}:assistant` : null
 }
 
 export function assistantWorkspaceFromKey(key: string): {

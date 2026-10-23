@@ -57,6 +57,7 @@ import {
   shouldCollapseOperatorText,
   type OperatorFindRef,
 } from '@/lib/studio-operator-timeline'
+import { usePictureNumberReferences } from '@/hooks/use-picture-number-references'
 import { cn } from '@/lib/utils'
 import type { NamedImageReference } from '@/lib/studio-reference-mentions'
 import type { AssistantMention } from '@/types/assistant-mention'
@@ -101,6 +102,7 @@ interface StudioOperatorMessageBodyProps {
 
 /** 没有可认的号时共用这一份，⛔ 别写成行内 `new Map()`（每次 render 换引用）。 */
 const NO_FIND_REFS: ReadonlyMap<number, OperatorFindRef> = new Map()
+const NO_REFERENCES: readonly NamedImageReference[] = []
 
 /**
  * 参考图缩略图（D12 P8 / C10）—— 地址过期或被删时画一格占位，⛔ 不出破图标。
@@ -310,7 +312,7 @@ export function StudioOperatorCollapsibleText({
   sources = [],
   activeCite = null,
   onPickCitation,
-  references = [],
+  references: passedReferences = NO_REFERENCES,
   findRefs = NO_FIND_REFS,
   pendingSince,
   pendingPhase,
@@ -335,6 +337,13 @@ export function StudioOperatorCollapsibleText({
 }) {
   const t = useTranslations('StudioOperator')
   const [expanded, setExpanded] = useState(false)
+  // 正文里的 `图_N` 换成缩略图（第 9d 步）；还在写的那一条先不查。
+  const numbered = usePictureNumberReferences(streaming ? '' : text)
+  const references = useMemo(
+    () =>
+      numbered.length ? [...passedReferences, ...numbered] : passedReferences,
+    [passedReferences, numbered],
+  )
   const known = useMemo(
     () => new Set(sources.map((source) => source.cite)),
     [sources],

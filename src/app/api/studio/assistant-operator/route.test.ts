@@ -36,7 +36,7 @@ import { runAssistantNext } from '@/features/assistant/kernel'
 import { POST } from './route'
 
 function body(
-  domain: 'canvas' | 'image' | 'lora' | 'video' | 'cards',
+  domain: 'canvas' | 'image' | 'lora' | 'video' | 'cards' | 'audio',
   kernel?: 'v2' | 'v3' | 'next',
 ) {
   return {
@@ -45,7 +45,10 @@ function body(
     workspaceKey:
       domain === 'canvas'
         ? 'canvas:project-1'
-        : domain === 'lora' || domain === 'video' || domain === 'cards'
+        : domain === 'lora' ||
+            domain === 'video' ||
+            domain === 'cards' ||
+            domain === 'audio'
           ? domain
           : 'image-natural',
     snapshot: {
@@ -148,7 +151,7 @@ describe('POST /api/studio/assistant-operator · 旧内核开关只有 owner 认
 })
 
 describe('POST /api/studio/assistant-operator · 新内核（next）只给 owner、只接 ASSISTANT_NEXT_DOMAINS 的台', () => {
-  it.each(['image', 'lora', 'video', 'cards', 'canvas'] as const)(
+  it.each(['image', 'lora', 'video', 'cards', 'canvas', 'audio'] as const)(
     'owner：%s 发了 next 走新内核',
     async (domain) => {
       await POST(
@@ -165,6 +168,16 @@ describe('POST /api/studio/assistant-operator · 新内核（next）只给 owner
       createPOST('/api/studio/assistant-operator', body('image', 'next')),
     )
     expect(runAssistantV3).toHaveBeenCalledTimes(1)
+    expect(runAssistantNext).not.toHaveBeenCalled()
+  })
+
+  it('⛔ 配音台只有新内核接：没发 next 回 403，旧内核一个都不跑', async () => {
+    adminState.isAdmin = false
+    const response = await POST(
+      createPOST('/api/studio/assistant-operator', body('audio', 'next')),
+    )
+    expect(response.status).toBe(403)
+    expect(runAssistantV3).not.toHaveBeenCalled()
     expect(runAssistantNext).not.toHaveBeenCalled()
   })
 })

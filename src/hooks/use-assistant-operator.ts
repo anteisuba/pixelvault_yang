@@ -1458,7 +1458,9 @@ export function useAssistantOperator(
             : {}),
           ...(autoReviewTurnRef.current
             ? { autoReview: true as const }
-            : getOperatorState().autoGenerate
+            : // 配音台不跟「交给 AI 出图」（owner 10-23）：一律出确认卡。
+              getOperatorState().autoGenerate &&
+                domain !== ASSISTANT_PROTOCOL_DOMAIN_IDS.audio
               ? { autoGenerate: true as const }
               : {}),
           /**
@@ -2272,6 +2274,7 @@ export function useAssistantOperator(
       if (
         waiting.status === 'awaitingConfirm' &&
         waiting.autoGenerate &&
+        domain !== ASSISTANT_PROTOCOL_DOMAIN_IDS.audio &&
         waiting.confirm?.kind ===
           ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate &&
         waiting.confirm.status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle

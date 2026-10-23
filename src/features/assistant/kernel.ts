@@ -100,6 +100,7 @@ import {
   runLook,
   type BenchResult,
 } from '@/features/assistant/bench'
+import { loadAudioVoices } from '@/features/assistant/audio'
 import { benchAliases } from '@/features/assistant/workspace.service'
 import {
   ASSISTANT_NEXT_LIMITS,
@@ -454,7 +455,9 @@ async function* runNextTurn(
         ? Boolean(request.snapshot.cards)
         : face === ASSISTANT_V3_FACE_IDS.canvas
           ? Boolean(request.snapshot.canvas)
-          : true
+          : face === ASSISTANT_V3_FACE_IDS.audio
+            ? Boolean(request.snapshot.audio)
+            : true
   if (!face || !resolved || !modelId || !benchReady) {
     // 新内核接不了的厂商 / 台：交回旧执行器（与 v3 同一条退路）。
     yield* runOperatorTurn(clerkId, request, options, prepared)
@@ -504,6 +507,8 @@ async function* runNextTurn(
     modelId,
   })
   run.stepSeq = saved?.stepSeq ?? 0
+  // 配音台：音色库与有声音的角色每一跳现查一次（板子与改音色都读它）。
+  if (face === ASSISTANT_V3_FACE_IDS.audio) await loadAudioVoices(context)
 
   let model: NextModel = resolved
   while (saved && model.path !== saved.modelPath && model.fallback)

@@ -22063,3 +22063,83 @@ describe('search_web_images · 观察只指够得着的路', () => {
     expect(observation).toContain('"use this"')
   })
 })
+
+/** 配音台（第 9b 步）：`set_audio` 只改给了的那几格，撤销给改前那几格；换模型连规格行一起换。 */
+describe('set_audio', () => {
+  const audioRun = () =>
+    ({
+      request: { domain: 'audio' },
+      state: {
+        modelId: 'workspace:fish-s1',
+        modelLabel: 'Fish S1',
+        audio: {
+          kind: 'speech',
+          models: [
+            { id: 'workspace:fish-s1', label: 'Fish S1', kind: 'speech' },
+            { id: 'workspace:music-1', label: 'Music One', kind: 'music' },
+          ],
+          voice: { cardId: null, voiceId: null },
+          speakerVoiceIds: [],
+          pronunciationDictionary: {},
+          reference: null,
+          style: 'none',
+          expressiveness: 'auto',
+          pace: 'normal',
+          pauseMarkers: [],
+          sfxDurationSeconds: 5,
+          musicDurationSeconds: 30,
+          sfxLoop: false,
+          sfxVariantCount: 1,
+          volume: 0,
+          temperature: 0.7,
+          topP: 0.7,
+          format: 'mp3',
+        },
+      },
+    }) as unknown as Parameters<typeof planTool>[0]
+
+  it('落一格、撤销回原值', async () => {
+    const run = audioRun()
+    const plan = await planTool(
+      run,
+      ASSISTANT_OPERATOR_TOOL_IDS.setAudio,
+      { pace: 'slow', voice: { cardId: 'card-1', voiceId: 'voice-1' } },
+      'user-1',
+    )
+    if (plan.kind !== 'mutate')
+      throw new Error(`expected mutate, got ${plan.kind}`)
+    expect(plan.inverse).toEqual({
+      pace: 'normal',
+      voice: { cardId: null, voiceId: null },
+    })
+    plan.apply()
+    expect(run.state.audio?.pace).toBe('slow')
+    expect(run.state.audio?.voice.voiceId).toBe('voice-1')
+    expect(run.state.audio?.style).toBe('none')
+  })
+
+  it('换档带模型：规格行跟着换', async () => {
+    const run = audioRun()
+    const plan = await planTool(
+      run,
+      ASSISTANT_OPERATOR_TOOL_IDS.setAudio,
+      { kind: 'music', optionId: 'workspace:music-1' },
+      'user-1',
+    )
+    if (plan.kind !== 'mutate')
+      throw new Error(`expected mutate, got ${plan.kind}`)
+    plan.apply()
+    expect(run.state.audio?.kind).toBe('music')
+    expect(run.state.modelLabel).toBe('Music One')
+  })
+
+  it('台上没有的模型拒', async () => {
+    const plan = await planTool(
+      audioRun(),
+      ASSISTANT_OPERATOR_TOOL_IDS.setAudio,
+      { optionId: 'workspace:nope' },
+      'user-1',
+    )
+    expect(plan.kind).toBe('rejected')
+  })
+})

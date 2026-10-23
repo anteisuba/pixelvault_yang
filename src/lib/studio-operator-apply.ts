@@ -47,10 +47,14 @@ import {
 import type { LoraCandidateConfirmOutcome } from '@/types/lora-candidate'
 import { reloadAssistantPersonaEverywhere } from '@/hooks/use-assistant-persona'
 import { applyPromptFindReplace } from '@/lib/prompt-find-replace'
-import { describeLoraParameters } from '@/lib/studio-operator-history'
+import {
+  describeAudioPatch,
+  describeLoraParameters,
+} from '@/lib/studio-operator-history'
 import type { StudioAction, StudioFormState } from '@/contexts/studio-context'
 import { AdvancedParamsSchema } from '@/types'
 import type {
+  AssistantOperatorAudioPatch,
   AssistantOperatorCharacterProfileField,
   AssistantAssetWriteRevert,
   AssistantOperatorAppliedStep,
@@ -265,6 +269,11 @@ export interface StudioOperatorApplyContext {
    */
   setSound(enabled: boolean | null): void
   /**
+   * 配音台那一块（第 9b 步）：只改给了的那几格（撤销时给的是改前的值）。
+   * ⚠ 可选：只有配音台有。
+   */
+  setAudio?(patch: AssistantOperatorAudioPatch): void
+  /**
    * 用户亲手递来的一条地址：取图入库并挂上（P3-D，拍板 22）。
    *
    * ⚠ 此 URL 导入由宿主独立回传结果，接口保持 void 而不是
@@ -453,6 +462,8 @@ export function getOperatorStepField(
       return STUDIO_OPERATOR_FIELD_IDS.audioReferences
     case ASSISTANT_OPERATOR_TOOL_IDS.setSound:
       return STUDIO_OPERATOR_FIELD_IDS.sound
+    case ASSISTANT_OPERATOR_TOOL_IDS.setAudio:
+      return STUDIO_OPERATOR_FIELD_IDS.audio
     case ASSISTANT_OPERATOR_TOOL_IDS.mountReference:
     // 拍板 22 那条动的也是参考位 —— 与 `mount_reference` 共用一格，撤销粒度相同。
     case ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl:
@@ -521,6 +532,8 @@ export function describeOperatorInverse(
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.setSound:
       return step.inverse.enabled === null ? '' : String(step.inverse.enabled)
+    case ASSISTANT_OPERATOR_TOOL_IDS.setAudio:
+      return describeAudioPatch(step.inverse)
     case ASSISTANT_OPERATOR_TOOL_IDS.mountReference:
       return step.payload.url
     /** ⚠ 显示的是**摘掉的那张**的地址 —— 那正是撤销会挂回去的那一条。 */
@@ -847,6 +860,13 @@ export function applyOperatorStep(
     case ASSISTANT_OPERATOR_TOOL_IDS.setSound: {
       ctx.setSound(step.payload.enabled)
       return STUDIO_OPERATOR_FIELD_IDS.sound
+    }
+
+    /** 配音台那一块（第 9b 步）：宿主没接这只手就什么都不动（只有配音台有）。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.setAudio: {
+      if (!ctx.setAudio) return null
+      ctx.setAudio(step.payload)
+      return STUDIO_OPERATOR_FIELD_IDS.audio
     }
 
     case ASSISTANT_OPERATOR_TOOL_IDS.mountReference: {
@@ -1206,6 +1226,11 @@ export function revertOperatorStep(
     /** ⚠ 回得到 `null`（用户没设过那一档）—— 见 `setSound` 的 `inverse` 头注。 */
     case ASSISTANT_OPERATOR_TOOL_IDS.setSound:
       ctx.setSound(step.inverse.enabled)
+      return true
+
+    case ASSISTANT_OPERATOR_TOOL_IDS.setAudio:
+      if (!ctx.setAudio) return false
+      ctx.setAudio(step.inverse)
       return true
 
     case ASSISTANT_OPERATOR_TOOL_IDS.mountReference:

@@ -47,10 +47,11 @@ import { useStudioModeModelOptions } from '@/hooks/use-studio-mode-model-options
 import { useStudioTemplateApply } from '@/hooks/use-studio-template-apply'
 import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
 import { useStudioWorkbenchOperatorHost } from '@/hooks/use-studio-workbench-operator-host'
+import { useStudioAudioOperatorHost } from '@/hooks/use-studio-audio-operator-host'
+import { useNextAssistantKernel } from '@/hooks/use-next-assistant-kernel'
 import { useStudioReplayFromUrl } from '@/hooks/use-studio-replay-from-url'
 import { useStudioDraft, type StudioDraft } from '@/hooks/use-studio-draft'
 import { takeCanvasToBenchHandoff } from '@/lib/bench-canvas-handoff'
-
 
 /** 把「保留 / 改变」的标签拼回提示词尾巴。原样搬自退役的 `StudioBottomDock`。 */
 function buildRefinePrompt(
@@ -103,8 +104,16 @@ export function StudioWorkspaceUI() {
    * 所以这里是白名单而不是 `!== 'audio'` —— 将来多一个模态时，默认不给它助手
    * 比默认给它一个拧不动任何旋钮的助手安全（拍板 19）。
    */
+  /**
+   * 配音台（第 9b 步，owner 10-23）：本地开关选了新内核才挂新面板，别人照旧是老的提示词助手；
+   * 第 9c 步切给所有人时这道开关拿掉。
+   */
+  const nextAssistantKernel = useNextAssistantKernel()
+  const isAudioOperator = state.outputType === 'audio' && nextAssistantKernel
   const isOperatorSurface =
-    state.outputType === 'image' || state.outputType === 'video'
+    state.outputType === 'image' ||
+    state.outputType === 'video' ||
+    isAudioOperator
   /**
    * 操作员在**工作台**这个宿主上的那一份（P4-C）。面板的外壳（`StudioOperatorDock`）
    * 与撤销链从 P4-C 起都读它，因此那颗外壳变成了页面无关的东西 —— 同一个 Dock
@@ -113,6 +122,7 @@ export function StudioWorkspaceUI() {
   const workbenchOperatorHost = useStudioWorkbenchOperatorHost({
     generationEnabled: !isEditing,
   })
+  const audioOperatorHost = useStudioAudioOperatorHost()
   /**
    * 移动端画布优先形态（owner 2026-09-03 拍板方向 A，需求卡
    * `docs/references/pages/studio-image-mobile-request.md` +
@@ -153,14 +163,21 @@ export function StudioWorkspaceUI() {
    */
   const operatorHost = useMemo(
     () =>
-      isBottomComposer
-        ? {
-            ...workbenchOperatorHost,
-            collapseOnOutsidePointer: false,
-            anchor: STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR,
-          }
-        : workbenchOperatorHost,
-    [isBottomComposer, workbenchOperatorHost],
+      isAudioOperator
+        ? audioOperatorHost
+        : isBottomComposer
+          ? {
+              ...workbenchOperatorHost,
+              collapseOnOutsidePointer: false,
+              anchor: STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR,
+            }
+          : workbenchOperatorHost,
+    [
+      audioOperatorHost,
+      isAudioOperator,
+      isBottomComposer,
+      workbenchOperatorHost,
+    ],
   )
   /**
    * 舞台上开着哪块面板：模板（每一台都有 —— 图片两台与视频，桌面与手机，模板 C

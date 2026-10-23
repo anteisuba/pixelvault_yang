@@ -33,8 +33,9 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 
 **第 4a 步**（owner 10-23：拆 4a 台 / 4b 库 / 4c 设置）：
 
-- 接上的台：图片、LoRA、视频、角色页、画布（`ASSISTANT_NEXT_DOMAINS`）；配音台第 9b 步。
+- 接上的台：图片、LoRA、视频、角色页、画布、配音台（`ASSISTANT_NEXT_DOMAINS`）。
 - 画布（第 9a 步，`features/assistant/canvas.ts`）：板子、改法翻译、落地结果借 v3 画布那一套。一步里的画布改动（`add_card` / `set_card` / `connect` / `disconnect` / `delete_card` / `move_to_shot` / `reorder_shot` / `project_script`，写卡用带 `card` 的 `prompt`）合成一批 `canvas_batch` 交给浏览器落；这一跳把「还没交回的工具结果」存进接力状态（`NextTurnState.pending`），停在 `canvas_sync`，下一跳按 `priorSteps` 里落没落与新快照补上结果（新卡 `ref → 句柄`）再接着跑。同一步里 edit 之后的别的工具不跑。`generate` 在画布上带 `cards`（`upscale: true` 是放大）；「交给 AI 出图」在画布上不限张（owner 10-23），一张确认卡最多 `maxCanvasGenerateCards` 张。`hand_off` 带 `card` 先照旧，9e 换成开台。
+- 配音台（第 9b 步，`features/assistant/audio.ts`）：只有新内核接，路由对没发 next 的配音台请求回 403。快照带 `audio`（档、三档模型、音色、说话人、怎么念、时长、高级参数），浏览器端 `src/lib/studio-operator-audio-snapshot.ts` + `use-studio-audio-operator-host.ts`。改法 `audio_kind` / `model` / `voice` / `speakers` / `reading` / `duration` / `option` 落成一步 `set_audio`（只带改的那几格，撤销给改前那几格）；文字照旧走 `prompt`。音色按名字认：音色库里的卡，或有声音的角色（用她绑的那张卡，owner 10-23「只用角色自己的声音」）；名单服务端现查，⛔ 模型不写音色 id。出声一律出确认卡，⛔ 不跟「交给 AI 出图」（owner 10-23）。对话存在 `VIDEO_STUDIO` 面下，首条消息记 `workspaceKey: 'audio'` 跟视频台分开（同图片台标签模式的做法，没加迁移）。浏览器端只在 `antei:assistant-kernel=next` 时挂新面板，其余照旧挂老提示词助手，9c 切换时删。
 - 每台能用哪些改法在 `bench.ts` 的 `OPS_BY_FACE`；不在单子上的改法直接退回并列出这台有的。角色页没有出图；助手自己拟的设定 / 挑的图照旧出提议卡（4b 起创作者明说要改的直接写）。
 - 「只改那一处」：`edit` 模式的提示词改动随步骤带 `edits`，浏览器在台上**现在的文字**上重换一遍（`src/lib/prompt-find-replace.ts`，两边同一份），对不上才整段覆盖。
 - 两道旧闸（`run.nextKernel`）：NAI 标签核对不再退回整段重写；中文 / 整句这类真写不进去的照旧报，但只要模型改那一处；视频「挂了参考图须先问分辨率」跳过。
@@ -108,6 +109,8 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 - 接口与搜索调研：项目文件 `assistant-reliability/model-interfaces.md`
 
 ## Last Verified
+
+- 2026-10-23 · 第 9b 步（配音台）：`tsc` 0 error、改动文件 eslint 0 error、相关定向 vitest 全绿（改法翻译 / 板子、`set_audio` 落 → 撤、快照与表单 action、路由 403）。未在浏览器里实跑，未跑评测（等第 9 步全做完再统一跑）。
 
 - 2026-10-23 · 第 7b 步：`tsc` 0 error、定向 vitest 全绿（内置文件与生成模块一致、改版 / 关掉 / 自己写的读法、「/」注入、路由与服务按人隔离、迁移安全检查）。未跑评测（等全部改完再统一跑）。
 

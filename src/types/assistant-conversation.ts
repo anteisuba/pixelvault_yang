@@ -61,6 +61,22 @@ export const ASSISTANT_SURFACE_BY_DOMAIN: Record<
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.lora]: ASSISTANT_SURFACE_IDS.lora,
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas]: ASSISTANT_SURFACE_IDS.nodeCanvas,
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.cards]: ASSISTANT_SURFACE_IDS.cards,
+  /**
+   * 配音台（第 9b 步）借视频那一槽、靠首条消息上的戳分开（同图片两台的做法）—— ⛔ 不为它加枚举值
+   * 改库；第 9 步对话不再按台分时这一层整个拿掉。
+   */
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.audio]: ASSISTANT_SURFACE_IDS.videoStudio,
+}
+
+/**
+ * 一个存储槽里住着两个工作区时，**另一个**是谁（靠首条消息上的戳分开）：图片槽的标签台、
+ * 视频槽的配音台。没有戳的旧会话一律归这一槽本来那一个。
+ */
+export const ASSISTANT_STAMPED_WORKSPACE_BY_SURFACE: Partial<
+  Record<AssistantSurfaceId, 'image-tags' | 'audio'>
+> = {
+  [ASSISTANT_SURFACE_IDS.imageStudio]: 'image-tags',
+  [ASSISTANT_SURFACE_IDS.videoStudio]: 'audio',
 }
 
 /**

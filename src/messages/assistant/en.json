@@ -337,7 +337,8 @@
       "video": "the video workspace",
       "lora": "the LoRA workspace",
       "canvas": "the canvas",
-      "cards": "the Characters page"
+      "cards": "the Characters page",
+      "audio": "the audio workspace"
     },
     "session": "Session",
     "newThread": "New chat",

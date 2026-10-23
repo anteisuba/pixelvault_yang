@@ -103,7 +103,7 @@ describe('来源白 / 黑名单（v2 §9.3）', () => {
    * 举例用的值要**真的**不在域词表里（`canvas` 2026-09-19 已经进表）。
    */
   it('scope 掉出域词表的存量行被剥掉，⛔ 不塞进系统提示', async () => {
-    mockFindMany.mockResolvedValue([{ ...ROW, scope: 'audio' }])
+    mockFindMany.mockResolvedValue([{ ...ROW, scope: 'music-room' }])
 
     await expect(listProjectSourceRules('db_user_1')).resolves.toEqual([])
   })

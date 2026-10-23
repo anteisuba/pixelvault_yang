@@ -50,16 +50,29 @@ import type {
   V3Outcome,
 } from '@/services/kernel/assistant-v3-steps.service'
 import { createClipCache } from '@/services/kernel/assistant-v3-watch.service'
+import { searchMemoriesStep } from '@/services/kernel/assistant-v3-memories.service'
 import {
   ASSISTANT_NEXT_EDIT_OP_IDS as OP,
+  ASSISTANT_NEXT_FIND_KIND_IDS,
+  ASSISTANT_NEXT_FIND_KINDS,
+  ASSISTANT_NEXT_LIMITS,
   ASSISTANT_NEXT_LORA_PARAM_KEYS,
+  type AssistantNextFindKind,
 } from '@/features/assistant/constants'
 import type {
   AskInput,
   EditChange,
+  FindInput,
   GenerateInput,
   LookInput,
 } from '@/features/assistant/tools'
+import {
+  findInWorkspace,
+  openWorkspaceHandle,
+  parseWorkspaceHandle,
+  type WorkspaceOwner,
+  type WorkspacePicture,
+} from '@/features/assistant/workspace.service'
 
 /**
  * 工作台那一层：新内核的四个工具 → 台上真正的改动。
@@ -153,6 +166,7 @@ export function renderBench(
   context: V3Context,
   attachedNames: readonly string[],
   latestUserText: string,
+  aliases = '',
 ): string {
   const snapshot = currentSnapshot(context)
   const text =
@@ -174,6 +188,7 @@ export function renderBench(
       /use these names with look and mount_reference/g,
       'use these names with look and edit add_reference',
     )
+    .concat(aliases ? `\n${aliases}` : '')
 }
 
 const NOTHING_TO_DO = 'Nothing was changed.'
@@ -443,6 +458,30 @@ export function toV3Mutation(face: BenchFace, change: EditChange): V3Mutation {
 }
 
 /**
+ * `add_reference 图_1624`：编号 → 那一张（记进准入名单），换成旧执行器认的 id。附图里有同名的
+ * 照旧交给台上（它认附图的全名）。
+ */
+async function withPictureNumber(
+  context: V3Context,
+  change: EditChange,
+): Promise<EditChange> {
+  if (change.op !== OP.addReference || !change.picture) return change
+  const name = change.picture.trim().toLowerCase()
+  const attached = (context.request.mentionedAssets ?? []).some(
+    (asset) => asset.label?.trim().toLowerCase() === name,
+  )
+  const handle = parseWorkspaceHandle(change.picture)
+  if (attached || handle?.kind !== 'picture') return change
+  const opened = await openWorkspaceHandle(ownerOf(context), handle).catch(
+    () => null,
+  )
+  const picture = opened?.pictures[0]
+  if (!picture?.generationId) return change
+  admitPictures(context, [picture])
+  return { ...change, picture: picture.generationId }
+}
+
+/**
  * edit：按顺序一条一条落，每条当场就有结果；一条不成不拦后面的（各自说清哪一条怎么了）。
  * 停在卡上（LoRA 台的搭配卡等）就不再往下。
  */
@@ -452,7 +491,8 @@ export async function* runEdit(
 ): AsyncGenerator<AssistantOperatorEvent, BenchResult> {
   const lines: string[] = []
   let failed = 0
-  for (const [index, change] of changes.entries()) {
+  for (const [index, given] of changes.entries()) {
+    const change = await withPictureNumber(context, given)
     const mutation = toV3Mutation(context.face as BenchFace, change)
     const label = `${index + 1}. ${change.op}`
     if (mutation.tool === null) {
@@ -477,26 +517,122 @@ export async function* runEdit(
   return { output: lines.join('\n'), error: failed === changes.length }
 }
 
+/** 查到 / 打开的图记进本轮的准入名单：之后 `add_reference 图_N` 才挂得上（旧执行器只认名单里的）。 */
+function admitPictures(
+  context: V3Context,
+  pictures: readonly WorkspacePicture[],
+): void {
+  for (const picture of pictures)
+    if (picture.generationId)
+      context.prepared.run.searchIndex.set(picture.generationId, {
+        assetId: picture.generationId,
+        displayName: picture.label,
+        url: picture.url,
+        kind: 'image',
+      })
+}
+
+function ownerOf(context: V3Context): WorkspaceOwner {
+  return {
+    userId: context.prepared.user.id,
+    clerkId: context.clerkId,
+    incognito: context.request.incognito === true,
+  }
+}
+
+/**
+ * look：不给名字 = 读板子；给了就逐个打开。认得出的编号（图_N、角色·…、LoRA·…、提示词·…、
+ * 对话·…、设置）由工作区打开，其余（ref-N、result-N、sample、附图的名字）交给台上那一套。
+ */
 export async function* runLook(
   context: V3Context,
   input: LookInput,
   attachedNames: readonly string[],
   latestUserText: string,
+  aliases = '',
 ): AsyncGenerator<AssistantOperatorEvent, BenchResult> {
-  const pictures = input.pictures ?? []
-  const bench = renderBench(context, attachedNames, latestUserText)
-  if (pictures.length === 0) return { output: bench, error: false }
-  const call =
-    context.face === ASSISTANT_V3_FACE_IDS.lora
-      ? executeAssistantV3LoraCall
-      : executeAssistantV3ImageCall
-  const looked = outcomeOf(
-    yield* call(context, ASSISTANT_V3_TOOL_IDS.look, {
-      images: pictures,
-      question: input.question ?? '',
-    }),
+  const names = input.names ?? []
+  const bench = renderBench(context, attachedNames, latestUserText, aliases)
+  if (names.length === 0) return { output: bench, error: false }
+  const parts: string[] = []
+  const pictures: AssistantV3PictureRef[] = []
+  const benchNames: string[] = []
+  let failed = 0
+  for (const name of names) {
+    const handle = parseWorkspaceHandle(name)
+    // 附图的名字本身就长得像编号（`图_1588·摘要`）：台上认得的先给台上。
+    const attached = attachedNames.some(
+      (attachedName) =>
+        attachedName.trim().toLowerCase() === name.trim().toLowerCase(),
+    )
+    if (!handle || attached) {
+      benchNames.push(name)
+      continue
+    }
+    const opened = await openWorkspaceHandle(ownerOf(context), handle).catch(
+      () => null,
+    )
+    if (!opened) {
+      failed += 1
+      parts.push(
+        `${name}: not found. Use find to look it up (numbers look like 图_1624; names like 角色·Name, LoRA·name).`,
+      )
+      continue
+    }
+    admitPictures(context, opened.pictures)
+    pictures.push(...opened.pictures)
+    parts.push(opened.text)
+  }
+  if (benchNames.length > 0) {
+    const call =
+      context.face === ASSISTANT_V3_FACE_IDS.lora
+        ? executeAssistantV3LoraCall
+        : executeAssistantV3ImageCall
+    const looked = outcomeOf(
+      yield* call(context, ASSISTANT_V3_TOOL_IDS.look, {
+        images: benchNames,
+        question: input.question ?? '',
+      }),
+    )
+    if (looked.error) failed += 1
+    pictures.push(...(looked.pictures ?? []))
+    parts.unshift(looked.output)
+  }
+  return {
+    output: `${parts.join('\n\n')}\n\n${bench}`,
+    error: failed === names.length,
+    ...(pictures.length
+      ? { pictures: pictures.slice(0, ASSISTANT_NEXT_LIMITS.maxLookPictures) }
+      : {}),
+  }
+}
+
+/** find：工作区一次查几类；记忆走 v3 那条（隐身与作用域都在那里）。 */
+export async function* runFind(
+  context: V3Context,
+  input: FindInput,
+): AsyncGenerator<AssistantOperatorEvent, BenchResult> {
+  const query = input.query?.trim() ?? ''
+  const kinds = (
+    input.kinds?.length ? input.kinds : ASSISTANT_NEXT_FIND_KINDS
+  ) as AssistantNextFindKind[]
+  const parts: string[] = []
+  const workspaceKinds = kinds.filter(
+    (kind) => kind !== ASSISTANT_NEXT_FIND_KIND_IDS.memories,
   )
-  return { ...looked, output: `${looked.output}\n\n${bench}` }
+  if (workspaceKinds.length > 0) {
+    const found = await findInWorkspace(ownerOf(context), query, workspaceKinds)
+    admitPictures(context, found.pictures)
+    parts.push(found.text)
+  }
+  if (kinds.includes(ASSISTANT_NEXT_FIND_KIND_IDS.memories)) {
+    const memories = outcomeOf(yield* searchMemoriesStep(context, query))
+    parts.push(`MEMORIES\n${memories.output}`)
+  }
+  return {
+    output: `${parts.join('\n\n')}\n\nOpen any of these with look (by its number or name).`,
+    error: false,
+  }
 }
 
 export async function* runGenerate(

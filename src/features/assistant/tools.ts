@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { NOVELAI_SCENE_TEXT_KINDS } from '@/constants/novelai'
 import {
   ASSISTANT_NEXT_EDIT_OPS,
+  ASSISTANT_NEXT_FIND_KINDS,
   ASSISTANT_NEXT_LIMITS,
   ASSISTANT_NEXT_TOOL_IDS,
   ASSISTANT_NEXT_WRITE_MODES,
@@ -25,12 +26,12 @@ import {
 const ValueSchema = z.union([z.string(), z.number(), z.boolean()])
 
 export const LookInputSchema = z.object({
-  pictures: z
+  names: z
     .array(z.string().trim().min(1))
     .max(ASSISTANT_NEXT_LIMITS.maxLookPictures)
     .nullish()
     .describe(
-      'Pictures to put in front of you, by name: "ref-1", "result-1", "sample", or the name of a picture attached to the message. null = only read the bench.',
+      'What to open, by number or name: a picture number ("图_1624"), a bench name ("ref-1", "result-1", "sample", or a picture attached to the message), "角色·<name>" (optionally "角色·<name>/<look>"), "LoRA·<name>", "提示词·<name>", "对话·<id>", or "设置". Pictures are put in front of you with their full recipe. null = only read the bench.',
     ),
   question: z
     .string()
@@ -38,6 +39,22 @@ export const LookInputSchema = z.object({
     .describe('What you want to find out by looking. Optional.'),
 })
 export type LookInput = z.infer<typeof LookInputSchema>
+
+export const FindInputSchema = z.object({
+  query: z
+    .string()
+    .nullish()
+    .describe(
+      'Words to look for (in prompts, names, tags, past messages), or a picture number like "图_1624". Empty = the most recent ones.',
+    ),
+  kinds: z
+    .array(z.enum(ASSISTANT_NEXT_FIND_KINDS))
+    .nullish()
+    .describe(
+      "Which kinds to search: pictures (the creator's generations), characters (with their looks), loras (their LoRA library), prompts (their saved prompts), conversations (earlier conversations on every bench), memories (what you remember about the creator). null = all of them.",
+    ),
+})
+export type FindInput = z.infer<typeof FindInputSchema>
 
 export const FindReplaceSchema = z.object({
   find: z.string(),
@@ -286,6 +303,16 @@ export function parseToolInput<T>(
     } as JsonValue
   }
   if (input === undefined || input === null) input = {}
+  // look 的旧叫法 `pictures`（第 2 步）照认。
+  if (
+    name === ASSISTANT_NEXT_TOOL_IDS.look &&
+    isJsonObject(input) &&
+    input.names === undefined &&
+    input.pictures !== undefined
+  ) {
+    const { pictures, ...rest } = input
+    input = { ...rest, names: pictures }
+  }
   if (typeof input === 'string')
     return {
       ok: false,
@@ -300,7 +327,8 @@ export function parseToolInput<T>(
 }
 
 const DESCRIPTIONS = {
-  look: 'Read the bench as it is right now (prompt, negative, model, specs, options, references, LoRAs, latest results), and optionally put pictures in front of you for your next response.',
+  find: "Search the creator's workspace: their pictures, characters and looks, LoRA library, saved prompts, earlier conversations on every bench, and what you remember about them. Returns numbered lines; open any of them with look.",
+  look: 'Read the bench as it is right now, and optionally open things by number or name: pictures (with their full recipe), characters, LoRAs, saved prompts, earlier conversations, settings. Pictures you open stay in front of you.',
   edit: 'Change the bench. All changes for one request go in ONE call, applied in order; each lands on the bench at once. For the prompt prefer mode "edit" with exact {find, replace} pairs so everything else stays as it is.',
   ask: 'Ask the creator when you cannot go on without their choice. Puts a card with options in front of them and ends this turn until they answer.',
   generate:
@@ -316,6 +344,7 @@ export function assistantNextTools(strict: boolean) {
       strict,
     })
   return {
+    [ASSISTANT_NEXT_TOOL_IDS.find]: define('find', FindInputSchema),
     [ASSISTANT_NEXT_TOOL_IDS.look]: define('look', LookInputSchema),
     [ASSISTANT_NEXT_TOOL_IDS.edit]: define('edit', EditInputSchema),
     [ASSISTANT_NEXT_TOOL_IDS.ask]: define('ask', AskInputSchema),

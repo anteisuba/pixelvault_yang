@@ -74,9 +74,11 @@ import {
   runAsk,
   runEdit,
   runGenerate,
+  runFind,
   runLook,
   type BenchResult,
 } from '@/features/assistant/bench'
+import { benchAliases } from '@/features/assistant/workspace.service'
 import {
   ASSISTANT_NEXT_LIMITS,
   ASSISTANT_NEXT_PROMPT_VERSION,
@@ -97,6 +99,7 @@ import {
   assistantNextTools,
   EditInputSchema,
   GenerateInputSchema,
+  FindInputSchema,
   LookInputSchema,
   parseToolInput,
 } from '@/features/assistant/tools'
@@ -318,6 +321,15 @@ const KNOWN_TOOLS: ReadonlySet<string> = new Set(
   Object.values(ASSISTANT_NEXT_TOOL_IDS),
 )
 
+/** 本轮记录那一列用 v3 的工具枚举（线格式不变）：`find` 记成 `search_library`，认不出的记成 `read`。 */
+function transcriptTool(name: string): AssistantV3Tool {
+  if (name === ASSISTANT_NEXT_TOOL_IDS.find)
+    return ASSISTANT_V3_TOOL_IDS.searchLibrary
+  return (
+    KNOWN_TOOLS.has(name) ? name : ASSISTANT_V3_TOOL_IDS.read
+  ) as AssistantV3Tool
+}
+
 async function* runNextTurn(
   clerkId: string,
   initialRequest: AssistantOperatorRequest,
@@ -395,6 +407,8 @@ async function* runNextTurn(
     model = model.fallback
 
   const transcript: AssistantV3Transcript = saved ? [...saved.transcript] : []
+  // 台上的参考图 / 结果各自是哪一张（ref-N / result-N ↔ 图_N），每一跳现读。
+  const aliases = await benchAliases(user.id, request.snapshot).catch(() => '')
   let messages: ModelMessage[]
   if (saved) {
     // 做到一半换了型号（或换了接法）：旧型号的思考块与它自己跑的联网，新型号多半读不懂、
@@ -404,7 +418,7 @@ async function* runNextTurn(
       (saved.modelId !== undefined && saved.modelId !== modelId)
     messages = switched ? stripForFallback(saved.messages) : [...saved.messages]
   } else {
-    const bench = renderBench(context, attachedNames, latestUserText)
+    const bench = renderBench(context, attachedNames, latestUserText, aliases)
     const pictures: AssistantV3PictureRef[] = context.seesImages
       ? [
           ...(face === ASSISTANT_V3_FACE_IDS.lora &&
@@ -717,9 +731,7 @@ async function* runNextTurn(
       calls: [
         ...calls.map((call) => ({
           id: call.toolCallId.slice(0, ASSISTANT_V3_LIMITS.maxCallIdChars),
-          tool: (KNOWN_TOOLS.has(call.toolName)
-            ? call.toolName
-            : ASSISTANT_V3_TOOL_IDS.read) as AssistantV3Tool,
+          tool: transcriptTool(call.toolName),
           input: JSON.stringify(call.input ?? {}).slice(
             0,
             ASSISTANT_V3_LIMITS.maxEntryChars,
@@ -813,9 +825,7 @@ async function* runNextTurn(
         transcript.push({
           type: ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.result,
           id: call.toolCallId.slice(0, ASSISTANT_V3_LIMITS.maxCallIdChars),
-          tool: (KNOWN_TOOLS.has(call.toolName)
-            ? call.toolName
-            : ASSISTANT_V3_TOOL_IDS.read) as AssistantV3Tool,
+          tool: transcriptTool(call.toolName),
           output: result.output.slice(0, ASSISTANT_V3_LIMITS.maxEntryChars),
           error: result.error,
           ...(result.pictures?.length
@@ -841,6 +851,7 @@ async function* runNextTurn(
         call,
         attachedNames,
         latestUserText,
+        aliases,
       )
       settle(result)
       if (result.pictures?.length) looked.push(...result.pictures)
@@ -902,8 +913,14 @@ async function* runTool(
   call: ClientCall,
   attachedNames: readonly string[],
   latestUserText: string,
+  aliases: string,
 ): AsyncGenerator<AssistantOperatorEvent, BenchResult> {
   switch (call.toolName) {
+    case ASSISTANT_NEXT_TOOL_IDS.find: {
+      const parsed = parseToolInput(FindInputSchema, call.input, call.toolName)
+      if (!parsed.ok) return { output: parsed.error, error: true }
+      return yield* runFind(context, parsed.value)
+    }
     case ASSISTANT_NEXT_TOOL_IDS.look: {
       const parsed = parseToolInput(LookInputSchema, call.input, call.toolName)
       if (!parsed.ok) return { output: parsed.error, error: true }
@@ -912,6 +929,7 @@ async function* runTool(
         parsed.value,
         attachedNames,
         latestUserText,
+        aliases,
       )
     }
     case ASSISTANT_NEXT_TOOL_IDS.edit: {
@@ -935,7 +953,7 @@ async function* runTool(
     }
     default:
       return {
-        output: `There is no tool called ${call.toolName}. The tools are look, edit, ask and generate.`,
+        output: `There is no tool called ${call.toolName}. The tools are find, look, edit, ask and generate.`,
         error: true,
       }
   }

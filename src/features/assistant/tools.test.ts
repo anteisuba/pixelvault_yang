@@ -70,6 +70,12 @@ describe('新内核工具入参：宽进', () => {
     })
   })
 
+  it('look 的旧叫法 pictures 照认', () => {
+    expect(
+      parseToolInput(LookInputSchema, { pictures: ['图_1624'] }, 'look'),
+    ).toEqual({ ok: true, value: { names: ['图_1624'] } })
+  })
+
   it('ask 至少两个选项', () => {
     const parsed = parseToolInput(
       AskInputSchema,
@@ -87,7 +93,7 @@ describe('给模型看的 JSON schema：严格模式的形状', () => {
       additionalProperties: boolean
       properties: Record<string, { anyOf?: { type: string }[] }>
     }
-    expect(schema.required).toEqual(['pictures', 'question'])
+    expect(schema.required).toEqual(['names', 'question'])
     expect(schema.additionalProperties).toBe(false)
     expect(
       schema.properties.question?.anyOf?.map((entry) => entry.type),

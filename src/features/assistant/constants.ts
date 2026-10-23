@@ -9,10 +9,11 @@
  */
 
 /**
- * 四个工具（总设计第二节的「看 / 改 / 问你 / 出图」）。名字就是模型看到的工具名，
+ * 工具（总设计第二节的「查 / 看 / 改 / 问你 / 出图」）。名字就是模型看到的工具名，
  * 也是本轮记录里那一列（与 v3 记录的线格式同一张枚举，接力与过程记录照用）。
  */
 export const ASSISTANT_NEXT_TOOL_IDS = {
+  find: 'find',
   look: 'look',
   edit: 'edit',
   ask: 'ask',
@@ -76,7 +77,7 @@ export const ASSISTANT_NEXT_LORA_PARAM_KEYS: Readonly<Record<string, string>> =
   }
 
 /** 过程记录里标「这一轮是新内核跑的」（`AssistantTurnRecord.promptVersion`）。改系统提示时一起换。 */
-export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-10-22'
+export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-10-23'
 
 export const ASSISTANT_NEXT_LIMITS = {
   /** 带给模型的对话：最近这么多条、这么多字以内（上下文压缩是第 6 步）。 */
@@ -91,4 +92,50 @@ export const ASSISTANT_NEXT_LIMITS = {
   /** 一次模型调用：首个分片前 / 分片间静默多久算卡住（思考分片也算）。卡住原样再问一次。 */
   firstChunkMs: 90_000,
   silenceMs: 90_000,
+} as const
+
+/**
+ * 工作区里能查、能按编号打开的几类东西（第 3 步，10-23 用户定）。编号只给模型用，界面上
+ * 显示缩略图（第 9 步）。⭐ 每类一个人能读的编号前缀，模型拿编号去 look / edit。
+ */
+export const ASSISTANT_NEXT_FIND_KIND_IDS = {
+  pictures: 'pictures',
+  characters: 'characters',
+  loras: 'loras',
+  prompts: 'prompts',
+  conversations: 'conversations',
+  memories: 'memories',
+} as const
+
+export const ASSISTANT_NEXT_FIND_KINDS = Object.values(
+  ASSISTANT_NEXT_FIND_KIND_IDS,
+) as [string, ...string[]]
+
+export type AssistantNextFindKind =
+  (typeof ASSISTANT_NEXT_FIND_KIND_IDS)[keyof typeof ASSISTANT_NEXT_FIND_KIND_IDS]
+
+/** 编号前缀。图的编号沿用库里的每人递增序号（`图_1624`，与 @ 选择器同一套）。 */
+export const ASSISTANT_NEXT_HANDLE_PREFIXES = {
+  character: '角色·',
+  lora: 'LoRA·',
+  prompt: '提示词·',
+  conversation: '对话·',
+  settings: '设置',
+} as const
+
+export const ASSISTANT_NEXT_FIND_LIMITS = {
+  /** 每类最多回几条。 */
+  perKind: 8,
+  /** 查词最长。 */
+  maxQueryChars: 120,
+  /** 一行摘要里提示词留几个字。 */
+  promptPreviewChars: 90,
+  /** 对话命中那一句前后各留几个字。 */
+  snippetChars: 80,
+  /** 打开一段对话时最多读多少字（从最近往前）。 */
+  conversationChars: 6_000,
+  /** 打开一段对话 / 一个角色时最多读几张代表图。 */
+  pictures: 3,
+  /** 在内存里筛的列表最多取多少条（角色、LoRA、提示词）。 */
+  listScan: 100,
 } as const

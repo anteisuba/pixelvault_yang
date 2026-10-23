@@ -75,12 +75,15 @@ describe('标签台右列控件', () => {
     }
     const fromV5 = byCapability([NAI_V5, v45])
     const fromV45 = byCapability([v45, NAI_V5])
-    expect(fromV5.steps.chip.range).toEqual(
-      getCapabilityConfig(AI_ADAPTER_TYPES.NOVELAI, NAI_V5.modelId).steps,
+    expect(fromV5.guidanceScale.chip.range).toEqual(
+      getCapabilityConfig(AI_ADAPTER_TYPES.NOVELAI, NAI_V5.modelId)
+        .guidanceScale,
     )
-    expect(fromV45.steps.chip.range).toEqual(
-      getCapabilityConfig(AI_ADAPTER_TYPES.NOVELAI, v45.modelId).steps,
+    expect(fromV45.guidanceScale.chip.range).toEqual(
+      getCapabilityConfig(AI_ADAPTER_TYPES.NOVELAI, v45.modelId).guidanceScale,
     )
-    expect(fromV5.steps.chip.range).not.toEqual(fromV45.steps.chip.range)
+    expect(fromV5.guidanceScale.chip.range).not.toEqual(
+      fromV45.guidanceScale.chip.range,
+    )
   })
 })

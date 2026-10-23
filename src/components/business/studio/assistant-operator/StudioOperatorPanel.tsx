@@ -2323,10 +2323,8 @@ export function StudioOperatorPanel({
       让出空间的该是左边那颗模型灰字（它会截断），⛔ 不是把这几个字折成两行。
     手机上它不在栏上，住思考那张参数卡底部（iOS 稿 v19）。
   */
-  // 配音台不跟这颗开关（owner 10-23）：一律出确认卡，你按了才生成。
   const autoGenerateSwitch =
-    operatorHost.domain !== ASSISTANT_PROTOCOL_DOMAIN_IDS.audio &&
-    (operatorHost.apply.triggerGeneration || operatorHost.apply.canvas) ? (
+    operatorHost.apply.triggerGeneration || operatorHost.apply.canvas ? (
       <label
         className={cn(
           'flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap select-none',

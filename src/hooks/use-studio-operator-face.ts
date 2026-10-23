@@ -18,7 +18,6 @@ import { useMemo } from 'react'
 import { useTranslations } from 'next-intl'
 
 import {
-  AudioLines,
   Clapperboard,
   ImageIcon,
   Layers,
@@ -46,7 +45,6 @@ const DOMAIN_ICONS: Readonly<Record<AssistantOperatorDomain, LucideIcon>> = {
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.lora]: Layers,
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas]: Waypoints,
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.cards]: UserRound,
-  [ASSISTANT_PROTOCOL_DOMAIN_IDS.audio]: AudioLines,
 }
 
 /**

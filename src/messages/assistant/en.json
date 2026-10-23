@@ -317,8 +317,7 @@
       "video": "the video workspace",
       "lora": "the LoRA workspace",
       "canvas": "the canvas",
-      "cards": "the Characters page",
-      "audio": "the audio workspace"
+      "cards": "the Characters page"
     },
     "session": "Session",
     "newThread": "New chat",
@@ -449,8 +448,7 @@
       "audioReferences": "Voice references",
       "sound": "Soundtrack",
       "loras": "LoRA stack",
-      "canvasNodes": "Canvas nodes",
-      "audio": "Audio settings"
+      "canvasNodes": "Canvas nodes"
     },
     "changeSubject": {
       "rule": "Project rule",
@@ -1014,10 +1012,7 @@
         "researchProfile": "Look up a character's profile",
         "originalCharacter": "Help me invent an original character",
         "findImages": "Find a few images of this character",
-        "checkLook": "Check the profile against the images",
-        "readInVoice": "Read this in a character's voice",
-        "makeSoundEffect": "Make me a sound effect",
-        "tuneReading": "Slower, with more feeling"
+        "checkLook": "Check the profile against the images"
       },
       "image": {
         "empty": "Tell me the picture you want — I will write the prompt, pick the model, set the references.",
@@ -1044,11 +1039,6 @@
         "placeholder": "Name a character, or describe an original…",
         "context": "{count, plural, one {# character} other {# characters}}",
         "contextOpen": "Looking at {name}"
-      },
-      "audio": {
-        "empty": "Tell me what to say and whose voice; I will set the words, the voice and the reading, then show you a card to confirm.",
-        "placeholder": "The lines to read, or the sound or music you want…",
-        "context": "{model} · {kind}"
       }
     },
     "autoGenerate": {

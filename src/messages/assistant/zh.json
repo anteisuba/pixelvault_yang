@@ -317,8 +317,7 @@
       "video": "视频工作台",
       "lora": "LoRA 工作台",
       "canvas": "画布",
-      "cards": "角色页",
-      "audio": "配音台"
+      "cards": "角色页"
     },
     "session": "会话",
     "newThread": "新对话",
@@ -449,8 +448,7 @@
       "audioReferences": "音频参考",
       "sound": "出声",
       "loras": "LoRA 挂载",
-      "canvasNodes": "画布节点",
-      "audio": "配音设置"
+      "canvasNodes": "画布节点"
     },
     "changeSubject": {
       "rule": "项目规则",
@@ -1014,10 +1012,7 @@
         "researchProfile": "帮我查一个角色的设定",
         "originalCharacter": "帮我想一个原创角色",
         "findImages": "给这个角色找几张图",
-        "checkLook": "对一下设定和外观",
-        "readInVoice": "用角色的声音念这段",
-        "makeSoundEffect": "帮我做一个音效",
-        "tuneReading": "念得慢一点、更有感情"
+        "checkLook": "对一下设定和外观"
       },
       "image": {
         "empty": "说你想要的画面，我来写提示词、挑模型、配参考。",
@@ -1044,11 +1039,6 @@
         "placeholder": "说个角色名，或者说说你想要的原创角色…",
         "context": "{count} 位角色",
         "contextOpen": "正在看 {name}"
-      },
-      "audio": {
-        "empty": "说要念什么、谁来念，我把字、音色和念法调好，出一张确认卡给你按。",
-        "placeholder": "要念的话，或想要的音效、音乐…",
-        "context": "{model} · {kind}"
       }
     },
     "autoGenerate": {

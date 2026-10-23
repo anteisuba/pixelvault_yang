@@ -317,8 +317,7 @@
       "video": "動画ワークスペース",
       "lora": "LoRA ワークスペース",
       "canvas": "キャンバス",
-      "cards": "キャラクターページ",
-      "audio": "音声ワークスペース"
+      "cards": "キャラクターページ"
     },
     "session": "セッション",
     "newThread": "新しい会話",
@@ -449,8 +448,7 @@
       "audioReferences": "参照音声",
       "sound": "音声出力",
       "loras": "LoRA 構成",
-      "canvasNodes": "キャンバスのノード",
-      "audio": "音声設定"
+      "canvasNodes": "キャンバスのノード"
     },
     "changeSubject": {
       "rule": "プロジェクトルール",
@@ -1014,10 +1012,7 @@
         "researchProfile": "キャラの設定を調べて",
         "originalCharacter": "オリジナルキャラを一緒に考えて",
         "findImages": "このキャラの画像を探して",
-        "checkLook": "設定と見た目を照らし合わせる",
-        "readInVoice": "キャラの声でこれを読んで",
-        "makeSoundEffect": "効果音を作って",
-        "tuneReading": "もう少しゆっくり、感情を込めて"
+        "checkLook": "設定と見た目を照らし合わせる"
       },
       "image": {
         "empty": "欲しい画を言ってください。プロンプト・モデル・参考はこちらで用意します。",
@@ -1044,11 +1039,6 @@
         "placeholder": "キャラ名、または作りたいオリジナルキャラを…",
         "context": "{count} 人のキャラクター",
         "contextOpen": "{name} を表示中"
-      },
-      "audio": {
-        "empty": "何を誰の声で読むか教えてくれれば、文・声・読み方を整えて確認カードを出します。",
-        "placeholder": "読むセリフ、または欲しい効果音や音楽…",
-        "context": "{model} · {kind}"
       }
     },
     "autoGenerate": {

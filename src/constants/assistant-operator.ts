@@ -346,11 +346,6 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    */
   setSound: 'set_sound',
   /**
-   * 配音台那一整块（第 9b 步，只有新内核用）：档、模型、音色、怎么念、时长、几颗高级旋钮。
-   * 载荷只带这一次改的几格，`inverse` 是这几格改前的值。
-   */
-  setAudio: 'set_audio',
-  /**
    * 把生成键置成 primed 态并算价。
    *
    * ⛔ **它不是生成**。服务端在这一步什么都不做，只吐一个 op；点的人永远是用户
@@ -729,7 +724,6 @@ export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.setCapability,
   ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference,
   ASSISTANT_OPERATOR_TOOL_IDS.setSound,
-  ASSISTANT_OPERATOR_TOOL_IDS.setAudio,
   ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate,
   ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration,
   ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
@@ -884,7 +878,6 @@ export const ASSISTANT_OPERATOR_MUTATING_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.setCapability,
   ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference,
   ASSISTANT_OPERATOR_TOOL_IDS.setSound,
-  ASSISTANT_OPERATOR_TOOL_IDS.setAudio,
   ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate,
   /**
    * ⚠ 拍板 22 那条是**改动型**：它让参考位上多出一张图，撤销就是把那张摘掉
@@ -1093,7 +1086,6 @@ export const ASSISTANT_OPERATOR_TOOL_VERBS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference]:
     ASSISTANT_OPERATOR_VERB_IDS.apply,
   [ASSISTANT_OPERATOR_TOOL_IDS.setSound]: ASSISTANT_OPERATOR_VERB_IDS.apply,
-  [ASSISTANT_OPERATOR_TOOL_IDS.setAudio]: ASSISTANT_OPERATOR_VERB_IDS.apply,
   [ASSISTANT_OPERATOR_TOOL_IDS.mountLora]: ASSISTANT_OPERATOR_VERB_IDS.apply,
   [ASSISTANT_OPERATOR_TOOL_IDS.unmountLora]: ASSISTANT_OPERATOR_VERB_IDS.apply,
   [ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight]:
@@ -1749,7 +1741,7 @@ export const ASSISTANT_OPERATOR_OVERWRITE_INTENT_WORDS = {
  * 参考图选择器）。两套引擎并存的代价不是「多了点代码」，是**同一句话在两个
  * 工作台上得到两种行为** —— 会话不跟着走、@ 菜单不一样、结账与证据本在画布上
  * 整个不存在。所以画布不是「再接一个域」，是把第二张脸摘掉。
- * ⚠ 配音台 2026-10-23 进表（第 9b 步）：只有新内核接它，旧内核的路由把它挡在门外。
+ * ⛔ 配音间**不进这张表**（owner 2026-09-19）：那边没有「替你拧旋钮」这回事。
  */
 export const ASSISTANT_OPERATOR_DOMAINS = [
   ASSISTANT_PROTOCOL_DOMAIN_IDS.image,
@@ -1757,7 +1749,6 @@ export const ASSISTANT_OPERATOR_DOMAINS = [
   ASSISTANT_PROTOCOL_DOMAIN_IDS.lora,
   ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas,
   ASSISTANT_PROTOCOL_DOMAIN_IDS.cards,
-  ASSISTANT_PROTOCOL_DOMAIN_IDS.audio,
 ] as const satisfies readonly AssistantProtocolDomain[]
 
 export type AssistantOperatorDomain =
@@ -2078,16 +2069,6 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
     ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages,
     /** S14：用户说了才对一下设定和外观（只报身份级矛盾，衣服不算）。 */
     ASSISTANT_OPERATOR_TOOL_IDS.checkCharacterLook,
-  ],
-  /**
-   * 配音台（第 9b 步，只有新内核）：读台、写要念的字、拧配音那一块、出确认卡。
-   * 改库 / 记忆那几条新内核在任何台上都放行（`NEXT_KERNEL_LIBRARY_TOOLS`），不必列在这里。
-   */
-  [ASSISTANT_PROTOCOL_DOMAIN_IDS.audio]: [
-    ASSISTANT_OPERATOR_TOOL_IDS.readState,
-    ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
-    ASSISTANT_OPERATOR_TOOL_IDS.setAudio,
-    ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration,
   ],
 }
 
@@ -3168,8 +3149,6 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
     'set one of the controls that belong to the CURRENT model only — the extra row under the shared specs (quality, guidance, steps, reference strength, preview, and so on). The "key" must be copied verbatim from the model-specific controls listed in the state; never guess one from the model name, and never call this for aspect ratio, resolution or count (those have their own tools). The value has to match the shape the state gives for that key: one of the listed options, a number inside the given range, or true/false. A control the state marks as needing a reference image cannot be set until one is mounted.',
   [ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference]:
     "attach one audio clip from the creator's own library as a voice reference for this shot. Takes an assetId from a search_assets call with kind 'audio'. Name the character it belongs to when you know it — that is how the model learns who is speaking in a multi-character line.",
-  [ASSISTANT_OPERATOR_TOOL_IDS.setAudio]:
-    'set the audio bench: kind (speech / sfx / music), model, voice, how it is read, length and a few output options. Only the fields given change.',
   [ASSISTANT_OPERATOR_TOOL_IDS.setSound]:
     'turn the clip\'s own soundtrack on or off. Only call it when the creator asked for silence or for sound — leaving it alone means "whatever this model normally does", which is usually what they want.',
   [ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate]:

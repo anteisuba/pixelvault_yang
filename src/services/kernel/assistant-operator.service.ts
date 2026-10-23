@@ -507,9 +507,6 @@ import {
   type AssistantOperatorSearchResultAsset,
   type AssistantOperatorCanvasSnapshot,
   type AssistantOperatorCardsSnapshot,
-  AssistantOperatorAudioPatchSchema,
-  type AssistantOperatorAudioPatch,
-  type AssistantOperatorSnapshotAudio,
   type AssistantOperatorCharacterProfileDraft,
   type AssistantOperatorCharacterImageCandidate,
   type AssistantOperatorCanvasLookAtArgs,
@@ -715,8 +712,6 @@ interface OperatorWorkingState {
   canvas: AssistantOperatorCanvasSnapshot | undefined
   /** ⚠ 缺席 = 这个宿主不是角色页（卡片助手 · 第五张脸）。 */
   cards: AssistantOperatorCardsSnapshot | undefined
-  /** ⚠ 缺席 = 这个宿主不是配音台（第 9b 步）。可变副本：同一轮改两次，第二条的 `inverse` 撤回到第一条之后。 */
-  audio: AssistantOperatorSnapshotAudio | undefined
 }
 
 /**
@@ -806,7 +801,6 @@ function toWorkingState(
     canvas: snapshot.canvas,
     /** 角色页快照同样原样带着：列表已按张数排好、设定已截断。 */
     cards: snapshot.cards,
-    audio: snapshot.audio ? structuredClone(snapshot.audio) : undefined,
   }
 }
 
@@ -5615,110 +5609,6 @@ function planSetSound(run: OperatorRun, args: { enabled: boolean }): ToolPlan {
   }
 }
 
-/**
- * 配音台那一块（第 9b 步）。只改给了的那几格；`inverse` 记这几格改前的值。换了模型时同步
- * `modelId` / `modelLabel`（确认卡上写的就是它）。
- */
-function planSetAudio(
-  run: OperatorRun,
-  patch: AssistantOperatorAudioPatch,
-): ToolPlan {
-  const audio = run.state.audio
-  if (!audio) return reject(REJECT.noSuchControl)
-  const model = patch.optionId
-    ? audio.models.find((option) => option.id === patch.optionId)
-    : undefined
-  if (patch.optionId && !model)
-    return reject(
-      REJECT.unknownValue,
-      `model ${patch.optionId} — not one of this bench's models`,
-    )
-  const inverse = audioInverseOf(run, patch)
-  const keys = Object.keys(patch)
-  if (keys.length === 0) return reject(REJECT.noSuchControl, 'Nothing to set.')
-  return {
-    kind: 'mutate',
-    payload: patch,
-    inverse,
-    observation: `Audio bench: set ${keys.join(', ')}.`,
-    apply: () => {
-      applyAudioPatch(audio, patch)
-      if (model) {
-        run.state.modelId = model.id
-        run.state.modelLabel = model.label
-      }
-    },
-  }
-}
-
-function audioInverseOf(
-  run: OperatorRun,
-  patch: AssistantOperatorAudioPatch,
-): AssistantOperatorAudioPatch {
-  const audio = run.state.audio!
-  const inverse: AssistantOperatorAudioPatch = {}
-  if (patch.kind !== undefined) inverse.kind = audio.kind
-  if (patch.optionId !== undefined && run.state.modelId)
-    inverse.optionId = run.state.modelId
-  if (patch.voice !== undefined) inverse.voice = { ...audio.voice }
-  if (patch.speakerVoiceIds !== undefined)
-    inverse.speakerVoiceIds = [...audio.speakerVoiceIds]
-  if (patch.pronunciationDictionary !== undefined)
-    inverse.pronunciationDictionary = { ...audio.pronunciationDictionary }
-  const known = AssistantOperatorAudioPatchSchema.partial().safeParse({
-    style: audio.style,
-    expressiveness: audio.expressiveness,
-    pace: audio.pace,
-    pauseMarkers: audio.pauseMarkers,
-    sfxDurationSeconds: audio.sfxDurationSeconds,
-    musicDurationSeconds: audio.musicDurationSeconds,
-    sfxLoop: audio.sfxLoop,
-    sfxVariantCount: audio.sfxVariantCount,
-    volume: audio.volume,
-    temperature: audio.temperature,
-    topP: audio.topP,
-    format: audio.format,
-  })
-  if (known.success) {
-    for (const key of AUDIO_SCALAR_KEYS)
-      if (patch[key] !== undefined && known.data[key] !== undefined)
-        Object.assign(inverse, { [key]: known.data[key] })
-  }
-  return inverse
-}
-
-/** 配音台上一格一个值的那几格（`inverse` 按它们抄改前的值）。 */
-const AUDIO_SCALAR_KEYS = [
-  'style',
-  'expressiveness',
-  'pace',
-  'pauseMarkers',
-  'sfxDurationSeconds',
-  'musicDurationSeconds',
-  'sfxLoop',
-  'sfxVariantCount',
-  'volume',
-  'temperature',
-  'topP',
-  'format',
-] as const satisfies readonly (keyof AssistantOperatorAudioPatch)[]
-
-function applyAudioPatch(
-  audio: AssistantOperatorSnapshotAudio,
-  patch: AssistantOperatorAudioPatch,
-): void {
-  if (patch.kind !== undefined) audio.kind = patch.kind
-  if (patch.voice !== undefined) audio.voice = { ...patch.voice }
-  if (patch.speakerVoiceIds !== undefined)
-    audio.speakerVoiceIds = [...patch.speakerVoiceIds]
-  if (patch.pronunciationDictionary !== undefined)
-    audio.pronunciationDictionary = { ...patch.pronunciationDictionary }
-  for (const key of AUDIO_SCALAR_KEYS) {
-    const value = patch[key]
-    if (value !== undefined) Object.assign(audio, { [key]: value })
-  }
-}
-
 function planSetCount(run: OperatorRun, args: { count: number }): ToolPlan {
   if (!run.state.hasCountControl) return reject(REJECT.noSuchControl)
 
@@ -9646,8 +9536,6 @@ export async function planTool(
       )
     case TOOL.setSound:
       return planSetSound(run, parsed.data as { enabled: boolean })
-    case TOOL.setAudio:
-      return planSetAudio(run, parsed.data as AssistantOperatorAudioPatch)
     case TOOL.primeGenerate:
       return planPrimeGenerate(run, parsed.data as { label?: string })
     case TOOL.requestGeneration:

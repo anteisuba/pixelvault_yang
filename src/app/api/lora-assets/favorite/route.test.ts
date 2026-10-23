@@ -106,6 +106,24 @@ describe('POST /api/lora-assets/favorite', () => {
     })
   })
 
+  it('accepts Civitai names longer than 120 characters', async () => {
+    const longName = `绝区零 Zenless Zone Zero｜妄想天使 Angels of Delusion｜${'爱芮 Aria「Cuteness Loading」× '.repeat(5)}`
+    expect(longName.length).toBeGreaterThan(120)
+
+    const response = await POST(
+      createPOST('/api/lora-assets/favorite', {
+        ...VALID_FAVORITE_BODY,
+        name: longName,
+      }),
+    )
+
+    expect(response.status).toBe(200)
+    expect(mockFavoriteExternalLora).toHaveBeenCalledWith(
+      'clerk_test_user',
+      expect.objectContaining({ name: longName.trim() }),
+    )
+  })
+
   it('rejects unbounded trigger words', async () => {
     const response = await POST(
       createPOST('/api/lora-assets/favorite', {

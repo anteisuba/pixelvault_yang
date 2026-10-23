@@ -14,6 +14,8 @@
  *     不是给它抄的。多 outfit 的 LoRA 一条能有十几个触发词。
  */
 
+import { FAVORITE_LORA_NAME_MAX_LENGTH } from '@/constants/lora'
+
 /**
  * LoRA 资产的两种用途。**`LoraAssetTypeSchema` 从这里取值**——枚举原本写死在
  * `types/index.ts` 里，候选归一化也要用同一组值，抄第二份就会有一天对不上。
@@ -66,8 +68,8 @@ export const LORA_CANDIDATE_LIMITS = {
   maxPromptTriggerWords: 3,
   /** 候选对象上带几张样图（推荐卡的图区）。⛔ 样图 URL **不进提示词**。 */
   maxSampleImages: 4,
-  /** 名字的落库上限 —— 与 `FavoriteLoraRequestSchema.name` 的 120 同一个数。 */
-  nameMaxLength: 120,
+  /** 名字的落库上限 —— 就是 `FavoriteLoraRequestSchema.name` 的上限。 */
+  nameMaxLength: FAVORITE_LORA_NAME_MAX_LENGTH,
   /** 候选块里每条名字/作者的截断长度。 */
   labelChars: 80,
   /** 单源预算。超了这一源算失败，另一源照常返回。 */

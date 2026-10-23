@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import {
   searchIndex,
+  warmBrowseCounts,
   SearchInputSchema,
   TOTAL_CAP,
   type SearchInput,
@@ -603,6 +604,61 @@ describe('searchIndex', () => {
 
     await recordSyncCompleted(db, 20)
     expect((await search(db, {})).total).toBe(8)
+  })
+
+  it('serves a stale browse total right away and recounts it in the background', async () => {
+    await recordSyncCompleted(db, 10)
+    expect((await search(db, {})).total).toBe(7)
+
+    await syncAll(
+      db,
+      new FakeUpstream([
+        ...SEARCH_FIXTURE,
+        { id: 9, name: 'Silver extra', downloadCount: 1 },
+      ]),
+    )
+    await recordSyncCompleted(db, 20)
+
+    const deferred: Promise<unknown>[] = []
+    const input = SearchInputSchema.parse({ sort: 'downloads', pageSize: 50 })
+    const stale = await searchIndex(db, input, {
+      defer: (work) => deferred.push(work),
+    })
+    expect(stale.total).toBe(7)
+    expect(deferred).toHaveLength(1)
+    await Promise.all(deferred)
+
+    const fresh = await searchIndex(db, input, {
+      defer: (work) => deferred.push(work),
+    })
+    expect(fresh.total).toBe(8)
+    expect(deferred).toHaveLength(1)
+  })
+
+  it('warms every cached browse total after a sync', async () => {
+    await recordSyncCompleted(db, 10)
+    await search(db, {})
+    await search(db, { nsfw: { someImageAtMost: 2 } })
+
+    await syncAll(
+      db,
+      new FakeUpstream([
+        ...SEARCH_FIXTURE,
+        { id: 9, name: 'Silver extra', downloadCount: 1 },
+      ]),
+    )
+    await recordSyncCompleted(db, 20)
+    expect(await warmBrowseCounts(db)).toBe(2)
+    expect(await warmBrowseCounts(db)).toBe(0)
+
+    const deferred: Promise<unknown>[] = []
+    const result = await searchIndex(
+      db,
+      SearchInputSchema.parse({ sort: 'downloads', pageSize: 50 }),
+      { defer: (work) => deferred.push(work) },
+    )
+    expect(result.total).toBe(8)
+    expect(deferred).toHaveLength(0)
   })
 
   it('returns parsed arrays and the last sync time', async () => {

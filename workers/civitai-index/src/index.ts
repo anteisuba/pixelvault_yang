@@ -6,7 +6,12 @@ import {
   type WorkflowStepConfig,
 } from 'cloudflare:workers'
 
-import { SearchInputSchema, searchIndex, type SearchTimings } from './search'
+import {
+  SearchInputSchema,
+  searchIndex,
+  warmBrowseCounts,
+  type SearchTimings,
+} from './search'
 import {
   PAGES_PER_STEP,
   recordSyncCompleted,
@@ -86,7 +91,10 @@ const civitaiIndexWorker = {
       }
       const startedAt = Date.now()
       const timings: SearchTimings = { countMs: 0, pageMs: 0 }
-      const search = searchIndex(env.DB, parsed.data, timings).finally(() => {
+      const search = searchIndex(env.DB, parsed.data, {
+        timings,
+        defer: (work) => ctx.waitUntil(work.catch(() => undefined)),
+      }).finally(() => {
         const totalMs = Date.now() - startedAt
         if (totalMs < SLOW_SEARCH_MS) return
         console.log(
@@ -183,6 +191,10 @@ export class CivitaiIndexSyncWorkflow extends WorkflowEntrypoint<
     const rowCount = await step.do('complete', () =>
       recordSyncCompleted(this.env.DB, Date.now()),
     )
-    return { ...totals, rowCount }
+    // 失败不算这一轮失败：数据已经同步完，没热到的组合由搜索时的后台重数兜住。
+    const warmedCounts = await step
+      .do('warm-counts', SYNC_STEP_CONFIG, () => warmBrowseCounts(this.env.DB))
+      .catch(() => 0)
+    return { ...totals, rowCount, warmedCounts }
   }
 }

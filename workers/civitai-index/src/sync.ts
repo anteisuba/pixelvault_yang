@@ -329,10 +329,8 @@ export async function recordSyncCompleted(
     )
     .bind(now, rowCount)
     .run()
-  await db
-    .prepare('DELETE FROM count_cache WHERE synced_at < ?1')
-    .bind(now)
-    .run()
+  // count_cache 不清：过期的旧总数照用、后台重数（见 search.ts 的 countMatches /
+  // warmBrowseCounts）。
   // 让规划器的统计跟上当天的数据（只在需要时重算，通常几百毫秒）。
   await db.prepare('PRAGMA optimize').run()
   return rowCount

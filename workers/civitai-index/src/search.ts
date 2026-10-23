@@ -380,35 +380,73 @@ interface CountResult {
   syncedAt: number | null
 }
 
+/** 数到 TOTAL_CAP 为止的计数语句。 */
+function countStatement(
+  db: D1Database,
+  from: string,
+  where: string,
+  params: unknown[],
+): D1PreparedStatement {
+  return db
+    .prepare(
+      `SELECT count(*) AS count FROM (
+         SELECT 1 FROM ${from} WHERE ${where} LIMIT ${TOTAL_CAP + 1}
+       )`,
+    )
+    .bind(...params)
+}
+
+function readCount(result: D1Result | undefined): number {
+  return Number(
+    (result?.results[0] as { count?: number } | undefined)?.count ?? 0,
+  )
+}
+
+/** 重数一个浏览总数并写回缓存（key 即 `[where, params]`，见 countMatches）。 */
+async function refreshBrowseCount(
+  db: D1Database,
+  key: string,
+  syncedAt: number,
+): Promise<number> {
+  const [where, params] = JSON.parse(key) as [string, unknown[]]
+  const count = readCount(
+    (await db.batch([countStatement(db, 'lora', where, params)]))[0],
+  )
+  await db
+    .prepare(
+      'INSERT OR REPLACE INTO count_cache (key, synced_at, total) VALUES (?1, ?2, ?3)',
+    )
+    .bind(key, syncedAt, count)
+    .run()
+  return count
+}
+
+/** 把耗时的活挪到响应之后（Worker 里是 ctx.waitUntil）。 */
+export type Defer = (work: Promise<unknown>) => void
+
 /**
- * 总数（数到 TOTAL_CAP 为止）。没有搜索词的条件组合一天内不变，按「条件 + 最近
- * 一次同步完成时刻」缓存；有搜索词的照算（词千变万化，缓存不划算）。
+ * 总数（数到 TOTAL_CAP 为止）。没有搜索词的条件组合一天内几乎不变，按「条件 +
+ * 算出它时的同步时刻」缓存；有搜索词的照算（词千变万化，缓存不划算）。
+ *
+ * 缓存过期（又同步过一轮）时先用旧数、后台重数：D1 冷的时候这一步要十几到二十
+ * 几秒（2026-10-23 线上 16–24 s，结果页本身只要 26 ms），用户等不起；隔一天的
+ * 总数差几十条，对翻页和选查询路线都无关紧要。每轮同步后 warmBrowseCounts 会把
+ * 见过的组合先重数一遍，这条后台路只兜同步刚完、还没数到的那一会儿。
+ * 没给 defer（测试）就当场重数。
  */
 async function countMatches(
   db: D1Database,
   input: SearchInput,
+  defer?: Defer,
 ): Promise<CountResult> {
   const counting = buildSearchQuery(input, { driveFromFts: true })
   const whereParams = counting.params.slice(0, counting.whereParamCount)
-  const cacheKey = input.q
-    ? null
-    : JSON.stringify([counting.where, whereParams])
-  const from = filterSource(input, counting.joinsFts) ?? 'lora'
-  const countStatement = db
-    .prepare(
-      `SELECT count(*) AS count FROM (
-         SELECT 1 FROM ${from} WHERE ${counting.where} LIMIT ${TOTAL_CAP + 1}
-       )`,
-    )
-    .bind(...whereParams)
   const stateStatement = db.prepare(
     'SELECT last_completed_at FROM sync_state WHERE id = 1',
   )
   const readSyncedAt = (result: D1Result | undefined) =>
     (result?.results[0] as { last_completed_at?: number | null } | undefined)
       ?.last_completed_at ?? null
-  const readCount = (result: D1Result | undefined) =>
-    Number((result?.results[0] as { count?: number } | undefined)?.count ?? 0)
   const capped = (count: number, syncedAt: number | null): CountResult => ({
     total: Math.min(count, TOTAL_CAP),
     totalCapped: count > TOTAL_CAP,
@@ -416,11 +454,16 @@ async function countMatches(
   })
 
   // 有搜索词：不缓存，同步时刻与总数一趟取回（每少一趟往返，离 D1 远时就省 0.15 s）。
-  if (!cacheKey) {
-    const [state, count] = await db.batch([stateStatement, countStatement])
+  if (input.q) {
+    const from = filterSource(input, counting.joinsFts) ?? 'lora'
+    const [state, count] = await db.batch([
+      stateStatement,
+      countStatement(db, from, counting.where, whereParams),
+    ])
     return capped(readCount(count), readSyncedAt(state))
   }
 
+  const cacheKey = JSON.stringify([counting.where, whereParams])
   const [state, cached] = await db.batch([
     stateStatement,
     db
@@ -431,19 +474,46 @@ async function countMatches(
   const hit = cached?.results[0] as
     | { total: number; synced_at: number }
     | undefined
-  if (hit && syncedAt !== null && hit.synced_at === syncedAt) {
-    return capped(hit.total, syncedAt)
+  if (syncedAt === null) {
+    return capped(
+      readCount(
+        (
+          await db.batch([
+            countStatement(db, 'lora', counting.where, whereParams),
+          ])
+        )[0],
+      ),
+      null,
+    )
   }
-  const count = readCount((await db.batch([countStatement]))[0])
-  if (syncedAt !== null) {
-    await db
-      .prepare(
-        'INSERT OR REPLACE INTO count_cache (key, synced_at, total) VALUES (?1, ?2, ?3)',
-      )
-      .bind(cacheKey, syncedAt, count)
-      .run()
+  if (!hit)
+    return capped(await refreshBrowseCount(db, cacheKey, syncedAt), syncedAt)
+  if (hit.synced_at !== syncedAt) {
+    const refresh = refreshBrowseCount(db, cacheKey, syncedAt)
+    if (!defer) return capped(await refresh, syncedAt)
+    defer(refresh)
   }
-  return capped(count, syncedAt)
+  return capped(hit.total, syncedAt)
+}
+
+/**
+ * 同步完成后把缓存里所有浏览组合按新数据重数一遍（用户见过的组合就是要热的
+ * 那些），第一个打开 LoRA 库的人不用替大家等冷计数。返回重数了几个。
+ */
+export async function warmBrowseCounts(db: D1Database): Promise<number> {
+  const state = await db
+    .prepare('SELECT last_completed_at FROM sync_state WHERE id = 1')
+    .first<{ last_completed_at: number | null }>()
+  const syncedAt = state?.last_completed_at
+  if (syncedAt == null) return 0
+  const { results } = await db
+    .prepare('SELECT key FROM count_cache WHERE synced_at <> ?1')
+    .bind(syncedAt)
+    .all<{ key: string }>()
+  for (const { key } of results) {
+    await refreshBrowseCount(db, key, syncedAt)
+  }
+  return results.length
 }
 
 /**
@@ -532,11 +602,12 @@ export interface SearchTimings {
 export async function searchIndex(
   db: D1Database,
   input: SearchInput,
-  timings?: SearchTimings,
+  options: { timings?: SearchTimings; defer?: Defer } = {},
 ): Promise<SearchResult> {
+  const { timings, defer } = options
   // 先数，按总数决定取这一页时走哪条路。
   const countStartedAt = Date.now()
-  const { total, totalCapped, syncedAt } = await countMatches(db, input)
+  const { total, totalCapped, syncedAt } = await countMatches(db, input, defer)
   const pageStartedAt = Date.now()
   if (timings) timings.countMs = pageStartedAt - countStartedAt
   const offset = (input.page - 1) * input.pageSize

@@ -2,18 +2,24 @@ import 'server-only'
 
 import { Prisma } from '@/lib/generated/prisma/client'
 
+import {
+  ASSISTANT_SETTINGS_WRITE_KEY_IDS,
+  PROJECT_RULE_KIND_IDS,
+} from '@/constants/assistant-operator'
 import { GENERATION_NAME_PREFIX_BY_OUTPUT_TYPE } from '@/constants/generation-naming'
 import { buildAssetRecipeText } from '@/lib/asset-recipe-text'
 import { db } from '@/lib/db'
 import { buildGenerationTag } from '@/lib/generation-name'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
 import type { AssistantV3PictureRef } from '@/types/assistant-v3'
+import { getAssistantPersona } from '@/services/assistant-persona.service'
 import { listCharacterCards } from '@/services/cards/character-card.service'
 import { listCharacterLoraGroups } from '@/services/cards/character-lora.service'
 import {
   findLoraAssetsByUrls,
   listLoraAssetsForUser,
 } from '@/services/lora-asset.service'
+import { listProjectSourceRules } from '@/services/project-rule.service'
 import { listRecipeSummaries } from '@/services/prompts/recipe.service'
 import {
   ASSISTANT_NEXT_FIND_KIND_IDS as KIND,
@@ -636,22 +642,55 @@ async function readPrompt(
   }
 }
 
-async function readSettings(userId: string): Promise<WorkspaceRead> {
-  // ⛔ 只取渠道名与开关：密文、掩码都不取。
-  const keys = await db.userApiKey.findMany({
-    where: { userId },
-    select: { adapterType: true, modelId: true, label: true, isActive: true },
-    orderBy: { createdAt: 'desc' },
-  })
+async function readSettings(owner: WorkspaceOwner): Promise<WorkspaceRead> {
+  // ⛔ 渠道只取名字与开关：密文、掩码都不取。
+  const [keys, persona, sources] = await Promise.all([
+    db.userApiKey.findMany({
+      where: { userId: owner.userId },
+      select: { adapterType: true, modelId: true, label: true, isActive: true },
+      orderBy: { createdAt: 'desc' },
+    }),
+    getAssistantPersona(owner.clerkId),
+    listProjectSourceRules(owner.userId),
+  ])
+  const channels = keys.length
+    ? `Model channels (keys themselves are never shown):\n${keys
+        .map(
+          (key) =>
+            `- ${key.label || key.adapterType} · ${key.adapterType}${key.modelId ? ` · ${key.modelId}` : ''}${key.isActive ? '' : ' · switched off'}`,
+        )
+        .join('\n')}`
+    : 'Model channels: none set up yet.'
+  const KEY = ASSISTANT_SETTINGS_WRITE_KEY_IDS
+  const assistant = [
+    `${KEY.name}: ${persona.name ?? '(default)'}`,
+    `${KEY.callMe}: ${persona.addressUserAs ?? '(account name)'}`,
+    `${KEY.tone}: ${persona.tone === 'custom' ? `"${persona.toneCustom ?? ''}"` : persona.tone}`,
+    `${KEY.verbosity}: ${persona.verbosity}`,
+    `${KEY.planMode}: ${persona.planMode}`,
+    `${KEY.language}: ${persona.language}`,
+    `${KEY.model}: ${persona.routeModel}`,
+    `${KEY.thinking}: ${persona.reasoningEffort}`,
+    `${KEY.nextStepHint}: ${persona.nextStepHint}`,
+    `${KEY.useMyWords}: ${persona.useMyWords}`,
+    `${KEY.remember}: ${persona.memoryCapture}`,
+    `${KEY.character}: ${persona.character ? `${PREFIX.character}${persona.character.name}` : '(none)'}`,
+    `${KEY.nameFromCharacter}: ${persona.nameFromCharacter}`,
+    `${KEY.toneFromCharacter}: ${persona.toneFromCharacter}`,
+    `${KEY.avatar}: ${persona.avatarChoice ?? '(default)'}`,
+    `${KEY.archetype}: ${persona.archetype ?? '(custom)'}`,
+  ]
+  const list = (kind: string) =>
+    sources
+      .filter((rule) => rule.kind === kind)
+      .map((rule) => rule.text)
+      .join(', ') || '(empty)'
   return {
-    text: keys.length
-      ? `Model channels the creator has set up (keys themselves are never shown):\n${keys
-          .map(
-            (key) =>
-              `- ${key.label || key.adapterType} · ${key.adapterType}${key.modelId ? ` · ${key.modelId}` : ''}${key.isActive ? '' : ' · switched off'}`,
-          )
-          .join('\n')}`
-      : 'The creator has not set up any model channel yet.',
+    text: [
+      channels,
+      `Assistant settings:\n${assistant.map((line) => `- ${line}`).join('\n')}`,
+      `Search sources — block: ${list(PROJECT_RULE_KIND_IDS.sourceDeny)}; allow only: ${list(PROJECT_RULE_KIND_IDS.sourceAllow)}`,
+    ].join('\n\n'),
     pictures: [],
   }
 }
@@ -760,6 +799,6 @@ export async function openWorkspaceHandle(
           }
         : readConversation(owner.userId, handle.id)
     case 'settings':
-      return readSettings(owner.userId)
+      return readSettings(owner)
   }
 }

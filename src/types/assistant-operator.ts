@@ -84,6 +84,7 @@ import {
   PROJECT_RULE_TEXT_ARG_ALIASES,
   ASSISTANT_ASSET_WRITE_LIMITS as ASSET_WRITE_LIMITS,
   ASSISTANT_LIBRARY_WRITE_KIND_IDS as LIBRARY_KIND,
+  PROJECT_RULE_SOURCE_KINDS,
   ASSISTANT_LIBRARY_WRITE_KINDS,
   ASSISTANT_LIBRARY_WRITE_LIMITS as LIBRARY_LIMITS,
   ASSISTANT_RESEARCH_CONFIDENCES,
@@ -170,7 +171,9 @@ import {
   ProjectRuleKindSchema,
   ProjectRuleSchema,
   ProjectRuleScopeSchema,
+  ProjectRuleSourceSchema,
   ProjectRuleSourceTokenSchema,
+  UpdateAssistantPersonaSchema,
 } from '@/types/assistant-persona'
 
 // ─── 小件 ────────────────────────────────────────────────────────
@@ -2748,6 +2751,27 @@ export const AssistantLibraryWriteInverseSchema = z.discriminatedUnion('kind', [
     name: z.string().max(LIBRARY_LIMITS.maxNameChars),
     compiledPrompt: LibraryTextSchema,
     negativePrompt: LibraryTextSchema.nullable(),
+  }),
+  /** 设置（第 4c 步）：渠道原来的名字与开关（⛔ 不带 key）。 */
+  z.object({
+    kind: z.literal(LIBRARY_KIND.channel),
+    keyId: IdSchema,
+    label: z.string().max(LIBRARY_LIMITS.maxNameChars),
+    isActive: z.boolean(),
+  }),
+  /** 助手设置原来的整份（写回同走 `upsertAssistantPersona`，各项不变量由它守）。 */
+  z.object({
+    kind: z.literal(LIBRARY_KIND.assistant),
+    before: UpdateAssistantPersonaSchema,
+  }),
+  z.object({ kind: z.literal(LIBRARY_KIND.sourceAdd), ruleId: IdSchema }),
+  /** 拿掉的那一条原样记下，撤销按原样再记回去。 */
+  z.object({
+    kind: z.literal(LIBRARY_KIND.sourceRemove),
+    text: z.string().max(LIBRARY_LIMITS.maxNameChars),
+    scope: ProjectRuleScopeSchema.nullable(),
+    list: z.enum(PROJECT_RULE_SOURCE_KINDS),
+    source: ProjectRuleSourceSchema,
   }),
 ])
 

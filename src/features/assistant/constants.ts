@@ -79,6 +79,13 @@ export const ASSISTANT_NEXT_EDIT_OP_IDS = {
   loraCover: 'lora_cover',
   savePrompt: 'save_prompt',
   updatePrompt: 'update_prompt',
+  /**
+   * 改设置（第 4c 步，owner 10-23）：渠道开关与名字、助手设置一格、搜图来源名单。同样任何台都能用、带撤销。
+   * ⛔ key 不读不写；⛔ 浏览器里那几项偏好不做。
+   */
+  modelChannel: 'model_channel',
+  assistantSetting: 'assistant_setting',
+  searchSource: 'search_source',
 } as const
 
 export const ASSISTANT_NEXT_EDIT_OPS = Object.values(
@@ -133,7 +140,7 @@ export const ASSISTANT_NEXT_LORA_PARAM_KEYS: Readonly<Record<string, string>> =
   }
 
 /** 过程记录里标「这一轮是新内核跑的」（`AssistantTurnRecord.promptVersion`）。改系统提示时一起换。 */
-export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-10-23c'
+export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-10-23d'
 
 export const ASSISTANT_NEXT_LIMITS = {
   /** 带给模型的对话：最近这么多条、这么多字以内（上下文压缩是第 6 步）。 */

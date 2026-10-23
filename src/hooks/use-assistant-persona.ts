@@ -33,6 +33,15 @@ function publishPersona(update: Partial<AssistantPersona>) {
   for (const listener of personaListeners) listener(update)
 }
 
+/**
+ * 设置在别处被改了（新内核 `assistant_setting`，第 4c 步）：重读一份，推给所有正开着的 persona
+ * （输入区模型 chip、设置页）。读失败就不推 —— 下次打开自己会读。
+ */
+export async function reloadAssistantPersonaEverywhere(): Promise<void> {
+  const result = await getAssistantPersonaAPI()
+  if (result.success) publishPersona(result.data)
+}
+
 export interface UseAssistantPersonaValue {
   persona: AssistantPersona
   isLoading: boolean

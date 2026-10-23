@@ -625,7 +625,8 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
   addToFolder: 'add_to_folder',
   /**
    * 新内核改库（第 4b 步，owner 10-23「库改动直接写，过程行带撤销」）：角色设定、造型、
-   * LoRA（加到角色 / 收藏 / 封面）、提示词库。一条工具，`payload.kind` 说改的是哪种。
+   * LoRA（加到角色 / 收藏 / 封面）、提示词库；第 4c 步起也改设置（渠道开关与名字、助手设置、
+   * 搜图来源名单）。一条工具，`payload.kind` 说改的是哪种。
    *
    * ⚠ 与素材库四条同一档：后果落在服务端，`inverse` 是服务端刚读到的**原值**，撤销走
    * `revertAssetWrite`。⛔ 不进任何域工具表：只有新内核自己发（不经旧规划器）。
@@ -3308,7 +3309,7 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.addToFolder]:
     "put up to 20 of the creator's own assets into one folder. An asset can sit in several folders at once, so this only ADDS: it never takes anything out of another folder, and assets keep their tags and stars. targetFolderId is a real folder id — from list_asset_folders, or from a create_folder you just made. Undoing takes out exactly the ones this call put in (ones already there stay), so a wrong one is cheap — but filing the creator did not ask for is still a mess in their library.",
   [ASSISTANT_OPERATOR_TOOL_IDS.libraryWrite]:
-    "the new kernel's library change (characters, looks, LoRAs, saved prompts). It is never offered to the old kernel.",
+    "the new kernel's library or settings change (characters, looks, LoRAs, saved prompts, model channels, assistant settings, search source lists). It is never offered to the old kernel.",
   [ASSISTANT_OPERATOR_TOOL_IDS.setReviewState]:
     'mark one of the creator\'s own assets as approved or blocked, so the verdict survives this turn. Use "blocked" when they say a picture did not work ("the hands are wrong", "not this one") — a blocked asset can never be used as a first or last frame again, on any workbench, and you should stop offering it. Use "approved" when they settle on one. The assetId comes from search_assets, from what they handed you, or from what you produced earlier this session — never invent one. Blocking deletes nothing: the picture stays in their library and you can still review it. Give a short reason in their words.',
   // ── 画布两条 ────────────────────────────────────────────────────────
@@ -3442,6 +3443,15 @@ export const ASSISTANT_LIBRARY_WRITE_KIND_IDS = {
   loraCover: 'lora_cover',
   savePrompt: 'save_prompt',
   updatePrompt: 'update_prompt',
+  /**
+   * 设置（第 4c 步，owner 10-23）：渠道只改开关与名字（⛔ key 不读不写、不删渠道）；
+   * 助手设置整排（头像只在已有的几种之间切）；搜图来源名单加 / 拿掉一项（拿掉不算删除）。
+   * ⛔ 浏览器里那四项偏好不做（owner 10-23）。
+   */
+  channel: 'channel',
+  assistant: 'assistant',
+  sourceAdd: 'source_add',
+  sourceRemove: 'source_remove',
 } as const
 
 export const ASSISTANT_LIBRARY_WRITE_KINDS = Object.values(
@@ -3453,6 +3463,39 @@ export const ASSISTANT_LIBRARY_WRITE_KINDS = Object.values(
 
 export type AssistantLibraryWriteKind =
   (typeof ASSISTANT_LIBRARY_WRITE_KIND_IDS)[keyof typeof ASSISTANT_LIBRARY_WRITE_KIND_IDS]
+
+/**
+ * 助手设置那一排里，新内核能改的几格（第 4c 步）。值是模型写的那个词，服务端翻成 persona 的那一格。
+ * ⚠ 头像只在已有的几种之间切（角色 / 已上传的那张 / 默认标），⛔ 不上传新的。
+ */
+export const ASSISTANT_SETTINGS_WRITE_KEY_IDS = {
+  name: 'name',
+  callMe: 'call_me',
+  tone: 'tone',
+  verbosity: 'verbosity',
+  planMode: 'plan_mode',
+  language: 'language',
+  model: 'model',
+  thinking: 'thinking',
+  nextStepHint: 'next_step_hint',
+  useMyWords: 'use_my_words',
+  remember: 'remember',
+  character: 'character',
+  nameFromCharacter: 'name_from_character',
+  toneFromCharacter: 'tone_from_character',
+  avatar: 'avatar',
+  archetype: 'archetype',
+} as const
+
+export const ASSISTANT_SETTINGS_WRITE_KEYS = Object.values(
+  ASSISTANT_SETTINGS_WRITE_KEY_IDS,
+) as [
+  (typeof ASSISTANT_SETTINGS_WRITE_KEY_IDS)[keyof typeof ASSISTANT_SETTINGS_WRITE_KEY_IDS],
+  ...(typeof ASSISTANT_SETTINGS_WRITE_KEY_IDS)[keyof typeof ASSISTANT_SETTINGS_WRITE_KEY_IDS][],
+]
+
+export type AssistantSettingsWriteKey =
+  (typeof ASSISTANT_SETTINGS_WRITE_KEY_IDS)[keyof typeof ASSISTANT_SETTINGS_WRITE_KEY_IDS]
 
 export const ASSISTANT_LIBRARY_WRITE_LIMITS = {
   /** 过程行上那一句（「已把 LoRA·x 加到 角色·y」）。 */

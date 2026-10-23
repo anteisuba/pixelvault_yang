@@ -3,18 +3,24 @@ import 'server-only'
 import {
   ASSISTANT_ASSET_WRITE_LIMITS,
   ASSISTANT_OPERATOR_TOOL_IDS as TOOL,
+  ASSISTANT_SETTINGS_WRITE_KEYS,
+  PROJECT_RULE_KIND_IDS,
 } from '@/constants/assistant-operator'
 import type { PromptAssistantResponseLanguage } from '@/types'
 import type { AssistantOperatorEvent } from '@/types/assistant-operator'
 import {
+  addSearchSource,
   createCharacter,
   createLook,
   favoriteLora,
   findOwnFolder,
   linkLoraToCharacter,
+  removeSearchSource,
   savePrompt,
+  setChannel,
   setLoraCover,
   updatePrompt,
+  writeAssistantSetting,
   writeCharacterProfile,
   writeLook,
   type LibraryWriteOutcome,
@@ -40,7 +46,7 @@ import {
 } from '@/features/assistant/workspace.service'
 
 /**
- * 改库（第 4b 步，owner 10-23）：任何台上都能用的那几种改法。
+ * 改库（第 4b 步，owner 10-23）与改设置（第 4c 步）：任何台上都能用的那几种改法。
  *
  * ⭐ 直接写进库，过程行带撤销；删和公开不做（owner 10-23）。
  * ⭐ 素材那五种（标签 / 收藏 / 建夹 / 放进夹 / 标好坏）交给旧执行器现成的那几条（撤销通道现成）；
@@ -63,6 +69,9 @@ export const LIBRARY_OPS: readonly AssistantNextEditOp[] = [
   OP.loraCover,
   OP.savePrompt,
   OP.updatePrompt,
+  OP.modelChannel,
+  OP.assistantSetting,
+  OP.searchSource,
 ]
 
 export function isLibraryOp(op: string): boolean {
@@ -88,6 +97,9 @@ const TITLES: Record<
     [OP.loraCover]: '换 LoRA 封面',
     [OP.savePrompt]: '存提示词',
     [OP.updatePrompt]: '改提示词库',
+    [OP.modelChannel]: '改渠道',
+    [OP.assistantSetting]: '改助手设置',
+    [OP.searchSource]: '改搜图来源',
   },
   japanese: {
     [OP.tagPictures]: 'タグ付け',
@@ -104,6 +116,9 @@ const TITLES: Record<
     [OP.loraCover]: 'LoRA カバー変更',
     [OP.savePrompt]: 'プロンプト保存',
     [OP.updatePrompt]: 'プロンプト編集',
+    [OP.modelChannel]: 'チャネル変更',
+    [OP.assistantSetting]: 'アシスタント設定',
+    [OP.searchSource]: '検索ソース変更',
   },
   english: {
     [OP.tagPictures]: 'Tag',
@@ -120,6 +135,9 @@ const TITLES: Record<
     [OP.loraCover]: 'LoRA cover',
     [OP.savePrompt]: 'Save prompt',
     [OP.updatePrompt]: 'Edit saved prompt',
+    [OP.modelChannel]: 'Model channel',
+    [OP.assistantSetting]: 'Assistant setting',
+    [OP.searchSource]: 'Search sources',
   },
 }
 
@@ -432,6 +450,71 @@ export async function* runLibraryChange(
           negative: change.negativeText ?? null,
         }),
       )
+    case OP.modelChannel: {
+      if (!change.channel)
+        return yield* fail(TOOL.libraryWrite, need(change.op, 'channel'))
+      const on =
+        typeof change.value === 'boolean'
+          ? change.value
+          : change.value === 'on' || change.value === 'true'
+            ? true
+            : change.value === 'off' || change.value === 'false'
+              ? false
+              : null
+      return yield* settleWrite(
+        context,
+        title,
+        await setChannel(owner, {
+          channel: change.channel,
+          on,
+          name: change.name ?? null,
+        }),
+      )
+    }
+    case OP.assistantSetting: {
+      const key = ASSISTANT_SETTINGS_WRITE_KEYS.find(
+        (item) => item === change.key?.trim().toLowerCase(),
+      )
+      if (!key)
+        return yield* fail(
+          TOOL.libraryWrite,
+          `assistant_setting needs key, one of: ${ASSISTANT_SETTINGS_WRITE_KEYS.join(', ')}.`,
+        )
+      return yield* settleWrite(
+        context,
+        title,
+        await writeAssistantSetting(owner, {
+          key,
+          value: change.value ?? null,
+        }),
+      )
+    }
+    case OP.searchSource: {
+      if (!change.url)
+        return yield* fail(TOOL.libraryWrite, need(change.op, 'url (the site)'))
+      if (change.value === false)
+        return yield* settleWrite(
+          context,
+          title,
+          await removeSearchSource(owner, { site: change.url }),
+        )
+      if (!change.list)
+        return yield* fail(
+          TOOL.libraryWrite,
+          'search_source needs list: "block" or "allow" (or value false to take the site off).',
+        )
+      return yield* settleWrite(
+        context,
+        title,
+        await addSearchSource(owner, {
+          site: change.url,
+          list:
+            change.list === 'block'
+              ? PROJECT_RULE_KIND_IDS.sourceDeny
+              : PROJECT_RULE_KIND_IDS.sourceAllow,
+        }),
+      )
+    }
     default:
       return yield* fail(
         TOOL.libraryWrite,

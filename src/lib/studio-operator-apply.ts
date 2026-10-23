@@ -22,6 +22,7 @@
  */
 
 import {
+  ASSISTANT_LIBRARY_WRITE_KIND_IDS,
   ASSISTANT_OPERATOR_APPEND_SEPARATOR,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_TOOL_IDS,
@@ -44,6 +45,7 @@ import {
   type StudioOperatorGenerateKnob,
 } from '@/constants/studio-assistant-operator'
 import type { LoraCandidateConfirmOutcome } from '@/types/lora-candidate'
+import { reloadAssistantPersonaEverywhere } from '@/hooks/use-assistant-persona'
 import { applyPromptFindReplace } from '@/lib/prompt-find-replace'
 import { describeLoraParameters } from '@/lib/studio-operator-history'
 import type { StudioAction, StudioFormState } from '@/contexts/studio-context'
@@ -390,6 +392,16 @@ export interface StudioOperatorApplyContext {
    * 宿主没接就不刷新（换页时自然是新的）。
    */
   libraryChanged?(kind: AssistantLibraryWriteKind): void
+}
+
+/** 改库 / 改设置落地或撤回之后：页上那份重读；助手设置改了，开着的 persona（模型 chip）也重读。 */
+function libraryWritten(
+  ctx: StudioOperatorApplyContext,
+  kind: AssistantLibraryWriteKind,
+): void {
+  ctx.libraryChanged?.(kind)
+  if (kind === ASSISTANT_LIBRARY_WRITE_KIND_IDS.assistant)
+    void reloadAssistantPersonaEverywhere()
 }
 
 /** 清晰度的收窄 —— 直接问 schema，不在这里抄一份 `['auto','1K','2K','4K']`。 */
@@ -934,7 +946,7 @@ export function applyOperatorStep(
       return null
     /** 新内核改库（第 4b 步）：同上，后果在库里；页上那份重读一下。 */
     case ASSISTANT_OPERATOR_TOOL_IDS.libraryWrite:
-      ctx.libraryChanged?.(step.payload.kind)
+      libraryWritten(ctx, step.payload.kind)
       return null
 
     /**
@@ -1311,7 +1323,7 @@ export function revertOperatorStep(
       })
       if (!undo) return false
       return undo.then((ok) => {
-        if (ok) ctx.libraryChanged?.(step.payload.kind)
+        if (ok) libraryWritten(ctx, step.payload.kind)
         return ok
       })
     }

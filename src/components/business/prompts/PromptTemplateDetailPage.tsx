@@ -1,7 +1,7 @@
 'use client'
 /* eslint-disable @next/next/no-img-element -- stored generation thumbnails are already optimized R2 derivatives */
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { motion, useReducedMotion, type Transition } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
@@ -460,11 +460,20 @@ export function PromptTemplateDetailPage({
             <div className="min-h-64 flex-1 rounded-xl bg-muted" />
           ) : shown ? (
             <>
-              <div className="relative grid min-h-64 flex-1 place-items-center overflow-hidden rounded-xl bg-muted">
+              <div
+                className="relative min-h-64 flex-1 overflow-hidden rounded-xl bg-muted max-lg:flex-none max-lg:aspect-(--media-ratio)"
+                style={
+                  shown.width > 0 && shown.height > 0
+                    ? ({
+                        '--media-ratio': shown.width / shown.height,
+                      } as CSSProperties)
+                    : undefined
+                }
+              >
                 <img
                   src={getGenerationPreviewUrl(shown)}
                   alt={shown.prompt || title}
-                  className="size-full object-contain"
+                  className="absolute inset-0 size-full object-contain"
                 />
               </div>
               {generations.length > 1 ? (

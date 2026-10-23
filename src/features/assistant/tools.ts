@@ -7,9 +7,13 @@ import {
 } from '@/constants/assistant-operator'
 import { NOVELAI_SCENE_TEXT_KINDS } from '@/constants/novelai'
 import {
+  ASSISTANT_V3_CARD_TYPES,
   ASSISTANT_V3_CARDS_PROFILE_PARTS,
   ASSISTANT_V3_VIDEO_REFERENCE_SLOTS,
 } from '@/constants/assistant-v3'
+import { IMAGE_PROMPT_TEMPLATE_CHOICES } from '@/constants/image-prompt-templates'
+import { NODE_SCRIPT_PROJECTION_MODES } from '@/constants/node-script'
+import { NODE_SLOT_TEXT_ROLES, NODE_SLOTS } from '@/constants/node-slots'
 import {
   ASSISTANT_NEXT_EDIT_OPS,
   ASSISTANT_NEXT_FIND_KINDS,
@@ -110,13 +114,13 @@ export const EditChangeSchema = z.object({
     .enum(ASSISTANT_NEXT_WRITE_MODES)
     .nullish()
     .describe(
-      'prompt / negative: "edit" replaces exact {find, replace} pairs and keeps everything else; "replace" writes the whole field; "append" adds to the end.',
+      'prompt / negative (and prompt on a canvas card): "edit" replaces exact {find, replace} pairs and keeps everything else; "replace" writes the whole field; "append" adds to the end.',
     ),
   text: z
     .string()
     .nullish()
     .describe(
-      'prompt / negative with mode "replace" or "append". remember: the one line to keep (new, or the new wording of memory).',
+      'prompt / negative with mode "replace" or "append". add_card: the new card\'s prompt (a text card: its text). remember: the one line to keep (new, or the new wording of memory).',
     ),
   memory: z
     .string()
@@ -129,19 +133,28 @@ export const EditChangeSchema = z.object({
     .max(ASSISTANT_NEXT_LIMITS.maxFindReplace)
     .nullish()
     .describe('prompt / negative with mode "edit".'),
-  model: z.string().nullish().describe('model: a model id or label.'),
+  model: z
+    .string()
+    .nullish()
+    .describe('model / add_card / set_card: a model id or label.'),
   channel: z
     .string()
     .nullish()
     .describe(
       'model: a channel id or label. model_channel: the channel, by its name.',
     ),
-  duration: z.number().nullish().describe('specs (video): seconds.'),
-  aspectRatio: z.string().nullish().describe('specs'),
-  resolution: z.string().nullish().describe('specs'),
-  quality: z.string().nullish().describe('specs'),
+  duration: z
+    .number()
+    .nullish()
+    .describe('specs / add_card / set_card (video): seconds.'),
+  aspectRatio: z.string().nullish().describe('specs / add_card / set_card'),
+  resolution: z.string().nullish().describe('specs / add_card / set_card'),
+  quality: z.string().nullish().describe('specs / add_card / set_card'),
   background: z.string().nullish().describe('specs'),
-  count: z.number().nullish().describe('count: pictures per run.'),
+  count: z
+    .number()
+    .nullish()
+    .describe('count / add_card / set_card: pictures per run.'),
   key: z
     .string()
     .nullish()
@@ -163,6 +176,66 @@ export const EditChangeSchema = z.object({
     .describe(
       'add_reference (video): "first" / "last" frame, or "reference" (default).',
     ),
+  card: z
+    .string()
+    .nullish()
+    .describe(
+      'Canvas: the card, by its handle on the board ("img-6db120") or the ref of a card added earlier in the same edit. prompt / set_card / delete_card / move_to_shot / hand_off; project_script: the script card.',
+    ),
+  ref: z
+    .string()
+    .nullish()
+    .describe(
+      'add_card: a short temporary name ("new1") that later changes in this same edit use for the new card.',
+    ),
+  type: z
+    .enum(ASSISTANT_V3_CARD_TYPES)
+    .nullish()
+    .describe(
+      'add_card: kind/subtype as the board prints it. image/reference only holds a picture put there by hand; a new picture to generate is image/character, image/background or image/shot.',
+    ),
+  from: z
+    .string()
+    .nullish()
+    .describe(
+      'connect / disconnect: the card the line comes from. reorder_shot: the lane number that moves.',
+    ),
+  to: z
+    .string()
+    .nullish()
+    .describe(
+      'connect / disconnect: the card the line goes into. reorder_shot: the position it moves to.',
+    ),
+  port: z
+    .enum(NODE_SLOTS)
+    .nullish()
+    .describe(
+      'connect: which input of the target card the line feeds. disconnect: only when several lines join the same two cards.',
+    ),
+  role: z
+    .enum(NODE_SLOT_TEXT_ROLES)
+    .nullish()
+    .describe('connect (text input): what the text is for.'),
+  shot: z
+    .number()
+    .nullish()
+    .describe(
+      'add_card / move_to_shot: the LANE number (move_to_shot null takes it out of every lane).',
+    ),
+  projection: z
+    .enum(NODE_SCRIPT_PROJECTION_MODES)
+    .nullish()
+    .describe(
+      'project_script: "create" makes shot cards from the script; "reproject" brings existing ones in line with it.',
+    ),
+  template: z
+    .enum(IMAGE_PROMPT_TEMPLATE_CHOICES)
+    .nullish()
+    .describe('add_card / set_card (image): the prompt template.'),
+  generateAudio: z
+    .boolean()
+    .nullish()
+    .describe('add_card / set_card (video): make sound with the clip.'),
   parts: z
     .array(z.enum(ASSISTANT_NEXT_RECIPE_PARTS))
     .nullish()
@@ -231,7 +304,7 @@ export const EditChangeSchema = z.object({
     .string()
     .nullish()
     .describe(
-      'propose_* / hand_off: one or two sentences shown right above the card. The turn ends on the card.',
+      'propose_* / hand_off (character page): one or two sentences shown right above the card. The turn ends on the card.',
     ),
   fields: z
     .array(
@@ -269,7 +342,9 @@ export const EditChangeSchema = z.object({
   request: z
     .string()
     .nullish()
-    .describe('hand_off: the one message the image assistant should get.'),
+    .describe(
+      'hand_off: the one message the assistant over there should get (on the canvas: the image bench, taking card with it).',
+    ),
   pictures: z
     .array(z.string())
     .nullish()
@@ -286,7 +361,7 @@ export const EditChangeSchema = z.object({
     .string()
     .nullish()
     .describe(
-      'new_folder / new_character / save_prompt: the name. character_profile / update_prompt / model_channel: a new name, or null to keep it.',
+      'new_folder / new_character / save_prompt / add_card: the name. character_profile / update_prompt / model_channel / set_card: a new name, or null to keep it.',
     ),
   folder: z
     .string()
@@ -358,6 +433,18 @@ export const AskInputSchema = z.object({
 export type AskInput = z.infer<typeof AskInputSchema>
 
 export const GenerateInputSchema = z.object({
+  cards: z
+    .array(z.string())
+    .nullish()
+    .describe(
+      'Canvas only: every card to generate (or upscale), by handle. They all go up together.',
+    ),
+  upscale: z
+    .boolean()
+    .nullish()
+    .describe(
+      'Canvas only: true enlarges the picture already on each card (sharper / 4K) instead of making a new one.',
+    ),
   say: z
     .string()
     .nullish()
@@ -404,7 +491,7 @@ export function toModelJsonSchema(
   return raw
 }
 
-const NUMBER_FIELDS = ['count', 'weight', 'duration'] as const
+const NUMBER_FIELDS = ['count', 'weight', 'duration', 'shot'] as const
 
 /** 模型常见的几种写偏：整串 JSON、单个对象当数组、数字写成字符串、可空字段缺席。 */
 function loosen(raw: unknown): unknown {
@@ -444,6 +531,9 @@ function loosenChange(change: unknown): unknown {
     'tags',
   ] as const)
     if (out[field] !== undefined) out[field] = asArray(out[field]) as JsonValue
+  // reorder_shot 的 from / to 是镜头号：写成数字也认。
+  for (const field of ['from', 'to'] as const)
+    if (typeof out[field] === 'number') out[field] = String(out[field])
   if (typeof out.op === 'string') out.op = out.op.trim().toLowerCase()
   if (typeof out.mode === 'string') out.mode = out.mode.trim().toLowerCase()
   return out
@@ -503,7 +593,7 @@ const DESCRIPTIONS = {
   edit: 'Change the bench, the creator\'s library (pictures, folders, characters and looks, LoRAs, saved prompts), their settings (model channels, assistant settings, search source lists), or what you remember (remember). All changes for one request go in ONE call, applied in order; each lands at once and can be undone. For the prompt prefer mode "edit" with exact {find, replace} pairs so everything else stays as it is.',
   ask: 'Ask the creator when you cannot go on without their choice. Puts a card with options in front of them and ends this turn until they answer.',
   generate:
-    'Generate one batch of what is on the bench now: starts at once when LET AI GENERATE is on, otherwise a confirm card the creator presses. Ends this turn.',
+    'Generate one batch of what is on the bench now (on the canvas: the cards you list): starts at once when LET AI GENERATE is on, otherwise a confirm card the creator presses. Ends this turn.',
 } as const
 
 /** 交给 `streamText` 的那一份：只有描述与 JSON schema，⛔ 没有 execute（循环自己执行）。 */

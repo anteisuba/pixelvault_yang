@@ -20,7 +20,10 @@ import {
   ASSISTANT_V3_TOOL_IDS,
   ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS,
 } from '@/constants/assistant-v3'
-import { buildAssistantV3Handles } from '@/lib/assistant-v3-board'
+import {
+  assistantV3CanvasNodes,
+  buildAssistantV3Handles,
+} from '@/lib/assistant-v3-board'
 import {
   buildAssistantV3CardsHandles,
   renderAssistantV3CardsBoard,
@@ -70,6 +73,7 @@ import {
   type V3Outcome,
 } from '@/services/kernel/assistant-v3-steps.service'
 import { createClipCache } from '@/services/kernel/assistant-v3-watch.service'
+import { executeCall as executeAssistantV3CanvasCall } from '@/services/kernel/assistant-v3.service'
 import { searchMemoriesStep } from '@/services/kernel/assistant-v3-memories.service'
 import {
   ASSISTANT_NEXT_EDIT_OP_IDS as OP,
@@ -84,6 +88,14 @@ import {
   type AssistantNextFindKind,
   type AssistantNextRecipePart,
 } from '@/features/assistant/constants'
+import {
+  CANVAS_OPS,
+  renderCanvasBoard,
+  splitCanvasLook,
+  toCanvasPiece,
+  translateCanvasPieces,
+  type CanvasBatch,
+} from '@/features/assistant/canvas'
 import { isLibraryOp, runLibraryChange } from '@/features/assistant/library'
 import type {
   AskInput,
@@ -116,12 +128,14 @@ export type BenchFace =
   | typeof ASSISTANT_V3_FACE_IDS.lora
   | typeof ASSISTANT_V3_FACE_IDS.video
   | typeof ASSISTANT_V3_FACE_IDS.cards
+  | typeof ASSISTANT_V3_FACE_IDS.canvas
 
 const BENCH_FACES: readonly string[] = [
   ASSISTANT_V3_FACE_IDS.image,
   ASSISTANT_V3_FACE_IDS.lora,
   ASSISTANT_V3_FACE_IDS.video,
   ASSISTANT_V3_FACE_IDS.cards,
+  ASSISTANT_V3_FACE_IDS.canvas,
 ]
 
 /** 每台 `edit` 能用哪几种改法（台上没有的那一格回一句说明，列出这台有的）。 */
@@ -169,6 +183,7 @@ const OPS_BY_FACE: Record<BenchFace, readonly AssistantNextEditOp[]> = {
     OP.proposeImages,
     OP.handOff,
   ],
+  [ASSISTANT_V3_FACE_IDS.canvas]: CANVAS_OPS,
 }
 
 export interface BenchResult {
@@ -178,6 +193,8 @@ export interface BenchResult {
   readonly pictures?: readonly AssistantV3PictureRef[]
   /** 停在问题卡 / 确认卡上：这一轮到此为止。 */
   readonly stop?: boolean
+  /** 画布：这次 edit 里要交给浏览器落的那一批（循环合成一批再落，落完再接着跑）。 */
+  readonly canvas?: CanvasBatch
 }
 
 export function benchFaceOf(domain: string): BenchFace | null {
@@ -198,18 +215,23 @@ export function benchContext(input: {
   const { prepared, request } = input
   const adapterType = prepared.route.adapterType
   const seesImages = assistantAdapterSupportsImage(adapterType, input.modelId)
+  // 画布：每一跳按这一跳的快照现读（浏览器落完带回来的新画面，新卡这时才有 id）。
+  const nodes =
+    input.face === ASSISTANT_V3_FACE_IDS.canvas && request.snapshot.canvas
+      ? assistantV3CanvasNodes(request.snapshot.canvas)
+      : []
   return {
     face: input.face,
     clerkId: input.clerkId,
     prepared,
     request,
-    nodes: [],
+    nodes,
     handles:
       input.face === ASSISTANT_V3_FACE_IDS.lora
         ? buildAssistantV3LoraHandles(request.snapshot)
         : input.face === ASSISTANT_V3_FACE_IDS.cards
           ? buildAssistantV3CardsHandles(request.snapshot)
-          : buildAssistantV3Handles([]),
+          : buildAssistantV3Handles(nodes.map((node) => node.id)),
     language: input.language,
     stepPrefix: input.stepPrefix,
     transcript: [input.board],
@@ -249,6 +271,15 @@ export function renderBench(
   latestUserText: string,
   aliases = '',
 ): string {
+  const autoGenerate = context.request.autoGenerate
+    ? context.face === ASSISTANT_V3_FACE_IDS.canvas
+      ? '\nLET AI GENERATE: on — generate starts at once, every card you list (no picture limit on the canvas).'
+      : `\nLET AI GENERATE: on — generate starts at once, at most ${ASSISTANT_AUTO_GENERATE_LIMITS.maxOutputsPerRound} pictures in this message.`
+    : ''
+  if (context.face === ASSISTANT_V3_FACE_IDS.canvas)
+    return renderCanvasBoard(context, attachedNames, latestUserText)
+      .concat(aliases ? `\n${aliases}` : '')
+      .concat(autoGenerate)
   const snapshot = currentSnapshot(context)
   const text =
     context.face === ASSISTANT_V3_FACE_IDS.lora
@@ -281,11 +312,7 @@ export function renderBench(
       'use these names with look and edit add_reference',
     )
     .concat(aliases ? `\n${aliases}` : '')
-    .concat(
-      context.request.autoGenerate
-        ? `\nLET AI GENERATE: on — generate starts at once, at most ${ASSISTANT_AUTO_GENERATE_LIMITS.maxOutputsPerRound} pictures in this message.`
-        : '',
-    )
+    .concat(autoGenerate)
 }
 
 const NOTHING_TO_DO = 'Nothing was changed.'
@@ -805,6 +832,8 @@ export async function* runEdit(
   context: V3Context,
   changes: readonly EditChange[],
 ): AsyncGenerator<AssistantOperatorEvent, BenchResult> {
+  if (context.face === ASSISTANT_V3_FACE_IDS.canvas)
+    return yield* runCanvasEdit(context, changes)
   const lines: string[] = []
   let failed = 0
   let total = 0
@@ -851,6 +880,86 @@ export async function* runEdit(
       lines.push('   · nothing to change: the bench already matches.')
   }
   return { output: lines.join('\n'), error: total > 0 && failed === total }
+}
+
+/**
+ * 画布上的 edit：改库 / 设置 / 记忆照旧当场落；交接当场出卡；画布那几种合成一批交给循环
+ * （同一步里几次 edit 再合成一批，浏览器一次落完再接着跑）。
+ */
+async function* runCanvasEdit(
+  context: V3Context,
+  changes: readonly EditChange[],
+): AsyncGenerator<AssistantOperatorEvent, BenchResult> {
+  const lines: string[] = []
+  const ops: Parameters<typeof translateCanvasPieces>[1][number][] = []
+  const writes: Parameters<typeof translateCanvasPieces>[2][number][] = []
+  let failed = 0
+  let total = 0
+  for (const [index, change] of changes.entries()) {
+    const label = `${index + 1}. ${change.op}`
+    total += 1
+    if (isLibraryOp(change.op)) {
+      const result = outcomeOf(yield* runLibraryChange(context, change))
+      if (result.error) failed += 1
+      lines.push(
+        `${label} — ${result.error ? 'not done: ' : ''}${result.output}`,
+      )
+      continue
+    }
+    if (change.op === OP.handOff) {
+      if (!change.card) {
+        failed += 1
+        lines.push(`${label} — not done: hand_off needs card.`)
+        continue
+      }
+      if (!change.request) {
+        failed += 1
+        lines.push(`${label} — not done: hand_off needs request.`)
+        continue
+      }
+      const result = outcomeOf(
+        yield* executeAssistantV3CanvasCall(
+          context,
+          ASSISTANT_V3_TOOL_IDS.handOff,
+          { card: change.card, next: change.request },
+        ),
+      )
+      if (result.error) failed += 1
+      lines.push(
+        `${label} — ${result.error ? 'not done: ' : ''}${result.output}`,
+      )
+      if (result.stop)
+        return { output: lines.join('\n'), error: false, stop: true }
+      continue
+    }
+    const piece = toCanvasPiece(context, change)
+    if (piece.kind === 'error') {
+      failed += 1
+      lines.push(`${label} — not done: ${piece.error}`)
+      continue
+    }
+    if (piece.kind === 'edit') ops.push(piece.op)
+    else writes.push(piece.entry)
+    lines.push(`${label} — sent to the board (see BOARD below).`)
+  }
+  if (ops.length === 0 && writes.length === 0)
+    return { output: lines.join('\n'), error: total > 0 && failed === total }
+  const translated = translateCanvasPieces(context, ops, writes)
+  if (!translated.ok) {
+    const outcome = outcomeOf(
+      yield* refused(
+        context,
+        ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch,
+        TITLE_TEXT[context.language].edit,
+        translated.error,
+      ),
+    )
+    lines.push(
+      `BOARD — not done, nothing on the board changed: ${outcome.output}`,
+    )
+    return { output: lines.join('\n'), error: true }
+  }
+  return { output: lines.join('\n'), error: false, canvas: translated.batch }
 }
 
 /** 查到 / 打开的图记进本轮的准入名单：之后 `add_reference 图_N` 才挂得上（旧执行器只认名单里的）。 */
@@ -928,7 +1037,32 @@ export async function* runLook(
     pictures.push(...opened.pictures)
     parts.push(opened.text)
   }
-  if (benchNames.length > 0) {
+  if (benchNames.length > 0 && context.face === ASSISTANT_V3_FACE_IDS.canvas) {
+    // 画布：卡的全文（与镜头带、型号写法）读出来；有图 / 有片的卡、附图、#n 摆到眼前。
+    const split = splitCanvasLook(context, benchNames)
+    if (split.read.length) {
+      const read = outcomeOf(
+        yield* executeAssistantV3CanvasCall(
+          context,
+          ASSISTANT_V3_TOOL_IDS.read,
+          { cards: split.read },
+        ),
+      )
+      if (read.error) failed += 1
+      parts.unshift(read.output)
+    }
+    if (split.see.length) {
+      const seen = outcomeOf(
+        yield* executeAssistantV3CanvasCall(
+          context,
+          ASSISTANT_V3_TOOL_IDS.look,
+          { cards: split.see, question: input.question ?? '' },
+        ),
+      )
+      pictures.push(...(seen.pictures ?? []))
+      parts.push(seen.output)
+    }
+  } else if (benchNames.length > 0) {
     const call =
       context.face === ASSISTANT_V3_FACE_IDS.lora
         ? executeAssistantV3LoraCall
@@ -992,6 +1126,23 @@ export async function* runGenerate(
         'The character page does not generate. To make a picture for a character, propose a hand_off to the image assistant.',
       error: true,
     }
+  if (context.face === ASSISTANT_V3_FACE_IDS.canvas) {
+    if (!input.cards?.length)
+      return {
+        output:
+          'generate on the canvas needs cards: every card to generate, by handle.',
+        error: true,
+      }
+    return outcomeOf(
+      yield* executeAssistantV3CanvasCall(
+        context,
+        input.upscale
+          ? ASSISTANT_V3_TOOL_IDS.upscale
+          : ASSISTANT_V3_TOOL_IDS.generate,
+        { cards: input.cards },
+      ),
+    )
+  }
   const call =
     context.face === ASSISTANT_V3_FACE_IDS.lora
       ? executeAssistantV3LoraCall

@@ -2610,8 +2610,11 @@ export const ASSISTANT_OPERATOR_LIMITS = {
    * 而截断过的名字用户读不出来自己当时说的是哪一张。
    */
   maxGenerationLabelChars: 24,
-  /** 一张确认卡上最多几张画布卡（队列条一排放得下、出图并发不失控）。 */
-  maxCanvasGenerateCards: 8,
+  /**
+   * 一张确认卡上最多几张画布卡（队列条横向滚动）。owner 10-23：画布「交给 AI 出图」一句话出完
+   * 所有选中的卡，所以放到一整组分镜的量；并发由 Worker 按账号排队（第 5a 步）兜住。
+   */
+  maxCanvasGenerateCards: 24,
 } as const
 
 /**

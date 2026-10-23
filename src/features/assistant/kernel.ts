@@ -10,6 +10,7 @@ import {
 } from 'ai'
 
 import {
+  ASSISTANT_OPERATOR_CANVAS_LIMITS,
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_INTERNAL_ERROR_CODE,
   ASSISTANT_OPERATOR_LIMITS,
@@ -66,6 +67,7 @@ import {
   isFatalOperatorToolError,
   operatorCacheKey,
   prepareOperatorTurn,
+  requestProjectId,
   resolveResponseLanguage,
   runOperatorTurn,
   runWithOperatorTimeBudget,
@@ -74,10 +76,18 @@ import {
   type OperatorTurnOptions,
 } from '@/services/kernel/assistant-operator.service'
 import { loadPicture } from '@/services/kernel/assistant-v3-look.service'
+import { refused } from '@/services/kernel/assistant-v3-bench.service'
 import {
+  joinPhrases,
+  planSafely,
+  settlePlan,
   TITLE_TEXT,
   type V3Context,
 } from '@/services/kernel/assistant-v3-steps.service'
+import {
+  landedCanvasResult,
+  type CanvasBatch,
+} from '@/features/assistant/canvas'
 import {
   benchContext,
   benchFaceOf,
@@ -115,7 +125,12 @@ import {
   renderCalledSkills,
   skillsSettingsNote,
 } from '@/features/assistant/skills'
-import { loadTurnState, saveTurnState } from '@/features/assistant/state'
+import {
+  loadTurnState,
+  saveTurnState,
+  type NextTurnState,
+  type PendingCanvasEdit,
+} from '@/features/assistant/state'
 import {
   AskInputSchema,
   assistantNextTools,
@@ -165,6 +180,12 @@ const CONTENT_FILTERED: Record<PromptAssistantResponseLanguage, string> = {
 
 const NOT_RUN_AFTER_STOP =
   'Not run: this turn stopped on a card to wait for the creator.'
+/** 画布：同一步里前面的 edit 还在落，板子还不是新的样子。 */
+const NOT_RUN_WHILE_BOARD_CHANGES =
+  'Not run: an edit earlier in this step is still landing on the board. Call it again in your next step if you still need it.'
+/** 画布那一批交出去了、接力条没存下：落没落这一跳不知道。 */
+const LANDING_UNKNOWN =
+  'BOARD — sent to the board; whether it landed is not known yet. Look at the cards you changed before you build on them.'
 /** 同一步里改动没落下还出图，确认卡上就是旧配方（评测里撞见过）。 */
 const NOT_RUN_AFTER_FAILED_EDIT =
   'Not shown: an edit earlier in this step did not land, so the bench is not what you meant to generate. Fix that edit first, then call generate again.'
@@ -191,6 +212,11 @@ async function nextMemories(
       // 和角色聊天：读的是正在聊的那位那份（第 7a 步 D）；否则角色页上开着的那位。
       characterCardId:
         chatCharacterId ?? request.snapshot.cards?.open?.id ?? null,
+      // 画布：这个项目自己那份（第 9a 步）。
+      projectId:
+        request.domain === ASSISTANT_V3_FACE_IDS.canvas
+          ? requestProjectId(request)
+          : null,
       limit: ASSISTANT_NEXT_LIMITS.maxMemoriesInPrompt,
     })
   } catch (error) {
@@ -255,6 +281,7 @@ function turnOutcomeOf(
   if (event.type !== ASSISTANT_OPERATOR_EVENTS.stopped) return current
   switch (event.reason) {
     case ASSISTANT_OPERATOR_STOP_REASONS.timeBudget:
+    case ASSISTANT_OPERATOR_STOP_REASONS.canvasSync:
       return TURN_OUTCOME.relay
     case ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm:
       return TURN_OUTCOME.awaitingConfirm
@@ -419,13 +446,15 @@ async function* runNextTurn(
   const chat = chatCharacterOf(persona)
   const face = benchFaceOf(request.domain)
   const resolved = modelId ? resolveNextModel(route, modelId) : null
-  // 板子画不出来（LoRA 台没带 LoRA 那一块、角色页没带角色）同 v3：交回旧执行器。
+  // 板子画不出来（LoRA 台没带 LoRA 那一块、角色页没带角色、画布没带画面）同 v3：交回旧执行器。
   const benchReady =
     face === ASSISTANT_V3_FACE_IDS.lora
       ? Boolean(request.snapshot.loras)
       : face === ASSISTANT_V3_FACE_IDS.cards
         ? Boolean(request.snapshot.cards)
-        : true
+        : face === ASSISTANT_V3_FACE_IDS.canvas
+          ? Boolean(request.snapshot.canvas)
+          : true
   if (!face || !resolved || !modelId || !benchReady) {
     // 新内核接不了的厂商 / 台：交回旧执行器（与 v3 同一条退路）。
     yield* runOperatorTurn(clerkId, request, options, prepared)
@@ -538,6 +567,41 @@ async function* runNextTurn(
     transcript[0] = { ...opening, turn: { id: turnId, hop } }
     context.transcript[0] = { ...opening, turn: { id: turnId, hop } }
   }
+  // 画布：上一跳交给浏览器落的那一批，这一跳按落没落、新画面补上结果，再接着跑。
+  if (saved?.pending) {
+    const landed: ToolResultPart[] = saved.pending.canvas.map((edit) => {
+      const result = landedCanvasResult({
+        context,
+        priorSteps: request.priorSteps ?? [],
+        callId: edit.toolCallId,
+        batchInput: edit.input,
+        ...(edit.knownIds ? { knownIds: edit.knownIds } : {}),
+      })
+      const output = `${edit.lines}\nBOARD — ${result.output}`
+      transcript.push({
+        type: ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.result,
+        id: edit.toolCallId.slice(0, ASSISTANT_V3_LIMITS.maxCallIdChars),
+        tool: transcriptTool(edit.toolName),
+        output: output.slice(0, ASSISTANT_V3_LIMITS.maxEntryChars),
+        error: result.error,
+      })
+      return {
+        type: 'tool-result',
+        toolCallId: edit.toolCallId,
+        toolName: edit.toolName,
+        output: result.error
+          ? { type: 'error-text', value: output }
+          : { type: 'text', value: output },
+      }
+    })
+    messages = clearOldToolResults([
+      ...messages,
+      { role: 'tool', content: [...saved.pending.results, ...landed] },
+      ...(saved.pending.looked.length && context.seesImages
+        ? [lookedPicturesMessage(saved.pending.looked)]
+        : []),
+    ])
+  }
 
   /**
    * ⭐ 之前几轮（第 6 步）：按块开窗，滑出去的那几轮用后台写好的摘要接在系统提示里；缺口交给后台补
@@ -603,6 +667,20 @@ async function* runNextTurn(
     return picture ? { data: picture.data, mediaType: picture.mediaType } : null
   }
   const text = TITLE_TEXT[language]
+  const keepState = (pending?: NextTurnState['pending']) =>
+    saveTurnState(user.id, {
+      turnId,
+      hop,
+      messages,
+      transcript,
+      modelPath: model.path,
+      modelId,
+      attachedNames,
+      latestUserText,
+      stepSeq: run.stepSeq,
+      history: pinnedHistory,
+      ...(pending ? { pending } : {}),
+    })
   let emptyRetried = false
   let timeoutRetried = false
   let succeededOnce = Boolean(saved)
@@ -617,18 +695,7 @@ async function* runNextTurn(
     }
     if (step > 0 && options.pastSoftBudget()) {
       // 先存好这一轮的样子，再交接力条：浏览器接着发下一次，从这里接着跑。
-      const kept = await saveTurnState(user.id, {
-        turnId,
-        hop,
-        messages,
-        transcript,
-        modelPath: model.path,
-        modelId,
-        attachedNames,
-        latestUserText,
-        stepSeq: run.stepSeq,
-        history: pinnedHistory,
-      })
+      const kept = await keepState()
       if (kept)
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.transcript,
@@ -938,6 +1005,12 @@ async function* runNextTurn(
     const looked: AssistantV3PictureRef[] = []
     let stopped = false
     let editFailed = false
+    /** 画布：这一步里交给浏览器落的那几次 edit（合成一批，落完再接着跑）。 */
+    const boardEdits: {
+      call: ClientCall
+      lines: string
+      batch: CanvasBatch
+    }[] = []
     for (const call of calls) {
       const settle = (result: BenchResult) => {
         results.push({
@@ -963,6 +1036,9 @@ async function* runNextTurn(
               }
             : {}),
         })
+        // 画布出图前的核对按本轮记录认「已经报过」（v3 执行函数读 context 那一份）。
+        if (face === ASSISTANT_V3_FACE_IDS.canvas)
+          context.transcript.push(transcript[transcript.length - 1]!)
       }
       if (stopped) {
         settle({ output: NOT_RUN_AFTER_STOP, error: true })
@@ -972,6 +1048,13 @@ async function* runNextTurn(
         settle({ output: NOT_RUN_AFTER_FAILED_EDIT, error: true })
         continue
       }
+      if (
+        boardEdits.length > 0 &&
+        call.toolName !== ASSISTANT_NEXT_TOOL_IDS.edit
+      ) {
+        settle({ output: NOT_RUN_WHILE_BOARD_CHANGES, error: true })
+        continue
+      }
       const result = yield* runTool(
         context,
         call,
@@ -979,12 +1062,111 @@ async function* runNextTurn(
         latestUserText,
         aliases,
       )
+      if (result.canvas) {
+        boardEdits.push({ call, lines: result.output, batch: result.canvas })
+        continue
+      }
       settle(result)
       if (result.pictures?.length) looked.push(...result.pictures)
       if (result.stop) stopped = true
       if (result.error && call.toolName === ASSISTANT_NEXT_TOOL_IDS.edit)
         editFailed = true
     }
+    if (boardEdits.length > 0) {
+      const settleBoard = (
+        edit: (typeof boardEdits)[number],
+        board: BenchResult,
+      ) => {
+        results.push({
+          type: 'tool-result',
+          toolCallId: edit.call.toolCallId,
+          toolName: edit.call.toolName,
+          output: board.error
+            ? { type: 'error-text', value: `${edit.lines}\n${board.output}` }
+            : { type: 'text', value: `${edit.lines}\n${board.output}` },
+        })
+        transcript.push({
+          type: ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.result,
+          id: edit.call.toolCallId.slice(0, ASSISTANT_V3_LIMITS.maxCallIdChars),
+          tool: transcriptTool(edit.call.toolName),
+          output: `${edit.lines}\n${board.output}`.slice(
+            0,
+            ASSISTANT_V3_LIMITS.maxEntryChars,
+          ),
+          error: board.error,
+        })
+      }
+      if (stopped) {
+        for (const edit of boardEdits)
+          settleBoard(edit, {
+            output: `BOARD — ${NOT_RUN_AFTER_STOP}`,
+            error: true,
+          })
+      } else {
+        const ops = boardEdits.flatMap((edit) => edit.batch.ops)
+        const title = joinPhrases(
+          context,
+          boardEdits.map((edit) => edit.batch.title),
+        )
+        const outcome =
+          ops.length > ASSISTANT_OPERATOR_CANVAS_LIMITS.maxBatchOps
+            ? yield* refused(
+                context,
+                ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch,
+                title,
+                `That is ${ops.length} board changes at once; at most ${ASSISTANT_OPERATOR_CANVAS_LIMITS.maxBatchOps} land together. Split them over two edits.`,
+              )
+            : yield* settlePlan(
+                context,
+                ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch,
+                title,
+                await planSafely(
+                  context,
+                  ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch,
+                  { ops },
+                ),
+              )
+        if (outcome.kind === 'pending') {
+          // 交给浏览器落：存好这一步（结果待补），交接力条，停在 canvas_sync。
+          const knownIds = context.nodes.map((node) => node.id)
+          const pending: PendingCanvasEdit[] = boardEdits.map((edit) => ({
+            toolCallId: edit.call.toolCallId,
+            toolName: edit.call.toolName,
+            lines: edit.lines,
+            input: edit.batch.input,
+            ...(edit.batch.createsCards ? { knownIds } : {}),
+          }))
+          const kept = await keepState({ results, looked, canvas: pending })
+          if (kept) {
+            yield {
+              type: ASSISTANT_OPERATOR_EVENTS.transcript,
+              transcript: relayToken(turnId, hop),
+            }
+            yield {
+              type: ASSISTANT_OPERATOR_EVENTS.stopped,
+              reason: ASSISTANT_OPERATOR_STOP_REASONS.canvasSync,
+            }
+            return
+          }
+          // 存不下：浏览器照样落，这一跳接着跑，结果写「还不知道」。
+          for (const edit of boardEdits)
+            settleBoard(edit, { output: LANDING_UNKNOWN, error: false })
+        } else if (outcome.kind === 'stop') {
+          stopped = true
+          for (const edit of boardEdits)
+            settleBoard(edit, {
+              output: `BOARD — waiting for the creator: ${outcome.todo}`,
+              error: false,
+            })
+        } else {
+          const output = outcome.kind === 'result' ? outcome.output : ''
+          const error = outcome.kind === 'result' && outcome.error
+          for (const edit of boardEdits)
+            settleBoard(edit, { output: `BOARD — ${output}`, error })
+        }
+      }
+    }
+
     // 工具结果攒多了就清掉旧的长结果（一次清到底，之后前缀不动）；要细节模型自己再查。
     messages = clearOldToolResults([
       ...messages,

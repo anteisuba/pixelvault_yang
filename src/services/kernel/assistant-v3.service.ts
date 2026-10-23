@@ -408,7 +408,7 @@ const tools = (strict: boolean) => ({
   }),
 })
 
-type MutatingTool =
+export type MutatingTool =
   | typeof ASSISTANT_V3_TOOL_IDS.edit
   | typeof ASSISTANT_V3_TOOL_IDS.write
 
@@ -479,7 +479,7 @@ const WAITING_FOR_CREATOR =
  * 一条 `@` 引用在这张脸上的句柄（§10b「按 id 解析到句柄」）：画布的卡按 `nodeId`，
  * 角色页的角色、LoRA 台的 LoRA 按各自的 id。不在这张板子上 = `null`。
  */
-function mentionHandleOf(
+export function mentionHandleOf(
   face: string,
   mention: AssistantMentionRef,
   nodes: readonly AssistantOperatorCanvasNode[],
@@ -783,7 +783,7 @@ function pendingCallsOf(
 }
 
 /** 本轮的画布步（前端落完、带着成败回来的那几条）。 */
-function thisTurnCanvasSteps(
+export function thisTurnCanvasSteps(
   priorSteps: readonly AssistantOperatorPriorStep[],
 ): AssistantOperatorPriorStep[] {
   return priorSteps.filter(
@@ -822,7 +822,7 @@ function touchedCards(
 /** 画布那一批只落了一部分时结果的开头（模型读的字；`isLandingStep` 也按它认）。 */
 const PARTIAL_LANDING = 'Landed only in part'
 
-function landedOutput(
+export function landedOutput(
   call: AssistantV3TranscriptCall,
   step: AssistantOperatorPriorStep | undefined,
   nodes: readonly AssistantOperatorCanvasNode[],
@@ -1976,7 +1976,7 @@ function toProviderError(provider: string, error: unknown): unknown {
  * ───────────────────────────────────────────────────────────────────────── */
 
 /** edit / write → 这一批的 v4 op 与过程行标题。⛔ 不落：由回合循环合成一批再落。 */
-function translateMutation(
+export function translateMutation(
   context: V3Context,
   name: MutatingTool,
   input: unknown,
@@ -2232,7 +2232,7 @@ async function* readResearchSource(
   )
 }
 
-async function* executeCall(
+export async function* executeCall(
   context: V3Context,
   name: Exclude<AssistantV3Tool, MutatingTool>,
   input: unknown,

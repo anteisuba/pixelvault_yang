@@ -3,13 +3,15 @@ import 'server-only'
 import { gunzipSync, gzipSync } from 'node:zlib'
 
 import { Redis } from '@upstash/redis'
-import type { ModelMessage } from 'ai'
+import type { ModelMessage, ToolResultPart } from 'ai'
 
 import { logger } from '@/lib/logger'
 import type {
   AssistantV3HistorySummary,
+  AssistantV3PictureRef,
   AssistantV3Transcript,
 } from '@/types/assistant-v3'
+import type { CanvasBatch } from '@/features/assistant/canvas'
 
 /**
  * 一轮跑到一半的样子（服务端存，接力时按轮号取回）。
@@ -42,6 +44,25 @@ export interface NextTurnState {
     readonly turns: number
     readonly summary?: AssistantV3HistorySummary
   }
+  /**
+   * 画布（第 9a 步）：停在 `canvas_sync` 时那一步还没交回的工具结果。`results` 是当场就有结果的
+   * 那几次调用，`canvas` 是交给浏览器落的那几次 edit（下一跳按落没落补上），`looked` 是那一步看过的图。
+   */
+  readonly pending?: {
+    readonly results: ToolResultPart[]
+    readonly looked: AssistantV3PictureRef[]
+    readonly canvas: readonly PendingCanvasEdit[]
+  }
+}
+
+export interface PendingCanvasEdit {
+  readonly toolCallId: string
+  readonly toolName: string
+  /** 当场落下的那几条（改库等）与「交给画布」那几行。 */
+  readonly lines: string
+  readonly input: CanvasBatch['input']
+  /** 落之前板子上已有的卡（加了卡的那一批才记，接力时认出哪几张是新建的）。 */
+  readonly knownIds?: readonly string[]
 }
 
 const KEY_PREFIX = 'antei:assistant-next:turn'

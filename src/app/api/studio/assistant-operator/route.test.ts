@@ -148,7 +148,7 @@ describe('POST /api/studio/assistant-operator · 旧内核开关只有 owner 认
 })
 
 describe('POST /api/studio/assistant-operator · 新内核（next）只给 owner、只接 ASSISTANT_NEXT_DOMAINS 的台', () => {
-  it.each(['image', 'lora', 'video', 'cards'] as const)(
+  it.each(['image', 'lora', 'video', 'cards', 'canvas'] as const)(
     'owner：%s 发了 next 走新内核',
     async (domain) => {
       await POST(
@@ -156,17 +156,6 @@ describe('POST /api/studio/assistant-operator · 新内核（next）只给 owner
       )
       expect(runAssistantNext).toHaveBeenCalledTimes(1)
       expect(runAssistantV3).not.toHaveBeenCalled()
-    },
-  )
-
-  it.each(['canvas'] as const)(
-    '还没接的台（%s）发了 next 照走 v3',
-    async (domain) => {
-      await POST(
-        createPOST('/api/studio/assistant-operator', body(domain, 'next')),
-      )
-      expect(runAssistantV3).toHaveBeenCalledTimes(1)
-      expect(runAssistantNext).not.toHaveBeenCalled()
     },
   )
 

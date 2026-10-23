@@ -151,6 +151,10 @@ vi.mock('@/services/kernel/assistant-operator.service', () => ({
       })),
     })),
   resolveResponseLanguage: () => 'chinese',
+  requestProjectId: (request: AssistantOperatorRequest) =>
+    request.workspaceKey?.startsWith('canvas:')
+      ? request.workspaceKey.slice('canvas:'.length)
+      : null,
   operatorCacheKey: () => 'next:test',
   recordLedgerStep: vi.fn(() => {
     run.ledgerSteps += 1
@@ -795,6 +799,7 @@ describe('记忆与之前几轮（第 6 步）', () => {
     expect(system).toContain('[记忆·3f9a1c2b] 人物图默认 3:4')
     expect(memoryStore.listed).toHaveBeenCalledWith('user-1', {
       characterCardId: null,
+      projectId: null,
       limit: 12,
     })
 
@@ -902,6 +907,7 @@ describe('记忆与之前几轮（第 6 步）', () => {
     expect(prompt).toContain('STAY IN CHARACTER as 马尔福 — 说话带点傲慢。')
     expect(memoryStore.listed).toHaveBeenCalledWith('user-1', {
       characterCardId: 'card-7',
+      projectId: null,
       limit: 12,
     })
     expect(memoryStore.scheduled).toHaveBeenCalledWith(
@@ -946,5 +952,170 @@ describe('记忆与之前几轮（第 6 步）', () => {
     )
     expect(prompt).not.toContain('- 技能·冬装三视图')
     skillStore.rows = []
+  })
+})
+
+describe('画布（第 9a 步）', () => {
+  const SHOT = 'video16f1cb3f-4164-4eb7-8d49-a429fa5fff0f'
+  const NEW = 'image7bc23597-15e6-4026-9e34-0e2613ee3479'
+  const card = (id: string, name: string, kind: 'image' | 'video') => ({
+    id,
+    name,
+    kind,
+    subtype: kind === 'video' ? 'shot' : 'character',
+    text: '',
+  })
+  const canvasRequest = (
+    nodes: ReturnType<typeof card>[],
+    overrides: Partial<AssistantOperatorRequest> = {},
+  ) =>
+    ({
+      workspaceKey: 'canvas:proj-1',
+      domain: 'canvas',
+      kernel: 'next',
+      messages: [{ role: 'user', content: '加一张角色卡连到镜头上' }],
+      snapshot: {
+        prompt: '',
+        availableModels: [],
+        canvas: {
+          currentShotNo: null,
+          selectedNodeIds: [],
+          shots: [{ expanded: true, shotNo: 1, title: 'S1', nodes }],
+        },
+      },
+      ...overrides,
+    }) as unknown as AssistantOperatorRequest
+
+  it('加卡 + 连线合成一批交给浏览器落，停在 canvas_sync；落完那一跳补上新卡的句柄再接着跑', async () => {
+    plan.mockImplementation(async (_run, _tool, args) => ({
+      kind: 'mutate',
+      payload: args,
+      inverse: { op: 'batch', nodeRef: SHOT },
+      observation: 'queued',
+      apply: () => {},
+    }))
+    const first = mockModel([
+      toolTurn({
+        id: 'e1',
+        name: 'edit',
+        input: {
+          changes: [
+            {
+              op: 'add_card',
+              ref: 'new1',
+              type: 'image/character',
+              name: '女主',
+              text: 'a girl, full body',
+            },
+            {
+              op: 'connect',
+              from: 'new1',
+              to: 'vid-16f1cb',
+              port: 'reference',
+            },
+          ],
+        },
+      }),
+    ])
+    models.main = first
+    const hop1 = await collect(
+      runAssistantNext(
+        'clerk-1',
+        canvasRequest([card(SHOT, '镜头1', 'video')]),
+      ),
+    )
+    expect(plan).toHaveBeenCalledWith(
+      expect.anything(),
+      'canvas_batch',
+      { ops: expect.any(Array) },
+      'user-1',
+    )
+    expect(
+      (plan.mock.calls[0]![2] as { ops: unknown[] }).ops.length,
+    ).toBeGreaterThanOrEqual(2)
+    expect(hop1.at(-1)).toMatchObject({
+      type: 'stopped',
+      reason: 'canvas_sync',
+    })
+    const relay = hop1.find((event) => event.type === 'transcript') as {
+      transcript: AssistantV3Transcript
+    }
+    expect(relay.transcript).toHaveLength(1)
+
+    const second = mockModel([textTurn('加好了。')])
+    models.main = second
+    const hop2 = await collect(
+      runAssistantNext(
+        'clerk-1',
+        canvasRequest(
+          [card(SHOT, '镜头1', 'video'), card(NEW, '女主', 'image')],
+          {
+            priorSteps: [
+              {
+                tool: 'canvas_batch',
+                status: 'done',
+                summary: '加卡',
+                thisTurn: true,
+              },
+            ],
+            v3: { transcript: relay.transcript },
+          } as Partial<AssistantOperatorRequest>,
+        ),
+      ),
+    )
+    expect(hop2.at(-1)).toMatchObject({ type: 'done' })
+    expect(
+      second.doStreamCalls[0]!.prompt.map((message) => message.role),
+    ).toEqual(['system', 'user', 'assistant', 'tool'])
+    const sent = promptOf(second.doStreamCalls[0]!)
+    expect(sent).toContain('Landed.')
+    expect(sent).toContain('new1 → img-7bc235')
+  })
+
+  it('同一步里 edit 之后的 look / generate 不跑（板子还在落）', async () => {
+    plan.mockImplementation(async (_run, _tool, args) => ({
+      kind: 'mutate',
+      payload: args,
+      inverse: { op: 'batch', nodeRef: SHOT },
+      observation: 'queued',
+      apply: () => {},
+    }))
+    models.main = mockModel([
+      toolTurn(
+        {
+          id: 'e1',
+          name: 'edit',
+          input: {
+            changes: [{ op: 'set_card', card: 'vid-16f1cb', name: '开场' }],
+          },
+        },
+        { id: 'g1', name: 'generate', input: { cards: ['vid-16f1cb'] } },
+      ),
+    ])
+    const hop1 = await collect(
+      runAssistantNext(
+        'clerk-1',
+        canvasRequest([card(SHOT, '镜头1', 'video')]),
+      ),
+    )
+    expect(hop1.find((event) => event.type === 'confirm')).toBeUndefined()
+    expect(hop1.at(-1)).toMatchObject({ reason: 'canvas_sync' })
+  })
+
+  it('画布上没给卡的 generate 回一句要列卡', async () => {
+    const main = mockModel([
+      toolTurn({ id: 'g1', name: 'generate', input: {} }),
+      textTurn('好。'),
+    ])
+    models.main = main
+    await collect(
+      runAssistantNext(
+        'clerk-1',
+        canvasRequest([card(SHOT, '镜头1', 'video')]),
+      ),
+    )
+    expect(promptOf(main.doStreamCalls[1]!)).toContain(
+      'generate on the canvas needs cards',
+    )
   })
 })

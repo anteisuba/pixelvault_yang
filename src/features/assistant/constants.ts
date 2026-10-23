@@ -24,14 +24,15 @@ export type AssistantNextTool =
   (typeof ASSISTANT_NEXT_TOOL_IDS)[keyof typeof ASSISTANT_NEXT_TOOL_IDS]
 
 /**
- * 新内核接哪几台（只给 owner）。第 2 步先接图片台、LoRA 台；第 4 步（10-23）接视频台、角色页。
- * 别的台照走 v3。配音台没有助手，第 9 步随外壳一起接（owner 10-23）。
+ * 新内核接哪几台（只给 owner）。第 2 步先接图片台、LoRA 台；第 4 步（10-23）接视频台、角色页；
+ * 第 9a 步（10-23）接画布。配音台第 9b 步接（owner 10-23）。
  */
 export const ASSISTANT_NEXT_DOMAINS: readonly string[] = [
   'image',
   'lora',
   'video',
   'cards',
+  'canvas',
 ]
 
 /** `edit` 一条改动改的是哪一格。一个工具，按台换可用的改法（台上没有的那一格回一句说明）。 */
@@ -61,6 +62,18 @@ export const ASSISTANT_NEXT_EDIT_OP_IDS = {
   handOff: 'hand_off',
   /** 套用某张图的配方（第 4 步，10-23 从第 3 步移来）。 */
   applyRecipe: 'apply_recipe',
+  /**
+   * 画布（第 9a 步）：加卡、改卡、连线、断线、删卡、挪进镜头、调镜头顺序、投剧本。写卡上的提示词用
+   * `prompt`（带 card）。这几种合成一批交给浏览器落，落完再接着跑（与 v3 同一条通道）。
+   */
+  addCard: 'add_card',
+  setCard: 'set_card',
+  connect: 'connect',
+  disconnect: 'disconnect',
+  deleteCard: 'delete_card',
+  moveToShot: 'move_to_shot',
+  reorderShot: 'reorder_shot',
+  projectScript: 'project_script',
   /**
    * 改库（第 4b 步，owner 10-23「库改动直接写，过程行带撤销；删和公开不做」）：任何台上都能用。
    * 素材那五种走旧执行器现成的那几条，角色 / 造型 / LoRA / 提示词库走 `library_write`。
@@ -145,7 +158,7 @@ export const ASSISTANT_NEXT_LORA_PARAM_KEYS: Readonly<Record<string, string>> =
   }
 
 /** 过程记录里标「这一轮是新内核跑的」（`AssistantTurnRecord.promptVersion`）。改系统提示时一起换。 */
-export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-10-23i'
+export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-10-23j'
 
 export const ASSISTANT_NEXT_LIMITS = {
   /**

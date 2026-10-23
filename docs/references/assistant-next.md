@@ -33,7 +33,8 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 
 **第 4a 步**（owner 10-23：拆 4a 台 / 4b 库 / 4c 设置）：
 
-- 接上的台：图片、LoRA、视频、角色页（`ASSISTANT_NEXT_DOMAINS`）。画布还走旧内核（落改动要「浏览器落完再接着跑」那条通道，单列一份）；配音台第 9 步。
+- 接上的台：图片、LoRA、视频、角色页、画布（`ASSISTANT_NEXT_DOMAINS`）；配音台第 9b 步。
+- 画布（第 9a 步，`features/assistant/canvas.ts`）：板子、改法翻译、落地结果借 v3 画布那一套。一步里的画布改动（`add_card` / `set_card` / `connect` / `disconnect` / `delete_card` / `move_to_shot` / `reorder_shot` / `project_script`，写卡用带 `card` 的 `prompt`）合成一批 `canvas_batch` 交给浏览器落；这一跳把「还没交回的工具结果」存进接力状态（`NextTurnState.pending`），停在 `canvas_sync`，下一跳按 `priorSteps` 里落没落与新快照补上结果（新卡 `ref → 句柄`）再接着跑。同一步里 edit 之后的别的工具不跑。`generate` 在画布上带 `cards`（`upscale: true` 是放大）；「交给 AI 出图」在画布上不限张（owner 10-23），一张确认卡最多 `maxCanvasGenerateCards` 张。`hand_off` 带 `card` 先照旧，9e 换成开台。
 - 每台能用哪些改法在 `bench.ts` 的 `OPS_BY_FACE`；不在单子上的改法直接退回并列出这台有的。角色页没有出图；助手自己拟的设定 / 挑的图照旧出提议卡（4b 起创作者明说要改的直接写）。
 - 「只改那一处」：`edit` 模式的提示词改动随步骤带 `edits`，浏览器在台上**现在的文字**上重换一遍（`src/lib/prompt-find-replace.ts`，两边同一份），对不上才整段覆盖。
 - 两道旧闸（`run.nextKernel`）：NAI 标签核对不再退回整段重写；中文 / 整句这类真写不进去的照旧报，但只要模型改那一处；视频「挂了参考图须先问分辨率」跳过。
@@ -66,7 +67,7 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 
 **第 6 步**（owner 10-23：照 Claude 的项目记忆做；要「关于你」这一层；先清后摘要；一份 PR）：
 
-- 记忆分份、互不干扰：「关于你」= global 那一份，各处都用；角色各自一份（cards 范围、挂 `characterCardId`）；画布一个项目一份（旧内核那条，画布第 9 步才接）。工作台对话里的事 ⛔ 不往外记，只留在那段对话里（靠下面的压缩）。
+- 记忆分份、互不干扰：「关于你」= global 那一份，各处都用；角色各自一份（cards 范围、挂 `characterCardId`）；画布一个项目一份（第 9a 步接上：画布上 `remember` 不给角色就记进这个项目，系统提示里单列「About this canvas project」）。工作台对话里的事 ⛔ 不往外记，只留在那段对话里（靠下面的压缩）。
 - 注入（`listNextAssistantMemoriesForPrompt`）：「关于你」+ 角色页上开着的那位自己那份，各带编号 `记忆·<id 前 8 位>`，最多 `maxMemoriesInPrompt` 条。各台旧记忆不再注入，`find` 照样翻得到。隐身不读。
 - 写：`edit` 的 `remember`（任何台，走 `library_write`，kind = new_memory / memory / forget_memory，带撤销）。只记创作者明说「以后都 / 记住」或确定长期有用的；给 `character` 就进那个角色。敏感句不记；同一句不记第二行；创作者自己写的那几条不改不忘。「让助手记住」关着不记新的、不改，忘掉照样行；隐身一条都不碰。
 - 之前几轮：用 v3 那套开窗 + 摘要（`lib/assistant-v3-history`，窗口参数化：新内核 40 条 / 6 万字 / 8 轮一块）。滑出去的那几轮后台补摘要（这一轮的型号与 key、`low` 档，回完才跑），接在系统提示末尾；接力那几跳照第一跳定下的窗口（`NextTurnState.history`）。平常几轮的对话碰不到线，一次都不写。

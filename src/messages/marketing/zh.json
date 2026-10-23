@@ -235,6 +235,10 @@
       "title": "角色 — ANTEI",
       "description": "你的角色：图片与设定，出图、写剧本和助手人设都用它。"
     },
+    "voices": {
+      "title": "音色 — ANTEI",
+      "description": "你的音色：收藏和克隆的音色、头像，以及哪些角色在用。"
+    },
     "signIn": {
       "title": "登录 — ANTEI",
       "description": "登录后回到已保存的档案、API key 和生成历史。"

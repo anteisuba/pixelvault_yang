@@ -1,16 +1,26 @@
 import 'server-only'
 
+import { randomBytes } from 'node:crypto'
+
 import type { Prisma, VoiceCard } from '@/lib/generated/prisma/client'
 import { db } from '@/lib/db'
 import { ApiRequestError } from '@/lib/errors'
+import { PROFILE } from '@/constants/config'
 import { AI_MODELS } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
+  VOICE_CARD_COVER_STORAGE_TYPE,
   VOICE_CARD_DEFAULT_PACE,
   VOICE_CARD_PROVIDER,
 } from '@/constants/voice-cards'
 import { findActiveKeyForAdapter } from '@/services/apiKey.service'
 import { getVoice } from '@/services/fish-audio-voice.service'
+import {
+  deleteFromR2,
+  fetchAsBuffer,
+  parseOwnedStorageKey,
+  uploadToR2,
+} from '@/services/storage/r2'
 import { ensureUser } from '@/services/user.service'
 import { getFishAudioVoiceLibraryApiKey } from '@/lib/platform-keys'
 import type { CreateVoiceCardRequest, UpdateVoiceCardRequest } from '@/types'
@@ -257,4 +267,69 @@ export async function deleteVoiceCard(
   if (result.count === 0) {
     throwVoiceCardNotFound()
   }
+
+  // 绑着这副嗓子的角色一起松开：卡是软删，不松开的话角色还指着一张看不见的卡。
+  await db.characterCard.updateMany({
+    where: { userId: user.id, voiceCardId: id },
+    data: { voiceCardId: null },
+  })
+}
+
+/**
+ * 给音色卡换一张自己上传的头像（音色库页 `/voices`）。
+ *
+ * 形状照抄助手头像那条（`assistant-persona-avatar.service.ts`）：同 5 MB 上限、
+ * 同 JPEG/PNG/WebP 白名单、先删旧的再传。不同的只有 key 前缀与写回的列；从画廊挑的
+ * 图不走这里，直接 PATCH `coverImage`（那本来就是自己存储里的地址）。
+ *
+ * ⚠ 旧图只在**它是这条路传上来的**时候才删（key 带本前缀）：收藏来的 Fish 封面、
+ * 画廊里挑的图都不是这张卡独有的，删了会伤到别处。
+ */
+export async function uploadVoiceCardCover(
+  userId: string,
+  id: string,
+  imageData: string,
+): Promise<VoiceCard> {
+  const user = await ensureUser(userId)
+  const existing = await db.voiceCard.findFirst({
+    where: { id, userId: user.id, isDeleted: false },
+    select: { coverImage: true },
+  })
+  if (!existing) throwVoiceCardNotFound()
+
+  const { buffer, mimeType } = await fetchAsBuffer(imageData)
+  if (!PROFILE.SUPPORTED_IMAGE_TYPES.includes(mimeType)) {
+    throw new ApiRequestError(
+      'UNSUPPORTED_IMAGE_TYPE',
+      400,
+      'errors.profile.unsupportedImageType',
+      'Unsupported image type. Use JPEG, PNG, or WebP.',
+    )
+  }
+  if (buffer.length > PROFILE.AVATAR_MAX_SIZE_BYTES) {
+    throw new ApiRequestError(
+      'AVATAR_TOO_LARGE',
+      400,
+      'errors.profile.avatarTooLarge',
+      'Avatar image must be under 5 MB',
+    )
+  }
+
+  const prefix = `profiles/${user.id}/${VOICE_CARD_COVER_STORAGE_TYPE}/`
+  const previousKey = existing.coverImage
+    ? parseOwnedStorageKey(existing.coverImage)
+    : null
+  if (previousKey?.startsWith(prefix)) {
+    await deleteFromR2(previousKey).catch(() => {})
+  }
+
+  const ext = mimeType.includes('webp')
+    ? 'webp'
+    : mimeType.includes('png')
+      ? 'png'
+      : 'jpg'
+  const key = `${prefix}${id}_${randomBytes(8).toString('hex')}.${ext}`
+  const url = await uploadToR2({ data: buffer, key, mimeType })
+
+  return db.voiceCard.update({ where: { id }, data: { coverImage: url } })
 }

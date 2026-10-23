@@ -32,6 +32,9 @@ export const VOICE_CARD_PITCHES = ['low', 'medium', 'high'] as const
 
 export const VOICE_CARD_DEFAULT_PROVIDER = VOICE_CARD_PROVIDER.FISH_AUDIO
 
+/** 自己上传的音色头像在存储里的目录名（`profiles/<userId>/<它>/`）。 */
+export const VOICE_CARD_COVER_STORAGE_TYPE = 'voice-cover'
+
 export const VOICE_API_ERROR_CODES = {
   MISSING_API_KEY: 'MISSING_API_KEY',
   PUBLIC_LIBRARY_UNAVAILABLE: 'PUBLIC_LIBRARY_UNAVAILABLE',

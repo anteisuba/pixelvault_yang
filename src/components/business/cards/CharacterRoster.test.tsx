@@ -82,6 +82,7 @@ function card(
     summary: null,
     tavern: null,
     chatUserRole: '',
+    voiceCardId: null,
     generationCount: 0,
     createdAt: new Date(0),
     updatedAt: new Date(0),

@@ -3280,6 +3280,8 @@ export interface CharacterCardRecord {
   tavern: TavernCardKept | null
   /** 和这个角色聊天时你在故事里是谁（`extensions['pv.chatUserRole']`）；没写 = 空串。 */
   chatUserRole: string
+  /** 她用哪副嗓子（音色卡 id）；没绑 = `null`。音色库页 `/voices` 在这里绑。 */
+  voiceCardId: string | null
   /** 用这个角色出过几张图（生成 ↔ 角色关联表计数；只在列表里算，其余为 0）。 */
   generationCount: number
   createdAt: Date

@@ -46,6 +46,7 @@ function card(id: string, work: string, urls: string[]): CharacterCardRecord {
     summary: null,
     tavern: null,
     chatUserRole: '',
+    voiceCardId: null,
     generationCount: 0,
     createdAt: new Date(0),
     updatedAt: new Date(0),

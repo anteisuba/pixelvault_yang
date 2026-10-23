@@ -235,6 +235,10 @@
       "title": "Characters — ANTEI",
       "description": "Your characters: images and profiles for generating, scripting and assistant personas."
     },
+    "voices": {
+      "title": "Voices — ANTEI",
+      "description": "Your voices: saved and cloned voices, avatars, and which characters use them."
+    },
     "signIn": {
       "title": "Sign In — ANTEI",
       "description": "Sign in to return to your saved archive, API keys, and generation history."

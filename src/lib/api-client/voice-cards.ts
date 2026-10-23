@@ -151,3 +151,31 @@ export async function deleteVoiceCardAPI(
     return { success: false, error: getUnexpectedErrorMessage(error) }
   }
 }
+
+/** 音色库页「换头像 → 上传」：`imageData` 是 data URL。 */
+export async function uploadVoiceCardCoverAPI(
+  id: string,
+  imageData: string,
+): Promise<VoiceCardApiResponse<VoiceCardRecord>> {
+  try {
+    const response = await fetch(`${getVoiceCardUrl(id)}/cover`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageData }),
+    })
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+
+    return await response.json()
+  } catch (error) {
+    return { success: false, error: getUnexpectedErrorMessage(error) }
+  }
+}

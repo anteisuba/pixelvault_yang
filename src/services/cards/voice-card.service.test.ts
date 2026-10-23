@@ -17,6 +17,11 @@ const mockCount = vi.fn()
 const mockFindFirst = vi.fn()
 const mockUpdate = vi.fn()
 const mockUpdateMany = vi.fn()
+const mockCharacterUpdateMany = vi.fn()
+const mockFetchAsBuffer = vi.fn()
+const mockUploadToR2 = vi.fn()
+const mockDeleteFromR2 = vi.fn()
+const mockParseOwnedStorageKey = vi.fn()
 
 vi.mock('@/services/user.service', () => ({
   ensureUser: (...args: unknown[]) => mockEnsureUser(...args),
@@ -41,7 +46,18 @@ vi.mock('@/lib/db', () => ({
       update: (...args: unknown[]) => mockUpdate(...args),
       updateMany: (...args: unknown[]) => mockUpdateMany(...args),
     },
+    characterCard: {
+      updateMany: (...args: unknown[]) => mockCharacterUpdateMany(...args),
+    },
   },
+}))
+
+vi.mock('@/services/storage/r2', () => ({
+  fetchAsBuffer: (...args: unknown[]) => mockFetchAsBuffer(...args),
+  uploadToR2: (...args: unknown[]) => mockUploadToR2(...args),
+  deleteFromR2: (...args: unknown[]) => mockDeleteFromR2(...args),
+  parseOwnedStorageKey: (...args: unknown[]) =>
+    mockParseOwnedStorageKey(...args),
 }))
 
 import {
@@ -51,6 +67,7 @@ import {
   getVoiceCard,
   listVoiceCards,
   updateVoiceCard,
+  uploadVoiceCardCover,
 } from '@/services/cards/voice-card.service'
 
 const FAKE_USER = { id: 'db_user_123', clerkId: 'clerk_test_user' }
@@ -295,6 +312,15 @@ describe('deleteVoiceCard', () => {
     })
   })
 
+  it('unbinds characters that used the deleted voice', async () => {
+    await deleteVoiceCard('clerk_test_user', 'voice_card_123')
+
+    expect(mockCharacterUpdateMany).toHaveBeenCalledWith({
+      where: { userId: 'db_user_123', voiceCardId: 'voice_card_123' },
+      data: { voiceCardId: null },
+    })
+  })
+
   it('throws not found when no row is updated', async () => {
     mockUpdateMany.mockResolvedValueOnce({ count: 0 })
 
@@ -304,5 +330,69 @@ describe('deleteVoiceCard', () => {
       errorCode: 'VOICE_CARD_NOT_FOUND',
       httpStatus: 404,
     })
+  })
+})
+
+describe('uploadVoiceCardCover', () => {
+  const PREFIX = 'profiles/db_user_123/voice-cover/'
+
+  beforeEach(() => {
+    mockFetchAsBuffer.mockResolvedValue({
+      buffer: Buffer.from('img'),
+      mimeType: 'image/png',
+    })
+    mockUploadToR2.mockResolvedValue('https://cdn.test/new.png')
+    mockUpdate.mockResolvedValue({ ...FAKE_VOICE_CARD })
+  })
+
+  it('uploads under the voice-cover prefix and writes coverImage', async () => {
+    mockFindFirst.mockResolvedValueOnce({ coverImage: null })
+
+    await uploadVoiceCardCover('clerk_test_user', 'voice_card_123', 'data:x')
+
+    const key = mockUploadToR2.mock.calls[0][0].key as string
+    expect(key.startsWith(`${PREFIX}voice_card_123_`)).toBe(true)
+    expect(key.endsWith('.png')).toBe(true)
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: 'voice_card_123' },
+      data: { coverImage: 'https://cdn.test/new.png' },
+    })
+  })
+
+  it('deletes only a previous cover this route uploaded', async () => {
+    mockFindFirst.mockResolvedValueOnce({ coverImage: 'https://cdn.test/a' })
+    mockParseOwnedStorageKey.mockReturnValueOnce(`${PREFIX}old.png`)
+    mockDeleteFromR2.mockResolvedValueOnce(undefined)
+
+    await uploadVoiceCardCover('clerk_test_user', 'voice_card_123', 'data:x')
+    expect(mockDeleteFromR2).toHaveBeenCalledWith(`${PREFIX}old.png`)
+
+    mockDeleteFromR2.mockClear()
+    mockFindFirst.mockResolvedValueOnce({ coverImage: 'https://cdn.test/g' })
+    mockParseOwnedStorageKey.mockReturnValueOnce('generations/abc.png')
+
+    await uploadVoiceCardCover('clerk_test_user', 'voice_card_123', 'data:x')
+    expect(mockDeleteFromR2).not.toHaveBeenCalled()
+  })
+
+  it('rejects unsupported image types', async () => {
+    mockFindFirst.mockResolvedValueOnce({ coverImage: null })
+    mockFetchAsBuffer.mockResolvedValueOnce({
+      buffer: Buffer.from('gif'),
+      mimeType: 'image/gif',
+    })
+
+    await expect(
+      uploadVoiceCardCover('clerk_test_user', 'voice_card_123', 'data:x'),
+    ).rejects.toMatchObject({ errorCode: 'UNSUPPORTED_IMAGE_TYPE' })
+    expect(mockUploadToR2).not.toHaveBeenCalled()
+  })
+
+  it('throws not found for a card that is not yours', async () => {
+    mockFindFirst.mockResolvedValueOnce(null)
+
+    await expect(
+      uploadVoiceCardCover('clerk_test_user', 'missing', 'data:x'),
+    ).rejects.toMatchObject({ errorCode: 'VOICE_CARD_NOT_FOUND' })
   })
 })

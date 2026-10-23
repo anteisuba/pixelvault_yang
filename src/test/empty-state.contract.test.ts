@@ -41,6 +41,8 @@ const LANDING_POINTS = [
   'src/components/business/studio/lora/LoraWorkbench.tsx',
   'src/components/business/studio/lora/library/LoraLibraryTypeStates.tsx',
   'src/components/business/studio/lora/training/EmptyState.tsx',
+  // 音色库页：还没收藏 / 还没克隆（「声音」模块，owner 10-23）。
+  'src/components/business/voices/VoicesPage.tsx',
 ]
 
 /**

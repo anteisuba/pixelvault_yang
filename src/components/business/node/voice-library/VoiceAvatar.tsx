@@ -18,15 +18,16 @@ import { AudioLines, Pause, Play } from '@/components/icons'
 import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
 
-/** 头像三档：弹层 chip 16 · 弹层行 28 · 卡上播放钮 34 · 声音库行 40。 */
+/** 头像几档：弹层 chip 16 · 弹层行 28 · 卡上播放钮 34 · 声音库行 40 · 音色库页卡 80。 */
 const SIZE_CLASS = {
   chip: 'size-4',
   row: 'size-7',
   card: 'size-8.5',
   library: 'size-10',
+  tile: 'size-20',
 } as const
 
-const SIZE_PX = { chip: 16, row: 28, card: 34, library: 40 } as const
+const SIZE_PX = { chip: 16, row: 28, card: 34, library: 40, tile: 80 } as const
 
 export type VoiceAvatarSize = keyof typeof SIZE_CLASS
 
@@ -72,7 +73,11 @@ export function VoiceAvatar({
         <span
           className={cn(
             'font-medium text-foreground',
-            size === 'library' ? 'text-sm' : 'text-3xs',
+            size === 'tile'
+              ? 'text-xl'
+              : size === 'library'
+                ? 'text-sm'
+                : 'text-3xs',
           )}
         >
           {Array.from(name.trim())[0] ?? ''}
@@ -169,9 +174,12 @@ export function VoiceAvatarButton({
         {loading ? (
           <Spinner size="sm" />
         ) : playing ? (
-          <Pause className="size-3" />
+          <Pause className={avatar.size === 'tile' ? 'size-5' : 'size-3'} />
         ) : (
-          <Play weight="fill" className="size-3" />
+          <Play
+            weight="fill"
+            className={avatar.size === 'tile' ? 'size-5' : 'size-3'}
+          />
         )}
       </span>
       {playing ? <ProgressRing progress={progress ?? 1} /> : null}

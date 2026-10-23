@@ -364,6 +364,10 @@
       "label": "Fish Audio S2.1 Pro Free",
       "description": "上游免费 TTS，需自备 Fish API Key，受公平使用政策限制"
     },
+    "fishAudioDrama3": {
+      "label": "Fish Audio Drama 3",
+      "description": "表现力最强的一档：方括号里可直接写中文语气、句中能加音效和停顿；按字节计费，比 S2.1 Pro 贵"
+    },
     "pixaiTsubaki2": {
       "label": "PixAI Tsubaki.2",
       "description": "PixAI 的旗舰 DiT 动漫模型，仅支持文生图。"

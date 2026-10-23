@@ -1,4 +1,5 @@
 import { AUDIO_SPEAKER_VOICE_IDS_MAX } from '@/constants/audio-options'
+import { AI_MODELS } from '@/constants/models/enum'
 import { AUDIO_EMOTION, type AudioEmotion } from '@/constants/voice-cards'
 
 /**
@@ -83,6 +84,13 @@ export const VOICE_ROOM_CHAT_HISTORY_LINES = 30
  * 偏好，丢了就回到「自动」，⛔ 不写进助手的 persona。
  */
 export const VOICE_ROOM_LLM_MODEL_STORAGE_KEY = 'antei:voiceroom:llm-model'
+
+/**
+ * 配音间出声用的语音模型也记在这台浏览器里（owner 10-23「记住上次的选择；首次默认免费档」）。
+ * 丢了就回到 `VOICE_ROOM_DEFAULT_VOICE_MODEL`。
+ */
+export const VOICE_ROOM_VOICE_MODEL_STORAGE_KEY = 'antei:voiceroom:voice-model'
+export const VOICE_ROOM_DEFAULT_VOICE_MODEL = AI_MODELS.FISH_AUDIO_S2_PRO_FREE
 
 /**
  * 聊天流（SSE）的事件名：`user` 你那句落库了 → `delta` 她的回复一段段到 → `reply` 回复
@@ -277,4 +285,18 @@ export const VOICE_LINE_EMOTION_CHOICES = [
   AUDIO_EMOTION.ANGRY,
   AUDIO_EMOTION.SAD,
   AUDIO_EMOTION.SURPRISED,
+] as const
+
+/**
+ * Fish Drama 3 认的成对标签：只改包住的那几个字（`<whisper>别回头</whisper>`）。
+ * 聊天提示词按这份告诉 AI，气泡也按这份把它们淡一档显示。
+ */
+export const DRAMA_PAIRED_TAGS = [
+  'whisper',
+  'emphasis',
+  'soft',
+  'fast',
+  'slow',
+  'stress',
+  'forceful',
 ] as const

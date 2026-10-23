@@ -160,7 +160,13 @@ const GEMINI_OMNI_FLASH_HINT =
  * https://docs.fish.audio/developer-guide/core-features/emotions
  */
 const FISH_AUDIO_HINT =
-  'Fish Audio S2.1 Pro (speech). The prompt IS the spoken script: the exact words, with real punctuation, and nothing else — no stage directions, no visual language. S2 takes free-language cues in [square brackets] (S1\'s fixed 64-tag parenthesis table does not apply here). Put a cue at the START of the sentence it colours and stack at most three across a script: [excited], [whispering], [sad]. A sound-effect cue still needs the matching words after it — [laughing] then "Ha, ha, ha" — or nothing is heard. Multi-speaker is S2-only, marked <|speaker:0|> / <|speaker:1|> at the start of each turn. Fish publishes no per-request character ceiling.'
+  'Fish Audio S2.1 Pro (speech). The prompt IS the spoken script: the exact words, with real punctuation, and nothing else — no stage directions, no visual language. S2 takes free-language cues in [square brackets] (S1\'s fixed 64-tag parenthesis table does not apply here). A cue can sit at the start of a sentence or anywhere inside it — [excited], [whispering], [pause], [sigh] — and acts from that point on; keep them sparse. A sound-effect cue still needs the matching words after it — [laughing] then "Ha, ha, ha" — or nothing is heard. Multi-speaker is S2-only, marked <|speaker:0|> / <|speaker:1|> at the start of each turn. Fish publishes no per-request character ceiling.'
+
+/**
+ * https://docs.fish.audio/developer-guide/models-pricing/models-overview
+ */
+const FISH_AUDIO_DRAMA_3_HINT =
+  'Fish Audio Drama 3 (speech, most expressive tier). The prompt IS the spoken script. Bracket cues are free descriptions in any language and can go anywhere in a sentence: [压低声音，带着笑意], [pause], [laughs softly]. Paired tags change just the words they wrap: <whisper>…</whisper>, <emphasis>, <soft>, <fast>, <slow>, <stress>, <forceful>. A sound cue still needs its words after it. Multi-speaker turns start with <|speaker:0|> / <|speaker:1|>.'
 
 /**
  * https://elevenlabs.io/docs/best-practices/prompting/eleven-v3
@@ -305,6 +311,12 @@ export const MEDIA_MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> =
       bestFor: ['speech', 'voice-clone', 'multi-speaker', 'chinese-speech'],
       promptStyle: 'natural-language',
       enhanceHint: FISH_AUDIO_HINT,
+      negativePrompt: 'unsupported',
+    },
+    [AI_MODELS.FISH_AUDIO_DRAMA_3]: {
+      bestFor: ['speech', 'voice-clone', 'expressive-delivery', 'dialogue'],
+      promptStyle: 'natural-language',
+      enhanceHint: FISH_AUDIO_DRAMA_3_HINT,
       negativePrompt: 'unsupported',
     },
     [AI_MODELS.ELEVENLABS_V3]: {

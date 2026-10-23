@@ -1,3 +1,4 @@
+import { DRAMA_PAIRED_TAGS } from '@/constants/voiceroom'
 import type { CharacterPersona } from '@/types'
 
 /**
@@ -5,7 +6,8 @@ import type { CharacterPersona } from '@/types'
  *
  * ⭐ 和助手聊天模式同一个口径（`features/assistant/prompt.ts` 的 `CHAT_STABLE`）：只写说出口的话，
  *   ⛔ 动作描写、⛔ 旁白。不同的是这里**没有工具**，而且每个字都会被念出来——所以多了一条：
- *   语气用 Fish / ElevenLabs 都认的方括号提示（`[laughing]`），只在句首、少用。
+ *   语气用 Fish 认的方括号提示（`[laughing]` `[pause]`），句首句中都行、少用（owner 10-23
+ *   「句中音效和停顿」）。选的是 Drama 3 时再多两样：中文写的提示、只改几个字的成对标签。
  * ⭐ 长度交给模型（owner 10-23「交给模型」）。
  * ⭐ 角色卡写了什么就带什么；音色没绑角色时只有一个名字，让模型自己当一个活人来聊。
  */
@@ -27,6 +29,8 @@ export interface VoiceChatPromptInput {
   readonly history: readonly VoiceChatHistoryLine[]
   /** 你刚说的这句。 */
   readonly message: string
+  /** 出声用的是 Fish Drama 3：它认中文提示和成对标签。 */
+  readonly expressiveVoice?: boolean
 }
 
 const STAY_SPEECH_MAX = 80
@@ -74,7 +78,11 @@ ${who}${examplesSection(input.persona)}
 HOW YOU TALK
 - Stay in character the whole time. React to what they just said and remember what was said before.
 - Write only the words you say out loud. No action or stage directions (*smiles*, *歪头*, （笑）), no narration, no lists, headings, markdown or emoji.
-- The voice can act out a short cue in square brackets at the START of a sentence: [laughing], [whispering], [sighs], [excited], [sad], [softly]. Use one only when it adds something, at most two in a reply. A sound needs its words after the cue — [laughing] Ha ha, you got me.
+- The voice can act out short cues in square brackets, at the start of a sentence or in the middle of it: [laughing], [whispering], [sighs], [pause], [excited], [softly]. Use them only when they add something. A sound needs its words after the cue — [laughing] Ha ha, you got me.${
+    input.expressiveVoice
+      ? `\n- Your voice also understands cues written in your own language ([压低声音，带着笑意]) and paired tags that change only the words inside them: ${DRAMA_PAIRED_TAGS.map((tag) => `<${tag}>…</${tag}>`).join(' ')}.`
+      : ''
+  }
 - Reply in the language the creator writes in, unless your profile says otherwise.
 - Length is what the moment needs.
 

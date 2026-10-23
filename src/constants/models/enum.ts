@@ -109,6 +109,8 @@ export enum AI_MODELS {
    */
   FISH_AUDIO_S2_PRO = 'fish-audio-s2-pro',
   FISH_AUDIO_S2_PRO_FREE = 'fish-audio-s2-pro-free',
+  /** Fish Audio Drama 3 —— 表现力档（owner 10-23「声音」模块）。 */
+  FISH_AUDIO_DRAMA_3 = 'fish-audio-drama-3',
   ELEVENLABS_V3 = 'eleven-v3',
   ELEVENLABS_SFX_V2 = 'eleven-sfx-v2',
   /** ElevenLabs Music v2.5 — stable catalog ID for music generations. */

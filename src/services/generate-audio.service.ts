@@ -9,11 +9,7 @@ import {
   EXECUTION_WORKFLOW_IDS,
 } from '@/constants/execution'
 import { GENERATION_ERROR_CODES } from '@/constants/generation-errors'
-import {
-  AI_MODELS,
-  getExecutionModelId,
-  getModelById,
-} from '@/constants/models'
+import { getExecutionModelId, getModelById } from '@/constants/models'
 import {
   AUDIO_EMOTION_PROMPTS,
   AUDIO_PACE_SPEED,
@@ -28,6 +24,7 @@ import {
   type AudioExpressivenessTier,
 } from '@/constants/audio-options'
 import {
+  FISH_AUDIO_SPEECH_MODEL_IDS,
   resolveAudioKind,
   resolveAudioTextLimit,
 } from '@/constants/models/audio'
@@ -454,8 +451,7 @@ function canSubmitAudioViaExecutionWorker(route: {
 
   return (
     route.adapterType === AI_ADAPTER_TYPES.FISH_AUDIO &&
-    (route.modelId === AI_MODELS.FISH_AUDIO_S2_PRO ||
-      route.modelId === AI_MODELS.FISH_AUDIO_S2_PRO_FREE)
+    FISH_AUDIO_SPEECH_MODEL_IDS.includes(route.modelId)
   )
 }
 

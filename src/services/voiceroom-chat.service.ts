@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { AI_MODELS } from '@/constants/models'
 import {
   VOICE_LINE_TEXT_MAX_LENGTH,
   VOICE_LINE_USER_KIND,
@@ -141,6 +142,7 @@ export async function streamVoiceRoomChat(
         }),
       ),
     message: request.text,
+    expressiveVoice: request.modelId === AI_MODELS.FISH_AUDIO_DRAMA_3,
   })
 
   const encoder = new TextEncoder()

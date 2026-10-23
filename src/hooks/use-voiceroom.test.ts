@@ -78,6 +78,7 @@ function makeLine(overrides?: Partial<VoiceLineRecord>): VoiceLineRecord {
 }
 
 beforeEach(() => {
+  window.localStorage.clear()
   vi.clearAllMocks()
   mockListRooms.mockResolvedValue({
     success: true,
@@ -115,14 +116,25 @@ describe('useVoiceRoom 念法参数', () => {
    * 出厂档必须是**精确的空操作**：`normal` 在服务端映射到 speed 1，`auto` 让
    * 表现力从情感推导。这两个值一旦漂了，「什么都没调」就会变成一次静默的改写。
    */
-  it('出厂就是正常语速 + 自动表现力', async () => {
+  it('出厂就是正常语速 + 自动表现力 + 免费档', async () => {
     const { result } = await openedRoom()
     expect(result.current.delivery).toEqual({
       pace: 'normal',
       expressiveness: 'auto',
-      // null = 还没选过模型，由服务端挑目录里第一个可用的。
-      modelId: null,
+      // 第一次进来默认免费档（owner 10-23）。
+      modelId: 'fish-audio-s2-pro-free',
     })
+  })
+
+  it('记住上次选的语音模型', async () => {
+    const first = await openedRoom()
+    act(() =>
+      first.result.current.setDelivery({ modelId: 'fish-audio-drama-3' }),
+    )
+    first.unmount()
+
+    const { result } = await openedRoom()
+    expect(result.current.delivery.modelId).toBe('fish-audio-drama-3')
   })
 
   it('说一句话时把当下的念法一起发出去', async () => {
@@ -142,6 +154,7 @@ describe('useVoiceRoom 念法参数', () => {
       text: '（耳语）别回头。',
       pace: 'slow',
       expressiveness: 'auto',
+      modelId: 'fish-audio-s2-pro-free',
     })
   })
 
@@ -157,7 +170,7 @@ describe('useVoiceRoom 念法参数', () => {
       expect(result.current.delivery).toEqual({
         pace: 'fast',
         expressiveness: 'dramatic',
-        modelId: null,
+        modelId: 'fish-audio-s2-pro-free',
       }),
     )
   })
@@ -186,23 +199,8 @@ describe('useVoiceRoom 念法参数', () => {
       pace: 'normal',
       expressiveness: 'restrained',
       emotion: 'whisper',
+      modelId: 'fish-audio-s2-pro-free',
     })
-  })
-
-  /**
-   * ⭐ 没选过模型时，请求体里**不能出现 `modelId` 这个键**。
-   *
-   * schema 只收 `string | undefined`，而「没选过」的语义是让服务端去挑目录里第一个
-   * 可用的——塞个 null 进去既过不了校验，也把意思说反了。
-   */
-  it('没选模型时请求体里不带 modelId', async () => {
-    const { result } = await openedRoom()
-
-    await act(async () => {
-      await result.current.say(SPEAKER_ID, '喂。')
-    })
-
-    expect(mockCreateLine.mock.calls[0][0]).not.toHaveProperty('modelId')
   })
 
   it('选了模型就带上，重录也跟着走', async () => {

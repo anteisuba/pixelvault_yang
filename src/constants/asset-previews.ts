@@ -22,7 +22,8 @@ export function getAudioAssetPreviewImage(
 
     if (
       modelId === AI_MODELS.FISH_AUDIO_S2_PRO ||
-      modelId === AI_MODELS.FISH_AUDIO_S2_PRO_FREE
+      modelId === AI_MODELS.FISH_AUDIO_S2_PRO_FREE ||
+      modelId === AI_MODELS.FISH_AUDIO_DRAMA_3
     ) {
       return `${AI_PROVIDER_ENDPOINTS.FISH_AUDIO_ASSETS}/coverimage/${voiceId}`
     }

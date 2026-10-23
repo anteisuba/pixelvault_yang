@@ -36,6 +36,7 @@ describe('audio model kinds', () => {
     expect(getAudioModelsByKind(AUDIO_KIND.SPEECH).map((m) => m.id)).toEqual([
       AI_MODELS.FISH_AUDIO_S2_PRO,
       AI_MODELS.FISH_AUDIO_S2_PRO_FREE,
+      AI_MODELS.FISH_AUDIO_DRAMA_3,
       AI_MODELS.ELEVENLABS_V3,
     ])
     expect(getAudioModelsByKind(AUDIO_KIND.SFX).map((m) => m.id)).toEqual([

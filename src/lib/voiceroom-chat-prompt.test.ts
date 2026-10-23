@@ -49,10 +49,27 @@ describe('buildVoiceChatPrompt', () => {
       message: 'hi',
     })
     expect(systemPrompt).toContain('No profile was written for you')
+    // 句中也能放提示（owner 10-23）；成对标签只有 Drama 3 才说。
+    expect(systemPrompt).toContain('or in the middle of it')
+    expect(systemPrompt).not.toContain('<whisper>')
     expect(userPrompt).not.toContain('THE CONVERSATION SO FAR')
     expect(userPrompt).toContain(
       '(Reply as Warm Female) Only what you say out loud.',
     )
+  })
+})
+
+describe('buildVoiceChatPrompt with Drama 3', () => {
+  it('tells her about cues in her own language and paired tags', () => {
+    const { systemPrompt } = buildVoiceChatPrompt({
+      name: 'Warm',
+      persona: null,
+      history: [],
+      message: 'hi',
+      expressiveVoice: true,
+    })
+    expect(systemPrompt).toContain('[压低声音，带着笑意]')
+    expect(systemPrompt).toContain('<whisper>…</whisper>')
   })
 })
 

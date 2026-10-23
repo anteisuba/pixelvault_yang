@@ -43,11 +43,13 @@ export function StudioInpaintMaskChip({ disabled }: { disabled?: boolean }) {
     null,
   )
 
+  // V4.5 的精准参考与遮罩重绘互斥（NovelAI 不收两样一起），选了精准参考就不给遮罩。
   const supportsInpaint = selectedModel
     ? getCapabilityConfig(
         selectedModel.adapterType,
         selectedModel.modelId,
-      ).capabilities.includes('inpaint')
+      ).capabilities.includes('inpaint') &&
+      state.advancedParams.novelAiReferenceMode !== 'precise'
     : false
 
   const references = imageUpload.referenceImages

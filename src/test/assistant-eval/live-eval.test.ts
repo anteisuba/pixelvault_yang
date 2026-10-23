@@ -4,6 +4,7 @@
  *
  *   ASSISTANT_EVAL_DIR=/mnt/project-files/assistant-eval npm run test:eval
  *   可选：ASSISTANT_EVAL_ONLY=<id,id>  ASSISTANT_EVAL_SHARD=1/4  ASSISTANT_EVAL_LABEL=<名字>
+ *         ASSISTANT_EVAL_KERNEL=next（跑重设计的新内核；评测账号当 owner，接力状态只放内存）
  *
  * 跑的是真的那一整条：路由 `POST` → v3 环 → 真模型（库里那把 key，真解密）。换掉的只有库
  * （`../assistant-replay/fake-db.ts`：用户、key、人设之外的表读回空——查素材库查不到东西）
@@ -12,6 +13,7 @@
 import { afterAll, beforeAll, describe, it, vi } from 'vitest'
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { ASSISTANT_KERNEL_IDS } from '@/constants/assistant-v3'
 import {
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_STOP_REASONS,
@@ -45,6 +47,10 @@ import {
   type CaseResult,
 } from './live-eval'
 
+/** 新内核只认 owner：评测账号在跑新内核时当 owner（只影响内核选择）。 */
+vi.mock('@/lib/admin', () => ({
+  isAdmin: () => process.env.ASSISTANT_EVAL_KERNEL === 'next',
+}))
 vi.mock('@/lib/db', async () => {
   const fake = await import('../assistant-replay/fake-db')
   return {
@@ -67,6 +73,10 @@ const ROUTE_MODEL = 'claude-sonnet-5-5'
 /** 时间用完会接力（新设计里所有台都自动接）；再多就当它卡住了。 */
 const MAX_HOPS = 4
 const dir = process.env.ASSISTANT_EVAL_DIR ?? ''
+const kernel =
+  process.env.ASSISTANT_EVAL_KERNEL === 'next'
+    ? ASSISTANT_KERNEL_IDS.next
+    : undefined
 const realFetch = globalThis.fetch
 
 /** 只读：这位创作者那把 Anthropic key 的密文（Neon 的 SQL over HTTP）。 */
@@ -96,6 +106,9 @@ describe.skipIf(!dir)('assistant live eval', () => {
   beforeAll(async () => {
     vi.stubEnv('CLOUDFLARE_AI_GATEWAY_URL', '')
     vi.stubEnv('EXECUTION_WORKER_BASE_URL', '')
+    // ⛔ 接力状态不写线上 Redis：退回进程内存（同一进程里接力照样接得上）。
+    vi.stubEnv('UPSTASH_REDIS_REST_URL', '')
+    vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', '')
     encryptedKey = await fetchEncryptedKey(recordUserId(dir, cases[0]!.id))
   })
 
@@ -107,7 +120,7 @@ describe.skipIf(!dir)('assistant live eval', () => {
   for (const testCase of cases) {
     it(`${testCase.category} · ${testCase.id.slice(0, 8)} · ${testCase.text.slice(0, 30)}`, async () => {
       const record = loadTurnRecord(dir, testCase.id)
-      const opening = requestFromRecord(record)
+      const opening = { ...requestFromRecord(record), kernel }
       const priorPrompt = record.snapshot?.prompt ?? ''
       replayDb.reset({
         keys: [],
@@ -214,6 +227,7 @@ describe.skipIf(!dir)('assistant live eval', () => {
           judge: rerunJudge,
           usage: meter.usage,
           cost: usageCost(meter.usage),
+          transcript,
         },
       }
       writeCaseResult(out, result)

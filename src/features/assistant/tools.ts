@@ -276,6 +276,11 @@ export function parseToolInput<T>(
     } as JsonValue
   }
   if (input === undefined || input === null) input = {}
+  if (typeof input === 'string')
+    return {
+      ok: false,
+      error: `The ${name} call's arguments were not a valid JSON object (usually an unescaped quote inside a text, or a call cut off). Send the same ${name} call again as one JSON object.`,
+    }
   const parsed = schema.safeParse(input)
   if (parsed.success) return { ok: true, value: parsed.data }
   return {

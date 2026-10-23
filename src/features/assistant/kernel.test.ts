@@ -347,6 +347,38 @@ describe('新内核主循环', () => {
     expect(events.at(-1)).toMatchObject({ type: 'done' })
   })
 
+  it('入参不是合法 JSON：只回一条结果（两条同 id 厂商会拒收），模型重发', async () => {
+    const main = mockModel([
+      [
+        {
+          type: 'tool-call',
+          toolCallId: 'broken',
+          toolName: 'edit',
+          input: '{"changes":[{"op":"prompt","text":"a "cat',
+        },
+        finish('tool-calls'),
+      ],
+      toolTurn(editPrompt),
+      textTurn('好了。'),
+    ])
+    models.main = main
+    const events = await collect(
+      runAssistantNext('clerk-1', imageRequest('改一下')),
+    )
+    const second = main.doStreamCalls[1]!.prompt
+    const results = second.flatMap((message) =>
+      message.role === 'tool'
+        ? message.content.filter(
+            (part) =>
+              part.type === 'tool-result' && part.toolCallId === 'broken',
+          )
+        : [],
+    )
+    expect(results).toHaveLength(1)
+    expect(JSON.stringify(results)).toContain('not a valid JSON object')
+    expect(events.at(-1)).toMatchObject({ type: 'done' })
+  })
+
   it('过了软线：存好这一轮、交接力条；下一次请求从原处接着跑', async () => {
     soft.afterStep = 0
     const first = mockModel([toolTurn(editPrompt)])

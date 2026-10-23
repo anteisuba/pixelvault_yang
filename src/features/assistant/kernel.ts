@@ -292,6 +292,25 @@ function queryOf(input: unknown): string {
   return ''
 }
 
+/**
+ * 入参读不懂的调用，SDK 会自己在回复里补一条报错结果；我们随后还要交回自己的那条（说清哪里
+ * 不对），两条同 id 的结果厂商会拒收（Claude：each tool_use must have a single result）。
+ * 所以 SDK 补的那条拿掉，只留我们的。
+ */
+function withoutSdkResults(
+  messages: readonly ModelMessage[],
+  calls: readonly { toolCallId: string }[],
+): ModelMessage[] {
+  const ours = new Set(calls.map((call) => call.toolCallId))
+  return messages.flatMap((message): ModelMessage[] => {
+    if (message.role !== 'tool') return [message]
+    const content = message.content.filter(
+      (part) => part.type !== 'tool-result' || !ours.has(part.toolCallId),
+    )
+    return content.length > 0 ? [{ ...message, content }] : []
+  })
+}
+
 const KNOWN_TOOLS: ReadonlySet<string> = new Set(
   Object.values(ASSISTANT_NEXT_TOOL_IDS),
 )
@@ -535,7 +554,9 @@ async function* runNextTurn(
           case 'tool-call':
             if (part.providerExecuted) {
               // 厂商自己跑的联网 / 读网页：时间线上一行「联网查 …」，结果由模型自己读。
+              // 没有查询词也没有网址的（Claude 联网时自己跑的整理代码）不出行。
               const query = queryOf(part.input)
+              if (!query) break
               run.stepSeq += 1
               const search: SearchStep = {
                 id: `${context.stepPrefix}-${run.stepSeq}`,
@@ -543,7 +564,7 @@ async function* runNextTurn(
                   0,
                   ASSISTANT_OPERATOR_LIMITS.maxTitleChars,
                 ),
-                query: query || 'web',
+                query,
               }
               searches.set(part.toolCallId, search)
               yield searchStepEvent(search, STATUS.running)
@@ -556,8 +577,12 @@ async function* runNextTurn(
             }
             break
           case 'tool-error':
-            if (!part.providerExecuted) {
-              // SDK 认不出的入参（它不校验，但仍可能报错）：交给我们自己的解析再判一次。
+            // SDK 认不出的入参（不是合法 JSON）：它先发一条 `invalid` 的 tool-call、再发这条
+            // tool-error —— 同一个调用只收一次，交给我们自己的解析再判。
+            if (
+              !part.providerExecuted &&
+              !calls.some((call) => call.toolCallId === part.toolCallId)
+            ) {
               calls.push({
                 toolCallId: part.toolCallId,
                 toolName: part.toolName,
@@ -675,25 +700,26 @@ async function* runNextTurn(
     }
 
     // 模型的完整回复原样接上（思考、签名、联网结果都在里面），下一步原样交回。
-    messages = [...messages, ...response.messages]
+    messages = [...messages, ...withoutSdkResults(response.messages, calls)]
     transcript.push({
       type: ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.assistant,
       text: reply.slice(0, ASSISTANT_V3_LIMITS.maxEntryChars),
+      // 我们的工具调用排前面：一步里联网多了也不会把它们挤出记录。
       calls: [
-        ...[...searches.entries()].map(([id, search]) => ({
-          id: id.slice(0, ASSISTANT_V3_LIMITS.maxCallIdChars),
-          tool: ASSISTANT_V3_TOOL_IDS.searchWeb as AssistantV3Tool,
-          input: JSON.stringify({ query: search.query }).slice(
-            0,
-            ASSISTANT_V3_LIMITS.maxEntryChars,
-          ),
-        })),
         ...calls.map((call) => ({
           id: call.toolCallId.slice(0, ASSISTANT_V3_LIMITS.maxCallIdChars),
           tool: (KNOWN_TOOLS.has(call.toolName)
             ? call.toolName
             : ASSISTANT_V3_TOOL_IDS.read) as AssistantV3Tool,
           input: JSON.stringify(call.input ?? {}).slice(
+            0,
+            ASSISTANT_V3_LIMITS.maxEntryChars,
+          ),
+        })),
+        ...[...searches.entries()].map(([id, search]) => ({
+          id: id.slice(0, ASSISTANT_V3_LIMITS.maxCallIdChars),
+          tool: ASSISTANT_V3_TOOL_IDS.searchWeb as AssistantV3Tool,
+          input: JSON.stringify({ query: search.query }).slice(
             0,
             ASSISTANT_V3_LIMITS.maxEntryChars,
           ),
@@ -705,8 +731,9 @@ async function* runNextTurn(
         type: ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.result,
         id: id.slice(0, ASSISTANT_V3_LIMITS.maxCallIdChars),
         tool: ASSISTANT_V3_TOOL_IDS.searchWeb,
+        // 标题也记上：过程记录与评测判分只看得到这一行（摘要是厂商加密的，读不到）。
         output: sources
-          .map((source) => source.url)
+          .map((source) => `${source.title} — ${source.url}`)
           .join('\n')
           .slice(0, ASSISTANT_V3_LIMITS.maxEntryChars),
         error: false,

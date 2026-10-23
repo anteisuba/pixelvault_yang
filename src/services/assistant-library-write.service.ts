@@ -25,6 +25,12 @@ import {
 } from '@/constants/assistant-persona'
 import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
 import { ASSISTANT_V3_CARDS_PROFILE_PARTS } from '@/constants/assistant-v3'
+import {
+  ASSISTANT_MEMORY_KIND_IDS as MEMORY_KIND,
+  ASSISTANT_MEMORY_LIMITS as MEMORY_LIMITS,
+  ASSISTANT_MEMORY_SCOPE_IDS as MEMORY_SCOPE,
+  ASSISTANT_MEMORY_SOURCE_IDS as MEMORY_SOURCE,
+} from '@/constants/assistant-memory'
 import { resolveAdapterType } from '@/constants/models'
 import { db } from '@/lib/db'
 import { Prisma } from '@/lib/generated/prisma/client'
@@ -37,6 +43,14 @@ import {
   createCharacterLook,
   updateCharacterLook,
 } from '@/services/cards/character-look.service'
+import {
+  addAssistantRuleMemory,
+  deleteAssistantMemory,
+  findAssistantMemoryByRef,
+  isSensitiveMemoryText,
+  restoreAssistantMemory,
+  updateAssistantMemory,
+} from '@/services/assistant-memory.service'
 import {
   getAssistantPersona,
   upsertAssistantPersona,
@@ -63,6 +77,7 @@ import {
   type ProjectRule,
   type UpdateAssistantPersonaRequest,
 } from '@/types/assistant-persona'
+import type { AssistantMemory } from '@/types/assistant-memory'
 import type {
   AssistantAssetWriteRevertResult,
   AssistantLibraryWriteInverse,
@@ -1050,6 +1065,135 @@ export async function removeSearchSource(
   )
 }
 
+// ---------------------------------------------------------------- 记忆（第 6 步）
+
+/**
+ * 记忆写在哪一份（owner 10-23「一个历史记录一份、互不干扰」+「要『关于你』这一层」）：
+ * 「关于你」= global，各处都用；角色 = 那个角色自己那份（范围 cards、挂角色）。工作台对话里的事不往外记。
+ */
+export interface MemoryTarget {
+  /** 给了 = 记进这个角色自己那份；null = 「关于你」。 */
+  readonly characterCardId: string | null
+  /** 过程行与回给模型的话里用的名字（「关于你」/ 角色名）。 */
+  readonly label: string
+}
+
+const memoryText = (text: string) => text.replace(/\s+/g, ' ').trim()
+
+function memoryRefused(text: string): string | null {
+  if (!text) return 'remember needs text: the one line to keep.'
+  if (text.length > MEMORY_LIMITS.maxTextChars)
+    return `A memory is one line, at most ${MEMORY_LIMITS.maxTextChars} characters. Say it shorter.`
+  // 敏感类目（与旧助手同一道闸）：⛔ 不写，也 ⛔ 不在话里复述那一句。
+  if (isSensitiveMemoryText(text))
+    return 'Not kept: that line looks like private or sensitive information, which you never store. Tell the creator you will not keep it.'
+  return null
+}
+
+/** 记下一条新的（同一句已经在了就不记第二行，回一句「已经记着」）。 */
+export async function rememberMemory(
+  owner: LibraryWriteOwner,
+  input: { text: string; target: MemoryTarget; handle: (id: string) => string },
+): Promise<LibraryWriteOutcome> {
+  const text = memoryText(input.text)
+  const refusedWhy = memoryRefused(text)
+  if (refusedWhy) return fail(refusedWhy)
+  const { memory, created } = await addAssistantRuleMemory(owner.userId, {
+    text,
+    scope: input.target.characterCardId
+      ? MEMORY_SCOPE.cards
+      : MEMORY_SCOPE.global,
+    characterCardId: input.target.characterCardId,
+    kind: MEMORY_KIND.preference,
+  })
+  if (!created)
+    return fail(
+      `Already remembered (${input.handle(memory.id)}): "${memory.text}". Nothing to add.`,
+    )
+  return done(
+    KIND.newMemory,
+    `记下了（${input.target.label}）：${text}`,
+    { kind: KIND.newMemory, memoryId: memory.id },
+    `Remembered for ${input.target.label} (${input.handle(memory.id)}). It is in front of you from the next message on.`,
+  )
+}
+
+type MemoryRef = { idPrefix: string | null; text: string }
+
+async function ownMemory(
+  owner: LibraryWriteOwner,
+  ref: MemoryRef,
+): Promise<
+  { ok: true; memory: AssistantMemory } | { ok: false; error: string }
+> {
+  const found = await findAssistantMemoryByRef(owner.userId, ref)
+  if (found.ok) {
+    if (found.memory.source === MEMORY_SOURCE.creator)
+      return {
+        ok: false,
+        error:
+          'The creator wrote that one themselves. Do not change it; tell them to edit it in Settings → Assistant → Memory.',
+      }
+    return found
+  }
+  return {
+    ok: false,
+    error:
+      found.reason === 'ambiguous'
+        ? 'More than one memory matches. Use its number (记忆·xxxxxxxx); find with kinds ["memories"] lists them.'
+        : 'No memory of theirs matches. find with kinds ["memories"] lists what you remember.',
+  }
+}
+
+/** 按编号改一条（换成新的一句）。 */
+export async function editMemory(
+  owner: LibraryWriteOwner,
+  input: { ref: MemoryRef; text: string; handle: (id: string) => string },
+): Promise<LibraryWriteOutcome> {
+  const text = memoryText(input.text)
+  const refusedWhy = memoryRefused(text)
+  if (refusedWhy) return fail(refusedWhy)
+  const found = await ownMemory(owner, input.ref)
+  if (!found.ok) return fail(found.error)
+  const before = { id: found.memory.id, text: found.memory.text }
+  if (before.text === text)
+    return fail('That memory already says exactly this.')
+  const updated = await updateAssistantMemory(owner.userId, before.id, { text })
+  if (!updated) return fail('That memory is gone.')
+  return done(
+    KIND.memory,
+    `改了记忆：${text}`,
+    { kind: KIND.memory, memoryId: before.id, text: before.text },
+    `Memory ${input.handle(before.id)} now reads: "${text}".`,
+  )
+}
+
+/** 忘掉一条（撤销按原样再记回去）。 */
+export async function forgetMemory(
+  owner: LibraryWriteOwner,
+  input: { ref: MemoryRef; handle: (id: string) => string },
+): Promise<LibraryWriteOutcome> {
+  const found = await ownMemory(owner, input.ref)
+  if (!found.ok) return fail(found.error)
+  const memory = found.memory
+  const deleted = await deleteAssistantMemory(owner.userId, memory.id)
+  if (!deleted) return fail('That memory is already gone.')
+  return done(
+    KIND.forgetMemory,
+    `忘掉了：${memory.text}`,
+    {
+      kind: KIND.forgetMemory,
+      text: memory.text,
+      scope: memory.scope,
+      memoryKind: memory.kind,
+      source: memory.source,
+      projectId: memory.projectId ?? null,
+      characterCardId: memory.characterCardId ?? null,
+    },
+    `Forgot ${input.handle(memory.id)}: "${memory.text}".`,
+  )
+}
+
 // ---------------------------------------------------------------- 撤销
 
 const reverted = (ok: boolean): AssistantAssetWriteRevertResult => ({
@@ -1222,6 +1366,25 @@ export async function revertLibraryWrite(
       })
       return reverted(result.count > 0)
     }
+    case KIND.newMemory:
+      return reverted(await deleteAssistantMemory(userId, inverse.memoryId))
+    case KIND.memory: {
+      const memory = await updateAssistantMemory(userId, inverse.memoryId, {
+        text: inverse.text,
+      })
+      return reverted(memory !== null)
+    }
+    case KIND.forgetMemory:
+      return reverted(
+        await restoreAssistantMemory(userId, {
+          text: inverse.text,
+          scope: inverse.scope,
+          kind: inverse.memoryKind,
+          source: inverse.source,
+          projectId: inverse.projectId,
+          characterCardId: inverse.characterCardId,
+        }),
+      )
     case KIND.sourceRemove: {
       const rules = await listProjectSourceRules(userId)
       if (rules.some((rule) => rule.text === inverse.text))

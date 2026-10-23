@@ -32,7 +32,12 @@ import {
 import { isGenerationError, ProviderError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { openCharacterImages } from '@/lib/assistant-v3-cards-board'
-import { splitAssistantV3History } from '@/lib/assistant-v3-history'
+import {
+  assistantV3HistoryMessages,
+  pinnedAssistantV3History,
+  planAssistantV3History,
+  splitAssistantV3History,
+} from '@/lib/assistant-v3-history'
 import type { PromptAssistantResponseLanguage } from '@/types'
 import type {
   AssistantOperatorEvent,
@@ -48,7 +53,12 @@ import {
   recordAssistantTurn,
   type AssistantTurnDraft,
 } from '@/services/assistant-turn-record.service'
+import { listNextAssistantMemoriesForPrompt } from '@/services/assistant-memory.service'
 import { startCallLog } from '@/services/kernel/assistant-completion.service'
+import {
+  loadAssistantV3HistorySummaries,
+  scheduleAssistantV3HistorySummary,
+} from '@/services/kernel/assistant-v3-history.service'
 import {
   closeRoundV3,
   closeRoundV3BeforeStop,
@@ -86,6 +96,7 @@ import {
   ASSISTANT_NEXT_TOOL_IDS,
 } from '@/features/assistant/constants'
 import {
+  clearOldToolResults,
   historyMessages,
   hydratePictures,
   lookedPicturesMessage,
@@ -147,6 +158,36 @@ const NOT_RUN_AFTER_STOP =
 /** 同一步里改动没落下还出图，确认卡上就是旧配方（评测里撞见过）。 */
 const NOT_RUN_AFTER_FAILED_EDIT =
   'Not shown: an edit earlier in this step did not land, so the bench is not what you meant to generate. Fix that edit first, then call generate again.'
+
+const NEXT_HISTORY_WINDOW = {
+  maxChars: ASSISTANT_NEXT_LIMITS.maxHistoryChars,
+  maxMessages: ASSISTANT_NEXT_LIMITS.maxHistoryMessages,
+  blockTurns: ASSISTANT_NEXT_LIMITS.historyBlockTurns,
+} as const
+
+/**
+ * 记得的事（第 6 步，owner 10-23）：「关于你」+ 角色页上开着的那位自己那份。隐身不读；读不出来就当没有
+ * （记忆是锦上添花，⛔ 掀翻这一轮）。
+ */
+async function nextMemories(
+  userId: string,
+  clerkId: string,
+  request: AssistantOperatorRequest,
+) {
+  if (request.incognito === true) return []
+  try {
+    return await listNextAssistantMemoriesForPrompt(userId, {
+      characterCardId: request.snapshot.cards?.open?.id ?? null,
+      limit: ASSISTANT_NEXT_LIMITS.maxMemoriesInPrompt,
+    })
+  } catch (error) {
+    logger.warn('assistant next memories not loaded', {
+      userId: clerkId,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return []
+  }
+}
 
 interface NextTurnRecording {
   turn?: Omit<AssistantTurnDraft, 'request' | 'outcome' | 'errorCode'>
@@ -466,13 +507,47 @@ async function* runNextTurn(
     context.transcript[0] = { ...opening, turn: { id: turnId, hop } }
   }
 
-  const history = historyMessages(turns.flatMap((turn) => turn.messages))
+  /**
+   * ⭐ 之前几轮（第 6 步）：按块开窗，滑出去的那几轮用后台写好的摘要接在系统提示里；缺口交给后台补
+   *   （这一轮回完才跑，用这一轮的型号与 key、低档思考）。接力那几跳照第一跳定下的窗口与摘要，逐字不变。
+   */
+  const historyOwner = {
+    userId: user.id,
+    clerkId,
+    conversationId: request.conversationId,
+    incognito: request.incognito === true,
+  }
+  const historyPlan = saved?.history
+    ? pinnedAssistantV3History(turns, saved.history)
+    : planAssistantV3History({
+        turns,
+        ...(await loadAssistantV3HistorySummaries(historyOwner)),
+        window: NEXT_HISTORY_WINDOW,
+      })
+  if (!saved)
+    scheduleAssistantV3HistorySummary({
+      owner: historyOwner,
+      plan: historyPlan,
+      turns,
+      route,
+      modelId,
+      domain: request.domain,
+      cacheKey: operatorCacheKey(run, 'historySummary'),
+    })
+  const pinnedHistory = {
+    turns: turns.length - historyPlan.start,
+    ...(historyPlan.summary ? { summary: historyPlan.summary } : {}),
+  }
+  const history = historyMessages(
+    assistantV3HistoryMessages(turns, historyPlan.start),
+  )
   const system = buildNextSystemPrompt({
     face,
     request,
     persona,
     rules,
-    memories: prepared.assistantMemories,
+    memories: await nextMemories(user.id, clerkId, request),
+    historySummary: historyPlan.summary,
     accountName: user.displayName ?? user.username ?? null,
     language,
   })
@@ -518,6 +593,7 @@ async function* runNextTurn(
         attachedNames,
         latestUserText,
         stepSeq: run.stepSeq,
+        history: pinnedHistory,
       })
       if (kept)
         yield {
@@ -875,13 +951,14 @@ async function* runNextTurn(
       if (result.error && call.toolName === ASSISTANT_NEXT_TOOL_IDS.edit)
         editFailed = true
     }
-    messages = [
+    // 工具结果攒多了就清掉旧的长结果（一次清到底，之后前缀不动）；要细节模型自己再查。
+    messages = clearOldToolResults([
       ...messages,
       { role: 'tool', content: results },
       ...(looked.length && context.seesImages
         ? [lookedPicturesMessage(looked)]
         : []),
-    ]
+    ])
 
     if (stopped) {
       const roundSummary = await closeRoundV3BeforeStop(run, {

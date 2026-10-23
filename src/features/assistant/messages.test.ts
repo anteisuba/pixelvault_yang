@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { ModelMessage } from 'ai'
 
 import {
+  clearOldToolResults,
   historyMessages,
   hydratePictures,
   lookedPicturesMessage,
@@ -88,16 +89,79 @@ describe('换保守接法', () => {
 })
 
 describe('之前几轮的对白', () => {
-  it('从最近往前放得下为止，开头必须是创作者说的', () => {
+  it('开头必须是创作者说的，空白的不算', () => {
     const lines = [
-      { role: 'user' as const, content: 'a'.repeat(50) },
-      { role: 'assistant' as const, content: 'b'.repeat(50) },
-      { role: 'user' as const, content: 'c' },
-      { role: 'assistant' as const, content: 'd' },
+      { role: 'assistant' as const, content: 'stray' },
+      { role: 'user' as const, content: 'a' },
+      { role: 'assistant' as const, content: '  ' },
+      { role: 'assistant' as const, content: 'b' },
     ]
-    expect(
-      historyMessages(lines, 3, 1_000).map((line) => line.content),
-    ).toEqual(['c', 'd'])
-    expect(historyMessages(lines, 10, 1_000)).toHaveLength(4)
+    expect(historyMessages(lines).map((line) => line.content)).toEqual([
+      'a',
+      'b',
+    ])
+    expect(historyMessages([lines[0]!])).toEqual([])
+  })
+})
+
+describe('清旧工具结果（第 6 步）', () => {
+  const limits = {
+    clearToolResultsChars: 1_000,
+    keepToolSteps: 2,
+    clearableResultChars: 100,
+  }
+  const step = (id: string, value: string): ModelMessage[] => [
+    {
+      role: 'assistant',
+      content: [
+        { type: 'tool-call', toolCallId: id, toolName: 'find', input: {} },
+      ],
+    },
+    {
+      role: 'tool',
+      content: [
+        {
+          type: 'tool-result',
+          toolCallId: id,
+          toolName: 'find',
+          output: { type: 'text', value },
+        },
+      ],
+    },
+  ]
+  const outputs = (messages: readonly ModelMessage[]) =>
+    messages.flatMap((message) =>
+      message.role === 'tool'
+        ? message.content.map((part) =>
+            part.type === 'tool-result' && part.output.type === 'text'
+              ? part.output.value
+              : '',
+          )
+        : [],
+    )
+
+  it('没超线原样不动（同一个数组）', () => {
+    const messages = [
+      ...step('a', 'x'.repeat(300)),
+      ...step('b', 'y'.repeat(300)),
+    ]
+    expect(clearOldToolResults(messages, limits)).toBe(messages)
+  })
+
+  it('超线了：最近两步与短结果留着，更早的长结果换成一行', () => {
+    const messages: ModelMessage[] = [
+      { role: 'user', content: 'go' },
+      ...step('a', `first line of a ${'x'.repeat(400)}`),
+      ...step('b', 'short'),
+      ...step('c', 'y'.repeat(400)),
+      ...step('d', 'z'.repeat(400)),
+    ]
+    const cleared = outputs(clearOldToolResults(messages, limits))
+    expect(cleared[0]).toMatch(
+      /^\(cleared to save room; it began: "first line of a/,
+    )
+    expect(cleared[1]).toBe('short')
+    expect(cleared[2]).toBe('y'.repeat(400))
+    expect(cleared[3]).toBe('z'.repeat(400))
   })
 })

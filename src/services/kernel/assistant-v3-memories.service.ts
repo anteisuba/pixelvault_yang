@@ -56,7 +56,12 @@ export async function* searchMemoriesStep(
       })
       return {
         result: { rules: found.map(memoryAsRule) },
-        observation: describeFoundMemories(found, words),
+        observation: describeFoundMemories(
+          found,
+          words,
+          // 新内核能按编号改 / 忘（第 6 步）：每条带上编号。
+          context.prepared.run.nextKernel === true,
+        ),
       }
     },
   }
@@ -67,6 +72,7 @@ export async function* searchMemoriesStep(
 function describeFoundMemories(
   found: readonly AssistantMemory[],
   query: string,
+  withHandles: boolean,
 ): string {
   if (found.length === 0)
     // 空结果说出来：静默的空结果会让模型接着编一条「你以前说过」。
@@ -76,7 +82,7 @@ function describeFoundMemories(
   return `What you remember (newest first, ${found.length}):\n${found
     .map(
       (memory) =>
-        `- [${memory.kind}${memory.source === ASSISTANT_MEMORY_SOURCE_IDS.creator ? ', they wrote it' : ''}] ${memory.text}`,
+        `- [${withHandles ? `记忆·${memory.id.slice(0, 8)}, ` : ''}${memory.kind}${memory.source === ASSISTANT_MEMORY_SOURCE_IDS.creator ? ', they wrote it' : ''}] ${memory.text}`,
     )
     .join('\n')}`
 }

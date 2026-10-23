@@ -45,6 +45,26 @@ const { plan, closeRound, legacy, recordTurn, soft, models, run, recipe } =
   }))
 
 vi.mock('@/lib/db', () => ({ db: {} }))
+const memoryStore = vi.hoisted(() => ({
+  memories: [] as unknown[],
+  summaries: [] as unknown[],
+  listed: vi.fn(),
+  scheduled: vi.fn(),
+}))
+vi.mock('@/services/assistant-memory.service', () => ({
+  listNextAssistantMemoriesForPrompt: async (...args: unknown[]) => {
+    memoryStore.listed(...args)
+    return memoryStore.memories
+  },
+}))
+vi.mock('@/services/kernel/assistant-v3-history.service', () => ({
+  loadAssistantV3HistorySummaries: async () => ({
+    summaries: memoryStore.summaries,
+    canSummarize: true,
+  }),
+  scheduleAssistantV3HistorySummary: (input: unknown) =>
+    memoryStore.scheduled(input),
+}))
 vi.mock('@/features/assistant/workspace.service', async (importOriginal) => ({
   ...(await importOriginal<
     typeof import('@/features/assistant/workspace.service')
@@ -164,6 +184,8 @@ vi.mock('@/features/assistant/models', () => ({
 }))
 
 import { prepareOperatorTurn } from '@/services/kernel/assistant-operator.service'
+
+import { assistantV3TurnFingerprint } from '@/lib/assistant-v3-history'
 
 import { runAssistantNext } from './kernel'
 
@@ -732,5 +754,92 @@ describe('第 4 步：各台的改法', () => {
     await collect(runAssistantNext('clerk-1', imageRequest('套用图_99999')))
     expect(plan).not.toHaveBeenCalled()
     expect(resultsOf(main)).toContain("no such picture of the creator's")
+  })
+})
+
+describe('记忆与之前几轮（第 6 步）', () => {
+  beforeEach(() => {
+    memoryStore.memories = []
+    memoryStore.summaries = []
+    memoryStore.listed.mockReset()
+    memoryStore.scheduled.mockReset()
+  })
+
+  it('「关于你」那几条带编号进系统提示；隐身一条都不读', async () => {
+    memoryStore.memories = [
+      {
+        id: '3f9a1c2b-0000-4000-8000-000000000000',
+        scope: 'global',
+        kind: 'preference',
+        source: 'assistant',
+        text: '人物图默认 3:4',
+        projectId: null,
+        projectName: null,
+        characterCardId: null,
+        characterName: null,
+        createdAt: '2026-10-23T00:00:00.000Z',
+        updatedAt: '2026-10-23T00:00:00.000Z',
+      },
+    ]
+    const main = mockModel([textTurn('好。')])
+    models.main = main
+    await collect(runAssistantNext('clerk-1', imageRequest('出一张人物')))
+    const system = promptOf(main.doStreamCalls[0]!)
+    expect(system).toContain('[记忆·3f9a1c2b] 人物图默认 3:4')
+    expect(memoryStore.listed).toHaveBeenCalledWith('user-1', {
+      characterCardId: null,
+      limit: 12,
+    })
+
+    memoryStore.listed.mockReset()
+    const quiet = mockModel([textTurn('好。')])
+    models.main = quiet
+    await collect(
+      runAssistantNext(
+        'clerk-1',
+        imageRequest('出一张人物', { incognito: true }),
+      ),
+    )
+    expect(memoryStore.listed).not.toHaveBeenCalled()
+    expect(promptOf(quiet.doStreamCalls[0]!)).not.toContain('人物图默认 3:4')
+  })
+
+  it('滑出去的那几轮：摘要接在系统提示里，管过的那一轮不再原样发', async () => {
+    const first = [
+      { role: 'user' as const, content: '主角是马尔福，冬装' },
+      { role: 'assistant' as const, content: '记住了。' },
+    ]
+    memoryStore.summaries = [
+      {
+        through: assistantV3TurnFingerprint(first),
+        turns: 1,
+        decisions: ['主角是马尔福、冬装'],
+        preferences: [],
+        openItems: [],
+        names: [],
+      },
+    ]
+    const main = mockModel([textTurn('好。')])
+    models.main = main
+    await collect(
+      runAssistantNext(
+        'clerk-1',
+        imageRequest('再来一张', {
+          conversationId: 'conv-1',
+          messages: [
+            ...first,
+            { role: 'user', content: '换个背景' },
+            { role: 'assistant', content: '换成雪地了。' },
+            { role: 'user', content: '再来一张' },
+          ],
+        }),
+      ),
+    )
+    const prompt = promptOf(main.doStreamCalls[0]!)
+    expect(prompt).toContain('EARLIER IN THIS CONVERSATION')
+    expect(prompt).toContain('主角是马尔福、冬装')
+    expect(prompt).not.toContain('主角是马尔福，冬装')
+    expect(prompt).toContain('换成雪地了。')
+    expect(memoryStore.scheduled).toHaveBeenCalledTimes(1)
   })
 })

@@ -110,7 +110,17 @@ export function splitAssistantV3History(
   }
 }
 
-function prefixSums(turns: readonly AssistantV3HistoryTurn[]) {
+/** 窗口那三条线（v3 用 `ASSISTANT_V3_HISTORY`；新内核第 6 步给自己那一份）。 */
+export interface AssistantV3HistoryWindow {
+  readonly maxChars: number
+  readonly maxMessages: number
+  readonly blockTurns: number
+}
+
+function prefixSums(
+  turns: readonly AssistantV3HistoryTurn[],
+  window: AssistantV3HistoryWindow,
+) {
   const chars = [0]
   const messages = [0]
   for (const turn of turns) {
@@ -121,20 +131,21 @@ function prefixSums(turns: readonly AssistantV3HistoryTurn[]) {
   const count = (from: number, to: number) => messages[to]! - messages[from]!
   /** `turns[from, to)` 放不放得下。 */
   const fits = (from: number, to: number) =>
-    chars[to]! - chars[from]! <= ASSISTANT_V3_HISTORY.maxChars &&
-    count(from, to) <= ASSISTANT_V3_HISTORY.maxMessages
+    chars[to]! - chars[from]! <= window.maxChars &&
+    count(from, to) <= window.maxMessages
   return { fits, count }
 }
 
 /** 不看摘要时窗口从第几轮起：整块对齐的最小起点；最后一块自己就超了才逐轮挪，最近那一轮总留着。 */
 export function assistantV3HistoryWindowStart(
   turns: readonly AssistantV3HistoryTurn[],
+  window: AssistantV3HistoryWindow = ASSISTANT_V3_HISTORY,
 ): number {
   const total = turns.length
   if (total === 0) return 0
-  const { fits } = prefixSums(turns)
+  const { fits } = prefixSums(turns, window)
   let lastAligned = 0
-  for (let start = 0; start < total; start += ASSISTANT_V3_HISTORY.blockTurns) {
+  for (let start = 0; start < total; start += window.blockTurns) {
     if (fits(start, total)) return start
     lastAligned = start
   }
@@ -172,9 +183,11 @@ export function planAssistantV3History(input: {
   turns: readonly AssistantV3HistoryTurn[]
   summaries: readonly AssistantV3HistorySummary[]
   canSummarize: boolean
+  window?: AssistantV3HistoryWindow
 }): AssistantV3HistoryPlan {
   const { turns } = input
-  const need = assistantV3HistoryWindowStart(turns)
+  const window = input.window ?? ASSISTANT_V3_HISTORY
+  const need = assistantV3HistoryWindowStart(turns, window)
   let summary: AssistantV3HistorySummary | null = null
   let coveredUpTo = 0
   // 最旧的在前：`>=` 让一样远的取新的。
@@ -192,11 +205,11 @@ export function planAssistantV3History(input: {
   const floor = Math.min(coveredUpTo, Math.max(0, turns.length - 1))
   if (need <= floor || !input.canSummarize)
     return { start: Math.max(need, floor), summary, summarize: null }
-  const { fits, count } = prefixSums(turns)
+  const { fits, count } = prefixSums(turns, window)
   const held =
     // 上一轮的窗口（不含最新那一轮）本来放得下，才多留这一轮；条数照样封顶（只有字数可以多出一轮）。
     fits(coveredUpTo, turns.length - 1) &&
-    count(coveredUpTo, turns.length) <= ASSISTANT_V3_HISTORY.maxMessages
+    count(coveredUpTo, turns.length) <= window.maxMessages
   return {
     start: held ? coveredUpTo : need,
     summary,

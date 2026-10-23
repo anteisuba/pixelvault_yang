@@ -115,7 +115,15 @@ export const EditChangeSchema = z.object({
   text: z
     .string()
     .nullish()
-    .describe('prompt / negative with mode "replace" or "append".'),
+    .describe(
+      'prompt / negative with mode "replace" or "append". remember: the one line to keep (new, or the new wording of memory).',
+    ),
+  memory: z
+    .string()
+    .nullish()
+    .describe(
+      'remember: the memory to change or forget, by its number ("记忆·3f9a1c2b"); null = remember a new one.',
+    ),
   edits: z
     .array(FindReplaceSchema)
     .max(ASSISTANT_NEXT_LIMITS.maxFindReplace)
@@ -141,7 +149,7 @@ export const EditChangeSchema = z.object({
       `option: the option key; lora_param: the parameter; assistant_setting: one of ${ASSISTANT_SETTINGS_WRITE_KEYS.join(', ')}.`,
     ),
   value: ValueSchema.nullish().describe(
-    'option / lora_param / assistant_setting: the new value. favorite_pictures / favorite_lora: true to favourite, false to take it out. model_channel: true on, false off (null = leave). search_source: false takes the site off its list.',
+    'option / lora_param / assistant_setting: the new value. favorite_pictures / favorite_lora: true to favourite, false to take it out. model_channel: true on, false off (null = leave). search_source: false takes the site off its list. remember: false forgets memory.',
   ),
   picture: z
     .string()
@@ -217,7 +225,7 @@ export const EditChangeSchema = z.object({
     .string()
     .nullish()
     .describe(
-      'propose_profile / propose_images / hand_off: the character, by its handle on the page ("char-b27ce8") or "角色·<name>". character_profile / lora_to_character / new_character_look: "角色·<name>" (lora_to_character may add "/<look>"). character_look: "角色·<name>/<look>" (no look = the default one).',
+      'propose_profile / propose_images / hand_off: the character, by its handle on the page ("char-b27ce8") or "角色·<name>". character_profile / lora_to_character / new_character_look: "角色·<name>" (lora_to_character may add "/<look>"). character_look: "角色·<name>/<look>" (no look = the default one). remember: the character this memory belongs to; null = about the creator (used everywhere).',
     ),
   say: z
     .string()
@@ -492,7 +500,7 @@ export function parseToolInput<T>(
 const DESCRIPTIONS = {
   find: "Search the creator's workspace: their pictures, characters and looks, LoRA library, saved prompts, earlier conversations on every bench, and what you remember about them. Returns numbered lines; open any of them with look.",
   look: 'Read the bench as it is right now, and optionally open things by number or name: pictures (with their full recipe), characters, LoRAs, saved prompts, earlier conversations, settings. Pictures you open stay in front of you.',
-  edit: 'Change the bench, the creator\'s library (pictures, folders, characters and looks, LoRAs, saved prompts), or their settings (model channels, assistant settings, search source lists). All changes for one request go in ONE call, applied in order; each lands at once and can be undone. For the prompt prefer mode "edit" with exact {find, replace} pairs so everything else stays as it is.',
+  edit: 'Change the bench, the creator\'s library (pictures, folders, characters and looks, LoRAs, saved prompts), their settings (model channels, assistant settings, search source lists), or what you remember (remember). All changes for one request go in ONE call, applied in order; each lands at once and can be undone. For the prompt prefer mode "edit" with exact {find, replace} pairs so everything else stays as it is.',
   ask: 'Ask the creator when you cannot go on without their choice. Puts a card with options in front of them and ends this turn until they answer.',
   generate:
     'Generate one batch of what is on the bench now: starts at once when LET AI GENERATE is on, otherwise a confirm card the creator presses. Ends this turn.',

@@ -119,6 +119,19 @@ export function parseWorkspaceHandle(raw: string): WorkspaceHandle | null {
   return null
 }
 
+/** 一条记忆的编号（第 6 步）：id 的前 8 位，只给模型用来改 / 忘那一条。 */
+export function memoryHandle(id: string): string {
+  return `${PREFIX.memory}${id.slice(0, 8)}`
+}
+
+/** `记忆·3f9a1c2b` → `3f9a1c2b`；不是记忆编号回 null。 */
+export function memoryIdPrefixOf(raw: string): string | null {
+  const text = raw.trim()
+  if (!text.startsWith(PREFIX.memory)) return null
+  const id = text.slice(PREFIX.memory.length).trim().toLowerCase()
+  return /^[0-9a-f-]{4,36}$/.test(id) ? id : null
+}
+
 function clip(text: string, max: number): string {
   const flat = text.replace(/\s+/g, ' ').trim()
   return flat.length > max ? `${flat.slice(0, max)}…` : flat

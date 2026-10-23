@@ -50,14 +50,17 @@ import {
   clearAssistantMemories,
   createCreatorMemory,
   deleteAssistantMemory,
+  findAssistantMemoryByRef,
   isSensitiveMemoryText,
   listAssistantMemories,
   listAssistantMemoriesForPrompt,
   listCreatorMemoriesForPrompt,
+  listNextAssistantMemoriesForPrompt,
   listStandingRuleMemories,
   recordAssistantMemories,
   searchAssistantMemories,
   touchAssistantMemories,
+  restoreAssistantMemory,
   updateAssistantMemory,
 } from '@/services/assistant-memory.service'
 
@@ -969,5 +972,71 @@ describe('和角色聊天：记忆按角色分开（附录L 第二片）', () =>
       characterCardId: 'card-1',
     })
     expect(memory.characterName).toBe('芙莉莲')
+  })
+})
+
+describe('新内核（第 6 步）', () => {
+  it('注入：「关于你」+ 开着的那个角色自己那份，⛔ 各台旧的不带', async () => {
+    mockFindMany.mockResolvedValue([row({ scope: 'GLOBAL' })])
+    const memories = await listNextAssistantMemoriesForPrompt('db_user_1', {
+      characterCardId: 'card-7',
+      limit: 12,
+    })
+    expect(memories).toHaveLength(1)
+    expect(mockFindMany.mock.calls[0]![0].where).toEqual({
+      userId: 'db_user_1',
+      source: 'ASSISTANT',
+      OR: [
+        { scope: 'GLOBAL', projectId: null, characterCardId: null },
+        { characterCardId: 'card-7' },
+      ],
+    })
+    expect(mockFindMany.mock.calls[0]![0].take).toBe(12)
+  })
+
+  it('按编号认一条；原话认到不止一条就要编号', async () => {
+    mockFindMany.mockResolvedValueOnce([row()])
+    expect(
+      await findAssistantMemoryByRef('db_user_1', {
+        idPrefix: 'mem-1',
+        text: '记忆·mem-1',
+      }),
+    ).toMatchObject({ ok: true, memory: { id: 'mem-1' } })
+    expect(mockFindMany.mock.calls[0]![0].where).toEqual({
+      userId: 'db_user_1',
+      id: { startsWith: 'mem-1' },
+    })
+    mockFindMany.mockResolvedValueOnce([
+      row({ id: 'a', text: '横构图' }),
+      row({ id: 'b', text: '横构图优先' }),
+    ])
+    expect(
+      await findAssistantMemoryByRef('db_user_1', {
+        idPrefix: null,
+        text: '构图',
+      }),
+    ).toEqual({ ok: false, reason: 'ambiguous' })
+  })
+
+  it('撤销忘掉：原样再记回去；角色已经没了就不记', async () => {
+    mockFindMany.mockResolvedValue([])
+    mockCardFindFirst.mockResolvedValueOnce({ id: 'card-7' })
+    const snapshot = {
+      text: '冬装',
+      scope: ASSISTANT_MEMORY_SCOPE_IDS.cards,
+      kind: ASSISTANT_MEMORY_KIND_IDS.preference,
+      source: ASSISTANT_MEMORY_SOURCE_IDS.assistant,
+      projectId: null,
+      characterCardId: 'card-7',
+    }
+    expect(await restoreAssistantMemory('db_user_1', snapshot)).toBe(true)
+    expect(mockCreate.mock.calls[0]![0].data).toMatchObject({
+      scope: 'CARDS',
+      kind: 'PREFERENCE',
+      source: 'ASSISTANT',
+      characterCardId: 'card-7',
+    })
+    mockCardFindFirst.mockResolvedValueOnce(null)
+    expect(await restoreAssistantMemory('db_user_1', snapshot)).toBe(false)
   })
 })

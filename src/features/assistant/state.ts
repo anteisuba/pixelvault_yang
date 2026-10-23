@@ -6,7 +6,10 @@ import { Redis } from '@upstash/redis'
 import type { ModelMessage } from 'ai'
 
 import { logger } from '@/lib/logger'
-import type { AssistantV3Transcript } from '@/types/assistant-v3'
+import type {
+  AssistantV3HistorySummary,
+  AssistantV3Transcript,
+} from '@/types/assistant-v3'
 
 /**
  * 一轮跑到一半的样子（服务端存，接力时按轮号取回）。
@@ -34,6 +37,11 @@ export interface NextTurnState {
   readonly latestUserText: string
   /** 时间线上的步号接着往下排。 */
   readonly stepSeq: number
+  /** 第一跳定下的之前几轮：带最后几轮、接哪一份摘要（第 6 步）。接力那几跳照它，逐字不变。 */
+  readonly history?: {
+    readonly turns: number
+    readonly summary?: AssistantV3HistorySummary
+  }
 }
 
 const KEY_PREFIX = 'antei:assistant-next:turn'

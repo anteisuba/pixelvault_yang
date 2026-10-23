@@ -3452,6 +3452,13 @@ export const ASSISTANT_LIBRARY_WRITE_KIND_IDS = {
   assistant: 'assistant',
   sourceAdd: 'source_add',
   sourceRemove: 'source_remove',
+  /**
+   * 记忆（第 6 步，owner 10-23）：记下 / 改 / 忘掉一条，过程行带撤销。「关于你」一份各处都用，
+   * 角色各自一份；工作台对话里的事不往外记。
+   */
+  memory: 'memory',
+  newMemory: 'new_memory',
+  forgetMemory: 'forget_memory',
 } as const
 
 export const ASSISTANT_LIBRARY_WRITE_KINDS = Object.values(

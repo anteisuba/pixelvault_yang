@@ -513,6 +513,8 @@ export async function addAssistantRuleMemory(
     projectId?: string | null
     /** 和角色聊天时记的归这个角色（范围一律 `cards`，只认这个用户自己的卡）。 */
     characterCardId?: string | null
+    /** 新内核记的偏好 / 事实（第 6 步）；缺席 = 规矩。 */
+    kind?: AssistantMemoryKindId
   },
 ): Promise<{ memory: AssistantMemory; created: boolean }> {
   const text = input.text.trim()
@@ -543,7 +545,7 @@ export async function addAssistantRuleMemory(
     data: {
       userId,
       scope: DB_SCOPE_BY_ID[scope],
-      kind: DB_KIND_BY_ID[ASSISTANT_MEMORY_KIND_IDS.rule],
+      kind: DB_KIND_BY_ID[input.kind ?? ASSISTANT_MEMORY_KIND_IDS.rule],
       source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.assistant],
       text,
       projectId,
@@ -951,4 +953,122 @@ async function evictOldestAssistantMemories(
   await db.assistantMemory.deleteMany({
     where: { userId, id: { in: doomed.map((row) => row.id) } },
   })
+}
+
+// ---------------------------------------------------------------- 新内核（第 6 步）
+
+/**
+ * **新内核注入的那一组**（第 6 步，owner 10-23「一个历史记录一份、互不干扰」+「要『关于你』这一层」）：
+ * 「关于你」（global、不归项目也不归角色）+ 开着的那个角色自己那份。⛔ 各台的旧记忆不带（工作台对话里的事
+ * 只留在那段对话里），要用时 `find` 翻。只要助手记的 —— 你写的走规矩那一段。最近记下 / 改过的在前（固定一组）。
+ */
+export async function listNextAssistantMemoriesForPrompt(
+  userId: string,
+  options: { characterCardId: string | null; limit: number },
+): Promise<AssistantMemory[]> {
+  if (options.limit <= 0) return []
+  const rows = await db.assistantMemory.findMany({
+    where: {
+      userId,
+      source: DB_SOURCE_BY_ID[ASSISTANT_MEMORY_SOURCE_IDS.assistant],
+      OR: [
+        {
+          scope: DB_SCOPE_BY_ID[ASSISTANT_MEMORY_SCOPE_IDS.global],
+          projectId: null,
+          characterCardId: null,
+        },
+        ...(options.characterCardId
+          ? [{ characterCardId: options.characterCardId }]
+          : []),
+      ],
+    },
+    orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
+    take: options.limit,
+    select: MEMORY_SELECT,
+  })
+  return rows
+    .map(toMemory)
+    .filter((memory): memory is AssistantMemory => memory !== null)
+}
+
+/**
+ * 按编号（`记忆·3f9a1c2b` 的那一截 id 开头）或原话认一条（新内核改 / 忘的那一步）。
+ * 原话认：先全等、再包含，包含的不止一条就回 `ambiguous`，让模型拿编号来。
+ */
+export async function findAssistantMemoryByRef(
+  userId: string,
+  ref: { idPrefix: string | null; text: string },
+): Promise<
+  | { ok: true; memory: AssistantMemory }
+  | { ok: false; reason: 'missing' | 'ambiguous' }
+> {
+  if (ref.idPrefix) {
+    const rows = await db.assistantMemory.findMany({
+      where: { userId, id: { startsWith: ref.idPrefix } },
+      take: 2,
+      select: MEMORY_SELECT,
+    })
+    const memory = rows.length === 1 ? toMemory(rows[0]!) : null
+    if (memory) return { ok: true, memory }
+    return { ok: false, reason: rows.length > 1 ? 'ambiguous' : 'missing' }
+  }
+  const words = ref.text.trim()
+  if (!words) return { ok: false, reason: 'missing' }
+  const rows = await db.assistantMemory.findMany({
+    where: { userId, text: { contains: words, mode: 'insensitive' } },
+    orderBy: { updatedAt: 'desc' },
+    take: ASSISTANT_MEMORY_LIMITS.maxSearchResults,
+    select: MEMORY_SELECT,
+  })
+  const normalized = normalizeAssistantMemoryText(words)
+  const exact = rows.filter(
+    (row) => normalizeAssistantMemoryText(row.text) === normalized,
+  )
+  const picked = exact.length ? exact : rows
+  if (picked.length !== 1)
+    return { ok: false, reason: picked.length ? 'ambiguous' : 'missing' }
+  const memory = toMemory(picked[0]!)
+  return memory ? { ok: true, memory } : { ok: false, reason: 'missing' }
+}
+
+/**
+ * 撤销「忘掉」：按原样再记回去（新的 id）。归的项目 / 角色已经没了就不记（回 false）；同一句已经在了也不记第二行。
+ */
+export async function restoreAssistantMemory(
+  userId: string,
+  snapshot: {
+    text: string
+    scope: AssistantMemoryScopeId
+    kind: AssistantMemoryKindId
+    source: AssistantMemorySourceId
+    projectId: string | null
+    characterCardId: string | null
+  },
+): Promise<boolean> {
+  const [projectId, characterCardId] = await Promise.all([
+    ownedProjectId(userId, snapshot.projectId),
+    ownedCharacterCardId(userId, snapshot.characterCardId),
+  ])
+  if (snapshot.projectId && !projectId) return false
+  if (snapshot.characterCardId && !characterCardId) return false
+  const same = await findSameText(
+    userId,
+    snapshot.scope,
+    snapshot.text,
+    projectId,
+    characterCardId,
+  )
+  if (same) return false
+  await db.assistantMemory.create({
+    data: {
+      userId,
+      scope: DB_SCOPE_BY_ID[snapshot.scope],
+      kind: DB_KIND_BY_ID[snapshot.kind],
+      source: DB_SOURCE_BY_ID[snapshot.source],
+      text: snapshot.text,
+      projectId,
+      characterCardId,
+    },
+  })
+  return true
 }

@@ -33,6 +33,12 @@ import {
   NOVELAI_V5_MAX_CHARACTERS,
 } from '@/constants/novelai'
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
+import {
+  ASSISTANT_MEMORY_KINDS,
+  ASSISTANT_MEMORY_LIMITS,
+  ASSISTANT_MEMORY_SCOPES,
+  ASSISTANT_MEMORY_SOURCES,
+} from '@/constants/assistant-memory'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   ASSISTANT_KERNELS,
@@ -2772,6 +2778,22 @@ export const AssistantLibraryWriteInverseSchema = z.discriminatedUnion('kind', [
     scope: ProjectRuleScopeSchema.nullable(),
     list: z.enum(PROJECT_RULE_SOURCE_KINDS),
     source: ProjectRuleSourceSchema,
+  }),
+  /** 记忆（第 6 步）：新记的撤销 = 删掉它；改过的写回原文；忘掉的按原样再记回去。 */
+  z.object({ kind: z.literal(LIBRARY_KIND.newMemory), memoryId: IdSchema }),
+  z.object({
+    kind: z.literal(LIBRARY_KIND.memory),
+    memoryId: IdSchema,
+    text: z.string().max(ASSISTANT_MEMORY_LIMITS.maxTextChars),
+  }),
+  z.object({
+    kind: z.literal(LIBRARY_KIND.forgetMemory),
+    text: z.string().max(ASSISTANT_MEMORY_LIMITS.maxTextChars),
+    scope: z.enum(ASSISTANT_MEMORY_SCOPES),
+    memoryKind: z.enum(ASSISTANT_MEMORY_KINDS),
+    source: z.enum(ASSISTANT_MEMORY_SOURCES),
+    projectId: IdSchema.nullable(),
+    characterCardId: IdSchema.nullable(),
   }),
 ])
 

@@ -21,6 +21,8 @@
 export const EXECUTION_PROGRESS_STAGES = {
   RUNNER_QUEUED: 'runnerQueued',
   RUNNER_RUNNING: 'runnerRunning',
+  /** 按账号排队：这个账号同时能出的张数满了，在等前面的出完。 */
+  ACCOUNT_QUEUED: 'accountQueued',
 } as const
 
 export type ExecutionProgressStage =

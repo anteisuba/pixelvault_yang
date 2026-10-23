@@ -753,20 +753,20 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
 
           const statusData = statusResponse.data
           if (
-            (statusData.status === 'IN_PROGRESS' ||
-              statusData.status === 'IN_QUEUE') &&
-            (statusData.previewUrl || statusData.executionStage)
+            statusData.status === 'IN_PROGRESS' ||
+            statusData.status === 'IN_QUEUE'
           ) {
+            // 阶段每次照服务端的写：排上号后「排队中」要能消掉。
             updateActiveRunItem(itemId, (item) =>
-              item.status === 'generating'
+              item.status === 'generating' &&
+              (statusData.previewUrl ||
+                statusData.executionStage !== item.executionStage)
                 ? {
                     ...item,
                     ...(statusData.previewUrl
                       ? { previewUrl: statusData.previewUrl }
                       : {}),
-                    ...(statusData.executionStage
-                      ? { executionStage: statusData.executionStage }
-                      : {}),
+                    executionStage: statusData.executionStage,
                   }
                 : item,
             )

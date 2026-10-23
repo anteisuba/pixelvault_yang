@@ -333,6 +333,8 @@ export const GenerationJobScalarFieldEnum = {
   providerJobId: 'providerJobId',
   startedAt: 'startedAt',
   completedAt: 'completedAt',
+  slotKey: 'slotKey',
+  slotAcquiredAt: 'slotAcquiredAt',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   CinematicShortVideoWorkflow,
   ImageQueueWorkflow,
+  IMAGE_RATE_LIMIT_REQUEUE,
   submitGeminiVideoQueue,
   pollGeminiVideoQueue,
   buildFalImageInput,
@@ -4511,5 +4512,170 @@ describe('/logs/llm-call route', () => {
       purpose: 'step',
       llmMs: 1200,
     })
+  })
+})
+
+/**
+ * 按账号排队（第 5a 步）：出图前先问轮到没有；服务商回 429 不算失败，等一会儿再出。
+ */
+describe('ImageQueueWorkflow account queue', () => {
+  function makeWorkflow(put = vi.fn().mockResolvedValue(undefined)) {
+    class TestWorkflow extends ImageQueueWorkflow {
+      setEnv(env: unknown) {
+        this.env = env as never
+      }
+    }
+    const workflow = new TestWorkflow()
+    workflow.setEnv({
+      INTERNAL_CALLBACK_SECRET: 'secret-1',
+      STATE_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString('base64'),
+      R2_PUBLIC_URL: 'https://cdn.example.com',
+      GENERATION_BUCKET: { put },
+    })
+    return workflow
+  }
+
+  function makeStep() {
+    // 每步都当最后一次尝试：guard 把 provider 失败拆成信封，不靠引擎重试。
+    const ctx = { attempt: 2, config: { retries: { limit: 1 } } }
+    return {
+      do: vi.fn(async (_name: string, ...args: unknown[]) => {
+        const callback = args[args.length - 1] as (
+          value: unknown,
+        ) => Promise<unknown>
+        return callback(ctx)
+      }),
+      sleep: vi.fn(),
+    }
+  }
+
+  const context = {
+    runId: 'run-queue-1',
+    workflowId: 'IMAGE_QUEUE',
+    outputType: 'IMAGE',
+    providerId: 'openai',
+    apiKeyId: 'key-1',
+    callbackUrl: 'https://cb.example.com',
+    resolveKeyUrl: 'https://resolve.example.com',
+    slotUrl: 'https://slot.example.com',
+    timeoutMs: 300000,
+    maxAttempts: 1,
+    pollIntervalMs: 1000,
+    providerInput: {
+      modelId: 'gpt-image-2.5-flare',
+      externalModelId: 'gpt-image-2.5-flare',
+      prompt: 'a cat',
+      aspectRatio: '1:1',
+    },
+  }
+
+  it('排队两轮后轮到；第一次 429 退回去等，第二次出图成功', async () => {
+    const slotStates = ['waiting', 'waiting', 'granted']
+    let providerCalls = 0
+    const fetchMock = vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >(async (input) => {
+      const url = String(input)
+      if (url === 'https://resolve.example.com')
+        return Response.json({ success: true, data: { apiKey: 'test-key' } })
+      if (url === 'https://slot.example.com')
+        return Response.json({
+          success: true,
+          data: { state: slotStates.shift() },
+        })
+      if (url === 'https://cb.example.com')
+        return Response.json({ success: true })
+      providerCalls += 1
+      if (providerCalls === 1)
+        return Response.json(
+          { error: { message: 'Too many requests' } },
+          { status: 429 },
+        )
+      return Response.json({ data: [{ b64_json: 'ZmluYWw=' }] })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const step = makeStep()
+
+    const result = await makeWorkflow().run(
+      { payload: context, instanceId: 'instance-1' } as never,
+      step as never,
+    )
+
+    expect(result).toMatchObject({ status: 'COMPLETED' })
+    const names = step.do.mock.calls.map(([name]) => name)
+    expect(names.filter((name) => name.startsWith('acquire-slot'))).toEqual([
+      'acquire-slot-1',
+      'acquire-slot-2',
+      'acquire-slot-3',
+    ])
+    expect(names).toContain('generate-openai-image')
+    expect(names).toContain('generate-openai-image-requeue-1')
+    expect(step.sleep.mock.calls.map(([name]) => name)).toEqual([
+      'wait-slot-1',
+      'wait-slot-2',
+      'rate-limited-wait-1',
+    ])
+    const slotBody = JSON.parse(
+      (
+        fetchMock.mock.calls.find(
+          ([input]) => String(input) === 'https://slot.example.com',
+        )![1] as RequestInit
+      ).body as string,
+    )
+    expect(slotBody).toEqual({ runId: 'run-queue-1', apiKeyId: 'key-1' })
+  })
+
+  it('排队中被取消：不出图、不回调', async () => {
+    const fetchMock = vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >(async (input) => {
+      const url = String(input)
+      if (url === 'https://resolve.example.com')
+        return Response.json({ success: true, data: { apiKey: 'test-key' } })
+      if (url === 'https://slot.example.com')
+        return Response.json({ success: true, data: { state: 'cancelled' } })
+      throw new Error(`Unexpected fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await makeWorkflow().run(
+      { payload: context, instanceId: 'instance-1' } as never,
+      makeStep() as never,
+    )
+    expect(result).toMatchObject({ status: 'CANCELLED' })
+  })
+
+  it('一直 429：等满轮数后照常按失败上报', async () => {
+    const fetchMock = vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >(async (input) => {
+      const url = String(input)
+      if (url === 'https://resolve.example.com')
+        return Response.json({ success: true, data: { apiKey: 'test-key' } })
+      if (url === 'https://cb.example.com')
+        return Response.json({ success: true })
+      return Response.json(
+        { error: { message: 'Too many requests' } },
+        { status: 429 },
+      )
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const step = makeStep()
+
+    const result = await makeWorkflow().run(
+      { payload: { ...context, slotUrl: undefined }, instanceId: 'i' } as never,
+      step as never,
+    )
+    expect(result).toMatchObject({ status: 'FAILED' })
+    expect(
+      step.sleep.mock.calls.filter(([name]) =>
+        String(name).startsWith('rate-limited-wait'),
+      ),
+    ).toHaveLength(IMAGE_RATE_LIMIT_REQUEUE.MAX_ROUNDS)
+    const callback = fetchMock.mock.calls
+      .filter(([input]) => String(input) === 'https://cb.example.com')
+      .map(([, init]) => JSON.parse((init as RequestInit).body as string))
+      .at(-1)
+    expect(callback.data.errorCode).toBe('provider_rate_limit')
   })
 })

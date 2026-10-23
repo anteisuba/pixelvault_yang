@@ -47,6 +47,7 @@ const isPublicRoute = createRouteMatcher([
   // Clerk session).
   '/api/internal/execution/callback',
   '/api/internal/execution/resolve-key',
+  '/api/internal/execution/slot',
   // render-video worker（剪辑台导出）的进度 / 成片回调，同样自己验签。
   '/api/studio/render/callback',
   // 外部 Claude 的 MCP 端点：自己验 Bearer 令牌（docs/references/mcp.md）。

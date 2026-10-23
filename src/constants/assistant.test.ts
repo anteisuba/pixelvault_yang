@@ -4,7 +4,6 @@ import {
   ASSISTANT_MEDIA_CAPABILITIES,
   ASSISTANT_MEDIA_UNSUPPORTED_ERRORS,
   ASSISTANT_VIDEO_TIERS,
-  assistantAdapterAcceptsReferenceKind,
   assistantAdapterSatisfiesVideoTier,
   assistantAdapterSupportsImage,
   assistantAdapterVideoTier,
@@ -152,46 +151,6 @@ describe('assistantAdapterSatisfiesVideoTier —— 调用方必须说出要哪�
         ),
       ).toBe(false)
     }
-  })
-})
-
-describe('assistantAdapterAcceptsReferenceKind —— 附件闸', () => {
-  it('图片只看图片能力，与要求的视频档无关', () => {
-    expect(
-      assistantAdapterAcceptsReferenceKind(
-        AI_ADAPTER_TYPES.OPENAI,
-        'image',
-        ASSISTANT_VIDEO_TIERS.native,
-        undefined,
-      ),
-    ).toBe(true)
-    expect(
-      assistantAdapterAcceptsReferenceKind(
-        AI_ADAPTER_TYPES.DEEPSEEK,
-        'image',
-        ASSISTANT_VIDEO_TIERS.frames,
-        LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
-      ),
-    ).toBe(false)
-    expect(
-      assistantAdapterAcceptsReferenceKind(
-        AI_ADAPTER_TYPES.DEEPSEEK,
-        'image',
-        ASSISTANT_VIDEO_TIERS.native,
-        LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH,
-      ),
-    ).toBe(true)
-  })
-
-  it('聊天轮（要 native）不接受 frames 档路由上的视频附件', () => {
-    expect(
-      assistantAdapterAcceptsReferenceKind(
-        AI_ADAPTER_TYPES.OPENAI,
-        'video',
-        ASSISTANT_VIDEO_TIERS.native,
-        undefined,
-      ),
-    ).toBe(false)
   })
 })
 

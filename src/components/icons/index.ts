@@ -17,8 +17,8 @@
  * glyph, and `AlertTriangle` / `TriangleAlert` / `AlertCircle` / `CircleAlert`
  * land on Phosphor `Warning` and `WarningCircle`.
  *
- * The five lucide glyphs with no Phosphor counterpart (`FolderSearch`,
- * `ImageDown`, `ImagePlus`, `MessageCircleWarning`, `MessageSquarePlus`) are
+ * The four lucide glyphs with no Phosphor counterpart (`FolderSearch`,
+ * `ImagePlus`, `MessageCircleWarning`, `MessageSquarePlus`) are
  * resolved by call-site meaning rather than by shape; each carries the reason
  * inline. Nothing here imports from lucide any more.
  */
@@ -139,9 +139,6 @@ export {
   HouseIcon as Home,
   IdentificationCardIcon as IdCard,
   ImageIcon as Image,
-  // lucide `ImageDown` — no image+arrow in Phosphor. Its one call site is the
-  // assistant dock's drag-over hint, where the down arrow is the whole message.
-  DownloadSimpleIcon as ImageDown,
   ImageIcon as ImageIcon,
   ImageBrokenIcon as ImageOff,
   // lucide `ImagePlus` — no image+plus in Phosphor. Every call site is "attach
@@ -154,13 +151,11 @@ export {
   KeyIcon as Key,
   KeyboardIcon as Keyboard,
   KeyIcon as KeyRound,
-  TranslateIcon as Languages,
   StackSimpleIcon as Layers,
   SquaresFourIcon as LayoutGrid,
   BooksIcon as Library,
   LinkIcon as Link2,
   LinkBreakIcon as Link2Off,
-  ListChecksIcon as ListChecks,
   ListNumbersIcon as ListOrdered,
   TreeStructureIcon as ListTree,
   CrosshairIcon as Locate,
@@ -200,7 +195,6 @@ export {
   SidebarSimpleIcon as PanelLeftClose,
   SidebarIcon as PanelLeftIcon,
   SidebarIcon as PanelLeftOpen,
-  SidebarSimpleIcon as PanelRightClose,
   LayoutIcon as PanelsTopLeft,
   PaperclipIcon as Paperclip,
   PauseIcon as Pause,

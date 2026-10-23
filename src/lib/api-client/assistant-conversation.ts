@@ -1,6 +1,5 @@
 import { API_ENDPOINTS } from '@/constants/config'
 import type {
-  AssistantConversationShare,
   AssistantConversationRecord,
   AssistantConversationSummary,
   AssistantSurfaceId,
@@ -147,30 +146,6 @@ export async function deleteAssistantConversationAPI(
         error instanceof Error
           ? error.message
           : 'Failed to delete conversation',
-    }
-  }
-}
-
-export async function createAssistantConversationShareAPI(
-  conversationId: string,
-): Promise<ApiResult<AssistantConversationShare>> {
-  try {
-    const response = await fetch(
-      `${API_ENDPOINTS.ASSISTANT_CONVERSATION}/share`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversationId }),
-      },
-    )
-    return parseJsonResult(response, 'Failed to create assistant share')
-  } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : 'Failed to create assistant share',
     }
   }
 }

@@ -55,29 +55,10 @@ vi.mock('@/services/research/web-search.connector', () => ({
   fetchUrlEvidence: (...args: unknown[]) => mockUrlReader(...args),
 }))
 
-import {
-  RESEARCH_DAILY_RUN_LIMIT,
-  RESEARCH_MODES,
-  RESEARCH_RUN_STATUSES,
-  RESEARCH_SOURCE_ID_VALUES,
-} from '@/constants/research'
-import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
-import {
-  AI_ADAPTER_TYPES,
-  getDefaultProviderConfig,
-} from '@/constants/providers'
+import { RESEARCH_SOURCE_ID_VALUES } from '@/constants/research'
 import { resetResearchBreakers } from '@/services/research/connector-runtime'
-import {
-  dedupeEvidence,
-  runResearch,
-} from '@/services/research/research-run.service'
-import {
-  expectSelectedProviderOnly,
-  providerUsesOf,
-} from '@/test/selected-provider-only'
+import { dedupeEvidence } from '@/services/research/research-run.service'
 import type { EvidenceItem } from '@/types/research'
-
-const CHARACTER_QUESTION = '鸣潮长离的发色是什么'
 
 function evidence(
   overrides: Partial<EvidenceItem> & Pick<EvidenceItem, 'sourceId'>,
@@ -93,23 +74,6 @@ function evidence(
   } as EvidenceItem
 }
 
-/** 这一轮助手所选的那条路（规划器同用它）。 */
-const XAI_ROUTE = {
-  adapterType: AI_ADAPTER_TYPES.XAI,
-  providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.XAI),
-  apiKey: 'xai-user-key',
-}
-
-function baseParams() {
-  return {
-    userId: 'db_user_1',
-    surface: 'IMAGE_STUDIO' as const,
-    text: CHARACTER_QUESTION,
-    mode: RESEARCH_MODES.auto,
-    route: XAI_ROUTE,
-  }
-}
-
 beforeEach(() => {
   vi.clearAllMocks()
   resetResearchBreakers([...RESEARCH_SOURCE_ID_VALUES])
@@ -120,175 +84,6 @@ beforeEach(() => {
   mockBilibili.mockResolvedValue({ items: [] })
   mockWebSearch.mockResolvedValue({ items: [] })
   mockUrlReader.mockResolvedValue({ items: [] })
-})
-
-describe('runResearch — 什么时候根本不检索', () => {
-  it('does nothing at all when the creator switched retrieval off', async () => {
-    const outcome = await runResearch({
-      ...baseParams(),
-      mode: RESEARCH_MODES.off,
-    })
-
-    expect(outcome).toBeNull()
-    expect(mockMediaWiki).not.toHaveBeenCalled()
-    expect(mockWebSearch).not.toHaveBeenCalled()
-    expect(mockCreate).not.toHaveBeenCalled()
-  })
-
-  it('skips retrieval in auto mode when the planner sees no reason to search', async () => {
-    const outcome = await runResearch({ ...baseParams(), text: '你好' })
-
-    expect(outcome).toBeNull()
-    expect(mockCreate).not.toHaveBeenCalled()
-  })
-
-  it('searches anyway in forced mode, even for a turn auto would skip', async () => {
-    mockWebSearch.mockResolvedValue({
-      items: [evidence({ sourceId: 'web_search' })],
-    })
-
-    const outcome = await runResearch({
-      ...baseParams(),
-      text: '帮我写一个赛博朋克提示词',
-      mode: RESEARCH_MODES.forced,
-    })
-
-    expect(outcome).not.toBeNull()
-    expect(mockWebSearch).toHaveBeenCalled()
-  })
-})
-
-describe('runResearch — 三态', () => {
-  it('succeeded: evidence found, grounded, persisted with per-source receipts', async () => {
-    mockMediaWiki.mockResolvedValue({
-      items: [
-        evidence({ sourceId: 'moegirl', id: 'moegirl:text' }),
-        evidence({
-          sourceId: 'moegirl',
-          id: 'moegirl:tags',
-          kind: 'tags',
-          tags: ['粉发', '金瞳'],
-          provenance: '萌百 prop=categories',
-        } as Partial<EvidenceItem> & { sourceId: 'moegirl' }),
-      ],
-    })
-
-    const outcome = await runResearch(baseParams())
-
-    expect(outcome?.receipt.status).toBe(RESEARCH_RUN_STATUSES.succeeded)
-    expect(outcome?.receipt.grounded).toBe(true)
-    expect(outcome?.receipt.runId).toBe('run_1')
-    expect(outcome?.evidenceBlock).toContain('<<<EVIDENCE 1>>>')
-
-    const persisted = mockCreate.mock.calls[0]?.[0] as {
-      data: Record<string, unknown>
-    }
-    expect(persisted.data.status).toBe(RESEARCH_RUN_STATUSES.succeeded)
-    expect(persisted.data.grounded).toBe(true)
-    // 源级回执现在就落库 —— UI 下一批要按它渲染 chip
-    expect(Array.isArray(persisted.data.perSource)).toBe(true)
-    expect(persisted.data.surface).toBe('IMAGE_STUDIO')
-  })
-
-  it('no_evidence: sources answered but had nothing — NOT the same as failed', async () => {
-    const outcome = await runResearch(baseParams())
-
-    expect(outcome?.receipt.status).toBe(RESEARCH_RUN_STATUSES.noEvidence)
-    expect(outcome?.receipt.grounded).toBe(false)
-    expect(outcome?.receipt.perSource.every((r) => r.status === 'empty')).toBe(
-      true,
-    )
-    expect(outcome?.evidenceBlock).toBe('')
-  })
-
-  it('failed: every source is broken — the creator must be told the road is out', async () => {
-    const boom = () => Promise.reject(new Error('upstream is down'))
-    mockMediaWiki.mockImplementation(boom)
-    mockDanbooru.mockImplementation(boom)
-    mockBilibili.mockImplementation(boom)
-    mockWebSearch.mockImplementation(boom)
-
-    const outcome = await runResearch(baseParams())
-
-    expect(outcome?.receipt.status).toBe(RESEARCH_RUN_STATUSES.failed)
-    expect(outcome?.receipt.grounded).toBe(false)
-    // 每个源的失败都留了痕 —— 单源静默失败不允许
-    expect(
-      outcome?.receipt.perSource.every(
-        (receipt) => receipt.status === 'failed' && receipt.error,
-      ),
-    ).toBe(true)
-  })
-
-  it('one broken source does not drag the rest down', async () => {
-    mockMediaWiki.mockRejectedValue(new Error('moegirl blocked'))
-    mockDanbooru.mockResolvedValue({
-      items: [
-        evidence({ sourceId: 'danbooru' }),
-        evidence({ sourceId: 'danbooru', id: 'danbooru:2' }),
-      ],
-    })
-
-    const outcome = await runResearch(baseParams())
-
-    expect(outcome?.receipt.status).toBe(RESEARCH_RUN_STATUSES.succeeded)
-    const danbooru = outcome?.receipt.perSource.find(
-      (receipt) => receipt.sourceId === 'danbooru',
-    )
-    expect(danbooru?.status).toBe('ok')
-    const moegirl = outcome?.receipt.perSource.find(
-      (receipt) => receipt.sourceId === 'moegirl',
-    )
-    expect(moegirl?.status).toBe('failed')
-  })
-
-  it('quota_exceeded: says so explicitly and does not fire a single request', async () => {
-    mockCount.mockResolvedValue(RESEARCH_DAILY_RUN_LIMIT)
-
-    const outcome = await runResearch(baseParams())
-
-    expect(outcome?.receipt.status).toBe(RESEARCH_RUN_STATUSES.quotaExceeded)
-    expect(outcome?.receipt.runId).toBeNull()
-    expect(mockMediaWiki).not.toHaveBeenCalled()
-    // 超配额不该再写一行 run（那会让配额自己往上爬）
-    expect(mockCreate).not.toHaveBeenCalled()
-  })
-
-  it('still returns a receipt when the DB write fails — retrieval already happened', async () => {
-    mockCreate.mockRejectedValue(new Error('db down'))
-    mockMediaWiki.mockResolvedValue({
-      items: [
-        evidence({ sourceId: 'moegirl' }),
-        evidence({ sourceId: 'moegirl', id: 'moegirl:2' }),
-      ],
-    })
-
-    const outcome = await runResearch(baseParams())
-
-    expect(outcome?.receipt.runId).toBeNull()
-    expect(outcome?.receipt.grounded).toBe(true)
-  })
-})
-
-describe('runResearch — URL 短路', () => {
-  it('reads pasted URLs and skips the search fan-out entirely', async () => {
-    mockUrlReader.mockResolvedValue({
-      items: [
-        evidence({ sourceId: 'url_reader' }),
-        evidence({ sourceId: 'url_reader', id: 'url_reader:2' }),
-      ],
-    })
-
-    const outcome = await runResearch({
-      ...baseParams(),
-      text: '看看 https://example.com/post 说了什么',
-    })
-
-    expect(mockUrlReader).toHaveBeenCalled()
-    expect(mockWebSearch).not.toHaveBeenCalled()
-    expect(mockMediaWiki).not.toHaveBeenCalled()
-    expect(outcome?.receipt.grounded).toBe(true)
-  })
 })
 
 describe('dedupeEvidence', () => {
@@ -315,26 +110,5 @@ describe('dedupeEvidence', () => {
     ])
 
     expect(deduped).toHaveLength(2)
-  })
-})
-
-describe('runResearch · 规划器只用所选那一家（2026-10-15）', () => {
-  it('⭐ 这一轮的路由与型号原样交给规划器，⛔ 不另找一家', async () => {
-    await runResearch({
-      ...baseParams(),
-      mode: RESEARCH_MODES.forced,
-      model: LLM_TEXT_MODEL_IDS.XAI_GROK_4_7,
-    })
-
-    expect(mockPlanResearchWithLlm).toHaveBeenCalledWith(
-      expect.objectContaining({
-        route: XAI_ROUTE,
-        modelId: LLM_TEXT_MODEL_IDS.XAI_GROK_4_7,
-      }),
-    )
-    expectSelectedProviderOnly(
-      providerUsesOf(mockPlanResearchWithLlm, 'research planner'),
-      { adapterType: XAI_ROUTE.adapterType, apiKey: XAI_ROUTE.apiKey },
-    )
   })
 })

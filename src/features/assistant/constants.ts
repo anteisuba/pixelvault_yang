@@ -23,19 +23,6 @@ export const ASSISTANT_NEXT_TOOL_IDS = {
 export type AssistantNextTool =
   (typeof ASSISTANT_NEXT_TOOL_IDS)[keyof typeof ASSISTANT_NEXT_TOOL_IDS]
 
-/**
- * 新内核接哪几台（只给 owner）。第 2 步先接图片台、LoRA 台；第 4 步（10-23）接视频台、角色页；
- * 第 9a 步（10-23）接画布，第 9b 步（10-23）接配音台。
- */
-export const ASSISTANT_NEXT_DOMAINS: readonly string[] = [
-  'image',
-  'lora',
-  'video',
-  'cards',
-  'canvas',
-  'audio',
-]
-
 /** `edit` 一条改动改的是哪一格。一个工具，按台换可用的改法（台上没有的那一格回一句说明）。 */
 export const ASSISTANT_NEXT_EDIT_OP_IDS = {
   prompt: 'prompt',

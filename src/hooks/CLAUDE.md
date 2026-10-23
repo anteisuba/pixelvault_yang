@@ -18,7 +18,6 @@ All hooks use `'use client'`. Less than half have a `.test` file — check for a
 ### AI Text (changes affect prompt-related features)
 
 - `use-prompt-enhance.ts` — LLM prompt enhancement (injected into StudioDataContext)
-- `use-prompt-assistant.ts` — Interactive prompt suggestions
 
 ### Gallery & Community
 

@@ -1001,7 +1001,7 @@ export const AssistantV3TranscriptResultEntrySchema = z.object({
     .optional(),
 })
 
-export const AssistantV3TranscriptEntrySchema = z.discriminatedUnion('type', [
+const AssistantV3TranscriptEntrySchema = z.discriminatedUnion('type', [
   AssistantV3TranscriptBoardEntrySchema,
   AssistantV3TranscriptAssistantEntrySchema,
   AssistantV3TranscriptResultEntrySchema,

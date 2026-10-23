@@ -28,13 +28,12 @@ import type { AssistantV3Transcript } from '@/types/assistant-v3'
 /**
  * 每轮的过程记录（`AssistantTurnRecord`，owner 2026-10-15「建表」）的写与删。
  *
- * ⭐ **一跳写一次，一轮一行**：`runAssistantV3` 每一跳收尾时交一份草稿过来。第一跳建行（连同开轮
+ * ⭐ **一跳写一次，一轮一行**：新内核（`features/assistant/kernel.ts`）每一跳收尾时交一份草稿过来。第一跳建行（连同开轮
  *   时的快照）；画布接力的后几跳按 `(userId, turnId)` 找到同一行，只更新本轮记录、跳数与收尾方式
  *   —— 后几跳手上的快照已经落了改动，⛔ 不拿它覆盖开轮那份。
  * ⛔ **不等、不抛**：写不进去只记一行警告，这一轮照常收尾（`recordAssistantTurn`）。
  * ⛔ 只存 key 的 id；快照与请求里的 data: 地址、视频帧一律摘掉（`lib/assistant-turn-record.ts`）。
- * ⛔ 不进会话分享、不进任何导出：读这张表的只有回放（手动导出一行喂给
- *   `src/test/assistant-replay/from-turn-record.ts`），没有一条读路径。
+ * ⛔ 不进会话分享、不进任何导出：只供排查时人工导出一行看，没有一条读路径。
  *
  * 保留（owner：留 30 天或每人最近 200 条）：建行之后顺手删这个人 30 天前的与超出 200 条的；
  * 不再用助手的人由每日 sweep（`/api/internal/execution/sweep`）按 30 天删。

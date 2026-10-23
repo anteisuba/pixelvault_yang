@@ -73,14 +73,7 @@ import {
   NOVELAI_UC_PRESET_OPTIONS,
   VOLCENGINE_SEEDREAM_MAX_LAYERS,
 } from '@/constants/provider-capabilities'
-import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
 import { GENERATION_CANCEL_MAX_BATCH } from '@/constants/generation-cancel'
-import { AssistantMediaReferenceSchema } from '@/types/assistant-media'
-import type {
-  AssistantClarifyingQuestion,
-  AssistantNextStep,
-} from '@/types/assistant-protocol'
-import type { ResearchReceipt } from '@/types/research'
 import {
   USER_AUDIO_UPLOAD_ACCEPTED_MIME_TYPES,
   USER_AUDIO_UPLOAD_MAX_BYTES,
@@ -2638,40 +2631,11 @@ export interface EnhancePromptResponse {
   error?: string
 }
 
-// ─── Prompt Assistant (Chat-based) ───────────────────────────────
-
-export const PromptAssistantMessageSchema = z.object({
-  role: z.enum(['user', 'assistant']),
-  content: z.string(),
-})
-
 export const PromptAssistantResponseLanguageSchema = z.enum([
   'english',
   'japanese',
   'chinese',
 ])
-export const PromptAssistantModeSchema = z.enum(['general', 'lora'])
-export const PromptAssistantDomainSchema = z.enum(['image', 'video', 'lora'])
-
-// ─── LoRA assistant context (the v2 engine's mount-context injection) ───────
-//
-// Additive-only: when a `mode:'lora'` request carries `loraContext`, the
-// service takes the new grounding + structured-output path. When it's
-// absent, `mode:'lora'` behaves exactly as before (code-block text output) —
-// the `/prompts` page's `presetLora` consumer relies on that legacy shape and
-// never sends this field.
-
-export const LoraAssistantMountSchema = z.object({
-  /** Display name of the mounted LoRA (asset.name). */
-  name: z.string().trim().min(1),
-  /** All trigger words/phrases the client already renders as chips — the v2
-   *  engine must never re-emit any of these in its output. */
-  triggerWords: z.array(z.string().trim().min(1)).default([]),
-  /** LoRA base model family (e.g. 'illustrious' / 'pony' / 'sdxl' / 'anima'),
-   *  free string — see `LoraAssetBaseFamilySchema` / `normalizeToLoraBaseFamily`. */
-  family: z.string().trim().min(1).optional(),
-})
-export type LoraAssistantMount = z.infer<typeof LoraAssistantMountSchema>
 
 // ─── 工作台状态（§3.0b「读」半边） ──────────────────────────────
 //
@@ -2713,7 +2677,7 @@ export type AssistantWorkbenchLoraMount = z.infer<
  * 出图后拖一下滑杆就变了，**不能冒充成「这批用的参数」**。所以参数只出现在
  * `output`（明确标为当前表单值），不出现在这里。
  */
-export const AssistantWorkbenchRunSchema = z.object({
+const AssistantWorkbenchRunSchema = z.object({
   /** single | compare | variant */
   mode: z.string().trim().min(1).optional(),
   /** 这一批发了几个请求 —— 本仓 1 请求 = 1 张，所以也是张数。 */
@@ -2734,9 +2698,8 @@ export const AssistantWorkbenchRunSchema = z.object({
   /** 用户有没有在这批里挑过「最佳」。 */
   hasSelection: z.boolean().optional(),
 })
-export type AssistantWorkbenchRun = z.infer<typeof AssistantWorkbenchRunSchema>
 
-export const AssistantWorkbenchStateSchema = z.object({
+const AssistantWorkbenchStateSchema = z.object({
   /** 编辑器里的正面 / 负面提示词。 */
   prompt: z.string().optional(),
   negativePrompt: z.string().optional(),
@@ -2793,105 +2756,9 @@ export type AssistantWorkbenchState = z.infer<
 
 /** 检索三态。值域长在 `constants/research.ts`，这里只做 schema。 */
 export const ResearchModeSchema = z.enum(RESEARCH_MODE_VALUES)
-
-export const LoraAssistantContextSchema = z.object({
-  /** LoRAs currently mounted on the generate branch (spine row). */
-  mounts: z.array(LoraAssistantMountSchema).default([]),
-  /** Currently selected base model family, when known. */
-  baseFamily: z.string().trim().min(1).optional(),
-  /** Tag text already sitting in the tray — the engine must not repeat these. */
-  trayTags: z.array(z.string().trim().min(1)).default([]),
-  /** Current positive prompt textarea contents, for continuity. */
-  currentPrompt: z.string().optional(),
-})
-export type LoraAssistantContext = z.infer<typeof LoraAssistantContextSchema>
-
-export const PromptAssistantRequestSchema = z.object({
-  messages: z.array(PromptAssistantMessageSchema).min(1),
-  /** Current generation model (for model-aware prompt formatting) */
-  modelId: z.string().optional(),
-  /**
-   * Stable image/video references attached to the latest turn.
-   *
-   * ⚠ 卡的是 `maxReferencesPayload`（宽）不是 `maxReferences`（送模型的上限）——
-   * 超出后者的部分由服务端截断并告知，而不是让整轮 400。
-   */
-  references: z
-    .array(AssistantMediaReferenceSchema)
-    .max(ASSISTANT_MEDIA_LIMITS.maxReferencesPayload)
-    .optional(),
-  /** Studio domain whose live context should guide the conversation. */
-  assistantDomain: PromptAssistantDomainSchema.optional(),
-  /** Current prompt in the textarea (for context) */
-  currentPrompt: z.string().optional(),
-  /** User-selected API key for LLM calls */
-  apiKeyId: z.string().optional(),
-  /**
-   * LLM tier the user picked in the route selector (e.g. gpt-6.1-sol) —
-   * NOT the generation model (`modelId` above). Validated server-side against
-   * NODE_STUDIO_ASSISTANT_ROUTE_MODELS; unknown values fall back to the
-   * adapter's default tier.
-   */
-  llmModelId: z.string().optional(),
-  /** User-selected language for assistant prompt output */
-  responseLanguage: PromptAssistantResponseLanguageSchema.optional(),
-  /** Specialized prompt conversion mode */
-  mode: PromptAssistantModeSchema.optional(),
-  /**
-   * @deprecated 用 `researchMode` —— 布尔表达不了「auto」这个新默认。
-   * `true` 仍等价于 `researchMode:'forced'`；缺省落到 `auto`。
-   */
-  research: z.boolean().optional(),
-  /** 检索三态（auto 规划器决定 / forced 手动强制开 / off 完全不打源）。 */
-  researchMode: ResearchModeSchema.optional(),
-  /** Opt-in v2 LoRA conversion engine (§2) — only meaningful with
-   *  `mode: 'lora'`. Omitting it keeps the legacy `mode:'lora'` behavior. */
-  loraContext: LoraAssistantContextSchema.optional(),
-})
-
-/**
- * 对话轮（流式）的入参。
- *
- * 与上面那条的差别是**故意的**：没有 `mode`（这条只服务 `general`）、没有
- * `loraContext`（结构化 LoRA 转换是另一条路，载荷形态也不同）。少这两个字段就
- * 少一类「发到流式端点却期待 JSON」的调用。
- */
-export const PromptAssistantStreamRequestSchema = z.object({
-  messages: z.array(PromptAssistantMessageSchema).min(1),
-  modelId: z.string().optional(),
-  /** 同上：宽口径校验，窄口径截断＋告知。 */
-  references: z
-    .array(AssistantMediaReferenceSchema)
-    .max(ASSISTANT_MEDIA_LIMITS.maxReferencesPayload)
-    .optional(),
-  assistantDomain: PromptAssistantDomainSchema.optional(),
-  currentPrompt: z.string().optional(),
-  apiKeyId: z.string().optional(),
-  /** 同非流式版：用户选的 LLM 档位（非生成模型），服务端对表校验。 */
-  llmModelId: z.string().optional(),
-  responseLanguage: PromptAssistantResponseLanguageSchema.optional(),
-  /** @deprecated 见 `PromptAssistantRequestSchema.research`。 */
-  research: z.boolean().optional(),
-  researchMode: ResearchModeSchema.optional(),
-  /** §3.0b：当前工作台状态。全 optional —— 三个域各填各的。 */
-  workbenchState: AssistantWorkbenchStateSchema.optional(),
-})
-
-export type PromptAssistantStreamRequest = z.infer<
-  typeof PromptAssistantStreamRequestSchema
->
-
-export type PromptAssistantRequest = z.infer<
-  typeof PromptAssistantRequestSchema
->
-export type PromptAssistantMessage = z.infer<
-  typeof PromptAssistantMessageSchema
->
 export type PromptAssistantResponseLanguage = z.infer<
   typeof PromptAssistantResponseLanguageSchema
 >
-export type PromptAssistantMode = z.infer<typeof PromptAssistantModeSchema>
-export type PromptAssistantDomain = z.infer<typeof PromptAssistantDomainSchema>
 
 /** A single normalized tag from the F1 v2 output pipeline — see
  *  `src/lib/prompt-tag-normalize.ts`. Exactly one of `canonical`/`free` is
@@ -2908,56 +2775,6 @@ export interface PromptAssistantLoraTag {
   normalized?: boolean
   /** True when no vocabulary entry matched — `text` is kept as-is. */
   free?: boolean
-}
-
-export interface PromptAssistantLoraResult {
-  positive: PromptAssistantLoraTag[]
-  negative: PromptAssistantLoraTag[]
-  /** One human-readable sentence explaining a notable trade-off, e.g.
-   *  "Left identity to the LoRA, only wrote outfit and lighting." */
-  note?: string
-}
-
-export interface PromptAssistantResponseData {
-  prompt: string
-  /** v2 structured result (§2.3) — present only when the request carried
-   *  `loraContext`; undefined on the legacy `mode:'lora'`/`'general'` path. */
-  lora?: PromptAssistantLoraResult
-  /**
-   * A2 对话协议的两个块，服务端从正文里剥好再下发（Studio 这条路是缓冲补全不是
-   * 流式，所以抽取放服务端；画布那条是流式，抽取只能在客户端）。仅 `mode:'general'`
-   * 可能带；`prompt` 已是剥掉标记段的正文。
-   */
-  ask?: AssistantClarifyingQuestion[]
-  next?: AssistantNextStep
-  /** 出现了完整的协议块但读不出载荷 —— 用来提示而不是静默吞掉。 */
-  protocolMalformed?: boolean
-  /**
-   * 检索回执（§3.5「源级回执」）。**只在这一轮真的打过源时出现** —— 规划器判定
-   * 不需要检索、或用户关掉了联网，这个字段就不存在（不是 `grounded:false`，
-   * 那表示打了没拿到，是另一件事）。
-   *
-   * ⚠ 证据本体不在这里，也不进 `AssistantConversation.messages`；消息里只存
-   * `researchRunId`，要看证据从 `ResearchRun` 水合。
-   */
-  research?: ResearchReceipt
-  /**
-   * 这一轮超出 `ASSISTANT_MEDIA_LIMITS.maxReferences` 没能送进模型的附件数。
-   * **只在真丢了才出现**（没丢就没有这个字段，不是 0）。
-   *
-   * 截断本身是合理保护 —— 多传一张不该让整轮失败，所以服务端不抛错。但也不能
-   * 静默：模型侧已经在附件清单里被告知「另有 N 个没给你」，这个字段是**用户侧**
-   * 的那一份。前端的回形针置灰是超限的事前反馈，这条是事后如实告知，不是第二道闸。
-   */
-  droppedReferenceCount?: number
-}
-
-export interface PromptAssistantResponse {
-  success: boolean
-  data?: PromptAssistantResponseData
-  error?: string
-  errorCode?: string
-  i18nKey?: string
 }
 
 // ─── Prompt Feedback ─────────────────────────────────────────────

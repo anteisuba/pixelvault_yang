@@ -62,20 +62,6 @@ export const STUDIO_EMPTY_RECENT_COUNT = 6
 /** 空态示例 prompt chips 的 i18n 键位（每个模态各一组）。 */
 export const STUDIO_EMPTY_EXAMPLE_KEYS = ['e1', 'e2', 'e3'] as const
 
-// ── 助手右侧 dock（施工基准 docs/references/pages/assistant-shell.md）──
-/**
- * The Studio composer keeps a user-resizable assistant. Canvas intentionally
- * uses a fixed rail, so this preference remains Studio-only.
- */
-export const STUDIO_ASSISTANT_DOCK_RESIZE = {
-  defaultWidthPx: 360,
-  minWidthPx: 320,
-  maxWidthPx: 720,
-  widthStepPx: 20,
-  handleThicknessPx: 6,
-  storageKey: 'pixelvault.studio.assistantDock.layout.v2',
-} as const
-
 /** Pragmatic DnD payload type for prompt-area reference strip thumbnails.
  *  Distinct from 'studio-generation' so the canvas drop target (which would
  *  re-add the same reference) ignores strip drags; only the assistant dock

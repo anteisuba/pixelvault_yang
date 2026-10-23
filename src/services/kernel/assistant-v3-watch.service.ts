@@ -1,7 +1,5 @@
 import 'server-only'
 
-import type { UserContent } from 'ai'
-
 import { ASSISTANT_VIDEO_TIERS } from '@/constants/assistant'
 import {
   ASSISTANT_V3_CLIP_LIMITS,
@@ -254,30 +252,6 @@ function seconds(value: number): string {
   return `${Number(value.toFixed(1))} s`
 }
 
-/**
- * 「CLIPS THE CREATOR POINTED AT」那一段：每段先一行称呼，再跟片子本体或一张张帧。
- * 帧逐张写清「clip 「名字」 · frame k/N at t s」—— 模型要知道每张是哪一刻，才说得清
- * 「第 3 秒那里人物换了脸」，也才知道两帧之间隔了多久、哪些事它其实没看见。
- */
-export function pointedClipParts(
-  views: readonly V3ClipView[],
-): Exclude<UserContent, string> {
-  if (views.length === 0) return []
-  const parts: Exclude<UserContent, string> = [
-    {
-      type: 'text',
-      text: `CLIPS THE CREATOR POINTED AT (in order): ${views
-        .map(
-          (view, index) =>
-            `${index + 1} = clip 「${view.ref.label}」${clipViewSummary(view)}`,
-        )
-        .join(' · ')}`,
-    },
-  ]
-  for (const view of views) parts.push(...clipViewParts(view))
-  return parts
-}
-
 /** 一段片子在称呼表里那一小句：片子本体、几帧跨多长，或为什么没看成。 */
 export function clipViewSummary(view: V3ClipView): string {
   return view.kind === 'video'
@@ -285,26 +259,4 @@ export function clipViewSummary(view: V3ClipView): string {
     : view.kind === 'frames'
       ? ` (${view.frames.length} frames sampled across ${seconds(view.durationSeconds)})`
       : ` (not shown: ${view.note})`
-}
-
-/** 一段片子的那几块：片子本体一块，或每帧一行字 + 一张图。 */
-export function clipViewParts(view: V3ClipView): Exclude<UserContent, string> {
-  if (view.kind === 'video')
-    return [
-      { type: 'text', text: `clip 「${view.ref.label}」:` },
-      { type: 'file', data: view.clip.data, mediaType: view.clip.mediaType },
-    ]
-  if (view.kind === 'frames')
-    return view.frames.flatMap((frame, position) => [
-      {
-        type: 'text' as const,
-        text: `clip 「${view.ref.label}」 · frame ${position + 1}/${view.frames.length} at ${seconds(frame.timestampSeconds)}`,
-      },
-      {
-        type: 'image' as const,
-        image: frame.picture.data,
-        mediaType: frame.picture.mediaType,
-      },
-    ])
-  return []
 }

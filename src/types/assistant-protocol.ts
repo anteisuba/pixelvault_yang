@@ -114,7 +114,7 @@ function normalizeAskPayload(raw: unknown): unknown {
 }
 
 /** `[[ask]]` 块的载荷。 */
-export const AssistantAskBlockSchema = z.preprocess(
+const AssistantAskBlockSchema = z.preprocess(
   normalizeAskPayload,
   z.object({
     questions: z
@@ -133,7 +133,7 @@ export const AssistantAskBlockSchema = z.preprocess(
  * `adjust` 允许缺省 —— 模型偶尔只写 satisfied，那时用本地化兜底文案比整块判 invalid
  * 好：判 invalid 会让整轮回复退化成没有收敛入口的散文，正是这条协议要消灭的形态。
  */
-export const AssistantNextStepSchema = z.object({
+const AssistantNextStepSchema = z.object({
   satisfied: ClarifyTextSchema,
   adjust: ClarifyTextSchema.optional(),
 })
@@ -216,25 +216,13 @@ export const AssistantLoraPickSchema = z.object({
 })
 export type AssistantLoraPick = z.infer<typeof AssistantLoraPickSchema>
 
-export const AssistantLoraBlockSchema = z.object({
+const AssistantLoraBlockSchema = z.object({
   picks: z
     .array(AssistantLoraPickSchema)
     .min(1)
     .max(ASSISTANT_LORA_PICK_LIMITS.maxPicks),
 })
 export type AssistantLoraBlock = z.infer<typeof AssistantLoraBlockSchema>
-
-/**
- * 一条已回答的问答对（A2c 的「已询问」折叠块）。
- *
- * ⚠ **它是结构化随消息带过来的，不是从答复文本反解出来的。** 反解意味着按
- * 「问题 — 答案」这种本地化分隔符去 split 一段用户消息 —— 换个语言就散架，而且
- * 用户手打一个破折号就能把它骗过去。控件本来就手里有结构，直接带走。
- */
-export interface AssistantAskedPair {
-  question: string
-  answer: string
-}
 
 export type AssistantClarifyingOption = z.infer<
   typeof AssistantClarifyingOptionSchema

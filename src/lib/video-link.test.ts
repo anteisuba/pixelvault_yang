@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 import {
   buildYoutubeWatchUrl,
   classifyVideoLink,
-  normalizeVideoLinkUrl,
   resolveVideoLinkLine,
 } from '@/lib/video-link'
 import { extractUrlsFromText } from '@/lib/research-intent'
@@ -158,12 +157,6 @@ describe('trailing punctuation from the shared URL extractor', () => {
       kind: 'youtube',
       videoId: 'dQw4w9WgXcQ',
     })
-  })
-
-  it('normalizes the url the caller should actually fetch', () => {
-    expect(normalizeVideoLinkUrl('https://cdn.example.com/a.mp4，')).toBe(
-      'https://cdn.example.com/a.mp4',
-    )
   })
 })
 

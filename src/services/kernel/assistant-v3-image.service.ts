@@ -1,37 +1,24 @@
 import 'server-only'
 
-import { tool } from 'ai'
-
 import {
   ASSISTANT_OPERATOR_LIMITS,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS as STATUS,
   ASSISTANT_OPERATOR_TOOL_IDS as TOOL,
 } from '@/constants/assistant-operator'
 import {
-  ASSISTANT_V3_ASK_TOOL_DESCRIPTION,
-  ASSISTANT_V3_BENCH_HAND_OFF_DESCRIPTION,
   ASSISTANT_V3_FACE_IDS,
-  ASSISTANT_V3_READ_SOURCE_NOTE,
   ASSISTANT_V3_IMAGE_EDIT_OP_IDS,
   ASSISTANT_V3_LIMITS,
   ASSISTANT_V3_TOOL_IDS,
-  ASSISTANT_V3_WEB_IMAGES_KIND_DESCRIPTION,
-  ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION,
-  ASSISTANT_V3_MEMORIES_KIND_DESCRIPTION,
   ASSISTANT_V3_MEMORIES_SEARCH_KIND,
   isAssistantV3WebSearchKind,
 } from '@/constants/assistant-v3'
 import { renderAssistantV3ImageItem } from '@/lib/assistant-v3-image-board'
 import {
-  AssistantV3AskInputSchema,
-  AssistantV3BenchHandOffInputSchema,
   AssistantV3ImageEditInputSchema,
   AssistantV3ImageLookInputSchema,
   AssistantV3ImageReadInputSchema,
   AssistantV3ImageSearchLibraryInputSchema,
-  AssistantV3LoraGenerateInputSchema,
-  AssistantV3LoraWriteInputSchema,
-  AssistantV3SearchWebInputSchema,
   AssistantV3VideoEditInputSchema,
   type AssistantV3ImageEditOpInput,
   type AssistantV3VideoEditOpInput,
@@ -71,95 +58,6 @@ import {
 
 /** 没有清晰度档的模型那一格的值（旧执行器 `planSetSpecs` 收到就写 auto）。 */
 const SPECS_TIERLESS_RESOLUTION = 'auto'
-
-/** 图片台与视频台共用的那一套（视频台再换掉 edit / look）。 */
-function assistantV3BenchTools(strict: boolean) {
-  return {
-    [ASSISTANT_V3_TOOL_IDS.read]: tool({
-      description: `Read in full what the board shows clipped: "prompt", "negative" or a reference ("ref-1"). ${ASSISTANT_V3_READ_SOURCE_NOTE}`,
-      inputSchema: AssistantV3ImageReadInputSchema,
-      strict,
-    }),
-    [ASSISTANT_V3_TOOL_IDS.look]: tool({
-      description:
-        'Put pictures in front of you for your next response, with one specific question: pictures attached to the message (by name), mounted references ("ref-1") or the latest results on the stage ("result-1").',
-      inputSchema: AssistantV3ImageLookInputSchema,
-      strict,
-    }),
-    [ASSISTANT_V3_TOOL_IDS.edit]: tool({
-      description:
-        'Change the bench: model, specs, pictures per run, model options, mount or unmount references, import a link. All ops of one request in ONE call.',
-      inputSchema: AssistantV3ImageEditInputSchema,
-      strict,
-    }),
-    [ASSISTANT_V3_TOOL_IDS.write]: tool({
-      description:
-        'Write the prompt or the negative prompt. mode "edit" replaces exact {find, replace} pairs and touches nothing else; "replace" rewrites the whole field; "append" adds to the end.',
-      inputSchema: AssistantV3LoraWriteInputSchema,
-      strict,
-    }),
-    [ASSISTANT_V3_TOOL_IDS.generate]: tool({
-      description:
-        'Put a generation confirm card in front of the creator for what is on the bench now. It spends nothing until they press it.',
-      inputSchema: AssistantV3LoraGenerateInputSchema,
-      strict,
-    }),
-    [ASSISTANT_V3_TOOL_IDS.searchWeb]: tool({
-      description:
-        'Look something up on the web: a work, a character, a technique, a model. Give a goal and the names it turns on.',
-      inputSchema: AssistantV3SearchWebInputSchema,
-      strict,
-    }),
-    [ASSISTANT_V3_TOOL_IDS.searchLibrary]: tool({
-      description: `kind "image" / "video" / "audio": search the creator's own assets (results carry asset ids for mount_reference). ${ASSISTANT_V3_WEB_IMAGES_KIND_DESCRIPTION} ${ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION} ${ASSISTANT_V3_MEMORIES_KIND_DESCRIPTION}`,
-      inputSchema: AssistantV3ImageSearchLibraryInputSchema,
-      strict,
-    }),
-    [ASSISTANT_V3_TOOL_IDS.ask]: tool({
-      description: ASSISTANT_V3_ASK_TOOL_DESCRIPTION,
-      inputSchema: AssistantV3AskInputSchema,
-      strict,
-    }),
-  }
-}
-
-export function assistantV3ImageTools(strict: boolean) {
-  return {
-    ...assistantV3BenchTools(strict),
-    [ASSISTANT_V3_TOOL_IDS.handOff]: tool({
-      description: ASSISTANT_V3_BENCH_HAND_OFF_DESCRIPTION,
-      inputSchema: AssistantV3BenchHandOffInputSchema,
-      strict,
-    }),
-  }
-}
-
-/**
- * 视频台：图片台同一套工具，edit 换成视频那一份（时长、首尾帧、参考声音、原声）。
- * 没有交接（P6 只做图片台 ↔ 画布）。
- */
-export function assistantV3VideoTools(strict: boolean) {
-  return {
-    ...assistantV3BenchTools(strict),
-    [ASSISTANT_V3_TOOL_IDS.edit]: tool({
-      description:
-        'Change the bench: model, clip specs, model options, first/last frame or reference pictures, voice clips, the soundtrack switch, import a link. All ops of one request in ONE call.',
-      inputSchema: AssistantV3VideoEditInputSchema,
-      strict,
-    }),
-    [ASSISTANT_V3_TOOL_IDS.look]: tool({
-      description:
-        'Put pictures or clips in front of you for your next response, with one specific question: pictures or clips the creator pointed at (by name), mounted references ("ref-1"), the latest picture results on the stage ("result-1") or mounted reference videos ("video-1").',
-      inputSchema: AssistantV3ImageLookInputSchema,
-      strict,
-    }),
-    [ASSISTANT_V3_TOOL_IDS.searchLibrary]: tool({
-      description: `kind "image" / "video" / "audio": search the creator's own assets (results carry asset ids for mount_reference and mount_audio). ${ASSISTANT_V3_WEB_IMAGES_KIND_DESCRIPTION} ${ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION} ${ASSISTANT_V3_MEMORIES_KIND_DESCRIPTION}`,
-      inputSchema: AssistantV3ImageSearchLibraryInputSchema,
-      strict,
-    }),
-  }
-}
 
 const FRAME_SLOTS: readonly string[] = ['first', 'last']
 

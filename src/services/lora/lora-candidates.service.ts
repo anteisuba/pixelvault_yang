@@ -46,7 +46,6 @@ import { CircuitOpenError, getCircuitBreaker } from '@/lib/circuit-breaker'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import {
-  buildHuggingFaceSourceSnapshot,
   buildLoraSourceSnapshot,
   dedupeLoraStrings,
   gradeLoraMetadataCompleteness,
@@ -55,13 +54,7 @@ import {
 import { withRetry } from '@/lib/with-retry'
 import { listCivitaiLoras } from '@/services/civitai-lora-library.service'
 import { normalizeLoraNameKey } from '@/services/civitai-lora.service'
-import { searchHuggingFaceLoras } from '@/services/huggingface-lora.service'
-import {
-  HuggingFaceLoraSearchQuerySchema,
-  type CivitaiLoraLibraryItem,
-  type HuggingFaceLoraSearchItem,
-  type LoraCandidateLicense,
-} from '@/types'
+import { type CivitaiLoraLibraryItem, type LoraCandidateLicense } from '@/types'
 import type {
   LoraCandidate,
   LoraCandidateImportPayload,
@@ -301,107 +294,6 @@ function civitaiToCandidate(
   }
 }
 
-// ─── Hugging Face → LoraCandidate ───────────────────────────────────
-
-/**
- * 一个仓库出一条候选，权重文件取 `files[0]`。
- *
- * ⚠ 多文件仓库（一个 repo 里放了多个 outfit 的权重）在库浏览里是让用户自己选
- * 的，但推荐卡是「一次确认」——把一个仓库摊成五张卡等于把选择成本原样退回去。
- * 取第一条并在 id 里带上文件序号，将来要展开也不用换 id 形状。
- */
-function huggingFaceToCandidate(
-  item: HuggingFaceLoraSearchItem,
-  retrievedAt: string,
-): LoraCandidate | null {
-  const file = item.files[0]
-  if (!file) return null
-
-  // ⭐ 快照与卡面读的是**同一次归一**（`lib/lora-source-snapshot.ts`）——
-  //    作者/许可/体积/完整度都从它上面取，别在这里再算第二遍。
-  const snapshot = buildHuggingFaceSourceSnapshot({ item, file, retrievedAt })
-  const { author, license, fileSizeBytes, metadataCompleteness } = snapshot
-  const baseModelFamily = resolveLoraFamily(file.baseModelFamily)
-  const triggerWords = dedupeLoraStrings(item.triggerWord.split(','))
-  const sampleImageUrls = item.coverImageUrl ? [item.coverImageUrl] : []
-
-  // gated / private 仓库**技术上取不到权重**（已拍板边界 7 的「技术不可得仍阻断」）。
-  // 它排在家族判定之前：拿不到文件的时候，家族对不对已经不重要了。
-  const notImportableReason =
-    item.gated || item.private
-      ? LORA_CANDIDATE_NOT_IMPORTABLE_REASONS.gatedRepo
-      : baseModelFamily === null
-        ? LORA_CANDIDATE_NOT_IMPORTABLE_REASONS.unknownBaseModel
-        : null
-  const importable = notImportableReason === null
-
-  const importPayload: LoraCandidateImportPayload | null =
-    importable && baseModelFamily
-      ? {
-          name: clampName(item.name),
-          triggerWord: item.triggerWord,
-          loraUrl: file.downloadUrl,
-          type: item.type,
-          baseModelFamily,
-          provider: LORA_CANDIDATE_SOURCE_IDS.huggingface,
-          coverImageUrl: item.coverImageUrl,
-          recommendedPrompt: null,
-          // ⚠ 三个 civitai 标识符对 HF 行**就该是空的**，别为了「填满」编。
-          fileHashAutoV3: null,
-          sourceSnapshot: snapshot,
-        }
-      : null
-
-  return {
-    candidateId: `hf:${item.repoId}#0`,
-    source: LORA_CANDIDATE_SOURCE_IDS.huggingface,
-    name: item.name,
-    author,
-    license,
-    baseModelFamily,
-    type: item.type,
-    triggerWords,
-    sampleImageUrls,
-    fileSizeBytes,
-    pageUrl: item.modelPageUrl,
-    downloads: item.downloads,
-    metadataCompleteness,
-    importable,
-    ...(notImportableReason ? { notImportableReason } : {}),
-    alreadyMounted: false,
-    alreadyImported: false,
-    importPayload,
-  }
-}
-
-// ─── 合并 / 标注 ────────────────────────────────────────────────────
-
-/**
- * 两源交替取，直到填满。
- *
- * ⚠ **不是按热度全局排序**：Civitai 的下载数动辄六位数、HF 常常三位数，
- * 混在一起排等于 HF 永远排不进前六 —— 那就等于没接第二个源。交替保证两边都
- * 有露面机会，家族匹配的那一批优先（软偏好，见 `SearchLoraCandidatesInput`）。
- */
-function interleave(
-  civitai: readonly LoraCandidate[],
-  huggingface: readonly LoraCandidate[],
-  limit: number,
-): LoraCandidate[] {
-  const out: LoraCandidate[] = []
-  const seen = new Set<string>()
-  for (let i = 0; out.length < limit; i += 1) {
-    const next = [civitai[i], huggingface[i]].filter(Boolean) as LoraCandidate[]
-    if (next.length === 0) break
-    for (const candidate of next) {
-      if (out.length >= limit || seen.has(candidate.candidateId)) continue
-      seen.add(candidate.candidateId)
-      out.push(candidate)
-    }
-  }
-  return out
-}
-
 /**
  * 工作台底模家族 → 上游可用的筛选值。
  *
@@ -448,24 +340,6 @@ export function resolveLibraryBaseModel(
   rawFamily: string | null | undefined,
 ): CivitaiLoraBaseModel | null {
   return resolveUpstreamFamilyFilters(rawFamily ?? undefined).civitaiBaseModel
-}
-
-/** 家族匹配的排前面。匹配不上的**不删** —— 见 `SearchLoraCandidatesInput`。 */
-function preferFamily(
-  candidates: readonly LoraCandidate[],
-  baseModelFamily: string | undefined,
-): LoraCandidate[] {
-  const target = baseModelFamily
-    ? normalizeToLoraBaseFamily(baseModelFamily)
-    : null
-  if (!target) return [...candidates]
-  const matches = (candidate: LoraCandidate) =>
-    candidate.baseModelFamily !== null &&
-    normalizeToLoraBaseFamily(candidate.baseModelFamily) === target
-  return [
-    ...candidates.filter(matches),
-    ...candidates.filter((candidate) => !matches(candidate)),
-  ]
 }
 
 /**
@@ -532,101 +406,6 @@ async function annotateOwnership(
       (typeof candidate.importPayload?.modelVersionId === 'number' &&
         ownedVersionIds.has(candidate.importPayload.modelVersionId)),
   }))
-}
-
-// ─── Public API ─────────────────────────────────────────────────────
-
-/**
- * 并行打 Civitai + HF，归一成统一的候选形状。**永不抛** —— 两源全挂时返回空
- * 候选 + 两条失败回执，助手照常回答，只是这一轮没有推荐卡。
- */
-export async function searchLoraCandidates(
-  input: SearchLoraCandidatesInput,
-): Promise<LoraCandidateSearchResult> {
-  const query = input.query
-    .trim()
-    .slice(0, LORA_CANDIDATE_LIMITS.maxQueryLength)
-  const limit = Math.min(
-    input.limit ?? LORA_CANDIDATE_LIMITS.maxCandidates,
-    LORA_CANDIDATE_LIMITS.maxCandidates,
-  )
-  const retrievedAt = new Date().toISOString()
-
-  if (!query) {
-    return { candidates: [], query: '', sources: [] }
-  }
-
-  const { civitaiBaseModel, huggingFaceFamily } = resolveUpstreamFamilyFilters(
-    input.baseModelFamily,
-  )
-
-  const [civitai, huggingface] = await Promise.all([
-    runCandidateSource(LORA_CANDIDATE_SOURCE_IDS.civitai, async () => {
-      /**
-       * 家族已知时**并行发两次**：一次带 `baseModel` 把同族那一页捞上来，一次
-       * 保持现状不带。⛔ 不能只发带筛选的那一次 —— 那就把软偏好做成硬过滤，
-       * 「你该换个底模」这句真话再也说不出口（见 `SearchLoraCandidatesInput`）。
-       * 两次算**同一个源**：任一次挂了整源按现有规则翻成回执。
-       */
-      const pages = await Promise.all([
-        ...(civitaiBaseModel
-          ? [
-              listCivitaiLoras({
-                search: query,
-                baseModel: civitaiBaseModel,
-                pageSize: LORA_CANDIDATE_LIMITS.perSourcePageSize,
-              }),
-            ]
-          : []),
-        listCivitaiLoras({
-          search: query,
-          pageSize: LORA_CANDIDATE_LIMITS.perSourcePageSize,
-        }),
-      ])
-      // 带筛选的那一页在前，按 candidateId 去重后再交给 preferFamily 排序。
-      const seen = new Set<string>()
-      return pages
-        .flatMap((page) => page.items)
-        .filter((item) => {
-          if (seen.has(item.id)) return false
-          seen.add(item.id)
-          return true
-        })
-        .map((item) => civitaiToCandidate(item, retrievedAt))
-    }),
-    runCandidateSource(LORA_CANDIDATE_SOURCE_IDS.huggingface, async () => {
-      const result = await searchHuggingFaceLoras(
-        HuggingFaceLoraSearchQuerySchema.parse({
-          search: query,
-          ...(huggingFaceFamily ? { baseModelFamily: huggingFaceFamily } : {}),
-          limit: LORA_CANDIDATE_LIMITS.perSourcePageSize,
-        }),
-      )
-      return result.items
-        .map((item) => huggingFaceToCandidate(item, retrievedAt))
-        .filter((candidate): candidate is LoraCandidate => candidate !== null)
-    }),
-  ])
-
-  const merged = interleave(
-    preferFamily(civitai.items, input.baseModelFamily),
-    preferFamily(huggingface.items, input.baseModelFamily),
-    limit,
-  )
-  const candidates = await annotateOwnership(merged, input)
-
-  logger.info('LoRA candidates resolved', {
-    query,
-    total: candidates.length,
-    civitai: civitai.receipt.status,
-    huggingface: huggingface.receipt.status,
-  })
-
-  return {
-    candidates,
-    query,
-    sources: [civitai.receipt, huggingface.receipt],
-  }
 }
 
 /**

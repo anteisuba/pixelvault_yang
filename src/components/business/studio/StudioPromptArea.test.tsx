@@ -250,10 +250,6 @@ vi.mock('@/contexts/api-keys-context', () => ({
   }),
 }))
 
-vi.mock('@/components/business/studio/StudioEnhanceButton', () => ({
-  StudioEnhanceButton: () => <button type="button">enhance</button>,
-}))
-
 // 角色那颗拖着角色选择链，与本文件要验的提示词 / 负面提示词 / 模型名单无关，
 // 替身掉保持单测聚焦。
 vi.mock('@/components/business/studio/StudioCardsButton', () => ({

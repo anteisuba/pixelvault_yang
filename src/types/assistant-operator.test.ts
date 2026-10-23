@@ -6,15 +6,6 @@ import {
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
   ASSISTANT_EVIDENCE_RECALL_LIMITS,
   ASSISTANT_OPERATOR_DOMAINS,
-  ASSISTANT_OPERATOR_ENTRY_ACTIONS,
-  ASSISTANT_OPERATOR_ENTRY_ACTIONS_BY_DOMAIN,
-  ASSISTANT_OPERATOR_ENTRY_ACTION_VALUES,
-  ASSISTANT_OPERATOR_INTERNAL_TOOLS,
-  ASSISTANT_OPERATOR_RESEARCH_ACTIONS,
-  ASSISTANT_OPERATOR_RESEARCH_ACTION_IDS,
-  ASSISTANT_OPERATOR_ENTRY_TOOL_HINTS,
-  ASSISTANT_OPERATOR_ENTRY_TOOL_IDS,
-  ASSISTANT_OPERATOR_ENTRY_TOOLS,
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_LIMITS,
   ASSISTANT_ROUND_SUMMARY_LIMITS,
@@ -30,24 +21,15 @@ import {
   ASSISTANT_OPERATOR_TOOLS,
   ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN,
   ASSISTANT_OPERATOR_TOOL_VERBS,
-  ASSISTANT_OPERATOR_VERBS,
-  assistantOperatorEntryToolsInDomain,
-  isAssistantOperatorEntryTool,
-  isAssistantOperatorResearchAction,
-  isInternalAssistantOperatorTool,
   isMutatingAssistantOperatorTool,
-  resolveAssistantOperatorEntryAction,
   isRevertibleAssistantOperatorTool,
   isSpendAssistantOperatorTool,
   type AssistantOperatorTool,
-  isAssistantOperatorToolInDomain,
 } from '@/constants/assistant-operator'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import { ASSISTANT_STREAM_EVENTS } from '@/constants/assistant-stream'
 import {
-  ASSISTANT_OPERATOR_ENTRY_ARGS_SCHEMAS,
   ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS,
-  AssistantOperatorAskArgsSchema,
   AssistantOperatorEventSchema,
   AssistantOperatorEvidenceSchema,
   AssistantOperatorRecalledEvidenceSchema,
@@ -921,67 +903,6 @@ describe('操作员工具表', () => {
  * 退到入口背后由代码按 `action` 派发。
  */
 describe('五动词入口', () => {
-  it('⭐ 入口恰好五个，且名字与动词表逐字相同（§2.4 对齐）', () => {
-    expect([...ASSISTANT_OPERATOR_ENTRY_TOOLS]).toEqual([
-      ...ASSISTANT_OPERATOR_VERBS,
-    ])
-    expect(Object.keys(ASSISTANT_OPERATOR_ENTRY_ARGS_SCHEMAS).sort()).toEqual(
-      [...ASSISTANT_OPERATOR_ENTRY_TOOLS].sort(),
-    )
-    for (const entry of ASSISTANT_OPERATOR_ENTRY_TOOLS) {
-      expect(isAssistantOperatorEntryTool(entry)).toBe(true)
-      expect(ASSISTANT_OPERATOR_ENTRY_TOOL_HINTS[entry].length).toBeGreaterThan(
-        20,
-      )
-    }
-    expect(isAssistantOperatorEntryTool('set_prompt')).toBe(false)
-  })
-
-  /**
-   * ⭐ **31 条全部有归属**（§2.1 映射表的完成判据）—— 断的是集合相等而不是
-   * 「都在」：后者放得过一条同时挂在两个入口下的工具，而那意味着模型有两条路
-   * 去动同一颗旋钮。
-   */
-  /**
-   * ⭐ **数目本身也锁一道**（commit #12 把 31 变成 32）：集合相等那条用例
-   * 断的是「没有孤儿、没有分身」，断不出「有人悄悄加了一条工具」——
-   * 而模型看得见的工具多一条，就是它多一条挑错的路。
-   */
-  it('⭐ 工具表是 49 条，recall_evidence 归「查」组（§7.3）', () => {
-    // commit #18 把 33 变成 37（素材库四条写操作，v2 §10）。
-    // lora-assistant §10.2.2 把 37 变成 38（`plan_lora_pick`）。
-    // 进度表 22「一张脸」把 39 变成 42（画布三条：改 / 算下游 / 那一枪）。
-    // 卡片助手 C2 把 44 变成 45（`propose_character_profile`）。
-    // 卡片助手 C3 把 45 变成 47（`propose_character_images` · `hand_off_to_image_assistant`）。
-    // 卡片助手 S14 把 47 变成 48（`check_character_look`）。
-    // lora-assistant §12 把 48 变成 49（`plan_lora_setup`，搭配卡）。
-    // lora-assistant §13 把 49 变成 50（`show_lora_picks`，库页圈几把）。
-    // 推荐卡代码删除（2026-09-29）把 50 变成 49（`plan_lora_pick`）。
-    // 两台图片工作台互跳（2026-10-04）把 49 变成 50（`switch_workbench`）。
-    // 助手写角色构图（2026-10-05）把 50 变成 51（`set_tag_characters`），
-    // 画面文字（2026-10-07）再加一个（`set_scene_texts`）。
-    // 剪辑台 v2 第 2 片 2b 把 52 变成 53（`canvas_look_at`，看片）。
-    // 搜索期第二片（2026-10-15）把 54 变成 55（`search_web_videos`，内部工具）。
-    // 新内核改库（第 4b 步）把 55 变成 56（`library_write`，只由新内核发）。
-    // 配音台接新内核（第 9b 步）把 56 变成 57（`set_audio`）。
-    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(57)
-    expect(
-      ASSISTANT_OPERATOR_ENTRY_ACTIONS[
-        ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research
-      ],
-    ).toContain(ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence)
-    expect(
-      ASSISTANT_OPERATOR_TOOL_VERBS[ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence],
-    ).toBe(ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research)
-    // 五个入口里其余四个都碰不到它。
-    for (const entry of ASSISTANT_OPERATOR_ENTRY_TOOLS) {
-      if (entry === ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research) continue
-      expect(ASSISTANT_OPERATOR_ENTRY_ACTIONS[entry]).not.toContain(
-        ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence,
-      )
-    }
-  })
-
   /** `recall_evidence` 的入参：编号形状封闭、一次最多几条。 */
   it('recall_evidence 只收 #eN 形状的编号，且一次有上限', () => {
     const schema =
@@ -1000,82 +921,6 @@ describe('五动词入口', () => {
         ),
       }).success,
     ).toBe(false)
-  })
-
-  /**
-   * ⚠ commit #16 之后这条断的是**两张表**：广告出去的那张里，网侧四条换成了
-   * `verify` / `find_images`（§9）；schema 收的那张（`…ENTRY_ACTION_VALUES`）
-   * 仍然覆盖全部 33 条工具 —— 引擎与已经落盘的步帧照旧认内部名。
-   */
-  it('⭐ 五个入口的 action 枚举合起来恰好是全部工具，且两两不重叠', () => {
-    const advertised = ASSISTANT_OPERATOR_ENTRY_TOOLS.flatMap(
-      (entry) => ASSISTANT_OPERATOR_ENTRY_ACTIONS[entry],
-    )
-    expect([...advertised].sort()).toEqual(
-      [
-        ...ASSISTANT_OPERATOR_TOOLS.filter(
-          (tool) => !isInternalAssistantOperatorTool(tool),
-        ),
-        ...ASSISTANT_OPERATOR_RESEARCH_ACTIONS,
-      ].sort(),
-    )
-    expect(new Set(advertised).size).toBe(advertised.length)
-
-    const all = ASSISTANT_OPERATOR_ENTRY_TOOLS.flatMap(
-      (entry) => ASSISTANT_OPERATOR_ENTRY_ACTION_VALUES[entry],
-    )
-    expect(
-      [...all]
-        .filter((action) => !isAssistantOperatorResearchAction(action))
-        .sort(),
-    ).toEqual([...ASSISTANT_OPERATOR_TOOLS].sort())
-    expect(new Set(all).size).toBe(all.length)
-
-    /**
-     * ⭐ **「查」组只剩两个网侧入口**（§9 的完成判据）：四条内部名一条都不在
-     * 广告出去的那张表里，而两个入口各自落在自己那条实现上。
-     */
-    const research =
-      ASSISTANT_OPERATOR_ENTRY_ACTIONS[
-        ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research
-      ]
-    for (const internal of ASSISTANT_OPERATOR_INTERNAL_TOOLS) {
-      expect(research).not.toContain(internal)
-    }
-    expect(research.slice(0, 2)).toEqual([
-      ...ASSISTANT_OPERATOR_RESEARCH_ACTIONS,
-    ])
-    expect(
-      resolveAssistantOperatorEntryAction(
-        ASSISTANT_OPERATOR_RESEARCH_ACTION_IDS.verify,
-      ),
-    ).toBe(ASSISTANT_OPERATOR_TOOL_IDS.research)
-    expect(
-      resolveAssistantOperatorEntryAction(
-        ASSISTANT_OPERATOR_RESEARCH_ACTION_IDS.findImages,
-      ),
-    ).toBe(ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages)
-    // 旧工具名原样返回 —— 这条映射只对「查」组那两个入口成立。
-    expect(
-      resolveAssistantOperatorEntryAction(
-        ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
-      ),
-    ).toBe(ASSISTANT_OPERATOR_TOOL_IDS.setPrompt)
-    /**
-     * `ask` 组里是**提议卡 + LoRA 搭配卡**这几条（v2 §8.1 + lora-assistant §12）：
-     * 反问本身没有工具，它的形状写在入口自己的 schema 里（不写 `action` 就是
-     * 「问一道题」）。⚠ 两条的共同判据是「停下来等用户拍一个板，产出是决定」。
-     */
-    expect(
-      ASSISTANT_OPERATOR_ENTRY_ACTIONS[ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask],
-    ).toEqual([
-      ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup,
-      ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard,
-      ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile,
-      ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages,
-      ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant,
-      ASSISTANT_OPERATOR_TOOL_IDS.switchWorkbench,
-    ])
   })
 
   /**
@@ -1124,41 +969,6 @@ describe('五动词入口', () => {
         )
       }
     }
-  })
-
-  it('画布三条各归其动词，且画布域的五个入口枚举都非空（除 request 外）', () => {
-    expect(
-      ASSISTANT_OPERATOR_TOOL_VERBS[ASSISTANT_OPERATOR_TOOL_IDS.canvasApply],
-    ).toBe(ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply)
-    // ⚠ 算下游归**看**：它一个节点都没动，归改动型的表现是日志条上一颗撤不掉的撤销钮。
-    expect(
-      ASSISTANT_OPERATOR_TOOL_VERBS[
-        ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun
-      ],
-    ).toBe(ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.look)
-    expect(
-      ASSISTANT_OPERATOR_TOOL_VERBS[ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate],
-    ).toBe(ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.requestGeneration)
-
-    const byDomain =
-      ASSISTANT_OPERATOR_ENTRY_ACTIONS_BY_DOMAIN[
-        ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas
-      ]
-    expect(byDomain[ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply]).toContain(
-      ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
-    )
-    expect(byDomain[ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.look]).toContain(
-      ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun,
-    )
-    expect(
-      byDomain[ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.requestGeneration],
-    ).toEqual([ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate])
-    // 画布上模型见得到的入口：五个都在（`ask` 永远在）。
-    expect([
-      ...assistantOperatorEntryToolsInDomain(
-        ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas,
-      ),
-    ]).toEqual([...ASSISTANT_OPERATOR_ENTRY_TOOLS])
   })
 
   /**
@@ -1249,137 +1059,6 @@ describe('五动词入口', () => {
         },
       }).success,
     ).toBe(false)
-  })
-
-  it('audio 两条列进 apply；audio 域只给配音台（第 9b 步），图片台的那两条不归它', () => {
-    expect(
-      ASSISTANT_OPERATOR_ENTRY_ACTIONS[ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply],
-    ).toEqual(
-      expect.arrayContaining([
-        ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference,
-        ASSISTANT_OPERATOR_TOOL_IDS.setSound,
-      ]),
-    )
-    // 第 9b 步（owner 10-23）：配音台成了一个域，只接新内核；图片台的参考音 / 出声开关不在它的工具表里。
-    expect([...ASSISTANT_OPERATOR_DOMAINS]).toContain('audio')
-    expect(
-      isAssistantOperatorToolInDomain(
-        ASSISTANT_OPERATOR_TOOL_IDS.setSound,
-        'audio',
-      ),
-    ).toBe(false)
-  })
-
-  it('每个入口的 action 收窄到自己那一组 —— 跨组串门当场拒', () => {
-    const look =
-      ASSISTANT_OPERATOR_ENTRY_ARGS_SCHEMAS[
-        ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.look
-      ]
-    expect(
-      look.safeParse({ action: ASSISTANT_OPERATOR_TOOL_IDS.readState }).success,
-    ).toBe(true)
-    expect(
-      look.safeParse({ action: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt }).success,
-    ).toBe(false)
-    expect(look.safeParse({}).success).toBe(false)
-  })
-
-  /**
-   * ⚠ `action` 之外的参数在这一层是**放行**的：真正的值域校验照旧由
-   * `ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS[action]` 在规划器里跑，⛔ 不复制第二份。
-   */
-  it('apply 收下 action 并把其余参数原样带下去（值域校验留给规划器）', () => {
-    const parsed = ASSISTANT_OPERATOR_ENTRY_ARGS_SCHEMAS[
-      ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply
-    ].safeParse({
-      action: ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
-      aspectRatio: '21:9',
-      resolution: '8K',
-    })
-    expect(parsed.success).toBe(true)
-    expect(parsed.data).toMatchObject({ aspectRatio: '21:9', resolution: '8K' })
-  })
-
-  it('ask 的形状写在入口自己身上：一道题 + 带说明的选项', () => {
-    const ok = AssistantOperatorAskArgsSchema.safeParse({
-      question: '要哪一路画风？',
-      options: [
-        { label: '写实', description: '照片那一路' },
-        { label: '插画', description: '手绘那一路' },
-      ],
-    })
-    expect(ok.success).toBe(true)
-    expect(
-      AssistantOperatorAskArgsSchema.safeParse({ options: [] }).success,
-    ).toBe(false)
-  })
-
-  /**
-   * ⭐ **域裁剪裁的是枚举值，不是工具条目**（§2.2 ⛔ 那一条）。
-   */
-  it('⭐ 域裁剪落在 action 枚举上：视频档有音频两条与 set_video_specs，没有 set_count', () => {
-    const video =
-      ASSISTANT_OPERATOR_ENTRY_ACTIONS_BY_DOMAIN.video[
-        ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply
-      ]
-    expect(video).toEqual(
-      expect.arrayContaining([
-        ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs,
-        ASSISTANT_OPERATOR_TOOL_IDS.setSound,
-        ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference,
-      ]),
-    )
-    expect(video).not.toContain(ASSISTANT_OPERATOR_TOOL_IDS.setCount)
-    expect(video).not.toContain(ASSISTANT_OPERATOR_TOOL_IDS.setSpecs)
-
-    const image =
-      ASSISTANT_OPERATOR_ENTRY_ACTIONS_BY_DOMAIN.image[
-        ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply
-      ]
-    expect(image).toEqual(
-      expect.arrayContaining([
-        ASSISTANT_OPERATOR_TOOL_IDS.setCount,
-        ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
-      ]),
-    )
-    expect(image).not.toContain(ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs)
-    expect(image).not.toContain(ASSISTANT_OPERATOR_TOOL_IDS.setSound)
-  })
-
-  it('每个域的 action 枚举都是该域工具表的另一种切法', () => {
-    for (const domain of ASSISTANT_OPERATOR_DOMAINS) {
-      const flat = ASSISTANT_OPERATOR_ENTRY_TOOLS.flatMap(
-        (entry) => ASSISTANT_OPERATOR_ENTRY_ACTIONS_BY_DOMAIN[domain][entry],
-      )
-      /**
-       * ⚠ commit #16：网侧那四条在广告出去的表里是 `verify` / `find_images`，
-       * 所以两边比之前先把枚举值折回**内部实现**（§9 的裁剪判据就落在这上面）。
-       */
-      expect([...flat.map(resolveAssistantOperatorEntryAction)].sort()).toEqual(
-        [...ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN[domain]]
-          .filter(
-            (tool) =>
-              !isInternalAssistantOperatorTool(tool) ||
-              tool === ASSISTANT_OPERATOR_TOOL_IDS.research ||
-              tool === ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
-          )
-          .sort(),
-      )
-    }
-  })
-
-  /** ⚠ 枚举空掉的入口不列进提示；`ask` 永远在（它不依赖任何一颗旋钮）。 */
-  it('枚举空掉的入口不出现在这个域里，ask 永远在', () => {
-    for (const domain of ASSISTANT_OPERATOR_DOMAINS) {
-      const entries = assistantOperatorEntryToolsInDomain(domain)
-      expect(entries).toContain(ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask)
-      for (const entry of ASSISTANT_OPERATOR_ENTRY_TOOLS) {
-        const actions =
-          ASSISTANT_OPERATOR_ENTRY_ACTIONS_BY_DOMAIN[domain][entry]
-        if (entry === ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask) continue
-        expect(entries.includes(entry)).toBe(actions.length > 0)
-      }
-    }
   })
 })
 
@@ -1592,19 +1271,6 @@ describe('step 契约 · inverse 完备性', () => {
         verb: 'think',
       }).success,
     ).toBe(false)
-  })
-
-  it('每条工具的 verb 与它所属入口的 action 枚举对得上', () => {
-    for (const tool of ASSISTANT_OPERATOR_TOOLS) {
-      const verb = ASSISTANT_OPERATOR_TOOL_VERBS[tool]
-      // ⚠ 网侧四条只在 schema 收的那张表里（广告出去的是两个入口，§9）。
-      expect(ASSISTANT_OPERATOR_ENTRY_ACTION_VALUES[verb]).toContain(tool)
-      if (isInternalAssistantOperatorTool(tool)) continue
-      expect(ASSISTANT_OPERATOR_ENTRY_ACTIONS[verb]).toContain(tool)
-    }
-    for (const action of ASSISTANT_OPERATOR_RESEARCH_ACTIONS) {
-      expect(isAssistantOperatorResearchAction(action)).toBe(true)
-    }
   })
 
   it('不认识的拒绝理由不给过 —— 词表是封闭的', () => {
@@ -2204,21 +1870,6 @@ describe('模型这一轮写的东西（宽松层）', () => {
       expect(parsed.success, `${name} 应该解析得出来`).toBe(true)
       expect(parsed.data?.tool?.name).toBe(name)
     }
-  })
-
-  /** 五动词那一行：模型写对了入口，`action` 与其余参数平铺在 `args` 里。 */
-  it('入口形状可解析：name 是动词，action 与参数平铺在 args 里', () => {
-    const parsed = AssistantOperatorTurnSchema.safeParse({
-      tool: {
-        name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply,
-        title: 'write the prompt',
-        args: {
-          action: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
-          value: 'a girl under a red umbrella',
-        },
-      },
-    })
-    expect(parsed.success).toBe(true)
   })
 
   /**

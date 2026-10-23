@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { API_ENDPOINTS } from '@/constants/config'
 import {
-  chatPromptAssistantAPI,
   submit3DAPI,
   submitVideoAPI,
   uploadAudioFileAPI,
@@ -32,23 +31,6 @@ function stubStructuredErrorFetch() {
 }
 
 describe('generation api-client submit errors', () => {
-  it('preserves structured prompt-assistant errors for localized UI copy', async () => {
-    const fetchMock = stubStructuredErrorFetch()
-
-    const result = await chatPromptAssistantAPI({
-      messages: [{ role: 'user', content: 'Improve this prompt' }],
-    })
-
-    expect(result).toEqual({
-      success: false,
-      ...STRUCTURED_ERROR_PAYLOAD,
-    })
-    expect(fetchMock).toHaveBeenCalledWith(
-      API_ENDPOINTS.PROMPT_ASSISTANT,
-      expect.objectContaining({ method: 'POST' }),
-    )
-  })
-
   it('preserves errorCode and i18nKey from video submit HTTP errors', async () => {
     const fetchMock = stubStructuredErrorFetch()
 

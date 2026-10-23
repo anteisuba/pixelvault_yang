@@ -32,7 +32,6 @@ import { createPictureCache } from './assistant-v3-look.service'
 import {
   createClipCache,
   loadClip,
-  pointedClipParts,
   viewClips,
 } from './assistant-v3-watch.service'
 
@@ -104,60 +103,6 @@ beforeEach(() => {
 })
 
 describe('v3 看片 · 被指着的片子怎么摆', () => {
-  it('⭐ 帧逐张标好「clip 「名字」 · frame k/N at t s」，整组摆上来', async () => {
-    const url = 'https://cdn.test/walk.mp4'
-    const views = await viewClips(
-      context(
-        AI_ADAPTER_TYPES.OPENAI,
-        [capturedClip(url, '走路', 6)],
-        ASSISTANT_VIDEO_TIERS.frames,
-      ),
-      [{ url, label: '走路' }],
-    )
-    expect(views[0]).toMatchObject({ kind: 'frames', durationSeconds: 6 })
-    const parts = pointedClipParts(views)
-    expect(parts[0]).toEqual({
-      type: 'text',
-      text: 'CLIPS THE CREATOR POINTED AT (in order): 1 = clip 「走路」 (4 frames sampled across 6 s)',
-    })
-    const labels = parts.flatMap((part) =>
-      part.type === 'text' ? [part.text] : [],
-    )
-    expect(labels.slice(1)).toEqual([
-      'clip 「走路」 · frame 1/4 at 0.8 s',
-      'clip 「走路」 · frame 2/4 at 2.3 s',
-      'clip 「走路」 · frame 3/4 at 3.8 s',
-      'clip 「走路」 · frame 4/4 at 5.3 s',
-    ])
-    expect(parts.filter((part) => part.type === 'image')).toHaveLength(4)
-    // 帧档⛔ 不去下片子本体。
-    expect(fetchAsBuffer).not.toHaveBeenCalled()
-  })
-
-  it('⭐ Gemini（native 档）在内联上限内交片子本体，⛔ 不用帧', async () => {
-    const url = serve('walk')
-    const views = await viewClips(
-      context(
-        AI_ADAPTER_TYPES.GEMINI,
-        [capturedClip(url, '走路', 6)],
-        ASSISTANT_VIDEO_TIERS.native,
-      ),
-      [{ url, label: '走路' }],
-    )
-    expect(views[0]).toMatchObject({
-      kind: 'video',
-      clip: { mediaType: 'video/mp4' },
-    })
-    const parts = pointedClipParts(views)
-    expect(parts[0]).toMatchObject({
-      text: 'CLIPS THE CREATOR POINTED AT (in order): 1 = clip 「走路」 (the clip itself)',
-    })
-    expect(parts).toContainEqual(
-      expect.objectContaining({ type: 'file', mediaType: 'video/mp4' }),
-    )
-    expect(parts.some((part) => part.type === 'image')).toBe(false)
-  })
-
   it('Gemini 片子超过内联上限 → 退回帧', async () => {
     const url = serve(
       'long',
@@ -180,36 +125,6 @@ describe('v3 看片 · 被指着的片子怎么摆', () => {
     )
     expect(views[0]).toMatchObject({ kind: 'frames' })
     expect(views[0]?.kind === 'frames' && views[0].frames).toHaveLength(8)
-  })
-
-  it('Gemini 片子太大、浏览器也没抽成 → 如实写没看成', async () => {
-    const url = serve(
-      'long',
-      'isom',
-      ASSISTANT_V3_CLIP_LIMITS.inlineMaxBytes + 1,
-    )
-    const views = await viewClips(
-      context(
-        AI_ADAPTER_TYPES.GEMINI,
-        [{ sourceUrl: url, label: '长片' }],
-        ASSISTANT_VIDEO_TIERS.native,
-      ),
-      [{ url, label: '长片' }],
-    )
-    expect(views[0]).toEqual({
-      kind: 'none',
-      ref: { url, label: '长片' },
-      tooLarge: true,
-      unloadable: false,
-      frames: 'missing',
-      note: 'too large to watch directly (over 20 MB); its frames could not be sampled in the browser',
-    })
-    expect(pointedClipParts(views)).toEqual([
-      {
-        type: 'text',
-        text: 'CLIPS THE CREATOR POINTED AT (in order): 1 = clip 「长片」 (not shown: too large to watch directly (over 20 MB); its frames could not be sampled in the browser)',
-      },
-    ])
   })
 
   it('⭐ 服务端复算计划：时间戳不对的那组帧⛔ 不摆上去', async () => {

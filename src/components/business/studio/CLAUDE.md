@@ -29,8 +29,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
         │       ├── CompareGrid (image/ — 共享图墙：多模型 / 多张 / 矩阵)
         │       ├── AudioVariantGrid (studio/ — 音频变体，内联播放器)
         │       └── StudioResultFeedback / StudioAudioFeedback（生成失败在 GenerationPreview 里就地说：线停住变灰 + 原因 +「重试」，⛔ 错误对话框，加载态 A）
-        ├── StudioAssistantDock + StudioAssistantFab (studio-shared/chrome/ + studio/ — 旧助手，只剩音频档走它；图片/视频已归 operator)
-        ├── StudioOperatorDock (studio/assistant-operator/ — 操作员面板外壳：宽度/收放；图片+视频档)
+        ├── StudioOperatorDock (studio/assistant-operator/ — 操作员面板外壳：宽度/收放；所有档（第 9c 步起旧 `StudioAssistantDock` / `StudioAssistantFab` / `StudioEnhanceButton` 已删）)
         │   ├── StudioOperatorAvatarToggle (**头像开关**：36px 人设头像 + 数字角标（待确认 + 未读结果，打开面板清零），**右上角**；一个持久 fixed 元素、两个锚点（顶栏 36 ↔ 面板头部槽 22），位移跟着形状左边沿走；图片台桌面（布局 A，锚点 `avatarStays`）头像留在原位不进头部，面板改从右侧滑入、工作台同一根弹簧让位（不走 B 形状）。面板宽 = 视口 × 比例（缺省 0.3，`STUDIO_OPERATOR_PANEL_RESIZE`）。D7b ④；展开形状 = B「先横成一条，再落下」（clip-path，09-26），铁律见 v2 §4.3。⛔ StudioOperatorCollapsedButton · StudioOperatorIconRail · StudioOperatorCollapsedCard · StudioOperatorMobileFab 四个文件都已删)
         │   ├── StudioOperatorMobileSheet (手机 vaul Sheet：**接近满屏 95svh、顶上只留一条窄缝**，往下拖即关；`modal={false}` 不画遮罩也不锁 body —— 装的是下面同一个 Panel 元素。⛔ 半屏 0.55 与 `snapPoints` 整套已删（owner 2026-09-20「半屏高度不够」），软键盘由 `maxHeight` 扣 `--keyboard-inset` 接住)
         │   └── StudioOperatorPanel (同目录 — 面板内容：空态 / 时间线 / 双行输入区)

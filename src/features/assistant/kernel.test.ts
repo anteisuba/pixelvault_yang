@@ -15,12 +15,11 @@ import type { AssistantV3Transcript } from '@/types/assistant-v3'
 
 vi.mock('server-only', () => ({}))
 
-const { plan, closeRound, legacy, recordTurn, soft, models, run, recipe } =
-  vi.hoisted(() => ({
+const { plan, closeRound, recordTurn, soft, models, run, recipe } = vi.hoisted(
+  () => ({
     plan: vi.fn(),
     recipe: vi.fn(),
     closeRound: vi.fn(async () => undefined),
-    legacy: vi.fn(),
     recordTurn: vi.fn(),
     /** 第一步之后再问几次「过软线没有」才算过（`Infinity` = 不过）。 */
     soft: { afterStep: Number.POSITIVE_INFINITY, seen: 0 },
@@ -42,7 +41,8 @@ const { plan, closeRound, legacy, recordTurn, soft, models, run, recipe } =
         referenceUrls: [],
       },
     },
-  }))
+  }),
+)
 
 vi.mock('@/lib/db', () => ({ db: {} }))
 const memoryStore = vi.hoisted(() => ({
@@ -109,7 +109,6 @@ vi.mock('@/services/kernel/assistant-operator.service', () => ({
     }),
   ),
   planTool: plan,
-  runOperatorTurn: legacy,
   closeRoundV3: closeRound,
   closeRoundV3BeforeStop: closeRound,
   runWithOperatorTimeBudget: async function* (
@@ -297,7 +296,6 @@ const editPrompt = {
 beforeEach(() => {
   plan.mockReset()
   closeRound.mockClear()
-  legacy.mockReset()
   recordTurn.mockReset()
   soft.afterStep = Number.POSITIVE_INFINITY
   run.stepSeq = 0

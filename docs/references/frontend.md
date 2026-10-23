@@ -20,9 +20,8 @@ primitive → semantic → domain/component → page
 - 入口：`src/app/globals.css`（全局枢纽，@theme inline + 语义变量 + 组件层，**唯一挂根 `layout.tsx` 的样式表**）+ 域皮肤 `src/app/canvas.css` / `src/app/home-v4.css` / `src/app/legal.css` / `src/app/lora.css` / `src/app/voiceroom.css` / `src/app/auth.css`（域内局部，令牌一律写在域根上**不准写 `:root`**）。
 - **域皮肤只由自己的域入口 import**，不进根 layout：`canvas.css` + `@xyflow/react/dist/style.css` → `src/app/[locale]/(main)/studio/node/layout.tsx`（2026-09-03 从根 layout / `globals.css` 的 `@import` 下沉，此前那 173 KB 皮肤进每一个路由的首屏 CSS）；`home-v4.css` → `HomeV4Shell.tsx`；`lora.css` → `LoraWorkbench.tsx`；`voiceroom.css` → `VoiceRoomPage.tsx`；`legal.css` → `LegalPage.tsx`（`not-found.tsx` 2026-10-08 起走空态模板，不再引 legal.css）。
 - ⚠ **canvas.css 泄漏的那一小部分留在 `globals.css` 脊柱上**（皮肤当年写 `:root` 的代价，2026-09-03 下沉时按真实消费者逐条查证后拆分，别搬回去也别两边各留一份）：
-  - 8 个 `--node-*` 定值（`panel` / `panel-inner` / `panel-soft` / `foreground` / `muted` / `edge` / `focus-ring` / `shadow`）——`studio-shared/editor/ImageEditSurface`、`studio-shared/pickers/CanvasRoutePicker`、`node/CanvasAssistantReferencePicker`（由 `prompts/PromptAssistantPanel` 渲染）在画布路由之外读它们。
-  - `.node-canvas-panel-motion`——`StudioAssistantDock` / `LoraAssistantDock` 两个域外 dock 也挂这个类。
-  - `.canvas-assistant-popover*` 整块——`node/CanvasAssistantHistory` 被 `assistant/StudioAssistantHeaderActions` 渲染进**三个** dock，两个在画布路由外。
+  - 8 个 `--node-*` 定值（`panel` / `panel-inner` / `panel-soft` / `foreground` / `muted` / `edge` / `focus-ring` / `shadow`）——`studio-shared/editor/ImageEditSurface`、`studio-shared/pickers/CanvasRoutePicker`在画布路由之外读它们。
+  - `.node-canvas-panel-motion` 与 `.canvas-assistant-popover*` 整块：域外消费者（旧 `StudioAssistantDock` / `StudioAssistantHeaderActions`）已随第 9c 步（2026-10-23）删掉，可以下沉回 canvas.css，留给全局 UI 统一时一起整理。
   - 其余 `--node-*` / `--canvas-*` / `.domain-canvas *` / `.node-card-*` 等仍住 canvas.css；`@theme inline` 的 `--color-node-*` 映射照旧留在 `globals.css`（Tailwind 编译入口只有一个）。
 - 首页域皮肤 2026-08-28 从 `home-v3.css` 换成 `home-v4.css`（`.home-v4` 翻页站），v3 的皮肤 + 20 个 `HomeV3*` 组件 + `constants/home-v3.ts` 已整体删除。此前 2026-07-27 曾从 `homepage.css`（`.homepage-*`）换到 v3。
 - 运行时默认 `.dark`（根 html className）。⚠ `.dark` 只换色 token 不设 color-scheme——暗面组件需显式 `color-scheme: dark`。
@@ -100,7 +99,7 @@ primitive → semantic → domain/component → page
 
 ### Studio 共享 chrome（`studio-shared/chrome`）
 
-StudioBottomDock · StudioCanvas · **StudioResizableLayout（导出 `StudioFlowLayout`；Studio 垂直间距唯一负责人）** · **StudioWorkbenchLayout** · StudioAssistantDock · StudioCommandPalette · StudioLightbox · StudioErrorBoundary；教程载体 XiaoheiGuideCarousel。
+StudioBottomDock · StudioCanvas · **StudioResizableLayout（导出 `StudioFlowLayout`；Studio 垂直间距唯一负责人）** · **StudioWorkbenchLayout** · StudioCommandPalette · StudioLightbox · StudioErrorBoundary；教程载体 XiaoheiGuideCarousel。
 
 ⚠ **两套外壳并列，不是替代**（2026-08-18）：
 
@@ -111,7 +110,7 @@ StudioBottomDock · StudioCanvas · **StudioResizableLayout（导出 `StudioFlow
 
 分工沿用画布 07-31 那条已验证的分界线：**参数回答「下一版长什么样」，动作回答「我现在要做什么」**——参数栏只放参数，结果区上方不再有横带，每张图自己报状态。
 
-助手（`StudioAssistantDock`）对两套外壳都无感知：它本来就是 `fixed top-4 right-4 bottom-4` 的浮层，开合只改自身宽度，**覆盖不挤压**。桌面入口是右上角的 `StudioAssistantFab`；小屏 dock 是 `lg:flex` 不出现，入口留在参数栏那颗 `StudioEnhanceButton`（抽屉宿主长在它里面，**别顺手删**）。
+助手（`StudioOperatorDock`，所有台同一个）对两套外壳都无感知：浮层，开合只改自身宽度，**覆盖不挤压**。旧的 `StudioAssistantDock` / `StudioAssistantFab` / `StudioEnhanceButton` 已随第 9c 步（2026-10-23）删掉。
 
 ### 画布域（`business/node/`）要点
 

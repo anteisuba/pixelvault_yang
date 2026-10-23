@@ -194,7 +194,7 @@ export type ResearchConclusion = z.infer<typeof ResearchConclusionSchema>
 
 // ─── 规划器产出 ─────────────────────────────────────────────────
 
-export const ResearchQuerySchema = z.object({
+const ResearchQuerySchema = z.object({
   text: z.string().trim().min(1).max(RESEARCH_LIMITS.maxQueryLength),
   /** 这条查询喂给哪个源；不填 = 喂给源组里的所有源。 */
   sourceId: ResearchSourceIdSchema.optional(),
@@ -264,7 +264,7 @@ export type { ResearchRunStatus } from '@/constants/research'
  * ⚠ 证据本体**不**进这里，也不进 `AssistantConversation.messages`（§3.6 验收）：
  * 消息里只存 `researchRunId`，要看证据从 `ResearchRun` 水合。
  */
-export const ResearchReceiptSchema = z.object({
+const ResearchReceiptSchema = z.object({
   runId: z.string().trim().min(1).max(120).nullable(),
   grounded: z.boolean(),
   status: ResearchRunStatusSchema,

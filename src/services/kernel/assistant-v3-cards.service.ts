@@ -1,6 +1,4 @@
 import 'server-only'
-
-import { tool } from 'ai'
 import { z } from 'zod'
 
 import {
@@ -9,15 +7,11 @@ import {
   ASSISTANT_OPERATOR_TOOL_IDS as TOOL,
 } from '@/constants/assistant-operator'
 import {
-  ASSISTANT_V3_ASK_TOOL_DESCRIPTION,
   ASSISTANT_V3_CARDS_EDIT_OP_IDS,
   ASSISTANT_V3_CARDS_ITEM_IDS,
   ASSISTANT_V3_LIMITS,
-  ASSISTANT_V3_READ_SOURCE_NOTE,
   ASSISTANT_V3_TOOL_IDS,
   ASSISTANT_V3_WEB_IMAGES_SEARCH_KIND,
-  ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION,
-  ASSISTANT_V3_MEMORIES_KIND_DESCRIPTION,
   ASSISTANT_V3_MEMORIES_SEARCH_KIND,
   ASSISTANT_V3_WEB_VIDEOS_SEARCH_KIND,
 } from '@/constants/assistant-v3'
@@ -26,12 +20,10 @@ import {
   renderAssistantV3CardsItem,
 } from '@/lib/assistant-v3-cards-board'
 import {
-  AssistantV3AskInputSchema,
   AssistantV3CardsEditInputSchema,
   AssistantV3CardsLookInputSchema,
   AssistantV3CardsReadInputSchema,
   AssistantV3ImageSearchLibraryInputSchema,
-  AssistantV3SearchWebInputSchema,
   type AssistantV3CardsEditOpInput,
 } from '@/types/assistant-v3'
 import type { AssistantOperatorEvent } from '@/types/assistant-operator'
@@ -57,50 +49,6 @@ import {
   type V3Context,
   type V3Outcome,
 } from '@/services/kernel/assistant-v3-steps.service'
-
-/**
- * v3 的角色页（S6 第三张脸）：工具名与别的脸同一套，但这里**不改任何东西** ——
- * 三种 edit 都是提议（设定 / 挑图 / 交给图片助手），出卡、停下，收不收由创作者勾。
- * ⚠ 没有 write / generate：角色页没有提示词，也不出图。
- */
-
-export function assistantV3CardsTools(strict: boolean) {
-  return {
-    [ASSISTANT_V3_TOOL_IDS.read]: tool({
-      description: `Read in full: a profile part of the open character ("look", "identity", "behavior", "speech", "backstory", "tags"), or a web page by its URL (a wiki character page, its story or voice-lines page). ${ASSISTANT_V3_READ_SOURCE_NOTE}`,
-      inputSchema: AssistantV3CardsReadInputSchema,
-      strict,
-    }),
-    [ASSISTANT_V3_TOOL_IDS.look]: tool({
-      description:
-        '"card" (or "card-N"): the open character\'s pictures, to check them against their profile when the creator asks. Or a picture attached to the message, by its name. With one specific question.',
-      inputSchema: AssistantV3CardsLookInputSchema,
-      strict,
-    }),
-    [ASSISTANT_V3_TOOL_IDS.edit]: tool({
-      description:
-        'Put a proposal in front of the creator: profile fields, pictures to attach, or a hand-off to the image assistant. Each ends the turn on its card; the creator ticks what goes in.',
-      inputSchema: AssistantV3CardsEditInputSchema,
-      strict,
-    }),
-    [ASSISTANT_V3_TOOL_IDS.searchWeb]: tool({
-      description:
-        'Look something up on the web: a work, a character, their story and way of speaking. Give a goal and the names it turns on.',
-      inputSchema: AssistantV3SearchWebInputSchema,
-      strict,
-    }),
-    [ASSISTANT_V3_TOOL_IDS.searchLibrary]: tool({
-      description: `kind "image": the creator's own pictures (results carry asset ids for propose_images). kind "web_images": pictures on the web, shown to the creator as numbered cards (results are one line per picture, "#n · title · site · size · usable as reference / view only"; propose by that number). ${ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION} ${ASSISTANT_V3_MEMORIES_KIND_DESCRIPTION}`,
-      inputSchema: AssistantV3ImageSearchLibraryInputSchema,
-      strict,
-    }),
-    [ASSISTANT_V3_TOOL_IDS.ask]: tool({
-      description: ASSISTANT_V3_ASK_TOOL_DESCRIPTION,
-      inputSchema: AssistantV3AskInputSchema,
-      strict,
-    }),
-  }
-}
 
 type ImagePick =
   | { assetId: string; reason: string }

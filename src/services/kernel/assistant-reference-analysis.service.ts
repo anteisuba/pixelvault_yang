@@ -1,6 +1,4 @@
 import 'server-only'
-
-import sharp from 'sharp'
 import { z } from 'zod'
 
 import {
@@ -14,7 +12,6 @@ import {
 } from '@/types/assistant-reference-analysis'
 import { logger } from '@/lib/logger'
 import type { ReferenceProfileStore } from '@/services/kernel/assistant-reference-profile-cache.service'
-import { safeFetch } from '@/lib/url-guard'
 
 export class ReferenceAnalysisValidationError extends Error {
   constructor(
@@ -105,50 +102,7 @@ export interface ReferenceDimensions {
   width: number
   height: number
 }
-
-const REFERENCE_DIMENSION_CACHE_LIMIT = 512
-const REFERENCE_DIMENSION_TIMEOUT_MS = 8_000
 const referenceDimensionCache = new Map<string, ReferenceDimensions>()
-
-/**
- * 参考图的像素尺寸（「看懂」的另一半）。⭐ 改图时出图比例要跟原图走，而助手此前
- * 只拿到一串 URL —— 三视图这类横幅图被默认的 1:1 裁成方图（2026-09-24 真机）。
- * 同一 URL 的尺寸不会变，进程内按 URL 记住；取不到就不写，⛔ 不猜一个。
- */
-export async function probeReferenceDimensions(
-  urls: readonly (string | null)[],
-  signal?: AbortSignal,
-): Promise<void> {
-  signal?.throwIfAborted()
-  await Promise.all(
-    urls.map(async (url) => {
-      if (!url || referenceDimensionCache.has(url)) return
-      try {
-        signal?.throwIfAborted()
-        const timeout = AbortSignal.timeout(REFERENCE_DIMENSION_TIMEOUT_MS)
-        const response = await safeFetch(url, {
-          signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
-        })
-        if (!response.ok) return
-        const { width, height } = await sharp(
-          Buffer.from(await response.arrayBuffer()),
-        ).metadata()
-        signal?.throwIfAborted()
-        if (!width || !height) return
-        if (referenceDimensionCache.size >= REFERENCE_DIMENSION_CACHE_LIMIT)
-          referenceDimensionCache.delete(
-            referenceDimensionCache.keys().next().value!,
-          )
-        referenceDimensionCache.set(url, { width, height })
-      } catch (error) {
-        signal?.throwIfAborted()
-        logger.warn('assistant reference dimension probe failed', {
-          error: error instanceof Error ? error.message : String(error),
-        })
-      }
-    }),
-  )
-}
 
 export function readReferenceDimensions(
   url: string | null,

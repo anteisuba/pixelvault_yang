@@ -35,14 +35,6 @@ export const ASSISTANT_V3_FACE_IDS = {
 export type AssistantV3Face =
   (typeof ASSISTANT_V3_FACE_IDS)[keyof typeof ASSISTANT_V3_FACE_IDS]
 
-export const ASSISTANT_V3_FACES: readonly string[] = [
-  ASSISTANT_V3_FACE_IDS.canvas,
-  ASSISTANT_V3_FACE_IDS.lora,
-  ASSISTANT_V3_FACE_IDS.image,
-  ASSISTANT_V3_FACE_IDS.cards,
-  ASSISTANT_V3_FACE_IDS.video,
-]
-
 /** 改动随步落、当场就有结果的那几张脸（一张表单）；画布要前端落完再接力。 */
 export const ASSISTANT_V3_BENCH_FACES: readonly string[] = [
   ASSISTANT_V3_FACE_IDS.lora,
@@ -82,24 +74,6 @@ export const ASSISTANT_V3_TOOLS = [
 ] as const
 
 export type AssistantV3Tool = (typeof ASSISTANT_V3_TOOLS)[number]
-
-/**
- * `ask` 的工具描述 —— 五张脸**同一句**（2026-10-14 反问卡多选）。
- * ⚠ 从前四份工具表各抄一句，且一字没提多选：OpenAI 严格模式下 `multiSelect` 必填，
- *   模型只能猜，于是永远填 `false`。何时多选的细则在系统提示的 ASKING 段。
- */
-/**
- * `hand_off`（P6 台间交接）：两张脸各一句。⚠ 只在创作者要换地方接着做时用 —— 「拿到画布上」
- * 「回工作台改」；能在这一台做完的事 ⛔ 不交。
- */
-export const ASSISTANT_V3_BENCH_HAND_OFF_DESCRIPTION =
-  'Move this work onto a canvas when the creator wants to carry on there ("put it on the canvas", "continue on the board"). Puts a card in front of them where they pick the canvas project; on press their prompt, model, references and latest picture become a card on that canvas, and your next line waits in the canvas assistant\'s input box. Nothing is generated or spent.'
-
-export const ASSISTANT_V3_CANVAS_HAND_OFF_DESCRIPTION =
-  'Move one image card to the image workbench when the creator wants to carry on there ("take this to the workbench"). Puts a confirm card in front of them; on press the card\'s prompt, model and references fill the workbench (natural or tag bench by the model), and your next line waits in that assistant\'s input box. Nothing is generated or spent.'
-
-export const ASSISTANT_V3_ASK_TOOL_DESCRIPTION =
-  'Ask the creator when you cannot go on without their choice. Every option needs a one-line description of what it means. Set multiSelect when several options can apply together; give image a picture handle when the choice is between pictures.'
 
 import { NODE_V4_SUBTYPES_BY_KIND } from '@/constants/node-types'
 
@@ -243,29 +217,10 @@ export const ASSISTANT_V3_WEB_IMAGES_SEARCH_KIND = 'web_images'
 export const ASSISTANT_V3_WEB_VIDEOS_SEARCH_KIND = 'web_videos'
 
 /**
- * `search_library` 联网那两种在工具描述里的那一句 —— 每张脸同一句（搜索期第二片），
- * ⛔ 别在四份工具表里各写一份（`ask` 那条的教训：抄四份，四份各漏一样）。
- * ⚠ 找图的「后半句」各脸不同（工作台点「选用」/ 角色页拿去 propose_images），由各脸自己接。
- */
-export const ASSISTANT_V3_WEB_IMAGES_KIND_DESCRIPTION =
-  'kind "web_images": find pictures on the web — they appear under your reply as numbered cards and the creator picks which to use; you get one line per picture (#n · title · site · size · usable as reference / view only).'
-export const ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION =
-  'kind "web_videos": find videos on the web (YouTube, bilibili, niconico, Vimeo…) — a trailer, a PV, a tutorial, a dance or motion reference. They appear as numbered cards under your reply and the creator can play them there; you get one line per video (#n · title · channel · platform · length) and have not watched any of them. Not for facts — use search_web for those.'
-
-/**
  * `search_library` 翻记忆（P3 读取）：每轮只有最近记下 / 改过的那几条在系统提示里，剩下的靠它翻。
  * 每张脸都有，工具描述里同一句（⛔ 四份各写一份）。
  */
 export const ASSISTANT_V3_MEMORIES_SEARCH_KIND = 'memories'
-export const ASSISTANT_V3_MEMORIES_KIND_DESCRIPTION =
-  'kind "memories": look through what you remember about the creator beyond the few lines already in your instructions (query = a few words, or empty for the newest).'
-
-/**
- * 每张脸的 `read` 都收 `"[n]"`（搜索期第三片）：查证的那一大段摘录只给紧跟着的那一步，再往后
- * 只剩一行一条 —— 要全文就按资料号再读一遍那一页（服务端换回地址，⛔ 模型不写地址）。
- */
-export const ASSISTANT_V3_READ_SOURCE_NOTE =
-  'Also "[n]": a source from this turn\'s search_web, to read its page in full again.'
 
 /**
  * 画布 `read` 的一项 `"guide:<型号 id>"`：那个型号的整份提示词写法（P2 第二片「提示词瘦身」）。
@@ -407,38 +362,6 @@ export const ASSISTANT_V3_LIMITS = {
   maxResultCardTextChars: 1_200,
   /** 英文台词每秒大约说得完几个词（出片前核对台词塞不塞得进这一段）。 */
   dialogueWordsPerSecond: 2.5,
-} as const
-
-/**
- * 本轮记录瘦身（P2 第二片，设计方案 §2.3）。一轮之内，查来的东西（`read` 的卡与网页全文、`look`、
- * `search_web`、`search_library` 的清单）只有**最近 `keepFullResults` 条**原样发，更早的换成几行
- * 摘要 —— 留着句柄、`[n]`、`#n`，要细节再调一次同一个工具。
- * - ⚠ `slimAboveChars`：本轮记录**原样**（模型的话 + 调用入参 + 结果全文）过了这么多字才开始按
- *   「最近几条」瘦；没过一字不动。瘦掉一条 = 缓存前缀从那一条起断一次，那条之后的东西整段重算；
- *   省下的那几个字往后每步只按缓存价（约一折）计。回放实测（L01：四张约 1.1k 字的卡逐张读）：
- *   照字面每步都瘦，整轮少发 907 字，要重算的字反倒多 2,962（+8%）。所以只在长轮次里瘦 —— 与
- *   Claude 自家 context editing 同一个思路（默认也是留最近 3 次，过了触发线才清）。⚠ 这是我的
- *   取舍（P2），不是 owner 定的；设成 0 就回到照字面每步都瘦。原样只增不减（记录只往后接），
- *   过了线就一直瘦，不会来回翻。
- * - `slimMinChars`：原样不到这么长的不瘦；摘要不到原样一半的也不换（瘦了省不下几个字，还白白
- *   断一次缓存前缀）。
- * - 摘要 = 一行说明 + 第一行 + 条目行（以句柄 / `#n` / `[n]` 开头的顶格行，前 `slimLines` 行，每行
- *   截到 `slimLineChars`）+ 其余地方出现的句柄 / 编号（最多 `slimRefs` 个）。
- * - 整份写法（`ASSISTANT_V3_GUIDE_HEADING`）不按「最近几条」瘦：写词时要它在眼前。
- * - 超过 `ASSISTANT_V3_LIMITS.maxTranscriptChars` 时的次序（与 `slimAboveChars` 无关；每级都在
- *   上一级之上，够了就停）：① 最后一条 assistant 之前的查来的东西全瘦 → ② 最后一条 assistant 之前
- *   的所有结果全瘦（含写法、改动回执）→ ③ 更早的 assistant 正文截到 `clippedAssistantChars` →
- *   ④ 最后一条 assistant 之后的结果（模型刚要的，最后才动）平分剩下的字数、截短。调用入参一个字
- *   不动（截了不是合法 JSON）。
- */
-export const ASSISTANT_V3_TRANSCRIPT_SLIM = {
-  slimAboveChars: 60_000,
-  keepFullResults: 3,
-  slimMinChars: 800,
-  slimLines: 8,
-  slimLineChars: 120,
-  slimRefs: 24,
-  clippedAssistantChars: 400,
 } as const
 
 /**
@@ -594,39 +517,3 @@ export const ASSISTANT_V3_CLIP_LIMITS = {
   frameMaxEdgePixels: 768,
   inlineMaxBytes: ASSISTANT_MEDIA_LIMITS.geminiInlineMaxBytes,
 } as const
-
-/**
- * 新内核单次模型调用的超时（`assistant-v3.service.ts`）。
- *
- * ⭐ 从前主调用只有 270 秒硬线：模型卡住时用户干等约 4.5 分钟才看到「提供商超时」。
- * - `firstChunkMs`：发出请求后多久一个分片都没回（含思考分片）就放弃这一次；
- * - `chunkMs`：两个分片之间最长的静默；
- * - `stepMs`：这一次调用的总时长。
- * 超时会原样重试一次（`retries`），第二次还超时才报错。⚠ 两次加起来要留在硬线内。
- */
-export const ASSISTANT_V3_CALL_TIMEOUT = {
-  firstChunkMs: 60_000,
-  chunkMs: 60_000,
-  stepMs: 120_000,
-  retries: 1,
-} as const
-
-/**
- * 五张脸默认走 v3（S6，owner 2026-10-09）。前端本地开关写 `v2` 时照走旧内核 ——
- * 只为对比，删旧内核时一起删。⚠ **只有 owner 认**（服务端 `isAdmin`，owner 2026-10-15）：
- * 别人的浏览器里写了 `v2`，服务端照走 v3。
- * ⚠ `v3` 还收着：开关切换前打开的页面仍会发它。
- * ⭐ `next` = 重设计的新内核（`src/features/assistant/`，第 2 步起）：同样只有 owner 认，
- *   先只接图片台与 LoRA 台；别的台、别人照走 v3。第 8 步评测不差就一次切换。
- */
-export const ASSISTANT_KERNEL_STORAGE_KEY = 'antei:assistant-kernel'
-export const ASSISTANT_KERNEL_IDS = {
-  v2: 'v2',
-  v3: 'v3',
-  next: 'next',
-} as const
-export const ASSISTANT_KERNELS = [
-  ASSISTANT_KERNEL_IDS.v2,
-  ASSISTANT_KERNEL_IDS.v3,
-  ASSISTANT_KERNEL_IDS.next,
-] as const

@@ -6,10 +6,7 @@ import {
   analyzeOperatorReferences,
   buildOperatorReferenceBrief,
   hasCompleteReferenceVisualEvidence,
-  probeReferenceDimensions,
-  readReferenceDimensions,
 } from './assistant-reference-analysis.service'
-import * as urlGuard from '@/lib/url-guard'
 import {
   ReferenceBriefSchema,
   type ReferenceVisualProfile,
@@ -104,53 +101,6 @@ function visionByUrl(
     })
   })
 }
-
-describe('reference dimension cancellation', () => {
-  it('does not fetch dimensions for a pre-cancelled run', async () => {
-    const controller = new AbortController()
-    const reason = new DOMException('stopped', 'AbortError')
-    controller.abort(reason)
-    const fetch = vi.spyOn(urlGuard, 'safeFetch')
-    try {
-      await expect(
-        probeReferenceDimensions(
-          ['https://cdn.test/cancel-before.png'],
-          controller.signal,
-        ),
-      ).rejects.toBe(reason)
-      expect(fetch).not.toHaveBeenCalled()
-    } finally {
-      fetch.mockRestore()
-    }
-  })
-
-  it('cancels a pending dimension request and does not cache it', async () => {
-    const controller = new AbortController()
-    const reason = new DOMException('stopped', 'AbortError')
-    const url = 'https://cdn.test/cancel-during.png'
-    const fetch = vi
-      .spyOn(urlGuard, 'safeFetch')
-      .mockImplementationOnce(async (_url, options) => {
-        const signal = options?.signal
-        expect(signal).toBeDefined()
-        return new Promise((_resolve, reject) => {
-          signal?.addEventListener('abort', () => reject(signal?.reason), {
-            once: true,
-          })
-          controller.abort(reason)
-        })
-      })
-    try {
-      await expect(
-        probeReferenceDimensions([url], controller.signal),
-      ).rejects.toBe(reason)
-      expect(readReferenceDimensions(url)).toBeUndefined()
-      expect(fetch).toHaveBeenCalledTimes(1)
-    } finally {
-      fetch.mockRestore()
-    }
-  })
-})
 
 describe('reference analysis', () => {
   it('sends provider schemas every structured-output provider accepts', async () => {

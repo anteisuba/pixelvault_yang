@@ -306,7 +306,7 @@ export async function getAssistantPersona(
 
 /**
  * **助手这一轮按谁说话** —— 吃的是库里的 user.id（工具环那一侧已经 `ensureUser`
- * 过一次了，`runAssistantOperator` 的第一行），⛔ 别为了统一签名再查一次用户。
+ * 过一次了，`prepareOperatorTurn` 开头），⛔ 别为了统一签名再查一次用户。
  *
  * ⭐ 与设置里读的那一份差两件事：
  *  ① **语气跟着角色走、而角色写了说话方式**时，把那段说话方式换进

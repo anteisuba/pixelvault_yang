@@ -12,8 +12,6 @@ import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
 import { STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR } from '@/constants/studio-assistant-operator'
 import { landRecipeInComposer } from '@/lib/studio-workbench-motion'
 import {
-  StudioAssistantDock,
-  StudioAssistantFab,
   StudioCanvas,
   StudioWorkbenchLayout,
   StudioPromptArea,
@@ -48,7 +46,6 @@ import { useStudioTemplateApply } from '@/hooks/use-studio-template-apply'
 import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
 import { useStudioWorkbenchOperatorHost } from '@/hooks/use-studio-workbench-operator-host'
 import { useStudioAudioOperatorHost } from '@/hooks/use-studio-audio-operator-host'
-import { useNextAssistantKernel } from '@/hooks/use-next-assistant-kernel'
 import { useStudioReplayFromUrl } from '@/hooks/use-studio-replay-from-url'
 import { useStudioDraft, type StudioDraft } from '@/hooks/use-studio-draft'
 import { takeCanvasToBenchHandoff } from '@/lib/bench-canvas-handoff'
@@ -95,25 +92,8 @@ export function StudioWorkspaceUI() {
   const [editSessionId, setEditSessionId] = useState(0)
   const [editRunning, setEditRunning] = useState(false)
   const isEditing = state.outputType === 'image' && editOpen
-  /**
-   * 操作员面板服务**图片与视频**两档（P4-A，拍板 8：一个助手跨域，域是头部一枚
-   * chip；切域换工具、不断会话）。
-   *
-   * ⛔ **音频档有意不挂**（owner 2026-08-31 拍板「P4 的声音那边不用管」）：
-   * 配音间已经是一套独立的对话式界面，再叠一个操作员就是同一件事两个入口。
-   * 所以这里是白名单而不是 `!== 'audio'` —— 将来多一个模态时，默认不给它助手
-   * 比默认给它一个拧不动任何旋钮的助手安全（拍板 19）。
-   */
-  /**
-   * 配音台（第 9b 步，owner 10-23）：本地开关选了新内核才挂新面板，别人照旧是老的提示词助手；
-   * 第 9c 步切给所有人时这道开关拿掉。
-   */
-  const nextAssistantKernel = useNextAssistantKernel()
-  const isAudioOperator = state.outputType === 'audio' && nextAssistantKernel
-  const isOperatorSurface =
-    state.outputType === 'image' ||
-    state.outputType === 'video' ||
-    isAudioOperator
+  /** 配音台（第 9b 步）用自己的宿主：快照与落笔是配音那一块，⛔ 不借图片 / 视频的表单宿主。 */
+  const isAudioOperator = state.outputType === 'audio'
   /**
    * 操作员在**工作台**这个宿主上的那一份（P4-C）。面板的外壳（`StudioOperatorDock`）
    * 与撤销链从 P4-C 起都读它，因此那颗外壳变成了页面无关的东西 —— 同一个 Dock
@@ -481,8 +461,6 @@ export function StudioWorkspaceUI() {
      * ⚠ 必须包住 `StudioPromptArea`（参数栏里的归属标记 ✦ 与就地确认条走的是
      * 同一份上下文）和 `StudioOperatorDock` 两者 —— 只包 dock 的话，✦ 那一侧会在
      * 运行时抛「must be used within provider」。
-     * ⚠ 音频档也照包：`useStudioWorkbenchOperatorHost` 是纯读，包了不渲染面板
-     * 什么都不会发生；按 `isOperatorSurface` 条件包反而会让 hook 有条件地调。
      */
     <StudioOperatorHostProvider host={operatorHost}>
       <a
@@ -659,21 +637,8 @@ export function StudioWorkspaceUI() {
             )}
           </StudioImageEditWorkspace>
         </motion.div>
-        {/* 助手 —— **图片工作台整体切到操作员面板**。它自带三态：展开的
-            覆盖层 + 收起的胶囊，所以图片档不再挂 `StudioAssistantFab`（那颗浮标
-            是旧面板的入口，两个同时在等于右上角摆两个助手）。
-            ⚠ 视频 / 音频仍走旧面板：把统一底盘扩到这两档是后续切片，那之前两套并存。
-            ⛔ 不加 feature flag —— 本仓 flag 文化已死（只有 comfyRunner 活着）。 */}
-        {isOperatorSurface ? (
-          <StudioOperatorDock />
-        ) : (
-          <>
-            <StudioAssistantDock />
-            {/* 右上角助手浮标 —— 小屏没有它，抽屉宿主长在参数栏那颗「助手」丸里
-                （`lg:hidden`），两者不重复。 */}
-            <StudioAssistantFab />
-          </>
-        )}
+        {/* 助手：三档（图片 / 视频 / 配音）都是同一个操作员面板（第 9c 步切给所有人）。 */}
+        <StudioOperatorDock />
       </div>
 
       {/* 工具面板 —— 原来挂在 `StudioBottomDock` 上，dock 一退役就必须改挂

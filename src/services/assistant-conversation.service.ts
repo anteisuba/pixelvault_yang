@@ -13,7 +13,6 @@ import {
 import { db } from '@/lib/db'
 import { ApiRequestError } from '@/lib/errors'
 import { ensureUser } from '@/services/user.service'
-import type { AssistantWorkspace } from '@/types/assistant-workspace'
 import { ASSISTANT_ROUND_SUMMARY_LIMITS } from '@/constants/assistant-operator'
 import { CARD_EXTENSIONS } from '@/constants/cards/character-card'
 import { logger } from '@/lib/logger'
@@ -26,7 +25,7 @@ import {
   type AssistantConversationRecord,
   type AssistantConversationSummary,
   type AssistantConversationShare,
-  ASSISTANT_SURFACE_IDS,
+  ASSISTANT_STAMPED_WORKSPACE_BY_SURFACE,
   type AssistantSurfaceId,
   type SharedAssistantConversationRecord,
   type ListAssistantConversationsQuery,
@@ -78,9 +77,9 @@ export async function assertAssistantWorkspaceAccess(
 /**
  * 这个工作区在 `AssistantConversation` 上怎么圈一行（原生 SQL 片段）。
  *
- * ⭐ 不靠专门的列：`surface` + `projectId` 就能圈出视频 / LoRA / 角色页 / 画布；图片
- * 工作台再加一道首条消息上的戳：标签台只圈戳着 `image-tags` 的，其余（含没有戳的旧
- * 会话）都归自然语言台 —— 判据与 `assistantWorkspaceKeyOfRow` 逐字同源。
+ * ⭐ 不靠专门的列：`surface` + `projectId` 就能圈出 LoRA / 角色页 / 画布；图片槽与视频槽
+ * 再加一道首条消息上的戳：标签台 / 配音台只圈戳着自己的，其余（含没有戳的旧会话）都归
+ * 这一槽本来那一台 —— 判据与 `assistantWorkspaceKeyOfRow` 逐字同源。
  */
 function conversationScopeSql(workspace: {
   workspaceKey: string
@@ -88,12 +87,12 @@ function conversationScopeSql(workspace: {
   projectId: string | null
 }): Prisma.Sql {
   const base = Prisma.sql`"surface" = ${workspace.surface}::"AssistantSurface" AND "projectId" IS NOT DISTINCT FROM ${workspace.projectId}`
-  if (workspace.surface !== ASSISTANT_SURFACE_IDS.imageStudio) return base
+  const stamped = ASSISTANT_STAMPED_WORKSPACE_BY_SURFACE[workspace.surface]
+  if (!stamped) return base
   const stamp = Prisma.sql`("messages"->0->>'workspaceKey')`
-  const tags: AssistantWorkspace = 'image-tags'
-  return workspace.workspaceKey === tags
-    ? Prisma.sql`${base} AND ${stamp} = ${tags}`
-    : Prisma.sql`${base} AND ${stamp} IS DISTINCT FROM ${tags}`
+  return workspace.workspaceKey === stamped
+    ? Prisma.sql`${base} AND ${stamp} = ${stamped}`
+    : Prisma.sql`${base} AND ${stamp} IS DISTINCT FROM ${stamped}`
 }
 
 /** 归他、且在这个工作区里的那一行的 id；`lock` 时顺手锁行（结账那条事务用）。 */
@@ -225,7 +224,7 @@ function sanitizeRounds(rounds: unknown): AssistantConversationRoundStored[] {
 }
 
 /**
- * 保存时把工作区盖在首条消息上（只图片台需要，见 `conversationScopeSql`）。
+ * 保存时把工作区盖在首条消息上（只图片槽与视频槽需要，见 `conversationScopeSql`）。
  * ⚠ 盖在**截断之后**的首条上：会话超长被从头截掉时，戳跟着新的首条走；其余消息
  * 一律不带，⛔ 不让这个标记在每条消息上各存一份。
  */
@@ -233,7 +232,8 @@ function stampWorkspace(
   messages: AssistantConversationMessageStored[],
   workspace: { workspaceKey: string; surface: AssistantSurfaceId },
 ): AssistantConversationMessageStored[] {
-  if (workspace.surface !== ASSISTANT_SURFACE_IDS.imageStudio) return messages
+  if (!ASSISTANT_STAMPED_WORKSPACE_BY_SURFACE[workspace.surface])
+    return messages
   return messages.map((message, index) => {
     const { workspaceKey: _previous, ...rest } = message
     void _previous

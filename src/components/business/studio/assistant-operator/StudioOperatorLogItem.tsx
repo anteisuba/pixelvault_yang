@@ -54,6 +54,7 @@ import {
   CheckCheck,
   Unplug,
   Volume2,
+  AudioLines,
   Waypoints,
   type LucideIcon,
   Users,
@@ -135,6 +136,8 @@ export const OPERATOR_TOOL_ICONS: Record<AssistantOperatorTool, LucideIcon> = {
   /** 挂音色 —— 与 🖼 参考图分开：两个槽，用户一眼要看得出这一条动的是声音。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference]: Music2,
   [ASSISTANT_OPERATOR_TOOL_IDS.setSound]: Volume2,
+  /** 配音台那一块（第 9b 步）。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.setAudio]: AudioLines,
   [ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate]: CircleDollarSign,
   /**
    * 请求发送（§6 花钱档）—— 与 `prime_generate` **共用 💲**：两条说的是同一件事

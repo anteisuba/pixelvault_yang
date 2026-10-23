@@ -25,7 +25,7 @@ export type AssistantNextTool =
 
 /**
  * 新内核接哪几台（只给 owner）。第 2 步先接图片台、LoRA 台；第 4 步（10-23）接视频台、角色页；
- * 第 9a 步（10-23）接画布。配音台第 9b 步接（owner 10-23）。
+ * 第 9a 步（10-23）接画布，第 9b 步（10-23）接配音台。
  */
 export const ASSISTANT_NEXT_DOMAINS: readonly string[] = [
   'image',
@@ -33,6 +33,7 @@ export const ASSISTANT_NEXT_DOMAINS: readonly string[] = [
   'video',
   'cards',
   'canvas',
+  'audio',
 ]
 
 /** `edit` 一条改动改的是哪一格。一个工具，按台换可用的改法（台上没有的那一格回一句说明）。 */
@@ -74,6 +75,16 @@ export const ASSISTANT_NEXT_EDIT_OP_IDS = {
   moveToShot: 'move_to_shot',
   reorderShot: 'reorder_shot',
   projectScript: 'project_script',
+  /**
+   * 配音台（第 9b 步）：换档（念台词 / 音效 / 音乐）、音色（音色库里的名字，或有声音的角色）、
+   * 对话里每人一个音色、怎么念（风格 / 表现力 / 语速 / 停顿）、时长。要念的字用 `prompt`，
+   * 换模型用 `model`，几颗高级旋钮用 `option`。
+   */
+  audioKind: 'audio_kind',
+  voice: 'voice',
+  speakers: 'speakers',
+  reading: 'reading',
+  duration: 'duration',
   /**
    * 改库（第 4b 步，owner 10-23「库改动直接写，过程行带撤销；删和公开不做」）：任何台上都能用。
    * 素材那五种走旧执行器现成的那几条，角色 / 造型 / LoRA / 提示词库走 `library_write`。
@@ -158,7 +169,7 @@ export const ASSISTANT_NEXT_LORA_PARAM_KEYS: Readonly<Record<string, string>> =
   }
 
 /** 过程记录里标「这一轮是新内核跑的」（`AssistantTurnRecord.promptVersion`）。改系统提示时一起换。 */
-export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-10-23j'
+export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-10-23k'
 
 export const ASSISTANT_NEXT_LIMITS = {
   /**

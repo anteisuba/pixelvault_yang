@@ -40,6 +40,7 @@ import {
   isRevertibleAssistantOperatorTool,
   isSpendAssistantOperatorTool,
   type AssistantOperatorTool,
+  isAssistantOperatorToolInDomain,
 } from '@/constants/assistant-operator'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import { ASSISTANT_STREAM_EVENTS } from '@/constants/assistant-stream'
@@ -313,6 +314,19 @@ const STEP_FIXTURES: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.setPrompt]: {
     payload: { value: 'a girl under a red umbrella', mode: 'replace' },
     inverse: { value: '' },
+  },
+  /** 配音台（第 9b 步）：一格一格改，撤销给改前那几格。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.setAudio]: {
+    payload: {
+      voice: { cardId: 'card-1', voiceId: 'voice-1' },
+      pace: 'slow',
+      style: 'calm',
+    },
+    inverse: {
+      voice: { cardId: null, voiceId: null },
+      pace: 'normal',
+      style: 'none',
+    },
   },
   [ASSISTANT_OPERATOR_TOOL_IDS.setNegative]: {
     payload: { value: 'blurry, lowres', mode: 'replace' },
@@ -949,7 +963,8 @@ describe('五动词入口', () => {
     // 剪辑台 v2 第 2 片 2b 把 52 变成 53（`canvas_look_at`，看片）。
     // 搜索期第二片（2026-10-15）把 54 变成 55（`search_web_videos`，内部工具）。
     // 新内核改库（第 4b 步）把 55 变成 56（`library_write`，只由新内核发）。
-    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(56)
+    // 配音台接新内核（第 9b 步）把 56 变成 57（`set_audio`）。
+    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(57)
     expect(
       ASSISTANT_OPERATOR_ENTRY_ACTIONS[
         ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research
@@ -1236,7 +1251,7 @@ describe('五动词入口', () => {
     ).toBe(false)
   })
 
-  it('audio 两条列进 apply，且 ⛔ 没有多出一个 audio 域（§2.3）', () => {
+  it('audio 两条列进 apply；audio 域只给配音台（第 9b 步），图片台的那两条不归它', () => {
     expect(
       ASSISTANT_OPERATOR_ENTRY_ACTIONS[ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply],
     ).toEqual(
@@ -1245,7 +1260,14 @@ describe('五动词入口', () => {
         ASSISTANT_OPERATOR_TOOL_IDS.setSound,
       ]),
     )
-    expect([...ASSISTANT_OPERATOR_DOMAINS]).not.toContain('audio')
+    // 第 9b 步（owner 10-23）：配音台成了一个域，只接新内核；图片台的参考音 / 出声开关不在它的工具表里。
+    expect([...ASSISTANT_OPERATOR_DOMAINS]).toContain('audio')
+    expect(
+      isAssistantOperatorToolInDomain(
+        ASSISTANT_OPERATOR_TOOL_IDS.setSound,
+        'audio',
+      ),
+    ).toBe(false)
   })
 
   it('每个入口的 action 收窄到自己那一组 —— 跨组串门当场拒', () => {
@@ -2140,11 +2162,11 @@ describe('请求与快照契约', () => {
         snapshot: SNAPSHOT,
       }).success,
     ).toBe(true)
-    // 配音间没进表（owner 2026-09-19）——它一样当场拒。
+    // 配音台第 9b 步进了表；表里没有的域一样当场拒。
     expect(
       AssistantOperatorRequestSchema.safeParse({
         messages: [{ role: 'user', content: 'x' }],
-        domain: 'audio',
+        domain: 'music-room',
         workspaceKey: 'image-natural',
         snapshot: SNAPSHOT,
       }).success,

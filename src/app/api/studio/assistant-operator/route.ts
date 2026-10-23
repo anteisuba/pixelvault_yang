@@ -10,6 +10,7 @@ import {
 } from '@/constants/assistant-v3'
 import { runAssistantOperator } from '@/services/kernel/assistant-operator.service'
 import { runAssistantV3 } from '@/services/kernel/assistant-v3.service'
+import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import { ASSISTANT_NEXT_DOMAINS } from '@/features/assistant/constants'
 import { runAssistantNext } from '@/features/assistant/kernel'
 import { isAdmin } from '@/lib/admin'
@@ -119,6 +120,21 @@ export async function POST(request: NextRequest): Promise<Response> {
       parsed.data.kernel === ASSISTANT_KERNEL_IDS.next &&
       ASSISTANT_NEXT_DOMAINS.includes(parsed.data.domain) &&
       isAdmin(clerkId)
+
+    // 配音台只有新内核接（第 9b 步）：旧内核没有这台的工具，⛔ 不让它落到 v2 上空转。
+    if (
+      parsed.data.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.audio &&
+      !useNext
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'The audio bench assistant is not available',
+          errorCode: 'ASSISTANT_DOMAIN_UNAVAILABLE',
+        },
+        { status: 403 },
+      )
+    }
 
     // ⚠ 工具环是惰性的（async generator）：它到成帧器 `for await` 才开始跑，所以
     //    `open` 帧一定排在第一次 LLM 往返之前。别在这里先 await 一下"预热"。

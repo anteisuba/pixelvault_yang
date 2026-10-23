@@ -188,6 +188,8 @@ export const STUDIO_OPERATOR_FIELD_IDS = {
   audioReferences: 'audioReferences',
   /** 视频域「出不出声」的三态开关。 */
   sound: 'sound',
+  /** 配音台那一块（第 9b 步）：档、音色、怎么念、时长、高级旋钮共用这一格。 */
+  audio: 'audio',
   /**
    * LoRA 域的挂载栈（P4-C）—— **挂 / 摘 / 调权重共用这一格**。
    *
@@ -254,6 +256,7 @@ export const STUDIO_OPERATOR_FIELDS = [
   STUDIO_OPERATOR_FIELD_IDS.references,
   STUDIO_OPERATOR_FIELD_IDS.audioReferences,
   STUDIO_OPERATOR_FIELD_IDS.sound,
+  STUDIO_OPERATOR_FIELD_IDS.audio,
   STUDIO_OPERATOR_FIELD_IDS.loras,
 ] as const
 
@@ -726,6 +729,12 @@ export const STUDIO_OPERATOR_FACE_PILLS: Record<
     'originalCharacter',
     'findImages',
     'checkLook',
+  ],
+  /** 配音台（第 9b 步）：用角色的声音念一段 · 做个音效 · 调怎么念。 */
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.audio]: [
+    'readInVoice',
+    'makeSoundEffect',
+    'tuneReading',
   ],
 }
 

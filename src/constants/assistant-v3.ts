@@ -25,6 +25,11 @@ export const ASSISTANT_V3_FACE_IDS = {
   image: 'image',
   cards: 'cards',
   video: 'video',
+  /**
+   * 配音台（第 9b 步）：只有新内核接，⛔ 不进下面 `ASSISTANT_V3_FACES`（v3 不认这台）。
+   * 放在这里是因为新内核借 v3 的上下文与执行器，脸的取值从这一张表走。
+   */
+  audio: 'audio',
 } as const
 
 export type AssistantV3Face =

@@ -60,13 +60,15 @@ const DOMAIN_BY_FACE = {
   [ASSISTANT_V3_FACE_IDS.video]: 'video',
   [ASSISTANT_V3_FACE_IDS.cards]: 'image',
 } as const
+/** v3 的五张脸（`audio` 只是新内核借的取值，v3 不接）。 */
+const V3_FACES = Object.keys(DOMAIN_BY_FACE) as (keyof typeof DOMAIN_BY_FACE)[]
 
 /**
  * 反问卡怎么问（2026-10-14 反问卡多选）：五张脸**同一段** ASKING。
  * 从前五张脸的 ask 行一字没提多选，模型于是永远填 `multiSelect: false`。
  */
 describe('v3 系统提示 · ASKING', () => {
-  for (const face of Object.values(ASSISTANT_V3_FACE_IDS)) {
+  for (const face of V3_FACES) {
     it(`${face} 脸带着多选 / 闭集 / 缩略图 / 跳过的说法`, () => {
       const prompt = buildAssistantV3SystemPrompt({
         face,
@@ -101,7 +103,7 @@ describe('v3 系统提示 · ASKING', () => {
  * 那张表的看法挪成五张脸**同一段**几句话，外加「安静」那一条。
  */
 describe('v3 系统提示 · LOOKING AT PICTURES', () => {
-  for (const face of Object.values(ASSISTANT_V3_FACE_IDS)) {
+  for (const face of V3_FACES) {
     it(`${face} 脸带着看图的看法与安静那一条`, () => {
       const prompt = buildAssistantV3SystemPrompt({
         face,
@@ -149,7 +151,7 @@ describe('v3 系统提示 · LOOKING AT PICTURES', () => {
  * 帧是样本、两帧之间不当真；片子本体就直接判；看动作、构图、人物前后与参考一致；安静。
  */
 describe('v3 系统提示 · WATCHING CLIPS', () => {
-  for (const face of Object.values(ASSISTANT_V3_FACE_IDS)) {
+  for (const face of V3_FACES) {
     it(`${face} 脸带着看片的看法`, () => {
       const prompt = buildAssistantV3SystemPrompt({
         face,
@@ -205,7 +207,7 @@ describe('v3 系统提示 · 稳定前缀', () => {
       source: 'assistant',
     }) as AssistantMemory
   const build = (
-    face: (typeof ASSISTANT_V3_FACE_IDS)[keyof typeof ASSISTANT_V3_FACE_IDS],
+    face: (typeof V3_FACES)[number],
     variant: {
       board: string
       persona: Partial<AssistantPromptPersona>
@@ -261,7 +263,7 @@ describe('v3 系统提示 · 稳定前缀', () => {
     },
   }
 
-  for (const face of Object.values(ASSISTANT_V3_FACE_IDS)) {
+  for (const face of V3_FACES) {
     it(`${face} 脸：规则段与人、与轮无关，变的东西只在分界线之后`, () => {
       const a = build(face, plain)
       const b = build(face, personal)

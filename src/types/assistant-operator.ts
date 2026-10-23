@@ -34,6 +34,24 @@ import {
 } from '@/constants/novelai'
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
 import {
+  AUDIO_EXPRESSIVENESS_VALUES,
+  AUDIO_FORMATS,
+  AUDIO_KINDS,
+  AUDIO_SPEAKER_VOICE_ID_MAX_LENGTH,
+  AUDIO_SPEAKER_VOICE_IDS_MAX,
+  MUSIC_DURATION_RANGE,
+  SFX_DURATION_RANGE,
+  SFX_VARIANT_COUNTS,
+  TTS_TEMPERATURE_RANGE,
+  TTS_TOP_P_RANGE,
+  TTS_VOLUME_RANGE,
+} from '@/constants/audio-options'
+import {
+  AUDIO_PACES,
+  AUDIO_PAUSE_MARKERS,
+  AUDIO_STYLES,
+} from '@/constants/voice-cards'
+import {
   ASSISTANT_MEMORY_KINDS,
   ASSISTANT_MEMORY_LIMITS,
   ASSISTANT_MEMORY_SCOPES,
@@ -457,6 +475,126 @@ export const AssistantOperatorSnapshotSoundSchema = z.object({
   value: z.boolean().nullable(),
   effective: z.boolean(),
 })
+
+/**
+ * **配音台那一块**的改动（第 9b 步，`set_audio`）：只带这一次改的几格。⚠ 同一份形状也是
+ * `inverse`（改前那几格的值），撤销原样落回去。
+ * ⚠ `optionId` 是表单里存的选项 id（`workspace:…` / `key:…`）；换档时客户端一起换。
+ * ⚠ `voice` 两格一起给：`cardId` 是音色库里那张卡，`voiceId` 是厂商那边的音色；都 `null` = 不用音色。
+ */
+export const AssistantOperatorAudioPatchSchema = z.object({
+  kind: z.enum(AUDIO_KINDS).optional(),
+  optionId: IdSchema.optional(),
+  voice: z
+    .object({
+      cardId: IdSchema.nullable(),
+      voiceId: z.string().max(AUDIO_SPEAKER_VOICE_ID_MAX_LENGTH).nullable(),
+    })
+    .optional(),
+  /** 对话里第 N 个说话的人用哪个音色（`<|speaker:N|>`）。 */
+  speakerVoiceIds: z
+    .array(z.string().min(1).max(AUDIO_SPEAKER_VOICE_ID_MAX_LENGTH))
+    .max(AUDIO_SPEAKER_VOICE_IDS_MAX)
+    .optional(),
+  /** 选了音色卡时跟着卡走的发音表（与音色库里点选同一件事）。 */
+  pronunciationDictionary: z
+    .record(
+      z.string().max(LIMITS.maxLabelChars),
+      z.string().max(LIMITS.maxLabelChars),
+    )
+    .optional(),
+  style: z.enum(AUDIO_STYLES).optional(),
+  expressiveness: z.enum(AUDIO_EXPRESSIVENESS_VALUES).optional(),
+  pace: z.enum(AUDIO_PACES).optional(),
+  pauseMarkers: z
+    .array(z.enum(AUDIO_PAUSE_MARKERS))
+    .max(AUDIO_PAUSE_MARKERS.length)
+    .optional(),
+  sfxDurationSeconds: z
+    .number()
+    .min(SFX_DURATION_RANGE.min)
+    .max(SFX_DURATION_RANGE.max)
+    .optional(),
+  musicDurationSeconds: z
+    .number()
+    .int()
+    .min(MUSIC_DURATION_RANGE.min)
+    .max(MUSIC_DURATION_RANGE.max)
+    .optional(),
+  sfxLoop: z.boolean().optional(),
+  sfxVariantCount: z
+    .union(
+      SFX_VARIANT_COUNTS.map((count) => z.literal(count)) as [
+        z.ZodLiteral<1>,
+        z.ZodLiteral<2>,
+        z.ZodLiteral<4>,
+      ],
+    )
+    .optional(),
+  volume: z
+    .number()
+    .min(TTS_VOLUME_RANGE.min)
+    .max(TTS_VOLUME_RANGE.max)
+    .optional(),
+  temperature: z
+    .number()
+    .min(TTS_TEMPERATURE_RANGE.min)
+    .max(TTS_TEMPERATURE_RANGE.max)
+    .optional(),
+  topP: z.number().min(TTS_TOP_P_RANGE.min).max(TTS_TOP_P_RANGE.max).optional(),
+  format: z.enum(AUDIO_FORMATS).optional(),
+})
+
+export type AssistantOperatorAudioPatch = z.infer<
+  typeof AssistantOperatorAudioPatchSchema
+>
+
+/**
+ * 配音台现在的样子（第 9b 步）。要念的字在 `prompt`、当前模型在 `model`，这里是其余那几格。
+ * ⚠ 音色只带 id：名字由服务端按创作者自己的音色库现查（也查哪些角色有声音），⛔ 浏览器不报名字。
+ * ⚠ `models` 是三档全部能跑的模型（换档要跟着换模型），`kind` 标它属于哪一档。
+ * 缺席 = 这个宿主不是配音台。
+ */
+export const AssistantOperatorSnapshotAudioSchema = z.object({
+  kind: z.enum(AUDIO_KINDS),
+  models: z
+    .array(
+      z.object({
+        id: IdSchema,
+        label: LabelSchema,
+        kind: z.enum(AUDIO_KINDS),
+      }),
+    )
+    .max(LIMITS.maxAvailableModels),
+  voice: AssistantOperatorAudioPatchSchema.shape.voice.unwrap(),
+  speakerVoiceIds: z
+    .array(z.string().max(AUDIO_SPEAKER_VOICE_ID_MAX_LENGTH))
+    .max(AUDIO_SPEAKER_VOICE_IDS_MAX),
+  pronunciationDictionary: z.record(z.string(), z.string()),
+  /** 传了一段参考音（零样本克隆）：文件名，和配没配上原文。 */
+  reference: z
+    .object({
+      fileName: LabelSchema.nullable(),
+      hasText: z.boolean(),
+    })
+    .nullable(),
+  style: z.string().max(LIMITS.maxLabelChars),
+  expressiveness: z.string().max(LIMITS.maxLabelChars),
+  pace: z.string().max(LIMITS.maxLabelChars),
+  pauseMarkers: z.array(z.string().max(LIMITS.maxLabelChars)).max(8),
+  sfxDurationSeconds: z.number(),
+  musicDurationSeconds: z.number(),
+  sfxLoop: z.boolean(),
+  sfxVariantCount: z.number().int(),
+  volume: z.number(),
+  temperature: z.number(),
+  topP: z.number(),
+  format: z.string().max(LIMITS.maxLabelChars),
+})
+
+export type AssistantOperatorSnapshotAudio = z.infer<
+  typeof AssistantOperatorSnapshotAudioSchema
+>
 
 export const AssistantOperatorSnapshotCountSchema = z.object({
   value: z.number().int().positive(),
@@ -1139,6 +1277,8 @@ export const AssistantOperatorSnapshotSchema = z.object({
   canvas: AssistantOperatorCanvasSnapshotSchema.optional(),
   /** ⚠ 缺席 = 这个宿主不是角色页。卡片域的 `read_state` 读的就是这一格。 */
   cards: AssistantOperatorCardsSnapshotSchema.optional(),
+  /** ⚠ 缺席 = 这个宿主不是配音台（第 9b 步）。 */
+  audio: AssistantOperatorSnapshotAudioSchema.optional(),
 })
 
 export type AssistantOperatorSnapshot = z.infer<
@@ -3118,6 +3258,7 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
     ownerName: LabelSchema.optional(),
   }),
   [ASSISTANT_OPERATOR_TOOL_IDS.setSound]: z.object({ enabled: z.boolean() }),
+  [ASSISTANT_OPERATOR_TOOL_IDS.setAudio]: AssistantOperatorAudioPatchSchema,
   /**
    * ⚠ 唯一的入参是一个**可选的名字**（切片 X）：助手给这一枪起的名，最长
    * `maxGenerationLabelChars` 字。它落到产物名的**摘要段**（`图_012·主视觉`），
@@ -4409,6 +4550,12 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
     ASSISTANT_OPERATOR_TOOL_IDS.setSound,
     z.object({ enabled: z.boolean() }),
     z.object({ enabled: z.boolean().nullable() }),
+  ),
+  /** 配音台那一块（第 9b 步）：载荷是改的那几格，`inverse` 是它们改前的值。 */
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.setAudio,
+    AssistantOperatorAudioPatchSchema,
+    AssistantOperatorAudioPatchSchema,
   ),
   /**
    * 看图（P3-C，拍板 6）。

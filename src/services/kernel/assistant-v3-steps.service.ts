@@ -102,6 +102,8 @@ export const TITLE_TEXT: Record<
     pickImages: string
     handOff: string
     readPage: string
+    /** 配音台那一块（第 9b 步，新内核）。 */
+    audio: string
     /** 角色页联网找图的一张候选（看图那一行上的称呼；`#n` = 卡片上那个号）。 */
     candidate: (n: number) => string
     more: (count: number) => string
@@ -149,6 +151,7 @@ export const TITLE_TEXT: Record<
     pickImages: '挑图',
     handOff: '交给图片助手',
     readPage: '读网页',
+    audio: '调配音',
     candidate: (n) => `候选 #${n}`,
     more: (count) => `等 ${count} 项`,
   },
@@ -194,6 +197,7 @@ export const TITLE_TEXT: Record<
     pickImages: '画像を選ぶ',
     handOff: '画像アシスタントに渡す',
     readPage: 'ページを読む',
+    audio: '音声を調整',
     candidate: (n) => `候補 #${n}`,
     more: (count) => `ほか ${count} 件`,
   },
@@ -239,6 +243,7 @@ export const TITLE_TEXT: Record<
     pickImages: 'Pick pictures',
     handOff: 'Hand to the image assistant',
     readPage: 'Read page',
+    audio: 'Audio settings',
     candidate: (n) => `candidate #${n}`,
     more: (count) => `+${count} more`,
   },

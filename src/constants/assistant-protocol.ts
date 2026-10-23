@@ -147,6 +147,8 @@ export const ASSISTANT_PROTOCOL_DOMAIN_IDS = {
   canvas: 'canvas',
   /** 卡片助手（第五张脸，owner 09-26）：角色页上查设定、写设定、查图；⛔ 自己不出图。 */
   cards: 'cards',
+  /** 配音台（第 9b 步，owner 10-23）：只走新内核，旧内核不认。 */
+  audio: 'audio',
 } as const
 
 /**
@@ -166,6 +168,7 @@ export const ASSISTANT_PROTOCOL_DOMAINS = [
   ASSISTANT_PROTOCOL_DOMAIN_IDS.lora,
   ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas,
   ASSISTANT_PROTOCOL_DOMAIN_IDS.cards,
+  ASSISTANT_PROTOCOL_DOMAIN_IDS.audio,
 ] as const
 
 export type AssistantProtocolDomain =
@@ -178,6 +181,7 @@ export const ASSISTANT_WORKSPACES = [
   'lora',
   'canvas',
   'cards',
+  'audio',
 ] as const
 
 interface AssistantDomainBrief {
@@ -250,6 +254,17 @@ export const ASSISTANT_DOMAIN_BRIEFS: Record<
       'canon or original — canon is researched with sources, an original starts from two or three directions',
       'what this turn is for — the profile (identity, behaviour, speech, history) or the images',
       'for canon: which version or form of the character, if the series has several',
+    ],
+  },
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.audio]: {
+    persona:
+      "You are the creator's voice partner on the audio bench: speech, sound effects and music. You tune the words, the voice and how they are read, then put a confirm card in front of the creator.",
+    slots: [
+      'speech, a sound effect, or music',
+      'the exact words to be read (speech) or what it should sound like (sfx / music)',
+      'whose voice — a voice from their library or a character with a voice',
+      'how it is read — mood, pace, pauses',
+      'how long (sfx / music)',
     ],
   },
 }

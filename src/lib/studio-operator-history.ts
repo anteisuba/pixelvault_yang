@@ -43,6 +43,7 @@ import {
 } from '@/types/assistant-conversation'
 import type {
   AssistantLoraParameters,
+  AssistantOperatorAudioPatch,
   AssistantOperatorMessage,
   AssistantOperatorPriorStep,
   AssistantOperatorStep,
@@ -81,6 +82,20 @@ export function describeLoraParameters(
       ([key, value]) =>
         `${labels[key as keyof AssistantLoraParameters]} ${value ?? '—'}`,
     )
+    .join(' · ')
+}
+
+/** 配音台一次改动写成一行（`key value · …`）：日志详情与原值 hover 共用。 */
+export function describeAudioPatch(patch: AssistantOperatorAudioPatch): string {
+  return Object.entries(patch)
+    .map(([key, value]) => {
+      if (key === 'voice' && value && typeof value === 'object')
+        return `voice ${(value as { cardId: string | null; voiceId: string | null }).voiceId ?? '—'}`
+      if (Array.isArray(value)) return `${key} ${value.join(', ') || '—'}`
+      if (value && typeof value === 'object')
+        return `${key} ${Object.keys(value).length}`
+      return `${key} ${String(value)}`
+    })
     .join(' · ')
 }
 
@@ -259,6 +274,8 @@ export function describeOperatorStepDetail(
         .join(' · ')
     case ASSISTANT_OPERATOR_TOOL_IDS.setSound:
       return step.payload.enabled ? 'on' : 'off'
+    case ASSISTANT_OPERATOR_TOOL_IDS.setAudio:
+      return describeAudioPatch(step.payload)
     case ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate:
       return null
     /**

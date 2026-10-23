@@ -1873,6 +1873,35 @@ describe('先搜再画（Gemini Google 搜索落地）', () => {
   })
 })
 
+describe('parseImageRunContext key 要求', () => {
+  const base = {
+    runId: 'run-1',
+    workflowId: 'IMAGE_QUEUE',
+    outputType: 'IMAGE',
+    callbackUrl: 'https://app.test/cb',
+    resolveKeyUrl: 'https://app.test/key',
+    timeoutMs: 1000,
+    maxAttempts: 1,
+    pollIntervalMs: 1000,
+    providerInput: {
+      prompt: 'p',
+      modelId: 'm',
+      externalModelId: 'x',
+      aspectRatio: '1:1',
+    },
+  }
+
+  it('Runner 不带 key 也收', () => {
+    expect(
+      parseImageRunContext({ ...base, providerId: 'runner' })?.providerId,
+    ).toBe('runner')
+  })
+
+  it('其他 provider 不带 key 仍拒收', () => {
+    expect(parseImageRunContext({ ...base, providerId: 'gemini' })).toBeNull()
+  })
+})
+
 describe('parseImageRunContext 参考图说明', () => {
   const base = {
     runId: 'run-1',

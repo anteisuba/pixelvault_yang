@@ -3745,7 +3745,10 @@ export function parseImageRunContext(
     !runId ||
     workflowId !== IMAGE_QUEUE_WORKFLOW_ID ||
     !providerId ||
-    (!apiKeyId && !useSystemKey) ||
+    // Runner 由 Worker 自己拿 RUNNER_MODAL_TOKEN 调 Modal、不走 resolve-key，
+    // Next 那边（#312 起）也就不再给它带 apiKeyId / useSystemKey。这里还要求
+    // 带 key 的话，所有 Runner 出图都会被 400 拒收（2026-10-23 线上撞上）。
+    (providerId !== 'runner' && !apiKeyId && !useSystemKey) ||
     !callbackUrl ||
     !resolveKeyUrl ||
     !timeoutMs ||

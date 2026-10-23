@@ -822,13 +822,6 @@ describe('revertOperatorStep', () => {
       },
       result: { offered: false },
     },
-    {
-      ...BASE,
-      tool: ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant,
-      verb: 'look',
-      payload: { characterId: 'character-1', request: '画立绘' },
-      result: { offered: false },
-    },
   ]
   it.each(readOnlySteps)(
     '只读/提议工具 $tool 明确不能撤销且无宿主副作用',

@@ -26,6 +26,9 @@ vi.mock('@/lib/api-client/assistant-operator', () => ({
   streamAssistantOperatorAPI,
 }))
 
+vi.mock('@/i18n/navigation', () => ({
+  useRouter: () => ({ push: () => {} }),
+}))
 vi.mock('@/lib/video-frame-capture', () => ({
   captureVideoEndpointFrames,
   captureClipFrames,

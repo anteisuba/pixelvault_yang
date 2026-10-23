@@ -1,5 +1,11 @@
 import type { AssistantProtocolDomain } from '@/constants/assistant-protocol'
 import {
+  CANVAS_NEW_PROJECT_QUERY_VALUE,
+  cardManagementPath,
+  ROUTES,
+} from '@/constants/routes'
+import type { AssistantOperatorBenchOpen } from '@/types/assistant-operator'
+import {
   ASSISTANT_STAMPED_WORKSPACE_BY_SURFACE,
   ASSISTANT_SURFACE_BY_DOMAIN,
   type AssistantSurfaceId,
@@ -80,4 +86,47 @@ export function assistantWorkspaceKeyOfRow(row: {
     case 'IMAGE_STUDIO':
       return row.stamp === 'image-tags' ? 'image-tags' : 'image-natural'
   }
+}
+
+const BENCH_ROUTE: Record<
+  Exclude<AssistantWorkspace, 'canvas' | 'cards'>,
+  string
+> = {
+  'image-natural': ROUTES.STUDIO_IMAGE,
+  'image-tags': ROUTES.STUDIO_IMAGE_TAGS,
+  video: ROUTES.STUDIO_VIDEO,
+  audio: ROUTES.STUDIO_AUDIO,
+  lora: ROUTES.STUDIO_LORA,
+}
+
+/** 开台（第 9e 步）去哪一页：画布带 `?project=<id|new>`，角色页带打开哪一位。 */
+export function assistantBenchPath(target: AssistantOperatorBenchOpen): string {
+  if (target.workspace === 'canvas')
+    return target.projectId
+      ? `${ROUTES.STUDIO_NODE}?${new URLSearchParams({ project: target.projectId }).toString()}`
+      : ROUTES.STUDIO_NODE
+  if (target.workspace === 'cards')
+    return cardManagementPath(
+      target.characterId ? { character: target.characterId } : {},
+    )
+  return BENCH_ROUTE[target.workspace]
+}
+
+/**
+ * 换过来的这一页是不是要开的那个台（角色页不看开着谁）。
+ * ⚠ 画布要等那块真打开：`new` 在画布建好、把项目号补回 `target` 之前一律不算到（不然会拿着
+ *   换页前那块画布的画面接着跑）。
+ */
+export function assistantBenchReached(
+  target: AssistantOperatorBenchOpen,
+  workspace: AssistantWorkspace,
+  projectId: string | undefined,
+): boolean {
+  if (workspace !== target.workspace) return false
+  if (workspace !== 'canvas') return true
+  return Boolean(
+    projectId &&
+    target.projectId !== CANVAS_NEW_PROJECT_QUERY_VALUE &&
+    (!target.projectId || target.projectId === projectId),
+  )
 }

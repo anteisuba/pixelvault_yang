@@ -283,6 +283,8 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
    * （`docs/references/assistant-durable-turns.md` §1）。
    */
   'streamInterrupted',
+  /** 助手开了别的台，等了半分钟那个台都没打开（第 9e 步）：这一轮停在这里。 */
+  'benchOpenMissed',
   /**
    * 排队的那句在**工具步边界**被接住了（§3.1 ㉓，本片）。
    *
@@ -390,6 +392,10 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
   'characterImagesDeclined',
   /** 存进素材库 / 挂上那一跳没成 —— ⛔ 不静默。 */
   'characterImagesAttachFailed',
+  /**
+   * ⚠ 下面这几条（交给图片助手 / 换台 / 交到另一台）第 9e 步换成「开台」后不再写入，
+   * 只为旧历史还能载回、照旧画出来而留着。
+   */
   /** **交给了图片助手**（C3，画板 S11）——跳去了图片工作台，话已填好。 */
   'imageHandoffAccepted',
   /** **先不交给图片助手**（C3）。 */
@@ -447,6 +453,14 @@ export type StudioOperatorSystemCode =
 export const STUDIO_OPERATOR_CHAT = {
   maxVersions: 8,
 } as const
+
+/**
+ * 开台（第 9e 步）：换页之后等新台准备好的最长时间。过了就作废那一跳（换页失败 / 创作者去了别处），
+ * 面板落一行说没接上。画布新建一块要建项目、读画面，给宽一点。
+ */
+export const STUDIO_OPERATOR_BENCH_OPEN_TIMEOUT_MS = 30_000
+/** 换页之后隔多久看一眼新台好了没有。 */
+export const STUDIO_OPERATOR_BENCH_OPEN_POLL_MS = 250
 
 export const STUDIO_OPERATOR_HISTORY = {
   saveDebounceMs: 1200,

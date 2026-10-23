@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import { usePathname } from 'next/navigation'
 import { motion, useTransform } from 'motion/react'
@@ -48,7 +48,6 @@ import { useStudioWorkbenchOperatorHost } from '@/hooks/use-studio-workbench-ope
 import { useStudioAudioOperatorHost } from '@/hooks/use-studio-audio-operator-host'
 import { useStudioReplayFromUrl } from '@/hooks/use-studio-replay-from-url'
 import { useStudioDraft, type StudioDraft } from '@/hooks/use-studio-draft'
-import { takeCanvasToBenchHandoff } from '@/lib/bench-canvas-handoff'
 
 /** 把「保留 / 改变」的标签拼回提示词尾巴。原样搬自退役的 `StudioBottomDock`。 */
 function buildRefinePrompt(
@@ -408,34 +407,6 @@ export function StudioWorkspaceUI() {
       })
     }
   }, [dispatch])
-
-  // 画布交过来的那张卡（P6 台间交接，`lib/bench-canvas-handoff.ts`）：提示词、参考图落进
-  // 表单；模型等这一档的选项表到了再选上（选项表首帧可能还是空的）。读一次就清掉。
-  const didReadHandoffRef = useRef(false)
-  const arrivalModelRef = useRef<string | null>(null)
-  useEffect(() => {
-    if (didReadHandoffRef.current) return
-    didReadHandoffRef.current = true
-    const handoff = takeCanvasToBenchHandoff()
-    if (!handoff) return
-    if (handoff.prompt) {
-      dispatch({ type: 'SET_PROMPT', payload: handoff.prompt })
-    }
-    if (handoff.referenceUrls.length > 0) {
-      imageUpload.clearAllImages()
-      for (const url of handoff.referenceUrls)
-        imageUpload.addReferenceImage(url)
-    }
-    arrivalModelRef.current = handoff.modelId ?? null
-  }, [dispatch, imageUpload])
-  useEffect(() => {
-    const modelId = arrivalModelRef.current
-    if (!modelId) return
-    const option = modeModelOptions.find((item) => item.modelId === modelId)
-    if (!option) return
-    arrivalModelRef.current = null
-    dispatch({ type: 'SET_OPTION_ID', payload: option.optionId })
-  }, [dispatch, modeModelOptions])
 
   // 「保留与改变」的提交 —— 随 `StudioBottomDock` 一起搬过来（切片 A）。
   const handleKeepChangeSubmit = useCallback(

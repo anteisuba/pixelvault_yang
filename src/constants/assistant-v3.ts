@@ -43,9 +43,9 @@ export const ASSISTANT_V3_BENCH_FACES: readonly string[] = [
 ]
 
 /**
- * 九个工具。名字就是模型看到的工具名，⛔ 别改成旧内核那套动作名。
+ * 本轮记录里的工具名（线格式）。名字就是模型看到的工具名，⛔ 别改成旧内核那套动作名。
  * `upscale` 只在画布那张脸上（P6「修到 4K」走放大，⛔ 不是改分辨率再出一张）。
- * `hand_off` 只在图片台与画布（P6 台间交接：工作台 ↔ 画布）。
+ * `open` = 开台（第 9e 步）。
  */
 export const ASSISTANT_V3_TOOL_IDS = {
   read: 'read',
@@ -54,7 +54,7 @@ export const ASSISTANT_V3_TOOL_IDS = {
   write: 'write',
   generate: 'generate',
   upscale: 'upscale',
-  handOff: 'hand_off',
+  open: 'open',
   searchWeb: 'search_web',
   searchLibrary: 'search_library',
   ask: 'ask',
@@ -67,7 +67,7 @@ export const ASSISTANT_V3_TOOLS = [
   ASSISTANT_V3_TOOL_IDS.write,
   ASSISTANT_V3_TOOL_IDS.generate,
   ASSISTANT_V3_TOOL_IDS.upscale,
-  ASSISTANT_V3_TOOL_IDS.handOff,
+  ASSISTANT_V3_TOOL_IDS.open,
   ASSISTANT_V3_TOOL_IDS.searchWeb,
   ASSISTANT_V3_TOOL_IDS.searchLibrary,
   ASSISTANT_V3_TOOL_IDS.ask,
@@ -184,11 +184,10 @@ export const ASSISTANT_V3_VIDEO_REFERENCE_SLOTS = [
   'last',
 ] as const
 
-/** 卡片台 `edit` 的三种提议（S6 第三张脸）：都出一张卡、停下等创作者勾选，服务端不写库。 */
+/** 卡片台 `edit` 的两种提议（S6 第三张脸）：都出一张卡、停下等创作者勾选，服务端不写库。 */
 export const ASSISTANT_V3_CARDS_EDIT_OP_IDS = {
   proposeProfile: 'propose_profile',
   proposeImages: 'propose_images',
-  handOff: 'hand_off',
 } as const
 
 /** 角色设定的五格（与旧内核 `ASSISTANT_OPERATOR_CHARACTER_PROFILE_FIELDS` 同序同名）。 */

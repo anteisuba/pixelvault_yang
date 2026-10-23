@@ -367,12 +367,6 @@ export function describeOperatorStepDetail(
     /** 提议几张角色图（C3）—— 详情写**提了几张**。 */
     case ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages:
       return `${step.payload.images.length}`
-    /** 交给图片助手（C3）—— 详情写**要对图片助手说的那句话**。 */
-    case ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant:
-      return step.payload.request
-    /** 换到另一台图片工作台 —— 详情写**换哪个模型**。 */
-    case ASSISTANT_OPERATOR_TOOL_IDS.switchWorkbench:
-      return step.payload.modelId
     /** 摆一张搭配卡（§12）—— 卡头那一句就是它摆了什么。 */
     case ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup:
       return step.payload.question
@@ -505,43 +499,6 @@ export function describeCharacterImagesDecisionText(
   return kept === 0
     ? `没挂这几张图（${named}）`
     : `已给「${named}」挂上 ${kept} 张图`
-}
-
-/** 交给图片助手那一下的**题面**与**正文**（C3）。 */
-export function describeImageHandoffProposalText(
-  name: string,
-  request: string,
-): string {
-  return `提议交给图片助手给「${name.trim()}」出图：${request.trim()}`
-}
-
-/** 换到另一台图片工作台那一下的**题面**与**正文**。 */
-export function describeWorkbenchHandoffProposalText(
-  label: string,
-  workspace: 'image-natural' | 'image-tags',
-): string {
-  return `提议换到${workspace === 'image-tags' ? '标签台' : '自然语言台'}用「${label.trim()}」`
-}
-
-export function describeWorkbenchHandoffDecisionText(
-  label: string,
-  workspace: 'image-natural' | 'image-tags',
-  accepted: boolean,
-): string {
-  const bench = workspace === 'image-tags' ? '标签台' : '自然语言台'
-  return accepted
-    ? `已换到${bench}用「${label.trim()}」`
-    : `先不换到${bench}（${label.trim()}）`
-}
-
-export function describeImageHandoffDecisionText(
-  name: string,
-  accepted: boolean,
-): string {
-  const named = name.trim()
-  return accepted
-    ? `已交给图片助手给「${named}」出图`
-    : `先不交给图片助手（${named}）`
 }
 
 /**
@@ -973,8 +930,6 @@ export function pendingFromOperatorState(
       return { kind: confirm.kind, profile: confirm.profile }
     case ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterImages:
       return { kind: confirm.kind, proposal: confirm.proposal }
-    case ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.imageHandoff:
-      return { kind: confirm.kind, handoff: confirm.handoff }
     default:
       return null
   }

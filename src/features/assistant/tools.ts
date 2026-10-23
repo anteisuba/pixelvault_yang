@@ -25,12 +25,14 @@ import {
   ASSISTANT_NEXT_FIND_KINDS,
   ASSISTANT_NEXT_RECIPE_PARTS,
   ASSISTANT_NEXT_LIMITS,
+  ASSISTANT_NEXT_OPEN_BENCHES,
+  ASSISTANT_NEXT_OPEN_CANVAS,
   ASSISTANT_NEXT_TOOL_IDS,
   ASSISTANT_NEXT_WRITE_MODES,
 } from '@/features/assistant/constants'
 
 /**
- * 四个工具的入参。
+ * 六个工具的入参。
  *
  * ── 校验只修不拒（总设计第二节）──────────────────────────────────
  * 基线里 7 次「write 参数不对」全是 Claude 等非严格模型省略了可空字段：OpenAI 严格模式要求
@@ -188,7 +190,7 @@ export const EditChangeSchema = z.object({
     .string()
     .nullish()
     .describe(
-      'Canvas: the card, by its handle on the board ("img-6db120") or the ref of a card added earlier in the same edit. prompt / set_card / delete_card / move_to_shot / hand_off; project_script: the script card.',
+      'Canvas: the card, by its handle on the board ("img-6db120") or the ref of a card added earlier in the same edit. prompt / set_card / delete_card / move_to_shot; project_script: the script card.',
     ),
   ref: z
     .string()
@@ -338,13 +340,13 @@ export const EditChangeSchema = z.object({
     .string()
     .nullish()
     .describe(
-      'propose_profile / propose_images / hand_off: the character, by its handle on the page ("char-b27ce8") or "角色·<name>". character_profile / lora_to_character / new_character_look: "角色·<name>" (lora_to_character may add "/<look>"). character_look: "角色·<name>/<look>" (no look = the default one). remember: the character this memory belongs to; null = about the creator (used everywhere).',
+      'propose_profile / propose_images: the character, by its handle on the page ("char-b27ce8") or "角色·<name>". character_profile / lora_to_character / new_character_look: "角色·<name>" (lora_to_character may add "/<look>"). character_look: "角色·<name>/<look>" (no look = the default one). remember: the character this memory belongs to; null = about the creator (used everywhere).',
     ),
   say: z
     .string()
     .nullish()
     .describe(
-      'propose_* / hand_off (character page): one or two sentences shown right above the card. The turn ends on the card.',
+      'propose_* (character page): one or two sentences shown right above the card. The turn ends on the card.',
     ),
   fields: z
     .array(
@@ -379,12 +381,6 @@ export const EditChangeSchema = z.object({
     )
     .nullish()
     .describe('propose_images: pictures to attach to the character.'),
-  request: z
-    .string()
-    .nullish()
-    .describe(
-      'hand_off: the one message the assistant over there should get (on the canvas: the image bench, taking card with it).',
-    ),
   pictures: z
     .array(z.string())
     .nullish()
@@ -495,6 +491,27 @@ export const GenerateInputSchema = z.object({
     .describe('A short name for this run (a few words). Optional.'),
 })
 export type GenerateInput = z.infer<typeof GenerateInputSchema>
+
+export const OpenInputSchema = z.object({
+  bench: z
+    .enum(ASSISTANT_NEXT_OPEN_BENCHES)
+    .describe(
+      'image = the image bench (natural-language prompts), tags = the tag bench (NovelAI / Danbooru tags), video, audio (speech, sound effects, music), lora (LoRA work), canvas (a multi-card, multi-shot piece), character = the character page.',
+    ),
+  canvas: z
+    .enum(ASSISTANT_NEXT_OPEN_CANVAS)
+    .nullish()
+    .describe(
+      'Canvas only: "recent" (the default) opens the canvas they worked on last; "new" starts a new one — only when they ask for a new canvas.',
+    ),
+  character: z
+    .string()
+    .nullish()
+    .describe(
+      'Character page only: who to open, "角色·<name>". null = the page with nobody open.',
+    ),
+})
+export type OpenInput = z.infer<typeof OpenInputSchema>
 
 type JsonObject = { [key: string]: JsonValue }
 type JsonValue = string | number | boolean | null | JsonValue[] | JsonObject
@@ -636,6 +653,7 @@ const DESCRIPTIONS = {
   ask: 'Ask the creator when you cannot go on without their choice. Puts a card with options in front of them and ends this turn until they answer.',
   generate:
     'Generate one batch of what is on the bench now (on the canvas: the cards you list): starts at once when LET AI GENERATE is on, otherwise a confirm card the creator presses. Ends this turn.',
+  open: 'Open another bench when the work belongs there. The conversation comes along; the result is the new bench as it is, and you carry on there with edit / generate. Opening spends nothing. Call it on its own, as the last call of a step.',
 } as const
 
 /** 交给 `streamText` 的那一份：只有描述与 JSON schema，⛔ 没有 execute（循环自己执行）。 */
@@ -652,5 +670,6 @@ export function assistantNextTools(strict: boolean) {
     [ASSISTANT_NEXT_TOOL_IDS.edit]: define('edit', EditInputSchema),
     [ASSISTANT_NEXT_TOOL_IDS.ask]: define('ask', AskInputSchema),
     [ASSISTANT_NEXT_TOOL_IDS.generate]: define('generate', GenerateInputSchema),
+    [ASSISTANT_NEXT_TOOL_IDS.open]: define('open', OpenInputSchema),
   }
 }

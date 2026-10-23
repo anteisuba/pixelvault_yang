@@ -102,7 +102,7 @@ import { useCanvasShellPanelHost } from '@/hooks/node/use-canvas-shell-panel'
 import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
 import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
 import { useCanvasImageEditHandoffV4 } from '@/hooks/node/use-canvas-image-edit-handoff-v4'
-import { useBenchHandoffArrivalV4 } from '@/hooks/node/use-bench-handoff-arrival-v4'
+import { useCanvasOpenProjectV4 } from '@/hooks/node/use-canvas-open-project-v4'
 import { useEdgeSigning } from '@/hooks/node/use-edge-signing'
 import {
   useNodeGraphV4,
@@ -770,20 +770,18 @@ function NodeWorkbenchV4Inner() {
     onFocusNode: focusNode,
   })
 
-  // 工作台「交到画布」交过来的那件事（P6 台间交接）：切到卡上选的那块，落成一张图片卡。
-  const handoffProjectIds = useMemo(
+  // 助手开台开到画布（第 9e 步）：`?project=<id|new>` 切到那块，项目号交回开台那一格。
+  const openProjectIds = useMemo(
     () => store.projects.map((project) => project.id),
     [store.projects],
   )
-  useBenchHandoffArrivalV4({
-    graph,
+  useCanvasOpenProjectV4({
     isHydrated: store.isHydrated,
     currentProjectId: store.currentProject.id,
-    projectIds: handoffProjectIds,
+    projectIds: openProjectIds,
     switchProject: store.switchProject,
     createProject: store.createProject,
     newProjectName: tV4('handoff.newProjectName'),
-    onFocusNode: focusNode,
   })
 
   /* ── 审阅模式 ────────────────────────────────────────────────────────── */

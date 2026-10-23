@@ -8,12 +8,6 @@ import {
   StudioOperatorCharacterImagesCard,
   type StudioOperatorCharacterImagesCardProps,
 } from './StudioOperatorCharacterImagesCard'
-import {
-  StudioOperatorImageHandoffCard,
-  StudioOperatorWorkbenchHandoffCard,
-  type StudioOperatorImageHandoffCardProps,
-  type StudioOperatorWorkbenchHandoffCardProps,
-} from './StudioOperatorHandoffCard'
 
 const PROMPT: StudioOperatorCharacterImagesCardProps['prompt'] = {
   id: 'confirm-1',
@@ -120,95 +114,5 @@ describe('StudioOperatorCharacterImagesCard（候选图卡）', () => {
     })
     expect(screen.getByText('已挂上 2 张 · 11:24')).toBeTruthy()
     expect(screen.queryByRole('checkbox')).toBeNull()
-  })
-})
-
-const HANDOFF: StudioOperatorImageHandoffCardProps['prompt'] = {
-  id: 'confirm-2',
-  kind: 'imageHandoff',
-  status: 'idle',
-  handoff: {
-    characterId: 'denia',
-    request: '给 Denia 出一张定妆三视图：正面、侧面、背面全身，白底',
-  },
-}
-
-describe('StudioOperatorImageHandoffCard（交给图片助手）', () => {
-  it('写出要对图片助手说的那句话与会发生什么；两颗键各交给驱动 hook', () => {
-    const onAccept = vi.fn()
-    const onDismiss = vi.fn()
-    render(
-      <NextIntlClientProvider locale="zh" messages={zhMessages}>
-        <StudioOperatorImageHandoffCard
-          prompt={HANDOFF}
-          characterName="Denia"
-          assistantName="达妮娅"
-          onAccept={onAccept}
-          onDismiss={onDismiss}
-          formatTime={() => '11:24'}
-        />
-      </NextIntlClientProvider>,
-    )
-    expect(screen.getByText(HANDOFF.handoff.request)).toBeTruthy()
-    expect(screen.getByText(/你来按发送/)).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: '交给图片助手' }))
-    expect(onAccept).toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: '先不要' }))
-    expect(onDismiss).toHaveBeenCalled()
-  })
-})
-
-const WORKBENCH: StudioOperatorWorkbenchHandoffCardProps['prompt'] = {
-  id: 'confirm-3',
-  kind: 'workbenchHandoff',
-  status: 'idle',
-  handoff: {
-    modelId: 'novelai-v5-full',
-    label: 'NovelAI V5 Full',
-    workspace: 'image-tags',
-    request: '改写成标签再出一张',
-  },
-}
-
-describe('StudioOperatorWorkbenchHandoffCard（换到另一台图片工作台）', () => {
-  it('写出换到哪台、用哪个模型与会发生什么；两颗键各交给驱动 hook', () => {
-    const onAccept = vi.fn()
-    const onDismiss = vi.fn()
-    render(
-      <NextIntlClientProvider locale="zh" messages={zhMessages}>
-        <StudioOperatorWorkbenchHandoffCard
-          prompt={WORKBENCH}
-          onAccept={onAccept}
-          onDismiss={onDismiss}
-          formatTime={() => '11:24'}
-        />
-      </NextIntlClientProvider>,
-    )
-    expect(screen.getByText('换到标签台 · NovelAI V5 Full')).toBeTruthy()
-    expect(screen.getByText(WORKBENCH.handoff.request!)).toBeTruthy()
-    expect(screen.getByText(/你来按发送/)).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: '带我过去' }))
-    expect(onAccept).toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: '先不要' }))
-    expect(onDismiss).toHaveBeenCalled()
-  })
-
-  it('已决之后收成一行「已换到标签台 · 时间」', () => {
-    render(
-      <NextIntlClientProvider locale="zh" messages={zhMessages}>
-        <StudioOperatorWorkbenchHandoffCard
-          prompt={{
-            ...WORKBENCH,
-            status: 'confirmed',
-            decidedAt: '2026-10-04T09:00:00.000Z',
-          }}
-          onAccept={vi.fn()}
-          onDismiss={vi.fn()}
-          formatTime={() => '11:24'}
-        />
-      </NextIntlClientProvider>,
-    )
-    expect(screen.getByText('已换到标签台 · 11:24')).toBeTruthy()
-    expect(screen.queryByRole('button')).toBeNull()
   })
 })

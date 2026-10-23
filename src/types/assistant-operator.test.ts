@@ -620,7 +620,7 @@ const STEP_FIXTURES: Record<
     },
     result: { offered: true },
   },
-  /** 提议几张角色图 / 交给图片助手（卡片助手 C3）——**读类**：一张都没存。 */
+  /** 提议几张角色图（卡片助手 C3）——**读类**：一张都没存。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages]: {
     payload: {
       characterId: 'denia',
@@ -632,17 +632,6 @@ const STEP_FIXTURES: Record<
         },
       ],
     },
-    result: { offered: true },
-  },
-  [ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant]: {
-    payload: {
-      characterId: 'denia',
-      request: '给 Denia 出一张定妆三视图：正面、侧面、背面全身，白底',
-    },
-    result: { offered: true },
-  },
-  [ASSISTANT_OPERATOR_TOOL_IDS.switchWorkbench]: {
-    payload: { modelId: 'novelai-v5-full', request: '改写成标签再出一张' },
     result: { offered: true },
   },
   /** 搭配卡（§12）—— **读类**：到这一帧为止什么都没动，所以没有 `inverse`。 */

@@ -31,10 +31,7 @@ import type {
   AssistantOperatorAskEvent,
   AssistantOperatorCharacterProfileDraft,
   AssistantOperatorCharacterImagesProposal,
-  AssistantOperatorImageHandoff,
   AssistantOperatorUpscaleRequest,
-  AssistantOperatorMoveWorkRequest,
-  AssistantOperatorWorkbenchHandoff,
   AssistantOperatorContextCardDraft,
   AssistantOperatorCritiqueStep,
   AssistantOperatorGenerationRequest,
@@ -571,25 +568,10 @@ export type StudioOperatorConfirmPrompt = {
       proposal: AssistantOperatorCharacterImagesProposal
       keptCount?: number
     }
-  /** 卡片助手交给图片助手（C3，画板 S11）—— 「交给图片助手 / 先不要」。 */
-  | {
-      kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.imageHandoff
-      handoff: AssistantOperatorImageHandoff
-    }
-  /** 换到另一台图片工作台 —— 「带我过去 / 先不要」。 */
-  | {
-      kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.workbenchHandoff
-      handoff: AssistantOperatorWorkbenchHandoff
-    }
   /** 画布上放大几张卡（P6）—— 「放大 / 先不要」。 */
   | {
       kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.upscale
       request: AssistantOperatorUpscaleRequest
-    }
-  /** 交到另一台接着做（P6）—— 「交过去 / 先不要」；工作台 → 画布时卡上选项目。 */
-  | {
-      kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.moveWork
-      request: AssistantOperatorMoveWorkRequest
     }
 )
 

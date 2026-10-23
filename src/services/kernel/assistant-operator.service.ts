@@ -515,8 +515,6 @@ import {
   type AssistantOperatorCanvasLookAtArgs,
   type AssistantOperatorCharacterImagesDraft,
   type AssistantOperatorCharacterImagesProposal,
-  type AssistantOperatorImageHandoff,
-  type AssistantOperatorWorkbenchHandoff,
   type AssistantOperatorWebImage,
   type AssistantOperatorCanvasNode,
   type AssistantOperatorReadStateArgs,
@@ -1183,18 +1181,10 @@ export type ToolPlan =
       kind: 'confirmCharacterProfile'
       profile: AssistantOperatorCharacterProfileDraft
     }
-  /** 卡片助手提议几张角色图 / 交给图片助手（C3）—— 同上：吐一帧、停流，一行库都不写。 */
+  /** 卡片助手提议几张角色图（C3）—— 同上：吐一帧、停流，一行库都不写。 */
   | {
       kind: 'confirmCharacterImages'
       proposal: AssistantOperatorCharacterImagesProposal
-    }
-  | {
-      kind: 'confirmImageHandoff'
-      handoff: AssistantOperatorImageHandoff
-    }
-  | {
-      kind: 'confirmWorkbenchHandoff'
-      handoff: AssistantOperatorWorkbenchHandoff
     }
   /**
    * **把助手自己搭好的一套摆给创作者**（lora-assistant §12）—— 同上：吐一帧确认、
@@ -1750,7 +1740,7 @@ function renderState(
         ? 'natural-language workbench (prose prompts)'
         : 'Danbooru-tag workbench (tag prompts)'
     lines.push(
-      `- Models on the OTHER image workbench, the ${otherBench} — set_model cannot reach these; offer one with switch_workbench (copy the id verbatim): ${otherModels
+      `- Models on the OTHER image workbench, the ${otherBench} — set_model cannot reach these; to use one, open that bench: ${otherModels
         .slice(0, LIMITS.maxAvailableModels)
         .map((model) =>
           model.label === model.id ? model.id : `${model.id} — ${model.label}`,
@@ -4295,18 +4285,6 @@ function planSetModel(
   const match = run.state.availableModels.find(
     (model) => model.id === args.modelId,
   )
-  /**
-   * ⭐ 想换的是**另一台图片工作台**上的型号：⛔ 不拒，直接摆「换到那一台」的卡
-   * （owner 2026-10-04）。拒一次的表现是一条红字 + 模型再绕一轮去调 `switch_workbench`。
-   */
-  if (
-    !match &&
-    run.request.snapshot.otherWorkbenchModels?.some(
-      (model) => model.id === args.modelId,
-    )
-  ) {
-    return planSwitchWorkbench(run, { modelId: args.modelId })
-  }
   if (!match) {
     return reject(
       REJECT.unknownModel,
@@ -4325,7 +4303,7 @@ function planSetModel(
   ) {
     return reject(
       REJECT.unknownModel,
-      'This model belongs to the other image workbench. Offer it with switch_workbench instead of set_model.',
+      'This model belongs to the other image workbench. Open that bench to use it.',
     )
   }
 
@@ -9285,66 +9263,6 @@ function planCheckCharacterLook(
 }
 
 /**
- * **交给图片助手**（卡片助手 C3，画板 S11）：吐一帧 `confirm(imageHandoff)`。
- * ⚠ 点下去只是跳到图片工作台、把话填进图片助手的输入框，由用户按发送 ——
- *   这里没有任何后果，也不报价（价钱在工作台看）。
- */
-function planHandOffToImageAssistant(
-  run: OperatorRun,
-  handoff: AssistantOperatorImageHandoff,
-): ToolPlan {
-  if (!isCharacterOnPage(run, handoff.characterId)) {
-    return notOffered(
-      handoff,
-      TOOL.handOffToImageAssistant,
-      `there is no character with id=${handoff.characterId} on this page. Use an id from the page snapshot (read_state) — never invent one.`,
-    )
-  }
-  return { kind: 'confirmImageHandoff', handoff }
-}
-
-/**
- * **换到另一台图片工作台**（自然语言台 ↔ 标签台）：吐一帧 `confirm(workbenchHandoff)`。
- *
- * ⚠ 点下去只是选中那个型号、带走提示词、跳过去、把话填进那边的输入框，由用户按发送 ——
- *   这里没有任何后果。
- * ⚠ 型号认不出来时 ⛔ 不画红字（`notOffered`）：模型读到名单就能改口，用户不必看一条失败。
- */
-function planSwitchWorkbench(
-  run: OperatorRun,
-  args: { modelId: string; request?: string },
-): ToolPlan {
-  const current = assistantWorkspaceFromKey(run.request.workspaceKey)?.workspace
-  const others = run.request.snapshot.otherWorkbenchModels
-  if (
-    (current !== 'image-natural' && current !== 'image-tags') ||
-    !others?.length
-  ) {
-    return reject(REJECT.noSuchControl)
-  }
-  const model = others.find((item) => item.id === args.modelId)
-  if (!model) {
-    return notOffered(
-      args,
-      TOOL.switchWorkbench,
-      `"${clamp(args.modelId, LIMITS.maxLabelChars)}" is not on the other workbench. Copy an id from otherWorkbenchModels: ${others
-        .map((item) => item.id)
-        .join(' | ')}.`,
-    )
-  }
-  const request = args.request?.trim()
-  return {
-    kind: 'confirmWorkbenchHandoff',
-    handoff: {
-      modelId: model.id,
-      label: model.label,
-      workspace: current === 'image-tags' ? 'image-natural' : 'image-tags',
-      ...(request ? { request } : {}),
-    },
-  }
-}
-
-/**
  * 读一张卡的全文。
  *
  * ⚠ 正文按 `CARD_LIMITS.maxBodyInToolChars` 截 —— 与 `read_url` 的截段同一条判据：
@@ -9886,16 +9804,6 @@ export async function planTool(
       return planProposeCharacterImages(
         run,
         parsed.data as AssistantOperatorCharacterImagesDraft,
-      )
-    case TOOL.handOffToImageAssistant:
-      return planHandOffToImageAssistant(
-        run,
-        parsed.data as AssistantOperatorImageHandoff,
-      )
-    case TOOL.switchWorkbench:
-      return planSwitchWorkbench(
-        run,
-        parsed.data as { modelId: string; request?: string },
       )
     case TOOL.checkCharacterLook:
       return planCheckCharacterLook(
@@ -10950,7 +10858,7 @@ function buildOperatorSystemPrompt(
 - CANON CHARACTERS: research properly before writing — use verify with depth "deep". Official in-game text is canon: the wiki's character page and its story / backstory and voice-lines pages (for example a Fandom "/Backstory" or "/Voice-Lines" page, or the official wiki's character entry) — read them with read_url instead of stopping at search extracts. A character's own lines are the best evidence for their way of speaking; their character stories for behaviour and history. Encyclopedic wiki write-ups of the canon (the official wiki or 图鉴, Moegirl / 萌娘百科, Fandom, Wikipedia) ARE usable sources — name them as the source; only fan theories, forum speculation and fan works are not. Canon and fan adaptations are not distinguished. If sources disagree or the series has several forms of the character, say so and ask which one. Every proposed field needs a source you actually read in this conversation (put its page in sourceUrl). Do not hold the proposal back waiting for perfect sources: as soon as some parts are supported, propose those parts in the same turn and say in one line which parts are still missing and why — never ask the creator to tell you to propose.
 - ORIGINAL CHARACTERS: do not write a full profile straight away. First ask ONE question with two or three options, each option a direction named in a few words with a one-line description of how the character behaves; after the creator picks, expand that direction and propose it. When the creator wrote a skeleton of the history, keep their words verbatim and list every phrase you added in "added" so the app can shade it; the source line for such a field is "你写的 + 我补的".
 - CHECKING THE LOOK: only when the creator asks whether the profile matches the images, use look/check_character_look on the open character. Outfits are never a mismatch — a character can own many outfits.
-- IMAGES: to find images for a character, search the creator's library first (search_assets), then the web (search_web_images). Good images show this character alone, large and clear, without text over them, in one outfit; say which view each gives (face / full body / back). Hand the good ones over with ask/propose_character_images — never tell the creator to press "use this" on the web grid here, and never claim you attached anything. You never generate images: when neither the library nor the web has what the character needs, say what is missing and send ask/hand_off_to_image_assistant with the one message the image assistant should get. Do not quote a price — the image workbench shows it.`
+- IMAGES: to find images for a character, search the creator's library first (search_assets), then the web (search_web_images). Good images show this character alone, large and clear, without text over them, in one outfit; say which view each gives (face / full body / back). Hand the good ones over with ask/propose_character_images — never tell the creator to press "use this" on the web grid here, and never claim you attached anything. You never generate images here: when neither the library nor the web has what the character needs, say what is missing; to make it, open the image bench.`
       : null,
     request.domain === 'lora'
       ? '- LORA VISUAL WORK: use analyze_references to inspect mounted source images before adapting their visual details into a prompt. Reuse complete visual evidence for unchanged image URLs. Separate character identity, composition and rendering style; translate these facts into the selected base family dialect, not @Image tokens in the diffusion prompt. Use critique_result on a result explicitly @-mentioned by the creator, comparing it with source references and the stated goal. Source images are references, never failed generations.'

@@ -29,12 +29,7 @@ import { StudioOperatorConfirmCard } from './StudioOperatorConfirmCard'
 import { StudioOperatorQueueCard } from './StudioOperatorQueueCard'
 import { StudioOperatorCharacterImagesCard } from './StudioOperatorCharacterImagesCard'
 import { StudioOperatorCharacterProfileCard } from './StudioOperatorCharacterProfileCard'
-import {
-  StudioOperatorImageHandoffCard,
-  StudioOperatorMoveWorkCard,
-  StudioOperatorUpscaleCard,
-  StudioOperatorWorkbenchHandoffCard,
-} from './StudioOperatorHandoffCard'
+import { StudioOperatorUpscaleCard } from './StudioOperatorUpscaleCard'
 import { StudioOperatorLoraSetupCard } from './StudioOperatorLoraSetupCard'
 import { StudioOperatorResultRow } from './StudioOperatorResultRow'
 import { flyImageToComposer } from '@/lib/fly-to-composer'
@@ -577,14 +572,8 @@ export function StudioOperatorPanel({
     dismissCharacterProfile,
     keepCharacterImages,
     dismissCharacterImages,
-    acceptImageHandoff,
-    dismissImageHandoff,
-    acceptWorkbenchHandoff,
-    dismissWorkbenchHandoff,
     acceptUpscale,
     dismissUpscale,
-    acceptMoveWork,
-    dismissMoveWork,
     cancelGeneration,
     retryGeneration,
     rerunGeneration,
@@ -1616,40 +1605,12 @@ export function StudioOperatorPanel({
             onDismiss={dismissCharacterImages}
             formatTime={formatDecidedAt}
           />
-        ) : confirm.kind ===
-          ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.imageHandoff ? (
-          /* ── 交给图片助手（卡片助手 C3，画板 S11）── */
-          <StudioOperatorImageHandoffCard
-            prompt={confirm}
-            characterName={characterNameOf(confirm.handoff.characterId)}
-            assistantName={assistantName}
-            onAccept={acceptImageHandoff}
-            onDismiss={dismissImageHandoff}
-            formatTime={formatDecidedAt}
-          />
-        ) : confirm.kind ===
-          ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.workbenchHandoff ? (
-          /* ── 换到另一台图片工作台（自然语言台 ↔ 标签台）── */
-          <StudioOperatorWorkbenchHandoffCard
-            prompt={confirm}
-            onAccept={acceptWorkbenchHandoff}
-            onDismiss={dismissWorkbenchHandoff}
-            formatTime={formatDecidedAt}
-          />
         ) : confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.upscale ? (
           /* ── 放大到 4K：结果做成原卡的新版本（P6）── */
           <StudioOperatorUpscaleCard
             prompt={confirm}
             onAccept={acceptUpscale}
             onDismiss={dismissUpscale}
-            formatTime={formatDecidedAt}
-          />
-        ) : confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.moveWork ? (
-          /* ── 交到另一台接着做（P6 台间交接）── */
-          <StudioOperatorMoveWorkCard
-            prompt={confirm}
-            onAccept={acceptMoveWork}
-            onDismiss={dismissMoveWork}
             formatTime={formatDecidedAt}
           />
         ) : confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraSetup ? (

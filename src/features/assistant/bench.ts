@@ -12,7 +12,6 @@ import {
 } from '@/constants/assistant-operator'
 import {
   ASSISTANT_V3_CARDS_EDIT_OP_IDS,
-  ASSISTANT_V3_CARDS_ITEM_IDS,
   ASSISTANT_V3_FACE_IDS,
   ASSISTANT_V3_IMAGE_EDIT_OP_IDS,
   ASSISTANT_V3_LORA_EDIT_OP_IDS,
@@ -81,7 +80,6 @@ import {
   ASSISTANT_NEXT_EDIT_OP_IDS as OP,
   ASSISTANT_NEXT_FIND_KIND_IDS,
   ASSISTANT_NEXT_FIND_KINDS,
-  ASSISTANT_NEXT_HANDLE_PREFIXES,
   ASSISTANT_NEXT_LIMITS,
   ASSISTANT_NEXT_LORA_PARAM_KEYS,
   ASSISTANT_NEXT_RECIPE_PART_IDS as PART,
@@ -100,6 +98,7 @@ import {
 } from '@/features/assistant/canvas'
 import { renderAudioBench, runAudioChange } from '@/features/assistant/audio'
 import { isLibraryOp, runLibraryChange } from '@/features/assistant/library'
+import type { BenchOpening } from '@/features/assistant/open'
 import type {
   AskInput,
   EditChange,
@@ -183,11 +182,7 @@ const OPS_BY_FACE: Record<BenchFace, readonly AssistantNextEditOp[]> = {
     OP.loraParam,
     OP.applyRecipe,
   ],
-  [ASSISTANT_V3_FACE_IDS.cards]: [
-    OP.proposeProfile,
-    OP.proposeImages,
-    OP.handOff,
-  ],
+  [ASSISTANT_V3_FACE_IDS.cards]: [OP.proposeProfile, OP.proposeImages],
   [ASSISTANT_V3_FACE_IDS.canvas]: CANVAS_OPS,
   [ASSISTANT_V3_FACE_IDS.audio]: [
     OP.prompt,
@@ -210,6 +205,8 @@ export interface BenchResult {
   readonly stop?: boolean
   /** 画布：这次 edit 里要交给浏览器落的那一批（循环合成一批再落，落完再接着跑）。 */
   readonly canvas?: CanvasBatch
+  /** 开台（第 9e 步）：去哪。循环存好这一跳、停在 `bench_open`，到了新台再补结果。 */
+  readonly opening?: BenchOpening
 }
 
 export function benchFaceOf(domain: string): BenchFace | null {
@@ -568,15 +565,6 @@ export function toV3Mutation(face: BenchFace, change: EditChange): V3Mutation {
           reason: image.reason ?? '',
         })),
       })
-    case OP.handOff:
-      if (!change.character) return need(change.op, 'character')
-      if (!change.request) return need(change.op, 'request')
-      return edit({
-        op: ASSISTANT_V3_CARDS_EDIT_OP_IDS.handOff,
-        character: change.character,
-        say: change.say ?? '',
-        request: change.request,
-      })
     default:
       // add_lora / apply_recipe 由 `runEdit` 自己展开，走不到这里。
       return { tool: null, error: `There is no edit op "${change.op}".` }
@@ -657,7 +645,6 @@ async function withResolvedNames(
           : {}),
       }
     case OP.proposeProfile:
-    case OP.handOff:
       return change.character
         ? { ...change, character: characterHandleOf(context, change.character) }
         : change
@@ -938,32 +925,6 @@ async function* runCanvasEdit(
       )
       continue
     }
-    if (change.op === OP.handOff) {
-      if (!change.card) {
-        failed += 1
-        lines.push(`${label} — not done: hand_off needs card.`)
-        continue
-      }
-      if (!change.request) {
-        failed += 1
-        lines.push(`${label} — not done: hand_off needs request.`)
-        continue
-      }
-      const result = outcomeOf(
-        yield* executeAssistantV3CanvasCall(
-          context,
-          ASSISTANT_V3_TOOL_IDS.handOff,
-          { card: change.card, next: change.request },
-        ),
-      )
-      if (result.error) failed += 1
-      lines.push(
-        `${label} — ${result.error ? 'not done: ' : ''}${result.output}`,
-      )
-      if (result.stop)
-        return { output: lines.join('\n'), error: false, stop: true }
-      continue
-    }
     const piece = toCanvasPiece(context, change)
     if (piece.kind === 'error') {
       failed += 1
@@ -1155,7 +1116,7 @@ export async function* runGenerate(
   if (context.face === ASSISTANT_V3_FACE_IDS.cards)
     return {
       output:
-        'The character page does not generate. To make a picture for a character, propose a hand_off to the image assistant.',
+        'The character page does not generate. To make a picture for a character, open the image bench and set it up there.',
       error: true,
     }
   if (context.face === ASSISTANT_V3_FACE_IDS.audio)

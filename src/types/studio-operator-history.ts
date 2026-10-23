@@ -12,7 +12,6 @@ import {
 import {
   AssistantOperatorCharacterImagesProposalSchema,
   AssistantOperatorCharacterProfileDraftSchema,
-  AssistantOperatorImageHandoffSchema,
   AssistantOperatorPlanQuestionSchema,
   AssistantOperatorPlanAnswerSchema,
   AssistantOperatorNegativeFoldedSchema,
@@ -178,7 +177,7 @@ export const StudioOperatorHistoryEntrySchema = z.discriminatedUnion('kind', [
  *
  * ⭐ 判据仍是本文件头那条「恢复可读性，不恢复对当前表单的控制权」—— 只是把它说准：
  *   **不依赖当时表单的决定**刷新后留着。反问（不含覆盖三选）、卡片助手的设定提议 /
- *   候选图 / 交给图片助手，这几样问的都是用户自己的判断，刷新前后是同一个问题；
+ *   候选图，这几样问的都是用户自己的判断，刷新前后是同一个问题；
  *   ⛔ 生成确认、覆盖三选、多步计划照旧不存 —— 刷新之后表单早就不是那一张。
  * ⚠ 存在**最后一条消息**的 `operatorPending` 上（不是一条历史条目）：只有它还是
  *   最后一条时才算没决定；一旦后面有了新东西，它就是过去的事，载回时不理它。
@@ -200,10 +199,6 @@ export const StudioOperatorPendingSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal(ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterImages),
     proposal: AssistantOperatorCharacterImagesProposalSchema,
-  }),
-  z.object({
-    kind: z.literal(ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.imageHandoff),
-    handoff: AssistantOperatorImageHandoffSchema,
   }),
 ])
 

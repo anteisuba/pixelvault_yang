@@ -55,7 +55,6 @@ export const CANVAS_OPS: readonly AssistantNextEditOp[] = [
   OP.moveToShot,
   OP.reorderShot,
   OP.projectScript,
-  OP.handOff,
 ]
 
 /** 一次 edit 里要交给浏览器落的那一份（v3 的 v4 op + 过程行标题 + 接力时认结果用的那一次调用）。 */

@@ -582,22 +582,6 @@
         "dismiss": "Not now",
         "kept": "Attached {count, plural, one {# image} other {# images}} · {time}"
       },
-      "imageHandoff": {
-        "header": "{name} · hand to the image assistant",
-        "hint": "Opens the image workbench with {name} selected and types this into the image assistant's box — you press send.",
-        "accept": "Hand to the image assistant",
-        "dismiss": "Not now",
-        "accepted": "Handed to the image assistant · {time}"
-      },
-      "workbenchHandoff": {
-        "header": "Switch to the {bench} · {model}",
-        "tags": "tag workbench",
-        "natural": "natural-language workbench",
-        "hint": "Selects this model, carries your prompt over and opens the {bench}; the line above goes into the assistant's box there — you press send.",
-        "accept": "Take me there",
-        "dismiss": "Not now",
-        "accepted": "Switched to the {bench} · {time}"
-      },
       "upscale": {
         "header": "Upscale to 4K · {count, plural, one {# image} other {# images}}",
         "hint": "Runs on your own fal key, no credits. The enlarged picture becomes a new version of the same card; the original stays in its version strip.",
@@ -608,31 +592,6 @@
         "acceptedText": "Upscale {names}",
         "declinedText": "Don't upscale {names} for now",
         "question": "Upscale {names} to 4K?"
-      },
-      "moveWork": {
-        "canvas": {
-          "header": "Continue on the canvas",
-          "hint": "Brings this bench's prompt, model, references and latest image onto the canvas as one card. The line above goes into the canvas assistant's input; you press send.",
-          "accept": "Move it",
-          "dismiss": "Not now",
-          "accepted": "Moved to the canvas · {time}",
-          "acceptedText": "Continue on the canvas",
-          "declinedText": "Not moving to the canvas",
-          "question": "Continue this on the canvas?",
-          "pickLabel": "Which canvas",
-          "newProject": "New canvas",
-          "loading": "Finding recent canvases…"
-        },
-        "workbench": {
-          "header": "Continue on the workbench · {names}",
-          "hint": "Brings {names}'s prompt, model and references to the image workbench. The line above goes into that assistant's input; you press send.",
-          "accept": "Move it",
-          "dismiss": "Not now",
-          "accepted": "Moved to the workbench · {time}",
-          "acceptedText": "Continue {names} on the workbench",
-          "declinedText": "Not moving {names} to the workbench",
-          "question": "Continue {names} on the workbench?"
-        }
       }
     },
     "system": {
@@ -642,6 +601,7 @@
       "stopped": "You stopped the current work",
       "interrupted": "Your message changed the assistant's direction.",
       "streamInterrupted": "The connection dropped before this turn finished.",
+      "benchOpenMissed": "Couldn't open that bench, so the assistant stopped here.",
       "revertRound": "You reverted this round's {count, plural, one {# change} other {# changes}} (the assistant knows)",
       "revertFailed": "A change could not be reverted. The remaining changes are preserved; please try again.",
       "queuePicked": "Reading your {count, plural, one {# queued message} other {# queued messages}} at this pause.",

@@ -20,7 +20,10 @@
 
 import { z } from 'zod'
 import { EvidenceExcerptKindSchema } from '@/types/research'
-import { AssistantWorkspaceKeySchema } from '@/types/assistant-workspace'
+import {
+  AssistantWorkspaceKeySchema,
+  AssistantWorkspaceSchema,
+} from '@/types/assistant-workspace'
 import {
   NovelAiCharacterDraftSchema,
   NovelAiCharacterLayoutSchema,
@@ -1206,7 +1209,7 @@ export const AssistantOperatorSnapshotSchema = z.object({
     .default([]),
   /**
    * **另一台图片工作台**上能跑的模型（自然语言台 ↔ 标签台）—— `set_model` 换不到它们，
-   * 要换就走 `switch_workbench`。缺席 = 这个宿主没有对面那一台（视频 / LoRA / 画布 …）。
+   * 要用就开那一台（第 9e 步「开台」）。缺席 = 这个宿主没有对面那一台（视频 / LoRA / 画布 …）。
    */
   otherWorkbenchModels: z
     .array(z.object({ id: IdSchema, label: LabelSchema }))
@@ -2568,52 +2571,6 @@ export const AssistantOperatorCanvasLookAtResultSchema = z.object({
 })
 
 /**
- * **交给图片助手**（卡片助手 C3，画板 S11）：要对图片助手说的那一句话。
- * ⚠ 同一个形状既是入参也是 `confirm(imageHandoff)` 的载荷。
- */
-export const AssistantOperatorImageHandoffSchema = z.object({
-  characterId: IdSchema,
-  request: z
-    .string()
-    .trim()
-    .min(1)
-    .max(ASSISTANT_OPERATOR_CARDS_LIMITS.maxHandoffChars),
-})
-
-export type AssistantOperatorImageHandoff = z.infer<
-  typeof AssistantOperatorImageHandoffSchema
->
-
-/** `switch_workbench` 的入参：对面那台的模型 + 要接着对那边助手说的一句（可选）。 */
-export const AssistantOperatorSwitchWorkbenchArgsSchema = z.object({
-  modelId: IdSchema,
-  request: z
-    .string()
-    .trim()
-    .max(ASSISTANT_OPERATOR_CARDS_LIMITS.maxHandoffChars)
-    .optional(),
-})
-
-/**
- * **换到另一台图片工作台**的那张卡（`confirm(workbenchHandoff)` 的载荷）。
- * ⚠ `workspace` 由服务端按当前那台推出来（⛔ 不收模型写的）：只有两台，对面就是另一台。
- */
-export const AssistantOperatorWorkbenchHandoffSchema = z.object({
-  modelId: IdSchema,
-  label: LabelSchema,
-  workspace: z.enum(['image-natural', 'image-tags']),
-  request: z
-    .string()
-    .trim()
-    .max(ASSISTANT_OPERATOR_CARDS_LIMITS.maxHandoffChars)
-    .optional(),
-})
-
-export type AssistantOperatorWorkbenchHandoff = z.infer<
-  typeof AssistantOperatorWorkbenchHandoffSchema
->
-
-/**
  * **画布上放大哪几张卡**（`confirm(upscale)` 的载荷，P6）。只有卡的 id 与名字：放大哪一版、
  * 用哪个模型由客户端在按下那一刻按卡上当前那张图定（⛔ 载荷里没有地址）。
  */
@@ -2626,30 +2583,6 @@ export const AssistantOperatorUpscaleRequestSchema = z.object({
 
 export type AssistantOperatorUpscaleRequest = z.infer<
   typeof AssistantOperatorUpscaleRequestSchema
->
-
-export const ASSISTANT_OPERATOR_MOVE_WORK_TARGETS = [
-  'canvas',
-  'workbench',
-] as const
-
-/**
- * **交到另一台接着做**（`confirm(moveWork)` 的载荷，P6）。`to` 由服务端按当前那张脸定（⛔ 不收
- * 模型写的）；`node` 只在画布 → 工作台时有：带走哪张卡。提示词、模型、参考图在按下那一刻由客户端
- * 从台面上取（⛔ 载荷里没有地址）。`next` = 填进那边助手输入框的那一句。
- */
-export const AssistantOperatorMoveWorkRequestSchema = z.object({
-  to: z.enum(ASSISTANT_OPERATOR_MOVE_WORK_TARGETS),
-  node: z.object({ id: IdSchema, name: LabelSchema }).optional(),
-  next: z
-    .string()
-    .trim()
-    .max(ASSISTANT_OPERATOR_CARDS_LIMITS.maxHandoffChars)
-    .optional(),
-})
-
-export type AssistantOperatorMoveWorkRequest = z.infer<
-  typeof AssistantOperatorMoveWorkRequestSchema
 >
 
 /**
@@ -3441,10 +3374,6 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
   ),
   [ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages]:
     AssistantOperatorCharacterImagesDraftSchema,
-  [ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant]:
-    AssistantOperatorImageHandoffSchema,
-  [ASSISTANT_OPERATOR_TOOL_IDS.switchWorkbench]:
-    AssistantOperatorSwitchWorkbenchArgsSchema,
   [ASSISTANT_OPERATOR_TOOL_IDS.checkCharacterLook]: z.object({
     characterId: IdSchema,
   }),
@@ -4688,21 +4617,10 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
     AssistantOperatorCharacterProfileDraftSchema,
     z.object({ offered: z.boolean() }),
   ),
-  /** 提议几张角色图 / 交给图片助手（卡片助手 C3）—— 同上：一帧 confirm 加停流。 */
+  /** 提议几张角色图（卡片助手 C3）—— 同上：一帧 confirm 加停流。 */
   readStep(
     ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages,
     AssistantOperatorCharacterImagesDraftSchema,
-    z.object({ offered: z.boolean() }),
-  ),
-  readStep(
-    ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant,
-    AssistantOperatorImageHandoffSchema,
-    z.object({ offered: z.boolean() }),
-  ),
-  /** 换到另一台图片工作台 —— 同上：一帧 confirm 加停流。 */
-  readStep(
-    ASSISTANT_OPERATOR_TOOL_IDS.switchWorkbench,
-    AssistantOperatorSwitchWorkbenchArgsSchema,
     z.object({ offered: z.boolean() }),
   ),
   /** 对一下设定和外观（卡片助手 S14）—— 读类：看了几张、对不上几处。 */
@@ -5173,25 +5091,10 @@ export const AssistantOperatorConfirmEventSchema = z.object({
       kind: z.literal(ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterImages),
       proposal: AssistantOperatorCharacterImagesProposalSchema,
     }),
-    /** **交给图片助手**（C3）—— 一句缺什么 + 「交给图片助手 / 先不要」。 */
-    z.object({
-      kind: z.literal(ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.imageHandoff),
-      handoff: AssistantOperatorImageHandoffSchema,
-    }),
-    /** **换到另一台图片工作台** —— 换到哪台、用哪个模型 + 「带我过去 / 先不要」。 */
-    z.object({
-      kind: z.literal(ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.workbenchHandoff),
-      handoff: AssistantOperatorWorkbenchHandoffSchema,
-    }),
     /** **画布上放大几张卡**（P6）—— 「放大 / 先不要」，结果是各自那张卡的新版本。 */
     z.object({
       kind: z.literal(ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.upscale),
       request: AssistantOperatorUpscaleRequestSchema,
-    }),
-    /** **交到另一台接着做**（P6）—— 工作台 ↔ 画布，「交过去 / 先不要」。 */
-    z.object({
-      kind: z.literal(ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.moveWork),
-      request: AssistantOperatorMoveWorkRequestSchema,
     }),
   ]),
 })
@@ -5209,9 +5112,25 @@ export const AssistantOperatorDoneEventSchema = z.object({
   roundSummary: AssistantOperatorRoundSummarySchema.optional(),
 })
 
+/**
+ * 开台去哪（第 9e 步）。画布带项目号或 `new`（新建一块）；角色页可带打开哪一位。
+ * ⚠ 项目号 / 角色号是服务端按这个人的库认出来的，⛔ 不收模型写的 id。
+ */
+export const AssistantOperatorBenchOpenSchema = z.object({
+  workspace: AssistantWorkspaceSchema,
+  projectId: z.string().min(1).max(160).optional(),
+  characterId: z.string().min(1).max(160).optional(),
+})
+
+export type AssistantOperatorBenchOpen = z.infer<
+  typeof AssistantOperatorBenchOpenSchema
+>
+
 export const AssistantOperatorStoppedEventSchema = z.object({
   type: z.literal(ASSISTANT_OPERATOR_EVENTS.stopped),
   reason: AssistantOperatorStopReasonSchema,
+  /** 停在 `bench_open` 时：去哪个台。 */
+  open: AssistantOperatorBenchOpenSchema.optional(),
   /**
    * **以确认卡 / 问题卡结束的那一轮也结账**（2026-09-12 实测第 2 组）。
    *

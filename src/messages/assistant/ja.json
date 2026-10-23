@@ -582,22 +582,6 @@
         "dismiss": "今はいい",
         "kept": "{count} 枚付けました · {time}"
       },
-      "imageHandoff": {
-        "header": "{name} · 画像アシスタントに渡す",
-        "hint": "画像ワークベンチを開いて「{name}」を選び、この一文を画像アシスタントの入力欄に入れます。送信はあなたが押します。",
-        "accept": "画像アシスタントに渡す",
-        "dismiss": "今はいい",
-        "accepted": "画像アシスタントに渡しました · {time}"
-      },
-      "workbenchHandoff": {
-        "header": "{bench}へ切り替え · {model}",
-        "tags": "タグ台",
-        "natural": "自然言語台",
-        "hint": "このモデルを選び、入力済みのプロンプトを持って{bench}へ移動します。上の一文は向こうのアシスタント入力欄に入れます。送信はあなたが押します。",
-        "accept": "移動する",
-        "dismiss": "今はいい",
-        "accepted": "{bench}へ切り替えました · {time}"
-      },
       "upscale": {
         "header": "4K にアップスケール · {count} 枚",
         "hint": "あなたの fal キーで実行し、クレジットは使いません。拡大した画像はこのカードの新しいバージョンになり、元の画像はバージョン列に残ります。",
@@ -608,31 +592,6 @@
         "acceptedText": "{names}を拡大",
         "declinedText": "{names}は今は拡大しない",
         "question": "{names}を 4K に拡大しますか？"
-      },
-      "moveWork": {
-        "canvas": {
-          "header": "キャンバスで続ける",
-          "hint": "この台のプロンプト・モデル・参照画像・直近の 1 枚をキャンバスに 1 枚のカードとして持っていきます。上の一言はキャンバスのアシスタント入力欄に入れるので、送信はご自身で。",
-          "accept": "移す",
-          "dismiss": "今はやめる",
-          "accepted": "キャンバスへ移しました · {time}",
-          "acceptedText": "キャンバスで続ける",
-          "declinedText": "キャンバスへは移さない",
-          "question": "この作業をキャンバスで続けますか？",
-          "pickLabel": "移す先のキャンバス",
-          "newProject": "新しいキャンバス",
-          "loading": "最近のキャンバスを探しています…"
-        },
-        "workbench": {
-          "header": "ワークベンチで続ける · {names}",
-          "hint": "{names}のプロンプト・モデル・参照画像を画像ワークベンチへ持っていきます。上の一言はそちらのアシスタント入力欄に入れるので、送信はご自身で。",
-          "accept": "移す",
-          "dismiss": "今はやめる",
-          "accepted": "ワークベンチへ移しました · {time}",
-          "acceptedText": "{names}をワークベンチで続ける",
-          "declinedText": "{names}はワークベンチへ移さない",
-          "question": "{names}をワークベンチで続けますか？"
-        }
       }
     },
     "system": {
@@ -642,6 +601,7 @@
       "stopped": "作業を止めました",
       "interrupted": "メッセージに合わせて、進め方を変更しました",
       "streamInterrupted": "このターンが終わる前に接続が切れました。",
+      "benchOpenMissed": "その台を開けなかったので、ここで止めました。",
       "revertRound": "このラウンドの変更 {count} 件を元に戻しました（アシスタントは把握済み）",
       "revertFailed": "変更を1件元に戻せませんでした。残りの変更は保持されています。もう一度お試しください。",
       "queuePicked": "区切りになったので、待機中のメッセージ{count}件を確認しています",

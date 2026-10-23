@@ -561,26 +561,6 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    */
   checkCharacterLook: 'check_character_look',
   /**
-   * **交给图片助手**（卡片助手 C3，owner 09-27 选「跳过去，话填好你来发」，画板 S11）。
-   *
-   * ⭐ 素材库和网上都没有合适的图时，卡片助手说清楚缺什么，把要对图片助手说的那句话
-   *   交出来；用户点「交给图片助手」→ 跳到图片工作台、带上这个角色、打开图片助手、
-   *   把话填进输入框，**由用户按发送**。⛔ 卡片助手自己不出图、不报价（价钱在工作台看）。
-   * ⚠ 没有 `inverse`：什么都没发生，撤无可撤。
-   */
-  handOffToImageAssistant: 'hand_off_to_image_assistant',
-  /**
-   * **换到另一台图片工作台**（自然语言台 ↔ 标签台，owner 2026-10-04「做成一张一键
-   * 过去的卡片」）。
-   *
-   * ⭐ 两台各只列自己方言的模型，`set_model` 换不到对面那台的型号。这条把「建议用
-   *   NAI」变成一张卡：用户点「带我过去」→ 选中那个型号、带走已填的提示词、换到那一台、
-   *   把要接着做的那句话填进那边助手的输入框，**由用户按发送**（与
-   *   `hand_off_to_image_assistant` 同一个做法）。
-   * ⚠ 没有 `inverse`：到这一帧为止什么都没动，撤无可撤。
-   */
-  switchWorkbench: 'switch_workbench',
-  /**
    * 把一张产物标成 **待定 / 采用 / 判失败**（第三期 · 切片 X）。
    *
    * ⭐ 起因是 owner 的一句话：「禁止用失败的旧图」。在这之前系统里没有任何地方
@@ -768,8 +748,6 @@ export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard,
   ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile,
   ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages,
-  ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant,
-  ASSISTANT_OPERATOR_TOOL_IDS.switchWorkbench,
   ASSISTANT_OPERATOR_TOOL_IDS.checkCharacterLook,
   ASSISTANT_OPERATOR_TOOL_IDS.setReviewState,
   ASSISTANT_OPERATOR_TOOL_IDS.tagAsset,
@@ -854,11 +832,8 @@ export const ASSISTANT_OPERATOR_READ_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard,
   /** ⚠ 提议一份角色设定同归这一档：判据与上一条逐字同源（写入那一跳是用户点下去的）。 */
   ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile,
-  /** ⚠ 提议几张角色图、交给图片助手同归这一档：挂图 / 跳转那一跳都是用户点下去的。 */
+  /** ⚠ 提议几张角色图同归这一档：挂图那一跳是用户点下去的。 */
   ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages,
-  ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant,
-  /** ⚠ 换到另一台图片工作台同归这一档：跳转那一跳是用户点下去的。 */
-  ASSISTANT_OPERATOR_TOOL_IDS.switchWorkbench,
   /** ⚠ 对一下设定和外观（S14）：只看不写。 */
   ASSISTANT_OPERATOR_TOOL_IDS.checkCharacterLook,
   /**
@@ -1088,13 +1063,8 @@ export const ASSISTANT_OPERATOR_TOOL_VERBS: Record<
   /** ⚠ 提议一份角色设定也归**问**：停下来等用户勾、拍一个板，产出是「决定」。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile]:
     ASSISTANT_OPERATOR_VERB_IDS.ask,
-  /** ⚠ 提议几张角色图、交给图片助手也归**问**：停下来等用户拍板。 */
+  /** ⚠ 提议几张角色图也归**问**：停下来等用户拍板。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages]:
-    ASSISTANT_OPERATOR_VERB_IDS.ask,
-  [ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant]:
-    ASSISTANT_OPERATOR_VERB_IDS.ask,
-  /** ⚠ 换台也归**问**：停下来等用户点「带我过去」。 */
-  [ASSISTANT_OPERATOR_TOOL_IDS.switchWorkbench]:
     ASSISTANT_OPERATOR_VERB_IDS.ask,
   /** ⚠ 搭配卡归**问**：一套搭配摆出来等创作者点「应用」，产出是「决定」。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup]: ASSISTANT_OPERATOR_VERB_IDS.ask,
@@ -1407,29 +1377,11 @@ export const ASSISTANT_OPERATOR_CONFIRM_KIND_IDS = {
    */
   characterImages: 'characterImages',
   /**
-   * 卡片助手交给图片助手（C3，画板 S11）：一句「缺什么」+ 两颗键。
-   * ⚠ 点「交给图片助手」只是跳过去并把话填进输入框，⛔ 不替用户发、不花钱。
-   */
-  imageHandoff: 'imageHandoff',
-  /**
-   * 换到另一台图片工作台（自然语言台 ↔ 标签台）：一句「换到哪台、用哪个模型」+ 两颗键。
-   * ⚠ 点「带我过去」只是选中模型、带走提示词、跳过去并把话填进那边的输入框，
-   * ⛔ 不替用户发、不花钱。
-   */
-  workbenchHandoff: 'workbenchHandoff',
-  /**
    * 画布上把卡的图放大到 4x（P6，owner 2026-10-16「修到 4K」走放大）：一行几张卡 + 两颗键。
    * ⚠ 点「放大」由客户端调画布同一条放大能力（用户自己的 fal key，不扣积分），结果是那张卡的
    *   新版本（owner 2026-10-15 手动放大定的规矩）；⛔ 服务端不调、不存。
    */
   upscale: 'upscale',
-  /**
-   * 把手上这件事交到另一台接着做（P6，owner 2026-10-16「工作台 ↔ 画布」）：工作台 → 画布时卡上
-   * 选项目（默认最近打开的，owner 2026-10-17），画布 → 工作台带走选中那张卡。
-   * ⚠ 点了才走：带走提示词、模型、参考图（与刚出的图），把下一句话填进那边助手的输入框，
-   *   ⛔ 不替用户发、不花钱。
-   */
-  moveWork: 'moveWork',
 } as const
 
 export const ASSISTANT_OPERATOR_CONFIRM_KINDS = [
@@ -1439,10 +1391,7 @@ export const ASSISTANT_OPERATOR_CONFIRM_KINDS = [
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraSetup,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterProfile,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterImages,
-  ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.imageHandoff,
-  ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.workbenchHandoff,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.upscale,
-  ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.moveWork,
 ] as const
 
 export type AssistantOperatorConfirmKind =
@@ -1582,6 +1531,11 @@ export const ASSISTANT_OPERATOR_STOP_REASONS = {
   aborted: 'aborted',
   /** 等就地确认（拍板 3）。客户端带 `confirmations` 重发即可续跑。 */
   awaitingConfirm: 'awaiting_confirm',
+  /**
+   * 开台（第 9e 步）：助手要换到别的台接着做。帧上带着去哪（`open`）；浏览器换过去、等那个台
+   * 准备好，带着接力条与新台面接着发下一次。
+   */
+  benchOpen: 'bench_open',
   canvasSync: 'canvas_sync',
   /** 撞到步数上限。**不自动续跑** —— 台账 AH：这条链没有幂等键，不做任何自动重试。 */
   maxSteps: 'max_steps',
@@ -1981,11 +1935,6 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
      */
     ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration,
     /**
-     * 换到另一台图片工作台（自然语言台 ↔ 标签台）。⚠ 第二道闸是快照里
-     * `otherWorkbenchModels` 在不在：音频 / 没有对面那台的宿主上整节缺席，按 `noSuchControl` 拒。
-     */
-    ASSISTANT_OPERATOR_TOOL_IDS.switchWorkbench,
-    /**
      * ⭐ 看图闭环。借来的那条视觉线吃的是一张**静态图**（`imageData: result.url`）
      * —— 这条约束一个字都没松；视频档能进表，靠的是先把片子抽成三张静态图
      * （见下面视频档那条注释），⛔ 不是把 mp4 地址直接喂给它。
@@ -2109,7 +2058,7 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
    * 卡片助手（第五张脸，owner 09-26）—— C1 只有**读 / 查**：读角色页快照、翻素材库、
    * 联网查设定（带来源）、找图、翻证据本。
    * ⛔ 没有表单旋钮（`set_prompt` 那一族）：角色页上没有提示词框。
-   * ⛔ 没有花钱档：卡片助手自己不出图，要出图就交给图片助手（C3）。
+   * ⛔ 没有花钱档：卡片助手自己不出图，要出图就开图片台（第 9e 步「开台」）。
    * ⚠ 写设定、挂图这两件写操作分别在 C2 / C3 以专属工具进表，⛔ 不借别的域的工具。
    */
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.cards]: [
@@ -2125,9 +2074,8 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
     ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence,
     /** C2 写设定：提议一份设定，用户勾选后由角色页写进去（服务端不写库）。 */
     ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile,
-    /** C3 查图：提议几张图，用户勾选后由角色页挂上；没有好图就交给图片助手。 */
+    /** C3 查图：提议几张图，用户勾选后由角色页挂上。 */
     ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages,
-    ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant,
     /** S14：用户说了才对一下设定和外观（只报身份级矛盾，衣服不算）。 */
     ASSISTANT_OPERATOR_TOOL_IDS.checkCharacterLook,
   ],
@@ -2229,8 +2177,6 @@ export const ASSISTANT_OPERATOR_CARDS_LIMITS = {
   maxProposedImages: 8,
   /** 每张图那一句「为什么选它」最多多少字。 */
   maxImageReasonChars: 120,
-  /** 交给图片助手的那句话最多多少字。 */
-  maxHandoffChars: 600,
   /** 联网搜到的候选一次最多看几张（C3「搜完先看一眼」，一次看图调用）。 */
   maxWebVisionImages: 12,
   /** 对一下设定和外观时最多看卡上几张图（S14，一次看图调用）。 */
@@ -3279,10 +3225,6 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
     'OFFER a few images to attach to ONE character on this page, for the creator to tick and keep. This SAVES NOTHING on its own: the app shows each image with a checkbox, your one-line reason and where it came from; only the ones they tick are attached (images from the web are saved into their library at that moment). It ends your turn. "characterId" must be an id from the page snapshot. "images" holds one to eight picks; each pick is EITHER {"assetId": an id that search_assets returned this turn} OR {"imageUrl": an image URL that search_web_images returned this turn and that is not marked view only}, plus "reason": one short line in the creator\'s language saying why this one is good (e.g. 「正面半身，脸清楚」「全身，服装完整」) — do not name the source there, the app already prints it under the reason. Pick images that show this character alone, large and clear, without text over them, in one outfit; say in the reason what view it gives (face / full body / back). Never invent an id or a URL.',
   [ASSISTANT_OPERATOR_TOOL_IDS.checkCharacterLook]:
     'LOOK at the open character\'s images next to their written look and profile, and find contradictions. Use it ONLY when the creator asks you to check whether the profile matches the images — never on your own. It saves nothing. "characterId" must be the character that is open on the page (only the open one can be checked). It reports each place where the text says one thing and the images show another about who the character IS: hair colour or length, eye colour, skin, age, body type, species, marks such as scars or horns. Different outfits, poses, expressions and art styles are NOT contradictions — a character can own many outfits. For each contradiction, tell the creator in one line (「设定里说……，但图上是……」) and, when the fix belongs in the look line, identity or history, offer the corrected text with ask/propose_character_profile (source 「对照卡上的图」); if it is only in the tags, say which tag to change. If nothing contradicts, say so in one line.',
-  [ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant]:
-    'HAND the job to the image assistant when neither the library nor the web has the image this character needs (for example no back view, no clean full body). This SENDS NOTHING and costs nothing on its own: the app shows the creator a line saying what is missing and a button; if they press it, the image workbench opens with this character selected and your request typed into the image assistant\'s box for THEM to send. It ends your turn. "characterId" must be an id from the page snapshot. "request" is the one message the image assistant should receive, in the creator\'s language, naming the character and exactly what to make (e.g. 「给 Denia 出一张定妆三视图：正面、侧面、背面全身，白底，服装与主图一致」). Use it only after you searched and found nothing usable; say in your message what you looked for.',
-  [ASSISTANT_OPERATOR_TOOL_IDS.switchWorkbench]:
-    'OFFER to move this job to the OTHER image workbench (natural-language ↔ Danbooru tags), when the creator wants — or would clearly be better served by — a model that only lives there (e.g. NovelAI / PixAI for anime tag prompts, GPT / Gemini / Seedream for prose and text in the picture). Use it instead of set_model whenever the model you want is listed under otherWorkbenchModels; set_model cannot reach it. This MOVES NOTHING on its own: the app shows a card naming the model and the other workbench; if the creator presses it, that model is selected there, the prompt already on the form is carried over, and your "request" is typed into the assistant box there for THEM to send. It ends your turn. "modelId" must be copied verbatim from otherWorkbenchModels. "request" (optional) is the one message the assistant over there should receive next, in the creator\'s language (e.g. 「把这段改写成 NAI 标签，保留雨夜和霓虹，出一张」). Say in your message why that model suits this job better.',
   [ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule]:
     'write down ONE standing rule about HOW YOU WORK that the creator just stated — which sources to trust, what to always or never do, how they want things written or delivered. It should hold for their future work, not a one-off instruction for this run. Quote them; do not paraphrase into your own words. Scope it to this workbench only when it genuinely does not apply elsewhere. Never record a rule they did not state, and never record the same rule twice. "kind" picks which sort of rule it is: "note" (the default, their own words), "sourceAllow" ("only trust these sources from now on") or "sourceDeny" ("never use this site again"). Those last two hold ONE search source id (the same ids the verify tool takes) or ONE domain — ask which site they mean rather than writing a sentence, and use them only when they asked for a standing source list, not for this one search. Example — they say 「以后查资料只信官方站，别拿同人图当依据」, you send {"action":"add_project_rule","text":"以后查资料只信官方站，别拿同人图当依据"}. What a character or a look IS (appearance, outfit, brand colours) is a context card, not a rule — send ask/propose_context_card instead.',
   [ASSISTANT_OPERATOR_TOOL_IDS.tagAsset]:

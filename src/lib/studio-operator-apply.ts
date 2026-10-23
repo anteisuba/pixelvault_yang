@@ -60,7 +60,6 @@ import type {
   AssistantOperatorAppliedStep,
   AssistantOperatorGenerationRequest,
   AssistantOperatorStep,
-  AssistantOperatorWorkbenchHandoff,
 } from '@/types/assistant-operator'
 import type { LoraCandidateImportPayload } from '@/types/lora-candidate'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
@@ -174,15 +173,6 @@ export interface StudioOperatorCanvasContext {
    * ⚠ 异步：要等结果回来才知道成没成（缺 fal key / 服务商失败都要说给用户听）。
    */
   upscale?(nodeId: string): Promise<StudioOperatorCanvasUpscaleOutcome>
-  /**
-   * 把这张图片卡交到图片工作台接着做（P6 台间交接）：提示词、模型、连着的参考图填进工作台
-   * （按模型去自然语言台或标签台），`next` 填进那边助手的输入框。⛔ 不替用户发。
-   * 回 `null` = 这张卡交不了（不在了 / 不是图片卡）。
-   */
-  moveToWorkbench?(
-    nodeId: string,
-    next?: string,
-  ): { droppedReferences: number } | null
   /**
    * 下游名单：沿具名槽边算一遍后继闭包。⚠ 由宿主算而不是服务端 —— 服务端那份
    * 快照是分层的，折叠的镜里没有边，闭包会漏。
@@ -311,28 +301,7 @@ export interface StudioOperatorApplyContext {
         origin: 'upload' | 'generation'
       }[],
     ): Promise<number | null>
-    /**
-     * 交给图片助手（C3）：跳到图片工作台、带上这个角色、把话填进图片助手的输入框。
-     * ⛔ 不替用户发。
-     */
-    handOffToImageAssistant(characterId: string, request: string): void
   }
-  /**
-   * **换到另一台图片工作台**（自然语言台 ↔ 标签台）：选中那个型号、带走已填的提示词、
-   * 跳过去，把话填进那边助手的输入框。⛔ 不替用户发。
-   * ⚠ 可选：只有图片工作台有对面那一台。
-   */
-  switchImageWorkbench?(handoff: AssistantOperatorWorkbenchHandoff): boolean
-  /**
-   * **交到画布接着做**（P6 台间交接）：提示词、模型、参考图、刚出的那张图带去 `projectId`
-   * 那块画布（或新建一块），落成一张图片卡；`next` 填进画布助手的输入框。⛔ 不替用户发。
-   * 回 `null` = 这一台交不了（视频档）；`droppedReferences` = 超出上限没带上的参考图张数。
-   * ⚠ 可选：只有图片工作台有。
-   */
-  moveToCanvas?(input: {
-    projectId: string
-    next?: string
-  }): { droppedReferences: number } | null
   /**
    * **扣扳机的那只手**（§6 花钱档，拍板 2 的新形态）。
    *
@@ -664,11 +633,8 @@ export function applyOperatorStep(
      * 走角色页的更新（`apply.cards.applyProfile`），⛔ 不在这条应用通道上。
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile:
-    /** ⚠ 提议几张角色图、交给图片助手（C3）同理：那一跳在确认卡上由用户点下去。 */
+    /** ⚠ 提议几张角色图（C3）同理：那一跳在确认卡上由用户点下去。 */
     case ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages:
-    case ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant:
-    /** ⚠ 换到另一台图片工作台同理：跳转那一跳在卡上由用户点下去。 */
-    case ASSISTANT_OPERATOR_TOOL_IDS.switchWorkbench:
     /** ⚠ 搭配卡（§12）同理：应用那几行各自是一条带 `inverse` 的 step。 */
     case ASSISTANT_OPERATOR_TOOL_IDS.planLoraSetup:
     /**
@@ -1060,8 +1026,6 @@ export function revertOperatorStep(
     case ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard:
     case ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterProfile:
     case ASSISTANT_OPERATOR_TOOL_IDS.proposeCharacterImages:
-    case ASSISTANT_OPERATOR_TOOL_IDS.handOffToImageAssistant:
-    case ASSISTANT_OPERATOR_TOOL_IDS.switchWorkbench:
     case ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult:
     /** ⚠ 画布的下游名单也是读：一个节点都没动，也就没有东西可撤。 */
     case ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun:

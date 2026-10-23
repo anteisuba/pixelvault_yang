@@ -73,9 +73,8 @@ interface StudioOperatorConfirmCardProps {
    * ⚠ **搭配卡那一支不走这里**（`loraSetup`，lora-assistant §12）：它住在
    * `StudioOperatorLoraSetupCard`，与这三支一个字段都不共用。
    * 卡片助手的设定提议（`characterProfile`）同理，住在 `StudioOperatorCharacterProfileCard`；
-   * 候选图（`characterImages`）与交给图片助手（`imageHandoff`）各住各的卡（C3）；
-   * 换到另一台图片工作台（`workbenchHandoff`）、画布放大（`upscale`）、交到另一台（`moveWork`）与交给图片助手共用
-   * `StudioOperatorHandoffCard`。
+   * 候选图（`characterImages`）住自己的卡（C3）；画布放大（`upscale`）住
+   * `StudioOperatorUpscaleCard`。
    * ⛔ 别把它加回这份联合去换几行分支 —— 那正是 commit #1 那两个占位分支的下场。
    */
   confirm: Exclude<
@@ -85,10 +84,7 @@ interface StudioOperatorConfirmCardProps {
         | typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraSetup
         | typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterProfile
         | typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.characterImages
-        | typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.imageHandoff
-        | typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.workbenchHandoff
         | typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.upscale
-        | typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.moveWork
     }
   >
   /** 多步「开始」。 */

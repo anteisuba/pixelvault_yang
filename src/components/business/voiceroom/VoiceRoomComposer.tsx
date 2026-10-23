@@ -3,7 +3,16 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslations } from 'next-intl'
 
+import { UserMinus } from '@/components/icons'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { StudioOperatorModelChip } from '@/components/business/studio/assistant-operator/StudioOperatorModelChip'
 import { useModelChannelGate } from '@/hooks/use-model-channel-gate'
+import type { AssistantRouteModel } from '@/constants/assistant-persona'
 
 import {
   VOICE_LINE_TEXT_MAX_LENGTH,
@@ -26,6 +35,10 @@ import { VoiceRoomDelivery } from './VoiceRoomDelivery'
  *
  * 没有说话人下拉，头像本身就是选择器：一眼看得出班底有谁、现在轮到谁。
  * 音效师不会回话：选中它时聊天也按念台词走（打的字就是要的声音）。
+ *
+ * 再点一下已经选中的头像 → 小菜单「移出房间」（owner 10-23：请进来的人得能请出去）。
+ * 头像多了这一行左右滑，⛔ 不挤输入框；手机上头像单独一行（`voiceroom.css`）。
+ * 聊天时头像后面多一颗「写词模型」（助手那颗 chip，值是配音间自己记的那份）。
  */
 
 interface VoiceRoomComposerProps {
@@ -36,7 +49,11 @@ interface VoiceRoomComposerProps {
   onDeliveryChange: (patch: Partial<VoiceRoomDeliveryState>) => void
   mode: VoiceRoomMode
   onModeChange: (mode: VoiceRoomMode) => void
+  llmModel: AssistantRouteModel
+  onLlmModelChange: (model: AssistantRouteModel) => void
   onSelect: (speakerId: string) => void
+  /** 把这位移出房间（班底里删掉；她说过的话留着）。 */
+  onRemove: (speakerId: string) => void
   onOpenCasting: () => void
   onSubmit: (text: string) => Promise<boolean>
 }
@@ -49,7 +66,10 @@ export function VoiceRoomComposer({
   onDeliveryChange,
   mode,
   onModeChange,
+  llmModel,
+  onLlmModelChange,
   onSelect,
+  onRemove,
   onOpenCasting,
   onSubmit,
 }: VoiceRoomComposerProps) {
@@ -86,17 +106,8 @@ export function VoiceRoomComposer({
   return (
     <form className="vr-composer" onSubmit={handleSubmit}>
       <div className="vr-picks">
-        {cast.map((member) => (
-          <button
-            key={member.id}
-            type="button"
-            className="vr-pick"
-            data-selected={member.id === selectedId}
-            onClick={() => onSelect(member.id)}
-            title={member.name}
-            aria-label={member.name}
-            aria-pressed={member.id === selectedId}
-          >
+        {cast.map((member) => {
+          const avatar = (
             <VoiceAvatar
               id={member.id}
               name={member.name}
@@ -104,8 +115,49 @@ export function VoiceRoomComposer({
               kind={member.kind}
               size="s"
             />
-          </button>
-        ))}
+          )
+          if (member.id !== selectedId) {
+            return (
+              <button
+                key={member.id}
+                type="button"
+                className="vr-pick"
+                data-selected={false}
+                onClick={() => onSelect(member.id)}
+                title={member.name}
+                aria-label={member.name}
+                aria-pressed={false}
+              >
+                {avatar}
+              </button>
+            )
+          }
+          return (
+            <DropdownMenu key={member.id}>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="vr-pick"
+                  data-selected
+                  title={member.name}
+                  aria-label={member.name}
+                  aria-pressed
+                >
+                  {avatar}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem
+                  variant="destructive"
+                  onSelect={() => onRemove(member.id)}
+                >
+                  <UserMinus aria-hidden />
+                  {t('removeFromRoom')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )
+        })}
         <button
           type="button"
           className="vr-pick vr-pick-add"
@@ -118,6 +170,10 @@ export function VoiceRoomComposer({
           </svg>
         </button>
       </div>
+
+      {chatting ? (
+        <StudioOperatorModelChip value={llmModel} onChange={onLlmModelChange} />
+      ) : null}
 
       <div className="vr-mode" role="group" aria-label={t('modeLabel')}>
         {VOICE_ROOM_MODES.map((option) => (

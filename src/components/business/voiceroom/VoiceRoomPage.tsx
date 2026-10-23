@@ -36,6 +36,8 @@ export function VoiceRoomPage() {
     streamingReply,
     mode,
     setMode,
+    llmModel,
+    setLlmModel,
     keySetup,
     dismissKeySetup,
     error,
@@ -99,6 +101,8 @@ export function VoiceRoomPage() {
             streamingReply={streamingReply}
             mode={mode}
             onModeChange={setMode}
+            llmModel={llmModel}
+            onLlmModelChange={setLlmModel}
             keySetup={keySetup}
             onDismissKeySetup={dismissKeySetup}
             error={error}

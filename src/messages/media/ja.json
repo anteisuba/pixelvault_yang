@@ -464,7 +464,8 @@
     },
     "chatPlaceholder": "{name} に話しかける…",
     "send": "送信",
-    "noVoice": "まだ音声がありません"
+    "noVoice": "まだ音声がありません",
+    "removeFromRoom": "ルームから外す"
   },
   "StudioVideoSlots": {
     "firstFrame": "最初",

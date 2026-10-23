@@ -261,6 +261,7 @@ export {
   UserIcon as User,
   UserCheckIcon as UserCheck,
   UserCircleIcon as UserCircle,
+  UserMinusIcon as UserMinus,
   UserPlusIcon as UserPlus,
   UserIcon as UserRound,
   UsersIcon as Users,

@@ -36,7 +36,7 @@ import type { VoiceRoomChatRequest } from '@/types/voiceroom'
  *
  * 一轮 = 一条流（SSE）：
  * 1. 先把你那句存成一条 `user` 台词（只有文字）→ `user`；
- * 2. 助手那一家（`resolveAssistantRoute`，owner 10-15「全跟助手」，key 用户自己的）边写边发 → `delta`；
+ * 2. 底部选的那个文本模型（`resolveAssistantRoute` 同一套挑法，key 用户自己的）边写边发 → `delta`；
  * 3. 写完存成她的一条台词、按念法与选的模型派出声音 → `reply`。声音之后跟念台词一样靠轮询落地，
  *    气泡点了才放（owner 10-23「像聊天软件」）。
  *
@@ -111,7 +111,11 @@ export async function streamVoiceRoomChat(
         text: true,
       },
     }),
-    resolveAssistantRoute(user.id),
+    // 配音间自己选的那个（底部选择器）；没传才跟助手的设置走。
+    resolveAssistantRoute(
+      user.id,
+      request.llmModel ? { routeModel: request.llmModel } : {},
+    ),
   ])
 
   const persona = character

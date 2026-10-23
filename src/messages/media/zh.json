@@ -464,7 +464,8 @@
     },
     "chatPlaceholder": "跟 {name} 说点什么…",
     "send": "发送",
-    "noVoice": "这句还没出声"
+    "noVoice": "这句还没出声",
+    "removeFromRoom": "移出房间"
   },
   "StudioVideoSlots": {
     "firstFrame": "首帧",

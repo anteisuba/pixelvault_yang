@@ -1070,9 +1070,26 @@
   border-top: 1px solid var(--vr-line);
 }
 
+/*
+ * 头像一行：人多了左右滑（owner 10-23「多了之后怎么处理」），⛔ 不挤输入框。
+ * 上下留 2px 给选中那圈描边，不然会被滚动容器裁掉。
+ */
 .vr-picks {
   display: flex;
   gap: 6px;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 45%;
+  padding: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.vr-picks::-webkit-scrollbar {
+  display: none;
+}
+
+.vr-picks > * {
   flex: none;
 }
 
@@ -1144,6 +1161,11 @@
 @media (max-width: 767px) {
   .vr-composer {
     flex-wrap: wrap;
+  }
+
+  .vr-composer .vr-picks {
+    flex-basis: 100%;
+    max-width: none;
   }
 
   .vr-composer .vr-input {

@@ -1303,6 +1303,15 @@ async function submitAudioWorkerRun(params: {
       error instanceof ExecutionWorkerDispatchError &&
       error.outcome === 'unknown'
     ) {
+      /*
+       * 送到了没有不知道（多半是 Worker 建 Workflow 那一下超过了 10 秒）：任务留着等回调，
+       * **照常把 jobId 交回去**。Workflow 的 id 就是 `job.id`（Worker 端按它幂等建实例），
+       * 晚到的回调会把这条任务写完。
+       *
+       * ⚠ 以前这里是抛错：调用方（配音间）收到失败就不记这条台词，任务却还在跑——声音晚点
+       * 出来了也没处落，用户只看到「生成失败」（2026-10-23 线上）。真没送到的那种，由 sweeper /
+       * 状态轮询按 stale 阈值收成 FAILED，界面照常给重试。
+       */
       logger.warn(
         'Audio worker dispatch outcome is unknown; preserving active job for a late callback',
         {
@@ -1311,7 +1320,8 @@ async function submitAudioWorkerRun(params: {
           upstreamStatus: error.upstreamStatus,
         },
       )
-      throw error
+      timer.log({ workflowInstanceId: job.id })
+      return { jobId: job.id, requestId: job.id }
     }
 
     const message =

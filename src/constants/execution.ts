@@ -102,7 +102,12 @@ export const EXECUTION_WORKER = {
   DEFAULT_POLL_INTERVAL_MS: 3_000,
   DEFAULT_MAX_ATTEMPTS: 200,
   DEFAULT_TIMEOUT_MS: 600_000,
-  DISPATCH_TIMEOUT_MS: 10_000,
+  /**
+   * Worker 回执只等 `workflow.create`（CPU 1–4ms），但 Cloudflare 那一步偶尔要 4–10s+。
+   * 10-23 线上实测：10s 超时把还没建成的请求掐掉，两次都没建出实例。放到 25s，两次最多 ~50s，
+   * 仍在调用方路由的 maxDuration（≥60s）之内。
+   */
+  DISPATCH_TIMEOUT_MS: 25_000,
   DISPATCH_MAX_ATTEMPTS: 2,
   DISPATCH_RETRY_DELAY_MS: 250,
 } as const

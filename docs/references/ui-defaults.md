@@ -232,6 +232,7 @@
 | 设置页记忆为空         | `settings/SettingsAssistantSection.tsx`                                                        |
 | LoRA 我的库 / 类型筛空 | `lora/LoraWorkbench.tsx` · `lora/library/LoraLibraryTypeStates.tsx`                            |
 | LoRA 训练起手          | `lora/training/EmptyState.tsx`                                                                 |
+| 音色库没收藏 / 没克隆  | `voices/VoicesPage.tsx`                                                                        |
 | dev 展柜               | `dev/ui-states/UiStateGallery.tsx`                                                             |
 | 404                    | `app/[locale]/not-found.tsx`（图标角**不放**红点：404 不是出错）                               |
 | 路由段出错             | `RouteErrorState.tsx`（四个 `error.tsx` 共用）· `studio-shared/chrome/StudioErrorBoundary.tsx` |

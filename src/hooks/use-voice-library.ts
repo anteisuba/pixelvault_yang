@@ -99,6 +99,8 @@ export interface UseVoiceLibraryOptions {
    */
   onFavoriteRemoved?: (cardId: string) => void
   enabled?: boolean
+  /** 一进来停在哪一栏。音色库页 `/voices` 先看「我的收藏」，其余宿主默认公开库。 */
+  initialTab?: VoiceLibraryTab
 }
 
 export interface UseVoiceLibraryReturn {
@@ -160,7 +162,9 @@ export function useVoiceLibrary(
   const onFavoriteRemoved = options?.onFavoriteRemoved
   const voiceCards = useVoiceCards({ enabled })
 
-  const [tab, setTabState] = useState<VoiceLibraryTab>('public')
+  const [tab, setTabState] = useState<VoiceLibraryTab>(
+    options?.initialTab ?? 'public',
+  )
   const [publicVoices, setPublicVoices] = useState<VoiceAsset[]>([])
   const [total, setTotal] = useState(0)
   const [isLoading, setIsLoading] = useState(false)

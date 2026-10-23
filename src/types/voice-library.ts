@@ -1,3 +1,5 @@
+import { z } from 'zod'
+
 import type { VoiceCardProvider } from '@/constants/voice-cards'
 
 /**
@@ -48,3 +50,12 @@ export interface VoiceAsset {
 export const VOICE_LIBRARY_TABS = ['public', 'favorites', 'cloned'] as const
 
 export type VoiceLibraryTab = (typeof VOICE_LIBRARY_TABS)[number]
+
+/** 给音色卡传一张自己的头像（`/voices`）：data URL，与助手头像那条同形。 */
+export const UploadVoiceCardCoverSchema = z.object({
+  imageData: z.string().min(1, 'Image data is required'),
+})
+
+export type UploadVoiceCardCoverRequest = z.infer<
+  typeof UploadVoiceCardCoverSchema
+>

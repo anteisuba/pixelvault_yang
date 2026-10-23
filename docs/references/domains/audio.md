@@ -62,6 +62,13 @@
 - **克隆引导**：VoiceTrainer 上传页加提示——含情绪起伏的样本决定克隆音色的情绪上限（L0 地基）。
 - **试听规范**：每张卡用统一试听句生成 中性 + 激动 + 耳语 三段缓存试听，选卡即可预判情绪表现（分摊成本：懒生成 + 缓存）。
 
+### 3.1 音色库页 `/voices`（「声音」模块第 1 步，owner 2026-10-23）
+
+- **一页管所有嗓子**：三个页签「我的收藏 · 我的克隆 · 找音色」，数据全走 `useVoiceLibrary` 内核（与画布 `VoiceSelector`、配音间选角弹窗同一份，收藏↔克隆仍只靠 `referenceAudioUrl` 分流）。页面 `components/business/voices/`，状态 `hooks/use-voices-page.ts`，导航「去处」里的「音色」。
+- **卡上的管理**：改名 · 换头像（拖图 / 上传走 `POST /api/voice-cards/[id]/cover`，存到 `profiles/<userId>/voice-cover/`；从素材挑的图直接 PATCH `coverImage`）· 绑到角色（写角色卡 `voiceCardId`，一个角色只有一副嗓子）· 删除（软删，同时把绑着它的角色松开）。
+- **头像规则只有一份**：`lib/voice-avatar.ts` —— 绑了角色用角色头像 → 没绑用音色自己的 → 都没有写名字首字。绑着角色时「换头像」置灰。
+- 配音间的选角弹窗**保持原样**（owner 10-23：那边照样能搜公共库、能克隆）。
+
 ## 4. UI 功能需求（旧外观规则已退役）
 
 本节只保留 audio kind、字段、状态和工作流等功能需求。segmented、chip、popover、卡片等形态是旧方案记录，不是未来视觉答案；进入视觉改版时以 `docs/brand-dna.md`、`docs/scenes/ui-page.md` 与新的 Audio 域/page 文档为准。
@@ -117,4 +124,5 @@ B/C 可并行于 D；A 独立最先。每个 Phase 完成走 UI 确认阶梯（l
 
 ## Last Verified
 
+- 2026-10-23 · 新增 §3.1 音色库页 `/voices`。
 - 2026-09-03 · 新增 §7 移动端等级。

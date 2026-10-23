@@ -153,6 +153,7 @@
       "library": "Archive",
       "assets": "Assets",
       "cards": "Characters",
+      "voices": "Voices",
       "profile": "My Page"
     },
     "groupLabel": "Go to"

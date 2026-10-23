@@ -35,6 +35,8 @@ export const ROUTES = {
   /** Krea-style private asset browser */
   ASSETS: '/assets',
   CARDS: '/cards',
+  /** 音色库页（「声音」模块，owner 10-23）：我的收藏 · 我的克隆 · 找音色。 */
+  VOICES: '/voices',
   PROMPTS: '/prompts',
 
   /**

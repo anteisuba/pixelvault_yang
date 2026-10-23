@@ -862,7 +862,8 @@ describe('NovelAI capability gate (slice 26/1)', () => {
     )
   })
 
-  it('rejects a mask on V4.5, which declares no inpaint capability', async () => {
+  // V4.5 Full / Curated 有自己的 `-inpainting` 模型（2026-10-23 对齐网页端）。
+  it('accepts a mask on V4.5, which now declares inpaint', async () => {
     await expect(
       resolveImageRouteAndValidate(
         'clerk-1',
@@ -874,11 +875,7 @@ describe('NovelAI capability gate (slice 26/1)', () => {
         } as never,
         deps(NAI_V45_ROUTE) as never,
       ),
-    ).rejects.toThrow(
-      expect.objectContaining({
-        message: 'Unsupported inpaintMask for the selected model',
-      }),
-    )
+    ).resolves.toMatchObject({ route: NAI_V45_ROUTE })
   })
 
   it('rejects text over the 750-char cap', async () => {

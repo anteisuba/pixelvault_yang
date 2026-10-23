@@ -33,11 +33,12 @@ const V45_QUALITY_SUFFIXES: Record<string, string> = {
 }
 
 /**
- * Undesired Content 预设 —— 标签串，作为**前缀**接在用户自己的负面前面。payload
- * 里那个数字 `ucPreset` 在各代之间的含义没有官方口径，⛔ 不猜。
- * https://docs.novelai.net/en/image/undesiredcontent/
+ * Undesired Content 预设 —— 标签串，作为**前缀**接在用户自己的负面前面（网页端
+ * 也是自己拼好再发，payload 里的 `ucPresetId` / `tag_hint_uc_preset` 只是记账）。
+ * 文案**逐代不同**：V5 一套；V4.5 Full 只有 light 不同；V4.5 Curated 三档都不同。
+ * 来源：NovelAI 官方 undesiredcontent 页 + NAI Launcher `api_constants.dart`（2026-10-23 核对）。
  */
-const UC_PRESET_TAGS: Record<string, string> = {
+const V5_UC_PRESET_TAGS: Record<string, string> = {
   heavy:
     'lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page',
   light:
@@ -46,6 +47,31 @@ const UC_PRESET_TAGS: Record<string, string> = {
     '{worst quality}, distracting watermark, unfinished, bad quality, {widescreen}, upscale, {sequence}, {{grandfathered content}}, blurred foreground, chromatic aberration, sketch, everyone, [sketch background], simple, [flat colors], ych (character), outline, multiple scenes, [[horror (theme)]], comic',
   human:
     'lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, @_@, mismatched pupils, glowing eyes, bad anatomy',
+}
+const UC_PRESET_TAGS_BY_MODEL: Record<string, Record<string, string>> = {
+  'nai-diffusion-4-5-full': {
+    ...V5_UC_PRESET_TAGS,
+    light:
+      'lowres, artistic error, scan artifacts, worst quality, bad quality, jpeg artifacts, multiple views, very displeasing, too many watermarks, negative space, blank page',
+  },
+  'nai-diffusion-4-5-curated': {
+    ...V5_UC_PRESET_TAGS,
+    heavy:
+      'blurry, lowres, upscaled, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, halftone, multiple views, logo, too many watermarks, negative space, blank page',
+    light:
+      'blurry, lowres, upscaled, artistic error, scan artifacts, jpeg artifacts, logo, too many watermarks, negative space, blank page',
+    human:
+      'blurry, lowres, upscaled, artistic error, film grain, scan artifacts, bad anatomy, bad hands, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, halftone, multiple views, logo, too many watermarks, @_@, mismatched pupils, glowing eyes, negative space, blank page',
+  },
+}
+
+/** 我们的档名 → 网页端的 `ucPresetId` 与 `tag_hint_uc_preset` 编号。 */
+const UC_PRESET_IDS: Record<string, { id: string; hint: number }> = {
+  none: { id: 'none', hint: 0 },
+  heavy: { id: 'heavy', hint: 2 },
+  light: { id: 'light', hint: 3 },
+  human: { id: 'humanFocus', hint: 4 },
+  furry: { id: 'furryFocus', hint: 5 },
 }
 
 const TEXT_SEPARATOR = '\n\n'
@@ -282,16 +308,7 @@ export function composeNovelAiPrompt(
   if (plan?.sentences) {
     composed = composed ? `${composed}. ${plan.sentences}` : plan.sentences
   }
-  const v45 = externalModelId
-    ? V45_QUALITY_SUFFIXES[externalModelId]
-    : undefined
-  let suffix = v45
-    ? qualityToggle === 'standard'
-      ? v45
-      : undefined
-    : qualityToggle
-      ? QUALITY_SUFFIXES[qualityToggle]
-      : undefined
+  let suffix = qualitySuffix(qualityToggle, externalModelId)
   if (suffix && plan?.texts.length) suffix = suffix.replace(', no text', '')
   if (suffix) composed += suffix
   if (plan?.block) composed += `${composed ? ', ' : ''}Text: ${plan.block}`
@@ -306,12 +323,58 @@ export function composeNovelAiCharacterCaption(
   return text ? `${caption}${caption ? ', ' : ''}Text: ${text}` : caption
 }
 
-/** UC 预设前缀 + 用户自己的负面提示词。 */
+/** 这一档质量标签在这个模型上真的会拼进去的那串（V4.5 只认 standard）。 */
+function qualitySuffix(
+  qualityToggle: Quality,
+  externalModelId?: string,
+): string | undefined {
+  const v45 = externalModelId
+    ? V45_QUALITY_SUFFIXES[externalModelId]
+    : undefined
+  if (v45) return qualityToggle === 'standard' ? v45 : undefined
+  return qualityToggle ? QUALITY_SUFFIXES[qualityToggle] : undefined
+}
+
+/**
+ * 网页端每次都带的预设记账字段：名字（`ucPresetId` / `qualityPresetId`）与编号
+ * （`tag_hint_uc_preset` / `tag_hint_qt`：0 none · 1 standard · 3 light）。
+ * 标签串本身已经由我们拼进 prompt / 负面，这几项只是让 NovelAI 那边的记录与
+ * 网页端一致（图里的元数据也读它们）。
+ */
+export function novelAiPresetFields(
+  ucPreset: string | null | undefined,
+  qualityToggle: Quality,
+  externalModelId?: string,
+): {
+  ucPresetId: string
+  qualityPresetId: string
+  tag_hint_uc_preset: number
+  tag_hint_qt: number
+} {
+  const uc = (ucPreset && UC_PRESET_IDS[ucPreset]) || UC_PRESET_IDS.none!
+  const quality = qualitySuffix(qualityToggle, externalModelId)
+    ? qualityToggle === 'light'
+      ? { id: 'light', hint: 3 }
+      : { id: 'standard', hint: 1 }
+    : { id: 'none', hint: 0 }
+  return {
+    ucPresetId: uc.id,
+    qualityPresetId: quality.id,
+    tag_hint_uc_preset: uc.hint,
+    tag_hint_qt: quality.hint,
+  }
+}
+
+/** UC 预设前缀（按模型取那一代的文案）+ 用户自己的负面提示词。 */
 export function composeNovelAiUndesiredContent(
   negative: string,
   ucPreset: string | null | undefined,
+  externalModelId?: string,
 ): string {
-  const preset = ucPreset ? UC_PRESET_TAGS[ucPreset] : undefined
+  const table =
+    (externalModelId && UC_PRESET_TAGS_BY_MODEL[externalModelId]) ||
+    V5_UC_PRESET_TAGS
+  const preset = ucPreset ? table[ucPreset] : undefined
   if (!preset) return negative
   return negative ? `${preset}, ${negative}` : preset
 }

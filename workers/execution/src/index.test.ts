@@ -855,11 +855,16 @@ describe('generateNovelAiImage', () => {
     expect(body.parameters).toMatchObject({
       director_reference_images: ['iVBORw=='],
       director_reference_descriptions: [
-        { caption: { base_caption: 'character', char_captions: [] } },
+        {
+          caption: { base_caption: 'character', char_captions: [] },
+          legacy_uc: false,
+        },
       ],
       director_reference_information_extracted: [1],
       director_reference_strength_values: [0.8],
-      director_reference_secondary_strength_values: [0.4],
+      // 网页端发 1 − 保真度。
+      director_reference_secondary_strength_values: [0.6],
+      normalize_reference_strength_multiple: true,
       cfg_rescale: 0.2,
     })
     expect(body.parameters.image).toBeUndefined()
@@ -886,6 +891,9 @@ describe('generateNovelAiImage', () => {
     expect(body.parameters.noise).toBe(0.3)
     expect(body.parameters.cfg_rescale).toBe(0.25)
     expect(body.parameters.strength).toBeCloseTo(0.2)
+    // 网页端带底图时固定 seed - 1。
+    expect(body.parameters.extra_noise_seed).toBe(body.parameters.seed - 1)
+    expect(body.parameters.color_correct).toBe(false)
     expect(body.parameters.director_reference_images).toBeUndefined()
   })
 
@@ -1055,9 +1063,9 @@ describe('generateNovelAiImage', () => {
     expect(body.parameters).not.toHaveProperty('skip_cfg_above_sigma')
   })
 
-  it('contrast: V4.5 still sends params_version 3 and keeps skip_cfg_above_sigma', async () => {
-    // Not one of the three ported semantics, but proves the V5 assertions
-    // above are exercising a real branch and not a constant.
+  it('contrast: V4.5 sends params_version 4 too and keeps skip_cfg_above_sigma', async () => {
+    // 网页端所有模型都发 4（NAI Launcher 2026-10-23）；skip_cfg_above_sigma
+    // 仍只在 V4.5 上带。
     const fetchMock = stubNovelAiZipResponse()
 
     await generateNovelAiImage(
@@ -1069,7 +1077,7 @@ describe('generateNovelAiImage', () => {
     const body = JSON.parse(
       String((fetchMock.mock.calls[0]?.[1] as { body: string }).body),
     ) as { parameters: Record<string, unknown> }
-    expect(body.parameters.params_version).toBe(3)
+    expect(body.parameters.params_version).toBe(4)
     expect(body.parameters).toHaveProperty('skip_cfg_above_sigma')
   })
 
@@ -1122,8 +1130,10 @@ describe('generateNovelAiImage', () => {
         }
       ).caption.base_caption,
     ).toBe(expected)
-    // 质量标签不是 API 字段 —— payload 里那颗布尔保持关闭。
-    expect(body.parameters.qualityToggle).toBe(false)
+    // 标签串我们自己拼；payload 只带网页端那套记账字段。
+    expect(body.parameters).not.toHaveProperty('qualityToggle')
+    expect(body.parameters.qualityPresetId).toBe('standard')
+    expect(body.parameters.tag_hint_qt).toBe(1)
   })
 
   it.each([
@@ -1143,7 +1153,7 @@ describe('generateNovelAiImage', () => {
     const body = JSON.parse(String(fetchMock.mock.calls[0][1].body))
     expect(body.input).toBe(context.providerInput.prompt + suffix)
     expect(body.parameters.v4_prompt.caption.base_caption).toBe(body.input)
-    expect(body.parameters.qualityToggle).toBe(false)
+    expect(body.parameters.qualityPresetId).toBe('standard')
   })
 
   it('leaves the prompt untouched on the default quality tag option', async () => {
@@ -1177,8 +1187,49 @@ describe('generateNovelAiImage', () => {
     expect(body.parameters.negative_prompt).toBe(
       'lowres, bad hands, bad anatomy, artistic error, sepia, white haze, worst quality, very displeasing, jpeg artifacts, 0::ai-generated::, hat',
     )
-    // 数字档没有官方口径，保持原样（V4/V5 的 None）。
-    expect(body.parameters.ucPreset).toBe(4)
+    expect(body.parameters).not.toHaveProperty('ucPreset')
+    expect(body.parameters.ucPresetId).toBe('light')
+    expect(body.parameters.tag_hint_uc_preset).toBe(3)
+  })
+
+  it('uses the V4.5 Curated UC text, not the V5 one', async () => {
+    const fetchMock = stubNovelAiZipResponse()
+    const context = makeContext('nai-diffusion-4-5-curated')
+    context.providerInput.advancedParams = { ucPreset: 'light' }
+    await generateNovelAiImage(makeEnv(), context, 'nai-test-key')
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1].body))
+    expect(body.parameters.negative_prompt).toMatch(
+      /^blurry, lowres, upscaled, artistic error, scan artifacts/,
+    )
+  })
+
+  // 对齐网页端的请求体（NAI Launcher 2026-10-23 核对）。
+  it('matches the web client defaults on a plain V5 request', async () => {
+    const fetchMock = stubNovelAiZipResponse()
+    await generateNovelAiImage(
+      makeEnv(),
+      makeContext(NOVELAI_V5_FULL),
+      'nai-test-key',
+    )
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1].body))
+    expect(body.use_new_shared_trial).toBe(true)
+    expect(body.parameters).toMatchObject({
+      scale: 4,
+      steps: 28,
+      sampler: 'k_euler_ancestral',
+      deliberate_euler_ancestral_bug: false,
+      prefer_brownian: true,
+      autoSmea: false,
+      image_format: 'png',
+      legacy_uc: false,
+      ucPresetId: 'none',
+      qualityPresetId: 'none',
+      tag_hint_uc_preset: 0,
+      tag_hint_qt: 0,
+    })
+    expect(body.parameters).not.toHaveProperty('sm')
+    expect(body.parameters).not.toHaveProperty('sm_dyn')
+    expect(body.parameters).not.toHaveProperty('extra_noise_seed')
   })
 
   // 进度表 26 切片 2。NovelAI 的 infill 是换模型 + 换 action，不是加参数。
@@ -1200,9 +1251,10 @@ describe('generateNovelAiImage', () => {
     expect(body.action).toBe('infill')
     expect(body.parameters.mask).toBe('bWFzaw==')
     expect(body.parameters.add_original_image).toBe(true)
+    expect(body.parameters.inpaintImg2ImgStrength).toBe(1)
   })
 
-  it('falls back to the V4.5 Full inpainting model for V5 Curated', async () => {
+  it('falls back to the V4.5 Curated inpainting model for V5 Curated', async () => {
     const fetchMock = stubNovelAiZipResponse()
     const context = makeContext('nai-diffusion-5-curated', [
       'data:image/png;base64,c291cmNl',
@@ -1216,7 +1268,7 @@ describe('generateNovelAiImage', () => {
     const body = JSON.parse(
       String((fetchMock.mock.calls[0]?.[1] as { body: string }).body),
     ) as { model: string; action: string }
-    expect(body.model).toBe('nai-diffusion-4-5-full-inpainting')
+    expect(body.model).toBe('nai-diffusion-4-5-curated-inpainting')
     expect(body.action).toBe('infill')
   })
 
@@ -1234,8 +1286,22 @@ describe('generateNovelAiImage', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('rejects a mask on a model with no inpainting counterpart', async () => {
+  it('sends V4.5 Full to its own inpainting model', async () => {
+    const fetchMock = stubNovelAiZipResponse()
     const context = makeContext(NOVELAI_V45_FULL, [
+      'data:image/png;base64,c291cmNl',
+    ])
+    context.providerInput.advancedParams = {
+      inpaintMask: 'data:image/png;base64,bWFzaw==',
+    }
+    await generateNovelAiImage(makeEnv(), context, 'nai-test-key')
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1].body))
+    expect(body.model).toBe('nai-diffusion-4-5-full-inpainting')
+    expect(body.action).toBe('infill')
+  })
+
+  it('rejects a mask on a model with no inpainting counterpart', async () => {
+    const context = makeContext('nai-diffusion-3', [
       'data:image/png;base64,c291cmNl',
     ])
     context.providerInput.advancedParams = {

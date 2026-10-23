@@ -23,6 +23,7 @@ import {
   composeNovelAiCharacterCaptions,
   composeNovelAiPrompt,
   composeNovelAiUndesiredContent,
+  novelAiPresetFields,
   planNovelAiText,
 } from '../../../src/lib/novelai-compose'
 import {
@@ -6365,7 +6366,7 @@ export async function generateNovelAiImage(
    * 遮罩重绘。⚠ NovelAI 的 infill 是**换模型 + 换 action**，不是在原模型上加
    * 一个参数：`model` 变成 `…-inpainting`，`action` 变成 `infill`，`mask` 是一张
    * 与底图同规格的黑白图（白 = 重画）。V5 Curated 没有自己的 inpaint 模型，掉到
-   * V4.5 Full 上（`resolveNovelAiInpaintModelId`）。
+   * V4.5 Curated 上（`resolveNovelAiInpaintModelId`）。
    * https://docs.novelai.net/en/image/inpaint/
    */
   const maskImage = readStringField(advancedParams, 'inpaintMask')
@@ -6382,6 +6383,7 @@ export async function generateNovelAiImage(
     readStringField(advancedParams, 'negativePrompt') ??
       'lowres, bad anatomy, bad hands, missing fingers, extra digit',
     readStringField(advancedParams, 'ucPreset'),
+    externalModelId,
   )
   const configuredSeed = readNumberField(advancedParams, 'seed')
   const seed =
@@ -6440,23 +6442,33 @@ export async function generateNovelAiImage(
     }),
   )
   const useCoords = layout?.positioning === 'manual'
+  // 采样器：D10 ⑤ 起是真控件。⚠ 白名单之外的值一律退回官方缺省档，
+  // ⛔ 不把客户端送来的任意串原样发给 provider。
+  const sampler = resolveNovelAiSampler(
+    readStringField(advancedParams, 'sampler'),
+  )
+  /**
+   * 字段对齐网页端（NAI Launcher `nai_image_request_builder.dart`，2026-10-23
+   * 核对）：所有模型 `params_version` 4；预设发名字 + 编号（标签串已由我们拼好）；
+   * V4+ 关 `autoSmea`、不发 `sm` / `sm_dyn`；Euler A 配 karras 时带 brownian 两项；
+   * 一律要 PNG。V5 缺省 CFG 4、28 步。
+   */
   const parameters: Record<string, unknown> = {
-    params_version: useV5 ? 4 : useStructuredPrompt ? 3 : 1,
+    params_version: 4,
     width: dimensions.width,
     height: dimensions.height,
-    scale: readNumberField(advancedParams, 'guidanceScale') ?? (useV5 ? 7 : 5),
-    // 采样器：D10 ⑤ 起是真控件。⚠ 白名单之外的值一律退回官方缺省档，
-    // ⛔ 不把客户端送来的任意串原样发给 provider。
-    sampler: resolveNovelAiSampler(readStringField(advancedParams, 'sampler')),
-    steps:
-      readPositiveNumberField(advancedParams, 'steps') ?? (useV5 ? 23 : 28),
-    seed,
-    extra_noise_seed: seed,
+    scale: readNumberField(advancedParams, 'guidanceScale') ?? (useV5 ? 4 : 5),
+    sampler,
+    steps: readPositiveNumberField(advancedParams, 'steps') ?? 28,
     n_samples: 1,
-    ucPreset: useStructuredPrompt ? 4 : 3,
-    qualityToggle: false,
-    sm: false,
-    sm_dyn: false,
+    ...novelAiPresetFields(
+      readStringField(advancedParams, 'ucPreset'),
+      readStringField(advancedParams, 'qualityToggle'),
+      externalModelId,
+    ),
+    ...(useStructuredPrompt
+      ? { autoSmea: false }
+      : { sm: false, sm_dyn: false }),
     dynamic_thresholding: false,
     controlnet_strength: 1,
     legacy: false,
@@ -6466,10 +6478,16 @@ export async function generateNovelAiImage(
       Math.max(0, readNumberField(advancedParams, 'cfgRescale') ?? 0),
     ),
     noise_schedule: 'karras',
+    seed,
+    negative_prompt: negative,
+    ...(sampler === 'k_euler_ancestral'
+      ? { deliberate_euler_ancestral_bug: false, prefer_brownian: true }
+      : {}),
+    image_format: 'png',
     legacy_v3_extend: false,
+    legacy_uc: false,
     use_coords: useCoords,
     characterPrompts,
-    negative_prompt: negative,
     prompt: composedPrompt,
     reference_image_multiple: [],
     reference_information_extracted_multiple: [],
@@ -6488,18 +6506,20 @@ export async function generateNovelAiImage(
       1,
       Math.max(0, readNumberField(advancedParams, 'img2imgNoise') ?? 0),
     )
-    parameters.extra_noise_seed = seed
+    parameters.color_correct = false
+    // 网页端带底图时固定 seed - 1；不发的话服务端自己挑，同种子复现不出来。
+    parameters.extra_noise_seed = seed > 0 ? seed - 1 : 0
   }
 
   if (isPrecise && referenceImage) {
     parameters.director_reference_images = [
       await readReferenceImageAsBase64(referenceImage),
     ]
+    parameters.normalize_reference_strength_multiple = true
     parameters.director_reference_descriptions = [
       {
         caption: { base_caption: 'character', char_captions: [] },
-        use_coords: false,
-        use_order: true,
+        legacy_uc: false,
       },
     ]
     parameters.director_reference_information_extracted = [1]
@@ -6512,14 +6532,16 @@ export async function generateNovelAiImage(
         ),
       ),
     ]
+    // 网页端发的是 1 − 保真度（保真度 1 = 0）；之前原样发，滑块是反的。
     parameters.director_reference_secondary_strength_values = [
-      Math.min(
-        1,
-        Math.max(
-          0,
-          readNumberField(advancedParams, 'preciseReferenceFidelity') ?? 1,
+      1 -
+        Math.min(
+          1,
+          Math.max(
+            0,
+            readNumberField(advancedParams, 'preciseReferenceFidelity') ?? 1,
+          ),
         ),
-      ),
     ]
   }
 
@@ -6527,6 +6549,8 @@ export async function generateNovelAiImage(
     parameters.mask = await readReferenceImageAsBase64(maskImage)
     // 遮罩外的像素原样贴回去 —— 不设它就等于整张重画一遍，遮罩白等于没画。
     parameters.add_original_image = true
+    // 重绘强度：我们没有这颗滑块，按网页端缺省 1（= 不另带 img2img 块）。
+    parameters.inpaintImg2ImgStrength = 1
   }
 
   if (useStructuredPrompt) {
@@ -6564,6 +6588,7 @@ export async function generateNovelAiImage(
       model: isInpaint ? inpaintModelId : externalModelId,
       action: isInpaint ? 'infill' : isImg2Img ? 'img2img' : 'generate',
       parameters,
+      use_new_shared_trial: true,
     }),
   })
 

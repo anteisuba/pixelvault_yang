@@ -467,6 +467,8 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
       'novelAiReferenceMode',
       'preciseReferenceStrength',
       'preciseReferenceFidelity',
+      // 遮罩重绘：V4.5 Full / Curated 各有自己的 `-inpainting` 模型。
+      'inpaint',
     ],
     novelAiReferenceModeOptions: NOVELAI_REFERENCE_USAGES,
     preciseReferenceStrength: { min: 0, max: 1, step: 0.05, default: 1 },
@@ -480,6 +482,8 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
       'novelAiReferenceMode',
       'preciseReferenceStrength',
       'preciseReferenceFidelity',
+      // 遮罩重绘：V4.5 Full / Curated 各有自己的 `-inpainting` 模型。
+      'inpaint',
     ],
     novelAiReferenceModeOptions: NOVELAI_REFERENCE_USAGES,
     preciseReferenceStrength: { min: 0, max: 1, step: 0.05, default: 1 },
@@ -489,8 +493,9 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
   // Light 质量标签只在 V5 声明；V4.5 只有 standard 质量标签。画中文字（台词 / 画面文字）
   // 不是专属 chip，逐模型上限见 `NOVELAI_TEXT_LIMITS`。
   [AI_MODELS.NOVELAI_V5_FULL]: {
-    guidanceScale: { min: 1, max: 20, step: 0.5, default: 7 },
-    steps: { min: 1, max: 50, step: 1, default: 23 },
+    // 网页端 V5 缺省：CFG 4、28 步（NAI Launcher 2026-10-23 核对）。
+    guidanceScale: { min: 1, max: 20, step: 0.5, default: 4 },
+    steps: { min: 1, max: 50, step: 1, default: 28 },
     capabilities: [
       'negativePrompt',
       'guidanceScale',
@@ -511,8 +516,9 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     qualityToggleOptions: NOVELAI_QUALITY_TOGGLE_OPTIONS,
   },
   [AI_MODELS.NOVELAI_V5_CURATED]: {
-    guidanceScale: { min: 1, max: 20, step: 0.5, default: 7 },
-    steps: { min: 1, max: 50, step: 1, default: 23 },
+    // 网页端 V5 缺省：CFG 4、28 步（NAI Launcher 2026-10-23 核对）。
+    guidanceScale: { min: 1, max: 20, step: 0.5, default: 4 },
+    steps: { min: 1, max: 50, step: 1, default: 28 },
     capabilities: [
       'negativePrompt',
       'guidanceScale',

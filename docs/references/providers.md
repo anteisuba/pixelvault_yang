@@ -309,7 +309,7 @@ adapter / Worker 抛错
 | `Text:` 文字渲染 | `textRendering` | [textrendering](https://docs.novelai.net/en/image/textrendering/)：放 prompt **最末**，V5 支持 EN/JA/ZH                                                                                           | `prompt` → 质量标签 → `, Text: …`（所以质量标签先拼）。上限 Full 750 / Curated 374 只作护栏，见上一节的单位说明                                                                                      |
 
 - `Text:` 与 Light 质量标签仅限 V5；V4.5 也支持标准质量标签（2026-09-21 补核，见下节）。`ucPreset` 挂在 adapter 默认。服务端按逐模型能力声明校验，不支持的值返回 400。
-- **遮罩重绘（inpaint）**：NovelAI 的 infill 是**换模型 + 换 action**，不是加参数。`model` 换成 `nai-diffusion-5-full-inpainting`，`action` 换成 `infill`，`mask` 是与底图同规格的黑白 PNG（白 = 重画），并发 `add_original_image: true`。**V5 Curated 没有自己的 inpaint 模型，回落 `nai-diffusion-4-5-full-inpainting`**——界面上说出这句话（`StudioInpaintMaskChip`），⛔ 不让用户以为重绘还跑在 Curated 上。
+- **遮罩重绘（inpaint）**：NovelAI 的 infill 是**换模型 + 换 action**，不是加参数。`model` 换成 `nai-diffusion-5-full-inpainting`，`action` 换成 `infill`，`mask` 是与底图同规格的黑白 PNG（白 = 重画），并发 `add_original_image: true`。**V5 Curated 没有自己的 inpaint 模型，回落 `nai-diffusion-4-5-curated-inpainting`**（2026-10-23 按网页端改正，之前误配成 4-5-full）；V4.5 Full / Curated 各走自己的 `-inpainting`——界面上说出这句话（`StudioInpaintMaskChip`），⛔ 不让用户以为重绘还跑在 Curated 上。
 - 遮罩传输：客户端画布导出的是 data URL，`submit-image.service` 在建 job 之前把它换成 R2 的 http URL，之后才进 DB 与 worker（worker 解不了 `data:`，而 DB 里也不该躺几十 KB 的 base64）。前置校验：恰好 1 张参考图，且模型在能力表里声明了 `inpaint`。
 - 画板复用编辑域那块 `StudioInpaintEditor`（画笔 / 拉框 / 橡皮 / 撤销 / 清空，导出与源图**逐像素同尺寸**的黑白 PNG），生成工作台把它那条重绘指令关掉 —— 那一枪的提示词就是工作台里那条。⛔ 没做羽化 / 反选 / 图层。
 
@@ -337,6 +337,15 @@ adapter / Worker 抛错
 - Method：owner 授权 8 张付费生成，V5 Full · 1024×1024 · 23 步 · Euler a · CFG 7 · seed 20261007，两人（金发红裙 / 黑短发蓝外套），图在 owner 图库。整体里的称呼句与多段 `Text:` 界面单行输入写不出，那几张在已登录页面里直接 POST `/api/studio/generate`（同一会话、同一参数，只改被测项）。
 - 结论：① 不摆位时**角色栏顺序 = 从左到右**（对调顺序后左右也对调，2/2）。② 台词在整体里**按位置称呼**（`The girl on the right says "…" and the girl on the left replies "…"` + 末尾 `Text:` 两段）3/3 落对人，包括说话顺序与左右相反、中文（自动竖排气泡）；**按长相称呼**（`The black-haired girl says…`）0/1，字只按 `Text:` 顺序从左往右排；`Text:` 写进各自角色栏 1/1 落对，但那张字序恰与左右一致、区分力弱。③ `source#headpat` / `target#headpat` 方向正确 1/1。④ 质量标签 Standard（含 `no text`）开着时两段短台词照样画出（1/1）；不写字时背景会冒乱码字母，`no text` 有用。⑤ 官方联想（suggest-tags，免费）认识 `english text`、`chinese text`、`korean text`、`speech bubble`，没有 `japanese text`。
 - 未验证：三人以上的位置称呼；漫画页同一人出现在多格（`v4_prompt.caption.char_captions[].centers` 是数组，能否放多点无官方说明）；样本量小，只当方向依据。标签台的翻译规则见 [图片工作台 · NAI 位置关系与台词](pages/studio-image-workbench.md#2026-10-07--nai-位置关系与台词c舞台预演owner-已确认)。
+
+## NovelAI 请求体对齐网页端（2026-10-23）
+
+- Source：[NAI Launcher](https://github.com/Aaalice233/Aaalice_NAI_Launcher) `lib/core/network/request_builders/nai_image_request_builder.dart` 与 `api_constants.dart`（照网页端逐字段复刻）。Method：读源码对字段，本地请求测试；未做同种子出图对比。
+- 改动：所有模型 `params_version: 4`；预设改发 `ucPresetId`（none / heavy / light / humanFocus / furryFocus）+ `tag_hint_uc_preset`（0 / 2 / 3 / 4 / 5）与 `qualityPresetId` + `tag_hint_qt`（0 none · 1 standard · 3 light），⛔ 不再发数字 `ucPreset` / `qualityToggle`——标签串照旧由我们拼进 prompt / 负面；V4+ 发 `autoSmea: false`、不发 `sm` / `sm_dyn`；Euler A 配 karras 加 `deliberate_euler_ancestral_bug: false` + `prefer_brownian: true`；`image_format: 'png'`、`legacy_uc: false`、顶层 `use_new_shared_trial: true`；带底图 `extra_noise_seed = seed - 1`、img2img `color_correct: false`；重绘发 `inpaintImg2ImgStrength: 1`。
+- 精确参考：`director_reference_secondary_strength_values` = **1 − 保真度**（之前原样发，滑块是反的）；描述带 `legacy_uc: false`；发 `normalize_reference_strength_multiple: true`。
+- UC 预设文案逐代不同：V4.5 Full 的 light、V4.5 Curated 的 heavy / light / human 与 V5 不同，按模型取（`src/lib/novelai-compose.ts`）。
+- V5 缺省 CFG 4、28 步（网页端；之前 7 / 23）。V4.5 仍是 5 / 28（网页端 23 步，未改）。
+- 有意不同：重绘仍发 `add_original_image: true`（Launcher 在 infill 发 false，我们不在客户端合成，关掉会整张重画）。
 
 ## PixAI 接入（2026-09-20 暂时下架；历史契约已核实）
 

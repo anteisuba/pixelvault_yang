@@ -20,16 +20,26 @@ describe('NovelAI inpainting model map', () => {
     expect(novelAiInpaintFallsBack('nai-diffusion-5-full')).toBe(false)
   })
 
-  // V5 Curated 没有自己的 inpaint 模型（官方 models 页）—— 它借 V4.5 Full 的，
-  // 界面要说出来，所以这条回落必须是**可查询的**而不是藏在 worker 里。
-  it('falls V5 Curated back to the V4.5 Full inpainting model', () => {
+  // V5 Curated 没有自己的 inpaint 模型 —— 网页端借 V4.5 Curated 的，界面要说出来，
+  // 所以这条回落必须是**可查询的**而不是藏在 worker 里。
+  it('falls V5 Curated back to the V4.5 Curated inpainting model', () => {
     expect(resolveNovelAiInpaintModelId('nai-diffusion-5-curated')).toBe(
-      'nai-diffusion-4-5-full-inpainting',
+      'nai-diffusion-4-5-curated-inpainting',
     )
     expect(novelAiInpaintFallsBack('nai-diffusion-5-curated')).toBe(true)
   })
 
-  it.each([undefined, 'nai-diffusion-4-5-full', 'fal-ai/flux-2/flash'])(
+  it.each(['nai-diffusion-4-5-full', 'nai-diffusion-4-5-curated'])(
+    'sends %s to its own inpainting model',
+    (modelId) => {
+      expect(resolveNovelAiInpaintModelId(modelId)).toBe(
+        `${modelId}-inpainting`,
+      )
+      expect(novelAiInpaintFallsBack(modelId)).toBe(false)
+    },
+  )
+
+  it.each([undefined, 'nai-diffusion-3', 'fal-ai/flux-2/flash'])(
     'has no inpainting counterpart for %s',
     (modelId) => {
       expect(resolveNovelAiInpaintModelId(modelId)).toBeUndefined()

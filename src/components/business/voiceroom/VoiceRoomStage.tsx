@@ -17,6 +17,7 @@ import {
   type AssistantKeySetupTarget,
 } from '@/lib/assistant-key-setup'
 import { voiceSpeakerLook } from '@/lib/voice-avatar'
+import type { AssistantRouteModel } from '@/constants/assistant-persona'
 import type { AudioEmotion } from '@/constants/voice-cards'
 import type {
   VoiceRoomCastMember,
@@ -50,6 +51,8 @@ interface VoiceRoomStageProps {
   streamingReply: { speakerId: string; text: string } | null
   mode: VoiceRoomMode
   onModeChange: (mode: VoiceRoomMode) => void
+  llmModel: AssistantRouteModel
+  onLlmModelChange: (model: AssistantRouteModel) => void
   /** 聊天时助手那一家缺 key：就地配。 */
   keySetup: AssistantKeySetupTarget | null
   onDismissKeySetup: () => void
@@ -77,6 +80,8 @@ export function VoiceRoomStage({
   streamingReply,
   mode,
   onModeChange,
+  llmModel,
+  onLlmModelChange,
   keySetup,
   onDismissKeySetup,
   error,
@@ -335,7 +340,15 @@ export function VoiceRoomStage({
           onDeliveryChange={onDeliveryChange}
           mode={mode}
           onModeChange={onModeChange}
+          llmModel={llmModel}
+          onLlmModelChange={onLlmModelChange}
           onSelect={setPickedId}
+          // ⚠ 写回去的是班底**快照**（`detail.cast`），⛔ 不是换上角色名头像的那份 `cast`。
+          onRemove={(speakerId) =>
+            onCastChange(
+              detail.cast.filter((member) => member.id !== speakerId),
+            )
+          }
           onOpenCasting={() => setCastingOpen(true)}
           onSubmit={(text) => {
             const speaker = cast.find((member) => member.id === selectedId)

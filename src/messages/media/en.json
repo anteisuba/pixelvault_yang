@@ -464,7 +464,8 @@
     },
     "chatPlaceholder": "Say something to {name}…",
     "send": "Send",
-    "noVoice": "No voice yet"
+    "noVoice": "No voice yet",
+    "removeFromRoom": "Remove from room"
   },
   "StudioVideoSlots": {
     "firstFrame": "First",

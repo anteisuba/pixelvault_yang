@@ -1042,7 +1042,7 @@ describe('submitAudioGeneration', () => {
     )
   })
 
-  it('keeps the audio job active when the worker acknowledgement may be lost', async () => {
+  it('keeps the audio job active and hands its id back when the worker acknowledgement may be lost', async () => {
     vi.mocked(resolveGenerationRoute).mockResolvedValueOnce(
       FAKE_SYNC_ROUTE as never,
     )
@@ -1054,13 +1054,15 @@ describe('submitAudioGeneration', () => {
       ),
     )
 
-    await expect(
-      submitAudioGeneration('clerk-1', {
-        ...BASE_SYNC_REQUEST,
-        voiceId: 'voice-1',
-      }),
-    ).rejects.toThrow('worker acknowledgement was lost')
+    // 送没送到不知道：任务留着等回调，jobId 照常交回去（Workflow id 就是它），
+    // 配音间才记得住这条台词（2026-10-23 线上「生成失败」）。
+    const result = await submitAudioGeneration('clerk-1', {
+      ...BASE_SYNC_REQUEST,
+      voiceId: 'voice-1',
+    })
 
+    expect(result.jobId).toEqual(expect.any(String))
+    expect(result.requestId).toBe(result.jobId)
     expect(failGenerationJob).not.toHaveBeenCalled()
   })
 

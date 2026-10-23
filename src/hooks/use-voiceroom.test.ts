@@ -289,6 +289,8 @@ describe('useVoiceRoom 聊天（owner 10-23）', () => {
       speakerId: SPEAKER_ID,
       text: '在吗',
       pace: 'normal',
+      // 配音间自己记的写词模型，出厂是「自动」。
+      llmModel: 'auto',
     })
   })
 

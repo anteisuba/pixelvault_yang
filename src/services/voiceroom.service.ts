@@ -17,6 +17,10 @@ import {
   type VoiceLineSpeakerKind,
 } from '@/constants/voiceroom'
 import { parseVoiceLineEmotion } from '@/lib/voice-line-emotion'
+import {
+  reconcileStaleGenerationJob,
+  STALE_EXECUTION_FAILURE_MESSAGE,
+} from '@/services/execution-sweeper.service'
 import { submitAudioGeneration } from '@/services/generate-audio.service'
 import { ensureUser } from '@/services/user.service'
 import {
@@ -183,7 +187,28 @@ export async function getVoiceRoomDetail(
   })
   if (!row) throwRoomNotFound()
 
-  return { ...toVoiceRoomRecord(row), lines: row.lines.map(toVoiceLineRecord) }
+  /*
+   * 配音间不走 `/api/generate-audio/status`，那边顺手做的「等太久就收成失败」这里也要做一遍：
+   * 派发时没确认送到的任务（Worker 超时）若一直没有回调，会永远停在「正在开口」。超过 stale 阈值
+   * 的就地收成 FAILED，气泡照常给重试。只碰真过期的那几条，平时一次写都没有。
+   */
+  const lines = await Promise.all(
+    row.lines.map(async (line) => {
+      if (!line.job || !(await reconcileStaleGenerationJob(line.job))) {
+        return toVoiceLineRecord(line)
+      }
+      return toVoiceLineRecord({
+        ...line,
+        job: {
+          ...line.job,
+          status: 'FAILED',
+          errorMessage: STALE_EXECUTION_FAILURE_MESSAGE,
+        },
+      })
+    }),
+  )
+
+  return { ...toVoiceRoomRecord(row), lines }
 }
 
 /**

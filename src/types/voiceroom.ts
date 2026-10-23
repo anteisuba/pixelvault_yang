@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { ASSISTANT_ROUTE_MODEL_VALUES } from '@/constants/assistant-persona'
 import {
   AUDIO_EMOTIONS,
   AUDIO_PACES,
@@ -248,6 +249,11 @@ export const VoiceRoomChatRequestSchema = VoiceLineDeliverySchema.extend({
   roomId: z.string().min(1),
   speakerId: z.string().min(1),
   text: z.string().trim().min(1).max(VOICE_LINE_TEXT_MAX_LENGTH),
+  /**
+   * 写回复用哪个文本模型：`auto` 或助手路由表里的一个 modelId（owner 10-23「底部加选择器」）。
+   * 配音间单独记一份，⛔ 不改助手的设置；不传 = 跟助手走。
+   */
+  llmModel: z.enum(ASSISTANT_ROUTE_MODEL_VALUES).optional(),
 })
 
 export type VoiceRoomChatRequest = z.infer<typeof VoiceRoomChatRequestSchema>

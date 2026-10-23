@@ -79,6 +79,12 @@ export type VoiceRoomMode = (typeof VOICE_ROOM_MODES)[number]
 export const VOICE_ROOM_CHAT_HISTORY_LINES = 30
 
 /**
+ * 配音间写回复用的文本模型记在这台浏览器里（owner 10-23「配音间单独记一份」）——它是顺手的
+ * 偏好，丢了就回到「自动」，⛔ 不写进助手的 persona。
+ */
+export const VOICE_ROOM_LLM_MODEL_STORAGE_KEY = 'antei:voiceroom:llm-model'
+
+/**
  * 聊天流（SSE）的事件名：`user` 你那句落库了 → `delta` 她的回复一段段到 → `reply` 回复
  * 落库、声音已派出去（之后跟别的台词一样靠轮询变成能播）。`error` 随时可能来，之后流就结束。
  */

@@ -3,6 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import {
+  ASSISTANT_ROUTE_MODEL_AUTO,
+  ASSISTANT_ROUTE_MODEL_VALUES,
+  type AssistantRouteModel,
+} from '@/constants/assistant-persona'
+import {
+  VOICE_ROOM_LLM_MODEL_STORAGE_KEY,
   VOICE_ROOM_MODE,
   VOICE_ROOM_POLL_MS,
   VOICE_ROOM_SWITCH_OUT_MS,
@@ -52,6 +58,20 @@ const DEFAULT_DELIVERY: VoiceRoomDeliveryState = {
  * 而「没选过」的语义正是让服务端去挑目录里第一个可用的。塞个 null 进去既过不了
  * 校验，也把意思说反了。
  */
+/** 记在这台浏览器里的写词模型；读不到（隐私窗口、清过数据）就是「自动」。 */
+function readStoredLlmModel(): AssistantRouteModel {
+  try {
+    const stored = window.localStorage.getItem(VOICE_ROOM_LLM_MODEL_STORAGE_KEY)
+    // 路由表里下架了的型号也回到「自动」。
+    return (
+      ASSISTANT_ROUTE_MODEL_VALUES.find((model) => model === stored) ??
+      ASSISTANT_ROUTE_MODEL_AUTO
+    )
+  } catch {
+    return ASSISTANT_ROUTE_MODEL_AUTO
+  }
+}
+
 function toDeliveryPayload(delivery: VoiceRoomDeliveryState) {
   return {
     pace: delivery.pace,
@@ -92,6 +112,9 @@ export interface UseVoiceRoomResult {
   /** 聊天 / 念台词（owner 10-23 方案 A）。会话级，不落库。 */
   mode: VoiceRoomMode
   setMode: (mode: VoiceRoomMode) => void
+  /** 聊天写回复用的文本模型（底部选择器）。配音间单独记，⛔ 不动助手的设置。 */
+  llmModel: AssistantRouteModel
+  setLlmModel: (model: AssistantRouteModel) => void
   /** 聊天时助手那一家缺 key：页面就地开那一家的 `QuickSetupDialog`（Hard Rule 8）。 */
   keySetup: AssistantKeySetupTarget | null
   dismissKeySetup: () => void
@@ -150,6 +173,21 @@ export function useVoiceRoom(): UseVoiceRoomResult {
     text: string
   } | null>(null)
   const [mode, setMode] = useState<VoiceRoomMode>(VOICE_ROOM_MODE.CHAT)
+  const [llmModel, setLlmModelState] = useState<AssistantRouteModel>(
+    ASSISTANT_ROUTE_MODEL_AUTO,
+  )
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 挂载后才读得到浏览器存储（服务端渲染时没有 window）
+    setLlmModelState(readStoredLlmModel())
+  }, [])
+  const setLlmModel = useCallback((model: AssistantRouteModel) => {
+    setLlmModelState(model)
+    try {
+      window.localStorage.setItem(VOICE_ROOM_LLM_MODEL_STORAGE_KEY, model)
+    } catch {
+      // 存不住就只管这一次会话。
+    }
+  }, [])
   const [keySetup, setKeySetup] = useState<AssistantKeySetupTarget | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [delivery, setDeliveryState] =
@@ -368,7 +406,13 @@ export function useVoiceRoom(): UseVoiceRoomResult {
       setPendingUserText(text)
       let userLanded = false
       const result = await chatVoiceRoomAPI(
-        { roomId, speakerId, text, ...toDeliveryPayload(delivery) },
+        {
+          roomId,
+          speakerId,
+          text,
+          llmModel,
+          ...toDeliveryPayload(delivery),
+        },
         {
           onUserLine: (line) => {
             userLanded = true
@@ -391,7 +435,7 @@ export function useVoiceRoom(): UseVoiceRoomResult {
       else if (result.error) setError(result.error)
       return userLanded
     },
-    [activeRoomId, delivery],
+    [activeRoomId, delivery, llmModel],
   )
 
   const retake = useCallback(
@@ -448,6 +492,8 @@ export function useVoiceRoom(): UseVoiceRoomResult {
     streamingReply,
     mode,
     setMode,
+    llmModel,
+    setLlmModel,
     keySetup,
     dismissKeySetup,
     error,

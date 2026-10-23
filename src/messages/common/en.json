@@ -456,6 +456,11 @@
       "notFound": "Look not found",
       "limit": "This character has the maximum number of looks",
       "lastLook": "A character needs at least one look"
+    },
+    "assistantSkill": {
+      "limit": "You've reached the skill limit (200). Delete one first.",
+      "nameTaken": "That name is taken. Pick another.",
+      "unknownBuiltin": "That built-in skill no longer exists. Refresh the page."
     }
   }
 }

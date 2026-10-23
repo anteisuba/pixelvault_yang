@@ -85,6 +85,15 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
   - 长聊天摘要同一副四栏按故事写（`kind: 'story'`：发生了什么 / 关系 / 约定与伏笔 / 出场的人和东西）。
 - 以后（owner 10-23，未排期）：表情包、语音、上网找资料，往「电子宠物」的感觉做。
 
+**第 7b 步**（owner 10-23：照标准 SKILL.md 做、能导出；⛔ GitHub 安装、⛔「让助手写」、导入先不做；每人隔离）：
+
+- 内置技能是标准文件夹：`skills/builtin/<name>/SKILL.md`（`name` / `description` / `metadata.title` 中文名）+ `references/`。改了跑 `npm run skills:generate` 打成 `builtin.generated.ts`（服务端 ⛔ 运行时读盘）；`skills.test.ts` 守两边一致。读写 SKILL.md 走 `lib/skill-md.ts`（只认这个格式那一小块 YAML，⛔ 引 YAML 库）。
+- 参考文件按需读：`look 技能·名字/references/x.md`，一次一份；正文末尾列出能读的。
+- 「你的技能」表 `AssistantSkill`（每人一份，按 `userId` 收敛）：自己写的一行；「改成我的版本」/ 只关掉一份内置 = 带 `builtinSlug` 的一行（`body` 空 = 只关）。删那一行 = 回到内置原样。上限见 `constants/assistant-skills.ts`（每人 200 份、正文 1.2 万字）。
+- 谁能读：内置的（含改版）助手用到自己读，系统提示稳定段只列内置名单；你关掉的在「你的设置」点名（`skillsSettingsNote`），名单不变吃得到缓存。你自己写的 ⛔ 进名单、`look` 打不开，只能「/名字」叫。
+- 「/」：服务端从这条消息原文认 `/名字`（前面是开头或空白；长名字先认；关掉的不算），全文进这一轮第一条消息（`renderCalledSkills`），一条最多 3 份、合计 3 万字，多的回一句让模型告诉创作者。输入框「/」菜单只帮着写名字（普通文字，⛔ 胶囊）。
+- 设置第三页「技能」：内置 / 我的两组、开关、看全文和参考文件、改成我的版本、改、删、导出 zip（`lib/skill-export.ts`，`<name>/SKILL.md` + `references/`）。
+
 **过程记录**：照写 `AssistantTurnRecord`，`promptVersion = next-YYYY-MM-DD`；本轮记录投成 v3 形状（自带联网记成 `search_web`、`find` 记成 `search_library`），评测工具照用。
 
 ## 3. 没验证的（2026-10-23）
@@ -98,6 +107,8 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 - 接口与搜索调研：项目文件 `assistant-reliability/model-interfaces.md`
 
 ## Last Verified
+
+- 2026-10-23 · 第 7b 步：`tsc` 0 error、定向 vitest 全绿（内置文件与生成模块一致、改版 / 关掉 / 自己写的读法、「/」注入、路由与服务按人隔离、迁移安全检查）。未跑评测（等全部改完再统一跑）。
 
 - 2026-10-23 · 第 7a 步：`tsc` 0 error、`src/features/assistant` 定向 vitest 全绿（技能点名都找得到、清旧结果留技能、聊天模式提示 / 记忆 / 故事摘要）。未跑评测（等全部改完再统一跑）。
 

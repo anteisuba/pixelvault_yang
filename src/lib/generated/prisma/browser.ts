@@ -239,6 +239,14 @@ export type ContextCard = Prisma.ContextCardModel
  */
 export type AssistantMemory = Prisma.AssistantMemoryModel
 /**
+ * Model AssistantSkill
+ * 创作者自己的技能（第 7b 步，owner 10-23）：SKILL.md 那几样（名字、描述、正文、参考文件）存成一行。
+ * ⭐ 每人各自一份：只有本人看得到、只进本人的助手（按 `userId` 收敛）。
+ * ⭐ 自己写的只能用「/」叫；`builtinSlug` 有值 = 改的是那份内置技能（「改成我的版本」/ 关掉它），
+ * 助手照旧自己会读，读到的是这一份。`body` 为空 = 只是关掉了那份内置的、没改内容。
+ */
+export type AssistantSkill = Prisma.AssistantSkillModel
+/**
  * Model AssistantTurnRecord
  * 助手每一轮的过程（owner 2026-10-15「建表」）：开轮时的画布 / 工作台快照、本轮记录（v3
  * transcript）与那一轮用的模型，供以后原样回放（`src/test/assistant-replay/from-turn-record.ts`

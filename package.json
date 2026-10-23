@@ -6,6 +6,7 @@
     "check:node": "node ./scripts/check-node-version.cjs",
     "predev": "npm run check:node",
     "dev": "next dev",
+    "skills:generate": "node ./scripts/generate-assistant-skills.mjs && prettier --write src/features/assistant/skills/builtin.generated.ts",
     "prebuild": "npm run check:node",
     "build": "next build",
     "prisma:generate": "prisma generate",

@@ -1158,6 +1158,11 @@
       "mention": "@ a character or asset",
       "recent": "Recent asset",
       "all": "All"
+    },
+    "skillMenu": {
+      "label": "Skills",
+      "mine": "Mine",
+      "builtin": "Built-in"
     }
   },
   "ContextCards": {
@@ -1176,7 +1181,8 @@
       "label": "Assistant settings sections",
       "persona": "Persona",
       "memory": "Memory",
-      "memoryCount": "Memory · {count}"
+      "memoryCount": "Memory · {count}",
+      "skills": "Skills"
     },
     "status": {
       "saving": "Saving",
@@ -1370,6 +1376,31 @@
       "remove": "Remove {token}",
       "invalid": "Enter a site domain, like danbooru.donmai.us.",
       "failed": "Couldn't save. Try again."
+    },
+    "skills": {
+      "mine": "Mine",
+      "builtin": "Built-in",
+      "new": "New skill",
+      "loading": "Loading skills…",
+      "empty": "None yet. Write one, then type \"/name\" in the input to call it.",
+      "overridden": "Edited",
+      "toggle": "Turn {name} on or off",
+      "slashHint": "The assistant won't read this on its own. Type \"/{name}\" in the input to call it.",
+      "override": "Make my version",
+      "edit": "Edit",
+      "export": "Export",
+      "delete": "Delete",
+      "restore": "Restore built-in",
+      "deleteConfirm": "Confirm",
+      "nameLabel": "Name",
+      "namePlaceholder": "e.g. Winter turnaround",
+      "descriptionLabel": "What it does and when to use it",
+      "descriptionPlaceholder": "e.g. Winter-outfit turnaround sheets for a character. Use when a turnaround is needed.",
+      "bodyLabel": "Instructions",
+      "bodyPlaceholder": "Write step by step what the assistant should do.",
+      "cancel": "Cancel",
+      "save": "Save",
+      "failed": "Not saved. Try again."
     }
   }
 }

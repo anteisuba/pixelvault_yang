@@ -87,6 +87,7 @@ export const ModelName = {
   GenerationLayer: 'GenerationLayer',
   ContextCard: 'ContextCard',
   AssistantMemory: 'AssistantMemory',
+  AssistantSkill: 'AssistantSkill',
   AssistantTurnRecord: 'AssistantTurnRecord'
 } as const
 
@@ -771,6 +772,22 @@ export const AssistantMemoryScalarFieldEnum = {
 } as const
 
 export type AssistantMemoryScalarFieldEnum = (typeof AssistantMemoryScalarFieldEnum)[keyof typeof AssistantMemoryScalarFieldEnum]
+
+
+export const AssistantSkillScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  description: 'description',
+  body: 'body',
+  references: 'references',
+  builtinSlug: 'builtinSlug',
+  enabled: 'enabled',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AssistantSkillScalarFieldEnum = (typeof AssistantSkillScalarFieldEnum)[keyof typeof AssistantSkillScalarFieldEnum]
 
 
 export const AssistantTurnRecordScalarFieldEnum = {

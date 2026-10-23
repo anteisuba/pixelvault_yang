@@ -1158,6 +1158,11 @@
       "mention": "@ 角色或素材",
       "recent": "最近的素材",
       "all": "全部"
+    },
+    "skillMenu": {
+      "label": "技能",
+      "mine": "我的",
+      "builtin": "内置"
     }
   },
   "ContextCards": {
@@ -1176,7 +1181,8 @@
       "label": "助手设置分页",
       "persona": "人设",
       "memory": "记忆",
-      "memoryCount": "记忆 · {count}"
+      "memoryCount": "记忆 · {count}",
+      "skills": "技能"
     },
     "status": {
       "saving": "保存中",
@@ -1369,6 +1375,31 @@
       "placeholder": "站点或域名",
       "remove": "移除 {token}",
       "invalid": "填一个站点域名，比如 danbooru.donmai.us。",
+      "failed": "没存上，再试一次。"
+    },
+    "skills": {
+      "mine": "我的",
+      "builtin": "内置",
+      "new": "新建技能",
+      "loading": "正在读技能…",
+      "empty": "还没有。自己写一份，在输入框打「/名字」叫它。",
+      "overridden": "已改",
+      "toggle": "开关：{name}",
+      "slashHint": "助手不会自己读它；在输入框打「/{name}」叫它。",
+      "override": "改成我的版本",
+      "edit": "改",
+      "export": "导出",
+      "delete": "删",
+      "restore": "恢复内置",
+      "deleteConfirm": "确认",
+      "nameLabel": "名字",
+      "namePlaceholder": "例：冬装三视图",
+      "descriptionLabel": "做什么、什么时候用",
+      "descriptionPlaceholder": "例：给角色出冬装三视图。要三视图时用。",
+      "bodyLabel": "正文",
+      "bodyPlaceholder": "一步步写清楚要助手怎么做。",
+      "cancel": "取消",
+      "save": "保存",
       "failed": "没存上，再试一次。"
     }
   }

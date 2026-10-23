@@ -171,6 +171,7 @@ import { StudioOperatorResumeChip } from '@/components/business/studio/assistant
 import { StudioOperatorToolGroup } from '@/components/business/studio/assistant-operator/StudioOperatorToolGroup'
 import { StudioOperatorPromptNote } from '@/components/business/studio/assistant-operator/StudioOperatorPromptNote'
 import { StudioOperatorMentionMenu } from '@/components/business/studio/assistant-operator/StudioOperatorMentionMenu'
+import { StudioOperatorSkillMenu } from '@/components/business/studio/assistant-operator/StudioOperatorSkillMenu'
 import { StudioOperatorMentionCard } from '@/components/business/studio/assistant-operator/StudioOperatorMentionCard'
 import { openOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
 import { BlurSwap } from '@/components/ui/blur-swap'
@@ -189,6 +190,7 @@ import {
   useAssistantMentionComposer,
 } from '@/hooks/use-assistant-mention-composer'
 import { useAssistantMentionMenu } from '@/hooks/use-assistant-mention-menu'
+import { useAssistantSkillMenu } from '@/hooks/use-assistant-skill-menu'
 import { toOperatorAttachment } from '@/hooks/use-studio-operator-upload'
 import { useStudioOperatorRevert } from '@/hooks/use-studio-operator-revert'
 import {
@@ -706,6 +708,8 @@ export function StudioOperatorPanel({
     excludeKeys: draftMentionKeys,
     onPick: pickMentions,
   })
+  /** 「/」技能菜单（第 7b 步）：和 `@` 菜单同一格，`@` 开着时让它。 */
+  const skillMenu = useAssistantSkillMenu(inputRef)
   /** 胶囊上点出来的小卡片：哪一枚、摆在多靠左。 */
   const [chipCard, setChipCard] = useState<{
     key: string
@@ -3081,6 +3085,9 @@ export function StudioOperatorPanel({
           {/* ── `@` 菜单 / 胶囊小卡片（§10b）：贴在输入框正上方，⛔ 不 portal ——
             手机上键盘弹起时它跟着输入框走，不会被盖住也不会被关掉。 */}
           <StudioOperatorMentionMenu menu={mentionMenu} />
+          {!mentionMenu.open ? (
+            <StudioOperatorSkillMenu menu={skillMenu} />
+          ) : null}
           {chipCard && !mentionMenu.open
             ? (() => {
                 const target = composer.drafts.find(
@@ -3156,7 +3163,10 @@ export function StudioOperatorPanel({
             ref={inputRef}
             value={draft}
             aria-label={operatorHost.face.inputPlaceholder}
-            onValueChange={onDraftChange}
+            onValueChange={(value) => {
+              onDraftChange(value)
+              skillMenu.sync()
+            }}
             tokens={composer.tokens}
             /* `@` 菜单外置（§10b）：输入框认出 `@查询`、挂 combobox ARIA，导航键交给
                `useAssistantMentionMenu`；菜单本身画在上面那一格。 */
@@ -3178,6 +3188,7 @@ export function StudioOperatorPanel({
             }}
             onKeyDown={(event) => {
               if (event.nativeEvent.isComposing || event.keyCode === 229) return
+              if (!mentionMenu.open && skillMenu.onKeyDown(event)) return
               if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault()
                 submit(draft)

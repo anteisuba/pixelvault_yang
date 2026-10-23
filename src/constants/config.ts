@@ -190,6 +190,7 @@ export const API_ENDPOINTS = {
    * 那一支，没有 id 可给），单条的改 / 删走 `<base>/<id>`。
    */
   ASSISTANT_MEMORIES: '/api/assistant-memories',
+  ASSISTANT_SKILLS: '/api/assistant-skills',
   /** Node Studio structured ScriptDoc draft (assistant → outline) */
   NODE_SCRIPT_DOC: '/api/studio/node-script-doc',
   /** Generation feedback (iterative refinement) */

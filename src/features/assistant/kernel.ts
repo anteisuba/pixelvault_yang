@@ -54,6 +54,7 @@ import {
   type AssistantTurnDraft,
 } from '@/services/assistant-turn-record.service'
 import { listNextAssistantMemoriesForPrompt } from '@/services/assistant-memory.service'
+import { loadAssistantSkills } from '@/services/assistant-skill.service'
 import { startCallLog } from '@/services/kernel/assistant-completion.service'
 import {
   loadAssistantV3HistorySummaries,
@@ -109,6 +110,11 @@ import {
   chatCharacterOf,
   chatReminder,
 } from '@/features/assistant/prompt'
+import {
+  BUILTIN_SKILLS,
+  renderCalledSkills,
+  skillsSettingsNote,
+} from '@/features/assistant/skills'
 import { loadTurnState, saveTurnState } from '@/features/assistant/state'
 import {
   AskInputSchema,
@@ -444,6 +450,14 @@ async function* runNextTurn(
 
   const { turns, latest } = splitAssistantV3History(request.messages)
   const latestUserText = saved?.latestUserText ?? latest
+  // 这个人眼前的技能（内置 + 改版 / 关掉 + 自己写的，第 7b 步）；读不出来就只有内置的。
+  const skills = await loadAssistantSkills(user.id).catch((error) => {
+    logger.warn('assistant skills load failed, using built-ins', {
+      userId: clerkId,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return [...BUILTIN_SKILLS]
+  })
   const mentioned = (request.mentionedAssets ?? []).slice(
     0,
     ASSISTANT_V3_LIMITS.maxLookCards,
@@ -504,9 +518,11 @@ async function* runNextTurn(
       : []
     // 「别出戏」放在这一轮的消息里（⛔ 进系统提示：每轮都变会废掉缓存）。
     const reminder = chat ? chatReminder(persona) : null
+    // 「/」点名的技能：全文直接进这一轮的消息，不等模型自己去读。
+    const called = renderCalledSkills(latestUserText, skills)
     messages = [
       openingUserMessage(
-        reminder ? `${bench}\n\n${reminder}` : bench,
+        [bench, called, reminder].filter(Boolean).join('\n\n'),
         pictures,
       ),
     ]
@@ -567,6 +583,7 @@ async function* runNextTurn(
     historySummary: historyPlan.summary,
     accountName: user.displayName ?? user.username ?? null,
     language,
+    skillsNote: skillsSettingsNote(skills),
   })
   recording.turn = {
     userId: user.id,

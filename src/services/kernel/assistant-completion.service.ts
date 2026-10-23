@@ -120,7 +120,7 @@ function failureOutcome(signal: AbortSignal | undefined): CallOutcome {
   return signal?.aborted ? 'aborted' : 'error'
 }
 
-export function truncateAssistantContextBlock(
+function truncateAssistantContextBlock(
   value: string,
   maxLength: number,
   omissionMessage: string,

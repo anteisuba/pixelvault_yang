@@ -16,7 +16,3 @@ export const AssistantMediaReferenceSchema = z.object({
     .optional(),
   label: z.string().trim().min(1).max(ASSISTANT_MEDIA_LIMITS.maxLabelLength),
 })
-
-export type AssistantMediaReference = z.infer<
-  typeof AssistantMediaReferenceSchema
->

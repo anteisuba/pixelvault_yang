@@ -4,20 +4,17 @@ import {
   ASSISTANT_RESEARCH_LIMITS,
   ASSISTANT_WEB_FIND_LIMITS,
 } from '@/constants/assistant-operator'
-import type { AssistantOperatorWebImage } from '@/types/assistant-operator'
 import type { AssistantWebFind } from '@/types/assistant-web-finds'
 
 import {
   buildResearchCompact,
   carriedWebFinds,
-  describeWebFindLine,
   describeWebImageFindLine,
   describeWebVideoFindLine,
   judgeWebImageFind,
   parseWebFindHandle,
   researchGist,
   WEB_FIND_REF_PATTERN,
-  webFindToWebImage,
   webImageToFind,
   webVideoToFind,
 } from './assistant-web-finds'
@@ -135,26 +132,6 @@ describe('能不能当参考：服务端现判，⛔ 不信往返带回来的', 
       }),
     ).toBe('blocked')
     expect(judgeWebImageFind({ domain: 'site.test' })).toBe('unknownLicense')
-  })
-
-  it('⭐ 往返：面板那一份 → 本轮记录 → 准入名单，结论按域名重判', () => {
-    const image: AssistantOperatorWebImage = {
-      n: 2,
-      imageUrl: 'https://i.pinimg.test/2.jpg',
-      pageUrl: 'https://www.pinterest.com/pin/2',
-      domain: 'www.pinterest.com',
-      // 有人把往返的这一份改成「能用」：⛔ 不信。
-      usableAsInput: true,
-      sourceVerdict: 'allowed',
-    }
-    const find = webImageToFind(image)
-    expect(find).not.toBeNull()
-    expect(find).not.toHaveProperty('usableAsInput')
-    const back = webFindToWebImage(find!)
-    expect(back.usableAsInput).toBe(false)
-    expect(back.sourceVerdict).toBe('blocked')
-    expect(back.n).toBe(2)
-    expect(describeWebFindLine(find!)).toContain('view only')
   })
 
   it('缩略图 / 来源页不合格只丢那一格，⛔ 不把整条（和它的号）丢掉', () => {

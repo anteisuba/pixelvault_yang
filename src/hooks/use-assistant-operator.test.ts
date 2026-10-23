@@ -1201,57 +1201,6 @@ describe('useAssistantOperator 的四条收尾路径', () => {
     await settle()
   })
 
-  it('反复不纠正输入引用也消耗画布步数，预算耗尽后不再自动重发，改为摆出继续', async () => {
-    hostDomain.current = 'canvas'
-    canvasApply.mockReturnValue(false)
-    canvasInputSync.current = true
-    const { result } = render()
-    act(() => result.current.send('按参考保持角色身份'))
-    await settle()
-    for (
-      let index = 0;
-      index < ASSISTANT_OPERATOR_LIMITS.maxCanvasSteps;
-      index += 1
-    ) {
-      expect(streamAssistantOperatorAPI.mock.calls[index][0].stepBudget).toBe(
-        ASSISTANT_OPERATOR_LIMITS.maxCanvasSteps - index,
-      )
-      streams[index].emit({
-        type: 'step',
-        step: {
-          id: 'step-1',
-          title: '尚未同步的提示词',
-          tool: 'canvas_apply',
-          verb: 'apply',
-          status: 'done',
-          payload: {
-            op: 'set_prompt',
-            target: 'target',
-            prompt: '@source',
-            mode: 'replace',
-          },
-          inverse: { op: 'set_prompt', nodeRef: 'target' },
-        },
-      })
-      streams[index].emit({ type: 'stopped', reason: 'canvas_sync' })
-      streams[index].close()
-      await settle()
-    }
-    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(
-      ASSISTANT_OPERATOR_LIMITS.maxCanvasSteps,
-    )
-    expect(store.getOperatorState().status).toBe('idle')
-    // 步数用完不再静默收尾：摆出「继续 / 先到这里」。
-    expect(store.getOperatorState().outOfSteps).toBe(true)
-    expect(
-      store
-        .getOperatorState()
-        .entries.filter(
-          (entry) => entry.kind === 'step' && entry.step.status === 'done',
-        ),
-    ).toHaveLength(0)
-  })
-
   it('输入同步失败后用户停止时，不触发自动纠正请求', async () => {
     hostDomain.current = 'canvas'
     canvasApply.mockReturnValue(false)
@@ -2591,7 +2540,7 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
       expect(store.getOperatorState().confirm?.status).toBe('cancelled')
     })
 
-    it('⭐ 自动生成出图后自动看一眼：卡上的图换了就发一轮 autoReview，附件是新图', async () => {
+    it('⭐ 自动生成出图后停下问一句：卡上的图换了就钉出「继续吗」，⛔ 不自己发一轮', async () => {
       canvasGenerationState.enabled = true
       canvasGenerationState.current = {
         id: 'shot-1',
@@ -2606,36 +2555,23 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
       }
       const { rerender } = await proposeOnCanvas(true)
       expect(canvasGenerate).toHaveBeenCalledWith('shot-1')
-      // 图还没换：不发。
+      // 图还没换：不问。
       rerender()
       await settle()
-      expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(1)
+      expect(store.getOperatorState().question).toBeNull()
       canvasOutput.current = {
         url: 'https://cdn.test/new.png',
         name: '主角正面',
       }
       rerender()
       await settle()
-      expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(2)
-      const request = streamAssistantOperatorAPI.mock.calls[1][0]
-      expect(request).toMatchObject({
-        autoReview: true,
-        mentionedAssets: [
-          expect.objectContaining({ url: 'https://cdn.test/new.png' }),
-        ],
-      })
-      streams[1].emit({ type: 'done' })
-      streams[1].close()
-      await settle()
-      // 一枪只看一次，下一轮不再带。
-      rerender()
-      await settle()
-      expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(2)
+      expect(store.getOperatorState().question?.questions).toHaveLength(1)
+      expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(1)
       canvasOutput.current = undefined
       canvasGenerationState.enabled = false
     })
 
-    it('自动生成后用户先开口了：这一枪不再自动看', async () => {
+    it('自动生成后用户先开口了：这一枪出完不再问', async () => {
       canvasGenerationState.enabled = true
       canvasGenerationState.current = {
         id: 'shot-1',
@@ -2658,9 +2594,7 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
       rerender()
       await settle()
       expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(2)
-      expect(
-        streamAssistantOperatorAPI.mock.calls[1][0].autoReview,
-      ).toBeUndefined()
+      expect(store.getOperatorState().question).toBeNull()
       canvasOutput.current = undefined
       canvasGenerationState.enabled = false
     })
@@ -2687,9 +2621,9 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
 
     it.each([
       [2, 2, true],
-      [3, 2, false],
+      [3, 2, true],
     ] as const)(
-      '⭐ 自动生成单轮上限 4 张：%i 张卡 × 每张 %i 张 → 替你按下 = %s',
+      '⭐ 画布自动生成不设单轮上限：%i 张卡 × 每张 %i 张 → 替你按下 = %s',
       async (cards, perCard, pressed) => {
         hostDomain.current = 'canvas'
         canvasGenerationState.enabled = true
@@ -4522,7 +4456,6 @@ describe('聊天会话 · 重新生成（附录L 第二片）', () => {
  */
 describe('新内核：出完就停，问要不要继续', () => {
   async function generateOnNext(autoGenerate: boolean) {
-    localStorage.setItem('antei:assistant-kernel', 'next')
     generationControls.current = null
     const hook = render()
     if (autoGenerate) act(() => store.setOperatorAutoGenerate(true))

@@ -238,45 +238,6 @@ function toSearchQuery(text: string): string {
 }
 
 /**
- * 用户把「联网」手动拨到开 —— 保证这个 plan 真的会去打源。
- *
- * ⚠ **不是多此一举**：启发式对「帮我写个提示词」给的是
- * `{shouldSearch:false, sourceGroup:'none', queries:[]}`，而 `none` 组的源列表是
- * 空数组。只把 `shouldSearch` 翻成 true 而不补组和查询，结果是一个请求都不发、
- * 状态却报 `no_evidence` —— 用户明明按了联网，回来的却是「没搜到」。
- * （2026-08-20 单测抓到的真洞。）
- *
- * 已经给了 URL 的情况不动：那本来就该只读 URL 不搜索。
- *
- * ⚠ 这里的「URL」只剩**检索线认领的那些**（视频链接已在规划时被摘走，见
- * `planResearchHeuristically` 的 ①）。所以「只贴了一条 YouTube 链接 + 手动开联网」
- * 走的是下面这条按文本搜索的路 —— 用户明确要求了联网，就照做；视频本体仍然
- * 走视觉线，两条并行不冲突。
- */
-export function withForcedSearch(
-  plan: ResearchPlan,
-  text: string,
-): ResearchPlan {
-  if (plan.urls.length > 0) return { ...plan, shouldSearch: true }
-  if (plan.shouldSearch && plan.queries.length > 0) return plan
-
-  const query = toSearchQuery(stripUrls(text))
-  if (!query) return { ...plan, shouldSearch: true }
-
-  return {
-    ...plan,
-    shouldSearch: true,
-    sourceGroup:
-      plan.sourceGroup === RESEARCH_SOURCE_GROUPS.none
-        ? RESEARCH_SOURCE_GROUPS.general
-        : plan.sourceGroup,
-    queries:
-      plan.queries.length > 0 ? plan.queries : [{ text: query, lang: 'zh' }],
-    reason: 'forced by the creator',
-  }
-}
-
-/**
  * 确定性规划。返回值永远合法 —— 上游可以直接用，不需要判空。
  */
 export function planResearchHeuristically(text: string): ResearchPlan {

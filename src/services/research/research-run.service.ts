@@ -1,59 +1,22 @@
 import 'server-only'
 
-import type { AssistantSurface, Prisma } from '@/lib/generated/prisma/client'
-
 import {
-  RESEARCH_DAILY_RUN_LIMIT,
-  RESEARCH_FRESHNESS,
-  RESEARCH_GROUP_SOURCES,
-  RESEARCH_LIMITS,
-  RESEARCH_MODES,
   RESEARCH_RUN_STATUSES,
-  RESEARCH_SOURCE_GROUPS,
-  RESEARCH_SOURCE_IDS,
   RESEARCH_SOURCE_META,
   RESEARCH_SOURCE_STATUSES,
   type ResearchMode,
-  type ResearchSourceId,
 } from '@/constants/research'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
-import {
-  buildEvidenceBlock,
-  sanitizeEvidenceItems,
-} from '@/lib/research-evidence-block'
-import {
-  planResearchHeuristically,
-  withForcedSearch,
-} from '@/lib/research-intent'
 import type { AssistantSurfaceId } from '@/types/assistant-conversation'
 import {
   EvidenceItemSchema,
   ResearchRunStatusSchema,
   ResearchSourceReceiptSchema,
   type EvidenceItem,
-  type ResearchPlan,
-  type ResearchReceipt,
   type ResearchRunDetail,
   type ResearchSourceReceipt,
 } from '@/types/research'
-import {
-  runConnector,
-  skippedReceipt,
-} from '@/services/research/connector-runtime'
-import { fetchBilibiliEvidence } from '@/services/research/bilibili.connector'
-import { fetchDanbooruEvidence } from '@/services/research/danbooru.connector'
-import {
-  fetchMediaWikiEvidence,
-  getMediaWikiSite,
-  pickQueryForSite,
-  resolveFandomSite,
-} from '@/services/research/mediawiki.connector'
-import {
-  fetchUrlEvidence,
-  fetchWebSearchEvidence,
-} from '@/services/research/web-search.connector'
-import { planResearchWithLlm } from '@/services/research/research-planner.service'
 import type { ResolvedLlmTextRoute } from '@/services/llm-text.service'
 
 /**
@@ -83,14 +46,6 @@ export interface RunResearchParams {
   route: ResolvedLlmTextRoute
   /** 这一轮助手用的型号：规划器同用它，落库也记它。 */
   model?: string
-}
-
-export interface ResearchOutcome {
-  receipt: ResearchReceipt
-  /** 可直接拼进用户提示的证据块（已过注入扫描 + 边界标记）。空串 = 无证据。 */
-  evidenceBlock: string
-  items: EvidenceItem[]
-  plan: ResearchPlan
 }
 
 // ─── 配额 ───────────────────────────────────────────────────────
@@ -191,132 +146,6 @@ export async function getResearchRunForUser(
   }
 }
 
-// ─── 打源 ───────────────────────────────────────────────────────
-
-async function fetchFromSource(
-  sourceId: ResearchSourceId,
-  plan: ResearchPlan,
-): Promise<{ items: EvidenceItem[]; receipt: ResearchSourceReceipt }> {
-  const queries = plan.queries
-  const primary = queries[0]?.text ?? ''
-
-  if (sourceId === RESEARCH_SOURCE_IDS.webSearch) {
-    return runConnector(sourceId, () =>
-      fetchWebSearchEvidence({
-        queries: queries.map((query) => query.text),
-        freshness: plan.freshness,
-      }),
-    )
-  }
-
-  if (sourceId === RESEARCH_SOURCE_IDS.urlReader) {
-    return runConnector(sourceId, () => fetchUrlEvidence({ urls: plan.urls }))
-  }
-
-  if (sourceId === RESEARCH_SOURCE_IDS.danbooru) {
-    // danbooru 是英文 tag 库，但中文名有 `other_names_match` 现成反查，所以
-    // 有英文查询就用英文的，没有也能用中文名打。
-    const query = queries.find((entry) => entry.lang === 'en')?.text ?? primary
-    if (!query)
-      return { items: [], receipt: skippedReceipt(sourceId, 'no query') }
-    return runConnector(sourceId, () => fetchDanbooruEvidence({ query }))
-  }
-
-  if (sourceId === RESEARCH_SOURCE_IDS.bilibili) {
-    const query = queries.find((entry) => entry.lang === 'zh')?.text ?? primary
-    if (!query)
-      return { items: [], receipt: skippedReceipt(sourceId, 'no query') }
-    return runConnector(sourceId, () => fetchBilibiliEvidence({ query }))
-  }
-
-  if (sourceId === RESEARCH_SOURCE_IDS.fandom) {
-    /**
-     * ⭐ **Fandom 的 host 按作品解析**（2026-09-06 修）。以前它硬编码成
-     * `wutheringwaves.fandom.com`，于是任何题材都能拿到一条「看起来是真的」的
-     * 鸣潮条目。表里没有的作品直接跳过，⛔ 不退回任何一个具体子域。
-     */
-    const site = resolveFandomSite(queries.map((query) => query.text))
-    if (!site)
-      return { items: [], receipt: skippedReceipt(sourceId, 'no fandom site') }
-    const query = pickQueryForSite(site, queries)
-    if (!query)
-      return { items: [], receipt: skippedReceipt(sourceId, 'no query') }
-    return runConnector(sourceId, () => fetchMediaWikiEvidence({ site, query }))
-  }
-
-  const site = getMediaWikiSite(sourceId)
-  if (site) {
-    const query = pickQueryForSite(site, queries)
-    if (!query)
-      return { items: [], receipt: skippedReceipt(sourceId, 'no query') }
-    return runConnector(sourceId, () => fetchMediaWikiEvidence({ site, query }))
-  }
-
-  return { items: [], receipt: skippedReceipt(sourceId, 'unknown source') }
-}
-
-function resolveSourceList(plan: ResearchPlan): ResearchSourceId[] {
-  // 用户贴了 URL：只读它，不打搜索（规划器那条启发式的落点）。
-  if (plan.urls.length > 0) return [RESEARCH_SOURCE_IDS.urlReader]
-
-  /**
-   * ⚠ 名单**原样返回**：Fandom 的 host 现在按作品解析（`resolveFandomSite`），
-   * 解析不出来由 `fetchFromSource` 标 `skipped: no fandom site` —— 那是一条
-   * 说得出理由的回执，比在这里静默筛掉一个源诚实。
-   */
-  return [...RESEARCH_GROUP_SOURCES[plan.sourceGroup]]
-}
-
-/**
- * 整轮的墙钟硬闸。
- *
- * ⚠ 每个源自己有超时，但**并行不等于有界**：一个源带重试最坏能拖到几十秒，
- * 而路由 `maxDuration=60`、检索之后还有模型调用。慢源必须被抛下，
- * 并在回执里如实记成 failed（不是 empty —— 「超时了」和「没料」是两件事）。
- */
-function withSourceDeadline(
-  sourceId: ResearchSourceId,
-  promise: Promise<{ items: EvidenceItem[]; receipt: ResearchSourceReceipt }>,
-): Promise<{ items: EvidenceItem[]; receipt: ResearchSourceReceipt }> {
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const deadline = new Promise<{
-    items: EvidenceItem[]
-    receipt: ResearchSourceReceipt
-  }>((resolve) => {
-    timer = setTimeout(() => {
-      resolve({
-        items: [],
-        receipt: {
-          sourceId,
-          status: RESEARCH_SOURCE_STATUSES.failed,
-          count: 0,
-          tookMs: RESEARCH_LIMITS.totalTimeoutMs,
-          error: `timed out after ${RESEARCH_LIMITS.totalTimeoutMs}ms`,
-        },
-      })
-    }, RESEARCH_LIMITS.totalTimeoutMs)
-  })
-
-  return Promise.race([promise, deadline]).finally(() => {
-    if (timer) clearTimeout(timer)
-  })
-}
-
-async function fanOut(
-  plan: ResearchPlan,
-): Promise<{ items: EvidenceItem[]; receipts: ResearchSourceReceipt[] }> {
-  const sources = resolveSourceList(plan)
-  const settled = await Promise.all(
-    sources.map((sourceId) =>
-      withSourceDeadline(sourceId, fetchFromSource(sourceId, plan)),
-    ),
-  )
-  return {
-    items: settled.flatMap((entry) => entry.items),
-    receipts: settled.map((entry) => entry.receipt),
-  }
-}
-
 // ─── 去重 ───────────────────────────────────────────────────────
 
 /**
@@ -345,35 +174,6 @@ export function dedupeEvidence(items: readonly EvidenceItem[]): EvidenceItem[] {
   )
 }
 
-/**
- * 证据不足时的**唯一一次**改写重打（§3.2「有界二次深化」——死代码分支，不是
- * 开放循环）。改写策略是确定性的：放宽到通用组、去掉时间窗、把查询砍到主语。
- */
-function broadenPlan(plan: ResearchPlan): ResearchPlan | null {
-  const primary = plan.queries[0]?.text
-  if (!primary) return null
-
-  const broadened = primary
-    .split(/[，,。；;：:]/)[0]
-    ?.trim()
-    .slice(0, RESEARCH_LIMITS.maxQueryLength)
-  if (!broadened) return null
-
-  const sameQuery = broadened === primary
-  const alreadyGeneral = plan.sourceGroup === RESEARCH_SOURCE_GROUPS.general
-  const noFreshness = plan.freshness === RESEARCH_FRESHNESS.none
-  // 改写后跟原来一模一样就别再打一遍 —— 那只是把同一个请求发两次。
-  if (sameQuery && alreadyGeneral && noFreshness) return null
-
-  return {
-    ...plan,
-    sourceGroup: RESEARCH_SOURCE_GROUPS.general,
-    freshness: RESEARCH_FRESHNESS.none,
-    queries: [{ text: broadened, lang: plan.queries[0]?.lang }],
-    reason: 'broadened retry after insufficient evidence',
-  }
-}
-
 // ─── 状态判定 ───────────────────────────────────────────────────
 
 /**
@@ -400,180 +200,4 @@ export function resolveRunStatus(
   return allBroken
     ? RESEARCH_RUN_STATUSES.failed
     : RESEARCH_RUN_STATUSES.noEvidence
-}
-
-// ─── 入口 ───────────────────────────────────────────────────────
-
-function quotaOutcome(plan: ResearchPlan): ResearchOutcome {
-  return {
-    receipt: {
-      runId: null,
-      grounded: false,
-      status: RESEARCH_RUN_STATUSES.quotaExceeded,
-      perSource: [],
-      queries: [],
-      evidenceCount: 0,
-    },
-    evidenceBlock: '',
-    items: [],
-    plan,
-  }
-}
-
-/**
- * 跑一轮检索。
- *
- * 返回 `null` = **这轮不检索**（用户关掉了，或规划器判定不需要）—— 不建 run 行、
- * 不出回执，助手照常用自身知识回答。返回对象 = 检索发生过（含超配额与全挂），
- * 回执一定要带回给客户端。
- *
- * **本函数不抛**：检索坏了不该让一次对话失败。
- */
-export async function runResearch(
-  params: RunResearchParams,
-): Promise<ResearchOutcome | null> {
-  if (params.mode === RESEARCH_MODES.off) return null
-
-  const forced = params.mode === RESEARCH_MODES.forced
-  const baseline = planResearchHeuristically(params.text)
-  if (!forced && !baseline.shouldSearch) {
-    logger.info('Research skipped by planner', { reason: baseline.reason })
-    return null
-  }
-  // ⚠ 强制模式必须补齐源组和查询，不能只把 shouldSearch 翻成 true ——
-  //   `none` 组的源列表是空数组，那样会「一个请求都不发却报 no_evidence」。
-  const heuristic = forced ? withForcedSearch(baseline, params.text) : baseline
-
-  // 规划器只在「已经决定要搜」之后才跑 —— 它的活是把查询磨快（按源选语言、
-  // 收窄源组），不是当门卫。当门卫意味着每一句「你好」都要先烧一次 LLM 调用。
-  const plan = await planResearchWithLlm({
-    route: params.route,
-    ...(params.model ? { modelId: params.model } : {}),
-    text: params.text,
-    heuristic,
-    forced,
-  })
-
-  if (!plan.shouldSearch && !forced) {
-    logger.info('Research skipped by llm planner', { reason: plan.reason })
-    return null
-  }
-
-  const used = await countResearchRunsToday(params.userId).catch(() => 0)
-  if (used >= RESEARCH_DAILY_RUN_LIMIT) {
-    logger.warn('Research daily quota exceeded', {
-      userId: params.userId,
-      used,
-      limit: RESEARCH_DAILY_RUN_LIMIT,
-    })
-    return quotaOutcome(plan)
-  }
-
-  let effectivePlan = plan
-  let { items, receipts } = await fanOut(effectivePlan)
-  items = dedupeEvidence(items)
-
-  // 有界二次深化：**恰好一次**。
-  if (items.length < RESEARCH_LIMITS.refetchThreshold) {
-    for (let round = 0; round < RESEARCH_LIMITS.maxRefetchRounds; round += 1) {
-      const broadened = broadenPlan(effectivePlan)
-      if (!broadened) break
-      const retry = await fanOut(broadened)
-      effectivePlan = broadened
-      items = dedupeEvidence([...items, ...retry.items])
-      receipts = mergeReceipts(receipts, retry.receipts)
-      if (items.length >= RESEARCH_LIMITS.refetchThreshold) break
-    }
-  }
-
-  const sanitized = sanitizeEvidenceItems(items)
-  if (sanitized.flaggedCount > 0) {
-    logger.warn('Evidence flagged as containing instruction-like text', {
-      flaggedCount: sanitized.flaggedCount,
-      total: items.length,
-    })
-  }
-  const bounded = sanitized.items.slice(0, RESEARCH_LIMITS.maxEvidenceItems)
-  const status = resolveRunStatus(bounded, receipts)
-  const grounded = bounded.length > 0
-
-  const runId = await persistRun({
-    params,
-    plan: effectivePlan,
-    items: bounded,
-    receipts,
-    status,
-    grounded,
-  })
-
-  return {
-    receipt: {
-      runId,
-      grounded,
-      status,
-      perSource: receipts,
-      queries: effectivePlan.queries.map((query) => query.text),
-      evidenceCount: bounded.length,
-    },
-    evidenceBlock: buildEvidenceBlock(bounded),
-    items: bounded,
-    plan: effectivePlan,
-  }
-}
-
-/** 二轮回执合并：同一个源出现两次时，保留信息量更大的那条（有料 > 没料）。 */
-function mergeReceipts(
-  first: readonly ResearchSourceReceipt[],
-  second: readonly ResearchSourceReceipt[],
-): ResearchSourceReceipt[] {
-  const merged = new Map<ResearchSourceId, ResearchSourceReceipt>()
-  for (const receipt of [...first, ...second]) {
-    const existing = merged.get(receipt.sourceId)
-    if (!existing || receipt.count > existing.count) {
-      merged.set(receipt.sourceId, {
-        ...receipt,
-        tookMs: (existing?.tookMs ?? 0) + receipt.tookMs,
-      })
-    }
-  }
-  return [...merged.values()]
-}
-
-async function persistRun(input: {
-  params: RunResearchParams
-  plan: ResearchPlan
-  items: EvidenceItem[]
-  receipts: ResearchSourceReceipt[]
-  status: string
-  grounded: boolean
-}): Promise<string | null> {
-  const firstError = input.receipts.find((receipt) => receipt.error)?.error
-  try {
-    const run = await db.researchRun.create({
-      data: {
-        userId: input.params.userId,
-        surface: input.params.surface as AssistantSurface,
-        projectId: input.params.projectId ?? null,
-        conversationId: input.params.conversationId ?? null,
-        goal: input.plan.goal,
-        query: input.params.text.slice(0, 4000),
-        status: input.status,
-        grounded: input.grounded,
-        evidence: input.items as unknown as Prisma.InputJsonValue,
-        perSource: input.receipts as unknown as Prisma.InputJsonValue,
-        model: input.params.model ?? null,
-        error: firstError ?? null,
-        completedAt: new Date(),
-      },
-      select: { id: true },
-    })
-    return run.id
-  } catch (error) {
-    // 落库失败不该让这轮对话失败 —— 证据已经拿到了，回执照发，只是没有 runId
-    // 可以回看。大声记一笔，别静静吞掉。
-    logger.error('Failed to persist ResearchRun', {
-      error: error instanceof Error ? error.message : String(error),
-    })
-    return null
-  }
 }

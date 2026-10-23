@@ -70,7 +70,7 @@ export function videoUnsupportedError(reason: string): ApiRequestError {
  * @param durationSeconds 片长；取不到（`undefined`）**就不降级** —— 猜一个长度
  *   然后据此裁片，是拿一个我们不知道的数去删用户的内容。
  */
-export function resolveNativeVideoWindow(
+function resolveNativeVideoWindow(
   task: VideoAnalysisTask,
   durationSeconds?: number,
 ): VideoAnalysisWindow | undefined {

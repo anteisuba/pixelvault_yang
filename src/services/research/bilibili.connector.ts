@@ -192,21 +192,6 @@ async function fetchByBvid(bvid: string): Promise<EvidenceItem[]> {
   return items
 }
 
-/**
- * 单稿件元数据 —— 助手侧「B站链接 → 元数据 + 引导」直接用这条（切片 2 §4.2）。
- *
- * ⚠ **只是把上面那条稳定路露出来**：仍然只出元数据（标题/UP主/时长/封面/
- * 发布日），⛔ 绝不碰视频流（已拍板边界 16）。搜索那条的 412 风控与 Serper
- * 退路跟这条无关 —— `view?bvid=` 是实测稳定的那一个入口。
- * ⚠ 56b 切片 1 起它回的是**一条 `video` 证据**（此前是 text + image 两条），
- * 元数据一个字没少，少的只是那条与它同 URL 的重复封面条。
- */
-export async function fetchBilibiliVideoMetadata(params: {
-  bvid: string
-}): Promise<EvidenceItem[]> {
-  return fetchByBvid(params.bvid)
-}
-
 // ─── 搜索（风控路）─────────────────────────────────────────────
 
 async function searchOnce(keyword: string): Promise<EvidenceItem[]> {

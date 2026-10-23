@@ -8,7 +8,6 @@ import {
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { AssistantOperatorStepSchema } from '@/types/assistant-operator'
 import type { AssistantOperatorEvent } from '@/types/assistant-operator'
-import type { AssistantV3Transcript } from '@/types/assistant-v3'
 
 vi.mock('server-only', () => ({}))
 
@@ -50,14 +49,7 @@ vi.mock('@/services/storage/r2', () => ({
 
 import { png, tEXt } from '@/test/png-fixture'
 import type { V3Context } from './assistant-v3-steps.service'
-import {
-  createPictureCache,
-  executeV3Look,
-  loadFreshLooks,
-  lookClipParts,
-  lookUserParts,
-  picturesRideInToolResult,
-} from './assistant-v3-look.service'
+import { createPictureCache, executeV3Look } from './assistant-v3-look.service'
 import { createClipCache } from './assistant-v3-watch.service'
 
 /** 地址 → 格式；没登记的地址下不来。 */
@@ -387,42 +379,6 @@ describe('v3 look · Denia 自己看', () => {
     )
   })
 
-  it('图只附给紧跟着的那一次调用：模型一开口（新的 assistant 条目）就不再附', async () => {
-    const harry = picture('harry')
-    const look: AssistantV3Transcript = [
-      { type: 'board', text: 'BOARD', images: [] },
-      {
-        type: 'assistant',
-        text: '',
-        calls: [{ id: 'call_1', tool: 'look', input: '{}' }],
-      },
-      {
-        type: 'result',
-        id: 'call_1',
-        tool: 'look',
-        output: 'looked',
-        error: false,
-        images: [harry],
-      },
-    ]
-    const fresh = await loadFreshLooks(context({ transcript: look }))
-    expect([...fresh.keys()]).toEqual(['call_1'])
-    expect(fresh.get('call_1')).toMatchObject({
-      header: 'PICTURES FROM YOUR look (in order): 1 = 「harry」',
-    })
-    expect(fresh.get('call_1')?.pictures).toHaveLength(1)
-
-    const later = await loadFreshLooks(
-      context({
-        transcript: [
-          ...look,
-          { type: 'assistant', text: '是哈利。', calls: [] },
-        ],
-      }),
-    )
-    expect(later.size).toBe(0)
-  })
-
   it('单图上限按所选那家收紧：Claude 是 base64 后 10 MB，别家 20 MB', () => {
     expect(createPictureCache(AI_ADAPTER_TYPES.ANTHROPIC).maxBytes).toBe(
       7_500_000,
@@ -434,17 +390,6 @@ describe('v3 look · Denia 自己看', () => {
       AI_ADAPTER_TYPES.XAI,
     ])
       expect(createPictureCache(adapter).maxBytes).toBe(20_000_000)
-  })
-
-  it('Gemini 把图放进工具结果，另外四家跟在工具结果后的 user 里', () => {
-    expect(picturesRideInToolResult(AI_ADAPTER_TYPES.GEMINI)).toBe(true)
-    for (const adapter of [
-      AI_ADAPTER_TYPES.OPENAI,
-      AI_ADAPTER_TYPES.ANTHROPIC,
-      AI_ADAPTER_TYPES.DEEPSEEK,
-      AI_ADAPTER_TYPES.XAI,
-    ])
-      expect(picturesRideInToolResult(adapter)).toBe(false)
   })
 
   /* ── 看片（看图期第二段）──────────────────────────────────────────── */
@@ -549,45 +494,6 @@ describe('v3 look · Denia 自己看', () => {
     expect(outcome).toMatchObject({ failureKey: 'look:noVision' })
   })
 
-  it('look 附上的片子只跟在下一次调用里，作为文件交给模型', async () => {
-    const take = clip('take')
-    const transcript: AssistantV3Transcript = [
-      { type: 'board', text: 'BOARD', images: [] },
-      {
-        type: 'assistant',
-        text: '',
-        calls: [{ id: 'call_1', tool: 'look', input: '{}' }],
-      },
-      {
-        type: 'result',
-        id: 'call_1',
-        tool: 'look',
-        output: 'watched',
-        error: false,
-        clips: [take],
-      },
-    ]
-    const fresh = await loadFreshLooks(
-      context({
-        transcript,
-        pictures: createPictureCache(AI_ADAPTER_TYPES.GEMINI),
-        clipTier: ASSISTANT_VIDEO_TIERS.native,
-      }),
-    )
-    const look = fresh.get('call_1')!
-    expect(look.header).toBe('')
-    expect(look.pictures).toEqual([])
-    expect(lookClipParts(look)).toEqual([
-      {
-        type: 'text',
-        text: 'CLIPS FROM YOUR look (in order): 1 = clip 「take」 (the clip itself)',
-      },
-      { type: 'text', text: 'clip 「take」:' },
-      expect.objectContaining({ type: 'file', mediaType: 'video/mp4' }),
-    ])
-    expect(lookUserParts(look)).toEqual(lookClipParts(look))
-  })
-
   /* ── 视频台上只是挂着的参考视频：look 它才看（owner 2026-10-15「挂着不等于每轮都看」）── */
 
   /** 浏览器随请求带来的一段挂着的片子（3 秒 → 3 帧），帧里写着地址与序号。 */
@@ -606,74 +512,6 @@ describe('v3 look · Denia 自己看', () => {
       })),
     }
   }
-
-  it('⭐ 别家 look 一段挂着的片子：带来的帧摆上去，只给下一步，⛔ 不下片子本体', async () => {
-    const mountedUrl = 'https://cdn.test/ref.mp4'
-    const withFrames = context({
-      request: {
-        messages: [],
-        videoClips: [carried(mountedUrl, 'video-1')],
-      } as unknown as V3Context['request'],
-    })
-    const { events, outcome } = await run(
-      executeV3Look(withFrames, {
-        targets: [],
-        clips: [{ url: mountedUrl, label: 'video-1' }],
-        notes: [],
-        question: 'how fast does she turn?',
-      }),
-    )
-    expect(fetchAsBuffer).not.toHaveBeenCalled()
-    expect(outcome).toMatchObject({
-      kind: 'result',
-      error: false,
-      clips: [{ url: mountedUrl, label: 'video-1' }],
-    })
-    expect((outcome as { output: string }).output).toContain(
-      'Frames sampled from 「video-1」 (3 frames sampled across 3 s) come with this result, for your next step only.',
-    )
-    expect(events[0]).toMatchObject({
-      step: { status: 'done', result: { digest: 'video-1' } },
-    })
-
-    const transcript: AssistantV3Transcript = [
-      { type: 'board', text: 'BOARD', images: [] },
-      {
-        type: 'assistant',
-        text: '',
-        calls: [{ id: 'call_1', tool: 'look', input: '{}' }],
-      },
-      {
-        type: 'result',
-        id: 'call_1',
-        tool: 'look',
-        output: (outcome as { output: string }).output,
-        error: false,
-        clips: [{ url: mountedUrl, label: 'video-1' }],
-      },
-    ]
-    const fresh = await loadFreshLooks({ ...withFrames, transcript })
-    const parts = lookUserParts(fresh.get('call_1')!)
-    expect(parts[0]).toEqual({
-      type: 'text',
-      text: 'CLIPS FROM YOUR look (in order): 1 = clip 「video-1」 (3 frames sampled across 3 s)',
-    })
-    expect(parts).toContainEqual({
-      type: 'text',
-      text: 'clip 「video-1」 · frame 2/3 at 1.5 s',
-    })
-    expect(parts.filter((part) => part.type === 'image')).toHaveLength(3)
-
-    // 模型一开口（新的 assistant 条目）就不再附。
-    const later = await loadFreshLooks({
-      ...withFrames,
-      transcript: [
-        ...transcript,
-        { type: 'assistant', text: '很快。', calls: [] },
-      ],
-    })
-    expect(later.size).toBe(0)
-  })
 
   it('Gemini look 一段挂着的片子：先给片子本体；太大才用带来的帧', async () => {
     const mountedUrl = 'https://cdn.test/ref.mp4'

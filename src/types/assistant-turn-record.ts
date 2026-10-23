@@ -60,7 +60,6 @@ export const AssistantTurnRecordInputSchema =
     planApproved: true,
     authoredByAssistant: true,
     autoGenerate: true,
-    autoReview: true,
     searchWithGrok: true,
     stepBudget: true,
     priorFinds: true,
@@ -72,7 +71,7 @@ export type AssistantTurnRecordInput = z.infer<
 >
 
 /**
- * 读回来的一行（回放题从它来：`src/test/assistant-replay/from-turn-record.ts`）。
+ * 读回来的一行（排查时人工导出的那一行 `row_to_json`）。
  * ⚠ 宽进：从库里导出的一行（`row_to_json`）多带的列照收照丢，时间是字符串。
  */
 export const AssistantTurnRecordSchema = z.object({

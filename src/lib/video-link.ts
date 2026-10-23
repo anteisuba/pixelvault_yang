@@ -42,7 +42,7 @@ export type VideoLinkClassification =
  * 提取出来的 `v` 参数是 `abc。`，11 位校验不过 → 一条正常的 YouTube 链接被判成普通网页。
  * 中文是本项目对话的默认语言，这条不防等于对多数真实输入失效。
  */
-export function normalizeVideoLinkUrl(raw: string): string {
+function normalizeVideoLinkUrl(raw: string): string {
   return raw
     .trim()
     .replace(/[。，、；：！？）】」』…,.;:!?)\]]+$/u, '')

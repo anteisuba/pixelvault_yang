@@ -134,7 +134,6 @@ export function turnRecordInput(
       ? { authoredByAssistant: request.authoredByAssistant }
       : {}),
     ...(request.autoGenerate ? { autoGenerate: request.autoGenerate } : {}),
-    ...(request.autoReview ? { autoReview: request.autoReview } : {}),
     ...(request.searchWithGrok
       ? { searchWithGrok: request.searchWithGrok }
       : {}),

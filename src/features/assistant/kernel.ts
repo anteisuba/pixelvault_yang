@@ -69,7 +69,6 @@ import {
   prepareOperatorTurn,
   requestProjectId,
   resolveResponseLanguage,
-  runOperatorTurn,
   runWithOperatorTimeBudget,
   toStepEvent,
   type AssistantOperatorRunOptions,
@@ -447,7 +446,7 @@ async function* runNextTurn(
   const chat = chatCharacterOf(persona)
   const face = benchFaceOf(request.domain)
   const resolved = modelId ? resolveNextModel(route, modelId) : null
-  // 板子画不出来（LoRA 台没带 LoRA 那一块、角色页没带角色、画布没带画面）同 v3：交回旧执行器。
+  // 板子画不出来（LoRA 台没带 LoRA 那一块、角色页没带角色、画布没带画面）：各台宿主都会带，缺了是请求坏了。
   const benchReady =
     face === ASSISTANT_V3_FACE_IDS.lora
       ? Boolean(request.snapshot.loras)
@@ -459,8 +458,19 @@ async function* runNextTurn(
             ? Boolean(request.snapshot.audio)
             : true
   if (!face || !resolved || !modelId || !benchReady) {
-    // 新内核接不了的厂商 / 台：交回旧执行器（与 v3 同一条退路）。
-    yield* runOperatorTurn(clerkId, request, options, prepared)
+    // 旧内核第 9c 步已删，⛔ 没有退路：说清是哪一样没对上（厂商都在 `resolveNextModel` 里）。
+    logger.warn('assistant next cannot run this request', {
+      userId: clerkId,
+      domain: request.domain,
+      face,
+      adapterType: route.adapterType,
+      benchReady,
+    })
+    yield {
+      type: ASSISTANT_OPERATOR_EVENTS.error,
+      error: 'The assistant cannot work on this page yet',
+      errorCode: ASSISTANT_OPERATOR_INTERNAL_ERROR_CODE,
+    }
     return
   }
   run.skipReferenceReview = true

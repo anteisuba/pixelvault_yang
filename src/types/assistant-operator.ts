@@ -58,10 +58,7 @@ import {
   ASSISTANT_MEMORY_SOURCES,
 } from '@/constants/assistant-memory'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import {
-  ASSISTANT_KERNELS,
-  ASSISTANT_V3_CLIP_LIMITS,
-} from '@/constants/assistant-v3'
+import { ASSISTANT_V3_CLIP_LIMITS } from '@/constants/assistant-v3'
 import { AssistantV3TranscriptSchema } from '@/types/assistant-v3'
 import { AssistantWebFindSchema } from '@/types/assistant-web-finds'
 import { AssistantMentionRefSchema } from '@/types/assistant-mention'
@@ -82,10 +79,7 @@ import {
   ASSISTANT_OPERATOR_CONFIRM_FIELDS,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
   ASSISTANT_OPERATOR_DOMAINS,
-  ASSISTANT_OPERATOR_ENTRY_ACTION_VALUES,
-  ASSISTANT_OPERATOR_ENTRY_TOOL_IDS,
   ASSISTANT_OPERATOR_ENTRY_TOOLS,
-  type AssistantOperatorEntryTool,
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_CANVAS_LIMITS,
   ASSISTANT_OPERATOR_CARDS_LIMITS,
@@ -2141,14 +2135,9 @@ export const AssistantOperatorRequestSchema = z.object({
    */
   chatCharacterId: z.string().uuid().optional(),
   /**
-   * **出图后自动看一眼**（owner 2026-10-08：只在自动生成开着时）：客户端在那一枪落地后
-   * 自己发的这一轮，附件是刚出的那张。服务端据此只做一件事：对照参考看一次、说一两句。
-   */
-  autoReview: z.literal(true).optional(),
-  /**
    * **自动生成开着**（owner 2026-10-14）：这一轮改了会影响产出的东西，就由助手自己
    * 把对应那几张卡放上生成确认卡，客户端替你按下（单轮上限见
-   * `ASSISTANT_AUTO_GENERATE_LIMITS`）。⚠ 缺席 = 关；自动看一眼那一轮不带它。
+   * `ASSISTANT_AUTO_GENERATE_LIMITS`）。⚠ 缺席 = 关。
    */
   autoGenerate: z.literal(true).optional(),
   /**
@@ -2312,12 +2301,6 @@ export const AssistantOperatorRequestSchema = z.object({
         ASSISTANT_V3_CLIP_LIMITS.maxMountedClips,
     )
     .optional(),
-  /**
-   * 内核开关（S6）：五张脸默认走 v3，`v2` = 照走旧内核（对比用）。
-   * ⚠ 前端从本地开关读（`ASSISTANT_KERNEL_STORAGE_KEY`），⛔ 不是用户设置；服务端只对 owner
-   * （`isAdmin`）认 `v2`，别人发了照走 v3（owner 2026-10-15）。
-   */
-  kernel: z.enum(ASSISTANT_KERNELS).optional(),
   /** v3 的本轮记录：接力时由前端原样带回（见 `types/assistant-v3.ts` ②）。 */
   v3: z.object({ transcript: AssistantV3TranscriptSchema }).optional(),
   /**
@@ -3535,118 +3518,6 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
   /** 画布：那一枪。⛔ 载荷里只有目标节点 —— 模型不填模型 / 张数（快照现取）。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate]:
     NodeAssistantGenerateV4OpSchema.omit({ op: true }),
-}
-
-// ─── ②′ 五个入口工具（v2 §2.1 / §2.2）────────────────────────────
-
-/**
- * `ask` 入口的入参 —— **组内没有旧工具**，所以它的形状写在这里（v2 §2.2）。
- *
- * ⚠ 一次只问一道题（§3.4）：想问两件事就分两轮。多问的那几道由服务端丢掉。
- * ⚠ 每个选项**必须带一句说明** —— 差别写在说明里，不写就没有差别可选
- * （`ASSISTANT_PLAN_CARD_LIMITS` 头注那段的复述）。剥到少于两项时整道题一起丢。
- * ⚠ 一律宽松（与整份「模型 → 服务端」档同一条纪律）：`id` 由服务端补，
- * `visual` 收 `z.string()` 而不是枚举 —— 写错一个图示 id 只该丢掉那个图示。
- */
-export const AssistantOperatorAskArgsSchema = z.object({
-  question: z.string().trim().min(1).max(PLAN_LIMITS.maxQuestionChars),
-  /** 收起态那一行写得下的几个字；漏了服务端从问句头上截。 */
-  header: z.string().trim().max(PLAN_LIMITS.maxHeaderChars).nullish(),
-  multiSelect: z.boolean().nullish(),
-  allowOther: z.boolean().nullish(),
-  options: z
-    .array(
-      z.object({
-        id: z.string().trim().max(LIMITS.maxIdChars).nullish(),
-        label: z.string().trim().min(1).max(PLAN_LIMITS.maxOptionLabelChars),
-        description: z
-          .string()
-          .trim()
-          .max(PLAN_LIMITS.maxOptionDescriptionChars)
-          .nullish(),
-        recommended: z.boolean().nullish(),
-        visual: z.string().trim().max(LIMITS.maxIdChars).nullish(),
-        assetUrl: z
-          .string()
-          .trim()
-          .max(LIMITS.maxIdChars * 4)
-          .nullish(),
-      }),
-    )
-    .max(PLAN_LIMITS.maxOptions),
-  /** 为什么要问 —— 卡上那一行小字。 */
-  why: z.string().trim().max(PLAN_LIMITS.maxQuestionChars).nullish(),
-})
-
-export type AssistantOperatorAskArgs = z.infer<
-  typeof AssistantOperatorAskArgsSchema
->
-
-/**
- * **每个入口的入参**（v2 §2.2 / 决策 2）—— 模型只挑动词，组内哪一支由 `action` 定。
- *
- * ── 为什么 `action` 之外的参数在这里是**放行**的 ──────────────────
- * 收口收的是「31 选 1」这个判断，⛔ 不是把 31 份入参 schema 复制一遍：真正的
- * 值域校验照旧由 `ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS[action]` 在规划器里跑
- * （`services/kernel/assistant-operator.service.ts`），因此
- *  · 报错还是那条模型学得会的 `malformedArgs`（「value: Required」），
- *    ⛔ 不是一句「这个入口的参数不对」；
- *  · 旧工具的 schema 只有一份，⛔ 不会两份漂开。
- * 所以这里用 `z.looseObject`：`action` 收窄，其余原样带下去。
- *
- * ⚠ `action` 枚举是**全集**，域裁剪不在这一层：模型在视频档写 `set_count`
- * 时该读到一条可教的 `noSuchControl`（「这台工作台上没这个控件」），
- * ⛔ 不是一整轮读不出来。第一道闸（模型压根看不见）在系统提示里，
- * 见 `ASSISTANT_OPERATOR_ENTRY_ACTIONS_BY_DOMAIN`。
- */
-export const ASSISTANT_OPERATOR_ENTRY_ARGS_SCHEMAS: Record<
-  AssistantOperatorEntryTool,
-  z.ZodType
-> = {
-  [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.look]: z.looseObject({
-    action: z.enum(
-      ASSISTANT_OPERATOR_ENTRY_ACTION_VALUES[
-        ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.look
-      ],
-    ),
-  }),
-  [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research]: z.looseObject({
-    action: z.enum(
-      ASSISTANT_OPERATOR_ENTRY_ACTION_VALUES[
-        ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research
-      ],
-    ),
-  }),
-  /**
-   * ⚠ `ask` 是全表唯一**两种形状**的入口（v2 §8.1）：不写 `action` = 问一道题
-   * （形状写在 `AssistantOperatorAskArgsSchema` 里，组内没有旧工具）；
-   * 写了 `action` = 组里那一条（今天只有 `propose_context_card`）。
-   * ⛔ 别把提议也塞进问题那个形状：它摆的是一张卡的草稿，不是 2–4 个选项。
-   */
-  [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask]: z.union([
-    z.looseObject({
-      action: z.enum(
-        ASSISTANT_OPERATOR_ENTRY_ACTION_VALUES[
-          ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask
-        ],
-      ),
-    }),
-    AssistantOperatorAskArgsSchema,
-  ]),
-  [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply]: z.looseObject({
-    action: z.enum(
-      ASSISTANT_OPERATOR_ENTRY_ACTION_VALUES[
-        ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply
-      ],
-    ),
-  }),
-  [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.requestGeneration]: z.looseObject({
-    action: z.enum(
-      ASSISTANT_OPERATOR_ENTRY_ACTION_VALUES[
-        ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.requestGeneration
-      ],
-    ),
-  }),
 }
 
 export const AssistantOperatorTurnSchema = z.object({

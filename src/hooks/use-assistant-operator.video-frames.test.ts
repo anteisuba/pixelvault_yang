@@ -1,11 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-
-import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
-import {
-  ASSISTANT_KERNEL_IDS,
-  ASSISTANT_KERNEL_STORAGE_KEY,
-} from '@/constants/assistant-v3'
 import { VIDEO_FRAME_CAPTURE_REASONS } from '@/constants/video-analysis'
 import type { AssistantOperatorRequest } from '@/types/assistant-operator'
 import type { StudioOperatorAttachment } from '@/types/studio-assistant-operator'
@@ -374,46 +368,5 @@ describe('v3 看片：被指着的片子按片长抽帧，随 videoClips 上去'
     await settle()
     expect(store.getOperatorState().capturingFrames).toBe(false)
     expect(requests).toHaveLength(1)
-  })
-})
-
-describe('旧内核（本地开关选 v2）的视频域：照旧抽三帧走看片评审', () => {
-  beforeEach(() => {
-    window.localStorage.setItem(
-      ASSISTANT_KERNEL_STORAGE_KEY,
-      ASSISTANT_KERNEL_IDS.v2,
-    )
-  })
-
-  it('📎 一段片子 → 请求带 videoFrames（三帧）且片子进准入名单', async () => {
-    const { result } = render()
-
-    act(() => {
-      result.current.send('看看这段哪里有问题', [VIDEO_CHIP])
-    })
-    await settle()
-
-    expect(captureVideoEndpointFrames).toHaveBeenCalledWith(CLIP_URL)
-    expect(captureClipFrames).not.toHaveBeenCalled()
-    const frames = requests[0]?.videoFrames
-    expect(frames?.sourceUrl).toBe(CLIP_URL)
-    expect(frames?.frames).toHaveLength(3)
-    expect(requests[0]?.videoClips).toBeUndefined()
-    expect(requests[0]?.kernel).toBe(ASSISTANT_KERNEL_IDS.v2)
-    expect(requests[0]?.mentionedAssets?.[0]?.url).toBe(CLIP_URL)
-  })
-
-  it('域就是判据：`ASSISTANT_PROTOCOL_DOMAIN_IDS.video` 之外不抽三帧', async () => {
-    hostDomain.current = 'image'
-    const { result } = render()
-
-    act(() => {
-      result.current.send('看看这段哪里有问题', [VIDEO_CHIP])
-    })
-    await settle()
-
-    expect(hostDomain.current).not.toBe(ASSISTANT_PROTOCOL_DOMAIN_IDS.video)
-    expect(captureVideoEndpointFrames).not.toHaveBeenCalled()
-    expect(requests[0]?.mentionedAssets ?? []).toHaveLength(0)
   })
 })

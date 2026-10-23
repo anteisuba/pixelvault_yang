@@ -7,7 +7,7 @@ import {
   detectResearchVideoSite,
   type ResearchFreshness,
 } from '@/constants/research'
-import { readUrl, webSearch } from '@/services/web-research.service'
+import { webSearch } from '@/services/web-research.service'
 import type { EvidenceItem } from '@/types/research'
 import type { LlmNativeSearchSource } from '@/services/llm-text.service'
 import {
@@ -146,28 +146,4 @@ export function nativeSearchEvidence(
       : { ...base, kind: 'text', excerpt }
   })
   return { items, via }
-}
-
-export async function fetchUrlEvidence(params: {
-  urls: readonly string[]
-}): Promise<ConnectorResult> {
-  const pages = await Promise.all(params.urls.map((url) => readUrl(url)))
-  const retrievedAt = new Date().toISOString()
-  const tier = evidenceTier(RESEARCH_SOURCE_IDS.urlReader)
-
-  const items: EvidenceItem[] = []
-  for (const page of pages) {
-    if (!page) continue
-    items.push({
-      kind: 'text',
-      id: evidenceId(RESEARCH_SOURCE_IDS.urlReader, page.url),
-      sourceId: RESEARCH_SOURCE_IDS.urlReader,
-      sourceTier: tier,
-      retrievedAt,
-      title: page.url,
-      url: page.url,
-      excerpt: clampExcerpt(page.content),
-    })
-  }
-  return { items }
 }

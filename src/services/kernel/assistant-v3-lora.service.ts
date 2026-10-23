@@ -1,23 +1,16 @@
 import 'server-only'
 
-import { tool } from 'ai'
-
 import {
   ASSISTANT_OPERATOR_LIMITS,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS as STATUS,
   ASSISTANT_OPERATOR_TOOL_IDS as TOOL,
 } from '@/constants/assistant-operator'
 import {
-  ASSISTANT_V3_ASK_TOOL_DESCRIPTION,
   ASSISTANT_V3_LIMITS,
   ASSISTANT_V3_LORA_EDIT_OP_IDS,
   ASSISTANT_V3_LORA_ITEM_IDS,
   ASSISTANT_V3_LORA_SEARCH_KIND,
-  ASSISTANT_V3_READ_SOURCE_NOTE,
   ASSISTANT_V3_TOOL_IDS,
-  ASSISTANT_V3_WEB_IMAGES_KIND_DESCRIPTION,
-  ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION,
-  ASSISTANT_V3_MEMORIES_KIND_DESCRIPTION,
   ASSISTANT_V3_MEMORIES_SEARCH_KIND,
   isAssistantV3WebSearchKind,
 } from '@/constants/assistant-v3'
@@ -28,14 +21,10 @@ import {
 } from '@/constants/runner-sampling'
 import { renderAssistantV3LoraItem } from '@/lib/assistant-v3-lora-board'
 import {
-  AssistantV3AskInputSchema,
   AssistantV3LoraEditInputSchema,
-  AssistantV3LoraGenerateInputSchema,
   AssistantV3LoraLookInputSchema,
   AssistantV3LoraReadInputSchema,
   AssistantV3LoraSearchLibraryInputSchema,
-  AssistantV3LoraWriteInputSchema,
-  AssistantV3SearchWebInputSchema,
   type AssistantV3LoraEditOpInput,
 } from '@/types/assistant-v3'
 import type { AssistantLoraParameters } from '@/types/assistant-operator'
@@ -60,67 +49,6 @@ import {
   type V3Context,
   type V3Outcome,
 } from '@/services/kernel/assistant-v3-steps.service'
-
-/**
- * v3 的 LoRA 台（S6 第一张脸）：工具名与画布同一套，动的是一张表单。
- *
- * ── 与画布的分别 ─────────────────────────────────────────────
- * · 改动随步落（旧执行器的 `mutate` 步，前端照旧按步写表单），当场就有结果，⛔ 不接力；
- * · 新挂 LoRA 只走搭配卡（`propose_setup`）或库页圈选（`show_picks`），挂载由创作者点
- *   （owner 2026-09-29，lora-assistant §13）；
- * · 写提示词不再问「你写过了，覆盖吗」：创作者叫助手改，就是要改；每一步都能撤销
- *   （真实对话里那一问次次都选覆盖）。
- */
-
-export function assistantV3LoraTools(strict: boolean) {
-  return {
-    [ASSISTANT_V3_TOOL_IDS.read]: tool({
-      description: `Read in full what the board shows clipped: "prompt", "negative", "sample" (the example open on the left, with its recipe), a LoRA handle (author prompt and source picture prompts) or a reference. ${ASSISTANT_V3_READ_SOURCE_NOTE}`,
-      inputSchema: AssistantV3LoraReadInputSchema,
-      strict,
-    }),
-    [ASSISTANT_V3_TOOL_IDS.look]: tool({
-      description:
-        'Put pictures in front of you for your next response, with one specific question: a picture attached to the message (by its name), or a mounted reference ("ref-1"). The open example is already attached to the board message.',
-      inputSchema: AssistantV3LoraLookInputSchema,
-      strict,
-    }),
-    [ASSISTANT_V3_TOOL_IDS.edit]: tool({
-      description:
-        'Change the bench: base model, sampling parameters, a LoRA weight, unmount a LoRA or a reference, put a setup card in front of the creator, or ring LoRAs in the library. All ops of one request in ONE call.',
-      inputSchema: AssistantV3LoraEditInputSchema,
-      strict,
-    }),
-    [ASSISTANT_V3_TOOL_IDS.write]: tool({
-      description:
-        'Write the prompt or the negative prompt. mode "edit" replaces exact {find, replace} pairs and touches nothing else; "replace" rewrites the whole field; "append" adds to the end.',
-      inputSchema: AssistantV3LoraWriteInputSchema,
-      strict,
-    }),
-    [ASSISTANT_V3_TOOL_IDS.generate]: tool({
-      description:
-        'Put a generation confirm card in front of the creator for what is on the bench now. It spends nothing until they press it.',
-      inputSchema: AssistantV3LoraGenerateInputSchema,
-      strict,
-    }),
-    [ASSISTANT_V3_TOOL_IDS.searchWeb]: tool({
-      description:
-        'Look something up on the web: a work, a character, a technique, a model. Give a goal and the names it turns on.',
-      inputSchema: AssistantV3SearchWebInputSchema,
-      strict,
-    }),
-    [ASSISTANT_V3_TOOL_IDS.searchLibrary]: tool({
-      description: `kind "lora": search LoRAs — it opens the creator's library page and runs the search there, and returns candidates with candidateIds. kind "image" / "video" / "audio": search the creator's own assets. ${ASSISTANT_V3_WEB_IMAGES_KIND_DESCRIPTION} ${ASSISTANT_V3_WEB_VIDEOS_KIND_DESCRIPTION} ${ASSISTANT_V3_MEMORIES_KIND_DESCRIPTION}`,
-      inputSchema: AssistantV3LoraSearchLibraryInputSchema,
-      strict,
-    }),
-    [ASSISTANT_V3_TOOL_IDS.ask]: tool({
-      description: ASSISTANT_V3_ASK_TOOL_DESCRIPTION,
-      inputSchema: AssistantV3AskInputSchema,
-      strict,
-    }),
-  }
-}
 
 function loraIdOf(
   context: V3Context,

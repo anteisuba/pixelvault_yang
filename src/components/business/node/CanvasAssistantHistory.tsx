@@ -1,16 +1,9 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { History, Search } from '@/components/icons'
+import { Search } from '@/components/icons'
 import { useTranslations } from 'next-intl'
-
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import {
-  ResponsivePopover,
-  ResponsivePopoverContent,
-  ResponsivePopoverTrigger,
-} from '@/components/ui/responsive-popover'
 import type { NodeAssistantHistorySession } from '@/lib/node-assistant-history'
 import { cn } from '@/lib/utils'
 
@@ -120,52 +113,5 @@ export function CanvasAssistantHistoryPanel({
         </ul>
       )}
     </div>
-  )
-}
-
-export function CanvasAssistantHistory({
-  sessions,
-  activeSessionId,
-  onSelect,
-}: CanvasAssistantHistoryProps) {
-  const t = useTranslations('StudioNode.history')
-  const [open, setOpen] = useState(false)
-
-  return (
-    <ResponsivePopover open={open} onOpenChange={setOpen}>
-      <ResponsivePopoverTrigger asChild>
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="ghost"
-          aria-label={t('title')}
-          title={t('title')}
-          className="canvas-assistant-ghost-btn rounded-xl"
-        >
-          <History className="size-4" />
-        </Button>
-      </ResponsivePopoverTrigger>
-      <ResponsivePopoverContent
-        label={t('title')}
-        // Start alignment lets Radix collision handling keep the panel inside
-        // the assistant rail instead of pinning its right edge to the history
-        // icon (which made it float over the canvas on narrow rails).
-        align="start"
-        sideOffset={8}
-        className="canvas-assistant-popover w-80 p-0"
-      >
-        <div className="canvas-assistant-popover-divider border-b px-3 py-2.5">
-          <p className="text-sm font-semibold">{t('title')}</p>
-        </div>
-        <CanvasAssistantHistoryPanel
-          sessions={sessions}
-          activeSessionId={activeSessionId}
-          onSelect={(sessionId) => {
-            onSelect(sessionId)
-            setOpen(false)
-          }}
-        />
-      </ResponsivePopoverContent>
-    </ResponsivePopover>
   )
 }

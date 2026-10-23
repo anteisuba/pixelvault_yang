@@ -130,16 +130,6 @@ export function describeWebVideoFindLine(
     .join(' · ')
 }
 
-/** 一条找到的东西那一行（图的「能不能当参考」现判）。 */
-export function describeWebFindLine(find: AssistantWebFind): string {
-  return find.kind === 'image'
-    ? describeWebImageFindLine(
-        find,
-        isWebImageSourceUsableAsInput(judgeWebImageFind(find)),
-      )
-    : describeWebVideoFindLine(find)
-}
-
 /** 可有可无的那几个地址：不合格就不带（⛔ 因为一张缩略图把整条丢掉，那个号就认不出了）。 */
 function optionalFindUrl<K extends string>(
   key: K,
@@ -188,29 +178,6 @@ export function webVideoToFind(
       : {}),
   })
   return parsed.success ? parsed.data : null
-}
-
-/**
- * 本轮记录 / 上一轮带来的那一张 → 旧执行器的准入名单要的形状（`run.webImageIndex`）。
- * ⚠ 「能不能当参考」在这里**现判**（`judgeWebImageFind`），⛔ 不信往返带回来的。
- */
-export function webFindToWebImage(
-  find: AssistantWebImageFind,
-): AssistantOperatorWebImage {
-  const verdict = judgeWebImageFind(find)
-  return {
-    imageUrl: find.imageUrl,
-    ...(find.thumbnailUrl ? { thumbnailUrl: find.thumbnailUrl } : {}),
-    ...(find.pageUrl ? { pageUrl: find.pageUrl } : {}),
-    ...(find.domain ? { domain: find.domain } : {}),
-    ...(find.publisher ? { publisher: find.publisher } : {}),
-    usableAsInput: isWebImageSourceUsableAsInput(verdict),
-    sourceVerdict: verdict,
-    ...(find.title ? { title: find.title } : {}),
-    ...(find.width ? { width: find.width } : {}),
-    ...(find.height ? { height: find.height } : {}),
-    n: find.n,
-  }
 }
 
 /**

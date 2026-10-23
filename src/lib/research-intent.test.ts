@@ -9,7 +9,6 @@ import {
   extractUrlsFromText,
   planResearchHeuristically,
   stripUrls,
-  withForcedSearch,
 } from '@/lib/research-intent'
 
 describe('planResearchHeuristically — URL', () => {
@@ -202,33 +201,5 @@ describe('planResearchHeuristically — 不检索的那些', () => {
 
     expect(plan.shouldSearch).toBe(false)
     expect(plan.freshness).toBe(RESEARCH_FRESHNESS.none)
-  })
-})
-
-describe('withForcedSearch — 用户手动开了联网', () => {
-  it('fills in a source group and a query, not just the boolean', () => {
-    // ⚠ 只翻 shouldSearch 而不补组，`none` 组的源列表是空数组 —— 结果是一个请求
-    //   都不发却报「没搜到」。用户明明按了联网。
-    const text = '帮我写一个赛博朋克街景的提示词'
-    const forced = withForcedSearch(planResearchHeuristically(text), text)
-
-    expect(forced.shouldSearch).toBe(true)
-    expect(forced.sourceGroup).toBe(RESEARCH_SOURCE_GROUPS.general)
-    expect(forced.queries).toHaveLength(1)
-  })
-
-  it('leaves an already-searching plan alone', () => {
-    const text = '鸣潮长离的发色是什么'
-    const plan = planResearchHeuristically(text)
-
-    expect(withForcedSearch(plan, text)).toBe(plan)
-  })
-
-  it('keeps the url-only shortcut — a pasted link should still be read, not searched', () => {
-    const text = '看看 https://example.com/post'
-    const forced = withForcedSearch(planResearchHeuristically(text), text)
-
-    expect(forced.urls).toHaveLength(1)
-    expect(forced.queries).toHaveLength(0)
   })
 })

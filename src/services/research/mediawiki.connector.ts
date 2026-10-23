@@ -14,7 +14,6 @@ import {
 } from '@/constants/research'
 import { logger } from '@/lib/logger'
 import type { EvidenceItem } from '@/types/research'
-import type { ResearchQuery } from '@/types/research'
 import {
   clampExcerpt,
   evidenceId,
@@ -537,15 +536,6 @@ export function resolveMediaWikiSite(
 ): MediaWikiSiteCapability | null {
   if (sourceId === RESEARCH_SOURCE_IDS.fandom) return resolveFandomSite(terms)
   return getMediaWikiSite(sourceId) ?? null
-}
-
-/** 从规划器产出的查询里挑一条最适合这个站的（萌百中文 / Fandom 英文）。 */
-export function pickQueryForSite(
-  site: MediaWikiSiteCapability,
-  queries: readonly ResearchQuery[],
-): string | null {
-  const langMatch = queries.find((query) => query.lang === site.queryLanguage)
-  return (langMatch ?? queries[0])?.text ?? null
 }
 
 /**

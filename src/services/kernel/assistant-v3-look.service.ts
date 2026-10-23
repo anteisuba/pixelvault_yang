@@ -1,7 +1,5 @@
 import 'server-only'
 
-import type { ToolResultPart, UserContent } from 'ai'
-
 import {
   ASSISTANT_OPERATOR_CANVAS_LIMITS,
   ASSISTANT_OPERATOR_LIMITS,
@@ -41,7 +39,6 @@ import {
   renderPictureRecipes,
 } from '@/services/kernel/assistant-v3-recipes.service'
 import {
-  clipViewParts,
   clipViewSummary,
   viewClips,
   type V3ClipView,
@@ -545,151 +542,5 @@ export async function* executeV3Look(
           })),
         }
       : {}),
-  }
-}
-
-/* ─────────────────────────────────────────────────────────────────────────
- * 图怎么进消息
- * ───────────────────────────────────────────────────────────────────────── */
-
-/**
- * 紧跟着那一次调用要附的一次 look：一行抬头 + 下得来的图，以及片子（Gemini 是片子本体，
- * 别家 / 退路是随请求带来的那组帧）。
- */
-export interface V3FreshLook {
-  /** 图那一行抬头；这次 look 没附图时是空串。 */
-  readonly header: string
-  readonly pictures: readonly V3Picture[]
-  /** 这一跳看得成的那几段（`none` 已滤掉）。 */
-  readonly clips: readonly V3ClipView[]
-}
-
-/**
- * 这一次调用要附的图：本轮记录里**最后一条 assistant 之后**那几条 look 结果。
- *
- * ⭐ 按位置认、不记状态：模型下一次开口就会追加一条新的 assistant，于是上一次 look 的图
- *   自然不再附 —— 空回复重问、超时重问（都不追加）照旧带着；画布接力、过了时间预算换一次
- *   请求接着跑，模型还没看过的图照样附上（换一次请求就重下一次，⛔ 不存字节）。片子同一条。
- */
-export async function loadFreshLooks(
-  context: V3Context,
-  signal?: AbortSignal,
-): Promise<Map<string, V3FreshLook>> {
-  const { transcript, pictures: pictureCache } = context
-  const looks = new Map<string, V3FreshLook>()
-  const last = transcript.findLastIndex(
-    (entry) => entry.type === ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.assistant,
-  )
-  if (last < 0) return looks
-  for (const entry of transcript.slice(last + 1)) {
-    if (
-      entry.type !== ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.result ||
-      (!entry.images?.length && !entry.clips?.length)
-    )
-      continue
-    const images = entry.images ?? []
-    const pictures = await Promise.all(
-      images.map((image) => loadPicture(pictureCache, image.url, signal)),
-    )
-    const ok = images.flatMap((image, index) =>
-      pictures[index] ? [{ image, picture: pictures[index]! }] : [],
-    )
-    const lost = images.filter((_, index) => !pictures[index])
-    // ⚠ 片子每一跳按同一条 `viewClips` 重新摆（换一次请求就重下 / 重核一次帧，⛔ 不存字节）。
-    const clipViews = await viewClips(context, entry.clips ?? [])
-    looks.set(entry.id, {
-      header: images.length
-        ? `PICTURES FROM YOUR look (in order): ${
-            ok
-              .map(({ image }, index) => `${index + 1} = 「${image.label}」`)
-              .join(' · ') || 'none'
-          }${lost.length ? ` — ${quoted(lost.map((image) => image.label))} could not be loaded this time` : ''}`
-        : '',
-      pictures: ok.map(({ picture }) => picture),
-      clips: clipViews.filter((view) => view.kind !== 'none'),
-    })
-  }
-  return looks
-}
-
-/**
- * 图放在哪（2026-10-15 对照装着的 AI SDK 核过：ai 6.0.290 · @ai-sdk/openai 3.0.118 ·
- * @ai-sdk/anthropic 3.0.122 · @ai-sdk/google 3.0.127）。
- *
- * - **OpenAI 协议的对话接口**（DeepSeek、Grok、OpenAI 代理端点）：tool 消息只收文字 ——
- *   带图的工具结果会被 SDK `JSON.stringify` 成一大段 base64 文字。所以工具结果只写字，图跟在
- *   紧接着的一条 user 消息里（tool 之后接 user 是合法的顺序）。OpenAI 官方端点（Responses）
- *   同一条：`function_call_output` 之后接 user 的 `input_image`。
- * - **Claude**：SDK 把相邻的 tool 与 user 并成同一条 user（`groupIntoBlocks`），tool_result
- *   在前、图在后 —— 正是 Anthropic 要的形状，与上一条同一种写法。
- * - **Gemini**：tool 消息本身就是一条 user 角色的 content（functionResponse），再接一条 user
- *   就是两条相邻的 user content —— 接口收不收没核实到官方原文。Gemini 3 的 functionResponse
- *   自带 `parts` 能放图（SDK 对 Gemini 3 打开 `supportsFunctionResponseParts`，助手路由上的
- *   Gemini 都是 3.x），所以只有这一家把图放进工具结果。
- *
- * ⚠ 片子本体（只有 Gemini 会有）**不进** functionResponse：官方那张「工具结果里能放什么」的
- *   表只列了图与文档，没有视频。所以它跟在这一批工具结果后面那条 user 里（`lookClipParts`）——
- *   这正是上面「两条相邻的 user content」那一种，⚠ 同样没核实到官方原文，未做真机实测。
- *   look 摆上来的帧（挂着的参考视频、或 Gemini 片子太大时的退路）跟着同一段片子走、同一个位置，
- *   逐帧带着时间标签；别家本来就在那条 user 里。
- *
- * ⚠ 缓存：前四家的图在消息最末尾，下一步拿掉它前缀一字不变；Gemini 那一条结果下一步变短，
- *   从它起重算。
- */
-export function picturesRideInToolResult(
-  adapterType: AI_ADAPTER_TYPES,
-): boolean {
-  return adapterType === AI_ADAPTER_TYPES.GEMINI
-}
-
-/**
- * look 摆上来的片子：一行称呼表 + 每段的片子本体或逐帧（帧照旧标「clip 「名字」 · frame k/N at
- * t s」）。跟在工具结果后面那条 user 里，五家同一个位置：片子本体进不了 Gemini 的
- * functionResponse（见上），帧与它跟着同一段走，⛔ 不拆成两处。
- */
-export function lookClipParts(look: V3FreshLook): Exclude<UserContent, string> {
-  if (look.clips.length === 0) return []
-  return [
-    {
-      type: 'text' as const,
-      text: `CLIPS FROM YOUR look (in order): ${look.clips
-        .map(
-          (view, index) =>
-            `${index + 1} = clip 「${view.ref.label}」${clipViewSummary(view)}`,
-        )
-        .join(' · ')}`,
-    },
-    ...look.clips.flatMap((view) => clipViewParts(view)),
-  ]
-}
-
-/** 图跟在工具结果后面的那条 user 消息（OpenAI 协议 / Claude）。 */
-export function lookUserParts(look: V3FreshLook): Exclude<UserContent, string> {
-  return [
-    ...(look.header ? [{ type: 'text' as const, text: look.header }] : []),
-    ...look.pictures.map((picture) => ({
-      type: 'image' as const,
-      image: picture.data,
-      mediaType: picture.mediaType,
-    })),
-    ...lookClipParts(look),
-  ]
-}
-
-/** 图放进工具结果本身（Gemini 3 的 functionResponse parts）。片子不在这里（见上）。 */
-export function lookToolOutput(
-  output: string,
-  look: V3FreshLook,
-): ToolResultPart['output'] {
-  return {
-    type: 'content',
-    value: [
-      { type: 'text', text: `${output}\n${look.header}` },
-      ...look.pictures.map((picture) => ({
-        type: 'image-data' as const,
-        data: picture.data.toString('base64'),
-        mediaType: picture.mediaType,
-      })),
-    ],
   }
 }

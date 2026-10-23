@@ -1178,7 +1178,7 @@ export const ASSISTANT_OPERATOR_TOOL_VERBS: Record<
  * ⚠ 旧的 31 条**执行函数一条不少地留着**：收的是模型看得见的那张表，
  *   不是服务端的实现（v2 §0 非目标：不拆引擎）。
  */
-export const ASSISTANT_OPERATOR_ENTRY_TOOL_IDS = {
+const ASSISTANT_OPERATOR_ENTRY_TOOL_IDS = {
   look: ASSISTANT_OPERATOR_VERB_IDS.look,
   research: ASSISTANT_OPERATOR_VERB_IDS.research,
   ask: ASSISTANT_OPERATOR_VERB_IDS.ask,
@@ -1197,12 +1197,6 @@ export const ASSISTANT_OPERATOR_ENTRY_TOOLS = [
 export type AssistantOperatorEntryTool =
   (typeof ASSISTANT_OPERATOR_ENTRY_TOOLS)[number]
 
-export function isAssistantOperatorEntryTool(
-  name: string,
-): name is AssistantOperatorEntryTool {
-  return (ASSISTANT_OPERATOR_ENTRY_TOOLS as readonly string[]).includes(name)
-}
-
 /**
  * 「查」组的**两个网侧入口**（v2 §9，commit #16）。
  *
@@ -1217,7 +1211,7 @@ export function isAssistantOperatorEntryTool(
  * ⚠ 两者⛔**不合并**（§9.1 那条 ⛔）：产出形态（证据列表 vs 候选网格）与后续动作
  * （引用 vs 挂参考）都不同。
  */
-export const ASSISTANT_OPERATOR_RESEARCH_ACTION_IDS = {
+const ASSISTANT_OPERATOR_RESEARCH_ACTION_IDS = {
   /** 查证：改写（三语）→ 选源 → 并发印证 → 证据（§9.1 四步）。 */
   verify: 'verify',
   /** 找图：官方优先搜图，出候选网格。⛔ 它不出结论，也不落任何字节。 */
@@ -1229,7 +1223,7 @@ export const ASSISTANT_OPERATOR_RESEARCH_ACTIONS = [
   ASSISTANT_OPERATOR_RESEARCH_ACTION_IDS.findImages,
 ] as const
 
-export type AssistantOperatorResearchAction =
+type AssistantOperatorResearchAction =
   (typeof ASSISTANT_OPERATOR_RESEARCH_ACTIONS)[number]
 
 /**
@@ -1266,14 +1260,14 @@ export const ASSISTANT_OPERATOR_INTERNAL_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.searchWebVideos,
 ] as const
 
-export function isInternalAssistantOperatorTool(tool: string): boolean {
+function isInternalAssistantOperatorTool(tool: string): boolean {
   return (ASSISTANT_OPERATOR_INTERNAL_TOOLS as readonly string[]).includes(tool)
 }
 
 /**
  * 模型能写进 `action` 的值：组内旧工具名，**或**「查」组那两个入口名。
  */
-export type AssistantOperatorEntryAction =
+type AssistantOperatorEntryAction =
   | AssistantOperatorTool
   | AssistantOperatorResearchAction
 
@@ -1286,7 +1280,7 @@ export function isAssistantOperatorResearchAction(
 }
 
 /** `action` → 真正要跑的那条工具。旧工具名原样返回。 */
-export function resolveAssistantOperatorEntryAction(
+function resolveAssistantOperatorEntryAction(
   action: AssistantOperatorEntryAction,
 ): AssistantOperatorTool {
   return isAssistantOperatorResearchAction(action)
@@ -1303,7 +1297,7 @@ export function resolveAssistantOperatorEntryAction(
  * 工具 —— 它的形状写在入口自己的 schema 里（`types/assistant-operator.ts`），
  * 不写 `action` 就是「问一道题」。
  */
-export const ASSISTANT_OPERATOR_ENTRY_ACTIONS: Record<
+const ASSISTANT_OPERATOR_ENTRY_ACTIONS: Record<
   AssistantOperatorEntryTool,
   readonly AssistantOperatorEntryAction[]
 > = {
@@ -1340,39 +1334,6 @@ export const ASSISTANT_OPERATOR_ENTRY_ACTIONS: Record<
       ASSISTANT_OPERATOR_VERB_IDS.requestGeneration,
   ),
 }
-
-/**
- * **schema 收的值域** —— 广告出去的那几个（上表）**加上**退到入口背后的那三条
- * 内部名（§9，commit #16）。
- *
- * ⭐ 两张表分开的判据只有一条：**提示词是提示词，闸是闸**。模型的先验里全是
- * `search_web` / `search_web_images`，它偶尔照旧写一个出来 —— 那时候把它派发到同一条实现上，
- * 比回一句「没这个 action」再烧一步往返便宜得多，而它下一轮读到的提示里照旧只有
- * `verify` / `find_images` 两条。
- * ⛔ 这**不是**把枚举放开成自由字符串（§2.2 的那条 ⛔ 仍然成立）：能写的值仍然
- * 是一张闭表，只是这张表比广告出去的那张长三条。
- */
-export const ASSISTANT_OPERATOR_ENTRY_ACTION_VALUES: Record<
-  AssistantOperatorEntryTool,
-  readonly AssistantOperatorEntryAction[]
-> = ASSISTANT_OPERATOR_ENTRY_TOOLS.reduce(
-  (byEntry, entry) => {
-    byEntry[entry] = [
-      ...ASSISTANT_OPERATOR_ENTRY_ACTIONS[entry],
-      ...ASSISTANT_OPERATOR_TOOLS.filter(
-        (tool) =>
-          isInternalAssistantOperatorTool(tool) &&
-          // ⚠ 入口名与动词 id 逐字相同（见 `ASSISTANT_OPERATOR_ENTRY_TOOL_IDS`）。
-          ASSISTANT_OPERATOR_TOOL_VERBS[tool] === entry,
-      ),
-    ]
-    return byEntry
-  },
-  {} as Record<
-    AssistantOperatorEntryTool,
-    readonly AssistantOperatorEntryAction[]
-  >,
-)
 
 export function isMutatingAssistantOperatorTool(
   tool: AssistantOperatorTool,
@@ -3796,18 +3757,6 @@ export const OPERATOR_UNFINISHED_CLOSING_PATTERNS: readonly RegExp[] = [
 ]
 
 /**
- * 收尾那句话是不是「话说了一半」。
- * ⚠ **空正文也算**：一个什么都不说就结束的助手，是本仓最难查的那种失败。
- */
-export function isUnfinishedClosingMessage(message: string): boolean {
-  const text = message.trim()
-  if (text.length === 0) return true
-  return OPERATOR_UNFINISHED_CLOSING_PATTERNS.some((pattern) =>
-    pattern.test(text),
-  )
-}
-
-/**
  * **收尾许诺了自己下一步要做的事**（2026-09-24 真机）。
  *
  * 🔬 提示词写完，助手收尾说「下一步我会把画幅调整为 16:9，再为你准备生成确认卡」
@@ -3824,12 +3773,6 @@ export const OPERATOR_SELF_PROMISE_PATTERNS: readonly RegExp[] = [
   /(次は|このあと|この後|続けて)[、,]?\s*(私が)?[^。？?]*(します|しておきます)/,
   /\b(next|then|after that),?\s+i['’]?(ll|\s+will)\b/i,
 ]
-
-export function isSelfPromiseClosingMessage(message: string): boolean {
-  const text = message.trim()
-  if (/[?？]\s*$/.test(text)) return false
-  return OPERATOR_SELF_PROMISE_PATTERNS.some((pattern) => pattern.test(text))
-}
 
 /**
  * 证据条的形状 —— 与 `EvidenceItem.kind` 逐字同名（文字 / 标签 / 图 / 视频）。

@@ -119,11 +119,6 @@ export const NODE_STUDIO_REACT_FLOW_PRO_OPTIONS = {
   hideAttribution: true,
 } as const
 
-export const NODE_STUDIO_PLACEHOLDER_TOAST = {
-  durationMs: 1600,
-  position: 'bottom-right',
-} as const
-
 export const NODE_STUDIO_ADD_MENU = {
   viewportPaddingPx: 16,
   minAvailableHeightPx: 240,
@@ -284,12 +279,6 @@ export const NODE_STUDIO_ASSISTANT = {
 export const NODE_STUDIO_ASSISTANT_MESSAGE_PREVIEW = {
   collapseThresholdChars: 360,
   maxPreviewChars: 220,
-} as const
-
-export const NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS = {
-  auto: 'node-studio-assistant:auto',
-  keyPrefix: 'node-studio-assistant:key',
-  setupPrefix: 'node-studio-assistant:setup',
 } as const
 
 // The first entry for an adapter is its default tier.

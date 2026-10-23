@@ -1,5 +1,7 @@
 # 助手新内核（v3）— 施工基准
 
+> ⛔ **v3 主循环已删（第 9c 步，2026-10-23）**：所有人、所有台改走新内核（`assistant-next.md`）。`runAssistantV3` / `runV3Turn`、本地开关 `antei:assistant-kernel`、自动回放基线（`src/test/assistant-replay/` 的题与判分器）、`assistant-v3-model` / `assistant-v3-prompt` 服务都已删；下文写到它们的段落只作历史。⭐ 仍在用、别跟着删：v3 的执行函数（`executeCall` / `translateMutation` / `landedOutput`、bench / image / lora / cards / look / watch / steps 各服务）、板子与句柄（`assistant-v3-board.ts`）、过程记录（现在由新内核每一跳写）。
+>
 > 状态：**S1–S5 完成，S6 进行中（2026-10-10）**。五张脸（画布、LoRA 台、图片台〔自然语言台 + 标签台〕、角色页、视频台）都默认走 v3（不分账号、助手模型选「自动」也算）；本地开关 `localStorage['antei:assistant-kernel'] = 'v2'` 只认 owner（服务端 `isAdmin`，与管理后台同一道判据，⛔ 不另起 env，2026-10-15）：owner 开了照走旧内核，只为对比，删旧内核时一起删；别人发了 `v2` 服务端照走 v3、记一行日志（⚠ 浏览器那头仍按 v2 的形状组请求：视频台 `@` 的片子放进 `mentionedAssets`、不抽 `videoClips`，到了 v3 这几段片子就看不到）。助手的五家（OpenAI / Claude / Gemini / DeepSeek / Grok）都由 v3 自己跑；只有造不出模型或这张脸画不出板子时才交回旧内核。选定的模型那一家没绑 key 时整轮不跑（见下「只用所选那一家」），⛔ 不回落「自动」、不交回旧内核。S6 剩删旧内核。
 > owner 2026-10-09 定：AI SDK 原生工具；OpenAI 先跑，Claude 另跑一轮；五张脸（图片 / 视频 / LoRA / 画布 / 角色）都迁到新内核，画布先；最后删旧内核。正文不复述改动：改了什么由过程行说（按实际落地的 op 生成），正文只写判断与下一步。
 
@@ -327,8 +329,7 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
 - `src/types/assistant-v3.ts`（工具入参与本轮记录）· `src/constants/assistant-v3.ts`
 - 找到的东西的编号与查证短版：`src/lib/assistant-web-finds.ts`（一行一条、`#n` 的认法、短版）· `src/types/assistant-web-finds.ts`（本轮记录里的那一条）· `src/services/kernel/assistant-v3-finds.service.ts`（续号、`#n` / `[n]` 换回）· `src/constants/assistant-operator.ts` 的 `ASSISTANT_WEB_FIND_LIMITS` 与 `ASSISTANT_RESEARCH_LIMITS.maxCompactGistChars`
 - 读页被挡与退路：`src/lib/read-url-blocks.ts`（判据、按站记一阵、HTML 转文字）· `src/constants/web-search.ts` 的 `URL_READER` / `URL_READER_BLOCK_SIGNALS` · `src/services/web-research.service.ts` 的 `readUrlDetailed` · `src/constants/research.ts` 的 `MEDIAWIKI_READ_HOSTS` + `mediawiki.connector` 的 `resolveMediaWikiReadTarget` / `readMediaWikiPage`
-- 开关：`src/app/api/studio/assistant-operator/route.ts` · `src/hooks/use-assistant-operator.ts`
-- 自动回放基线：`src/test/assistant-replay/`（题在 `fixtures/cases/`，判分在 `graders.ts`）
+- 路由与接力：`src/app/api/studio/assistant-operator/route.ts` · `src/hooks/use-assistant-operator.ts`
 - 上下文预算（P2 第二片）：`assistant-v3-guides.service.ts`（板上型号的整份写法、`read "guide:"`）· `src/lib/assistant-v3-transcript-view.ts`（本轮记录瘦身与 `maxTranscriptChars`）· `assistant-v3-board.ts` 的 `viewLaneNumbers` / `renderOffscreenLane` 与 `assistant-v3.service.ts` 的 `readLanes`（板子分级）· `assistant-v3-model.service.ts` 的 `maxOutputTokens` · `src/constants/assistant-v3.ts` 的 `ASSISTANT_V3_TRANSCRIPT_SLIM` / `ASSISTANT_V3_MAX_OUTPUT_TOKENS` / `ASSISTANT_V3_BOARD_TIERS`
 - 上下文预算（P2）：`assistant-v3-prompt.service.ts`（分界线、记忆排序）· `assistant-v3-model.service.ts`（Claude 断点、`effortPerStep`、`assistantV3StepEffort`）· `assistant-v3.service.ts` 的 `isLandingStep` · `assistant-operator.service.ts` 的 `closeRoundV3` / `closeRoundV3BeforeStop` / `scheduleRoundMemories` / `prepareOperatorTurn({ skipPriorRounds })` · 量法 `src/test/assistant-replay/context-budget.ts` + `fixtures/context-budget.json`
 - 每轮的过程记录：`src/services/assistant-turn-record.service.ts`（写与删）· `src/lib/assistant-turn-record.ts`（摘 data: 地址、挑请求字段、按上限截）· `src/constants/assistant-turn-record.ts` · `src/types/assistant-turn-record.ts`；一行转回回放题：`src/test/assistant-replay/from-turn-record.ts`

@@ -202,10 +202,6 @@ describe('IRON RULE — no private LLM adapter sets outside the source of truth'
    */
   const repoRoot = process.cwd()
   const SUSPECT_FILES = [
-    'src/components/business/studio/StudioEnhanceButton.tsx',
-    'src/hooks/use-studio-assistant-panel-inputs.ts',
-    'src/components/business/prompts/PromptAssistantPanel.tsx',
-    'src/components/business/node/CanvasAssistantRouteSelector.tsx',
     'src/components/business/studio-shared/pickers/MainModelPicker.tsx',
     'src/components/business/studio-shared/pickers/ModelPickerPopover.tsx',
   ]
@@ -231,10 +227,6 @@ describe('IRON RULE — no private LLM adapter sets outside the source of truth'
      * sanctioned API.
      */
     const ENTRY_POINTS_USING_LLM = [
-      // StudioEnhanceButton's key filtering moved into this shared hook
-      // (2026-07-07 assistant dock refactor) — the hook is now the entry point.
-      'src/hooks/use-studio-assistant-panel-inputs.ts',
-      'src/components/business/node/CanvasAssistantRouteSelector.tsx',
       'src/components/business/studio-shared/pickers/MainModelPicker.tsx',
     ]
     /*

@@ -21,7 +21,6 @@ import {
   fetchMediaWikiEvidence,
   getMediaWikiSite,
   isRelevantToTerms,
-  pickQueryForSite,
   readMediaWikiPage,
   researchTermsOf,
   resolveFandomSite,
@@ -256,16 +255,6 @@ describe('fetchMediaWikiEvidence — Fandom（能力层不同构）', () => {
 })
 
 describe('per-site query selection', () => {
-  it('feeds each site the query in its own language', () => {
-    const queries = [
-      { text: '长离 鸣潮', lang: 'zh' as const },
-      { text: 'changli wuthering waves', lang: 'en' as const },
-    ]
-
-    expect(pickQueryForSite(MOEGIRL, queries)).toBe('长离 鸣潮')
-    expect(pickQueryForSite(FANDOM, queries)).toBe('changli wuthering waves')
-  })
-
   it('knows every site in the capability table', () => {
     for (const site of MEDIAWIKI_SITES) {
       expect(getMediaWikiSite(site.sourceId)).toBe(site)

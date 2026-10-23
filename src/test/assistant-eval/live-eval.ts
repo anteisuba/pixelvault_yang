@@ -499,7 +499,7 @@ export function writeReport(out: string, results: CaseResult[]) {
   const lines = [
     `# 助手评测 · ${out.split('/').at(-1)}`,
     '',
-    `${results.length} 道题。「线上」= 记录里那一次（当时选的模型），「重跑」= 这次用 Sonnet 5.5 在${process.env.ASSISTANT_EVAL_KERNEL === 'next' ? '新' : '旧'}内核上重跑。判分都由 Sonnet 5.5 做。`,
+    `${results.length} 道题。「线上」= 记录里那一次（当时选的模型），「重跑」= 这次用 Sonnet 5.5 在新内核上重跑。判分都由 Sonnet 5.5 做。`,
     '',
     '| 指标 | 线上 | 重跑 |',
     '|---|---|---|',

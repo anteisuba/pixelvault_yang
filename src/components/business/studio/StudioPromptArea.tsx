@@ -57,7 +57,6 @@ import { ReferenceImageChip } from '@/components/business/studio/ReferenceImageC
 import { StudioVideoAssetChip } from '@/components/business/studio/StudioVideoAssetChip'
 import { StudioInpaintMaskChip } from '@/components/business/studio/StudioInpaintMaskChip'
 import { StudioVideoAssetRail } from '@/components/business/studio-shared/chrome/StudioVideoAssetRail'
-import { StudioEnhanceButton } from '@/components/business/studio/StudioEnhanceButton'
 import { StudioCardsButton } from '@/components/business/studio/StudioCardsButton'
 import { StudioSearchGroundingChip } from '@/components/business/studio/StudioSearchGroundingChip'
 import { SearchGroundingSlot } from '@/components/business/studio-shared/search-grounding/SearchGroundingSlot'
@@ -992,12 +991,6 @@ export const StudioPromptArea = memo(function StudioPromptArea({
               在「规格」浮层里，参考图就在左边，助手是右上角浮标。
               （卡片模式 2026-10-22 下线：选了角色就带上，不再另切模式。） */}
           {isImageMode ? <StudioCardsButton disabled={isGenerating} /> : null}
-          {/* 助手在 lg 以上由右上角的 StudioAssistantFab 承担（owner
-                2026-08-14），这里只留小屏那份 —— 不是重复：小屏没有浮标，
-                抽屉宿主就长在这颗丸里面，删了小屏就没有助手入口了。 */}
-          <span className="contents lg:hidden">
-            <StudioEnhanceButton disabled={isGenerating} />
-          </span>
         </Toolbar.Root>
 
         {isAudioMode ? (

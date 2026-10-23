@@ -77,13 +77,7 @@ import {
   getDefaultProviderConfig,
   getProviderLabel,
 } from '@/constants/providers'
-import {
-  ASSISTANT_KERNEL_IDS,
-  ASSISTANT_KERNEL_STORAGE_KEY,
-  ASSISTANT_V3_CLIP_LIMITS,
-  ASSISTANT_V3_FACES,
-} from '@/constants/assistant-v3'
-import { ASSISTANT_NEXT_DOMAINS } from '@/features/assistant/constants'
+import { ASSISTANT_V3_CLIP_LIMITS } from '@/constants/assistant-v3'
 import { CONTEXT_CARD_STATUS_IDS } from '@/constants/context-cards'
 import {
   STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
@@ -141,7 +135,6 @@ import {
 import { buildCanvasGenerationRequest } from '@/lib/studio-operator-canvas-snapshot'
 import { collectStepArtifacts } from '@/lib/studio-operator-artifacts'
 import { collectOperatorPriorFinds } from '@/lib/studio-operator-timeline'
-import { captureVideoEndpointFrames } from '@/lib/video-frame-capture'
 import {
   captureTurnClips,
   resolveTurnClips,
@@ -538,20 +531,16 @@ function lastUserMedia(
  */
 function buildMentionedAssets(
   entries: readonly StudioOperatorThreadEntry[],
-  /**
-   * 视频进不进名单：只有**旧内核的视频域**（那边的看片评审吃三帧，片子得是它认得的目标）。
-   * ⚠ v3 一律只放图：片子走 `videoClips`（看图期第二段），放进这张名单只会被当成一张下不来的图。
-   */
-  isVideoDomain: boolean,
 ): NonNullable<AssistantOperatorRequest['mentionedAssets']> {
   /**
+   * ⚠ 只放图：片子走 `videoClips`（看图期第二段），放进这张名单只会被当成一张下不来的图。
    * ⭐ `@` 的在前、📎 的在后：看图上限（`ASSISTANT_MENTION_LIMITS.lookImages`）截的是
    * 名单前几张，指名道姓的那几张先占位。同一张图两边都有时只算一次（按地址）。
    * ⚠ 画布的卡带 `nodeId` 上去 —— 服务端按它认卡，⛔ 不再按名字。
    */
   const pointed: (StudioOperatorAttachment & { nodeId?: string })[] =
     lastUserMentions(entries).flatMap((mention) =>
-      isLookableMention(mention, isVideoDomain) && mention.url
+      isLookableMention(mention, false) && mention.url
         ? [
             {
               id: mention.generationId ?? mention.id,
@@ -566,8 +555,7 @@ function buildMentionedAssets(
     )
   const attached = lastUserAttachments(entries).filter(
     (attachment) =>
-      (attachment.kind === 'image' ||
-        (isVideoDomain && attachment.kind === 'video')) &&
+      attachment.kind === 'image' &&
       !pointed.some((item) => item.url === attachment.url),
   )
   return [...pointed, ...attached]
@@ -598,33 +586,6 @@ function buildMentionedAssets(
           : { reviewState }),
       }
     })
-}
-
-/**
- * 这一轮**要不要抽帧、抽哪一段**（第二期最后一环）。
- *
- * ── 为什么客户端得先决定，而不是等模型说 ────────────────────────────
- * 服务端 `critique_result` 的第二条闸是 `videoFrames.sourceUrl` 必须与它挑中的
- * 目标**逐字相同**（对不上按 `unknownAsset` 拒）。帧只能在浏览器里抽
- * （`lib/video-frame-capture.ts` 的选型头注），而抽帧发生在请求**发出去之前**
- * —— 那一刻模型还一个字都没写。所以目标由客户端按同一条优先级预判：
- *  ① 助手自己 primed 的那一枪刚回来（`result`）—— 服务端没有 `targetIds` 时挑的
- *    就是它，两边因此必然对齐；
- *  ② 否则取用户这一轮 `@` 的那段片子。
- * ⛔ 两条都没有就**不抽**：抽一段没人要看的片子是白烧几秒解码 + 一份 payload。
- *
- * ⚠ 只在视频域触发。图片域一字不改 —— 那边的目标本来就是静态图。
- */
-function resolveVideoCritiqueSource(
-  domain: AssistantOperatorDomain,
-  entries: readonly StudioOperatorThreadEntry[],
-): string | null {
-  if (domain !== ASSISTANT_PROTOCOL_DOMAIN_IDS.video) return null
-  return (
-    lastUserAttachments(entries).find(
-      (attachment) => attachment.kind === 'video',
-    )?.url ?? null
-  )
 }
 
 /**
@@ -753,34 +714,6 @@ function browserTimeZone(): string | undefined {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined
   } catch {
     return undefined
-  }
-}
-
-/**
- * 本地开关选了旧内核（只为对比，S6 删旧时一起删）。只有迁过去的脸认。
- * ⚠ 服务端只对 owner（`isAdmin`）认它（owner 2026-10-15）：别人写了也照走 v3。
- */
-function readsLegacyKernel(): boolean {
-  return readKernelChoice() === ASSISTANT_KERNEL_IDS.v2
-}
-
-/**
- * 本地开关选了重设计的新内核（`next`，接哪几台见 `ASSISTANT_NEXT_DOMAINS`）。
- * ⚠ 同样只有 owner 认：别人写了服务端照走 v3。
- */
-function readsNextKernel(domain: AssistantOperatorDomain): boolean {
-  return (
-    ASSISTANT_NEXT_DOMAINS.includes(domain) &&
-    readKernelChoice() === ASSISTANT_KERNEL_IDS.next
-  )
-}
-
-function readKernelChoice(): string | null {
-  if (typeof window === 'undefined') return null
-  try {
-    return window.localStorage.getItem(ASSISTANT_KERNEL_STORAGE_KEY)
-  } catch {
-    return null
   }
 }
 
@@ -973,7 +906,6 @@ export function useAssistantOperator(
   const tError = useTranslations('StudioOperator.error')
   /** 卡上就地改参数那几条 step 的文案（§5.2 第二行）—— i18n 只能在 React 层拿。 */
   const tConfirm = useTranslations('StudioOperator.confirm')
-  const tAutoReview = useTranslations('StudioOperator.autoReview')
   const tContinueAsk = useTranslations('StudioOperator.continueAsk')
   /** 问题卡答复那一句（给模型与库读，2026-10-14 起走词表）。 */
   const tQuestion = useTranslations('StudioOperator.question')
@@ -1025,24 +957,16 @@ export function useAssistantOperator(
    */
   const reviseRef = useRef(false)
   /**
-   * **出图后自动看一眼**（owner 2026-10-08：只在自动生成开着时）。自动扣下扳机那一刻
-   * 记下这一枪打在哪（画布卡 + 原来的图 / 工作台那张结果卡），图落地后自己发一轮，
-   * 附件就是刚出的那张。⚠ 一枪只看一次；用户在那之前开口了就作废。
-   */
-  /**
    * ⭐ 新内核（第 5b 步，owner 2026-10-23）：⛔ 不自动看图。不管是不是自动按的，
-   * 出完都停下问一句「按这个方向继续吗？」（`then: 'ask'`）；创作者点了或开口了，
-   * 助手才去看这批图、接着改。
+   * 出完都停下问一句「按这个方向继续吗？」；创作者点了或开口了，
+   * 助手才去看这批图、接着改。图落地那一刻（画布：那张卡的产出图换了；工作台：那张
+   * 结果卡收齐了）钉出这张问题卡；⚠ 用户在那之前开口了就作废。
    */
   const autoReviewRef = useRef<
-    | ((
-        | { kind: 'canvas'; nodeId: string; before: string | undefined }
-        | { kind: 'result'; resultId: string }
-      ) & { then: 'review' | 'ask' })
+    | { kind: 'canvas'; nodeId: string; before: string | undefined }
+    | { kind: 'result'; resultId: string }
     | null
   >(null)
-  /** 下一次 `run()` 带不带 `autoReview`（读完就清，见 `reviseRef` 同款）。 */
-  const autoReviewTurnRef = useRef(false)
 
   useEffect(
     () => () => {
@@ -1295,13 +1219,7 @@ export function useAssistantOperator(
        * ⚠ 只带最后几条对白（`historyToOperatorMessages` 自己截），显示是全部。
        */
       const { entries, history, sessionId } = getOperatorState()
-      /** 这一轮走 v3（看图期第二段：片子由 Denia 自己看）还是旧内核（三帧评审）。 */
-      const usesV3 = ASSISTANT_V3_FACES.includes(domain) && !readsLegacyKernel()
-      const usesNext = readsNextKernel(domain)
-      const mentionedAssets = buildMentionedAssets(
-        entries,
-        !usesV3 && domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video,
-      )
+      const mentionedAssets = buildMentionedAssets(entries)
       const messages = [
         ...historyToOperatorMessages(history),
         ...buildMessages(entries),
@@ -1309,46 +1227,6 @@ export function useAssistantOperator(
       if (messages.length === 0) {
         setOperatorStatus('idle')
         return
-      }
-
-      /**
-       * ⭐ **视频域评审的帧生产者**（第二期最后一环）—— 请求发出去之前抽 0/中/末。
-       *
-       * ⚠ 抽帧是**几秒级**的同步等待（浏览器解码 + 三次 seek），所以带子在这段时间
-       * 里写「正在抽帧」而不是「思考中」：它并没有在思考。⚠ 无论成败都复位
-       * （`finally`），否则带子会永远停在那句话上。
-       * ⚠ 失败**不拦住这一轮**：照常发出去，服务端按 `videoFramesMissing` 退回一条
-       * 可教的拒绝，助手会如实说它看不了。但线程里必须留一行说清楚**为什么**
-       * ——⛔ 不静默（见 `videoFramesFailed` 那条系统码的头注）。
-       */
-      const videoSourceUrl = usesV3
-        ? null
-        : resolveVideoCritiqueSource(domain, entries)
-      let videoFrames: AssistantOperatorRequest['videoFrames']
-      if (videoSourceUrl) {
-        setOperatorCapturingFrames(true)
-        try {
-          const captured = await captureVideoEndpointFrames(videoSourceUrl)
-          if (!isCurrentRun()) return
-          if (captured.ok) {
-            videoFrames = {
-              sourceUrl: videoSourceUrl,
-              durationSeconds: captured.durationSeconds,
-              frames: captured.frames,
-            }
-          } else {
-            appendOperatorEntry({
-              kind: 'system',
-              id: nextOperatorEntryId('sys'),
-              code: 'videoFramesFailed',
-              subject: captured.reason,
-            })
-          }
-        } finally {
-          if (isCurrentRun()) setOperatorCapturingFrames(false)
-        }
-        // 抽帧那几秒里用户可能已经按了 ⏹ / 插了话 —— 那一轮已经不是这一轮了。
-        if (!isCurrentRun()) return
       }
 
       const priorFinds = collectOperatorPriorFinds(entries)
@@ -1383,7 +1261,7 @@ export function useAssistantOperator(
        *   系统行。被指着的抽帧失败不拦这一轮：照样发（Gemini 还能看片子本体），线程里留一行原因。
        */
       let videoClips = options.videoClips
-      if (usesV3 && !videoClips) {
+      if (!videoClips) {
         const turnClips = resolveTurnClips({
           mentions: pointedMentions,
           attachments: lastUserAttachments(entries),
@@ -1456,13 +1334,11 @@ export function useAssistantOperator(
                   .map(toMentionRef),
               }
             : {}),
-          ...(autoReviewTurnRef.current
-            ? { autoReview: true as const }
-            : // 配音台不跟「交给 AI 出图」（owner 10-23）：一律出确认卡。
-              getOperatorState().autoGenerate &&
-                domain !== ASSISTANT_PROTOCOL_DOMAIN_IDS.audio
-              ? { autoGenerate: true as const }
-              : {}),
+          ...// 配音台不跟「交给 AI 出图」（owner 10-23）：一律出确认卡。
+          (getOperatorState().autoGenerate &&
+          domain !== ASSISTANT_PROTOCOL_DOMAIN_IDS.audio
+            ? { autoGenerate: true as const }
+            : {}),
           /**
            * ⭐ **这一轮属于哪段会话**（v2 §7.5 / §7.6，commit #12）—— 结账写库与
            * 下一轮注入唯一的落点：服务端零会话态，会话的身份一直由客户端持有
@@ -1487,7 +1363,6 @@ export function useAssistantOperator(
             : {}),
           ...(searchWithGrok ? { searchWithGrok: true as const } : {}),
           ...(timeZone ? { timeZone } : {}),
-          ...(videoFrames ? { videoFrames } : {}),
           ...(videoClips?.length ? { videoClips } : {}),
           ...(confirmations?.length ? { confirmations } : {}),
           ...(planAnswers?.length ? { planAnswers } : {}),
@@ -1498,11 +1373,6 @@ export function useAssistantOperator(
            */
           ...(resumeFrom ? { resumeFrom } : {}),
           responseLanguage: toResponseLanguage(locale),
-          ...(ASSISTANT_V3_FACES.includes(domain) && readsLegacyKernel()
-            ? { kernel: ASSISTANT_KERNEL_IDS.v2 }
-            : usesNext
-              ? { kernel: ASSISTANT_KERNEL_IDS.next }
-              : {}),
           ...(options.v3Transcript
             ? { v3: { transcript: options.v3Transcript } }
             : {}),
@@ -1510,9 +1380,7 @@ export function useAssistantOperator(
            * ⭐ **上一轮找到的图与视频**（`#n`，搜索期第三片）：「用 #2」「放第二个」跨轮还能落到
            *   同一张。只在 v3 的新一轮发 —— 接力那一跳的板子已经冻着这一份；空的不发。
            */
-          ...(usesV3 && !options.v3Transcript && priorFinds.length
-            ? { priorFinds }
-            : {}),
+          ...(!options.v3Transcript && priorFinds.length ? { priorFinds } : {}),
         },
         { signal: controller.signal },
       )
@@ -2140,10 +2008,7 @@ export function useAssistantOperator(
                */
               if (event.reason === ASSISTANT_OPERATOR_STOP_REASONS.timeBudget) {
                 // 新内核：所有台都接力（服务端交了接力条才接，没交就照常收尾）。
-                if (
-                  domain === 'canvas' ||
-                  (usesNext && v3Transcript !== null)
-                ) {
+                if (domain === 'canvas' || v3Transcript !== null) {
                   canvasSync = true
                   break
                 }
@@ -2238,29 +2103,17 @@ export function useAssistantOperator(
       }
       if (canvasSync) {
         // 新内核不设接力上限：停只有创作者按停（owner 2026-10-22）。
-        if (
-          usesNext ||
-          canvasSteps < ASSISTANT_OPERATOR_LIMITS.maxCanvasSteps
-        ) {
-          const resume = getOperatorState().resume
-          runRef.current?.({
-            ...options,
-            runKey,
-            canvasSteps,
-            planApproved: true,
-            resumeFrom: resume
-              ? (toResumeFrom(resume) ?? undefined)
-              : undefined,
-            v3Transcript: v3Transcript ?? undefined,
-            videoClips,
-          })
-          return
-        }
-        /**
-         * ⭐ 接力步数用完：⛔ 不再静默归 idle（从前只剩一行「· 撤销」、一个字都没有）。
-         * 摆出「继续 / 先到这里」，并说清已经落下的改动都还在。
-         */
-        setOperatorOutOfSteps(true)
+        const resume = getOperatorState().resume
+        runRef.current?.({
+          ...options,
+          runKey,
+          canvasSteps,
+          planApproved: true,
+          resumeFrom: resume ? (toResumeFrom(resume) ?? undefined) : undefined,
+          v3Transcript: v3Transcript ?? undefined,
+          videoClips,
+        })
+        return
       }
       // `done` 之后没有别的收尾 —— 状态没被 `stopped` / `error` 改过就是跑完了。
       if (getOperatorState().status === 'working') setOperatorStatus('idle')
@@ -2410,7 +2263,7 @@ export function useAssistantOperator(
        */
       clearOperatorPrompts()
       // 用户自己开口了：这一枪的「出图后看一眼」作废（他要说的比这件事优先）。
-      if (!autoReviewTurnRef.current) autoReviewRef.current = null
+      autoReviewRef.current = null
       appendOperatorEntry({
         kind: 'user',
         id: nextOperatorEntryId('user'),
@@ -2427,81 +2280,59 @@ export function useAssistantOperator(
       void run({
         ...(revising ? { planApproved: false } : {}),
         ...(options.searchWithGrok ? { searchWithGrok: true } : {}),
-      }).finally(() => {
-        autoReviewTurnRef.current = false
       })
     },
     [flushQueue, run, isCurrentThread],
   )
 
   /**
-   * 出图落地 → 自己发「看一眼」那一轮。画布：那张卡的产出图换了；工作台：那张结果卡
-   * 收齐了。⚠ 只在助手闲着时发（还在干活就等下一次渲染再看）。
+   * 出图落地 → 钉出「按这个方向继续吗？」。画布：那张卡的产出图换了；工作台：那张结果卡
+   * 收齐了。⚠ 只在助手闲着时问（还在干活就等下一次渲染再看）。
    */
   const operatorState = useStudioOperatorState()
   const canvasTargets = host.canvasTargets
   useEffect(() => {
     const pending = autoReviewRef.current
     if (!pending || operatorState.status !== 'idle') return
-    let attachment: StudioOperatorAttachment | null = null
     if (pending.kind === 'canvas') {
       const output = canvasTargets?.outputOf?.(pending.nodeId)
       if (!output || output.url === pending.before) return
-      attachment = {
-        id: `auto-review-${pending.nodeId}`,
-        url: output.url,
-        label: output.name,
-        kind: 'image',
-      }
     } else {
       const entry = operatorState.entries.find(
         (item) => item.kind === 'result' && item.id === pending.resultId,
       )
       if (!entry || entry.kind !== 'result') return
       if (entry.items.length === 0 || entry.completed < entry.total) return
-      const first = entry.items[0]!
-      attachment = {
-        id: first.id,
-        url: first.url,
-        label: first.label ?? first.id,
-        kind: 'image',
-        ...(typeof first.seq === 'number' ? { seq: first.seq } : {}),
-      }
     }
     autoReviewRef.current = null
-    if (pending.then === 'ask') {
-      // 出完就停（第 5b 步）：问一句，卡钉在输入框上方；直接打字 = 用一句话回答。
-      setOperatorQuestion({
-        id: nextOperatorEntryId('question'),
-        questions: [
-          {
-            id: nextOperatorEntryId('continue'),
-            header: tContinueAsk('header'),
-            question: tContinueAsk('question'),
-            multiSelect: false,
-            allowOther: true,
-            options: [
-              {
-                id: 'continue',
-                label: tContinueAsk('continue'),
-                description: tContinueAsk('continueDescription'),
-                recommended: true,
-              },
-              {
-                id: 'change',
-                label: tContinueAsk('change'),
-                description: tContinueAsk('changeDescription'),
-              },
-            ],
-          },
-        ],
-        answers: [],
-      })
-      return
-    }
-    autoReviewTurnRef.current = true
-    send(tAutoReview('message'), [attachment])
-  }, [operatorState, canvasTargets, send, tAutoReview, tContinueAsk])
+    // 出完就停（第 5b 步）：问一句，卡钉在输入框上方；直接打字 = 用一句话回答。
+    setOperatorQuestion({
+      id: nextOperatorEntryId('question'),
+      questions: [
+        {
+          id: nextOperatorEntryId('continue'),
+          header: tContinueAsk('header'),
+          question: tContinueAsk('question'),
+          multiSelect: false,
+          allowOther: true,
+          options: [
+            {
+              id: 'continue',
+              label: tContinueAsk('continue'),
+              description: tContinueAsk('continueDescription'),
+              recommended: true,
+            },
+            {
+              id: 'change',
+              label: tContinueAsk('change'),
+              description: tContinueAsk('changeDescription'),
+            },
+          ],
+        },
+      ],
+      answers: [],
+    })
+  }, [operatorState, canvasTargets, tContinueAsk])
 
   /**
    * 撤回一条还没轮到的排队消息（§3.1 ㉔）。
@@ -3080,13 +2911,12 @@ export function useAssistantOperator(
       ) {
         return
       }
-      const usesNextKernel = readsNextKernel(domain)
       /**
        * ⭐ **自动生成单轮上限**（owner 2026-10-14）：这张卡加起来要出的张数（每张画布
        * 卡按它自己的张数，工作台按此刻的张数）超过上限，就不替你按 —— 卡照常摆着等你。
        * ⚠ 新内核的画布不设上限（owner 10-23「一句话出完所有选中的卡」）。
        */
-      if (options.auto && !(usesNextKernel && domain === 'canvas')) {
+      if (options.auto && domain !== 'canvas') {
         const nodes =
           confirm.request.canvasNodes ??
           (confirm.request.canvasNode ? [confirm.request.canvasNode] : [])
@@ -3174,13 +3004,11 @@ export function useAssistantOperator(
        */
       if (confirm.request.canvasNode) {
         const nodeId = confirm.request.canvasNode.id
-        if (options.auto || usesNextKernel)
-          autoReviewRef.current = {
-            kind: 'canvas',
-            nodeId,
-            before: host.canvasTargets?.outputOf?.(nodeId)?.url,
-            then: usesNextKernel ? 'ask' : 'review',
-          }
+        autoReviewRef.current = {
+          kind: 'canvas',
+          nodeId,
+          before: host.canvasTargets?.outputOf?.(nodeId)?.url,
+        }
         applyContext.canvas?.generate(nodeId)
         return
       }
@@ -3232,12 +3060,10 @@ export function useAssistantOperator(
         ...(request.label ? { summary: request.label } : {}),
         request,
       })
-      if (options.auto || usesNextKernel)
-        autoReviewRef.current = {
-          kind: 'result',
-          resultId: pendingResultId,
-          then: usesNextKernel ? 'ask' : 'review',
-        }
+      autoReviewRef.current = {
+        kind: 'result',
+        resultId: pendingResultId,
+      }
       applyContext.triggerGeneration?.(request, {
         threadScope,
         localThreadId,

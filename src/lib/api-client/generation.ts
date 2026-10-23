@@ -3,9 +3,6 @@ import type {
   CivitaiTokenStatusResponse,
   EnhancePromptRequest,
   EnhancePromptResponse,
-  PromptAssistantRequest,
-  PromptAssistantStreamRequest,
-  PromptAssistantResponse,
   GenerateRequest,
   GenerateResponse,
   GenerateAudioRequest,
@@ -45,10 +42,6 @@ import type {
   PromptToTagsResponseData,
 } from '@/types/tag-composer'
 import type { AssistantOperatorMissingKey } from '@/types/assistant-operator'
-import {
-  readAssistantStream,
-  type AssistantStreamMessage,
-} from '@/lib/assistant-stream-client'
 import { API_ENDPOINTS, CLIENT_API } from '@/constants/config'
 import type { GenerationReviewState } from '@/constants/assistant-operator'
 import {
@@ -1435,103 +1428,6 @@ export async function deleteCivitaiTokenAPI(): Promise<{
       }
     }
     return await response.json()
-  } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
-    }
-  }
-}
-
-// ─── Prompt Assistant (Chat-based) ──────────────────────────────
-
-export async function chatPromptAssistantAPI(
-  params: PromptAssistantRequest,
-): Promise<PromptAssistantResponse> {
-  try {
-    const response = await fetch(API_ENDPOINTS.PROMPT_ASSISTANT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-    })
-
-    if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Assistant failed with status ${response.status}`,
-      )
-      return {
-        success: false,
-        error: payload.error,
-        errorCode: payload.errorCode,
-        i18nKey: payload.i18nKey,
-      }
-    }
-
-    return await response.json()
-  } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
-    }
-  }
-}
-
-export type PromptAssistantStreamApiResponse =
-  | {
-      success: true
-      /**
-       * 已解析的帧流（`text` / `research` / `lora` / `error`）。
-       *
-       * ⚠ **回执与候选是流里的帧，不再是响应头**（2026-08-25 换帧协议）。旧方案
-       * 把它们 base64 塞进 HTTP 头，因而受头字段大小上限约束，候选那份不得不带
-       * 三档降级阶梯；帧没有上限，那套阶梯已随此改动删除。代价是它们**不再于
-       * 函数返回时就位** —— 消费者要在迭代中接住，服务端保证它们排在第一个
-       * `text` 之前。
-       */
-      events: AsyncIterable<AssistantStreamMessage>
-    }
-  | { success: false; error: string; errorCode?: string; i18nKey?: string }
-
-/**
- * 对话轮：拿到的是帧流，不是解析好的整条回答。正文里的协议块（`[[ask]]` /
- * `[[next]]` …）**仍归客户端抽取**（`lib/assistant-protocol-blocks.ts`）——
- * 把标记也升级成帧是下一片。
- */
-export async function streamPromptAssistantAPI(
-  params: PromptAssistantStreamRequest,
-): Promise<PromptAssistantStreamApiResponse> {
-  try {
-    const response = await fetch(API_ENDPOINTS.PROMPT_ASSISTANT_STREAM, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-    })
-
-    if (!response.ok) {
-      const payload = await getErrorPayload(
-        response,
-        `Assistant failed with status ${response.status}`,
-      )
-      return {
-        success: false,
-        error: payload.error,
-        errorCode: payload.errorCode,
-        i18nKey: payload.i18nKey,
-      }
-    }
-
-    if (!response.body) {
-      return {
-        success: false,
-        error: 'Assistant returned an empty stream',
-        errorCode: 'EMPTY_STREAM',
-      }
-    }
-
-    return { success: true, events: readAssistantStream(response.body) }
   } catch (error) {
     return {
       success: false,

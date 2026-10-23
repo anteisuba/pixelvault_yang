@@ -50,7 +50,7 @@ export const VIDEO_ANALYSIS = {
  * 🔬 帧序列里根本看不见（两帧之间发生了什么，帧本身不说）。§4.3 点名的
  * 「运镜 / 节奏 / 动作质量 → 要求 native」落的就是这一行。
  */
-export const VIDEO_ANALYSIS_TASKS = {
+const VIDEO_ANALYSIS_TASKS = {
   conversational: 'conversational',
   characterIdentity: VISION_TASKS.characterIdentity,
   styleStudy: VISION_TASKS.styleStudy,

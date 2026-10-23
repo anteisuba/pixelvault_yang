@@ -230,7 +230,7 @@ describe('会话历史落库', () => {
     expect(JSON.stringify(lastUpsertBody())).not.toContain('inverse')
   })
 
-  it('切工作区分别保存，返回后继续原线程', async () => {
+  it('⭐ 换台对话不断：同一段线程、同一行接着存，时间线落一条换台线（9d）', async () => {
     const rendered = renderHook(
       ({ workspace }: { workspace: AssistantWorkspace }) =>
         historyHook.useStudioOperatorHistory({ ...IMAGE_SCOPE, workspace }),
@@ -239,26 +239,24 @@ describe('会话历史落库', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
     })
-    act(() => say('u1', '在图片档说的'))
+    act(() => say('u1', '在图片台说的'))
     await settleDebounce()
     expect(lastUpsertBody()).toMatchObject({
       surface: 'IMAGE_STUDIO',
       workspaceKey: 'image-natural',
     })
     rendered.rerender({ workspace: 'video' })
-    expect(store.getOperatorState().entries).toEqual([])
-    act(() => say('v1', '在视频档说的'))
+    expect(store.getOperatorState().threadScope).toBe('user-1:assistant')
+    expect(store.getOperatorState().entries.map((entry) => entry.kind)).toEqual(
+      ['user', 'domainMark'],
+    )
+    act(() => say('v1', '在视频台说的'))
     await settleDebounce()
-    expect(upsertMock).toHaveBeenCalledTimes(2)
     expect(lastUpsertBody()).toMatchObject({
+      id: 'conv-1',
       surface: 'VIDEO_STUDIO',
       workspaceKey: 'video',
     })
-    expect(lastUpsertBody().id).toBeUndefined()
-    rendered.rerender({ workspace: 'image-natural' })
-    expect(store.getOperatorState().entries.map((entry) => entry.id)).toEqual([
-      'u1',
-    ])
     expect(store.getOperatorState().sessionId).toBe('conv-1')
   })
 
@@ -518,7 +516,7 @@ it('loads the combined list once and reuses it for repeated menu opens', async (
  * D12 U7：画布的会话**单独、按画布项目分**；图片 / 视频 / LoRA 仍共用一个列表。
  */
 describe('会话按画布项目分（D12 U7）', () => {
-  it('画布只列这个项目的会话，存的时候带上项目 id', async () => {
+  it('画布：历史列全部会话（不分台），存的时候带上项目 id', async () => {
     const rendered = renderHook(() =>
       historyHook.useStudioOperatorHistory({
         userId: 'user-1',
@@ -529,13 +527,10 @@ describe('会话按画布项目分（D12 U7）', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
     })
-    expect(listMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        surface: 'NODE_CANVAS',
-        projectId: 'canvas-project-1',
-        operatorOnly: true,
-      }),
-    )
+    expect(listMock).toHaveBeenCalledWith({
+      operatorOnly: true,
+      limit: STUDIO_OPERATOR_HISTORY.listLimit,
+    })
 
     say('user-1', '把第三镜换成夜景')
     await settleDebounce()
@@ -546,7 +541,7 @@ describe('会话按画布项目分（D12 U7）', () => {
     rendered.unmount()
   })
 
-  it('从工作台走到画布：线程整条换掉，⛔ 画布的话不写进工作台那一段', async () => {
+  it('从工作台走到画布：还是同一段对话（9d）', async () => {
     const studio = await mount()
     say('user-1', '出一张橘猫')
     await settleDebounce()
@@ -563,11 +558,11 @@ describe('会话按画布项目分（D12 U7）', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
     })
-    expect(store.getOperatorState().entries).toHaveLength(0)
-    expect(store.getOperatorState().sessionId).toBeNull()
-    expect(store.getOperatorState().threadScope).toBe(
-      'user-1:canvas:canvas-project-1',
+    expect(store.getOperatorState().entries.map((entry) => entry.kind)).toEqual(
+      ['user', 'domainMark'],
     )
+    expect(store.getOperatorState().sessionId).toBe('conv-1')
+    expect(store.getOperatorState().threadScope).toBe('user-1:assistant')
   })
 })
 
@@ -575,7 +570,7 @@ describe('会话按画布项目分（D12 U7）', () => {
  * 卡片助手（第五张脸，owner 09-26）：会话单独一份，只在角色页里看得到。
  */
 describe('卡片助手的会话单独一份（owner 09-26）', () => {
-  it('只列 CARDS 的会话，存的时候落 CARDS；从工作台过来整条线程换掉', async () => {
+  it('从工作台走到角色页：同一段接着存，这一轮记在角色页（9d）', async () => {
     const studio = await mount()
     say('user-1', '出一张橘猫')
     await settleDebounce()
@@ -591,17 +586,13 @@ describe('卡片助手的会话单独一份（owner 09-26）', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0)
     })
-    expect(listMock).toHaveBeenLastCalledWith(
-      expect.objectContaining({ surface: 'CARDS', operatorOnly: true }),
-    )
-    expect(store.getOperatorState().entries).toHaveLength(0)
-    expect(store.getOperatorState().threadScope).toBe('user-1:cards')
+    expect(store.getOperatorState().threadScope).toBe('user-1:assistant')
 
     say('user-2', '查一下达妮娅的设定')
     await settleDebounce()
     const payload = upsertMock.mock
       .calls[0]?.[0] as UpsertAssistantConversationRequest
-    expect(payload.surface).toBe('CARDS')
+    expect(payload).toMatchObject({ id: 'conv-1', surface: 'CARDS' })
     rendered.unmount()
   })
 })
@@ -624,7 +615,7 @@ describe('作用域和本地线程身份的异步边界', () => {
     expect(rendered.result.current.error).toBeNull()
   })
 
-  it('只打开属于当前工作区的会话；另一台的、归不到任何工作区的都不去取', async () => {
+  it('别的台开始的会话也能打开（9d：历史列全部）', async () => {
     const rendered = await mount()
     expect(listMock.mock.calls[0][0]).not.toHaveProperty('includeLegacy')
     getMock.mockClear()
@@ -634,13 +625,11 @@ describe('作用域和本地线程身份的异步边界', () => {
         id: 'tags-conversation',
         workspaceKey: 'image-tags',
       })
-      rendered.result.current.selectSession({
-        ...session,
-        id: 'orphan-canvas',
-        workspaceKey: null,
-      })
     })
-    expect(getMock).not.toHaveBeenCalled()
+    expect(getMock).toHaveBeenCalledWith({
+      id: 'tags-conversation',
+      operatorOnly: true,
+    })
   })
 
   it('首次保存期间新建线程，旧 null 会话回包不能回填新 null 会话', async () => {
@@ -666,89 +655,6 @@ describe('作用域和本地线程身份的异步边界', () => {
     expect(lastUpsertBody().id).toBeUndefined()
     expect(lastUpsertBody().messages.map((item) => item.content)).toEqual([
       '新会话',
-    ])
-  })
-
-  it('图片和标签各自查询精确工作区，旧列表回包不启动跨区加载', async () => {
-    let finishImage!: (value: unknown) => void
-    listMock.mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          finishImage = resolve
-        }),
-    )
-    const rendered = renderHook(
-      ({ workspace }: { workspace: AssistantWorkspace }) =>
-        historyHook.useStudioOperatorHistory({ ...IMAGE_SCOPE, workspace }),
-      { initialProps: { workspace: 'image-natural' } },
-    )
-    rendered.rerender({ workspace: 'image-tags' })
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0)
-      finishImage({ success: true, data: [session] })
-    })
-    expect(listMock.mock.calls.map(([args]) => args.workspaceKey)).toEqual([
-      'image-natural',
-      'image-tags',
-    ])
-    expect(getMock).not.toHaveBeenCalled()
-    expect(store.getOperatorState().threadScope).toBe('user-1:image-tags')
-    expect(store.getOperatorState().sessionId).toBeNull()
-    expect(rendered.result.current.sessions).toEqual([])
-  })
-
-  it('离开工作区后旧历史详情不能覆盖目标工作区', async () => {
-    let finish!: (value: unknown) => void
-    getMock.mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          finish = resolve
-        }),
-    )
-    const rendered = renderHook(
-      ({ workspace }: { workspace: AssistantWorkspace }) =>
-        historyHook.useStudioOperatorHistory({ ...IMAGE_SCOPE, workspace }),
-      { initialProps: { workspace: 'image-natural' } },
-    )
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0)
-    })
-    act(() => rendered.result.current.selectSession(session))
-    rendered.rerender({ workspace: 'lora' })
-    await act(async () =>
-      finish({ success: true, data: { ...session, messages: [] } }),
-    )
-    expect(store.getOperatorState().threadScope).toBe('user-1:lora')
-    expect(store.getOperatorState().sessionId).toBeNull()
-  })
-
-  it('未保存的工作区切走会保存其自己的快照，晚回包只绑定原缓存', async () => {
-    let finish!: (value: unknown) => void
-    upsertMock.mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          finish = resolve
-        }),
-    )
-    const rendered = renderHook(
-      ({ workspace }: { workspace: AssistantWorkspace }) =>
-        historyHook.useStudioOperatorHistory({ ...IMAGE_SCOPE, workspace }),
-      { initialProps: { workspace: 'image-natural' } },
-    )
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0)
-    })
-    act(() => say('a1', '图片请求'))
-    rendered.rerender({ workspace: 'lora' })
-    expect(lastUpsertBody()).toMatchObject({ workspaceKey: 'image-natural' })
-    await act(async () =>
-      finish({ success: true, data: { id: 'image-conversation' } }),
-    )
-    expect(store.getOperatorState().sessionId).toBeNull()
-    rendered.rerender({ workspace: 'image-natural' })
-    expect(store.getOperatorState().sessionId).toBe('image-conversation')
-    expect(store.getOperatorState().entries.map((item) => item.id)).toEqual([
-      'a1',
     ])
   })
 

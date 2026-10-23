@@ -779,6 +779,14 @@ export function describeChatModeSwitch(characterName: string | null): string {
     : '[Workspace event: the creator switched this conversation back to work mode. Earlier roleplay lines are context; answer as the assistant from here.]'
 }
 
+/**
+ * 换台那一句（第 9d 步：一段对话跨台）。模型据此知道前面的工具结果是在别的台上做的，
+ * 这一轮能改的是现在这个台。
+ */
+export function describeDomainSwitch(domain: string): string {
+  return `[Workspace event: the creator moved to the ${domain} workspace. Earlier tool results were on another workspace; work from the current snapshot.]`
+}
+
 function isOperatorDomain(value: string): value is AssistantOperatorDomain {
   return (ASSISTANT_OPERATOR_DOMAINS as readonly string[]).includes(value)
 }
@@ -1044,6 +1052,11 @@ export function historyToOperatorMessages(
       messages.push({
         role: 'assistant',
         content: describeChatModeSwitch(entry.characterName ?? null),
+      })
+    } else if (entry.kind === 'domainMark') {
+      messages.push({
+        role: 'assistant',
+        content: describeDomainSwitch(entry.domain),
       })
     }
   }

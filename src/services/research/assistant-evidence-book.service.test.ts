@@ -175,7 +175,7 @@ describe('证据本（assistant-shell-v2 §7.3）', () => {
     expect((await appendAssistantEvidenceBook(input)).refs).toEqual(['#e1'])
   })
 
-  it('锁不住所属工作区会话时不读取证据、不创建弱引用记录', async () => {
+  it('锁不住他自己的这段会话时不读取证据、不创建弱引用记录', async () => {
     mocks.lockConversation.mockResolvedValueOnce([])
     expect(await appendAssistantEvidenceBook(args())).toEqual({
       refs: [],
@@ -183,13 +183,7 @@ describe('证据本（assistant-shell-v2 §7.3）', () => {
     })
     const query = mocks.lockConversation.mock.calls[0][0]
     expect(query.sql).toContain('FOR UPDATE')
-    expect(query.values).toEqual([
-      'conv-1',
-      'owner-id',
-      'IMAGE_STUDIO',
-      null,
-      'image-tags',
-    ])
+    expect(query.values).toEqual(['conv-1', 'owner-id'])
     expect(mocks.findMany).not.toHaveBeenCalled()
     expect(mocks.create).not.toHaveBeenCalled()
   })

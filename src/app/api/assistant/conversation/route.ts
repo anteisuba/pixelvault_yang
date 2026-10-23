@@ -12,17 +12,12 @@ import {
   upsertAssistantConversation,
 } from '@/services/assistant-conversation.service'
 import {
-  AssistantSurfaceSchema,
   UpdateAssistantConversationRoundRequestSchema,
   UpsertAssistantConversationRequestSchema,
 } from '@/types/assistant-conversation'
-import { AssistantWorkspaceKeySchema } from '@/types/assistant-workspace'
 
 export const GET = createApiGetRoute({
   schema: z.object({
-    workspaceKey: AssistantWorkspaceKeySchema,
-    surface: AssistantSurfaceSchema,
-    projectId: z.string().trim().min(1).max(160).optional(),
     id: z.string().uuid().optional(),
     /** When "1", return a list of conversation summaries instead of one body. */
     list: z.enum(['0', '1']).optional(),
@@ -35,9 +30,6 @@ export const GET = createApiGetRoute({
   handler: async ({ clerkId, data }) => {
     if (data.list === '1') {
       return listAssistantConversations(clerkId!, {
-        workspaceKey: data.workspaceKey,
-        surface: data.surface,
-        projectId: data.projectId,
         limit: data.limit,
         ...(data.operatorOnly !== undefined
           ? { operatorOnly: data.operatorOnly === '1' }
@@ -46,10 +38,7 @@ export const GET = createApiGetRoute({
     }
 
     return getAssistantConversation(clerkId!, {
-      workspaceKey: data.workspaceKey,
       id: data.id,
-      surface: data.surface,
-      projectId: data.projectId,
       ...(data.operatorOnly !== undefined
         ? { operatorOnly: data.operatorOnly === '1' }
         : {}),

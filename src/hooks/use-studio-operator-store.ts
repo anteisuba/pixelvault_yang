@@ -511,7 +511,13 @@ export function subscribeOperatorChat(listener: () => void): () => void {
  * ⚠ 带着**要给哪个域**：发出这句话的那一页（角色页）自己也挂着一个 Dock，⛔ 不能让它
  *   在跳走之前把话先吞了。只留一句：连点两次，意思是「就这句」。
  */
-let pendingDraft: { scope: string; text: string } | null = null
+let pendingDraft: {
+  /** 哪个账号的线程（作用域 `:` 之前那一段）。 */
+  account: string
+  /** 给哪个台（`workspaceKey`）；`canvas` = 眼前挂着的那块画布。 */
+  target: string
+  text: string
+} | null = null
 const draftListeners = new Set<() => void>()
 
 export function requestOperatorDraft(
@@ -523,21 +529,30 @@ export function requestOperatorDraft(
   const source = state.threadScope
   if (!source) return
   const account = source.slice(0, source.indexOf(':'))
-  const scope =
-    workspace !== 'canvas'
-      ? `${account}:${workspace}`
-      : canvasProjectId
-        ? `${account}:canvas:${canvasProjectId}`
-        : source
   if (workspace === 'canvas' && !canvasProjectId && state.domain !== 'canvas')
     return
-  pendingDraft = { scope, text }
+  const target =
+    workspace === 'canvas' && canvasProjectId
+      ? `canvas:${canvasProjectId}`
+      : workspace
+  pendingDraft = { account, target, text }
   for (const listener of draftListeners) listener()
 }
 
-/** 取走并清空 —— 只有域对得上的那一页取得走。 */
-export function takeOperatorDraft(scope: string | null): string | null {
-  if (!scope || !pendingDraft || pendingDraft.scope !== scope) return null
+/**
+ * 取走并清空 —— 只有台对得上的那一页取得走（线程一个人一段，第 9d 步；台由 `workspaceKey` 认）。
+ */
+export function takeOperatorDraft(
+  scope: string | null,
+  workspaceKey: string | null,
+): string | null {
+  if (!scope || !workspaceKey || !pendingDraft) return null
+  if (scope.slice(0, scope.indexOf(':')) !== pendingDraft.account) return null
+  const matches =
+    pendingDraft.target === 'canvas'
+      ? workspaceKey.startsWith('canvas:')
+      : pendingDraft.target === workspaceKey
+  if (!matches) return null
   const { text } = pendingDraft
   pendingDraft = null
   return text
@@ -1313,13 +1328,13 @@ export function claimOperatorThreadScope(
   if (
     !scope ||
     (pendingDraft &&
-      pendingDraft.scope.slice(0, pendingDraft.scope.indexOf(':')) !==
-        scope.slice(0, scope.indexOf(':')))
+      pendingDraft.account !== scope.slice(0, scope.indexOf(':')))
   ) {
     pendingDraft = null
   }
   emit({
     ...next,
+    entries: withDomainMark(next, domain),
     domain,
     threadScope: scope,
     status: next.status === 'working' ? 'idle' : next.status,
@@ -1327,6 +1342,27 @@ export function claimOperatorThreadScope(
   })
   if (!cached) hydrateOperatorResume()
   return true
+}
+
+/**
+ * 同一段对话换了台（第 9d 步：对话不按台分）→ 时间线上落一条换台细线，模型也读得到。
+ * ⚠ 空线程不落（还没聊过，换台不是一件事）；上一条就是换台线时就地改掉（来回点台不堆一串）。
+ */
+function withDomainMark(
+  thread: StudioOperatorState,
+  domain: AssistantOperatorDomain,
+): StudioOperatorState['entries'] {
+  if (thread.domain === domain) return thread.entries
+  if (thread.entries.length === 0 && thread.history.length === 0)
+    return thread.entries
+  const kept =
+    thread.entries.at(-1)?.kind === 'domainMark'
+      ? thread.entries.slice(0, -1)
+      : thread.entries
+  return [
+    ...kept,
+    { kind: 'domainMark', id: nextOperatorEntryId('domain'), domain },
+  ]
 }
 
 /** 自动生成开关（D12 S-C）—— 跟着工作台走，见 `autoGenerate` 头注。 */

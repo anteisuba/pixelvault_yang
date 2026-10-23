@@ -169,6 +169,7 @@ import {
   clampPlanAnswer,
   describeLoraSetupDecisionText,
   describeChatModeSwitch,
+  describeDomainSwitch,
   historyToOperatorMessages,
   historyToPriorSteps,
   readOperatorReferenceProfiles,
@@ -299,6 +300,11 @@ function buildMessages(
       messages.push({
         role: 'assistant',
         content: describeChatModeSwitch(entry.character?.name ?? null),
+      })
+    } else if (entry.kind === 'domainMark') {
+      messages.push({
+        role: 'assistant',
+        content: describeDomainSwitch(entry.domain),
       })
     }
   }

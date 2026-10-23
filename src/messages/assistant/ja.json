@@ -1155,7 +1155,8 @@
       "chat": "チャット",
       "pickCharacter": "話す相手",
       "toChat": "チャットに切替 · {name}と",
-      "toWork": "作業に戻る"
+      "toWork": "作業に戻る",
+      "toDomain": "{domain}に移動"
     },
     "phoneAdd": {
       "label": "追加",

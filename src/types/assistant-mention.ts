@@ -138,10 +138,16 @@ export type AssistantMentionLibraryResult = z.infer<
   typeof AssistantMentionLibraryResultSchema
 >
 
-/** 按地址查名字（参考位带真名）。 */
-export const AssistantMentionLookupSchema = z.object({
-  urls: z.array(z.string().trim().url().max(4000)).min(1).max(16),
-})
+/**
+ * 按地址查名字（参考位带真名），或按图的编号查那一张（`seqs`：助手回复里的 `图_N` 换成
+ * 缩略图，第 9d 步）。两样至少给一样。
+ */
+export const AssistantMentionLookupSchema = z
+  .object({
+    urls: z.array(z.string().trim().url().max(4000)).max(16).optional(),
+    seqs: z.array(z.number().int().positive()).max(32).optional(),
+  })
+  .refine((input) => (input.urls?.length ?? 0) + (input.seqs?.length ?? 0) > 0)
 export type AssistantMentionLookup = z.infer<
   typeof AssistantMentionLookupSchema
 >

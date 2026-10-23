@@ -1,6 +1,6 @@
 # 助手重设计内核（next）— 施工基准
 
-> 状态：**第 9c 步「切给所有人 + 删旧内核」（2026-10-23）**。代码在 `src/features/assistant/`，所有人、所有台都走新内核（路由不再看开关，浏览器本地开关 `antei:assistant-kernel` 已删）。v2 / v3 的主循环与老提示词助手（`StudioAssistantDock` / `/api/prompt/assistant`）已删；v3 的执行函数、板子、`prepareOperatorTurn` 等仍被新内核借用，留着。新内核接不了的请求（脸 / 型号 / 台子快照没对上）直接回错误事件，⛔ 没有退路。总设计与各步顺序见施工单 a-redesign。
+> 状态：**第 9d 步「一段对话跨台 + 编号换缩略图」（2026-10-23）**；第 9c 步（同日）起所有人切新内核。代码在 `src/features/assistant/`，所有人、所有台都走新内核（路由不再看开关，浏览器本地开关 `antei:assistant-kernel` 已删）。v2 / v3 的主循环与老提示词助手（`StudioAssistantDock` / `/api/prompt/assistant`）已删；v3 的执行函数、板子、`prepareOperatorTurn` 等仍被新内核借用，留着。新内核接不了的请求（脸 / 型号 / 台子快照没对上）直接回错误事件，⛔ 没有退路。总设计与各步顺序见施工单 a-redesign。
 
 ## 1. 为什么另起
 
@@ -96,6 +96,15 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 - 「/」：服务端从这条消息原文认 `/名字`（前面是开头或空白；长名字先认；关掉的不算），全文进这一轮第一条消息（`renderCalledSkills`），一条最多 3 份、合计 3 万字，多的回一句让模型告诉创作者。输入框「/」菜单只帮着写名字（普通文字，⛔ 胶囊）。
 - 设置第三页「技能」：内置 / 我的两组、开关、看全文和参考文件、改成我的版本、改、删、导出 zip（`lib/skill-export.ts`，`<name>/SKILL.md` + `references/`）。
 
+**第 9d 步：一段对话跨台**（owner 10-23）：
+
+- 对话按人存、⛔ 不再按台分：在哪个台打开面板都是同一段，换台接着聊。客户端线程范围 `assistantThreadScope(userId)`（`<uid>:assistant`）；服务端读 / 写 / 锁会话只核 `userId`（`findOwnConversation`），这一轮所在台的权限（画布项目归属）照旧由 `assertAssistantWorkspaceAccess` 核。
+- 换台落一条 `domainMark`（细线「切到 X」，会存；模型那边是一句 workspace event，`describeDomainSwitch`）；空对话换台不落，连着换只留最后一条。这一轮能改哪个台看的是现在所在的台。
+- 会话的「家」= 开头那个台：新会话盖当时的台，之后保存保留首条上的戳（⛔ 跟着换台改）。历史下拉列这个人全部会话，每条标起始的台（`assistantWorkspaceKeyOfRow`）。以前按台分开的旧会话照列、不合并、不搬数据。画布记忆照旧按项目记。隐身仍是整段一个开关。
+- 输入框草稿与附件跟着人走，换台不丢；交接草稿（`takeOperatorDraft`）按账号 + 目标台认。
+- 回复正文与过程行里的 `图_N` / `视频_N` 换缩略图（`use-picture-number-references.ts`）：按编号向 `/api/assistant/mentions/lookup` 的 `seqs` 查他自己的那张（一次最多 32 个，查过的记在模块里），查不到照原样留字。编号照旧只给模型用。
+- 只做功能、用现有组件拼；样式统一留到施工单后面的「UI 统一」（owner 10-23）。
+
 **过程记录**：照写 `AssistantTurnRecord`，`promptVersion = next-YYYY-MM-DD`；本轮记录投成 v3 形状（自带联网记成 `search_web`、`find` 记成 `search_library`），评测工具照用。
 
 ## 3. 没验证的（2026-10-23）
@@ -110,6 +119,7 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 
 ## Last Verified
 
+- 2026-10-23 · 第 9d 步（对话跨台 + 缩略图）：`tsc` 0 error、改动相关 vitest 246 个文件全绿（换台同一段对话 + 落标记、列全部会话、起始台的戳不变、按编号查图）。未在浏览器里实跑，未跑评测（等第 9 步全做完再统一跑）。
 - 2026-10-23 · 第 9c 步（切换 + 删旧）：`tsc` 0 error、改动相关 vitest 全绿（路由六个台一律新内核、hook 接力与出完停下问一句）。删掉的覆盖：v2 / v3 主循环的用例、v3 回放基线。未在浏览器里实跑，未跑评测（等第 9 步全做完再统一跑）。
 
 - 2026-10-23 · 第 9b 步（配音台）：`tsc` 0 error、改动文件 eslint 0 error、相关定向 vitest 全绿（改法翻译 / 板子、`set_audio` 落 → 撤、快照与表单 action、路由 403）。未在浏览器里实跑，未跑评测（等第 9 步全做完再统一跑）。

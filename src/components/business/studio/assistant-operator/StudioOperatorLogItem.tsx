@@ -73,6 +73,8 @@ import { URL_READER_VIAS } from '@/constants/web-search'
 import { STUDIO_OPERATOR_REFERENCE_STAGGER_SECONDS } from '@/constants/studio-assistant-operator'
 import { openOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
 import { StudioOperatorWebVideoPlayer } from '@/components/business/studio/assistant-operator/StudioOperatorWebVideoPlayer'
+import { StudioOperatorReferenceText } from '@/components/business/studio/assistant-operator/StudioOperatorMessageBody'
+import { usePictureNumberReferences } from '@/hooks/use-picture-number-references'
 import { describeOperatorStepDetail } from '@/lib/studio-operator-history'
 import { cn } from '@/lib/utils'
 import { resolveWebVideo } from '@/lib/web-video'
@@ -304,7 +306,7 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
               undone && 'line-through',
             )}
           >
-            {step.title}
+            <StepTitle title={step.title} />
           </span>
           <span className="min-w-0 flex-1 text-foreground/80">
             {isRejected ? (
@@ -581,3 +583,13 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
     </div>
   )
 })
+
+/** 过程行的标题：里面的 `图_N` 换成缩略图（第 9d 步）。 */
+function StepTitle({ title }: { title: string }) {
+  const references = usePictureNumberReferences(title)
+  return references.length ? (
+    <StudioOperatorReferenceText text={title} references={references} />
+  ) : (
+    title
+  )
+}

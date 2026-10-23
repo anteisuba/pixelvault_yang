@@ -9,7 +9,8 @@
  * 表是既有的 `AssistantConversation`，操作员的痕迹搭在每条消息的可选 `operator`
  * 格上（形态与 `promptDraft` / `loraPicks` 那几格一模一样）。
  *
- * 会话按账号、工作区和画布项目隔离；surface 只保留原有存储分类。
+ * 会话按账号隔离、⛔ 不按台分（第 9d 步，owner 10-23）：一个人一段当前对话，换台不断；
+ * 新建的那一行记在起始的那个台（surface / 首条戳），中途换过哪些台记在 `domainMark` 里。
  *
  * ── 存什么 / 不存什么 ─────────────────────────────────────────────
  * 只存**可读历史**。撤销的 inverse、primed、就地确认条、改动登记簿、联网候选的
@@ -33,8 +34,8 @@ import { STUDIO_OPERATOR_HISTORY } from '@/constants/studio-assistant-operator'
 import type { AssistantWorkspace } from '@/types/assistant-workspace'
 import {
   assistantWorkspaceDomain,
+  assistantThreadScope,
   assistantWorkspaceKey,
-  assistantWorkspaceScope,
   assistantWorkspaceSurface,
 } from '@/lib/assistant-workspace'
 import {
@@ -210,13 +211,8 @@ export function resetOperatorHistoryHydrationForTests(): void {
   savedThreads.clear()
 }
 
-async function listOperatorSessions(
-  workspace: WorkspacePersistence,
-): Promise<AssistantConversationSummary[]> {
+async function listOperatorSessions(): Promise<AssistantConversationSummary[]> {
   const result = await listAssistantConversationsAPI({
-    surface: workspace.surface,
-    workspaceKey: workspace.workspaceKey,
-    ...(workspace.projectId ? { projectId: workspace.projectId } : {}),
     operatorOnly: true,
     limit: STUDIO_OPERATOR_HISTORY.listLimit,
   })
@@ -225,7 +221,7 @@ async function listOperatorSessions(
 }
 
 export interface UseStudioOperatorHistoryResult {
-  /** 当前工作区的会话列表，按 updatedAt 倒序。 */
+  /** 这个人全部的会话（不分台），按 updatedAt 倒序。 */
   sessions: readonly AssistantConversationSummary[]
   /** 当前这条线程在库里的行；`null` = 还没落过库。 */
   currentSessionId: string | null
@@ -309,7 +305,7 @@ export function useStudioOperatorHistory({
   const [sessions, setSessions] = useState<
     readonly AssistantConversationSummary[]
   >([])
-  const scope = assistantWorkspaceScope(userId, workspace, projectId)
+  const scope = assistantThreadScope(userId)
   const workspaceKey = assistantWorkspaceKey(workspace, projectId)
   const surface = assistantWorkspaceSurface(workspace)
   const domain = assistantWorkspaceDomain(workspace)
@@ -336,13 +332,7 @@ export function useStudioOperatorHistory({
   const fetchSessions = useCallback(() => {
     if (!scope || !workspaceKey || !userId) return Promise.resolve([])
     if (listPending.current?.scope === scope) return listPending.current.promise
-    const pending = listOperatorSessions({
-      userId,
-      scope,
-      workspaceKey,
-      surface,
-      projectId,
-    })
+    const pending = listOperatorSessions()
       .then((items) => {
         lastListedAt.current = { scope, at: Date.now() }
         return items
@@ -352,7 +342,7 @@ export function useStudioOperatorHistory({
       })
     listPending.current = { scope, promise: pending }
     return pending
-  }, [scope, workspaceKey, userId, surface, projectId])
+  }, [scope, workspaceKey, userId])
 
   const refreshSessions = useCallback(
     (force = false) => {
@@ -385,8 +375,7 @@ export function useStudioOperatorHistory({
   const deleteSession = useCallback(
     async (session: AssistantConversationSummary) => {
       const epoch = lifecycle.current
-      if (!isActive(epoch) || session.workspaceKey !== workspaceKey)
-        return false
+      if (!isActive(epoch)) return false
       if (deletingRef.current) return false
       const current = getOperatorState()
       if (current.sessionId === session.id && current.status === 'working') {
@@ -418,26 +407,23 @@ export function useStudioOperatorHistory({
         if (isActive(epoch)) setDeletingSessionId(null)
       }
     },
-    [isActive, workspaceKey, scope, t],
+    [isActive, scope, t],
   )
 
   const applyConversation = useCallback(
     async (
       id: string,
-      surface: AssistantSurfaceId,
       chatCharacter: AssistantConversationSummary['chatCharacter'],
     ): Promise<boolean> => {
       const epoch = lifecycle.current
-      if (!isActive(epoch) || !workspaceKey) return false
+      if (!isActive(epoch)) return false
       const intent = ++loadIntent.current
       const before = getOperatorState()
       setLoadingSessionId(id)
       setError(null)
       try {
         const result = await getAssistantConversationAPI({
-          surface,
           id,
-          workspaceKey,
           operatorOnly: true,
         })
         if (
@@ -448,11 +434,7 @@ export function useStudioOperatorHistory({
           getOperatorState().localThreadId !== before.localThreadId
         )
           return false
-        if (
-          !result.success ||
-          !result.data ||
-          result.data.workspaceKey !== workspaceKey
-        ) {
+        if (!result.success || !result.data) {
           setError(t('loadFailed'))
           return false
         }
@@ -481,7 +463,7 @@ export function useStudioOperatorHistory({
           setLoadingSessionId(null)
       }
     },
-    [isActive, workspaceKey, t],
+    [isActive, t],
   )
 
   /**
@@ -540,11 +522,7 @@ export function useStudioOperatorHistory({
             current.sessionId
           )
             return
-          await applyConversation(
-            latest.id,
-            latest.surface,
-            latest.chatCharacter,
-          )
+          await applyConversation(latest.id, latest.chatCharacter)
         } catch {
           if (isActive(epoch)) setError(t('loadFailed'))
         } finally {
@@ -638,8 +616,7 @@ export function useStudioOperatorHistory({
   const renameSession = useCallback(
     async (session: AssistantConversationSummary, title: string) => {
       const epoch = lifecycle.current
-      if (!isActive(epoch) || session.workspaceKey !== workspaceKey)
-        return false
+      if (!isActive(epoch)) return false
       if (renamePending.current) return false
       renamePending.current = true
       setRenamingSessionId(session.id)
@@ -670,16 +647,15 @@ export function useStudioOperatorHistory({
         if (isActive(epoch)) setRenamingSessionId(null)
       }
     },
-    [isActive, workspaceKey, t],
+    [isActive, t],
   )
 
   const selectSession = useCallback(
     (session: AssistantConversationSummary) => {
-      if (session.workspaceKey !== workspaceKey) return
       if (session.id === getOperatorState().sessionId) return
-      void applyConversation(session.id, session.surface, session.chatCharacter)
+      void applyConversation(session.id, session.chatCharacter)
     },
-    [applyConversation, workspaceKey],
+    [applyConversation],
   )
 
   const visibleError = saveFailed ? t('saveFailed') : error

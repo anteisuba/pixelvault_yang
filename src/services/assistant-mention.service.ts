@@ -188,12 +188,18 @@ async function listMentionFolders(
 export async function lookupMentionAssets(
   userId: string,
   urls: readonly string[],
+  seqs: readonly number[] = [],
 ): Promise<AssistantMentionLibraryItem[]> {
-  if (!urls.length) return []
+  if (!urls.length && !seqs.length) return []
   const rows = await db.generation.findMany({
     where: {
       userId,
-      OR: [{ url: { in: [...urls] } }, { thumbnailUrl: { in: [...urls] } }],
+      OR: [
+        ...(urls.length
+          ? [{ url: { in: [...urls] } }, { thumbnailUrl: { in: [...urls] } }]
+          : []),
+        ...(seqs.length ? [{ seq: { in: [...seqs] } }] : []),
+      ],
     },
     select: {
       id: true,
@@ -206,7 +212,7 @@ export async function lookupMentionAssets(
       createdAt: true,
       snapshot: true,
     },
-    take: urls.length * 2,
+    take: urls.length * 2 + seqs.length,
   })
   return rows.map((row) => {
     const kind = OUTPUT_KIND[row.outputType] ?? 'image'
@@ -237,8 +243,8 @@ export async function searchMentionLibraryForClerkId(
 
 export async function lookupMentionAssetsForClerkId(
   clerkId: string,
-  urls: readonly string[],
+  input: { urls?: readonly string[]; seqs?: readonly number[] },
 ): Promise<AssistantMentionLibraryItem[]> {
   const user = await ensureUser(clerkId)
-  return lookupMentionAssets(user.id, urls)
+  return lookupMentionAssets(user.id, input.urls ?? [], input.seqs ?? [])
 }

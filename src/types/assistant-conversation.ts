@@ -217,10 +217,8 @@ export type UpsertAssistantConversationRequest = z.infer<
   typeof UpsertAssistantConversationRequestSchema
 >
 
+/** 会话不按台分（第 9d 步）：列的是这个人全部的会话，⛔ 不按工作区圈。 */
 export const ListAssistantConversationsQuerySchema = z.object({
-  workspaceKey: AssistantWorkspaceKeySchema,
-  surface: AssistantSurfaceSchema,
-  projectId: z.string().trim().min(1).max(160).optional(),
   operatorOnly: z.boolean().optional(),
   limit: z.coerce.number().int().min(1).max(50).optional(),
 })
@@ -229,11 +227,9 @@ export type ListAssistantConversationsQuery = z.infer<
   typeof ListAssistantConversationsQuerySchema
 >
 
+/** 按 id 取他自己的一段（第 9d 步：不按工作区圈）；没给 id = 他最近的一段。 */
 export const GetAssistantConversationQuerySchema = z.object({
   id: z.string().uuid().optional(),
-  workspaceKey: AssistantWorkspaceKeySchema,
-  surface: AssistantSurfaceSchema.optional(),
-  projectId: z.string().trim().min(1).max(160).optional(),
   operatorOnly: z.boolean().optional(),
 })
 

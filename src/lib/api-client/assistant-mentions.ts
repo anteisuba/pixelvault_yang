@@ -40,15 +40,19 @@ export async function searchAssistantMentionLibraryAPI(
   }
 }
 
-/** 按地址查参考位在库里叫什么。 */
+/** 按地址查参考位在库里叫什么；或按图的编号（`seqs`）查那几张。 */
 export async function lookupAssistantMentionAssetsAPI(
   urls: readonly string[],
+  seqs: readonly number[] = [],
 ): Promise<Result<AssistantMentionLibraryItem[]>> {
   try {
     const response = await fetch(API_ENDPOINTS.ASSISTANT_MENTIONS_LOOKUP, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ urls }),
+      body: JSON.stringify({
+        ...(urls.length ? { urls } : {}),
+        ...(seqs.length ? { seqs } : {}),
+      }),
     })
     if (!response.ok) {
       return {

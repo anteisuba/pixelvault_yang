@@ -218,7 +218,7 @@ beforeEach(() => {
 })
 
 describe('StudioOperatorDock', () => {
-  it('助手草稿和非图片附件按工作台与会话恢复，换账号清空', () => {
+  it('助手草稿和非图片附件跟着这段对话走：换台留着，新对话 / 换账号清空（9d）', () => {
     const view = render(<StudioOperatorDock />)
     act(() => panelProps.onDraftChange('natural assistant draft'))
     const audio: StudioOperatorAttachment = {
@@ -229,11 +229,6 @@ describe('StudioOperatorDock', () => {
     }
     act(() => onUploaded(audio))
     hostWorkspace = 'image-tags'
-    view.rerender(<StudioOperatorDock />)
-    expect(panelProps.draft).toBe('')
-    expect(panelProps.attachments).toEqual([])
-    act(() => panelProps.onDraftChange('tag assistant draft'))
-    hostWorkspace = 'image-natural'
     view.rerender(<StudioOperatorDock />)
     expect(panelProps.draft).toBe('natural assistant draft')
     expect(panelProps.attachments).toEqual([audio])

@@ -2,7 +2,6 @@ import { API_ENDPOINTS } from '@/constants/config'
 import type {
   AssistantConversationRecord,
   AssistantConversationSummary,
-  AssistantSurfaceId,
   SharedAssistantConversationRecord,
   AssistantConversationRoundStored,
   UpdateAssistantConversationRoundRequest,
@@ -49,19 +48,11 @@ async function parseJsonResult<T>(
 }
 
 export async function listAssistantConversationsAPI(args: {
-  workspaceKey: string
-  surface: AssistantSurfaceId
-  projectId?: string
   operatorOnly?: boolean
   limit?: number
 }): Promise<ApiResult<AssistantConversationSummary[]>> {
   try {
-    const params = new URLSearchParams({
-      workspaceKey: args.workspaceKey,
-      surface: args.surface,
-      list: '1',
-    })
-    if (args.projectId) params.set('projectId', args.projectId)
+    const params = new URLSearchParams({ list: '1' })
     if (args.operatorOnly !== undefined)
       params.set('operatorOnly', args.operatorOnly ? '1' : '0')
     if (args.limit) params.set('limit', String(args.limit))
@@ -81,18 +72,11 @@ export async function listAssistantConversationsAPI(args: {
 }
 
 export async function getAssistantConversationAPI(args: {
-  workspaceKey: string
-  surface: AssistantSurfaceId
-  projectId?: string
   id?: string
   operatorOnly?: boolean
 }): Promise<ApiResult<AssistantConversationRecord | null>> {
   try {
-    const params = new URLSearchParams({
-      surface: args.surface,
-      workspaceKey: args.workspaceKey,
-    })
-    if (args.projectId) params.set('projectId', args.projectId)
+    const params = new URLSearchParams()
     if (args.id) params.set('id', args.id)
     if (args.operatorOnly !== undefined)
       params.set('operatorOnly', args.operatorOnly ? '1' : '0')

@@ -1155,7 +1155,8 @@
       "chat": "Chat",
       "pickCharacter": "Chat with",
       "toChat": "Switched to chat · with {name}",
-      "toWork": "Back to work"
+      "toWork": "Back to work",
+      "toDomain": "Moved to {domain}"
     },
     "phoneAdd": {
       "label": "Add",

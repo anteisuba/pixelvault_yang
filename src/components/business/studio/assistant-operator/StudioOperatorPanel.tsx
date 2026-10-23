@@ -119,7 +119,10 @@ import {
 } from '@/components/business/studio/assistant-operator/StudioOperatorChangedCards'
 import { StudioOperatorChatLine } from '@/components/business/studio/assistant-operator/StudioOperatorChatLine'
 import { StudioOperatorHistoryItem } from '@/components/business/studio/assistant-operator/StudioOperatorHistoryItem'
-import { StudioOperatorChatMark } from '@/components/business/studio/assistant-operator/StudioOperatorChatMark'
+import {
+  StudioOperatorChatMark,
+  StudioOperatorDomainMark,
+} from '@/components/business/studio/assistant-operator/StudioOperatorChatMark'
 import { StudioOperatorLogItem } from '@/components/business/studio/assistant-operator/StudioOperatorLogItem'
 import { StudioOperatorWebCandidateGrid } from '@/components/business/studio/assistant-operator/StudioOperatorWebCandidateGrid'
 import { StudioOperatorWebVideoRow } from '@/components/business/studio/assistant-operator/StudioOperatorWebVideoRow'
@@ -2324,7 +2327,14 @@ export function StudioOperatorPanel({
           <StudioOperatorResumeChip key={entry.id} resume={roundResume} />
         ) : null
       case 'domainMark':
-        return null
+        return (
+          <StudioOperatorTimelineRow
+            key={entry.id}
+            card={STUDIO_OPERATOR_CARD_KINDS.system}
+          >
+            <StudioOperatorDomainMark domain={entry.domain} />
+          </StudioOperatorTimelineRow>
+        )
       case 'chatMark':
         return (
           <StudioOperatorTimelineRow

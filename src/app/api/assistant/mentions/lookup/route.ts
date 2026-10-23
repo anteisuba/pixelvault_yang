@@ -14,5 +14,5 @@ export const POST = createApiRoute({
   routeName: 'POST /api/assistant/mentions/lookup',
   rateLimit: RATE_LIMIT_CONFIGS.authedRead,
   handler: async (clerkId, data) =>
-    lookupMentionAssetsForClerkId(clerkId, data.urls),
+    lookupMentionAssetsForClerkId(clerkId, data),
 })

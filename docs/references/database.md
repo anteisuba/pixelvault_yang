@@ -54,7 +54,7 @@
 
 工作区（`image-natural` / `image-tags` / `video` / `lora` / `cards` / `canvas:<projectId>`）是**请求字段与客户端线程范围**，⛔ 不是库里的列：不加 `workspaceKey`、不加枚举值、不需要迁移。历史上 `20260920`—`20261001` 那一版曾把它做成三表各一列，从未应用到任何库，运行时报 `column "workspaceKey" does not exist`，已整体撤回。
 
-- **会话**：`surface` + `projectId` 已能圈出视频 / LoRA / 角色页 / 画布（`NODE_CANVAS` 带项目号）。只有图片台一个 `IMAGE_STUDIO` 装两台工作台，那一台靠**首条消息上的 `workspaceKey` 戳**（服务端在保存时盖，列表用 `messages->0->>'workspaceKey'` 过滤）：戳着 `image-tags` 的归标签台，其余（含两台分开之前没有戳的旧会话）一律归自然语言台（owner 2026-10-04）。没有项目号的画布会话归不到任何一块画布，不进任何列表。派生规则只有一处：`assistantWorkspaceKeyOfRow`（`src/lib/assistant-workspace.ts`）。
+- **会话**（第 9d 步起会话按人、⛔ 不再按台分：读写只核 `userId`，下面的派生只用来标「这段从哪个台开始」）：`surface` + `projectId` 已能圈出视频 / LoRA / 角色页 / 画布（`NODE_CANVAS` 带项目号）。只有图片台一个 `IMAGE_STUDIO` 装两台工作台，那一台靠**首条消息上的 `workspaceKey` 戳**（服务端在新会话保存时盖，之后保存保留原戳）：戳着 `image-tags` 的归标签台，其余（含两台分开之前没有戳的旧会话）一律归自然语言台（owner 2026-10-04）。派生规则只有一处：`assistantWorkspaceKeyOfRow`（`src/lib/assistant-workspace.ts`）。
 - **记忆 / 规矩**：按域存（`AssistantMemoryScope` = `IMAGE` / `VIDEO` / `CANVAS` / `LORA` / `GLOBAL`；`ProjectRule.scope` 同理）。自然语言台与标签台同属 `image`、共用一份；角色页没有自己的域，落 `GLOBAL`。
 - 存量一行不动：不回填、不删行。
 

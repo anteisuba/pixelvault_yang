@@ -86,6 +86,11 @@ export const ASSISTANT_NEXT_EDIT_OP_IDS = {
   modelChannel: 'model_channel',
   assistantSetting: 'assistant_setting',
   searchSource: 'search_source',
+  /**
+   * 记忆（第 6 步，owner 10-23）：记下一条新的、按编号改一条、忘掉一条（value false）。
+   * 默认进「关于你」（各处都用）；给了角色就进那个角色自己那份。带撤销，任何台都能用。
+   */
+  remember: 'remember',
 } as const
 
 export const ASSISTANT_NEXT_EDIT_OPS = Object.values(
@@ -140,12 +145,27 @@ export const ASSISTANT_NEXT_LORA_PARAM_KEYS: Readonly<Record<string, string>> =
   }
 
 /** 过程记录里标「这一轮是新内核跑的」（`AssistantTurnRecord.promptVersion`）。改系统提示时一起换。 */
-export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-10-23e'
+export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-10-23f'
 
 export const ASSISTANT_NEXT_LIMITS = {
-  /** 带给模型的对话：最近这么多条、这么多字以内（上下文压缩是第 6 步）。 */
+  /**
+   * 带给模型的之前几轮（第 6 步）：最近这么多条、这么多字以内，起点按 `historyBlockTurns` 轮一块滑
+   * （两次滑动之间逐字不变，缓存吃得到）。滑出去的那几轮由后台写成摘要接在系统提示里
+   * （v3 那一套，`lib/assistant-v3-history`）—— 平常几轮的对话碰不到这条线，一次都不写。
+   */
   maxHistoryMessages: 40,
   maxHistoryChars: 60_000,
+  historyBlockTurns: 8,
+  /**
+   * 一轮里清旧工具结果（第 6 步，先清、不花钱）：还没清过的工具结果加起来超过 `clearToolResultsChars`
+   * 字，就把最近 `keepToolSteps` 步之前、长于 `clearableResultChars` 的那些换成一行（要细节再查一次）。
+   * 一次清到底，之后前缀不再动，缓存照样吃得到。
+   */
+  clearToolResultsChars: 80_000,
+  keepToolSteps: 3,
+  clearableResultChars: 600,
+  /** 系统提示里「记得的事」带几条（固定一组，最近记下 / 改过的在前）；其余靠 find 翻。 */
+  maxMemoriesInPrompt: 12,
   /** 一次 `look` 最多摆几张；一轮里一共留几张在模型眼前（多出的旧图只剩一行字）。 */
   maxLookPictures: 4,
   maxPicturesInContext: 16,
@@ -183,6 +203,7 @@ export const ASSISTANT_NEXT_HANDLE_PREFIXES = {
   lora: 'LoRA·',
   prompt: '提示词·',
   conversation: '对话·',
+  memory: '记忆·',
   settings: '设置',
 } as const
 

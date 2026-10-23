@@ -12,9 +12,13 @@ import {
   addSearchSource,
   createCharacter,
   createLook,
+  editMemory,
   favoriteLora,
+  findOwnCharacter,
   findOwnFolder,
+  forgetMemory,
   linkLoraToCharacter,
+  rememberMemory,
   removeSearchSource,
   savePrompt,
   setChannel,
@@ -25,6 +29,7 @@ import {
   writeLook,
   type LibraryWriteOutcome,
   type LibraryWriteOwner,
+  type MemoryTarget,
 } from '@/services/assistant-library-write.service'
 import {
   refused,
@@ -41,6 +46,8 @@ import {
 } from '@/features/assistant/constants'
 import type { EditChange } from '@/features/assistant/tools'
 import {
+  memoryHandle,
+  memoryIdPrefixOf,
   parseWorkspaceHandle,
   resolvePicture,
 } from '@/features/assistant/workspace.service'
@@ -72,6 +79,7 @@ export const LIBRARY_OPS: readonly AssistantNextEditOp[] = [
   OP.modelChannel,
   OP.assistantSetting,
   OP.searchSource,
+  OP.remember,
 ]
 
 export function isLibraryOp(op: string): boolean {
@@ -100,6 +108,7 @@ const TITLES: Record<
     [OP.modelChannel]: '改渠道',
     [OP.assistantSetting]: '改助手设置',
     [OP.searchSource]: '改搜图来源',
+    [OP.remember]: '记忆',
   },
   japanese: {
     [OP.tagPictures]: 'タグ付け',
@@ -119,6 +128,7 @@ const TITLES: Record<
     [OP.modelChannel]: 'チャネル変更',
     [OP.assistantSetting]: 'アシスタント設定',
     [OP.searchSource]: '検索ソース変更',
+    [OP.remember]: 'メモリー',
   },
   english: {
     [OP.tagPictures]: 'Tag',
@@ -138,6 +148,7 @@ const TITLES: Record<
     [OP.modelChannel]: 'Model channel',
     [OP.assistantSetting]: 'Assistant setting',
     [OP.searchSource]: 'Search sources',
+    [OP.remember]: 'Memory',
   },
 }
 
@@ -230,6 +241,99 @@ async function* settleWrite(
 }
 
 const need = (op: string, field: string) => `${op} needs ${field}.`
+
+const ABOUT_YOU: Record<PromptAssistantResponseLanguage, string> = {
+  chinese: '关于你',
+  japanese: 'あなたについて',
+  english: 'about you',
+}
+
+/**
+ * 记到哪一份：给了角色就是那个角色自己那份（页上的句柄 `char-…` 或 `角色·名`），否则「关于你」。
+ * 认不出的角色回一句错，⛔ 不退成「关于你」（那会把她的事串到各处）。
+ */
+async function memoryTargetOf(
+  context: V3Context,
+  character: string | null | undefined,
+): Promise<{ ok: true; target: MemoryTarget } | { ok: false; error: string }> {
+  if (!character?.trim())
+    return {
+      ok: true,
+      target: { characterCardId: null, label: ABOUT_YOU[context.language] },
+    }
+  const onPage = context.request.snapshot.cards?.characters.find(
+    (entry) => entry.id === context.handles.idOf(character.trim()),
+  )
+  if (onPage)
+    return {
+      ok: true,
+      target: { characterCardId: onPage.id, label: onPage.name },
+    }
+  const card = await findOwnCharacter(
+    context.prepared.user.id,
+    characterAndLook(character).name,
+  )
+  if (!card)
+    return {
+      ok: false,
+      error: `${character}: not a character of theirs. Use "角色·<name>"; find can look it up.`,
+    }
+  return { ok: true, target: { characterCardId: card.id, label: card.name } }
+}
+
+/**
+ * 记忆（第 6 步）：记下 / 改 / 忘掉一条，带撤销。隐身时一条都不碰；「让助手记住」关着就不记新的、不改，
+ * 忘掉照样能做（那是创作者要她少记一点）。
+ */
+async function* runRemember(
+  context: V3Context,
+  title: string,
+  change: EditChange,
+): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
+  const owner = ownerOf(context)
+  const fail = (error: string) =>
+    refused(context, TOOL.libraryWrite, title, error)
+  if (context.request.incognito === true)
+    return yield* fail(
+      'Incognito is on: nothing from this conversation is remembered or forgotten. Tell the creator if they ask.',
+    )
+  const ref = change.memory
+    ? { idPrefix: memoryIdPrefixOf(change.memory), text: change.memory }
+    : null
+  if (change.value === false) {
+    if (!ref)
+      return yield* fail(
+        'remember with value false needs memory: the number (记忆·xxxxxxxx) of the one to forget.',
+      )
+    return yield* settleWrite(
+      context,
+      title,
+      await forgetMemory(owner, { ref, handle: memoryHandle }),
+    )
+  }
+  if (!context.prepared.persona.memoryCapture)
+    return yield* fail(
+      '"Let the assistant remember" is off in their settings: you do not keep or change memories. Forgetting still works.',
+    )
+  if (!change.text?.trim()) return yield* fail(need(change.op, 'text'))
+  if (ref)
+    return yield* settleWrite(
+      context,
+      title,
+      await editMemory(owner, { ref, text: change.text, handle: memoryHandle }),
+    )
+  const target = await memoryTargetOf(context, change.character)
+  if (!target.ok) return yield* fail(target.error)
+  return yield* settleWrite(
+    context,
+    title,
+    await rememberMemory(owner, {
+      text: change.text,
+      target: target.target,
+      handle: memoryHandle,
+    }),
+  )
+}
 
 /** 一条改库改动。不在单子上的回 `null`（交回台上那一套）。 */
 export async function* runLibraryChange(
@@ -515,6 +619,8 @@ export async function* runLibraryChange(
         }),
       )
     }
+    case OP.remember:
+      return yield* runRemember(context, title, change)
     default:
       return yield* fail(
         TOOL.libraryWrite,

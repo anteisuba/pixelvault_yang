@@ -5,6 +5,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
  */
 
 const calls = vi.hoisted(() => ({
+  rememberMemory: vi.fn(),
+  editMemory: vi.fn(),
+  forgetMemory: vi.fn(),
+  findOwnCharacter: vi.fn(),
   runOldTool: vi.fn(),
   refused: vi.fn(),
   settlePlan: vi.fn(),
@@ -47,6 +51,10 @@ vi.mock('@/services/assistant-library-write.service', () => ({
   updatePrompt: vi.fn(),
   writeCharacterProfile: vi.fn(),
   writeLook: vi.fn(),
+  rememberMemory: calls.rememberMemory,
+  editMemory: calls.editMemory,
+  forgetMemory: calls.forgetMemory,
+  findOwnCharacter: calls.findOwnCharacter,
 }))
 vi.mock('@/features/assistant/workspace.service', () => ({
   parseWorkspaceHandle: (raw: string) => {
@@ -62,6 +70,9 @@ vi.mock('@/features/assistant/workspace.service', () => ({
     return null
   },
   resolvePicture: calls.resolvePicture,
+  memoryHandle: (id: string) => `记忆·${id.slice(0, 8)}`,
+  memoryIdPrefixOf: (raw: string) =>
+    raw.startsWith('记忆·') ? raw.slice(3) : null,
 }))
 
 import type { V3Context } from '@/services/kernel/assistant-v3-steps.service'
@@ -71,12 +82,16 @@ import { runLibraryChange } from './library'
 const context = {
   clerkId: 'clerk-1',
   language: 'chinese',
-  prepared: { user: { id: 'user-1' } },
+  prepared: { user: { id: 'user-1' }, persona: { memoryCapture: true } },
   request: { snapshot: {}, mentionedAssets: [] },
+  handles: { idOf: () => null },
 } as unknown as V3Context
 
-async function run(change: Parameters<typeof runLibraryChange>[1]) {
-  const steps = runLibraryChange(context, change)
+async function run(
+  change: Parameters<typeof runLibraryChange>[1],
+  on: V3Context = context,
+) {
+  const steps = runLibraryChange(on, change)
   let next = await steps.next()
   while (!next.done) next = await steps.next()
   return next.value
@@ -201,5 +216,79 @@ describe('改库：一条改动 → 对的那条写入', () => {
     )
     await run({ op: 'assistant_setting', key: 'api_key', value: 'x' })
     expect(calls.refused.mock.calls.at(-1)![3]).toContain('needs key')
+  })
+})
+
+describe('记忆（第 6 步）', () => {
+  const written = {
+    ok: true,
+    payload: { kind: 'new_memory', summary: '记下了' },
+    inverse: { kind: 'new_memory', memoryId: 'm-1' },
+    observation: 'ok',
+  }
+
+  it('没给角色：记进「关于你」', async () => {
+    calls.rememberMemory.mockResolvedValue(written)
+    await run({ op: 'remember', text: '人物图默认 3:4' })
+    const [, input] = calls.rememberMemory.mock.calls[0]!
+    expect(input.text).toBe('人物图默认 3:4')
+    expect(input.target).toEqual({ characterCardId: null, label: '关于你' })
+    expect(calls.settlePlan).toHaveBeenCalledWith(
+      context,
+      'library_write',
+      '记忆',
+      expect.objectContaining({ kind: 'mutate', inverse: written.inverse }),
+    )
+  })
+
+  it('给了角色：记进她自己那份；认不出的角色不退成「关于你」', async () => {
+    calls.rememberMemory.mockResolvedValue(written)
+    calls.findOwnCharacter.mockImplementation(async (_user, name: string) =>
+      name === '马尔福' ? { id: 'card-7', name: '马尔福' } : null,
+    )
+    await run({ op: 'remember', text: '冬装', character: '角色·马尔福' })
+    expect(calls.rememberMemory.mock.calls[0]![1].target).toEqual({
+      characterCardId: 'card-7',
+      label: '马尔福',
+    })
+    await run({ op: 'remember', text: '冬装', character: '角色·谁' })
+    expect(calls.rememberMemory).toHaveBeenCalledTimes(1)
+    expect(calls.refused).toHaveBeenCalled()
+  })
+
+  it('按编号改、value false 忘掉', async () => {
+    calls.editMemory.mockResolvedValue(written)
+    calls.forgetMemory.mockResolvedValue(written)
+    await run({ op: 'remember', memory: '记忆·3f9a1c2b', text: '人物图 2:3' })
+    expect(calls.editMemory.mock.calls[0]![1].ref).toEqual({
+      idPrefix: '3f9a1c2b',
+      text: '记忆·3f9a1c2b',
+    })
+    await run({ op: 'remember', memory: '记忆·3f9a1c2b', value: false })
+    expect(calls.forgetMemory).toHaveBeenCalledTimes(1)
+  })
+
+  it('隐身一条都不碰；「让助手记住」关着不记新的、忘掉照样行', async () => {
+    const incognito = {
+      ...context,
+      request: { ...context.request, incognito: true },
+    } as unknown as V3Context
+    await run({ op: 'remember', text: 'x' }, incognito)
+    await run(
+      { op: 'remember', memory: '记忆·3f9a1c2b', value: false },
+      incognito,
+    )
+    expect(calls.rememberMemory).not.toHaveBeenCalled()
+    expect(calls.forgetMemory).not.toHaveBeenCalled()
+
+    const paused = {
+      ...context,
+      prepared: { ...context.prepared, persona: { memoryCapture: false } },
+    } as unknown as V3Context
+    calls.forgetMemory.mockResolvedValue(written)
+    await run({ op: 'remember', text: 'x' }, paused)
+    expect(calls.rememberMemory).not.toHaveBeenCalled()
+    await run({ op: 'remember', memory: '记忆·3f9a1c2b', value: false }, paused)
+    expect(calls.forgetMemory).toHaveBeenCalledTimes(1)
   })
 })

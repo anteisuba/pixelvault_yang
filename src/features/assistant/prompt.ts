@@ -10,14 +10,16 @@ import type {
 } from '@/types/assistant-persona'
 import type { PromptAssistantResponseLanguage } from '@/types'
 import {
-  buildAssistantMemorySection,
   buildCharacterSection,
   buildCreatorSection,
   buildModelDialectSection,
   buildPersonaStyleSection,
   RESPONSE_LANGUAGE_LABELS,
 } from '@/services/kernel/assistant-operator.service'
+import { renderAssistantV3HistorySummary } from '@/lib/assistant-v3-history'
+import type { AssistantV3HistorySummary } from '@/types/assistant-v3'
 import type { BenchFace } from '@/features/assistant/bench'
+import { memoryHandle } from '@/features/assistant/workspace.service'
 
 /**
  * 新内核的系统提示（总设计第二节「规则砍到几十条」）。
@@ -51,6 +53,8 @@ TOOLS
   · model_channel: channel (its name), value true / false to switch it on or off, name to rename it;
   · assistant_setting: one key and its value (look at 设置 for the keys and what they are now); it applies from their next message;
   · search_source: url (the site), list "block" or "allow"; value false takes the site off its list.
+  The memory op works on every bench too (each is undoable):
+  · remember: text = one short line to keep for next time. Keep only what will still matter in a NEW conversation: when the creator says to remember something or that it holds from now on ("以后都…", "记住…", "always…"), or a lasting preference you are sure of. Never keep what only matters to this conversation (it stays in this conversation by itself), and never anything private or sensitive. Give character (its handle on the page or "角色·<name>") when the line is about that character; otherwise it is about the creator and you see it on every bench. memory = the number of a line you already keep (记忆·…) to change it, with value false to forget it — do that when they say a line is wrong or no longer holds.
   Change only what they asked for. You cannot delete anything or publish anything: tell them where to do it.
 - ask: a question card with options, when you cannot go on without the creator's choice. Never ask what find, look or a search can tell you. The turn ends on the card.
 - generate: one batch of what is on the bench now. Call it when they ask for a picture ("出一张", "试试", "generate"). If the bench says LET AI GENERATE: on, it starts at once (at most 4 pictures per message); otherwise it is a confirm card and nothing is spent until they press it. Either way the turn ends there: do not promise to look at the results or to keep generating.
@@ -93,6 +97,11 @@ function rulesSection(rules: readonly ProjectRule[]): string {
     .join('\n')}`
 }
 
+function openCharacterOf(request: AssistantOperatorRequest) {
+  const open = request.snapshot.cards?.open
+  return open ? { id: open.id, name: open.name } : null
+}
+
 /** 记忆按记下的先后排（再按 id）：每轮逐字相同，缓存才吃得到。 */
 function stableMemoryOrder(memories: readonly AssistantMemory[]) {
   return [...memories].sort(
@@ -101,12 +110,47 @@ function stableMemoryOrder(memories: readonly AssistantMemory[]) {
   )
 }
 
+/**
+ * 记得的事（第 6 步）：「关于你」那一份 + 开着的那个角色自己那份，各带编号（改 / 忘用）。
+ * 别的角色、各台旧的那几条不在这里（要用时 find 翻）。
+ */
+function memorySection(
+  memories: readonly AssistantMemory[],
+  character: { id: string; name: string } | null,
+): string {
+  if (memories.length === 0) return ''
+  const line = (memory: AssistantMemory) =>
+    `  - [${memoryHandle(memory.id)}] ${memory.text}`
+  const ordered = stableMemoryOrder(memories)
+  const aboutCreator = ordered.filter((memory) => !memory.characterCardId)
+  const aboutCharacter = character
+    ? ordered.filter((memory) => memory.characterCardId === character.id)
+    : []
+  const groups = [
+    ...(aboutCreator.length
+      ? [`About the creator:\n${aboutCreator.map(line).join('\n')}`]
+      : []),
+    ...(aboutCharacter.length && character
+      ? [`About ${character.name}:\n${aboutCharacter.map(line).join('\n')}`]
+      : []),
+  ]
+  if (groups.length === 0) return ''
+  return `
+
+WHAT YOU REMEMBER — kept from earlier conversations, still true unless they say otherwise:
+${groups.join('\n')}
+- Work from these without being reminded, and without reciting them back.
+- What they say THIS turn always wins. When a line no longer holds, change it or forget it with remember.`
+}
+
 export function buildNextSystemPrompt(input: {
   face: BenchFace
   request: AssistantOperatorRequest
   persona: AssistantPromptPersona
   rules: readonly ProjectRule[]
   memories: readonly AssistantMemory[]
+  /** 滑出窗口的那几轮的摘要（第 6 步）；没有 = 不出这一段。 */
+  historySummary?: AssistantV3HistorySummary | null
   accountName: string | null
   language: PromptAssistantResponseLanguage
 }): NextSystemPrompt {
@@ -126,6 +170,8 @@ ${persona.name ? `Your name is ${persona.name}.\n` : ''}Reply in ${RESPONSE_LANG
     style ? `\n\nHOW YOU TALK${style}` : ''
   }${buildCreatorSection(persona, input.accountName, [], null)}${rulesSection(
     input.rules,
-  )}${buildAssistantMemorySection(stableMemoryOrder(input.memories))}${dialect}`
+  )}${memorySection(input.memories, openCharacterOf(input.request))}${renderAssistantV3HistorySummary(
+    input.historySummary ?? null,
+  )}${dialect}`
   return { stable, creator, text: `${stable}${creator}` }
 }

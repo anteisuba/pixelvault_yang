@@ -64,6 +64,14 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
   - 不管开不开，图落地后 ⛔ 不自动看图，钉一张「按这个方向继续吗？」（继续 / 换个方向，`use-assistant-operator` 的 `then: 'ask'`）。点了或直接打字，助手才看 `result-N`、接着改。
   - 「先问我」（`planMode`）新内核本来就不读，不管出图。
 
+**第 6 步**（owner 10-23：照 Claude 的项目记忆做；要「关于你」这一层；先清后摘要；一份 PR）：
+
+- 记忆分份、互不干扰：「关于你」= global 那一份，各处都用；角色各自一份（cards 范围、挂 `characterCardId`）；画布一个项目一份（旧内核那条，画布第 9 步才接）。工作台对话里的事 ⛔ 不往外记，只留在那段对话里（靠下面的压缩）。
+- 注入（`listNextAssistantMemoriesForPrompt`）：「关于你」+ 角色页上开着的那位自己那份，各带编号 `记忆·<id 前 8 位>`，最多 `maxMemoriesInPrompt` 条。各台旧记忆不再注入，`find` 照样翻得到。隐身不读。
+- 写：`edit` 的 `remember`（任何台，走 `library_write`，kind = new_memory / memory / forget_memory，带撤销）。只记创作者明说「以后都 / 记住」或确定长期有用的；给 `character` 就进那个角色。敏感句不记；同一句不记第二行；创作者自己写的那几条不改不忘。「让助手记住」关着不记新的、不改，忘掉照样行；隐身一条都不碰。
+- 之前几轮：用 v3 那套开窗 + 摘要（`lib/assistant-v3-history`，窗口参数化：新内核 40 条 / 6 万字 / 8 轮一块）。滑出去的那几轮后台补摘要（这一轮的型号与 key、`low` 档，回完才跑），接在系统提示末尾；接力那几跳照第一跳定下的窗口（`NextTurnState.history`）。平常几轮的对话碰不到线，一次都不写。
+- 一轮里清旧工具结果（`clearOldToolResults`，不花钱）：还没清的工具结果超 8 万字，就把最近 3 步之前、长于 600 字的换成一行；一次清到底，之后前缀不动。看过的旧图照旧由 `hydratePictures` 换成一行。
+
 **过程记录**：照写 `AssistantTurnRecord`，`promptVersion = next-YYYY-MM-DD`；本轮记录投成 v3 形状（自带联网记成 `search_web`、`find` 记成 `search_library`），评测工具照用。
 
 ## 3. 没验证的（2026-10-23）

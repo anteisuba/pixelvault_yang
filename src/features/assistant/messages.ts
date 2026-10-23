@@ -3,6 +3,7 @@ import type {
   ImagePart,
   ModelMessage,
   TextPart,
+  ToolContent,
   UserContent,
 } from 'ai'
 
@@ -160,24 +161,67 @@ export interface HistoryLine {
 }
 
 /**
- * 之前几轮的对白（只有说的话）：从最近往前，条数与字数都放得下为止。⚠ 上下文压缩是第 6 步。
- * ⚠ 开头那条必须是创作者说的（几家都要求先 user 后 assistant）。
+ * 之前几轮的对白（只有说的话）。取哪几轮由 `planAssistantV3History` 开窗（第 6 步：按块滑、滑出去的写成
+ * 摘要），这里只把那一段排成消息。⚠ 开头那条必须是创作者说的（几家都要求先 user 后 assistant）。
  */
-export function historyMessages(
-  lines: readonly HistoryLine[],
-  maxMessages: number = ASSISTANT_NEXT_LIMITS.maxHistoryMessages,
-  maxChars: number = ASSISTANT_NEXT_LIMITS.maxHistoryChars,
+export function historyMessages(lines: readonly HistoryLine[]): ModelMessage[] {
+  const kept = lines.filter((line) => line.content.trim())
+  const first = kept.findIndex((line) => line.role === 'user')
+  if (first < 0) return []
+  return kept
+    .slice(first)
+    .map((line) => ({ role: line.role, content: line.content }))
+}
+
+function clearedNote(value: string): string {
+  const head = value.replace(/\s+/g, ' ').trim().slice(0, 120)
+  return `(cleared to save room; it began: "${head}…". Call the same tool again if you need it.)`
+}
+
+/**
+ * 清旧工具结果（第 6 步「先清、不花钱」）：一轮里还在原样的工具结果加起来超过 `clearToolResultsChars`
+ * 字时，最近 `keepToolSteps` 步之前、长于 `clearableResultChars` 的那些换成一行。能重新查到的才清
+ * （查、看、改的回话），模型自己的话、思考、联网结果原样不动；看过的旧图由 `hydratePictures` 管。
+ * 没超就原样返回同一个数组。
+ */
+export function clearOldToolResults(
+  messages: ModelMessage[],
+  limits: {
+    readonly clearToolResultsChars: number
+    readonly keepToolSteps: number
+    readonly clearableResultChars: number
+  } = ASSISTANT_NEXT_LIMITS,
 ): ModelMessage[] {
-  const kept: HistoryLine[] = []
   let chars = 0
-  for (let index = lines.length - 1; index >= 0; index -= 1) {
-    const line = lines[index]!
-    if (!line.content.trim()) continue
-    if (kept.length >= maxMessages || chars + line.content.length > maxChars)
-      break
-    kept.unshift(line)
-    chars += line.content.length
-  }
-  while (kept[0] && kept[0].role !== 'user') kept.shift()
-  return kept.map((line) => ({ role: line.role, content: line.content }))
+  const toolSteps: number[] = []
+  messages.forEach((message, index) => {
+    if (message.role !== 'tool') return
+    toolSteps.push(index)
+    for (const part of message.content)
+      if (part.type === 'tool-result' && part.output.type === 'text')
+        chars += part.output.value.length
+  })
+  if (
+    chars <= limits.clearToolResultsChars ||
+    toolSteps.length <= limits.keepToolSteps
+  )
+    return messages
+  const keepFrom = toolSteps[toolSteps.length - limits.keepToolSteps]!
+  return messages.map((message, index): ModelMessage => {
+    if (message.role !== 'tool' || index >= keepFrom) return message
+    const content: ToolContent = message.content.map((part) =>
+      part.type === 'tool-result' &&
+      part.output.type === 'text' &&
+      part.output.value.length > limits.clearableResultChars
+        ? {
+            ...part,
+            output: {
+              type: 'text' as const,
+              value: clearedNote(part.output.value),
+            },
+          }
+        : part,
+    )
+    return { ...message, content }
+  })
 }

@@ -23,6 +23,7 @@ import { GalleryGrid } from '@/components/business/GalleryGrid'
 import { PageLoadError } from '@/components/business/PageLoadError'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
 import { useIsMobile, useIsTablet } from '@/hooks/use-mobile'
+import { useSamePromptWorks } from '@/hooks/use-same-prompt-works'
 import { useSlowLoadingNotice } from '@/hooks/use-slow-loading-notice'
 import { toggleLikeAPI } from '@/lib/api-client'
 import type { GenerationRecord } from '@/types'
@@ -77,19 +78,38 @@ export function GalleryFeed({
   const isPhone = useIsMobile()
   const isTablet = useIsTablet()
   const [viewerId, setViewerId] = useState<string | null>(null)
+  /**
+   * 从提示词卡点开时记下那一张：查看器只翻这段提示词出的公开作品（不分作者），
+   * ⛔ 翻到列表里别的提示词的图（owner 2026-10-23）。
+   */
+  const [promptAnchorId, setPromptAnchorId] = useState<string | null>(null)
+  const { works: promptWorks, updateWork: updatePromptWork } =
+    useSamePromptWorks(promptAnchorId)
   const viewing =
     !isTablet && viewerId
-      ? (generations.find((generation) => generation.id === viewerId) ?? null)
+      ? (promptWorks.find((work) => work.id === viewerId) ??
+        generations.find((generation) => generation.id === viewerId) ??
+        null)
       : null
   const images = useMemo(
-    () => generations.filter((generation) => generation.outputType === 'IMAGE'),
-    [generations],
+    () =>
+      (promptAnchorId ? promptWorks : generations).filter(
+        (generation) => generation.outputType === 'IMAGE',
+      ),
+    [promptAnchorId, promptWorks, generations],
   )
   const openViewer = useCallback(
     (generation: GenerationRecord) => setViewerId(generation.id),
     [],
   )
-  const closeViewer = useCallback(() => setViewerId(null), [])
+  const openPromptViewer = useCallback((generation: GenerationRecord) => {
+    setPromptAnchorId(generation.id)
+    setViewerId(generation.id)
+  }, [])
+  const closeViewer = useCallback(() => {
+    setViewerId(null)
+    setPromptAnchorId(null)
+  }, [])
   const rootRef = useRef<HTMLDivElement>(null)
   const viewerBounds = useViewerBounds(Boolean(viewing) && !isPhone, rootRef)
 
@@ -101,10 +121,10 @@ export function GalleryFeed({
         : window.location.pathname
 
       window.history.replaceState(window.history.state, '', nextUrl)
-      setViewerId(null)
+      closeViewer()
       setFilters(nextFilters)
     },
-    [setFilters],
+    [closeViewer, setFilters],
   )
 
   /**
@@ -112,6 +132,13 @@ export function GalleryFeed({
    * 退回原样；同一张在飞时不接第二下。
    */
   const likePendingRef = useRef(new Set<string>())
+  const patchWork = useCallback(
+    (id: string, patch: Partial<GenerationRecord>) => {
+      updateGeneration(id, patch)
+      updatePromptWork(id, patch)
+    },
+    [updateGeneration, updatePromptWork],
+  )
   const toggleLike = useCallback(
     async (generation: GenerationRecord) => {
       const id = generation.id
@@ -121,7 +148,7 @@ export function GalleryFeed({
         isLiked: Boolean(generation.isLiked),
         likeCount: generation.likeCount ?? 0,
       }
-      updateGeneration(id, {
+      patchWork(id, {
         isLiked: !previous.isLiked,
         likeCount: previous.isLiked
           ? Math.max(previous.likeCount - 1, 0)
@@ -130,20 +157,20 @@ export function GalleryFeed({
       try {
         const response = await toggleLikeAPI(id)
         if (response.success && response.data) {
-          updateGeneration(id, {
+          patchWork(id, {
             isLiked: response.data.liked,
             likeCount: response.data.likeCount,
           })
         } else {
-          updateGeneration(id, previous)
+          patchWork(id, previous)
         }
       } catch {
-        updateGeneration(id, previous)
+        patchWork(id, previous)
       } finally {
         likePendingRef.current.delete(id)
       }
     },
-    [updateGeneration],
+    [patchWork],
   )
   const handleToggleLike = useCallback(
     (generation: GenerationRecord) => void toggleLike(generation),
@@ -173,7 +200,7 @@ export function GalleryFeed({
             emptyActionHref={ROUTES.STUDIO}
             emptyActionLabel={t('emptyAction')}
             feedLabel={t('feedLabel')}
-            onOpen={isTablet ? undefined : openViewer}
+            onOpen={isTablet ? undefined : openPromptViewer}
           />
         ) : (
           <GalleryGrid

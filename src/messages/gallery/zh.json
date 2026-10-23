@@ -45,6 +45,7 @@
     "promptsEmptyTitle": "还没有公开的提示词",
     "promptsEmptyDescription": "创作者公开作品时选「公开作品和提示词」，提示词就会出现在这里。",
     "openPromptWork": "查看这件作品",
+    "promptWorkCount": "这段提示词共 {count} 件作品",
     "loadMore": "加载更多图像",
     "viewer": {
       "label": "画廊大图",

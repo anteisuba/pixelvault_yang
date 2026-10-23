@@ -45,6 +45,7 @@
     "promptsEmptyTitle": "No public prompts yet",
     "promptsEmptyDescription": "Prompts show up here when creators publish a work together with its prompt.",
     "openPromptWork": "View this work",
+    "promptWorkCount": "{count} works with this prompt",
     "loadMore": "Load more images",
     "viewer": {
       "label": "Gallery viewer",

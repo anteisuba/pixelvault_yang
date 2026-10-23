@@ -710,6 +710,138 @@ describe('generation.service', () => {
         where: { isPublic: true },
       })
     })
+
+    it('prompts view: one card per prompt, newest work as cover, with work count', async () => {
+      mockGenerationGroupBy.mockResolvedValue([
+        {
+          prompt: 'cat',
+          _count: { _all: 3 },
+          _max: { createdAt: new Date('2026-01-05') },
+          _min: { createdAt: new Date('2026-01-01') },
+        },
+        {
+          prompt: 'dog',
+          _count: { _all: 1 },
+          _max: { createdAt: new Date('2026-01-04') },
+          _min: { createdAt: new Date('2026-01-04') },
+        },
+        {
+          prompt: 'bird',
+          _count: { _all: 2 },
+          _max: { createdAt: new Date('2026-01-03') },
+          _min: { createdAt: new Date('2026-01-02') },
+        },
+      ])
+      mockGenerationFindMany.mockResolvedValue([
+        {
+          ...BASE_GENERATION,
+          id: 'cat-new',
+          prompt: 'cat',
+          isPromptPublic: true,
+          createdAt: new Date('2026-01-05'),
+        },
+        {
+          ...BASE_GENERATION,
+          id: 'dog-1',
+          prompt: 'dog',
+          isPromptPublic: true,
+          createdAt: new Date('2026-01-04'),
+        },
+      ])
+
+      const result = await getPublicGenerationPage({
+        promptPublic: true,
+        limit: 2,
+      })
+
+      expect(result.generations.map((g) => [g.id, g.promptWorkCount])).toEqual([
+        ['cat-new', 3],
+        ['dog-1', 1],
+      ])
+      expect(result.total).toBeNull()
+      expect(mockGenerationCount).not.toHaveBeenCalled()
+      expect(result.hasMore).toBe(true)
+      expect(
+        JSON.parse(
+          Buffer.from(result.nextCursor ?? '', 'base64url').toString('utf8'),
+        ),
+      ).toEqual({ offset: 2 })
+      expect(mockGenerationGroupBy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          by: ['prompt'],
+          where: { isPublic: true, isPromptPublic: true },
+          skip: 0,
+          take: 3,
+        }),
+      )
+      expect(mockGenerationFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            AND: [
+              { isPublic: true, isPromptPublic: true },
+              {
+                OR: [
+                  { prompt: 'cat', createdAt: new Date('2026-01-05') },
+                  { prompt: 'dog', createdAt: new Date('2026-01-04') },
+                ],
+              },
+            ],
+          },
+        }),
+      )
+    })
+
+    it('prompts view: next page continues from the group offset', async () => {
+      mockGenerationGroupBy.mockResolvedValue([])
+      const cursor = Buffer.from(JSON.stringify({ offset: 20 })).toString(
+        'base64url',
+      )
+
+      const result = await getPublicGenerationPage({
+        promptPublic: true,
+        cursor,
+        limit: 20,
+      })
+
+      expect(result.generations).toEqual([])
+      expect(mockGenerationGroupBy).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 20, take: 21 }),
+      )
+    })
+
+    it('samePromptAs: only public works with the exact same prompt, any author', async () => {
+      mockGenerationFindFirst.mockResolvedValue({ prompt: 'cat' })
+      mockGenerationFindMany.mockResolvedValue([])
+
+      await getPublicGenerationPage({ samePromptAs: 'gen-1', limit: 50 })
+
+      expect(mockGenerationFindFirst).toHaveBeenCalledWith({
+        where: { id: 'gen-1', isPublic: true, isPromptPublic: true },
+        select: { prompt: true },
+      })
+      expect(mockGenerationFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { isPublic: true, isPromptPublic: true, prompt: 'cat' },
+        }),
+      )
+    })
+
+    it('samePromptAs: a private anchor returns nothing', async () => {
+      mockGenerationFindFirst.mockResolvedValue(null)
+      mockGenerationFindMany.mockResolvedValue([])
+
+      await getPublicGenerationPage({ samePromptAs: 'gen-1', limit: 50 })
+
+      expect(mockGenerationFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            isPublic: true,
+            isPromptPublic: true,
+            prompt: { in: [] },
+          },
+        }),
+      )
+    })
   })
 
   describe('getOwnedGenerationWithSnapshot', () => {

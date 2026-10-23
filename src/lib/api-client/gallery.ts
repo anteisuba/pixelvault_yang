@@ -32,6 +32,8 @@ export async function fetchGalleryImages(
     /** Filter by Generation.provider (e.g. 'user-upload' for local assets). */
     provider?: string
     view?: GalleryView
+    /** 只要和这件作品提示词一字不差的公开作品。 */
+    samePromptAs?: string
   },
   cursor?: string | null,
 ): Promise<GalleryResponse> {
@@ -55,6 +57,7 @@ export async function fetchGalleryImages(
     if (filters?.projectId) params.set('projectId', filters.projectId)
     if (filters?.provider) params.set('provider', filters.provider)
     if (filters?.view === 'prompts') params.set('view', 'prompts')
+    if (filters?.samePromptAs) params.set('samePromptAs', filters.samePromptAs)
 
     const response = await fetch(`${API_ENDPOINTS.IMAGES}?${params.toString()}`)
     if (!response.ok) {

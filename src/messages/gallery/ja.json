@@ -45,6 +45,7 @@
     "promptsEmptyTitle": "公開プロンプトはまだありません",
     "promptsEmptyDescription": "作品をプロンプトごと公開すると、ここに並びます。",
     "openPromptWork": "この作品を見る",
+    "promptWorkCount": "このプロンプトの作品 {count} 件",
     "loadMore": "さらに画像を読み込む",
     "viewer": {
       "label": "ギャラリービューアー",

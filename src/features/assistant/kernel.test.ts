@@ -331,6 +331,28 @@ describe('新内核主循环', () => {
     })
   })
 
+  it('同一步里改动没落下：后面的出图不出卡，让模型先改好', async () => {
+    const main = mockModel([
+      toolTurn(
+        {
+          id: 'e1',
+          name: 'edit',
+          input: { changes: [{ op: 'prompt', mode: 'replace', text: null }] },
+        },
+        { id: 'g1', name: 'generate', input: { say: '出一张' } },
+      ),
+      textTurn('提示词没改成，先停一下。'),
+    ])
+    models.main = main
+    plan.mockResolvedValue({ kind: 'confirmGenerate', request: { count: 1 } })
+    const events = await collect(
+      runAssistantNext('clerk-1', imageRequest('换衣服再出一张')),
+    )
+    expect(events.find((event) => event.type === 'confirm')).toBeUndefined()
+    expect(promptOf(main.doStreamCalls[1]!)).toContain('Fix that edit first')
+    expect(events.at(-1)).toMatchObject({ type: 'done' })
+  })
+
   it('读不懂的入参回一句哪一格不对，模型改了再来（⛔ 不判死）', async () => {
     const main = mockModel([
       toolTurn({

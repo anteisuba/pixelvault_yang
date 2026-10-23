@@ -139,6 +139,9 @@ const CONTENT_FILTERED: Record<PromptAssistantResponseLanguage, string> = {
 
 const NOT_RUN_AFTER_STOP =
   'Not run: this turn stopped on a card to wait for the creator.'
+/** 同一步里改动没落下还出图，确认卡上就是旧配方（评测里撞见过）。 */
+const NOT_RUN_AFTER_FAILED_EDIT =
+  'Not shown: an edit earlier in this step did not land, so the bench is not what you meant to generate. Fix that edit first, then call generate again.'
 
 interface NextTurnRecording {
   turn?: Omit<AssistantTurnDraft, 'request' | 'outcome' | 'errorCode'>
@@ -796,6 +799,7 @@ async function* runNextTurn(
     const results: ToolResultPart[] = []
     const looked: AssistantV3PictureRef[] = []
     let stopped = false
+    let editFailed = false
     for (const call of calls) {
       const settle = (result: BenchResult) => {
         results.push({
@@ -828,6 +832,10 @@ async function* runNextTurn(
         settle({ output: NOT_RUN_AFTER_STOP, error: true })
         continue
       }
+      if (editFailed && call.toolName === ASSISTANT_NEXT_TOOL_IDS.generate) {
+        settle({ output: NOT_RUN_AFTER_FAILED_EDIT, error: true })
+        continue
+      }
       const result = yield* runTool(
         context,
         call,
@@ -837,6 +845,8 @@ async function* runNextTurn(
       settle(result)
       if (result.pictures?.length) looked.push(...result.pictures)
       if (result.stop) stopped = true
+      if (result.error && call.toolName === ASSISTANT_NEXT_TOOL_IDS.edit)
+        editFailed = true
     }
     messages = [
       ...messages,

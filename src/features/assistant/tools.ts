@@ -15,7 +15,8 @@ import {
  * ── 校验只修不拒（总设计第二节）──────────────────────────────────
  * 基线里 7 次「write 参数不对」全是 Claude 等非严格模型省略了可空字段：OpenAI 严格模式要求
  * 每个字段都写出来，别家不写。这里：
- *  · 给模型看的 JSON schema 照严格模式写（每个字段必填、可空的写成 `X | null`），OpenAI 官方能开 strict；
+ *  · 给模型看的 JSON schema：OpenAI 官方开 strict 时照严格模式写（每个字段必填、可空的写成 `X | null`），
+ *    别家照自然形状（只有真必需的必填）；
  *  · 交给 SDK 的是 `jsonSchema()`、⛔ 不带校验 —— 少写字段的调用不会被 SDK 判成 invalid；
  *  · 真正的解析在这里自己做：可空的缺了当 null，单个对象当成一条的数组、数字写成字符串也认。
  * 真做不了的（缺了必需的那一格）才回错，并说清是哪一格。
@@ -209,9 +210,18 @@ function strictify(node: JsonValue): JsonValue {
   return out
 }
 
-export function toModelJsonSchema(schema: z.ZodType): JsonObject {
-  const raw = z.toJSONSchema(schema, { io: 'input' }) as JsonValue
-  return strictify(raw) as JsonObject
+/**
+ * 严格模式（OpenAI 官方开 strict）才写成「每格必填、可空写 null」；别家照自然形状给：只有
+ * 真必需的那几格必填。⚠ 评测里 Claude 面对二十格必填的 edit，把 prompt 的 text 也填成了 null。
+ */
+export function toModelJsonSchema(
+  schema: z.ZodType,
+  strict = true,
+): JsonObject {
+  const raw = z.toJSONSchema(schema, { io: 'input' }) as JsonObject
+  if (strict) return strictify(raw) as JsonObject
+  delete raw.$schema
+  return raw
 }
 
 const NUMBER_FIELDS = ['count', 'weight'] as const
@@ -302,7 +312,7 @@ export function assistantNextTools(strict: boolean) {
   const define = (name: keyof typeof DESCRIPTIONS, schema: z.ZodType) =>
     tool({
       description: DESCRIPTIONS[name],
-      inputSchema: jsonSchema(toModelJsonSchema(schema)),
+      inputSchema: jsonSchema(toModelJsonSchema(schema, strict)),
       strict,
     })
   return {

@@ -94,3 +94,16 @@ describe('给模型看的 JSON schema：严格模式的形状', () => {
     ).toContain('null')
   })
 })
+
+describe('给模型看的 JSON schema：别家的自然形状', () => {
+  it('只有真必需的必填（Claude 不会被逼着把二十格都填上）', () => {
+    const schema = toModelJsonSchema(EditInputSchema, false) as {
+      required: string[]
+      properties: {
+        changes: { items: { required?: string[] } }
+      }
+    }
+    expect(schema.required).toEqual(['changes'])
+    expect(schema.properties.changes.items.required).toEqual(['op'])
+  })
+})

@@ -77,7 +77,12 @@
  * 普通盒子一样把它推下去——这是 `.studio-layout-v2` 已经在用的同一套「父级给
  * 高度、子级用 flex/min-height 认领」的契约，不再新开一种算法。 */
 .voiceroom {
-  flex: 1;
+  /*
+   * ⚠ 高度只认 `h-page`（一屏）。⛔ 别写 `flex: 1`：外层 main 是没定高的竖向 flex，
+   * `flex: 1` 会把 flex-basis 变成 0、让它跟着内容长，`h-page` 就失效了——
+   * 对话一多整页被撑长、输入框出屏（10-23 线上撞到）。
+   */
+  flex: none;
   min-height: 0;
   color: var(--vr-ink);
   font-family: var(--vr-sans);

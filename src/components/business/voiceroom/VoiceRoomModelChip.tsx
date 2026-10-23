@@ -17,7 +17,10 @@ import { useAudioModelOptionsFor } from '@/hooks/use-audio-model-options'
  */
 
 interface VoiceRoomModelChipProps {
-  /** null = 还没选过，走目录里第一个可用的（与服务端的兜底一致）。 */
+  /**
+   * 选中的**型号 id**（`fish-audio-s2-pro-free`），不是弹层的 `optionId`
+   * （`workspace:…` / `key:…`）——念法里存的是前者。null = 还没选过，走目录里第一个可用的。
+   */
   value: string | null
   onChange: (optionId: string, modelId: string) => void
 }
@@ -27,7 +30,7 @@ export function VoiceRoomModelChip({
   onChange,
 }: VoiceRoomModelChipProps) {
   const t = useTranslations('VoiceRoom')
-  const { modelOptions } = useAudioModelOptionsFor(AUDIO_KIND.SPEECH, value)
+  const { modelOptions } = useAudioModelOptionsFor(AUDIO_KIND.SPEECH, null)
 
   /*
    * ⚠ 还没选过时显示**第一个可用型号**，而不是「选择模型」。
@@ -36,7 +39,12 @@ export function VoiceRoomModelChip({
    * 「选择模型」等于告诉用户「还没定」——可他一按生成就出声了。两边用同一条规则
    * 挑，界面上说的才是实话。这里只影响显示，不往 state 里写。
    */
-  const shown = value ?? modelOptions[0]?.optionId ?? null
+  // ⚠ 弹层按 `optionId` 认选中项，这里要先把型号 id 换过去：直接把型号 id 塞给它，
+  // 触发器就一直写「选择模型」、点了哪个也亮不起来（10-23 线上撞到）。
+  const shown =
+    modelOptions.find((option) => option.modelId === value)?.optionId ??
+    modelOptions[0]?.optionId ??
+    null
 
   return (
     <ModelPickerPopover

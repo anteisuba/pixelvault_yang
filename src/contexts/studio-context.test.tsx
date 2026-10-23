@@ -93,21 +93,6 @@ describe('StudioProvider workflow selection', () => {
     expect(result.current.state.prompt).toBe('')
   })
 
-  it('switches VOICE_NARRATION_DIALOGUE workflow to audio outputType', () => {
-    const { result } = renderHook(() => useStudioContext(), { wrapper })
-
-    act(() => {
-      result.current.setSelectedWorkflowId(
-        WORKFLOW_IDS.VOICE_NARRATION_DIALOGUE,
-      )
-    })
-
-    expect(result.current.selectedWorkflowId).toBe(
-      WORKFLOW_IDS.VOICE_NARRATION_DIALOGUE,
-    )
-    expect(result.current.state.outputType).toBe('audio')
-  })
-
   it('keeps manual SET_OUTPUT_TYPE effective until the next workflow switch', () => {
     const { result } = renderHook(() => useStudioContext(), { wrapper })
 
@@ -124,12 +109,10 @@ describe('StudioProvider workflow selection', () => {
     expect(result.current.state.outputType).toBe('image')
 
     act(() => {
-      result.current.setSelectedWorkflowId(
-        WORKFLOW_IDS.VOICE_NARRATION_DIALOGUE,
-      )
+      result.current.setSelectedWorkflowId(WORKFLOW_IDS.CHARACTER_TO_VIDEO)
     })
 
-    expect(result.current.state.outputType).toBe('audio')
+    expect(result.current.state.outputType).toBe('video')
   })
 
   it('getSelectedWorkflow returns the current Workflow object', () => {

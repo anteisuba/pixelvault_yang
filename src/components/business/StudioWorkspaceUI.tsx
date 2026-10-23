@@ -45,7 +45,6 @@ import { useStudioModeModelOptions } from '@/hooks/use-studio-mode-model-options
 import { useStudioTemplateApply } from '@/hooks/use-studio-template-apply'
 import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
 import { useStudioWorkbenchOperatorHost } from '@/hooks/use-studio-workbench-operator-host'
-import { useStudioAudioOperatorHost } from '@/hooks/use-studio-audio-operator-host'
 import { useStudioReplayFromUrl } from '@/hooks/use-studio-replay-from-url'
 import { useStudioDraft, type StudioDraft } from '@/hooks/use-studio-draft'
 
@@ -72,7 +71,7 @@ function buildRefinePrompt(
  * StudioWorkspaceUI — the workspace's visual + non-mode-sync logic, lifted
  * out of the page level so the layout in (workspace)/layout.tsx can mount
  * it once and keep it mounted while the user flicks between
- * /studio/image, /studio/video, /studio/audio.
+ * /studio/image and /studio/video.
  *
  * The mode-sync side effect (dispatching SET_SELECTED_WORKFLOW_ID when the
  * route mode changes) lives in StudioModeSync — pages emit it; this
@@ -91,8 +90,6 @@ export function StudioWorkspaceUI() {
   const [editSessionId, setEditSessionId] = useState(0)
   const [editRunning, setEditRunning] = useState(false)
   const isEditing = state.outputType === 'image' && editOpen
-  /** 配音台（第 9b 步）用自己的宿主：快照与落笔是配音那一块，⛔ 不借图片 / 视频的表单宿主。 */
-  const isAudioOperator = state.outputType === 'audio'
   /**
    * 操作员在**工作台**这个宿主上的那一份（P4-C）。面板的外壳（`StudioOperatorDock`）
    * 与撤销链从 P4-C 起都读它，因此那颗外壳变成了页面无关的东西 —— 同一个 Dock
@@ -101,16 +98,12 @@ export function StudioWorkspaceUI() {
   const workbenchOperatorHost = useStudioWorkbenchOperatorHost({
     generationEnabled: !isEditing,
   })
-  const audioOperatorHost = useStudioAudioOperatorHost()
   /**
    * 移动端画布优先形态（owner 2026-09-03 拍板方向 A，需求卡
    * `docs/references/pages/studio-image-mobile-request.md` +
    * `studio-video-mobile-request.md`）：`<1024` 且**图片 / 视频档**时参数栏整颗
    * 不渲染，参数收进底部固定 composer 的 chip 行。
    *
-   * ⚠ 白名单而不是 `!== 'audio'`：音频的移动端仍走既有纵向栈（参数栏在上、
-   * 结果在下），它的音色 / 朗读 / 高级三栏还没有对应的 chip 与 sheet ——
-   * 默认不给一个新模态 composer，比默认给它一个拧不动一半旋钮的 composer 安全。
    * ⚠ 二选一而不是 CSS 隐藏 —— `StudioPromptArea` 与 `StudioMobileComposer` 各自
    * 调 `useStudioGenerateAction`，同时挂载会让 `REQUEST_GENERATE` 发两遍请求。
    */
@@ -142,21 +135,14 @@ export function StudioWorkspaceUI() {
    */
   const operatorHost = useMemo(
     () =>
-      isAudioOperator
-        ? audioOperatorHost
-        : isBottomComposer
-          ? {
-              ...workbenchOperatorHost,
-              collapseOnOutsidePointer: false,
-              anchor: STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR,
-            }
-          : workbenchOperatorHost,
-    [
-      audioOperatorHost,
-      isAudioOperator,
-      isBottomComposer,
-      workbenchOperatorHost,
-    ],
+      isBottomComposer
+        ? {
+            ...workbenchOperatorHost,
+            collapseOnOutsidePointer: false,
+            anchor: STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR,
+          }
+        : workbenchOperatorHost,
+    [isBottomComposer, workbenchOperatorHost],
   )
   /**
    * 舞台上开着哪块面板：模板（每一台都有 —— 图片两台与视频，桌面与手机，模板 C
@@ -388,7 +374,7 @@ export function StudioWorkspaceUI() {
   // Close any panels left open from the previous session — the
   // reducer's initialState keeps panels closed, but a stale tab restore
   // (or hot-reload in dev) can resurrect an open panel and pop a Dialog
-  // the moment the user lands on /studio/{image,video,audio}.
+  // the moment the user lands on /studio/{image,video}.
   useEffect(() => {
     dispatch({ type: 'CLOSE_ALL_PANELS' })
 
@@ -448,7 +434,7 @@ export function StudioWorkspaceUI() {
         className="flex"
       >
         {/*
-         * Unified canvas-centric layout for image / video / audio. The
+         * Unified canvas-centric layout for image / video. The
          * inline gallery strip was removed in Phase 5.5d — users now
          * reach their archive through the Image chip popover's "Select
          * asset" path, which is also where reference images are picked.

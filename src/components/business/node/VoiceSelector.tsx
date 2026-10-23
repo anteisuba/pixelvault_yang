@@ -28,7 +28,6 @@ import {
 } from '@/constants/voice-cards'
 import type { VoiceCardRecord } from '@/types'
 import type { VoiceAsset } from '@/types/voice-library'
-import { useStudioFormOptional } from '@/contexts/studio-context'
 import { useVoiceLibrary } from '@/hooks/use-voice-library'
 import {
   deleteVoiceCardAPI,
@@ -75,7 +74,7 @@ interface VoiceSelectorProps {
   className?: string
   onSelectComplete?: () => void
   selectedVoiceId?: string | null
-  onSelectVoiceId?: (voice: SelectedVoice) => void
+  onSelectVoiceId: (voice: SelectedVoice) => void
 }
 
 function isVoiceLibraryLanguage(value: string): value is VoiceLibraryLanguage {
@@ -113,34 +112,14 @@ function getVoiceCardProviderLabelKey(provider: string): string {
   return 'voiceCardFalF5Tts'
 }
 
-const VOICE_SELECTOR_FALLBACK_STATE = {
-  voiceCardId: null,
-  voiceId: null,
-} as const
-
-const NOOP_DISPATCH = () => {}
-
 export const VoiceSelector = memo(function VoiceSelector({
   className,
   onSelectComplete,
   selectedVoiceId,
   onSelectVoiceId,
 }: VoiceSelectorProps) {
-  const formCtx = useStudioFormOptional()
-  const state = formCtx?.state ?? VOICE_SELECTOR_FALLBACK_STATE
-  const dispatch = formCtx?.dispatch ?? NOOP_DISPATCH
   const t = useTranslations('StudioPage')
-  /**
-   * 取消收藏时，如果被取消的正是当前选中的那张卡，就把选中清掉。
-   * 内核不认识画布的选中态，所以这一步由宿主自己接。
-   */
-  const library = useVoiceLibrary({
-    onFavoriteRemoved: (cardId) => {
-      if (state.voiceCardId === cardId) {
-        dispatch({ type: 'SET_VOICE_CARD_ID', payload: null })
-      }
-    },
-  })
+  const library = useVoiceLibrary({})
   const {
     tab,
     setTab,
@@ -199,66 +178,39 @@ export const VoiceSelector = memo(function VoiceSelector({
   }
 
   const handleSelectVoiceCard = async (card: VoiceCardRecord) => {
-    if (onSelectVoiceId) {
-      if (!card.voiceId) return
-      // 克隆卡的音频在 referenceAudioUrl，收藏卡的在 sampleAudioUrl。⚠ 存下来的若是
-      // Fish 一小时就过期的签名链接，当它没有（2026-09-29 真机：落进卡后读不到）。
-      let sampleUrl =
-        card.referenceAudioUrl ?? durableSampleUrl(card.sampleAudioUrl)
-      // 存量收藏卡是在「收藏只存文本」的年代建的，音频位是空的。**直接去声音库
-      // 取它自带的试听**——不要再合成一次：合成花用户的 key、要等，产出的还是同
-      // 一个音色念同一段固定文本。取到后顺手补回卡上，下次就不用再查。
-      if (!sampleUrl && card.provider === VOICE_CARD_PROVIDER.FISH_AUDIO) {
-        setPendingVoiceCardId(card.id)
-        const resolved = await getVoiceAPI(card.voiceId)
-        setPendingVoiceCardId(null)
-        sampleUrl =
-          (resolved.success &&
-            resolved.data?.samples.find((sample) => sample.audio)?.audio) ||
-          null
-        // ⚠ 只补回**不会过期**的地址 —— 签名链接存下来等于埋一个一小时后的坏链接；
-        // 这一次也不把它交出去（交出去就会被原样落进卡）。
-        sampleUrl = durableSampleUrl(sampleUrl)
-        if (sampleUrl) {
-          const backfilled = await updateVoiceCardAPI(card.id, {
-            sampleAudioUrl: sampleUrl,
-          })
-          if (backfilled.success) await voiceCards.refresh()
-        }
+    if (!card.voiceId) return
+    // 克隆卡的音频在 referenceAudioUrl，收藏卡的在 sampleAudioUrl。⚠ 存下来的若是
+    // Fish 一小时就过期的签名链接，当它没有（2026-09-29 真机：落进卡后读不到）。
+    let sampleUrl =
+      card.referenceAudioUrl ?? durableSampleUrl(card.sampleAudioUrl)
+    // 存量收藏卡是在「收藏只存文本」的年代建的，音频位是空的。**直接去声音库
+    // 取它自带的试听**——不要再合成一次：合成花用户的 key、要等，产出的还是同
+    // 一个音色念同一段固定文本。取到后顺手补回卡上，下次就不用再查。
+    if (!sampleUrl && card.provider === VOICE_CARD_PROVIDER.FISH_AUDIO) {
+      setPendingVoiceCardId(card.id)
+      const resolved = await getVoiceAPI(card.voiceId)
+      setPendingVoiceCardId(null)
+      sampleUrl =
+        (resolved.success &&
+          resolved.data?.samples.find((sample) => sample.audio)?.audio) ||
+        null
+      // ⚠ 只补回**不会过期**的地址 —— 签名链接存下来等于埋一个一小时后的坏链接；
+      // 这一次也不把它交出去（交出去就会被原样落进卡）。
+      sampleUrl = durableSampleUrl(sampleUrl)
+      if (sampleUrl) {
+        const backfilled = await updateVoiceCardAPI(card.id, {
+          sampleAudioUrl: sampleUrl,
+        })
+        if (backfilled.success) await voiceCards.refresh()
       }
-      onSelectVoiceId({
-        voiceId: card.voiceId,
-        name: card.name,
-        coverImage: card.coverImage,
-        sampleUrl,
-      })
-      onSelectComplete?.()
-      return
     }
-
-    const isSelected = state.voiceCardId === card.id
-    dispatch({
-      type: 'SET_VOICE_CARD_ID',
-      payload: isSelected ? null : card.id,
+    onSelectVoiceId({
+      voiceId: card.voiceId,
+      name: card.name,
+      coverImage: card.coverImage,
+      sampleUrl,
     })
-    dispatch({
-      type: 'SET_VOICE_ID',
-      payload: isSelected ? null : card.voiceId,
-    })
-    if (!isSelected && card.modelId) {
-      dispatch({
-        type: 'SET_OPTION_ID',
-        payload: `workspace:${card.modelId}`,
-      })
-    }
-    if (!isSelected) {
-      dispatch({ type: 'SET_AUDIO_PACE', payload: card.pace })
-      dispatch({
-        type: 'SET_PRONUNCIATION_DICTIONARY',
-        payload: card.pronunciationDictionary,
-      })
-      onSelectComplete?.()
-    }
+    onSelectComplete?.()
   }
 
   const handleDeleteVoiceCard = async (card: VoiceCardRecord) => {
@@ -267,12 +219,6 @@ export const VoiceSelector = memo(function VoiceSelector({
 
     const result = await deleteVoiceCardAPI(card.id)
     if (result.success) {
-      if (state.voiceCardId === card.id) {
-        dispatch({ type: 'SET_VOICE_CARD_ID', payload: null })
-      }
-      if (state.voiceId === card.voiceId) {
-        dispatch({ type: 'SET_VOICE_ID', payload: null })
-      }
       await voiceCards.refresh()
     } else {
       setLocalError(t('voiceDeleteFailed'))
@@ -282,30 +228,13 @@ export const VoiceSelector = memo(function VoiceSelector({
   }
 
   const handleSelectAsset = (asset: VoiceAsset) => {
-    if (onSelectVoiceId) {
-      onSelectVoiceId({
-        voiceId: asset.voiceId,
-        name: asset.title,
-        coverImage: asset.coverImage,
-        sampleUrl: asset.sampleUrl,
-      })
-      onSelectComplete?.()
-      return
-    }
-
-    const isSelected = state.voiceId === asset.voiceId
-    dispatch({ type: 'SET_VOICE_CARD_ID', payload: null })
-    dispatch({
-      type: 'SET_VOICE_ID',
-      payload: isSelected ? null : asset.voiceId,
+    onSelectVoiceId({
+      voiceId: asset.voiceId,
+      name: asset.title,
+      coverImage: asset.coverImage,
+      sampleUrl: asset.sampleUrl,
     })
-    if (!isSelected) {
-      dispatch({
-        type: 'SET_OPTION_ID',
-        payload: `workspace:${asset.modelId}`,
-      })
-      onSelectComplete?.()
-    }
+    onSelectComplete?.()
   }
 
   const handleCoverError = (voiceId: string) => {
@@ -339,8 +268,7 @@ export const VoiceSelector = memo(function VoiceSelector({
 
   const isPublicTab = tab === 'public'
   const isLocalCardsTab = !isPublicTab
-  const usesExternalSelection = Boolean(onSelectVoiceId)
-  const activeVoiceId = usesExternalSelection ? selectedVoiceId : state.voiceId
+  const activeVoiceId = selectedVoiceId
   const fishVoiceAssets = voiceAssets
   /**
    * 台账 F 顺带：「来源」下拉此前是**死控件** —— `source` 写进 state 之后既不
@@ -373,11 +301,7 @@ export const VoiceSelector = memo(function VoiceSelector({
         ? error
         : null)
   const selectedVoiceLabel =
-    voiceCards.cards.find((card) =>
-      usesExternalSelection
-        ? card.voiceId === activeVoiceId
-        : card.id === state.voiceCardId,
-    )?.name ??
+    voiceCards.cards.find((card) => card.voiceId === activeVoiceId)?.name ??
     publicVoiceAssets.find((asset) => asset.voiceId === activeVoiceId)?.title ??
     activeVoiceId
 
@@ -523,9 +447,7 @@ export const VoiceSelector = memo(function VoiceSelector({
             </div>
           ) : (
             localVoiceCards.map((card) => {
-              const isSelected = usesExternalSelection
-                ? activeVoiceId === card.voiceId
-                : state.voiceCardId === card.id
+              const isSelected = activeVoiceId === card.voiceId
               const isPending = pendingVoiceCardId === card.id
               const hasCardCover =
                 Boolean(card.coverImage) && !failedCoverIds.has(card.id)

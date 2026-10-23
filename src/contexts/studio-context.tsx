@@ -48,30 +48,6 @@ import type { StudioOperatorResultOwner } from '@/types/studio-assistant-operato
 import type { AspectRatio } from '@/constants/config'
 import { VIDEO_GENERATION } from '@/constants/config'
 import {
-  DEFAULT_AUDIO_FORMAT,
-  DEFAULT_AUDIO_LATENCY,
-  AUDIO_DEFAULT_EXPRESSIVENESS,
-  DEFAULT_AUDIO_KIND,
-  DEFAULT_AUDIO_MP3_BITRATE,
-  DEFAULT_AUDIO_OPUS_BITRATE,
-  DEFAULT_AUDIO_SAMPLE_RATE,
-  DEFAULT_MUSIC_DURATION_SECONDS,
-  DEFAULT_SFX_DURATION_SECONDS,
-  normalizeSpeakerVoiceIds,
-  SFX_PROMPT_INFLUENCE_RANGE,
-  TTS_CHUNK_LENGTH_RANGE,
-  TTS_REPETITION_PENALTY_RANGE,
-  TTS_TEMPERATURE_RANGE,
-  TTS_TOP_P_RANGE,
-  TTS_VOLUME_RANGE,
-  type AudioFormat,
-  type AudioLatency,
-} from '@/constants/audio-options'
-import {
-  AUDIO_DEFAULT_EMOTION,
-  AUDIO_DEFAULT_PACE,
-} from '@/constants/voice-cards'
-import {
   DEFAULT_IMAGE_BATCH_COUNT,
   type ImageBatchCount,
 } from '@/constants/studio'
@@ -99,17 +75,11 @@ export type PanelName =
   | 'stylePreset'
   | 'reverse'
   | 'refImage'
-  | 'audioReading'
-  | 'musicSpec'
   | 'loraSelector'
-  | 'voiceSelector'
-  | 'voiceTrainer'
-  | 'audioTranscribe'
-  | 'sfxParams'
   | 'videoAudio'
   | 'keepChange'
 
-type OutputType = 'image' | 'video' | 'audio'
+type OutputType = 'image' | 'video'
 
 /**
  * 一条视频音频参考。`ownerName` 对应 worker 那边的
@@ -189,10 +159,6 @@ export interface StudioFormState {
   /** Image-specific — how many images one send produces (1 / 2 / 4). */
   imageBatchCount: ImageBatchCount
   tokenInput: string
-  /** Fish Audio voice model ID for TTS */
-  voiceId: string | null
-  /** Persisted VoiceCard ID for TTS */
-  voiceCardId: string | null
   /**
    * 这一轮除主模型之外**额外**要跑的模型（optionId）。空数组 = 只跑主模型。
    *
@@ -201,70 +167,6 @@ export interface StudioFormState {
    * 额外的挂在旁边，是改动面最小且不牺牲那些能力判定的做法。
    */
   extraModelOptionIds: string[]
-  /** Audio-specific — active kind (speech / sfx / music) */
-  audioKind: string
-  /** Audio-specific — user-facing emotion control */
-  audioEmotion: string
-  /** Audio-specific — emotion responsiveness tier (or 'auto' to derive it) */
-  audioExpressiveness: string
-  /** Audio-specific (sfx) — target clip length in seconds */
-  audioSfxDurationSeconds: number
-  /** 音乐档的时长（秒）。音效那条是 `audioSfxDurationSeconds`，两档的范围不同。 */
-  audioMusicDurationSeconds: number
-  /** Audio-specific (sfx) — seamless loop toggle */
-  audioSfxLoop: boolean
-  /** Audio-specific (sfx) — prompt adherence vs creativity (0–1) */
-  audioSfxPromptInfluence: number
-  /** Audio-specific (sfx) — number of variant clips per run (A/B compare) */
-  audioSfxVariantCount: number
-  /** Audio-specific — user-facing pace control */
-  audioPace: string
-  /** Audio-specific — sentence pause marker IDs */
-  audioPauseMarkers: string[]
-  /** Audio-specific — word pronunciation overrides */
-  pronunciationDictionary: Record<string, string>
-  /** Audio-specific — prosody volume adjustment */
-  audioVolume: number
-  /** Audio-specific — Fish Audio loudness normalization */
-  audioNormalizeLoudness: boolean
-  /** Audio-specific — provider text normalization */
-  audioNormalizeText: boolean
-  /** Audio-specific — request timestamp alignment from Fish Audio */
-  audioWithTimestamps: boolean
-  /** Audio-specific — output format */
-  audioFormat: AudioFormat
-  /** Audio-specific — sample rate in Hz */
-  audioSampleRate: number
-  /** Audio-specific — MP3 bitrate in kbps */
-  audioMp3Bitrate: number
-  /** Audio-specific — Opus bitrate in bps */
-  audioOpusBitrate: number
-  /** Audio-specific — latency profile */
-  audioLatency: AudioLatency
-  /** Audio-specific — expressiveness */
-  audioTemperature: number
-  /** Audio-specific — nucleus sampling */
-  audioTopP: number
-  /** Audio-specific — provider chunk length */
-  audioChunkLength: number
-  /** Audio-specific — repetition penalty */
-  audioRepetitionPenalty: number
-  /** Audio-specific — ordered voice IDs for <|speaker:n|> dialogue tags */
-  audioSpeakerVoiceIds: string[]
-  /**
-   * Audio-specific — public URL of an ad-hoc reference clip the user
-   * uploaded for zero-shot voice cloning. Null when not in use. Lower
-   * priority than `speakerVoiceIds` / `voiceId` — the Fish adapter only
-   * consults this when neither preset path is set.
-   */
-  audioReferenceUrl: string | null
-  /** Display name of the uploaded reference audio (UX only, not sent). */
-  audioReferenceFileName: string | null
-  /**
-   * Required transcript for the reference audio above. Fish's `references`
-   * payload rejects audio without text, so the schema enforces both-or-none.
-   */
-  audioReferenceText: string
   /** Video-specific — duration in seconds per clip */
   videoDuration: number
   /** Video-specific — output resolution; null means provider default */
@@ -377,41 +279,6 @@ export type StudioAction =
   | { type: 'TOGGLE_EXTRA_MODEL'; payload: string }
   | { type: 'REMOVE_EXTRA_MODEL'; payload: string }
   | { type: 'SET_TOKEN_INPUT'; payload: string }
-  | { type: 'SET_VOICE_ID'; payload: string | null }
-  | { type: 'SET_VOICE_CARD_ID'; payload: string | null }
-  | { type: 'SET_AUDIO_KIND'; payload: string }
-  | { type: 'SET_AUDIO_EMOTION'; payload: string }
-  | { type: 'SET_AUDIO_EXPRESSIVENESS'; payload: string }
-  | { type: 'SET_AUDIO_SFX_DURATION'; payload: number }
-  | { type: 'SET_AUDIO_MUSIC_DURATION'; payload: number }
-  | { type: 'SET_AUDIO_SFX_LOOP'; payload: boolean }
-  | { type: 'SET_AUDIO_SFX_PROMPT_INFLUENCE'; payload: number }
-  | { type: 'SET_AUDIO_SFX_VARIANT_COUNT'; payload: number }
-  | { type: 'SET_AUDIO_PACE'; payload: string }
-  | { type: 'SET_AUDIO_PAUSE_MARKERS'; payload: string[] }
-  | { type: 'SET_AUDIO_VOLUME'; payload: number }
-  | { type: 'SET_AUDIO_NORMALIZE_LOUDNESS'; payload: boolean }
-  | { type: 'SET_AUDIO_NORMALIZE_TEXT'; payload: boolean }
-  | { type: 'SET_AUDIO_WITH_TIMESTAMPS'; payload: boolean }
-  | { type: 'SET_AUDIO_FORMAT'; payload: AudioFormat }
-  | { type: 'SET_AUDIO_SAMPLE_RATE'; payload: number }
-  | { type: 'SET_AUDIO_MP3_BITRATE'; payload: number }
-  | { type: 'SET_AUDIO_OPUS_BITRATE'; payload: number }
-  | { type: 'SET_AUDIO_LATENCY'; payload: AudioLatency }
-  | { type: 'SET_AUDIO_TEMPERATURE'; payload: number }
-  | { type: 'SET_AUDIO_TOP_P'; payload: number }
-  | { type: 'SET_AUDIO_CHUNK_LENGTH'; payload: number }
-  | { type: 'SET_AUDIO_REPETITION_PENALTY'; payload: number }
-  | { type: 'SET_AUDIO_SPEAKER_VOICE_IDS'; payload: string[] }
-  | {
-      type: 'SET_AUDIO_REFERENCE_UPLOAD'
-      payload: { url: string; fileName: string } | null
-    }
-  | { type: 'SET_AUDIO_REFERENCE_TEXT'; payload: string }
-  | {
-      type: 'SET_PRONUNCIATION_DICTIONARY'
-      payload: Record<string, string>
-    }
   | { type: 'SET_VIDEO_DURATION'; payload: number }
   | { type: 'SET_VIDEO_RESOLUTION'; payload: string | null }
   | {
@@ -442,13 +309,7 @@ const initialPanels: Record<PanelName, boolean> = {
   stylePreset: false,
   reverse: false,
   refImage: false,
-  audioReading: false,
-  musicSpec: false,
   loraSelector: false,
-  voiceSelector: false,
-  voiceTrainer: false,
-  audioTranscribe: false,
-  sfxParams: false,
   videoAudio: false,
   keepChange: false,
 }
@@ -463,13 +324,7 @@ export const STUDIO_TOOL_PANEL_NAMES: PanelName[] = [
   'refImage',
   'loraSelector',
   'civitai',
-  'audioReading',
-  'musicSpec',
   'videoAudio',
-  'voiceSelector',
-  'voiceTrainer',
-  'audioTranscribe',
-  'sfxParams',
 ]
 
 function openPanel(
@@ -510,36 +365,6 @@ const initialFormState: StudioFormState = {
   imageBatchCount: DEFAULT_IMAGE_BATCH_COUNT,
   extraModelOptionIds: [],
   tokenInput: '',
-  voiceId: null,
-  voiceCardId: null,
-  audioKind: DEFAULT_AUDIO_KIND,
-  audioEmotion: AUDIO_DEFAULT_EMOTION,
-  audioExpressiveness: AUDIO_DEFAULT_EXPRESSIVENESS,
-  audioSfxDurationSeconds: DEFAULT_SFX_DURATION_SECONDS,
-  audioMusicDurationSeconds: DEFAULT_MUSIC_DURATION_SECONDS,
-  audioSfxLoop: false,
-  audioSfxPromptInfluence: SFX_PROMPT_INFLUENCE_RANGE.default,
-  audioSfxVariantCount: 1,
-  audioPace: AUDIO_DEFAULT_PACE,
-  audioPauseMarkers: [],
-  pronunciationDictionary: {},
-  audioVolume: TTS_VOLUME_RANGE.default,
-  audioNormalizeLoudness: true,
-  audioNormalizeText: true,
-  audioWithTimestamps: false,
-  audioFormat: DEFAULT_AUDIO_FORMAT,
-  audioSampleRate: DEFAULT_AUDIO_SAMPLE_RATE,
-  audioMp3Bitrate: DEFAULT_AUDIO_MP3_BITRATE,
-  audioOpusBitrate: DEFAULT_AUDIO_OPUS_BITRATE,
-  audioLatency: DEFAULT_AUDIO_LATENCY,
-  audioTemperature: TTS_TEMPERATURE_RANGE.default,
-  audioTopP: TTS_TOP_P_RANGE.default,
-  audioChunkLength: TTS_CHUNK_LENGTH_RANGE.default,
-  audioRepetitionPenalty: TTS_REPETITION_PENALTY_RANGE.default,
-  audioSpeakerVoiceIds: [],
-  audioReferenceUrl: null,
-  audioReferenceFileName: null,
-  audioReferenceText: '',
   videoDuration: VIDEO_GENERATION.DEFAULT_DURATION,
   videoResolution: null,
   videoAudioRefs: [],
@@ -596,79 +421,7 @@ export function studioFormReducer(
     }
     case 'SET_OUTPUT_TYPE':
       return { ...state, outputType: action.payload }
-    case 'SET_VOICE_ID':
-      return { ...state, voiceId: action.payload }
-    case 'SET_VOICE_CARD_ID':
-      return { ...state, voiceCardId: action.payload }
-    case 'SET_AUDIO_KIND':
-      return { ...state, audioKind: action.payload }
-    case 'SET_AUDIO_EMOTION':
-      return { ...state, audioEmotion: action.payload }
-    case 'SET_AUDIO_EXPRESSIVENESS':
-      return { ...state, audioExpressiveness: action.payload }
-    case 'SET_AUDIO_SFX_DURATION':
-      return { ...state, audioSfxDurationSeconds: action.payload }
-    case 'SET_AUDIO_MUSIC_DURATION':
-      return { ...state, audioMusicDurationSeconds: action.payload }
-    case 'SET_AUDIO_SFX_LOOP':
-      return { ...state, audioSfxLoop: action.payload }
-    case 'SET_AUDIO_SFX_PROMPT_INFLUENCE':
-      return { ...state, audioSfxPromptInfluence: action.payload }
-    case 'SET_AUDIO_SFX_VARIANT_COUNT':
-      return { ...state, audioSfxVariantCount: action.payload }
-    case 'SET_AUDIO_PACE':
-      return { ...state, audioPace: action.payload }
-    case 'SET_AUDIO_PAUSE_MARKERS':
-      return { ...state, audioPauseMarkers: action.payload }
-    case 'SET_AUDIO_VOLUME':
-      return { ...state, audioVolume: action.payload }
-    case 'SET_AUDIO_NORMALIZE_LOUDNESS':
-      return { ...state, audioNormalizeLoudness: action.payload }
-    case 'SET_AUDIO_NORMALIZE_TEXT':
-      return { ...state, audioNormalizeText: action.payload }
-    case 'SET_AUDIO_WITH_TIMESTAMPS':
-      return { ...state, audioWithTimestamps: action.payload }
-    case 'SET_AUDIO_FORMAT':
-      return { ...state, audioFormat: action.payload }
-    case 'SET_AUDIO_SAMPLE_RATE':
-      return { ...state, audioSampleRate: action.payload }
-    case 'SET_AUDIO_MP3_BITRATE':
-      return { ...state, audioMp3Bitrate: action.payload }
-    case 'SET_AUDIO_OPUS_BITRATE':
-      return { ...state, audioOpusBitrate: action.payload }
-    case 'SET_AUDIO_LATENCY':
-      return { ...state, audioLatency: action.payload }
-    case 'SET_AUDIO_TEMPERATURE':
-      return { ...state, audioTemperature: action.payload }
-    case 'SET_AUDIO_TOP_P':
-      return { ...state, audioTopP: action.payload }
-    case 'SET_AUDIO_CHUNK_LENGTH':
-      return { ...state, audioChunkLength: action.payload }
-    case 'SET_AUDIO_REPETITION_PENALTY':
-      return { ...state, audioRepetitionPenalty: action.payload }
-    case 'SET_AUDIO_SPEAKER_VOICE_IDS':
-      return {
-        ...state,
-        audioSpeakerVoiceIds: normalizeSpeakerVoiceIds(action.payload),
-      }
-    case 'SET_AUDIO_REFERENCE_UPLOAD':
-      if (!action.payload) {
-        return {
-          ...state,
-          audioReferenceUrl: null,
-          audioReferenceFileName: null,
-          audioReferenceText: '',
-        }
-      }
-      return {
-        ...state,
-        audioReferenceUrl: action.payload.url,
-        audioReferenceFileName: action.payload.fileName,
-      }
-    case 'SET_AUDIO_REFERENCE_TEXT':
-      return { ...state, audioReferenceText: action.payload }
-    case 'SET_PRONUNCIATION_DICTIONARY':
-      return { ...state, pronunciationDictionary: action.payload }
+
     case 'SET_OPTION_ID':
       return {
         ...state,
@@ -920,36 +673,6 @@ export function studioFormReducer(
         imageBatchCount: DEFAULT_IMAGE_BATCH_COUNT,
         extraModelOptionIds: [],
         selectedOptionId: null,
-        voiceId: null,
-        voiceCardId: null,
-        audioKind: DEFAULT_AUDIO_KIND,
-        audioEmotion: AUDIO_DEFAULT_EMOTION,
-        audioExpressiveness: AUDIO_DEFAULT_EXPRESSIVENESS,
-        audioSfxDurationSeconds: DEFAULT_SFX_DURATION_SECONDS,
-        audioMusicDurationSeconds: DEFAULT_MUSIC_DURATION_SECONDS,
-        audioSfxLoop: false,
-        audioSfxPromptInfluence: SFX_PROMPT_INFLUENCE_RANGE.default,
-        audioSfxVariantCount: 1,
-        audioPace: AUDIO_DEFAULT_PACE,
-        audioPauseMarkers: [],
-        pronunciationDictionary: {},
-        audioVolume: TTS_VOLUME_RANGE.default,
-        audioNormalizeLoudness: true,
-        audioNormalizeText: true,
-        audioWithTimestamps: false,
-        audioFormat: DEFAULT_AUDIO_FORMAT,
-        audioSampleRate: DEFAULT_AUDIO_SAMPLE_RATE,
-        audioMp3Bitrate: DEFAULT_AUDIO_MP3_BITRATE,
-        audioOpusBitrate: DEFAULT_AUDIO_OPUS_BITRATE,
-        audioLatency: DEFAULT_AUDIO_LATENCY,
-        audioTemperature: TTS_TEMPERATURE_RANGE.default,
-        audioTopP: TTS_TOP_P_RANGE.default,
-        audioChunkLength: TTS_CHUNK_LENGTH_RANGE.default,
-        audioRepetitionPenalty: TTS_REPETITION_PENALTY_RANGE.default,
-        audioSpeakerVoiceIds: [],
-        audioReferenceUrl: null,
-        audioReferenceFileName: null,
-        audioReferenceText: '',
         videoDuration: VIDEO_GENERATION.DEFAULT_DURATION,
         videoResolution: null,
         videoAudioRefs: [],

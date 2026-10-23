@@ -12,15 +12,11 @@
     "modeLabel": {
       "image": "Image studio",
       "video": "Video studio",
-      "audio": "Audio studio",
-      "audio_sfx": "Sound effects",
       "image_tags": "Tag studio"
     },
     "hint": {
       "image": "Describe the image you want, or start from an example",
       "video": "Describe what happens in the shot, or start from an example",
-      "audio": "Enter the text to narrate, or start from an example",
-      "audio_sfx": "Describe the sound you want, or start from an example",
       "image_tags": "Type a few tags, or start from a set"
     },
     "examples": {
@@ -60,34 +56,6 @@
           "prompt": "Close-up of hands at a kitchen stove, ingredients tossed in a hot pan, oil sheen and steam rising, slight handheld sway, warm light"
         }
       },
-      "audio": {
-        "e1": {
-          "label": "Late-night radio",
-          "prompt": "It's late. You've done enough for today. Let go of the day's rush and drift gently into sleep."
-        },
-        "e2": {
-          "label": "Product intro",
-          "prompt": "What sets this product apart is how it folds a complex workflow into a single button — you say the idea, it does the rest."
-        },
-        "e3": {
-          "label": "Story time",
-          "prompt": "In the morning forest, the little fox set out alone for the first time. Dew soaked its paws, but its ears stood up with excitement."
-        }
-      },
-      "audio_sfx": {
-        "e1": {
-          "label": "Thunderclap",
-          "prompt": "A sudden thunderclap rolls across the sky, deep rumble fading into distant echoes"
-        },
-        "e2": {
-          "label": "Footsteps on gravel",
-          "prompt": "Slow, deliberate footsteps crunching on gravel, close up, quiet outdoor ambience"
-        },
-        "e3": {
-          "label": "Glass shatter",
-          "prompt": "A glass cup falls and shatters on a tile floor, sharp break with scattering shards"
-        }
-      },
       "image_tags": {
         "e1": {
           "label": "Portrait",
@@ -124,18 +92,6 @@
     "modeLabel": "Generation mode",
     "modeImage": "Image",
     "modeVideo": "Video",
-    "modeAudio": "Audio",
-    "audioTitle": "Text to Speech",
-    "audioSubtitle": "Enter text and choose a voice to generate speech audio",
-    "audioModel": "Model",
-    "audioVoice": "Voice",
-    "audioText": "Text",
-    "audioPlaceholder": "Enter the text you want to convert to speech...",
-    "sfxPlaceholder": "Describe the sound effect you want...",
-    "audioSpeed": "Speed",
-    "audioGenerate": "Generate Speech",
-    "audioGenerating": "Generating...",
-    "audioResult": "Result",
     "voices": {
       "alloy": "Alloy",
       "alloyDesc": "Warm, natural female voice",
@@ -508,16 +464,11 @@
       "promptTooLong": "Shorten the prompt to {max} characters or less",
       "referenceRequired": "Drop or attach a reference image in the prompt box first",
       "referenceUnsupported": "The selected model will not read reference images. Remove the reference image or switch to a reference-aware model.",
-      "audioPromptTooLong": "Shorten the audio text to {max} characters or less",
-      "audioReferenceTextRequired": "Add the transcript of your uploaded reference audio before generating.",
       "videoQueueFull": "Up to {max} clips can render at once — wait for one to finish",
       "videoAudioNeedsVisual": "Audio references on this route need at least one reference image. Add an image, or switch to a route that accepts audio-only references.",
       "novelAiTextTooLong": "Too much text: this model draws at most {max} characters",
       "novelAiTextLatinOnly": "V4.5 only draws English text — switch to V5 or write it in English"
     },
-    "audioPromptMeta": "{current} / {max} chars · ≈ {minutes} min · ≈ {credits, plural, one {# generation unit} other {# generation units}}",
-    "audioPromptMetaNoLimit": "{current} chars · ≈ {minutes} min · ≈ {credits, plural, one {# generation unit} other {# generation units}}",
-    "audioPromptMetaNoModel": "{current} chars · ≈ {minutes} min · select a model for cost",
     "samplePrompts": {
       "quickImage": "A serene Japanese garden at golden hour, koi fish swimming in a crystal clear pond, cherry blossoms falling gently",
       "animeIllustration": "A young adventurer with flowing silver hair standing atop a cliff, overlooking a vast fantasy kingdom at sunset",
@@ -525,8 +476,7 @@
       "imageEditRemix": "Transform this image into a watercolor painting style with soft pastel colors",
       "posterLayout": "Minimalist movie poster for a sci-fi film, single astronaut silhouette against a giant planet",
       "cinematicVideo": "A lone samurai walking through a misty bamboo forest at dawn, camera slowly tracking from behind",
-      "characterToVideo": "The character turns to face the camera and smiles warmly, gentle wind blowing their hair",
-      "voiceNarration": "Welcome to ANTEI, where your imagination becomes reality through the power of AI"
+      "characterToVideo": "The character turns to face the camera and smiles warmly, gentle wind blowing their hair"
     }
   },
   "StudioCommandPalette": {
@@ -543,7 +493,6 @@
     "commands": {
       "imageMode": "Image mode",
       "videoMode": "Video mode",
-      "audioMode": "Audio mode",
       "toggleAdvanced": "Toggle advanced settings",
       "toggleReference": "Toggle reference image",
       "trainLora": "Train LoRA"
@@ -694,18 +643,7 @@
     "characterCard": "Character",
     "civitai": "Civitai Token",
     "videoSettings": "Video Settings",
-    "sfxSettings": "Sound effect settings",
     "keepChange": "Keep & Change"
-  },
-  "StudioToolbar": {
-    "enhance": "Assistant",
-    "reference": "Reference",
-    "video": "Video",
-    "voice": "Voice",
-    "voiceSelected": "✓ Voice",
-    "clone": "Clone",
-    "transcribe": "Transcribe",
-    "sfxParams": "Settings"
   },
   "StudioV3": {
     "quickMode": "Quick Generate",
@@ -715,7 +653,6 @@
     "generationComplete": "Generation complete",
     "emptyStateTitle": "Your preview will appear here",
     "emptyStateHint": "Write a description below to start creating",
-    "emptyStateHintAudio": "Type the text you want to hear below to start creating",
     "emptyStateHintVideo": "Describe the shot, motion, or how the scene unfolds to start creating",
     "suggestion": {
       "s1": "A serene Japanese garden at golden hour",
@@ -1023,10 +960,6 @@
     "CHARACTER_TO_VIDEO": {
       "name": "Character-to-Video",
       "description": "Animate a character image while preserving as much character identity as possible."
-    },
-    "VOICE_NARRATION_DIALOGUE": {
-      "name": "Voice Narration",
-      "description": "Turn text into narration, dubbing, or multi-speaker dialogue."
     }
   },
   "Transform": {
@@ -1183,15 +1116,9 @@
     "modelMissing": "Pick a model first",
     "lora": "LoRA",
     "titleVideo": "My video templates · {count}",
-    "titleAudio": "My audio templates · {count}",
     "emptyVideo": "No video templates yet",
-    "emptyAudio": "No audio templates yet",
     "emptyHintVideo": "When a clip comes out right, press “Save” on “Current prompt”, or write one yourself with “New template”.",
-    "emptyHintAudio": "When the audio sounds right, press “Save” on “Current prompt”, or write one yourself with “New template”.",
-    "footAudio": "Click a template to apply it · model and settings switch too, then back to results",
     "namePlaceholderVideo": "e.g. Seaside sunset · slow push-in",
-    "namePlaceholderAudio": "e.g. Narration · warm voice",
-    "formNoteAudio": "Uses the model and settings you have selected now",
     "nowEmptyPrompt": "Write a prompt first",
     "nowEmptyTagsPlain": "Add a few tags first"
   },

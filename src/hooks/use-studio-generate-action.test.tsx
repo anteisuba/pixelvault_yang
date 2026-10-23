@@ -42,13 +42,7 @@ const EMPTY_PANELS: StudioFormState['panels'] = {
   stylePreset: false,
   reverse: false,
   refImage: false,
-  audioReading: false,
-  musicSpec: false,
   loraSelector: false,
-  voiceSelector: false,
-  voiceTrainer: false,
-  audioTranscribe: false,
-  sfxParams: false,
   videoAudio: false,
   keepChange: false,
 }
@@ -105,10 +99,6 @@ vi.mock('@/hooks/use-image-model-options', () => ({
   useImageModelOptions: mockUseImageModelOptions,
 }))
 
-vi.mock('@/hooks/use-audio-model-options', () => ({
-  useAudioModelOptions: () => ({ selectedModel: null, modelOptions: [] }),
-}))
-
 vi.mock('@/hooks/use-video-model-options', () => ({
   useVideoModelOptions: () => ({ selectedModel: null, modelOptions: [] }),
 }))
@@ -139,13 +129,6 @@ function makeState(overrides: Partial<StudioFormState> = {}) {
     videoDuration: 5,
     videoResolution: undefined,
     videoMode: 'keyframe',
-    audioKind: 'speech',
-    audioReferenceUrl: '',
-    audioReferenceText: '',
-    audioSpeakerVoiceIds: [],
-    pronunciationDictionary: {},
-    audioPace: 'normal',
-    voiceCardId: null,
     ...overrides,
   } as unknown as StudioFormState
 }

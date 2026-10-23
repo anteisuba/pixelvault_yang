@@ -49,26 +49,6 @@
         }
       }
     },
-    "audio": {
-      "label": "声音生成操作教程",
-      "slides": {
-        "input": {
-          "title": "输入要被读出来的文本",
-          "description": "这里不是写声音描述，而是直接写你希望听到的台词或旁白。",
-          "alt": "小黑在声音输入框里写文本的手绘教程图"
-        },
-        "voice": {
-          "title": "选择音色并补充参考",
-          "description": "选好模型和音色，需要时加入参考音频，让声音更接近预期。",
-          "alt": "小黑调整音色和参考声音的手绘教程图"
-        },
-        "preview": {
-          "title": "生成后检查波形和试听",
-          "description": "结果会出现在预览区，先试听，再用反馈按钮继续微调。",
-          "alt": "小黑查看声音波形预览的手绘教程图"
-        }
-      }
-    },
     "model3d": {
       "label": "3D 生成操作教程",
       "slides": {
@@ -337,8 +317,7 @@
       "video": "视频工作台",
       "lora": "LoRA 工作台",
       "canvas": "画布",
-      "cards": "角色页",
-      "audio": "配音台"
+      "cards": "角色页"
     },
     "session": "会话",
     "newThread": "新对话",
@@ -469,8 +448,7 @@
       "audioReferences": "音频参考",
       "sound": "出声",
       "loras": "LoRA 挂载",
-      "canvasNodes": "画布节点",
-      "audio": "配音设置"
+      "canvasNodes": "画布节点"
     },
     "changeSubject": {
       "rule": "项目规则",
@@ -1034,10 +1012,7 @@
         "researchProfile": "帮我查一个角色的设定",
         "originalCharacter": "帮我想一个原创角色",
         "findImages": "给这个角色找几张图",
-        "checkLook": "对一下设定和外观",
-        "readInVoice": "用角色的声音念这段",
-        "makeSoundEffect": "帮我做一个音效",
-        "tuneReading": "念得慢一点、更有感情"
+        "checkLook": "对一下设定和外观"
       },
       "image": {
         "empty": "说你想要的画面，我来写提示词、挑模型、配参考。",
@@ -1064,11 +1039,6 @@
         "placeholder": "说个角色名，或者说说你想要的原创角色…",
         "context": "{count} 位角色",
         "contextOpen": "正在看 {name}"
-      },
-      "audio": {
-        "empty": "说要念什么、谁来念，我把字、音色和念法调好，出一张确认卡给你按。",
-        "placeholder": "要念的话，或想要的音效、音乐…",
-        "context": "{model} · {kind}"
       }
     },
     "autoGenerate": {

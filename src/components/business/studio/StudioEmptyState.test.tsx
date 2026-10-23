@@ -19,7 +19,7 @@ let promptDialectMock = 'natural'
 
 vi.mock('@/contexts/studio-context', () => ({
   useStudioForm: () => ({
-    state: { audioKind: 'speech', promptDialect: promptDialectMock },
+    state: { promptDialect: promptDialectMock },
     dispatch: dispatchMock,
   }),
   // ⚠ 手写镜像：组件消费到哪些字段这里就得有哪些。缺 `imageUpload` 时点缩略图

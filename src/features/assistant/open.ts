@@ -33,7 +33,6 @@ const LABEL: Record<AssistantWorkspace, string> = {
   'image-natural': 'the image bench',
   'image-tags': 'the tag bench',
   video: 'the video bench',
-  audio: 'the audio bench',
   lora: 'the LoRA bench',
   canvas: 'the canvas',
   cards: 'the character page',

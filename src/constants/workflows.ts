@@ -8,13 +8,11 @@ export const WORKFLOW_IDS = {
   POSTER_LAYOUT: 'POSTER_LAYOUT',
   CINEMATIC_SHORT_VIDEO: 'CINEMATIC_SHORT_VIDEO',
   CHARACTER_TO_VIDEO: 'CHARACTER_TO_VIDEO',
-  VOICE_NARRATION_DIALOGUE: 'VOICE_NARRATION_DIALOGUE',
 } as const
 
 export const WORKFLOW_MEDIA_GROUPS = {
   IMAGE: 'image',
   VIDEO: 'video',
-  AUDIO: 'audio',
 } as const
 
 export const WORKFLOW_LAUNCH_TIERS = {
@@ -36,8 +34,6 @@ export type WorkflowDefaultOpenPanel =
   | 'enhance'
   | 'reverse'
   | 'refImage'
-  | 'voiceSelector'
-  | 'voiceTrainer'
 
 type WorkflowDefinition = {
   id: WorkflowIdValue
@@ -115,15 +111,6 @@ export const WORKFLOWS = [
     descriptionKey: 'workflows.CHARACTER_TO_VIDEO.description',
     advancedModeAllowed: true,
   },
-  {
-    id: WORKFLOW_IDS.VOICE_NARRATION_DIALOGUE,
-    mediaGroup: WORKFLOW_MEDIA_GROUPS.AUDIO,
-    launchTier: WORKFLOW_LAUNCH_TIERS.WAVE_1,
-    defaultOutputType: WORKFLOW_MEDIA_GROUPS.AUDIO,
-    publicNameKey: 'workflows.VOICE_NARRATION_DIALOGUE.name',
-    descriptionKey: 'workflows.VOICE_NARRATION_DIALOGUE.description',
-    advancedModeAllowed: true,
-  },
 ] as const satisfies readonly WorkflowDefinition[]
 
 export type Workflow = (typeof WORKFLOWS)[number]
@@ -187,10 +174,6 @@ const WORKFLOW_STUDIO_DEFAULT_OVERRIDES: Partial<
       AI_MODELS.SEEDANCE_20,
       AI_MODELS.KLING_V3_PRO,
     ],
-  },
-  [WORKFLOW_IDS.VOICE_NARRATION_DIALOGUE]: {
-    openPanel: 'voiceSelector',
-    recommendedModelIds: [AI_MODELS.FISH_AUDIO_S2_PRO],
   },
 }
 

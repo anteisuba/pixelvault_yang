@@ -20,7 +20,7 @@ interface FishVoiceLibraryDialogProps {
   sidePanel?: ReactNode
   onVoiceSelectComplete?: () => void
   selectedVoiceId?: string | null
-  onSelectVoiceId?: (voice: SelectedVoice) => void
+  onSelectVoiceId: (voice: SelectedVoice) => void
 }
 
 export const FishVoiceLibraryDialog = memo(function FishVoiceLibraryDialog({

@@ -99,7 +99,6 @@ import {
   runLook,
   type BenchResult,
 } from '@/features/assistant/bench'
-import { loadAudioVoices } from '@/features/assistant/audio'
 import { benchAliases } from '@/features/assistant/workspace.service'
 import {
   ASSISTANT_NEXT_LIMITS,
@@ -466,9 +465,7 @@ async function* runNextTurn(
         ? Boolean(request.snapshot.cards)
         : face === ASSISTANT_V3_FACE_IDS.canvas
           ? Boolean(request.snapshot.canvas)
-          : face === ASSISTANT_V3_FACE_IDS.audio
-            ? Boolean(request.snapshot.audio)
-            : true
+          : true
   if (!face || !resolved || !modelId || !benchReady) {
     // 旧内核第 9c 步已删，⛔ 没有退路：说清是哪一样没对上（厂商都在 `resolveNextModel` 里）。
     logger.warn('assistant next cannot run this request', {
@@ -529,8 +526,6 @@ async function* runNextTurn(
     modelId,
   })
   run.stepSeq = saved?.stepSeq ?? 0
-  // 配音台：音色库与有声音的角色每一跳现查一次（板子与改音色都读它）。
-  if (face === ASSISTANT_V3_FACE_IDS.audio) await loadAudioVoices(context)
 
   let model: NextModel = resolved
   while (saved && model.path !== saved.modelPath && model.fallback)

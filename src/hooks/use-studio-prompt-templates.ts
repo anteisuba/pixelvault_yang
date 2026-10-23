@@ -24,7 +24,6 @@ export function useStudioPromptTemplates(modelOptions: StudioModelOption[]) {
 
   const currentTemplateOutputType = useMemo<RecipeOutputType>(() => {
     if (state.outputType === 'video') return 'VIDEO'
-    if (state.outputType === 'audio') return 'AUDIO'
     return 'IMAGE'
   }, [state.outputType])
 
@@ -93,9 +92,7 @@ export function useStudioPromptTemplates(modelOptions: StudioModelOption[]) {
       const workflowId =
         recipe.outputType === 'VIDEO'
           ? WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO
-          : recipe.outputType === 'AUDIO'
-            ? WORKFLOW_IDS.VOICE_NARRATION_DIALOGUE
-            : WORKFLOW_IDS.QUICK_IMAGE
+          : WORKFLOW_IDS.QUICK_IMAGE
       const matchedOption = modelOptions.find(
         (option) => option.modelId === recipe.modelId,
       )

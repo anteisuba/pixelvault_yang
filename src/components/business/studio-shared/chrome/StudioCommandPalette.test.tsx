@@ -38,7 +38,6 @@ const modelFixtures = vi.hoisted(() => {
     image: makeModelOption('workspace:image-only-model'),
     video: makeModelOption('workspace:video-only-model'),
     videoReady: makeModelOption('workspace:video-ready-model', 'key-1'),
-    audio: makeModelOption('workspace:audio-only-model'),
   }
 })
 
@@ -77,12 +76,6 @@ vi.mock('@/hooks/use-video-model-options', () => ({
   })),
 }))
 
-vi.mock('@/hooks/use-audio-model-options', () => ({
-  useAudioModelOptions: vi.fn(() => ({
-    modelOptions: [modelFixtures.audio],
-  })),
-}))
-
 vi.mock('@/components/business/LoraTrainingDialog', () => ({
   LoraTrainingDialog: () => null,
 }))
@@ -95,7 +88,6 @@ describe('StudioCommandPalette', () => {
 
     expect(screen.getByText('video-only-model')).toBeInTheDocument()
     expect(screen.queryByText('image-only-model')).not.toBeInTheDocument()
-    expect(screen.queryByText('audio-only-model')).not.toBeInTheDocument()
   })
 
   it('没配 key 的模型选不上：不改当前模型，直接去配它那一家的 key', () => {

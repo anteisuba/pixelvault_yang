@@ -6,7 +6,6 @@ import type { VoiceCardRecord } from '@/types'
 import { VoiceSelector } from './VoiceSelector'
 
 const {
-  dispatchMock,
   refreshMock,
   listVoicesAPIMock,
   createVoiceCardAPIMock,
@@ -15,7 +14,6 @@ const {
   updateVoiceCardAPIMock,
   voiceCardsRef,
 } = vi.hoisted(() => ({
-  dispatchMock: vi.fn(),
   refreshMock: vi.fn(),
   listVoicesAPIMock: vi.fn(),
   createVoiceCardAPIMock: vi.fn(),
@@ -30,23 +28,6 @@ vi.mock('next-intl', () => ({
     () =>
     (key: string): string =>
       key,
-}))
-
-vi.mock('@/contexts/studio-context', () => ({
-  useStudioForm: () => ({
-    state: {
-      voiceId: null,
-      voiceCardId: null,
-    },
-    dispatch: dispatchMock,
-  }),
-  useStudioFormOptional: () => ({
-    state: {
-      voiceId: null,
-      voiceCardId: null,
-    },
-    dispatch: dispatchMock,
-  }),
 }))
 
 vi.mock('@/hooks/cards/use-voice-cards', () => ({
@@ -92,7 +73,6 @@ const FAVORITE_CARD: VoiceCardRecord = {
 
 describe('VoiceSelector', () => {
   beforeEach(() => {
-    dispatchMock.mockClear()
     refreshMock.mockClear()
     voiceCardsRef.cards = []
     deleteVoiceCardAPIMock.mockReset()
@@ -135,32 +115,11 @@ describe('VoiceSelector', () => {
   })
 
   it('shows Fish Audio public voices in the default voices panel', async () => {
-    render(<VoiceSelector />)
+    render(<VoiceSelector onSelectVoiceId={vi.fn()} />)
 
     expect(await screen.findByText('Fish Narrator')).toBeInTheDocument()
     expect(screen.getByText('voiceCardFishAudio')).toBeInTheDocument()
     expect(screen.queryByText('MiniMax')).not.toBeInTheDocument()
-  })
-
-  it('selects a Fish Audio market voice and switches to the Fish Audio model', async () => {
-    render(<VoiceSelector />)
-
-    fireEvent.click(await screen.findByText('Fish Narrator'))
-
-    await waitFor(() => {
-      expect(dispatchMock).toHaveBeenCalledWith({
-        type: 'SET_VOICE_CARD_ID',
-        payload: null,
-      })
-      expect(dispatchMock).toHaveBeenCalledWith({
-        type: 'SET_VOICE_ID',
-        payload: 'fish-public-1',
-      })
-      expect(dispatchMock).toHaveBeenCalledWith({
-        type: 'SET_OPTION_ID',
-        payload: 'workspace:fish-audio-s2-pro',
-      })
-    })
   })
 
   it('passes the playable sample when an external consumer selects a market voice', async () => {
@@ -185,7 +144,7 @@ describe('VoiceSelector', () => {
    * 写进去会把收藏卡错分到克隆 tab。
    */
   it('keeps the sample audio when favoriting a public voice', async () => {
-    render(<VoiceSelector />)
+    render(<VoiceSelector onSelectVoiceId={vi.fn()} />)
 
     expect(await screen.findByText('Fish Narrator')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'voiceFavorite' }))
@@ -257,7 +216,7 @@ describe('VoiceSelector', () => {
 
   it('removes a saved voice from the favorites tab', async () => {
     voiceCardsRef.cards = [FAVORITE_CARD]
-    render(<VoiceSelector />)
+    render(<VoiceSelector onSelectVoiceId={vi.fn()} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'voiceFavorites' }))
     expect(await screen.findByText('男漂泊者')).toBeInTheDocument()
@@ -274,7 +233,7 @@ describe('VoiceSelector', () => {
   it('shows the failure message when deleting a saved voice fails', async () => {
     voiceCardsRef.cards = [FAVORITE_CARD]
     deleteVoiceCardAPIMock.mockResolvedValue({ success: false })
-    render(<VoiceSelector />)
+    render(<VoiceSelector onSelectVoiceId={vi.fn()} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'voiceFavorites' }))
     expect(await screen.findByText('男漂泊者')).toBeInTheDocument()
@@ -289,7 +248,7 @@ describe('VoiceSelector', () => {
       voiceCardsRef.cards = saved
         ? [{ ...FAVORITE_CARD, voiceId: 'fish-public-1' }]
         : []
-      const { unmount } = render(<VoiceSelector />)
+      const { unmount } = render(<VoiceSelector onSelectVoiceId={vi.fn()} />)
       await screen.findByText('Fish Narrator')
       const svg = screen
         .getByRole('button', {

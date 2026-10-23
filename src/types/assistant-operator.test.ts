@@ -297,19 +297,6 @@ const STEP_FIXTURES: Record<
     payload: { value: 'a girl under a red umbrella', mode: 'replace' },
     inverse: { value: '' },
   },
-  /** 配音台（第 9b 步）：一格一格改，撤销给改前那几格。 */
-  [ASSISTANT_OPERATOR_TOOL_IDS.setAudio]: {
-    payload: {
-      voice: { cardId: 'card-1', voiceId: 'voice-1' },
-      pace: 'slow',
-      style: 'calm',
-    },
-    inverse: {
-      voice: { cardId: null, voiceId: null },
-      pace: 'normal',
-      style: 'none',
-    },
-  },
   [ASSISTANT_OPERATOR_TOOL_IDS.setNegative]: {
     payload: { value: 'blurry, lowres', mode: 'replace' },
     inverse: { value: '' },
@@ -1817,11 +1804,11 @@ describe('请求与快照契约', () => {
         snapshot: SNAPSHOT,
       }).success,
     ).toBe(true)
-    // 配音台第 9b 步进了表；表里没有的域一样当场拒。
+    // 配音间没进表（owner 2026-09-19）——它一样当场拒。
     expect(
       AssistantOperatorRequestSchema.safeParse({
         messages: [{ role: 'user', content: 'x' }],
-        domain: 'music-room',
+        domain: 'audio',
         workspaceKey: 'image-natural',
         snapshot: SNAPSHOT,
       }).success,

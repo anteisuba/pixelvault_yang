@@ -9,7 +9,7 @@ import type { AppLocale } from '@/i18n/routing'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-type XiaoheiGuideId = 'image' | 'video' | 'audio' | 'model3d' | 'node'
+type XiaoheiGuideId = 'image' | 'video' | 'model3d' | 'node'
 
 interface XiaoheiGuideSlide {
   imageSrc: string
@@ -93,20 +93,6 @@ const XIAOHEI_GUIDES: Record<
     },
     {
       imageSrc: '/tutorials/xiaohei-guides/video-03-preview.webp',
-      key: 'preview',
-    },
-  ],
-  audio: [
-    {
-      imageSrc: '/tutorials/xiaohei-guides/audio-01-input.webp',
-      key: 'input',
-    },
-    {
-      imageSrc: '/tutorials/xiaohei-guides/audio-02-voice.webp',
-      key: 'voice',
-    },
-    {
-      imageSrc: '/tutorials/xiaohei-guides/audio-03-preview.webp',
       key: 'preview',
     },
   ],

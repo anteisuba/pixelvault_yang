@@ -9,14 +9,7 @@ import {
   type ClipboardEvent,
   type DragEvent,
 } from 'react'
-import {
-  Ban,
-  ChevronDown,
-  Download,
-  FileAudio2,
-  Plus,
-  X,
-} from '@/components/icons'
+import { Ban, ChevronDown, Download, X } from '@/components/icons'
 import * as Toolbar from '@radix-ui/react-toolbar'
 import { useTranslations } from 'next-intl'
 
@@ -28,7 +21,6 @@ import {
   SAMPLE_PROMPT_KEYS,
   SAMPLE_PROMPT_STORAGE_KEY,
 } from '@/constants/sample-prompts'
-import { AUDIO_KIND } from '@/constants/audio-options'
 import { getVideoModelSendContract } from '@/constants/video-model-send-plan'
 import {
   STUDIO_TOOL_PANEL_NAMES,
@@ -68,11 +60,7 @@ import { StudioSpecChip } from '@/components/business/studio/StudioSpecChip'
 import { StudioModelCapabilityChips } from '@/components/business/studio/StudioModelCapabilityChips'
 import { StudioDialectHeader } from '@/components/business/studio/tags/StudioDialectHeader'
 import { StudioDialectJumpHint } from '@/components/business/studio/tags/StudioDialectJumpHint'
-import { StudioSfxSpecPopover } from '@/components/business/studio/StudioSfxSpecPopover'
-import { StudioMusicSpecPopover } from '@/components/business/studio/StudioMusicSpecPopover'
-import { StudioAudioSpeechParams } from '@/components/business/studio/StudioAudioSpeechParams'
 import { StudioCostPreview } from '@/components/business/studio/StudioCostPreview'
-import { StudioAudioKindSwitcher } from '@/components/business/studio/StudioAudioKindSwitcher'
 import { StudioGenerateButton } from '@/components/business/studio-shared/workflow/StudioGenerateButton'
 import { cn } from '@/lib/utils'
 import { PromptInput, PromptInputTextarea } from '@/components/ui/prompt-input'
@@ -86,15 +74,6 @@ import {
   studioOutlineChipCompactLabelClass,
   studioOutlineChipSetClass,
 } from '@/components/business/studio-shared/primitives/tool-surface'
-
-/**
- * 模态专属那几颗丸的样式 —— 从退役的 `StudioToolbarPanels` 原样搬过来，
- * 好让切片 A 是一次纯搬迁：形态换成 `ParamIdiom` 里的「触发器 + 浮层」
- * 是切片 B / D 的事，那时这两个常量会一起消失。
- */
-const modalityPillClass =
-  'touch-target-y flex h-9 items-center gap-2 rounded-lg border border-border/60 px-3 text-sm font-medium text-muted-foreground transition-colors duration-fast ease-standard hover:border-primary/25 hover:text-foreground disabled:pointer-events-none disabled:opacity-50'
-const modalityPillActiveClass = 'border-primary/30 bg-primary/10 text-primary'
 
 const STUDIO_FLOATING_SURFACE_SELECTOR = [
   '[data-studio-tool-popover]',
@@ -157,7 +136,6 @@ export const StudioPromptArea = memo(function StudioPromptArea({
   const tImageUpload = useTranslations('ImageUpload')
   const tModels = useTranslations('Models')
   // 模态专属那几颗丸的文案 —— 命名空间沿用 dock 时期的，文案一个字没改
-  const tBar = useTranslations('StudioToolbar')
   const tVideo = useTranslations('VideoGenerate')
   const tSlots = useTranslations('StudioVideoSlots')
   const tSearch = useTranslations('SearchGrounding')
@@ -172,7 +150,6 @@ export const StudioPromptArea = memo(function StudioPromptArea({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const isAudioMode = state.outputType === 'audio'
   const isVideoMode = state.outputType === 'video'
   /**
    * 视频档的负面提示词行**按这一枪实际跑的端点**显隐（owner 09-24 视频画板 ③）：
@@ -210,9 +187,6 @@ export const StudioPromptArea = memo(function StudioPromptArea({
     imagePromptLength,
     imagePromptMaxChars,
     isImagePromptOverLimit,
-    isAudioPromptOverLimit,
-    isAudioPromptNearLimit,
-    audioPromptMeta,
     videoCostBasis,
   } = useStudioGenerateAction()
 
@@ -334,13 +308,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
     },
   })
 
-  const tStudio = useTranslations('StudioPage')
-
-  const placeholder = isAudioMode
-    ? state.audioKind === AUDIO_KIND.SFX
-      ? tStudio('sfxPlaceholder')
-      : tStudio('audioPlaceholder')
-    : t('freePromptPlaceholder')
+  const placeholder = t('freePromptPlaceholder')
 
   const negativePromptValue = state.advancedParams.negativePrompt ?? ''
   const setNegativePrompt = (value: string) =>
@@ -843,22 +811,6 @@ export const StudioPromptArea = memo(function StudioPromptArea({
               />
             )}
           </div>
-          {/* 音频的字数 / 分钟数 / 上限 —— 从 dock 搬进来（切片 A）。音效那一档
-              的提示词是「音效描述」，没有朗读时长可估，所以不印。 */}
-          {isAudioMode && state.audioKind !== AUDIO_KIND.SFX && (
-            <span
-              className={cn(
-                'text-2xs tabular-nums',
-                isAudioPromptOverLimit
-                  ? 'text-destructive'
-                  : isAudioPromptNearLimit
-                    ? 'text-status-warning'
-                    : 'text-muted-foreground/70',
-              )}
-            >
-              {audioPromptMeta}
-            </span>
-          )}
           {isImagePromptOverLimit && (
             <span className="text-2xs tabular-nums text-destructive">
               {`${imagePromptLength}/${imagePromptMaxChars}`}
@@ -881,88 +833,85 @@ export const StudioPromptArea = memo(function StudioPromptArea({
               域的皮肤绑死；这里用条件渲染，行为一致、无跨域依赖。
               ⚠ 图片 + 视频共用这一条：两边写的是**同一个字段**
               （`advancedParams.negativePrompt`），视频那份原本长在「视频设置」
-              对话框里，切片 B 把对话框整个退役了，字段的家从此只有这一个。
-              音频没有这个字段，所以不渲染。 */}
-        {!isAudioMode ? (
-          <div
-            className="flex flex-col"
-            // ⭐ 必须挡住冒泡：`PromptInput` 的根 div 在**容器内任何点击**冒泡上来时
-            //   都会 `focusUnlessTouch(textareaRef)` 把焦点抢回主提示词框
-            //   （见 `ui/prompt-input.tsx` 的 handleClick）。不挡的话点这里的输入框
-            //   会「看着聚焦了、打的字全进主提示词框」—— 2026-08-22 owner 实拍
-            //   「甚至无法点击」，我当时误判成自己点偏了。
-            //   ⚠ 同文件里 `PromptInputAction` 早就是这么防的，这里照它。
-            onClick={(event) => event.stopPropagation()}
+              对话框里，切片 B 把对话框整个退役了，字段的家从此只有这一个。 */}
+        <div
+          className="flex flex-col"
+          // ⭐ 必须挡住冒泡：`PromptInput` 的根 div 在**容器内任何点击**冒泡上来时
+          //   都会 `focusUnlessTouch(textareaRef)` 把焦点抢回主提示词框
+          //   （见 `ui/prompt-input.tsx` 的 handleClick）。不挡的话点这里的输入框
+          //   会「看着聚焦了、打的字全进主提示词框」—— 2026-08-22 owner 实拍
+          //   「甚至无法点击」，我当时误判成自己点偏了。
+          //   ⚠ 同文件里 `PromptInputAction` 早就是这么防的，这里照它。
+          onClick={(event) => event.stopPropagation()}
+        >
+          <button
+            type="button"
+            aria-expanded={negativePromptExpanded}
+            aria-controls="studio-negative-prompt-input"
+            onClick={() => setNegativePromptExpanded((open) => !open)}
+            className="flex w-full items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-[7px] text-left transition-colors duration-fast ease-standard hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background coarse:min-h-11"
           >
-            <button
-              type="button"
-              aria-expanded={negativePromptExpanded}
-              aria-controls="studio-negative-prompt-input"
-              onClick={() => setNegativePromptExpanded((open) => !open)}
-              className="flex w-full items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-[7px] text-left transition-colors duration-fast ease-standard hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background coarse:min-h-11"
-            >
-              <span className="shrink-0 text-2xs font-medium text-muted-foreground/70">
-                {tPromptArea('negativePromptLabel')}
-              </span>
-              {/* ⚠ 预览只在**收起**时出现：展开后下面的输入框已经把同一句
+            <span className="shrink-0 text-2xs font-medium text-muted-foreground/70">
+              {tPromptArea('negativePromptLabel')}
+            </span>
+            {/* ⚠ 预览只在**收起**时出现：展开后下面的输入框已经把同一句
                   placeholder 写了一遍，两处一模一样的字同屏出现是噪音
                   （「同一句话不许一屏两遍」）。展开时这里只留标签。 */}
-              {negativePromptExpanded ? (
-                <span className="flex-1" />
-              ) : (
-                <span className="min-w-0 flex-1 truncate text-2xs text-muted-foreground/60">
-                  {(state.advancedParams.negativePrompt ?? '').trim() ||
-                    tPromptArea('negativePromptPlaceholder')}
-                </span>
-              )}
-              <ChevronDown
-                className={cn(
-                  'size-3.5 shrink-0 text-muted-foreground transition-transform duration-fast ease-standard',
-                  negativePromptExpanded && 'rotate-180',
-                )}
-                aria-hidden
-              />
-            </button>
-            <div
-              aria-hidden={!negativePromptExpanded}
+            {negativePromptExpanded ? (
+              <span className="flex-1" />
+            ) : (
+              <span className="min-w-0 flex-1 truncate text-2xs text-muted-foreground/60">
+                {(state.advancedParams.negativePrompt ?? '').trim() ||
+                  tPromptArea('negativePromptPlaceholder')}
+              </span>
+            )}
+            <ChevronDown
               className={cn(
-                'grid transition-[grid-template-rows,opacity] duration-base ease-standard motion-reduce:transition-none',
-                negativePromptExpanded
-                  ? 'grid-rows-[1fr] opacity-100'
-                  : 'grid-rows-[0fr] opacity-0',
+                'size-3.5 shrink-0 text-muted-foreground transition-transform duration-fast ease-standard',
+                negativePromptExpanded && 'rotate-180',
               )}
+              aria-hidden
+            />
+          </button>
+          <div
+            aria-hidden={!negativePromptExpanded}
+            className={cn(
+              'grid transition-[grid-template-rows,opacity] duration-base ease-standard motion-reduce:transition-none',
+              negativePromptExpanded
+                ? 'grid-rows-[1fr] opacity-100'
+                : 'grid-rows-[0fr] opacity-0',
+            )}
+          >
+            <div
+              className="min-h-0 overflow-hidden"
+              inert={!negativePromptExpanded}
             >
-              <div
-                className="min-h-0 overflow-hidden"
-                inert={!negativePromptExpanded}
-              >
-                <div className="pt-1.5">
-                  <textarea
-                    id="studio-negative-prompt-input"
-                    aria-label={tPromptArea('negativePromptLabel')}
-                    value={state.advancedParams.negativePrompt ?? ''}
-                    onChange={(event) =>
-                      dispatch({
-                        type: 'SET_ADVANCED_PARAMS',
-                        // ⚠ 整个对象带过去，只换一个键 —— `SET_ADVANCED_PARAMS` 是
-                        //   整体替换，只发 negativePrompt 会把其余参数清空。
-                        payload: {
-                          ...state.advancedParams,
-                          negativePrompt: event.target.value || undefined,
-                        },
-                      })
-                    }
-                    placeholder={tPromptArea('negativePromptPlaceholder')}
-                    rows={2}
-                    disabled={isGenerating}
-                    // ⚠ 见提示词框那条：<768 必须 ≥16px，否则 iOS 聚焦即放大。
-                    className="h-[46px] w-full resize-none rounded-lg border border-border bg-background px-2.5 py-2 text-base outline-none md:text-2xs transition-colors duration-fast ease-standard placeholder:text-muted-foreground/60 focus:border-primary/40 focus:ring-2 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
-                  />
-                </div>
+              <div className="pt-1.5">
+                <textarea
+                  id="studio-negative-prompt-input"
+                  aria-label={tPromptArea('negativePromptLabel')}
+                  value={state.advancedParams.negativePrompt ?? ''}
+                  onChange={(event) =>
+                    dispatch({
+                      type: 'SET_ADVANCED_PARAMS',
+                      // ⚠ 整个对象带过去，只换一个键 —— `SET_ADVANCED_PARAMS` 是
+                      //   整体替换，只发 negativePrompt 会把其余参数清空。
+                      payload: {
+                        ...state.advancedParams,
+                        negativePrompt: event.target.value || undefined,
+                      },
+                    })
+                  }
+                  placeholder={tPromptArea('negativePromptPlaceholder')}
+                  rows={2}
+                  disabled={isGenerating}
+                  // ⚠ 见提示词框那条：<768 必须 ≥16px，否则 iOS 聚焦即放大。
+                  className="h-[46px] w-full resize-none rounded-lg border border-border bg-background px-2.5 py-2 text-base outline-none md:text-2xs transition-colors duration-fast ease-standard placeholder:text-muted-foreground/60 focus:border-primary/40 focus:ring-2 focus:ring-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
+                />
               </div>
             </div>
           </div>
-        ) : null}
+        </div>
 
         {/* 往提示词里加东西的两个动作：模板 / 参考图。紧贴输入框，不进「参数」。
               ⚠ 必须裹 Toolbar.Root —— 这几颗 chip 底下是 Radix `Toolbar.Button`，
@@ -974,10 +923,6 @@ export const StudioPromptArea = memo(function StudioPromptArea({
             onToggle={templates.onToggle}
             disabled={isGenerating}
           />
-          {/* ⚠ 音频没有参考图这回事 —— dock 时代它的工具条里本来就没有这颗
-              （`StudioToolbarPanels` 的音频分支只有 助手 / 音色 / 克隆 / 转脚本）。
-              参数栏这一行是三模态共用的，不加这个闸就等于给语音凭空多一个
-              点了没用的入口。音频要传的是**参考音频**，在音色面板里。 */}
           {/* ⚠ 视频档这颗**不渲染**（owner 09-24 视频画板 ④）：图片进素材轨的「＋」，
               带编号与首尾帧角标。留着它等于同一件事两个入口。 */}
           {isImageMode ? <ReferenceImageChip disabled={isGenerating} /> : null}
@@ -992,100 +937,6 @@ export const StudioPromptArea = memo(function StudioPromptArea({
               （卡片模式 2026-10-22 下线：选了角色就带上，不再另切模式。） */}
           {isImageMode ? <StudioCardsButton disabled={isGenerating} /> : null}
         </Toolbar.Root>
-
-        {isAudioMode ? (
-          <>
-            <StudioAudioKindSwitcher />
-            {/* ⚠ 音色 / 克隆 / 音频转脚本**只属于语音档**。今天工具条只判了音效
-                一个分支，于是切到「音乐」显示的仍是这三颗 —— 对一段配乐来说
-                「换音色」「克隆」都没有意义（Main 板 E7）。判据改成正列语音，
-                新增档位默认不继承语音的栏位。 */}
-            {state.audioKind === AUDIO_KIND.SPEECH ? (
-              <Toolbar.Root className="flex flex-wrap items-center gap-1.5">
-                <>
-                  {/* ⚠ 音色**不在这一行** —— 它已经是下面「音色」那一栏（形态 3
-                      的行），在这里再放一颗丸就是同一条信息一屏两遍。留在这行的
-                      两颗是**动作**不是参数：克隆一个新音色、把一段音频转成稿子。 */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (state.panels.voiceSelector) {
-                        dispatch({
-                          type: 'CLOSE_PANEL',
-                          payload: 'voiceSelector',
-                        })
-                      }
-                      dispatch({
-                        type: 'TOGGLE_PANEL',
-                        payload: 'voiceTrainer',
-                      })
-                    }}
-                    disabled={isGenerating}
-                    className={cn(
-                      modalityPillClass,
-                      state.panels.voiceTrainer && modalityPillActiveClass,
-                    )}
-                  >
-                    <Plus className="size-4" />
-                    {tBar('clone')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (state.panels.voiceSelector) {
-                        dispatch({
-                          type: 'CLOSE_PANEL',
-                          payload: 'voiceSelector',
-                        })
-                      }
-                      if (state.panels.voiceTrainer) {
-                        dispatch({
-                          type: 'CLOSE_PANEL',
-                          payload: 'voiceTrainer',
-                        })
-                      }
-                      dispatch({
-                        type: 'TOGGLE_PANEL',
-                        payload: 'audioTranscribe',
-                      })
-                    }}
-                    disabled={isGenerating}
-                    className={cn(
-                      modalityPillClass,
-                      state.panels.audioTranscribe && modalityPillActiveClass,
-                    )}
-                  >
-                    <FileAudio2 className="size-4" />
-                    {tBar('transcribe')}
-                  </button>
-                </>
-              </Toolbar.Root>
-            ) : null}
-          </>
-        ) : null}
-
-        {/* 模型（音频）—— **单选**：音频只有音效档有 `variantCount`，给它一份多选
-            名单会画出一个发不出去的矩阵。 */}
-        {isAudioMode && (
-          // `data-assistant-field` = 助手改到这一格时闪一次（进度表 21）。
-          <div className="flex flex-col gap-1.5" data-assistant-field="model">
-            <span className="text-2xs font-medium text-muted-foreground/70">
-              {tForm('modelLabel')}
-            </span>
-            <MainModelPicker
-              modality="audio"
-              value={state.selectedOptionId ?? null}
-              onChange={handleSelectSingleModel}
-              triggerEmptyLabel={t('noModelHint')}
-              searchPlaceholder={tForm('modelSelector.searchPlaceholder')}
-              emptySearchText={tForm('modelSelector.emptySearch')}
-              className="w-full justify-start"
-              // 与图片那颗同一个宽度与对齐（22f47e25 只修了图片档）。
-              popoverAlign="start"
-              contentClassName="w-80"
-            />
-          </div>
-        )}
 
         {/* 模型（图片）—— 这一轮的名单。行不是丸：行能装下单价，缺价一眼看得出来。
               主模型 + 额外模型都在这里，选择器是多选的（三栏居中 modal，不受
@@ -1173,21 +1024,6 @@ export const StudioPromptArea = memo(function StudioPromptArea({
         {isImageMode ? (
           <StudioModelCapabilityChips disabled={isGenerating} />
         ) : null}
-        {isAudioMode && state.audioKind === AUDIO_KIND.SFX ? (
-          <StudioSfxSpecPopover disabled={isGenerating} />
-        ) : null}
-        {/* 音乐档补上它唯一缺的那一栏。⚠ 这不是新功能：适配器早就读
-            `durationSeconds`，只是没人传，于是所有音乐都是兜底的 30 秒。 */}
-        {isAudioMode && state.audioKind === AUDIO_KIND.MUSIC ? (
-          <StudioMusicSpecPopover disabled={isGenerating} />
-        ) : null}
-        {/* 语音档的音色 / 朗读 / 高级 —— 原来长在音色库弹层的侧栏里，也就是说
-            要调个语速得先打开音色库。切片 D 把「怎么念」搬进栏，「谁来念」留在
-            面板。 */}
-        {isAudioMode && state.audioKind === AUDIO_KIND.SPEECH ? (
-          <StudioAudioSpeechParams disabled={isGenerating} />
-        ) : null}
-
         {/* 成本 + 生成 —— 一起沉到参数栏底部（`mt-auto` 挂在这层，不挂按钮，
               否则成本行会被留在上面、跟它解释的那个按钮隔开半栏）。 */}
         <div className="mt-auto flex shrink-0 flex-col gap-2">
@@ -1216,21 +1052,12 @@ export const StudioPromptArea = memo(function StudioPromptArea({
             isGenerating={isGenerating}
             elapsedSeconds={elapsedSeconds}
             canGenerate={canGenerate}
-            disabled={
-              isGenerating || isImagePromptOverLimit || isAudioPromptOverLimit
-            }
+            disabled={isGenerating || isImagePromptOverLimit}
             blockedMessage={blockedReason?.message}
             busyLabel={t('generating')}
-            /* ⚠ 只有图片按「模型数 × 张数」报数。语音恒出 1 条，给它印一个乘法
-               结果等于承诺一个发不出去的矩阵。 */
-            label={
-              isAudioMode
-                ? t('generate')
-                : t('generateCount', {
-                    count:
-                      Math.max(1, runModels.length) * state.imageBatchCount,
-                  })
-            }
+            label={t('generateCount', {
+              count: Math.max(1, runModels.length) * state.imageBatchCount,
+            })}
             onGenerate={() => {
               void handleGenerate()
             }}

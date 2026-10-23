@@ -58,9 +58,6 @@ export type AudioLatency = (typeof AUDIO_LATENCIES)[number]
  */
 export const AUDIO_PROMPT_PAYLOAD_MAX_CHARS = 40_000
 
-/** Soft "you're close" warning, at 90% of whichever limit is in force. */
-export const TTS_PROMPT_WARNING_RATIO = 0.9
-
 /**
  * Transcript of the reference audio clip in a Fish Audio `references` pair —
  * a short cloning sample's text, never synthesis input.
@@ -74,27 +71,8 @@ export const TTS_PROMPT_WARNING_RATIO = 0.9
  * upstream limit turns up.
  */
 export const TTS_REFERENCE_TEXT_MAX_CHARS = 5000
-export const TTS_ESTIMATED_CHARS_PER_MINUTE = 900
-export const TTS_MIN_PREVIEW_MINUTES = 0.1
 export const AUDIO_SPEAKER_VOICE_IDS_MAX = 8
 export const AUDIO_SPEAKER_VOICE_ID_MAX_LENGTH = 200
-
-export const AUDIO_ADVANCED_TAB_IDS = {
-  OUTPUT: 'output',
-  VOICE: 'voice',
-  MODEL: 'model',
-} as const
-
-export type AudioAdvancedTabId =
-  (typeof AUDIO_ADVANCED_TAB_IDS)[keyof typeof AUDIO_ADVANCED_TAB_IDS]
-
-export function isAudioAdvancedTabId(
-  value: string,
-): value is AudioAdvancedTabId {
-  return Object.values(AUDIO_ADVANCED_TAB_IDS).includes(
-    value as AudioAdvancedTabId,
-  )
-}
 
 /** Speed control range for TTS */
 export const TTS_SPEED_RANGE = {
@@ -139,18 +117,6 @@ export const TTS_REPETITION_PENALTY_RANGE = {
   default: 1.2,
 } as const
 
-/** Default audio format */
-export const DEFAULT_AUDIO_FORMAT: AudioFormat = 'mp3'
-
-/** Default audio sample rate */
-export const DEFAULT_AUDIO_SAMPLE_RATE: AudioSampleRate = 44100
-
-export const DEFAULT_AUDIO_MP3_BITRATE: AudioMp3Bitrate = 128
-
-export const DEFAULT_AUDIO_OPUS_BITRATE: AudioOpusBitrate = 32000
-
-export const DEFAULT_AUDIO_LATENCY: AudioLatency = 'normal'
-
 // ─── Expressiveness (emotion responsiveness) ───────────────────────
 //
 // One user-facing knob that each TTS provider compiles differently:
@@ -185,9 +151,6 @@ export const AUDIO_EXPRESSIVENESS_TIERS = [
 
 export type AudioExpressivenessTier =
   (typeof AUDIO_EXPRESSIVENESS_TIERS)[number]
-
-export const AUDIO_DEFAULT_EXPRESSIVENESS: AudioExpressiveness =
-  AUDIO_EXPRESSIVENESS.AUTO
 
 export function isAudioExpressiveness(
   value: string,
@@ -234,10 +197,6 @@ export type AudioKind = (typeof AUDIO_KINDS)[number]
 
 export const DEFAULT_AUDIO_KIND: AudioKind = AUDIO_KIND.SPEECH
 
-export function isAudioKind(value: string): value is AudioKind {
-  return AUDIO_KINDS.includes(value as AudioKind)
-}
-
 // ─── Sound effects (SFX) ───────────────────────────────────────────
 //
 // ElevenLabs SFX V2 (`POST /v1/sound-generation`): a text prompt → one sound
@@ -251,18 +210,9 @@ export const SFX_DURATION_RANGE = {
   step: 0.5,
 } as const
 
-export const SFX_PROMPT_INFLUENCE_RANGE = {
-  min: 0,
-  max: 1,
-  step: 0.05,
-  default: 0.3,
-} as const
-
 export const SFX_VARIANT_COUNTS = [1, 2, 4] as const
 export type SfxVariantCount = (typeof SFX_VARIANT_COUNTS)[number]
 export const DEFAULT_SFX_VARIANT_COUNT: SfxVariantCount = 4
-
-export const DEFAULT_SFX_DURATION_SECONDS = 5
 
 // ─── Music ─────────────────────────────────────────────────────────
 //
@@ -277,9 +227,6 @@ export const MUSIC_DURATION_RANGE = {
   step: 5,
 } as const
 
-/** 与 `elevenlabs.adapter.ts` 省略 duration 时的兜底同一个数，两处不能各写各的。 */
-export const DEFAULT_MUSIC_DURATION_SECONDS = 30
-
 /** Preset voice options for Fish Audio */
 export const FISH_AUDIO_VOICES = [
   { id: 'alloy', labelKey: 'alloy', descKey: 'alloyDesc' },
@@ -291,39 +238,6 @@ export const FISH_AUDIO_VOICES = [
 ] as const
 
 export type FishAudioVoiceId = (typeof FISH_AUDIO_VOICES)[number]['id']
-
-export function isAudioFormat(value: string): value is AudioFormat {
-  return AUDIO_FORMATS.includes(value as AudioFormat)
-}
-
-export function isAudioLatency(value: string): value is AudioLatency {
-  return AUDIO_LATENCIES.includes(value as AudioLatency)
-}
-
-/**
- * Trim, drop empties / oversized entries, de-duplicate, and cap to the max
- * speaker count. Used by the reducer so every consumer reads an already
- * normalized list — UI components can `trust` props instead of re-normalizing.
- */
-export function normalizeSpeakerVoiceIds(voiceIds: string[]): string[] {
-  const next: string[] = []
-
-  for (const voiceId of voiceIds) {
-    const trimmed = voiceId.trim()
-    if (
-      !trimmed ||
-      trimmed.length > AUDIO_SPEAKER_VOICE_ID_MAX_LENGTH ||
-      next.includes(trimmed)
-    ) {
-      continue
-    }
-
-    next.push(trimmed)
-    if (next.length >= AUDIO_SPEAKER_VOICE_IDS_MAX) break
-  }
-
-  return next
-}
 
 /* ── 声音库（S5c，spec §4「三条来路」）────────────────────────────────── */
 

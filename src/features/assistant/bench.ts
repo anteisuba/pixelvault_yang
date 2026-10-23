@@ -49,8 +49,6 @@ import {
   type PreparedOperatorTurn,
 } from '@/services/kernel/assistant-operator.service'
 import {
-  executeBenchGenerate,
-  executeBenchWrite,
   refused,
   runOldTool,
 } from '@/services/kernel/assistant-v3-bench.service'
@@ -96,7 +94,6 @@ import {
   translateCanvasPieces,
   type CanvasBatch,
 } from '@/features/assistant/canvas'
-import { renderAudioBench, runAudioChange } from '@/features/assistant/audio'
 import { isLibraryOp, runLibraryChange } from '@/features/assistant/library'
 import type { BenchOpening } from '@/features/assistant/open'
 import type {
@@ -131,7 +128,6 @@ export type BenchFace =
   | typeof ASSISTANT_V3_FACE_IDS.video
   | typeof ASSISTANT_V3_FACE_IDS.cards
   | typeof ASSISTANT_V3_FACE_IDS.canvas
-  | typeof ASSISTANT_V3_FACE_IDS.audio
 
 const BENCH_FACES: readonly string[] = [
   ASSISTANT_V3_FACE_IDS.image,
@@ -139,7 +135,6 @@ const BENCH_FACES: readonly string[] = [
   ASSISTANT_V3_FACE_IDS.video,
   ASSISTANT_V3_FACE_IDS.cards,
   ASSISTANT_V3_FACE_IDS.canvas,
-  ASSISTANT_V3_FACE_IDS.audio,
 ]
 
 /** 每台 `edit` 能用哪几种改法（台上没有的那一格回一句说明，列出这台有的）。 */
@@ -184,16 +179,6 @@ const OPS_BY_FACE: Record<BenchFace, readonly AssistantNextEditOp[]> = {
   ],
   [ASSISTANT_V3_FACE_IDS.cards]: [OP.proposeProfile, OP.proposeImages],
   [ASSISTANT_V3_FACE_IDS.canvas]: CANVAS_OPS,
-  [ASSISTANT_V3_FACE_IDS.audio]: [
-    OP.prompt,
-    OP.model,
-    OP.audioKind,
-    OP.voice,
-    OP.speakers,
-    OP.reading,
-    OP.duration,
-    OP.option,
-  ],
 }
 
 export interface BenchResult {
@@ -283,11 +268,6 @@ export function renderBench(
   latestUserText: string,
   aliases = '',
 ): string {
-  // 配音台一律出确认卡（owner 10-23），板子上不写这一行。
-  if (context.face === ASSISTANT_V3_FACE_IDS.audio)
-    return renderAudioBench(context, attachedNames, latestUserText).concat(
-      aliases ? `\n${aliases}` : '',
-    )
   const autoGenerate = context.request.autoGenerate
     ? context.face === ASSISTANT_V3_FACE_IDS.canvas
       ? '\nLET AI GENERATE: on — generate starts at once, every card you list (no picture limit on the canvas).'
@@ -815,18 +795,6 @@ async function* applyChange(
   }
   if (isLibraryOp(given.op))
     return outcomeOf(yield* runLibraryChange(context, given))
-  // 配音台：要念的字照提示词那条写；其余几格合成一步 `set_audio`。
-  if (context.face === ASSISTANT_V3_FACE_IDS.audio) {
-    if (given.op !== OP.prompt)
-      return outcomeOf(yield* runAudioChange(context, given))
-    const mutation = toV3Mutation(ASSISTANT_V3_FACE_IDS.audio, given)
-    if (mutation.tool !== 'write')
-      return {
-        output: mutation.tool === null ? mutation.error : NOTHING_TO_DO,
-        error: true,
-      }
-    return outcomeOf(yield* executeBenchWrite(context, mutation.input))
-  }
   const change = await withResolvedNames(context, given)
   const mutation = toV3Mutation(context.face as BenchFace, change)
   if (mutation.tool === null) return { output: mutation.error, error: true }
@@ -1119,13 +1087,6 @@ export async function* runGenerate(
         'The character page does not generate. To make a picture for a character, open the image bench and set it up there.',
       error: true,
     }
-  if (context.face === ASSISTANT_V3_FACE_IDS.audio)
-    return outcomeOf(
-      yield* executeBenchGenerate(context, {
-        label: input.label ?? null,
-        say: input.say ?? '',
-      }),
-    )
   if (context.face === ASSISTANT_V3_FACE_IDS.canvas) {
     if (!input.cards?.length)
       return {

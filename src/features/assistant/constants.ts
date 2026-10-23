@@ -35,8 +35,7 @@ export const ASSISTANT_NEXT_OPEN_BENCH_WORKSPACES = {
   image: 'image-natural',
   tags: 'image-tags',
   video: 'video',
-  // ⚠ 没有配音台：助手的配音那一面在工作台的音频档上，`/studio/audio` 是配音间（没有助手），
-  //   开过去接不上（10-23 查出来的，待 owner 定配音台放哪）。
+  // ⚠ 没有配音间：配音间单独做、助手不负责（owner 10-23）。
   lora: 'lora',
   canvas: 'canvas',
   character: 'cards',
@@ -90,16 +89,6 @@ export const ASSISTANT_NEXT_EDIT_OP_IDS = {
   moveToShot: 'move_to_shot',
   reorderShot: 'reorder_shot',
   projectScript: 'project_script',
-  /**
-   * 配音台（第 9b 步）：换档（念台词 / 音效 / 音乐）、音色（音色库里的名字，或有声音的角色）、
-   * 对话里每人一个音色、怎么念（风格 / 表现力 / 语速 / 停顿）、时长。要念的字用 `prompt`，
-   * 换模型用 `model`，几颗高级旋钮用 `option`。
-   */
-  audioKind: 'audio_kind',
-  voice: 'voice',
-  speakers: 'speakers',
-  reading: 'reading',
-  duration: 'duration',
   /**
    * 改库（第 4b 步，owner 10-23「库改动直接写，过程行带撤销；删和公开不做」）：任何台上都能用。
    * 素材那五种走旧执行器现成的那几条，角色 / 造型 / LoRA / 提示词库走 `library_write`。

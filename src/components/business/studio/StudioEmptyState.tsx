@@ -1,12 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AudioLines, CircleHelp } from '@/components/icons'
+import { CircleHelp } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
-import { AUDIO_KIND, DEFAULT_AUDIO_KIND } from '@/constants/audio-options'
-import { getModelById } from '@/constants/models'
-import { resolveAudioKind } from '@/constants/models/audio'
 import {
   STUDIO_EMPTY_EXAMPLE_KEYS,
   STUDIO_EMPTY_RECENT_COUNT,
@@ -33,7 +30,7 @@ import {
   ResponsiveDialogTitle,
 } from '@/components/ui/responsive-dialog'
 
-type StudioEmptyMode = 'image' | 'video' | 'audio'
+type StudioEmptyMode = 'image' | 'video'
 
 interface StudioEmptyStateProps {
   mode: StudioEmptyMode
@@ -43,7 +40,6 @@ interface StudioEmptyStateProps {
 const EXPECTED_OUTPUT_TYPE: Record<StudioEmptyMode, string> = {
   image: 'IMAGE',
   video: 'VIDEO',
-  audio: 'AUDIO',
 }
 
 /**
@@ -67,12 +63,8 @@ export function StudioEmptyState({ mode, onRemix }: StudioEmptyStateProps) {
   /**
    * 移动端起手屏（owner 2026-09-03 方向 A + 视频需求卡）：
    * 「用途分段（仅视频）+ 标题 + 2×2 示例卡 + 继续创作」。
-   *
-   * ⚠ 只在图片 / 视频两档换形态 —— 音频的移动端本轮不动，它的示例文案里也没有
-   * 第四条（`e4` 只登记在 image / video 两组下）。
    */
   const isMobile = useIsMobile()
-  const isMobileStart = isMobile && (mode === 'image' || mode === 'video')
   const isVideo = mode === 'video'
 
   /**
@@ -80,14 +72,7 @@ export function StudioEmptyState({ mode, onRemix }: StudioEmptyStateProps) {
    * ⛔ 不再拿自然语言句子当示例（那一句进标签台只会变成一颗整句的格子）。
    */
   const isTags = mode === 'image' && state.promptDialect === 'tags'
-  // Audio splits into speech / sfx: swap the copy + example chips for sound
-  // effects so the empty state isn't voice-only. Recent works + tutorial stay
-  // keyed to the base mode.
-  const contentKey = isTags
-    ? 'image_tags'
-    : mode === 'audio' && state.audioKind === AUDIO_KIND.SFX
-      ? 'audio_sfx'
-      : mode
+  const contentKey = isTags ? 'image_tags' : mode
 
   // 首访自动弹一次教程。标记在用户关闭教程时才写（handleGuideOpenChange）：
   // 打开时就写会让 dev StrictMode 的卸载重挂载把刚打开的对话框吞掉，
@@ -123,19 +108,13 @@ export function StudioEmptyState({ mode, onRemix }: StudioEmptyStateProps) {
     return projects.history
       .filter((g) => {
         if (String(g.outputType).toUpperCase() !== expected) return false
-        if (mode !== 'audio') return Boolean(g.url)
-        // Audio splits by kind: only surface recent works of the active kind.
-        // `snapshot.audioKind` isn't loaded in the history list (heavy column),
-        // so derive the kind from the model id, which is.
-        const model = getModelById(g.model)
-        const genKind = model ? resolveAudioKind(model) : DEFAULT_AUDIO_KIND
-        return genKind === state.audioKind
+        return Boolean(g.url)
       })
       .slice(
         0,
-        isMobileStart ? STUDIO_MOBILE_RECENT_COUNT : STUDIO_EMPTY_RECENT_COUNT,
+        isMobile ? STUDIO_MOBILE_RECENT_COUNT : STUDIO_EMPTY_RECENT_COUNT,
       )
-  }, [projects.history, mode, state.audioKind, isMobileStart])
+  }, [projects.history, mode, isMobile])
 
   const handleExample = (prompt: string) => {
     if (isTags) {
@@ -167,7 +146,7 @@ export function StudioEmptyState({ mode, onRemix }: StudioEmptyStateProps) {
 
   return (
     <div className="studio-empty-state flex w-full grow flex-col items-center justify-center gap-5 px-3 py-4 lg:gap-10 lg:px-4 lg:py-6">
-      {isMobileStart ? (
+      {isMobile ? (
         /* 移动端起手屏：一句问句 + 2×2 示例卡。
            卡上只有字（标题 + 两行提示词，owner 2026-10-02 选 Claude / GPT 那一档）——
            ⛔ 不借「继续创作」的真图当封面：那张图与示例说的不是一回事（「胶片人像」
@@ -309,11 +288,7 @@ function RecentTile({ gen, onSelect, label }: RecentTileProps) {
       aria-label={`${label} ${promptExcerpt}`.trim()}
       className="group relative size-20 shrink-0 overflow-hidden rounded-lg border border-border/50 transition-transform duration-200 hover:-translate-y-0.5 lg:size-24"
     >
-      {gen.outputType === 'AUDIO' ? (
-        <span className="flex size-full items-center justify-center bg-muted/20 text-muted-foreground">
-          <AudioLines className="size-7" />
-        </span>
-      ) : gen.outputType === 'VIDEO' && gen.url ? (
+      {gen.outputType === 'VIDEO' && gen.url ? (
         <video
           src={gen.url}
           poster={getGenerationVideoPosterUrl(gen) ?? undefined}

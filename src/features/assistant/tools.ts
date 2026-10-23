@@ -5,13 +5,7 @@ import {
   ASSISTANT_SETTINGS_WRITE_KEYS,
   GENERATION_REVIEW_STATES,
 } from '@/constants/assistant-operator'
-import { AUDIO_EXPRESSIVENESS_VALUES } from '@/constants/audio-options'
 import { NOVELAI_SCENE_TEXT_KINDS } from '@/constants/novelai'
-import {
-  AUDIO_PACES,
-  AUDIO_PAUSE_MARKERS,
-  AUDIO_STYLES,
-} from '@/constants/voice-cards'
 import {
   ASSISTANT_V3_CARD_TYPES,
   ASSISTANT_V3_CARDS_PROFILE_PARTS,
@@ -154,9 +148,7 @@ export const EditChangeSchema = z.object({
   duration: z
     .number()
     .nullish()
-    .describe(
-      'specs / add_card / set_card (video): seconds. duration (audio bench): seconds of the sound effect or the music.',
-    ),
+    .describe('specs / add_card / set_card (video): seconds.'),
   aspectRatio: z.string().nullish().describe('specs / add_card / set_card'),
   resolution: z.string().nullish().describe('specs / add_card / set_card'),
   quality: z.string().nullish().describe('specs / add_card / set_card'),
@@ -169,10 +161,10 @@ export const EditChangeSchema = z.object({
     .string()
     .nullish()
     .describe(
-      `option: the option key (audio bench: loop, variants, volume, temperature, top_p, format); lora_param: the parameter; assistant_setting: one of ${ASSISTANT_SETTINGS_WRITE_KEYS.join(', ')}.`,
+      `option: the option key; lora_param: the parameter; assistant_setting: one of ${ASSISTANT_SETTINGS_WRITE_KEYS.join(', ')}.`,
     ),
   value: ValueSchema.nullish().describe(
-    'option / lora_param / assistant_setting: the new value. audio_kind: "speech", "sfx" or "music". favorite_pictures / favorite_lora: true to favourite, false to take it out. model_channel: true on, false off (null = leave). search_source: false takes the site off its list. remember: false forgets memory.',
+    'option / lora_param / assistant_setting: the new value. favorite_pictures / favorite_lora: true to favourite, false to take it out. model_channel: true on, false off (null = leave). search_source: false takes the site off its list. remember: false forgets memory.',
   ),
   picture: z
     .string()
@@ -266,38 +258,6 @@ export const EditChangeSchema = z.object({
     .boolean()
     .nullish()
     .describe("sound (video): the clip's own soundtrack on or off."),
-  voice: z
-    .string()
-    .nullish()
-    .describe(
-      'voice (audio bench): a voice from the creator\'s voice library by name, or a character with a voice ("角色·<name>"); "none" takes the voice off.',
-    ),
-  voices: z
-    .array(z.string())
-    .nullish()
-    .describe(
-      'speakers (audio bench): one voice per speaker in a dialogue, speaker 1 first, named as for voice; [] clears them.',
-    ),
-  style: z
-    .enum(AUDIO_STYLES)
-    .nullish()
-    .describe('reading (audio bench): the reading style.'),
-  expressiveness: z
-    .enum(AUDIO_EXPRESSIVENESS_VALUES)
-    .nullish()
-    .describe(
-      'reading (audio bench): how much feeling ("auto" follows the style).',
-    ),
-  pace: z
-    .enum(AUDIO_PACES)
-    .nullish()
-    .describe('reading (audio bench): the speed.'),
-  pauses: z
-    .array(z.enum(AUDIO_PAUSE_MARKERS))
-    .nullish()
-    .describe(
-      'reading (audio bench): pauses after these sentences (the full list; [] removes them).',
-    ),
   url: z
     .string()
     .nullish()
@@ -581,8 +541,6 @@ function loosenChange(change: unknown): unknown {
   }
   for (const field of [
     'edits',
-    'voices',
-    'pauses',
     'parts',
     'fields',
     'images',

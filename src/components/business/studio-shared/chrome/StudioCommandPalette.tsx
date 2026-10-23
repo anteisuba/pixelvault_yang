@@ -10,18 +10,11 @@ import {
   CommandList,
   CommandSeparator,
 } from 'cmdk'
-import {
-  ImageIcon,
-  Film,
-  Mic,
-  Search,
-  Cpu,
-} from '@/components/icons'
+import { ImageIcon, Film, Search, Cpu } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useStudioForm } from '@/contexts/studio-context'
-import { useAudioModelOptions } from '@/hooks/use-audio-model-options'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useOpenKeySettings } from '@/hooks/use-open-key-settings'
 import { isMissingKeyModelOption } from '@/hooks/use-split-model-options'
@@ -43,17 +36,12 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
   const { modelOptions: videoModelOptions } = useVideoModelOptions(
     state.selectedOptionId ?? '',
   )
-  const { modelOptions: audioModelOptions } = useAudioModelOptions()
   const { hasLoaded: keysLoaded } = useApiKeysContext()
   const openKeySettings = useOpenKeySettings()
   const t = useTranslations('StudioCommandPalette')
   const tModels = useTranslations('Models')
   const modelOptions =
-    state.outputType === 'audio'
-      ? audioModelOptions
-      : state.outputType === 'video'
-        ? videoModelOptions
-        : imageModelOptions
+    state.outputType === 'video' ? videoModelOptions : imageModelOptions
 
   // Listen for Cmd+K / Ctrl+K
   useEffect(() => {
@@ -86,7 +74,7 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
   )
 
   const switchMode = useCallback(
-    (mode: 'image' | 'video' | 'audio') => {
+    (mode: 'image' | 'video') => {
       dispatch({ type: 'SET_OUTPUT_TYPE', payload: mode })
       setOpen(false)
     },
@@ -130,18 +118,6 @@ export const StudioCommandPalette = memo(function StudioCommandPalette() {
               <Film className="size-4 text-muted-foreground" />
               <span>{t('commands.videoMode')}</span>
               {state.outputType === 'video' && (
-                <span className="ml-auto text-xs text-primary">
-                  {t('active')}
-                </span>
-              )}
-            </CommandItem>
-            <CommandItem
-              onSelect={() => switchMode('audio')}
-              className="studio-command-item"
-            >
-              <Mic className="size-4 text-muted-foreground" />
-              <span>{t('commands.audioMode')}</span>
-              {state.outputType === 'audio' && (
                 <span className="ml-auto text-xs text-primary">
                   {t('active')}
                 </span>

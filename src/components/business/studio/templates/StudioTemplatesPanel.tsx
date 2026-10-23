@@ -57,37 +57,32 @@ const CARD_STAGGER_CLASS =
 const CARD_ARRIVE_CLASS =
   'animate-in fade-in-0 duration-fast ease-linear motion-reduce:animate-none'
 
-/** 这一台是哪一种模板：图片 / 标签（NAI）/ 视频 / 音频 —— 文案按它挑。 */
-type TemplateKind = 'image' | 'tags' | 'video' | 'audio'
+/** 这一台是哪一种模板：图片 / 标签（NAI）/ 视频 —— 文案按它挑。 */
+type TemplateKind = 'image' | 'tags' | 'video'
 const TITLE_KEY = {
   image: 'titleImage',
   tags: 'titleTags',
   video: 'titleVideo',
-  audio: 'titleAudio',
 } as const
 const EMPTY_KEY = {
   image: 'emptyImage',
   tags: 'emptyTags',
   video: 'emptyVideo',
-  audio: 'emptyAudio',
 } as const
 const EMPTY_HINT_KEY = {
   image: 'emptyHintImage',
   tags: 'emptyHintTags',
   video: 'emptyHintVideo',
-  audio: 'emptyHintAudio',
 } as const
 const FOOT_KEY = {
   image: 'footImage',
   tags: 'footTags',
   video: 'footImage',
-  audio: 'footAudio',
 } as const
 const NAME_PLACEHOLDER_KEY = {
   image: 'namePlaceholderImage',
   tags: 'namePlaceholderTags',
   video: 'namePlaceholderVideo',
-  audio: 'namePlaceholderAudio',
 } as const
 
 /** 手机上那几颗键 44px（ui-defaults §6）；头部两颗是图标键。 */
@@ -177,9 +172,7 @@ export function StudioTemplatesPanel({
     ? 'tags'
     : save.outputType === 'VIDEO'
       ? 'video'
-      : save.outputType === 'AUDIO'
-        ? 'audio'
-        : 'image'
+      : 'image'
 
   const [query, setQuery] = useState('')
   const [creating, setCreating] = useState(false)
@@ -932,7 +925,7 @@ export function StudioTemplatesPanel({
                 {phone ? null : (
                   <span className="mr-auto text-xs text-muted-foreground">
                     {save.modelId
-                      ? t(kind === 'audio' ? 'formNoteAudio' : 'formNote')
+                      ? t('formNote')
                       : t('modelMissing')}
                   </span>
                 )}

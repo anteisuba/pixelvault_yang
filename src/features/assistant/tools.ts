@@ -3,8 +3,13 @@ import { z } from 'zod'
 
 import { NOVELAI_SCENE_TEXT_KINDS } from '@/constants/novelai'
 import {
+  ASSISTANT_V3_CARDS_PROFILE_PARTS,
+  ASSISTANT_V3_VIDEO_REFERENCE_SLOTS,
+} from '@/constants/assistant-v3'
+import {
   ASSISTANT_NEXT_EDIT_OPS,
   ASSISTANT_NEXT_FIND_KINDS,
+  ASSISTANT_NEXT_RECIPE_PARTS,
   ASSISTANT_NEXT_LIMITS,
   ASSISTANT_NEXT_TOOL_IDS,
   ASSISTANT_NEXT_WRITE_MODES,
@@ -114,6 +119,7 @@ export const EditChangeSchema = z.object({
     .describe('prompt / negative with mode "edit".'),
   model: z.string().nullish().describe('model: a model id or label.'),
   channel: z.string().nullish().describe('model: a channel id or label.'),
+  duration: z.number().nullish().describe('specs (video): seconds.'),
   aspectRatio: z.string().nullish().describe('specs'),
   resolution: z.string().nullish().describe('specs'),
   quality: z.string().nullish().describe('specs'),
@@ -128,8 +134,34 @@ export const EditChangeSchema = z.object({
     .string()
     .nullish()
     .describe(
-      'add_reference: a picture name (attached picture or "result-N"); remove_reference: "ref-N".',
+      'add_reference / apply_recipe: a picture number ("图_1624") or name (attached picture, "result-N"); remove_reference: "ref-N" (video: also "first" / "last").',
     ),
+  slot: z
+    .enum(ASSISTANT_V3_VIDEO_REFERENCE_SLOTS)
+    .nullish()
+    .describe(
+      'add_reference (video): "first" / "last" frame, or "reference" (default).',
+    ),
+  parts: z
+    .array(z.enum(ASSISTANT_NEXT_RECIPE_PARTS))
+    .nullish()
+    .describe(
+      "apply_recipe: which parts of that picture's recipe to put on the bench. null = every part this bench has.",
+    ),
+  audio: z
+    .string()
+    .nullish()
+    .describe(
+      'add_audio (video): a voice clip attached to the message, by name.',
+    ),
+  owner: z
+    .string()
+    .nullish()
+    .describe('add_audio: the character this voice belongs to.'),
+  enabled: z
+    .boolean()
+    .nullish()
+    .describe("sound (video): the clip's own soundtrack on or off."),
   url: z
     .string()
     .nullish()
@@ -154,9 +186,59 @@ export const EditChangeSchema = z.object({
     .string()
     .nullish()
     .describe(
-      'lora_weight / remove_lora: the mounted LoRA, by handle or name.',
+      'lora_weight / remove_lora: the mounted LoRA, by handle or name. add_lora: a LoRA by name ("LoRA·<name>" or its title).',
     ),
-  weight: z.number().nullish().describe('lora_weight'),
+  weight: z
+    .number()
+    .nullish()
+    .describe('lora_weight / add_lora (null = its recommended weight).'),
+  character: z
+    .string()
+    .nullish()
+    .describe(
+      'propose_profile / propose_images / hand_off: the character, by its handle on the page ("char-b27ce8") or "角色·<name>".',
+    ),
+  say: z
+    .string()
+    .nullish()
+    .describe(
+      'propose_* / hand_off: one or two sentences shown right above the card. The turn ends on the card.',
+    ),
+  fields: z
+    .array(
+      z.object({
+        field: z.enum(ASSISTANT_V3_CARDS_PROFILE_PARTS),
+        text: z.string(),
+        source: z
+          .string()
+          .nullish()
+          .describe('Where it comes from, in a few words.'),
+        sourceUrl: z.string().nullish(),
+        added: z
+          .array(z.string())
+          .nullish()
+          .describe('Phrases you added to what the creator sketched.'),
+      }),
+    )
+    .nullish()
+    .describe('propose_profile: the profile parts you drafted.'),
+  images: z
+    .array(
+      z.object({
+        picture: z.string().nullish().describe('A picture number ("图_1624").'),
+        find: z
+          .string()
+          .nullish()
+          .describe('A web picture find by its number ("#3").'),
+        reason: z.string().nullish().describe('Which view it gives.'),
+      }),
+    )
+    .nullish()
+    .describe('propose_images: pictures to attach to the character.'),
+  request: z
+    .string()
+    .nullish()
+    .describe('hand_off: the one message the image assistant should get.'),
 })
 export type EditChange = z.infer<typeof EditChangeSchema>
 
@@ -241,7 +323,7 @@ export function toModelJsonSchema(
   return raw
 }
 
-const NUMBER_FIELDS = ['count', 'weight'] as const
+const NUMBER_FIELDS = ['count', 'weight', 'duration'] as const
 
 /** 模型常见的几种写偏：整串 JSON、单个对象当数组、数字写成字符串、可空字段缺席。 */
 function loosen(raw: unknown): unknown {
@@ -272,7 +354,8 @@ function loosenChange(change: unknown): unknown {
     )
       out[field] = Number(value)
   }
-  if (out.edits !== undefined) out.edits = asArray(out.edits) as JsonValue
+  for (const field of ['edits', 'parts', 'fields', 'images'] as const)
+    if (out[field] !== undefined) out[field] = asArray(out[field]) as JsonValue
   if (typeof out.op === 'string') out.op = out.op.trim().toLowerCase()
   if (typeof out.mode === 'string') out.mode = out.mode.trim().toLowerCase()
   return out

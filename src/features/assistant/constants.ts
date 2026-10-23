@@ -23,8 +23,16 @@ export const ASSISTANT_NEXT_TOOL_IDS = {
 export type AssistantNextTool =
   (typeof ASSISTANT_NEXT_TOOL_IDS)[keyof typeof ASSISTANT_NEXT_TOOL_IDS]
 
-/** 第 2 步先接的两台（10-22 用户定）；别的台照走 v3，第 4 步再接。 */
-export const ASSISTANT_NEXT_DOMAINS: readonly string[] = ['image', 'lora']
+/**
+ * 新内核接哪几台（只给 owner）。第 2 步先接图片台、LoRA 台；第 4 步（10-23）接视频台、角色页。
+ * 别的台照走 v3。配音台没有助手，第 9 步随外壳一起接（owner 10-23）。
+ */
+export const ASSISTANT_NEXT_DOMAINS: readonly string[] = [
+  'image',
+  'lora',
+  'video',
+  'cards',
+]
 
 /** `edit` 一条改动改的是哪一格。一个工具，按台换可用的改法（台上没有的那一格回一句说明）。 */
 export const ASSISTANT_NEXT_EDIT_OP_IDS = {
@@ -42,6 +50,17 @@ export const ASSISTANT_NEXT_EDIT_OP_IDS = {
   loraWeight: 'lora_weight',
   removeLora: 'remove_lora',
   loraParam: 'lora_param',
+  /** LoRA 台：直接挂一把（owner 10-22「助手可直接挂 LoRA 并挑权重」）。 */
+  addLora: 'add_lora',
+  /** 视频台：参考声音、原声开关。 */
+  addAudio: 'add_audio',
+  sound: 'sound',
+  /** 角色页：三种提议（出一张卡，创作者勾选）。直接写进库是 4b。 */
+  proposeProfile: 'propose_profile',
+  proposeImages: 'propose_images',
+  handOff: 'hand_off',
+  /** 套用某张图的配方（第 4 步，10-23 从第 3 步移来）。 */
+  applyRecipe: 'apply_recipe',
 } as const
 
 export const ASSISTANT_NEXT_EDIT_OPS = Object.values(
@@ -50,6 +69,24 @@ export const ASSISTANT_NEXT_EDIT_OPS = Object.values(
 
 export type AssistantNextEditOp =
   (typeof ASSISTANT_NEXT_EDIT_OP_IDS)[keyof typeof ASSISTANT_NEXT_EDIT_OP_IDS]
+
+/** `apply_recipe` 能挑着套的几部分（不给 = 能套的都套）。 */
+export const ASSISTANT_NEXT_RECIPE_PART_IDS = {
+  prompt: 'prompt',
+  negative: 'negative',
+  model: 'model',
+  specs: 'specs',
+  options: 'options',
+  references: 'references',
+  loras: 'loras',
+} as const
+
+export const ASSISTANT_NEXT_RECIPE_PARTS = Object.values(
+  ASSISTANT_NEXT_RECIPE_PART_IDS,
+) as [string, ...string[]]
+
+export type AssistantNextRecipePart =
+  (typeof ASSISTANT_NEXT_RECIPE_PART_IDS)[keyof typeof ASSISTANT_NEXT_RECIPE_PART_IDS]
 
 /** 写提示词 / 负面词的三种写法：就地换几处、整段写、接在后面。 */
 export const ASSISTANT_NEXT_WRITE_MODE_IDS = {
@@ -69,6 +106,7 @@ export const ASSISTANT_NEXT_LORA_PARAM_KEYS: Readonly<Record<string, string>> =
     cfg: 'cfg',
     guidance: 'cfg',
     guidance_scale: 'cfg',
+    guidancescale: 'cfg',
     seed: 'seed',
     width: 'width',
     height: 'height',
@@ -77,7 +115,7 @@ export const ASSISTANT_NEXT_LORA_PARAM_KEYS: Readonly<Record<string, string>> =
   }
 
 /** 过程记录里标「这一轮是新内核跑的」（`AssistantTurnRecord.promptVersion`）。改系统提示时一起换。 */
-export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-10-23'
+export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-10-23b'
 
 export const ASSISTANT_NEXT_LIMITS = {
   /** 带给模型的对话：最近这么多条、这么多字以内（上下文压缩是第 6 步）。 */

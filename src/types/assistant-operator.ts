@@ -178,6 +178,16 @@ const ParamValueSchema = z.string().trim().min(1).max(LIMITS.maxParamValueChars)
 /** ⚠ 允许空串：它是「这个框现在是空的」，与「没有这个框」（字段缺席）不是一回事。 */
 const TextValueSchema = z.string().max(LIMITS.maxPromptChars)
 
+/** 找句换句的那几处（见 `lib/prompt-find-replace.ts`）。 */
+const PromptFindReplaceListSchema = z
+  .array(
+    z.object({
+      find: z.string().min(1).max(LIMITS.maxPromptChars),
+      replace: z.string().max(LIMITS.maxPromptChars),
+    }),
+  )
+  .max(LIMITS.maxPromptEdits)
+
 /**
  * 素材库四条写操作共用的三块（v2 §10）。
  *
@@ -2889,12 +2899,15 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
      * 那一段时才置 true（服务端自己也从原话里认一遍，两条判据是或的关系）。
      */
     overwrite: z.boolean().optional(),
+    /** 新内核找句换句的那几处（`value` 是换好的整段）：下发给浏览器在台上此刻的文字上照换。 */
+    edits: PromptFindReplaceListSchema.optional(),
   }),
   [ASSISTANT_OPERATOR_TOOL_IDS.setNegative]: z.object({
     value: z.string().trim().max(LIMITS.maxPromptChars),
     mode: AssistantOperatorWriteModeSchema.optional(),
     /** 同 `set_prompt` 的那一格。 */
     overwrite: z.boolean().optional(),
+    edits: PromptFindReplaceListSchema.optional(),
   }),
   /** ⚠ 台账 AE/BG/BS：两个字段一起下，缺一个就不是真比例。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.setSpecs]: z.object({
@@ -4138,6 +4151,11 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
       tagCheck: AssistantOperatorTagCheckSchema.optional(),
       /** 负面项写进了正文（视频模型没有负面栏）—— 服务端填，客户端说一句为什么。 */
       negativeFolded: AssistantOperatorNegativeFoldedSchema.optional(),
+      /**
+       * 只改了这几处（第 4 步「只改那一处」）：浏览器在台上此刻的文字上照换，换不上（创作者
+       * 刚好改掉了那几个词）才落 `value` 整段。⚠ 缺席 = 整段落 `value`（旧内核、追加、标签核对改过写法）。
+       */
+      edits: PromptFindReplaceListSchema.optional(),
     }),
     /** ⚠ 逆操作一律是**改前的完整原文**（可能是空串），所以 append / replace 撤法相同。 */
     z.object({ value: TextValueSchema }),
@@ -4147,6 +4165,7 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
     z.object({
       value: TextValueSchema,
       mode: AssistantOperatorWriteModeSchema,
+      edits: PromptFindReplaceListSchema.optional(),
     }),
     z.object({ value: TextValueSchema }),
   ),

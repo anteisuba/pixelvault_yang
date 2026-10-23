@@ -4,6 +4,7 @@ import { after } from 'next/server'
 import { editDistance } from '@/lib/edit-distance'
 import { findNovelAiPromptProblem } from '@/lib/novelai-prompt-guard'
 import type { NovelAiTagFix } from '@/lib/novelai-tag-check'
+import type { PromptFindReplace } from '@/lib/prompt-find-replace'
 import {
   AssistantLoraParametersSchema,
   type AssistantLoraParameters,
@@ -858,6 +859,16 @@ interface OperatorRun {
   mainModelLooks?: boolean
   /** NAI 标签核对查不到的已经退回给模型改写过一次（拆分与反推 B3）。 */
   tagCheckRetried: boolean
+  /**
+   * 新内核（`features/assistant/`，只给 owner）借这里的执行器时设。它在旧闸上的差别
+   * （owner 2026-10-23「只修不拒」、10-22「花钱格子不设硬规矩」）：
+   *  · NAI 标签核对不退回：能换的换、查不到的照写，过程行上说；
+   *  · NAI 写进中文 / 整句 / @ 图号 / 过重权重：仍退回，但只要求改那一处，⛔ 不要求整段重写；
+   *  · 视频清晰度不看创作者说没说过；
+   *  · LoRA 台能直接挂 LoRA（`mount_lora`），不必走搭配卡。
+   * 缺席 = 旧内核 / v3，行为不变。第 8 步删旧内核时随执行器一起搬走。
+   */
+  nextKernel?: boolean
   /**
    * 这一轮有一条 set_negative 因为视频模型**没有负面栏**被退回、改写进了正文
    * （owner 09-24 视频画板 W6）。下一次 set_prompt 随步带上 `negativeFolded`，
@@ -4916,7 +4927,12 @@ async function readMissingReferenceEvidence(
 async function planSetText(
   run: OperatorRun,
   field: AssistantOperatorConfirmField,
-  args: { value: string; mode?: string; overwrite?: boolean },
+  args: {
+    value: string
+    mode?: string
+    overwrite?: boolean
+    edits?: readonly PromptFindReplace[]
+  },
   userId: string,
 ): Promise<ToolPlan> {
   const isPrompt = field === ASSISTANT_OPERATOR_CONFIRM_FIELDS.prompt
@@ -4985,18 +5001,22 @@ async function planSetText(
     resolveAdapterType(run.state.modelId ?? '') === AI_ADAPTER_TYPES.NOVELAI
   ) {
     const problem = findNovelAiPromptProblem(value)
+    // 新内核只要求改那一处（找句换句），⛔ 不要求整段重写（owner 2026-10-23）。
+    const retry = run.nextKernel
+      ? 'change only that phrase with a find/replace edit and leave the rest as it is'
+      : `call ${isPrompt ? 'set_prompt' : 'set_negative'} again in this same turn`
     if (problem)
       return {
         kind: 'rejected',
         reason: REJECT.unknownValue,
         detail: clamp(
           problem.kind === 'cjk'
-            ? `NovelAI only reads English Danbooru tags, and this ${isPrompt ? 'prompt' : 'negative prompt'} contains Chinese/Japanese text ("${problem.sample}"). Translate every such phrase into English tags (a named character becomes its exact Danbooru tag, e.g. denia (wuthering waves)); only letters to be drawn may follow "Text:". Then call ${isPrompt ? 'set_prompt' : 'set_negative'} again in this same turn.`
+            ? `NovelAI only reads English Danbooru tags, and this ${isPrompt ? 'prompt' : 'negative prompt'} contains Chinese/Japanese text ("${problem.sample}"). Translate every such phrase into English tags (a named character becomes its exact Danbooru tag, e.g. denia (wuthering waves)); only letters to be drawn may follow "Text:". Then ${retry}.`
             : problem.kind === 'mention'
-              ? `NovelAI cannot read ${problem.sample}: the mounted reference reaches it as image-to-image or a precise reference, never through the prompt. Describe what you keep from it as Danbooru tags instead, then call ${isPrompt ? 'set_prompt' : 'set_negative'} again in this same turn.`
+              ? `NovelAI cannot read ${problem.sample}: the mounted reference reaches it as image-to-image or a precise reference, never through the prompt. Describe what you keep from it as Danbooru tags instead, then ${retry}.`
               : problem.kind === 'sentence'
-                ? `NovelAI reads comma-separated Danbooru tags, not sentences ("${problem.sample}…"). Turn it into tags or drop it (a layout wish like "not a character sheet" is a tag such as solo, full body — or belongs in the negative prompt), then call ${isPrompt ? 'set_prompt' : 'set_negative'} again in this same turn.`
-                : `This emphasis is far too strong for NovelAI ("${problem.sample}"). Keep numeric weights within ±${ASSISTANT_NAI_PROMPT_LIMITS.maxNumericEmphasis} (1.1–1.5 is already strong) and brace nesting within ${ASSISTANT_NAI_PROMPT_LIMITS.maxBraceDepth} layers, then call ${isPrompt ? 'set_prompt' : 'set_negative'} again in this same turn.`,
+                ? `NovelAI reads comma-separated Danbooru tags, not sentences ("${problem.sample}…"). Turn it into tags or drop it (a layout wish like "not a character sheet" is a tag such as solo, full body — or belongs in the negative prompt), then ${retry}.`
+                : `This emphasis is far too strong for NovelAI ("${problem.sample}"). Keep numeric weights within ±${ASSISTANT_NAI_PROMPT_LIMITS.maxNumericEmphasis} (1.1–1.5 is already strong) and brace nesting within ${ASSISTANT_NAI_PROMPT_LIMITS.maxBraceDepth} layers, then ${retry}.`,
           LIMITS.maxReasonChars,
         ),
         quiet: true,
@@ -5022,7 +5042,7 @@ async function planSetText(
      * `long dark blue-black hair` 进了标签台，灰字刷成一大段）。改写后仍查不到的
      * 才照写并说一句。⚠ 同一步的草稿（`quiet`），⛔ 不在时间线上画成失败。
      */
-    if (checked.unknown.length > 0 && !run.tagCheckRetried) {
+    if (checked.unknown.length > 0 && !run.tagCheckRetried && !run.nextKernel) {
       run.tagCheckRetried = true
       return {
         kind: 'rejected',
@@ -5326,11 +5346,24 @@ async function planSetText(
     }
   }
 
+  /**
+   * ⭐ 新内核找句换句（第 4 步「只改那一处」）：落下去的就是模型换好的那一段时，把那几处一起
+   *   下发，浏览器在台上此刻的文字上照换。这里改过写法（标签核对、图例、去重、追加）就不带 ——
+   *   那几处换出来的不是这一段。
+   */
+  const edits =
+    args.edits?.length &&
+    payloadMode === ASSISTANT_OPERATOR_WRITE_MODES.replace &&
+    payloadValue === args.value &&
+    finalText === args.value
+      ? args.edits
+      : null
   return {
     kind: 'mutate',
     payload: {
       value: payloadValue,
       mode: payloadMode,
+      ...(edits ? { edits: [...edits] } : {}),
       ...(tagCheck ? { tagCheck } : {}),
       ...(isPrompt && run.negativeFolded
         ? { negativeFolded: { model: videoModelName(run) } }
@@ -6646,6 +6679,75 @@ function planLoraSetup(
       weights,
       parameters,
     },
+  }
+}
+
+/**
+ * 直接挂一把（只给新内核，`run.nextKernel`；owner 2026-10-22「助手可直接挂 LoRA 并挑权重」）。
+ * ⚠ 与搭配卡那一行同一套闸：只收本轮搜到过的、装得上当前底模的、能导入的；权重同一份回落与值域。
+ * ⚠ 导入与挂上都在浏览器那一侧（`ctx.lora.mount`），服务端只把候选抄进载荷。
+ */
+function planMountLora(
+  run: OperatorRun,
+  args: { candidateId: string; weight?: number },
+): ToolPlan {
+  if (!run.state.hasLoraControl) return reject(REJECT.noSuchControl)
+  const candidate = run.loraIndex.get(args.candidateId)
+  if (!candidate)
+    return reject(
+      REJECT.unknownLora,
+      `"${clamp(args.candidateId, LIMITS.maxLabelChars)}" is not one of the LoRAs found this turn.`,
+    )
+  const baseFamily = run.state.loraBaseFamily
+  const projection = toLoraCandidateProjection(
+    candidate,
+    baseFamily,
+  ) as AssistantOperatorLoraCandidate
+  const name = clamp(candidate.name, LIMITS.maxLabelChars)
+  if (projection.alreadyMounted)
+    return reject(
+      REJECT.repeatedStep,
+      `"${name}" is already on the bench; change its weight with lora_weight instead.`,
+    )
+  if (!projection.importable || !candidate.importPayload)
+    return reject(
+      REJECT.loraNotImportable,
+      `"${name}" cannot be filed into the library, so it cannot be mounted. Point the creator to its source page instead.`,
+    )
+  if (!projection.compatible)
+    return reject(
+      REJECT.loraIncompatibleBase,
+      `"${name}" was built for ${clamp(candidate.baseModelFamily ?? 'another family', LIMITS.maxLabelChars)}, and the selected base is ${baseFamily ?? 'not set'} — it will not load. Switch the base first, or pick another.`,
+    )
+  const weight = args.weight ?? projection.defaultWeight
+  if (
+    !Number.isFinite(weight) ||
+    weight < run.state.loraMinWeight ||
+    weight > run.state.loraMaxWeight
+  )
+    return reject(
+      REJECT.unknownValue,
+      `Weight must be between ${run.state.loraMinWeight} and ${run.state.loraMaxWeight}.`,
+    )
+  const rounded = Math.round(weight * 100) / 100
+  return {
+    kind: 'mutate',
+    payload: {
+      candidateId: candidate.candidateId,
+      name,
+      weight: rounded,
+      triggerWords: projection.triggerWords,
+      family: projection.family,
+      compatible: true,
+      importPayload: candidate.importPayload,
+    },
+    inverse: { candidateId: candidate.candidateId },
+    observation: `Mounted "${name}" at ${rounded}${
+      projection.triggerWords.length
+        ? `; its trigger words (${projection.triggerWords.join(', ')}) are added to the prompt`
+        : ''
+    }. It shows on the bench once it has loaded.`,
+    apply: () => {},
   }
 }
 
@@ -9564,7 +9666,15 @@ export async function planTool(
    * ⚠ 系统提示里的工具表已经按域裁过（模型正常看不见域外的工具），这道闸是
    *    为「它照样编了一个」准备的 —— 提示词从来不是闸。
    */
-  if (!isAssistantOperatorToolInDomain(tool, run.request.domain)) {
+  // 新内核在 LoRA 台上能直接挂（`run.nextKernel`）；别处照旧不在工具表里。
+  const nextKernelMount =
+    run.nextKernel === true &&
+    tool === TOOL.mountLora &&
+    run.request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.lora
+  if (
+    !nextKernelMount &&
+    !isAssistantOperatorToolInDomain(tool, run.request.domain)
+  ) {
     return reject(
       REJECT.noSuchControl,
       `${tool} does not exist on this workbench. Use only the tools listed for you.`,
@@ -9737,14 +9847,14 @@ export async function planTool(
       return planSetText(
         run,
         ASSISTANT_OPERATOR_CONFIRM_FIELDS.prompt,
-        parsed.data as { value: string; mode?: string; overwrite?: boolean },
+        parsed.data as Parameters<typeof planSetText>[2],
         userId,
       )
     case TOOL.setNegative:
       return planSetText(
         run,
         ASSISTANT_OPERATOR_CONFIRM_FIELDS.negative,
-        parsed.data as { value: string; mode?: string; overwrite?: boolean },
+        parsed.data as Parameters<typeof planSetText>[2],
         userId,
       )
     case TOOL.setSpecs:
@@ -9808,6 +9918,11 @@ export async function planTool(
      * §13）：不在任何域的工具表里，域闸在前面就拒了，这里只为穷举。
      */
     case TOOL.mountLora:
+      if (run.nextKernel)
+        return planMountLora(
+          run,
+          parsed.data as { candidateId: string; weight?: number },
+        )
       return reject(
         REJECT.noSuchControl,
         `Mounting is done by the creator. Ring candidates with ${TOOL.showLoraPicks}, or compose a setup with ${TOOL.planLoraSetup}.`,

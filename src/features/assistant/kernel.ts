@@ -31,6 +31,7 @@ import {
 } from '@/constants/assistant-v3'
 import { isGenerationError, ProviderError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
+import { openCharacterImages } from '@/lib/assistant-v3-cards-board'
 import { splitAssistantV3History } from '@/lib/assistant-v3-history'
 import type { PromptAssistantResponseLanguage } from '@/types'
 import type {
@@ -361,13 +362,21 @@ async function* runNextTurn(
   const { user, persona, rules, route, run, modelId } = prepared
   const face = benchFaceOf(request.domain)
   const resolved = modelId ? resolveNextModel(route, modelId) : null
-  if (!face || !resolved || !modelId) {
+  // 板子画不出来（LoRA 台没带 LoRA 那一块、角色页没带角色）同 v3：交回旧执行器。
+  const benchReady =
+    face === ASSISTANT_V3_FACE_IDS.lora
+      ? Boolean(request.snapshot.loras)
+      : face === ASSISTANT_V3_FACE_IDS.cards
+        ? Boolean(request.snapshot.cards)
+        : true
+  if (!face || !resolved || !modelId || !benchReady) {
     // 新内核接不了的厂商 / 台：交回旧执行器（与 v3 同一条退路）。
     yield* runOperatorTurn(clerkId, request, options, prepared)
     return
   }
   run.skipReferenceReview = true
   run.mainModelLooks = true
+  run.nextKernel = true
   const language = resolveResponseLanguage(request, persona)
 
   const token = relayTokenOf(request)
@@ -429,6 +438,12 @@ async function* runNextTurn(
                   label: 'sample',
                 },
               ]
+            : []),
+          // 角色页：打开那位的图跟着板子给模型看（card-1 …），与 v3 同一个叫法。
+          ...(face === ASSISTANT_V3_FACE_IDS.cards
+            ? openCharacterImages(request.snapshot.cards?.open)
+                .slice(0, ASSISTANT_V3_LIMITS.maxLookCards)
+                .map((url, index) => ({ url, label: `card-${index + 1}` }))
             : []),
           ...mentioned.map((asset) => ({
             url: asset.url,

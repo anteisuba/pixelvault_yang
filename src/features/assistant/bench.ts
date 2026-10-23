@@ -7,8 +7,11 @@ import {
 import {
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_LIMITS,
+  ASSISTANT_OPERATOR_TOOL_IDS,
 } from '@/constants/assistant-operator'
 import {
+  ASSISTANT_V3_CARDS_EDIT_OP_IDS,
+  ASSISTANT_V3_CARDS_ITEM_IDS,
   ASSISTANT_V3_FACE_IDS,
   ASSISTANT_V3_IMAGE_EDIT_OP_IDS,
   ASSISTANT_V3_LORA_EDIT_OP_IDS,
@@ -17,11 +20,17 @@ import {
   ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS,
 } from '@/constants/assistant-v3'
 import { buildAssistantV3Handles } from '@/lib/assistant-v3-board'
+import {
+  buildAssistantV3CardsHandles,
+  renderAssistantV3CardsBoard,
+  renderAssistantV3CardsItem,
+} from '@/lib/assistant-v3-cards-board'
 import { renderAssistantV3ImageBoard } from '@/lib/assistant-v3-image-board'
 import {
   buildAssistantV3LoraHandles,
   renderAssistantV3LoraBoard,
 } from '@/lib/assistant-v3-lora-board'
+import { resolveClosestStudioAspectRatio } from '@/lib/studio-remix'
 import type { PromptAssistantResponseLanguage } from '@/types'
 import type {
   AssistantOperatorEvent,
@@ -37,6 +46,14 @@ import {
   type PreparedOperatorTurn,
 } from '@/services/kernel/assistant-operator.service'
 import {
+  refused,
+  runOldTool,
+} from '@/services/kernel/assistant-v3-bench.service'
+import {
+  executeAssistantV3CardsCall,
+  executeAssistantV3CardsMutation,
+} from '@/services/kernel/assistant-v3-cards.service'
+import {
   executeAssistantV3ImageCall,
   executeAssistantV3ImageMutation,
 } from '@/services/kernel/assistant-v3-image.service'
@@ -45,9 +62,11 @@ import {
   executeAssistantV3LoraMutation,
 } from '@/services/kernel/assistant-v3-lora.service'
 import { createPictureCache } from '@/services/kernel/assistant-v3-look.service'
-import type {
-  V3Context,
-  V3Outcome,
+import {
+  planSafely,
+  TITLE_TEXT,
+  type V3Context,
+  type V3Outcome,
 } from '@/services/kernel/assistant-v3-steps.service'
 import { createClipCache } from '@/services/kernel/assistant-v3-watch.service'
 import { searchMemoriesStep } from '@/services/kernel/assistant-v3-memories.service'
@@ -55,9 +74,14 @@ import {
   ASSISTANT_NEXT_EDIT_OP_IDS as OP,
   ASSISTANT_NEXT_FIND_KIND_IDS,
   ASSISTANT_NEXT_FIND_KINDS,
+  ASSISTANT_NEXT_HANDLE_PREFIXES,
   ASSISTANT_NEXT_LIMITS,
   ASSISTANT_NEXT_LORA_PARAM_KEYS,
+  ASSISTANT_NEXT_RECIPE_PART_IDS as PART,
+  ASSISTANT_NEXT_RECIPE_PARTS,
+  type AssistantNextEditOp,
   type AssistantNextFindKind,
+  type AssistantNextRecipePart,
 } from '@/features/assistant/constants'
 import type {
   AskInput,
@@ -70,6 +94,7 @@ import {
   findInWorkspace,
   openWorkspaceHandle,
   parseWorkspaceHandle,
+  readPictureRecipe,
   type WorkspaceOwner,
   type WorkspacePicture,
 } from '@/features/assistant/workspace.service'
@@ -87,6 +112,62 @@ import {
 export type BenchFace =
   | typeof ASSISTANT_V3_FACE_IDS.image
   | typeof ASSISTANT_V3_FACE_IDS.lora
+  | typeof ASSISTANT_V3_FACE_IDS.video
+  | typeof ASSISTANT_V3_FACE_IDS.cards
+
+const BENCH_FACES: readonly string[] = [
+  ASSISTANT_V3_FACE_IDS.image,
+  ASSISTANT_V3_FACE_IDS.lora,
+  ASSISTANT_V3_FACE_IDS.video,
+  ASSISTANT_V3_FACE_IDS.cards,
+]
+
+/** 每台 `edit` 能用哪几种改法（台上没有的那一格回一句说明，列出这台有的）。 */
+const OPS_BY_FACE: Record<BenchFace, readonly AssistantNextEditOp[]> = {
+  [ASSISTANT_V3_FACE_IDS.image]: [
+    OP.prompt,
+    OP.negative,
+    OP.model,
+    OP.specs,
+    OP.count,
+    OP.option,
+    OP.addReference,
+    OP.removeReference,
+    OP.importUrl,
+    OP.people,
+    OP.sceneTexts,
+    OP.applyRecipe,
+  ],
+  [ASSISTANT_V3_FACE_IDS.video]: [
+    OP.prompt,
+    OP.negative,
+    OP.model,
+    OP.specs,
+    OP.option,
+    OP.addReference,
+    OP.removeReference,
+    OP.importUrl,
+    OP.addAudio,
+    OP.sound,
+    OP.applyRecipe,
+  ],
+  [ASSISTANT_V3_FACE_IDS.lora]: [
+    OP.prompt,
+    OP.negative,
+    OP.model,
+    OP.removeReference,
+    OP.addLora,
+    OP.loraWeight,
+    OP.removeLora,
+    OP.loraParam,
+    OP.applyRecipe,
+  ],
+  [ASSISTANT_V3_FACE_IDS.cards]: [
+    OP.proposeProfile,
+    OP.proposeImages,
+    OP.handOff,
+  ],
+}
 
 export interface BenchResult {
   readonly output: string
@@ -98,11 +179,7 @@ export interface BenchResult {
 }
 
 export function benchFaceOf(domain: string): BenchFace | null {
-  return domain === ASSISTANT_V3_FACE_IDS.image
-    ? ASSISTANT_V3_FACE_IDS.image
-    : domain === ASSISTANT_V3_FACE_IDS.lora
-      ? ASSISTANT_V3_FACE_IDS.lora
-      : null
+  return BENCH_FACES.includes(domain) ? (domain as BenchFace) : null
 }
 
 /** v3 执行函数要的那一份上下文。`board` 是 v3 形状的板子那一条（找图 `#n`、被指着的片子从这里读）。 */
@@ -128,7 +205,9 @@ export function benchContext(input: {
     handles:
       input.face === ASSISTANT_V3_FACE_IDS.lora
         ? buildAssistantV3LoraHandles(request.snapshot)
-        : buildAssistantV3Handles([]),
+        : input.face === ASSISTANT_V3_FACE_IDS.cards
+          ? buildAssistantV3CardsHandles(request.snapshot)
+          : buildAssistantV3Handles([]),
     language: input.language,
     stepPrefix: input.stepPrefix,
     transcript: [input.board],
@@ -177,7 +256,18 @@ export function renderBench(
           attachedNames,
           latestUserText,
         })
-      : renderAssistantV3ImageBoard({ snapshot, attachedNames, latestUserText })
+      : context.face === ASSISTANT_V3_FACE_IDS.cards
+        ? renderAssistantV3CardsBoard({
+            snapshot,
+            handles: context.handles,
+            attachedNames,
+            latestUserText,
+          })
+        : renderAssistantV3ImageBoard({
+            snapshot,
+            attachedNames,
+            latestUserText,
+          })
   return text
     .replace(
       /^(IMAGE|VIDEO|LORA) WORKBENCH — this is the form\.[^\n]*/,
@@ -220,7 +310,18 @@ const need = (op: string, field: string): V3Mutation => ({
 
 /** 新工具的一条改动 → v3 的 write / edit 入参（一条一条交，结果按条回）。 */
 export function toV3Mutation(face: BenchFace, change: EditChange): V3Mutation {
+  const ops = OPS_BY_FACE[face]
+  if (!ops.includes(change.op as AssistantNextEditOp))
+    return {
+      tool: null,
+      error: `"${change.op}" is not a control on this ${face === ASSISTANT_V3_FACE_IDS.cards ? 'page' : 'bench'}. It has: ${ops.join(', ')}.`,
+    }
   const lora = face === ASSISTANT_V3_FACE_IDS.lora
+  const video = face === ASSISTANT_V3_FACE_IDS.video
+  const edit = (op: Record<string, unknown>): V3Mutation => ({
+    tool: 'edit',
+    input: { ops: [op] },
+  })
   switch (change.op) {
     case OP.prompt:
     case OP.negative:
@@ -242,71 +343,38 @@ export function toV3Mutation(face: BenchFace, change: EditChange): V3Mutation {
       }
     case OP.model:
       if (!change.model) return need(change.op, 'model')
-      return {
-        tool: 'edit',
-        input: {
-          ops: [
-            lora
-              ? {
-                  op: ASSISTANT_V3_LORA_EDIT_OP_IDS.setModel,
-                  model: change.model,
-                }
-              : {
-                  op: ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setModel,
-                  model: change.model,
-                  channel: change.channel ?? null,
-                },
-          ],
-        },
-      }
+      return edit(
+        lora
+          ? { op: ASSISTANT_V3_LORA_EDIT_OP_IDS.setModel, model: change.model }
+          : {
+              op: ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setModel,
+              model: change.model,
+              channel: change.channel ?? null,
+            },
+      )
     case OP.removeReference:
       if (!change.picture) return need(change.op, 'picture ("ref-N")')
-      return {
-        tool: 'edit',
-        input: {
-          ops: [
-            {
-              op: lora
-                ? ASSISTANT_V3_LORA_EDIT_OP_IDS.unmountReference
-                : ASSISTANT_V3_IMAGE_EDIT_OP_IDS.unmountReference,
-              ref: change.picture,
-            },
-          ],
-        },
-      }
-    case OP.loraWeight:
+      return edit({
+        op: lora
+          ? ASSISTANT_V3_LORA_EDIT_OP_IDS.unmountReference
+          : ASSISTANT_V3_IMAGE_EDIT_OP_IDS.unmountReference,
+        ref: change.picture,
+      })
     case OP.removeLora:
-      if (!lora)
-        return { tool: null, error: 'There are no LoRAs on this bench.' }
       if (!change.lora) return need(change.op, 'lora')
-      if (change.op === OP.removeLora)
-        return {
-          tool: 'edit',
-          input: {
-            ops: [
-              { op: ASSISTANT_V3_LORA_EDIT_OP_IDS.unmount, lora: change.lora },
-            ],
-          },
-        }
+      return edit({
+        op: ASSISTANT_V3_LORA_EDIT_OP_IDS.unmount,
+        lora: change.lora,
+      })
+    case OP.loraWeight:
+      if (!change.lora) return need(change.op, 'lora')
       if (typeof change.weight !== 'number') return need(change.op, 'weight')
-      return {
-        tool: 'edit',
-        input: {
-          ops: [
-            {
-              op: ASSISTANT_V3_LORA_EDIT_OP_IDS.setWeight,
-              lora: change.lora,
-              weight: change.weight,
-            },
-          ],
-        },
-      }
+      return edit({
+        op: ASSISTANT_V3_LORA_EDIT_OP_IDS.setWeight,
+        lora: change.lora,
+        weight: change.weight,
+      })
     case OP.loraParam: {
-      if (!lora)
-        return {
-          tool: null,
-          error: 'This bench has no sampling parameters; use specs or option.',
-        }
       const field = change.key
         ? ASSISTANT_NEXT_LORA_PARAM_KEYS[change.key.trim().toLowerCase()]
         : undefined
@@ -321,169 +389,408 @@ export function toV3Mutation(face: BenchFace, change: EditChange): V3Mutation {
       const value = numeric ? Number(change.value) : String(change.value)
       if (numeric && Number.isNaN(value))
         return { tool: null, error: `${change.key} must be a number.` }
-      return {
-        tool: 'edit',
-        input: {
-          ops: [
-            {
-              op: ASSISTANT_V3_LORA_EDIT_OP_IDS.setParams,
-              steps: null,
-              cfg: null,
-              seed: null,
-              width: null,
-              height: null,
-              sampler: null,
-              scheduler: null,
-              [field]: value,
-            },
-          ],
-        },
-      }
+      return edit({
+        op: ASSISTANT_V3_LORA_EDIT_OP_IDS.setParams,
+        steps: null,
+        cfg: null,
+        seed: null,
+        width: null,
+        height: null,
+        sampler: null,
+        scheduler: null,
+        [field]: value,
+      })
     }
-  }
-  if (lora)
-    return {
-      tool: null,
-      error: `"${change.op}" is not a control on the LoRA bench. It has: prompt, negative, model, remove_reference, lora_weight, remove_lora, lora_param.`,
-    }
-  switch (change.op) {
     case OP.specs:
-      return {
-        tool: 'edit',
-        input: {
-          ops: [
-            {
+      return edit(
+        video
+          ? {
+              op: ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setSpecs,
+              duration:
+                typeof change.duration === 'number'
+                  ? Math.round(change.duration)
+                  : null,
+              aspectRatio: change.aspectRatio ?? null,
+              resolution: change.resolution ?? null,
+            }
+          : {
               op: ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setSpecs,
               aspectRatio: change.aspectRatio ?? null,
               resolution: change.resolution ?? null,
               quality: change.quality ?? null,
               background: change.background ?? null,
             },
-          ],
-        },
-      }
+      )
     case OP.count:
       if (typeof change.count !== 'number') return need(change.op, 'count')
-      return {
-        tool: 'edit',
-        input: {
-          ops: [
-            {
-              op: ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setCount,
-              count: Math.round(change.count),
-            },
-          ],
-        },
-      }
+      return edit({
+        op: ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setCount,
+        count: Math.round(change.count),
+      })
     case OP.option:
       if (!change.key) return need(change.op, 'key')
       if (change.value === null || change.value === undefined)
         return need(change.op, 'value')
-      return {
-        tool: 'edit',
-        input: {
-          ops: [
-            {
-              op: ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setOption,
-              key: change.key,
-              value: change.value,
-            },
-          ],
-        },
-      }
+      return edit({
+        op: ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setOption,
+        key: change.key,
+        value: change.value,
+      })
     case OP.addReference:
       if (!change.picture) return need(change.op, 'picture')
-      return {
-        tool: 'edit',
-        input: {
-          ops: [
-            {
-              op: ASSISTANT_V3_IMAGE_EDIT_OP_IDS.mountReference,
-              asset: change.picture,
-            },
-          ],
-        },
-      }
+      return edit({
+        op: ASSISTANT_V3_IMAGE_EDIT_OP_IDS.mountReference,
+        asset: change.picture,
+        ...(video ? { slot: change.slot ?? null } : {}),
+      })
     case OP.importUrl:
       if (!change.url) return need(change.op, 'url')
-      return {
-        tool: 'edit',
-        input: {
-          ops: [
-            { op: ASSISTANT_V3_IMAGE_EDIT_OP_IDS.importUrl, url: change.url },
-          ],
-        },
-      }
+      return edit({
+        op: ASSISTANT_V3_IMAGE_EDIT_OP_IDS.importUrl,
+        url: change.url,
+      })
+    case OP.addAudio:
+      if (!change.audio) return need(change.op, 'audio')
+      return edit({
+        op: ASSISTANT_V3_IMAGE_EDIT_OP_IDS.mountAudio,
+        asset: change.audio,
+        owner: change.owner ?? null,
+      })
+    case OP.sound:
+      if (typeof change.enabled !== 'boolean') return need(change.op, 'enabled')
+      return edit({
+        op: ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setSound,
+        enabled: change.enabled,
+      })
     case OP.people:
       if (!change.people) return need(change.op, 'people')
-      return {
-        tool: 'edit',
-        input: {
-          ops: [
-            {
-              op: ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setPeople,
-              positioning: change.positioning ?? 'auto',
-              people: change.people.map((person) => ({
-                prompt: person.prompt,
-                negative: person.negative ?? null,
-                x: person.x ?? null,
-                y: person.y ?? null,
-                interactions:
-                  person.interactions?.map((interaction) => ({
-                    ...interaction,
-                    mutual: interaction.mutual ?? false,
-                  })) ?? null,
-                dialogue: person.dialogue ?? null,
-              })),
-            },
-          ],
-        },
-      }
+      return edit({
+        op: ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setPeople,
+        positioning: change.positioning ?? 'auto',
+        people: change.people.map((person) => ({
+          prompt: person.prompt,
+          negative: person.negative ?? null,
+          x: person.x ?? null,
+          y: person.y ?? null,
+          interactions:
+            person.interactions?.map((interaction) => ({
+              ...interaction,
+              mutual: interaction.mutual ?? false,
+            })) ?? null,
+          dialogue: person.dialogue ?? null,
+        })),
+      })
     case OP.sceneTexts:
       if (!change.items) return need(change.op, 'items')
-      return {
-        tool: 'edit',
-        input: {
-          ops: [
-            {
-              op: ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setSceneTexts,
-              items: change.items,
-            },
-          ],
-        },
-      }
+      return edit({
+        op: ASSISTANT_V3_IMAGE_EDIT_OP_IDS.setSceneTexts,
+        items: change.items,
+      })
+    case OP.proposeProfile:
+      if (!change.character) return need(change.op, 'character')
+      if (!change.fields?.length) return need(change.op, 'fields')
+      return edit({
+        op: ASSISTANT_V3_CARDS_EDIT_OP_IDS.proposeProfile,
+        character: change.character,
+        say: change.say ?? '',
+        fields: change.fields.map((field) => ({
+          field: field.field,
+          text: field.text,
+          source: field.source ?? '',
+          sourceUrl: field.sourceUrl ?? null,
+          added: field.added ?? null,
+        })),
+      })
+    case OP.proposeImages:
+      if (!change.character) return need(change.op, 'character')
+      if (!change.images?.length) return need(change.op, 'images')
+      return edit({
+        op: ASSISTANT_V3_CARDS_EDIT_OP_IDS.proposeImages,
+        character: change.character,
+        say: change.say ?? '',
+        images: change.images.map((image) => ({
+          asset: image.picture ?? null,
+          find: image.find ?? null,
+          reason: image.reason ?? '',
+        })),
+      })
+    case OP.handOff:
+      if (!change.character) return need(change.op, 'character')
+      if (!change.request) return need(change.op, 'request')
+      return edit({
+        op: ASSISTANT_V3_CARDS_EDIT_OP_IDS.handOff,
+        character: change.character,
+        say: change.say ?? '',
+        request: change.request,
+      })
     default:
+      // add_lora / apply_recipe 由 `runEdit` 自己展开，走不到这里。
       return { tool: null, error: `There is no edit op "${change.op}".` }
   }
 }
 
-/**
- * `add_reference 图_1624`：编号 → 那一张（记进准入名单），换成旧执行器认的 id。附图里有同名的
- * 照旧交给台上（它认附图的全名）。
- */
-async function withPictureNumber(
-  context: V3Context,
-  change: EditChange,
-): Promise<EditChange> {
-  if (change.op !== OP.addReference || !change.picture) return change
-  const name = change.picture.trim().toLowerCase()
+/** 图的编号（`图_1624`）→ 那一张的 generationId（记进准入名单，旧执行器只认名单里的）。附图的全名照旧。 */
+async function pictureIdOf(context: V3Context, name: string): Promise<string> {
+  const key = name.trim().toLowerCase()
   const attached = (context.request.mentionedAssets ?? []).some(
-    (asset) => asset.label?.trim().toLowerCase() === name,
+    (asset) => asset.label?.trim().toLowerCase() === key,
   )
-  const handle = parseWorkspaceHandle(change.picture)
-  if (attached || handle?.kind !== 'picture') return change
+  const handle = parseWorkspaceHandle(name)
+  if (attached || handle?.kind !== 'picture') return name
   const opened = await openWorkspaceHandle(ownerOf(context), handle).catch(
     () => null,
   )
   const picture = opened?.pictures[0]
-  if (!picture?.generationId) return change
+  if (!picture?.generationId) return name
   admitPictures(context, [picture])
-  return { ...change, picture: picture.generationId }
+  return picture.generationId
+}
+
+/** `角色·马尔福` → 页上那位的句柄（`char-b27ce8`）；本来就是句柄或认不出的原样交给执行器。 */
+function characterHandleOf(context: V3Context, name: string): string {
+  const handle = parseWorkspaceHandle(name)
+  if (handle?.kind !== 'character') return name
+  const wanted = handle.name.toLowerCase()
+  const character = context.request.snapshot.cards?.characters.find(
+    (entry) => entry.name.trim().toLowerCase() === wanted,
+  )
+  return character ? context.handles.handleOf(character.id) : name
+}
+
+/** 附在这条消息上的声音按名字认（旧执行器要素材 id）。 */
+function attachedIdOf(context: V3Context, name: string): string {
+  const key = name.trim().toLowerCase()
+  return (
+    (context.request.mentionedAssets ?? []).find(
+      (asset) => asset.label?.trim().toLowerCase() === key,
+    )?.id ?? name
+  )
+}
+
+/** 一条改动里的编号与名字换成执行器认的那一种（图 → generationId、角色 → 句柄、附件 → id）。 */
+async function withResolvedNames(
+  context: V3Context,
+  change: EditChange,
+): Promise<EditChange> {
+  switch (change.op) {
+    case OP.addReference:
+      return change.picture
+        ? { ...change, picture: await pictureIdOf(context, change.picture) }
+        : change
+    case OP.addAudio:
+      return change.audio
+        ? { ...change, audio: attachedIdOf(context, change.audio) }
+        : change
+    case OP.proposeImages:
+      return {
+        ...change,
+        ...(change.character
+          ? { character: characterHandleOf(context, change.character) }
+          : {}),
+        ...(change.images
+          ? {
+              images: await Promise.all(
+                change.images.map(async (image) =>
+                  image.picture
+                    ? {
+                        ...image,
+                        picture: await pictureIdOf(context, image.picture),
+                      }
+                    : image,
+                ),
+              ),
+            }
+          : {}),
+      }
+    case OP.proposeProfile:
+    case OP.handOff:
+      return change.character
+        ? { ...change, character: characterHandleOf(context, change.character) }
+        : change
+    default:
+      return change
+  }
+}
+
+/** `LoRA·malfoid` / `malfoid` → 名字本身（搜的时候用）。 */
+function loraNameOf(raw: string): string {
+  const handle = parseWorkspaceHandle(raw)
+  return handle?.kind === 'lora' ? handle.name : raw.trim()
+}
+
+/**
+ * add_lora：按名字在 LoRA 库页上搜（与「找 LoRA」同一条检索，⛔ 不出过程行、不翻库页），挑名字
+ * 对得上的那一把（没有就挑第一把），交给旧执行器的 `mount_lora`（新内核才开，见 `run.nextKernel`）。
+ */
+async function* mountLoraByName(
+  context: V3Context,
+  change: EditChange,
+): AsyncGenerator<AssistantOperatorEvent, V3Outcome> {
+  const tool = ASSISTANT_OPERATOR_TOOL_IDS.mountLora
+  const name = change.lora ? loraNameOf(change.lora) : ''
+  const title = `${TITLE_TEXT[context.language].mountLora}「${name}」`
+  if (!name) return yield* refused(context, tool, title, 'add_lora needs lora.')
+  const search = await planSafely(
+    context,
+    ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
+    { query: name },
+  )
+  if (search.kind !== 'read')
+    return yield* refused(
+      context,
+      tool,
+      title,
+      (search.kind === 'rejected' && search.detail) ||
+        'LoRAs cannot be searched here.',
+    )
+  await search.run()
+  const found = [...context.prepared.run.loraIndex.values()]
+  const wanted = name.toLowerCase()
+  const candidate =
+    found.find((entry) => entry.name.trim().toLowerCase() === wanted) ??
+    found.find((entry) => entry.name.toLowerCase().includes(wanted)) ??
+    found[0]
+  if (!candidate)
+    return yield* refused(
+      context,
+      tool,
+      title,
+      `No LoRA called "${name}" was found. Use find (kinds ["loras"]) to see the library.`,
+    )
+  return yield* runOldTool(context, tool, title, {
+    candidateId: candidate.candidateId,
+    ...(typeof change.weight === 'number' ? { weight: change.weight } : {}),
+  })
+}
+
+/**
+ * apply_recipe：把那张图的配方拆成这台有的那几种改法，按顺序交给同一条路（每一格各自一行、
+ * 各自能撤销）。先换模型（换模型会重置参数），再写词、尺寸、参数、参考图、LoRA。
+ * 这台没有的那几格不套，回一句说清楚（跨台切换是第 9 步「开台」）。
+ */
+async function recipeChanges(
+  context: V3Context,
+  change: EditChange,
+): Promise<
+  | { ok: true; tag: string; changes: EditChange[]; notes: string[] }
+  | { ok: false; error: string }
+> {
+  if (!change.picture)
+    return { ok: false, error: 'apply_recipe needs picture.' }
+  const recipe = await readPictureRecipe(
+    ownerOf(context),
+    change.picture,
+  ).catch(() => null)
+  if (!recipe)
+    return {
+      ok: false,
+      error: `${change.picture}: no such picture of the creator's. Give its number (图_1624); find can look it up.`,
+    }
+  const face = context.face as BenchFace
+  const wanted = new Set<AssistantNextRecipePart>(
+    (change.parts?.length
+      ? change.parts
+      : ASSISTANT_NEXT_RECIPE_PARTS) as AssistantNextRecipePart[],
+  )
+  const snapshot = context.request.snapshot
+  const changes: EditChange[] = []
+  const notes: string[] = []
+  const add = (next: Omit<EditChange, 'op'> & { op: AssistantNextEditOp }) =>
+    changes.push(next as EditChange)
+  const lora = face === ASSISTANT_V3_FACE_IDS.lora
+
+  if (
+    wanted.has(PART.model) &&
+    recipe.model &&
+    snapshot.model?.catalogId !== recipe.model &&
+    snapshot.model?.id !== recipe.model
+  )
+    add({ op: OP.model, model: recipe.model })
+  if (wanted.has(PART.prompt) && recipe.prompt.trim())
+    add({ op: OP.prompt, mode: 'replace', text: recipe.prompt })
+  if (wanted.has(PART.negative) && recipe.negative.trim())
+    add({ op: OP.negative, mode: 'replace', text: recipe.negative })
+  if (wanted.has(PART.specs)) {
+    if (lora) {
+      add({ op: OP.loraParam, key: 'width', value: recipe.width })
+      add({ op: OP.loraParam, key: 'height', value: recipe.height })
+    } else
+      add({
+        op: OP.specs,
+        aspectRatio:
+          recipe.aspectRatio ??
+          resolveClosestStudioAspectRatio(recipe.width, recipe.height),
+      })
+  }
+  if (wanted.has(PART.options)) {
+    if (lora) {
+      for (const [key, value] of Object.entries(recipe.options))
+        if (ASSISTANT_NEXT_LORA_PARAM_KEYS[key.toLowerCase()])
+          add({ op: OP.loraParam, key, value })
+    } else {
+      const onBench = new Set(
+        (snapshot.capabilities ?? []).map((capability) => capability.key),
+      )
+      for (const [key, value] of Object.entries(recipe.options))
+        if (onBench.has(key)) add({ op: OP.option, key, value })
+    }
+  }
+  if (wanted.has(PART.references) && recipe.references.length > 0) {
+    if (lora) notes.push('references: not on this bench')
+    else {
+      for (const tag of recipe.references)
+        if (tag) add({ op: OP.addReference, picture: tag })
+      const uploads = recipe.references.filter((tag) => !tag).length
+      if (uploads)
+        notes.push(
+          `references: ${uploads} uploaded picture(s) that are not in the creator's library, so they cannot be mounted again`,
+        )
+    }
+  }
+  if (wanted.has(PART.loras) && recipe.loras.length > 0) {
+    if (lora)
+      for (const entry of recipe.loras)
+        add({ op: OP.addLora, lora: entry.name, weight: entry.weight })
+    else
+      notes.push(
+        `LoRAs (${recipe.loras.map((entry) => `${entry.name} @ ${entry.weight}`).join(', ')}): they only go on the LoRA bench`,
+      )
+  }
+  return { ok: true, tag: recipe.tag, changes, notes }
+}
+
+/** 一条改动交给这台的执行函数（编号先换好）。 */
+async function* applyChange(
+  context: V3Context,
+  given: EditChange,
+): AsyncGenerator<AssistantOperatorEvent, BenchResult> {
+  if (given.op === OP.addLora) {
+    if (context.face !== ASSISTANT_V3_FACE_IDS.lora)
+      return {
+        output: `"add_lora" is not a control on this bench. LoRAs go on the LoRA bench.`,
+        error: true,
+      }
+    return outcomeOf(yield* mountLoraByName(context, given))
+  }
+  const change = await withResolvedNames(context, given)
+  const mutation = toV3Mutation(context.face as BenchFace, change)
+  if (mutation.tool === null) return { output: mutation.error, error: true }
+  const tool =
+    mutation.tool === 'write'
+      ? ASSISTANT_V3_TOOL_IDS.write
+      : ASSISTANT_V3_TOOL_IDS.edit
+  return outcomeOf(
+    context.face === ASSISTANT_V3_FACE_IDS.lora
+      ? yield* executeAssistantV3LoraMutation(context, tool, mutation.input)
+      : context.face === ASSISTANT_V3_FACE_IDS.cards
+        ? yield* executeAssistantV3CardsMutation(context, mutation.input)
+        : yield* executeAssistantV3ImageMutation(context, tool, mutation.input),
+  )
 }
 
 /**
  * edit：按顺序一条一条落，每条当场就有结果；一条不成不拦后面的（各自说清哪一条怎么了）。
- * 停在卡上（LoRA 台的搭配卡等）就不再往下。
+ * 停在卡上（角色页的提议卡、LoRA 台的搭配卡等）就不再往下。
  */
 export async function* runEdit(
   context: V3Context,
@@ -491,30 +798,50 @@ export async function* runEdit(
 ): AsyncGenerator<AssistantOperatorEvent, BenchResult> {
   const lines: string[] = []
   let failed = 0
-  for (const [index, given] of changes.entries()) {
-    const change = await withPictureNumber(context, given)
-    const mutation = toV3Mutation(context.face as BenchFace, change)
+  let total = 0
+  for (const [index, change] of changes.entries()) {
     const label = `${index + 1}. ${change.op}`
-    if (mutation.tool === null) {
-      failed += 1
-      lines.push(`${label} — not done: ${mutation.error}`)
+    if (change.op !== OP.applyRecipe) {
+      total += 1
+      const result = yield* applyChange(context, change)
+      if (result.error) failed += 1
+      lines.push(
+        `${label} — ${result.error ? 'not done: ' : ''}${result.output}`,
+      )
+      if (result.stop)
+        return { output: lines.join('\n'), error: false, stop: true }
       continue
     }
-    const tool =
-      mutation.tool === 'write'
-        ? ASSISTANT_V3_TOOL_IDS.write
-        : ASSISTANT_V3_TOOL_IDS.edit
-    const result = outcomeOf(
-      context.face === ASSISTANT_V3_FACE_IDS.lora
-        ? yield* executeAssistantV3LoraMutation(context, tool, mutation.input)
-        : yield* executeAssistantV3ImageMutation(context, tool, mutation.input),
-    )
-    if (result.error) failed += 1
-    lines.push(`${label} — ${result.error ? 'not done: ' : ''}${result.output}`)
-    if (result.stop)
-      return { output: lines.join('\n'), error: false, stop: true }
+    if (!OPS_BY_FACE[context.face as BenchFace].includes(OP.applyRecipe)) {
+      total += 1
+      failed += 1
+      lines.push(
+        `${label} — not done: there is no recipe to apply on this page.`,
+      )
+      continue
+    }
+    const recipe = await recipeChanges(context, change)
+    if (!recipe.ok) {
+      total += 1
+      failed += 1
+      lines.push(`${label} — not done: ${recipe.error}`)
+      continue
+    }
+    lines.push(`${label} ${recipe.tag}:`)
+    for (const part of recipe.changes) {
+      total += 1
+      const result = yield* applyChange(context, part)
+      if (result.error) failed += 1
+      lines.push(
+        `   · ${part.op} — ${result.error ? 'not done: ' : ''}${result.output}`,
+      )
+    }
+    if (recipe.notes.length)
+      lines.push(`   · not applied: ${recipe.notes.join('; ')}`)
+    if (recipe.changes.length === 0 && recipe.notes.length === 0)
+      lines.push('   · nothing to change: the bench already matches.')
   }
-  return { output: lines.join('\n'), error: failed === changes.length }
+  return { output: lines.join('\n'), error: total > 0 && failed === total }
 }
 
 /** 查到 / 打开的图记进本轮的准入名单：之后 `add_reference 图_N` 才挂得上（旧执行器只认名单里的）。 */
@@ -559,6 +886,15 @@ export async function* runLook(
   const benchNames: string[] = []
   let failed = 0
   for (const name of names) {
+    // 角色页：打开那位的设定全文（look / identity / … / tags）。
+    const profilePart =
+      context.face === ASSISTANT_V3_FACE_IDS.cards
+        ? renderAssistantV3CardsItem(name, context.request.snapshot)
+        : null
+    if (profilePart) {
+      parts.push(profilePart)
+      continue
+    }
     const handle = parseWorkspaceHandle(name)
     // 附图的名字本身就长得像编号（`图_1588·摘要`）：台上认得的先给台上。
     const attached = attachedNames.some(
@@ -587,7 +923,9 @@ export async function* runLook(
     const call =
       context.face === ASSISTANT_V3_FACE_IDS.lora
         ? executeAssistantV3LoraCall
-        : executeAssistantV3ImageCall
+        : context.face === ASSISTANT_V3_FACE_IDS.cards
+          ? executeAssistantV3CardsCall
+          : executeAssistantV3ImageCall
     const looked = outcomeOf(
       yield* call(context, ASSISTANT_V3_TOOL_IDS.look, {
         images: benchNames,
@@ -639,6 +977,12 @@ export async function* runGenerate(
   context: V3Context,
   input: GenerateInput,
 ): AsyncGenerator<AssistantOperatorEvent, BenchResult> {
+  if (context.face === ASSISTANT_V3_FACE_IDS.cards)
+    return {
+      output:
+        'The character page does not generate. To make a picture for a character, propose a hand_off to the image assistant.',
+      error: true,
+    }
   const call =
     context.face === ASSISTANT_V3_FACE_IDS.lora
       ? executeAssistantV3LoraCall

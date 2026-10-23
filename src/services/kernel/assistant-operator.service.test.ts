@@ -14282,6 +14282,28 @@ describe('current reference image bindings', () => {
     },
   )
 
+  it('新内核在 LoRA 台可挂 LoRA：只认这一轮查到的候选', async () => {
+    queueTurns()
+    const prepared = await prepareOperatorTurn(
+      'clerk-1',
+      buildRequest({
+        domain: 'lora',
+        messages: [{ role: 'user', content: '挂个 LoRA' }],
+        snapshot: LORA_SNAPSHOT,
+      }),
+      new AbortController().signal,
+    )
+    prepared.run.nextKernel = true
+    const mount = await planTool(
+      prepared.run,
+      ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
+      { candidateId: 'not-found' },
+      prepared.user.id,
+    )
+    expect(mount.kind).toBe('rejected')
+    expect(JSON.stringify(mount)).toContain('not one of the LoRAs found')
+  })
+
   describe('canvas target reference checks', () => {
     const targetUrls = [refs[2]!.url, refs[0]!.url]
     const targetNode: AssistantOperatorCanvasNode = {

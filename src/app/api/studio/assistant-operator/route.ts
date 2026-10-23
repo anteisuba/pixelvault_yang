@@ -112,7 +112,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     const useV3 =
       ASSISTANT_V3_FACES.includes(parsed.data.domain) && !legacyKernelAllowed
     /**
-     * 重设计的新内核（第 2 步骨架）：同样只有 owner 认，先只接图片台与 LoRA 台。
+     * 重设计的新内核：同样只有 owner 认，接哪几台见 `ASSISTANT_NEXT_DOMAINS`。
      * 别的台、别人发了 `next` 照走 v3。
      */
     const useNext =

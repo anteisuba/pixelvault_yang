@@ -765,7 +765,7 @@ function readsLegacyKernel(): boolean {
 }
 
 /**
- * 本地开关选了重设计的新内核（`next`，第 2 步起只接图片台与 LoRA 台）。
+ * 本地开关选了重设计的新内核（`next`，接哪几台见 `ASSISTANT_NEXT_DOMAINS`）。
  * ⚠ 同样只有 owner 认：别人写了服务端照走 v3。
  */
 function readsNextKernel(domain: AssistantOperatorDomain): boolean {

@@ -43,6 +43,7 @@ import {
   type StudioOperatorGenerateKnob,
 } from '@/constants/studio-assistant-operator'
 import type { LoraCandidateConfirmOutcome } from '@/types/lora-candidate'
+import { applyPromptFindReplace } from '@/lib/prompt-find-replace'
 import { describeLoraParameters } from '@/lib/studio-operator-history'
 import type { StudioAction, StudioFormState } from '@/contexts/studio-context'
 import { AdvancedParamsSchema } from '@/types'
@@ -528,6 +529,22 @@ export function describeOperatorInverse(
 }
 
 /**
+ * 整段替换那一支落什么：带着找句换句的那几处（新内核「只改那一处」）就在台上此刻的文字上
+ * 照换 —— 创作者这一轮自己改过的地方留着；换不上（那几个词刚被改掉）才落服务端那一整段。
+ */
+function writtenOnBench(
+  current: string,
+  payload: {
+    value: string
+    edits?: readonly { find: string; replace: string }[]
+  },
+): string {
+  if (!payload.edits?.length) return payload.value
+  const replaced = applyPromptFindReplace(current, payload.edits)
+  return replaced.ok ? replaced.value : payload.value
+}
+
+/**
  * 应用一步。返回它动了哪个字段（登记簿据此记账），什么都没动就返回 `null`。
  */
 export function applyOperatorStep(
@@ -647,7 +664,7 @@ export function applyOperatorStep(
       const next =
         step.payload.mode === ASSISTANT_OPERATOR_WRITE_MODES.append && current
           ? `${current}${ASSISTANT_OPERATOR_APPEND_SEPARATOR}${step.payload.value}`
-          : step.payload.value
+          : writtenOnBench(current, step.payload)
       ctx.dispatch({ type: 'SET_PROMPT', payload: next })
       return STUDIO_OPERATOR_FIELD_IDS.prompt
     }
@@ -658,7 +675,7 @@ export function applyOperatorStep(
       const next =
         step.payload.mode === ASSISTANT_OPERATOR_WRITE_MODES.append && current
           ? `${current}${ASSISTANT_OPERATOR_APPEND_SEPARATOR}${step.payload.value}`
-          : step.payload.value
+          : writtenOnBench(current, step.payload)
       ctx.dispatch({
         type: 'SET_ADVANCED_PARAMS',
         payload: { ...advancedParams, negativePrompt: next },

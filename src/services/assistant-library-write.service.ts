@@ -3,7 +3,27 @@ import 'server-only'
 import {
   ASSISTANT_LIBRARY_WRITE_KIND_IDS as KIND,
   ASSISTANT_LIBRARY_WRITE_LIMITS as LIMITS,
+  ASSISTANT_SETTINGS_WRITE_KEY_IDS,
+  PROJECT_RULE_KIND_IDS,
+  PROJECT_RULE_SOURCE_IDS,
+  type AssistantSettingsWriteKey,
+  type PROJECT_RULE_SOURCE_KINDS,
 } from '@/constants/assistant-operator'
+import {
+  ASSISTANT_AVATAR_CHOICE_IDS,
+  ASSISTANT_AVATAR_CHOICES,
+  ASSISTANT_PERSONA_ARCHETYPE_PRESETS,
+  ASSISTANT_PERSONA_ARCHETYPES,
+  ASSISTANT_PERSONA_LANGUAGES,
+  ASSISTANT_PERSONA_LIMITS as PERSONA_LIMITS,
+  ASSISTANT_PERSONA_PLAN_MODES,
+  ASSISTANT_PERSONA_TONE_IDS,
+  ASSISTANT_PERSONA_TONES,
+  ASSISTANT_PERSONA_VERBOSITIES,
+  ASSISTANT_REASONING_EFFORTS,
+  ASSISTANT_ROUTE_MODEL_AUTO,
+} from '@/constants/assistant-persona'
+import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
 import { ASSISTANT_V3_CARDS_PROFILE_PARTS } from '@/constants/assistant-v3'
 import { resolveAdapterType } from '@/constants/models'
 import { db } from '@/lib/db'
@@ -17,6 +37,15 @@ import {
   createCharacterLook,
   updateCharacterLook,
 } from '@/services/cards/character-look.service'
+import {
+  getAssistantPersona,
+  upsertAssistantPersona,
+} from '@/services/assistant-persona.service'
+import {
+  addProjectRule,
+  listProjectSourceRules,
+  ProjectRuleLimitError,
+} from '@/services/project-rule.service'
 import { createRecipe, updateRecipe } from '@/services/prompts/recipe.service'
 import { isOwnedStorageUrl } from '@/services/storage/r2'
 import {
@@ -25,6 +54,15 @@ import {
   type CharacterPersona,
   type CharacterReferenceSlot,
 } from '@/types'
+import {
+  ProjectRuleSourceTokenSchema,
+  toAssistantPersonaUpdate,
+  UpdateAssistantPersonaSchema,
+  withAssistantCharacter,
+  type AssistantPersona,
+  type ProjectRule,
+  type UpdateAssistantPersonaRequest,
+} from '@/types/assistant-persona'
 import type {
   AssistantAssetWriteRevertResult,
   AssistantLibraryWriteInverse,
@@ -591,6 +629,427 @@ export async function updatePrompt(
   )
 }
 
+// ---------------------------------------------------------------- 设置（第 4c 步）
+
+/**
+ * 渠道按名字或厂商认（`设置` 里列出来的那几条）。⛔ select 里永远不带密文和掩码。
+ */
+async function findOwnChannel(userId: string, name: string) {
+  const rows = await db.userApiKey.findMany({
+    where: { userId },
+    select: { id: true, label: true, adapterType: true, isActive: true },
+    orderBy: { createdAt: 'desc' },
+  })
+  const wanted = lower(name)
+  const exact = rows.filter(
+    (row) =>
+      row.label.trim().toLowerCase() === wanted ||
+      row.adapterType.toLowerCase() === wanted,
+  )
+  const hits = exact.length
+    ? exact
+    : rows.filter(
+        (row) =>
+          row.label.toLowerCase().includes(wanted) ||
+          row.adapterType.toLowerCase().includes(wanted),
+      )
+  if (hits.length === 1) return { ok: true as const, row: hits[0]! }
+  const names = (hits.length ? hits : rows).map(
+    (row) => `${row.label || row.adapterType} (${row.adapterType})`,
+  )
+  return {
+    ok: false as const,
+    error: hits.length
+      ? `Several channels match "${name}": ${names.join(', ')}. Use the exact name.`
+      : rows.length
+        ? `No channel called "${name}". Their channels: ${names.join(', ')}.`
+        : 'They have not set up any model channel yet. Adding one (with its key) is done in Settings → API keys.',
+  }
+}
+
+/** 渠道开 / 关、改名。⛔ key 本身不读不写；⛔ 不删渠道。 */
+export async function setChannel(
+  owner: LibraryWriteOwner,
+  input: { channel: string; on: boolean | null; name: string | null },
+): Promise<LibraryWriteOutcome> {
+  const name = input.name?.trim().slice(0, LIMITS.maxNameChars) || null
+  if (input.on === null && !name)
+    return fail(
+      'Say whether to switch the channel on or off, or give it a new name.',
+    )
+  const found = await findOwnChannel(owner.userId, input.channel)
+  if (!found.ok) return fail(found.error)
+  const { row } = found
+  const title = row.label || row.adapterType
+  await db.userApiKey.update({
+    where: { id: row.id },
+    data: {
+      ...(input.on === null ? {} : { isActive: input.on }),
+      ...(name ? { label: name } : {}),
+    },
+    select: { id: true },
+  })
+  const changes = [
+    input.on === null ? null : input.on ? 'on' : 'off',
+    name ? `→「${name}」` : null,
+  ].filter(Boolean)
+  return done(
+    KIND.channel,
+    `渠道·${title} ${changes.join(' ')}`,
+    {
+      kind: KIND.channel,
+      keyId: row.id,
+      label: row.label,
+      isActive: row.isActive,
+    },
+    `Channel ${title}: ${changes.join(', ')}. Models on this channel follow it from the next run.`,
+  )
+}
+
+const SETTING = ASSISTANT_SETTINGS_WRITE_KEY_IDS
+
+function asBoolean(value: string | number | boolean | null): boolean | null {
+  if (typeof value === 'boolean') return value
+  const text = String(value ?? '')
+    .trim()
+    .toLowerCase()
+  if (['true', 'on', 'yes', '1', '开', '打开', 'オン'].includes(text))
+    return true
+  if (['false', 'off', 'no', '0', '关', '关掉', 'オフ'].includes(text))
+    return false
+  return null
+}
+
+function pickWord<T extends string>(
+  words: readonly T[],
+  value: string | number | boolean | null,
+): T | null {
+  const text = String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_')
+  return (
+    words.find((word) => word.toLowerCase() === text) ??
+    words.find(
+      (word) => word.replace(/([A-Z])/g, '_$1').toLowerCase() === text,
+    ) ??
+    null
+  )
+}
+
+const choices = (words: readonly string[]) => words.join(', ')
+
+/** 一格设置 → 改完的整份（翻不出来回一句为什么）。 */
+async function applySetting(
+  owner: LibraryWriteOwner,
+  persona: AssistantPersona,
+  key: AssistantSettingsWriteKey,
+  value: string | number | boolean | null,
+): Promise<
+  | { ok: true; next: UpdateAssistantPersonaRequest; shown: string }
+  | { ok: false; error: string }
+> {
+  const base = toAssistantPersonaUpdate(persona)
+  const text = typeof value === 'string' ? value.trim() : ''
+  const word = <T extends string>(words: readonly T[]) => pickWord(words, value)
+  const bad = (expected: string) =>
+    ({ ok: false, error: `${key} takes ${expected}.` }) as const
+  switch (key) {
+    case SETTING.name:
+      return {
+        ok: true,
+        next: {
+          ...base,
+          name: text.slice(0, PERSONA_LIMITS.maxNameChars) || null,
+          nameFromCharacter: false,
+        },
+        shown: text || '(default)',
+      }
+    case SETTING.callMe:
+      return {
+        ok: true,
+        next: {
+          ...base,
+          addressUserAs:
+            text.slice(0, PERSONA_LIMITS.maxAddressUserAsChars) || null,
+        },
+        shown: text || '(account name)',
+      }
+    case SETTING.tone: {
+      if (!text)
+        return bad(
+          `one of ${choices(ASSISTANT_PERSONA_TONES)} or one short sentence`,
+        )
+      const preset = word(ASSISTANT_PERSONA_TONES)
+      const custom =
+        preset === null || preset === ASSISTANT_PERSONA_TONE_IDS.custom
+      return {
+        ok: true,
+        next: {
+          ...base,
+          tone: custom ? ASSISTANT_PERSONA_TONE_IDS.custom : preset,
+          toneCustom: custom
+            ? (preset === null ? text : (base.toneCustom ?? '')).slice(
+                0,
+                PERSONA_LIMITS.maxToneCustomChars,
+              ) || null
+            : null,
+          toneFromCharacter: false,
+        },
+        shown: text,
+      }
+    }
+    case SETTING.verbosity: {
+      const picked = word(ASSISTANT_PERSONA_VERBOSITIES)
+      if (!picked)
+        return bad(`one of ${choices(ASSISTANT_PERSONA_VERBOSITIES)}`)
+      return { ok: true, next: { ...base, verbosity: picked }, shown: picked }
+    }
+    case SETTING.planMode: {
+      const picked = word(ASSISTANT_PERSONA_PLAN_MODES)
+      if (!picked) return bad(`one of ${choices(ASSISTANT_PERSONA_PLAN_MODES)}`)
+      return { ok: true, next: { ...base, planMode: picked }, shown: picked }
+    }
+    case SETTING.language: {
+      const picked = word(ASSISTANT_PERSONA_LANGUAGES)
+      if (!picked) return bad(`one of ${choices(ASSISTANT_PERSONA_LANGUAGES)}`)
+      return { ok: true, next: { ...base, language: picked }, shown: picked }
+    }
+    case SETTING.thinking: {
+      const picked = word(ASSISTANT_REASONING_EFFORTS)
+      if (!picked) return bad(`one of ${choices(ASSISTANT_REASONING_EFFORTS)}`)
+      return {
+        ok: true,
+        next: { ...base, reasoningEffort: picked },
+        shown: picked,
+      }
+    }
+    case SETTING.model: {
+      const wanted = text.toLowerCase()
+      if (wanted === ASSISTANT_ROUTE_MODEL_AUTO)
+        return {
+          ok: true,
+          next: { ...base, routeModel: ASSISTANT_ROUTE_MODEL_AUTO },
+          shown: ASSISTANT_ROUTE_MODEL_AUTO,
+        }
+      const entry =
+        NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
+          (model) =>
+            model.modelId.toLowerCase() === wanted ||
+            model.label.toLowerCase() === wanted,
+        ) ??
+        NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
+          (model) => wanted && model.label.toLowerCase().includes(wanted),
+        )
+      if (!entry)
+        return bad(
+          `"auto" or one of ${NODE_STUDIO_ASSISTANT_ROUTE_MODELS.map((model) => model.label).join(', ')}`,
+        )
+      return {
+        ok: true,
+        next: { ...base, routeModel: entry.modelId },
+        shown: entry.label,
+      }
+    }
+    case SETTING.nextStepHint:
+    case SETTING.useMyWords:
+    case SETTING.remember:
+    case SETTING.nameFromCharacter:
+    case SETTING.toneFromCharacter: {
+      const on = asBoolean(value)
+      if (on === null) return bad('true or false')
+      if (
+        on &&
+        (key === SETTING.nameFromCharacter ||
+          key === SETTING.toneFromCharacter) &&
+        !base.characterCardId
+      )
+        return {
+          ok: false,
+          error: `${key} needs a character first (set "character").`,
+        }
+      const field = {
+        [SETTING.nextStepHint]: 'nextStepHint',
+        [SETTING.useMyWords]: 'useMyWords',
+        [SETTING.remember]: 'memoryCapture',
+        [SETTING.nameFromCharacter]: 'nameFromCharacter',
+        [SETTING.toneFromCharacter]: 'toneFromCharacter',
+      }[key]
+      return {
+        ok: true,
+        next: { ...base, [field]: on },
+        shown: on ? 'on' : 'off',
+      }
+    }
+    case SETTING.character: {
+      if (
+        !text ||
+        ['none', 'null', 'off', '不用', '无'].includes(text.toLowerCase())
+      )
+        return {
+          ok: true,
+          next: withAssistantCharacter(persona, null),
+          shown: '(none)',
+        }
+      const card = await findOwnCharacter(
+        owner.userId,
+        text.replace(/^角色·/, ''),
+      )
+      if (!card)
+        return { ok: false, error: `${text}: not one of their characters.` }
+      return {
+        ok: true,
+        next: withAssistantCharacter(persona, card.id),
+        shown: `角色·${card.name}`,
+      }
+    }
+    case SETTING.avatar: {
+      const picked = word(ASSISTANT_AVATAR_CHOICES)
+      if (!picked) return bad(`one of ${choices(ASSISTANT_AVATAR_CHOICES)}`)
+      if (
+        picked === ASSISTANT_AVATAR_CHOICE_IDS.character &&
+        !base.characterCardId
+      )
+        return {
+          ok: false,
+          error:
+            'The avatar can follow a character only once one is set ("character").',
+        }
+      if (
+        picked === ASSISTANT_AVATAR_CHOICE_IDS.upload &&
+        !persona.uploadedAvatarUrl
+      )
+        return {
+          ok: false,
+          error:
+            'They have not uploaded an avatar; uploading one is done in Settings → Assistant.',
+        }
+      return {
+        ok: true,
+        next: { ...base, avatarChoice: picked },
+        shown: picked,
+      }
+    }
+    case SETTING.archetype: {
+      const picked = word(ASSISTANT_PERSONA_ARCHETYPES)
+      if (!picked) return bad(`one of ${choices(ASSISTANT_PERSONA_ARCHETYPES)}`)
+      return {
+        ok: true,
+        next: {
+          ...base,
+          ...ASSISTANT_PERSONA_ARCHETYPE_PRESETS[picked],
+          archetype: picked,
+        },
+        shown: picked,
+      }
+    }
+  }
+}
+
+/** 助手设置改一格。写走 `upsertAssistantPersona`（三档、语气、角色那几条不变量都在那里）。 */
+export async function writeAssistantSetting(
+  owner: LibraryWriteOwner,
+  input: {
+    key: AssistantSettingsWriteKey
+    value: string | number | boolean | null
+  },
+): Promise<LibraryWriteOutcome> {
+  const persona = await getAssistantPersona(owner.clerkId)
+  const applied = await applySetting(owner, persona, input.key, input.value)
+  if (!applied.ok) return fail(applied.error)
+  const parsed = UpdateAssistantPersonaSchema.safeParse(applied.next)
+  if (!parsed.success)
+    return fail(
+      `${input.key}: ${parsed.error.issues[0]?.message ?? 'not a valid value'}.`,
+    )
+  await upsertAssistantPersona(owner.clerkId, parsed.data)
+  return done(
+    KIND.assistant,
+    `设置·助手 ${input.key}：${applied.shown}`,
+    { kind: KIND.assistant, before: toAssistantPersonaUpdate(persona) },
+    `Assistant setting ${input.key} is now ${applied.shown}. It applies from the creator's next message, not to this turn.`,
+  )
+}
+
+const LIST_NAMES: Record<(typeof PROJECT_RULE_SOURCE_KINDS)[number], string> = {
+  [PROJECT_RULE_KIND_IDS.sourceAllow]: 'allow list',
+  [PROJECT_RULE_KIND_IDS.sourceDeny]: 'block list',
+}
+
+/** 搜图来源名单加一项（全部台都管）。 */
+export async function addSearchSource(
+  owner: LibraryWriteOwner,
+  input: { site: string; list: (typeof PROJECT_RULE_SOURCE_KINDS)[number] },
+): Promise<LibraryWriteOutcome> {
+  const token = ProjectRuleSourceTokenSchema.safeParse(input.site)
+  if (!token.success)
+    return fail(
+      `${input.site}: a source list takes one site (a domain like pinterest.com), not a sentence.`,
+    )
+  const existing = await listProjectSourceRules(owner.userId)
+  const same = existing.find((rule) => rule.text === token.data)
+  if (same)
+    return fail(
+      same.kind === input.list
+        ? `${token.data} is already on the ${LIST_NAMES[input.list]}.`
+        : `${token.data} is on the ${LIST_NAMES[same.kind as typeof input.list]}; take it off that list first.`,
+    )
+  let rule: ProjectRule
+  try {
+    rule = await addProjectRule(owner.userId, {
+      text: token.data,
+      kind: input.list,
+      scope: null,
+      source: PROJECT_RULE_SOURCE_IDS.assistant,
+    })
+  } catch (error) {
+    if (error instanceof ProjectRuleLimitError)
+      return fail(
+        `The source lists are full (${error.limit}). One has to come off before a new one fits; do not pick which.`,
+      )
+    throw error
+  }
+  return done(
+    KIND.sourceAdd,
+    `设置·搜图来源 +${rule.text}（${input.list === PROJECT_RULE_KIND_IDS.sourceDeny ? '屏蔽' : '只信'}）`,
+    { kind: KIND.sourceAdd, ruleId: rule.id },
+    `${rule.text} is on the ${LIST_NAMES[input.list]} for every bench, from the next search on.`,
+  )
+}
+
+/** 从搜图来源名单拿掉一项（owner 10-23：算普通修改，带撤销）。 */
+export async function removeSearchSource(
+  owner: LibraryWriteOwner,
+  input: { site: string },
+): Promise<LibraryWriteOutcome> {
+  const token = ProjectRuleSourceTokenSchema.safeParse(input.site)
+  const wanted = token.success ? token.data : lower(input.site)
+  const rules = await listProjectSourceRules(owner.userId)
+  const rule = rules.find((item) => item.text === wanted)
+  if (!rule)
+    return fail(
+      rules.length
+        ? `${input.site} is not on their source lists. Listed: ${rules.map((item) => item.text).join(', ')}.`
+        : 'Their source lists are empty.',
+    )
+  const list = rule.kind as (typeof PROJECT_RULE_SOURCE_KINDS)[number]
+  await db.projectRule.deleteMany({
+    where: { id: rule.id, userId: owner.userId },
+  })
+  return done(
+    KIND.sourceRemove,
+    `设置·搜图来源 −${rule.text}`,
+    {
+      kind: KIND.sourceRemove,
+      text: rule.text,
+      scope: rule.scope,
+      list,
+      source: rule.source,
+    },
+    `${rule.text} is off the ${LIST_NAMES[list]} from the next search on.`,
+  )
+}
+
 // ---------------------------------------------------------------- 撤销
 
 const reverted = (ok: boolean): AssistantAssetWriteRevertResult => ({
@@ -733,6 +1192,50 @@ export async function revertLibraryWrite(
         },
       })
       return reverted(result.count > 0)
+    }
+    case KIND.channel: {
+      const result = await db.userApiKey.updateMany({
+        where: { id: inverse.keyId, userId },
+        data: { label: inverse.label, isActive: inverse.isActive },
+      })
+      return reverted(result.count > 0)
+    }
+    case KIND.assistant: {
+      const user = await db.user.findUnique({
+        where: { id: userId },
+        select: { clerkId: true },
+      })
+      if (!user) return reverted(false)
+      // 原来用的角色后来删了：写回会被拒，这一步算撤不回（⛔ 不半写）。
+      const ok = await upsertAssistantPersona(
+        user.clerkId,
+        inverse.before,
+      ).then(
+        () => true,
+        () => false,
+      )
+      return reverted(ok)
+    }
+    case KIND.sourceAdd: {
+      const result = await db.projectRule.deleteMany({
+        where: { id: inverse.ruleId, userId },
+      })
+      return reverted(result.count > 0)
+    }
+    case KIND.sourceRemove: {
+      const rules = await listProjectSourceRules(userId)
+      if (rules.some((rule) => rule.text === inverse.text))
+        return reverted(false)
+      const ok = await addProjectRule(userId, {
+        text: inverse.text,
+        scope: inverse.scope,
+        kind: inverse.list,
+        source: inverse.source,
+      }).then(
+        () => true,
+        () => false,
+      )
+      return reverted(ok)
     }
   }
 }

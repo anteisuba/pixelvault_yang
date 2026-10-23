@@ -11,6 +11,8 @@ const calls = vi.hoisted(() => ({
   linkLoraToCharacter: vi.fn(),
   findOwnFolder: vi.fn(),
   resolvePicture: vi.fn(),
+  writeAssistantSetting: vi.fn(),
+  removeSearchSource: vi.fn(),
 }))
 
 vi.mock('server-only', () => ({}))
@@ -31,6 +33,10 @@ vi.mock('@/services/kernel/assistant-v3-steps.service', () => ({
   },
 }))
 vi.mock('@/services/assistant-library-write.service', () => ({
+  addSearchSource: vi.fn(),
+  removeSearchSource: calls.removeSearchSource,
+  setChannel: vi.fn(),
+  writeAssistantSetting: calls.writeAssistantSetting,
   createCharacter: vi.fn(),
   createLook: vi.fn(),
   favoriteLora: vi.fn(),
@@ -172,5 +178,28 @@ describe('改库：一条改动 → 对的那条写入', () => {
       'LoRA 加到角色',
       'not theirs',
     )
+  })
+
+  it('设置：key 认大小写，来源 value false = 从名单拿掉', async () => {
+    const outcome = {
+      ok: true,
+      payload: { kind: 'assistant', summary: '设置·助手 verbosity：concise' },
+      inverse: { kind: 'source_add', ruleId: 'r' },
+      observation: 'ok',
+    }
+    calls.writeAssistantSetting.mockResolvedValue(outcome)
+    calls.removeSearchSource.mockResolvedValue(outcome)
+    await run({ op: 'assistant_setting', key: 'Verbosity', value: 'concise' })
+    expect(calls.writeAssistantSetting).toHaveBeenCalledWith(
+      { userId: 'user-1', clerkId: 'clerk-1' },
+      { key: 'verbosity', value: 'concise' },
+    )
+    await run({ op: 'search_source', url: 'pinterest.com', value: false })
+    expect(calls.removeSearchSource).toHaveBeenCalledWith(
+      { userId: 'user-1', clerkId: 'clerk-1' },
+      { site: 'pinterest.com' },
+    )
+    await run({ op: 'assistant_setting', key: 'api_key', value: 'x' })
+    expect(calls.refused.mock.calls.at(-1)![3]).toContain('needs key')
   })
 })

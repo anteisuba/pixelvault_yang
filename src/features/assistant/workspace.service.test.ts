@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
+
 const { queryRaw, findMany, keys, cards, loraGroups, loras, recipes } =
   vi.hoisted(() => ({
     queryRaw: vi.fn(),
@@ -29,6 +31,18 @@ vi.mock('@/services/lora-asset.service', () => ({
   listLoraAssetsForUser: loras,
   findLoraAssetsByUrls: vi.fn(async () => [
     { loraUrl: 'https://lora.test/malfoid.safetensors', name: 'malfoid' },
+  ]),
+}))
+vi.mock('@/services/assistant-persona.service', () => ({
+  getAssistantPersona: vi.fn(async () => ({
+    ...ASSISTANT_PERSONA_DEFAULTS,
+    verbosity: 'concise',
+    character: null,
+  })),
+}))
+vi.mock('@/services/project-rule.service', () => ({
+  listProjectSourceRules: vi.fn(async () => [
+    { id: 'r1', text: 'pinterest.com', kind: 'sourceDeny', scope: null },
   ]),
 }))
 vi.mock('@/services/prompts/recipe.service', () => ({
@@ -137,6 +151,8 @@ describe('按编号打开', () => {
     ])
     const opened = await openWorkspaceHandle(owner, { kind: 'settings' })
     expect(opened?.text).toContain('Claude · anthropic')
+    expect(opened?.text).toContain('verbosity: concise')
+    expect(opened?.text).toContain('block: pinterest.com')
     const select = keys.mock.calls[0]![0].select
     expect(select).not.toHaveProperty('encryptedKey')
     expect(select).not.toHaveProperty('maskedKey')

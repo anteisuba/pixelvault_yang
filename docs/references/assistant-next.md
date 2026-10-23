@@ -49,6 +49,14 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
   - 角色页写完刷新名册（`use-cards-operator-host` 的 `libraryChanged`）。
 - 没有删除、公开的工具：提示里叫助手告诉创作者去哪里点。
 
+**第 4c 步**（owner 10-23：浏览器里那四项偏好不做、不加「默认模型」、从来源名单拿掉一项算普通修改）：
+
+- `edit` 再加三种改设置的改法，同样任何台都能用、带撤销，走同一条 `library_write`（`kind` = channel / assistant / source_add / source_remove）：
+  - `model_channel`：渠道开关与改名。⛔ key 不读不写（查渠道的 select 从不带密文与掩码）、不删渠道。
+  - `assistant_setting`：助手设置一格（`ASSISTANT_SETTINGS_WRITE_KEYS`）。读整份 → 改一格 → 走 `upsertAssistantPersona`（三档、语气、角色那几条不变量由它守）；撤销把原来整份写回。头像只在已有几种之间切。浏览器收到后重读 persona（`reloadAssistantPersonaEverywhere`），输入区模型 chip 跟上；从下一句话起生效。
+  - `search_source`：搜图来源白 / 黑名单加一项（全部台）或拿掉一项；撤销删掉刚加的 / 按原样记回去。
+- `look 设置` 现在列出渠道、助手设置每一格的当前值、两张来源名单。
+
 **过程记录**：照写 `AssistantTurnRecord`，`promptVersion = next-YYYY-MM-DD`；本轮记录投成 v3 形状（自带联网记成 `search_web`、`find` 记成 `search_library`），评测工具照用。
 
 ## 3. 没验证的（2026-10-23）
@@ -62,6 +70,8 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 - 接口与搜索调研：项目文件 `assistant-reliability/model-interfaces.md`
 
 ## Last Verified
+
+- 2026-10-23 · 第 4c 步：`tsc` 0 error、相关定向 vitest 6096 条全绿（含改设置做 → 撤 → 回原状、查渠道不取密文）。未跑评测（等全部改完再统一跑）。
 
 - 2026-10-23 · 第 4b 步：`tsc` 0 error、相关定向 vitest 4951 条全绿（含改库做 → 撤 → 回原状）。未跑评测（owner 10-23：等全部改完再统一跑）。
 

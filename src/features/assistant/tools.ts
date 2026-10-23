@@ -1,7 +1,10 @@
 import { jsonSchema, tool } from 'ai'
 import { z } from 'zod'
 
-import { GENERATION_REVIEW_STATES } from '@/constants/assistant-operator'
+import {
+  ASSISTANT_SETTINGS_WRITE_KEYS,
+  GENERATION_REVIEW_STATES,
+} from '@/constants/assistant-operator'
 import { NOVELAI_SCENE_TEXT_KINDS } from '@/constants/novelai'
 import {
   ASSISTANT_V3_CARDS_PROFILE_PARTS,
@@ -119,7 +122,12 @@ export const EditChangeSchema = z.object({
     .nullish()
     .describe('prompt / negative with mode "edit".'),
   model: z.string().nullish().describe('model: a model id or label.'),
-  channel: z.string().nullish().describe('model: a channel id or label.'),
+  channel: z
+    .string()
+    .nullish()
+    .describe(
+      'model: a channel id or label. model_channel: the channel, by its name.',
+    ),
   duration: z.number().nullish().describe('specs (video): seconds.'),
   aspectRatio: z.string().nullish().describe('specs'),
   resolution: z.string().nullish().describe('specs'),
@@ -129,9 +137,11 @@ export const EditChangeSchema = z.object({
   key: z
     .string()
     .nullish()
-    .describe('option: the option key; lora_param: the parameter.'),
+    .describe(
+      `option: the option key; lora_param: the parameter; assistant_setting: one of ${ASSISTANT_SETTINGS_WRITE_KEYS.join(', ')}.`,
+    ),
   value: ValueSchema.nullish().describe(
-    'option / lora_param: the new value. favorite_pictures / favorite_lora: true to favourite, false to take it out.',
+    'option / lora_param / assistant_setting: the new value. favorite_pictures / favorite_lora: true to favourite, false to take it out. model_channel: true on, false off (null = leave). search_source: false takes the site off its list.',
   ),
   picture: z
     .string()
@@ -168,7 +178,15 @@ export const EditChangeSchema = z.object({
   url: z
     .string()
     .nullish()
-    .describe('import_url: the link the creator gave you.'),
+    .describe(
+      'import_url: the link the creator gave you. search_source: the site (a domain like pinterest.com).',
+    ),
+  list: z
+    .enum(['allow', 'block'])
+    .nullish()
+    .describe(
+      'search_source: "block" never searches that site, "allow" searches only allowed sites.',
+    ),
   positioning: z
     .enum(['auto', 'manual'])
     .nullish()
@@ -260,7 +278,7 @@ export const EditChangeSchema = z.object({
     .string()
     .nullish()
     .describe(
-      'new_folder / new_character / save_prompt: the name. character_profile / update_prompt: a new name, or null to keep it.',
+      'new_folder / new_character / save_prompt: the name. character_profile / update_prompt / model_channel: a new name, or null to keep it.',
     ),
   folder: z
     .string()
@@ -474,7 +492,7 @@ export function parseToolInput<T>(
 const DESCRIPTIONS = {
   find: "Search the creator's workspace: their pictures, characters and looks, LoRA library, saved prompts, earlier conversations on every bench, and what you remember about them. Returns numbered lines; open any of them with look.",
   look: 'Read the bench as it is right now, and optionally open things by number or name: pictures (with their full recipe), characters, LoRAs, saved prompts, earlier conversations, settings. Pictures you open stay in front of you.',
-  edit: 'Change the bench, or the creator\'s library (pictures, folders, characters and looks, LoRAs, saved prompts). All changes for one request go in ONE call, applied in order; each lands at once and can be undone. For the prompt prefer mode "edit" with exact {find, replace} pairs so everything else stays as it is.',
+  edit: 'Change the bench, the creator\'s library (pictures, folders, characters and looks, LoRAs, saved prompts), or their settings (model channels, assistant settings, search source lists). All changes for one request go in ONE call, applied in order; each lands at once and can be undone. For the prompt prefer mode "edit" with exact {find, replace} pairs so everything else stays as it is.',
   ask: 'Ask the creator when you cannot go on without their choice. Puts a card with options in front of them and ends this turn until they answer.',
   generate:
     'Put a generation confirm card in front of the creator for what is on the bench now. Nothing is spent until they press it. Ends this turn.',

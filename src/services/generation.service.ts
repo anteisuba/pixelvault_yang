@@ -167,8 +167,10 @@ export interface GalleryQueryOptions {
   /** When set, only return generations liked by this user */
   likedByUserId?: string
   published?: boolean
-  /** 只要提示词公开的作品（画廊「提示词」看法）。 */
+  /** 画廊「提示词」看法：只要提示词公开的作品，且一段提示词只出一张卡（见 `getPromptGroupSlice`）。 */
   promptPublic?: boolean
+  /** 只要和这件作品提示词一字不差的公开作品（画廊提示词卡点开后的那一组）。 */
+  samePromptAs?: string
   /** When set, include isLiked for this viewer */
   viewerUserId?: string
   /**
@@ -318,6 +320,7 @@ async function buildGalleryWhere(options: {
   likedByUserId?: string
   published?: boolean
   promptPublic?: boolean
+  samePromptAs?: string
   projectId?: string
   provider?: string
 }) {
@@ -384,6 +387,18 @@ async function buildGalleryWhere(options: {
     where.likes = { some: { userId: options.likedByUserId } }
   }
 
+  // 提示词卡点开：同一段提示词（一字不差、不分作者）出的、图和提示词都公开的作品
+  // （owner 2026-10-23）。那件本身不公开 = 一件都不给。
+  if (options.samePromptAs) {
+    const anchor = await db.generation.findFirst({
+      where: { id: options.samePromptAs, isPublic: true, isPromptPublic: true },
+      select: { prompt: true },
+    })
+    where.isPublic = true
+    where.isPromptPublic = true
+    where.prompt = anchor ? anchor.prompt : { in: [] }
+  }
+
   return where
 }
 
@@ -424,6 +439,27 @@ function decodeGalleryCursor(cursor?: string): DecodedGalleryCursor | null {
     if (Number.isNaN(createdAt.getTime())) return null
 
     return { id: parsed.id, createdAt }
+  } catch {
+    return null
+  }
+}
+
+/** 提示词组没有 (createdAt, id) 可当游标，翻页记的是「已经给了几组」。 */
+function encodePromptGroupCursor(offset: number) {
+  return Buffer.from(JSON.stringify({ offset })).toString('base64url')
+}
+
+function decodePromptGroupCursor(cursor?: string): number | null {
+  if (!cursor) return null
+  try {
+    const parsed = JSON.parse(
+      Buffer.from(cursor, 'base64url').toString('utf8'),
+    ) as unknown
+    if (!isRecord(parsed)) return null
+    const { offset } = parsed
+    return typeof offset === 'number' && Number.isInteger(offset) && offset >= 0
+      ? offset
+      : null
   } catch {
     return null
   }
@@ -788,6 +824,7 @@ async function getPublicGenerationSlice({
   likedByUserId,
   published,
   promptPublic,
+  samePromptAs,
   viewerUserId,
   projectId,
   provider,
@@ -829,9 +866,53 @@ async function getPublicGenerationSlice({
     likedByUserId,
     published,
     promptPublic,
+    samePromptAs,
     projectId,
     provider,
   })
+  // Map creator info + like data onto records.
+  // Owner sees full data; public viewers get redacted prompts.
+  // No referenceImage normalization in list paths — that's derived from
+  // the (intentionally excluded) snapshot column. Detail views still go
+  // through getOwnedGenerationWithSnapshot which keeps the full row.
+  const toRecords = (rows: unknown[]): GenerationRecord[] => {
+    const mapped = rows.map((r) => {
+      const { user, _count, likes, ...rest } = r as GenerationRecord & {
+        user?: {
+          username: string
+          displayName: string | null
+          avatarUrl: string | null
+        } | null
+        _count?: { likes: number }
+        likes?: { id: string }[]
+      }
+      return {
+        ...rest,
+        creator: user?.username
+          ? {
+              username: user.username,
+              displayName: user.displayName,
+              avatarUrl: user.avatarUrl,
+            }
+          : null,
+        likeCount: _count?.likes ?? 0,
+        isLiked: viewerUserId ? (likes?.length ?? 0) > 0 : undefined,
+      }
+    })
+    return userId ? mapped : redactPrompts(mapped)
+  }
+
+  if (promptPublic) {
+    return getPromptGroupSlice({
+      where: baseWhere,
+      select,
+      sort,
+      offset: decodePromptGroupCursor(cursor) ?? (page - 1) * limit,
+      limit,
+      toRecords,
+    })
+  }
+
   const decodedCursor = decodeGalleryCursor(cursor)
   const cursorWhere = buildGalleryCursorWhere(decodedCursor, sort)
   const where = cursorWhere ? { AND: [baseWhere, cursorWhere] } : baseWhere
@@ -850,36 +931,91 @@ async function getPublicGenerationSlice({
   const nextCursor =
     hasMore && lastPageResult ? encodeGalleryCursor(lastPageResult) : null
 
-  // Map creator info + like data onto records
-  const mapped: GenerationRecord[] = pageResults.map((r) => {
-    const { user, _count, likes, ...rest } = r as typeof r & {
-      _count?: { likes: number }
-      likes?: { id: string }[]
-    }
-    return {
-      ...rest,
-      creator: user?.username
-        ? {
-            username: user.username,
-            displayName: user.displayName,
-            avatarUrl: user.avatarUrl,
-          }
-        : null,
-      likeCount: _count?.likes ?? 0,
-      isLiked: viewerUserId ? (likes?.length ?? 0) > 0 : undefined,
-    }
-  })
-
-  // Owner sees full data; public viewers get redacted prompts.
-  // No referenceImage normalization in list paths — that's derived from
-  // the (intentionally excluded) snapshot column. Detail views still go
-  // through getOwnedGenerationWithSnapshot which keeps the full row.
-  const generations = userId ? mapped : redactPrompts(mapped)
-
   return {
-    generations,
+    generations: toRecords(pageResults),
     hasMore,
     nextCursor,
+  }
+}
+
+/**
+ * 画廊「提示词」看法：一段提示词一张卡（owner 2026-10-23：同一段提示词只出一张卡，
+ * 不分作者）。按提示词文字一字不差归组；卡面是组里最新的一件（「最早」排序取最早的），
+ * `promptWorkCount` 是这组有几件。点开后翻的那一组走 `samePromptAs`。
+ */
+async function getPromptGroupSlice({
+  where,
+  select,
+  sort,
+  offset,
+  limit,
+  toRecords,
+}: {
+  where: Record<string, unknown>
+  select: Prisma.GenerationSelect
+  sort: GallerySortOption
+  offset: number
+  limit: number
+  toRecords: (rows: unknown[]) => GenerationRecord[]
+}): Promise<
+  Pick<GalleryGenerationPage, 'generations' | 'hasMore' | 'nextCursor'>
+> {
+  const newest = sort === 'newest'
+  const groups = await db.generation.groupBy({
+    by: ['prompt'],
+    where,
+    _count: { _all: true },
+    _max: { createdAt: true },
+    _min: { createdAt: true },
+    orderBy: newest
+      ? [{ _max: { createdAt: 'desc' } }, { prompt: 'asc' }]
+      : [{ _min: { createdAt: 'asc' } }, { prompt: 'asc' }],
+    skip: offset,
+    take: limit + 1,
+  })
+
+  const hasMore = groups.length > limit
+  const pageGroups = hasMore ? groups.slice(0, limit) : groups
+  if (pageGroups.length === 0) {
+    return { generations: [], hasMore: false, nextCursor: null }
+  }
+
+  const covers = await db.generation.findMany({
+    where: {
+      AND: [
+        where,
+        {
+          OR: pageGroups.map((group) => ({
+            prompt: group.prompt,
+            createdAt: newest ? group._max.createdAt : group._min.createdAt,
+          })),
+        },
+      ],
+    },
+    orderBy: getGalleryOrderBy(sort),
+    select,
+  })
+
+  const coverByPrompt = new Map<string, unknown>()
+  for (const cover of covers as unknown as { prompt: string }[]) {
+    if (!coverByPrompt.has(cover.prompt)) coverByPrompt.set(cover.prompt, cover)
+  }
+  const countByPrompt = new Map(
+    pageGroups.map((group) => [group.prompt, group._count._all]),
+  )
+  const ordered = pageGroups
+    .map((group) => coverByPrompt.get(group.prompt))
+    .filter((cover) => cover !== undefined)
+
+  return {
+    generations: toRecords(ordered).map((generation) => ({
+      ...generation,
+      promptWorkCount: countByPrompt.get(generation.prompt) ?? 1,
+    })),
+    hasMore,
+    nextCursor: hasMore
+      ? encodePromptGroupCursor(offset + pageGroups.length)
+      : null,
   }
 }
 
@@ -897,8 +1033,12 @@ export async function getPublicGenerations(
 export async function getPublicGenerationPage(
   options: GalleryQueryOptions = {},
 ): Promise<GalleryGenerationPage> {
+  // 提示词看法数的是「几段提示词」，要把整张表按提示词归组才数得出，而页面不显示
+  // 这个数：不数，给 null。
   const shouldFetchTotal =
-    options.includeTotal !== false && !decodeGalleryCursor(options.cursor)
+    options.includeTotal !== false &&
+    !options.promptPublic &&
+    !decodeGalleryCursor(options.cursor)
   const [page, total] = await Promise.all([
     getPublicGenerationSlice(options),
     shouldFetchTotal
@@ -911,6 +1051,7 @@ export async function getPublicGenerationPage(
           likedByUserId: options.likedByUserId,
           published: options.published,
           promptPublic: options.promptPublic,
+          samePromptAs: options.samePromptAs,
           projectId: options.projectId,
           provider: options.provider,
         })
@@ -1332,6 +1473,7 @@ export async function countPublicGenerations(
     | 'likedByUserId'
     | 'published'
     | 'promptPublic'
+    | 'samePromptAs'
     | 'projectId'
     | 'provider'
   > = {},
@@ -1361,6 +1503,7 @@ type PublicGalleryCacheKey = {
   timeRange?: GalleryTimeRange
   published?: boolean
   promptPublic?: boolean
+  samePromptAs?: string
   projectId?: string
 }
 
@@ -1372,7 +1515,7 @@ const fetchAnonymousPublicGalleryUncached = async (
 
 const cachedAnonymousPublicGallery = cacheableFn(
   fetchAnonymousPublicGalleryUncached,
-  ['gallery:public:anon:v1'],
+  ['gallery:public:anon:v2'],
   { tags: [CACHE_TAGS.galleryPublic], revalidate: 30 },
 )
 

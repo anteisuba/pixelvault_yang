@@ -27,7 +27,7 @@
 
 filter 维度：search / model / sort / outputType / timeRange / liked / published / projectId / view。
 
-**两种看法（2026-10-23 落地，owner 10-22 定）**：顶栏最左一颗「图片 / 提示词」分段（`?view=prompts`，地址可分享）。「提示词」= 同一批公开作品，服务端只给 `isPromptPublic=true` 的（`GalleryQueryOptions.promptPublic`），排成提示词大卡、图缩成角上一块；点卡开同一个就地查看器（平板只读 + 复制）。两种看法都是公开的。
+**两种看法（2026-10-23 落地，owner 10-22 定）**：顶栏最左一颗「图片 / 提示词」分段（`?view=prompts`，地址可分享）。「提示词」= 同一批公开作品，服务端只给 `isPromptPublic=true` 的（`GalleryQueryOptions.promptPublic`），排成提示词大卡、图缩成角上一块；点卡开同一个就地查看器（平板只读 + 复制）。两种看法都是公开的。**一段提示词一张卡**（owner 10-23）：按提示词文字一字不差归组（不分作者，`getPromptGroupSlice` 用 `groupBy`，翻页游标是组序号），卡面取组里最新一件，角上标件数（`promptWorkCount`）；这一看法不数 `total`。点开后查看器**只翻这段提示词的公开作品**（`/api/images?samePromptAs=<id>`，`useSamePromptWorks`，一次取 50），⛔ 翻到列表里别的提示词的图；只有一件时没有缩略条和左右箭头。
 
 ## 已拍板方向（2026-07-19；共享提示词并入画廊已于 2026-10-23 落地）
 

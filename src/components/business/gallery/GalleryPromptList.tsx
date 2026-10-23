@@ -1,7 +1,7 @@
 'use client'
 /* eslint-disable @next/next/no-img-element -- stored generation thumbnails are already optimized R2 derivatives */
 
-import { Sparkles } from '@/components/icons'
+import { Images, Sparkles } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import type { Route } from '@/constants/routes'
@@ -27,7 +27,8 @@ interface GalleryPromptListProps {
 
 /**
  * 画廊「提示词」看法（domains/gallery.md）：同一批公开作品，提示词做主角、图缩成一角。
- * 服务端只给提示词公开的作品，所以这里每张卡都有字。
+ * 服务端只给提示词公开的作品，所以这里每张卡都有字；一段提示词只出一张卡，卡面是它
+ * 最新的一件，缩略图角上是这段提示词一共几件（owner 2026-10-23）。
  */
 export function GalleryPromptList({
   generations,
@@ -87,23 +88,35 @@ function GalleryPromptCard({
   const thumbClass = 'size-20 shrink-0 rounded-xl bg-muted object-cover'
   const author =
     generation.creator?.displayName || generation.creator?.username || null
+  const workCount = generation.promptWorkCount ?? 1
 
   return (
     <article className="relative flex gap-3 rounded-2xl border border-border/70 bg-background p-3 shadow-sm transition-shadow duration-fast ease-linear hover:shadow-md">
-      {stillUrl ? (
-        <img src={stillUrl} alt="" loading="lazy" className={thumbClass} />
-      ) : generation.outputType === 'VIDEO' ? (
-        <video
-          src={generation.url}
-          muted
-          playsInline
-          preload="metadata"
-          aria-hidden
-          className={thumbClass}
-        />
-      ) : (
-        <span aria-hidden className={thumbClass} />
-      )}
+      <span className="relative shrink-0">
+        {stillUrl ? (
+          <img src={stillUrl} alt="" loading="lazy" className={thumbClass} />
+        ) : generation.outputType === 'VIDEO' ? (
+          <video
+            src={generation.url}
+            muted
+            playsInline
+            preload="metadata"
+            aria-hidden
+            className={thumbClass}
+          />
+        ) : (
+          <span aria-hidden className={thumbClass} />
+        )}
+        {workCount > 1 ? (
+          <span
+            aria-label={t('promptWorkCount', { count: workCount })}
+            className="absolute bottom-1 right-1 flex items-center gap-0.5 rounded-full bg-black/50 px-1.5 py-0.5 text-2xs tabular-nums text-white backdrop-blur-md"
+          >
+            <Images className="size-3" aria-hidden />
+            {workCount}
+          </span>
+        ) : null}
+      </span>
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         {onOpen ? (
           <button

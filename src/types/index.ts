@@ -2334,6 +2334,8 @@ export interface GenerationRecord {
   likeCount?: number
   /** Whether the current viewer has liked this — present when viewer is authenticated */
   isLiked?: boolean
+  /** 画廊「提示词」看法：这张卡代表的那段提示词一共出了几件公开作品。 */
+  promptWorkCount?: number
   /**
    * 图层拆分产物（进度表 62）。**底图不在这个数组里** —— 底图就是这条记录本身
    * （z_index 0，走上面的 url / width / height）；这里只有 z_index ≥ 1 的图层，
@@ -2537,6 +2539,8 @@ export const GallerySearchSchema = z.object({
   provider: z.string().trim().max(64).optional(),
   published: z.enum(['1']).optional(),
   view: z.enum(GALLERY_VIEWS).default('images'),
+  /** 只要和这件作品提示词一字不差的公开作品（画廊提示词卡点开后翻的那一组）。 */
+  samePromptAs: z.string().trim().max(64).optional(),
   cursor: z.string().trim().max(256).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),

@@ -79,6 +79,7 @@ export const GET = createApiGetRoute<
             timeRange: data.timeRange,
             published,
             promptPublic,
+            samePromptAs: data.samePromptAs,
             projectId: data.projectId,
           })
         : await getPublicGenerationPage({
@@ -94,6 +95,7 @@ export const GET = createApiGetRoute<
             likedByUserId,
             published,
             promptPublic,
+            samePromptAs: data.samePromptAs,
             viewerUserId,
             projectId: data.projectId,
             provider: data.provider,

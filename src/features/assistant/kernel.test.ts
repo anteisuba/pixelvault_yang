@@ -155,6 +155,8 @@ vi.mock('@/features/assistant/models', () => ({
   },
 }))
 
+import { prepareOperatorTurn } from '@/services/kernel/assistant-operator.service'
+
 import { runAssistantNext } from './kernel'
 
 const usage = {
@@ -418,6 +420,49 @@ describe('新内核主循环', () => {
     expect(recordTurn).toHaveBeenLastCalledWith(
       expect.objectContaining({ hop: 2 }),
     )
+  })
+
+  it.each([
+    ['同一型号接着跑：思考块原样交回', 'claude-sonnet-5-5', true],
+    ['接力时换了型号：旧型号的思考块先拿掉', 'gpt-5.5', false],
+  ])('%s', async (_name, nextModelId, keepsReasoning) => {
+    soft.afterStep = 0
+    models.main = mockModel([
+      [
+        { type: 'reasoning-start', id: 'r' },
+        { type: 'reasoning-delta', id: 'r', delta: '先改提示词' },
+        { type: 'reasoning-end', id: 'r' },
+        ...toolTurn(editPrompt),
+      ],
+    ])
+    const hop1 = await collect(
+      runAssistantNext('clerk-1', imageRequest('把女孩换成男孩')),
+    )
+    const relay = hop1.find((event) => event.type === 'transcript') as {
+      transcript: AssistantV3Transcript
+    }
+
+    soft.afterStep = Number.POSITIVE_INFINITY
+    const prepare = vi.mocked(prepareOperatorTurn)
+    const original = prepare.getMockImplementation()!
+    prepare.mockImplementationOnce(async (...args) => ({
+      ...(await original(...args)),
+      modelId: nextModelId,
+    }))
+    const second = mockModel([textTurn('接着说完。')])
+    models.main = second
+    await collect(
+      runAssistantNext(
+        'clerk-1',
+        imageRequest('把女孩换成男孩', {
+          v3: { transcript: relay.transcript },
+        } as never),
+      ),
+    )
+    const sent = JSON.stringify(second.doStreamCalls[0]!.prompt)
+    expect(sent.includes('先改提示词')).toBe(keepsReasoning)
+    // 改动记录（我们的工具调用与结果）两种情况都留着。
+    expect(sent).toContain('"tool-result"')
   })
 
   it('新接法被厂商拒了（400）：整轮换成保守接法再试', async () => {

@@ -394,7 +394,12 @@ async function* runNextTurn(
   const transcript: AssistantV3Transcript = saved ? [...saved.transcript] : []
   let messages: ModelMessage[]
   if (saved) {
-    messages = [...saved.messages]
+    // 做到一半换了型号（或换了接法）：旧型号的思考块与它自己跑的联网，新型号多半读不懂、
+    // 厂商会拒收 —— 先拿掉，只留说的话与改动记录，⛔ 不等报错再退。
+    const switched =
+      model.path !== saved.modelPath ||
+      (saved.modelId !== undefined && saved.modelId !== modelId)
+    messages = switched ? stripForFallback(saved.messages) : [...saved.messages]
   } else {
     const bench = renderBench(context, attachedNames, latestUserText)
     const pictures: AssistantV3PictureRef[] = context.seesImages
@@ -476,6 +481,7 @@ async function* runNextTurn(
         messages,
         transcript,
         modelPath: model.path,
+        modelId,
         attachedNames,
         latestUserText,
         stepSeq: run.stepSeq,

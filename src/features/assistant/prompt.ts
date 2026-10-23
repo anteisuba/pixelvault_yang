@@ -8,6 +8,7 @@ import {
 } from '@/constants/model-strengths'
 import { getSeedanceControlRules } from '@/constants/model-strengths.media'
 import { resolveAdapterType } from '@/constants/models'
+import { assistantV3CanvasNodes } from '@/lib/assistant-v3-board'
 import { buildLoraDialectSection } from '@/lib/lora-dialect-section'
 import type { AssistantOperatorRequest } from '@/types/assistant-operator'
 import type { AssistantMemory } from '@/types/assistant-memory'
@@ -25,9 +26,11 @@ import {
   buildPersonaStyleSection,
   RESPONSE_LANGUAGE_LABELS,
 } from '@/services/kernel/assistant-operator.service'
+import { buildAssistantV3CanvasGuideSection } from '@/services/kernel/assistant-v3-guides.service'
 import { renderAssistantV3HistorySummary } from '@/lib/assistant-v3-history'
 import type { AssistantV3HistorySummary } from '@/types/assistant-v3'
 import type { BenchFace } from '@/features/assistant/bench'
+import { inNextToolWords } from '@/features/assistant/canvas'
 import {
   ASSISTANT_SKILL_NAMES as SKILL,
   skillsSection,
@@ -70,7 +73,7 @@ TOOLS
   · remember: text = one short line to keep for next time. Keep only what will still matter in a NEW conversation: when the creator says to remember something or that it holds from now on ("以后都…", "记住…", "always…"), or a lasting preference you are sure of. Never keep what only matters to this conversation (it stays in this conversation by itself), and never anything private or sensitive. Give character (its handle on the page or "角色·<name>") when the line is about that character; otherwise it is about the creator and you see it on every bench. memory = the number of a line you already keep (记忆·…) to change it, with value false to forget it — do that when they say a line is wrong or no longer holds.
   Change only what they asked for. You cannot delete anything or publish anything: tell them where to do it.
 - ask: a question card with options, when you cannot go on without the creator's choice. Never ask what find, look or a search can tell you. The turn ends on the card.
-- generate: one batch of what is on the bench now. Call it when they ask for a picture ("出一张", "试试", "generate"). If the bench says LET AI GENERATE: on, it starts at once (at most 4 pictures per message); otherwise it is a confirm card and nothing is spent until they press it. Either way the turn ends there: do not promise to look at the results or to keep generating.
+- generate: one batch of what is on the bench now. Call it when they ask for a picture ("出一张", "试试", "generate"). If the bench says LET AI GENERATE: on, it starts at once (that line says how many pictures a message may make); otherwise it is a confirm card and nothing is spent until they press it. Either way the turn ends there: do not promise to look at the results or to keep generating.
 - After a batch the app asks them "按这个方向继续吗？". When they answer continue, look at the new results first (result-N on the bench), then change what is off and generate again; when they want another direction, ask or do what they say.
 - Web search / reading pages: built in; use it freely.
 
@@ -96,6 +99,11 @@ The first message of the turn carries the bench as it was when the creator spoke
 The first message of the turn carries the bench as it was when the creator spoke: base model, prompt, negative, sampling parameters, the mounted LoRAs (handles like lora-cmg1ab, with weights), references and, when one is open on the left, the example picture "sample". edit ops here: prompt, negative, model, remove_reference, add_lora (a LoRA by name, with a weight or null for its recommended one; its trigger words are added for you), lora_weight, remove_lora, lora_param (keys steps, cfg, seed, width, height, sampler, scheduler), apply_recipe. ${RECIPE_NOTE}`,
   [ASSISTANT_V3_FACE_IDS.cards]: `THE PAGE: THE CHARACTER PAGE
 The first message of the turn carries the creator's characters (handles like char-b27ce8) and the one they have open, with their profile and pictures (card-1…). look opens a profile part in full ("look", "identity", "behavior", "speech", "backstory", "tags") or their pictures ("card", "card-N"). When the creator tells you what to change, write it with character_profile / character_look (straight into the character, undoable). The proposals are for what you researched or drafted yourself, each a card the creator ticks: propose_profile (profile parts you drafted, each with its source), propose_images (pictures by number, or web finds "#3"), hand_off (one message for the image assistant, when the picture they need does not exist yet). The turn ends on the card. There is no generate here.`,
+  [ASSISTANT_V3_FACE_IDS.canvas]: `THE BOARD: THE CANVAS
+The first message of the turn carries the board as it was when the creator spoke: cards with handles like img-6db120 (kind + short id), each with its model, prompt, parameters, inputs (slot ← handle) and whether it has an output, grouped into LANEs (one lane per shot). Use handles in tool calls; in your reply call a card by its 「name」, a script shot by its key (S04a), never by handle. A card shown on one line is real but look at it before you change its text or rewire it; look "lane:<n>" lists an off-screen lane's cards, look "guide:<model id>" gives a model's prompt guide.
+edit ops here: prompt (card + mode/text/edits: its prompt, or a text card's text; prefer mode "edit"), add_card (ref, type, name, model, specs, text = its prompt, shot), set_card (card: name, model, specs; null keeps a field), connect (from, to, port, role for text), disconnect, delete_card, move_to_shot, reorder_shot (from, to: lane numbers), project_script (card = the script card, projection "create" or "reproject"), hand_off (card + request: takes that picture card to the image bench). Later changes in the same edit use an add_card's ref. All board changes of one edit land together, then the result shows the cards as they are now (new cards with their handles) — trust that result over the opening board. delete_card and re-projecting a script ask the creator first on their own.
+generate takes cards (every card to generate, all on one card); upscale true enlarges the picture already on each card instead of making a new one. A shot is checked first (spoken lines against its time, sound): fix what they would clearly want fixed or tell them, then call generate again.
+remember here keeps a line for this canvas project unless you give a character.`,
 }
 
 export interface NextSystemPrompt {
@@ -137,13 +145,22 @@ function memorySection(
   const line = (memory: AssistantMemory) =>
     `  - [${memoryHandle(memory.id)}] ${memory.text}`
   const ordered = stableMemoryOrder(memories)
-  const aboutCreator = ordered.filter((memory) => !memory.characterCardId)
+  const aboutCreator = ordered.filter(
+    (memory) => !memory.characterCardId && !memory.projectId,
+  )
+  // 画布：这个项目自己那份（一个项目一份，owner 10-09）。
+  const aboutProject = ordered.filter(
+    (memory) => !memory.characterCardId && memory.projectId,
+  )
   const aboutCharacter = character
     ? ordered.filter((memory) => memory.characterCardId === character.id)
     : []
   const groups = [
     ...(aboutCreator.length
       ? [`About the creator:\n${aboutCreator.map(line).join('\n')}`]
+      : []),
+    ...(aboutProject.length
+      ? [`About this canvas project:\n${aboutProject.map(line).join('\n')}`]
       : []),
     ...(aboutCharacter.length && character
       ? [`About ${character.name}:\n${aboutCharacter.map(line).join('\n')}`]
@@ -169,6 +186,17 @@ function modelSection(
 ): string {
   if (face === ASSISTANT_V3_FACE_IDS.lora)
     return `\n\nTHE BASE ON THE BENCH NOW\n${buildLoraDialectSection(request)}\n- Mounting, mixing or weighting LoRAs, or reproducing an example: read 技能·${SKILL.loraMix}.`
+  // 画布：每张卡的提示词交给那张卡自己的型号，板上几种型号的写法（v3 那一段）。
+  if (face === ASSISTANT_V3_FACE_IDS.canvas) {
+    const guides = inNextToolWords(
+      buildAssistantV3CanvasGuideSection(
+        request.snapshot.canvas
+          ? assistantV3CanvasNodes(request.snapshot.canvas)
+          : [],
+      ),
+    )
+    return `${guides}\n- Writing a shot or a clip: read 技能·${SKILL.videoShots}. A tag model's prompt: read 技能·${SKILL.tagPrompts}.`
+  }
   // ⚠ 视频档的 `id` 是选项 id，写法按目录 id 查（`catalogId`）。
   const modelId =
     request.snapshot.model?.catalogId ?? request.snapshot.model?.id

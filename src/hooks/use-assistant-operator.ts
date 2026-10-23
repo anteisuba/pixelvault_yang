@@ -3081,8 +3081,9 @@ export function useAssistantOperator(
       /**
        * ⭐ **自动生成单轮上限**（owner 2026-10-14）：这张卡加起来要出的张数（每张画布
        * 卡按它自己的张数，工作台按此刻的张数）超过上限，就不替你按 —— 卡照常摆着等你。
+       * ⚠ 新内核的画布不设上限（owner 10-23「一句话出完所有选中的卡」）。
        */
-      if (options.auto) {
+      if (options.auto && !(usesNextKernel && domain === 'canvas')) {
         const nodes =
           confirm.request.canvasNodes ??
           (confirm.request.canvasNode ? [confirm.request.canvasNode] : [])

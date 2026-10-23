@@ -964,7 +964,12 @@ async function evictOldestAssistantMemories(
  */
 export async function listNextAssistantMemoriesForPrompt(
   userId: string,
-  options: { characterCardId: string | null; limit: number },
+  options: {
+    characterCardId: string | null
+    /** 画布：这个项目自己那份（第 9a 步）。 */
+    projectId?: string | null
+    limit: number
+  },
 ): Promise<AssistantMemory[]> {
   if (options.limit <= 0) return []
   const rows = await db.assistantMemory.findMany({
@@ -979,6 +984,15 @@ export async function listNextAssistantMemoriesForPrompt(
         },
         ...(options.characterCardId
           ? [{ characterCardId: options.characterCardId }]
+          : []),
+        ...(options.projectId
+          ? [
+              {
+                scope: DB_SCOPE_BY_ID[ASSISTANT_MEMORY_SCOPE_IDS.canvas],
+                projectId: options.projectId,
+                characterCardId: null,
+              },
+            ]
           : []),
       ],
     },

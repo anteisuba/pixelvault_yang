@@ -6,6 +6,7 @@ import {
   ASSISTANT_SETTINGS_WRITE_KEYS,
   PROJECT_RULE_KIND_IDS,
 } from '@/constants/assistant-operator'
+import { ASSISTANT_V3_FACE_IDS } from '@/constants/assistant-v3'
 import type { PromptAssistantResponseLanguage } from '@/types'
 import type { AssistantOperatorEvent } from '@/types/assistant-operator'
 import {
@@ -35,6 +36,7 @@ import {
   refused,
   runOldTool,
 } from '@/services/kernel/assistant-v3-bench.service'
+import { requestProjectId } from '@/services/kernel/assistant-operator.service'
 import {
   settlePlan,
   type V3Context,
@@ -243,6 +245,12 @@ async function* settleWrite(
 
 const need = (op: string, field: string) => `${op} needs ${field}.`
 
+const THIS_PROJECT: Record<PromptAssistantResponseLanguage, string> = {
+  chinese: '这个项目',
+  japanese: 'このプロジェクト',
+  english: 'this project',
+}
+
 const ABOUT_YOU: Record<PromptAssistantResponseLanguage, string> = {
   chinese: '关于你',
   japanese: 'あなたについて',
@@ -260,11 +268,22 @@ async function memoryTargetOf(
   if (!character?.trim()) {
     // 和角色聊天：默认记到正在聊的那位身上（第 7a 步 D，补第 6 步漏的那一块）。
     const chat = chatCharacterOf(context.prepared.persona)
+    // 画布：默认记进这个项目自己那份（一个项目一份，第 9a 步）。
+    const projectId =
+      context.face === ASSISTANT_V3_FACE_IDS.canvas
+        ? requestProjectId(context.request)
+        : null
     return {
       ok: true,
       target: chat
         ? { characterCardId: chat.id, label: chat.name }
-        : { characterCardId: null, label: ABOUT_YOU[context.language] },
+        : projectId
+          ? {
+              characterCardId: null,
+              projectId,
+              label: THIS_PROJECT[context.language],
+            }
+          : { characterCardId: null, label: ABOUT_YOU[context.language] },
     }
   }
   const onPage = context.request.snapshot.cards?.characters.find(

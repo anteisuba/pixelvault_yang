@@ -1074,6 +1074,8 @@ export async function removeSearchSource(
 export interface MemoryTarget {
   /** 给了 = 记进这个角色自己那份；null = 「关于你」。 */
   readonly characterCardId: string | null
+  /** 画布上记的（没给角色）：记进这个项目自己那份（第 9a 步）。 */
+  readonly projectId?: string | null
   /** 过程行与回给模型的话里用的名字（「关于你」/ 角色名）。 */
   readonly label: string
 }
@@ -1102,8 +1104,11 @@ export async function rememberMemory(
     text,
     scope: input.target.characterCardId
       ? MEMORY_SCOPE.cards
-      : MEMORY_SCOPE.global,
+      : input.target.projectId
+        ? MEMORY_SCOPE.canvas
+        : MEMORY_SCOPE.global,
     characterCardId: input.target.characterCardId,
+    projectId: input.target.projectId ?? null,
     kind: MEMORY_KIND.preference,
   })
   if (!created)

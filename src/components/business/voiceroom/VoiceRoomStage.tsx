@@ -6,15 +6,25 @@ import { toast } from 'sonner'
 
 import {
   VOICE_ROOM_LINE_STAGGER_MS,
+  VOICE_ROOM_MODE,
   VOICE_ROOM_NAME_MAX_LENGTH,
+  VOICE_ROOM_SPEAKER_KIND,
+  type VoiceRoomMode,
 } from '@/constants/voiceroom'
 import { cancelGenerationsAPI } from '@/lib/api-client'
+import {
+  assistantKeySetupOptionId,
+  type AssistantKeySetupTarget,
+} from '@/lib/assistant-key-setup'
+import { voiceSpeakerLook } from '@/lib/voice-avatar'
 import type { AudioEmotion } from '@/constants/voice-cards'
 import type {
   VoiceRoomCastMember,
   VoiceRoomDeliveryState,
   VoiceRoomDetail,
 } from '@/types/voiceroom'
+import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
+import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
 
 import { VoiceLineBubble } from './VoiceLineBubble'
 import { VoiceLinePending } from './VoiceLinePending'
@@ -34,12 +44,22 @@ interface VoiceRoomStageProps {
   retakingIds: ReadonlySet<string>
   /** 刚发出、还没拿到回执的那句话。 */
   pendingLine: { speakerId: string; text: string } | null
+  /** 聊天：你刚发出、还没落库的那句。 */
+  pendingUserText: string | null
+  /** 聊天：她正在写的回复。 */
+  streamingReply: { speakerId: string; text: string } | null
+  mode: VoiceRoomMode
+  onModeChange: (mode: VoiceRoomMode) => void
+  /** 聊天时助手那一家缺 key：就地配。 */
+  keySetup: AssistantKeySetupTarget | null
+  onDismissKeySetup: () => void
   error: string | null
   delivery: VoiceRoomDeliveryState
   onDeliveryChange: (patch: Partial<VoiceRoomDeliveryState>) => void
   onRename: (name: string | null) => void
   onCastChange: (cast: VoiceRoomCastMember[]) => void
   onSay: (speakerId: string, text: string) => Promise<boolean>
+  onChat: (speakerId: string, text: string) => Promise<boolean>
   onRetake: (
     lineId: string,
     patch: { emotion?: AudioEmotion | null },
@@ -53,16 +73,59 @@ export function VoiceRoomStage({
   switching,
   retakingIds,
   pendingLine,
+  pendingUserText,
+  streamingReply,
+  mode,
+  onModeChange,
+  keySetup,
+  onDismissKeySetup,
   error,
   delivery,
   onDeliveryChange,
   onRename,
   onCastChange,
   onSay,
+  onChat,
   onRetake,
   onDismissError,
 }: VoiceRoomStageProps) {
   const t = useTranslations('VoiceRoom')
+  const { cards: characters } = useCharacterLibrary()
+
+  /**
+   * 头像和名字跟着绑定的角色走（owner 10-23，规则见 `voiceSpeakerLook`）：班底里的人声当场按
+   * 角色库换上去。台词上存的是说话时的快照——那位还在班底里就用当下的样子，不在了才退回快照
+   * （聊天记录不该因为班底变动而失忆）。
+   */
+  const cast = useMemo(
+    () =>
+      detail.cast.map((member) => {
+        if (member.kind !== VOICE_ROOM_SPEAKER_KIND.VOICE) return member
+        const look = voiceSpeakerLook(
+          {
+            id: member.id,
+            name: member.name,
+            coverImage: member.coverImage ?? null,
+          },
+          characters,
+        )
+        return { ...member, name: look.name, coverImage: look.cover }
+      }),
+    [detail.cast, characters],
+  )
+  const lines = useMemo(() => {
+    const byId = new Map(cast.map((member) => [member.id, member]))
+    return detail.lines.map((line) => {
+      const member = byId.get(line.speakerId)
+      return member && line.speakerKind === VOICE_ROOM_SPEAKER_KIND.VOICE
+        ? {
+            ...line,
+            speakerName: member.name,
+            speakerCover: member.coverImage ?? null,
+          }
+        : line
+    })
+  }, [cast, detail.lines])
   const [castingOpen, setCastingOpen] = useState(false)
   const [vaultOpen, setVaultOpen] = useState(false)
   const [renaming, setRenaming] = useState(false)
@@ -106,9 +169,9 @@ export function VoiceRoomStage({
    * （`react-hooks/set-state-in-effect`），还多留了一个会和班底对不上的中间态。
    */
   const selectedId =
-    pickedId && detail.cast.some((member) => member.id === pickedId)
+    pickedId && cast.some((member) => member.id === pickedId)
       ? pickedId
-      : (detail.cast[0]?.id ?? null)
+      : (cast[0]?.id ?? null)
 
   /**
    * 换房间后**首屏**有几条——只有这些参与 40ms/条的接力入场。
@@ -122,14 +185,14 @@ export function VoiceRoomStage({
   // eslint-disable-next-line react-hooks/exhaustive-deps -- 见上：漏掉 lines.length 是这段逻辑的全部意义
   const staggerUntil = useMemo(() => detail.lines.length, [detail.id])
 
-  // 新台词落下来时滚到底——聊天流的默认期待。
+  // 新台词落下来、她的回复长一截时滚到底——聊天流的默认期待。
   useEffect(() => {
     const node = flowRef.current
     if (node) node.scrollTop = node.scrollHeight
-  }, [detail.lines.length])
+  }, [detail.lines.length, pendingUserText, streamingReply?.text])
 
-  const castEmpty = detail.cast.length === 0
-  const vaultCount = detail.lines.filter(
+  const castEmpty = cast.length === 0
+  const vaultCount = lines.filter(
     (line) => line.audio?.status === 'COMPLETED',
   ).length
 
@@ -192,7 +255,7 @@ export function VoiceRoomStage({
         </button>
       </div>
 
-      <VoiceRoomVault lines={detail.lines} open={vaultOpen} />
+      <VoiceRoomVault lines={lines} open={vaultOpen} />
 
       {castEmpty ? (
         <div className="vr-empty">
@@ -209,7 +272,7 @@ export function VoiceRoomStage({
         </div>
       ) : (
         <div className="vr-flow" ref={flowRef} data-leaving={switching}>
-          {detail.lines.map((line, index) => (
+          {lines.map((line, index) => (
             <VoiceLineBubble
               key={line.id}
               line={line}
@@ -229,9 +292,26 @@ export function VoiceRoomStage({
            */}
           {pendingLine ? (
             <VoiceLinePending
-              cast={detail.cast}
+              cast={cast}
               speakerId={pendingLine.speakerId}
               text={pendingLine.text}
+            />
+          ) : null}
+
+          {pendingUserText ? (
+            <div className="vr-msg" data-self>
+              <div className="vr-msg-body">
+                <span className="vr-bubble">{pendingUserText}</span>
+              </div>
+            </div>
+          ) : null}
+
+          {streamingReply ? (
+            <VoiceLinePending
+              cast={cast}
+              speakerId={streamingReply.speakerId}
+              text={streamingReply.text}
+              typing
             />
           ) : null}
         </div>
@@ -248,18 +328,41 @@ export function VoiceRoomStage({
 
       {castEmpty ? null : (
         <VoiceRoomComposer
-          cast={detail.cast}
+          cast={cast}
           selectedId={selectedId}
           sending={sending}
           delivery={delivery}
           onDeliveryChange={onDeliveryChange}
+          mode={mode}
+          onModeChange={onModeChange}
           onSelect={setPickedId}
           onOpenCasting={() => setCastingOpen(true)}
-          onSubmit={(text) =>
-            selectedId ? onSay(selectedId, text) : Promise.resolve(false)
-          }
+          onSubmit={(text) => {
+            const speaker = cast.find((member) => member.id === selectedId)
+            if (!speaker) return Promise.resolve(false)
+            // 音效师不会回话：聊天模式下选中它也按念台词走。
+            return mode === VOICE_ROOM_MODE.CHAT &&
+              speaker.kind === VOICE_ROOM_SPEAKER_KIND.VOICE
+              ? onChat(speaker.id, text)
+              : onSay(speaker.id, text)
+          }}
         />
       )}
+
+      {/* 聊天写词用的是助手那一家：缺 key 就地配，配好不顺手改出声的模型。 */}
+      {keySetup ? (
+        <QuickSetupDialog
+          open
+          onOpenChange={(next) => {
+            if (!next) onDismissKeySetup()
+          }}
+          modelId={keySetup.modelId}
+          modelLabel={keySetup.modelLabel}
+          adapterType={keySetup.adapterType}
+          optionId={assistantKeySetupOptionId(keySetup.modelId)}
+          selectStudioModel={false}
+        />
+      ) : null}
 
       {castingOpen ? (
         <VoiceRoomCasting

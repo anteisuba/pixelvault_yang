@@ -1,7 +1,10 @@
 'use client'
 
 import { VOICE_ROOM_AVATAR_TONE_COUNT } from '@/constants/voiceroom'
-import type { VoiceRoomSpeakerKind } from '@/constants/voiceroom'
+import type {
+  VoiceLineSpeakerKind,
+  VoiceRoomSpeakerKind,
+} from '@/constants/voiceroom'
 
 /**
  * 说话人头像 —— 有脸用脸，没脸用名字第一个字 + 一档底色。
@@ -23,7 +26,7 @@ interface VoiceAvatarProps {
   id: string
   name: string
   cover?: string | null
-  kind?: VoiceRoomSpeakerKind
+  kind?: VoiceRoomSpeakerKind | VoiceLineSpeakerKind
   /** `l` 是选角卡的大头像（84px），也是「点脸即试听」那块热区的主体。 */
   size?: 'xs' | 's' | 'm' | 'l'
 }

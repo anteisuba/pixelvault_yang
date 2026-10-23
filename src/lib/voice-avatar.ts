@@ -34,3 +34,22 @@ export function voiceAvatarCover(
   }
   return voice.coverImage ?? null
 }
+
+/**
+ * 一副嗓子在配音间里露面的样子（owner 10-23「头像跟着绑定的角色走」）：绑了角色就是她——
+ * 名字和头像都用角色的；没绑就是音色自己。
+ */
+export function voiceSpeakerLook(
+  voice: {
+    readonly id: string
+    readonly name: string
+    readonly coverImage: string | null
+  },
+  characters: readonly CharacterLike[],
+): { name: string; cover: string | null } {
+  const [bound] = charactersOfVoice(voice.id, characters)
+  return {
+    name: bound?.name ?? voice.name,
+    cover: voiceAvatarCover(voice, characters),
+  }
+}

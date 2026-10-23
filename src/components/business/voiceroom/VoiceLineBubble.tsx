@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 
 import {
   VOICE_LINE_EMOTION_CHOICES,
+  VOICE_LINE_USER_KIND,
   VOICE_ROOM_HANDOFF_MS,
   VOICE_ROOM_SHAKE_MS,
 } from '@/constants/voiceroom'
@@ -12,6 +13,7 @@ import type { AudioEmotion } from '@/constants/voice-cards'
 import type { VoiceLineRecord } from '@/types/voiceroom'
 
 import { VoiceAvatar } from './VoiceAvatar'
+import { VoiceLineText } from './VoiceLineText'
 
 /**
  * 一条台词的气泡：谁说的 · 说了什么 · 声音 · 什么情感。
@@ -183,6 +185,21 @@ export function VoiceLineBubble({
 
   const duration = formatDuration(line.audio?.duration ?? null)
 
+  // 聊天里你自己说的话：只有文字，靠右（owner 10-23）。
+  if (line.speakerKind === VOICE_LINE_USER_KIND) {
+    return (
+      <div
+        className="vr-msg"
+        data-self
+        style={{ '--vr-md': `${staggerMs}ms` } as React.CSSProperties}
+      >
+        <div className="vr-msg-body">
+          <span className="vr-bubble">{line.text}</span>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div
       className="vr-msg"
@@ -203,7 +220,9 @@ export function VoiceLineBubble({
       />
       <div className="vr-msg-body">
         <span className="vr-who">{line.speakerName}</span>
-        <span className="vr-bubble">{line.text}</span>
+        <span className="vr-bubble">
+          <VoiceLineText text={line.text} />
+        </span>
 
         {status === 'COMPLETED' && url && !retaking ? (
           <span className="vr-voice-row" ref={rowRef}>
@@ -331,6 +350,20 @@ export function VoiceLineBubble({
                 </svg>
               </button>
             ) : null}
+          </span>
+        ) : null}
+
+        {/* 聊天回复写出来了、声音没派出去（缺 key、额度……）：话留着，点重试再出声。 */}
+        {!line.audio && !retaking ? (
+          <span className="vr-failed">
+            <span>{t('noVoice')}</span>
+            <button
+              type="button"
+              className="vr-retry"
+              onClick={() => void onRetake(line.id, {})}
+            >
+              {t('retry')}
+            </button>
           </span>
         ) : null}
 

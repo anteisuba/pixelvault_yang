@@ -276,7 +276,9 @@
       "speakerCannotSpeak": "BGM はルーム全体に流す音楽なので、話者には指定できません",
       "voiceCardUnavailable": "その音声は利用できなくなりました",
       "roomFull": "この部屋は満杯です——新しい部屋を作ってください",
-      "lineEmpty": "読み上げるセリフを入力してください"
+      "lineEmpty": "読み上げるセリフを入力してください",
+      "chatVoiceOnly": "チャットできるのはボイスだけです",
+      "chatEmptyReply": "返事がありませんでした。もう一度試してください"
     },
     "common": {
       "unexpected": "予期しないエラーが発生しました。もう一度お試しください。",

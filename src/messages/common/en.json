@@ -276,7 +276,9 @@
       "speakerCannotSpeak": "Background music applies to the whole room and can't be assigned as a speaker.",
       "voiceCardUnavailable": "That voice is no longer available",
       "roomFull": "This room is full — start a new one",
-      "lineEmpty": "Enter a line to generate speech."
+      "lineEmpty": "Enter a line to generate speech.",
+      "chatVoiceOnly": "You can only chat with a voice.",
+      "chatEmptyReply": "No reply came back. Try again."
     },
     "common": {
       "unexpected": "An unexpected error occurred. Please try again.",

@@ -4,9 +4,10 @@ import { AUDIO_EMOTION, type AudioEmotion } from '@/constants/voice-cards'
 /**
  * 配音间（`/studio/audio`）—— 域常量。
  *
- * 这一页的核心循环只有四步：**选角 → 选中谁 → 打字 → 生成**。
- * owner 2026-08-29 拍板把范围收到这个最小闭环，AI 人格 / 自由接话 / 剧本视图
- * 全部不做，所以这里没有它们的常量——需要时再加，不预留。
+ * 两种玩法（「声音」模块，owner 10-23）：
+ * - **聊天**：选中谁，就是跟谁聊——你打字，她用自己的嗓子回一句（AI 写词 + 选的语音模型出声）。
+ * - **念台词**：选中谁，打的字就是谁的台词（原来的四步：选角 → 选中谁 → 打字 → 生成）。
+ * 剧本视图仍然不做。
  */
 
 /* ── 说话人 ─────────────────────────────────────────────────────── */
@@ -31,10 +32,17 @@ export const VOICE_ROOM_SPEAKER_KINDS = [
 
 export type VoiceRoomSpeakerKind = (typeof VOICE_ROOM_SPEAKER_KINDS)[number]
 
-/** 能成为台词的种类——`bgm` 不在其中。 */
+/**
+ * 聊天模式里**你自己**说的话：只有文字、没有声音，不是班底成员（owner 10-23）。
+ * 只出现在台词上，⛔ 不进 `VOICE_ROOM_SPEAKER_KINDS`（班底里没有「你」）。
+ */
+export const VOICE_LINE_USER_KIND = 'user' as const
+
+/** 能成为台词的种类——`bgm` 不在其中；`user` 是聊天里你说的话。 */
 export const VOICE_LINE_SPEAKER_KINDS = [
   VOICE_ROOM_SPEAKER_KIND.VOICE,
   VOICE_ROOM_SPEAKER_KIND.SFX,
+  VOICE_LINE_USER_KIND,
 ] as const
 
 export type VoiceLineSpeakerKind = (typeof VOICE_LINE_SPEAKER_KINDS)[number]
@@ -46,6 +54,39 @@ export type VoiceLineSpeakerKind = (typeof VOICE_LINE_SPEAKER_KINDS)[number]
 export const VOICE_ROOM_BUILTIN_SPEAKER = {
   SFX: 'builtin:sfx',
   BGM: 'builtin:bgm',
+  /** 聊天里你说的话的 `speakerId`。 */
+  USER: 'builtin:user',
+} as const
+
+/* ── 聊天 / 念台词 ──────────────────────────────────────────────── */
+
+export const VOICE_ROOM_MODE = {
+  CHAT: 'chat',
+  READ: 'read',
+} as const
+
+export const VOICE_ROOM_MODES = [
+  VOICE_ROOM_MODE.CHAT,
+  VOICE_ROOM_MODE.READ,
+] as const
+
+export type VoiceRoomMode = (typeof VOICE_ROOM_MODES)[number]
+
+/**
+ * 聊天时她记得这个房间最近几句（owner 10-23 对齐稿「最近二三十句」）。只算文字，
+ * 音效那几条不进对话。
+ */
+export const VOICE_ROOM_CHAT_HISTORY_LINES = 30
+
+/**
+ * 聊天流（SSE）的事件名：`user` 你那句落库了 → `delta` 她的回复一段段到 → `reply` 回复
+ * 落库、声音已派出去（之后跟别的台词一样靠轮询变成能播）。`error` 随时可能来，之后流就结束。
+ */
+export const VOICE_ROOM_CHAT_EVENT = {
+  USER: 'user',
+  DELTA: 'delta',
+  REPLY: 'reply',
+  ERROR: 'error',
 } as const
 
 /**

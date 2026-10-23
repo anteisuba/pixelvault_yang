@@ -456,7 +456,15 @@
     "cancel": "キャンセル",
     "deleteRoom": "ルームを削除",
     "deleteRoomTitle": "このルームを削除しますか？",
-    "deleteRoomHint": "「{name}」とすべてのセリフが削除されます。生成済みの音声は素材ライブラリに残ります。"
+    "deleteRoomHint": "「{name}」とすべてのセリフが削除されます。生成済みの音声は素材ライブラリに残ります。",
+    "modeLabel": "チャットかセリフか",
+    "mode": {
+      "chat": "チャット",
+      "read": "セリフ"
+    },
+    "chatPlaceholder": "{name} に話しかける…",
+    "send": "送信",
+    "noVoice": "まだ音声がありません"
   },
   "StudioVideoSlots": {
     "firstFrame": "最初",

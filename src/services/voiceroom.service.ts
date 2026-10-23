@@ -9,10 +9,12 @@ import { AUDIO_KIND, type AudioKind } from '@/constants/audio-options'
 import { getAvailableAudioModels } from '@/constants/models'
 import { resolveAudioKind } from '@/constants/models/audio'
 import {
+  VOICE_LINE_SPEAKER_KINDS,
   VOICE_ROOM_LINES_MAX,
   VOICE_ROOM_LIST_LIMIT,
   VOICE_ROOM_SPEAKER_KIND,
   VOICE_ROOM_VOICE_CAST_MAX,
+  type VoiceLineSpeakerKind,
 } from '@/constants/voiceroom'
 import { parseVoiceLineEmotion } from '@/lib/voice-line-emotion'
 import { submitAudioGeneration } from '@/services/generate-audio.service'
@@ -86,7 +88,7 @@ function toPrismaJson(value: unknown): Prisma.InputJsonValue {
  * ⚠ 坏数据**降级成空班底**而不是抛错：一条读不懂的 cast 不该让整个房间列表打不开。
  * 空班底在 UI 上就是「先请一位进来」的空态，用户能自己救回来。
  */
-function parseCast(value: Prisma.JsonValue): VoiceRoomCastMember[] {
+export function parseCast(value: Prisma.JsonValue): VoiceRoomCastMember[] {
   const parsed = z.array(VoiceRoomCastMemberSchema).safeParse(value)
   return parsed.success ? parsed.data : []
 }
@@ -115,15 +117,19 @@ function toVoiceRoomRecord(row: {
   }
 }
 
+function toSpeakerKind(value: string): VoiceLineSpeakerKind {
+  return (
+    VOICE_LINE_SPEAKER_KINDS.find((kind) => kind === value) ??
+    VOICE_ROOM_SPEAKER_KIND.VOICE
+  )
+}
+
 function toVoiceLineRecord(row: VoiceLineRow): VoiceLineRecord {
   return {
     id: row.id,
     order: row.order,
     speakerId: row.speakerId,
-    speakerKind:
-      row.speakerKind === VOICE_ROOM_SPEAKER_KIND.SFX
-        ? VOICE_ROOM_SPEAKER_KIND.SFX
-        : VOICE_ROOM_SPEAKER_KIND.VOICE,
+    speakerKind: toSpeakerKind(row.speakerKind),
     speakerName: row.speakerName,
     speakerCover: row.speakerCover,
     text: row.text,
@@ -277,10 +283,15 @@ function toCoverUrl(cover: string | null | undefined): string | undefined {
   return /^https?:\/\//i.test(cover) ? cover : undefined
 }
 
-function findCastMember(
+/** 能开口的班底成员（配乐不算）。 */
+export type SpeakingCastMember = VoiceRoomCastMember & {
+  kind: Exclude<VoiceRoomCastMember['kind'], 'bgm'>
+}
+
+export function findCastMember(
   cast: VoiceRoomCastMember[],
   speakerId: string,
-): VoiceRoomCastMember {
+): SpeakingCastMember {
   const member = cast.find((candidate) => candidate.id === speakerId)
   if (!member) {
     throw new ApiRequestError(
@@ -299,7 +310,7 @@ function findCastMember(
       'The score is a room-level bed, not a speaker',
     )
   }
-  return member
+  return { ...member, kind: member.kind }
 }
 
 /**
@@ -308,7 +319,7 @@ function findCastMember(
  * ⚠ `voiceId` 是**实时**从 VoiceCard 查的，不是从班底快照里取：班底存的
  * name / coverImage 漂了无所谓（那是显示用的），voiceId 漂了会发错声音。
  */
-async function dispatchLine(params: {
+export async function dispatchLine(params: {
   clerkId: string
   userId: string
   member: VoiceRoomCastMember
@@ -357,6 +368,55 @@ async function dispatchLine(params: {
   return jobId
 }
 
+/** 一个房间到顶了就提示新开房间，而不是静默截断。 */
+export function assertRoomHasSpace(lineCount: number, adding = 1): void {
+  if (lineCount + adding > VOICE_ROOM_LINES_MAX) {
+    throw new ApiRequestError(
+      'VOICE_ROOM_FULL',
+      400,
+      'errors.voiceRoom.roomFull',
+      `A room holds at most ${VOICE_ROOM_LINES_MAX} lines`,
+    )
+  }
+}
+
+/**
+ * 往房间末尾追加一条台词（念台词、聊天里你那句、她的回复都走这里）。
+ *
+ * order 在事务里取，两条同时提交才不会撞同一个号。
+ */
+export async function appendVoiceLine(
+  roomId: string,
+  line: {
+    speakerId: string
+    speakerKind: VoiceLineSpeakerKind
+    speakerName: string
+    speakerCover: string | null
+    text: string
+    emotion: string | null
+    jobId: string | null
+  },
+): Promise<VoiceLineRecord> {
+  const created = await db.$transaction(async (tx) => {
+    const last = await tx.voiceLine.findFirst({
+      where: { roomId },
+      orderBy: { order: 'desc' },
+      select: { order: true },
+    })
+    const row = await tx.voiceLine.create({
+      data: { roomId, order: (last?.order ?? -1) + 1, ...line },
+      include: LINE_INCLUDE,
+    })
+    // 说了话就是动过这个房间——左列按 updatedAt 排序，靠这一下浮上来。
+    await tx.voiceRoom.update({
+      where: { id: roomId },
+      data: { updatedAt: new Date() },
+    })
+    return row
+  })
+  return toVoiceLineRecord(created)
+}
+
 /**
  * 说一句话。
  *
@@ -374,14 +434,7 @@ export async function createVoiceLine(
   })
   if (!room) throwRoomNotFound()
 
-  if (room._count.lines >= VOICE_ROOM_LINES_MAX) {
-    throw new ApiRequestError(
-      'VOICE_ROOM_FULL',
-      400,
-      'errors.voiceRoom.roomFull',
-      `A room holds at most ${VOICE_ROOM_LINES_MAX} lines`,
-    )
-  }
+  assertRoomHasSpace(room._count.lines)
 
   const member = findCastMember(parseCast(room.cast), request.speakerId)
   const parsed = parseVoiceLineEmotion(request.text)
@@ -411,36 +464,15 @@ export async function createVoiceLine(
     },
   })
 
-  // order 在事务里取，两条同时提交才不会撞同一个号。
-  const created = await db.$transaction(async (tx) => {
-    const last = await tx.voiceLine.findFirst({
-      where: { roomId: room.id },
-      orderBy: { order: 'desc' },
-      select: { order: true },
-    })
-    const line = await tx.voiceLine.create({
-      data: {
-        roomId: room.id,
-        order: (last?.order ?? -1) + 1,
-        speakerId: member.id,
-        speakerKind: member.kind,
-        speakerName: member.name,
-        speakerCover: member.coverImage ?? null,
-        text,
-        emotion,
-        jobId,
-      },
-      include: LINE_INCLUDE,
-    })
-    // 说了话就是动过这个房间——左列按 updatedAt 排序，靠这一下浮上来。
-    await tx.voiceRoom.update({
-      where: { id: room.id },
-      data: { updatedAt: new Date() },
-    })
-    return line
+  return appendVoiceLine(room.id, {
+    speakerId: member.id,
+    speakerKind: member.kind,
+    speakerName: member.name,
+    speakerCover: member.coverImage ?? null,
+    text,
+    emotion,
+    jobId,
   })
-
-  return toVoiceLineRecord(created)
 }
 
 /**

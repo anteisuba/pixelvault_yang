@@ -364,6 +364,10 @@
       "label": "Fish Audio S2.1 Pro Free",
       "description": "Free speech generation with your own Fish API key, subject to fair-use limits."
     },
+    "fishAudioDrama3": {
+      "label": "Fish Audio Drama 3",
+      "description": "Fish's most expressive tier: bracket cues in any language, mid-sentence sound effects and pauses; billed per byte, pricier than S2.1 Pro"
+    },
     "pixaiTsubaki2": {
       "label": "PixAI Tsubaki.2",
       "description": "PixAI's flagship DiT anime model. Text-to-image only."

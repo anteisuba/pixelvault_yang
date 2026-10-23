@@ -81,7 +81,7 @@ export function VoiceRoomPage() {
    */
   return (
     <ApiKeysProvider>
-      <div className="voiceroom workbench-ground">
+      <div className="voiceroom workbench-ground h-page">
         <VoiceRoomRail
           rooms={rooms}
           activeRoomId={activeRoomId}

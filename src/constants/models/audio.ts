@@ -21,6 +21,13 @@ import type { ModelOption } from '@/constants/models/types'
  * 5000, which is how three models that never had that limit ended up capped by
  * a retired fourth one.
  */
+/** 走 Fish `/v1/tts`（Worker 能直接派）的说话型号——三档同一接口，只差 `model` 头。 */
+export const FISH_AUDIO_SPEECH_MODEL_IDS: readonly string[] = [
+  AI_MODELS.FISH_AUDIO_S2_PRO,
+  AI_MODELS.FISH_AUDIO_S2_PRO_FREE,
+  AI_MODELS.FISH_AUDIO_DRAMA_3,
+]
+
 export const AUDIO_MODEL_OPTIONS: ModelOption[] = [
   {
     id: AI_MODELS.FISH_AUDIO_S2_PRO,
@@ -53,6 +60,24 @@ export const AUDIO_MODEL_OPTIONS: ModelOption[] = [
     adapterType: AI_ADAPTER_TYPES.FISH_AUDIO,
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FISH_AUDIO),
     externalModelId: 's2.1-pro-free',
+    outputType: 'AUDIO',
+    audioKind: AUDIO_KIND.SPEECH,
+    available: true,
+    officialUrl:
+      'https://docs.fish.audio/developer-guide/models-pricing/models-overview',
+    timeoutMs: 60_000,
+    qualityTier: 'premium',
+  },
+  {
+    id: AI_MODELS.FISH_AUDIO_DRAMA_3,
+    // $50 / million UTF-8 bytes (≈3.3× s2.1-pro; promo $10 until 2026-11-12).
+    cost: 5,
+    adapterType: AI_ADAPTER_TYPES.FISH_AUDIO,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FISH_AUDIO),
+    // Same /v1/tts endpoint, selected by the `model` header. Fish silently
+    // falls back to s2.1-pro on an unknown header, so keep this string exact.
+    // Verified 2026-10-23 against the models overview.
+    externalModelId: 'drama-3',
     outputType: 'AUDIO',
     audioKind: AUDIO_KIND.SPEECH,
     available: true,

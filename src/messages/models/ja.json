@@ -364,6 +364,10 @@
       "label": "Fish Audio S2.1 Pro Free",
       "description": "ご自身の Fish API キーで無料の音声生成を利用できます。フェアユースの制限があります。"
     },
+    "fishAudioDrama3": {
+      "label": "Fish Audio Drama 3",
+      "description": "最も表現力の高いティア。角括弧の指示は日本語でも可、文中に効果音や間を入れられる。バイト課金で S2.1 Pro より高価"
+    },
     "pixaiTsubaki2": {
       "label": "PixAI Tsubaki.2",
       "description": "PixAI のフラッグシップ DiT アニメモデル。テキストから画像のみ。"

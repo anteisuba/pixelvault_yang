@@ -7,11 +7,16 @@ import {
   ASSISTANT_ROUTE_MODEL_VALUES,
   type AssistantRouteModel,
 } from '@/constants/assistant-persona'
+import { AUDIO_EXPRESSIVENESS, AUDIO_KIND } from '@/constants/audio-options'
+import { getAvailableAudioModels } from '@/constants/models'
+import { resolveAudioKind } from '@/constants/models/audio'
 import {
+  VOICE_ROOM_DEFAULT_VOICE_MODEL,
   VOICE_ROOM_LLM_MODEL_STORAGE_KEY,
   VOICE_ROOM_MODE,
   VOICE_ROOM_POLL_MS,
   VOICE_ROOM_SWITCH_OUT_MS,
+  VOICE_ROOM_VOICE_MODEL_STORAGE_KEY,
   type VoiceRoomMode,
 } from '@/constants/voiceroom'
 import {
@@ -36,7 +41,6 @@ import {
   type AssistantKeySetupTarget,
 } from '@/lib/assistant-key-setup'
 import { AUDIO_DEFAULT_PACE, type AudioEmotion } from '@/constants/voice-cards'
-import { AUDIO_EXPRESSIVENESS } from '@/constants/audio-options'
 
 /**
  * 念法的出厂档。
@@ -69,6 +73,25 @@ function readStoredLlmModel(): AssistantRouteModel {
     )
   } catch {
     return ASSISTANT_ROUTE_MODEL_AUTO
+  }
+}
+
+/**
+ * 记在这台浏览器里的语音模型（owner 10-23「记住上次的选择；首次默认免费档」）。
+ * 下架了的、不是说话型号的、读不到的，都回到免费档。
+ */
+function readStoredVoiceModel(): string {
+  try {
+    const stored = window.localStorage.getItem(
+      VOICE_ROOM_VOICE_MODEL_STORAGE_KEY,
+    )
+    const known = getAvailableAudioModels().some(
+      (model) =>
+        model.id === stored && resolveAudioKind(model) === AUDIO_KIND.SPEECH,
+    )
+    return known && stored ? stored : VOICE_ROOM_DEFAULT_VOICE_MODEL
+  } catch {
+    return VOICE_ROOM_DEFAULT_VOICE_MODEL
   }
 }
 
@@ -173,12 +196,18 @@ export function useVoiceRoom(): UseVoiceRoomResult {
     text: string
   } | null>(null)
   const [mode, setMode] = useState<VoiceRoomMode>(VOICE_ROOM_MODE.CHAT)
+  const [delivery, setDeliveryState] =
+    useState<VoiceRoomDeliveryState>(DEFAULT_DELIVERY)
   const [llmModel, setLlmModelState] = useState<AssistantRouteModel>(
     ASSISTANT_ROUTE_MODEL_AUTO,
   )
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- 挂载后才读得到浏览器存储（服务端渲染时没有 window）
     setLlmModelState(readStoredLlmModel())
+    setDeliveryState((current) => ({
+      ...current,
+      modelId: readStoredVoiceModel(),
+    }))
   }, [])
   const setLlmModel = useCallback((model: AssistantRouteModel) => {
     setLlmModelState(model)
@@ -190,11 +219,19 @@ export function useVoiceRoom(): UseVoiceRoomResult {
   }, [])
   const [keySetup, setKeySetup] = useState<AssistantKeySetupTarget | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [delivery, setDeliveryState] =
-    useState<VoiceRoomDeliveryState>(DEFAULT_DELIVERY)
 
   const setDelivery = useCallback((patch: Partial<VoiceRoomDeliveryState>) => {
     setDeliveryState((current) => ({ ...current, ...patch }))
+    if (patch.modelId) {
+      try {
+        window.localStorage.setItem(
+          VOICE_ROOM_VOICE_MODEL_STORAGE_KEY,
+          patch.modelId,
+        )
+      } catch {
+        // 存不住就只管这一次会话。
+      }
+    }
   }, [])
 
   /** 防止过期的房间详情覆盖刚切过去的那个（切房间比请求快时会发生）。 */

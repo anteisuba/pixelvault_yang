@@ -254,15 +254,18 @@ export function measureTranscript(
       callStep.set(call.id, metrics.modelSteps)
       if (call.tool === 'generate') metrics.generated += 1
       if (call.tool === 'ask') metrics.asked += 1
-      if (call.tool !== 'write') continue
-      const writes = parseInput(call.input).writes
+      // 旧内核 write {writes:[{field}]}；新内核 edit {changes:[{op}]}。
+      if (call.tool !== 'write' && call.tool !== 'edit') continue
+      const input = parseInput(call.input)
+      const writes = call.tool === 'write' ? input.writes : input.changes
       for (const write of Array.isArray(writes) ? writes : []) {
         const item = write as {
           field?: string
+          op?: string
           mode?: string
           text?: string | null
         }
-        if (item.field !== 'prompt') continue
+        if ((item.field ?? item.op) !== 'prompt') continue
         if (item.mode === 'edit') metrics.promptEdits += 1
         else {
           metrics.promptRewrites += 1
@@ -404,6 +407,8 @@ export interface CaseResult {
     judge: JudgeVerdict | { error: string }
     usage: TokenUsage
     cost: number
+    /** 这次重跑的整轮记录（查原因用；结果目录在仓库外）。 */
+    transcript?: AssistantV3Transcript
   }
 }
 
@@ -494,7 +499,7 @@ export function writeReport(out: string, results: CaseResult[]) {
   const lines = [
     `# 助手评测 · ${out.split('/').at(-1)}`,
     '',
-    `${results.length} 道题。「线上」= 记录里那一次（当时选的模型），「重跑」= 这次用 Sonnet 5.5 在旧内核上重跑。判分都由 Sonnet 5.5 做。`,
+    `${results.length} 道题。「线上」= 记录里那一次（当时选的模型），「重跑」= 这次用 Sonnet 5.5 在${process.env.ASSISTANT_EVAL_KERNEL === 'next' ? '新' : '旧'}内核上重跑。判分都由 Sonnet 5.5 做。`,
     '',
     '| 指标 | 线上 | 重跑 |',
     '|---|---|---|',

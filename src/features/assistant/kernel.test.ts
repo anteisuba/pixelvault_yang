@@ -155,6 +155,8 @@ vi.mock('@/features/assistant/models', () => ({
   },
 }))
 
+import { prepareOperatorTurn } from '@/services/kernel/assistant-operator.service'
+
 import { runAssistantNext } from './kernel'
 
 const usage = {
@@ -329,6 +331,28 @@ describe('新内核主循环', () => {
     })
   })
 
+  it('同一步里改动没落下：后面的出图不出卡，让模型先改好', async () => {
+    const main = mockModel([
+      toolTurn(
+        {
+          id: 'e1',
+          name: 'edit',
+          input: { changes: [{ op: 'prompt', mode: 'replace', text: null }] },
+        },
+        { id: 'g1', name: 'generate', input: { say: '出一张' } },
+      ),
+      textTurn('提示词没改成，先停一下。'),
+    ])
+    models.main = main
+    plan.mockResolvedValue({ kind: 'confirmGenerate', request: { count: 1 } })
+    const events = await collect(
+      runAssistantNext('clerk-1', imageRequest('换衣服再出一张')),
+    )
+    expect(events.find((event) => event.type === 'confirm')).toBeUndefined()
+    expect(promptOf(main.doStreamCalls[1]!)).toContain('Fix that edit first')
+    expect(events.at(-1)).toMatchObject({ type: 'done' })
+  })
+
   it('读不懂的入参回一句哪一格不对，模型改了再来（⛔ 不判死）', async () => {
     const main = mockModel([
       toolTurn({
@@ -344,6 +368,38 @@ describe('新内核主循环', () => {
       runAssistantNext('clerk-1', imageRequest('改一下')),
     )
     expect(promptOf(main.doStreamCalls[1]!)).toContain('changes.0.op')
+    expect(events.at(-1)).toMatchObject({ type: 'done' })
+  })
+
+  it('入参不是合法 JSON：只回一条结果（两条同 id 厂商会拒收），模型重发', async () => {
+    const main = mockModel([
+      [
+        {
+          type: 'tool-call',
+          toolCallId: 'broken',
+          toolName: 'edit',
+          input: '{"changes":[{"op":"prompt","text":"a "cat',
+        },
+        finish('tool-calls'),
+      ],
+      toolTurn(editPrompt),
+      textTurn('好了。'),
+    ])
+    models.main = main
+    const events = await collect(
+      runAssistantNext('clerk-1', imageRequest('改一下')),
+    )
+    const second = main.doStreamCalls[1]!.prompt
+    const results = second.flatMap((message) =>
+      message.role === 'tool'
+        ? message.content.filter(
+            (part) =>
+              part.type === 'tool-result' && part.toolCallId === 'broken',
+          )
+        : [],
+    )
+    expect(results).toHaveLength(1)
+    expect(JSON.stringify(results)).toContain('not a valid JSON object')
     expect(events.at(-1)).toMatchObject({ type: 'done' })
   })
 
@@ -386,6 +442,49 @@ describe('新内核主循环', () => {
     expect(recordTurn).toHaveBeenLastCalledWith(
       expect.objectContaining({ hop: 2 }),
     )
+  })
+
+  it.each([
+    ['同一型号接着跑：思考块原样交回', 'claude-sonnet-5-5', true],
+    ['接力时换了型号：旧型号的思考块先拿掉', 'gpt-5.5', false],
+  ])('%s', async (_name, nextModelId, keepsReasoning) => {
+    soft.afterStep = 0
+    models.main = mockModel([
+      [
+        { type: 'reasoning-start', id: 'r' },
+        { type: 'reasoning-delta', id: 'r', delta: '先改提示词' },
+        { type: 'reasoning-end', id: 'r' },
+        ...toolTurn(editPrompt),
+      ],
+    ])
+    const hop1 = await collect(
+      runAssistantNext('clerk-1', imageRequest('把女孩换成男孩')),
+    )
+    const relay = hop1.find((event) => event.type === 'transcript') as {
+      transcript: AssistantV3Transcript
+    }
+
+    soft.afterStep = Number.POSITIVE_INFINITY
+    const prepare = vi.mocked(prepareOperatorTurn)
+    const original = prepare.getMockImplementation()!
+    prepare.mockImplementationOnce(async (...args) => ({
+      ...(await original(...args)),
+      modelId: nextModelId,
+    }))
+    const second = mockModel([textTurn('接着说完。')])
+    models.main = second
+    await collect(
+      runAssistantNext(
+        'clerk-1',
+        imageRequest('把女孩换成男孩', {
+          v3: { transcript: relay.transcript },
+        } as never),
+      ),
+    )
+    const sent = JSON.stringify(second.doStreamCalls[0]!.prompt)
+    expect(sent.includes('先改提示词')).toBe(keepsReasoning)
+    // 改动记录（我们的工具调用与结果）两种情况都留着。
+    expect(sent).toContain('"tool-result"')
   })
 
   it('新接法被厂商拒了（400）：整轮换成保守接法再试', async () => {

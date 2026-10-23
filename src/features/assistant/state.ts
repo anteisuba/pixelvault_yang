@@ -27,6 +27,8 @@ export interface NextTurnState {
   readonly transcript: AssistantV3Transcript
   /** 这一轮用的是哪条接法（第一次被拒时换过就记着，接力那一跳不再试一遍）。 */
   readonly modelPath: string
+  /** 这一轮用的型号。接力时创作者换了型号，旧型号的思考与联网记录不交给新型号。 */
+  readonly modelId?: string
   /** 开轮时附在消息里的图的名字（look 认名字用）。 */
   readonly attachedNames: readonly string[]
   readonly latestUserText: string

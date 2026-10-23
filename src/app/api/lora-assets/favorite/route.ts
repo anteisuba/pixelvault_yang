@@ -47,6 +47,12 @@ export async function POST(
     const body = (await request.json().catch(() => null)) as unknown
     const parsed = FavoriteLoraRequestSchema.safeParse(body)
     if (!parsed.success) {
+      // 被拒的是来源数据跟契约对不上（字段超长、缺字段），不留日志就查不到是哪个字段。
+      logger.warn('POST /api/lora-assets/favorite rejected body', {
+        issues: parsed.error.issues.map(
+          (issue) => `${issue.path.join('.')}: ${issue.code}`,
+        ),
+      })
       return NextResponse.json<ErrorBody>(
         { success: false, error: 'Invalid body', errorCode: 'INVALID_BODY' },
         { status: 400 },

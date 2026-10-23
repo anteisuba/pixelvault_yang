@@ -49,6 +49,7 @@ import { RUNNER_SAMPLERS, RUNNER_SCHEDULERS } from '@/constants/runner-sampling'
 import {
   DEFAULT_HUGGINGFACE_LORA_SORT,
   DEFAULT_LORA_CONTENT_TYPE,
+  FAVORITE_LORA_NAME_MAX_LENGTH,
   HUGGINGFACE_LORA_DEFAULT_FAMILY,
   HUGGINGFACE_LORA_DEFAULT_LIMIT,
   HUGGINGFACE_LORA_FAMILY_VALUES,
@@ -4022,9 +4023,8 @@ export type HuggingFaceRepoShowcaseQuery = z.infer<
 >
 
 export const FAVORITE_LORA_TRIGGER_WORD_MAX_LENGTH = 4000
-
 export const FavoriteLoraRequestSchema = z.object({
-  name: z.string().trim().min(1).max(120),
+  name: z.string().trim().min(1).max(FAVORITE_LORA_NAME_MAX_LENGTH),
   // Civitai 上很多 LoRA 把整段推荐 prompt 当作 trigger word。数据库列是
   // 无长度的 text，所以收藏外部 LoRA 允许更长的触发词；用户自训练
   // trigger 仍由 LoraTrainingPayloadSchema 维持短词限制。

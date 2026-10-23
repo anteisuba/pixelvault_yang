@@ -141,6 +141,14 @@ export const CIVITAI_USAGE_CONTROL_DOWNLOAD = 'Download'
 export const LORA_OFTEN_MOUNTED_MIN_COUNT = 2
 export const LORA_OFTEN_MOUNTED_MAX_RESULTS = 3
 
+/**
+ * 收藏 / 加到角色时外部 LoRA 名字的上限：名字原样照抄来源，只防畸形请求。
+ * Civitai 上多角色合集的名字常超过一百字（2026-10-23 一把「绝区零…三合一」被
+ * 旧的 120 上限拒成 Invalid body，收藏与加到角色都失败）；数据库列是无长度的
+ * text，显示处自己截断。
+ */
+export const FAVORITE_LORA_NAME_MAX_LENGTH = 1000
+
 // P2-6：10 条/页在 2xl:6 列网格下永远残行；12 在 6/4/3/2 列下都能整行
 // （5 列容忍最后一行留 2 空位）。
 export const CIVITAI_LORA_PAGE_SIZE = 12

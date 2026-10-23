@@ -123,7 +123,8 @@ export function useLoraAssets(): UseLoraAssetsReturn {
     async (payload: FavoriteLoraRequest): Promise<LoraAssetRecord | null> => {
       const result = await favoriteLoraAPI(payload)
       if (!result.success || !result.data) {
-        toast.error(result.error ?? t('favoriteFailed'), {
+        // 服务端的 error 是给日志看的英文（如 "Invalid body"），不直接给用户。
+        toast.error(t('favoriteFailed'), {
           duration: LORA_TOAST_DURATION_MS,
         })
         return null

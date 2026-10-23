@@ -3,7 +3,6 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { toast } from 'sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { AUDIO_PROMPT_PAYLOAD_MAX_CHARS } from '@/constants/audio-options'
 import { AI_MODELS } from '@/constants/models'
 import { STUDIO_TEMPLATES_PANEL_ID } from '@/constants/studio'
 import { WORKFLOW_IDS, type WorkflowId } from '@/constants/workflows'
@@ -12,7 +11,6 @@ import {
   StudioOperatorHostProvider,
   type StudioOperatorHost,
 } from '@/contexts/studio-operator-host'
-import type { VoiceCardRecord } from '@/types'
 
 import { setOperatorPrimed } from '@/hooks/use-studio-operator-store'
 
@@ -72,8 +70,6 @@ const mockDispatch = vi.hoisted(() => vi.fn())
 const mockGenerate = vi.hoisted(() => vi.fn())
 const mockUseStudioForm = vi.hoisted(() => vi.fn())
 const mockUseImageModelOptions = vi.hoisted(() => vi.fn())
-const mockUseAudioModelOptions = vi.hoisted(() => vi.fn())
-const mockUseVoiceCards = vi.hoisted(() => vi.fn())
 const mockImageUploadHandleDrop = vi.hoisted(() => vi.fn())
 const mockImageUploadState = vi.hoisted(() => ({ isUploading: false }))
 const mockGenState = vi.hoisted(() => ({ isGenerating: false }))
@@ -90,13 +86,7 @@ const EMPTY_PANELS: StudioFormState['panels'] = {
   stylePreset: false,
   reverse: false,
   refImage: false,
-  audioReading: false,
-  musicSpec: false,
   loraSelector: false,
-  voiceSelector: false,
-  voiceTrainer: false,
-  audioTranscribe: false,
-  sfxParams: false,
   videoAudio: false,
   keepChange: false,
 }
@@ -141,9 +131,6 @@ vi.mock('@/contexts/studio-context', () => ({
     'batchCount',
     'spec',
     'videoParams',
-    'voiceSelector',
-    'voiceTrainer',
-    'audioTranscribe',
   ],
   useStudioForm: mockUseStudioForm,
   useStudioData: () => ({
@@ -204,10 +191,6 @@ vi.mock('@/hooks/use-image-model-options', () => ({
   useImageModelOptions: mockUseImageModelOptions,
 }))
 
-vi.mock('@/hooks/use-audio-model-options', () => ({
-  useAudioModelOptions: mockUseAudioModelOptions,
-}))
-
 /**
  * 视频型号 —— 缺省是一个契约里什么参考都不收的假型号；要验「挂上的音频送出去」时
  * 换成真正收音频的型号（发送口按实际端点的契约夹，⛔ 不收的不发）。
@@ -237,10 +220,6 @@ vi.mock('@/hooks/use-video-model-options', () => ({
       modelOptions: [selectedModel],
     }
   },
-}))
-
-vi.mock('@/hooks/cards/use-voice-cards', () => ({
-  useVoiceCards: mockUseVoiceCards,
 }))
 
 vi.mock('@/contexts/api-keys-context', () => ({
@@ -333,36 +312,6 @@ function setupStudioForm(
     imageBatchCount: 1,
     extraModelOptionIds: [],
     tokenInput: '',
-    voiceId: null,
-    voiceCardId: null,
-    audioKind: 'speech',
-    audioEmotion: 'none',
-    audioExpressiveness: 'auto',
-    audioSfxDurationSeconds: 5,
-    audioMusicDurationSeconds: 30,
-    audioSfxLoop: false,
-    audioSfxPromptInfluence: 0.3,
-    audioSfxVariantCount: 1,
-    audioPace: 'normal',
-    audioPauseMarkers: [],
-    pronunciationDictionary: {},
-    audioVolume: 0,
-    audioNormalizeLoudness: true,
-    audioNormalizeText: true,
-    audioWithTimestamps: false,
-    audioFormat: 'mp3',
-    audioSampleRate: 44100,
-    audioMp3Bitrate: 128,
-    audioOpusBitrate: 32000,
-    audioLatency: 'normal',
-    audioTemperature: 0.7,
-    audioTopP: 0.7,
-    audioChunkLength: 300,
-    audioRepetitionPenalty: 1.2,
-    audioSpeakerVoiceIds: [],
-    audioReferenceUrl: null,
-    audioReferenceFileName: null,
-    audioReferenceText: '',
     videoDuration: 5,
     videoResolution: '720p',
     videoAudioRefs: [],
@@ -669,20 +618,9 @@ describe('StudioPromptArea', () => {
     mockGenState.isGenerating = false
     mockGenerate.mockResolvedValue(null)
     mockImageUploadHandleDrop.mockResolvedValue(undefined)
-    mockUseAudioModelOptions.mockReturnValue({
-      selectedModel: null,
-      modelOptions: [],
-    })
     mockUseImageModelOptions.mockReturnValue({
       selectedModel: null,
       modelOptions: [],
-    })
-    mockUseVoiceCards.mockReturnValue({
-      cards: [],
-      isLoading: false,
-      error: null,
-      findCard: () => null,
-      refresh: vi.fn(),
     })
     localStorage.clear()
   })
@@ -834,93 +772,6 @@ describe('StudioPromptArea', () => {
     expect(getSubmittedVideoPayload()).not.toHaveProperty('workflowId')
   })
 
-  it('builds audio payload from selected VoiceCard and audio form params', async () => {
-    const audioModel = {
-      optionId: 'audio-option',
-      modelId: 'fish-audio-s2-pro',
-      keyId: 'fish-key-1',
-      keyLabel: 'Fish key',
-      adapterType: 'fish_audio',
-      providerConfig: {
-        label: 'Fish Audio',
-        baseUrl: 'https://api.fish.audio',
-      },
-      sourceType: 'saved',
-      requestCount: 1,
-    }
-    const voiceCard: VoiceCardRecord = {
-      id: 'voice-card-1',
-      userId: 'user-1',
-      name: 'Narrator',
-      provider: 'fish_audio',
-      modelId: 'fish-audio-s2-pro',
-      voiceId: 'fish-voice-1',
-      coverImage: 'https://cdn.example.com/voice-cover.png',
-      referenceAudioUrl: null,
-      referenceAudioStorageKey: null,
-      gender: null,
-      age: null,
-      tone: [],
-      pace: 'normal',
-      pitch: null,
-      pronunciationDictionary: { AI: 'ay eye' },
-      sampleAudioUrl: null,
-      sampleText: null,
-      isDeleted: false,
-      createdAt: '2026-05-04T00:00:00.000Z',
-      updatedAt: '2026-05-04T00:00:00.000Z',
-    }
-    mockUseAudioModelOptions.mockReturnValue({
-      selectedModel: audioModel,
-      modelOptions: [audioModel],
-    })
-    mockUseVoiceCards.mockReturnValue({
-      cards: [voiceCard],
-      isLoading: false,
-      error: null,
-      findCard: (id: string) => (id === voiceCard.id ? voiceCard : null),
-      refresh: vi.fn(),
-    })
-    setupStudioForm(WORKFLOW_IDS.VOICE_NARRATION_DIALOGUE, {
-      outputType: 'audio',
-      selectedOptionId: 'audio-option',
-      prompt: 'Hello AI',
-      voiceCardId: voiceCard.id,
-      audioEmotion: 'narration',
-      audioPace: 'fast',
-      audioPauseMarkers: ['after_sentence_1'],
-      pronunciationDictionary: { Codex: 'koh-decks' },
-      audioWithTimestamps: true,
-      audioSpeakerVoiceIds: ['fish-voice-1', 'fish-voice-2'],
-    })
-
-    renderPromptArea()
-    fireEvent.click(screen.getByRole('button', { name: /^generate$/ }))
-
-    await waitFor(() =>
-      expect(mockGenerate).toHaveBeenCalledWith({
-        mode: 'audio',
-        audio: expect.objectContaining({
-          modelId: 'fish-audio-s2-pro',
-          apiKeyId: 'fish-key-1',
-          freePrompt: 'Hello AI',
-          voiceId: 'fish-voice-1',
-          coverImageUrl: 'https://cdn.example.com/voice-cover.png',
-          emotion: 'narration',
-          pace: 'fast',
-          pauseMarkers: ['after_sentence_1'],
-          speed: 1.35,
-          withTimestamps: true,
-          speakerVoiceIds: ['fish-voice-1', 'fish-voice-2'],
-          pronunciationDictionary: {
-            AI: 'ay eye',
-            Codex: 'koh-decks',
-          },
-        }),
-      }),
-    )
-  })
-
   // ── 音乐档的时长（切片 E）───────────────────────────────────────
   //
   // ⚠ 这一组盯的是一个「字段活着、门没开」：适配器早就读 `durationSeconds` 并
@@ -940,186 +791,9 @@ describe('StudioPromptArea', () => {
     requestCount: 1,
   }
 
-  it('⭐ 音乐档把时长发出去 —— 不再恒是适配器兜底的 30 秒', async () => {
-    mockUseAudioModelOptions.mockReturnValue({
-      selectedModel: musicModelOption,
-      modelOptions: [musicModelOption],
-    })
-    setupStudioForm(WORKFLOW_IDS.VOICE_NARRATION_DIALOGUE, {
-      outputType: 'audio',
-      audioKind: 'music',
-      selectedOptionId: 'music-option',
-      prompt: 'a slow lo-fi loop for a rainy window',
-      audioMusicDurationSeconds: 95,
-    })
-
-    renderPromptArea()
-    fireEvent.click(screen.getByRole('button', { name: /^generate$/ }))
-
-    await waitFor(() =>
-      expect(mockGenerate).toHaveBeenCalledWith({
-        mode: 'audio',
-        audio: expect.objectContaining({
-          modelId: 'elevenlabs-music-v2',
-          durationSeconds: 95,
-        }),
-      }),
-    )
-  })
-
-  it('⚠ 音效与音乐共用 durationSeconds，但取值来自各自的 state', async () => {
-    mockUseAudioModelOptions.mockReturnValue({
-      selectedModel: musicModelOption,
-      modelOptions: [musicModelOption],
-    })
-    setupStudioForm(WORKFLOW_IDS.VOICE_NARRATION_DIALOGUE, {
-      outputType: 'audio',
-      audioKind: 'music',
-      selectedOptionId: 'music-option',
-      prompt: 'a slow lo-fi loop',
-      audioMusicDurationSeconds: 95,
-      // 音效那条留着一个完全不同的值：拿错了这里就会露馅
-      audioSfxDurationSeconds: 4,
-    })
-
-    renderPromptArea()
-    fireEvent.click(screen.getByRole('button', { name: /^generate$/ }))
-
-    await waitFor(() => expect(mockGenerate).toHaveBeenCalled())
-    const payload = mockGenerate.mock.calls.at(-1)?.[0] as {
-      audio: { durationSeconds?: number; variantCount?: number }
-    }
-    expect(payload.audio.durationSeconds).toBe(95)
-    // 变体只属于音效 —— 音乐一次只出一条
-    expect(payload.audio.variantCount).toBeUndefined()
-  })
-
-  it('语音档不传时长 —— 长度由正文决定，没有这一档可选', async () => {
-    const speechModel = { ...musicModelOption, modelId: 'fish-audio-s2-pro' }
-    mockUseAudioModelOptions.mockReturnValue({
-      selectedModel: speechModel,
-      modelOptions: [speechModel],
-    })
-    setupStudioForm(WORKFLOW_IDS.VOICE_NARRATION_DIALOGUE, {
-      outputType: 'audio',
-      audioKind: 'speech',
-      selectedOptionId: 'music-option',
-      prompt: 'Hello',
-      audioMusicDurationSeconds: 95,
-    })
-
-    renderPromptArea()
-    fireEvent.click(screen.getByRole('button', { name: /^generate$/ }))
-
-    await waitFor(() => expect(mockGenerate).toHaveBeenCalled())
-    const payload = mockGenerate.mock.calls.at(-1)?.[0] as {
-      audio: { durationSeconds?: number }
-    }
-    expect(payload.audio.durationSeconds).toBeUndefined()
-  })
-
-  // ── Audio text limit is per model (L split, 2026-08-07) ─────────────
-  // Fish publishes no per-request cap, ElevenLabs v3 publishes 5000. The gate
-  // must read the selected model, not one shared number — 5001 chars is fine on
-  // one and blocked on the other.
-  const audioModelOption = (
-    modelId: string,
-    overrides: Record<string, unknown> = {},
-  ) => ({
-    optionId: 'audio-option',
-    modelId,
-    keyId: 'audio-key-1',
-    keyLabel: 'Audio key',
-    adapterType: 'fish_audio',
-    providerConfig: {
-      label: 'Fish Audio',
-      baseUrl: 'https://api.fish.audio',
-    },
-    sourceType: 'saved',
-    requestCount: 2,
-    ...overrides,
-  })
-
-  const renderAudioPrompt = (modelId: string, promptLength: number) => {
-    const audioModel = audioModelOption(modelId)
-    mockUseAudioModelOptions.mockReturnValue({
-      selectedModel: audioModel,
-      modelOptions: [audioModel],
-    })
-    setupStudioForm(WORKFLOW_IDS.VOICE_NARRATION_DIALOGUE, {
-      outputType: 'audio',
-      selectedOptionId: 'audio-option',
-      prompt: 'a'.repeat(promptLength),
-    })
-
-    renderPromptArea()
-  }
-
-  it('lets Fish Audio past 5000 chars and prints no denominator (vendor documents no cap)', () => {
-    renderAudioPrompt(AI_MODELS.FISH_AUDIO_S2_PRO, 5001)
-
-    expect(screen.getByText('audioPromptMetaNoLimit')).toBeInTheDocument()
-    expect(screen.queryByText('audioPromptMeta')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /^generate$/ })).toBeEnabled()
-  })
-
-  it('still blocks Fish Audio at the payload guard', () => {
-    renderAudioPrompt(
-      AI_MODELS.FISH_AUDIO_S2_PRO,
-      AUDIO_PROMPT_PAYLOAD_MAX_CHARS + 1,
-    )
-
-    expect(screen.getByRole('button', { name: /^generate$/ })).toBeDisabled()
-    expect(mockGenerate).not.toHaveBeenCalled()
-  })
-
-  it('blocks ElevenLabs v3 at its own documented 5000 and shows it as the denominator', () => {
-    renderAudioPrompt(AI_MODELS.ELEVENLABS_V3, 5001)
-
-    expect(screen.getByText('audioPromptMeta')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /^generate$/ })).toBeDisabled()
-    expect(mockGenerate).not.toHaveBeenCalled()
-  })
-
   // ⭐ owner 2026-08-24：取消那个 2000。它的主人是卡片配方里「动作 / 姿势」那个
   // 输入框，被借来当了 quick 模式的默认上限，于是一串正常的风格标签就能顶到
   // `2932/2000` 并锁死生成按钮 —— 而请求边界本来就是 32000。
-  // 与音频侧 `resolveAudioTextLimit` 的两层同构：没声明就没有上限。
-  it('⭐ 模型没声明上限时不设前置闸 —— 不印计数、不锁按钮', async () => {
-    const imageModel = {
-      optionId: 'image-option',
-      // 目录里没有 maxPromptChars 声明的型号
-      modelId: 'gpt-image-1',
-      keyId: 'openai-key-1',
-      keyLabel: 'OpenAI key',
-      adapterType: 'openai',
-      providerConfig: {
-        label: 'OpenAI',
-        baseUrl: 'https://api.openai.com',
-      },
-      sourceType: 'saved',
-      requestCount: 1,
-    }
-    mockUseImageModelOptions.mockReturnValue({
-      selectedModel: imageModel,
-      modelOptions: [imageModel],
-    })
-    setupStudioForm(WORKFLOW_IDS.QUICK_IMAGE, {
-      outputType: 'image',
-      selectedOptionId: 'image-option',
-      prompt: 'a'.repeat(2932),
-    })
-
-    renderPromptArea()
-
-    expect(screen.queryByText(/^2932\//)).not.toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: /^generate$/ }),
-    ).not.toBeDisabled()
-
-    fireEvent.click(screen.getByRole('button', { name: /^generate$/ }))
-    await waitFor(() => expect(mockGenerate).toHaveBeenCalled())
-  })
 
   it('caps the prompt at the model-specific maxPromptChars (Ideogram V4 = 1000)', () => {
     const ideogram = {

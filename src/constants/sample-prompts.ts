@@ -13,7 +13,6 @@ export const SAMPLE_PROMPT_KEYS: Record<string, string> = {
   [WORKFLOW_IDS.POSTER_LAYOUT]: 'samplePrompts.posterLayout',
   [WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO]: 'samplePrompts.cinematicVideo',
   [WORKFLOW_IDS.CHARACTER_TO_VIDEO]: 'samplePrompts.characterToVideo',
-  [WORKFLOW_IDS.VOICE_NARRATION_DIALOGUE]: 'samplePrompts.voiceNarration',
 }
 
 export const SAMPLE_PROMPT_STORAGE_KEY = 'pv:studio-sample-shown'

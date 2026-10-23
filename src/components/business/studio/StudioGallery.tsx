@@ -87,12 +87,7 @@ export const StudioGallery = memo(function StudioGallery() {
   // Belt-and-suspenders client filter (case-insensitive) — covers:
   // 1. In-flight server fetch race on mode switch (stale data briefly visible).
   // 2. Any legacy records with non-canonical casing (e.g. "image" vs "IMAGE").
-  const expectedType =
-    state.outputType === 'video'
-      ? 'VIDEO'
-      : state.outputType === 'audio'
-        ? 'AUDIO'
-        : 'IMAGE'
+  const expectedType = state.outputType === 'video' ? 'VIDEO' : 'IMAGE'
   const matchesMode = useCallback(
     (g: GenerationRecord) =>
       String(g.outputType).toUpperCase() === expectedType,
@@ -161,13 +156,9 @@ export const StudioGallery = memo(function StudioGallery() {
   const handleRemix = useCallback(
     (generation: GenerationRecord) => {
       const preset = buildStudioRemixPreset(generation, modelOptions)
-      // Preserve source outputType so remixing a video/audio stays in that mode
+      // Preserve source outputType so remixing a video stays in that mode
       const sourceOutputType =
-        generation.outputType === 'VIDEO'
-          ? 'video'
-          : generation.outputType === 'AUDIO'
-            ? 'audio'
-            : 'image'
+        generation.outputType === 'VIDEO' ? 'video' : 'image'
       dispatch({ type: 'SET_OUTPUT_TYPE', payload: sourceOutputType })
       dispatch({ type: 'SET_PROMPT', payload: preset.prompt })
       dispatch({ type: 'SET_ASPECT_RATIO', payload: preset.aspectRatio })
@@ -390,11 +381,7 @@ const GalleryItem = memo(function GalleryItem({
       )}
       onClick={onClick}
     >
-      {gen.outputType === 'AUDIO' ? (
-        <div className="flex size-full items-center justify-center bg-muted/20 p-3">
-          <span className="text-2xl">🎵</span>
-        </div>
-      ) : gen.outputType === 'VIDEO' && gen.url ? (
+      {gen.outputType === 'VIDEO' && gen.url ? (
         <video
           src={gen.url}
           poster={videoPoster}

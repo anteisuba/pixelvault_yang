@@ -153,8 +153,6 @@ export const AUDIO_PAUSE_MARKERS = [
   'after_sentence_3',
 ] as const
 
-export const AUDIO_DEFAULT_EMOTION = AUDIO_STYLE.NONE
-
 export const AUDIO_DEFAULT_PACE = AUDIO_PACE.NORMAL
 
 export const AUDIO_PACE_SPEED = {

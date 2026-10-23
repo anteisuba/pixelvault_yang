@@ -3,7 +3,7 @@
  * （`transcribeVoiceAPI` → `/api/voices/transcribe`）。
  *
  * ⚠ 为什么要先取回 blob：转写接口收的是 **multipart 里的文件**（配音间的
- * `AudioTranscribeDialog` 与 `VoiceTrainer` 都这么调），而画布上的节点手里只有一个
+ * `VoiceTrainer` 就这么调），而画布上的节点手里只有一个
  * 地址。⛔ 不为此新开一条「按 url 转写」的服务端路由——那是同一件事的第二份实现。
  *
  * ⛔ 这里**不是**组件里的 fetch：取媒体字节不是调我们的 API，真正的 API 调用仍然

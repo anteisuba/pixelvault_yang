@@ -914,10 +914,6 @@ export const SITEMAP_MAX_URLS = 50000
 
 // ─── Studio Refactoring Constants ────────────────────────────────
 
-/** Studio generation modes */
-export const STUDIO_MODES = ['image', 'video', 'audio'] as const
-export type StudioMode = (typeof STUDIO_MODES)[number]
-
 /** Centralized rate limit configs (previously scattered across route files) */
 export const RATE_LIMIT_CONFIGS = {
   assetUpload: { limit: 120, windowSeconds: 60 },

@@ -2,14 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { toast } from 'sonner'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 
-import {
-  AUDIO_KIND,
-  TTS_ESTIMATED_CHARS_PER_MINUTE,
-  TTS_MIN_PREVIEW_MINUTES,
-  TTS_PROMPT_WARNING_RATIO,
-} from '@/constants/audio-options'
 import { PLATFORM_GENERATION_GUARD, VIDEO_GENERATION } from '@/constants/config'
 import type { AspectRatio } from '@/constants/config'
 import {
@@ -17,7 +11,6 @@ import {
   getModelFamily,
   supportsSearchGrounding,
 } from '@/constants/models'
-import { resolveAudioTextLimit } from '@/constants/models/audio'
 import { VIDEO_UNIT_PRICE_BASE_RESOLUTION } from '@/constants/models/unit-prices'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
@@ -33,7 +26,6 @@ import {
   isVideoPickerModel,
   resolveVideoSendModelId,
 } from '@/constants/video-node-modes'
-import { AUDIO_PACE_SPEED } from '@/constants/voice-cards'
 import { getWorkflowById, WORKFLOW_MEDIA_GROUPS } from '@/constants/workflows'
 import {
   useStudioData,
@@ -43,11 +35,9 @@ import {
 import { useStudioModeModelOptions } from '@/hooks/use-studio-mode-model-options'
 import { useStudioRunModels } from '@/hooks/use-studio-run-models'
 import { useModelChannelGate } from '@/hooks/use-model-channel-gate'
-import { useVoiceCards } from '@/hooks/cards/use-voice-cards'
 import { clampVideoSpecToModel } from '@/lib/studio/clamp-video-spec'
 import { focusStudioPrompt } from '@/lib/focus-studio-prompt'
 import { checkNovelAiText, planNovelAiText } from '@/lib/novelai-compose'
-import { resolveInlineAudioReference } from '@/lib/studio/audio-reference'
 import { planStudioVideoSend } from '@/lib/studio/video-workbench-slots'
 import { takeOperatorGenerationLabel } from '@/lib/studio-operator-label'
 import { matchesOperatorResultOwner } from '@/lib/studio-operator-result-run'
@@ -75,7 +65,7 @@ export interface StudioBlockedReason {
  * 禁用判据必然分叉 —— 用户会看到按钮说一件事、点出来的 toast 说另一件事。
  *
  * ⚠ **同一时刻只能有一个宿主调它**：里面有一条 `state.generateRequestId` 的副作用
- * （`REQUEST_GENERATE` 的执行端，`StudioKeepChangePanel` / 音频反馈重试走这条路）。
+ * （`REQUEST_GENERATE` 的执行端，`StudioKeepChangePanel` / 助手出图走这条路）。
  * 两个宿主同时挂载 = 同一次请求发两遍。所以 `StudioWorkbenchLayout` 是二选一渲染
  * （移动端不渲染 `StudioPromptArea`），不是 CSS 隐藏。
  */
@@ -86,12 +76,9 @@ export function useStudioGenerateAction() {
     useStudioGen()
   const tPromptArea = useTranslations('StudioPromptArea')
   const tPicker = useTranslations('ModelPicker')
-  const locale = useLocale()
 
-  const isAudioMode = state.outputType === 'audio'
   const isVideoMode = state.outputType === 'video'
-  const isImageMode = !isAudioMode && !isVideoMode
-  const voiceCards = useVoiceCards({ enabled: isAudioMode })
+  const isImageMode = !isVideoMode
   const { selectedModel, modelOptions } = useStudioModeModelOptions()
   type SelectedModelOption = NonNullable<typeof selectedModel>
 
@@ -112,15 +99,6 @@ export function useStudioGenerateAction() {
 
   const trimmedPrompt = state.prompt.trim()
   const hasPromptForImage = Boolean(trimmedPrompt)
-  const audioPromptLength = isAudioMode ? trimmedPrompt.length : 0
-  const audioTextLimit = resolveAudioTextLimit(
-    isAudioMode ? getModelById(selectedModel?.modelId ?? '') : undefined,
-  )
-  const isAudioPromptOverLimit =
-    isAudioMode && audioPromptLength > audioTextLimit.enforced
-  const isAudioPromptNearLimit =
-    isAudioMode &&
-    audioPromptLength >= audioTextLimit.enforced * TTS_PROMPT_WARNING_RATIO
   const imagePromptLength = isImageMode ? trimmedPrompt.length : 0
   /**
    * 图片提示词上限 —— **只认模型自己声明的那个数**（厂商硬上限，owner 2026-08-24）。
@@ -151,48 +129,12 @@ export function useStudioGenerateAction() {
     )
   }, [isImageMode, novelAiLayout, novelAiSceneTexts, selectedModel?.modelId])
 
-  const audioEstimatedMinutesLabel = useMemo(() => {
-    const estimatedMinutes =
-      audioPromptLength > 0
-        ? Math.max(
-            TTS_MIN_PREVIEW_MINUTES,
-            audioPromptLength / TTS_ESTIMATED_CHARS_PER_MINUTE,
-          )
-        : 0
-
-    return new Intl.NumberFormat(locale, {
-      maximumFractionDigits: 1,
-      minimumFractionDigits:
-        estimatedMinutes > 0 && estimatedMinutes < 1 ? 1 : 0,
-    }).format(estimatedMinutes)
-  }, [audioPromptLength, locale])
-
-  const audioPromptMeta = !selectedModel
-    ? tPromptArea('audioPromptMetaNoModel', {
-        current: audioPromptLength,
-        minutes: audioEstimatedMinutesLabel,
-      })
-    : audioTextLimit.declared !== undefined
-      ? tPromptArea('audioPromptMeta', {
-          current: audioPromptLength,
-          max: audioTextLimit.declared,
-          minutes: audioEstimatedMinutesLabel,
-          credits: selectedModel.requestCount ?? 1,
-        })
-      : tPromptArea('audioPromptMetaNoLimit', {
-          current: audioPromptLength,
-          minutes: audioEstimatedMinutesLabel,
-          credits: selectedModel.requestCount ?? 1,
-        })
-
   /**
    * 「选了型号但还没点渠道」闸（D2 Q1：没有「自动」渠道）。作用域就是当前模态 ——
    * 工作台一个模态只挂一个选择器，所以不传 `gateId`，与
    * `MainModelPicker` 的 `memoryScope` 一一对上。
    */
-  const channelGate = useModelChannelGate(
-    isAudioMode ? 'audio' : isVideoMode ? 'video' : 'image',
-  )
+  const channelGate = useModelChannelGate(isVideoMode ? 'video' : 'image')
 
   // ── canGenerate ────────────────────────────────────────────────
   const currentModelId = selectedModel?.modelId
@@ -220,8 +162,7 @@ export function useStudioGenerateAction() {
           ),
         )
       : 1
-  const modelRejectsRefImages =
-    hasRefImage && !isAudioMode && currentMaxReferenceImages === 0
+  const modelRejectsRefImages = hasRefImage && currentMaxReferenceImages === 0
   const hasUnavailableMention =
     isImageMode &&
     getReferenceMentionIndices(state.prompt).some(
@@ -229,10 +170,6 @@ export function useStudioGenerateAction() {
         !imageUpload.referenceImages[index] ||
         index >= currentMaxReferenceImages,
     )
-  const isAudioReferenceIncomplete =
-    isAudioMode &&
-    Boolean(state.audioReferenceUrl) &&
-    state.audioReferenceText.trim().length === 0
   /**
    * 挂了音频参考但一张图/一段视频都没挂时，有些线路会 400。
    * ⚠ 判据按**线路**走不按模型走（同一个 Seedance 2.5，火山允许纯音频参考，fal 不允许）。
@@ -255,14 +192,12 @@ export function useStudioGenerateAction() {
     )
   const canGenerate =
     !!selectedModel?.modelId &&
-    (isAudioMode || isVideoMode ? !!trimmedPrompt : hasPromptForImage) &&
+    (isVideoMode ? !!trimmedPrompt : hasPromptForImage) &&
     (!modelRequiresRef || hasRefImage) &&
     !modelRejectsRefImages &&
     !hasUnavailableMention &&
-    !isAudioPromptOverLimit &&
     !isImagePromptOverLimit &&
     !novelAiTextProblem &&
-    !isAudioReferenceIncomplete &&
     !videoAudioNeedsVisual &&
     // ⚠ 多渠道型号没选渠道 = 发不出去（没有渠道就没有端点）。⛔ 别在这里替他挑
     // 一条兜底 —— 那就是 D2 Q1 删掉的那条「自动」。
@@ -285,27 +220,6 @@ export function useStudioGenerateAction() {
       }
     }
   }, [state.outputType, state.selectedOptionId, modelOptions, dispatch])
-
-  const selectedVoiceCard = useMemo(
-    () => (state.voiceCardId ? voiceCards.findCard(state.voiceCardId) : null),
-    [state.voiceCardId, voiceCards],
-  )
-
-  const audioPronunciationDictionary = useMemo(
-    () => ({
-      ...(selectedVoiceCard?.pronunciationDictionary ?? {}),
-      ...state.pronunciationDictionary,
-    }),
-    [selectedVoiceCard?.pronunciationDictionary, state.pronunciationDictionary],
-  )
-
-  const audioSpeed = useMemo(() => {
-    if (state.audioPace in AUDIO_PACE_SPEED) {
-      return AUDIO_PACE_SPEED[state.audioPace as keyof typeof AUDIO_PACE_SPEED]
-    }
-
-    return undefined
-  }, [state.audioPace])
 
   /** 用户正文（内置风格预设已下线，owner 09-27：不再往前拼风格前缀）。 */
   const composePrompt = useCallback(
@@ -699,65 +613,6 @@ export function useStudioGenerateAction() {
   const executeGenerate = useCallback(
     async (operatorResultOwner?: StudioOperatorResultOwner) => {
       if (!canGenerate) return
-      if (isAudioMode && selectedModel) {
-        const isSfx = state.audioKind === AUDIO_KIND.SFX
-        const isMusic = state.audioKind === AUDIO_KIND.MUSIC
-        const audioReference = resolveInlineAudioReference({
-          cardReferenceAudioUrl: selectedVoiceCard?.referenceAudioUrl,
-          cardSampleText: selectedVoiceCard?.sampleText,
-          adHocReferenceUrl: state.audioReferenceUrl,
-          adHocReferenceText: state.audioReferenceText,
-        })
-        await generate({
-          mode: 'audio',
-          operatorResultOwner,
-          audio: {
-            modelId: selectedModel.modelId,
-            apiKeyId: selectedModel.keyId,
-            freePrompt: state.prompt || undefined,
-            voiceId: selectedVoiceCard?.voiceId ?? state.voiceId ?? undefined,
-            coverImageUrl:
-              typeof selectedVoiceCard?.coverImage === 'string' &&
-              selectedVoiceCard.coverImage.startsWith('http')
-                ? selectedVoiceCard.coverImage
-                : undefined,
-            referenceAudioUrl: audioReference.referenceAudioUrl,
-            referenceText: audioReference.referenceText,
-            emotion: state.audioEmotion,
-            expressiveness: state.audioExpressiveness,
-            durationSeconds: isSfx
-              ? state.audioSfxDurationSeconds
-              : isMusic
-                ? state.audioMusicDurationSeconds
-                : undefined,
-            loop: isSfx ? state.audioSfxLoop : undefined,
-            promptInfluence: isSfx ? state.audioSfxPromptInfluence : undefined,
-            variantCount: isSfx ? state.audioSfxVariantCount : undefined,
-            pace: state.audioPace,
-            pauseMarkers: state.audioPauseMarkers,
-            pronunciationDictionary: audioPronunciationDictionary,
-            speed: audioSpeed,
-            volume: state.audioVolume,
-            normalizeLoudness: state.audioNormalizeLoudness,
-            normalizeText: state.audioNormalizeText,
-            withTimestamps: state.audioWithTimestamps,
-            format: state.audioFormat,
-            sampleRate: state.audioSampleRate,
-            mp3Bitrate: state.audioMp3Bitrate,
-            opusBitrate: state.audioOpusBitrate,
-            latency: state.audioLatency,
-            temperature: state.audioTemperature,
-            topP: state.audioTopP,
-            chunkLength: state.audioChunkLength,
-            repetitionPenalty: state.audioRepetitionPenalty,
-            speakerVoiceIds:
-              state.audioSpeakerVoiceIds.length > 0
-                ? state.audioSpeakerVoiceIds
-                : undefined,
-          },
-        })
-        return
-      }
       /**
        * ⭐ 助手给这一枪起的名字（切片 Y）——**取走即消费**：留着它，用户下一次
        * 自己按生成的那一枪会顶着助手上一轮起的名字，而那一张与那个名字毫无关系。
@@ -795,45 +650,12 @@ export function useStudioGenerateAction() {
     },
     [
       canGenerate,
-      isAudioMode,
       isVideoMode,
       selectedModel,
       state.prompt,
       state.promptDialect,
       state.imageBatchCount,
       runModels,
-      state.voiceId,
-      state.audioKind,
-      state.audioEmotion,
-      state.audioExpressiveness,
-      state.audioSfxDurationSeconds,
-      state.audioMusicDurationSeconds,
-      state.audioSfxLoop,
-      state.audioSfxPromptInfluence,
-      state.audioSfxVariantCount,
-      state.audioPace,
-      state.audioPauseMarkers,
-      state.audioVolume,
-      state.audioNormalizeLoudness,
-      state.audioNormalizeText,
-      state.audioWithTimestamps,
-      state.audioFormat,
-      state.audioSampleRate,
-      state.audioMp3Bitrate,
-      state.audioOpusBitrate,
-      state.audioLatency,
-      state.audioTemperature,
-      state.audioTopP,
-      state.audioChunkLength,
-      state.audioRepetitionPenalty,
-      state.audioSpeakerVoiceIds,
-      state.audioReferenceUrl,
-      state.audioReferenceText,
-      // ⚠ 整颗卡而不是四个字段：React Compiler 推出来的依赖就是整颗，逐字段写
-      //   会被 `preserve-manual-memoization` 判为「不够具体」而拒绝优化整个 hook。
-      selectedVoiceCard,
-      audioPronunciationDictionary,
-      audioSpeed,
       buildImageInput,
       buildVideoInput,
       generate,
@@ -868,17 +690,9 @@ export function useStudioGenerateAction() {
     if (!selectedModel?.modelId) {
       return { message: tPromptArea('blocked.modelRequired') }
     }
-    if (!(isAudioMode || isVideoMode ? trimmedPrompt : hasPromptForImage)) {
+    if (!(isVideoMode ? trimmedPrompt : hasPromptForImage)) {
       return {
         message: tPromptArea('blocked.promptRequired'),
-        focusPrompt: 'now',
-      }
-    }
-    if (isAudioPromptOverLimit) {
-      return {
-        message: tPromptArea('blocked.audioPromptTooLong', {
-          max: audioTextLimit.enforced,
-        }),
         focusPrompt: 'now',
       }
     }
@@ -899,9 +713,6 @@ export function useStudioGenerateAction() {
                 max: novelAiTextProblem.max,
               }),
       }
-    }
-    if (isAudioReferenceIncomplete) {
-      return { message: tPromptArea('blocked.audioReferenceTextRequired') }
     }
     if (modelRequiresRef && !hasRefImage) {
       return {
@@ -928,15 +739,11 @@ export function useStudioGenerateAction() {
     modelRejectsRefImages,
     hasUnavailableMention,
     videoAudioNeedsVisual,
-    isAudioPromptOverLimit,
-    audioTextLimit.enforced,
     isImagePromptOverLimit,
     imagePromptMaxChars,
     novelAiTextProblem,
-    isAudioReferenceIncomplete,
     trimmedPrompt,
     hasPromptForImage,
-    isAudioMode,
     isVideoMode,
     tPromptArea,
     channelGate.blocked,
@@ -980,7 +787,7 @@ export function useStudioGenerateAction() {
   )
 
   /**
-   * `REQUEST_GENERATE` 的执行端（「保留 / 改变」面板、音频反馈重试走这条路）。
+   * `REQUEST_GENERATE` 的执行端（「保留 / 改变」面板、助手的出图走这条路）。
    * ⚠ 见文件头：同一时刻只允许一个宿主调本 hook，否则一次请求发两遍。
    */
   const handledGenerateRequestRef = useRef(state.generateRequestId)
@@ -1008,7 +815,6 @@ export function useStudioGenerateAction() {
     // 模态
     isImageMode,
     isVideoMode,
-    isAudioMode,
     // 闸门
     canGenerate,
     blockedReason,
@@ -1019,9 +825,6 @@ export function useStudioGenerateAction() {
     imagePromptLength,
     imagePromptMaxChars,
     isImagePromptOverLimit,
-    isAudioPromptOverLimit,
-    isAudioPromptNearLimit,
-    audioPromptMeta,
     // 报价
     videoCostBasis,
   }

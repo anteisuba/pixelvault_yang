@@ -92,10 +92,6 @@ vi.mock('@/lib/studio-remix', () => ({
   buildStudioRemixPreset: vi.fn(),
 }))
 
-vi.mock('@/lib/studio/audio-feedback-mapping', () => ({
-  applyAudioFeedbackTags: vi.fn(() => ({ actions: [], openPanel: null })),
-}))
-
 vi.mock('@/components/business/image/CompareGrid', () => ({
   CompareGrid: () => <div data-testid="compare-grid" />,
 }))
@@ -125,10 +121,6 @@ vi.mock('@/components/business/studio/GenerationPreview', () => ({
       data-generation-id={generation?.id ?? ''}
     />
   ),
-}))
-
-vi.mock('@/components/business/studio/StudioAudioFeedback', () => ({
-  StudioAudioFeedback: () => <div data-testid="studio-audio-feedback" />,
 }))
 
 vi.mock('@/components/business/image/StudioResultFeedback', () => ({
@@ -168,10 +160,6 @@ vi.mock('@/components/business/studio-shared/setup/QuickSetupDialog', () => ({
       </button>
     </div>
   ),
-}))
-
-vi.mock('@/components/business/studio/AudioVariantGrid', () => ({
-  AudioVariantGrid: () => <div data-testid="audio-variant-grid" />,
 }))
 
 vi.mock(
@@ -220,38 +208,6 @@ function makeSingleActiveRun(generation: GenerationRecord): ActiveRun {
     id: 'run-1',
     mode: 'single',
     outputType: 'IMAGE',
-    items: [
-      {
-        id: 'item-1',
-        status: 'completed',
-        modelId: generation.model,
-        generation,
-        startedAt: Date.now(),
-      },
-    ],
-    selectedItemId: null,
-  } as unknown as ActiveRun
-}
-
-function makeAudioGeneration(): GenerationRecord {
-  return {
-    id: 'gen-audio-1',
-    outputType: 'AUDIO',
-    url: 'https://cdn.example.com/gen-audio-1.mp3',
-    prompt: 'a voiceover line',
-    negativePrompt: null,
-    model: 'fish-audio',
-    provider: 'fish',
-    createdAt: new Date().toISOString(),
-    status: 'completed',
-  } as unknown as GenerationRecord
-}
-
-function makeSingleAudioActiveRun(generation: GenerationRecord): ActiveRun {
-  return {
-    id: 'run-audio-1',
-    mode: 'single',
-    outputType: 'AUDIO',
     items: [
       {
         id: 'item-1',
@@ -398,37 +354,6 @@ describe('StudioCanvas — 单张生成完成后的反馈条', () => {
     render(<StudioCanvas />)
 
     expect(screen.queryByTestId('studio-result-feedback')).toBeNull()
-  })
-
-  it('audio single 模式下 lastGeneration 到位后渲染 StudioAudioFeedback（同一处守卫，音频分支同款）', () => {
-    mockUseStudioForm.mockReturnValue({
-      state: {
-        outputType: 'audio',
-        videoMode: 'text-to-video',
-      },
-      dispatch: vi.fn(),
-    })
-
-    const generation = makeAudioGeneration()
-    mockUseStudioGen.mockReturnValue({
-      lastGeneration: generation,
-      error: null,
-      errorCode: null,
-      retry: vi.fn(),
-      activeRun: makeSingleAudioActiveRun(generation),
-      selectWinner: vi.fn(),
-      lastEvaluation: null,
-      setLastEvaluation: vi.fn(),
-      isGenerating: false,
-      elapsedSeconds: 0,
-      retryVideoQueueItem: vi.fn(),
-      cancelRunItem: vi.fn(),
-      cancelAllRunItems: vi.fn(),
-    })
-
-    render(<StudioCanvas />)
-
-    expect(screen.getByTestId('studio-audio-feedback')).toBeInTheDocument()
   })
 })
 

@@ -45,10 +45,6 @@ import {
 } from '@/lib/studio-operator-result-run'
 import { cn } from '@/lib/utils'
 import { searchGroundingForRun } from '@/lib/search-grounding'
-import {
-  applyAudioFeedbackTags,
-  type AudioFeedbackTag,
-} from '@/lib/studio/audio-feedback-mapping'
 import type { GenerationRecord } from '@/types'
 
 import { Wand2 } from '@/components/icons'
@@ -58,10 +54,8 @@ import { SearchGroundingRail } from '@/components/business/studio-shared/search-
 import { StudioReferenceRail } from '@/components/business/studio-shared/chrome/StudioReferenceRail'
 import { StudioVideoQueueStrip } from '@/components/business/studio-shared/chrome/StudioVideoQueueStrip'
 import { GenerationPreview } from '@/components/business/studio/GenerationPreview'
-import { StudioAudioFeedback } from '@/components/business/studio/StudioAudioFeedback'
 import { StudioResultFeedback } from '@/components/business/image/StudioResultFeedback'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
-import { AudioVariantGrid } from '@/components/business/studio/AudioVariantGrid'
 import { type StudioImageEditTarget } from '@/components/business/studio-shared/editor/StudioImageEditStage'
 
 /**
@@ -104,7 +98,6 @@ export const StudioCanvas = memo(function StudioCanvas({
     cancelRunItem,
     cancelAllRunItems,
   } = useStudioGen()
-  const tAudioFeedback = useTranslations('audioFeedback')
   const tErrors = useTranslations('Errors')
   const tEdit = useTranslations('StudioImageEdit')
   const tVideo = useTranslations('VideoGenerate')
@@ -138,29 +131,6 @@ export const StudioCanvas = memo(function StudioCanvas({
   useEffect(() => {
     setLastEvaluation(null)
   }, [lastGeneration?.id, setLastEvaluation])
-
-  const handleAudioFeedbackRetry = useCallback(
-    (tags: AudioFeedbackTag[]) => {
-      if (tags.length === 0 || isGenerating) return
-
-      const patch = applyAudioFeedbackTags(tags, state)
-      for (const action of patch.actions) {
-        dispatch(action)
-      }
-      if (patch.openPanel) {
-        dispatch({ type: 'OPEN_PANEL', payload: patch.openPanel })
-        // `voice_mismatch` defers to the user — they must pick a new voice
-        // before the next generation can apply. Skip the auto-regenerate so
-        // we don't run with the stale voice.
-        return
-      }
-      if (patch.pronunciationHint) {
-        toast.info(tAudioFeedback('retryPronunciationHint'))
-      }
-      dispatch({ type: 'REQUEST_GENERATE' })
-    },
-    [dispatch, isGenerating, state, tAudioFeedback],
-  )
 
   /** 「满意」评估缺 key 时就地配的那一家（Hard Rule 8，与助手面板错误条同一个做法）。 */
   const [evaluationKeySetup, setEvaluationKeySetup] =
@@ -255,13 +225,9 @@ export const StudioCanvas = memo(function StudioCanvas({
   const handleRemix = useCallback(
     (generation: GenerationRecord) => {
       const preset = buildStudioRemixPreset(generation, modelOptions)
-      // Preserve source outputType so remixing a video/audio stays in that mode
+      // Preserve source outputType so remixing a video stays in that mode
       const sourceOutputType =
-        generation.outputType === 'VIDEO'
-          ? 'video'
-          : generation.outputType === 'AUDIO'
-            ? 'audio'
-            : 'image'
+        generation.outputType === 'VIDEO' ? 'video' : 'image'
       dispatch({ type: 'SET_OUTPUT_TYPE', payload: sourceOutputType })
       dispatch({ type: 'SET_PROMPT', payload: preset.prompt })
       dispatch({ type: 'SET_ASPECT_RATIO', payload: preset.aspectRatio })
@@ -585,59 +551,50 @@ export const StudioCanvas = memo(function StudioCanvas({
       >
         {/* 图墙：多模型与单模型多张走**同一片**栅格 —— 它们本来就是同一个矩阵
             的两端（1 模型 × N 张 / N 模型 × 1 张 / N × M）。每格自己标模型名，
-            同模型多张时带 `1/2` 序号，各自报生成中 / 失败。
-            ⚠ 音频仍走 AudioVariantGrid：它的格子是内联播放器，不是图。 */}
+            同模型多张时带 `1/2` 序号，各自报生成中 / 失败。 */}
         {/* ⚠ 只接 compare / variant。`mode: 'single'` 的 activeRun 也存在（单张
             路径也建 run 做逐项追踪），它必须继续走 GenerationPreview —— 一张图
             掉进栅格里会从「读图」降级成「扫缩略图」。 */}
         {activeRun?.mode === 'compare' || activeRun?.mode === 'variant' ? (
-          state.outputType === 'audio' ? (
-            <AudioVariantGrid
-              items={activeRun.items}
-              onCancel={cancelRunItem}
-              onCancelAll={cancelAllRunItems}
-            />
-          ) : (
-            // 「先搜再画」：桌面资料列在图墙左边，出线拐弯只接开着搜索的那一格；
-            // 手机资料条挂进那一行（行首条和图之间）。
-            <div className="flex min-h-0 flex-1">
-              {isMobile ? null : (
-                <SearchGroundingRail
-                  state={searchGrounding}
-                  layout="column"
-                  wireTarget={searchWireTarget}
-                  wireKey={activeRun.items
-                    .map((item) => `${item.id}:${item.status}`)
-                    .join()}
-                  className="self-stretch"
-                />
-              )}
-              <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-                <CompareGrid
-                  items={activeRun.items}
-                  selectedItemId={activeRun.selectedItemId}
-                  onSelect={selectWinner}
-                  elapsedSeconds={elapsedSeconds}
-                  onEdit={handleEdit}
-                  onUseAsReference={handleUseAsReference}
-                  onCancel={cancelRunItem}
-                  onCancelAll={cancelAllRunItems}
-                  onRetry={(itemId) => void retryRunItem(itemId)}
-                  rowLead={
-                    isMobile
-                      ? (row) =>
-                          row.modelId === searchRowLeadModelId ? (
-                            <SearchGroundingRail
-                              state={searchGrounding}
-                              layout="strip"
-                            />
-                          ) : null
-                      : undefined
-                  }
-                />
-              </div>
+          // 「先搜再画」：桌面资料列在图墙左边，出线拐弯只接开着搜索的那一格；
+          // 手机资料条挂进那一行（行首条和图之间）。
+          <div className="flex min-h-0 flex-1">
+            {isMobile ? null : (
+              <SearchGroundingRail
+                state={searchGrounding}
+                layout="column"
+                wireTarget={searchWireTarget}
+                wireKey={activeRun.items
+                  .map((item) => `${item.id}:${item.status}`)
+                  .join()}
+                className="self-stretch"
+              />
+            )}
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+              <CompareGrid
+                items={activeRun.items}
+                selectedItemId={activeRun.selectedItemId}
+                onSelect={selectWinner}
+                elapsedSeconds={elapsedSeconds}
+                onEdit={handleEdit}
+                onUseAsReference={handleUseAsReference}
+                onCancel={cancelRunItem}
+                onCancelAll={cancelAllRunItems}
+                onRetry={(itemId) => void retryRunItem(itemId)}
+                rowLead={
+                  isMobile
+                    ? (row) =>
+                        row.modelId === searchRowLeadModelId ? (
+                          <SearchGroundingRail
+                            state={searchGrounding}
+                            layout="strip"
+                          />
+                        ) : null
+                    : undefined
+                }
+              />
             </div>
-          )
+          </div>
         ) : videoPoster ? (
           <div className="flex min-h-0 flex-1 animate-in flex-col items-center gap-3 fade-in-0 duration-base ease-linear motion-reduce:animate-none">
             {/* ⚠ 框按舞台剩下的高度走（舞台随输入框伸缩），宽度跟着图的比例 —— 尾帧那张
@@ -738,14 +695,6 @@ export const StudioCanvas = memo(function StudioCanvas({
                 generationId={lastGeneration.id}
                 evaluation={lastEvaluation}
                 onFeedback={handleFeedback}
-              />
-            )}
-            {lastGeneration?.outputType === 'AUDIO' && (
-              <StudioAudioFeedback
-                generationId={lastGeneration.id}
-                onFeedback={handleFeedback}
-                onRetry={handleAudioFeedbackRetry}
-                isRetrying={isGenerating}
               />
             )}
           </>

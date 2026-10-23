@@ -23,12 +23,6 @@ vi.mock('@/hooks/use-video-model-options', () => ({
     selectedModel: undefined,
   })),
 }))
-vi.mock('@/hooks/use-audio-model-options', () => ({
-  useAudioModelOptions: vi.fn(() => ({
-    modelOptions: [],
-    selectedModel: undefined,
-  })),
-}))
 vi.mock('@/hooks/use-3d-model-options', () => ({
   use3DModelOptions: vi.fn(() => ({ modelOptions: [] })),
 }))
@@ -59,7 +53,6 @@ import {
 } from '@/components/business/studio-shared/pickers/MainModelPicker'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
-import { useAudioModelOptions } from '@/hooks/use-audio-model-options'
 import { use3DModelOptions } from '@/hooks/use-3d-model-options'
 import { useLLMRoutePicker } from '@/hooks/use-llm-route-picker'
 import type { LLMRouteOption } from '@/hooks/use-llm-route-picker'
@@ -76,12 +69,6 @@ describe('MainModelPicker dispatcher', () => {
       <MainModelPicker
         key="video"
         modality="video"
-        value={null}
-        onChange={vi.fn()}
-      />,
-      <MainModelPicker
-        key="audio"
-        modality="audio"
         value={null}
         onChange={vi.fn()}
       />,
@@ -158,14 +145,6 @@ describe('MainModelPicker dispatcher', () => {
     expect(useImageModelOptions).not.toHaveBeenCalled()
   })
 
-  it('dispatches modality=audio to useAudioModelOptions only', () => {
-    vi.mocked(useAudioModelOptions).mockClear()
-    vi.mocked(useImageModelOptions).mockClear()
-    render(<MainModelPicker modality="audio" value={null} onChange={vi.fn()} />)
-    expect(useAudioModelOptions).toHaveBeenCalledTimes(1)
-    expect(useImageModelOptions).not.toHaveBeenCalled()
-  })
-
   it('dispatches modality=model_3d to use3DModelOptions only', () => {
     vi.mocked(use3DModelOptions).mockClear()
     vi.mocked(useImageModelOptions).mockClear()
@@ -190,18 +169,16 @@ describe('MainModelPicker dispatcher', () => {
   })
 
   it('does NOT subscribe to Studio Form hooks when modality=model_3d (3D regression guard)', () => {
-    // Critical: if MainModelPicker3D ever calls useImage/Video/AudioModelOptions
+    // Critical: if MainModelPicker3D ever calls useImage/VideoModelOptions
     // it would crash inside Studio3DWorkspace which is not wrapped in
     // StudioFormProvider. Component-level dispatch must isolate sub-component hooks.
     vi.mocked(useImageModelOptions).mockClear()
     vi.mocked(useVideoModelOptions).mockClear()
-    vi.mocked(useAudioModelOptions).mockClear()
     render(
       <MainModelPicker modality="model_3d" value={null} onChange={vi.fn()} />,
     )
     expect(useImageModelOptions).not.toHaveBeenCalled()
     expect(useVideoModelOptions).not.toHaveBeenCalled()
-    expect(useAudioModelOptions).not.toHaveBeenCalled()
   })
 })
 

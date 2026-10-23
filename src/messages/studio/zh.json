@@ -12,15 +12,11 @@
     "modeLabel": {
       "image": "图片工作台",
       "video": "视频工作台",
-      "audio": "音频工作台",
-      "audio_sfx": "音效工作台",
       "image_tags": "标签台"
     },
     "hint": {
       "image": "描述你想要的画面，或从一个示例开始",
       "video": "描述镜头里发生什么，或从一个示例开始",
-      "audio": "输入要朗读的文本，或从一个示例开始",
-      "audio_sfx": "描述你想要的声音，或从一个示例开始",
       "image_tags": "写几个标签，或从一组起手"
     },
     "examples": {
@@ -60,34 +56,6 @@
           "prompt": "厨房灶台前的手部特写，热锅里的食材翻动，油光与蒸汽向上升腾，镜头轻微手持晃动，暖光"
         }
       },
-      "audio": {
-        "e1": {
-          "label": "晚安电台",
-          "prompt": "夜深了，今天也辛苦了。愿你放下白天的忙碌，在温柔的夜色里安然入睡。"
-        },
-        "e2": {
-          "label": "产品介绍",
-          "prompt": "这款产品最大的特点，是把复杂的流程收进了一个按钮里——你只需要说出想法，剩下的交给它。"
-        },
-        "e3": {
-          "label": "有声故事",
-          "prompt": "清晨的森林里，小狐狸第一次独自出门。露水打湿了它的爪子，它却兴奋得竖起了耳朵。"
-        }
-      },
-      "audio_sfx": {
-        "e1": {
-          "label": "雷声",
-          "prompt": "一声突如其来的雷鸣划过天空，低沉的隆隆声渐渐消散成远处的回响"
-        },
-        "e2": {
-          "label": "砾石脚步声",
-          "prompt": "缓慢而沉稳的脚步踩在砾石上，近距离，安静的户外环境音"
-        },
-        "e3": {
-          "label": "玻璃碎裂",
-          "prompt": "一只玻璃杯掉落在瓷砖地面上摔碎，清脆的破裂声伴随四散的碎片"
-        }
-      },
       "image_tags": {
         "e1": {
           "label": "人像",
@@ -124,18 +92,6 @@
     "modeLabel": "生成模式",
     "modeImage": "图片",
     "modeVideo": "视频",
-    "modeAudio": "语音",
-    "audioTitle": "文字转语音",
-    "audioSubtitle": "输入文本并选择声音来生成语音音频",
-    "audioModel": "模型",
-    "audioVoice": "声音",
-    "audioText": "文本",
-    "audioPlaceholder": "输入你想转换为语音的文本...",
-    "sfxPlaceholder": "描述你想要的音效...",
-    "audioSpeed": "语速",
-    "audioGenerate": "生成语音",
-    "audioGenerating": "生成中...",
-    "audioResult": "结果",
     "voices": {
       "alloy": "Alloy",
       "alloyDesc": "温暖自然的女声",
@@ -508,16 +464,11 @@
       "promptTooLong": "请将提示词缩短到 {max} 字符以内",
       "referenceRequired": "请先把参考图拖入或添加到输入框中",
       "referenceUnsupported": "当前模型不会读取参考图。请先移除参考图，或切换到支持参考图的模型。",
-      "audioPromptTooLong": "请把音频文本缩短到 {max} 字以内",
-      "audioReferenceTextRequired": "请填写上传参考音频对应的文字稿后再生成。",
       "videoQueueFull": "最多同时跑 {max} 条，等一条跑完再排",
       "videoAudioNeedsVisual": "这条线路的音频参考需要至少一张参考图。加一张图，或换到支持纯音频参考的线路。",
       "novelAiTextTooLong": "字太多：这个模型最多画 {max} 字",
       "novelAiTextLatinOnly": "V4.5 只认英文字：换 V5，或把字改成英文"
     },
-    "audioPromptMeta": "{current} / {max} 字 · ≈ {minutes} 分钟 · ≈ {credits} 次生成额度",
-    "audioPromptMetaNoLimit": "{current} 字 · ≈ {minutes} 分钟 · ≈ {credits} 次生成额度",
-    "audioPromptMetaNoModel": "{current} 字 · ≈ {minutes} 分钟 · 选择模型后显示额度",
     "samplePrompts": {
       "quickImage": "黄金时分的宁静日式庭院，锦鲤在清澈的池塘中游弋，樱花花瓣轻柔飘落",
       "animeIllustration": "一位银发飘逸的年轻冒险者站在悬崖之巅，俯瞰日落时分辽阔的奇幻王国",
@@ -525,8 +476,7 @@
       "imageEditRemix": "将这张图片转换为柔和粉彩色调的水彩画风格",
       "posterLayout": "科幻电影极简海报，巨大行星前的单人宇航员剪影",
       "cinematicVideo": "一位武士独行于拂晓薄雾的竹林中，镜头从背后缓缓跟随",
-      "characterToVideo": "角色转身面向镜头，温暖地微笑，轻风吹拂着发丝",
-      "voiceNarration": "欢迎来到 ANTEI，在这里，AI 的力量让你的想象变为现实"
+      "characterToVideo": "角色转身面向镜头，温暖地微笑，轻风吹拂着发丝"
     }
   },
   "StudioCommandPalette": {
@@ -543,7 +493,6 @@
     "commands": {
       "imageMode": "图像模式",
       "videoMode": "视频模式",
-      "audioMode": "音频模式",
       "toggleAdvanced": "切换高级设置",
       "toggleReference": "切换参考图",
       "trainLora": "训练 LoRA"
@@ -694,18 +643,7 @@
     "characterCard": "角色",
     "civitai": "Civitai Token",
     "videoSettings": "视频设置",
-    "sfxSettings": "音效设置",
     "keepChange": "保留与改变"
-  },
-  "StudioToolbar": {
-    "enhance": "助手",
-    "reference": "参考图",
-    "video": "视频",
-    "voice": "音色",
-    "voiceSelected": "✓ 音色",
-    "clone": "克隆",
-    "transcribe": "音频转脚本",
-    "sfxParams": "设置"
   },
   "StudioV3": {
     "quickMode": "快速生成",
@@ -715,7 +653,6 @@
     "generationComplete": "生成完成",
     "emptyStateTitle": "预览结果会显示在这里",
     "emptyStateHint": "在下方写下描述，开始你的第一次创作",
-    "emptyStateHintAudio": "在下方输入想要听到的文本，开始你的第一次创作",
     "emptyStateHintVideo": "在下方描述镜头、动作或场景演变，开始你的第一次创作",
     "suggestion": {
       "s1": "黄昏时分宁静的日本庭院",
@@ -1023,10 +960,6 @@
     "CHARACTER_TO_VIDEO": {
       "name": "角色转视频",
       "description": "让角色图动起来，同时尽量保留角色辨识度。"
-    },
-    "VOICE_NARRATION_DIALOGUE": {
-      "name": "配音旁白",
-      "description": "把文本变成旁白、配音或多人对话。"
     }
   },
   "Transform": {
@@ -1183,15 +1116,9 @@
     "modelMissing": "先选一个模型",
     "lora": "LoRA",
     "titleVideo": "我的视频模板 · {count}",
-    "titleAudio": "我的音频模板 · {count}",
     "emptyVideo": "还没有视频模板",
-    "emptyAudio": "还没有音频模板",
     "emptyHintVideo": "出一段满意的视频，在「当前提示词」上点「存下」；或者点「新建模板」自己写一个。",
-    "emptyHintAudio": "声音满意之后，在「当前提示词」上点「存下」；或者点「新建模板」自己写一个。",
-    "footAudio": "点一张即套用 · 模型和参数一起换，回到结果",
     "namePlaceholderVideo": "比如：海边日落 · 慢推镜头",
-    "namePlaceholderAudio": "比如：旁白 · 温柔女声",
-    "formNoteAudio": "模型和参数用你现在选的",
     "nowEmptyPrompt": "先写好提示词",
     "nowEmptyTagsPlain": "先写几个标签"
   },

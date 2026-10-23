@@ -49,26 +49,6 @@
         }
       }
     },
-    "audio": {
-      "label": "Audio generation guide",
-      "slides": {
-        "input": {
-          "title": "Type the text you want spoken",
-          "description": "This field takes the exact line or narration you want to hear, not a sound description.",
-          "alt": "Hand-drawn Xiaohei guide showing text entered for audio generation"
-        },
-        "voice": {
-          "title": "Choose a voice and reference",
-          "description": "Select the model and voice, then add a reference when you need a more specific result.",
-          "alt": "Hand-drawn Xiaohei guide showing voice and audio reference settings"
-        },
-        "preview": {
-          "title": "Preview the waveform and listen",
-          "description": "The result appears in the preview area so you can listen and adjust with feedback.",
-          "alt": "Hand-drawn Xiaohei guide showing an audio waveform preview"
-        }
-      }
-    },
     "model3d": {
       "label": "3D generation guide",
       "slides": {

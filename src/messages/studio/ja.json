@@ -12,15 +12,11 @@
     "modeLabel": {
       "image": "画像スタジオ",
       "video": "動画スタジオ",
-      "audio": "音声スタジオ",
-      "audio_sfx": "効果音スタジオ",
       "image_tags": "タグスタジオ"
     },
     "hint": {
       "image": "作りたいイメージを言葉にするか、例から始めましょう",
       "video": "ショットで何が起きるかを書くか、例から始めましょう",
-      "audio": "読み上げるテキストを入力するか、例から始めましょう",
-      "audio_sfx": "欲しい音を説明するか、例から始めましょう",
       "image_tags": "タグをいくつか書くか、セットから始めましょう"
     },
     "examples": {
@@ -60,34 +56,6 @@
           "prompt": "キッチンのコンロ前の手元クローズアップ、熱した鍋で具材を返す、油の照りと立ちのぼる湯気、わずかな手持ちの揺れ、暖色の光"
         }
       },
-      "audio": {
-        "e1": {
-          "label": "おやすみラジオ",
-          "prompt": "夜も更けました。今日もおつかれさまでした。昼間の慌ただしさを手放して、やさしい夜にゆっくり眠りましょう。"
-        },
-        "e2": {
-          "label": "製品紹介",
-          "prompt": "この製品のいちばんの特長は、複雑な手順をひとつのボタンにまとめたこと。アイデアを口にすれば、あとはおまかせです。"
-        },
-        "e3": {
-          "label": "よみきかせ",
-          "prompt": "朝の森で、子ぎつねははじめてひとりで出かけました。露に濡れた足先、それでも耳をぴんと立てて、わくわくしています。"
-        }
-      },
-      "audio_sfx": {
-        "e1": {
-          "label": "雷鳴",
-          "prompt": "突然の雷鳴が空を走り、低いとどろきが遠くの残響へと消えていく"
-        },
-        "e2": {
-          "label": "砂利の足音",
-          "prompt": "砂利を踏みしめるゆっくりとした足音、近距離、静かな屋外の環境音"
-        },
-        "e3": {
-          "label": "ガラスが割れる",
-          "prompt": "ガラスのコップがタイルの床に落ちて割れ、鋭い破砕音と飛び散る破片"
-        }
-      },
       "image_tags": {
         "e1": {
           "label": "ポートレート",
@@ -124,18 +92,6 @@
     "modeLabel": "生成モード",
     "modeImage": "画像",
     "modeVideo": "動画",
-    "modeAudio": "音声",
-    "audioTitle": "テキスト読み上げ",
-    "audioSubtitle": "テキストを入力し、声を選んで音声を生成",
-    "audioModel": "モデル",
-    "audioVoice": "声",
-    "audioText": "テキスト",
-    "audioPlaceholder": "音声に変換したいテキストを入力...",
-    "sfxPlaceholder": "欲しい効果音を説明...",
-    "audioSpeed": "速度",
-    "audioGenerate": "音声を生成",
-    "audioGenerating": "生成中...",
-    "audioResult": "結果",
     "voices": {
       "alloy": "Alloy",
       "alloyDesc": "温かく自然な女性の声",
@@ -508,16 +464,11 @@
       "promptTooLong": "プロンプトを {max} 文字以内に短くしてください",
       "referenceRequired": "参照画像をプロンプト欄にドラッグするか追加してください",
       "referenceUnsupported": "選択中のモデルは参照画像を読み取りません。参照画像を外すか、参照画像対応モデルに切り替えてください。",
-      "audioPromptTooLong": "音声テキストは {max} 文字以内にしてください",
-      "audioReferenceTextRequired": "アップロードした参考音声の書き起こしを入力してから生成してください。",
       "videoQueueFull": "同時に生成できるのは{max}本まで。1本終わるまで待ってください",
       "videoAudioNeedsVisual": "このルートの音声リファレンスには参考画像が最低1枚必要です。画像を追加するか、音声のみを受け付けるルートに切り替えてください。",
       "novelAiTextTooLong": "文字が多すぎます：このモデルは最大 {max} 文字まで",
       "novelAiTextLatinOnly": "V4.5 は英語の文字だけ描けます：V5 に切り替えるか英語で書いてください"
     },
-    "audioPromptMeta": "{current} / {max} 文字 · 約 {minutes}分 · 生成枠 約{credits}回分",
-    "audioPromptMetaNoLimit": "{current} 文字 · 約 {minutes}分 · 生成枠 約{credits}回分",
-    "audioPromptMetaNoModel": "{current} 文字 · 約 {minutes} 分 · モデル選択後に消費量を表示",
     "samplePrompts": {
       "quickImage": "夕日に照らされた静かな日本庭園、澄んだ池を泳ぐ錦鯉、ゆっくりと舞い散る桜の花びら",
       "animeIllustration": "流れるような銀髪の若き冒険者が崖の上に立ち、夕暮れ時の広大なファンタジー王国を見下ろしている",
@@ -525,8 +476,7 @@
       "imageEditRemix": "この画像を柔らかいパステルカラーの水彩画風に変換してください",
       "posterLayout": "SF映画のミニマリストポスター、巨大な惑星を背景にした宇宙飛行士のシルエット",
       "cinematicVideo": "夜明けの霧に包まれた竹林を一人の侍が歩いている、カメラが背後からゆっくり追従",
-      "characterToVideo": "キャラクターがカメラに向かって振り返り、温かく微笑む。穏やかな風が髪をなびかせている",
-      "voiceNarration": "ANTEIへようこそ。AIの力であなたの想像が現実になる場所です"
+      "characterToVideo": "キャラクターがカメラに向かって振り返り、温かく微笑む。穏やかな風が髪をなびかせている"
     }
   },
   "StudioCommandPalette": {
@@ -543,7 +493,6 @@
     "commands": {
       "imageMode": "画像モード",
       "videoMode": "動画モード",
-      "audioMode": "音声モード",
       "toggleAdvanced": "詳細設定を切り替え",
       "toggleReference": "参照画像を切り替え",
       "trainLora": "LoRA学習"
@@ -694,18 +643,7 @@
     "characterCard": "キャラクター",
     "civitai": "Civitai トークン",
     "videoSettings": "動画設定",
-    "sfxSettings": "効果音の設定",
     "keepChange": "残すところ・変えるところ"
-  },
-  "StudioToolbar": {
-    "enhance": "アシスタント",
-    "reference": "参照",
-    "video": "動画",
-    "voice": "音声",
-    "voiceSelected": "✓ 音声",
-    "clone": "クローン",
-    "transcribe": "文字起こし",
-    "sfxParams": "設定"
   },
   "StudioV3": {
     "quickMode": "クイック生成",
@@ -715,7 +653,6 @@
     "generationComplete": "生成が完了しました",
     "emptyStateTitle": "ここにプレビューが表示されます",
     "emptyStateHint": "下に説明を書いて作成を開始",
-    "emptyStateHintAudio": "下に読み上げたいテキストを入力して作成を開始",
     "emptyStateHintVideo": "ショット、動き、シーンの展開を下に書いて作成を開始",
     "suggestion": {
       "s1": "黄昏時の静かな日本庭園",
@@ -1023,10 +960,6 @@
     "CHARACTER_TO_VIDEO": {
       "name": "キャラクター動画化",
       "description": "キャラクターの見た目をできるだけ保ちながら、画像を動画にできます。"
-    },
-    "VOICE_NARRATION_DIALOGUE": {
-      "name": "ナレーション・吹き替え",
-      "description": "テキストをナレーション、吹き替え、または複数人の会話に変換します。"
     }
   },
   "Transform": {
@@ -1183,15 +1116,9 @@
     "modelMissing": "先にモデルを選んでください",
     "lora": "LoRA",
     "titleVideo": "動画テンプレート · {count}",
-    "titleAudio": "音声テンプレート · {count}",
     "emptyVideo": "動画テンプレートはまだありません",
-    "emptyAudio": "音声テンプレートはまだありません",
     "emptyHintVideo": "気に入った動画ができたら「今のプロンプト」で「保存」。「新しいテンプレート」から自分で書くこともできます。",
-    "emptyHintAudio": "気に入った音声ができたら「今のプロンプト」で「保存」。「新しいテンプレート」から自分で書くこともできます。",
-    "footAudio": "クリックで適用 · モデルと設定も切り替わり、結果に戻ります",
     "namePlaceholderVideo": "例：海辺の夕日 · ゆっくりズームイン",
-    "namePlaceholderAudio": "例：ナレーション · やわらかい声",
-    "formNoteAudio": "今選んでいるモデルと設定を使います",
     "nowEmptyPrompt": "先にプロンプトを書いてください",
     "nowEmptyTagsPlain": "先にタグをいくつか入れてください"
   },

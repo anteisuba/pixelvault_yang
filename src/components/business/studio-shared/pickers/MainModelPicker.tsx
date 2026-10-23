@@ -5,7 +5,6 @@ import { useMemo } from 'react'
 import type { StudioModelOption } from '@/types/model-option'
 import type { LlmCapabilityScope } from '@/constants/llm-capability'
 import { use3DModelOptions } from '@/hooks/use-3d-model-options'
-import { useAudioModelOptions } from '@/hooks/use-audio-model-options'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import {
   useLLMRoutePicker,
@@ -30,7 +29,6 @@ import {
 export type MainModelPickerModality =
   | 'image'
   | 'video'
-  | 'audio'
   | 'model_3d'
   | 'llm_assist'
 
@@ -75,7 +73,7 @@ interface CommonProps {
 
 export type MainModelPickerProps = CommonProps &
   (
-    | { modality: 'image' | 'video' | 'audio' | 'model_3d' }
+    | { modality: 'image' | 'video' | 'model_3d' }
     | { modality: 'llm_assist'; llmCapability: LlmCapabilityScope }
   )
 
@@ -86,8 +84,6 @@ export function MainModelPicker(props: MainModelPickerProps) {
       return <MainModelPickerImage {...rest} />
     case 'video':
       return <MainModelPickerVideo {...rest} />
-    case 'audio':
-      return <MainModelPickerAudio {...rest} />
     case 'model_3d':
       return <MainModelPicker3D {...rest} />
     case 'llm_assist': {
@@ -148,12 +144,6 @@ function MainModelPickerVideo(props: CommonProps) {
   const { modelOptions } = useVideoModelOptions(props.value ?? '')
   const options = useFiltered(modelOptions, props.filterOption)
   return <ModelPickerPopover {...toPickerProps(props, options, 'video')} />
-}
-
-function MainModelPickerAudio(props: CommonProps) {
-  const { modelOptions } = useAudioModelOptions()
-  const options = useFiltered(modelOptions, props.filterOption)
-  return <ModelPickerPopover {...toPickerProps(props, options, 'audio')} />
 }
 
 function MainModelPicker3D(props: CommonProps) {

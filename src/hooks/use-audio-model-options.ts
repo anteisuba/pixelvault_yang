@@ -2,16 +2,11 @@
 
 import { useMemo } from 'react'
 
-import {
-  DEFAULT_AUDIO_KIND,
-  isAudioKind,
-  type AudioKind,
-} from '@/constants/audio-options'
+import { type AudioKind } from '@/constants/audio-options'
 import { getAvailableAudioModels } from '@/constants/models'
 import { resolveAudioKind } from '@/constants/models/audio'
 import type { StudioModelOption } from '@/types/model-option'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
-import { useStudioForm } from '@/contexts/studio-context'
 import {
   buildSavedModelOptionsForModels,
   findSelectedModel,
@@ -79,19 +74,4 @@ export function useAudioModelOptionsFor(
   )
 
   return { modelOptions, selectedModel }
-}
-
-/**
- * 工作台里的那层绑定：把 studio 表单的两个字段喂给上面的内核。
- *
- * ⚠ 表单里的 `audioKind` 类型是 `string`（那份 state 有 40 多个字段，历史上就没
- * 收窄）。这里过一次守卫而不是断言——认不出来的值退回默认档，比让一个拼错的
- * 字符串一路走到「一个模型都没有」强。
- */
-export function useAudioModelOptions(): UseAudioModelOptionsReturn {
-  const { state } = useStudioForm()
-  const audioKind = isAudioKind(state.audioKind)
-    ? state.audioKind
-    : DEFAULT_AUDIO_KIND
-  return useAudioModelOptionsFor(audioKind, state.selectedOptionId ?? null)
 }

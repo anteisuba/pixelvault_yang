@@ -275,11 +275,7 @@ export const GenerationPreview = memo(function GenerationPreview({
 
   // ── Empty state ───────────────────────────────────────────────────
   if (!generation && !isGenerating && !error) {
-    if (
-      state.outputType === 'image' ||
-      state.outputType === 'video' ||
-      state.outputType === 'audio'
-    ) {
+    if (state.outputType === 'image' || state.outputType === 'video') {
       // 起手势空态（外边距归 StudioWorkbenchLayout 单层管理，这里不再加 wrapper）。
       return (
         <StudioEmptyState

@@ -53,6 +53,7 @@ describe('FishVoiceLibraryDialog', () => {
       <FishVoiceLibraryDialog
         open
         onOpenChange={vi.fn()}
+        onSelectVoiceId={vi.fn()}
         sidePanel={<div>audio-settings</div>}
       />,
     )

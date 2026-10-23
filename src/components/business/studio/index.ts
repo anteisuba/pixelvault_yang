@@ -5,7 +5,6 @@
 export { StudioErrorBoundary } from '@/components/business/studio-shared/chrome/StudioErrorBoundary'
 export { StudioCanvas } from '@/components/business/studio-shared/chrome/StudioCanvas'
 export { StudioWorkbenchLayout } from '@/components/business/studio-shared/chrome/StudioWorkbenchLayout'
-export { StudioWorkflowGroupTabs } from '@/components/business/studio-shared/workflow/StudioWorkflowGroupTabs'
 export { StudioWorkflowPicker } from '@/components/business/studio-shared/workflow/StudioWorkflowPicker'
 export { StudioWorkflowSummary } from '@/components/business/studio-shared/workflow/StudioWorkflowSummary'
 export { StudioLightbox } from '@/components/business/studio-shared/chrome/StudioLightbox'

@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useCallback, useEffect, useState } from 'react'
+import { memo, useCallback, useEffect } from 'react'
 import { Key } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import dynamic from 'next/dynamic'
@@ -33,8 +33,6 @@ import {
   studioDialogBaseClass,
   studioDialogBodyClass,
 } from '@/components/business/studio-shared/primitives/tool-surface'
-import type { SelectedVoice } from '@/components/business/node/VoiceSelector'
-import { useStudioAudioParamsProps } from '@/hooks/use-studio-audio-params'
 import { useStudioVideoAssets } from '@/hooks/use-studio-video-assets'
 
 /**
@@ -53,34 +51,6 @@ function PanelLoadingFallback() {
   )
 }
 
-const FishVoiceLibraryDialog = dynamic(
-  () =>
-    import('@/components/business/node/FishVoiceLibraryDialog').then(
-      (mod) => mod.FishVoiceLibraryDialog,
-    ),
-  { loading: () => <PanelLoadingFallback /> },
-)
-const StudioAudioParams = dynamic(
-  () =>
-    import('@/components/business/studio/StudioAudioParams').then(
-      (mod) => mod.StudioAudioParams,
-    ),
-  { loading: () => <PanelLoadingFallback /> },
-)
-const VoiceTrainer = dynamic(
-  () =>
-    import('@/components/business/studio/VoiceTrainer').then(
-      (mod) => mod.VoiceTrainer,
-    ),
-  { loading: () => <PanelLoadingFallback /> },
-)
-const AudioTranscribeDialog = dynamic(
-  () =>
-    import('@/components/business/studio/AudioTranscribeDialog').then(
-      (mod) => mod.AudioTranscribeDialog,
-    ),
-  { loading: () => <PanelLoadingFallback /> },
-)
 const StudioVideoAudioPanel = dynamic(
   () =>
     import('@/components/business/studio/StudioVideoAudioPanel').then(
@@ -92,22 +62,17 @@ const StudioVideoAudioPanel = dynamic(
 // Krea-aligned panel dialog sizing — centred, capped width, vertical scroll
 // inside the content area. Each panel picks the closest fit so the dialog
 // doesn't feel oversized for short controls (civitai = one input) or
-// cramped for longer flows (voice selector + audio params).
+// cramped for longer flows.
 // Chrome 类来自 tool-surface（决议 5 工具面板契约），与助手等 Dialog 型面板共用。
 const DIALOG_BASE = studioDialogBaseClass
 const DIALOG_BODY = studioDialogBodyClass
-
-type SpeakerVoiceSelectionTarget =
-  | { mode: 'append' }
-  | { mode: 'replace'; index: number }
-  | null
 
 /**
  * StudioDockPanelArea — Krea-style centred dialogs for every toolbar pill
  * that used to dock into the bottom-right 40% column. Each panel is its
  * own Dialog wired to `state.panels.X` and dispatches CLOSE_PANEL when
  * dismissed (overlay click, Esc, X button). No grid layout, no drawer —
- * one consistent floating surface across image / video / audio modes.
+ * one consistent floating surface across image / video modes.
  *
  * Panels that already had their own popovers/dialogs (enhance, reverse,
  * transform, aspectRatio, refImage chip, style preset) intentionally
@@ -116,13 +81,9 @@ type SpeakerVoiceSelectionTarget =
  */
 export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
   const { state, dispatch } = useStudioForm()
-  // 那 40 个受控 props 的拼装搬进了 hook —— 参数面板现在有三个宿主
-  // （音色库这一份 + 参数栏的浮层与折叠行），拼装留在宿主里就会被复制三遍。
-  const audioParamsProps = useStudioAudioParamsProps()
   const { imageUpload, civitai } = useStudioData()
   const t = useTranslations('StudioV2')
   const tPanels = useTranslations('StudioPanels')
-  const tBar = useTranslations('StudioToolbar')
   const tCivitai = useTranslations('CivitaiToken')
   const { feedback: tokenSavedFeedback, show: showTokenSaved } =
     useButtonFeedback()
@@ -135,8 +96,6 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
   // Video models live in useVideoModelOptions; otherwise we stay on the
   // image pool.
   const surfaceSelectedModel = isVideoMode ? videoModel : imageModel
-  const [speakerVoiceSelectionTarget, setSpeakerVoiceSelectionTarget] =
-    useState<SpeakerVoiceSelectionTarget>(null)
 
   const adapterType = surfaceSelectedModel?.adapterType ?? AI_ADAPTER_TYPES.FAL
   const modelId = surfaceSelectedModel?.modelId
@@ -179,40 +138,6 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
     [dispatch],
   )
 
-  const requestSpeakerVoiceSelect = useCallback((index: number | null) => {
-    setSpeakerVoiceSelectionTarget(
-      index === null ? { mode: 'append' } : { mode: 'replace', index },
-    )
-  }, [])
-
-  // Speaker voice IDs are normalized by the reducer
-  // (`SET_AUDIO_SPEAKER_VOICE_IDS`), so this handler stays focused on append
-  // vs. replace semantics and trusts the reducer for de-dup / cap / trim.
-  const handleSpeakerVoiceSelect = useCallback(
-    (voice: SelectedVoice) => {
-      if (!speakerVoiceSelectionTarget) return
-
-      const nextSpeakerVoiceIds = [...state.audioSpeakerVoiceIds]
-      if (speakerVoiceSelectionTarget.mode === 'append') {
-        nextSpeakerVoiceIds.push(voice.voiceId)
-      } else {
-        nextSpeakerVoiceIds[speakerVoiceSelectionTarget.index] = voice.voiceId
-      }
-
-      dispatch({
-        type: 'SET_AUDIO_SPEAKER_VOICE_IDS',
-        payload: nextSpeakerVoiceIds,
-      })
-      setSpeakerVoiceSelectionTarget(null)
-    },
-    [dispatch, speakerVoiceSelectionTarget, state.audioSpeakerVoiceIds],
-  )
-
-  const handleVoiceSelectComplete = useCallback(() => {
-    setSpeakerVoiceSelectionTarget(null)
-    closePanel('voiceSelector')
-  }, [closePanel])
-
   const handleSaveToken = useCallback(async () => {
     if (!state.tokenInput.trim()) return
     const ok = await civitai.save(state.tokenInput.trim())
@@ -221,16 +146,6 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
       showTokenSaved({ label: tCivitai('saveSuccess') })
     }
   }, [state.tokenInput, civitai, dispatch, showTokenSaved, tCivitai])
-
-  const activeSpeakerVoiceIndex =
-    speakerVoiceSelectionTarget?.mode === 'replace'
-      ? speakerVoiceSelectionTarget.index
-      : null
-  const selectedSpeakerVoiceId =
-    activeSpeakerVoiceIndex === null
-      ? null
-      : (state.audioSpeakerVoiceIds[activeSpeakerVoiceIndex] ?? null)
-  const isSelectingSpeakerVoice = speakerVoiceSelectionTarget !== null
 
   return (
     <>
@@ -289,75 +204,6 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
                 )}
               </div>
             </div>
-          </div>
-        </ResponsiveDialogContent>
-      </ResponsiveDialog>
-
-      {/* ── Voice Selector + Audio Params (audio mode) ────────── */}
-      <FishVoiceLibraryDialog
-        open={state.panels.voiceSelector}
-        onOpenChange={(open) => {
-          if (!open) {
-            setSpeakerVoiceSelectionTarget(null)
-            closePanel('voiceSelector')
-          }
-        }}
-        selectedVoiceId={selectedSpeakerVoiceId}
-        onSelectVoiceId={
-          isSelectingSpeakerVoice ? handleSpeakerVoiceSelect : undefined
-        }
-        onVoiceSelectComplete={handleVoiceSelectComplete}
-        sidePanel={
-          <StudioAudioParams
-            {...audioParamsProps}
-            section="voice"
-            onRequestSpeakerVoiceSelect={requestSpeakerVoiceSelect}
-            isSelectingSpeakerVoice={isSelectingSpeakerVoice}
-            activeSpeakerVoiceIndex={activeSpeakerVoiceIndex}
-          />
-        }
-      />
-
-      {/* ── Voice Trainer (audio mode) ────────────────────────── */}
-      <ResponsiveDialog
-        open={state.panels.voiceTrainer}
-        onOpenChange={(open) => {
-          if (!open) closePanel('voiceTrainer')
-        }}
-      >
-        <ResponsiveDialogContent className={`${DIALOG_BASE} !max-w-xl`}>
-          <StudioPanelHeader>{tBar('clone')}</StudioPanelHeader>
-          <ResponsiveDialogDescription className="sr-only">
-            {tBar('clone')}
-          </ResponsiveDialogDescription>
-          <div className={DIALOG_BODY}>
-            {/* 选中态由工作台自己接——组件不再直接碰 StudioContext。 */}
-            <VoiceTrainer
-              onCreated={({ cardId, voiceId }) => {
-                dispatch({ type: 'SET_VOICE_CARD_ID', payload: cardId })
-                dispatch({ type: 'SET_VOICE_ID', payload: voiceId })
-              }}
-            />
-          </div>
-        </ResponsiveDialogContent>
-      </ResponsiveDialog>
-
-      {/* ── Audio Transcribe (audio mode) ─────────────────────── */}
-      <ResponsiveDialog
-        open={state.panels.audioTranscribe}
-        onOpenChange={(open) => {
-          if (!open) closePanel('audioTranscribe')
-        }}
-      >
-        <ResponsiveDialogContent className={`${DIALOG_BASE} !max-w-xl`}>
-          <StudioPanelHeader>{tBar('transcribe')}</StudioPanelHeader>
-          <ResponsiveDialogDescription className="sr-only">
-            {tBar('transcribe')}
-          </ResponsiveDialogDescription>
-          <div className={DIALOG_BODY}>
-            <AudioTranscribeDialog
-              onComplete={() => closePanel('audioTranscribe')}
-            />
           </div>
         </ResponsiveDialogContent>
       </ResponsiveDialog>

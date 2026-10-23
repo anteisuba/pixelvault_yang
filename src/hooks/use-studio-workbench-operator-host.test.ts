@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
  * 宿主契约的 `results`（切片 3a）—— **结果行卡的唯一数据源**。
@@ -171,7 +171,6 @@ import {
   STUDIO_OPERATOR_FACE_PILL_LIMIT,
 } from '@/constants/studio-assistant-operator'
 import { useStudioWorkbenchOperatorHost } from '@/hooks/use-studio-workbench-operator-host'
-import { takeBenchToCanvasHandoff } from '@/lib/bench-canvas-handoff'
 import { buildGenerationDisplayName } from '@/lib/generation-name'
 import { buildImageGenerationControls } from '@/lib/studio-operator-snapshot'
 import {
@@ -179,7 +178,6 @@ import {
   claimOperatorThreadScope,
   getOperatorState,
   resetOperatorThread,
-  takeOperatorDraft,
 } from '@/hooks/use-studio-operator-store'
 
 beforeEach(() => {
@@ -221,133 +219,6 @@ describe('useStudioWorkbenchOperatorHost 的生成入口', () => {
       type: 'REQUEST_GENERATE',
       owner: undefined,
     })
-  })
-})
-
-describe('useStudioWorkbenchOperatorHost 的工作台转交回执', () => {
-  const handoff = {
-    modelId: 'nai-diffusion-5-full',
-    label: 'NovelAI V5 Full',
-    workspace: 'image-tags' as const,
-    request: '改写成标签再出一张',
-  }
-  const tagOption = {
-    optionId: 'saved:nai',
-    modelId: handoff.modelId,
-    adapterType: 'novelai',
-    keyId: 'key-nai',
-    providerConfig: { label: 'NovelAI', baseUrl: 'https://api.novelai.net' },
-  }
-
-  beforeEach(() => {
-    useStudioGenOptional.mockReturnValue(undefined)
-    dispatch.mockClear()
-    routerPush.mockClear()
-    modelOptions.push(tagOption)
-    claimOperatorThreadScope('user-a:image-natural', 'image')
-  })
-
-  afterEach(() => {
-    const index = modelOptions.indexOf(tagOption)
-    if (index >= 0) modelOptions.splice(index, 1)
-  })
-
-  it('转交当前提示词与所选模型，跳转并只预填目标台助手', () => {
-    formState.overrides = { prompt: '雨夜里的角色' }
-    const { result } = renderHook(() => useStudioWorkbenchOperatorHost())
-    expect(result.current.apply.switchImageWorkbench?.(handoff)).toBe(true)
-    expect(result.current.apply.getState().prompt).toBe('雨夜里的角色')
-    expect(dispatch).toHaveBeenCalledExactlyOnceWith({
-      type: 'TRANSFER_IMAGE_PROMPT',
-      payload: { dialect: 'tags', optionId: tagOption.optionId },
-    })
-    expect(routerPush).toHaveBeenCalledExactlyOnceWith('/studio/image/tags')
-    expect(takeOperatorDraft('user-a:assistant', 'image-natural')).toBeNull()
-    expect(takeOperatorDraft('user-a:assistant', 'image-tags')).toBe(
-      handoff.request,
-    )
-    expect(takeOperatorDraft('user-a:assistant', 'image-tags')).toBeNull()
-  })
-
-  it('确认前模型被移除时返回失败，不转移提示词、跳转或预填', () => {
-    const { result, rerender } = renderHook(() =>
-      useStudioWorkbenchOperatorHost(),
-    )
-    imageModelOptions.current = modelOptions.filter(
-      (option) => option !== tagOption,
-    )
-    rerender()
-    expect(result.current.apply.switchImageWorkbench?.(handoff)).toBe(false)
-    expect(dispatch).not.toHaveBeenCalled()
-    expect(routerPush).not.toHaveBeenCalled()
-    expect(takeOperatorDraft('user-a:assistant', 'image-tags')).toBeNull()
-  })
-
-  it('目标工作台与当前模型方言不匹配时不转交', () => {
-    const { result } = renderHook(() => useStudioWorkbenchOperatorHost())
-    expect(
-      result.current.apply.switchImageWorkbench?.({
-        ...handoff,
-        workspace: 'image-natural',
-      }),
-    ).toBe(false)
-    expect(dispatch).not.toHaveBeenCalled()
-    expect(routerPush).not.toHaveBeenCalled()
-    expect(takeOperatorDraft('user-a:assistant', 'image-natural')).toBeNull()
-  })
-})
-
-describe('useStudioWorkbenchOperatorHost 交到画布（P6 台间交接）', () => {
-  afterEach(() => {
-    references.entries.splice(0)
-    formState.overrides = {}
-  })
-
-  it('带走提示词、挂着的参考图和刚出的那张，存好再跳画布', () => {
-    routerPush.mockClear()
-    formState.overrides = { prompt: '雨夜里的角色' }
-    references.entries.push(
-      { url: 'https://cdn.test/ref-1.png' },
-      { url: 'blob:local-upload' },
-    )
-    useStudioGenOptional.mockReturnValue({
-      activeRun: {
-        outputType: 'IMAGE',
-        items: [
-          runItem('item-1', 'completed', {
-            id: 'gen-1',
-            url: 'https://cdn.test/out.png',
-            outputType: 'IMAGE',
-          }),
-        ],
-      },
-    })
-    const { result } = renderHook(() => useStudioWorkbenchOperatorHost())
-    expect(
-      result.current.apply.moveToCanvas?.({
-        projectId: 'project-9',
-        next: '接着做',
-      }),
-    ).toEqual({ droppedReferences: 1 })
-    expect(takeBenchToCanvasHandoff()).toMatchObject({
-      projectId: 'project-9',
-      prompt: '雨夜里的角色',
-      referenceUrls: ['https://cdn.test/ref-1.png'],
-      result: { url: 'https://cdn.test/out.png', generationId: 'gen-1' },
-      next: '接着做',
-    })
-    expect(routerPush).toHaveBeenCalledExactlyOnceWith('/studio/node')
-  })
-
-  it('视频档不交（P6 只做图片台 ↔ 画布）', () => {
-    routerPush.mockClear()
-    formState.overrides = { outputType: 'video' }
-    const { result } = renderHook(() => useStudioWorkbenchOperatorHost())
-    expect(
-      result.current.apply.moveToCanvas?.({ projectId: 'project-9' }),
-    ).toBeNull()
-    expect(takeBenchToCanvasHandoff()).toBeNull()
-    expect(routerPush).not.toHaveBeenCalled()
   })
 })
 

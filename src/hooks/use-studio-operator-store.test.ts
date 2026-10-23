@@ -48,6 +48,48 @@ const DONE: AssistantOperatorAppliedStep = { ...RUNNING, status: 'done' }
 /** 一轮的 token —— 服务端的步号每轮从 `step-1` 重来，线程侧的 key 必须带上它。 */
 const RUN = 'run-1'
 
+describe('开台途中换页（第 9e 步）', () => {
+  const opening = (target: { workspace: 'canvas'; projectId: string }) => ({
+    target,
+    transcript: [],
+    runKey: 'run-1',
+    steps: {},
+    at: 0,
+  })
+
+  it('换到新台：这一轮还在跑，⛔ 不收成 idle；开台那一格跟着走', () => {
+    const result = readState()
+    store.claimOperatorThreadScope('account-a:assistant', 'image')
+    act(() => {
+      store.setOperatorStatus('working')
+      store.setOperatorBenchOpen(
+        opening({ workspace: 'canvas', projectId: 'new' }) as never,
+      )
+    })
+    act(() => {
+      store.claimOperatorThreadScope('account-a:assistant', 'canvas')
+    })
+    expect(result.current.status).toBe('working')
+    expect(result.current.benchOpen?.target.projectId).toBe('new')
+
+    // 画布建好那块：真正的项目号补回去，新台的面板才认得「到了」。
+    act(() => store.settleOperatorBenchOpenProject('proj-7'))
+    expect(result.current.benchOpen?.target.projectId).toBe('proj-7')
+  })
+
+  it('没在开台：换台照旧把跑到一半的收成 idle；不是画布的开台不补项目号', () => {
+    const result = readState()
+    store.claimOperatorThreadScope('account-a:assistant', 'image')
+    act(() => store.setOperatorStatus('working'))
+    act(() => {
+      store.claimOperatorThreadScope('account-a:assistant', 'video')
+    })
+    expect(result.current.status).toBe('idle')
+    act(() => store.settleOperatorBenchOpenProject('proj-7'))
+    expect(result.current.benchOpen).toBeNull()
+  })
+})
+
 describe('显式跨工作区交接', () => {
   it('角色台交接文字只在同账号自然语言图片台消费一次（线程一个人一段，按台认）', () => {
     store.claimOperatorThreadScope('account-a:assistant', 'cards')
@@ -421,8 +463,19 @@ describe('会话历史 · 载入与新对话', () => {
   it('载回一段会话时，末尾还没决定的卡放回面板、状态回到「等你定」（owner 09-27）', () => {
     const result = readState()
     const handoff = {
-      kind: 'imageHandoff' as const,
-      handoff: { characterId: 'denia', request: '给 Denia 出一张背面图' },
+      kind: 'characterImages' as const,
+      proposal: {
+        characterId: 'denia',
+        images: [
+          {
+            key: 'asset:gen-1',
+            source: 'library' as const,
+            url: 'https://cdn.test/1.png',
+            reason: '背面全身',
+            assetId: 'gen-1',
+          },
+        ],
+      },
     }
     act(() =>
       store.loadOperatorThread({

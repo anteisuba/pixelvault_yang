@@ -4,13 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
-import { studioImageWithCharacterPath } from '@/constants/routes'
 import { STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR } from '@/constants/studio-assistant-operator'
 import type { StudioOperatorHost } from '@/contexts/studio-operator-host'
 import type { CharacterCardRecord } from '@/types'
 import type { StudioOperatorResultItem } from '@/types/studio-assistant-operator'
 import { useStudioOperatorFace } from '@/hooks/use-studio-operator-face'
-import { requestOperatorDraft } from '@/hooks/use-studio-operator-store'
 import { useRouter } from '@/i18n/navigation'
 import { revertAssistantAssetWriteAPI } from '@/lib/api-client/assistant-operator'
 import { buildCardsOperatorSnapshot } from '@/lib/cards-operator-snapshot'
@@ -23,8 +21,6 @@ import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
  * ⭐ 快照 = 这页上有谁 + 打开着的那一位的整份设定（`buildCardsOperatorSnapshot`）。
  * ⭐ 落笔的手（C2 / C3）：`apply.cards.applyProfile` 与 `attachImages` —— 提议卡 /
  *   候选图卡上用户点下去时写进角色；服务端从不写角色（那一帧之前一行库都没写）。
- * ⭐ 交给图片助手（C3）：把话递给图片工作台的助手（`requestOperatorDraft`），再跳到
- *   带着这个角色的图片工作台；那边填进输入框，由用户按发送。
  * ⚠ 表单那几只手在角色页上无处可去 —— 它们**到不了**（域工具表里没有表单旋钮），
  *   写成空函数只是为了满足契约形状（与画布宿主同一做法）。
  * ⚠ 点页面别处**不收**助手（`collapseOnOutsidePointer: false`）：卡片助手的用法就是
@@ -116,11 +112,6 @@ export function useCardsOperatorHost({
         /** C3：候选图卡「挂上勾选的」那只手。 */
         attachImages: (characterId, images) =>
           latest.current.attachImages(characterId, images),
-        /** C3：交给图片助手 —— 话先递过去，再跳。 */
-        handOffToImageAssistant: (characterId, request) => {
-          requestOperatorDraft('image-natural', request)
-          latest.current.router.push(studioImageWithCharacterPath(characterId))
-        },
       },
     }
   }, [])

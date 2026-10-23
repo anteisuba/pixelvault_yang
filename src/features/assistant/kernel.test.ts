@@ -1117,3 +1117,90 @@ describe('画布（第 9a 步）', () => {
     )
   })
 })
+
+describe('开台（第 9e 步）', () => {
+  const openTags = { id: 'o1', name: 'open', input: { bench: 'tags' } }
+
+  it('开到标签台：停在 bench_open 交接力条；到了那一跳，open 的结果是新台的板子，接着跑', async () => {
+    models.main = mockModel([toolTurn(openTags)])
+    const hop1 = await collect(
+      runAssistantNext('clerk-1', imageRequest('改成 NAI 标签再出一张')),
+    )
+    expect(hop1.at(-1)).toMatchObject({
+      type: 'stopped',
+      reason: 'bench_open',
+      open: { workspace: 'image-tags' },
+    })
+    const relay = hop1.find((event) => event.type === 'transcript') as {
+      transcript: AssistantV3Transcript
+    }
+    expect(relay.transcript).toHaveLength(1)
+
+    const second = mockModel([textTurn('到了，接着改。')])
+    models.main = second
+    const hop2 = await collect(
+      runAssistantNext(
+        'clerk-1',
+        imageRequest('改成 NAI 标签再出一张', {
+          workspaceKey: 'image-tags',
+          v3: { transcript: relay.transcript },
+        } as never),
+      ),
+    )
+    expect(hop2.at(-1)).toMatchObject({ type: 'done' })
+    expect(
+      second.doStreamCalls[0]!.prompt.map((message) => message.role),
+    ).toEqual(['system', 'user', 'assistant', 'tool'])
+    const sent = promptOf(second.doStreamCalls[0]!)
+    expect(sent).toContain('Opened the tag bench')
+    expect(sent).toContain('a girl in a garden')
+  })
+
+  it('浏览器没换过去（还在原台）：如实说没开成，⛔ 不当成到了', async () => {
+    models.main = mockModel([toolTurn(openTags)])
+    const hop1 = await collect(
+      runAssistantNext('clerk-1', imageRequest('改成 NAI 标签再出一张')),
+    )
+    const relay = hop1.find((event) => event.type === 'transcript') as {
+      transcript: AssistantV3Transcript
+    }
+    const second = mockModel([textTurn('没开成。')])
+    models.main = second
+    await collect(
+      runAssistantNext(
+        'clerk-1',
+        imageRequest('改成 NAI 标签再出一张', {
+          v3: { transcript: relay.transcript },
+        } as never),
+      ),
+    )
+    expect(promptOf(second.doStreamCalls[0]!)).toContain(
+      'the tag bench did not open',
+    )
+  })
+
+  it('同一步里 open 之后的调用不跑；已经在那个台上就直说，不白跳', async () => {
+    models.main = mockModel([
+      toolTurn(openTags, editPrompt),
+      // 第二跳不会来：第一跳停在 bench_open。
+    ])
+    const hop1 = await collect(
+      runAssistantNext('clerk-1', imageRequest('换台再改')),
+    )
+    expect(plan).not.toHaveBeenCalled()
+    expect(hop1.at(-1)).toMatchObject({ reason: 'bench_open' })
+
+    const main = mockModel([
+      toolTurn({ id: 'o2', name: 'open', input: { bench: 'image' } }),
+      textTurn('就在这儿。'),
+    ])
+    models.main = main
+    const events = await collect(
+      runAssistantNext('clerk-1', imageRequest('打开图片台')),
+    )
+    expect(events.at(-1)).toMatchObject({ type: 'done' })
+    expect(promptOf(main.doStreamCalls[1]!)).toContain(
+      'You are on the image bench already',
+    )
+  })
+})

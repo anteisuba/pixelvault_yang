@@ -138,8 +138,14 @@ import {
   GenerateInputSchema,
   FindInputSchema,
   LookInputSchema,
+  OpenInputSchema,
   parseToolInput,
 } from '@/features/assistant/tools'
+import {
+  openedOutput,
+  planOpen,
+  type BenchOpening,
+} from '@/features/assistant/open'
 
 /**
  * 助手新内核的主循环（总设计第一节的流程图）：
@@ -187,6 +193,12 @@ const NOT_RUN_WHILE_BOARD_CHANGES =
 const LANDING_UNKNOWN =
   'BOARD — sent to the board; whether it landed is not known yet. Look at the cards you changed before you build on them.'
 /** 同一步里改动没落下还出图，确认卡上就是旧配方（评测里撞见过）。 */
+/** 开台（第 9e 步）：同一步里排在 `open` 后面的调用 —— 到了新台再做。 */
+const NOT_RUN_AFTER_OPEN =
+  'Not run: you opened another bench in this step. Do it there, after the result shows the new bench.'
+/** 接力条没存下：这一次开不了台。 */
+const OPEN_NOT_KEPT =
+  'Could not open it right now. Tell the creator which bench to switch to, or carry on here.'
 const NOT_RUN_AFTER_FAILED_EDIT =
   'Not shown: an edit earlier in this step did not land, so the bench is not what you meant to generate. Fix that edit first, then call generate again.'
 
@@ -609,9 +621,35 @@ async function* runNextTurn(
           : { type: 'text', value: output },
       }
     })
+    // 开台（第 9e 步）：到了新台，这次 open 的结果就是新台的板子。
+    const opened: ToolResultPart[] = []
+    const open = saved.pending.open
+    if (open) {
+      const result = openedOutput(context, open.opening, () =>
+        renderBench(context, attachedNames, latestUserText, aliases),
+      )
+      transcript.push({
+        type: ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.result,
+        id: open.toolCallId.slice(0, ASSISTANT_V3_LIMITS.maxCallIdChars),
+        tool: transcriptTool(open.toolName),
+        output: result.output.slice(0, ASSISTANT_V3_LIMITS.maxEntryChars),
+        error: result.error,
+      })
+      opened.push({
+        type: 'tool-result',
+        toolCallId: open.toolCallId,
+        toolName: open.toolName,
+        output: result.error
+          ? { type: 'error-text', value: result.output }
+          : { type: 'text', value: result.output },
+      })
+    }
     messages = clearOldToolResults([
       ...messages,
-      { role: 'tool', content: [...saved.pending.results, ...landed] },
+      {
+        role: 'tool',
+        content: [...saved.pending.results, ...landed, ...opened],
+      },
       ...(saved.pending.looked.length && context.seesImages
         ? [lookedPicturesMessage(saved.pending.looked)]
         : []),
@@ -1026,6 +1064,8 @@ async function* runNextTurn(
       lines: string
       batch: CanvasBatch
     }[] = []
+    /** 开台（第 9e 步）：这一步里那次 open（排在最后跑，存好再停）。 */
+    let opening: { call: ClientCall; opening: BenchOpening } | null = null
     for (const call of calls) {
       const settle = (result: BenchResult) => {
         results.push({
@@ -1059,6 +1099,10 @@ async function* runNextTurn(
         settle({ output: NOT_RUN_AFTER_STOP, error: true })
         continue
       }
+      if (opening) {
+        settle({ output: NOT_RUN_AFTER_OPEN, error: true })
+        continue
+      }
       if (editFailed && call.toolName === ASSISTANT_NEXT_TOOL_IDS.generate) {
         settle({ output: NOT_RUN_AFTER_FAILED_EDIT, error: true })
         continue
@@ -1079,6 +1123,10 @@ async function* runNextTurn(
       )
       if (result.canvas) {
         boardEdits.push({ call, lines: result.output, batch: result.canvas })
+        continue
+      }
+      if (result.opening) {
+        opening = { call, opening: result.opening }
         continue
       }
       settle(result)
@@ -1182,6 +1230,54 @@ async function* runNextTurn(
       }
     }
 
+    if (opening) {
+      const settleOpen = (output: string) => {
+        results.push({
+          type: 'tool-result',
+          toolCallId: opening.call.toolCallId,
+          toolName: opening.call.toolName,
+          output: { type: 'error-text', value: output },
+        })
+        transcript.push({
+          type: ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.result,
+          id: opening.call.toolCallId.slice(
+            0,
+            ASSISTANT_V3_LIMITS.maxCallIdChars,
+          ),
+          tool: transcriptTool(opening.call.toolName),
+          output,
+          error: true,
+        })
+      }
+      if (stopped) settleOpen(NOT_RUN_AFTER_STOP)
+      else {
+        // 交给浏览器换台：存好这一步（open 的结果待补），交接力条，停在 bench_open。
+        const kept = await keepState({
+          results,
+          looked,
+          canvas: [],
+          open: {
+            toolCallId: opening.call.toolCallId,
+            toolName: opening.call.toolName,
+            opening: opening.opening,
+          },
+        })
+        if (kept) {
+          yield {
+            type: ASSISTANT_OPERATOR_EVENTS.transcript,
+            transcript: relayToken(turnId, hop),
+          }
+          yield {
+            type: ASSISTANT_OPERATOR_EVENTS.stopped,
+            reason: ASSISTANT_OPERATOR_STOP_REASONS.benchOpen,
+            open: opening.opening.target,
+          }
+          return
+        }
+        settleOpen(OPEN_NOT_KEPT)
+      }
+    }
+
     // 工具结果攒多了就清掉旧的长结果（一次清到底，之后前缀不动）；要细节模型自己再查。
     messages = clearOldToolResults([
       ...messages,
@@ -1275,9 +1371,14 @@ async function* runTool(
       if (!parsed.ok) return { output: parsed.error, error: true }
       return yield* runGenerate(context, parsed.value)
     }
+    case ASSISTANT_NEXT_TOOL_IDS.open: {
+      const parsed = parseToolInput(OpenInputSchema, call.input, call.toolName)
+      if (!parsed.ok) return { output: parsed.error, error: true }
+      return await planOpen(context, parsed.value)
+    }
     default:
       return {
-        output: `There is no tool called ${call.toolName}. The tools are find, look, edit, ask and generate.`,
+        output: `There is no tool called ${call.toolName}. The tools are find, look, edit, ask, generate and open.`,
         error: true,
       }
   }

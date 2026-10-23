@@ -1,3 +1,5 @@
+import type { AssistantWorkspace } from '@/types/assistant-workspace'
+
 /**
  * 助手新内核（第 2 步骨架）的词表与上限。
  *
@@ -18,10 +20,37 @@ export const ASSISTANT_NEXT_TOOL_IDS = {
   edit: 'edit',
   ask: 'ask',
   generate: 'generate',
+  /** 开台（第 9e 步，owner 10-23）：打开别的台，这一轮在那边接着做。 */
+  open: 'open',
 } as const
 
 export type AssistantNextTool =
   (typeof ASSISTANT_NEXT_TOOL_IDS)[keyof typeof ASSISTANT_NEXT_TOOL_IDS]
+
+/**
+ * 开台能开的台（模型看到的名字）→ 工作区（第 9e 步）。⚠ 只有生成与角色那几页；素材 / 提示词页
+ * 还没有给助手读的台面，第 9f 步搬进 /library 时再接。
+ */
+export const ASSISTANT_NEXT_OPEN_BENCH_WORKSPACES = {
+  image: 'image-natural',
+  tags: 'image-tags',
+  video: 'video',
+  // ⚠ 没有配音台：助手的配音那一面在工作台的音频档上，`/studio/audio` 是配音间（没有助手），
+  //   开过去接不上（10-23 查出来的，待 owner 定配音台放哪）。
+  lora: 'lora',
+  canvas: 'canvas',
+  character: 'cards',
+} as const satisfies Record<string, AssistantWorkspace>
+
+export type AssistantNextOpenBench =
+  keyof typeof ASSISTANT_NEXT_OPEN_BENCH_WORKSPACES
+
+export const ASSISTANT_NEXT_OPEN_BENCHES = Object.keys(
+  ASSISTANT_NEXT_OPEN_BENCH_WORKSPACES,
+) as [AssistantNextOpenBench, ...AssistantNextOpenBench[]]
+
+/** 开画布开哪一块：默认最近那块，创作者说「新的」才新建（owner 10-23）。 */
+export const ASSISTANT_NEXT_OPEN_CANVAS = ['recent', 'new'] as const
 
 /** `edit` 一条改动改的是哪一格。一个工具，按台换可用的改法（台上没有的那一格回一句说明）。 */
 export const ASSISTANT_NEXT_EDIT_OP_IDS = {
@@ -44,10 +73,9 @@ export const ASSISTANT_NEXT_EDIT_OP_IDS = {
   /** 视频台：参考声音、原声开关。 */
   addAudio: 'add_audio',
   sound: 'sound',
-  /** 角色页：三种提议（出一张卡，创作者勾选）。直接写进库见下面「改库」那几种。 */
+  /** 角色页：两种提议（出一张卡，创作者勾选）。直接写进库见下面「改库」那几种。 */
   proposeProfile: 'propose_profile',
   proposeImages: 'propose_images',
-  handOff: 'hand_off',
   /** 套用某张图的配方（第 4 步，10-23 从第 3 步移来）。 */
   applyRecipe: 'apply_recipe',
   /**
@@ -156,7 +184,7 @@ export const ASSISTANT_NEXT_LORA_PARAM_KEYS: Readonly<Record<string, string>> =
   }
 
 /** 过程记录里标「这一轮是新内核跑的」（`AssistantTurnRecord.promptVersion`）。改系统提示时一起换。 */
-export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-10-23k'
+export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-10-23l'
 
 export const ASSISTANT_NEXT_LIMITS = {
   /**

@@ -22,7 +22,6 @@ import type {
   AssistantOperatorEvent,
   AssistantOperatorGenerationRequest,
   AssistantOperatorMessage,
-  AssistantOperatorMoveWorkRequest,
 } from '@/types/assistant-operator'
 
 /**
@@ -60,6 +59,12 @@ const streamAssistantOperatorAPI = vi.hoisted(() => vi.fn())
 
 vi.mock('@/lib/api-client/assistant-operator', () => ({
   streamAssistantOperatorAPI,
+}))
+
+/** 开台换页（第 9e 步）。 */
+const routerPush = vi.hoisted(() => vi.fn())
+vi.mock('@/i18n/navigation', () => ({
+  useRouter: () => ({ push: routerPush }),
 }))
 
 /**
@@ -103,8 +108,6 @@ const generationEnabled = vi.hoisted(() => ({
   workbench: true,
   canvas: true,
 }))
-const switchImageWorkbench = vi.hoisted(() => vi.fn(() => true))
-const workbenchHandoffEnabled = vi.hoisted(() => ({ current: false }))
 const dispatch = vi.hoisted(() => vi.fn())
 const mountLora = vi.hoisted(() => vi.fn())
 const unmountLora = vi.hoisted(() => vi.fn())
@@ -155,19 +158,6 @@ const canvasUpscale = vi.hoisted(() =>
     > => ({ status: 'done' }),
   ),
 )
-/** 台间交接（P6）：工作台 → 画布 / 画布卡 → 工作台。 */
-const moveToCanvas = vi.hoisted(() =>
-  vi.fn(
-    (_target: { projectId: string; next?: string }) =>
-      ({ droppedReferences: 0 }) as { droppedReferences: number } | null,
-  ),
-)
-const canvasMoveToWorkbench = vi.hoisted(() =>
-  vi.fn(
-    (_nodeId: string, _next?: string) =>
-      ({ droppedReferences: 0 }) as { droppedReferences: number } | null,
-  ),
-)
 const canvasGenerationState = vi.hoisted(() => ({
   enabled: false,
   current: null as Record<string, unknown> | null,
@@ -206,10 +196,7 @@ vi.mock('@/contexts/studio-operator-host', () => ({
       ? { generationControls: generationControls.current }
       : {}),
     apply: {
-      ...(workbenchHandoffEnabled.current ? { switchImageWorkbench } : {}),
-      moveToCanvas,
       canvas: {
-        moveToWorkbench: canvasMoveToWorkbench,
         applyOp: canvasApply,
         applyOps: canvasApplyOps,
         getBatchFailures: () => canvasBatchFailures.current,
@@ -345,11 +332,7 @@ beforeEach(async () => {
   generationControls.current = null
   generationEnabled.workbench = true
   generationEnabled.canvas = true
-  workbenchHandoffEnabled.current = false
-  switchImageWorkbench.mockReset().mockReturnValue(true)
   canvasUpscale.mockReset().mockResolvedValue({ status: 'done' })
-  moveToCanvas.mockReset().mockReturnValue({ droppedReferences: 0 })
-  canvasMoveToWorkbench.mockReset().mockReturnValue({ droppedReferences: 0 })
   hostDomain.current = 'image'
   hostWorkspace.current = 'image-natural'
   canvasApply.mockReset().mockReturnValue(true)
@@ -392,109 +375,6 @@ function render() {
   store.claimOperatorThreadScope(scope, hostDomain.current)
   return renderHook(() => operator.useAssistantOperator(scope))
 }
-
-describe('图片工作台转交按钮', () => {
-  const handoff = {
-    modelId: 'nai-diffusion-5-full',
-    label: 'NovelAI V5 Full',
-    workspace: 'image-tags' as const,
-    request: '改写成标签再出一张',
-  }
-
-  async function proposeHandoff() {
-    const hook = render()
-    act(() => hook.result.current.send('换到标签台继续'))
-    await settle()
-    streams[0].emit({
-      type: 'confirm',
-      confirm: { kind: 'workbenchHandoff', handoff },
-    })
-    streams[0].emit({ type: 'stopped', reason: 'awaiting_confirm' })
-    streams[0].close()
-    await settle()
-    return hook
-  }
-
-  it('目标模型已不可用时保留待确认卡，不记已换台', async () => {
-    workbenchHandoffEnabled.current = true
-    const { result } = await proposeHandoff()
-    switchImageWorkbench.mockReturnValue(false)
-    act(() => result.current.acceptWorkbenchHandoff())
-    expect(switchImageWorkbench).toHaveBeenCalledWith(handoff)
-    expect(store.getOperatorState().confirm?.status).toBe('idle')
-    expect(
-      store
-        .getOperatorState()
-        .entries.some(
-          (entry) =>
-            entry.kind === 'system' &&
-            entry.code === 'workbenchHandoffAccepted',
-        ),
-    ).toBe(false)
-  })
-
-  it('宿主没有转交能力时保留待确认卡', async () => {
-    const { result } = await proposeHandoff()
-    act(() => result.current.acceptWorkbenchHandoff())
-    expect(store.getOperatorState().confirm?.status).toBe('idle')
-    expect(switchImageWorkbench).not.toHaveBeenCalled()
-    expect(
-      store
-        .getOperatorState()
-        .entries.some(
-          (entry) =>
-            entry.kind === 'system' &&
-            entry.code === 'workbenchHandoffAccepted',
-        ),
-    ).toBe(false)
-  })
-
-  it('接受只转交一次并记录决定，不替用户发送或生成', async () => {
-    workbenchHandoffEnabled.current = true
-    const { result } = await proposeHandoff()
-    act(() => {
-      result.current.acceptWorkbenchHandoff()
-      result.current.acceptWorkbenchHandoff()
-      result.current.dismissWorkbenchHandoff()
-    })
-    expect(switchImageWorkbench).toHaveBeenCalledExactlyOnceWith(handoff)
-    expect(store.getOperatorState().confirm?.status).toBe('confirmed')
-    expect(
-      store
-        .getOperatorState()
-        .entries.filter(
-          (entry) =>
-            entry.kind === 'system' &&
-            entry.code === 'workbenchHandoffAccepted',
-        ),
-    ).toHaveLength(1)
-    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(1)
-    expect(triggerGeneration).not.toHaveBeenCalled()
-  })
-
-  it('拒绝不切台，连续点击只记录一次拒绝', async () => {
-    workbenchHandoffEnabled.current = true
-    const { result } = await proposeHandoff()
-    act(() => {
-      result.current.dismissWorkbenchHandoff()
-      result.current.dismissWorkbenchHandoff()
-      result.current.acceptWorkbenchHandoff()
-    })
-    expect(switchImageWorkbench).not.toHaveBeenCalled()
-    expect(store.getOperatorState().confirm?.status).toBe('cancelled')
-    expect(
-      store
-        .getOperatorState()
-        .entries.filter(
-          (entry) =>
-            entry.kind === 'system' &&
-            entry.code === 'workbenchHandoffDeclined',
-        ),
-    ).toHaveLength(1)
-    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(1)
-    expect(triggerGeneration).not.toHaveBeenCalled()
-  })
-})
 
 describe('放大到 4K 确认卡（P6）', () => {
   const nodes = [
@@ -574,84 +454,75 @@ describe('放大到 4K 确认卡（P6）', () => {
   })
 })
 
-describe('交到另一台接着做（P6 台间交接）', () => {
-  async function proposeMoveWork(request: AssistantOperatorMoveWorkRequest) {
-    const hook = render()
-    act(() => hook.result.current.send('放到另一边接着做'))
+describe('开台（第 9e 步）', () => {
+  const transcript = [{ type: 'board', text: 'bench' }] as never
+
+  it('服务端停在 bench_open：记下这一跳、换页，状态一直是在干活', async () => {
+    const { result } = render()
+    act(() => result.current.send('改成 NAI 标签再出一张'))
     await settle()
+    streams[0].emit({ type: 'transcript', transcript })
     streams[0].emit({
-      type: 'confirm',
-      confirm: { kind: 'moveWork', request },
+      type: 'stopped',
+      reason: 'bench_open',
+      open: { workspace: 'image-tags' },
     })
-    streams[0].emit({ type: 'stopped', reason: 'awaiting_confirm' })
     streams[0].close()
     await settle()
-    return hook
-  }
-
-  function systemCodes(): string[] {
-    return store
-      .getOperatorState()
-      .entries.flatMap((entry) => (entry.kind === 'system' ? [entry.code] : []))
-  }
-
-  it('工作台 → 画布：带着卡上选的项目和下一句话交过去，只记一次，⛔ 不新开一轮', async () => {
-    const { result } = await proposeMoveWork({ to: 'canvas', next: '接着做' })
-    act(() => {
-      result.current.acceptMoveWork('project-9')
-      result.current.acceptMoveWork('project-9')
-      result.current.dismissMoveWork()
+    expect(routerPush).toHaveBeenCalledWith('/studio/image/tags')
+    expect(store.getOperatorState().benchOpen).toMatchObject({
+      target: { workspace: 'image-tags' },
+      transcript,
     })
-    expect(moveToCanvas).toHaveBeenCalledExactlyOnceWith({
-      projectId: 'project-9',
-      next: '接着做',
+    expect(store.getOperatorState().status).toBe('working')
+  })
+
+  it('新台准备好了：带着接力条接着发、清掉那一格；没到之前不发', async () => {
+    const { result, rerender } = render()
+    act(() => result.current.send('改成 NAI 标签再出一张'))
+    await settle()
+    streams[0].emit({ type: 'transcript', transcript })
+    streams[0].emit({
+      type: 'stopped',
+      reason: 'bench_open',
+      open: { workspace: 'image-tags' },
     })
-    expect(store.getOperatorState().confirm?.status).toBe('confirmed')
-    expect(
-      systemCodes().filter((code) => code === 'moveWorkAccepted'),
-    ).toHaveLength(1)
+    streams[0].close()
+    await settle()
     expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(1)
-    expect(triggerGeneration).not.toHaveBeenCalled()
+
+    // 换过来了（同一个面板，台变了）：下一次轮询接上。
+    hostWorkspace.current = 'image-tags'
+    rerender()
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 300))
+    })
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(2)
+    expect(streamAssistantOperatorAPI.mock.calls[1][0]).toMatchObject({
+      planApproved: true,
+      v3: { transcript },
+    })
+    expect(store.getOperatorState().benchOpen).toBeNull()
   })
 
-  it('画布 → 工作台：交那张卡；参考图超了上限说一行，⛔ 不静默', async () => {
-    canvasMoveToWorkbench.mockReturnValue({ droppedReferences: 2 })
-    const { result } = await proposeMoveWork({
-      to: 'workbench',
-      node: { id: 'n1', name: '哈利' },
-      next: '换成雪地',
-    })
-    act(() => result.current.acceptMoveWork())
-    expect(canvasMoveToWorkbench).toHaveBeenCalledExactlyOnceWith(
-      'n1',
-      '换成雪地',
+  it('等太久没到：作废，落一行没开成，状态回到 idle', async () => {
+    render()
+    act(() =>
+      store.setOperatorBenchOpen({
+        target: { workspace: 'video' },
+        transcript,
+        runKey: 'run-1',
+        steps: {},
+        at: Date.now() - 60_000,
+      } as never),
     )
-    const dropped = store
-      .getOperatorState()
-      .entries.find(
-        (entry) =>
-          entry.kind === 'system' && entry.code === 'moveWorkDroppedReferences',
-      )
-    expect(dropped).toMatchObject({ subject: '2' })
-  })
-
-  it('交不过去（那张卡没了）：什么都不改，卡留着', async () => {
-    canvasMoveToWorkbench.mockReturnValue(null)
-    const { result } = await proposeMoveWork({
-      to: 'workbench',
-      node: { id: 'n1', name: '哈利' },
-    })
-    act(() => result.current.acceptMoveWork())
-    expect(store.getOperatorState().confirm?.status).toBe('idle')
-    expect(systemCodes()).not.toContain('moveWorkAccepted')
-  })
-
-  it('先不要：不交，只记一行', async () => {
-    const { result } = await proposeMoveWork({ to: 'canvas' })
-    act(() => result.current.dismissMoveWork())
-    expect(moveToCanvas).not.toHaveBeenCalled()
-    expect(store.getOperatorState().confirm?.status).toBe('cancelled')
-    expect(systemCodes()).toContain('moveWorkDeclined')
+    await settle()
+    expect(store.getOperatorState().benchOpen).toBeNull()
+    expect(store.getOperatorState().status).toBe('idle')
+    expect(store.getOperatorState().entries).toContainEqual(
+      expect.objectContaining({ kind: 'system', code: 'benchOpenMissed' }),
+    )
+    expect(streamAssistantOperatorAPI).not.toHaveBeenCalled()
   })
 })
 

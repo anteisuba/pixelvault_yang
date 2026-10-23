@@ -1,6 +1,6 @@
 # 助手重设计内核（next）— 施工基准
 
-> 状态：**第 9d 步「一段对话跨台 + 编号换缩略图」（2026-10-23）**；第 9c 步（同日）起所有人切新内核。代码在 `src/features/assistant/`，所有人、所有台都走新内核（路由不再看开关，浏览器本地开关 `antei:assistant-kernel` 已删）。v2 / v3 的主循环与老提示词助手（`StudioAssistantDock` / `/api/prompt/assistant`）已删；v3 的执行函数、板子、`prepareOperatorTurn` 等仍被新内核借用，留着。新内核接不了的请求（脸 / 型号 / 台子快照没对上）直接回错误事件，⛔ 没有退路。总设计与各步顺序见施工单 a-redesign。
+> 状态：**第 9e 步「开台」（2026-10-23）**；第 9c 步（同日）起所有人切新内核。代码在 `src/features/assistant/`，所有人、所有台都走新内核（路由不再看开关，浏览器本地开关 `antei:assistant-kernel` 已删）。v2 / v3 的主循环与老提示词助手（`StudioAssistantDock` / `/api/prompt/assistant`）已删；v3 的执行函数、板子、`prepareOperatorTurn` 等仍被新内核借用，留着。新内核接不了的请求（脸 / 型号 / 台子快照没对上）直接回错误事件，⛔ 没有退路。总设计与各步顺序见施工单 a-redesign。
 
 ## 1. 为什么另起
 
@@ -34,7 +34,7 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 **第 4a 步**（owner 10-23：拆 4a 台 / 4b 库 / 4c 设置）：
 
 - 接上的台：图片、LoRA、视频、角色页、画布、配音台（`ASSISTANT_NEXT_DOMAINS`）。
-- 画布（第 9a 步，`features/assistant/canvas.ts`）：板子、改法翻译、落地结果借 v3 画布那一套。一步里的画布改动（`add_card` / `set_card` / `connect` / `disconnect` / `delete_card` / `move_to_shot` / `reorder_shot` / `project_script`，写卡用带 `card` 的 `prompt`）合成一批 `canvas_batch` 交给浏览器落；这一跳把「还没交回的工具结果」存进接力状态（`NextTurnState.pending`），停在 `canvas_sync`，下一跳按 `priorSteps` 里落没落与新快照补上结果（新卡 `ref → 句柄`）再接着跑。同一步里 edit 之后的别的工具不跑。`generate` 在画布上带 `cards`（`upscale: true` 是放大）；「交给 AI 出图」在画布上不限张（owner 10-23），一张确认卡最多 `maxCanvasGenerateCards` 张。`hand_off` 带 `card` 先照旧，9e 换成开台。
+- 画布（第 9a 步，`features/assistant/canvas.ts`）：板子、改法翻译、落地结果借 v3 画布那一套。一步里的画布改动（`add_card` / `set_card` / `connect` / `disconnect` / `delete_card` / `move_to_shot` / `reorder_shot` / `project_script`，写卡用带 `card` 的 `prompt`）合成一批 `canvas_batch` 交给浏览器落；这一跳把「还没交回的工具结果」存进接力状态（`NextTurnState.pending`），停在 `canvas_sync`，下一跳按 `priorSteps` 里落没落与新快照补上结果（新卡 `ref → 句柄`）再接着跑。同一步里 edit 之后的别的工具不跑。`generate` 在画布上带 `cards`（`upscale: true` 是放大）；「交给 AI 出图」在画布上不限张（owner 10-23），一张确认卡最多 `maxCanvasGenerateCards` 张。台间交接 9e 起换成 `open`（见下）。
 - 配音台（第 9b 步，`features/assistant/audio.ts`）：快照带 `audio`（档、三档模型、音色、说话人、怎么念、时长、高级参数），浏览器端 `src/lib/studio-operator-audio-snapshot.ts` + `use-studio-audio-operator-host.ts`。改法 `audio_kind` / `model` / `voice` / `speakers` / `reading` / `duration` / `option` 落成一步 `set_audio`（只带改的那几格，撤销给改前那几格）；文字照旧走 `prompt`。音色按名字认：音色库里的卡，或有声音的角色（用她绑的那张卡，owner 10-23「只用角色自己的声音」）；名单服务端现查，⛔ 模型不写音色 id。出声一律出确认卡，⛔ 不跟「交给 AI 出图」（owner 10-23）。对话存在 `VIDEO_STUDIO` 面下，首条消息记 `workspaceKey: 'audio'` 跟视频台分开（同图片台标签模式的做法，没加迁移）。
 - 每台能用哪些改法在 `bench.ts` 的 `OPS_BY_FACE`；不在单子上的改法直接退回并列出这台有的。角色页没有出图；助手自己拟的设定 / 挑的图照旧出提议卡（4b 起创作者明说要改的直接写）。
 - 「只改那一处」：`edit` 模式的提示词改动随步骤带 `edits`，浏览器在台上**现在的文字**上重换一遍（`src/lib/prompt-find-replace.ts`，两边同一份），对不上才整段覆盖。
@@ -105,6 +105,12 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 - 回复正文与过程行里的 `图_N` / `视频_N` 换缩略图（`use-picture-number-references.ts`）：按编号向 `/api/assistant/mentions/lookup` 的 `seqs` 查他自己的那张（一次最多 32 个，查过的记在模块里），查不到照原样留字。编号照旧只给模型用。
 - 只做功能、用现有组件拼；样式统一留到施工单后面的「UI 统一」（owner 10-23）。
 
+**第 9e 步：开台**（owner 10-23：直接开不先问；改到一半也不拦；画布默认最近那块，说「新的」才新建）：
+
+- 第六个工具 `open`（`features/assistant/open.ts`）：`bench` = image / tags / video / lora / canvas（`canvas: recent|new`）/ character（`character` 按名字或页上的句柄）。去哪由服务端认（最近那块画布 `listRecentNodeWorkflowProjectsForUser`，角色 `findOwnCharacter`），⛔ 不收模型写的 id；已经在那个台上就直说，不白跳。⚠ 没有配音台：助手的配音那一面在工作台的音频档上，`/studio/audio` 是配音间（没挂助手），开过去接不上，待 owner 定。
+- 一步里 `open` 最后跑（之后的调用回「没跑」）：存好这一步（`NextTurnState.pending.open`，结果待补）、交接力条，停在 `bench_open`（帧上带 `open` 目标）。浏览器记进 store 的 `benchOpen`、`router.push(assistantBenchPath)`；新台的面板轮询到「到了」（`assistantBenchReached`：画布要那块真打开，`?project=new` 由 `useCanvasOpenProjectV4` 建好后把项目号补回；角色页要打开那一位）就带着接力条接着发；30 秒没到作废，落一行 `benchOpenMissed`。到了那一跳，`open` 的结果 = 新台的板子，模型用那个台的 `edit` 接着摆（每项照样可撤），花钱照旧走确认卡 /「交给 AI 出图」。换台那一行就是 9d 的 `domainMark`。
+- 删掉三种交接卡：角色页「交给图片助手」（`imageHandoff`）、自然语言 ↔ 标签「换台」（`workbenchHandoff`）、工作台 ↔ 画布（`moveWork`）连同 `lib/bench-canvas-handoff.ts`、`use-bench-handoff-arrival-v4.ts`、宿主那几只手和旧工具 `hand_off_to_image_assistant` / `switch_workbench`。旧历史里的那几种系统行码留着，照旧画得出来。
+
 **过程记录**：照写 `AssistantTurnRecord`，`promptVersion = next-YYYY-MM-DD`；本轮记录投成 v3 形状（自带联网记成 `search_web`、`find` 记成 `search_library`），评测工具照用。
 
 ## 3. 没验证的（2026-10-23）
@@ -119,6 +125,7 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 
 ## Last Verified
 
+- 2026-10-23 · 第 9e 步（开台）：`tsc` 0 error、改动文件 eslint 0 error、相关 vitest 477 个文件全绿（内核开台停流 → 到了接着跑 / 没到如实说 / 同步之后不跑、`planOpen` 画布与角色、地址与到达判定、store 换页不收 idle、hook 换页与轮询接上 / 超时作废）。未在浏览器里实跑，未跑评测（等第 9 步全做完再统一跑）。
 - 2026-10-23 · 第 9d 步（对话跨台 + 缩略图）：`tsc` 0 error、改动相关 vitest 246 个文件全绿（换台同一段对话 + 落标记、列全部会话、起始台的戳不变、按编号查图）。未在浏览器里实跑，未跑评测（等第 9 步全做完再统一跑）。
 - 2026-10-23 · 第 9c 步（切换 + 删旧）：`tsc` 0 error、改动相关 vitest 全绿（路由六个台一律新内核、hook 接力与出完停下问一句）。删掉的覆盖：v2 / v3 主循环的用例、v3 回放基线。未在浏览器里实跑，未跑评测（等第 9 步全做完再统一跑）。
 

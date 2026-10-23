@@ -582,22 +582,6 @@
         "dismiss": "不用",
         "kept": "已挂上 {count} 张 · {time}"
       },
-      "imageHandoff": {
-        "header": "{name} · 交给图片助手",
-        "hint": "会跳到图片工作台、带上「{name}」，这句话填进图片助手的输入框，你来按发送。",
-        "accept": "交给图片助手",
-        "dismiss": "先不要",
-        "accepted": "已交给图片助手 · {time}"
-      },
-      "workbenchHandoff": {
-        "header": "换到{bench} · {model}",
-        "tags": "标签台",
-        "natural": "自然语言台",
-        "hint": "会选中这个模型、带上已填的提示词，跳到{bench}；上面这句填进那边助手的输入框，你来按发送。",
-        "accept": "带我过去",
-        "dismiss": "先不要",
-        "accepted": "已换到{bench} · {time}"
-      },
       "upscale": {
         "header": "放大到 4K · {count} 张",
         "hint": "用你自己的 fal Key 放大，不花积分；放大后的图会成为这张卡的新版本，原图还在版本条里。",
@@ -608,31 +592,6 @@
         "acceptedText": "放大{names}",
         "declinedText": "先不放大{names}",
         "question": "要把{names}放大到 4K 吗？"
-      },
-      "moveWork": {
-        "canvas": {
-          "header": "交到画布接着做",
-          "hint": "会把这台的提示词、模型、参考图和刚出的那张带到画布上，变成一张卡；上面这句填进画布助手的输入框，你来按发送。",
-          "accept": "交过去",
-          "dismiss": "先不要",
-          "accepted": "已交到画布 · {time}",
-          "acceptedText": "交到画布接着做",
-          "declinedText": "先不交到画布",
-          "question": "要把这件事交到画布上接着做吗？",
-          "pickLabel": "交到哪块画布",
-          "newProject": "新建画布",
-          "loading": "正在找最近的画布…"
-        },
-        "workbench": {
-          "header": "交到工作台接着做 · {names}",
-          "hint": "会把{names}的提示词、模型和参考图带到图片工作台；上面这句填进那边助手的输入框，你来按发送。",
-          "accept": "交过去",
-          "dismiss": "先不要",
-          "accepted": "已交到工作台 · {time}",
-          "acceptedText": "把{names}交到工作台接着做",
-          "declinedText": "先不把{names}交到工作台",
-          "question": "要把{names}交到工作台接着做吗？"
-        }
       }
     },
     "system": {
@@ -642,6 +601,7 @@
       "stopped": "你叫停了当前工作",
       "interrupted": "你插话了 —— 助手已转向",
       "streamInterrupted": "这一轮还没跑完，连接就断了。",
+      "benchOpenMissed": "没能打开那个台，这一轮先停在这里。",
       "revertRound": "你还原了这一轮的 {count} 处改动（助手已知晓）",
       "revertFailed": "有一处改动没能还原，剩余改动已保留，请重试。",
       "queuePicked": "停顿点到了 —— 接住你排的 {count} 句",

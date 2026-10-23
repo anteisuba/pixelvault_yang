@@ -80,6 +80,8 @@ import {
 import { ASSISTANT_V3_CLIP_LIMITS } from '@/constants/assistant-v3'
 import { CONTEXT_CARD_STATUS_IDS } from '@/constants/context-cards'
 import {
+  STUDIO_OPERATOR_BENCH_OPEN_POLL_MS,
+  STUDIO_OPERATOR_BENCH_OPEN_TIMEOUT_MS,
   STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
   STUDIO_OPERATOR_FIELD_IDS,
   STUDIO_OPERATOR_SKIPPED_REJECT_REASONS,
@@ -99,6 +101,7 @@ import {
   clearOperatorQueue,
   dropOperatorPending,
   settleOperatorStreaming,
+  setOperatorBenchOpen,
   setOperatorOutOfSteps,
   enqueueOperatorMessage,
   finalizeOperatorMessage,
@@ -125,7 +128,12 @@ import {
   upsertOperatorStep,
 } from '@/hooks/use-studio-operator-store'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
-import { assistantWorkspaceKey } from '@/lib/assistant-workspace'
+import {
+  assistantBenchPath,
+  assistantBenchReached,
+  assistantWorkspaceKey,
+} from '@/lib/assistant-workspace'
+import { useRouter } from '@/i18n/navigation'
 import { canvasCapabilityRuntime } from '@/lib/canvas-capability-runtime'
 import {
   describeMentionNote,
@@ -160,10 +168,6 @@ import {
   describeCharacterImagesProposalText,
   describeCharacterProfileDecisionText,
   describeCharacterProfileProposalText,
-  describeImageHandoffDecisionText,
-  describeImageHandoffProposalText,
-  describeWorkbenchHandoffDecisionText,
-  describeWorkbenchHandoffProposalText,
   describeContextCardDecisionText,
   describeContextCardProposalText,
   clampPlanAnswer,
@@ -189,6 +193,7 @@ import type { PromptAssistantResponseLanguage } from '@/types'
 import { AssistantLoraParametersSchema } from '@/types/assistant-operator'
 import type {
   AssistantLoraParameters,
+  AssistantOperatorBenchOpen,
   AssistantOperatorCharacterProfileFieldDraft,
   AssistantOperatorConfirmDecision,
   AssistantOperatorContextCardDraft,
@@ -712,6 +717,8 @@ interface RunOptions {
   videoClips?: AssistantOperatorRequest['videoClips']
   /** 回答底下「用 Grok 搜这一次」发出的那一轮（owner 2026-10-14）：只管这一跳。 */
   searchWithGrok?: boolean
+  /** 开台换过来的那一跳（第 9e 步）：占位行写「正在想」，⛔ 不写「正在画布上落地」。 */
+  benchArrival?: boolean
 }
 
 /** 创作者浏览器的时区（联网时 Claude / GPT 偏向当地结果）；取不到就不发。 */
@@ -839,24 +846,6 @@ export interface UseAssistantOperatorResult {
   keepCharacterImages(keys: readonly string[]): Promise<void>
   /** **候选图卡「不用」** —— 什么都不存，照样落一行账。 */
   dismissCharacterImages(): void
-  /** **「交给图片助手」**（C3）—— 跳到图片工作台、话填好，由用户按发送。 */
-  acceptImageHandoff(): void
-  /** **「先不要」** —— 什么都不做，落一行账。 */
-  dismissImageHandoff(): void
-  /**
-   * **「带我过去」**（换到另一台图片工作台）—— 选中那个型号、带走提示词、跳过去、
-   * 话填好，由用户按发送。
-   */
-  acceptWorkbenchHandoff(): void
-  /** **「先不要」** —— 什么都不动，落一行账。 */
-  dismissWorkbenchHandoff(): void
-  /**
-   * **「交过去」**（P6 台间交接）—— 工作台 → 画布带着卡上选的项目（`new` = 新建一块）；
-   * 画布 → 工作台不带参数。
-   */
-  acceptMoveWork(projectId?: string): void
-  /** **「先不要」** —— 什么都不动，落一行账。 */
-  dismissMoveWork(): void
   /** **「放大」**（画布，P6）—— 那几张卡各自放大成新版本。 */
   acceptUpscale(): void
   /** **「先不要」** —— 什么都不放大，落一行账。 */
@@ -897,6 +886,7 @@ export function useAssistantOperator(
    */
   const host = useStudioOperatorHost()
   const { domain, buildSnapshot, setOpen } = host
+  const router = useRouter()
   const { localThreadId } = useStudioOperatorState()
   const workspaceKey = assistantWorkspaceKey(host.workspace, host.projectId)
   const isCurrentThread = useCallback(() => {
@@ -1091,7 +1081,7 @@ export function useAssistantOperator(
        */
       appendOperatorPending(
         messageEntryId(),
-        options.runKey ? 'landing' : undefined,
+        options.runKey && !options.benchArrival ? 'landing' : undefined,
       )
       /**
        * ⭐ **⏹ / 插话掐掉这一轮时，占位行当场收掉**（2026-10-17 真机：按了 ⏹，
@@ -1137,6 +1127,8 @@ export function useAssistantOperator(
         })
       let runFailed = false
       let canvasSync = false
+      /** 开台（第 9e 步）：这一跳停在 `bench_open`，要去的那个台。 */
+      let benchOpenTarget: AssistantOperatorBenchOpen | null = null
       let canvasApplied = false
       let canvasNeedsInputSync = false
       let canvasSteps = options.canvasSteps ?? 0
@@ -1590,9 +1582,8 @@ export function useAssistantOperator(
                 break
               }
               /**
-               * **卡片助手提议几张角色图 / 交给图片助手**（C3）—— 同上：服务端一张都
-               * 没存、什么都没发；挂上（`keepCharacterImages`）与跳转
-               * （`acceptImageHandoff`）都等用户点下去。
+               * **卡片助手提议几张角色图**（C3）—— 同上：服务端一张都没存；
+               * 挂上（`keepCharacterImages`）等用户点下去。
                */
               if (
                 event.confirm.kind ===
@@ -1609,37 +1600,6 @@ export function useAssistantOperator(
                 setOperatorStatus('awaitingConfirm')
                 break
               }
-              if (
-                event.confirm.kind ===
-                ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.imageHandoff
-              ) {
-                flushPlanEntry()
-                setOpen(true)
-                setOperatorConfirm({
-                  id: nextOperatorEntryId('confirm'),
-                  kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.imageHandoff,
-                  handoff: event.confirm.handoff,
-                  status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
-                })
-                setOperatorStatus('awaitingConfirm')
-                break
-              }
-              /** **换到另一台图片工作台** —— 同上：什么都没动，跳转等用户点下去。 */
-              if (
-                event.confirm.kind ===
-                ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.workbenchHandoff
-              ) {
-                flushPlanEntry()
-                setOpen(true)
-                setOperatorConfirm({
-                  id: nextOperatorEntryId('confirm'),
-                  kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.workbenchHandoff,
-                  handoff: event.confirm.handoff,
-                  status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
-                })
-                setOperatorStatus('awaitingConfirm')
-                break
-              }
               /** **画布放大**（P6）—— 同上：什么都没调，放大等用户点下去（或自动生成开着时替你按）。 */
               if (
                 event.confirm.kind ===
@@ -1650,22 +1610,6 @@ export function useAssistantOperator(
                 setOperatorConfirm({
                   id: nextOperatorEntryId('confirm'),
                   kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.upscale,
-                  request: event.confirm.request,
-                  status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
-                })
-                setOperatorStatus('awaitingConfirm')
-                break
-              }
-              /** **交到另一台接着做**（P6）—— 同上：什么都没带走，等用户点下去（工作台 → 画布时先选项目）。 */
-              if (
-                event.confirm.kind ===
-                ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.moveWork
-              ) {
-                flushPlanEntry()
-                setOpen(true)
-                setOperatorConfirm({
-                  id: nextOperatorEntryId('confirm'),
-                  kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.moveWork,
                   request: event.confirm.request,
                   status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
                 })
@@ -1996,6 +1940,13 @@ export function useAssistantOperator(
             case ASSISTANT_OPERATOR_EVENTS.stopped: {
               terminalReceived = true
               if (
+                event.reason === ASSISTANT_OPERATOR_STOP_REASONS.benchOpen &&
+                event.open
+              ) {
+                benchOpenTarget = event.open
+                break
+              }
+              if (
                 domain === 'canvas' &&
                 event.reason === ASSISTANT_OPERATOR_STOP_REASONS.canvasSync
               ) {
@@ -2107,6 +2058,21 @@ export function useAssistantOperator(
         setOperatorStatus('error', tError('streamInterrupted'))
         return
       }
+      /**
+       * ⭐ 开台（第 9e 步）：记下这一跳交给新台，换页。新页那一份面板等台准备好，带着接力条接着发；
+       * 状态一直是「在干活」。⚠ 没收到接力条就开不了（服务端存不下时已经在结果里说了）。
+       */
+      if (benchOpenTarget && v3Transcript) {
+        setOperatorBenchOpen({
+          target: benchOpenTarget,
+          transcript: v3Transcript,
+          runKey,
+          steps: canvasSteps,
+          at: Date.now(),
+        })
+        router.push(assistantBenchPath(benchOpenTarget))
+        return
+      }
       if (canvasSync) {
         // 新内核不设接力上限：停只有创作者按停（owner 2026-10-22）。
         const resume = getOperatorState().resume
@@ -2210,6 +2176,7 @@ export function useAssistantOperator(
       domain,
       flushQueue,
       locale,
+      router,
       tError,
       isCurrentThread,
       workspaceKey,
@@ -2226,6 +2193,61 @@ export function useAssistantOperator(
       runRef.current = null
     }
   }, [run])
+
+  /**
+   * ⭐ **开台的另一头**（第 9e 步）：助手在别的页开了这个台，这一份面板等台准备好（工作区对上；画布
+   * 那块真打开了；角色页打开了要的那一位）就带着接力条接着发，并把面板打开。
+   * ⚠ 换页、读画布、拉角色都要一会儿，宿主的值不一定触发重渲染 —— 轮询着看，⛔ 只靠依赖表。
+   * ⚠ 等过 `STUDIO_OPERATOR_BENCH_OPEN_TIMEOUT_MS` 还没到就作废，落一行说没接上（⛔ 在别的台上接着跑）。
+   */
+  const hostRef = useRef(host)
+  useEffect(() => {
+    hostRef.current = host
+  }, [host])
+  const { benchOpen } = useStudioOperatorState()
+  useEffect(() => {
+    if (!benchOpen) return
+    const arrive = (): boolean => {
+      if (getOperatorState().benchOpen !== benchOpen || !isCurrentThread())
+        return true
+      const here = hostRef.current
+      const reached =
+        assistantBenchReached(
+          benchOpen.target,
+          here.workspace,
+          here.projectId,
+        ) &&
+        (!benchOpen.target.characterId ||
+          here.buildSnapshot().cards?.open?.id === benchOpen.target.characterId)
+      if (reached && runRef.current) {
+        setOperatorBenchOpen(null)
+        here.setOpen(true)
+        runRef.current({
+          runKey: benchOpen.runKey,
+          canvasSteps: benchOpen.steps,
+          planApproved: true,
+          v3Transcript: benchOpen.transcript,
+          benchArrival: true,
+        })
+        return true
+      }
+      if (Date.now() - benchOpen.at < STUDIO_OPERATOR_BENCH_OPEN_TIMEOUT_MS)
+        return false
+      setOperatorBenchOpen(null)
+      setOperatorStatus('idle')
+      appendOperatorEntry({
+        kind: 'system',
+        id: nextOperatorEntryId('sys'),
+        code: 'benchOpenMissed',
+      })
+      return true
+    }
+    if (arrive()) return
+    const timer = window.setInterval(() => {
+      if (arrive()) window.clearInterval(timer)
+    }, STUDIO_OPERATOR_BENCH_OPEN_POLL_MS)
+    return () => window.clearInterval(timer)
+  }, [benchOpen, isCurrentThread])
 
   const send = useCallback(
     (
@@ -3454,110 +3476,6 @@ export function useAssistantOperator(
     })
   }, [characterImagesDecision, isCurrentThread])
 
-  /** 交给图片助手那一下（C3）：两颗键都落账，模型下一轮知道用户怎么定的。 */
-  const decideImageHandoff = useCallback(
-    (accepted: boolean) => {
-      if (!isCurrentThread()) return
-      const confirm = getOperatorState().confirm
-      if (
-        !confirm ||
-        confirm.kind !== ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.imageHandoff ||
-        confirm.status !== STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle
-      ) {
-        return
-      }
-      const { characterId, request } = confirm.handoff
-      const name = characterName(characterId)
-      const label = describeImageHandoffDecisionText(name, accepted)
-      resolveOperatorConfirm(
-        accepted
-          ? STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed
-          : STUDIO_OPERATOR_CONFIRM_STATUS_IDS.cancelled,
-      )
-      setOperatorStatus('idle')
-      appendOperatorEntry({
-        kind: 'system',
-        id: nextOperatorEntryId('sys'),
-        code: accepted ? 'imageHandoffAccepted' : 'imageHandoffDeclined',
-        subject: name,
-        userText: label,
-        answered: {
-          questionId: `imageHandoff:${characterId}`,
-          optionIds: [accepted ? 'accept' : 'decline'],
-          question: describeImageHandoffProposalText(name, request),
-          optionLabels: [label],
-        },
-      })
-      // ⚠ 落完账再跳：跳走之后这一页的助手就卸了。
-      if (accepted)
-        applyContext.cards?.handOffToImageAssistant(characterId, request)
-    },
-    [applyContext, characterName, isCurrentThread],
-  )
-  const acceptImageHandoff = useCallback(
-    () => decideImageHandoff(true),
-    [decideImageHandoff],
-  )
-  const dismissImageHandoff = useCallback(
-    () => decideImageHandoff(false),
-    [decideImageHandoff],
-  )
-
-  /** 换到另一台图片工作台那一下：两颗键都落账，模型下一轮知道用户怎么定的。 */
-  const decideWorkbenchHandoff = useCallback(
-    (accepted: boolean) => {
-      if (!isCurrentThread()) return
-      const confirm = getOperatorState().confirm
-      if (
-        !confirm ||
-        confirm.kind !== ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.workbenchHandoff ||
-        confirm.status !== STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle
-      ) {
-        return
-      }
-      const { handoff } = confirm
-      if (accepted && !applyContext.switchImageWorkbench?.(handoff)) return
-      const label = describeWorkbenchHandoffDecisionText(
-        handoff.label,
-        handoff.workspace,
-        accepted,
-      )
-      resolveOperatorConfirm(
-        accepted
-          ? STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed
-          : STUDIO_OPERATOR_CONFIRM_STATUS_IDS.cancelled,
-      )
-      setOperatorStatus('idle')
-      appendOperatorEntry({
-        kind: 'system',
-        id: nextOperatorEntryId('sys'),
-        code: accepted
-          ? 'workbenchHandoffAccepted'
-          : 'workbenchHandoffDeclined',
-        subject: handoff.label,
-        userText: label,
-        answered: {
-          questionId: `workbenchHandoff:${handoff.modelId}`,
-          optionIds: [accepted ? 'accept' : 'decline'],
-          question: describeWorkbenchHandoffProposalText(
-            handoff.label,
-            handoff.workspace,
-          ),
-          optionLabels: [label],
-        },
-      })
-    },
-    [applyContext, isCurrentThread],
-  )
-  const acceptWorkbenchHandoff = useCallback(
-    () => decideWorkbenchHandoff(true),
-    [decideWorkbenchHandoff],
-  )
-  const dismissWorkbenchHandoff = useCallback(
-    () => decideWorkbenchHandoff(false),
-    [decideWorkbenchHandoff],
-  )
-
   /**
    * **画布放大**（P6）：两颗键都落账（模型下一轮知道用户怎么定的）。按下去由画布那只手一张
    * 一张放大，结果是各自那张卡的新版本。
@@ -3636,87 +3554,6 @@ export function useAssistantOperator(
       }
     },
     [applyContext, isCurrentThread, tConfirm, tError],
-  )
-  /**
-   * **交到另一台接着做**（P6 台间交接）。⭐ 点了才走：带走的东西按这一刻的台面现取（宿主那只手），
-   * 下一句话填进那边助手的输入框，⛔ 不替用户发、不花钱。工作台 → 画布带着卡上选的项目。
-   * ⚠ 那边交不了（宿主没有那只手 / 卡不在了）就什么都不改，卡留着等下一次。
-   */
-  const decideMoveWork = useCallback(
-    (accepted: boolean, projectId?: string) => {
-      if (!isCurrentThread()) return
-      const confirm = getOperatorState().confirm
-      if (
-        !confirm ||
-        confirm.kind !== ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.moveWork ||
-        confirm.status !== STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle
-      ) {
-        return
-      }
-      const { request } = confirm
-      const toCanvas = request.to === 'canvas'
-      const subject = toCanvas ? '' : `「${request.node?.name ?? ''}」`
-      let dropped = 0
-      if (accepted) {
-        const moved = toCanvas
-          ? projectId
-            ? applyContext.moveToCanvas?.({
-                projectId,
-                ...(request.next ? { next: request.next } : {}),
-              })
-            : null
-          : request.node
-            ? applyContext.canvas?.moveToWorkbench?.(
-                request.node.id,
-                request.next,
-              )
-            : null
-        if (!moved) return
-        dropped = moved.droppedReferences
-      }
-      const label = tConfirm(
-        `moveWork.${toCanvas ? 'canvas' : 'workbench'}.${accepted ? 'acceptedText' : 'declinedText'}`,
-        { names: subject },
-      )
-      resolveOperatorConfirm(
-        accepted
-          ? STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed
-          : STUDIO_OPERATOR_CONFIRM_STATUS_IDS.cancelled,
-      )
-      setOperatorStatus('idle')
-      appendOperatorEntry({
-        kind: 'system',
-        id: nextOperatorEntryId('sys'),
-        code: accepted ? 'moveWorkAccepted' : 'moveWorkDeclined',
-        subject: label,
-        userText: label,
-        answered: {
-          questionId: `moveWork:${request.to}:${request.node?.id ?? ''}`,
-          optionIds: [accepted ? 'accept' : 'decline'],
-          question: tConfirm(
-            `moveWork.${toCanvas ? 'canvas' : 'workbench'}.question`,
-            { names: subject },
-          ),
-          optionLabels: [label],
-        },
-      })
-      if (dropped > 0)
-        appendOperatorEntry({
-          kind: 'system',
-          id: nextOperatorEntryId('sys'),
-          code: 'moveWorkDroppedReferences',
-          subject: String(dropped),
-        })
-    },
-    [applyContext, isCurrentThread, tConfirm],
-  )
-  const acceptMoveWork = useCallback(
-    (projectId?: string) => decideMoveWork(true, projectId),
-    [decideMoveWork],
-  )
-  const dismissMoveWork = useCallback(
-    () => decideMoveWork(false),
-    [decideMoveWork],
   )
   const acceptUpscale = useCallback(() => decideUpscale(true), [decideUpscale])
   const dismissUpscale = useCallback(
@@ -4101,12 +3938,6 @@ export function useAssistantOperator(
     dismissCharacterProfile,
     keepCharacterImages,
     dismissCharacterImages,
-    acceptImageHandoff,
-    dismissImageHandoff,
-    acceptWorkbenchHandoff,
-    dismissWorkbenchHandoff,
-    acceptMoveWork,
-    dismissMoveWork,
     acceptUpscale,
     dismissUpscale,
     applyLoraSetup,

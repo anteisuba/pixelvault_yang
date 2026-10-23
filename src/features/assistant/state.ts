@@ -12,6 +12,7 @@ import type {
   AssistantV3Transcript,
 } from '@/types/assistant-v3'
 import type { CanvasBatch } from '@/features/assistant/canvas'
+import type { BenchOpening } from '@/features/assistant/open'
 
 /**
  * 一轮跑到一半的样子（服务端存，接力时按轮号取回）。
@@ -47,12 +48,20 @@ export interface NextTurnState {
   /**
    * 画布（第 9a 步）：停在 `canvas_sync` 时那一步还没交回的工具结果。`results` 是当场就有结果的
    * 那几次调用，`canvas` 是交给浏览器落的那几次 edit（下一跳按落没落补上），`looked` 是那一步看过的图。
+   * 开台（第 9e 步）：停在 `bench_open` 时 `open` 是那次调用，下一跳在新台上补上它的结果（新台的板子）。
    */
   readonly pending?: {
     readonly results: ToolResultPart[]
     readonly looked: AssistantV3PictureRef[]
     readonly canvas: readonly PendingCanvasEdit[]
+    readonly open?: PendingOpen
   }
+}
+
+export interface PendingOpen {
+  readonly toolCallId: string
+  readonly toolName: string
+  readonly opening: BenchOpening
 }
 
 export interface PendingCanvasEdit {

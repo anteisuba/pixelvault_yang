@@ -69,10 +69,12 @@ import type {
   StudioOperatorThreadEntry,
 } from '@/types/studio-assistant-operator'
 import type {
+  AssistantOperatorBenchOpen,
   AssistantOperatorMissingKey,
   AssistantOperatorRoundSummary,
   AssistantOperatorStep,
 } from '@/types/assistant-operator'
+import type { AssistantV3Transcript } from '@/types/assistant-v3'
 import type { AssistantSurfaceId } from '@/types/assistant-conversation'
 import type {
   StudioOperatorHistoryEntry,
@@ -300,6 +302,24 @@ export interface StudioOperatorState {
    * 条目（`done` 帧到达即落位）。⛔ 别两边都写 —— 那会让同一轮的结论出现两次。
    */
   historyRounds: readonly AssistantOperatorRoundSummary[]
+  /**
+   * **助手开了别的台，这一轮在那边接着跑**（第 9e 步）。
+   *
+   * ⭐ 面板每页各挂一份：换页时这一页的 hook 卸了，接力只能靠线程上这一格交给新页那一份 ——
+   *   新台的宿主准备好（工作区对上）就带着接力条接着发，然后清掉。
+   * ⚠ 等太久（换页失败、创作者又去了别处）就作废，⛔ 不在一个不相干的台上接着跑。
+   */
+  benchOpen: StudioOperatorBenchOpen | null
+}
+
+export interface StudioOperatorBenchOpen {
+  target: AssistantOperatorBenchOpen
+  transcript: AssistantV3Transcript
+  runKey: string
+  /** 这一轮已经走了几步（接着编号，见 `RunOptions.canvasSteps`）。 */
+  steps: number
+  /** 发出的时间（毫秒）：过了 `STUDIO_OPERATOR_BENCH_OPEN_TIMEOUT_MS` 就作废。 */
+  at: number
 }
 
 const EMPTY_WORKBENCH_FIELDS: StudioOperatorWorkbenchFields = {
@@ -349,6 +369,7 @@ const INITIAL_STATE: StudioOperatorState = {
   reviewStates: {},
   resume: null,
   historyRounds: EMPTY_ROUNDS,
+  benchOpen: null,
 }
 
 const threads = new Map<string, StudioOperatorState>()
@@ -505,11 +526,10 @@ export function subscribeOperatorChat(listener: () => void): () => void {
 }
 
 /**
- * **别的页面递过来的一句话**（卡片助手 C3「交给图片助手」）：跳到目标工作台后，那一页的
- * 助手把它填进输入框并打开面板，由用户按发送。
+ * **别处递过来的一句话**（画布角色卡「写剧本 / 写台词」）：那个台的助手把它填进输入框并
+ * 打开面板，由用户按发送。
  *
- * ⚠ 带着**要给哪个域**：发出这句话的那一页（角色页）自己也挂着一个 Dock，⛔ 不能让它
- *   在跳走之前把话先吞了。只留一句：连点两次，意思是「就这句」。
+ * ⚠ 带着**要给哪个域**：⛔ 别的台挂着的 Dock 不能把话先吞了。只留一句：连点两次，意思是「就这句」。
  */
 let pendingDraft: {
   /** 哪个账号的线程（作用域 `:` 之前那一段）。 */
@@ -1337,7 +1357,8 @@ export function claimOperatorThreadScope(
     entries: withDomainMark(next, domain),
     domain,
     threadScope: scope,
-    status: next.status === 'working' ? 'idle' : next.status,
+    // 开台途中换过来的（第 9e 步）：这一轮还在跑，⛔ 不收成 idle。
+    status: next.status === 'working' && !next.benchOpen ? 'idle' : next.status,
     capturingFrames: false,
   })
   if (!cached) hydrateOperatorResume()
@@ -1459,6 +1480,28 @@ export function dropOperatorPendingResult(id: string): void {
  * 「删」与「全部清空」干的事），它只管从现在起这段对话不再记。
  */
 /** 步数用完那一轮的标记（D12 S12）。 */
+/** 开台（第 9e 步）：记下要在新台上接着跑的那一跳；`null` = 接上了 / 作废了。 */
+export function setOperatorBenchOpen(
+  benchOpen: StudioOperatorBenchOpen | null,
+): void {
+  if (state.benchOpen === benchOpen) return
+  emit({ ...state, benchOpen })
+}
+
+/**
+ * 画布按 `?project=<id|new>` 打开了哪一块（第 9e 步）：把真正的项目号补回开台那一格 ——
+ * 新建的那块这时才有号，要的那块已经没了时落在眼前这块。
+ */
+export function settleOperatorBenchOpenProject(projectId: string): void {
+  const open = state.benchOpen
+  if (!open || open.target.workspace !== 'canvas') return
+  if (open.target.projectId === projectId) return
+  emit({
+    ...state,
+    benchOpen: { ...open, target: { ...open.target, projectId } },
+  })
+}
+
 export function setOperatorOutOfSteps(outOfSteps: boolean): void {
   if (state.outOfSteps === outOfSteps) return
   emit({ ...state, outOfSteps })

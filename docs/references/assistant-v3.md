@@ -60,8 +60,8 @@ v3 修后同模型重跑（本地 dev + 同一个库，结果列在 §3 最后�
   - edit：`set_specs`（时长 / 画幅 / 清晰度各自独立）· `mount_reference`（slot `first` / `last` / 参考）· `unmount_reference`（`ref-N` / `first` / `last`）· `mount_audio` · `set_sound` · 与图片台同形的 `set_model` / `set_option` / `import_url`。
   - ⭐ 清晰度是花钱的那一格：创作者话里没提清晰度（1080p、清晰度、分辨率…）就不改 —— 写在代码里，提示词管不住（回放 V1 两次自选 1080p）。
   - 系统提示沿用旧内核的视频规矩：按时间写动作与运镜、台词按时长（约 2.5 词 / 秒）、首尾帧是具名槽、原声只在创作者要时动、声音参考搜一两次没有就直说。怎么看片不在视频规矩里，在五张脸共用的 `WATCHING CLIPS` 一段（见下「看片」）。
-- **角色页**（`assistant-v3-cards.service.ts` · `lib/assistant-v3-cards-board.ts`）：不改任何东西 —— 没有 write / generate，三种 edit 都是提议，出卡、停下等创作者勾（服务端不写库）。板子：角色名册用句柄（`char-b27ce8`，同名角色不止一位）、打开那位的五格设定与标签，卡上的图跟着板子给模型看（`card-1` …）。
-  - edit：`propose_profile`（逐格带出处）· `propose_images`（本轮检索到的资产 id，或找到的图的号 `#3` —— 这一轮或上一轮的，服务端换回地址；⛔ 模型不写地址）· `hand_off`（交给图片助手；那句话里的句柄服务端换回角色名）。一条回复只走第一份提议。
+- **角色页**（`assistant-v3-cards.service.ts` · `lib/assistant-v3-cards-board.ts`）：不改任何东西 —— 没有 write / generate，两种 edit 都是提议，出卡、停下等创作者勾（服务端不写库）。板子：角色名册用句柄（`char-b27ce8`，同名角色不止一位）、打开那位的五格设定与标签，卡上的图跟着板子给模型看（`card-1` …）。
+  - edit：`propose_profile`（逐格带出处）· `propose_images`（本轮检索到的资产 id，或找到的图的号 `#3` —— 这一轮或上一轮的，服务端换回地址；⛔ 模型不写地址）。交给图片助手的 `hand_off` 第 9e 步删了，换成新内核的 `open`。一条回复只走第一份提议。
   - read：设定某一格全文，或一个网址（读 wiki 角色页 / 故事页 / 语音页）；look `card` / `card-N`：创作者问图与设定对不对时，指给模型看卡上的图（前 6 张已跟着板子附上，再往后的才附），由它自己对 —— 只比身份（发色、瞳色、肤色、年龄、体型、种族、伤疤犄角），衣服、姿势、表情、背景、画风不算。⛔ 不再另起 `check_character_look`（v2 照旧）。
   - search_library `kind: "web_images"`（联网找图，owner 2026-10-15「一种看法」）：搜完把候选的缩略图当一次 look 交给**主模型**（`searchWebImagesAndLook`），按找到的东西的号（`#n`，与卡片上、模型读的那一行同一个号；过程行「候选 #n」），由它对照卡上的图与设定自己判断哪几张是这位。走 look 的硬规矩：只附给紧跟着的那一步、一次最多 6 张（多出来的点名）、一张下不来只点名那一张；标了 view only 的挂不上卡，⛔ 不占看图名额。所选模型看不了图：结果里明说「没人看过这些候选、只凭标题」，由模型照实告诉创作者。⛔ 不另起看缩略图的子调用（v2 的 `inspectWebImageCandidates` 跑在视觉顺位挑中的那一家，会悄悄借别家的 key）、⛔ 没有藏起来的判定去筛 `propose_images`：v3 设 `run.mainModelLooks`，旧执行器的搜图那一步只搜、只列，不写判词、不按判词丢图。
   - search_library `kind: "web_videos"`：与别的脸同一条（只搜、只列，⛔ 不走 look —— 视频没有能交给模型看的那一帧）。

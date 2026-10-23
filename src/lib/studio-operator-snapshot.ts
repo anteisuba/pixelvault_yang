@@ -250,8 +250,8 @@ export interface ImageOperatorSnapshotInput {
   runModels: readonly StudioModelOption[]
   references: StudioOperatorSnapshotReferences
   /**
-   * 另一台图片工作台（自然语言台 ↔ 标签台）上的模型 —— 助手换不到它们，只能摆
-   * 「换到那一台」的卡（`switch_workbench`）。缺席 = 没有对面那一台。
+   * 另一台图片工作台（自然语言台 ↔ 标签台）上的模型 —— 助手在这台换不到它们，要用就开那一台
+   * （第 9e 步「开台」）。缺席 = 没有对面那一台。
    */
   otherModelOptions?: readonly StudioModelOption[]
 }

@@ -884,7 +884,7 @@ export function StudioOperatorDock() {
   }, [handleUploaded, setOpen])
 
   /**
-   * 别的页面递过来的一句话（卡片助手 C3「交给图片助手」）：填进输入框、打开面板，
+   * 别处递过来的一句话（画布角色卡「写剧本 / 写台词」）：填进输入框、打开面板，
    * ⛔ 不替用户发。只认发给**这个域**的那一句。
    */
   useEffect(() => {

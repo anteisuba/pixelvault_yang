@@ -74,14 +74,7 @@ vi.mock('@/components/ui/responsive-popover', async () => {
 type ConfirmCardPrompt = Exclude<
   StudioOperatorConfirmPrompt,
   {
-    kind:
-      | 'loraSetup'
-      | 'characterProfile'
-      | 'characterImages'
-      | 'imageHandoff'
-      | 'workbenchHandoff'
-      | 'upscale'
-      | 'moveWork'
+    kind: 'loraSetup' | 'characterProfile' | 'characterImages' | 'upscale'
   }
 >
 

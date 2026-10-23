@@ -74,24 +74,6 @@ function characterIdOf(
   }
 }
 
-/**
- * 交给图片助手的那句话里把句柄换回角色名 —— 图片助手那边没有这份名册
- * （2026-10-10 回放 C5：「基于高尔（char-bc26e0）现有正面立绘…」）。
- */
-function withNames(context: V3Context, text: string): string {
-  const prefix = ASSISTANT_V3_CARDS_ITEM_IDS.characterPrefix
-  return text
-    .replace(new RegExp(`[（(]\\s*${prefix}-[0-9a-z]+\\s*[）)]`, 'gi'), '')
-    .replace(new RegExp(`\\b${prefix}-[0-9a-z]+\\b`, 'gi'), (handle) => {
-      const id = context.handles.idOf(handle)
-      return (
-        context.request.snapshot.cards?.characters.find(
-          (entry) => entry.id === id,
-        )?.name ?? handle
-      )
-    })
-}
-
 async function* runProposal(
   context: V3Context,
   op: AssistantV3CardsEditOpInput,
@@ -165,21 +147,6 @@ async function* runProposal(
       return yield* runOldTool(context, TOOL.proposeCharacterImages, title, {
         characterId: character.id,
         images,
-      })
-    }
-    case ASSISTANT_V3_CARDS_EDIT_OP_IDS.handOff: {
-      const title = `${text.handOff}「${character.ok ? character.name : op.character}」`
-      if (!character.ok)
-        return yield* refused(
-          context,
-          TOOL.handOffToImageAssistant,
-          title,
-          character.error,
-        )
-      yield* sayAboveCard(context, op.say)
-      return yield* runOldTool(context, TOOL.handOffToImageAssistant, title, {
-        characterId: character.id,
-        request: withNames(context, op.request),
       })
     }
   }

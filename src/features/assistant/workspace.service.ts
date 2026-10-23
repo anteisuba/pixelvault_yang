@@ -27,6 +27,7 @@ import {
   ASSISTANT_NEXT_HANDLE_PREFIXES as PREFIX,
   type AssistantNextFindKind,
 } from '@/features/assistant/constants'
+import { renderSkill } from '@/features/assistant/skills'
 
 /**
  * 工作区编号与「查 / 看」（第 3 步，方案 /mnt/project-files/assistant-reliability/step3-plan.md）。
@@ -44,6 +45,7 @@ export type WorkspaceHandle =
   | { kind: 'lora'; name: string }
   | { kind: 'prompt'; name: string }
   | { kind: 'conversation'; id: string }
+  | { kind: 'skill'; name: string }
   | { kind: 'settings' }
 
 export interface WorkspaceOwner {
@@ -114,6 +116,8 @@ export function parseWorkspaceHandle(raw: string): WorkspaceHandle | null {
       kind: 'conversation',
       id: conversation.split(/\s/)[0]!.toLowerCase(),
     }
+  const skill = after(PREFIX.skill)
+  if (skill) return { kind: 'skill', name: skill }
   if (text === PREFIX.settings || text.toLowerCase() === 'settings')
     return { kind: 'settings' }
   return null
@@ -811,6 +815,8 @@ export async function openWorkspaceHandle(
             pictures: [],
           }
         : readConversation(owner.userId, handle.id)
+    case 'skill':
+      return { text: renderSkill(handle.name), pictures: [] }
     case 'settings':
       return readSettings(owner)
   }

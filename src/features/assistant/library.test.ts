@@ -241,6 +241,35 @@ describe('记忆（第 6 步）', () => {
     )
   })
 
+  it('和角色聊天时没给角色：记进正在聊的那位', async () => {
+    calls.rememberMemory.mockResolvedValue(written)
+    const chatting = {
+      ...context,
+      prepared: {
+        ...context.prepared,
+        persona: {
+          memoryCapture: true,
+          name: null,
+          characterCardId: 'card-7',
+          promptCharacter: {
+            name: '马尔福',
+            identity: '',
+            behavior: '',
+            speech: '',
+            catchphrases: [],
+            backstory: '',
+          },
+          roleplay: { scenario: '', opening: '', examples: [] },
+        },
+      },
+    } as unknown as V3Context
+    await run({ op: 'remember', text: '约好下周去霍格莫德' }, chatting)
+    expect(calls.rememberMemory.mock.calls[0]![1].target).toEqual({
+      characterCardId: 'card-7',
+      label: '马尔福',
+    })
+  })
+
   it('给了角色：记进她自己那份；认不出的角色不退成「关于你」', async () => {
     calls.rememberMemory.mockResolvedValue(written)
     calls.findOwnCharacter.mockImplementation(async (_user, name: string) =>

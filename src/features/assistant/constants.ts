@@ -145,7 +145,7 @@ export const ASSISTANT_NEXT_LORA_PARAM_KEYS: Readonly<Record<string, string>> =
   }
 
 /** 过程记录里标「这一轮是新内核跑的」（`AssistantTurnRecord.promptVersion`）。改系统提示时一起换。 */
-export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-10-23f'
+export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-10-23g'
 
 export const ASSISTANT_NEXT_LIMITS = {
   /**
@@ -204,6 +204,8 @@ export const ASSISTANT_NEXT_HANDLE_PREFIXES = {
   prompt: '提示词·',
   conversation: '对话·',
   memory: '记忆·',
+  /** 内置技能（第 7a 步）：`look 技能·名字` 读全文。 */
+  skill: '技能·',
   settings: '设置',
 } as const
 

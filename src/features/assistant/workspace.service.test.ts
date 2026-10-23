@@ -92,6 +92,7 @@ describe('编号认法', () => {
     ['LoRA·malfoid', { kind: 'lora', name: 'malfoid' }],
     ['提示词·白底立绘', { kind: 'prompt', name: '白底立绘' }],
     ['对话·3F2a91bc', { kind: 'conversation', id: '3f2a91bc' }],
+    ['技能·参考图分工', { kind: 'skill', name: '参考图分工' }],
     ['设置', { kind: 'settings' }],
   ])('%s', (raw, expected) => {
     expect(parseWorkspaceHandle(raw)).toEqual(expected)
@@ -156,6 +157,21 @@ describe('按编号打开', () => {
     const select = keys.mock.calls[0]![0].select
     expect(select).not.toHaveProperty('encryptedKey')
     expect(select).not.toHaveProperty('maskedKey')
+  })
+
+  it('技能按名字打开全文；没有这份就列出有哪些', async () => {
+    const opened = await openWorkspaceHandle(
+      owner,
+      parseWorkspaceHandle('技能·标签模型写提示词')!,
+    )
+    expect(opened?.text).toMatch(/^SKILL 技能·标签模型写提示词/)
+    expect(opened?.text).toContain('weight::tags::')
+    const missing = await openWorkspaceHandle(owner, {
+      kind: 'skill',
+      name: '不存在',
+    })
+    expect(missing?.text).toContain('no such skill')
+    expect(missing?.text).toContain('技能·参考图分工')
   })
 
   it('隐身时不打开以前的对话', async () => {

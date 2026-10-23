@@ -309,6 +309,12 @@ Names and ids:
 - Treat these as already agreed: build on them without asking again or reciting them back. What the creator says now wins over them.`)
     expect(renderAssistantV3HistorySummary(summary('abc', 8))).toBe('')
     expect(renderAssistantV3HistorySummary(null)).toBe('')
+    // 和角色聊天：同一副四栏，按故事的标题摆。
+    const story = renderAssistantV3HistorySummary(one, 'story')
+    expect(story).toContain('these notes are the story so far.')
+    expect(story).toContain('What happened:\n  - whole film in 16:9')
+    expect(story).toContain('People and things in the story:')
+    expect(story).not.toContain('Decided:')
   })
 
   it('收拾模型回的：去空、去重、压空白、截字、限条数', () => {

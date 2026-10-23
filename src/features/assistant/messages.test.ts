@@ -9,6 +9,7 @@ import {
   openingUserMessage,
   stripForFallback,
 } from './messages'
+import { renderSkill } from './skills'
 
 const bytes = (url: string) => ({
   data: new Uint8Array(Buffer.from(url)),
@@ -163,5 +164,21 @@ describe('清旧工具结果（第 6 步）', () => {
     expect(cleared[1]).toBe('short')
     expect(cleared[2]).toBe('y'.repeat(400))
     expect(cleared[3]).toBe('z'.repeat(400))
+  })
+
+  it('清掉的那一步里读过的技能原样留着；再清一次不变', () => {
+    const skill = renderSkill('参考图分工')
+    const messages: ModelMessage[] = [
+      { role: 'user', content: 'go' },
+      ...step('a', `${skill}\n\nTHE BENCH ${'x'.repeat(400)}`),
+      ...step('b', 'y'.repeat(400)),
+      ...step('c', 'z'.repeat(400)),
+    ]
+    const once = clearOldToolResults(messages, limits)
+    const cleared = outputs(once)[0]!
+    expect(cleared).toMatch(/^\(cleared to save room;/)
+    expect(cleared).toContain(skill)
+    expect(cleared).not.toContain('x'.repeat(400))
+    expect(outputs(clearOldToolResults(once, limits))[0]).toBe(cleared)
   })
 })

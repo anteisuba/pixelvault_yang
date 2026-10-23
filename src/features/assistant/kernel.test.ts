@@ -842,4 +842,63 @@ describe('记忆与之前几轮（第 6 步）', () => {
     expect(prompt).toContain('换成雪地了。')
     expect(memoryStore.scheduled).toHaveBeenCalledTimes(1)
   })
+
+  it('和角色聊天：自己的系统提示、角色卡打头、记忆读她那份、故事向摘要、每轮末尾一句别出戏', async () => {
+    memoryStore.memories = []
+    memoryStore.summaries = []
+    memoryStore.listed.mockReset()
+    memoryStore.scheduled.mockReset()
+    const prepare = vi.mocked(prepareOperatorTurn)
+    const original = prepare.getMockImplementation()!
+    prepare.mockImplementationOnce(async (...args) => {
+      const prepared = await original(...args)
+      return {
+        ...prepared,
+        persona: {
+          ...prepared.persona,
+          name: null,
+          characterCardId: 'card-7',
+          promptCharacter: {
+            name: '马尔福',
+            identity: '斯莱特林的学生',
+            behavior: '嘴硬心软',
+            speech: '说话带点傲慢。偶尔叫你「笨蛋」。',
+            catchphrases: [],
+            backstory: '',
+          },
+          roleplay: {
+            scenario: '图书馆的午后',
+            opening: '',
+            examples: [],
+          },
+        },
+      } as typeof prepared
+    })
+    const main = mockModel([textTurn('哼，又是你。')])
+    models.main = main
+    await collect(
+      runAssistantNext(
+        'clerk-1',
+        imageRequest('你好呀', {
+          conversationId: 'conv-chat',
+          chatCharacterId: 'card-7',
+        } as never),
+      ),
+    )
+    const prompt = promptOf(main.doStreamCalls[0]!)
+    expect(prompt).toContain('you are that character')
+    expect(prompt).not.toContain("You are ANTEI's creative assistant")
+    expect(prompt.indexOf('THIS CHAT — you are 马尔福')).toBeLessThan(
+      prompt.indexOf("THIS CREATOR'S SETTINGS"),
+    )
+    expect(prompt).toContain('图书馆的午后')
+    expect(prompt).toContain('STAY IN CHARACTER as 马尔福 — 说话带点傲慢。')
+    expect(memoryStore.listed).toHaveBeenCalledWith('user-1', {
+      characterCardId: 'card-7',
+      limit: 12,
+    })
+    expect(memoryStore.scheduled).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'story' }),
+    )
+  })
 })

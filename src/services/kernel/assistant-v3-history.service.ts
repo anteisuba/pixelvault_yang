@@ -10,6 +10,7 @@ import {
   normalizeAssistantV3HistorySummary,
   readAssistantV3HistorySummaryDraft,
   type AssistantV3HistoryPlan,
+  type AssistantV3HistorySummaryKind,
   type AssistantV3HistoryTurn,
 } from '@/lib/assistant-v3-history'
 import { logger } from '@/lib/logger'
@@ -71,6 +72,17 @@ You get PREVIOUS NOTES (or "(none)") and the TURNS LEAVING VIEW. Merge them into
 - names: names and ids the rest of the conversation may refer to — cards and their handles (img-1a2b3c), characters, model ids, files — each with a few words on what it is.
 Keep what still holds, drop what was reversed or finished, never add anything that is not in the material. At most ${maxItems} items per list, one short line each (under ${maxItemChars} characters). Write in the language the creator writes in; copy names, ids and handles exactly.`
 
+/** 和角色聊天那段会话的摘要（第 7a 步 D）：同一副四栏，按故事来写。 */
+export const ASSISTANT_V3_STORY_SUMMARY_SYSTEM_PROMPT = `You keep the story notes for an older stretch of a roleplay chat in ANTEI between a creator and a character. These turns are leaving the character's view; your notes are all it will keep of them.
+
+You get PREVIOUS NOTES (or "(none)") and the TURNS LEAVING VIEW. Merge them into one set of notes and reply with ONE JSON object:
+{"decisions": [], "preferences": [], "openItems": [], "names": []}
+- decisions: what happened — the events of the story so far, in order.
+- preferences: where things stand between the character and the creator — feelings, closeness, trust, how they treat each other now.
+- openItems: promises, plans and threads still open — what one of them said they would do, secrets, foreshadowing.
+- names: the people, places and things in the story, each with a few words on who or what they are; pictures and ids by their exact number.
+Keep what still holds, drop what was resolved or reversed, never add anything that is not in the material. At most ${maxItems} items per list, one short line each (under ${maxItemChars} characters). Write in the language the creator writes in; copy names and numbers exactly.`
+
 /** 同一段会话、管到同一轮的那一份正在补：⛔ 再起一次（同一个进程里两个标签页同时开轮）。 */
 const inFlight = new Set<string>()
 
@@ -90,6 +102,8 @@ export function scheduleAssistantV3HistorySummary(input: {
   modelId: string
   domain: string
   cacheKey: string
+  /** 和角色聊天那段会话按故事写（第 7a 步 D）；不给 = 干活的四栏。 */
+  kind?: AssistantV3HistorySummaryKind
 }): void {
   const { owner, plan, turns } = input
   const target = plan.summarize
@@ -116,7 +130,10 @@ export function scheduleAssistantV3HistorySummary(input: {
     try {
       const raw = await completeAssistantTextWithContextRetry({
         signal: AbortSignal.timeout(timeoutMs),
-        systemPrompt: ASSISTANT_V3_HISTORY_SUMMARY_SYSTEM_PROMPT,
+        systemPrompt:
+          input.kind === 'story'
+            ? ASSISTANT_V3_STORY_SUMMARY_SYSTEM_PROMPT
+            : ASSISTANT_V3_HISTORY_SUMMARY_SYSTEM_PROMPT,
         callLog: { purpose: 'historySummary', domain },
         cacheKey,
         buildUserPrompt: (maxLength) =>

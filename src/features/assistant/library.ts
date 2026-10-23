@@ -44,6 +44,7 @@ import {
   ASSISTANT_NEXT_EDIT_OP_IDS as OP,
   type AssistantNextEditOp,
 } from '@/features/assistant/constants'
+import { chatCharacterOf } from '@/features/assistant/prompt'
 import type { EditChange } from '@/features/assistant/tools'
 import {
   memoryHandle,
@@ -256,11 +257,16 @@ async function memoryTargetOf(
   context: V3Context,
   character: string | null | undefined,
 ): Promise<{ ok: true; target: MemoryTarget } | { ok: false; error: string }> {
-  if (!character?.trim())
+  if (!character?.trim()) {
+    // 和角色聊天：默认记到正在聊的那位身上（第 7a 步 D，补第 6 步漏的那一块）。
+    const chat = chatCharacterOf(context.prepared.persona)
     return {
       ok: true,
-      target: { characterCardId: null, label: ABOUT_YOU[context.language] },
+      target: chat
+        ? { characterCardId: chat.id, label: chat.name }
+        : { characterCardId: null, label: ABOUT_YOU[context.language] },
     }
+  }
   const onPage = context.request.snapshot.cards?.characters.find(
     (entry) => entry.id === context.handles.idOf(character.trim()),
   )

@@ -104,7 +104,11 @@ import {
   stripForFallback,
 } from '@/features/assistant/messages'
 import { resolveNextModel, type NextModel } from '@/features/assistant/models'
-import { buildNextSystemPrompt } from '@/features/assistant/prompt'
+import {
+  buildNextSystemPrompt,
+  chatCharacterOf,
+  chatReminder,
+} from '@/features/assistant/prompt'
 import { loadTurnState, saveTurnState } from '@/features/assistant/state'
 import {
   AskInputSchema,
@@ -173,11 +177,14 @@ async function nextMemories(
   userId: string,
   clerkId: string,
   request: AssistantOperatorRequest,
+  chatCharacterId: string | null,
 ) {
   if (request.incognito === true) return []
   try {
     return await listNextAssistantMemoriesForPrompt(userId, {
-      characterCardId: request.snapshot.cards?.open?.id ?? null,
+      // 和角色聊天：读的是正在聊的那位那份（第 7a 步 D）；否则角色页上开着的那位。
+      characterCardId:
+        chatCharacterId ?? request.snapshot.cards?.open?.id ?? null,
       limit: ASSISTANT_NEXT_LIMITS.maxMemoriesInPrompt,
     })
   } catch (error) {
@@ -402,6 +409,8 @@ async function* runNextTurn(
     skipPriorRounds: true,
   })
   const { user, persona, rules, route, run, modelId } = prepared
+  // 和角色聊天（第 7a 步 D）：自己的系统提示、记忆挂她身上、故事向摘要、每轮末尾一句「别出戏」。
+  const chat = chatCharacterOf(persona)
   const face = benchFaceOf(request.domain)
   const resolved = modelId ? resolveNextModel(route, modelId) : null
   // 板子画不出来（LoRA 台没带 LoRA 那一块、角色页没带角色）同 v3：交回旧执行器。
@@ -493,7 +502,14 @@ async function* runNextTurn(
           })),
         ]
       : []
-    messages = [openingUserMessage(bench, pictures)]
+    // 「别出戏」放在这一轮的消息里（⛔ 进系统提示：每轮都变会废掉缓存）。
+    const reminder = chat ? chatReminder(persona) : null
+    messages = [
+      openingUserMessage(
+        reminder ? `${bench}\n\n${reminder}` : bench,
+        pictures,
+      ),
+    ]
     transcript.push({
       type: ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS.board,
       text: bench.slice(0, ASSISTANT_V3_LIMITS.maxBoardChars),
@@ -533,6 +549,7 @@ async function* runNextTurn(
       modelId,
       domain: request.domain,
       cacheKey: operatorCacheKey(run, 'historySummary'),
+      ...(chat ? { kind: 'story' as const } : {}),
     })
   const pinnedHistory = {
     turns: turns.length - historyPlan.start,
@@ -546,7 +563,7 @@ async function* runNextTurn(
     request,
     persona,
     rules,
-    memories: await nextMemories(user.id, clerkId, request),
+    memories: await nextMemories(user.id, clerkId, request, chat?.id ?? null),
     historySummary: historyPlan.summary,
     accountName: user.displayName ?? user.username ?? null,
     language,

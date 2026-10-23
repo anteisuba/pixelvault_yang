@@ -236,15 +236,30 @@ export function assistantV3HistoryMessages(
   return turns.slice(start).flatMap((turn) => turn.messages)
 }
 
-const SUMMARY_SECTIONS = [
-  ['decisions', 'Decided'],
-  ['preferences', 'How they like it'],
-  ['openItems', 'Still open'],
-  ['names', 'Names and ids'],
-] as const satisfies readonly (readonly [
-  keyof AssistantV3HistorySummaryDraft,
-  string,
-])[]
+/**
+ * 摘要四栏的两种读法：干活（定下的事…）与和角色聊天的故事向（第 7a 步 D，owner 10-23）。
+ * ⚠ 存的是同一副四栏（⛔ 不加列）：一段会话只有一种模式，写的时候按那种意思写（摘要提示见
+ *   `assistant-v3-history.service`），读的时候按同一种标题摆出来。
+ */
+export type AssistantV3HistorySummaryKind = 'work' | 'story'
+
+const SUMMARY_SECTIONS = {
+  work: [
+    ['decisions', 'Decided'],
+    ['preferences', 'How they like it'],
+    ['openItems', 'Still open'],
+    ['names', 'Names and ids'],
+  ],
+  story: [
+    ['decisions', 'What happened'],
+    ['preferences', 'Where things stand between you'],
+    ['openItems', 'Promises and threads still open'],
+    ['names', 'People and things in the story'],
+  ],
+} as const satisfies Record<
+  AssistantV3HistorySummaryKind,
+  readonly (readonly [keyof AssistantV3HistorySummaryDraft, string])[]
+>
 
 export const ASSISTANT_V3_HISTORY_SUMMARY_HEADING =
   'EARLIER IN THIS CONVERSATION'
@@ -255,9 +270,10 @@ export const ASSISTANT_V3_HISTORY_SUMMARY_HEADING =
  */
 export function renderAssistantV3HistorySummary(
   summary: AssistantV3HistorySummary | null,
+  kind: AssistantV3HistorySummaryKind = 'work',
 ): string {
   if (!summary) return ''
-  const sections = SUMMARY_SECTIONS.flatMap(([key, label]) =>
+  const sections = SUMMARY_SECTIONS[kind].flatMap(([key, label]) =>
     summary[key].length
       ? [`${label}:\n${summary[key].map((item) => `  - ${item}`).join('\n')}`]
       : [],
@@ -265,9 +281,9 @@ export function renderAssistantV3HistorySummary(
   if (sections.length === 0) return ''
   return `
 
-${ASSISTANT_V3_HISTORY_SUMMARY_HEADING} — the first ${summary.turns} turn${summary.turns === 1 ? '' : 's'} of this conversation are no longer shown below; these notes are what they settled.
+${ASSISTANT_V3_HISTORY_SUMMARY_HEADING} — the first ${summary.turns} turn${summary.turns === 1 ? '' : 's'} of this conversation are no longer shown below; ${kind === 'story' ? 'these notes are the story so far' : 'these notes are what they settled'}.
 ${sections.join('\n')}
-- Treat these as already agreed: build on them without asking again or reciting them back. What the creator says now wins over them.`
+- ${kind === 'story' ? 'Carry the story on from here without recapping it.' : 'Treat these as already agreed: build on them without asking again or reciting them back.'} What the creator says now wins over them.`
 }
 
 function cleanItems(items: readonly string[]): string[] {
@@ -306,7 +322,7 @@ export function readAssistantV3HistorySummaryDraft(
       if (
         typeof value !== 'object' ||
         value === null ||
-        !SUMMARY_SECTIONS.some(([key]) => key in value)
+        !SUMMARY_SECTIONS.work.some(([key]) => key in value)
       )
         continue
       const parsed = AssistantV3HistorySummaryDraftSchema.safeParse(value)

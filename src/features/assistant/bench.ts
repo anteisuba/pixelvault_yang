@@ -83,6 +83,7 @@ import {
   type AssistantNextFindKind,
   type AssistantNextRecipePart,
 } from '@/features/assistant/constants'
+import { isLibraryOp, runLibraryChange } from '@/features/assistant/library'
 import type {
   AskInput,
   EditChange,
@@ -314,7 +315,7 @@ export function toV3Mutation(face: BenchFace, change: EditChange): V3Mutation {
   if (!ops.includes(change.op as AssistantNextEditOp))
     return {
       tool: null,
-      error: `"${change.op}" is not a control on this ${face === ASSISTANT_V3_FACE_IDS.cards ? 'page' : 'bench'}. It has: ${ops.join(', ')}.`,
+      error: `"${change.op}" is not a control on this ${face === ASSISTANT_V3_FACE_IDS.cards ? 'page' : 'bench'}. It has: ${ops.join(', ')} (and the library ops, which work everywhere).`,
     }
   const lora = face === ASSISTANT_V3_FACE_IDS.lora
   const video = face === ASSISTANT_V3_FACE_IDS.video
@@ -772,6 +773,8 @@ async function* applyChange(
       }
     return outcomeOf(yield* mountLoraByName(context, given))
   }
+  if (isLibraryOp(given.op))
+    return outcomeOf(yield* runLibraryChange(context, given))
   const change = await withResolvedNames(context, given)
   const mutation = toV3Mutation(context.face as BenchFace, change)
   if (mutation.tool === null) return { output: mutation.error, error: true }

@@ -83,6 +83,9 @@ import {
   PROJECT_RULE_KIND_ALIASES,
   PROJECT_RULE_TEXT_ARG_ALIASES,
   ASSISTANT_ASSET_WRITE_LIMITS as ASSET_WRITE_LIMITS,
+  ASSISTANT_LIBRARY_WRITE_KIND_IDS as LIBRARY_KIND,
+  ASSISTANT_LIBRARY_WRITE_KINDS,
+  ASSISTANT_LIBRARY_WRITE_LIMITS as LIBRARY_LIMITS,
   ASSISTANT_RESEARCH_CONFIDENCES,
   ASSISTANT_RESEARCH_EVIDENCE_KINDS,
   ASSISTANT_RESEARCH_LIMITS as RESEARCH_LIMITS,
@@ -2681,6 +2684,87 @@ export type AssistantResearchXSearch = z.infer<
   typeof AssistantResearchXSearchSchema
 >
 
+/**
+ * 新内核改库（`library_write`，第 4b 步）。
+ *
+ * ⭐ `inverse` 是服务端写之前读到的**原值**（按 `kind` 分形），撤销原样交回
+ *   `POST /api/assistant/asset-writes/revert`，服务端写回去 —— 与素材库四条同一档。
+ * ⚠ 新建的那几种，撤销只删「刚建、之后没人往里放东西」的那一个（同 `create_folder`）。
+ */
+const LibraryTextSchema = z.string().max(LIBRARY_LIMITS.maxTextChars)
+const LibraryTagsSchema = z
+  .array(z.string().max(LIBRARY_LIMITS.maxTagChars))
+  .max(LIBRARY_LIMITS.maxTags)
+/** 原样存回去的 JSON 格子（设定、参考槽）：这一层不解释，写回时由服务原样落库。 */
+const LibraryJsonSchema = z.unknown()
+
+export const AssistantLibraryWriteInverseSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal(LIBRARY_KIND.character),
+    characterId: IdSchema,
+    name: z.string().max(LIBRARY_LIMITS.maxNameChars),
+    tags: LibraryTagsSchema,
+    persona: LibraryJsonSchema,
+    /** 改了「一句外观」才有：默认造型那一格的原文。 */
+    look: z
+      .object({ lookId: IdSchema, description: LibraryTextSchema.nullable() })
+      .nullable(),
+  }),
+  z.object({
+    kind: z.literal(LIBRARY_KIND.newCharacter),
+    characterId: IdSchema,
+  }),
+  z.object({
+    kind: z.literal(LIBRARY_KIND.look),
+    lookId: IdSchema,
+    label: z.string().max(LIBRARY_LIMITS.maxNameChars).nullable(),
+    description: LibraryTextSchema.nullable(),
+    tags: LibraryTagsSchema,
+    referenceSlots: LibraryJsonSchema,
+  }),
+  z.object({ kind: z.literal(LIBRARY_KIND.newLook), lookId: IdSchema }),
+  z.object({
+    kind: z.literal(LIBRARY_KIND.loraToCharacter),
+    characterId: IdSchema,
+    loraAssetId: IdSchema,
+    /** 之前就收着：撤销只把造型改回去；没收过：撤销拿掉这一条。 */
+    existed: z.boolean(),
+    lookId: IdSchema.nullable(),
+  }),
+  z.object({
+    kind: z.literal(LIBRARY_KIND.favoriteLora),
+    loraAssetId: IdSchema,
+    inLibrary: z.boolean(),
+  }),
+  z.object({
+    kind: z.literal(LIBRARY_KIND.loraCover),
+    loraAssetId: IdSchema,
+    coverImageUrl: z.string().max(4_000).nullable(),
+  }),
+  z.object({ kind: z.literal(LIBRARY_KIND.savePrompt), recipeId: IdSchema }),
+  z.object({
+    kind: z.literal(LIBRARY_KIND.updatePrompt),
+    recipeId: IdSchema,
+    name: z.string().max(LIBRARY_LIMITS.maxNameChars),
+    compiledPrompt: LibraryTextSchema,
+    negativePrompt: LibraryTextSchema.nullable(),
+  }),
+])
+
+export type AssistantLibraryWriteInverse = z.infer<
+  typeof AssistantLibraryWriteInverseSchema
+>
+
+export const AssistantLibraryWritePayloadSchema = z.object({
+  kind: z.enum(ASSISTANT_LIBRARY_WRITE_KINDS),
+  /** 过程行上那一句：改了谁、改成什么（客户端此刻手上未必有这几样东西）。 */
+  summary: z.string().trim().min(1).max(LIBRARY_LIMITS.maxSummaryChars),
+})
+
+export type AssistantLibraryWritePayload = z.infer<
+  typeof AssistantLibraryWritePayloadSchema
+>
+
 export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
   AssistantOperatorTool,
   z.ZodType
@@ -3242,6 +3326,9 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
     assetIds: AssetIdListSchema,
     targetFolderId: IdSchema,
   }),
+  /** 新内核自己发、不经旧规划器（见 `ASSISTANT_OPERATOR_TOOL_IDS.libraryWrite`）。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.libraryWrite]:
+    AssistantLibraryWritePayloadSchema,
   /**
    * 画布：**一条** v4 op，原样（⛔ 不是 `ops[]`）。
    *
@@ -4639,6 +4726,11 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
       assetIds: z.array(IdSchema).max(ASSET_WRITE_LIMITS.maxAssetsPerWrite),
     }),
   ),
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.libraryWrite,
+    AssistantLibraryWritePayloadSchema,
+    AssistantLibraryWriteInverseSchema,
+  ),
   /**
    * 画布那一条（进度表 22）。
    *
@@ -5203,6 +5295,10 @@ export const AssistantAssetWriteRevertSchema = z.discriminatedUnion('tool', [
     assetIds: z
       .array(z.string().trim().min(1).max(LIMITS.maxIdChars))
       .max(ASSET_WRITE_LIMITS.maxAssetsPerWrite),
+  }),
+  z.object({
+    tool: z.literal(ASSISTANT_OPERATOR_TOOL_IDS.libraryWrite),
+    inverse: AssistantLibraryWriteInverseSchema,
   }),
 ])
 

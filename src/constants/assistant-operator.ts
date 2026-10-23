@@ -623,6 +623,14 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    * 逐字同源：本来就在里面的不是这一步的后果，撤销时不该被拿出来。
    */
   addToFolder: 'add_to_folder',
+  /**
+   * 新内核改库（第 4b 步，owner 10-23「库改动直接写，过程行带撤销」）：角色设定、造型、
+   * LoRA（加到角色 / 收藏 / 封面）、提示词库。一条工具，`payload.kind` 说改的是哪种。
+   *
+   * ⚠ 与素材库四条同一档：后果落在服务端，`inverse` 是服务端刚读到的**原值**，撤销走
+   * `revertAssetWrite`。⛔ 不进任何域工具表：只有新内核自己发（不经旧规划器）。
+   */
+  libraryWrite: 'library_write',
 
   // ── 画布域那两条（进度表 22「一张脸」）──────────────────────────────
   //
@@ -761,6 +769,7 @@ export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset,
   ASSISTANT_OPERATOR_TOOL_IDS.createFolder,
   ASSISTANT_OPERATOR_TOOL_IDS.addToFolder,
+  ASSISTANT_OPERATOR_TOOL_IDS.libraryWrite,
   ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
   ASSISTANT_OPERATOR_TOOL_IDS.canvasBatch,
   ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun,
@@ -945,6 +954,11 @@ export const ASSISTANT_OPERATOR_MUTATING_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.createFolder,
   ASSISTANT_OPERATOR_TOOL_IDS.addToFolder,
   /**
+   * **新内核改库**（第 4b 步）—— 角色 / 造型 / LoRA / 提示词库，后果落在服务端，
+   * `inverse` 按 `kind` 记原值，撤销走同一条 `asset-writes/revert`。
+   */
+  ASSISTANT_OPERATOR_TOOL_IDS.libraryWrite,
+  /**
    * **画布那一条**（进度表 22）—— 后果落在**客户端的画布图**上，与工作台那批
    * 「吐 op 让客户端应用」同形，⛔ 不是服务端写库那一类。
    *
@@ -1120,6 +1134,7 @@ export const ASSISTANT_OPERATOR_TOOL_VERBS: Record<
     ASSISTANT_OPERATOR_VERB_IDS.apply,
   [ASSISTANT_OPERATOR_TOOL_IDS.createFolder]: ASSISTANT_OPERATOR_VERB_IDS.apply,
   [ASSISTANT_OPERATOR_TOOL_IDS.addToFolder]: ASSISTANT_OPERATOR_VERB_IDS.apply,
+  [ASSISTANT_OPERATOR_TOOL_IDS.libraryWrite]: ASSISTANT_OPERATOR_VERB_IDS.apply,
   [ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate]:
     ASSISTANT_OPERATOR_VERB_IDS.requestGeneration,
   [ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration]:
@@ -3292,6 +3307,8 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
     "make ONE new folder in the creator's asset library. Give it a name in their words; pass parentId (a real folder id from list_asset_folders) only when they asked for it to sit inside another folder. This creates an EMPTY folder — putting things in it is a separate add_to_folder call. Folders nest to any depth, so any of their folders can be the parent. Never make a folder they did not ask for, and never make a second one with the same name.",
   [ASSISTANT_OPERATOR_TOOL_IDS.addToFolder]:
     "put up to 20 of the creator's own assets into one folder. An asset can sit in several folders at once, so this only ADDS: it never takes anything out of another folder, and assets keep their tags and stars. targetFolderId is a real folder id — from list_asset_folders, or from a create_folder you just made. Undoing takes out exactly the ones this call put in (ones already there stay), so a wrong one is cheap — but filing the creator did not ask for is still a mess in their library.",
+  [ASSISTANT_OPERATOR_TOOL_IDS.libraryWrite]:
+    "the new kernel's library change (characters, looks, LoRAs, saved prompts). It is never offered to the old kernel.",
   [ASSISTANT_OPERATOR_TOOL_IDS.setReviewState]:
     'mark one of the creator\'s own assets as approved or blocked, so the verdict survives this turn. Use "blocked" when they say a picture did not work ("the hands are wrong", "not this one") — a blocked asset can never be used as a first or last frame again, on any workbench, and you should stop offering it. Use "approved" when they settle on one. The assetId comes from search_assets, from what they handed you, or from what you produced earlier this session — never invent one. Blocking deletes nothing: the picture stays in their library and you can still review it. Give a short reason in their words.',
   // ── 画布两条 ────────────────────────────────────────────────────────
@@ -3407,6 +3424,44 @@ export const ASSISTANT_ASSET_WRITE_LIMITS = {
   maxTagsPerAsset: 20,
   /** 文件夹名长度，与 `Project.name` 同尺度。 */
   maxFolderNameChars: 120,
+} as const
+
+/**
+ * 新内核改库那一条（`library_write`，第 4b 步）改的是哪一种。撤销按它分派。
+ *
+ * ⚠ 删和公开**不在这里**（owner 10-23「删除和公开这一步不做」）：撤销「新建」只删刚建、
+ * 之后没人碰过的那一个，⛔ 不是一个删除入口。
+ */
+export const ASSISTANT_LIBRARY_WRITE_KIND_IDS = {
+  character: 'character',
+  newCharacter: 'new_character',
+  look: 'look',
+  newLook: 'new_look',
+  loraToCharacter: 'lora_to_character',
+  favoriteLora: 'favorite_lora',
+  loraCover: 'lora_cover',
+  savePrompt: 'save_prompt',
+  updatePrompt: 'update_prompt',
+} as const
+
+export const ASSISTANT_LIBRARY_WRITE_KINDS = Object.values(
+  ASSISTANT_LIBRARY_WRITE_KIND_IDS,
+) as [
+  (typeof ASSISTANT_LIBRARY_WRITE_KIND_IDS)[keyof typeof ASSISTANT_LIBRARY_WRITE_KIND_IDS],
+  ...(typeof ASSISTANT_LIBRARY_WRITE_KIND_IDS)[keyof typeof ASSISTANT_LIBRARY_WRITE_KIND_IDS][],
+]
+
+export type AssistantLibraryWriteKind =
+  (typeof ASSISTANT_LIBRARY_WRITE_KIND_IDS)[keyof typeof ASSISTANT_LIBRARY_WRITE_KIND_IDS]
+
+export const ASSISTANT_LIBRARY_WRITE_LIMITS = {
+  /** 过程行上那一句（「已把 LoRA·x 加到 角色·y」）。 */
+  maxSummaryChars: 200,
+  /** 设定 / 外观 / 提示词一格的原文（撤销要原样写回）。 */
+  maxTextChars: 20_000,
+  maxNameChars: 200,
+  maxTags: 40,
+  maxTagChars: 80,
 } as const
 
 /**

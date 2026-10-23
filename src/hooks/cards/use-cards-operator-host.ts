@@ -12,6 +12,7 @@ import type { StudioOperatorResultItem } from '@/types/studio-assistant-operator
 import { useStudioOperatorFace } from '@/hooks/use-studio-operator-face'
 import { requestOperatorDraft } from '@/hooks/use-studio-operator-store'
 import { useRouter } from '@/i18n/navigation'
+import { revertAssistantAssetWriteAPI } from '@/lib/api-client/assistant-operator'
 import { buildCardsOperatorSnapshot } from '@/lib/cards-operator-snapshot'
 import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
 
@@ -46,6 +47,8 @@ export interface UseCardsOperatorHostInput {
   applyProfile: NonNullable<StudioOperatorApplyContext['cards']>['applyProfile']
   /** 把候选图卡上勾中的几张挂到角色上（C3）—— 返回挂上了几张，失败 `null`。 */
   attachImages: NonNullable<StudioOperatorApplyContext['cards']>['attachImages']
+  /** 助手改了库（或撤销了一条）：重读这页的角色（第 4b 步「角色设定直接改」）。 */
+  refresh: () => void
 }
 
 export function useCardsOperatorHost({
@@ -53,6 +56,7 @@ export function useCardsOperatorHost({
   openId,
   applyProfile,
   attachImages,
+  refresh,
 }: UseCardsOperatorHostInput): StudioOperatorHost {
   const t = useTranslations('StudioOperator')
   const locale = useLocale()
@@ -66,6 +70,7 @@ export function useCardsOperatorHost({
     locale,
     applyProfile,
     attachImages,
+    refresh,
     router,
   })
   useEffect(() => {
@@ -75,9 +80,10 @@ export function useCardsOperatorHost({
       locale,
       applyProfile,
       attachImages,
+      refresh,
       router,
     }
-  }, [applyProfile, attachImages, cards, locale, openId, router])
+  }, [applyProfile, attachImages, cards, locale, openId, refresh, router])
   const buildSnapshot = useCallback(() => {
     const now = latest.current
     return buildCardsOperatorSnapshot(now.cards, now.openId, now.locale)
@@ -97,6 +103,12 @@ export function useCardsOperatorHost({
       mountUserUrl: noForm,
       unmountUserUrl: noForm,
       setPrimed: noForm,
+      /** 新内核改库的撤销（第 4b 步）：原值交回服务端。 */
+      revertAssetWrite: async (input) => {
+        const result = await revertAssistantAssetWriteAPI(input)
+        return result !== null && result.skipped === 0
+      },
+      libraryChanged: () => latest.current.refresh(),
       /** C2：设定提议卡「收下勾选的」那只手（现读最新的那一份）。 */
       cards: {
         applyProfile: (characterId, fields) =>

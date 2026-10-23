@@ -55,12 +55,30 @@ export const ASSISTANT_NEXT_EDIT_OP_IDS = {
   /** 视频台：参考声音、原声开关。 */
   addAudio: 'add_audio',
   sound: 'sound',
-  /** 角色页：三种提议（出一张卡，创作者勾选）。直接写进库是 4b。 */
+  /** 角色页：三种提议（出一张卡，创作者勾选）。直接写进库见下面「改库」那几种。 */
   proposeProfile: 'propose_profile',
   proposeImages: 'propose_images',
   handOff: 'hand_off',
   /** 套用某张图的配方（第 4 步，10-23 从第 3 步移来）。 */
   applyRecipe: 'apply_recipe',
+  /**
+   * 改库（第 4b 步，owner 10-23「库改动直接写，过程行带撤销；删和公开不做」）：任何台上都能用。
+   * 素材那五种走旧执行器现成的那几条，角色 / 造型 / LoRA / 提示词库走 `library_write`。
+   */
+  tagPictures: 'tag_pictures',
+  favoritePictures: 'favorite_pictures',
+  newFolder: 'new_folder',
+  putInFolder: 'put_in_folder',
+  verdict: 'verdict',
+  characterProfile: 'character_profile',
+  newCharacter: 'new_character',
+  characterLook: 'character_look',
+  newCharacterLook: 'new_character_look',
+  loraToCharacter: 'lora_to_character',
+  favoriteLora: 'favorite_lora',
+  loraCover: 'lora_cover',
+  savePrompt: 'save_prompt',
+  updatePrompt: 'update_prompt',
 } as const
 
 export const ASSISTANT_NEXT_EDIT_OPS = Object.values(
@@ -115,7 +133,7 @@ export const ASSISTANT_NEXT_LORA_PARAM_KEYS: Readonly<Record<string, string>> =
   }
 
 /** 过程记录里标「这一轮是新内核跑的」（`AssistantTurnRecord.promptVersion`）。改系统提示时一起换。 */
-export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-10-23b'
+export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-10-23c'
 
 export const ASSISTANT_NEXT_LIMITS = {
   /** 带给模型的对话：最近这么多条、这么多字以内（上下文压缩是第 6 步）。 */

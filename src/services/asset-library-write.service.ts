@@ -11,6 +11,7 @@ import {
   removeGenerationsFromFolder,
   topSortOrder,
 } from '@/services/asset-folder.service'
+import { revertLibraryWrite } from '@/services/assistant-library-write.service'
 import { batchSetLike, getUserLikes } from '@/services/like.service'
 import { ensureUser } from '@/services/user.service'
 import type {
@@ -292,6 +293,9 @@ export async function revertAssistantAssetWrite(
     }
     case ASSISTANT_OPERATOR_TOOL_IDS.addToFolder:
       return removeAssetsFromFolder(userId, input.folderId, input.assetIds)
+    // 新内核改库（第 4b 步）：角色、造型、LoRA、提示词库，原值写回。
+    case ASSISTANT_OPERATOR_TOOL_IDS.libraryWrite:
+      return revertLibraryWrite(userId, input.inverse)
   }
 }
 

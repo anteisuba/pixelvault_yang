@@ -710,6 +710,16 @@ const STEP_FIXTURES: Record<
     },
     inverse: { folderId: 'folder-1', assetIds: ['gen-1', 'gen-2'] },
   },
+  [ASSISTANT_OPERATOR_TOOL_IDS.libraryWrite]: {
+    payload: { kind: 'lora_to_character', summary: 'LoRA·ink → 角色·马尔福' },
+    inverse: {
+      kind: 'lora_to_character',
+      characterId: 'card-1',
+      loraAssetId: 'lora-1',
+      existed: false,
+      lookId: null,
+    },
+  },
   // ── 画布三条（进度表 22）──────────────────────────────────────────
   [ASSISTANT_OPERATOR_TOOL_IDS.canvasApply]: {
     payload: {
@@ -938,7 +948,8 @@ describe('五动词入口', () => {
     // 画面文字（2026-10-07）再加一个（`set_scene_texts`）。
     // 剪辑台 v2 第 2 片 2b 把 52 变成 53（`canvas_look_at`，看片）。
     // 搜索期第二片（2026-10-15）把 54 变成 55（`search_web_videos`，内部工具）。
-    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(55)
+    // 新内核改库（第 4b 步）把 55 变成 56（`library_write`，只由新内核发）。
+    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(56)
     expect(
       ASSISTANT_OPERATOR_ENTRY_ACTIONS[
         ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research

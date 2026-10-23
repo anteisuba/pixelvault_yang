@@ -99,7 +99,7 @@ export const VoiceLineRecordSchema = z.object({
   text: z.string(),
   /** null = 自动（不注入情感提示词）。 */
   emotion: AudioEmotionSchema.nullable(),
-  /** null = 这条台词还没派过任何生成任务（正常流程下不该出现，防御性保留）。 */
+  /** null = 没有声音：聊天里你说的话（`speakerKind: 'user'`）一直是 null。 */
   audio: VoiceLineAudioSchema.nullable(),
   createdAt: z.string(),
 })
@@ -239,3 +239,15 @@ export const RetakeVoiceLineRequestSchema = RetakeVoiceLineBodySchema.extend({
 export type RetakeVoiceLineRequest = z.infer<
   typeof RetakeVoiceLineRequestSchema
 >
+
+/**
+ * 聊天模式：跟选中的那位说一句（owner 10-23）。服务端先存你这句，再让她用自己的口吻
+ * 回一句、按念法与模型出声。回复是流式的（SSE），事件见 `VOICE_ROOM_CHAT_EVENT`。
+ */
+export const VoiceRoomChatRequestSchema = VoiceLineDeliverySchema.extend({
+  roomId: z.string().min(1),
+  speakerId: z.string().min(1),
+  text: z.string().trim().min(1).max(VOICE_LINE_TEXT_MAX_LENGTH),
+})
+
+export type VoiceRoomChatRequest = z.infer<typeof VoiceRoomChatRequestSchema>

@@ -122,3 +122,37 @@ describe('VoiceLineBubble — cancel button', () => {
     ).not.toBeInTheDocument()
   })
 })
+
+describe('VoiceLineBubble — chat (owner 10-23)', () => {
+  it('shows your own chat line as a plain bubble, without a name or voice', () => {
+    const { container } = render(
+      <VoiceLineBubble
+        line={makeLine({
+          speakerId: 'builtin:user',
+          speakerKind: 'user',
+          speakerName: '',
+          text: '你今天怎么样？',
+        })}
+        onRetake={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('你今天怎么样？')).toBeInTheDocument()
+    expect(container.querySelector('[data-self]')).not.toBeNull()
+    expect(container.querySelector('.vr-avatar')).toBeNull()
+    expect(screen.queryByRole('button')).toBeNull()
+  })
+
+  it('dims delivery cues and offers a retry when the reply has no voice', () => {
+    const onRetake = vi.fn()
+    const { container } = render(
+      <VoiceLineBubble
+        line={makeLine({ text: '[laughing] 哈哈，被你发现了。', audio: null })}
+        onRetake={onRetake}
+      />,
+    )
+    expect(container.querySelector('.vr-cue')?.textContent).toBe('[laughing]')
+    expect(screen.getByText('VoiceRoom:noVoice')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'VoiceRoom:retry' }))
+    expect(onRetake).toHaveBeenCalledWith('line-1', {})
+  })
+})

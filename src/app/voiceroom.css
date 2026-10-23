@@ -584,6 +584,56 @@
   overflow-wrap: anywhere;
 }
 
+/*
+ * 聊天里你自己说的话（owner 10-23）：靠右、墨底，没有头像、没有名字、没有声音——
+ * 和聊天软件一个读法，一眼分得出哪边是你。
+ */
+.vr-msg[data-self] {
+  justify-content: flex-end;
+}
+
+.vr-msg[data-self] .vr-msg-body {
+  align-items: flex-end;
+}
+
+.vr-msg[data-self] .vr-bubble {
+  border-color: var(--vr-ink);
+  border-radius: 14px 4px 14px 14px;
+  background: var(--vr-ink);
+  color: var(--vr-paper);
+}
+
+/* 方括号语气提示（`[laughing]`）：会被演出来，但不是念出来的字，淡一档。 */
+.vr-cue {
+  color: var(--vr-dim);
+  font-family: var(--vr-mono);
+  font-size: 11px;
+}
+
+/* 她正在写：末尾一根闪的竖线。 */
+.vr-typing::after {
+  content: '';
+  display: inline-block;
+  width: 1px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  background: currentColor;
+  animation: vr-caret 1s steps(1) infinite;
+}
+
+@keyframes vr-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vr-typing::after {
+    animation: none;
+  }
+}
+
 /* ── 头像：颜色即说话人 ─────────────────────────────────────────── */
 
 .vr-avatar {
@@ -1060,6 +1110,55 @@
   background: var(--vr-line-2);
   color: var(--vr-dim);
   opacity: 1;
+}
+
+/* 聊天 / 念台词（owner 10-23 方案 A）：两档的小分段，挨着头像。 */
+.vr-mode {
+  display: inline-flex;
+  flex: none;
+  padding: 2px;
+  border: 1px solid var(--vr-line-strong);
+  border-radius: 999px;
+  background: var(--vr-paper);
+}
+
+.vr-mode button {
+  font-size: 11px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--vr-dim);
+  cursor: pointer;
+  transition:
+    background-color var(--vr-t-fast) ease,
+    color var(--vr-t-fast) ease;
+}
+
+.vr-mode button[aria-pressed='true'] {
+  background: var(--vr-ink);
+  color: var(--vr-paper);
+}
+
+/* 手机上一行放不下：头像和分段一行，输入框独占一行，参数和发送在最后。 */
+@media (max-width: 767px) {
+  .vr-composer {
+    flex-wrap: wrap;
+  }
+
+  .vr-composer .vr-input {
+    order: 1;
+    flex-basis: 100%;
+  }
+
+  .vr-composer .vr-params-btn,
+  .vr-composer .vr-send {
+    order: 2;
+  }
+
+  .vr-mode button {
+    min-height: 2.75rem;
+  }
 }
 
 .vr-input {

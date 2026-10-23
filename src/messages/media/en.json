@@ -456,7 +456,15 @@
     "cancel": "Cancel",
     "deleteRoom": "Delete room",
     "deleteRoomTitle": "Delete this room?",
-    "deleteRoomHint": "“{name}” and all its lines will be removed. Voices you already generated stay in your library."
+    "deleteRoomHint": "“{name}” and all its lines will be removed. Voices you already generated stay in your library.",
+    "modeLabel": "Chat or read lines",
+    "mode": {
+      "chat": "Chat",
+      "read": "Read"
+    },
+    "chatPlaceholder": "Say something to {name}…",
+    "send": "Send",
+    "noVoice": "No voice yet"
   },
   "StudioVideoSlots": {
     "firstFrame": "First",

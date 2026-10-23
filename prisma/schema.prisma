@@ -701,6 +701,7 @@ model VoiceLine {
 
   /// voice | sfx —— bgm 不会成为台词（它是房间级底垫）。音效条的样式与人声不同
   /// （虚线胶囊），渲染要靠它分流。
+  // 聊天模式（owner 10-23）多了一种 `user`：你自己说的话，只有文字，jobId 为空。
   speakerKind String @default("voice")
 
   /// 说话人**快照**。音色卡删了、班底改了，这条台词仍然显示得出「谁说的」——

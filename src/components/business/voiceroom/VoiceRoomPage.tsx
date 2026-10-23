@@ -32,6 +32,12 @@ export function VoiceRoomPage() {
     switching,
     retakingIds,
     pendingLine,
+    pendingUserText,
+    streamingReply,
+    mode,
+    setMode,
+    keySetup,
+    dismissKeySetup,
     error,
     delivery,
     setDelivery,
@@ -41,6 +47,7 @@ export function VoiceRoomPage() {
     setCast,
     removeRoom,
     say,
+    chat,
     retake,
     dismissError,
     refreshRooms,
@@ -88,12 +95,19 @@ export function VoiceRoomPage() {
             switching={switching}
             retakingIds={retakingIds}
             pendingLine={pendingLine}
+            pendingUserText={pendingUserText}
+            streamingReply={streamingReply}
+            mode={mode}
+            onModeChange={setMode}
+            keySetup={keySetup}
+            onDismissKeySetup={dismissKeySetup}
             error={error}
             delivery={delivery}
             onDeliveryChange={setDelivery}
             onRename={(name) => void renameRoom(detail.id, name)}
             onCastChange={(cast) => void setCast(cast)}
             onSay={say}
+            onChat={chat}
             onRetake={retake}
             onDismissError={dismissError}
           />

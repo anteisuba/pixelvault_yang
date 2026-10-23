@@ -456,7 +456,15 @@
     "cancel": "取消",
     "deleteRoom": "删除房间",
     "deleteRoomTitle": "删除这个房间？",
-    "deleteRoomHint": "「{name}」和它的全部台词都会删掉。已经生成的声音不受影响，仍然在素材库里。"
+    "deleteRoomHint": "「{name}」和它的全部台词都会删掉。已经生成的声音不受影响，仍然在素材库里。",
+    "modeLabel": "聊天还是念台词",
+    "mode": {
+      "chat": "聊天",
+      "read": "念台词"
+    },
+    "chatPlaceholder": "跟 {name} 说点什么…",
+    "send": "发送",
+    "noVoice": "这句还没出声"
   },
   "StudioVideoSlots": {
     "firstFrame": "首帧",

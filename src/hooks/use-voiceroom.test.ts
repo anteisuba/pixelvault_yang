@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  chatVoiceRoomAPI,
   createVoiceLineAPI,
   createVoiceRoomAPI,
   getVoiceRoomAPI,
@@ -28,6 +29,7 @@ vi.mock('@/lib/api-client/voiceroom', () => ({
   deleteVoiceRoomAPI: vi.fn(),
   createVoiceLineAPI: vi.fn(),
   retakeVoiceLineAPI: vi.fn(),
+  chatVoiceRoomAPI: vi.fn(),
 }))
 
 const mockListRooms = vi.mocked(listVoiceRoomsAPI)
@@ -35,6 +37,7 @@ const mockCreateRoom = vi.mocked(createVoiceRoomAPI)
 const mockGetRoom = vi.mocked(getVoiceRoomAPI)
 const mockCreateLine = vi.mocked(createVoiceLineAPI)
 const mockRetakeLine = vi.mocked(retakeVoiceLineAPI)
+const mockChat = vi.mocked(chatVoiceRoomAPI)
 
 const ROOM_ID = 'room-1'
 const SPEAKER_ID = 'card-qing'
@@ -225,5 +228,82 @@ describe('useVoiceRoom 念法参数', () => {
     const { result } = await openedRoom()
     expect(mockCreateRoom).not.toHaveBeenCalled()
     expect(result.current.detail?.id).toBe(ROOM_ID)
+  })
+})
+
+describe('useVoiceRoom 聊天（owner 10-23）', () => {
+  it('opens in chat mode', async () => {
+    const { result } = await openedRoom()
+    expect(result.current.mode).toBe('chat')
+  })
+
+  it('lands your line, grows the reply, then swaps in the real reply', async () => {
+    const userLine = makeLine({
+      id: 'line-user',
+      speakerId: 'builtin:user',
+      speakerKind: 'user',
+      speakerName: '',
+      text: '在吗',
+      audio: null,
+    })
+    const reply = makeLine({ id: 'line-reply', order: 1, text: '在的。' })
+    let release: () => void = () => {}
+    mockChat.mockImplementation(async (_body, handlers) => {
+      handlers?.onUserLine?.(userLine)
+      handlers?.onDelta?.('在')
+      handlers?.onDelta?.('的。')
+      await new Promise<void>((resolve) => {
+        release = resolve
+      })
+      return { reply }
+    })
+
+    const { result } = await openedRoom()
+    let sent: Promise<boolean> = Promise.resolve(false)
+    act(() => {
+      sent = result.current.chat(SPEAKER_ID, '在吗')
+    })
+    await waitFor(() =>
+      expect(result.current.streamingReply).toEqual({
+        speakerId: SPEAKER_ID,
+        text: '在的。',
+      }),
+    )
+    expect(result.current.detail?.lines.map((line) => line.id)).toEqual([
+      'line-user',
+    ])
+    expect(result.current.pendingUserText).toBeNull()
+
+    await act(async () => {
+      release()
+      await sent
+    })
+    expect(await sent).toBe(true)
+    expect(result.current.streamingReply).toBeNull()
+    expect(result.current.detail?.lines.map((line) => line.id)).toEqual([
+      'line-user',
+      'line-reply',
+    ])
+    expect(mockChat.mock.calls[0][0]).toMatchObject({
+      roomId: ROOM_ID,
+      speakerId: SPEAKER_ID,
+      text: '在吗',
+      pace: 'normal',
+    })
+  })
+
+  it('opens the key setup for the assistant provider when the chat cannot start', async () => {
+    mockChat.mockResolvedValue({
+      error: 'API key is required',
+      errorCode: 'MISSING_API_KEY',
+    })
+    const { result } = await openedRoom()
+    let landed = true
+    await act(async () => {
+      landed = await result.current.chat(SPEAKER_ID, '在吗')
+    })
+    expect(landed).toBe(false)
+    expect(result.current.keySetup?.kind).toBe('freeTier')
+    expect(result.current.error).toBeNull()
   })
 })

@@ -1,11 +1,15 @@
 import { API_ENDPOINTS } from '@/constants/config'
-import { getErrorMessage } from '@/lib/api-client/shared'
+import { VOICE_ROOM_CHAT_EVENT } from '@/constants/voiceroom'
+import { getErrorMessage, getErrorPayload } from '@/lib/api-client/shared'
+import { parseSseStream } from '@/lib/sse'
+import type { AssistantOperatorMissingKey } from '@/types/assistant-operator'
 import type {
   CreateVoiceLineRequest,
   CreateVoiceRoomRequest,
   RetakeVoiceLineRequest,
   UpdateVoiceRoomRequest,
   VoiceLineRecord,
+  VoiceRoomChatRequest,
   VoiceRoomDetail,
   VoiceRoomRecord,
 } from '@/types/voiceroom'
@@ -113,4 +117,84 @@ export async function retakeVoiceLineAPI({
       method: 'PATCH',
     },
   )
+}
+
+export interface VoiceRoomChatHandlers {
+  /** 你那句落库了。 */
+  onUserLine?: (line: VoiceLineRecord) => void
+  /** 她的回复又到了一段。 */
+  onDelta?: (text: string) => void
+}
+
+export interface VoiceRoomChatResult {
+  /** 她那句（声音多半还在路上）。没写完就失败了 = undefined。 */
+  reply?: VoiceLineRecord
+  error?: string
+  /**
+   * 开流之前就失败了才有（`errorCode` / `missingKey`）：那时失败的只可能是房间、说话人或
+   * **助手那一家的 key**——界面据此就地开 `QuickSetupDialog`（Hard Rule 8）。开流之后的失败
+   * （比如出声那家缺 key）⛔ 不带它们，免得配错了家。
+   */
+  errorCode?: string
+  missingKey?: AssistantOperatorMissingKey
+}
+
+function readErrorFrame(data: string): string {
+  try {
+    const payload = JSON.parse(data) as { error?: unknown }
+    return typeof payload.error === 'string' ? payload.error : 'Chat failed'
+  } catch {
+    return 'Chat failed'
+  }
+}
+
+/**
+ * 聊天模式：你说一句，她回一句（SSE，事件见 `VOICE_ROOM_CHAT_EVENT`）。
+ * 失败**返回**而不是抛出，与这一层其余方法一致；回复落库了但没出声时，`reply` 和 `error` 都有。
+ */
+export async function chatVoiceRoomAPI(
+  body: VoiceRoomChatRequest,
+  handlers: VoiceRoomChatHandlers = {},
+  signal?: AbortSignal,
+): Promise<VoiceRoomChatResult> {
+  try {
+    const response = await fetch(API_ENDPOINTS.VOICEROOM_CHAT, {
+      ...jsonBody(body),
+      signal,
+    })
+    if (!response.ok) {
+      const payload = await getErrorPayload(
+        response,
+        `Failed with status ${response.status}`,
+      )
+      return {
+        error: payload.error,
+        ...(payload.errorCode ? { errorCode: payload.errorCode } : {}),
+        ...(payload.missingKey ? { missingKey: payload.missingKey } : {}),
+      }
+    }
+    if (!response.body) return { error: 'Empty chat stream' }
+
+    let reply: VoiceLineRecord | undefined
+    let failure: string | undefined
+    for await (const frame of parseSseStream(response.body)) {
+      if (frame.event === VOICE_ROOM_CHAT_EVENT.USER) {
+        handlers.onUserLine?.(
+          (JSON.parse(frame.data) as { line: VoiceLineRecord }).line,
+        )
+      } else if (frame.event === VOICE_ROOM_CHAT_EVENT.DELTA) {
+        handlers.onDelta?.((JSON.parse(frame.data) as { text: string }).text)
+      } else if (frame.event === VOICE_ROOM_CHAT_EVENT.REPLY) {
+        reply = (JSON.parse(frame.data) as { line: VoiceLineRecord }).line
+      } else if (frame.event === VOICE_ROOM_CHAT_EVENT.ERROR) {
+        failure = readErrorFrame(frame.data)
+      }
+    }
+    if (!reply && !failure) return { error: 'The chat ended before the reply' }
+    return { reply, ...(failure ? { error: failure } : {}) }
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : 'Network error',
+    }
+  }
 }

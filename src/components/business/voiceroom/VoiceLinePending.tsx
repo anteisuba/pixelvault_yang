@@ -6,6 +6,7 @@ import { parseVoiceLineEmotion } from '@/lib/voice-line-emotion'
 import type { VoiceRoomCastMember } from '@/types/voiceroom'
 
 import { VoiceAvatar } from './VoiceAvatar'
+import { VoiceLineText } from './VoiceLineText'
 
 /**
  * 「话已经发出去了，声音还在路上」的占位气泡。
@@ -22,12 +23,18 @@ interface VoiceLinePendingProps {
   cast: VoiceRoomCastMember[]
   speakerId: string
   text: string
+  /**
+   * 聊天：她还在写（owner 10-23「先一个字一个字打出来」）。写着的时候没有「正在开口」，
+   * 末尾一根光标；写完换成真台词，那时才轮到声音。
+   */
+  typing?: boolean
 }
 
 export function VoiceLinePending({
   cast,
   speakerId,
   text,
+  typing = false,
 }: VoiceLinePendingProps) {
   const t = useTranslations('VoiceRoom')
   const speaker = cast.find((member) => member.id === speakerId)
@@ -46,17 +53,25 @@ export function VoiceLinePending({
       />
       <div className="vr-msg-body">
         <span className="vr-who">{speaker?.name}</span>
-        <span className="vr-bubble">{clean}</span>
-        <span className="vr-speaking">
-          <span className="vr-speaking-dots" aria-hidden>
-            <i />
-            <i />
-            <i />
-            <i />
-            <i />
+        {typing ? (
+          <span className="vr-bubble vr-typing" aria-live="polite">
+            <VoiceLineText text={text} />
           </span>
-          {t('speaking')}
-        </span>
+        ) : (
+          <>
+            <span className="vr-bubble">{clean}</span>
+            <span className="vr-speaking">
+              <span className="vr-speaking-dots" aria-hidden>
+                <i />
+                <i />
+                <i />
+                <i />
+                <i />
+              </span>
+              {t('speaking')}
+            </span>
+          </>
+        )}
       </div>
     </div>
   )

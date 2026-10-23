@@ -3,10 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import {
+  VOICE_ROOM_MODE,
   VOICE_ROOM_POLL_MS,
   VOICE_ROOM_SWITCH_OUT_MS,
+  type VoiceRoomMode,
 } from '@/constants/voiceroom'
 import {
+  chatVoiceRoomAPI,
   createVoiceLineAPI,
   createVoiceRoomAPI,
   deleteVoiceRoomAPI,
@@ -22,6 +25,10 @@ import type {
   VoiceRoomDeliveryState,
   VoiceRoomRecord,
 } from '@/types/voiceroom'
+import {
+  assistantKeySetupForError,
+  type AssistantKeySetupTarget,
+} from '@/lib/assistant-key-setup'
 import { AUDIO_DEFAULT_PACE, type AudioEmotion } from '@/constants/voice-cards'
 import { AUDIO_EXPRESSIVENESS } from '@/constants/audio-options'
 
@@ -78,6 +85,16 @@ export interface UseVoiceRoomResult {
   retakingIds: ReadonlySet<string>
   /** 刚发出、还没拿到回执的那句话。聊天流据此先摆一个「正在开口」的占位气泡。 */
   pendingLine: { speakerId: string; text: string } | null
+  /** 聊天：你刚发出、还没落库的那句（右边先摆出来）。 */
+  pendingUserText: string | null
+  /** 聊天：她正在写的回复（一个字一个字长出来）。 */
+  streamingReply: { speakerId: string; text: string } | null
+  /** 聊天 / 念台词（owner 10-23 方案 A）。会话级，不落库。 */
+  mode: VoiceRoomMode
+  setMode: (mode: VoiceRoomMode) => void
+  /** 聊天时助手那一家缺 key：页面就地开那一家的 `QuickSetupDialog`（Hard Rule 8）。 */
+  keySetup: AssistantKeySetupTarget | null
+  dismissKeySetup: () => void
   error: string | null
   /** 「接下来怎么念」——会话级，不落库，不是某一句的属性。 */
   delivery: VoiceRoomDeliveryState
@@ -88,6 +105,8 @@ export interface UseVoiceRoomResult {
   setCast: (cast: VoiceRoomCastMember[]) => Promise<void>
   removeRoom: (roomId: string) => Promise<void>
   say: (speakerId: string, text: string) => Promise<boolean>
+  /** 聊天：跟这位说一句。返回 true = 你那句已经落进聊天流（输入框不用把字还回去）。 */
+  chat: (speakerId: string, text: string) => Promise<boolean>
   retake: (
     lineId: string,
     patch: { emotion?: AudioEmotion | null; text?: string },
@@ -125,6 +144,13 @@ export function useVoiceRoom(): UseVoiceRoomResult {
     speakerId: string
     text: string
   } | null>(null)
+  const [pendingUserText, setPendingUserText] = useState<string | null>(null)
+  const [streamingReply, setStreamingReply] = useState<{
+    speakerId: string
+    text: string
+  } | null>(null)
+  const [mode, setMode] = useState<VoiceRoomMode>(VOICE_ROOM_MODE.CHAT)
+  const [keySetup, setKeySetup] = useState<AssistantKeySetupTarget | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [delivery, setDeliveryState] =
     useState<VoiceRoomDeliveryState>(DEFAULT_DELIVERY)
@@ -323,6 +349,51 @@ export function useVoiceRoom(): UseVoiceRoomResult {
     [activeRoomId, delivery],
   )
 
+  /**
+   * 聊天：你那句先摆在右边，她的回复边写边长，写完换成真台词（声音照旧靠轮询落地）。
+   *
+   * ⚠ 两个占位都**不进 `detail.lines`**，理由同 `say`；真台词回来那一刻占位才撤。
+   */
+  const chat = useCallback(
+    async (speakerId: string, text: string) => {
+      const roomId = activeRoomId
+      if (!roomId) return false
+      const append = (line: VoiceLineRecord) =>
+        setDetail((current) =>
+          current && current.id === roomId
+            ? { ...current, lines: [...current.lines, line] }
+            : current,
+        )
+      setSending(true)
+      setPendingUserText(text)
+      let userLanded = false
+      const result = await chatVoiceRoomAPI(
+        { roomId, speakerId, text, ...toDeliveryPayload(delivery) },
+        {
+          onUserLine: (line) => {
+            userLanded = true
+            append(line)
+            setPendingUserText(null)
+            setStreamingReply({ speakerId, text: '' })
+          },
+          onDelta: (delta) =>
+            setStreamingReply((current) =>
+              current ? { ...current, text: current.text + delta } : current,
+            ),
+        },
+      )
+      if (result.reply) append(result.reply)
+      setStreamingReply(null)
+      setPendingUserText(null)
+      setSending(false)
+      const setup = assistantKeySetupForError(result)
+      if (setup) setKeySetup(setup)
+      else if (result.error) setError(result.error)
+      return userLanded
+    },
+    [activeRoomId, delivery],
+  )
+
   const retake = useCallback(
     async (
       lineId: string,
@@ -361,6 +432,7 @@ export function useVoiceRoom(): UseVoiceRoomResult {
   )
 
   const dismissError = useCallback(() => setError(null), [])
+  const dismissKeySetup = useCallback(() => setKeySetup(null), [])
 
   return {
     rooms,
@@ -372,6 +444,12 @@ export function useVoiceRoom(): UseVoiceRoomResult {
     switching,
     retakingIds,
     pendingLine,
+    pendingUserText,
+    streamingReply,
+    mode,
+    setMode,
+    keySetup,
+    dismissKeySetup,
     error,
     delivery,
     setDelivery,
@@ -381,6 +459,7 @@ export function useVoiceRoom(): UseVoiceRoomResult {
     setCast,
     removeRoom,
     say,
+    chat,
     retake,
     refreshRooms,
     dismissError,

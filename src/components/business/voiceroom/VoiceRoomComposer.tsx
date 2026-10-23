@@ -5,7 +5,13 @@ import { useTranslations } from 'next-intl'
 
 import { useModelChannelGate } from '@/hooks/use-model-channel-gate'
 
-import { VOICE_LINE_TEXT_MAX_LENGTH } from '@/constants/voiceroom'
+import {
+  VOICE_LINE_TEXT_MAX_LENGTH,
+  VOICE_ROOM_MODE,
+  VOICE_ROOM_MODES,
+  VOICE_ROOM_SPEAKER_KIND,
+  type VoiceRoomMode,
+} from '@/constants/voiceroom'
 import type {
   VoiceRoomCastMember,
   VoiceRoomDeliveryState,
@@ -15,9 +21,11 @@ import { VoiceAvatar } from './VoiceAvatar'
 import { VoiceRoomDelivery } from './VoiceRoomDelivery'
 
 /**
- * 输入行 —— 这一页的核心动作：**选中谁，打的字就是谁的台词**。
+ * 输入行 —— 这一页的核心动作：**选中谁**。聊天时就是跟谁聊，念台词时打的字就是谁的台词
+ * （owner 10-23 方案 A：两种都留，旁边一个小分段切换）。
  *
  * 没有说话人下拉，头像本身就是选择器：一眼看得出班底有谁、现在轮到谁。
+ * 音效师不会回话：选中它时聊天也按念台词走（打的字就是要的声音）。
  */
 
 interface VoiceRoomComposerProps {
@@ -26,6 +34,8 @@ interface VoiceRoomComposerProps {
   sending: boolean
   delivery: VoiceRoomDeliveryState
   onDeliveryChange: (patch: Partial<VoiceRoomDeliveryState>) => void
+  mode: VoiceRoomMode
+  onModeChange: (mode: VoiceRoomMode) => void
   onSelect: (speakerId: string) => void
   onOpenCasting: () => void
   onSubmit: (text: string) => Promise<boolean>
@@ -37,6 +47,8 @@ export function VoiceRoomComposer({
   sending,
   delivery,
   onDeliveryChange,
+  mode,
+  onModeChange,
   onSelect,
   onOpenCasting,
   onSubmit,
@@ -52,6 +64,9 @@ export function VoiceRoomComposer({
   const [text, setText] = useState('')
 
   const selected = cast.find((member) => member.id === selectedId) ?? null
+  const chatting =
+    mode === VOICE_ROOM_MODE.CHAT &&
+    selected?.kind === VOICE_ROOM_SPEAKER_KIND.VOICE
   const canSend =
     Boolean(selected) &&
     text.trim().length > 0 &&
@@ -104,6 +119,19 @@ export function VoiceRoomComposer({
         </button>
       </div>
 
+      <div className="vr-mode" role="group" aria-label={t('modeLabel')}>
+        {VOICE_ROOM_MODES.map((option) => (
+          <button
+            key={option}
+            type="button"
+            aria-pressed={mode === option}
+            onClick={() => onModeChange(option)}
+          >
+            {t(`mode.${option}`)}
+          </button>
+        ))}
+      </div>
+
       <input
         className="vr-input"
         value={text}
@@ -111,7 +139,9 @@ export function VoiceRoomComposer({
         onChange={(event) => setText(event.target.value)}
         placeholder={
           selected
-            ? t('linePlaceholder', { name: selected.name })
+            ? chatting
+              ? t('chatPlaceholder', { name: selected.name })
+              : t('linePlaceholder', { name: selected.name })
             : t('pickSpeakerFirst')
         }
         disabled={!selected || sending}
@@ -143,7 +173,9 @@ export function VoiceRoomComposer({
           ? t('sending')
           : channelGate.blocked
             ? tPicker('pickChannel')
-            : t('generate')}
+            : chatting
+              ? t('send')
+              : t('generate')}
       </button>
     </form>
   )

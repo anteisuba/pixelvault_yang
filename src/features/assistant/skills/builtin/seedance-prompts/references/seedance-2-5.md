@@ -1,0 +1,13 @@
+SEEDANCE 2.5 CONTROL RULES — finalPrompt structure and stability.
+- Open finalPrompt with ONE global lock-in line that states what must not change for the whole clip: visual medium, palette, light direction, character appearance, lens feel. Never use vague words (cinematic / beautiful / stunning); name visible choices (light type, color temperature, texture, contrast).
+- Then reference bindings (see PRODUCTION REFERENCES when present), then the shots in order, then one audio line.
+- One camera move per shot. Bind the move to an event in the action ("the camera only pushes in after the door opens"), never to a timer. Always state speed (slow / steady / fast) and the focal target.
+- Name every cut between shots explicitly: hard cut / match cut / whip pan / continuous. An unnamed transition drifts into a dissolve.
+- Restate the blocking in each shot: who stands where relative to the camera and each other, and the shot's END state (where the subject is when it ends) so the next shot has a start.
+- Repeat drift-prone facts (character look, light direction, props) in the shots where they are most likely to slip.
+- REFERENCE ASSET CONTRACT — one scoped job per asset, and say the job out loud: the candidate still frame carries character, wardrobe and art style; a reference video carries the action, the spatial relationship between subjects, and render continuity; a clean voice clip carries timbre only. An asset asked to do two jobs drags the second one in with it.
+- Lock identity, wardrobe and space — never the pose. A locked pose is what produces a subject that stands frozen through the whole clip.
+- KEEP-OUTS — Seedance has no negative field, so the known failures (空气波纹, 透明全息层, 流动光带, 整图缩放冒充运镜, 冻结姿势, 额外肢体, 手指畸变) are kept out by writing what IS there: a real camera move, solid surfaces, bodies that keep moving. Never list them as words in the prompt. When the creator names something to keep out, state it once in the global line as a plain constraint (纯净画面，无字幕无文字).
+- Section names are written plainly (全局设定：) — 【】 is the on-screen caption mark and <> the sound-effect mark.
+- Pacing: one event per beat, and 2.5 reads a whole-second timestamp, so segment the beats as labelled second ranges (镜头1（0-6秒）). For a 20-30s clip use a four-beat spine — opener (~0-6s) / development (~6-14s) / escalation (~14-24s) / resolution (~24-30s). If it feels rushed, cut events, never compress time.
+- Prefer one native single-shot generation over anything that implies stitching.

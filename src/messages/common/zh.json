@@ -456,6 +456,11 @@
       "notFound": "找不到这套造型",
       "limit": "造型数到上限了",
       "lastLook": "至少要留一套造型"
+    },
+    "assistantSkill": {
+      "limit": "技能已经到上限（200 份）了，先删掉一份再写。",
+      "nameTaken": "这个名字已经有了，换一个。",
+      "unknownBuiltin": "这份内置技能不在了，刷新一下。"
     }
   }
 }

@@ -57,6 +57,13 @@ vi.mock('@/services/assistant-memory.service', () => ({
     return memoryStore.memories
   },
 }))
+const skillStore = vi.hoisted(() => ({ rows: [] as unknown[] }))
+vi.mock('@/services/assistant-skill.service', async () => {
+  const { resolveSkills } = await import('@/features/assistant/skills')
+  return {
+    loadAssistantSkills: async () => resolveSkills(skillStore.rows as never),
+  }
+})
 vi.mock('@/services/kernel/assistant-v3-history.service', () => ({
   loadAssistantV3HistorySummaries: async () => ({
     summaries: memoryStore.summaries,
@@ -900,5 +907,44 @@ describe('记忆与之前几轮（第 6 步）', () => {
     expect(memoryStore.scheduled).toHaveBeenCalledWith(
       expect.objectContaining({ kind: 'story' }),
     )
+  })
+
+  it('「/」点名的技能：全文进这一轮的消息；关掉的内置在设置那段点名', async () => {
+    memoryStore.memories = []
+    memoryStore.summaries = []
+    skillStore.rows = [
+      {
+        id: 'a1b2c3d4-0000-4000-8000-000000000000',
+        name: '冬装三视图',
+        description: '冬装角色出三视图',
+        body: '三视图一律白底，正侧背。',
+        references: {},
+        builtinSlug: null,
+        enabled: true,
+      },
+      {
+        id: 'b1b2c3d4-0000-4000-8000-000000000000',
+        name: '参考图分工',
+        description: '',
+        body: null,
+        references: {},
+        builtinSlug: 'reference-roles',
+        enabled: false,
+      },
+    ]
+    const main = mockModel([textTurn('好。')])
+    models.main = main
+    await collect(
+      runAssistantNext('clerk-1', imageRequest('/冬装三视图 马尔福')),
+    )
+    const prompt = promptOf(main.doStreamCalls[0]!)
+    expect(prompt).toContain('THE CREATOR CALLED THIS SKILL WITH /冬装三视图')
+    expect(prompt).toContain('三视图一律白底，正侧背。')
+    expect(prompt).toContain('what they wrote after it: 马尔福')
+    expect(prompt).toContain(
+      'SKILLS THE CREATOR TURNED OFF — do not read these: 技能·参考图分工',
+    )
+    expect(prompt).not.toContain('- 技能·冬装三视图')
+    skillStore.rows = []
   })
 })

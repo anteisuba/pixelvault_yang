@@ -27,7 +27,8 @@ import {
   ASSISTANT_NEXT_HANDLE_PREFIXES as PREFIX,
   type AssistantNextFindKind,
 } from '@/features/assistant/constants'
-import { renderSkill } from '@/features/assistant/skills'
+import { BUILTIN_SKILLS, renderSkill } from '@/features/assistant/skills'
+import { loadAssistantSkills } from '@/services/assistant-skill.service'
 
 /**
  * 工作区编号与「查 / 看」（第 3 步，方案 /mnt/project-files/assistant-reliability/step3-plan.md）。
@@ -816,7 +817,14 @@ export async function openWorkspaceHandle(
           }
         : readConversation(owner.userId, handle.id)
     case 'skill':
-      return { text: renderSkill(handle.name), pictures: [] }
+      return {
+        // 这个人那一套（改版 / 关掉的照他的）；读不出来就只看内置的。
+        text: renderSkill(
+          handle.name,
+          await loadAssistantSkills(owner.userId).catch(() => BUILTIN_SKILLS),
+        ),
+        pictures: [],
+      }
     case 'settings':
       return readSettings(owner)
   }

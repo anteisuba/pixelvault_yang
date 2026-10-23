@@ -132,6 +132,13 @@ export interface MentionInputHandle {
    * 与**文本节点粘原文**（契约 §5.2）都走这条。
    */
   insertText(text: string): void
+  /**
+   * 光标所在那段文字里、光标前面的字（光标不在文字里时 null）。
+   * 助手输入框的「/」技能菜单（第 7b 步）靠它认出 `/查询`。
+   */
+  textBeforeCaret(): string | null
+  /** 删掉光标前 `length` 个字、在原处写上 `text`（普通文字，⛔ 不出胶囊）。 */
+  replaceBeforeCaret(length: number, text: string): void
   focus(): void
   getBoundingClientRect(): DOMRect | undefined
 }
@@ -1141,6 +1148,44 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
           if (!el) return
           el.focus()
           insertNodeAtCaret(el, el.ownerDocument.createTextNode(text))
+          emit()
+        },
+        textBeforeCaret() {
+          const el = editorRef.current
+          const selection = el?.ownerDocument.getSelection()
+          const node = selection?.anchorNode
+          if (
+            !el ||
+            !selection?.isCollapsed ||
+            !node ||
+            !el.contains(node) ||
+            node.nodeType !== Node.TEXT_NODE
+          )
+            return null
+          return (node.textContent ?? '').slice(0, selection.anchorOffset)
+        },
+        replaceBeforeCaret(length: number, text: string) {
+          const el = editorRef.current
+          if (!el) return
+          const doc = el.ownerDocument
+          const live = doc.getSelection()
+          const node = live?.anchorNode
+          if (
+            live &&
+            node &&
+            el.contains(node) &&
+            node.nodeType === Node.TEXT_NODE
+          ) {
+            const end = live.anchorOffset
+            const range = doc.createRange()
+            range.setStart(node, Math.max(0, end - length))
+            range.setEnd(node, end)
+            range.deleteContents()
+            range.collapse(true)
+            live.removeAllRanges()
+            live.addRange(range)
+          }
+          insertNodeAtCaret(el, doc.createTextNode(text))
           emit()
         },
         commitMention(name: string, token?: MentionToken) {

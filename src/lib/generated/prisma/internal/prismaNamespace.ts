@@ -420,6 +420,7 @@ export const ModelName = {
   GenerationLayer: 'GenerationLayer',
   ContextCard: 'ContextCard',
   AssistantMemory: 'AssistantMemory',
+  AssistantSkill: 'AssistantSkill',
   AssistantTurnRecord: 'AssistantTurnRecord'
 } as const
 
@@ -436,7 +437,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "promptTagStack" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "modelConfig" | "characterCard" | "characterLook" | "generationCharacterCard" | "userLike" | "userFollow" | "characterCardLora" | "loraTrainingJob" | "loraAsset" | "extractedElement" | "generationLayer" | "contextCard" | "assistantMemory" | "assistantTurnRecord"
+    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "promptTagStack" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "modelConfig" | "characterCard" | "characterLook" | "generationCharacterCard" | "userLike" | "userFollow" | "characterCardLora" | "loraTrainingJob" | "loraAsset" | "extractedElement" | "generationLayer" | "contextCard" | "assistantMemory" | "assistantSkill" | "assistantTurnRecord"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -3104,6 +3105,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    AssistantSkill: {
+      payload: Prisma.$AssistantSkillPayload<ExtArgs>
+      fields: Prisma.AssistantSkillFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.AssistantSkillFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantSkillPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.AssistantSkillFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantSkillPayload>
+        }
+        findFirst: {
+          args: Prisma.AssistantSkillFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantSkillPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.AssistantSkillFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantSkillPayload>
+        }
+        findMany: {
+          args: Prisma.AssistantSkillFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantSkillPayload>[]
+        }
+        create: {
+          args: Prisma.AssistantSkillCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantSkillPayload>
+        }
+        createMany: {
+          args: Prisma.AssistantSkillCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.AssistantSkillCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantSkillPayload>[]
+        }
+        delete: {
+          args: Prisma.AssistantSkillDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantSkillPayload>
+        }
+        update: {
+          args: Prisma.AssistantSkillUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantSkillPayload>
+        }
+        deleteMany: {
+          args: Prisma.AssistantSkillDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.AssistantSkillUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.AssistantSkillUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantSkillPayload>[]
+        }
+        upsert: {
+          args: Prisma.AssistantSkillUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantSkillPayload>
+        }
+        aggregate: {
+          args: Prisma.AssistantSkillAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateAssistantSkill>
+        }
+        groupBy: {
+          args: Prisma.AssistantSkillGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AssistantSkillGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.AssistantSkillCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AssistantSkillCountAggregateOutputType> | number
+        }
+      }
+    }
     AssistantTurnRecord: {
       payload: Prisma.$AssistantTurnRecordPayload<ExtArgs>
       fields: Prisma.AssistantTurnRecordFieldRefs
@@ -3884,6 +3959,22 @@ export const AssistantMemoryScalarFieldEnum = {
 export type AssistantMemoryScalarFieldEnum = (typeof AssistantMemoryScalarFieldEnum)[keyof typeof AssistantMemoryScalarFieldEnum]
 
 
+export const AssistantSkillScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  description: 'description',
+  body: 'body',
+  references: 'references',
+  builtinSlug: 'builtinSlug',
+  enabled: 'enabled',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AssistantSkillScalarFieldEnum = (typeof AssistantSkillScalarFieldEnum)[keyof typeof AssistantSkillScalarFieldEnum]
+
+
 export const AssistantTurnRecordScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -4385,6 +4476,7 @@ export type GlobalOmitConfig = {
   generationLayer?: Prisma.GenerationLayerOmit
   contextCard?: Prisma.ContextCardOmit
   assistantMemory?: Prisma.AssistantMemoryOmit
+  assistantSkill?: Prisma.AssistantSkillOmit
   assistantTurnRecord?: Prisma.AssistantTurnRecordOmit
 }
 

@@ -1158,6 +1158,11 @@
       "mention": "@ キャラクターや素材",
       "recent": "最近の素材",
       "all": "すべて"
+    },
+    "skillMenu": {
+      "label": "スキル",
+      "mine": "自分の",
+      "builtin": "内蔵"
     }
   },
   "ContextCards": {
@@ -1176,7 +1181,8 @@
       "label": "アシスタント設定のページ",
       "persona": "人物設定",
       "memory": "記憶",
-      "memoryCount": "記憶 · {count}"
+      "memoryCount": "記憶 · {count}",
+      "skills": "スキル"
     },
     "status": {
       "saving": "保存中",
@@ -1369,6 +1375,31 @@
       "placeholder": "サイトまたはドメイン",
       "remove": "{token} を削除",
       "invalid": "サイトのドメインを入力してください（例：danbooru.donmai.us）。",
+      "failed": "保存できませんでした。もう一度お試しください。"
+    },
+    "skills": {
+      "mine": "自分の",
+      "builtin": "内蔵",
+      "new": "スキルを作成",
+      "loading": "スキルを読み込み中…",
+      "empty": "まだありません。書いたら入力欄で「/名前」と打って呼び出せます。",
+      "overridden": "編集済み",
+      "toggle": "{name} のオン・オフ",
+      "slashHint": "アシスタントは自分からは読みません。入力欄で「/{name}」と打って呼び出します。",
+      "override": "自分用に編集",
+      "edit": "編集",
+      "export": "書き出す",
+      "delete": "削除",
+      "restore": "内蔵に戻す",
+      "deleteConfirm": "確定",
+      "nameLabel": "名前",
+      "namePlaceholder": "例：冬服三面図",
+      "descriptionLabel": "何をするか・いつ使うか",
+      "descriptionPlaceholder": "例：キャラの冬服三面図を作る。三面図が必要なときに使う。",
+      "bodyLabel": "本文",
+      "bodyPlaceholder": "アシスタントにどうしてほしいか、手順で書いてください。",
+      "cancel": "キャンセル",
+      "save": "保存",
       "failed": "保存できませんでした。もう一度お試しください。"
     }
   }

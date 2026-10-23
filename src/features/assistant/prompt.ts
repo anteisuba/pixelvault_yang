@@ -320,6 +320,8 @@ export function buildNextSystemPrompt(input: {
   historySummary?: AssistantV3HistorySummary | null
   accountName: string | null
   language: PromptAssistantResponseLanguage
+  /** 你关掉了哪几份内置技能（`skillsSettingsNote`，第 7b 步）；没关 = 空串。 */
+  skillsNote?: string
 }): NextSystemPrompt {
   const { persona } = input
   const style = buildPersonaStyleSection(persona, 'v3')
@@ -327,7 +329,7 @@ export function buildNextSystemPrompt(input: {
   const dialect = modelSection(input.face, input.request)
   const chat = chatCharacterOf(persona)
   const stable = `${chat ? CHAT_STABLE : STABLE}\n\n${BENCH_NOTES[input.face]}`
-  const settings = `${persona.name && !chat ? `Your name is ${persona.name}.\n` : ''}Reply in ${RESPONSE_LANGUAGE_LABELS[input.language]}.`
+  const settings = `${persona.name && !chat ? `Your name is ${persona.name}.\n` : ''}Reply in ${RESPONSE_LANGUAGE_LABELS[input.language]}.${chat ? '' : (input.skillsNote ?? '')}`
   const creator = `${
     chat
       ? `${chatCardSection(persona)}\n\nTHIS CREATOR'S SETTINGS\n${settings}`

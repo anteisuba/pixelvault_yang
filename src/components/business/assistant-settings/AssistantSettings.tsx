@@ -5,10 +5,12 @@ import { X } from '@/components/icons'
 
 import { useAssistantMemories } from '@/hooks/use-assistant-memories'
 import { useAssistantPersonaAutosave } from '@/hooks/use-assistant-persona'
+import { useAssistantSkills } from '@/hooks/use-assistant-skills'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { AssistantMemoryPane } from '@/components/business/assistant-settings/AssistantMemoryPane'
 import { AssistantPersonaPane } from '@/components/business/assistant-settings/AssistantPersonaPane'
 import { AssistantSaveStatus } from '@/components/business/assistant-settings/AssistantSaveStatus'
+import { AssistantSkillsPane } from '@/components/business/assistant-settings/AssistantSkillsPane'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import {
   ResponsiveDialogDescription,
@@ -20,13 +22,14 @@ import {
  * 工作台右上角头像 ⋯ 的「助手设置」弹出它（`AssistantSettingsDialog`），
  * `/settings/assistant` 整页打开它（`SettingsAssistantSection`）。
  *
- * 结构：顶部「人设 / 记忆」两页；改了就存，右上角一小行「已保存」；⛔ 没有
+ * 结构：顶部「人设 / 记忆 / 技能」三页（技能：第 7b 步）；改了就存，右上角一小行「已保存」；⛔ 没有
  * 「取消 / 保存」。手机上弹窗走底部抽屉（`ResponsiveDialog`），头部换成两行。
  */
 
 export const ASSISTANT_SETTINGS_SECTIONS = {
   persona: 'persona',
   memory: 'memory',
+  skills: 'skills',
 } as const
 
 export type AssistantSettingsSection =
@@ -54,6 +57,10 @@ export function AssistantSettings({
   /** 记忆那一页的数据住在这一层：页签上的条数要它。 */
   const memories = useAssistantMemories()
   const memoryCount = memories.memories.length
+  /** 技能那一页：切到它才读（人设 / 记忆页用不着）。 */
+  const skills = useAssistantSkills({
+    enabled: section === ASSISTANT_SETTINGS_SECTIONS.skills,
+  })
 
   const tabs = (
     <LiquidSegmented
@@ -68,6 +75,10 @@ export function AssistantSettings({
             memoryCount > 0
               ? t('tabs.memoryCount', { count: memoryCount })
               : t('tabs.memory'),
+        },
+        {
+          value: ASSISTANT_SETTINGS_SECTIONS.skills,
+          label: t('tabs.skills'),
         },
       ]}
       value={section}
@@ -94,19 +105,17 @@ export function AssistantSettings({
   const pane =
     section === ASSISTANT_SETTINGS_SECTIONS.persona ? (
       <AssistantPersonaPane autosave={autosave} />
-    ) : (
+    ) : section === ASSISTANT_SETTINGS_SECTIONS.memory ? (
       <AssistantMemoryPane memories={memories} autosave={autosave} />
+    ) : (
+      <AssistantSkillsPane skills={skills} />
     )
   /** 切页：内容淡入（动效表：不左右推页，两页并列不分先后）。 */
   const body = (
     <div
       key={section}
       role="tabpanel"
-      aria-label={
-        section === ASSISTANT_SETTINGS_SECTIONS.persona
-          ? t('tabs.persona')
-          : t('tabs.memory')
-      }
+      aria-label={t(`tabs.${section}`)}
       className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-base"
     >
       {pane}

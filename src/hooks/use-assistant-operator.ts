@@ -974,6 +974,7 @@ export function useAssistantOperator(
   /** 卡上就地改参数那几条 step 的文案（§5.2 第二行）—— i18n 只能在 React 层拿。 */
   const tConfirm = useTranslations('StudioOperator.confirm')
   const tAutoReview = useTranslations('StudioOperator.autoReview')
+  const tContinueAsk = useTranslations('StudioOperator.continueAsk')
   /** 问题卡答复那一句（给模型与库读，2026-10-14 起走词表）。 */
   const tQuestion = useTranslations('StudioOperator.question')
   const tErrors = useTranslations('Errors')
@@ -1028,9 +1029,16 @@ export function useAssistantOperator(
    * 记下这一枪打在哪（画布卡 + 原来的图 / 工作台那张结果卡），图落地后自己发一轮，
    * 附件就是刚出的那张。⚠ 一枪只看一次；用户在那之前开口了就作废。
    */
+  /**
+   * ⭐ 新内核（第 5b 步，owner 2026-10-23）：⛔ 不自动看图。不管是不是自动按的，
+   * 出完都停下问一句「按这个方向继续吗？」（`then: 'ask'`）；创作者点了或开口了，
+   * 助手才去看这批图、接着改。
+   */
   const autoReviewRef = useRef<
-    | { kind: 'canvas'; nodeId: string; before: string | undefined }
-    | { kind: 'result'; resultId: string }
+    | ((
+        | { kind: 'canvas'; nodeId: string; before: string | undefined }
+        | { kind: 'result'; resultId: string }
+      ) & { then: 'review' | 'ask' })
     | null
   >(null)
   /** 下一次 `run()` 带不带 `autoReview`（读完就清，见 `reviseRef` 同款）。 */
@@ -2458,9 +2466,39 @@ export function useAssistantOperator(
       }
     }
     autoReviewRef.current = null
+    if (pending.then === 'ask') {
+      // 出完就停（第 5b 步）：问一句，卡钉在输入框上方；直接打字 = 用一句话回答。
+      setOperatorQuestion({
+        id: nextOperatorEntryId('question'),
+        questions: [
+          {
+            id: nextOperatorEntryId('continue'),
+            header: tContinueAsk('header'),
+            question: tContinueAsk('question'),
+            multiSelect: false,
+            allowOther: true,
+            options: [
+              {
+                id: 'continue',
+                label: tContinueAsk('continue'),
+                description: tContinueAsk('continueDescription'),
+                recommended: true,
+              },
+              {
+                id: 'change',
+                label: tContinueAsk('change'),
+                description: tContinueAsk('changeDescription'),
+              },
+            ],
+          },
+        ],
+        answers: [],
+      })
+      return
+    }
     autoReviewTurnRef.current = true
     send(tAutoReview('message'), [attachment])
-  }, [operatorState, canvasTargets, send, tAutoReview])
+  }, [operatorState, canvasTargets, send, tAutoReview, tContinueAsk])
 
   /**
    * 撤回一条还没轮到的排队消息（§3.1 ㉔）。
@@ -3039,6 +3077,7 @@ export function useAssistantOperator(
       ) {
         return
       }
+      const usesNextKernel = readsNextKernel(domain)
       /**
        * ⭐ **自动生成单轮上限**（owner 2026-10-14）：这张卡加起来要出的张数（每张画布
        * 卡按它自己的张数，工作台按此刻的张数）超过上限，就不替你按 —— 卡照常摆着等你。
@@ -3131,11 +3170,12 @@ export function useAssistantOperator(
        */
       if (confirm.request.canvasNode) {
         const nodeId = confirm.request.canvasNode.id
-        if (options.auto)
+        if (options.auto || usesNextKernel)
           autoReviewRef.current = {
             kind: 'canvas',
             nodeId,
             before: host.canvasTargets?.outputOf?.(nodeId)?.url,
+            then: usesNextKernel ? 'ask' : 'review',
           }
         applyContext.canvas?.generate(nodeId)
         return
@@ -3188,8 +3228,12 @@ export function useAssistantOperator(
         ...(request.label ? { summary: request.label } : {}),
         request,
       })
-      if (options.auto)
-        autoReviewRef.current = { kind: 'result', resultId: pendingResultId }
+      if (options.auto || usesNextKernel)
+        autoReviewRef.current = {
+          kind: 'result',
+          resultId: pendingResultId,
+          then: usesNextKernel ? 'ask' : 'review',
+        }
       applyContext.triggerGeneration?.(request, {
         threadScope,
         localThreadId,
@@ -3198,6 +3242,7 @@ export function useAssistantOperator(
     },
     [
       applyContext,
+      domain,
       host.generationControls,
       host.canvasTargets,
       host.searchGrounding,

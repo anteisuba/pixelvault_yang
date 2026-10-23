@@ -8,6 +8,7 @@ import type {
 } from 'ai'
 
 import { ASSISTANT_NEXT_LIMITS } from '@/features/assistant/constants'
+import { skillBlocksIn } from '@/features/assistant/skills'
 import type { AssistantV3PictureRef } from '@/types/assistant-v3'
 
 /**
@@ -173,9 +174,15 @@ export function historyMessages(lines: readonly HistoryLine[]): ModelMessage[] {
     .map((line) => ({ role: line.role, content: line.content }))
 }
 
+/** 读过的技能全文原样留下（第 7a 步「读过的这一轮一直在」），其余换成一行。 */
+const CLEARED = '(cleared to save room;'
+
 function clearedNote(value: string): string {
+  if (value.startsWith(CLEARED)) return value
   const head = value.replace(/\s+/g, ' ').trim().slice(0, 120)
-  return `(cleared to save room; it began: "${head}…". Call the same tool again if you need it.)`
+  const note = `${CLEARED} it began: "${head}…". Call the same tool again if you need it.)`
+  const skills = skillBlocksIn(value)
+  return skills.length ? `${note}\n\n${skills.join('\n\n')}` : note
 }
 
 /**

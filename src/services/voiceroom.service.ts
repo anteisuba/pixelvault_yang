@@ -16,11 +16,16 @@ import {
   VOICE_ROOM_VOICE_CAST_MAX,
   type VoiceLineSpeakerKind,
 } from '@/constants/voiceroom'
+import { characterCoverUrl } from '@/lib/card-bus'
 import { parseVoiceLineEmotion } from '@/lib/voice-line-emotion'
 import {
   reconcileStaleGenerationJob,
   STALE_EXECUTION_FAILURE_MESSAGE,
 } from '@/services/execution-sweeper.service'
+import {
+  CHARACTER_LOOKS_INCLUDE,
+  mapCharacterLookRow,
+} from '@/services/cards/character-card.mapper'
 import { submitAudioGeneration } from '@/services/generate-audio.service'
 import { ensureUser } from '@/services/user.service'
 import {
@@ -363,10 +368,19 @@ export async function dispatchLine(params: {
     return jobId
   }
 
-  const card = await db.voiceCard.findFirst({
-    where: { id: member.id, userId, isDeleted: false },
-    select: { voiceId: true, name: true, coverImage: true },
-  })
+  const [card, character] = await Promise.all([
+    db.voiceCard.findFirst({
+      where: { id: member.id, userId, isDeleted: false },
+      select: { voiceId: true, name: true, coverImage: true },
+    }),
+    // 头像规则（owner 10-23）：绑了角色，素材库里这条就挂角色的名字和头像。
+    // 一副嗓子被几个角色绑着时取最近改过的那个——和聊天用的人设同一条规则。
+    db.characterCard.findFirst({
+      where: { userId, voiceCardId: member.id, isDeleted: false },
+      orderBy: { updatedAt: 'desc' },
+      select: { name: true, ...CHARACTER_LOOKS_INCLUDE },
+    }),
+  ])
   if (!card?.voiceId) {
     throw new ApiRequestError(
       'VOICE_CARD_UNAVAILABLE',
@@ -382,8 +396,14 @@ export async function dispatchLine(params: {
     modelId: delivery.modelId ?? resolveAudioModelId(AUDIO_KIND.SPEECH),
     voiceId: card.voiceId,
     // 素材库靠这两个把音频卡画成「头像 + 名字」。
-    voiceName: card.name,
-    coverImageUrl: toCoverUrl(card.coverImage),
+    voiceName: character?.name ?? card.name,
+    coverImageUrl:
+      toCoverUrl(
+        character &&
+          characterCoverUrl({
+            looks: character.looks.map(mapCharacterLookRow),
+          }),
+      ) ?? toCoverUrl(card.coverImage),
     ...(emotion ? { emotion: emotion as never } : {}),
     ...(delivery.pace ? { pace: delivery.pace } : {}),
     ...(delivery.expressiveness

@@ -145,7 +145,7 @@ export const ASSISTANT_NEXT_LORA_PARAM_KEYS: Readonly<Record<string, string>> =
   }
 
 /** 过程记录里标「这一轮是新内核跑的」（`AssistantTurnRecord.promptVersion`）。改系统提示时一起换。 */
-export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-10-23h'
+export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-10-23i'
 
 export const ASSISTANT_NEXT_LIMITS = {
   /**

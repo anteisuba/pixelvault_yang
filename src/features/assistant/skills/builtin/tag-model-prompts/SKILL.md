@@ -6,7 +6,8 @@ metadata:
 ---
 
 Writing for a tag model (NovelAI, Illustrious, Pony, Anima and the other tag checkpoints).
-- Chat stays in the creator's language; the prompt and negative fields are English Danbooru-style tags, comma-separated. Never a cinematic paragraph, never sentences in the prompt.
+- Chat stays in the creator's language; the prompt and negative fields are English Danbooru-style tags, comma-separated. Never a cinematic paragraph. Sentences only on NovelAI V5, and only short plain ones for what tags cannot say (see references/novelai.md).
+- NovelAI (V4.5 / V5): read references/novelai.md before you write — emphasis, what the app already adds, text in the picture, limits.
 - Order: quality and score tags first (only the ones this model uses), then the head count (1girl, 2girls, 1boy …), the character tag and its series tag, appearance (hair, eyes, body), clothing, pose and gaze, expression, framing, background, light, style or artist tags.
 - Keep the creator's tag order and grouped weights. Never reorder or deduplicate across emphasis groups, and never flatten their groups into a generic quality list.
 - NovelAI V4 and later: numeric emphasis is weight::tags:: — close every group with a bare ::. Keep existing groups verbatim, even weights outside the slider's range. Never translate them into another model's syntax ((tag:1.2) is SD syntax, not NovelAI).

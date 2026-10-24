@@ -13,16 +13,17 @@ describe('studio-active-conversation（9f-3）', () => {
   })
 
   it('外壳开着对话时请求带上它；调用方自己写了就用它的；不在外壳里就不带', () => {
-    expect(withActiveStudioConversation({ modelId: 'm' })).toEqual({
+    const params: { modelId: string; conversationId?: string } = {
       modelId: 'm',
-    })
+    }
+    expect(withActiveStudioConversation(params)).toEqual({ modelId: 'm' })
     setActiveStudioConversation('c-1')
-    expect(withActiveStudioConversation({ modelId: 'm' })).toEqual({
+    expect(withActiveStudioConversation(params)).toEqual({
       modelId: 'm',
       conversationId: 'c-1',
     })
     expect(
-      withActiveStudioConversation({ modelId: 'm', conversationId: 'c-2' }),
+      withActiveStudioConversation({ ...params, conversationId: 'c-2' }),
     ).toEqual({ modelId: 'm', conversationId: 'c-2' })
   })
 

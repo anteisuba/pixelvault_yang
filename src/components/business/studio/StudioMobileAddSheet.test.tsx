@@ -30,7 +30,8 @@ vi.mock('@/components/business/studio/ReferenceImageChip', () => ({
     <div data-testid="reference-picker">{headerSlot}</div>
   ),
   ReferenceImageCountLine: () => <span>count-line</span>,
-  useReferenceImageLibrary: () => ({ open: () => {}, portal: null }),
+  ReferenceImageLibraryPortal: () => null,
+  useOpenReferenceImageLibrary: () => () => {},
 }))
 
 vi.mock('@/components/business/studio/StudioVideoAssetChip', () => ({

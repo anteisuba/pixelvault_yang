@@ -174,37 +174,42 @@ export function ReferenceImagePickerBody({
  * 格数为止，挑好落进参考图、库收起回到台。桌面 chip 与手机「＋」抽屉各登记一次，后挂的
  * 那一处说了算。`portal` 由宿主原样画出来。
  */
-export function useReferenceImageLibrary(enabled = true): {
-  open: () => void
-  portal: ReactNode
-} {
+export function useOpenReferenceImageLibrary(): () => void {
+  const router = useRouter()
+  return useCallback(
+    () => router.push(studioLibraryPickPath('assets')),
+    [router],
+  )
+}
+
+/**
+ * 素材库那一格里的挑选本体：登记 + 传送。⚠ 是组件、⛔ 是宿主里无条件调的 hook ——
+ * 它要读 `useStudioData`，不收参考图的宿主（LoRA 台的「＋」抽屉在 `StudioProvider` 外面）
+ * 就不画它。
+ */
+export function ReferenceImageLibraryPortal() {
   const tTools = useTranslations('StudioTools')
   const tShell = useTranslations('StudioShell')
-  const router = useRouter()
   const picker = useReferenceImagePicker()
   const benchLabel = tTools('tools.image.label')
-  const slot = useLibraryPickSlot('assets', enabled ? benchLabel : null)
+  const slot = useLibraryPickSlot('assets', benchLabel)
   const close = useContext(StudioLibraryTargetContext)?.close
-  return {
-    open: () => router.push(studioLibraryPickPath('assets')),
-    portal: slot
-      ? createPortal(
-          <AssetPickerBrowser
-            mode="multi"
-            mediaType="image"
-            maxSelection={picker.remainingReferenceSlots}
-            title={tShell('pickFor', { bench: benchLabel })}
-            onConfirmMany={(gens) => {
-              void picker.handleSelectAssets(gens)
-              close?.()
-            }}
-            onCancel={() => close?.()}
-          />,
-          slot,
-          'reference-image-library',
-        )
-      : null,
-  }
+  if (!slot) return null
+  return createPortal(
+    <AssetPickerBrowser
+      mode="multi"
+      mediaType="image"
+      maxSelection={picker.remainingReferenceSlots}
+      title={tShell('pickFor', { bench: benchLabel })}
+      onConfirmMany={(gens) => {
+        void picker.handleSelectAssets(gens)
+        close?.()
+      }}
+      onCancel={() => close?.()}
+    />,
+    slot,
+    'reference-image-library',
+  )
 }
 
 /** 「已挂 N 张 · 最多 M 张」—— 描边外观与手机「＋」抽屉的弹层头部。 */
@@ -238,7 +243,7 @@ export function ReferenceImageCountLine() {
  *   tap Upload     → native file picker → uploadLocalFile（压缩 + multipart
  *                     → R2 URL）。⛔ 绝不是 base64 data URL，见 handleFileSelect
  *   tap Select     → close popover, open the shell's library overlay in pick
- *                     mode (`useReferenceImageLibrary`). Confirmed tiles come
+ *                     mode (`ReferenceImageLibraryPortal`). Confirmed tiles come
  *                     back through addFromUrl, up to the remaining slots.
  *
  * All paths feed the same useImageUpload store, so downstream generation
@@ -248,7 +253,7 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
   const t = useTranslations('ImageChip')
   const { state, dispatch } = useStudioForm()
   const { imageUpload } = useStudioData()
-  const library = useReferenceImageLibrary()
+  const openLibrary = useOpenReferenceImageLibrary()
   const [panelBoundary, setPanelBoundary] = useState<Element | null>(null)
   const bindTrigger = useCallback((element: HTMLButtonElement | null) => {
     if (element) setPanelBoundary(element.closest('.studio-param-panel'))
@@ -339,7 +344,7 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
             onDone={closePopover}
             onOpenLibrary={() => {
               closePopover()
-              library.open()
+              openLibrary()
             }}
             headerSlot={
               chip.look === 'outline' ? (
@@ -359,7 +364,7 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
           />
         </StudioToolPopoverContent>
       </StudioToolSurface>
-      {library.portal}
+      <ReferenceImageLibraryPortal />
     </>
   )
 }

@@ -8,7 +8,8 @@ import type { UseStudioVideoAssetsReturn } from '@/hooks/use-studio-video-assets
 import { cn } from '@/lib/utils'
 import {
   ReferenceImageCountLine,
-  useReferenceImageLibrary,
+  ReferenceImageLibraryPortal,
+  useOpenReferenceImageLibrary,
   ReferenceImagePickerBody,
 } from '@/components/business/studio/ReferenceImageChip'
 import {
@@ -89,7 +90,7 @@ export function StudioMobileAddSheet({
   const [videoPicker, setVideoPicker] = useState<'image' | 'video' | null>(null)
 
   const isVideo = videoAssets !== undefined
-  const imageLibrary = useReferenceImageLibrary(attachments && !isVideo)
+  const openImageLibrary = useOpenReferenceImageLibrary()
   const activePage = rows.find((row) => row.key === pageKey && row.page)
 
   const handleOpenChange = (next: boolean) => {
@@ -113,7 +114,7 @@ export function StudioMobileAddSheet({
           onDone={close}
           onOpenLibrary={() => {
             close()
-            imageLibrary.open()
+            openImageLibrary()
           }}
           headerSlot={<ReferenceImageCountLine />}
         />
@@ -221,7 +222,7 @@ export function StudioMobileAddSheet({
           onClose={() => setVideoPicker(null)}
         />
       ) : null}
-      {imageLibrary.portal}
+      {attachments && !isVideo ? <ReferenceImageLibraryPortal /> : null}
     </>
   )
 }

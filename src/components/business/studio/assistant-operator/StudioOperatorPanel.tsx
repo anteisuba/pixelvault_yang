@@ -1689,9 +1689,6 @@ export function StudioOperatorPanel({
             {...(operatorHost.searchGrounding
               ? { searchGrounding: operatorHost.searchGrounding }
               : {})}
-            {...(operatorHost.generationDraft
-              ? { draft: operatorHost.generationDraft }
-              : {})}
             onAdjust={adjustGeneration}
           />
         )}

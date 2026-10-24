@@ -19,7 +19,6 @@ import {
   ASSISTANT_OPERATOR_TOOL_IDS,
   ASSISTANT_OPERATOR_TOOL_VERBS,
 } from '@/constants/assistant-operator'
-import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import {
   ASSISTANT_TURN_RECORD_LIMITS,
   ASSISTANT_TURN_RECORD_OUTCOME_IDS as TURN_OUTCOME,
@@ -91,7 +90,6 @@ import {
 import {
   benchContext,
   benchFaceOf,
-  isHomeDraftSnapshot,
   boardEntry,
   renderBench,
   runAsk,
@@ -441,16 +439,8 @@ async function* runNextTurn(
     return
   }
   // 片子由浏览器抽好帧随 `videoClips` 上来；附件里的视频不交给准备那一步（同 v3）。
-  /**
-   * 首页带着一份小配方（第 9g 步）：对话里直接出图。台上那一套（改法、确认卡、出图那一枪）照图片台走，
-   * 会话仍记在首页（`workspaceKey` 不变）；系统提示那一段按首页写。
-   */
-  const homeDraft =
-    initialRequest.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.home &&
-    isHomeDraftSnapshot(initialRequest.snapshot)
   const request: AssistantOperatorRequest = {
     ...initialRequest,
-    ...(homeDraft ? { domain: ASSISTANT_PROTOCOL_DOMAIN_IDS.image } : {}),
     ...(initialRequest.mediaAttachments
       ? {
           mediaAttachments: initialRequest.mediaAttachments.filter(
@@ -461,7 +451,6 @@ async function* runNextTurn(
   }
   const prepared = await prepareOperatorTurn(clerkId, request, signal, {
     skipPriorRounds: true,
-    homeDraft,
   })
   const { user, persona, rules, route, run, modelId } = prepared
   // 和角色聊天（第 7a 步 D）：自己的系统提示、记忆挂她身上、故事向摘要、每轮末尾一句「别出戏」。
@@ -698,7 +687,7 @@ async function* runNextTurn(
     assistantV3HistoryMessages(turns, historyPlan.start),
   )
   const system = buildNextSystemPrompt({
-    face: homeDraft ? ASSISTANT_V3_FACE_IDS.home : face,
+    face,
     request,
     persona,
     rules,

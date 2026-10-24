@@ -6,13 +6,11 @@ import { StudioOperatorConfirmCard } from './StudioOperatorConfirmCard'
 import { STUDIO_OPERATOR_CONFIRM_STATUS_IDS } from '@/constants/studio-assistant-operator'
 import { ASSISTANT_OPERATOR_CONFIRM_KIND_IDS } from '@/constants/assistant-operator'
 import { AI_MODELS, getModelMessageKey } from '@/constants/models'
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { StudioOperatorGenerateKnob } from '@/constants/studio-assistant-operator'
 import type { CanvasNodeGenerationState } from '@/lib/studio-operator-canvas-snapshot'
 import type {
   StudioOperatorConfirmPrompt,
   StudioOperatorGenerationControls,
-  StudioOperatorGenerationDraft,
 } from '@/types/studio-assistant-operator'
 
 /**
@@ -71,24 +69,6 @@ vi.mock('@/components/ui/responsive-popover', async () => {
     },
   }
 })
-
-/** 配 key 弹窗换成一颗「配好了」：本测试问的是配好之后那一跳，不是弹窗里的表单。 */
-vi.mock('@/components/business/studio-shared/setup/QuickSetupDialog', () => ({
-  QuickSetupDialog: ({
-    open,
-    onVerified,
-  }: {
-    open: boolean
-    onVerified?: (modelId: string, keyId: string) => void
-  }) =>
-    open ? (
-      <button
-        type="button"
-        data-testid="quick-setup-verify"
-        onClick={() => onVerified?.('flux-2-flash', 'k1')}
-      />
-    ) : null,
-}))
 
 /* ⚠ 搭配卡等几支不走这张卡（见 `StudioOperatorConfirmCardProps` 头注）。 */
 type ConfirmCardPrompt = Exclude<
@@ -194,7 +174,6 @@ function renderCard(
       knob: StudioOperatorGenerateKnob,
       value: string,
     ) => readonly StudioOperatorGenerateKnob[]
-    draft?: StudioOperatorGenerationDraft
   } = {},
 ) {
   const handlers = {
@@ -668,78 +647,5 @@ describe('StudioOperatorConfirmCard 先搜再画（B 定稿）', () => {
     expect(screen.getByTestId('operator-confirm-card')).toHaveTextContent(
       'confirmedSuffix',
     )
-  })
-})
-
-describe('StudioOperatorConfirmCard 首页那份小配方（9g）', () => {
-  function makeDraft(
-    overrides: Partial<StudioOperatorGenerationDraft> = {},
-  ): StudioOperatorGenerationDraft {
-    return {
-      prompt: '夕阳下的猫',
-      setPrompt: vi.fn(),
-      references: [{ url: 'https://cdn.example.com/ref.png', name: '图_1' }],
-      removeReference: vi.fn(),
-      openBench: vi.fn(),
-      keySetup: null,
-      ...overrides,
-    }
-  }
-
-  it('卡上能改提示词、拿掉参考图、去图片台接着改', () => {
-    const draft = makeDraft()
-    renderCard(GENERATE, { controls: CONTROLS, draft })
-    const prompt = screen.getByTestId('operator-confirm-draft-prompt')
-    expect(prompt).toHaveValue('夕阳下的猫')
-    fireEvent.change(prompt, { target: { value: '雨里的猫' } })
-    expect(draft.setPrompt).toHaveBeenCalledWith('雨里的猫')
-    expect(
-      screen.getAllByTestId('operator-confirm-draft-reference'),
-    ).toHaveLength(1)
-    fireEvent.click(
-      screen.getByTestId('operator-confirm-draft-reference-remove'),
-    )
-    expect(draft.removeReference).toHaveBeenCalledWith(
-      'https://cdn.example.com/ref.png',
-    )
-    fireEvent.click(screen.getByTestId('operator-confirm-open-bench'))
-    expect(draft.openBench).toHaveBeenCalled()
-  })
-
-  it('有 key：「出图」直接扣扳机', () => {
-    const view = renderCard(GENERATE, {
-      controls: CONTROLS,
-      draft: makeDraft(),
-    })
-    fireEvent.click(screen.getByTestId('operator-confirm-primary'))
-    expect(view.onConfirm).toHaveBeenCalledTimes(1)
-    expect(screen.queryByTestId('quick-setup-verify')).toBeNull()
-  })
-
-  it('⭐ 没 key：先就地配，配好选上那把 key 再出', () => {
-    const onVerified = vi.fn()
-    const view = renderCard(GENERATE, {
-      controls: CONTROLS,
-      draft: makeDraft({
-        keySetup: {
-          modelId: 'flux-2-flash',
-          optionId: 'model:flux-2-flash',
-          modelLabel: 'FLUX 2 Flash',
-          adapterType: AI_ADAPTER_TYPES.FAL,
-          onVerified,
-        },
-      }),
-    })
-    fireEvent.click(screen.getByTestId('operator-confirm-primary'))
-    expect(view.onConfirm).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByTestId('quick-setup-verify'))
-    expect(onVerified).toHaveBeenCalledWith('k1')
-    expect(view.onConfirm).toHaveBeenCalledTimes(1)
-  })
-
-  it('没给配方（台开着）：卡上没有这一块', () => {
-    renderCard(GENERATE, { controls: CONTROLS })
-    expect(screen.queryByTestId('operator-confirm-draft')).toBeNull()
-    expect(screen.queryByTestId('operator-confirm-open-bench')).toBeNull()
   })
 })

@@ -110,14 +110,6 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 - 一步里 `open` 最后跑（之后的调用回「没跑」）：存好这一步（`NextTurnState.pending.open`，结果待补）、交接力条，停在 `bench_open`（帧上带 `open` 目标）。浏览器记进 store 的 `benchOpen`、`router.push(assistantBenchPath)`；新台的面板轮询到「到了」（`assistantBenchReached`：画布要那块真打开，`?project=new` 由 `useCanvasOpenProjectV4` 建好后把项目号补回；角色页要打开那一位）就带着接力条接着发；30 秒没到作废，落一行 `benchOpenMissed`。到了那一跳，`open` 的结果 = 新台的板子，模型用那个台的 `edit` 接着摆（每项照样可撤），花钱照旧走确认卡 /「交给 AI 出图」。换台那一行就是 9d 的 `domainMark`。
 - 删掉三种交接卡：角色页「交给图片助手」（`imageHandoff`）、自然语言 ↔ 标签「换台」（`workbenchHandoff`）、工作台 ↔ 画布（`moveWork`）连同 `lib/bench-canvas-handoff.ts`、`use-bench-handoff-arrival-v4.ts`、宿主那几只手和旧工具 `hand_off_to_image_assistant` / `switch_workbench`。旧历史里的那几种系统行码留着，照旧画得出来。
 
-**第 9g 步：首页对话里直接出图**（owner 10-24：只在没开台的首页；卡上只放提示词 / 模型 / 比例 / 张数 / 参考图；默认图片台上次那个模型，NAI 也行；图留在对话里、⛔ 不自动开台）：
-
-- 首页挂一份隐藏的 `StudioProvider`（`shell/HomeDraftBench.tsx`，只在外壳 kind = home 时挂）：宿主 `useHomeDraftOperatorHost` = `useStudioWorkbenchOperatorHost({ home: true })`（两种方言的图片模型都列，表单方言跟着选中的型号走）+ 一颗 `useStudioGenerateAction()`（`REQUEST_GENERATE` 执行端）。出图与图片台那颗键是同一条路，⛔ 没有第二条。
-- 快照是一份完整的图片快照（带 specs / count，`isHomeDraftSnapshot`）。服务端见到它把 `request.domain` 改成 image、`workspaceKey` 仍是 home（`prepareOperatorTurn({ homeDraft })` 核对时按 home），系统提示用首页那一面；板子 = 「THE DRAFT」+ 图片板，改法只开 `HOME_DRAFT_OPS`（prompt / model / specs / count / 参考图 / apply_recipe；配方里不在这几样的部分回一句「开图片台」）。
-- 起手型号：图片台上次用的（先自然语言台、再标签台）→ 有 key 里最便宜的 → 第一个。换一段对话清掉提示词与参考图。
-- 确认卡（`generationDraft`）：提示词可改、参考图可拿掉、「去图片台接着改」（`writeStudioDraft` 写那一台的草稿 + 记上次型号，再开台，台挂上照草稿恢复）。型号没 key：按「出图」就地弹 `QuickSetupDialog`，配好选上那把 key（`key:<id>`）再出。
-- 台开着时一切照旧。只做功能、用现有组件拼，样式留「UI 统一」。
-
 **过程记录**：照写 `AssistantTurnRecord`，`promptVersion = next-YYYY-MM-DD`；本轮记录投成 v3 形状（自带联网记成 `search_web`、`find` 记成 `search_library`），评测工具照用。
 
 ## 3. 没验证的（2026-10-23）
@@ -132,7 +124,6 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 
 ## Last Verified
 
-- 2026-10-24 · 第 9g 步（首页对话里直接出图）：`tsc` 0 error、相关 vitest 全绿（内核首页配方改走图片面 + 核对按 home、板子与改法限定、确认卡改提示词 / 拿参考图 / 去图片台 / 没 key 先配再出、草稿交接）。未在浏览器里实跑，未跑评测（等第 9 步全做完再统一跑）。
 - 2026-10-23 · 第 9e2 步（删音频档 + 删 9b）：工作台音频档残留与 9b 配音台助手整块删（`set_audio`、快照 `audio`、域 `audio`、对话 `workspaceKey: 'audio'` 的戳）。`tsc` 0 error、相关 vitest 见 PR。未在浏览器里实跑，未跑评测。
 - 2026-10-23 · 第 9e 步（开台）：`tsc` 0 error、改动文件 eslint 0 error、相关 vitest 477 个文件全绿（内核开台停流 → 到了接着跑 / 没到如实说 / 同步之后不跑、`planOpen` 画布与角色、地址与到达判定、store 换页不收 idle、hook 换页与轮询接上 / 超时作废）。未在浏览器里实跑，未跑评测（等第 9 步全做完再统一跑）。
 - 2026-10-23 · 第 9d 步（对话跨台 + 缩略图）：`tsc` 0 error、改动相关 vitest 246 个文件全绿（换台同一段对话 + 落标记、列全部会话、起始台的戳不变、按编号查图）。未在浏览器里实跑，未跑评测（等第 9 步全做完再统一跑）。

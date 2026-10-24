@@ -51,11 +51,7 @@ import { useStudioTemplateApply } from '@/hooks/use-studio-template-apply'
 import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
 import { useStudioWorkbenchOperatorHost } from '@/hooks/use-studio-workbench-operator-host'
 import { useStudioReplayFromUrl } from '@/hooks/use-studio-replay-from-url'
-import {
-  buildStudioDraft,
-  useStudioDraft,
-  type StudioDraft,
-} from '@/hooks/use-studio-draft'
+import { useStudioDraft, type StudioDraft } from '@/hooks/use-studio-draft'
 
 /** 把「保留 / 改变」的标签拼回提示词尾巴。原样搬自退役的 `StudioBottomDock`。 */
 function buildRefinePrompt(
@@ -322,12 +318,46 @@ export function StudioWorkspaceUI() {
   const { isLoaded, userId } = useAuth()
   const pathname = usePathname()
   const draft = useMemo<StudioDraft>(
-    () =>
-      buildStudioDraft(
-        state,
-        imageUpload.referenceEntries.map((entry) => entry.url),
-      ),
-    [state, imageUpload.referenceEntries],
+    () => ({
+      prompt: state.prompt,
+      advancedParams: state.advancedParams,
+      searchGrounding: state.searchGrounding,
+      referenceImages: imageUpload.referenceEntries.map((entry) => entry.url),
+      aspectRatio: state.aspectRatio,
+      selectedOptionId: state.selectedOptionId,
+      modelSelectionTouched: state.modelSelectionTouched ?? false,
+      imageBatchCount: state.imageBatchCount,
+      extraModelOptionIds: state.extraModelOptionIds,
+      recipeUsage: state.recipeUsage,
+      tagChips: state.tagChips,
+      tagNegativeChips: state.tagNegativeChips,
+      videoDuration: state.videoDuration,
+      videoResolution: state.videoResolution,
+      videoAudioRefs: state.videoAudioRefs,
+      videoFrameSlots: state.videoFrameSlots,
+      videoReferenceVideos: state.videoReferenceVideos,
+      videoGenerateAudio: state.videoGenerateAudio,
+    }),
+    [
+      state.aspectRatio,
+      state.advancedParams,
+      state.searchGrounding,
+      state.prompt,
+      state.selectedOptionId,
+      state.modelSelectionTouched,
+      state.imageBatchCount,
+      state.extraModelOptionIds,
+      state.recipeUsage,
+      state.tagChips,
+      state.tagNegativeChips,
+      state.videoDuration,
+      state.videoResolution,
+      state.videoAudioRefs,
+      state.videoFrameSlots,
+      state.videoReferenceVideos,
+      state.videoGenerateAudio,
+      imageUpload.referenceEntries,
+    ],
   )
   const restoreDraft = useCallback(
     (saved: StudioDraft, applyTransfer: boolean) => {

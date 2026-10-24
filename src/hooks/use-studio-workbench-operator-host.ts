@@ -97,16 +97,7 @@ const VIDEO_MENTIONS: StudioOperatorMentionSources = {
 
 export function useStudioWorkbenchOperatorHost({
   generationEnabled = true,
-  home = false,
-}: {
-  generationEnabled?: boolean
-  /**
-   * 首页那份小配方（第 9g 步）：同一份表单与出图那一枪，会话记在首页（`home`）。
-   * ⚠ 两种提示词方言的型号都列（owner 10-24：NAI 也能在首页直接出），表单方言跟着选中的型号走
-   *   （`HomeDraftBench`）；没有「另一台」。开合恒开（中间那一栏就是对话）。
-   */
-  home?: boolean
-} = {}): StudioOperatorHost {
+}: { generationEnabled?: boolean } = {}): StudioOperatorHost {
   const { state, dispatch } = useStudioForm()
   const { imageUpload } = useStudioData()
   /**
@@ -116,22 +107,23 @@ export function useStudioWorkbenchOperatorHost({
    */
   const allImageModels = useImageModelOptions()
   const imageModels = useMemo(
-    () =>
-      home
-        ? allImageModels
-        : {
-            modelOptions: allImageModels.modelOptions.filter(
-              (option) =>
-                getPromptDialect(option.adapterType) === state.promptDialect,
-            ),
-            selectedModel:
-              allImageModels.selectedModel &&
-              getPromptDialect(allImageModels.selectedModel.adapterType) ===
-                state.promptDialect
-                ? allImageModels.selectedModel
-                : undefined,
-          },
-    [allImageModels, home, state.promptDialect],
+    () => ({
+      modelOptions: allImageModels.modelOptions.filter(
+        (option) =>
+          getPromptDialect(option.adapterType) === state.promptDialect,
+      ),
+      selectedModel:
+        allImageModels.selectedModel &&
+        getPromptDialect(allImageModels.selectedModel.adapterType) ===
+          state.promptDialect
+          ? allImageModels.selectedModel
+          : undefined,
+    }),
+    [
+      allImageModels.modelOptions,
+      allImageModels.selectedModel,
+      state.promptDialect,
+    ],
   )
   /**
    * 另一台图片工作台（自然语言台 ↔ 标签台）上的模型 —— 快照里给助手看（它换不到，
@@ -139,13 +131,13 @@ export function useStudioWorkbenchOperatorHost({
    */
   const otherImageModels = useMemo(
     () =>
-      !home && state.outputType === 'image'
+      state.outputType === 'image'
         ? allImageModels.modelOptions.filter(
             (option) =>
               getPromptDialect(option.adapterType) !== state.promptDialect,
           )
         : [],
-    [allImageModels.modelOptions, home, state.outputType, state.promptDialect],
+    [allImageModels.modelOptions, state.outputType, state.promptDialect],
   )
   const router = useRouter()
   const videoModels = useVideoModelOptions(state.selectedOptionId ?? '')
@@ -153,13 +145,11 @@ export function useStudioWorkbenchOperatorHost({
   const { runModels: allRunModels } = useStudioRunModels()
   const runModels = useMemo(
     () =>
-      home
-        ? allRunModels
-        : allRunModels.filter(
-            (option) =>
-              getPromptDialect(option.adapterType) === state.promptDialect,
-          ),
-    [allRunModels, home, state.promptDialect],
+      allRunModels.filter(
+        (option) =>
+          getPromptDialect(option.adapterType) === state.promptDialect,
+      ),
+    [allRunModels, state.promptDialect],
   )
   /** 拍板 22 的落地那一跳 —— 两个宿主共用的那一份。 */
   const userUrl = useOperatorUserUrlMount(imageUpload)
@@ -207,14 +197,12 @@ export function useStudioWorkbenchOperatorHost({
     router,
   ])
 
-  const domain = home
-    ? ASSISTANT_PROTOCOL_DOMAIN_IDS.home
-    : state.outputType === 'video'
+  const domain =
+    state.outputType === 'video'
       ? ASSISTANT_PROTOCOL_DOMAIN_IDS.video
       : ASSISTANT_PROTOCOL_DOMAIN_IDS.image
-  const workspace = home
-    ? 'home'
-    : domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video
+  const workspace =
+    domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video
       ? 'video'
       : state.promptDialect === 'tags'
         ? 'image-tags'
@@ -548,16 +536,15 @@ export function useStudioWorkbenchOperatorHost({
    * 开合挂在 `panels.enhance` 上 —— 与旧面板同一个槽，所以小屏抽屉那条路
    * （`StudioEnhanceButton`）不受影响，两份状态也不会漂。
    */
-  const open = home || state.panels.enhance
+  const open = state.panels.enhance
   const setOpen = useCallback(
     (next: boolean) => {
-      if (home) return
       dispatch({
         type: next ? 'OPEN_PANEL' : 'CLOSE_PANEL',
         payload: 'enhance',
       })
     },
-    [dispatch, home],
+    [dispatch],
   )
 
   /**
@@ -566,18 +553,13 @@ export function useStudioWorkbenchOperatorHost({
    * 结果行卡，而那条路由拿不到 `useStudioGen`。
    */
   const rawActiveRun = useStudioGenOptional()?.activeRun
-  /** 首页那份配方的结果不分方言（两种型号都在这一份表单上出）。 */
   const activeRun = useMemo(
     () =>
-      home
-        ? rawActiveRun?.outputType.toLowerCase() === 'image'
-          ? rawActiveRun
-          : null
-        : studioRunForWorkspace(rawActiveRun, {
-            outputType: state.outputType,
-            promptDialect: state.promptDialect,
-          }),
-    [home, rawActiveRun, state.outputType, state.promptDialect],
+      studioRunForWorkspace(rawActiveRun, {
+        outputType: state.outputType,
+        promptDialect: state.promptDialect,
+      }),
+    [rawActiveRun, state.outputType, state.promptDialect],
   )
   const results = useMemo<readonly StudioOperatorResultItem[]>(
     () => toOperatorRunResults(activeRun?.items ?? []),

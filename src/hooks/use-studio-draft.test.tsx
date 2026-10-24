@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   useStudioDraft,
-  writeStudioDraft,
   EMPTY_STUDIO_DRAFT,
   type StudioDraft,
   type StudioDraftWorkspace,
@@ -33,14 +32,6 @@ function useHarness(
 beforeEach(() => sessionStorage.clear())
 
 describe('Studio image draft', () => {
-  it('首页「去图片台接着改」写下的草稿，那一台挂上时照它恢复（9g）', () => {
-    writeStudioDraft('image-tags', 'user-a', saved)
-    const tags = renderHook(() => useHarness('user-a', true, 'image-tags'))
-    expect(tags.result.current.draft).toEqual(saved)
-    const natural = renderHook(() => useHarness('user-a'))
-    expect(natural.result.current.draft).toEqual(empty())
-  })
-
   it('restores prompt and ordered references after a full remount', () => {
     const first = renderHook(() => useHarness())
     act(() => first.result.current.setDraft(saved))

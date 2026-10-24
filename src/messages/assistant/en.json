@@ -483,10 +483,7 @@
         "nodeUnavailable": "The target node or model is unavailable. Select it again.",
         "adjusted": "Adjusted for this model: {fields}",
         "knobStepTitle": "Changed on the confirm card",
-        "knobStepReason": "You changed this on the confirm card",
-        "prompt": "Prompt",
-        "removeReference": "Remove this reference",
-        "openBench": "Keep editing on the image bench"
+        "knobStepReason": "You changed this on the confirm card"
       },
       "batch": {
         "title": "Generate these",

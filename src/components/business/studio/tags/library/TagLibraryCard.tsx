@@ -9,6 +9,7 @@ import { useNearViewport } from '@/hooks/use-near-viewport'
 import {
   compactPostCount,
   displayDanbooruTag,
+  localDanbooruName,
   stylePromptTag,
 } from '@/lib/tag-lookup'
 import { cn } from '@/lib/utils'
@@ -17,7 +18,8 @@ import type { DanbooruCatalogKind } from '@/types/danbooru-catalog'
 import type { LookupItem } from '../lookup/lookup-kinds'
 
 /**
- * 标签库网格里的一张卡（第 9f 步 9f-2c）：样图 · 标签名 · 作品数（角色再带出处）。
+ * 标签库网格里的一张卡（第 9f 步 9f-2c）：样图 · 标签名 · 中日文名（按界面语言）· 作品数
+ *（角色再带出处）。
  * 网格按热度翻出来的卡没带样图：滚到视野附近才问；问回来一张全年龄样图都没有就不画这张
  * （`hideBare`，多半是成人向的标签）。搜索 / 收藏带着样图来，照常画。
  */
@@ -45,6 +47,7 @@ export function TagLibraryCard({
   if (hideBare && lazy && preview && previews.length === 0) return null
 
   const posts = t('posts', { count: compactPostCount(item.count, locale) })
+  const local = localDanbooruName(item, locale)
   const label =
     kind === 'artist'
       ? stylePromptTag(item.name)
@@ -86,6 +89,11 @@ export function TagLibraryCard({
           >
             {label}
           </span>
+          {local ? (
+            <span title={local} className="truncate text-xs text-foreground/80">
+              {local}
+            </span>
+          ) : null}
           <span className="truncate text-xs text-muted-foreground">
             {kind === 'character' && work
               ? t('rowWork', { work: displayDanbooruTag(work), posts })

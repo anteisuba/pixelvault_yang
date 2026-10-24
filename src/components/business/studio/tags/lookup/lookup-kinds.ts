@@ -142,5 +142,5 @@ export function styleSections<T extends { name: string }>(
 /** 左栏一行：搜到 / 抽到的候选，或者一条收藏（收藏那一刻的快照）。 */
 export type LookupItem = Pick<
   DanbooruCatalogCandidate,
-  'name' | 'count' | 'work' | 'previews'
+  'name' | 'count' | 'work' | 'previews' | 'zh' | 'ja'
 >

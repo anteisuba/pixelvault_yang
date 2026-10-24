@@ -12,6 +12,7 @@ import {
   danbooruPostUrl,
   displayDanbooruTag,
   isStyleMediumTag,
+  localDanbooruName,
   lookupAliasLine,
   stylePromptTag,
 } from '@/lib/tag-lookup'
@@ -107,6 +108,11 @@ export function LookupDetailPane({
     hrefLabel: t('openPost'),
   }))
   const count = detail.count ?? candidate.count
+  // 中日文名接在头一行前面；中文界面有词库注释就用它，否则用 Danbooru Wiki（英文）。
+  const local = localDanbooruName(detail, locale)
+  const withLocal = (line: string) => (local ? `${local} · ${line}` : line)
+  const about =
+    (locale.startsWith('zh') ? detail.zhNote : null) ?? detail.wiki ?? null
 
   if (kind === 'artist') {
     const medium = isStyleMediumTag(candidate.name)
@@ -119,14 +125,16 @@ export function LookupDetailPane({
         kind={t(kindLabelKey(kind, candidate.name))}
         favorite={favorite}
         lines={[
-          t('artistSub', {
-            posts: posts(count),
-            shown: shots.length,
-            sample: detail.sampleSize,
-          }),
+          withLocal(
+            t('artistSub', {
+              posts: posts(count),
+              shown: shots.length,
+              sample: detail.sampleSize,
+            }),
+          ),
           t(medium ? 'mediumShotsNote' : 'artistShotsNote'),
         ]}
-        about={detail.wiki}
+        about={about}
         link={{
           label: 'Danbooru',
           href: danbooruPostsUrl(candidate.name),
@@ -182,17 +190,19 @@ export function LookupDetailPane({
       kind={t(text.kind)}
       favorite={favorite}
       lines={[
-        kind === 'character' && (detail.work ?? candidate.work)
-          ? t('rowWork', {
-              work: displayDanbooruTag(detail.work ?? candidate.work ?? ''),
-              posts: posts(count),
-            })
-          : posts(count),
+        withLocal(
+          kind === 'character' && (detail.work ?? candidate.work)
+            ? t('rowWork', {
+                work: displayDanbooruTag(detail.work ?? candidate.work ?? ''),
+                posts: posts(count),
+              })
+            : posts(count),
+        ),
         lookupAliasLine(detail.aliases, candidate.name, ALIAS_LIMIT).join(
           ' · ',
         ),
       ]}
-      about={detail.wiki}
+      about={about}
       link={{
         label: 'Danbooru',
         href: danbooruPostsUrl(candidate.name),

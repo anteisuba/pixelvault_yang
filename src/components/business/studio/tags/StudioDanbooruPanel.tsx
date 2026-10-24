@@ -16,6 +16,7 @@ import {
   danbooruTagSearchUrl,
   displayDanbooruTag,
   isStyleMediumTag,
+  localDanbooruName,
   stylePromptTag,
 } from '@/lib/tag-lookup'
 import { cn } from '@/lib/utils'
@@ -249,7 +250,8 @@ export function StudioDanbooruPanel({
   const toRow = (item: LookupItem, kind: DanbooruCatalogKind) => ({
     name: item.name,
     label: nameOf(item.name, kind),
-    sub:
+    sub: [
+      localDanbooruName(item, locale),
       kind === 'character' && item.work
         ? t('rowWork', {
             work: displayDanbooruTag(item.work),
@@ -260,6 +262,9 @@ export function StudioDanbooruPanel({
               posts: posts(item.count),
             })
           : posts(item.count),
+    ]
+      .filter(Boolean)
+      .join(' · '),
     previews: item.previews,
     added: kind === 'artist' && adder.hasPositive(stylePromptTag(item.name)),
     selected: !phone && kind === activeKind && item.name === candidate?.name,

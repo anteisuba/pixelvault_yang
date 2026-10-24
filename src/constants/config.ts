@@ -342,6 +342,8 @@ export const API_ENDPOINTS = {
    * 与 `PROMPT_ASSISTANT_STREAM` 并存而不是替代它：那条流的载荷是文本增量。
    */
   STUDIO_ASSISTANT_OPERATOR: '/api/studio/assistant-operator',
+  /** 左边列表那几段对话的封面 / 进度圈 / 小点（第 9f 步 9f-3）。 */
+  STUDIO_CONVERSATION_ACTIVITY: '/api/studio/conversation-activity',
   /** 助手输入框 `@` 的素材库检索（多字段 + 文件夹下钻，只读）。 */
   ASSISTANT_MENTIONS: '/api/assistant/mentions',
   /** 按地址查参考位在库里叫什么（参考位带真名）。 */

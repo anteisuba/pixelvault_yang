@@ -95,3 +95,15 @@ export function studioTagLibraryDetailPath(tag: string, of?: 'artist'): string {
   if (of) params.set('of', of)
   return `${studioLibraryPath('tags')}?${params}`
 }
+
+/**
+ * 左边列表的封面 / 进度圈 / 小点（第 9f 步 9f-3）。
+ * - `batchWindowMs`：进度「2/4」只数这么久以内出的那一批（最早那个还在跑的任务往后算）。
+ * - `pollMs`：有任务在跑时每隔多久问一次；都跑完就不问了。
+ * - `seenStorageKey`：每段对话「你最后看它的时间」只记在本机（owner 10-24 同意）。
+ */
+export const STUDIO_CONVERSATION_ACTIVITY = {
+  batchWindowMs: 2 * 60 * 60 * 1000,
+  pollMs: 4000,
+  seenStorageKey: 'pv:studio-shell:seen',
+} as const

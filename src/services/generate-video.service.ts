@@ -290,6 +290,7 @@ async function submitFalVideoWorkerRun(params: {
       prompt: input.prompt,
       externalRequestId: JSON.stringify(metadata),
       isPlatformFunded,
+      conversationId: input.conversationId,
     }),
   )
   timer.setContext({ jobId: generationJob.id })

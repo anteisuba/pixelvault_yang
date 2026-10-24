@@ -145,6 +145,7 @@ export async function compileAndGenerate(
       runGroupIndex: input.runGroupIndex,
       sourceSurface: input.sourceSurface,
       displayLabel: input.displayLabel,
+      conversationId: input.conversationId,
       // 快照带 (cardId, version)：改了卡之后仍能指认这张图用的是哪一版。
       ...(characters.length
         ? {

@@ -682,6 +682,7 @@ async function submitWorker3DGeneration({
     modelId: executionRoute.modelId,
     // resolvedApiKeyId 非空 = 调用方自带 key(BYOK)，平台没掏钱。
     isPlatformFunded: !executionRoute.resolvedApiKeyId,
+    conversationId: input.conversationId,
   })
 
   const modelConfig =

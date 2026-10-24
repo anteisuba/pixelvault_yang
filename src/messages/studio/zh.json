@@ -1168,6 +1168,10 @@
     "pickFor": "选给 {bench} 台",
     "pickForBase": "选给 {bench} 台 · 底模 {base}",
     "pickDone": "完成",
-    "manageInLibrary": "去库里管理"
+    "manageInLibrary": "去库里管理",
+    "newResult": "有新结果",
+    "homeMode": "新开",
+    "homeAssistant": "助手",
+    "homeVoiceRoom": "配音间"
   }
 }

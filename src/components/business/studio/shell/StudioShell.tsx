@@ -2,6 +2,7 @@
 
 import {
   Suspense,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -17,7 +18,11 @@ import {
   activeShellTool,
   type ShellNavItem,
 } from '@/constants/navigation'
-import { ROUTES, STUDIO_CONVERSATION_QUERY } from '@/constants/routes'
+import {
+  NEW_VOICE_ROOM_PATH,
+  ROUTES,
+  STUDIO_CONVERSATION_QUERY,
+} from '@/constants/routes'
 import {
   STUDIO_SHELL_BENCH_IDS,
   STUDIO_SHELL_SPLIT,
@@ -34,6 +39,7 @@ import { ChevronLeft, X } from '@/components/icons'
 import { StudioOperatorDock } from '@/components/business/studio/assistant-operator'
 import { StudioConversationList } from '@/components/business/studio/shell/StudioConversationList'
 import { StudioLibraryTargetContext } from '@/components/business/studio/shell/StudioLibraryOverlay'
+import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import {
   Tooltip,
   TooltipContent,
@@ -41,6 +47,7 @@ import {
 } from '@/components/ui/tooltip'
 import { useHomeOperatorHost } from '@/hooks/use-home-operator-host'
 import { useIsDesk } from '@/hooks/use-mobile'
+import { useStudioConversationBenchSync } from '@/hooks/use-studio-conversation-bench'
 import { useStudioConversationUrl } from '@/hooks/use-studio-conversation-url'
 import { useStudioOperatorActions } from '@/hooks/use-studio-operator-actions'
 import {
@@ -57,6 +64,7 @@ import {
   studioConversationHref,
   studioShellRouteKind,
 } from '@/lib/studio-shell-route'
+import { setActiveStudioConversation } from '@/lib/studio-active-conversation'
 import { cn } from '@/lib/utils'
 
 /** 台条上的五个台，按 `STUDIO_SHELL_BENCH_IDS` 的顺序。 */
@@ -216,11 +224,20 @@ export function StudioShell({
   )
 }
 
-/** 地址 ↔ 当前对话。单独一颗：`useSearchParams` 要进 Suspense，⛔ 拖着整个外壳进去。 */
+/**
+ * 地址 ↔ 当前对话；这段对话开着哪个台（9f-3）；出图请求带上哪段对话（9f-3）。
+ * 单独一颗：`useSearchParams` 要进 Suspense，⛔ 拖着整个外壳进去。
+ */
 function StudioConversationUrlSync() {
   const history = useStudioOperatorHistoryView()
   const actions = useStudioOperatorActions()
+  const { sessionId } = useStudioOperatorState()
   useStudioConversationUrl({ history, actions })
+  useStudioConversationBenchSync()
+  useEffect(() => {
+    setActiveStudioConversation(sessionId)
+  }, [sessionId])
+  useEffect(() => () => setActiveStudioConversation(null), [])
   return null
 }
 
@@ -283,6 +300,7 @@ function StudioShellStage({
             : undefined
         }
       >
+        {shellDock && !bench ? <StudioHomeModeSwitch /> : null}
         {shellDock ? <StudioOperatorDock variant="column" /> : null}
       </section>
 
@@ -312,6 +330,32 @@ function StudioShellStage({
         {children}
       </div>
       {libraryLayer}
+    </div>
+  )
+}
+
+/**
+ * 首页顶上「助手 | 配音间」（第 9f 步 9f-3）：配音间是一种对话，切过去就新开一间
+ *（`/studio/audio?new=1`，在里面挑角色就能说）；开过的房间都在左边列表里。
+ */
+function StudioHomeModeSwitch() {
+  const t = useTranslations('StudioShell')
+  const router = useRouter()
+  return (
+    <div className="flex shrink-0 justify-center pt-4">
+      <LiquidSegmented
+        items={[
+          { value: 'assistant', label: t('homeAssistant') },
+          { value: 'voice', label: t('homeVoiceRoom') },
+        ]}
+        value="assistant"
+        onChange={(mode) => {
+          if (mode === 'voice') router.push(NEW_VOICE_ROOM_PATH)
+        }}
+        ariaLabel={t('homeMode')}
+        semantics="tabs"
+        size="sm"
+      />
     </div>
   )
 }

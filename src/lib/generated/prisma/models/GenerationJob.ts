@@ -52,6 +52,7 @@ export type GenerationJobMinAggregateOutputType = {
   completedAt: Date | null
   slotKey: string | null
   slotAcquiredAt: Date | null
+  conversationId: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -74,6 +75,7 @@ export type GenerationJobMaxAggregateOutputType = {
   completedAt: Date | null
   slotKey: string | null
   slotAcquiredAt: Date | null
+  conversationId: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -97,6 +99,7 @@ export type GenerationJobCountAggregateOutputType = {
   completedAt: number
   slotKey: number
   slotAcquiredAt: number
+  conversationId: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -129,6 +132,7 @@ export type GenerationJobMinAggregateInputType = {
   completedAt?: true
   slotKey?: true
   slotAcquiredAt?: true
+  conversationId?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -151,6 +155,7 @@ export type GenerationJobMaxAggregateInputType = {
   completedAt?: true
   slotKey?: true
   slotAcquiredAt?: true
+  conversationId?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -174,6 +179,7 @@ export type GenerationJobCountAggregateInputType = {
   completedAt?: true
   slotKey?: true
   slotAcquiredAt?: true
+  conversationId?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -284,6 +290,7 @@ export type GenerationJobGroupByOutputType = {
   completedAt: Date | null
   slotKey: string | null
   slotAcquiredAt: Date | null
+  conversationId: string | null
   createdAt: Date
   updatedAt: Date
   _count: GenerationJobCountAggregateOutputType | null
@@ -330,6 +337,7 @@ export type GenerationJobWhereInput = {
   completedAt?: Prisma.DateTimeNullableFilter<"GenerationJob"> | Date | string | null
   slotKey?: Prisma.StringNullableFilter<"GenerationJob"> | string | null
   slotAcquiredAt?: Prisma.DateTimeNullableFilter<"GenerationJob"> | Date | string | null
+  conversationId?: Prisma.StringNullableFilter<"GenerationJob"> | string | null
   createdAt?: Prisma.DateTimeFilter<"GenerationJob"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"GenerationJob"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -358,6 +366,7 @@ export type GenerationJobOrderByWithRelationInput = {
   completedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   slotKey?: Prisma.SortOrderInput | Prisma.SortOrder
   slotAcquiredAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  conversationId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
@@ -389,6 +398,7 @@ export type GenerationJobWhereUniqueInput = Prisma.AtLeast<{
   completedAt?: Prisma.DateTimeNullableFilter<"GenerationJob"> | Date | string | null
   slotKey?: Prisma.StringNullableFilter<"GenerationJob"> | string | null
   slotAcquiredAt?: Prisma.DateTimeNullableFilter<"GenerationJob"> | Date | string | null
+  conversationId?: Prisma.StringNullableFilter<"GenerationJob"> | string | null
   createdAt?: Prisma.DateTimeFilter<"GenerationJob"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"GenerationJob"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
@@ -417,6 +427,7 @@ export type GenerationJobOrderByWithAggregationInput = {
   completedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   slotKey?: Prisma.SortOrderInput | Prisma.SortOrder
   slotAcquiredAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  conversationId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.GenerationJobCountOrderByAggregateInput
@@ -448,6 +459,7 @@ export type GenerationJobScalarWhereWithAggregatesInput = {
   completedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"GenerationJob"> | Date | string | null
   slotKey?: Prisma.StringNullableWithAggregatesFilter<"GenerationJob"> | string | null
   slotAcquiredAt?: Prisma.DateTimeNullableWithAggregatesFilter<"GenerationJob"> | Date | string | null
+  conversationId?: Prisma.StringNullableWithAggregatesFilter<"GenerationJob"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"GenerationJob"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"GenerationJob"> | Date | string
 }
@@ -469,6 +481,7 @@ export type GenerationJobCreateInput = {
   completedAt?: Date | string | null
   slotKey?: string | null
   slotAcquiredAt?: Date | string | null
+  conversationId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutGenerationJobsInput
@@ -497,6 +510,7 @@ export type GenerationJobUncheckedCreateInput = {
   completedAt?: Date | string | null
   slotKey?: string | null
   slotAcquiredAt?: Date | string | null
+  conversationId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationJobInput
@@ -521,6 +535,7 @@ export type GenerationJobUpdateInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   slotKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   slotAcquiredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutGenerationJobsNestedInput
@@ -549,6 +564,7 @@ export type GenerationJobUncheckedUpdateInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   slotKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   slotAcquiredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationJobNestedInput
@@ -575,6 +591,7 @@ export type GenerationJobCreateManyInput = {
   completedAt?: Date | string | null
   slotKey?: string | null
   slotAcquiredAt?: Date | string | null
+  conversationId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -596,6 +613,7 @@ export type GenerationJobUpdateManyMutationInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   slotKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   slotAcquiredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -619,6 +637,7 @@ export type GenerationJobUncheckedUpdateManyInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   slotKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   slotAcquiredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -657,6 +676,7 @@ export type GenerationJobCountOrderByAggregateInput = {
   completedAt?: Prisma.SortOrder
   slotKey?: Prisma.SortOrder
   slotAcquiredAt?: Prisma.SortOrder
+  conversationId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -683,6 +703,7 @@ export type GenerationJobMaxOrderByAggregateInput = {
   completedAt?: Prisma.SortOrder
   slotKey?: Prisma.SortOrder
   slotAcquiredAt?: Prisma.SortOrder
+  conversationId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -705,6 +726,7 @@ export type GenerationJobMinOrderByAggregateInput = {
   completedAt?: Prisma.SortOrder
   slotKey?: Prisma.SortOrder
   slotAcquiredAt?: Prisma.SortOrder
+  conversationId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -859,6 +881,7 @@ export type GenerationJobCreateWithoutUserInput = {
   completedAt?: Date | string | null
   slotKey?: string | null
   slotAcquiredAt?: Date | string | null
+  conversationId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   generation?: Prisma.GenerationCreateNestedOneWithoutGenerationJobInput
@@ -885,6 +908,7 @@ export type GenerationJobUncheckedCreateWithoutUserInput = {
   completedAt?: Date | string | null
   slotKey?: string | null
   slotAcquiredAt?: Date | string | null
+  conversationId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationJobInput
@@ -940,6 +964,7 @@ export type GenerationJobScalarWhereInput = {
   completedAt?: Prisma.DateTimeNullableFilter<"GenerationJob"> | Date | string | null
   slotKey?: Prisma.StringNullableFilter<"GenerationJob"> | string | null
   slotAcquiredAt?: Prisma.DateTimeNullableFilter<"GenerationJob"> | Date | string | null
+  conversationId?: Prisma.StringNullableFilter<"GenerationJob"> | string | null
   createdAt?: Prisma.DateTimeFilter<"GenerationJob"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"GenerationJob"> | Date | string
 }
@@ -961,6 +986,7 @@ export type GenerationJobCreateWithoutGenerationInput = {
   completedAt?: Date | string | null
   slotKey?: string | null
   slotAcquiredAt?: Date | string | null
+  conversationId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutGenerationJobsInput
@@ -987,6 +1013,7 @@ export type GenerationJobUncheckedCreateWithoutGenerationInput = {
   completedAt?: Date | string | null
   slotKey?: string | null
   slotAcquiredAt?: Date | string | null
+  conversationId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationJobInput
@@ -1027,6 +1054,7 @@ export type GenerationJobUpdateWithoutGenerationInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   slotKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   slotAcquiredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutGenerationJobsNestedInput
@@ -1053,6 +1081,7 @@ export type GenerationJobUncheckedUpdateWithoutGenerationInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   slotKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   slotAcquiredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationJobNestedInput
@@ -1077,6 +1106,7 @@ export type GenerationJobCreateWithoutExecutionOutboxInput = {
   completedAt?: Date | string | null
   slotKey?: string | null
   slotAcquiredAt?: Date | string | null
+  conversationId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutGenerationJobsInput
@@ -1104,6 +1134,7 @@ export type GenerationJobUncheckedCreateWithoutExecutionOutboxInput = {
   completedAt?: Date | string | null
   slotKey?: string | null
   slotAcquiredAt?: Date | string | null
+  conversationId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationJobInput
@@ -1143,6 +1174,7 @@ export type GenerationJobUpdateWithoutExecutionOutboxInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   slotKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   slotAcquiredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutGenerationJobsNestedInput
@@ -1170,6 +1202,7 @@ export type GenerationJobUncheckedUpdateWithoutExecutionOutboxInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   slotKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   slotAcquiredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationJobNestedInput
@@ -1193,6 +1226,7 @@ export type GenerationJobCreateWithoutApiUsageLedgerInput = {
   completedAt?: Date | string | null
   slotKey?: string | null
   slotAcquiredAt?: Date | string | null
+  conversationId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutGenerationJobsInput
@@ -1220,6 +1254,7 @@ export type GenerationJobUncheckedCreateWithoutApiUsageLedgerInput = {
   completedAt?: Date | string | null
   slotKey?: string | null
   slotAcquiredAt?: Date | string | null
+  conversationId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   executionOutbox?: Prisma.ExecutionOutboxUncheckedCreateNestedOneWithoutGenerationJobInput
@@ -1259,6 +1294,7 @@ export type GenerationJobUpdateWithoutApiUsageLedgerInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   slotKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   slotAcquiredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutGenerationJobsNestedInput
@@ -1286,6 +1322,7 @@ export type GenerationJobUncheckedUpdateWithoutApiUsageLedgerInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   slotKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   slotAcquiredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   executionOutbox?: Prisma.ExecutionOutboxUncheckedUpdateOneWithoutGenerationJobNestedInput
@@ -1309,6 +1346,7 @@ export type GenerationJobCreateWithoutVoiceLinesInput = {
   completedAt?: Date | string | null
   slotKey?: string | null
   slotAcquiredAt?: Date | string | null
+  conversationId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutGenerationJobsInput
@@ -1336,6 +1374,7 @@ export type GenerationJobUncheckedCreateWithoutVoiceLinesInput = {
   completedAt?: Date | string | null
   slotKey?: string | null
   slotAcquiredAt?: Date | string | null
+  conversationId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationJobInput
@@ -1375,6 +1414,7 @@ export type GenerationJobUpdateWithoutVoiceLinesInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   slotKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   slotAcquiredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutGenerationJobsNestedInput
@@ -1402,6 +1442,7 @@ export type GenerationJobUncheckedUpdateWithoutVoiceLinesInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   slotKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   slotAcquiredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationJobNestedInput
@@ -1426,6 +1467,7 @@ export type GenerationJobCreateManyUserInput = {
   completedAt?: Date | string | null
   slotKey?: string | null
   slotAcquiredAt?: Date | string | null
+  conversationId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1447,6 +1489,7 @@ export type GenerationJobUpdateWithoutUserInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   slotKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   slotAcquiredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   generation?: Prisma.GenerationUpdateOneWithoutGenerationJobNestedInput
@@ -1473,6 +1516,7 @@ export type GenerationJobUncheckedUpdateWithoutUserInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   slotKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   slotAcquiredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationJobNestedInput
@@ -1498,6 +1542,7 @@ export type GenerationJobUncheckedUpdateManyWithoutUserInput = {
   completedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   slotKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   slotAcquiredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1561,6 +1606,7 @@ export type GenerationJobSelect<ExtArgs extends runtime.Types.Extensions.Interna
   completedAt?: boolean
   slotKey?: boolean
   slotAcquiredAt?: boolean
+  conversationId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -1590,6 +1636,7 @@ export type GenerationJobSelectCreateManyAndReturn<ExtArgs extends runtime.Types
   completedAt?: boolean
   slotKey?: boolean
   slotAcquiredAt?: boolean
+  conversationId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -1615,6 +1662,7 @@ export type GenerationJobSelectUpdateManyAndReturn<ExtArgs extends runtime.Types
   completedAt?: boolean
   slotKey?: boolean
   slotAcquiredAt?: boolean
+  conversationId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -1640,11 +1688,12 @@ export type GenerationJobSelectScalar = {
   completedAt?: boolean
   slotKey?: boolean
   slotAcquiredAt?: boolean
+  conversationId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type GenerationJobOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "generationId" | "adapterType" | "provider" | "modelId" | "status" | "requestCount" | "prompt" | "errorMessage" | "errorCode" | "providerFailure" | "externalRequestId" | "providerJobId" | "startedAt" | "completedAt" | "slotKey" | "slotAcquiredAt" | "createdAt" | "updatedAt", ExtArgs["result"]["generationJob"]>
+export type GenerationJobOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "generationId" | "adapterType" | "provider" | "modelId" | "status" | "requestCount" | "prompt" | "errorMessage" | "errorCode" | "providerFailure" | "externalRequestId" | "providerJobId" | "startedAt" | "completedAt" | "slotKey" | "slotAcquiredAt" | "conversationId" | "createdAt" | "updatedAt", ExtArgs["result"]["generationJob"]>
 export type GenerationJobInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   generation?: boolean | Prisma.GenerationJob$generationArgs<ExtArgs>
@@ -1696,6 +1745,11 @@ export type $GenerationJobPayload<ExtArgs extends runtime.Types.Extensions.Inter
      * 排上号的时间；有 slotKey 但这里是 null = 还在排队。
      */
     slotAcquiredAt: Date | null
+    /**
+     * 哪段助手对话里出的（第 9f 步 9f-3：左边列表的封面 / 进度圈 / 小点）。弱引用、无外键
+     * （与 `AssistantConversation.projectId` 同一个口径）：对话删了任务照旧在；null = 不在对话里出的。
+     */
+    conversationId: string | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["generationJob"]>
@@ -2144,6 +2198,7 @@ export interface GenerationJobFieldRefs {
   readonly completedAt: Prisma.FieldRef<"GenerationJob", 'DateTime'>
   readonly slotKey: Prisma.FieldRef<"GenerationJob", 'String'>
   readonly slotAcquiredAt: Prisma.FieldRef<"GenerationJob", 'DateTime'>
+  readonly conversationId: Prisma.FieldRef<"GenerationJob", 'String'>
   readonly createdAt: Prisma.FieldRef<"GenerationJob", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"GenerationJob", 'DateTime'>
 }

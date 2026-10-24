@@ -680,6 +680,12 @@ const VIDEO_EDIT_MODEL_IDS: ReadonlySet<string> = new Set<string>([
 ])
 
 /**
+ * 这一枪在哪段助手对话里出的（第 9f 步 9f-3）：外壳开着那段对话时 api-client 自动带上，
+ * 服务端核对是本人的才记到任务上（左边列表的封面 / 进度圈 / 小点靠它）。
+ */
+export const GenerationConversationIdSchema = z.string().trim().min(1).max(64)
+
+/**
  * ⚠ 只是为了让下面的 `.check()` 不把整个对象字面量重新缩进一层 —— 语义上它就是
  * `GenerateVideoRequestSchema` 的对象部分，不要在别处 import。
  */
@@ -775,6 +781,7 @@ const GenerateVideoRequestObjectSchema = z.object({
   characterLookIds: CharacterLookIdsSchema.optional(),
   /** 这一枪叫什么（切片 Y）—— 判据与 `StudioGenerateSchema.displayLabel` 同源。 */
   displayLabel: z.string().trim().min(1).max(160).optional(),
+  conversationId: GenerationConversationIdSchema.optional(),
 })
 
 export const GenerateVideoRequestSchema =
@@ -1399,6 +1406,7 @@ export const Model3DMultiViewImagesSchema = z
   .partial()
 
 export const Generate3DRequestSchema = z.object({
+  conversationId: GenerationConversationIdSchema.optional(),
   /**
    * Public URL of the source image. Required for image-to-3D mode. For Rodin
    * Gen-2.5 text-to-3D (`rodinPrompt` set, no image), this field is omitted
@@ -3623,6 +3631,7 @@ export const StudioGenerateSchema = z.object({
   displayLabel: z.string().trim().min(1).max(160).optional(),
   /** 产物来源 surface（LoRA 域生成传 LORA_WORKBENCH；缺省走 DB 默认 IMAGE_STUDIO）。 */
   sourceSurface: GenerationSourceSurfaceSchema.optional(),
+  conversationId: GenerationConversationIdSchema.optional(),
 })
 
 export type StudioGenerateRequest = z.infer<typeof StudioGenerateSchema>

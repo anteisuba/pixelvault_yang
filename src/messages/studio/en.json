@@ -1168,6 +1168,10 @@
     "pickFor": "Picking for the {bench} bench",
     "pickForBase": "Picking for the {bench} bench · base {base}",
     "pickDone": "Done",
-    "manageInLibrary": "Manage in library"
+    "manageInLibrary": "Manage in library",
+    "newResult": "New results",
+    "homeMode": "Start",
+    "homeAssistant": "Assistant",
+    "homeVoiceRoom": "Voice room"
   }
 }

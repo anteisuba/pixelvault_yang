@@ -112,6 +112,7 @@ Model = PascalCase（`UserApiKey`）· 字段 = camelCase（`createdAt`）· 枚
 
 - 2026-10-23 你的技能（`20261023200000_assistant_skills`）：新表 `AssistantSkill`（`userId` 级联删；`name` / `description` / `body` 可空 / `references` JSON / `builtinSlug` 可空 / `enabled`；`(userId, name)` 与 `(userId, builtinSlug)` 各唯一）。自己写的 `builtinSlug` 为空；「改成我的版本」或只关掉一份内置带 `builtinSlug`，只关时 `body` 为空。见 `assistant-next.md` 第 7b 步。
 - 2026-10-24 标签中日文名词库（`20261024030000_danbooru_tag_names`）：新表 `DanbooruTagName`（`tag` 主键；`category` · `count` · `zh` · `zhNote` · `ja` · `searchText`；索引 `(category, count DESC)`；不归任何用户、无外键），⛔ 不动已有表。数据由 `scripts/import-danbooru-tag-names.ts` 整表覆盖导入（中文 amenorira/danbooru-tags-data-zh、日文 PYU224/tagdb-updater，均 MIT；约 14.8 万行），默认只出报告，`--apply` 写库须 owner 当次授权。读方 `services/research/danbooru-tag-name.service.ts`：表不在 / 没导入 / 出错一律当没有，标签库照常按英文名工作。
+- 2026-10-24 对话列表活起来（`20261024050000_conversation_jobs_bench`，第 9f 步 9f-3）：`GenerationJob.conversationId`（可空、弱引用无外键，索引 `(conversationId, createdAt DESC)`；落库前 `createGenerationJob` 核对是本人的对话，不是就当没给）与 `AssistantConversation.bench`（可空，最后开着的台的地址）。两列都只加不改，旧行为空。`bench` 用原生 SQL 写（`setAssistantConversationBench`），⛔ 碰 `updatedAt`（列表排序键）。
 
 ## Source of Truth
 

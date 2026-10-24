@@ -105,6 +105,16 @@
   min-height: 0;
 }
 
+/*
+ * ≥1024 房间都在外壳左边那份列表里（第 9f 步 9f-3：配音间是一种对话），这一列不再画；
+ * 更窄照旧（手机另做）。
+ */
+@media (min-width: 64rem) {
+  .vr-rail {
+    display: none;
+  }
+}
+
 .vr-rail-new {
   display: flex;
   align-items: center;

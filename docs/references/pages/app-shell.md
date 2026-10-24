@@ -315,7 +315,8 @@ studio 内容裁出视口，是因为侧栏能展开到 144；平板档现在钉
 - 全站侧栏在 `desk:` 的 `/studio` 上整条藏起（平板照旧）；画布侧栏子项改长在画布底栏（`SHELL_CANVAS_DESK_BOTTOM_ENTRIES`，不含「历史对话」）。
 - **库叠层（9f-2a）**：`/library/<类>`（素材 / 角色 / 提示词 / 音色 / 画廊）叠在中间那一栏上，⛔ 盖住台。外壳挂在路由组 `(shell)`（`studio/` 与 `library/` 共用）；从外壳里点开是软跳转，由 `@library/(.)library/*` 拦截、台留在 `children` 不卸载；直接打开时库就是 `children`。两种情况页面都传送到同一个落点（`StudioLibraryOverlay`）。叠层里的页面不登记宿主、不挂面板（`StudioOperatorDetachedScope`）。开着库时对话那一栏至少占一半。
 - **LoRA 一类（9f-2b）**：`/library/lora`（库 · 收藏两格，`?view=favorites`），原来 LoRA 台里那两格搬来，台上只剩 生成 · 训练。挂载栈挂在 `(shell)/layout.tsx`，叠层里挂上的台上当场看见；台开着时经 `StudioLibraryPickProvider` 登记底模，叠层顶上写「选给 LoRA 台」。
-- 之后：9f-2c 标签一类、9f-2d 台上的参考图 / 模板 / 角色 / 从角色选改开库、9f-2e 旧地址 308 与我的主页、9f-3 列表封面/进度、9f-4 动效，手机端另做。
+- **台上开库（9f-2d）**：桌面（≥768）图片 / 视频 / 标签台的「参考图 → 素材库」「角色」「模板」打开 `/library/<类>?pick=1`（`studioLibraryPickPath`），⛔ 再开弹窗 / 弹层 / 舞台面板。库那一格只画落点（`StudioLibraryPickSlot`），挑选界面由**台自己**传送进来（`useLibraryPickSlot`，在 `StudioLibraryPickProvider` 里登记；同一类后登记的说了算），所以台的状态（参考图剩余格数、角色造型、模板套用与撤销快照）原样可用。参考图用自带头部的素材挑选（标题写「选给 XX 台」），角色套 `StudioLibraryPickFrame`（「选给 XX 台」+「完成」），模板用模板面板自己的头部。没有台在等（直接打开 / 刷新）就退回这一类整页。手机仍走原来的抽屉 / 舞台面板。`cardSelector` 面板已删。
+- 之后：9f-2c 标签一类、LoRA 台「从角色选」与参考图卡改开库、9f-2e 旧地址 308 与我的主页、9f-3 列表封面/进度、9f-4 动效，手机端另做。
 
 ## Last Verified
 

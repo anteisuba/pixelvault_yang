@@ -105,7 +105,8 @@ vi.mock('@/components/business/studio/ReferenceImageChip', () => ({
   ReferenceImageChip: () => null,
   ReferenceImagePickerBody: () => null,
   ReferenceImageCountLine: () => null,
-  ReferenceImageLibraryDialog: () => null,
+  ReferenceImageLibraryPortal: () => null,
+  useOpenReferenceImageLibrary: () => () => {},
 }))
 vi.mock('@/components/business/studio/StudioSpecChip', () => ({
   StudioSpecChip: () => null,

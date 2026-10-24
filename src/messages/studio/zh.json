@@ -1166,6 +1166,7 @@
     "resize": "拖动调整对话和台的宽度",
     "expandChat": "展开对话",
     "pickFor": "选给 {bench} 台",
-    "pickForBase": "选给 {bench} 台 · 底模 {base}"
+    "pickForBase": "选给 {bench} 台 · 底模 {base}",
+    "pickDone": "完成"
   }
 }

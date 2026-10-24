@@ -70,7 +70,6 @@ export type PanelName =
   | 'projectHistory'
   | 'modelSelector'
   | 'civitai'
-  | 'cardSelector'
   | 'enhance'
   | 'stylePreset'
   | 'reverse'
@@ -304,7 +303,6 @@ const initialPanels: Record<PanelName, boolean> = {
   projectHistory: false,
   modelSelector: false,
   civitai: false,
-  cardSelector: false,
   enhance: false,
   stylePreset: false,
   reverse: false,
@@ -319,7 +317,6 @@ const initialPanels: Record<PanelName, boolean> = {
 // tool dialogs instead of being mutually exclusive with them.
 export const STUDIO_TOOL_PANEL_NAMES: PanelName[] = [
   'reverse',
-  'cardSelector',
   'stylePreset',
   'refImage',
   'loraSelector',

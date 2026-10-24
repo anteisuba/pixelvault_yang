@@ -102,7 +102,7 @@ function NodeFrameLayer({
         ref={scrim}
         aria-hidden
         data-node-chrome-scrim
-        className="pointer-events-none absolute inset-0 bg-foreground/24"
+        className="pointer-events-none absolute inset-0 bg-black/24"
       />
       <div
         ref={box}

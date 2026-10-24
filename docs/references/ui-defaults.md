@@ -71,7 +71,12 @@
 | 已应用/警告/风险 | `--status-applied` / `--status-warning` / `--status-risk`，各带 `-surface` 浅底（risk 除外） | 绿 #16794c · 琥珀 #a04f00 · 红 #b3261e；对比度见 globals.css 注释                 |
 | 模态             | `bg-modality-image` / `-video` / `-audio`（**只给 prompts 域**，见 §2.3）                    | 紫 292 / 蓝 255 / 玫瑰 10，低饱和                                                 |
 
-**应用默认浅色。** html 根没有 `.dark`。`.dark` 只允许出现在**媒体观看面**：lightbox、`MediaDetailViewer`、画布图片编辑工作台、node 画布视口。页面本身不做暗色（cards 页、assets loading 也是浅色，它们不是媒体观看面）。
+**两档外观：素（默认）/ 暗房（owner 2026-10-24）。** 上表是素档的值；暗房的值只写在 `globals.css` 的 `.dark` 一块（色板 = 9f 方向 E 样件的暗房：壳 `#060607` · 面板 `#111214` · 次级面 `#191a1d` / `#1f2023` · 字 `#ecebe7` / `#8e8c86`，对比度逐对算过、写在那块注释里），组件**不认外观、只用 token**。
+
+- 换档在头像菜单「外观」一行，只记在本机（`src/lib/theme.ts`，localStorage `pv:theme`），⛔ 进账号、⛔「跟随系统」。
+- 选了暗房 = `<html>` 挂 `.dark`，**只在 `(main)` 里挂**（`THEMED_ROUTE_SEGMENTS`，`theme.test.ts` 扫目录对账）：首页、登录注册、隐私 / 条款、对话分享页一直是素。首帧由根布局 `<head>` 的脚本挂（⛔ 先白一下），进出 `(main)` 由 `ThemedScope` 挂 / 摘。
+- 域皮肤（画布 / LoRA / 配音间）跟着外观走：各自的暗档写在 `.dark .domain-*` 一块，⛔ 在域里钉 `color-scheme: light`。
+- **媒体观看面**（lightbox、`MediaDetailViewer`、画布图片编辑工作台）两档都暗：要么自己挂 `.dark`，要么用 §2.4 的固定明暗 chrome。
 
 ### 2.2 "白"只有一种
 
@@ -91,7 +96,7 @@
 
 - 颜色一律用 token 类名，Tailwind 调色板类（`text-amber-700` `bg-emerald-500/15` 一类）**不出现在业务代码**。文字用 `text-status-*`，浅底用 `bg-status-*-surface`，实心点 / 进度用 `bg-status-*` 或 `bg-status-*/70` 一类透明度。
 - **风险面**：浅红底用 `bg-status-risk-surface`，同一个 className 里文字 `text-status-risk`、边 `border-status-risk/N`；不拿 `bg-destructive/N` 透明度凑浅红。`--destructive` 只给**实心破坏按钮**（`bg-destructive text-destructive-foreground hover:bg-destructive/90`）。警告浅底同理用 `bg-status-warning-surface`。对比度（实算）：`#b3261e` 对 risk-surface **5.91** · 对白 **6.54** · 对 `--surface-workbench` **5.93**；`--foreground` 对 risk-surface **16.65**；暗档 `#e06c65` 对 `#3e1d1a` **4.66**；warning **5.28** · applied **4.98**。
-- 未清的两处例外：**装饰性渐变**（素材库未登录壳的占位图块）与**贴在媒体上的固定明暗 chrome**（`bg-neutral-950/85` 的 stage HUD、3D 预览黑台、图上白底小按钮）——后者刻意不跟随主题，换 `foreground` / `background` token 会在暗档整个翻过来。
+- 未清的两处例外：**装饰性渐变**（素材库未登录壳的占位图块）与**贴在媒体上的固定明暗 chrome**（`bg-neutral-950/85` 的 stage HUD、3D 预览黑台、图上白底小按钮）——后者刻意不跟随主题，换 `foreground` / `background` token 会在暗档整个翻过来。图上的标签 / 读数 / 播放钮 / 遮罩统一写 `bg-black/N` + `text-white`（暗色主题模块 2026-10-24 把 35 处 `bg-foreground/N text-background` 收成这一种：暗房里它们会变成浅底黑字，和同屏的暗标签不一致）。⛔ 实底 `bg-primary` / `bg-status-*` 上写死 `text-white`：暗房里这几格变浅，字用 `text-primary-foreground` / `text-background`。
 - 任何新颜色先用脚本算对比度（Claude Code 用 `contrast-check`，其他客户端用同等 WCAG 计算），文字 4.5:1、大字与图标 3:1、AA 底线 24px 命中区。
 - 透明度修饰符是允许的：`bg-primary/90` `border-border/60`。
 
@@ -334,6 +339,8 @@ reduced-motion 下不糊、不错开，直接出现。实现与落点见 `loadin
 - 第 1 条与第 4 条现在就可以用 `grep -rn` 当 PR 前门，eslint 规则化是独立任务。
 
 ## Last Verified
+
+- 2026-10-24 · 暗色主题（素 | 暗房）：§2.1 由「应用只有浅色、`.dark` 只给媒体观看面」改为两档外观；`.dark` 整块换成暗房色板（原 Krea 暗档作废，画布修图台这类自己挂 `.dark` 的地方一起换）；画布 / LoRA / 配音间去掉浅色钉子、各给暗档；图上 chrome 收成 `bg-black/N text-white`（§2.4）；`ui/` 原语里 shadcn 自带的 `dark:` 变体按 token 写、暗房里正好生效，保留。
 
 - 2026-10-09 · 提示与弹窗收尾（§7.1）：逐个过了剩下的成功 / 提示黑条。改到键上的 10 处：素材详情的复制链接 / 收藏 / 存为模板与查看器的收藏键（`useAssetDetailActions` 改为把结果交回调用方，查看器「⋯」菜单里的复制链接 / 存为模板因菜单会关、仍走黑条）、`ImageDetailModal` 置顶、助手头部分享、Civitai 令牌保存、音色训练「自动转写」、LoRA 作者描述复制、配方查看器与来源配方弹窗的复制键（多颗键共用一份结果、按 `copyTarget` 落到按下的那颗）。其余照旧留黑条：出图 / 修图 / 训练等后台结果，带「撤销」的，菜单项、弹窗或编辑态随结果关掉的，删掉后内容消失的，被闸挡住的提示与引导，以及上传（另有切片接）与批量删除撤销。
 

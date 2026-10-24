@@ -494,8 +494,8 @@ const GalleryAction = memo(function GalleryAction({
       className={cn(
         'flex size-7 items-center justify-center rounded-md backdrop-blur-sm transition-all hover:scale-110 active:scale-90',
         active
-          ? 'bg-primary/80 text-white'
-          : 'bg-black/50 text-white hover:bg-primary/80',
+          ? 'bg-primary/80 text-primary-foreground'
+          : 'bg-black/50 text-white hover:bg-primary/80 hover:text-primary-foreground',
       )}
       aria-label={label}
       style={{ transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)' }}

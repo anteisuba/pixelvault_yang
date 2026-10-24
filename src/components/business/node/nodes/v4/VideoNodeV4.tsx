@@ -996,7 +996,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
             !picking ? (
               <span
                 data-video-duration
-                className="absolute right-2.5 bottom-2.25 bg-foreground/45 px-1.5 py-0.25 font-mono text-2xs leading-3.5 tabular-nums text-card"
+                className="absolute right-2.5 bottom-2.25 bg-black/45 px-1.5 py-0.25 font-mono text-2xs leading-3.5 tabular-nums text-white"
                 style={{ borderRadius: 'calc(var(--radius-node-thumb) / 2)' }}
               >
                 {formatVideoClock(durationSeconds)}

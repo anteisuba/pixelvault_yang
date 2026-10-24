@@ -1,36 +1,23 @@
-/* lora.css — LoRA 域浅色皮肤（方向 B 装配台）
+/* lora.css — LoRA 域皮肤（方向 B 装配台）
  * S1 token 层。作用域 = .domain-lora（挂在 LoraWorkbench 根）。
- * 基调：与系统浅色语义槽一致的白色工作台 / 轻灰凹面 / 石墨中性 / 柔顺连续。
+ * 基调：白色工作台 / 轻灰凹面 / 石墨中性 / 柔顺连续。
  *
- * 机制：在 .domain-lora 内重映射语义槽，确保 LoRA 页面及其弹层不再覆盖成
- * 深炭色；显式 color-scheme: light 让原生表单与滚动条也跟随系统浅色外观。
- * 彩色只留功能语义（兼容绿/琥珀），效果图是唯一饱和色源。
+ * 颜色全走脊柱（globals.css `:root` 素 / `.dark` 暗房两档），跟着外观走（暗色主题
+ * 模块，owner 2026-10-24）：⛔ 在本域钉 `color-scheme` 或写死浅色值 —— 原生滚动条 /
+ * 表单控件跟 `<html>` 的那一档。状态色用脊柱的 `--status-*`，效果图是唯一饱和色源。
  * 红线：严格 .domain-lora 作用域，不改全局 @theme / 脊柱。
  * 现有 .lora-* 行为类仍在 globals.css，本片不动。满屏三栏 + 组件重宿主见 S2。 */
 
 .domain-lora {
-  color-scheme: light;
-
   /* 1 · 表面：地台与面板框走 globals.css 的 `.workbench-ground` / `.workbench-card`
         （owner 2026-09-03 拍板，把配音间的灰底+白卡外观推到本页）。
-        遮罩与投影是材质，保留。 */
-  --lora-scrim: oklch(0.145 0 0 / 0.38);
+        投影是材质，保留（暗房里压在深底上几乎看不见，层次靠边线）。 */
   --lora-shadow-panel:
     0 1px 2px rgba(0, 0, 0, 0.04), 0 6px 16px rgba(0, 0, 0, 0.06);
-  --lora-shadow-raise: 0 1px 3px rgba(0, 0, 0, 0.08);
-  --lora-shadow-modal:
-    0 2px 8px rgba(0, 0, 0, 0.08), 0 16px 48px rgba(0, 0, 0, 0.16);
 
-  /* 4 · 功能语义色（仅两组·浅底可读档，效果图是唯一饱和色源） */
-  --lora-ok: oklch(0.62 0.095 158);
-  --lora-ok-tint: oklch(0.965 0.02 155);
-  --lora-warn: oklch(0.68 0.115 75);
-  --lora-warn-ink: oklch(0.5 0.1 70);
-  --lora-warn-tint: oklch(0.972 0.025 85);
-  --lora-warn-line: oklch(0.88 0.055 82);
-
-  /* 5 · 主动作 hover 提亮档：派生自脊柱 --primary，不另给黑。 */
-  --lora-primary-hi: color-mix(in oklab, var(--primary) 80%, white);
+  /* 2 · 主动作 hover 档：派生自脊柱，往底色那边退一点 —— 素档变灰黑、暗房变浅灰，
+        ⛔ 混白（暗房的主色本就接近白，混白等于没反馈）。 */
+  --lora-primary-hi: color-mix(in oklab, var(--primary) 80%, var(--background));
 
   /* 结果卡**空态**的高度上限（移动端，owner 2026-09-03 追加）。
    * 手机上结果卡排第一，还没出过图时那个虚线盒按 1024×1360 比例要 466px，

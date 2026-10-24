@@ -21,10 +21,10 @@ primitive → semantic → domain/component → page
 - **域皮肤只由自己的域入口 import**，不进根 layout：`canvas.css` + `@xyflow/react/dist/style.css` → `src/app/[locale]/(main)/studio/node/layout.tsx`（2026-09-03 从根 layout / `globals.css` 的 `@import` 下沉，此前那 173 KB 皮肤进每一个路由的首屏 CSS）；`home-v4.css` → `HomeV4Shell.tsx`；`lora.css` → `LoraWorkbench.tsx`；`voiceroom.css` → `VoiceRoomPage.tsx`；`legal.css` → `LegalPage.tsx`（`not-found.tsx` 2026-10-08 起走空态模板，不再引 legal.css）。
 - ⚠ **canvas.css 泄漏的那一小部分留在 `globals.css` 脊柱上**（皮肤当年写 `:root` 的代价，2026-09-03 下沉时按真实消费者逐条查证后拆分，别搬回去也别两边各留一份）：
   - 8 个 `--node-*` 定值（`panel` / `panel-inner` / `panel-soft` / `foreground` / `muted` / `edge` / `focus-ring` / `shadow`）——`studio-shared/editor/ImageEditSurface`、`studio-shared/pickers/CanvasRoutePicker`在画布路由之外读它们。
-  - `.node-canvas-panel-motion` 与 `.canvas-assistant-popover*` 整块：域外消费者（旧 `StudioAssistantDock` / `StudioAssistantHeaderActions`）已随第 9c 步（2026-10-23）删掉，可以下沉回 canvas.css，留给全局 UI 统一时一起整理。
+  - `.node-canvas-panel-motion` 整块：域外消费者（旧 `StudioAssistantDock` / `StudioAssistantHeaderActions`）已随第 9c 步（2026-10-23）删掉，可以下沉回 canvas.css，留给全局 UI 统一时一起整理。（同批的 `.canvas-assistant-popover*` 字面色浮层皮没了消费者，暗色主题模块 2026-10-24 已删。）
   - 其余 `--node-*` / `--canvas-*` / `.domain-canvas *` / `.node-card-*` 等仍住 canvas.css；`@theme inline` 的 `--color-node-*` 映射照旧留在 `globals.css`（Tailwind 编译入口只有一个）。
 - 首页域皮肤 2026-08-28 从 `home-v3.css` 换成 `home-v4.css`（`.home-v4` 翻页站），v3 的皮肤 + 20 个 `HomeV3*` 组件 + `constants/home-v3.ts` 已整体删除。此前 2026-07-27 曾从 `homepage.css`（`.homepage-*`）换到 v3。
-- 运行时默认 `.dark`（根 html className）。⚠ `.dark` 只换色 token 不设 color-scheme——暗面组件需显式 `color-scheme: dark`。
+- 外观两档（2026-10-24）：默认素，根 `<html>` 没有 `.dark`；用户选了暗房，`(main)` 里 `<html>` 挂 `.dark`（`src/lib/theme.ts`，见 `ui-defaults.md` §2.1）。`.dark` 自带 `color-scheme: dark`；域皮肤的暗档写 `.dark .domain-*`。
 - **Tailwind 4：无 `tailwind.config.ts`**，token 扩展一律在 `globals.css` 的 `@theme inline`（2026-07-10 核验；CLAUDE.md 旧口径已修正）。
 - ⚠ globals.css 首行仍 `@import` Fontshare Satoshi，但全 src 无任何 `Satoshi` font-family 引用（字体栈已迁 Geist）——死引用，已立清理任务。
 

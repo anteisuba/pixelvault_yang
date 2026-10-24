@@ -98,6 +98,7 @@ import {
 } from '@/constants/routes'
 import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useThemePreference } from '@/hooks/use-theme-preference'
 import { useCanvasShellPanelHost } from '@/hooks/node/use-canvas-shell-panel'
 import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
 import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
@@ -341,6 +342,14 @@ function NodeWorkbenchV4Inner() {
     clerkId: isLoaded ? userId : null,
     onRemoteChange,
   })
+  /**
+   * 暗房里画布一律跟外观（暗色主题模块 2026-10-24）：选底色的面板早已下线，库里存着的
+   * 手选底色全是素档时代的浅色，暗房里照用就是浅色地板上一排暗卡。素档照旧用存的值，
+   * 存的值本身不动。
+   */
+  const [theme] = useThemePreference()
+  const canvasAppearance =
+    theme === 'dark' ? undefined : store.state.canvasAppearance
 
   const commitState = useCallback(
     (next: NodeWorkflowStateV4) => {
@@ -1867,7 +1876,7 @@ function NodeWorkbenchV4Inner() {
         <CanvasWorkspaceLayout
           assistantMode={assistantMode}
           stageRef={canvasRef}
-          stageStyle={getCanvasAppearanceCssVars(store.state.canvasAppearance)}
+          stageStyle={getCanvasAppearanceCssVars(canvasAppearance)}
           reviewMode={reviewMode.active}
           frameOpen={graph.expandedNodeId !== null}
           /**
@@ -1922,7 +1931,7 @@ function NodeWorkbenchV4Inner() {
                         graph={graph}
                         toolMode={toolMode}
                         relationsCollapsed={relationsCollapsed}
-                        canvasAppearance={store.state.canvasAppearance}
+                        canvasAppearance={canvasAppearance}
                         edgeSigning={edgeSigning}
                         onDrop={dnd.onDrop}
                         onDragOver={dnd.onDragOver}
@@ -2009,7 +2018,6 @@ function NodeWorkbenchV4Inner() {
                     historyPanel={
                       <CanvasAssistantHistoryPanel
                         fill
-                        surface="panel"
                         sessions={historySessions}
                         activeSessionId={
                           operatorHistory?.currentSessionId ?? null

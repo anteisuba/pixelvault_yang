@@ -6,18 +6,19 @@
  *   · --node-panel/-panel-inner/-panel-soft/-foreground/-muted/-edge/
  *     -focus-ring/-shadow 的定值（域外的 ImageEditSurface / CanvasRoutePicker 读）
  *   · `.node-canvas-panel-motion`（StudioAssistantDock / LoraAssistantDock 也挂）
- *   · 助手「历史对话」浮层 `.canvas-assistant-popover*`（Radix 传送门，三个 dock 共用）
  * ⚠ 下面这批 --node-* 挂 :root 而不是 .domain-canvas：Radix 传送门把内容挂到
  *   document.body，自定义属性不跨那个边界，scope 会破。值写字面量而非
  *   var(--canvas-*)，因为 --canvas-* 只在 .domain-canvas 内定义。
  *   数值 1:1 出自 docs/references/pages/canvas-skin.md，不是新造颜色。
- * ⚠ 画布是深色 app 里的浅色孤岛：用脊柱令牌（bg-card/text-foreground）的传送门
- *   仍会解析成暗值，长期解是 .domain-canvas 也重映射脊柱表面令牌 + 自带 Portal
- *   container。施工基准 docs/references/pages/node-canvas.md。 */
+ * ⚠ 外观两档（owner 2026-10-24）：素档是下面 `.domain-canvas` 那份，暗房档是
+ *   `.dark .domain-canvas`（`<html>` 挂 `.dark`）。传送门出了 .domain-canvas，
+ *   靠的是脊柱令牌 + 下方 `.dark` 里那几个 --node-* 暗档。
+ *   施工基准 docs/references/pages/node-canvas.md。 */
 :root {
   --node-canvas: #ffffff;
-  /* --canvas-surface / --canvas-grid-dot 由 CanvasSurface.tsx 运行时内联覆盖
-     （画布壁纸，用户可选深浅）；这里的字面量只是 JS 接管前的启动兜底。 */
+  /* --canvas-surface / --canvas-grid-dot 在 .domain-canvas 里跟着外观走（素 / 暗房
+     各一档，见下方域根）；用户手动改过底色的项目由 CanvasSurface.tsx 内联覆盖。
+     这里的字面量只是域外兜底（读它们的都在域内，实际用不到）。 */
   --canvas-surface: #14120f;
   --canvas-grid-dot: rgba(235, 229, 216, 0.18);
   --node-subtle: #737373; /* = --canvas-ink-muted */
@@ -61,6 +62,23 @@
   /* minimap 蓝图纸：深青底 + 青线，读作「图纸材质」而非又一块深色面板。 */
   --node-blueprint-bg: #101820;
   --node-blueprint-line: #2e4a5e;
+}
+
+/* 上面那批 --node-* 的暗房档（owner 2026-10-24）：挂 `.dark`（= `<html>`）而不是
+   .domain-canvas，传送门里也对。只改会在暗底上塌掉的那几个：
+   --node-canvas 是「--node-foreground 实底上的反白字」，暗房里实底变米白，字要变深；
+   完成绿 #16794c 在暗面上只有 1.9，换脊柱暗档 #5cc998（对 #111214 9.16）；
+   失败红 #c0342e 当字只有 3.13，换画布暗档 --canvas-danger 同值 #f0736c（对卡 6.11 ·
+   对面板 6.58 · 对风险浅底 5.28），实底上的字跟着变深（6.58）；失败浅底换脊柱暗档。
+   端口族色不动：对暗卡 3.38–3.74，图形够 3:1。 */
+.dark {
+  --node-canvas: #111214;
+  --node-subtle: #8e8c86;
+  --node-status-done: color-mix(in oklab, #5cc998 14%, transparent);
+  --node-status-done-fg: #5cc998;
+  --node-status-failed: #f0736c;
+  --node-status-failed-fg: #111214;
+  --node-status-failed-tint: #3e1d1a;
 }
 
 /* 纸卡材质作用域：容器级变量覆盖（strangler），卡内既有的
@@ -424,8 +442,8 @@ body[data-edit-transition-drag] [data-edit-seam='cut'] {
 /* ══════════════════════════════════════════════════════════════════════════
    画布域皮肤 v0.2 token 地基 —— 施工基准 docs/references/pages/canvas-skin.md
    （v0.2 = 真机取样值）。全部 token 只活在 .domain-canvas 作用域内。
-   ⚠ color-scheme：app 在 layout.tsx 硬编码 <html class="dark">，画布域是浅色档；
-   不显式声明 light，原生滚动条/表单控件会在白卡上渲染成深色竖条。
+   ⚠ color-scheme：素档显式声明 light、暗房档声明 dark —— 原生滚动条 / 表单控件
+   跟着卡面走，⛔ 在白卡上画出深色竖条。
    对比度全部用确定性脚本按 WCAG 2.x 逐对计算，⛔ 禁目测。
    ══════════════════════════════════════════════════════════════════════════ */
 .domain-canvas {
@@ -433,6 +451,10 @@ body[data-edit-transition-drag] [data-edit-seam='cut'] {
 
   /* 1 · 画布底 */
   --canvas-bg: #f1f1f1;
+  /* 没设过底色的画布：底色与点阵走这里（素 / 暗房各一份）；设过的由
+     CanvasSurface.tsx 内联覆盖。⚠ 素档值 = NODE_STUDIO_CANVAS_APPEARANCE_DEFAULT。 */
+  --canvas-surface: var(--canvas-bg);
+  --canvas-grid-dot: rgba(20, 18, 15, 0.2);
 
   /* 2 · 卡 —— 静态无投影，只有发丝边；纵深靠 hover 抬升 */
   --canvas-card-bg: #ffffff; /* 对底 1.13:1 —— 刻意的极小分层 */
@@ -503,10 +525,9 @@ body[data-edit-transition-drag] [data-edit-seam='cut'] {
   --canvas-ease-in: cubic-bezier(0.22, 1, 0.36, 1); /* 进入与落位 */
   --canvas-ease-state: cubic-bezier(0.4, 0, 0.2, 1); /* 状态过渡 */
 
-  /* 12 · 语义脊柱映射（同 lora.css .domain-lora）：app 全局 dark，画布是浅色
-     孤岛，子树里共享组件的脊柱令牌一直解析成暗值。提槽不提皮，全部
-     var(--canvas-*) 间接引用 —— [data-scheme='dark'] 档自动跟随翻面。
-     ⚠ Radix 传送门不在本作用域，维持字面量类的既有做法。 */
+  /* 12 · 语义脊柱映射：子树里共享组件的脊柱令牌换成画布这一套。提槽不提皮，
+     全部 var(--canvas-*) 间接引用 —— 暗房档（`.dark .domain-canvas`）自动跟随翻面。
+     ⚠ Radix 传送门不在本作用域，读的是脊柱本身（同样分素 / 暗房两档）。 */
   --background: var(--canvas-card-bg);
   --foreground: var(--canvas-ink);
   --card: var(--canvas-card-bg);
@@ -601,47 +622,53 @@ body[data-edit-transition-drag] [data-edit-seam='cut'] {
   border-radius: var(--radius);
 }
 
-/* 深色档 —— 不是浅色反相：卡背比底亮，投影靠加深不靠发光。
-   ⚠ 全仓没有一处设 data-scheme（外观预设精简为只留浅色），这块暂无激活路径，
-   是 v0.2 规格的一部分先留着，不是死代码要清。 */
-.domain-canvas[data-scheme='dark'] {
+/* 暗房档（owner 2026-10-24）—— 不是浅色反相：卡背比底亮，投影靠加深不靠发光。
+   `<html>` 挂 `.dark` 时生效（用户在头像菜单选了暗房）。色相照脊柱暗房（偏暖的米白
+   字、深灰卡），⛔ 另起一套中性黑。
+   ⚠ 对比度（contrast-check，2026-10-24）：卡 #191a1d 对底 #0d0e10 1.11（同素档
+   1.13 的刻意极小分层）；ink #ecebe7 对卡 14.59 / 对底 16.19 · regular #cfcdc7
+   10.95 · muted #b1afa9 7.93 / 8.80 · subtle #8e8c86 5.18 / 5.74 —— 暗房里 subtle
+   也过 AA，可以放画布底上；焦点环 #b1afa9 对卡 7.93；连线 #8e8c86 对底 5.74。 */
+.dark .domain-canvas {
   color-scheme: dark;
 
-  --canvas-bg: #0a0a0a;
+  --canvas-bg: #0d0e10;
+  --canvas-grid-dot: rgba(235, 229, 216, 0.18);
 
-  --canvas-card-bg: #171717; /* 对底 1.10:1 */
-  --canvas-card-line: rgba(255, 255, 255, 0.1);
+  --canvas-card-bg: #191a1d;
+  --canvas-card-line: rgba(255, 255, 255, 0.08);
   --canvas-card-shadow-hover: 0 4px 24px rgba(0, 0, 0, 0.6);
 
-  --canvas-stroke-regular: rgba(255, 255, 255, 0.1);
-  --canvas-stroke-bold: rgba(255, 255, 255, 0.18);
-  --canvas-stroke-focus: #a1a1a1;
-  --canvas-fill-control: rgba(255, 255, 255, 0.06);
-  --canvas-fill-control-hover: rgba(255, 255, 255, 0.09);
+  --canvas-stroke-regular: rgba(255, 255, 255, 0.08);
+  --canvas-stroke-bold: rgba(255, 255, 255, 0.16);
+  --canvas-stroke-focus: #b1afa9;
+  --canvas-fill-control: rgba(255, 255, 255, 0.05);
+  --canvas-fill-control-hover: rgba(255, 255, 255, 0.08);
 
-  --canvas-ink: #fafafa; /* 17.18 / 18.97 */
-  --canvas-ink-regular: #d4d4d4; /* 12.09 */
-  --canvas-ink-muted: #a1a1a1; /* 6.94 */
-  --canvas-ink-subtle: #8a8a8a; /* 5.19 */
+  --canvas-ink: #ecebe7;
+  --canvas-ink-regular: #cfcdc7;
+  --canvas-ink-muted: #b1afa9;
+  --canvas-ink-subtle: #8e8c86;
 
-  --canvas-action: #fafafa; /* 深色档主动作反相成浅底深字 */
-  --canvas-action-hover: #e5e5e5;
-  --canvas-action-fg: #0a0a0a;
-  --canvas-accent: #6e9bff; /* 6.66 */
+  --canvas-action: #ecebe7; /* 暗房主动作反相成米白底深字，同脊柱 --primary */
+  --canvas-action-hover: #d6d5d0;
+  --canvas-action-fg: #111214;
+  --canvas-accent: #6e9bff; /* 6.46 vs 卡 */
 
-  --canvas-warn: #d9a441; /* 7.97 */
-  --canvas-danger: #f0736c; /* 6.30 */
+  --canvas-warn: #d9a441; /* 7.74 vs 卡 */
+  --canvas-danger: #f0736c; /* 6.11 vs 卡 */
+  --canvas-status-running: #5cc998;
 
-  --canvas-edge: #8a8a8a; /* 5.73 vs 底 */
-  --canvas-edge-active: #ffffff;
+  --canvas-edge: #8e8c86;
+  --canvas-edge-active: #ecebe7;
 
-  --canvas-pop-bg: #1f1f1f;
+  --canvas-pop-bg: #1f2023;
   --canvas-pop-shadow:
     0 4px 12px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.45);
-  --canvas-glass: rgba(30, 30, 30, 0.84);
+  --canvas-glass: rgba(25, 26, 29, 0.84);
   --canvas-glass-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 
-  --canvas-media-bg: #101010;
+  --canvas-media-bg: #111214;
 }
 
 /* reduced-motion：三档时长全部压到 1ms 并保留终态 */

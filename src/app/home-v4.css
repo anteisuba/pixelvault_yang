@@ -27,8 +27,8 @@ body.home-v4-locked {
 }
 
 .home-v4 {
-  /* The app's <html> carries `.dark`; without an explicit color-scheme the
-     native scrollbar and form controls render dark on this white page. */
+  /* 首页一直是素（外观只管登录后的 `(main)`，见 `src/lib/theme.ts`）；这里显式钉
+     light 是双保险：万一 `<html>` 带着 `.dark` 进来，原生滚动条 / 表单控件也不会变暗。 */
   color-scheme: light;
 
   /* 2026-09-03 并入全站浅底三层（ui-defaults.md §2.2）：首页不再自带一套暖白。

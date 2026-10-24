@@ -111,7 +111,7 @@ export default function VideoPlayer({
           className="absolute inset-0 flex items-center justify-center transition-opacity"
           aria-label={t('play')}
         >
-          <span className="flex size-14 items-center justify-center rounded-full bg-foreground/70 text-background backdrop-blur-sm transition-transform hover:scale-110">
+          <span className="flex size-14 items-center justify-center rounded-full bg-black/70 text-white backdrop-blur-sm transition-transform hover:scale-110">
             <Play className="ml-1 size-6" fill="currentColor" />
           </span>
         </button>

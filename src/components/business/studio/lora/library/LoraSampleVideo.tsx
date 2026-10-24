@@ -69,7 +69,7 @@ export function LoraSampleVideo({
         role="img"
         aria-label={t('videoSample')}
         className={cn(
-          'absolute inline-flex h-5 items-center gap-1 rounded-full bg-foreground/55 px-1.75 font-mono text-2xs text-background backdrop-blur-sm',
+          'absolute inline-flex h-5 items-center gap-1 rounded-full bg-black/55 px-1.75 font-mono text-2xs text-white backdrop-blur-sm',
           badgeCorner === 'top-right' ? 'right-1.5 top-1.5' : 'bottom-2 left-2',
         )}
       >

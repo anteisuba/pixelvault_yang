@@ -753,7 +753,7 @@ export function StudioTemplatesPanel({
                               </span>
                             </button>
                             {lora ? (
-                              <span className="pointer-events-none absolute left-3 top-3 rounded-md bg-foreground/75 px-1.5 font-mono text-3xs font-semibold leading-5 text-background">
+                              <span className="pointer-events-none absolute left-3 top-3 rounded-md bg-black/75 px-1.5 font-mono text-3xs font-semibold leading-5 text-white">
                                 {t('lora')}
                               </span>
                             ) : null}
@@ -825,7 +825,7 @@ export function StudioTemplatesPanel({
                                   className={cn(
                                     'h-8 rounded-lg px-2.5 text-2sm transition-colors duration-fast ease-linear',
                                     confirming
-                                      ? 'bg-status-risk text-white focus:bg-status-risk focus:text-white'
+                                      ? 'bg-status-risk text-background focus:bg-status-risk focus:text-background'
                                       : 'text-status-risk focus:text-status-risk',
                                   )}
                                 >
@@ -924,9 +924,7 @@ export function StudioTemplatesPanel({
               <div className="flex items-center gap-2">
                 {phone ? null : (
                   <span className="mr-auto text-xs text-muted-foreground">
-                    {save.modelId
-                      ? t('formNote')
-                      : t('modelMissing')}
+                    {save.modelId ? t('formNote') : t('modelMissing')}
                   </span>
                 )}
                 <Button

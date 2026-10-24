@@ -87,16 +87,19 @@ export function getCanvasCardLineColor(
  * CSS custom properties that must live on an ancestor of both the surface
  * layer and React Flow's Background, so the grid dots track the wallpaper
  * color instead of the global default charcoal.
+ *
+ * 没设过底色的画布一个都不写（owner 2026-10-24 暗色主题）：底色、点阵、卡边
+ * 走 canvas.css 里 `.domain-canvas` 的默认，素 / 暗房各一份，跟着外观走。
  */
 export function getCanvasAppearanceCssVars(
   appearance: CanvasAppearance | undefined,
 ): CSSProperties {
-  const resolved = appearance ?? NODE_STUDIO_CANVAS_APPEARANCE_DEFAULT
+  if (!appearance) return {}
   return {
-    '--canvas-surface': resolved.backgroundColor,
-    '--canvas-grid-dot': getCanvasGridDotColor(resolved.backgroundColor),
+    '--canvas-surface': appearance.backgroundColor,
+    '--canvas-grid-dot': getCanvasGridDotColor(appearance.backgroundColor),
     // S1：卡边随用户底色自适应，覆盖 canvas.css 里 .domain-canvas 的静态值。
-    '--canvas-card-line': getCanvasCardLineColor(resolved.backgroundColor),
+    '--canvas-card-line': getCanvasCardLineColor(appearance.backgroundColor),
   } as CSSProperties
 }
 

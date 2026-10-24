@@ -76,8 +76,9 @@ describe('NodeFrame', () => {
     expect(scrim.parentElement).toBe(stage)
     expect(scrim.className).toContain('absolute')
     expect(scrim.className).not.toContain('fixed')
+    // 遮罩两档都是暗的：暗房里用 foreground 会把画布刷白（暗色主题模块）。
     expect(stage.querySelector('[data-node-chrome-scrim]')).toHaveClass(
-      'bg-foreground/24',
+      'bg-black/24',
     )
     unmount()
     stage.remove()

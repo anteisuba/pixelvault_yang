@@ -16,13 +16,14 @@
 >    CSS 自定义属性不跨这个边界，14 个传送门文件因此全部回退到旧的 `--node-*` 深皮值。第二轮改为在 `:root`
 >    直接反转 `--node-*` 默认值（`canvas.css` 顶部那块），并且**值写字面量而不是 `var(--canvas-*)`** ——
 >    `--canvas-*` 只在 `.domain-canvas` 内定义，`:root` 这一层引用不到。字面量仍 1:1 抄自本文，不是新造颜色。
-> 2. **深色档（`.domain-canvas[data-scheme='dark']`）没有实装。** 下表深色列保留为将来的目标值，当前画布域是纯浅色档，
->    且必须显式声明 `color-scheme: light`（app 在 `layout.tsx` 硬编码 `<html class="dark">`，不声明的话原生滚动条/表单控件
->    会在白卡上渲染成深色竖条）。
+> 2. **暗档 = `.dark .domain-canvas`（暗色主题模块，owner 2026-10-24），⛔ `[data-scheme='dark']`。** 跟着全站外观走：
+>    用户选了暗房，`<html>` 挂 `.dark`，画布一起暗；值按暗房色板重定（见 `canvas.css` 那一块的对比度注释），
+>    **下表深色列只是 2026-07 的旧目标值，不再是施工依据**。暗房里画布一律暗：存过的手选底色只在素档用。
+>    两档都显式写 `color-scheme`（素 light / 暗房 dark），原生滚动条 / 表单控件跟着卡走。
 
 ## 0 · 命名与落点
 
-前缀 `--canvas-*`（区别于遗留 `--node-*`）。定义在 `.domain-canvas` 作用域内，深色版用 `.domain-canvas[data-scheme='dark']` 覆盖同名 token，**不新增第二套名字**。（⚠ 传送门例外见文首。）
+前缀 `--canvas-*`（区别于遗留 `--node-*`）。定义在 `.domain-canvas` 作用域内，暗房档用 `.dark .domain-canvas` 覆盖同名 token，**不新增第二套名字**。（⚠ 传送门例外见文首。）
 
 ## 0.4 · 真机取样来源与方法
 

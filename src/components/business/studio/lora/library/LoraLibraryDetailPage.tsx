@@ -662,7 +662,7 @@ export function LoraLibraryDetailPage({
                       {sample.videoUrl ? (
                         <LoraSampleVideo src={sample.videoUrl} />
                       ) : (
-                        <span className="absolute bottom-2 left-2 h-5 rounded-md bg-foreground/55 px-1.75 font-mono text-2xs leading-5 text-background opacity-0 transition-opacity duration-fast ease-linear group-hover/sample:opacity-100 group-focus-visible/sample:opacity-100">
+                        <span className="absolute bottom-2 left-2 h-5 rounded-md bg-black/55 px-1.75 font-mono text-2xs leading-5 text-white opacity-0 transition-opacity duration-fast ease-linear group-hover/sample:opacity-100 group-focus-visible/sample:opacity-100">
                           {sample.hasRecipe
                             ? tb('sampleHasRecipe')
                             : tb('sampleNoRecipe')}

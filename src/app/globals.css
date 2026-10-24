@@ -792,10 +792,14 @@
   );
   --page-border: color-mix(in oklab, var(--border) 85%, transparent);
 
-  /* Composer（Studio 输入条）— 象牙工作台，主题不变量（docs/references/domains/studio.md：方案 B）。
-     暗房工作台上唯一的"亮纸"，与陈列面米白同源；CTA 在其上用黑丸。 */
+  /* Composer（Studio 输入条）+ 对话里「你说的那句」— 象牙料（docs/references/domains/studio.md：
+     方案 B），CTA 在其上用黑丸。暗房档换成深一档的灰（见 `.dark`，owner 2026-10-24）。
+     -muted / -line 是料上的次文与描边：`.studio-composer` 在自己作用域里把
+     --muted-foreground / --border / --input 换成它们。 */
   --surface-composer: oklch(96% 0.008 95);
   --surface-composer-foreground: oklch(20% 0 0);
+  --surface-composer-muted: oklch(50% 0.005 95);
+  --surface-composer-line: oklch(89% 0.006 95);
 
   /* ── 工作台脊柱地台（owner 2026-09-03）── 配音间「灰底 + 白卡」推广给图像/
      视频工作台共用，见下方 `.workbench-ground` / `.workbench-card`。
@@ -906,48 +910,64 @@ html:lang(ja) {
     monospace;
 }
 
+/* ── 暗房（外观第二档，owner 2026-10-24）──────────────────────────────
+   `<html>` 挂 `.dark` = 用户在头像菜单里选了「暗房」，只在 `(main)` 里挂（首页 /
+   登录 / 条款一直素）—— 见 `src/lib/theme.ts`。画布修图台这类媒体观看面自己挂
+   `.dark`，也吃这一套。
+   值照 9f 方向 E 样件的暗房：近黑的壳、深灰面板、偏暖的米白字；⛔ 样件里的橙色
+   强调不进来（全站强调色仍只有 --primary，暗房里是米白）。
+   层次与素档一一对应：壳 --surface-sunken #060607 · 面板 --background / --card
+   #111214 · 次级面 --muted #191a1d / --secondary · --accent #1f2023 · 浮层
+   --popover #191a1d（暗底上投影几乎看不见，浮层靠亮一档分层）。
+   ⚠ 对比度（contrast-check，2026-10-24，WCAG 2.x 逐对算）：
+     --foreground #ecebe7：对壳 16.98 · 面板 15.71 · #191a1d 14.59 · #1f2023 13.66
+     --muted-foreground #8e8c86：对壳 6.02 · 面板 5.57 · #191a1d 5.18 · #1f2023 4.84
+       （最差一对仍过 AA 4.5）
+     --primary-foreground #111214 对 --primary #ecebe7：15.71
+     --destructive #ff6467：对面板 6.53 · 对 #1f2023 5.67
+     --border 白 7%（合成 #222324）对面板 1.19、--input 白 13% 1.44 —— 与素档
+     --border 1.26 同性质，装饰性分层线，⛔ 拿它承重信息。 */
 .dark {
   color-scheme: dark;
 
-  /* ── Dark palette — Krea dark tokens ────────────────────────────────── */
-  --background: oklch(14.5% 0 0);
-  --foreground: oklch(98.5% 0 0);
+  --background: #111214;
+  --foreground: #ecebe7;
 
-  --card: oklch(20.5% 0 0);
-  --card-foreground: oklch(98.5% 0 0);
-  --popover: oklch(20.5% 0 0);
-  --popover-foreground: oklch(98.5% 0 0);
+  --card: #111214;
+  --card-foreground: #ecebe7;
+  --popover: #191a1d;
+  --popover-foreground: #ecebe7;
 
-  --primary: oklch(100% 0 0);
-  --primary-foreground: oklch(0% 0 0);
+  --primary: #ecebe7;
+  --primary-foreground: #111214;
 
-  --secondary: oklch(26.9% 0 0);
-  --secondary-foreground: oklch(98.5% 0 0);
+  --secondary: #1f2023;
+  --secondary-foreground: #ecebe7;
 
-  --muted: oklch(26.9% 0 0);
-  --muted-foreground: oklch(70.8% 0 0);
+  --muted: #191a1d;
+  --muted-foreground: #8e8c86;
 
-  --accent: oklch(26.9% 0 0);
-  --accent-foreground: oklch(98.5% 0 0);
+  --accent: #1f2023;
+  --accent-foreground: #ecebe7;
 
   --destructive: oklch(70.4% 0.191 22.216);
 
   /* 「已应用」暗面档。⚠ 不是浅面那三个值的复制 —— 见 :root 里的说明：
-     #16794c 在暗色 --secondary 上只有 1.91。这三个是重算过的：
-     #5cc998 对 background/secondary/气泡 最差 5.07；#e06c65 对底 6.13。 */
+     #16794c 在暗面上只有 1.91。暗房面板 #111214 上（2026-10-24 重算）：
+     applied #5cc998 9.16 · risk #e06c65 5.80 · warning #f0b25a 10.01；
+     对最亮的 #1f2023 也有 7.96 / 5.04 / 8.70。 */
   --status-applied: #5cc998;
   --status-applied-surface: #163024;
   --status-risk: #e06c65;
   /* 暗面风险浅底：#e06c65 对它 4.66（AA 过），明度 oklch L 0.276 与
      applied-surface 0.284 / warning-surface 0.297 同档。 */
   --status-risk-surface: #3e1d1a;
-  /* 暗面警告档：#f0b25a 对 background 8.19 · 对 secondary(#404040) 5.54 · 对纯黑 11.22。 */
   --status-warning: #f0b25a;
   --status-warning-surface: #3a2a10;
 
-  --border: oklch(100% 0 0 / 0.1);
-  --input: oklch(100% 0 0 / 0.15);
-  --ring: oklch(55.6% 0 0);
+  --border: rgb(255 255 255 / 0.07);
+  --input: rgb(255 255 255 / 0.13);
+  --ring: #8e8c86;
 
   --chart-1: oklch(48.8% 0.243 264.376);
   --chart-2: oklch(69.6% 0.17 162.48);
@@ -955,24 +975,54 @@ html:lang(ja) {
   --chart-4: oklch(62.7% 0.265 303.9);
   --chart-5: oklch(64.5% 0.246 16.439);
 
-  --surface-sunken: oklch(0% 0 0);
-  --sidebar: var(--surface-sunken);
-  /* 助手面板锁浅色（§12 前提「不要深色」），这一档只为了 `.dark` 孤岛
-     （lightbox / 媒体观看面）里万一落到同一颗组件时不塌成不可见的描边。 */
-  --assistant-line-strong: oklch(100% 0 0 / 0.18);
-  /* 暗色工作台地台：配音间锁浅色（owner 2026-08-29），没有暗档可对齐，沿用
-     壳底既有的沉降黑，不另造第二套暗色地台。 */
+  --surface-sunken: #060607;
+  /* 工作台地台 = 壳底：暗房里不另起第二种近黑。 */
   --surface-workbench: var(--surface-sunken);
-  --sidebar-foreground: oklch(98.5% 0 0);
-  --sidebar-primary: oklch(48.8% 0.243 264.376);
-  --sidebar-primary-foreground: oklch(98.5% 0 0);
-  --sidebar-accent: oklch(26.9% 0 0);
-  --sidebar-accent-foreground: oklch(98.5% 0 0);
-  --sidebar-border: oklch(100% 0 0 / 0.1);
-  --sidebar-ring: oklch(43.9% 0 0);
+
+  /* 应用壳侧栏 · 暗房档。⚠ 素档的「hover 往暗、active 往亮」在近黑的壳上走不通
+     （壳已经没法再暗）：hover 只亮一丝（白 5%，合成 #111112），激活浮片亮一大档
+     （#1f2023，对 hover 1.25），状态照旧由 --sidebar-primary 竖条 + 墨色跃迁承重。
+     未选中字 #b1afa9 对壳 9.23 · 对浮片 7.43；段标题 #8e8c86 对壳 6.02。 */
+  --sidebar: var(--surface-sunken);
+  --sidebar-foreground: #b1afa9;
+  --sidebar-subtle: #8e8c86;
+  --sidebar-primary: #ecebe7;
+  --sidebar-primary-foreground: #111214;
+  --sidebar-accent: rgb(255 255 255 / 0.05);
+  --sidebar-accent-strong: rgb(255 255 255 / 0.08);
+  --sidebar-accent-foreground: #ecebe7;
+  --sidebar-active-surface: #1f2023;
+  --sidebar-border: rgb(255 255 255 / 0.06);
+  --sidebar-ring: #ecebe7;
 
   --overlay-chip: oklch(100% 0 0 / 0.4);
   --overlay-chip-foreground: oklch(100% 0 0);
+
+  /* 「要你动手的那张卡」的描边：比 --border 深一档（白 13%，样件 line2）。 */
+  --assistant-line-strong: rgb(255 255 255 / 0.13);
+
+  /* 象牙料（输入条 + 对话里「你说的那句」）· 暗房档：换成比面板亮一档的深灰
+     （样件里用户气泡就是这一色），⛔ 暗房里留一块亮纸。
+     #ecebe7 对它 13.97 · 料上的次文 #8e8c86 4.96。 */
+  --surface-composer: #1d1e21;
+  --surface-composer-foreground: #ecebe7;
+  --surface-composer-muted: #8e8c86;
+  --surface-composer-line: rgb(255 255 255 / 0.1);
+
+  /* 画布域外仍要用的 8 个 --node-* 定值（见 :root 冻结脊柱那段）· 暗房档。
+     画布域自己的暗档在 canvas.css 的 `.dark .domain-canvas`。 */
+  --node-panel: #111214;
+  --node-panel-inner: rgb(255 255 255 / 0.05);
+  --node-panel-soft: #191a1d;
+  --node-foreground: #ecebe7;
+  --node-muted: #b1afa9;
+  --node-edge: #8e8c86;
+  --node-focus-ring: rgb(236 235 231 / 0.4);
+  --node-shadow: rgb(0 0 0 / 0.5);
+
+  /* 暗底上投影几乎看不见：工作台白卡那道大投影换成一圈极淡的亮边 + 更深的影。 */
+  --workbench-card-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.03), 0 30px 80px -40px rgb(0 0 0 / 0.7);
 
   /* 模态色 · 暗面档（暗底提亮到 78%）。用途同 :root：仅画布端口 / 连线归属，
      不再按颜色区分模态（owner 2026-09-17）。 */
@@ -1757,15 +1807,15 @@ html:lang(ja) {
   .studio-composer {
     background: var(--surface-composer);
     color: var(--surface-composer-foreground);
-    /* 局部反转：composer 是暗面上的光面物体——在其作用域内重映射
-       语义色板，让 text-foreground / text-muted-foreground / border-*
-       等工具类在象牙面上解析为深色（暖灰阶与米白同族）。 */
+    /* 局部重映射：在料的作用域内把语义色板换成料上的那一套，让
+       text-foreground / text-muted-foreground / border-* 等工具类在象牙面
+       （素）和深灰面（暗房）上都解析对。 */
     --foreground: var(--surface-composer-foreground);
-    --muted-foreground: oklch(50% 0.005 95);
-    --border: oklch(89% 0.006 95);
-    --input: oklch(89% 0.006 95);
-    /* primary 在光面上=深色（textarea 的 text-primary、任何 bg-primary
-       子元素自动成为"象牙上的黑丸"——与反相 CTA 规则一致）。 */
+    --muted-foreground: var(--surface-composer-muted);
+    --border: var(--surface-composer-line);
+    --input: var(--surface-composer-line);
+    /* primary 在料上 = 料的字色（textarea 的 text-primary、任何 bg-primary
+       子元素：素档是「象牙上的黑丸」，暗房是深灰上的米白丸 —— 与反相 CTA 规则一致）。 */
     --primary: var(--surface-composer-foreground);
     --primary-foreground: var(--surface-composer);
   }
@@ -2431,62 +2481,6 @@ html:lang(ja) {
   flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
-}
-
-/* ── 助手「历史对话」浮层 · 脊柱（原 canvas.css，2026-09-03 提上来）──────
-   `CanvasAssistantHistory` 住在画布目录，但 `StudioAssistantHeaderActions`
-   把它渲染进三个 dock：StudioNodeAssistantDock（画布）·
-   StudioAssistantDock（studio 工作台）· LoraAssistantDock（/studio/lora）。
-   canvas.css 现在只由画布路由 import，规则留在那里后两个 dock 的浮层就掉皮，
-   所以整块住这里。以下原注释保持原样（字面值的来源逐条对应仍然成立）。 */
-
-/* 助手「历史对话」浮层（CanvasAssistantHistory.tsx）——Radix Popover 传送门到
-   document.body，脱离 .domain-canvas 的 DOM 子树，var(--canvas-*) 够不到（自定义
-   属性靠 DOM 祖先链继承，传送门跳过了原来的祖先），只能用字面值。逐条对应来源：
-   #ffffff = --canvas-card-bg，12px = --canvas-pop-radius，投影 =
-   --canvas-pop-shadow，rgba(0,0,0,.08) = --canvas-stroke-regular，
-   rgba(0,0,0,.04) = --canvas-fill-control，rgba(0,0,0,.06) =
-   --canvas-fill-control-hover，#0a0a0a/#737373/#8f8f8f =
-   --canvas-ink/-muted/-subtle——不是新造颜色，是同一批已定值的字面量落地。
-   （触发这个浮层的 <Button> 本身没有传送门问题，仍走
-   .canvas-assistant-ghost-btn，见组件文件。） */
-.canvas-assistant-popover {
-  background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 12px;
-  box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.04),
-    0 8px 24px rgba(0, 0, 0, 0.06);
-  color: #0a0a0a;
-}
-.canvas-assistant-popover-divider {
-  border-color: rgba(0, 0, 0, 0.08);
-}
-.canvas-assistant-popover-subtle {
-  color: #8f8f8f;
-}
-.canvas-assistant-popover-input {
-  background: rgba(0, 0, 0, 0.04);
-  border-color: rgba(0, 0, 0, 0.08);
-  color: #0a0a0a;
-}
-.canvas-assistant-popover-empty {
-  background: rgba(0, 0, 0, 0.04);
-  color: #737373;
-}
-.canvas-assistant-popover-item {
-  color: #737373;
-  transition:
-    background 150ms cubic-bezier(0.4, 0, 0.2, 1),
-    color 150ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-.canvas-assistant-popover-item:hover {
-  background: rgba(0, 0, 0, 0.06);
-  color: #0a0a0a;
-}
-.canvas-assistant-popover-item--active {
-  background: rgba(0, 0, 0, 0.04);
-  color: #0a0a0a;
 }
 
 /* ── 助手 dock 宽度形变（原 canvas.css，2026-09-03 提到脊柱）────────

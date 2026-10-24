@@ -260,7 +260,7 @@ function WebVideoCard({
           aria-hidden
           className="pointer-events-none absolute inset-0 grid place-items-center opacity-0 transition-opacity duration-fast ease-standard group-hover:opacity-100 motion-reduce:transition-none"
         >
-          <span className="grid size-7 place-items-center rounded-full bg-foreground/55 text-background">
+          <span className="grid size-7 place-items-center rounded-full bg-black/55 text-white">
             {embedUrl ? (
               <Play className="size-3" />
             ) : (
@@ -272,7 +272,7 @@ function WebVideoCard({
         {video.n ? (
           <span
             data-testid="operator-web-video-number"
-            className="pointer-events-none absolute left-1 top-1 rounded-sm bg-foreground/75 px-1 font-mono text-2xs font-semibold tabular-nums leading-4 text-background"
+            className="pointer-events-none absolute left-1 top-1 rounded-sm bg-black/75 px-1 font-mono text-2xs font-semibold tabular-nums leading-4 text-white"
           >
             #{video.n}
           </span>
@@ -280,7 +280,7 @@ function WebVideoCard({
         {video.durationSeconds ? (
           <span
             data-testid="operator-web-video-duration"
-            className="pointer-events-none absolute bottom-1 right-1 rounded-sm bg-foreground/70 px-1 font-mono text-2xs tabular-nums leading-4 text-background"
+            className="pointer-events-none absolute bottom-1 right-1 rounded-sm bg-black/70 px-1 font-mono text-2xs tabular-nums leading-4 text-white"
           >
             {formatVideoDuration(video.durationSeconds)}
           </span>

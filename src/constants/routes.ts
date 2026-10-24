@@ -43,6 +43,11 @@ export const ROUTES = {
   /** 音色库页（「声音」模块，owner 10-23）：我的收藏 · 我的克隆 · 找音色。 */
   VOICES: '/voices',
   PROMPTS: '/prompts',
+  /**
+   * 库（第 9f 步方向 E）：`/library/<类>` 叠在 `/studio` 外壳中间那一栏上，⛔ 盖住台。
+   * 从外壳里点开时台不卸载；直接打开（刷新）= 叠在首页上。
+   */
+  LIBRARY: '/library',
 
   /**
    * 账号设置整页（D3 ④）。`/settings` 本身没有内容：桌面直接重定向到

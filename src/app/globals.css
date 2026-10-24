@@ -2754,6 +2754,14 @@ html:lang(ja) {
   contain: layout;
 }
 
+/* 库叠层的正文（第 9f 步 9f-2a）：叠进来的页面按整屏写的高（`h-page`），在叠层里改成
+   铺满叠层那一块，⛔ 比叠层还高一截、多出一层滚动。 */
+@utility library-overlay-body {
+  & .h-page {
+    height: 100%;
+  }
+}
+
 /* 手机上横滑的一排（作品 chip、「用得最多」）：拇指滑，⛔ 画滚动条。 */
 @utility scrollbar-none {
   scrollbar-width: none;

@@ -5,6 +5,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
@@ -16,9 +17,10 @@ import {
   activeShellTool,
   type ShellNavItem,
 } from '@/constants/navigation'
-import { STUDIO_CONVERSATION_QUERY } from '@/constants/routes'
+import { ROUTES, STUDIO_CONVERSATION_QUERY } from '@/constants/routes'
 import {
   STUDIO_SHELL_BENCH_IDS,
+  type StudioLibraryCategoryId,
   STUDIO_SHELL_SPLIT,
   type StudioShellRouteKind,
 } from '@/constants/studio-shell'
@@ -30,6 +32,7 @@ import {
 import { ChevronLeft, X } from '@/components/icons'
 import { StudioOperatorDock } from '@/components/business/studio/assistant-operator'
 import { StudioConversationList } from '@/components/business/studio/shell/StudioConversationList'
+import { StudioLibraryTargetContext } from '@/components/business/studio/shell/StudioLibraryOverlay'
 import {
   Tooltip,
   TooltipContent,
@@ -58,6 +61,9 @@ import { cn } from '@/lib/utils'
 const BENCH_ITEMS: readonly ShellNavItem[] = STUDIO_SHELL_BENCH_IDS.flatMap(
   (id) => SHELL_NAV_TOOLS.filter((item) => item.id === id),
 )
+
+/** 台条宽（`w-12`）：首页上库叠层让出这一条。 */
+const RAIL_WIDTH_PX = 48
 
 const RAIL_BUTTON_CLASS =
   'flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&>svg]:size-4.5'
@@ -93,12 +99,47 @@ function initialRestore(pathname: string): StudioOperatorHistoryRestore {
  *
  * 设计稿：`/mnt/project-files/assistant-reliability/step9f-e.md`；本步范围：`step9f-1-plan.md`。
  */
-export function StudioShell({ children }: { children: ReactNode }) {
+export function StudioShell({
+  children,
+  library,
+}: {
+  children: ReactNode
+  /** `@library` 那一格（从外壳里点开库时的拦截路由）；页面自己会传送到落点，这里只是挂着。 */
+  library?: ReactNode
+}) {
   const pathname = usePathname()
-  const kind = studioShellRouteKind(pathname)
+  const router = useRouter()
+  const routeKind = studioShellRouteKind(pathname)
+  /**
+   * 库叠着时底下是哪一页：进库之前最后那一页（台不卸载）。直接打开库 = 首页。
+   * ⚠ 渲染期按地址调整（React 认可的「渲染时修正 state」写法），⛔ 晚一帧。
+   */
+  const [base, setBase] = useState<{
+    kind: Exclude<StudioShellRouteKind, 'library'>
+    pathname: string
+  } | null>(() =>
+    routeKind === 'library' ? null : { kind: routeKind, pathname },
+  )
+  if (routeKind !== 'library' && base?.pathname !== pathname)
+    setBase({ kind: routeKind, pathname })
+  const kind = base?.kind ?? 'home'
   const isDesk = useIsDesk()
   const homeHost = useHomeOperatorHost()
   const [restore] = useState(() => initialRestore(pathname))
+  const [libraryTarget, setLibraryTarget] = useState<HTMLElement | null>(null)
+  const [libraryCategory, setLibraryCategory] =
+    useState<StudioLibraryCategoryId | null>(null)
+  const libraryOpen = libraryCategory !== null
+  const cameFromShell = base !== null
+  const libraryContext = useMemo(
+    () => ({
+      target: libraryTarget,
+      setOpenCategory: setLibraryCategory,
+      // 从外壳里点开的 → 后退回到进来之前那一页（台还在）；直接打开的 → 回首页。
+      close: () => (cameFromShell ? router.back() : router.push(ROUTES.STUDIO)),
+    }),
+    [cameFromShell, libraryTarget, router],
+  )
   const placement = useMemo<StudioOperatorDockPlacement>(
     () => ({
       owner:
@@ -112,31 +153,50 @@ export function StudioShell({ children }: { children: ReactNode }) {
     [isDesk, kind, restore],
   )
 
+  const libraryLayer = (
+    <div
+      ref={setLibraryTarget}
+      data-testid="studio-library-target"
+      className="fixed inset-0 z-40 empty:hidden desk:absolute desk:inset-y-0 desk:right-auto desk:left-0 desk:z-10 desk:w-(--library-width)"
+    />
+  )
+
   return (
     <StudioOperatorDockPlacementProvider value={placement}>
-      <StudioOperatorHostSlotProvider fallback={homeHost}>
-        {() => (
-          <div
-            data-testid="studio-shell"
-            data-kind={kind}
-            className="desk:flex desk:h-svh desk:overflow-hidden"
-          >
-            <StudioConversationList className="hidden desk:flex" />
-            {kind === 'page' ? (
-              <div className="min-w-0 desk:h-svh desk:flex-1 desk:overflow-y-auto">
-                {children}
-              </div>
-            ) : (
-              <StudioShellStage
-                kind={kind}
-                shellDock={placement.owner === 'shell'}
-              >
-                {children}
-              </StudioShellStage>
-            )}
-          </div>
-        )}
-      </StudioOperatorHostSlotProvider>
+      <StudioLibraryTargetContext.Provider value={libraryContext}>
+        <StudioOperatorHostSlotProvider fallback={homeHost}>
+          {() => (
+            <div
+              data-testid="studio-shell"
+              data-kind={kind}
+              data-library={libraryCategory ?? undefined}
+              className="desk:flex desk:h-svh desk:overflow-hidden"
+            >
+              <StudioConversationList className="hidden desk:flex" />
+              {kind === 'page' ? (
+                <div
+                  className="relative min-w-0 desk:h-svh desk:flex-1 desk:overflow-y-auto"
+                  style={libraryWidth('100%')}
+                >
+                  {children}
+                  {libraryLayer}
+                </div>
+              ) : (
+                <StudioShellStage
+                  kind={kind}
+                  benchPathname={base?.pathname ?? ROUTES.STUDIO}
+                  shellDock={placement.owner === 'shell'}
+                  libraryOpen={libraryOpen}
+                  libraryLayer={libraryLayer}
+                >
+                  {children}
+                </StudioShellStage>
+              )}
+              {library}
+            </div>
+          )}
+        </StudioOperatorHostSlotProvider>
+      </StudioLibraryTargetContext.Provider>
       <Suspense fallback={null}>
         <StudioConversationUrlSync />
       </Suspense>
@@ -152,13 +212,25 @@ function StudioConversationUrlSync() {
   return null
 }
 
+/** 叠层落点的宽（≥1024）：写进 `--library-width`，⛔ 直接写 width（手机上落点是整屏）。 */
+function libraryWidth(width: string): CSSProperties {
+  return { '--library-width': width } as CSSProperties
+}
+
 function StudioShellStage({
   kind,
+  benchPathname,
   shellDock,
+  libraryOpen,
+  libraryLayer,
   children,
 }: {
-  kind: Exclude<StudioShellRouteKind, 'page'>
+  kind: 'home' | 'bench'
+  /** 台条认哪一个台：库叠着时地址是 `/library/…`，按底下那一页认。 */
+  benchPathname: string
   shellDock: boolean
+  libraryOpen: boolean
+  libraryLayer: ReactNode
   children: ReactNode
 }) {
   const t = useTranslations('StudioShell')
@@ -166,13 +238,21 @@ function StudioShellStage({
     useStudioShellSplit()
   const stageRef = useRef<HTMLDivElement | null>(null)
   const bench = kind === 'bench'
-  const conversationHidden = bench && split.conversationCollapsed
+  // 库叠着时对话那一栏一定在（库叠在它上面），且至少占一半，⛔ 挤成一条。
+  const conversationHidden =
+    bench && split.conversationCollapsed && !libraryOpen
+  const conversationWidth = libraryOpen
+    ? `max(${split.conversationPx}px, 50%)`
+    : `${split.conversationPx}px`
 
   return (
     <div
       ref={stageRef}
       data-testid="studio-shell-stage"
       className="relative min-w-0 desk:flex desk:h-svh desk:flex-1"
+      style={libraryWidth(
+        bench ? conversationWidth : `calc(100% - ${RAIL_WIDTH_PX}px)`,
+      )}
     >
       <section
         aria-label={t('conversations')}
@@ -185,7 +265,7 @@ function StudioShellStage({
         style={
           bench
             ? {
-                width: split.conversationPx,
+                width: conversationWidth,
                 maxWidth: `calc(100% - ${STUDIO_SHELL_SPLIT.minBenchPx}px)`,
               }
             : undefined
@@ -205,6 +285,7 @@ function StudioShellStage({
 
       <StudioBenchRail
         kind={kind}
+        pathname={benchPathname}
         conversationHidden={conversationHidden}
         onExpandConversation={() => setConversationCollapsed(false)}
       />
@@ -218,6 +299,7 @@ function StudioShellStage({
       >
         {children}
       </div>
+      {libraryLayer}
     </div>
   )
 }
@@ -332,16 +414,17 @@ function StudioShellDivider({
  */
 function StudioBenchRail({
   kind,
+  pathname,
   conversationHidden,
   onExpandConversation,
 }: {
-  kind: Exclude<StudioShellRouteKind, 'page'>
+  kind: 'home' | 'bench'
+  pathname: string
   conversationHidden: boolean
   onExpandConversation: () => void
 }) {
   const t = useTranslations('StudioShell')
   const tAll = useTranslations()
-  const pathname = usePathname()
   const { sessionId } = useStudioOperatorState()
   const activeId = kind === 'bench' ? activeShellTool(pathname)?.id : undefined
   const bench = kind === 'bench'

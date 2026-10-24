@@ -4,7 +4,9 @@ import {
   studioConversationPath,
 } from '@/constants/routes'
 import {
+  STUDIO_LIBRARY_CATEGORY_IDS,
   STUDIO_SHELL_PAGE_ROUTES,
+  type StudioLibraryCategoryId,
   type StudioShellRouteKind,
 } from '@/constants/studio-shell'
 
@@ -20,6 +22,7 @@ function underPrefix(pathname: string, prefix: string): boolean {
 }
 
 export function studioShellRouteKind(pathname: string): StudioShellRouteKind {
+  if (underPrefix(pathname, ROUTES.LIBRARY)) return 'library'
   if (
     pathname === ROUTES.STUDIO ||
     underPrefix(pathname, ROUTES.STUDIO_CONVERSATION)
@@ -57,4 +60,21 @@ export function studioBenchHref(
   const params = new URLSearchParams(query)
   params.set(STUDIO_CONVERSATION_QUERY, sessionId)
   return `${path}?${params.toString()}`
+}
+
+/** `/library/<类>` 里那一类；不是库的地址（或类不认得）= `null`。 */
+export function libraryCategoryFromPath(
+  pathname: string,
+): StudioLibraryCategoryId | null {
+  if (!pathname.startsWith(`${ROUTES.LIBRARY}/`)) return null
+  const raw = pathname.slice(ROUTES.LIBRARY.length + 1).split('/')[0]
+  return STUDIO_LIBRARY_CATEGORY_IDS.find((id) => id === raw) ?? null
+}
+
+/** 外壳管的路由：`/studio/**` 与 `/library/**`（≥1024 全站侧栏让给外壳左栏）。 */
+export function isStudioShellPath(pathname: string): boolean {
+  return (
+    underPrefix(pathname, ROUTES.STUDIO) ||
+    underPrefix(pathname, ROUTES.LIBRARY)
+  )
 }

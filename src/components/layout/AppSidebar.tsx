@@ -13,11 +13,11 @@ import {
   SHELL_NAV_CANVAS_ITEM_ID,
   SHELL_NAV_SECTIONS,
   isShellNavItemActive,
-  isStudioPath,
   type ShellNavItem,
 } from '@/constants/navigation'
 import { ROUTES } from '@/constants/routes'
 import { Link, usePathname } from '@/i18n/navigation'
+import { isStudioShellPath } from '@/lib/studio-shell-route'
 import { AccountMenu } from '@/components/layout/AccountMenu'
 import { ProfileAvatar } from '@/components/layout/ProfileAvatar'
 import { Button } from '@/components/ui/button'
@@ -89,8 +89,8 @@ export function AppSidebar() {
     <Sidebar
       collapsible="icon"
       className="z-40 text-sidebar-foreground"
-      // ≥1024 的 `/studio` 由外壳自己的左栏接手（第 9f 步）；平板照旧是这条侧栏。
-      rootClassName={isStudioPath(pathname) ? 'desk:hidden' : undefined}
+      // ≥1024 的 `/studio` 与 `/library` 由外壳自己的左栏接手（第 9f 步）；平板照旧是这条侧栏。
+      rootClassName={isStudioShellPath(pathname) ? 'desk:hidden' : undefined}
     >
       <AppSidebarHeader />
       <AppSidebarContent />

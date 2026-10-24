@@ -446,3 +446,27 @@ export const StudioOperatorDockPlacementProvider =
 export function useStudioOperatorDockPlacement(): StudioOperatorDockPlacement {
   return useContext(StudioOperatorDockPlacementContext)
 }
+
+/**
+ * 库叠层里的那一块（第 9f 步 9f-2a）：叠层里的页面（如角色页）自己也包着宿主 Provider、
+ * 挂着一颗面板 —— 在这里一律**不登记、不挂**：库只是拿东西的地方，面板仍是外壳那一份、
+ * 宿主仍是底下那个台（⛔ 一打开库就把台上在跑的那一轮掐掉）。
+ */
+export function StudioOperatorDetachedScope({
+  children,
+}: {
+  children: ReactNode
+}) {
+  const placement = useContext(StudioOperatorDockPlacementContext)
+  const detached = useMemo<StudioOperatorDockPlacement>(
+    () => ({ owner: 'shell', restore: placement.restore }),
+    [placement.restore],
+  )
+  return (
+    <StudioOperatorHostSlotContext.Provider value={null}>
+      <StudioOperatorDockPlacementContext.Provider value={detached}>
+        {children}
+      </StudioOperatorDockPlacementContext.Provider>
+    </StudioOperatorHostSlotContext.Provider>
+  )
+}

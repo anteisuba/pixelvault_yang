@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import {
   conversationIdFromPath,
+  isStudioShellPath,
+  libraryCategoryFromPath,
   studioBenchHref,
   studioConversationHref,
   studioShellRouteKind,
@@ -15,6 +17,17 @@ describe('studio-shell-route', () => {
     expect(studioShellRouteKind('/studio/lora/library')).toBe('bench')
     expect(studioShellRouteKind('/studio/node')).toBe('bench')
     expect(studioShellRouteKind('/studio/audio')).toBe('page')
+    expect(studioShellRouteKind('/library/assets')).toBe('library')
+  })
+
+  it('reads the library category and knows which routes the shell owns', () => {
+    expect(libraryCategoryFromPath('/library/cards')).toBe('cards')
+    expect(libraryCategoryFromPath('/library/unknown')).toBeNull()
+    expect(libraryCategoryFromPath('/studio/image')).toBeNull()
+    expect(isStudioShellPath('/library/assets')).toBe(true)
+    expect(isStudioShellPath('/studio')).toBe(true)
+    expect(isStudioShellPath('/gallery')).toBe(false)
+    expect(isStudioShellPath('/librarything')).toBe(false)
   })
 
   it('reads the conversation id out of /studio/c/<id>', () => {

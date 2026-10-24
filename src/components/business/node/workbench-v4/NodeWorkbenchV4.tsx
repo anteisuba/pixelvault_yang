@@ -3,7 +3,7 @@
 /**
  * **v4 原生 workbench**（第三期 · 画布 C3c-③d-4「原子翻转」之后的**唯一** workbench）。
  *
- * 页面入口 `src/app/[locale]/(main)/studio/node/page.tsx` 直接挂本组件；v3 那份
+ * 页面入口 `src/app/[locale]/(main)/(shell)/studio/node/page.tsx` 直接挂本组件；v3 那份
  * （`StudioNodeWorkbench.tsx` / `use-node-workflow.ts` / `node-workflow-v3-view.ts`
  * / `NodeV4ActionsV3Adapter.tsx` / `NodeWorkflowActionsContext.tsx` /
  * `IngestDragLayer.tsx`）在同一次改动里删干净，⛔ 不留兼容层。

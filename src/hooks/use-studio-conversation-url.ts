@@ -55,7 +55,8 @@ export function useStudioConversationUrl({
     const previous = last.current
     last.current = { urlId, sessionId }
     if (!previous) return
-    if (kind === 'page') return
+    // 整页与库叠层不带对话地址（库叠着时底下那一页的地址等关了库再说）。
+    if (kind === 'page' || kind === 'library') return
 
     if (sessionId !== previous.sessionId) {
       // 对话变了 → 地址跟上。

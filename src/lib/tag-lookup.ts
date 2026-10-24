@@ -51,6 +51,16 @@ export function danbooruTagFromChip(
   return { name, artist }
 }
 
+/** 按界面语言挑中日文名（词库 `DanbooruTagName`，9f-2c）；英文界面与词库没有的都是 `null`。 */
+export function localDanbooruName(
+  names: { zh?: string | null; ja?: string | null },
+  locale: string,
+): string | null {
+  if (locale.startsWith('zh')) return names.zh ?? null
+  if (locale.startsWith('ja')) return names.ja ?? null
+  return null
+}
+
 /** 作品张数的短写：15.2万 / 152K。 */
 export function compactPostCount(count: number, locale: string): string {
   return new Intl.NumberFormat(locale, {

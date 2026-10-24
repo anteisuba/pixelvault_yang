@@ -10,6 +10,19 @@ vi.mock('@/lib/with-retry', () => ({
   withRetry: <T>(fn: () => Promise<T>) => fn(),
 }))
 
+const localNames = vi.hoisted(() => ({
+  hits: [] as { name: string; category: number; post_count: number }[],
+  names: new Map<
+    string,
+    { zh: string | null; zhNote: string | null; ja: string | null }
+  >(),
+}))
+vi.mock('@/services/research/danbooru-tag-name.service', () => ({
+  findTagsByLocalName: async (_text: string, categories: number[]) =>
+    localNames.hits.filter((hit) => categories.includes(hit.category)),
+  localNamesOf: async () => localNames.names,
+}))
+
 import { resetResearchBreakers } from '@/services/research/connector-runtime'
 import { RESEARCH_SOURCE_IDS } from '@/constants/research'
 import {
@@ -22,6 +35,8 @@ const mockFetch = vi.fn()
 beforeEach(() => {
   resetResearchBreakers([RESEARCH_SOURCE_IDS.danbooru])
   resetDanbooruCatalogCache()
+  localNames.hits = []
+  localNames.names = new Map()
   vi.clearAllMocks()
   vi.stubGlobal('fetch', mockFetch)
 })
@@ -710,6 +725,39 @@ describe('catalog used by the tag workbench', () => {
     expect(result.detail?.wiki).toBe(
       'Hair that reaches past the shoulders, see very long hair.',
     )
+  })
+
+  it('中日文名先查自家词库，候选与详情带上中日文名', async () => {
+    localNames.hits = [
+      { name: 'hatsune_miku', category: 4, post_count: 150000 },
+    ]
+    localNames.names = new Map([
+      ['hatsune_miku', { zh: '初音未来', zhNote: '虚拟歌姬', ja: '初音ミク' }],
+    ])
+    mockFetch.mockImplementation(async (raw: string) => {
+      const url = new URL(raw)
+      if (url.pathname === '/wiki_pages.json') return jsonResponse([])
+      if (url.pathname === '/tags.json') {
+        if (url.searchParams.get('search[name]'))
+          return jsonResponse([
+            { name: 'hatsune_miku', category: 4, post_count: 150000 },
+          ])
+        return jsonResponse([])
+      }
+      return jsonResponse([])
+    })
+    const { fetchDanbooruCatalog } = await import('./danbooru.connector')
+    const found = await fetchDanbooruCatalog({
+      kind: 'character',
+      query: '初音',
+    })
+    expect(found.candidates.map((item) => item.name)).toEqual(['hatsune_miku'])
+    expect(found.candidates[0]).toMatchObject({
+      zh: '初音未来',
+      ja: '初音ミク',
+    })
+    const detail = await fetchDanbooruCatalog({ tag: 'hatsune_miku' })
+    expect(detail.detail).toMatchObject({ zh: '初音未来', zhNote: '虚拟歌姬' })
   })
 
   it('draws random features from the all-ages list, not the top general tags', async () => {

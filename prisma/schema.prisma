@@ -213,6 +213,25 @@ model DanbooruFavorite {
   @@index([userId, createdAt])
 }
 
+/// Danbooru 标签的中文名 / 日文名（标签库的搜索与显示，第 9f 步 9f-2c）。不归任何用户；
+/// `scripts/import-danbooru-tag-names.ts` 整表覆盖导入（中文 amenorira/danbooru-tags-data-zh、
+/// 日文 PYU224/tagdb-updater，均 MIT）。
+model DanbooruTagName {
+  /// Danbooru tag 名（下划线写法）。
+  tag        String  @id
+  category   Int
+  count      Int     @default(0)
+  zh         String?
+  /// 中文那份的一句注释（说这个标签是什么）。
+  zhNote     String? @db.Text
+  ja         String?
+  /// 搜索用：中文名 · 中文那份的别名 · 日文名，小写、换行隔开。⚠ 不建 trigram 索引：
+  /// 中日文名多是两个字，用不上；十几万行短字顺扫够快。
+  searchText String  @db.Text
+
+  @@index([category, count(sort: Desc)])
+}
+
 /// LoRA 台挑好的标签堆（正面 / 负面），一个用户一份，跨设备同步。
 /// 两列都是 `PromptTagSelection[]`（`types/prompt-tags.ts` 的 `PromptTagSelectionsSchema`）。
 model PromptTagStack {

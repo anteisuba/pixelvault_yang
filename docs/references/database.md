@@ -111,6 +111,7 @@ Model = PascalCase（`UserApiKey`）· 字段 = camelCase（`createdAt`）· 枚
 - 2026-10-23 标签堆进库（`20261023140000_prompt_tag_stack`）：新表 `PromptTagStack`（`userId` 主键、级联删，`positive` / `negative` 两列 `PromptTagSelection[]`），LoRA 台的标签堆从浏览器 `pv.prompt-tag-stack.v1.<clerkId>` 搬进账号、跨设备同步；账号里还没有那一份时客户端把浏览器旧份传一次，之后不再读写浏览器。同一迁移删掉已停用的 `Generation.loraLineage`。
 
 - 2026-10-23 你的技能（`20261023200000_assistant_skills`）：新表 `AssistantSkill`（`userId` 级联删；`name` / `description` / `body` 可空 / `references` JSON / `builtinSlug` 可空 / `enabled`；`(userId, name)` 与 `(userId, builtinSlug)` 各唯一）。自己写的 `builtinSlug` 为空；「改成我的版本」或只关掉一份内置带 `builtinSlug`，只关时 `body` 为空。见 `assistant-next.md` 第 7b 步。
+- 2026-10-24 标签中日文名词库（`20261024030000_danbooru_tag_names`）：新表 `DanbooruTagName`（`tag` 主键；`category` · `count` · `zh` · `zhNote` · `ja` · `searchText`；索引 `(category, count DESC)`；不归任何用户、无外键），⛔ 不动已有表。数据由 `scripts/import-danbooru-tag-names.ts` 整表覆盖导入（中文 amenorira/danbooru-tags-data-zh、日文 PYU224/tagdb-updater，均 MIT；约 14.8 万行），默认只出报告，`--apply` 写库须 owner 当次授权。读方 `services/research/danbooru-tag-name.service.ts`：表不在 / 没导入 / 出错一律当没有，标签库照常按英文名工作。
 
 ## Source of Truth
 

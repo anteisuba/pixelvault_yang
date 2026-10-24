@@ -60,6 +60,13 @@ export type McpToken = Prisma.McpTokenModel
  */
 export type DanbooruFavorite = Prisma.DanbooruFavoriteModel
 /**
+ * Model DanbooruTagName
+ * Danbooru 标签的中文名 / 日文名（标签库的搜索与显示，第 9f 步 9f-2c）。不归任何用户；
+ * `scripts/import-danbooru-tag-names.ts` 整表覆盖导入（中文 amenorira/danbooru-tags-data-zh、
+ * 日文 PYU224/tagdb-updater，均 MIT）。
+ */
+export type DanbooruTagName = Prisma.DanbooruTagNameModel
+/**
  * Model PromptTagStack
  * LoRA 台挑好的标签堆（正面 / 负面），一个用户一份，跨设备同步。
  * 两列都是 `PromptTagSelection[]`（`types/prompt-tags.ts` 的 `PromptTagSelectionsSchema`）。

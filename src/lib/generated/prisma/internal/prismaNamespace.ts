@@ -387,6 +387,7 @@ export const ModelName = {
   User: 'User',
   McpToken: 'McpToken',
   DanbooruFavorite: 'DanbooruFavorite',
+  DanbooruTagName: 'DanbooruTagName',
   PromptTagStack: 'PromptTagStack',
   AssistantConversation: 'AssistantConversation',
   AssistantConversationShare: 'AssistantConversationShare',
@@ -437,7 +438,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "promptTagStack" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "modelConfig" | "characterCard" | "characterLook" | "generationCharacterCard" | "userLike" | "userFollow" | "characterCardLora" | "loraTrainingJob" | "loraAsset" | "extractedElement" | "generationLayer" | "contextCard" | "assistantMemory" | "assistantSkill" | "assistantTurnRecord"
+    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "danbooruTagName" | "promptTagStack" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "modelConfig" | "characterCard" | "characterLook" | "generationCharacterCard" | "userLike" | "userFollow" | "characterCardLora" | "loraTrainingJob" | "loraAsset" | "extractedElement" | "generationLayer" | "contextCard" | "assistantMemory" | "assistantSkill" | "assistantTurnRecord"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -660,6 +661,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.DanbooruFavoriteCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.DanbooruFavoriteCountAggregateOutputType> | number
+        }
+      }
+    }
+    DanbooruTagName: {
+      payload: Prisma.$DanbooruTagNamePayload<ExtArgs>
+      fields: Prisma.DanbooruTagNameFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.DanbooruTagNameFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DanbooruTagNamePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.DanbooruTagNameFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DanbooruTagNamePayload>
+        }
+        findFirst: {
+          args: Prisma.DanbooruTagNameFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DanbooruTagNamePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.DanbooruTagNameFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DanbooruTagNamePayload>
+        }
+        findMany: {
+          args: Prisma.DanbooruTagNameFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DanbooruTagNamePayload>[]
+        }
+        create: {
+          args: Prisma.DanbooruTagNameCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DanbooruTagNamePayload>
+        }
+        createMany: {
+          args: Prisma.DanbooruTagNameCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.DanbooruTagNameCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DanbooruTagNamePayload>[]
+        }
+        delete: {
+          args: Prisma.DanbooruTagNameDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DanbooruTagNamePayload>
+        }
+        update: {
+          args: Prisma.DanbooruTagNameUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DanbooruTagNamePayload>
+        }
+        deleteMany: {
+          args: Prisma.DanbooruTagNameDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.DanbooruTagNameUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.DanbooruTagNameUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DanbooruTagNamePayload>[]
+        }
+        upsert: {
+          args: Prisma.DanbooruTagNameUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DanbooruTagNamePayload>
+        }
+        aggregate: {
+          args: Prisma.DanbooruTagNameAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateDanbooruTagName>
+        }
+        groupBy: {
+          args: Prisma.DanbooruTagNameGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.DanbooruTagNameGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.DanbooruTagNameCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.DanbooruTagNameCountAggregateOutputType> | number
         }
       }
     }
@@ -3341,6 +3416,19 @@ export const DanbooruFavoriteScalarFieldEnum = {
 export type DanbooruFavoriteScalarFieldEnum = (typeof DanbooruFavoriteScalarFieldEnum)[keyof typeof DanbooruFavoriteScalarFieldEnum]
 
 
+export const DanbooruTagNameScalarFieldEnum = {
+  tag: 'tag',
+  category: 'category',
+  count: 'count',
+  zh: 'zh',
+  zhNote: 'zhNote',
+  ja: 'ja',
+  searchText: 'searchText'
+} as const
+
+export type DanbooruTagNameScalarFieldEnum = (typeof DanbooruTagNameScalarFieldEnum)[keyof typeof DanbooruTagNameScalarFieldEnum]
+
+
 export const PromptTagStackScalarFieldEnum = {
   userId: 'userId',
   positive: 'positive',
@@ -4443,6 +4531,7 @@ export type GlobalOmitConfig = {
   user?: Prisma.UserOmit
   mcpToken?: Prisma.McpTokenOmit
   danbooruFavorite?: Prisma.DanbooruFavoriteOmit
+  danbooruTagName?: Prisma.DanbooruTagNameOmit
   promptTagStack?: Prisma.PromptTagStackOmit
   assistantConversation?: Prisma.AssistantConversationOmit
   assistantConversationShare?: Prisma.AssistantConversationShareOmit

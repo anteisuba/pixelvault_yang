@@ -54,6 +54,7 @@ export const ModelName = {
   User: 'User',
   McpToken: 'McpToken',
   DanbooruFavorite: 'DanbooruFavorite',
+  DanbooruTagName: 'DanbooruTagName',
   PromptTagStack: 'PromptTagStack',
   AssistantConversation: 'AssistantConversation',
   AssistantConversationShare: 'AssistantConversationShare',
@@ -154,6 +155,19 @@ export const DanbooruFavoriteScalarFieldEnum = {
 } as const
 
 export type DanbooruFavoriteScalarFieldEnum = (typeof DanbooruFavoriteScalarFieldEnum)[keyof typeof DanbooruFavoriteScalarFieldEnum]
+
+
+export const DanbooruTagNameScalarFieldEnum = {
+  tag: 'tag',
+  category: 'category',
+  count: 'count',
+  zh: 'zh',
+  zhNote: 'zhNote',
+  ja: 'ja',
+  searchText: 'searchText'
+} as const
+
+export type DanbooruTagNameScalarFieldEnum = (typeof DanbooruTagNameScalarFieldEnum)[keyof typeof DanbooruTagNameScalarFieldEnum]
 
 
 export const PromptTagStackScalarFieldEnum = {

@@ -3,6 +3,7 @@ import 'server-only'
 import { db } from '@/lib/db'
 import { ApiRequestError } from '@/lib/errors'
 import { ensureUser } from '@/services/user.service'
+import { localNamesOf } from '@/services/research/danbooru-tag-name.service'
 import { DANBOORU_REQUEST } from '@/constants/research'
 import {
   DanbooruCatalogKindSchema,
@@ -61,7 +62,14 @@ export async function listDanbooruFavorites(
     where: { userId: user.id },
     orderBy: { createdAt: 'desc' },
   })
-  return rows.flatMap((row) => toFavorite(row) ?? [])
+  // 中日文名不进快照：每次列出时从词库补（词库更新了收藏跟着变）。
+  const names = await localNamesOf(rows.map((row) => row.name))
+  return rows.flatMap((row) => {
+    const favorite = toFavorite(row)
+    if (!favorite) return []
+    const local = names.get(row.name)
+    return [local ? { ...favorite, zh: local.zh, ja: local.ja } : favorite]
+  })
 }
 
 /** 已经收过就原样回那一条（点两下不报错、不重复）。 */

@@ -60,6 +60,12 @@ export const DanbooruCatalogQuerySchema = z
   })
 export type DanbooruCatalogQuery = z.infer<typeof DanbooruCatalogQuerySchema>
 
+/** 中日文名（词库 `DanbooruTagName`，9f-2c）：界面按语言挑一个显示；词库里没有就是 `null`。 */
+const LocalNamesShape = {
+  zh: z.string().nullish(),
+  ja: z.string().nullish(),
+}
+
 export const DanbooruCatalogSchema = z.object({
   candidates: z.array(
     z.object({
@@ -70,6 +76,7 @@ export const DanbooruCatalogSchema = z.object({
       work: z.string().nullable().default(null),
       /** 全年龄缩略样图：角色一张，别的页三张。 */
       previews: z.array(z.string().url()).default([]),
+      ...LocalNamesShape,
     }),
   ),
   /** 这一页查不到、另一页有 —— 给「它是画师 / 角色」那句跨页提示。 */
@@ -93,6 +100,9 @@ export const DanbooruCatalogSchema = z.object({
       aliases: z.array(z.string()),
       /** Danbooru Wiki 的头一段，去掉了排版记号；没有 Wiki 是 `null`。 */
       wiki: z.string().nullable().default(null),
+      ...LocalNamesShape,
+      /** 中文词库那份的一句注释（说这个标签是什么）。 */
+      zhNote: z.string().nullish(),
       sampleSize: z.number(),
       traits: z.array(z.object({ tag: z.string(), count: z.number() })),
       images: z.array(
@@ -124,5 +134,6 @@ export type CreateDanbooruFavorite = z.infer<
 export const DanbooruFavoriteSchema = CreateDanbooruFavoriteSchema.extend({
   id: z.string(),
   createdAt: z.string(),
+  ...LocalNamesShape,
 })
 export type DanbooruFavorite = z.infer<typeof DanbooruFavoriteSchema>

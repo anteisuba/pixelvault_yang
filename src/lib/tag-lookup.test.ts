@@ -6,6 +6,7 @@ import {
   compactPostCount,
   danbooruTagFromChip,
   danbooruTagSearchUrl,
+  localDanbooruName,
   displayDanbooruTag,
   hasTag,
   isStyleMediumTag,
@@ -111,5 +112,13 @@ describe('tag lookup rules', () => {
     })
     expect(danbooruTagFromChip('a girl, smiling')).toBeNull()
     expect(danbooruTagFromChip('-lowres')).toBeNull()
+  })
+
+  it('中日文名按界面语言挑，英文界面不显示', () => {
+    const names = { zh: '初音未来', ja: '初音ミク' }
+    expect(localDanbooruName(names, 'zh')).toBe('初音未来')
+    expect(localDanbooruName(names, 'ja')).toBe('初音ミク')
+    expect(localDanbooruName(names, 'en')).toBeNull()
+    expect(localDanbooruName({}, 'zh')).toBeNull()
   })
 })

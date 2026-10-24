@@ -15,6 +15,10 @@ import {
 import type { EvidenceItem } from '@/types/research'
 import { isStyleMediumTag } from '@/lib/tag-lookup'
 import {
+  findTagsByLocalName,
+  localNamesOf,
+} from '@/services/research/danbooru-tag-name.service'
+import {
   clampExcerpt,
   getResearchBreaker,
   evidenceId,
@@ -491,8 +495,19 @@ async function matchTags(
 async function matchPage(
   text: string,
   kind: DanbooruCatalogKind,
-  aliases: readonly CatalogTag[],
+  wikiAliases: readonly CatalogTag[],
 ): Promise<CatalogTag[]> {
+  // 中日文名先查自家词库（9f-2c）：Danbooru 的 name_matches 只认英文写法。
+  const aliases = [
+    ...(await findTagsByLocalName(
+      text,
+      kind === 'artist'
+        ? [CATALOG_CATEGORY.artist, DANBOORU_REQUEST.metaTagCategory]
+        : [CATALOG_CATEGORY[kind]],
+      DANBOORU_REQUEST.catalogCandidateLimit * 2,
+    )),
+    ...wikiAliases,
+  ]
   if (kind !== 'artist')
     return (await matchTags(text, CATALOG_CATEGORY[kind], aliases)).slice(
       0,
@@ -744,6 +759,7 @@ async function readCatalogDetail(
       work: kind === 'character' ? topCopyright(posts) : null,
       aliases: wiki[0]?.other_names ?? [],
       wiki: wikiExcerpt(wiki[0]?.body ?? ''),
+
       sampleSize: posts.length,
       traits: [...counts]
         .sort((a, b) => b[1] - a[1])
@@ -816,10 +832,35 @@ async function readDanbooruCatalog(
   return { candidates: [], crossHint: null, nextPage: null, detail: null }
 }
 
-export function fetchDanbooruCatalog(
+/** 候选与详情带上中日文名（词库里有的话）。卡片样图那一问不带：名字翻页时已经给过。 */
+async function withLocalNames(
+  catalog: DanbooruCatalog,
+): Promise<DanbooruCatalog> {
+  const names = await localNamesOf([
+    ...catalog.candidates.map((item) => item.name),
+    ...(catalog.detail ? [catalog.detail.tag] : []),
+  ])
+  if (!names.size) return catalog
+  const detailNames = catalog.detail ? names.get(catalog.detail.tag) : null
+  return {
+    ...catalog,
+    candidates: catalog.candidates.map((item) => ({
+      ...item,
+      zh: names.get(item.name)?.zh ?? null,
+      ja: names.get(item.name)?.ja ?? null,
+    })),
+    detail:
+      catalog.detail && detailNames
+        ? { ...catalog.detail, ...detailNames }
+        : catalog.detail,
+  }
+}
+
+export async function fetchDanbooruCatalog(
   query: DanbooruCatalogQuery,
 ): Promise<DanbooruCatalog> {
-  return getResearchBreaker(RESEARCH_SOURCE_IDS.danbooru).call(() =>
-    readDanbooruCatalog(query),
+  const catalog = await getResearchBreaker(RESEARCH_SOURCE_IDS.danbooru).call(
+    () => readDanbooruCatalog(query),
   )
+  return query.preview ? catalog : withLocalNames(catalog)
 }

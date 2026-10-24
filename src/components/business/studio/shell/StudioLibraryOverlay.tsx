@@ -1,11 +1,21 @@
 'use client'
 
-import { createContext, useContext, useEffect, type ReactNode } from 'react'
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  type ReactNode,
+} from 'react'
 import { createPortal } from 'react-dom'
+import { animate, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
+import { EASE_STANDARD, SHELL_MOTION } from '@/constants/motion'
 import { STUDIO_LIBRARY_ITEMS } from '@/constants/navigation'
 import {
+  STUDIO_LIBRARY_CATEGORY_IDS,
   studioLibraryPath,
   type StudioShellOverlayId,
 } from '@/constants/studio-shell'
@@ -69,6 +79,75 @@ export function StudioLibraryOverlay({
   )
 }
 
+/**
+ * 上一个叠层什么时候、哪一类收掉的：库里换类是软跳转，旧那一类卸掉、新那一类紧跟着挂上
+ *（同一次提交里），挂上时看到「刚刚还有一类」= 换类（滑），否则 = 库刚盖上来（叠）。
+ */
+let lastFrameGone: { category: StudioShellOverlayId; at: number } | null = null
+/** 卸掉到挂上隔这么久以内算「换类」。 */
+const CATEGORY_SWITCH_WINDOW_MS = 250
+
+function categoryIndex(category: StudioShellOverlayId): number {
+  return (STUDIO_LIBRARY_CATEGORY_IDS as readonly string[]).indexOf(category)
+}
+
+/**
+ * 叠层的「叠」与「滑」（9f-4）：库从左边列表那一侧盖到对话上、关掉时退回去；库里换类时
+ * 正文按类在顶上的先后左右滑。台不动。
+ */
+function useLibraryFrameMotion(category: StudioShellOverlayId) {
+  const reduceMotion = useReducedMotion()
+  const frameRef = useRef<HTMLElement | null>(null)
+  const bodyRef = useRef<HTMLDivElement | null>(null)
+
+  useLayoutEffect(() => {
+    const frame = frameRef.current
+    const body = bodyRef.current
+    const before = lastFrameGone
+    lastFrameGone = null
+    if (frame && body && !reduceMotion) {
+      if (
+        before &&
+        before.category !== category &&
+        performance.now() - before.at < CATEGORY_SWITCH_WINDOW_MS
+      ) {
+        const dir =
+          categoryIndex(category) >= categoryIndex(before.category) ? 1 : -1
+        animate(
+          body,
+          { x: [dir * SHELL_MOTION.slideOffsetPx, 0], opacity: [0, 1] },
+          { duration: SHELL_MOTION.slideS, ease: EASE_STANDARD },
+        )
+      } else {
+        animate(
+          frame,
+          { x: ['-100%', '0%'] },
+          { duration: SHELL_MOTION.stackS, ease: EASE_STANDARD },
+        )
+      }
+    }
+    return () => {
+      lastFrameGone = { category, at: performance.now() }
+    }
+  }, [category, reduceMotion])
+
+  /** 关：先退回左边，再回到进来之前那一页。 */
+  const closeWith = async (close: () => void) => {
+    const frame = frameRef.current
+    if (frame && !reduceMotion) {
+      await animate(
+        frame,
+        { x: '-100%' },
+        { duration: SHELL_MOTION.stackS, ease: EASE_STANDARD },
+      )
+    }
+    lastFrameGone = null
+    close()
+  }
+
+  return { frameRef, bodyRef, closeWith }
+}
+
 function StudioLibraryFrame({
   category,
   onClose,
@@ -80,9 +159,11 @@ function StudioLibraryFrame({
 }) {
   const t = useTranslations('StudioShell')
   const tAll = useTranslations()
+  const { frameRef, bodyRef, closeWith } = useLibraryFrameMotion(category)
 
   return (
     <section
+      ref={frameRef}
       aria-label={t('library')}
       data-testid="studio-library-overlay"
       data-category={category}
@@ -91,7 +172,7 @@ function StudioLibraryFrame({
       <div className="flex h-11 shrink-0 items-center gap-1 border-b border-border px-2">
         <button
           type="button"
-          onClick={onClose}
+          onClick={() => void closeWith(onClose)}
           aria-label={t('backToChat')}
           data-testid="studio-library-close"
           className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&>svg]:size-4"
@@ -137,7 +218,10 @@ function StudioLibraryFrame({
           </nav>
         )}
       </div>
-      <div className="library-overlay-body min-h-0 flex-1 overflow-y-auto">
+      <div
+        ref={bodyRef}
+        className="library-overlay-body min-h-0 flex-1 overflow-y-auto"
+      >
         {children}
       </div>
     </section>

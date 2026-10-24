@@ -11,20 +11,20 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react'
+import { useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
 import {
-  SHELL_NAV_TOOLS,
-  activeShellTool,
-  type ShellNavItem,
-} from '@/constants/navigation'
+  DURATION_MS,
+  EASE_STANDARD_CSS,
+  SHELL_MOTION,
+} from '@/constants/motion'
 import {
   NEW_VOICE_ROOM_PATH,
   ROUTES,
   STUDIO_CONVERSATION_QUERY,
 } from '@/constants/routes'
 import {
-  STUDIO_SHELL_BENCH_IDS,
   STUDIO_SHELL_SPLIT,
   type StudioShellOverlayId,
   type StudioShellRouteKind,
@@ -35,16 +35,17 @@ import {
   StudioOperatorHostSlotProvider,
   type StudioOperatorDockPlacement,
 } from '@/contexts/studio-operator-host'
-import { ChevronLeft, X } from '@/components/icons'
 import { StudioOperatorDock } from '@/components/business/studio/assistant-operator'
 import { StudioConversationList } from '@/components/business/studio/shell/StudioConversationList'
 import { StudioLibraryTargetContext } from '@/components/business/studio/shell/StudioLibraryOverlay'
-import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+  StudioBenchBar,
+  StudioBenchRail,
+  activeBenchId,
+  useStudioBenchMotion,
+  useStudioBenchSwipe,
+} from '@/components/business/studio/shell/StudioShellBench'
+import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import { useHomeOperatorHost } from '@/hooks/use-home-operator-host'
 import { useIsDesk } from '@/hooks/use-mobile'
 import { useStudioConversationBenchSync } from '@/hooks/use-studio-conversation-bench'
@@ -56,27 +57,17 @@ import {
 } from '@/hooks/use-studio-operator-history'
 import { useStudioOperatorState } from '@/hooks/use-studio-operator-store'
 import { useStudioShellSplit } from '@/hooks/use-studio-shell-split'
-import { Link, usePathname, useRouter } from '@/i18n/navigation'
+import { usePathname, useRouter } from '@/i18n/navigation'
 import {
   conversationIdFromPath,
   shellOverlayFromPath,
-  studioBenchHref,
-  studioConversationHref,
   studioShellRouteKind,
 } from '@/lib/studio-shell-route'
 import { setActiveStudioConversation } from '@/lib/studio-active-conversation'
 import { cn } from '@/lib/utils'
 
-/** 台条上的五个台，按 `STUDIO_SHELL_BENCH_IDS` 的顺序。 */
-const BENCH_ITEMS: readonly ShellNavItem[] = STUDIO_SHELL_BENCH_IDS.flatMap(
-  (id) => SHELL_NAV_TOOLS.filter((item) => item.id === id),
-)
-
 /** 台条宽（`w-12`）：首页上库叠层让出这一条。 */
 const RAIL_WIDTH_PX = 48
-
-const RAIL_BUTTON_CLASS =
-  'flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&>svg]:size-4.5'
 
 /**
  * 这次页面加载一进来载回哪一段 —— 地址说了算：首页 = 新对话；`/studio/c/<编号>` 与
@@ -102,7 +93,7 @@ function initialRestore(pathname: string): StudioOperatorHistoryRestore {
  * 左 = 在哪儿（列表）· 中 = 想什么（对话，面板**只挂这一份**）· 右 = 用什么做（台）。
  *
  * - ≥1024 三层摆开：对话与台之间一根分隔线定宽窄（记得住）；往左拖到底收起对话，
- *   往右拖到底收起台（回到只有对话）。台条竖在台的左沿（没开台时贴右边）。
+ *   往右拖到底收起台（回到只有对话）。台开着时台条横在台顶，没开台时竖着贴右边（9f-4）。
  * - 更窄照旧：台全屏、面板由台自己挂（浮起的那一颗）；首页就是一整页对话。
  * - 台照旧用 `StudioOperatorHostProvider` 包住自己，同一个 Provider 把宿主登记给这里；
  *   没有台在场时面板拿首页那张脸（`useHomeOperatorHost`）。
@@ -175,7 +166,7 @@ export function StudioShell({
     <div
       ref={setLibraryTarget}
       data-testid="studio-library-target"
-      className="fixed inset-0 z-40 empty:hidden desk:absolute desk:inset-y-0 desk:right-auto desk:left-0 desk:z-10 desk:w-(--library-width)"
+      className="fixed inset-0 z-40 empty:hidden desk:absolute desk:overflow-hidden desk:inset-y-0 desk:right-auto desk:left-0 desk:z-10 desk:w-(--library-width)"
     />
   )
 
@@ -263,22 +254,69 @@ function StudioShellStage({
   children: ReactNode
 }) {
   const t = useTranslations('StudioShell')
+  const reduceMotion = useReducedMotion()
   const { split, setConversationPx, setConversationCollapsed } =
     useStudioShellSplit()
   const stageRef = useRef<HTMLDivElement | null>(null)
+  const columnRef = useRef<HTMLDivElement | null>(null)
+  const contentRef = useRef<HTMLDivElement | null>(null)
   const bench = kind === 'bench'
+  const activeId = bench ? activeBenchId(benchPathname) : undefined
+  const { closeBench, switchBench } = useStudioBenchMotion({
+    bench,
+    activeId,
+    columnRef,
+    contentRef,
+  })
+  useStudioBenchSwipe({
+    contentRef,
+    activeId,
+    enabled: bench && !libraryOpen,
+    onSwitch: switchBench,
+  })
+  /** 拖着线：宽跟手、⛔ 动画；松手 / 键盘 / 双击才走「拉」那一段。 */
+  const [dragging, setDragging] = useState(false)
+  /** 拖过头、松手就会收起的那一边（变淡提示）。 */
+  const [collapsePreview, setCollapsePreview] =
+    useState<StudioShellCollapseSide>(null)
+  /** 「拉」：对话栏宽在 0 和记住的宽之间走这一段。 */
+  const [pulling, setPulling] = useState<'collapse' | 'expand' | null>(null)
+
+  const collapseConversation = () => {
+    if (reduceMotion) {
+      setConversationCollapsed(true)
+      return
+    }
+    setPulling('collapse')
+    window.setTimeout(() => {
+      setConversationCollapsed(true)
+      setPulling(null)
+    }, SHELL_MOTION.pullMs)
+  }
+  const expandConversation = () => {
+    setConversationCollapsed(false)
+    if (reduceMotion) return
+    setPulling('expand')
+    // 先按 0 宽画一帧，下一帧再放回记住的宽，宽的过渡才有起点。
+    requestAnimationFrame(() => requestAnimationFrame(() => setPulling(null)))
+  }
+
   // 库叠着时对话那一栏一定在（库叠在它上面），且至少占一半，⛔ 挤成一条。
   const conversationHidden =
     bench && split.conversationCollapsed && !libraryOpen
   const conversationWidth = libraryOpen
     ? `max(${split.conversationPx}px, 50%)`
     : `${split.conversationPx}px`
+  const pullTransition =
+    dragging || reduceMotion
+      ? undefined
+      : `width ${SHELL_MOTION.pullMs}ms ${EASE_STANDARD_CSS}, opacity ${DURATION_MS.fast}ms ${EASE_STANDARD_CSS}`
 
   return (
     <div
       ref={stageRef}
       data-testid="studio-shell-stage"
-      className="relative min-w-0 desk:flex desk:h-svh desk:flex-1"
+      className="relative min-w-0 desk:flex desk:h-svh desk:flex-1 desk:overflow-hidden"
       style={libraryWidth(
         bench ? conversationWidth : `calc(100% - ${RAIL_WIDTH_PX}px)`,
       )}
@@ -288,14 +326,21 @@ function StudioShellStage({
         data-testid="studio-shell-conversation"
         className={cn(
           'min-h-0 min-w-0 flex-col',
-          bench ? 'hidden desk:flex desk:shrink-0' : 'flex h-page flex-1',
+          bench
+            ? 'hidden desk:flex desk:shrink-0 desk:overflow-hidden'
+            : 'flex h-page flex-1',
           conversationHidden && 'desk:hidden',
         )}
         style={
           bench
             ? {
-                width: conversationWidth,
+                width: pulling ? 0 : conversationWidth,
                 maxWidth: `calc(100% - ${STUDIO_SHELL_SPLIT.minBenchPx}px)`,
+                opacity:
+                  collapsePreview === 'conversation'
+                    ? SHELL_MOTION.collapsePreviewOpacity
+                    : undefined,
+                transition: pullTransition,
               }
             : undefined
         }
@@ -309,30 +354,53 @@ function StudioShellStage({
           stageRef={stageRef}
           conversationPx={split.conversationPx}
           onResize={setConversationPx}
-          onCollapseConversation={() => setConversationCollapsed(true)}
+          onDraggingChange={setDragging}
+          onPreviewCollapse={setCollapsePreview}
+          onCollapseConversation={collapseConversation}
+          onCloseBench={() => void closeBench()}
         />
       ) : null}
 
-      <StudioBenchRail
-        kind={kind}
-        pathname={benchPathname}
-        conversationHidden={conversationHidden}
-        onExpandConversation={() => setConversationCollapsed(false)}
-      />
+      {bench ? null : <StudioBenchRail />}
 
       <div
-        data-testid="studio-shell-bench"
+        ref={columnRef}
+        data-testid="studio-shell-bench-column"
         className={cn(
-          'relative min-w-0 flex-1 desk:contain-layout',
-          bench ? 'desk:h-svh' : 'hidden',
+          'min-w-0 flex-1 flex-col',
+          bench ? 'block desk:flex desk:h-svh' : 'hidden',
         )}
+        style={{
+          opacity:
+            collapsePreview === 'bench'
+              ? SHELL_MOTION.collapsePreviewOpacity
+              : undefined,
+          transition: pullTransition,
+        }}
       >
-        {children}
+        {bench ? (
+          <StudioBenchBar
+            activeId={activeId}
+            conversationHidden={conversationHidden}
+            onExpandConversation={expandConversation}
+            onSwitch={(item) => void switchBench(item)}
+            onClose={() => void closeBench()}
+          />
+        ) : null}
+        <div
+          ref={contentRef}
+          data-testid="studio-shell-bench"
+          className="bench-screen-h relative min-w-0 desk:min-h-0 desk:flex-1 desk:overscroll-x-none desk:contain-layout"
+        >
+          {children}
+        </div>
       </div>
       {libraryLayer}
     </div>
   )
 }
+
+type StudioShellCollapseSide = 'conversation' | 'bench' | null
 
 /**
  * 首页顶上「助手 | 配音间」（第 9f 步 9f-3）：配音间是一种对话，切过去就新开一间
@@ -361,49 +429,69 @@ function StudioHomeModeSwitch() {
 }
 
 /**
- * 对话 | 台 之间那一根线。拖：定对话栏宽；拖过最小值再多 `collapseSlackPx` = 收起那一边。
- * 键盘：←/→ 一下挪 `keyStepPx`。
+ * 对话 | 台 之间那一根线（「拉」，9f-4）。拖：宽跟手，离默认宽 `snapPx` 以内吸到默认宽；
+ * 拖过最小值再多 `collapseSlackPx`，要收起的那一边变淡，**松手才收**（中途拖回来就不收）。
+ * 双击回默认宽。键盘：←/→ 一下挪 `keyStepPx`。
  */
 function StudioShellDivider({
   stageRef,
   conversationPx,
   onResize,
+  onDraggingChange,
+  onPreviewCollapse,
   onCollapseConversation,
+  onCloseBench,
 }: {
   stageRef: React.RefObject<HTMLDivElement | null>
   conversationPx: number
   onResize: (px: number) => void
+  onDraggingChange: (dragging: boolean) => void
+  onPreviewCollapse: (side: StudioShellCollapseSide) => void
   onCollapseConversation: () => void
+  onCloseBench: () => void
 }) {
   const t = useTranslations('StudioShell')
-  const router = useRouter()
-  const { sessionId } = useStudioOperatorState()
   const dragging = useRef(false)
-  const { minConversationPx, minBenchPx, collapseSlackPx, keyStepPx } =
-    STUDIO_SHELL_SPLIT
+  const pending = useRef<StudioShellCollapseSide>(null)
+  const {
+    minConversationPx,
+    minBenchPx,
+    collapseSlackPx,
+    keyStepPx,
+    snapPx,
+    defaultConversationPx,
+  } = STUDIO_SHELL_SPLIT
 
   const maxConversationPx = () => {
     const width = stageRef.current?.getBoundingClientRect().width ?? 0
     return Math.max(minConversationPx, width - minBenchPx)
   }
 
-  const closeBench = () => {
-    router.push(studioConversationHref(sessionId))
+  const preview = (side: StudioShellCollapseSide) => {
+    if (pending.current === side) return
+    pending.current = side
+    onPreviewCollapse(side)
   }
 
   const place = (px: number) => {
     const max = maxConversationPx()
     if (px < minConversationPx - collapseSlackPx) {
-      dragging.current = false
-      onCollapseConversation()
+      preview('conversation')
+      onResize(minConversationPx)
       return
     }
     if (px > max + collapseSlackPx) {
-      dragging.current = false
-      closeBench()
+      preview('bench')
+      onResize(max)
       return
     }
-    onResize(Math.min(max, Math.max(minConversationPx, px)))
+    preview(null)
+    const snapped =
+      Math.abs(px - defaultConversationPx) <= snapPx &&
+      defaultConversationPx <= max
+        ? defaultConversationPx
+        : px
+    onResize(Math.min(max, Math.max(minConversationPx, snapped)))
   }
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -411,6 +499,7 @@ function StudioShellDivider({
     event.preventDefault()
     event.currentTarget.setPointerCapture(event.pointerId)
     dragging.current = true
+    onDraggingChange(true)
   }
 
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -420,9 +509,16 @@ function StudioShellDivider({
   }
 
   const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
-    dragging.current = false
     if (event.currentTarget.hasPointerCapture(event.pointerId))
       event.currentTarget.releasePointerCapture(event.pointerId)
+    if (!dragging.current) return
+    dragging.current = false
+    onDraggingChange(false)
+    const side = pending.current
+    preview(null)
+    if (event.type === 'pointercancel') return
+    if (side === 'conversation') onCollapseConversation()
+    if (side === 'bench') onCloseBench()
   }
 
   const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -450,6 +546,9 @@ function StudioShellDivider({
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
+      onDoubleClick={() =>
+        onResize(Math.min(maxConversationPx(), defaultConversationPx))
+      }
       onKeyDown={onKeyDown}
       className="group relative hidden w-px shrink-0 cursor-col-resize touch-none bg-border focus-visible:outline-none desk:block"
     >
@@ -459,95 +558,5 @@ function StudioShellDivider({
         className="absolute inset-y-0 -left-1.5 -right-1.5 transition-colors duration-fast ease-standard group-hover:bg-border/60 group-focus-visible:bg-ring/40"
       />
     </div>
-  )
-}
-
-/**
- * 台条（≥1024）：竖在台的左沿；没开台时贴在右边。上面「‹ 回到对话」（对话收起时）、
- * 中间五个台、下面「收起台」。
- * ⚠ 偏离稿子的一处：稿上台条横在台顶 —— 但各台的高度都按整屏写死（`100svh`），
- *   横条会把台底下压出屏，所以 9f-1 先竖着放。
- */
-function StudioBenchRail({
-  kind,
-  pathname,
-  conversationHidden,
-  onExpandConversation,
-}: {
-  kind: 'home' | 'bench'
-  pathname: string
-  conversationHidden: boolean
-  onExpandConversation: () => void
-}) {
-  const t = useTranslations('StudioShell')
-  const tAll = useTranslations()
-  const { sessionId } = useStudioOperatorState()
-  const activeId = kind === 'bench' ? activeShellTool(pathname)?.id : undefined
-  const bench = kind === 'bench'
-
-  return (
-    <nav
-      aria-label={t('benches')}
-      data-testid="studio-bench-rail"
-      className={cn(
-        'hidden w-12 shrink-0 flex-col items-center gap-1 py-2 desk:flex',
-        bench ? 'border-r border-border bg-background' : 'order-last',
-      )}
-    >
-      {conversationHidden ? (
-        <RailTip label={t('backToChat')}>
-          <button
-            type="button"
-            aria-label={t('backToChat')}
-            data-testid="studio-shell-expand-chat"
-            onClick={onExpandConversation}
-            className={cn(RAIL_BUTTON_CLASS, 'mb-1')}
-          >
-            <ChevronLeft />
-          </button>
-        </RailTip>
-      ) : null}
-      {BENCH_ITEMS.map((item) => {
-        const Icon = item.icon
-        const label = tAll(item.labelKey)
-        const active = item.id === activeId
-        return (
-          <RailTip key={item.id} label={label}>
-            <Link
-              href={studioBenchHref(item.href, sessionId)}
-              aria-label={label}
-              aria-current={active ? 'page' : undefined}
-              className={cn(
-                RAIL_BUTTON_CLASS,
-                active && 'bg-muted text-foreground',
-              )}
-            >
-              <Icon />
-            </Link>
-          </RailTip>
-        )
-      })}
-      {bench ? (
-        <RailTip label={t('closeBench')}>
-          <Link
-            href={studioConversationHref(sessionId)}
-            aria-label={t('closeBench')}
-            data-testid="studio-shell-close-bench"
-            className={cn(RAIL_BUTTON_CLASS, 'mt-auto')}
-          >
-            <X />
-          </Link>
-        </RailTip>
-      ) : null}
-    </nav>
-  )
-}
-
-function RailTip({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent side="left">{label}</TooltipContent>
-    </Tooltip>
   )
 }

@@ -429,6 +429,28 @@ export const ASSISTANT_CURSOR_MOTION = {
   idleHideMs: 900,
 } as const
 
+/**
+ * `/studio` 外壳的四种动效（第 9f 步方向 E 规矩 5，9f-4）：推 = 台进出、滑 = 换台 / 换库的类、
+ * 叠 = 库盖上来、拉 = 分隔线收起 / 展开。都 ≤460ms、同一条 `EASE_STANDARD`；只动 transform /
+ * opacity，「拉」那一下动的是对话栏的宽（只在松手之后那一段，拖着时跟手不动画）。
+ * `prefers-reduced-motion` 下全部直接到位（调用方读 `useReducedMotion`）。
+ */
+export const SHELL_MOTION = {
+  /** 推：台从右边推进来 / 退出去。 */
+  pushS: DURATION.slow,
+  /** 滑：新台 / 新的一类从它在台条上的方向滑进来。 */
+  slideS: DURATION.base,
+  /** 滑走：换台时旧台先往反方向滑走这一拍，再换地址。 */
+  slideOutS: DURATION.fast,
+  slideOffsetPx: 32,
+  /** 叠：库从左边盖到对话上 / 退回去。 */
+  stackS: DURATION.slow,
+  /** 拉：松手后对话栏收起 / 展开、双击回默认宽。 */
+  pullMs: DURATION_MS.slow,
+  /** 拖过头、松手就会收起的那一边变淡到多少。 */
+  collapsePreviewOpacity: 0.4,
+} as const
+
 export const INGEST_MOTION = {
   /** 张口：拖拽物进入合法目标热区。 */
   biteDurationMs: 180,

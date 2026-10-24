@@ -42,6 +42,19 @@ export const STUDIO_SHELL_SPLIT = {
   collapseSlackPx: 48,
   /** 方向键一下挪多少。 */
   keyStepPx: 24,
+  /** 拖到离默认宽这么近就吸到默认宽（9f-4）。 */
+  snapPx: 16,
+} as const
+
+/**
+ * 两指横滑换台（桌面触控板，9f-4）：一次手势横向累计过 `thresholdPx` 换一格；停手
+ * `idleMs` 算这次手势结束，才能再换。横向要明显大过纵向（`dominance` 倍）才算横滑。
+ * ⛔ 画布台不响应（画布里两指滑是平移，owner 10-24）。
+ */
+export const STUDIO_SHELL_SWIPE = {
+  thresholdPx: 80,
+  idleMs: 260,
+  dominance: 1.5,
 } as const
 
 /** 左边列表的宽（固定，不参与拖）。 */

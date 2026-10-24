@@ -1164,7 +1164,7 @@ html:lang(ja) {
 
   .editorial-page {
     position: relative;
-    min-height: calc(100svh - 3.5rem);
+    min-height: calc(var(--screen-h, 100svh) - 3.5rem);
   }
 
   .editorial-page::before {
@@ -1457,7 +1457,7 @@ html:lang(ja) {
     /* 初始预留值；挂载后按 composer 的实际高度同步。 */
     --studio-mobile-composer-height: 7rem;
 
-    min-height: calc(100svh - 3.5rem);
+    min-height: calc(var(--screen-h, 100svh) - 3.5rem);
     flex-direction: column;
     position: relative;
   }
@@ -1471,7 +1471,7 @@ html:lang(ja) {
     .studio-layout-v2 {
       --studio-generation-media-max-height: 72vh;
 
-      min-height: 100svh;
+      min-height: var(--screen-h, 100svh);
     }
   }
 
@@ -1481,7 +1481,7 @@ html:lang(ja) {
      扣掉 2.25rem 对账。 */
   @media (min-width: 768px) {
     .studio-workbench-shell {
-      height: calc(100svh - 2.25rem);
+      height: calc(var(--screen-h, 100svh) - 2.25rem);
     }
   }
 
@@ -1525,7 +1525,7 @@ html:lang(ja) {
      有输入条时整台定高、只让舞台卡自己滚 —— 否则内容一长整页在滚，舞台卡照样从
      灰条后面穿过去。 */
   .studio-layout-v2:has(.studio-mobile-composer) {
-    height: calc(100svh - 3.5rem);
+    height: calc(var(--screen-h, 100svh) - 3.5rem);
   }
 
   .studio-mobile-stage {
@@ -1537,7 +1537,9 @@ html:lang(ja) {
 
   .studio-tags-mobile-composer {
     bottom: var(--keyboard-inset, 0px);
-    max-height: calc((100svh - var(--keyboard-inset, 0px) - 3.5rem) / 2);
+    max-height: calc(
+      (var(--screen-h, 100svh) - var(--keyboard-inset, 0px) - 3.5rem) / 2
+    );
     padding-bottom: max(var(--keyboard-safe-area-bottom, 0px), 0.75rem);
   }
 
@@ -1550,8 +1552,8 @@ html:lang(ja) {
     height: max(
       10rem,
       calc(
-        100svh - 7.5rem - var(--studio-mobile-composer-height) -
-          var(--keyboard-inset, 0px)
+        var(--screen-h, 100svh) - 7.5rem -
+          var(--studio-mobile-composer-height) - var(--keyboard-inset, 0px)
       )
     );
   }
@@ -1561,7 +1563,8 @@ html:lang(ja) {
      头部与搜索不跟着页面滚走，只有卡片网格在里面滚。 */
   .studio-mobile-stage-panel {
     height: calc(
-      100svh - 3.5rem - 1.5rem - var(--studio-mobile-composer-height, 7rem)
+      var(--screen-h, 100svh) - 3.5rem - 1.5rem -
+        var(--studio-mobile-composer-height, 7rem)
     );
   }
 
@@ -1570,7 +1573,7 @@ html:lang(ja) {
   .studio-layout-v2:has(.studio-mobile-stage-header)
     .studio-mobile-stage-panel {
     height: calc(
-      100svh - 3.5rem - 1.5rem - 2.75rem -
+      var(--screen-h, 100svh) - 3.5rem - 1.5rem - 2.75rem -
         var(--studio-mobile-composer-height, 7rem)
     );
   }
@@ -1624,7 +1627,10 @@ html:lang(ja) {
      ⚠ 14rem 是量出来的：真机 chrome（舞台上边距 + 返回条 + 工具条）= 154px，
      舞台下边距 24px，再给「编辑历史」那一行留 ~46px 余量。 */
   .studio-annotate-image {
-    max-height: var(--studio-edit-media-max-h, calc(100svh - 14rem));
+    max-height: var(
+      --studio-edit-media-max-h,
+      calc(var(--screen-h, 100svh) - 14rem)
+    );
     max-width: 100%;
     width: auto;
   }
@@ -1634,13 +1640,14 @@ html:lang(ja) {
      （`.studio-layout-v2`）：桌面扣掉 头部行 + 舞台内距 + 输入框卡 + 工具条；手机扣掉
      顶栏 + 写法切换 + 底部输入条（实测高度）。画布的编辑弹窗不在这里面，沿用各自的旧值。 */
   .studio-layout-v2 {
-    --studio-edit-media-max-h: calc(100svh - 24rem);
+    --studio-edit-media-max-h: calc(var(--screen-h, 100svh) - 24rem);
   }
 
   @media (max-width: 767.98px) {
     .studio-layout-v2 {
       --studio-edit-media-max-h: calc(
-        100svh - 11rem - var(--studio-mobile-composer-height, 10rem)
+        var(--screen-h, 100svh) - 11rem -
+          var(--studio-mobile-composer-height, 10rem)
       );
       /* 局部重绘的图下还有一条工具条（36 + 上下留白）—— 桌面那 24rem 里已算进去，
          手机只在这一档再让出这一条，否则工具条落在输入条后面。 */
@@ -1664,7 +1671,7 @@ html:lang(ja) {
   /* 参考图等比占据参考轨下方的可用舞台，不裁切原图。 */
   .studio-reference-stage-image {
     width: 100%;
-    height: calc(100svh - 12rem);
+    height: calc(var(--screen-h, 100svh) - 12rem);
     max-height: none;
     max-width: 100%;
   }
@@ -2728,13 +2735,17 @@ html:lang(ja) {
    右键菜单 / transport / 移动端条），卡面用不透明 `bg-card`。
    `corner-squircle`：连续圆角，Chromium 才有；不支持的浏览器自动退回同值普通
    圆角（形状差、布局不差），所以永远与 `rounded-node` 一起写。 */
+/* `--screen-h` = 这一页能用的「整屏高」，默认就是 `100svh`。`/studio` 外壳开着台时台顶多一条
+   台条（第 9f 步 9f-4），台框在自己身上把它改成 `100svh - 台条`，台里所有按整屏写的高
+   （`h-page`、`.studio-workbench-shell`、LoRA 台…）一起扣掉，⛔ 把台底压出屏。
+   ⛔ 新写的整屏高直接写 `100svh`：一律 `var(--screen-h, 100svh)`。 */
 /* 占满一屏的页面高度：手机扣掉外壳占的那一截（底栏或工作台顶栏，由主区的
    `mobile-inset-*` 写进 `--mobile-chrome-height`）/ 桌面整屏。
    ⛔ 各页再写一遍 `h-[calc(100svh-3rem)]`。 */
 @utility h-page {
-  height: calc(100svh - var(--mobile-chrome-height, 3rem));
+  height: calc(var(--screen-h, 100svh) - var(--mobile-chrome-height, 3rem));
   @media (width >= 48rem) {
-    height: 100svh;
+    height: var(--screen-h, 100svh);
   }
 }
 
@@ -2752,6 +2763,14 @@ html:lang(ja) {
    ⛔ 盖住左边列表与对话。弹层走 portal 挂在 body 上，不受影响。 */
 @utility contain-layout {
   contain: layout;
+}
+
+/* `/studio` 外壳的台框（第 9f 步 9f-4）：≥1024 台顶有一条台条（`h-12` = 3rem），台里按整屏
+   写的高（`var(--screen-h, 100svh)`）一起扣掉它。手机上没有那一条，照旧整屏。 */
+@utility bench-screen-h {
+  @media (width >= 64rem) {
+    --screen-h: calc(100svh - 3rem);
+  }
 }
 
 /* 库叠层的正文（第 9f 步 9f-2a）：叠进来的页面按整屏写的高（`h-page`），在叠层里改成
@@ -2774,10 +2793,10 @@ html:lang(ja) {
    占整个页面」）：高度只扣顶部安全区，再用负外边距吃回主区给底栏留的那截内边距；
    滚动区自己在底部垫 `pb-mobile-tabbar`，最后一行能滑到栏上面。≥768 同 `h-page`。 */
 @utility h-page-behind-tabbar {
-  height: calc(100svh - env(safe-area-inset-top, 0px));
+  height: calc(var(--screen-h, 100svh) - env(safe-area-inset-top, 0px));
   margin-bottom: calc(-1 * var(--spacing-mobile-tabbar));
   @media (width >= 48rem) {
-    height: 100svh;
+    height: var(--screen-h, 100svh);
     margin-bottom: 0;
   }
 }

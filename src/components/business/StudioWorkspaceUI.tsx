@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useAuth } from '@clerk/nextjs'
 import { usePathname } from 'next/navigation'
 import { motion, useTransform } from 'motion/react'
@@ -10,6 +11,7 @@ import { DURATION_MS } from '@/constants/motion'
 import { getProviderLabel } from '@/constants/providers'
 import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
 import { STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR } from '@/constants/studio-assistant-operator'
+import { studioLibraryPickPath } from '@/constants/studio-shell'
 import { landRecipeInComposer } from '@/lib/studio-workbench-motion'
 import {
   StudioCanvas,
@@ -26,6 +28,7 @@ import {
 } from '@/components/business/studio/tags/StudioTagsWorkbench'
 import { StudioTagsComposer } from '@/components/business/studio/tags/StudioTagsComposer'
 import { StudioTemplatesPanel } from '@/components/business/studio/templates/StudioTemplatesPanel'
+import { StudioLibraryTargetContext } from '@/components/business/studio/shell/StudioLibraryOverlay'
 import { StudioTemplateUndoToast } from '@/components/business/studio/templates/StudioTemplateUndoToast'
 import { StudioStageSwap } from '@/components/business/studio-shared/chrome/StudioStageSwap'
 import { StudioDialectHeader } from '@/components/business/studio/tags/StudioDialectHeader'
@@ -39,8 +42,10 @@ import {
   useStudioForm,
   useStudioGen,
 } from '@/contexts/studio-context'
+import { useLibraryPickSlot } from '@/contexts/studio-library-pick'
 import { StudioOperatorHostProvider } from '@/contexts/studio-operator-host'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useRouter } from '@/i18n/navigation'
 import { useStudioModeModelOptions } from '@/hooks/use-studio-mode-model-options'
 import { useStudioTemplateApply } from '@/hooks/use-studio-template-apply'
 import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
@@ -191,12 +196,34 @@ export function StudioWorkspaceUI() {
   const { modelOptions: modeModelOptions, selectedModel: modeModel } =
     useStudioModeModelOptions()
   const templateApply = useStudioTemplateApply(modeModelOptions)
+  /**
+   * 第 9f 步 9f-2d：≥768 的模板 = 外壳中间库叠层的「提示词」一类在挑选的样子
+   * （`/library/prompts?pick=1`），这份面板传送进库那一格 —— 套用与撤销仍是这里那一份快照。
+   * 手机仍在舞台上打开（画板「模板 C · 手机」）。
+   */
+  const tTools = useTranslations('StudioTools')
+  const router = useRouter()
+  const libraryClose = useContext(StudioLibraryTargetContext)?.close
+  const templatesSlot = useLibraryPickSlot(
+    'prompts',
+    isMobile
+      ? null
+      : tTools(
+          state.outputType === 'video'
+            ? 'tools.video.label'
+            : 'tools.image.label',
+        ),
+  )
+  const closeTemplates = useCallback(() => {
+    if (isMobile) setStagePanel(null)
+    else libraryClose?.()
+  }, [isMobile, libraryClose])
   const templatesPanel = (
     <StudioTemplatesPanel
       // 手机（<1024）走画板「模板 C · 手机」那一版：‹ 标题 ＋、搜索独占一行。
       variant={isMobile ? 'phone' : 'stage'}
       // 提示词在舞台下面的只有底部输入框两种（桌面图片台 · 手机图片 / 视频）。
-      promptBelow={isBottomComposer || useMobileComposer}
+      promptBelow={isMobile && (isBottomComposer || useMobileComposer)}
       dialect={state.outputType === 'image' ? state.promptDialect : 'natural'}
       save={{
         outputType: templateApply.templates.currentTemplateOutputType,
@@ -209,18 +236,19 @@ export function StudioWorkspaceUI() {
       }}
       onApply={(recipe) => {
         templateApply.apply(recipe)
-        setStagePanel(null)
+        closeTemplates()
       }}
-      onClose={() => setStagePanel(null)}
+      onClose={closeTemplates}
     />
   )
-  const toggleTemplates = useCallback(
-    () =>
-      setStagePanel((current) =>
-        current === 'templates' ? null : 'templates',
-      ),
-    [],
-  )
+  const toggleTemplates = useCallback(() => {
+    if (!isMobile) {
+      if (templatesSlot) libraryClose?.()
+      else router.push(studioLibraryPickPath('prompts'))
+      return
+    }
+    setStagePanel((current) => (current === 'templates' ? null : 'templates'))
+  }, [isMobile, libraryClose, router, templatesSlot])
   /** 撤销那一下输入框里的内容从 40% 淡回来 —— 看得出「换回去了」。 */
   const [composerRestoring, setComposerRestoring] = useState(false)
   useEffect(() => {
@@ -232,7 +260,7 @@ export function StudioWorkspaceUI() {
     return () => window.clearTimeout(timer)
   }, [composerRestoring])
   const templatesControl = {
-    open: stagePanel === 'templates',
+    open: isMobile ? stagePanel === 'templates' : templatesSlot !== null,
     onToggle: toggleTemplates,
     restoring: composerRestoring,
   }
@@ -426,6 +454,15 @@ export function StudioWorkspaceUI() {
       >
         {t('skipToPrompt')}
       </a>
+      {!isMobile && templatesSlot
+        ? createPortal(
+            <div className="flex h-full min-h-0 flex-col p-4">
+              {templatesPanel}
+            </div>,
+            templatesSlot,
+            'studio-templates',
+          )
+        : null}
 
       <div
         role="tabpanel"

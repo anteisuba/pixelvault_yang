@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import * as Toolbar from '@radix-ui/react-toolbar'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReactNode } from 'react'
@@ -30,8 +30,9 @@ vi.mock('@/contexts/studio-context', () => ({
   }),
 }))
 
-vi.mock('@/components/business/AssetSelectorDialog', () => ({
-  AssetSelectorDialog: () => null,
+const mockRouterPush = vi.hoisted(() => vi.fn())
+vi.mock('@/i18n/navigation', () => ({
+  useRouter: () => ({ push: mockRouterPush }),
 }))
 
 vi.mock('@/components/business/ImageAttachmentPreviewStrip', () => ({
@@ -43,13 +44,18 @@ vi.mock('@/components/business/studio-shared/ImagePickerPopoverBody', () => ({
     headerSlot,
     footerSlot,
     disabledReason,
+    onOpenLibrary,
   }: {
     headerSlot?: ReactNode
     footerSlot?: ReactNode
     disabledReason?: string
+    onOpenLibrary: () => void
   }) => (
     <div data-testid="image-picker-popover-body">
       {headerSlot}
+      <button type="button" onClick={onOpenLibrary}>
+        open-library
+      </button>
       <button type="button" disabled={Boolean(disabledReason)}>
         {disabledReason ?? 'picker-enabled'}
       </button>
@@ -149,5 +155,23 @@ describe('ReferenceImageChip', () => {
     )
 
     expect(screen.getByRole('button', { name: 'limitReached' })).toBeDisabled()
+  })
+
+  it('「素材库」打开外壳中间的库叠层挑参考图（第 9f 步 9f-2d，⛔ 再开弹窗）', () => {
+    mockImageUpload.referenceEntries = []
+    mockImageUpload.referenceImages = []
+    render(
+      <Toolbar.Root>
+        <ReferenceImageChip />
+      </Toolbar.Root>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'open-library' }))
+
+    expect(mockRouterPush).toHaveBeenCalledWith('/library/assets?pick=1')
+    expect(mockDispatch).toHaveBeenCalledWith({
+      type: 'CLOSE_PANEL',
+      payload: 'refImage',
+    })
   })
 })

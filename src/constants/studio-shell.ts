@@ -69,3 +69,12 @@ export type StudioLibraryCategoryId =
 export function studioLibraryPath(category: StudioLibraryCategoryId): string {
   return `${ROUTES.LIBRARY}/${category}`
 }
+
+/** 台叫库来挑东西（「选给 XX 台」，9f-2d）：库那一类认 `?pick=1` 才换成挑选的样子。 */
+export const STUDIO_LIBRARY_PICK_PARAM = 'pick'
+
+export function studioLibraryPickPath(
+  category: StudioLibraryCategoryId,
+): string {
+  return `${studioLibraryPath(category)}?${STUDIO_LIBRARY_PICK_PARAM}=1`
+}

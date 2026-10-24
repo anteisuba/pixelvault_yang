@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useContext,
   useRef,
   useState,
   type ChangeEvent,
@@ -9,12 +10,17 @@ import {
 } from 'react'
 import { Image as ImageIcon } from '@/components/icons'
 import { useTranslations } from 'next-intl'
+import { createPortal } from 'react-dom'
 import * as Toolbar from '@radix-ui/react-toolbar'
 
-import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
+import { AssetPickerBrowser } from '@/components/business/assets/AssetPickerBrowser'
+import { StudioLibraryTargetContext } from '@/components/business/studio/shell/StudioLibraryOverlay'
 import { ImageAttachmentPreviewStrip } from '@/components/business/ImageAttachmentPreviewStrip'
 import { ImagePickerPopoverBody } from '@/components/business/studio-shared/ImagePickerPopoverBody'
+import { studioLibraryPickPath } from '@/constants/studio-shell'
+import { useLibraryPickSlot } from '@/contexts/studio-library-pick'
 import { useStudioData, useStudioForm } from '@/contexts/studio-context'
+import { useRouter } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
 import {
@@ -162,28 +168,43 @@ export function ReferenceImagePickerBody({
   )
 }
 
-/** 素材库（全屏，多选到剩余格数为止）。 */
-export function ReferenceImageLibraryDialog({
-  open,
-  onOpenChange,
-}: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-}) {
-  const t = useTranslations('ImageChip')
+/**
+ * 素材库 = 外壳中间的库叠层（第 9f 步 9f-2d，⛔ 再开全屏弹窗）：「素材库」那一下打开
+ * `/library/assets?pick=1`，这里把任务型那副挑选（page §8）传送进库那一格 —— 多选到剩余
+ * 格数为止，挑好落进参考图、库收起回到台。桌面 chip 与手机「＋」抽屉各登记一次，后挂的
+ * 那一处说了算。`portal` 由宿主原样画出来。
+ */
+export function useReferenceImageLibrary(enabled = true): {
+  open: () => void
+  portal: ReactNode
+} {
+  const tTools = useTranslations('StudioTools')
+  const tShell = useTranslations('StudioShell')
+  const router = useRouter()
   const picker = useReferenceImagePicker()
-  return (
-    <AssetSelectorDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      multiSelect
-      maxSelection={picker.remainingReferenceSlots}
-      onConfirmMany={(gens) => void picker.handleSelectAssets(gens)}
-      title={t('selectAsset')}
-      description={t('description')}
-      mediaType="image"
-    />
-  )
+  const benchLabel = tTools('tools.image.label')
+  const slot = useLibraryPickSlot('assets', enabled ? benchLabel : null)
+  const close = useContext(StudioLibraryTargetContext)?.close
+  return {
+    open: () => router.push(studioLibraryPickPath('assets')),
+    portal: slot
+      ? createPortal(
+          <AssetPickerBrowser
+            mode="multi"
+            mediaType="image"
+            maxSelection={picker.remainingReferenceSlots}
+            title={tShell('pickFor', { bench: benchLabel })}
+            onConfirmMany={(gens) => {
+              void picker.handleSelectAssets(gens)
+              close?.()
+            }}
+            onCancel={() => close?.()}
+          />,
+          slot,
+          'reference-image-library',
+        )
+      : null,
+  }
 }
 
 /** 「已挂 N 张 · 最多 M 张」—— 描边外观与手机「＋」抽屉的弹层头部。 */
@@ -216,9 +237,9 @@ export function ReferenceImageCountLine() {
  *                     docs/references/pages/assistant-shell.md)
  *   tap Upload     → native file picker → uploadLocalFile（压缩 + multipart
  *                     → R2 URL）。⛔ 绝不是 base64 data URL，见 handleFileSelect
- *   tap Select     → close popover, open full-screen AssetSelectorDialog
- *                     (Krea-style sidebar + grid). Picking a tile fetches
- *                     the asset via addFromUrl and dismisses the dialog.
+ *   tap Select     → close popover, open the shell's library overlay in pick
+ *                     mode (`useReferenceImageLibrary`). Confirmed tiles come
+ *                     back through addFromUrl, up to the remaining slots.
  *
  * All paths feed the same useImageUpload store, so downstream generation
  * code is unchanged.
@@ -227,7 +248,7 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
   const t = useTranslations('ImageChip')
   const { state, dispatch } = useStudioForm()
   const { imageUpload } = useStudioData()
-  const [assetDialogOpen, setAssetDialogOpen] = useState(false)
+  const library = useReferenceImageLibrary()
   const [panelBoundary, setPanelBoundary] = useState<Element | null>(null)
   const bindTrigger = useCallback((element: HTMLButtonElement | null) => {
     if (element) setPanelBoundary(element.closest('.studio-param-panel'))
@@ -318,7 +339,7 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
             onDone={closePopover}
             onOpenLibrary={() => {
               closePopover()
-              setAssetDialogOpen(true)
+              library.open()
             }}
             headerSlot={
               chip.look === 'outline' ? (
@@ -338,11 +359,7 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
           />
         </StudioToolPopoverContent>
       </StudioToolSurface>
-
-      <ReferenceImageLibraryDialog
-        open={assetDialogOpen}
-        onOpenChange={setAssetDialogOpen}
-      />
+      {library.portal}
     </>
   )
 }

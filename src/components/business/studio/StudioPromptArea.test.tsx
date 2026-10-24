@@ -81,7 +81,6 @@ const EMPTY_PANELS: StudioFormState['panels'] = {
   projectHistory: false,
   modelSelector: false,
   civitai: false,
-  cardSelector: false,
   enhance: false,
   stylePreset: false,
   reverse: false,
@@ -120,7 +119,6 @@ vi.mock('@/contexts/studio-context', () => ({
   STUDIO_TOOL_PANEL_NAMES: [
     'enhance',
     'reverse',
-    'cardSelector',
     'advanced',
     'stylePreset',
     'refImage',

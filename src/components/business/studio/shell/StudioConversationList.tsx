@@ -2,10 +2,9 @@
 
 import { useTranslations } from 'next-intl'
 
-import { SHELL_NAV_GO } from '@/constants/navigation'
+import { STUDIO_LIBRARY_ITEMS } from '@/constants/navigation'
 import { ROUTES } from '@/constants/routes'
 import {
-  STUDIO_LIBRARY_CATEGORY_IDS,
   STUDIO_SHELL_LIST_WIDTH_CLASS,
   STUDIO_SHELL_RECENT_LIMIT,
   studioLibraryPath,
@@ -24,14 +23,6 @@ import {
   studioShellRouteKind,
 } from '@/lib/studio-shell-route'
 import { cn } from '@/lib/utils'
-
-/** 库的几类（点了叠在中间，`/library/<类>`）；名字与图标取全站「去处」那份清单。 */
-const LIBRARY_ROWS = STUDIO_LIBRARY_CATEGORY_IDS.flatMap((id) =>
-  SHELL_NAV_GO.filter((item) => item.id === id).map((item) => ({
-    ...item,
-    id,
-  })),
-)
 
 const ROW_CLASS =
   'flex h-8 w-full min-w-0 items-center gap-2 rounded-md px-2 text-left text-sm text-sidebar-foreground transition-colors duration-fast ease-standard hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring [&>svg]:size-4 [&>svg]:shrink-0'
@@ -105,7 +96,7 @@ export function StudioConversationList({ className }: { className?: string }) {
       </div>
 
       <ul aria-label={t('library')} className="flex flex-col gap-0.5 px-2">
-        {LIBRARY_ROWS.map((item) => {
+        {STUDIO_LIBRARY_ITEMS.map((item) => {
           const Icon = item.icon
           const active = item.id === openCategory
           return (

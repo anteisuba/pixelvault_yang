@@ -129,7 +129,7 @@ all · illustrious · flux · sdxl · pony · sd15 · anima · qwen · z-image �
 | `family`              | §2.2 slug（旧值兼容解析） | `all`                 |
 | `q` / `sort` / `nsfw` | 现状                      | 现状                  |
 
-验收基线：粘贴 `?section=community&source=huggingface&type=character&family=anima&q=girl` 直达即筛即现。
+验收基线：粘贴 `/library/lora?source=huggingface&type=character&family=anima&q=girl` 直达即筛即现（≥768 的库在外壳库叠层，见 [LoRA 库](lora-library.md) §2；手机仍是 `?section=community&…`）。
 
 ## 3. 库 · 内容类型筛选（G1）
 
@@ -373,7 +373,7 @@ HF 卡面移除的键（file select/import 在卡上的文案）迁移到抽屉�
 
 ## 组件树现状（2026-09-20，进度表 34）
 
-四个 tab（`?section=` — `generate` / `community` / `mine` / `train`）共用 `LoraWorkbench.tsx` 那张 workbench-card，但身体各在各的文件里（库 / 收藏两行 2026-09-28 按库 B 更新，见 [LoRA 库](lora-library.md)）：
+四个 tab（`?section=` — `generate` / `community` / `mine` / `train`；≥768 台上只剩 generate / train，库 / 收藏在 `/library/lora`）共用 `LoraWorkbench.tsx` 那张 workbench-card，但身体各在各的文件里（库 / 收藏两行 2026-09-28 按库 B 更新，见 [LoRA 库](lora-library.md)）：
 
 | tab      | 渲染什么                                                                                                                                           | 住在哪                                                                             |
 | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |

@@ -164,11 +164,6 @@ export interface UseLoraOperatorHostInput {
   >['libraryFilters']
   /** 切到「库」（助手当面搜，§13.2）。 */
   openLibrary?(): void
-  /**
-   * 回到生成台 —— **只在库 / 收藏开着时给**。助手写装配台（提示词、负面、权重、
-   * 参数、出图）时先调它，创作者才看得见它改了什么（§13.2）。
-   */
-  returnToBench?(): void
   open: boolean
   setOpen(open: boolean): void
 }
@@ -485,11 +480,9 @@ export function useLoraOperatorHost(
       dispatch: (action) => {
         switch (action.type) {
           case 'SET_PROMPT':
-            latest.current.returnToBench?.()
             latest.current.setPrompt(action.payload)
             return
           case 'SET_ADVANCED_PARAMS':
-            latest.current.returnToBench?.()
             latest.current.setNegativePrompt(
               action.payload.negativePrompt ?? '',
             )
@@ -538,7 +531,6 @@ export function useLoraOperatorHost(
       ...(hasGenerate
         ? {
             triggerGeneration: (_request, owner) => {
-              latest.current.returnToBench?.()
               setGenerateRequest((request) => ({ id: request.id + 1, owner }))
             },
           }
@@ -567,7 +559,6 @@ export function useLoraOperatorHost(
                   AssistantOperatorSnapshot['loraParameters']
                 >,
               ) => {
-                latest.current.returnToBench?.()
                 latest.current.setLoraParameters?.(parameters)
               },
             }
@@ -643,7 +634,6 @@ export function useLoraOperatorHost(
           mountedByCandidate.current.delete(candidateId)
         },
         unmount: (loraId) => {
-          latest.current.returnToBench?.()
           const item = latest.current.stack?.items.find(
             (entry) => entry.asset.id === loraId,
           )
@@ -659,7 +649,6 @@ export function useLoraOperatorHost(
           detachedById.current.delete(loraId)
         },
         setWeight: (loraId, weight) => {
-          latest.current.returnToBench?.()
           latest.current.stack?.setScale(loraId, weight)
           // ⚠ 调权重是**一手一次**（模型一步只改一把），⛔ 不进批：攒着它只会
           //   让那句提醒晚一步说出口。

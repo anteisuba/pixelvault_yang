@@ -24,6 +24,7 @@ import {
   STUDIO_SHELL_SPLIT,
   type StudioShellRouteKind,
 } from '@/constants/studio-shell'
+import { StudioLibraryPickProvider } from '@/contexts/studio-library-pick'
 import {
   StudioOperatorDockPlacementProvider,
   StudioOperatorHostSlotProvider,
@@ -164,38 +165,40 @@ export function StudioShell({
   return (
     <StudioOperatorDockPlacementProvider value={placement}>
       <StudioLibraryTargetContext.Provider value={libraryContext}>
-        <StudioOperatorHostSlotProvider fallback={homeHost}>
-          {() => (
-            <div
-              data-testid="studio-shell"
-              data-kind={kind}
-              data-library={libraryCategory ?? undefined}
-              className="desk:flex desk:h-svh desk:overflow-hidden"
-            >
-              <StudioConversationList className="hidden desk:flex" />
-              {kind === 'page' ? (
-                <div
-                  className="relative min-w-0 desk:h-svh desk:flex-1 desk:overflow-y-auto"
-                  style={libraryWidth('100%')}
-                >
-                  {children}
-                  {libraryLayer}
-                </div>
-              ) : (
-                <StudioShellStage
-                  kind={kind}
-                  benchPathname={base?.pathname ?? ROUTES.STUDIO}
-                  shellDock={placement.owner === 'shell'}
-                  libraryOpen={libraryOpen}
-                  libraryLayer={libraryLayer}
-                >
-                  {children}
-                </StudioShellStage>
-              )}
-              {library}
-            </div>
-          )}
-        </StudioOperatorHostSlotProvider>
+        <StudioLibraryPickProvider>
+          <StudioOperatorHostSlotProvider fallback={homeHost}>
+            {() => (
+              <div
+                data-testid="studio-shell"
+                data-kind={kind}
+                data-library={libraryCategory ?? undefined}
+                className="desk:flex desk:h-svh desk:overflow-hidden"
+              >
+                <StudioConversationList className="hidden desk:flex" />
+                {kind === 'page' ? (
+                  <div
+                    className="relative min-w-0 desk:h-svh desk:flex-1 desk:overflow-y-auto"
+                    style={libraryWidth('100%')}
+                  >
+                    {children}
+                    {libraryLayer}
+                  </div>
+                ) : (
+                  <StudioShellStage
+                    kind={kind}
+                    benchPathname={base?.pathname ?? ROUTES.STUDIO}
+                    shellDock={placement.owner === 'shell'}
+                    libraryOpen={libraryOpen}
+                    libraryLayer={libraryLayer}
+                  >
+                    {children}
+                  </StudioShellStage>
+                )}
+                {library}
+              </div>
+            )}
+          </StudioOperatorHostSlotProvider>
+        </StudioLibraryPickProvider>
       </StudioLibraryTargetContext.Provider>
       <Suspense fallback={null}>
         <StudioConversationUrlSync />

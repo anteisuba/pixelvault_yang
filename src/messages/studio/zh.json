@@ -1164,6 +1164,8 @@
     "backToChat": "回到对话",
     "closeBench": "收起台",
     "resize": "拖动调整对话和台的宽度",
-    "expandChat": "展开对话"
+    "expandChat": "展开对话",
+    "pickFor": "选给 {bench} 台",
+    "pickForBase": "选给 {bench} 台 · 底模 {base}"
   }
 }

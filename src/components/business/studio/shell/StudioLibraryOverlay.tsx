@@ -4,9 +4,8 @@ import { createContext, useContext, useEffect, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 
-import { SHELL_NAV_GO } from '@/constants/navigation'
+import { STUDIO_LIBRARY_ITEMS } from '@/constants/navigation'
 import {
-  STUDIO_LIBRARY_CATEGORY_IDS,
   studioLibraryPath,
   type StudioLibraryCategoryId,
 } from '@/constants/studio-shell'
@@ -32,13 +31,6 @@ interface StudioLibraryTarget {
 
 export const StudioLibraryTargetContext =
   createContext<StudioLibraryTarget | null>(null)
-
-const CATEGORY_ITEMS = STUDIO_LIBRARY_CATEGORY_IDS.flatMap((id) =>
-  SHELL_NAV_GO.filter((item) => item.id === id).map((item) => ({
-    ...item,
-    id,
-  })),
-)
 
 export function StudioLibraryOverlay({
   category,
@@ -103,7 +95,7 @@ function StudioLibraryFrame({
           aria-label={t('library')}
           className="flex min-w-0 items-center gap-0.5 overflow-x-auto scrollbar-none"
         >
-          {CATEGORY_ITEMS.map((item) => {
+          {STUDIO_LIBRARY_ITEMS.map((item) => {
             const active = item.id === category
             return (
               <Link

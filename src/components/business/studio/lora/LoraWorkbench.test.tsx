@@ -183,6 +183,7 @@ vi.mock('@/i18n/navigation', () => ({
 // describe 里翻成 true，并在 beforeEach 里翻回来。
 let mockIsMobile = false
 vi.mock('@/hooks/use-mobile', () => ({
+  MOBILE_BREAKPOINT: 768,
   useIsMobile: () => mockIsMobile,
   useIsTablet: () => false,
 }))
@@ -1420,7 +1421,7 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     expect(shownImage()).toHaveAttribute('src', 'https://example.com/1.png')
   })
 
-  it('「＋ 添加 LoRA」切到库（库 B 定案：⛔ 另开库弹窗）', () => {
+  it('「＋ 添加 LoRA」打开外壳中间的库叠层（第 9f 步 9f-2b，⛔ 另开库弹窗）', () => {
     mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
 
     render(<LoraWorkbench />)
@@ -1428,10 +1429,7 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
       screen.getByRole('button', { name: 'LoraWorkbench:spine.addLoraFull' }),
     )
 
-    expect(mockRouterReplace).toHaveBeenCalledWith(
-      '/studio/lora?section=community',
-      { scroll: false },
-    )
+    expect(mockRouterPush).toHaveBeenCalledWith('/library/lora')
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
@@ -2194,30 +2192,27 @@ describe('LoraWorkbench module tab bar — P2-4/P2-7', () => {
     mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
   })
 
-  // owner 2026-08-07：三段变四段——原本藏在「库」内部 公开/我的 segmented 里的
-  // 「我的」提升为一等 tab 并改名「收藏」，「公开」那半随之取消。
-  it('renders exactly four tabs with the tab role, generate selected on the generate deep link', () => {
+  // 第 9f 步 9f-2b：库 / 收藏搬去外壳中间的库叠层，台上只剩 生成 · 训练。
+  it('renders the generate and train tabs only, generate selected on the generate deep link', () => {
     render(<LoraWorkbench />)
 
-    expect(screen.getAllByRole('tab')).toHaveLength(4)
+    expect(screen.getAllByRole('tab')).toHaveLength(2)
     expect(
-      screen.getByRole('tab', { name: /LoraWorkbench:tabs\.favorites/ }),
-    ).toBeInTheDocument()
+      screen.queryByRole('tab', { name: /LoraWorkbench:tabs\.favorites/ }),
+    ).toBeNull()
     expect(
       screen.getByRole('tab', { name: /LoraWorkbench:tabs\.generate/ }),
     ).toHaveAttribute('aria-selected', 'true')
   })
 
-  // 收藏 tab 直接把 section 打到 mine（以前要先进「库」再点内部 segmented）。
-  it('activating 收藏 navigates straight to the mine section', () => {
+  // 旧链接 `?section=mine` 送去库叠层的收藏那一格，台回到生成。
+  it('sends the legacy mine deep link to the library overlay favorites', () => {
+    mockSearch = 'section=mine'
     render(<LoraWorkbench />)
 
-    fireEvent.click(
-      screen.getByRole('tab', { name: /LoraWorkbench:tabs\.favorites/ }),
-    )
-
+    expect(mockRouterPush).toHaveBeenCalledWith('/library/lora?view=favorites')
     expect(mockRouterReplace).toHaveBeenCalledWith(
-      expect.stringContaining('section=mine'),
+      '/studio/lora',
       expect.objectContaining({ scroll: false }),
     )
   })

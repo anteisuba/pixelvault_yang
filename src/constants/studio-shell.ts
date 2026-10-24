@@ -51,12 +51,13 @@ export const STUDIO_SHELL_LIST_WIDTH_CLASS = 'w-60'
 export const STUDIO_SHELL_RECENT_LIMIT = 30
 
 /**
- * 库里的几类（第 9f 步 9f-2a）：先接已有的五页，LoRA / 标签两类随 9f-2b 加进来。
- * id 就是地址里那一段（`/library/<id>`）；名字与图标取全站「去处」那份清单（`SHELL_NAV_GO`）。
+ * 库里的几类（第 9f 步）：id 就是地址里那一段（`/library/<id>`）；名字与图标见
+ * `STUDIO_LIBRARY_ITEMS`（`constants/navigation.ts`）。标签一类随 9f-2c 加进来。
  */
 export const STUDIO_LIBRARY_CATEGORY_IDS = [
   'assets',
   'cards',
+  'lora',
   'prompts',
   'voices',
   'gallery',

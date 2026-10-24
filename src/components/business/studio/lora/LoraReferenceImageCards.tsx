@@ -114,6 +114,14 @@ export function LoraReferenceImageCards({
     setAddOpen(false)
   }
 
+  const openLibrary = () => {
+    // Close the popover before the full-screen picker so the two focus
+    // traps don't fight (mirrors the Studio chip pattern).
+    setAddOpen(false)
+    if (isMobile) setAssetDialogOpen(true)
+    else router.push(studioLibraryPickPath('assets'))
+  }
+
   const pickerBody = (
     <ImagePickerPopoverBody
       dropHint={t('dropHint')}
@@ -129,13 +137,7 @@ export function LoraReferenceImageCards({
         void handleSelectAsset(generation)
         setAddOpen(false)
       }}
-      onOpenLibrary={() => {
-        // Close the popover before the full-screen picker so the two focus
-        // traps don't fight (mirrors the Studio chip pattern).
-        setAddOpen(false)
-        if (isMobile) setAssetDialogOpen(true)
-        else router.push(studioLibraryPickPath('assets'))
-      }}
+      onOpenLibrary={openLibrary}
     />
   )
 
@@ -230,10 +232,7 @@ export function LoraReferenceImageCards({
                 void handleSelectAsset(generation)
                 setAddOpen(false)
               }}
-              onOpenLibrary={() => {
-                setAddOpen(false)
-                setAssetDialogOpen(true)
-              }}
+              onOpenLibrary={openLibrary}
               disabledReason={
                 isFull
                   ? t('limitReached', { max: imageUpload.maxImages })

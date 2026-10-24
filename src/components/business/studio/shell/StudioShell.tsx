@@ -281,6 +281,13 @@ function StudioShellStage({
     useState<StudioShellCollapseSide>(null)
   /** 「拉」：对话栏宽在 0 和记住的宽之间走这一段。 */
   const [pulling, setPulling] = useState<'collapse' | 'expand' | null>(null)
+  /** 拖过头收台：台退出去、回到只有对话之后，再把对话栏记住的宽放回按下那一刻的。 */
+  const restoreAfterClose = useRef<number | null>(null)
+  useEffect(() => {
+    if (bench || restoreAfterClose.current === null) return
+    setConversationPx(restoreAfterClose.current)
+    restoreAfterClose.current = null
+  }, [bench, setConversationPx])
 
   const collapseConversation = () => {
     if (reduceMotion) {
@@ -357,7 +364,10 @@ function StudioShellStage({
           onDraggingChange={setDragging}
           onPreviewCollapse={setCollapsePreview}
           onCollapseConversation={collapseConversation}
-          onCloseBench={() => void closeBench()}
+          onCloseBench={(restorePx) => {
+            restoreAfterClose.current = restorePx
+            void closeBench()
+          }}
         />
       ) : null}
 
@@ -448,11 +458,14 @@ function StudioShellDivider({
   onDraggingChange: (dragging: boolean) => void
   onPreviewCollapse: (side: StudioShellCollapseSide) => void
   onCollapseConversation: () => void
-  onCloseBench: () => void
+  /** 收台；`restorePx` = 回到只有对话之后，对话栏记住的宽放回这个。 */
+  onCloseBench: (restorePx: number) => void
 }) {
   const t = useTranslations('StudioShell')
   const dragging = useRef(false)
   const pending = useRef<StudioShellCollapseSide>(null)
+  /** 按下那一刻的宽：拖过头收起时记住的是它，⛔ 拖过头那一下压到的最小 / 最大宽。 */
+  const startPx = useRef(conversationPx)
   const {
     minConversationPx,
     minBenchPx,
@@ -499,6 +512,7 @@ function StudioShellDivider({
     event.preventDefault()
     event.currentTarget.setPointerCapture(event.pointerId)
     dragging.current = true
+    startPx.current = conversationPx
     onDraggingChange(true)
   }
 
@@ -517,8 +531,11 @@ function StudioShellDivider({
     const side = pending.current
     preview(null)
     if (event.type === 'pointercancel') return
-    if (side === 'conversation') onCollapseConversation()
-    if (side === 'bench') onCloseBench()
+    if (side === 'conversation') {
+      onResize(startPx.current)
+      onCollapseConversation()
+    }
+    if (side === 'bench') onCloseBench(startPx.current)
   }
 
   const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {

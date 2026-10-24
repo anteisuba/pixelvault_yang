@@ -1,6 +1,6 @@
 .root {
   display: flex;
-  height: calc(100svh - 5.75rem);
+  height: calc(var(--screen-h, 100svh) - 5.75rem);
   min-height: 0;
   flex-direction: column;
   padding: 0.75rem;
@@ -170,7 +170,7 @@
 }
 @media (min-width: 768px) {
   .root {
-    height: 100svh;
+    height: var(--screen-h, 100svh);
     padding: 1.25rem;
   }
 }

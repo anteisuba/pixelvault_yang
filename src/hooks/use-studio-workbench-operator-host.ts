@@ -117,8 +117,13 @@ export function useStudioWorkbenchOperatorHost({
   const allImageModels = useImageModelOptions()
   const imageModels = useMemo(
     () =>
+      // ⚠ 拆成两格再拼：`useImageModelOptions` 每次渲染都回一个新对象，整个拿来当依赖
+      //   = 宿主每帧都是新的，首页那份配方交给外壳就成了死循环（React #185，10-24 线上）。
       home
-        ? allImageModels
+        ? {
+            modelOptions: allImageModels.modelOptions,
+            selectedModel: allImageModels.selectedModel,
+          }
         : {
             modelOptions: allImageModels.modelOptions.filter(
               (option) =>
@@ -131,7 +136,12 @@ export function useStudioWorkbenchOperatorHost({
                 ? allImageModels.selectedModel
                 : undefined,
           },
-    [allImageModels, home, state.promptDialect],
+    [
+      allImageModels.modelOptions,
+      allImageModels.selectedModel,
+      home,
+      state.promptDialect,
+    ],
   )
   /**
    * 另一台图片工作台（自然语言台 ↔ 标签台）上的模型 —— 快照里给助手看（它换不到，

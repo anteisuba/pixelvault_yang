@@ -15,6 +15,9 @@ vi.mock('next-intl', () => ({
 vi.mock('@/components/business/studio-shared/ImagePickerPopoverBody', () => ({
   ImagePickerPopoverBody: () => <div data-testid="image-picker-popover-body" />,
 }))
+vi.mock('@/i18n/navigation', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}))
 vi.mock('@/components/business/AssetSelectorDialog', () => ({
   AssetSelectorDialog: () => null,
 }))

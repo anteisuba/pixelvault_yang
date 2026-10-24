@@ -79,11 +79,11 @@
  * 不属于 domain-lora 的 App 顶栏，`h-dvh` 会把这段也算进来、把卡片顶出视口
  * 底部造成整页滚动（真机验证发现）。≥768 是侧栏壳，没有顶栏，回到满高。 */
 .domain-lora.lora-locked-height {
-  height: calc(100svh - 3.5rem);
+  height: calc(var(--screen-h, 100svh) - 3.5rem);
 }
 @media (min-width: 768px) {
   .domain-lora.lora-locked-height {
-    height: 100svh;
+    height: var(--screen-h, 100svh);
   }
 }
 

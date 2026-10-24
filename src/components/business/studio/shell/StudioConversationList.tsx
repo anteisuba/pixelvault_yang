@@ -40,7 +40,6 @@ const ROW_ACTIVE_CLASS =
 export function StudioConversationList({ className }: { className?: string }) {
   const t = useTranslations('StudioShell')
   const tAll = useTranslations()
-  const tOperator = useTranslations('StudioOperator')
   const pathname = usePathname()
   const router = useRouter()
   const history = useStudioOperatorHistoryView()

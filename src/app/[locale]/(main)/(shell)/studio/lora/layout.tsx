@@ -1,21 +1,18 @@
 import { Suspense } from 'react'
 
-import { LoraStackProvider } from '@/hooks/use-active-lora-stack'
+import { LoraStackStyleParamSync } from '@/hooks/use-active-lora-stack'
 import { PromptTagProvider } from '@/hooks/use-prompt-tag-stack'
 
 /**
- * LoRA workbench providers, both scoped to /studio/lora:
- *   - LoraStackProvider — session-wide ActiveLoraStack (localStorage-
- *     persisted, ?style=<code> aware).
+ * LoRA 台这一层：
+ *   - LoraStackStyleParamSync — 把 `?style=<code>` 分享链接解析进挂载栈（栈本身挂在
+ *     外壳 `(shell)/layout.tsx`，库叠层也往里挂）。
  *   - PromptTagProvider — the tavern-style prompt-tag stack. The workbench
  *     is the only surface with an add-UI for it; keeping it here stops the
- *     selected tags from leaking into the Image Studio compose bar. Both
- *     moved down from the top-level studio layout now that LoRA generation
- *     lives entirely at /studio/lora (Image Studio reads neither).
+ *     selected tags from leaking into the Image Studio compose bar.
  *
- * <Suspense> is required because `useSearchParams()` inside
- * LoraStackProvider opts the subtree into client-side rendering for the
- * search-param boundary.
+ * <Suspense> is required because `useSearchParams()` inside the style sync
+ * opts its subtree into client-side rendering for the search-param boundary.
  */
 export default function StudioLoraLayout({
   children,
@@ -24,9 +21,8 @@ export default function StudioLoraLayout({
 }) {
   return (
     <Suspense fallback={null}>
-      <LoraStackProvider>
-        <PromptTagProvider>{children}</PromptTagProvider>
-      </LoraStackProvider>
+      <LoraStackStyleParamSync />
+      <PromptTagProvider>{children}</PromptTagProvider>
     </Suspense>
   )
 }

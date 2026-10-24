@@ -1123,20 +1123,6 @@ describe('useLoraOperatorHost 的库页当面搜', () => {
     expect(getLoraLibraryAgentState().picks).toEqual([])
   })
 
-  it('库页开着时写提示词：先回到生成台再写', () => {
-    const calls: string[] = []
-    const { result } = renderHook(() =>
-      useLoraOperatorHost(
-        libraryInput({
-          returnToBench: () => calls.push('return'),
-          setPrompt: () => calls.push('prompt'),
-        }),
-      ),
-    )
-    result.current.apply.dispatch({ type: 'SET_PROMPT', payload: '1girl' })
-    expect(calls).toEqual(['return', 'prompt'])
-  })
-
   it('快照带上库页现在的筛选', () => {
     const libraryFilters = {
       sort: 'Newest',

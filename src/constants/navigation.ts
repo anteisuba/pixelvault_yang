@@ -3,6 +3,7 @@ import {
   type CanvasShellPanelId,
 } from '@/constants/canvas-shell'
 import { ROUTES } from '@/constants/routes'
+import { STUDIO_LIBRARY_CATEGORY_IDS } from '@/constants/studio-shell'
 
 import {
   Archive,
@@ -159,6 +160,16 @@ export const SHELL_NAV_SECTIONS: readonly ShellNavSection[] = [
   { id: 'go', labelKey: 'Navbar.groupLabel', items: SHELL_NAV_GO },
   { id: 'tools', labelKey: 'StudioTools.groupLabel', items: SHELL_NAV_TOOLS },
 ] as const
+
+/**
+ * 库的几类（第 9f 步，`/library/<id>`）：外壳左栏与库叠层顶上那一排共用这一份。名字与图标
+ * 跟「去处」/「工具」同一份 —— LoRA 一类取 LoRA 台那一项。
+ */
+export const STUDIO_LIBRARY_ITEMS = STUDIO_LIBRARY_CATEGORY_IDS.flatMap((id) =>
+  [...SHELL_NAV_GO, ...SHELL_NAV_TOOLS]
+    .filter((item) => item.id === id)
+    .map((item) => ({ ...item, id })),
+)
 
 /**
  * 手机底栏（<768）：浮起的胶囊 `素材 · 画廊 · 角色 · 我的` + 旁边一颗黑圆 ＋

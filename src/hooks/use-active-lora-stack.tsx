@@ -235,6 +235,10 @@ function purgeLegacyGlobalStorage(): void {
   }
 }
 
+const LoraStackStyleResolveContext = createContext<
+  ((styleValues: readonly string[]) => () => void) | null
+>(null)
+
 export function LoraStackProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<StoredEntry[]>([])
   const [isResolvingFromUrl, setIsResolvingFromUrl] = useState(false)
@@ -244,7 +248,6 @@ export function LoraStackProvider({ children }: { children: ReactNode }) {
   const itemsRef = useRef<StoredEntry[]>([])
   const loadedForClerkId = useRef<string | null>(null)
   const skipNextPersistenceForClerkId = useRef<string | null>(null)
-  const searchParams = useSearchParams()
   // Clerk scopes every read and write. Until isLoaded === true we treat
   // the user as unknown — same parked-state contract as the Node
   // Workflow hook. activeClerkId is null while parked.
@@ -280,9 +283,11 @@ export function LoraStackProvider({ children }: { children: ReactNode }) {
   // single-code form, comma-separated multi, and `code:scale` per-token
   // overrides. Resolution order matches URL order, so a shared link
   // reproduces the sender's stack layering.
-  useEffect(() => {
-    const tokens = parseStyleParams(searchParams.getAll(STYLE_PARAM))
-    if (tokens.length === 0) return
+  // ⚠ 读网址的是 `LoraStackStyleParamSync`（挂在 LoRA 台那一层）：栈本身挂在外壳上
+  //   （库叠层也要挂 LoRA），外壳里 ⛔ 直接 `useSearchParams` —— 静态页会整段退回客户端画。
+  const resolveStyleValues = useCallback((styleValues: readonly string[]) => {
+    const tokens = parseStyleParams(styleValues)
+    if (tokens.length === 0) return () => {}
 
     let cancelled = false
     void (async () => {
@@ -339,7 +344,7 @@ export function LoraStackProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [searchParams])
+  }, [])
 
   // Persist after hydration — only when we know who owns the snapshot.
   // While parked, mutations stay in memory (won't survive reload, but
@@ -475,9 +480,25 @@ export function LoraStackProvider({ children }: { children: ReactNode }) {
 
   return (
     <ActiveLoraStackContext.Provider value={value}>
-      {children}
+      <LoraStackStyleResolveContext.Provider value={resolveStyleValues}>
+        {children}
+      </LoraStackStyleResolveContext.Provider>
     </ActiveLoraStackContext.Provider>
   )
+}
+
+/**
+ * 把 `?style=` 交给外壳上那份栈去解析。挂在用得到分享链接的那一层（LoRA 台），
+ * 外面要包 `<Suspense>`（`useSearchParams`）。
+ */
+export function LoraStackStyleParamSync() {
+  const resolve = useContext(LoraStackStyleResolveContext)
+  const searchParams = useSearchParams()
+  useEffect(() => {
+    if (!resolve) return
+    return resolve(searchParams.getAll(STYLE_PARAM))
+  }, [resolve, searchParams])
+  return null
 }
 
 export function useActiveLoraStack(): ActiveLoraStackValue {

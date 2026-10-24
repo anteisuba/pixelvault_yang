@@ -79,12 +79,6 @@ interface LoraAssemblyColumnProps {
   onPickFromCharacter: () => void
   collapsed: boolean
   onCollapsedChange: (collapsed: boolean) => void
-  /**
-   * 在库 / 收藏里：整列让开成竖条，竖条顶上那颗键是「回到生成」；点竖条别处，整列
-   * 浮在库上面改，点库或 Esc 缩回（lora-library.md §2）。不给 = 在生成台，那颗键与
-   * 竖条别处都是「展开装配」。
-   */
-  onReturn?: () => void
   /** 「常与它同挂」那一排 chip（数据不足时它自己不渲染）。 */
   oftenMounted?: ReactNode
   /** 列底 Runner 次数；不是 Runner 底模时不给。 */
@@ -112,7 +106,6 @@ export function LoraAssemblyColumn({
   onPickFromCharacter,
   collapsed,
   onCollapsedChange,
-  onReturn,
   oftenMounted,
   budget,
 }: LoraAssemblyColumnProps) {
@@ -145,67 +138,7 @@ export function LoraAssemblyColumn({
     shownItems.map((item) => item.asset.id).join('|'),
   )
   const [baseModalOpen, setBaseModalOpen] = useState(false)
-  // 库 / 收藏里浮出来的整列（owner 09-28「浮出整列，默认收起」）：库不重排，整列从
-  // 竖条长出来盖在库上面。离开库就收回。
-  const inLibrary = onReturn !== undefined
-  const [floatOpen, setFloatOpen] = useState(false)
-  const [trackedInLibrary, setTrackedInLibrary] = useState(inLibrary)
-  if (trackedInLibrary !== inLibrary) {
-    setTrackedInLibrary(inLibrary)
-    setFloatOpen(false)
-  }
-  const floating = inLibrary && floatOpen
-  const panelOpen = !collapsed || floating
-  const panelRef = useRef<HTMLDivElement>(null)
-  const collapseButtonRef = useRef<HTMLButtonElement>(null)
-  const stripButtonRef = useRef<HTMLButtonElement>(null)
-  // 用键盘 / 收起键收回时焦点回到竖条；点库收回时焦点跟着那一下走。
-  const returnFocusRef = useRef(false)
-  const closeFloat = (returnFocus: boolean) => {
-    returnFocusRef.current = returnFocus
-    setFloatOpen(false)
-  }
-
-  useEffect(() => {
-    if (floating) {
-      collapseButtonRef.current?.focus({ preventScroll: true })
-      return
-    }
-    if (returnFocusRef.current) {
-      returnFocusRef.current = false
-      stripButtonRef.current?.focus({ preventScroll: true })
-    }
-  }, [floating])
-
-  // 点库 / 焦点移到库（整列以外、不在弹层里）或 Esc 缩回。⚠ Esc 抢在详情页前面：
-  // 第一下只收整列。
-  useEffect(() => {
-    if (!floating) return
-    const onOutside = (event: Event) => {
-      const target = event.target
-      if (!(target instanceof Element)) return
-      if (panelRef.current?.contains(target)) return
-      // 换底模 / 添加 LoRA 是从这一列开出去的弹层，点在里面不算点库。
-      if (target.closest('[role="dialog"]')) return
-      returnFocusRef.current = false
-      setFloatOpen(false)
-    }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || event.defaultPrevented) return
-      if (document.querySelector('[role="dialog"]')) return
-      event.preventDefault()
-      returnFocusRef.current = true
-      setFloatOpen(false)
-    }
-    document.addEventListener('pointerdown', onOutside, true)
-    document.addEventListener('focusin', onOutside, true)
-    document.addEventListener('keydown', onKeyDown, true)
-    return () => {
-      document.removeEventListener('pointerdown', onOutside, true)
-      document.removeEventListener('focusin', onOutside, true)
-      document.removeEventListener('keydown', onKeyDown, true)
-    }
-  }, [floating])
+  const panelOpen = !collapsed
   // 竖条上「刚挂上」的那一个：只认这一列在场之后才发生的挂载（`push` 才写挂载事件，
   // 刷新读回挂载栈不算），⛔ 刷新页面时小封面不该自己弹一遍。
   const [seenMountAt] = useState(() => stack.mountEvent?.at ?? 0)
@@ -342,11 +275,8 @@ export function LoraAssemblyColumn({
       <div className="flex items-center justify-between gap-2 text-xs font-semibold text-foreground/80">
         <span>{t('spine.baseModel')}</span>
         <button
-          ref={collapseButtonRef}
           type="button"
-          onClick={() =>
-            floating ? closeFloat(true) : onCollapsedChange(true)
-          }
+          onClick={() => onCollapsedChange(true)}
           aria-label={t('spine.collapseAssembly')}
           title={t('spine.collapseAssembly')}
           className="-my-1 -mr-1 grid size-6 place-items-center rounded-md text-muted-foreground transition-colors duration-fast hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -505,26 +435,18 @@ export function LoraAssemblyColumn({
     >
       <button
         type="button"
-        onClick={() => (onReturn ? onReturn() : onCollapsedChange(false))}
-        aria-label={
-          onReturn ? t('spine.returnToGenerate') : t('spine.expandAssembly')
-        }
-        title={
-          onReturn ? t('spine.returnToGenerate') : t('spine.expandAssembly')
-        }
+        onClick={() => onCollapsedChange(false)}
+        aria-label={t('spine.expandAssembly')}
+        title={t('spine.expandAssembly')}
         className="grid size-7.5 shrink-0 place-items-center rounded-lg text-foreground/70 transition-colors duration-fast hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <PanelLeftOpen className="size-3.5" aria-hidden />
       </button>
-      {/* 竖条其余整块是一颗键：在库里浮出整列改，在生成台展开整列（owner 09-28）。 */}
+      {/* 竖条其余整块也是一颗键：展开整列（owner 09-28）。 */}
       <button
-        ref={stripButtonRef}
         type="button"
-        onClick={() =>
-          inLibrary ? setFloatOpen(true) : onCollapsedChange(false)
-        }
+        onClick={() => onCollapsedChange(false)}
         aria-label={t('spine.editAssembly')}
-        aria-expanded={inLibrary ? floating : undefined}
         className="flex w-10 flex-1 flex-col items-center gap-3 rounded-xl py-1.5 transition-colors duration-fast ease-linear hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <span
@@ -621,7 +543,6 @@ export function LoraAssemblyColumn({
         className="relative z-30 shrink-0"
       >
         <motion.div
-          ref={panelRef}
           initial={false}
           animate={{
             width: panelOpen
@@ -635,10 +556,7 @@ export function LoraAssemblyColumn({
                 ? LIQUID_SPRING.unfold
                 : LIQUID_SPRING.retract
           }
-          className={cn(
-            'absolute inset-y-0 left-0 overflow-hidden border-r border-border/70 bg-card transition-shadow duration-base ease-linear',
-            floating && 'shadow-float',
-          )}
+          className="absolute inset-y-0 left-0 overflow-hidden border-r border-border/70 bg-card"
         >
           {full}
           {strip}

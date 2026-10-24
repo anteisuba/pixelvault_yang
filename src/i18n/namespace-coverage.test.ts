@@ -678,18 +678,19 @@ const KNOWN_DYNAMIC_NAMESPACE_SITES: Readonly<
 > = {
   'components/business/studio/shell/StudioConversationList.tsx': {
     reason:
-      'Renders the library rows picked from `SHELL_NAV_GO` via ' +
-      '`t(item.labelKey)` (`Navbar.links.*`), the brand `Navbar.brand` and ' +
+      'Renders the library rows (`STUDIO_LIBRARY_ITEMS`) via ' +
+      '`t(item.labelKey)` (`Navbar.links.*`, LoRA = `StudioTools.tools.lora.label`), ' +
+      'the brand `Navbar.brand` and ' +
       'the audio row `StudioTools.tools.audio.label`.',
     calls: ['useTranslations()'],
     namespaces: ['Navbar', 'StudioTools'],
   },
   'components/business/studio/shell/StudioLibraryOverlay.tsx': {
     reason:
-      'The library tabs render `SHELL_NAV_GO` items via `t(item.labelKey)`; ' +
-      'every `labelKey` there is under `Navbar.links.`.',
+      'The library tabs render `STUDIO_LIBRARY_ITEMS` via `t(item.labelKey)`: ' +
+      '`Navbar.links.*`, and the LoRA one `StudioTools.tools.lora.label`.',
     calls: ['useTranslations()'],
-    namespaces: ['Navbar'],
+    namespaces: ['Navbar', 'StudioTools'],
   },
   'components/business/studio/shell/StudioShell.tsx': {
     reason:

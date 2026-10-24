@@ -11,12 +11,7 @@ import {
 } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useUser } from '@clerk/nextjs'
-import {
-  AnimatePresence,
-  motion,
-  useReducedMotion,
-  useTransform,
-} from 'motion/react'
+import { motion, useTransform } from 'motion/react'
 import {
   AlertCircle,
   AlertTriangle,
@@ -76,7 +71,6 @@ import {
   type LoraBaseModel,
 } from '@/constants/lora-base-models'
 import { LORA_PROMPT_DIALECTS } from '@/constants/lora-prompt-dialects'
-import { DURATION, EASE_STANDARD } from '@/constants/motion'
 import {
   getRunnerCheckpointById,
   isRunnerNegativePromptInert,
@@ -84,6 +78,7 @@ import {
 import { RUNNER_SAMPLERS, RUNNER_SCHEDULERS } from '@/constants/runner-sampling'
 import { STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR } from '@/constants/studio-assistant-operator'
 import { ROUTES } from '@/constants/routes'
+import { studioLibraryPath } from '@/constants/studio-shell'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import type { AspectRatio } from '@/constants/config'
 import {
@@ -101,13 +96,11 @@ import {
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useUnifiedGenerate } from '@/hooks/use-unified-generate'
 import { CommunitySourceBranch } from '@/components/business/studio/lora/library/LoraLibraryTabs'
-import { LoraFavoritesBrowse } from '@/components/business/studio/lora/library/LoraFavoritesBrowse'
-import { LoraLibraryStage } from '@/components/business/studio/lora/library/LoraLibraryStage'
 import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompts'
 import { useHuggingFaceLoraShowcase } from '@/hooks/use-huggingface-lora-showcase'
 import { useRunnerUsage } from '@/hooks/prompts/use-runner-usage'
 import { useLoraAssets } from '@/hooks/use-lora-assets'
-import { useIsMobile } from '@/hooks/use-mobile'
+import { MOBILE_BREAKPOINT, useIsMobile } from '@/hooks/use-mobile'
 import { TrainWizard } from '@/components/business/studio/lora/training/TrainWizard'
 import { LoraAssetCard } from '@/components/business/studio/lora/LoraAssetCard'
 import { LoraAssemblyColumn } from '@/components/business/studio/lora/LoraAssemblyColumn'
@@ -241,7 +234,7 @@ import {
 import { AssistantLoraParametersSchema } from '@/types/assistant-operator'
 import { PromptTriggerHighlight } from '@/components/business/studio/lora/PromptTriggerHighlight'
 import { LoraReferenceImageCards } from '@/components/business/studio/lora/LoraReferenceImageCards'
-import { LoraStageProvider } from '@/components/business/studio/lora/lora-stage-context'
+import { useRegisterLoraLibraryPick } from '@/contexts/studio-library-pick'
 import { LoraScaleChip } from '@/components/business/studio/lora/LoraScaleChip'
 import type { TriggerChipEntry } from '@/components/business/studio/lora/TriggerChipRow'
 import {
@@ -333,6 +326,33 @@ export function LoraWorkbench() {
     },
     [pathname, router, searchParams],
   )
+
+  /**
+   * ≥768 的库 / 收藏住在外壳中间的库叠层（第 9f 步 9f-2b，`/library/lora`）：装配列「＋ 添加
+   * LoRA」、助手「打开库」都开它，台留在右边不动。旧的 `?section=community|mine` 链接
+   * 也送过去。手机（<768）仍是卡里那两格，见下面的手机分支。
+   */
+  const openLibraryOverlay = useCallback(
+    (favorites = false) => {
+      const href = studioLibraryPath('lora')
+      // 已经开着（助手连着圈几把）就不再压一层历史。
+      if (!favorites && pathname === href) return
+      router.push(favorites ? `${href}?view=favorites` : href)
+    },
+    [pathname, router],
+  )
+  const legacyLibrarySection =
+    !isMobile &&
+    (activeSection === LORA_WORKBENCH_SECTIONS.COMMUNITY ||
+      activeSection === LORA_WORKBENCH_SECTIONS.MINE)
+      ? activeSection
+      : null
+  useEffect(() => {
+    // ⚠ 首帧 `isMobile` 还没量（恒 false）：照窗口宽再认一次，⛔ 把手机也送走。
+    if (!legacyLibrarySection || window.innerWidth < MOBILE_BREAKPOINT) return
+    setActiveSection(DEFAULT_LORA_WORKBENCH_SECTION)
+    openLibraryOverlay(legacyLibrarySection === LORA_WORKBENCH_SECTIONS.MINE)
+  }, [legacyLibrarySection, openLibraryOverlay, setActiveSection])
 
   const handleTabChange = useCallback(
     (value: string) => {
@@ -463,14 +483,6 @@ export function LoraWorkbench() {
                 label: t('tabs.generate'),
               },
               {
-                value: LORA_WORKBENCH_SECTIONS.COMMUNITY,
-                label: t('tabs.library'),
-              },
-              {
-                value: LORA_WORKBENCH_SECTIONS.MINE,
-                label: t('tabs.favorites'),
-              },
-              {
                 value: LORA_WORKBENCH_SECTIONS.TRAIN,
                 label: t('tabs.train'),
               },
@@ -482,62 +494,13 @@ export function LoraWorkbench() {
           />
         </div>
         {isGenerate || isLibrary ? (
-          // 生成 ↔ 库 / 收藏 是同一副舞台（lora-library.md §2）：⛔ 不按 section 重挂，
-          // 换场由 GenerateBranch 自己演（竖条 · 交叉淡 · 输入框收起）。
+          // 库 / 收藏搬去外壳中间的库叠层了（第 9f 步 9f-2b）：这里只剩生成台。
           <div className="flex min-h-0 flex-1 animate-in flex-col gap-3 fade-in duration-200">
             <GenerateBranch
               assistantOpen={assistantOpen}
               onAssistantOpenChange={setAssistantOpen}
               libraryAssets={libraryAssets}
-              onOpenLibrary={() => {
-                setPendingSection(LORA_WORKBENCH_SECTIONS.COMMUNITY)
-                setActiveSection(LORA_WORKBENCH_SECTIONS.COMMUNITY)
-              }}
-              library={
-                isLibrary
-                  ? {
-                      key: activeSection,
-                      content:
-                        activeSection === LORA_WORKBENCH_SECTIONS.COMMUNITY ? (
-                          <LoraLibraryStage
-                            onFavorite={favoriteCivitaiLora}
-                            onImport={favoriteExternalLora}
-                            onUnfavoriteByUrl={unfavoriteByUrl}
-                            isFavorited={isFavorited}
-                          />
-                        ) : (
-                          <LoraFavoritesBrowse
-                            trained={trainedAssets}
-                            favorites={favoriteAssets}
-                            isLoading={isLoadingMine}
-                            error={errorMine}
-                            onRefresh={refresh}
-                            onUnfavoriteByUrl={unfavoriteByUrl}
-                            onFavoriteCivitai={favoriteCivitaiLora}
-                            onDelete={deleteAsset}
-                            onVisibilityChange={setVisibility}
-                            isFavorited={isFavorited}
-                            onGoLibrary={() => {
-                              setPendingSection(
-                                LORA_WORKBENCH_SECTIONS.COMMUNITY,
-                              )
-                              setActiveSection(
-                                LORA_WORKBENCH_SECTIONS.COMMUNITY,
-                              )
-                            }}
-                            onGoTrain={() => {
-                              setPendingSection(LORA_WORKBENCH_SECTIONS.TRAIN)
-                              setActiveSection(LORA_WORKBENCH_SECTIONS.TRAIN)
-                            }}
-                          />
-                        ),
-                    }
-                  : null
-              }
-              onReturnToGenerate={() => {
-                setPendingSection(LORA_WORKBENCH_SECTIONS.GENERATE)
-                setActiveSection(LORA_WORKBENCH_SECTIONS.GENERATE)
-              }}
+              onOpenLibrary={() => openLibraryOverlay()}
             />
           </div>
         ) : (
@@ -762,15 +725,7 @@ interface GenerateBranchProps {
   assistantOpen: boolean
   onAssistantOpenChange: (open: boolean) => void
   /**
-   * 库 / 收藏（lora-library.md §2，只桌面）：给了就在同一张舞台卡里换成库 ——
-   * 装配列让成竖条、来源图带与结果淡出、输入框收起；`key` 换了（库 ↔ 收藏）
-   * 内容先淡出再淡入另一边的。⭐ 生成台不卸载：提示词、这一轮的图都还在。
-   */
-  library?: { key: string; content: ReactNode } | null
-  /** 竖条顶上那颗「回到生成」。 */
-  onReturnToGenerate?: () => void
-  /**
-   * 装配列「＋ 添加 LoRA」= 切到「库」（库 B 定案：⛔ 另开库弹窗）。手机切到库那一栏。
+   * 装配列「＋ 添加 LoRA」= 打开库：≥768 是外壳中间的库叠层（第 9f 步 9f-2b），手机切到库那一栏。
    */
   onOpenLibrary: () => void
   /** 你自己库里的 LoRA（训练的 + 收藏的）：正文写 `<lora:名字>` 时按名字对上就挂。 */
@@ -780,8 +735,6 @@ interface GenerateBranchProps {
 function GenerateBranch({
   assistantOpen,
   onAssistantOpenChange,
-  library = null,
-  onReturnToGenerate,
   onOpenLibrary,
   libraryAssets,
 }: GenerateBranchProps) {
@@ -2075,7 +2028,8 @@ function GenerateBranch({
     [stack, tCharacterLoras],
   )
 
-  // 库 / 收藏住在这副舞台里：它们判断「装不装得上」要的底模从这里给（lora-library.md §4）。
+  // 库判断「装不装得上」要的底模从这里给（lora-library.md §4）：库叠在外壳中间，
+  // 登记到外壳上，库那边顶上写「选给 LoRA 台」（第 9f 步 9f-2b）。
   const stageContext = useMemo(
     () => ({
       base: selectedBase,
@@ -2083,6 +2037,7 @@ function GenerateBranch({
     }),
     [operatorBaseLabel, selectedBase],
   )
+  useRegisterLoraLibraryPick(stageContext)
   /**
    * 装配台自己那条结果列 → 结果行卡（§2.11，切片 3b）。
    *
@@ -2204,10 +2159,6 @@ function GenerateBranch({
     activeRun,
     libraryFilters,
     openLibrary: onOpenLibrary,
-    // 库 / 收藏开着时才给：助手写装配台先回到生成台，你才看得见它改了什么。
-    ...(library && onReturnToGenerate
-      ? { returnToBench: onReturnToGenerate }
-      : {}),
     open: assistantOpen,
     setOpen: onAssistantOpenChange,
   })
@@ -3024,17 +2975,6 @@ function GenerateBranch({
 
   // 样例查看器（§5）：点来源图那一张，在舞台右侧原位展开，关上缩回当前那张。
   const stageRightRef = useRef<HTMLDivElement | null>(null)
-  // 库 / 收藏在场（lora-library.md §2）：进库那一拍把样例大图关掉 —— 它挂在看不见
-  // 的那一层里，还开着就还在吃 Esc / ← →。
-  const libraryActive = library !== null
-  const [libraryWasActive, setLibraryWasActive] = useState(libraryActive)
-  if (libraryWasActive !== libraryActive) {
-    setLibraryWasActive(libraryActive)
-    if (libraryActive) setViewerOpen(false)
-  }
-  // 输入框收起 / 长回（320）的那一段里裁掉溢出（卡片阴影平时要露出来）。
-  const [composerFolding, setComposerFolding] = useState(false)
-  const reduceMotion = useReducedMotion()
   const [viewerOrigin, setViewerOrigin] = useState<LoraRecipeViewerOrigin>({
     x: 0,
     y: 0,
@@ -4097,10 +4037,8 @@ function GenerateBranch({
           loraScaleConfig={loraScaleConfig}
           onAddLora={onOpenLibrary}
           onPickFromCharacter={openCharacterPick}
-          // 在库里整列让成竖条；回到生成台时回到你自己收没收的那一档。
-          collapsed={libraryActive || assemblyCollapsed}
+          collapsed={assemblyCollapsed}
           onCollapsedChange={setAssemblyCollapsed}
-          onReturn={libraryActive ? onReturnToGenerate : undefined}
           oftenMounted={
             <LoraOftenMountedWithRow
               variant="column"
@@ -4112,18 +4050,9 @@ function GenerateBranch({
           budget={runnerBudgetNote ?? undefined}
         />
         <div className="relative min-w-0 flex-1">
-          {/* 生成这一层：进库 120 淡出，回来 200 淡入 —— 与装配列收放同一刻起，⛔ 等前一层
-            淡完再进（owner 2026-10-08「一卡一卡的」）；看不见时挂 inert。 */}
           <div
             ref={stageRightRef}
-            inert={libraryActive}
-            aria-hidden={libraryActive || undefined}
-            className={cn(
-              'absolute inset-0 flex min-w-0 flex-col transition-opacity ease-linear',
-              libraryActive
-                ? 'pointer-events-none opacity-0 duration-fast'
-                : 'opacity-100 duration-base motion-reduce:duration-fast',
-            )}
+            className="absolute inset-0 flex min-w-0 flex-col"
           >
             <LoraSourceBand
               mode={bandMode}
@@ -4230,71 +4159,11 @@ function GenerateBranch({
               }
             />
           </div>
-          {/* 库这一层：进来 200 淡入（与生成那层淡出同一刻起，⛔ 等），离开 120 淡出；库 ↔ 收藏
-            外壳不动，只有内容先淡出再淡入另一边的（动效表「库 ↔ 收藏」）。 */}
-          <AnimatePresence initial={false}>
-            {library ? (
-              <motion.div
-                key="library"
-                initial={{ opacity: 0 }}
-                animate={{
-                  opacity: 1,
-                  transition: { duration: DURATION.base, ease: 'linear' },
-                }}
-                exit={{
-                  opacity: 0,
-                  transition: { duration: DURATION.fast, ease: 'linear' },
-                }}
-                className="absolute inset-0 flex min-w-0 flex-col"
-              >
-                <AnimatePresence mode="wait" initial={false}>
-                  <motion.div
-                    key={library.key}
-                    initial={{ opacity: 0 }}
-                    animate={{
-                      opacity: 1,
-                      transition: { duration: DURATION.base, ease: 'linear' },
-                    }}
-                    exit={{
-                      opacity: 0,
-                      transition: { duration: DURATION.fast, ease: 'linear' },
-                    }}
-                    className="flex min-h-0 flex-1 flex-col"
-                  >
-                    <LoraStageProvider value={stageContext}>
-                      {library.content}
-                    </LoraStageProvider>
-                  </motion.div>
-                </AnimatePresence>
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
         </div>
       </section>
 
-      {/* 输入框（§2.4）：搭配状态条 → 提示词 → 负面词（原位展开）→ 工具行。
-          进库时收起（320，连同上面那道 12px 行距 = 外层 gap-3 一起收），回来长回。 */}
-      <motion.div
-        initial={false}
-        animate={
-          libraryActive
-            ? { height: 0, marginTop: -12, opacity: 0 }
-            : { height: 'auto', marginTop: 0, opacity: 1 }
-        }
-        transition={
-          reduceMotion
-            ? { duration: 0 }
-            : { duration: DURATION.slow, ease: EASE_STANDARD }
-        }
-        onAnimationStart={() => setComposerFolding(true)}
-        onAnimationComplete={() => setComposerFolding(false)}
-        inert={libraryActive}
-        aria-hidden={libraryActive || undefined}
-        className={cn(
-          'shrink-0',
-          (libraryActive || composerFolding) && 'overflow-hidden',
-        )}
-      >
+      {/* 输入框（§2.4）：搭配状态条 → 提示词 → 负面词（原位展开）→ 工具行。 */}
+      <div className="shrink-0">
         <div
           ref={composerCardRef}
           data-testid="lora-composer-card"
@@ -4682,7 +4551,7 @@ function GenerateBranch({
             </div>
           </StudioChipLookProvider>
         </div>
-      </motion.div>
+      </div>
 
       {/* 助手：与图片台同一颗 Dock；桌面展开时 root 把工作台让出来（§2.5）。 */}
       <StudioOperatorBenchDock />

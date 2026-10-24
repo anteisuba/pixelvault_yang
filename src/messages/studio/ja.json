@@ -1164,6 +1164,8 @@
     "backToChat": "会話に戻る",
     "closeBench": "作業台を閉じる",
     "resize": "ドラッグで会話と作業台の幅を調整",
-    "expandChat": "会話を表示"
+    "expandChat": "会話を表示",
+    "pickFor": "{bench} 台に選ぶ",
+    "pickForBase": "{bench} 台に選ぶ · ベース {base}"
   }
 }

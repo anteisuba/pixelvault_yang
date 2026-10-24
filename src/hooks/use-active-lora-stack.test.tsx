@@ -5,6 +5,7 @@ import { StrictMode } from 'react'
 import type { LoraAssetRecord } from '@/types'
 import {
   LoraStackProvider,
+  LoraStackStyleParamSync,
   parseStyleParams,
   serializeStackForUrl,
   useActiveLoraStack,
@@ -72,13 +73,21 @@ function makeAsset(overrides: Partial<LoraAssetRecord> = {}): LoraAssetRecord {
 }
 
 function wrapper({ children }: { children: React.ReactNode }) {
-  return <LoraStackProvider>{children}</LoraStackProvider>
+  return (
+    <LoraStackProvider>
+      <LoraStackStyleParamSync />
+      {children}
+    </LoraStackProvider>
+  )
 }
 
 function strictWrapper({ children }: { children: React.ReactNode }) {
   return (
     <StrictMode>
-      <LoraStackProvider>{children}</LoraStackProvider>
+      <LoraStackProvider>
+        <LoraStackStyleParamSync />
+        {children}
+      </LoraStackProvider>
     </StrictMode>
   )
 }

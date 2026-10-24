@@ -1164,6 +1164,8 @@
     "backToChat": "Back to chat",
     "closeBench": "Close bench",
     "resize": "Drag to resize the chat and the bench",
-    "expandChat": "Show chat"
+    "expandChat": "Show chat",
+    "pickFor": "Picking for the {bench} bench",
+    "pickForBase": "Picking for the {bench} bench · base {base}"
   }
 }

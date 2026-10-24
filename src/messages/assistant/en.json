@@ -317,7 +317,8 @@
       "video": "the video workspace",
       "lora": "the LoRA workspace",
       "canvas": "the canvas",
-      "cards": "the Characters page"
+      "cards": "the Characters page",
+      "home": "the home page"
     },
     "session": "Session",
     "newThread": "New chat",
@@ -1039,6 +1040,11 @@
         "placeholder": "Name a character, or describe an original…",
         "context": "{count, plural, one {# character} other {# characters}}",
         "contextOpen": "Looking at {name}"
+      },
+      "home": {
+        "empty": "What do you want to make?",
+        "placeholder": "Tell me what you want to make…",
+        "context": "Home"
       }
     },
     "autoGenerate": {

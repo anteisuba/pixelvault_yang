@@ -676,6 +676,21 @@ interface DynamicSiteEntry {
 const KNOWN_DYNAMIC_NAMESPACE_SITES: Readonly<
   Record<string, DynamicSiteEntry>
 > = {
+  'components/business/studio/shell/StudioConversationList.tsx': {
+    reason:
+      'Renders the library rows picked from `SHELL_NAV_GO` via ' +
+      '`t(item.labelKey)` (`Navbar.links.*`), the brand `Navbar.brand` and ' +
+      'the audio row `StudioTools.tools.audio.label`.',
+    calls: ['useTranslations()'],
+    namespaces: ['Navbar', 'StudioTools'],
+  },
+  'components/business/studio/shell/StudioShell.tsx': {
+    reason:
+      'The bench rail renders `SHELL_NAV_TOOLS` items via `t(item.labelKey)`; ' +
+      'every `labelKey` there is under `StudioTools.`.',
+    calls: ['useTranslations()'],
+    namespaces: ['StudioTools'],
+  },
   'components/layout/AppSidebar.tsx': {
     // lines 133 and 230 as of 2026-10-08
     reason:

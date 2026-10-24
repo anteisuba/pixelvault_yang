@@ -741,6 +741,8 @@ export const STUDIO_OPERATOR_FACE_PILLS: Record<
     'findImages',
     'checkLook',
   ],
+  /** 首页（第 9f 步）：大输入框本身就是起手式，⛔ 不摆药丸（布局自己说话）。 */
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.home]: [],
 }
 
 /**

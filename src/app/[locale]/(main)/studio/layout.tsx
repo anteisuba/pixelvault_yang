@@ -1,24 +1,16 @@
+import { StudioShell } from '@/components/business/studio/shell/StudioShell'
+
 /**
- * Top-level Studio layout — a pass-through segment above the Image /
- * Video / Audio workspace and the LoRA domain.
+ * `/studio` 的外壳（第 9f 步方向 E）：左 = 对话列表 · 中 = 对话（助手面板只挂这一份）·
+ * 右 = 台。各台（`(workspace)` / LoRA / 画布 / 3D）照旧在自己那一层挂 Provider，
+ * 这一层只摆三栏，见 `StudioShell`。
  *
- * Both session-scoped providers that used to live here have moved down to
- * `studio/lora/layout.tsx`, because both are LoRA-domain concerns that
- * Image Studio must not read:
- *   - LoraStackProvider — the active LoRA stack
- *     (LoRA 独立成域，见 docs/references/domains/lora.md).
- *   - PromptTagProvider — the tavern-style prompt-tag stack. Its only
- *     add-UI is the LoRA workbench; keeping it at this level leaked the
- *     selected tags (display + prompt injection) into the Image Studio
- *     compose bar.
- *
- * The (workspace) and edit sub-layouts continue to own their own
- * StudioProvider / EditWorkspaceShell — this layer sits above them.
+ * LoRA 域的两个 Provider 仍在 `studio/lora/layout.tsx`（图片台 ⛔ 读到 LoRA 的状态）。
  */
 export default function StudioLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  return <>{children}</>
+  return <StudioShell>{children}</StudioShell>
 }

@@ -317,7 +317,8 @@
       "video": "動画ワークスペース",
       "lora": "LoRA ワークスペース",
       "canvas": "キャンバス",
-      "cards": "キャラクターページ"
+      "cards": "キャラクターページ",
+      "home": "ホーム"
     },
     "session": "セッション",
     "newThread": "新しい会話",
@@ -1039,6 +1040,11 @@
         "placeholder": "キャラ名、または作りたいオリジナルキャラを…",
         "context": "{count} 人のキャラクター",
         "contextOpen": "{name} を表示中"
+      },
+      "home": {
+        "empty": "何を作りましょう？",
+        "placeholder": "作りたいものを話してください…",
+        "context": "ホーム"
       }
     },
     "autoGenerate": {

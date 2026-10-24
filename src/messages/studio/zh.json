@@ -1154,5 +1154,16 @@
     "bulkConfirmTitle": "把 {count} 个素材发布到公开画廊？",
     "bulkConfirmAction": "发布 {count} 个",
     "bulkPublishedKept": "已发布 {published} 个 · {kept} 个留在私密"
+  },
+  "StudioShell": {
+    "newChat": "新对话",
+    "recent": "最近",
+    "conversations": "对话列表",
+    "library": "库",
+    "benches": "台",
+    "backToChat": "回到对话",
+    "closeBench": "收起台",
+    "resize": "拖动调整对话和台的宽度",
+    "expandChat": "展开对话"
   }
 }

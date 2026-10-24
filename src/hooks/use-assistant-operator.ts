@@ -89,7 +89,10 @@ import {
   type StudioOperatorField,
   type StudioOperatorGenerateKnob,
 } from '@/constants/studio-assistant-operator'
-import { useStudioOperatorHost } from '@/contexts/studio-operator-host'
+import {
+  useStudioOperatorBenchKey,
+  useStudioOperatorHost,
+} from '@/contexts/studio-operator-host'
 import {
   addOperatorMention,
   appendOperatorEntry,
@@ -128,6 +131,7 @@ import {
   upsertOperatorStep,
 } from '@/hooks/use-studio-operator-store'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
+import { studioBenchHref } from '@/lib/studio-shell-route'
 import {
   assistantBenchPath,
   assistantBenchReached,
@@ -2068,7 +2072,13 @@ export function useAssistantOperator(
           steps: canvasSteps,
           at: Date.now(),
         })
-        router.push(assistantBenchPath(benchOpenTarget))
+        // 对话跟着台走（第 9f 步）：开台那一页的地址带上这段对话的编号。
+        router.push(
+          studioBenchHref(
+            assistantBenchPath(benchOpenTarget),
+            getOperatorState().sessionId,
+          ),
+        )
         return
       }
       if (canvasSync) {
@@ -3885,6 +3895,18 @@ export function useAssistantOperator(
   // 面板卸载（切模态 / 离开工作台）时把在飞的流掐掉：留着它会继续往一个不存在
   // 的面板里应用 op —— 表单被改而线程已经没了。
   useEffect(() => () => abortRef.current?.abort(), [])
+  /**
+   * ⭐ 同一条规矩在 `/studio` 外壳里（第 9f 步）：面板只挂一份、换台不卸载，于是「换了台」
+   *   由登记号说 —— 离开那个台就把在飞的流掐掉（开台那一跳早已收尾，掐了也没事）。
+   * ⚠ 图片 ↔ 视频 ↔ 标签台是同一个台（同一次登记），⛔ 不因换模态掐流（与改动之前一致）。
+   */
+  const benchKey = useStudioOperatorBenchKey()
+  const benchKeyRef = useRef(benchKey)
+  useEffect(() => {
+    if (benchKeyRef.current === benchKey) return
+    benchKeyRef.current = benchKey
+    abortRef.current?.abort()
+  }, [benchKey])
 
   /** 新会话；带 `chat` 就是开一段和这个角色的聊天会话（附录L）。 */
   const newThread = useCallback(

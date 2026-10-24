@@ -302,6 +302,19 @@ studio 内容裁出视口，是因为侧栏能展开到 144；平板档现在钉
 - [ ] `prefers-reduced-motion` 下全部瞬时
 - [ ] 全量 tsc + 全量 vitest（`full-gate`）
 
+## 12 · `/studio` 外壳（助手第 9f 步方向 E「分层」，owner 2026-10-23 定）
+
+≥1024（`desk:`）的 `/studio/**` 不再走全站侧栏：`StudioShell`（`studio/layout.tsx`）自己摆三层 ——
+左 = 对话列表（新对话 · 库 · 配音间 · 最近对话 · 账号），中 = 对话（助手面板**只挂这一份**），右 = 台。
+
+- 路由：`/studio` = 创作首页（新对话）；`/studio/c/<编号>` = 只开着这段对话；`/studio/<台>?c=<编号>` = 对话 + 台；`/studio/audio` 整页（不挂对话）。浏览器后退先收台。规则在 `src/lib/studio-shell-route.ts`。
+- 台照旧用 `StudioOperatorHostProvider` 包住自己，它顺手把宿主**登记**给外壳（`StudioOperatorHostSlotProvider`，取最里面那一层）；没台时面板拿首页那张脸。
+- 面板挂哪儿：`StudioOperatorDockPlacement` —— ≥1024 外壳挂（台上 `StudioOperatorBenchDock` 不挂）；更窄照旧台自己挂浮起的那颗；屏宽没量出来前哪边都不挂。
+- 对话 | 台 一根分隔线，宽度记在 `pv:studio-shell:split`；往左拖到底收起对话，往右拖到底收起台。台条竖在台左沿（台都按整屏高写死，横条会把台压出屏）。
+- 台框 `desk:contain-layout`：台里 `fixed inset-0` 的整屏层只铺满台这一栏。
+- 全站侧栏在 `desk:` 的 `/studio` 上整条藏起（平板照旧）；画布侧栏子项改长在画布底栏（`SHELL_CANVAS_DESK_BOTTOM_ENTRIES`，不含「历史对话」）。
+- 9f-2 库叠层、9f-3 列表封面/进度、9f-4 动效、手机端另做。
+
 ## Last Verified
 
 **2026-08-18 · 设计确认，实现进行中。** 方向与关键切片经 owner 确认（含图标定 Trophy、尺寸定 144/44）。§4 的对比度数值来自 node 确定性计算 + 原型真机复核；§3 的三语宽度来自真机 canvas `measureText`。
@@ -315,3 +328,5 @@ studio 内容裁出视口，是因为侧栏能展开到 144；平板档现在钉
 **2026-10-08 · 全站侧边栏动效批（原型 v1 `1SN6YY7TTUvm2c85JWgNAd` 定稿）**：§3 收展图标不动、§5 动效表、§6 画布子项、§8 账号菜单落地，事实源为 `AppSidebar.tsx` · `ui/sidebar.tsx` · `use-nav-indicator.ts` · `AccountMenu.tsx` · `ui/dropdown-menu.tsx` · `globals.css`（`.shell-nav-slider*` / `menu-grow`）。验证：tsc / lint / 全量 vitest；**真机录屏未做**（收展、切工具、子项进出、菜单长出四段待目检）。原型里的 `[` 键开关 2026-10-09 补上（单键、打字时不算，⌘/Ctrl+B 保留）。
 
 **2026-10-10 · 手机 P3 底栏**（§6 手机 P3、§9 S5）：vitest 覆盖五格 / ＋ 面板 / 一句话深链 / 长按 / 工作台 ← 与记忆；云端起不来 dev，手机真机未验。
+
+**2026-10-23 · `/studio` 外壳 9f-1**（§12）：vitest 覆盖地址规则与登记口；1440 真机截图走 Vercel preview。

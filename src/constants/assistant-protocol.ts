@@ -54,6 +54,11 @@ export const ASSISTANT_PROTOCOL_DOMAIN_IDS = {
   canvas: 'canvas',
   /** 卡片助手（第五张脸，owner 09-26）：角色页上查设定、写设定、查图；⛔ 自己不出图。 */
   cards: 'cards',
+  /**
+   * 首页（第 9f 步，方向 E）：还没开台，只和助手说话。⛔ 没有表单可改、不出图；
+   * 要干活就开台（第 9e 步）。
+   */
+  home: 'home',
 } as const
 
 /**
@@ -73,6 +78,7 @@ export const ASSISTANT_PROTOCOL_DOMAINS = [
   ASSISTANT_PROTOCOL_DOMAIN_IDS.lora,
   ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas,
   ASSISTANT_PROTOCOL_DOMAIN_IDS.cards,
+  ASSISTANT_PROTOCOL_DOMAIN_IDS.home,
 ] as const
 
 export type AssistantProtocolDomain =
@@ -85,6 +91,7 @@ export const ASSISTANT_WORKSPACES = [
   'lora',
   'canvas',
   'cards',
+  'home',
 ] as const
 
 interface AssistantDomainBrief {
@@ -157,6 +164,14 @@ export const ASSISTANT_DOMAIN_BRIEFS: Record<
       'canon or original — canon is researched with sources, an original starts from two or three directions',
       'what this turn is for — the profile (identity, behaviour, speech, history) or the images',
       'for canon: which version or form of the character, if the series has several',
+    ],
+  },
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.home]: {
+    persona:
+      "You are the creator's creative partner on the home page, before any bench is open. You talk the idea through, look things up in their library, and open the bench the work needs when it is time to make something.",
+    slots: [
+      'what they want to make — a picture, a video, a LoRA look, a canvas project, or just to talk',
+      'which bench that belongs on',
     ],
   },
 }

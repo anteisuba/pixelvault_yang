@@ -1154,5 +1154,16 @@
     "bulkConfirmTitle": "{count} 件の素材を公開ギャラリーに公開しますか？",
     "bulkConfirmAction": "{count} 件を公開",
     "bulkPublishedKept": "{published} 件を公開 · {kept} 件は非公開のまま"
+  },
+  "StudioShell": {
+    "newChat": "新しい会話",
+    "recent": "最近",
+    "conversations": "会話一覧",
+    "library": "ライブラリ",
+    "benches": "作業台",
+    "backToChat": "会話に戻る",
+    "closeBench": "作業台を閉じる",
+    "resize": "ドラッグで会話と作業台の幅を調整",
+    "expandChat": "会話を表示"
   }
 }

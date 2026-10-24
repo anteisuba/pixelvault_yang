@@ -235,6 +235,8 @@ export interface UseStudioOperatorHistoryResult {
   /** 载入历史失败时说了什么 —— ⛔ 不静默。 */
   error: string | null
   selectSession(session: AssistantConversationSummary): void
+  /** 按编号载回一段会话（地址里带着的那一段，第 9f 步）；已经是它就什么都不做。 */
+  openSession(id: string): void
   refreshSessions(force?: boolean): void
   retrySave(): Promise<boolean>
   deletingSessionId: string | null
@@ -277,14 +279,25 @@ export function useStudioOperatorHistoryView(): UseStudioOperatorHistoryResult |
   )
 }
 
+/**
+ * 这次页面加载一进来载回哪一段（第 9f 步，地址说了算）：
+ * - `latest`（缺省）：最近那一段 —— 直接进台、地址里没带对话时，与改动之前一致；
+ * - `none`：不载回（首页 `/studio` 就是一段新对话）；
+ * - `{ id }`：地址里带着的那一段（`/studio/c/<编号>`、`?c=<编号>`）。
+ * ⚠ 只在这个作用域这次页面加载第一次水化时读（与「载回最近一条」同一个时机）。
+ */
+export type StudioOperatorHistoryRestore = 'latest' | 'none' | { id: string }
+
 export function useStudioOperatorHistory({
   userId,
   workspace,
   projectId,
+  restore = 'latest',
 }: {
   userId: string | null
   workspace: AssistantWorkspace
   projectId?: string
+  restore?: StudioOperatorHistoryRestore
 }): UseStudioOperatorHistoryResult {
   const t = useTranslations('StudioOperator.history')
   const [loadingSessionId, setLoadingSessionId] = useState<string | null>(null)
@@ -302,6 +315,8 @@ export function useStudioOperatorHistory({
   )
   const removedIds = useRef(removedSessionIds)
   const deletingRef = useRef(false)
+  /** ⚠ 只读第一次水化那一刻的值（见 `StudioOperatorHistoryRestore`），⛔ 不进 effect 依赖。 */
+  const restoreRef = useRef(restore)
   const [sessions, setSessions] = useState<
     readonly AssistantConversationSummary[]
   >([])
@@ -512,7 +527,16 @@ export function useStudioOperatorHistory({
           if (!isActive(epoch)) return
           setSessions(merged.filter((item) => !removedIds.current.has(item.id)))
 
-          const latest = merged[0]
+          const wanted = restoreRef.current
+          const latest =
+            wanted === 'none'
+              ? undefined
+              : wanted === 'latest'
+                ? merged[0]
+                : (merged.find((item) => item.id === wanted.id) ?? {
+                    id: wanted.id,
+                    chatCharacter: null,
+                  })
           const current = getOperatorState()
           if (
             !restoreLatest ||
@@ -657,6 +681,14 @@ export function useStudioOperatorHistory({
     },
     [applyConversation],
   )
+  const openSession = useCallback(
+    (id: string) => {
+      if (id === getOperatorState().sessionId) return
+      const summary = sessions.find((item) => item.id === id)
+      void applyConversation(id, summary?.chatCharacter ?? null)
+    },
+    [applyConversation, sessions],
+  )
 
   const visibleError = saveFailed ? t('saveFailed') : error
   const result = useMemo<UseStudioOperatorHistoryResult>(
@@ -669,6 +701,7 @@ export function useStudioOperatorHistory({
       renameSession,
       error: visibleError,
       selectSession,
+      openSession,
       refreshSessions,
       retrySave: save,
       deletingSessionId,
@@ -683,6 +716,7 @@ export function useStudioOperatorHistory({
       renameSession,
       visibleError,
       selectSession,
+      openSession,
       refreshSessions,
       save,
       deletingSessionId,

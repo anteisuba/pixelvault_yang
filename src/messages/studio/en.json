@@ -1154,5 +1154,16 @@
     "bulkConfirmTitle": "Publish {count, plural, one {# asset} other {# assets}} to the public gallery?",
     "bulkConfirmAction": "Publish {count}",
     "bulkPublishedKept": "Published {published} · {kept} kept private"
+  },
+  "StudioShell": {
+    "newChat": "New chat",
+    "recent": "Recent",
+    "conversations": "Conversations",
+    "library": "Library",
+    "benches": "Benches",
+    "backToChat": "Back to chat",
+    "closeBench": "Close bench",
+    "resize": "Drag to resize the chat and the bench",
+    "expandChat": "Show chat"
   }
 }

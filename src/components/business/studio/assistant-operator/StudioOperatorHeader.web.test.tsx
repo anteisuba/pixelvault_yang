@@ -155,6 +155,7 @@ const HISTORY: UseStudioOperatorHistoryResult = {
   renameSession: vi.fn().mockResolvedValue(true),
   error: null,
   selectSession: vi.fn(),
+  openSession: vi.fn(),
   refreshSessions: vi.fn(),
   retrySave: vi.fn().mockResolvedValue(true),
   deletingSessionId: null,

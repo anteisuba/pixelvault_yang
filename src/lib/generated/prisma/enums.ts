@@ -109,7 +109,8 @@ export const AssistantSurface = {
   VIDEO_STUDIO: 'VIDEO_STUDIO',
   LORA: 'LORA',
   NODE_CANVAS: 'NODE_CANVAS',
-  CARDS: 'CARDS'
+  CARDS: 'CARDS',
+  HOME: 'HOME'
 } as const
 
 export type AssistantSurface = (typeof AssistantSurface)[keyof typeof AssistantSurface]

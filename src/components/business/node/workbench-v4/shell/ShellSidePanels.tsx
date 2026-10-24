@@ -1135,9 +1135,13 @@ export function ShellSidePanels({
     const width = CANVAS_SHELL_LAYOUT.panelWidthPx
     const height = panel.offsetHeight
     // 起点：按属性找全站侧栏 / 底栏上被点的那一颗。
-    const slot = document.querySelector<HTMLElement>(
-      `[${CANVAS_SHELL_SIDEBAR_ENTRY_ATTR}="${origin}"]`,
-    )
+    // ⚠ 取**看得见的**那一颗：≥1024 的 `/studio` 外壳里侧栏藏着、同一格在底栏上（第 9f 步）。
+    const slot =
+      Array.from(
+        document.querySelectorAll<HTMLElement>(
+          `[${CANVAS_SHELL_SIDEBAR_ENTRY_ATTR}="${origin}"]`,
+        ),
+      ).find((element) => element.getClientRects().length > 0) ?? null
     // 侧栏那一颗可能高过面板顶（面板从顶栏下面起）、底栏那一颗低过面板底：夹进面板里，
     // ⛔ 从面板外长出来。
     const row = slot

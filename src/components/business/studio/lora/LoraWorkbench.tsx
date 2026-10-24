@@ -226,7 +226,7 @@ import { usePromptTagStack } from '@/hooks/use-prompt-tag-stack'
 import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
 import { requestOperatorAttachment } from '@/hooks/use-studio-operator-store'
 import type { StudioOperatorResultOwner } from '@/types/studio-assistant-operator'
-import { StudioOperatorDock } from '@/components/business/studio/assistant-operator'
+import { StudioOperatorBenchDock } from '@/components/business/studio/assistant-operator'
 import {
   LoraAspectRatioChip,
   isLoraAspectRatio,
@@ -3900,7 +3900,7 @@ function GenerateBranch({
             </div>
           </div>
         </section>
-        <StudioOperatorDock />
+        <StudioOperatorBenchDock />
       </StudioOperatorHostProvider>
     )
   }
@@ -4685,7 +4685,7 @@ function GenerateBranch({
       </motion.div>
 
       {/* 助手：与图片台同一颗 Dock；桌面展开时 root 把工作台让出来（§2.5）。 */}
-      <StudioOperatorDock />
+      <StudioOperatorBenchDock />
     </StudioOperatorHostProvider>
   )
 }

@@ -25,6 +25,8 @@ export const ASSISTANT_V3_FACE_IDS = {
   image: 'image',
   cards: 'cards',
   video: 'video',
+  /** 首页（第 9f 步）：没有台，只说话、查东西、开台。 */
+  home: 'home',
 } as const
 
 export type AssistantV3Face =

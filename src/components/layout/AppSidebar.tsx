@@ -13,6 +13,7 @@ import {
   SHELL_NAV_CANVAS_ITEM_ID,
   SHELL_NAV_SECTIONS,
   isShellNavItemActive,
+  isStudioPath,
   type ShellNavItem,
 } from '@/constants/navigation'
 import { ROUTES } from '@/constants/routes'
@@ -76,6 +77,7 @@ const SIDEBAR_FOOTER_CLASS = 'gap-1 p-1'
  */
 export function AppSidebar() {
   const { isMobile } = useSidebar()
+  const pathname = usePathname()
 
   // <768 **完全没有侧栏**（方向 M2「顶栏当切换器」）——由 MobileShell 接管。
   // 768–1023 是平板：同一条侧栏，钉死在收起档（owner 2026-10-09 平板 v10）。
@@ -84,7 +86,12 @@ export function AppSidebar() {
   if (isMobile) return null
 
   return (
-    <Sidebar collapsible="icon" className="z-40 text-sidebar-foreground">
+    <Sidebar
+      collapsible="icon"
+      className="z-40 text-sidebar-foreground"
+      // ≥1024 的 `/studio` 由外壳自己的左栏接手（第 9f 步）；平板照旧是这条侧栏。
+      rootClassName={isStudioPath(pathname) ? 'desk:hidden' : undefined}
+    >
       <AppSidebarHeader />
       <AppSidebarContent />
       <AppSidebarFooter />

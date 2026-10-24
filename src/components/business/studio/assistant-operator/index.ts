@@ -6,3 +6,4 @@
  */
 
 export { StudioOperatorDock } from '@/components/business/studio/assistant-operator/StudioOperatorDock'
+export { StudioOperatorBenchDock } from '@/components/business/studio/assistant-operator/StudioOperatorBenchDock'

@@ -85,6 +85,7 @@ function withImplicit<T>(base: readonly T[]): readonly T[] {
 }
 
 vi.mock('@/contexts/studio-operator-host', () => ({
+  useStudioOperatorDockPlacement: () => ({ owner: 'bench', restore: 'latest' }),
   useStudioOperatorHost: () => {
     references = useImageUpload()
     return {

@@ -36,6 +36,7 @@ const LABEL: Record<AssistantWorkspace, string> = {
   lora: 'the LoRA bench',
   canvas: 'the canvas',
   cards: 'the character page',
+  home: 'the home page',
 }
 
 export function benchLabel(workspace: AssistantWorkspace): string {

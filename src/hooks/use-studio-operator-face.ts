@@ -19,6 +19,7 @@ import { useTranslations } from 'next-intl'
 
 import {
   Clapperboard,
+  Home,
   ImageIcon,
   Layers,
   UserRound,
@@ -45,6 +46,7 @@ const DOMAIN_ICONS: Readonly<Record<AssistantOperatorDomain, LucideIcon>> = {
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.lora]: Layers,
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas]: Waypoints,
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.cards]: UserRound,
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.home]: Home,
 }
 
 /**

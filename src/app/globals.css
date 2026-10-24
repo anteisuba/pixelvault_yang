@@ -2748,6 +2748,12 @@ html:lang(ja) {
   }
 }
 
+/* `/studio` 外壳的台框（第 9f 步）：台里 `fixed inset-0` 的整屏层（剪辑台等）只铺满台这一栏，
+   ⛔ 盖住左边列表与对话。弹层走 portal 挂在 body 上，不受影响。 */
+@utility contain-layout {
+  contain: layout;
+}
+
 /* 手机上横滑的一排（作品 chip、「用得最多」）：拇指滑，⛔ 画滚动条。 */
 @utility scrollbar-none {
   scrollbar-width: none;

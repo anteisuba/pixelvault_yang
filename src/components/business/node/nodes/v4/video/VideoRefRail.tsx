@@ -269,7 +269,7 @@ export function VideoRefRail({
                             aria-hidden
                             data-video-rail-role={item.slot}
                             className={cn(
-                              'absolute bottom-0 left-0 rounded-tr-md bg-foreground/70 px-1.25 text-3xs text-background',
+                              'absolute bottom-0 left-0 rounded-tr-md bg-black/70 px-1.25 text-3xs text-white',
                               expanded
                                 ? 'rounded-bl-lg'
                                 : 'rounded-bl-node-thumb',

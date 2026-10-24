@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { AssistantSettingsDialog } from '@/components/business/studio/assistant-operator/AssistantSettingsDialog'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
+import { Switch } from '@/components/ui/switch'
 import { PROFILE } from '@/constants/config'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import { updateProfileAPI, uploadAvatarAPI } from '@/lib/api-client'
@@ -275,22 +276,12 @@ export function ProfileEditModal({
                   {t('publicProfileHint')}
                 </p>
               </div>
-              <button
+              <Switch
                 id={profileVisibilityId}
-                type="button"
-                role="switch"
-                aria-checked={isPublic}
-                onClick={() => setIsPublic((prev) => !prev)}
-                className={`relative h-6 w-11 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
-                  isPublic ? 'bg-primary' : 'bg-muted'
-                }`}
-              >
-                <span
-                  className={`absolute left-0.5 top-0.5 size-5 rounded-full bg-white shadow-sm transition-transform ${
-                    isPublic ? 'translate-x-5' : ''
-                  }`}
-                />
-              </button>
+                size="lg"
+                checked={isPublic}
+                onCheckedChange={setIsPublic}
+              />
             </div>
           </div>
 

@@ -250,7 +250,8 @@ export function PolaroidCard({
               )}
             </div>
 
-            {/* Info panel */}
+            {/* Info panel —— 压在相纸白边上（`POLAROID_BORDER_COLOR` 固定米白），字色跟纸走、
+                ⛔ 跟外观：暗房里 `text-primary` 是米白，印在米白纸上就没了。 */}
             <div
               className="absolute bottom-1 left-3 right-3 flex items-center justify-between text-xs"
               style={{ color: '#7a7668' }}
@@ -262,7 +263,7 @@ export function PolaroidCard({
               <div className="flex items-center gap-3">
                 {isOwnProfile && onPin && (
                   <button
-                    className="flex items-center gap-1 hover:text-primary transition-colors"
+                    className="flex items-center gap-1 hover:text-black transition-colors"
                     onClick={(e) => {
                       e.stopPropagation()
                       onPin(id)
@@ -271,12 +272,12 @@ export function PolaroidCard({
                   >
                     <Pin
                       weight={isFeatured ? 'fill' : 'bold'}
-                      className={cn('size-4', isFeatured && 'text-primary')}
+                      className={cn('size-4', isFeatured && 'text-black')}
                     />
                   </button>
                 )}
                 <button
-                  className="flex items-center gap-1 hover:text-primary transition-colors"
+                  className="flex items-center gap-1 hover:text-black transition-colors"
                   onClick={(e) => {
                     e.stopPropagation()
                     onLike?.(id)
@@ -285,7 +286,7 @@ export function PolaroidCard({
                 >
                   <Heart
                     weight={isLiked ? 'fill' : 'bold'}
-                    className={cn('size-4', isLiked && 'text-primary')}
+                    className={cn('size-4', isLiked && 'text-black')}
                   />
                   {likeCount > 0 && <span>{likeCount}</span>}
                 </button>

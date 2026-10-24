@@ -87,7 +87,7 @@ export function LoraLibraryTile({
         )}
       >
         {agentPick ? (
-          <span className="absolute left-2 top-2 z-10 inline-flex h-5.5 animate-in items-center gap-1 rounded-full bg-foreground/85 pl-1 pr-2 text-2xs font-semibold text-background fade-in duration-base motion-reduce:animate-none">
+          <span className="absolute left-2 top-2 z-10 inline-flex h-5.5 animate-in items-center gap-1 rounded-full bg-black/85 pl-1 pr-2 text-2xs font-semibold text-white fade-in duration-base motion-reduce:animate-none">
             <Sparkles className="size-3" aria-hidden />
             {t('agentPick')}
           </span>

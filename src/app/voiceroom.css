@@ -5,16 +5,15 @@
  * `.voiceroom` 这个域根上**，一个都不往 `:root` 放——画布皮肤曾经那样漏进过
  * 两个助手 dock。
  *
- * ⚠ 第一期**锁浅色**（owner 2026-08-29）。纸墨是这个设计的身份，不是主题的
- * 一种取值；app 的 `<html>` 带 `.dark`，没有显式 `color-scheme` 的话原生滚动条
- * 和表单控件会在这张白纸上渲染成暗色。
+ * 跟着外观走（暗色主题模块，owner 2026-10-24）：素 = 白纸黑墨（2026-08-29 定的那套，
+ * 一个值没动），暗房 = 下面 `.dark` 那一块，纸换成脊柱的暗卡、墨换成暗房的米白。
+ * 两档都显式写 `color-scheme`，原生滚动条和表单控件跟纸走。
  */
 
 /*
  * ⚠ 令牌挂在**两个**选择器上，不是一个：参数浮层由 Radix 送进 portal，渲染在
  * `.voiceroom` 之外，只声明在域根上的变量到那里全部解析不到（背景会掉回 app
- * 主题，暗色主题下就是一张黑面板贴在白纸旁边）。一份声明两个消费者，别抄第二份
- * 色板。
+ * 主题）。一份声明两个消费者，别抄第二份色板 —— 暗房那一块同样挂两个。
  */
 .voiceroom,
 .vr-params-pop {
@@ -60,6 +59,31 @@
   --vr-t-base: 240ms; /* 气泡、卡片、展开 */
   --vr-t-sheet: 300ms; /* 面板开合 */
   --vr-t-fly: 420ms; /* 峰值：选角飞行 */
+}
+
+/*
+ * 暗房（owner 2026-10-24，色板 = 样件 E）：纸 / 墨 / 面板直接借脊柱暗房那几格，
+ * 以后微调色板一处改、配音间跟着变；线是本域自己的三档，用实色（头像底也用它）。
+ * 对比度（逐对算）：
+ *   --vr-dim   on paper 5.57 · on panel 5.18 · on panel-2 4.84 → 正文过 AA
+ *   --vr-ink   on paper 15.71 · on panel 14.59
+ *   --vr-alarm on paper 5.80 · on panel 5.39
+ *   --vr-line-strong on paper 3.41 · on panel 3.16 → UI 组件边界过 1.4.11
+ *   --vr-line-2 1.52 / --vr-line 1.24 → 装饰级，与素档同一个量级
+ */
+.dark .voiceroom,
+.dark .vr-params-pop {
+  color-scheme: dark;
+
+  --vr-paper: var(--card);
+  --vr-ink: var(--foreground);
+  --vr-dim: var(--muted-foreground);
+  --vr-line: #252627;
+  --vr-line-2: #343536;
+  --vr-line-strong: #6a6964;
+  --vr-panel: var(--muted);
+  --vr-panel-2: var(--secondary);
+  --vr-alarm: var(--status-risk);
 }
 
 /*
@@ -1729,7 +1753,7 @@
   width: 84px;
   height: 84px;
   border-radius: 999px;
-  border: 1.5px solid rgba(10, 10, 10, 0.28);
+  border: 1.5px solid color-mix(in srgb, var(--vr-ink) 28%, transparent);
   z-index: 1;
   opacity: 0;
 }
@@ -1792,7 +1816,7 @@
   border-radius: 8px;
   display: grid;
   place-items: center;
-  background: rgba(255, 255, 255, 0.82);
+  background: color-mix(in srgb, var(--vr-paper) 82%, transparent);
   backdrop-filter: blur(2px);
   border: 0;
   cursor: pointer;

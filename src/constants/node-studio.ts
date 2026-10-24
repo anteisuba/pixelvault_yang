@@ -102,8 +102,8 @@ export const NODE_STUDIO_CANVAS_APPEARANCE_DEFAULT = {
  * Canvas surface presets. S10（2026-07-27，owner 拍板 token-inversion §4.5）：
  * 域级令牌反转后画布面板全变白，原 9 档里 6 档深色（含 #000000）会让用户选中
  * 深底时变成「黑底白盒」——v0.2 是浅色域，那些深档是旧皮时代的遗产，直接精简
- * 掉而不是接线 `.domain-canvas[data-scheme='dark']`（那块 CSS 保留但本轮没有
- * 激活路径，见 canvas.css 该处注释）。补 #F1F1F1：它是
+ * 掉。暗房（owner 2026-10-24）不走预设：画布一律由 canvas.css 的 `.dark .domain-canvas`
+ * 换成暗底，存过的手选底色只在素档用（见 NodeWorkbenchV4 的 `canvasAppearance`）。补 #F1F1F1：它是
  * `NODE_STUDIO_CANVAS_APPEARANCE_DEFAULT` 的值，原先却没进这份预设列表。
  * 已持久化的 `canvasAppearance.backgroundColor` 不受影响——这里只改预设菜单
  * 展示哪些色板，不改已存的值；自定义取色器（下方 <input type="color">）仍

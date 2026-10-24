@@ -165,7 +165,7 @@ export function VoiceAvatarButton({
       <span
         aria-hidden
         className={cn(
-          'absolute inset-0 flex items-center justify-center rounded-full bg-foreground/40 text-background transition-opacity duration-fast ease-standard',
+          'absolute inset-0 flex items-center justify-center rounded-full bg-black/40 text-white transition-opacity duration-fast ease-standard',
           active || glyph === 'always'
             ? 'opacity-100'
             : 'opacity-0 group-hover/avatar:opacity-100 group-focus-visible/avatar:opacity-100',

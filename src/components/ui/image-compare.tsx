@@ -207,10 +207,10 @@ export function ImageCompare({
         </span>
       </motion.div>
 
-      <span className="pointer-events-none absolute top-3 left-3 rounded-full bg-foreground/70 px-2.5 py-1 text-3xs font-semibold text-background">
+      <span className="pointer-events-none absolute top-3 left-3 rounded-full bg-black/70 px-2.5 py-1 text-3xs font-semibold text-white">
         {beforeLabel}
       </span>
-      <span className="pointer-events-none absolute top-3 right-3 rounded-full bg-foreground/70 px-2.5 py-1 text-3xs font-semibold text-background">
+      <span className="pointer-events-none absolute top-3 right-3 rounded-full bg-black/70 px-2.5 py-1 text-3xs font-semibold text-white">
         {afterLabel}
       </span>
     </div>

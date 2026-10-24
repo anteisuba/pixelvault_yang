@@ -5,6 +5,7 @@ import { AuthArrivalToast } from '@/components/business/auth/AuthArrivalToast'
 import { AppSidebar } from '@/components/layout/AppSidebar'
 import { MainProviders } from '@/components/layout/MainProviders'
 import { MobileShell, MobileShellInset } from '@/components/layout/MobileShell'
+import { ThemedScope } from '@/components/layout/ThemedScope'
 import { SidebarProvider } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/sonner'
 import { omitMessages, OUTSIDE_APP_NAMESPACES } from '@/i18n/messages-split'
@@ -34,6 +35,8 @@ export default async function MainLayout({
 
   return (
     <div className="min-h-svh overflow-x-clip bg-background">
+      {/* 外观只管 `(main)`：首页、登录页、条款页一直是素（owner 2026-10-24）。 */}
+      <ThemedScope />
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground focus:shadow-lg"

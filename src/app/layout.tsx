@@ -3,6 +3,7 @@ import { getLocale } from 'next-intl/server'
 
 import { HOMEPAGE_METADATA } from '@/constants/homepage'
 import { FONT_VARIABLE_CLASSES } from '@/i18n/fonts'
+import { THEME_BOOTSTRAP_SCRIPT } from '@/lib/theme'
 
 import './globals.css'
 // ⚠ canvas.css（173 KB 域皮肤）自 2026-09-03 起只由画布路由 import
@@ -43,6 +44,11 @@ export default async function RootLayout({
       data-scroll-behavior="smooth"
       className={FONT_VARIABLE_CLASSES}
     >
+      <head>
+        {/* 外观「暗房」在第一帧前挂上 `.dark`（`src/lib/theme.ts`），⛔ 先白一下再变黑。
+            服务端画的 `<html>` 没有 `.dark`，水化不报错靠上面的 `suppressHydrationWarning`。 */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP_SCRIPT }} />
+      </head>
       <body className="font-sans antialiased">{children}</body>
     </html>
   )

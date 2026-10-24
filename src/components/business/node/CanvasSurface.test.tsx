@@ -9,15 +9,17 @@ import {
 } from './CanvasSurface'
 
 describe('CanvasSurface', () => {
-  // S1（2026-07-26）：默认底从旧皮暖炭 #14120F 改成画布域皮肤 v0.2 的 #F1F1F1，
-  // 因为白卡靠「比底亮一档」浮起，域默认底必须和 --canvas-bg 同值。
-  it('resolves the untouched project to the canvas domain surface', () => {
+  // 没设过底色的画布不写内联值（owner 2026-10-24 暗色主题）：底色走 canvas.css
+  // `.domain-canvas` 的 --canvas-bg（素 #F1F1F1 / 暗房各一份），跟着外观走。
+  it('leaves the untouched project to the canvas domain surface', () => {
     render(<CanvasSurface appearance={undefined} />)
 
     const surface = screen.getByTestId('canvas-surface')
-    expect(surface.style.getPropertyValue('--canvas-surface')).toBe('#F1F1F1')
+    expect(surface.style.getPropertyValue('--canvas-surface')).toBe('')
+    expect(surface.style.backgroundColor).toBe('var(--canvas-surface)')
     expect(surface).toHaveClass('pointer-events-none')
     expect(surface).toHaveAttribute('aria-hidden', 'true')
+    expect(getCanvasAppearanceCssVars(undefined)).toEqual({})
   })
 
   it('exports stage-level CSS vars for the React Flow Background ancestor', () => {

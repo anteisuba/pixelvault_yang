@@ -334,7 +334,7 @@ export function StudioOperatorSessionRow({
                   ROW_ICON_BUTTON_CLASS,
                   DELETE_PILL_MOTION_CLASS,
                   confirming
-                    ? 'gap-0 bg-status-risk px-1.5 text-white focus:bg-status-risk focus:text-white'
+                    ? 'gap-0 bg-status-risk px-1.5 text-background focus:bg-status-risk focus:text-background'
                     : 'min-w-6 text-muted-foreground focus:bg-surface-fill-hover focus:text-status-risk',
                 )}
                 data-testid="operator-session-delete"

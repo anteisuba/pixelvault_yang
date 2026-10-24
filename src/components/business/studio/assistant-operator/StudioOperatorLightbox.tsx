@@ -111,7 +111,7 @@ export function StudioOperatorLightbox() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: reduceMotion ? 0 : DURATION.base }}
-      className="pointer-events-auto fixed inset-0 z-[60] grid cursor-zoom-out place-items-center bg-foreground/70 p-8 backdrop-blur-sm"
+      className="pointer-events-auto fixed inset-0 z-[60] grid cursor-zoom-out place-items-center bg-black/70 p-8 backdrop-blur-sm"
     >
       <motion.div
         initial={reduceMotion ? false : { opacity: 0, scale: 0.86 }}

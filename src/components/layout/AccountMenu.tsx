@@ -1,9 +1,10 @@
 'use client'
 
-import { Globe, LogOut, Settings, User } from '@/components/icons'
+import { Globe, LogOut, Moon, Settings, User } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { ROUTES, settingsPath } from '@/constants/routes'
+import { THEMES } from '@/constants/theme'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
 import { ProfileAvatar } from '@/components/layout/ProfileAvatar'
 import {
@@ -22,19 +23,19 @@ import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import { useLocaleSwitch, type AppLocale } from '@/hooks/use-locale-switch'
 import { useMyProfile } from '@/hooks/use-my-profile'
 import { useSignOut } from '@/hooks/use-sign-out'
+import { useThemePreference } from '@/hooks/use-theme-preference'
 
 /**
  * 账号菜单（D11 ④，2026-09-20 owner 确认画板）。侧栏最底那一行和手机顶栏
  * 胶囊右端那颗头像都挂它 —— 两处同一颗菜单，⛔ 不各写一份。
  *
- * 内容自上而下：头部（头像 · 名字 · @用户名）→ 语言（一行分段条）
+ * 内容自上而下：头部（头像 · 名字 · @用户名）→ 语言、外观（各一行分段条）
  * → 设置 → 退出登录（红字，上有分隔线）。从触发行**长出来**（`grow` 档：
  * 侧栏展开往上、收起往右、手机顶栏往下）。
  *
  * ⛔ 菜单里不放额度、不放 key 数、不挂红点 / 角标 —— 那三样各有各的页
  * （`/settings/usage` · `/settings/keys`），是 D3 ④ 的既有收口结论。
- * ⛔ 也没有「外观」：这个应用没有主题切换机制（无 next-themes / setTheme /
- * 任何挂 `.dark` 的开关），画板上那一行本轮不做 —— ⛔ 不许画一颗点了没反应的。
+ * 外观（素 | 暗房）只在这里一个入口（owner 2026-10-24），⛔ 设置页再放一份。
  *
  * ⚠ 菜单内容只在打开后才挂载，语言那一段因此才敢读 `useSearchParams()`
  * （见 `use-locale-switch.ts` 的告诫）。⛔ 别把它提到触发器上去。
@@ -84,6 +85,7 @@ export function AccountMenu({
         <AccountMenuHeader />
         <DropdownMenuSeparator />
         <AccountMenuLanguage />
+        <AccountMenuAppearance />
         {showProfile ? <AccountMenuProfile /> : null}
         <AccountMenuSettings />
         <DropdownMenuSeparator />
@@ -174,6 +176,52 @@ function AccountMenuLanguage() {
           value: option,
           label: t(`options.${option}`),
           title: t(`names.${option}`),
+        }))}
+      />
+    </DropdownMenuItem>
+  )
+}
+
+/**
+ * 外观 —— 一行分段条「素 | 暗房」（owner 2026-10-24 暗色主题模块），长相与键盘都同语言那一行：
+ * 整行一颗 `menuitem`，←/→ 换档，鼠标直接点格子，换完不关菜单。
+ *
+ * 只记本机（`useThemePreference` → localStorage）；`<html>` 上的 `.dark` 由 `(main)` 里的
+ * `ThemedScope` 跟着换，⛔ 这里自己去挂。
+ */
+function AccountMenuAppearance() {
+  const t = useTranslations('ThemeSwitcher')
+  const [theme, setTheme] = useThemePreference()
+
+  const step = (delta: number) => {
+    const index = THEMES.indexOf(theme)
+    setTheme(THEMES[(index + delta + THEMES.length) % THEMES.length])
+  }
+
+  return (
+    <DropdownMenuItem
+      data-slot="account-menu-appearance"
+      aria-label={`${t('label')} · ${t(`options.${theme}`)}`}
+      onSelect={(event) => event.preventDefault()}
+      onKeyDown={(event) => {
+        if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+          event.preventDefault()
+          step(event.key === 'ArrowRight' ? 1 : -1)
+        }
+      }}
+      className="h-9 cursor-default rounded-lg px-2 focus:bg-accent"
+    >
+      <Moon />
+      <span className="flex-1 truncate">{t('label')}</span>
+      <LiquidSegmented
+        size="xs"
+        semantics="radio"
+        ariaLabel={t('label')}
+        value={theme}
+        onChange={setTheme}
+        items={THEMES.map((option) => ({
+          value: option,
+          label: t(`options.${option}`),
         }))}
       />
     </DropdownMenuItem>

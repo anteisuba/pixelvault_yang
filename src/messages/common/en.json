@@ -189,6 +189,13 @@
       "zh": "简体中文"
     }
   },
+  "ThemeSwitcher": {
+    "label": "Appearance",
+    "options": {
+      "light": "Light",
+      "dark": "Dark"
+    }
+  },
   "Onboarding": {
     "steps": {
       "welcome": {

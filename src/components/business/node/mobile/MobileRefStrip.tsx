@@ -172,7 +172,7 @@ export function MobileRefStrip({
                 item.slot === NODE_SLOT_IDS.lastFrame ? (
                   <span
                     aria-hidden
-                    className="absolute bottom-0 left-0 rounded-bl-node-thumb rounded-tr-md bg-foreground/70 px-1 text-3xs text-background"
+                    className="absolute bottom-0 left-0 rounded-bl-node-thumb rounded-tr-md bg-black/70 px-1 text-3xs text-white"
                   >
                     {tVideo(`rail.roleBadge.${item.slot}`)}
                   </span>

@@ -124,7 +124,7 @@ export function StudioOperatorWebVideoPlayer({
         popover="auto"
         data-testid="operator-web-video-player"
         data-enlarged={enlarged}
-        className="overflow-hidden rounded-lg border border-border bg-card operator-video-stage open:shadow-lg open:animate-in open:fade-in-0 open:zoom-in-95 duration-slow ease-standard backdrop:bg-foreground/70 backdrop:backdrop-blur-sm motion-reduce:animate-none"
+        className="overflow-hidden rounded-lg border border-border bg-card operator-video-stage open:shadow-lg open:animate-in open:fade-in-0 open:zoom-in-95 duration-slow ease-standard backdrop:bg-black/70 backdrop:backdrop-blur-sm motion-reduce:animate-none"
       >
         <div className="aspect-video w-full bg-foreground">
           <iframe

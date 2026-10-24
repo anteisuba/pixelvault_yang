@@ -76,7 +76,7 @@ export function StageStepperBar({
                 className={cn(
                   'flex size-5 shrink-0 items-center justify-center rounded-full border text-3xs font-medium leading-none',
                   s === 'done' &&
-                    'border-status-applied/40 bg-status-applied text-white',
+                    'border-status-applied/40 bg-status-applied text-background',
                   s === 'active' &&
                     'border-status-applied/40 bg-status-applied-surface text-status-applied animate-pulse',
                   s === 'pending' &&

@@ -1,6 +1,8 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+import { THEME_STORAGE_KEY } from '@/constants/theme'
 
 import { AccountMenu } from './AccountMenu'
 
@@ -8,7 +10,7 @@ import { AccountMenu } from './AccountMenu'
  * 账号菜单的回归闸（D11 ④ 画板，2026-09-20 owner 确认）。
  *
  * 钉这几件事：
- *  ① 菜单内容自上而下 = 头部（名字 + @用户名）· 语言 · 设置 · 退出登录；
+ *  ① 菜单内容自上而下 = 头部（名字 + @用户名）· 语言 · 外观 · 设置 · 退出登录；
  *  ② ⭐ 语言是一行分段条（owner 2026-10-08 侧栏原型 v1，复用 `LiquidSegmented`），
  *     只有 en / ja / zh 三档，⛔ 不再展二级子菜单；
  *  ③ ⭐ 语言与设置 → 偏好**同一条路**：落点是当前地址 + 原样带回 query，
@@ -16,8 +18,9 @@ import { AccountMenu } from './AccountMenu'
  *  ④ ⭐ 当前语言不只靠颜色：`aria-checked`（分段条的选中块之外）；
  *  ⑤ ⭐ 退出登录走 `/settings` 同一条路（Clerk `signOut` + 回首页），
  *     ⛔ 没有二次确认；
- *  ⑥ ⛔ 菜单里没有额度、没有 key 数、没有「外观」——那三样各有各的落点，
- *     主题切换这个应用根本没有；
+ *  ⑥ ⛔ 菜单里没有额度、没有 key 数——那两样各有各的落点；
+ *  ⑥' ⭐ 外观是语言下面同一种分段条（素 | 暗房，暗色主题模块 owner 2026-10-24），
+ *     记在本机、换档不关菜单、←/→ 换档；
  *  ⑦ ⭐ 浮层是 `grow` 档（从触发行长出来）并带 `motion-reduce:` 降级 ——
  *     这条浏览器工具模拟不了（2026-09-20 实测缺口），只能在这里钉住；
  *  ⑧ ⭐ 浮层带视口夹取 —— 375 档没验到（Chrome 最窄 ~500），
@@ -76,6 +79,11 @@ function openMenu() {
   })
 }
 
+afterEach(() => {
+  window.localStorage.clear()
+  document.documentElement.classList.remove('dark')
+})
+
 /** 语言那一行（整行一颗 menuitem）与里面的三格，按 DOM 顺序。 */
 async function findLanguageRow() {
   const row = await screen.findByText('LocaleSwitcher:label')
@@ -87,15 +95,73 @@ async function findLanguageRow() {
   }
 }
 
+/** 外观那一行与里面的两格（素 | 暗房），按 DOM 顺序。 */
+async function findAppearanceRow() {
+  const row = await screen.findByText('ThemeSwitcher:label')
+  const item = row.closest<HTMLElement>('[data-slot="account-menu-appearance"]')
+  if (!item) throw new Error('appearance row not found')
+  return {
+    item,
+    options: Array.from(item.querySelectorAll<HTMLElement>('[role="radio"]')),
+  }
+}
+
 describe('AccountMenu（D11 ④）', () => {
-  it('头部是名字 + @用户名，⛔ 不放额度 / key 数 / 外观', async () => {
+  it('头部是名字 + @用户名，⛔ 不放额度 / key 数', async () => {
     openMenu()
 
     expect(await screen.findByText('福林')).toBeInTheDocument()
     expect(screen.getByText('@fulina')).toBeInTheDocument()
     expect(screen.queryByText('Navbar:apiKeys')).toBeNull()
     expect(screen.queryByText('Navbar:requestsLoading')).toBeNull()
-    expect(screen.queryByText(/appearance|外观/i)).toBeNull()
+  })
+
+  it('外观在语言下面、设置上面：一行分段条，只有素 / 暗房两档，默认素', async () => {
+    openMenu()
+
+    const { item, options } = await findAppearanceRow()
+    const language = (await findLanguageRow()).item
+    const settings = screen.getByLabelText('Navbar:settings')
+    expect(item.getAttribute('role')).toBe('menuitem')
+    expect(
+      language.compareDocumentPosition(item) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(
+      item.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(options.map((option) => option.textContent)).toEqual([
+      'ThemeSwitcher:options.light',
+      'ThemeSwitcher:options.dark',
+    ])
+    expect(
+      options.map((option) => option.getAttribute('aria-checked')),
+    ).toEqual(['true', 'false'])
+  })
+
+  it('点暗房：记在本机、菜单不关，当前那一格跟着换', async () => {
+    openMenu()
+
+    const { options } = await findAppearanceRow()
+    fireEvent.click(options[1])
+    expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark')
+    expect(screen.getByText('ThemeSwitcher:label')).toBeInTheDocument()
+    expect(
+      (await findAppearanceRow()).options.map((option) =>
+        option.getAttribute('aria-checked'),
+      ),
+    ).toEqual(['false', 'true'])
+  })
+
+  it('键盘落在外观行上：←/→ 换档，到头绕回来', async () => {
+    openMenu()
+
+    const { item } = await findAppearanceRow()
+    fireEvent.keyDown(item, { key: 'ArrowRight' })
+    expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark')
+    fireEvent.keyDown(item, { key: 'ArrowRight' })
+    expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe('light')
+    fireEvent.keyDown(item, { key: 'ArrowLeft' })
+    expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark')
   })
 
   it('语言是一行分段条：只有 en / ja / zh 三档，⛔ 不再展子菜单', async () => {

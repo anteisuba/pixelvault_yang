@@ -256,13 +256,7 @@ export function CastCard({
                 of app assets — same raw-img convention as ReferenceTokenChip. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={thumbnailUrl} alt="" className="size-full object-cover" />
-            <span
-              className="absolute bottom-0 right-0 flex size-3.5 items-center justify-center rounded-tl"
-              style={{
-                background: 'rgba(10, 10, 10, 0.85)',
-                color: 'var(--canvas-action-fg)',
-              }}
-            >
+            <span className="absolute bottom-0 right-0 flex size-3.5 items-center justify-center rounded-tl bg-black/85 text-white">
               <Icon className="size-2" aria-hidden />
             </span>
           </>

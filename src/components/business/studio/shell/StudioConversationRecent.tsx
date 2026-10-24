@@ -221,7 +221,7 @@ function ProgressRing({ done, total }: { done: number; total: number }) {
   return (
     <span
       data-testid="studio-recent-progress"
-      className="absolute inset-0 grid place-items-center bg-foreground/40"
+      className="absolute inset-0 grid place-items-center bg-black/40"
     >
       <svg viewBox="0 0 24 24" className="size-5 -rotate-90" aria-hidden>
         <circle
@@ -230,7 +230,7 @@ function ProgressRing({ done, total }: { done: number; total: number }) {
           r={RING_RADIUS}
           fill="none"
           strokeWidth="2.5"
-          className="stroke-background/40"
+          className="stroke-white/40"
         />
         <circle
           cx="12"
@@ -241,7 +241,7 @@ function ProgressRing({ done, total }: { done: number; total: number }) {
           strokeLinecap="round"
           strokeDasharray={RING_LENGTH}
           strokeDashoffset={RING_LENGTH * (1 - Math.max(share, 0.08))}
-          className="stroke-background"
+          className="stroke-white"
         />
       </svg>
     </span>

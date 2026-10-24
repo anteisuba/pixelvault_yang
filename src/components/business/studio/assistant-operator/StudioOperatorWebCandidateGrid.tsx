@@ -562,7 +562,7 @@ function WebCandidateTile({
         {image.n ? (
           <span
             data-testid="operator-web-candidate-number"
-            className="pointer-events-none absolute left-1.5 top-1.5 rounded-sm bg-foreground/75 px-1 font-mono text-2xs font-semibold tabular-nums leading-4 text-background"
+            className="pointer-events-none absolute left-1.5 top-1.5 rounded-sm bg-black/75 px-1 font-mono text-2xs font-semibold tabular-nums leading-4 text-white"
           >
             #{image.n}
           </span>
@@ -574,7 +574,7 @@ function WebCandidateTile({
           <SiteLink
             image={image}
             site={site}
-            className="absolute inset-x-1.5 bottom-1.5 w-fit max-w-full rounded-md bg-foreground/75 px-1.5 py-0.5 text-2xs text-background opacity-0 transition-opacity duration-fast ease-standard group-hover:opacity-100 focus-visible:opacity-100 motion-reduce:transition-none"
+            className="absolute inset-x-1.5 bottom-1.5 w-fit max-w-full rounded-md bg-black/75 px-1.5 py-0.5 text-2xs text-white opacity-0 transition-opacity duration-fast ease-standard group-hover:opacity-100 focus-visible:opacity-100 motion-reduce:transition-none"
           />
         ) : null}
 
@@ -593,16 +593,16 @@ function WebCandidateTile({
           >
             <span
               className={cn(
-                'grid size-5 place-items-center rounded-full border-2 border-background transition-[background-color,transform] duration-fast ease-standard motion-reduce:transition-none',
-                state === 'idle' && 'bg-foreground/25',
-                state === 'error' && 'border-status-risk bg-foreground/25',
-                state === 'staged' && 'scale-110 bg-background',
+                'grid size-5 place-items-center rounded-full border-2 border-white transition-[background-color,transform] duration-fast ease-standard motion-reduce:transition-none',
+                state === 'idle' && 'bg-black/25',
+                state === 'error' && 'border-status-risk bg-black/25',
+                state === 'staged' && 'scale-110 bg-white',
                 (state === 'saving' || state === 'saved') &&
-                  'bg-background text-foreground',
+                  'bg-white text-black',
               )}
             >
               {state === 'staged' ? (
-                <span className="size-2 rounded-full bg-foreground" />
+                <span className="size-2 rounded-full bg-black" />
               ) : state === 'saved' ? (
                 <Check className="size-3" aria-hidden />
               ) : state === 'saving' ? (

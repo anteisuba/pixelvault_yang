@@ -213,7 +213,7 @@ export function StudioVideoAssetRail({
                     {image.role !== 'reference' ? (
                       <span
                         data-testid={`video-asset-badge-${image.role}`}
-                        className="absolute left-1 top-1 rounded-sm bg-foreground/75 px-1 text-3xs leading-4 text-background"
+                        className="absolute left-1 top-1 rounded-sm bg-black/75 px-1 text-3xs leading-4 text-white"
                       >
                         {image.role === 'first'
                           ? t('firstFrame')

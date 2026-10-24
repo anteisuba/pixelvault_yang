@@ -7,9 +7,8 @@
   --foreground: oklch(14.5% 0 0);
   --muted-foreground: oklch(55.6% 0 0);
   --border: oklch(92.2% 0 0);
-  /* pin the reversed-CTA tokens for the light surface — otherwise a shadcn
-     Button here inherits the .dark palette's --primary and renders a
-     light-on-light pill (see reference-dark-color-scheme). */
+  /* 条款页一直是素（外观只管 `(main)`）。主按钮的反色两格照样钉死：万一 `<html>`
+     带着 `.dark` 进来，shadcn Button 会拿到暗房的米白 --primary、画成浅底浅字。 */
   --primary: oklch(14.5% 0 0);
   --primary-foreground: oklch(100% 0 0);
   --home-border: color-mix(in oklab, var(--border) 72%, transparent);

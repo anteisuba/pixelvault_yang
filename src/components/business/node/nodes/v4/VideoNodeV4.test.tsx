@@ -323,7 +323,8 @@ describe('空卡 / 有片两态（spec §5）', () => {
     expect(duration.style.borderRadius).toBe(
       'calc(var(--radius-node-thumb) / 2)',
     )
-    expect(duration).toHaveClass('bg-foreground/45', 'text-card', 'text-2xs')
+    // 压在画面上的读数两档都是暗底白字（暗色主题模块）。
+    expect(duration).toHaveClass('bg-black/45', 'text-white', 'text-2xs')
     expect(document.querySelector('[data-video-ref-rail]')).toBeNull()
   })
 

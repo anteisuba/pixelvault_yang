@@ -1,10 +1,13 @@
 'use client'
 
-import { useRef, useState, type ChangeEvent } from 'react'
+import { useContext, useRef, useState, type ChangeEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { Image as ImageIcon, Plus, X } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
+import { AssetPickerBrowser } from '@/components/business/assets/AssetPickerBrowser'
+import { StudioLibraryTargetContext } from '@/components/business/studio/shell/StudioLibraryOverlay'
 import { ImagePickerPopoverBody } from '@/components/business/studio-shared/ImagePickerPopoverBody'
 import {
   StudioToolPopoverContent,
@@ -26,7 +29,11 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import type { NumericRange } from '@/constants/provider-capabilities'
+import { studioLibraryPickPath } from '@/constants/studio-shell'
+import { useLibraryPickSlot } from '@/contexts/studio-library-pick'
+import { useIsMobile } from '@/hooks/use-mobile'
 import type { useImageUpload } from '@/hooks/use-image-upload'
+import { useRouter } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
 
@@ -66,6 +73,13 @@ export function LoraReferenceImageCards({
   const chip = useStudioChipClasses()
   const [addOpen, setAddOpen] = useState(false)
   const [assetDialogOpen, setAssetDialogOpen] = useState(false)
+  // 素材库桌面开在外壳中间库叠层的素材那一格（第 9f 步 9f-2d），手机仍是全屏弹窗。
+  const isMobile = useIsMobile()
+  const router = useRouter()
+  const tShell = useTranslations('StudioShell')
+  const benchLabel = useTranslations('StudioTools')('tools.lora.label')
+  const librarySlot = useLibraryPickSlot('assets', isMobile ? null : benchLabel)
+  const closeLibrary = useContext(StudioLibraryTargetContext)?.close
   const [previewIndex, setPreviewIndex] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -100,6 +114,14 @@ export function LoraReferenceImageCards({
     setAddOpen(false)
   }
 
+  const openLibrary = () => {
+    // Close the popover before the full-screen picker so the two focus
+    // traps don't fight (mirrors the Studio chip pattern).
+    setAddOpen(false)
+    if (isMobile) setAssetDialogOpen(true)
+    else router.push(studioLibraryPickPath('assets'))
+  }
+
   const pickerBody = (
     <ImagePickerPopoverBody
       dropHint={t('dropHint')}
@@ -115,12 +137,7 @@ export function LoraReferenceImageCards({
         void handleSelectAsset(generation)
         setAddOpen(false)
       }}
-      onOpenLibrary={() => {
-        // Close the popover before the full-screen picker so the two focus
-        // traps don't fight (mirrors the Studio chip pattern).
-        setAddOpen(false)
-        setAssetDialogOpen(true)
-      }}
+      onOpenLibrary={openLibrary}
     />
   )
 
@@ -134,7 +151,23 @@ export function LoraReferenceImageCards({
       disabled={disabled}
     />
   )
-  const assetDialog = (
+  const assetDialog = librarySlot ? (
+    createPortal(
+      <AssetPickerBrowser
+        mode="multi"
+        mediaType="image"
+        maxSelection={remainingReferenceSlots}
+        title={tShell('pickFor', { bench: benchLabel })}
+        onConfirmMany={(gens) => {
+          void handleSelectAssets(gens)
+          closeLibrary?.()
+        }}
+        onCancel={() => closeLibrary?.()}
+      />,
+      librarySlot,
+      'lora-reference-library',
+    )
+  ) : (
     <AssetSelectorDialog
       open={assetDialogOpen}
       onOpenChange={setAssetDialogOpen}
@@ -199,10 +232,7 @@ export function LoraReferenceImageCards({
                 void handleSelectAsset(generation)
                 setAddOpen(false)
               }}
-              onOpenLibrary={() => {
-                setAddOpen(false)
-                setAssetDialogOpen(true)
-              }}
+              onOpenLibrary={openLibrary}
               disabledReason={
                 isFull
                   ? t('limitReached', { max: imageUpload.maxImages })
@@ -406,16 +436,7 @@ export function LoraReferenceImageCards({
         </DialogContent>
       </Dialog>
 
-      <AssetSelectorDialog
-        open={assetDialogOpen}
-        onOpenChange={setAssetDialogOpen}
-        multiSelect
-        maxSelection={remainingReferenceSlots}
-        onConfirmMany={(gens) => void handleSelectAssets(gens)}
-        title={t('selectAsset')}
-        description={t('description')}
-        mediaType="image"
-      />
+      {assetDialog}
     </div>
   )
 }

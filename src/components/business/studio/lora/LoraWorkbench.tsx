@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useContext,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -9,6 +10,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { createPortal } from 'react-dom'
 import { useSearchParams } from 'next/navigation'
 import { useUser } from '@clerk/nextjs'
 import { motion, useTransform } from 'motion/react'
@@ -78,7 +80,10 @@ import {
 import { RUNNER_SAMPLERS, RUNNER_SCHEDULERS } from '@/constants/runner-sampling'
 import { STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR } from '@/constants/studio-assistant-operator'
 import { ROUTES } from '@/constants/routes'
-import { studioLibraryPath } from '@/constants/studio-shell'
+import {
+  studioLibraryPath,
+  studioLibraryPickPath,
+} from '@/constants/studio-shell'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import type { AspectRatio } from '@/constants/config'
 import {
@@ -104,7 +109,12 @@ import { MOBILE_BREAKPOINT, useIsMobile } from '@/hooks/use-mobile'
 import { TrainWizard } from '@/components/business/studio/lora/training/TrainWizard'
 import { LoraAssetCard } from '@/components/business/studio/lora/LoraAssetCard'
 import { LoraAssemblyColumn } from '@/components/business/studio/lora/LoraAssemblyColumn'
-import { CharacterLoraPickDialog } from '@/components/business/studio/lora/CharacterLoraPickDialog'
+import {
+  CharacterLoraPickDialog,
+  CharacterLoraPicker,
+} from '@/components/business/studio/lora/CharacterLoraPickDialog'
+import { StudioLibraryTargetContext } from '@/components/business/studio/shell/StudioLibraryOverlay'
+import { StudioLibraryPickFrame } from '@/components/business/studio/shell/StudioLibraryPickFrame'
 import {
   CharacterLorasProvider,
   useCharacterLorasContext,
@@ -234,7 +244,10 @@ import {
 import { AssistantLoraParametersSchema } from '@/types/assistant-operator'
 import { PromptTriggerHighlight } from '@/components/business/studio/lora/PromptTriggerHighlight'
 import { LoraReferenceImageCards } from '@/components/business/studio/lora/LoraReferenceImageCards'
-import { useRegisterLoraLibraryPick } from '@/contexts/studio-library-pick'
+import {
+  useLibraryPickSlot,
+  useRegisterLoraLibraryPick,
+} from '@/contexts/studio-library-pick'
 import { LoraScaleChip } from '@/components/business/studio/lora/LoraScaleChip'
 import type { TriggerChipEntry } from '@/components/business/studio/lora/TriggerChipRow'
 import {
@@ -464,56 +477,59 @@ export function LoraWorkbench() {
 
   if (!isMobile) {
     return (
-      <motion.div
-        style={{ paddingRight: groundPaddingRight }}
-        // ⚠ 顶上一行定高 `h-9`、行距 `gap-3`：助手面板按这两个数对齐舞台顶边
-        //   （`STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR`），改这里必须改那边。
-        className="domain-lora lora-locked-height flex w-full min-h-0 flex-col gap-3 overflow-hidden"
-      >
-        <div className="flex h-9 shrink-0 items-center gap-3.5">
-          <h1 className="text-sm font-semibold text-muted-foreground">
-            {t('pageTitle')}
-          </h1>
-          <LiquidSegmented
-            ariaLabel={t('tabsLabel')}
-            value={pendingSection ?? activeSection}
-            items={[
-              {
-                value: LORA_WORKBENCH_SECTIONS.GENERATE,
-                label: t('tabs.generate'),
-              },
-              {
-                value: LORA_WORKBENCH_SECTIONS.TRAIN,
-                label: t('tabs.train'),
-              },
-            ]}
-            onChange={(section) => {
-              setPendingSection(section)
-              setActiveSection(section)
-            }}
-          />
-        </div>
-        {isGenerate || isLibrary ? (
-          // 库 / 收藏搬去外壳中间的库叠层了（第 9f 步 9f-2b）：这里只剩生成台。
-          <div className="flex min-h-0 flex-1 animate-in flex-col gap-3 fade-in duration-200">
-            <GenerateBranch
-              assistantOpen={assistantOpen}
-              onAssistantOpenChange={setAssistantOpen}
-              libraryAssets={libraryAssets}
-              onOpenLibrary={() => openLibraryOverlay()}
+      // ⚠ 桌面也要包：「从角色选」读的就是这一份（以前只包了手机那一套，桌面那颗点了没反应）。
+      <CharacterLorasProvider value={characterLoras}>
+        <motion.div
+          style={{ paddingRight: groundPaddingRight }}
+          // ⚠ 顶上一行定高 `h-9`、行距 `gap-3`：助手面板按这两个数对齐舞台顶边
+          //   （`STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR`），改这里必须改那边。
+          className="domain-lora lora-locked-height flex w-full min-h-0 flex-col gap-3 overflow-hidden"
+        >
+          <div className="flex h-9 shrink-0 items-center gap-3.5">
+            <h1 className="text-sm font-semibold text-muted-foreground">
+              {t('pageTitle')}
+            </h1>
+            <LiquidSegmented
+              ariaLabel={t('tabsLabel')}
+              value={pendingSection ?? activeSection}
+              items={[
+                {
+                  value: LORA_WORKBENCH_SECTIONS.GENERATE,
+                  label: t('tabs.generate'),
+                },
+                {
+                  value: LORA_WORKBENCH_SECTIONS.TRAIN,
+                  label: t('tabs.train'),
+                },
+              ]}
+              onChange={(section) => {
+                setPendingSection(section)
+                setActiveSection(section)
+              }}
             />
           </div>
-        ) : (
-          <div
-            key={bodyKey}
-            className="workbench-card min-h-0 flex-1 animate-in fade-in duration-200"
-          >
-            <div className="min-h-0 flex-1 overflow-y-auto p-4">
-              <TrainWizard />
+          {isGenerate || isLibrary ? (
+            // 库 / 收藏搬去外壳中间的库叠层了（第 9f 步 9f-2b）：这里只剩生成台。
+            <div className="flex min-h-0 flex-1 animate-in flex-col gap-3 fade-in duration-200">
+              <GenerateBranch
+                assistantOpen={assistantOpen}
+                onAssistantOpenChange={setAssistantOpen}
+                libraryAssets={libraryAssets}
+                onOpenLibrary={() => openLibraryOverlay()}
+              />
             </div>
-          </div>
-        )}
-      </motion.div>
+          ) : (
+            <div
+              key={bodyKey}
+              className="workbench-card min-h-0 flex-1 animate-in fade-in duration-200"
+            >
+              <div className="min-h-0 flex-1 overflow-y-auto p-4">
+                <TrainWizard />
+              </div>
+            </div>
+          )}
+        </motion.div>
+      </CharacterLorasProvider>
     )
   }
 
@@ -1991,14 +2007,23 @@ function GenerateBranch({
   // 标签就在提示里问一句要不要加进正文（默认不加，⛔ 自动写）。
   const characterLorasContext = useCharacterLorasContext()
   const tCharacterLoras = useTranslations('LoraWorkbench.characterLoras')
+  const tStudioTools = useTranslations('StudioTools')
+  // 桌面开在外壳中间库叠层的角色那一格（第 9f 步 9f-2d），手机仍是弹窗。
   const [characterPickOpen, setCharacterPickOpen] = useState(false)
+  const characterPickSlot = useLibraryPickSlot(
+    'cards',
+    isMobile ? null : tStudioTools('tools.lora.label'),
+  )
+  const closeLibrary = useContext(StudioLibraryTargetContext)?.close
   const openCharacterPick = useCallback(() => {
-    setCharacterPickOpen(true)
+    if (isMobile) setCharacterPickOpen(true)
+    else if (!characterPickSlot) router.push(studioLibraryPickPath('cards'))
     void characterLorasContext?.refresh()
-  }, [characterLorasContext])
+  }, [characterLorasContext, characterPickSlot, isMobile, router])
   const handlePickCharacterLora = useCallback(
     (group: CharacterLoraGroup, lora: LoraAssetRecord) => {
       setCharacterPickOpen(false)
+      if (characterPickSlot) closeLibrary?.()
       if (!stack.items.some((item) => item.asset.id === lora.id)) {
         stack.push(lora)
       }
@@ -2025,7 +2050,7 @@ function GenerateBranch({
           : { duration: LORA_TOAST_DURATION_MS },
       )
     },
-    [stack, tCharacterLoras],
+    [characterPickSlot, closeLibrary, stack, tCharacterLoras],
   )
 
   // 库判断「装不装得上」要的底模从这里给（lora-library.md §4）：库叠在外壳中间，
@@ -3027,7 +3052,25 @@ function GenerateBranch({
   // 两套骨架共用的弹层：缺 key 快速配置 · 结果大图 · 库。
   const sharedDialogs = (
     <>
-      {characterLorasContext ? (
+      {characterLorasContext && characterPickSlot
+        ? createPortal(
+            <StudioLibraryPickFrame
+              benchLabel={tStudioTools('tools.lora.label')}
+            >
+              <CharacterLoraPicker
+                groups={characterLorasContext.groups}
+                isLoading={characterLorasContext.isLoading}
+                isMounted={(assetId) =>
+                  stack.items.some((item) => item.asset.id === assetId)
+                }
+                onPick={handlePickCharacterLora}
+              />
+            </StudioLibraryPickFrame>,
+            characterPickSlot,
+            'lora-character-pick',
+          )
+        : null}
+      {characterLorasContext && isMobile ? (
         <CharacterLoraPickDialog
           open={characterPickOpen}
           onOpenChange={setCharacterPickOpen}

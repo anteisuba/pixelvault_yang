@@ -7,12 +7,8 @@ import { LOCALES } from '@/i18n/routing'
 const API_ROUTE_PREFIX = '/api'
 const SITEMAP_ROUTE = '/sitemap.xml'
 
-const privateRoutes = [
-  ROUTES.STUDIO,
-  ROUTES.LIBRARY,
-  ROUTES.PROMPTS,
-  ROUTES.ASSETS,
-]
+// 素材 / 提示词等列表页都在 `/library` 下（9f-2e）；`/assets/<id>` 是单张素材详情。
+const privateRoutes = [ROUTES.STUDIO, ROUTES.LIBRARY, ROUTES.ASSET_DETAIL]
 
 function getLocalizedPrivateRoutePatterns(route: string): string[] {
   return LOCALES.map((locale) => `/${locale}${route}`)

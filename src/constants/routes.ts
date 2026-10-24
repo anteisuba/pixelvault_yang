@@ -37,12 +37,17 @@ export const ROUTES = {
   STUDIO_EDIT: '/studio/edit',
   STUDIO_LORA: '/studio/lora',
   STUDIO_NODE: '/studio/node',
-  /** Krea-style private asset browser */
-  ASSETS: '/assets',
-  CARDS: '/cards',
-  /** 音色库页（「声音」模块，owner 10-23）：我的收藏 · 我的克隆 · 找音色。 */
-  VOICES: '/voices',
-  PROMPTS: '/prompts',
+  /**
+   * 库里的四类（第 9f 步 9f-2e）：旧地址 `/assets` `/cards` `/prompts` `/voices` 已 308 跳到
+   * 这里（`LEGACY_LIBRARY_REDIRECTS`），站内一律直接写新地址。
+   */
+  ASSETS: '/library/assets',
+  CARDS: '/library/cards',
+  /** 音色库（「声音」模块，owner 10-23）：我的收藏 · 我的克隆 · 找音色。 */
+  VOICES: '/library/voices',
+  PROMPTS: '/library/prompts',
+  /** 单张素材详情整页 `/assets/<id>`（库里没有对应页，不跳）。 */
+  ASSET_DETAIL: '/assets',
   /**
    * 库（第 9f 步方向 E）：`/library/<类>` 叠在 `/studio` 外壳中间那一栏上，⛔ 盖住台。
    * 从外壳里点开时台不卸载；直接打开（刷新）= 叠在首页上。
@@ -70,6 +75,17 @@ export const ROUTES = {
   MY_PROFILE: '/u/me',
 } as const
 
+/**
+ * 搬进库之前的旧地址（第 9f 步 9f-2e）→ 现在的地址，`next.config.ts` 的 `redirects()` 用它发
+ * 308。只有列表页这一层；`/assets/<id>` 详情与 `/gallery`（访客 / 搜索引擎要整页）不跳。
+ */
+export const LEGACY_LIBRARY_REDIRECTS = [
+  { from: '/assets', to: ROUTES.ASSETS },
+  { from: '/cards', to: ROUTES.CARDS },
+  { from: '/prompts', to: ROUTES.PROMPTS },
+  { from: '/voices', to: ROUTES.VOICES },
+] as const
+
 /** 开着台时，对话编号跟在台地址后面的那一格（`/studio/image?c=<编号>`）。 */
 export const STUDIO_CONVERSATION_QUERY = 'c'
 
@@ -90,7 +106,7 @@ export function galleryGenerationPath(id: string): string {
 
 /** Build the standalone asset detail URL for a generation */
 export function assetDetailPath(id: string): string {
-  return `${ROUTES.ASSETS}/${encodeURIComponent(id)}`
+  return `${ROUTES.ASSET_DETAIL}/${encodeURIComponent(id)}`
 }
 
 export interface PromptCreatePathOptions {

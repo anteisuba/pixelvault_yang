@@ -6,6 +6,9 @@ import createWithVercelToolbar from '@vercel/toolbar/plugins/next'
 import createNextIntlPlugin from 'next-intl/plugin'
 import type { NextConfig } from 'next'
 
+import { LEGACY_LIBRARY_REDIRECTS } from './src/constants/routes'
+import { LOCALES } from './src/i18n/routing'
+
 const PROJECT_ROOT = dirname(fileURLToPath(import.meta.url))
 
 const withBundleAnalyzer = bundleAnalyzer({
@@ -83,6 +86,16 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'replicate.delivery' },
       { protocol: 'https', hostname: 'img.clerk.com' },
     ],
+  },
+  // 素材 / 角色 / 提示词 / 音色搬进库（第 9f 步 9f-2e）：旧地址永久跳（308），参数原样带过去。
+  // 不带语言前缀的那条先交给 next-intl 补上前缀，再落到这里。
+  async redirects() {
+    const locales = LOCALES.join('|')
+    return LEGACY_LIBRARY_REDIRECTS.map(({ from, to }) => ({
+      source: `/:locale(${locales})${from}`,
+      destination: `/:locale${to}`,
+      permanent: true,
+    }))
   },
   async headers() {
     // Defence-in-depth CSP. `script-src` / `style-src` are intentionally

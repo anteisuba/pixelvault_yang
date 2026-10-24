@@ -1167,6 +1167,7 @@
     "expandChat": "Show chat",
     "pickFor": "Picking for the {bench} bench",
     "pickForBase": "Picking for the {bench} bench · base {base}",
-    "pickDone": "Done"
+    "pickDone": "Done",
+    "manageInLibrary": "Manage in library"
   }
 }

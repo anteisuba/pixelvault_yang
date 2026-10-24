@@ -4,6 +4,7 @@ import {
   conversationIdFromPath,
   isStudioShellPath,
   libraryCategoryFromPath,
+  shellOverlayFromPath,
   studioBenchHref,
   studioConversationHref,
   studioShellRouteKind,
@@ -18,6 +19,14 @@ describe('studio-shell-route', () => {
     expect(studioShellRouteKind('/studio/node')).toBe('bench')
     expect(studioShellRouteKind('/studio/audio')).toBe('page')
     expect(studioShellRouteKind('/library/assets')).toBe('library')
+    expect(studioShellRouteKind('/u/me')).toBe('library')
+  })
+
+  it('knows what overlays the middle column: a library category or my profile', () => {
+    expect(shellOverlayFromPath('/library/prompts')).toBe('prompts')
+    expect(shellOverlayFromPath('/u/me')).toBe('profile')
+    expect(shellOverlayFromPath('/u/someone')).toBeNull()
+    expect(shellOverlayFromPath('/studio')).toBeNull()
   })
 
   it('reads the library category and knows which routes the shell owns', () => {

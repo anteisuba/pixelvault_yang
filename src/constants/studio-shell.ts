@@ -67,6 +67,12 @@ export const STUDIO_LIBRARY_CATEGORY_IDS = [
 export type StudioLibraryCategoryId =
   (typeof STUDIO_LIBRARY_CATEGORY_IDS)[number]
 
+/**
+ * 叠在中间那一栏上的东西（第 9f 步）：库的各类，外加「我的主页」（9f-2e，从外壳里点开
+ * `/u/me` 时叠上来；直接打开仍是整页）。
+ */
+export type StudioShellOverlayId = StudioLibraryCategoryId | 'profile'
+
 export function studioLibraryPath(category: StudioLibraryCategoryId): string {
   return `${ROUTES.LIBRARY}/${category}`
 }

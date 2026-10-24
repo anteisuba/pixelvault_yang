@@ -7,6 +7,7 @@ import {
   STUDIO_LIBRARY_CATEGORY_IDS,
   STUDIO_SHELL_PAGE_ROUTES,
   type StudioLibraryCategoryId,
+  type StudioShellOverlayId,
   type StudioShellRouteKind,
 } from '@/constants/studio-shell'
 
@@ -22,7 +23,9 @@ function underPrefix(pathname: string, prefix: string): boolean {
 }
 
 export function studioShellRouteKind(pathname: string): StudioShellRouteKind {
-  if (underPrefix(pathname, ROUTES.LIBRARY)) return 'library'
+  // 我的主页从外壳里点开也是叠层（9f-2e）：底下那一页留着。
+  if (underPrefix(pathname, ROUTES.LIBRARY) || pathname === ROUTES.MY_PROFILE)
+    return 'library'
   if (
     pathname === ROUTES.STUDIO ||
     underPrefix(pathname, ROUTES.STUDIO_CONVERSATION)
@@ -69,6 +72,14 @@ export function libraryCategoryFromPath(
   if (!pathname.startsWith(`${ROUTES.LIBRARY}/`)) return null
   const raw = pathname.slice(ROUTES.LIBRARY.length + 1).split('/')[0]
   return STUDIO_LIBRARY_CATEGORY_IDS.find((id) => id === raw) ?? null
+}
+
+/** 这个地址叠在中间的是哪一样：库的某一类 / 我的主页；都不是 = `null`。 */
+export function shellOverlayFromPath(
+  pathname: string,
+): StudioShellOverlayId | null {
+  if (pathname === ROUTES.MY_PROFILE) return 'profile'
+  return libraryCategoryFromPath(pathname)
 }
 
 /** 外壳管的路由：`/studio/**` 与 `/library/**`（≥1024 全站侧栏让给外壳左栏）。 */

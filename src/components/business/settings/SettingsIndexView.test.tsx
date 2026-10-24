@@ -72,7 +72,7 @@ describe('SettingsIndexView (mobile first level)', () => {
     )
     expect(hrefs).toEqual([
       '/u/me',
-      '/prompts',
+      '/library/prompts',
       '/settings/keys',
       '/settings/usage',
       '/settings/assistant',

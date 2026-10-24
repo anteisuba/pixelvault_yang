@@ -10,7 +10,7 @@ import {
 import { MobileShell } from './MobileShell'
 
 const nav = vi.hoisted(() => ({
-  pathname: '/assets',
+  pathname: '/library/assets',
   push: vi.fn(),
 }))
 
@@ -37,7 +37,7 @@ vi.mock('@/i18n/navigation', () => ({
 }))
 
 beforeEach(() => {
-  nav.pathname = '/assets'
+  nav.pathname = '/library/assets'
   nav.push.mockReset()
   window.localStorage.clear()
 })
@@ -57,11 +57,16 @@ describe('MobileShell 底栏（P3 · v10）', () => {
     const hrefs = [...bar.querySelectorAll('a')].map((a) =>
       a.getAttribute('href'),
     )
-    expect(hrefs).toEqual(['/assets', '/gallery', '/cards', '/settings'])
+    expect(hrefs).toEqual([
+      '/library/assets',
+      '/gallery',
+      '/library/cards',
+      '/settings',
+    ])
     expect(bar).toContainElement(createButton())
     // 窄格子里「我的主页」叫「我的」。
     expect(bar.textContent).toContain('MobileNav:tabs.profile')
-    expect(bar.querySelector('a[href="/assets"]')).toHaveAttribute(
+    expect(bar.querySelector('a[href="/library/assets"]')).toHaveAttribute(
       'aria-current',
       'page',
     )
@@ -69,7 +74,7 @@ describe('MobileShell 底栏（P3 · v10）', () => {
 
   it('提示词不上底栏', () => {
     render(<MobileShell />)
-    expect(document.querySelector('a[href="/prompts"]')).toBeNull()
+    expect(document.querySelector('a[href="/library/prompts"]')).toBeNull()
   })
 
   it('点 ＋ 打开新建面板：一句话输入 + 六个工具，上次用的标「上次」', () => {
@@ -139,12 +144,12 @@ describe('MobileShell 工作台顶栏', () => {
   })
 
   it('← 回到进工作台之前那一页；没有记录回素材', () => {
-    window.localStorage.setItem(MOBILE_NAV_RETURN_STORAGE_KEY, '/cards')
+    window.localStorage.setItem(MOBILE_NAV_RETURN_STORAGE_KEY, '/library/cards')
     nav.pathname = '/studio/image'
     const { unmount } = render(<MobileShell />)
     expect(screen.getByLabelText('MobileNav:back')).toHaveAttribute(
       'href',
-      '/cards',
+      '/library/cards',
     )
     unmount()
 
@@ -152,7 +157,7 @@ describe('MobileShell 工作台顶栏', () => {
     render(<MobileShell />)
     expect(screen.getByLabelText('MobileNav:back')).toHaveAttribute(
       'href',
-      '/assets',
+      '/library/assets',
     )
   })
 

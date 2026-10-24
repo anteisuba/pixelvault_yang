@@ -1167,6 +1167,7 @@
     "expandChat": "展开对话",
     "pickFor": "选给 {bench} 台",
     "pickForBase": "选给 {bench} 台 · 底模 {base}",
-    "pickDone": "完成"
+    "pickDone": "完成",
+    "manageInLibrary": "去库里管理"
   }
 }

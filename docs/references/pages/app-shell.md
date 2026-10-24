@@ -317,7 +317,8 @@ studio 内容裁出视口，是因为侧栏能展开到 144；平板档现在钉
 - **LoRA 一类（9f-2b）**：`/library/lora`（库 · 收藏两格，`?view=favorites`），原来 LoRA 台里那两格搬来，台上只剩 生成 · 训练。挂载栈挂在 `(shell)/layout.tsx`，叠层里挂上的台上当场看见；台开着时经 `StudioLibraryPickProvider` 登记底模，叠层顶上写「选给 LoRA 台」。
 - **台上开库（9f-2d）**：桌面（≥768）图片 / 视频 / 标签台的「参考图 → 素材库」「角色」「模板」打开 `/library/<类>?pick=1`（`studioLibraryPickPath`），⛔ 再开弹窗 / 弹层 / 舞台面板。库那一格只画落点（`StudioLibraryPickSlot`），挑选界面由**台自己**传送进来（`useLibraryPickSlot`，在 `StudioLibraryPickProvider` 里登记；同一类后登记的说了算），所以台的状态（参考图剩余格数、角色造型、模板套用与撤销快照）原样可用。参考图用自带头部的素材挑选（标题写「选给 XX 台」），角色套 `StudioLibraryPickFrame`（「选给 XX 台」+「完成」），模板用模板面板自己的头部。没有台在等（直接打开 / 刷新）就退回这一类整页。LoRA 台的「从角色选」（`CharacterLoraPicker`）与参考图卡的素材库同样开进库里。手机仍走原来的抽屉 / 舞台面板 / 弹窗。`cardSelector` 面板已删。
 - **标签一类（9f-2c）**：`/library/tags`（`TagLibraryView`，只在库里、没有旧页面）。顶上「库 | 收藏」；库分 角色 · 画风 · 作品 · 特征 四类，不搜就按作品数从多到少排、滚到底接着翻（接口 `page`，一页只回名字与作品数；每张卡滚到才问样图 `tag + preview`，前端最多同时问 4 张，一张全年龄样图都没有的卡不画）；一搜就是搜到的那几个。点卡进详情（`?tag=&of=`）：样图 · 别名 · Danbooru Wiki 头一段 · 常一起出现的 · 收藏。详情与手机查资料共用 `LookupDetailPane`。桌面标签台开着就登记 `TagsLibraryAdder`（`useRegisterTagsLibraryPick`）：顶上写「选给 标签 台」、详情能加到 整体 / 角色 N；没开只能看、收藏。桌面「查资料」开这一类，⛔ 再开舞台面板；台上 Ctrl / ⌘ + 点一格标签直接打开它的详情（不写 `of` 时按 tag 自己的类别认）。手机仍在舞台上查资料。中日文名：搜索先查自家词库 `DanbooruTagName`（中日文名与中文别名），候选、网格、详情、收藏按界面语言带上中文名 / 日文名（英文界面不显示）；中文界面详情的说明优先用词库那句中文注释，没有再用 Wiki。
-- 之后：9f-2e 旧地址 308 与我的主页、9f-3 列表封面/进度、9f-4 动效，手机端另做。
+- **旧地址与我的主页（9f-2e）**：`/assets` `/cards` `/prompts` `/voices` 在 `next.config.ts` 的 `redirects()` 里 308 到 `/library/<类>`（`LEGACY_LIBRARY_REDIRECTS`，参数原样带过去）；页面本体搬进 `(shell)/library/<类>/<类>-page.tsx`，`ROUTES.ASSETS` 等直接就是新地址。不跳：`/assets/<id>`（单张素材详情，`ROUTES.ASSET_DETAIL`）、`/gallery`（访客 / 搜索引擎要整页）。<1024 直接打开库（`base` 为空）就地当一整页画（`StudioLibraryTarget.inPlace`），⛔ 盖满屏的叠层，底栏照旧；库里换类是软跳转，上一类还在 `children`，只画地址上那一类。从外壳里点开 `/u/me`（账号菜单）由 `@library/(.)u/me` 拦截，叠在中间（`profile`：标题 +「去库里管理」→ 素材库）；直接打开 / 刷新仍是整页。
+- 之后：9f-3 列表封面/进度、9f-4 动效，手机端另做。
 
 ## Last Verified
 

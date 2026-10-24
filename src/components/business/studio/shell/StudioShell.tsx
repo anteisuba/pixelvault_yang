@@ -20,8 +20,8 @@ import {
 import { ROUTES, STUDIO_CONVERSATION_QUERY } from '@/constants/routes'
 import {
   STUDIO_SHELL_BENCH_IDS,
-  type StudioLibraryCategoryId,
   STUDIO_SHELL_SPLIT,
+  type StudioShellOverlayId,
   type StudioShellRouteKind,
 } from '@/constants/studio-shell'
 import { StudioLibraryPickProvider } from '@/contexts/studio-library-pick'
@@ -52,6 +52,7 @@ import { useStudioShellSplit } from '@/hooks/use-studio-shell-split'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
 import {
   conversationIdFromPath,
+  shellOverlayFromPath,
   studioBenchHref,
   studioConversationHref,
   studioShellRouteKind,
@@ -123,23 +124,31 @@ export function StudioShell({
   )
   if (routeKind !== 'library' && base?.pathname !== pathname)
     setBase({ kind: routeKind, pathname })
-  const kind = base?.kind ?? 'home'
   const isDesk = useIsDesk()
+  /**
+   * 手机 / 平板（<1024）直接打开库（旧地址 308 过来、底栏点「素材」…）：没有台可留，
+   * 就地当一整页画，⛔ 盖满屏的叠层 —— 与搬进库之前那一页长得一样，底栏照旧（9f-2e）。
+   * 从台上点开（`base` 有值）照旧叠上来，关掉回到台。
+   */
+  const libraryInPlace =
+    isDesk === false && routeKind === 'library' && base === null
+  const kind = libraryInPlace ? 'page' : (base?.kind ?? 'home')
   const homeHost = useHomeOperatorHost()
   const [restore] = useState(() => initialRestore(pathname))
   const [libraryTarget, setLibraryTarget] = useState<HTMLElement | null>(null)
   const [libraryCategory, setLibraryCategory] =
-    useState<StudioLibraryCategoryId | null>(null)
+    useState<StudioShellOverlayId | null>(null)
   const libraryOpen = libraryCategory !== null
   const cameFromShell = base !== null
   const libraryContext = useMemo(
     () => ({
       target: libraryTarget,
+      inPlace: libraryInPlace ? shellOverlayFromPath(pathname) : null,
       setOpenCategory: setLibraryCategory,
       // 从外壳里点开的 → 后退回到进来之前那一页（台还在）；直接打开的 → 回首页。
       close: () => (cameFromShell ? router.back() : router.push(ROUTES.STUDIO)),
     }),
-    [cameFromShell, libraryTarget, router],
+    [cameFromShell, libraryInPlace, libraryTarget, pathname, router],
   )
   const placement = useMemo<StudioOperatorDockPlacement>(
     () => ({

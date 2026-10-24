@@ -483,7 +483,10 @@
         "nodeUnavailable": "対象ノードまたはモデルを利用できません。選択し直してください。",
         "adjusted": "このモデルに合わせて調整しました：{fields}",
         "knobStepTitle": "確認カードで変更",
-        "knobStepReason": "確認カードであなたが変更しました"
+        "knobStepReason": "確認カードであなたが変更しました",
+        "prompt": "プロンプト",
+        "removeReference": "この参考画像を外す",
+        "openBench": "画像台で続きを編集"
       },
       "batch": {
         "title": "これを生成",

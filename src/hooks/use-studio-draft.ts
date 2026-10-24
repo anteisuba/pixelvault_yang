@@ -20,6 +20,7 @@ import {
 import { TagChipListSchema } from '@/types/tag-composer'
 import { AdvancedParamsSchema, RecipeUsageSchema } from '@/types'
 import type { AssistantWorkspace } from '@/types/assistant-workspace'
+import type { StudioFormState } from '@/contexts/studio-context'
 import { logger } from '@/lib/logger'
 
 export type StudioDraftWorkspace = Extract<
@@ -82,6 +83,61 @@ const StudioDraftSchema = z.object({
 export type StudioDraft = z.infer<typeof StudioDraftSchema>
 export const EMPTY_STUDIO_DRAFT: StudioDraft = StudioDraftSchema.parse({})
 
+/** 表单此刻那一份草稿（台上记的就是它）。 */
+export function buildStudioDraft(
+  state: StudioFormState,
+  referenceImages: readonly string[],
+): StudioDraft {
+  return {
+    prompt: state.prompt,
+    advancedParams: state.advancedParams,
+    searchGrounding: state.searchGrounding,
+    referenceImages: [...referenceImages],
+    aspectRatio: state.aspectRatio,
+    selectedOptionId: state.selectedOptionId,
+    modelSelectionTouched: state.modelSelectionTouched ?? false,
+    imageBatchCount: state.imageBatchCount,
+    extraModelOptionIds: state.extraModelOptionIds,
+    recipeUsage: state.recipeUsage,
+    tagChips: state.tagChips,
+    tagNegativeChips: state.tagNegativeChips,
+    videoDuration: state.videoDuration,
+    videoResolution: state.videoResolution,
+    videoAudioRefs: state.videoAudioRefs,
+    videoFrameSlots: state.videoFrameSlots,
+    videoReferenceVideos: state.videoReferenceVideos,
+    videoGenerateAudio: state.videoGenerateAudio,
+  }
+}
+
+function draftStorageKey(
+  workspace: StudioDraftWorkspace,
+  userId: string | null,
+): string {
+  return `pv:studio-draft:${workspace}:${userId ?? 'anonymous'}`
+}
+
+/**
+ * 替那一台记下一份草稿：它下次挂上时照这份恢复（首页「去图片台接着改」，第 9g 步）。
+ * ⚠ 只在那一台**没挂着**时有用（挂着的台只认自己表单里的那份）。
+ */
+export function writeStudioDraft(
+  workspace: StudioDraftWorkspace,
+  userId: string,
+  draft: StudioDraft,
+): void {
+  try {
+    sessionStorage.setItem(
+      draftStorageKey(workspace, userId),
+      JSON.stringify(draft),
+    )
+  } catch (error) {
+    logger.warn('Studio draft save failed', {
+      error: error instanceof Error ? error.message : String(error),
+    })
+  }
+}
+
 export function useStudioDraft({
   userId,
   workspace,
@@ -105,7 +161,7 @@ export function useStudioDraft({
 
   useEffect(() => {
     if (!enabled || (!userId && !loaded.current)) return
-    const key = `pv:studio-draft:${workspace}:${userId ?? 'anonymous'}`
+    const key = draftStorageKey(workspace, userId)
     const previous = loaded.current
     if (previous?.key !== key) {
       loaded.current = { key, userId, workspace }

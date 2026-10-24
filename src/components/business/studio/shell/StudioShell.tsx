@@ -34,8 +34,10 @@ import {
   StudioOperatorDockPlacementProvider,
   StudioOperatorHostSlotProvider,
   type StudioOperatorDockPlacement,
+  type StudioOperatorHost,
 } from '@/contexts/studio-operator-host'
 import { StudioOperatorDock } from '@/components/business/studio/assistant-operator'
+import { HomeDraftBench } from '@/components/business/studio/shell/HomeDraftBench'
 import { StudioConversationList } from '@/components/business/studio/shell/StudioConversationList'
 import { StudioLibraryTargetContext } from '@/components/business/studio/shell/StudioLibraryOverlay'
 import {
@@ -132,7 +134,10 @@ export function StudioShell({
   const libraryInPlace =
     isDesk === false && routeKind === 'library' && base === null
   const kind = libraryInPlace ? 'page' : (base?.kind ?? 'home')
-  const homeHost = useHomeOperatorHost()
+  const plainHomeHost = useHomeOperatorHost()
+  /** 首页那份小配方（第 9g 步）挂好之前 / 台开着时，面板拿只能聊天的那张脸。 */
+  const [draftHost, setDraftHost] = useState<StudioOperatorHost | null>(null)
+  const homeHost = kind === 'home' && draftHost ? draftHost : plainHomeHost
   const [restore] = useState(() => initialRestore(pathname))
   const [libraryTarget, setLibraryTarget] = useState<HTMLElement | null>(null)
   const [libraryCategory, setLibraryCategory] =
@@ -203,6 +208,9 @@ export function StudioShell({
                   </StudioShellStage>
                 )}
                 {library}
+                {kind === 'home' ? (
+                  <HomeDraftBench onHost={setDraftHost} />
+                ) : null}
               </div>
             )}
           </StudioOperatorHostSlotProvider>

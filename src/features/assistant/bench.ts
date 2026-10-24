@@ -33,6 +33,7 @@ import {
   buildAssistantV3LoraHandles,
   renderAssistantV3LoraBoard,
 } from '@/lib/assistant-v3-lora-board'
+import { assistantWorkspaceFromKey } from '@/lib/assistant-workspace'
 import { resolveClosestStudioAspectRatio } from '@/lib/studio-remix'
 import type { PromptAssistantResponseLanguage } from '@/types'
 import type {
@@ -185,8 +186,25 @@ const OPS_BY_FACE: Record<BenchFace, readonly AssistantNextEditOp[]> = {
   [ASSISTANT_V3_FACE_IDS.home]: [],
 }
 
+/**
+ * 首页带着一份小配方时（第 9g 步，owner 10-24）能改的那几格：提示词、模型、比例、张数、参考图
+ * （+ 照某张图的配方，套不上的照实说）。负面词、模型专属参数、标签台的人物分栏都在图片台上。
+ */
+const HOME_DRAFT_OPS: readonly AssistantNextEditOp[] = [
+  OP.prompt,
+  OP.model,
+  OP.specs,
+  OP.count,
+  OP.addReference,
+  OP.removeReference,
+  OP.applyRecipe,
+]
+
 /** 首页的板子（第 9f 步）：没有台，说清能做什么、要干活先开台。 */
 const HOME_BOARD = `HOME — no bench is open: the creator is on the home page, talking with you before any work starts. There is no form here to change and nothing to generate. Talk the idea through; find and look work as usual, and library / settings / memory edits work everywhere. When it is time to make something, open the bench it belongs on (image, tags, video, lora, canvas, character) and carry on there.`
+
+/** 首页那份小配方的开头（第 9g 步）：下面接图片台那块板子，只是能改的格子少。 */
+const HOME_DRAFT_BOARD = `HOME — no bench is open: the creator is on the home page. A simple picture is made right here in the conversation: below is the small draft it is made from (the confirm card shows it as a little form the creator can change). edit ops on the draft: ${HOME_DRAFT_OPS.join(', ')}. Anything more (negative prompt, model options, LoRAs, the tag bench's people, video, canvas) belongs on a bench: open it and carry on there.`
 
 export interface BenchResult {
   readonly output: string
@@ -203,6 +221,27 @@ export interface BenchResult {
 
 export function benchFaceOf(domain: string): BenchFace | null {
   return BENCH_FACES.includes(domain) ? (domain as BenchFace) : null
+}
+
+/** 首页的快照带着一份图片配方（规格 + 张数那两节，第 9g 步）：对话里直接出图。 */
+export function isHomeDraftSnapshot(snapshot: AssistantOperatorSnapshot) {
+  return snapshot.specs !== undefined && snapshot.count !== undefined
+}
+
+/** 这一轮是首页那份小配方：照图片台跑，会话仍在首页（第 9g 步）。 */
+function isHomeDraft(context: V3Context): boolean {
+  return (
+    context.face === ASSISTANT_V3_FACE_IDS.image &&
+    assistantWorkspaceFromKey(context.request.workspaceKey)?.workspace ===
+      'home'
+  )
+}
+
+/** 这一轮 `edit` 能用哪几种改法。 */
+function opsOf(context: V3Context): readonly AssistantNextEditOp[] {
+  return isHomeDraft(context)
+    ? HOME_DRAFT_OPS
+    : OPS_BY_FACE[context.face as BenchFace]
 }
 
 /** v3 执行函数要的那一份上下文。`board` 是 v3 形状的板子那一条（找图 `#n`、被指着的片子从这里读）。 */
@@ -282,6 +321,22 @@ export function renderBench(
     : ''
   if (context.face === ASSISTANT_V3_FACE_IDS.home)
     return HOME_BOARD.concat(aliases ? `\n${aliases}` : '')
+  if (isHomeDraft(context))
+    return `${HOME_DRAFT_BOARD}\n\n${renderAssistantV3ImageBoard({
+      snapshot: currentSnapshot(context),
+      attachedNames,
+      latestUserText,
+    })
+      .replace(
+        /^IMAGE WORKBENCH — this is the form\.[^\n]*/,
+        'THE DRAFT — what is in it right now. Change it with edit.',
+      )
+      .replace(
+        /use these names with look and mount_reference/g,
+        'use these names with look and edit add_reference',
+      )}`
+      .concat(aliases ? `\n${aliases}` : '')
+      .concat(autoGenerate)
   if (context.face === ASSISTANT_V3_FACE_IDS.canvas)
     return renderCanvasBoard(context, attachedNames, latestUserText)
       .concat(aliases ? `\n${aliases}` : '')
@@ -349,8 +404,11 @@ const need = (op: string, field: string): V3Mutation => ({
 })
 
 /** 新工具的一条改动 → v3 的 write / edit 入参（一条一条交，结果按条回）。 */
-export function toV3Mutation(face: BenchFace, change: EditChange): V3Mutation {
-  const ops = OPS_BY_FACE[face]
+export function toV3Mutation(
+  face: BenchFace,
+  change: EditChange,
+  ops: readonly AssistantNextEditOp[] = OPS_BY_FACE[face],
+): V3Mutation {
   if (!ops.includes(change.op as AssistantNextEditOp))
     return {
       tool: null,
@@ -786,7 +844,23 @@ async function recipeChanges(
         `LoRAs (${recipe.loras.map((entry) => `${entry.name} @ ${entry.weight}`).join(', ')}): they only go on the LoRA bench`,
       )
   }
-  return { ok: true, tag: recipe.tag, changes, notes }
+  // 首页那份小配方只有几格（第 9g 步）：没有的那几样照实说，⛔ 一条条报「不是这里的控件」。
+  const ops = opsOf(context)
+  const kept = changes.filter((next) =>
+    ops.includes(next.op as AssistantNextEditOp),
+  )
+  const dropped = [
+    ...new Set(
+      changes
+        .filter((next) => !ops.includes(next.op as AssistantNextEditOp))
+        .map((next) => next.op),
+    ),
+  ]
+  if (dropped.length)
+    notes.push(
+      `${dropped.join(', ')}: not in this draft (open the image bench for them)`,
+    )
+  return { ok: true, tag: recipe.tag, changes: kept, notes }
 }
 
 /** 一条改动交给这台的执行函数（编号先换好）。 */
@@ -805,7 +879,11 @@ async function* applyChange(
   if (isLibraryOp(given.op))
     return outcomeOf(yield* runLibraryChange(context, given))
   const change = await withResolvedNames(context, given)
-  const mutation = toV3Mutation(context.face as BenchFace, change)
+  const mutation = toV3Mutation(
+    context.face as BenchFace,
+    change,
+    opsOf(context),
+  )
   if (mutation.tool === null) return { output: mutation.error, error: true }
   const tool =
     mutation.tool === 'write'
@@ -846,7 +924,7 @@ export async function* runEdit(
         return { output: lines.join('\n'), error: false, stop: true }
       continue
     }
-    if (!OPS_BY_FACE[context.face as BenchFace].includes(OP.applyRecipe)) {
+    if (!opsOf(context).includes(OP.applyRecipe)) {
       total += 1
       failed += 1
       lines.push(

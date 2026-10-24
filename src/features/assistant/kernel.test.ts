@@ -318,6 +318,43 @@ beforeEach(() => {
 })
 
 describe('新内核主循环', () => {
+  it('首页带着小配方（第 9g 步）：照图片台跑，会话仍在首页，系统提示按首页写', async () => {
+    const main = mockModel([textTurn('好。')])
+    models.main = main
+    const prepare = vi.mocked(prepareOperatorTurn)
+    prepare.mockClear()
+    await collect(
+      runAssistantNext(
+        'clerk-1',
+        imageRequest('来张猫', {
+          domain: 'home',
+          workspaceKey: 'home',
+          snapshot: {
+            ...imageRequest('').snapshot,
+            specs: {
+              aspectRatio: '1:1',
+              resolution: null,
+              qualityOptions: [],
+              backgroundOptions: [],
+              aspectRatioOptions: ['1:1'],
+              resolutionOptions: [],
+            },
+          },
+        } as never),
+      ),
+    )
+    expect(prepare).toHaveBeenCalledWith(
+      'clerk-1',
+      expect.objectContaining({ domain: 'image', workspaceKey: 'home' }),
+      expect.anything(),
+      expect.objectContaining({ homeDraft: true }),
+    )
+    const sent = promptOf(main.doStreamCalls[0]!)
+    expect(sent).toContain('THE PAGE: HOME')
+    expect(sent).toContain('HOME — no bench is open')
+    expect(sent).toContain('THE DRAFT — what is in it right now.')
+  })
+
   it('改提示词：落一步，结果接回给模型，模型说完收尾；不设步数闸', async () => {
     const main = mockModel([toolTurn(editPrompt), textTurn('改好了。')])
     models.main = main

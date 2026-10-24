@@ -54,6 +54,7 @@ import type { SearchGroundingRailState } from '@/components/business/studio-shar
 import type { StudioOperatorShellAnchor } from '@/constants/studio-assistant-operator'
 import type {
   StudioOperatorGenerationControls,
+  StudioOperatorGenerationDraft,
   StudioOperatorResultItem,
   StudioOperatorResultRun,
 } from '@/types/studio-assistant-operator'
@@ -182,6 +183,11 @@ export interface StudioOperatorHost {
    *   时确认卡退回只读读数（⛔ 不摆一颗点了没反应的下拉）。
    */
   generationControls?: StudioOperatorGenerationControls
+  /**
+   * 首页那份小配方（第 9g 步）：卡上直接改提示词与参考图、「去图片台接着改」。
+   * ⚠ 只有首页给（台开着时那两格就在台上）；缺席 = 卡上只有旋钮。
+   */
+  generationDraft?: StudioOperatorGenerationDraft
   /**
    * 「先搜再画」开关（B 定稿 2026-10-07：确认卡上的开关就是图片台那一份）。
    * ⚠ **可选**：只有图片工作台给；缺席 = 确认卡上没有这一颗。

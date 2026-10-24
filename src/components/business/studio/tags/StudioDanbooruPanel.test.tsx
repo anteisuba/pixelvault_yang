@@ -108,6 +108,7 @@ import { StudioDanbooruPanel } from './StudioDanbooruPanel'
 const catalog = (partial: Partial<DanbooruCatalog>): DanbooruCatalog => ({
   candidates: [],
   crossHint: null,
+  nextPage: null,
   detail: null,
   ...partial,
 })
@@ -134,6 +135,8 @@ const miku = catalog({
 const mikuDetail = catalog({
   detail: {
     tag: 'hatsune_miku',
+    kind: 'character',
+    wiki: null,
     count: 152000,
     work: 'vocaloid',
     aliases: ['初音ミク'],
@@ -167,6 +170,8 @@ const artists = catalog({
 const artistDetail = catalog({
   detail: {
     tag: 'mizuiro_sora',
+    kind: 'artist',
+    wiki: null,
     count: 1200,
     work: null,
     aliases: [],
@@ -191,6 +196,8 @@ const works = catalog({
 const workDetail = catalog({
   detail: {
     tag: 'genshin_impact',
+    kind: 'copyright',
+    wiki: null,
     count: 90000,
     work: null,
     aliases: ['原神'],
@@ -209,6 +216,8 @@ const features = catalog({
 const featureDetail = catalog({
   detail: {
     tag: 'maid',
+    kind: 'general',
+    wiki: null,
     count: 80000,
     work: null,
     aliases: [],
@@ -510,6 +519,8 @@ describe('查资料 B · 画风', () => {
             data: catalog({
               detail: {
                 tag: 'watercolor_(medium)',
+                kind: 'artist',
+                wiki: null,
                 count: 150000,
                 work: null,
                 aliases: [],

@@ -20,6 +20,7 @@ import {
   Images,
   Plus,
   SwatchBook,
+  Tag,
   User,
   UserRound,
   Video,
@@ -161,12 +162,22 @@ export const SHELL_NAV_SECTIONS: readonly ShellNavSection[] = [
   { id: 'tools', labelKey: 'StudioTools.groupLabel', items: SHELL_NAV_TOOLS },
 ] as const
 
+/** 只在库里的几类（没有旧页面、也不进全局导航）：标签（第 9f 步 9f-2c）。 */
+const STUDIO_LIBRARY_ONLY_ITEMS: readonly ShellNavItem[] = [
+  {
+    id: 'tags',
+    href: `${ROUTES.LIBRARY}/tags`,
+    icon: Tag,
+    labelKey: 'Navbar.links.tags',
+  },
+]
+
 /**
  * 库的几类（第 9f 步，`/library/<id>`）：外壳左栏与库叠层顶上那一排共用这一份。名字与图标
- * 跟「去处」/「工具」同一份 —— LoRA 一类取 LoRA 台那一项。
+ * 跟「去处」/「工具」同一份 —— LoRA 一类取 LoRA 台那一项；标签只在库里。
  */
 export const STUDIO_LIBRARY_ITEMS = STUDIO_LIBRARY_CATEGORY_IDS.flatMap((id) =>
-  [...SHELL_NAV_GO, ...SHELL_NAV_TOOLS]
+  [...SHELL_NAV_GO, ...SHELL_NAV_TOOLS, ...STUDIO_LIBRARY_ONLY_ITEMS]
     .filter((item) => item.id === id)
     .map((item) => ({ ...item, id })),
 )

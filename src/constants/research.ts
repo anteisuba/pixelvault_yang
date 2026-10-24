@@ -469,6 +469,10 @@ export const DANBOORU_REQUEST = {
   randomPool: 200,
   randomDraw: 10,
   randomShow: 8,
+  /** 标签库网格一页几张卡（第 9f 步 9f-2c；样图每张卡滚到才问）。 */
+  libraryPageSize: 40,
+  /** 标签库详情里 Wiki 那一段最多几个字。 */
+  wikiExcerptMax: 360,
   /** 画师名单与样图的服务端缓存时长（作品数排名一天都不怎么动）。 */
   catalogCacheTtlMs: 6 * 60 * 60 * 1000,
   /** 查资料收藏：每页最多收这么多条（置顶那一段不做分页）。 */

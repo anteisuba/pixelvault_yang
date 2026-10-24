@@ -8,7 +8,8 @@ import type {
 
 /** 查资料的一次问法：搜名字 · 取一个候选的详情 · 画风页随便看看。 */
 export interface DanbooruCatalogRequest {
-  kind: DanbooruCatalogKind
+  /** 只有取详情（`tag`）可以不写：按 tag 自己的类别认（标签库详情，9f-2c）。 */
+  kind?: DanbooruCatalogKind
   query?: string
   tag?: string
   random?: boolean

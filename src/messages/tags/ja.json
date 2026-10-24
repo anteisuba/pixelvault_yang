@@ -219,7 +219,9 @@
       "addArtist": "{tag} を追加",
       "artistAdded": "追加済み",
       "backToList": "候補に戻る",
-      "backToResults": "結果に戻る"
+      "backToResults": "結果に戻る",
+      "refsCharacter": "よくある特徴",
+      "refsWork": "登場キャラ"
     },
     "cast": {
       "interaction": "アクション",
@@ -291,6 +293,12 @@
       "negativePlaceholder": "入れたくないもの（例：lowres、bad hands）…",
       "writeFor": "対象",
       "count": "{count} 件"
+    },
+    "library": {
+      "tabLibrary": "ライブラリ",
+      "viewLabel": "ライブラリかお気に入りか",
+      "back": "戻る",
+      "notATag": "Danbooru にこのタグはありません。自分で書いた言葉か、綴りが違うのかもしれません。"
     }
   }
 }

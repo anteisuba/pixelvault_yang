@@ -13,6 +13,8 @@ import {
 } from '@/constants/novelai'
 import { getCapabilityConfig } from '@/constants/provider-capabilities'
 import { STUDIO_REFERENCE_DRAG_TYPE } from '@/constants/studio'
+import { studioLibraryPath } from '@/constants/studio-shell'
+import { useRegisterTagsLibraryPick } from '@/contexts/studio-library-pick'
 import {
   useStudioData,
   useStudioForm,
@@ -23,6 +25,7 @@ import type { StudioModelOption } from '@/types/model-option'
 import type { TagChip } from '@/types/tag-composer'
 import { useComposerSubmit } from '@/hooks/use-composer-submit'
 import { useNovelAiCharacters } from '@/hooks/use-novelai-characters'
+import { useTagLookupAdder } from '@/hooks/use-tag-lookup-adder'
 import { useReferenceReceiverNotice } from '@/hooks/use-reference-receiver-notice'
 import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
 import { useStudioShortcuts } from '@/hooks/use-studio-shortcuts'
@@ -33,6 +36,7 @@ import {
   isCapabilityChipSet,
   isCapabilityChipVisible,
 } from '@/lib/model-capability-chips'
+import { useRouter } from '@/i18n/navigation'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { parseTagChips, serializeTagChips } from '@/lib/tag-composer'
 import { getTagWorkbenchControls } from '@/lib/tag-workbench-controls'
@@ -163,6 +167,15 @@ export function StudioTagsComposer({
   const { hintVisible, submit } = useComposerSubmit(canGenerate, handleGenerate)
   useStudioShortcuts({ onGenerate: submit })
   const characters = useNovelAiCharacters()
+  /**
+   * 第 9f 步 9f-2c：桌面「查资料」= 外壳中间库叠层的「标签」一类；台开着就登记那一份
+   * 「加进来」，库顶上写「选给 标签 台」、详情能加到整体 / 角色 N。手机仍在舞台上查资料。
+   */
+  const router = useRouter()
+  const lookupAdder = useTagLookupAdder(t('dialect.tags'))
+  useRegisterTagsLibraryPick(mobile ? null : lookupAdder)
+  const openLookup = () =>
+    mobile ? onOpenPanel('catalog') : router.push(studioLibraryPath('tags'))
   /** 查资料刚往哪一位角色里加了标签（那一页亮个小点）。 */
   const flashing = useTagTargetFlash()
   const referenceNotice = useReferenceReceiverNotice(
@@ -604,7 +617,7 @@ export function StudioTagsComposer({
                 <Toolbar.Button
                   type="button"
                   aria-label={t('workbench.lookup')}
-                  onClick={() => onOpenPanel('catalog')}
+                  onClick={openLookup}
                   className={cn(
                     studioOutlineChipClass,
                     studioOutlineChipCompactClass,

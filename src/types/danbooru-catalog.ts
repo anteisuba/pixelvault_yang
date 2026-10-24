@@ -35,20 +35,29 @@ const DonmaiImageUrlSchema = z
   })
 
 /**
- * 查资料（标签台，owner 2026-09-27 B）的三种问法：
- * 搜名字（`query`）· 取一个候选的详情（`tag`）· 两页的「随便看看」（`random`）。
+ * 查资料（标签台，owner 2026-09-27 B）与标签库（第 9f 步 9f-2c）的几种问法：
+ * 搜名字（`query`）· 取一个候选的详情（`tag`）· 「随便看看」（`random`）·
+ * 按热度翻页（`page`，标签库的网格）· 一张卡的样图（`tag` + `preview`，网格的卡滚到才问）。
+ *
+ * `kind` 只有取详情时可以不写（台上 Ctrl+点一格标签：不知道它是哪一类，按 tag 自己的类别认）。
  */
 export const DanbooruCatalogQuerySchema = z
   .object({
     query: z.string().trim().min(2).max(100).optional(),
-    kind: DanbooruCatalogKindSchema,
+    kind: DanbooruCatalogKindSchema.optional(),
     tag: DanbooruTagNameSchema.optional(),
     random: z.literal('1').optional(),
+    page: z.coerce.number().int().min(1).max(200).optional(),
+    preview: z.literal('1').optional(),
   })
   .refine(
-    (value) => Boolean(value.tag || value.query) || value.random === '1',
-    { message: 'query, tag or random required' },
+    (value) =>
+      Boolean(value.tag || value.query || value.page) || value.random === '1',
+    { message: 'query, tag, page or random required' },
   )
+  .refine((value) => Boolean(value.kind) || (value.tag && !value.preview), {
+    message: 'kind required',
+  })
 export type DanbooruCatalogQuery = z.infer<typeof DanbooruCatalogQuerySchema>
 
 export const DanbooruCatalogSchema = z.object({
@@ -72,12 +81,18 @@ export const DanbooruCatalogSchema = z.object({
     })
     .nullable()
     .default(null),
+  /** 按热度翻页（`page`）时下一页的页码；翻到底 / 别的问法是 `null`。 */
+  nextPage: z.number().nullable().default(null),
   detail: z
     .object({
       tag: z.string(),
+      /** 这个 tag 归哪一页（问的时候没写 `kind` 就靠它）。 */
+      kind: DanbooruCatalogKindSchema,
       count: z.number().nullable().default(null),
       work: z.string().nullable().default(null),
       aliases: z.array(z.string()),
+      /** Danbooru Wiki 的头一段，去掉了排版记号；没有 Wiki 是 `null`。 */
+      wiki: z.string().nullable().default(null),
       sampleSize: z.number(),
       traits: z.array(z.object({ tag: z.string(), count: z.number() })),
       images: z.array(

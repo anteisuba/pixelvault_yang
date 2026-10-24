@@ -88,6 +88,10 @@ vi.mock('@/hooks/use-novelai-characters', () => ({
     remove: mocks.remove,
   }),
 }))
+const mockRouterPush = vi.hoisted(() => vi.fn())
+vi.mock('@/i18n/navigation', () => ({
+  useRouter: () => ({ push: mockRouterPush }),
+}))
 vi.mock('@/hooks/use-studio-shortcuts', () => ({
   useStudioShortcuts: () => {},
 }))

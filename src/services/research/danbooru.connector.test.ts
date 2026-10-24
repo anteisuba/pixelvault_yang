@@ -654,6 +654,64 @@ describe('catalog used by the tag workbench', () => {
     ])
   })
 
+  it('标签库网格：按作品数一页一页翻，只回名字与作品数，画风第一页画法在前', async () => {
+    mockFetch.mockImplementation(async (raw: string) => {
+      const url = new URL(raw)
+      if (url.searchParams.get('search[name_comma]'))
+        return jsonResponse([
+          { name: 'watercolor_(medium)', category: 5, post_count: 50 },
+        ])
+      expect(url.searchParams.get('search[order]')).toBe('count')
+      const page = Number(url.searchParams.get('page'))
+      return jsonResponse(
+        page === 1
+          ? Array.from({ length: 40 }, (_, index) => ({
+              name: index === 0 ? 'unknown_artist' : `artist_${index}`,
+              category: 1,
+              post_count: 1000 - index,
+            }))
+          : [{ name: 'artist_last', category: 1, post_count: 3 }],
+      )
+    })
+    const { fetchDanbooruCatalog } = await import('./danbooru.connector')
+    const first = await fetchDanbooruCatalog({ kind: 'artist', page: 1 })
+    expect(first.candidates[0]?.name).toBe('watercolor_(medium)')
+    expect(first.candidates.map((item) => item.name)).not.toContain(
+      'unknown_artist',
+    )
+    expect(first.candidates.every((item) => item.previews.length === 0)).toBe(
+      true,
+    )
+    expect(first.nextPage).toBe(2)
+    const last = await fetchDanbooruCatalog({ kind: 'artist', page: 2 })
+    expect(last.candidates.map((item) => item.name)).toEqual(['artist_last'])
+    expect(last.nextPage).toBeNull()
+  })
+
+  it('不写 kind 取详情：按 tag 自己的类别认，并带上 Wiki 头一段', async () => {
+    mockFetch.mockImplementation(async (raw: string) => {
+      const url = new URL(raw)
+      if (url.pathname === '/tags.json')
+        return jsonResponse([
+          { name: 'long_hair', category: 0, post_count: 10 },
+        ])
+      if (url.pathname === '/wiki_pages.json')
+        return jsonResponse([
+          {
+            other_names: ['長髪'],
+            body: 'h4. Long hair\n\nHair that reaches past the [[shoulders]], see [[very_long_hair|very long hair]].\n\nh4. See also\n\n* [[short_hair]]',
+          },
+        ])
+      return jsonResponse([])
+    })
+    const { fetchDanbooruCatalog } = await import('./danbooru.connector')
+    const result = await fetchDanbooruCatalog({ tag: 'long_hair' })
+    expect(result.detail?.kind).toBe('general')
+    expect(result.detail?.wiki).toBe(
+      'Hair that reaches past the shoulders, see very long hair.',
+    )
+  })
+
   it('draws random features from the all-ages list, not the top general tags', async () => {
     mockFetch.mockImplementation(async (raw: string) => {
       const url = new URL(raw)

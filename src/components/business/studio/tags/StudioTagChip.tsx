@@ -34,6 +34,8 @@ interface StudioTagChipProps {
   disabled?: boolean
   onChange: (next: TagChip) => void
   onRemove: () => void
+  /** Ctrl / ⌘ + 点：去标签库看详情（不开权重弹层）。 */
+  onLookup?: (chip: TagChip) => void
 }
 
 /**
@@ -43,7 +45,8 @@ interface StudioTagChipProps {
  * NAI 的 `{tag}` 或 PixAI 的 `(tag:1.2)`，⛔ 界面上不出现任何一家的原生语法。
  * 数字走等宽槽（`font-mono`）：它是机器读的数。
  *
- * 点标签本体开权重弹层（一档 0.05 的 ± 步进 + 归位），× 删掉这一格。
+ * 点标签本体开权重弹层（一档 0.05 的 ± 步进 + 归位），× 删掉这一格；
+ * Ctrl / ⌘ + 点（有 `onLookup` 时）去标签库看这个 tag。
  */
 export function StudioTagChip({
   chip,
@@ -53,6 +56,7 @@ export function StudioTagChip({
   disabled,
   onChange,
   onRemove,
+  onLookup,
 }: StudioTagChipProps) {
   const t = useTranslations('StudioTags')
   const weighted = !isDefaultTagWeight(chip.weight)
@@ -84,6 +88,12 @@ export function StudioTagChip({
             type="button"
             disabled={disabled}
             title={t('weightLabel')}
+            onClick={(event) => {
+              if (!onLookup || !(event.ctrlKey || event.metaKey)) return
+              // ⚠ 拦下来：Radix 见 `defaultPrevented` 就不开权重弹层。
+              event.preventDefault()
+              onLookup(chip)
+            }}
             className="inline-flex min-w-0 items-center gap-1 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none max-lg:min-h-11 max-lg:min-w-11"
           >
             {marked ? (

@@ -9,7 +9,7 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react'
-import { animate, useReducedMotion } from 'motion/react'
+import { useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -17,7 +17,7 @@ import {
   activeShellTool,
   type ShellNavItem,
 } from '@/constants/navigation'
-import { EASE_STANDARD, SHELL_MOTION } from '@/constants/motion'
+import { SHELL_MOTION } from '@/constants/motion'
 import {
   STUDIO_SHELL_BENCH_IDS,
   STUDIO_SHELL_SWIPE,
@@ -33,6 +33,7 @@ import { useStudioOperatorHistoryView } from '@/hooks/use-studio-operator-histor
 import { useStudioOperatorState } from '@/hooks/use-studio-operator-store'
 import { Link, useRouter } from '@/i18n/navigation'
 import { deriveAssistantConversationTitle } from '@/lib/assistant-conversation-title'
+import { shellEnter, shellLeave } from '@/lib/studio-shell-motion'
 import {
   studioBenchHref,
   studioConversationHref,
@@ -100,19 +101,15 @@ export function useStudioBenchMotion({
     if (!before.bench) {
       content.style.opacity = ''
       content.style.transform = ''
-      animate(
-        column,
-        { x: ['100%', '0%'] },
-        { duration: SHELL_MOTION.pushS, ease: EASE_STANDARD },
-      )
+      shellEnter(column, { x: '100%' }, SHELL_MOTION.pushS)
       return
     }
     if (before.id === activeId) return
     const dir = benchIndex(activeId) >= benchIndex(before.id) ? 1 : -1
-    animate(
+    shellEnter(
       content,
-      { x: [dir * SHELL_MOTION.slideOffsetPx, 0], opacity: [0, 1] },
-      { duration: SHELL_MOTION.slideS, ease: EASE_STANDARD },
+      { x: dir * SHELL_MOTION.slideOffsetPx, opacity: 0 },
+      SHELL_MOTION.slideS,
     )
   }, [activeId, bench, columnRef, contentRef, reduceMotion])
 
@@ -122,11 +119,7 @@ export function useStudioBenchMotion({
     if (leaving.current) return
     leaving.current = true
     if (column && !reduceMotion) {
-      await animate(
-        column,
-        { x: '100%' },
-        { duration: SHELL_MOTION.pushS, ease: EASE_STANDARD },
-      )
+      await shellLeave(column, { x: '100%' }, SHELL_MOTION.pushS)
     }
     router.push(studioConversationHref(sessionId))
     restoreIfStuck(previous, { bench: true, id: activeId }, leaving, column)
@@ -141,10 +134,10 @@ export function useStudioBenchMotion({
       leaving.current = true
       if (content && !reduceMotion) {
         const dir = benchIndex(item.id) >= benchIndex(activeId) ? 1 : -1
-        await animate(
+        await shellLeave(
           content,
           { x: -dir * SHELL_MOTION.slideOffsetPx, opacity: 0 },
-          { duration: SHELL_MOTION.slideOutS, ease: EASE_STANDARD },
+          SHELL_MOTION.slideOutS,
         )
       }
       router.push(href)

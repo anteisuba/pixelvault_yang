@@ -9,10 +9,10 @@ import {
   type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
-import { animate, useReducedMotion } from 'motion/react'
+import { useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
-import { EASE_STANDARD, SHELL_MOTION } from '@/constants/motion'
+import { SHELL_MOTION } from '@/constants/motion'
 import { STUDIO_LIBRARY_ITEMS } from '@/constants/navigation'
 import {
   STUDIO_LIBRARY_CATEGORY_IDS,
@@ -22,6 +22,7 @@ import {
 import { StudioOperatorDetachedScope } from '@/contexts/studio-operator-host'
 import { ChevronLeft } from '@/components/icons'
 import { Link } from '@/i18n/navigation'
+import { shellEnter, shellLeave } from '@/lib/studio-shell-motion'
 import { cn } from '@/lib/utils'
 
 /**
@@ -113,17 +114,13 @@ function useLibraryFrameMotion(category: StudioShellOverlayId) {
       ) {
         const dir =
           categoryIndex(category) >= categoryIndex(before.category) ? 1 : -1
-        animate(
+        shellEnter(
           body,
-          { x: [dir * SHELL_MOTION.slideOffsetPx, 0], opacity: [0, 1] },
-          { duration: SHELL_MOTION.slideS, ease: EASE_STANDARD },
+          { x: dir * SHELL_MOTION.slideOffsetPx, opacity: 0 },
+          SHELL_MOTION.slideS,
         )
       } else {
-        animate(
-          frame,
-          { x: ['-100%', '0%'] },
-          { duration: SHELL_MOTION.stackS, ease: EASE_STANDARD },
-        )
+        shellEnter(frame, { x: '-100%' }, SHELL_MOTION.stackS)
       }
     }
     return () => {
@@ -135,11 +132,7 @@ function useLibraryFrameMotion(category: StudioShellOverlayId) {
   const closeWith = async (close: () => void) => {
     const frame = frameRef.current
     if (frame && !reduceMotion) {
-      await animate(
-        frame,
-        { x: '-100%' },
-        { duration: SHELL_MOTION.stackS, ease: EASE_STANDARD },
-      )
+      await shellLeave(frame, { x: '-100%' }, SHELL_MOTION.stackS)
     }
     lastFrameGone = null
     close()

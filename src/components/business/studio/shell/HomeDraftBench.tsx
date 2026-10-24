@@ -1,6 +1,6 @@
 'use client'
 
-import { useLayoutEffect } from 'react'
+import { memo, useLayoutEffect } from 'react'
 
 import { StudioProvider } from '@/contexts/studio-context'
 import type { StudioOperatorHost } from '@/contexts/studio-operator-host'
@@ -14,7 +14,12 @@ import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
  *   宿主交给外壳（`onHost`），面板照常拿它当首页那张脸。
  * ⚠ 只在首页挂（外壳按 `kind` 判）：台开着时这一份不在，⛔ 两份表单抢着记「上次用的型号」。
  */
-export function HomeDraftBench({
+/*
+ * ⚠ 必须 `memo`（10-24 线上 React #185）：宿主交给外壳 = 外壳 setState 重渲染；不挡住的话
+ *   这一份跟着重渲染、宿主又是新的、再交一次……死循环。挡住之后只有这份表单自己变了才重算。
+ *   `onHost` 因此必须是稳的（外壳给的是 `useState` 的 setter）。
+ */
+export const HomeDraftBench = memo(function HomeDraftBench({
   onHost,
 }: {
   onHost(host: StudioOperatorHost | null): void
@@ -25,7 +30,7 @@ export function HomeDraftBench({
       <HomeDraftGenerate />
     </StudioProvider>
   )
-}
+})
 
 function HomeDraftHostSource({
   onHost,

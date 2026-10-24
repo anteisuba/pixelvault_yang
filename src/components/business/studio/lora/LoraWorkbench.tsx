@@ -477,56 +477,59 @@ export function LoraWorkbench() {
 
   if (!isMobile) {
     return (
-      <motion.div
-        style={{ paddingRight: groundPaddingRight }}
-        // ⚠ 顶上一行定高 `h-9`、行距 `gap-3`：助手面板按这两个数对齐舞台顶边
-        //   （`STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR`），改这里必须改那边。
-        className="domain-lora lora-locked-height flex w-full min-h-0 flex-col gap-3 overflow-hidden"
-      >
-        <div className="flex h-9 shrink-0 items-center gap-3.5">
-          <h1 className="text-sm font-semibold text-muted-foreground">
-            {t('pageTitle')}
-          </h1>
-          <LiquidSegmented
-            ariaLabel={t('tabsLabel')}
-            value={pendingSection ?? activeSection}
-            items={[
-              {
-                value: LORA_WORKBENCH_SECTIONS.GENERATE,
-                label: t('tabs.generate'),
-              },
-              {
-                value: LORA_WORKBENCH_SECTIONS.TRAIN,
-                label: t('tabs.train'),
-              },
-            ]}
-            onChange={(section) => {
-              setPendingSection(section)
-              setActiveSection(section)
-            }}
-          />
-        </div>
-        {isGenerate || isLibrary ? (
-          // 库 / 收藏搬去外壳中间的库叠层了（第 9f 步 9f-2b）：这里只剩生成台。
-          <div className="flex min-h-0 flex-1 animate-in flex-col gap-3 fade-in duration-200">
-            <GenerateBranch
-              assistantOpen={assistantOpen}
-              onAssistantOpenChange={setAssistantOpen}
-              libraryAssets={libraryAssets}
-              onOpenLibrary={() => openLibraryOverlay()}
+      // ⚠ 桌面也要包：「从角色选」读的就是这一份（以前只包了手机那一套，桌面那颗点了没反应）。
+      <CharacterLorasProvider value={characterLoras}>
+        <motion.div
+          style={{ paddingRight: groundPaddingRight }}
+          // ⚠ 顶上一行定高 `h-9`、行距 `gap-3`：助手面板按这两个数对齐舞台顶边
+          //   （`STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR`），改这里必须改那边。
+          className="domain-lora lora-locked-height flex w-full min-h-0 flex-col gap-3 overflow-hidden"
+        >
+          <div className="flex h-9 shrink-0 items-center gap-3.5">
+            <h1 className="text-sm font-semibold text-muted-foreground">
+              {t('pageTitle')}
+            </h1>
+            <LiquidSegmented
+              ariaLabel={t('tabsLabel')}
+              value={pendingSection ?? activeSection}
+              items={[
+                {
+                  value: LORA_WORKBENCH_SECTIONS.GENERATE,
+                  label: t('tabs.generate'),
+                },
+                {
+                  value: LORA_WORKBENCH_SECTIONS.TRAIN,
+                  label: t('tabs.train'),
+                },
+              ]}
+              onChange={(section) => {
+                setPendingSection(section)
+                setActiveSection(section)
+              }}
             />
           </div>
-        ) : (
-          <div
-            key={bodyKey}
-            className="workbench-card min-h-0 flex-1 animate-in fade-in duration-200"
-          >
-            <div className="min-h-0 flex-1 overflow-y-auto p-4">
-              <TrainWizard />
+          {isGenerate || isLibrary ? (
+            // 库 / 收藏搬去外壳中间的库叠层了（第 9f 步 9f-2b）：这里只剩生成台。
+            <div className="flex min-h-0 flex-1 animate-in flex-col gap-3 fade-in duration-200">
+              <GenerateBranch
+                assistantOpen={assistantOpen}
+                onAssistantOpenChange={setAssistantOpen}
+                libraryAssets={libraryAssets}
+                onOpenLibrary={() => openLibraryOverlay()}
+              />
             </div>
-          </div>
-        )}
-      </motion.div>
+          ) : (
+            <div
+              key={bodyKey}
+              className="workbench-card min-h-0 flex-1 animate-in fade-in duration-200"
+            >
+              <div className="min-h-0 flex-1 overflow-y-auto p-4">
+                <TrainWizard />
+              </div>
+            </div>
+          )}
+        </motion.div>
+      </CharacterLorasProvider>
     )
   }
 

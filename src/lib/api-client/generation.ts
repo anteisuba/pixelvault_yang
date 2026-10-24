@@ -54,6 +54,10 @@ import {
   getErrorMessage,
   getErrorPayload,
 } from '@/lib/api-client/shared'
+import {
+  notifyStudioConversationActivity,
+  withActiveStudioConversation,
+} from '@/lib/studio-active-conversation'
 
 export { downloadRemoteAsset }
 
@@ -97,8 +101,9 @@ export async function submitVideoAPI(
     const response = await fetch(API_ENDPOINTS.GENERATE_VIDEO, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
+      body: JSON.stringify(withActiveStudioConversation(params)),
     })
+    notifyStudioConversationActivity()
 
     if (!response.ok) {
       const payload = await getErrorPayload(
@@ -639,8 +644,9 @@ export async function submit3DAPI(
     const response = await fetch(API_ENDPOINTS.GENERATE_3D, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
+      body: JSON.stringify(withActiveStudioConversation(params)),
     })
+    notifyStudioConversationActivity()
 
     if (!response.ok) {
       const payload = await getErrorPayload(
@@ -1318,8 +1324,9 @@ export async function studioGenerateAPI(
     const response = await fetch(API_ENDPOINTS.STUDIO_GENERATE, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
+      body: JSON.stringify(withActiveStudioConversation(data)),
     })
+    notifyStudioConversationActivity()
     if (!response.ok) {
       const payload = await getErrorPayload(
         response,

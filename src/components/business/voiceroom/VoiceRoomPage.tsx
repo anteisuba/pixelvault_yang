@@ -1,11 +1,20 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+
+import {
+  VOICE_ROOM_NEW_QUERY,
+  VOICE_ROOM_QUERY,
+  voiceRoomPath,
+} from '@/constants/routes'
 
 import { Button } from '@/components/ui/button'
 import { ApiKeysProvider } from '@/contexts/api-keys-context'
+import { usePublishVoiceRooms } from '@/hooks/use-shell-voice-rooms'
 import { useVoiceRoom } from '@/hooks/use-voiceroom'
+import { useRouter } from '@/i18n/navigation'
 
 import { VoiceRoomRail } from './VoiceRoomRail'
 import { VoiceRoomStage } from './VoiceRoomStage'
@@ -63,13 +72,37 @@ export function VoiceRoomPage() {
    * `openRoom` 还没 await 完、`activeRoomId` 仍是 null —— 光靠 `activeRoomId`
    * 当条件拦不住，结果是连着建出一串空房间（2026-08-29 真机上就撞出来了）。
    */
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const roomParam = searchParams.get(VOICE_ROOM_QUERY)
+  const wantsNew = searchParams.get(VOICE_ROOM_NEW_QUERY) === '1'
   const bootstrappedRef = useRef(false)
   useEffect(() => {
     if (loadingRooms || error || bootstrappedRef.current) return
     bootstrappedRef.current = true
-    if (rooms.length > 0) void openRoom(rooms[0].id)
+    const asked = roomParam && rooms.find((room) => room.id === roomParam)
+    if (asked) void openRoom(asked.id)
+    else if (rooms.length > 0 && !wantsNew) void openRoom(rooms[0].id)
     else void createRoom()
-  }, [loadingRooms, error, rooms, openRoom, createRoom])
+  }, [loadingRooms, error, rooms, openRoom, createRoom, roomParam, wantsNew])
+
+  /*
+   * 第 9f 步 9f-3：房间写进地址（`?room=`），外壳左边列表点哪间就开哪间、刷新也还在那间；
+   * 首页切到「配音间」进来带 `?new=1` = 新开一间。
+   */
+  useEffect(() => {
+    if (!bootstrappedRef.current || !roomParam || roomParam === activeRoomId)
+      return
+    if (rooms.some((room) => room.id === roomParam)) void openRoom(roomParam)
+    // 只认地址变了那一拍：开着的那间换了是下面那条把地址跟上。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomParam])
+  useEffect(() => {
+    if (!activeRoomId || activeRoomId === roomParam) return
+    router.replace(voiceRoomPath(activeRoomId), { scroll: false })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeRoomId])
+  usePublishVoiceRooms(rooms, activeRoomId)
 
   /*
    * ⚠ 只挂 `ApiKeysProvider`，**不是** `StudioProvider`。

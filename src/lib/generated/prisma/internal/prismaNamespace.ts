@@ -3448,6 +3448,7 @@ export const AssistantConversationScalarFieldEnum = {
   messages: 'messages',
   rounds: 'rounds',
   historySummary: 'historySummary',
+  bench: 'bench',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -3609,6 +3610,7 @@ export const GenerationJobScalarFieldEnum = {
   completedAt: 'completedAt',
   slotKey: 'slotKey',
   slotAcquiredAt: 'slotAcquiredAt',
+  conversationId: 'conversationId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

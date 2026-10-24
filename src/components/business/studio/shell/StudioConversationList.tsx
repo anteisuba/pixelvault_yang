@@ -6,20 +6,18 @@ import { STUDIO_LIBRARY_ITEMS } from '@/constants/navigation'
 import { ROUTES } from '@/constants/routes'
 import {
   STUDIO_SHELL_LIST_WIDTH_CLASS,
-  STUDIO_SHELL_RECENT_LIMIT,
   studioLibraryPath,
 } from '@/constants/studio-shell'
-import { AudioLines, ChevronDown, SquarePen } from '@/components/icons'
+import { ChevronDown, SquarePen } from '@/components/icons'
 import { AccountMenu } from '@/components/layout/AccountMenu'
 import { ProfileAvatar } from '@/components/layout/ProfileAvatar'
+import { StudioConversationRecent } from '@/components/business/studio/shell/StudioConversationRecent'
 import { useMyProfile } from '@/hooks/use-my-profile'
 import { useStudioOperatorActions } from '@/hooks/use-studio-operator-actions'
 import { useStudioOperatorHistoryView } from '@/hooks/use-studio-operator-history'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
-import { deriveAssistantConversationTitle } from '@/lib/assistant-conversation-title'
 import {
   libraryCategoryFromPath,
-  studioConversationHref,
   studioShellRouteKind,
 } from '@/lib/studio-shell-route'
 import { cn } from '@/lib/utils'
@@ -32,7 +30,7 @@ const ROW_ACTIVE_CLASS =
 
 /**
  * `/studio` 外壳左边那一栏 —— **在哪儿**（第 9f 步方向 E，9f-1 先做简版）：
- * 新对话 · 库（素材 / 角色 / 提示词 / 音色 / 画廊，叠在中间）· 配音间 · 最近对话 · 账号。
+ * 新对话 · 库（各类，叠在中间）· 最近（助手对话与配音间混排，9f-3）· 账号。
  *
  * ⚠ 读的是面板发布出来的历史与「新对话」那只手（`useStudioOperatorHistoryView` /
  *   `useStudioOperatorActions`），⛔ 这里再调一次驱动 hook。
@@ -49,7 +47,6 @@ export function StudioConversationList({ className }: { className?: string }) {
   const actions = useStudioOperatorActions()
   const kind = studioShellRouteKind(pathname)
   const openCategory = libraryCategoryFromPath(pathname)
-  const recent = (history?.sessions ?? []).slice(0, STUDIO_SHELL_RECENT_LIMIT)
 
   const startNewChat = () => {
     if (kind === 'home' && actions) {
@@ -57,14 +54,6 @@ export function StudioConversationList({ className }: { className?: string }) {
       return
     }
     router.push(ROUTES.STUDIO)
-  }
-
-  const openConversation = (id: string) => {
-    if (kind === 'bench' && history) {
-      history.openSession(id)
-      return
-    }
-    router.push(studioConversationHref(id))
   }
 
   return (
@@ -114,46 +103,15 @@ export function StudioConversationList({ className }: { className?: string }) {
             </li>
           )
         })}
-        <li>
-          <Link
-            href={ROUTES.STUDIO_AUDIO}
-            aria-current={kind === 'page' ? 'page' : undefined}
-            className={cn(ROW_CLASS, kind === 'page' && ROW_ACTIVE_CLASS)}
-          >
-            <AudioLines />
-            <span className="truncate">
-              {tAll('StudioTools.tools.audio.label')}
-            </span>
-          </Link>
-        </li>
       </ul>
 
-      <div className="mt-3 flex min-h-0 flex-1 flex-col">
-        <h2 className="px-4 pb-1 text-xs font-medium text-sidebar-subtle">
-          {t('recent')}
-        </h2>
-        <ul className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-2">
-          {recent.map((session) => {
-            const active = history?.currentSessionId === session.id
-            const title =
-              deriveAssistantConversationTitle(session.title) ??
-              tOperator('history.untitled')
-            return (
-              <li key={session.id}>
-                <button
-                  type="button"
-                  onClick={() => openConversation(session.id)}
-                  aria-current={active ? 'true' : undefined}
-                  title={title}
-                  className={cn(ROW_CLASS, active && ROW_ACTIVE_CLASS)}
-                >
-                  <span className="truncate">{title}</span>
-                </button>
-              </li>
-            )
-          })}
-        </ul>
-      </div>
+      <StudioConversationRecent
+        history={history}
+        routeKind={kind}
+        pathname={pathname}
+        rowClass={ROW_CLASS}
+        rowActiveClass={ROW_ACTIVE_CLASS}
+      />
 
       <StudioConversationListAccount />
     </nav>

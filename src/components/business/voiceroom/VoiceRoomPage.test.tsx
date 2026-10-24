@@ -22,6 +22,12 @@ vi.mock('@/contexts/api-keys-context', () => ({
   ApiKeysProvider: ({ children }: { children: ReactNode }) => children,
 }))
 vi.mock('./VoiceRoomRail', () => ({ VoiceRoomRail: () => null }))
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => new URLSearchParams(),
+}))
+vi.mock('@/i18n/navigation', () => ({
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+}))
 vi.mock('./VoiceRoomStage', () => ({ VoiceRoomStage: () => null }))
 
 describe('VoiceRoomPage loading failure', () => {

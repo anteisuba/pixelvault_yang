@@ -173,7 +173,10 @@ export async function submitImageGeneration(
     | 'sourceSurface'
     | 'studioSnapshot'
     | 'displayLabel'
-  > = {},
+  > & {
+    /** 在哪段助手对话里出的（9f-3）：只记在任务上，⛔ 进队列元数据。 */
+    conversationId?: string
+  } = {},
 ): Promise<ImageSubmitResponseData> {
   const createGenerationJobFn = deps.createGenerationJob ?? createGenerationJob
 
@@ -325,6 +328,7 @@ export async function submitImageGeneration(
     externalRequestId: JSON.stringify(metadata),
     // resolvedApiKeyId 非空 = 调用方自带 key(BYOK)，平台没掏钱。
     isPlatformFunded: !route.resolvedApiKeyId,
+    conversationId: queueMetadataInput.conversationId,
   })
 
   // Everything after create must mark the job FAILED on error — otherwise a

@@ -268,6 +268,9 @@ model AssistantConversation {
   /// 只有服务端读写（`assistant-v3-history-store.service.ts`）；⛔ 不进会话接口、分享页与导出
   /// （`toRecord` 按字段挑），前端保存只写 `messages`，碰不到它。
   historySummary Json?
+  /// 这段对话最后开着的台（第 9f 步 9f-3「台跟着对话走」）：台的地址，如 `/studio/image/tags`；
+  /// null = 没开台（只有对话）。点列表里这段就回到这个台。
+  bench          String?
   shares         AssistantConversationShare[]
   createdAt      DateTime                     @default(now())
   updatedAt      DateTime                     @updatedAt
@@ -542,6 +545,9 @@ model GenerationJob {
   slotKey           String?
   /// 排上号的时间；有 slotKey 但这里是 null = 还在排队。
   slotAcquiredAt    DateTime?
+  /// 哪段助手对话里出的（第 9f 步 9f-3：左边列表的封面 / 进度圈 / 小点）。弱引用、无外键
+  /// （与 `AssistantConversation.projectId` 同一个口径）：对话删了任务照旧在；null = 不在对话里出的。
+  conversationId    String?
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
 
@@ -552,6 +558,7 @@ model GenerationJob {
   @@index([userId, createdAt(sort: Desc)])
   @@index([status, createdAt(sort: Desc)])
   @@index([slotKey, status])
+  @@index([conversationId, createdAt(sort: Desc)])
 }
 
 model ExecutionOutbox {

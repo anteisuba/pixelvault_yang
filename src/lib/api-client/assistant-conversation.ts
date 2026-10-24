@@ -8,6 +8,7 @@ import type {
   UpsertAssistantConversationRequest,
 } from '@/types/assistant-conversation'
 
+import type { StudioConversationActivity } from '@/types/studio-conversation-activity'
 import { getErrorPayload } from '@/lib/api-client/shared'
 
 type ApiResult<T> =
@@ -171,6 +172,41 @@ export async function renameAssistantConversationAPI(
     return parseJsonResult(response, 'Failed to rename conversation')
   } catch {
     return { success: false, error: 'Failed to rename conversation' }
+  }
+}
+
+/** 左边列表那几段对话的封面 / 进度 / 最近出完的时间（第 9f 步 9f-3）。 */
+export async function getStudioConversationActivityAPI(
+  ids: readonly string[],
+): Promise<ApiResult<StudioConversationActivity[]>> {
+  try {
+    const params = new URLSearchParams({ ids: ids.join(',') })
+    const response = await fetch(
+      `${API_ENDPOINTS.STUDIO_CONVERSATION_ACTIVITY}?${params}`,
+    )
+    return parseJsonResult(response, 'Failed to load conversation activity')
+  } catch {
+    return { success: false, error: 'Failed to load conversation activity' }
+  }
+}
+
+/** 记下这段对话最后开着的台（第 9f 步 9f-3）；null = 收起了台。 */
+export async function setAssistantConversationBenchAPI(
+  id: string,
+  bench: string | null,
+): Promise<ApiResult<{ bench: string | null }>> {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.ASSISTANT_CONVERSATION}/${encodeURIComponent(id)}/bench`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bench }),
+      },
+    )
+    return parseJsonResult(response, 'Failed to save conversation bench')
+  } catch {
+    return { success: false, error: 'Failed to save conversation bench' }
   }
 }
 

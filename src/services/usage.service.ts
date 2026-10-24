@@ -43,6 +43,11 @@ export interface CreateGenerationJobInput {
    * `resolveGenerationRoute(...)` 返回的 `resolvedApiKeyId`——非空即 BYOK。
    */
   isPlatformFunded?: boolean
+  /**
+   * 在哪段助手对话里出的（第 9f 步 9f-3）。客户端给的，落库前核对是不是本人的对话 ——
+   * 不是（或已删）就当没给，⛔ 让出图失败。
+   */
+  conversationId?: string
 }
 
 export interface UpdateGenerationJobInput {
@@ -300,14 +305,34 @@ export async function getRunnerUsage(
 }
 
 export async function createGenerationJob(
-  input: CreateGenerationJobInput,
+  rawInput: CreateGenerationJobInput,
   client?: GenerationJobCreateClient,
 ): Promise<GenerationJob> {
+  const input = {
+    ...rawInput,
+    conversationId: await ownConversationId(
+      rawInput.userId,
+      rawInput.conversationId,
+    ),
+  }
   if (client) {
     return createGenerationJobWithinLimits(input, client)
   }
 
   return db.$transaction((tx) => createGenerationJobWithinLimits(input, tx))
+}
+
+/** 这段对话是本人的才记下；别人的 / 删了的 / 没给 = undefined。 */
+async function ownConversationId(
+  userId: string,
+  conversationId: string | undefined,
+): Promise<string | undefined> {
+  if (!conversationId) return undefined
+  const owned = await db.assistantConversation.findFirst({
+    where: { id: conversationId, userId },
+    select: { id: true },
+  })
+  return owned?.id
 }
 
 /**
@@ -430,6 +455,7 @@ function createGenerationJobRecord(
       status: 'RUNNING',
       prompt: input.prompt,
       externalRequestId: input.externalRequestId,
+      conversationId: input.conversationId,
       startedAt: new Date(),
     },
   })

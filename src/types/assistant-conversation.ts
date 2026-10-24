@@ -281,6 +281,11 @@ export interface AssistantConversationSummary {
    * ⚠ 可选：老客户端 / 测试里现造的 summary 不必给这个键。
    */
   operatorThread?: boolean
+  /**
+   * 这段对话最后开着的台（第 9f 步 9f-3「台跟着对话走」）：台的地址；null = 没开台。
+   * ⚠ 可选：老测试里现造的 summary 不必给。
+   */
+  bench?: string | null
 }
 
 export interface AssistantConversationShare {
@@ -329,6 +334,18 @@ export const UpdateAssistantConversationRoundRequestSchema = z.object({
 export type UpdateAssistantConversationRoundRequest = z.infer<
   typeof UpdateAssistantConversationRoundRequestSchema
 >
+
+/**
+ * 记下这段对话最后开着的台（9f-3）：`/studio/<台>[/<页>]`；null = 收起了台。只认台的地址，
+ * ⛔ 存任意字符串（点列表时要拿它当跳转地址）。
+ */
+export const SetAssistantConversationBenchRequestSchema = z.object({
+  bench: z
+    .string()
+    .max(80)
+    .regex(/^\/studio\/[a-z0-9-]+(?:\/[a-z0-9-]+)*$/)
+    .nullable(),
+})
 
 export const RenameAssistantConversationRequestSchema = z.object({
   title: z

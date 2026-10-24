@@ -354,7 +354,7 @@ export async function listAssistantConversations(
       chatCharacterRole: string | null
     })[]
   >(Prisma.sql`
-    SELECT "id", "surface", "projectId", "title", "updatedAt",
+    SELECT "id", "surface", "projectId", "title", "updatedAt", "bench",
       "messages"->0->>'workspaceKey' AS "stamp",
       CASE WHEN jsonb_typeof("messages") = 'array' THEN jsonb_array_length("messages") ELSE 0 END AS "messageCount",
       ${operatorPayload} AS "operatorThread",
@@ -525,6 +525,23 @@ export async function renameAssistantConversation(
     data: { title: input.title },
   })
   return { title: input.title }
+}
+
+/**
+ * 记下这段对话最后开着的台（第 9f 步 9f-3）。⚠ 走原生 SQL：`updatedAt` 是列表的排序键，
+ * 换个台不算「用过这段对话」，⛔ 让它跳到最上面。
+ */
+export async function setAssistantConversationBench(
+  clerkId: string,
+  id: string,
+  input: { bench: string | null },
+): Promise<{ bench: string | null } | null> {
+  const user = await ensureUser(clerkId)
+  const updated = await db.$executeRaw`
+    UPDATE "AssistantConversation" SET "bench" = ${input.bench}
+    WHERE "id" = ${id} AND "userId" = ${user.id}
+  `
+  return updated > 0 ? { bench: input.bench } : null
 }
 
 async function readLockedConversationRounds(

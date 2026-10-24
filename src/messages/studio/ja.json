@@ -1168,6 +1168,10 @@
     "pickFor": "{bench} 台に選ぶ",
     "pickForBase": "{bench} 台に選ぶ · ベース {base}",
     "pickDone": "完了",
-    "manageInLibrary": "ライブラリで管理"
+    "manageInLibrary": "ライブラリで管理",
+    "newResult": "新しい結果",
+    "homeMode": "新規",
+    "homeAssistant": "アシスタント",
+    "homeVoiceRoom": "ボイスルーム"
   }
 }

@@ -313,7 +313,8 @@ studio 内容裁出视口，是因为侧栏能展开到 144；平板档现在钉
 - 对话 | 台 一根分隔线，宽度记在 `pv:studio-shell:split`；往左拖到底收起对话，往右拖到底收起台。台条竖在台左沿（台都按整屏高写死，横条会把台压出屏）。
 - 台框 `desk:contain-layout`：台里 `fixed inset-0` 的整屏层只铺满台这一栏。
 - 全站侧栏在 `desk:` 的 `/studio` 上整条藏起（平板照旧）；画布侧栏子项改长在画布底栏（`SHELL_CANVAS_DESK_BOTTOM_ENTRIES`，不含「历史对话」）。
-- 9f-2 库叠层、9f-3 列表封面/进度、9f-4 动效、手机端另做。
+- **库叠层（9f-2a）**：`/library/<类>`（素材 / 角色 / 提示词 / 音色 / 画廊）叠在中间那一栏上，⛔ 盖住台。外壳挂在路由组 `(shell)`（`studio/` 与 `library/` 共用）；从外壳里点开是软跳转，由 `@library/(.)library/*` 拦截、台留在 `children` 不卸载；直接打开时库就是 `children`。两种情况页面都传送到同一个落点（`StudioLibraryOverlay`）。叠层里的页面不登记宿主、不挂面板（`StudioOperatorDetachedScope`）。开着库时对话那一栏至少占一半。
+- 9f-2b LoRA / 标签两类与「选给 XX 台」、9f-2c 旧地址 308 与我的主页、9f-3 列表封面/进度、9f-4 动效，手机端另做。
 
 ## Last Verified
 

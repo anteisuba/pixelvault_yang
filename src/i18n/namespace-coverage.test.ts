@@ -684,6 +684,13 @@ const KNOWN_DYNAMIC_NAMESPACE_SITES: Readonly<
     calls: ['useTranslations()'],
     namespaces: ['Navbar', 'StudioTools'],
   },
+  'components/business/studio/shell/StudioLibraryOverlay.tsx': {
+    reason:
+      'The library tabs render `SHELL_NAV_GO` items via `t(item.labelKey)`; ' +
+      'every `labelKey` there is under `Navbar.links.`.',
+    calls: ['useTranslations()'],
+    namespaces: ['Navbar'],
+  },
   'components/business/studio/shell/StudioShell.tsx': {
     reason:
       'The bench rail renders `SHELL_NAV_TOOLS` items via `t(item.labelKey)`; ' +

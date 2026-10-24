@@ -5,8 +5,10 @@ import { useTranslations } from 'next-intl'
 import { SHELL_NAV_GO } from '@/constants/navigation'
 import { ROUTES } from '@/constants/routes'
 import {
+  STUDIO_LIBRARY_CATEGORY_IDS,
   STUDIO_SHELL_LIST_WIDTH_CLASS,
   STUDIO_SHELL_RECENT_LIMIT,
+  studioLibraryPath,
 } from '@/constants/studio-shell'
 import { AudioLines, ChevronDown, SquarePen } from '@/components/icons'
 import { AccountMenu } from '@/components/layout/AccountMenu'
@@ -17,15 +19,18 @@ import { useStudioOperatorHistoryView } from '@/hooks/use-studio-operator-histor
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
 import { deriveAssistantConversationTitle } from '@/lib/assistant-conversation-title'
 import {
+  libraryCategoryFromPath,
   studioConversationHref,
   studioShellRouteKind,
 } from '@/lib/studio-shell-route'
 import { cn } from '@/lib/utils'
 
-/** 列表里去旧页面的那几行（9f-2 换成就地叠层之前的过渡，owner 10-23 定的 9f-1 范围）。 */
-const LIBRARY_ROW_IDS = ['assets', 'cards', 'prompts', 'voices', 'gallery']
-const LIBRARY_ROWS = LIBRARY_ROW_IDS.flatMap((id) =>
-  SHELL_NAV_GO.filter((item) => item.id === id),
+/** 库的几类（点了叠在中间，`/library/<类>`）；名字与图标取全站「去处」那份清单。 */
+const LIBRARY_ROWS = STUDIO_LIBRARY_CATEGORY_IDS.flatMap((id) =>
+  SHELL_NAV_GO.filter((item) => item.id === id).map((item) => ({
+    ...item,
+    id,
+  })),
 )
 
 const ROW_CLASS =
@@ -36,7 +41,7 @@ const ROW_ACTIVE_CLASS =
 
 /**
  * `/studio` 外壳左边那一栏 —— **在哪儿**（第 9f 步方向 E，9f-1 先做简版）：
- * 新对话 · 库（素材 / 角色 / 提示词 / 音色 / 画廊，先跳旧页面）· 配音间 · 最近对话 · 账号。
+ * 新对话 · 库（素材 / 角色 / 提示词 / 音色 / 画廊，叠在中间）· 配音间 · 最近对话 · 账号。
  *
  * ⚠ 读的是面板发布出来的历史与「新对话」那只手（`useStudioOperatorHistoryView` /
  *   `useStudioOperatorActions`），⛔ 这里再调一次驱动 hook。
@@ -52,6 +57,7 @@ export function StudioConversationList({ className }: { className?: string }) {
   const history = useStudioOperatorHistoryView()
   const actions = useStudioOperatorActions()
   const kind = studioShellRouteKind(pathname)
+  const openCategory = libraryCategoryFromPath(pathname)
   const recent = (history?.sessions ?? []).slice(0, STUDIO_SHELL_RECENT_LIMIT)
 
   const startNewChat = () => {
@@ -101,9 +107,16 @@ export function StudioConversationList({ className }: { className?: string }) {
       <ul aria-label={t('library')} className="flex flex-col gap-0.5 px-2">
         {LIBRARY_ROWS.map((item) => {
           const Icon = item.icon
+          const active = item.id === openCategory
           return (
             <li key={item.id}>
-              <Link href={item.href} className={ROW_CLASS}>
+              {/* 库开着时换一类 = 换叠层里那一页，⛔ 多压一层历史（后退直接回到台）。 */}
+              <Link
+                href={studioLibraryPath(item.id)}
+                replace={openCategory !== null}
+                aria-current={active ? 'page' : undefined}
+                className={cn(ROW_CLASS, active && ROW_ACTIVE_CLASS)}
+              >
                 <Icon />
                 <span className="truncate">{tAll(item.labelKey)}</span>
               </Link>

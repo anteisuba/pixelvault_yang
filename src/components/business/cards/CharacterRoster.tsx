@@ -23,7 +23,7 @@ import {
   ResponsiveMenuItem,
 } from '@/components/ui/responsive-menu'
 import { Spinner } from '@/components/ui/spinner'
-import { StudioOperatorDock } from '@/components/business/studio/assistant-operator'
+import { StudioOperatorBenchDock } from '@/components/business/studio/assistant-operator'
 import {
   CharacterDetailBody,
   CharacterDetailHeader,
@@ -590,7 +590,7 @@ export function CharacterRoster() {
         }}
       />
 
-      <StudioOperatorDock />
+      <StudioOperatorBenchDock />
     </StudioOperatorHostProvider>
   )
 }

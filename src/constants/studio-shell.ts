@@ -22,8 +22,9 @@ export type StudioShellBenchId = (typeof STUDIO_SHELL_BENCH_IDS)[number]
  * - `home`：只有对话（首页、`/studio/c/编号`）—— 中间一栏铺开，右边贴一条台条。
  * - `bench`：对话 + 台，中间那一根分隔线定宽窄。
  * - `page`：整页（配音间）—— 左边列表 + 这一页，⛔ 不挂对话（助手不进配音间，owner 10-23）。
+ * - `library`：库叠在中间（`/library/<类>`）—— 底下是进来之前那一页（台不卸载）。
  */
-export type StudioShellRouteKind = 'home' | 'bench' | 'page'
+export type StudioShellRouteKind = 'home' | 'bench' | 'page' | 'library'
 
 /** 整页显示、不挂对话的那几条（前缀）。 */
 export const STUDIO_SHELL_PAGE_ROUTES: readonly string[] = [ROUTES.STUDIO_AUDIO]
@@ -48,3 +49,22 @@ export const STUDIO_SHELL_LIST_WIDTH_CLASS = 'w-60'
 
 /** 左边列表里「最近对话」摆几条（其余在列表里往下滚）。 */
 export const STUDIO_SHELL_RECENT_LIMIT = 30
+
+/**
+ * 库里的几类（第 9f 步 9f-2a）：先接已有的五页，LoRA / 标签两类随 9f-2b 加进来。
+ * id 就是地址里那一段（`/library/<id>`）；名字与图标取全站「去处」那份清单（`SHELL_NAV_GO`）。
+ */
+export const STUDIO_LIBRARY_CATEGORY_IDS = [
+  'assets',
+  'cards',
+  'prompts',
+  'voices',
+  'gallery',
+] as const
+
+export type StudioLibraryCategoryId =
+  (typeof STUDIO_LIBRARY_CATEGORY_IDS)[number]
+
+export function studioLibraryPath(category: StudioLibraryCategoryId): string {
+  return `${ROUTES.LIBRARY}/${category}`
+}

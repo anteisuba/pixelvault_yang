@@ -50,6 +50,8 @@ interface StudioTagChipFieldProps {
   markedTags?: readonly string[]
   /** 格子底下那行状态（带过来的那一句正在翻成标签…）。 */
   status?: ReactNode
+  /** Ctrl / ⌘ + 点一格：去标签库看它的详情（桌面标签台，第 9f 步 9f-2c）。 */
+  onLookup?: (chip: TagChip) => void
 }
 
 /**
@@ -71,6 +73,7 @@ export function StudioTagChipField({
   placeholder,
   markedTags,
   status,
+  onLookup,
 }: StudioTagChipFieldProps) {
   const t = useTranslations('StudioTags')
   const tModels = useTranslations('Models')
@@ -312,6 +315,7 @@ export function StudioTagChipField({
                       )
                     }
                     onRemove={() => removeAt(index)}
+                    onLookup={onLookup}
                   />
                 </motion.span>
               )

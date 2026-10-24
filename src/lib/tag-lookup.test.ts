@@ -4,6 +4,7 @@ import {
   addLookupTags,
   artistPromptTag,
   compactPostCount,
+  danbooruTagFromChip,
   danbooruTagSearchUrl,
   displayDanbooruTag,
   hasTag,
@@ -97,5 +98,18 @@ describe('tag lookup rules', () => {
     expect(danbooruTagSearchUrl(' Zz Qx ')).toBe(
       'https://danbooru.donmai.us/tags?search%5Bname_matches%5D=*zz_qx*',
     )
+  })
+
+  it('台上一格标签认回 Danbooru 的 tag 名（Ctrl+点去标签库）', () => {
+    expect(danbooruTagFromChip(' Long Hair ')).toEqual({
+      name: 'long_hair',
+      artist: false,
+    })
+    expect(danbooruTagFromChip('artist:mizuiro sora')).toEqual({
+      name: 'mizuiro_sora',
+      artist: true,
+    })
+    expect(danbooruTagFromChip('a girl, smiling')).toBeNull()
+    expect(danbooruTagFromChip('-lowres')).toBeNull()
   })
 })

@@ -5,10 +5,13 @@ import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
 import { EASE_STANDARD, LIQUID_TIMING } from '@/constants/motion'
+import { studioTagLibraryDetailPath } from '@/constants/studio-shell'
 import { useStudioForm } from '@/contexts/studio-context'
 import { useNovelAiCharacters } from '@/hooks/use-novelai-characters'
 import { useTagTargetFlash } from '@/hooks/use-tag-target-flash'
+import { useRouter } from '@/i18n/navigation'
 import { parseTagChips, serializeTagChips } from '@/lib/tag-composer'
+import { danbooruTagFromChip } from '@/lib/tag-lookup'
 import type { TagChip } from '@/types/tag-composer'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import {
@@ -49,6 +52,15 @@ export function StudioTagsDesktopEditor({
   referenceStatus: ReactNode
 }) {
   const t = useTranslations('StudioTags')
+  const router = useRouter()
+  // Ctrl / ⌘ + 点一格：去标签库看它（第 9f 步 9f-2c）；整句话那种不是 tag，不理。
+  const lookup = (chip: TagChip) => {
+    const tag = danbooruTagFromChip(chip.text)
+    if (tag)
+      router.push(
+        studioTagLibraryDetailPath(tag.name, tag.artist ? 'artist' : undefined),
+      )
+  }
   const reducedMotion = useReducedMotion()
   const { state, dispatch } = useStudioForm()
   const characters = useNovelAiCharacters()
@@ -224,6 +236,7 @@ export function StudioTagsDesktopEditor({
           disabled={disabled || characterDisabled}
           onChange={setChips}
           status={!negativeView && activeIndex === null ? carry : undefined}
+          onLookup={lookup}
         />
       </motion.div>
       {followRow ? (

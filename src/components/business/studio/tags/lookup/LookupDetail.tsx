@@ -255,6 +255,20 @@ export function LookupHead({
   )
 }
 
+/**
+ * Danbooru Wiki 的头一段（标签库，第 9f 步 9f-2c）：英文原文，最多三行，悬停看全文。
+ */
+export function LookupAbout({ text }: { text: string }) {
+  return (
+    <p
+      title={text}
+      className="line-clamp-3 shrink-0 text-xs leading-5 text-muted-foreground"
+    >
+      {text}
+    </p>
+  )
+}
+
 /** 一小段的标题 + 灰色补一句。 */
 export function LookupSection({
   title,
@@ -262,14 +276,16 @@ export function LookupSection({
   children,
 }: {
   title: string
-  hint: string
+  hint?: string
   children: ReactNode
 }) {
   return (
     <section className="flex flex-col gap-2.5">
       <div className="flex items-baseline gap-2 text-xs font-semibold text-foreground/80">
         {title}
-        <span className="font-normal text-muted-foreground/70">{hint}</span>
+        {hint ? (
+          <span className="font-normal text-muted-foreground/70">{hint}</span>
+        ) : null}
       </div>
       {children}
     </section>

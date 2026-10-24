@@ -18,6 +18,7 @@ beforeEach(() => {
   vi.mocked(fetchDanbooruCatalog).mockResolvedValue({
     candidates: [],
     crossHint: null,
+    nextPage: null,
     detail: null,
   })
 })
@@ -75,6 +76,18 @@ describe('catalog API boundary', () => {
       random: '1',
     })
     expect((await GET(request('kind=artist'))).status).toBe(400)
+  })
+  it('标签库：按热度翻页、卡片样图要写 kind；取详情可以不写（按 tag 自己的类别认）', async () => {
+    expect((await GET(request('kind=general&page=2'))).status).toBe(200)
+    expect(fetchDanbooruCatalog).toHaveBeenCalledWith({
+      kind: 'general',
+      page: 2,
+    })
+    expect((await GET(request('tag=long_hair'))).status).toBe(200)
+    expect(fetchDanbooruCatalog).toHaveBeenCalledWith({ tag: 'long_hair' })
+    expect((await GET(request('page=1'))).status).toBe(400)
+    expect((await GET(request('tag=long_hair&preview=1'))).status).toBe(400)
+    expect((await GET(request('kind=general&page=0'))).status).toBe(400)
   })
   it('reports failed services as errors', async () => {
     vi.mocked(fetchDanbooruCatalog).mockRejectedValue(new Error('offline'))

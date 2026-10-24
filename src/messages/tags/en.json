@@ -219,7 +219,9 @@
       "addArtist": "Add {tag}",
       "artistAdded": "Added",
       "backToList": "Back to matches",
-      "backToResults": "Back to results"
+      "backToResults": "Back to results",
+      "refsCharacter": "Common traits",
+      "refsWork": "Characters"
     },
     "cast": {
       "interaction": "Action",
@@ -291,6 +293,12 @@
       "negativePlaceholder": "What you don't want, e.g. lowres, bad hands…",
       "writeFor": "For",
       "count": "{count}"
+    },
+    "library": {
+      "tabLibrary": "Library",
+      "viewLabel": "Library or favorites",
+      "back": "Back",
+      "notATag": "Danbooru has no tag by this name — it may be your own wording or a different spelling."
     }
   }
 }

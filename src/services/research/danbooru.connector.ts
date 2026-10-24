@@ -329,6 +329,14 @@ function belongsTo(tag: CatalogTag, kind: DanbooruCatalogKind): boolean {
   )
 }
 
+/** 这个 tag 归哪一页（不归任何一页 —— 说帖子的 meta、版权外的杂类 —— 是 `null`）。 */
+function kindOf(tag: CatalogTag): DanbooruCatalogKind | null {
+  return (
+    DanbooruCatalogKindSchema.options.find((kind) => belongsTo(tag, kind)) ??
+    null
+  )
+}
+
 function readCatalog(path: string, params: Record<string, string>) {
   return researchFetchJson(
     RESEARCH_SOURCE_IDS.danbooru,
@@ -572,26 +580,142 @@ async function randomMedia(): Promise<DanbooruCatalog['candidates']> {
   return picked.filter((item) => item.previews.length > 0).slice(0, limit)
 }
 
-async function readCatalogDetail(
+/**
+ * Wiki 正文的头一段（标签库详情里那几行说明，第 9f 步 9f-2c）：DText 的链接只留显示的字，
+ * 粗体 / 标题 / 引用这些记号拿掉；「See also」之类的段落不要。太长截到一句话为止。
+ */
+export function wikiExcerpt(body: string): string | null {
+  const text = body
+    .replace(/\r/g, '')
+    // [[tag|显示]] → 显示；[[tag]] → tag（下划线换空格）
+    .replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, '$2')
+    .replace(/\[\[([^\]]+)\]\]/g, (_, name: string) =>
+      name.replaceAll('_', ' '),
+    )
+    // {{tag search}} → tag search
+    .replace(/\{\{([^}]+)\}\}/g, '$1')
+    // "文字":[链接] / "文字":/path
+    .replace(/"([^"]+)":\[[^\]]+\]/g, '$1')
+    .replace(/"([^"]+)":\S+/g, '$1')
+    .replace(
+      /\[\/?(?:b|i|u|s|tn|spoiler|nodtext|code|quote|expand)[^\]]*\]/gi,
+      '',
+    )
+  const paragraph = text
+    .split(/\n\s*\n/)
+    .map((part) => part.replace(/\s+/g, ' ').trim())
+    .find(
+      (part) =>
+        part.length > 0 &&
+        !/^h\d\./i.test(part) &&
+        !/^\*/.test(part) &&
+        !/^(see also|external links)/i.test(part),
+    )
+  if (!paragraph) return null
+  if (paragraph.length <= DANBOORU_REQUEST.wikiExcerptMax) return paragraph
+  const cut = paragraph.slice(0, DANBOORU_REQUEST.wikiExcerptMax)
+  const stop = cut.lastIndexOf('. ')
+  return stop > DANBOORU_REQUEST.wikiExcerptMax / 2
+    ? cut.slice(0, stop + 1)
+    : `${cut.trimEnd()}…`
+}
+
+/**
+ * 标签库的网格（第 9f 步 9f-2c）：这一类按作品数从多到少，一页一页翻。⚠ 只回名字与作品数，
+ * 样图由每张卡滚进视野时自己问（`previewCatalog`）—— 一页几十张卡同时问样图会被限流。
+ * 画风页第一页先放画法（同 matchPage 的「画法在前」）。
+ */
+async function browseCatalog(
+  kind: DanbooruCatalogKind,
+  page: number,
+): Promise<DanbooruCatalog> {
+  const limit = DANBOORU_REQUEST.libraryPageSize
+  const placeholders = new Set<string>(DANBOORU_REQUEST.randomPlaceholderTags)
+  const [media, tags] = await Promise.all([
+    kind === 'artist' && page === 1
+      ? cached('top-medium', async () =>
+          CatalogTagsSchema.parse(
+            await readCatalog('/tags.json', {
+              'search[name_comma]': DANBOORU_REQUEST.mediumRandomPool.join(','),
+              limit: String(DANBOORU_REQUEST.mediumRandomPool.length),
+            }),
+          ).filter(isStyleMedium),
+        )
+      : [],
+    cached(`browse-${kind}-${page}`, async () =>
+      CatalogTagsSchema.parse(
+        await readCatalog('/tags.json', {
+          'search[category]': String(CATALOG_CATEGORY[kind]),
+          'search[order]': 'count',
+          'search[hide_empty]': 'yes',
+          limit: String(limit),
+          page: String(page),
+        }),
+      ),
+    ),
+  ])
+  const rows = [
+    ...[...media].sort((a, b) => b.post_count - a.post_count),
+    ...tags.filter(
+      (tag) =>
+        tag.category === CATALOG_CATEGORY[kind] && !placeholders.has(tag.name),
+    ),
+  ]
+  return {
+    candidates: rows.map((tag) => ({
+      name: tag.name,
+      count: tag.post_count,
+      category: tag.category,
+      work: null,
+      previews: [],
+    })),
+    crossHint: null,
+    nextPage: tags.length < limit ? null : page + 1,
+    detail: null,
+  }
+}
+
+/** 网格里一张卡的样图（同 withPreviews 的那一行：角色顺带推出作品）。 */
+async function previewCatalog(
   tag: string,
   kind: DanbooruCatalogKind,
+): Promise<DanbooruCatalog> {
+  const candidates = await withPreviews(
+    [{ name: tag, category: CATALOG_CATEGORY[kind], post_count: 0 }],
+    kind,
+  )
+  return { candidates, crossHint: null, nextPage: null, detail: null }
+}
+
+async function readCatalogDetail(
+  tag: string,
+  asked: DanbooruCatalogKind | undefined,
 ): Promise<DanbooruCatalog> {
   const empty: DanbooruCatalog = {
     candidates: [],
     crossHint: null,
+    nextPage: null,
     detail: null,
   }
   const tags = CatalogTagsSchema.parse(
     await readCatalog('/tags.json', { 'search[name]': tag, limit: '1' }),
   )
-  const hit = tags.find((item) => item.name === tag && belongsTo(item, kind))
-  if (!hit) return empty
+  const hit = tags.find(
+    (item) => item.name === tag && (asked ? belongsTo(item, asked) : true),
+  )
+  const kind = hit ? (asked ?? kindOf(hit)) : null
+  if (!hit || !kind) return empty
   const [wikiRaw, posts] = await Promise.all([
     readCatalog('/wiki_pages.json', { 'search[title]': tag, limit: '1' }),
     safePosts(tag, DANBOORU_REQUEST.catalogSampleSize),
   ])
   const wiki = z
-    .array(z.object({ other_names: z.array(z.string()).optional() }))
+    .array(
+      z.object({
+        other_names: z.array(z.string()).optional(),
+        body: z.string().optional(),
+      }),
+    )
     .parse(wikiRaw)
   // 作品页数的是里面出场的角色；别的页数的是一起出现的通用 tag。
   const skip = new Set<string>([
@@ -615,9 +739,11 @@ async function readCatalogDetail(
     ...empty,
     detail: {
       tag,
+      kind,
       count: hit.post_count,
       work: kind === 'character' ? topCopyright(posts) : null,
       aliases: wiki[0]?.other_names ?? [],
+      wiki: wikiExcerpt(wiki[0]?.body ?? ''),
       sampleSize: posts.length,
       traits: [...counts]
         .sort((a, b) => b[1] - a[1])
@@ -638,25 +764,32 @@ async function readCatalogDetail(
 async function readDanbooruCatalog(
   query: DanbooruCatalogQuery,
 ): Promise<DanbooruCatalog> {
+  if (query.tag && query.preview && query.kind)
+    return previewCatalog(query.tag, query.kind)
   if (query.tag) return readCatalogDetail(query.tag, query.kind)
+  // ⚠ 下面几种问法 schema 都要求写了 kind。
+  const kind = query.kind ?? 'character'
+  if (query.page && !query.query) return browseCatalog(kind, query.page)
   if (!query.query) {
     // 画风页：画法一段在前（同 matchPage）。
     const [media, picked] = await Promise.all([
-      query.kind === 'artist' ? randomMedia() : [],
-      randomCatalog(query.kind),
+      kind === 'artist' ? randomMedia() : [],
+      randomCatalog(kind),
     ])
     return {
       candidates: [...media, ...picked],
       crossHint: null,
+      nextPage: null,
       detail: null,
     }
   }
   const aliases = await aliasTags(query.query)
-  const found = await matchPage(query.query, query.kind, aliases)
+  const found = await matchPage(query.query, kind, aliases)
   if (found.length > 0) {
     return {
-      candidates: await withPreviews(found, query.kind),
+      candidates: await withPreviews(found, kind),
       crossHint: null,
+      nextPage: null,
       detail: null,
     }
   }
@@ -665,7 +798,7 @@ async function readDanbooruCatalog(
    * 落空，其实是画师）。有就回一句跨页提示，⛔ 不把别的页的结果混进这一页。
    */
   for (const otherKind of DanbooruCatalogKindSchema.options) {
-    if (otherKind === query.kind) continue
+    if (otherKind === kind) continue
     const other = (await matchPage(query.query, otherKind, aliases))[0]
     if (other) {
       return {
@@ -675,11 +808,12 @@ async function readDanbooruCatalog(
           name: other.name,
           count: other.post_count,
         },
+        nextPage: null,
         detail: null,
       }
     }
   }
-  return { candidates: [], crossHint: null, detail: null }
+  return { candidates: [], crossHint: null, nextPage: null, detail: null }
 }
 
 export function fetchDanbooruCatalog(

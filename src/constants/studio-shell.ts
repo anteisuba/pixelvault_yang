@@ -52,12 +52,13 @@ export const STUDIO_SHELL_RECENT_LIMIT = 30
 
 /**
  * 库里的几类（第 9f 步）：id 就是地址里那一段（`/library/<id>`）；名字与图标见
- * `STUDIO_LIBRARY_ITEMS`（`constants/navigation.ts`）。标签一类随 9f-2c 加进来。
+ * `STUDIO_LIBRARY_ITEMS`（`constants/navigation.ts`）。标签（9f-2c）只在库里，没有旧页面。
  */
 export const STUDIO_LIBRARY_CATEGORY_IDS = [
   'assets',
   'cards',
   'lora',
+  'tags',
   'prompts',
   'voices',
   'gallery',
@@ -77,4 +78,14 @@ export function studioLibraryPickPath(
   category: StudioLibraryCategoryId,
 ): string {
   return `${studioLibraryPath(category)}?${STUDIO_LIBRARY_PICK_PARAM}=1`
+}
+
+/**
+ * 标签库里直接打开一个 tag 的详情（台上 Ctrl+点一格标签，9f-2c）。`of` 不写 = 按 tag 自己的
+ * 类别认。参数名与 `TagLibraryView` 那份一致。
+ */
+export function studioTagLibraryDetailPath(tag: string, of?: 'artist'): string {
+  const params = new URLSearchParams({ tag })
+  if (of) params.set('of', of)
+  return `${studioLibraryPath('tags')}?${params}`
 }

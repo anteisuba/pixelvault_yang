@@ -154,7 +154,8 @@
       "assets": "アセット",
       "cards": "キャラクター",
       "voices": "ボイス",
-      "profile": "マイページ"
+      "profile": "マイページ",
+      "tags": "タグ"
     },
     "groupLabel": "移動先"
   },

@@ -21,10 +21,35 @@ import type { LoraStageContextValue } from '@/components/business/studio/lora/lo
  * ⭐ 库与台不在同一棵树里（库在 `@library` 那一格 / 传送落点，台在 `children`），所以走
  *   外壳这一层的登记，⛔ 靠 Provider 嵌套。两种登记：
  * - **LoRA**（9f-2b）：库本身就是挑的地方，挂上去进外壳那份挂载栈；台只多给一样底模。
+ * - **标签**（9f-2c）：同 LoRA，库就是挑的地方；标签台登记一份「加进来」（`TagsLibraryAdder`）。
  * - **挑选落点**（9f-2d）：库那一类在挑选的样子（`?pick=1`）只画外框和一格落点，里面那份
  *   挑选界面由**台自己**传送进来 —— 它还在台的那棵树里，台的状态（容量、造型、模板撤销…）
  *   原样可用，⛔ 把台的状态搬一份到库里。
  */
+/** 加到哪：整体 · 第几位角色 · 新建一位。 */
+export type TagLookupTarget = 'whole' | 'new' | number
+
+/**
+ * 标签台登记给标签库的那一份（9f-2c）：库里详情的「加到整体 / 角色 N」走它。
+ * ⚠ 函数是稳定引用（台那边经 ref 转一手），数据字段只在真的变了才换 —— 否则台每画一帧
+ *   就登记一次，外壳跟着重画，台又重画……
+ */
+export interface TagsLibraryAdder {
+  benchLabel: string
+  /** 模型有角色构图（没有就只剩整体）。 */
+  composition: boolean
+  characterCount: number
+  canAddCharacter: boolean
+  /** 输入框当前在哪一页（默认加到那里）。 */
+  followTarget: TagLookupTarget
+  busy: boolean
+  /** 正向标签里已经有这一个（画风开关看它）。 */
+  hasPositive: (tag: string) => boolean
+  /** 加进去；建了新角色就回它的位置，接着加就加到那一位。 */
+  add: (tags: readonly string[], target: TagLookupTarget) => number | null
+  toggleStyle: (name: string) => void
+}
+
 interface PickProvider {
   id: string
   category: StudioLibraryCategoryId
@@ -34,6 +59,8 @@ interface PickProvider {
 interface StudioLibraryPickValue {
   lora: LoraStageContextValue | null
   setLora: (stage: LoraStageContextValue | null) => void
+  tags: TagsLibraryAdder | null
+  setTags: (adder: TagsLibraryAdder | null) => void
   /** 登记的先后：同一类最后一条说了算。 */
   providers: readonly PickProvider[]
   setProviders: (
@@ -53,6 +80,7 @@ export function StudioLibraryPickProvider({
   children: ReactNode
 }) {
   const [lora, setLora] = useState<LoraStageContextValue | null>(null)
+  const [tags, setTags] = useState<TagsLibraryAdder | null>(null)
   const [providers, setProviders] = useState<readonly PickProvider[]>([])
   const [slots, setSlots] = useState<
     Partial<Record<StudioLibraryCategoryId, HTMLElement>>
@@ -70,8 +98,17 @@ export function StudioLibraryPickProvider({
     [],
   )
   const value = useMemo<StudioLibraryPickValue>(
-    () => ({ lora, setLora, providers, setProviders, slots, setSlot }),
-    [lora, providers, slots, setSlot],
+    () => ({
+      lora,
+      setLora,
+      tags,
+      setTags,
+      providers,
+      setProviders,
+      slots,
+      setSlot,
+    }),
+    [lora, tags, providers, slots, setSlot],
   )
   return (
     <StudioLibraryPickContext.Provider value={value}>
@@ -89,6 +126,16 @@ export function useRegisterLoraLibraryPick(stage: LoraStageContextValue) {
     setLora({ base, baseLabel })
     return () => setLora(null)
   }, [base, baseLabel, setLora])
+}
+
+/** 标签台开着（桌面）时登记那一份「加进来」；`null` = 不登记（手机还在台上查资料）。 */
+export function useRegisterTagsLibraryPick(adder: TagsLibraryAdder | null) {
+  const setTags = useContext(StudioLibraryPickContext)?.setTags
+  useEffect(() => {
+    if (!setTags || !adder) return
+    setTags(adder)
+    return () => setTags(null)
+  }, [adder, setTags])
 }
 
 /**
@@ -135,7 +182,11 @@ export function useSetLibraryPickSlot():
   return useContext(StudioLibraryPickContext)?.setSlot ?? null
 }
 
-/** 库里读 LoRA 台的底模（9f-2b）。外壳外面一律没有。 */
-export function useStudioLibraryPick(): { lora: LoraStageContextValue | null } {
-  return { lora: useContext(StudioLibraryPickContext)?.lora ?? null }
+/** 库里读 LoRA 台的底模（9f-2b）与标签台那一份「加进来」（9f-2c）。外壳外面一律没有。 */
+export function useStudioLibraryPick(): {
+  lora: LoraStageContextValue | null
+  tags: TagsLibraryAdder | null
+} {
+  const ctx = useContext(StudioLibraryPickContext)
+  return { lora: ctx?.lora ?? null, tags: ctx?.tags ?? null }
 }

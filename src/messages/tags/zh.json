@@ -219,7 +219,9 @@
       "addArtist": "加入 {tag}",
       "artistAdded": "已加入",
       "backToList": "返回候选",
-      "backToResults": "返回结果"
+      "backToResults": "返回结果",
+      "refsCharacter": "常见特征",
+      "refsWork": "出场角色"
     },
     "cast": {
       "interaction": "互动",
@@ -291,6 +293,12 @@
       "negativePlaceholder": "不想要的，比如 lowres、bad hands…",
       "writeFor": "写给",
       "count": "{count} 个"
+    },
+    "library": {
+      "tabLibrary": "库",
+      "viewLabel": "看库还是收藏",
+      "back": "返回",
+      "notATag": "Danbooru 上没有这个标签，可能是自己写的词或者拼法不一样。"
     }
   }
 }

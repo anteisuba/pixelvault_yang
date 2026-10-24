@@ -34,6 +34,23 @@ export function stylePromptTag(name: string): string {
     : artistPromptTag(name)
 }
 
+/**
+ * 台上一格标签 → Danbooru 的 tag 名（Ctrl+点一格去标签库看详情，第 9f 步 9f-2c）：
+ * `artist:名字` 认成画师，空格换回下划线。整句话、带逗号的那种不是 tag，给 `null`。
+ */
+export function danbooruTagFromChip(
+  text: string,
+): { name: string; artist: boolean } | null {
+  const trimmed = text.trim()
+  const artist = /^artist:/i.test(trimmed)
+  const name = (artist ? trimmed.slice('artist:'.length) : trimmed)
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_')
+  if (!name || name.length > 150 || !/^[^,\-~][^,]*$/.test(name)) return null
+  return { name, artist }
+}
+
 /** 作品张数的短写：15.2万 / 152K。 */
 export function compactPostCount(count: number, locale: string): string {
   return new Intl.NumberFormat(locale, {

@@ -31,7 +31,8 @@
  */
 
 import { useState } from 'react'
-import { Check, ChevronDown, ChevronUp, Plus } from '@/components/icons'
+import Image from 'next/image'
+import { Check, ChevronDown, ChevronUp, Plus, X } from '@/components/icons'
 import { motion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
@@ -50,9 +51,11 @@ import {
   ResponsivePopoverTrigger,
 } from '@/components/ui/responsive-popover'
 import { SearchGroundingSlot } from '@/components/business/studio-shared/search-grounding/SearchGroundingSlot'
+import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import type { StudioOperatorSearchGroundingControl } from '@/contexts/studio-operator-host'
 import { BlurSwap, useBlurSwapIn } from '@/components/ui/blur-swap'
 import { Spinner } from '@/components/ui/spinner'
+import { Textarea } from '@/components/ui/textarea'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import {
   buildCanvasGenerationRequest,
@@ -66,6 +69,7 @@ import { cn } from '@/lib/utils'
 import type {
   StudioOperatorConfirmPrompt,
   StudioOperatorGenerationControls,
+  StudioOperatorGenerationDraft,
 } from '@/types/studio-assistant-operator'
 
 interface StudioOperatorConfirmCardProps {
@@ -122,6 +126,11 @@ interface StudioOperatorConfirmCardProps {
    * 画布那一枪（`canvasNode`）不走这里（那是卡自己的参数）。
    */
   searchGrounding?: StudioOperatorSearchGroundingControl
+  /**
+   * 首页那份小配方（第 9g 步）：没开台时提示词与参考图也在卡上改，外加「去图片台接着改」；
+   * 型号没配 key 时按「出图」先就地配。缺席 = 台开着，卡照旧只有旋钮。
+   */
+  draft?: StudioOperatorGenerationDraft
 }
 
 type KnobSpec = StudioOperatorKnobSpec
@@ -149,6 +158,7 @@ export function StudioOperatorConfirmCard({
   canGenerate = true,
   onAdjust,
   searchGrounding,
+  draft,
 }: StudioOperatorConfirmCardProps) {
   const t = useTranslations('StudioOperator')
   const tSearch = useTranslations('SearchGrounding')
@@ -170,6 +180,8 @@ export function StudioOperatorConfirmCard({
   const [adjusted, setAdjusted] = useState<
     readonly StudioOperatorGenerateKnob[]
   >([])
+  /** 首页那份配方的型号没配 key：按「出图」先弹这一窗（Hard Rule 8）。 */
+  const [keySetupOpen, setKeySetupOpen] = useState(false)
   const decided =
     confirm.status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed ||
     confirm.status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.cancelled
@@ -229,6 +241,8 @@ export function StudioOperatorConfirmCard({
    * 视频 / 音频，跑一次就是一次，卡名才是用户要核对的那件事。
    */
   const canvasNode = generate?.request.canvasNode
+  /** 首页那份小配方只管工作台那一枪；画布那一枪是卡自己的参数。 */
+  const homeDraft = generate && !canvasNode ? (draft ?? null) : null
   /** 工作台那一枪才有这一颗；模型不支持时按钮与槽一起收（宽 / 高 → 0）。 */
   const searchAvailable =
     Boolean(generate && !canvasNode && searchGrounding?.available) && !busy
@@ -503,6 +517,55 @@ export function StudioOperatorConfirmCard({
             /* ⭐ 四颗旋钮就地可换（§5.1）—— 候选表空的那一颗**不画**（这个模型
                没有它）。⛔ 不摆一颗点了没反应的下拉，那比不摆更坏。 */
             <div className="flex flex-col gap-1 px-3 py-2">
+              {homeDraft ? (
+                <div
+                  data-testid="operator-confirm-draft"
+                  className="mb-1 flex flex-col gap-1.5"
+                >
+                  <Textarea
+                    data-testid="operator-confirm-draft-prompt"
+                    aria-label={t('confirm.generate.prompt')}
+                    value={homeDraft.prompt}
+                    disabled={busy}
+                    onChange={(event) =>
+                      homeDraft.setPrompt(event.target.value)
+                    }
+                    className="max-h-40 min-h-16 bg-background text-2sm"
+                  />
+                  {homeDraft.references.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {homeDraft.references.map((reference) => (
+                        <div
+                          key={reference.url}
+                          data-testid="operator-confirm-draft-reference"
+                          className="relative size-12 overflow-hidden rounded-md border border-border bg-muted"
+                        >
+                          <Image
+                            src={reference.url}
+                            alt={reference.name ?? ''}
+                            fill
+                            sizes="48px"
+                            unoptimized
+                            className="object-cover"
+                          />
+                          <button
+                            type="button"
+                            data-testid="operator-confirm-draft-reference-remove"
+                            aria-label={t('confirm.generate.removeReference')}
+                            disabled={busy}
+                            onClick={() =>
+                              homeDraft.removeReference(reference.url)
+                            }
+                            className="absolute right-0.5 top-0.5 flex size-4 items-center justify-center rounded-full bg-foreground/70 text-background transition-colors duration-fast ease-standard hover:bg-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none"
+                          >
+                            <X className="size-2.5" aria-hidden />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
               <div
                 data-testid="operator-confirm-knobs"
                 className="flex flex-wrap gap-1.5"
@@ -712,7 +775,9 @@ export function StudioOperatorConfirmCard({
                   : confirm.kind ===
                       ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep
                     ? onApprove
-                    : onConfirm
+                    : homeDraft?.keySetup
+                      ? () => setKeySetupOpen(true)
+                      : onConfirm
               }
               className="flex h-8 items-center rounded-md bg-foreground px-4 text-2sm font-medium text-background transition-[background-color,transform] duration-fast ease-standard hover:bg-foreground/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
             >
@@ -756,7 +821,35 @@ export function StudioOperatorConfirmCard({
                   ? t('confirm.multistep.stepByStep')
                   : t('confirm.generate.cancel')}
             </button>
+            {homeDraft ? (
+              <button
+                type="button"
+                data-testid="operator-confirm-open-bench"
+                disabled={busy}
+                onClick={homeDraft.openBench}
+                className="ml-auto flex h-8 items-center rounded-md px-2 text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none"
+              >
+                {t('confirm.generate.openBench')}
+              </button>
+            ) : null}
           </div>
+          {homeDraft?.keySetup ? (
+            <QuickSetupDialog
+              open={keySetupOpen}
+              onOpenChange={setKeySetupOpen}
+              modelId={homeDraft.keySetup.modelId}
+              modelLabel={homeDraft.keySetup.modelLabel}
+              adapterType={homeDraft.keySetup.adapterType}
+              optionId={homeDraft.keySetup.optionId}
+              // 卡在首页那份表单外面：选中由配方自己落（配好的那把 key），再扣扳机。
+              selectStudioModel={false}
+              onVerified={(_modelId, keyId) => {
+                homeDraft.keySetup?.onVerified(keyId)
+                setKeySetupOpen(false)
+                onConfirm()
+              }}
+            />
+          ) : null}
         </>
       )}
     </section>

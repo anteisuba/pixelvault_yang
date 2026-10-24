@@ -12445,6 +12445,11 @@ export interface PrepareOperatorTurnOptions {
    * 在 `skipReferenceReview` 下不走 —— 读了没人用。
    */
   readonly skipPriorRounds?: boolean
+  /**
+   * 首页带着一份小配方（第 9g 步）：会话在首页（`workspaceKey` = home），这一轮照图片台跑
+   * （`request.domain` = image）。工作区与域的对照按首页核。
+   */
+  readonly homeDraft?: boolean
 }
 
 export async function prepareOperatorTurn(
@@ -12458,7 +12463,8 @@ export async function prepareOperatorTurn(
   const workspace = assistantWorkspaceFromKey(request.workspaceKey)
   if (
     !workspace ||
-    assistantWorkspaceDomain(workspace.workspace) !== request.domain
+    assistantWorkspaceDomain(workspace.workspace) !==
+      (options.homeDraft ? ASSISTANT_PROTOCOL_DOMAIN_IDS.home : request.domain)
   ) {
     throw new ApiRequestError(
       'ASSISTANT_WORKSPACE_INVALID',

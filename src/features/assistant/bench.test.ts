@@ -10,7 +10,86 @@ vi.mock('@/services/kernel/assistant-v3-steps.service', () => ({}))
 vi.mock('@/services/kernel/assistant-v3-look.service', () => ({}))
 vi.mock('@/services/kernel/assistant-v3-watch.service', () => ({}))
 
-import { toV3Mutation } from './bench'
+import type { V3Context } from '@/services/kernel/assistant-v3-steps.service'
+
+import {
+  isHomeDraftSnapshot,
+  renderBench,
+  runEdit,
+  toV3Mutation,
+} from './bench'
+
+/** 首页那份小配方（第 9g 步）：会话在首页、这一轮照图片台跑。 */
+function homeDraftContext(): V3Context {
+  return {
+    face: 'image',
+    request: {
+      domain: 'image',
+      workspaceKey: 'home',
+      snapshot: {
+        prompt: 'a cat at sunset',
+        negativePrompt: '',
+        model: { id: 'gemini-2.5-flash-image', label: 'Nano Banana' },
+        availableModels: [
+          { id: 'gemini-2.5-flash-image', label: 'Nano Banana' },
+        ],
+        specs: {
+          aspectRatio: '9:16',
+          resolution: null,
+          qualityOptions: [],
+          backgroundOptions: [],
+          aspectRatioOptions: ['1:1', '9:16'],
+          resolutionOptions: [],
+        },
+        count: { value: 1, options: [1, 2, 4] },
+      },
+    },
+    prepared: {
+      run: { state: { prompt: 'a cat at sunset', negativePrompt: '' } },
+    },
+  } as unknown as V3Context
+}
+
+async function drain<T>(run: AsyncGenerator<unknown, T>): Promise<T> {
+  for (;;) {
+    const next = await run.next()
+    if (next.done) return next.value
+  }
+}
+
+describe('首页那份小配方（第 9g 步）', () => {
+  it('快照带规格与张数才算有配方', () => {
+    const draft = homeDraftContext().request.snapshot
+    expect(isHomeDraftSnapshot(draft)).toBe(true)
+    expect(isHomeDraftSnapshot({ prompt: '', availableModels: [] })).toBe(false)
+  })
+
+  it('板子按首页写：说清在对话里出图、能改哪几格，下面接配方本身', () => {
+    const board = renderBench(homeDraftContext(), [], '来张猫')
+    expect(board.startsWith('HOME — no bench is open')).toBe(true)
+    expect(board).toContain(
+      'edit ops on the draft: prompt, model, specs, count, add_reference, remove_reference, apply_recipe',
+    )
+    expect(board).toContain('THE DRAFT — what is in it right now.')
+    expect(board).not.toContain('IMAGE WORKBENCH — this is the form')
+    expect(board).toContain('a cat at sunset')
+  })
+
+  it('配方里没有的那一格（负面词、模型参数）退回并列出这里有的', async () => {
+    const result = await drain(
+      runEdit(homeDraftContext(), [
+        { op: 'negative', mode: 'replace', text: 'blurry' },
+        { op: 'option', key: 'quality', value: 'high' },
+      ]),
+    )
+    expect(result.error).toBe(true)
+    expect(result.output).toContain('"negative" is not a control')
+    expect(result.output).toContain('"option" is not a control')
+    expect(result.output).toContain(
+      'prompt, model, specs, count, add_reference, remove_reference, apply_recipe',
+    )
+  })
+})
 
 describe('新工具的一条改动 → v3 执行函数的入参', () => {
   it('提示词：给了 edits 没写 mode 当成「找句换句」', () => {

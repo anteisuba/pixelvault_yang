@@ -483,7 +483,10 @@
         "nodeUnavailable": "目标节点或模型不可用，请重新选择。",
         "adjusted": "已按该模型调整：{fields}",
         "knobStepTitle": "在确认卡上改了参数",
-        "knobStepReason": "你在确认卡上改的"
+        "knobStepReason": "你在确认卡上改的",
+        "prompt": "提示词",
+        "removeReference": "拿掉这张参考图",
+        "openBench": "去图片台接着改"
       },
       "batch": {
         "title": "生成这几张",

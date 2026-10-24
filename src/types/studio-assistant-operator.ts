@@ -12,6 +12,7 @@
  * 按 id 覆盖；漏了 id 就变成追加，表现是每一步在日志流里出现两遍。
  */
 
+import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { AssistantMention } from '@/types/assistant-mention'
 import type { StudioOperatorResumeStep } from '@/types/studio-operator-resume'
 import type { ContextCardKindId } from '@/constants/context-cards'
@@ -610,6 +611,32 @@ export interface StudioOperatorGenerationControls {
   resolution: string | null
   count: number
   choicesByModel: Readonly<Record<string, StudioOperatorGenerationChoices>>
+}
+
+/**
+ * **首页那份小配方**（第 9g 步，owner 10-24）：没开台时确认卡就是一张小表单 —— 旋钮之外，
+ * 提示词与参考图也摆在卡上直接改（台上那两格这时看不见），外加「去图片台接着改」。
+ * ⭐ 与 `StudioOperatorGenerationControls` 同一条：值住在表单里，卡上一个字都不存。
+ * ⚠ 缺席 = 台开着（台上看得见提示词与参考图），卡照旧只有旋钮。
+ */
+export interface StudioOperatorGenerationDraft {
+  prompt: string
+  setPrompt(prompt: string): void
+  references: readonly { url: string; name?: string }[]
+  removeReference(url: string): void
+  /** 带着这份配方开图片台（提示词 / 模型 / 比例 / 参考图原样带过去）。 */
+  openBench(): void
+  /**
+   * 选中的型号还没配 key：按「出图」先就地配（`QuickSetupDialog`，Hard Rule 8），
+   * 配好选上再出。`null` = 有 key，直接出。
+   */
+  keySetup: {
+    modelId: string
+    optionId: string
+    modelLabel: string
+    adapterType: AI_ADAPTER_TYPES
+    onVerified(keyId: string): void
+  } | null
 }
 
 export type StudioOperatorStatus =

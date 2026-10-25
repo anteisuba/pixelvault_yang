@@ -30,9 +30,19 @@ vi.mock('@/contexts/studio-context', () => ({
   }),
 }))
 
-const mockRouterPush = vi.hoisted(() => vi.fn())
-vi.mock('@/i18n/navigation', () => ({
-  useRouter: () => ({ push: mockRouterPush }),
+vi.mock('@/components/business/AssetSelectorDialog', () => ({
+  AssetSelectorDialog: ({
+    open,
+    maxSelection,
+  }: {
+    open: boolean
+    maxSelection?: number
+  }) =>
+    open ? (
+      <div role="dialog" data-max={maxSelection}>
+        asset-picker
+      </div>
+    ) : null,
 }))
 
 vi.mock('@/components/business/ImageAttachmentPreviewStrip', () => ({
@@ -157,7 +167,7 @@ describe('ReferenceImageChip', () => {
     expect(screen.getByRole('button', { name: 'limitReached' })).toBeDisabled()
   })
 
-  it('「素材库」打开外壳中间的库叠层挑参考图（第 9f 步 9f-2d，⛔ 再开弹窗）', () => {
+  it('「素材库」弹正中的挑选框（ui-spec ㉔），多选到剩余格数为止', () => {
     mockImageUpload.referenceEntries = []
     mockImageUpload.referenceImages = []
     render(
@@ -168,7 +178,7 @@ describe('ReferenceImageChip', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'open-library' }))
 
-    expect(mockRouterPush).toHaveBeenCalledWith('/library/assets?pick=1')
+    expect(screen.getByRole('dialog')).toHaveAttribute('data-max', '30')
     expect(mockDispatch).toHaveBeenCalledWith({
       type: 'CLOSE_PANEL',
       payload: 'refImage',

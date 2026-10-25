@@ -2915,6 +2915,15 @@ html:lang(ja) {
   }
 }
 
+/* 从库里挑的框（ui-spec §9 ㉔）：1000 × 680，窗口小了往里收（四边至少留 2rem）。
+   ⚠ `!important`：盖过 DialogContent 自带的 `max-w-*`（tailwind-merge 不认这个名字，去不掉它们）。 */
+@utility library-picker-size {
+  width: 100%;
+  height: 100%;
+  max-width: min(62.5rem, 100% - 4rem) !important;
+  max-height: min(42.5rem, 100svh - 4rem) !important;
+}
+
 /* 对话收起时头像浮在台左上角（ui-spec §1）：台顶那一行往右让出头像的位置，⛔ 被它压住。 */
 @utility studio-shell-chat-collapsed {
   & [data-bench-header] {

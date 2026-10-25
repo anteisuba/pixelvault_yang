@@ -122,15 +122,26 @@ export function MediaTileMoreTrigger({
   )
 }
 
-/** 选中的勾：右上角一个圆圈，选上变黑底白勾（⑪）。只在能选的时候画。 */
-export function MediaTileCheck({ selected }: { selected: boolean }) {
+/**
+ * 选中的勾：右上角一个圆圈，选上变黑底白勾（⑪）。只在能选的时候画。
+ * 挑选框里（㉔）挑了是强调色的勾：`tone="highlight"`。
+ */
+export function MediaTileCheck({
+  selected,
+  tone = 'ink',
+}: {
+  selected: boolean
+  tone?: 'ink' | 'highlight'
+}) {
   return (
     <span
       aria-hidden
       className={cn(
         'pointer-events-none absolute top-2 right-2 z-20 grid size-5 place-items-center rounded-full border transition-[background-color,border-color,color] duration-fast ease-standard motion-reduce:transition-none',
         selected
-          ? 'border-foreground bg-foreground text-background'
+          ? tone === 'highlight'
+            ? 'border-highlight bg-highlight text-on-highlight'
+            : 'border-foreground bg-foreground text-background'
           : 'border-media-chip bg-black/15 text-transparent',
       )}
     >

@@ -13,6 +13,12 @@ import { useAuth } from '@clerk/nextjs'
 import { useTranslations } from 'next-intl'
 
 import { AssetTile } from '@/components/business/assets/AssetTile'
+import { LibrarySearch } from '@/components/ui/library-kit'
+import {
+  LIBRARY_PICKER_MAX_COLUMNS,
+  LibraryPickBar,
+  LibraryPickerHeader,
+} from '@/components/ui/library-picker'
 import {
   AssetPickerFolderNav,
   type PickerScope,
@@ -31,6 +37,7 @@ import {
   DEFAULT_AUDIO_ASSET_PREVIEW_IMAGE,
   getAudioAssetPreviewImage,
 } from '@/constants/asset-previews'
+import { LIBRARY_GRID } from '@/constants/library-grid'
 import {
   CLIENT_UPLOAD_MAX_BYTES,
   USER_IMAGE_UPLOAD_ACCEPTED_MIME_TYPES,
@@ -152,6 +159,7 @@ function AssetPickerBrowserContent({
     () => readLocalPreference(PICKER_NAV_STORAGE_KEY) !== 'collapsed',
   )
   const [scopeSheetOpen, setScopeSheetOpen] = useState(false)
+  const [searchDraft, setSearchDraft] = useState('')
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [limitWarning, setLimitWarning] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
@@ -355,11 +363,21 @@ function AssetPickerBrowserContent({
       ),
     [gridItems],
   )
+  // 桌面 = 挑选框（ui-spec ㉔）：库那副等宽格、一行 6 张 3:4；手机照旧 justified 真实比例。
   const { containerRef, rows } = useJustifiedGrid({
     aspectRatios,
     targetRowHeight:
       ASSET_PICKER_TARGET_ROW_HEIGHT[isMobile ? 'mobile' : 'desktop'],
+    gap: isMobile ? ASSET_GRID_GAP : LIBRARY_GRID.gap,
+    uniform: isMobile
+      ? undefined
+      : {
+          minTileWidth: LIBRARY_GRID.minTileWidth,
+          maxColumns: LIBRARY_PICKER_MAX_COLUMNS,
+          aspectRatio: LIBRARY_GRID.aspectRatio,
+        },
   })
+  const gridGap = isMobile ? ASSET_GRID_GAP : LIBRARY_GRID.gap
 
   const lockLabel = mediaType
     ? t('pickerLocked', {
@@ -393,16 +411,190 @@ function AssetPickerBrowserContent({
         unassigned: counts?.unassigned,
         byProject: counts?.byProject,
       }}
-      className={isMobile ? 'h-full w-full border-r-0' : 'w-44'}
+      className={isMobile ? 'h-full w-full border-r-0' : 'w-50'}
     />
   )
 
+  const selectedGenerations = () =>
+    selectedIds
+      .map((id) => candidates.find((generation) => generation.id === id))
+      .filter((gen): gen is GenerationRecord => Boolean(gen))
+
+  const uploadLabel = isUploading
+    ? t('uploadingProgress', {
+        current: Math.min(uploadProgress.total, uploadProgress.done + 1),
+        total: uploadProgress.total,
+      })
+    : t('uploadButton')
+  const uploadInput = (
+    <input
+      type="file"
+      multiple
+      accept={USER_IMAGE_UPLOAD_ACCEPTED_MIME_TYPES.join(',')}
+      className="sr-only"
+      onChange={(event) => {
+        const files = Array.from(event.target.files ?? [])
+        event.target.value = ''
+        void handleUpload(files)
+      }}
+    />
+  )
+
+  const grid = (
+    <div ref={containerRef} className="flex flex-col" style={{ gap: gridGap }}>
+      {rows.map((row, rowIndex) => (
+        <div key={rowIndex} className="flex" style={{ gap: gridGap }}>
+          {row.boxes.map((box) => {
+            const item = gridItems[box.index]
+            if (!item) return null
+            if (item.kind === 'upload') {
+              return (
+                <label
+                  key="picker-upload"
+                  style={{ width: box.width, height: box.height }}
+                  className={
+                    isMobile
+                      ? 'flex shrink-0 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-border/60 bg-muted/20 text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground'
+                      : 'flex shrink-0 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-12 border border-dashed border-input text-xs text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover focus-within:shadow-focus'
+                  }
+                >
+                  {isUploading ? (
+                    <Spinner size="sm" />
+                  ) : (
+                    <UploadCloud className={isMobile ? 'size-4' : 'size-4.5'} />
+                  )}
+                  <span className={isMobile ? 'text-3xs font-medium' : ''}>
+                    <BlurSwap
+                      swapKey={
+                        isUploading
+                          ? `${uploadProgress.done}/${uploadProgress.total}`
+                          : 'idle'
+                      }
+                    >
+                      {uploadLabel}
+                    </BlurSwap>
+                  </span>
+                  {uploadInput}
+                </label>
+              )
+            }
+            const generation = item.generation
+            return (
+              <AssetTile
+                key={generation.id}
+                generation={generation}
+                width={box.width}
+                height={box.height}
+                selected={selectedIds.includes(generation.id)}
+                showSelectionMark={mode === 'multi'}
+                selectionMode={mode === 'multi'}
+                selectionTone={isMobile ? 'ink' : 'highlight'}
+                draggable={false}
+                audioCoverUrl={getAudioCover(generation)}
+                onAudioCoverError={() => {}}
+                onClick={() => {
+                  // 单选：点一下就返回，**1 击**。
+                  if (mode === 'single') onSelect?.(generation)
+                  else toggleSelection(generation.id)
+                }}
+              />
+            )
+          })}
+        </div>
+      ))}
+    </div>
+  )
+  const more = (
+    <>
+      {isLoading && (
+        <div className="flex justify-center py-3">
+          <Spinner size="sm" />
+        </div>
+      )}
+      {hasMore && <div ref={sentinelRef} className="h-2 shrink-0" />}
+    </>
+  )
+  const applySearch = (value: string) =>
+    setFilters({ ...filters, search: value.trim() })
+
+  if (!isMobile) {
+    // 桌面 = 挑选框（ui-spec §9 ㉔，样件 E S16）：框顶标题 + 锁 + ×；左栏 200（智能视图 /
+    // 最近用过 / 文件夹）；右边搜索 + 一行 6 张；挑了才浮出黑条。
+    return (
+      <div className="flex size-full flex-col">
+        <LibraryPickerHeader
+          title={title}
+          lock={lockLabel}
+          closeLabel={tCommon('close')}
+          onClose={onCancel}
+          start={
+            <button
+              type="button"
+              onClick={toggleNav}
+              aria-label={t('pickerNavToggle')}
+              aria-expanded={navOpen}
+              className="-ml-1.5 grid size-8 shrink-0 place-items-center rounded-full text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus"
+            >
+              <PanelLeft className="size-4" />
+            </button>
+          }
+        />
+        <div className="flex min-h-0 flex-1">
+          {navOpen && nav}
+          <main className="relative flex min-h-0 flex-1 flex-col">
+            <div className="studio-scrollbar flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-5 pt-3.5 pb-20">
+              {/* 顶部搜索只搜**素材内容**（提示词/模型）；搜文件夹在左栏自己的搜索框里。 */}
+              <LibrarySearch
+                value={searchDraft}
+                onChange={setSearchDraft}
+                placeholder={t('search')}
+                label={t('search')}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter') return
+                  event.preventDefault()
+                  applySearch(searchDraft)
+                }}
+              />
+              {grid}
+              {more}
+            </div>
+            {mode === 'multi' ? (
+              <LibraryPickBar
+                count={selectedIds.length}
+                countLabel={
+                  maxSelection != null
+                    ? t('pickerSelectedWithMax', {
+                        count: selectedIds.length,
+                        max: maxSelection,
+                      })
+                    : t('selectedCount', { count: selectedIds.length })
+                }
+                warning={
+                  limitWarning && maxSelection != null
+                    ? t('pickerMaxReachedInline', { max: maxSelection })
+                    : null
+                }
+                cancelLabel={t('selectExit')}
+                confirmLabel={t('pickerConfirmAdd', {
+                  count: selectedIds.length,
+                })}
+                onCancel={onCancel}
+                onConfirm={() => onConfirmMany?.(selectedGenerations())}
+              />
+            ) : null}
+          </main>
+        </div>
+      </div>
+    )
+  }
+
+  // 手机：照旧（等手机整体重设计）。
   return (
     <div className="flex size-full flex-col">
       <header className="flex shrink-0 items-center gap-2 border-b border-border/60 px-3 py-2">
         <button
           type="button"
-          onClick={isMobile ? () => setScopeSheetOpen(true) : toggleNav}
+          onClick={() => setScopeSheetOpen(true)}
           aria-label={t('pickerNavToggle')}
           className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
         >
@@ -411,11 +603,9 @@ function AssetPickerBrowserContent({
         <span className="min-w-0 truncate text-xs font-medium text-foreground">
           {title}
         </span>
-        {isMobile && (
-          <span className="shrink-0 rounded-md border border-border/60 px-1.5 py-0.5 text-3xs text-muted-foreground">
-            {scopeLabel}
-          </span>
-        )}
+        <span className="shrink-0 rounded-md border border-border/60 px-1.5 py-0.5 text-3xs text-muted-foreground">
+          {scopeLabel}
+        </span>
         <div className="ml-auto flex shrink-0 items-center gap-2">
           {lockLabel && (
             <span className="flex items-center gap-1 rounded-md border border-border/60 px-1.5 py-0.5 text-3xs text-muted-foreground">
@@ -435,8 +625,6 @@ function AssetPickerBrowserContent({
       </header>
 
       <div className="flex min-h-0 flex-1">
-        {!isMobile && navOpen && nav}
-
         <main className="studio-scrollbar assets-scroll-gutter flex min-h-0 flex-1 flex-col overflow-y-auto p-2">
           {/* 顶部搜索只搜**素材内容**（提示词/模型）；搜文件夹在导航栏自己的
               搜索框里，两者不混（§8.2）。 */}
@@ -450,107 +638,14 @@ function AssetPickerBrowserContent({
               onKeyDown={(event) => {
                 if (event.key !== 'Enter') return
                 event.preventDefault()
-                setFilters({
-                  ...filters,
-                  search: (event.target as HTMLInputElement).value.trim(),
-                })
+                applySearch((event.target as HTMLInputElement).value)
               }}
               className="h-8 w-full rounded-lg border border-border/60 bg-background/40 pl-8 pr-2 text-base md:text-xs text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-foreground/40"
             />
           </div>
 
-          <div
-            ref={containerRef}
-            className="flex flex-col"
-            style={{ gap: ASSET_GRID_GAP }}
-          >
-            {rows.map((row, rowIndex) => (
-              <div
-                key={rowIndex}
-                className="flex"
-                style={{ gap: ASSET_GRID_GAP }}
-              >
-                {row.boxes.map((box) => {
-                  const item = gridItems[box.index]
-                  if (!item) return null
-                  if (item.kind === 'upload') {
-                    return (
-                      <label
-                        key="picker-upload"
-                        style={{ width: box.width, height: box.height }}
-                        className="flex shrink-0 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-border/60 bg-muted/20 text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
-                      >
-                        {isUploading ? (
-                          <Spinner size="sm" />
-                        ) : (
-                          <UploadCloud className="size-4" />
-                        )}
-                        <span className="text-3xs font-medium">
-                          <BlurSwap
-                            swapKey={
-                              isUploading
-                                ? `${uploadProgress.done}/${uploadProgress.total}`
-                                : 'idle'
-                            }
-                          >
-                            {isUploading
-                              ? t('uploadingProgress', {
-                                  current: Math.min(
-                                    uploadProgress.total,
-                                    uploadProgress.done + 1,
-                                  ),
-                                  total: uploadProgress.total,
-                                })
-                              : t('uploadButton')}
-                          </BlurSwap>
-                        </span>
-                        <input
-                          type="file"
-                          multiple
-                          accept={USER_IMAGE_UPLOAD_ACCEPTED_MIME_TYPES.join(
-                            ',',
-                          )}
-                          className="sr-only"
-                          onChange={(event) => {
-                            const files = Array.from(event.target.files ?? [])
-                            event.target.value = ''
-                            void handleUpload(files)
-                          }}
-                        />
-                      </label>
-                    )
-                  }
-                  const generation = item.generation
-                  return (
-                    <AssetTile
-                      key={generation.id}
-                      generation={generation}
-                      width={box.width}
-                      height={box.height}
-                      selected={selectedIds.includes(generation.id)}
-                      showSelectionMark={mode === 'multi'}
-                      selectionMode={mode === 'multi'}
-                      draggable={false}
-                      audioCoverUrl={getAudioCover(generation)}
-                      onAudioCoverError={() => {}}
-                      onClick={() => {
-                        // 单选：点一下就返回，**1 击**。
-                        if (mode === 'single') onSelect?.(generation)
-                        else toggleSelection(generation.id)
-                      }}
-                    />
-                  )
-                })}
-              </div>
-            ))}
-          </div>
-
-          {isLoading && (
-            <div className="flex justify-center py-3">
-              <Spinner size="sm" />
-            </div>
-          )}
-          {hasMore && <div ref={sentinelRef} className="h-2 shrink-0" />}
+          {grid}
+          {more}
         </main>
       </div>
 
@@ -580,15 +675,7 @@ function AssetPickerBrowserContent({
             <button
               type="button"
               disabled={selectedIds.length === 0}
-              onClick={() =>
-                onConfirmMany?.(
-                  selectedIds
-                    .map((id) =>
-                      candidates.find((generation) => generation.id === id),
-                    )
-                    .filter((gen): gen is GenerationRecord => Boolean(gen)),
-                )
-              }
+              onClick={() => onConfirmMany?.(selectedGenerations())}
               className="flex items-center gap-1.5 rounded-lg bg-foreground px-3 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-40"
             >
               <CheckCircle2 className="size-3.5" />

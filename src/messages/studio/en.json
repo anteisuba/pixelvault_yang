@@ -190,6 +190,7 @@
     "uploadHint": "Drag, click, or paste an image",
     "pasteHint": "⌘V / Ctrl+V",
     "selectAsset": "Select asset",
+    "pickTitle": "Pick from assets",
     "dropHint": "Drag, paste, or click to upload",
     "recentAssets": "Recent assets",
     "recentAssetsEmpty": "No assets yet",

@@ -7,6 +7,8 @@ import {
   ResponsiveDialogTitle,
 } from '@/components/ui/responsive-dialog'
 import { AssetPickerBrowser } from '@/components/business/assets/AssetPickerBrowser'
+import { LIBRARY_PICKER_DIALOG_CLASS } from '@/components/ui/library-picker'
+import { useIsMobile } from '@/hooks/use-mobile'
 import type { GenerationRecord, OutputTypeValue } from '@/types'
 
 interface AssetSelectorDialogProps {
@@ -68,11 +70,17 @@ export function AssetSelectorDialog({
   maxSelection,
   pageSize,
 }: AssetSelectorDialogProps) {
+  const isMobile = useIsMobile()
   return (
     <ResponsiveDialog open={open} onOpenChange={onOpenChange}>
       <ResponsiveDialogContent
         showCloseButton={false}
-        className="h-[min(88svh,760px)] !max-w-none !gap-0 overflow-hidden !border-0 !bg-transparent !p-0 !shadow-2xl lg:h-[min(65vh,600px)] lg:w-[calc(100%-2rem)] lg:!max-w-4xl"
+        // 桌面 = 挑选框（ui-spec ㉔）：正中 1000 × 680、圆角 24、`float` + `pop`；手机照旧抽屉。
+        className={
+          isMobile
+            ? 'h-[min(88svh,760px)] !max-w-none !gap-0 overflow-hidden !border-0 !bg-transparent !p-0 !shadow-2xl'
+            : LIBRARY_PICKER_DIALOG_CLASS
+        }
         mobileBodyClassName="px-0 pt-0"
       >
         <ResponsiveDialogTitle className="sr-only">
@@ -81,7 +89,13 @@ export function AssetSelectorDialog({
         <ResponsiveDialogDescription className="sr-only">
           {description}
         </ResponsiveDialogDescription>
-        <div className="flex size-full flex-col overflow-hidden rounded-xl border border-border bg-background">
+        <div
+          className={
+            isMobile
+              ? 'flex size-full flex-col overflow-hidden rounded-xl border border-border bg-background'
+              : 'flex size-full flex-col overflow-hidden'
+          }
+        >
           <AssetPickerBrowser
             mode={multiSelect ? 'multi' : 'single'}
             mediaType={mediaType}

@@ -88,7 +88,8 @@ describe('AssetSelectorDialog', () => {
 
     const dialog = screen.getByRole('dialog')
     expect(dialog).toHaveAttribute('data-slot', 'dialog-content')
-    expect(dialog).toHaveClass('lg:h-[min(65vh,600px)]')
+    // 桌面 = 挑选框（ui-spec ㉔）：正中 1000 × 680、圆角 24。
+    expect(dialog).toHaveClass('library-picker-size', 'rounded-24')
     expect(screen.getByTestId('asset-browser')).toHaveAttribute(
       'data-media-type',
       'image',

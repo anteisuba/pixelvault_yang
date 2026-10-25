@@ -190,6 +190,7 @@
     "uploadHint": "拖拽或点击上传，也可以直接粘贴",
     "pasteHint": "⌘V / Ctrl+V",
     "selectAsset": "选择素材",
+    "pickTitle": "从素材挑图",
     "dropHint": "拖拽 / 粘贴 / 点击上传",
     "recentAssets": "最近素材",
     "recentAssetsEmpty": "暂无素材",

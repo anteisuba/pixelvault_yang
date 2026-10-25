@@ -190,6 +190,7 @@
     "uploadHint": "ドラッグ、クリック、または貼り付け",
     "pasteHint": "⌘V / Ctrl+V",
     "selectAsset": "アーカイブから選ぶ",
+    "pickTitle": "素材から選ぶ",
     "dropHint": "ドラッグ / ペースト / クリックでアップロード",
     "recentAssets": "最近の素材",
     "recentAssetsEmpty": "素材がありません",

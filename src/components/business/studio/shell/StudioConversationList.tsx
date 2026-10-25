@@ -10,7 +10,13 @@ import {
   studioLibraryPath,
   type StudioLibraryCategoryId,
 } from '@/constants/studio-shell'
-import { Images, LayoutGrid, Library, SquarePen } from '@/components/icons'
+import {
+  Images,
+  LayoutGrid,
+  Library,
+  Mic2,
+  SquarePen,
+} from '@/components/icons'
 import { AccountMenu } from '@/components/layout/AccountMenu'
 import { ProfileAvatar } from '@/components/layout/ProfileAvatar'
 import {
@@ -64,7 +70,7 @@ const PAGE_ITEMS = PAGE_ITEM_IDS.flatMap((id) =>
 
 /**
  * `/studio` 外壳左边那一栏（ui-spec §1）：64 宽的细图标栏落在灰底上，只放图标 ——
- * AN 字标（对话收起时换成助手头像、点开换人）、黑色「新对话」、画廊 / 工作台 / 库 / 素材 / 角色 / 提示词、最底下头像（顺序
+ * AN 字标（对话收起时换成助手头像、点开换人）、黑色「新对话」、画廊 / 配音间 / 工作台 / 库 / 素材 / 角色 / 提示词、最底下头像（顺序
  * 用户 10-25 定）。点「工作台」浮出一条竖排的台、点「库」浮出一条竖排的库（LoRA · 酒馆 · 标签 · 音色），点一个进那一个。
  *
  * ⛔ 没有对话列表（用户 10-25「不在意一眼看全部」）：先选人（最上面那格换人，角色 = 进她的配音间），
@@ -159,6 +165,19 @@ export function StudioConversationList({ className }: { className?: string }) {
           )}
         >
           <Images />
+        </Link>
+      </NavTip>
+
+      {/* 配音间（用户 10-25 要回来）：点一下回到最近那一间，一间都没有就开一间；换人走最上面那格。 */}
+      <NavTip label={t('homeVoiceRoom')}>
+        <Link
+          href={ROUTES.STUDIO_AUDIO}
+          aria-label={t('homeVoiceRoom')}
+          aria-current={voiceRoomActive ? 'page' : undefined}
+          data-testid="studio-shell-voice-room"
+          className={cn(NAV_BUTTON_CLASS, voiceRoomActive && NAV_ACTIVE_CLASS)}
+        >
+          <Mic2 />
         </Link>
       </NavTip>
 

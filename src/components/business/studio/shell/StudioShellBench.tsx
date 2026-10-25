@@ -258,7 +258,8 @@ function scrollsSideways(
 }
 
 /**
- * 台条（ui-spec §1 / §9「切台」）：开着台时竖着浮在白板右边、上下居中（盖在台上，⛔ 单独占一列） —— 图片 · LoRA ·
+ * 台条（ui-spec §1 / §9「切台」）：开着台时竖着浮在白板右边、上下居中（盖在台上，⛔ 单独占一列；
+ * 平时收成一道细线，鼠标移过去才浮出） —— 图片 · LoRA ·
  * 视频 · 3D · 画布，同时只开一个台。⛔ 台顶上的切换条、⛔ 台标题。首页不摆（用户 10-25：
  * 一开始交给左栏「工作台」）。点别的 = 换台（滑过去），点当前那颗 = 收台。
  */
@@ -279,10 +280,19 @@ export function StudioBenchRail({
     <nav
       aria-label={t('benches')}
       data-testid="studio-bench-rail"
-      // 浮在台上面、⛔ 单独占一列（用户 10-25）：外层只管摆位、点不着，点得着的只有那张白卡。
-      className="pointer-events-none absolute inset-y-0 right-3 z-20 hidden items-center desk:flex"
+      // 浮在台上面、⛔ 单独占一列（用户 10-25）；平时只留右边缘一道细线，鼠标移过去 / 键盘
+      // 走到才浮出那张白卡（用户 10-25 ①：浮着的卡挡住了图片台右边那列工具）。外层点不着，
+      // 点得着的只有细线那一条感应区和浮出来的卡。
+      className="group/rail pointer-events-none absolute inset-y-0 right-0 z-20 hidden items-center desk:flex"
     >
-      <div className="pointer-events-auto flex flex-col gap-0.5 rounded-16 bg-raise p-1.5 shadow-soft">
+      <span
+        aria-hidden
+        data-testid="studio-bench-rail-handle"
+        className="pointer-events-auto absolute inset-y-1/3 right-0 flex w-4 items-center justify-center"
+      >
+        <span className="h-12 w-1 rounded-full bg-ink-2 opacity-40 transition-opacity duration-base ease-standard group-hover/rail:opacity-0 group-focus-within/rail:opacity-0 motion-reduce:transition-none" />
+      </span>
+      <div className="pointer-events-none mr-3 flex translate-x-2 flex-col gap-0.5 rounded-16 bg-raise p-1.5 opacity-0 shadow-soft transition duration-base ease-standard group-hover/rail:pointer-events-auto group-hover/rail:translate-x-0 group-hover/rail:opacity-100 group-focus-within/rail:pointer-events-auto group-focus-within/rail:translate-x-0 group-focus-within/rail:opacity-100 motion-reduce:transition-none">
         {BENCH_ITEMS.map((item) => {
           const Icon = item.icon
           const label = tAll(item.labelKey)

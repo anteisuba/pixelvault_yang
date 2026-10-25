@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
@@ -62,6 +62,8 @@ export interface PromptTemplateCreateInitialValues {
 interface PromptTemplateCreatePanelProps {
   initialOpen?: boolean
   initialValues?: PromptTemplateCreateInitialValues
+  /** 换掉右上那颗「新建模板」（库格子里第一格虚线「+ 新建」）。 */
+  renderTrigger?: (open: () => void) => ReactNode
 }
 
 const DEFAULT_MODEL_ID = AI_MODELS.OPENAI_GPT_IMAGE_2
@@ -127,6 +129,7 @@ function normalizeInitialValues(
 export function PromptTemplateCreatePanel({
   initialOpen = false,
   initialValues,
+  renderTrigger,
 }: PromptTemplateCreatePanelProps) {
   const t = useTranslations('PromptLibrary')
   const tModels = useTranslations('Models')
@@ -270,19 +273,21 @@ export function PromptTemplateCreatePanel({
     ? { duration: DURATION.fast, ease: 'linear' as const }
     : { duration: DURATION.base, ease: 'linear' as const }
 
+  const open = () => {
+    setFormError(null)
+    setIsOpen(true)
+  }
+
   return (
-    <div className="flex justify-end">
-      <Button
-        type="button"
-        className="rounded-full"
-        onClick={() => {
-          setFormError(null)
-          setIsOpen(true)
-        }}
-      >
-        <Plus className="size-4" />
-        {t('createAction')}
-      </Button>
+    <div className={renderTrigger ? 'contents' : 'flex justify-end'}>
+      {renderTrigger ? (
+        renderTrigger(open)
+      ) : (
+        <Button type="button" className="rounded-full" onClick={open}>
+          <Plus className="size-4" />
+          {t('createAction')}
+        </Button>
+      )}
       <ResponsiveDialog
         open={isOpen}
         onOpenChange={(next) => {

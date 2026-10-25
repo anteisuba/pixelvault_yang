@@ -600,6 +600,7 @@ describe('listRecipeSummaries', () => {
           userIntent: true,
           params: true,
           lastUsedAt: true,
+          isFavorite: true,
         },
         where: {
           userId: 'db_user_123',

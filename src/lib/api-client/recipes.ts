@@ -189,6 +189,34 @@ export async function markRecipeUsedAPI(
   }
 }
 
+/** 库左栏「收藏」：收藏 / 取消收藏一条提示词。 */
+export async function setRecipeFavoriteAPI(
+  id: string,
+  isFavorite: boolean,
+): Promise<RecipeApiResponse<{ id: string; isFavorite: boolean }>> {
+  try {
+    const response = await fetch(`${getRecipeUrl(id)}/favorite`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isFavorite }),
+    })
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: await getErrorMessage(
+          response,
+          `Failed with status ${response.status}`,
+        ),
+      }
+    }
+
+    return await response.json()
+  } catch (error) {
+    return { success: false, error: getUnexpectedErrorMessage(error) }
+  }
+}
+
 export async function listRecipeGenerationsAPI(
   id: string,
 ): Promise<RecipeApiResponse<GenerationRecord[]>> {

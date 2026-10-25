@@ -106,7 +106,19 @@
     "createTagsRequired": "Add a few tags first.",
     "tagsEmptyTitle": "No tag templates yet",
     "tagsEmptyDescription": "When a result in the tag studio or the LoRA bench looks right, save it as a template — or press “New template” at the top right and pick “Tags” to write a set yourself.",
-    "openTagStudio": "Open the tag studio"
+    "openTagStudio": "Open the tag studio",
+    "library": {
+      "favorites": "Favorites",
+      "search": "Search prompts",
+      "new": "New",
+      "favorite": "Favorite",
+      "unfavorite": "Unfavorite",
+      "metaTags": "Tags · {count}",
+      "copied": "Copied",
+      "emptyFavorites": "No favorite prompts yet",
+      "emptyFavoritesHint": "Bookmark the ones you use often in All."
+    },
+    "favoriteFailed": "Couldn't save the favorite. Try again."
   },
   "PromptEnhance": {
     "button": "Improve",

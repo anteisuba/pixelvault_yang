@@ -106,7 +106,19 @@
     "createTagsRequired": "先にタグをいくつか入力してください。",
     "tagsEmptyTitle": "タグテンプレートはまだありません",
     "tagsEmptyDescription": "タグスタジオか LoRA 台で満足のいく一枚ができたら「テンプレートとして保存」。右上の「新規テンプレート」でタイプを「タグ」にして自分で書くこともできます。",
-    "openTagStudio": "タグスタジオへ"
+    "openTagStudio": "タグスタジオへ",
+    "library": {
+      "favorites": "お気に入り",
+      "search": "プロンプトを検索",
+      "new": "新規",
+      "favorite": "お気に入り",
+      "unfavorite": "お気に入りを外す",
+      "metaTags": "タグ · {count} 個",
+      "copied": "コピーしました",
+      "emptyFavorites": "お気に入りのプロンプトはまだありません",
+      "emptyFavoritesHint": "「すべて」でよく使うものをブックマーク。"
+    },
+    "favoriteFailed": "お気に入りにできませんでした。もう一度お試しください。"
   },
   "PromptEnhance": {
     "button": "整える",

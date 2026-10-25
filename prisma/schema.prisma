@@ -645,6 +645,8 @@ model Recipe {
   tags                String[]  @default([])
   usageCount          Int       @default(0)
   visibility          String    @default("PRIVATE")
+  /// 库左栏「收藏」（ui-spec §9，owner 10-25）。
+  isFavorite          Boolean   @default(false)
 
   @@index([userId, isDeleted, createdAt(sort: Desc)])
   @@index([visibility, isDeleted, createdAt(sort: Desc)])

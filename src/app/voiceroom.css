@@ -191,33 +191,19 @@
   border-color: var(--vr-line-2);
 }
 
-/* 标题 ▾（用户 10-25）：点开是和这一组人的几段，名字 + 一颗小箭头。 */
-.vr-bar-history {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+/* 标题只是这一段的名字（用户 10-25：历史挪到左栏「聊天」那颗里，这里不再是下拉）。 */
+.vr-bar-name {
   min-width: 0;
   max-width: 100%;
-  cursor: pointer;
-}
-
-.vr-bar-history[data-state='open'] {
-  background: var(--vr-paper);
-  border-color: var(--vr-line-2);
-}
-
-.vr-bar-history-name {
-  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: default;
 }
 
-.vr-bar-history > svg {
-  width: 14px;
-  height: 14px;
-  flex: none;
-  color: var(--vr-dim);
+.vr-bar-name:hover {
+  background: none;
+  border-color: transparent;
 }
 
 /* 房间名跟着流一起换：不淡一下的话名字先跳、屋子后到，读起来像两件事。 */

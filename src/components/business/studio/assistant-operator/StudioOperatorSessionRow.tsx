@@ -104,6 +104,13 @@ interface StudioOperatorSessionRowProps {
   titleMaxLength?: number
   /** 标题右边那一格：进度「2/4」或「出好了没看」的小点（9f-3 从左栏列表挪来）。 */
   badge?: ReactNode
+  /**
+   * 一行一层（用户 10-25 定左栏两个浮层的样子）：36 高、只有标题，时间靠右；改名 / 删除在 hover 时
+   * 顶替时间那一格（两样叠在同一格里，宽度不变，标题截断点不动）。缺省 = 原来那种两层。
+   */
+  compact?: boolean
+  /** 标题前面那一格（群聊叠两颗头像）；只在 `compact` 里画。 */
+  leading?: ReactNode
   /** 已经翻好的那两格注脚：域名（画布没有，给 null）与日期。 */
   domainLabel: string | null
   dateLabel: string
@@ -128,6 +135,8 @@ export function StudioOperatorSessionRow({
   session,
   titleMaxLength = ASSISTANT_CONVERSATION_LIMITS.titleMaxLength,
   badge,
+  compact = false,
+  leading,
   domainLabel,
   dateLabel,
   current,
@@ -187,6 +196,75 @@ export function StudioOperatorSessionRow({
   const editing = draft !== null
   const reducedMotion = useReducedMotion()
 
+  /* ── 两颗图标：默认透明、hover / 聚焦才淡入（见下方渲染处的注释）。 */
+  const actionButtons = (
+    <span
+      data-testid="operator-session-actions"
+      className={cn(
+        'flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-fast ease-linear group-hover/row:opacity-100 group-focus-within/row:opacity-100 coarse:opacity-100 motion-reduce:transition-none',
+        confirming && 'opacity-100',
+      )}
+    >
+      <DropdownMenuItem
+        className={cn(
+          ROW_ICON_BUTTON_CLASS,
+          'w-6 text-muted-foreground transition-colors duration-fast ease-linear focus:bg-surface-fill-hover focus:text-foreground motion-reduce:transition-none',
+        )}
+        data-testid="operator-session-rename"
+        aria-label={t('history.renameLabel', { title })}
+        disabled={renaming || deleting}
+        onSelect={(event) => {
+          // ⛔ 不让菜单跟着关掉：接下来用户要在这一行里打字。
+          event.preventDefault()
+          // 见 `derivedTitle` 的头注：填看得见的那一句，⛔ 不是库里那一份。
+          setDraft(derivedTitle ?? '')
+        }}
+      >
+        <Pencil className="size-3.5 text-current" aria-hidden />
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        className={cn(
+          ROW_ICON_BUTTON_CLASS,
+          DELETE_PILL_MOTION_CLASS,
+          confirming
+            ? 'gap-0 bg-status-risk px-1.5 text-background focus:bg-status-risk focus:text-background'
+            : 'min-w-6 text-muted-foreground focus:bg-surface-fill-hover focus:text-status-risk',
+        )}
+        data-testid="operator-session-delete"
+        data-confirming={confirming ? 'true' : 'false'}
+        aria-label={
+          confirming
+            ? t('history.deleteConfirmInline', { title })
+            : t('history.deleteLabel', { title })
+        }
+        disabled={deleteDisabled}
+        onSelect={(event) => {
+          // 两段都不关菜单：第一下要留在原地等第二下，第二下之后列表还要刷新。
+          event.preventDefault()
+          if (confirming) onConfirmDelete()
+          else onRequestDelete()
+        }}
+      >
+        <Trash2 className="size-3.5 shrink-0 text-current" aria-hidden />
+        {/* ⚠ 药丸是**撑出来**的：`width: auto` 过渡不了，所以让这两个字
+                  自己从 `max-w-0` 长到 `max-w-20`，左内距写在里层（被裁掉）。 */}
+        <span
+          className={cn(
+            'overflow-hidden whitespace-nowrap',
+            DELETE_PILL_WORD_MOTION_CLASS,
+            confirming
+              ? 'max-w-20 opacity-100 blur-none'
+              : 'max-w-0 opacity-0 blur-2xs',
+          )}
+        >
+          <span className="pl-1 text-2xs font-medium">
+            {deleting ? t('history.deleting') : t('history.deleteConfirm')}
+          </span>
+        </span>
+      </DropdownMenuItem>
+    </span>
+  )
+
   return (
     /* 删除时整行收起（见头注）。⚠ `initial={false}`：打开菜单时各行 ⛔ 不演一遍展开。 */
     <motion.div
@@ -211,7 +289,8 @@ export function StudioOperatorSessionRow({
          在说「这是当前项」的东西，⛔ 底色对读屏什么都没说。 */
         {...(current ? { 'aria-current': 'true' as const } : {})}
         className={cn(
-          'group/row flex h-11 items-center gap-2 rounded-md pr-1.5 transition-colors duration-fast ease-linear motion-reduce:transition-none',
+          compact ? 'h-9' : 'h-11',
+          'group/row flex items-center gap-2 rounded-md pr-1.5 transition-colors duration-fast ease-linear motion-reduce:transition-none',
           // 三档底色（见头注）：选中静息 4% < 任意行 hover 7% < 选中且 hover 11%。
           current
             ? 'bg-surface-fill hover:bg-surface-fill-track focus-within:bg-surface-fill-track'
@@ -286,28 +365,42 @@ export function StudioOperatorSessionRow({
               data-current={current ? 'true' : 'false'}
               onSelect={onSelect}
             >
-              <span className="flex min-w-0 flex-1 flex-col">
-                {/* CSS `truncate` 只是兜底 —— 真正的上限在派生函数里。
-                  ⚠ 当前那一条字重上一档：底色之外再给一条线索，⛔ 状态不只靠
-                  颜色（`forbidden.md`）。 */}
-                <span
-                  className={cn(
-                    'block truncate text-2sm leading-snug',
-                    current && 'font-medium',
-                  )}
-                >
-                  {displayTitle}
+              {compact ? (
+                <>
+                  {leading}
+                  <span
+                    className={cn(
+                      'min-w-0 flex-1 truncate text-2sm',
+                      current && 'font-medium',
+                    )}
+                  >
+                    {displayTitle}
+                  </span>
+                </>
+              ) : (
+                <span className="flex min-w-0 flex-1 flex-col">
+                  {/* CSS `truncate` 只是兜底 —— 真正的上限在派生函数里。
+                    ⚠ 当前那一条字重上一档：底色之外再给一条线索，⛔ 状态不只靠
+                    颜色（`forbidden.md`）。 */}
+                  <span
+                    className={cn(
+                      'block truncate text-2sm leading-snug',
+                      current && 'font-medium',
+                    )}
+                  >
+                    {displayTitle}
+                  </span>
+                  {/* ⚠ 一行两段用 `·` 连起来（画板），⛔ 不再是隔着 `gap-2` 的两栏。
+                    ⚠ 日期单独一个 span 走等宽（`ui-defaults.md §1`：日期是机器串），
+                      ⛔ 不给整行套 `font-mono` —— 「图片工作台」四个字会白付一次噪音。 */}
+                  {/* ⚠ `block` 不是 `flex`：flex 会把每个 span 的首尾空白**裁掉**，
+                    表现是「图片工作台 ·09/10」—— 点号后面那一格空格没了。 */}
+                  <span className="block truncate text-2xs leading-snug text-muted-foreground">
+                    {domainLabel ? <span>{`${domainLabel} · `}</span> : null}
+                    <span className="font-mono tabular-nums">{dateLabel}</span>
+                  </span>
                 </span>
-                {/* ⚠ 一行两段用 `·` 连起来（画板），⛔ 不再是隔着 `gap-2` 的两栏。
-                  ⚠ 日期单独一个 span 走等宽（`ui-defaults.md §1`：日期是机器串），
-                    ⛔ 不给整行套 `font-mono` —— 「图片工作台」四个字会白付一次噪音。 */}
-                {/* ⚠ `block` 不是 `flex`：flex 会把每个 span 的首尾空白**裁掉**，
-                  表现是「图片工作台 ·09/10」—— 点号后面那一格空格没了。 */}
-                <span className="block truncate text-2xs leading-snug text-muted-foreground">
-                  {domainLabel ? <span>{`${domainLabel} · `}</span> : null}
-                  <span className="font-mono tabular-nums">{dateLabel}</span>
-                </span>
-              </span>
+              )}
               {badge}
             </DropdownMenuItem>
 
@@ -315,76 +408,23 @@ export function StudioOperatorSessionRow({
               ⚠ 整块**常驻占位**：`opacity` 之外一个盒模型属性都不动，所以标题的
                 截断点在两态之间逐像素一致。
               ⚠ 确认态强制可见：此刻这一行正举着刀，⛔ 不许它随 hover 消失。 */}
-            <span
-              data-testid="operator-session-actions"
-              className={cn(
-                'flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-fast ease-linear group-hover/row:opacity-100 group-focus-within/row:opacity-100 coarse:opacity-100 motion-reduce:transition-none',
-                confirming && 'opacity-100',
-              )}
-            >
-              <DropdownMenuItem
-                className={cn(
-                  ROW_ICON_BUTTON_CLASS,
-                  'w-6 text-muted-foreground transition-colors duration-fast ease-linear focus:bg-surface-fill-hover focus:text-foreground motion-reduce:transition-none',
-                )}
-                data-testid="operator-session-rename"
-                aria-label={t('history.renameLabel', { title })}
-                disabled={renaming || deleting}
-                onSelect={(event) => {
-                  // ⛔ 不让菜单跟着关掉：接下来用户要在这一行里打字。
-                  event.preventDefault()
-                  // 见 `derivedTitle` 的头注：填看得见的那一句，⛔ 不是库里那一份。
-                  setDraft(derivedTitle ?? '')
-                }}
-              >
-                <Pencil className="size-3.5 text-current" aria-hidden />
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className={cn(
-                  ROW_ICON_BUTTON_CLASS,
-                  DELETE_PILL_MOTION_CLASS,
-                  confirming
-                    ? 'gap-0 bg-status-risk px-1.5 text-background focus:bg-status-risk focus:text-background'
-                    : 'min-w-6 text-muted-foreground focus:bg-surface-fill-hover focus:text-status-risk',
-                )}
-                data-testid="operator-session-delete"
-                data-confirming={confirming ? 'true' : 'false'}
-                aria-label={
-                  confirming
-                    ? t('history.deleteConfirmInline', { title })
-                    : t('history.deleteLabel', { title })
-                }
-                disabled={deleteDisabled}
-                onSelect={(event) => {
-                  // 两段都不关菜单：第一下要留在原地等第二下，第二下之后列表还要刷新。
-                  event.preventDefault()
-                  if (confirming) onConfirmDelete()
-                  else onRequestDelete()
-                }}
-              >
-                <Trash2
-                  className="size-3.5 shrink-0 text-current"
-                  aria-hidden
-                />
-                {/* ⚠ 药丸是**撑出来**的：`width: auto` 过渡不了，所以让这两个字
-                  自己从 `max-w-0` 长到 `max-w-20`，左内距写在里层（被裁掉）。 */}
+            {compact ? (
+              /* 时间与两颗图标叠在同一格（`grid` 一格两层）：hover / 聚焦时时间淡出、图标淡入，宽度取两者大的那个，
+                 ⛔ 不位移。 */
+              <span className="grid shrink-0 items-center justify-items-end">
                 <span
                   className={cn(
-                    'overflow-hidden whitespace-nowrap',
-                    DELETE_PILL_WORD_MOTION_CLASS,
-                    confirming
-                      ? 'max-w-20 opacity-100 blur-none'
-                      : 'max-w-0 opacity-0 blur-2xs',
+                    'col-start-1 row-start-1 font-mono text-2xs tabular-nums text-muted-foreground transition-opacity duration-fast ease-linear group-hover/row:opacity-0 group-focus-within/row:opacity-0 coarse:opacity-0 motion-reduce:transition-none',
+                    confirming && 'opacity-0',
                   )}
                 >
-                  <span className="pl-1 text-2xs font-medium">
-                    {deleting
-                      ? t('history.deleting')
-                      : t('history.deleteConfirm')}
-                  </span>
+                  {dateLabel}
                 </span>
-              </DropdownMenuItem>
-            </span>
+                <span className="col-start-1 row-start-1">{actionButtons}</span>
+              </span>
+            ) : (
+              actionButtons
+            )}
           </>
         )}
 

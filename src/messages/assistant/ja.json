@@ -1073,10 +1073,11 @@
       "group": "{name}とのチャット",
       "workGroup": "作業",
       "oldChat": "{name} との以前のチャット（閲覧のみ）",
-      "goVoiceRoom": "彼女の配音室へ"
+      "goVoiceRoom": "彼女とチャット"
     },
     "mode": {
-      "pickCharacter": "話す相手",
+      "pickCharacter": "アシスタントの人格を切り替え",
+      "defaultAssistant": "デフォルトのアシスタント",
       "searchCharacter": "キャラを検索",
       "toChat": "チャットに切替 · {name}と",
       "toWork": "作業に戻る",

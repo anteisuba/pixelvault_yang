@@ -400,7 +400,7 @@ describe('StudioOperatorHeader', () => {
   })
 
   /** ui-spec §1 板头：外壳那一栏 = 头像 + 就地改名的标题，⛔ 分隔线、⛔ 历史下拉。 */
-  it('⭐ board：点头像 = 收起（换人只走左栏）；标题 ▾ 是和这个人的历史（左栏没有对话列表）', () => {
+  it('⭐ board：点头像 = 收起（换人只走左栏）；标题只是名字（历史在左栏「新对话」那颗里）', () => {
     const history = {
       ...HISTORY,
       sessions: SESSIONS,
@@ -413,13 +413,16 @@ describe('StudioOperatorHeader', () => {
     fireEvent.click(screen.getByTestId('operator-header-avatar'))
     expect(onCollapse).toHaveBeenCalledTimes(1)
     expect(screen.queryByTestId('operator-avatar-switcher')).toBeNull()
-    expect(screen.getByTestId('operator-session-menu')).toBeTruthy()
+    expect(screen.queryByTestId('operator-session-menu')).toBeNull()
+    expect(
+      screen.getByTestId('operator-session-title').textContent,
+    ).toBeTruthy()
     cleanup()
 
-    // 首页：没东西可收，头像只是在（⛔ 按钮）；标题照样是历史下拉。
+    // 首页：没东西可收，头像只是在（⛔ 按钮）；标题同样只是名字。
     renderHeader({ avatar: 'boardStatic', history })
     expect(screen.getByTestId('operator-header-avatar').tagName).toBe('SPAN')
-    expect(screen.getByTestId('operator-session-menu')).toBeTruthy()
+    expect(screen.queryByTestId('operator-session-menu')).toBeNull()
   })
 
   /**

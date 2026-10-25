@@ -10,13 +10,7 @@ import {
   studioLibraryPath,
   type StudioLibraryCategoryId,
 } from '@/constants/studio-shell'
-import {
-  Images,
-  LayoutGrid,
-  Library,
-  Mic2,
-  SquarePen,
-} from '@/components/icons'
+import { Images, LayoutGrid, Library } from '@/components/icons'
 import { AccountMenu } from '@/components/layout/AccountMenu'
 import { ProfileAvatar } from '@/components/layout/ProfileAvatar'
 import {
@@ -24,6 +18,10 @@ import {
   StudioOperatorCurrentAvatar,
 } from '@/components/business/studio/assistant-operator/StudioOperatorAvatarSwitcher'
 import { StudioLibraryTargetContext } from '@/components/business/studio/shell/StudioLibraryOverlay'
+import {
+  StudioShellChatKey,
+  StudioShellNewChatKey,
+} from '@/components/business/studio/shell/StudioShellHistoryKeys'
 import {
   StudioBenchPicker,
   StudioLibraryPicker,
@@ -40,9 +38,8 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { useMyProfile } from '@/hooks/use-my-profile'
-import { useStudioOperatorActions } from '@/hooks/use-studio-operator-actions'
 import { useStudioShellAvatar } from '@/hooks/use-studio-shell-avatar'
-import { Link, usePathname, useRouter } from '@/i18n/navigation'
+import { Link, usePathname } from '@/i18n/navigation'
 import {
   libraryCategoryFromPath,
   studioShellRouteKind,
@@ -70,12 +67,11 @@ const PAGE_ITEMS = PAGE_ITEM_IDS.flatMap((id) =>
 
 /**
  * `/studio` 外壳左边那一栏（ui-spec §1）：64 宽的细图标栏落在灰底上，只放图标 ——
- * AN 字标（对话收起时换成助手头像、点开换人）、黑色「新对话」、画廊 / 配音间 / 工作台 / 库 / 素材 / 角色 / 提示词、最底下头像（顺序
+ * 助手头像（点开换全局人设）、白底「新对话」、画廊 / 聊天 / 工作台 / 库 / 素材 / 角色 / 提示词、最底下头像（顺序
  * 用户 10-25 定）。点「工作台」浮出一条竖排的台、点「库」浮出一条竖排的库（LoRA · 酒馆 · 标签 · 音色），点一个进那一个。
  *
- * ⛔ 没有对话列表（用户 10-25「不在意一眼看全部」）：先选人（最上面那格换人，角色 = 进她的配音间），
- *   再选历史（对话顶上标题 ▾，只列和这个人的几段）。
- * ⚠ 读的是面板发布出来的「新对话」那只手（`useStudioOperatorActions`），⛔ 这里再调一次驱动 hook。
+ * ⛔ 没有常驻的对话列表（用户 10-25）：工作台的历史在「新对话」那颗里，聊天记录在「聊天」那颗里
+ *   （只列现在这一位的）；两边分开，人设都跟最上面那格走。
  */
 export function StudioConversationList({ className }: { className?: string }) {
   const t = useTranslations('StudioShell')
@@ -84,8 +80,6 @@ export function StudioConversationList({ className }: { className?: string }) {
   const tOperator = useTranslations('StudioOperator')
   const avatar = useStudioShellAvatar()
   const pathname = usePathname()
-  const router = useRouter()
-  const actions = useStudioOperatorActions()
   const kind = studioShellRouteKind(pathname)
   const openCategory = libraryCategoryFromPath(pathname)
   const [benchesOpen, setBenchesOpen] = useState(false)
@@ -106,14 +100,6 @@ export function StudioConversationList({ className }: { className?: string }) {
     librarySlot.close()
   }
 
-  const startNewChat = () => {
-    if (kind === 'home' && actions) {
-      actions.newThread()
-      return
-    }
-    router.push(ROUTES.STUDIO)
-  }
-
   return (
     <nav
       aria-label={t('conversations')}
@@ -123,7 +109,7 @@ export function StudioConversationList({ className }: { className?: string }) {
         className,
       )}
     >
-      {/* 最上面那格 = 此刻陪你的那一位，只管换人（用户 10-25）；收起 / 展开交给对话头那颗。
+      {/* 最上面那格 = 全局助手，点开换人设（用户 10-25）；收起 / 展开交给对话头那颗。
           换了人对话收着就拉回来。 */}
       <StudioOperatorAvatarSwitcher
         side="right"
@@ -140,17 +126,7 @@ export function StudioConversationList({ className }: { className?: string }) {
           </span>
         </button>
       </StudioOperatorAvatarSwitcher>
-      <NavTip label={t('newChat')}>
-        <button
-          type="button"
-          onClick={startNewChat}
-          aria-label={t('newChat')}
-          data-testid="studio-shell-new-chat"
-          className="mb-2 grid size-10 place-items-center rounded-full bg-primary text-primary-foreground transition-transform duration-fast ease-standard active:scale-96 focus-visible:outline-none focus-visible:shadow-focus [&>svg]:size-4.5"
-        >
-          <SquarePen />
-        </button>
-      </NavTip>
+      <StudioShellNewChatKey />
 
       <NavTip label={tNav('links.gallery')}>
         <Link
@@ -168,18 +144,8 @@ export function StudioConversationList({ className }: { className?: string }) {
         </Link>
       </NavTip>
 
-      {/* 配音间（用户 10-25 要回来）：点一下回到最近那一间，一间都没有就开一间；换人走最上面那格。 */}
-      <NavTip label={t('homeVoiceRoom')}>
-        <Link
-          href={ROUTES.STUDIO_AUDIO}
-          aria-label={t('homeVoiceRoom')}
-          aria-current={voiceRoomActive ? 'page' : undefined}
-          data-testid="studio-shell-voice-room"
-          className={cn(NAV_BUTTON_CLASS, voiceRoomActive && NAV_ACTIVE_CLASS)}
-        >
-          <Mic2 />
-        </Link>
-      </NavTip>
+      {/* 聊天（用户 10-25：配音间改名聊天）：点开是和现在这一位的聊天记录。 */}
+      <StudioShellChatKey active={voiceRoomActive} />
 
       <Popover open={benchesOpen} onOpenChange={setBenchesOpen}>
         <NavTip label={t('workbench')}>

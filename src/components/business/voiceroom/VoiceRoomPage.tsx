@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 
@@ -8,9 +8,11 @@ import { VOICE_ROOM_QUERY, voiceRoomPath } from '@/constants/routes'
 
 import { Button } from '@/components/ui/button'
 import { ApiKeysProvider } from '@/contexts/api-keys-context'
+import { useChatPersona } from '@/hooks/use-chat-persona'
 import { usePublishVoiceRooms } from '@/hooks/use-shell-voice-rooms'
 import { useVoiceRoom } from '@/hooks/use-voiceroom'
 import { useRouter } from '@/i18n/navigation'
+import { personaCastMember, soloRoomsForPersona } from '@/lib/voiceroom-cast'
 
 import { VoiceRoomStage } from './VoiceRoomStage'
 
@@ -62,7 +64,7 @@ export function VoiceRoomPage() {
   } = useVoiceRoom()
 
   /**
-   * 进来先打开最近动过的那个房间；一个都没有就开一个空的。
+   * 进来先打开**现在这一位**（全局助手人设，用户 10-25）最近那一段；和她一段都没有就照她开一段。
    *
    * ⚠ 必须用 ref 上闸，**只跑一次**。`createRoom()` 是异步的，它内部 `setRooms`
    * 会让 `rooms` 换一个新数组引用、把这个 effect 重新触发一遍，而那时候
@@ -73,14 +75,32 @@ export function VoiceRoomPage() {
   const searchParams = useSearchParams()
   const roomParam = searchParams.get(VOICE_ROOM_QUERY)
   const bootstrappedRef = useRef(false)
+  const chatPersona = useChatPersona()
   useEffect(() => {
     if (loadingRooms || error || bootstrappedRef.current) return
-    bootstrappedRef.current = true
     // 地址点名的那一段照开（头像点角色刚替她开的那段这时还不在列表里）。
-    if (roomParam) void openRoom(roomParam)
-    else if (rooms.length > 0) void openRoom(rooms[0].id)
-    else void createRoom()
-  }, [loadingRooms, error, rooms, openRoom, createRoom, roomParam])
+    if (roomParam) {
+      bootstrappedRef.current = true
+      void openRoom(roomParam)
+      return
+    }
+    // 没点名：等人设读回来再挑（之前那一拍是默认助手那一格）。
+    if (!chatPersona.ready) return
+    bootstrappedRef.current = true
+    const latest = soloRoomsForPersona(rooms, chatPersona.ref)[0]
+    if (latest) void openRoom(latest.id)
+    else void createRoom([personaCastMember(chatPersona.target)])
+  }, [
+    loadingRooms,
+    error,
+    rooms,
+    openRoom,
+    createRoom,
+    roomParam,
+    chatPersona.ready,
+    chatPersona.ref,
+    chatPersona.target,
+  ])
 
   /*
    * 房间写进地址（`?room=`）：头像点角色 / 群、标题 ▾ 换一段都走它，刷新也还在那一段。
@@ -99,7 +119,11 @@ export function VoiceRoomPage() {
     router.replace(voiceRoomPath(activeRoomId), { scroll: false })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeRoomId])
-  usePublishVoiceRooms(rooms, activeRoomId)
+  const shellActions = useMemo(
+    () => ({ rename: renameRoom, remove: removeRoom }),
+    [renameRoom, removeRoom],
+  )
+  usePublishVoiceRooms(rooms, activeRoomId, shellActions)
 
   /*
    * ⚠ 只挂 `ApiKeysProvider`，**不是** `StudioProvider`。
@@ -132,11 +156,6 @@ export function VoiceRoomPage() {
             error={error}
             delivery={delivery}
             onDeliveryChange={setDelivery}
-            rooms={rooms}
-            onOpenRoom={(roomId) => void openRoom(roomId)}
-            onRenameRoom={renameRoom}
-            onDeleteRoom={removeRoom}
-            onNewTopic={() => void createRoom(detail.cast)}
             onCastChange={(cast) => void setCast(cast)}
             onSay={say}
             onChat={chat}

@@ -1167,6 +1167,12 @@
     "libraryRailHide": "收起侧栏",
     "libraryRailShow": "展开侧栏",
     "workbench": "工作台",
-    "homeVoiceRoom": "配音间"
+    "chat": "聊天",
+    "newChatWith": "和 {name} 新聊天",
+    "historyBucket": {
+      "today": "今天",
+      "yesterday": "昨天",
+      "earlier": "更早"
+    }
   }
 }

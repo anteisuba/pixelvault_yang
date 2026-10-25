@@ -1502,7 +1502,7 @@
         "source": {
           "platformSample": "ボイスライブラリ · サンプル音声",
           "history": "ボイスライブラリ · 自分の履歴",
-          "voiceRoom": "ボイスライブラリ · アフレコ室",
+          "voiceRoom": "ボイスライブラリ · チャット",
           "library": "素材ライブラリ",
           "upload": "アップロード",
           "generated": "このカードで生成",
@@ -1516,7 +1516,7 @@
           "tabs": {
             "platformSample": "公式",
             "history": "履歴",
-            "voiceRoom": "アフレコ室",
+            "voiceRoom": "チャット",
             "library": "素材",
             "favorites": "お気に入り"
           },

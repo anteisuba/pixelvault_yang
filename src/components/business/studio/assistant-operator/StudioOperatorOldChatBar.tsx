@@ -3,14 +3,13 @@
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
-import { VoicePickerDialog } from '@/components/business/voices/VoicePickerDialog'
 import { useChatCharacters } from '@/hooks/use-chat-characters'
-import { useOpenCharacterRoom } from '@/hooks/use-open-character-room'
+import { useOpenPersonaChat } from '@/hooks/use-chat-persona'
 import type { StudioOperatorChatCharacter } from '@/hooks/use-studio-operator-store'
 
 /**
  * 以前在助手里「和角色聊」留下的那几段（用户 10-25 去掉聊天模式）：**只能看**，输入区换成这一条 ——
- * 一句「和她的旧聊天」+「去她的配音间」，接着聊去配音间（用户 10-25「旧的留着只看，不搬」）。
+ * 一句「和她的旧聊天」+「和她聊天」：助手换成她、进「聊天」接着聊（用户 10-25 聊天跟着全局人设）。
  */
 export function StudioOperatorOldChatBar({
   character,
@@ -19,7 +18,7 @@ export function StudioOperatorOldChatBar({
 }) {
   const t = useTranslations('StudioOperator.chat')
   const { characters } = useChatCharacters(true)
-  const room = useOpenCharacterRoom()
+  const personaChat = useOpenPersonaChat()
   const chat = characters.find((item) => item.character.id === character.id)
 
   return (
@@ -33,20 +32,18 @@ export function StudioOperatorOldChatBar({
       {chat ? (
         <Button
           size="sm"
-          disabled={room.busy}
-          onClick={() => void room.open(chat)}
+          disabled={personaChat.busy}
+          onClick={() =>
+            void personaChat.switchTo(chat.character.id, {
+              voiceCardId: chat.voiceCardId,
+              openChat: true,
+            })
+          }
           data-testid="operator-old-chat-go-room"
         >
           {t('goVoiceRoom')}
         </Button>
       ) : null}
-      <VoicePickerDialog
-        open={room.needsVoice !== null}
-        onOpenChange={(next) => {
-          if (!next) room.cancelVoice()
-        }}
-        onPick={(card) => void room.bindVoiceAndOpen(card.id)}
-      />
     </div>
   )
 }

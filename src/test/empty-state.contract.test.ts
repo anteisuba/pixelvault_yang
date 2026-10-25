@@ -45,8 +45,6 @@ const LANDING_POINTS = [
   'src/components/business/voices/VoicesPage.tsx',
   // 声音库桌面：还没收藏（库骨架，ui-spec §9）。
   'src/components/business/voices/VoicesLibraryDesk.tsx',
-  // 挑音色框：公开库取不到（挑选框 ui-spec ㉔）。
-  'src/components/business/voices/VoicePickerDialog.tsx',
   // 提示词库桌面：还没收藏（库骨架，ui-spec §9）。
   'src/components/business/prompts/PromptLibraryDesk.tsx',
 ]

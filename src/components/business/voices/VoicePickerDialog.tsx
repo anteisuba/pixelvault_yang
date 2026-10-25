@@ -18,7 +18,6 @@ import {
   DialogDescription,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { EmptyState } from '@/components/ui/empty-state'
 import { LibraryGrid, LibraryNewTile } from '@/components/ui/library-kit'
 import {
   LIBRARY_PICKER_DIALOG_CLASS,
@@ -184,7 +183,9 @@ function VoicePickerBody({
       <Spinner size="lg" className="text-muted-foreground" />
     </div>
   ) : library.error && empty ? (
-    <EmptyState tone="error" title={library.error} />
+    <p role="alert" className="py-10 text-center text-sm text-status-risk">
+      {library.error}
+    </p>
   ) : empty && (library.tab !== 'cloned' || needle) ? (
     <p className="py-10 text-center text-sm text-muted-foreground">
       {needle ? t('emptyPublic') : t('emptyFavorites')}

@@ -293,7 +293,7 @@ const ERROR_PATTERNS: Array<{
   },
   {
     pattern:
-      /exhausted\s+balance|top\s+up.*balance|billing|payment|insufficient.*(?:balance|credits?)|not\s+enough\s+anlas|余额不足|余额已耗尽|充值/i,
+      /exhausted\s+balance|top\s+up.*balance|billing|payment|insufficient.*(?:balance|credits?)|used all (?:available )?credits|spending limit|not\s+enough\s+anlas|余额不足|余额已耗尽|充值/i,
     code: GENERATION_ERROR_CODES.PROVIDER_INSUFFICIENT_BALANCE,
   },
   {

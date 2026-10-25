@@ -347,7 +347,8 @@
       "renameFailed": "修改失败，请重试。",
       "switching": "正在加载对话…",
       "saveFailed": "对话保存失败，草稿仍保留在当前页面。",
-      "retrySave": "重试保存"
+      "retrySave": "重试保存",
+      "unseen": "有新结果"
     },
     "more": "更多",
     "share": "分享这段会话",

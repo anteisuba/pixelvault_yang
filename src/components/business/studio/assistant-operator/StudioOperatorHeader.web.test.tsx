@@ -413,41 +413,26 @@ describe('StudioOperatorHeader', () => {
   })
 
   /** ui-spec §1 板头：外壳那一栏 = 头像 + 就地改名的标题，⛔ 分隔线、⛔ 历史下拉。 */
-  it('⭐ board：点头像 = 收起（换人只走左栏）；点标题就地改名，回车存、Esc 不存', () => {
-    const renameSession = vi.fn().mockResolvedValue(true)
+  it('⭐ board：点头像 = 收起（换人只走左栏）；标题 ▾ 是和这个人的历史（左栏没有对话列表）', () => {
     const history = {
       ...HISTORY,
       sessions: SESSIONS,
       currentSessionId: 'today-session',
-      renameSession,
     }
     const { onCollapse } = renderHeader({ avatar: 'board', history })
     expect(screen.getByTestId('operator-header').className).not.toContain(
       'border-b',
     )
-    expect(screen.queryByTestId('operator-session-menu')).toBeNull()
     fireEvent.click(screen.getByTestId('operator-header-avatar'))
     expect(onCollapse).toHaveBeenCalledTimes(1)
     expect(screen.queryByTestId('operator-avatar-switcher')).toBeNull()
-
-    fireEvent.click(screen.getByTestId('operator-title'))
-    const input = screen.getByTestId('operator-title-input')
-    expect(input.className).toContain('border-highlight')
-    fireEvent.change(input, { target: { value: '新名字' } })
-    fireEvent.keyDown(input, { key: 'Escape' })
-    expect(renameSession).not.toHaveBeenCalled()
-
-    fireEvent.click(screen.getByTestId('operator-title'))
-    const again = screen.getByTestId('operator-title-input')
-    fireEvent.change(again, { target: { value: '新名字' } })
-    fireEvent.keyDown(again, { key: 'Enter' })
-    expect(renameSession).toHaveBeenCalledWith(SESSIONS[0], '新名字')
+    expect(screen.getByTestId('operator-session-menu')).toBeTruthy()
     cleanup()
 
-    // 首页：没东西可收，头像只是在（⛔ 按钮）；还没落库的新对话只写字、⛔ 铅笔。
-    renderHeader({ avatar: 'boardStatic' })
+    // 首页：没东西可收，头像只是在（⛔ 按钮）；标题照样是历史下拉。
+    renderHeader({ avatar: 'boardStatic', history })
     expect(screen.getByTestId('operator-header-avatar').tagName).toBe('SPAN')
-    expect(screen.getByTestId('operator-title').tagName).toBe('SPAN')
+    expect(screen.getByTestId('operator-session-menu')).toBeTruthy()
   })
 
   /**

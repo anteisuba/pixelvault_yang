@@ -1,14 +1,10 @@
 'use client'
 
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 
-import {
-  VOICE_ROOM_NEW_QUERY,
-  VOICE_ROOM_QUERY,
-  voiceRoomPath,
-} from '@/constants/routes'
+import { VOICE_ROOM_QUERY, voiceRoomPath } from '@/constants/routes'
 
 import { Button } from '@/components/ui/button'
 import { ApiKeysProvider } from '@/contexts/api-keys-context'
@@ -16,7 +12,6 @@ import { usePublishVoiceRooms } from '@/hooks/use-shell-voice-rooms'
 import { useVoiceRoom } from '@/hooks/use-voiceroom'
 import { useRouter } from '@/i18n/navigation'
 
-import { VoiceRoomRail } from './VoiceRoomRail'
 import { VoiceRoomStage } from './VoiceRoomStage'
 
 // 域皮肤跟着域组件走（同 `HomeV4Shell` / `LoraWorkbench`），不进全局 layout。
@@ -75,25 +70,25 @@ export function VoiceRoomPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const roomParam = searchParams.get(VOICE_ROOM_QUERY)
-  const wantsNew = searchParams.get(VOICE_ROOM_NEW_QUERY) === '1'
   const bootstrappedRef = useRef(false)
   useEffect(() => {
     if (loadingRooms || error || bootstrappedRef.current) return
     bootstrappedRef.current = true
-    const asked = roomParam && rooms.find((room) => room.id === roomParam)
-    if (asked) void openRoom(asked.id)
-    else if (rooms.length > 0 && !wantsNew) void openRoom(rooms[0].id)
+    // 地址点名的那一段照开（头像点角色刚替她开的那段这时还不在列表里）。
+    if (roomParam) void openRoom(roomParam)
+    else if (rooms.length > 0) void openRoom(rooms[0].id)
     else void createRoom()
-  }, [loadingRooms, error, rooms, openRoom, createRoom, roomParam, wantsNew])
+  }, [loadingRooms, error, rooms, openRoom, createRoom, roomParam])
 
   /*
-   * 第 9f 步 9f-3：房间写进地址（`?room=`），外壳左边列表点哪间就开哪间、刷新也还在那间；
-   * 首页切到「配音间」进来带 `?new=1` = 新开一间。
+   * 房间写进地址（`?room=`）：头像点角色 / 群、标题 ▾ 换一段都走它，刷新也还在那一段。
    */
   useEffect(() => {
     if (!bootstrappedRef.current || !roomParam || roomParam === activeRoomId)
       return
-    if (rooms.some((room) => room.id === roomParam)) void openRoom(roomParam)
+    // 头像点角色可能刚替她开了一段（这一页手上的列表里还没有）：照样打开、列表跟着刷新。
+    if (!rooms.some((room) => room.id === roomParam)) void refreshRooms()
+    void openRoom(roomParam)
     // 只认地址变了那一拍：开着的那间换了是下面那条把地址跟上。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomParam])
@@ -102,11 +97,7 @@ export function VoiceRoomPage() {
     router.replace(voiceRoomPath(activeRoomId), { scroll: false })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeRoomId])
-  const roomEditors = useMemo(
-    () => ({ renameRoom, removeRoom }),
-    [renameRoom, removeRoom],
-  )
-  usePublishVoiceRooms(rooms, activeRoomId, roomEditors)
+  usePublishVoiceRooms(rooms, activeRoomId)
 
   /*
    * ⚠ 只挂 `ApiKeysProvider`，**不是** `StudioProvider`。
@@ -119,14 +110,6 @@ export function VoiceRoomPage() {
   return (
     <ApiKeysProvider>
       <div className="voiceroom workbench-ground h-page">
-        <VoiceRoomRail
-          rooms={rooms}
-          activeRoomId={activeRoomId}
-          onOpen={(roomId) => void openRoom(roomId)}
-          onCreate={() => void createRoom()}
-          onDelete={(roomId) => void removeRoom(roomId)}
-        />
-
         {detail ? (
           <VoiceRoomStage
             detail={detail}
@@ -145,7 +128,11 @@ export function VoiceRoomPage() {
             error={error}
             delivery={delivery}
             onDeliveryChange={setDelivery}
-            onRename={(name) => void renameRoom(detail.id, name)}
+            rooms={rooms}
+            onOpenRoom={(roomId) => void openRoom(roomId)}
+            onRenameRoom={renameRoom}
+            onDeleteRoom={removeRoom}
+            onNewTopic={() => void createRoom(detail.cast)}
             onCastChange={(cast) => void setCast(cast)}
             onSay={say}
             onChat={chat}

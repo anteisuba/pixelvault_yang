@@ -12,13 +12,18 @@ import type { StudioOperatorChatRequest } from '@/hooks/use-studio-operator-stor
  *
  * ⚠ 只在菜单打开时取（`enabled`），取过一次就留着；取不到就是空列表，菜单那一项照常在。
  */
+export type ChatCharacterOption = StudioOperatorChatRequest & {
+  /** 她的嗓子（角色卡默认音色）：头像点她进配音间按它认人；没绑 = null。 */
+  voiceCardId: string | null
+}
+
 export function useChatCharacters(enabled: boolean): {
-  characters: StudioOperatorChatRequest[]
+  characters: ChatCharacterOption[]
   isLoading: boolean
 } {
-  const [characters, setCharacters] = useState<
-    StudioOperatorChatRequest[] | null
-  >(null)
+  const [characters, setCharacters] = useState<ChatCharacterOption[] | null>(
+    null,
+  )
 
   useEffect(() => {
     if (!enabled || characters !== null) return
@@ -35,6 +40,7 @@ export function useChatCharacters(enabled: boolean): {
           opening: card.persona?.opening ?? '',
           alternateOpenings: card.tavern?.alternateGreetings ?? [],
           avatarUrl: characterCoverUrl(card),
+          voiceCardId: card.voiceCardId,
         })),
       )
     })

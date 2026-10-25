@@ -381,17 +381,8 @@
       "task_count": "热门",
       "created_at": "最新"
     },
-    "newRoom": "新房间",
     "untitledRoom": "未命名房间",
-    "emptyRoomTag": "空",
     "railFoot": "每个房间自带班底与素材",
-    "justNow": "刚刚",
-    "minutesAgo": "{count} 分钟前",
-    "hoursAgo": "{count} 小时前",
-    "yesterday": "昨天",
-    "daysAgo": "{count} 天前",
-    "roomNameLabel": "房间名",
-    "renameRoom": "改名",
     "roomMeta": "多说话人 · 音色库 + 克隆",
     "assetsLibrary": "素材库",
     "emptyEyebrow": "班底还空着",
@@ -454,9 +445,6 @@
     "cloneNew": "克隆新声音",
     "cloneNewHint": "最多 {files} 段样本 · 每段 ≤{mb}MB\n两分钟就有自己的嗓子",
     "cancel": "取消",
-    "deleteRoom": "删除房间",
-    "deleteRoomTitle": "删除这个房间？",
-    "deleteRoomHint": "「{name}」和它的全部台词都会删掉。已经生成的声音不受影响，仍然在素材库里。",
     "modeLabel": "聊天还是念台词",
     "mode": {
       "chat": "聊天",
@@ -465,7 +453,9 @@
     "chatPlaceholder": "跟 {name} 说点什么…",
     "send": "发送",
     "noVoice": "这句还没出声",
-    "removeFromRoom": "移出房间"
+    "removeFromRoom": "移出房间",
+    "history": "对话历史",
+    "newTopic": "新话题"
   },
   "StudioVideoSlots": {
     "firstFrame": "首帧",

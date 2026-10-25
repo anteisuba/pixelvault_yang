@@ -381,17 +381,8 @@
       "task_count": "Popular",
       "created_at": "Newest"
     },
-    "newRoom": "New room",
     "untitledRoom": "Untitled room",
-    "emptyRoomTag": "empty",
     "railFoot": "Each room keeps its own cast and clips",
-    "justNow": "just now",
-    "minutesAgo": "{count} min ago",
-    "hoursAgo": "{count} h ago",
-    "yesterday": "yesterday",
-    "daysAgo": "{count} d ago",
-    "roomNameLabel": "Room name",
-    "renameRoom": "Rename",
     "roomMeta": "Multiple speakers · voice library + cloning",
     "assetsLibrary": "Assets",
     "emptyEyebrow": "No voices added yet",
@@ -454,9 +445,6 @@
     "cloneNew": "Clone a voice",
     "cloneNewHint": "Up to {files} samples · {mb}MB each\nYour own voice in two minutes",
     "cancel": "Cancel",
-    "deleteRoom": "Delete room",
-    "deleteRoomTitle": "Delete this room?",
-    "deleteRoomHint": "“{name}” and all its lines will be removed. Voices you already generated stay in your library.",
     "modeLabel": "Chat or read lines",
     "mode": {
       "chat": "Chat",
@@ -465,7 +453,9 @@
     "chatPlaceholder": "Say something to {name}…",
     "send": "Send",
     "noVoice": "No voice yet",
-    "removeFromRoom": "Remove from room"
+    "removeFromRoom": "Remove from room",
+    "history": "Conversations",
+    "newTopic": "New topic"
   },
   "StudioVideoSlots": {
     "firstFrame": "First",

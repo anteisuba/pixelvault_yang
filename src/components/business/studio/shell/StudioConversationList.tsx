@@ -3,28 +3,20 @@
 import { useContext, useState, type MouseEvent, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 
-import { NEW_VOICE_ROOM_PATH, ROUTES } from '@/constants/routes'
+import { ROUTES } from '@/constants/routes'
 import { STUDIO_LIBRARY_ITEMS } from '@/constants/navigation'
 import {
   STUDIO_LIBRARY_TAB_IDS,
   studioLibraryPath,
   type StudioLibraryCategoryId,
 } from '@/constants/studio-shell'
-import {
-  ChatCircleText,
-  Images,
-  LayoutGrid,
-  Library,
-  Mic2,
-  SquarePen,
-} from '@/components/icons'
+import { Images, LayoutGrid, Library, SquarePen } from '@/components/icons'
 import { AccountMenu } from '@/components/layout/AccountMenu'
 import { ProfileAvatar } from '@/components/layout/ProfileAvatar'
 import {
   StudioOperatorAvatarSwitcher,
   StudioOperatorCurrentAvatar,
 } from '@/components/business/studio/assistant-operator/StudioOperatorAvatarSwitcher'
-import { StudioConversationRecent } from '@/components/business/studio/shell/StudioConversationRecent'
 import { StudioLibraryTargetContext } from '@/components/business/studio/shell/StudioLibraryOverlay'
 import {
   StudioBenchPicker,
@@ -43,7 +35,6 @@ import {
 } from '@/components/ui/tooltip'
 import { useMyProfile } from '@/hooks/use-my-profile'
 import { useStudioOperatorActions } from '@/hooks/use-studio-operator-actions'
-import { useStudioOperatorHistoryView } from '@/hooks/use-studio-operator-history'
 import { useStudioShellAvatar } from '@/hooks/use-studio-shell-avatar'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
 import {
@@ -57,12 +48,6 @@ const NAV_BUTTON_CLASS =
   'grid size-10 place-items-center rounded-12 text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus data-[state=open]:bg-fill-strong data-[state=open]:text-foreground [&>svg]:size-4.5'
 
 const NAV_ACTIVE_CLASS = 'bg-fill-strong text-foreground'
-
-/** 浮出来的对话列表里的行（对话列表的行圆角 10）。 */
-const ROW_CLASS =
-  'flex h-8 w-full min-w-0 items-center gap-2 rounded-lg px-2 text-left text-2sm text-foreground transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus [&>svg]:size-4 [&>svg]:shrink-0'
-
-const ROW_ACTIVE_CLASS = 'bg-row-selected font-medium'
 
 /** 左栏单独一颗、点开整页的那几样（用户 10-25）：素材 · 角色 · 提示词。 */
 const PAGE_ITEM_IDS: readonly StudioLibraryCategoryId[] = [
@@ -79,14 +64,12 @@ const PAGE_ITEMS = PAGE_ITEM_IDS.flatMap((id) =>
 
 /**
  * `/studio` 外壳左边那一栏（ui-spec §1）：64 宽的细图标栏落在灰底上，只放图标 ——
- * AN 字标（对话收起时换成助手头像、点开换人）、黑色「新对话」、画廊 / 对话 / 配音间 / 工作台 / 库 / 素材 / 角色 / 提示词、最底下头像（顺序
- * 用户 10-25 定）。点「对话」从栏旁浮出对话列表（300 宽；助手对话与配音间混排，9f-3）；点「工作台」
- * 浮出一条竖排的台、点「库」浮出一条竖排的库（LoRA · 酒馆 · 标签 · 音色），点一个进那一个。
+ * AN 字标（对话收起时换成助手头像、点开换人）、黑色「新对话」、画廊 / 工作台 / 库 / 素材 / 角色 / 提示词、最底下头像（顺序
+ * 用户 10-25 定）。点「工作台」浮出一条竖排的台、点「库」浮出一条竖排的库（LoRA · 酒馆 · 标签 · 音色），点一个进那一个。
  *
- * ⚠ 读的是面板发布出来的历史与「新对话」那只手（`useStudioOperatorHistoryView` /
- *   `useStudioOperatorActions`），⛔ 这里再调一次驱动 hook。
- * ⚠ 点一段对话：首页上换地址（地址 → 对话由 `useStudioConversationUrl` 接）；开着台时
- *   就地换对话、台不动（地址里的 `?c=` 跟着换）。
+ * ⛔ 没有对话列表（用户 10-25「不在意一眼看全部」）：先选人（最上面那格换人，角色 = 进她的配音间），
+ *   再选历史（对话顶上标题 ▾，只列和这个人的几段）。
+ * ⚠ 读的是面板发布出来的「新对话」那只手（`useStudioOperatorActions`），⛔ 这里再调一次驱动 hook。
  */
 export function StudioConversationList({ className }: { className?: string }) {
   const t = useTranslations('StudioShell')
@@ -96,11 +79,9 @@ export function StudioConversationList({ className }: { className?: string }) {
   const avatar = useStudioShellAvatar()
   const pathname = usePathname()
   const router = useRouter()
-  const history = useStudioOperatorHistoryView()
   const actions = useStudioOperatorActions()
   const kind = studioShellRouteKind(pathname)
   const openCategory = libraryCategoryFromPath(pathname)
-  const [listOpen, setListOpen] = useState(false)
   const [benchesOpen, setBenchesOpen] = useState(false)
   const [librariesOpen, setLibrariesOpen] = useState(false)
   const voiceRoomActive =
@@ -178,49 +159,6 @@ export function StudioConversationList({ className }: { className?: string }) {
           )}
         >
           <Images />
-        </Link>
-      </NavTip>
-
-      <Popover open={listOpen} onOpenChange={setListOpen}>
-        <NavTip label={t('conversations')}>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              aria-label={t('conversations')}
-              data-testid="studio-shell-conversations"
-              className={NAV_BUTTON_CLASS}
-            >
-              <ChatCircleText />
-            </button>
-          </PopoverTrigger>
-        </NavTip>
-        <PopoverContent
-          side="right"
-          align="start"
-          sideOffset={8}
-          className="flex h-(--radix-popover-content-available-height) max-h-160 w-75 flex-col p-0"
-        >
-          <StudioConversationRecent
-            history={history}
-            routeKind={kind}
-            pathname={pathname}
-            rowClass={ROW_CLASS}
-            rowActiveClass={ROW_ACTIVE_CLASS}
-            onOpen={() => setListOpen(false)}
-          />
-        </PopoverContent>
-      </Popover>
-
-      {/* 配音间（用户 10-25：从首页顶上「助手 | 配音间」挪到这里）：点一下新开一间，开过的在对话列表里。 */}
-      <NavTip label={t('homeVoiceRoom')}>
-        <Link
-          href={NEW_VOICE_ROOM_PATH}
-          aria-label={t('homeVoiceRoom')}
-          aria-current={voiceRoomActive ? 'page' : undefined}
-          data-testid="studio-shell-voice-room"
-          className={cn(NAV_BUTTON_CLASS, voiceRoomActive && NAV_ACTIVE_CLASS)}
-        >
-          <Mic2 />
         </Link>
       </NavTip>
 

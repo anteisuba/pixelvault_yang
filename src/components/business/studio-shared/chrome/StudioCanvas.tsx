@@ -49,6 +49,7 @@ import type { GenerationRecord } from '@/types'
 
 import { Wand2 } from '@/components/icons'
 import { Button } from '@/components/ui/button'
+import { DropOverlay } from '@/components/ui/drop-overlay'
 import { CompareGrid } from '@/components/business/image/CompareGrid'
 import { SearchGroundingRail } from '@/components/business/studio-shared/search-grounding/SearchGroundingRail'
 import { StudioReferenceRail } from '@/components/business/studio-shared/chrome/StudioReferenceRail'
@@ -103,6 +104,7 @@ export const StudioCanvas = memo(function StudioCanvas({
   const tVideo = useTranslations('VideoGenerate')
   const tSlots = useTranslations('StudioVideoSlots')
   const tImageChip = useTranslations('ImageChip')
+  const tDrop = useTranslations('DropZone')
   const { modelOptions } = useImageModelOptions()
   // ⚠ **纯读**那颗（`useStudioGenerateAction` 带执行端副作用，结果区不能挂它）。
   const { runModels } = useStudioRunModels()
@@ -491,10 +493,11 @@ export const StudioCanvas = memo(function StudioCanvas({
         'studio-canvas transition-all',
         (referenceFillsStage || videoPoster || stageBoxFillsStage) &&
           'flex min-h-0 flex-1 flex-col',
-        isDragOver && 'ring-2 ring-primary/40 bg-primary/5 rounded-xl',
+        'relative',
         className,
       )}
     >
+      <DropOverlay active={isDragOver} label={tDrop('toReferences')} />
       {/* 参考轨 —— 与结果并存，不再被结果挤掉。编辑态下不画：编辑舞台自带
           返回条与「正在编辑 · 参考图 N / M」，两条一起出现就是一屏两遍。 */}
       {stageReference && referenceRail && (

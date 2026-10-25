@@ -480,5 +480,10 @@
       "nameTaken": "その名前はもう使われています。別の名前にしてください。",
       "unknownBuiltin": "その内蔵スキルはもうありません。ページを更新してください。"
     }
+  },
+  "DropZone": {
+    "toReferences": "離すと参考画像に追加",
+    "toConversation": "離すと会話に追加",
+    "importCharacterCard": "離すとキャラカードを読み込み"
   }
 }

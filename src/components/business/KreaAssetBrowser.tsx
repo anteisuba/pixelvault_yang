@@ -56,6 +56,7 @@ import { FeedTail } from '@/components/business/FeedTail'
 import { PageLoadError } from '@/components/business/PageLoadError'
 import { revealStep, useRevealBatchStart } from '@/components/ui/load-reveal'
 import { Skeleton } from '@/components/ui/skeleton'
+import { DropOverlay } from '@/components/ui/drop-overlay'
 import { useSlowLoadingNotice } from '@/hooks/use-slow-loading-notice'
 import { AssetUploadQueuePanel } from '@/components/business/assets/AssetUploadQueuePanel'
 import { AssetUploadTile } from '@/components/business/assets/AssetUploadTile'
@@ -2127,24 +2128,11 @@ export function KreaAssetBrowser({
             className="relative flex min-w-0 flex-1 flex-col"
           >
             {/* 拖图上传（原型 T）：大河那一列上一圈虚线框接住，弹簧轻过冲进场。 */}
-            <div
-              aria-hidden={!isFileDragging}
-              className={cn(
-                'pointer-events-none absolute inset-0 bottom-4 z-30 grid place-items-center rounded-2xl border-2 border-dashed border-muted-foreground/50 bg-background/70',
-                'transition-[opacity,scale] duration-spring-slot ease-spring-slot motion-reduce:transition-none',
-                isFileDragging ? 'scale-100 opacity-100' : 'scale-96 opacity-0',
-              )}
-            >
-              <div className="flex flex-col items-center gap-2 text-center">
-                <UploadCloud className="size-6 text-foreground/70" />
-                <p className="text-sm font-medium text-foreground">
-                  {t('uploadDropHint', { folder: uploadTargetLabel })}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {t('uploadDropHintSub')}
-                </p>
-              </div>
-            </div>
+            <DropOverlay
+              active={isFileDragging}
+              label={t('uploadDropHint', { folder: uploadTargetLabel })}
+              className="bottom-4 rounded-16"
+            />
             {/* 捏合时正中露出「小 · 中 · 大」，松手后停一会儿再糊掉。 */}
             {isPhone ? (
               <div

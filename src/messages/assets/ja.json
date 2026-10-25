@@ -191,7 +191,6 @@
     "uploadQueueRetryAll": "すべて再試行",
     "uploadQueueClearDone": "完了分を消す",
     "uploadQueueProgress": "アップロード {percent}%",
-    "uploadDropHintSub": "保存先フォルダはあとでキューから変更できます",
     "emptyFolderTitle": "「{folder}」にはまだ素材がありません",
     "emptyFolderHint": "左のこのフォルダに素材をドラッグするか、選択して「フォルダに追加」を使ってください。",
     "emptyFolderUpload": "このフォルダにアップロード",

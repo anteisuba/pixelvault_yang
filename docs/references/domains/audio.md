@@ -67,7 +67,7 @@
 - **一页管所有嗓子**：三个页签「我的收藏 · 我的克隆 · 找音色」，数据全走 `useVoiceLibrary` 内核（与画布 `VoiceSelector`、配音间选角弹窗同一份，收藏↔克隆仍只靠 `referenceAudioUrl` 分流）。页面 `components/business/voices/`，状态 `hooks/use-voices-page.ts`，导航「去处」里的「音色」。
 - **卡上的管理**：改名 · 换头像（拖图 / 上传走 `POST /api/voice-cards/[id]/cover`，存到 `profiles/<userId>/voice-cover/`；从素材挑的图直接 PATCH `coverImage`）· 绑到角色（写角色卡 `voiceCardId`，一个角色只有一副嗓子）· 删除（软删，同时把绑着它的角色松开）。
 - **头像规则只有一份**：`lib/voice-avatar.ts` —— 绑了角色用角色头像 → 没绑用音色自己的 → 都没有写名字首字。绑着角色时「换头像」置灰。
-- 配音间的选角弹窗**保持原样**（owner 10-23：那边照样能搜公共库、能克隆）。
+- 配音间「加人」：桌面 2026-10-25 起换成 ui-spec ㉔ 的「挑音色」框 `voices/VoicePickerDialog.tsx`（声音库同一副骨架，照样能搜公共库、「我的克隆」第一格能克隆——owner 10-23 的两条照留）；手机仍是原来的选角面板 `VoiceRoomCasting`。
 
 ### 3.2 配音间聊天（「声音」模块第 2 步，owner 2026-10-23）
 

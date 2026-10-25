@@ -1,8 +1,11 @@
 'use client'
 
+import { useState } from 'react'
+
 import { Globe, LogOut, Moon, Settings, User } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
+import { DURATION_MS } from '@/constants/motion'
 import { ROUTES, settingsPath } from '@/constants/routes'
 import { THEMES } from '@/constants/theme'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
@@ -132,6 +135,9 @@ function AccountMenuHeader() {
  * 「服务端认得的」会开始漂（判据三）。切换 = next-intl 的 `router.replace(href,
  * { locale })`，与 `<Link locale>` 重写的是同一个地址前缀。
  *
+ * ⚠ 换 locale = 换 `[locale]` 段，整棵树重挂，选中块来不及滑。所以先让分段条滑到新格
+ *   （`sliding` 只活这一拍，不是第二份当前值），滑完再 `router.replace`。
+ *
  * ⚠ 整行是一颗 `menuitem`：Radix 菜单里 Tab 被吃掉、方向键只在菜单项之间走，
  *   分段条里的按钮键盘到不了。所以键盘落在这一行上，←/→ 换语言；鼠标直接点格子。
  *   `onSelect` 拦掉默认的「选完就关」—— 换语言不是一个关菜单的动作。
@@ -140,13 +146,20 @@ function AccountMenuLanguage() {
   const t = useTranslations('LocaleSwitcher')
   const { locale, href, locales } = useLocaleSwitch()
   const router = useRouter()
+  const [sliding, setSliding] = useState<AppLocale | null>(null)
+  const shown = sliding ?? locale
 
   const switchTo = (next: AppLocale) => {
-    if (next !== locale) router.replace(href, { locale: next })
+    if (next === shown) return
+    setSliding(next)
+    window.setTimeout(
+      () => router.replace(href, { locale: next }),
+      DURATION_MS.slow,
+    )
   }
 
   const step = (delta: number) => {
-    const index = locales.indexOf(locale)
+    const index = locales.indexOf(shown)
     const next = locales[(index + delta + locales.length) % locales.length]
     switchTo(next)
   }
@@ -154,7 +167,7 @@ function AccountMenuLanguage() {
   return (
     <DropdownMenuItem
       data-slot="account-menu-language"
-      aria-label={`${t('label')} · ${t(`names.${locale}`)}`}
+      aria-label={`${t('label')} · ${t(`names.${shown}`)}`}
       onSelect={(event) => event.preventDefault()}
       onKeyDown={(event) => {
         if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
@@ -170,7 +183,7 @@ function AccountMenuLanguage() {
         size="xs"
         semantics="radio"
         ariaLabel={t('label')}
-        value={locale}
+        value={shown}
         onChange={switchTo}
         items={locales.map((option) => ({
           value: option,

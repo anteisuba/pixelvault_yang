@@ -101,9 +101,6 @@ export const ASSET_FOLDER_RAIL_WIDTH = 200
 /** 栏与大河之间的空隙（样件 E 库骨架：32）。收起时连它一起收掉。 */
 export const ASSET_FOLDER_RAIL_GAP = 32
 
-/** 桌面上栏收起 / 展开记在本机（`closed` = 收起）。 */
-export const ASSET_FOLDER_RAIL_STORAGE_KEY = 'pv:assets:folder-rail'
-
 // ─── 上传队列 / 占位瓦片（page §7 / §7.3）──────────────────────────
 
 /** 本地读不到宽高时占位瓦片的兜底比例（page §7.3.6 明写 4:5）。 */

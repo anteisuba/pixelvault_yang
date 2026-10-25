@@ -1167,6 +1167,8 @@
     "pickDone": "完了",
     "manageInLibrary": "ライブラリで管理",
     "libraryAssistant": "アシスタント",
+    "libraryRailHide": "サイドバーを閉じる",
+    "libraryRailShow": "サイドバーを開く",
     "newResult": "新しい結果",
     "homeMode": "新規",
     "homeAssistant": "アシスタント",

@@ -20,8 +20,10 @@ import {
   type StudioShellOverlayId,
 } from '@/constants/studio-shell'
 import { StudioOperatorDetachedScope } from '@/contexts/studio-operator-host'
+import { PanelLeft } from '@/components/icons'
 import { AssistantAvatarGlyph } from '@/components/business/studio/assistant-operator/AssistantAvatarGlyph'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
+import { useLibraryRailOpen } from '@/hooks/use-library-rail'
 import { Link } from '@/i18n/navigation'
 import { shellEnter } from '@/lib/studio-shell-motion'
 import { cn } from '@/lib/utils'
@@ -155,6 +157,8 @@ function StudioLibraryFrame({
   const tAll = useTranslations()
   const { persona } = useAssistantPersona()
   const { frameRef, bodyRef } = useLibraryFrameMotion(category)
+  const [railOpen, toggleRail] = useLibraryRailOpen()
+  const hasRail = category !== 'gallery' && category !== 'profile'
 
   return (
     <section
@@ -165,6 +169,20 @@ function StudioLibraryFrame({
       className="flex size-full min-h-0 flex-col bg-background"
     >
       <div className="flex h-13 shrink-0 items-center gap-1 px-3">
+        {hasRail ? (
+          // 左栏收起 / 展开（用户 10-25）：≥768 才有左栏，手机上各库用抽屉。
+          <button
+            type="button"
+            aria-pressed={!railOpen}
+            aria-label={railOpen ? t('libraryRailHide') : t('libraryRailShow')}
+            title={railOpen ? t('libraryRailHide') : t('libraryRailShow')}
+            data-testid="studio-library-rail-toggle"
+            onClick={toggleRail}
+            className="hidden size-8 shrink-0 place-items-center rounded-full text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus md:grid [&>svg]:size-4"
+          >
+            <PanelLeft aria-hidden />
+          </button>
+        ) : null}
         {category === 'gallery' ? (
           // 画廊不算库的一类（用户 10-25）：从左栏画廊点开，整页，顶上只写名字。
           <h2 className="min-w-0 truncate px-2 text-sm font-semibold text-foreground">

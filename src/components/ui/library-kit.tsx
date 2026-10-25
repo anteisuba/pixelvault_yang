@@ -9,6 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { useLibraryRailOpen } from '@/hooks/use-library-rail'
 import { cn } from '@/lib/utils'
 
 /**
@@ -121,7 +122,10 @@ export function LibraryPillSelect<T extends string>({
 export const LIBRARY_RAIL_ACTIVE_LINE_CLASS =
   'before:absolute before:inset-y-2 before:-left-2.5 before:w-0.5 before:rounded-full before:bg-foreground'
 
-/** 左栏：200 宽，一组一组的行（第一组永远是「全部 / 收藏」）。 */
+/**
+ * 左栏：200 宽，一组一组的行（第一组永远是「全部 / 收藏」）。库顶上那颗键收起时宽度收到 0、
+ * 淡出，右边格子跟着让位（`useLibraryRailOpen`）。
+ */
 export function LibraryRail({
   label,
   children,
@@ -132,11 +136,15 @@ export function LibraryRail({
   children: ReactNode
   className?: string
 }) {
+  const [open] = useLibraryRailOpen()
   return (
     <nav
       aria-label={label}
+      inert={!open}
+      data-open={open}
       className={cn(
-        'flex w-50 shrink-0 flex-col gap-0.5 overflow-y-auto pl-2.5',
+        'flex shrink-0 flex-col gap-0.5 overflow-x-hidden overflow-y-auto transition-[width,padding,opacity] duration-slow ease-standard motion-reduce:transition-none',
+        open ? 'w-50 pl-2.5 opacity-100' : 'w-0 pl-0 opacity-0',
         className,
       )}
     >

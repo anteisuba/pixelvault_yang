@@ -3694,7 +3694,8 @@ export const RecipeScalarFieldEnum = {
   remixSourceRecipeId: 'remixSourceRecipeId',
   tags: 'tags',
   usageCount: 'usageCount',
-  visibility: 'visibility'
+  visibility: 'visibility',
+  isFavorite: 'isFavorite'
 } as const
 
 export type RecipeScalarFieldEnum = (typeof RecipeScalarFieldEnum)[keyof typeof RecipeScalarFieldEnum]

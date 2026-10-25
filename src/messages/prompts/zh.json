@@ -106,7 +106,19 @@
     "createTagsRequired": "先写几个标签。",
     "tagsEmptyTitle": "还没有标签模板",
     "tagsEmptyDescription": "在标签台或 LoRA 台出完满意的一张，点「存成模板」；也可以点右上的「新建模板」，类型选「标签」自己写一组。",
-    "openTagStudio": "去标签台"
+    "openTagStudio": "去标签台",
+    "library": {
+      "favorites": "收藏",
+      "search": "搜提示词",
+      "new": "新建",
+      "favorite": "收藏",
+      "unfavorite": "取消收藏",
+      "metaTags": "标签 · {count} 个",
+      "copied": "已复制",
+      "emptyFavorites": "还没有收藏的提示词",
+      "emptyFavoritesHint": "在「全部」里点书签收藏常用的。"
+    },
+    "favoriteFailed": "没收藏成功，再试一次"
   },
   "PromptEnhance": {
     "button": "增强",

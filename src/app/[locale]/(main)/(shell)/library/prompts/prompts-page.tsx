@@ -5,8 +5,12 @@ import { FileText } from '@/components/icons'
 import { z } from 'zod'
 
 import { ROUTES } from '@/constants/routes'
+import { PromptLibraryShell } from '@/components/business/prompts/PromptLibraryShell'
 import { PromptTemplateCreatePanel } from '@/components/business/prompts/PromptTemplateCreatePanel'
-import { PromptTemplateList } from '@/components/business/prompts/PromptTemplateList'
+import {
+  PromptTemplateList,
+  type PromptTemplateListItem,
+} from '@/components/business/prompts/PromptTemplateList'
 import { Button } from '@/components/ui/button'
 import { Link } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'
@@ -62,9 +66,19 @@ export default async function PromptsPage({
   ])
   const { userId: clerkId } = authState
 
-  // 提示词页 A（pages/prompts.md）：灰底地台 + 顶行（标题 · 新建）+ 一张白卡舞台，
-  // 与 LoRA 台同一副外壳。
-  return (
+  const createInitialValues = {
+    name: query?.name,
+    compiledPrompt: query?.prompt,
+    negativePrompt: query?.negativePrompt,
+    modelId: query?.model,
+    provider: query?.provider,
+    outputType: query?.outputType,
+    parentGenerationId: query?.generationId,
+  }
+  const recipes = clerkId ? await loadTemplates(clerkId) : []
+
+  // 手机：提示词页 A（pages/prompts.md）灰底地台 + 顶行（标题 · 新建）+ 一张白卡舞台。
+  const phone = (
     <main className="workbench-ground h-page flex-col text-foreground">
       <div className="flex h-9 shrink-0 items-center gap-3.5">
         <h1 className="text-sm font-semibold text-muted-foreground">
@@ -74,33 +88,59 @@ export default async function PromptsPage({
         {clerkId && (
           <PromptTemplateCreatePanel
             initialOpen={query?.create === '1'}
-            initialValues={{
-              name: query?.name,
-              compiledPrompt: query?.prompt,
-              negativePrompt: query?.negativePrompt,
-              modelId: query?.model,
-              provider: query?.provider,
-              outputType: query?.outputType,
-              parentGenerationId: query?.generationId,
-            }}
+            initialValues={createInitialValues}
           />
         )}
       </div>
 
       <section aria-label={t('title')} className="workbench-card">
-        <MineTab clerkId={clerkId} locale={locale} t={t} />
+        <MineTab clerkId={clerkId} recipes={recipes} locale={locale} t={t} />
       </section>
     </main>
   )
+
+  // 桌面：库同一副骨架（ui-spec §9）；没登录还走手机那一页的「去工作台」。
+  if (!clerkId) return phone
+  return (
+    <PromptLibraryShell
+      locale={locale}
+      recipes={recipes}
+      createInitialOpen={query?.create === '1'}
+      createInitialValues={createInitialValues}
+      phone={phone}
+    />
+  )
+}
+
+async function loadTemplates(
+  clerkId: string,
+): Promise<PromptTemplateListItem[]> {
+  const recipes = await listRecipeSummaries(clerkId, 1, 50)
+  return recipes.map((recipe) => ({
+    id: recipe.id,
+    outputType: recipe.outputType,
+    name: recipe.name,
+    compiledPrompt: recipe.compiledPrompt,
+    modelId: recipe.modelId,
+    version: recipe.version,
+    createdAt: recipe.createdAt.toISOString(),
+    coverThumbnailUrl: recipe.coverThumbnailUrl,
+    templateKind: recipe.templateKind,
+    tagSource: recipe.tagSource,
+    lora: recipe.lora,
+    lastUsedAt: recipe.lastUsedAt?.toISOString() ?? null,
+    isFavorite: recipe.isFavorite,
+  }))
 }
 
 type MineTabProps = {
   clerkId: string | null
+  recipes: PromptTemplateListItem[]
   locale: AppLocale
   t: Awaited<ReturnType<typeof getTranslations>>
 }
 
-async function MineTab({ clerkId, locale, t }: MineTabProps) {
+function MineTab({ clerkId, recipes, locale, t }: MineTabProps) {
   if (!clerkId) {
     return (
       <div className="grid flex-1 place-items-center p-5 text-center">
@@ -118,8 +158,6 @@ async function MineTab({ clerkId, locale, t }: MineTabProps) {
       </div>
     )
   }
-
-  const recipes = await listRecipeSummaries(clerkId, 1, 50)
 
   return (
     <>
@@ -142,23 +180,7 @@ async function MineTab({ clerkId, locale, t }: MineTabProps) {
           </div>
         </section>
       ) : (
-        <PromptTemplateList
-          locale={locale}
-          recipes={recipes.map((recipe) => ({
-            id: recipe.id,
-            outputType: recipe.outputType,
-            name: recipe.name,
-            compiledPrompt: recipe.compiledPrompt,
-            modelId: recipe.modelId,
-            version: recipe.version,
-            createdAt: recipe.createdAt.toISOString(),
-            coverThumbnailUrl: recipe.coverThumbnailUrl,
-            templateKind: recipe.templateKind,
-            tagSource: recipe.tagSource,
-            lora: recipe.lora,
-            lastUsedAt: recipe.lastUsedAt?.toISOString() ?? null,
-          }))}
-        />
+        <PromptTemplateList locale={locale} recipes={recipes} />
       )}
     </>
   )

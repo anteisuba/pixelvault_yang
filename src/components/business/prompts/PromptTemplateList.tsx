@@ -51,6 +51,8 @@ export interface PromptTemplateListItem {
   tagSource: TagTemplateSource | null
   lora: PromptTemplateLoraMix | null
   lastUsedAt: string | null
+  /** 库左栏「收藏」（`Recipe.isFavorite`）。 */
+  isFavorite: boolean
 }
 
 /** 卡片上的标签只画前几格，多的写「+N」（画板 `TgA`）。 */

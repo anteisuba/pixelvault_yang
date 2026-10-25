@@ -57,6 +57,7 @@ export interface RecipeLoraSummary {
 export type RecipeSummaryWithCover = RecipeListItem & {
   coverThumbnailUrl: string | null
   lastUsedAt: Date | null
+  isFavorite: boolean
   /** 四格类型的判据（`getRecipeTemplateKind`）：三种来处的标签模板都是 `TAGS`。 */
   templateKind: RecipeTemplateKind
   /** 标签模板从哪来（卡片上那一小格、「使用」换掉什么）；别的模板 `null`。 */
@@ -504,6 +505,7 @@ export async function listRecipeSummaries(
       userIntent: true,
       params: true,
       lastUsedAt: true,
+      isFavorite: true,
     },
     orderBy: { createdAt: 'desc' },
     skip,
@@ -528,6 +530,7 @@ export async function listRecipeSummaries(
     createdAt: recipe.createdAt,
     coverThumbnailUrl: coverByRecipeId.get(recipe.id) ?? null,
     lastUsedAt: recipe.lastUsedAt,
+    isFavorite: recipe.isFavorite,
     templateKind: getRecipeTemplateKind(recipe),
     tagSource: getTagTemplateSource(recipe),
     lora: summarizeRecipeLora(loraReads[index], legacyNames),
@@ -549,6 +552,20 @@ export async function markRecipeUsed(
     data: { lastUsedAt },
   })
   return result.count > 0 ? { id, lastUsedAt } : null
+}
+
+/** 库左栏「收藏」：只动 `isFavorite`（⛔ 不加 version）。 */
+export async function setRecipeFavorite(
+  clerkId: string,
+  id: string,
+  isFavorite: boolean,
+): Promise<{ id: string; isFavorite: boolean } | null> {
+  const user = await ensureUser(clerkId)
+  const result = await db.recipe.updateMany({
+    where: { id, userId: user.id, isDeleted: false },
+    data: { isFavorite },
+  })
+  return result.count > 0 ? { id, isFavorite } : null
 }
 
 export async function createRecipeFromGeneration(

@@ -120,6 +120,7 @@ function makeItem(
     tagSource: null,
     lora: null,
     lastUsedAt: null,
+    isFavorite: false,
     ...overrides,
   }
 }

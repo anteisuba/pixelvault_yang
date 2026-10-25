@@ -4648,6 +4648,15 @@ export const CreateRecipeFromGenerationSchema = z.object({
 /** 「使用」记一次最近使用时间 —— 没有要带的字段。 */
 export const MarkRecipeUsedRequestSchema = z.object({}).strict()
 
+/** 库里提示词卡的收藏（ui-spec §9 左栏「收藏」）。 */
+export const SetRecipeFavoriteRequestSchema = z
+  .object({ isFavorite: z.boolean() })
+  .strict()
+
+export type SetRecipeFavoriteRequest = z.infer<
+  typeof SetRecipeFavoriteRequestSchema
+>
+
 export type CreateRecipeFromGenerationRequest = z.infer<
   typeof CreateRecipeFromGenerationSchema
 >

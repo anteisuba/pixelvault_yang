@@ -4,7 +4,12 @@ import { useContext, useState, type MouseEvent, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { ROUTES } from '@/constants/routes'
-import { studioLibraryPath } from '@/constants/studio-shell'
+import { STUDIO_LIBRARY_ITEMS } from '@/constants/navigation'
+import {
+  STUDIO_LIBRARY_TAB_IDS,
+  studioLibraryPath,
+  type StudioLibraryCategoryId,
+} from '@/constants/studio-shell'
 import {
   ChatCircleText,
   Images,
@@ -18,6 +23,7 @@ import { StudioConversationRecent } from '@/components/business/studio/shell/Stu
 import { StudioLibraryTargetContext } from '@/components/business/studio/shell/StudioLibraryOverlay'
 import {
   StudioBenchPicker,
+  StudioLibraryPicker,
   activeBenchId,
 } from '@/components/business/studio/shell/StudioShellBench'
 import {
@@ -52,11 +58,24 @@ const ROW_CLASS =
 
 const ROW_ACTIVE_CLASS = 'bg-row-selected font-medium'
 
+/** 左栏单独一颗、点开整页的那几样（用户 10-25）：素材 · 角色 · 提示词。 */
+const PAGE_ITEM_IDS: readonly StudioLibraryCategoryId[] = [
+  'assets',
+  'cards',
+  'prompts',
+]
+const PAGE_ITEMS = PAGE_ITEM_IDS.flatMap((id) =>
+  STUDIO_LIBRARY_ITEMS.filter((item) => item.id === id).map((item) => ({
+    ...item,
+    id,
+  })),
+)
+
 /**
  * `/studio` 外壳左边那一栏（ui-spec §1）：64 宽的细图标栏落在灰底上，只放图标 ——
- * AN 字标、黑色「新对话」、对话 / 工作台 / 库 / 画廊、最底下头像。点「对话」从栏旁浮出对话列表
- * （300 宽；助手对话与配音间混排，9f-3）；点「工作台」浮出一条竖排的台（用户 10-25），
- * 点一个进那个台。
+ * AN 字标、黑色「新对话」、画廊 / 对话 / 工作台 / 库 / 素材 / 角色 / 提示词、最底下头像（顺序
+ * 用户 10-25 定）。点「对话」从栏旁浮出对话列表（300 宽；助手对话与配音间混排，9f-3）；点「工作台」
+ * 浮出一条竖排的台、点「库」浮出一条竖排的库（LoRA · 酒馆 · 标签 · 音色），点一个进那一个。
  *
  * ⚠ 读的是面板发布出来的历史与「新对话」那只手（`useStudioOperatorHistoryView` /
  *   `useStudioOperatorActions`），⛔ 这里再调一次驱动 hook。
@@ -66,6 +85,7 @@ const ROW_ACTIVE_CLASS = 'bg-row-selected font-medium'
 export function StudioConversationList({ className }: { className?: string }) {
   const t = useTranslations('StudioShell')
   const tNav = useTranslations('Navbar')
+  const tAll = useTranslations()
   const pathname = usePathname()
   const router = useRouter()
   const history = useStudioOperatorHistoryView()
@@ -74,9 +94,12 @@ export function StudioConversationList({ className }: { className?: string }) {
   const openCategory = libraryCategoryFromPath(pathname)
   const [listOpen, setListOpen] = useState(false)
   const [benchesOpen, setBenchesOpen] = useState(false)
+  const [librariesOpen, setLibrariesOpen] = useState(false)
   const openBenchId = kind === 'bench' ? activeBenchId(pathname) : undefined
   const librarySlot = useContext(StudioLibraryTargetContext)
-  const libraryActive = openCategory !== null && openCategory !== 'gallery'
+  const libraryActive =
+    openCategory !== null &&
+    (STUDIO_LIBRARY_TAB_IDS as readonly string[]).includes(openCategory)
   /** 库是整页、没有返回键：再点一下亮着的那一颗 = 收起库，回到进来之前那一页。 */
   const closeIfActive = (active: boolean) => (event: MouseEvent) => {
     if (!active || !librarySlot) return
@@ -118,6 +141,22 @@ export function StudioConversationList({ className }: { className?: string }) {
         >
           <SquarePen />
         </button>
+      </NavTip>
+
+      <NavTip label={tNav('links.gallery')}>
+        <Link
+          href={studioLibraryPath('gallery')}
+          replace={openCategory !== null}
+          onClick={closeIfActive(openCategory === 'gallery')}
+          aria-label={tNav('links.gallery')}
+          aria-current={openCategory === 'gallery' ? 'page' : undefined}
+          className={cn(
+            NAV_BUTTON_CLASS,
+            openCategory === 'gallery' && NAV_ACTIVE_CLASS,
+          )}
+        >
+          <Images />
+        </Link>
       </NavTip>
 
       <Popover open={listOpen} onOpenChange={setListOpen}>
@@ -176,34 +215,57 @@ export function StudioConversationList({ className }: { className?: string }) {
         </PopoverContent>
       </Popover>
 
-      {/* 库开着时换一类 = 换叠层里那一页，⛔ 多压一层历史（后退直接回到台）。 */}
-      <NavTip label={t('library')}>
-        <Link
-          href={studioLibraryPath('assets')}
-          replace={openCategory !== null}
-          onClick={closeIfActive(libraryActive)}
-          aria-label={t('library')}
-          aria-current={libraryActive ? 'page' : undefined}
-          className={cn(NAV_BUTTON_CLASS, libraryActive && NAV_ACTIVE_CLASS)}
+      <Popover open={librariesOpen} onOpenChange={setLibrariesOpen}>
+        <NavTip label={t('library')}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              aria-label={t('library')}
+              data-testid="studio-shell-libraries"
+              className={cn(
+                NAV_BUTTON_CLASS,
+                libraryActive && NAV_ACTIVE_CLASS,
+              )}
+            >
+              <Library />
+            </button>
+          </PopoverTrigger>
+        </NavTip>
+        <PopoverContent
+          side="right"
+          align="start"
+          sideOffset={8}
+          className="w-auto rounded-full bg-transparent p-0 shadow-none"
         >
-          <Library />
-        </Link>
-      </NavTip>
-      <NavTip label={tNav('links.gallery')}>
-        <Link
-          href={studioLibraryPath('gallery')}
-          replace={openCategory !== null}
-          onClick={closeIfActive(openCategory === 'gallery')}
-          aria-label={tNav('links.gallery')}
-          aria-current={openCategory === 'gallery' ? 'page' : undefined}
-          className={cn(
-            NAV_BUTTON_CLASS,
-            openCategory === 'gallery' && NAV_ACTIVE_CLASS,
-          )}
-        >
-          <Images />
-        </Link>
-      </NavTip>
+          <StudioLibraryPicker
+            activeId={libraryActive ? openCategory : null}
+            replace={openCategory !== null}
+            onPicked={() => setLibrariesOpen(false)}
+          />
+        </PopoverContent>
+      </Popover>
+
+      {/* 素材 / 角色 / 提示词各一颗（用户 10-25），点开整页；开着时换一样 = 换叠层里那一页，⛔ 多压一层历史。 */}
+      {PAGE_ITEMS.map((item) => {
+        const Icon = item.icon
+        const label = tAll(item.labelKey)
+        const active = openCategory === item.id
+        return (
+          <NavTip key={item.id} label={label}>
+            <Link
+              href={studioLibraryPath(item.id)}
+              replace={openCategory !== null}
+              onClick={closeIfActive(active)}
+              aria-label={label}
+              aria-current={active ? 'page' : undefined}
+              data-testid={`studio-shell-page-${item.id}`}
+              className={cn(NAV_BUTTON_CLASS, active && NAV_ACTIVE_CLASS)}
+            >
+              <Icon />
+            </Link>
+          </NavTip>
+        )
+      })}
 
       <StudioConversationListAccount />
     </nav>

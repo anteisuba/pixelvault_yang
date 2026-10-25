@@ -8,6 +8,7 @@ import { STUDIO_LIBRARY_CATEGORY_IDS } from '@/constants/studio-shell'
 import {
   Archive,
   AudioLines,
+  BookOpen,
   Box,
   FileText,
   FolderOpen,
@@ -162,13 +163,19 @@ export const SHELL_NAV_SECTIONS: readonly ShellNavSection[] = [
   { id: 'tools', labelKey: 'StudioTools.groupLabel', items: SHELL_NAV_TOOLS },
 ] as const
 
-/** 只在库里的几类（没有旧页面、也不进全局导航）：标签（第 9f 步 9f-2c）。 */
+/** 只在库里的几类（没有旧页面、也不进全局导航）：标签（第 9f 步 9f-2c）、酒馆（chub.ai 公开卡，用户 10-25）。 */
 const STUDIO_LIBRARY_ONLY_ITEMS: readonly ShellNavItem[] = [
   {
     id: 'tags',
     href: `${ROUTES.LIBRARY}/tags`,
     icon: Tag,
     labelKey: 'Navbar.links.tags',
+  },
+  {
+    id: 'tavern',
+    href: `${ROUTES.LIBRARY}/tavern`,
+    icon: BookOpen,
+    labelKey: 'Navbar.links.tavern',
   },
 ]
 

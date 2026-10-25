@@ -16,6 +16,7 @@ import { SHELL_MOTION } from '@/constants/motion'
 import { STUDIO_LIBRARY_ITEMS } from '@/constants/navigation'
 import {
   STUDIO_LIBRARY_CATEGORY_IDS,
+  STUDIO_LIBRARY_TAB_IDS,
   studioLibraryPath,
   type StudioShellOverlayId,
 } from '@/constants/studio-shell'
@@ -159,6 +160,9 @@ function StudioLibraryFrame({
   const { frameRef, bodyRef } = useLibraryFrameMotion(category)
   const [railOpen, toggleRail] = useLibraryRailOpen()
   const hasRail = category !== 'gallery' && category !== 'profile'
+  const pageItem = isLibraryTab(category)
+    ? undefined
+    : STUDIO_LIBRARY_ITEMS.find((item) => item.id === category)
 
   return (
     <section
@@ -183,10 +187,10 @@ function StudioLibraryFrame({
             <PanelLeft aria-hidden />
           </button>
         ) : null}
-        {category === 'gallery' ? (
-          // 画廊不算库的一类（用户 10-25）：从左栏画廊点开，整页，顶上只写名字。
+        {pageItem ? (
+          // 不算库的那几样（用户 10-25）：画廊 / 素材 / 角色 / 提示词各从左栏点开，整页，顶上只写名字。
           <h2 className="min-w-0 truncate px-2 text-sm font-semibold text-foreground">
-            {tAll('Navbar.links.gallery')}
+            {tAll(pageItem.labelKey)}
           </h2>
         ) : category === 'profile' ? (
           <>
@@ -249,10 +253,14 @@ function StudioLibraryFrame({
   )
 }
 
-/** 顶上一排换类：库的各类，⛔ 画廊（它从左栏单独开）。 */
-const LIBRARY_TAB_ITEMS = STUDIO_LIBRARY_ITEMS.filter(
-  (item) => item.id !== 'gallery',
+/** 顶上一排换类：库只放公开来源那几样（LoRA · 酒馆 · 标签 · 音色，用户 10-25）。 */
+const LIBRARY_TAB_ITEMS = STUDIO_LIBRARY_ITEMS.filter((item) =>
+  isLibraryTab(item.id),
 )
+
+function isLibraryTab(id: string): boolean {
+  return (STUDIO_LIBRARY_TAB_IDS as readonly string[]).includes(id)
+}
 
 /** 顶上一排换类（样件 S13）：字，当前那一类浅灰底药丸。 */
 const TAB_CLASS =

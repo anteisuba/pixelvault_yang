@@ -66,6 +66,7 @@
       "recipeExtraStackFull": "LoRA stack is full ({max}) — remove one first",
       "recipeExtraAutoMounted": "Automatically added {count, plural, one {# other LoRA} other {# other LoRAs}}.",
       "recipeExtraApplyLimited": "{count, plural, one {# other LoRA is still missing} other {# other LoRAs are still missing}}, so the result may differ from the source image.",
+      "recipeExtraNotOnCivitai": "{count, plural, one {# isn't} other {# aren't}} on Civitai — likely the creator's private LoRA",
       "recipeReferenceAttached": "Attached the current source image as a reference.",
       "recipeClose": "Collapse recipe",
       "recipeInferHint": "No reproducible recipe data exists for this LoRA. AI can draft a prompt from its cover image — prompt only, clearly marked as inferred.",

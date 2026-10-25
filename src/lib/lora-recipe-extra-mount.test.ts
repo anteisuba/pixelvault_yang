@@ -69,6 +69,7 @@ describe('mountRecipeExtraLoras', () => {
     expect(result).toEqual({
       newlyMounted: 2,
       missing: 0,
+      notFound: 0,
       incompatible: 0,
       overCapacity: 0,
     })
@@ -81,6 +82,29 @@ describe('mountRecipeExtraLoras', () => {
       ['v777', 'loading'],
       ['v777', 'mounted', 'extra-version'],
     ])
+  })
+
+  it('counts "not on Civitai" apart from resolve failures', async () => {
+    const result = await mountRecipeExtraLoras({
+      extras: [{ name: 'zi_lora-000004' }, { name: 'kibro_anima' }],
+      stackItems: [{ asset: makeAsset() }],
+      resolveLora: vi.fn(async (params) =>
+        params.name === 'zi_lora-000004'
+          ? { success: false, notFound: true }
+          : { success: false },
+      ),
+      pushLora: vi.fn(),
+      setLoraScale: vi.fn(),
+      setLoraEnabled: vi.fn(),
+    })
+
+    expect(result).toEqual({
+      newlyMounted: 0,
+      missing: 1,
+      notFound: 1,
+      incompatible: 0,
+      overCapacity: 0,
+    })
   })
 
   it('passes the source base model family into resolver calls', async () => {
@@ -177,6 +201,7 @@ describe('mountRecipeExtraLoras', () => {
     expect(result).toEqual({
       newlyMounted: 0,
       missing: 0,
+      notFound: 0,
       incompatible: 0,
       overCapacity: 0,
     })
@@ -237,6 +262,7 @@ describe('mountRecipeExtraLoras', () => {
     expect(result).toEqual({
       newlyMounted: 0,
       missing: 0,
+      notFound: 0,
       incompatible: 1,
       overCapacity: 0,
     })
@@ -317,6 +343,7 @@ describe('mountRecipeExtraLoras', () => {
     expect(result).toEqual({
       newlyMounted: 1,
       missing: 0,
+      notFound: 0,
       incompatible: 0,
       overCapacity: 1,
     })
@@ -365,6 +392,7 @@ describe('mountRecipeExtraLoras', () => {
     expect(result).toEqual({
       newlyMounted: 1,
       missing: 0,
+      notFound: 0,
       incompatible: 1,
       overCapacity: 0,
     })

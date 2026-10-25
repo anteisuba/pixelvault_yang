@@ -3,10 +3,23 @@ import { describe, expect, it } from 'vitest'
 import {
   buildCivitaiLoraNameSearchQueries,
   normalizeOptionalCivitaiHash,
+  stripLoraFolderPath,
   toCivitaiModelSearchQuery,
 } from './civitai-lora-reference'
 
 describe('civitai LoRA reference helpers', () => {
+  it('strips local folder paths and model file extensions from LoRA names', () => {
+    expect(stripLoraFolderPath('ANI/style/zi_lora-000004')).toBe(
+      'zi_lora-000004',
+    )
+    expect(
+      stripLoraFolderPath('ANI\\others\\anima-turbo-lora-v0.2.safetensors'),
+    ).toBe('anima-turbo-lora-v0.2')
+    expect(stripLoraFolderPath('EnchantingEyesIllustrious')).toBe(
+      'EnchantingEyesIllustrious',
+    )
+  })
+
   it('normalizes valid Civitai hashes and drops malformed values', () => {
     expect(normalizeOptionalCivitaiHash('  AABBCCDDEEFF  ')).toBe(
       'aabbccddeeff',

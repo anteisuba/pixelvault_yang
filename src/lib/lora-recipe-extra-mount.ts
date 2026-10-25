@@ -14,8 +14,14 @@ export type ExtraMountStatus = 'loading' | 'mounted' | 'failed' | 'incompatible'
 
 export interface RecipeExtraMountResult {
   newlyMounted: number
-  /** Not locatable at all (unresolvable locator, or resolve came back empty). */
+  /** Not locatable at all (unresolvable locator, or the resolve call failed). */
   missing: number
+  /**
+   * Resolve answered "not in the local library nor on Civitai" — almost always
+   * the uploader's private local LoRA. Split from `missing` so the toast can
+   * say so instead of a vague "还原度受限" (nothing the user can fix there).
+   */
+  notFound: number
   /** Resolved but rejected for base-model architecture mismatch. */
   incompatible: number
   /**
@@ -42,6 +48,7 @@ interface ResolveRecipeExtraLoraParams {
 interface ResolveRecipeExtraLoraResponse {
   success: boolean
   data?: LoraAssetRecord
+  notFound?: boolean
 }
 
 interface MountRecipeExtraLorasOptions {
@@ -155,6 +162,7 @@ export async function mountRecipeExtraLoras({
 }: MountRecipeExtraLorasOptions): Promise<RecipeExtraMountResult> {
   let newlyMounted = 0
   let missing = 0
+  let notFound = 0
   let incompatible = 0
   let overCapacity = 0
   const projectedIds = new Set(stackItems.map((entry) => entry.asset.id))
@@ -204,7 +212,8 @@ export async function mountRecipeExtraLoras({
 
     if (!result.success || !result.data) {
       setStatus?.(key, 'failed')
-      missing += 1
+      if (result.notFound) notFound += 1
+      else missing += 1
       continue
     }
 
@@ -241,7 +250,7 @@ export async function mountRecipeExtraLoras({
     setStatus?.(key, 'mounted', item.id)
   }
 
-  return { newlyMounted, missing, incompatible, overCapacity }
+  return { newlyMounted, missing, notFound, incompatible, overCapacity }
 }
 
 // ── §4.2「常与它同挂」聚合（lora-workbench.md §4.2）──────────────────────

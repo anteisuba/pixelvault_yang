@@ -66,6 +66,7 @@
       "recipeExtraStackFull": "LoRA枠が満杯です（{max}）— 先に1つ外してください",
       "recipeExtraAutoMounted": "他のLoRAを {count} 個自動追加しました。",
       "recipeExtraApplyLimited": "ほかに{count}個の LoRA がまだ追加されていないため、元画像とは仕上がりが変わる場合があります。",
+      "recipeExtraNotOnCivitai": "うち {count} 個は Civitai にありません（作者のローカル専用の可能性が高い）",
       "recipeReferenceAttached": "現在のサンプル画像を参照画像として追加しました。",
       "recipeClose": "レシピを閉じる",
       "recipeInferHint": "このLoRAには再現できるレシピデータがありません。カバー画像からAIがプロンプト案を作成できます（プロンプトのみ・推測と明記）。",

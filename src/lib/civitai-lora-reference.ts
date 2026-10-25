@@ -13,6 +13,18 @@ export function normalizeOptionalCivitaiHash(
   return trimmed.toLowerCase()
 }
 
+/**
+ * ComfyUI / 整理过模型目录的作者，meta 里写的是带文件夹的相对路径
+ * （`ANI/style/zi_lora-000004`、`ANI\others\x.safetensors`）。Civitai 只认
+ * 文件名词干——路径不去掉，名字搜索搜不到、也认不出是不是 LoRA 自己。
+ * 顺手去掉模型文件扩展名；大小写原样保留（要拿去显示）。
+ */
+export function stripLoraFolderPath(name: string): string {
+  const trimmed = name.trim()
+  const base = trimmed.split(/[\\/]/).pop()?.trim() || trimmed
+  return base.replace(/\.(?:safetensors|ckpt|pt|bin)$/i, '')
+}
+
 export function toCivitaiModelSearchQuery(name: string): string {
   return repairUtf8Mojibake(name)
     .trim()

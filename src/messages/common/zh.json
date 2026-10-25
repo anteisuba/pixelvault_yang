@@ -65,7 +65,9 @@
     "requestCount": "{count} 次请求",
     "loading": "加载中",
     "copy": "复制",
-    "copied": "已复制"
+    "copied": "已复制",
+    "manualCopyTitle": "手动复制",
+    "manualCopyDescription": "没能用剪贴板。选中下面的字自己复制。"
   },
   "Toasts": {
     "createSuccess": "创建成功",
@@ -223,7 +225,6 @@
   "Feedback": {
     "notifications": "通知",
     "downloadStarted": "已开始下载",
-    "deleteConfirm": "确认删除",
     "undo": "撤销",
     "slowLoading": "网有点慢，还在加载",
     "batchFailed": "这批没拿到",
@@ -232,7 +233,13 @@
     "loadingMore": "正在加载更多",
     "endOfList": "没有更多了",
     "pageLoadFailedHint": "可能是网断了一下。点重试，不会丢东西。",
-    "previewFallback": "先给你看小图"
+    "previewFallback": "先给你看小图",
+    "deleteDialog": {
+      "cancel": "取消",
+      "confirm": "删除",
+      "irreversible": "删了就找不回来了。",
+      "imageTitle": "删除这张图？"
+    }
   },
   "ErrorBoundary": {
     "title": "出了点问题",

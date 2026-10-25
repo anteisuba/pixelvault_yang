@@ -5,32 +5,27 @@ import { Switch as SwitchPrimitive } from 'radix-ui'
 
 import { cn } from '@/lib/utils'
 
+/**
+ * 开关（ui-spec.md §9「开关」）：只有一种尺寸 32×20。关着 `fill-strong` 轨道，
+ * 开着黑色 `primary`；圆钮 16 `knob`（开着换 `on-primary`）+ `seg`，内嵌 2px（border-2）→ 行程 12px。
+ * 多数放在一行里（图标 + 名字 + 开关，整行能点），⛔ 旁边写「开启后……」。
+ */
 function Switch({
   className,
-  size = 'default',
   ...props
-}: React.ComponentProps<typeof SwitchPrimitive.Root> & {
-  size?: 'sm' | 'default' | 'lg'
-}) {
+}: React.ComponentProps<typeof SwitchPrimitive.Root>) {
   return (
     <SwitchPrimitive.Root
       data-slot="switch"
-      data-size={size}
       className={cn(
-        'peer group/switch inline-flex shrink-0 items-center rounded-full border border-transparent shadow-xs transition-all outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 data-[size=default]:h-[1.15rem] data-[size=default]:w-8 data-[size=sm]:h-3.5 data-[size=sm]:w-6 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input dark:data-[state=unchecked]:bg-input/80',
-        // `lg` = iOS 形态 44×26（ui-defaults.md §3.1 画布节点卡例外的布尔控件）。
-        // 2px 内嵌靠 border-2：轨内 40 − 拨子 22 = 18px 行程 = `translate-x-4.5`。
-        'data-[size=lg]:h-6.5 data-[size=lg]:w-11 data-[size=lg]:border-2 data-[size=lg]:data-[state=unchecked]:bg-surface-fill-track',
+        'peer group/switch inline-flex h-5 w-8 shrink-0 items-center rounded-full border-2 border-transparent transition-colors duration-fast ease-standard outline-none focus-visible:shadow-focus disabled:cursor-not-allowed disabled:opacity-45 data-[state=checked]:bg-primary data-[state=unchecked]:bg-fill-strong',
         className,
       )}
       {...props}
     >
       <SwitchPrimitive.Thumb
         data-slot="switch-thumb"
-        className={cn(
-          'pointer-events-none block rounded-full bg-background ring-0 transition-transform duration-spring-slot ease-spring-slot motion-reduce:transition-none group-data-[size=default]/switch:size-4 group-data-[size=sm]/switch:size-3 group-data-[size=lg]/switch:size-5.5 data-[state=unchecked]:translate-x-0 dark:data-[state=checked]:bg-primary-foreground dark:data-[state=unchecked]:bg-foreground',
-          'group-data-[size=default]/switch:data-[state=checked]:translate-x-[calc(100%-2px)] group-data-[size=sm]/switch:data-[state=checked]:translate-x-[calc(100%-2px)] group-data-[size=lg]/switch:data-[state=checked]:translate-x-4.5',
-        )}
+        className="pointer-events-none block size-4 rounded-full bg-knob shadow-seg ring-0 transition-transform duration-spring-slot ease-spring-slot motion-reduce:transition-none data-[state=checked]:translate-x-3 data-[state=checked]:bg-primary-foreground data-[state=unchecked]:translate-x-0"
       />
     </SwitchPrimitive.Root>
   )

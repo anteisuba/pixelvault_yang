@@ -11,7 +11,7 @@ import { downloadSkillZip } from '@/lib/skill-export'
 import { cn } from '@/lib/utils'
 import type { AssistantSkillView } from '@/types/assistant-skill'
 import { Button } from '@/components/ui/button'
-import { ConfirmDeleteButton } from '@/components/ui/feedback-button'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
@@ -118,7 +118,7 @@ export function AssistantSkillsPane({
               </h3>
               <Button
                 size="sm"
-                variant="outline"
+                variant="secondary"
                 data-testid="assistant-skill-new"
                 disabled={
                   store.skills.length >= ASSISTANT_SKILL_LIMITS.maxSkills
@@ -166,6 +166,7 @@ function SkillRow({
   onRemove?: () => void
 }) {
   const t = useTranslations('AssistantSettings')
+  const tFeedback = useTranslations('Feedback')
   const [refPath, setRefPath] = useState<string | null>(null)
   const refs = Object.keys(skill.references)
 
@@ -203,7 +204,6 @@ function SkillRow({
           </span>
         </button>
         <Switch
-          size="lg"
           aria-label={t('skills.toggle', { name: skill.name })}
           checked={skill.enabled}
           onCheckedChange={onToggle}
@@ -244,7 +244,7 @@ function SkillRow({
           <div className="flex flex-wrap items-center gap-1.5">
             <Button
               size="sm"
-              variant="outline"
+              variant="secondary"
               onClick={onEdit}
               className="coarse:h-11"
             >
@@ -263,16 +263,36 @@ function SkillRow({
             </Button>
             <span className="flex-1" />
             {onRemove && skill.origin !== 'builtin' ? (
-              <ConfirmDeleteButton
-                data-testid="assistant-skill-delete"
-                confirmLabel={t('skills.deleteConfirm')}
+              <ConfirmDialog
+                title={
+                  skill.origin === 'override'
+                    ? t('skills.restoreTitle')
+                    : t('skills.deleteTitle')
+                }
+                description={
+                  skill.origin === 'override'
+                    ? t('skills.restoreDescription')
+                    : tFeedback('deleteDialog.irreversible')
+                }
+                cancelLabel={tFeedback('deleteDialog.cancel')}
+                confirmLabel={
+                  skill.origin === 'override'
+                    ? t('skills.restore')
+                    : tFeedback('deleteDialog.confirm')
+                }
                 onConfirm={onRemove}
-                className="h-8 rounded-lg px-2.5 text-2sm text-status-risk hover:bg-status-risk-surface focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none coarse:h-11"
-              >
-                {skill.origin === 'override'
-                  ? t('skills.restore')
-                  : t('skills.delete')}
-              </ConfirmDeleteButton>
+                trigger={
+                  <button
+                    type="button"
+                    data-testid="assistant-skill-delete"
+                    className="h-8 rounded-lg px-2.5 text-2sm text-status-risk hover:bg-status-risk-surface focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none coarse:h-11"
+                  >
+                    {skill.origin === 'override'
+                      ? t('skills.restore')
+                      : t('skills.delete')}
+                  </button>
+                }
+              />
             ) : null}
           </div>
         </div>

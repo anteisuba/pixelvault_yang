@@ -57,7 +57,7 @@ export function PolaroidGrid({
         <p className="text-muted-foreground text-lg">{t('noPublicImages')}</p>
         <Link href="/studio" className="mt-5">
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             className="rounded-full border-border/60 hover:border-primary/25 hover:bg-primary/5"
           >
@@ -100,7 +100,7 @@ export function PolaroidGrid({
       {hasMore && (
         <div className="flex justify-center pb-10">
           <Button
-            variant="outline"
+            variant="secondary"
             onClick={onLoadMore}
             disabled={isLoadingMore}
             className="rounded-full border-border/60 hover:border-primary/25 hover:bg-primary/5"

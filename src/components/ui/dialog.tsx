@@ -11,7 +11,7 @@ import {
 } from '@/lib/grow-from-pointer'
 import { cn } from '@/lib/utils'
 import { isTouchPrimary } from '@/lib/touch'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 
 function Dialog({
   ...props
@@ -45,7 +45,7 @@ function DialogOverlay({
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
       className={cn(
-        'fixed inset-0 z-50 bg-background/70 backdrop-blur-sm data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0 duration-200 ease-standard',
+        'fixed inset-0 z-50 bg-scrim data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0 duration-200 ease-standard',
         className,
       )}
       {...props}
@@ -98,7 +98,7 @@ function DialogContent({
          */
         aria-modal="true"
         className={cn(
-          'fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border bg-background p-6 shadow-lg outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 duration-200 ease-standard sm:max-w-lg',
+          'fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-2xl bg-popover p-5 text-popover-foreground shadow-pop outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 duration-200 ease-standard sm:max-w-lg',
           growFromPointer && GROW_FROM_POINTER_CLASS,
           className,
         )}
@@ -118,7 +118,12 @@ function DialogContent({
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
-            className="absolute top-4 right-4 rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+            // 右上 × = 32 的白圆图标键（ui-spec.md §9「图标键」）。
+            className={buttonVariants({
+              variant: 'secondary',
+              size: 'icon-sm',
+              className: 'absolute top-3 right-3',
+            })}
           >
             <XIcon />
             <span className="sr-only">{resolvedCloseLabel}</span>
@@ -164,7 +169,7 @@ function DialogFooter({
       {children}
       {showCloseButton && (
         <DialogPrimitive.Close asChild>
-          <Button variant="outline">{resolvedCloseLabel}</Button>
+          <Button variant="secondary">{resolvedCloseLabel}</Button>
         </DialogPrimitive.Close>
       )}
     </div>
@@ -178,7 +183,7 @@ function DialogTitle({
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      className={cn('text-lg leading-none font-semibold', className)}
+      className={cn('text-md leading-snug font-semibold', className)}
       {...props}
     />
   )

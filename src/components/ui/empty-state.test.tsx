@@ -30,11 +30,11 @@ describe('EmptyState', () => {
     expect(screen.getByRole('button', { name: '上传图片' })).toBeInTheDocument()
   })
 
-  it('puts the title in the display slot — the whole point of the primitive', () => {
-    render(<EmptyState title="还没有训练过模型" />)
-    expect(
-      screen.getByRole('heading', { name: '还没有训练过模型' }).className,
-    ).toContain('font-display')
+  it('is a soft white card with a 15px semibold title, no serif display slot', () => {
+    const { container } = render(<EmptyState title="还没有训练过模型" />)
+    expect(container.firstElementChild).toHaveClass('bg-card', 'shadow-card')
+    const heading = screen.getByRole('heading', { name: '还没有训练过模型' })
+    expect(heading).toHaveClass('text-md', 'font-semibold')
   })
 
   it('renders no button row when neither action is given', () => {
@@ -57,7 +57,7 @@ describe('EmptyState', () => {
       />,
     )
     expect(container.firstElementChild).toHaveAttribute('data-tone', 'error')
-    expect(container.firstElementChild?.className).toContain('border-dashed')
+    expect(container.firstElementChild).toHaveClass('bg-card', 'shadow-card')
     expect(screen.getByTestId('empty-state-error-dot')).toBeInTheDocument()
   })
 

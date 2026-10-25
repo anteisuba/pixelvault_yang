@@ -45,7 +45,7 @@ export function EmptyState({
       }
       secondaryAction={
         <Button
-          variant="outline"
+          variant="secondary"
           className="rounded-full"
           onClick={onUploadImages}
         >

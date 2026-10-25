@@ -1,7 +1,7 @@
 'use client'
 
 import { Download } from '@/components/icons'
-import { FavoriteHeart } from '@/components/ui/favorite-heart'
+import { FavoriteBookmark } from '@/components/ui/favorite-bookmark'
 import { RollingNumber } from '@/components/ui/rolling-number'
 import { cn } from '@/lib/utils'
 
@@ -54,7 +54,7 @@ export function ImageCardActions({
         className="flex h-8 min-w-8 items-center justify-center gap-1 rounded-full bg-background/95 px-2 text-xs text-foreground shadow-sm transition-colors duration-fast hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none"
         aria-label={liked ? unlikeLabel : likeLabel}
       >
-        <FavoriteHeart liked={liked} />
+        <FavoriteBookmark saved={liked} />
         {likeCount > 0 && <LikeCount count={likeCount} />}
       </button>
       <button

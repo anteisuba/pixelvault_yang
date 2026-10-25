@@ -245,7 +245,7 @@ function InlineActions({ model }: { model: DetailActionModel }) {
       {model.onFavoriteToggle ? (
         <Button
           type="button"
-          variant="outline"
+          variant="secondary"
           onClick={model.onFavoriteToggle}
           className={PRESS_ANIMATION}
         >
@@ -295,7 +295,7 @@ function DrawerActionBar({ model }: { model: DetailActionModel }) {
       {model.onFavoriteToggle ? (
         <Button
           type="button"
-          variant="outline"
+          variant="secondary"
           size="icon"
           aria-label={model.favoriteLabel}
           title={model.favoriteLabel}
@@ -312,7 +312,7 @@ function DrawerActionBar({ model }: { model: DetailActionModel }) {
       {model.showSource ? (
         <Button
           type="button"
-          variant="outline"
+          variant="secondary"
           size="icon"
           asChild
           className={cn('size-11 shrink-0', PRESS_ANIMATION)}
@@ -943,7 +943,7 @@ export function LoraAssetDetail({
             {t('use')}
           </Button>
           {sourceUrl ? (
-            <Button asChild variant="outline" size="icon" className="size-11">
+            <Button asChild variant="secondary" size="icon" className="size-11">
               <a
                 href={sourceUrl}
                 target="_blank"

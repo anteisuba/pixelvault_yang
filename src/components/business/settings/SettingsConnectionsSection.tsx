@@ -188,7 +188,7 @@ export function SettingsConnectionsSection() {
           <span className="flex-1 text-status-risk">
             {t('connections.failed.load')}
           </span>
-          <Button variant="outline" size="sm" onClick={() => void reload()}>
+          <Button variant="secondary" size="sm" onClick={() => void reload()}>
             {t('connections.retry')}
           </Button>
         </div>

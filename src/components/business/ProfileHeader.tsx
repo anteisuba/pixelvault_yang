@@ -207,7 +207,7 @@ export function ProfileHeader({
           <div className="shrink-0 pb-1">
             {isOwnProfile ? (
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 onClick={() => setShowEditModal(true)}
                 className="rounded-full border-border/60 hover:border-primary/25 hover:bg-primary/5"
@@ -217,7 +217,7 @@ export function ProfileHeader({
               </Button>
             ) : (
               <Button
-                variant={isFollowing ? 'outline' : 'default'}
+                variant={isFollowing ? 'secondary' : 'default'}
                 size="sm"
                 onClick={onFollow}
                 disabled={isFollowPending}

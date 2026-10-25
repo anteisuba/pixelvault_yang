@@ -108,7 +108,7 @@ function ProjectNameForm({
         required
       />
       <ResponsiveDialogFooter>
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button type="button" variant="secondary" onClick={onCancel}>
           {cancelLabel}
         </Button>
         <Button type="submit" disabled={!canSubmit}>

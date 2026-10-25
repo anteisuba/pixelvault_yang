@@ -157,7 +157,7 @@ export function StudioVideoAudioPanel() {
       <div className="flex flex-wrap gap-2">
         <Button
           type="button"
-          variant="outline"
+          variant="secondary"
           size="sm"
           disabled={isFull || isUploading}
           onClick={() => fileInputRef.current?.click()}
@@ -171,7 +171,7 @@ export function StudioVideoAudioPanel() {
         </Button>
         <Button
           type="button"
-          variant="outline"
+          variant="secondary"
           size="sm"
           disabled={isFull}
           onClick={() => setAssetDialogOpen(true)}

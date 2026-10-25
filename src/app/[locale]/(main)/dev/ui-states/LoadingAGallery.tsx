@@ -71,21 +71,21 @@ export function LoadingAGallery() {
         <div className="flex flex-wrap items-center gap-2">
           <Button onClick={restart}>重新开始</Button>
           <Button
-            variant="outline"
+            variant="secondary"
             disabled={phase !== 'running'}
             onClick={() => setPhase('completing')}
           >
             出图
           </Button>
           <Button
-            variant="outline"
+            variant="secondary"
             disabled={phase !== 'running'}
             onClick={() => setPhase('failed')}
           >
             失败
           </Button>
           <Button
-            variant="outline"
+            variant="secondary"
             aria-pressed={selected}
             onClick={() => setSelected((value) => !value)}
           >

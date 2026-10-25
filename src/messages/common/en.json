@@ -65,7 +65,9 @@
     "requestCount": "{count, plural, one {# request} other {# requests}}",
     "loading": "Loading",
     "copy": "Copy",
-    "copied": "Copied"
+    "copied": "Copied",
+    "manualCopyTitle": "Copy manually",
+    "manualCopyDescription": "Clipboard access isn't available. Select the text below and copy it."
   },
   "Toasts": {
     "createSuccess": "Created successfully",
@@ -223,7 +225,6 @@
   "Feedback": {
     "notifications": "Notifications",
     "downloadStarted": "Download started",
-    "deleteConfirm": "Confirm delete",
     "undo": "Undo",
     "slowLoading": "Slow connection — still loading",
     "batchFailed": "Couldn't load this batch",
@@ -232,7 +233,13 @@
     "loadingMore": "Loading more",
     "endOfList": "That's everything",
     "pageLoadFailedHint": "The connection may have dropped for a moment. Retry — nothing will be lost.",
-    "previewFallback": "Showing the small preview for now"
+    "previewFallback": "Showing the small preview for now",
+    "deleteDialog": {
+      "cancel": "Cancel",
+      "confirm": "Delete",
+      "irreversible": "Once deleted, it can't be recovered.",
+      "imageTitle": "Delete this image?"
+    }
   },
   "ErrorBoundary": {
     "title": "Something went wrong",

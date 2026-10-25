@@ -354,14 +354,17 @@ describe('AssistantMemoryPane · 改 / 删', () => {
     ).toBeInTheDocument()
   })
 
-  it('删要点两下：先拉长成「确认删除」，再点这一行收起、底部黑条给撤销', async () => {
+  it('删先弹居中小弹窗确认，确认后这一行收起、底部黑条给撤销', async () => {
     renderPane([LEARNED])
-    const del = screen.getByTestId('assistant-memory-delete')
-    fireEvent.click(del)
+    fireEvent.click(screen.getByTestId('assistant-memory-delete'))
     expect(undoable.last).toBeNull()
-    expect(del).toHaveTextContent('AssistantSettings:memory.deleteConfirm')
-    expect(del).toHaveAttribute('data-feedback', 'danger')
-    fireEvent.click(del)
+    const dialog = await screen.findByRole('alertdialog')
+    expect(dialog).toHaveTextContent('AssistantSettings:memory.deleteTitle')
+    fireEvent.click(
+      within(dialog).getByRole('button', {
+        name: 'Feedback:deleteDialog.confirm',
+      }),
+    )
 
     expect(undoable.last?.message).toBe('AssistantSettings:memory.deleted')
     expect(undoable.last?.undoLabel).toBe('AssistantSettings:memory.undo')
@@ -377,9 +380,13 @@ describe('AssistantMemoryPane · 改 / 删', () => {
 
   it('撤销窗口过了才真删', async () => {
     renderPane([LEARNED])
-    const del = screen.getByTestId('assistant-memory-delete')
-    fireEvent.click(del)
-    fireEvent.click(del)
+    fireEvent.click(screen.getByTestId('assistant-memory-delete'))
+    const dialog = await screen.findByRole('alertdialog')
+    fireEvent.click(
+      within(dialog).getByRole('button', {
+        name: 'Feedback:deleteDialog.confirm',
+      }),
+    )
     await act(async () => {
       await undoable.last?.commit()
     })

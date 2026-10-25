@@ -13,24 +13,18 @@ export interface LiquidSegmentedItem<T extends string> {
   readonly title?: string
   /** 字后面亮一个小点（刚往这一格里加了东西，查资料 B 动效表）。 */
   readonly indicator?: boolean
-  /** 字上面的小图形（`stack` 档：比例格的形状）。两层各画一遍，扫过时一起反色。 */
+  /** 字上面的小图形（`stack` 档：比例格的形状）。 */
   readonly icon?: ReactNode
   /** 只当悬停提示（不支持这一档的原因）；⛔ 不当读屏名字，名字仍是 `label`。 */
   readonly hint?: string
 }
 
-/**
- * 两层字里都画同一颗点，扫过时一起反色：底下那层是正文色（⛔ 跟着灰字走就看不出），
- * 选中块那层跟字一起白。
- */
-function Indicator({ className }: { className: string }) {
+/** 字后面的小点用正文色（⛔ 跟着灰字走就看不出）。 */
+function Indicator() {
   return (
     <span
       aria-hidden
-      className={cn(
-        'ml-1.25 inline-block size-1.5 animate-target-dot rounded-full align-middle motion-reduce:animate-none',
-        className,
-      )}
+      className="ml-1.25 inline-block size-1.5 animate-target-dot rounded-full bg-foreground align-middle motion-reduce:animate-none"
     />
   )
 }
@@ -73,14 +67,11 @@ function measure(items: Map<string, HTMLButtonElement>, target: string) {
     : null
 }
 
-/** 还没量过时整块藏起来 —— ⛔ 不能是 `inset(0)`：那是整条轨道都涂黑。 */
-const UNMEASURED_CLIP = 'inset(0 100% 0 0 round 999px)'
-
 const ITEM_CLASS = {
   xs: 'shrink-0 whitespace-nowrap rounded-full px-2 py-1 text-2xs font-medium coarse:py-3',
   sm: 'shrink-0 whitespace-nowrap rounded-full px-3.5 py-1 text-2xs font-medium',
   md: 'shrink-0 whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium coarse:py-3',
-  // 定高而不是靠行高撑：底下是按钮、上面反色那层是 span，⛔ 靠行高两层会差半像素。
+  // 定高而不是靠行高撑：和同一行 32px 的按钮对齐。
   row: 'inline-flex h-6.5 shrink-0 items-center justify-center whitespace-nowrap rounded-full px-3 text-2sm font-medium',
   stack:
     'flex min-w-0 flex-col items-center justify-center gap-1 whitespace-nowrap rounded-lg px-1 py-1.5 font-mono text-2xs font-medium',
@@ -91,10 +82,10 @@ const ITEM_CLASS = {
  *
  * 选中块的**两条边各一根弹簧**：往哪边走，那一边是硬的 `lead`、身后那条是软的
  * `trail`，所以途中被拉长、到站再收拢 —— 一个物体在走，⛔ 不是两颗按钮换色。
- * 选中块是一整层铺满、按两条边裁出来的实底，里面再排一遍同样的字（反色），于是
- * 字是被扫过的那一瞬逐像素变色的。
  *
- * ⚠ 两层字必须同字重同内边距：宽度差一个像素，扫过时字就会抖。
+ * 长相照 ui-spec.md §9「切换条」：浅灰轨道（`fill-strong`），选中的是浮起来的白格
+ * （`raise` + `seg`），垫在字下面；选中的字变成正文色。
+ *
  * ⚠ 位置只在「值变了」或「几何变了」时动：父组件在动画途中重渲染不能把它打回终点。
  */
 export function LiquidSegmented<T extends string>({
@@ -112,21 +103,18 @@ export function LiquidSegmented<T extends string>({
 }: LiquidSegmentedProps<T>) {
   const radio = semantics === 'radio'
   const stack = size === 'stack'
-  /** 方块格的选中块是 8px 圆角，⛔ 胶囊那一档的 999px 会把高格子裁成半圆。 */
-  const clipRound = stack ? '8px' : '999px'
   const reducedMotion = useReducedMotion()
   const boxRef = useRef<HTMLDivElement>(null)
   const itemRefs = useRef(new Map<string, HTMLButtonElement>())
   const left = useMotionValue(0)
   const right = useMotionValue(0)
-  const width = useMotionValue(0)
   /**
-   * ⚠ 裁剪是一颗**自己同步**的值，⛔ 不用 `useTransform(() => …)`：那条派生值的
+   * ⚠ 白格宽度是一颗**自己同步**的值，⛔ 不用 `useTransform(() => …)`：那条派生值的
    *   更新排在下一帧，而开发态 StrictMode 的「挂载 → 清理 → 再挂载」会把首次量完
-   *   排的那一帧取消掉；再挂载时几何没变、`jump` 同值不通知 —— 裁剪就停在全 0，
-   *   整条轨道都是黑的（owner 2026-09-26「角色 / 画师」截图）。
+   *   排的那一帧取消掉；再挂载时几何没变、`jump` 同值不通知 —— 白格就停在 0 宽
+   *   （owner 2026-09-26「角色 / 画师」截图）。
    */
-  const clipPath = useMotionValue(UNMEASURED_CLIP)
+  const cellWidth = useMotionValue(0)
   /** 上一次落定的值与它的几何 —— 用来分辨「换了选中」与「只是重排了」。 */
   const placed = useRef<{ value: T; left: number; right: number } | null>(null)
 
@@ -134,7 +122,6 @@ export function LiquidSegmented<T extends string>({
     const box = boxRef.current
     const target = measure(itemRefs.current, value)
     if (!box || !target) return
-    if (box.offsetWidth !== width.get()) width.jump(box.offsetWidth)
 
     const previous = placed.current
     placed.current = { value, ...target }
@@ -168,25 +155,17 @@ export function LiquidSegmented<T extends string>({
   // ⚠ 排在量尺寸那条 layout effect 之后：挂载（含 StrictMode 再挂载）时当场同步一次，
   //   此后三条边一动就跟着改。
   useLayoutEffect(() => {
-    const sync = () =>
-      clipPath.set(
-        right.get() > left.get()
-          ? `inset(0 ${width.get() - right.get()}px 0 ${left.get()}px round ${clipRound})`
-          : UNMEASURED_CLIP,
-      )
+    const sync = () => cellWidth.set(Math.max(0, right.get() - left.get()))
     sync()
-    const unsubscribe = [left, right, width].map((edge) =>
-      edge.on('change', sync),
-    )
+    const unsubscribe = [left, right].map((edge) => edge.on('change', sync))
     return () => unsubscribe.forEach((stop) => stop())
-  }, [clipPath, left, right, width, clipRound])
+  }, [cellWidth, left, right])
 
   // 容器自己变宽变窄（窗口缩放、字体晚到）时跟着落位。
   useEffect(() => {
     const box = boxRef.current
     if (!box || typeof ResizeObserver === 'undefined') return
     const observer = new ResizeObserver(() => {
-      width.jump(box.offsetWidth)
       const current = placed.current
       if (!current) return
       const target = measure(itemRefs.current, current.value)
@@ -197,22 +176,30 @@ export function LiquidSegmented<T extends string>({
     })
     observer.observe(box)
     return () => observer.disconnect()
-  }, [left, right, width])
+  }, [left, right])
 
   return (
     <div
       role={radio ? 'radiogroup' : 'tablist'}
       aria-label={ariaLabel}
       className={cn(
-        'inline-flex shrink-0 border border-border bg-muted p-0.5',
+        'inline-flex shrink-0 bg-fill-strong p-0.75',
         stack ? 'rounded-xl' : 'rounded-full',
-        'has-focus-visible:ring-2 has-focus-visible:ring-ring has-focus-visible:ring-offset-2 has-focus-visible:ring-offset-background',
+        'has-focus-visible:shadow-focus',
         fill && 'flex w-full',
         disabled && 'opacity-50',
         className,
       )}
     >
       <div ref={boxRef} className={cn('relative flex', fill && 'flex-1')}>
+        <motion.div
+          aria-hidden
+          className={cn(
+            'pointer-events-none absolute inset-y-0 left-0 bg-raise shadow-seg',
+            stack ? 'rounded-lg' : 'rounded-full',
+          )}
+          style={{ x: left, width: cellWidth }}
+        />
         {items.map((item) => (
           <button
             key={item.value}
@@ -238,40 +225,17 @@ export function LiquidSegmented<T extends string>({
               ITEM_CLASS[size],
               // sm / row 的格子只有 25–26px 高，又不能像 xs / md 那样 coarse 下撑高
               // （工具行、32px 按钮行会被撑乱）—— 只补看不见的 44px 命中区。
-              // ⚠ 只加在按钮上：反色那层 span 不吃点击。
               (size === 'sm' || size === 'row') && 'touch-target-y',
               fill && 'flex-1 text-center',
-              'text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-disabled:hover:text-muted-foreground',
+              'relative text-ink-2 transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none disabled:pointer-events-none disabled:opacity-45 aria-disabled:cursor-not-allowed aria-disabled:opacity-45 aria-disabled:hover:text-ink-2',
+              item.value === value && 'text-foreground',
             )}
           >
             {item.icon}
             {item.label}
-            {item.indicator ? <Indicator className="bg-foreground" /> : null}
+            {item.indicator ? <Indicator /> : null}
           </button>
         ))}
-        <motion.div
-          aria-hidden
-          className={cn(
-            'pointer-events-none absolute inset-0 flex bg-foreground',
-            stack ? 'rounded-lg' : 'rounded-full',
-          )}
-          style={{ clipPath }}
-        >
-          {items.map((item) => (
-            <span
-              key={item.value}
-              className={cn(
-                ITEM_CLASS[size],
-                fill && 'flex-1 text-center',
-                'text-background',
-              )}
-            >
-              {item.icon}
-              {item.label}
-              {item.indicator ? <Indicator className="bg-current" /> : null}
-            </span>
-          ))}
-        </motion.div>
       </div>
     </div>
   )

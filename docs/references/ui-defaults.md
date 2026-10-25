@@ -9,11 +9,11 @@
 
 ## 1. 字体 — 三个槽，全站同一套
 
-| 槽       | 类名           | 拉丁       | CJK（zh / ja）              | 用在哪                                                                                                                            |
-| -------- | -------------- | ---------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| **正文** | `font-sans`    | Geist      | Noto Sans SC / Noto Sans JP | 一切默认文字、控件、表格、标签                                                                                                    |
-| **等宽** | `font-mono`    | Geist Mono | 回落正文 CJK                | 参数、seed、代码、数值、模型 id、快捷键                                                                                           |
-| **展示** | `font-display` | Fraunces   | Noto Serif SC / JP          | **只给三处**：首页 hero、legal 页标题、空态大标题（owner 2026-09-03）；应用内页面 h1 一律正文槽加粗，**不进控件、表格、卡片标题** |
+| 槽       | 类名           | 拉丁       | CJK（zh / ja）              | 用在哪                                                                                                                                                         |
+| -------- | -------------- | ---------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **正文** | `font-sans`    | Geist      | Noto Sans SC / Noto Sans JP | 一切默认文字、控件、表格、标签                                                                                                                                 |
+| **等宽** | `font-mono`    | Geist Mono | 回落正文 CJK                | 参数、seed、代码、数值、模型 id、快捷键                                                                                                                        |
+| **展示** | `font-display` | Fraunces   | Noto Serif SC / JP          | **只给两处**：首页 hero、legal 页标题（owner 2026-09-03；空态大标题 2026-10-25 按 ui-spec ⑱ 退掉）；应用内页面 h1 一律正文槽加粗，**不进控件、表格、卡片标题** |
 
 **等宽槽判据（2026-09-20，进度表 32 ②）**——`font-mono` 只给**机器串**，两问一判：
 
@@ -46,7 +46,6 @@
 | `text-base`                     | 1rem / 16px（内置）     | 长文正文                                               |
 | `text-lg` / `text-xl`           | 1.125 / 1.25rem（内置） | 卡片标题、区块标题                                     |
 | `text-brand`                    | 1.12rem / 17.9px        | 只给 wordmark，⛔ 不外借                               |
-| `text-empty-title`              | 1.375rem / 22px         | 空态大标题（`font-display` 三个落点之一）              |
 | `text-2xl` 及以上               | 内置                    | 应用内页面 h1；再大只在首页营销域                      |
 | `text-hero-title` / `-subtitle` | clamp()                 | 首页 hero，营销域专用                                  |
 
@@ -80,6 +79,8 @@
 
 ### 2.2 "白"只有一种
 
+> 2026-10-25 起层次以 [ui-spec.md](ui-spec.md) §3.2 为准：`ground`（= `--surface-sunken`）→ `panel`（= `--background` / `--card`）→ `fill`（= `--muted`）→ `fill-strong`，浮起来的另有 `raise` / `float`（= `--popover`），值在 `globals.css`。下面是这几层的来历。
+
 浅底只有脊柱这几层，域不各自给值：
 
 - **页面底 = `--background` 纯白；分组/次级面 = `--muted` 中性灰。** 首页 `--paper/--panel`、LoRA `--lora-page/--lora-well`、壳 `--sidebar` 全部 alias 到这两个，不再各自给值。**壳底例外（owner 2026-09-03 拍板保住浮岛层次）**：脊柱新增第三层 `--surface-sunken: oklch(94% 0 0)`，只给应用壳 `--sidebar` 用，主卡浮在它上面。连同下面的 `--surface-workbench`，全部就是四层：`--background` 纯白 · `--muted` 97% · `--surface-sunken` 94% · `--surface-workbench`；域不得再造第五种浅底。
@@ -88,9 +89,9 @@
 
 ### 2.3 强调色
 
-**全站强调色只用 `--primary`（2026-09-06 owner 定）**；`--modality-*` 仅 prompts 域使用。⛔ 不新造域强调色变量。
+**黑（`--primary`）只管动作；`--highlight`（素档蓝、暗房米白）只表示「选中了、正在进行」，焦点环也是它**（ui-spec.md §3.1，2026-10-25 替掉 2026-09-06 的「全站只用 `--primary`」）；`--modality-*` 仅 prompts 域使用。⛔ 不新造域强调色变量。
 
-强调色只出现在三个位置：**当前选中态、主 CTA 的 hover/focus 环、进度**。不做大面积填色，不做渐变。
+不做大面积填色，不做渐变。
 
 ### 2.4 写法
 
@@ -105,8 +106,8 @@
 ## 3. 间距、圆角、阴影
 
 - 间距只走 Tailwind 4 尺度：控件内距 `px-3 py-2`，卡片内距 `p-4`，区块间距 `gap-4` / `gap-6`，页面外距 `px-4 lg:px-6`，最大宽 `max-w-content`（画廊、素材库这类内容浏览页不封顶）。
-- 圆角：控件 `rounded-md`，卡片/弹层 `rounded-lg`，抽屉/大面 `rounded-xl`，胶囊只给 chip/badge。基准 `--radius: 0.625rem` 不改。
-- 阴影：浮层 `shadow-md`，抽屉/对话框 `shadow-lg`，其余不加。浅色界面靠边线分层，不靠阴影。
+- 圆角：按钮、药丸、圆钮、头像、开关、搜索框、切换条一律全圆（`rounded-full`）；其余照 ui-spec.md §5 圆角表，档位 `rounded-12 / 16 / 20 / 24` 加上原有的 `rounded-md`(8) / `rounded-2xl`(18)。基准 `--radius: 0.625rem` 不改。
+- 阴影：只用 ui-spec.md §5 的九种（`shadow-ring / soft / seg / card / lift / pop / bar / media-action / focus`，值在 `globals.css` 的 `--elevation-*`，暗房各自一套）；⛔ `shadow-md` / `shadow-lg`。暗房靠亮度分层：浮层里的浅底块自动升一档（`globals.css`「叠一层亮一档」那段，自写浮层挂 `data-float`）。
 - 边线：`border-border` 一档；材质描边（画布卡）用域内 token。
 
 ### 3.1 画布节点卡例外（owner 2026-09-08 定，只此一处）
@@ -122,10 +123,10 @@
 ### 3.2 图标 — Phosphor 一套，只从桶里拿
 
 - 图标库是 **Phosphor**（`@phosphor-icons/react`），全站唯一一套。lucide 已卸载，`src/**` 再出现 `lucide-react` 由 eslint 报错。
-- 默认 **weight `bold`**，尺寸与颜色由调用点的 `className` 给（`size-4` 一档为主，`currentColor`）；全局默认写在 `src/components/icons/IconDefaults.tsx`，⛔ 不在调用点逐个传 `weight` / `size` prop。
+- 默认 **weight `regular`**（ui-spec.md §9，2026-10-25 起），尺寸与颜色由调用点的 `className` 给（`size-4` 一档为主，`currentColor`）；全局默认写在 `src/components/icons/IconDefaults.tsx`，⛔ 不在调用点逐个传 `weight` / `size` prop。
 - **只从桶 `@/components/icons` import**，⛔ 不直接 import `@phosphor-icons/react`：桶是换库时唯一要改的一处，也是「这个语义用哪个字形」的唯一裁决点。
 - 需要新图标：**先查桶**——多数语义已经有了（同义词落在同一个字形上是有意的）。桶里没有才加一条 re-export，并挑与已有字形同族的那一支，⛔ 不为一个页面引入孤立风格。
-- 转圈只有一个来源：`@/components/ui/spinner` 的 `Spinner`（内部是 `CircleNotch`，自带 `animate-spin` 与 `motion-reduce` 降级），⛔ 不在调用点手写 `animate-spin`。
+- 转圈只有一个来源：`@/components/ui/spinner` 的 `Spinner`（三个点依次变深，自带 `motion-reduce` 降级，见 `loading.md`），⛔ 不在调用点手写 `animate-spin`。
 
 ---
 
@@ -185,7 +186,7 @@
 
 ## 5. 交互状态 — 每个可点的东西都有这七态
 
-`default` · `hover`（fine pointer 才有）· `active/pressed` · `focus-visible` · `disabled`（`opacity-50 pointer-events-none`，**不隐藏**）· `loading`（按钮内 `Spinner size="sm"` 替换图标，文字不变，宽度不跳）· `selected`（强调色边 + `aria-selected`/`aria-pressed`）。
+`default` · `hover`（fine pointer 才有，叠一层 `hover-overlay`：`hover:tint-hover`）· `active/pressed` · `focus-visible`（`focus` 环：2px 板色 + 2px `highlight`，`focus-visible:shadow-focus`）· `disabled`（`opacity-45 pointer-events-none`，**不隐藏**）· `loading`（按钮内 `Spinner size="sm"` 替换图标，文字不变，宽度不跳）· `selected`（`aria-selected`/`aria-pressed`；图格选中只靠右上角的勾，当前那一行 `row-selected` / `fill`，见 ui-spec.md §9）。
 
 - 状态不只靠颜色：selected 加图标或边线，error 加图标 + 文案。
 - 点击有结果的按钮，结果必须可见：打开的东西有进入动画（第 4 节）；点了就有结果的（下载 / 保存 / 复制 / 上传）**结果写在键上**（`FeedbackButton`，§7.1），⛔ 弹 toast；失败 inline error + 可重试。
@@ -223,7 +224,7 @@
 
 ## 7. 状态配方
 
-- **空态**：一句说明 + 一个可点动作（起手势），可选 3 个示例 chip；不留白板。长相只有一种 —— `src/components/ui/empty-state.tsx` 的五段：灰底虚线框 → 40px 图标位 → **展示槽标题** → 一句话 → 黑丸主动作。⛔ 不画插画。那句话回答「为什么是空的 / 接下来做什么」，⛔ 不写「暂无数据」。
+- **空态**：一句说明 + 一个可点动作（起手势）；⛔ 示例按钮；不留白板。长相只有一种 —— `src/components/ui/empty-state.tsx` 的柔影白卡（ui-spec.md §9「空状态」⑱）：图标格（40，`fill` 底）在左 → 15 加粗标题 → 一句话 → 黑色主钮，最多再跟一个白药丸。⛔ 不画插画、⛔ 虚线框 + 衬线标题。那句话回答「为什么是空的 / 接下来做什么」，⛔ 不写「暂无数据」。
 
 **全站空态落点清单（2026-09-20 收口，进度表 33 ①）**——机器门 `src/test/empty-state.contract.test.ts` 守这张表：名册写死，长出第四类落点就红；每个落点都得给一句话 + 一个 `rounded-full` 主动作。
 
@@ -257,16 +258,16 @@
 
 ### 7.1 提示与弹窗（owner 2026-10-08 定稿，原型 `NzjiqK3k2DuKDji7wQdeBL`）
 
-| 场合                                         | 做法                                                                                                                                     | 实现                                                                                                                                                                                                                   |
-| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 点按钮得到结果（下载 / 保存 / 复制 / 上传）  | 键自己拉长、变黑写结果（「✓ 已开始下载」「上传中 2/3」→「✓ 已上传 3 张」），约 1.6 秒缩回；宽度走 `SPRING.slot`，字由糊变清换进来        | `components/ui/feedback-button.tsx` 的 `FeedbackButton` + `useButtonFeedback`（`progress` 档不自己缩回）。页面文档单独定过 1.2 秒的复制键传 `COPIED_ACK_MS`。上传：素材页上传键（`useAssetUploadQueue.batchProgress`） |
-| 后台跑完的（出图完成 / 失败、上传完成）      | 底部正中黑色小条，最多叠 3 条：新的在前，旧的往上推、缩小、变淡；每条最多一个动作（查看 / 撤销 / 重试）；失败用红点代替对勾，⛔ 整条变红 | sonner（`components/ui/sonner.tsx`，皮肤在 globals.css `.toast-bar`，不分层）。业务代码照旧 `toast.success / toast.error`                                                                                              |
-| 黑条与底部输入框                             | 黑条浮在工作台输入框卡 / 手机固定输入条 / 画布底栏之上 12px                                                                              | `hooks/use-toast-lift.ts` 改写 `--toast-offset-bottom`；新的贴底输入框挂上它                                                                                                                                           |
-| 能撤销的小删除（删图、删对话、删一条记忆）   | 键拉长成红色「确认删除」，再点才删；点别处 / Esc / 3 秒缩回。键随内容一起消失时（删图关掉查看器），「撤销」放进底部黑条                  | `ConfirmDeleteButton`；撤销 = `lib/undoable-action.ts` 延后 5 秒落库，⛔ 不需要恢复接口。素材页多选删除同一套（「已删除 N 张 · 撤销」）                                                                                |
-| 删了找不回的大事（删密钥、删项目、注销账号） | 正中弹窗，从按下的那颗键长到正中，写清后果；注销账号要先打「注销」                                                                       | `ConfirmDialog`（`confirmPhrase`）/ `AlertDialog`（站内暂无注销账号入口：owner 2026-10-09 定等连数据一起删做好再放出）                                                                                                 |
-| 空态 / 出错 / 404                            | 同一个模板：虚线框 · 40px 白图标格 · 衬线标题 · 一句话 · 黑丸；出错只在图标角放红点                                                      | `EmptyState`（`tone="error"`）                                                                                                                                                                                         |
+| 场合                                                         | 做法                                                                                                                                                                                                                                | 实现                                                                                                                                                                  |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 点按钮得到结果（下载 / 保存 / 上传）                         | 键自己拉长、变黑写结果（「✓ 已开始下载」「上传中 2/3」→「✓ 已上传 3 张」），约 1.6 秒缩回；宽度走 `SPRING.slot`，字由糊变清换进来                                                                                                   | `components/ui/feedback-button.tsx` 的 `FeedbackButton` + `useButtonFeedback`（`progress` 档不自己缩回）。上传：素材页上传键（`useAssetUploadQueue.batchProgress`）   |
+| 复制                                                         | 只放复制图标，点了换成勾 1.5 秒变回（ui-spec.md §9「复制」㉑）                                                                                                                                                                      | `components/ui/copy-button.tsx` 的 `CopyButton`（`COPIED_ACK_MS`）；剪贴板被拒时退回可全选的文本框                                                                    |
+| 后台跑完的（出图完成 / 失败、上传完成）                      | 底部正中黑色小条，最多叠 3 条：新的在前，旧的往上推、缩小、变淡；每条最多一个动作（查看 / 撤销 / 重试）；失败用红点代替对勾，⛔ 整条变红                                                                                            | sonner（`components/ui/sonner.tsx`，皮肤在 globals.css `.toast-bar`，不分层）。业务代码照旧 `toast.success / toast.error`                                             |
+| 黑条与底部输入框                                             | 黑条浮在工作台输入框卡 / 手机固定输入条 / 画布底栏之上 12px                                                                                                                                                                         | `hooks/use-toast-lift.ts` 改写 `--toast-offset-bottom`；新的贴底输入框挂上它                                                                                          |
+| 删东西（删图、删对话、删一条记忆、删密钥、删项目、注销账号） | 一律居中小弹窗（ui-spec.md §9「删除确认」㉒，2026-10-25 替掉键上两步「确认删除」）：标题「删除这 2 张？」+ 一句后果 + 取消 / 红色删除，宽 340，从按下的那颗键长到正中；注销账号要先打「注销」。能撤销的删完照旧在底部黑条给「撤销」 | `ConfirmDialog`（`confirmPhrase`）/ `AlertDialog`；撤销 = `lib/undoable-action.ts` 延后 5 秒落库（站内暂无注销账号入口：owner 2026-10-09 定等连数据一起删做好再放出） |
+| 空态 / 出错 / 404                                            | 同一个模板：柔影白卡 · 40px 图标格在左 · 15 加粗标题 · 一句话 · 黑色主钮；出错只在图标角放红点                                                                                                                                      | `EmptyState`（`tone="error"`）                                                                                                                                        |
 
-动效：只用 `SPRING` 预设（最多一丝过冲）、换内容时短暂一糊、⛔ 发光 / 渐变；颜色只走脊柱（黑条 = `--foreground`，危险 = `--destructive`）。红点在黑条上的对比度：`--destructive` 对 `--foreground` ≈ 4.2:1（非文本图形门槛 3:1；`--status-risk` 只有 3.0，所以不用它）。
+动效：只用 `SPRING` 预设（最多一丝过冲）、换内容时短暂一糊、⛔ 发光 / 渐变；颜色只走脊柱（黑条 = `--primary` 底 `--primary-foreground` 字，危险 = `--destructive`）。黑条上的红点用 `--danger-on-primary`（两档各自一个值，保证对黑条底的非文本对比 ≥ 3:1）。
 
 ### 7.2 加载中（owner 2026-10-08 定稿，原型 `ThV7ucUtgNZS4zbGry9XPh`）
 
@@ -297,7 +298,7 @@ reduced-motion 下不糊、不错开，直接出现。实现与落点见 `loadin
 | AB   | 画布拖线             | 线头平时死跟指针；进了合法卡 `SPRING.slot` 吸到那张卡的入口，离开同一根弹簧追回指针；合法卡的 2px 黑环用 `--spring-slot` 长出来（原来那圈 8px 淡晕撤掉） | `CanvasV4` 的 `CanvasConnectionLineV4` · `canvas.css .node-card-glow`                                          |
 | V    | 「做同款」落进输入框 | 提示词糊 → 清，模型 / 规格 chip 从上方一颗颗落下（错开 120ms），最后一颗落定卡顶一下                                                                     | `lib/studio-workbench-motion.ts` 的 `landRecipeInComposer`（chip 挂 `data-studio-recipe-chip`）· `RECIPE_LAND` |
 | M    | 规格 chip 换比例     | chip 上那颗比例框用 `SPRING.slot` 拉成新形状，比例字照旧糊一下换掉                                                                                       | `StudioMorphRatioGlyph`（`tool-surface.tsx`）                                                                  |
-| H    | 收藏                 | 心先缩到 0.78 再弹回 + 涂满；卡片、素材瓦片、两个查看器同一颗                                                                                            | `components/ui/favorite-heart.tsx`                                                                             |
+| H    | 收藏                 | 书签先缩到 0.78 再弹回 + 涂满（ui-spec.md §9「收藏」⑳，2026-10-25 心换书签）；卡片、素材瓦片、两个查看器同一颗                                           | `components/ui/favorite-bookmark.tsx`                                                                          |
 | P    | 拖着排序             | 其余项用弹簧让位、落下滑到新位：dnd-kit 走 `useSpringSortableTransition`（`SORTABLE_SPRING`），原生拖放列表走 `useSpringReorder`（FLIP）                 | 素材页文件夹 · LoRA 训练图 · LoRA 装配栏                                                                       |
 | R    | 悬停作品卡 / 素材格  | 卡抬起 4px + 浮层投影（`spring-slot`），左下信息条从下面滑上来                                                                                           | `ImageCard` · `AssetTile`                                                                                      |
 | T    | 拖图进输入框         | 接住图的区域先填实，再整块缩成 28px 缩略图、`spring-expand` 飞到参考图 / 素材排末尾                                                                      | `lib/fly-to-composer.ts` 的 `flyDropIntoRow`（排上挂 `data-studio-drop-row`）· `DROP_FLY`                      |
@@ -335,7 +336,7 @@ reduced-motion 下不糊、不错开，直接出现。实现与落点见 `loadin
 - `src/**` import `framer-motion` → 报错（已落地：动效库门 `ANIMATION_LIBRARY_FORBIDDEN_PATHS`，与图标门同一条规则）。app 内一律 `motion/react`。
 - `src/**` import `gsap` → 报错，**只放行 `src/components/business/home-v4/**`**（已落地，同上）。两道门的「真的会红」由 `src/test/animation-library.contract.test.ts` 拿 fixture 源码喂同一份配置验证，⛔ 不靠读配置文件里有没有那几个字符串。
 - 自画的空态 → 红（已落地：`src/test/empty-state.contract.test.ts` 的落点名册）。
-- 应用内组件出现 `font-display` → 红（已落地：`src/test/typography.contract.test.ts`，展示槽应用内只有空态原语一个落点）。
+- 应用内组件出现 `font-display` → 红（已落地：`src/test/typography.contract.test.ts`，展示槽应用内没有落点）。
 - 第 1 条与第 4 条现在就可以用 `grep -rn` 当 PR 前门，eslint 规则化是独立任务。
 
 ## Last Verified

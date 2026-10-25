@@ -45,7 +45,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { EmptyState } from '@/components/ui/empty-state'
-import { ConfirmDeleteButton } from '@/components/ui/feedback-button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 
@@ -283,7 +282,6 @@ function MemorySection({
         </label>
         <Switch
           id={captureId}
-          size="lg"
           data-testid="assistant-memory-capture"
           checked={capture}
           onCheckedChange={(memoryCapture) => autosave.apply({ memoryCapture })}
@@ -447,8 +445,7 @@ function MemorySection({
  * 一行 = 一条记忆（画板 M-A）。
  *
  * 默认：文字（点一下就地改）· 行尾「范围标签 + 你写的 / 助手记的 · 时间」·
- * 悬停出「删」（触屏常显）。点「删」键拉长成红色「确认删除」，再点才删，点别处 /
- * Esc / 3 秒缩回（`ConfirmDeleteButton`，⛔ 不弹框）。
+ * 悬停出「删」（触屏常显）。点「删」弹居中小弹窗确认（ui-spec.md §9「删除确认」）。
  * 就地改：输入框 + 右边「用在哪」下拉，下面一行提示；回车存、Esc 退、点到别处也存；
  * 改完时间那一格闪「✓ 已保存」。选「用在哪」当场存（改了就存）。
  */
@@ -473,6 +470,7 @@ function MemoryRow({
   onDelete(): void
 }) {
   const t = useTranslations('AssistantSettings')
+  const tFeedback = useTranslations('Feedback')
   const [draft, setDraft] = useState(memory.text)
   const [scopeOpen, setScopeOpen] = useState(false)
   /**
@@ -637,15 +635,23 @@ function MemoryRow({
           )}
         </BlurSwap>
       </span>
-      <ConfirmDeleteButton
-        aria-label={t('memory.deleteAria')}
-        data-testid="assistant-memory-delete"
-        confirmLabel={t('memory.deleteConfirm')}
+      <ConfirmDialog
+        title={t('memory.deleteTitle')}
+        description={tFeedback('deleteDialog.irreversible')}
+        cancelLabel={tFeedback('deleteDialog.cancel')}
+        confirmLabel={tFeedback('deleteDialog.confirm')}
         onConfirm={onDelete}
-        className="h-7 shrink-0 rounded-lg px-2.5 text-2sm text-status-risk opacity-0 group-hover:opacity-100 hover:bg-status-risk-surface focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none data-[armed]:opacity-100 coarse:h-9 coarse:opacity-100"
-      >
-        {t('memory.delete')}
-      </ConfirmDeleteButton>
+        trigger={
+          <button
+            type="button"
+            aria-label={t('memory.deleteAria')}
+            data-testid="assistant-memory-delete"
+            className="h-7 shrink-0 rounded-lg px-2.5 text-2sm text-status-risk opacity-0 group-hover:opacity-100 hover:bg-status-risk-surface focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none data-[state=open]:opacity-100 coarse:h-9 coarse:opacity-100"
+          >
+            {t('memory.delete')}
+          </button>
+        }
+      />
     </div>
   )
 }

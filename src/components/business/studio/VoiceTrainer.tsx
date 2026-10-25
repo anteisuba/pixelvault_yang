@@ -299,7 +299,7 @@ export const VoiceTrainer = memo(function VoiceTrainer({
           onClick={handleTranscribe}
           disabled={!canTranscribe}
           className={cn(
-            buttonVariants({ variant: 'outline', size: 'sm' }),
+            buttonVariants({ variant: 'secondary', size: 'sm' }),
             'h-8 w-fit gap-2 text-xs',
           )}
         >

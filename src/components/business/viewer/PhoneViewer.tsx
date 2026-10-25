@@ -357,7 +357,7 @@ export function PhoneViewer<T extends { id: string }>({
           }}
           onDragEnd={handleSheetDragEnd}
           style={{ y: sheetY, height: sheetHeight }}
-          className="absolute inset-x-0 bottom-0 flex flex-col rounded-t-2xl bg-card shadow-overlay"
+          className="absolute inset-x-0 bottom-0 flex flex-col rounded-t-2xl bg-card shadow-pop"
         >
           <button
             type="button"

@@ -14,7 +14,7 @@ import {
   getGenerationVideoPosterUrl,
 } from '@/lib/generation-media'
 import { cn } from '@/lib/utils'
-import { FavoriteHeart } from '@/components/ui/favorite-heart'
+import { FavoriteBookmark } from '@/components/ui/favorite-bookmark'
 import { useMediaReveal } from '@/components/ui/load-reveal'
 import { formatDuration } from '@/lib/video-utils'
 import type { GenerationRecord } from '@/types'
@@ -275,7 +275,7 @@ export function AssetTile({
           )}
         >
           {/* 收藏（原型 H）：先缩一下再弹回，同时涂黑；首次挂载不弹。 */}
-          <FavoriteHeart liked={isLiked} />
+          <FavoriteBookmark saved={isLiked} />
         </button>
       ) : isLiked ? (
         <span

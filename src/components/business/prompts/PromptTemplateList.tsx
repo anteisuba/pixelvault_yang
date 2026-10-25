@@ -20,7 +20,7 @@ import type {
 import { cn } from '@/lib/utils'
 import type { OutputType } from '@/types'
 import { Button } from '@/components/ui/button'
-import { CopyPromptButton } from './CopyPromptButton'
+import { CopyButton } from '@/components/ui/copy-button'
 import { PromptFilterMenu } from './PromptFilterMenu'
 import { PromptTemplateDetailPage } from './PromptTemplateDetailPage'
 import {
@@ -392,11 +392,7 @@ function PromptTemplateCard({
             menuOpen ? 'opacity-100' : 'opacity-0',
           )}
         >
-          <CopyPromptButton
-            prompt={recipe.compiledPrompt}
-            label={t('copyShort')}
-            className="touch-target-y h-7.5 rounded-full px-3 text-2sm"
-          />
+          <CopyButton text={recipe.compiledPrompt} label={t('copyShort')} />
           {recipe.tagSource ? (
             <PromptTemplateUseMenu
               source={recipe.tagSource}
@@ -462,7 +458,7 @@ function PromptTemplateListEmpty({
             <Button asChild className="rounded-full">
               <Link href={ROUTES.STUDIO_IMAGE_TAGS}>{t('openTagStudio')}</Link>
             </Button>
-            <Button asChild variant="outline" className="rounded-full">
+            <Button asChild variant="secondary" className="rounded-full">
               <Link href={ROUTES.STUDIO_LORA}>{t('openLoraStudio')}</Link>
             </Button>
           </div>
@@ -502,7 +498,7 @@ function PromptTemplateListEmpty({
           {typed ? (
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               className="rounded-full"
               onClick={onClearType}
             >
@@ -512,7 +508,7 @@ function PromptTemplateListEmpty({
           {query ? (
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               className="rounded-full"
               onClick={onClearQuery}
             >

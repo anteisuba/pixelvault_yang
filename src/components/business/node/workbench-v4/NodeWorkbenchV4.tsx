@@ -1771,7 +1771,7 @@ function NodeWorkbenchV4Inner() {
           <AlertDialogFooter>
             <AlertDialogCancel>{t('projectDialog.cancel')}</AlertDialogCancel>
             <AlertDialogAction
-              className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              variant="destructive"
               onClick={() => {
                 store.deleteProject(store.currentProject.id)
                 setDeleteConfirmOpen(false)

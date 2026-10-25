@@ -2634,7 +2634,7 @@ function GenerateBranch({
                   />
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="secondary"
                     size="icon"
                     onClick={() => {
                       setRunnerSeed('')
@@ -2980,7 +2980,7 @@ function GenerateBranch({
         ) : null}
         <Button
           type="button"
-          variant="outline"
+          variant="secondary"
           size="sm"
           className="h-11 w-full text-sm"
           disabled={!canGenerate}
@@ -5030,7 +5030,6 @@ function LoraSpineBar({
                 )}
                 {/* 启停开关：停用留在栈里不参与出图（stack.setEnabled）。 */}
                 <Switch
-                  size="sm"
                   checked={enabled}
                   onCheckedChange={(v) => stack.setEnabled(item.asset.id, v)}
                   aria-label={t(
@@ -5809,7 +5808,7 @@ function ErrorBlock({ error, onRetry }: ErrorBlockProps) {
       </div>
       <Button
         type="button"
-        variant="outline"
+        variant="secondary"
         size="sm"
         onClick={() => void onRetry()}
         className="shrink-0"

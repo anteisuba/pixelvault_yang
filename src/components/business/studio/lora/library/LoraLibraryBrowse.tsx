@@ -493,7 +493,7 @@ export function LoraLibraryBrowse({
             </span>
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={() => void library.refresh()}
             >

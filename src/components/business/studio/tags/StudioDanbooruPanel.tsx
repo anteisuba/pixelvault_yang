@@ -510,7 +510,7 @@ export function StudioDanbooruPanel({
           </h2>
           {tabs}
           <span className="flex-1" />
-          <Button type="button" variant="outline" size="sm" onClick={onClose}>
+          <Button type="button" variant="secondary" size="sm" onClick={onClose}>
             {t('backToResults')}
           </Button>
         </div>

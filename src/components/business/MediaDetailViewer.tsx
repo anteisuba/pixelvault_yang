@@ -229,7 +229,7 @@ export function MediaDetailViewer({
                 <Button
                   data-viewer-chrome
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   size="icon"
                   aria-label={closeLabel}
                   className="size-10 rounded-full border-border/70 bg-background/88 shadow-sm backdrop-blur-xl hover:bg-muted/70"
@@ -279,7 +279,7 @@ export function MediaDetailViewer({
                 <Button
                   data-viewer-chrome
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   size="icon"
                   aria-label={navigation.previousLabel}
                   disabled={!navigation.canGoPrevious}
@@ -291,7 +291,7 @@ export function MediaDetailViewer({
                 <Button
                   data-viewer-chrome
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   size="icon"
                   aria-label={navigation.nextLabel}
                   disabled={!navigation.canGoNext}

@@ -72,7 +72,7 @@ import {
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import { StudioTagChipField } from '@/components/business/studio/tags/StudioTagChipField'
-import { CopyPromptButton } from './CopyPromptButton'
+import { CopyButton } from '@/components/ui/copy-button'
 import {
   PromptTemplateKindBadge,
   PromptTemplateSourceMark,
@@ -411,14 +411,13 @@ export function PromptTemplateDetailPage({
                 {t('useAction')}
               </Button>
             )}
-            <CopyPromptButton
-              prompt={compiledPrompt}
+            <CopyButton
+              text={compiledPrompt}
               label={source ? t('copyTagsAction') : t('copyPromptAction')}
-              className={pill}
             />
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               onClick={startEditing}
               disabled={loadState !== 'ready'}
               className={pill}
@@ -430,7 +429,7 @@ export function PromptTemplateDetailPage({
               <DropdownMenuTrigger asChild>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   aria-label={t('moreActions')}
                   className="size-8.5 rounded-full p-0 coarse:size-11"
                 >
@@ -531,7 +530,7 @@ export function PromptTemplateDetailPage({
               <p>{t('detailLoadFailed')}</p>
               <Button
                 type="button"
-                variant="outline"
+                variant="secondary"
                 className="rounded-full"
                 onClick={() => {
                   setLoadState('loading')

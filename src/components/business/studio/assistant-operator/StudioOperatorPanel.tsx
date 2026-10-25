@@ -2338,7 +2338,6 @@ export function StudioOperatorPanel({
       >
         {t('autoGenerate.label')}
         <Switch
-          size="sm"
           data-testid="operator-auto-generate"
           checked={autoGenerate}
           onCheckedChange={setOperatorAutoGenerate}

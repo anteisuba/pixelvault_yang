@@ -720,7 +720,7 @@ export const VoiceSelector = memo(function VoiceSelector({
                     <Spinner size="sm" />
                   ) : (
                     <Star
-                      weight={savedVoiceCard ? 'fill' : 'bold'}
+                      weight={savedVoiceCard ? 'fill' : 'regular'}
                       className="size-3.5"
                     />
                   )}
@@ -738,7 +738,7 @@ export const VoiceSelector = memo(function VoiceSelector({
       {isPublicTab && totalPages > 1 && (
         <div className="flex shrink-0 items-center justify-between border-t border-border/40 pt-2 text-xs text-muted-foreground">
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             disabled={page <= 1}
             onClick={() => setPage(page - 1)}
@@ -754,7 +754,7 @@ export const VoiceSelector = memo(function VoiceSelector({
             })}
           </span>
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             disabled={page >= totalPages}
             onClick={() => setPage(page + 1)}

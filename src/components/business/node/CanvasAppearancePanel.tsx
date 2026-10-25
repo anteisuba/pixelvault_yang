@@ -232,7 +232,7 @@ export function CanvasAppearancePanel({
 
               <Button
                 type="button"
-                variant="outline"
+                variant="secondary"
                 onClick={() => setAssetDialogOpen(true)}
                 className="h-9 w-full rounded-xl border-node-paint/30 bg-node-panel-soft text-xs text-node-foreground hover:border-node-paint/50 hover:bg-node-panel-inner"
               >

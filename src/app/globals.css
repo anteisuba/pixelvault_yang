@@ -229,9 +229,6 @@
      ⚠ 只补两个**空档**，⛔ 不改 Tailwind 自带的 xs/sm/base —— 那三档全站都在用。 */
   --text-2sm: 0.8125rem; /* 13px */
   --text-md: 0.9375rem; /* 15px */
-  /* 空态大标题（视觉语言总板 D1 ④）。展示槽 `font-display` 在全站只有三处落点，
-     空态是其中之一（ui-defaults.md §1）；22px 掉在 xl(20) 与 2xl(24) 的空档里。 */
-  --text-empty-title: 1.375rem; /* 22px */
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -264,6 +261,29 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  /* ── 界面规范的新色（ui-spec.md §3.3）：定值在 :root / .dark，意思见那张表。
+     已有的（ground / panel / fill / float / line / ink / primary / 状态色）改的是
+     上面那几个老名字的值，⛔ 不另起名。 */
+  --color-fill-strong: var(--fill-strong);
+  --color-raise: var(--raise);
+  --color-row-selected: var(--row-selected);
+  --color-hover-overlay: var(--hover-overlay);
+  --color-ink-2: var(--ink-2);
+  --color-on-primary-soft: var(--on-primary-soft);
+  --color-on-primary-line: var(--on-primary-line);
+  --color-highlight: var(--highlight);
+  --color-on-highlight: var(--on-highlight);
+  --color-highlight-soft: var(--highlight-soft);
+  --color-bubble: var(--bubble);
+  --color-media-chip: var(--media-chip);
+  --color-on-media-chip: var(--on-media-chip);
+  --color-knob: var(--knob);
+  --color-scrim: var(--scrim);
+  --color-grid-line: var(--grid-line);
+  --color-viewport-top: var(--viewport-top);
+  --color-viewport-bottom: var(--viewport-bottom);
+  --color-on-danger: var(--on-danger);
+  --color-danger-on-primary: var(--danger-on-primary);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -271,35 +291,48 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
-  /* 空态模板的两档圆角（视觉语言总板 D1 ④）：外框 16px、40px 图标位 12px。
-     两个值都掉在脊柱 T 恤码的空档里（xl 14 / 2xl 18），⛔ 不写任意值，也不
-     借画布域的 `--radius-node-bar` / `-thumb`（那两个是域内 token）。 */
-  --radius-empty-state: 1rem;
-  --radius-empty-icon: 0.75rem;
+  /* 界面规范的圆角（ui-spec.md §5）里 T 恤码没有的四档：sm 6 · md 8 · lg 10 ·
+     xl 14 · 2xl 18 · 3xl 22 之外，12（图格 / 菜单 / 弹层）· 16（台输入框）·
+     20（白板 / 柔影白卡 / 底部黑条）· 24（挑选框 / 查看器）。名字就是像素数，
+     `rounded-12` 一类；加一档要同步 `src/lib/utils.ts` 的 tailwind-merge 名单。 */
+  --radius-12: 0.75rem;
+  --radius-16: 1rem;
+  --radius-20: 1.25rem;
+  --radius-24: 1.5rem;
+  /* 两种弹窗的宽（ui-spec.md §9）：就地配 key 一类 420、删除确认 340。 */
+  --width-dialog: 26.25rem;
+  --width-confirm: 21.25rem;
   /* Motion canon — 唯一来源见 src/constants/motion.ts，两处必须同步改 */
 
-  /* ── 阴影四档（视觉语言总板 D1 ④，owner 2026-09-17）────────────────────
-     全站阴影只有四档，域内的 shell / assistant / node 阴影都归进这四档：
+  /* ── 阴影只有九种（ui-spec.md §5，owner 2026-10-24）──────────────────────
+     浮得越高越重；暗房里影子几乎看不见，`pop` / `card` 靠一圈亮边认边。定值在
+     :root / .dark 的 `--elevation-*`，这里只接线。⛔ 自己配阴影。
 
-     | 档       | 用在哪                                       | 形状                       |
-     | -------- | -------------------------------------------- | -------------------------- |
-     | card     | 卡：白面 + border + 贴边一层 + 大扩散一层    | 两层，扩散中等             |
-     | float    | 浮层：工具条 / 胶囊 / dock，配 --surface-glass | 两层，比卡更聚更深         |
-     | overlay  | 弹层：Dialog / Sheet / Popover / 右键菜单    | 两层，扩散最大最深         |
-     | pressed  | 贴边一层：压在面上的窗、并列的普通卡          | 只有贴边那层               |
+     | 名字         | 用在哪                                         |
+     | ------------ | ---------------------------------------------- |
+     | ring         | 白板的边                                       |
+     | soft         | 白药丸、图标键、语音消息（底 `raise`）         |
+     | seg          | 切换条白格、开关圆钮（底 `raise`）             |
+     | card         | 柔影白卡：助手卡、空状态                       |
+     | lift         | 浮在消息上的对话输入框                         |
+     | pop          | 菜单、弹层、挑选框、查看器、弹窗（底 `float`） |
+     | bar          | 底部黑条                                       |
+     | media-action | 图上悬停按钮                                   |
+     | focus        | 键盘焦点（2px 板色 + 2px `highlight`）         |
 
-     规则（⛔ 违反 = 设计门打回）：
-     1. 层级靠**面的明度 + 描边**分，影只表达「浮起多少」，不表达「是什么」。
-     2. **同屏最多两层带影**（例：弹层 overlay 盖在卡 card 上就到顶了）；
-        第三层要么并到已有层里，要么改用描边 + 明度分。
-     3. **弹层不用磨砂**：overlay 档配不透明面；`--surface-glass` 只给 float 档。 */
-  --shadow-card:
-    0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px -12px rgb(0 0 0 / 0.18);
-  --shadow-float:
-    0 1px 2px rgb(0 0 0 / 0.05), 0 8px 28px -12px rgb(0 0 0 / 0.32);
-  --shadow-overlay:
-    0 1px 2px rgb(0 0 0 / 0.06), 0 18px 44px -18px rgb(0 0 0 / 0.38);
-  --shadow-pressed: 0 1px 2px rgb(0 0 0 / 0.04);
+     加一档要同步 `src/lib/utils.ts` 的 tailwind-merge 名单。 */
+  --shadow-ring: var(--elevation-ring);
+  --shadow-soft: var(--elevation-soft);
+  --shadow-seg: var(--elevation-seg);
+  --shadow-card: var(--elevation-card);
+  --shadow-lift: var(--elevation-lift);
+  --shadow-pop: var(--elevation-pop);
+  --shadow-bar: var(--elevation-bar);
+  --shadow-media-action: var(--elevation-media-action);
+  --shadow-focus: var(--elevation-focus);
+  /* 旧名「float」（工具条 / 胶囊 / 台输入框 / 图格悬停）：值已换成九种里的 `lift`，
+     那几块各自照规范重做时换成九种的名字，换完删掉这一行。 */
+  --shadow-float: var(--elevation-lift);
 
   /* 应用壳主卡：灰底上的白卡（app-shell.md §2 材质）。
      只做左缘浮起、上右下贴边 —— 四面留边会让任何用 `100svh` 的子页面
@@ -325,12 +358,12 @@
      散更浅，换成 overlay 会把它读成临时弹层。 */
   --shadow-assistant-panel:
     0 1px 2px rgb(0 0 0 / 0.04), 0 24px 56px -28px rgb(0 0 0 / 0.3);
-  --shadow-assistant-overlay: var(--shadow-overlay);
+  --shadow-assistant-overlay: var(--shadow-pop);
   /* 属 **float** 档。⚠ 不 alias：扩散 26px/-18px 比通用 float 更收，在浅色面板
      里多张卡并排时才不糊。 */
   --shadow-assistant-raised:
     0 1px 2px rgb(0 0 0 / 0.05), 0 10px 26px -18px rgb(0 0 0 / 0.35);
-  --shadow-assistant-card: var(--shadow-pressed);
+  --shadow-assistant-card: var(--shadow-ring);
 
   --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
   --duration-fast: 120ms;
@@ -394,7 +427,7 @@
     0 2px 4px rgb(0 0 0 / 0.05), 0 26px 60px -22px rgb(0 0 0 / 0.3);
   /* 浮层（工具条 / 右键菜单 / transport）的影：比卡更聚更深一点。 */
   --shadow-node-chrome: var(--shadow-float);
-  --shadow-node-menu: var(--shadow-overlay);
+  --shadow-node-menu: var(--shadow-pop);
   /* 卡内三档字距（层级靠字号 + 字重 + 字距，⛔ 不靠颜色）。 */
   --tracking-node-title: -0.012em;
   --tracking-node-sec: -0.008em;
@@ -477,6 +510,21 @@
     100% {
       box-shadow: 0 0 0 var(--distance)
         oklch(from var(--pulse-color, var(--bg)) l c h / 0);
+    }
+  }
+  /* 转圈 = 三个点依次变深（ui-spec.md §9「转圈」⑲）：1.2s 一轮，三点各差 0.2s，
+     只动 opacity；减少动效时不动（`Spinner` 配 `motion-reduce:animate-none`）。 */
+  --animate-spinner-dot-1: spinner-dot 1.2s var(--ease-standard) infinite;
+  --animate-spinner-dot-2: spinner-dot 1.2s var(--ease-standard) 0.2s infinite;
+  --animate-spinner-dot-3: spinner-dot 1.2s var(--ease-standard) 0.4s infinite;
+  @keyframes spinner-dot {
+    0%,
+    60%,
+    100% {
+      opacity: 0.25;
+    }
+    30% {
+      opacity: 1;
     }
   }
   /* 助手「正在思考」那三颗点（D12 R-C）：1.2s 一轮，三点错峰起伏 3px，只动 transform。 */
@@ -618,34 +666,84 @@
      改写到输入框上沿之上（owner 2026-10-08「提示与弹窗」）。 */
   --toast-offset-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
 
-  /* ── Light palette — Krea light tokens ──────────────────────────────── */
-  --background: oklch(100% 0 0);
-  --foreground: oklch(14.5% 0 0);
+  /* ── 素档（界面规范 ui-spec.md §3.3，owner 2026-10-24）────────────────
+     规范名 → 这里的老名字：panel = --background / --card · float = --popover ·
+     fill = --muted · ink = --foreground · ink-3 = --muted-foreground ·
+     line / line-strong = --border / --input · 当前那一行 row-selected = --accent。
+     ⚠ 对比度（WCAG 2.x，2026-10-25 逐对算）：
+       ink #101216：对 panel 18.75 · fill 17.04 · fill-strong 16.13 · ground 15.16
+       ink-2 #454a52：对 panel 8.92 · fill-strong 7.67
+       ink-3 #5d626b：对 panel 6.13 · fill 5.57 · fill-strong 5.28 · ground 4.96
+       danger #b3261e 对白 6.54（白字对它同值）；highlight #3346e8 对白 6.60 · 对 fill 6.00 */
+  --background: #ffffff;
+  --foreground: #101216;
 
-  --card: oklch(100% 0 0);
-  --card-foreground: oklch(14.5% 0 0);
-  --popover: oklch(100% 0 0);
-  --popover-foreground: oklch(14.5% 0 0);
+  --card: #ffffff;
+  --card-foreground: #101216;
+  --popover: #ffffff;
+  --popover-foreground: #101216;
 
-  --primary: oklch(0% 0 0);
-  --primary-foreground: oklch(100% 0 0);
+  --primary: #101216;
+  --primary-foreground: #ffffff;
 
-  --secondary: oklch(97% 0 0);
-  --secondary-foreground: oklch(20.5% 0 0);
+  --secondary: #f3f4f6;
+  --secondary-foreground: #101216;
 
-  --muted: oklch(97% 0 0);
-  /* 2026-09-03 由 55.6% 压到 52%：原值在 --muted(#f5f5f5) 上只有 4.35，不到 AA。
-     现值 #696969：对白 5.49 · 对 muted(#f5f5f5) 5.04 · 对 surface-sunken(#ebebeb) 4.61。 */
-  --muted-foreground: oklch(52% 0 0);
+  --muted: #f3f4f6;
+  --muted-foreground: #5d626b;
 
-  --accent: oklch(97% 0 0);
-  --accent-foreground: oklch(20.5% 0 0);
+  --accent: var(--row-selected);
+  --accent-foreground: #101216;
 
-  --destructive: oklch(57.7% 0.245 27.325);
+  /* = danger（规范里红色只有这一个）。 */
+  --destructive: #b3261e;
 
-  --border: oklch(92.2% 0 0);
-  --input: oklch(92.2% 0 0);
-  --ring: oklch(70.8% 0 0);
+  --border: rgb(16 18 24 / 0.07);
+  --input: rgb(16 18 24 / 0.14);
+  /* 焦点环的颜色 = highlight（ui-spec.md §8）。 */
+  --ring: var(--highlight);
+
+  /* 界面规范新加的那几色（意思见 ui-spec.md §3.3 那张表）。 */
+  --fill-strong: #eceef1;
+  --raise: #ffffff;
+  --row-selected: #eef0f3;
+  --hover-overlay: rgb(128 128 128 / 0.13);
+  --ink-2: #454a52;
+  --on-primary-soft: rgb(255 255 255 / 0.16);
+  --on-primary-line: rgb(255 255 255 / 0.36);
+  --highlight: #3346e8;
+  --on-highlight: #ffffff;
+  --highlight-soft: rgb(51 70 232 / 0.1);
+  --bubble: #f0f1f4;
+  --media-chip: rgb(255 255 255 / 0.88);
+  --on-media-chip: #101216;
+  --knob: #ffffff;
+  --scrim: rgb(16 18 24 / 0.32);
+  --grid-line: rgb(16 18 24 / 0.1);
+  --viewport-top: #fafbfc;
+  --viewport-bottom: #e3e6eb;
+  --on-danger: #ffffff;
+  --danger-on-primary: #e06c65;
+
+  /* 九种阴影的定值（接线与用途见 `@theme inline`）。bar / media-action / focus
+     两档一样，只在这里写一遍。 */
+  --elevation-ring:
+    0 0 0 1px rgb(16 18 24 / 0.06), 0 1px 2px rgb(16 18 24 / 0.04);
+  --elevation-soft:
+    0 0 0 1px rgb(16 18 24 / 0.06), 0 1px 2px rgb(16 18 24 / 0.08),
+    0 2px 6px rgb(16 18 24 / 0.05);
+  --elevation-seg:
+    0 0 0 0.5px rgb(16 18 24 / 0.04), 0 2px 6px rgb(16 18 24 / 0.1);
+  --elevation-card:
+    0 0 0 1px rgb(16 18 24 / 0.05), 0 2px 6px rgb(16 18 24 / 0.05),
+    0 12px 28px rgb(16 18 24 / 0.08);
+  --elevation-lift: 0 6px 24px rgb(16 18 24 / 0.06);
+  --elevation-pop:
+    0 0 0 1px rgb(16 18 24 / 0.05), 0 12px 32px rgb(16 18 24 / 0.14);
+  --elevation-bar:
+    0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --elevation-media-action: 0 1px 3px rgb(0 0 0 / 0.18);
+  --elevation-focus: 0 0 0 2px var(--background), 0 0 0 4px var(--highlight);
 
   --chart-1: oklch(64.6% 0.222 41.116);
   --chart-2: oklch(60% 0.118 184.704);
@@ -653,26 +751,25 @@
   --chart-4: oklch(82.8% 0.189 84.429);
   --chart-5: oklch(76.9% 0.188 70.08);
 
-  /* ── 浅底三层（ui-defaults.md §2.2，owner 2026-09-03）────────────────
-     --background 纯白 · --muted 97% · --surface-sunken 94%。全站只有这三种浅底；
-     首页 / LoRA / 壳都 alias 到它们，域不得再造第四种。 */
-  --surface-sunken: #ebebeb; /* = oklch(94% 0 0)，写 hex 是为了下面的对比度表可复算 */
+  /* 壳 = 规范的 ground（白板之间露出来的缝）。层次：ground → panel → fill →
+     fill-strong，浮起来的另有 raise / float（ui-spec.md §3.2）。 */
+  --surface-sunken: #e6e7ea;
 
   /* ── 应用壳「分段浮岛」— 施工基准 docs/references/pages/app-shell.md §4 ──
-     壳底 2026-09-03 从冷灰 #e4e7ec 改为中性 --surface-sunken(#ebebeb)，
-     对比度已在 #ebebeb 上重算（scratchpad contrast.mjs，WCAG 2.x 公式）。
+     壳底跟着 --surface-sunken 走（2026-10-25 换成规范的 ground #e6e7ea），
+     对比度在 #e6e7ea 上重算过（WCAG 2.x 公式）。
      ⚠ hover 与 active 必须反极性 —— accent 往暗走、active-surface 往亮走。
      两者同向时只有 1.1:1（算过），等于把「hover 任一项都长得像当前项」
      这个 bug 换身浅色衣服重犯一遍。 */
   --sidebar: var(--surface-sunken); /* 壳底，主卡浮在它上面 */
-  --sidebar-foreground: #454c55; /* 未选中标签 7.29:1 */
-  --sidebar-subtle: #555d67; /* 段标题 11px 大写 5.60:1 */
-  --sidebar-primary: #0b0e12; /* 激活墨 / 竖条 / focus 环 16.22:1 */
+  --sidebar-foreground: #454c55; /* 未选中标签 7.02:1 */
+  --sidebar-subtle: #555d67; /* 段标题 11px 大写 5.40:1 */
+  --sidebar-primary: #0b0e12; /* 激活墨 / 竖条 / focus 环 15.64:1 */
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: rgb(11 14 18 / 0.055); /* hover：往暗 */
   --sidebar-accent-strong: rgb(11 14 18 / 0.09); /* pressed */
   --sidebar-accent-foreground: #0b0e12;
-  /* 激活浮片。⚠ 对壳底只有 1.19:1 —— 浅壳里「面对面」物理上到不了 3:1
+  /* 激活浮片。⚠ 对壳底只有 1.24:1 —— 浅壳里「面对面」物理上到不了 3:1
      （试到 #dce1e8 也只有 1.31），所以它只做材质、不承重状态语义。
      承重的是 --sidebar-primary 的竖条与墨色跃迁。 */
   --sidebar-active-surface: #ffffff;
@@ -682,9 +779,6 @@
      展开 / 收起同一档（owner 2026-10-08 侧栏原型 v1：收展时图标不动）——
      收起 40 = 4 + 32 + 4，`AppSidebar` 的分组 `px-1` 与它同值。 */
   --sidebar-rail-gutter: 0.25rem;
-
-  --overlay-chip: oklch(100% 0 0 / 0.1);
-  --overlay-chip-foreground: oklch(100% 0 0 / 0.7);
 
   --surface-elevated: color-mix(in oklab, var(--card) 92%, var(--background));
   --surface-soft: color-mix(in oklab, var(--secondary) 78%, var(--background));
@@ -914,18 +1008,19 @@ html:lang(ja) {
    `<html>` 挂 `.dark` = 用户在头像菜单里选了「暗房」，只在 `(main)` 里挂（首页 /
    登录 / 条款一直素）—— 见 `src/lib/theme.ts`。画布修图台这类媒体观看面自己挂
    `.dark`，也吃这一套。
-   值照 9f 方向 E 样件的暗房：近黑的壳、深灰面板、偏暖的米白字；⛔ 样件里的橙色
-   强调不进来（全站强调色仍只有 --primary，暗房里是米白）。
+   值照界面规范的暗房（ui-spec.md §3.3）：近黑的壳、深灰面板、偏暖的米白字；
+   强调色 highlight 也是米白（⛔ 橙）。
    层次与素档一一对应：壳 --surface-sunken #060607 · 面板 --background / --card
-   #111214 · 次级面 --muted #191a1d / --secondary · --accent #1f2023 · 浮层
-   --popover #191a1d（暗底上投影几乎看不见，浮层靠亮一档分层）。
+   #111214 · fill --muted #191a1d · fill-strong #1f2023（= --secondary）· 浮层
+   --popover #191a1d（暗底上投影几乎看不见，浮层靠亮一档分层，浮层里的浅底块
+   再升一档，见下方「叠一层亮一档」）。
    ⚠ 对比度（contrast-check，2026-10-24，WCAG 2.x 逐对算）：
      --foreground #ecebe7：对壳 16.98 · 面板 15.71 · #191a1d 14.59 · #1f2023 13.66
      --muted-foreground #8e8c86：对壳 6.02 · 面板 5.57 · #191a1d 5.18 · #1f2023 4.84
        （最差一对仍过 AA 4.5）
      --primary-foreground #111214 对 --primary #ecebe7：15.71
-     --destructive #ff6467：对面板 6.53 · 对 #1f2023 5.67
-     --border 白 7%（合成 #222324）对面板 1.19、--input 白 13% 1.44 —— 与素档
+     --destructive #e06c65：对面板 5.80 · 对 #1f2023 5.04
+     --border 白 6% 对面板约 1.16、--input 白 13% 1.44 —— 与素档
      --border 1.26 同性质，装饰性分层线，⛔ 拿它承重信息。 */
 .dark {
   color-scheme: dark;
@@ -947,10 +1042,11 @@ html:lang(ja) {
   --muted: #191a1d;
   --muted-foreground: #8e8c86;
 
-  --accent: #1f2023;
+  --accent: var(--row-selected);
   --accent-foreground: #ecebe7;
 
-  --destructive: oklch(70.4% 0.191 22.216);
+  /* = danger（暗房档；它上面的字用 --on-danger 近黑，对它 5.80）。 */
+  --destructive: #e06c65;
 
   /* 「已应用」暗面档。⚠ 不是浅面那三个值的复制 —— 见 :root 里的说明：
      #16794c 在暗面上只有 1.91。暗房面板 #111214 上（2026-10-24 重算）：
@@ -965,9 +1061,43 @@ html:lang(ja) {
   --status-warning: #f0b25a;
   --status-warning-surface: #3a2a10;
 
-  --border: rgb(255 255 255 / 0.07);
+  --border: rgb(255 255 255 / 0.06);
   --input: rgb(255 255 255 / 0.13);
-  --ring: #8e8c86;
+  --ring: var(--highlight);
+
+  /* 界面规范新加的那几色 · 暗房档（ui-spec.md §3.3）。暗底上影子看不见，靠亮度
+     分层：ground #060607 → panel #111214 → fill / float #191a1d → fill-strong
+     #1f2023 → raise #26272b。⚠ ink-3 #8e8c86 对 raise 只有 4.44 —— ⛔ 灰字放在
+     raise 上（对 fill-strong 4.84 仍过）。 */
+  --fill-strong: #1f2023;
+  --raise: #26272b;
+  --row-selected: #1c1d20;
+  --ink-2: #b1afa9;
+  --on-primary-soft: rgb(17 18 20 / 0.16);
+  --on-primary-line: rgb(17 18 20 / 0.5);
+  --highlight: #ecebe7;
+  --on-highlight: #111214;
+  --highlight-soft: rgb(236 235 231 / 0.12);
+  --bubble: #1d1e21;
+  --media-chip: rgb(10 10 12 / 0.74);
+  --on-media-chip: #ecebe7;
+  --knob: #ecebe7;
+  --scrim: rgb(0 0 0 / 0.6);
+  --grid-line: rgb(255 255 255 / 0.08);
+  --viewport-top: #232428;
+  --viewport-bottom: #0d0e10;
+  --on-danger: #111214;
+  --danger-on-primary: #b3261e;
+
+  --elevation-ring: 0 0 0 1px rgb(255 255 255 / 0.05);
+  --elevation-soft:
+    0 0 0 1px rgb(255 255 255 / 0.06), 0 1px 2px rgb(0 0 0 / 0.4);
+  --elevation-seg:
+    0 0 0 1px rgb(255 255 255 / 0.06), 0 1px 2px rgb(0 0 0 / 0.4);
+  --elevation-card: 0 0 0 1px rgb(255 255 255 / 0.13);
+  --elevation-lift: 0 10px 30px rgb(0 0 0 / 0.35);
+  --elevation-pop:
+    0 0 0 1px rgb(255 255 255 / 0.13), 0 16px 40px rgb(0 0 0 / 0.55);
 
   --chart-1: oklch(48.8% 0.243 264.376);
   --chart-2: oklch(69.6% 0.17 162.48);
@@ -994,9 +1124,6 @@ html:lang(ja) {
   --sidebar-active-surface: #1f2023;
   --sidebar-border: rgb(255 255 255 / 0.06);
   --sidebar-ring: #ecebe7;
-
-  --overlay-chip: oklch(100% 0 0 / 0.4);
-  --overlay-chip-foreground: oklch(100% 0 0);
 
   /* 「要你动手的那张卡」的描边：比 --border 深一档（白 13%，样件 line2）。 */
   --assistant-line-strong: rgb(255 255 255 / 0.13);
@@ -1029,6 +1156,25 @@ html:lang(ja) {
   --modality-image: oklch(78% 0.09 292);
   --modality-video: oklch(78% 0.1 255);
   --modality-audio: oklch(78% 0.1 10);
+}
+
+/* ── 暗房里叠一层亮一档（ui-spec.md §3.2）──────────────────────────────
+   暗房的浮层 --popover 和 fill（--muted）同是 #191a1d：浮层里的浅底块（搜索框、
+   药丸、当前那一行、小签）要从 fill-strong 起，所以在这几个浮层里把 --muted /
+   --accent 升到 fill-strong —— 浮层里照常写 `bg-muted` / `bg-accent`，暗房自己升。
+   不是这几个 slot 的自制浮层挂 `data-float`。素档两档都是白，不动。 */
+.dark
+  :where(
+    [data-slot='popover-content'],
+    [data-slot='dropdown-menu-content'],
+    [data-slot='dropdown-menu-sub-content'],
+    [data-slot='select-content'],
+    [data-slot='dialog-content'],
+    [data-slot='alert-dialog-content'],
+    [data-float]
+  ) {
+  --muted: var(--fill-strong);
+  --accent: var(--fill-strong);
 }
 
 @layer base {
@@ -2826,6 +2972,13 @@ html:lang(ja) {
   backdrop-filter: saturate(180%) blur(24px);
 }
 
+/* 悬停一律叠同一层 hover-overlay（ui-spec.md §8），⛔ 另配 hover 色：
+   `hover:tint-hover` 在任何底色上叠一层灰，底色本身不动（黑钮、白药丸、浅灰药丸
+   都是同一句）。叠的是 background-image，所以和 `bg-*` 底色并存。 */
+@utility tint-hover {
+  background-image: linear-gradient(var(--hover-overlay), var(--hover-overlay));
+}
+
 /* ── 助手面板玻璃仪表的两个材质工具类（pages/assistant-shell-v2.md §12.1）──
    `assistant-glass-panel`：面板本体，86% 白 + 轻模糊（18px，比浮层的 24px 浅
    一档 —— 它铺的面积最大，模糊越重滚动时越贵）。
@@ -3543,7 +3696,8 @@ html:lang(ja) {
    · 近黑底白字的小条，单行时是药丸；居中、宽度跟着字走。
    · 折叠堆叠（最多 3 条）：sonner 负责把旧的往上推、缩小；这里补「变淡」，并把
      后面那几条的内容藏起来（只露一道边）。
-   · 失败 = 红点（`.toast-bar-dot`），⛔ 整条变红；动作只一颗（查看 / 撤销 / 重试）。 */
+   · 失败 = 红点（`.toast-bar-dot`，`danger-on-primary`），⛔ 整条变红；动作只一颗
+     （查看 / 撤销 / 重试），28 高的药丸带一圈 `on-primary-line` 的框（ui-spec.md §9）。 */
 [data-sonner-toaster] [data-sonner-toast].toast-bar {
   left: 0;
   right: 0;
@@ -3556,14 +3710,12 @@ html:lang(ja) {
   gap: 0.625rem;
   padding: 0.5rem 0.5rem 0.5rem 0.875rem;
   border-radius: 1.25rem;
-  background: var(--foreground);
-  color: var(--background);
+  background: var(--primary);
+  color: var(--primary-foreground);
   font-family: var(--font-stack-sans);
   font-size: 0.8125rem;
   line-height: 1.4;
-  box-shadow:
-    0 10px 15px -3px rgb(0 0 0 / 0.1),
-    0 4px 6px -4px rgb(0 0 0 / 0.1);
+  box-shadow: var(--elevation-bar);
 }
 [data-sonner-toaster]
   [data-sonner-toast].toast-bar:not(
@@ -3606,24 +3758,25 @@ html:lang(ja) {
 }
 .toast-bar-description {
   font-size: 0.75rem;
-  color: color-mix(in oklab, var(--background) 72%, transparent);
+  color: color-mix(in oklab, var(--primary-foreground) 72%, transparent);
 }
 [data-sonner-toaster] [data-sonner-toast].toast-bar .toast-bar-action,
 [data-sonner-toaster] [data-sonner-toast].toast-bar .toast-bar-cancel {
   flex-shrink: 0;
   height: 1.75rem;
   padding-inline: 0.75rem;
+  border: 1px solid var(--on-primary-line);
   border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 500;
-  color: var(--background);
-  background: color-mix(in oklab, var(--background) 16%, transparent);
+  color: var(--primary-foreground);
+  background: transparent;
   cursor: pointer;
   transition: background-color var(--duration-fast) var(--ease-standard);
 }
 [data-sonner-toaster] [data-sonner-toast].toast-bar .toast-bar-action:hover,
 [data-sonner-toaster] [data-sonner-toast].toast-bar .toast-bar-cancel:hover {
-  background: color-mix(in oklab, var(--background) 26%, transparent);
+  background: var(--on-primary-soft);
 }
 [data-sonner-toaster]
   [data-sonner-toast].toast-bar
@@ -3631,7 +3784,7 @@ html:lang(ja) {
 [data-sonner-toaster]
   [data-sonner-toast].toast-bar
   .toast-bar-cancel:focus-visible {
-  outline: 2px solid var(--background);
+  outline: 2px solid var(--primary-foreground);
   outline-offset: 2px;
 }
 

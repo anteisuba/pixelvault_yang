@@ -463,7 +463,7 @@ export function CanvasOpProposalCard({
                   <Button
                     type="button"
                     size="sm"
-                    variant="outline"
+                    variant="secondary"
                     disabled={runningIndex !== null}
                     onClick={() => void handleConfirmOne(entry)}
                     className="h-8 rounded-lg border-node-panel-inner bg-node-panel-soft px-2 text-2xs text-node-foreground"
@@ -502,7 +502,7 @@ export function CanvasOpProposalCard({
             <Button
               type="button"
               size="sm"
-              variant="outline"
+              variant="secondary"
               onClick={onUndoAutoApply}
               className="h-8 shrink-0 rounded-lg border-node-panel-inner bg-node-panel-soft px-2 text-2xs text-node-foreground"
             >

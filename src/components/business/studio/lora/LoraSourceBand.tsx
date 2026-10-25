@@ -305,7 +305,7 @@ export function LoraSourceBand({
           inert={!floating}
           data-testid="lora-source-band-overlay"
           className={cn(
-            'absolute inset-x-6 top-full mt-1.5 flex origin-top-left flex-col gap-2.5 rounded-2xl bg-card px-4 pt-3.5 pb-4 shadow-overlay ring-1 ring-border/60 transition-[opacity,translate,scale,filter] duration-base ease-standard motion-reduce:transition-opacity',
+            'absolute inset-x-6 top-full mt-1.5 flex origin-top-left flex-col gap-2.5 rounded-2xl bg-card px-4 pt-3.5 pb-4 shadow-pop ring-1 ring-border/60 transition-[opacity,translate,scale,filter] duration-base ease-standard motion-reduce:transition-opacity',
             floating
               ? 'translate-y-0 scale-100 opacity-100 blur-none'
               : 'pointer-events-none -translate-y-2 scale-96 opacity-0 blur-xs',

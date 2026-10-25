@@ -128,7 +128,7 @@ export function AssetEmptySearch({
       <Button
         type="button"
         size="sm"
-        variant="outline"
+        variant="secondary"
         className="coarse:h-11"
         onClick={onClearFilters}
       >

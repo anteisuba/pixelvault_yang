@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 
 // ─── Mocks ──────────────────────────────────────────────────────
@@ -96,7 +96,12 @@ const MESSAGES = {
   Models: {},
   Feedback: {
     downloadStarted: 'Download started',
-    deleteConfirm: 'Confirm delete',
+    deleteDialog: {
+      cancel: 'Cancel',
+      confirm: 'Delete',
+      irreversible: "Once deleted, it can't be recovered.",
+      imageTitle: 'Delete this image?',
+    },
   },
   Toasts: {
     featuredAdded: 'Pinned',
@@ -214,15 +219,15 @@ describe('ImageDetailModal', () => {
     expect(screen.getByText('Delete')).toBeInTheDocument()
   })
 
-  it('deletes only on the second press: the key first stretches into a red confirm', () => {
+  it('deletes only after confirming in the centered dialog', async () => {
     const onDelete = vi.fn()
     const onOpenChange = vi.fn()
     renderModal({ showDelete: true, onDelete, onOpenChange })
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
-    const armed = screen.getByRole('button', { name: 'Confirm delete' })
-    expect(armed).toHaveAttribute('data-feedback', 'danger')
+    const dialog = await screen.findByRole('alertdialog')
+    expect(dialog).toHaveTextContent('Delete this image?')
     expect(onDelete).not.toHaveBeenCalled()
-    fireEvent.click(armed)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
     expect(onDelete).toHaveBeenCalledWith(BASE_GEN.id)
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })

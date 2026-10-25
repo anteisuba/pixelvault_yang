@@ -314,7 +314,7 @@ export function CharacterRoster() {
   const importButton = (
     <Button
       type="button"
-      variant="outline"
+      variant="secondary"
       title={t('importCardHint')}
       disabled={importing}
       className="shrink-0 rounded-full"

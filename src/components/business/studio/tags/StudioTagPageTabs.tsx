@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl'
 import { springTransition } from '@/constants/motion'
 import { cn } from '@/lib/utils'
 import { MoreHorizontal, Plus } from '@/components/icons'
-import { ConfirmDeleteButton } from '@/components/ui/feedback-button'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { ResponsivePopoverContent } from '@/components/ui/responsive-popover'
 import { Switch } from '@/components/ui/switch'
 import {
@@ -208,58 +208,74 @@ function CharacterMenu({
   onRemove: (index: number) => void
 }) {
   const t = useTranslations('StudioTags')
+  const tFeedback = useTranslations('Feedback')
   const [open, setOpen] = useState(false)
+  // 删角色的确认弹窗挂在弹层外面：弹层先关，弹窗再出（⛔ 弹层一关把弹窗一起卸掉）。
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const popoverMotion = useStudioChipPopoverMotion({
     side: 'top',
     align: 'start',
     sideOffset: 8,
   })
   return (
-    <StudioToolSurface open={open} onOpenChange={setOpen}>
-      <StudioToolSurfaceTrigger asChild>
-        <button
-          type="button"
-          disabled={disabled}
-          aria-label={t('tabs.more', { who })}
-          className="absolute top-1/2 right-1 grid size-6 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition-colors duration-fast ease-standard hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-background data-[state=open]:text-foreground"
-        >
-          <MoreHorizontal className="size-3.5" aria-hidden />
-        </button>
-      </StudioToolSurfaceTrigger>
-      <ResponsivePopoverContent
-        label={who}
-        side="top"
-        align="start"
-        sideOffset={8}
-        style={popoverMotion.style}
-        className={cn(
-          studioToolPopoverBaseClass,
-          'w-56 p-2',
-          popoverMotion.className,
-        )}
-        mobileClassName={studioToolSurfaceMobileClass.small}
-      >
-        <div className="flex flex-col gap-0.5">
-          <span className="px-2 pt-1 pb-1.5 text-2xs font-semibold">{who}</span>
-          <label className="flex h-9 items-center justify-between gap-3 rounded-md px-2 text-2xs">
-            {t('tabs.appear')}
-            <Switch
-              checked={enabled}
-              onCheckedChange={(next) => onEnabledChange(index, next)}
-            />
-          </label>
-          <ConfirmDeleteButton
-            confirmLabel={t('tabs.removeConfirm')}
-            onConfirm={() => {
-              setOpen(false)
-              onRemove(index)
-            }}
-            className="h-9 justify-start rounded-md px-2 text-2xs text-status-risk hover:bg-status-risk-surface focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+    <>
+      <StudioToolSurface open={open} onOpenChange={setOpen}>
+        <StudioToolSurfaceTrigger asChild>
+          <button
+            type="button"
+            disabled={disabled}
+            aria-label={t('tabs.more', { who })}
+            className="absolute top-1/2 right-1 grid size-6 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition-colors duration-fast ease-standard hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-background data-[state=open]:text-foreground"
           >
-            {t('removeCharacter', { number: index + 1 })}
-          </ConfirmDeleteButton>
-        </div>
-      </ResponsivePopoverContent>
-    </StudioToolSurface>
+            <MoreHorizontal className="size-3.5" aria-hidden />
+          </button>
+        </StudioToolSurfaceTrigger>
+        <ResponsivePopoverContent
+          label={who}
+          side="top"
+          align="start"
+          sideOffset={8}
+          style={popoverMotion.style}
+          className={cn(
+            studioToolPopoverBaseClass,
+            'w-56 p-2',
+            popoverMotion.className,
+          )}
+          mobileClassName={studioToolSurfaceMobileClass.small}
+        >
+          <div className="flex flex-col gap-0.5">
+            <span className="px-2 pt-1 pb-1.5 text-2xs font-semibold">
+              {who}
+            </span>
+            <label className="flex h-9 items-center justify-between gap-3 rounded-md px-2 text-2xs">
+              {t('tabs.appear')}
+              <Switch
+                checked={enabled}
+                onCheckedChange={(next) => onEnabledChange(index, next)}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false)
+                setConfirmOpen(true)
+              }}
+              className="flex h-9 items-center justify-start rounded-md px-2 text-2xs text-status-risk hover:bg-status-risk-surface focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              {t('removeCharacter', { number: index + 1 })}
+            </button>
+          </div>
+        </ResponsivePopoverContent>
+      </StudioToolSurface>
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={t('tabs.removeTitle', { number: index + 1 })}
+        description={t('tabs.removeDescription')}
+        cancelLabel={tFeedback('deleteDialog.cancel')}
+        confirmLabel={tFeedback('deleteDialog.confirm')}
+        onConfirm={() => onRemove(index)}
+      />
+    </>
   )
 }

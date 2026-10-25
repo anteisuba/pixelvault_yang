@@ -129,7 +129,7 @@ export function ScriptCardBody({
           size="sm"
           className="nodrag"
           // 还没投 = 主动作（近黑）；投过 = 次级，与画板 ②③ 一致。
-          variant={projected ? 'outline' : 'default'}
+          variant={projected ? 'secondary' : 'default'}
           disabled={shots.length === 0 || (projected && pendingCount === 0)}
           onClick={onProject}
         >

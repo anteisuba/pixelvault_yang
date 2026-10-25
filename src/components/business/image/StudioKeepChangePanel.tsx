@@ -88,7 +88,7 @@ export function StudioKeepChangePanel({
                   <Button
                     key={`keep-${tag}`}
                     type="button"
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     aria-pressed={active}
                     data-active={active}
@@ -118,7 +118,7 @@ export function StudioKeepChangePanel({
                   <Button
                     key={`change-${tag}`}
                     type="button"
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     aria-pressed={active}
                     data-active={active}

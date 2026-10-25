@@ -3,11 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { FEEDBACK_TIMING } from '@/constants/motion'
 
-import {
-  ConfirmDeleteButton,
-  FeedbackButton,
-  useButtonFeedback,
-} from './feedback-button'
+import { FeedbackButton, useButtonFeedback } from './feedback-button'
 
 function DownloadKey() {
   const { feedback, show } = useButtonFeedback()
@@ -65,59 +61,5 @@ describe('FeedbackButton', () => {
     expect(
       screen.getByRole('button', { name: 'Uploading 1/3' }),
     ).toHaveAttribute('data-feedback', 'progress')
-  })
-})
-
-describe('ConfirmDeleteButton', () => {
-  beforeEach(() => vi.useFakeTimers())
-  afterEach(() => vi.useRealTimers())
-
-  function renderKey(onConfirm = vi.fn()) {
-    render(
-      <div>
-        <ConfirmDeleteButton
-          aria-label="Delete"
-          confirmLabel="Confirm delete"
-          onConfirm={onConfirm}
-        >
-          Delete
-        </ConfirmDeleteButton>
-        <p>elsewhere</p>
-      </div>,
-    )
-    return onConfirm
-  }
-
-  it('first press stretches into a red confirm; only the second press deletes', () => {
-    const onConfirm = renderKey()
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
-    const armed = screen.getByRole('button', { name: 'Confirm delete' })
-    expect(armed).toHaveAttribute('data-feedback', 'danger')
-    expect(onConfirm).not.toHaveBeenCalled()
-
-    fireEvent.click(armed)
-    expect(onConfirm).toHaveBeenCalledTimes(1)
-    expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
-  })
-
-  it('shrinks back after 3 seconds without deleting', () => {
-    const onConfirm = renderKey()
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
-    act(() => {
-      vi.advanceTimersByTime(FEEDBACK_TIMING.deleteArmMs)
-    })
-    expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
-    expect(onConfirm).not.toHaveBeenCalled()
-  })
-
-  it('shrinks back when pressing anywhere else or Escape', () => {
-    renderKey()
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
-    fireEvent.pointerDown(screen.getByText('elsewhere'))
-    expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
-    fireEvent.keyDown(document, { key: 'Escape' })
-    expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
   })
 })

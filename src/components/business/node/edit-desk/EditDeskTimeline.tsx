@@ -1676,7 +1676,7 @@ function TextClipView({
           'relative flex size-full cursor-grab touch-none select-none items-center gap-1.5 overflow-hidden rounded-sm bg-foreground/10 px-2 text-2xs text-foreground/80 ring-1 ring-inset ring-foreground/15 transition-[box-shadow,opacity] duration-fast hover:ring-foreground/40',
           selected && 'ring-2 ring-primary hover:ring-primary',
           own &&
-            '-translate-y-1 cursor-grabbing shadow-overlay ring-2 ring-primary',
+            '-translate-y-1 cursor-grabbing shadow-pop ring-2 ring-primary',
           // 断挂：挂点那一帧被裁掉了，导出时不出字 —— 半透明留在原处。
           cut && !own && 'opacity-30',
         )}
@@ -2177,7 +2177,7 @@ function ClipView({
           // 拖台词 / 字幕时松手会挂上的那一段：虚线框，与白色选中环分得开。
           hostId === clip.id &&
             'outline-2 outline-offset-1 outline-dashed outline-foreground',
-          lifted && 'cursor-grabbing shadow-overlay ring-2 ring-primary',
+          lifted && 'cursor-grabbing shadow-pop ring-2 ring-primary',
           pending &&
             'outline-1 -outline-offset-1 outline-dashed outline-foreground/40',
           failed &&

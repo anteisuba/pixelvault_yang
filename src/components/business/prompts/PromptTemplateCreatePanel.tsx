@@ -505,7 +505,7 @@ export function PromptTemplateCreatePanel({
               </Button>
               <Button
                 type="button"
-                variant="outline"
+                variant="secondary"
                 className="rounded-full px-5"
                 onClick={resetForm}
                 disabled={isSaving}

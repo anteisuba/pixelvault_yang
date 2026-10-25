@@ -9,7 +9,7 @@ import { Link } from '@/i18n/navigation'
 import { getGenerationPreviewUrl } from '@/lib/generation-media'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 
-import { CopyPromptButton } from '@/components/business/prompts/CopyPromptButton'
+import { CopyButton } from '@/components/ui/copy-button'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import type { GenerationRecord } from '@/types'
@@ -136,9 +136,9 @@ function GalleryPromptCard({
               .filter(Boolean)
               .join(' · ')}
           </span>
-          <CopyPromptButton
-            prompt={generation.prompt}
-            className="relative z-10 ml-auto h-7 shrink-0 rounded-full px-3 text-2xs"
+          <CopyButton
+            text={generation.prompt}
+            className="relative z-10 ml-auto shrink-0"
           />
         </div>
       </div>

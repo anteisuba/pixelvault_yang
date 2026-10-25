@@ -88,7 +88,7 @@ export function LoraSourceRecipeStrip({
         <div className="mt-1.5 flex items-center gap-2">
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             size="xs"
             disabled={disabled || inferenceLoading}
             onClick={onRequestInference}

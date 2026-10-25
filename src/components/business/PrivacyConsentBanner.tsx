@@ -54,7 +54,7 @@ export function PrivacyConsentBanner() {
           </Link>
         </p>
         <div className="flex shrink-0 gap-2">
-          <Button variant="outline" size="sm" onClick={reject}>
+          <Button variant="secondary" size="sm" onClick={reject}>
             {t('rejectAction')}
           </Button>
           <Button size="sm" onClick={accept}>

@@ -5,18 +5,17 @@ import { IconContext } from '@phosphor-icons/react'
 /**
  * Global Phosphor defaults.
  *
- * `weight: 'bold'` is the deliberate pick, not the library default. Measured on
- * the `Minus` glyph: Phosphor draws on a 256 box, lucide strokes 2px on a 24
- * box (= 21.3/256). Phosphor `regular` is a 16/256 bar — 25% thinner than what
- * the app has shipped so far — while `bold` is 24/256, within ~12% of it. Going
- * `regular` would have visibly lightened every icon in the product; `bold`
- * keeps the existing optical weight.
+ * `weight: 'regular'` — the interface spec (ui-spec.md §7, owner 2026-10-24)
+ * draws every icon in the regular 16/256 stroke, the lighter line that sits
+ * with 13px UI text. It replaces the earlier `bold` default, which only existed
+ * to match the stroke of the lucide set the app shipped before Phosphor. Fills
+ * (a saved bookmark) stay per call site via `weight="fill"`.
  *
  * Size is only a fallback: every call site sizes with a `size-*` class, which
  * wins over the context value.
  */
 const ICON_DEFAULTS = {
-  weight: 'bold',
+  weight: 'regular',
   size: 20,
   mirrored: false,
 } as const

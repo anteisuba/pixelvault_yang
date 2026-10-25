@@ -135,7 +135,7 @@ async function MineTab({ clerkId, locale, t }: MineTabProps) {
               <Button asChild className="rounded-full px-5">
                 <Link href={ROUTES.ASSETS}>{t('openAssets')}</Link>
               </Button>
-              <Button asChild variant="outline" className="rounded-full px-5">
+              <Button asChild variant="secondary" className="rounded-full px-5">
                 <Link href={ROUTES.STUDIO}>{t('openStudio')}</Link>
               </Button>
             </div>

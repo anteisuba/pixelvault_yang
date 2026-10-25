@@ -170,7 +170,7 @@ export function LookupSay({
       {action ? (
         <Button
           type="button"
-          variant="outline"
+          variant="secondary"
           size="sm"
           className="mt-1"
           onClick={action.onClick}

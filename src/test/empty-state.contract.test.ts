@@ -5,8 +5,8 @@ import { describe, expect, it } from 'vitest'
 /**
  * 空态落点的机器门（ui-defaults.md §7，进度表 33 ①）。
  *
- * 全站空态只有**一种**长相 —— `src/components/ui/empty-state.tsx` 那五段：
- * 灰底虚线框 → 40px 图标位 → 展示槽标题 → 一句话 → 黑丸主动作。这个门守两件事：
+ * 全站空态只有**一种**长相 —— `src/components/ui/empty-state.tsx` 那张柔影白卡
+ * （ui-spec.md §9「空状态」⑱）：图标格在左 → 15 加粗标题 → 一句话 → 黑色主钮。这个门守两件事：
  *
  *  1. **落点名册**是写死的。新长出一个空态，测试红 —— 逼着作者要么用原语，
  *     要么把它连同「为什么是例外」一起写进这张表（见 EXCEPTIONS）。

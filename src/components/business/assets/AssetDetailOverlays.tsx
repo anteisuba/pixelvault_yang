@@ -97,7 +97,7 @@ export function AssetDetailOverlays({
           <SheetFooter className="px-5 pt-2 pb-5">
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               onClick={() => setIsPublishScopeOpen(false)}
               disabled={isPublishing}
             >

@@ -2150,7 +2150,7 @@ export function KreaAssetBrowser({
               <div
                 aria-hidden
                 className={cn(
-                  'pointer-events-none absolute left-1/2 top-24 z-30 flex -translate-x-1/2 gap-0.5 rounded-full border border-border bg-background p-1 shadow-overlay',
+                  'pointer-events-none absolute left-1/2 top-24 z-30 flex -translate-x-1/2 gap-0.5 rounded-full border border-border bg-background p-1 shadow-pop',
                   'transition-[opacity,filter] duration-fast ease-standard motion-reduce:transition-none',
                   isPinching ? 'opacity-100' : 'opacity-0 blur-xs delay-500',
                 )}
@@ -2232,7 +2232,7 @@ export function KreaAssetBrowser({
                   <>
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="secondary"
                       size="sm"
                       aria-pressed={scopeFolder.pinnedOrder !== null}
                       onClick={() =>

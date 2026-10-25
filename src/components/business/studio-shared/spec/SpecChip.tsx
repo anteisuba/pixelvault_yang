@@ -533,7 +533,7 @@ export function SpecChip({
             sideOffset={8}
             collisionPadding={12}
             data-spec-chip-popover
-            className="w-90 rounded-node-bar border-0 bg-popover p-3 text-foreground ring-1 ring-border shadow-node-menu outline-none"
+            className="w-90 rounded-12 bg-popover p-3 text-foreground shadow-pop outline-none"
           >
             <motion.div
               initial={{

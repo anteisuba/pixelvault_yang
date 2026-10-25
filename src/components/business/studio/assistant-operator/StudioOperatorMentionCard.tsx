@@ -82,7 +82,7 @@ export function StudioOperatorMentionCard({
       aria-label={label}
       data-testid="operator-mention-card"
       data-missing={draft.missing ? 'true' : undefined}
-      className="assistant-mention-card absolute bottom-full z-30 mb-2 flex w-64 max-w-full flex-col gap-2 rounded-xl border border-border bg-popover p-2 text-popover-foreground shadow-md"
+      className="assistant-mention-card absolute bottom-full z-30 mb-2 flex w-64 max-w-full flex-col gap-2 rounded-12 bg-popover p-2 text-popover-foreground shadow-pop"
       style={{ left }}
     >
       <div className="flex items-center gap-2">

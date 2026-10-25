@@ -312,7 +312,8 @@ export type StudioToolSurfaceSize = 'small' | 'action' | 'medium'
 
 export const studioToolPopoverMaxHeightClass = studioDialogMaxHeightClass
 export const studioToolPopoverBaseClass = cn(
-  'rounded-2xl border-border/70 bg-popover/95 shadow-2xl shadow-black/20 backdrop-blur-xl',
+  // 菜单 / 弹层：圆角 12、`float` 底 + `pop` 影（ui-spec.md §9「菜单」）。
+  'rounded-12 bg-popover shadow-pop',
   'data-[state=open]:duration-150 data-[state=closed]:duration-100',
   'data-[side=top]:slide-in-from-bottom-1 data-[side=bottom]:slide-in-from-top-1',
 )

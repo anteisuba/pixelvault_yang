@@ -112,7 +112,7 @@ export function StudioTagSuggestions({
       role="listbox"
       {...{ [TAG_SUGGESTIONS_ATTR]: '' }}
       style={position}
-      className="pointer-events-auto fixed z-50 max-h-60 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-md"
+      className="pointer-events-auto fixed z-50 max-h-60 overflow-y-auto rounded-12 bg-popover p-1 shadow-pop"
     >
       {results.map((result, index) => {
         const tier = getPromptTagPopularityTier(result.tag.popularity)

@@ -1297,7 +1297,7 @@ export function ModelPickerPopover({
             }}
             className={cn(
               // 换到另一行时面板内容糊一下换（选择器原型「渠道面板」）。
-              'picker-row-in rounded-lg border border-border bg-popover p-1.5 shadow-md',
+              'picker-row-in rounded-12 bg-popover p-1.5 shadow-pop',
               compact ? 'w-48' : 'w-model-channel-panel',
             )}
           >
@@ -1432,7 +1432,7 @@ export function ModelPickerPopover({
                     }
                     transition={reduceMotion ? { duration: 0 } : SPRING.slot}
                     className={cn(
-                      'z-50 flex max-h-98 w-75 flex-col rounded-node-bar bg-popover ring-1 ring-border shadow-node-menu',
+                      'z-50 flex max-h-98 w-75 flex-col rounded-12 bg-popover shadow-pop',
                       contentClassName,
                     )}
                   >

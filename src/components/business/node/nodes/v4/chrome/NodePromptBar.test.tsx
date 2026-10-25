@@ -58,7 +58,7 @@ describe('NodePromptBar', () => {
     const menu = document.querySelector(
       '[data-prompt-bar-add-menu]',
     ) as HTMLElement
-    expect(menu).toHaveClass('w-72', 'p-1.5', 'rounded-node-bar')
+    expect(menu).toHaveClass('w-72', 'p-1.5', 'rounded-12', 'shadow-pop')
     expect(menu.style.boxSizing).toBe('content-box')
     expect(screen.getByText('Upload file')).toBeInTheDocument()
   })

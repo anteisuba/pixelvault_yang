@@ -552,7 +552,7 @@ export function CivitaiCommunityBranch({
                 <Search className="size-3.5" aria-hidden />
               </Button>
               {historyOpen && history.length > 0 ? (
-                <div className="absolute left-0 right-0 top-full z-30 mt-1 rounded-lg border border-border bg-popover p-1 text-xs shadow-lg">
+                <div className="absolute left-0 right-0 top-full z-30 mt-1 rounded-12 bg-popover p-1 text-xs shadow-pop">
                   <div className="flex items-center justify-between px-2 py-1 text-2xs uppercase tracking-wide text-muted-foreground">
                     <span className="inline-flex items-center gap-1">
                       <History className="size-3" aria-hidden />

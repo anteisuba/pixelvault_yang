@@ -335,7 +335,7 @@ export function ImageNodeFrame({
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="start"
-                className="w-75 rounded-node-bar border bg-popover p-1.5 shadow-node-menu"
+                className="w-75 rounded-12 bg-popover p-1.5 shadow-pop"
               >
                 {refAddMenu}
               </DropdownMenuContent>

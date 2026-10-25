@@ -19,7 +19,7 @@ export function StudioOperatorSkillMenu({
   return (
     <div
       data-testid="operator-skill-menu"
-      className="assistant-mention-menu absolute inset-x-0 bottom-full z-30 mb-2 flex overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-md"
+      className="assistant-mention-menu absolute inset-x-0 bottom-full z-30 mb-2 flex overflow-hidden rounded-12 bg-popover text-popover-foreground shadow-pop"
       onMouseDown={(event) => event.preventDefault()}
     >
       <div

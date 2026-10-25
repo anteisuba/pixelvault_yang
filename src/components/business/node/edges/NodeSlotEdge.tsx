@@ -215,7 +215,7 @@ export function NodeSlotEdge({
                   initial={menuMotion.initial}
                   animate={menuMotion.animate}
                   exit={menuMotion.exit}
-                  className="absolute left-1/2 top-full z-canvas-chrome mt-1.5 flex -translate-x-1/2 flex-col rounded-xl border bg-popover p-1 shadow-node-menu"
+                  className="absolute left-1/2 top-full z-canvas-chrome mt-1.5 flex -translate-x-1/2 flex-col rounded-12 bg-popover p-1 shadow-pop"
                 >
                   {NODE_EDGE_IMAGE_ROLE_SLOTS.map((candidate) => (
                     <button

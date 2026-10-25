@@ -152,6 +152,10 @@
       "label": "WAI-Illustrious（Runner）",
       "description": "ANTEI Runner による Civitai レシピの忠実な複製 — 元画像と同じチェックポイント・LoRA構成・サンプラー設定を使用。ホスト型モデルが読み込めないコミュニティ LoRA に対応。"
     },
+    "rinFlanimeIllustriousRunner": {
+      "label": "RIN Flanime（Runner）",
+      "description": "ANTEI Runner で RIN Flanime Illustrious v5.0 を実行。フラットなアニメ塗りで、線がきれいで色鮮やか。初回はチェックポイントをダウンロードするため、最初の 1 枚は 1〜2 分ほど長くかかります。"
+    },
     "animaPencilXlRunner": {
       "label": "Anima Pencil-XL（Runner）",
       "description": "ANTEI Runner による Anima Pencil-XL — このチェックポイントにはホスト型エンドポイントが存在しないため、ANTEI 内で生成できる唯一の経路です。"

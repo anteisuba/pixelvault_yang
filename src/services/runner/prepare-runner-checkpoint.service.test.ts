@@ -8,6 +8,7 @@ import { resolveCivitaiCheckpointByReference } from '@/services/civitai-lora.ser
 
 import {
   deriveRunnerCheckpointFilename,
+  prepareOnDemandRunnerCheckpoint,
   prepareRunnerCheckpoint,
   RunnerCheckpointError,
 } from './prepare-runner-checkpoint.service'
@@ -62,9 +63,30 @@ describe('prepareRunnerCheckpoint', () => {
       runnerCheckpoint: {
         filename: 'civitai-ckpt-597138.safetensors',
         downloadUrl: 'https://civitai.com/api/download/models/597138',
+        // 597138 正好是清单里的 Anima Pencil-XL：照它的默认出。
+        defaultsCheckpointId: 'animaPencilXL_v500',
       },
       approximate: false,
     })
+  })
+
+  it('T1: source checkpoint is the selected pre-baked one → no second download', async () => {
+    mockResolve.mockResolvedValueOnce({
+      modelVersionId: 2167369,
+      name: 'v15.0',
+      baseModel: 'Illustrious',
+      downloadUrl: 'https://civitai.com/api/download/models/2167369',
+      sizeKB: 6900000,
+      fileHashAutoV3: 'abc',
+      sha256: null,
+    })
+
+    const res = await prepareRunnerCheckpoint({
+      checkpointVersionId: 2167369,
+      externalModelId: 'waiIllustriousSDXL_v150',
+    })
+
+    expect(res).toEqual({ approximate: false })
   })
 
   it('T2: exact checkpoint unresolvable but name is a supported family → approximate', async () => {
@@ -133,18 +155,60 @@ describe('prepareRunnerCheckpoint', () => {
     })
   })
 
-  it('T1 Anima: a non-turbo DiT version keeps the Anima defaults (no borrowed id)', async () => {
+  it('T1 Anima: an unlisted non-turbo DiT version keeps the Anima defaults (no borrowed id)', async () => {
     mockResolve.mockResolvedValueOnce({
-      modelVersionId: 2945208,
+      modelVersionId: 9999999,
       name: 'base-v1.0',
       baseModel: 'Anima',
-      downloadUrl: 'https://civitai.com/api/download/models/2945208',
+      downloadUrl: 'https://civitai.com/api/download/models/9999999',
       sizeKB: 3900000,
       fileHashAutoV3: 'abc',
       sha256: null,
     })
-    const res = await prepareRunnerCheckpoint({ checkpointVersionId: 2945208 })
+    const res = await prepareRunnerCheckpoint({ checkpointVersionId: 9999999 })
     expect(res.runnerCheckpoint?.defaultsCheckpointId).toBeUndefined()
+  })
+})
+
+describe('prepareOnDemandRunnerCheckpoint', () => {
+  it('builds a fetch spec for a not-preloaded manifest checkpoint', async () => {
+    mockResolve.mockResolvedValueOnce({
+      modelVersionId: 3262295,
+      name: 'v5.0',
+      baseModel: 'Illustrious',
+      downloadUrl: 'https://civitai.com/api/download/models/3262295',
+      sizeKB: 6775430,
+      fileHashAutoV3: 'abc',
+      sha256:
+        'e1e2890ef5469c227fda31a289e336c9338a54ff4f8d751cf98b2fa3c7244fb3',
+    })
+
+    const spec = await prepareOnDemandRunnerCheckpoint(
+      'rinFlanimeIllustrious_v50',
+    )
+
+    expect(mockResolve).toHaveBeenCalledWith({ modelVersionId: 3262295 })
+    expect(spec).toEqual({
+      filename: 'civitai-ckpt-3262295.safetensors',
+      downloadUrl: 'https://civitai.com/api/download/models/3262295',
+      sha256:
+        'e1e2890ef5469c227fda31a289e336c9338a54ff4f8d751cf98b2fa3c7244fb3',
+      defaultsCheckpointId: 'rinFlanimeIllustrious_v50',
+    })
+  })
+
+  it('leaves pre-baked checkpoints alone', async () => {
+    expect(
+      await prepareOnDemandRunnerCheckpoint('waiIllustriousSDXL_v150'),
+    ).toBeUndefined()
+    expect(mockResolve).not.toHaveBeenCalled()
+  })
+
+  it('fails loudly when the download link cannot be resolved', async () => {
+    mockResolve.mockResolvedValueOnce(null)
+    await expect(
+      prepareOnDemandRunnerCheckpoint('rinFlanimeIllustrious_v50'),
+    ).rejects.toBeInstanceOf(RunnerCheckpointError)
   })
 })
 

@@ -573,6 +573,23 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     supportsLora: true,
     timeoutMs: RUNNER_TIMEOUT_MS,
   },
+  // RIN Flanime v5.0——Illustrious 系平涂动画风。不预装进卷：首次出图由 fork 从
+  // Civitai 下到卷上缓存（manifest 的 downloadOnDemand）。
+  {
+    id: AI_MODELS.RIN_FLANIME_ILLUSTRIOUS_RUNNER,
+    cost: 3,
+    adapterType: AI_ADAPTER_TYPES.RUNNER,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.RUNNER),
+    externalModelId: getRunnerCheckpointById('rinFlanimeIllustrious_v50')!.id,
+    outputType: 'IMAGE',
+    available: FEATURE_FLAGS.comfyRunner,
+    officialUrl: 'https://civitai.com/models/1544647?modelVersionId=3262295',
+    qualityTier: 'standard',
+    styleTag: 'anime',
+    imageKind: IMAGE_KIND.LORA_BASE,
+    supportsLora: true,
+    timeoutMs: RUNNER_TIMEOUT_MS,
+  },
   {
     id: AI_MODELS.ANIMA_PENCIL_XL_RUNNER,
     cost: 3,

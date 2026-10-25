@@ -152,6 +152,10 @@
       "label": "WAI-Illustrious (Runner)",
       "description": "Faithful Civitai recipe clone via ANTEI Runner — the same checkpoint, LoRA stack, and sampler settings the source image used, for community LoRAs the hosted model can't load."
     },
+    "rinFlanimeIllustriousRunner": {
+      "label": "RIN Flanime (Runner)",
+      "description": "RIN Flanime Illustrious v5.0 on the ANTEI Runner: a flat-color anime look with clean lines and vivid color. The checkpoint downloads on first use, so the first image takes a minute or two longer."
+    },
     "animaPencilXlRunner": {
       "label": "Anima Pencil-XL (Runner)",
       "description": "Anima Pencil-XL via ANTEI Runner — no hosted endpoint exists for this checkpoint, so this is the only way to generate with it in ANTEI."

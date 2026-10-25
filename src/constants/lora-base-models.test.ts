@@ -5,7 +5,10 @@ import { describe, it, expect } from 'vitest'
 
 import { getModelById } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { getRunnerCheckpointById } from '@/constants/runner-checkpoints'
+import {
+  RUNNER_CHECKPOINTS,
+  getRunnerCheckpointById,
+} from '@/constants/runner-checkpoints'
 import {
   LORA_BASE_FAMILIES,
   LORA_BASE_MODELS,
@@ -278,5 +281,43 @@ describe('canonicalLoraBaseModelLabel', () => {
     expect(canonicalLoraBaseModelLabel('Wan Video 14B t2v')).toBe(
       'Wan Video 14B t2v',
     )
+  })
+})
+
+describe('来源图底模（自动）——SDXL 系四个家族', () => {
+  it.each(['Illustrious', 'Pony', 'SDXL 1.0', 'Anima Pencil XL'])(
+    '%s：第一项是推荐的「自动」，其余都是固定档',
+    (raw) => {
+      const bases = getCompatibleBases(raw)
+      expect(bases[0]?.recipeCheckpointMode).toBe('source')
+      expect(bases[0]?.recommended).toBe(true)
+      expect(bases[0]?.translationKey).toBe('sourceCheckpointAuto')
+      expect(bases.slice(1).length).toBeGreaterThan(0)
+      expect(
+        bases.slice(1).every((base) => base.recipeCheckpointMode === 'fixed'),
+      ).toBe(true)
+      expect(getDefaultBase(raw)?.id).toBe(bases[0]?.id)
+    },
+  )
+
+  it('Illustrious 有 WAI 和 RIN Flanime 两个固定档', () => {
+    expect(
+      getCompatibleBases('Illustrious')
+        .filter((base) => base.recipeCheckpointMode === 'fixed')
+        .map((base) => base.runnerCheckpointId),
+    ).toEqual(['waiIllustriousSDXL_v150', 'rinFlanimeIllustrious_v50'])
+  })
+})
+
+describe('不预装的清单档', () => {
+  it('文件名就是来源图 T1 的命名，两条路共用一份缓存', () => {
+    const onDemand = RUNNER_CHECKPOINTS.filter((c) => c.downloadOnDemand)
+    expect(onDemand.length).toBeGreaterThan(0)
+    for (const checkpoint of onDemand) {
+      expect(checkpoint.civitaiModelVersionId).toBeDefined()
+      expect(checkpoint.filename).toBe(
+        `civitai-ckpt-${checkpoint.civitaiModelVersionId}.safetensors`,
+      )
+    }
   })
 })

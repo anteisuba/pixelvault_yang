@@ -152,6 +152,10 @@
       "label": "WAI-Illustrious（Runner）",
       "description": "通过 ANTEI Runner 忠实复刻 Civitai 来源图配方——同一 checkpoint、同一 LoRA 组合、同一采样器参数，专治托管模型加载不了的社区 LoRA。"
     },
+    "rinFlanimeIllustriousRunner": {
+      "label": "RIN Flanime（Runner）",
+      "description": "通过 ANTEI Runner 跑 RIN Flanime Illustrious v5.0——平涂动画风，线条干净、颜色鲜艳。首次使用要先下载底模，第一张会慢一两分钟。"
+    },
     "animaPencilXlRunner": {
       "label": "Anima Pencil-XL（Runner）",
       "description": "通过 ANTEI Runner 跑 Anima Pencil-XL——这个 checkpoint 没有托管端点，这是在 ANTEI 内生成它的唯一途径。"

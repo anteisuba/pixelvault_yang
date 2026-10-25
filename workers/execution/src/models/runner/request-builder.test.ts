@@ -354,6 +354,24 @@ describe('buildRunnerWorkflowFromRequest', () => {
     expect(workflow.sampler.inputs.scheduler).toBe('normal')
   })
 
+  it('SDXL override that names a manifest entry borrows its defaults (RIN Flanime downloaded on demand)', () => {
+    const workflow = buildRunnerWorkflowFromRequest(
+      baseRequest({
+        externalModelId: 'rinFlanimeIllustrious_v50',
+        checkpointOverrideFilename: 'civitai-ckpt-3262295.safetensors',
+        checkpointOverrideDefaultsId: 'rinFlanimeIllustrious_v50',
+      }),
+      fixedRandomSeed,
+    )
+
+    expect(workflow.checkpoint.inputs.ckpt_name).toBe(
+      'civitai-ckpt-3262295.safetensors',
+    )
+    expect(workflow.sampler.inputs.sampler_name).toBe('euler_ancestral')
+    expect(workflow.sampler.inputs.steps).toBe(25)
+    expect(workflow.sampler.inputs.cfg).toBe(7)
+  })
+
   describe('v4 Anima DiT dispatch (architecture: "anima")', () => {
     it('builds the DiT graph (evidence UNET loader + Qwen CLIP/VAE + ModelSamplingAuraFlow), not CheckpointLoaderSimple', () => {
       const workflow = buildRunnerWorkflowFromRequest(

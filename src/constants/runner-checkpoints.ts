@@ -38,6 +38,11 @@ export interface RunnerCheckpointManifestEntry {
   filename: string
   /** 缺省 = 官方权重不在 Civitai（Krea 2 只发在 HF 的 Comfy-Org/Krea-2）。 */
   civitaiModelVersionId?: number
+  /**
+   * 不预装进卷：出图时 app 按 `civitaiModelVersionId` 下发 checkpoint_to_fetch，fork
+   * 首次从 Civitai 下载后缓存（LRU）。缺省 = 已预装。
+   */
+  downloadOnDemand?: boolean
   recommendedSampler: string
   recommendedScheduler: string
   /**
@@ -63,6 +68,21 @@ export const RUNNER_CHECKPOINTS: readonly RunnerCheckpointManifestEntry[] = [
     civitaiModelVersionId: 2167369,
     recommendedSampler: 'ddim',
     recommendedScheduler: 'normal',
+    clipSkip: 2,
+  },
+  // 不预装：首次出图由 app 下发 checkpoint_to_fetch，fork 从 Civitai 下到卷上缓存。
+  // 文件名同来源图 T1 的命名（`civitai-ckpt-<versionId>`），两条路共用一份缓存。
+  {
+    id: 'rinFlanimeIllustrious_v50',
+    family: 'illustrious',
+    displayName: 'RIN Flanime Illustrious v5.0',
+    filename: 'civitai-ckpt-3262295.safetensors',
+    civitaiModelVersionId: 3262295,
+    downloadOnDemand: true,
+    recommendedSampler: 'euler_ancestral',
+    recommendedScheduler: 'normal',
+    recommendedSteps: 25,
+    recommendedCfg: 7,
     clipSkip: 2,
   },
   {
@@ -168,14 +188,30 @@ export function getRunnerCheckpointById(
   return RUNNER_CHECKPOINTS.find((checkpoint) => checkpoint.id === id)
 }
 
+/** 清单里对应这个 Civitai 版本的那一档（按 `civitaiModelVersionId` 精确比对）。 */
+export function getRunnerCheckpointByCivitaiVersionId(
+  modelVersionId: number,
+): RunnerCheckpointManifestEntry | undefined {
+  return RUNNER_CHECKPOINTS.find(
+    (checkpoint) => checkpoint.civitaiModelVersionId === modelVersionId,
+  )
+}
+
 /**
- * 来源图配方的精确底模（Civitai 下载来的，不在清单里）借哪一档的出图默认：Anima 系
- * 版本名带 turbo 的是步数蒸馏档，照 Anima Turbo 出；其余不借（Worker 用 Anima 通用默认）。
+ * 来源图配方的精确底模（Civitai 下载来的）借哪一档的出图默认：正好是清单里的某一档
+ * 就照它出；Anima 系版本名带 turbo 的是步数蒸馏档，照 Anima Turbo 出；其余不借
+ * （Worker 用架构通用默认）。
  */
 export function getRunnerSourceCheckpointDefaultsId(
   family: string,
   versionName: string,
+  modelVersionId?: number,
 ): string | undefined {
+  const listed =
+    modelVersionId != null
+      ? getRunnerCheckpointByCivitaiVersionId(modelVersionId)
+      : undefined
+  if (listed) return listed.id
   return family === 'anima-dit' && /turbo/i.test(versionName)
     ? 'animaTurbo_v11'
     : undefined

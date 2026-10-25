@@ -538,6 +538,12 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
     negativePrompt: 'supported',
     enhanceHint: `WAI-Illustrious recipe clone on the Comfy runner. Lead with the quality prefix masterpiece, best quality, then character tags, then style and scene, comma separated. A1111/Comfy emphasis like (feature:1.2) is parsed. ${SDXL_TAG_NEGATIVE_DIALECT}`,
   },
+  [AI_MODELS.RIN_FLANIME_ILLUSTRIOUS_RUNNER]: {
+    bestFor: ['anime', 'illustration', 'character-design'],
+    promptStyle: 'tag-based',
+    negativePrompt: 'supported',
+    enhanceHint: `RIN Flanime Illustrious v5.0 on the Comfy runner: a flat-color anime checkpoint (clean line art, vivid saturated color, anime-screencap look). Lead with masterpiece, best quality, then character tags, then style and scene, comma separated; the flat color tag strengthens its signature look. A1111/Comfy emphasis like (feature:1.2) is parsed. ${SDXL_TAG_NEGATIVE_DIALECT}`,
+  },
   [AI_MODELS.ANIMA_PENCIL_XL_RUNNER]: {
     bestFor: ['anime', 'illustration', 'character-design'],
     promptStyle: 'tag-based',
@@ -634,6 +640,7 @@ export const TAG_BASED_PROMPT_MODEL_IDS: ReadonlySet<string> = new Set<string>([
   AI_MODELS.ILLUSTRIOUS_XL,
   AI_MODELS.ANIMA_PENCIL_XL,
   AI_MODELS.ILLUSTRIOUS_RECIPE_CLONE,
+  AI_MODELS.RIN_FLANIME_ILLUSTRIOUS_RUNNER,
   AI_MODELS.ANIMA_PENCIL_XL_RUNNER,
   AI_MODELS.PONY_DIFFUSION_V6,
   AI_MODELS.SDXL_10_RUNNER,

@@ -58,7 +58,10 @@ import { getCivitaiTokenByInternalUserId } from '@/services/civitai-token.servic
 import { findCivitaiLorasWithDownloadDisabled } from '@/services/civitai-lora.service'
 import { generateStorageKey } from '@/services/storage/r2'
 import { prepareRunnerLoras } from '@/services/runner/civitai-lora-to-r2.service'
-import { prepareRunnerCheckpoint } from '@/services/runner/prepare-runner-checkpoint.service'
+import {
+  prepareOnDemandRunnerCheckpoint,
+  prepareRunnerCheckpoint,
+} from '@/services/runner/prepare-runner-checkpoint.service'
 import {
   reconcileStaleGenerationJob,
   STALE_EXECUTION_FAILURE_MESSAGE,
@@ -372,6 +375,8 @@ export async function submitImageGeneration(
       // 分级——T1 解析出精确 checkpoint 供 fork GPU 侧下、T2 标记近似、T3 大声报错。
       // 无引用（非配方生成）则维持现状，用选中的预烤底模。
       const adv = runnerAdvancedParams
+      const runnerExternalModelId =
+        route.externalModelId ?? getExecutionModelId(route.modelId)
       if (
         adv &&
         (adv.checkpointVersionId != null ||
@@ -384,11 +389,35 @@ export async function submitImageGeneration(
             checkpointHash: adv.checkpointHash,
             checkpointName: adv.checkpointName,
             loraBaseModel: adv.loraBaseModel,
+            externalModelId: runnerExternalModelId,
           })
           runnerAdvancedParams = {
             ...adv,
             runnerCheckpoint: prepared.runnerCheckpoint,
             runnerCheckpointApproximate: prepared.approximate || undefined,
+          }
+        } catch (error) {
+          throw new GenerateImageServiceError(
+            'PROVIDER_ERROR',
+            error instanceof Error
+              ? error.message
+              : 'Failed to prepare runner checkpoint',
+            502,
+          )
+        }
+      }
+      // 选中的是不预装的清单档（如 RIN Flanime）且上面没定底模：下发它的下载规格，
+      // fork 首次下载后缓存。
+      if (!runnerAdvancedParams?.runnerCheckpoint) {
+        try {
+          const onDemand = await prepareOnDemandRunnerCheckpoint(
+            runnerExternalModelId,
+          )
+          if (onDemand) {
+            runnerAdvancedParams = {
+              ...runnerAdvancedParams,
+              runnerCheckpoint: onDemand,
+            }
           }
         } catch (error) {
           throw new GenerateImageServiceError(

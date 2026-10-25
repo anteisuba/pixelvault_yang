@@ -41,6 +41,8 @@ export function useOpenCharacterRoom(): {
           kind: VOICE_ROOM_SPEAKER_KIND.VOICE,
           name: chat.character.name,
           coverImage: chat.avatarUrl ?? null,
+          // 从她进来的，人设就是她（同一副嗓子绑着好几个角色时不认错人）。
+          characterCardId: chat.character.id,
         }
         const listed = await listVoiceRoomsAPI()
         const latest = roomsWithSameCast(

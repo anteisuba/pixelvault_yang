@@ -17,6 +17,7 @@ import {
   VOICE_ROOM_POLL_MS,
   VOICE_ROOM_SWITCH_OUT_MS,
   VOICE_ROOM_VOICE_MODEL_STORAGE_KEY,
+  VOICE_ROOM_MUTED_ROOMS_STORAGE_KEY,
   type VoiceRoomMode,
 } from '@/constants/voiceroom'
 import {
@@ -64,6 +65,22 @@ const DEFAULT_DELIVERY: VoiceRoomDeliveryState = {
  * 校验，也把意思说反了。
  */
 /** 记在这台浏览器里的写词模型；读不到（隐私窗口、清过数据）就是「自动」。 */
+/** 关了声音的房间（顶栏 🔇，用户 10-25「按房间记住」）。读不到就当都开着。 */
+function readMutedRooms(): ReadonlySet<string> {
+  try {
+    const parsed: unknown = JSON.parse(
+      window.localStorage.getItem(VOICE_ROOM_MUTED_ROOMS_STORAGE_KEY) ?? '[]',
+    )
+    return new Set(
+      Array.isArray(parsed)
+        ? parsed.filter((id): id is string => typeof id === 'string')
+        : [],
+    )
+  } catch {
+    return new Set()
+  }
+}
+
 function readStoredLlmModel(): AssistantRouteModel {
   try {
     const stored = window.localStorage.getItem(VOICE_ROOM_LLM_MODEL_STORAGE_KEY)
@@ -139,6 +156,9 @@ export interface UseVoiceRoomResult {
   /** 聊天写回复用的文本模型（底部选择器）。配音间单独记，⛔ 不动助手的设置。 */
   llmModel: AssistantRouteModel
   setLlmModel: (model: AssistantRouteModel) => void
+  /** 这间房开着声音没有（顶栏 🔊/🔇，按房间记）。关着 = 聊天回复只打字。 */
+  voiceOn: boolean
+  toggleVoice: () => void
   /** 聊天时助手那一家缺 key：页面就地开那一家的 `QuickSetupDialog`（Hard Rule 8）。 */
   keySetup: AssistantKeySetupTarget | null
   dismissKeySetup: () => void
@@ -203,9 +223,13 @@ export function useVoiceRoom(): UseVoiceRoomResult {
   const [llmModel, setLlmModelState] = useState<AssistantRouteModel>(
     ASSISTANT_ROUTE_MODEL_AUTO,
   )
+  const [mutedRooms, setMutedRooms] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  )
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- 挂载后才读得到浏览器存储（服务端渲染时没有 window）
     setLlmModelState(readStoredLlmModel())
+    setMutedRooms(readMutedRooms())
     setDeliveryState((current) => ({
       ...current,
       modelId: readStoredVoiceModel(),
@@ -219,6 +243,24 @@ export function useVoiceRoom(): UseVoiceRoomResult {
       // 存不住就只管这一次会话。
     }
   }, [])
+  const voiceOn = !activeRoomId || !mutedRooms.has(activeRoomId)
+  const toggleVoice = useCallback(() => {
+    if (!activeRoomId) return
+    setMutedRooms((current) => {
+      const next = new Set(current)
+      if (next.has(activeRoomId)) next.delete(activeRoomId)
+      else next.add(activeRoomId)
+      try {
+        window.localStorage.setItem(
+          VOICE_ROOM_MUTED_ROOMS_STORAGE_KEY,
+          JSON.stringify([...next]),
+        )
+      } catch {
+        // 存不住就只管这一次会话。
+      }
+      return next
+    })
+  }, [activeRoomId])
   const [keySetup, setKeySetup] = useState<AssistantKeySetupTarget | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -458,6 +500,7 @@ export function useVoiceRoom(): UseVoiceRoomResult {
           speakerId,
           text,
           llmModel,
+          voice: voiceOn,
           ...toDeliveryPayload(delivery),
         },
         {
@@ -482,7 +525,7 @@ export function useVoiceRoom(): UseVoiceRoomResult {
       else if (result.error) setError(result.error)
       return userLanded
     },
-    [activeRoomId, delivery, llmModel],
+    [activeRoomId, delivery, llmModel, voiceOn],
   )
 
   const retake = useCallback(
@@ -541,6 +584,8 @@ export function useVoiceRoom(): UseVoiceRoomResult {
     setMode,
     llmModel,
     setLlmModel,
+    voiceOn,
+    toggleVoice,
     keySetup,
     dismissKeySetup,
     error,

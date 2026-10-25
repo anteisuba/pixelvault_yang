@@ -42,6 +42,8 @@ export function VoiceRoomPage() {
     setMode,
     llmModel,
     setLlmModel,
+    voiceOn,
+    toggleVoice,
     keySetup,
     dismissKeySetup,
     error,
@@ -123,6 +125,8 @@ export function VoiceRoomPage() {
             onModeChange={setMode}
             llmModel={llmModel}
             onLlmModelChange={setLlmModel}
+            voiceOn={voiceOn}
+            onToggleVoice={toggleVoice}
             keySetup={keySetup}
             onDismissKeySetup={dismissKeySetup}
             error={error}

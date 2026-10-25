@@ -38,6 +38,7 @@ import { VoiceRoomDelivery } from './VoiceRoomDelivery'
  *
  * 再点一下已经选中的头像 → 小菜单「移出房间」（owner 10-23：请进来的人得能请出去）。
  * 头像多了这一行左右滑，⛔ 不挤输入框；手机上头像单独一行（`voiceroom.css`）。
+ * 请人进来在顶栏「＋ 加人」（用户 10-25：加人是管房间的，⛔ 不放输入行）。
  * 聊天时头像后面多一颗「写词模型」（助手那颗 chip，值是配音间自己记的那份）。
  */
 
@@ -54,7 +55,6 @@ interface VoiceRoomComposerProps {
   onSelect: (speakerId: string) => void
   /** 把这位移出房间（班底里删掉；她说过的话留着）。 */
   onRemove: (speakerId: string) => void
-  onOpenCasting: () => void
   onSubmit: (text: string) => Promise<boolean>
 }
 
@@ -70,7 +70,6 @@ export function VoiceRoomComposer({
   onLlmModelChange,
   onSelect,
   onRemove,
-  onOpenCasting,
   onSubmit,
 }: VoiceRoomComposerProps) {
   const t = useTranslations('VoiceRoom')
@@ -158,17 +157,6 @@ export function VoiceRoomComposer({
             </DropdownMenu>
           )
         })}
-        <button
-          type="button"
-          className="vr-pick vr-pick-add"
-          onClick={onOpenCasting}
-          title={t('addVoice')}
-          aria-label={t('addVoice')}
-        >
-          <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>
-            <path d="M5 0v10M0 5h10" stroke="currentColor" strokeWidth="1.4" />
-          </svg>
-        </button>
       </div>
 
       {chatting ? (

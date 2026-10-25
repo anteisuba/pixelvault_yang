@@ -90,6 +90,9 @@ export const VOICE_ROOM_LLM_MODEL_STORAGE_KEY = 'antei:voiceroom:llm-model'
  * 丢了就回到 `VOICE_ROOM_DEFAULT_VOICE_MODEL`。
  */
 export const VOICE_ROOM_VOICE_MODEL_STORAGE_KEY = 'antei:voiceroom:voice-model'
+
+/** 关了声音的房间 id（顶栏 🔇，按房间记，用户 10-25）。只记关着的：新房间默认出声。 */
+export const VOICE_ROOM_MUTED_ROOMS_STORAGE_KEY = 'antei:voiceroom:muted-rooms'
 export const VOICE_ROOM_DEFAULT_VOICE_MODEL = AI_MODELS.FISH_AUDIO_S2_PRO_FREE
 
 /**

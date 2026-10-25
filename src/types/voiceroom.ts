@@ -44,6 +44,11 @@ export const VoiceRoomCastMemberSchema = z.object({
   kind: z.enum(VOICE_ROOM_SPEAKER_KINDS),
   name: z.string().min(1).max(120),
   coverImage: z.string().max(2_000).nullable().optional(),
+  /**
+   * 这间房里她用哪张角色卡当人设（顶栏「人设：X ▾」，用户 10-25）。只管这一间、⛔ 不换嗓子。
+   * 不传 = 照旧按嗓子找绑着它的角色（最近改过的那张）。
+   */
+  characterCardId: z.string().min(1).max(200).nullable().optional(),
 })
 
 export type VoiceRoomCastMember = z.infer<typeof VoiceRoomCastMemberSchema>
@@ -256,6 +261,11 @@ export const VoiceRoomChatRequestSchema = VoiceLineDeliverySchema.extend({
    * 配音间单独记一份，⛔ 不改助手的设置；不传 = 跟助手走。
    */
   llmModel: z.enum(ASSISTANT_ROUTE_MODEL_VALUES).optional(),
+  /**
+   * 这间房开着声音没有（顶栏 🔊/🔇，按房间记在浏览器里）。`false` = 她只打字，⛔ 不派声音，
+   * 气泡上给「念出来」；不传 = 照旧出声。
+   */
+  voice: z.boolean().optional(),
 })
 
 export type VoiceRoomChatRequest = z.infer<typeof VoiceRoomChatRequestSchema>

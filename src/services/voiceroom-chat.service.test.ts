@@ -148,6 +148,52 @@ describe('streamVoiceRoomChat', () => {
     })
   })
 
+  it('only types when the room has its voice off', async () => {
+    const response = await streamVoiceRoomChat(
+      'clerk-1',
+      { ...REQUEST, voice: false },
+      new AbortController().signal,
+    )
+    const events = await readEvents(response)
+
+    expect(events.map((item) => item.event)).toEqual([
+      'user',
+      'delta',
+      'delta',
+      'reply',
+    ])
+    expect(mocks.dispatchLine).not.toHaveBeenCalled()
+    expect(mocks.appendVoiceLine.mock.calls[1][1]).toMatchObject({
+      text: '在的。',
+      jobId: null,
+    })
+  })
+
+  it('uses the character card picked for this room before the voice binding', async () => {
+    mocks.db.voiceRoom.findFirst.mockResolvedValue({
+      id: 'room-1',
+      cast: [{ ...CAST[0], characterCardId: 'card-yuki' }, CAST[1]],
+      _count: { lines: 0 },
+    })
+    mocks.db.characterCard.findFirst.mockResolvedValueOnce({
+      name: 'Yuki',
+      persona: {},
+    })
+    const response = await streamVoiceRoomChat(
+      'clerk-1',
+      REQUEST,
+      new AbortController().signal,
+    )
+    await readEvents(response)
+
+    expect(
+      mocks.db.characterCard.findFirst.mock.calls[0][0].where,
+    ).toMatchObject({ id: 'card-yuki', isDeleted: false })
+    expect(mocks.llmTextStream.mock.calls[0][0].systemPrompt).toContain(
+      'You are Yuki',
+    )
+  })
+
   it('refuses to chat with the sound-effects speaker before opening a stream', async () => {
     await expect(
       streamVoiceRoomChat(

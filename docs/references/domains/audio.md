@@ -67,19 +67,27 @@
 - **一页管所有嗓子**：三个页签「我的收藏 · 我的克隆 · 找音色」，数据全走 `useVoiceLibrary` 内核（与画布 `VoiceSelector`、配音间选角弹窗同一份，收藏↔克隆仍只靠 `referenceAudioUrl` 分流）。页面 `components/business/voices/`，状态 `hooks/use-voices-page.ts`，导航「去处」里的「音色」。
 - **卡上的管理**：改名 · 换头像（拖图 / 上传走 `POST /api/voice-cards/[id]/cover`，存到 `profiles/<userId>/voice-cover/`；从素材挑的图直接 PATCH `coverImage`）· 绑到角色（写角色卡 `voiceCardId`，一个角色只有一副嗓子）· 删除（软删，同时把绑着它的角色松开）。
 - **头像规则只有一份**：`lib/voice-avatar.ts` —— 绑了角色用角色头像 → 没绑用音色自己的 → 都没有写名字首字。绑着角色时「换头像」置灰。
-- 配音间「加人」：桌面 2026-10-25 起换成 ui-spec ㉔ 的「挑音色」框 `voices/VoicePickerDialog.tsx`（声音库同一副骨架，照样能搜公共库、「我的克隆」第一格能克隆——owner 10-23 的两条照留）；手机仍是原来的选角面板 `VoiceRoomCasting`。
+- 配音间「加人」：在顶栏「＋ 加人」（10-25 从输入行挪上去：加人是管房间的）；桌面 2026-10-25 起换成 ui-spec ㉔ 的「挑音色」框 `voices/VoicePickerDialog.tsx`（声音库同一副骨架，照样能搜公共库、「我的克隆」第一格能克隆——owner 10-23 的两条照留）；手机仍是原来的选角面板 `VoiceRoomCasting`。
 
 ### 3.2 配音间聊天（「声音」模块第 2 步，owner 2026-10-23）
 
 - **两种玩法，输入框旁一个分段切换**（方案 A）：**聊天**（默认）= 选中谁就是跟谁聊，你打字、她用自己的嗓子回一句；**念台词** = 原来的「打的字就是她的台词」。选中音效师时聊天也按念台词走。
 - **一轮 = 一条 SSE**（`POST /api/voiceroom/chat` → `services/voiceroom-chat.service.ts`）：你那句先存成 `speakerKind: 'user'` 的台词（只有文字、`jobId` 空，靠右墨底气泡）→ 回复边写边发（`delta`，气泡里一个字一个字长）→ 写完存成她的台词并按念法和**输入框旁选的语音模型**派出声音 → 之后与念台词一样靠轮询落地，**点气泡才播放**，不自动放。
 - **写词模型在底部选**（聊天时头像后面那颗，复用助手的模型 chip；配音间单独记在浏览器里，⛔ 不改助手设置；挑法仍是 `resolveAssistantRoute`，key 用户自己的）；缺 key 在开流前就失败，配音间就地开 `QuickSetupDialog`。提示词 `lib/voiceroom-chat-prompt.ts`：绑了角色就是她（角色名 + 设定 + 示例对白），没绑就是音色名本人；只写说出口的话，语气用句首方括号（`[laughing]`），长度交给模型；记得本房间最近 30 句（`VOICE_ROOM_CHAT_HISTORY_LINES`）。
-- **出声失败不丢话**：回复照存（没有声音），气泡上写「这句还没出声 · 重试」。方括号提示在气泡里淡一档显示（`VoiceLineText`）。
+- **出声失败不丢话**：回复照存（没有声音），气泡下一颗虚线「▶ 念出来」（走重录那条路出声；10-25 起与关声音共用，⛔ 不再写红字）。方括号提示在气泡里淡一档显示（`VoiceLineText`）。
 - **头像与名字跟着绑定的角色走**：班底里的人声按 `voiceSpeakerLook` 当场换成角色的名字和头像；台词上的快照只在那位已不在班底时兜底。
 - **移出房间**：再点一下已选中的头像 → 「移出房间」，她说过的话留着。头像多了这一行左右滑，手机上单独一行。
 - **Worker 派发超时不丢台词**：`submitAudioGeneration` 遇到「送没送到不知道」时照常交回 jobId（Workflow id 就是它，晚到的回调能落）；配音间打开房间时把超过 stale 阈值还没回调的任务收成失败，气泡给重试。10-23 查 Cloudflare 日志：Worker 本身 CPU 1–4ms，慢在 `workflow.create`（4–10s+），10s 超时会把还没建成的实例掐掉 → `EXECUTION_WORKER.DISPATCH_TIMEOUT_MS` 改 25s。
 - 聊天出的语音与念台词一样自动进自己的素材库、默认不公开（owner 10-23：先保持自动入库，不做收藏键；说话人/类型筛选也先不做）。
 - **素材库音频卡跟头像规则走**（第 3 步，10-23）：`dispatchLine` 出声时把绑定角色的名字和头像写进这条作品（`voiceName` / `coverImageUrl` → `previewUrl`），没绑角色用音色卡的；只影响之后新出的，旧作品不回填。
+
+### 3.2.1 顶栏三颗：声音 · 加人 · 人设（「配音间加能力」① ，用户 2026-10-25）
+
+顶栏标题后面一组「这间房的设置」（`VoiceRoomStage` 的 `.vr-bar-room`）：
+
+- **🔊/🔇**：按房间记在浏览器里（`VOICE_ROOM_MUTED_ROOMS_STORAGE_KEY`，只记关着的，新房间默认出声）。关着时聊天请求带 `voice: false`，服务端照写照存、⛔ 不派声音，气泡下给「▶ 念出来」。只管聊天，念台词照旧出声。
+- **＋ 加人**：原来输入行头像后的 ＋ 挪到这里（输入行的 ＋ 留给第 ② 片的上传）。
+- **人设：X ▾**（`VoiceRoomPersonaChip`）：人设就是角色卡，⛔ 不另起数据。跟着底部选中的那位走（群里也是）。菜单 =「这一间用谁的设定」· 当前那张 · 换一张角色卡…（子菜单列全部角色）· 改设定（就地开角色页同一块 `CharacterSettingModule`，改的是角色卡本身）。换卡只写这一间班底上那位的 `characterCardId`，⛔ 不换嗓子；名字头像跟着换（`voiceSpeakerLook`）。没挑过 = 照旧取绑着这副嗓子的第一个角色；从角色头像「和她聊」开的房间直接记上她。服务端同一条规则 `findPersonaCard`（挑的卡被删了就退回去）。
 
 ### 3.3 素材库头像与 Fish 升级（「声音」模块第 3/4 步，owner 2026-10-23）
 

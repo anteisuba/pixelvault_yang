@@ -227,7 +227,7 @@ export function CharacterDetailBody({
         />
       </div>
 
-      <SettingModule card={card} save={save} />
+      <CharacterSettingModule card={card} save={save} />
       <TagsModule card={card} look={look} save={save} saveLook={saveLook} />
       <LorasModule card={card} />
       <DeleteCharacter name={card.name} onDelete={onDelete} />
@@ -447,7 +447,8 @@ function SettingGroup({
   )
 }
 
-function SettingModule({
+/** 设定四格 + 对话/更多。配音间顶栏「人设 ▾ → 改设定」也就地开这一块（用户 10-25）。 */
+export function CharacterSettingModule({
   card,
   save,
 }: {

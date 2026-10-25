@@ -2877,8 +2877,8 @@ html:lang(ja) {
    右键菜单 / transport / 移动端条），卡面用不透明 `bg-card`。
    `corner-squircle`：连续圆角，Chromium 才有；不支持的浏览器自动退回同值普通
    圆角（形状差、布局不差），所以永远与 `rounded-node` 一起写。 */
-/* `--screen-h` = 这一页能用的「整屏高」，默认就是 `100svh`。`/studio` 外壳开着台时台顶多一条
-   台条（第 9f 步 9f-4），台框在自己身上把它改成 `100svh - 台条`，台里所有按整屏写的高
+/* `--screen-h` = 这一页能用的「整屏高」，默认就是 `100svh`。`/studio` 外壳的白板上下各留 8
+   （ui-spec §1），白板在自己身上把它改成 `100svh - 1rem`，板里所有按整屏写的高
    （`h-page`、`.studio-workbench-shell`、LoRA 台…）一起扣掉，⛔ 把台底压出屏。
    ⛔ 新写的整屏高直接写 `100svh`：一律 `var(--screen-h, 100svh)`。 */
 /* 占满一屏的页面高度：手机扣掉外壳占的那一截（底栏或工作台顶栏，由主区的
@@ -2907,11 +2907,11 @@ html:lang(ja) {
   contain: layout;
 }
 
-/* `/studio` 外壳的台框（第 9f 步 9f-4）：≥1024 台顶有一条台条（`h-12` = 3rem），台里按整屏
-   写的高（`var(--screen-h, 100svh)`）一起扣掉它。手机上没有那一条，照旧整屏。 */
+/* `/studio` 外壳的白板（ui-spec §1）：≥1024 白板落在灰底上、上下各留 8（`my-2` = 1rem），
+   板里按整屏写的高（`var(--screen-h, 100svh)`）一起扣掉它。手机上没有白板，照旧整屏。 */
 @utility bench-screen-h {
   @media (width >= 64rem) {
-    --screen-h: calc(100svh - 3rem);
+    --screen-h: calc(100svh - 1rem);
   }
 }
 

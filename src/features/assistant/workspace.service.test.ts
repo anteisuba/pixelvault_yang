@@ -52,6 +52,17 @@ vi.mock('@/services/project-rule.service', () => ({
 vi.mock('@/services/prompts/recipe.service', () => ({
   listRecipeSummaries: recipes,
 }))
+vi.mock('@/features/assistant/library-sources.service', () => ({
+  findTags: vi.fn(async () => 'TAGS — Danbooru\n标签·watercolor (medium)'),
+  findLibraryLoras: vi.fn(async () => 'LORA LIBRARY\nLoRA·civitai one'),
+  findVoices: vi.fn(async () => 'VOICES: none found'),
+  readTag: vi.fn(async () => ({
+    text: '标签·watercolor_(medium)',
+    pictures: [],
+  })),
+  readLibraryLora: vi.fn(async () => null),
+  readVoice: vi.fn(async () => null),
+}))
 
 import {
   benchAliases,
@@ -97,6 +108,8 @@ describe('编号认法', () => {
     ['提示词·白底立绘', { kind: 'prompt', name: '白底立绘' }],
     ['对话·3F2a91bc', { kind: 'conversation', id: '3f2a91bc' }],
     ['技能·参考图分工', { kind: 'skill', name: '参考图分工' }],
+    ['标签·watercolor_(medium)', { kind: 'tag', name: 'watercolor_(medium)' }],
+    ['音色·少女音', { kind: 'voice', name: '少女音' }],
     ['设置', { kind: 'settings' }],
   ])('%s', (raw, expected) => {
     expect(parseWorkspaceHandle(raw)).toEqual(expected)
@@ -239,6 +252,53 @@ describe('查', () => {
     expect(found.text).toContain('PICTURES\n图_1624 · 2026-10-21 · anima')
     expect(found.text).toContain('对话·3f2a91bc · LoRA bench · 2026-10-21')
     expect(found.pictures[0]?.generationId).toBe('gen-1624')
+  })
+
+  it('多个词任意命中就算，命中多的排前；LoRA 全量查（不截 100）', async () => {
+    loras.mockResolvedValueOnce([
+      { name: 'Malfoid', type: 'subject', triggerWord: 'malfoid' },
+      { name: 'Slytherin uniform', type: 'clothing', triggerWord: null },
+      { name: '无关', type: 'style', triggerWord: null },
+    ])
+    const found = await findInWorkspace(
+      owner,
+      'malfoy slytherin 马尔福 malfoid',
+      ['loras'],
+    )
+    expect(loras).toHaveBeenCalledWith('clerk-1', 1_000)
+    expect(found.text).toContain('LoRA·Malfoid')
+    expect(found.text).toContain('LoRA·Slytherin uniform')
+    expect(found.text).not.toContain('无关')
+    expect(found.text.indexOf('Malfoid')).toBeLessThan(
+      found.text.indexOf('Slytherin'),
+    )
+  })
+
+  it('角色连设定一起搜（马尔福写在女德拉科的设定里）', async () => {
+    cards.mockReset().mockResolvedValueOnce([
+      {
+        id: 'card-2',
+        name: '女德拉科',
+        handle: null,
+        tags: [],
+        summary: null,
+        workOverride: null,
+        persona: { identity: '性转的德拉科·马尔福，斯莱特林' },
+        generationCount: 3,
+        looks: [],
+      },
+    ])
+    const found = await findInWorkspace(owner, '马尔福 性转', ['characters'])
+    expect(found.text).toContain('角色·女德拉科')
+  })
+
+  it('不点名不查外面的库；点名了才查标签 / LoRA 大库', async () => {
+    const found = await findInWorkspace(owner, 'watercolor', [
+      'tags',
+      'lora_library',
+    ])
+    expect(found.text).toContain('标签·watercolor (medium)')
+    expect(found.text).toContain('LoRA·civitai one')
   })
 
   it('一类查失败不拖垮其他几类', async () => {

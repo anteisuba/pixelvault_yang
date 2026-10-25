@@ -9,11 +9,6 @@
     "limitReached": "当前模型最多接受 {max} 张参考图，请先移除一张再添加。"
   },
   "StudioEmptyState": {
-    "modeLabel": {
-      "image": "图片工作台",
-      "video": "视频工作台",
-      "image_tags": "标签台"
-    },
     "hint": {
       "image": "描述你想要的画面，或从一个示例开始",
       "video": "描述镜头里发生什么，或从一个示例开始",

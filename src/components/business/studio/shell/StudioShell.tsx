@@ -437,6 +437,7 @@ function StudioShellStage({
         className={cn(
           'min-w-0 flex-1 flex-col',
           bench ? 'block desk:flex desk:h-full' : 'hidden',
+          conversationHidden && 'studio-shell-chat-collapsed',
         )}
         style={{
           opacity:

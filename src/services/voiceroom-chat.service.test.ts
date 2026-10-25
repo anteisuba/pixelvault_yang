@@ -144,6 +144,10 @@ describe('streamVoiceRoomChat', () => {
       messages: [{ role: 'user', content: '在吗' }],
     })
     expect(mocks.llmTextStream).not.toHaveBeenCalled()
+    // 配音间没有接力条：给内核一个比接口时限短的时限，到点先交出写好的话。
+    expect(
+      mocks.runAssistantNext.mock.calls[0][2].timeBudget.hardMs,
+    ).toBeLessThan(120_000)
   })
 
   it('keeps the thin writer for a voice with no character card', async () => {
@@ -281,6 +285,49 @@ describe('streamVoiceRoomChat', () => {
     ).toMatchObject({ id: YUKI_ID, isDeleted: false })
     expect(mocks.runAssistantNext.mock.calls[0][1]).toMatchObject({
       chatCharacterId: YUKI_ID,
+    })
+  })
+
+  it('lets her hear your files and keeps the pictures she found online', async () => {
+    const found = {
+      imageUrl: 'https://img.example/a.jpg',
+      usableAsInput: true,
+      sourceVerdict: 'allowed' as const,
+    }
+    mocks.runAssistantNext.mockImplementation(async function* () {
+      yield {
+        type: 'step',
+        step: {
+          id: 's2',
+          tool: 'search_web_images',
+          status: 'done',
+          payload: { query: '雪景', limit: 8 },
+          result: { totalFound: 1, images: [found] },
+        },
+      }
+      yield { type: 'message', text: '找到一张。' }
+    })
+    const file = {
+      id: 'gen-a',
+      url: 'https://cdn.example/a.mp3',
+      kind: 'audio' as const,
+      label: '录音',
+    }
+    const response = await streamVoiceRoomChat(
+      'clerk-1',
+      { ...REQUEST, files: [file] },
+      new AbortController().signal,
+    )
+    await readEvents(response)
+
+    expect(mocks.runAssistantNext.mock.calls[0][1].mediaAttachments).toEqual([
+      { kind: 'audio', url: 'https://cdn.example/a.mp3', label: '录音' },
+    ])
+    expect(mocks.appendVoiceLine.mock.calls[0][1]).toMatchObject({
+      attachments: { files: [file] },
+    })
+    expect(mocks.appendVoiceLine.mock.calls[1][1]).toMatchObject({
+      attachments: { webImages: [{ query: '雪景', images: [found] }] },
     })
   })
 

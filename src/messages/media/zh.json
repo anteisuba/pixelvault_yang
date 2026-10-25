@@ -466,12 +466,14 @@
     "history": "对话历史",
     "newTopic": "新话题",
     "attachLabel": "放图",
-    "attachUpload": "上传图片",
+    "attachUpload": "上传图片 / 音频 / 视频",
     "attachFromLibrary": "从素材库挑",
     "removeImage": "摘掉这张图",
     "imagesMax": "一次最多挂 {max} 张图",
     "uploading": "上传中…",
-    "sources": "{count} 个来源"
+    "sources": "{count} 个来源",
+    "filesMax": "一次最多挂 {max} 个文件",
+    "removeFile": "摘掉这个文件"
   },
   "StudioVideoSlots": {
     "firstFrame": "首帧",

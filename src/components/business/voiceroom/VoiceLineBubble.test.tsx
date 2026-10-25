@@ -5,6 +5,23 @@ import type { VoiceLineRecord } from '@/types/voiceroom'
 
 import { VoiceLineBubble } from './VoiceLineBubble'
 
+vi.mock(
+  '@/components/business/studio/assistant-operator/StudioOperatorWebCandidateGrid',
+  () => ({
+    StudioOperatorWebCandidateGrid: ({
+      query,
+      onSave,
+    }: {
+      query: string
+      onSave?: unknown
+    }) => (
+      <div data-testid="web-grid" data-saveable={Boolean(onSave)}>
+        {query}
+      </div>
+    ),
+  }),
+)
+
 vi.mock('@/hooks/use-picture-number-references', () => ({
   usePictureNumberReferences: (text: string) =>
     text.includes('图_12')
@@ -219,5 +236,61 @@ describe('VoiceLineBubble — pictures and sources (用户 10-25 Q3)', () => {
     expect(container.querySelector('.vr-shot img')?.getAttribute('src')).toBe(
       'https://cdn.example/mine.png',
     )
+  })
+})
+
+describe('VoiceLineBubble — files and pictures found online (用户 10-25)', () => {
+  it('lets you play the audio you sent', () => {
+    const { container } = render(
+      <VoiceLineBubble
+        line={makeLine({
+          speakerKind: 'user',
+          speakerName: '',
+          text: '听听这个',
+          attachments: {
+            files: [
+              {
+                id: 'g1',
+                url: 'https://cdn.example/a.mp3',
+                kind: 'audio',
+                label: '录音',
+              },
+            ],
+          },
+        })}
+        onRetake={vi.fn()}
+      />,
+    )
+    expect(container.querySelector('audio')?.getAttribute('src')).toBe(
+      'https://cdn.example/a.mp3',
+    )
+  })
+
+  it('shows each image search she ran as a grid you can save from', () => {
+    render(
+      <VoiceLineBubble
+        line={makeLine({
+          attachments: {
+            webImages: [
+              {
+                query: '雪景',
+                images: [
+                  {
+                    imageUrl: 'https://img.example/a.jpg',
+                    usableAsInput: true,
+                    sourceVerdict: 'allowed',
+                  },
+                ],
+              },
+            ],
+          },
+        })}
+        onRetake={vi.fn()}
+        webImport={{ states: {}, saveCandidates: vi.fn() }}
+      />,
+    )
+    const grid = screen.getByTestId('web-grid')
+    expect(grid).toHaveTextContent('雪景')
+    expect(grid).toHaveAttribute('data-saveable', 'true')
   })
 })

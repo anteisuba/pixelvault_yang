@@ -567,6 +567,38 @@
   height: auto;
 }
 
+/* 你传的音频 / 视频：就地能放。 */
+.vr-files {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.vr-file-video {
+  width: 240px;
+  max-width: 100%;
+  border-radius: 12px;
+  background: var(--vr-ink);
+}
+
+.vr-file-audio {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--vr-dim);
+}
+
+/* 她上网找的图：助手那格候选网格，气泡下面一组一格。 */
+.vr-web-images {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
 /* 来源折成一颗「N 个来源 ▸」，点开是一列链接。 */
 .vr-sources {
   display: flex;
@@ -1239,6 +1271,63 @@
   height: 10px;
 }
 
+/* 挂上的文件 / 传着的：一颗带名字的小胶囊，传失败的红字 + 重试。 */
+.vr-attached-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  height: 44px;
+  padding: 0 8px;
+  border: 1px solid var(--vr-line);
+  border-radius: 8px;
+  font-size: 11px;
+  color: var(--vr-ink);
+}
+
+.vr-attached-file[data-error='true'] {
+  border-color: var(--vr-alarm);
+  color: var(--vr-alarm);
+}
+
+.vr-attached-file > svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+
+.vr-attached-file > button {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.vr-attached-file > button > svg {
+  width: 10px;
+  height: 10px;
+}
+
+.vr-attached-file > .vr-attached-retry {
+  width: auto;
+  text-decoration: underline;
+  font-size: 11px;
+}
+
+.vr-attached-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* 聊天 / 念台词（owner 10-23 方案 A）：两档的小分段，挨着头像。 */
 .vr-mode {
   display: inline-flex;
@@ -1298,7 +1387,8 @@
     height: 2.75rem;
   }
 
-  .vr-attached-item button {
+  .vr-attached-item button,
+  .vr-attached-file > button {
     width: 22px;
     height: 22px;
   }

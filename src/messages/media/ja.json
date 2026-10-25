@@ -466,12 +466,14 @@
     "history": "会話の履歴",
     "newTopic": "新しい話題",
     "attachLabel": "画像を添付",
-    "attachUpload": "画像をアップロード",
+    "attachUpload": "画像・音声・動画をアップロード",
     "attachFromLibrary": "素材から選ぶ",
     "removeImage": "この画像を外す",
     "imagesMax": "1 回に添付できるのは {max} 枚まで",
     "uploading": "アップロード中…",
-    "sources": "出典 {count} 件"
+    "sources": "出典 {count} 件",
+    "filesMax": "1 回に添付できるファイルは {max} 個まで",
+    "removeFile": "このファイルを外す"
   },
   "StudioVideoSlots": {
     "firstFrame": "最初",

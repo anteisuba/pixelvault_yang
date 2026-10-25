@@ -466,12 +466,14 @@
     "history": "Conversations",
     "newTopic": "New topic",
     "attachLabel": "Add images",
-    "attachUpload": "Upload images",
+    "attachUpload": "Upload image / audio / video",
     "attachFromLibrary": "Pick from assets",
     "removeImage": "Remove this image",
     "imagesMax": "Up to {max} images per message",
     "uploading": "Uploading…",
-    "sources": "{count, plural, one {# source} other {# sources}}"
+    "sources": "{count, plural, one {# source} other {# sources}}",
+    "filesMax": "Up to {max} files per message",
+    "removeFile": "Remove this file"
   },
   "StudioVideoSlots": {
     "firstFrame": "First",

@@ -242,8 +242,6 @@
         "title": "Made with these LoRAs",
         "groupsLabel": "Group by LoRA",
         "groupCount": "{count, plural, one {# sample} other {# samples}}",
-        "noteRecipe": "Open one for the full recipe · remake it",
-        "noteShowcase": "Open one to enlarge",
         "lineEmpty": "{name} · no public samples",
         "empty": "This LoRA has no public samples",
         "lineTitle": "{name} samples"
@@ -702,7 +700,6 @@
     "picker": {
       "title": "Pick LoRAs",
       "description": "Pick LoRAs from the library to mount on the LoRA bench.",
-      "lock": "Fits {base}",
       "count": "{count} selected",
       "confirm": "Mount {count}",
       "selectLabel": "Pick {name}",

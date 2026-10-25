@@ -11,8 +11,6 @@ export interface LoraPickEntry {
 export interface LoraPickSelection {
   isSelected: (id: string) => boolean
   toggle: (entry: LoraPickEntry) => void
-  /** 底模锁在台上那个家族（标题旁「和 X 装得上」）：底模药丸不出、搜不到也不劝去掉底模。 */
-  familyLocked: boolean
 }
 
 const LoraPickSelectionContext = createContext<LoraPickSelection | null>(null)

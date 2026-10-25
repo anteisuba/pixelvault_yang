@@ -242,8 +242,6 @@
         "title": "这套 LoRA 出过的图",
         "groupsLabel": "按 LoRA 分组",
         "groupCount": "{count} 张",
-        "noteRecipe": "点一张看完整配方 · 做同款",
-        "noteShowcase": "点一张看大图",
         "lineEmpty": "{name} 没有公开样例",
         "empty": "这个 LoRA 没有公开样例",
         "lineTitle": "{name} 出过的图"
@@ -702,7 +700,6 @@
     "picker": {
       "title": "挑 LoRA",
       "description": "从库里挑几把 LoRA 挂到 LoRA 台。",
-      "lock": "和 {base} 装得上",
       "count": "已选 {count}",
       "confirm": "挂上 {count} 个",
       "selectLabel": "挑 {name}",

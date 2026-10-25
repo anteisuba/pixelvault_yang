@@ -28,8 +28,6 @@ interface LoraSourceBandProps {
   onSelectGroup: (id: string) => void
   /** 当前那组出过几张；还在取的时候是 `null`。 */
   count: number | null
-  /** 标题右边那一句（配方：点一张看完整配方 · 做同款；样例：点一张看大图）。 */
-  note: string
   /** 那一行左边的三张小圆图。 */
   lineThumbs: readonly string[]
   /** 浮层里的内容（缩略图排 / 样例与提示词 / 没有样例那一句）。 */
@@ -38,7 +36,7 @@ interface LoraSourceBandProps {
 
 /**
  * 台面顶上一行（ui-spec ㊲）：「水彩 v3 出过的图 24 ›」，左边三张小圆图；点它从这一行
- * 长出浮层（标题 + 分组 + 缩略图），盖在下面的图上（⛔ 推图），点外面 / Esc 收回。
+ * 长出浮层（分组 + 张数 + 缩略图；10-25 用户嫌字多，去掉标题和提示句），盖在下面的图上（⛔ 推图），点外面 / Esc 收回。
  *
  * ⭐ 长出 = 下落 8px + 0.96 放大 + 由糊变清；收回反过来。看不见时挂 `inert`。
  */
@@ -51,7 +49,6 @@ export function LoraSourceBand({
   activeGroupId,
   onSelectGroup,
   count,
-  note,
   lineThumbs,
   children,
 }: LoraSourceBandProps) {
@@ -147,9 +144,6 @@ export function LoraSourceBand({
         )}
       >
         <div className="flex min-w-0 items-center gap-3">
-          <b className="shrink-0 text-xs font-semibold text-foreground/80">
-            {t('title')}
-          </b>
           {/* 分组 = 挂着的那几把，靠封面认（名字常常很长、截掉一半）；选中的那一格浅底。 */}
           <div
             role="group"
@@ -202,10 +196,6 @@ export function LoraSourceBand({
               {t('groupCount', { count })}
             </span>
           ) : null}
-          <span className="grow" />
-          <span className="shrink-0 truncate text-xs text-muted-foreground">
-            {note}
-          </span>
         </div>
         {children}
       </div>

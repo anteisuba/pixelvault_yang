@@ -28,7 +28,6 @@ function PickHarness({ children }: { children: ReactNode }) {
             ? current.filter((item) => item.id !== entry.id)
             : [...current, entry],
         ),
-      familyLocked: false,
     }),
     [selected],
   )

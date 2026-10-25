@@ -2117,9 +2117,9 @@ describe('LoraWorkbench GenerateBranch — H1 HF showcase strip', () => {
     render(<LoraWorkbench />)
     openSourceBand()
 
-    // 桌面：样例图排进顶上那一行长出的浮层（标题在浮层头上，不再有 showcase 自己的标题）。
+    // 桌面：样例图排进顶上那一行长出的浮层（浮层头上不写标题，只留读屏名）。
     expect(
-      screen.getByText('LoraWorkbench.generate.band:title'),
+      screen.getByRole('dialog', { name: 'LoraWorkbench.generate.band:title' }),
     ).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: /LoraWorkbench:showcaseImageAlt/ }),

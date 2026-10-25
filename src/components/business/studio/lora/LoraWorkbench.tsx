@@ -4023,13 +4023,6 @@ function GenerateBranch({
           activeGroupId={recipeGroupKey}
           onSelectGroup={setRecipeGroupAssetId}
           count={bandKind === 'loading' ? null : bandImages.length}
-          note={
-            bandKind === 'recipes'
-              ? t('generate.band.noteRecipe')
-              : bandKind === 'showcase' || bandKind === 'previews'
-                ? t('generate.band.noteShowcase')
-                : ''
-          }
           lineThumbs={bandImages.slice(0, 3)}
         >
           {bandContent}

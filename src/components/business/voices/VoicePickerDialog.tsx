@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { VOICE_LIBRARY_SOURCE_LABEL } from '@/constants/voice-cards'
+import { LibraryRailPinnedContext } from '@/hooks/use-library-rail'
 import { useVoiceLibrary } from '@/hooks/use-voice-library'
 import {
   canPreviewVoiceSample,
@@ -227,7 +228,9 @@ function VoicePickerBody({
         onClose={onClose}
       />
       <div className="flex min-h-0 flex-1 gap-6 pt-4 pr-5 pl-3">
-        <VoiceLibrarySectionRail library={library} onSelect={select} />
+        <LibraryRailPinnedContext.Provider value>
+          <VoiceLibrarySectionRail library={library} onSelect={select} />
+        </LibraryRailPinnedContext.Provider>
         <div className="flex min-w-0 flex-1 flex-col">
           <VoiceLibraryFilters library={library} />
           <div className="mt-3 min-h-0 flex-1 overflow-y-auto pb-6">{body}</div>

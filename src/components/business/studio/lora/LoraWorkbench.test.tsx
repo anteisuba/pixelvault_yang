@@ -1410,7 +1410,7 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
       name: /LoraWorkbench:generate\.run/,
     })
 
-    // 每出一张，台面上多一格（新的在前）。
+    // 摆法 B：新出的放正中，之前的缩成一条（新的在前）。
     fireEvent.click(generateButton)
     await screen.findByRole('button', {
       name: /LoraWorkbench:generate\.resultPreviewLabel/,
@@ -1418,20 +1418,22 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     fireEvent.click(generateButton)
     await waitFor(() =>
       expect(
-        within(screen.getByTestId('lora-result-card')).getAllByRole('listitem'),
-      ).toHaveLength(2),
+        screen.getByTestId('lora-result-main').querySelector('img'),
+      ).toHaveAttribute('src', 'https://example.com/2.png'),
     )
-    const tiles = within(screen.getByTestId('lora-result-card')).getAllByRole(
+    const strip = within(screen.getByTestId('lora-result-card')).getAllByRole(
       'listitem',
     )
-    expect(tiles[0].querySelector('img')).toHaveAttribute(
-      'src',
-      'https://example.com/2.png',
-    )
+    expect(strip).toHaveLength(1)
 
-    // 点旧的那一格：大图看的就是它。
+    // 点条里旧的那张：换上台，再点它，大图看的就是它。
     fireEvent.click(
-      within(tiles[1]).getByRole('button', {
+      within(strip[0]).getByRole('button', {
+        name: /LoraWorkbench:generate\.resultShowLabel/,
+      }),
+    )
+    fireEvent.click(
+      screen.getByRole('button', {
         name: /LoraWorkbench:generate\.resultPreviewLabel/,
       }),
     )
@@ -2443,10 +2445,7 @@ describe('LoraWorkbench GenerateBranch — generating state and ETA hint', () =>
 
   // 台面只放图（ui-spec ㊲）：出图中最前面一格，进度线跑在那一格自己的边上；没出过图、
   // 也没在出图时只有台面中间那一句话。
-  const resultBox = () =>
-    within(screen.getByTestId('lora-result-card')).queryAllByRole(
-      'listitem',
-    )[0] ?? null
+  const resultBox = () => screen.queryByTestId('lora-result-main')
 
   it('renders the in-progress state inside the result box on stage', () => {
     mockIsGenerating = true

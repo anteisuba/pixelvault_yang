@@ -195,6 +195,7 @@
       "negativePromptAdd": "添加负面 Prompt",
       "aspectRatioLabel": "画面比例",
       "resultHistoryLabel": "本次会话的出图记录",
+      "resultShowLabel": "换到台上看",
       "resultHistoryMeta": "强度 ×{scale} · 种子 {seed}",
       "resultHistoryCount": "本次会话 · {count}",
       "metaLoraCount": "{count} LoRA",

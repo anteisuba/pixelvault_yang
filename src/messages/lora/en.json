@@ -195,6 +195,7 @@
       "negativePromptAdd": "Add negative prompt",
       "aspectRatioLabel": "Aspect ratio",
       "resultHistoryLabel": "This session's results",
+      "resultShowLabel": "Show on stage",
       "resultHistoryMeta": "Strength ×{scale} · seed {seed}",
       "resultHistoryCount": "This session · {count}",
       "metaLoraCount": "{count, plural, one {# LoRA} other {# LoRAs}}",

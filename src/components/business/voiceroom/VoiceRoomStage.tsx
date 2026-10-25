@@ -216,7 +216,7 @@ export function VoiceRoomStage({
 
   return (
     <div className="vr-stage workbench-card">
-      <div className="vr-bar">
+      <div data-bench-header className="vr-bar">
         {renaming ? (
           <input
             className="vr-bar-title-input"

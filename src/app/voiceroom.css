@@ -311,6 +311,14 @@
   gap: 12px;
   padding: 12px 18px;
   border-bottom: 1px solid var(--vr-line);
+  /* 头像落在台左上角时对齐到这一行原来的左内距（`StudioShellExpandChat`）。 */
+  --bench-header-inset: 18px;
+}
+
+/* 对话收起、助手头像落在台左上角时，这一行往右让位（同 globals.css `studio-shell-chat-collapsed`；
+   本文件不在层里，压得过那条工具类，所以这里自己写一遍）。 */
+.studio-shell-chat-collapsed .vr-bar {
+  padding-inline-start: calc(18px + 2.75rem);
 }
 
 /*

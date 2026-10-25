@@ -2933,10 +2933,20 @@ html:lang(ja) {
   max-height: min(42.5rem, 100svh - 4rem) !important;
 }
 
-/* 对话收起时头像浮在台左上角（ui-spec §1）：台顶那一行往右让出头像的位置，⛔ 被它压住。 */
+/* 对话收起时头像浮在台左上角（ui-spec §1）：台顶那一行往右让出头像的位置，⛔ 被它压住。
+   每个台的顶上第一行挂 `data-bench-header`；让位跟头像飞过来同一拍滑过去（owner 10-25 定 A）。 */
+[data-bench-header] {
+  transition: padding-inline-start var(--duration-base) var(--ease-standard);
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-bench-header] {
+    transition: none;
+  }
+}
 @utility studio-shell-chat-collapsed {
   & [data-bench-header] {
-    padding-inline-start: 2.75rem;
+    /* 头像 32 + 间距 12；那一行自己本来有左内距的写 `--bench-header-inset`，头像也对齐到那里。 */
+    padding-inline-start: calc(var(--bench-header-inset, 0px) + 2.75rem);
   }
 }
 

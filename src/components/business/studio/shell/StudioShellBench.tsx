@@ -5,6 +5,7 @@ import {
   useEffect,
   useLayoutEffect,
   useRef,
+  useState,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
   type RefObject,
@@ -424,17 +425,55 @@ export function StudioLibraryPicker({
 
 /**
  * 对话收起时（用户 10-25 ① A）：助手头像落在台的左上角，再点展开。点哪颗收、点同一颗开 ——
- * 和对话头里那颗同一个位置（板头 52 高、左 12）、同一颗（Motion `layoutId` 飞过来）。
+ * 对话头里那颗飞过来（Motion `layoutId`）。台顶那一行（`data-bench-header`）同一拍往右让位，
+ * 头像按那一行的实际位置摆：上下居中、左边对齐它让位前的起点（`--bench-header-inset`），
+ * 各台那一行高低不一也对得齐（用户 10-25：「不在一个平行线上」）。找不到那一行就退回板头位置。
  */
 export function StudioShellExpandChat({ onExpand }: { onExpand: () => void }) {
   const t = useTranslations('StudioShell')
+  const ref = useRef<HTMLButtonElement>(null)
+  const [spot, setSpot] = useState<{ top: number; left: number } | null>(null)
+
+  useLayoutEffect(() => {
+    const button = ref.current
+    const host = button?.offsetParent
+    if (!button || !(host instanceof HTMLElement)) return
+    const place = () => {
+      const row = host.querySelector<HTMLElement>('[data-bench-header]')
+      if (!row) {
+        setSpot(null)
+        return
+      }
+      const hostRect = host.getBoundingClientRect()
+      const rowRect = row.getBoundingClientRect()
+      const inset =
+        Number.parseFloat(
+          getComputedStyle(row).getPropertyValue('--bench-header-inset'),
+        ) || 0
+      setSpot({
+        top:
+          rowRect.top -
+          hostRect.top +
+          (rowRect.height - button.offsetHeight) / 2,
+        left: rowRect.left - hostRect.left + inset,
+      })
+    }
+    place()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(place)
+    observer.observe(host)
+    return () => observer.disconnect()
+  }, [])
+
   return (
     <BarTip label={t('expandChat')} side="right">
       <button
+        ref={ref}
         type="button"
         aria-label={t('expandChat')}
         data-testid="studio-shell-expand-chat"
         onClick={onExpand}
+        style={spot ?? undefined}
         className="absolute top-2.5 left-3 z-20 hidden size-8 rounded-full transition-transform duration-fast ease-standard active:scale-96 focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none desk:block"
       >
         <StudioOperatorCurrentAvatar fly />

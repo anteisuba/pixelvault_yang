@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -70,6 +71,15 @@ export function VoicesLibraryDesk({
   const tStudio = useTranslations('StudioPage')
   const { library, characters, preview } = page
   const onAll = library.tab === 'public'
+
+  // 库一进来停在「全部」（同素材 / 角色库）；`useVoicesPage` 默认的「收藏」是手机页签的。
+  const landed = useRef(false)
+  const { setTab } = library
+  useEffect(() => {
+    if (landed.current) return
+    landed.current = true
+    setTab('public')
+  }, [setTab])
 
   const select = (tab: typeof library.tab) => {
     preview.stop()

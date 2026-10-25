@@ -2,7 +2,7 @@
 
 > 状态：**现行默认（2026-09-03 owner 拍板三条：字体收回脊柱 · semantic 颜色全站锁死 · UI 完成定义压成 8 项）**。
 > 定位：AI 或人动任何 UI 之前必读的**肯定句清单**——不写"不准"，只写"默认这样做"。禁忌见 `forbidden.md`，治理边界见 `brand-dna.md`，实现事实见 `frontend.md`，动效原则见 `interaction.md`。
-> 冲突时：本文 > 当前页面长相 > 任何 skill 的自带审美。需求卡（`templates/ui-request.md`）里没写的，一律按本文默认。
+> 冲突时：[`ui-spec.md`](ui-spec.md)（界面规范，owner 2026-10-24 逐个确认，冲突点列在它的 §0）> 本文 > 当前页面长相 > 任何 skill 的自带审美。需求卡（`templates/ui-request.md`）里没写的，一律按本文默认。
 > 本文无未决项；标 **[待验证]** 的（页面切换 View Transitions）验证通过前不用。
 
 ---

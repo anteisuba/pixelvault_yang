@@ -1,4 +1,4 @@
-import worker, { type Env } from './index'
+import worker, { SemanticIndex, type Env } from './index'
 import { DIMENSIONS, EMBEDDING_MODEL, truncate, vectorId } from './semantic'
 
 /** 假模型：每个字算一维（1024 维），同字多的两段就相近；记下每次调用。 */
@@ -68,7 +68,7 @@ function setup() {
       }),
       env,
     )
-  return { call, calls, store }
+  return { call, calls, store, env }
 }
 
 const tag = (key: string, text: string, category: number) => ({
@@ -181,6 +181,32 @@ describe('semantic index worker', () => {
       namespace: 'public',
       items: [{ kind: 'danbooru-tag', key: 'a' }],
     })
+    expect(store.size).toBe(0)
+  })
+})
+
+describe('service binding entrypoint', () => {
+  it('upserts, queries and removes with the same schemas', async () => {
+    const { env, store } = setup()
+    const rpc = new SemanticIndex()
+    Object.assign(rpc, { env })
+    const item = { kind: 'civitai-lora', key: '42', text: 'watercolor style' }
+    expect(await rpc.upsert({ namespace: 'public', items: [item] })).toBe(1)
+    const matches = await rpc.query({
+      namespace: 'public',
+      text: 'watercolor',
+      kind: 'civitai-lora',
+    })
+    expect(matches.map((match) => match.key)).toEqual(['42'])
+    await expect(
+      rpc.upsert({ namespace: 'public', items: [] }),
+    ).rejects.toThrow()
+    expect(
+      await rpc.remove({
+        namespace: 'public',
+        items: [{ kind: 'civitai-lora', key: '42' }],
+      }),
+    ).toBe(1)
     expect(store.size).toBe(0)
   })
 })

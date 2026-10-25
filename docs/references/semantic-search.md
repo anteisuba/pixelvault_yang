@@ -10,12 +10,13 @@ owner 2026-10-25 定：三项都做——按意思搜（标签 / LoRA / 自己�
 | 转向量   | Cloudflare Workers AI `@cf/qwen/qwen3-embedding-0.6b`    | 中日英同一空间；$0.0118 / 百万 token，无冷启动                        |
 | 存 / 查  | Cloudflare Vectorize `antei-semantic`（512 维 · cosine） | 元数据索引 `kind`（string）、`category`（number）                     |
 | Worker   | `workers/semantic-index`                                 | `/upsert` `/delete` `/query`，Bearer `INDEX_TOKEN`                    |
+| 内部调用 | 同一 Worker 的 `SemanticIndex` 入口（service binding）   | 别的 Worker 直接 RPC（`query` / `upsert` / `remove`），不经公网       |
 | 应用接头 | `src/services/semantic-search.service.ts`                | `SEMANTIC_INDEX_URL` / `SEMANTIC_INDEX_TOKEN`；查失败回空，写失败抛错 |
 | 常量     | `src/constants/semantic-search.ts`                       | kind、公共区名、分数下限                                              |
 
 - **namespace 分归属**：公共库（Danbooru 标签、Civitai LoRA）在 `public`；以后每个用户自己的东西各一区，互相查不到。
   向量 id = SHA-256(namespace + kind + key)：id 在整个库里唯一、不分 namespace。
-- **kind 分来源**：现有 `danbooru-tag`。新来源加一个 kind，不另建库。
+- **kind 分来源**：现有 `danbooru-tag`、`civitai-lora`。新来源加一个 kind，不另建库。
 - **不对称**：存按「文档」算，查按「查询」算（Worker 里分好了）。
 - **多类别逐类查**：带 `categories` 时每个类别单独 `$eq` 查一次再按分数合并，⛔ 用 `$in`：线上实测
   「水彩画风」筛 `$in [1, 5]` 时 watercolor\_(medium)（0.61）整个漏掉，回来的是 0.46 的画师名。
@@ -45,6 +46,14 @@ owner 2026-10-25 定：三项都做——按意思搜（标签 / LoRA / 自己�
 - **Danbooru 标签**（标签库查资料 + 助手查标签）：`danbooru.connector.ts` 的 `matchPage` 同时问字面（自家中日文名词库、Wiki 别名、英文模糊）
   与意思（`findTagsByMeaning`），**字面在前、意思接后、重复去掉**，界面不变。向量由
   `scripts/index-danbooru-tag-meanings.ts` 从 `DanbooruTagName` 整表算出；重新导入中日文名后再跑一次。
+- **Civitai LoRA 大库**（LoRA 库搜索 + 助手查 LoRA，都走 civitai-index 的 `/search`）：`workers/civitai-index/src/meaning.ts`。
+  - 存的字：「名字 / tags: 前 12 个 / triggers: 前 5 个 / base: 底模」，至多 600 字；key = model_id。
+  - 什么时候算：每行记 `embedded_fp`（算时的 `light_fp`，迁移 0007）；每日同步完接着算「两者不等」的行（部分索引
+    `lora_embed_pending`）。首灌或改了拼字口径后 `POST /embed` 单独开一轮（只算不同步）。算失败不算同步失败，明天接着算。
+  - 怎么排（owner 2026-10-25 定）：**字面在前，意思接后**。有搜索词时与计数同时问意思前 50 条（≥ 0.55），回 D1 过同样的
+    底模 / 分级 / 内容类型筛选、去掉字面已命中的，接在字面结果末尾，总数 = 字面总数 + 这些。同一句话 10 分钟内不再问。
+    语义那边出错只当没有。
+  - 向量库里上游已删的 LoRA 不专门删：回 D1 时对不上，自然不出现。
 
 ## 运维
 

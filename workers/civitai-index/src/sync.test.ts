@@ -7,6 +7,12 @@ import {
   TOTAL_CAP,
   type SearchInput,
 } from './search'
+import {
+  clearMeaningCache,
+  embedPending,
+  loraMeaningText,
+  type SemanticIndexBinding,
+} from './meaning'
 import { recordSyncCompleted, syncPages } from './sync'
 import { createTestDb } from './test/d1'
 import { LIGHT_PAGE_SIZE, type Upstream } from './upstream'
@@ -679,5 +685,145 @@ describe('searchIndex', () => {
         allowNoCredit: false,
       },
     })
+  })
+})
+
+/** 假的 semantic-index：记下存进来的文字；查询按事先给好的「这句话 → [id, 分数]」回。 */
+function fakeSemantic(answers: Record<string, [number, number][]> = {}) {
+  const stored = new Map<string, string>()
+  const queries: string[] = []
+  const binding: SemanticIndexBinding = {
+    async upsert({ items }) {
+      for (const item of items) stored.set(item.key, item.text)
+      return items.length
+    },
+    async query({ text }) {
+      queries.push(text)
+      return (answers[text] ?? []).map(([id, score]) => ({
+        key: String(id),
+        score,
+      }))
+    },
+  }
+  return { binding, stored, queries }
+}
+
+describe('按意思搜', () => {
+  beforeEach(async () => {
+    clearMeaningCache()
+    await syncAll(db, new FakeUpstream(SEARCH_FIXTURE))
+  })
+
+  it('embeds every row once, then only rows whose name / tags / versions changed', async () => {
+    const semantic = fakeSemantic()
+    expect(await embedPending(db, semantic.binding, 5)).toEqual({
+      embedded: 5,
+      done: false,
+    })
+    expect(await embedPending(db, semantic.binding, 5)).toEqual({
+      embedded: 2,
+      done: true,
+    })
+    expect(semantic.stored.size).toBe(SEARCH_FIXTURE.length)
+    expect(semantic.stored.get('3')).toBe(
+      'Lifestyle photo / tags: lifestyle / triggers: silverlight / base: Illustrious',
+    )
+    expect(await embedPending(db, semantic.binding)).toEqual({
+      embedded: 0,
+      done: true,
+    })
+
+    semantic.stored.clear()
+    await syncAll(
+      db,
+      new FakeUpstream(
+        SEARCH_FIXTURE.map((model) =>
+          model.id === 2 ? { ...model, name: 'Silver watercolor' } : model,
+        ),
+      ),
+    )
+    expect(await embedPending(db, semantic.binding)).toEqual({
+      embedded: 1,
+      done: true,
+    })
+    expect([...semantic.stored.keys()]).toEqual(['2'])
+  })
+
+  it('caps the text and falls back when a model has no name', () => {
+    const text = loraMeaningText({
+      modelId: 9,
+      name: ' ',
+      tags: Array.from({ length: 30 }, (_, i) => `tag${i}`),
+      trainedWords: ['x'.repeat(200), '', 'b', 'c', 'd', 'e', 'f'],
+      baseModel: null,
+    })
+    expect(text.startsWith('LoRA 9 / tags: tag0, ')).toBe(true)
+    expect(text).toContain('tag11')
+    expect(text).not.toContain('tag12')
+    expect(text).toContain(`triggers: ${'x'.repeat(60)}, b, c, d, e`)
+    expect(text).not.toContain(', f')
+  })
+
+  it('puts meaning matches after the literal ones, skipping duplicates and weak scores', async () => {
+    const { binding } = fakeSemantic({
+      silver: [
+        [2, 0.9],
+        [6, 0.8],
+        [5, 0.3],
+      ],
+    })
+    const run = (page: number) =>
+      searchIndex(
+        db,
+        SearchInputSchema.parse({
+          q: 'Silver',
+          sort: 'downloads',
+          pageSize: 2,
+          page,
+        }),
+        { semantic: binding },
+      )
+    const first = await run(1)
+    expect(first.total).toBe(4)
+    expect(first.rows.map((row) => row.modelId)).toEqual([1, 3])
+    expect((await run(2)).rows.map((row) => row.modelId)).toEqual([2, 6])
+    expect((await run(3)).rows).toEqual([])
+  })
+
+  it('finds by meaning alone when nothing matches literally, with the same filters', async () => {
+    const { binding, queries } = fakeSemantic({
+      水彩风: [
+        [6, 0.7],
+        [2, 0.66],
+      ],
+    })
+    const run = (input: Partial<SearchInput>) =>
+      searchIndex(
+        db,
+        SearchInputSchema.parse({ q: '水彩风', sort: 'relevance', ...input }),
+        { semantic: binding },
+      )
+    const all = await run({})
+    expect(all.rows.map((row) => row.modelId)).toEqual([6, 2])
+    expect(all.total).toBe(2)
+    const pony = await run({ baseModels: ['Pony'] })
+    expect(pony.rows.map((row) => row.modelId)).toEqual([2])
+    // 同一句话第二次不再查向量库。
+    expect(queries).toEqual(['水彩风'])
+  })
+
+  it('keeps the literal results when the semantic side fails', async () => {
+    const binding: SemanticIndexBinding = {
+      upsert: async () => 0,
+      query: async () => {
+        throw new Error('down')
+      },
+    }
+    const result = await searchIndex(
+      db,
+      SearchInputSchema.parse({ q: 'silver', sort: 'downloads' }),
+      { semantic: binding },
+    )
+    expect(result.rows.map((row) => row.modelId)).toEqual([1, 3, 2])
   })
 })

@@ -6,6 +6,7 @@ import {
   type WorkflowStepConfig,
 } from 'cloudflare:workers'
 
+import { embedPending, type SemanticIndexBinding } from './meaning'
 import {
   SearchInputSchema,
   searchIndex,
@@ -26,12 +27,19 @@ export interface Env {
   SYNC_WORKFLOW: Workflow<SyncParams>
   /** wrangler secret；与 Vercel 的 CIVITAI_INDEX_TOKEN 同值 */
   INDEX_TOKEN: string
+  /** semantic-index 的 SemanticIndex 入口（service binding），见 src/meaning.ts */
+  SEMANTIC: SemanticIndexBinding
 }
 
-type SyncParams = Record<string, never>
+interface SyncParams {
+  /** 只补算向量、不同步（首灌、或排查时） */
+  embedOnly?: boolean
+}
 
 /** 一轮最多走多少个 step（每步 5 千条）——两百万条的余量，防死循环。 */
 const MAX_SYNC_STEPS = 400
+/** 算向量最多走多少个 step（每步 5 千行）：首灌 68 万行约 140 步。 */
+const MAX_EMBED_STEPS = 300
 
 const SYNC_STEP_CONFIG: WorkflowStepConfig = {
   retries: { limit: 5, delay: '1 minute', backoff: 'exponential' },
@@ -66,8 +74,12 @@ function isAuthorized(request: Request, env: Env): boolean {
   return diff === 0
 }
 
-async function startSync(env: Env, id: string): Promise<string> {
-  const instance = await env.SYNC_WORKFLOW.create({ id, params: {} })
+async function startSync(
+  env: Env,
+  id: string,
+  params: SyncParams = {},
+): Promise<string> {
+  const instance = await env.SYNC_WORKFLOW.create({ id, params })
   return instance.id
 }
 
@@ -90,9 +102,10 @@ const civitaiIndexWorker = {
         return json({ error: 'Invalid search input' }, 400)
       }
       const startedAt = Date.now()
-      const timings: SearchTimings = { countMs: 0, pageMs: 0 }
+      const timings: SearchTimings = { countMs: 0, pageMs: 0, meaningMs: 0 }
       const search = searchIndex(env.DB, parsed.data, {
         timings,
+        semantic: env.SEMANTIC,
         defer: (work) => ctx.waitUntil(work.catch(() => undefined)),
       }).finally(() => {
         const totalMs = Date.now() - startedAt
@@ -112,7 +125,7 @@ const civitaiIndexWorker = {
       return json(
         result,
         200,
-        `index;dur=${Date.now() - startedAt}, count;dur=${timings.countMs}, page;dur=${timings.pageMs}`,
+        `index;dur=${Date.now() - startedAt}, count;dur=${timings.countMs}, page;dur=${timings.pageMs}, meaning;dur=${timings.meaningMs}`,
       )
     }
 
@@ -126,6 +139,13 @@ const civitaiIndexWorker = {
     // 手动开一轮（首灌、或排查时不想等到明天）。
     if (request.method === 'POST' && pathname === '/sync') {
       return json({ id: await startSync(env, `manual-${Date.now()}`) })
+    }
+
+    // 只补算向量（首灌按意思搜、或换了拼文字的口径之后）。
+    if (request.method === 'POST' && pathname === '/embed') {
+      return json({
+        id: await startSync(env, `embed-${Date.now()}`, { embedOnly: true }),
+      })
     }
 
     return json({ error: 'Not found' }, 404)
@@ -149,6 +169,8 @@ export class CivitaiIndexSyncWorkflow extends WorkflowEntrypoint<
   SyncParams
 > {
   async run(event: WorkflowEvent<SyncParams>, step: WorkflowStep) {
+    if (event.payload.embedOnly) return { embedded: await this.embedAll(step) }
+
     // 用实例创建时刻当这一轮写入的 refreshed_at：重放时值不变。
     const startedAt = event.timestamp.getTime()
     const totals: Omit<SyncProgress, 'cursor' | 'done'> = {
@@ -195,6 +217,21 @@ export class CivitaiIndexSyncWorkflow extends WorkflowEntrypoint<
     const warmedCounts = await step
       .do('warm-counts', SYNC_STEP_CONFIG, () => warmBrowseCounts(this.env.DB))
       .catch(() => 0)
-    return { ...totals, rowCount, warmedCounts }
+    // 同上：没算完的行明天这一轮接着算，期间只是按意思搜不到它们。
+    const embedded = await this.embedAll(step).catch(() => -1)
+    return { ...totals, rowCount, warmedCounts, embedded }
+  }
+
+  /** 把今天新出现 / 变过的行算成向量，直到没有剩下的。返回算了几行。 */
+  private async embedAll(step: WorkflowStep): Promise<number> {
+    let embedded = 0
+    for (let index = 0; index < MAX_EMBED_STEPS; index += 1) {
+      const progress = await step.do(`embed-${index}`, SYNC_STEP_CONFIG, () =>
+        embedPending(this.env.DB, this.env.SEMANTIC),
+      )
+      embedded += progress.embedded
+      if (progress.done) return embedded
+    }
+    throw new Error(`Embedding did not finish within ${MAX_EMBED_STEPS} steps`)
   }
 }

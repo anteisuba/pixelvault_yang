@@ -113,9 +113,6 @@ const plainShape = {
   messages: (messages: ModelMessage[]) => messages,
 }
 
-/** 联网每一步最多搜几次（防一步里无止境地搜；下一步还能接着搜）。 */
-const SEARCH_USES_PER_STEP = 5
-
 function trimmedBase(value: string | undefined, fallback: string): string {
   return (value?.trim() || fallback).replace(/\/+$/, '')
 }
@@ -215,12 +212,9 @@ function anthropicModel(
     ...v3Path,
     path: 'anthropic+search',
     nativeTools: {
-      web_search: provider.tools.webSearch_20260209({
-        maxUses: SEARCH_USES_PER_STEP,
-      }),
-      web_fetch: provider.tools.webFetch_20260209({
-        maxUses: SEARCH_USES_PER_STEP,
-      }),
+      // 搜几次、读几页交给模型自己定（10-25 用户定：不设每步上限）。
+      web_search: provider.tools.webSearch_20260209({}),
+      web_fetch: provider.tools.webFetch_20260209({}),
     },
     providerOptions: (_cacheKey, effort) => ({
       anthropic: {
@@ -295,9 +289,7 @@ function deepSeekModel(
     model: anthropic(modelId),
     path: 'deepseek-anthropic+search',
     nativeTools: {
-      web_search: anthropic.tools.webSearch_20250305({
-        maxUses: SEARCH_USES_PER_STEP,
-      }),
+      web_search: anthropic.tools.webSearch_20250305({}),
     },
     strictTools: false,
     maxOutputTokens:

@@ -46,7 +46,7 @@ export const LookInputSchema = z.object({
     .max(ASSISTANT_NEXT_LIMITS.maxLookPictures)
     .nullish()
     .describe(
-      'What to open, by number or name: a picture number ("图_1624"), a bench name ("ref-1", "result-1", "sample", or a picture attached to the message), "角色·<name>" (optionally "角色·<name>/<look>"), "LoRA·<name>", "提示词·<name>", "对话·<id>", "技能·<name>" (the full text of a skill), or "设置". Pictures are put in front of you with their full recipe. null = only read the bench.',
+      'What to open, by number or name: a picture number ("图_1624"), a bench name ("ref-1", "result-1", "sample", or a picture attached to the message), "角色·<name>" (optionally "角色·<name>/<look>"), "LoRA·<name>" (theirs, or one from the Civitai LoRA library), "标签·<danbooru_tag>" (post count, wiki, tags it goes with, sample pictures), "音色·<name>", "提示词·<name>", "对话·<id>", "技能·<name>" (the full text of a skill), or "设置". Pictures are put in front of you with their full recipe. null = only read the bench.',
     ),
   question: z
     .string()
@@ -66,13 +66,13 @@ export const FindInputSchema = z.object({
     .string()
     .nullish()
     .describe(
-      'Words to look for (in prompts, names, tags, past messages), or a picture number like "图_1624". Empty = the most recent ones.',
+      'Words to look for (in prompts, names, tags, past messages), or a picture number like "图_1624". A line matches when ANY word matches; lines matching more words come first. For tags, separate ideas with commas ("watercolor, thick lineart"). Empty = the most recent ones.',
     ),
   kinds: z
     .array(z.enum(ASSISTANT_NEXT_FIND_KINDS))
     .nullish()
     .describe(
-      "Which kinds to search: pictures (the creator's generations), characters (with their looks), loras (their LoRA library), prompts (their saved prompts), conversations (earlier conversations on every bench), memories (what you remember about the creator). null = all of them.",
+      "Which kinds to search. Their own: pictures (generations and uploads), characters (with their looks and settings), loras (every LoRA they saved), prompts (their saved prompts), conversations (earlier conversations on every bench), memories (what you remember about the creator), voices (their voice library). The project's shared libraries, searched only when named: tags (Danbooru tags — artists and art media/styles, characters, series, general tags — plus the tags they favourited; the same source as the tag library page), lora_library (the Civitai LoRA library, the same index as the LoRA library page). null = all of their own.",
     ),
 })
 export type FindInput = z.infer<typeof FindInputSchema>
@@ -611,8 +611,8 @@ export function parseToolInput<T>(
 }
 
 const DESCRIPTIONS = {
-  find: "Search the creator's workspace: their pictures, characters and looks, LoRA library, saved prompts, earlier conversations on every bench, and what you remember about them. Returns numbered lines; open any of them with look.",
-  look: 'Read the bench as it is right now, and optionally open things by number or name: pictures (with their full recipe), characters, LoRAs, saved prompts, earlier conversations, settings. Pictures you open stay in front of you. tagger: true also reads who drew them / the style / the character as Danbooru tags.',
+  find: "Search the creator's workspace (their pictures, characters and looks, saved LoRAs, saved prompts, voices, earlier conversations on every bench, what you remember about them) and the project's own libraries (Danbooru tags, the Civitai LoRA library). Returns numbered lines; open any of them with look.",
+  look: 'Read the bench as it is right now, and optionally open things by number or name: pictures (with their full recipe), characters, LoRAs, Danbooru tags, voices, saved prompts, earlier conversations, settings. Pictures you open stay in front of you. tagger: true also reads who drew them / the style / the character as Danbooru tags.',
   edit: 'Change the bench, the creator\'s library (pictures, folders, characters and looks, LoRAs, saved prompts), their settings (model channels, assistant settings, search source lists), or what you remember (remember). All changes for one request go in ONE call, applied in order; each lands at once and can be undone. For the prompt prefer mode "edit" with exact {find, replace} pairs so everything else stays as it is.',
   ask: 'Ask the creator when you cannot go on without their choice. Puts a card with options in front of them and ends this turn until they answer.',
   generate:

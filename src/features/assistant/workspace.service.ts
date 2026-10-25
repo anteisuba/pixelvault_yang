@@ -28,6 +28,15 @@ import {
   ASSISTANT_NEXT_HANDLE_PREFIXES as PREFIX,
   type AssistantNextFindKind,
 } from '@/features/assistant/constants'
+import {
+  findLibraryLoras,
+  findTags,
+  findVoices,
+  readLibraryLora,
+  readTag,
+  readVoice,
+} from '@/features/assistant/library-sources.service'
+import { queryWords, ranked } from '@/features/assistant/rank'
 import { BUILTIN_SKILLS, renderSkill } from '@/features/assistant/skills'
 import { loadAssistantSkills } from '@/services/assistant-skill.service'
 
@@ -48,6 +57,8 @@ export type WorkspaceHandle =
   | { kind: 'prompt'; name: string }
   | { kind: 'conversation'; id: string }
   | { kind: 'skill'; name: string }
+  | { kind: 'tag'; name: string }
+  | { kind: 'voice'; name: string }
   | { kind: 'settings' }
 
 export interface WorkspaceOwner {
@@ -120,6 +131,10 @@ export function parseWorkspaceHandle(raw: string): WorkspaceHandle | null {
     }
   const skill = after(PREFIX.skill)
   if (skill) return { kind: 'skill', name: skill }
+  const tag = after(PREFIX.tag)
+  if (tag) return { kind: 'tag', name: tag }
+  const voice = after(PREFIX.voice)
+  if (voice) return { kind: 'voice', name: voice }
   if (text === PREFIX.settings || text.toLowerCase() === 'settings')
     return { kind: 'settings' }
   return null
@@ -145,16 +160,6 @@ function clip(text: string, max: number): string {
 
 function day(date: Date): string {
   return date.toISOString().slice(0, 10)
-}
-
-function matches(query: string, ...fields: (string | null | undefined)[]) {
-  if (!query) return true
-  const haystack = fields.filter(Boolean).join(' ').toLowerCase()
-  return query
-    .toLowerCase()
-    .split(/\s+/)
-    .filter(Boolean)
-    .every((word) => haystack.includes(word))
 }
 
 // ---------------------------------------------------------------- 图
@@ -216,16 +221,43 @@ async function findPictures(
     const row = await readPicture(userId, handle)
     return row ? [row] : []
   }
-  const like = `%${query.replace(/[\\%_]/g, (char) => `\\${char}`)}%`
+  const words = queryWords(query)
+  if (words.length === 0)
+    return db.$queryRaw<PictureRow[]>`
+      SELECT ${PICTURE_COLUMNS}
+        FROM "Generation"
+       WHERE "userId" = ${userId}
+         AND "status" = 'COMPLETED'
+         AND "seq" IS NOT NULL
+       ORDER BY "createdAt" DESC
+       LIMIT ${LIMITS.perKind}`
+  // 任意一个词命中就算，按命中几个词排（同 `ranked`）。
+  const hit = (word: string) => {
+    const like = `%${likeEscape(word)}%`
+    return Prisma.sql`(CASE WHEN "prompt" ILIKE ${like} OR "model" ILIKE ${like} THEN 1 ELSE 0 END)`
+  }
+  const score = Prisma.join(words.map(hit), ' + ')
+  // ⚠ 先只算 id 和分数挑出那几张，再取整行：快照那两格很大，⛔ 别给每一张命中的都取一遍。
   return db.$queryRaw<PictureRow[]>`
     SELECT ${PICTURE_COLUMNS}
       FROM "Generation"
-     WHERE "userId" = ${userId}
-       AND "status" = 'COMPLETED'
-       AND "seq" IS NOT NULL
-       AND (${query} = '' OR "prompt" ILIKE ${like} OR "model" ILIKE ${like})
-     ORDER BY "createdAt" DESC
-     LIMIT ${LIMITS.perKind}`
+      JOIN (
+        SELECT "hitId", "hitScore", "hitAt" FROM (
+          SELECT "id" AS "hitId", "createdAt" AS "hitAt", ${score} AS "hitScore"
+            FROM "Generation"
+           WHERE "userId" = ${userId}
+             AND "status" = 'COMPLETED'
+             AND "seq" IS NOT NULL
+        ) AS "scored"
+         WHERE "hitScore" > 0
+         ORDER BY "hitScore" DESC, "hitAt" DESC
+         LIMIT ${LIMITS.perKind}
+      ) AS "hits" ON "hits"."hitId" = "Generation"."id"
+     ORDER BY "hitScore" DESC, "hitAt" DESC`
+}
+
+function likeEscape(text: string): string {
+  return text.replace(/[\\%_]/g, (char) => `\\${char}`)
 }
 
 async function readPicture(
@@ -478,10 +510,14 @@ function messageLines(messages: unknown): { role: string; content: string }[] {
 function conversationLine(row: ConversationRow, query: string): string {
   const head = `${PREFIX.conversation}${row.id.slice(0, 8)} · ${SURFACE_LABELS[row.surface] ?? row.surface} · ${day(row.updatedAt)} · ${clip(row.title ?? '', 40)}`
   if (!query) return head
-  const words = query.toLowerCase().split(/\s+/).filter(Boolean)
+  const words = queryWords(query)
   for (const line of messageLines(row.messages)) {
-    const at = line.content.toLowerCase().indexOf(words[0] ?? '')
-    if (at < 0) continue
+    const text = line.content.toLowerCase()
+    const at = words
+      .map((word) => text.indexOf(word))
+      .filter((index) => index >= 0)
+      .sort((a, b) => a - b)[0]
+    if (at === undefined) continue
     const start = Math.max(0, at - LIMITS.snippetChars)
     return `${head}\n    ${line.role}: …${clip(line.content.slice(start, at + LIMITS.snippetChars), LIMITS.snippetChars * 2)}…`
   }
@@ -493,13 +529,28 @@ async function findConversations(
   query: string,
 ): Promise<ConversationRow[]> {
   // ⭐ 所有台的对话都翻（10-23 用户定），每条标出哪个台、哪天 —— 与历史记录一一对应。
-  const like = `%${query.replace(/[\\%_]/g, (char) => `\\${char}`)}%`
+  const words = queryWords(query)
+  if (words.length === 0)
+    return db.$queryRaw<ConversationRow[]>`
+      SELECT "id", "surface"::text AS "surface", "title", "updatedAt", "messages"
+        FROM "AssistantConversation"
+       WHERE "userId" = ${userId}
+       ORDER BY "updatedAt" DESC
+       LIMIT ${LIMITS.perKind}`
+  const hit = (word: string) => {
+    const like = `%${likeEscape(word)}%`
+    return Prisma.sql`(CASE WHEN "title" ILIKE ${like} OR "messages"::text ILIKE ${like} THEN 1 ELSE 0 END)`
+  }
+  const score = Prisma.join(words.map(hit), ' + ')
   return db.$queryRaw<ConversationRow[]>`
-    SELECT "id", "surface"::text AS "surface", "title", "updatedAt", "messages"
-      FROM "AssistantConversation"
-     WHERE "userId" = ${userId}
-       AND (${query} = '' OR "title" ILIKE ${like} OR "messages"::text ILIKE ${like})
-     ORDER BY "updatedAt" DESC
+    SELECT "id", "surface", "title", "updatedAt", "messages" FROM (
+      SELECT "id", "surface"::text AS "surface", "title", "updatedAt", "messages",
+             ${score} AS "score"
+        FROM "AssistantConversation"
+       WHERE "userId" = ${userId}
+    ) AS "scored"
+     WHERE "score" > 0
+     ORDER BY "score" DESC, "updatedAt" DESC
      LIMIT ${LIMITS.perKind}`
 }
 
@@ -535,19 +586,19 @@ async function readConversation(
 
 async function findCharacters(clerkId: string, query: string) {
   const cards = await listCharacterCards(clerkId)
-  return cards
-    .filter((card) =>
-      matches(
-        query,
-        card.name,
-        card.handle,
-        card.tags.join(' '),
-        card.looks
-          .map((look) => `${look.label ?? ''} ${look.tags.join(' ')}`)
-          .join(' '),
-      ),
-    )
-    .slice(0, LIMITS.perKind)
+  // 设定、简介、造型说明也搜（10-25：「马尔福」写在女德拉科的设定里，只搜名字就查不到）。
+  return ranked(cards, query, (card) => [
+    card.name,
+    card.handle,
+    card.tags.join(' '),
+    card.workOverride,
+    card.summary,
+    card.persona ? JSON.stringify(card.persona) : null,
+    ...card.looks.map(
+      (look) =>
+        `${look.label ?? ''} ${look.tags.join(' ')} ${look.description ?? ''}`,
+    ),
+  ])
 }
 
 function lookName(
@@ -608,26 +659,21 @@ async function readCharacter(
 }
 
 async function findLoras(clerkId: string, query: string) {
-  const assets = await listLoraAssetsForUser(clerkId)
-  return assets
-    .filter((asset) =>
-      matches(
-        query,
-        asset.name,
-        asset.styleCode,
-        asset.triggerWord,
-        asset.baseModelFamily,
-        asset.type,
-      ),
-    )
-    .slice(0, LIMITS.perKind)
+  const assets = await listLoraAssetsForUser(clerkId, LIMITS.listScan)
+  return ranked(assets, query, (asset) => [
+    asset.name,
+    asset.styleCode,
+    asset.triggerWord,
+    asset.baseModelFamily,
+    asset.type,
+  ])
 }
 
 async function readLora(
   clerkId: string,
   name: string,
 ): Promise<WorkspaceRead | null> {
-  const assets = await listLoraAssetsForUser(clerkId)
+  const assets = await listLoraAssetsForUser(clerkId, LIMITS.listScan)
   const wanted = name.toLowerCase()
   const asset =
     assets.find((item) => item.name.toLowerCase() === wanted) ??
@@ -651,11 +697,11 @@ async function readLora(
 
 async function findPrompts(clerkId: string, query: string) {
   const recipes = await listRecipeSummaries(clerkId, 1, LIMITS.listScan)
-  return recipes
-    .filter((recipe) =>
-      matches(query, recipe.name, recipe.compiledPrompt, recipe.modelId),
-    )
-    .slice(0, LIMITS.perKind)
+  return ranked(recipes, query, (recipe) => [
+    recipe.name,
+    recipe.compiledPrompt,
+    recipe.modelId,
+  ])
 }
 
 async function readPrompt(
@@ -799,6 +845,14 @@ export async function findInWorkspace(
           ? `CONVERSATIONS\n${rows.map((row) => conversationLine(row, q)).join('\n')}`
           : 'CONVERSATIONS: none found'
       }
+      case KIND.voices:
+        return findVoices(owner.userId, q)
+      case KIND.tags:
+        return findTags(owner.clerkId, q)
+      case KIND.loraLibrary:
+        return q
+          ? findLibraryLoras(q)
+          : 'LORA LIBRARY: give words to search it.'
       default:
         return ''
     }
@@ -831,7 +885,15 @@ export async function openWorkspaceHandle(
     case 'character':
       return readCharacter(owner, handle)
     case 'lora':
-      return readLora(owner.clerkId, handle.name)
+      // 她库里没有就去 LoRA 大库找那一把（find lora_library 回来的编号同一种写法）。
+      return (
+        (await readLora(owner.clerkId, handle.name)) ??
+        readLibraryLora(handle.name).catch(() => null)
+      )
+    case 'tag':
+      return readTag(handle.name)
+    case 'voice':
+      return readVoice(owner.userId, handle.name)
     case 'prompt':
       return readPrompt(owner.clerkId, handle.name)
     case 'conversation':

@@ -78,7 +78,7 @@ import { searchMemoriesStep } from '@/services/kernel/assistant-v3-memories.serv
 import {
   ASSISTANT_NEXT_EDIT_OP_IDS as OP,
   ASSISTANT_NEXT_FIND_KIND_IDS,
-  ASSISTANT_NEXT_FIND_KINDS,
+  ASSISTANT_NEXT_FIND_DEFAULT_KINDS,
   ASSISTANT_NEXT_LIMITS,
   ASSISTANT_NEXT_LORA_PARAM_KEYS,
   ASSISTANT_NEXT_RECIPE_PART_IDS as PART,
@@ -1168,7 +1168,7 @@ export async function* runFind(
 ): AsyncGenerator<AssistantOperatorEvent, BenchResult> {
   const query = input.query?.trim() ?? ''
   const kinds = (
-    input.kinds?.length ? input.kinds : ASSISTANT_NEXT_FIND_KINDS
+    input.kinds?.length ? input.kinds : ASSISTANT_NEXT_FIND_DEFAULT_KINDS
   ) as AssistantNextFindKind[]
   const parts: string[] = []
   const workspaceKinds = kinds.filter(

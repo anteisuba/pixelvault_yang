@@ -159,7 +159,7 @@ function StudioLibraryFrame({
   const { persona } = useAssistantPersona()
   const { frameRef, bodyRef } = useLibraryFrameMotion(category)
   const [railOpen, toggleRail] = useLibraryRailOpen()
-  const hasRail = category !== 'gallery' && category !== 'profile'
+  const hasRail = !NO_RAIL_CATEGORIES.includes(category)
   const pageItem = isLibraryTab(category)
     ? undefined
     : STUDIO_LIBRARY_ITEMS.find((item) => item.id === category)
@@ -252,6 +252,16 @@ function StudioLibraryFrame({
     </section>
   )
 }
+
+/**
+ * 没有左栏的几页：顶上那颗收起键在这里是空按钮（10-25 用户在角色页点了没反应），⛔ 画。
+ * 角色页照 #397 之前那版（#408），没有左栏。
+ */
+const NO_RAIL_CATEGORIES: readonly StudioShellOverlayId[] = [
+  'gallery',
+  'profile',
+  'cards',
+]
 
 /** 顶上一排换类：库只放公开来源那几样（LoRA · 酒馆 · 标签 · 音色，用户 10-25）。 */
 const LIBRARY_TAB_ITEMS = STUDIO_LIBRARY_ITEMS.filter((item) =>

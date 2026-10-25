@@ -669,16 +669,17 @@
       "samplesWithRecipe": "{count} 枚 · すべてレシピあり",
       "samplesCount": "{count} 枚",
       "samplesSomeWithRecipe": "{count} 枚 · {recipes} 枚レシピあり",
-      "mineCountQuery": "{section}のうち「{query}」を含むもの {count} 件",
-      "mineCountUnit": "件の{section}",
       "files": "ファイル",
       "license": "ライセンス",
       "licenseUnknown": "ライセンス不明",
-      "shownCount": "{count} 件を表示中",
       "loadingMoreShown": "続きを取得中 · {shown} 件を表示",
       "emptyBodyLoosen": "{scope} には一件もありません。条件を一つゆるめてみてください：",
       "mountChoose": "マウント…",
-      "mountChooseLabel": "{name} をマウント（先にファイルを選ぶ）"
+      "mountChooseLabel": "{name} をマウント（先にファイルを選ぶ）",
+      "handToAssistant": "アシスタントに渡す",
+      "favorite": "お気に入り",
+      "unfavorite": "お気に入りを外す",
+      "openDetail": "詳細を見る"
     },
     "characterLoras": {
       "pickEntry": "キャラから選ぶ",
@@ -696,7 +697,11 @@
       "save": "保存",
       "loadFailed": "キャラの LoRA を読み込めませんでした",
       "saveFailed": "保存できませんでした。もう一度お試しください"
-    }
+    },
+    "librarySourcePill": "ソース",
+    "librarySectionAll": "すべて",
+    "librarySectionCharacters": "キャラクター",
+    "librarySectionCharactersEmpty": "キャラクターにまだ LoRA がありません。LoRA の詳細で「キャラクターに追加…」するとここに表示されます。"
   },
   "CivitaiToken": {
     "saveSuccess": "Civitai トークンを保存しました",

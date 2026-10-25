@@ -5,7 +5,7 @@ import { AnimatePresence } from 'motion/react'
 import { useFormatter, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
-import { AlertCircle, Search, Trash2, X } from '@/components/icons'
+import { AlertCircle, Trash2 } from '@/components/icons'
 import {
   DEFAULT_LORA_NSFW_FILTER,
   LORA_LIBRARY_NSFW_STORAGE_KEY,
@@ -15,12 +15,17 @@ import {
 } from '@/constants/lora'
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useCivitaiDownloadGate } from '@/hooks/use-civitai-download-gate'
+import { useHandMentionToAssistant } from '@/hooks/use-hand-to-assistant'
 import { useLocalPreference } from '@/hooks/use-local-preference'
 import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'
 import { getLoraAssetSourceUrl } from '@/lib/lora-asset-source-url'
 import { buildLibraryFavoriteRequest } from '@/lib/lora-source-snapshot'
 import { cn } from '@/lib/utils'
-import type { CivitaiLoraLibraryItem, LoraAssetRecord } from '@/types'
+import type {
+  CharacterLoraGroup,
+  CivitaiLoraLibraryItem,
+  LoraAssetRecord,
+} from '@/types'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,16 +37,24 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import {
+  LIBRARY_GRID_CLASS,
+  LibrarySearch,
+  LibraryToolbar,
+} from '@/components/ui/library-kit'
+import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 
 import {
   LoraLibraryDetailPage,
   type LoraLibraryDetailMenuItem,
 } from './LoraLibraryDetailPage'
 import { LoraLibraryFilterCombobox } from './LoraLibraryFilterCombobox'
-import { LoraLibrarySegmented } from './LoraLibrarySegmented'
-import { LoraLibraryTile } from './LoraLibraryTile'
+import { LoraLibraryTile, loraMention } from './LoraLibraryTile'
 
-type FavoritesSection = 'favorites' | 'trained'
+/** 左栏「收藏 / 自训 / 角色」三行各开一格（ui-spec §9，样件 E S19）。 */
+export type FavoritesSection = 'favorites' | 'trained' | 'characters'
+
+const ALL_CHARACTERS = '\u0000all'
 type FavoritesSort = 'newest' | 'oldest' | 'nameAsc'
 
 const SORT_LABEL_KEYS: Record<FavoritesSort, string> = {
@@ -51,6 +64,9 @@ const SORT_LABEL_KEYS: Record<FavoritesSort, string> = {
 }
 
 interface LoraFavoritesBrowseProps {
+  section: FavoritesSection
+  /** 角色收的 LoRA（「角色」那一格用）。 */
+  characterGroups?: readonly CharacterLoraGroup[]
   trained: readonly LoraAssetRecord[]
   favorites: readonly LoraAssetRecord[]
   isLoading: boolean
@@ -111,6 +127,8 @@ function assetToLibraryItem(asset: LoraAssetRecord): CivitaiLoraLibraryItem {
  *   确认一次）。
  */
 export function LoraFavoritesBrowse({
+  section,
+  characterGroups = [],
   trained,
   favorites,
   isLoading,
@@ -127,6 +145,7 @@ export function LoraFavoritesBrowse({
   const t = useTranslations('LoraWorkbench')
   const tb = useTranslations('LoraWorkbench.browse')
   const format = useFormatter()
+  const hand = useHandMentionToAssistant()
   const stack = useActiveLoraStack()
   const { ensureMountable } = useCivitaiDownloadGate()
   const [storedNsfwFilter] = useLocalPreference(LORA_LIBRARY_NSFW_STORAGE_KEY)
@@ -135,7 +154,7 @@ export function LoraFavoritesBrowse({
       ? storedNsfwFilter
       : DEFAULT_LORA_NSFW_FILTER
 
-  const [section, setSection] = useState<FavoritesSection>('favorites')
+  const [characterId, setCharacterId] = useState(ALL_CHARACTERS)
   const [query, setQuery] = useState('')
   const [family, setFamily] = useState('all')
   const [sort, setSort] = useState<FavoritesSort>('newest')
@@ -144,11 +163,35 @@ export function LoraFavoritesBrowse({
   const [deleting, setDeleting] = useState(false)
   const [mountingId, setMountingId] = useState<string | null>(null)
 
-  const source = section === 'trained' ? trained : favorites
-  const sectionLabel =
+  const activeCharacterId = characterGroups.some(
+    (group) => group.characterCardId === characterId,
+  )
+    ? characterId
+    : ALL_CHARACTERS
+  // 角色那一格：同一把 LoRA 收进了好几个角色只算一张。
+  const characterLoras = useMemo(() => {
+    const seen = new Set<string>()
+    const out: LoraAssetRecord[] = []
+    for (const group of characterGroups) {
+      if (
+        activeCharacterId !== ALL_CHARACTERS &&
+        group.characterCardId !== activeCharacterId
+      )
+        continue
+      for (const lora of group.loras) {
+        if (seen.has(lora.loraUrl)) continue
+        seen.add(lora.loraUrl)
+        out.push(lora)
+      }
+    }
+    return out
+  }, [activeCharacterId, characterGroups])
+  const source =
     section === 'trained'
-      ? t('myLorasTrainedSection')
-      : t('myLorasFavoritesSection')
+      ? trained
+      : section === 'characters'
+        ? characterLoras
+        : favorites
   const families = useMemo(
     () =>
       [...new Set(source.map((asset) => asset.baseModelFamily))].sort((a, b) =>
@@ -225,6 +268,18 @@ export function LoraFavoritesBrowse({
     [ensureMountable, isMounted, mountingId, stack, t],
   )
 
+  // 格子上的书签：收着就取消（按记录自己的链接），角色里没收藏的那把就收进来。
+  const toggleFavorite = useCallback(
+    async (asset: LoraAssetRecord) => {
+      if (isFavorited(asset.loraUrl)) {
+        await onUnfavoriteByUrl(asset.loraUrl)
+        return
+      }
+      if (asset.modelId) await onFavoriteCivitai(assetToLibraryItem(asset))
+    },
+    [isFavorited, onFavoriteCivitai, onUnfavoriteByUrl],
+  )
+
   const familyOptions = useMemo(
     () => [
       { value: 'all', label: t('familyLabel.all') },
@@ -265,97 +320,61 @@ export function LoraFavoritesBrowse({
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
-      <div className="flex shrink-0 items-center gap-2 px-5 pt-4">
-        <div className="relative flex h-9 min-w-0 flex-1 items-center gap-2 rounded-xl border border-border bg-background px-3 transition-colors duration-fast ease-linear focus-within:border-foreground/40">
-          <Search
-            className="size-3.5 shrink-0 text-muted-foreground"
-            aria-hidden
-          />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t('myLorasSearchPlaceholder')}
-            aria-label={t('myLorasSearchPlaceholder')}
-            className="h-full min-w-0 flex-1 bg-transparent text-base text-foreground lg:text-2sm outline-none placeholder:text-muted-foreground/70"
-          />
-          {query ? (
-            <button
-              type="button"
-              onClick={() => setQuery('')}
-              aria-label={tb('searchClear')}
-              className="shrink-0 text-muted-foreground transition-colors duration-fast ease-linear hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <X className="size-3.5" aria-hidden />
-            </button>
-          ) : null}
-        </div>
-        <LoraLibrarySegmented
-          ariaLabel={t('myLorasTitle')}
-          value={section}
-          onChange={setSection}
-          options={[
-            {
-              value: 'favorites' as const,
-              label: `${t('myLorasFavoritesSection')} · ${favorites.length}`,
-            },
-            {
-              value: 'trained' as const,
-              label: `${t('myLorasTrainedSection')} · ${trained.length}`,
-            },
-          ]}
+      {/* 顶上一行（ui-spec §9）：搜索 · 底模 ……… 排序；角色那一格下面一条角色切换条。 */}
+      <div className="flex shrink-0 flex-col gap-3 pb-3">
+        <LibraryToolbar
+          search={
+            <LibrarySearch
+              value={query}
+              onChange={setQuery}
+              placeholder={t('myLorasSearchPlaceholder')}
+              label={t('myLorasSearchPlaceholder')}
+            />
+          }
+          pills={
+            <LoraLibraryFilterCombobox
+              variant="bar"
+              label={t('libraryFamilyFilter')}
+              ariaLabel={t('baseModelFilterLabel')}
+              value={activeFamily}
+              options={familyOptions}
+              onChange={setFamily}
+              changed={activeFamily !== 'all'}
+            />
+          }
+          end={
+            <LoraLibraryFilterCombobox
+              variant="bar"
+              label={t('myLorasSortLabel')}
+              ariaLabel={t('myLorasSortLabel')}
+              value={sort}
+              options={sortOptions}
+              onChange={setSort}
+              changed
+            />
+          }
         />
-        <LoraLibraryFilterCombobox
-          variant="bar"
-          label={t('libraryFamilyFilter')}
-          ariaLabel={t('baseModelFilterLabel')}
-          value={activeFamily}
-          options={familyOptions}
-          onChange={setFamily}
-          changed={activeFamily !== 'all'}
-        />
-        <LoraLibraryFilterCombobox
-          variant="bar"
-          label={t('myLorasSortLabel')}
-          ariaLabel={t('myLorasSortLabel')}
-          value={sort}
-          options={sortOptions}
-          onChange={setSort}
-          changed={sort !== 'newest'}
-        />
+        {section === 'characters' && characterGroups.length > 1 ? (
+          <div className="flex">
+            <LiquidSegmented
+              ariaLabel={t('librarySectionCharacters')}
+              value={activeCharacterId}
+              items={[
+                { value: ALL_CHARACTERS, label: t('familyLabel.all') },
+                ...characterGroups.map((group) => ({
+                  value: group.characterCardId,
+                  label: group.name,
+                })),
+              ]}
+              onChange={setCharacterId}
+            />
+          </div>
+        ) : null}
       </div>
 
-      {!isLoading && !error && source.length > 0 ? (
-        <p
-          role="status"
-          className="flex shrink-0 items-baseline gap-2.5 px-5 pb-2.5 pt-3 text-xs text-muted-foreground"
-        >
-          {trimmedQuery ? (
-            <span>
-              {tb('mineCountQuery', {
-                count: shown.length,
-                section: sectionLabel,
-                query: query.trim(),
-              })}
-            </span>
-          ) : (
-            <>
-              <b className="text-sm font-semibold tabular-nums text-foreground">
-                {format.number(shown.length)}
-              </b>
-              <span>
-                {tb('mineCountUnit', {
-                  count: shown.length,
-                  section: sectionLabel,
-                })}
-              </span>
-            </>
-          )}
-        </p>
-      ) : null}
-
-      <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-5">
+      <div className="@container relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pt-1">
         {error ? (
-          <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-status-risk-surface px-3.5 py-3 text-xs text-status-risk">
+          <div className="flex items-center justify-between gap-3 rounded-xl bg-status-risk-surface px-3.5 py-3 text-xs text-status-risk">
             <span className="flex items-start gap-2">
               <AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
               {t('myLorasErrorTitle')}
@@ -370,10 +389,10 @@ export function LoraFavoritesBrowse({
             </Button>
           </div>
         ) : isLoading ? (
-          <div className="lora-lib-grid pt-3" aria-hidden>
+          <div className={LIBRARY_GRID_CLASS} aria-hidden>
             {Array.from({ length: 6 }, (_, index) => (
               <div key={index} className="flex flex-col gap-1.5">
-                <span className="block aspect-3/4 rounded-xl bg-muted" />
+                <span className="block aspect-3/4 rounded-12 bg-muted" />
                 <span className="h-2.5 w-3/4 rounded bg-muted" />
                 <span className="h-2.5 w-1/2 rounded bg-muted" />
               </div>
@@ -385,7 +404,9 @@ export function LoraFavoritesBrowse({
               <p className="text-2sm leading-5 text-muted-foreground">
                 {section === 'trained'
                   ? t('myLorasTrainedSectionEmpty')
-                  : t('myLorasFavoritesEmpty')}
+                  : section === 'characters'
+                    ? t('librarySectionCharactersEmpty')
+                    : t('myLorasFavoritesEmpty')}
               </p>
               <Button
                 type="button"
@@ -405,12 +426,15 @@ export function LoraFavoritesBrowse({
           </p>
         ) : (
           <>
-            <div className="lora-lib-grid">
+            <div className={LIBRARY_GRID_CLASS}>
               {shown.map((asset) => (
                 <LoraLibraryTile
                   key={asset.id}
                   name={asset.name}
-                  meta={asset.triggerWord.trim() || tb('noTrigger')}
+                  meta={[
+                    asset.baseModelFamily,
+                    asset.triggerWord.trim() || tb('noTrigger'),
+                  ].join(' · ')}
                   coverUrl={
                     asset.coverImageUrl
                       ? proxyCivitaiImageUrl(asset.coverImageUrl)
@@ -419,6 +443,17 @@ export function LoraFavoritesBrowse({
                   mounted={isMounted(asset)}
                   onOpen={() => setOpenAsset(asset)}
                   onMount={() => void mount(asset)}
+                  favorite={
+                    asset.source === 'trained'
+                      ? undefined
+                      : {
+                          saved: isFavorited(asset.loraUrl),
+                          onToggle: () => void toggleFavorite(asset),
+                        }
+                  }
+                  onHandToAssistant={
+                    hand ? () => hand(loraMention(asset)) : undefined
+                  }
                 />
               ))}
             </div>

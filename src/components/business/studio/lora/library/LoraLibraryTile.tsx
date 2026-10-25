@@ -3,8 +3,27 @@
 import { useState, type CSSProperties } from 'react'
 import { useTranslations } from 'next-intl'
 
-import { Check, Plus, Sparkles } from '@/components/icons'
+import { Check, Eye, Plus, Sparkles } from '@/components/icons'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  MEDIA_TILE_CLASS,
+  MediaTileActions,
+  MediaTileCaption,
+  MediaTileMoreTrigger,
+  MediaTileShade,
+} from '@/components/ui/media-tile'
+import {
+  ASSISTANT_MENTION_KIND_IDS,
+  ASSISTANT_MENTION_SCOPE_IDS,
+} from '@/constants/assistant-mention'
+import { clampLabel } from '@/lib/assistant-mention'
 import { cn } from '@/lib/utils'
+import type { AssistantMention } from '@/types/assistant-mention'
 
 import { LoraSampleVideo } from './LoraSampleVideo'
 
@@ -37,14 +56,33 @@ interface LoraLibraryTileProps {
    * 「助手推荐」小标。⛔ 挪位置、⛔ 放大；挂上后由上层撤掉（换成 ✓）。
    */
   agentPick?: boolean
+  /** 收藏那颗书签（库里每一格都有；Hugging Face 收藏要先选文件，不给）。 */
+  favorite?: { saved: boolean; pending?: boolean; onToggle: () => void }
+  /** 「交给助手」：一枚 `@LoRA` 胶囊挂进助手输入框（库整页才有）。 */
+  onHandToAssistant?: () => void
+}
+
+/** 「交给助手」递过去的那一枚 `@LoRA` 胶囊（同 LoRA 台 `@` 菜单里那一组）。 */
+export function loraMention(lora: {
+  id: string
+  name: string
+  coverImageUrl?: string | null
+}): AssistantMention {
+  return {
+    kind: ASSISTANT_MENTION_KIND_IDS.lora,
+    id: lora.id,
+    label: clampLabel(lora.name),
+    scope: ASSISTANT_MENTION_SCOPE_IDS.lora,
+    ...(lora.coverImageUrl ? { thumb: lora.coverImageUrl } : {}),
+  }
 }
 
 /**
- * 库 B 的一格（lora-library.md §3）：只有封面、名字、一行元信息。
+ * 库的一格（ui-spec §9「图格」，样件 E S19）：3:4 封面，名字 + 一行灰字在下。
  *
- * ⭐ 点卡开详情 = 垫在最底下、铺满整格的一颗按钮；「挂载」浮在封面右下（悬停 /
- *   键盘进到这一格才出现），与它是两颗按钮 —— ⛔ 按钮套按钮，读屏与 Tab 序都会乱。
- * ⭐ 挂了留在原地：键变黑「✓ 已挂载」，封面右上一个 ✓；⛔ toast、⛔ 跳页。
+ * ⭐ 点卡开详情 = 垫在最底下、铺满整格的一颗按钮；悬停出「交给助手 · 收藏 · 更多」，
+ *   「挂载」收进「更多」（⛔ 按钮套按钮，读屏与 Tab 序都会乱）。
+ * ⭐ 挂了留在原地：封面右上一个 ✓；⛔ toast、⛔ 跳页。
  * ⚠ 封面先铺平均色、真图解码好了再由糊变清（200）；⛔ 灰骨架一闪。
  */
 export function LoraLibraryTile({
@@ -61,6 +99,8 @@ export function LoraLibraryTile({
   coverPending = false,
   mountChooses = false,
   agentPick = false,
+  favorite,
+  onHandToAssistant,
 }: LoraLibraryTileProps) {
   const t = useTranslations('LoraWorkbench.browse')
   const [loadedUrl, setLoadedUrl] = useState<string | null>(null)
@@ -70,28 +110,22 @@ export function LoraLibraryTile({
     : undefined
 
   return (
-    <div className="group relative flex min-w-0 flex-col gap-1.5">
-      {/* 整格就是「打开详情」：铺满的一颗按钮垫在最底下。 */}
-      <button
-        type="button"
-        onClick={onOpen}
-        aria-label={name}
-        className="absolute inset-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
-      />
-      {/* 封面整块不接指针（点它落到下面那颗「打开」上），只有「挂载」接。 */}
-      <span
+    <div className="min-w-0">
+      <div
         style={coverStyle}
         className={cn(
-          'pointer-events-none relative block aspect-3/4 overflow-hidden rounded-xl bg-muted ring-offset-2 ring-offset-card transition-[box-shadow] duration-base ease-linear group-hover:shadow-float motion-reduce:transition-none',
+          MEDIA_TILE_CLASS,
+          'aspect-3/4 ring-offset-2 ring-offset-background transition-[box-shadow] duration-base ease-linear motion-reduce:transition-none',
           agentPick ? 'ring-2 ring-foreground' : 'ring-0 ring-transparent',
         )}
       >
-        {agentPick ? (
-          <span className="absolute left-2 top-2 z-10 inline-flex h-5.5 animate-in items-center gap-1 rounded-full bg-black/85 pl-1 pr-2 text-2xs font-semibold text-white fade-in duration-base motion-reduce:animate-none">
-            <Sparkles className="size-3" aria-hidden />
-            {t('agentPick')}
-          </span>
-        ) : null}
+        {/* 整格就是「打开详情」：铺满的一颗按钮垫在最底下。 */}
+        <button
+          type="button"
+          onClick={onOpen}
+          aria-label={name}
+          className="absolute inset-0 z-10 rounded-12 focus-visible:outline-none focus-visible:shadow-focus"
+        />
         {coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -99,6 +133,7 @@ export function LoraLibraryTile({
             alt=""
             loading="lazy"
             decoding="async"
+            draggable={false}
             onLoad={() => setLoadedUrl(coverUrl)}
             className={cn(
               'absolute inset-0 size-full object-cover transition-[filter,scale,opacity] duration-base ease-standard motion-reduce:transition-none',
@@ -113,59 +148,83 @@ export function LoraLibraryTile({
         {coverVideoUrl ? (
           <LoraSampleVideo src={coverVideoUrl} active={coverVideoActive} />
         ) : null}
+        <MediaTileShade />
+        {agentPick ? (
+          <span className="pointer-events-none absolute left-2 top-2 z-20 inline-flex h-5.5 animate-in items-center gap-1 rounded-full bg-black/85 pl-1 pr-2 text-2xs font-semibold text-white fade-in duration-base motion-reduce:animate-none">
+            <Sparkles className="size-3" aria-hidden />
+            {t('agentPick')}
+          </span>
+        ) : null}
         {mounted ? (
           <span
             role="img"
             aria-label={t('mounted')}
-            className="absolute right-2 top-2 grid size-5.5 animate-in place-items-center rounded-full bg-background/95 text-status-applied fade-in duration-base"
+            className="pointer-events-none absolute right-2 top-2 z-20 grid size-5.5 animate-in place-items-center rounded-full bg-media-chip text-status-applied fade-in duration-base"
           >
             <Check className="size-3" aria-hidden />
           </span>
         ) : null}
-        {onMount ? (
-          <button
-            type="button"
-            onClick={() => {
-              if (!mounted && !mounting) onMount()
-            }}
-            aria-disabled={mounted || mounting || undefined}
-            aria-busy={mounting || undefined}
-            aria-label={
-              mounted
-                ? t('mountedLabel', { name })
-                : mountChooses
-                  ? t('mountChooseLabel', { name })
-                  : t('mountLabel', { name })
-            }
-            className={cn(
-              'touch-target-y pointer-events-auto absolute bottom-2 right-2 inline-flex h-7 items-center gap-1 rounded-full px-2.75 text-xs font-semibold shadow-md transition-[opacity,translate,background-color,color] ease-standard',
-              // 触屏没有悬停：常显、不位移（ui-defaults §6「hover 显示的操作 → 常显」）。
-              'translate-y-1 opacity-0 duration-base group-focus-within:translate-y-0 group-focus-within:opacity-100 group-hover:translate-y-0 group-hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:translate-y-0 coarse:translate-y-0 coarse:opacity-100',
-              mounted
-                ? 'cursor-default bg-foreground text-background'
-                : 'bg-background/95 text-foreground hover:bg-background',
-              mounting && 'opacity-70 coarse:opacity-70',
-            )}
-          >
-            {mounted ? (
-              <Check className="size-3" aria-hidden />
-            ) : (
-              <Plus className="size-3" aria-hidden />
-            )}
-            {mounted
-              ? t('mounted')
-              : mountChooses
-                ? t('mountChoose')
-                : t('mount')}
-          </button>
-        ) : null}
-      </span>
-      <b className="pointer-events-none truncate text-2sm font-semibold leading-4.25 text-foreground">
-        {name}
-      </b>
-      <small className="pointer-events-none truncate font-mono text-2xs text-muted-foreground">
-        {meta}
-      </small>
+        <MediaTileActions
+          handToAssistant={
+            onHandToAssistant
+              ? { label: t('handToAssistant'), onClick: onHandToAssistant }
+              : undefined
+          }
+          favorite={
+            favorite
+              ? {
+                  saved: favorite.saved,
+                  pending: favorite.pending,
+                  label: favorite.saved ? t('unfavorite') : t('favorite'),
+                  onToggle: favorite.onToggle,
+                }
+              : undefined
+          }
+          more={
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <MediaTileMoreTrigger label={t('more')} />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-36">
+                {onMount ? (
+                  <DropdownMenuItem
+                    disabled={mounted || mounting}
+                    onSelect={() => {
+                      if (!mounted && !mounting) onMount()
+                    }}
+                    aria-label={
+                      mounted
+                        ? t('mountedLabel', { name })
+                        : mountChooses
+                          ? t('mountChooseLabel', { name })
+                          : t('mountLabel', { name })
+                    }
+                  >
+                    {mounted ? <Check aria-hidden /> : <Plus aria-hidden />}
+                    {mounted
+                      ? t('mounted')
+                      : mountChooses
+                        ? t('mountChoose')
+                        : t('mount')}
+                  </DropdownMenuItem>
+                ) : null}
+                <DropdownMenuItem onSelect={onOpen}>
+                  <Eye aria-hidden />
+                  {t('openDetail')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          }
+        />
+      </div>
+      <button
+        type="button"
+        tabIndex={-1}
+        onClick={onOpen}
+        className="block w-full min-w-0 text-left"
+      >
+        <MediaTileCaption name={name} meta={meta} />
+      </button>
     </div>
   )
 }

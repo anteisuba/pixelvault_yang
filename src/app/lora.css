@@ -249,20 +249,6 @@
   }
 }
 
-/* 库 B 的结果网格（lora-library.md §3）：按宽度自适应列数 —— 1440 下 6 列，助手
- * 让位变窄时少几列，⛔ 把卡片挤扁。 */
-.domain-lora .lora-lib-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 18px 12px;
-}
-/* 手机固定两列（ui-defaults §6「图墙 2 列」）：180px 下限在 375 屏上只放得下 1 列。 */
-@media (max-width: 767px) {
-  .domain-lora .lora-lib-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 /* 库 B 搜索中：搜索框底边一截黑线来回走（边即进度，与出图的「边即进度」同一个
  * 意思）。减少动态效果时不走，整条呼吸。 */
 .domain-lora .lora-search-run {

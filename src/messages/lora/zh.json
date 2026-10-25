@@ -669,16 +669,17 @@
       "samplesWithRecipe": "{count} 张 · 都带配方",
       "samplesCount": "{count} 张",
       "samplesSomeWithRecipe": "{count} 张 · {recipes} 张带配方",
-      "mineCountQuery": "{count} 个{section}里有「{query}」",
-      "mineCountUnit": "个{section}",
       "files": "文件",
       "license": "授权",
       "licenseUnknown": "许可未知",
-      "shownCount": "已显示 {count} 个",
       "loadingMoreShown": "正在接着取下一段 · 已显示 {shown}",
       "emptyBodyLoosen": "在 {scope} 里一个都没有。放宽一项试试：",
       "mountChoose": "挂载…",
-      "mountChooseLabel": "挂载 {name}（先选文件）"
+      "mountChooseLabel": "挂载 {name}（先选文件）",
+      "handToAssistant": "交给助手",
+      "favorite": "收藏",
+      "unfavorite": "取消收藏",
+      "openDetail": "查看详情"
     },
     "characterLoras": {
       "pickEntry": "从角色选",
@@ -696,7 +697,11 @@
       "save": "保存",
       "loadFailed": "角色的 LoRA 没读出来",
       "saveFailed": "没存上，再试一次"
-    }
+    },
+    "librarySourcePill": "来源",
+    "librarySectionAll": "全部",
+    "librarySectionCharacters": "角色",
+    "librarySectionCharactersEmpty": "角色还没收 LoRA。在 LoRA 详情里点「加到角色…」就会出现在这里。"
   },
   "CivitaiToken": {
     "saveSuccess": "Civitai Token 已保存",

@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { HuggingFaceLoraSearchItem } from '@/types'
@@ -168,6 +174,15 @@ function renderBrowse(
   return all
 }
 
+/** 名叫 `name` 那一格的「更多」打开（挂载收在里面）。 */
+function openMoreOf(name: string) {
+  const tile = screen.getByRole('button', { name }).parentElement as HTMLElement
+  fireEvent.pointerDown(
+    within(tile).getByRole('button', { name: 'LoraWorkbench.browse:more' }),
+    { button: 0, ctrlKey: false },
+  )
+}
+
 describe('LoraHuggingFaceBrowse（库 B · Hugging Face）', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -185,12 +200,9 @@ describe('LoraHuggingFaceBrowse（库 B · Hugging Face）', () => {
     mockLibrary = libraryState()
   })
 
-  it('says how many are shown — Hugging Face reports no total, so none is made up', () => {
+  it('writes downloads and likes under each name', () => {
     renderBrowse()
 
-    expect(
-      screen.getByText('LoraWorkbench.browse:shownCount:{"count":"2"}'),
-    ).toBeInTheDocument()
     expect(screen.getAllByText('↓ 1.2k · ♥ 8')).toHaveLength(2)
   })
 
@@ -198,7 +210,7 @@ describe('LoraHuggingFaceBrowse（库 B · Hugging Face）', () => {
     renderBrowse()
 
     expect(
-      screen.getByRole('button', { name: /LoraWorkbench:typeFilterLabel/ }),
+      screen.getByRole('tablist', { name: 'LoraWorkbench:typeFilterLabel' }),
     ).toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: /LoraWorkbench:nsfwToggleHint/ }),
@@ -208,8 +220,9 @@ describe('LoraHuggingFaceBrowse（库 B · Hugging Face）', () => {
   it('mounts a single-file repo in place — straight to the stack, not favorited', () => {
     const props = renderBrowse()
 
+    openMoreOf('anima style')
     fireEvent.click(
-      screen.getByRole('button', {
+      screen.getByRole('menuitem', {
         name: 'LoraWorkbench.browse:mountLabel:{"name":"anima style"}',
       }),
     )
@@ -227,8 +240,9 @@ describe('LoraHuggingFaceBrowse（库 B · Hugging Face）', () => {
   it('sends a multi-file repo to its detail page to pick the file, then mounts that file', async () => {
     renderBrowse()
 
+    openMoreOf('two files')
     fireEvent.click(
-      screen.getByRole('button', {
+      screen.getByRole('menuitem', {
         name: 'LoraWorkbench.browse:mountChooseLabel:{"name":"two files"}',
       }),
     )
@@ -300,7 +314,6 @@ describe('LoraHuggingFaceBrowse（库 B · Hugging Face）', () => {
     mockLibrary = libraryState({ hasNextPage: false })
     renderBrowse()
 
-    expect(screen.getByText('2')).toBeInTheDocument()
     expect(
       screen.getByText('LoraWorkbench.browse:end:{"count":"2"}'),
     ).toBeInTheDocument()

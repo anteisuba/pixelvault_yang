@@ -13,7 +13,7 @@ import type {
 
 import { LoraHuggingFaceBrowse } from './LoraHuggingFaceBrowse'
 import { LoraLibraryBrowse } from './LoraLibraryBrowse'
-import { LoraLibrarySegmented } from './LoraLibrarySegmented'
+import { LoraLibraryFilterCombobox } from './LoraLibraryFilterCombobox'
 import { useLoraLibrarySource } from './LoraLibraryTabs'
 
 interface LoraLibraryStageProps {
@@ -45,11 +45,15 @@ export function LoraLibraryStage({
     }
   }, [agentRequest, setSource, source])
 
+  // 来源是一颗药丸（ui-spec §9 LoRA 那一行：底模 · 分级 · 来源）。
   const sourceSwitch = (
-    <LoraLibrarySegmented
+    <LoraLibraryFilterCombobox
+      variant="bar"
+      label={t('librarySourcePill')}
       ariaLabel={t('librarySourceLabel')}
       value={source}
       onChange={setSource}
+      changed={source !== LORA_LIBRARY_SOURCES.CIVITAI}
       options={[
         {
           value: LORA_LIBRARY_SOURCES.CIVITAI,

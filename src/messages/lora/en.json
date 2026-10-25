@@ -669,16 +669,17 @@
       "samplesWithRecipe": "{count} · all with recipes",
       "samplesCount": "{count}",
       "samplesSomeWithRecipe": "{count} · {recipes} with recipes",
-      "mineCountQuery": "{count, plural, one {# item} other {# items}} in {section} match “{query}”",
-      "mineCountUnit": "{count, plural, one {item} other {items}} in {section}",
       "files": "Files",
       "license": "License",
       "licenseUnknown": "License unknown",
-      "shownCount": "{count} shown",
       "loadingMoreShown": "Fetching the next batch · {shown} shown",
       "emptyBodyLoosen": "Nothing in {scope}. Try loosening one filter:",
       "mountChoose": "Mount…",
-      "mountChooseLabel": "Mount {name} (choose a file first)"
+      "mountChooseLabel": "Mount {name} (choose a file first)",
+      "handToAssistant": "Hand to assistant",
+      "favorite": "Favorite",
+      "unfavorite": "Unfavorite",
+      "openDetail": "View details"
     },
     "characterLoras": {
       "pickEntry": "From character",
@@ -696,7 +697,11 @@
       "save": "Save",
       "loadFailed": "Couldn’t load character LoRAs",
       "saveFailed": "Couldn’t save. Try again."
-    }
+    },
+    "librarySourcePill": "Source",
+    "librarySectionAll": "All",
+    "librarySectionCharacters": "Characters",
+    "librarySectionCharactersEmpty": "No character has LoRAs yet. Use “Add to character…” in a LoRA’s details and it shows up here."
   },
   "CivitaiToken": {
     "saveSuccess": "Civitai token saved",

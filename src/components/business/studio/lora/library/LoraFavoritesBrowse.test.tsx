@@ -28,6 +28,9 @@ vi.mock('@/hooks/use-active-lora-stack', () => ({
 vi.mock('@/hooks/use-civitai-download-gate', () => ({
   useCivitaiDownloadGate: () => ({ ensureMountable: async () => true }),
 }))
+vi.mock('@/hooks/use-hand-to-assistant', () => ({
+  useHandMentionToAssistant: () => null,
+}))
 vi.mock('@/hooks/use-local-preference', () => ({
   useLocalPreference: () => ['safe', vi.fn()],
 }))
@@ -87,6 +90,7 @@ const qingxiao = makeAsset('3002', 'Qingxiao', {
 
 function renderFavorites(overrides: Record<string, unknown> = {}) {
   const props = {
+    section: 'favorites' as const,
     trained: [],
     favorites: [roccia, qingxiao],
     isLoading: false,
@@ -106,6 +110,14 @@ function renderFavorites(overrides: Record<string, unknown> = {}) {
   return props
 }
 
+/** 第 `index` 格的「更多」（挂载收在里面）。 */
+function openMore(index: number) {
+  const trigger = screen.getAllByRole('button', {
+    name: 'LoraWorkbench.browse:more',
+  })[index]
+  fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false })
+}
+
 describe('LoraFavoritesBrowse（库 B · 收藏）', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -120,14 +132,14 @@ describe('LoraFavoritesBrowse（库 B · 收藏）', () => {
       .getAllByRole('button', { name: /^(Roccia|Qingxiao)$/ })
       .map((button) => button.getAttribute('aria-label'))
     expect(names).toEqual(['Qingxiao', 'Roccia'])
-    expect(screen.getByText('roccia (wuwa)')).toBeInTheDocument()
+    expect(screen.getByText('Anima · roccia (wuwa)')).toBeInTheDocument()
   })
 
   it('filters on this machine by name or trigger word', () => {
     renderFavorites()
 
     fireEvent.change(
-      screen.getByRole('textbox', {
+      screen.getByRole('searchbox', {
         name: 'LoraWorkbench:myLorasSearchPlaceholder',
       }),
       { target: { value: 'qing' } },
@@ -139,8 +151,9 @@ describe('LoraFavoritesBrowse（库 B · 收藏）', () => {
   it('mounts the favorite record itself, in place', () => {
     renderFavorites()
 
+    openMore(1)
     fireEvent.click(
-      screen.getByRole('button', {
+      screen.getByRole('menuitem', {
         name: 'LoraWorkbench.browse:mountLabel:{"name":"Roccia"}',
       }),
     )
@@ -189,18 +202,46 @@ describe('LoraFavoritesBrowse（库 B · 收藏）', () => {
   })
 
   it('offers training when there is nothing trained yet', () => {
-    const props = renderFavorites()
+    const props = renderFavorites({ section: 'trained' })
 
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: /LoraWorkbench:myLorasTrainedSection/,
-      }),
-    )
     fireEvent.click(
       screen.getByRole('button', {
         name: 'LoraWorkbench:myLorasEmptyCtaTrain',
       }),
     )
     expect(props.onGoTrain).toHaveBeenCalled()
+  })
+
+  it('the bookmark on a tile unfavorites it in place', () => {
+    const props = renderFavorites()
+
+    fireEvent.click(
+      screen.getAllByRole('button', {
+        name: 'LoraWorkbench.browse:unfavorite',
+      })[1],
+    )
+    expect(props.onUnfavoriteByUrl).toHaveBeenCalledWith(roccia.loraUrl)
+  })
+
+  it('characters section lists each character’s LoRAs once, switchable by character', () => {
+    const group = (id: string, name: string, loras: LoraAssetRecord[]) => ({
+      characterCardId: id,
+      name,
+      coverUrl: null,
+      looks: [],
+      loras: loras.map((lora) => ({ ...lora, lookId: null })),
+    })
+    renderFavorites({
+      section: 'characters',
+      characterGroups: [
+        group('c1', 'Denia', [roccia]),
+        group('c2', 'Mira', [roccia, qingxiao]),
+      ],
+    })
+
+    expect(screen.getAllByRole('button', { name: 'Roccia' })).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Qingxiao' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'Denia' }))
+    expect(screen.queryByRole('button', { name: 'Qingxiao' })).toBeNull()
   })
 })

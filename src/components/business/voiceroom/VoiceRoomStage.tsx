@@ -226,7 +226,7 @@ export function VoiceRoomStage({
 
   return (
     <div className="vr-stage workbench-card">
-      <div className="vr-bar">
+      <div data-bench-header className="vr-bar">
         <VoiceRoomHistoryMenu
           detail={detail}
           rooms={rooms}

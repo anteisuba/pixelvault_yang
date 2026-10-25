@@ -4008,7 +4008,7 @@ function GenerateBranch({
       {/* 顶上一行（ui-spec ㊲）：「{LoRA} 出过的图 N ›」，点它长出浮层盖在图上。
           ⚠ 定高 `h-9`、与舞台隔 `gap-3`：助手面板按这两个数对齐舞台顶边
           （`STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR`），改这里必须改那边。 */}
-      <div className="flex h-9 shrink-0 items-center">
+      <div data-bench-header className="flex h-9 shrink-0 items-center">
         <LoraSourceBand
           mode={bandMode}
           onExpand={() => setBandExpanded(true)}

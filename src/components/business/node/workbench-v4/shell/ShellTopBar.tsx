@@ -64,6 +64,8 @@ export function ShellTopBar({
   return (
     <>
       <div
+        // 外壳对话收起时助手头像落在左上角，这一块跟着往右让（`studio-shell-chat-collapsed`）。
+        data-bench-header
         className="pointer-events-none absolute z-canvas-chrome"
         style={{
           left: CANVAS_SHELL_LAYOUT.edgeInsetPx,

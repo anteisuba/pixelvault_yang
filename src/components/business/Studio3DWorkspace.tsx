@@ -2328,7 +2328,7 @@ export function Studio3DWorkspace({
       <h1 className="sr-only">{t('title')}</h1>
       <div className={styles.workspace}>
         <main className={styles.canvas}>
-          <div className={styles.stageHeader}>
+          <div data-bench-header className={styles.stageHeader}>
             <span>{t('modelPreview')}</span>
             <span>{displayGeneration ? 'GLB' : t('shapeIllustration')}</span>
           </div>

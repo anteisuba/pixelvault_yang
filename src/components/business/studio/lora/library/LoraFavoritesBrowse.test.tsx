@@ -201,13 +201,11 @@ describe('LoraFavoritesBrowse（库 B · 收藏）', () => {
     expect(props.onFavoriteCivitai).not.toHaveBeenCalled()
   })
 
-  it('offers training when there is nothing trained yet', () => {
+  it('the first tile of 自训 is the dashed 训练新 LoRA (ui-spec ㊲)', () => {
     const props = renderFavorites({ section: 'trained' })
 
     fireEvent.click(
-      screen.getByRole('button', {
-        name: 'LoraWorkbench:myLorasEmptyCtaTrain',
-      }),
+      screen.getByRole('button', { name: 'LoraWorkbench:trainTitle' }),
     )
     expect(props.onGoTrain).toHaveBeenCalled()
   })

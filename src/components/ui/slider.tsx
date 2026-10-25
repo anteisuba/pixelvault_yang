@@ -31,6 +31,11 @@ interface SliderProps extends React.ComponentProps<
    * 关掉 —— 它们不是参数，拉长只会分心。
    */
   stretch?: boolean
+  /**
+   * `bar` = 规范里的滑杆（ui-spec §9「滑杆」）：黑色胖条，没有钮，黑色那段就是值，按住
+   * 哪里拖哪里。缺省是旧的细条 + 圆钮，还没改到的宿主照旧。
+   */
+  look?: 'default' | 'bar'
 }
 
 function Slider({
@@ -43,6 +48,7 @@ function Slider({
   trackClassName,
   rangeClassName,
   stretch = true,
+  look = 'default',
   orientation,
   onPointerDown,
   onPointerMove,
@@ -145,6 +151,7 @@ function Slider({
         data-slot="slider-track"
         className={cn(
           'relative grow overflow-hidden rounded-full bg-muted data-[orientation=horizontal]:h-1.5 data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-1.5',
+          look === 'bar' && 'data-[orientation=horizontal]:h-4',
           trackClassName,
         )}
       >
@@ -161,7 +168,9 @@ function Slider({
           data-slot="slider-thumb"
           key={index}
           className={cn(
-            'block size-4 shrink-0 rounded-full border border-primary bg-background shadow-sm ring-ring/50 transition-[color,box-shadow] hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50',
+            look === 'bar'
+              ? 'block size-4 shrink-0 rounded-full focus-visible:shadow-focus focus-visible:outline-hidden disabled:pointer-events-none'
+              : 'block size-4 shrink-0 rounded-full border border-primary bg-background shadow-sm ring-ring/50 transition-[color,box-shadow] hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50',
             thumbClassName,
           )}
         />

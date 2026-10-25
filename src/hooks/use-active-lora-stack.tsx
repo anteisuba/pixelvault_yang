@@ -130,10 +130,9 @@ interface StoredEnvelope {
  * 最近一次"新 LoRA 进入挂载栈"事件（workbench push 或 ?style= 分享链接
  * 解析）。
  *
- * 消费方：LoRA 库 B 左侧竖条（`LoraAssemblyColumn`）——在库里点「挂载」时，
- * 只让这一个的小封面弹出来、数字跳一下；刷新时读回的挂载栈不写这个事件，所以
- * 不会跟着演。竖条只读不清（不调 `acknowledgeMountEvent`），靠自己记下「在场
- * 之后才发生的」那一次。Provider 只包 /studio/lora（见 studio/lora/layout.tsx）。
+ * 消费方：LoRA 台输入框里的药丸（`LoraMountPills`）——在挑 LoRA 框里挂上时，
+ * 只让这一颗弹出来；刷新时读回的挂载栈不写这个事件，所以不会跟着演。药丸只读不清
+ * （不调 `acknowledgeMountEvent`），靠自己记下「在场之后才发生的」那一次。Provider 只包 /studio/lora（见 studio/lora/layout.tsx）。
  */
 export interface LoraMountEvent {
   assetId: string

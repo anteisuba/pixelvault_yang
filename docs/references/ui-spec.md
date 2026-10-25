@@ -205,7 +205,7 @@
 - **`LoraBench`**：LoRA 收进输入框，台面只放图。每个挂上的 LoRA 一颗药丸：小图 + 名字 + 权重（等宽灰字），关掉的变淡、不藏；最后一颗「+ LoRA」是唯一的描边药丸，弹挑 LoRA 的框（锁「和当前底模装得上」）。触发词直接写在提示词里（@ 引用那种浅底）。底模就是模型药丸（「WAI-Illustrious v15」），点开和模型选择器同一种列表：分 SDXL 系 / DiT 系，顶上「只看兼容的」开关，装不上的变淡写「装不上」，快出的标「快出」；兼容 = 同一家族（`src/constants/lora-base-models.ts`）。参数一颗药丸「euler · 28 步」；比例一颗「3:4」；左边「负面」「还原」照药丸。台面顶上一行「水彩 v3 出过的图 24 ›」（三张小圆图），下面是这次出的图。训练入口、「常与它同挂」先不画（10-24 定）。
 - **`LoraPill`**：点一颗 LoRA 药丸从上方弹出（宽 300，`float` + `pop`）：头是小图 + 名字 + 来源 + 开关；权重滑杆 + 值；版本一排字（当前那个黑字 + 下划线）；触发词浅底；右下文字键「卸下」（⛔ 红色）。
 - **`LoraParams`**：参数药丸点开（宽 340）：采样器、调度器是灰底下拉，没动过写「默认」浅字；步数（1–100）、CFG（0–30）是滑杆，底模没给默认时 30 / 7；Seed「随机 | 固定」、放大「不放大 | 4x-AnimeSharp」是小号切换条。药丸上只写采样器 · 步数。
-- 代码里：`LoraWorkbench` 换成这一副——`LoraAssemblyColumn` 的 LoRA 行收成输入框里的药丸，`LoraScaleChip` 并进药丸点开，`LoraBaseModelModal` 换成模型药丸里的列表，`LoraParamsChip` 就是参数药丸，`LoraSourceBand` 收成顶上一行。
+- 代码里（2026-10-25 已做）：`LoraMountPills`（输入框里的 LoRA 药丸 + 点开卡：开关 / 权重 / 触发词 / 卸下）、`LoraBasePill`（底模 = 模型药丸列表，底行本月 Runner 剩余）、`LoraParamsChip`（参数药丸）、`LoraSourceBand`（顶上一行，点开浮层）、`LoraResultStage`（台面只放图，一行 4 张）；旧 `LoraAssemblyColumn` 已删。训练入口在 LoRA 库「自训」第一格；药丸卡里的版本行未做（挂载记录没有版本信息），拖动排序不做。
 
 ### 库（㊱ ㊳ ㊴）
 

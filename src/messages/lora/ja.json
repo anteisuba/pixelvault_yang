@@ -242,15 +242,12 @@
         "groupCount": "{count} 枚",
         "noteRecipe": "1 枚開くとレシピ全体 · 同じ設定で作る",
         "noteShowcase": "1 枚開くと拡大",
-        "fold": "折りたたむ",
-        "lineName": "「{name}」",
-        "lineCount": "の作例 {count}",
-        "lineEmpty": "の公開作例なし",
-        "empty": "この LoRA には公開作例がありません"
+        "lineEmpty": "{name} の公開作例なし",
+        "empty": "この LoRA には公開作例がありません",
+        "lineTitle": "{name} の作例"
       },
       "hintWithLora": "プロンプトを書くと、結果はここに表示されます",
       "hintPure": "ベースモデルだけでも生成できます。「ライブラリ」で LoRA を装着することもできます",
-      "roundLabel": "このラウンド",
       "busy": "生成中",
       "assistantBusy": "装備台がまだ処理中です（生成中、またはレシピの LoRA を装着中）。終わってからもう一度どうぞ",
       "restoreShort": "復元",
@@ -274,7 +271,6 @@
         "upscale": "拡大"
       },
       "paramsDefaultShort": "既定",
-      "oftenMountedShort": "よく一緒に使う",
       "triggerAdd": "「{word}」をプロンプトに入れる",
       "saveTemplate": "テンプレートとして保存",
       "templateSaved": "テンプレートに保存しました",
@@ -282,7 +278,10 @@
       "templateSaveFailed": "保存できませんでした。もう一度お試しください",
       "templateLoadFailed": "このテンプレートを開けませんでした（削除された可能性があります）",
       "negativeInert": "このベースは CFG 1 のため、ネガティブプロンプトは効きません。書いた内容は残り、戻すと元どおりです。",
-      "paramsCfg": "CFG {cfg}"
+      "paramsCfg": "CFG {cfg}",
+      "runShort": "生成",
+      "handToAssistant": "アシスタントに渡す",
+      "upscaleNone": "拡大しない"
     },
     "spine": {
       "sourceCheckpointAuto": "ソース画像のチェックポイント（自動）",
@@ -317,15 +316,11 @@
       "expandAssembly": "組み立て台を開く",
       "toggleTriggerWord": "トリガーワード {word} を切替",
       "loraLabel": "LoRA",
-      "swapBase": "ベースモデルを変更",
       "stripLabel": "構成（折りたたみ中）",
-      "editAssembly": "組み立てを編集",
-      "stripMounted": "LoRA {count} 個を装着",
-      "incompatibleLine": "{family} · このベースモデルには合わず、生成時は無効",
-      "compatDotOk": "現在のベースモデルで使えます"
+      "incompatibleLine": "{family} · このベースモデルには合わず、生成時は無効"
     },
     "trainCTA": "新しいLoRAを学習",
-    "trainTitle": "LoRAを学習",
+    "trainTitle": "新しい LoRA を学習",
     "trainDescription": "自分のスタイル・キャラクター・オブジェクトを再利用できるStudio資産にします。",
     "trainSignal": {
       "dataset": "学習セット",
@@ -710,6 +705,18 @@
       "confirm": "{count} 件装着",
       "selectLabel": "{name} を選ぶ",
       "mounted": "装着済み"
+    },
+    "pill": {
+      "add": "LoRA",
+      "addLabel": "LoRA を追加",
+      "openLabel": "{name} · 重み {scale}",
+      "weight": "重み",
+      "triggers": "トリガー",
+      "remove": "外す",
+      "sourceTrained": "自作",
+      "sourceImported": "お気に入り",
+      "sourceCurated": "厳選",
+      "incompatible": "載らない"
     }
   },
   "CivitaiToken": {

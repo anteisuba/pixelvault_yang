@@ -72,10 +72,12 @@ export interface StudioGeneratingProgressProps {
   /**
    * Matches the art box's corner radius so the line runs on its edge.
    * `--radius-node` is the canvas node card's own radius exception
-   * (ui-defaults §3.1) — added for `NodeFrameProgress`.
+   * (ui-defaults §3.1) — added for `NodeFrameProgress`. `--radius-12` is the
+   * spec's media-tile radius (ui-spec §5) — the LoRA bench result grid.
    */
   cornerRadiusVar?:
     | '--radius-md'
+    | '--radius-12'
     | '--radius-xl'
     | '--radius-2xl'
     | '--radius-node'

@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import type { ComponentProps } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -16,9 +16,10 @@ function props(
   overrides: Partial<ComponentProps<typeof LoraResultStage>> = {},
 ): ComponentProps<typeof LoraResultStage> {
   return {
-    resultUrl: 'https://cdn.example/a.png',
-    resultRatio: 1,
-    pendingRatio: 1,
+    round: [
+      { id: 'b', url: 'https://cdn.example/b.png' },
+      { id: 'a', url: 'https://cdn.example/a.png' },
+    ],
     generating: false,
     isCompleting: false,
     completionReleased: false,
@@ -27,51 +28,52 @@ function props(
     elapsedSeconds: 0,
     stageLabel: '',
     failure: null,
-    onOpenPreview: vi.fn(),
+    onOpen: vi.fn(),
     onAskAssistant: vi.fn(),
+    templateSaveFor: () => undefined,
     hint: 'hint',
-    round: [],
-    selectedId: null,
-    onSelect: vi.fn(),
-    meta: null,
     eta: null,
     ...overrides,
   }
 }
 
-const image = (container: HTMLElement) =>
-  container.querySelector('img[data-result-arrival]') as HTMLElement
-
-describe('LoraResultStage — 新图由糊变清（RESULT_REVEAL）', () => {
-  it('does not replay the reveal for the image that is already there on mount', () => {
-    const { container } = render(<LoraResultStage {...props()} />)
-    expect(image(container)).toHaveAttribute('data-result-arrival', 'none')
+describe('LoraResultStage（台面只放图，ui-spec ㊲）', () => {
+  it('lays this round out as tiles, newest first; a tile opens the big view', () => {
+    const onOpen = vi.fn()
+    render(<LoraResultStage {...props({ onOpen })} />)
+    expect(screen.getAllByRole('listitem')).toHaveLength(2)
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'generate.resultPreviewLabel' })[0],
+    )
+    expect(onOpen).toHaveBeenCalledWith('b')
   })
 
-  it('blurs a picked round image in instead of swapping it directly', () => {
-    const { container, rerender } = render(<LoraResultStage {...props()} />)
-    rerender(
-      <LoraResultStage
-        {...props({ resultUrl: 'https://cdn.example/b.png' })}
-      />,
+  it('hands a tile to the assistant from its hover pill', () => {
+    const onAskAssistant = vi.fn()
+    render(<LoraResultStage {...props({ onAskAssistant })} />)
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'generate.handToAssistant' })[1],
     )
-    expect(image(container)).toHaveAttribute('data-result-arrival', 'swap')
-    expect(image(container)).toHaveAttribute('src', 'https://cdn.example/b.png')
+    expect(onAskAssistant).toHaveBeenCalledWith('https://cdn.example/a.png')
   })
 
-  it('holds a freshly generated image under the veil until the line lets go', () => {
-    const { container, rerender } = render(
-      <LoraResultStage {...props({ generating: true })} />,
+  it('puts the in-flight run in a leading tile with its own progress', () => {
+    render(<LoraResultStage {...props({ generating: true })} />)
+    expect(screen.getAllByRole('listitem')).toHaveLength(3)
+    expect(screen.getByRole('progressbar')).toBeInTheDocument()
+  })
+
+  it('finishes on the newest tile itself instead of a separate one', () => {
+    render(
+      <LoraResultStage {...props({ generating: true, isCompleting: true })} />,
     )
-    rerender(
-      <LoraResultStage
-        {...props({
-          resultUrl: 'https://cdn.example/new.png',
-          generating: true,
-          isCompleting: true,
-        })}
-      />,
-    )
-    expect(image(container)).toHaveAttribute('data-result-arrival', 'hold')
+    expect(screen.getAllByRole('listitem')).toHaveLength(2)
+    expect(screen.getByRole('progressbar')).toBeInTheDocument()
+  })
+
+  it('says the one-line hint when nothing has been made yet', () => {
+    render(<LoraResultStage {...props({ round: [] })} />)
+    expect(screen.getByText('hint')).toBeInTheDocument()
+    expect(screen.queryByRole('listitem')).not.toBeInTheDocument()
   })
 })

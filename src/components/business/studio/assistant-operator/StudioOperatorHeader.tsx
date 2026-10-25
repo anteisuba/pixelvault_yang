@@ -48,6 +48,9 @@
  *  · `own` —— 手机 Sheet：没有 morph，由头部自己画一颗（点它收起）。
  *  · `none` —— 布局 A「分栏并排」（图片台桌面）：头像留在面板**上方**那一行里，
  *    头部不留位，标题从左缘起。
+ *  · `board` / `boardStatic` —— `/studio` 外壳那一栏（ui-spec §1 板头）：32 的平圆头像 +
+ *    标题；开着台时点头像整栏收起（`board`），首页没有台可让、头像不可点（`boardStatic`）。
+ *    这两档的标题是就地改名（`StudioOperatorTitleRename`），⛔ 历史下拉 —— 历史在左栏。
  */
 
 import { useCallback, useState } from 'react'
@@ -89,6 +92,7 @@ import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator
 import { useSlowLoadingNotice } from '@/hooks/use-slow-loading-notice'
 import { StudioOperatorModeSwitch } from '@/components/business/studio/assistant-operator/StudioOperatorModeSwitch'
 import { StudioOperatorSessionRow } from '@/components/business/studio/assistant-operator/StudioOperatorSessionRow'
+import { StudioOperatorTitleRename } from '@/components/business/studio/assistant-operator/StudioOperatorTitleRename'
 import { deriveAssistantConversationTitle } from '@/lib/assistant-conversation-title'
 import {
   assistantWorkspaceDomain,
@@ -149,7 +153,12 @@ const HEADER_ICON_BUTTON_CLASS =
   'grid size-7 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill hover:text-foreground active:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-[state=open]:bg-surface-fill data-[state=open]:text-foreground motion-reduce:transition-none'
 
 /** 头部左上那个头像位怎么处理 —— 见头注「左上那个头像位」。 */
-export type StudioOperatorHeaderAvatar = 'slot' | 'own' | 'none'
+export type StudioOperatorHeaderAvatar =
+  | 'slot'
+  | 'own'
+  | 'none'
+  | 'board'
+  | 'boardStatic'
 
 /**
  * 会话行上那枚台标签：读这段对话**起始**的那个台（`workspaceKey`，配音台 / 标签台靠首条的戳
@@ -284,6 +293,8 @@ export function StudioOperatorHeader({
     return format.dateTime(date, { month: '2-digit', day: '2-digit' })
   }
 
+  const board = avatar === 'board' || avatar === 'boardStatic'
+
   return (
     <div
       data-testid="operator-header"
@@ -293,7 +304,7 @@ export function StudioOperatorHeader({
       data-shell-part="head"
       /* ⚠ 头部**不铺自己的底**（§12.1）：它坐在面板那层玻璃上，给它一层
          `bg-card` 等于在玻璃上又糊一块不透明白 —— 分层交给那条下边线。 */
-      className="shrink-0 border-b border-border"
+      className={cn('shrink-0', !board && 'border-b border-border')}
     >
       <div
         style={{ height: `${STUDIO_OPERATOR_SHELL.headerHeightPx}px` }}
@@ -317,6 +328,24 @@ export function StudioOperatorHeader({
           >
             <AssistantAvatarGlyph presetId={persona?.avatarPreset ?? null} />
           </button>
+        ) : avatar === 'board' ? (
+          <button
+            type="button"
+            data-testid="operator-header-avatar"
+            aria-label={t('collapse')}
+            onClick={onCollapse}
+            className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-muted text-foreground transition-transform duration-fast ease-standard active:scale-96 focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none"
+          >
+            <AssistantAvatarGlyph presetId={persona?.avatarPreset ?? null} />
+          </button>
+        ) : avatar === 'boardStatic' ? (
+          <span
+            data-testid="operator-header-avatar"
+            aria-hidden
+            className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-muted text-foreground"
+          >
+            <AssistantAvatarGlyph presetId={persona?.avatarPreset ?? null} />
+          </span>
         ) : avatar === 'slot' ? (
           <span
             data-testid="operator-header-avatar-slot"
@@ -329,23 +358,29 @@ export function StudioOperatorHeader({
           />
         ) : null}
 
-        <DropdownMenu
-          modal={false}
-          open={menuOpen}
-          onOpenChange={(next) => {
-            setMenuOpen(next)
-            if (next) history.refreshSessions(true)
-            // ⚠ 关掉菜单就把刀放下：下次打开不该有一行还举着「确认删除」。
-            else setConfirmDeleteId(null)
-          }}
-        >
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              data-testid="operator-session-menu"
-              aria-label={t('history.heading')}
-              title={sessionTitle}
-              /* 画板 BCards「头部 · 静止」：标题是一颗 `bg-muted` 的浅片，
+        {board ? (
+          <StudioOperatorTitleRename
+            history={history}
+            fallbackTitle={t('newThread')}
+          />
+        ) : (
+          <DropdownMenu
+            modal={false}
+            open={menuOpen}
+            onOpenChange={(next) => {
+              setMenuOpen(next)
+              if (next) history.refreshSessions(true)
+              // ⚠ 关掉菜单就把刀放下：下次打开不该有一行还举着「确认删除」。
+              else setConfirmDeleteId(null)
+            }}
+          >
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                data-testid="operator-session-menu"
+                aria-label={t('history.heading')}
+                title={sessionTitle}
+                /* 画板 BCards「头部 · 静止」：标题是一颗 `bg-muted` 的浅片，
                  不是一行裸字 —— 那颗片就是「这里可以点开历史」的形状。
                  ⚠ 展开时压深一档（`data-[state=open]`），⛔ 不换色相。
                  ⚠ **hug-content**（对稿 2026-09-11）：⛔ 不给 `flex-1` —— 撑满一行
@@ -354,23 +389,23 @@ export function StudioOperatorHeader({
                    有分量的东西，再给它一块浅底等于让它跟一颗控件抢读法。hover 与
                    展开两态照旧压底 —— 可点这件事由那两态说。
                  ⚠ 两态同一档 4%（画板「历史会话行」），13px 半粗。 */
-              className="flex h-7 min-w-0 max-w-full items-center gap-1 rounded-lg bg-transparent px-2 text-left text-2sm font-semibold text-foreground transition-colors duration-fast ease-linear hover:bg-surface-fill data-[state=open]:bg-surface-fill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
-            >
-              <span className="min-w-0 truncate">{sessionTitle}</span>
-              <ChevronDown className="size-3.5 shrink-0" aria-hidden />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="start"
-            onInteractOutside={(event) => {
-              // 点历史图标不算「点了外面」—— 否则它永远关不掉菜单（见头注）。
-              if (
-                event.target instanceof Element &&
-                event.target.closest(`[${HISTORY_BUTTON_ATTR}]`)
-              )
-                event.preventDefault()
-            }}
-            /* ── 三层玻璃③：**浮层**（§12.1）。唯一真正半透 + 模糊的一层，
+                className="flex h-7 min-w-0 max-w-full items-center gap-1 rounded-lg bg-transparent px-2 text-left text-2sm font-semibold text-foreground transition-colors duration-fast ease-linear hover:bg-surface-fill data-[state=open]:bg-surface-fill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+              >
+                <span className="min-w-0 truncate">{sessionTitle}</span>
+                <ChevronDown className="size-3.5 shrink-0" aria-hidden />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="start"
+              onInteractOutside={(event) => {
+                // 点历史图标不算「点了外面」—— 否则它永远关不掉菜单（见头注）。
+                if (
+                  event.target instanceof Element &&
+                  event.target.closest(`[${HISTORY_BUTTON_ATTR}]`)
+                )
+                  event.preventDefault()
+              }}
+              /* ── 三层玻璃③：**浮层**（§12.1）。唯一真正半透 + 模糊的一层，
                配强投影；14px 圆角走区间上限一侧。
                ⚠ 宽 300 / 内边距 5（画板 `DesignD7cShell`「历史下拉」）。
                ⚠ **开合动效**（画板动效表前两行）：开 = 淡入 + 下移 4px，
@@ -381,12 +416,12 @@ export function StudioOperatorHeader({
                ⚠ 降级写 `motion-reduce:animate-none` 不是 `transition-none`：
                  开合走的是 `animate-in` / `animate-out`（keyframes），⛔ 关过渡
                  关不掉动画。 */
-            className="max-h-[60svh] w-75 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl p-1.25 assistant-glass-overlay shadow-assistant-overlay duration-fast data-[side=bottom]:slide-in-from-top-1 data-[state=closed]:ease-linear data-[state=closed]:zoom-out-100 data-[state=open]:zoom-in-100 motion-reduce:animate-none"
-          >
-            <DropdownMenuLabel className="px-2.25 pb-1 pt-1.5 text-2xs font-normal text-muted-foreground">
-              {t('history.heading')}
-            </DropdownMenuLabel>
-            {/* ── 加载中 = **替掉**列表（画板「加载中」那条 ⚠）───────────
+              className="max-h-[60svh] w-75 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl p-1.25 assistant-glass-overlay shadow-assistant-overlay duration-fast data-[side=bottom]:slide-in-from-top-1 data-[state=closed]:ease-linear data-[state=closed]:zoom-out-100 data-[state=open]:zoom-in-100 motion-reduce:animate-none"
+            >
+              <DropdownMenuLabel className="px-2.25 pb-1 pt-1.5 text-2xs font-normal text-muted-foreground">
+                {t('history.heading')}
+              </DropdownMenuLabel>
+              {/* ── 加载中 = **替掉**列表（画板「加载中」那条 ⚠）───────────
                 真机上现在是「读取中…」那行字和已经载出来的会话行同时挂着 ——
                 于是列表读起来像「这些是旧的，新的还在路上」。三条骨架占住行位，
                 ⛔ 不叠在列表上面。⚠ 骨架行高 = 真行高（`h-11`），⛔ 不许跳动。
@@ -394,116 +429,122 @@ export function StudioOperatorHeader({
                   过了保鲜期、当前会话每次落库之后）照旧画着手上那份，拉回来原地换。
                   整张换成骨架的代价是行被卸载 —— 点在删除上的那一下落空、确认态
                   跟着没了（owner 2026-09-26「删除要点好多次才出确认」）。 */}
-            {listLoading ? (
-              <div
-                data-testid="operator-history-skeleton"
-                role="status"
-                aria-label={t('history.loading')}
-              >
-                {HISTORY_SKELETON_WIDTHS.map((width) => (
-                  <div key={width} className="flex h-11 items-center px-2.25">
-                    <span className="flex min-w-0 flex-1 flex-col gap-1.5">
-                      <Skeleton className={cn('h-2.5 rounded-sm', width)} />
-                      <Skeleton className="h-2 w-2/5 rounded-sm" />
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-            {/* 一条都没有 = **一句灰字**（画板「一条都没有」）：⛔ 不画插图空态，
+              {listLoading ? (
+                <div
+                  data-testid="operator-history-skeleton"
+                  role="status"
+                  aria-label={t('history.loading')}
+                >
+                  {HISTORY_SKELETON_WIDTHS.map((width) => (
+                    <div key={width} className="flex h-11 items-center px-2.25">
+                      <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+                        <Skeleton className={cn('h-2.5 rounded-sm', width)} />
+                        <Skeleton className="h-2 w-2/5 rounded-sm" />
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              {/* 一条都没有 = **一句灰字**（画板「一条都没有」）：⛔ 不画插图空态，
                 这是个下拉菜单不是一页；底下那颗「新对话」照常在。 */}
-            {!listLoading && history.sessions.length === 0 ? (
-              <p
-                data-testid="operator-history-empty"
-                className="px-2.25 pb-4 pt-3.5 text-xs text-muted-foreground"
-              >
-                {t('history.empty')}
-              </p>
-            ) : null}
-            {/* ⚠ 列表与骨架**互斥**：骨架只在列表为空时出现，两者天然不叠加。
+              {!listLoading && history.sessions.length === 0 ? (
+                <p
+                  data-testid="operator-history-empty"
+                  className="px-2.25 pb-4 pt-3.5 text-xs text-muted-foreground"
+                >
+                  {t('history.empty')}
+                </p>
+              ) : null}
+              {/* ⚠ 列表与骨架**互斥**：骨架只在列表为空时出现，两者天然不叠加。
                 等过骨架才到的那一份短暂一糊变清（加载中 2026-10-08）；打开时手上就有的
                 直接出现，⛔ 每开一次糊一次。 */}
-            <ArrivalReveal loading={listLoading}>
-              {sessionGroups.map((group) => (
-                <div key={group.character?.id ?? 'work'}>
-                  {sessionGroups.length > 1 ? (
-                    <DropdownMenuLabel className="px-2.25 pb-1 pt-1.5 text-2xs font-normal text-muted-foreground">
-                      {group.character
-                        ? t('chat.group', { name: group.character.name })
-                        : t('chat.workGroup')}
-                    </DropdownMenuLabel>
-                  ) : null}
-                  {group.sessions.map((session) => {
-                    const domain = sessionDomain(session.workspaceKey)
-                    return (
-                      <StudioOperatorSessionRow
-                        key={session.id}
-                        session={session}
-                        domainLabel={domain ? t(`domainName.${domain}`) : null}
-                        dateLabel={sessionDateLabel(session.updatedAt)}
-                        current={session.id === history.currentSessionId}
-                        selectDisabled={
-                          working ||
-                          Boolean(history.loadingSessionId) ||
-                          history.deletingSessionId === session.id
-                        }
-                        deleteDisabled={
-                          Boolean(history.deletingSessionId) ||
-                          (working && session.id === history.currentSessionId)
-                        }
-                        renaming={history.renamingSessionId === session.id}
-                        deleting={history.deletingSessionId === session.id}
-                        confirming={confirmDeleteId === session.id}
-                        onSelect={() => history.selectSession(session)}
-                        onRename={(title) =>
-                          void history.renameSession(session, title)
-                        }
-                        onRequestDelete={() => setConfirmDeleteId(session.id)}
-                        onCancelDelete={cancelConfirmDelete}
-                        onConfirmDelete={() => {
-                          void history
-                            .deleteSession(session)
-                            .then((deleted) => {
-                              if (deleted) setConfirmDeleteId(null)
-                            })
-                        }}
-                      />
-                    )
-                  })}
-                </div>
-              ))}
-            </ArrivalReveal>
-            {history.error ? (
-              <DropdownMenuItem disabled className="text-2sm text-destructive">
-                {history.error}
-              </DropdownMenuItem>
-            ) : null}
-            {/* 「新会话」在**底部**（画板 BCards「历史下拉展开」）：列表是来找
+              <ArrivalReveal loading={listLoading}>
+                {sessionGroups.map((group) => (
+                  <div key={group.character?.id ?? 'work'}>
+                    {sessionGroups.length > 1 ? (
+                      <DropdownMenuLabel className="px-2.25 pb-1 pt-1.5 text-2xs font-normal text-muted-foreground">
+                        {group.character
+                          ? t('chat.group', { name: group.character.name })
+                          : t('chat.workGroup')}
+                      </DropdownMenuLabel>
+                    ) : null}
+                    {group.sessions.map((session) => {
+                      const domain = sessionDomain(session.workspaceKey)
+                      return (
+                        <StudioOperatorSessionRow
+                          key={session.id}
+                          session={session}
+                          domainLabel={
+                            domain ? t(`domainName.${domain}`) : null
+                          }
+                          dateLabel={sessionDateLabel(session.updatedAt)}
+                          current={session.id === history.currentSessionId}
+                          selectDisabled={
+                            working ||
+                            Boolean(history.loadingSessionId) ||
+                            history.deletingSessionId === session.id
+                          }
+                          deleteDisabled={
+                            Boolean(history.deletingSessionId) ||
+                            (working && session.id === history.currentSessionId)
+                          }
+                          renaming={history.renamingSessionId === session.id}
+                          deleting={history.deletingSessionId === session.id}
+                          confirming={confirmDeleteId === session.id}
+                          onSelect={() => history.selectSession(session)}
+                          onRename={(title) =>
+                            void history.renameSession(session, title)
+                          }
+                          onRequestDelete={() => setConfirmDeleteId(session.id)}
+                          onCancelDelete={cancelConfirmDelete}
+                          onConfirmDelete={() => {
+                            void history
+                              .deleteSession(session)
+                              .then((deleted) => {
+                                if (deleted) setConfirmDeleteId(null)
+                              })
+                          }}
+                        />
+                      )
+                    })}
+                  </div>
+                ))}
+              </ArrivalReveal>
+              {history.error ? (
+                <DropdownMenuItem
+                  disabled
+                  className="text-2sm text-destructive"
+                >
+                  {history.error}
+                </DropdownMenuItem>
+              ) : null}
+              {/* 「新会话」在**底部**（画板 BCards「历史下拉展开」）：列表是来找
                 旧东西的，新建是找不到时的兜底 —— 摆在最上面等于每次翻历史都先
                 跨过一颗会把当前会话换掉的按钮。 */}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              data-testid="operator-new-thread"
-              disabled={working || Boolean(history.loadingSessionId)}
-              /* 「新对话」照当前模式开（owner 2026-10-16：模式切换只在头部那颗按钮）：
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                data-testid="operator-new-thread"
+                disabled={working || Boolean(history.loadingSessionId)}
+                /* 「新对话」照当前模式开（owner 2026-10-16：模式切换只在头部那颗按钮）：
                  聊天里 = 和同一个角色新开一段（带开场白）；卡没取到就不带开场白。 */
-              onSelect={() =>
-                onNewThread(
-                  chatCharacter
-                    ? (chatCharacters.characters.find(
-                        (chat) => chat.character.id === chatCharacter.id,
-                      ) ?? { character: chatCharacter, opening: '' })
-                    : undefined,
-                )
-              }
-            >
-              <MessageSquarePlus className="size-4" aria-hidden />
-              {chatCharacter
-                ? t('chat.newChatThread', { name: chatCharacter.name })
-                : t('newThread')}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+                onSelect={() =>
+                  onNewThread(
+                    chatCharacter
+                      ? (chatCharacters.characters.find(
+                          (chat) => chat.character.id === chatCharacter.id,
+                        ) ?? { character: chatCharacter, opening: '' })
+                      : undefined,
+                  )
+                }
+              >
+                <MessageSquarePlus className="size-4" aria-hidden />
+                {chatCharacter
+                  ? t('chat.newChatThread', { name: chatCharacter.name })
+                  : t('newThread')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
 
         {/* ── 隐身胶囊（56a · 画板 `DesignD56Simple`「隐身开着」）──────
             ⚠ **一枚文字胶囊**，⛔ 不用红点：红点说的是「有东西要你看」，而隐身

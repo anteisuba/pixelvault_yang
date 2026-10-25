@@ -21,7 +21,7 @@
 - 对话顶上：助手头像 + 标题；点标题就地改名，⛔ 分隔线。点头像对话**完全收起、不占边**，头像浮到台的左上角（有新消息带小点），再点展开。
 - 台条**一直在**，竖着浮在台右边：图片 · LoRA · 视频 · 3D · 画布；同时只开一个台。⛔ 台顶上的切换条、⛔ 台标题（「图片工作台」）。
 - 库只有整页（§9 库）；别处要用库都弹正中的框。
-- 代码：外壳 `studio/shell/StudioShell.tsx`（灰底 + 白板 `SHELL_BOARD_CLASS`，板里整屏高靠 `bench-screen-h` 扣掉上下 8）、左栏 `StudioConversationList.tsx`（64 图标栏 + 浮出的对话列表）、台条与收起后的头像 `StudioShellBench.tsx`（点当前那颗台 = 收台）。左栏「搜索」要搜什么还没定，先不放。
+- 代码：外壳 `studio/shell/StudioShell.tsx`（灰底 + 白板 `SHELL_BOARD_CLASS`，板里整屏高靠 `bench-screen-h` 扣掉上下 8）、左栏 `StudioConversationList.tsx`（64 图标栏 + 浮出的对话列表）、台条与收起后的头像 `StudioShellBench.tsx`（点当前那颗台 = 收台）。左栏「搜索」要搜什么还没定，先不放。板头 = `StudioOperatorHeader` 的 `board` / `boardStatic` 两档（开着台点头像收整栏；首页头像不可点），标题就地改名在 `StudioOperatorTitleRename.tsx`，历史只走左栏、板头 ⛔ 历史下拉。
 - 手机端等电脑端做完再定，不在本文范围。
 
 ## 2. 文案

@@ -37,3 +37,26 @@ describe('renderAssistantV3ImageBoard · model options', () => {
     )
   })
 })
+
+describe('renderAssistantV3ImageBoard · results on the stage', () => {
+  it('lists the latest batch by result-N and marks the selected one', () => {
+    const text = renderAssistantV3ImageBoard({
+      snapshot: {
+        ...SNAPSHOT,
+        results: [
+          { url: 'https://cdn.test/a.png', label: '图_1701·malfoy' },
+          {
+            url: 'https://cdn.test/b.png',
+            label: '图_1702·malfoy',
+            selected: true,
+          },
+        ],
+      },
+      attachedNames: [],
+      latestUserText: '这张怎么样',
+    })
+    expect(text).toContain(
+      'result-1 "图_1701·malfoy", result-2 "图_1702·malfoy" (selected on the stage',
+    )
+  })
+})

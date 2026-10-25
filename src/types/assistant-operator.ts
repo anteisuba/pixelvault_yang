@@ -517,6 +517,18 @@ export const AssistantOperatorSnapshotReferenceSchema = z.object({
   label: LabelSchema.optional(),
 })
 
+/**
+ * 舞台上的一张结果（`result-N`）。`selected` = 创作者在舞台上选中 / 放大的那张
+ * （「这张」说的就是它）；只有一张时它就是选中的。
+ */
+export const AssistantOperatorSnapshotResultSchema =
+  AssistantOperatorSnapshotReferenceSchema.extend({
+    selected: z.literal(true).optional(),
+  })
+export type AssistantOperatorSnapshotResult = z.infer<
+  typeof AssistantOperatorSnapshotResultSchema
+>
+
 export const AssistantOperatorSnapshotReferencesSchema = z.object({
   items: z
     .array(AssistantOperatorSnapshotReferenceSchema)
@@ -1095,7 +1107,7 @@ export const AssistantOperatorSnapshotSchema = z.object({
    * ⛔ 不用创作者再 @（owner 2026-10-16）。只有图片，只读，⛔ 不是参考位。
    */
   results: z
-    .array(AssistantOperatorSnapshotReferenceSchema)
+    .array(AssistantOperatorSnapshotResultSchema)
     .max(LIMITS.maxSnapshotResults)
     .optional(),
   /** ⚠ 缺席 = 没有具名帧槽（图片档 / 多图参考档 / 全能参考档）。见 schema 头注。 */

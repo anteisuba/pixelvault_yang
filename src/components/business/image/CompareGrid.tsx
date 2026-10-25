@@ -46,6 +46,7 @@ import {
 } from '@/lib/api-error-message'
 import { flyImageToComposer } from '@/lib/fly-to-composer'
 import { resolveGeneratingStageKey } from '@/lib/generation-progress'
+import { setStudioStageFocus } from '@/lib/studio-stage-focus'
 import { flyTileFromGenerate } from '@/lib/studio-workbench-motion'
 import { cn } from '@/lib/utils'
 
@@ -187,6 +188,13 @@ export const CompareGrid = memo(function CompareGrid({
     }
     return null
   }, [rows, focusedItemId])
+
+  // 选中的那张告诉助手（「这张」= 它，10-25）。
+  const focusedGenerationId = focusedGeneration?.id ?? null
+  useEffect(() => {
+    setStudioStageFocus(focusedGenerationId)
+    return () => setStudioStageFocus(null)
+  }, [focusedGenerationId])
 
   // 重新生成一轮后旧的聚焦项已经不在 items 里了，动作栏必须跟着清掉，
   // 否则它会停在上一轮那张图上（按钮还能按，操作的是已经不在屏上的图）。

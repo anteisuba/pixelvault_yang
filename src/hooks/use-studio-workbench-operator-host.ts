@@ -48,9 +48,13 @@ import { deleteProjectRuleAPI } from '@/lib/api-client/assistant-persona'
 import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
 import {
   studioRunForWorkspace,
+  isStudioResultInWorkspace,
+  toOperatorResultItem,
   toOperatorResultRun,
   toOperatorRunResults,
+  toOperatorSnapshotResults,
 } from '@/lib/studio-operator-result-run'
+import { readStudioStageFocus } from '@/lib/studio-stage-focus'
 import {
   buildImageGenerationControls,
   buildImageOperatorSnapshot,
@@ -235,8 +239,11 @@ export function useStudioWorkbenchOperatorHost({
    * 「此刻的表单」喂进去。⛔ 别在这里补一个「两个域都给一份」的合并 —— 快照的
    * 每一节缺席都是一条闸（拍板 19）。
    */
-  /** 舞台上那一批结果（下面才算出来，快照现读，所以走 ref）。 */
-  const resultsRef = useRef<readonly StudioOperatorResultItem[]>([])
+  /** 舞台上那一批结果与选为最佳的那张（下面才算出来，快照现读，所以走 ref）。 */
+  const stageRef = useRef<{
+    items: readonly StudioOperatorResultItem[]
+    winnerId: string | null
+  }>({ items: [], winnerId: null })
   const buildSnapshot = useCallback((): AssistantOperatorSnapshot => {
     const current = latest.current.state
     /**
@@ -273,20 +280,13 @@ export function useStudioWorkbenchOperatorHost({
 
     /**
      * 舞台上最新一批出好的图（`result-N`）：v3 `look` 直接看，⛔ 不用创作者再 @
-     * （owner 2026-10-16）。只收图片、只收存好的地址。
+     * （owner 2026-10-16）。选中那张：结果格里点过的 → 选为最佳的那张。
      */
-    const results = resultsRef.current
-      .filter(
-        (item) =>
-          (item.outputType ?? 'image') === 'image' &&
-          item.url.startsWith('http'),
-      )
-      .slice(0, ASSISTANT_OPERATOR_LIMITS.maxSnapshotResults)
-      .map((item) => ({
-        assetId: item.id,
-        url: item.url,
-        ...(item.label ? { label: item.label } : {}),
-      }))
+    const stage = stageRef.current
+    const results = toOperatorSnapshotResults(
+      stage.items,
+      readStudioStageFocus() ?? stage.winnerId,
+    )
     const withResults = (snapshot: AssistantOperatorSnapshot) =>
       results.length ? { ...snapshot, results } : snapshot
 
@@ -575,7 +575,9 @@ export function useStudioWorkbenchOperatorHost({
    * 长在面板里（`useStudioGenOptional()`），搬到宿主上是因为 LoRA 装配台也要有
    * 结果行卡，而那条路由拿不到 `useStudioGen`。
    */
-  const rawActiveRun = useStudioGenOptional()?.activeRun
+  const studioGen = useStudioGenOptional()
+  const rawActiveRun = studioGen?.activeRun
+  const rawLastGeneration = studioGen?.lastGeneration
   /** 首页那份配方的结果不分方言（两种型号都在这一份表单上出）。 */
   const activeRun = useMemo(
     () =>
@@ -593,9 +595,37 @@ export function useStudioWorkbenchOperatorHost({
     () => toOperatorRunResults(activeRun?.items ?? []),
     [activeRun],
   )
+  /**
+   * 给助手的舞台：这一批；没有这一批（刷新后 / 别处出的）就是舞台上摆着的上一张。
+   * ⚠ 上一张同样按这一台的方言 / 档位筛（舞台 `StudioCanvas` 那一刀）。
+   */
+  const lastGeneration =
+    rawLastGeneration &&
+    rawLastGeneration.url &&
+    (home
+      ? rawLastGeneration.outputType === 'IMAGE'
+      : isStudioResultInWorkspace(
+          rawLastGeneration.outputType,
+          rawLastGeneration.model,
+          state,
+        ))
+      ? rawLastGeneration
+      : null
   useEffect(() => {
-    resultsRef.current = results
-  }, [results])
+    stageRef.current = results.length
+      ? {
+          items: results,
+          winnerId:
+            activeRun?.selectedItemId &&
+            results.some((item) => item.id === activeRun.selectedItemId)
+              ? activeRun.selectedItemId
+              : null,
+        }
+      : {
+          items: lastGeneration ? [toOperatorResultItem(lastGeneration)] : [],
+          winnerId: null,
+        }
+  }, [results, activeRun, lastGeneration])
 
   /**
    * 「先搜再画」：确认卡那一颗读写工作台同一份开关；结果卡上的资料只认工作台

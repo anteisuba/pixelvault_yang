@@ -75,3 +75,27 @@ describe('LoRA 台的板子（v3 S6）', () => {
     expect(renderAssistantV3LoraItem('lora-nope', SNAPSHOT, handles)).toBeNull()
   })
 })
+
+describe('renderAssistantV3LoraBoard · results on the stage', () => {
+  it('shows the stage pictures as result-N with the enlarged one selected', () => {
+    const board = renderAssistantV3LoraBoard({
+      snapshot: {
+        ...SNAPSHOT,
+        results: [
+          {
+            url: 'https://cdn.test/new.png',
+            label: '提弗洛斯',
+            selected: true,
+          },
+          { url: 'https://cdn.test/old.png' },
+        ],
+      },
+      handles: buildAssistantV3LoraHandles(SNAPSHOT),
+      attachedNames: [],
+      latestUserText: '这张脸再收一点',
+    })
+    expect(board).toContain(
+      'result-1 "提弗洛斯" (selected on the stage: "this one" / "这张" means it), result-2',
+    )
+  })
+})

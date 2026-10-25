@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/media-tile'
 import { Spinner } from '@/components/ui/spinner'
 import { DURATION, EASE_STANDARD, RESULT_REVEAL } from '@/constants/motion'
+import { setStudioStageFocus } from '@/lib/studio-stage-focus'
 import { cn } from '@/lib/utils'
 
 export interface LoraResultRoundItem {
@@ -104,6 +105,21 @@ export function LoraResultStage({
   const pendingTile = (generating && !finishingId) || failure !== null
   const holding = finishingId !== null && !completionReleased && !reduceMotion
 
+  // 台上那一张：生成中 / 失败 = 进度格；否则 = 点过的那张（只在点它之后没出新图时算数），
+  // 默认最新一张。底下一条 = 其余的图（新的在前）。
+  const newestId = round[0]?.id ?? null
+  const pickedItem =
+    picked && picked.newestId === newestId
+      ? round.find((item) => item.id === picked.id)
+      : undefined
+  const shown = pendingTile ? null : (pickedItem ?? round[0] ?? null)
+  // 放大的那张告诉助手（「这张」= 它，10-25）；生成中没有选中。
+  const shownId = shown?.id ?? null
+  useEffect(() => {
+    setStudioStageFocus(shownId)
+    return () => setStudioStageFocus(null)
+  }, [shownId])
+
   if (!pendingTile && round.length === 0) {
     return (
       <p
@@ -129,14 +145,6 @@ export function LoraResultStage({
     />
   )
 
-  // 台上那一张：生成中 / 失败 = 进度格；否则 = 点过的那张（只在点它之后没出新图时算数），
-  // 默认最新一张。底下一条 = 其余的图（新的在前）。
-  const newestId = round[0]?.id ?? null
-  const pickedItem =
-    picked && picked.newestId === newestId
-      ? round.find((item) => item.id === picked.id)
-      : undefined
-  const shown = pendingTile ? null : (pickedItem ?? round[0] ?? null)
   const strip = round.filter((item) => item.id !== shown?.id)
   const finishing = shown !== null && shown.id === finishingId
   const templateSave =

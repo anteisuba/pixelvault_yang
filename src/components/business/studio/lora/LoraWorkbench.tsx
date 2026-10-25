@@ -2042,9 +2042,17 @@ function GenerateBranch({
    * render 新建一个数组会让整个宿主对象跟着换引用，面板的每一条都白重渲染一遍。
    * ⚠ 映射函数在 hook 那边（宿主契约的一部分），⛔ 别把「收哪些」的判据抄到这里。
    */
+  // 与台上那一排同一份（`resultRound`）：还没有记录时就是 hook 的上一张。
   const operatorResults = useMemo(
-    () => toLoraOperatorResults(resultHistory),
-    [resultHistory],
+    () =>
+      toLoraOperatorResults(
+        resultHistory.length > 0
+          ? resultHistory
+          : lastGeneration?.url
+            ? [{ id: lastGeneration.id, url: lastGeneration.url }]
+            : [],
+      ),
+    [resultHistory, lastGeneration],
   )
   /**
    * 挂载栈 → 宿主入参：逐条带上**它的触发词现在在不在正文里**（§3.1）。

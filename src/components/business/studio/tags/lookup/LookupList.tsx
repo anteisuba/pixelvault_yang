@@ -51,56 +51,81 @@ export function LookupRows({
           // 30ms 一档错开，最多错 8 行（动效表）。
           style={{ animationDelay: `${Math.min(index, 8) * 30}ms` }}
         >
-          <button
-            type="button"
-            aria-current={row.selected ? 'true' : undefined}
-            onClick={() => onPick(row.name)}
-            className={cn(
-              'flex w-full items-center gap-3 rounded-xl p-1.5 text-left transition-colors duration-fast ease-linear focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
-              phone && 'min-h-14',
-              row.selected
-                ? 'bg-surface-fill'
-                : 'hover:bg-surface-fill-hover active:bg-surface-fill-hover',
-            )}
-          >
-            {kind === 'character' ? (
-              <Thumb url={row.previews[0]} className="size-11 rounded-lg" />
-            ) : null}
-            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span className="truncate text-2sm font-semibold text-foreground">
-                {row.label}
-              </span>
-              <span className="truncate text-xs text-muted-foreground">
-                {row.sub}
-              </span>
-            </span>
-            {row.added ? (
-              <span className="flex shrink-0 animate-in items-center gap-0.5 text-2xs font-semibold text-foreground fade-in-0 duration-base ease-linear motion-reduce:animate-none">
-                {addedLabel}
-                <Check className="size-3" aria-hidden />
-              </span>
-            ) : null}
-            {kind !== 'character' ? (
-              <span className="grid shrink-0 grid-cols-3 gap-0.75">
-                {[0, 1, 2].map((slot) => (
-                  <Thumb
-                    key={slot}
-                    url={row.previews[slot]}
-                    className="h-10 w-7.5 rounded-md"
-                  />
-                ))}
-              </span>
-            ) : null}
-            {phone && kind === 'character' ? (
-              <ChevronRight
-                className="size-3.5 shrink-0 text-muted-foreground/70"
-                aria-hidden
-              />
-            ) : null}
-          </button>
+          <LookupRowButton
+            kind={kind}
+            row={row}
+            addedLabel={addedLabel}
+            phone={phone}
+            onPick={onPick}
+          />
         </li>
       ))}
     </ul>
+  )
+}
+
+/** 一行本身（标签库的行要自己等样图，单独拿去包一层）。 */
+export function LookupRowButton({
+  kind,
+  row,
+  addedLabel,
+  phone,
+  onPick,
+}: {
+  kind: DanbooruCatalogKind
+  row: LookupRowView
+  addedLabel: string
+  phone?: boolean
+  onPick: (name: string) => void
+}) {
+  return (
+    <button
+      type="button"
+      aria-current={row.selected ? 'true' : undefined}
+      onClick={() => onPick(row.name)}
+      className={cn(
+        'flex w-full items-center gap-3 rounded-xl p-1.5 text-left transition-colors duration-fast ease-linear focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
+        phone && 'min-h-14',
+        row.selected
+          ? 'bg-surface-fill'
+          : 'hover:bg-surface-fill-hover active:bg-surface-fill-hover',
+      )}
+    >
+      {kind === 'character' ? (
+        <Thumb url={row.previews[0]} className="size-11 rounded-lg" />
+      ) : null}
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="truncate text-2sm font-semibold text-foreground">
+          {row.label}
+        </span>
+        <span className="truncate text-xs text-muted-foreground">
+          {row.sub}
+        </span>
+      </span>
+      {row.added ? (
+        <span className="flex shrink-0 animate-in items-center gap-0.5 text-2xs font-semibold text-foreground fade-in-0 duration-base ease-linear motion-reduce:animate-none">
+          {addedLabel}
+          <Check className="size-3" aria-hidden />
+        </span>
+      ) : null}
+      {kind !== 'character' ? (
+        <span className="grid shrink-0 grid-cols-3 gap-0.75">
+          {[0, 1, 2].map((slot) => (
+            <Thumb
+              key={slot}
+              url={row.previews[slot]}
+              className="h-10 w-7.5 rounded-md"
+            />
+          ))}
+        </span>
+      ) : null}
+      {phone && kind === 'character' ? (
+        <ChevronRight
+          className="size-3.5 shrink-0 text-muted-foreground/70"
+          aria-hidden
+        />
+      ) : null}
+    </button>
   )
 }
 

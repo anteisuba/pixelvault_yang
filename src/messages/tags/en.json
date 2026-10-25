@@ -296,6 +296,7 @@
       "count": "{count}"
     },
     "library": {
+      "all": "All",
       "tabLibrary": "Library",
       "viewLabel": "Library or favorites",
       "back": "Back",

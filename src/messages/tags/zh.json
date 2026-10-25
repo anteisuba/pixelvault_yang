@@ -296,6 +296,7 @@
       "count": "{count} 个"
     },
     "library": {
+      "all": "全部",
       "tabLibrary": "库",
       "viewLabel": "看库还是收藏",
       "back": "返回",

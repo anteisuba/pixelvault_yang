@@ -15,8 +15,6 @@ import {
   compactPostCount,
   danbooruTagSearchUrl,
   displayDanbooruTag,
-  isStyleMediumTag,
-  localDanbooruName,
   stylePromptTag,
 } from '@/lib/tag-lookup'
 import { cn } from '@/lib/utils'
@@ -41,6 +39,7 @@ import {
   styleSections,
   type ByKind,
   type LookupItem,
+  useLookupRowSub,
 } from './lookup/lookup-kinds'
 
 const PHONE_ICON_BUTTON_CLASS =
@@ -85,6 +84,7 @@ export function StudioDanbooruPanel({
   const phone = useIsMobile()
   const reducedMotion = useReducedMotion()
   const adder = useTagLookupAdder(tTags('dialect.tags'))
+  const rowSub = useLookupRowSub()
   const favorites = useDanbooruFavorites()
 
   const [tab, setTab] = useState<LookupTab>('character')
@@ -250,21 +250,7 @@ export function StudioDanbooruPanel({
   const toRow = (item: LookupItem, kind: DanbooruCatalogKind) => ({
     name: item.name,
     label: nameOf(item.name, kind),
-    sub: [
-      localDanbooruName(item, locale),
-      kind === 'character' && item.work
-        ? t('rowWork', {
-            work: displayDanbooruTag(item.work),
-            posts: posts(item.count),
-          })
-        : kind === 'artist'
-          ? t(isStyleMediumTag(item.name) ? 'rowMedium' : 'rowArtist', {
-              posts: posts(item.count),
-            })
-          : posts(item.count),
-    ]
-      .filter(Boolean)
-      .join(' · '),
+    sub: rowSub(item, kind),
     previews: item.previews,
     added: kind === 'artist' && adder.hasPositive(stylePromptTag(item.name)),
     selected: !phone && kind === activeKind && item.name === candidate?.name,

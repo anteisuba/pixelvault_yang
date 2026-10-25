@@ -460,9 +460,17 @@ export function StudioShellExpandChat({ onExpand }: { onExpand: () => void }) {
     }
     place()
     if (typeof ResizeObserver === 'undefined') return
+    // 对话往左收的那一拍台在挪、白板没变大小：盯着那一行自己（它跟着台变宽）。
     const observer = new ResizeObserver(place)
     observer.observe(host)
-    return () => observer.disconnect()
+    const row = host.querySelector<HTMLElement>('[data-bench-header]')
+    if (row) observer.observe(row)
+    // 宽度不变的那一行（画布左上角那颗药丸）只是被挪过来：收完那一拍的过渡结束再摆一次。
+    host.addEventListener('transitionend', place)
+    return () => {
+      observer.disconnect()
+      host.removeEventListener('transitionend', place)
+    }
   }, [])
 
   return (

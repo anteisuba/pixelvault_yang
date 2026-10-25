@@ -35,6 +35,7 @@ import {
   ChevronRight,
   Folder,
   FolderX,
+  Bookmark,
   Heart,
   LayoutGrid,
   MoreHorizontal,
@@ -116,6 +117,11 @@ interface AssetFolderSidebarProps {
    * 不亮。桌面不给 —— 那边收藏是顶栏的状态分面。
    */
   favorites?: { count?: number; active: boolean; onSelect: () => void }
+  /**
+   * 库整页里的左栏（ui-spec §9「库」）：⛔ 顶上那一行标题 / 收起，第一组「全部 · 收藏 · 未归档」，
+   * 第二组「文件夹」（搜 · 新建 挪到组名右边）。
+   */
+  layout?: 'library'
   className?: string
 }
 
@@ -212,8 +218,10 @@ export function AssetFolderSidebar({
   onCollapse,
   touch = false,
   favorites,
+  layout,
   className,
 }: AssetFolderSidebarProps) {
+  const library = layout === 'library'
   const t = useTranslations('AssetsPage')
   const reducedMotion = useReducedMotion()
   const [query, setQuery] = useState('')
@@ -603,57 +611,63 @@ export function AssetFolderSidebar({
 
   const iconButton =
     'grid shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors duration-fast hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none'
-  const iconSize = touch ? 'size-11' : 'size-8'
+  const iconSize = touch ? 'size-11' : library ? 'size-6' : 'size-8'
+
+  const searchButton = (
+    <button
+      type="button"
+      aria-label={t('folderSearch')}
+      aria-pressed={isSearching}
+      onClick={() => {
+        setIsSearching((open) => !open)
+        setQuery('')
+      }}
+      className={cn(iconButton, iconSize, isSearching && 'bg-muted')}
+    >
+      <Search className="size-4" />
+    </button>
+  )
+  const createButton = (
+    <button
+      type="button"
+      aria-label={t('folderCreate')}
+      disabled={isCreating || folders.length >= PROJECT.MAX_PROJECTS_PER_USER}
+      onClick={() => void createUntitled(null)}
+      className={cn(
+        iconButton,
+        iconSize,
+        'disabled:pointer-events-none disabled:opacity-50',
+      )}
+    >
+      <Plus className="size-4" />
+    </button>
+  )
 
   return (
     <aside
       aria-label={t('sidebarFolders')}
       className={cn('flex min-h-0 flex-col', className)}
     >
-      <div className="flex shrink-0 items-center gap-0.5 pb-2 pl-2">
-        <span className="text-2sm font-semibold text-foreground">
-          {t('sidebarFolders')}
-        </span>
-        <span className="flex-1" />
-        <button
-          type="button"
-          aria-label={t('folderSearch')}
-          aria-pressed={isSearching}
-          onClick={() => {
-            setIsSearching((open) => !open)
-            setQuery('')
-          }}
-          className={cn(iconButton, iconSize, isSearching && 'bg-muted')}
-        >
-          <Search className="size-4" />
-        </button>
-        <button
-          type="button"
-          aria-label={t('folderCreate')}
-          disabled={
-            isCreating || folders.length >= PROJECT.MAX_PROJECTS_PER_USER
-          }
-          onClick={() => void createUntitled(null)}
-          className={cn(
-            iconButton,
-            iconSize,
-            'disabled:pointer-events-none disabled:opacity-50',
-          )}
-        >
-          <Plus className="size-4" />
-        </button>
-        {onCollapse ? (
-          <button
-            type="button"
-            aria-label={t('folderRailCollapse')}
-            onClick={onCollapse}
-            className={cn(iconButton, iconSize)}
-          >
-            <PanelLeft className="size-4" />
-          </button>
-        ) : null}
-      </div>
-
+      {library ? null : (
+        <div className="flex shrink-0 items-center gap-0.5 pb-2 pl-2">
+          <span className="text-2sm font-semibold text-foreground">
+            {t('sidebarFolders')}
+          </span>
+          <span className="flex-1" />
+          {searchButton}
+          {createButton}
+          {onCollapse ? (
+            <button
+              type="button"
+              aria-label={t('folderRailCollapse')}
+              onClick={onCollapse}
+              className={cn(iconButton, iconSize)}
+            >
+              <PanelLeft className="size-4" />
+            </button>
+          ) : null}
+        </div>
+      )}
       {isSearching ? (
         <label className="mb-1 flex h-9 shrink-0 items-center gap-2 rounded-lg bg-muted px-2.5 text-muted-foreground">
           <Search className="size-3.5 shrink-0" />
@@ -691,7 +705,10 @@ export function AssetFolderSidebar({
 
       <div
         ref={scrollRef}
-        className="studio-scrollbar -mx-1 min-h-0 flex-1 overflow-y-auto px-1"
+        className={cn(
+          'studio-scrollbar -mx-1 min-h-0 flex-1 overflow-y-auto px-1',
+          library && '-ml-3 pl-3',
+        )}
       >
         {query.trim() ? (
           matches.length === 0 ? (
@@ -707,12 +724,22 @@ export function AssetFolderSidebar({
           <>
             <SmartRow
               icon={<LayoutGrid className="size-3.5" />}
-              label={t('sectionAllAssets')}
+              label={library ? t('sidebarAll') : t('sectionAllAssets')}
               count={counts.all}
               active={scope.kind === 'all' && !favorites?.active}
               touch={touch}
               onSelect={() => onScopeChange({ kind: 'all' })}
             />
+            {favorites && library ? (
+              <SmartRow
+                icon={<Bookmark className="size-3.5" />}
+                label={t('sidebarFavorites')}
+                count={favorites.count}
+                active={favorites.active}
+                touch={touch}
+                onSelect={favorites.onSelect}
+              />
+            ) : null}
             <SmartRow
               icon={<FolderX className="size-3.5" />}
               label={t('sidebarUnassigned')}
@@ -721,7 +748,7 @@ export function AssetFolderSidebar({
               touch={touch}
               onSelect={() => onScopeChange({ kind: 'unassigned' })}
             />
-            {favorites ? (
+            {favorites && !library ? (
               <SmartRow
                 icon={<Heart className="size-3.5" />}
                 label={t('phone.favorites')}
@@ -755,9 +782,19 @@ export function AssetFolderSidebar({
               ) : null}
             </AnimatePresence>
 
-            <GroupLabel>
-              {t('folderAllGroup', { count: folders.length })}
-            </GroupLabel>
+            {library ? (
+              <div className="flex items-center pt-3 pb-1 pl-2">
+                <span className="flex-1 text-2xs font-semibold text-muted-foreground">
+                  {t('sidebarFolders')}
+                </span>
+                {searchButton}
+                {createButton}
+              </div>
+            ) : (
+              <GroupLabel>
+                {t('folderAllGroup', { count: folders.length })}
+              </GroupLabel>
+            )}
             {isLoading && folders.length === 0 ? (
               <div aria-hidden className="space-y-1">
                 {[0, 1, 2, 3].map((index) => (
@@ -810,6 +847,10 @@ export function AssetFolderSidebar({
     </aside>
   )
 }
+
+/** 当前那一行左边一道黑线（ui-spec §9「库」：`fill` 底 + 左边一道黑线）。 */
+const ACTIVE_LINE_CLASS =
+  'before:absolute before:inset-y-2 before:-left-2.5 before:w-0.5 before:rounded-full before:bg-foreground'
 
 function GroupLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -893,10 +934,13 @@ function SmartRow({
       aria-current={active ? 'true' : undefined}
       onClick={onSelect}
       className={cn(
-        'flex w-full items-center gap-2 rounded-lg pl-1 pr-2 text-left text-2sm transition-colors duration-fast',
+        'relative flex w-full items-center gap-2 rounded-lg pl-1 pr-2 text-left text-2sm transition-colors duration-fast',
         touch ? 'h-11' : 'h-8.5',
         active
-          ? 'bg-muted font-semibold text-foreground'
+          ? cn(
+              'bg-muted font-semibold text-foreground',
+              !touch && ACTIVE_LINE_CLASS,
+            )
           : 'text-foreground hover:bg-muted/60',
       )}
     >
@@ -1185,7 +1229,7 @@ function FolderRow({
                 : isDropTarget || folderDropInto
                   ? 'bg-muted ring-2 ring-inset ring-foreground'
                   : active
-                    ? 'bg-muted'
+                    ? cn('bg-muted', !touch && ACTIVE_LINE_CLASS)
                     : 'hover:bg-muted/60',
               menuOpen && !active && 'bg-muted/60',
               isDragging && 'scale-102 bg-background shadow-lg',

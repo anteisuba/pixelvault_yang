@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { AssetTile } from '@/components/business/assets/AssetTile'
-import { Heart, Play } from '@/components/icons'
+import { Play } from '@/components/icons'
 import { FAKE_GENERATION } from '@/test/api-helpers'
 import type { GenerationRecord } from '@/types'
 
@@ -166,12 +166,25 @@ describe('AssetTile badges', () => {
   const glyph = (node: React.ReactElement) =>
     render(node).container.querySelector('svg')!.innerHTML
 
-  it('draws the liked heart solid, not an outline', () => {
-    const { container } = renderTile({ ...FAKE_GENERATION, isLiked: true })
-    const badge = container.querySelector('svg')!.innerHTML
+  it('keeps a saved bookmark on screen without hover', () => {
+    render(
+      <AssetTile
+        generation={{ ...FAKE_GENERATION, isLiked: true }}
+        width={180}
+        height={180}
+        selected={false}
+        showSelectionMark={false}
+        selectionMode={false}
+        draggable={false}
+        onAudioCoverError={vi.fn()}
+        onClick={vi.fn()}
+        onToggleFavorite={vi.fn()}
+      />,
+    )
+    const bookmark = screen.getByRole('button', { pressed: true })
 
-    expect(badge).toBe(glyph(<Heart weight="fill" />))
-    expect(badge).not.toBe(glyph(<Heart weight="bold" />))
+    expect(bookmark.className).toContain('opacity-100')
+    expect(bookmark.className).not.toContain('opacity-0')
   })
 
   it('draws the play badge solid, not an outline', () => {

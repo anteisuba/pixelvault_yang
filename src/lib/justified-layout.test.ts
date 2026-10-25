@@ -9,6 +9,7 @@ import {
 } from '@/constants/assets-grid'
 import {
   computeJustifiedRows,
+  computeUniformRows,
   resolveAssetGridViewport,
   toLayoutAspectRatio,
   type JustifiedRow,
@@ -178,5 +179,33 @@ describe('toLayoutAspectRatio', () => {
   it('只对脏数据开安全阀 clamp', () => {
     expect(toLayoutAspectRatio(10000, 10)).toBe(ASSET_GRID_MAX_ASPECT_RATIO)
     expect(toLayoutAspectRatio(10, 10000)).toBe(ASSET_GRID_MIN_ASPECT_RATIO)
+  })
+})
+
+describe('computeUniformRows', () => {
+  it('caps the column count and keeps every tile the same size', () => {
+    const rows = computeUniformRows(10, {
+      containerWidth: 2000,
+      gap: 10,
+      minTileWidth: 120,
+      maxColumns: 8,
+      aspectRatio: 3 / 4,
+    })
+
+    expect(rows.map((row) => row.boxes.length)).toEqual([8, 2])
+    const width = (2000 - 10 * 7) / 8
+    expect(rows[1].boxes[0]).toEqual({ index: 8, width, height: width / 0.75 })
+  })
+
+  it('falls back to one column when the container is narrow', () => {
+    const rows = computeUniformRows(2, {
+      containerWidth: 100,
+      gap: 10,
+      minTileWidth: 120,
+      maxColumns: 8,
+      aspectRatio: 3 / 4,
+    })
+
+    expect(rows.map((row) => row.boxes.length)).toEqual([1, 1])
   })
 })

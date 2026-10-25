@@ -34,7 +34,6 @@ import {
 import { toast } from 'sonner'
 
 import { AssetAddToFolderPanel } from '@/components/business/assets/AssetAddToFolderPanel'
-import { AssetFacetBar } from '@/components/business/assets/AssetFacetBar'
 import { AssetFolderMenu } from '@/components/business/assets/AssetFolderMenu'
 import { AssetMobileActionBar } from '@/components/business/assets/AssetMobileActionBar'
 import {
@@ -88,6 +87,15 @@ import {
 import { RollingNumber } from '@/components/ui/rolling-number'
 import { Spinner } from '@/components/ui/spinner'
 import { LiquidSegmented } from '@/components/ui/liquid-segmented'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { LibraryPillSelect, LibrarySearch } from '@/components/ui/library-kit'
+import { MediaTileMoreTrigger } from '@/components/ui/media-tile'
+import { useHandToAssistant } from '@/hooks/use-hand-to-assistant'
 import { useAssetFolders } from '@/hooks/use-asset-folders'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
 import { useLocalPreference } from '@/hooks/use-local-preference'
@@ -114,6 +122,7 @@ import {
   springTransition,
 } from '@/constants/motion'
 import { ASSET_DND_MIME } from '@/constants/asset-dnd'
+import { LIBRARY_GRID } from '@/constants/library-grid'
 import {
   DEFAULT_AUDIO_ASSET_PREVIEW_IMAGE,
   getAudioAssetPreviewImage,
@@ -177,11 +186,12 @@ import {
   captureVideoThumbnail,
   readVideoFileMetadata,
 } from '@/lib/video-thumbnail'
-import type {
-  AssetSectionCounts,
-  GenerationRecord,
-  OutputTypeValue,
-  ProjectRecord,
+import {
+  GALLERY_SORT_OPTIONS,
+  type AssetSectionCounts,
+  type GenerationRecord,
+  type OutputTypeValue,
+  type ProjectRecord,
 } from '@/types'
 
 type LockedMediaType = 'image' | 'video' | 'audio' | 'model_3d'
@@ -250,15 +260,6 @@ function getSnapshotString(
 
 function isDensity(value: string | null): value is AssetGridDensity {
   return (ASSET_GRID_DENSITIES as readonly string[]).includes(value ?? '')
-}
-
-/**
- * 用来判断「新素材还属不属于当前视图」的单一媒体类型。
- * ⚠ 类型分面是可叠加的，选了两种以上就没有「唯一类型」可言 —— 那种情况下
- * 返回 null，由 `shouldKeepAssetAfterPatch` 走 `types` 数组自己判。
- */
-function getActiveMediaType(filters: GalleryFilters): LockedMediaType | null {
-  return filters.types.length === 1 ? filters.types[0] : null
 }
 
 /** 文件夹范围 ⇄ 地址栏 `?projectId=`（`none` = 未归档）。 */
@@ -435,7 +436,6 @@ export function KreaAssetBrowser({
         .map((folder) => folder.name)
         .join(' / ')
     : ''
-  const activeMediaType = getActiveMediaType(filters)
   /** 生效的类型口径 = 类型分面本身（空 = 不限）。 */
   const scopedTypes: LockedMediaType[] = filters.types
 
@@ -494,6 +494,7 @@ export function KreaAssetBrowser({
   // 桌面 / 平板点开是就地查看器；手机是同一个查看器的整屏形态（左右滑、往下拉关、
   // 配方在底部上滑，owner 2026-10-14）。
   const isPhone = useIsMobile()
+  const handToAssistant = useHandToAssistant()
   // 手机往下滚：筛选那一行收起，只留第一行；往上滚再出来（v10）。
   const [facetsHidden, setFacetsHidden] = useState(false)
   const lastScrollTopRef = useRef(0)
@@ -1008,10 +1009,9 @@ export function KreaAssetBrowser({
   // ── 文件夹（文件夹 B：左边一列）───────────────────────────────
   // ⚠ 文件夹范围与收藏 / 发布 / 类型等筛选**叠加**（page §2「可叠加维度」）：
   //   换夹只改 `projectId`，其余筛选原样留着。地址栏跟着走，后退可用、刷新不丢。
-  const [storedRail, setStoredRail] = useLocalPreference(
-    ASSET_FOLDER_RAIL_STORAGE_KEY,
-  )
-  const railOpen = storedRail !== 'closed'
+  const [, setStoredRail] = useLocalPreference(ASSET_FOLDER_RAIL_STORAGE_KEY)
+  /** 库整页里文件夹栏一直在（ui-spec §9「库」左栏），⛔ 收起；旧的收起偏好只剩兼容读。 */
+  const railOpen = true
   const [isFolderDrawerOpen, setIsFolderDrawerOpen] = useState(false)
   /** 栏里正在改名的夹（Eagle 式新建：建好的「未命名文件夹」直接进这里）。 */
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null)
@@ -1406,7 +1406,8 @@ export function KreaAssetBrowser({
 
   // picker 的内联上传格是网格的第一格，所以它得跟着一起排 —— 否则它
   // 会被挤出行外，第一行就铺不满。
-  const showUploadCell = false
+  // 库整页（桌面）第一格是虚线「上传」（ui-spec §9「库」）；手机上传在顶上胶囊里。
+  const showUploadCell = !isPhone
   const gridItems = useMemo<GridItem[]>(() => {
     const items: GridItem[] = showUploadCell ? [{ kind: 'upload' }] : []
     uploadQueue.pendingItems.forEach((item) => {
@@ -1444,9 +1445,19 @@ export function KreaAssetBrowser({
           }),
     [showSkeleton, gridItems],
   )
+  // 桌面 = 库骨架的等宽格（一行最多 8 张、3:4）；手机照旧 justified 真实比例。
+  const gridGap = isPhone ? ASSET_GRID_GAP : LIBRARY_GRID.gap
   const { containerRef: gridContainerRef, rows: gridRows } = useJustifiedGrid({
     aspectRatios: gridAspectRatios,
     targetRowHeight,
+    gap: gridGap,
+    uniform: isPhone
+      ? undefined
+      : {
+          minTileWidth: LIBRARY_GRID.minTileWidth,
+          maxColumns: LIBRARY_GRID.maxColumns,
+          aspectRatio: LIBRARY_GRID.aspectRatio,
+        },
   })
   // 数据到了每张图由糊变清，一批之内从左上往右下错开（「这一行第几格 + 离这一批第一行
   // 几行」）。justified 排版每行格数不一样，所以按「这一格在第几行」来数。
@@ -1522,27 +1533,8 @@ export function KreaAssetBrowser({
   // Per-section counts — fall back to live `total` only for the bucket the
   // user is currently viewing so the sidebar still moves on add/delete
   // before the next refreshCounts() lands.
-  /**
-   * 顶栏那个数 = **整库大小**，不随筛选变；`byType` 是唯一不吃类型口径的
-   * 聚合，所以从它加起来。段头那个数则是**当前口径的命中数**（live `total`）
-   * —— 两个数各自诚实。⚠ 别把 `counts.all` 放到段头：它只跟类型口径走，
-   * 时间/模型分面一生效就会出现「全部素材 129」压着一张瓦片的画面。
-   */
-  const libraryTotal = counts
-    ? counts.image + counts.video + counts.audio + (counts.model_3d ?? 0)
-    : total
   const favoritesCount =
     counts?.favorites ?? (filters.liked ? total : undefined)
-  const publishedCount =
-    counts?.published ?? (filters.published ? total : undefined)
-  const imageCount =
-    counts?.image ?? (activeMediaType === 'image' ? total : undefined)
-  const videoCount =
-    counts?.video ?? (activeMediaType === 'video' ? total : undefined)
-  const audioCount =
-    counts?.audio ?? (activeMediaType === 'audio' ? total : undefined)
-  const model3DCount =
-    counts?.model_3d ?? (activeMediaType === 'model_3d' ? total : undefined)
   /** 左栏的数字跟着类型口径走（与大河同一口径），连子夹、同一张只算一次。 */
   const folderCounts = useMemo(
     () => ({
@@ -1585,6 +1577,23 @@ export function KreaAssetBrowser({
     setPhoneSearch(null)
     if (filters.search) setFilters({ ...filters, search: '' })
   }, [filters, setFilters])
+  /** 桌面顶上的搜索框（库骨架）：同样停 300ms 才写进筛选。 */
+  const [deskSearch, setDeskSearch] = useState(filters.search)
+  useEffect(() => {
+    const next = deskSearch.trim()
+    if (isPhone || next === filters.search) return
+    const timer = window.setTimeout(
+      () => setFilters({ ...filters, search: next }),
+      PHONE_SEARCH_DEBOUNCE_MS,
+    )
+    return () => window.clearTimeout(timer)
+  }, [deskSearch, filters, isPhone, setFilters])
+  /** 桌面那条切换条：全部 · 图片 · 视频 · 音频 · 3D（一段 = 一个类型）。 */
+  const deskTypeTab: DeskTypeTab =
+    filters.types.length === 1
+      ? (DESK_TYPE_TABS.find((tab) => tab.types[0] === filters.types[0])?.id ??
+        'all')
+      : 'all'
 
   /** 手机类型分段（全部 · 图片 · 视频 · 声音）：一段 = 一个类型，「全部」= 不限。 */
   const phoneTypeTab: PhoneTypeTab | null =
@@ -1794,26 +1803,19 @@ export function KreaAssetBrowser({
           ref={toolbarRef}
           data-stuck={isToolbarStuck || undefined}
           className={cn(
-            'relative z-30 flex min-h-14 w-full shrink-0 flex-wrap items-center gap-2 rounded-2xl border bg-background px-4 py-2 transition-[border-color,box-shadow] duration-base ease-standard',
+            // 桌面 = 库骨架顶上那一行（ui-spec §9「库」）：搜索 ……… 排序 · 选择，⛔ 白卡。
+            'relative z-30 flex min-h-9 w-full shrink-0 items-center gap-2',
             // 手机 = 一条浮起的磨砂胶囊（iOS 稿）：范围 ▾ · 搜索 · 上传 · 选择，只一行。
-            'max-md:min-h-11 max-md:flex-nowrap max-md:gap-0.5 max-md:rounded-full max-md:bg-background/85 max-md:px-1 max-md:py-1 max-md:backdrop-blur-xl',
+            'max-md:min-h-11 max-md:flex-nowrap max-md:gap-0.5 max-md:rounded-full max-md:border max-md:bg-background/85 max-md:px-1 max-md:py-1 max-md:backdrop-blur-xl max-md:transition-[border-color,box-shadow] max-md:duration-base max-md:ease-standard',
             isToolbarStuck
-              ? 'border-border shadow-md'
-              : 'border-border/70 shadow-sm',
+              ? 'max-md:border-border max-md:shadow-md'
+              : 'max-md:border-border/70 max-md:shadow-sm',
           )}
         >
           <div className="relative flex min-w-0 items-center gap-1.5">
             {/* 手机第一行只留范围胶囊（v10）：标题与总数让给它。 */}
-            <h1 className="truncate text-base font-semibold text-foreground max-md:hidden">
-              {t('title')}
-            </h1>
-            {/* ⚠ 包一层再藏：`.number-roll` 是不进层的 CSS，`max-md:hidden` 压不过它。 */}
-            <span className="max-md:hidden">
-              <RollingNumber
-                value={libraryTotal}
-                className="font-mono text-xs text-muted-foreground"
-              />
-            </span>
+            {/* 标题与总数：库顶上那一排已经写着「素材」，⛔ 再写一遍（ui-spec §9 ⛔ 副标题）。 */}
+            <h1 className="sr-only">{t('title')}</h1>
             {/* 手机多选：胶囊糊掉，同一位置写「已选 N」（PC 是「选择」键拉长成的条）。 */}
             <span
               aria-hidden={!selectionMode}
@@ -1896,21 +1898,14 @@ export function KreaAssetBrowser({
                 transition={motionTransition('base', reducedMotion)}
                 style={{ overflow: isPhone ? 'hidden' : undefined }}
               >
-                <AssetFacetBar
-                  filters={filters}
-                  onFiltersChange={setFilters}
-                  typeCounts={{
-                    image: imageCount,
-                    video: videoCount,
-                    audio: audioCount,
-                    model_3d: model3DCount,
-                  }}
-                  statusCounts={{
-                    favorites: favoritesCount,
-                    published: publishedCount,
-                  }}
-                  modelCounts={counts?.byModel ?? {}}
-                />
+                <div className="max-w-90">
+                  <LibrarySearch
+                    value={deskSearch}
+                    onChange={setDeskSearch}
+                    placeholder={t('phone.searchPlaceholder')}
+                    label={t('phone.search')}
+                  />
+                </div>
               </motion.div>
             </div>
           )}
@@ -1939,7 +1934,7 @@ export function KreaAssetBrowser({
                 className={cn(
                   buttonVariants({ size: 'sm' }),
                   TOOLBAR_BUTTON_CLASS,
-                  'coarse:h-11',
+                  'coarse:h-11 md:hidden',
                   // 手机：只留一个上传图标（iOS 稿），字给读屏。
                   'max-md:size-9 max-md:bg-transparent max-md:px-0 max-md:text-foreground max-md:shadow-none max-md:hover:bg-muted max-md:has-[>svg]:px-0 max-md:active:bg-muted',
                   SELECTION_YIELD_CLASS,
@@ -1960,6 +1955,26 @@ export function KreaAssetBrowser({
                   {t('selectAll')}
                 </button>
               ) : null}
+              <span
+                className={cn(
+                  'max-md:hidden',
+                  SELECTION_YIELD_CLASS,
+                  selectionMode && SELECTION_YIELD_HIDDEN_CLASS,
+                )}
+              >
+                <LibraryPillSelect
+                  label={t('facetSort')}
+                  value={filters.sort}
+                  options={GALLERY_SORT_OPTIONS.map((value) => ({
+                    value,
+                    label:
+                      value === 'newest'
+                        ? t('facetSortNewest')
+                        : t('facetSortOldest'),
+                  }))}
+                  onChange={(sort) => setFilters({ ...filters, sort })}
+                />
+              </span>
               <Button
                 ref={selectButtonRef}
                 type="button"
@@ -1972,7 +1987,7 @@ export function KreaAssetBrowser({
                 }}
                 className={cn(
                   TOOLBAR_BUTTON_CLASS,
-                  'border border-border',
+                  'md:border-0 md:bg-muted md:hover:bg-muted md:hover:tint-hover max-md:border max-md:border-border',
                   // 手机：一个「选择」字键，⛔ 边框和勾（iOS 稿）。
                   'max-md:h-9 max-md:border-transparent max-md:px-3 max-md:text-base max-md:font-normal',
                   selectionMode &&
@@ -1995,7 +2010,6 @@ export function KreaAssetBrowser({
                   </>
                 )}
               </Button>
-              <DensityToggle density={density} onChange={changeDensity} />
             </div>
           )}
 
@@ -2095,8 +2109,14 @@ export function KreaAssetBrowser({
             >
               <AssetFolderSidebar
                 {...sidebarProps}
-                onCollapse={() => setStoredRail('closed')}
-                className="h-full rounded-2xl border border-border/70 bg-background px-2 pb-2 pt-2.5 shadow-sm"
+                layout="library"
+                favorites={{
+                  count: favoritesCount,
+                  active: phoneFavoritesScope,
+                  onSelect: () => openScope({ kind: 'all' }, { liked: true }),
+                }}
+                onScopeChange={(scope) => openScope(scope, { liked: false })}
+                className="h-full"
               />
             </motion.div>
           </div>
@@ -2144,6 +2164,30 @@ export function KreaAssetBrowser({
                 ))}
               </div>
             ) : null}
+            {/* 库骨架那条切换条（桌面）：全部 · 图片 · 视频 · 音频 · 3D。 */}
+            <div className="mb-3 hidden shrink-0 md:flex">
+              <LiquidSegmented
+                ariaLabel={t('phone.typeTabs')}
+                value={deskTypeTab}
+                items={DESK_TYPE_TABS.map((tab) => ({
+                  value: tab.id,
+                  label:
+                    tab.id === 'all'
+                      ? t('sidebarAll')
+                      : tab.id === 'image'
+                        ? t('sidebarImages')
+                        : tab.id === 'video'
+                          ? t('sidebarVideos')
+                          : tab.id === 'audio'
+                            ? t('sidebarAudio')
+                            : t('sidebarModel3D'),
+                }))}
+                onChange={(id) => {
+                  const tab = DESK_TYPE_TABS.find((item) => item.id === id)
+                  if (tab) setFilters({ ...filters, types: [...tab.types] })
+                }}
+              />
+            </div>
             <main
               ref={scrollElementRef}
               className={cn(
@@ -2300,7 +2344,7 @@ export function KreaAssetBrowser({
                         key={virtualRow.index}
                         className="absolute top-0 left-0 flex w-full"
                         style={{
-                          gap: ASSET_GRID_GAP,
+                          gap: gridGap,
                           height: row.height,
                           transform: `translateY(${virtualRow.start - gridOffsetTop}px)`,
                         }}
@@ -2317,7 +2361,7 @@ export function KreaAssetBrowser({
                               <div
                                 key={`skeleton-${box.index}`}
                                 style={boxStyle}
-                                className="shrink-0 rounded-lg bg-muted"
+                                className="shrink-0 rounded-12 bg-muted"
                               />
                             )
                           }
@@ -2346,14 +2390,14 @@ export function KreaAssetBrowser({
                                 disabled={isUploading}
                                 aria-label={t('uploadButton')}
                                 style={boxStyle}
-                                className="flex shrink-0 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border/60 bg-muted/20 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
+                                className="flex shrink-0 flex-col items-center justify-center gap-2 rounded-12 border border-dashed border-input text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:opacity-50"
                               >
                                 {isUploading ? (
                                   <Spinner size="lg" />
                                 ) : (
-                                  <UploadCloud className="size-5" />
+                                  <UploadCloud className="size-4.5" />
                                 )}
-                                <span className="text-2xs font-medium">
+                                <span className="text-xs">
                                   {t('uploadButton')}
                                 </span>
                               </button>
@@ -2443,6 +2487,31 @@ export function KreaAssetBrowser({
                                   : () => void toggleTileFavorite(gen.id)
                               }
                               favoritePending={favoritePendingIds.has(gen.id)}
+                              onHandToAssistant={
+                                handToAssistant && !isPhone
+                                  ? () => handToAssistant(gen)
+                                  : undefined
+                              }
+                              more={
+                                isPhone ? undefined : (
+                                  <DropdownMenu modal={false}>
+                                    <DropdownMenuTrigger asChild>
+                                      <MediaTileMoreTrigger
+                                        label={t('viewer.more')}
+                                      />
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="start">
+                                      <DropdownMenuItem
+                                        onSelect={() =>
+                                          enterSelectionWith(gen.id)
+                                        }
+                                      >
+                                        {t('selectMode')}
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                )
+                              }
                               revealStep={revealStep(
                                 column,
                                 virtualRow.index -
@@ -2784,47 +2853,25 @@ const PHONE_TYPE_TABS: readonly {
   { id: 'audio', types: ['audio'] },
 ]
 
+type DeskTypeTab = 'all' | 'image' | 'video' | 'audio' | 'model3d'
+
+const DESK_TYPE_TABS: readonly {
+  id: DeskTypeTab
+  types: readonly OutputTypeValue[]
+}[] = [
+  { id: 'all', types: [] },
+  { id: 'image', types: ['image'] },
+  { id: 'video', types: ['video'] },
+  { id: 'audio', types: ['audio'] },
+  { id: 'model3d', types: ['model_3d'] },
+]
+
 const SELECTION_YIELD_CLASS =
   'transition-[opacity,filter] duration-fast ease-standard motion-reduce:transition-none'
 const SELECTION_YIELD_HIDDEN_CLASS = 'pointer-events-none opacity-0 blur-xs'
 
 const TOOLBAR_BUTTON_CLASS =
   'rounded-full px-3.5 has-[>svg]:px-3 transition-[background-color,transform] duration-fast ease-standard active:scale-[.98] motion-reduce:active:scale-100'
-
-interface DensityToggleProps {
-  density: AssetGridDensity
-  onChange: (next: AssetGridDensity) => void
-}
-
-function DensityToggle({ density, onChange }: DensityToggleProps) {
-  const t = useTranslations('AssetsPage')
-  const titles: Record<AssetGridDensity, string> = {
-    s: t('densitySmall'),
-    m: t('densityMedium'),
-    l: t('densityLarge'),
-  }
-  return (
-    <div className="hidden shrink-0 items-center gap-2 md:inline-flex">
-      <span className="hidden text-2xs font-medium uppercase tracking-wide text-muted-foreground/70 xl:inline">
-        {t('densityLabel')}
-      </span>
-      <LiquidSegmented
-        items={ASSET_GRID_DENSITIES.map((d) => ({
-          value: d,
-          label: d.toUpperCase(),
-          title: titles[d],
-        }))}
-        value={density}
-        onChange={onChange}
-        ariaLabel={t('densityLabel')}
-        semantics="radio"
-        size="row"
-        fill
-        className="w-30"
-      />
-    </div>
-  )
-}
 
 /** 素材库空库（无文件夹上下文那一档）—— 走全站空态原语（ui-defaults §7）。 */
 function EmptyState() {

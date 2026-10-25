@@ -181,7 +181,7 @@
 - **菜单 `Menu`**：圆角 12，`float` + `pop`，行高 32，搜索框是一道下划线；开合照「从 chip 放大、由糊变清」（`useStudioChipPopoverMotion`）。代码里是 `ui/dropdown-menu` / `select` / `popover` / `command` 和 `studioToolPopoverBaseClass`；自写浮层照抄 `rounded-12 bg-popover shadow-pop`（带 `shadow-pop` 的暗房自动升一档）。下拉框本体是灰底药丸（`SelectTrigger`）。
 - **提示 `Tooltip`**：一悬停就出（不等）；素档 `primary` 底 `on-primary` 字，暗房 `float` 底 `ink` 字 + `pop`（⛔ 米白一大块）；`meta`，28 高，圆角 8，快捷键跟在后面。只写按钮叫什么。⛔ 一句话说明；⛔ 给有字的按钮再加提示。
 - **底部黑条 `Toast`**：照 ui-defaults §7.1；`primary` 底、40 高、圆角 20、`bar`；成功前面一个 14 的勾，失败一颗 8 的 `danger-on-primary` 小圆点；最多一个动作（28 高药丸，带一圈 `on-primary-line` 的框，悬停叠 `on-primary-soft`）。⛔ 标题 + 正文两行、⛔ 右上角弹、⛔ 关闭按钮。
-- **弹窗 `Dialog`**：只用在两件事：就地配 key（`QuickSetupDialog`）、删东西。`float` 底、圆角 18、`pop`、内距 20、宽 420，后面 `scrim`；标题就是要做的事，底部右对齐「取消」+ 主按钮。⛔ 标题下的说明段落（删除那一句后果除外）、⛔ 三个按钮、⛔ 用弹窗做表单页。代码里 `dialog.tsx` / `responsive-dialog.tsx` 换皮。
+- **弹窗 `Dialog`**：只用在三件事：就地配 key（`QuickSetupDialog`）、删东西、「从图读串」的勾选框（owner 2026-10-25：标签台 / 图片台工具行的键和拖图到舞台都落到它；勾上的整格替换、导入后黑条带「撤回」；默认勾正面 / 负面 / 角色，参数、种子不勾；图里没配方就自动用 PixAI Tagger 认画师 / 角色 / 特征。代码 `studio-shared/image-recipe/`）。`float` 底、圆角 18、`pop`、内距 20、宽 420，后面 `scrim`；标题就是要做的事，底部右对齐「取消」+ 主按钮。⛔ 标题下的说明段落（删除那一句后果除外）、⛔ 三个按钮、⛔ 用弹窗做表单页。代码里 `dialog.tsx` / `responsive-dialog.tsx` 换皮。
 - **删除确认 `ConfirmDelete`**（㉒）：删东西（哪怕素材里选几张删）一律居中小弹窗：标题「删除这 2 张？」+ 一句后果「删了就找不回来了。」+ 取消 / 红色删除；宽 340。代码里 `confirm-dialog.tsx`；⛔ 浏览器 confirm、⛔ 键上「确认删除」两步。
 - **模型选择器 `ModelPicker`**（㉓）：点模型药丸弹出：顶上搜索 + 个数，分「最近 / 全部」；每行 = 字母小方块（家族首字母，⛔ 画别家 logo）+ 全名 + 价格；选中那一行浅灰底 + 勾。多渠道的型号标「N 渠道」、新上的标「新」；选中多渠道型号时那一行往下撑开渠道切换条（动效见 §6）。没配 key 的型号点了先不选中、就地弹 `QuickSetupDialog`。代码里 `ModelPickerPopover`。
 

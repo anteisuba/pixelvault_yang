@@ -6,6 +6,7 @@ import {
   FileText,
   Globe,
   RotateCw,
+  ScanText,
   UserRound,
 } from '@/components/icons'
 import { useTranslations } from 'next-intl'
@@ -25,6 +26,7 @@ import {
   useStudioForm,
   useStudioGen,
 } from '@/contexts/studio-context'
+import { pickImageRecipeFile } from '@/hooks/use-image-recipe-import'
 import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
 import { useStudioVideoAssets } from '@/hooks/use-studio-video-assets'
 import { useStudioMobileComposerHeight } from '@/hooks/use-studio-mobile-composer-height'
@@ -105,6 +107,7 @@ export const StudioMobileComposer = memo(function StudioMobileComposer({
   const t = useTranslations('StudioMobile')
   const tModels = useTranslations('Models')
   const tV2 = useTranslations('StudioV2')
+  const tRecipe = useTranslations('ImageRecipeImport')
   const tForm = useTranslations('StudioForm')
   const tImageChip = useTranslations('ImageChip')
   const tImageUpload = useTranslations('ImageUpload')
@@ -184,6 +187,12 @@ export const StudioMobileComposer = memo(function StudioMobileComposer({
     ...(isVideo
       ? []
       : [
+          {
+            key: 'recipe-import',
+            icon: <ScanText className="size-4" />,
+            label: tRecipe('button'),
+            onSelect: pickImageRecipeFile,
+          },
           {
             key: 'characters',
             icon: <UserRound className="size-4" />,

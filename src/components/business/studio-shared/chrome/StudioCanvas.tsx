@@ -10,6 +10,15 @@ import {
 } from 'react'
 
 import { dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter'
+import {
+  dropTargetForExternal,
+  monitorForExternal,
+} from '@atlaskit/pragmatic-drag-and-drop/external/adapter'
+import {
+  containsFiles,
+  getFiles,
+} from '@atlaskit/pragmatic-drag-and-drop/external/file'
+import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
@@ -24,6 +33,7 @@ import { useStudioRunModels } from '@/hooks/use-studio-run-models'
 import { useStudioVideoAssets } from '@/hooks/use-studio-video-assets'
 import { useReferenceReceiverNotice } from '@/hooks/use-reference-receiver-notice'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { startImageRecipeImport } from '@/hooks/use-image-recipe-import'
 import { ASSISTANT_ROUTE_ERROR_CODES } from '@/constants/assistant-operator'
 import { promptCreatePath } from '@/constants/routes'
 import { usePathname, useRouter } from '@/i18n/navigation'
@@ -50,6 +60,7 @@ import type { GenerationRecord } from '@/types'
 import { Wand2 } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { DropOverlay } from '@/components/ui/drop-overlay'
+import { ImageRecipeImportDialog } from '@/components/business/studio-shared/image-recipe/ImageRecipeImportDialog'
 import { CompareGrid } from '@/components/business/image/CompareGrid'
 import { SearchGroundingRail } from '@/components/business/studio-shared/search-grounding/SearchGroundingRail'
 import { StudioReferenceRail } from '@/components/business/studio-shared/chrome/StudioReferenceRail'
@@ -215,6 +226,31 @@ export const StudioCanvas = memo(function StudioCanvas({
       },
     })
   }, [imageUpload])
+
+  // ── Drop target: 电脑里的图拖到舞台上 → 「从图读串」勾选框（owner 2026-10-25 C）。
+  // ⚠ 拖到输入框照旧是加参考图（那边自己接）；视频台不接。
+  const [isFileDragOver, setIsFileDragOver] = useState(false)
+  const readsRecipeOnDrop = state.outputType === 'image'
+  useEffect(() => {
+    const el = canvasRef.current
+    if (!el || !readsRecipeOnDrop) return
+    return combine(
+      dropTargetForExternal({
+        element: el,
+        canDrop: containsFiles,
+        onDragEnter: () => setIsFileDragOver(true),
+        onDragLeave: () => setIsFileDragOver(false),
+        onDrop: ({ source }) => {
+          setIsFileDragOver(false)
+          const file = getFiles({ source }).find((item) =>
+            item.type.startsWith('image/'),
+          )
+          if (file) startImageRecipeImport(file)
+        },
+      }),
+      monitorForExternal({ onDrop: () => setIsFileDragOver(false) }),
+    )
+  }, [readsRecipeOnDrop])
 
   const handleUseAsReference = useCallback(
     async (url: string) => {
@@ -498,6 +534,8 @@ export const StudioCanvas = memo(function StudioCanvas({
       )}
     >
       <DropOverlay active={isDragOver} label={tDrop('toReferences')} />
+      <DropOverlay active={isFileDragOver} label={tDrop('readRecipe')} />
+      <ImageRecipeImportDialog />
       {/* 参考轨 —— 与结果并存，不再被结果挤掉。编辑态下不画：编辑舞台自带
           返回条与「正在编辑 · 参考图 N / M」，两条一起出现就是一屏两遍。 */}
       {stageReference && referenceRail && (

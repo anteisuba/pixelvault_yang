@@ -25,8 +25,20 @@ export interface EmbeddedRecipe {
   readonly steps: number | null
   readonly cfg: number | null
   readonly sampler: string | null
+  /** 文件里写的出图尺寸（NovelAI 的 `width` / `height`，A1111 的 `Size`）。 */
+  readonly width: number | null
+  readonly height: number | null
   /** NovelAI V4+ 的分角色提示词。 */
-  readonly characters: readonly string[]
+  readonly characters: readonly EmbeddedCharacter[]
+  /** NovelAI V4+ 是否按 `center` 手摆站位（`use_coords`）；否则 AI 自己摆。 */
+  readonly manualPositions: boolean
+}
+
+export interface EmbeddedCharacter {
+  readonly prompt: string
+  readonly negative: string
+  /** 0–1 的站位中心；没写回 null。 */
+  readonly center: { readonly x: number; readonly y: number } | null
 }
 
 const PNG_SIGNATURE = Buffer.from([
@@ -162,6 +174,38 @@ function seedOf(value: unknown): bigint | null {
   return seed <= MAX_SEED ? seed : null
 }
 
+interface V4Caption {
+  char_caption?: unknown
+  centers?: unknown
+}
+
+interface V4Prompt {
+  caption?: { base_caption?: unknown; char_captions?: unknown }
+  use_coords?: unknown
+}
+
+function stringOf(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function captionsOf(prompt: V4Prompt | undefined): V4Caption[] {
+  const list = prompt?.caption?.char_captions
+  return Array.isArray(list)
+    ? list.filter(
+        (item): item is V4Caption => !!item && typeof item === 'object',
+      )
+    : []
+}
+
+function centerOf(value: unknown): EmbeddedCharacter['center'] {
+  const first: unknown = Array.isArray(value) ? value[0] : undefined
+  if (!first || typeof first !== 'object') return null
+  const { x, y } = first as { x?: unknown; y?: unknown }
+  const inRange = (n: unknown): n is number =>
+    typeof n === 'number' && n >= 0 && n <= 1
+  return inRange(x) && inRange(y) ? { x, y } : null
+}
+
 function parseNovelAi(chunks: Map<string, string>): EmbeddedRecipe | null {
   const comment = chunks.get('Comment')
   if (!comment) return null
@@ -174,9 +218,8 @@ function parseNovelAi(chunks: Map<string, string>): EmbeddedRecipe | null {
   } catch {
     return null
   }
-  const v4 = data.v4_prompt as
-    | { caption?: { base_caption?: unknown; char_captions?: unknown } }
-    | undefined
+  const v4 = data.v4_prompt as V4Prompt | undefined
+  const v4Negative = data.v4_negative_prompt as V4Prompt | undefined
   const prompt =
     typeof data.prompt === 'string'
       ? data.prompt
@@ -184,25 +227,36 @@ function parseNovelAi(chunks: Map<string, string>): EmbeddedRecipe | null {
         ? v4.caption.base_caption
         : (chunks.get('Description') ?? '')
   if (!prompt.trim()) return null
-  const characters = Array.isArray(v4?.caption?.char_captions)
-    ? (v4.caption.char_captions as { char_caption?: unknown }[]).flatMap(
-        (item) =>
-          typeof item?.char_caption === 'string' && item.char_caption.trim()
-            ? [item.char_caption.trim()]
-            : [],
-      )
-    : []
+  const negativeCaptions = captionsOf(v4Negative)
+  const characters = captionsOf(v4).flatMap((item, index) => {
+    const text = stringOf(item.char_caption)
+    if (!text) return []
+    return [
+      {
+        prompt: text,
+        negative: stringOf(negativeCaptions[index]?.char_caption),
+        center: centerOf(item.centers),
+      },
+    ]
+  })
+  const negative =
+    typeof data.uc === 'string'
+      ? data.uc
+      : stringOf(v4Negative?.caption?.base_caption)
   const source = chunks.get('Source')?.trim()
   return {
     source: 'novelai',
     prompt: prompt.trim(),
-    negative: typeof data.uc === 'string' ? data.uc.trim() : '',
+    negative: negative.trim(),
     model: source ? source.replace(/\s+[0-9A-F]{8}$/i, '') : null,
     seed: seedOf(data.seed),
     steps: numberOf(data.steps),
     cfg: numberOf(data.scale),
     sampler: typeof data.sampler === 'string' ? data.sampler : null,
+    width: numberOf(data.width),
+    height: numberOf(data.height),
     characters,
+    manualPositions: v4?.use_coords === true,
   }
 }
 
@@ -234,6 +288,7 @@ function parseA1111(text: string): EmbeddedRecipe | null {
   if (paramsIndex >= 0)
     for (const match of lines[paramsIndex]!.matchAll(A1111_PARAM))
       params.set(match[1]!.trim(), match[2]!.trim().replace(/^"|"$/g, ''))
+  const size = /^(\d+)x(\d+)$/.exec(params.get('Size') ?? '')
   return {
     source: 'a1111',
     prompt,
@@ -243,7 +298,10 @@ function parseA1111(text: string): EmbeddedRecipe | null {
     steps: numberOf(params.get('Steps')),
     cfg: numberOf(params.get('CFG scale')),
     sampler: params.get('Sampler') ?? null,
+    width: size ? Number(size[1]) : null,
+    height: size ? Number(size[2]) : null,
     characters: [],
+    manualPositions: false,
   }
 }
 
@@ -286,7 +344,7 @@ export function embeddedRecipeFields(recipe: EmbeddedRecipe) {
       embeddedRecipe: {
         source: recipe.source,
         model: recipe.model,
-        characters: [...recipe.characters],
+        characters: recipe.characters.map((character) => character.prompt),
       },
     },
   }

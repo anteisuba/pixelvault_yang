@@ -242,6 +242,10 @@ export const API_ENDPOINTS = {
   /** Complete a browser-direct R2 image upload and create its Generation row */
   UPLOAD_IMAGE_DIRECT_COMPLETE: '/api/upload-image/direct/complete',
 
+  /** 「从图读串」：先拿一个临时直传地址，再读那张图的配方（读完即删，不进素材库） */
+  IMAGE_RECIPE_PREPARE: '/api/studio/image-recipe/prepare',
+  IMAGE_RECIPE_READ: '/api/studio/image-recipe',
+
   /** Prepare a browser-direct R2 video upload from the asset library */
   UPLOAD_VIDEO_DIRECT: '/api/upload-video/direct',
 

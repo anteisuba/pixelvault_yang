@@ -480,11 +480,15 @@
       "limit": "You've reached the skill limit (200). Delete one first.",
       "nameTaken": "That name is taken. Pick another.",
       "unknownBuiltin": "That built-in skill no longer exists. Refresh the page."
+    },
+    "imageRecipe": {
+      "readFailed": "Could not read this picture. Try another one."
     }
   },
   "DropZone": {
     "toReferences": "Drop to add as reference",
     "toConversation": "Drop to add to the chat",
-    "importCharacterCard": "Drop to import the character card"
+    "importCharacterCard": "Drop to import the character card",
+    "readRecipe": "Drop to read this picture’s prompt"
   }
 }

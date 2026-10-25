@@ -171,23 +171,40 @@ export async function deleteItems(
   return ids.length
 }
 
+/**
+ * ⚠ 多个类别时逐类各查一次再按分数合并，⛔ 不用 `$in`：2026-10-25 线上实测「水彩画风」筛
+ *   `category $in [1, 5]` 时 watercolor_(medium)（0.61）整个没回来，回来的是 0.46 的画师名 ——
+ *   近似检索带宽筛选会漏，单个 `$eq` 才准。向量只算一次，多几次查询几乎不要钱。
+ */
 export async function queryItems(
   ai: Ai,
   index: VectorizeIndex,
   input: QueryInput,
 ): Promise<SemanticMatch[]> {
   const [vector] = await embed(ai, [input.text], 'queries')
-  const filter: Record<string, unknown> = { kind: input.kind }
-  if (input.categories) filter.category = { $in: input.categories }
-  const { matches } = await index.query(vector, {
-    topK: input.topK,
-    namespace: input.namespace,
-    filter,
-    returnMetadata: 'all',
-  })
-  return matches.flatMap((match) => {
-    const { key, ...meta } = match.metadata ?? {}
-    delete meta.kind
-    return typeof key === 'string' ? [{ key, score: match.score, meta }] : []
-  })
+  const filters: Record<string, unknown>[] = input.categories
+    ? [...new Set(input.categories)].map((category) => ({
+        kind: input.kind,
+        category,
+      }))
+    : [{ kind: input.kind }]
+  const results = await Promise.all(
+    filters.map((filter) =>
+      index.query(vector, {
+        topK: input.topK,
+        namespace: input.namespace,
+        filter,
+        returnMetadata: 'all',
+      }),
+    ),
+  )
+  return results
+    .flatMap(({ matches }) => matches)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, input.topK)
+    .flatMap((match) => {
+      const { key, ...meta } = match.metadata ?? {}
+      delete meta.kind
+      return typeof key === 'string' ? [{ key, score: match.score, meta }] : []
+    })
 }

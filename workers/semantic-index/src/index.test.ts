@@ -33,17 +33,14 @@ function fakeVectors() {
       for (const id of ids) store.delete(id)
     },
     async query(vector, options) {
-      const filter = options.filter as {
-        kind: string
-        category?: { $in: number[] }
-      }
+      const filter = options.filter as { kind: string; category?: number }
       const matches = [...store.values()]
         .filter(
           (item) =>
             item.namespace === options.namespace &&
             item.metadata?.kind === filter.kind &&
-            (!filter.category ||
-              filter.category.$in.includes(Number(item.metadata?.category))),
+            (filter.category === undefined ||
+              item.metadata?.category === filter.category),
         )
         .map((item) => ({
           id: item.id,
@@ -135,6 +132,33 @@ describe('semantic index worker', () => {
       [EMBEDDING_MODEL, 'documents'],
       [EMBEDDING_MODEL, 'queries'],
     ])
+  })
+
+  it('queries each category on its own and merges by score', async () => {
+    const { call, calls } = setup()
+    await call('/upsert', {
+      namespace: 'public',
+      items: [
+        tag('watercolor', '水彩', 5),
+        tag('some_artist', '水', 1),
+        tag('cat_ears', '猫耳', 0),
+      ],
+    })
+    const response = await call('/query', {
+      namespace: 'public',
+      text: '水彩',
+      kind: 'danbooru-tag',
+      categories: [1, 5],
+      topK: 5,
+    })
+    const { matches } = (await response.json()) as {
+      matches: { key: string }[]
+    }
+    expect(matches.map((match) => match.key)).toEqual([
+      'watercolor',
+      'some_artist',
+    ])
+    expect(calls.filter((c) => c.side === 'queries')).toHaveLength(1)
   })
 
   it('splits documents into model batches of 32', async () => {

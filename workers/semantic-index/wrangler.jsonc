@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pixelvault-semantic-index",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-05-14",
+  "observability": {
+    "enabled": true,
+  },
+  // 语义检索（RAG）：文字转向量（Workers AI）+ 向量库（Vectorize）。应用侧经
+  // SEMANTIC_INDEX_URL / SEMANTIC_INDEX_TOKEN 调；见 docs/references/semantic-search.md。
+  "ai": {
+    "binding": "AI",
+  },
+  // 向量库一次性手建（512 维 · cosine · kind / category 两个元数据索引），命令见
+  // docs/references/semantic-search.md；换维度 = 新建一个库、全量重算。
+  "vectorize": [
+    {
+      "binding": "VECTORS",
+      "index_name": "antei-semantic",
+    },
+  ],
+}

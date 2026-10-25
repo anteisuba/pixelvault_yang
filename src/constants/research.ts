@@ -458,6 +458,11 @@ export const DANBOORU_REQUEST = {
   mediumCandidateLimit: 3,
   /** 查资料左栏最多列几个候选（每个都要再查样图，多了拖慢且容易被限流）。 */
   catalogCandidateLimit: 6,
+  /**
+   * 按意思（语义检索）一次取几个：画风页要在画师 + meta 两类里分，meta 还要再挑出画法，
+   * 比左栏的 6 行多取一些。
+   */
+  meaningMatchLimit: 12,
   /** 查资料详情：共现特征取样张数。 */
   catalogSampleSize: 20,
   /** 画风 / 作品 / 特征行的缩略样图张数；角色行只要 1 张。 */

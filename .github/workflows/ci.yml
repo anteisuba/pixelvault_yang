@@ -110,6 +110,9 @@ jobs:
           # 本地 D1（miniflare）里跑真 SQLite + FTS5。
           - worker: civitai-index
             test: npm ci && npm test
+          # 假的 Workers AI / Vectorize，测切批、截维、namespace 与筛选。
+          - worker: semantic-index
+            test: npm ci && npm test
           # 本目录没有 package.json；测试是 node:test，直接 import ./index.ts。
           - worker: civitai-image-proxy
             test: node --experimental-strip-types --test src/index.test.mjs
@@ -302,6 +305,9 @@ jobs:
           # 先改 D1 表结构再部署代码（与 Neon 迁移同一套做法）。令牌要带 D1 编辑权限。
           - worker: civitai-index
             deploy: npm ci && npm run migrate && npm run deploy
+          # 向量库（Vectorize）是一次性手建的，这里只部署代码。令牌要带 Vectorize 与 Workers AI 权限。
+          - worker: semantic-index
+            deploy: npm ci && npm run deploy
           # 没有自己的 package.json，借 execution 锁定的 wrangler 版本。
           - worker: civitai-image-proxy
             deploy: npm --prefix ../execution ci && ../execution/node_modules/.bin/wrangler deploy

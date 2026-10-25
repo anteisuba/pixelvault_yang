@@ -16,6 +16,7 @@ import type { EvidenceItem } from '@/types/research'
 import { isStyleMediumTag } from '@/lib/tag-lookup'
 import {
   findTagsByLocalName,
+  findTagsByMeaning,
   localNamesOf,
 } from '@/services/research/danbooru-tag-name.service'
 import {
@@ -465,10 +466,15 @@ async function aliasTags(text: string): Promise<CatalogTag[]> {
   return found.flatMap((value) => CatalogTagsSchema.parse(value))
 }
 
+/**
+ * 字面对得上的在前（别名、模糊匹配，各按作品数排），意思相近的接在后面（按相近程度排）：
+ * 打对了名字就是要它，按意思补的只在字面不够时露出来。
+ */
 async function matchTags(
   text: string,
   category: number,
   aliases: readonly CatalogTag[],
+  related: readonly CatalogTag[],
   limit: number = DANBOORU_REQUEST.catalogCandidateLimit,
 ): Promise<CatalogTag[]> {
   const slug = text.toLowerCase().replace(/\s+/g, '_')
@@ -485,6 +491,7 @@ async function matchTags(
   return [
     ...aliases.filter((tag) => tag.category === category).sort(byCount),
     ...fuzzy.filter((tag) => tag.category === category).sort(byCount),
+    ...related.filter((tag) => tag.category === category),
   ].filter((tag) => !seen.has(tag.name) && Boolean(seen.add(tag.name)))
 }
 
@@ -497,30 +504,34 @@ async function matchPage(
   kind: DanbooruCatalogKind,
   wikiAliases: readonly CatalogTag[],
 ): Promise<CatalogTag[]> {
+  const categories =
+    kind === 'artist'
+      ? [CATALOG_CATEGORY.artist, DANBOORU_REQUEST.metaTagCategory]
+      : [CATALOG_CATEGORY[kind]]
   // 中日文名先查自家词库（9f-2c）：Danbooru 的 name_matches 只认英文写法。
-  const aliases = [
-    ...(await findTagsByLocalName(
+  // 意思相近的（语义检索）同时去问，排在字面结果后面。
+  const [local, related] = await Promise.all([
+    findTagsByLocalName(
       text,
-      kind === 'artist'
-        ? [CATALOG_CATEGORY.artist, DANBOORU_REQUEST.metaTagCategory]
-        : [CATALOG_CATEGORY[kind]],
+      categories,
       DANBOORU_REQUEST.catalogCandidateLimit * 2,
-    )),
-    ...wikiAliases,
-  ]
+    ),
+    findTagsByMeaning(text, categories, DANBOORU_REQUEST.meaningMatchLimit),
+  ])
+  const aliases = [...local, ...wikiAliases]
   if (kind !== 'artist')
-    return (await matchTags(text, CATALOG_CATEGORY[kind], aliases)).slice(
-      0,
-      DANBOORU_REQUEST.catalogCandidateLimit,
-    )
+    return (
+      await matchTags(text, CATALOG_CATEGORY[kind], aliases, related)
+    ).slice(0, DANBOORU_REQUEST.catalogCandidateLimit)
   const [meta, artists] = await Promise.all([
     matchTags(
       text,
       DANBOORU_REQUEST.metaTagCategory,
       aliases,
+      related,
       DANBOORU_REQUEST.metaMatchLimit,
     ),
-    matchTags(text, CATALOG_CATEGORY.artist, aliases),
+    matchTags(text, CATALOG_CATEGORY.artist, aliases, related),
   ])
   return [
     ...meta

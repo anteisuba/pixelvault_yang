@@ -35,6 +35,7 @@
     "node_modules",
     ".next/dev/types/**/*.ts",
     "workers/civitai-index/src/**/*.test.ts",
-    "workers/civitai-index/src/test/**"
+    "workers/civitai-index/src/test/**",
+    "workers/semantic-index/src/**/*.test.ts"
   ]
 }

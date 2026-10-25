@@ -1155,6 +1155,13 @@
   "StudioShell": {
     "newChat": "New chat",
     "recent": "Recent",
+    "recentMore": "More: {title}",
+    "recentRename": "Rename",
+    "recentRenameLabel": "Rename “{title}”",
+    "recentDelete": "Delete",
+    "recentDeleteTitle": "Delete “{title}”?",
+    "recentDeleteBody": "This can’t be undone.",
+    "recentFailed": "That didn’t work. Try again.",
     "conversations": "Conversations",
     "library": "Library",
     "benches": "Benches",

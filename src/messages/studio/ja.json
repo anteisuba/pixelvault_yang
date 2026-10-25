@@ -1155,6 +1155,13 @@
   "StudioShell": {
     "newChat": "新しい会話",
     "recent": "最近",
+    "recentMore": "その他：{title}",
+    "recentRename": "名前を変更",
+    "recentRenameLabel": "「{title}」の名前を変更",
+    "recentDelete": "削除",
+    "recentDeleteTitle": "「{title}」を削除しますか？",
+    "recentDeleteBody": "削除すると元に戻せません。",
+    "recentFailed": "うまくいきませんでした。もう一度お試しください。",
     "conversations": "会話一覧",
     "library": "ライブラリ",
     "benches": "作業台",

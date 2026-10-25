@@ -1155,6 +1155,13 @@
   "StudioShell": {
     "newChat": "新对话",
     "recent": "最近",
+    "recentMore": "更多：{title}",
+    "recentRename": "改名",
+    "recentRenameLabel": "给「{title}」改名",
+    "recentDelete": "删除",
+    "recentDeleteTitle": "删除「{title}」？",
+    "recentDeleteBody": "删了就找不回来了。",
+    "recentFailed": "没改成，再试一次。",
     "conversations": "对话列表",
     "library": "库",
     "benches": "台",

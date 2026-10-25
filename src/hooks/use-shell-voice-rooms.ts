@@ -2,7 +2,11 @@
 
 import { useEffect, useSyncExternalStore } from 'react'
 
-import { listVoiceRoomsAPI } from '@/lib/api-client/voiceroom'
+import {
+  deleteVoiceRoomAPI,
+  listVoiceRoomsAPI,
+  updateVoiceRoomAPI,
+} from '@/lib/api-client/voiceroom'
 import type { VoiceRoomRecord } from '@/types/voiceroom'
 
 /**
@@ -16,6 +20,14 @@ interface ShellVoiceRooms {
   /** 配音间那一页正开着的房间；不在那一页 = null。 */
   activeRoomId: string | null
 }
+
+/** 配音间那一页开着时，左边列表改名 / 删房间走它手上那一份（它自己会再发布）。 */
+interface VoiceRoomEditors {
+  renameRoom(roomId: string, name: string | null): Promise<void>
+  removeRoom(roomId: string): Promise<void>
+}
+
+let editors: VoiceRoomEditors | null = null
 
 let state: ShellVoiceRooms = { rooms: [], activeRoomId: null }
 const listeners = new Set<() => void>()
@@ -35,11 +47,55 @@ function subscribe(listener: () => void) {
 export function usePublishVoiceRooms(
   rooms: readonly VoiceRoomRecord[],
   activeRoomId: string | null,
+  roomEditors: VoiceRoomEditors,
 ): void {
   useEffect(() => {
     setState({ rooms, activeRoomId })
   }, [rooms, activeRoomId])
-  useEffect(() => () => setState({ ...state, activeRoomId: null }), [])
+  useEffect(() => {
+    editors = roomEditors
+  }, [roomEditors])
+  useEffect(
+    () => () => {
+      editors = null
+      setState({ ...state, activeRoomId: null })
+    },
+    [],
+  )
+}
+
+/** 左边列表「最近」里给一间改名（用户 10-25）。 */
+export async function renameShellVoiceRoom(
+  roomId: string,
+  name: string,
+): Promise<boolean> {
+  if (editors) {
+    await editors.renameRoom(roomId, name)
+    return true
+  }
+  const result = await updateVoiceRoomAPI({ roomId, name })
+  if (!result.success || !result.data) return false
+  const updated = result.data
+  setState({
+    ...state,
+    rooms: state.rooms.map((room) => (room.id === roomId ? updated : room)),
+  })
+  return true
+}
+
+/** 左边列表「最近」里删一间；台词跟着走，生成物不动（同配音间里删）。 */
+export async function deleteShellVoiceRoom(roomId: string): Promise<boolean> {
+  if (editors) {
+    await editors.removeRoom(roomId)
+    return true
+  }
+  const result = await deleteVoiceRoomAPI(roomId)
+  if (!result.success) return false
+  setState({
+    ...state,
+    rooms: state.rooms.filter((room) => room.id !== roomId),
+  })
+  return true
 }
 
 export function useShellVoiceRooms(): ShellVoiceRooms {

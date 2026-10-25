@@ -1072,6 +1072,13 @@ export function useAssistantOperator(
       const messageEntryId = () =>
         `${runKey}:${continuationPrefix}msg-${messageSeq}`
       /**
+       * 这一次模型调用的增量写进了哪几条正文（按先后）。定稿帧到达时它们就是这一段的全部。
+       * 🔬 2026-10-25 真机：模型先说一句、再联网查（厂商自己跑的那一步在流的**中途**落进
+       * 线程，压在这句下面），定稿帧随后到 —— 按「被压在下面就另起一条」它会把同一句话
+       * 再写一遍，每查一次就重复一句。
+       */
+      let deltaEntryIds: string[] = []
+      /**
        * ⚠ 画布接力那一跳（`runKey` 由上一跳带来）：此刻在等的是刚落下的那批改动
        * 回到服务端、助手接着往下做 —— 占位行写「正在画布上落地…」而不是「正在想…」。
        */
@@ -1647,6 +1654,9 @@ export function useAssistantOperator(
                     !entry.streaming))
               )
                 messageSeq += 1
+              if (event.restart) deltaEntryIds = []
+              if (!deltaEntryIds.includes(messageEntryId()))
+                deltaEntryIds.push(messageEntryId())
               appendOperatorStreamingMessage(
                 messageEntryId(),
                 event.delta,
@@ -1667,6 +1677,30 @@ export function useAssistantOperator(
              */
             case ASSISTANT_OPERATOR_EVENTS.message: {
               const entries = getOperatorState().entries
+              /**
+               * ⭐ 增量已经把这一段写全了（中间可能被一步联网隔成两条）：就地定稿那几条，
+               * ⛔ 不另起一条。拼起来对不上（少见：增量丢了 / 改写过）才走下面的覆盖。
+               */
+              const streamed = deltaEntryIds.flatMap((id) => {
+                const entry = entries.find(
+                  (item) => item.kind === 'message' && item.id === id,
+                )
+                return entry?.kind === 'message' ? [entry] : []
+              })
+              deltaEntryIds = []
+              if (
+                streamed.length > 0 &&
+                streamed
+                  .map((entry) => entry.text)
+                  .join('')
+                  .trim() === event.text.trim()
+              ) {
+                for (const entry of streamed) {
+                  finalizeOperatorMessage(entry.id, entry.text.trim())
+                  dropOperatorPending(entry.id)
+                }
+                break
+              }
               const index = entries.findIndex(
                 (entry) =>
                   entry.kind === 'message' && entry.id === messageEntryId(),

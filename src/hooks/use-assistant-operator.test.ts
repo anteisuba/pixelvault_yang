@@ -3376,6 +3376,63 @@ describe('正文流式累积与占位行', () => {
     ])
   })
 
+  /**
+   * 🔬 2026-10-25 真机：模型先说一句，再联网查（厂商自己跑的那一步在流中途落进线程），
+   * 定稿帧随后到 —— 同一句旁白在那一步上下各出现一次，每查一次就重复一句。
+   */
+  it('⭐ 旁白说完中途联网，定稿帧 ⛔ 不把同一句再写一遍', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('出一张全身')
+    })
+    await settle()
+
+    const search = doneStepEvent('n0-1')
+    const running: AssistantOperatorEvent = {
+      type: ASSISTANT_OPERATOR_EVENTS.step,
+      step: {
+        id: 'n0-1',
+        title: '联网查 NAI 写法',
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.readState,
+        verb: 'look',
+        status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.running,
+        payload: {},
+        result: null,
+      },
+    }
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.messageDelta,
+      delta: '我先查一下 NAI 的写法。',
+      restart: true,
+    })
+    await settle()
+    streams[0].emit(running)
+    await settle()
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.messageDelta,
+      delta: '查到了。',
+    })
+    await settle()
+    streams[0].emit(search)
+    await settle()
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.message,
+      text: '我先查一下 NAI 的写法。查到了。',
+    })
+    await settle()
+
+    const kinds = store
+      .getOperatorState()
+      .entries.filter((entry) => entry.kind !== 'user')
+      .map((entry) => (entry.kind === 'message' ? entry.text : entry.kind))
+    expect(kinds).toEqual(['我先查一下 NAI 的写法。', 'step', '查到了。'])
+    expect(
+      store
+        .getOperatorState()
+        .entries.some((entry) => entry.kind === 'message' && entry.streaming),
+    ).toBe(false)
+  })
+
   it('⭐ 发送即回显：用户行与助手占位行在同一轮里立刻落进线程', async () => {
     const { result } = render()
     act(() => {

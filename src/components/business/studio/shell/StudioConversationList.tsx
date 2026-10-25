@@ -3,7 +3,7 @@
 import { useContext, useState, type MouseEvent, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 
-import { ROUTES } from '@/constants/routes'
+import { NEW_VOICE_ROOM_PATH, ROUTES } from '@/constants/routes'
 import { STUDIO_LIBRARY_ITEMS } from '@/constants/navigation'
 import {
   STUDIO_LIBRARY_TAB_IDS,
@@ -15,10 +15,15 @@ import {
   Images,
   LayoutGrid,
   Library,
+  Mic2,
   SquarePen,
 } from '@/components/icons'
 import { AccountMenu } from '@/components/layout/AccountMenu'
 import { ProfileAvatar } from '@/components/layout/ProfileAvatar'
+import {
+  StudioOperatorAvatarSwitcher,
+  StudioOperatorCurrentAvatar,
+} from '@/components/business/studio/assistant-operator/StudioOperatorAvatarSwitcher'
 import { StudioConversationRecent } from '@/components/business/studio/shell/StudioConversationRecent'
 import { StudioLibraryTargetContext } from '@/components/business/studio/shell/StudioLibraryOverlay'
 import {
@@ -39,6 +44,7 @@ import {
 import { useMyProfile } from '@/hooks/use-my-profile'
 import { useStudioOperatorActions } from '@/hooks/use-studio-operator-actions'
 import { useStudioOperatorHistoryView } from '@/hooks/use-studio-operator-history'
+import { useStudioShellAvatar } from '@/hooks/use-studio-shell-avatar'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
 import {
   libraryCategoryFromPath,
@@ -73,7 +79,7 @@ const PAGE_ITEMS = PAGE_ITEM_IDS.flatMap((id) =>
 
 /**
  * `/studio` 外壳左边那一栏（ui-spec §1）：64 宽的细图标栏落在灰底上，只放图标 ——
- * AN 字标、黑色「新对话」、画廊 / 对话 / 工作台 / 库 / 素材 / 角色 / 提示词、最底下头像（顺序
+ * AN 字标（对话收起时换成助手头像、点开换人）、黑色「新对话」、画廊 / 对话 / 配音间 / 工作台 / 库 / 素材 / 角色 / 提示词、最底下头像（顺序
  * 用户 10-25 定）。点「对话」从栏旁浮出对话列表（300 宽；助手对话与配音间混排，9f-3）；点「工作台」
  * 浮出一条竖排的台、点「库」浮出一条竖排的库（LoRA · 酒馆 · 标签 · 音色），点一个进那一个。
  *
@@ -86,6 +92,8 @@ export function StudioConversationList({ className }: { className?: string }) {
   const t = useTranslations('StudioShell')
   const tNav = useTranslations('Navbar')
   const tAll = useTranslations()
+  const tOperator = useTranslations('StudioOperator')
+  const avatar = useStudioShellAvatar()
   const pathname = usePathname()
   const router = useRouter()
   const history = useStudioOperatorHistoryView()
@@ -95,7 +103,11 @@ export function StudioConversationList({ className }: { className?: string }) {
   const [listOpen, setListOpen] = useState(false)
   const [benchesOpen, setBenchesOpen] = useState(false)
   const [librariesOpen, setLibrariesOpen] = useState(false)
-  const openBenchId = kind === 'bench' ? activeBenchId(pathname) : undefined
+  const voiceRoomActive =
+    pathname === ROUTES.STUDIO_AUDIO ||
+    pathname.startsWith(`${ROUTES.STUDIO_AUDIO}/`)
+  const openBenchId =
+    kind === 'bench' && !voiceRoomActive ? activeBenchId(pathname) : undefined
   const librarySlot = useContext(StudioLibraryTargetContext)
   const libraryActive =
     openCategory !== null &&
@@ -124,13 +136,32 @@ export function StudioConversationList({ className }: { className?: string }) {
         className,
       )}
     >
-      <Link
-        href={ROUTES.STUDIO}
-        aria-label={tNav('brand')}
-        className="mb-2 grid size-10 place-items-center rounded-12 text-sm font-bold tracking-brand text-foreground focus-visible:outline-none focus-visible:shadow-focus"
-      >
-        AN
-      </Link>
+      {avatar.docked ? (
+        // 对话收起（用户 10-25）：助手头像飞进这一格；点它弹一排头像换人，挑完对话拉回来。
+        <StudioOperatorAvatarSwitcher
+          side="right"
+          onPicked={avatar.expand ?? undefined}
+        >
+          <button
+            type="button"
+            aria-label={tOperator('mode.pickCharacter')}
+            data-testid="studio-shell-avatar"
+            className="mb-2 grid size-10 place-items-center rounded-full focus-visible:outline-none focus-visible:shadow-focus"
+          >
+            <span className="size-9 rounded-full transition-transform duration-fast ease-standard active:scale-96 motion-reduce:transition-none">
+              <StudioOperatorCurrentAvatar fly />
+            </span>
+          </button>
+        </StudioOperatorAvatarSwitcher>
+      ) : (
+        <Link
+          href={ROUTES.STUDIO}
+          aria-label={tNav('brand')}
+          className="mb-2 grid size-10 place-items-center rounded-12 text-sm font-bold tracking-brand text-foreground focus-visible:outline-none focus-visible:shadow-focus"
+        >
+          AN
+        </Link>
+      )}
       <NavTip label={t('newChat')}>
         <button
           type="button"
@@ -188,6 +219,19 @@ export function StudioConversationList({ className }: { className?: string }) {
           />
         </PopoverContent>
       </Popover>
+
+      {/* 配音间（用户 10-25：从首页顶上「助手 | 配音间」挪到这里）：点一下新开一间，开过的在对话列表里。 */}
+      <NavTip label={t('homeVoiceRoom')}>
+        <Link
+          href={NEW_VOICE_ROOM_PATH}
+          aria-label={t('homeVoiceRoom')}
+          aria-current={voiceRoomActive ? 'page' : undefined}
+          data-testid="studio-shell-voice-room"
+          className={cn(NAV_BUTTON_CLASS, voiceRoomActive && NAV_ACTIVE_CLASS)}
+        >
+          <Mic2 />
+        </Link>
+      </NavTip>
 
       <Popover open={benchesOpen} onOpenChange={setBenchesOpen}>
         <NavTip label={t('workbench')}>

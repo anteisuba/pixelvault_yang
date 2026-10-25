@@ -61,6 +61,7 @@ import {
   EyeOff,
   MoreHorizontal,
   Settings2,
+  UserRound,
 } from '@/components/icons'
 import { useFormatter, useTranslations } from 'next-intl'
 
@@ -90,6 +91,12 @@ import { cn } from '@/lib/utils'
 import type { AssistantPersona } from '@/types/assistant-persona'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
 import { useSlowLoadingNotice } from '@/hooks/use-slow-loading-notice'
+import { useStudioShellAvatar } from '@/hooks/use-studio-shell-avatar'
+import {
+  StudioOperatorAvatarSwitcher,
+  StudioOperatorCurrentAvatar,
+} from '@/components/business/studio/assistant-operator/StudioOperatorAvatarSwitcher'
+import { StudioOperatorChatRoleDialog } from '@/components/business/studio/assistant-operator/StudioOperatorChatRoleDialog'
 import { StudioOperatorModeSwitch } from '@/components/business/studio/assistant-operator/StudioOperatorModeSwitch'
 import { StudioOperatorSessionRow } from '@/components/business/studio/assistant-operator/StudioOperatorSessionRow'
 import { StudioOperatorTitleRename } from '@/components/business/studio/assistant-operator/StudioOperatorTitleRename'
@@ -247,6 +254,9 @@ export function StudioOperatorHeader({
   const cancelConfirmDelete = useCallback(() => setConfirmDeleteId(null), [])
   /** 标题▾ 与历史图标共开的那一个菜单（见头注），⛔ 不是两个实例。 */
   const [menuOpen, setMenuOpen] = useState(false)
+  /** 聊天里 ⋯ →「你在故事里是谁」（原来在「和谁聊」弹层顶上，用户 10-25 换人挪到头像后搬来）。 */
+  const [roleOpen, setRoleOpen] = useState(false)
+  const { docked: avatarDocked } = useStudioShellAvatar()
   /** 「和角色聊…」那一列（附录L）：菜单开着才取。 */
   const chatCharacters = useChatCharacters(menuOpen)
   /**
@@ -328,24 +338,26 @@ export function StudioOperatorHeader({
           >
             <AssistantAvatarGlyph presetId={persona?.avatarPreset ?? null} />
           </button>
-        ) : avatar === 'board' ? (
-          <button
-            type="button"
-            data-testid="operator-header-avatar"
-            aria-label={t('collapse')}
-            onClick={onCollapse}
-            className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-muted text-foreground transition-transform duration-fast ease-standard active:scale-96 focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none"
+        ) : avatar === 'board' || avatar === 'boardStatic' ? (
+          // 外壳那一栏：头像就是「换谁陪你」（用户 10-25）；开着台时一排最下面多一颗「收起对话」，
+          // 收起时这一颗飞进左栏最上面那格（`useStudioShellAvatar`）。
+          <StudioOperatorAvatarSwitcher
+            side="bottom"
+            onCollapse={avatar === 'board' ? onCollapse : undefined}
           >
-            <AssistantAvatarGlyph presetId={persona?.avatarPreset ?? null} />
-          </button>
-        ) : avatar === 'boardStatic' ? (
-          <span
-            data-testid="operator-header-avatar"
-            aria-hidden
-            className="grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-muted text-foreground"
-          >
-            <AssistantAvatarGlyph presetId={persona?.avatarPreset ?? null} />
-          </span>
+            <button
+              type="button"
+              data-testid="operator-header-avatar"
+              aria-label={t('mode.pickCharacter')}
+              className={cn(
+                'size-8 shrink-0 rounded-full transition-transform duration-fast ease-standard active:scale-96 focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none',
+                // 飞走了：这里只留位，⛔ 两颗同时在。
+                avatarDocked && 'invisible',
+              )}
+            >
+              <StudioOperatorCurrentAvatar fly={!avatarDocked} />
+            </button>
+          </StudioOperatorAvatarSwitcher>
         ) : avatar === 'slot' ? (
           <span
             data-testid="operator-header-avatar-slot"
@@ -579,10 +591,13 @@ export function StudioOperatorHeader({
         {/* 标题药丸 hug 之后靠这一格把右上三颗推到右边（⛔ 不靠 `flex-1` 撑标题）。 */}
         <span className="flex-1" />
 
-        {/* ── 工作 / 聊天切换（owner 2026-10-16）：同一段对话里换模式，记录不变。 */}
-        <StudioOperatorModeSwitch
-          disabled={working || Boolean(history.loadingSessionId)}
-        />
+        {/* ── 工作 / 聊天切换（owner 2026-10-16）：同一段对话里换模式，记录不变。
+            外壳那一栏换人走头像（用户 10-25），这颗只留给没有外壳头像的宿主（手机等）。 */}
+        {board ? null : (
+          <StudioOperatorModeSwitch
+            disabled={working || Boolean(history.loadingSessionId)}
+          />
+        )}
 
         {/* ── 右上**一颗 ⋯**（D7b ④ · 画板 `DesignD7bToggle` 的「⋯ 菜单」）────
             设置 · 分隔线 · 隐身。⛔ 历史会话只走标题下拉（D12 B7：⋯ 里那一项与它
@@ -613,6 +628,15 @@ export function StudioOperatorHeader({
               <Settings2 className="size-4" aria-hidden />
               {t('assistantSettings')}
             </DropdownMenuItem>
+            {board && chatCharacter ? (
+              <DropdownMenuItem
+                data-testid="operator-more-chat-role"
+                onSelect={() => setRoleOpen(true)}
+              >
+                <UserRound className="size-4" aria-hidden />
+                {t('chat.roleLabel')}
+              </DropdownMenuItem>
+            ) : null}
             <DropdownMenuSeparator />
             {/**
              * 隐身（56a 切片 4）—— 现在是**真的**：开着时这一轮一条记忆都不写
@@ -639,6 +663,14 @@ export function StudioOperatorHeader({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        {board && chatCharacter ? (
+          <StudioOperatorChatRoleDialog
+            open={roleOpen}
+            onOpenChange={setRoleOpen}
+            characterName={chatCharacter.name}
+            initialRole={chatCharacter.userRole ?? ''}
+          />
+        ) : null}
       </div>
     </div>
   )

@@ -2933,13 +2933,6 @@ html:lang(ja) {
   max-height: min(42.5rem, 100svh - 4rem) !important;
 }
 
-/* 对话收起时头像浮在台左上角（ui-spec §1）：台顶那一行往右让出头像的位置，⛔ 被它压住。 */
-@utility studio-shell-chat-collapsed {
-  & [data-bench-header] {
-    padding-inline-start: 2.75rem;
-  }
-}
-
 /* 库叠层的正文（第 9f 步 9f-2a）：叠进来的页面按整屏写的高（`h-page`），在叠层里改成
    铺满叠层那一块，⛔ 比叠层还高一截、多出一层滚动。 */
 @utility library-overlay-body {

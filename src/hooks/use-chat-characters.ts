@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 
 import { listCharacterCardsAPI } from '@/lib/api-client/cards'
+import { characterCoverUrl } from '@/lib/card-bus'
 import type { StudioOperatorChatRequest } from '@/hooks/use-studio-operator-store'
 
 /**
@@ -33,6 +34,7 @@ export function useChatCharacters(enabled: boolean): {
           },
           opening: card.persona?.opening ?? '',
           alternateOpenings: card.tavern?.alternateGreetings ?? [],
+          avatarUrl: characterCoverUrl(card),
         })),
       )
     })

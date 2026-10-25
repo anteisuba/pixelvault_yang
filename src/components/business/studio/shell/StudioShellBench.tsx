@@ -27,17 +27,13 @@ import {
   type StudioLibraryCategoryId,
   type StudioShellBenchId,
 } from '@/constants/studio-shell'
-import { AssistantAvatarGlyph } from '@/components/business/studio/assistant-operator/AssistantAvatarGlyph'
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { useAssistantPersona } from '@/hooks/use-assistant-persona'
-import { useStudioOperatorHistoryView } from '@/hooks/use-studio-operator-history'
 import { useStudioOperatorState } from '@/hooks/use-studio-operator-store'
 import { Link, useRouter } from '@/i18n/navigation'
-import { deriveAssistantConversationTitle } from '@/lib/assistant-conversation-title'
 import { shellEnter, shellLeave } from '@/lib/studio-shell-motion'
 import {
   studioBenchHref,
@@ -421,38 +417,6 @@ export function StudioLibraryPicker({
         )
       })}
     </nav>
-  )
-}
-
-/**
- * 对话收起时（ui-spec §1）：助手头像浮到台的左上角，再点展开。
- */
-export function StudioShellExpandChat({ onExpand }: { onExpand: () => void }) {
-  const t = useTranslations('StudioShell')
-  const tOperator = useTranslations('StudioOperator')
-  const history = useStudioOperatorHistoryView()
-  const { sessionId } = useStudioOperatorState()
-  const { persona } = useAssistantPersona()
-  const session = history?.sessions.find((item) => item.id === sessionId)
-  const title = session
-    ? (deriveAssistantConversationTitle(session.title) ??
-      tOperator('history.untitled'))
-    : t('backToChat')
-
-  return (
-    <BarTip label={title}>
-      <button
-        type="button"
-        aria-label={t('backToChat')}
-        data-testid="studio-shell-expand-chat"
-        onClick={onExpand}
-        // ⭐ 和对话头里那颗头像同一个位置、同一个长相（板头 52 高、左 12）：对话栏往左收到
-        //   底时头像看起来没动，⛔ 收完再在别处冒出一颗。
-        className="absolute top-2.5 left-3 z-20 hidden size-8 place-items-center overflow-hidden rounded-full bg-muted text-foreground transition-transform duration-fast ease-standard active:scale-96 focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none desk:grid"
-      >
-        <AssistantAvatarGlyph presetId={persona.avatarPreset ?? null} />
-      </button>
-    </BarTip>
   )
 }
 

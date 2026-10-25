@@ -66,6 +66,7 @@
       "recipeExtraStackFull": "挂载栏已满（{max}），请先移除一个",
       "recipeExtraAutoMounted": "已自动补挂 {count} 个其他 LoRA。",
       "recipeExtraApplyLimited": "仍有 {count} 个其他 LoRA 未挂载，还原度会受限。",
+      "recipeExtraNotOnCivitai": "其中 {count} 个 Civitai 上没有，多半是作者私有的",
       "recipeReferenceAttached": "已把当前来源图附为参考图。",
       "recipeClose": "收起配方",
       "recipeInferHint": "该 LoRA 没有可还原的配方数据。可用 AI 从封面图反推一份提示词草稿（仅提示词，明确标注为推测）。",

@@ -13,7 +13,10 @@ import {
   extractActivationSegment,
   summariseActivationSegments,
 } from '@/lib/civitai-image-prompt-mine'
-import { buildCivitaiLoraNameSearchQueries } from '@/lib/civitai-lora-reference'
+import {
+  buildCivitaiLoraNameSearchQueries,
+  stripLoraFolderPath,
+} from '@/lib/civitai-lora-reference'
 import { parseCivitaiVersionIdFromDownloadUrl } from '@/lib/civitai-lora-url'
 import { CircuitOpenError } from '@/lib/circuit-breaker'
 import { rewriteCivitaiImageUrl } from '@/lib/civitai-image-url'
@@ -111,6 +114,16 @@ const CivitaiImageResourceSchema = z
   })
   .passthrough()
 
+// ComfyUI 出的图（Civitai 的 ComfyUI 解析）把没写进正文 `<lora:>` 的 LoRA 记在
+// 这里：name 是带文件夹的文件名，strength 是权重。
+const CivitaiAdditionalResourceSchema = z
+  .object({
+    name: z.string().optional(),
+    type: z.string().optional(),
+    strength: z.number().optional(),
+  })
+  .passthrough()
+
 // Newer onsite generations identify resources by Civitai version id instead
 // of file hash — this is how we recover the LoRA's real weight when the
 // legacy `resources` array only lists the checkpoint.
@@ -128,6 +141,7 @@ const CivitaiImageMetaSchema = z
     negativePrompt: z.string().optional(),
     resources: z.array(CivitaiImageResourceSchema).optional(),
     civitaiResources: z.array(CivitaiResourceByVersionSchema).optional(),
+    additionalResources: z.array(CivitaiAdditionalResourceSchema).optional(),
   })
   .passthrough()
 
@@ -1549,6 +1563,7 @@ const CivitaiImageMetaInnerSchema = z
     prompt: z.string().optional(),
     resources: z.array(CivitaiImageResourceSchema).optional(),
     civitaiResources: z.array(CivitaiResourceByVersionSchema).optional(),
+    additionalResources: z.array(CivitaiAdditionalResourceSchema).optional(),
   })
   .passthrough()
 
@@ -1576,6 +1591,9 @@ const CivitaiImageItemSchema = z
         prompt: z.string().optional(),
         resources: z.array(CivitaiImageResourceSchema).optional(),
         civitaiResources: z.array(CivitaiResourceByVersionSchema).optional(),
+        additionalResources: z
+          .array(CivitaiAdditionalResourceSchema)
+          .optional(),
         meta: CivitaiImageMetaInnerSchema.optional(),
       })
       .passthrough()
@@ -1745,6 +1763,7 @@ function extractRecipeMetaParams(
 
 type CivitaiImageResource = z.infer<typeof CivitaiImageResourceSchema>
 type CivitaiResourceByVersion = z.infer<typeof CivitaiResourceByVersionSchema>
+type CivitaiAdditionalResource = z.infer<typeof CivitaiAdditionalResourceSchema>
 
 interface RecipeLoraResources {
   loraWeight?: number
@@ -1768,7 +1787,7 @@ function parsePromptLoraTags(rawPrompt: string): PromptLoraTag[] {
     if (!name) continue
     const weight = match[2] !== undefined ? Number(match[2]) : undefined
     tags.push({
-      name: repairUtf8Mojibake(name),
+      name: stripLoraFolderPath(repairUtf8Mojibake(name)),
       weight:
         weight !== undefined && Number.isFinite(weight) ? weight : undefined,
     })
@@ -1786,6 +1805,8 @@ interface RecipeLoraSignalInput {
   rawPrompt: string
   resources: readonly CivitaiImageResource[] | undefined
   civitaiResources: readonly CivitaiResourceByVersion[] | undefined
+  /** ComfyUI meta 的 additionalResources（name 带路径，strength = 权重）。 */
+  additionalResources?: readonly CivitaiAdditionalResource[]
   targetHashLower: string | null
   targetModelVersionId: number | null
   /** Lower-cased name hints for the target LoRA's in-prompt tag (file stems). */
@@ -1815,6 +1836,7 @@ function resolveRecipeLoraSignals({
   rawPrompt,
   resources,
   civitaiResources,
+  additionalResources,
   targetHashLower,
   targetModelVersionId,
   targetNameHints,
@@ -1837,7 +1859,11 @@ function resolveRecipeLoraSignals({
     targetNameHints.map((hint) => hint.toLowerCase()),
   )
   if (matchedResource?.name) {
-    knownTargetNames.add(repairUtf8Mojibake(matchedResource.name).toLowerCase())
+    knownTargetNames.add(
+      stripLoraFolderPath(
+        repairUtf8Mojibake(matchedResource.name),
+      ).toLowerCase(),
+    )
   }
   let targetTag = promptTags.find((tag) =>
     isKnownTargetLoraName(tag.name, knownTargetNames),
@@ -1860,7 +1886,9 @@ function resolveRecipeLoraSignals({
     if (r === matchedResource || (r.type ?? '').toLowerCase() !== 'lora') {
       continue
     }
-    const repairedName = r.name ? repairUtf8Mojibake(r.name) : undefined
+    const repairedName = r.name
+      ? stripLoraFolderPath(repairUtf8Mojibake(r.name))
+      : undefined
     const key = repairedName?.toLowerCase()
     if (key) {
       if (seenNames.has(key) || isKnownTargetLoraName(key, knownTargetNames)) {
@@ -1888,7 +1916,20 @@ function resolveRecipeLoraSignals({
     seenVersionIds.add(r.modelVersionId)
     extras.push({ weight: r.weight, modelVersionId: r.modelVersionId })
   }
-  for (const tag of promptTags) {
+  // ComfyUI 的 additionalResources 和正文 `<lora:>` 一样只有名字，并成同一路，
+  // 按名字去重（正文里已写过的不重复算）。
+  const additionalTags: PromptLoraTag[] = (additionalResources ?? []).flatMap(
+    (r) =>
+      r.name && (r.type ?? 'lora').toLowerCase() === 'lora'
+        ? [
+            {
+              name: stripLoraFolderPath(repairUtf8Mojibake(r.name)),
+              weight: r.strength,
+            },
+          ]
+        : [],
+  )
+  for (const tag of [...promptTags, ...additionalTags]) {
     if (tag === targetTag) continue
     const key = tag.name.toLowerCase()
     if (isKnownTargetLoraName(key, knownTargetNames)) {
@@ -2055,6 +2096,7 @@ async function fetchModelVersionSourceRecipes(
         rawPrompt,
         resources: image.meta?.resources,
         civitaiResources: image.meta?.civitaiResources,
+        additionalResources: image.meta?.additionalResources,
         targetHashLower,
         targetModelVersionId: modelVersionId,
         targetNameHints,
@@ -2416,6 +2458,7 @@ async function fetchCommunityImageRecipes(
           rawPrompt: prompt,
           resources: sdMeta.resources,
           civitaiResources: sdMeta.civitaiResources,
+          additionalResources: sdMeta.additionalResources,
           targetHashLower: targetHash,
           targetModelVersionId: modelVersionId ?? null,
           targetNameHints: [],

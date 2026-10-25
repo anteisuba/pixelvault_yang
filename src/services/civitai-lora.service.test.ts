@@ -1027,6 +1027,50 @@ describe('mineCivitaiUserPrompts', () => {
     ])
   })
 
+  it('strips ComfyUI folder paths and reads additionalResources (2026-10-25 Denia 还原)', async () => {
+    // Live shape (Civitai image 141189959): ComfyUI meta writes LoRA tags with
+    // the uploader's folder path and keeps one more LoRA only in
+    // additionalResources. With the path left on, the target itself was listed
+    // as an extra and the name search never matched a file stem.
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        id: 2985165,
+        name: 'v1',
+        files: [{ type: 'Model', primary: true, name: 'denia_v1.safetensors' }],
+        images: [
+          {
+            url: 'https://image.civitai.com/comfy-denia.jpeg',
+            nsfwLevel: 1,
+            meta: {
+              prompt:
+                '<lora:ANI/artists/kibro_anima_multires_v1-000040:0.6> <lora:ANI/character/WutheringWaves/denia_v1:0.8> 1girl',
+              additionalResources: [
+                {
+                  name: 'ANI\\others\\anima-turbo-lora-v0.2.safetensors',
+                  type: 'lora',
+                  strength: 1,
+                  strengthClip: 1,
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    )
+
+    const result = await mineCivitaiUserPrompts({
+      modelId: 2658471,
+      modelVersionId: 2985165,
+      fileHashAutoV3: null,
+    })
+
+    expect(result.recipes?.[0]?.loraWeight).toBe(0.8)
+    expect(result.recipes?.[0]?.extraLoras).toEqual([
+      { name: 'kibro_anima_multires_v1-000040', weight: 0.6 },
+      { name: 'anima-turbo-lora-v0.2', weight: 1 },
+    ])
+  })
+
   it('recovers lora weight from civitaiResources by modelVersionId (onsite generations)', async () => {
     mockFetch.mockResolvedValueOnce(
       jsonResponse({

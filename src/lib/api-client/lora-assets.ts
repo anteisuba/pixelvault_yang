@@ -393,6 +393,8 @@ interface ResolveCivitaiLoraResponse {
   // CivitaiLoraLibraryItem — 统一按基类型消费。
   data?: LoraAssetRecord
   error?: string
+  /** 404：本地库和 Civitai 都没有（多半是作者本地私有的 LoRA），与网络/上游失败分开。 */
+  notFound?: boolean
 }
 
 /**
@@ -424,6 +426,7 @@ export async function resolveCivitaiLoraAPI(params: {
     if (!response.ok) {
       return {
         success: false,
+        notFound: response.status === 404,
         error: await getErrorMessage(
           response,
           `Failed with status ${response.status}`,

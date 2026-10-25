@@ -1658,16 +1658,23 @@ function GenerateBranch({
       // overCapacity 恒为 0：挂载不设上限，mountExtras 不传 maxStack。留在算式里
       // 是为了「哪天想给做同款加个软上限」时只改传参那一行，这里不用再动。
       const unresolved =
-        result.missing + result.incompatible + result.overCapacity
+        result.missing +
+        result.notFound +
+        result.incompatible +
+        result.overCapacity
       if (unresolved > 0) {
-        // 「为什么没挂上」要说清——补救动作不一样：架构不兼容要换底模，定位不到
-        // 只能去 Civitai 找。以前两种都只报一句「仍有 N 个未挂载」，做同款看上去
-        // 就像凭空把多挂载弄坏了。没挂上 = 红点（§7.1），⛔ 整条变色。
+        // 「为什么没挂上」要说清——补救动作不一样：架构不兼容要换底模；Civitai 上
+        // 根本没有的（多半是作者本地私有）谁也挂不了，直说，别让人以为是这边坏了。
+        // 没挂上 = 红点（§7.1），⛔ 整条变色。
+        const reasons = [
+          result.notFound > 0
+            ? tExtra('recipeExtraNotOnCivitai', { count: result.notFound })
+            : null,
+          result.incompatible > 0 ? tExtra('recipeExtraIncompatible') : null,
+        ].filter((reason): reason is string => reason !== null)
         toast.error(
           tExtra('recipeExtraApplyLimited', { count: unresolved }),
-          result.incompatible > 0
-            ? { description: tExtra('recipeExtraIncompatible') }
-            : undefined,
+          reasons.length > 0 ? { description: reasons.join(' · ') } : undefined,
         )
       }
     },

@@ -170,13 +170,43 @@ export async function listVoiceRooms(
   return rows.map(toVoiceRoomRecord)
 }
 
+/** 班底的人声上限与去重（开房带班底、改班底同一道闸）。 */
+function assertCastAllowed(cast: readonly VoiceRoomCastMember[]): void {
+  const voiceCount = cast.filter(
+    (member) => member.kind === VOICE_ROOM_SPEAKER_KIND.VOICE,
+  ).length
+  if (voiceCount > VOICE_ROOM_VOICE_CAST_MAX) {
+    throw new ApiRequestError(
+      'VOICE_ROOM_CAST_FULL',
+      400,
+      'errors.voiceRoom.castFull',
+      `A room can hold at most ${VOICE_ROOM_VOICE_CAST_MAX} voices`,
+    )
+  }
+
+  const ids = new Set(cast.map((member) => member.id))
+  if (ids.size !== cast.length) {
+    throw new ApiRequestError(
+      'VOICE_ROOM_CAST_DUPLICATE',
+      400,
+      'errors.voiceRoom.castDuplicate',
+      'A voice can only join the room once',
+    )
+  }
+}
+
 export async function createVoiceRoom(
   clerkId: string,
   request: CreateVoiceRoomRequest,
 ): Promise<VoiceRoomRecord> {
+  if (request.cast) assertCastAllowed(request.cast)
   const user = await ensureUser(clerkId)
   const row = await db.voiceRoom.create({
-    data: { userId: user.id, name: request.name ?? null, cast: [] },
+    data: {
+      userId: user.id,
+      name: request.name ?? null,
+      cast: toPrismaJson(request.cast ?? []),
+    },
   })
   return toVoiceRoomRecord(row)
 }
@@ -233,29 +263,7 @@ export async function updateVoiceRoom(
   })
   if (!existing) throwRoomNotFound()
 
-  if (request.cast) {
-    const voiceCount = request.cast.filter(
-      (member) => member.kind === VOICE_ROOM_SPEAKER_KIND.VOICE,
-    ).length
-    if (voiceCount > VOICE_ROOM_VOICE_CAST_MAX) {
-      throw new ApiRequestError(
-        'VOICE_ROOM_CAST_FULL',
-        400,
-        'errors.voiceRoom.castFull',
-        `A room can hold at most ${VOICE_ROOM_VOICE_CAST_MAX} voices`,
-      )
-    }
-
-    const ids = new Set(request.cast.map((member) => member.id))
-    if (ids.size !== request.cast.length) {
-      throw new ApiRequestError(
-        'VOICE_ROOM_CAST_DUPLICATE',
-        400,
-        'errors.voiceRoom.castDuplicate',
-        'A voice can only join the room once',
-      )
-    }
-  }
+  if (request.cast) assertCastAllowed(request.cast)
 
   const data: Prisma.VoiceRoomUpdateInput = {}
   // `name` 显式传 null = 清掉名字变回未命名；不传 = 这次不改名字。两回事。

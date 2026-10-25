@@ -54,7 +54,7 @@
  * ⚠ 编辑态**不淡入**（画板动效表）：要等动画才能打字的输入框是坏动画。
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Pencil, Trash2 } from '@/components/icons'
 import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
@@ -96,7 +96,14 @@ const ROW_ICON_BUTTON_CLASS =
   'flex h-6 shrink-0 items-center justify-center rounded-sm p-0'
 
 interface StudioOperatorSessionRowProps {
-  session: AssistantConversationSummary
+  /** 助手的一段会话，或配音间的一段（用户 10-25：标题 ▾ 两边同一套行）。 */
+  session: Pick<AssistantConversationSummary, 'id' | 'title'> & {
+    surface?: AssistantConversationSummary['surface']
+  }
+  /** 改名上限（配音间房间名比会话标题短）；默认会话标题那一档。 */
+  titleMaxLength?: number
+  /** 标题右边那一格：进度「2/4」或「出好了没看」的小点（9f-3 从左栏列表挪来）。 */
+  badge?: ReactNode
   /** 已经翻好的那两格注脚：域名（画布没有，给 null）与日期。 */
   domainLabel: string | null
   dateLabel: string
@@ -119,6 +126,8 @@ interface StudioOperatorSessionRowProps {
 
 export function StudioOperatorSessionRow({
   session,
+  titleMaxLength = ASSISTANT_CONVERSATION_LIMITS.titleMaxLength,
+  badge,
   domainLabel,
   dateLabel,
   current,
@@ -172,7 +181,7 @@ export function StudioOperatorSessionRow({
     const value = (draft ?? '').trim()
     setDraft(null)
     if (cancelled || !value || value === session.title) return
-    onRename(value.slice(0, ASSISTANT_CONVERSATION_LIMITS.titleMaxLength))
+    onRename(value.slice(0, titleMaxLength))
   }
 
   const editing = draft !== null
@@ -239,7 +248,7 @@ export function StudioOperatorSessionRow({
               data-testid="operator-session-rename-input"
               value={draft}
               disabled={renaming}
-              maxLength={ASSISTANT_CONVERSATION_LIMITS.titleMaxLength}
+              maxLength={titleMaxLength}
               aria-label={t('history.renameLabel', { title })}
               onChange={(event) => setDraft(event.target.value)}
               /* 进来就**全选**（画板「改名中」）：用户按铅笔多半是要重写整句，
@@ -299,6 +308,7 @@ export function StudioOperatorSessionRow({
                   <span className="font-mono tabular-nums">{dateLabel}</span>
                 </span>
               </span>
+              {badge}
             </DropdownMenuItem>
 
             {/* ── 两颗图标：默认透明、hover / 聚焦才淡入（画板动效表第 3 行）────

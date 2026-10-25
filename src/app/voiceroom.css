@@ -118,179 +118,6 @@
   box-sizing: border-box;
 }
 
-/* ── 左列：房间 ─────────────────────────────────────────────────── */
-
-.vr-rail {
-  width: 198px;
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 0;
-}
-
-/*
- * ≥1024 房间都在外壳左边那份列表里（第 9f 步 9f-3：配音间是一种对话），这一列不再画；
- * 更窄照旧（手机另做）。
- */
-@media (min-width: 64rem) {
-  .vr-rail {
-    display: none;
-  }
-}
-
-.vr-rail-new {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--vr-mono);
-  font-size: 11px;
-  color: var(--vr-dim);
-  border: 1px dashed var(--vr-line-strong);
-  border-radius: 12px;
-  padding: 10px 12px;
-  background: none;
-  cursor: pointer;
-  transition:
-    border-color 0.2s ease,
-    transform var(--vr-t-fast) var(--vr-ease-out);
-}
-
-.vr-rail-new:hover {
-  border-color: var(--vr-ink);
-  color: var(--vr-ink);
-}
-
-.vr-rooms {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  overflow-y: auto;
-  min-height: 0;
-}
-
-/*
- * ⚠ 删除键必须是房间按钮的**兄弟**，不能塞进去——`<button>` 里套 `<button>`
- * 是非法 HTML，浏览器会把内层拎出来，点删除就变成点开房间。
- */
-.vr-room-row {
-  position: relative;
-}
-
-.vr-room-del {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 22px;
-  height: 22px;
-  border-radius: 7px;
-  display: grid;
-  place-items: center;
-  border: 0;
-  padding: 0;
-  cursor: pointer;
-  background: var(--vr-paper);
-  color: var(--vr-dim);
-  opacity: 0;
-  transition:
-    opacity var(--vr-t-fast) ease,
-    color var(--vr-t-fast) ease,
-    transform var(--vr-t-fast) var(--vr-ease-out);
-}
-
-/* 悬停整行才露出来：安静时左列只讲「有哪些房间」，不摆一排叉。 */
-.vr-room-row:hover .vr-room-del,
-.vr-room-del:focus-visible {
-  opacity: 1;
-}
-
-.vr-room-del:hover {
-  color: var(--vr-alarm);
-}
-
-.vr-room-item {
-  text-align: left;
-  border: 1px solid transparent;
-  border-radius: 12px;
-  background: none;
-  padding: 10px 12px;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: 100%;
-  transition:
-    background var(--vr-t-fast) ease,
-    border-color var(--vr-t-fast) ease,
-    box-shadow var(--vr-t-fast) ease,
-    transform var(--vr-t-fast) var(--vr-ease-out);
-}
-
-/*
- * ⚠ 这一行原先**连 hover 都没有**：鼠标扫过去、按下去，画面上什么都不发生，
- * 一直要等聊天流整个换掉才有反应——owner 2026-08-30 说的「点击僵硬」就是这个。
- * 悬停先把纸垫上来，按下再压进去一点，点击这件事本身要有回音。
- */
-.vr-room-item:hover:not([data-active='true']) {
-  background: color-mix(in srgb, var(--vr-paper) 62%, transparent);
-  border-color: var(--vr-line);
-}
-
-.vr-room-item[data-active='true'] {
-  background: var(--vr-paper);
-  border-color: var(--vr-line);
-  box-shadow: 0 10px 30px -18px rgba(10, 10, 10, 0.25);
-}
-
-/* 宽行不缩放——那会让整块字跟着糊。压下去 1px 更像纸。 */
-.vr-room-item:active {
-  transform: translateY(1px);
-  box-shadow: none;
-}
-
-.vr-room-name {
-  font-family: var(--vr-serif);
-  font-size: 13.5px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-}
-
-.vr-room-name[data-unnamed='true'] {
-  font-weight: 400;
-  color: var(--vr-dim);
-}
-
-.vr-room-sub {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 16px;
-}
-
-.vr-stack {
-  display: flex;
-}
-
-.vr-stack > * + * {
-  margin-left: -5px;
-}
-
-.vr-when {
-  font-family: var(--vr-mono);
-  font-size: 9.5px;
-  color: var(--vr-dim);
-  margin-left: auto;
-}
-
-.vr-rail-foot {
-  margin-top: auto;
-  font-family: var(--vr-mono);
-  font-size: 9.5px;
-  color: var(--vr-dim);
-  line-height: 1.7;
-  padding: 0 4px;
-}
-
 /* ── 房间本体 ───────────────────────────────────────────────────── */
 
 /*
@@ -362,6 +189,35 @@
 .vr-bar-title:hover {
   background: var(--vr-paper);
   border-color: var(--vr-line-2);
+}
+
+/* 标题 ▾（用户 10-25）：点开是和这一组人的几段，名字 + 一颗小箭头。 */
+.vr-bar-history {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  cursor: pointer;
+}
+
+.vr-bar-history[data-state='open'] {
+  background: var(--vr-paper);
+  border-color: var(--vr-line-2);
+}
+
+.vr-bar-history-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vr-bar-history > svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  color: var(--vr-dim);
 }
 
 /* 房间名跟着流一起换：不淡一下的话名字先跳、屋子后到，读起来像两件事。 */
@@ -2121,7 +1977,7 @@
  * ── 按压 ─────────────────────────────────────────────────────
  *
  * 全域只有一种按下的样子：**缩 4%**（样机 `.send:active` 定的手感）。
- * 丸状与紧凑控件都走它；宽行另说（见 `.vr-room-item:active`）。
+ * 丸状与紧凑控件都走它；宽行另说（压下去 1px，不缩放）。
  *
  * ⚠ `:not(:disabled)` 不能省：禁用的按钮被按也缩一下，等于在骗人说「收到了」。
  */
@@ -2140,8 +1996,6 @@
     .vr-sort,
     .vr-emotion,
     .vr-play,
-    .vr-rail-new,
-    .vr-room-del,
     .vr-tab,
     .vr-retry,
     .vr-pick
@@ -2217,13 +2071,9 @@
   border-color: var(--vr-ink);
 }
 
-/* ── 小屏：房间列收进抽屉之前，先让它整体让位 ───────────────────── */
+/* ── 小屏 ───────────────────── */
 
 @media (max-width: 900px) {
-  .vr-rail {
-    display: none;
-  }
-
   .vr-bar-meta {
     display: none;
   }

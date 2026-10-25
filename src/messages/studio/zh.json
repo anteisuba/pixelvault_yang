@@ -1154,14 +1154,6 @@
   },
   "StudioShell": {
     "newChat": "新对话",
-    "recent": "最近",
-    "recentMore": "更多：{title}",
-    "recentRename": "改名",
-    "recentRenameLabel": "给「{title}」改名",
-    "recentDelete": "删除",
-    "recentDeleteTitle": "删除「{title}」？",
-    "recentDeleteBody": "删了就找不回来了。",
-    "recentFailed": "没改成，再试一次。",
     "conversations": "对话列表",
     "library": "库",
     "benches": "台",
@@ -1174,8 +1166,6 @@
     "libraryAssistant": "助手",
     "libraryRailHide": "收起侧栏",
     "libraryRailShow": "展开侧栏",
-    "newResult": "有新结果",
-    "homeVoiceRoom": "配音间",
     "workbench": "工作台"
   }
 }

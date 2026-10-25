@@ -1154,14 +1154,6 @@
   },
   "StudioShell": {
     "newChat": "New chat",
-    "recent": "Recent",
-    "recentMore": "More: {title}",
-    "recentRename": "Rename",
-    "recentRenameLabel": "Rename “{title}”",
-    "recentDelete": "Delete",
-    "recentDeleteTitle": "Delete “{title}”?",
-    "recentDeleteBody": "This can’t be undone.",
-    "recentFailed": "That didn’t work. Try again.",
     "conversations": "Conversations",
     "library": "Library",
     "benches": "Benches",
@@ -1174,8 +1166,6 @@
     "libraryAssistant": "Assistant",
     "libraryRailHide": "Hide sidebar",
     "libraryRailShow": "Show sidebar",
-    "newResult": "New results",
-    "homeVoiceRoom": "Voice room",
     "workbench": "Workbenches"
   }
 }

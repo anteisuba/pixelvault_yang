@@ -381,17 +381,8 @@
       "task_count": "人気",
       "created_at": "新着"
     },
-    "newRoom": "新しい部屋",
     "untitledRoom": "無題のルーム",
-    "emptyRoomTag": "空",
     "railFoot": "部屋ごとにキャストと素材を保持",
-    "justNow": "たった今",
-    "minutesAgo": "{count} 分前",
-    "hoursAgo": "{count} 時間前",
-    "yesterday": "昨日",
-    "daysAgo": "{count} 日前",
-    "roomNameLabel": "部屋名",
-    "renameRoom": "名前を変更",
     "roomMeta": "複数の話者 · ボイスライブラリ + クローン",
     "assetsLibrary": "素材",
     "emptyEyebrow": "声はまだ追加されていません",
@@ -454,9 +445,6 @@
     "cloneNew": "声をクローン",
     "cloneNewHint": "サンプル最大 {files} 件 · 各 {mb}MB まで\n2 分で自分の声に",
     "cancel": "キャンセル",
-    "deleteRoom": "ルームを削除",
-    "deleteRoomTitle": "このルームを削除しますか？",
-    "deleteRoomHint": "「{name}」とすべてのセリフが削除されます。生成済みの音声は素材ライブラリに残ります。",
     "modeLabel": "チャットかセリフか",
     "mode": {
       "chat": "チャット",
@@ -465,7 +453,9 @@
     "chatPlaceholder": "{name} に話しかける…",
     "send": "送信",
     "noVoice": "まだ音声がありません",
-    "removeFromRoom": "ルームから外す"
+    "removeFromRoom": "ルームから外す",
+    "history": "会話の履歴",
+    "newTopic": "新しい話題"
   },
   "StudioVideoSlots": {
     "firstFrame": "最初",

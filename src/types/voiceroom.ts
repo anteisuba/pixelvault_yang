@@ -175,6 +175,8 @@ export interface VoiceRoomDeliveryState {
 
 export const CreateVoiceRoomRequestSchema = z.object({
   name: z.string().trim().min(1).max(VOICE_ROOM_NAME_MAX_LENGTH).optional(),
+  /** 开房就带着班底：头像点角色进她的配音间、标题 ▾「新话题」照这一组人再开一段（用户 10-25）。 */
+  cast: z.array(VoiceRoomCastMemberSchema).optional(),
 })
 
 export type CreateVoiceRoomRequest = z.infer<

@@ -29,6 +29,7 @@ import {
   retakeVoiceLineAPI,
   updateVoiceRoomAPI,
 } from '@/lib/api-client/voiceroom'
+import { roomsWithSameCast, voiceRoomCastKey } from '@/lib/voiceroom-cast'
 import type {
   VoiceLineRecord,
   VoiceRoomCastMember,
@@ -146,7 +147,8 @@ export interface UseVoiceRoomResult {
   delivery: VoiceRoomDeliveryState
   setDelivery: (patch: Partial<VoiceRoomDeliveryState>) => void
   openRoom: (roomId: string) => Promise<void>
-  createRoom: () => Promise<string | null>
+  /** 带班底 = 照这一组人新开一段（标题 ▾「新话题」）。 */
+  createRoom: (cast?: VoiceRoomCastMember[]) => Promise<string | null>
   renameRoom: (roomId: string, name: string | null) => Promise<void>
   setCast: (cast: VoiceRoomCastMember[]) => Promise<void>
   removeRoom: (roomId: string) => Promise<void>
@@ -310,16 +312,19 @@ export function useVoiceRoom(): UseVoiceRoomResult {
 
   /* ── 房间 ─────────────────────────────────────────────────────── */
 
-  const createRoom = useCallback(async () => {
-    const result = await createVoiceRoomAPI({})
-    if (!result.success || !result.data) {
-      setError(result.error ?? null)
-      return null
-    }
-    setRooms((current) => [result.data!, ...current])
-    await openRoom(result.data.id)
-    return result.data.id
-  }, [openRoom])
+  const createRoom = useCallback(
+    async (cast?: VoiceRoomCastMember[]) => {
+      const result = await createVoiceRoomAPI(cast ? { cast } : {})
+      if (!result.success || !result.data) {
+        setError(result.error ?? null)
+        return null
+      }
+      setRooms((current) => [result.data!, ...current])
+      await openRoom(result.data.id)
+      return result.data.id
+    },
+    [openRoom],
+  )
 
   const renameRoom = useCallback(
     async (roomId: string, name: string | null) => {
@@ -377,11 +382,16 @@ export function useVoiceRoom(): UseVoiceRoomResult {
        * 首屏那段「没有房间就开一个」的逻辑上过一次闸（`bootstrappedRef`），
        * 不会再跑第二遍——清空了就永远停在「加载中」，一个空壳页面。
        */
+      // 接的是和这一组人的另一段；和她一段都不剩了就照她新开一段 —— 删的是一段历史，人还在。
+      const removed = rooms.find((room) => room.id === roomId)
+      const sameCast = removed
+        ? roomsWithSameCast(remaining, voiceRoomCastKey(removed.cast))
+        : []
       activeRoomRef.current = null
       setActiveRoomId(null)
       setDetail(null)
-      if (remaining.length > 0) await openRoom(remaining[0].id)
-      else await createRoom()
+      if (sameCast.length > 0) await openRoom(sameCast[0].id)
+      else await createRoom(removed?.cast)
     },
     [rooms, openRoom, createRoom],
   )

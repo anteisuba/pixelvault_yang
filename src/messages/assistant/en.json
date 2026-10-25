@@ -347,7 +347,8 @@
       "renameFailed": "Could not rename. Please try again.",
       "switching": "Loading conversation…",
       "saveFailed": "Conversation could not be saved. Your draft is still here.",
-      "retrySave": "Retry save"
+      "retrySave": "Retry save",
+      "unseen": "New result"
     },
     "more": "More",
     "share": "Share this chat",

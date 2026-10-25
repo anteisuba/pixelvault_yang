@@ -7,7 +7,6 @@ import { toast } from 'sonner'
 import {
   VOICE_ROOM_LINE_STAGGER_MS,
   VOICE_ROOM_MODE,
-  VOICE_ROOM_NAME_MAX_LENGTH,
   VOICE_ROOM_SPEAKER_KIND,
   VOICE_ROOM_VOICE_CAST_MAX,
   type VoiceRoomMode,
@@ -24,6 +23,7 @@ import type {
   VoiceRoomCastMember,
   VoiceRoomDeliveryState,
   VoiceRoomDetail,
+  VoiceRoomRecord,
 } from '@/types/voiceroom'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import { VoicePickerDialog } from '@/components/business/voices/VoicePickerDialog'
@@ -34,6 +34,7 @@ import { VoiceLineBubble } from './VoiceLineBubble'
 import { VoiceLinePending } from './VoiceLinePending'
 import { VoiceRoomCasting } from './VoiceRoomCasting'
 import { VoiceRoomComposer } from './VoiceRoomComposer'
+import { VoiceRoomHistoryMenu } from './VoiceRoomHistoryMenu'
 import { VoiceRoomModelChip } from './VoiceRoomModelChip'
 import { VoiceRoomVault } from './VoiceRoomVault'
 
@@ -62,7 +63,13 @@ interface VoiceRoomStageProps {
   error: string | null
   delivery: VoiceRoomDeliveryState
   onDeliveryChange: (patch: Partial<VoiceRoomDeliveryState>) => void
-  onRename: (name: string | null) => void
+  /** 全部房间：标题 ▾ 从里面挑和这一组人的几段。 */
+  rooms: readonly VoiceRoomRecord[]
+  onOpenRoom: (roomId: string) => void
+  onRenameRoom: (roomId: string, name: string | null) => Promise<void>
+  onDeleteRoom: (roomId: string) => Promise<void>
+  /** 照这一组人新开一段。 */
+  onNewTopic: () => void
   onCastChange: (cast: VoiceRoomCastMember[]) => void
   onSay: (speakerId: string, text: string) => Promise<boolean>
   onChat: (speakerId: string, text: string) => Promise<boolean>
@@ -90,7 +97,11 @@ export function VoiceRoomStage({
   error,
   delivery,
   onDeliveryChange,
-  onRename,
+  rooms,
+  onOpenRoom,
+  onRenameRoom,
+  onDeleteRoom,
+  onNewTopic,
   onCastChange,
   onSay,
   onChat,
@@ -146,7 +157,6 @@ export function VoiceRoomStage({
       (member) => member.kind === VOICE_ROOM_SPEAKER_KIND.VOICE,
     ).length >= VOICE_ROOM_VOICE_CAST_MAX
   const [vaultOpen, setVaultOpen] = useState(false)
-  const [renaming, setRenaming] = useState(false)
   const [pickedId, setPickedId] = useState<string | null>(null)
   const flowRef = useRef<HTMLDivElement | null>(null)
   /**
@@ -217,34 +227,15 @@ export function VoiceRoomStage({
   return (
     <div className="vr-stage workbench-card">
       <div data-bench-header className="vr-bar">
-        {renaming ? (
-          <input
-            className="vr-bar-title-input"
-            autoFocus
-            defaultValue={detail.name ?? ''}
-            maxLength={VOICE_ROOM_NAME_MAX_LENGTH}
-            aria-label={t('roomNameLabel')}
-            onBlur={(event) => {
-              setRenaming(false)
-              onRename(event.target.value.trim() || null)
-            }}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') event.currentTarget.blur()
-              if (event.key === 'Escape') setRenaming(false)
-            }}
-          />
-        ) : (
-          <button
-            type="button"
-            className="vr-bar-title"
-            data-unnamed={!detail.name}
-            data-swapping={switching}
-            onClick={() => setRenaming(true)}
-            title={t('renameRoom')}
-          >
-            {detail.name ?? t('untitledRoom')}
-          </button>
-        )}
+        <VoiceRoomHistoryMenu
+          detail={detail}
+          rooms={rooms}
+          switching={switching}
+          onOpen={onOpenRoom}
+          onRename={onRenameRoom}
+          onDelete={onDeleteRoom}
+          onNew={onNewTopic}
+        />
 
         <span className="vr-bar-meta">{t('roomMeta')}</span>
 

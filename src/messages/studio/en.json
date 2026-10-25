@@ -1178,6 +1178,7 @@
   "ImageRecipeImport": {
     "button": "Read from image",
     "title": "Import this picture",
+    "pickTitle": "Pick a picture to read",
     "noRecipe": "No recipe · read from the picture",
     "reading": "Reading…",
     "positive": "Positive",

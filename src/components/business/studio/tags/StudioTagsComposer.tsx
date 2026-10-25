@@ -23,7 +23,7 @@ import { NovelAiTagModelSchema } from '@/types/novelai-tags'
 import type { StudioModelOption } from '@/types/model-option'
 import type { TagChip } from '@/types/tag-composer'
 import { useComposerSubmit } from '@/hooks/use-composer-submit'
-import { pickImageRecipeFile } from '@/hooks/use-image-recipe-import'
+import { openImageRecipePicker } from '@/hooks/use-image-recipe-import'
 import { useNovelAiCharacters } from '@/hooks/use-novelai-characters'
 import { useTagLookupAdder } from '@/hooks/use-tag-lookup-adder'
 import { useReferenceReceiverNotice } from '@/hooks/use-reference-receiver-notice'
@@ -273,7 +273,7 @@ export function StudioTagsComposer({
       key: 'recipe-import',
       icon: <ScanText className="size-4" />,
       label: tRecipe('button'),
-      onSelect: pickImageRecipeFile,
+      onSelect: openImageRecipePicker,
     },
     ...(characters.mode
       ? [

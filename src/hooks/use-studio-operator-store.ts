@@ -491,6 +491,8 @@ export interface StudioOperatorChatRequest {
   opening: string
   /** 卡上的备选开场白（酒馆卡 `alternate_greetings`）：和开场白一起成为第一句的几版，左右切。 */
   alternateOpenings?: readonly string[]
+  /** 头像（默认造型的封面）：只给换人那一排看，⛔ 进会话。 */
+  avatarUrl?: string | null
 }
 
 /** 开场白 + 备选 → 第一句的几版（去空、去重，最多 `maxVersions`）。 */

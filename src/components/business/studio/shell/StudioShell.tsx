@@ -2,6 +2,7 @@
 
 import {
   Suspense,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -20,11 +21,7 @@ import {
   EASE_STANDARD_CSS,
   SHELL_MOTION,
 } from '@/constants/motion'
-import {
-  NEW_VOICE_ROOM_PATH,
-  ROUTES,
-  STUDIO_CONVERSATION_QUERY,
-} from '@/constants/routes'
+import { ROUTES, STUDIO_CONVERSATION_QUERY } from '@/constants/routes'
 import {
   STUDIO_SHELL_SPLIT,
   type StudioShellOverlayId,
@@ -43,12 +40,10 @@ import { StudioConversationList } from '@/components/business/studio/shell/Studi
 import { StudioLibraryTargetContext } from '@/components/business/studio/shell/StudioLibraryOverlay'
 import {
   StudioBenchRail,
-  StudioShellExpandChat,
   activeBenchId,
   useStudioBenchMotion,
   useStudioBenchSwipe,
 } from '@/components/business/studio/shell/StudioShellBench'
-import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import { useHomeOperatorHost } from '@/hooks/use-home-operator-host'
 import { useIsDesk } from '@/hooks/use-mobile'
 import { useStudioConversationBenchSync } from '@/hooks/use-studio-conversation-bench'
@@ -59,6 +54,7 @@ import {
   type StudioOperatorHistoryRestore,
 } from '@/hooks/use-studio-operator-history'
 import { useStudioOperatorState } from '@/hooks/use-studio-operator-store'
+import { setStudioShellAvatar } from '@/hooks/use-studio-shell-avatar'
 import { useStudioShellSplit } from '@/hooks/use-studio-shell-split'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import {
@@ -343,17 +339,29 @@ function StudioShellStage({
       setPulling(null)
     }, SHELL_MOTION.pullMs)
   }
-  const expandConversation = () => {
+  const expandConversation = useCallback(() => {
     setConversationCollapsed(false)
     if (reduceMotion) return
     setPulling('expand')
     // 先按 0 宽画一帧，下一帧再放回记住的宽，宽的过渡才有起点。
     requestAnimationFrame(() => requestAnimationFrame(() => setPulling(null)))
-  }
+  }, [reduceMotion, setConversationCollapsed])
 
   // 库是整页（ui-spec §9）：盖满白板；叫出助手时对话按记住的宽贴到右边。
   const conversationHidden =
     bench && split.conversationCollapsed && !libraryOpen
+  // 头像在哪（用户 10-25 ③ A）：一往左收就飞进左栏最上面那格，展开时飞回对话头。
+  const avatarDocked = conversationHidden || pulling === 'collapse'
+  useEffect(() => {
+    setStudioShellAvatar({
+      docked: avatarDocked,
+      expand: conversationHidden ? expandConversation : null,
+    })
+  }, [avatarDocked, conversationHidden, expandConversation])
+  useEffect(
+    () => () => setStudioShellAvatar({ docked: false, expand: null }),
+    [],
+  )
   const conversationWidth = `${split.conversationPx}px`
   const libraryChat = libraryOpen && libraryAssistantOpen
   const pullTransition =
@@ -399,7 +407,6 @@ function StudioShellStage({
               : undefined
         }
       >
-        {shellDock && !bench ? <StudioHomeModeSwitch /> : null}
         {shellDock ? (
           <StudioOperatorDock
             variant="column"
@@ -437,7 +444,6 @@ function StudioShellStage({
         className={cn(
           'min-w-0 flex-1 flex-col',
           bench ? 'block desk:flex desk:h-full' : 'hidden',
-          conversationHidden && 'studio-shell-chat-collapsed',
         )}
         style={{
           opacity:
@@ -447,9 +453,6 @@ function StudioShellStage({
           transition: pullTransition,
         }}
       >
-        {conversationHidden ? (
-          <StudioShellExpandChat onExpand={expandConversation} />
-        ) : null}
         <div
           ref={contentRef}
           data-testid="studio-shell-bench"
@@ -464,33 +467,6 @@ function StudioShellStage({
 }
 
 type StudioShellCollapseSide = 'conversation' | 'bench' | null
-
-/**
- * 首页顶上「助手 | 配音间」（第 9f 步 9f-3）：配音间是一种对话，切过去就新开一间
- *（`/studio/audio?new=1`，在里面挑角色就能说）；开过的房间都在左边列表里。
- * ⭐ 浮在板头那一行正中（用户 10-25：头像不单独占一行），⛔ 自己再占一行把对话往下压。
- */
-function StudioHomeModeSwitch() {
-  const t = useTranslations('StudioShell')
-  const router = useRouter()
-  return (
-    <div className="pointer-events-none absolute inset-x-0 top-2.5 z-10 flex justify-center *:pointer-events-auto">
-      <LiquidSegmented
-        items={[
-          { value: 'assistant', label: t('homeAssistant') },
-          { value: 'voice', label: t('homeVoiceRoom') },
-        ]}
-        value="assistant"
-        onChange={(mode) => {
-          if (mode === 'voice') router.push(NEW_VOICE_ROOM_PATH)
-        }}
-        ariaLabel={t('homeMode')}
-        semantics="tabs"
-        size="sm"
-      />
-    </div>
-  )
-}
 
 /**
  * 对话 | 台 之间那一根线（「拉」，9f-4）。拖：宽跟手，离默认宽 `snapPx` 以内吸到默认宽；

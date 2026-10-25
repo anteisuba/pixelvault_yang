@@ -1165,7 +1165,6 @@
     "conversations": "对话列表",
     "library": "库",
     "benches": "台",
-    "backToChat": "回到对话",
     "closeBench": "收起台",
     "resize": "拖动调整对话和台的宽度",
     "expandChat": "展开对话",
@@ -1177,8 +1176,6 @@
     "libraryRailHide": "收起侧栏",
     "libraryRailShow": "展开侧栏",
     "newResult": "有新结果",
-    "homeMode": "新开",
-    "homeAssistant": "助手",
     "homeVoiceRoom": "配音间",
     "workbench": "工作台"
   }

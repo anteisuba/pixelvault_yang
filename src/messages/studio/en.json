@@ -1165,7 +1165,6 @@
     "conversations": "Conversations",
     "library": "Library",
     "benches": "Benches",
-    "backToChat": "Back to chat",
     "closeBench": "Close bench",
     "resize": "Drag to resize the chat and the bench",
     "expandChat": "Show chat",
@@ -1177,8 +1176,6 @@
     "libraryRailHide": "Hide sidebar",
     "libraryRailShow": "Show sidebar",
     "newResult": "New results",
-    "homeMode": "Start",
-    "homeAssistant": "Assistant",
     "homeVoiceRoom": "Voice room",
     "workbench": "Workbenches"
   }

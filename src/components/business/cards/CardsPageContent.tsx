@@ -28,7 +28,7 @@ export function CardsPageContent() {
   )
   if (!isMobile) {
     return (
-      <main className="flex h-page flex-col bg-background pt-3 pr-5.5 pl-2.5 text-foreground">
+      <main className="flex h-page flex-col bg-background pt-3 pr-5.5 text-foreground">
         <CharacterRoster />
       </main>
     )

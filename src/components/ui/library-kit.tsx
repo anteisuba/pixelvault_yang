@@ -136,7 +136,7 @@ export function LibraryRail({
     <nav
       aria-label={label}
       className={cn(
-        'flex w-50 shrink-0 flex-col gap-0.5 overflow-y-auto pl-3',
+        'flex w-50 shrink-0 flex-col gap-0.5 overflow-y-auto pl-2.5',
         className,
       )}
     >

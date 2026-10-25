@@ -2059,7 +2059,7 @@ export function KreaAssetBrowser({
       onDragLeave={handleRootDragLeave}
       onDrop={handleRootDrop}
     >
-      <div className="flex min-h-0 flex-1 flex-col gap-3 px-2 pt-4 sm:px-6 md:pr-5.5 md:pl-2.5 md:pt-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 px-2 pt-4 sm:px-6 md:pt-3 md:pr-5.5 md:pl-0">
         {/* ─── 顶栏（默认单行）────────────────────────────────────
             page §3：`素材 + 总数` · 分面筛选 · ——弹性—— · 上传 · 选择 · 密度。
             文件夹 B：跨在栏和大河上面；栏收起（或窄屏）时标题旁多一颗范围胶囊，
@@ -2102,7 +2102,7 @@ export function KreaAssetBrowser({
           </div>
         ) : null}
 
-        <div className="flex min-h-0 flex-1 overflow-hidden">
+        <div className="flex min-h-0 flex-1 overflow-hidden md:pl-2.5">
           {/* ─── 左栏（≥768）：宽度在点下去那一刻就落到终态，栏卡片按弹簧从左缘
               滑进 / 滑出（见 `railProgress`）。 */}
           <div

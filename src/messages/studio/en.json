@@ -1174,5 +1174,27 @@
       "yesterday": "Yesterday",
       "earlier": "Earlier"
     }
+  },
+  "ImageRecipeImport": {
+    "button": "Read from image",
+    "title": "Import this picture",
+    "noRecipe": "No recipe · read from the picture",
+    "reading": "Reading…",
+    "positive": "Positive",
+    "negative": "Negative",
+    "characters": "{count, plural, one {# character} other {# characters}}",
+    "charactersMerged": "{count, plural, one {# character} other {# characters}} · into positive",
+    "params": "Settings",
+    "seed": "Seed",
+    "artist": "Artist",
+    "character": "Character",
+    "general": "{count, plural, one {# tag} other {# tags}}",
+    "nothing": "No tags recognised in this picture",
+    "import": "Import",
+    "cancel": "Cancel",
+    "imported": "Imported",
+    "undo": "Undo",
+    "steps": "{count} steps",
+    "fileLabel": "Choose a picture"
   }
 }

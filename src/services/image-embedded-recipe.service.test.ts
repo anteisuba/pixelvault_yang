@@ -52,10 +52,24 @@ const NAI_COMMENT = JSON.stringify({
   seed: 1234567890,
   sampler: 'k_euler_ancestral',
   uc: 'lowres, bad anatomy',
+  width: 832,
+  height: 1216,
   v4_prompt: {
     caption: {
       base_caption: '1girl, artist:wlop, silver hair',
-      char_captions: [{ char_caption: 'girl, silver hair, red eyes' }],
+      char_captions: [
+        {
+          char_caption: 'girl, silver hair, red eyes',
+          centers: [{ x: 0.3, y: 0.5 }],
+        },
+      ],
+    },
+    use_coords: true,
+  },
+  v4_negative_prompt: {
+    caption: {
+      base_caption: 'lowres, bad anatomy',
+      char_captions: [{ char_caption: 'blue eyes', centers: [] }],
     },
   },
 })
@@ -78,7 +92,16 @@ describe('readEmbeddedRecipe', () => {
       steps: 28,
       cfg: 5,
       sampler: 'k_euler_ancestral',
-      characters: ['girl, silver hair, red eyes'],
+      width: 832,
+      height: 1216,
+      characters: [
+        {
+          prompt: 'girl, silver hair, red eyes',
+          negative: 'blue eyes',
+          center: { x: 0.3, y: 0.5 },
+        },
+      ],
+      manualPositions: true,
     })
   })
 
@@ -98,6 +121,8 @@ describe('readEmbeddedRecipe', () => {
       steps: 30,
       cfg: 6.5,
       sampler: 'DPM++ 2M',
+      width: 832,
+      height: 1216,
     })
   })
 
@@ -167,7 +192,10 @@ describe('embeddedRecipeFields', () => {
         steps: 28,
         cfg: 5,
         sampler: 'k_euler',
-        characters: ['c1'],
+        width: null,
+        height: null,
+        characters: [{ prompt: 'c1', negative: '', center: null }],
+        manualPositions: false,
       }),
     ).toEqual({
       prompt: 'p',

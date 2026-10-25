@@ -1174,5 +1174,27 @@
       "yesterday": "昨天",
       "earlier": "更早"
     }
+  },
+  "ImageRecipeImport": {
+    "button": "从图读串",
+    "title": "导入这张图",
+    "noRecipe": "没带配方 · 从画面认出",
+    "reading": "读取中…",
+    "positive": "正面",
+    "negative": "负面",
+    "characters": "角色 {count} 个",
+    "charactersMerged": "角色 {count} 个 · 并进正面",
+    "params": "参数",
+    "seed": "种子",
+    "artist": "画师",
+    "character": "角色",
+    "general": "特征 {count} 个",
+    "nothing": "这张图里没认出标签",
+    "import": "导入",
+    "cancel": "取消",
+    "imported": "已导入",
+    "undo": "撤回",
+    "steps": "{count} 步",
+    "fileLabel": "选一张图"
   }
 }

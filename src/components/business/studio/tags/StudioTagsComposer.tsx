@@ -23,6 +23,7 @@ import { NovelAiTagModelSchema } from '@/types/novelai-tags'
 import type { StudioModelOption } from '@/types/model-option'
 import type { TagChip } from '@/types/tag-composer'
 import { useComposerSubmit } from '@/hooks/use-composer-submit'
+import { pickImageRecipeFile } from '@/hooks/use-image-recipe-import'
 import { useNovelAiCharacters } from '@/hooks/use-novelai-characters'
 import { useTagLookupAdder } from '@/hooks/use-tag-lookup-adder'
 import { useReferenceReceiverNotice } from '@/hooks/use-reference-receiver-notice'
@@ -44,6 +45,7 @@ import {
   FileText,
   Grid2x2,
   Plus,
+  ScanText,
   Search,
   SlidersHorizontal,
   X,
@@ -57,6 +59,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
 import { ImageAttachmentPreviewStrip } from '@/components/business/ImageAttachmentPreviewStrip'
 import { MainModelPicker } from '@/components/business/studio-shared/pickers'
+import { ImageRecipeImportChip } from '@/components/business/studio-shared/image-recipe/ImageRecipeImportChip'
 import {
   StudioChipLookProvider,
   StudioToolSurface,
@@ -141,6 +144,7 @@ export function StudioTagsComposer({
   )
   const t = useTranslations('StudioTags')
   const tTemplates = useTranslations('PromptLibrary')
+  const tRecipe = useTranslations('ImageRecipeImport')
   const tStudio = useTranslations('StudioV2')
   const tForm = useTranslations('StudioForm')
   const tModels = useTranslations('Models')
@@ -264,6 +268,12 @@ export function StudioTagsComposer({
       icon: <Search className="size-4" />,
       label: t('workbench.lookup'),
       onSelect: () => onOpenPanel('catalog'),
+    },
+    {
+      key: 'recipe-import',
+      icon: <ScanText className="size-4" />,
+      label: tRecipe('button'),
+      onSelect: pickImageRecipeFile,
     },
     ...(characters.mode
       ? [
@@ -627,6 +637,7 @@ export function StudioTagsComposer({
                     {t('workbench.lookup')}
                   </span>
                 </Toolbar.Button>
+                <ImageRecipeImportChip disabled={isGenerating} />
                 {characters.mode ? (
                   <Toolbar.Button
                     type="button"

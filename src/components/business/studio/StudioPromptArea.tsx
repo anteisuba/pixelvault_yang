@@ -46,6 +46,7 @@ import { ImageAttachmentPreviewStrip } from '@/components/business/ImageAttachme
 // 参数栏直接组合这几颗 —— 它们本来就是独立组件，不用经过一层横向工具条
 // （`StudioToolbarPanels` / `StudioToolbar` 已随 dock 一起退役）。
 import { ReferenceImageChip } from '@/components/business/studio/ReferenceImageChip'
+import { ImageRecipeImportChip } from '@/components/business/studio-shared/image-recipe/ImageRecipeImportChip'
 import { StudioVideoAssetChip } from '@/components/business/studio/StudioVideoAssetChip'
 import { StudioInpaintMaskChip } from '@/components/business/studio/StudioInpaintMaskChip'
 import { StudioVideoAssetRail } from '@/components/business/studio-shared/chrome/StudioVideoAssetRail'
@@ -542,6 +543,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                   <>
                     <ReferenceImageChip disabled={isGenerating} />
                     <StudioSearchGroundingChip disabled={isGenerating} />
+                    <ImageRecipeImportChip disabled={isGenerating} />
                   </>
                 )}
                 <StudioTemplatesChip

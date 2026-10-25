@@ -480,11 +480,15 @@
       "limit": "スキルが上限（200）に達しました。先にひとつ削除してください。",
       "nameTaken": "その名前はもう使われています。別の名前にしてください。",
       "unknownBuiltin": "その内蔵スキルはもうありません。ページを更新してください。"
+    },
+    "imageRecipe": {
+      "readFailed": "この画像を読み込めませんでした。別の画像でお試しください。"
     }
   },
   "DropZone": {
     "toReferences": "離すと参考画像に追加",
     "toConversation": "離すと会話に追加",
-    "importCharacterCard": "離すとキャラカードを読み込み"
+    "importCharacterCard": "離すとキャラカードを読み込み",
+    "readRecipe": "ドロップでプロンプトを読み込む"
   }
 }

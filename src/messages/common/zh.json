@@ -480,11 +480,15 @@
       "limit": "技能已经到上限（200 份）了，先删掉一份再写。",
       "nameTaken": "这个名字已经有了，换一个。",
       "unknownBuiltin": "这份内置技能不在了，刷新一下。"
+    },
+    "imageRecipe": {
+      "readFailed": "这张图读不出来，换一张试试"
     }
   },
   "DropZone": {
     "toReferences": "松手加到参考图",
     "toConversation": "松手加到对话",
-    "importCharacterCard": "松手导入角色卡"
+    "importCharacterCard": "松手导入角色卡",
+    "readRecipe": "松手读取这张图的串"
   }
 }

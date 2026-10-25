@@ -1174,5 +1174,27 @@
       "yesterday": "昨日",
       "earlier": "それ以前"
     }
+  },
+  "ImageRecipeImport": {
+    "button": "画像から読む",
+    "title": "この画像を読み込む",
+    "noRecipe": "設定なし · 画像から推定",
+    "reading": "読み込み中…",
+    "positive": "ポジティブ",
+    "negative": "ネガティブ",
+    "characters": "キャラ {count} 人",
+    "charactersMerged": "キャラ {count} 人 · ポジティブに追加",
+    "params": "設定",
+    "seed": "シード",
+    "artist": "絵師",
+    "character": "キャラ",
+    "general": "特徴 {count} 個",
+    "nothing": "この画像からタグを読み取れませんでした",
+    "import": "読み込む",
+    "cancel": "キャンセル",
+    "imported": "読み込みました",
+    "undo": "元に戻す",
+    "steps": "{count} ステップ",
+    "fileLabel": "画像を選ぶ"
   }
 }

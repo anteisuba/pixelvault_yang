@@ -1,5 +1,5 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
-import { fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { THEME_STORAGE_KEY } from '@/constants/theme'
@@ -79,7 +79,11 @@ function openMenu() {
   })
 }
 
-afterEach(() => {
+afterEach(async () => {
+  // 菜单一关，Radix 焦点圈会在下一拍（setTimeout 0）派一次事件：先卸掉、等它派完，
+  // ⛔ 让它落到这份文件的 jsdom 拆掉之后（CI 上报「not of type 'Event'」）。
+  cleanup()
+  await new Promise((resolve) => setTimeout(resolve, 0))
   window.localStorage.clear()
   document.documentElement.classList.remove('dark')
 })

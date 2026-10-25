@@ -43,7 +43,7 @@ interface LoraBasePillProps {
 /**
  * 底模就是模型药丸（ui-spec ㊲）：点开和模型选择器同一种列表 —— 分 SDXL 系 / DiT 系，
  * 顶上「只看兼容的」开关，装不上的变淡写「装不上」，快出的标「快出」；兼容 = 同一家族
- * （`lora-base-models.ts`）。每行字母小方块 + 名字，选中那一行浅灰底 + 勾（㉓）。
+ * （`lora-base-models.ts`）。每行一张样图 + 名字，选中那一行浅灰底 + 勾（㉓）。
  */
 export function LoraBasePill({
   compatibleBases,
@@ -155,18 +155,24 @@ export function LoraBasePill({
                       setOpen(false)
                     }}
                     className={cn(
-                      'flex h-10 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-2sm transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus disabled:cursor-not-allowed',
+                      'flex h-12 w-full items-center gap-2.5 rounded-lg px-2 text-left text-2sm transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus disabled:cursor-not-allowed',
                       selected ? 'bg-muted' : 'hover:bg-muted/60',
                       (incompatible || !base.available) &&
                         'text-muted-foreground',
                     )}
                   >
-                    <span
-                      aria-hidden
-                      className="grid size-5.5 shrink-0 place-items-center rounded-sm bg-muted font-mono text-2xs font-semibold text-muted-foreground"
-                    >
-                      {name.charAt(0).toUpperCase()}
-                    </span>
+                    {/* 每行一张这个底模出的样图（用户 10-25「做成图的感觉」；与首页模型栏同一张）。 */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={base.coverImage}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      className={cn(
+                        'size-8 shrink-0 rounded-md bg-muted object-cover',
+                        (incompatible || !base.available) && 'opacity-50',
+                      )}
+                    />
                     <span
                       className={cn(
                         'min-w-0 truncate',

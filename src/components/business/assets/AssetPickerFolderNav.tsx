@@ -5,7 +5,7 @@ import {
   ChevronRight,
   Folder,
   FolderX,
-  Heart,
+  Bookmark,
   LayoutGrid,
   Search,
 } from '@/components/icons'
@@ -139,19 +139,19 @@ export function AssetPickerFolderNav({
         className,
       )}
     >
-      <div className="relative p-1.5">
-        <Search className="pointer-events-none absolute left-3.5 top-1/2 size-3 -translate-y-1/2 text-muted-foreground" />
+      <div className="relative p-1.5 md:px-3 md:pt-3.5 md:pb-1.5">
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 size-3 -translate-y-1/2 text-muted-foreground md:left-6.5 md:size-3.5" />
         <input
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder={t('folderSearch')}
           aria-label={t('folderSearch')}
-          className="h-11 md:h-7 w-full rounded-md border border-border/60 bg-background/40 pl-7 pr-1.5 text-base md:text-2xs text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-foreground/40"
+          className="h-11 w-full rounded-md border border-border/60 bg-background/40 pl-7 pr-1.5 text-base text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-foreground/40 md:h-9 md:rounded-full md:border-0 md:bg-muted md:pl-9 md:text-2sm md:focus-visible:shadow-focus"
         />
       </div>
 
-      <div className="studio-scrollbar min-h-0 flex-1 overflow-y-auto px-1.5 pb-1.5">
+      <div className="studio-scrollbar min-h-0 flex-1 overflow-y-auto px-1.5 pb-1.5 md:px-3">
         {q ? (
           flatMatches.length === 0 ? (
             <p className="px-2 py-3 text-center text-sm md:text-2xs text-muted-foreground">
@@ -189,7 +189,7 @@ export function AssetPickerFolderNav({
               active={scope.kind === 'favorites'}
               label={t('sidebarFavorites')}
               count={counts?.favorites}
-              icon={<Heart className="size-3.5 shrink-0" />}
+              icon={<Bookmark className="size-3.5 shrink-0" />}
               onSelect={() => onScopeChange({ kind: 'favorites' })}
             />
             {/* `未分类` 只在智能视图出现一次，**不在「全部文件夹」里重复列**
@@ -238,7 +238,7 @@ export function AssetPickerFolderNav({
 
 function NavGroupLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="px-2 pb-0.5 pt-2 text-xs md:text-3xs font-medium uppercase tracking-wide text-muted-foreground">
+    <p className="px-2 pb-0.5 pt-2 text-xs font-medium uppercase tracking-wide text-muted-foreground md:pt-3.5 md:pb-1 md:font-normal md:normal-case md:tracking-normal">
       {children}
     </p>
   )
@@ -270,8 +270,10 @@ function NavRow({
   return (
     <div
       className={cn(
-        'relative flex h-11 md:h-7 items-center rounded-md pr-1.5 transition-colors',
-        active ? 'bg-muted/60' : 'hover:bg-muted/40',
+        'relative flex h-11 items-center rounded-md pr-1.5 transition-colors md:h-8.5 md:rounded-lg md:pr-2',
+        active
+          ? 'bg-muted/60 md:bg-muted'
+          : 'hover:bg-muted/40 md:hover:tint-hover',
       )}
       style={{ paddingLeft: folderIndentPx('picker', depth) }}
     >
@@ -312,8 +314,10 @@ function NavRow({
         </span>
         <span
           className={cn(
-            'min-w-0 flex-1 truncate text-sm md:text-2xs',
-            active ? 'font-medium text-foreground' : 'text-foreground/80',
+            'min-w-0 flex-1 truncate text-sm md:text-2sm',
+            active
+              ? 'font-medium text-foreground md:font-semibold'
+              : 'text-foreground/80 md:text-foreground',
           )}
         >
           {label}
@@ -324,7 +328,7 @@ function NavRow({
           </span>
         )}
         {typeof count === 'number' && (
-          <span className="text-soft-count shrink-0 text-xs md:text-3xs">
+          <span className="text-soft-count shrink-0 text-xs md:font-mono md:text-2xs md:text-muted-foreground md:tabular-nums">
             {count}
           </span>
         )}

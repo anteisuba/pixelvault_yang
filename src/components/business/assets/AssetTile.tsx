@@ -53,6 +53,8 @@ interface AssetTileProps {
   showSelectionMark: boolean
   /** 影响 `aria-pressed` 与动作行的让位。 */
   selectionMode: boolean
+  /** 勾选上是什么色：库里黑勾，挑选框里强调色（ui-spec ㉔）。 */
+  selectionTone?: 'ink' | 'highlight'
   draggable: boolean
   /** 音频封面四级回退链算出的当前候选；用尽为 undefined。 */
   audioCoverUrl?: string
@@ -79,6 +81,7 @@ export function AssetTile({
   selected,
   showSelectionMark,
   selectionMode,
+  selectionTone,
   draggable,
   audioCoverUrl,
   onAudioCoverError,
@@ -195,7 +198,9 @@ export function AssetTile({
       </span>
 
       {/* 选中只靠右上角的勾（ui-spec ⑪），⛔ 铺色、⛔ 描边。 */}
-      {showSelectionMark ? <MediaTileCheck selected={selected} /> : null}
+      {showSelectionMark ? (
+        <MediaTileCheck selected={selected} tone={selectionTone} />
+      ) : null}
 
       {/* 整格就是「打开」（选择模式下是「选中」）。 */}
       <button

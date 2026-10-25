@@ -195,6 +195,7 @@
       "negativePromptAdd": "ネガティブプロンプトを追加",
       "aspectRatioLabel": "アスペクト比",
       "resultHistoryLabel": "このセッションの生成結果",
+      "resultShowLabel": "ステージに表示",
       "resultHistoryMeta": "強度 ×{scale} · シード {seed}",
       "resultHistoryCount": "このセッション · {count}",
       "metaLoraCount": "LoRA {count}件",

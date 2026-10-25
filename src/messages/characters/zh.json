@@ -79,7 +79,6 @@
     "readingUnlike": "不像，改说话方式",
     "readingFailed": "没读出来，再试一次 ›",
     "emptyField": "还没写",
-    "removeTag": "去掉 {tag}",
     "importCard": "导入酒馆卡",
     "importCardHint": "导入酒馆（SillyTavern）角色卡，PNG 或 JSON；也可以直接拖进来",
     "tabRoster": "我的角色",

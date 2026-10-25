@@ -2,7 +2,6 @@
 
 import { forwardRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 
-import { Plus, X } from '@/components/icons'
 import { cn } from '@/lib/utils'
 
 /**
@@ -115,86 +114,14 @@ export const CharacterInlineField = forwardRef<
   )
 })
 
-/**
- * 一排标签：悬停一枚露出 ×；行尾「+ 标签」点开是一个小输入，回车加（逗号可一次加几枚）。
- * 触屏没有悬停，× 与「+」常显；一枚都没有时「+」也常显（不然这一行是空白）。
- */
-export function CharacterTagChips({
-  tags,
-  addLabel,
-  removeLabel,
-  onCommit,
-}: {
-  tags: string[]
-  addLabel: string
-  removeLabel(tag: string): string
-  onCommit(next: string[]): Promise<boolean>
-}) {
-  const [adding, setAdding] = useState<string | null>(null)
-
-  const add = async () => {
-    const fresh = (adding ?? '')
-      .split(/[,，\n]/)
-      .map((tag) => tag.trim())
-      .filter((tag) => tag && !tags.includes(tag))
-    setAdding(null)
-    if (fresh.length) await onCommit([...tags, ...fresh])
-  }
-
-  return (
-    <div className="group/tags flex flex-wrap items-center gap-1.5">
-      {tags.map((tag) => (
-        <span
-          key={tag}
-          className="group/tag inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 font-mono text-xs"
-        >
-          {tag}
-          <button
-            type="button"
-            aria-label={removeLabel(tag)}
-            onClick={() => void onCommit(tags.filter((item) => item !== tag))}
-            className="text-muted-foreground opacity-0 transition-opacity duration-fast hover:text-foreground focus-visible:opacity-100 group-hover/tag:opacity-100 pointer-coarse:opacity-100"
-          >
-            <X className="size-3" aria-hidden />
-          </button>
-        </span>
-      ))}
-      {adding !== null ? (
-        <input
-          autoFocus
-          type="text"
-          aria-label={addLabel}
-          value={adding}
-          onChange={(event) => setAdding(event.target.value)}
-          onBlur={() => void add()}
-          onKeyDown={(event) => {
-            if (event.key === 'Escape') {
-              event.preventDefault()
-              setAdding(null)
-            } else if (
-              event.key === 'Enter' &&
-              !event.nativeEvent.isComposing
-            ) {
-              event.preventDefault()
-              event.currentTarget.blur()
-            }
-          }}
-          className="w-40 rounded-md bg-background px-2 py-0.5 font-mono text-base outline-none lg:text-xs ring-1 ring-foreground"
-        />
-      ) : (
-        <button
-          type="button"
-          onClick={() => setAdding('')}
-          className={cn(
-            'inline-flex items-center gap-0.5 rounded-md border border-dashed border-border px-2 py-0.5 font-mono text-xs text-muted-foreground transition-opacity duration-fast hover:text-foreground',
-            tags.length &&
-              'opacity-0 focus-visible:opacity-100 group-hover/tags:opacity-100 pointer-coarse:opacity-100',
-          )}
-        >
-          <Plus className="size-3" aria-hidden />
-          {addLabel}
-        </button>
-      )}
-    </div>
-  )
+/** 角色标签那一段字 → 一个个标签：中英文逗号、换行都算分隔，去重。 */
+export function splitCharacterTags(text: string): string[] {
+  return [
+    ...new Set(
+      text
+        .split(/[,，\n]/)
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+    ),
+  ]
 }

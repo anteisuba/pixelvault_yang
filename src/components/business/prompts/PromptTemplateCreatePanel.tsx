@@ -46,7 +46,7 @@ import {
   ResponsiveDialogTitle,
   ResponsiveDialogDescription,
 } from '@/components/ui/responsive-dialog'
-import { StudioTagChipField } from '@/components/business/studio/tags/StudioTagChipField'
+import { StudioTagTextField } from '@/components/business/studio/tags/StudioTagTextField'
 import { isTagSuggestionsTarget } from '@/components/business/studio/tags/StudioTagSuggestions'
 
 export interface PromptTemplateCreateInitialValues {
@@ -371,7 +371,7 @@ export function PromptTemplateCreatePanel({
                     >
                       {tagsKind ? (
                         <>
-                          <StudioTagChipField
+                          <StudioTagTextField
                             variant="form"
                             label={t('tagsLabel')}
                             note={t('tagsNote')}
@@ -379,7 +379,7 @@ export function PromptTemplateCreatePanel({
                             chips={tags}
                             onChange={setTags}
                           />
-                          <StudioTagChipField
+                          <StudioTagTextField
                             variant="form"
                             label={t('negativeTagsLabel')}
                             polarity="negative"

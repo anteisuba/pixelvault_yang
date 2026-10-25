@@ -130,8 +130,8 @@ vi.mock('@/components/business/ImageAttachmentPreviewStrip', () => ({
 vi.mock('./StudioDialectJumpHint', () => ({
   StudioDialectJumpHint: () => null,
 }))
-vi.mock('./StudioTagChipField', () => ({
-  StudioTagChipField: ({
+vi.mock('./StudioTagTextField', () => ({
+  StudioTagTextField: ({
     label,
     chips,
     onChange,
@@ -374,9 +374,9 @@ describe('标签台底部输入框 · 编辑谁', () => {
       { prompt: 'boy', negativePrompt: '' },
     ]
     render(<StudioTagsComposer onOpenPanel={vi.fn()} />)
-    // 负向的数 = 整体 + 每位角色。
+    // 在整体页：负向页签只数整体那一份（角色各自的进了角色页才显示）。
     const negativeTab = screen.getByRole('tab', { name: /^tabs\.negative/ })
-    expect(negativeTab).toHaveTextContent('2')
+    expect(negativeTab).toHaveTextContent('1')
     fireEvent.click(negativeTab)
     const field = screen.getByRole('button', { name: 'tabs.negative' })
     expect(field).toHaveAttribute('data-chips', 'lowres')
@@ -394,11 +394,17 @@ describe('标签台底部输入框 · 编辑谁', () => {
     expect(screen.getByText('tabs.writeFor')).toBeInTheDocument()
   })
 
-  it('负向页签上写给角色 1：改的是那一位的负向', () => {
+  // owner 2026-10-25：选着角色 N，右上那格就是「角色 N 负向」，点了直接进她的负面。
+  it('选着角色 1 时负向页签写「角色 1 负向」，点了改的是那一位的负向', () => {
     mocks.activeIndex = 0
+    mocks.negative = [{ text: 'lowres', weight: 1 }]
     mocks.characters = [{ prompt: 'girl', negativePrompt: 'bad hands' }]
     render(<StudioTagsComposer onOpenPanel={vi.fn()} />)
-    fireEvent.click(screen.getByRole('tab', { name: /^tabs\.negative/ }))
+    const negativeTab = screen.getByRole('tab', {
+      name: /^tabs\.characterNegative:1/,
+    })
+    expect(negativeTab).toHaveTextContent('1')
+    fireEvent.click(negativeTab)
     const field = screen.getByRole('button', {
       name: 'tabs.negative · workbench.characterNumber:1',
     })

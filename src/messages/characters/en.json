@@ -79,7 +79,6 @@
     "readingUnlike": "Not quite — edit their voice",
     "readingFailed": "Couldn’t read it. Try again ›",
     "emptyField": "Not written yet",
-    "removeTag": "Remove {tag}",
     "importCard": "Import card",
     "importCardHint": "Import a SillyTavern character card (PNG or JSON). You can also drop it here.",
     "tabRoster": "My characters",

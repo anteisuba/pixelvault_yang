@@ -10,7 +10,8 @@ import { TagTemplateParamsSchema, type TagChip } from '@/types/tag-composer'
  * 标签台的**翻译层**：统一表示 ↔ 存储串 ↔ provider 原生语法。
  *
  * 三种串各自的地盘，⛔ 别混：
- * - **界面**：`TagChip[]`，权重一律显示成 `×1.2`。
+ * - **界面**：标签台是一段纯文本（owner 2026-10-24 ㉘），写法就是存储串；
+ *   组件之间仍按 `TagChip[]` 传。
  * - **存储**（`state.prompt` / `advancedParams.negativePrompt`）：统一串
  *   `1girl, rain:1.2, neon city` —— 方言无关，所以两台之间切换、草稿回灌、
  *   助手读写都读得懂它。
@@ -25,8 +26,15 @@ import { TagTemplateParamsSchema, type TagChip } from '@/types/tag-composer'
 /** 统一串里权重的后缀形态：`tag:1.2`。小数点后最多两位，`1` 省略不写。 */
 const WEIGHT_SUFFIX = /^(.*\S)\s*:\s*(\d+(?:\.\d+)?)$/
 
-function splitTagText(text: string): string[] {
-  const parts: string[] = []
+/**
+ * 统一串按逗号切成一段一段的**下标范围**（`[start, end)`，含两边空白，逗号本身不算）。
+ * `1.5::rain, night::` 这种数值组与 `{…}` / `[…]` 里的逗号不切 —— 与 `parseTagChips`
+ * 同一把刀，标签台纯文本框按光标找「当前这一个标签」也用它。
+ */
+export function splitTagRanges(
+  text: string,
+): Array<{ start: number; end: number }> {
+  const ranges: Array<{ start: number; end: number }> = []
   let start = 0
   let numericGroup = false
   let bracketDepth = 0
@@ -42,12 +50,16 @@ function splitTagText(text: string): string[] {
     else if (char === '}' || char === ']')
       bracketDepth = Math.max(0, bracketDepth - 1)
     else if (char === ',' && !numericGroup && bracketDepth === 0) {
-      parts.push(text.slice(start, index))
+      ranges.push({ start, end: index })
       start = index + 1
     }
   }
-  parts.push(text.slice(start))
-  return parts
+  ranges.push({ start, end: text.length })
+  return ranges
+}
+
+function splitTagText(text: string): string[] {
+  return splitTagRanges(text).map(({ start, end }) => text.slice(start, end))
 }
 
 function clampWeight(weight: number): number {

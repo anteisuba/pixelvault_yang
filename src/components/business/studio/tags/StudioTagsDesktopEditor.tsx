@@ -20,7 +20,7 @@ import {
   StudioTagSceneTexts,
   useStudioTagCountMarks,
 } from './StudioTagCast'
-import { StudioTagChipField } from './StudioTagChipField'
+import { StudioTagTextField } from './StudioTagTextField'
 import { StudioTagPageTabs } from './StudioTagPageTabs'
 
 const WHOLE = 'whole'
@@ -29,7 +29,8 @@ const WHOLE = 'whole'
  * 标签台桌面输入框的上半截 —— 方向 A「一个框 + 一排页签」（owner 2026-10-09，
  * 原型 artifact `RhgqVHxzMN55Dh4HgM1nLA`）：
  *
- * 1. 页签行：参考图小缩略 · 整体 · 角色 N（当前那位带 ⋯）· ＋ ……… 负向。
+ * 1. 页签行：参考图小缩略 · 整体 · 角色 N（当前那位带 ⋯）· ＋ ……… 负向（选着角色 N
+ *    时写「角色 N 负向」，点了直接进她的负面）。
  * 2. 一个框：只放当前这一页的标签（换页 = 同一个框换内容，短模糊进场）。
  * 3. 跟着页签的那一行：整体 = 画面文字 + 人数提示；角色 = 互动 · 台词 + 写法提示；
  *    负向 = 「写给 整体 · 角色 N」小分段（每位角色各自的负向）。
@@ -89,10 +90,6 @@ export function StudioTagsDesktopEditor({
     return who ? parseTagChips(who.negativePrompt) : []
   }
   const people = characters.mode ? characters.characters : []
-  const negativeCount = people.reduce(
-    (sum, _, index) => sum + negativeOf(index).length,
-    negativeOf(null).length,
-  )
 
   const polarity = negativeView ? 'negative' : 'positive'
   const chips = negativeView ? negativeOf(activeIndex) : positiveOf(activeIndex)
@@ -185,7 +182,7 @@ export function StudioTagsDesktopEditor({
           }))}
           activeIndex={activeIndex}
           negative={negativeView}
-          negativeCount={negativeCount}
+          negativeCount={negativeOf(activeIndex).length}
           canAdd={
             characters.mode
               ? characters.characters.length < characters.max
@@ -225,7 +222,7 @@ export function StudioTagsDesktopEditor({
         className="flex flex-col gap-1"
         data-assistant-field={negativeView ? 'negativePrompt' : 'prompt'}
       >
-        <StudioTagChipField
+        <StudioTagTextField
           variant="bare"
           modelId={tagModelId}
           label={fieldLabel}

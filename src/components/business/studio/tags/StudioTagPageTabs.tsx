@@ -38,7 +38,9 @@ const tabClass =
  * - 选中底块是**同一个元素滑过去**（layoutId），⛔ 不是每格各自淡入淡出。
  * - 「加人」只有这一颗 ＋（构图面板里不再有第二套）。
  * - 停用 / 删除收进当前角色页签上的 ⋯（owner 2026-10-09 通过的默认）。
- * - 负向是最右边单独一格；进了负向，「写给谁」由框下面那一行切（宿主画）。
+ * - 负向是最右边单独一格，跟着当前页走（owner 2026-10-25）：选着角色 N 就写
+ *   「角色 N 负向 n」，点了直接进她的负面，数字只数她的；进了负向，「写给谁」仍由框
+ *   下面那一行切（宿主画）。
  */
 export function StudioTagPageTabs({
   whole,
@@ -59,6 +61,7 @@ export function StudioTagPageTabs({
   characters: readonly StudioTagPageTab[]
   activeIndex: number | null
   negative: boolean
+  /** 当前这一位（整体 / 角色 N）的负向有几个。 */
   negativeCount: number
   /** null = 不能加人（模型没有角色）；false = 满了。 */
   canAdd: boolean | null
@@ -176,7 +179,11 @@ export function StudioTagPageTabs({
         className={cn(tabClass, tabTone(negative))}
       >
         {thumb(negative)}
-        <span className="relative">{t('tabs.negative')}</span>
+        <span className="relative">
+          {activeIndex === null
+            ? t('tabs.negative')
+            : t('tabs.characterNegative', { number: activeIndex + 1 })}
+        </span>
         <Count value={negativeCount} />
       </button>
     </div>

@@ -92,7 +92,7 @@ import {
   StudioTagSceneTexts,
 } from './StudioTagCast'
 import { StudioTagCarryNote } from './StudioTagCarryNote'
-import { StudioTagChipField } from './StudioTagChipField'
+import { StudioTagTextField } from './StudioTagTextField'
 import { StudioTagsControlColumn } from './StudioTagsControlColumn'
 import { StudioTagsDesktopEditor } from './StudioTagsDesktopEditor'
 import type { TagWorkbenchPanel } from './StudioTagsWorkbench'
@@ -423,7 +423,7 @@ export function StudioTagsComposer({
               className="flex flex-col gap-1.5"
             >
               <div data-assistant-field="prompt">
-                <StudioTagChipField
+                <StudioTagTextField
                   variant="composer"
                   modelId={tagModelId}
                   label={
@@ -482,7 +482,7 @@ export function StudioTagsComposer({
                   id={negativeId}
                   data-assistant-field="negativePrompt"
                 >
-                  <StudioTagChipField
+                  <StudioTagTextField
                     variant="composer"
                     modelId={tagModelId}
                     label={t('negativeLabel')}

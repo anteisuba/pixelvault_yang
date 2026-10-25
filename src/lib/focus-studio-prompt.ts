@@ -19,8 +19,8 @@ export function focusStudioPrompt(options?: { select?: boolean }): void {
   if (!field) {
     // 标签台没有那块文本框：落到正向栏的输入框，同一条触屏策略。
     focusUnlessTouch(
-      document.querySelector<HTMLInputElement>(
-        'input[data-tag-polarity="positive"]',
+      document.querySelector<HTMLTextAreaElement>(
+        'textarea[data-tag-polarity="positive"]',
       ),
       options,
     )

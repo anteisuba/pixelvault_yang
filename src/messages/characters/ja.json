@@ -79,7 +79,6 @@
     "readingUnlike": "らしくない、話し方を直す",
     "readingFailed": "読めませんでした。もう一度 ›",
     "emptyField": "まだ書いていません",
-    "removeTag": "{tag} を外す",
     "importCard": "カードを取り込む",
     "importCardHint": "SillyTavern のキャラクターカード（PNG / JSON）を取り込みます。ここにドロップしても OK。",
     "tabRoster": "マイキャラ",

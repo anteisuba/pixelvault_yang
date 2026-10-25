@@ -33,10 +33,10 @@ const MAX_TRIGGER_WORD_CHARS = 60
 /** 每次搜索最多接多少条「意思接近」的（Vectorize 带元数据返回时 topK 上限 50）。 */
 export const SEMANTIC_TOP_K = 50
 /**
- * 低于它不算「意思接近」。Danbooru 标签那边实测真命中 0.6–0.73、乱码最高 0.52，
- * LoRA 这边上线后按实测再调（见 docs/references/semantic-search.md）。
+ * 低于它不算「意思接近」。2026-10-25 首灌后线上实测（13 句中日英）：真命中 0.53–0.71（水彩风 0.71、
+ * 厚涂 0.65、猫耳少女 0.54），乱打的字最高 0.45。LoRA 存的字长，分数整体比 Danbooru 标签（0.55）低。
  */
-export const SEMANTIC_MIN_SCORE = 0.55
+export const SEMANTIC_MIN_SCORE = 0.5
 
 export function loraMeaningText(row: {
   modelId: number

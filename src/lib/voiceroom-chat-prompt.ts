@@ -1,4 +1,8 @@
 import { DRAMA_PAIRED_TAGS } from '@/constants/voiceroom'
+import {
+  GENERATION_NAME,
+  GENERATION_NAME_PREFIX_BY_OUTPUT_TYPE,
+} from '@/constants/generation-naming'
 import type { CharacterPersona } from '@/types'
 
 /**
@@ -134,4 +138,37 @@ export function cleanVoiceChatReply(raw: string, name: string): string {
   const quoted = /^["“「『]([\s\S]*)["”」』]$/.exec(text)
   if (quoted && !/["“”「」『』]/.test(quoted[1])) text = quoted[1].trim()
   return text
+}
+
+const PICTURE_HANDLE = new RegExp(
+  `(?:${GENERATION_NAME_PREFIX_BY_OUTPUT_TYPE.IMAGE}|${GENERATION_NAME_PREFIX_BY_OUTPUT_TYPE.VIDEO})${GENERATION_NAME.prefixSeparator}\\d{1,9}(?![0-9])`,
+  'g',
+)
+
+/** 正文里提到的作品号（`图_12`、`视频_3`），按出现顺序去重：界面上每个单独发一条图。 */
+export function pictureHandlesOf(text: string): string[] {
+  return [...new Set(text.match(PICTURE_HANDLE) ?? [])]
+}
+
+/** 去掉作品号之后还剩的字（气泡里只画这段）。 */
+export function withoutPictureHandles(text: string): string {
+  return text
+    .replace(PICTURE_HANDLE, '')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\s+([，。！？、,.!?])/g, '$1')
+    .trim()
+}
+
+/**
+ * 念出来的那段字（新内核的回复会带作品号和 markdown）：作品号去掉、链接只念字、强调符号去掉。
+ * 什么都不剩就照原文念（总比发一条空请求好）。
+ */
+export function spokenVoiceText(text: string): string {
+  const spoken = withoutPictureHandles(text)
+    .replace(/\[([^\]]*)\]\((?:[^)]*)\)/g, '$1')
+    .replace(/https?:\/\/\S+/g, '')
+    .replace(/[*_`#>]+/g, '')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim()
+  return spoken || text
 }

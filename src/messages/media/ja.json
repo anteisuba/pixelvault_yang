@@ -464,7 +464,14 @@
     "send": "送信",
     "removeFromRoom": "ルームから外す",
     "history": "会話の履歴",
-    "newTopic": "新しい話題"
+    "newTopic": "新しい話題",
+    "attachLabel": "画像を添付",
+    "attachUpload": "画像をアップロード",
+    "attachFromLibrary": "素材から選ぶ",
+    "removeImage": "この画像を外す",
+    "imagesMax": "1 回に添付できるのは {max} 枚まで",
+    "uploading": "アップロード中…",
+    "sources": "出典 {count} 件"
   },
   "StudioVideoSlots": {
     "firstFrame": "最初",

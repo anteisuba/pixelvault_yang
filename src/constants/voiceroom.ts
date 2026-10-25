@@ -139,6 +139,12 @@ export const VOICE_ROOM_LIST_LIMIT = 50
  */
 export const VOICE_LINE_TEXT_MAX_LENGTH = 2_000
 
+/** 聊天一句最多带几张图（输入框 ＋）。 */
+export const VOICE_ROOM_CHAT_IMAGES_MAX = 4
+
+/** 一句回复最多存几条来源。 */
+export const VOICE_LINE_SOURCES_MAX = 12
+
 /** 一个房间最多几条台词。到顶提示新开房间，而不是静默截断。 */
 export const VOICE_ROOM_LINES_MAX = 500
 

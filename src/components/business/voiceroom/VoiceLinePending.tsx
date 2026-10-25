@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl'
 
 import { parseVoiceLineEmotion } from '@/lib/voice-line-emotion'
+import { withoutPictureHandles } from '@/lib/voiceroom-chat-prompt'
 import type { VoiceRoomCastMember } from '@/types/voiceroom'
 
 import { VoiceAvatar } from './VoiceAvatar'
@@ -55,7 +56,7 @@ export function VoiceLinePending({
         <span className="vr-who">{speaker?.name}</span>
         {typing ? (
           <span className="vr-bubble vr-typing" aria-live="polite">
-            <VoiceLineText text={text} />
+            <VoiceLineText text={withoutPictureHandles(text)} />
           </span>
         ) : (
           <>

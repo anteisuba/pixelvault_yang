@@ -72,6 +72,7 @@ function makeLine(overrides?: Partial<VoiceLineRecord>): VoiceLineRecord {
       duration: 3,
       errorMessage: null,
     },
+    attachments: null,
     createdAt: '2026-08-30T00:00:00.000Z',
     ...overrides,
   }
@@ -248,8 +249,10 @@ describe('useVoiceRoom 聊天（owner 10-23）', () => {
     let release: () => void = () => {}
     mockChat.mockImplementation(async (_body, handlers) => {
       handlers?.onUserLine?.(userLine)
-      handlers?.onDelta?.('在')
-      handlers?.onDelta?.('的。')
+      handlers?.onDelta?.('我查', false)
+      // 查完资料重起一段：换掉还在写的那段。
+      handlers?.onDelta?.('在', true)
+      handlers?.onDelta?.('的。', false)
       await new Promise<void>((resolve) => {
         release = resolve
       })

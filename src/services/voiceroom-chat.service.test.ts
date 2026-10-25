@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   dispatchLine: vi.fn(),
   llmTextStream: vi.fn(),
   resolveAssistantRoute: vi.fn(),
+  runAssistantNext: vi.fn(),
 }))
 
 vi.mock('@/lib/db', () => ({ db: mocks.db }))
@@ -29,6 +30,9 @@ vi.mock('@/services/kernel/assistant-route.service', () => ({
 vi.mock('@/services/llm-text.service', () => ({
   llmTextStream: mocks.llmTextStream,
 }))
+vi.mock('@/features/assistant/kernel', () => ({
+  runAssistantNext: mocks.runAssistantNext,
+}))
 vi.mock('@/services/voiceroom.service', async (importOriginal) => {
   const actual =
     await importOriginal<typeof import('@/services/voiceroom.service')>()
@@ -39,7 +43,13 @@ vi.mock('@/services/voiceroom.service', async (importOriginal) => {
   }
 })
 
-import { streamVoiceRoomChat } from './voiceroom-chat.service'
+import {
+  streamVoiceRoomChat,
+  voiceChatKernelMessages,
+} from './voiceroom-chat.service'
+
+const DENIA_ID = '11111111-1111-4111-8111-111111111111'
+const YUKI_ID = '22222222-2222-4222-8222-222222222222'
 
 const CAST = [
   { id: 'voice-1', kind: 'voice', name: 'Warm', coverImage: null },
@@ -62,6 +72,7 @@ beforeEach(() => {
     _count: { lines: 0 },
   })
   mocks.db.characterCard.findFirst.mockResolvedValue({
+    id: DENIA_ID,
     name: 'Denia',
     persona: { identity: '图书馆管理员' },
   })
@@ -79,6 +90,12 @@ beforeEach(() => {
     ...line,
   }))
   mocks.dispatchLine.mockResolvedValue('job-1')
+  mocks.runAssistantNext.mockImplementation(async function* () {
+    yield { type: 'message_delta', delta: '在' }
+    yield { type: 'message_delta', delta: '的。' }
+    yield { type: 'message', text: '在的。' }
+    yield { type: 'done' }
+  })
 })
 
 const REQUEST = {
@@ -120,10 +137,82 @@ describe('streamVoiceRoomChat', () => {
       text: '在的。',
       jobId: 'job-1',
     })
-    // 绑着的角色就是她：提示词用角色名和设定。
-    expect(mocks.llmTextStream.mock.calls[0][0].systemPrompt).toContain(
-      'You are Denia',
+    // 绑着角色卡：走助手新内核的聊天模式，扮的就是这张卡。
+    expect(mocks.runAssistantNext.mock.calls[0][1]).toMatchObject({
+      chatCharacterId: DENIA_ID,
+      domain: 'home',
+      messages: [{ role: 'user', content: '在吗' }],
+    })
+    expect(mocks.llmTextStream).not.toHaveBeenCalled()
+  })
+
+  it('keeps the thin writer for a voice with no character card', async () => {
+    mocks.db.characterCard.findFirst.mockResolvedValue(null)
+    mocks.llmTextStream.mockImplementation(async function* () {
+      yield 'Warm: 在的。'
+    })
+    const response = await streamVoiceRoomChat(
+      'clerk-1',
+      REQUEST,
+      new AbortController().signal,
     )
+    await readEvents(response)
+
+    expect(mocks.runAssistantNext).not.toHaveBeenCalled()
+    expect(mocks.appendVoiceLine.mock.calls[1][1]).toMatchObject({
+      text: '在的。',
+    })
+  })
+
+  it('saves your pictures on your line and her web sources on hers', async () => {
+    mocks.runAssistantNext.mockImplementation(async function* () {
+      yield {
+        type: 'step',
+        step: {
+          id: 's1',
+          tool: 'search_web',
+          status: 'done',
+          result: {
+            results: [
+              { title: '官网', url: 'https://a.example/1', snippet: '' },
+              { title: '重复', url: 'https://a.example/1', snippet: '' },
+            ],
+          },
+        },
+      }
+      yield { type: 'message_delta', delta: '我查' }
+      yield { type: 'message_delta', delta: '查到了。', restart: true }
+      yield { type: 'message', text: '查到了。' }
+    })
+    const image = {
+      id: 'gen-1',
+      url: 'https://cdn.example/a.png',
+      label: '图_3',
+      seq: 3,
+    }
+    const response = await streamVoiceRoomChat(
+      'clerk-1',
+      { ...REQUEST, images: [image] },
+      new AbortController().signal,
+    )
+    const events = await readEvents(response)
+
+    expect(events[2]).toMatchObject({
+      event: 'delta',
+      data: { text: '查到了。', restart: true },
+    })
+    expect(mocks.runAssistantNext.mock.calls[0][1].mentionedAssets).toEqual([
+      { id: 'gen-1', url: 'https://cdn.example/a.png', label: '图_3', seq: 3 },
+    ])
+    expect(mocks.appendVoiceLine.mock.calls[0][1]).toMatchObject({
+      attachments: { images: [image] },
+    })
+    expect(mocks.appendVoiceLine.mock.calls[1][1]).toMatchObject({
+      text: '查到了。',
+      attachments: {
+        sources: [{ title: '官网', url: 'https://a.example/1' }],
+      },
+    })
   })
 
   it('keeps her words when the voice cannot be made, and says why', async () => {
@@ -172,10 +261,11 @@ describe('streamVoiceRoomChat', () => {
   it('uses the character card picked for this room before the voice binding', async () => {
     mocks.db.voiceRoom.findFirst.mockResolvedValue({
       id: 'room-1',
-      cast: [{ ...CAST[0], characterCardId: 'card-yuki' }, CAST[1]],
+      cast: [{ ...CAST[0], characterCardId: YUKI_ID }, CAST[1]],
       _count: { lines: 0 },
     })
     mocks.db.characterCard.findFirst.mockResolvedValueOnce({
+      id: YUKI_ID,
       name: 'Yuki',
       persona: {},
     })
@@ -188,10 +278,10 @@ describe('streamVoiceRoomChat', () => {
 
     expect(
       mocks.db.characterCard.findFirst.mock.calls[0][0].where,
-    ).toMatchObject({ id: 'card-yuki', isDeleted: false })
-    expect(mocks.llmTextStream.mock.calls[0][0].systemPrompt).toContain(
-      'You are Yuki',
-    )
+    ).toMatchObject({ id: YUKI_ID, isDeleted: false })
+    expect(mocks.runAssistantNext.mock.calls[0][1]).toMatchObject({
+      chatCharacterId: YUKI_ID,
+    })
   })
 
   it('refuses to chat with the sound-effects speaker before opening a stream', async () => {
@@ -203,5 +293,24 @@ describe('streamVoiceRoomChat', () => {
       ),
     ).rejects.toMatchObject({ errorCode: 'VOICE_ROOM_CHAT_VOICE_ONLY' })
     expect(mocks.appendVoiceLine).not.toHaveBeenCalled()
+  })
+})
+
+describe('voiceChatKernelMessages', () => {
+  it('turns the room into her side and yours, merging back-to-back lines', () => {
+    expect(
+      voiceChatKernelMessages(
+        [
+          { who: 'user', name: '', text: '早' },
+          { who: 'self', name: 'Warm', text: '早呀' },
+          { who: 'other', name: 'Yuki', text: '我也在' },
+        ],
+        '今天去哪',
+      ),
+    ).toEqual([
+      { role: 'user', content: '早' },
+      { role: 'assistant', content: '早呀' },
+      { role: 'user', content: 'Yuki: 我也在\n今天去哪' },
+    ])
   })
 })

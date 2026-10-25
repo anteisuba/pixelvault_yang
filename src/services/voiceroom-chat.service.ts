@@ -1,7 +1,15 @@
 import 'server-only'
 
+import type { AssistantRouteModel } from '@/constants/assistant-persona'
+import {
+  ASSISTANT_OPERATOR_EVENTS,
+  ASSISTANT_OPERATOR_STEP_STATUS_IDS,
+  ASSISTANT_OPERATOR_TOOL_IDS,
+} from '@/constants/assistant-operator'
+import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import { AI_MODELS } from '@/constants/models'
 import {
+  VOICE_LINE_SOURCES_MAX,
   VOICE_LINE_TEXT_MAX_LENGTH,
   VOICE_LINE_USER_KIND,
   VOICE_ROOM_BUILTIN_SPEAKER,
@@ -28,25 +36,39 @@ import {
   findCastMember,
   parseCast,
 } from '@/services/voiceroom.service'
-import { CharacterPersonaSchema } from '@/types'
-import type {
-  VoiceRoomCastMember,
-  VoiceRoomChatRequest,
+import { runAssistantNext } from '@/features/assistant/kernel'
+import {
+  AssistantOperatorRequestSchema,
+  type AssistantOperatorMessage,
+  type AssistantOperatorStep,
+} from '@/types/assistant-operator'
+import {
+  VoiceLineSourceSchema,
+  type VoiceLineImage,
+  type VoiceLineSource,
+  type VoiceRoomCastMember,
+  type VoiceRoomChatRequest,
 } from '@/types/voiceroom'
 
 /**
- * 配音间**聊天**（「声音」模块第 2 步，owner 10-23）：你说一句，选中的那位用自己的口吻回一句、
- * 用自己的嗓子念出来。
+ * 配音间**聊天**（「声音」模块第 2 步，owner 10-23；10-25 换助手新内核）：你说一句，选中的那位用自己的
+ * 口吻回一句、用自己的嗓子念出来。
  *
  * 一轮 = 一条流（SSE）：
- * 1. 先把你那句存成一条 `user` 台词（只有文字）→ `user`；
- * 2. 底部选的那个文本模型（`resolveAssistantRoute` 同一套挑法，key 用户自己的）边写边发 → `delta`；
- * 3. 写完存成她的一条台词、按念法与选的模型派出声音 → `reply`。声音之后跟念台词一样靠轮询落地，
- *    气泡点了才放（owner 10-23「像聊天软件」）。
+ * 1. 先把你那句存成一条 `user` 台词（文字 + 你发的图）→ `user`；
+ * 2. 她边写边发 → `delta`（`restart` = 换掉还在写的那段，新内核查完资料会重起一段）；
+ * 3. 写完存成她的一条台词（联网查到的来源挂在上面）、按念法与选的模型派出声音 → `reply`。声音之后跟念台词
+ *    一样靠轮询落地，气泡点了才放（owner 10-23「像聊天软件」）。
+ *
+ * ⭐ 写回复的是谁（用户 10-25 选「换成新内核」）：
+ *  · 有人设卡（顶栏「人设 ▾」挑的那张，或绑着这副嗓子的角色）→ **助手新内核的聊天模式**
+ *    （`runAssistantNext` + `chatCharacterId`）：自带联网、找 / 看她的图和库、记得的事按这个角色记；
+ *    写词模型照用配音间底部那颗（`routeModel`，⛔ 不改助手设置）；
+ *  · 没有角色卡（只是一副嗓子）→ 原来那条薄管子（`buildVoiceChatPrompt`），她就是音色名本人。
  *
  * ⚠ 开流**之前**把能失败的都查掉（房间、说话人、key）：那时还能回一个普通的 JSON 错误，
  *   缺 key 的话客户端就地开 `QuickSetupDialog`（Hard Rule 8）。开流之后的错走 `error` 事件。
- * ⚠ 出声失败不吞掉她写的话：台词照存（没有声音），气泡上给「重试」。
+ * ⚠ 出声失败不吞掉她写的话：台词照存（没有声音），气泡上给「念出来」。
  */
 
 /** 回复里的方括号提示和标点都会被念，字数上限跟一条台词走。 */
@@ -70,7 +92,7 @@ function toErrorPayload(error: unknown) {
  * 一副嗓子被几个角色绑着时取角色列表的第一个（最近改过的在前）。
  */
 async function findPersonaCard(userId: string, member: VoiceRoomCastMember) {
-  const select = { name: true, persona: true } as const
+  const select = { id: true, name: true, persona: true } as const
   if (member.characterCardId) {
     const picked = await db.characterCard.findFirst({
       where: { id: member.characterCardId, userId, isDeleted: false },
@@ -82,6 +104,143 @@ async function findPersonaCard(userId: string, member: VoiceRoomCastMember) {
     where: { userId, voiceCardId: member.id, isDeleted: false },
     orderBy: { updatedAt: 'desc' },
     select,
+  })
+}
+
+/** 她写回复的一种方式：一段一段吐增量，写完交回全文和查到的来源。 */
+type ReplyWriter = AsyncGenerator<
+  { text: string; restart?: true },
+  { text: string; sources: VoiceLineSource[] }
+>
+
+/** 没有角色卡：原来那条薄管子，⛔ 没有工具。 */
+async function* thinWriter(input: {
+  prompt: { systemPrompt: string; userPrompt: string }
+  assistant: Awaited<ReturnType<typeof resolveAssistantRoute>>
+  signal: AbortSignal
+}): ReplyWriter {
+  let written = ''
+  for await (const delta of llmTextStream({
+    systemPrompt: input.prompt.systemPrompt,
+    userPrompt: input.prompt.userPrompt,
+    signal: input.signal,
+    promptGuardMaxLength: PROMPT_GUARD_MAX_LENGTH,
+    providerManagedOutput: true,
+    adapterType: input.assistant.route.adapterType,
+    apiKey: input.assistant.route.apiKey,
+    providerConfig: input.assistant.route.providerConfig,
+    modelId: input.assistant.modelId,
+  })) {
+    written += delta
+    yield { text: delta }
+  }
+  return { text: written, sources: [] }
+}
+
+/**
+ * 配音间的对话 → 内核的消息：你说的 = user，她说的 = assistant，房间里别的嗓子写成「名字: 话」放进
+ * user 那一侧（内核只认两方）。相邻同一方的并成一条。
+ */
+export function voiceChatKernelMessages(
+  history: readonly VoiceChatHistoryLine[],
+  message: string,
+): AssistantOperatorMessage[] {
+  const messages: AssistantOperatorMessage[] = []
+  const push = (role: 'user' | 'assistant', content: string) => {
+    const last = messages.at(-1)
+    if (last?.role === role) last.content = `${last.content}\n${content}`
+    else messages.push({ role, content })
+  }
+  for (const line of history) {
+    if (line.who === 'self') push('assistant', line.text)
+    else if (line.who === 'user') push('user', line.text)
+    else push('user', `${line.name}: ${line.text}`)
+  }
+  push('user', message)
+  return messages
+}
+
+/** 有角色卡：助手新内核的聊天模式（自带联网、找图、看你发的图）。 */
+async function* kernelWriter(input: {
+  clerkId: string
+  characterCardId: string
+  history: readonly VoiceChatHistoryLine[]
+  message: string
+  images: readonly VoiceLineImage[]
+  routeModel: AssistantRouteModel | undefined
+  signal: AbortSignal
+}): ReplyWriter {
+  const request = AssistantOperatorRequestSchema.parse({
+    workspaceKey: ASSISTANT_PROTOCOL_DOMAIN_IDS.home,
+    domain: ASSISTANT_PROTOCOL_DOMAIN_IDS.home,
+    messages: voiceChatKernelMessages(input.history, input.message),
+    snapshot: { prompt: '', availableModels: [] },
+    chatCharacterId: input.characterCardId,
+    ...(input.images.length
+      ? {
+          mentionedAssets: input.images.map((image) => ({
+            id: image.id,
+            url: image.url,
+            ...(image.label ? { label: image.label } : {}),
+            ...(image.seq !== undefined ? { seq: image.seq } : {}),
+          })),
+        }
+      : {}),
+  })
+  let written = ''
+  let final: string | null = null
+  const sources = new Map<string, VoiceLineSource>()
+  for await (const event of runAssistantNext(input.clerkId, request, {
+    signal: input.signal,
+    ...(input.routeModel ? { routeModel: input.routeModel } : {}),
+  })) {
+    switch (event.type) {
+      case ASSISTANT_OPERATOR_EVENTS.messageDelta:
+        written = event.restart ? event.delta : written + event.delta
+        yield event.restart
+          ? { text: event.delta, restart: true }
+          : { text: event.delta }
+        break
+      case ASSISTANT_OPERATOR_EVENTS.message:
+        final = event.text
+        break
+      case ASSISTANT_OPERATOR_EVENTS.step:
+        for (const source of webSourcesOf(event.step))
+          if (sources.size < VOICE_LINE_SOURCES_MAX && !sources.has(source.url))
+            sources.set(source.url, source)
+        break
+      case ASSISTANT_OPERATOR_EVENTS.error:
+        throw new ApiRequestError(
+          event.errorCode ?? 'VOICE_CHAT_KERNEL_ERROR',
+          502,
+          'errors.voiceRoom.chatEmptyReply',
+          event.error,
+        )
+      default:
+        break
+    }
+  }
+  return { text: final ?? written, sources: [...sources.values()] }
+}
+
+/** 联网那一步查回来的几条（内核自带的联网也落成 `search_web` 这一步）。 */
+function webSourcesOf(step: AssistantOperatorStep): VoiceLineSource[] {
+  if (
+    step.tool !== ASSISTANT_OPERATOR_TOOL_IDS.searchWeb ||
+    step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.done ||
+    !('result' in step) ||
+    !step.result
+  )
+    return []
+  return step.result.results.flatMap((result) => {
+    const parsed = VoiceLineSourceSchema.safeParse({
+      title: result.title.slice(0, 300) || result.url,
+      url: result.url,
+      ...(result.publisher
+        ? { publisher: result.publisher.slice(0, 120) }
+        : {}),
+    })
+    return parsed.success ? [parsed.data] : []
   })
 }
 
@@ -137,36 +296,50 @@ export async function streamVoiceRoomChat(
     ),
   ])
 
-  const persona = character
-    ? CharacterPersonaSchema.safeParse(character.persona ?? {})
-    : null
   const name = character?.name ?? member.name
-  const prompt = buildVoiceChatPrompt({
-    name,
-    persona: persona?.success ? persona.data : null,
-    history: history
-      .reverse()
-      .filter((line) => line.speakerKind !== VOICE_ROOM_SPEAKER_KIND.SFX)
-      .map(
-        (line): VoiceChatHistoryLine => ({
-          who:
-            line.speakerKind === VOICE_LINE_USER_KIND
-              ? 'user'
-              : line.speakerId === member.id
-                ? 'self'
-                : 'other',
-          name: line.speakerName,
-          text: line.text,
-        }),
-      ),
-    message: request.text,
-    expressiveVoice: request.modelId === AI_MODELS.FISH_AUDIO_DRAMA_3,
-  })
+  const historyLines = history
+    .reverse()
+    .filter((line) => line.speakerKind !== VOICE_ROOM_SPEAKER_KIND.SFX)
+    .map(
+      (line): VoiceChatHistoryLine => ({
+        who:
+          line.speakerKind === VOICE_LINE_USER_KIND
+            ? 'user'
+            : line.speakerId === member.id
+              ? 'self'
+              : 'other',
+        name: line.speakerName,
+        text: line.text,
+      }),
+    )
+  const images = request.images ?? []
 
   const encoder = new TextEncoder()
   const abort = new AbortController()
   const linkedSignal = AbortSignal.any([signal, abort.signal])
   let cancelled = false
+
+  const writer: ReplyWriter = character
+    ? kernelWriter({
+        clerkId,
+        characterCardId: character.id,
+        history: historyLines,
+        message: request.text,
+        images,
+        routeModel: request.llmModel,
+        signal: linkedSignal,
+      })
+    : thinWriter({
+        prompt: buildVoiceChatPrompt({
+          name,
+          persona: null,
+          history: historyLines,
+          message: request.text,
+          expressiveVoice: request.modelId === AI_MODELS.FISH_AUDIO_DRAMA_3,
+        }),
+        assistant,
+        signal: linkedSignal,
+      })
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -183,26 +356,18 @@ export async function streamVoiceRoomChat(
           text: request.text,
           emotion: null,
           jobId: null,
+          attachments: images.length ? { images } : null,
         })
         emit(VOICE_ROOM_CHAT_EVENT.USER, { line: userLine })
 
-        let written = ''
-        for await (const delta of llmTextStream({
-          systemPrompt: prompt.systemPrompt,
-          userPrompt: prompt.userPrompt,
-          signal: linkedSignal,
-          promptGuardMaxLength: PROMPT_GUARD_MAX_LENGTH,
-          providerManagedOutput: true,
-          adapterType: assistant.route.adapterType,
-          apiKey: assistant.route.apiKey,
-          providerConfig: assistant.route.providerConfig,
-          modelId: assistant.modelId,
-        })) {
-          written += delta
-          emit(VOICE_ROOM_CHAT_EVENT.DELTA, { text: delta })
+        let step = await writer.next()
+        while (!step.done) {
+          emit(VOICE_ROOM_CHAT_EVENT.DELTA, step.value)
+          step = await writer.next()
         }
+        const written = step.value
 
-        const reply = clampReply(cleanVoiceChatReply(written, name))
+        const reply = clampReply(cleanVoiceChatReply(written.text, name))
         if (!reply) {
           throw new ApiRequestError(
             'VOICE_CHAT_EMPTY_REPLY',
@@ -242,6 +407,9 @@ export async function streamVoiceRoomChat(
           text: reply,
           emotion: null,
           jobId,
+          attachments: written.sources.length
+            ? { sources: written.sources }
+            : null,
         })
         emit(VOICE_ROOM_CHAT_EVENT.REPLY, { line: replyLine })
         if (voiceError) {

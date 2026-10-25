@@ -26,15 +26,18 @@ import {
   CHARACTER_LOOKS_INCLUDE,
   mapCharacterLookRow,
 } from '@/services/cards/character-card.mapper'
+import { spokenVoiceText } from '@/lib/voiceroom-chat-prompt'
 import { submitAudioGeneration } from '@/services/generate-audio.service'
 import { ensureUser } from '@/services/user.service'
 import {
+  VoiceLineAttachmentsSchema,
   VoiceRoomBedSchema,
   VoiceRoomCastMemberSchema,
   type CreateVoiceLineRequest,
   type CreateVoiceRoomRequest,
   type RetakeVoiceLineRequest,
   type UpdateVoiceRoomRequest,
+  type VoiceLineAttachments,
   type VoiceLineRecord,
   type VoiceLineDelivery,
   type VoiceRoomCastMember,
@@ -152,8 +155,18 @@ function toVoiceLineRecord(row: VoiceLineRow): VoiceLineRecord {
           errorMessage: row.job.errorMessage,
         }
       : null,
+    attachments: parseAttachments(row.attachments),
     createdAt: row.createdAt.toISOString(),
   }
+}
+
+/** 挂件读坏了就当没有：一句话的图和来源不该让整间房打不开。 */
+function parseAttachments(
+  value: Prisma.JsonValue | null,
+): VoiceLineAttachments | null {
+  if (value === null) return null
+  const parsed = VoiceLineAttachmentsSchema.safeParse(value)
+  return parsed.success ? parsed.data : null
 }
 
 /* ── 房间 ───────────────────────────────────────────────────────── */
@@ -399,7 +412,8 @@ export async function dispatchLine(params: {
   }
 
   const { jobId } = await submitAudioGeneration(clerkId, {
-    prompt: text,
+    // 新内核的回复会带作品号、链接：念的时候只念说的话。
+    prompt: spokenVoiceText(text),
     // 顶栏选过就用它，没选过退回目录里第一个可用的。
     modelId: delivery.modelId ?? resolveAudioModelId(AUDIO_KIND.SPEECH),
     voiceId: card.voiceId,
@@ -448,8 +462,10 @@ export async function appendVoiceLine(
     text: string
     emotion: string | null
     jobId: string | null
+    attachments?: VoiceLineAttachments | null
   },
 ): Promise<VoiceLineRecord> {
+  const { attachments, ...fields } = line
   const created = await db.$transaction(async (tx) => {
     const last = await tx.voiceLine.findFirst({
       where: { roomId },
@@ -457,7 +473,12 @@ export async function appendVoiceLine(
       select: { order: true },
     })
     const row = await tx.voiceLine.create({
-      data: { roomId, order: (last?.order ?? -1) + 1, ...line },
+      data: {
+        roomId,
+        order: (last?.order ?? -1) + 1,
+        ...fields,
+        ...(attachments ? { attachments } : {}),
+      },
       include: LINE_INCLUDE,
     })
     // 说了话就是动过这个房间——左列按 updatedAt 排序，靠这一下浮上来。

@@ -545,6 +545,81 @@
   color: var(--vr-paper);
 }
 
+/* 图单独一条（用户 10-25 Q3）：她回复里提到的作品 / 你挂上去的图，一张一块。 */
+.vr-shots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.vr-shot {
+  display: block;
+  width: 160px;
+  border: 1px solid var(--vr-line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--vr-panel);
+}
+
+.vr-shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* 来源折成一颗「N 个来源 ▸」，点开是一列链接。 */
+.vr-sources {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.vr-sources-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border: 1px solid var(--vr-line-strong);
+  border-radius: 999px;
+  background: none;
+  color: var(--vr-dim);
+  font-family: var(--vr-mono);
+  font-size: 10.5px;
+  cursor: pointer;
+}
+
+.vr-sources-chip:hover,
+.vr-sources-chip[aria-expanded='true'] {
+  color: var(--vr-ink);
+  border-color: var(--vr-ink);
+}
+
+.vr-sources-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+  padding: 6px 10px;
+  list-style: none;
+  border-left: 1px solid var(--vr-line-strong);
+  font-size: 11.5px;
+}
+
+.vr-sources-list a {
+  color: var(--vr-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+}
+
+.vr-sources-list span {
+  margin-left: 6px;
+  color: var(--vr-dim);
+  font-family: var(--vr-mono);
+  font-size: 10px;
+}
+
 /* 方括号语气提示（`[laughing]`）：会被演出来，但不是念出来的字，淡一档。 */
 .vr-cue {
   color: var(--vr-dim);
@@ -1090,6 +1165,80 @@
   border-color: var(--vr-ink);
 }
 
+/* 聊天时输入框前的 ＋（用户 10-25 Q4）：只管放图。 */
+.vr-attach {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--vr-line-strong);
+  border-radius: 999px;
+  background: var(--vr-paper);
+  color: var(--vr-ink);
+  cursor: pointer;
+  transition: border-color var(--vr-t-fast) ease;
+}
+
+.vr-attach:hover,
+.vr-attach[data-state='open'] {
+  border-color: var(--vr-ink);
+}
+
+.vr-attach[data-busy='true'] {
+  color: var(--vr-dim);
+}
+
+.vr-attach > svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* 挂上的图：输入行上面一排小方块，角上 × 摘掉。 */
+.vr-attached {
+  display: flex;
+  gap: 6px;
+  flex-basis: 100%;
+  order: -1;
+}
+
+.vr-attached-item {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--vr-line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.vr-attached-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.vr-attached-item button {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--vr-ink);
+  color: var(--vr-paper);
+  cursor: pointer;
+}
+
+.vr-attached-item button > svg {
+  width: 10px;
+  height: 10px;
+}
+
 /* 聊天 / 念台词（owner 10-23 方案 A）：两档的小分段，挨着头像。 */
 .vr-mode {
   display: inline-flex;
@@ -1141,6 +1290,17 @@
 
   .vr-mode button {
     min-height: 2.75rem;
+  }
+
+  .vr-attach {
+    order: 2;
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .vr-attached-item button {
+    width: 22px;
+    height: 22px;
   }
 }
 

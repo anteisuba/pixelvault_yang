@@ -1069,6 +1069,14 @@ export async function* runLook(
     )
     if (!handle || attached) {
       benchNames.push(name)
+      // 附着的库图（`图_1610`）：图已在眼前，配方照样读出来（只要文字，⛔ 不再附第二遍）。
+      if (handle?.kind === 'picture') {
+        const recipe = await openWorkspaceHandle(
+          ownerOf(context),
+          handle,
+        ).catch(() => null)
+        if (recipe) parts.push(recipe.text)
+      }
       continue
     }
     const opened = await openWorkspaceHandle(ownerOf(context), handle).catch(

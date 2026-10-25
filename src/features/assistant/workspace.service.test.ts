@@ -138,6 +138,27 @@ describe('按编号打开', () => {
     expect(opened?.text).toContain('@Image1 = 图_1588')
   })
 
+  it('她传上来的图：明说没有配方，⛔ 不让模型再翻', async () => {
+    queryRaw.mockResolvedValueOnce([
+      {
+        ...pictureRow,
+        seq: 1610,
+        prompt: '',
+        negativePrompt: null,
+        model: 'user-upload',
+        advancedParams: null,
+        referenceImages: null,
+      },
+    ])
+    const opened = await openWorkspaceHandle(
+      owner,
+      parseWorkspaceHandle('图_1610')!,
+    )
+    expect(opened?.text).toContain('Uploaded by the creator')
+    expect(opened?.text).toContain('no recipe was recorded')
+    expect(findMany).not.toHaveBeenCalled()
+  })
+
   it('不存在的编号回 null（look 说清没找到）', async () => {
     queryRaw.mockResolvedValueOnce([])
     expect(

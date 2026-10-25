@@ -165,7 +165,12 @@ function StudioLibraryFrame({
       className="flex size-full min-h-0 flex-col bg-background"
     >
       <div className="flex h-13 shrink-0 items-center gap-1 px-3">
-        {category === 'profile' ? (
+        {category === 'gallery' ? (
+          // 画廊不算库的一类（用户 10-25）：从左栏画廊点开，整页，顶上只写名字。
+          <h2 className="min-w-0 truncate px-2 text-sm font-semibold text-foreground">
+            {tAll('Navbar.links.gallery')}
+          </h2>
+        ) : category === 'profile' ? (
           <>
             <h2 className="min-w-0 truncate px-2 text-sm font-semibold text-foreground">
               {tAll('Navbar.links.profile')}
@@ -184,7 +189,7 @@ function StudioLibraryFrame({
             aria-label={t('library')}
             className="flex min-w-0 items-center gap-0.5 overflow-x-auto scrollbar-none"
           >
-            {STUDIO_LIBRARY_ITEMS.map((item) => {
+            {LIBRARY_TAB_ITEMS.map((item) => {
               const active = item.id === category
               return (
                 <Link
@@ -225,6 +230,11 @@ function StudioLibraryFrame({
     </section>
   )
 }
+
+/** 顶上一排换类：库的各类，⛔ 画廊（它从左栏单独开）。 */
+const LIBRARY_TAB_ITEMS = STUDIO_LIBRARY_ITEMS.filter(
+  (item) => item.id !== 'gallery',
+)
 
 /** 顶上一排换类（样件 S13）：字，当前那一类浅灰底药丸。 */
 const TAB_CLASS =

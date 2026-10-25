@@ -1174,6 +1174,7 @@
     "newResult": "New results",
     "homeMode": "Start",
     "homeAssistant": "Assistant",
-    "homeVoiceRoom": "Voice room"
+    "homeVoiceRoom": "Voice room",
+    "workbench": "Workbenches"
   }
 }

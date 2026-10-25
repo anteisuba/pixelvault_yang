@@ -105,7 +105,8 @@ describe('StudioEmptyState', () => {
     render(<StudioEmptyState mode="image" />)
 
     expect(screen.getByText('hint.image')).toBeInTheDocument()
-    expect(screen.getByText('modeLabel.image')).toBeInTheDocument()
+    // 台名不再写在起手屏上（用户 10-25：留位置给左上角的头像）。
+    expect(screen.queryByText('modeLabel.image')).toBeNull()
 
     fireEvent.click(
       screen.getByRole('button', { name: 'examples.image.e1.label' }),

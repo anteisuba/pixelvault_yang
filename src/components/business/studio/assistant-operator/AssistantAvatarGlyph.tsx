@@ -45,6 +45,10 @@ export const AssistantAvatarGlyph = memo(function AssistantAvatarGlyph({
       width={192}
       height={192}
       unoptimized
+      // 对话收起 / 展开时头像在两个位置之间换着挂：懒加载会让新挂的那一颗空一拍（用户 10-25：
+      // 「收起来头像会刷新一下」），同一张图 ⛔ 懒加载、同步解码。
+      loading="eager"
+      decoding="sync"
       className={cn('size-full object-cover', className)}
     />
   )

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useSearchParams } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 
 import {
   CHARACTER_PAGE_TABS,
@@ -12,20 +12,11 @@ import {
 } from '@/constants/cards/chub-library'
 import { DURATION, DURATION_MS, EASE_STANDARD } from '@/constants/motion'
 import type { AssistantOperatorCharacterProfileField } from '@/types/assistant-operator'
-import {
-  Bookmark,
-  Copy,
-  LayoutGrid,
-  Library,
-  Pencil,
-  Plus,
-  Trash2,
-} from '@/components/icons'
+import { Copy, Pencil, Plus, Trash2, Upload } from '@/components/icons'
 import { DropOverlay } from '@/components/ui/drop-overlay'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
-import { LibraryRail, LibraryRailRow } from '@/components/ui/library-kit'
 import {
   ResponsiveMenu,
   ResponsiveMenuContent,
@@ -38,13 +29,13 @@ import {
   CharacterDetailHeader,
   CharacterDraftBody,
 } from '@/components/business/cards/CharacterDetail'
-import {
-  CharacterLibrary,
-  CharacterLibraryToolbar,
-} from '@/components/business/cards/CharacterLibrary'
-import { CharacterLibraryDesk } from '@/components/business/cards/CharacterLibraryDesk'
+import { CharacterLibrary } from '@/components/business/cards/CharacterLibrary'
 import { CharacterPhoneBar } from '@/components/business/cards/CharacterPhoneBar'
-import { CharacterOverview } from '@/components/business/cards/CharacterOverview'
+import {
+  CharacterOverview,
+  CharacterOverviewHeader,
+  countCharacterWorks,
+} from '@/components/business/cards/CharacterOverview'
 import { StudioOperatorHostProvider } from '@/contexts/studio-operator-host'
 import { useCardsOperatorHost } from '@/hooks/cards/use-cards-operator-host'
 import { appendSlotSources } from '@/hooks/cards/use-character-card-editor'
@@ -80,6 +71,7 @@ const ROW_AVATAR_GAP_CLASS = 'pr-12'
 export function CharacterRoster() {
   const t = useTranslations('CharacterRoster')
   const tDrop = useTranslations('DropZone')
+  const locale = useLocale()
   const characters = useCharacterCards()
   const reducedMotion = useReducedMotion() ?? false
   const isMobile = useIsMobile()
@@ -100,8 +92,6 @@ export function CharacterRoster() {
   /** 详情里正看着的那套造型（`null` = 默认）：图片带、外观、标签和「用她 ▾」训练都跟它。 */
   const [detailLookId, setDetailLookId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
-  /** 桌面左栏点的是「收藏」（库骨架第一组「全部 / 收藏」）。 */
-  const [favoritesOnly, setFavoritesOnly] = useState(false)
   /** 「新角色」草稿开着（owner 09-28：直接进空详情页，名字写好才建卡）。 */
   const [drafting, setDrafting] = useState(false)
   /** 「我的角色 / 卡库」页签（`?tab=library` 直接开卡库）。 */
@@ -307,39 +297,30 @@ export function CharacterRoster() {
       }}
     />
   )
-  /** 桌面总览 = 库骨架（左栏 · 右边搜索 + 格子）；详情 / 草稿照旧盖在上面。 */
+  /** 桌面总览 = 书架（用户 10-25：照 #397 之前那版）：顶上一行（计数 · 搜索 · 导入 · 新角色），下面书架；详情 / 草稿照旧盖在上面。 */
   const deskOverview = !isMobile
-  const favoritesCount = flatCards.filter((card) => card.isFavorite).length
-  const rail = (
-    <LibraryRail label={t('library.rail')} className="pt-0.5">
-      <LibraryRailRow
-        icon={<LayoutGrid aria-hidden />}
-        label={t('library.all')}
-        trailing={flatCards.length}
-        active={!onLibrary && !favoritesOnly}
-        onSelect={() => {
-          setTab(CHARACTER_PAGE_TABS.roster)
-          setFavoritesOnly(false)
-        }}
-      />
-      <LibraryRailRow
-        icon={<Bookmark aria-hidden />}
-        label={t('library.favorites')}
-        trailing={favoritesCount}
-        active={!onLibrary && favoritesOnly}
-        onSelect={() => {
-          setTab(CHARACTER_PAGE_TABS.roster)
-          setFavoritesOnly(true)
-        }}
-      />
-      <LibraryRailRow
-        icon={<Library aria-hidden />}
-        label={t('tabLibrary')}
-        trailing={CHUB_LIBRARY.SOURCE_LABEL}
-        active={onLibrary}
-        onSelect={() => setTab(CHARACTER_PAGE_TABS.library)}
-      />
-    </LibraryRail>
+  const newCharacterButton = (
+    <Button
+      type="button"
+      className="shrink-0 rounded-full"
+      onClick={() => setDrafting(true)}
+    >
+      <Plus className="size-4" />
+      {t('newCharacter')}
+    </Button>
+  )
+  const importButton = (
+    <Button
+      type="button"
+      variant="secondary"
+      title={t('importCardHint')}
+      disabled={importing}
+      className="shrink-0 rounded-full"
+      onClick={() => importInput.current?.click()}
+    >
+      {importing ? <Spinner size="sm" /> : <Upload className="size-4" />}
+      {t('importCard')}
+    </Button>
   )
 
   return (
@@ -432,52 +413,26 @@ export function CharacterRoster() {
             }
             className={
               deskOverview
-                ? 'flex h-full gap-8'
+                ? 'flex h-full flex-col overflow-y-auto pb-12'
                 : 'h-full overflow-y-auto px-4 pb-12'
             }
           >
             {deskOverview ? (
-              <>
-                {rail}
-                <div className="flex min-w-0 flex-1 flex-col">
-                  {onLibrary ? (
+              <div className="flex shrink-0 items-center gap-3 pb-5">
+                <CharacterOverviewHeader
+                  tabs={null}
+                  characters={flatCards.length}
+                  works={countCharacterWorks(flatCards, locale)}
+                  query={query}
+                  onQueryChange={setQuery}
+                  actions={
                     <>
-                      <CharacterLibraryToolbar library={library} />
-                      <div className="mt-3 min-h-0 flex-1 overflow-y-auto pb-6">
-                        <CharacterLibrary
-                          library={library}
-                          importingPath={libraryImporting}
-                          onImport={(fullPath) =>
-                            void importFromLibrary(fullPath)
-                          }
-                        />
-                      </div>
+                      {importButton}
+                      {newCharacterButton}
                     </>
-                  ) : (
-                    <CharacterLibraryDesk
-                      cards={flatCards}
-                      loading={characters.isLoading}
-                      favoritesOnly={favoritesOnly}
-                      query={query}
-                      onQueryChange={setQuery}
-                      onOpen={openCharacter}
-                      onNew={() => setDrafting(true)}
-                      onImport={() => importInput.current?.click()}
-                      importing={importing}
-                      onToggleFavorite={(id) =>
-                        void characters.toggleFavorite(id)
-                      }
-                      onDuplicate={(card) =>
-                        void characters.duplicate(
-                          card,
-                          t('phone.copyName', { name: card.name }),
-                        )
-                      }
-                      onDelete={setDeletingId}
-                    />
-                  )}
-                </div>
-              </>
+                  }
+                />
+              </div>
             ) : null}
             {isMobile ? (
               <CharacterPhoneBar
@@ -496,7 +451,7 @@ export function CharacterRoster() {
                 reducedMotion={reducedMotion}
               />
             ) : null}
-            {deskOverview ? null : onLibrary ? (
+            {onLibrary && !deskOverview ? (
               <CharacterLibrary
                 library={library}
                 importingPath={libraryImporting}

@@ -64,17 +64,28 @@ export const STUDIO_SHELL_LIST_WIDTH_CLASS = 'w-60'
 export const STUDIO_SHELL_RECENT_LIMIT = 30
 
 /**
- * 库里的几类（第 9f 步）：id 就是地址里那一段（`/library/<id>`）；名字与图标见
- * `STUDIO_LIBRARY_ITEMS`（`constants/navigation.ts`）。标签（9f-2c）只在库里，没有旧页面。
+ * 外壳整页的几类（第 9f 步）：id 就是地址里那一段（`/library/<id>`）；名字与图标见
+ * `STUDIO_LIBRARY_ITEMS`（`constants/navigation.ts`）。标签（9f-2c）、酒馆只在库里，没有旧页面。
+ * 用户 10-25：「库」只放公开来源那几样（`STUDIO_LIBRARY_TAB_IDS`）；素材 / 角色 / 提示词 / 画廊
+ * 各在左栏有一颗，点开整页，顶上只写名字。
  */
 export const STUDIO_LIBRARY_CATEGORY_IDS = [
+  'lora',
+  'tavern',
+  'tags',
+  'voices',
   'assets',
   'cards',
-  'lora',
-  'tags',
   'prompts',
-  'voices',
   'gallery',
+] as const
+
+/** 库顶上那一排、左栏「库」弹出的那一排：LoRA · 酒馆 · 标签 · 音色。 */
+export const STUDIO_LIBRARY_TAB_IDS = [
+  'lora',
+  'tavern',
+  'tags',
+  'voices',
 ] as const
 
 export type StudioLibraryCategoryId =
@@ -89,6 +100,9 @@ export type StudioShellOverlayId = StudioLibraryCategoryId | 'profile'
 export function studioLibraryPath(category: StudioLibraryCategoryId): string {
   return `${ROUTES.LIBRARY}/${category}`
 }
+
+/** 库左栏收起 / 展开（本机记住，七个库同一份）。 */
+export const LIBRARY_RAIL_STORAGE_KEY = 'pv:library:rail'
 
 /** 台叫库来挑东西（「选给 XX 台」，9f-2d）：库那一类认 `?pick=1` 才换成挑选的样子。 */
 export const STUDIO_LIBRARY_PICK_PARAM = 'pick'

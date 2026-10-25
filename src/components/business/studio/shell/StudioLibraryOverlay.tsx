@@ -16,12 +16,15 @@ import { SHELL_MOTION } from '@/constants/motion'
 import { STUDIO_LIBRARY_ITEMS } from '@/constants/navigation'
 import {
   STUDIO_LIBRARY_CATEGORY_IDS,
+  STUDIO_LIBRARY_TAB_IDS,
   studioLibraryPath,
   type StudioShellOverlayId,
 } from '@/constants/studio-shell'
 import { StudioOperatorDetachedScope } from '@/contexts/studio-operator-host'
+import { PanelLeft } from '@/components/icons'
 import { AssistantAvatarGlyph } from '@/components/business/studio/assistant-operator/AssistantAvatarGlyph'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
+import { useLibraryRailOpen } from '@/hooks/use-library-rail'
 import { Link } from '@/i18n/navigation'
 import { shellEnter } from '@/lib/studio-shell-motion'
 import { cn } from '@/lib/utils'
@@ -155,6 +158,11 @@ function StudioLibraryFrame({
   const tAll = useTranslations()
   const { persona } = useAssistantPersona()
   const { frameRef, bodyRef } = useLibraryFrameMotion(category)
+  const [railOpen, toggleRail] = useLibraryRailOpen()
+  const hasRail = category !== 'gallery' && category !== 'profile'
+  const pageItem = isLibraryTab(category)
+    ? undefined
+    : STUDIO_LIBRARY_ITEMS.find((item) => item.id === category)
 
   return (
     <section
@@ -165,10 +173,24 @@ function StudioLibraryFrame({
       className="flex size-full min-h-0 flex-col bg-background"
     >
       <div className="flex h-13 shrink-0 items-center gap-1 px-3">
-        {category === 'gallery' ? (
-          // 画廊不算库的一类（用户 10-25）：从左栏画廊点开，整页，顶上只写名字。
+        {hasRail ? (
+          // 左栏收起 / 展开（用户 10-25）：≥768 才有左栏，手机上各库用抽屉。
+          <button
+            type="button"
+            aria-pressed={!railOpen}
+            aria-label={railOpen ? t('libraryRailHide') : t('libraryRailShow')}
+            title={railOpen ? t('libraryRailHide') : t('libraryRailShow')}
+            data-testid="studio-library-rail-toggle"
+            onClick={toggleRail}
+            className="hidden size-8 shrink-0 place-items-center rounded-full text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus md:grid [&>svg]:size-4"
+          >
+            <PanelLeft aria-hidden />
+          </button>
+        ) : null}
+        {pageItem ? (
+          // 不算库的那几样（用户 10-25）：画廊 / 素材 / 角色 / 提示词各从左栏点开，整页，顶上只写名字。
           <h2 className="min-w-0 truncate px-2 text-sm font-semibold text-foreground">
-            {tAll('Navbar.links.gallery')}
+            {tAll(pageItem.labelKey)}
           </h2>
         ) : category === 'profile' ? (
           <>
@@ -231,10 +253,14 @@ function StudioLibraryFrame({
   )
 }
 
-/** 顶上一排换类：库的各类，⛔ 画廊（它从左栏单独开）。 */
-const LIBRARY_TAB_ITEMS = STUDIO_LIBRARY_ITEMS.filter(
-  (item) => item.id !== 'gallery',
+/** 顶上一排换类：库只放公开来源那几样（LoRA · 酒馆 · 标签 · 音色，用户 10-25）。 */
+const LIBRARY_TAB_ITEMS = STUDIO_LIBRARY_ITEMS.filter((item) =>
+  isLibraryTab(item.id),
 )
+
+function isLibraryTab(id: string): boolean {
+  return (STUDIO_LIBRARY_TAB_IDS as readonly string[]).includes(id)
+}
 
 /** 顶上一排换类（样件 S13）：字，当前那一类浅灰底药丸。 */
 const TAB_CLASS =

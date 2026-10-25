@@ -1,10 +1,19 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 
 import { voiceRoomPath } from '@/constants/routes'
 import { STUDIO_SHELL_RECENT_LIMIT } from '@/constants/studio-shell'
+import { MoreHorizontal, Pencil, Trash2 } from '@/components/icons'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   conversationBenchOf,
   useStudioConversationBenchOverrides,
@@ -13,7 +22,11 @@ import {
   useStudioConversationActivity,
   type StudioConversationActivityView,
 } from '@/hooks/use-studio-conversation-activity'
-import { useShellVoiceRooms } from '@/hooks/use-shell-voice-rooms'
+import {
+  deleteShellVoiceRoom,
+  renameShellVoiceRoom,
+  useShellVoiceRooms,
+} from '@/hooks/use-shell-voice-rooms'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
 import { useRouter } from '@/i18n/navigation'
 import { deriveAssistantConversationTitle } from '@/lib/assistant-conversation-title'
@@ -48,6 +61,7 @@ type RecentItem =
  * - 进度圈：这段对话有任务在跑，封面上盖一圈，右边写「出好了几个 / 一共几个」。
  * - 小点：你不在这段的时候它出完了；点开就消失（只记在本机）。
  * - 点一段对话：回到它最后开着的台（台跟着对话走）；同一个台上就地换对话、台不动。
+ * - 悬停一行右边出「…」：改名（就地变输入框，回车存、Esc 退）/ 删除（居中确认，㉒）（用户 10-25）。
  */
 export function StudioConversationRecent({
   history,
@@ -68,6 +82,7 @@ export function StudioConversationRecent({
   const t = useTranslations('StudioShell')
   const tOperator = useTranslations('StudioOperator')
   const tRoom = useTranslations('VoiceRoom')
+  const tCommon = useTranslations('Common')
   const router = useRouter()
   const benchOverrides = useStudioConversationBenchOverrides()
   const { rooms, activeRoomId } = useShellVoiceRooms()
@@ -102,6 +117,32 @@ export function StudioConversationRecent({
     [items],
   )
   const activity = useStudioConversationActivity(chatIds, currentChatId)
+  const [renaming, setRenaming] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<RecentItem | null>(null)
+  const keyOf = (item: RecentItem) => `${item.kind}:${item.id}`
+
+  const rename = async (item: RecentItem, title: string) => {
+    setRenaming(null)
+    const next = title.trim()
+    if (!next || next === item.title) return
+    let ok = false
+    if (item.kind === 'room') ok = await renameShellVoiceRoom(item.id, next)
+    else {
+      const session = history?.sessions.find((entry) => entry.id === item.id)
+      ok = session ? await history!.renameSession(session, next) : false
+    }
+    if (!ok) toast.error(t('recentFailed'))
+  }
+
+  const remove = async (item: RecentItem) => {
+    let ok = false
+    if (item.kind === 'room') ok = await deleteShellVoiceRoom(item.id)
+    else {
+      const session = history?.sessions.find((entry) => entry.id === item.id)
+      ok = session ? await history!.deleteSession(session) : false
+    }
+    if (!ok) toast.error(t('recentFailed'))
+  }
 
   const openChat = (id: string, bench: string | null) => {
     if (bench) {
@@ -129,42 +170,103 @@ export function StudioConversationRecent({
               : onAudio && activeRoomId === item.id
           const view = item.kind === 'chat' ? activity.get(item.id) : undefined
           return (
-            <li key={`${item.kind}:${item.id}`}>
-              <button
-                type="button"
-                onClick={() => {
-                  if (item.kind === 'chat') openChat(item.id, item.bench)
-                  else router.push(voiceRoomPath(item.id))
-                  onOpen?.()
-                }}
-                aria-current={active ? 'true' : undefined}
-                title={item.title}
-                data-testid="studio-recent-row"
-                data-kind={item.kind}
-                className={cn(rowClass, 'h-10', active && rowActiveClass)}
-              >
-                {item.kind === 'room' ? (
-                  <RoomCover cover={item.cover} initial={item.initial} />
-                ) : view?.cover || view?.progress ? (
-                  <ChatCover view={view} />
-                ) : null}
-                <span className="min-w-0 flex-1 truncate">{item.title}</span>
-                {view?.progress ? (
-                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                    {view.progress.done}/{view.progress.total}
-                  </span>
-                ) : view?.unseen ? (
-                  <span
-                    aria-label={t('newResult')}
-                    data-testid="studio-recent-unseen"
-                    className="size-1.5 shrink-0 rounded-full bg-primary"
-                  />
-                ) : null}
-              </button>
+            <li key={keyOf(item)} className="group/recent relative">
+              {renaming === keyOf(item) ? (
+                <input
+                  autoFocus
+                  defaultValue={item.title}
+                  aria-label={t('recentRenameLabel', { title: item.title })}
+                  onFocus={(event) => event.currentTarget.select()}
+                  onBlur={(event) =>
+                    void rename(item, event.currentTarget.value)
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') event.currentTarget.blur()
+                    if (event.key === 'Escape') setRenaming(null)
+                  }}
+                  className="h-10 w-full rounded-lg bg-muted px-2 text-2sm text-foreground outline-none shadow-focus"
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (item.kind === 'chat') openChat(item.id, item.bench)
+                    else router.push(voiceRoomPath(item.id))
+                    onOpen?.()
+                  }}
+                  aria-current={active ? 'true' : undefined}
+                  data-testid="studio-recent-row"
+                  data-kind={item.kind}
+                  className={cn(
+                    rowClass,
+                    'h-10 pr-9',
+                    active && rowActiveClass,
+                  )}
+                >
+                  {item.kind === 'room' ? (
+                    <RoomCover cover={item.cover} initial={item.initial} />
+                  ) : view?.cover || view?.progress ? (
+                    <ChatCover view={view} />
+                  ) : null}
+                  <span className="min-w-0 flex-1 truncate">{item.title}</span>
+                  {view?.progress ? (
+                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground group-hover/recent:invisible">
+                      {view.progress.done}/{view.progress.total}
+                    </span>
+                  ) : view?.unseen ? (
+                    <span
+                      aria-label={t('newResult')}
+                      data-testid="studio-recent-unseen"
+                      className="size-1.5 shrink-0 rounded-full bg-primary group-hover/recent:invisible"
+                    />
+                  ) : null}
+                </button>
+              )}
+              {renaming === keyOf(item) ? null : (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label={t('recentMore', { title: item.title })}
+                      data-testid="studio-recent-more"
+                      className="absolute top-1/2 right-1.5 grid size-7 -translate-y-1/2 place-items-center rounded-md text-muted-foreground opacity-0 transition-opacity duration-fast ease-standard group-hover/recent:opacity-100 hover:tint-hover hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:shadow-focus data-[state=open]:opacity-100 coarse:opacity-100 [&>svg]:size-4"
+                    >
+                      <MoreHorizontal aria-hidden />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-36">
+                    <DropdownMenuItem onSelect={() => setRenaming(keyOf(item))}>
+                      <Pencil />
+                      {t('recentRename')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onSelect={() => setDeleting(item)}
+                    >
+                      <Trash2 />
+                      {t('recentDelete')}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </li>
           )
         })}
       </ul>
+      <ConfirmDialog
+        open={deleting !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleting(null)
+        }}
+        title={t('recentDeleteTitle', { title: deleting?.title ?? '' })}
+        description={t('recentDeleteBody')}
+        cancelLabel={tCommon('cancel')}
+        confirmLabel={t('recentDelete')}
+        onConfirm={() => {
+          if (deleting) void remove(deleting)
+          setDeleting(null)
+        }}
+      />
     </div>
   )
 }

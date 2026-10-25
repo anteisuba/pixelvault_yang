@@ -99,6 +99,7 @@ import { useHandToAssistant } from '@/hooks/use-hand-to-assistant'
 import { useAssetFolders } from '@/hooks/use-asset-folders'
 import { useGallery, type GalleryFilters } from '@/hooks/use-gallery'
 import { useLocalPreference } from '@/hooks/use-local-preference'
+import { useLibraryRailOpen } from '@/hooks/use-library-rail'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { usePinchStep } from '@/hooks/use-pinch-step'
 import { useTouchLongPress } from '@/hooks/use-touch-long-press'
@@ -130,7 +131,6 @@ import {
 import {
   ASSET_BROWSER_PAGE_SIZE,
   ASSET_FOLDER_RAIL_GAP,
-  ASSET_FOLDER_RAIL_STORAGE_KEY,
   ASSET_FOLDER_RAIL_WIDTH,
   ASSET_FOLDER_UNDO_DURATION_MS,
   ASSET_GRID_AUDIO_ASPECT_RATIO,
@@ -1009,9 +1009,8 @@ export function KreaAssetBrowser({
   // ── 文件夹（文件夹 B：左边一列）───────────────────────────────
   // ⚠ 文件夹范围与收藏 / 发布 / 类型等筛选**叠加**（page §2「可叠加维度」）：
   //   换夹只改 `projectId`，其余筛选原样留着。地址栏跟着走，后退可用、刷新不丢。
-  const [, setStoredRail] = useLocalPreference(ASSET_FOLDER_RAIL_STORAGE_KEY)
-  /** 库整页里文件夹栏一直在（ui-spec §9「库」左栏），⛔ 收起；旧的收起偏好只剩兼容读。 */
-  const railOpen = true
+  /** 文件夹栏 = 库的左栏：库顶上那颗键收起 / 展开（七个库同一份，`useLibraryRailOpen`）。 */
+  const [railOpen, toggleRail] = useLibraryRailOpen()
   const [isFolderDrawerOpen, setIsFolderDrawerOpen] = useState(false)
   /** 栏里正在改名的夹（Eagle 式新建：建好的「未命名文件夹」直接进这里）。 */
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null)
@@ -1074,9 +1073,10 @@ export function KreaAssetBrowser({
 
   /** 顶栏那颗键：桌面上展开栏，窄屏拉出左边抽屉。 */
   const revealFolders = useCallback(() => {
-    if (window.matchMedia('(min-width: 768px)').matches) setStoredRail('open')
-    else setIsFolderDrawerOpen(true)
-  }, [setStoredRail])
+    if (window.matchMedia('(min-width: 768px)').matches) {
+      if (!railOpen) toggleRail()
+    } else setIsFolderDrawerOpen(true)
+  }, [railOpen, toggleRail])
 
   // 后退/前进：从地址栏读回范围，⛔ 不再 push（否则历史会自乘）。
   useEffect(() => {

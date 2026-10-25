@@ -172,14 +172,14 @@ export function AssetTile({
           */
           audioCaption || durationLabel ? (
             <span
-              className="asset-tile-veil absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 px-2 pb-1.5 pt-6 text-left"
+              className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 px-2.5 pb-2 text-left"
               aria-hidden
             >
-              <span className="min-w-0 flex-1 truncate text-2xs text-white">
+              <span className="min-w-0 flex-1 truncate text-2xs text-foreground">
                 {audioCaption}
               </span>
               {durationLabel ? (
-                <span className="asset-tile-veil-sub flex shrink-0 items-center gap-1 text-3xs tabular-nums">
+                <span className="flex shrink-0 items-center gap-1 text-3xs text-muted-foreground tabular-nums">
                   <Mic className="size-2.5" />
                   {durationLabel}
                 </span>
@@ -398,24 +398,24 @@ function AudioTileCover({
   coverUrl?: string
   onCoverError: (url: string) => void
 }) {
-  if (!coverUrl) {
-    return (
-      <span className="absolute inset-0 grid place-items-center">
-        <span className="grid size-[46%] place-items-center rounded-full border border-border">
-          <span className="size-[62%] rounded-full border border-border" />
-        </span>
-      </span>
-    )
-  }
+  // 与音色库同一种卡（用户 10-25）：灰底正中一颗圆头像；没封面画一圈空心圆。
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- Audio cover URLs can be provider/model configured.
-    <img
-      src={coverUrl}
-      alt=""
-      loading="lazy"
-      draggable={false}
-      className="absolute inset-0 size-full object-cover"
-      onError={() => onCoverError(coverUrl)}
-    />
+    <span className="absolute inset-0 grid place-items-center">
+      {coverUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element -- Audio cover URLs can be provider/model configured.
+        <img
+          src={coverUrl}
+          alt=""
+          loading="lazy"
+          draggable={false}
+          className="size-20 rounded-full bg-background object-cover"
+          onError={() => onCoverError(coverUrl)}
+        />
+      ) : (
+        <span className="grid size-20 place-items-center rounded-full bg-fill-strong text-muted-foreground">
+          <Mic className="size-6" />
+        </span>
+      )}
+    </span>
   )
 }

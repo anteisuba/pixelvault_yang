@@ -1220,6 +1220,15 @@ html:lang(ja) {
     );
   }
 
+  /*
+   * 外壳里（台 / 画布 / 库）两指横滑是换台、移画布，⛔ 让 Mac 触控板「滑动返回」把页面退回去
+   * （用户 10-25）。只在外壳挂着时关，别的页照旧。
+   */
+  html:has([data-testid='studio-shell']),
+  html:has([data-testid='studio-shell']) body {
+    overscroll-behavior-x: none;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-synthesis-weight: none;

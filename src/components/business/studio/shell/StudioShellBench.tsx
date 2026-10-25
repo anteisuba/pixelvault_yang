@@ -14,13 +14,17 @@ import { useTranslations } from 'next-intl'
 
 import {
   SHELL_NAV_TOOLS,
+  STUDIO_LIBRARY_ITEMS,
   activeShellTool,
   type ShellNavItem,
 } from '@/constants/navigation'
 import { SHELL_MOTION } from '@/constants/motion'
 import {
+  STUDIO_LIBRARY_TAB_IDS,
   STUDIO_SHELL_BENCH_IDS,
   STUDIO_SHELL_SWIPE,
+  studioLibraryPath,
+  type StudioLibraryCategoryId,
   type StudioShellBenchId,
 } from '@/constants/studio-shell'
 import { AssistantAvatarGlyph } from '@/components/business/studio/assistant-operator/AssistantAvatarGlyph'
@@ -216,7 +220,7 @@ export function useStudioBenchSwipe({
       const { deltaX, deltaY } = event
       if (Math.abs(deltaX) < Math.abs(deltaY) * STUDIO_SHELL_SWIPE.dominance)
         return
-      if (scrollsSideways(event.target, content, deltaX)) {
+      if (scrollsSideways(event.target, content)) {
         total = 0
         return
       }
@@ -236,21 +240,19 @@ export function useStudioBenchSwipe({
   }, [activeId, contentRef, enabled])
 }
 
-/** 从手指底下往上到台框，有没有一层还能往这个方向横着滚。 */
+/**
+ * 从手指底下往上到台框，有没有一层能横着滚。⚠ 滚到头也算（用户 10-25：在「出过的图」那一排
+ * 滑到头就换了台）—— 手指在横排上，这一下就归横排。
+ */
 function scrollsSideways(
   target: EventTarget | null,
   root: HTMLElement,
-  deltaX: number,
 ): boolean {
   let node = target instanceof Element ? target : null
   while (node && node !== root) {
     if (node.scrollWidth > node.clientWidth + 1) {
       const overflowX = getComputedStyle(node).overflowX
-      if (overflowX === 'auto' || overflowX === 'scroll') {
-        const atStart = node.scrollLeft <= 0
-        const atEnd = node.scrollLeft + node.clientWidth >= node.scrollWidth - 1
-        if ((deltaX < 0 && !atStart) || (deltaX > 0 && !atEnd)) return true
-      }
+      if (overflowX === 'auto' || overflowX === 'scroll') return true
     }
     node = node.parentElement
   }
@@ -358,6 +360,58 @@ export function StudioBenchPicker({
               aria-label={label}
               aria-current={active ? 'page' : undefined}
               data-bench={item.id}
+              onClick={onPicked}
+              className={cn(PICKER_BUTTON_CLASS, active && PICKER_ACTIVE_CLASS)}
+            >
+              <Icon />
+            </Link>
+          </BarTip>
+        )
+      })}
+    </nav>
+  )
+}
+
+/** 库的那几样（左栏「库」弹出的那一排，用户 10-25）：LoRA · 酒馆 · 标签 · 音色。 */
+const LIBRARY_PICKER_ITEMS = STUDIO_LIBRARY_TAB_IDS.flatMap((id) =>
+  STUDIO_LIBRARY_ITEMS.filter((item) => item.id === id),
+)
+
+/**
+ * 左栏「库」点开的那一条（用户 10-25：跟「工作台」一样，点一下出一排）：竖排图标，点一个进那个库。
+ * 库开着时换一个 = 换叠层里那一页，⛔ 多压一层历史。
+ */
+export function StudioLibraryPicker({
+  activeId,
+  replace,
+  onPicked,
+}: {
+  activeId: StudioLibraryCategoryId | null
+  /** 库已经开着：换一个用 replace。 */
+  replace: boolean
+  onPicked?: () => void
+}) {
+  const t = useTranslations('StudioShell')
+  const tAll = useTranslations()
+
+  return (
+    <nav
+      aria-label={t('library')}
+      data-testid="studio-library-picker"
+      className="flex flex-col gap-1 rounded-full bg-raise p-1 shadow-soft"
+    >
+      {LIBRARY_PICKER_ITEMS.map((item) => {
+        const Icon = item.icon
+        const label = tAll(item.labelKey)
+        const active = item.id === activeId
+        return (
+          <BarTip key={item.id} label={label} side="right">
+            <Link
+              href={studioLibraryPath(item.id as StudioLibraryCategoryId)}
+              replace={replace}
+              aria-label={label}
+              aria-current={active ? 'page' : undefined}
+              data-library={item.id}
               onClick={onPicked}
               className={cn(PICKER_BUTTON_CLASS, active && PICKER_ACTIVE_CLASS)}
             >

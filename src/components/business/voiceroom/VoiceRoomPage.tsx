@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 
@@ -102,7 +102,11 @@ export function VoiceRoomPage() {
     router.replace(voiceRoomPath(activeRoomId), { scroll: false })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeRoomId])
-  usePublishVoiceRooms(rooms, activeRoomId)
+  const roomEditors = useMemo(
+    () => ({ renameRoom, removeRoom }),
+    [renameRoom, removeRoom],
+  )
+  usePublishVoiceRooms(rooms, activeRoomId, roomEditors)
 
   /*
    * ⚠ 只挂 `ApiKeysProvider`，**不是** `StudioProvider`。

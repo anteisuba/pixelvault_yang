@@ -157,7 +157,8 @@
       "cards": "キャラクター",
       "voices": "ボイス",
       "profile": "マイページ",
-      "tags": "タグ"
+      "tags": "タグ",
+      "tavern": "酒場"
     },
     "groupLabel": "移動先"
   },

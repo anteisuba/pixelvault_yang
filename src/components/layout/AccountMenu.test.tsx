@@ -1,5 +1,11 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { THEME_STORAGE_KEY } from '@/constants/theme'
@@ -198,15 +204,21 @@ describe('AccountMenu（D11 ④）', () => {
 
     const { options } = await findLanguageRow()
     fireEvent.click(options[1])
-    expect(replace).toHaveBeenCalledWith('/studio/image?tab=lora', {
-      locale: 'ja',
-    })
+    // 选中块先滑到新格，滑完才换地址。
+    expect(options[1]).toHaveAttribute('aria-checked', 'true')
+    expect(replace).not.toHaveBeenCalled()
+    await waitFor(() =>
+      expect(replace).toHaveBeenCalledWith('/studio/image?tab=lora', {
+        locale: 'ja',
+      }),
+    )
     // 换语言不是关菜单的动作：菜单还开着。
     expect(screen.getByText('LocaleSwitcher:label')).toBeInTheDocument()
 
     // 点当前那一格什么都不做。
     replace.mockClear()
-    fireEvent.click(options[2])
+    fireEvent.click(options[1])
+    await new Promise((resolve) => setTimeout(resolve, 400))
     expect(replace).not.toHaveBeenCalled()
   })
 
@@ -216,13 +228,18 @@ describe('AccountMenu（D11 ④）', () => {
 
     const { item } = await findLanguageRow()
     fireEvent.keyDown(item, { key: 'ArrowRight' })
-    expect(replace).toHaveBeenLastCalledWith('/studio/image?tab=lora', {
-      locale: 'en',
-    })
+    await waitFor(() =>
+      expect(replace).toHaveBeenLastCalledWith('/studio/image?tab=lora', {
+        locale: 'en',
+      }),
+    )
+    // 从刚滑到的那一格（en）往左 = zh。
     fireEvent.keyDown(item, { key: 'ArrowLeft' })
-    expect(replace).toHaveBeenLastCalledWith('/studio/image?tab=lora', {
-      locale: 'ja',
-    })
+    await waitFor(() =>
+      expect(replace).toHaveBeenLastCalledWith('/studio/image?tab=lora', {
+        locale: 'zh',
+      }),
+    )
   })
 
   it('「设置」带上来处，与旧的最底一行同一个去处', async () => {

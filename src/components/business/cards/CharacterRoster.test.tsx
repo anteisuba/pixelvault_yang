@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 
 import { zh as zhMessages } from '@/messages'
@@ -309,51 +309,20 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
     await vi.waitFor(() => expect(mockImportTavern).toHaveBeenCalledWith(file))
   })
 
-  it('左栏「卡库」：打开才去搜 chub；「做成角色」建好回到全部并打开她', async () => {
-    mockImportChub.mockReset()
-    mockImportChub.mockResolvedValue(CARDS[1])
+  it('桌面总览 = 书架：顶上计数 · 搜索 · 导入 · 新角色；chub 卡库搬去酒馆库（用户 10-25）', () => {
     renderRoster()
+    expect(screen.getByRole('searchbox')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /导入酒馆卡/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /新角色/ })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /卡库/ })).toBeNull()
     expect(mockLibraryEnabled.value).toBe(false)
-    fireEvent.click(screen.getByRole('button', { name: /卡库/ }))
-    expect(mockLibraryEnabled.value).toBe(true)
-    expect(screen.getByRole('button', { name: /卡库/ })).toHaveAttribute(
-      'aria-current',
-      'true',
-    )
-    // 卡片上没有按钮：点开站内详情，「做成角色」在详情里。
-    expect(screen.queryByRole('button', { name: '把 Rei 做成角色' })).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: '查看 Rei 的详情' }))
-    expect(screen.getByText('雨夜里的店主')).toBeTruthy()
-    expect(screen.getByText('欢迎光临。')).toBeTruthy()
-    expect(screen.getByText('另有 1 条备选开场白')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: '把 Rei 做成角色' }))
-    await vi.waitFor(() =>
-      expect(mockImportChub).toHaveBeenCalledWith('maker/rei'),
-    )
-    await vi.waitFor(() =>
-      expect(screen.getByRole('region', { name: '里希' })).toBeTruthy(),
-    )
-    fireEvent.click(screen.getByRole('button', { name: '角色' }))
-    expect(screen.getByRole('button', { name: /全部/ })).toHaveAttribute(
-      'aria-current',
-      'true',
-    )
   })
 
-  it('左栏「收藏」只摆收藏了的；格子上的书签点了就收藏', () => {
-    renderRoster()
-    const rail = screen.getByRole('navigation', { name: '角色' })
-    fireEvent.click(within(rail).getByRole('button', { name: /收藏/ }))
-    expect(screen.queryAllByTestId('roster-tile')).toHaveLength(0)
-    fireEvent.click(within(rail).getByRole('button', { name: /全部/ }))
-    fireEvent.click(screen.getAllByRole('button', { name: '收藏' })[0]!)
-    expect(mockToggleFavorite).toHaveBeenCalledWith(CARDS[0]!.id)
-  })
-
-  it('?tab=library 直接打开卡库', () => {
+  it('桌面带 ?tab=library 进来也只是书架（卡库在酒馆库）', () => {
     mockSearch.value = 'tab=library'
     renderRoster()
-    expect(screen.getAllByTestId('library-tile')).toHaveLength(1)
+    expect(screen.queryAllByTestId('library-tile')).toHaveLength(0)
+    expect(screen.getAllByTestId('roster-tile').length).toBeGreaterThan(0)
   })
 
   it('新角色草稿没起名就返回 = 什么都没建', () => {

@@ -104,15 +104,6 @@ export function studioLibraryPath(category: StudioLibraryCategoryId): string {
 /** 库左栏收起 / 展开（本机记住，七个库同一份）。 */
 export const LIBRARY_RAIL_STORAGE_KEY = 'pv:library:rail'
 
-/** 台叫库来挑东西（「选给 XX 台」，9f-2d）：库那一类认 `?pick=1` 才换成挑选的样子。 */
-export const STUDIO_LIBRARY_PICK_PARAM = 'pick'
-
-export function studioLibraryPickPath(
-  category: StudioLibraryCategoryId,
-): string {
-  return `${studioLibraryPath(category)}?${STUDIO_LIBRARY_PICK_PARAM}=1`
-}
-
 /**
  * 标签库里直接打开一个 tag 的详情（台上 Ctrl+点一格标签，9f-2c）。`of` 不写 = 按 tag 自己的
  * 类别认。参数名与 `TagLibraryView` 那份一致。

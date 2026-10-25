@@ -57,11 +57,12 @@ const STUB_OPERATOR_HOST: StudioOperatorHost = {
 
 const mockTemplatesToggle = vi.hoisted(() => vi.fn())
 const TEMPLATES = { open: false, onToggle: mockTemplatesToggle }
+const CARDS = { open: false, onToggle: () => {} }
 
 function renderPromptArea(templates = TEMPLATES) {
   return render(
     <StudioOperatorHostProvider host={STUB_OPERATOR_HOST}>
-      <StudioPromptArea templates={templates} />
+      <StudioPromptArea templates={templates} characterCards={CARDS} />
     </StudioOperatorHostProvider>,
   )
 }
@@ -346,7 +347,11 @@ function getSubmittedVideoPayload(): Record<string, unknown> {
 function renderVideoBottom(templates = TEMPLATES) {
   return render(
     <StudioOperatorHostProvider host={STUB_OPERATOR_HOST}>
-      <StudioPromptArea layout="bottom" templates={templates} />
+      <StudioPromptArea
+        layout="bottom"
+        templates={templates}
+        characterCards={CARDS}
+      />
     </StudioOperatorHostProvider>,
   )
 }
@@ -536,7 +541,11 @@ describe('StudioPromptArea', () => {
     const renderBottom = () =>
       render(
         <StudioOperatorHostProvider host={STUB_OPERATOR_HOST}>
-          <StudioPromptArea layout="bottom" templates={TEMPLATES} />
+          <StudioPromptArea
+            layout="bottom"
+            templates={TEMPLATES}
+            characterCards={CARDS}
+          />
         </StudioOperatorHostProvider>,
       )
     const setupImage = (overrides: Partial<StudioFormState> = {}) =>
@@ -708,6 +717,7 @@ describe('StudioPromptArea', () => {
         <StudioPromptArea
           layout="bottom"
           templates={{ ...TEMPLATES, open: true }}
+          characterCards={CARDS}
         />
       </StudioOperatorHostProvider>,
     )

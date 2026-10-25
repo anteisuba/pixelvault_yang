@@ -1,7 +1,6 @@
 'use client'
 
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import { usePathname } from 'next/navigation'
 import { motion, useTransform } from 'motion/react'
@@ -11,7 +10,6 @@ import { DURATION_MS } from '@/constants/motion'
 import { getProviderLabel } from '@/constants/providers'
 import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
 import { STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR } from '@/constants/studio-assistant-operator'
-import { studioLibraryPickPath } from '@/constants/studio-shell'
 import { landRecipeInComposer } from '@/lib/studio-workbench-motion'
 import {
   StudioCanvas,
@@ -28,7 +26,7 @@ import {
 } from '@/components/business/studio/tags/StudioTagsWorkbench'
 import { StudioTagsComposer } from '@/components/business/studio/tags/StudioTagsComposer'
 import { StudioTemplatesPanel } from '@/components/business/studio/templates/StudioTemplatesPanel'
-import { StudioLibraryTargetContext } from '@/components/business/studio/shell/StudioLibraryOverlay'
+import { StudioCardsStagePanel } from '@/components/business/studio/StudioCardsStagePanel'
 import { StudioTemplateUndoToast } from '@/components/business/studio/templates/StudioTemplateUndoToast'
 import { StudioStageSwap } from '@/components/business/studio-shared/chrome/StudioStageSwap'
 import { StudioDialectHeader } from '@/components/business/studio/tags/StudioDialectHeader'
@@ -42,10 +40,8 @@ import {
   useStudioForm,
   useStudioGen,
 } from '@/contexts/studio-context'
-import { useLibraryPickSlot } from '@/contexts/studio-library-pick'
 import { StudioOperatorHostProvider } from '@/contexts/studio-operator-host'
 import { useIsMobile } from '@/hooks/use-mobile'
-import { useRouter } from '@/i18n/navigation'
 import { useStudioModeModelOptions } from '@/hooks/use-studio-mode-model-options'
 import { useStudioTemplateApply } from '@/hooks/use-studio-template-apply'
 import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
@@ -86,6 +82,9 @@ function buildRefinePrompt(
  * route mode changes) lives in StudioModeSync — pages emit it; this
  * component never sees the prop.
  */
+/** 舞台上能换上来的面板：标签台那几块 + 自然语言图片台的「角色」。 */
+type StagePanel = TagWorkbenchPanel | 'cards'
+
 export function StudioWorkspaceUI() {
   const t = useTranslations('StudioPage')
   const { state, dispatch } = useStudioForm()
@@ -154,10 +153,12 @@ export function StudioWorkspaceUI() {
   )
   /**
    * 舞台上开着哪块面板：模板（每一台都有 —— 图片两台与视频，桌面与手机，模板 C
-   * 第二片）· 查资料 / 构图 / 提示词块（只有标签台）。换档（图片 ↔ 视频）全收；
-   * 离开标签台时标签台那三块收掉。
+   * 第二片）· 查资料 / 构图（只有标签台）· 角色（只有桌面自然语言图片台，10-25 用户定；
+   * 手机在「＋」抽屉里）。换档（图片 ↔ 视频）全收；换台时只留模板。
    */
-  const [stagePanel, setStagePanel] = useState<TagWorkbenchPanel | null>(null)
+  const [stagePanel, setStagePanel] = useState<StagePanel | null>(null)
+  /** 标签台只认它自己那几块。 */
+  const tagsPanel = stagePanel === 'cards' ? null : stagePanel
   const beginEdit = useCallback(
     (target?: StudioImageEditTarget) => {
       if (isGenerating || editRunning) return
@@ -189,7 +190,11 @@ export function StudioWorkspaceUI() {
   if (stagePanelOutputType !== state.outputType) {
     setStagePanelOutputType(state.outputType)
     setStagePanel(null)
-  } else if (stagePanel && stagePanel !== 'templates' && !isTagsWorkbench)
+  } else if (
+    stagePanel &&
+    stagePanel !== 'templates' &&
+    isTagsWorkbench === (stagePanel === 'cards')
+  )
     setStagePanel(null)
   /**
    * 模板 C（owner 2026-09-26）：模板在舞台上打开；点一张直接套用、回到结果，
@@ -199,28 +204,8 @@ export function StudioWorkspaceUI() {
   const { modelOptions: modeModelOptions, selectedModel: modeModel } =
     useStudioModeModelOptions()
   const templateApply = useStudioTemplateApply(modeModelOptions)
-  /**
-   * 第 9f 步 9f-2d：≥768 的模板 = 外壳中间库叠层的「提示词」一类在挑选的样子
-   * （`/library/prompts?pick=1`），这份面板传送进库那一格 —— 套用与撤销仍是这里那一份快照。
-   * 手机仍在舞台上打开（画板「模板 C · 手机」）。
-   */
-  const tTools = useTranslations('StudioTools')
-  const router = useRouter()
-  const libraryClose = useContext(StudioLibraryTargetContext)?.close
-  const templatesSlot = useLibraryPickSlot(
-    'prompts',
-    isMobile
-      ? null
-      : tTools(
-          state.outputType === 'video'
-            ? 'tools.video.label'
-            : 'tools.image.label',
-        ),
-  )
-  const closeTemplates = useCallback(() => {
-    if (isMobile) setStagePanel(null)
-    else libraryClose?.()
-  }, [isMobile, libraryClose])
+  /** 模板 / 角色都在舞台出图那块打开（10-25 用户定：桌面也一样，⛔ 跳去库），收起回到结果。 */
+  const closeStagePanel = useCallback(() => setStagePanel(null), [])
   const templatesPanel = (
     <StudioTemplatesPanel
       // 手机（<1024）走画板「模板 C · 手机」那一版：‹ 标题 ＋、搜索独占一行。
@@ -239,19 +224,16 @@ export function StudioWorkspaceUI() {
       }}
       onApply={(recipe) => {
         templateApply.apply(recipe)
-        closeTemplates()
+        closeStagePanel()
       }}
-      onClose={closeTemplates}
+      onClose={closeStagePanel}
     />
   )
-  const toggleTemplates = useCallback(() => {
-    if (!isMobile) {
-      if (templatesSlot) libraryClose?.()
-      else router.push(studioLibraryPickPath('prompts'))
-      return
-    }
-    setStagePanel((current) => (current === 'templates' ? null : 'templates'))
-  }, [isMobile, libraryClose, router, templatesSlot])
+  const toggleStagePanel = useCallback(
+    (panel: StagePanel) =>
+      setStagePanel((current) => (current === panel ? null : panel)),
+    [],
+  )
   /** 撤销那一下输入框里的内容从 40% 淡回来 —— 看得出「换回去了」。 */
   const [composerRestoring, setComposerRestoring] = useState(false)
   useEffect(() => {
@@ -263,9 +245,13 @@ export function StudioWorkspaceUI() {
     return () => window.clearTimeout(timer)
   }, [composerRestoring])
   const templatesControl = {
-    open: isMobile ? stagePanel === 'templates' : templatesSlot !== null,
-    onToggle: toggleTemplates,
+    open: stagePanel === 'templates',
+    onToggle: () => toggleStagePanel('templates'),
     restoring: composerRestoring,
+  }
+  const characterCardsControl = {
+    open: stagePanel === 'cards',
+    onToggle: () => toggleStagePanel('cards'),
   }
   /**
    * 「已套用 · 撤销」挂在哪：有底部输入框 / 底栏的挂在它上沿（`above`）；竖排
@@ -418,15 +404,6 @@ export function StudioWorkspaceUI() {
       >
         {t('skipToPrompt')}
       </a>
-      {!isMobile && templatesSlot
-        ? createPortal(
-            <div className="flex h-full min-h-0 flex-col p-4">
-              {templatesPanel}
-            </div>,
-            templatesSlot,
-            'studio-templates',
-          )
-        : null}
 
       <div
         role="tabpanel"
@@ -480,7 +457,7 @@ export function StudioWorkspaceUI() {
               composer: editComposer,
             }) => (
               <StudioTagsWorkbench
-                panel={stagePanel}
+                panel={tagsPanel}
                 onPanelChange={setStagePanel}
                 templates={templatesPanel}
                 templatesRestoring={composerRestoring}
@@ -512,7 +489,7 @@ export function StudioWorkspaceUI() {
                             (isTagsWorkbench ? (
                               <StudioTagsComposer
                                 onOpenPanel={setStagePanel}
-                                activePanel={stagePanel}
+                                activePanel={tagsPanel}
                               />
                             ) : (
                               <StudioPromptArea
@@ -520,6 +497,7 @@ export function StudioWorkspaceUI() {
                                   isPromptAreaBottom ? 'bottom' : 'column'
                                 }
                                 templates={templatesControl}
+                                characterCards={characterCardsControl}
                               />
                             ))}
                         </>
@@ -533,8 +511,8 @@ export function StudioWorkspaceUI() {
                             tagsStage
                           ) : isTagsWorkbench ? (
                             <StudioTagsStage
-                              panel={stagePanel}
-                              onClose={() => setStagePanel(null)}
+                              panel={tagsPanel}
+                              onClose={closeStagePanel}
                               bottom
                               templates={templatesPanel}
                               onEditImage={beginEdit}
@@ -542,9 +520,20 @@ export function StudioWorkspaceUI() {
                           ) : (
                             <StudioStageSwap
                               panelKey={
-                                stagePanel === 'templates' ? 'templates' : null
+                                stagePanel === 'templates' ||
+                                stagePanel === 'cards'
+                                  ? stagePanel
+                                  : null
                               }
-                              renderPanel={() => templatesPanel}
+                              renderPanel={(key) =>
+                                key === 'cards' ? (
+                                  <StudioCardsStagePanel
+                                    onClose={closeStagePanel}
+                                  />
+                                ) : (
+                                  templatesPanel
+                                )
+                              }
                               renderResults={(motionClass) => (
                                 <StudioCanvas
                                   // 手机输入条里自带参考图排 —— 舞台不再画一遍，

@@ -116,11 +116,14 @@ interface StudioPromptAreaProps {
    * 由布局整张卡淡回，见 `StudioWorkbenchLayout.paramsClassName`）。
    */
   templates: { open: boolean; onToggle: () => void; restoring?: boolean }
+  /** 「角色」同模板：开合的是舞台上那块面板（10-25 用户定，⛔ 跳去库）。 */
+  characterCards: { open: boolean; onToggle: () => void }
 }
 
 export const StudioPromptArea = memo(function StudioPromptArea({
   layout = 'column',
   templates,
+  characterCards,
 }: StudioPromptAreaProps) {
   const { state, dispatch } = useStudioForm()
   const { imageUpload, characters } = useStudioData()
@@ -547,7 +550,11 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                   disabled={isGenerating}
                 />
                 {isVideoMode ? null : (
-                  <StudioCardsButton disabled={isGenerating} />
+                  <StudioCardsButton
+                    disabled={isGenerating}
+                    open={characterCards.open}
+                    onToggle={characterCards.onToggle}
+                  />
                 )}
                 {negativeAvailable ? (
                   <Toolbar.Button
@@ -938,7 +945,13 @@ export const StudioPromptArea = memo(function StudioPromptArea({
               其余四颗（助手 / 参考图 / 比例 / 张数）参数栏本来就有：比例与张数
               在「规格」浮层里，参考图就在左边，助手是右上角浮标。
               （卡片模式 2026-10-22 下线：选了角色就带上，不再另切模式。） */}
-          {isImageMode ? <StudioCardsButton disabled={isGenerating} /> : null}
+          {isImageMode ? (
+            <StudioCardsButton
+              disabled={isGenerating}
+              open={characterCards.open}
+              onToggle={characterCards.onToggle}
+            />
+          ) : null}
         </Toolbar.Root>
 
         {/* 模型（图片）—— 这一轮的名单。行不是丸：行能装下单价，缺价一眼看得出来。

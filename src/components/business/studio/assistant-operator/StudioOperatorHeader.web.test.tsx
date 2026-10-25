@@ -8,7 +8,6 @@ import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator
 
 import {
   getOperatorState,
-  resetOperatorThread,
   setOperatorIncognito,
 } from '@/hooks/use-studio-operator-store'
 
@@ -106,18 +105,6 @@ vi.mock('@/components/ui/dropdown-menu', async () => {
     DropdownMenuSeparator: () => <hr />,
   }
 })
-
-vi.mock('@/hooks/use-chat-characters', () => ({
-  useChatCharacters: () => ({
-    characters: [
-      {
-        character: { id: 'card-rin', name: 'Rin' },
-        opening: '欢迎光临喵',
-      },
-    ],
-    isLoading: false,
-  }),
-}))
 
 const NOW = Date.now()
 const DAY_MS = 86_400_000
@@ -461,25 +448,18 @@ describe('StudioOperatorHeader', () => {
     }
   })
 
-  it('⭐ 聊天会话（附录L）：按「工作 / 和谁聊」分组，「新对话」和同一个角色新开一段', () => {
+  it('⭐ 以前的聊天会话（只读）照旧按「工作 / 和谁聊」分组；「新对话」一律开工作对话', () => {
     const rin = { id: 'card-rin', name: 'Rin' }
     const sessions = [
       { ...SESSIONS[0], chatCharacter: rin },
       SESSIONS[1],
       { ...SESSIONS[2], chatCharacter: rin },
     ] as unknown as UseStudioOperatorHistoryResult['sessions']
-    resetOperatorThread(undefined, { character: rin, opening: '' })
     const { onNewThread } = renderHeader({
       history: { ...HISTORY, sessions },
     })
-    // 「和 X 聊」胶囊收进了聊天弹层（P4 第 6 项）。
-    expect(screen.queryByTestId('operator-chat-pill')).toBeNull()
-    expect(
-      screen.getByTestId('operator-mode-chat').getAttribute('aria-pressed'),
-    ).toBe('true')
-    expect(screen.getByTestId('operator-new-thread').textContent).toContain(
-      'chat.newChatThread',
-    )
+    // ⛔ 工作 / 聊天切换已去掉（用户 10-25）。
+    expect(screen.queryByTestId('operator-mode-chat')).toBeNull()
     fireEvent.click(screen.getByTestId('operator-session-menu'))
     const content = screen.getAllByTestId(
       'operator-session-dropdown-content',
@@ -492,16 +472,11 @@ describe('StudioOperatorHeader', () => {
     expect(text.indexOf('城市天台构图')).toBeLessThan(
       text.indexOf('chat.workGroup'),
     )
-    // ⛔ 菜单里不再有「和角色聊…」：切模式只走头部那颗按钮。
-    expect(screen.queryByTestId('operator-chat-with')).toBeNull()
-
+    expect(screen.getByTestId('operator-new-thread').textContent).toContain(
+      'newThread',
+    )
     fireEvent.click(screen.getByTestId('operator-new-thread'))
-    expect(onNewThread).toHaveBeenCalledWith({
-      character: rin,
-      opening: '欢迎光临喵',
-    })
-    cleanup()
-    resetOperatorThread()
+    expect(onNewThread).toHaveBeenCalledWith()
   })
 
   it('续跑 chip 只在空闲时露脸', () => {

@@ -1166,6 +1166,7 @@
     "libraryAssistant": "Assistant",
     "libraryRailHide": "Hide sidebar",
     "libraryRailShow": "Show sidebar",
-    "workbench": "Workbenches"
+    "workbench": "Workbenches",
+    "homeVoiceRoom": "Voice room"
   }
 }

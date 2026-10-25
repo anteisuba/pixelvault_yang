@@ -28,10 +28,8 @@ import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import { useChatCharacters } from '@/hooks/use-chat-characters'
 import { useOpenCharacterRoom } from '@/hooks/use-open-character-room'
 import { useShellVoiceRooms } from '@/hooks/use-shell-voice-rooms'
-import {
-  switchOperatorChatMode,
-  useStudioOperatorState,
-} from '@/hooks/use-studio-operator-store'
+import { useStudioOperatorActions } from '@/hooks/use-studio-operator-actions'
+import { useStudioOperatorState } from '@/hooks/use-studio-operator-store'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import { voiceRoomCastKey } from '@/lib/voiceroom-cast'
 import { cn } from '@/lib/utils'
@@ -173,6 +171,8 @@ export function StudioOperatorAvatarSwitcher({
   const { persona } = useAssistantPersona()
   const characters = useChatCharacters(open)
   const { rooms } = useShellVoiceRooms()
+  const { chatCharacter } = useStudioOperatorState()
+  const operatorActions = useStudioOperatorActions()
   const activeRoom = useActiveVoiceRoom()
   const characterRoom = useOpenCharacterRoom()
   const router = useRouter()
@@ -200,7 +200,8 @@ export function StudioOperatorAvatarSwitcher({
   }
 
   const pickAssistant = () => {
-    switchOperatorChatMode(null)
+    // 正看着以前的聊天（只读）→ 开一段新的工作对话。
+    if (chatCharacter) operatorActions?.newThread()
     if (pathname.startsWith(ROUTES.STUDIO_AUDIO)) router.push(ROUTES.STUDIO)
     close()
   }

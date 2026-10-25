@@ -77,7 +77,6 @@ import {
   type StudioOperatorHistoryRestore,
 } from '@/hooks/use-studio-operator-history'
 import { publishStudioOperatorActions } from '@/hooks/use-studio-operator-actions'
-import { fillOperatorChatMacros } from '@/lib/studio-operator-chat'
 import {
   getOperatorState,
   setOperatorPlanMode,
@@ -85,8 +84,6 @@ import {
   takeOperatorAttachment,
   takeOperatorDraft,
   subscribeOperatorDraft,
-  takeOperatorChat,
-  subscribeOperatorChat,
   useStudioOperatorState,
 } from '@/hooks/use-studio-operator-store'
 import { useStudioOperatorUpload } from '@/hooks/use-studio-operator-upload'
@@ -438,7 +435,6 @@ export function StudioOperatorDock({
    *   挂在那里的下场是每展开一次就重新拉一遍。
    */
   const { persona, save: savePersona } = useAssistantPersona()
-  const tChat = useTranslations('StudioOperator.chat')
   /**
    * 文本模型 chip 选中即写（§4.5）。⚠ **写的是整份 persona**：`PUT` 收的是完整
    * 形状，只递一列会把其余几列按默认值覆盖回去。⛔ 别在 chip 里自己 `save()` ——
@@ -933,7 +929,6 @@ export function StudioOperatorDock({
     return subscribeOperatorDraft(consume)
   }, [threadScope, workspaceKey, ownsComposer, setDraft, setOpen])
 
-  /** 「和她聊」（附录L）：开一段和她的聊天会话、打开面板。 */
   const { newThread } = operator
   /** 外壳左边列表的「新对话」用的是同一只手（第 9f 步）。 */
   useEffect(() => {
@@ -941,17 +936,6 @@ export function StudioOperatorDock({
     publishStudioOperatorActions(actions)
     return () => publishStudioOperatorActions(null)
   }, [newThread])
-  const chatUserName = persona.addressUserAs?.trim() || tChat('you')
-  useEffect(() => {
-    const consume = () => {
-      const chat = takeOperatorChat()
-      if (!chat) return
-      newThread(fillOperatorChatMacros(chat, chatUserName))
-      setOpen(true)
-    }
-    consume()
-    return subscribeOperatorChat(consume)
-  }, [newThread, setOpen, chatUserName])
 
   /** 找到的图「保存」= 只进素材库（P4 第 12 项），⛔ 不再挂进附件、不占参考位。 */
   const webImport = useStudioOperatorWebImport({ scopeKey: attachmentScope })

@@ -187,6 +187,16 @@ const HOST_SPEC = vi.hoisted(() => ({
   noReferences: false,
 }))
 
+vi.mock(
+  '@/components/business/studio/assistant-operator/StudioOperatorOldChatBar',
+  () => ({
+    StudioOperatorOldChatBar: ({
+      character,
+    }: {
+      character: { name: string }
+    }) => <div data-testid="operator-old-chat-bar">{character.name}</div>,
+  }),
+)
 vi.mock('@/contexts/studio-operator-host', () => ({
   useStudioOperatorHost: () => ({
     domain: 'image' as const,
@@ -342,7 +352,6 @@ const onSelectRouteModel = vi.fn().mockResolvedValue(true)
 const onSelectReasoningEffort = vi.fn().mockResolvedValue(true)
 
 const send = vi.fn()
-const regenerate = vi.fn()
 const changeAttachments = vi.fn()
 let initialAttachments: readonly StudioOperatorAttachment[] = []
 
@@ -366,7 +375,6 @@ function PanelHarness() {
           rerunGeneration,
           setGenerationKnob,
           newThread: vi.fn(),
-          regenerate,
         } as unknown as Parameters<typeof Panel>[0]['operator']
       }
       draft={draft}
@@ -396,7 +404,7 @@ function renderPanel() {
 }
 
 describe('StudioOperatorPanel 接线（切片 3a）', () => {
-  it('⭐ 聊天会话：每条对白能改能删，她最后那段能重新生成、左右切；工作会话没有这些', () => {
+  it('⭐ 以前的聊天会话只能看：对白照画，输入区换成「去她的配音间」那一条', () => {
     store.loadOperatorThread({
       sessionId: 'conv-1',
       sessionSurface: 'IMAGE_STUDIO',
@@ -407,46 +415,18 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
       history: [
         { kind: 'message', id: 'message-1', text: '你来了。' },
         { kind: 'user', id: 'user-1', text: '今天去哪？', attachments: [] },
-        {
-          kind: 'message',
-          id: 'message-2',
-          text: '去海边吧。',
-          versions: ['去山上吧。', '去海边吧。'],
-          versionIndex: 1,
-        },
+        { kind: 'message', id: 'message-2', text: '去海边吧。' },
       ],
     })
     renderPanel()
-    // 三条对白各一排动作；只有最后那段有「重新生成」。
-    expect(screen.getAllByTestId('operator-chat-line-actions')).toHaveLength(3)
-    expect(screen.getAllByTestId('operator-chat-regenerate')).toHaveLength(1)
-    expect(screen.getByTestId('operator-chat-line-version')).toHaveTextContent(
-      'versionOf',
+    expect(screen.getByText('去海边吧。')).toBeTruthy()
+    expect(screen.getByTestId('operator-old-chat-bar')).toHaveTextContent(
+      '莉莉',
     )
-    fireEvent.click(screen.getByTestId('operator-chat-regenerate'))
-    expect(regenerate).toHaveBeenCalledTimes(1)
-
-    fireEvent.click(screen.getByRole('button', { name: 'previousVersion' }))
-    expect(screen.getByText('去山上吧。')).toBeTruthy()
-    expect(store.getOperatorState().historyRevision).toBe(1)
-
-    // 改你说的那句：保存后下一轮的对白就是改过的。
-    fireEvent.click(screen.getAllByTestId('operator-chat-line-edit')[1]!)
-    const editor = screen.getByRole('textbox', { name: 'editLabel' })
-    fireEvent.change(editor, { target: { value: '今天去哪玩？' } })
-    fireEvent.click(screen.getByTestId('operator-chat-line-save'))
-    expect(store.getOperatorState().history[1]).toMatchObject({
-      text: '今天去哪玩？',
-    })
-
-    // 删要再点一下确认。
-    fireEvent.click(screen.getAllByTestId('operator-chat-line-delete')[0]!)
-    expect(store.getOperatorState().history).toHaveLength(3)
-    fireEvent.click(screen.getByTestId('operator-chat-line-delete-confirm'))
-    expect(store.getOperatorState().history).toHaveLength(2)
+    expect(screen.queryByTestId('operator-input-area')).toBeNull()
   })
 
-  it('工作会话的对白不带改 / 删 / 重新生成', () => {
+  it('工作会话照常有输入区', () => {
     store.loadOperatorThread({
       sessionId: 'conv-2',
       sessionSurface: 'IMAGE_STUDIO',
@@ -456,7 +436,8 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
       ],
     })
     renderPanel()
-    expect(screen.queryByTestId('operator-chat-line-actions')).toBeNull()
+    expect(screen.queryByTestId('operator-old-chat-bar')).toBeNull()
+    expect(screen.getByTestId('operator-input-area')).toBeTruthy()
   })
 
   it.each(['live', 'history'] as const)(

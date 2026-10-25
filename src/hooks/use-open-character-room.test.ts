@@ -23,7 +23,6 @@ vi.mock('@/lib/api-client/cards', () => ({
 
 const chat = (voiceCardId: string | null): ChatCharacterOption => ({
   character: { id: 'card-1', name: '雪乃' },
-  opening: '',
   avatarUrl: 'https://cdn/x.png',
   voiceCardId,
 })

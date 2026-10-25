@@ -308,7 +308,7 @@ export function useStudioOperatorHistory({
   const lifecycle = useRef(0)
   const mountedScope = useRef<string | null>(null)
   const renamePending = useRef(false)
-  const { entries, historyRevision, sessionId, question, confirm, saveFailed } =
+  const { entries, sessionId, question, confirm, saveFailed } =
     useStudioOperatorState()
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(
     null,
@@ -610,13 +610,12 @@ export function useStudioOperatorHistory({
    * 的），这正是它能当「有没有新东西」的判据的原因。
    */
   useEffect(() => {
-    // 聊天会话里只改 / 删了载回来的历史时 `entries` 可以是空的（附录L 第二片）。
-    if (entries.length === 0 && historyRevision === 0) return
+    if (entries.length === 0) return
     const timer = setTimeout(() => {
       void save()
     }, STUDIO_OPERATOR_HISTORY.saveDebounceMs)
     return () => clearTimeout(timer)
-  }, [entries, historyRevision, save])
+  }, [entries, save])
 
   /**
    * 问题 / 卡片**到货与决定**也要落一次（owner 09-27 刷新丢卡）：它们不在 `entries`

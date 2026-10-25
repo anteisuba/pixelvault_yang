@@ -22,18 +22,13 @@ import {
   ASSISTANT_MENTION_LIMITS,
   ASSISTANT_MENTION_SCOPE_IDS,
 } from '@/constants/assistant-mention'
-import {
-  ASSISTANT_PERSONA_DEFAULTS,
-  ASSISTANT_PERSONA_LIMITS,
-} from '@/constants/assistant-persona'
+import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
-import { CARD_EXTENSIONS } from '@/constants/cards/character-card'
 import type { AssistantPersonaPlanMode } from '@/constants/assistant-persona'
 import type { AssistantOperatorDomain } from '@/constants/assistant-operator'
 import { GENERATION_REVIEW_STATE_IDS } from '@/constants/assistant-operator'
 import type { GenerationReviewState } from '@/constants/assistant-operator'
 import {
-  STUDIO_OPERATOR_CHAT,
   STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
   type StudioOperatorConfirmStatus,
   type StudioOperatorField,
@@ -45,7 +40,6 @@ import {
   readOperatorResume,
   writeOperatorResume,
 } from '@/lib/studio-operator-resume'
-import { updateCharacterCardAPI } from '@/lib/api-client/cards'
 import { mentionFromAttachment, mentionKey } from '@/lib/assistant-mention'
 import type {
   AssistantMention,
@@ -87,7 +81,7 @@ interface StudioOperatorWorkbenchFields {
   primed: boolean
 }
 
-/** 聊天会话的对象（附录L）：会话菜单 / 顶栏只要名字；你在故事里是谁跟着角色走。 */
+/** 以前聊天会话的对象（附录L）：只读那条要名字去找她的配音间。 */
 export interface StudioOperatorChatCharacter {
   id: string
   name: string
@@ -233,22 +227,10 @@ export interface StudioOperatorState {
    */
   offTheRecord: boolean
   /**
-   * **聊天模式**（附录L）：此刻是和哪个角色聊；`null` = 工作模式。
-   * ⭐ 同一段对话里能切（owner 2026-10-16，`switchOperatorChatMode`，切的地方留 `chatMark`）；
-   * 载入历史时从会话上读回最后那个模式。每轮上送 `chatCharacterId`，服务端按这张卡扮演；
-   * 保存时盖在会话首条消息上（= 最后的模式）。
+   * 以前「和角色聊」留下的会话（附录L；用户 10-25 去掉聊天模式）：载入时从会话上读回角色，
+   * 这段只能看、输入区换成「去她的配音间」。`null` = 工作会话（新会话一律是工作）。
    */
   chatCharacter: StudioOperatorChatCharacter | null
-  /**
-   * 聊天会话里正在「重新生成」（附录L 第二片）：被拿掉的那条回复已有的各版。这一轮停下时
-   * 新回复接成最后一版；没写出来就把原来那条放回去（⛔ 一次失败的重新生成吞掉她说过的话）。
-   */
-  regeneration: { versions: readonly string[] } | null
-  /**
-   * 载回来的历史被改过几次（聊天会话改 / 删消息、重新生成）—— 保存的防抖除了 `entries`
-   * 也看它：只动历史时 `entries` 可能一条都没有。换会话 / 新会话归零。
-   */
-  historyRevision: number
   /**
    * 上一轮是**步数用完**停下的（D12 S12）—— 面板据此在末尾给「继续 / 先到这里」。
    * ⚠ 用户一开口（或新对话 / 换会话）就清掉。
@@ -362,8 +344,6 @@ const INITIAL_STATE: StudioOperatorState = {
   incognito: false,
   offTheRecord: false,
   chatCharacter: null,
-  regeneration: null,
-  historyRevision: 0,
   outOfSteps: false,
   capturingFrames: false,
   reviewStates: {},
@@ -479,51 +459,6 @@ export function subscribeOperatorAttachment(listener: () => void): () => void {
   attachmentListeners.add(listener)
   return () => {
     attachmentListeners.delete(listener)
-  }
-}
-
-/**
- * **「和她聊」**（附录L）：角色页「用她 ▾ → 和她聊」递过来，这一页的 Dock 取走后开一段
- * 聊天会话并打开面板。⚠ 只留一个：连点两次就是「和她聊」。取走即消费。
- */
-export interface StudioOperatorChatRequest {
-  character: StudioOperatorChatCharacter
-  opening: string
-  /** 卡上的备选开场白（酒馆卡 `alternate_greetings`）：和开场白一起成为第一句的几版，左右切。 */
-  alternateOpenings?: readonly string[]
-  /** 头像（默认造型的封面）：只给换人那一排看，⛔ 进会话。 */
-  avatarUrl?: string | null
-}
-
-/** 开场白 + 备选 → 第一句的几版（去空、去重，最多 `maxVersions`）。 */
-function chatOpenings(chat: StudioOperatorChatRequest): string[] {
-  return [
-    ...new Set(
-      [chat.opening, ...(chat.alternateOpenings ?? [])]
-        .map((text) => text.trim())
-        .filter(Boolean),
-    ),
-  ].slice(0, STUDIO_OPERATOR_CHAT.maxVersions)
-}
-
-let pendingChat: StudioOperatorChatRequest | null = null
-const chatListeners = new Set<() => void>()
-
-export function requestOperatorChat(request: StudioOperatorChatRequest): void {
-  pendingChat = request
-  for (const listener of chatListeners) listener()
-}
-
-export function takeOperatorChat(): StudioOperatorChatRequest | null {
-  const next = pendingChat
-  pendingChat = null
-  return next
-}
-
-export function subscribeOperatorChat(listener: () => void): () => void {
-  chatListeners.add(listener)
-  return () => {
-    chatListeners.delete(listener)
   }
 }
 
@@ -892,271 +827,12 @@ export function setOperatorStatus(
 ): void {
   emit({
     ...state,
-    ...(status === 'working' ? {} : settleRegeneration()),
     status,
     errorText,
     errorTrace,
     errorCode,
     errorMissingKey,
   })
-}
-
-/**
- * 这一轮停下时收「重新生成」（附录L 第二片）：最后一句话之后她写出来的最后一段接成新一版；
- * 一个字都没写出来（出错 / 停掉）就把原来那条原样放回去。
- */
-function settleRegeneration(): Pick<
-  StudioOperatorState,
-  'entries' | 'regeneration'
-> | null {
-  const pending = state.regeneration
-  if (!pending) return null
-  const lastUser = state.entries.findLastIndex((item) => item.kind === 'user')
-  const replyIndex = state.entries.findLastIndex(
-    (item, index) =>
-      index > lastUser && item.kind === 'message' && item.text.trim() !== '',
-  )
-  const reply = replyIndex >= 0 ? state.entries[replyIndex] : undefined
-  if (reply && reply.kind === 'message') {
-    const versions = [...pending.versions, reply.text].slice(
-      -STUDIO_OPERATOR_CHAT.maxVersions,
-    )
-    const settled: StudioOperatorMessageEntry = {
-      ...reply,
-      versions,
-      versionIndex: versions.length - 1,
-    }
-    return {
-      entries: state.entries.map((item, index) =>
-        index === replyIndex ? settled : item,
-      ),
-      regeneration: null,
-    }
-  }
-  const versions = pending.versions
-  const restored: StudioOperatorMessageEntry = {
-    kind: 'message',
-    id: nextOperatorEntryId('message'),
-    text: versions.at(-1) ?? '',
-    ...(versions.length > 1
-      ? { versions, versionIndex: versions.length - 1 }
-      : {}),
-  }
-  return { entries: [...state.entries, restored], regeneration: null }
-}
-
-/** 一条回复已有的各版：没重新生成过就是它自己这一版。 */
-function versionsOfReply(reply: {
-  text: string
-  versions?: readonly string[] | undefined
-}): readonly string[] {
-  return reply.versions && reply.versions.length > 0
-    ? reply.versions
-    : [reply.text]
-}
-
-/**
- * 聊天会话「重新生成」第一步：拿掉最后一句话之后她说的那一段（在本次会话里或载回来的历史里），
- * 记下已有的各版。返回 `false` = 最后不是她在回话（比如只有开场白），什么都不动。
- * ⚠ 只拿掉、不发：发那一轮由驱动 hook 接着跑（对白现在正好停在你最后那句话上）。
- */
-export function beginOperatorRegenerate(): boolean {
-  const lastUser = state.entries.findLastIndex((item) => item.kind === 'user')
-  if (lastUser >= 0) {
-    const reply = state.entries
-      .slice(lastUser + 1)
-      .findLast((item) => item.kind === 'message' && item.text.trim() !== '')
-    if (!reply || reply.kind !== 'message') return false
-    emit({
-      ...state,
-      entries: state.entries.slice(0, lastUser + 1),
-      regeneration: { versions: versionsOfReply(reply) },
-    })
-    return true
-  }
-  const lastHistoryUser = state.history.findLastIndex(
-    (item) => item.kind === 'user',
-  )
-  if (lastHistoryUser < 0) return false
-  const reply = [
-    ...state.history.slice(lastHistoryUser + 1),
-    ...state.entries,
-  ].findLast((item) => item.kind === 'message' && item.text.trim() !== '')
-  if (!reply || reply.kind !== 'message') return false
-  emit({
-    ...state,
-    history: state.history.slice(0, lastHistoryUser + 1),
-    historyRevision: state.historyRevision + 1,
-    entries: [],
-    regeneration: { versions: versionsOfReply(reply) },
-  })
-  return true
-}
-
-interface StudioOperatorChatLinePatch {
-  text: string
-  versions?: readonly string[]
-  versionIndex?: number
-}
-
-/** 时间线上的一条对白（你说的或她说的），本次会话或载回来的历史里的那个对象本身。 */
-export type StudioOperatorChatLine =
-  | Extract<StudioOperatorThreadEntry, { kind: 'user' | 'message' }>
-  | Extract<StudioOperatorHistoryEntry, { kind: 'user' | 'message' }>
-
-/**
- * 改 / 删对白里的一条（聊天会话，附录L 第二片）。`patch` 返回 `null` = 删掉这条。
- * ⚠ 按**对象本身**找、⛔ 不按 id：条目 id 是每次页面加载现编的序号，一段跨了几次加载的会话里
- *   本来就有两个 `user-1`（见面板历史那一段的头注）。条目不可变，同一个对象就是同一条。
- * ⚠ 下一轮的对白就是改过之后的样子（每轮从线程现算）。
- */
-function patchOperatorChatLine(
-  line: StudioOperatorChatLine,
-  patch: (
-    line: StudioOperatorChatLinePatch,
-  ) => StudioOperatorChatLinePatch | null,
-): void {
-  const entryIndex = state.entries.findIndex((item) => item === line)
-  const entry = entryIndex >= 0 ? state.entries[entryIndex] : undefined
-  if (entry && (entry.kind === 'user' || entry.kind === 'message')) {
-    const next = patch(entry)
-    emit({
-      ...state,
-      entries: next
-        ? state.entries.map((item, index) =>
-            index === entryIndex
-              ? entry.kind === 'user'
-                ? { ...entry, text: next.text }
-                : { ...entry, ...next }
-              : item,
-          )
-        : state.entries.filter((_, index) => index !== entryIndex),
-    })
-    return
-  }
-  const historyIndex = state.history.findIndex((item) => item === line)
-  const stored = historyIndex >= 0 ? state.history[historyIndex] : undefined
-  if (!stored || (stored.kind !== 'user' && stored.kind !== 'message')) return
-  const next = patch(stored)
-  emit({
-    ...state,
-    history: next
-      ? state.history.map((item, index) =>
-          index === historyIndex
-            ? stored.kind === 'user'
-              ? { ...stored, text: next.text }
-              : {
-                  kind: stored.kind,
-                  id: stored.id,
-                  text: next.text,
-                  ...(next.versions
-                    ? {
-                        versions: [...next.versions],
-                        versionIndex: next.versionIndex ?? 0,
-                      }
-                    : {}),
-                }
-            : item,
-        )
-      : state.history.filter((_, index) => index !== historyIndex),
-    historyRevision: state.historyRevision + 1,
-  })
-}
-
-/** 改一条：她的回复改的是此刻显示的那一版。空的不收（要删走删除）。 */
-export function editOperatorChatLine(
-  line: StudioOperatorChatLine,
-  text: string,
-): void {
-  const next = text.trim()
-  if (!next) return
-  patchOperatorChatLine(line, (current) => {
-    if (!current.versions || current.versions.length < 2) return { text: next }
-    const shown = current.versionIndex ?? current.versions.length - 1
-    return {
-      text: next,
-      versions: current.versions.map((version, index) =>
-        index === shown ? next : version,
-      ),
-      versionIndex: shown,
-    }
-  })
-}
-
-export function deleteOperatorChatLine(line: StudioOperatorChatLine): void {
-  patchOperatorChatLine(line, () => null)
-}
-
-/** 左右切换她的回复：切到哪版，下一轮她就接着哪版说。 */
-export function selectOperatorChatVersion(
-  line: StudioOperatorChatLine,
-  index: number,
-): void {
-  patchOperatorChatLine(line, (current) => {
-    const version = current.versions?.[index]
-    if (version === undefined || !current.versions) return current
-    return { text: version, versions: current.versions, versionIndex: index }
-  })
-}
-
-/**
- * 聊天会话里那条能「重新生成」的回复：你最后一句话之后她说的最后一段（本次会话或历史里）。
- * `null` = 不是聊天会话 / 最后不是她在回话（比如只有开场白）。
- */
-export function operatorChatReply(
-  current: Pick<StudioOperatorState, 'chatCharacter' | 'history' | 'entries'>,
-): StudioOperatorChatLine | null {
-  if (!current.chatCharacter) return null
-  const lines: (StudioOperatorThreadEntry | StudioOperatorHistoryEntry)[] = [
-    ...current.history,
-    ...current.entries,
-  ]
-  const lastUser = lines.findLastIndex((item) => item.kind === 'user')
-  if (lastUser < 0) return null
-  const reply = lines
-    .slice(lastUser + 1)
-    .findLast((item) => item.kind === 'message' && item.text.trim() !== '')
-  return reply &&
-    reply.kind === 'message' &&
-    operatorChatModeLines(current).has(reply)
-    ? reply
-    : null
-}
-
-/**
- * 同一段对话里哪些话是**聊天模式**下说的（owner 2026-10-16：工作 / 聊天在一段里切）——
- * 只有这些对白套「改 / 删 / 重新生成」；工作那几轮照旧。按切模式标记从头走一遍：
- * 第一条标记是「回到工作」说明开头在聊天，否则开头在工作；一条标记都没有就看现在的模式。
- */
-export function operatorChatModeLines(
-  current: Pick<StudioOperatorState, 'chatCharacter' | 'history' | 'entries'>,
-): ReadonlySet<StudioOperatorChatLine> {
-  const lines: (StudioOperatorThreadEntry | StudioOperatorHistoryEntry)[] = [
-    ...current.history,
-    ...current.entries,
-  ]
-  const firstMark = lines.find((item) => item.kind === 'chatMark')
-  let chat = firstMark
-    ? !chatMarkTarget(firstMark)
-    : current.chatCharacter !== null
-  const chatLines = new Set<StudioOperatorChatLine>()
-  for (const line of lines) {
-    if (line.kind === 'chatMark') chat = chatMarkTarget(line)
-    else if (chat && (line.kind === 'user' || line.kind === 'message'))
-      chatLines.add(line)
-  }
-  return chatLines
-}
-
-/** 一条切模式标记切到的是不是聊天（实时条目带 `character`，历史条目带 `characterId`）。 */
-function chatMarkTarget(
-  mark: (StudioOperatorThreadEntry | StudioOperatorHistoryEntry) & {
-    kind: 'chatMark'
-  },
-): boolean {
-  return 'character' in mark
-    ? mark.character !== null
-    : Boolean(mark.characterId)
 }
 
 /** 抽帧那一段的开关（第二期）—— 见 `capturingFrames` 头注。 */
@@ -1693,103 +1369,8 @@ export function loadOperatorThread(args: {
     incognito: false,
     offTheRecord: false,
     chatCharacter: args.chatCharacter ?? null,
-    regeneration: null,
-    historyRevision: 0,
   })
   hydrateOperatorResume()
-}
-
-/**
- * 改「你在故事里是谁」（附录L 第二片 C，owner 10-16「按角色记住」）：存在角色卡上
- * （`extensions['pv.chatUserRole']`），和她新开的每段聊天都带上；服务端每轮从卡上读。
- * 先改界面再存，存失败就改回去并返回 `false`。
- */
-export async function saveOperatorChatUserRole(text: string): Promise<boolean> {
-  const character = state.chatCharacter
-  if (!character) return false
-  const next = text
-    .trim()
-    .slice(0, ASSISTANT_PERSONA_LIMITS.maxChatUserRoleChars)
-  const previous = character.userRole ?? ''
-  if (next === previous) return true
-  const withRole = (userRole: string) => {
-    if (state.chatCharacter?.id !== character.id) return
-    emit({ ...state, chatCharacter: { ...character, userRole } })
-  }
-  withRole(next)
-  const result = await updateCharacterCardAPI(character.id, {
-    extensions: { [CARD_EXTENSIONS.KEYS.chatUserRole]: next || null },
-  })
-  if (result.success) return true
-  withRole(previous)
-  return false
-}
-
-/**
- * 头部「工作 / 聊天」切换（owner 2026-10-16：只是模式切换，记录不变）：同一段对话里换成和
- * `character` 聊，`null` = 回到工作。时间线里落一条切模式标记（会存、刷新后还在、模型也读得到）；
- * 还空着的对话只换模式不落标记。跑着的时候不切（这一轮按哪种模式答已经定了）。
- */
-export function switchOperatorChatMode(
-  character: StudioOperatorChatCharacter | null,
-): boolean {
-  if (state.status === 'working') return false
-  if ((state.chatCharacter?.id ?? null) === (character?.id ?? null))
-    return false
-  const empty = state.entries.length === 0 && state.history.length === 0
-  emit({
-    ...state,
-    chatCharacter: character,
-    regeneration: null,
-    entries: empty ? state.entries : withChatMark(state.entries, character),
-  })
-  return true
-}
-
-/**
- * 落一条切模式标记。⭐ 中间一句话都没说的连着切只留一条（真机：来回点叠出一串细线）：
- * 上一条就是标记时替换它；切回了那条标记之前的模式就整条拿掉。
- */
-function withChatMark(
-  entries: readonly StudioOperatorThreadEntry[],
-  character: StudioOperatorChatCharacter | null,
-): readonly StudioOperatorThreadEntry[] {
-  const target = character ? { id: character.id, name: character.name } : null
-  const last = entries.at(-1)
-  if (last?.kind === 'chatMark') {
-    const rest = entries.slice(0, -1)
-    if ((last.previous?.id ?? null) === (target?.id ?? null)) return rest
-    return [...rest, { ...last, character: target }]
-  }
-  const current = state.chatCharacter
-  return [
-    ...entries,
-    {
-      kind: 'chatMark',
-      id: nextOperatorEntryId('chat-mark'),
-      character: target,
-      previous: current ? { id: current.id, name: current.name } : null,
-    },
-  ]
-}
-
-/**
- * 聊天会话的第一句（附录L）：卡上有开场白就是她先说；有备选开场白时这一条带几版，左右切。
- */
-function openingHistory(
-  chat: StudioOperatorChatRequest | undefined,
-): readonly StudioOperatorHistoryEntry[] {
-  const openings = chat ? chatOpenings(chat) : []
-  const first = openings[0]
-  if (first === undefined) return EMPTY_HISTORY
-  return [
-    {
-      kind: 'message',
-      id: nextOperatorEntryId('message'),
-      text: first,
-      ...(openings.length > 1 ? { versions: openings, versionIndex: 0 } : {}),
-    },
-  ]
 }
 
 /**
@@ -1959,11 +1540,6 @@ export function clearOperatorResumePlan(): void {
  */
 export function resetOperatorThread(
   identity?: Pick<StudioOperatorState, 'threadScope' | 'localThreadId'>,
-  /**
-   * 开一段**聊天会话**（附录L）：和谁聊 + 她的开场白（有就作为她的第一句放进历史）。
-   * 缺席 = 工作会话。
-   */
-  chat?: StudioOperatorChatRequest,
 ): void {
   const current = identity ? getOperatorThread(identity.threadScope) : state
   if (
@@ -1979,11 +1555,9 @@ export function resetOperatorThread(
     // 新会话只在隐身还开着时不存；上一段开过隐身不连累这一段。
     offTheRecord: current.incognito,
     status: 'idle',
-    history: openingHistory(chat),
+    history: EMPTY_HISTORY,
     historyRounds: EMPTY_ROUNDS,
-    chatCharacter: chat?.character ?? null,
-    regeneration: null,
-    historyRevision: 0,
+    chatCharacter: null,
     sessionId: null,
     sessionSurface: null,
     entries: [],

@@ -580,6 +580,13 @@
       "metaCloned": "マイクローン",
       "emptyFavoritesHint": "「すべて」で試聴して、気に入った声をブックマーク。",
       "languages": "言語"
+    },
+    "picker": {
+      "title": "音色を選ぶ",
+      "description": "ボイスライブラリから声を選びます。",
+      "pickLabel": "{name} を選ぶ",
+      "taken": "参加中",
+      "full": "最大 {max} 人"
     }
   }
 }

@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/media-tile'
 import { Spinner } from '@/components/ui/spinner'
 import { VoiceAvatarButton } from '@/components/business/node/voice-library/VoiceAvatar'
+import type { UseVoiceLibraryReturn } from '@/hooks/use-voice-library'
 import type { UseVoicesPageReturn } from '@/hooks/use-voices-page'
 import { canPreviewVoiceSample } from '@/hooks/use-voice-sample-preview'
 import { charactersOfVoice, voiceAvatarCover } from '@/lib/voice-avatar'
@@ -68,7 +69,6 @@ export function VoicesLibraryDesk({
 }: VoicesLibraryDeskProps) {
   const t = useTranslations('VoicesPage')
   const tLib = useTranslations('VoicesPage.library')
-  const tStudio = useTranslations('StudioPage')
   const { library, characters, preview } = page
   const onAll = library.tab === 'public'
 
@@ -86,17 +86,7 @@ export function VoicesLibraryDesk({
     library.setTab(tab)
   }
 
-  const needle = library.search.trim().toLowerCase()
-  const mine = (
-    onAll
-      ? [...library.favorites, ...library.cloned]
-      : library.tab === 'cloned'
-        ? library.cloned
-        : library.favorites
-  ).filter((card) => !needle || card.name.toLowerCase().includes(needle))
-  const publicVoices = onAll
-    ? library.publicVoices.filter((asset) => !library.favoriteCardOf(asset))
-    : []
+  const { needle, mine, publicVoices } = visibleVoices(library)
 
   const renderCard = (card: VoiceCardRecord) => {
     const bound = charactersOfVoice(card.id, characters)
@@ -233,76 +223,137 @@ export function VoicesLibraryDesk({
 
   return (
     <div className="flex min-h-0 flex-1 gap-8">
-      <LibraryRail label={t('title')} className="pt-0.5">
-        <LibraryRailRow
-          icon={<LayoutGrid aria-hidden />}
-          label={tLib('all')}
-          trailing={VOICE_LIBRARY_SOURCE_LABEL}
-          active={onAll}
-          onSelect={() => select('public')}
-        />
-        <LibraryRailRow
-          icon={<Bookmark aria-hidden />}
-          label={tLib('favorites')}
-          trailing={library.favorites.length}
-          active={library.tab === 'favorites'}
-          onSelect={() => select('favorites')}
-        />
-        <LibraryRailRow
-          icon={<Mic aria-hidden />}
-          label={tLib('cloned')}
-          trailing={library.cloned.length}
-          active={library.tab === 'cloned'}
-          onSelect={() => select('cloned')}
-        />
-      </LibraryRail>
+      <VoiceLibrarySectionRail
+        library={library}
+        onSelect={select}
+        className="pt-0.5"
+      />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <LibraryToolbar
-          className="shrink-0"
-          search={
-            <LibrarySearch
-              value={library.search}
-              onChange={library.setSearch}
-              placeholder={t('searchPlaceholder')}
-              label={t('searchPlaceholder')}
-            />
-          }
-          end={
-            onAll ? (
-              <LibraryPillSelect
-                label={tStudio('voiceSortFilter')}
-                value={library.sortBy}
-                options={VOICE_LIBRARY_SORT_OPTIONS.map((option) => ({
-                  value: option.value,
-                  label: tStudio(option.labelKey),
-                }))}
-                onChange={library.setSortBy}
-              />
-            ) : null
-          }
-        />
-        {onAll ? (
-          <div className="mt-3 flex shrink-0">
-            <LiquidSegmented
-              ariaLabel={tLib('languages')}
-              value={library.language}
-              items={VOICE_LIBRARY_LANGUAGE_FILTERS.map((filter) => ({
-                value: filter.value,
-                label: tStudio(filter.labelKey),
-              }))}
-              onChange={library.setLanguage}
-            />
-          </div>
-        ) : null}
+        <VoiceLibraryFilters library={library} />
         <div className="mt-3 min-h-0 flex-1 overflow-y-auto pb-6">{body}</div>
       </div>
     </div>
   )
 }
 
-/** 声音的格子：灰底里一颗圆头像（点它试听），名字 + 一行来源在下。 */
-function VoiceLibraryTile({
+/**
+ * 这一格摆哪些：「全部」= 我的音色在前、公开库接在后面（已经收藏的那副不再摆第二遍）；
+ * 搜索只筛我的那几副（公开库由内核拿词去问上游）。库整页与挑选框共用。
+ */
+export function visibleVoices(library: UseVoiceLibraryReturn) {
+  const onAll = library.tab === 'public'
+  const needle = library.search.trim().toLowerCase()
+  const mine = (
+    onAll
+      ? [...library.favorites, ...library.cloned]
+      : library.tab === 'cloned'
+        ? library.cloned
+        : library.favorites
+  ).filter((card) => !needle || card.name.toLowerCase().includes(needle))
+  const publicVoices = onAll
+    ? library.publicVoices.filter((asset) => !library.favoriteCardOf(asset))
+    : []
+  return { onAll, needle, mine, publicVoices }
+}
+
+/** 左栏「全部（Fish Audio）/ 收藏 / 我的克隆」。 */
+export function VoiceLibrarySectionRail({
+  library,
+  onSelect,
+  className,
+}: {
+  library: UseVoiceLibraryReturn
+  onSelect: (tab: UseVoiceLibraryReturn['tab']) => void
+  className?: string
+}) {
+  const t = useTranslations('VoicesPage')
+  const tLib = useTranslations('VoicesPage.library')
+  return (
+    <LibraryRail label={t('title')} className={className}>
+      <LibraryRailRow
+        icon={<LayoutGrid aria-hidden />}
+        label={tLib('all')}
+        trailing={VOICE_LIBRARY_SOURCE_LABEL}
+        active={library.tab === 'public'}
+        onSelect={() => onSelect('public')}
+      />
+      <LibraryRailRow
+        icon={<Bookmark aria-hidden />}
+        label={tLib('favorites')}
+        trailing={library.favorites.length}
+        active={library.tab === 'favorites'}
+        onSelect={() => onSelect('favorites')}
+      />
+      <LibraryRailRow
+        icon={<Mic aria-hidden />}
+        label={tLib('cloned')}
+        trailing={library.cloned.length}
+        active={library.tab === 'cloned'}
+        onSelect={() => onSelect('cloned')}
+      />
+    </LibraryRail>
+  )
+}
+
+/** 顶上一行：搜索 ……… 排序（「全部」才有）；下面语言切换条（「全部」才有）。 */
+export function VoiceLibraryFilters({
+  library,
+}: {
+  library: UseVoiceLibraryReturn
+}) {
+  const t = useTranslations('VoicesPage')
+  const tLib = useTranslations('VoicesPage.library')
+  const tStudio = useTranslations('StudioPage')
+  const onAll = library.tab === 'public'
+  return (
+    <>
+      <LibraryToolbar
+        className="shrink-0"
+        search={
+          <LibrarySearch
+            value={library.search}
+            onChange={library.setSearch}
+            placeholder={t('searchPlaceholder')}
+            label={t('searchPlaceholder')}
+          />
+        }
+        end={
+          onAll ? (
+            <LibraryPillSelect
+              label={tStudio('voiceSortFilter')}
+              value={library.sortBy}
+              options={VOICE_LIBRARY_SORT_OPTIONS.map((option) => ({
+                value: option.value,
+                label: tStudio(option.labelKey),
+              }))}
+              onChange={library.setSortBy}
+            />
+          ) : null
+        }
+      />
+      {onAll ? (
+        <div className="mt-3 flex shrink-0">
+          <LiquidSegmented
+            ariaLabel={tLib('languages')}
+            value={library.language}
+            items={VOICE_LIBRARY_LANGUAGE_FILTERS.map((filter) => ({
+              value: filter.value,
+              label: tStudio(filter.labelKey),
+            }))}
+            onChange={library.setLanguage}
+          />
+        </div>
+      ) : null}
+    </>
+  )
+}
+
+/**
+ * 声音的格子：灰底里一颗圆头像（点它试听），名字 + 一行来源在下。
+ * 挑选框里（`onPick`）整格 = 挑这一副（头像照旧试听）；已经在的写「已在」、点不了。
+ */
+export function VoiceLibraryTile({
   name,
   cover,
   meta,
@@ -313,6 +364,10 @@ function VoiceLibraryTile({
   onPreview,
   favorite,
   more,
+  onPick,
+  pickLabel,
+  taken,
+  takenLabel,
 }: {
   name: string
   cover: string | null
@@ -329,6 +384,10 @@ function VoiceLibraryTile({
     onToggle(): void
   }
   more?: React.ReactNode
+  onPick?: () => void
+  pickLabel?: string
+  taken?: boolean
+  takenLabel?: string
 }) {
   const t = useTranslations('VoicesPage')
   return (
@@ -337,18 +396,34 @@ function VoiceLibraryTile({
         className={cn(MEDIA_TILE_CLASS, 'grid aspect-3/4 place-items-center')}
       >
         <MediaTileShade />
-        <VoiceAvatarButton
-          cover={cover}
-          fallback="letter"
-          name={name}
-          size="tile"
-          playing={playing}
-          loading={loading}
-          progress={progress}
-          disabled={!canPreview}
-          ariaLabel={playing ? t('stopPreview') : t('preview')}
-          onToggle={onPreview}
-        />
+        {onPick ? (
+          <button
+            type="button"
+            onClick={onPick}
+            disabled={taken}
+            aria-label={pickLabel ?? name}
+            className="absolute inset-0 z-10 rounded-12 focus-visible:outline-none focus-visible:shadow-focus disabled:cursor-default"
+          />
+        ) : null}
+        {taken && takenLabel ? (
+          <span className="pointer-events-none absolute top-2 right-2 z-20 inline-flex h-5.5 items-center rounded-full bg-media-chip px-2 text-2xs font-medium text-on-media-chip">
+            {takenLabel}
+          </span>
+        ) : null}
+        <span className="relative z-20 grid place-items-center">
+          <VoiceAvatarButton
+            cover={cover}
+            fallback="letter"
+            name={name}
+            size="tile"
+            playing={playing}
+            loading={loading}
+            progress={progress}
+            disabled={!canPreview}
+            ariaLabel={playing ? t('stopPreview') : t('preview')}
+            onToggle={onPreview}
+          />
+        </span>
         <MediaTileActions favorite={favorite} more={more} />
       </div>
       <MediaTileCaption name={name} meta={meta} />

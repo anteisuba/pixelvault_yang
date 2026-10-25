@@ -9,6 +9,7 @@ import {
   VOICE_ROOM_MODE,
   VOICE_ROOM_NAME_MAX_LENGTH,
   VOICE_ROOM_SPEAKER_KIND,
+  VOICE_ROOM_VOICE_CAST_MAX,
   type VoiceRoomMode,
 } from '@/constants/voiceroom'
 import { cancelGenerationsAPI } from '@/lib/api-client'
@@ -25,7 +26,9 @@ import type {
   VoiceRoomDetail,
 } from '@/types/voiceroom'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
+import { VoicePickerDialog } from '@/components/business/voices/VoicePickerDialog'
 import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
+import { useIsMobile } from '@/hooks/use-mobile'
 
 import { VoiceLineBubble } from './VoiceLineBubble'
 import { VoiceLinePending } from './VoiceLinePending'
@@ -132,6 +135,16 @@ export function VoiceRoomStage({
     })
   }, [cast, detail.lines])
   const [castingOpen, setCastingOpen] = useState(false)
+  const isMobile = useIsMobile()
+  const tPicker = useTranslations('VoicesPage.picker')
+  const castIds = useMemo(
+    () => new Set(detail.cast.map((member) => member.id)),
+    [detail.cast],
+  )
+  const castFull =
+    detail.cast.filter(
+      (member) => member.kind === VOICE_ROOM_SPEAKER_KIND.VOICE,
+    ).length >= VOICE_ROOM_VOICE_CAST_MAX
   const [vaultOpen, setVaultOpen] = useState(false)
   const [renaming, setRenaming] = useState(false)
   const [pickedId, setPickedId] = useState<string | null>(null)
@@ -377,7 +390,30 @@ export function VoiceRoomStage({
         />
       ) : null}
 
-      {castingOpen ? (
+      {/* 桌面 = 挑音色框（ui-spec ㉔，样件 S26），点一副就请进来；手机照旧推上来的选角面板。 */}
+      {!isMobile ? (
+        <VoicePickerDialog
+          open={castingOpen}
+          onOpenChange={setCastingOpen}
+          takenIds={castIds}
+          fullLabel={
+            castFull
+              ? tPicker('full', { max: VOICE_ROOM_VOICE_CAST_MAX })
+              : null
+          }
+          onPick={(card) =>
+            onCastChange([
+              ...detail.cast,
+              {
+                id: card.id,
+                kind: VOICE_ROOM_SPEAKER_KIND.VOICE,
+                name: card.name,
+                coverImage: card.coverImage,
+              },
+            ])
+          }
+        />
+      ) : castingOpen ? (
         <VoiceRoomCasting
           cast={detail.cast}
           onClose={() => setCastingOpen(false)}

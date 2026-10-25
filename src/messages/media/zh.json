@@ -580,6 +580,13 @@
       "metaCloned": "我的克隆",
       "emptyFavoritesHint": "在「全部」里试听，喜欢的点书签收藏。",
       "languages": "语言"
+    },
+    "picker": {
+      "title": "挑音色",
+      "description": "从声音库里挑一副嗓子。",
+      "pickLabel": "挑 {name}",
+      "taken": "已在",
+      "full": "最多 {max} 位"
     }
   }
 }

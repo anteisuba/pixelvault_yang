@@ -580,6 +580,13 @@
       "metaCloned": "My clone",
       "emptyFavoritesHint": "Preview voices in All and bookmark the ones you like.",
       "languages": "Language"
+    },
+    "picker": {
+      "title": "Pick a voice",
+      "description": "Pick a voice from the voice library.",
+      "pickLabel": "Pick {name}",
+      "taken": "In",
+      "full": "Up to {max}"
     }
   }
 }

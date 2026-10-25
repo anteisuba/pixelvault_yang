@@ -554,8 +554,9 @@ export const STUDIO_OPERATOR_SHELL = {
    * ⚠ 44 = 画板 D7c 的口径。56 那一档是给「头像 + 规格胶囊 + 标题」三样排一行的，
    *   而规格那一句已经下沉到输入框上方（D7c ②）—— 头部只剩身份，不再需要那么厚。
    *   ⛔ 别压回 40：那一档把 32px 的标题药丸挤到只剩 4px 呼吸。
+   * ⚠ 52 = ui-spec §2「面板头 52」（10-25 板头照规范改，44 退役）。
    */
-  headerHeightPx: 44,
+  headerHeightPx: 52,
   /** 面板 fixed 的 top/right/bottom（§11.1）。 */
   insetPx: 24,
   /**

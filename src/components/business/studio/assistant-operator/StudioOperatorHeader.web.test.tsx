@@ -412,6 +412,43 @@ describe('StudioOperatorHeader', () => {
     expect(screen.queryByTestId('operator-header-avatar')).toBeNull()
   })
 
+  /** ui-spec §1 板头：外壳那一栏 = 头像 + 就地改名的标题，⛔ 分隔线、⛔ 历史下拉。 */
+  it('⭐ board：点头像收起整栏；点标题就地改名，回车存、Esc 不存', () => {
+    const renameSession = vi.fn().mockResolvedValue(true)
+    const history = {
+      ...HISTORY,
+      sessions: SESSIONS,
+      currentSessionId: 'today-session',
+      renameSession,
+    }
+    const { onCollapse } = renderHeader({ avatar: 'board', history })
+    expect(screen.getByTestId('operator-header').className).not.toContain(
+      'border-b',
+    )
+    expect(screen.queryByTestId('operator-session-menu')).toBeNull()
+    fireEvent.click(screen.getByTestId('operator-header-avatar'))
+    expect(onCollapse).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(screen.getByTestId('operator-title'))
+    const input = screen.getByTestId('operator-title-input')
+    expect(input.className).toContain('border-highlight')
+    fireEvent.change(input, { target: { value: '新名字' } })
+    fireEvent.keyDown(input, { key: 'Escape' })
+    expect(renameSession).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByTestId('operator-title'))
+    const again = screen.getByTestId('operator-title-input')
+    fireEvent.change(again, { target: { value: '新名字' } })
+    fireEvent.keyDown(again, { key: 'Enter' })
+    expect(renameSession).toHaveBeenCalledWith(SESSIONS[0], '新名字')
+    cleanup()
+
+    // 首页：头像不可点；还没落库的新对话只写字、⛔ 铅笔。
+    renderHeader({ avatar: 'boardStatic' })
+    expect(screen.getByTestId('operator-header-avatar').tagName).toBe('SPAN')
+    expect(screen.getByTestId('operator-title').tagName).toBe('SPAN')
+  })
+
   /**
    * D7c ④ 动效表末行：「全部包在 `motion-reduce:` 里」。
    *

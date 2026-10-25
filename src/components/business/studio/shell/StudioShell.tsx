@@ -368,7 +368,12 @@ function StudioShellStage({
         }
       >
         {shellDock && !bench ? <StudioHomeModeSwitch /> : null}
-        {shellDock ? <StudioOperatorDock variant="column" /> : null}
+        {shellDock ? (
+          <StudioOperatorDock
+            variant="column"
+            onCollapseColumn={bench ? collapseConversation : undefined}
+          />
+        ) : null}
       </section>
 
       {bench && !conversationHidden ? (

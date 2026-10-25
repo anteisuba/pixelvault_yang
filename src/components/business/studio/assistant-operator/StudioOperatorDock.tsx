@@ -218,8 +218,13 @@ export type StudioOperatorDockVariant = 'floating' | 'column'
 export function StudioOperatorDock({
   variant = 'floating',
   restore,
+  onCollapseColumn,
 }: {
   variant?: StudioOperatorDockVariant
+  /**
+   * `column`：点板头头像把整栏收起（外壳开着台时给）；缺席 = 首页，头像不可点。
+   */
+  onCollapseColumn?: () => void
   /** 一进来载回哪一段（`/studio` 外壳按地址给，见 `StudioOperatorHistoryRestore`）。 */
   restore?: StudioOperatorHistoryRestore
 } = {}) {
@@ -1074,7 +1079,7 @@ export function StudioOperatorDock({
       onOpenProjectRules={() =>
         setSettingsSection(ASSISTANT_SETTINGS_SECTIONS.memory)
       }
-      onCollapse={() => setOpen(false)}
+      onCollapse={onCollapseColumn ?? (() => setOpen(false))}
       /**
        * 头部左上那个头像位。
        *
@@ -1083,10 +1088,13 @@ export function StudioOperatorDock({
        *   —— 两颗叠在一起的表现是头像边缘在过渡末尾闪一下。
        * ⚠ 手机是 `own`：Sheet 那条路没有 morph，头部那颗由面板自己画。
        * ⚠ 头像留在原位的宿主（布局 A）是 `none`：头像就在面板正上方那一行里。
+       * ⚠ 外壳那一栏是 `board`（开着台、点了收整栏）/ `boardStatic`（首页）。
        */
       headerAvatar={
         column
-          ? 'none'
+          ? onCollapseColumn
+            ? 'board'
+            : 'boardStatic'
           : isMobile
             ? 'own'
             : anchor.avatarStays

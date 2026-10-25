@@ -222,7 +222,8 @@
     "referenceOnlyFor": "挂着的参考图只发给 {models}。",
     "referenceNoReceiver": "这一轮选中的模型都不收参考图。",
     "attachedCount": "已挂 {count} 张",
-    "attachedOfMax": "已挂 {count} 张 · 最多 {max} 张"
+    "attachedOfMax": "已挂 {count} 张 · 最多 {max} 张",
+    "thumbIndex": "图_{index}"
   },
   "StudioForm": {
     "formLabel": "图片生成",

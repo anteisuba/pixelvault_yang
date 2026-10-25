@@ -460,20 +460,20 @@ export function SpecChip({
           data-testid={testId}
           data-spec-chip-state={flashing ? 'flash' : open ? 'open' : 'default'}
           className={cn(
-            'nodrag nopan inline-flex h-8 min-w-0 items-center gap-1.5 rounded-full border px-3 text-2sm transition-colors duration-fast ease-standard',
+            'nodrag nopan inline-flex h-8 min-w-0 items-center gap-1.5 rounded-full px-3 text-2sm transition-[background-color,color,box-shadow] duration-fast ease-standard',
             compact &&
               'h-7 gap-1 border-0 bg-surface-fill px-2.5 text-xs transition-colors duration-fast hover:bg-surface-fill-hover',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            'disabled:pointer-events-none disabled:opacity-50',
+            'focus-visible:outline-none focus-visible:shadow-focus',
+            'disabled:pointer-events-none disabled:opacity-45',
             compact
               ? open
                 ? 'bg-surface-fill-track text-foreground hover:bg-surface-fill-track'
                 : 'text-foreground'
               : flashing
-                ? 'border-status-warning bg-status-warning-surface text-status-warning'
+                ? 'bg-status-warning-surface text-status-warning'
                 : open
-                  ? 'border-foreground bg-background text-foreground ring-3 ring-muted'
-                  : 'border-border bg-background text-foreground hover:border-foreground/40',
+                  ? 'bg-fill-strong text-foreground'
+                  : 'bg-muted text-foreground hover:tint-hover',
             triggerClassName,
           )}
           whileTap={compact && !reduceMotion ? { scale: 0.96 } : undefined}

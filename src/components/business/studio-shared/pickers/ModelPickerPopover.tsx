@@ -1478,9 +1478,8 @@ export function ModelPickerPopover({
             active={open}
             disabled={disabled}
             className={cn(
-              // 画布那一档：28 高 · 12 号字；开着与工作台同一副描边 + 浅环；按下 0.96。
-              compact &&
-                'h-7 gap-1.5 pr-2 pl-2.5 text-xs transition-all active:scale-96 data-[active=true]:border-foreground data-[active=true]:ring-3 data-[active=true]:ring-muted',
+              // 画布那一档：28 高 · 12 号字；按下 0.96。
+              compact && 'h-7 gap-1.5 pr-2 pl-2.5 text-xs active:scale-96',
               className,
             )}
           />

@@ -8,7 +8,7 @@ import {
   type ChangeEvent,
   type ReactNode,
 } from 'react'
-import { Image as ImageIcon } from '@/components/icons'
+import { Image as ImageIcon, Plus } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import { createPortal } from 'react-dom'
 import * as Toolbar from '@radix-ui/react-toolbar'
@@ -293,23 +293,19 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
             title={badgeWarning}
             className={cn(
               chip.trigger,
-              chip.compact,
               chip.look === 'outline'
-                ? cn(isActive && chip.set, popoverOpen && chip.open)
+                ? // 输入框左下角的「+」圆钮（ui-spec.md §9「输入框」）：加进来的图排在
+                  // 字上面那一排，钮上不写字、不报数。
+                  cn('w-8 justify-center px-0', popoverOpen && chip.open)
                 : (isActive || popoverOpen) && chip.open,
             )}
           >
-            <ImageIcon className="size-4 shrink-0" />
             {chip.look === 'outline' ? (
-              // 描边外观把数写进字里（「图像 2」），⛔ 不再挂角标 —— 一行药丸上
-              // 只有这一颗带红点会显得是报错。窄了字收起、数留着。
-              <>
-                <span className={chip.compactLabel}>{t('label')}</span>
-                {totalEntries > 0 ? (
-                  <span className="tabular-nums">{totalEntries}</span>
-                ) : null}
-              </>
+              <Plus className="size-4 shrink-0" aria-hidden />
             ) : (
+              <ImageIcon className="size-4 shrink-0" />
+            )}
+            {chip.look === 'outline' ? null : (
               <>
                 <span className="hidden sm:inline">{t('label')}</span>
                 {totalEntries > 0 && (

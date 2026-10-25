@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useTranslations } from 'next-intl'
 import { draggable } from '@atlaskit/pragmatic-drag-and-drop/element/adapter'
 import { Image as ImageIcon, X } from '@/components/icons'
 
@@ -101,6 +102,7 @@ export function ImageAttachmentPreviewStrip({
   dragType,
   className,
 }: ImageAttachmentPreviewStripProps) {
+  const t = useTranslations('ImageChip')
   const [previewIndex, setPreviewIndex] = useState<number | null>(null)
   const previewTriggerRef = useRef<HTMLButtonElement | null>(null)
 
@@ -120,8 +122,10 @@ export function ImageAttachmentPreviewStrip({
         data-studio-drop-row=""
         className={cn(
           'flex gap-2 overflow-x-auto overscroll-contain',
+          // 输入框里的参考图（ui-spec.md §9「输入框」/ 参考图与加号）：字上面一排，
+          // 48 方、圆角 8、左下角「图_N」，悬停右上角出 ×（× 探出格子，留出上右边距）。
           variant === 'composer'
-            ? 'px-2 pb-1 pt-2'
+            ? 'px-1 pb-0.5 pt-1.5 pr-1.5'
             : variant === 'tabs'
               ? 'shrink-0 gap-1'
               : 'rounded-xl border border-border/55 bg-background/45 p-2',
@@ -146,8 +150,10 @@ export function ImageAttachmentPreviewStrip({
               url={entry.url}
               title={tooltip}
               className={cn(
-                'group relative flex size-16 shrink-0 overflow-hidden rounded-xl border border-border/65 bg-muted/35 shadow-sm',
-                variant === 'composer' && 'size-14 rounded-lg',
+                'group relative flex size-16 shrink-0 rounded-xl border border-border/65 bg-muted/35 shadow-sm',
+                variant !== 'composer' && 'overflow-hidden',
+                variant === 'composer' &&
+                  'size-12 rounded-md border-0 bg-muted shadow-none ring-1 ring-border ring-inset',
                 variant === 'tabs' && 'size-7 rounded-md shadow-none',
                 isDisabled && 'opacity-55',
               )}
@@ -169,6 +175,8 @@ export function ImageAttachmentPreviewStrip({
                     alt=""
                     className={cn(
                       'size-full object-cover transition-transform duration-200 group-hover:scale-105',
+                      variant === 'composer' &&
+                        'rounded-md group-hover:scale-100',
                       isDisabled && 'grayscale',
                     )}
                   />
@@ -180,13 +188,23 @@ export function ImageAttachmentPreviewStrip({
                   alt={imageAlt}
                   className={cn(
                     'size-full object-cover transition-transform duration-200 group-hover:scale-105',
+                    variant === 'composer' &&
+                      'rounded-md group-hover:scale-100',
                     isDisabled && 'grayscale',
                   )}
                 />
               )}
               {isDisabled ? (
-                <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-background/35 text-muted-foreground">
+                <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-md bg-background/35 text-muted-foreground">
                   <ImageIcon className="size-4" />
+                </span>
+              ) : null}
+              {variant === 'composer' ? (
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute bottom-0.75 left-0.75 h-4 rounded-sm bg-media-chip px-1 font-mono text-3xs leading-4 text-on-media-chip"
+                >
+                  {t('thumbIndex', { index: index + 1 })}
                 </span>
               ) : null}
               <button
@@ -199,9 +217,13 @@ export function ImageAttachmentPreviewStrip({
                 className={cn(
                   'absolute right-1 top-1 z-10 flex size-5 items-center justify-center rounded-full opacity-0 shadow-sm transition-opacity group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60',
                   variant === 'tabs' && 'right-0 top-0 size-3.5',
-                  variant === 'composer' || variant === 'tabs'
+                  variant === 'composer' &&
+                    '-top-1.5 -right-1.5 size-4.5 bg-card text-ink-2 shadow-soft hover:text-foreground',
+                  variant === 'tabs'
                     ? 'border border-black/10 bg-white/90 text-neutral-800 hover:bg-white'
-                    : 'bg-background/92 text-foreground hover:bg-background',
+                    : variant === 'panel'
+                      ? 'bg-background/92 text-foreground hover:bg-background'
+                      : null,
                 )}
               >
                 <X className="size-3" />

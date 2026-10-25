@@ -13,7 +13,7 @@ docs/
 ├── status.md        唯一活跃状态（覆盖更新，不追加历史）
 ├── checklists/      P0/P1/P2 质检：ui · backend · database · release
 ├── scenes/          任务类型场景：专属工作流 + 场景自查
-├── references/      规则知识库：ui-defaults（UI 默认食谱，动 UI 必读）· frontend · backend · database · cicd · testing · loading 等
+├── references/      规则知识库：ui-defaults（UI 默认食谱，动 UI 必读）· ui-spec（界面规范：骨架 / token / 组件，和 ui-defaults 冲突时为准）· frontend · backend · database · cicd · testing · loading 等
 │   └── api/         CI 用的模型文档快照（`npm run models:check-docs` 读它，别手改）
 └── templates/       按需参考的代码骨架与对话交接模板
 ```

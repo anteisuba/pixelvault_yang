@@ -63,7 +63,6 @@ import {
   EyeOff,
   MoreHorizontal,
   Settings2,
-  UserRound,
 } from '@/components/icons'
 import { useFormatter, useTranslations } from 'next-intl'
 
@@ -83,9 +82,7 @@ import {
 import {
   setOperatorIncognito,
   useStudioOperatorState,
-  type StudioOperatorChatRequest,
 } from '@/hooks/use-studio-operator-store'
-import { useChatCharacters } from '@/hooks/use-chat-characters'
 import {
   useStudioConversationActivity,
   type StudioConversationActivityView,
@@ -99,8 +96,6 @@ import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator
 import { useSlowLoadingNotice } from '@/hooks/use-slow-loading-notice'
 import { useStudioShellAvatar } from '@/hooks/use-studio-shell-avatar'
 import { StudioOperatorCurrentAvatar } from '@/components/business/studio/assistant-operator/StudioOperatorAvatarSwitcher'
-import { StudioOperatorChatRoleDialog } from '@/components/business/studio/assistant-operator/StudioOperatorChatRoleDialog'
-import { StudioOperatorModeSwitch } from '@/components/business/studio/assistant-operator/StudioOperatorModeSwitch'
 import { StudioOperatorSessionRow } from '@/components/business/studio/assistant-operator/StudioOperatorSessionRow'
 import { deriveAssistantConversationTitle } from '@/lib/assistant-conversation-title'
 import {
@@ -191,7 +186,7 @@ interface StudioOperatorHeaderProps {
   working: boolean
   history: UseStudioOperatorHistoryResult
   /** 新会话；带 `chat` = 开一段和这个角色的聊天会话（附录L）。 */
-  onNewThread(chat?: StudioOperatorChatRequest): void
+  onNewThread(): void
   /**
    * 「助手设置」（§4.1 右上那颗齿轮）。
    *
@@ -243,7 +238,7 @@ export function StudioOperatorHeader({
    * 胶囊读、被驱动 hook 在事件处理器里同步读。穿成 prop 等于让面板与外壳各转发
    * 一次同一个布尔。
    */
-  const { incognito, chatCharacter } = useStudioOperatorState()
+  const { incognito } = useStudioOperatorState()
   /**
    * **举着刀的那一行**（owner 2026-09-20 真机第 3 条）—— 删除是原位两段确认，
    * ⛔ 不再弹 `AlertDialog`。
@@ -256,11 +251,7 @@ export function StudioOperatorHeader({
   const cancelConfirmDelete = useCallback(() => setConfirmDeleteId(null), [])
   /** 标题▾ 与历史图标共开的那一个菜单（见头注），⛔ 不是两个实例。 */
   const [menuOpen, setMenuOpen] = useState(false)
-  /** 聊天里 ⋯ →「你在故事里是谁」（原来在「和谁聊」弹层顶上，用户 10-25 换人挪到头像后搬来）。 */
-  const [roleOpen, setRoleOpen] = useState(false)
   const { docked: avatarDocked } = useStudioShellAvatar()
-  /** 「和角色聊…」那一列（附录L）：菜单开着才取。 */
-  const chatCharacters = useChatCharacters(menuOpen)
   /**
    * 会话按「工作 / 和谁聊」分组（附录L：聊天会话按角色归组）。组的先后跟各组最近那一条走；
    * 组内照旧按时间。卡删了的聊天会话归回工作那一组。
@@ -558,22 +549,11 @@ export function StudioOperatorHeader({
             <DropdownMenuItem
               data-testid="operator-new-thread"
               disabled={working || Boolean(history.loadingSessionId)}
-              /* 「新对话」照当前模式开（owner 2026-10-16：模式切换只在头部那颗按钮）：
-                 聊天里 = 和同一个角色新开一段（带开场白）；卡没取到就不带开场白。 */
-              onSelect={() =>
-                onNewThread(
-                  chatCharacter
-                    ? (chatCharacters.characters.find(
-                        (chat) => chat.character.id === chatCharacter.id,
-                      ) ?? { character: chatCharacter, opening: '' })
-                    : undefined,
-                )
-              }
+              /* 「新对话」永远是工作（用户 10-25 去掉聊天模式：和角色聊去她的配音间）。 */
+              onSelect={() => onNewThread()}
             >
               <MessageSquarePlus className="size-4" aria-hidden />
-              {chatCharacter
-                ? t('chat.newChatThread', { name: chatCharacter.name })
-                : t('newThread')}
+              {t('newThread')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -611,14 +591,6 @@ export function StudioOperatorHeader({
         {/* 标题药丸 hug 之后靠这一格把右上三颗推到右边（⛔ 不靠 `flex-1` 撑标题）。 */}
         <span className="flex-1" />
 
-        {/* ── 工作 / 聊天切换（owner 2026-10-16）：同一段对话里换模式，记录不变。
-            外壳那一栏换人走头像（用户 10-25），这颗只留给没有外壳头像的宿主（手机等）。 */}
-        {board ? null : (
-          <StudioOperatorModeSwitch
-            disabled={working || Boolean(history.loadingSessionId)}
-          />
-        )}
-
         {/* ── 右上**一颗 ⋯**（D7b ④ · 画板 `DesignD7bToggle` 的「⋯ 菜单」）────
             设置 · 分隔线 · 隐身。⛔ 历史会话只走标题下拉（D12 B7：⋯ 里那一项与它
             是同一份历史，两个入口）。 */}
@@ -648,15 +620,6 @@ export function StudioOperatorHeader({
               <Settings2 className="size-4" aria-hidden />
               {t('assistantSettings')}
             </DropdownMenuItem>
-            {board && chatCharacter ? (
-              <DropdownMenuItem
-                data-testid="operator-more-chat-role"
-                onSelect={() => setRoleOpen(true)}
-              >
-                <UserRound className="size-4" aria-hidden />
-                {t('chat.roleLabel')}
-              </DropdownMenuItem>
-            ) : null}
             <DropdownMenuSeparator />
             {/**
              * 隐身（56a 切片 4）—— 现在是**真的**：开着时这一轮一条记忆都不写
@@ -683,14 +646,6 @@ export function StudioOperatorHeader({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        {board && chatCharacter ? (
-          <StudioOperatorChatRoleDialog
-            open={roleOpen}
-            onOpenChange={setRoleOpen}
-            characterName={chatCharacter.name}
-            initialRole={chatCharacter.userRole ?? ''}
-          />
-        ) : null}
       </div>
     </div>
   )

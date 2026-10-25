@@ -99,7 +99,6 @@ import {
   appendOperatorPendingResult,
   appendOperatorPending,
   appendOperatorRoundSummary,
-  beginOperatorRegenerate,
   clearOperatorPrompts,
   clearOperatorQueue,
   dropOperatorPending,
@@ -116,7 +115,6 @@ import {
   recordOperatorChange,
   removeOperatorQueued,
   resetOperatorThread,
-  type StudioOperatorChatRequest,
   resolveOperatorConfirm,
   setOperatorCapturingFrames,
   setOperatorConfirm,
@@ -870,14 +868,8 @@ export interface UseAssistantOperatorResult {
    * ＋新对话（拍板 10）—— 只清线程，改动与撤销本钱留着。
    * ⚠ 撤销 / 还原**不在这个接口里**：它们有两个宿主（日志条 + 参数栏的 ✦），
    *   住在 `use-studio-operator-revert.ts` 里，两边各自取用同一份。
-   * 带 `chat` = 开一段和这个角色的聊天会话（附录L）。
    */
-  newThread(chat?: StudioOperatorChatRequest): void
-  /**
-   * 聊天会话里「重新生成」她最后那段回复（附录L 第二片）：拿掉那段、按你最后那句话再跑一轮，
-   * 新回复接成下一版（左右切换在正文底下）。⚠ 工作会话 / 正在跑时不做。
-   */
-  regenerate(): void
+  newThread(): void
 }
 
 export function useAssistantOperator(
@@ -3908,32 +3900,18 @@ export function useAssistantOperator(
     abortRef.current?.abort()
   }, [benchKey])
 
-  /** 新会话；带 `chat` 就是开一段和这个角色的聊天会话（附录L）。 */
-  const newThread = useCallback(
-    (chat?: StudioOperatorChatRequest) => {
-      const current = getOperatorState()
-      if (
-        !scope ||
-        current.threadScope !== scope ||
-        current.localThreadId !== localThreadId
-      )
-        return
-      abortRef.current?.abort()
-      resetOperatorThread(undefined, chat)
-    },
-    [scope, localThreadId],
-  )
-
-  const regenerate = useCallback(() => {
-    if (!isCurrentThread()) return
+  /** 新会话。 */
+  const newThread = useCallback(() => {
     const current = getOperatorState()
-    if (!current.chatCharacter || current.status === 'working') return
-    // 同 `send`：上一轮剩下的卡作废、步数用完的提示收掉。
-    clearOperatorPrompts()
-    setOperatorOutOfSteps(false)
-    if (!beginOperatorRegenerate()) return
-    void run()
-  }, [isCurrentThread, run])
+    if (
+      !scope ||
+      current.threadScope !== scope ||
+      current.localThreadId !== localThreadId
+    )
+      return
+    abortRef.current?.abort()
+    resetOperatorThread()
+  }, [scope, localThreadId])
 
   return {
     domain,
@@ -3964,6 +3942,5 @@ export function useAssistantOperator(
     retryGeneration,
     rerunGeneration,
     newThread,
-    regenerate,
   }
 }

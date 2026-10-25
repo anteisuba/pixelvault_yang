@@ -122,8 +122,8 @@ export async function retakeVoiceLineAPI({
 export interface VoiceRoomChatHandlers {
   /** 你那句落库了。 */
   onUserLine?: (line: VoiceLineRecord) => void
-  /** 她的回复又到了一段。 */
-  onDelta?: (text: string) => void
+  /** 她的回复又到了一段；`restart` = 换掉还在写的那段（新内核查完资料重起一段）。 */
+  onDelta?: (text: string, restart: boolean) => void
 }
 
 export interface VoiceRoomChatResult {
@@ -183,7 +183,11 @@ export async function chatVoiceRoomAPI(
           (JSON.parse(frame.data) as { line: VoiceLineRecord }).line,
         )
       } else if (frame.event === VOICE_ROOM_CHAT_EVENT.DELTA) {
-        handlers.onDelta?.((JSON.parse(frame.data) as { text: string }).text)
+        const delta = JSON.parse(frame.data) as {
+          text: string
+          restart?: true
+        }
+        handlers.onDelta?.(delta.text, delta.restart === true)
       } else if (frame.event === VOICE_ROOM_CHAT_EVENT.REPLY) {
         reply = (JSON.parse(frame.data) as { line: VoiceLineRecord }).line
       } else if (frame.event === VOICE_ROOM_CHAT_EVENT.ERROR) {

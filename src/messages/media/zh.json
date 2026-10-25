@@ -464,7 +464,14 @@
     "send": "发送",
     "removeFromRoom": "移出房间",
     "history": "对话历史",
-    "newTopic": "新话题"
+    "newTopic": "新话题",
+    "attachLabel": "放图",
+    "attachUpload": "上传图片",
+    "attachFromLibrary": "从素材库挑",
+    "removeImage": "摘掉这张图",
+    "imagesMax": "一次最多挂 {max} 张图",
+    "uploading": "上传中…",
+    "sources": "{count} 个来源"
   },
   "StudioVideoSlots": {
     "firstFrame": "首帧",

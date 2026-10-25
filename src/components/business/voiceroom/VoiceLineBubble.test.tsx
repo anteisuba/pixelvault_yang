@@ -5,6 +5,13 @@ import type { VoiceLineRecord } from '@/types/voiceroom'
 
 import { VoiceLineBubble } from './VoiceLineBubble'
 
+vi.mock('@/hooks/use-picture-number-references', () => ({
+  usePictureNumberReferences: (text: string) =>
+    text.includes('图_12')
+      ? [{ url: 'https://cdn.example/12.png', name: '图_12', aliases: [] }]
+      : [],
+}))
+
 vi.mock('next-intl', () => ({
   useTranslations: (namespace: string) => (key: string) =>
     `${namespace}:${key}`,
@@ -26,6 +33,7 @@ function makeLine(overrides: Partial<VoiceLineRecord> = {}): VoiceLineRecord {
     text: '今天天气不错。',
     emotion: null,
     audio: null,
+    attachments: null,
     createdAt: new Date().toISOString(),
     ...overrides,
   }
@@ -153,5 +161,63 @@ describe('VoiceLineBubble — chat (owner 10-23)', () => {
     expect(container.querySelector('.vr-cue')?.textContent).toBe('[laughing]')
     fireEvent.click(screen.getByRole('button', { name: 'VoiceRoom:readAloud' }))
     expect(onRetake).toHaveBeenCalledWith('line-1', {})
+  })
+})
+
+describe('VoiceLineBubble — pictures and sources (用户 10-25 Q3)', () => {
+  it('shows a picture she mentions as its own image, not as text', () => {
+    const { container } = render(
+      <VoiceLineBubble
+        line={makeLine({ text: '你看这张 图_12。' })}
+        onRetake={vi.fn()}
+      />,
+    )
+    expect(container.querySelector('.vr-bubble')?.textContent).toBe(
+      '你看这张。',
+    )
+    expect(container.querySelector('.vr-shot img')?.getAttribute('src')).toBe(
+      'https://cdn.example/12.png',
+    )
+  })
+
+  it('folds her sources into one chip that opens a list', () => {
+    render(
+      <VoiceLineBubble
+        line={makeLine({
+          attachments: {
+            sources: [
+              { title: '官网', url: 'https://a.example/1' },
+              { title: '百科', url: 'https://b.example/2' },
+            ],
+          },
+        })}
+        onRetake={vi.fn()}
+      />,
+    )
+    expect(screen.queryByRole('link', { name: '官网' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /VoiceRoom:sources/ }))
+    expect(screen.getByRole('link', { name: '官网' })).toHaveAttribute(
+      'href',
+      'https://a.example/1',
+    )
+  })
+
+  it('shows the pictures you sent on your own line', () => {
+    const { container } = render(
+      <VoiceLineBubble
+        line={makeLine({
+          speakerKind: 'user',
+          speakerName: '',
+          text: '这个怎么样',
+          attachments: {
+            images: [{ id: 'g1', url: 'https://cdn.example/mine.png' }],
+          },
+        })}
+        onRetake={vi.fn()}
+      />,
+    )
+    expect(container.querySelector('.vr-shot img')?.getAttribute('src')).toBe(
+      'https://cdn.example/mine.png',
+    )
   })
 })

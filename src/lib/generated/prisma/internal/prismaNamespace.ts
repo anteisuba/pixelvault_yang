@@ -3751,6 +3751,7 @@ export const VoiceLineScalarFieldEnum = {
   text: 'text',
   emotion: 'emotion',
   jobId: 'jobId',
+  attachments: 'attachments',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

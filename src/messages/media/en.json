@@ -464,7 +464,14 @@
     "send": "Send",
     "removeFromRoom": "Remove from room",
     "history": "Conversations",
-    "newTopic": "New topic"
+    "newTopic": "New topic",
+    "attachLabel": "Add images",
+    "attachUpload": "Upload images",
+    "attachFromLibrary": "Pick from assets",
+    "removeImage": "Remove this image",
+    "imagesMax": "Up to {max} images per message",
+    "uploading": "Uploading…",
+    "sources": "{count, plural, one {# source} other {# sources}}"
   },
   "StudioVideoSlots": {
     "firstFrame": "First",

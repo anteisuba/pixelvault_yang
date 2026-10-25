@@ -92,6 +92,7 @@ import {
   ASSISTANT_PERSONA_VERBOSITY_IDS,
   ASSISTANT_PERSONA_LIMITS as PERSONA_LIMITS,
   ASSISTANT_REASONING_EFFORT_IDS,
+  type AssistantRouteModel,
 } from '@/constants/assistant-persona'
 import {
   ASSISTANT_PROJECT_RULE_LIMITS as RULE_LIMITS,
@@ -11493,6 +11494,8 @@ export interface AssistantOperatorRunOptions {
   timeBudget?: { softMs: number; hardMs: number }
   /** 读当前时间。⚠ 同上，只给测试用。 */
   now?: () => number
+  /** 压过 persona 的文本模型（见 `PrepareOperatorTurnOptions.routeModel`）。路由不传。 */
+  routeModel?: AssistantRouteModel
 }
 
 /** 工具环本体收到的那一份：signal 已经并进了时间预算的硬线。 */
@@ -12450,6 +12453,11 @@ export interface PrepareOperatorTurnOptions {
    * （`request.domain` = image）。工作区与域的对照按首页核。
    */
   readonly homeDraft?: boolean
+  /**
+   * 这一轮用哪个文本模型，压过 persona 里那份：只给服务端自己的调用方（配音间底部那颗写词模型，
+   * 用户 10-25 换新内核后照留），⛔ 不从请求体收（理由见下面 `resolveAssistantRoute` 那段头注）。
+   */
+  readonly routeModel?: AssistantRouteModel
 }
 
 export async function prepareOperatorTurn(
@@ -12646,7 +12654,7 @@ export async function prepareOperatorTurn(
    */
   const questionTurn = isAssistantQuestionTurn(latestUserMessage(request))
   const { route, apiKeyId, modelId } = await resolveAssistantRoute(user.id, {
-    routeModel: persona.routeModel,
+    routeModel: options.routeModel ?? persona.routeModel,
     questionTurn,
   })
   const mediaAttachments = request.mediaAttachments ?? []

@@ -758,6 +758,10 @@ model VoiceLine {
   jobId String?
   job   GenerationJob? @relation("VoiceLineJob", fields: [jobId], references: [id], onDelete: SetNull)
 
+  /// 跟着这句的挂件（配音间换新内核，用户 10-25）：你发的图 `images`、她联网查到的来源 `sources`。
+  /// 形状见 `VoiceLineAttachmentsSchema`；null = 没有。⚠ 她回复里提到的作品图按 `图_N` 写在正文里，不存这里。
+  attachments Json?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

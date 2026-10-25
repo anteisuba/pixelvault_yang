@@ -89,6 +89,15 @@
 - **＋ 加人**：原来输入行头像后的 ＋ 挪到这里（输入行的 ＋ 留给第 ② 片的上传）。
 - **人设：X ▾**（`VoiceRoomPersonaChip`）：人设就是角色卡，⛔ 不另起数据。跟着底部选中的那位走（群里也是）。菜单 =「这一间用谁的设定」· 当前那张 · 换一张角色卡…（子菜单列全部角色）· 改设定（就地开角色页同一块 `CharacterSettingModule`，改的是角色卡本身）。换卡只写这一间班底上那位的 `characterCardId`，⛔ 不换嗓子；名字头像跟着换（`voiceSpeakerLook`）。没挑过 = 照旧取绑着这副嗓子的第一个角色；从角色头像「和她聊」开的房间直接记上她。服务端同一条规则 `findPersonaCard`（挑的卡被删了就退回去）。
 
+### 3.2.2 聊天换新内核 · 挂件（「配音间加能力」②，用户 2026-10-25）
+
+- **有角色卡就走助手新内核的聊天模式**（`runAssistantNext`，`chatCharacterId` = 这一间那位的人设卡，域 `home`）：自带联网、找图、看你发的图、按角色记忆；回复照样边写边发（`delta` 可带 `restart`，内核改口时整段替换）、写完照样念出来。**没有角色卡**（只有音色）仍走薄管子（`llmTextStream` + `buildVoiceChatPrompt`，音色名本人）。房间历史映射成内核消息：她说的 = assistant，你说的 = user，别人说的 = user 并带「名字: 」前缀，相邻同侧合并（`voiceChatKernelMessages`）。写词模型仍是底部那颗，服务端经 `runAssistantNext` 的 `routeModel` 选项传进去（⛔ 不进请求体，请求体不收客户端模型字段）。
+- **念出来的字**：`spokenVoiceText` 去掉作品号、markdown 链接只念字、去掉 URL 和强调符号，`[laughing]` 这类语气提示保留。
+- **挂件 = `VoiceLine.attachments`（可空 JSON，10-25 用户批准加列，迁移 `20261025080000_voice_line_attachments`）**：你那条存挂上的图（`images`：id/url/label/seq，一次最多 `VOICE_ROOM_CHAT_IMAGES_MAX` = 4），她那条存联网查到的来源（`sources`：title/url/publisher，按 url 去重，最多 `VOICE_LINE_SOURCES_MAX` = 12，取自 `search_web` 那一步）。读的时候 safeParse，坏了当没有。
+- **她发的图不进挂件**：回复里的作品号（`图_12`）就是图本身，前端 `usePictureNumberReferences` 查回缩略图——气泡里不显示号，每张图在气泡下面单独一块（Q3 选 C）；查不到的号照原样留字。来源折成一颗「N 个来源 ▸」，点开是链接列表。
+- **输入框 ＋**（Q4 选 C，只在聊天时出现）：上传图片（与助手同一条直传 R2，`useVoiceRoomImages`）/ 从素材库挑（`AssetSelectorDialog` 多选，传剩余容量）；挂上的图在输入行上面一排，× 摘掉，发出去就清空；上传中发送键不可点。
+- 已知缺口：内核聊天提示词里没有 Fish 的方括号语气提示说明（薄管子有），出声的语气靠模型自己。
+
 ### 3.3 素材库头像与 Fish 升级（「声音」模块第 3/4 步，owner 2026-10-23）
 
 - 素材库音频卡头像按头像规则走（见 §3.2 末条）；聊天语音仍自动入库，收藏键、说话人/类型筛选先不做；画布参考语音等到画布模块一起设计。

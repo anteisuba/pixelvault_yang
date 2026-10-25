@@ -20,6 +20,7 @@ import { voiceSpeakerLook } from '@/lib/voice-avatar'
 import type { AssistantRouteModel } from '@/constants/assistant-persona'
 import type { AudioEmotion } from '@/constants/voice-cards'
 import type {
+  VoiceLineImage,
   VoiceRoomCastMember,
   VoiceRoomDeliveryState,
   VoiceRoomDetail,
@@ -32,6 +33,7 @@ import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
 import { useIsMobile } from '@/hooks/use-mobile'
 
 import { VoiceLineBubble } from './VoiceLineBubble'
+import { VoiceLineImages } from './VoiceLineExtras'
 import { VoiceLinePending } from './VoiceLinePending'
 import { VoiceRoomCasting } from './VoiceRoomCasting'
 import { VoiceRoomComposer } from './VoiceRoomComposer'
@@ -77,7 +79,11 @@ interface VoiceRoomStageProps {
   onNewTopic: () => void
   onCastChange: (cast: VoiceRoomCastMember[]) => void
   onSay: (speakerId: string, text: string) => Promise<boolean>
-  onChat: (speakerId: string, text: string) => Promise<boolean>
+  onChat: (
+    speakerId: string,
+    text: string,
+    images?: VoiceLineImage[],
+  ) => Promise<boolean>
   onRetake: (
     lineId: string,
     patch: { emotion?: AudioEmotion | null },
@@ -167,6 +173,8 @@ export function VoiceRoomStage({
     ).length >= VOICE_ROOM_VOICE_CAST_MAX
   const [vaultOpen, setVaultOpen] = useState(false)
   const [pickedId, setPickedId] = useState<string | null>(null)
+  /** 聊天发出去、真台词还没回来时，你那条占位上挂的图。 */
+  const [sentImages, setSentImages] = useState<VoiceLineImage[]>([])
   const flowRef = useRef<HTMLDivElement | null>(null)
   /**
    * 正在取消的台词 id——独立状态，理由同 `retakingIds`（见宿主 hook）：不能
@@ -367,6 +375,7 @@ export function VoiceRoomStage({
           {pendingUserText ? (
             <div className="vr-msg" data-self>
               <div className="vr-msg-body">
+                <VoiceLineImages images={sentImages} />
                 <span className="vr-bubble">{pendingUserText}</span>
               </div>
             </div>
@@ -410,14 +419,22 @@ export function VoiceRoomStage({
               detail.cast.filter((member) => member.id !== speakerId),
             )
           }
-          onSubmit={(text) => {
+          onSubmit={async (text, images) => {
             const speaker = cast.find((member) => member.id === selectedId)
-            if (!speaker) return Promise.resolve(false)
+            if (!speaker) return false
             // 音效师不会回话：聊天模式下选中它也按念台词走。
-            return mode === VOICE_ROOM_MODE.CHAT &&
-              speaker.kind === VOICE_ROOM_SPEAKER_KIND.VOICE
-              ? onChat(speaker.id, text)
-              : onSay(speaker.id, text)
+            if (
+              mode !== VOICE_ROOM_MODE.CHAT ||
+              speaker.kind !== VOICE_ROOM_SPEAKER_KIND.VOICE
+            )
+              return onSay(speaker.id, text)
+            // 发着的那条先把挂的图带上（真台词回来之前的占位）。
+            setSentImages(images)
+            try {
+              return await onChat(speaker.id, text, images)
+            } finally {
+              setSentImages([])
+            }
           }}
         />
       )}

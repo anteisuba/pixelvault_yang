@@ -13,6 +13,8 @@ import {
 import {
   VOICE_LINE_SPEAKER_KINDS,
   VOICE_LINE_TEXT_MAX_LENGTH,
+  VOICE_LINE_SOURCES_MAX,
+  VOICE_ROOM_CHAT_IMAGES_MAX,
   VOICE_ROOM_NAME_MAX_LENGTH,
   VOICE_ROOM_SPEAKER_KINDS,
 } from '@/constants/voiceroom'
@@ -94,6 +96,44 @@ export const VoiceLineAudioSchema = z.object({
 
 export type VoiceLineAudio = z.infer<typeof VoiceLineAudioSchema>
 
+/**
+ * 一句话带的挂件（配音间换新内核，用户 10-25）。
+ *
+ * - `images`：你这句发的图（上传的 / 从素材挑的），她看得到；
+ * - `sources`：她联网查到的来源，气泡下折成一颗「N 个来源 ▸」。
+ * ⚠ 她回复里提到的作品图按 `图_N` 写在正文里（界面上换成单独一条图），⛔ 不在这里再存一份。
+ */
+export const VoiceLineImageSchema = z.object({
+  id: z.string().min(1).max(200),
+  url: z.string().url().max(2_000),
+  label: z.string().max(200).optional(),
+  /** 作品序号（`Generation.seq`）：她认 `图_N` 靠它。 */
+  seq: z.number().int().nonnegative().optional(),
+})
+
+export type VoiceLineImage = z.infer<typeof VoiceLineImageSchema>
+
+export const VoiceLineSourceSchema = z.object({
+  title: z.string().max(300),
+  url: z.string().url().max(2_000),
+  publisher: z.string().max(120).optional(),
+})
+
+export type VoiceLineSource = z.infer<typeof VoiceLineSourceSchema>
+
+export const VoiceLineAttachmentsSchema = z.object({
+  images: z
+    .array(VoiceLineImageSchema)
+    .max(VOICE_ROOM_CHAT_IMAGES_MAX)
+    .optional(),
+  sources: z
+    .array(VoiceLineSourceSchema)
+    .max(VOICE_LINE_SOURCES_MAX)
+    .optional(),
+})
+
+export type VoiceLineAttachments = z.infer<typeof VoiceLineAttachmentsSchema>
+
 export const VoiceLineRecordSchema = z.object({
   id: z.string(),
   order: z.number().int().nonnegative(),
@@ -107,6 +147,8 @@ export const VoiceLineRecordSchema = z.object({
   emotion: AudioEmotionSchema.nullable(),
   /** null = 没有声音：聊天里你说的话（`speakerKind: 'user'`）一直是 null。 */
   audio: VoiceLineAudioSchema.nullable(),
+  /** null = 没有挂件。 */
+  attachments: VoiceLineAttachmentsSchema.nullable(),
   createdAt: z.string(),
 })
 
@@ -266,6 +308,11 @@ export const VoiceRoomChatRequestSchema = VoiceLineDeliverySchema.extend({
    * 气泡上给「念出来」；不传 = 照旧出声。
    */
   voice: z.boolean().optional(),
+  /** 这句带的图（输入框 ＋：上传 / 从素材挑）。她看得到，也跟着你这句存下来。 */
+  images: z
+    .array(VoiceLineImageSchema)
+    .max(VOICE_ROOM_CHAT_IMAGES_MAX)
+    .optional(),
 })
 
 export type VoiceRoomChatRequest = z.infer<typeof VoiceRoomChatRequestSchema>

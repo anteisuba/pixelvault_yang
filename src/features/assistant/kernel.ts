@@ -19,6 +19,7 @@ import {
   ASSISTANT_OPERATOR_TOOL_IDS,
   ASSISTANT_OPERATOR_TOOL_VERBS,
 } from '@/constants/assistant-operator'
+import type { AssistantRouteModel } from '@/constants/assistant-persona'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import {
   ASSISTANT_TURN_RECORD_LIMITS,
@@ -257,7 +258,14 @@ export async function* runAssistantNext(
   try {
     for await (const event of runWithOperatorTimeBudget(
       options,
-      (turnOptions) => runNextTurn(clerkId, request, turnOptions, recording),
+      (turnOptions) =>
+        runNextTurn(
+          clerkId,
+          request,
+          turnOptions,
+          recording,
+          options.routeModel,
+        ),
     )) {
       outcome = turnOutcomeOf(event, recording, outcome)
       if (event.type === ASSISTANT_OPERATOR_EVENTS.error)
@@ -431,6 +439,7 @@ async function* runNextTurn(
   initialRequest: AssistantOperatorRequest,
   options: OperatorTurnOptions,
   recording: NextTurnRecording,
+  routeModel?: AssistantRouteModel,
 ): AsyncIterable<AssistantOperatorEvent> {
   const signal = options.signal
   if (signal.aborted) {
@@ -462,6 +471,7 @@ async function* runNextTurn(
   const prepared = await prepareOperatorTurn(clerkId, request, signal, {
     skipPriorRounds: true,
     homeDraft,
+    ...(routeModel ? { routeModel } : {}),
   })
   const { user, persona, rules, route, run, modelId } = prepared
   // 和角色聊天（第 7a 步 D）：自己的系统提示、记忆挂她身上、故事向摘要、每轮末尾一句「别出戏」。

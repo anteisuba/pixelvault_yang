@@ -75,6 +75,7 @@ export type VoiceLineCountAggregateOutputType = {
   text: number
   emotion: number
   jobId: number
+  attachments: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -130,6 +131,7 @@ export type VoiceLineCountAggregateInputType = {
   text?: true
   emotion?: true
   jobId?: true
+  attachments?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -232,6 +234,7 @@ export type VoiceLineGroupByOutputType = {
   text: string
   emotion: string | null
   jobId: string | null
+  attachments: runtime.JsonValue | null
   createdAt: Date
   updatedAt: Date
   _count: VoiceLineCountAggregateOutputType | null
@@ -270,6 +273,7 @@ export type VoiceLineWhereInput = {
   text?: Prisma.StringFilter<"VoiceLine"> | string
   emotion?: Prisma.StringNullableFilter<"VoiceLine"> | string | null
   jobId?: Prisma.StringNullableFilter<"VoiceLine"> | string | null
+  attachments?: Prisma.JsonNullableFilter<"VoiceLine">
   createdAt?: Prisma.DateTimeFilter<"VoiceLine"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"VoiceLine"> | Date | string
   room?: Prisma.XOR<Prisma.VoiceRoomScalarRelationFilter, Prisma.VoiceRoomWhereInput>
@@ -287,6 +291,7 @@ export type VoiceLineOrderByWithRelationInput = {
   text?: Prisma.SortOrder
   emotion?: Prisma.SortOrderInput | Prisma.SortOrder
   jobId?: Prisma.SortOrderInput | Prisma.SortOrder
+  attachments?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   room?: Prisma.VoiceRoomOrderByWithRelationInput
@@ -307,6 +312,7 @@ export type VoiceLineWhereUniqueInput = Prisma.AtLeast<{
   text?: Prisma.StringFilter<"VoiceLine"> | string
   emotion?: Prisma.StringNullableFilter<"VoiceLine"> | string | null
   jobId?: Prisma.StringNullableFilter<"VoiceLine"> | string | null
+  attachments?: Prisma.JsonNullableFilter<"VoiceLine">
   createdAt?: Prisma.DateTimeFilter<"VoiceLine"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"VoiceLine"> | Date | string
   room?: Prisma.XOR<Prisma.VoiceRoomScalarRelationFilter, Prisma.VoiceRoomWhereInput>
@@ -324,6 +330,7 @@ export type VoiceLineOrderByWithAggregationInput = {
   text?: Prisma.SortOrder
   emotion?: Prisma.SortOrderInput | Prisma.SortOrder
   jobId?: Prisma.SortOrderInput | Prisma.SortOrder
+  attachments?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.VoiceLineCountOrderByAggregateInput
@@ -347,6 +354,7 @@ export type VoiceLineScalarWhereWithAggregatesInput = {
   text?: Prisma.StringWithAggregatesFilter<"VoiceLine"> | string
   emotion?: Prisma.StringNullableWithAggregatesFilter<"VoiceLine"> | string | null
   jobId?: Prisma.StringNullableWithAggregatesFilter<"VoiceLine"> | string | null
+  attachments?: Prisma.JsonNullableWithAggregatesFilter<"VoiceLine">
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"VoiceLine"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"VoiceLine"> | Date | string
 }
@@ -360,6 +368,7 @@ export type VoiceLineCreateInput = {
   speakerCover?: string | null
   text: string
   emotion?: string | null
+  attachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
   room: Prisma.VoiceRoomCreateNestedOneWithoutLinesInput
@@ -377,6 +386,7 @@ export type VoiceLineUncheckedCreateInput = {
   text: string
   emotion?: string | null
   jobId?: string | null
+  attachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -390,6 +400,7 @@ export type VoiceLineUpdateInput = {
   speakerCover?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   text?: Prisma.StringFieldUpdateOperationsInput | string
   emotion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  attachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   room?: Prisma.VoiceRoomUpdateOneRequiredWithoutLinesNestedInput
@@ -407,6 +418,7 @@ export type VoiceLineUncheckedUpdateInput = {
   text?: Prisma.StringFieldUpdateOperationsInput | string
   emotion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   jobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  attachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -422,6 +434,7 @@ export type VoiceLineCreateManyInput = {
   text: string
   emotion?: string | null
   jobId?: string | null
+  attachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -435,6 +448,7 @@ export type VoiceLineUpdateManyMutationInput = {
   speakerCover?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   text?: Prisma.StringFieldUpdateOperationsInput | string
   emotion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  attachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -450,6 +464,7 @@ export type VoiceLineUncheckedUpdateManyInput = {
   text?: Prisma.StringFieldUpdateOperationsInput | string
   emotion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   jobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  attachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -475,6 +490,7 @@ export type VoiceLineCountOrderByAggregateInput = {
   text?: Prisma.SortOrder
   emotion?: Prisma.SortOrder
   jobId?: Prisma.SortOrder
+  attachments?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -610,6 +626,7 @@ export type VoiceLineCreateWithoutJobInput = {
   speakerCover?: string | null
   text: string
   emotion?: string | null
+  attachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
   room: Prisma.VoiceRoomCreateNestedOneWithoutLinesInput
@@ -625,6 +642,7 @@ export type VoiceLineUncheckedCreateWithoutJobInput = {
   speakerCover?: string | null
   text: string
   emotion?: string | null
+  attachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -669,6 +687,7 @@ export type VoiceLineScalarWhereInput = {
   text?: Prisma.StringFilter<"VoiceLine"> | string
   emotion?: Prisma.StringNullableFilter<"VoiceLine"> | string | null
   jobId?: Prisma.StringNullableFilter<"VoiceLine"> | string | null
+  attachments?: Prisma.JsonNullableFilter<"VoiceLine">
   createdAt?: Prisma.DateTimeFilter<"VoiceLine"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"VoiceLine"> | Date | string
 }
@@ -682,6 +701,7 @@ export type VoiceLineCreateWithoutRoomInput = {
   speakerCover?: string | null
   text: string
   emotion?: string | null
+  attachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
   job?: Prisma.GenerationJobCreateNestedOneWithoutVoiceLinesInput
@@ -697,6 +717,7 @@ export type VoiceLineUncheckedCreateWithoutRoomInput = {
   text: string
   emotion?: string | null
   jobId?: string | null
+  attachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -737,6 +758,7 @@ export type VoiceLineCreateManyJobInput = {
   speakerCover?: string | null
   text: string
   emotion?: string | null
+  attachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -750,6 +772,7 @@ export type VoiceLineUpdateWithoutJobInput = {
   speakerCover?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   text?: Prisma.StringFieldUpdateOperationsInput | string
   emotion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  attachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   room?: Prisma.VoiceRoomUpdateOneRequiredWithoutLinesNestedInput
@@ -765,6 +788,7 @@ export type VoiceLineUncheckedUpdateWithoutJobInput = {
   speakerCover?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   text?: Prisma.StringFieldUpdateOperationsInput | string
   emotion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  attachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -779,6 +803,7 @@ export type VoiceLineUncheckedUpdateManyWithoutJobInput = {
   speakerCover?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   text?: Prisma.StringFieldUpdateOperationsInput | string
   emotion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  attachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -793,6 +818,7 @@ export type VoiceLineCreateManyRoomInput = {
   text: string
   emotion?: string | null
   jobId?: string | null
+  attachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -806,6 +832,7 @@ export type VoiceLineUpdateWithoutRoomInput = {
   speakerCover?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   text?: Prisma.StringFieldUpdateOperationsInput | string
   emotion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  attachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   job?: Prisma.GenerationJobUpdateOneWithoutVoiceLinesNestedInput
@@ -821,6 +848,7 @@ export type VoiceLineUncheckedUpdateWithoutRoomInput = {
   text?: Prisma.StringFieldUpdateOperationsInput | string
   emotion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   jobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  attachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -835,6 +863,7 @@ export type VoiceLineUncheckedUpdateManyWithoutRoomInput = {
   text?: Prisma.StringFieldUpdateOperationsInput | string
   emotion?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   jobId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  attachments?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -852,6 +881,7 @@ export type VoiceLineSelect<ExtArgs extends runtime.Types.Extensions.InternalArg
   text?: boolean
   emotion?: boolean
   jobId?: boolean
+  attachments?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   room?: boolean | Prisma.VoiceRoomDefaultArgs<ExtArgs>
@@ -869,6 +899,7 @@ export type VoiceLineSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ext
   text?: boolean
   emotion?: boolean
   jobId?: boolean
+  attachments?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   room?: boolean | Prisma.VoiceRoomDefaultArgs<ExtArgs>
@@ -886,6 +917,7 @@ export type VoiceLineSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ext
   text?: boolean
   emotion?: boolean
   jobId?: boolean
+  attachments?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   room?: boolean | Prisma.VoiceRoomDefaultArgs<ExtArgs>
@@ -903,11 +935,12 @@ export type VoiceLineSelectScalar = {
   text?: boolean
   emotion?: boolean
   jobId?: boolean
+  attachments?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type VoiceLineOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "roomId" | "order" | "speakerId" | "speakerKind" | "speakerName" | "speakerCover" | "text" | "emotion" | "jobId" | "createdAt" | "updatedAt", ExtArgs["result"]["voiceLine"]>
+export type VoiceLineOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "roomId" | "order" | "speakerId" | "speakerKind" | "speakerName" | "speakerCover" | "text" | "emotion" | "jobId" | "attachments" | "createdAt" | "updatedAt", ExtArgs["result"]["voiceLine"]>
 export type VoiceLineInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   room?: boolean | Prisma.VoiceRoomDefaultArgs<ExtArgs>
   job?: boolean | Prisma.VoiceLine$jobArgs<ExtArgs>
@@ -972,6 +1005,11 @@ export type $VoiceLinePayload<ExtArgs extends runtime.Types.Extensions.InternalA
      * 没有消费者）。被换下来的 Generation 不删——它是用户资产，留在素材库里。
      */
     jobId: string | null
+    /**
+     * 跟着这句的挂件（配音间换新内核，用户 10-25）：你发的图 `images`、她联网查到的来源 `sources`。
+     * 形状见 `VoiceLineAttachmentsSchema`；null = 没有。⚠ 她回复里提到的作品图按 `图_N` 写在正文里，不存这里。
+     */
+    attachments: runtime.JsonValue | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["voiceLine"]>
@@ -1409,6 +1447,7 @@ export interface VoiceLineFieldRefs {
   readonly text: Prisma.FieldRef<"VoiceLine", 'String'>
   readonly emotion: Prisma.FieldRef<"VoiceLine", 'String'>
   readonly jobId: Prisma.FieldRef<"VoiceLine", 'String'>
+  readonly attachments: Prisma.FieldRef<"VoiceLine", 'Json'>
   readonly createdAt: Prisma.FieldRef<"VoiceLine", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"VoiceLine", 'DateTime'>
 }

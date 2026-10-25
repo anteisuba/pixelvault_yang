@@ -5,6 +5,9 @@ import { CharacterPersonaSchema } from '@/types'
 import {
   buildVoiceChatPrompt,
   cleanVoiceChatReply,
+  pictureHandlesOf,
+  spokenVoiceText,
+  withoutPictureHandles,
 } from './voiceroom-chat-prompt'
 
 describe('buildVoiceChatPrompt', () => {
@@ -84,5 +87,27 @@ describe('cleanVoiceChatReply', () => {
     )
     // 中间还有引号就不是「整句被包起来」，原样留着。
     expect(cleanVoiceChatReply('"A" and "B"', 'Denia')).toBe('"A" and "B"')
+  })
+})
+
+describe('picture handles in her reply', () => {
+  const reply = '给你找到了 图_12 和 图_7，还有 图_12。'
+
+  it('lists each picture once, in order', () => {
+    expect(pictureHandlesOf(reply)).toEqual(['图_12', '图_7'])
+  })
+
+  it('leaves only her words in the bubble', () => {
+    expect(withoutPictureHandles('看这张 图_12。')).toBe('看这张。')
+    expect(withoutPictureHandles('图_12')).toBe('')
+  })
+
+  it('reads aloud only the words, keeping delivery cues', () => {
+    expect(
+      spokenVoiceText(
+        '[laughing] 看 图_3，**很像**吧？来源 [官网](https://a.example) https://b.example',
+      ),
+    ).toBe('[laughing] 看，很像吧？来源 官网')
+    expect(spokenVoiceText('图_3')).toBe('图_3')
   })
 })

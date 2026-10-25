@@ -32,6 +32,7 @@ import {
 } from '@/lib/api-client/voiceroom'
 import { roomsWithSameCast, voiceRoomCastKey } from '@/lib/voiceroom-cast'
 import type {
+  VoiceLineImage,
   VoiceLineRecord,
   VoiceRoomCastMember,
   VoiceRoomDetail,
@@ -173,8 +174,12 @@ export interface UseVoiceRoomResult {
   setCast: (cast: VoiceRoomCastMember[]) => Promise<void>
   removeRoom: (roomId: string) => Promise<void>
   say: (speakerId: string, text: string) => Promise<boolean>
-  /** 聊天：跟这位说一句。返回 true = 你那句已经落进聊天流（输入框不用把字还回去）。 */
-  chat: (speakerId: string, text: string) => Promise<boolean>
+  /** 聊天：跟这位说一句（可带图）。返回 true = 你那句已经落进聊天流（输入框不用把字还回去）。 */
+  chat: (
+    speakerId: string,
+    text: string,
+    images?: VoiceLineImage[],
+  ) => Promise<boolean>
   retake: (
     lineId: string,
     patch: { emotion?: AudioEmotion | null; text?: string },
@@ -482,7 +487,7 @@ export function useVoiceRoom(): UseVoiceRoomResult {
    * ⚠ 两个占位都**不进 `detail.lines`**，理由同 `say`；真台词回来那一刻占位才撤。
    */
   const chat = useCallback(
-    async (speakerId: string, text: string) => {
+    async (speakerId: string, text: string, images?: VoiceLineImage[]) => {
       const roomId = activeRoomId
       if (!roomId) return false
       const append = (line: VoiceLineRecord) =>
@@ -501,6 +506,7 @@ export function useVoiceRoom(): UseVoiceRoomResult {
           text,
           llmModel,
           voice: voiceOn,
+          ...(images?.length ? { images } : {}),
           ...toDeliveryPayload(delivery),
         },
         {
@@ -510,9 +516,12 @@ export function useVoiceRoom(): UseVoiceRoomResult {
             setPendingUserText(null)
             setStreamingReply({ speakerId, text: '' })
           },
-          onDelta: (delta) =>
+          // `restart`：她查完资料重起一段，换掉还在写的那段。
+          onDelta: (delta, restart) =>
             setStreamingReply((current) =>
-              current ? { ...current, text: current.text + delta } : current,
+              current
+                ? { ...current, text: restart ? delta : current.text + delta }
+                : current,
             ),
         },
       )

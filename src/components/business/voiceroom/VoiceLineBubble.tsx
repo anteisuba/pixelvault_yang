@@ -10,9 +10,15 @@ import {
   VOICE_ROOM_SHAKE_MS,
 } from '@/constants/voiceroom'
 import type { AudioEmotion } from '@/constants/voice-cards'
+import { withoutPictureHandles } from '@/lib/voiceroom-chat-prompt'
 import type { VoiceLineRecord } from '@/types/voiceroom'
 
 import { VoiceAvatar } from './VoiceAvatar'
+import {
+  VoiceLineImages,
+  VoiceLinePictures,
+  VoiceLineSources,
+} from './VoiceLineExtras'
 import { VoiceLineText } from './VoiceLineText'
 
 /**
@@ -184,6 +190,8 @@ export function VoiceLineBubble({
   }
 
   const duration = formatDuration(line.audio?.duration ?? null)
+  // 作品号不显示字：气泡只画剩下的话，图在下面单独一条（只剩作品号就不画空气泡）。
+  const shown = withoutPictureHandles(line.text)
 
   // 聊天里你自己说的话：只有文字，靠右（owner 10-23）。
   if (line.speakerKind === VOICE_LINE_USER_KIND) {
@@ -194,6 +202,7 @@ export function VoiceLineBubble({
         style={{ '--vr-md': `${staggerMs}ms` } as React.CSSProperties}
       >
         <div className="vr-msg-body">
+          <VoiceLineImages images={line.attachments?.images ?? []} />
           <span className="vr-bubble">{line.text}</span>
         </div>
       </div>
@@ -220,9 +229,13 @@ export function VoiceLineBubble({
       />
       <div className="vr-msg-body">
         <span className="vr-who">{line.speakerName}</span>
-        <span className="vr-bubble">
-          <VoiceLineText text={line.text} />
-        </span>
+        {shown ? (
+          <span className="vr-bubble">
+            <VoiceLineText text={shown} />
+          </span>
+        ) : null}
+        <VoiceLinePictures text={line.text} />
+        <VoiceLineSources sources={line.attachments?.sources ?? []} />
 
         {status === 'COMPLETED' && url && !retaking ? (
           <span className="vr-voice-row" ref={rowRef}>

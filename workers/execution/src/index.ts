@@ -139,6 +139,8 @@ const IMAGE_QUEUE_WORKFLOW_ID = 'IMAGE_QUEUE'
 const CANCEL_PATH = '/cancel'
 /** 助手 LLM 调用日志：app → worker。Mirrors `EXECUTION_WORKER.LLM_CALL_LOG_PATH`. */
 const LLM_CALL_LOG_PATH = '/logs/llm-call'
+/** 认图（PixAI Tagger）：app → worker → Modal `/tag`。Mirrors `EXECUTION_WORKER.TAG_IMAGE_PATH`. */
+const TAG_IMAGE_PATH = '/tag-image'
 /** 一行日志最多这么多字段；字段值只收原始类型，⛔ 不收对象和长文。 */
 const LLM_CALL_LOG_MAX_FIELDS = 24
 const LLM_CALL_LOG_MAX_STRING = 120
@@ -8334,6 +8336,71 @@ async function handleLlmCallLog(
   return new Response(null, { status: 204 })
 }
 
+/**
+ * 认图：app 签名发来一张图的地址，原样转给 Modal 上的 Tagger（`RUNNER_MODAL_TOKEN` 只在 Worker），
+ * 同步等结果。冷启动要几十秒，app 那头自己掐超时。
+ */
+async function handleTagImage(
+  request: Request,
+  env: ExecutionEnv,
+): Promise<Response> {
+  const secret = readRequiredSecret(env)
+  if (!secret) {
+    return jsonResponse(
+      { ok: false, error: 'Internal callback secret is not configured.' },
+      { status: 500 },
+    )
+  }
+  const rawBody = await verifySignedBody(request, secret)
+  if (!rawBody) {
+    return jsonResponse(
+      { ok: false, error: 'Invalid signature.' },
+      { status: 401 },
+    )
+  }
+  let imageUrl: unknown
+  try {
+    imageUrl = (JSON.parse(rawBody) as { imageUrl?: unknown }).imageUrl
+  } catch {
+    imageUrl = undefined
+  }
+  if (typeof imageUrl !== 'string' || !imageUrl.startsWith('https://')) {
+    return jsonResponse(
+      { ok: false, error: 'imageUrl must be an https URL.' },
+      { status: 400 },
+    )
+  }
+  let upstream: Response
+  try {
+    upstream = await modalRunnerRequest(env, '/tag', {
+      method: 'POST',
+      body: { imageUrl },
+    })
+  } catch (error) {
+    return jsonResponse(
+      {
+        ok: false,
+        error: error instanceof Error ? error.message : 'Tagger unreachable.',
+      },
+      { status: 502 },
+    )
+  }
+  const text = await upstream.text()
+  if (!upstream.ok) {
+    return jsonResponse(
+      {
+        ok: false,
+        error: `Tagger failed (${upstream.status}): ${text.slice(0, 300)}`,
+      },
+      { status: 502 },
+    )
+  }
+  return new Response(text, {
+    status: 200,
+    headers: { 'Content-Type': JSON_CONTENT_TYPE },
+  })
+}
+
 const executionWorker = {
   async fetch(request: Request, env: ExecutionEnv): Promise<Response> {
     const url = new URL(request.url)
@@ -8372,6 +8439,10 @@ const executionWorker = {
 
     if (request.method === 'POST' && url.pathname === LLM_CALL_LOG_PATH) {
       return handleLlmCallLog(request, env)
+    }
+
+    if (request.method === 'POST' && url.pathname === TAG_IMAGE_PATH) {
+      return handleTagImage(request, env)
     }
 
     return jsonResponse({ ok: false, error: 'Not found.' }, { status: 404 })

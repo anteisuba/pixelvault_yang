@@ -93,7 +93,7 @@ describe('给模型看的 JSON schema：严格模式的形状', () => {
       additionalProperties: boolean
       properties: Record<string, { anyOf?: { type: string }[] }>
     }
-    expect(schema.required).toEqual(['names', 'question'])
+    expect(schema.required).toEqual(['names', 'question', 'tagger'])
     expect(schema.additionalProperties).toBe(false)
     expect(
       schema.properties.question?.anyOf?.map((entry) => entry.type),

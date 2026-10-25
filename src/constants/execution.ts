@@ -99,6 +99,8 @@ export const EXECUTION_WORKER = {
   /** 助手 LLM 调用日志：app → worker，写进 Workers Logs（留 7 天）。 */
   LLM_CALL_LOG_PATH: '/logs/llm-call',
   LLM_CALL_LOG_TIMEOUT_MS: 5_000,
+  /** 认图（PixAI Tagger）：app → worker → Modal `/tag`，同步等结果。 */
+  TAG_IMAGE_PATH: '/tag-image',
   DEFAULT_POLL_INTERVAL_MS: 3_000,
   DEFAULT_MAX_ATTEMPTS: 200,
   DEFAULT_TIMEOUT_MS: 600_000,

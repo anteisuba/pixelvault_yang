@@ -268,6 +268,41 @@ export async function notifyWorkerCancel(
 }
 
 /**
+ * 认一张图（PixAI Tagger）：Worker 拿自己的 `RUNNER_MODAL_TOKEN` 转给 Modal，同步回标签。
+ * 没配 worker / 超时 / 认不出都抛，调用方说清楚「这次没认成」。
+ */
+export async function tagImageViaWorker(
+  imageUrl: string,
+  timeoutMs: number,
+): Promise<unknown> {
+  const body = JSON.stringify({ imageUrl })
+  const url = `${getWorkerBaseUrl()}${EXECUTION_WORKER.TAG_IMAGE_PATH}`
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...createInternalExecutionHeaders({
+        body,
+        method: 'POST',
+        url,
+        secret: getInternalCallbackSecret(),
+      }),
+    },
+    body,
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => '')
+    throw new Error(
+      `Tagger failed (${response.status}): ${errorBody.slice(0, 200)}`,
+    )
+  }
+  return response.json()
+}
+
+/**
  * 助手 LLM 调用的那一行日志转给 execution worker，存进 Workers Logs —— Vercel Hobby 的
  * 运行时日志只留 1 小时（2026-10-08）。没配 worker 时什么都不做；失败照常抛，调用方吞掉。
  */

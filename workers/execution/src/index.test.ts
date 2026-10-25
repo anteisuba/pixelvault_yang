@@ -4581,6 +4581,86 @@ describe('/logs/llm-call route', () => {
   })
 })
 
+describe('/tag-image route', () => {
+  const secret = 'test-execution-secret'
+  const url = 'https://execution.example.com/tag-image'
+  const env = {
+    INTERNAL_CALLBACK_SECRET: secret,
+    RUNNER_MODAL_URL: 'https://runner.example.com/',
+    RUNNER_MODAL_TOKEN: 'modal-token',
+  } as never
+
+  async function signedTagRequest(body: string) {
+    return new Request(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(await createSignedRequestHeaders({ secret, body, url })),
+      },
+      body,
+    })
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('rejects an unsigned request before calling Modal', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const response = await executionWorker.fetch(
+      new Request(url, {
+        method: 'POST',
+        body: JSON.stringify({ imageUrl: 'https://cdn.example.com/a.png' }),
+      }),
+      env,
+    )
+    expect(response.status).toBe(401)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('forwards the picture to the Modal tagger with the runner token', async () => {
+    const tags = { style: [['artist_a', 0.91]], character: [] }
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify(tags), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const response = await executionWorker.fetch(
+      await signedTagRequest(
+        JSON.stringify({ imageUrl: 'https://cdn.example.com/a.png' }),
+      ),
+      env,
+    )
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual(tags)
+    const [calledUrl, init] = fetchMock.mock.calls[0]!
+    expect(calledUrl).toBe('https://runner.example.com/tag')
+    expect(init.headers.Authorization).toBe('Bearer modal-token')
+    expect(JSON.parse(init.body)).toEqual({
+      imageUrl: 'https://cdn.example.com/a.png',
+    })
+  })
+
+  it('refuses a non-https address and reports a tagger failure as 502', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response('boom', { status: 500 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const bad = await executionWorker.fetch(
+      await signedTagRequest(JSON.stringify({ imageUrl: 'http://x/a.png' })),
+      env,
+    )
+    expect(bad.status).toBe(400)
+    const failed = await executionWorker.fetch(
+      await signedTagRequest(
+        JSON.stringify({ imageUrl: 'https://cdn.example.com/a.png' }),
+      ),
+      env,
+    )
+    expect(failed.status).toBe(502)
+  })
+})
+
 /**
  * 按账号排队（第 5a 步）：出图前先问轮到没有；服务商回 429 不算失败，等一会儿再出。
  */

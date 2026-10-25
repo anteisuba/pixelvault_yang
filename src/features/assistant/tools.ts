@@ -52,6 +52,12 @@ export const LookInputSchema = z.object({
     .string()
     .nullish()
     .describe('What you want to find out by looking. Optional.'),
+  tagger: z
+    .boolean()
+    .nullish()
+    .describe(
+      'true also runs the anime tagger on the pictures in names: Danbooru tags with confidence for the artist / style, character, work and content. Use it to tell who drew a picture or which style or character it is (反推画风 / 画师 / 角色), above all for a picture with no recipe. Takes a few seconds per picture.',
+    ),
 })
 export type LookInput = z.infer<typeof LookInputSchema>
 
@@ -606,7 +612,7 @@ export function parseToolInput<T>(
 
 const DESCRIPTIONS = {
   find: "Search the creator's workspace: their pictures, characters and looks, LoRA library, saved prompts, earlier conversations on every bench, and what you remember about them. Returns numbered lines; open any of them with look.",
-  look: 'Read the bench as it is right now, and optionally open things by number or name: pictures (with their full recipe), characters, LoRAs, saved prompts, earlier conversations, settings. Pictures you open stay in front of you.',
+  look: 'Read the bench as it is right now, and optionally open things by number or name: pictures (with their full recipe), characters, LoRAs, saved prompts, earlier conversations, settings. Pictures you open stay in front of you. tagger: true also reads who drew them / the style / the character as Danbooru tags.',
   edit: 'Change the bench, the creator\'s library (pictures, folders, characters and looks, LoRAs, saved prompts), their settings (model channels, assistant settings, search source lists), or what you remember (remember). All changes for one request go in ONE call, applied in order; each lands at once and can be undone. For the prompt prefer mode "edit" with exact {find, replace} pairs so everything else stays as it is.',
   ask: 'Ask the creator when you cannot go on without their choice. Puts a card with options in front of them and ends this turn until they answer.',
   generate:

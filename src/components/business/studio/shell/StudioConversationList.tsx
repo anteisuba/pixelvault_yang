@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useContext, useState, type MouseEvent, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { ROUTES } from '@/constants/routes'
@@ -9,6 +9,7 @@ import { ChatCircleText, Images, Library, SquarePen } from '@/components/icons'
 import { AccountMenu } from '@/components/layout/AccountMenu'
 import { ProfileAvatar } from '@/components/layout/ProfileAvatar'
 import { StudioConversationRecent } from '@/components/business/studio/shell/StudioConversationRecent'
+import { StudioLibraryTargetContext } from '@/components/business/studio/shell/StudioLibraryOverlay'
 import {
   Popover,
   PopoverContent,
@@ -61,6 +62,14 @@ export function StudioConversationList({ className }: { className?: string }) {
   const kind = studioShellRouteKind(pathname)
   const openCategory = libraryCategoryFromPath(pathname)
   const [listOpen, setListOpen] = useState(false)
+  const librarySlot = useContext(StudioLibraryTargetContext)
+  const libraryActive = openCategory !== null && openCategory !== 'gallery'
+  /** 库是整页、没有返回键：再点一下亮着的那一颗 = 收起库，回到进来之前那一页。 */
+  const closeIfActive = (active: boolean) => (event: MouseEvent) => {
+    if (!active || !librarySlot) return
+    event.preventDefault()
+    librarySlot.close()
+  }
 
   const startNewChat = () => {
     if (kind === 'home' && actions) {
@@ -133,18 +142,10 @@ export function StudioConversationList({ className }: { className?: string }) {
         <Link
           href={studioLibraryPath('assets')}
           replace={openCategory !== null}
+          onClick={closeIfActive(libraryActive)}
           aria-label={t('library')}
-          aria-current={
-            openCategory !== null && openCategory !== 'gallery'
-              ? 'page'
-              : undefined
-          }
-          className={cn(
-            NAV_BUTTON_CLASS,
-            openCategory !== null &&
-              openCategory !== 'gallery' &&
-              NAV_ACTIVE_CLASS,
-          )}
+          aria-current={libraryActive ? 'page' : undefined}
+          className={cn(NAV_BUTTON_CLASS, libraryActive && NAV_ACTIVE_CLASS)}
         >
           <Library />
         </Link>
@@ -153,6 +154,7 @@ export function StudioConversationList({ className }: { className?: string }) {
         <Link
           href={studioLibraryPath('gallery')}
           replace={openCategory !== null}
+          onClick={closeIfActive(openCategory === 'gallery')}
           aria-label={tNav('links.gallery')}
           aria-current={openCategory === 'gallery' ? 'page' : undefined}
           className={cn(

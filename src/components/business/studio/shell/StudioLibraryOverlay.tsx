@@ -20,14 +20,16 @@ import {
   type StudioShellOverlayId,
 } from '@/constants/studio-shell'
 import { StudioOperatorDetachedScope } from '@/contexts/studio-operator-host'
-import { ChevronLeft } from '@/components/icons'
+import { AssistantAvatarGlyph } from '@/components/business/studio/assistant-operator/AssistantAvatarGlyph'
+import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import { Link } from '@/i18n/navigation'
-import { shellEnter, shellLeave } from '@/lib/studio-shell-motion'
+import { shellEnter } from '@/lib/studio-shell-motion'
 import { cn } from '@/lib/utils'
 
 /**
  * 库叠层（第 9f 步方向 E，9f-2a）：`/library/<类>` 的页面不在原地画，而是**传送**到外壳
- * 中间那一栏上的落点里 —— 盖住对话、⛔ 盖住台。
+ * 白板上的落点里 —— 库是整页（ui-spec §9「库 `LibraryPage`」）：盖满白板、台不卸载只是被盖住，
+ * 对话收着，右上「助手」把对话从右边叫出来。
  *
  * ⭐ 为什么传送：从外壳里点开库是软跳转，Next 把台留在 `children` 里不卸载，库走 `@library`
  *   那一格（拦截路由）；直接打开 / 刷新时库就是 `children` 本身。两种情况页面落在不同的位置，
@@ -44,6 +46,9 @@ interface StudioLibraryTarget {
   inPlace: StudioShellOverlayId | null
   setOpenCategory: (category: StudioShellOverlayId | null) => void
   close: () => void
+  /** 库里右上「助手」：对话从右边出来接着聊（ui-spec §9「库 + 助手」）。 */
+  assistantOpen: boolean
+  setAssistantOpen: (open: boolean) => void
 }
 
 export const StudioLibraryTargetContext =
@@ -72,7 +77,11 @@ export function StudioLibraryOverlay({
 
   return createPortal(
     <StudioOperatorDetachedScope>
-      <StudioLibraryFrame category={category} onClose={slot.close}>
+      <StudioLibraryFrame
+        category={category}
+        assistantOpen={slot.assistantOpen}
+        onToggleAssistant={() => slot.setAssistantOpen(!slot.assistantOpen)}
+      >
         {children}
       </StudioLibraryFrame>
     </StudioOperatorDetachedScope>,
@@ -93,8 +102,8 @@ function categoryIndex(category: StudioShellOverlayId): number {
 }
 
 /**
- * 叠层的「叠」与「滑」（9f-4）：库从左边列表那一侧盖到对话上、关掉时退回去；库里换类时
- * 正文按类在顶上的先后左右滑。台不动。
+ * 库的「叠」与「滑」（9f-4）：库从左栏那一侧盖满白板；库里换类时正文按类在顶上的先后左右滑。
+ * 台不卸载，只是被盖住。
  */
 function useLibraryFrameMotion(category: StudioShellOverlayId) {
   const reduceMotion = useReducedMotion()
@@ -128,31 +137,24 @@ function useLibraryFrameMotion(category: StudioShellOverlayId) {
     }
   }, [category, reduceMotion])
 
-  /** 关：先退回左边，再回到进来之前那一页。 */
-  const closeWith = async (close: () => void) => {
-    const frame = frameRef.current
-    if (frame && !reduceMotion) {
-      await shellLeave(frame, { x: '-100%' }, SHELL_MOTION.stackS)
-    }
-    lastFrameGone = null
-    close()
-  }
-
-  return { frameRef, bodyRef, closeWith }
+  return { frameRef, bodyRef }
 }
 
 function StudioLibraryFrame({
   category,
-  onClose,
+  assistantOpen,
+  onToggleAssistant,
   children,
 }: {
   category: StudioShellOverlayId
-  onClose: () => void
+  assistantOpen: boolean
+  onToggleAssistant: () => void
   children: ReactNode
 }) {
   const t = useTranslations('StudioShell')
   const tAll = useTranslations()
-  const { frameRef, bodyRef, closeWith } = useLibraryFrameMotion(category)
+  const { persona } = useAssistantPersona()
+  const { frameRef, bodyRef } = useLibraryFrameMotion(category)
 
   return (
     <section
@@ -162,26 +164,17 @@ function StudioLibraryFrame({
       data-category={category}
       className="flex size-full min-h-0 flex-col bg-background"
     >
-      <div className="flex h-11 shrink-0 items-center gap-1 border-b border-border px-2">
-        <button
-          type="button"
-          onClick={() => void closeWith(onClose)}
-          aria-label={t('backToChat')}
-          data-testid="studio-library-close"
-          className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&>svg]:size-4"
-        >
-          <ChevronLeft />
-        </button>
+      <div className="flex h-13 shrink-0 items-center gap-1 px-3">
         {category === 'profile' ? (
           <>
-            <h2 className="min-w-0 flex-1 truncate px-1 text-sm font-medium text-foreground">
+            <h2 className="min-w-0 truncate px-2 text-sm font-semibold text-foreground">
               {tAll('Navbar.links.profile')}
             </h2>
             <Link
               href={studioLibraryPath('assets')}
               replace
               data-testid="studio-profile-manage"
-              className="flex h-8 shrink-0 items-center rounded-md px-2.5 text-sm text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className={TAB_CLASS}
             >
               {t('manageInLibrary')}
             </Link>
@@ -199,10 +192,7 @@ function StudioLibraryFrame({
                   href={studioLibraryPath(item.id)}
                   replace
                   aria-current={active ? 'page' : undefined}
-                  className={cn(
-                    'flex h-8 shrink-0 items-center rounded-md px-2.5 text-sm text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground',
-                    active && 'bg-muted font-medium text-foreground',
-                  )}
+                  className={cn(TAB_CLASS, active && TAB_ACTIVE_CLASS)}
                 >
                   {tAll(item.labelKey)}
                 </Link>
@@ -210,6 +200,21 @@ function StudioLibraryFrame({
             })}
           </nav>
         )}
+        <button
+          type="button"
+          aria-pressed={assistantOpen}
+          data-testid="studio-library-assistant"
+          onClick={onToggleAssistant}
+          className={cn(
+            'ml-auto hidden h-9 shrink-0 items-center gap-2 rounded-full pr-3.5 pl-1 text-2sm font-medium text-foreground transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus desk:flex',
+            assistantOpen ? 'bg-fill-strong' : 'bg-raise shadow-soft',
+          )}
+        >
+          <span className="grid size-7 place-items-center overflow-hidden rounded-full">
+            <AssistantAvatarGlyph presetId={persona.avatarPreset ?? null} />
+          </span>
+          {t('libraryAssistant')}
+        </button>
       </div>
       <div
         ref={bodyRef}
@@ -220,3 +225,9 @@ function StudioLibraryFrame({
     </section>
   )
 }
+
+/** 顶上一排换类（样件 S13）：字，当前那一类浅灰底药丸。 */
+const TAB_CLASS =
+  'flex h-8 shrink-0 items-center rounded-full px-3 text-2sm text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus'
+
+const TAB_ACTIVE_CLASS = 'bg-muted font-semibold text-foreground'

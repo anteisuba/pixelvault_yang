@@ -68,9 +68,6 @@ import {
 import { setActiveStudioConversation } from '@/lib/studio-active-conversation'
 import { cn } from '@/lib/utils'
 
-/** 台条宽（`w-14`）：首页上库叠层让出这一条。 */
-const RAIL_WIDTH_PX = 56
-
 /**
  * 白板（ui-spec §1）：对话和台合成一整块，落在灰底上（上下右留 8），圆角 20 + `ring`。
  * `bench-screen-h` 把板里按整屏写的高（`var(--screen-h, 100svh)`）扣掉这上下 8。
@@ -150,6 +147,9 @@ export function StudioShell({
   const [libraryCategory, setLibraryCategory] =
     useState<StudioShellOverlayId | null>(null)
   const libraryOpen = libraryCategory !== null
+  /** 库里右上「助手」开着（对话从右边出来）；库收掉就复位。 */
+  const [libraryAssistantOpen, setLibraryAssistantOpen] = useState(false)
+  if (!libraryOpen && libraryAssistantOpen) setLibraryAssistantOpen(false)
   const cameFromShell = base !== null
   const libraryContext = useMemo(
     () => ({
@@ -158,8 +158,17 @@ export function StudioShell({
       setOpenCategory: setLibraryCategory,
       // 从外壳里点开的 → 后退回到进来之前那一页（台还在）；直接打开的 → 回首页。
       close: () => (cameFromShell ? router.back() : router.push(ROUTES.STUDIO)),
+      assistantOpen: libraryAssistantOpen,
+      setAssistantOpen: setLibraryAssistantOpen,
     }),
-    [cameFromShell, libraryInPlace, libraryTarget, pathname, router],
+    [
+      cameFromShell,
+      libraryAssistantOpen,
+      libraryInPlace,
+      libraryTarget,
+      pathname,
+      router,
+    ],
   )
   const placement = useMemo<StudioOperatorDockPlacement>(
     () => ({
@@ -209,6 +218,7 @@ export function StudioShell({
                     benchPathname={base?.pathname ?? ROUTES.STUDIO}
                     shellDock={placement.owner === 'shell'}
                     libraryOpen={libraryOpen}
+                    libraryAssistantOpen={libraryAssistantOpen}
                     libraryLayer={libraryLayer}
                   >
                     {children}
@@ -257,6 +267,7 @@ function StudioShellStage({
   benchPathname,
   shellDock,
   libraryOpen,
+  libraryAssistantOpen,
   libraryLayer,
   children,
 }: {
@@ -265,6 +276,8 @@ function StudioShellStage({
   benchPathname: string
   shellDock: boolean
   libraryOpen: boolean
+  /** 库里叫出了助手：对话贴到白板右边，库让出那一块。 */
+  libraryAssistantOpen: boolean
   libraryLayer: ReactNode
   children: ReactNode
 }) {
@@ -323,12 +336,11 @@ function StudioShellStage({
     requestAnimationFrame(() => requestAnimationFrame(() => setPulling(null)))
   }
 
-  // 库叠着时对话那一栏一定在（库叠在它上面），且至少占一半，⛔ 挤成一条。
+  // 库是整页（ui-spec §9）：盖满白板；叫出助手时对话按记住的宽贴到右边。
   const conversationHidden =
     bench && split.conversationCollapsed && !libraryOpen
-  const conversationWidth = libraryOpen
-    ? `max(${split.conversationPx}px, 50%)`
-    : `${split.conversationPx}px`
+  const conversationWidth = `${split.conversationPx}px`
+  const libraryChat = libraryOpen && libraryAssistantOpen
   const pullTransition =
     dragging || reduceMotion
       ? undefined
@@ -340,7 +352,7 @@ function StudioShellStage({
       data-testid="studio-shell-stage"
       className={cn(SHELL_BOARD_CLASS, 'desk:flex desk:overflow-hidden')}
       style={libraryWidth(
-        bench ? conversationWidth : `calc(100% - ${RAIL_WIDTH_PX}px)`,
+        libraryChat ? `calc(100% - ${conversationWidth})` : '100%',
       )}
     >
       <section
@@ -352,19 +364,24 @@ function StudioShellStage({
             ? 'hidden desk:flex desk:shrink-0 desk:overflow-hidden'
             : 'flex h-page flex-1',
           conversationHidden && 'desk:hidden',
+          libraryOpen && !libraryAssistantOpen && 'desk:hidden',
+          libraryChat &&
+            'desk:absolute desk:inset-y-0 desk:right-0 desk:z-20 desk:flex desk:border-l desk:border-border',
         )}
         style={
-          bench
-            ? {
-                width: pulling ? 0 : conversationWidth,
-                maxWidth: `calc(100% - ${STUDIO_SHELL_SPLIT.minBenchPx}px)`,
-                opacity:
-                  collapsePreview === 'conversation'
-                    ? SHELL_MOTION.collapsePreviewOpacity
-                    : undefined,
-                transition: pullTransition,
-              }
-            : undefined
+          libraryChat
+            ? { width: conversationWidth }
+            : bench
+              ? {
+                  width: pulling ? 0 : conversationWidth,
+                  maxWidth: `calc(100% - ${STUDIO_SHELL_SPLIT.minBenchPx}px)`,
+                  opacity:
+                    collapsePreview === 'conversation'
+                      ? SHELL_MOTION.collapsePreviewOpacity
+                      : undefined,
+                  transition: pullTransition,
+                }
+              : undefined
         }
       >
         {shellDock && !bench ? <StudioHomeModeSwitch /> : null}
@@ -376,7 +393,7 @@ function StudioShellStage({
         ) : null}
       </section>
 
-      {bench && !conversationHidden ? (
+      {bench && !conversationHidden && !libraryOpen ? (
         <StudioShellDivider
           stageRef={stageRef}
           conversationPx={split.conversationPx}
@@ -391,11 +408,13 @@ function StudioShellStage({
         />
       ) : null}
 
-      <StudioBenchRail
-        activeId={activeId}
-        onSwitch={(item) => void switchBench(item)}
-        onClose={() => void closeBench()}
-      />
+      {libraryOpen ? null : (
+        <StudioBenchRail
+          activeId={activeId}
+          onSwitch={(item) => void switchBench(item)}
+          onClose={() => void closeBench()}
+        />
+      )}
 
       <div
         ref={columnRef}

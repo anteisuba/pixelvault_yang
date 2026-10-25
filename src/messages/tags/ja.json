@@ -296,6 +296,7 @@
       "count": "{count} 件"
     },
     "library": {
+      "all": "すべて",
       "tabLibrary": "ライブラリ",
       "viewLabel": "ライブラリかお気に入りか",
       "back": "戻る",

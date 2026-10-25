@@ -1,8 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { useSearchParams } from 'next/navigation'
 
 import { ChevronLeft, Search } from '@/components/icons'
 import {
@@ -13,8 +12,6 @@ import { useDanbooruCatalog } from '@/hooks/use-danbooru-catalog'
 import { useDanbooruFavorites } from '@/hooks/use-danbooru-favorites'
 import { useDanbooruTagPages } from '@/hooks/use-danbooru-tag-library'
 import { useIsMobile } from '@/hooks/use-mobile'
-import { useNearViewport } from '@/hooks/use-near-viewport'
-import { usePathname, useRouter } from '@/i18n/navigation'
 import {
   danbooruTagSearchUrl,
   displayDanbooruTag,
@@ -36,26 +33,20 @@ import {
   type LookupItem,
 } from '../lookup/lookup-kinds'
 import { TagLibraryCard } from './TagLibraryCard'
-
-/**
- * 地址里记着在看什么（刷新 / 返回都回到原处）：
- * `view=favorites` 收藏 · `kind` 哪一类 · `q` 搜索词 · `tag` 打开的详情（`of` = 它是哪一类，
- * 台上 Ctrl+点一格标签时不知道，就不写，按 tag 自己的类别认）。
- */
-const PARAM = { view: 'view', kind: 'kind', query: 'q', tag: 'tag', of: 'of' }
-const FAVORITES_VIEW = 'favorites'
+import { TagLibraryDesk, TagLibraryMoreSentinel } from './TagLibraryDesk'
+import {
+  TAG_LIBRARY_FAVORITES_VIEW,
+  TAG_LIBRARY_PARAM,
+  useTagLibraryParams,
+} from './tag-library-params'
 
 /** 网格：按库这一栏的宽排列数（容器查询），⛔ 按整个窗口。 */
 const GRID_CLASS =
   'grid grid-cols-2 gap-x-2 gap-y-3 @sm:grid-cols-3 @xl:grid-cols-4 @3xl:grid-cols-5 @5xl:grid-cols-6'
 
-function parseKind(raw: string | null): DanbooruCatalogKind | null {
-  const parsed = DanbooruCatalogKindSchema.safeParse(raw)
-  return parsed.success ? parsed.data : null
-}
-
 /**
- * 库叠层里的「标签」一类（第 9f 步 9f-2c）：Danbooru 的标签像 LoRA 库那样摊开看。
+ * 库叠层里的「标签」一类（第 9f 步 9f-2c）。桌面 = `TagLibraryDesk`（ui-spec §9 ㊴，左列表 +
+ * 右详情）；手机照旧是下面这一副网格：
  *
  * - 顶上「库 | 收藏」；库分 角色 · 画风 · 作品 · 特征 四类，不搜就按作品数从多到少排、
  *   滚到底接着翻；一搜就是搜到的那几个（中日英名都认，同查资料）。
@@ -64,13 +55,23 @@ function parseKind(raw: string | null): DanbooruCatalogKind | null {
  *   整体 / 角色 N；没开就只能看、收藏。
  */
 export function TagLibraryView() {
+  return useIsMobile() ? <TagLibraryPhone /> : <TagLibraryDesk />
+}
+
+/** 手机：照旧网格 + 点开进详情（「← 返回」），等手机整体重设计。 */
+function TagLibraryPhone() {
   const t = useTranslations('StudioTags.lookup')
   const tLibrary = useTranslations('StudioTags.library')
   const tShell = useTranslations('StudioShell')
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
-  const phone = useIsMobile()
+  const {
+    favoritesView,
+    kind,
+    query: urlQuery,
+    tag: openTag,
+    of: openKind,
+    navigate,
+    setView,
+  } = useTagLibraryParams()
   const adder = useStudioLibraryPick().tags
   const favorites = useDanbooruFavorites()
   // 换一个候选还加到刚才那一位（刚建的新角色也算）。
@@ -79,29 +80,14 @@ export function TagLibraryView() {
     Readonly<Record<string, readonly string[]>>
   >({})
 
-  const favoritesView = searchParams.get(PARAM.view) === FAVORITES_VIEW
-  const kind = parseKind(searchParams.get(PARAM.kind)) ?? 'character'
-  const urlQuery = searchParams.get(PARAM.query) ?? ''
-  const openTag = searchParams.get(PARAM.tag)
-  const openKind = parseKind(searchParams.get(PARAM.of))
-
   // 搜索框打字先记在本地，停手才进地址（与查资料同一档 300ms，由 useDanbooruCatalog 去抖）。
   const [draft, setDraft] = useState<{ key: string; text: string } | null>(null)
   const draftKey = `${kind}:${urlQuery}`
   const queryText = draft?.key === draftKey ? draft.text : urlQuery
   const searching = queryText.trim().length >= 2
 
-  const navigate = (next: Record<string, string | null>) => {
-    const params = new URLSearchParams(searchParams.toString())
-    for (const [key, value] of Object.entries(next)) {
-      if (value) params.set(key, value)
-      else params.delete(key)
-    }
-    const text = params.toString()
-    router.replace(text ? `${pathname}?${text}` : pathname, { scroll: false })
-  }
   const open = (item: LookupItem, of: DanbooruCatalogKind) =>
-    navigate({ [PARAM.tag]: item.name, [PARAM.of]: of })
+    navigate({ [TAG_LIBRARY_PARAM.tag]: item.name, [TAG_LIBRARY_PARAM.of]: of })
 
   const pages = useDanbooruTagPages(
     !favoritesView && !openTag && !searching ? kind : null,
@@ -161,7 +147,12 @@ export function TagLibraryView() {
         <div className="flex h-9 shrink-0 items-center gap-3">
           <button
             type="button"
-            onClick={() => navigate({ [PARAM.tag]: null, [PARAM.of]: null })}
+            onClick={() =>
+              navigate({
+                [TAG_LIBRARY_PARAM.tag]: null,
+                [TAG_LIBRARY_PARAM.of]: null,
+              })
+            }
             className="-ml-1.5 inline-flex h-9 items-center gap-1 rounded-lg pl-1 pr-2.5 text-sm text-muted-foreground transition-colors duration-fast ease-linear hover:bg-surface-fill hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <ChevronLeft className="size-4" aria-hidden />
@@ -187,7 +178,7 @@ export function TagLibraryView() {
               kind={of}
               candidate={candidate}
               query={detail}
-              phone={phone}
+              phone
               adder={adder}
               target={target}
               onTarget={setTarget}
@@ -274,7 +265,10 @@ export function TagLibraryView() {
         action={{
           label: t('goPage', { page: t(KIND_TEXT[cross.kind].tab) }),
           onClick: () =>
-            navigate({ [PARAM.kind]: cross.kind, [PARAM.query]: queryText }),
+            navigate({
+              [TAG_LIBRARY_PARAM.kind]: cross.kind,
+              [TAG_LIBRARY_PARAM.query]: queryText,
+            }),
         }}
       />
     ) : (
@@ -305,7 +299,7 @@ export function TagLibraryView() {
           action={{ label: t('retry'), onClick: pages.retry }}
         />
       ) : pages.done ? null : (
-        <MoreSentinel
+        <TagLibraryMoreSentinel
           key={pages.items.length}
           label={t('loading')}
           onReach={pages.loadMore}
@@ -319,19 +313,12 @@ export function TagLibraryView() {
       <div className="flex h-9 shrink-0 items-center gap-3">
         <LiquidSegmented
           ariaLabel={tLibrary('viewLabel')}
-          value={favoritesView ? FAVORITES_VIEW : 'library'}
+          value={favoritesView ? TAG_LIBRARY_FAVORITES_VIEW : 'library'}
           items={[
             { value: 'library', label: tLibrary('tabLibrary') },
-            { value: FAVORITES_VIEW, label: t('tabFavorites') },
+            { value: TAG_LIBRARY_FAVORITES_VIEW, label: t('tabFavorites') },
           ]}
-          onChange={(next) =>
-            router.replace(
-              next === FAVORITES_VIEW
-                ? `${pathname}?${PARAM.view}=${FAVORITES_VIEW}`
-                : pathname,
-              { scroll: false },
-            )
-          }
+          onChange={(next) => setView(next === TAG_LIBRARY_FAVORITES_VIEW)}
         />
         {pickLine}
       </div>
@@ -345,7 +332,10 @@ export function TagLibraryView() {
               label: t(KIND_TEXT[of].tab),
             }))}
             onChange={(next) =>
-              navigate({ [PARAM.kind]: next, [PARAM.query]: null })
+              navigate({
+                [TAG_LIBRARY_PARAM.kind]: next,
+                [TAG_LIBRARY_PARAM.query]: null,
+              })
             }
           />
           <label className="flex h-9 min-w-0 flex-1 basis-56 items-center gap-2 rounded-lg bg-surface-fill px-3 text-muted-foreground">
@@ -361,11 +351,15 @@ export function TagLibraryView() {
               }
               onBlur={() => {
                 if (queryText !== urlQuery)
-                  navigate({ [PARAM.query]: queryText.trim() || null })
+                  navigate({
+                    [TAG_LIBRARY_PARAM.query]: queryText.trim() || null,
+                  })
               }}
               onKeyDown={(event) => {
                 if (event.key === 'Enter')
-                  navigate({ [PARAM.query]: queryText.trim() || null })
+                  navigate({
+                    [TAG_LIBRARY_PARAM.query]: queryText.trim() || null,
+                  })
               }}
               // ⚠ <768 必须 ≥16px，否则 iOS 聚焦即放大整页。
               className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground/70 md:text-2sm"
@@ -375,27 +369,5 @@ export function TagLibraryView() {
       )}
       <div className="@container flex flex-col gap-4">{body}</div>
     </div>
-  )
-}
-
-/** 滚到底那一条：进了视野附近就翻下一页（每翻一页换一个 key，重新等）。 */
-function MoreSentinel({
-  label,
-  onReach,
-}: {
-  label: string
-  onReach: () => void
-}) {
-  const { setNode, isNearViewport } = useNearViewport('600px')
-  useEffect(() => {
-    if (isNearViewport) onReach()
-  }, [isNearViewport, onReach])
-  return (
-    <div
-      ref={setNode}
-      role="status"
-      aria-label={label}
-      className="h-10 w-full"
-    />
   )
 }

@@ -1,9 +1,15 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useLocale, useTranslations } from 'next-intl'
 
 import { TAG_ADD_ACK_MS } from '@/constants/motion'
-import { isStyleMediumTag } from '@/lib/tag-lookup'
+import {
+  compactPostCount,
+  displayDanbooruTag,
+  isStyleMediumTag,
+  localDanbooruName,
+} from '@/lib/tag-lookup'
 import type {
   DanbooruCatalog,
   DanbooruCatalogCandidate,
@@ -144,3 +150,30 @@ export type LookupItem = Pick<
   DanbooruCatalogCandidate,
   'name' | 'count' | 'work' | 'previews' | 'zh' | 'ja'
 >
+
+/**
+ * 一行底下那句灰字（ui-spec §9 标签库 ㊴）：「中日文名 · 作品 · 张数」——中日文名按界面语言
+ * 挑（英文界面没有）；角色带出处，画风说是画法还是画师。
+ */
+export function useLookupRowSub() {
+  const t = useTranslations('StudioTags.lookup')
+  const locale = useLocale()
+  return (
+    item: Pick<LookupItem, 'name' | 'count' | 'work' | 'zh' | 'ja'>,
+    kind: DanbooruCatalogKind,
+  ) => {
+    const posts = t('posts', { count: compactPostCount(item.count, locale) })
+    return [
+      localDanbooruName(item, locale),
+      kind === 'character' && item.work
+        ? t('rowWork', { work: displayDanbooruTag(item.work), posts })
+        : kind === 'artist'
+          ? t(isStyleMediumTag(item.name) ? 'rowMedium' : 'rowArtist', {
+              posts,
+            })
+          : posts,
+    ]
+      .filter(Boolean)
+      .join(' · ')
+  }
+}

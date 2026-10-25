@@ -1170,6 +1170,7 @@
     "pickForBase": "Picking for the {bench} bench · base {base}",
     "pickDone": "Done",
     "manageInLibrary": "Manage in library",
+    "libraryAssistant": "Assistant",
     "newResult": "New results",
     "homeMode": "Start",
     "homeAssistant": "Assistant",

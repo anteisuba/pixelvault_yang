@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, useReducedMotion } from 'motion/react'
 
 import { ChevronLeft, ChevronRight } from '@/components/icons'
@@ -44,8 +45,6 @@ export interface InPlaceViewerProps<T extends { id: string }> {
   nextLabel: string
   /** 右栏（340）。里面用 `useInPlaceViewer()` 拿 `requestClose` 等接口。 */
   children: ReactNode
-  /** 外框的留白（例：画廊 `pt-3` —— 底色铺满容器，查看器本体往下让 12）。 */
-  className?: string
   /**
    * 手机（<768）：整屏看图，左右滑翻张、往下拉关上，右栏那份内容变成底部上滑的信息页
    * （`PhoneViewer`）。由宿主按 `useIsMobile()` 传进来 —— 查看器自己量会先按电脑画一帧。
@@ -60,12 +59,13 @@ function tileOf(attribute: string, id: string): HTMLElement | null {
 }
 
 /**
- * 就地查看器的外壳（素材页 §3「详情」· 画廊「卡片、顶栏与详情」）：盖在作品区上，
+ * 查看器（ui-spec §9「查看器 `Viewer`」）：居中浮窗，背后 `scrim`；大卡（圆角 24，
+ * 素档白、暗房 `float`）里左缩略轨、中间大图 + 左右翻、右边 340 由调用方给。
  * 从点的那一格长出来（0.3 → 1 + 淡入，320），关上缩回**当前那一张**（240）、焦点
- * 回到它；左边舞台 + 缩略轨，右边 340 由调用方给。与 LoRA 库 B 的样例查看器同一个形。
+ * 回到它。Esc / 点遮罩关、← / → 翻（首尾停住不循环）。手机整屏（`PhoneViewer`）。
  *
- * ⚠ 顶栏与侧栏照常可用：⛔ 遮罩、⛔ 锁焦点。Esc 关、← / → 翻（首尾停住不循环）。
- * ⚠ 宿主给一个定好位的容器，这里 `absolute inset-0` 铺满它、底下留 16 与左栏对齐。
+ * ⚠ 自己挂到 `body` 上：宿主那一列带 transform（素材页的大河跟着文件夹栏平移），
+ *   `fixed` 写在里面会被它截住。开着时页面不滚、留着滚动条那一道。
  */
 export function InPlaceViewer<T extends { id: string }>(
   props: InPlaceViewerProps<T>,
@@ -89,7 +89,6 @@ function StageViewer<T extends { id: string }>({
   previousLabel,
   nextLabel,
   children,
-  className,
 }: InPlaceViewerProps<T>) {
   const reducedMotion = useReducedMotion()
   const frameRef = useRef<HTMLDivElement>(null)
@@ -105,30 +104,45 @@ function StageViewer<T extends { id: string }>({
   const canPrev = hasRail && index > 0
   const canNext = hasRail && index < total - 1
 
-  /** 那一格的中心（相对外框）；那一格不在眼前就是外框中心。 */
+  /** 那一格的中心（相对大卡）；那一格不在屏幕里就是大卡中心。 */
   const originFor = useCallback(
     (id: string): string => {
-      const frame = frameRef.current
-      if (!frame) return 'center'
-      // 原点相对查看器本体：外框的上下留白不算。
-      const style = getComputedStyle(frame)
-      const frameBox = frame.getBoundingClientRect()
-      const top = frameBox.top + parseFloat(style.paddingTop)
-      const width = frameBox.width
-      const height = frameBox.bottom - parseFloat(style.paddingBottom) - top
+      const card = frameRef.current
+      if (!card) return 'center'
+      const box = card.getBoundingClientRect()
       const tile = tileOf(tileAttribute, id)
       if (tile) {
         const rect = tile.getBoundingClientRect()
-        const x = rect.left + rect.width / 2 - frameBox.left
-        const y = rect.top + rect.height / 2 - top
-        if (x >= 0 && y >= 0 && x <= width && y <= height) {
-          return `${x}px ${y}px`
+        const cx = rect.left + rect.width / 2
+        const cy = rect.top + rect.height / 2
+        if (
+          cx >= 0 &&
+          cy >= 0 &&
+          cx <= window.innerWidth &&
+          cy <= window.innerHeight
+        ) {
+          return `${cx - box.left}px ${cy - box.top}px`
         }
       }
-      return `${width / 2}px ${height / 2}px`
+      return `${box.width / 2}px ${box.height / 2}px`
     },
     [tileAttribute],
   )
+
+  // 开着时页面不滚（留着滚动条那一道，底下的格子不挪），关上原样放开。
+  useLayoutEffect(() => {
+    const html = document.documentElement
+    const previous = {
+      overflow: html.style.overflow,
+      scrollbarGutter: html.style.scrollbarGutter,
+    }
+    html.style.scrollbarGutter = 'stable'
+    html.style.overflow = 'hidden'
+    return () => {
+      html.style.overflow = previous.overflow
+      html.style.scrollbarGutter = previous.scrollbarGutter
+    }
+  }, [])
 
   // 从点的那一格长出来：第一帧画之前就把原点落到那一格上。
   const openedIdRef = useRef(current.id)
@@ -192,8 +206,8 @@ function StageViewer<T extends { id: string }>({
   // 缩略轨：当前那一张滚到中间。
   useEffect(() => {
     railRef.current?.querySelector('[aria-current="true"]')?.scrollIntoView({
-      block: 'nearest',
-      inline: 'center',
+      block: 'center',
+      inline: 'nearest',
       behavior: reducedMotion ? 'auto' : 'smooth',
     })
   }, [index, reducedMotion])
@@ -204,128 +218,141 @@ function StageViewer<T extends { id: string }>({
       ? { duration: 0.24, ease: EASE_STANDARD }
       : { duration: DURATION.slow, ease: EASE_STANDARD }
 
-  return (
-    <div ref={frameRef} className={cn('absolute inset-0 pb-4', className)}>
-      {/* 底色跟着长出来一起淡入：作品在底下被慢慢盖住，关上时再露出来。 */}
+  const arrowClass =
+    'absolute top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-raise text-ink-2 shadow-soft transition-[color,opacity] duration-fast hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-40'
+
+  return createPortal(
+    <div className="fixed inset-0 z-50">
+      {/* 遮罩跟着长出来一起淡入，关上时再淡出；点它 = 关。 */}
       <motion.div
         aria-hidden
         initial={{ opacity: 0 }}
         animate={{ opacity: closing ? 0 : 1, transition: fade }}
-        className="absolute inset-0 bg-surface-workbench"
+        onClick={requestClose}
+        className="absolute inset-0 bg-scrim"
       />
-      <motion.div
-        role="dialog"
-        aria-label={label}
-        data-testid="in-place-viewer"
-        initial={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.3 }}
-        animate={
-          closing
-            ? reducedMotion
-              ? { opacity: 0, transition: fade }
-              : { opacity: 0, scale: 0.3, transition: fade }
-            : { opacity: 1, scale: 1, transition: fade }
-        }
-        onAnimationComplete={() => {
-          if (closingRef.current) finishClose()
-        }}
-        style={{
-          transformOrigin: origin ?? 'var(--in-place-viewer-origin, center)',
-        }}
-        className="relative flex h-full overflow-hidden rounded-2xl bg-card shadow-pop"
-      >
-        {/* ─── 左：舞台 ─── 裁掉滑到两边的邻居，⛔ 盖到右边配方栏上。 */}
-        <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-surface-workbench">
-          <div className="flex min-h-0 flex-1 flex-col px-17.5 pb-2 pt-5.5">
-            <ViewerReel
-              current={current}
-              items={hasRail ? items : [current]}
-              index={hasRail ? index : 0}
-              ratioOf={ratioOf}
-              darkStage={darkStage}
-              media={media}
-              thumbnailOf={thumbnailOf}
-              onNavigate={onNavigate}
-            />
-          </div>
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-10">
+        <motion.div
+          ref={frameRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label={label}
+          data-testid="in-place-viewer"
+          data-float
+          initial={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.3 }}
+          animate={
+            closing
+              ? reducedMotion
+                ? { opacity: 0, transition: fade }
+                : { opacity: 0, scale: 0.3, transition: fade }
+              : { opacity: 1, scale: 1, transition: fade }
+          }
+          onAnimationComplete={() => {
+            if (closingRef.current) finishClose()
+          }}
+          style={{
+            transformOrigin: origin ?? 'var(--in-place-viewer-origin, center)',
+          }}
+          className="pointer-events-auto relative flex size-full max-w-7xl overflow-hidden rounded-24 bg-popover shadow-pop"
+        >
+          {/* ─── 左：缩略轨 ─── 当前那一圈黑框翻图时弹簧滑到下一格（原型 AC）。 */}
           {hasRail ? (
-            <>
-              <button
-                type="button"
-                onClick={() => canPrev && onNavigate(items[index - 1])}
-                disabled={!canPrev}
-                aria-label={previousLabel}
-                className="absolute left-4 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-card text-foreground/75 shadow-float transition-[color,opacity] duration-fast hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40"
-              >
-                <ChevronLeft className="size-4" aria-hidden />
-              </button>
-              <button
-                type="button"
-                onClick={() => canNext && onNavigate(items[index + 1])}
-                disabled={!canNext}
-                aria-label={nextLabel}
-                className="absolute right-4 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-card text-foreground/75 shadow-float transition-[color,opacity] duration-fast hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40"
-              >
-                <ChevronRight className="size-4" aria-hidden />
-              </button>
-              <motion.div
-                ref={railRef}
-                layoutScroll
-                className="studio-scrollbar shrink-0 overflow-x-auto px-4 pb-3.5 pt-2.5"
-              >
-                <div className="mx-auto flex w-max gap-1.5">
-                  {items.map((item, i) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      aria-label={thumbLabel(i + 1)}
-                      aria-current={i === index ? 'true' : undefined}
-                      onClick={() => onNavigate(item)}
-                      className={cn(
-                        'relative h-11.5 w-8.5 shrink-0 rounded-md transition-opacity duration-fast ease-linear focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                        i === index
-                          ? 'opacity-100'
-                          : 'opacity-55 hover:opacity-80',
-                      )}
-                    >
-                      <span className="block size-full overflow-hidden rounded-md bg-muted">
-                        {/* eslint-disable-next-line @next/next/no-img-element -- 缩略轨是一排 34px 小图，走派生缩略图直链。 */}
-                        <img
-                          src={thumbnailOf(item)}
-                          alt=""
-                          loading="lazy"
-                          draggable={false}
-                          className="size-full object-cover"
-                        />
-                      </span>
-                      {/* 当前那一圈黑框是同一个元素，翻图时弹簧滑到下一格（原型 AC）。 */}
-                      {i === index ? (
-                        <motion.span
-                          aria-hidden
-                          layoutId={`${tileAttribute}:thumb-ring`}
-                          transition={
-                            reducedMotion ? { duration: 0 } : SPRING.slot
-                          }
-                          className="pointer-events-none absolute -inset-1 rounded-lg border-2 border-foreground"
-                        />
-                      ) : null}
-                    </button>
-                  ))}
-                </div>
-              </motion.div>
-            </>
+            <motion.div
+              ref={railRef}
+              layoutScroll
+              className="studio-scrollbar flex w-16 shrink-0 flex-col items-center gap-1.5 overflow-y-auto py-4"
+            >
+              {items.map((item, i) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  aria-label={thumbLabel(i + 1)}
+                  aria-current={i === index ? 'true' : undefined}
+                  onClick={() => onNavigate(item)}
+                  className={cn(
+                    'relative h-11.5 w-8.5 shrink-0 rounded-md transition-opacity duration-fast ease-linear focus-visible:outline-none focus-visible:shadow-focus',
+                    i === index ? 'opacity-100' : 'opacity-55 hover:opacity-80',
+                  )}
+                >
+                  <span className="block size-full overflow-hidden rounded-md bg-muted">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- 缩略轨是一排 34px 小图，走派生缩略图直链。 */}
+                    <img
+                      src={thumbnailOf(item)}
+                      alt=""
+                      loading="lazy"
+                      draggable={false}
+                      className="size-full object-cover"
+                    />
+                  </span>
+                  {i === index ? (
+                    <motion.span
+                      aria-hidden
+                      layoutId={`${tileAttribute}:thumb-ring`}
+                      transition={reducedMotion ? { duration: 0 } : SPRING.slot}
+                      className="pointer-events-none absolute -inset-1 rounded-lg border-2 border-foreground"
+                    />
+                  ) : null}
+                </button>
+              ))}
+            </motion.div>
           ) : null}
-        </div>
 
-        {/* ─── 右：调用方的 340 ─── */}
-        <aside className="flex w-85 shrink-0 flex-col gap-3.5 py-4">
-          <InPlaceViewerContext.Provider
-            value={{ requestClose, setKeyboardBlocked, index, total, hasRail }}
-          >
-            {children}
-          </InPlaceViewerContext.Provider>
-        </aside>
-      </motion.div>
-    </div>
+          {/* ─── 中：舞台 ─── 裁掉滑到两边的邻居，⛔ 盖到右边配方栏上。 */}
+          <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+            <div className="flex min-h-0 flex-1 flex-col px-16 py-6">
+              <ViewerReel
+                current={current}
+                items={hasRail ? items : [current]}
+                index={hasRail ? index : 0}
+                ratioOf={ratioOf}
+                darkStage={darkStage}
+                media={media}
+                thumbnailOf={thumbnailOf}
+                onNavigate={onNavigate}
+              />
+            </div>
+            {hasRail ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => canPrev && onNavigate(items[index - 1])}
+                  disabled={!canPrev}
+                  aria-label={previousLabel}
+                  className={cn(arrowClass, 'left-4')}
+                >
+                  <ChevronLeft className="size-4" aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => canNext && onNavigate(items[index + 1])}
+                  disabled={!canNext}
+                  aria-label={nextLabel}
+                  className={cn(arrowClass, 'right-4')}
+                >
+                  <ChevronRight className="size-4" aria-hidden />
+                </button>
+              </>
+            ) : null}
+          </div>
+
+          {/* ─── 右：调用方的 340 ─── */}
+          <aside className="flex w-85 shrink-0 flex-col gap-3.5 py-4">
+            <InPlaceViewerContext.Provider
+              value={{
+                requestClose,
+                setKeyboardBlocked,
+                index,
+                total,
+                hasRail,
+              }}
+            >
+              {children}
+            </InPlaceViewerContext.Provider>
+          </aside>
+        </motion.div>
+      </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -420,7 +447,7 @@ function ViewerReel<T extends { id: string }>({
                 : { inset: 0 }
             }
             className={cn(
-              'absolute overflow-hidden rounded-lg shadow-pop',
+              'absolute overflow-hidden rounded-12',
               darkStage && isCurrent ? 'bg-foreground' : 'bg-muted',
               !isCurrent && 'cursor-pointer',
             )}

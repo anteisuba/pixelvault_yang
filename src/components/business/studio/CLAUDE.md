@@ -88,8 +88,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
 施工基准 `docs/references/pages/assistant-shell-v2.md`（A 方向节 · §3.2 五类卡片 · §4.3 收起态 · §12 皮肤）；`assistant-shell.md` 只作钱闸 / 检索链参考。动这一系之前先读 v2，别照现状扩。
 
 按需挂载、不在主树固定位置的常用单元：StudioWorkflowPicker
-（studio-shared/workflow/）、StudioSpecChip /
-StudioGallery（studio/）、StudioLightbox / StudioErrorBoundary（studio-shared/chrome/）。
+（studio-shared/workflow/）、StudioSpecChip（studio/）、StudioErrorBoundary（studio-shared/chrome/）。
 
 **画布不在这个目录**：`/studio/node` 的全部实现在 `src/components/business/node/`（v4 工作台 `node/workbench-v4/` + 节点卡 `node/nodes/v4/`），分层与禁改见 `src/components/business/node/CLAUDE.md`，基准见 `docs/references/pages/node-canvas-v2.md`。两边**不共用**面板与动作总线——画布走 `useNodeCanvasActions()` 与 v4 op 表，⛔ 别把 studio 的 context 或 operator 组件搬进画布。
 
@@ -120,7 +119,6 @@ GenerationPreview renders result
 
 - `CompareGrid.tsx` (image/) — **共享图墙**：多模型、单模型多张、以及两者相乘的矩阵都渲染它（`VariantGrid` 已于 2026-08-14 退役）。格子自带模型名，同模型多张时带 `1/2` 序号
 - `StudioCommandPalette.tsx` (studio-shared/chrome/) — Cmd+K overlay, reads context but doesn't write
-- `StudioLightbox.tsx` (studio-shared/chrome/) — Fullscreen viewer, display-only
 - `StudioErrorBoundary.tsx` (studio-shared/chrome/) — Error recovery wrapper
 
 ## High-Risk Components (modify with caution)

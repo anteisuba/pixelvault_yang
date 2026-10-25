@@ -284,7 +284,7 @@ function AssetViewerAside({
           autoFocus
           onClick={api.requestClose}
           aria-label={t('viewer.close')}
-          className="ml-auto grid size-7.5 place-items-center rounded-full bg-muted text-foreground/75 transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className={cn(VIEWER_OUTLINE_ICON, 'ml-auto')}
         >
           <X className="size-3.5" aria-hidden />
         </button>

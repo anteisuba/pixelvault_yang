@@ -46,7 +46,7 @@ const EXPECTED_OUTPUT_TYPE: Record<StudioEmptyMode, string> = {
  * StudioEmptyState — 画布空态的「起手势」（2026-07-05 方案 A，替代常驻教程轮播）。
  *
  * 三段式：一句模式说明 + 示例 prompt chips（点击填入并聚焦输入框）、
- * 「继续创作」最近生成缩略图行（点击走 remix，与 StudioGallery 同路径）、
+ * 「继续创作」最近生成缩略图行（点击走 remix）、
  * 教程「?」入口（Dialog 复用 XiaoheiGuideCarousel；首次访问自动弹一次，
  * localStorage 记忆，之后只能手动打开）。
  *

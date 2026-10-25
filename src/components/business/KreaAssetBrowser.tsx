@@ -123,7 +123,6 @@ import {
   ASSET_FOLDER_RAIL_GAP,
   ASSET_FOLDER_RAIL_STORAGE_KEY,
   ASSET_FOLDER_RAIL_WIDTH,
-  ASSET_VIEWER_MIN_COLUMN_WIDTH,
   ASSET_FOLDER_UNDO_DURATION_MS,
   ASSET_GRID_AUDIO_ASPECT_RATIO,
   ASSET_GRID_DEFAULT_DENSITY,
@@ -1067,22 +1066,6 @@ export function KreaAssetBrowser({
     )
     return () => controls.stop()
   }, [railOpen, railReserve, reducedMotion, railProgress, railLayoutLeft])
-  // 大河那一列的宽度：窄于查看器要的最小宽度时，查看器连文件夹栏一起盖。
-  const riverColumnRef = useRef<HTMLDivElement>(null)
-  const [riverColumnWidth, setRiverColumnWidth] = useState(0)
-  useEffect(() => {
-    const node = riverColumnRef.current
-    if (!node || typeof ResizeObserver === 'undefined') return
-    const observer = new ResizeObserver((entries) => {
-      setRiverColumnWidth(entries[0]?.contentRect.width ?? 0)
-    })
-    observer.observe(node)
-    return () => observer.disconnect()
-  }, [])
-  const viewerCoversRail =
-    railOpen &&
-    riverColumnWidth > 0 &&
-    riverColumnWidth < ASSET_VIEWER_MIN_COLUMN_WIDTH
   const railX = useTransform(railProgress, (p) => (p - 1) * railReserve)
   const riverX = useTransform(
     [railProgress, railLayoutLeft],
@@ -2123,7 +2106,6 @@ export function KreaAssetBrowser({
               的 justified 行挤成横向溢出（page §5.7）。 */}
           {/* 大河那一列：滚动容器 + 盖在它上面的就地查看器，跟着栏的收放一起走。 */}
           <motion.div
-            ref={riverColumnRef}
             style={{ x: riverX }}
             className="relative flex min-w-0 flex-1 flex-col"
           >
@@ -2519,31 +2501,26 @@ export function KreaAssetBrowser({
               )}
             </main>
             {!isPickerMode && !isPhone && selectedGeneration ? (
-              <div
-                className="absolute inset-y-0 right-0 z-30"
-                style={{ left: viewerCoversRail ? -railReserve : 0 }}
-              >
-                <AssetViewer
-                  generation={selectedGeneration}
-                  images={imageGenerations}
-                  onNavigate={setSelectedGeneration}
-                  onClose={() => setSelectedGeneration(null)}
-                  folders={folders}
-                  onCreateFolder={(name) => createFolder(name, null)}
-                  onFoldersChanged={handleMembershipsChanged}
-                  onFoldersUndone={handleFolderUndone}
-                  onDeleted={handleAssetDeleted}
-                  onRestored={handleAssetRestored}
-                  onUpdated={handleAssetUpdated}
-                  audioCoverUrl={
-                    selectedGeneration.outputType === 'AUDIO'
-                      ? getAudioPreviewCandidates(selectedGeneration).find(
-                          (url) => !failedAudioPreviewUrls.has(url),
-                        )
-                      : undefined
-                  }
-                />
-              </div>
+              <AssetViewer
+                generation={selectedGeneration}
+                images={imageGenerations}
+                onNavigate={setSelectedGeneration}
+                onClose={() => setSelectedGeneration(null)}
+                folders={folders}
+                onCreateFolder={(name) => createFolder(name, null)}
+                onFoldersChanged={handleMembershipsChanged}
+                onFoldersUndone={handleFolderUndone}
+                onDeleted={handleAssetDeleted}
+                onRestored={handleAssetRestored}
+                onUpdated={handleAssetUpdated}
+                audioCoverUrl={
+                  selectedGeneration.outputType === 'AUDIO'
+                    ? getAudioPreviewCandidates(selectedGeneration).find(
+                        (url) => !failedAudioPreviewUrls.has(url),
+                      )
+                    : undefined
+                }
+              />
             ) : null}
           </motion.div>
         </div>

@@ -75,7 +75,7 @@
 - 换档在头像菜单「外观」一行，只记在本机（`src/lib/theme.ts`，localStorage `pv:theme`），⛔ 进账号、⛔「跟随系统」。
 - 选了暗房 = `<html>` 挂 `.dark`，**只在 `(main)` 里挂**（`THEMED_ROUTE_SEGMENTS`，`theme.test.ts` 扫目录对账）：首页、登录注册、隐私 / 条款、对话分享页一直是素。首帧由根布局 `<head>` 的脚本挂（⛔ 先白一下），进出 `(main)` 由 `ThemedScope` 挂 / 摘。
 - 域皮肤（画布 / LoRA / 配音间）跟着外观走：各自的暗档写在 `.dark .domain-*` 一块，⛔ 在域里钉 `color-scheme: light`。
-- **媒体观看面**（lightbox、`MediaDetailViewer`、画布图片编辑工作台）两档都暗：要么自己挂 `.dark`，要么用 §2.4 的固定明暗 chrome。
+- **查看器跟着外观走**（ui-spec §9「查看器」，2026-10-25）：`InPlaceViewer`（素材 / 画廊）是 `scrim` 上的大卡，素档白、暗房 `float`。还没并进来的 `MediaDetailViewer`、画布图片编辑工作台在各自那一台改到之前仍两档都暗：要么自己挂 `.dark`，要么用 §2.4 的固定明暗 chrome。
 
 ### 2.2 "白"只有一种
 

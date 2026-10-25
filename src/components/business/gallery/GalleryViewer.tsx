@@ -116,7 +116,6 @@ export function GalleryViewer(props: GalleryViewerProps) {
       thumbLabel={(n) => t('thumb', { n })}
       previousLabel={t('previous')}
       nextLabel={t('next')}
-      className="pt-3"
       phone={phone}
     >
       <GalleryViewerAside {...props} />
@@ -298,7 +297,7 @@ function GalleryViewerAside({
           autoFocus
           onClick={api.requestClose}
           aria-label={t('close')}
-          className="ml-auto grid size-7.5 shrink-0 place-items-center rounded-full bg-muted text-foreground/75 transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className={cn(VIEWER_OUTLINE_ICON, 'ml-auto')}
         >
           <X className="size-3.5" aria-hidden />
         </button>

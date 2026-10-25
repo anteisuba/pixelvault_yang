@@ -1,14 +1,6 @@
 'use client'
 
-import {
-  useCallback,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-  type RefObject,
-} from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { ROUTES } from '@/constants/routes'
@@ -110,8 +102,6 @@ export function GalleryFeed({
     setViewerId(null)
     setPromptAnchorId(null)
   }, [])
-  const rootRef = useRef<HTMLDivElement>(null)
-  const viewerBounds = useViewerBounds(Boolean(viewing) && !isPhone, rootRef)
 
   const handleFiltersChange = useCallback(
     (nextFilters: GalleryFilters) => {
@@ -180,7 +170,7 @@ export function GalleryFeed({
   return (
     <>
       {/* 顶栏与图之间 12（owner 2026-10-08）。 */}
-      <div ref={rootRef} className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3">
         <GalleryHeader
           filters={filters}
           onFiltersChange={handleFiltersChange}
@@ -244,63 +234,15 @@ export function GalleryFeed({
           onToggleLike={handleToggleLike}
         />
       ) : null}
-      {viewing && !isPhone && viewerBounds ? (
-        <div style={viewerBounds} className="fixed z-20">
-          <GalleryViewer
-            generation={viewing}
-            images={images}
-            onNavigate={openViewer}
-            onClose={closeViewer}
-            onToggleLike={handleToggleLike}
-          />
-        </div>
+      {viewing && !isPhone ? (
+        <GalleryViewer
+          generation={viewing}
+          images={images}
+          onNavigate={openViewer}
+          onClose={closeViewer}
+          onToggleLike={handleToggleLike}
+        />
       ) : null}
     </>
   )
-}
-
-/**
- * 查看器盖住作品区：从顶栏底边起（本体再让 12）、左右贴着画廊这一列、到窗口底。开着时页面
- * 不跟着滚（留着滚动条那一道，底下的瀑布流不挪），关上原样放开、滚动位置不变。
- */
-function useViewerBounds(
-  open: boolean,
-  rootRef: RefObject<HTMLDivElement | null>,
-): CSSProperties | null {
-  const [bounds, setBounds] = useState<CSSProperties | null>(null)
-
-  useLayoutEffect(() => {
-    if (!open) return
-    const html = document.documentElement
-    const previous = {
-      overflow: html.style.overflow,
-      scrollbarGutter: html.style.scrollbarGutter,
-    }
-    html.style.scrollbarGutter = 'stable'
-    html.style.overflow = 'hidden'
-
-    const measure = () => {
-      const root = rootRef.current
-      if (!root) return
-      const box = root.getBoundingClientRect()
-      const header = root.querySelector('header')?.getBoundingClientRect()
-      setBounds({
-        // 顶栏万一不在屏幕里（滚走了），从屏幕顶起，⛔ 整块被推到屏幕外。
-        top: Math.max(header?.bottom ?? box.top, 0),
-        left: box.left,
-        right: html.clientWidth - box.right,
-        bottom: 0,
-      })
-    }
-    measure()
-    window.addEventListener('resize', measure)
-    return () => {
-      window.removeEventListener('resize', measure)
-      html.style.overflow = previous.overflow
-      html.style.scrollbarGutter = previous.scrollbarGutter
-      setBounds(null)
-    }
-  }, [open, rootRef])
-
-  return bounds
 }

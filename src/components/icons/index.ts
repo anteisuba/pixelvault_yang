@@ -53,6 +53,7 @@ export {
   ProhibitIcon as Ban,
   SquaresFourIcon as Blocks,
   BookmarkSimpleIcon as BookmarkPlus,
+  BookmarkSimpleIcon as Bookmark,
   BookOpenIcon as BookOpen,
   AddressBookIcon as BookUser,
   BrainIcon as Brain,

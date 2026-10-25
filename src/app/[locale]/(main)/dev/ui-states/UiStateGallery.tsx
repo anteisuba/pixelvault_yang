@@ -61,7 +61,7 @@ export function UiStateGallery() {
             直接进入动作栏。浏览不会自动定为最佳。
           </p>
           <Button
-            variant="outline"
+            variant="secondary"
             onClick={() => {
               setReferences(UI_STATE_REFERENCE_ENTRIES)
               setReferenceIndex(0)
@@ -142,7 +142,7 @@ export function UiStateGallery() {
                 description="写一句提示词就能开始，或者从画廊里挑一张当参考。"
                 action={<Button className="rounded-full">开始生成</Button>}
                 secondaryAction={
-                  <Button variant="outline" className="rounded-full">
+                  <Button variant="secondary" className="rounded-full">
                     去画廊挑图
                   </Button>
                 }

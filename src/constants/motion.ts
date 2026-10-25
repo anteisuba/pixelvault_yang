@@ -313,23 +313,20 @@ export const MEDIA_DRAG_LIFT = {
 export const TAG_ADD_ACK_MS = 1200
 
 /**
- * 复制成功后那颗键写「已复制」多久（LoRA 库 B 与提示词页 A 的动效表都是 1.2 秒），
- * ⛔ 弹 toast。
+ * 复制成功后那颗键换成勾多久（ui-spec.md §9「复制」㉑：1.5 秒），⛔ 弹 toast。
  */
-export const COPIED_ACK_MS = 1200
+export const COPIED_ACK_MS = 1500
 
 /**
  * 全站「提示与弹窗」（owner 2026-10-08 定稿，原型 `NzjiqK3k2DuKDji7wQdeBL`）的三段停留。
  * ⚠ 这三个数是**停留**，不是过渡时长 —— ⛔ 不走四档刻度。
  *
  * · `buttonAckMs`：点按钮得到的结果（「✓ 已开始下载」「✓ 已上传 3 张」）在键上停多久再缩回。
- *   页面文档里单独定过 1.2 秒的复制键（LoRA 库 / 提示词页 / 素材查看器）仍走 `COPIED_ACK_MS`。
- * · `deleteArmMs`：能撤销的小删除拉长成红色「确认删除」后，不点就自己缩回的时间。
+ *   复制键走 `COPIED_ACK_MS`。
  * · `undoWindowMs`：删掉之后底部黑条上「撤销」留多久 —— 这段时间里删除还没真的落库。
  */
 export const FEEDBACK_TIMING = {
   buttonAckMs: 1600,
-  deleteArmMs: 3000,
   undoWindowMs: 5000,
 } as const
 

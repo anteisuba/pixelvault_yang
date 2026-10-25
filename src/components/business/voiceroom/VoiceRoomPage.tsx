@@ -155,7 +155,7 @@ export function VoiceRoomPage() {
                 <div className="flex flex-col items-center gap-4" role="alert">
                   <p>{t('loadFailed')}</p>
                   <Button
-                    variant="outline"
+                    variant="secondary"
                     onClick={() => {
                       dismissError()
                       if (activeRoomId) void openRoom(activeRoomId)

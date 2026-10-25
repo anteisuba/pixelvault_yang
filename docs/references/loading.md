@@ -17,11 +17,11 @@
 
 ## Spinner（`src/components/ui/spinner.tsx`）
 
-- 图形 = lucide `Loader2`（270° 弧），`strokeWidth` 全档默认 2，**不按档调粗细**。
-- 三档尺寸：`sm` 14px（密排行内）· `md` 16px（**默认**，按钮/菜单/对话框行内）· `lg` 24px（区块/页面级居中）。
+- 图形 = **三个点依次变深**（ui-spec.md §9「转圈」⑲，2026-10-25 起替掉原来的弧形转圈）：按钮里、整块加载、一行里都是它。
+- 三档尺寸（占的格子和原来一样大）：`sm` 14px（密排行内）· `md` 16px（**默认**，按钮/菜单/对话框行内）· `lg` 24px（区块/页面级居中）。
 - **页面级不用 32px 大转圈**：`lg` + 下方 `text-xs text-muted-foreground` 一行 i18n 文案。存在感交给文字。
 - 颜色：按钮/行内默认 `currentColor`；独立居中用 `text-muted-foreground`。⛔ 禁止彩色 spinner，禁止在非 primary 表面上用 `text-primary` 抢焦点。
-- 动效：`animate-spin` 原样（1s linear），**不新造时长 token**。reduced-motion 走 `motion-reduce:animate-none` + `motion-reduce:opacity-70`。
+- 动效：`animate-spinner-dot-1/2/3`（1.2s 一轮、三点各差 0.2s，只动 opacity，定义在 `globals.css`）。reduced-motion 走 `motion-reduce:animate-none`，三点静止在 60% 不透明。
 - a11y：`role="status"` + `aria-label`（默认「加载中」i18n）。
 - ⚠ 收编边界：只收「通用 loading spinner」语义。特定语义的转圈（如 `NodeStatusBadge` 的 queued 动画）不无脑替换。灰块占位（`skeleton.tsx`）是另一回事，见下一节。
 

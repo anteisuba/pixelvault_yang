@@ -446,7 +446,7 @@ export function CivitaiCommunityBranch({
               </span>
               <Button
                 type="button"
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 onClick={() => void library.refresh()}
               >
@@ -464,7 +464,7 @@ export function CivitaiCommunityBranch({
               {hasActiveFilters ? (
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={handleClearFilters}
                   className="h-8 text-xs"

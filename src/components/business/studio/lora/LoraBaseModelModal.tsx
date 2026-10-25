@@ -222,7 +222,6 @@ export function LoraBaseModelModal({
         {hasMountedLora ? (
           <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
             <Switch
-              size="sm"
               checked={onlyCompatible}
               onCheckedChange={setOnlyCompatible}
               aria-label={t('baseModal.onlyCompatible')}

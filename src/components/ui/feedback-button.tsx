@@ -11,7 +11,7 @@ import {
 } from 'react'
 import { animate, useReducedMotion } from 'motion/react'
 
-import { Check, Trash2 } from '@/components/icons'
+import { Check } from '@/components/icons'
 import { BlurSwap } from '@/components/ui/blur-swap'
 import { Spinner } from '@/components/ui/spinner'
 import { FEEDBACK_TIMING, SPRING } from '@/constants/motion'
@@ -22,28 +22,28 @@ import { cn } from '@/lib/utils'
  *
  * · `done`     —— 点下去得到的结果：键自己拉长、变黑，写「✓ 已开始下载」，过 1.6 秒缩回。
  * · `progress` —— 还在做（「上传中 2/3」）：同样是黑的，图标换成转圈，⛔ 不自己缩回。
- * · `danger`   —— 能撤销的小删除第一下：键拉长成红色「确认删除」，再点才删。
+ *
+ * 删东西 ⛔ 写在键上，一律走居中小弹窗 `ConfirmDialog`（ui-spec.md §9「删除确认」）。
  */
-export type ButtonFeedbackTone = 'done' | 'progress' | 'danger'
+export type ButtonFeedbackTone = 'done' | 'progress'
 
 export interface ButtonFeedback {
   label: string
   tone?: ButtonFeedbackTone
-  /** 不给 = 按 tone 取（done ✓ · progress 转圈 · danger 垃圾桶）。传 `null` 不要图标。 */
+  /** 不给 = 按 tone 取（done ✓ · progress 转圈）。传 `null` 不要图标。 */
   icon?: ReactNode | null
 }
 
 /**
- * 键在结果态的皮肤。宿主的皮肤照旧（outline 药丸、图标键、shadcn Button 都行），
+ * 键在结果态的皮肤（`primary` 黑底 `on-primary` 字）。宿主的皮肤照旧（白药丸、图标键、shadcn Button 都行），
  * 结果态只靠 `data-feedback` 盖上去 —— ⛔ 不换一颗按钮。
  * ⚠ hover 那一档也要盖住：否则鼠标停在键上时结果底色会被宿主的 hover 底色抢走。
  */
 export const FEEDBACK_BUTTON_CLASS =
-  'overflow-hidden whitespace-nowrap transition-[background-color,color,border-color] duration-fast ease-standard motion-reduce:transition-none data-[feedback]:gap-1.5 data-[feedback]:px-3 data-[feedback=done]:border-foreground data-[feedback=done]:bg-foreground data-[feedback=done]:text-background data-[feedback=done]:hover:bg-foreground data-[feedback=done]:hover:text-background data-[feedback=progress]:border-foreground data-[feedback=progress]:bg-foreground data-[feedback=progress]:text-background data-[feedback=progress]:hover:bg-foreground data-[feedback=progress]:hover:text-background data-[feedback=danger]:border-destructive data-[feedback=danger]:bg-destructive data-[feedback=danger]:text-destructive-foreground data-[feedback=danger]:hover:bg-destructive/90 data-[feedback=danger]:hover:text-destructive-foreground'
+  'overflow-hidden whitespace-nowrap transition-[background-color,color,border-color] duration-fast ease-standard motion-reduce:transition-none data-[feedback]:gap-1.5 data-[feedback]:px-3 data-[feedback]:border-primary data-[feedback]:bg-primary data-[feedback]:text-primary-foreground data-[feedback]:shadow-none data-[feedback]:hover:bg-primary data-[feedback]:hover:text-primary-foreground'
 
 function defaultIcon(tone: ButtonFeedbackTone): ReactNode {
   if (tone === 'progress') return <Spinner size="sm" />
-  if (tone === 'danger') return <Trash2 className="size-3.5" aria-hidden />
   return <Check className="size-3.5" aria-hidden />
 }
 
@@ -187,73 +187,5 @@ export function FeedbackButton({
         {feedback?.label ?? ''}
       </span>
     </>
-  )
-}
-
-export interface ConfirmDeleteButtonProps extends Omit<
-  FeedbackButtonProps,
-  'feedback' | 'onClick'
-> {
-  /** 拉长后那句（「确认删除」）。 */
-  confirmLabel: string
-  onConfirm: () => void
-  /** 3 秒不点自己缩回。 */
-  armMs?: number
-}
-
-/**
- * 能撤销的小删除（owner 2026-10-08 第 2 题 B）：第一下键拉长成红色「确认删除」，
- * 再点才删；点别处、按 Esc 或 3 秒不动都缩回。删了找不回的大事 ⛔ 不用它 ——
- * 走 `ConfirmDialog`（正中弹窗，从按钮位置长出来）。
- */
-export function ConfirmDeleteButton({
-  confirmLabel,
-  onConfirm,
-  armMs = FEEDBACK_TIMING.deleteArmMs,
-  ref,
-  ...props
-}: ConfirmDeleteButtonProps) {
-  const [armed, setArmed] = useState(false)
-  const nodeRef = useRef<HTMLButtonElement | null>(null)
-
-  useEffect(() => {
-    if (!armed) return
-    const timer = window.setTimeout(() => setArmed(false), armMs)
-    const onPointerDown = (event: PointerEvent) => {
-      const node = nodeRef.current
-      if (node && event.target instanceof Node && node.contains(event.target))
-        return
-      setArmed(false)
-    }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setArmed(false)
-    }
-    document.addEventListener('pointerdown', onPointerDown, true)
-    document.addEventListener('keydown', onKeyDown)
-    return () => {
-      window.clearTimeout(timer)
-      document.removeEventListener('pointerdown', onPointerDown, true)
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [armed, armMs])
-
-  return (
-    <FeedbackButton
-      {...props}
-      ref={(node) => {
-        nodeRef.current = node
-        assignRef(ref, node)
-      }}
-      data-armed={armed || undefined}
-      feedback={armed ? { label: confirmLabel, tone: 'danger' } : null}
-      onClick={() => {
-        if (!armed) {
-          setArmed(true)
-          return
-        }
-        setArmed(false)
-        onConfirm()
-      }}
-    />
   )
 }

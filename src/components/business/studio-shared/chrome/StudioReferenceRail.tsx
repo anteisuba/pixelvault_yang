@@ -158,7 +158,7 @@ export const StudioReferenceRail = memo(function StudioReferenceRail({
         <Button
           type="button"
           size="sm"
-          variant="outline"
+          variant="secondary"
           className="rounded-full"
           onClick={() => onEdit(activeIndex)}
         >

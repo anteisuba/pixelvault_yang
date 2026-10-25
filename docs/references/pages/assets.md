@@ -233,7 +233,7 @@
 | 复制（I）          | 复制键原地变黑底对勾「已复制」，过一会儿变回来                                                                                                                                                                                                                                                                     | `ViewerPrompt` · `AssetViewer`                           |
 | 查看器 ⋯ 删除（J） | 菜单里点一次变红底「确认删除」、菜单不关，再点才删；删完查看器缩回，底部黑条「已删除 · 撤销」5 秒，过了才落库（owner 2026-10-08「提示与弹窗」）· ⛔ 弹框                                                                                                                                                           | `AssetViewer`                                            |
 
-补动效（owner 2026-10-08 动效样片，`ui-defaults.md` §7.4）：**查看器收藏（H）**与瓦片同一颗心（`FavoriteHeart`）；**文件夹拖动排序（P）**的让位从线性档换成 `spring-slot`（`useSpringSortableTransition`）。
+补动效（owner 2026-10-08 动效样片，`ui-defaults.md` §7.4）：**查看器收藏（H）**与瓦片同一颗书签（`FavoriteBookmark`，2026-10-25 心换书签）；**文件夹拖动排序（P）**的让位从线性档换成 `spring-slot`（`useSpringSortableTransition`）。
 
 卡片悬停（R，owner 2026-10-09 看过对比页后改）：整格抬起 4px + 投影，左下 模型·尺寸 小签从下面滑上来。没动：把图拖到一行上（已有「+ 加入 N 张」）、提示叠起来（沿用 sonner 堆叠）。
 

@@ -42,6 +42,48 @@ describe('cn · named durations', () => {
   })
 })
 
+describe('cn · spec shadows and radii', () => {
+  const globalsCss = readFileSync(
+    join(process.cwd(), 'src/app/globals.css'),
+    'utf8',
+  )
+  // Only the theme-wired names (`--shadow-x: var(--elevation-x)`); the domain
+  // shadows (`--shadow-node-*` …) are not part of the nine.
+  const shadows = [
+    ...globalsCss.matchAll(/--shadow-([a-z-]+): var\(--elevation-/g),
+  ].map((match) => match[1])
+  const radii = [...globalsCss.matchAll(/--radius-(\d+):/g)].map(
+    (match) => match[1],
+  )
+
+  it('globals.css wires the nine shadows and the four numeric radii', () => {
+    expect(shadows).toEqual(
+      expect.arrayContaining([
+        'ring',
+        'soft',
+        'seg',
+        'card',
+        'lift',
+        'pop',
+        'bar',
+        'media-action',
+        'focus',
+      ]),
+    )
+    expect(radii).toEqual(['12', '16', '20', '24'])
+  })
+
+  it.each(shadows)('dedupes shadow-%s against T-shirt shadows', (name) => {
+    expect(cn('shadow-sm', `shadow-${name}`)).toBe(`shadow-${name}`)
+    expect(cn(`shadow-${name}`, 'shadow-none')).toBe('shadow-none')
+  })
+
+  it.each(radii)('dedupes rounded-%s against T-shirt radii', (name) => {
+    expect(cn('rounded-lg', `rounded-${name}`)).toBe(`rounded-${name}`)
+    expect(cn(`rounded-${name}`, 'rounded-full')).toBe('rounded-full')
+  })
+})
+
 describe('invertReferenceStrength', () => {
   it('inverts the reference strength value', () => {
     expect(invertReferenceStrength(0.7)).toBeCloseTo(0.3)

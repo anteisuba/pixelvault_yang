@@ -193,7 +193,7 @@ export function LoraSourceImagePreviewStrip({
               feedback={copied.feedback}
               disabled={disabled}
               onClick={handleCopyDescription}
-              className={buttonVariants({ variant: 'outline', size: 'xs' })}
+              className={buttonVariants({ variant: 'secondary', size: 'xs' })}
             >
               <Copy className="size-3.5" aria-hidden />
               {t('descriptionCopy')}

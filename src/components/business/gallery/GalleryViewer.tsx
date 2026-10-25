@@ -54,7 +54,7 @@ import {
   FeedbackButton,
   useButtonFeedback,
 } from '@/components/ui/feedback-button'
-import { FavoriteHeart } from '@/components/ui/favorite-heart'
+import { FavoriteBookmark } from '@/components/ui/favorite-bookmark'
 import { Spinner } from '@/components/ui/spinner'
 import { Link, useRouter } from '@/i18n/navigation'
 import { downloadRemoteAsset } from '@/lib/api-client'
@@ -322,7 +322,7 @@ function GalleryViewerAside({
           aria-label={isLiked ? tCard('unlike') : tCard('like')}
           className={VIEWER_OUTLINE_PILL}
         >
-          <FavoriteHeart liked={isLiked} />
+          <FavoriteBookmark saved={isLiked} />
           <LikeCount count={generation.likeCount ?? 0} />
         </button>
         {/* 分享 = 复制 `/gallery/<id>`；复制后键原地拉长变黑底对勾（原型 I），过一会儿缩回。 */}

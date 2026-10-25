@@ -6,20 +6,12 @@
 
 ## 0. 和 ui-defaults 冲突的地方（以本文为准）
 
-| ui-defaults                                         | 本文                                                                                              |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| §1 展示槽三个落点里的「空态大标题」                 | 空状态不再用衬线（§9 空状态），应用里不出现 `font-display`；首页 hero、legal 照旧                 |
-| §2.1 媒体观看面两档都暗                             | 查看器跟着外观走：素档白卡，暗房 `float`（§9 查看器）                                             |
-| §2.2 四层浅底                                       | 层次换成 §3.2：`ground` → `panel` → `fill` → `fill-strong`，浮起来的另有 `raise` / `float`        |
-| §2.3 全站强调色只用 `--primary`                     | 黑（`primary`）只管动作；另有 `highlight`（素档蓝、暗房米白），只表示「选中了、正在进行」（§3.1） |
-| §3 圆角 `rounded-md` / `lg` / `xl`，胶囊只给 chip   | 按钮、药丸、圆钮、头像、开关、搜索框、切换条一律全圆，其余照 §5 圆角                              |
-| §3 阴影 `shadow-md` / `shadow-lg`，浅色靠边线分层   | 只用 §5 的九种阴影                                                                                |
-| §3.2 图标默认 `bold`；转圈是 `CircleNotch`          | 图标 `regular`；转圈只有三个点（§9 转圈）                                                         |
-| §4 hover `hover:bg-accent`；焦点 `ring-2 ring-ring` | hover 叠 `hover-overlay`；焦点是 `focus` 环（2px 板色 + 2px `highlight`）                         |
-| §5 selected 用强调色边                              | 图格选中只靠右上角的勾，⛔ 铺色、⛔ 描边（⑪）；当前那一行用 `row-selected` / `fill`               |
-| §7 空态：虚线框 · 衬线标题 · 可选 3 个示例 chip     | 柔影白卡 + 15 加粗标题，⛔ 示例按钮（§9 空状态）                                                  |
-| §7.1 能撤销的小删除走键上「确认删除」               | 删东西一律居中小弹窗（§9 删除确认，㉒）；「结果写在键上」「后台结果浮黑条」照旧                   |
-| §7.4 H 收藏是心                                     | 书签（§9 收藏）                                                                                   |
+| ui-defaults             | 本文                                                                                |
+| ----------------------- | ----------------------------------------------------------------------------------- |
+| §2.1 媒体观看面两档都暗 | 查看器跟着外观走：素档白卡，暗房 `float`（§9 查看器）                               |
+| §5 selected 用强调色边  | 图格选中只靠右上角的勾，⛔ 铺色、⛔ 描边（⑪）；当前那一行用 `row-selected` / `fill` |
+
+2026-10-25 第 1 个代码 PR（地基：token + 小件）已把展示槽、浅底层次、强调色、圆角、阴影、图标 / 转圈、hover / 焦点、空态、删除确认、收藏这几行改进 ui-defaults，表里只剩还没改到的。
 
 上表没点到的（字体家族与等宽判据、字号档、动效时长与弹簧、液态展开、黑条 §7.1、加载 §7.2、移动端 §6、完成定义 §8、机器门 §9）全部照旧。施工改到上表某一块时，把 ui-defaults 对应段落一起改掉，⛔ 让两份说法并存。
 
@@ -59,7 +51,7 @@
 
 - 板：`ground`（壳）→ `panel`（白板）→ `fill`（板里的分组块：列表行、搜索框、附件、药丸）→ `fill-strong`（切换条轨道、图没出来的占位、点开的药丸）。当前那一行 `row-selected`；你的消息气泡 `bubble`。
 - 浮起来的两档：`raise`（白药丸、图标键、切换条的白格、查看器上的键，配 `soft` / `seg`）；`float`（菜单、模型选择器、药丸的弹层、从库里挑的框、查看器、删除弹窗、画布工具条，配 `pop`）。素档两档都是白；暗房各亮一档——暗底上影子看不见，靠亮度分层。
-- **暗房里叠一层亮一档**：`ground` → `panel` → `fill` / `float` → `fill-strong` → `raise`。`float` 和 `fill` 同色（线上 `--popover` 和 `--muted` 也同是 `#191a1d`），所以浮层里的浅底块（搜索框、药丸、当前那一行、小签）从 `fill-strong` 起，再叠一层的（选中行里的字母小方块、灰底上的头像）用 `raise`；素档不变。代码里浮层 ⛔ `bg-muted`。
+- **暗房里叠一层亮一档**：`ground` → `panel` → `fill` / `float` → `fill-strong` → `raise`。`float` 和 `fill` 同色（线上 `--popover` 和 `--muted` 也同是 `#191a1d`），所以浮层里的浅底块（搜索框、药丸、当前那一行、小签）从 `fill-strong` 起，再叠一层的（选中行里的字母小方块、灰底上的头像）用 `raise`；素档不变。代码里这一档是自动的：`globals.css`「叠一层亮一档」那段在暗房里把浮层（popover / dropdown / select / dialog / alert-dialog，以及自写浮层挂的 `data-float`）里的 `--muted` / `--accent` 改成 `fill-strong`，浮层里照常写 `bg-muted`。
 
 ### 3.3 token
 
@@ -170,8 +162,8 @@
 - **按钮 `Button`**（照 Fish Audio）：主钮黑色实心药丸、字加粗（生成、交给助手）；其余白药丸，`raise` + `soft`；红色实心删除键只在弹窗里。
 - **图标键 `IconButton`**（㉟）：32 的白圆（`raise` + `soft`）：弹窗右上 ×、← 返回、查看器右上收藏 / 更多 / 关闭。盖在图上、视频上的用黑半透明圆底 + 白图标。
 - **药丸 `Chip`**（㉕）：输入框底下的参数药丸、模型药丸、规格药丸，台上、画布卡、助手确认卡同一颗：浅灰（`fill`）无边，和搜索框一家；点开时深一档（`fill-strong`，⛔ 变黑），弹层照菜单。参数药丸没设的只放图标，设了才写名字（「三视图」），⛔ 设好了换强调色。模型药丸写「型号 + 渠道」+ 箭头；规格药丸「3:4 · 1K · 4 张」。对话里的过程药丸 24 高（台图标 13 + 台名），点了开那个台。LoRA 药丸见 §9 LoRA 台。⛔ 药丸上写说明；⛔ 描边药丸（「+ LoRA」除外）。
-- **收藏 `Bookmark`**（⑳）：书签，没收藏线框、收藏了填黑；图格角上悬停才出（没收藏黑半透明圆底 + 白线框，收藏了白圆底 + 黑书签），查看器、库里同一颗。代码里 `FavoriteHeart` 换成它，⛔ 红心。
-- **复制 `CopyButton`**（㉑）：只放复制图标，点了变勾 1.5 秒变回；⛔ 另弹提示。代码里 `FeedbackButton` / `CopyPromptButton` 合成一个。
+- **收藏 `Bookmark`**（⑳）：书签，没收藏线框、收藏了填黑；图格角上悬停才出（没收藏黑半透明圆底 + 白线框，收藏了白圆底 + 黑书签），查看器、库里同一颗。代码里是 `FavoriteBookmark`（`ui/favorite-bookmark.tsx`），⛔ 红心。
+- **复制 `CopyButton`**（㉑）：只放复制图标，点了变勾 1.5 秒变回；⛔ 另弹提示。代码里是 `CopyButton`（`ui/copy-button.tsx`）。
 
 ### 输入
 
@@ -189,7 +181,7 @@
 - **提示 `Tooltip`**：一悬停就出（不等）；素档 `primary` 底 `on-primary` 字，暗房 `float` 底 `ink` 字 + `pop`（⛔ 米白一大块）；`meta`，28 高，圆角 8，快捷键跟在后面。只写按钮叫什么。⛔ 一句话说明；⛔ 给有字的按钮再加提示。
 - **底部黑条 `Toast`**：照 ui-defaults §7.1；`primary` 底、40 高、圆角 20、`bar`；成功前面一个 14 的勾，失败一颗 8 的 `danger-on-primary` 小圆点；最多一个动作（28 高药丸，带一圈 `on-primary-line` 的框，悬停叠 `on-primary-soft`）。⛔ 标题 + 正文两行、⛔ 右上角弹、⛔ 关闭按钮。
 - **弹窗 `Dialog`**：只用在两件事：就地配 key（`QuickSetupDialog`）、删东西。`float` 底、圆角 18、`pop`、内距 20、宽 420，后面 `scrim`；标题就是要做的事，底部右对齐「取消」+ 主按钮。⛔ 标题下的说明段落（删除那一句后果除外）、⛔ 三个按钮、⛔ 用弹窗做表单页。代码里 `dialog.tsx` / `responsive-dialog.tsx` 换皮。
-- **删除确认 `ConfirmDelete`**（㉒）：删东西（哪怕素材里选几张删）一律居中小弹窗：标题「删除这 2 张？」+ 一句后果「删了就找不回来了。」+ 取消 / 红色删除；宽 340。代码里 `confirm-dialog.tsx`；⛔ 浏览器 confirm、⛔ 键上「确认删除」两步（`ConfirmDeleteButton` 换成它）。
+- **删除确认 `ConfirmDelete`**（㉒）：删东西（哪怕素材里选几张删）一律居中小弹窗：标题「删除这 2 张？」+ 一句后果「删了就找不回来了。」+ 取消 / 红色删除；宽 340。代码里 `confirm-dialog.tsx`；⛔ 浏览器 confirm、⛔ 键上「确认删除」两步。
 - **模型选择器 `ModelPicker`**（㉓）：点模型药丸弹出：顶上搜索 + 个数，分「最近 / 全部」；每行 = 字母小方块（家族首字母，⛔ 画别家 logo）+ 全名 + 价格；选中那一行浅灰底 + 勾。多渠道的型号标「N 渠道」、新上的标「新」；选中多渠道型号时那一行往下撑开渠道切换条（动效见 §6）。没配 key 的型号点了先不选中、就地弹 `QuickSetupDialog`。代码里 `ModelPickerPopover`。
 
 ### 媒体
@@ -250,7 +242,7 @@
 ## 11. 施工
 
 - 照样件 E 1:1 改：**先公共组件**（token、按钮 / 药丸 / 切换条、输入框、图格、菜单、查看器、库组件、拉伸、拖拽、样式拆分），**再一台一个 PR**。具体顺序开工前和 owner 对齐。
-- 每个 PR 合并前在 Vercel 预览上跑 `e2e/tools/ui-check.mjs` 截图，和样件并排给 owner 看；视觉判断归 owner。
+- 代码 PR CI 绿了就合，⛔ 每个 PR 截图给 owner 看（owner 2026-10-25：「绿了就合，我只看最终效果」）。自查靠数据检查；改外壳 / 首页的 PR 合并前在 Vercel 预览上跑 `e2e/tools/ui-check.mjs`。
 - 改到 §0 冲突表的那一块时，同一个 PR 里改掉 ui-defaults 对应段落和相关契约测试。
 - 样件没画的，先查 ui-defaults 的 owner 定稿；还没有就问 owner，⛔ 自己发明。LoRA 台「生成 / 训练」怎么切还没定，⛔ 写死。
 
@@ -262,3 +254,4 @@
 ## Last Verified
 
 - 2026-10-25 · 首版：规范页第 6 版 + 样件 E v24（v23 由 owner 10-25 定稿，v24 只补暗房浮层里浅底块升一档）。文中代码标识符（`StudioLibraryOverlay`、`LookupRows`、`LoraWorkbench` 一族、`ModelPickerPopover`、`FavoriteHeart`、`ConfirmDeleteButton`、`IconDefaults.tsx`、`lora-base-models.ts` 等）当日在 `src/` 核过存在；`react-resizable-panels` 当日未安装。
+- 2026-10-25 · 第 1 个代码 PR（地基）：token、按钮 / 开关 / 切换条 / 提示 / 弹窗换皮；`FavoriteHeart` → `FavoriteBookmark`、`ConfirmDeleteButton` 删掉改 `ConfirmDialog`、`CopyPromptButton` → `CopyButton`、`Spinner` 换三点、`EmptyState` 换柔影白卡；§0 表收掉已改的行，§11 改成绿了就合。

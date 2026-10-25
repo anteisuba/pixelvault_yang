@@ -106,7 +106,7 @@ export function StudioResultFeedback({
             <Button
               key={tag}
               type="button"
-              variant="outline"
+              variant="secondary"
               size="sm"
               aria-pressed={active}
               data-active={active}

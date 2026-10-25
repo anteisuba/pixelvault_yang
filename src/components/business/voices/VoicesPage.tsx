@@ -158,7 +158,7 @@ export function VoicesPage() {
           {library.hasMore ? (
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               className="self-center rounded-full"
               disabled={library.isLoadingMore}
               onClick={library.loadMore}

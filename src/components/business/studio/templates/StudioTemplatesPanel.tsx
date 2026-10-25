@@ -502,7 +502,7 @@ export function StudioTemplatesPanel({
               {searchField}
               <Button
                 type="button"
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 data-template-create=""
                 onClick={openForm}
@@ -512,7 +512,7 @@ export function StudioTemplatesPanel({
               </Button>
             </>
           )}
-          <Button type="button" variant="outline" size="sm" onClick={onClose}>
+          <Button type="button" variant="secondary" size="sm" onClick={onClose}>
             {t('back')}
           </Button>
         </div>
@@ -611,7 +611,7 @@ export function StudioTemplatesPanel({
                 {t('loadFailed')}
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={() => void refresh()}
                 >
@@ -634,7 +634,7 @@ export function StudioTemplatesPanel({
                 {t('noResult', { query: query.trim() })}
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={() => setQuery('')}
                 >
@@ -929,7 +929,7 @@ export function StudioTemplatesPanel({
                 )}
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   className={cn(phone && 'h-11 flex-1')}
                   onClick={() => leaveForm('[data-template-create]')}
                 >

@@ -43,8 +43,8 @@ import type { GenerationRecord } from '@/types'
 import { getGenerationPreviewUrl } from '@/lib/generation-media'
 import VideoPlayer from '@/components/business/VideoPlayer'
 import { Button, buttonVariants } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
-  ConfirmDeleteButton,
   FeedbackButton,
   useButtonFeedback,
 } from '@/components/ui/feedback-button'
@@ -359,7 +359,7 @@ export function ImageDetailModal({
         <FeedbackButton
           feedback={promptFeedback.feedback}
           className={cn(
-            buttonVariants({ variant: 'outline', size: 'sm' }),
+            buttonVariants({ variant: 'secondary', size: 'sm' }),
             'rounded-full',
           )}
           onClick={async () => {
@@ -379,7 +379,7 @@ export function ImageDetailModal({
       <FeedbackButton
         feedback={linkFeedback.feedback}
         className={cn(
-          buttonVariants({ variant: 'outline', size: 'sm' }),
+          buttonVariants({ variant: 'secondary', size: 'sm' }),
           'rounded-full',
         )}
         onClick={async () => {
@@ -397,7 +397,7 @@ export function ImageDetailModal({
       </FeedbackButton>
 
       {(showVisibility || generation.isPromptPublic) && (
-        <Button variant="outline" size="sm" className="rounded-full" asChild>
+        <Button variant="secondary" size="sm" className="rounded-full" asChild>
           <Link
             href={promptCreatePath({
               prompt: generation.prompt,
@@ -415,7 +415,7 @@ export function ImageDetailModal({
       )}
 
       {generation.outputType === 'IMAGE' && (
-        <Button variant="outline" size="sm" className="rounded-full" asChild>
+        <Button variant="secondary" size="sm" className="rounded-full" asChild>
           <Link
             href={studioCanvasEditPath({
               generationId: generation.id,
@@ -435,7 +435,7 @@ export function ImageDetailModal({
         <FeedbackButton
           feedback={pinFeedback.feedback}
           className={cn(
-            buttonVariants({ variant: 'outline', size: 'sm' }),
+            buttonVariants({ variant: 'secondary', size: 'sm' }),
             'rounded-full',
             isPinned &&
               'border-primary/30 bg-primary/5 text-primary hover:bg-primary/10',
@@ -475,21 +475,23 @@ export function ImageDetailModal({
       )}
 
       {showDelete && onDelete ? (
-        // 删一张图是小事：键拉长成红色「确认删除」，再点才删（owner 2026-10-08）。
-        <ConfirmDeleteButton
-          confirmLabel={tFeedback('deleteConfirm')}
-          className={cn(
-            buttonVariants({ variant: 'outline', size: 'sm' }),
-            'rounded-full border-status-risk/30 text-status-risk hover:bg-status-risk-surface hover:text-status-risk',
-          )}
+        // 删东西一律居中小弹窗（ui-spec.md §9「删除确认」㉒）。
+        <ConfirmDialog
+          title={tFeedback('deleteDialog.imageTitle')}
+          description={tFeedback('deleteDialog.irreversible')}
+          cancelLabel={tFeedback('deleteDialog.cancel')}
+          confirmLabel={tFeedback('deleteDialog.confirm')}
           onConfirm={() => {
             onDelete(generation.id)
             onOpenChange(false)
           }}
-        >
-          <Trash2 className="size-3.5" />
-          {t('delete')}
-        </ConfirmDeleteButton>
+          trigger={
+            <Button variant="secondary" size="sm">
+              <Trash2 className="size-3.5" />
+              {t('delete')}
+            </Button>
+          }
+        />
       ) : null}
     </div>
   )
@@ -505,7 +507,7 @@ export function ImageDetailModal({
       >
         <Button
           type="button"
-          variant="outline"
+          variant="secondary"
           size="icon"
           aria-label={closeLabel}
           className="absolute right-4 top-4 size-10 rounded-full border-border/70 bg-background/88 shadow-sm backdrop-blur-xl hover:bg-muted/70"

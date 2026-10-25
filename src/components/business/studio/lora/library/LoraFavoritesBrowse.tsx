@@ -362,7 +362,7 @@ export function LoraFavoritesBrowse({
             </span>
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={() => void onRefresh()}
             >
@@ -389,7 +389,7 @@ export function LoraFavoritesBrowse({
               </p>
               <Button
                 type="button"
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 onClick={section === 'trained' ? onGoTrain : onGoLibrary}
               >

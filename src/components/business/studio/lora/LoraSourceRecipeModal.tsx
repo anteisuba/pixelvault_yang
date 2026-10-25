@@ -606,7 +606,7 @@ export function LoraSourceRecipeModal({
                   <FeedbackButton
                     feedback={copyFeedbackFor('sourceRecipeCopied')}
                     className={cn(
-                      buttonVariants({ variant: 'outline', size: 'sm' }),
+                      buttonVariants({ variant: 'secondary', size: 'sm' }),
                       'active:scale-[0.97]',
                     )}
                     onClick={() =>

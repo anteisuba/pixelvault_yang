@@ -99,7 +99,7 @@ function RenameForm({
         onChange={(event) => setName(event.target.value)}
       />
       <ResponsiveDialogFooter>
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button type="button" variant="secondary" onClick={onCancel}>
           {t('cancel')}
         </Button>
         <Button type="submit" disabled={!trimmed || saving}>

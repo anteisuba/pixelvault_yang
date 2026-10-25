@@ -456,7 +456,7 @@ function LibraryDetail({
                 <Button
                   type="button"
                   size="sm"
-                  variant="outline"
+                  variant="secondary"
                   className="rounded-full"
                   onClick={detail.retry}
                 >
@@ -599,7 +599,7 @@ export function CharacterLibrary({
             <Button
               type="button"
               size="sm"
-              variant="outline"
+              variant="secondary"
               className="rounded-full"
               onClick={() => library.setQuery('')}
             >

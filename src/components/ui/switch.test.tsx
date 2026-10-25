@@ -10,19 +10,13 @@ function thumb() {
   return document.querySelector('[data-slot="switch-thumb"]') as HTMLElement
 }
 
-describe('Switch sizes', () => {
-  // 画布节点卡的布尔参数走 iOS 形态 44×26（ui-defaults §3.1），⛔ 不新建组件。
-  it('exposes the lg (44x26) size through data-size, with its own thumb travel', () => {
-    render(<Switch size="lg" checked onCheckedChange={() => {}} />)
-    expect(root()).toHaveAttribute('data-size', 'lg')
-    expect(root().className).toContain('data-[size=lg]:w-11')
-    expect(thumb().className).toContain(
-      'group-data-[size=lg]/switch:data-[state=checked]:translate-x-4.5',
-    )
-  })
-
-  it('keeps default as the fallback size', () => {
-    render(<Switch />)
-    expect(root()).toHaveAttribute('data-size', 'default')
+describe('Switch', () => {
+  // ui-spec.md §9：只有一种 32×20，圆钮 16 + 2px 内嵌 → 行程 12px。
+  it('renders the single 32x20 size with a 12px knob travel', () => {
+    render(<Switch checked onCheckedChange={() => {}} />)
+    expect(root().className).toContain('h-5')
+    expect(root().className).toContain('w-8')
+    expect(root()).toHaveAttribute('data-state', 'checked')
+    expect(thumb().className).toContain('data-[state=checked]:translate-x-3')
   })
 })

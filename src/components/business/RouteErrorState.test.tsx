@@ -40,7 +40,7 @@ describe('RouteErrorState', () => {
     fireEvent.click(button)
     expect(retry).toHaveBeenCalledTimes(1)
     expect(button).toHaveAttribute('aria-busy', 'true')
-    expect(button.querySelector('.animate-spin')).not.toBeNull()
+    expect(button.querySelector('[data-slot="spinner"]')).not.toBeNull()
     // 加载中 2026-10-08：转圈时字换成「重试中」。
     expect(button).toHaveTextContent('retrying')
   })

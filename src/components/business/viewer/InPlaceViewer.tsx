@@ -231,7 +231,7 @@ function StageViewer<T extends { id: string }>({
         style={{
           transformOrigin: origin ?? 'var(--in-place-viewer-origin, center)',
         }}
-        className="relative flex h-full overflow-hidden rounded-2xl bg-card shadow-overlay"
+        className="relative flex h-full overflow-hidden rounded-2xl bg-card shadow-pop"
       >
         {/* ─── 左：舞台 ─── 裁掉滑到两边的邻居，⛔ 盖到右边配方栏上。 */}
         <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-surface-workbench">
@@ -420,7 +420,7 @@ function ViewerReel<T extends { id: string }>({
                 : { inset: 0 }
             }
             className={cn(
-              'absolute overflow-hidden rounded-lg shadow-overlay',
+              'absolute overflow-hidden rounded-lg shadow-pop',
               darkStage && isCurrent ? 'bg-foreground' : 'bg-muted',
               !isCurrent && 'cursor-pointer',
             )}

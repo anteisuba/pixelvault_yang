@@ -455,7 +455,7 @@ export function CharacterNodeV4({ id, data, selected }: NodeProps) {
                             <Button
                               type="button"
                               size="sm"
-                              variant="outline"
+                              variant="secondary"
                               className="nodrag nopan"
                               onClick={(event) => {
                                 event.stopPropagation()

@@ -60,7 +60,7 @@ function ImageEditSourcePicker({
         </Button>
         <Button
           type="button"
-          variant="outline"
+          variant="secondary"
           onClick={() => setLibraryOpen(true)}
           disabled={isUploading}
           className="rounded-full"

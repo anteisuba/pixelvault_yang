@@ -120,7 +120,7 @@ export function StudioTagsStage({
             </label>
           ) : null}
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             className="ml-auto min-h-11 lg:min-h-0"
             onClick={close}

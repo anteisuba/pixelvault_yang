@@ -262,7 +262,7 @@ export function HuggingFaceLoraLibrary({
             <span>{t('huggingFaceLoadFailed')}</span>
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={() => void library.refresh()}
             >
@@ -291,7 +291,7 @@ export function HuggingFaceLoraLibrary({
               {hasActiveFilters ? (
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={handleClearFilters}
                   className="h-8 text-xs"

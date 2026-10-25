@@ -519,7 +519,7 @@ export function LoraLibraryDetailPage({
                       }
                 }
                 style={{ transformOrigin: 'calc(100% - 17px) 0' }}
-                className="absolute right-0 top-11 z-30 coarse:top-13.5 flex w-47 flex-col rounded-xl bg-popover p-1.5 shadow-overlay ring-1 ring-border/70"
+                className="absolute right-0 top-11 z-30 coarse:top-13.5 flex w-47 flex-col rounded-xl bg-popover p-1.5 shadow-pop ring-1 ring-border/70"
               >
                 {/* 风格码是收进来以后才有的（Hugging Face 列表条目还没有）。 */}
                 {current.styleCode ? (

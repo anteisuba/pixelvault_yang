@@ -417,7 +417,7 @@ function AppSidebarFooter() {
             <Button
               asChild
               size="sm"
-              variant="outline"
+              variant="secondary"
               className="w-full rounded-full border-sidebar-border text-sidebar-foreground hover:bg-sidebar-accent group-data-[collapsible=icon]:px-0"
             >
               <Link href={ROUTES.SIGN_IN}>

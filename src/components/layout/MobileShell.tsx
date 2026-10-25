@@ -161,7 +161,7 @@ function CreatePanel({
         onKeyDown={(event) => {
           if (event.key === 'Escape') onClose()
         }}
-        className="fixed inset-x-3 bottom-mobile-tabbar z-40 mb-2 origin-bottom-right rounded-2xl border border-border bg-popover p-2 text-popover-foreground shadow-overlay lg:hidden"
+        className="fixed inset-x-3 bottom-mobile-tabbar z-40 mb-2 origin-bottom-right rounded-2xl border border-border bg-popover p-2 text-popover-foreground shadow-pop lg:hidden"
       >
         <form
           onSubmit={submit}
@@ -290,7 +290,7 @@ function MobileTabBar({ pathname }: { pathname: string }) {
         )}
       >
         {/* iOS 26 式浮起的胶囊：四个去处；＋ 是旁边单独一颗黑圆键（iOS 稿 B）。 */}
-        <div className="pointer-events-auto relative mb-2 h-15 min-w-0 flex-1 rounded-full border border-border p-1 shadow-overlay surface-glass">
+        <div className="pointer-events-auto relative mb-2 h-15 min-w-0 flex-1 rounded-full border border-border p-1 shadow-pop surface-glass">
           <div
             inert={lent}
             className={cn(
@@ -336,7 +336,7 @@ function MobileTabBar({ pathname }: { pathname: string }) {
             }
             setOpen(!open)
           }}
-          className="pointer-events-auto mb-2 flex size-15 shrink-0 select-none items-center justify-center rounded-full bg-foreground text-background shadow-overlay transition-transform duration-fast ease-standard active:scale-95"
+          className="pointer-events-auto mb-2 flex size-15 shrink-0 select-none items-center justify-center rounded-full bg-foreground text-background shadow-pop transition-transform duration-fast ease-standard active:scale-95"
         >
           {/* ＋ 转 45° 就是 ×：同一个元素变形，不换图标。 */}
           <motion.span
@@ -394,7 +394,7 @@ function MobileStudioBar({ pathname }: { pathname: string }) {
             sideOffset={6}
             collisionPadding={8}
             motionPreset="grow"
-            className="w-48 rounded-xl p-1.5 shadow-overlay"
+            className="w-48 rounded-xl p-1.5 shadow-pop"
           >
             {SHELL_NAV_TOOLS.map((item) => {
               const Icon = item.icon

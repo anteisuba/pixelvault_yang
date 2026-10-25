@@ -278,7 +278,6 @@ export function ProfileEditModal({
               </div>
               <Switch
                 id={profileVisibilityId}
-                size="lg"
                 checked={isPublic}
                 onCheckedChange={setIsPublic}
               />
@@ -316,7 +315,7 @@ export function ProfileEditModal({
         </div>
 
         <ResponsiveDialogFooter className="border-t border-border/70 px-6 py-4 sm:justify-end">
-          <Button variant="outline" onClick={onClose} disabled={isSaving}>
+          <Button variant="secondary" onClick={onClose} disabled={isSaving}>
             {t('cancel')}
           </Button>
           <Button onClick={() => void handleSave()} disabled={isSaving}>

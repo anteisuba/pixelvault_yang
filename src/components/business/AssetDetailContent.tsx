@@ -23,8 +23,8 @@ import NextImage from 'next/image'
 import { ModelViewer } from '@/components/business/ModelViewer'
 import { VideoAnalysisPanel } from '@/components/business/vision/VideoAnalysisPanel'
 import { Button, buttonVariants } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
-  ConfirmDeleteButton,
   FeedbackButton,
   useButtonFeedback,
 } from '@/components/ui/feedback-button'
@@ -350,21 +350,30 @@ export function AssetDetailContent({
             )}
           </Button>
         )}
-        {/* 删一张图是能撤销的小事（owner 2026-10-08「提示与弹窗」第 2 题 B）：键拉长成
-            红色「确认删除」，再点才删；点别处 / 3 秒缩回。⛔ 正中弹窗。 */}
-        <ConfirmDeleteButton
-          confirmLabel={tFeedback('deleteConfirm')}
+        {/* 删东西一律居中小弹窗（ui-spec.md §9「删除确认」㉒）。 */}
+        <ConfirmDialog
+          title={tFeedback('deleteDialog.imageTitle')}
+          description={tFeedback('deleteDialog.irreversible')}
+          cancelLabel={tFeedback('deleteDialog.cancel')}
+          confirmLabel={tFeedback('deleteDialog.confirm')}
           onConfirm={() => void actions.remove()}
-          className={cn(
-            buttonVariants({ variant: 'ghost', size: 'icon' }),
-            'ml-auto text-status-risk hover:bg-status-risk-surface hover:text-status-risk',
-          )}
-          aria-label={t('detailDelete')}
-          title={t('detailDelete')}
-          disabled={isDeleting}
-        >
-          {isDeleting ? <Spinner size="md" /> : <Trash2 className="size-4" />}
-        </ConfirmDeleteButton>
+          trigger={
+            <Button
+              variant="ghost"
+              size="icon"
+              className="ml-auto"
+              aria-label={t('detailDelete')}
+              title={t('detailDelete')}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <Spinner size="md" />
+              ) : (
+                <Trash2 className="size-4" />
+              )}
+            </Button>
+          }
+        />
       </div>
       <SearchGroundingPublishNote
         id="asset-detail-publish-note"

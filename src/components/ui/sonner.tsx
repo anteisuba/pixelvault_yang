@@ -9,7 +9,7 @@ import { Spinner } from '@/components/ui/spinner'
 
 /** 红点 = 失败（owner 2026-10-08：失败类黑条用红点代替对勾，⛔ 整条变红）。 */
 function FailureDot() {
-  return <span aria-hidden className="toast-bar-dot bg-destructive" />
+  return <span aria-hidden className="toast-bar-dot bg-danger-on-primary" />
 }
 
 function WarningDot() {

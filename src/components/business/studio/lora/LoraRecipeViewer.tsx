@@ -265,7 +265,7 @@ export function LoraRecipeViewer({
                       '--studio-fit-ratio': imageRatio,
                     } as CSSProperties
                   }
-                  className="studio-fit-box overflow-hidden rounded-lg bg-muted shadow-overlay"
+                  className="studio-fit-box overflow-hidden rounded-lg bg-muted shadow-pop"
                 >
                   {recipe.videoUrl ? (
                     <LoraViewerVideo

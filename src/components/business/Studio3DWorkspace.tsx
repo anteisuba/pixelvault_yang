@@ -1297,7 +1297,7 @@ export function Studio3DWorkspace({
                 <div className="grid grid-cols-2 gap-1.5">
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     onClick={() => setPickerOpen(true)}
                     disabled={uploading || isGenerating}
@@ -1309,7 +1309,7 @@ export function Studio3DWorkspace({
                   </Button>
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     onClick={handleUploadClick}
                     disabled={uploading || isGenerating}
@@ -1411,7 +1411,7 @@ export function Studio3DWorkspace({
                 <>
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     onClick={() => {
                       if (!canUseSelectedMultiViewModel) {
@@ -1487,7 +1487,7 @@ export function Studio3DWorkspace({
                   </p>
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     onClick={() => {
                       if (!canUseSelectedMultiViewModel) {
@@ -1592,7 +1592,7 @@ export function Studio3DWorkspace({
                           </div>
                           <Button
                             type="button"
-                            variant="outline"
+                            variant="secondary"
                             size="sm"
                             onClick={() => handleManualViewUploadClick(view)}
                             disabled={uploadingManualView !== null}
@@ -2421,7 +2421,7 @@ export function Studio3DWorkspace({
                 {canRetryWithNewSeed && (
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     onClick={() => void handleRetryWithNewSeed()}
                     title={t('retrySeedHint')}
@@ -2468,7 +2468,7 @@ export function Studio3DWorkspace({
                     </Button>
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="secondary"
                       size="sm"
                       onClick={handleKeepAsFinal}
                     >
@@ -2550,7 +2550,7 @@ export function Studio3DWorkspace({
               </p>
               <Button
                 type="button"
-                variant="outline"
+                variant="secondary"
                 onClick={() => setExistingModelPickerOpen(true)}
               >
                 <FolderOpen className="size-4" />
@@ -2605,7 +2605,7 @@ export function Studio3DWorkspace({
                 {t('draftPreserved')}
               </p>
               <Button
-                variant="outline"
+                variant="secondary"
                 disabled={!canGenerate}
                 onClick={() => void handleGenerate()}
               >
@@ -2654,7 +2654,7 @@ export function Studio3DWorkspace({
               trigger={
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   className="absolute right-6 top-6 rounded-full bg-background/80 backdrop-blur-sm"
                 >
@@ -2688,7 +2688,7 @@ export function Studio3DWorkspace({
           <div className={styles.mobileBar}>
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               onClick={() => setSettingsOpen(true)}
               aria-expanded={settingsOpen}
             >

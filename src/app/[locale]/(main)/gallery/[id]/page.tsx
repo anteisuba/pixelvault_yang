@@ -347,7 +347,7 @@ export default async function ImageDetailPage({
 
             <div className="flex flex-wrap gap-2 border-t border-border/70 pt-4">
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 className="rounded-full"
                 asChild
@@ -359,7 +359,7 @@ export default async function ImageDetailPage({
               </Button>
 
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 className="rounded-full"
                 asChild
@@ -376,7 +376,7 @@ export default async function ImageDetailPage({
 
               {generation.outputType === 'IMAGE' ? (
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   className="rounded-full"
                   asChild

@@ -22,7 +22,7 @@ describe('FeedTail', () => {
     )
     expect(screen.getByTestId('gray-row')).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('loadingMore')
-    expect(container.querySelector('.animate-spin')).toBeNull()
+    expect(container.querySelector('[data-slot="spinner"]')).toBeNull()
   })
 
   it('keeps the gray blocks and writes one line with a retry when a batch fails', () => {

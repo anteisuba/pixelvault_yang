@@ -26,10 +26,10 @@ describe('LiquidSegmented', () => {
   afterAll(() => vi.restoreAllMocks())
 
   /**
-   * owner 2026-09-26「角色 / 画师」整条都是黑的：StrictMode 再挂载把首次量完排的
-   * 那一帧取消了，裁剪停在全 0。⛔ 这条红 = 选中块又铺满了整条轨道。
+   * owner 2026-09-26「角色 / 画师」：StrictMode 再挂载把首次量完排的那一帧取消了，
+   * 选中块停在错的几何上。⛔ 这条红 = 白格没落在选中的那一格。
    */
-  it('StrictMode 下选中块只盖住选中的那一格', async () => {
+  it('StrictMode 下白格正好垫在选中的那一格', async () => {
     const { container } = render(
       <StrictMode>
         <LiquidSegmented
@@ -44,14 +44,11 @@ describe('LiquidSegmented', () => {
       </StrictMode>,
     )
     const fill = container.querySelector<HTMLElement>('[aria-hidden]')!
-    await waitFor(() =>
-      expect(fill.style.clipPath).toBe(
-        `inset(0 ${TAB_WIDTH}px 0 0px round 999px)`,
-      ),
-    )
+    expect(fill).toHaveClass('bg-raise', 'shadow-seg')
+    await waitFor(() => expect(fill.style.width).toBe(`${TAB_WIDTH}px`))
   })
 
-  it('标签后面可以亮一颗小点（底下那层正文色，选中块那层跟字反白）', () => {
+  it('标签后面可以亮一颗小点（正文色）', () => {
     const { container } = render(
       <LiquidSegmented
         items={[
@@ -64,14 +61,13 @@ describe('LiquidSegmented', () => {
       />,
     )
     const dots = container.querySelectorAll('.animate-target-dot')
-    expect(dots).toHaveLength(2)
+    expect(dots).toHaveLength(1)
     expect(dots[0]).toHaveClass('bg-foreground')
-    expect(dots[1]).toHaveClass('bg-current')
   })
 })
 
 describe('LiquidSegmented · 规格分段条（owner 2026-10-08）', () => {
-  it('单项禁用仍可悬停看原因，点不动；图形两层各画一遍', () => {
+  it('单项禁用仍可悬停看原因，点不动；图形只画一遍', () => {
     const onChange = vi.fn()
     const { getAllByRole, container } = render(
       <LiquidSegmented
@@ -98,6 +94,6 @@ describe('LiquidSegmented · 规格分段条（owner 2026-10-08）', () => {
     expect(wide).toHaveAttribute('title', '不支持')
     wide.click()
     expect(onChange).not.toHaveBeenCalled()
-    expect(container.querySelectorAll('[data-glyph]')).toHaveLength(4)
+    expect(container.querySelectorAll('[data-glyph]')).toHaveLength(2)
   })
 })

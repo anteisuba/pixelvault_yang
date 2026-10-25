@@ -1292,7 +1292,7 @@ export function LoraTrainingDialog({
       {controlledOpen === undefined && (
         <DialogTrigger asChild>
           {trigger ?? (
-            <Button variant="outline" size="sm" className="gap-1.5">
+            <Button variant="secondary" size="sm" className="gap-1.5">
               <Sparkles className="size-3.5" />
               {t('title')}
             </Button>

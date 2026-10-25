@@ -45,7 +45,7 @@ export function LoraLibraryPagination({
     >
       <Button
         type="button"
-        variant="outline"
+        variant="secondary"
         size="sm"
         disabled={page <= 1 || isBusy}
         onClick={onPreviousPage}
@@ -64,7 +64,7 @@ export function LoraLibraryPagination({
 
       <Button
         type="button"
-        variant="outline"
+        variant="secondary"
         size="sm"
         disabled={!hasNextPage || isBusy}
         onClick={onNextPage}

@@ -188,7 +188,7 @@ export function ImagePickerPopoverBody({
 
       <Button
         type="button"
-        variant="outline"
+        variant="secondary"
         size="sm"
         onClick={onOpenLibrary}
         disabled={Boolean(disabledReason)}

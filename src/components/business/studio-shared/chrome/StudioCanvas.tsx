@@ -651,7 +651,7 @@ export const StudioCanvas = memo(function StudioCanvas({
               <Button
                 type="button"
                 size="sm"
-                variant="outline"
+                variant="secondary"
                 className="rounded-full"
                 onClick={() => onEdit?.(stageReference)}
               >

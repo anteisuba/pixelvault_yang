@@ -566,7 +566,7 @@ export const CompareGrid = memo(function CompareGrid({
           <Button
             type="button"
             size="sm"
-            variant="outline"
+            variant="secondary"
             className="rounded-full"
             onClick={() => {
               // 详情从这一格长出来（`MediaDetailViewer` 的 transitionOrigin）。
@@ -587,7 +587,7 @@ export const CompareGrid = memo(function CompareGrid({
           <Button
             type="button"
             size="sm"
-            variant="outline"
+            variant="secondary"
             className="rounded-full"
             onClick={() => onEdit(focusedGeneration)}
           >
@@ -597,7 +597,7 @@ export const CompareGrid = memo(function CompareGrid({
           <Button
             type="button"
             size="sm"
-            variant="outline"
+            variant="secondary"
             className="rounded-full"
             onClick={() => {
               // 图飞进输入框（纯装饰，挂载照常立刻做）。
@@ -616,7 +616,7 @@ export const CompareGrid = memo(function CompareGrid({
           <Button
             type="button"
             size="sm"
-            variant="outline"
+            variant="secondary"
             className="rounded-full"
             disabled={isDownloading}
             onClick={() => void handleDownload()}
@@ -627,7 +627,7 @@ export const CompareGrid = memo(function CompareGrid({
           <Button
             type="button"
             size="sm"
-            variant="outline"
+            variant="secondary"
             className="rounded-full"
             onClick={() => askAssistantAboutImage(focusedGeneration)}
           >

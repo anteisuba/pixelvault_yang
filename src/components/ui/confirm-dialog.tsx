@@ -24,7 +24,6 @@ import {
 import { Input } from '@/components/ui/input'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { isTouchPrimary } from '@/lib/touch'
-import { cn } from '@/lib/utils'
 
 interface ConfirmDialogProps {
   /** 不给 = 受控弹出（`open` / `onOpenChange`），比如长按菜单里点「删除」之后。 */
@@ -47,9 +46,9 @@ interface ConfirmDialogProps {
 }
 
 /**
- * 删了找不回的大事（删密钥、删项目、注销账号）用的正中弹窗（owner 2026-10-08
- * 「提示与弹窗」第 2 题 A）：从按下的那颗键长到正中（`AlertDialogContent` 自带），
- * 写清后果。能撤销的小删除 ⛔ 不用它 —— 走 `ConfirmDeleteButton`。
+ * 删东西一律用的居中小弹窗（ui-spec.md §9「删除确认」㉒，哪怕素材里选几张删）：
+ * 标题「删除这 2 张？」+ 一句后果「删了就找不回来了。」+ 取消 / 红色删除，宽 340；
+ * 从按下的那颗键长到正中（`AlertDialogContent` 自带）。⛔ 浏览器 confirm、⛔ 键上两步。
  * 触屏手机从底部升起（手机操作习惯第 1 条，owner 2026-10-15）：两颗通栏大键，确认在上。
  */
 export function ConfirmDialog({
@@ -121,11 +120,8 @@ export function ConfirmDialog({
             <div className="flex flex-col gap-2">
               <Button
                 disabled={!phraseMatched}
-                className={cn(
-                  'h-12 rounded-full text-base',
-                  variant === 'destructive' &&
-                    'bg-destructive text-destructive-foreground hover:bg-destructive/90',
-                )}
+                variant={variant}
+                className="h-12 text-base"
                 onClick={() => {
                   setSheetOpen(false)
                   setTyped('')
@@ -136,7 +132,7 @@ export function ConfirmDialog({
               </Button>
               <Button
                 variant="ghost"
-                className="h-12 rounded-full text-base"
+                className="h-12 text-base"
                 onClick={() => {
                   setSheetOpen(false)
                   setTyped('')
@@ -172,11 +168,7 @@ export function ConfirmDialog({
           <AlertDialogCancel>{cancelLabel}</AlertDialogCancel>
           <AlertDialogAction
             disabled={!phraseMatched}
-            className={
-              variant === 'destructive'
-                ? 'rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90'
-                : 'rounded-full'
-            }
+            variant={variant}
             onClick={onConfirm}
           >
             {confirmLabel}

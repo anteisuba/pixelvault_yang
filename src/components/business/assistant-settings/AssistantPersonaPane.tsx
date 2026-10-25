@@ -828,7 +828,6 @@ function AdvancedSwitchRow({
         <span className="min-w-0 text-2sm text-muted-foreground">{hint}</span>
         <Switch
           id={id}
-          size="lg"
           data-testid={testId}
           checked={checked}
           onCheckedChange={onChange}

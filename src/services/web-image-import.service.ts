@@ -18,6 +18,10 @@ import { ApiRequestError } from '@/lib/errors'
 import { assertSafeUrl } from '@/lib/url-guard'
 import { logger } from '@/lib/logger'
 import {
+  embeddedRecipeFields,
+  readEmbeddedRecipe,
+} from '@/services/image-embedded-recipe.service'
+import {
   createGeneration,
   findImportedGenerationBySourceUrl,
 } from '@/services/generation.service'
@@ -335,13 +339,16 @@ export async function importWebImage(
   }
 
   const storageKey = generateStorageKey('IMAGE', dbUser.id)
-  const [publicUrl, thumbnail] = await Promise.all([
+  const [publicUrl, thumbnail, embedded] = await Promise.all([
     uploadToR2({ data: buffer, key: storageKey, mimeType: trustedMimeType }),
     createImageThumbnailAsset({
       sourceBuffer: buffer,
       sourceStorageKey: storageKey,
     }),
+    readEmbeddedRecipe(buffer),
   ])
+  // 网上的 NovelAI / A1111 原图也可能带着配方（Civitai、Pixiv 原图）。
+  const recipe = embedded ? embeddedRecipeFields(embedded) : null
 
   const generation = await createGeneration({
     url: publicUrl,
@@ -351,7 +358,11 @@ export async function importWebImage(
     thumbnailStorageKey: thumbnail.thumbnailStorageKey,
     width,
     height,
-    prompt: input.title ?? '',
+    prompt: recipe?.prompt ?? input.title ?? '',
+    ...(recipe?.negativePrompt
+      ? { negativePrompt: recipe.negativePrompt }
+      : {}),
+    ...(recipe?.seed !== undefined ? { seed: recipe.seed } : {}),
     /**
      * ⚠ 复用 `USER_UPLOAD_PROVIDER` 而不是新造一个 provider 值：素材库按 `model`
      * 分桶（「本地素材」那一栏），新值会落进一个没人认得的桶里，而这张图对用户
@@ -382,6 +393,7 @@ export async function importWebImage(
         : {}),
       ...(input.domain ? { domain: input.domain } : {}),
       retrievedAt: new Date().toISOString(),
+      ...(recipe?.snapshot ?? {}),
     },
   })
 

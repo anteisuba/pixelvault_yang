@@ -8,6 +8,10 @@ import {
 } from '@/constants/uploads'
 import { createGeneration } from '@/services/generation.service'
 import {
+  embeddedRecipeFields,
+  readEmbeddedRecipe,
+} from '@/services/image-embedded-recipe.service'
+import {
   createImageThumbnailAsset,
   createPresignedR2PutUrl,
   deleteFromR2,
@@ -72,7 +76,7 @@ async function storeUserUpload(params: {
   }
 
   const storageKey = generateStorageKey('IMAGE', userId)
-  const [publicUrl, thumbnail] = await Promise.all([
+  const [publicUrl, thumbnail, embedded] = await Promise.all([
     uploadToR2({
       data: buffer,
       key: storageKey,
@@ -82,6 +86,7 @@ async function storeUserUpload(params: {
       sourceBuffer: buffer,
       sourceStorageKey: storageKey,
     }),
+    readEmbeddedRecipe(buffer),
   ])
 
   return createGeneration({
@@ -93,6 +98,8 @@ async function storeUserUpload(params: {
     width: detectedWidth,
     height: detectedHeight,
     prompt: note ?? '',
+    // NovelAI / A1111 原图自带配方：提示词等写进这一行（盖过备注）。
+    ...(embedded ? embeddedRecipeFields(embedded) : {}),
     model: USER_UPLOAD_PROVIDER,
     provider: USER_UPLOAD_PROVIDER,
     requestCount: 0,
@@ -284,10 +291,13 @@ export async function completeUserImageDirectUpload(
     )
   }
 
-  const thumbnail = await createImageThumbnailAsset({
-    sourceBuffer: buffer,
-    sourceStorageKey: input.storageKey,
-  })
+  const [thumbnail, embedded] = await Promise.all([
+    createImageThumbnailAsset({
+      sourceBuffer: buffer,
+      sourceStorageKey: input.storageKey,
+    }),
+    readEmbeddedRecipe(buffer),
+  ])
 
   return createGeneration({
     url: getR2PublicUrl(input.storageKey),
@@ -298,6 +308,7 @@ export async function completeUserImageDirectUpload(
     width: detectedWidth,
     height: detectedHeight,
     prompt: input.note ?? '',
+    ...(embedded ? embeddedRecipeFields(embedded) : {}),
     model: USER_UPLOAD_PROVIDER,
     provider: USER_UPLOAD_PROVIDER,
     requestCount: 0,

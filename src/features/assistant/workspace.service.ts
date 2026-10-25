@@ -181,13 +181,20 @@ interface PictureRow {
   referenceImages: unknown
   aspectRatio: string | null
   freePrompt: string | null
+  /** 上传的原图自带配方时读出来的来源与模型名（`embeddedRecipeFields`）。 */
+  embeddedRecipe: {
+    source?: string
+    model?: string | null
+    characters?: string[]
+  } | null
 }
 
 /** ⚠ 整份快照能到 7 MB：只取 `advancedParams` 与参考图那两格（同 `readOwnRecipes`）。 */
 const PICTURE_COLUMNS = Prisma.sql`"id", "seq", "outputType"::text AS "outputType", "url", "thumbnailUrl",
   "prompt", "negativePrompt", "model", "width", "height", "seed"::text AS "seed", "createdAt",
   "snapshot"->'advancedParams' AS "advancedParams", "snapshot"->'referenceImages' AS "referenceImages",
-  "snapshot"->>'aspectRatio' AS "aspectRatio", "snapshot"->>'freePrompt' AS "freePrompt"`
+  "snapshot"->>'aspectRatio' AS "aspectRatio", "snapshot"->>'freePrompt' AS "freePrompt",
+  "snapshot"->'embeddedRecipe' AS "embeddedRecipe"`
 
 function pictureTag(row: Pick<PictureRow, 'seq' | 'outputType'>): string {
   return buildGenerationTag({ seq: row.seq, outputType: row.outputType }) ?? ''
@@ -272,9 +279,23 @@ async function readPicture(
 
 /** 一张图的完整配方：A1111 那三行，再加 LoRA（名字 + 权重）与参考图（能认出编号的写编号）。 */
 async function pictureRecipe(userId: string, row: PictureRow): Promise<string> {
+  // 传上来的 NovelAI / A1111 原图自带配方：上传时读出来了，照常给。
+  if (row.model === USER_UPLOAD_PROVIDER && row.embeddedRecipe) {
+    const { source, model, characters } = row.embeddedRecipe
+    const lines = [
+      `Uploaded by the creator; the file carried the recipe it was made with (${source === 'novelai' ? 'NovelAI' : 'A1111 / Forge'}${model ? `, ${model}` : ''}):`,
+      buildAssetRecipeText({
+        ...row,
+        snapshot: { advancedParams: row.advancedParams ?? undefined },
+      }),
+    ]
+    for (const [index, character] of (characters ?? []).entries())
+      lines.push(`Character ${index + 1}: ${character}`)
+    return lines.join('\n')
+  }
   // 她自己传上来的图没有配方（只有尺寸）：明说，⛔ 让模型换着入口再翻一遍。
   if (row.model === USER_UPLOAD_PROVIDER)
-    return `Uploaded by the creator, not generated here: no recipe was recorded (no prompt, model or settings)${row.prompt.trim() ? ` — only their note: "${clip(row.prompt, LIMITS.promptPreviewChars)}"` : ''}. Size: ${row.width}x${row.height}. Searching the workspace again will not find more; judge it from the picture itself.`
+    return `Uploaded by the creator, not generated here: no recipe was recorded (no prompt, model or settings)${row.prompt.trim() ? ` — only their note: "${clip(row.prompt, LIMITS.promptPreviewChars)}"` : ''}. Size: ${row.width}x${row.height}. Searching the workspace again will not find more; judge it from the picture itself, and look at it with tagger: true to read its artist / style and character.`
   const base = buildAssetRecipeText({
     ...row,
     snapshot: { advancedParams: row.advancedParams ?? undefined },

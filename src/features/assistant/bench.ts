@@ -96,6 +96,7 @@ import {
   type CanvasBatch,
 } from '@/features/assistant/canvas'
 import { isLibraryOp, runLibraryChange } from '@/features/assistant/library'
+import { readTaggerFor } from '@/features/assistant/tagger'
 import type { BenchOpening } from '@/features/assistant/open'
 import type {
   AskInput,
@@ -1049,6 +1050,8 @@ export async function* runLook(
   if (names.length === 0) return { output: bench, error: false }
   const parts: string[] = []
   const pictures: AssistantV3PictureRef[] = []
+  /** 认图要认的：眼前摆上来的之外，还有已在眼前的附图（不再附第二遍，但要认）。 */
+  const toTag: AssistantV3PictureRef[] = []
   const benchNames: string[] = []
   let failed = 0
   for (const name of names) {
@@ -1075,7 +1078,17 @@ export async function* runLook(
           ownerOf(context),
           handle,
         ).catch(() => null)
-        if (recipe) parts.push(recipe.text)
+        if (recipe) {
+          parts.push(recipe.text)
+          toTag.push(...recipe.pictures)
+        }
+      } else if (attached && input.tagger) {
+        const asset = context.request.mentionedAssets?.find(
+          (item) =>
+            (item.label ?? item.id).trim().toLowerCase() ===
+            name.trim().toLowerCase(),
+        )
+        if (asset) toTag.push({ url: asset.url, label: name })
       }
       continue
     }
@@ -1135,6 +1148,10 @@ export async function* runLook(
     pictures.push(...(looked.pictures ?? []))
     parts.unshift(looked.output)
   }
+  if (input.tagger)
+    parts.push(
+      await readTaggerFor(context.prepared.user.id, [...pictures, ...toTag]),
+    )
   return {
     output: `${parts.join('\n\n')}\n\n${bench}`,
     error: failed === names.length,

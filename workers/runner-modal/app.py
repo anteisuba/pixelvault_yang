@@ -8,6 +8,8 @@ HTTP（全部要 `Authorization: Bearer $RUNNER_MODAL_TOKEN`），形状照搬 R
   GET  /status/{id}  -> {"status": "IN_PROGRESS" | "COMPLETED" | "FAILED", "output"?, "error"?}
   POST /cancel/{id}  -> {"ok": true}
   GET  /health       -> {"ok": true}
+  POST /tag          {"imageUrl": "https://..."} -> {"style": [[tag, score], ...], "character": ..., ...}
+                     （PixAI Tagger 认图，同步返回；助手反推画风用，见下方 Tagger）
 
 部署：modal deploy workers/runner-modal/app.py
 """
@@ -47,6 +49,53 @@ main_image = modal.Image.from_registry(MAIN_IMAGE).env(
 )
 qwen_image = modal.Image.from_registry(QWEN_IMAGE)
 web_image = modal.Image.debian_slim().pip_install("fastapi[standard]")
+
+# PixAI Tagger v1.0（Apache-2.0）：认图出 Danbooru 标签，style 一类多为画师。权重 1.9 GB
+# 构建时烤进镜像（钉 revision），冷启动不再下载。transformers 照模型卡 config 的 4.57.6。
+TAGGER_REPO = "pixai-labs/pixai-tagger-v1.0"
+TAGGER_REVISION = "9fe10addf9326e292da8a85a98ea74cd91b41771"
+TAGGER_DIR = "/tagger"
+# 每类最多回几个（已过模型卡推荐阈值，按分数从高到低）。
+TAGGER_TOP = {
+    "style": 8,
+    "character": 6,
+    "copyright": 4,
+    "general": 40,
+    "meta": 6,
+    "rating": 1,
+}
+TAGGER_MAX_IMAGE_BYTES = 25 * 1024 * 1024
+
+
+def _download_tagger():
+    from huggingface_hub import snapshot_download
+
+    snapshot_download(
+        TAGGER_REPO,
+        revision=TAGGER_REVISION,
+        local_dir=TAGGER_DIR,
+        allow_patterns=["*.json", "*.py", "*.safetensors"],
+    )
+
+
+# 跑 CPU（10-25 实测 4 核一张约 5 秒）：比 GPU 便宜一个数量级、冷启动不等卡；助手一步本来就几十秒。
+tagger_image = (
+    modal.Image.debian_slim(python_version="3.12")
+    .pip_install(
+        "torch==2.8.0",
+        "torchvision==0.23.0",
+        index_url="https://download.pytorch.org/whl/cpu",
+    )
+    .pip_install(
+        "transformers==4.57.6",
+        "timm==1.0.19",
+        "pillow",
+        "numpy",
+        "httpx",
+        "huggingface_hub",
+    )
+    .run_function(_download_tagger)
+)
 
 
 def _start_comfy():
@@ -135,6 +184,60 @@ class QwenRunner:
     @modal.method()
     def run(self, job_input: dict) -> dict:
         return _run(self.handler, job_input)
+
+
+@app.cls(
+    image=tagger_image,
+    cpu=8.0,
+    memory=8192,
+    max_containers=2,
+    # 一轮对话里常连着认几张：留 2 分钟热着，之后关掉不花钱。
+    scaledown_window=120,
+    timeout=180,
+)
+class Tagger:
+    @modal.enter()
+    def load(self):
+        import torch
+        from transformers import pipeline
+
+        self.pipe = pipeline(
+            model=TAGGER_DIR,
+            image_processor=TAGGER_DIR,
+            trust_remote_code=True,
+            device="cpu",
+            dtype=torch.bfloat16,
+        )
+
+    @modal.method()
+    def tag(self, image_url: str) -> dict:
+        import io
+
+        import httpx
+        from PIL import Image
+
+        with httpx.Client(
+            follow_redirects=True,
+            timeout=60,
+            headers={"User-Agent": "pixelvault-runner/1.0"},
+        ) as client:
+            response = client.get(image_url)
+            response.raise_for_status()
+            data = response.content
+        if len(data) > TAGGER_MAX_IMAGE_BYTES:
+            raise RuntimeError("image is too large to tag")
+        image = Image.open(io.BytesIO(data))
+        image.load()
+        results = self.pipe(image)["results"]
+        return {
+            category: [
+                [name, round(float(score), 3)]
+                for name, score in sorted(
+                    results.get(category, {}).items(), key=lambda item: -item[1]
+                )[:top]
+            ]
+            for category, top in TAGGER_TOP.items()
+        }
 
 
 # 清单里没有下载地址、在 RunPod 卷上是手工预置的那几个 SDXL 底模（其余 Anima /
@@ -240,6 +343,17 @@ def api():
         except Exception as error:  # 远端抛的错原样带回，Worker 按原话归类
             return {"status": "FAILED", "error": str(error)[:500]}
         return {"status": "COMPLETED", "output": output}
+
+    @web.post("/tag")
+    async def tag(body: dict, authorization: str | None = Header(default=None)):
+        check(authorization)
+        image_url = body.get("imageUrl")
+        if not isinstance(image_url, str) or not image_url.startswith("https://"):
+            raise HTTPException(status_code=400, detail="imageUrl must be an https URL")
+        try:
+            return await Tagger().tag.remote.aio(image_url)
+        except Exception as error:  # 原话带回，Worker / app 照着说
+            raise HTTPException(status_code=502, detail=str(error)[:300])
 
     @web.post("/cancel/{call_id}")
     async def cancel(call_id: str, authorization: str | None = Header(default=None)):

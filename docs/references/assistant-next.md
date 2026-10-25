@@ -122,6 +122,12 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 - 确认卡（`generationDraft`）：提示词可改、参考图可拿掉、「去图片台接着改」（`writeStudioDraft` 写那一台的草稿 + 记上次型号，再开台，台挂上照草稿恢复）。型号没 key：按「出图」就地弹 `QuickSetupDialog`，配好选上那把 key（`key:<id>`）再出。
 - 台开着时一切照旧。只做功能、用现有组件拼，样式留「UI 统一」。
 
+**反推画风（owner 10-25：A 读元数据 + B PixAI Tagger，C 反查出处先不做）**：
+
+- A 上传 / 网图导入时读文件自带的配方（`services/image-embedded-recipe.service.ts`）：NovelAI 的 `Comment` / `Source` 文字块与藏在透明通道最低位的那份（stealth），A1111 / Forge 的 `parameters`。读出来写进提示词 / 负面 / seed 列与 `snapshot.advancedParams`，来源与模型名记 `snapshot.embeddedRecipe`；`model` 列照旧 `user-upload`。截图 / JPG 读不出，照旧当没配方。
+- B 认图：`look` 多一个 `tagger: true`（不加第七个工具），对 names 里的图跑 PixAI Tagger v1.0，回画师 / 角色 / 作品 / 内容标签与置信度（`features/assistant/tagger.ts`）。链路 app → execution Worker `/tag-image`（签名）→ Modal `pixelvault-runner` 的 `/tag`（`Tagger` 类，CPU 8 核，权重烤进镜像），token 只在 Worker。库里的图认原图、结果存 `snapshot.tagger`（带模型版本，换版才重认）；库外的地址照认不存。
+- 技能「复刻与反推」：没配方的图先 `tagger: true` 再写；报画师带把握程度，认不出不报名字。
+
 **过程记录**：照写 `AssistantTurnRecord`，`promptVersion = next-YYYY-MM-DD`；本轮记录投成 v3 形状（自带联网记成 `search_web`、`find` 记成 `search_library`），评测工具照用。
 
 ## 3. 没验证的（2026-10-23）
@@ -135,6 +141,8 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 - 接口与搜索调研：项目文件 `assistant-reliability/model-interfaces.md`
 
 ## Last Verified
+
+- 2026-10-25 · 反推画风（A + B）：本地 CPU 跑 Tagger 实测 wlop 图 → `wlop 0.28`、初音图 → `hatsune_miku 1.00`（一张约 5 秒）；元数据解析用合成的 NAI / A1111 / stealth PNG 测；`tsc` 0 error、相关 vitest 全绿。Modal 部署后线上实跑见 PR。
 
 - 2026-10-24 · 第 9g 步（首页对话里直接出图）：`tsc` 0 error、相关 vitest 全绿（内核首页配方改走图片面 + 核对按 home、板子与改法限定、确认卡改提示词 / 拿参考图 / 去图片台 / 没 key 先配再出、草稿交接）。未在浏览器里实跑，未跑评测（等第 9 步全做完再统一跑）。
 - 2026-10-23 · 第 9e2 步（删音频档 + 删 9b）：工作台音频档残留与 9b 配音台助手整块删（`set_audio`、快照 `audio`、域 `audio`、对话 `workspaceKey: 'audio'` 的戳）。`tsc` 0 error、相关 vitest 见 PR。未在浏览器里实跑，未跑评测。

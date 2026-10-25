@@ -3,6 +3,7 @@
 import {
   Suspense,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -290,6 +291,20 @@ function StudioShellStage({
   const contentRef = useRef<HTMLDivElement | null>(null)
   const bench = kind === 'bench'
   const activeId = bench ? activeBenchId(benchPathname) : undefined
+  const { history: chatHistory, entries: chatEntries } =
+    useStudioOperatorState()
+  const hasChat =
+    chatHistory.length > 0 || chatEntries.some((entry) => entry.kind === 'user')
+  /**
+   * 从首页点进台（用户 10-25）：这段对话聊过 → 对话和台并排；还没聊过 → 台直接全屏
+   *（对话收起，头像在台左上角）。⚠ 只在「没台 → 有台」那一下定，进台之后照用户自己拖的。
+   */
+  const benchBefore = useRef(bench)
+  useLayoutEffect(() => {
+    const entering = bench && !benchBefore.current
+    benchBefore.current = bench
+    if (entering) setConversationCollapsed(!hasChat)
+  }, [bench, hasChat, setConversationCollapsed])
   const { closeBench, switchBench } = useStudioBenchMotion({
     bench,
     activeId,
@@ -359,7 +374,7 @@ function StudioShellStage({
         aria-label={t('conversations')}
         data-testid="studio-shell-conversation"
         className={cn(
-          'min-h-0 min-w-0 flex-col',
+          'relative min-h-0 min-w-0 flex-col',
           bench
             ? 'hidden desk:flex desk:shrink-0 desk:overflow-hidden'
             : 'flex h-page flex-1',
@@ -408,7 +423,7 @@ function StudioShellStage({
         />
       ) : null}
 
-      {libraryOpen ? null : (
+      {libraryOpen || !bench ? null : (
         <StudioBenchRail
           activeId={activeId}
           onSwitch={(item) => void switchBench(item)}
@@ -422,6 +437,7 @@ function StudioShellStage({
         className={cn(
           'min-w-0 flex-1 flex-col',
           bench ? 'block desk:flex desk:h-full' : 'hidden',
+          conversationHidden && 'studio-shell-chat-collapsed',
         )}
         style={{
           opacity:
@@ -452,12 +468,13 @@ type StudioShellCollapseSide = 'conversation' | 'bench' | null
 /**
  * 首页顶上「助手 | 配音间」（第 9f 步 9f-3）：配音间是一种对话，切过去就新开一间
  *（`/studio/audio?new=1`，在里面挑角色就能说）；开过的房间都在左边列表里。
+ * ⭐ 浮在板头那一行正中（用户 10-25：头像不单独占一行），⛔ 自己再占一行把对话往下压。
  */
 function StudioHomeModeSwitch() {
   const t = useTranslations('StudioShell')
   const router = useRouter()
   return (
-    <div className="flex shrink-0 justify-center pt-4">
+    <div className="pointer-events-none absolute inset-x-0 top-2.5 z-10 flex justify-center *:pointer-events-auto">
       <LiquidSegmented
         items={[
           { value: 'assistant', label: t('homeAssistant') },

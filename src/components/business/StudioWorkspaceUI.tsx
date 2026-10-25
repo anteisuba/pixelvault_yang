@@ -91,7 +91,6 @@ export function StudioWorkspaceUI() {
   const { state, dispatch } = useStudioForm()
   const { imageUpload } = useStudioData()
   const { isGenerating } = useStudioGen()
-  const tEmptyState = useTranslations('StudioEmptyState')
   const [editTarget, setEditTarget] = useState<StudioImageEditTarget | null>(
     null,
   )
@@ -298,16 +297,11 @@ export function StudioWorkspaceUI() {
       : 'var(--workbench-pad)',
   )
   /**
-   * 底部输入框那几台舞台上方同一行：标题 + 自然语言 / 标签切换。
-   * ⛔ 写法切换只给图片档：视频没有方言这一说。
+   * 底部输入框那几台舞台上方同一行：自然语言 / 标签切换。⛔ 台标题（ui-spec §1，
+   * owner 10-25：左上角留给收起后的头像）。⛔ 写法切换只给图片档：视频没有方言这一说。
    */
   const workbenchHeader = isBottomComposer ? (
     <div className="flex items-center gap-3.5">
-      <h1 className="text-sm font-semibold text-muted-foreground">
-        {tEmptyState(
-          state.outputType === 'video' ? 'modeLabel.video' : 'modeLabel.image',
-        )}
-      </h1>
       {state.outputType === 'image' ? (
         <StudioDialectHeader
           disabled={isGenerating || editRunning}

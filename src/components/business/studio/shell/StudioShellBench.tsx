@@ -46,10 +46,17 @@ const BENCH_ITEMS: readonly ShellNavItem[] = STUDIO_SHELL_BENCH_IDS.flatMap(
   (id) => SHELL_NAV_TOOLS.filter((item) => item.id === id),
 )
 
+/** 台条上的一格（样件 E S01 / S02）：图标在上、台名在下，当前那一格浅灰底。 */
 const RAIL_BUTTON_CLASS =
+  'flex w-13 flex-col items-center gap-0.5 rounded-12 py-1.5 text-2xs text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus [&>svg]:size-4.5'
+
+const RAIL_ACTIVE_CLASS = 'bg-muted font-medium text-foreground'
+
+/** 左栏「工作台」弹出来那一条：只有图标的竖胶囊（用户 10-25 图一）。 */
+const PICKER_BUTTON_CLASS =
   'flex size-9 items-center justify-center rounded-full text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus [&>svg]:size-4.5'
 
-const RAIL_ACTIVE_CLASS = 'bg-fill-strong text-foreground'
+const PICKER_ACTIVE_CLASS = 'bg-fill-strong text-foreground'
 
 function benchIndex(id: string | undefined): number {
   return STUDIO_SHELL_BENCH_IDS.indexOf(id as StudioShellBenchId)
@@ -251,9 +258,9 @@ function scrollsSideways(
 }
 
 /**
- * 台条（ui-spec §1 / §9「切台」）：**一直在**，竖着浮在白板右边 —— 图片 · LoRA · 视频 ·
- * 3D · 画布，同时只开一个台。⛔ 台顶上的切换条、⛔ 台标题。
- * 没开台：点哪个台，那个台从右边推进来；开着台：点别的 = 换台（滑过去），点当前那颗 = 收台。
+ * 台条（ui-spec §1 / §9「切台」）：开着台时竖着贴在白板右边、上下居中 —— 图片 · LoRA ·
+ * 视频 · 3D · 画布，同时只开一个台。⛔ 台顶上的切换条、⛔ 台标题。首页不摆（用户 10-25：
+ * 一开始交给左栏「工作台」）。点别的 = 换台（滑过去），点当前那颗 = 收台。
  */
 export function StudioBenchRail({
   activeId,
@@ -272,9 +279,9 @@ export function StudioBenchRail({
     <nav
       aria-label={t('benches')}
       data-testid="studio-bench-rail"
-      className="order-last hidden w-14 shrink-0 justify-center pt-3 desk:flex"
+      className="order-last hidden w-18 shrink-0 items-center justify-center desk:flex"
     >
-      <div className="flex h-max flex-col gap-1 rounded-full bg-raise p-1 shadow-soft">
+      <div className="flex flex-col gap-0.5 rounded-16 bg-raise p-1.5 shadow-soft">
         {BENCH_ITEMS.map((item) => {
           const Icon = item.icon
           const label = tAll(item.labelKey)
@@ -301,11 +308,64 @@ export function StudioBenchRail({
                 className={cn(RAIL_BUTTON_CLASS, active && RAIL_ACTIVE_CLASS)}
               >
                 <Icon />
+                <span aria-hidden>{label}</span>
               </Link>
             </BarTip>
           )
         })}
       </div>
+    </nav>
+  )
+}
+
+/**
+ * 左栏「工作台」点开的那一条（用户 10-25）：竖着一排台图标，点一个进那个台；
+ * 当前开着的那颗再点 = 收台、回到对话。
+ */
+export function StudioBenchPicker({
+  activeId,
+  onPicked,
+}: {
+  activeId?: string
+  onPicked?: () => void
+}) {
+  const t = useTranslations('StudioShell')
+  const tAll = useTranslations()
+  const { sessionId } = useStudioOperatorState()
+
+  return (
+    <nav
+      aria-label={t('benches')}
+      data-testid="studio-bench-picker"
+      className="flex flex-col gap-1 rounded-full bg-raise p-1 shadow-soft"
+    >
+      {BENCH_ITEMS.map((item) => {
+        const Icon = item.icon
+        const label = tAll(item.labelKey)
+        const active = item.id === activeId
+        return (
+          <BarTip
+            key={item.id}
+            label={active ? t('closeBench') : label}
+            side="right"
+          >
+            <Link
+              href={
+                active
+                  ? studioConversationHref(sessionId)
+                  : studioBenchHref(item.href, sessionId)
+              }
+              aria-label={label}
+              aria-current={active ? 'page' : undefined}
+              data-bench={item.id}
+              onClick={onPicked}
+              className={cn(PICKER_BUTTON_CLASS, active && PICKER_ACTIVE_CLASS)}
+            >
+              <Icon />
+            </Link>
+          </BarTip>
+        )
+      })}
     </nav>
   )
 }
@@ -332,7 +392,9 @@ export function StudioShellExpandChat({ onExpand }: { onExpand: () => void }) {
         aria-label={t('backToChat')}
         data-testid="studio-shell-expand-chat"
         onClick={onExpand}
-        className="absolute top-3 left-3 z-20 hidden size-8 place-items-center overflow-hidden rounded-full bg-raise text-foreground shadow-soft focus-visible:outline-none focus-visible:shadow-focus desk:grid"
+        // ⭐ 和对话头里那颗头像同一个位置、同一个长相（板头 52 高、左 12）：对话栏往左收到
+        //   底时头像看起来没动，⛔ 收完再在别处冒出一颗。
+        className="absolute top-2.5 left-3 z-20 hidden size-8 place-items-center overflow-hidden rounded-full bg-muted text-foreground transition-transform duration-fast ease-standard active:scale-96 focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none desk:grid"
       >
         <AssistantAvatarGlyph presetId={persona.avatarPreset ?? null} />
       </button>
@@ -340,11 +402,19 @@ export function StudioShellExpandChat({ onExpand }: { onExpand: () => void }) {
   )
 }
 
-function BarTip({ label, children }: { label: string; children: ReactNode }) {
+function BarTip({
+  label,
+  side = 'left',
+  children,
+}: {
+  label: string
+  side?: 'left' | 'right'
+  children: ReactNode
+}) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent side="left">{label}</TooltipContent>
+      <TooltipContent side={side}>{label}</TooltipContent>
     </Tooltip>
   )
 }

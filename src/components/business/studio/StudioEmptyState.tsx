@@ -172,9 +172,6 @@ export function StudioEmptyState({ mode, onRemix }: StudioEmptyStateProps) {
         </div>
       ) : (
         <div className="flex max-w-2xl flex-col items-center gap-4 text-center sm:gap-5">
-          <p className="text-2xs font-medium uppercase tracking-widest text-muted-foreground/70">
-            {t(`modeLabel.${contentKey}`)}
-          </p>
           <p className="text-sm text-muted-foreground sm:text-base">
             {t(`hint.${contentKey}`)}
           </p>

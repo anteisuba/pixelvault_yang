@@ -105,7 +105,9 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
         {/* ⚠ 头部这一行定高 `h-9`、行距 `gap-3`：助手面板按这两个数对齐舞台顶边
             （`STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR`），改这里必须改那边。 */}
         {header ? (
-          <div className="flex h-9 shrink-0 items-center">{header}</div>
+          <div data-bench-header className="flex h-9 shrink-0 items-center">
+            {header}
+          </div>
         ) : null}
         <div className="studio-workbench-stage workbench-card studio-scroll-area flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto px-3 pt-3 pb-3 lg:px-6 lg:pt-6 lg:pb-6">
           {stage}

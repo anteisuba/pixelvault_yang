@@ -9,11 +9,6 @@
     "limitReached": "This model accepts at most {max} reference images. Remove one to add another."
   },
   "StudioEmptyState": {
-    "modeLabel": {
-      "image": "Image studio",
-      "video": "Video studio",
-      "image_tags": "Tag studio"
-    },
     "hint": {
       "image": "Describe the image you want, or start from an example",
       "video": "Describe what happens in the shot, or start from an example",
@@ -1174,6 +1169,7 @@
     "newResult": "New results",
     "homeMode": "Start",
     "homeAssistant": "Assistant",
-    "homeVoiceRoom": "Voice room"
+    "homeVoiceRoom": "Voice room",
+    "workbench": "Workbenches"
   }
 }

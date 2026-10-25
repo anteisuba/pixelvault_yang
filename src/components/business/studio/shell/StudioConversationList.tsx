@@ -5,11 +5,21 @@ import { useTranslations } from 'next-intl'
 
 import { ROUTES } from '@/constants/routes'
 import { studioLibraryPath } from '@/constants/studio-shell'
-import { ChatCircleText, Images, Library, SquarePen } from '@/components/icons'
+import {
+  ChatCircleText,
+  Images,
+  LayoutGrid,
+  Library,
+  SquarePen,
+} from '@/components/icons'
 import { AccountMenu } from '@/components/layout/AccountMenu'
 import { ProfileAvatar } from '@/components/layout/ProfileAvatar'
 import { StudioConversationRecent } from '@/components/business/studio/shell/StudioConversationRecent'
 import { StudioLibraryTargetContext } from '@/components/business/studio/shell/StudioLibraryOverlay'
+import {
+  StudioBenchPicker,
+  activeBenchId,
+} from '@/components/business/studio/shell/StudioShellBench'
 import {
   Popover,
   PopoverContent,
@@ -44,8 +54,9 @@ const ROW_ACTIVE_CLASS = 'bg-row-selected font-medium'
 
 /**
  * `/studio` 外壳左边那一栏（ui-spec §1）：64 宽的细图标栏落在灰底上，只放图标 ——
- * AN 字标、黑色「新对话」、对话 / 库 / 画廊、最底下头像。点「对话」从栏旁浮出对话列表
- * （300 宽；助手对话与配音间混排，9f-3）。
+ * AN 字标、黑色「新对话」、对话 / 工作台 / 库 / 画廊、最底下头像。点「对话」从栏旁浮出对话列表
+ * （300 宽；助手对话与配音间混排，9f-3）；点「工作台」浮出一条竖排的台（用户 10-25），
+ * 点一个进那个台。
  *
  * ⚠ 读的是面板发布出来的历史与「新对话」那只手（`useStudioOperatorHistoryView` /
  *   `useStudioOperatorActions`），⛔ 这里再调一次驱动 hook。
@@ -62,6 +73,8 @@ export function StudioConversationList({ className }: { className?: string }) {
   const kind = studioShellRouteKind(pathname)
   const openCategory = libraryCategoryFromPath(pathname)
   const [listOpen, setListOpen] = useState(false)
+  const [benchesOpen, setBenchesOpen] = useState(false)
+  const openBenchId = kind === 'bench' ? activeBenchId(pathname) : undefined
   const librarySlot = useContext(StudioLibraryTargetContext)
   const libraryActive = openCategory !== null && openCategory !== 'gallery'
   /** 库是整页、没有返回键：再点一下亮着的那一颗 = 收起库，回到进来之前那一页。 */
@@ -133,6 +146,32 @@ export function StudioConversationList({ className }: { className?: string }) {
             rowClass={ROW_CLASS}
             rowActiveClass={ROW_ACTIVE_CLASS}
             onOpen={() => setListOpen(false)}
+          />
+        </PopoverContent>
+      </Popover>
+
+      <Popover open={benchesOpen} onOpenChange={setBenchesOpen}>
+        <NavTip label={t('workbench')}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              aria-label={t('workbench')}
+              data-testid="studio-shell-benches"
+              className={cn(NAV_BUTTON_CLASS, openBenchId && NAV_ACTIVE_CLASS)}
+            >
+              <LayoutGrid />
+            </button>
+          </PopoverTrigger>
+        </NavTip>
+        <PopoverContent
+          side="right"
+          align="start"
+          sideOffset={8}
+          className="w-auto rounded-full bg-transparent p-0 shadow-none"
+        >
+          <StudioBenchPicker
+            activeId={openBenchId}
+            onPicked={() => setBenchesOpen(false)}
           />
         </PopoverContent>
       </Popover>

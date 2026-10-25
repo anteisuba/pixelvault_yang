@@ -685,9 +685,9 @@ const KNOWN_DYNAMIC_NAMESPACE_SITES: Readonly<
   },
   'components/business/studio/shell/StudioShellBench.tsx': {
     reason:
-      'The bench rail renders `SHELL_NAV_TOOLS` items via `t(item.labelKey)`; ' +
-      'every `labelKey` there is under `StudioTools.`.',
-    calls: ['useTranslations()'],
+      'The bench rail and the left-rail bench picker render `SHELL_NAV_TOOLS` ' +
+      'items via `t(item.labelKey)`; every `labelKey` there is under `StudioTools.`.',
+    calls: ['useTranslations()', 'useTranslations()'],
     namespaces: ['StudioTools'],
   },
   'components/layout/AppSidebar.tsx': {

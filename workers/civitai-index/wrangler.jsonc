@@ -28,6 +28,15 @@
       "class_name": "CivitaiIndexSyncWorkflow",
     },
   ],
+  // 按意思搜：经 service binding 直接调 semantic-index 的 SemanticIndex 入口（RPC），
+  // 不经公网、不用 token。⚠ 首次部署前 semantic-index 要先带着这个入口部署好。
+  "services": [
+    {
+      "binding": "SEMANTIC",
+      "service": "pixelvault-semantic-index",
+      "entrypoint": "SemanticIndex",
+    },
+  ],
   // 每天一轮（owner 2026-10-07 定：不做每小时）。19:00 UTC = 日本凌晨 4 点。
   "triggers": {
     "crons": ["0 19 * * *"],

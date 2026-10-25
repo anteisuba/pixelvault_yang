@@ -41,3 +41,11 @@ interface VectorizeIndex {
     },
   ): Promise<{ matches: VectorizeMatch[]; count: number }>
 }
+
+// ─── Workers runtime ────────────────────────────────────────────────────────
+
+declare module 'cloudflare:workers' {
+  export abstract class WorkerEntrypoint<TEnv = unknown> {
+    protected env: TEnv
+  }
+}

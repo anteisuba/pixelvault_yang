@@ -1,3 +1,4 @@
+import { WorkerEntrypoint } from 'cloudflare:workers'
 import type { z } from 'zod'
 
 import {
@@ -7,6 +8,7 @@ import {
   deleteItems,
   queryItems,
   upsertItems,
+  type SemanticMatch,
 } from './semantic'
 
 export interface Env {
@@ -76,3 +78,29 @@ const semanticIndexWorker = {
 }
 
 export default semanticIndexWorker
+
+/**
+ * 给别的 Worker 走 service binding 直接调（civitai-index 的 LoRA 大库），不经公网、不用 token。
+ * 入参照样过 schema：调用方是自己人，也不信它传的形状。
+ */
+export class SemanticIndex extends WorkerEntrypoint<Env> {
+  async query(input: unknown): Promise<SemanticMatch[]> {
+    return queryItems(
+      this.env.AI,
+      this.env.VECTORS,
+      QueryInputSchema.parse(input),
+    )
+  }
+
+  async upsert(input: unknown): Promise<number> {
+    return upsertItems(
+      this.env.AI,
+      this.env.VECTORS,
+      UpsertInputSchema.parse(input),
+    )
+  }
+
+  async remove(input: unknown): Promise<number> {
+    return deleteItems(this.env.VECTORS, DeleteInputSchema.parse(input))
+  }
+}

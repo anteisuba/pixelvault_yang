@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { findLorasByMeaning, type SemanticIndexBinding } from './meaning'
 import type { IndexImage, IndexPermissions, IndexVersion } from './rows'
 
 /**
@@ -59,7 +60,7 @@ export interface SearchRow {
 
 export interface SearchResult {
   rows: SearchRow[]
-  /** 数到 TOTAL_CAP 为止 */
+  /** 数到 TOTAL_CAP 为止的字面命中，再加上接在后面的「意思接近」 */
   total: number
   /** 真实命中比 total 多（界面写「1 万+」） */
   totalCapped: boolean
@@ -118,6 +119,17 @@ function ftsString(text: string): string {
 
 function escapeLike(text: string): string {
   return text.replace(/[\\%_]/g, (char) => `\\${char}`)
+}
+
+function queryTerms(query: string): { terms: string[]; longTerms: string[] } {
+  const terms = [...new Set(query.split(/\s+/).filter(Boolean))].slice(
+    0,
+    MAX_QUERY_TERMS,
+  )
+  return {
+    terms,
+    longTerms: terms.filter((term) => charLength(term) >= TRIGRAM_MIN_CHARS),
+  }
 }
 
 interface BuiltQuery {
@@ -189,13 +201,7 @@ export function buildSearchQuery(
   }
 
   const query = input.q.toLowerCase()
-  const terms = [...new Set(query.split(/\s+/).filter(Boolean))].slice(
-    0,
-    MAX_QUERY_TERMS,
-  )
-  const longTerms = terms.filter(
-    (term) => charLength(term) >= TRIGRAM_MIN_CHARS,
-  )
+  const { terms, longTerms } = queryTerms(query)
   if (longTerms.length > 0) {
     const match = param(longTerms.map(ftsString).join(' '))
     if (driveFromFts) {
@@ -597,45 +603,161 @@ async function readFilteredPage(
 export interface SearchTimings {
   countMs: number
   pageMs: number
+  /** 按意思找 + 回 D1 筛（与计数同时跑） */
+  meaningMs: number
+}
+
+/**
+ * 这一行字面上命中搜索词没有（与 buildSearchQuery 的词条件同一口径），逐行关联着查：
+ * ⛔ 不用 `IN (SELECT rowid FROM lora_fts …)`——那样要把常见词的整个命中集（girl 17 万）
+ * 先取出来，这里只需要看 50 行。
+ */
+function literalTextCheck(q: string): { where: string; params: unknown[] } {
+  const { terms, longTerms } = queryTerms(q.toLowerCase())
+  const params: unknown[] = []
+  const param = (value: unknown) => {
+    params.push(value)
+    return `?${params.length}`
+  }
+  const where: string[] = []
+  if (longTerms.length > 0) {
+    where.push(
+      `EXISTS (SELECT 1 FROM lora_fts WHERE lora_fts MATCH ${param(
+        longTerms.map(ftsString).join(' '),
+      )} AND lora_fts.rowid = lora.model_id)`,
+    )
+  }
+  for (const term of terms) {
+    if (charLength(term) < TRIGRAM_MIN_CHARS) {
+      where.push(
+        `EXISTS (SELECT 1 FROM lora_term WHERE term = ${param(`w:${term}`)} AND lora_term.model_id = lora.model_id)`,
+      )
+    }
+  }
+  return { where: where.length > 0 ? where.join(' AND ') : '1 = 1', params }
+}
+
+/**
+ * 「意思接近」里能接到字面结果后面的那些：同样过底模 / 分级 / 内容类型的筛选，
+ * 去掉字面已经命中的，顺序照相似度。两条查询一趟发出去。
+ */
+async function readMeaningExtras(
+  db: D1Database,
+  input: SearchInput,
+  ids: readonly number[],
+): Promise<number[]> {
+  if (ids.length === 0) return []
+  const restrictTo = ({
+    where,
+    params,
+  }: {
+    where: string
+    params: unknown[]
+  }) =>
+    db
+      .prepare(
+        `SELECT lora.model_id AS id FROM lora
+         WHERE lora.model_id IN (SELECT value FROM json_each(?${params.length + 1}))
+           AND ${where}`,
+      )
+      .bind(...params, JSON.stringify(ids))
+  const filters = buildSearchQuery({ ...input, q: '' })
+  const [filtered, literal] = await db.batch<{ id: number }>([
+    restrictTo({
+      where: filters.where,
+      params: filters.params.slice(0, filters.whereParamCount),
+    }),
+    restrictTo(literalTextCheck(input.q)),
+  ])
+  const passes = new Set(filtered.results.map((row) => row.id))
+  const literalHits = new Set(literal.results.map((row) => row.id))
+  return ids.filter((id) => passes.has(id) && !literalHits.has(id))
+}
+
+async function readRowsById(
+  db: D1Database,
+  ids: readonly number[],
+): Promise<RawRow[]> {
+  if (ids.length === 0) return []
+  const { results } = await db
+    .prepare(
+      `SELECT ${ROW_COLUMNS} FROM lora
+       WHERE model_id IN (SELECT value FROM json_each(?1))`,
+    )
+    .bind(JSON.stringify(ids))
+    .all<RawRow>()
+  const byId = new Map(results.map((row) => [row.model_id, row]))
+  return ids.flatMap((id) => byId.get(id) ?? [])
+}
+
+/** 字面命中里的这一页（offset 在字面总数之内）。 */
+async function readLiteralPage(
+  db: D1Database,
+  input: SearchInput,
+  offset: number,
+  total: number,
+): Promise<RawRow[]> {
+  if (offset >= total) return []
+  if (total < WALK_ORDER_INDEX_MIN_TOTAL) {
+    return readFilteredPage(db, input, offset)
+  }
+  if (input.sort === 'relevance' && input.q) {
+    return readRelevancePage(db, input, offset)
+  }
+  const { where, orderBy, params } = buildSearchQuery(input, {
+    walkOrderIndex: true,
+  })
+  const pageParam = params.length + 1
+  const { results } = await db
+    .prepare(
+      `SELECT ${ROW_COLUMNS} FROM lora WHERE ${where}
+       ORDER BY ${orderBy} LIMIT ?${pageParam} OFFSET ?${pageParam + 1}`,
+    )
+    .bind(...params, input.pageSize, offset)
+    .all<RawRow>()
+  return results
 }
 
 export async function searchIndex(
   db: D1Database,
   input: SearchInput,
-  options: { timings?: SearchTimings; defer?: Defer } = {},
+  options: {
+    timings?: SearchTimings
+    defer?: Defer
+    /** 没给（或语义那边出错）就只有字面结果 */
+    semantic?: SemanticIndexBinding
+  } = {},
 ): Promise<SearchResult> {
-  const { timings, defer } = options
-  // 先数，按总数决定取这一页时走哪条路。
+  const { timings, defer, semantic } = options
+  // 先数，按总数决定取这一页时走哪条路；按意思找同时跑。
   const countStartedAt = Date.now()
-  const { total, totalCapped, syncedAt } = await countMatches(db, input, defer)
+  const [{ total: literalTotal, totalCapped, syncedAt }, extras] =
+    await Promise.all([
+      countMatches(db, input, defer).finally(() => {
+        if (timings) timings.countMs = Date.now() - countStartedAt
+      }),
+      findLorasByMeaning(semantic, input.q)
+        .then((ids) => readMeaningExtras(db, input, ids))
+        .catch(() => [])
+        .finally(() => {
+          if (timings) timings.meaningMs = Date.now() - countStartedAt
+        }),
+    ])
   const pageStartedAt = Date.now()
-  if (timings) timings.countMs = pageStartedAt - countStartedAt
+  const total = literalTotal + extras.length
   const offset = (input.page - 1) * input.pageSize
   if (offset >= total) return { rows: [], total, totalCapped, syncedAt }
 
-  const large = total >= WALK_ORDER_INDEX_MIN_TOTAL
-  let rows: RawRow[]
-  if (!large) {
-    rows = await readFilteredPage(db, input, offset)
-  } else if (input.sort === 'relevance' && input.q) {
-    rows = await readRelevancePage(db, input, offset)
-  } else {
-    const { where, orderBy, params } = buildSearchQuery(input, {
-      walkOrderIndex: true,
-    })
-    const pageParam = params.length + 1
-    const { results } = await db
-      .prepare(
-        `SELECT ${ROW_COLUMNS} FROM lora WHERE ${where}
-         ORDER BY ${orderBy} LIMIT ?${pageParam} OFFSET ?${pageParam + 1}`,
-      )
-      .bind(...params, input.pageSize, offset)
-      .all<RawRow>()
-    rows = results
-  }
+  // 字面在前，意思接后：这一页跨过字面结果的末尾时，余下的位置由意思接近的补上。
+  const literalRows = await readLiteralPage(db, input, offset, literalTotal)
+  const extraStart = Math.max(0, offset - literalTotal)
+  const extraRows = await readRowsById(
+    db,
+    extras.slice(extraStart, extraStart + input.pageSize - literalRows.length),
+  )
   if (timings) timings.pageMs = Date.now() - pageStartedAt
   return {
-    rows: rows.map((row) => toSearchRow(row, input)),
+    rows: [...literalRows, ...extraRows].map((row) => toSearchRow(row, input)),
     total,
     totalCapped,
     syncedAt,

@@ -747,9 +747,7 @@ export function LoraTrainingForm({
             onDrop={handleDrop}
             className={cn(
               'flex flex-col items-center gap-3 rounded-lg border-2 border-dashed px-4 transition-colors',
-              isDragOver
-                ? 'border-primary/60 bg-primary/5'
-                : 'border-border/60',
+              isDragOver ? 'border-foreground bg-muted' : 'border-border',
               imageUrls.length === 0 ? 'py-6' : 'py-3',
             )}
           >

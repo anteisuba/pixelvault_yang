@@ -172,6 +172,7 @@ import { StudioOperatorMentionMenu } from '@/components/business/studio/assistan
 import { StudioOperatorSkillMenu } from '@/components/business/studio/assistant-operator/StudioOperatorSkillMenu'
 import { StudioOperatorMentionCard } from '@/components/business/studio/assistant-operator/StudioOperatorMentionCard'
 import { openOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
+import { DropOverlay } from '@/components/ui/drop-overlay'
 import { BlurSwap } from '@/components/ui/blur-swap'
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
@@ -445,6 +446,7 @@ export function StudioOperatorPanel({
   headerAvatar,
 }: StudioOperatorPanelProps) {
   const t = useTranslations('StudioOperator')
+  const tDrop = useTranslations('DropZone')
   const format = useFormatter()
   const operatorHost = useStudioOperatorHost()
   const workspaceKey = assistantWorkspaceKey(
@@ -3049,12 +3051,14 @@ export function StudioOperatorPanel({
             if (files.length > 0) upload.uploadFiles(files)
           }}
           className={cn(
-            'relative mx-3 mb-3 flex shrink-0 flex-col gap-1.5 rounded-2xl border bg-card px-3 pt-2 pb-2 shadow-assistant-raised transition-colors duration-fast ease-standard motion-reduce:transition-none',
-            dragOver
-              ? 'border-primary ring-2 ring-inset ring-primary'
-              : 'border-assistant-line-strong',
+            'relative mx-3 mb-3 flex shrink-0 flex-col gap-1.5 rounded-2xl border border-assistant-line-strong bg-card px-3 pt-2 pb-2 shadow-assistant-raised',
           )}
         >
+          <DropOverlay
+            active={dragOver}
+            label={tDrop('toConversation')}
+            className="rounded-2xl"
+          />
           {/* ── `@` 菜单 / 胶囊小卡片（§10b）：贴在输入框正上方，⛔ 不 portal ——
             手机上键盘弹起时它跟着输入框走，不会被盖住也不会被关掉。 */}
           <StudioOperatorMentionMenu menu={mentionMenu} />

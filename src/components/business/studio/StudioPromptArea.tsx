@@ -63,6 +63,7 @@ import { StudioDialectJumpHint } from '@/components/business/studio/tags/StudioD
 import { StudioCostPreview } from '@/components/business/studio/StudioCostPreview'
 import { StudioGenerateButton } from '@/components/business/studio-shared/workflow/StudioGenerateButton'
 import { cn } from '@/lib/utils'
+import { DropOverlay } from '@/components/ui/drop-overlay'
 import { PromptInput, PromptInputTextarea } from '@/components/ui/prompt-input'
 import { Spinner } from '@/components/ui/spinner'
 import { StudioReferencePromptInput } from './StudioReferencePromptInput'
@@ -134,6 +135,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
   const tPromptArea = useTranslations('StudioPromptArea')
   const tImageChip = useTranslations('ImageChip')
   const tImageUpload = useTranslations('ImageUpload')
+  const tDrop = useTranslations('DropZone')
   const tModels = useTranslations('Models')
   // 模态专属那几颗丸的文案 —— 命名空间沿用 dock 时期的，文案一个字没改
   const tVideo = useTranslations('VideoGenerate')
@@ -382,15 +384,16 @@ export const StudioPromptArea = memo(function StudioPromptArea({
           role="group"
           disabled={isGenerating}
           className={cn(
-            'flex flex-col gap-2 rounded-none border-0 bg-transparent p-0 shadow-none outline-none',
-            !isVideoMode &&
-              imageUpload.isDragging &&
-              'rounded-xl ring-2 ring-primary/35 ring-offset-2 ring-offset-background',
-            isVideoMode &&
-              videoDropOver &&
-              'rounded-xl ring-2 ring-foreground ring-offset-4 ring-offset-card',
+            'relative flex flex-col gap-2 rounded-none border-0 bg-transparent p-0 shadow-none outline-none',
           )}
         >
+          {isVideoMode ? null : (
+            <DropOverlay
+              active={imageUpload.isDragging}
+              label={tDrop('toReferences')}
+              className="-inset-2"
+            />
+          )}
           {isVideoMode ? null : (
             <SearchGroundingSlot
               open={searchGrounding.available && searchGrounding.on}
@@ -407,7 +410,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                 <div
                   ref={videoDropZoneRef}
                   role="status"
-                  className="flex h-12 shrink-0 animate-in items-center gap-2 rounded-xl border border-dashed border-foreground/30 bg-background px-3.5 text-2sm text-foreground/80 fade-in-0 duration-fast ease-linear motion-reduce:animate-none"
+                  className="flex h-12 shrink-0 animate-in items-center gap-2 rounded-12 border-2 border-dashed border-foreground bg-muted px-3.5 text-2sm font-medium text-foreground fade-in-0 duration-fast ease-linear motion-reduce:animate-none"
                 >
                   <Download className="size-4 shrink-0" aria-hidden />
                   {tSlots('drop.here')}
@@ -745,11 +748,14 @@ export const StudioPromptArea = memo(function StudioPromptArea({
         role="group"
         disabled={isGenerating}
         className={cn(
-          'flex min-h-0 flex-1 flex-col gap-3 rounded-none border-0 bg-transparent p-0 shadow-none outline-none',
-          imageUpload.isDragging &&
-            'rounded-xl ring-2 ring-primary/35 ring-offset-2 ring-offset-background',
+          'relative flex min-h-0 flex-1 flex-col gap-3 rounded-none border-0 bg-transparent p-0 shadow-none outline-none',
         )}
       >
+        <DropOverlay
+          active={imageUpload.isDragging}
+          label={tDrop('toReferences')}
+          className="-inset-2"
+        />
         {/* 提示词 —— 参数栏里它是一块独立的输入区，不再和发送键挤一行 */}
         <div className="flex flex-col gap-1.5">
           <span className="text-2xs font-medium text-muted-foreground/70">

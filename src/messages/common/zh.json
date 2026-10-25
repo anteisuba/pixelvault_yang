@@ -480,5 +480,10 @@
       "nameTaken": "这个名字已经有了，换一个。",
       "unknownBuiltin": "这份内置技能不在了，刷新一下。"
     }
+  },
+  "DropZone": {
+    "toReferences": "松手加到参考图",
+    "toConversation": "松手加到对话",
+    "importCharacterCard": "松手导入角色卡"
   }
 }

@@ -480,5 +480,10 @@
       "nameTaken": "That name is taken. Pick another.",
       "unknownBuiltin": "That built-in skill no longer exists. Refresh the page."
     }
+  },
+  "DropZone": {
+    "toReferences": "Drop to add as reference",
+    "toConversation": "Drop to add to the chat",
+    "importCharacterCard": "Drop to import the character card"
   }
 }

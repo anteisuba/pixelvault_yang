@@ -191,7 +191,6 @@
     "uploadQueueRetryAll": "Retry all",
     "uploadQueueClearDone": "Clear completed",
     "uploadQueueProgress": "Uploaded {percent}%",
-    "uploadDropHintSub": "You can change the target folder later in the queue",
     "emptyFolderTitle": "Nothing in “{folder}” yet",
     "emptyFolderHint": "Drag items onto this folder on the left, or select some and choose Add to folder.",
     "emptyFolderUpload": "Upload to this folder",

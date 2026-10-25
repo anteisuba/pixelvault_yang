@@ -117,8 +117,9 @@ export function ImagePickerPopoverBody({
           if (file) onDropFile(file)
         }}
         className={cn(
-          'flex min-h-16 w-full flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border/70 px-3 py-3 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-foreground',
-          isDragOver && 'border-primary/60 bg-primary/10 text-foreground',
+          'flex min-h-16 w-full flex-col items-center justify-center gap-1 rounded-12 border border-dashed border-border px-3 py-3 text-xs text-muted-foreground transition-colors hover:tint-hover hover:text-foreground',
+          isDragOver &&
+            'border-2 border-foreground bg-muted font-medium text-foreground',
         )}
       >
         <UploadCloud className="size-4" />

@@ -191,7 +191,6 @@
     "uploadQueueRetryAll": "全部重试",
     "uploadQueueClearDone": "清除已完成",
     "uploadQueueProgress": "已上传 {percent}%",
-    "uploadDropHintSub": "之后还能在队列里改落夹目标",
     "emptyFolderTitle": "「{folder}」里还没有素材",
     "emptyFolderHint": "把素材拖到左边这个夹上，或选中后「加入文件夹」。",
     "emptyFolderUpload": "上传到此文件夹",

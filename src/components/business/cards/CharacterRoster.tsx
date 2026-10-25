@@ -14,6 +14,7 @@ import { DURATION, DURATION_MS, EASE_STANDARD } from '@/constants/motion'
 import type { CharacterCardRecord } from '@/types'
 import type { AssistantOperatorCharacterProfileField } from '@/types/assistant-operator'
 import { Copy, Pencil, Plus, Trash2, Upload } from '@/components/icons'
+import { DropOverlay } from '@/components/ui/drop-overlay'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -74,6 +75,7 @@ const ROW_AVATAR_GAP_CLASS = 'pr-12'
 
 export function CharacterRoster() {
   const t = useTranslations('CharacterRoster')
+  const tDrop = useTranslations('DropZone')
   const locale = useLocale()
   const characters = useCharacterCards()
   const reducedMotion = useReducedMotion() ?? false
@@ -391,7 +393,6 @@ export function CharacterRoster() {
         <div
           className={cn(
             'relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-border bg-background max-md:rounded-none max-md:border-0',
-            dragOver && 'ring-2 ring-primary/40',
           )}
           // 酒馆卡 PNG / JSON 拖进总览即导入（详情、草稿开着时不接）。
           onDragOver={(event) => {
@@ -412,6 +413,11 @@ export function CharacterRoster() {
             void importCard(event.dataTransfer.files[0])
           }}
         >
+          <DropOverlay
+            active={dragOver}
+            label={tDrop('importCharacterCard')}
+            className="rounded-2xl max-md:rounded-none"
+          />
           <motion.div
             inert={selected !== null || drafting}
             animate={{ opacity: selected || drafting ? 0 : 1 }}

@@ -676,14 +676,6 @@ interface DynamicSiteEntry {
 const KNOWN_DYNAMIC_NAMESPACE_SITES: Readonly<
   Record<string, DynamicSiteEntry>
 > = {
-  'components/business/studio/shell/StudioConversationList.tsx': {
-    reason:
-      'Renders the library rows (`STUDIO_LIBRARY_ITEMS`) via ' +
-      '`t(item.labelKey)` (`Navbar.links.*`, LoRA = `StudioTools.tools.lora.label`), ' +
-      'and the brand `Navbar.brand`.',
-    calls: ['useTranslations()'],
-    namespaces: ['Navbar', 'StudioTools'],
-  },
   'components/business/studio/shell/StudioLibraryOverlay.tsx': {
     reason:
       'The library tabs render `STUDIO_LIBRARY_ITEMS` via `t(item.labelKey)`: ' +
@@ -693,10 +685,9 @@ const KNOWN_DYNAMIC_NAMESPACE_SITES: Readonly<
   },
   'components/business/studio/shell/StudioShellBench.tsx': {
     reason:
-      'The bench bar (bench open, on top) and the side rail (no bench) both ' +
-      'render `SHELL_NAV_TOOLS` items via `t(item.labelKey)`; every `labelKey` ' +
-      'there is under `StudioTools.`.',
-    calls: ['useTranslations()', 'useTranslations()'],
+      'The bench rail renders `SHELL_NAV_TOOLS` items via `t(item.labelKey)`; ' +
+      'every `labelKey` there is under `StudioTools.`.',
+    calls: ['useTranslations()'],
     namespaces: ['StudioTools'],
   },
   'components/layout/AppSidebar.tsx': {

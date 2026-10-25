@@ -23,12 +23,13 @@ import {
   STUDIO_SHELL_SWIPE,
   type StudioShellBenchId,
 } from '@/constants/studio-shell'
-import { ChevronLeft, X } from '@/components/icons'
+import { AssistantAvatarGlyph } from '@/components/business/studio/assistant-operator/AssistantAvatarGlyph'
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import { useStudioOperatorHistoryView } from '@/hooks/use-studio-operator-history'
 import { useStudioOperatorState } from '@/hooks/use-studio-operator-store'
 import { Link, useRouter } from '@/i18n/navigation'
@@ -45,11 +46,10 @@ const BENCH_ITEMS: readonly ShellNavItem[] = STUDIO_SHELL_BENCH_IDS.flatMap(
   (id) => SHELL_NAV_TOOLS.filter((item) => item.id === id),
 )
 
-const BAR_BUTTON_CLASS =
-  'flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-sm text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&>svg]:size-4 [&>svg]:shrink-0'
-
 const RAIL_BUTTON_CLASS =
-  'flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&>svg]:size-4.5'
+  'flex size-9 items-center justify-center rounded-full text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus [&>svg]:size-4.5'
+
+const RAIL_ACTIVE_CLASS = 'bg-fill-strong text-foreground'
 
 function benchIndex(id: string | undefined): number {
   return STUDIO_SHELL_BENCH_IDS.indexOf(id as StudioShellBenchId)
@@ -251,26 +251,74 @@ function scrollsSideways(
 }
 
 /**
- * 台顶那一条（台开着，≥1024）：左「‹ 对话名」（对话收起时）、中间五个台、右「收起台」。
+ * 台条（ui-spec §1 / §9「切台」）：**一直在**，竖着浮在白板右边 —— 图片 · LoRA · 视频 ·
+ * 3D · 画布，同时只开一个台。⛔ 台顶上的切换条、⛔ 台标题。
+ * 没开台：点哪个台，那个台从右边推进来；开着台：点别的 = 换台（滑过去），点当前那颗 = 收台。
  */
-export function StudioBenchBar({
+export function StudioBenchRail({
   activeId,
-  conversationHidden,
-  onExpandConversation,
   onSwitch,
   onClose,
 }: {
-  activeId: string | undefined
-  conversationHidden: boolean
-  onExpandConversation: () => void
-  onSwitch: (item: ShellNavItem) => void
-  onClose: () => void
+  activeId?: string
+  onSwitch?: (item: ShellNavItem) => void
+  onClose?: () => void
 }) {
   const t = useTranslations('StudioShell')
   const tAll = useTranslations()
+  const { sessionId } = useStudioOperatorState()
+
+  return (
+    <nav
+      aria-label={t('benches')}
+      data-testid="studio-bench-rail"
+      className="order-last hidden w-14 shrink-0 justify-center pt-3 desk:flex"
+    >
+      <div className="flex h-max flex-col gap-1 rounded-full bg-raise p-1 shadow-soft">
+        {BENCH_ITEMS.map((item) => {
+          const Icon = item.icon
+          const label = tAll(item.labelKey)
+          const active = item.id === activeId
+          return (
+            <BarTip key={item.id} label={active ? t('closeBench') : label}>
+              <Link
+                href={studioBenchHref(item.href, sessionId)}
+                aria-label={label}
+                aria-current={active ? 'page' : undefined}
+                data-bench={item.id}
+                onClick={(event: ReactMouseEvent<HTMLAnchorElement>) => {
+                  if (event.metaKey || event.ctrlKey || event.shiftKey) return
+                  if (active && onClose) {
+                    event.preventDefault()
+                    onClose()
+                    return
+                  }
+                  if (activeId && onSwitch) {
+                    event.preventDefault()
+                    onSwitch(item)
+                  }
+                }}
+                className={cn(RAIL_BUTTON_CLASS, active && RAIL_ACTIVE_CLASS)}
+              >
+                <Icon />
+              </Link>
+            </BarTip>
+          )
+        })}
+      </div>
+    </nav>
+  )
+}
+
+/**
+ * 对话收起时（ui-spec §1）：助手头像浮到台的左上角，再点展开。
+ */
+export function StudioShellExpandChat({ onExpand }: { onExpand: () => void }) {
+  const t = useTranslations('StudioShell')
   const tOperator = useTranslations('StudioOperator')
   const history = useStudioOperatorHistoryView()
   const { sessionId } = useStudioOperatorState()
+  const { persona } = useAssistantPersona()
   const session = history?.sessions.find((item) => item.id === sessionId)
   const title = session
     ? (deriveAssistantConversationTitle(session.title) ??
@@ -278,113 +326,25 @@ export function StudioBenchBar({
     : t('backToChat')
 
   return (
-    <nav
-      aria-label={t('benches')}
-      data-testid="studio-bench-rail"
-      data-placement="top"
-      className="hidden h-12 shrink-0 items-center gap-1 border-b border-border bg-background px-2 desk:flex"
-    >
-      {conversationHidden ? (
-        <button
-          type="button"
-          aria-label={t('backToChat')}
-          title={title}
-          data-testid="studio-shell-expand-chat"
-          onClick={onExpandConversation}
-          className={cn(BAR_BUTTON_CLASS, 'mr-1 max-w-48 pl-1.5')}
-        >
-          <ChevronLeft />
-          <span className="truncate">{title}</span>
-        </button>
-      ) : null}
-      <div className="flex min-w-0 items-center gap-0.5 overflow-x-auto scrollbar-none">
-        {BENCH_ITEMS.map((item) => {
-          const Icon = item.icon
-          const label = tAll(item.labelKey)
-          const active = item.id === activeId
-          return (
-            <Link
-              key={item.id}
-              href={studioBenchHref(item.href, sessionId)}
-              aria-current={active ? 'page' : undefined}
-              data-bench={item.id}
-              onClick={(event: ReactMouseEvent<HTMLAnchorElement>) => {
-                if (event.metaKey || event.ctrlKey || event.shiftKey) return
-                event.preventDefault()
-                onSwitch(item)
-              }}
-              className={cn(
-                BAR_BUTTON_CLASS,
-                active && 'bg-muted font-medium text-foreground',
-              )}
-            >
-              <Icon />
-              {label}
-            </Link>
-          )
-        })}
-      </div>
-      <BarTip label={t('closeBench')}>
-        <button
-          type="button"
-          aria-label={t('closeBench')}
-          data-testid="studio-shell-close-bench"
-          onClick={onClose}
-          className={cn(BAR_BUTTON_CLASS, 'ml-auto size-8 justify-center px-0')}
-        >
-          <X />
-        </button>
-      </BarTip>
-    </nav>
+    <BarTip label={title}>
+      <button
+        type="button"
+        aria-label={t('backToChat')}
+        data-testid="studio-shell-expand-chat"
+        onClick={onExpand}
+        className="absolute top-3 left-3 z-20 hidden size-8 place-items-center overflow-hidden rounded-full bg-raise text-foreground shadow-soft focus-visible:outline-none focus-visible:shadow-focus desk:grid"
+      >
+        <AssistantAvatarGlyph presetId={persona.avatarPreset ?? null} />
+      </button>
+    </BarTip>
   )
 }
 
-/** 没开台时贴在右边的那一条（竖着）：点哪个台，那个台从右边推进来。 */
-export function StudioBenchRail() {
-  const t = useTranslations('StudioShell')
-  const tAll = useTranslations()
-  const { sessionId } = useStudioOperatorState()
-
-  return (
-    <nav
-      aria-label={t('benches')}
-      data-testid="studio-bench-rail"
-      data-placement="side"
-      className="order-last hidden w-12 shrink-0 flex-col items-center gap-1 py-2 desk:flex"
-    >
-      {BENCH_ITEMS.map((item) => {
-        const Icon = item.icon
-        const label = tAll(item.labelKey)
-        return (
-          <BarTip key={item.id} label={label} side="left">
-            <Link
-              href={studioBenchHref(item.href, sessionId)}
-              aria-label={label}
-              data-bench={item.id}
-              className={RAIL_BUTTON_CLASS}
-            >
-              <Icon />
-            </Link>
-          </BarTip>
-        )
-      })}
-    </nav>
-  )
-}
-
-function BarTip({
-  label,
-  side = 'bottom',
-  children,
-}: {
-  label: string
-  side?: 'left' | 'bottom'
-  children: ReactNode
-}) {
+function BarTip({ label, children }: { label: string; children: ReactNode }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent side={side}>{label}</TooltipContent>
+      <TooltipContent side="left">{label}</TooltipContent>
     </Tooltip>
   )
 }

@@ -55,12 +55,15 @@ export function StudioConversationRecent({
   pathname,
   rowClass,
   rowActiveClass,
+  onOpen,
 }: {
   history: UseStudioOperatorHistoryResult | null
   routeKind: StudioShellRouteKind
   pathname: string
   rowClass: string
   rowActiveClass: string
+  /** 点了一行（浮出来的列表借它收起）。 */
+  onOpen?: () => void
 }) {
   const t = useTranslations('StudioShell')
   const tOperator = useTranslations('StudioOperator')
@@ -114,8 +117,8 @@ export function StudioConversationRecent({
   }
 
   return (
-    <div className="mt-3 flex min-h-0 flex-1 flex-col">
-      <h2 className="px-4 pb-1 text-xs font-medium text-sidebar-subtle">
+    <div className="flex min-h-0 flex-1 flex-col pt-3">
+      <h2 className="px-4 pb-1 text-xs font-medium text-muted-foreground">
         {t('recent')}
       </h2>
       <ul className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-2">
@@ -129,11 +132,11 @@ export function StudioConversationRecent({
             <li key={`${item.kind}:${item.id}`}>
               <button
                 type="button"
-                onClick={() =>
-                  item.kind === 'chat'
-                    ? openChat(item.id, item.bench)
-                    : router.push(voiceRoomPath(item.id))
-                }
+                onClick={() => {
+                  if (item.kind === 'chat') openChat(item.id, item.bench)
+                  else router.push(voiceRoomPath(item.id))
+                  onOpen?.()
+                }}
                 aria-current={active ? 'true' : undefined}
                 title={item.title}
                 data-testid="studio-recent-row"
@@ -147,7 +150,7 @@ export function StudioConversationRecent({
                 ) : null}
                 <span className="min-w-0 flex-1 truncate">{item.title}</span>
                 {view?.progress ? (
-                  <span className="shrink-0 text-xs tabular-nums text-sidebar-subtle">
+                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
                     {view.progress.done}/{view.progress.total}
                   </span>
                 ) : view?.unseen ? (
@@ -167,7 +170,7 @@ export function StudioConversationRecent({
 }
 
 const COVER_CLASS =
-  'relative grid size-7 shrink-0 place-items-center overflow-hidden rounded-md bg-sidebar-accent'
+  'relative grid size-7 shrink-0 place-items-center overflow-hidden rounded-md bg-muted'
 
 function ChatCover({ view }: { view: StudioConversationActivityView }) {
   return (

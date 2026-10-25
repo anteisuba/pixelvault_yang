@@ -41,8 +41,8 @@ import { HomeDraftBench } from '@/components/business/studio/shell/HomeDraftBenc
 import { StudioConversationList } from '@/components/business/studio/shell/StudioConversationList'
 import { StudioLibraryTargetContext } from '@/components/business/studio/shell/StudioLibraryOverlay'
 import {
-  StudioBenchBar,
   StudioBenchRail,
+  StudioShellExpandChat,
   activeBenchId,
   useStudioBenchMotion,
   useStudioBenchSwipe,
@@ -68,8 +68,15 @@ import {
 import { setActiveStudioConversation } from '@/lib/studio-active-conversation'
 import { cn } from '@/lib/utils'
 
-/** 台条宽（`w-12`）：首页上库叠层让出这一条。 */
-const RAIL_WIDTH_PX = 48
+/** 台条宽（`w-14`）：首页上库叠层让出这一条。 */
+const RAIL_WIDTH_PX = 56
+
+/**
+ * 白板（ui-spec §1）：对话和台合成一整块，落在灰底上（上下右留 8），圆角 20 + `ring`。
+ * `bench-screen-h` 把板里按整屏写的高（`var(--screen-h, 100svh)`）扣掉这上下 8。
+ */
+const SHELL_BOARD_CLASS =
+  'bench-screen-h relative min-w-0 desk:my-2 desk:mr-2 desk:flex-1 desk:rounded-20 desk:bg-background desk:shadow-ring'
 
 /**
  * 这次页面加载一进来载回哪一段 —— 地址说了算：首页 = 新对话；`/studio/c/<编号>` 与
@@ -185,12 +192,12 @@ export function StudioShell({
                 data-testid="studio-shell"
                 data-kind={kind}
                 data-library={libraryCategory ?? undefined}
-                className="desk:flex desk:h-svh desk:overflow-hidden"
+                className="desk:flex desk:h-svh desk:overflow-hidden desk:bg-surface-sunken"
               >
                 <StudioConversationList className="hidden desk:flex" />
                 {kind === 'page' ? (
                   <div
-                    className="relative min-w-0 desk:h-svh desk:flex-1 desk:overflow-y-auto"
+                    className={cn(SHELL_BOARD_CLASS, 'desk:overflow-y-auto')}
                     style={libraryWidth('100%')}
                   >
                     {children}
@@ -331,7 +338,7 @@ function StudioShellStage({
     <div
       ref={stageRef}
       data-testid="studio-shell-stage"
-      className="relative min-w-0 desk:flex desk:h-svh desk:flex-1 desk:overflow-hidden"
+      className={cn(SHELL_BOARD_CLASS, 'desk:flex desk:overflow-hidden')}
       style={libraryWidth(
         bench ? conversationWidth : `calc(100% - ${RAIL_WIDTH_PX}px)`,
       )}
@@ -379,14 +386,18 @@ function StudioShellStage({
         />
       ) : null}
 
-      {bench ? null : <StudioBenchRail />}
+      <StudioBenchRail
+        activeId={activeId}
+        onSwitch={(item) => void switchBench(item)}
+        onClose={() => void closeBench()}
+      />
 
       <div
         ref={columnRef}
         data-testid="studio-shell-bench-column"
         className={cn(
           'min-w-0 flex-1 flex-col',
-          bench ? 'block desk:flex desk:h-svh' : 'hidden',
+          bench ? 'block desk:flex desk:h-full' : 'hidden',
         )}
         style={{
           opacity:
@@ -396,19 +407,13 @@ function StudioShellStage({
           transition: pullTransition,
         }}
       >
-        {bench ? (
-          <StudioBenchBar
-            activeId={activeId}
-            conversationHidden={conversationHidden}
-            onExpandConversation={expandConversation}
-            onSwitch={(item) => void switchBench(item)}
-            onClose={() => void closeBench()}
-          />
+        {conversationHidden ? (
+          <StudioShellExpandChat onExpand={expandConversation} />
         ) : null}
         <div
           ref={contentRef}
           data-testid="studio-shell-bench"
-          className="bench-screen-h relative min-w-0 desk:min-h-0 desk:flex-1 desk:overscroll-x-none desk:contain-layout"
+          className="relative min-w-0 desk:min-h-0 desk:flex-1 desk:overscroll-x-none desk:contain-layout"
         >
           {children}
         </div>

@@ -66,6 +66,7 @@ import {
   type FolderDropPlan,
   type FolderDropTarget,
 } from '@/lib/folder-tree'
+import { LIBRARY_RAIL_ACTIVE_LINE_CLASS } from '@/components/ui/library-kit'
 import { cn } from '@/lib/utils'
 import type { ProjectRecord, ReorderProjectsRequest } from '@/types'
 import { NumberTicker } from '@/components/ui/number-ticker'
@@ -849,8 +850,7 @@ export function AssetFolderSidebar({
 }
 
 /** 当前那一行左边一道黑线（ui-spec §9「库」：`fill` 底 + 左边一道黑线）。 */
-const ACTIVE_LINE_CLASS =
-  'before:absolute before:inset-y-2 before:-left-2.5 before:w-0.5 before:rounded-full before:bg-foreground'
+const ACTIVE_LINE_CLASS = LIBRARY_RAIL_ACTIVE_LINE_CLASS
 
 function GroupLabel({ children }: { children: React.ReactNode }) {
   return (

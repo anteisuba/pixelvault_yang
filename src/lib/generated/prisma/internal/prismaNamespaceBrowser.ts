@@ -586,6 +586,7 @@ export const CharacterCardScalarFieldEnum = {
   name: 'name',
   tags: 'tags',
   isDeleted: 'isDeleted',
+  isFavorite: 'isFavorite',
   voiceCardId: 'voiceCardId',
   voiceProfile: 'voiceProfile',
   persona: 'persona',

@@ -156,7 +156,20 @@
     "libraryTagAll": "すべて",
     "libraryTagMenu": "タグで絞り込む",
     "fieldLoras": "LoRA",
-    "lorasEmpty": "まだありません"
+    "lorasEmpty": "まだありません",
+    "library": {
+      "rail": "キャラ",
+      "all": "すべて",
+      "favorites": "お気に入り",
+      "search": "キャラや作品を検索",
+      "sortName": "名前",
+      "sortRecent": "最近編集",
+      "handToAssistant": "アシスタントに渡す",
+      "favorite": "お気に入り",
+      "unfavorite": "お気に入りを外す",
+      "more": "その他",
+      "tileUnused": "{work} · まだ使っていません"
+    }
   },
   "CharacterImagePick": {
     "primary": "メイン",

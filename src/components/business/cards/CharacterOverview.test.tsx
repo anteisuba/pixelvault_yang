@@ -48,6 +48,7 @@ function card(id: string, work: string, urls: string[]): CharacterCardRecord {
     chatUserRole: '',
     voiceCardId: null,
     generationCount: 0,
+    isFavorite: false,
     createdAt: new Date(0),
     updatedAt: new Date(0),
   }

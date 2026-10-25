@@ -98,8 +98,8 @@ export const ASSET_PICKER_UPLOAD_CELL_ASPECT_RATIO = 0.8
 /** 左边那一列文件夹栏的宽度（库骨架左栏 200，ui-spec §9「库」；原画板 `AfB` 是 236）。 */
 export const ASSET_FOLDER_RAIL_WIDTH = 200
 
-/** 栏与大河之间的空隙（画板 `af-split`：20）。收起时连它一起收掉。 */
-export const ASSET_FOLDER_RAIL_GAP = 20
+/** 栏与大河之间的空隙（样件 E 库骨架：32）。收起时连它一起收掉。 */
+export const ASSET_FOLDER_RAIL_GAP = 32
 
 /** 桌面上栏收起 / 展开记在本机（`closed` = 收起）。 */
 export const ASSET_FOLDER_RAIL_STORAGE_KEY = 'pv:assets:folder-rail'

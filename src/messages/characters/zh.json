@@ -156,7 +156,20 @@
     "libraryTagAll": "全部",
     "libraryTagMenu": "按标签筛选",
     "fieldLoras": "她的 LoRA",
-    "lorasEmpty": "还没有"
+    "lorasEmpty": "还没有",
+    "library": {
+      "rail": "角色",
+      "all": "全部",
+      "favorites": "收藏",
+      "search": "搜角色或作品",
+      "sortName": "名字",
+      "sortRecent": "最近改过",
+      "handToAssistant": "交给助手",
+      "favorite": "收藏",
+      "unfavorite": "取消收藏",
+      "more": "更多",
+      "tileUnused": "{work} · 还没用过"
+    }
   },
   "CharacterImagePick": {
     "primary": "主图",

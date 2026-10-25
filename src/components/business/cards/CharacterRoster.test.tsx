@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 
 import { zh as zhMessages } from '@/messages'
@@ -84,6 +84,7 @@ function card(
     chatUserRole: '',
     voiceCardId: null,
     generationCount: 0,
+    isFavorite: false,
     createdAt: new Date(0),
     updatedAt: new Date(0),
     ...overrides,
@@ -91,6 +92,7 @@ function card(
 }
 
 const mockUpdate = vi.fn().mockResolvedValue(true)
+const mockToggleFavorite = vi.fn()
 const mockCreate = vi.fn()
 const mockImportTavern = vi.fn()
 const mockImportChub = vi.fn()
@@ -187,6 +189,7 @@ vi.mock('@/hooks/cards/use-character-cards', () => ({
     importTavern: (...a: unknown[]) => mockImportTavern(...a),
     importChub: (...a: unknown[]) => mockImportChub(...a),
     update: (...a: unknown[]) => mockUpdate(...a),
+    toggleFavorite: (...a: unknown[]) => mockToggleFavorite(...a),
     remove: vi.fn(),
   }),
 }))
@@ -306,15 +309,15 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
     await vi.waitFor(() => expect(mockImportTavern).toHaveBeenCalledWith(file))
   })
 
-  it('卡库页签：打开才去搜 chub；「做成角色」建好回到我的角色并打开她', async () => {
+  it('左栏「卡库」：打开才去搜 chub；「做成角色」建好回到全部并打开她', async () => {
     mockImportChub.mockReset()
     mockImportChub.mockResolvedValue(CARDS[1])
     renderRoster()
     expect(mockLibraryEnabled.value).toBe(false)
-    fireEvent.click(screen.getByRole('tab', { name: '卡库' }))
+    fireEvent.click(screen.getByRole('button', { name: /卡库/ }))
     expect(mockLibraryEnabled.value).toBe(true)
-    expect(screen.getByRole('tab', { name: '卡库' })).toHaveAttribute(
-      'aria-selected',
+    expect(screen.getByRole('button', { name: /卡库/ })).toHaveAttribute(
+      'aria-current',
       'true',
     )
     // 卡片上没有按钮：点开站内详情，「做成角色」在详情里。
@@ -331,10 +334,20 @@ describe('CharacterRoster（角色页 · 方向 A）', () => {
       expect(screen.getByRole('region', { name: '里希' })).toBeTruthy(),
     )
     fireEvent.click(screen.getByRole('button', { name: '角色' }))
-    expect(screen.getByRole('tab', { name: '我的角色' })).toHaveAttribute(
-      'aria-selected',
+    expect(screen.getByRole('button', { name: /全部/ })).toHaveAttribute(
+      'aria-current',
       'true',
     )
+  })
+
+  it('左栏「收藏」只摆收藏了的；格子上的书签点了就收藏', () => {
+    renderRoster()
+    const rail = screen.getByRole('navigation', { name: '角色' })
+    fireEvent.click(within(rail).getByRole('button', { name: /收藏/ }))
+    expect(screen.queryAllByTestId('roster-tile')).toHaveLength(0)
+    fireEvent.click(within(rail).getByRole('button', { name: /全部/ }))
+    fireEvent.click(screen.getAllByRole('button', { name: '收藏' })[0]!)
+    expect(mockToggleFavorite).toHaveBeenCalledWith(CARDS[0]!.id)
   })
 
   it('?tab=library 直接打开卡库', () => {

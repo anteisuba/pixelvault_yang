@@ -7,7 +7,6 @@ import { useLocale, useTranslations } from 'next-intl'
 
 import { LIQUID_SPRING } from '@/constants/motion'
 import type { CharacterCardRecord } from '@/types'
-import { Search } from '@/components/icons'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useTouchLongPress } from '@/hooks/use-touch-long-press'
 import {
@@ -51,7 +50,7 @@ interface CharacterOverviewProps {
   cards: CharacterCardRecord[]
   reducedMotion: boolean
   onOpen(id: string): void
-  /** 搜索词（搜索框住在地台上那一行，`CharacterOverviewHeader`；手机在顶上胶囊里）。 */
+  /** 搜索词（手机在顶上胶囊里；桌面总览是 `CharacterLibraryDesk`）。 */
   query: string
   /** 触屏长按一张（手机）：调用方出「编辑 / 复制 / 删除」。 */
   onLongPress?(id: string): void
@@ -599,59 +598,5 @@ function WorkShelf({
       <span className="font-semibold">{group.label}</span>
       <span className="text-xs text-muted-foreground">{summary}</span>
     </button>
-  )
-}
-
-/** 这页有几部作品（地台那一行的计数用，判据与总览分组同一套）。 */
-export function countCharacterWorks(
-  cards: readonly CharacterCardRecord[],
-  locale: string,
-): number {
-  return new Set(
-    cards.map((card) => characterWork(card, locale).label ?? ORIGINAL_KEY),
-  ).size
-}
-
-/**
- * 总览那一行（住在地台上、白卡外面，布局 A）：页签（我的角色 / 卡库）+ 计数 · 搜索 ·
- * 新角色。桌面专用，手机是 `CharacterPhoneBar`。
- * ⚠ 右边留出助手头像那一格（头像是 Dock 的 fixed 元素，恒在这一行最右）。
- */
-export function CharacterOverviewHeader({
-  tabs,
-  characters,
-  works,
-  query,
-  onQueryChange,
-  actions,
-}: {
-  tabs: React.ReactNode
-  characters: number
-  works: number
-  query: string
-  onQueryChange(query: string): void
-  actions: React.ReactNode
-}) {
-  const t = useTranslations('CharacterRoster')
-  return (
-    <>
-      {tabs}
-      <span className="text-2sm text-muted-foreground">
-        {t('overviewCount', { characters, works })}
-      </span>
-      <label className="ml-auto flex h-9 w-72 min-w-0 items-center gap-2 rounded-full bg-background px-3.5 text-2sm text-muted-foreground">
-        <Search className="size-4 shrink-0" aria-hidden />
-        <input
-          id="character-search"
-          type="search"
-          value={query}
-          onChange={(event) => onQueryChange(event.target.value)}
-          placeholder={t('searchPlaceholder')}
-          aria-label={t('searchPlaceholder')}
-          className="min-w-0 flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
-        />
-      </label>
-      <div className="flex shrink-0 gap-2">{actions}</div>
-    </>
   )
 }

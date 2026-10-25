@@ -156,7 +156,20 @@
     "libraryTagAll": "All",
     "libraryTagMenu": "Filter by tag",
     "fieldLoras": "LoRAs",
-    "lorasEmpty": "None yet"
+    "lorasEmpty": "None yet",
+    "library": {
+      "rail": "Characters",
+      "all": "All",
+      "favorites": "Favorites",
+      "search": "Search characters or series",
+      "sortName": "Name",
+      "sortRecent": "Recently edited",
+      "handToAssistant": "Hand to assistant",
+      "favorite": "Favorite",
+      "unfavorite": "Remove from favorites",
+      "more": "More",
+      "tileUnused": "{work} · Not used yet"
+    }
   },
   "CharacterImagePick": {
     "primary": "Main",

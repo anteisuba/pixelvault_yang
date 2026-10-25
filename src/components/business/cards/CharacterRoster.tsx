@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useSearchParams } from 'next/navigation'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 
 import {
   CHARACTER_PAGE_TABS,
@@ -11,13 +11,21 @@ import {
   type CharacterPageTab,
 } from '@/constants/cards/chub-library'
 import { DURATION, DURATION_MS, EASE_STANDARD } from '@/constants/motion'
-import type { CharacterCardRecord } from '@/types'
 import type { AssistantOperatorCharacterProfileField } from '@/types/assistant-operator'
-import { Copy, Pencil, Plus, Trash2, Upload } from '@/components/icons'
+import {
+  Bookmark,
+  Copy,
+  LayoutGrid,
+  Library,
+  Pencil,
+  Plus,
+  Trash2,
+} from '@/components/icons'
 import { DropOverlay } from '@/components/ui/drop-overlay'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
+import { LibraryRail, LibraryRailRow } from '@/components/ui/library-kit'
 import {
   ResponsiveMenu,
   ResponsiveMenuContent,
@@ -32,15 +40,11 @@ import {
 } from '@/components/business/cards/CharacterDetail'
 import {
   CharacterLibrary,
-  CharacterLibraryHeader,
-  CharacterPageTabs,
+  CharacterLibraryToolbar,
 } from '@/components/business/cards/CharacterLibrary'
+import { CharacterLibraryDesk } from '@/components/business/cards/CharacterLibraryDesk'
 import { CharacterPhoneBar } from '@/components/business/cards/CharacterPhoneBar'
-import {
-  CharacterOverview,
-  CharacterOverviewHeader,
-  countCharacterWorks,
-} from '@/components/business/cards/CharacterOverview'
+import { CharacterOverview } from '@/components/business/cards/CharacterOverview'
 import { StudioOperatorHostProvider } from '@/contexts/studio-operator-host'
 import { useCardsOperatorHost } from '@/hooks/cards/use-cards-operator-host'
 import { appendSlotSources } from '@/hooks/cards/use-character-card-editor'
@@ -76,7 +80,6 @@ const ROW_AVATAR_GAP_CLASS = 'pr-12'
 export function CharacterRoster() {
   const t = useTranslations('CharacterRoster')
   const tDrop = useTranslations('DropZone')
-  const locale = useLocale()
   const characters = useCharacterCards()
   const reducedMotion = useReducedMotion() ?? false
   const isMobile = useIsMobile()
@@ -97,6 +100,8 @@ export function CharacterRoster() {
   /** 详情里正看着的那套造型（`null` = 默认）：图片带、外观、标签和「用她 ▾」训练都跟它。 */
   const [detailLookId, setDetailLookId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
+  /** 桌面左栏点的是「收藏」（库骨架第一组「全部 / 收藏」）。 */
+  const [favoritesOnly, setFavoritesOnly] = useState(false)
   /** 「新角色」草稿开着（owner 09-28：直接进空详情页，名字写好才建卡）。 */
   const [drafting, setDrafting] = useState(false)
   /** 「我的角色 / 卡库」页签（`?tab=library` 直接开卡库）。 */
@@ -288,17 +293,6 @@ export function CharacterRoster() {
     ? { duration: 0 }
     : { duration: DURATION.base, delay: DURATION.fast, ease: EASE_STANDARD }
 
-  /** 桌面那一行的「新角色」（手机在顶上胶囊的 ＋ 里）。 */
-  const newCharacterButton = (
-    <Button
-      type="button"
-      className="shrink-0 rounded-full"
-      onClick={() => setDrafting(true)}
-    >
-      <Plus className="size-4" />
-      {t('newCharacter')}
-    </Button>
-  )
   /** 选文件那颗隐藏的 input：桌面「导入酒馆卡」与手机 ＋ 菜单共用。 */
   const importFileInput = (
     <input
@@ -313,21 +307,40 @@ export function CharacterRoster() {
       }}
     />
   )
-  const importButton = (
-    <Button
-      type="button"
-      variant="secondary"
-      title={t('importCardHint')}
-      disabled={importing}
-      className="shrink-0 rounded-full"
-      onClick={() => importInput.current?.click()}
-    >
-      {importing ? <Spinner size="sm" /> : <Upload className="size-4" />}
-      {t('importCard')}
-    </Button>
+  /** 桌面总览 = 库骨架（左栏 · 右边搜索 + 格子）；详情 / 草稿照旧盖在上面。 */
+  const deskOverview = !isMobile
+  const favoritesCount = flatCards.filter((card) => card.isFavorite).length
+  const rail = (
+    <LibraryRail label={t('library.rail')} className="pt-0.5">
+      <LibraryRailRow
+        icon={<LayoutGrid aria-hidden />}
+        label={t('library.all')}
+        trailing={flatCards.length}
+        active={!onLibrary && !favoritesOnly}
+        onSelect={() => {
+          setTab(CHARACTER_PAGE_TABS.roster)
+          setFavoritesOnly(false)
+        }}
+      />
+      <LibraryRailRow
+        icon={<Bookmark aria-hidden />}
+        label={t('library.favorites')}
+        trailing={favoritesCount}
+        active={!onLibrary && favoritesOnly}
+        onSelect={() => {
+          setTab(CHARACTER_PAGE_TABS.roster)
+          setFavoritesOnly(true)
+        }}
+      />
+      <LibraryRailRow
+        icon={<Library aria-hidden />}
+        label={t('tabLibrary')}
+        trailing={CHUB_LIBRARY.SOURCE_LABEL}
+        active={onLibrary}
+        onSelect={() => setTab(CHARACTER_PAGE_TABS.library)}
+      />
+    </LibraryRail>
   )
-
-  const tabs = <CharacterPageTabs tab={tab} onChange={setTab} />
 
   return (
     <StudioOperatorHostProvider host={operatorHost}>
@@ -336,14 +349,16 @@ export function CharacterRoster() {
         {/* ⚠ 不等旧的一行退场（AnimatePresence mode="wait" 的退场完成靠 rAF，后台标签页
           冻结时整行卡在旧内容上）：换 key 即换，新的一行淡入上移。 */}
         {/* 手机总览不要这一行（顶上是滚动区里的胶囊），详情 / 草稿才有。 */}
-        {isMobile && !selected && !drafting ? null : (
+        <h1 className="sr-only">{t('title')}</h1>
+        {/* 总览不要这一行（手机顶上是滚动区里的胶囊，桌面是库骨架），详情 / 草稿才有。 */}
+        {!selected && !drafting ? null : (
           <motion.div
             key={
               drafting
                 ? 'draft'
                 : selected
                   ? `detail:${selected.id}`
-                  : `overview:${tab}`
+                  : 'overview'
             }
             initial={enter}
             animate={{ opacity: 1, y: 0 }}
@@ -370,29 +385,16 @@ export function CharacterRoster() {
                 lookId={detailLookId}
                 onBack={closeDetail}
               />
-            ) : onLibrary ? (
-              <CharacterLibraryHeader tabs={tabs} library={library} />
-            ) : (
-              <CharacterOverviewHeader
-                tabs={tabs}
-                characters={flatCards.length}
-                works={countCharacterWorks(flatCards, locale)}
-                query={query}
-                onQueryChange={setQuery}
-                actions={
-                  <>
-                    {importButton}
-                    {newCharacterButton}
-                  </>
-                }
-              />
-            )}
+            ) : null}
           </motion.div>
         )}
 
         <div
           className={cn(
-            'relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-border bg-background max-md:rounded-none max-md:border-0',
+            'relative min-h-0 flex-1 overflow-hidden bg-background',
+            // 桌面总览就在库的白板上，⛔ 再套一张描边白卡；详情 / 草稿照旧是一张卡。
+            (selected || drafting) &&
+              'md:rounded-2xl md:border md:border-border',
           )}
           // 酒馆卡 PNG / JSON 拖进总览即导入（详情、草稿开着时不接）。
           onDragOver={(event) => {
@@ -428,8 +430,55 @@ export function CharacterRoster() {
                   ? { duration: DURATION.fast, ease: EASE_STANDARD }
                   : enterTransition
             }
-            className="h-full overflow-y-auto px-5 pb-12 pt-6 max-md:px-4 max-md:pt-0 md:px-8"
+            className={
+              deskOverview
+                ? 'flex h-full gap-8'
+                : 'h-full overflow-y-auto px-4 pb-12'
+            }
           >
+            {deskOverview ? (
+              <>
+                {rail}
+                <div className="flex min-w-0 flex-1 flex-col">
+                  {onLibrary ? (
+                    <>
+                      <CharacterLibraryToolbar library={library} />
+                      <div className="mt-3 min-h-0 flex-1 overflow-y-auto pb-6">
+                        <CharacterLibrary
+                          library={library}
+                          importingPath={libraryImporting}
+                          onImport={(fullPath) =>
+                            void importFromLibrary(fullPath)
+                          }
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <CharacterLibraryDesk
+                      cards={flatCards}
+                      loading={characters.isLoading}
+                      favoritesOnly={favoritesOnly}
+                      query={query}
+                      onQueryChange={setQuery}
+                      onOpen={openCharacter}
+                      onNew={() => setDrafting(true)}
+                      onImport={() => importInput.current?.click()}
+                      importing={importing}
+                      onToggleFavorite={(id) =>
+                        void characters.toggleFavorite(id)
+                      }
+                      onDuplicate={(card) =>
+                        void characters.duplicate(
+                          card,
+                          t('phone.copyName', { name: card.name }),
+                        )
+                      }
+                      onDelete={setDeletingId}
+                    />
+                  )}
+                </div>
+              </>
+            ) : null}
             {isMobile ? (
               <CharacterPhoneBar
                 tab={tab}
@@ -447,7 +496,7 @@ export function CharacterRoster() {
                 reducedMotion={reducedMotion}
               />
             ) : null}
-            {onLibrary ? (
+            {deskOverview ? null : onLibrary ? (
               <CharacterLibrary
                 library={library}
                 importingPath={libraryImporting}

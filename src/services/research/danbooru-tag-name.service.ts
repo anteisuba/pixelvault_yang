@@ -1,7 +1,9 @@
 import 'server-only'
 
+import { SEMANTIC_SEARCH } from '@/constants/semantic-search'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
+import { searchByMeaning } from '@/services/semantic-search.service'
 
 /**
  * Danbooru 标签的中日文名（`DanbooruTagName`，第 9f 步 9f-2c）：标签库按中日文名搜、卡片与
@@ -52,6 +54,29 @@ export async function findTagsByLocalName(
     })
     return []
   }
+}
+
+/**
+ * 意思对得上的 tag（「猫耳の女の子」→ cat_ears，「悲伤的表情」→ sad），从近到远。
+ * 向量由 `scripts/index-danbooru-tag-meanings.ts` 从这张表算进 `workers/semantic-index`；
+ * 那边没配 / 出错时回空，同上「锦上添花」。
+ */
+export async function findTagsByMeaning(
+  text: string,
+  categories: readonly number[],
+  limit: number,
+): Promise<DanbooruTagNameHit[]> {
+  const matches = await searchByMeaning({
+    kind: SEMANTIC_SEARCH.KINDS.DANBOORU_TAG,
+    text,
+    categories,
+    topK: limit,
+  })
+  return matches.map((match) => ({
+    name: match.key,
+    category: Number(match.meta.category),
+    post_count: Number(match.meta.count),
+  }))
 }
 
 /** 这几个 tag 的中日文名；词库里没有的不在结果里。 */

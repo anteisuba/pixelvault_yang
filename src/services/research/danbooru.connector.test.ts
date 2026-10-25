@@ -12,6 +12,8 @@ vi.mock('@/lib/with-retry', () => ({
 
 const localNames = vi.hoisted(() => ({
   hits: [] as { name: string; category: number; post_count: number }[],
+  /** 按意思对上的（语义检索），从近到远。 */
+  related: [] as { name: string; category: number; post_count: number }[],
   names: new Map<
     string,
     { zh: string | null; zhNote: string | null; ja: string | null }
@@ -20,6 +22,8 @@ const localNames = vi.hoisted(() => ({
 vi.mock('@/services/research/danbooru-tag-name.service', () => ({
   findTagsByLocalName: async (_text: string, categories: number[]) =>
     localNames.hits.filter((hit) => categories.includes(hit.category)),
+  findTagsByMeaning: async (_text: string, categories: number[]) =>
+    localNames.related.filter((hit) => categories.includes(hit.category)),
   localNamesOf: async () => localNames.names,
 }))
 
@@ -36,6 +40,7 @@ beforeEach(() => {
   resetResearchBreakers([RESEARCH_SOURCE_IDS.danbooru])
   resetDanbooruCatalogCache()
   localNames.hits = []
+  localNames.related = []
   localNames.names = new Map()
   vi.clearAllMocks()
   vi.stubGlobal('fetch', mockFetch)
@@ -758,6 +763,34 @@ describe('catalog used by the tag workbench', () => {
     })
     const detail = await fetchDanbooruCatalog({ tag: 'hatsune_miku' })
     expect(detail.detail).toMatchObject({ zh: '初音未来', zhNote: '虚拟歌姬' })
+  })
+
+  it('按意思对上的接在字面结果后面：字面有的排前，重复的去掉，别的类别不混进来', async () => {
+    localNames.related = [
+      { name: 'cat_ears', category: 0, post_count: 900000 },
+      { name: 'cat_girl', category: 0, post_count: 200000 },
+      { name: 'nekomimi_artist', category: 1, post_count: 300 },
+    ]
+    mockFetch.mockImplementation(async (raw: string) => {
+      const url = new URL(raw)
+      if (
+        url.pathname === '/tags.json' &&
+        url.searchParams.get('search[name_matches]')
+      )
+        return jsonResponse([
+          { name: 'cat_girl', category: 0, post_count: 200000 },
+        ])
+      return jsonResponse([])
+    })
+    const { fetchDanbooruCatalog } = await import('./danbooru.connector')
+    const found = await fetchDanbooruCatalog({
+      kind: 'general',
+      query: '猫耳の女の子',
+    })
+    expect(found.candidates.map((item) => item.name)).toEqual([
+      'cat_girl',
+      'cat_ears',
+    ])
   })
 
   it('draws random features from the all-ages list, not the top general tags', async () => {

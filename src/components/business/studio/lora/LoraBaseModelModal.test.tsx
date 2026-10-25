@@ -96,8 +96,9 @@ describe('LoraBaseModelModal（45 Runner 底模 · ④ 画板）', () => {
     expect(
       within(turbo).getByText('LoraWorkbench:familyLabel.anima'),
     ).toBeInTheDocument()
-    // SDXL 系 4 张 + DiT 系 4 张（Base · Turbo · Z-Image Turbo · Krea 2 Turbo）。
-    expect(screen.getAllByRole('button', { pressed: false })).toHaveLength(7)
+    // SDXL 系 5 张（WAI · RIN Flanime · SDXL · Pony · Anima Pencil）+ DiT 系 4 张
+    // （Base · Turbo · Z-Image Turbo · Krea 2 Turbo）。
+    expect(screen.getAllByRole('button', { pressed: false })).toHaveLength(8)
     const zImage = card(/Z-Image Turbo/)
     expect(
       within(zImage).getByText('LoraWorkbench:familyLabel.zImage'),

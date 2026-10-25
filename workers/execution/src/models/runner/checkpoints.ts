@@ -41,6 +41,17 @@ export const RUNNER_CHECKPOINTS: readonly RunnerCheckpointDefinition[] = [
     recommendedScheduler: 'normal',
     clipSkip: 2,
   },
+  // 不预装：app 每次下发 checkpoint_to_fetch（fork 首次下载后缓存），workflow 用
+  // 覆盖文件名、按 defaultsCheckpointId 借这一档的默认。
+  {
+    id: 'rinFlanimeIllustrious_v50',
+    filename: 'civitai-ckpt-3262295.safetensors',
+    recommendedSampler: 'euler_ancestral',
+    recommendedScheduler: 'normal',
+    recommendedSteps: 25,
+    recommendedCfg: 7,
+    clipSkip: 2,
+  },
   {
     id: 'animaPencilXL_v500',
     filename: 'animaPencilXL_v500.safetensors',

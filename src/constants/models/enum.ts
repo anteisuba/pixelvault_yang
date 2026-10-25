@@ -86,6 +86,8 @@ export enum AI_MODELS {
   FLUX_KONTEXT_MAX = 'flux-kontext-max',
   /** Comfy Runner (Modal) — faithful WAI-Illustrious recipe clone. */
   ILLUSTRIOUS_RECIPE_CLONE = 'illustrious-recipe-clone',
+  /** Comfy Runner — RIN Flanime Illustrious v5.0 (flat anime; downloaded on first use). */
+  RIN_FLANIME_ILLUSTRIOUS_RUNNER = 'rin-flanime-illustrious-runner',
   /** Comfy Runner (Modal) — Anima Pencil-XL (Replicate has no live endpoint). */
   ANIMA_PENCIL_XL_RUNNER = 'anima-pencil-xl-runner',
   /** Comfy Runner (Modal) — Pony Diffusion V6 XL, runner-only (no hosted endpoint). */

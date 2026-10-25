@@ -85,6 +85,12 @@ RunPod 时期的端点（`dt0wyuid7lywic`、Qwen 评估 `ok6riemrmpdiic`）、�
 - 工作流照 Comfy-Org 官方模板 `image_z_image_turbo.json`：CLIPLoader `type=lumina2` · `EmptySD3LatentImage` · ModelSamplingAuraFlow shift 3 · 负面为空时 `ConditioningZeroOut`；与 Anima 共用一个 DiT 构图（`dit-workflow-builder.ts` 的 `DIT_WORKFLOW_PROFILES`）。默认 res_multistep · simple · **9 步**（owner 09-28 定；官方模板 8 步）· CFG 1；尺寸按 DiT 约 1MP 表，精确尺寸上限 2048。LoRA 走 model-only；采样器表新增 `res_multistep`。
 - 只有固定档：ZImageBase / ZImageTurbo 两种 LoRA 都挂它，没有「来源图底模（自动）」。
 
+### 底模插槽 · RIN Flanime v5.0 与 SDXL 系「来源图底模（自动）」（2026-10-25）
+
+- 清单 id `rinFlanimeIllustrious_v50`（应用模型 `rin-flanime-illustrious-runner`，Civitai 版本 `3262295`）：**不预装**（`downloadOnDemand: true`；云端代理不转 gRPC，Modal CLI 用不了）。出图时 app 的 `prepareOnDemandRunnerCheckpoint` 解析下载链下发 `checkpoint_to_fetch`，fork 首次下载 6.8 GB 后缓存（LRU）。文件名就是 T1 命名 `civitai-ckpt-3262295.safetensors`，与来源图恰好用它时共用一份缓存。默认 Euler a · normal · 25 步 · CFG 7 · Clip skip 2。
+- SDXL 系的 T1 覆盖档若正好是清单某一档，`defaultsCheckpointId` 借那一档的默认（Worker SDXL 分支现在也认这个字段）；来源图底模就是选中的预装档时不再重复下载。
+- Illustrious / Pony / SDXL / Anima Pencil 与 DiT Anima 一样，第一项是「来源图底模（自动）」（沿用原 id），后面是固定档（`illustrious-wai-runner` · `illustrious-rin-flanime-runner` · `pony-v6-runner` · `sdxl-base-runner` · `anima-pencil-runner`）。固定档忽略配方里写的底模。
+
 ## 3. Volume 里有什么（2026-07-18 S3 SigV4 只读实测）
 
 用量 **47.40 GiB**（50,894,963,889 B），自由 **32.60 GiB**；`checkpoints/` 占 32.31 GiB。

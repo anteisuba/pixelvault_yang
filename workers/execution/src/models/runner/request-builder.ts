@@ -181,7 +181,18 @@ export function buildRunnerWorkflowFromRequest(
   let clipSkip: number
   let steps = DEFAULT_STEPS
   let cfg = DEFAULT_CFG
-  if (input.checkpointOverrideFilename) {
+  const overrideDefaults = input.checkpointOverrideDefaultsId
+    ? getRunnerCheckpointById(input.checkpointOverrideDefaultsId)
+    : undefined
+  if (input.checkpointOverrideFilename && overrideDefaults) {
+    // 覆盖档正好是清单里的某一档（不预装的 / 来源图用的就是它）：照它的默认出。
+    checkpointFilename = input.checkpointOverrideFilename
+    samplerName = overrideDefaults.recommendedSampler
+    scheduler = overrideDefaults.recommendedScheduler
+    clipSkip = overrideDefaults.clipSkip
+    steps = overrideDefaults.recommendedSteps ?? steps
+    cfg = overrideDefaults.recommendedCfg ?? cfg
+  } else if (input.checkpointOverrideFilename) {
     checkpointFilename = input.checkpointOverrideFilename
     samplerName = OVERRIDE_SAMPLER
     scheduler = OVERRIDE_SCHEDULER

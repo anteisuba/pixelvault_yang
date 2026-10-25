@@ -220,7 +220,7 @@ export function useStudioBenchSwipe({
       const { deltaX, deltaY } = event
       if (Math.abs(deltaX) < Math.abs(deltaY) * STUDIO_SHELL_SWIPE.dominance)
         return
-      if (scrollsSideways(event.target, content, deltaX)) {
+      if (scrollsSideways(event.target, content)) {
         total = 0
         return
       }
@@ -240,21 +240,19 @@ export function useStudioBenchSwipe({
   }, [activeId, contentRef, enabled])
 }
 
-/** 从手指底下往上到台框，有没有一层还能往这个方向横着滚。 */
+/**
+ * 从手指底下往上到台框，有没有一层能横着滚。⚠ 滚到头也算（用户 10-25：在「出过的图」那一排
+ * 滑到头就换了台）—— 手指在横排上，这一下就归横排。
+ */
 function scrollsSideways(
   target: EventTarget | null,
   root: HTMLElement,
-  deltaX: number,
 ): boolean {
   let node = target instanceof Element ? target : null
   while (node && node !== root) {
     if (node.scrollWidth > node.clientWidth + 1) {
       const overflowX = getComputedStyle(node).overflowX
-      if (overflowX === 'auto' || overflowX === 'scroll') {
-        const atStart = node.scrollLeft <= 0
-        const atEnd = node.scrollLeft + node.clientWidth >= node.scrollWidth - 1
-        if ((deltaX < 0 && !atStart) || (deltaX > 0 && !atEnd)) return true
-      }
+      if (overflowX === 'auto' || overflowX === 'scroll') return true
     }
     node = node.parentElement
   }

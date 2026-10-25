@@ -7,6 +7,8 @@ import { useLocale, useTranslations } from 'next-intl'
 
 import { LIQUID_SPRING } from '@/constants/motion'
 import type { CharacterCardRecord } from '@/types'
+import { Search } from '@/components/icons'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { useTouchLongPress } from '@/hooks/use-touch-long-press'
 import {
   allLookSlots,
@@ -17,8 +19,7 @@ import { characterImageCount, characterWork } from '@/lib/character-works'
 import { cn } from '@/lib/utils'
 
 /**
- * **角色页总览 · 手机**（方向 A「书架」，owner 09-26 选 A；桌面 2026-10-25 起换成库骨架
- * `CharacterLibraryDesk`，这里只剩手机，等手机端整体重设计）。
+ * **角色页总览 · 方向 A「书架」**（owner 09-26 选 A，原型见画布第 7 页）。
  *
  * ⭐ 一页一个主角：「用得最多」按张数排大小格（第 1 名占 2×2），下面是按作品的
  *   扇形书架；点作品 chip / 书架 = 只看这部作品的全部角色。
@@ -50,7 +51,7 @@ interface CharacterOverviewProps {
   cards: CharacterCardRecord[]
   reducedMotion: boolean
   onOpen(id: string): void
-  /** 搜索词（手机在顶上胶囊里；桌面总览是 `CharacterLibraryDesk`）。 */
+  /** 搜索词（搜索框住在地台上那一行，`CharacterOverviewHeader`；手机在顶上胶囊里）。 */
   query: string
   /** 触屏长按一张（手机）：调用方出「编辑 / 复制 / 删除」。 */
   onLongPress?(id: string): void
@@ -67,6 +68,7 @@ export function CharacterOverview({
 }: CharacterOverviewProps) {
   const t = useTranslations('CharacterRoster')
   const locale = useLocale()
+  const isMobile = useIsMobile()
   const [workKey, setWorkKey] = useState<string | null>(null)
   const longPress = useTouchLongPress<string>((id) => onLongPress?.(id))
 
@@ -137,6 +139,7 @@ export function CharacterOverview({
       entry={entry}
       rank={rank}
       reducedMotion={reducedMotion}
+      captionBelow={isMobile}
       pressProps={pressProps(entry.card.id)}
       onOpen={(id) => {
         if (longPress.swallow()) return
@@ -198,25 +201,46 @@ export function CharacterOverview({
         </Section>
       ) : (
         <>
-          <Section title={t('mostUsed')}>
-            {/* 一行左右滑、5 张一样大（v10 手机摆法 ①）。 */}
-            <div className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 scrollbar-none">
-              {ranked.map((entry, index) => (
-                <div key={entry.card.id} className="w-34 shrink-0 snap-start">
-                  {tile(entry, index + 1)}
-                </div>
-              ))}
-            </div>
+          <Section
+            title={t('mostUsed')}
+            hint={isMobile ? undefined : t('mostUsedHint')}
+          >
+            {isMobile ? (
+              // 手机：一行左右滑、5 张一样大（v10 手机摆法 ①）。
+              <div className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 scrollbar-none">
+                {ranked.map((entry, index) => (
+                  <div key={entry.card.id} className="w-34 shrink-0 snap-start">
+                    {tile(entry, index + 1)}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              // owner 09-28：几张一样大，与作品页 / 搜索同一个网格（卡的大小不随人数变）。
+              <CellGrid>
+                {ranked.map((entry, index) => tile(entry, index + 1))}
+              </CellGrid>
+            )}
           </Section>
           <Section
             title={t('works')}
-            hint={t('phone.worksCount', { count: groups.length })}
+            hint={
+              isMobile
+                ? t('phone.worksCount', { count: groups.length })
+                : t('byImages')
+            }
           >
-            <div className="-mx-4 flex gap-3.5 overflow-x-auto px-4 pb-2 scrollbar-none">
+            <div
+              className={
+                isMobile
+                  ? '-mx-4 flex gap-3.5 overflow-x-auto px-4 pb-2 scrollbar-none'
+                  : 'grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5'
+              }
+            >
               {groups.map((group) => (
                 <WorkShelf
                   key={group.key}
                   group={group}
+                  compact={isMobile}
                   onOpen={() => setWorkKey(group.key)}
                   summary={t('workSummary', {
                     characters: group.entries.length,
@@ -231,7 +255,11 @@ export function CharacterOverview({
           {entries.length > RANKED_COUNT ? (
             <Section
               title={t('allCharacters')}
-              hint={t('phone.charactersCount', { count: entries.length })}
+              hint={
+                isMobile
+                  ? t('phone.charactersCount', { count: entries.length })
+                  : t('allCharactersHint', { count: entries.length })
+              }
             >
               <CellGrid>
                 {[...entries]
@@ -244,7 +272,7 @@ export function CharacterOverview({
           ) : null}
         </>
       )}
-      {onLongPress ? (
+      {isMobile && onLongPress ? (
         <p className="mt-6 text-center text-xs text-muted-foreground">
           {t('phone.longPressHint')}
         </p>
@@ -285,7 +313,7 @@ function Section({
  */
 function CellGrid({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-2 gap-x-2.5 gap-y-3.5 sm:grid-cols-3">
+    <div className="grid grid-cols-2 gap-x-3 gap-y-4 max-md:gap-x-2.5 max-md:gap-y-3.5 sm:grid-cols-3 md:grid-cols-4 desk:grid-cols-6 2xl:grid-cols-8">
       {children}
     </div>
   )
@@ -351,12 +379,15 @@ function CharacterTile({
   entry,
   rank,
   reducedMotion,
+  captionBelow,
   pressProps,
   onOpen,
 }: {
   entry: Entry
   rank: number | null
   reducedMotion: boolean
+  /** 手机：名字与小字写在图下面（iOS 稿），排名数字在名字左边。 */
+  captionBelow: boolean
   pressProps: Pick<
     React.HTMLAttributes<HTMLButtonElement>,
     | 'onPointerDown'
@@ -372,6 +403,48 @@ function CharacterTile({
   const cover = characterCoverUrl(card)
   const name = card.name
   const meta = t('tileMeta', { work: entry.workLabel, images: entry.images })
+  if (captionBelow) {
+    return (
+      <motion.button
+        type="button"
+        layout={!reducedMotion}
+        transition={LIQUID_SPRING.unfold}
+        onClick={() => onOpen(card.id)}
+        {...pressProps}
+        data-testid="roster-tile"
+        className="group block w-full select-none text-left transition-transform duration-fast ease-standard active:scale-96 motion-reduce:transition-none"
+      >
+        <span className="relative block aspect-3/4 overflow-hidden rounded-2xl bg-muted">
+          {cover ? (
+            <Image
+              src={cover}
+              alt=""
+              fill
+              sizes="45vw"
+              draggable={false}
+              className="object-cover"
+            />
+          ) : null}
+        </span>
+        <span className="mt-2 flex items-start gap-2">
+          {rank !== null ? (
+            <span
+              aria-hidden
+              className="font-mono text-3xl font-light leading-none tabular-nums"
+            >
+              {rank}
+            </span>
+          ) : null}
+          <span className="flex min-w-0 flex-col">
+            <span className="truncate text-sm font-semibold">{name}</span>
+            <span className="truncate text-xs text-muted-foreground">
+              {meta}
+            </span>
+          </span>
+        </span>
+      </motion.button>
+    )
+  }
   return (
     <motion.button
       type="button"
@@ -380,33 +453,30 @@ function CharacterTile({
       onClick={() => onOpen(card.id)}
       {...pressProps}
       data-testid="roster-tile"
-      className="group block w-full select-none text-left transition-transform duration-fast ease-standard active:scale-96 motion-reduce:transition-none"
+      className="group relative block aspect-4/5 w-full text-left"
     >
-      <span className="relative block aspect-3/4 overflow-hidden rounded-2xl bg-muted">
+      <span className="absolute inset-0 overflow-hidden rounded-2xl bg-muted">
         {cover ? (
           <Image
             src={cover}
             alt=""
             fill
-            sizes="45vw"
-            draggable={false}
-            className="object-cover"
+            sizes="(min-width: 1024px) 240px, 45vw"
+            className="object-cover transition-transform duration-reveal ease-standard group-hover:scale-103"
           />
         ) : null}
-      </span>
-      <span className="mt-2 flex items-start gap-2">
+        <span className="absolute inset-x-0 bottom-0 flex flex-col bg-linear-to-t from-foreground/60 to-transparent px-4 pb-3 pt-10 text-background">
+          <span className="truncate text-base font-semibold">{name}</span>
+          <span className="truncate text-xs opacity-85">{meta}</span>
+        </span>
         {rank !== null ? (
           <span
             aria-hidden
-            className="font-mono text-3xl font-light leading-none tabular-nums"
+            className="absolute left-3.5 top-1.5 font-mono text-4xl font-light leading-none text-background/90 tabular-nums"
           >
             {rank}
           </span>
         ) : null}
-        <span className="flex min-w-0 flex-col">
-          <span className="truncate text-sm font-semibold">{name}</span>
-          <span className="truncate text-xs text-muted-foreground">{meta}</span>
-        </span>
       </span>
     </motion.button>
   )
@@ -416,10 +486,13 @@ function CharacterTile({
 function WorkShelf({
   group,
   summary,
+  compact,
   onOpen,
 }: {
   group: WorkGroup
   summary: string
+  /** 手机：小一号、排在横滑的一行里，按下时扇面再散开一点（iOS 稿）。 */
+  compact: boolean
   onOpen(): void
 }) {
   // 放最上面的是第一名；左右两张是第二、第三名。⛔ 不放两张一样的图（owner 09-28）：
@@ -439,31 +512,76 @@ function WorkShelf({
     for (const slot of allLookSlots(entry.card)) push(slot.url)
   }
   const [front, left, right] = covers
+  if (compact) {
+    return (
+      <button
+        type="button"
+        onClick={onOpen}
+        className="group flex w-32 shrink-0 flex-col items-center text-center"
+      >
+        <span className="relative block h-30 w-full">
+          {[
+            {
+              url: left,
+              className:
+                '-translate-x-14.5 -rotate-12 group-active:-translate-x-16 group-active:-rotate-16',
+            },
+            {
+              url: right,
+              className:
+                'translate-x-3.5 rotate-10 group-active:translate-x-5 group-active:rotate-14',
+            },
+            { url: front, className: '-translate-x-9' },
+          ].map((layer, index) =>
+            layer.url ? (
+              <span
+                key={index}
+                className={cn(
+                  'absolute left-1/2 top-1 h-25 w-18 overflow-hidden rounded-xl border-2 border-background bg-muted shadow-sm transition-transform duration-slow ease-standard motion-reduce:transition-none',
+                  layer.className,
+                )}
+              >
+                <Image
+                  src={layer.url}
+                  alt=""
+                  fill
+                  sizes="72px"
+                  className="object-cover"
+                />
+              </span>
+            ) : null,
+          )}
+        </span>
+        <span className="text-sm font-semibold">{group.label}</span>
+        <span className="text-xs text-muted-foreground">{summary}</span>
+      </button>
+    )
+  }
   return (
     <button
       type="button"
       onClick={onOpen}
-      className="group flex w-32 shrink-0 flex-col items-center text-center"
+      className="group flex flex-col items-center gap-1 text-center"
     >
-      <span className="relative block h-30 w-full">
+      <span className="relative block h-48 w-full">
         {[
           {
             url: left,
             className:
-              '-translate-x-14.5 -rotate-12 group-active:-translate-x-16 group-active:-rotate-16',
+              '-translate-x-26 -rotate-6 scale-90 group-hover:-translate-x-30 group-hover:-rotate-12',
           },
           {
             url: right,
             className:
-              'translate-x-3.5 rotate-10 group-active:translate-x-5 group-active:rotate-14',
+              '-translate-x-4 rotate-6 scale-90 group-hover:translate-x-0 group-hover:rotate-12',
           },
-          { url: front, className: '-translate-x-9' },
+          { url: front, className: '-translate-x-15' },
         ].map((layer, index) =>
           layer.url ? (
             <span
               key={index}
               className={cn(
-                'absolute left-1/2 top-1 h-25 w-18 overflow-hidden rounded-xl border-2 border-background bg-muted shadow-sm transition-transform duration-slow ease-standard motion-reduce:transition-none',
+                'absolute left-1/2 top-2 h-40 w-30 overflow-hidden rounded-xl border-3 border-background bg-muted shadow-md transition-transform duration-slow ease-standard',
                 layer.className,
               )}
             >
@@ -471,15 +589,69 @@ function WorkShelf({
                 src={layer.url}
                 alt=""
                 fill
-                sizes="72px"
+                sizes="120px"
                 className="object-cover"
               />
             </span>
           ) : null,
         )}
       </span>
-      <span className="text-sm font-semibold">{group.label}</span>
+      <span className="font-semibold">{group.label}</span>
       <span className="text-xs text-muted-foreground">{summary}</span>
     </button>
+  )
+}
+
+/** 这页有几部作品（地台那一行的计数用，判据与总览分组同一套）。 */
+export function countCharacterWorks(
+  cards: readonly CharacterCardRecord[],
+  locale: string,
+): number {
+  return new Set(
+    cards.map((card) => characterWork(card, locale).label ?? ORIGINAL_KEY),
+  ).size
+}
+
+/**
+ * 总览那一行（住在地台上、白卡外面，布局 A）：页签（我的角色 / 卡库）+ 计数 · 搜索 ·
+ * 新角色。桌面专用，手机是 `CharacterPhoneBar`。
+ * ⚠ 右边留出助手头像那一格（头像是 Dock 的 fixed 元素，恒在这一行最右）。
+ */
+export function CharacterOverviewHeader({
+  tabs,
+  characters,
+  works,
+  query,
+  onQueryChange,
+  actions,
+}: {
+  tabs: React.ReactNode
+  characters: number
+  works: number
+  query: string
+  onQueryChange(query: string): void
+  actions: React.ReactNode
+}) {
+  const t = useTranslations('CharacterRoster')
+  return (
+    <>
+      {tabs}
+      <span className="text-2sm text-muted-foreground">
+        {t('overviewCount', { characters, works })}
+      </span>
+      <label className="ml-auto flex h-9 w-72 min-w-0 items-center gap-2 rounded-full bg-background px-3.5 text-2sm text-muted-foreground">
+        <Search className="size-4 shrink-0" aria-hidden />
+        <input
+          id="character-search"
+          type="search"
+          value={query}
+          onChange={(event) => onQueryChange(event.target.value)}
+          placeholder={t('searchPlaceholder')}
+          aria-label={t('searchPlaceholder')}
+          className="min-w-0 flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
+        />
+      </label>
+      <div className="flex shrink-0 gap-2">{actions}</div>
+    </>
   )
 }

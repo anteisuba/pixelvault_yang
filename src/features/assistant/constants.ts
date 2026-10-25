@@ -173,7 +173,7 @@ export const ASSISTANT_NEXT_LORA_PARAM_KEYS: Readonly<Record<string, string>> =
   }
 
 /** 过程记录里标「这一轮是新内核跑的」（`AssistantTurnRecord.promptVersion`）。改系统提示时一起换。 */
-export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-10-23l'
+export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-10-25a'
 
 export const ASSISTANT_NEXT_LIMITS = {
   /**
@@ -216,11 +216,26 @@ export const ASSISTANT_NEXT_FIND_KIND_IDS = {
   prompts: 'prompts',
   conversations: 'conversations',
   memories: 'memories',
+  voices: 'voices',
+  /** 外面的库（10-25 打通）：Danbooru 标签（含她的标签收藏）、Civitai LoRA 大库。⚠ 要点名才查。 */
+  tags: 'tags',
+  loraLibrary: 'lora_library',
 } as const
 
 export const ASSISTANT_NEXT_FIND_KINDS = Object.values(
   ASSISTANT_NEXT_FIND_KIND_IDS,
 ) as [string, ...string[]]
+
+/** find 不点名时查的那几类：她自己的东西。外面的库（标签、LoRA 大库）每次都要联网，点名才查。 */
+export const ASSISTANT_NEXT_FIND_DEFAULT_KINDS = [
+  ASSISTANT_NEXT_FIND_KIND_IDS.pictures,
+  ASSISTANT_NEXT_FIND_KIND_IDS.characters,
+  ASSISTANT_NEXT_FIND_KIND_IDS.loras,
+  ASSISTANT_NEXT_FIND_KIND_IDS.prompts,
+  ASSISTANT_NEXT_FIND_KIND_IDS.conversations,
+  ASSISTANT_NEXT_FIND_KIND_IDS.memories,
+  ASSISTANT_NEXT_FIND_KIND_IDS.voices,
+] as const
 
 export type AssistantNextFindKind =
   (typeof ASSISTANT_NEXT_FIND_KIND_IDS)[keyof typeof ASSISTANT_NEXT_FIND_KIND_IDS]
@@ -232,6 +247,9 @@ export const ASSISTANT_NEXT_HANDLE_PREFIXES = {
   prompt: '提示词·',
   conversation: '对话·',
   memory: '记忆·',
+  /** Danbooru 标签（10-25）：`look 标签·watercolor_(medium)` 读帖子数、简介、常一起出现的标签与样图。 */
+  tag: '标签·',
+  voice: '音色·',
   /** 内置技能（第 7a 步）：`look 技能·名字` 读全文。 */
   skill: '技能·',
   settings: '设置',
@@ -250,6 +268,10 @@ export const ASSISTANT_NEXT_FIND_LIMITS = {
   conversationChars: 6_000,
   /** 打开一段对话 / 一个角色时最多读几张代表图。 */
   pictures: 3,
-  /** 在内存里筛的列表最多取多少条（角色、LoRA、提示词）。 */
-  listScan: 100,
+  /** 在内存里筛的列表最多取多少条（角色、LoRA、提示词）。⚠ 比她库里的多：截掉的那些永远查不到。 */
+  listScan: 1_000,
+  /** 查词拆成几个词（任意一个命中就算，按命中多少排）。 */
+  maxQueryWords: 12,
+  /** 标签：一个查词按逗号拆成几段分别查（每段一次联网）。 */
+  maxTagPhrases: 3,
 } as const

@@ -306,6 +306,8 @@ async function healCivitaiIdentifiers(
  */
 export async function listLoraAssetsForUser(
   clerkId: string,
+  /** 她自己的取多少把。助手查库要全量（10-25：172 把只看得到最新 100 把）。 */
+  ownedLimit = 100,
 ): Promise<LoraAssetRecord[]> {
   const user = await ensureUser(clerkId)
 
@@ -314,7 +316,7 @@ export async function listLoraAssetsForUser(
       // 只被角色收着、没收藏的外部 LoRA 不在库里（角色③「加到角色≠收藏」）。
       where: { userId: user.id, inLibrary: true },
       orderBy: { createdAt: 'desc' },
-      take: 100,
+      take: ownedLimit,
     }),
     db.loraAsset.findMany({
       where: { source: 'curated', isPublic: true },

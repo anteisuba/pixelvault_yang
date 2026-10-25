@@ -856,6 +856,41 @@ async function withLocalNames(
   }
 }
 
+/**
+ * 助手查标签（10-25 打通）：几页一起按名字找，⛔ 不带样图（一行一次联网太贵）；要样图 look 详情。
+ * 与查资料同一条匹配（中日文名词库 → wiki 别名 → 英文模糊），同一个熔断器。
+ */
+export async function searchDanbooruTags(
+  text: string,
+  kinds: readonly DanbooruCatalogKind[],
+): Promise<DanbooruCatalog['candidates']> {
+  const found = await getResearchBreaker(RESEARCH_SOURCE_IDS.danbooru).call(
+    async () => {
+      const aliases = await aliasTags(text)
+      const pages = await Promise.all(
+        kinds.map((kind) => matchPage(text, kind, aliases)),
+      )
+      const seen = new Set<string>()
+      return pages
+        .flat()
+        .filter((tag) => !seen.has(tag.name) && Boolean(seen.add(tag.name)))
+    },
+  )
+  const catalog = await withLocalNames({
+    candidates: found.map((tag) => ({
+      name: tag.name,
+      count: tag.post_count,
+      category: tag.category,
+      work: null,
+      previews: [],
+    })),
+    crossHint: null,
+    nextPage: null,
+    detail: null,
+  })
+  return catalog.candidates
+}
+
 export async function fetchDanbooruCatalog(
   query: DanbooruCatalogQuery,
 ): Promise<DanbooruCatalog> {

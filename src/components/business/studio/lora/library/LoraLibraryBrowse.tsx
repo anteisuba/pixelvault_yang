@@ -62,6 +62,7 @@ import { LoraLibraryFilterCombobox } from './LoraLibraryFilterCombobox'
 import { LoraLibrarySearchBox } from './LoraLibrarySearchBox'
 import { LoraLibraryTile, loraMention } from './LoraLibraryTile'
 import { LoraLibraryTypeSparseCard } from './LoraLibraryTypeStates'
+import { useLoraPickSelection } from './lora-pick-selection'
 
 const NSFW_FILTER_LABEL_KEYS: Record<LoraNsfwFilter, string> = {
   unrestricted: 'nsfwFilterUnrestricted',
@@ -118,6 +119,7 @@ export function LoraLibraryBrowse({
   const searchHistory = useLoraSearchHistory()
   const agent = useLoraLibraryAgent()
   const hand = useHandMentionToAssistant()
+  const familyLocked = useLoraPickSelection()?.familyLocked ?? false
   const [mountingId, setMountingId] = useState<string | null>(null)
   // 打开的详情页：存这一项本身（往下滚接了新的一段、或换了筛选，它都还在）。
   const [openItem, setOpenItem] = useState<CivitaiLoraLibraryItem | null>(null)
@@ -284,7 +286,7 @@ export function LoraLibraryBrowse({
         params: { nsfwFilter: 'unrestricted' },
       })
     }
-    if (library.baseModel !== 'all') {
+    if (library.baseModel !== 'all' && !familyLocked) {
       out.push({
         key: 'base',
         label: tb('relaxBase', { label: familyLabel }),
@@ -301,6 +303,7 @@ export function LoraLibraryBrowse({
     return out
   }, [
     familyLabel,
+    familyLocked,
     library.baseModel,
     library.contentType,
     library.nsfwFilter,
@@ -413,20 +416,22 @@ export function LoraLibraryBrowse({
           }
           pills={
             <>
-              <LoraLibraryFilterCombobox
-                variant="bar"
-                label={t('libraryFamilyFilter')}
-                ariaLabel={t('baseModelFilterLabel')}
-                value={familySlug}
-                options={familyOptions}
-                onChange={(slug) =>
-                  library.setBaseModel(familySlugToCivitaiBaseModel(slug))
-                }
-                changed={library.baseModel !== 'all'}
-                searchable
-                searchPlaceholder={t('baseModelSearchPlaceholder')}
-                emptyText={t('baseModelSearchEmpty')}
-              />
+              {familyLocked ? null : (
+                <LoraLibraryFilterCombobox
+                  variant="bar"
+                  label={t('libraryFamilyFilter')}
+                  ariaLabel={t('baseModelFilterLabel')}
+                  value={familySlug}
+                  options={familyOptions}
+                  onChange={(slug) =>
+                    library.setBaseModel(familySlugToCivitaiBaseModel(slug))
+                  }
+                  changed={library.baseModel !== 'all'}
+                  searchable
+                  searchPlaceholder={t('baseModelSearchPlaceholder')}
+                  emptyText={t('baseModelSearchEmpty')}
+                />
+              )}
               <LoraLibraryFilterCombobox
                 variant="bar"
                 label={tb('ratingLabel')}
@@ -565,7 +570,8 @@ export function LoraLibraryBrowse({
                         agent.picks.some((pick) => pick.candidateId === item.id)
                       }
                       onOpen={() => setOpenItem(item)}
-                      onMount={() => void handleMount(item)}
+                      onMount={() => handleMount(item)}
+                      pickId={item.id}
                       favorite={{
                         saved: isFavorited(item.loraUrl),
                         onToggle: () => void handleFavoriteToggle(item),

@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback } from 'react'
-import { useSearchParams } from 'next/navigation'
 
 import {
   DEFAULT_LORA_LIBRARY_SOURCE,
@@ -10,7 +9,7 @@ import {
   isLoraLibrarySource,
   type LoraLibrarySource,
 } from '@/constants/lora'
-import { usePathname, useRouter } from '@/i18n/navigation'
+import { useLibraryQuery } from '@/hooks/use-library-query'
 import type { FavoriteLoraRequest, LoraAssetRecord } from '@/types'
 import {
   CivitaiCommunityBranch,
@@ -31,9 +30,7 @@ export function useLoraLibrarySource(): readonly [
   LoraLibrarySource,
   (next: LoraLibrarySource) => void,
 ] {
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
+  const { params: searchParams, replace } = useLibraryQuery()
 
   const sourceParam = searchParams.get(LORA_LIBRARY_SOURCE_PARAM)
   const source: LoraLibrarySource =
@@ -49,12 +46,9 @@ export function useLoraLibrarySource(): readonly [
       } else {
         params.set(LORA_LIBRARY_SOURCE_PARAM, next)
       }
-      const query = params.toString()
-      router.replace(query ? `${pathname}?${query}` : pathname, {
-        scroll: false,
-      })
+      replace(params)
     },
-    [pathname, router, searchParams],
+    [replace, searchParams],
   )
 
   return [source, setSource] as const

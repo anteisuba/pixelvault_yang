@@ -701,7 +701,16 @@
     "librarySourcePill": "来源",
     "librarySectionAll": "全部",
     "librarySectionCharacters": "角色",
-    "librarySectionCharactersEmpty": "角色还没收 LoRA。在 LoRA 详情里点「加到角色…」就会出现在这里。"
+    "librarySectionCharactersEmpty": "角色还没收 LoRA。在 LoRA 详情里点「加到角色…」就会出现在这里。",
+    "picker": {
+      "title": "挑 LoRA",
+      "description": "从库里挑几把 LoRA 挂到 LoRA 台。",
+      "lock": "和 {base} 装得上",
+      "count": "已选 {count}",
+      "confirm": "挂上 {count} 个",
+      "selectLabel": "挑 {name}",
+      "mounted": "已挂"
+    }
   },
   "CivitaiToken": {
     "saveSuccess": "Civitai Token 已保存",

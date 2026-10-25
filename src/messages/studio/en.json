@@ -1170,7 +1170,6 @@
     "expandChat": "Show chat",
     "pickFor": "Picking for the {bench} bench",
     "pickForBase": "Picking for the {bench} bench · base {base}",
-    "pickDone": "Done",
     "manageInLibrary": "Manage in library",
     "libraryAssistant": "Assistant",
     "libraryRailHide": "Hide sidebar",

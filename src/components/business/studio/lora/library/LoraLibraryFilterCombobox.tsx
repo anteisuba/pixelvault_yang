@@ -16,6 +16,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { LIBRARY_PILL_CLASS } from '@/components/ui/library-kit'
 import { cn } from '@/lib/utils'
 
 // R1 库聚焦浏览（docs/references/pages/lora-library.md §3「类型与底模使用两个
@@ -85,21 +86,18 @@ export function LoraLibraryFilterCombobox<T extends string>({
               aria-expanded={open}
               aria-label={`${ariaLabel}：${currentLabel}`}
               className={cn(
-                'inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-xl border px-2.75 text-2sm transition-colors duration-fast ease-linear',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                changed
-                  ? 'border-transparent bg-muted'
-                  : 'border-border hover:border-foreground/30',
-                open && 'border-foreground/40',
+                LIBRARY_PILL_CLASS,
+                'whitespace-nowrap',
+                changed && 'bg-fill-strong',
               )}
             >
-              <span className="text-muted-foreground">{label}</span>
-              <b className="max-w-40 truncate font-semibold text-foreground">
-                {currentLabel}
-              </b>
+              {/* 药丸（ui-spec §9）：没动过写这一格的名字，动过写选中的那一项。 */}
+              <span className="max-w-40 truncate">
+                {changed ? currentLabel : label}
+              </span>
               <ChevronDown
                 className={cn(
-                  'size-3 shrink-0 text-muted-foreground transition-transform duration-base ease-standard',
+                  'transition-transform duration-base ease-standard',
                   open && 'rotate-180',
                 )}
                 aria-hidden

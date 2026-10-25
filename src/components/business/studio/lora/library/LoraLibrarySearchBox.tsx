@@ -68,8 +68,8 @@ export function LoraLibrarySearchBox({
     <div ref={wrapperRef} className="relative min-w-0 flex-1">
       <div
         className={cn(
-          'relative flex h-9 items-center gap-2 overflow-hidden rounded-xl border bg-background px-3 transition-colors duration-fast ease-linear focus-within:border-foreground/40',
-          agentLabel ? 'border-foreground' : 'border-border',
+          'relative flex h-9 items-center gap-2 overflow-hidden rounded-full border bg-muted px-3.5 transition-colors duration-fast ease-linear focus-within:shadow-focus',
+          agentLabel ? 'border-foreground' : 'border-transparent',
         )}
       >
         <button

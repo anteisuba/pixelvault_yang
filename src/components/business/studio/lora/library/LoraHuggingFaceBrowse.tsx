@@ -7,7 +7,6 @@ import { toast } from 'sonner'
 
 import { AlertCircle } from '@/components/icons'
 import {
-  DEFAULT_HUGGINGFACE_LORA_SORT,
   DEFAULT_LORA_CONTENT_TYPE,
   DEFAULT_LORA_NSFW_FILTER,
   HUGGINGFACE_LORA_SORT_OPTIONS,
@@ -45,6 +44,8 @@ import type {
   LoraAssetRecord,
 } from '@/types'
 import { Button } from '@/components/ui/button'
+import { LIBRARY_GRID_CLASS, LibraryToolbar } from '@/components/ui/library-kit'
+import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 
 import { useLoraStage } from '../lora-stage-context'
 import { LoraLibraryDetailPage } from './LoraLibraryDetailPage'
@@ -302,9 +303,6 @@ export function LoraHuggingFaceBrowse({
   const searching =
     library.debouncedSearch !== '' && (library.isReplacing || library.isLoading)
   const shown = format.number(library.items.length)
-  // 上游不报总数；到底了手上这些就是全部。
-  const exactTotal =
-    library.total ?? (library.hasNextPage ? null : library.items.length)
   const typeFallbackTerm =
     library.contentType !== 'all'
       ? getLoraContentTypeDefinition(library.contentType).searchFallbackTerm
@@ -339,91 +337,81 @@ export function LoraHuggingFaceBrowse({
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
-      {/* 一行筛选：搜索占满，其余按内容宽；Hugging Face 没有分级那一格。 */}
-      <div className="flex shrink-0 items-center gap-2 px-5 pt-4">
-        <LoraLibrarySearchBox
-          value={draft}
-          onChange={(value) => {
-            setDraft(value)
-            // 删光了当场回到浏览（同 Civitai）。
-            if (!value.trim()) commitLibrarySearch('')
-          }}
-          onSubmit={() => commitSearch(draft)}
-          onPickHistory={commitSearch}
-          history={searchHistory.history}
-          onClearHistory={searchHistory.clear}
-          pending={draft.trim() !== library.debouncedSearch}
-          searching={searching}
-          placeholder={t('huggingFaceSearchPlaceholder')}
-        />
-        {sourceSwitch}
-        <LoraLibraryFilterCombobox
-          variant="bar"
-          label={t('libraryTypeFilter')}
-          ariaLabel={t('typeFilterLabel')}
-          value={library.contentType}
-          options={typeOptions}
-          onChange={library.setContentType}
-          changed={typeFiltered}
-        />
-        <LoraLibraryFilterCombobox
-          variant="bar"
-          label={t('libraryFamilyFilter')}
-          ariaLabel={t('baseModelFilterLabel')}
-          value={familySlug}
-          options={familyOptions}
-          onChange={(slug) =>
-            library.setBaseModelFamily(familySlugToHuggingFaceFamily(slug))
+      {/* 顶上一行（ui-spec §9）：搜索 · 底模 · 来源 ……… 排序；下面类型切换条。Hugging Face 没有分级。 */}
+      <div className="flex shrink-0 flex-col gap-3 pb-3">
+        <LibraryToolbar
+          search={
+            <LoraLibrarySearchBox
+              value={draft}
+              onChange={(value) => {
+                setDraft(value)
+                // 删光了当场回到浏览（同 Civitai）。
+                if (!value.trim()) commitLibrarySearch('')
+              }}
+              onSubmit={() => commitSearch(draft)}
+              onPickHistory={commitSearch}
+              history={searchHistory.history}
+              onClearHistory={searchHistory.clear}
+              pending={draft.trim() !== library.debouncedSearch}
+              searching={searching}
+              placeholder={t('huggingFaceSearchPlaceholder')}
+            />
           }
-          changed={baseFiltered}
-          searchable
-          searchPlaceholder={t('baseModelSearchPlaceholder')}
-          emptyText={t('baseModelSearchEmpty')}
-        />
-        <LoraLibraryFilterCombobox
-          variant="bar"
-          label={t('communitySortFilter')}
-          ariaLabel={t('communitySortFilter')}
-          value={library.sort}
-          options={sortOptions}
-          onChange={(value) => {
-            if (isHuggingFaceLoraSort(value)) library.setSort(value)
-          }}
-          changed={library.sort !== DEFAULT_HUGGINGFACE_LORA_SORT}
-        />
-      </div>
-
-      {/* 数量一行：有总数写总数，没有写「已显示 N 个」；搜着的时候写在搜什么。 */}
-      {settledEmpty ? null : (
-        <p
-          role="status"
-          className="flex shrink-0 items-baseline gap-2.5 px-5 pb-2.5 pt-3 text-xs text-muted-foreground"
-        >
-          {searching ? (
-            <span>{tb('searching', { query: library.debouncedSearch })}</span>
-          ) : library.isLoading ? null : exactTotal !== null ? (
+          pills={
             <>
-              <b className="text-sm font-semibold tabular-nums text-foreground">
-                {format.number(exactTotal)}
-              </b>
-              <span>{tb('countUnit', { count: exactTotal })}</span>
+              <LoraLibraryFilterCombobox
+                variant="bar"
+                label={t('libraryFamilyFilter')}
+                ariaLabel={t('baseModelFilterLabel')}
+                value={familySlug}
+                options={familyOptions}
+                onChange={(slug) =>
+                  library.setBaseModelFamily(
+                    familySlugToHuggingFaceFamily(slug),
+                  )
+                }
+                changed={baseFiltered}
+                searchable
+                searchPlaceholder={t('baseModelSearchPlaceholder')}
+                emptyText={t('baseModelSearchEmpty')}
+              />
+              {sourceSwitch}
             </>
-          ) : (
-            <span>{tb('shownCount', { count: shown })}</span>
-          )}
-        </p>
-      )}
+          }
+          end={
+            <LoraLibraryFilterCombobox
+              variant="bar"
+              label={t('communitySortFilter')}
+              ariaLabel={t('communitySortFilter')}
+              value={library.sort}
+              options={sortOptions}
+              onChange={(value) => {
+                if (isHuggingFaceLoraSort(value)) library.setSort(value)
+              }}
+              changed
+            />
+          }
+        />
+        <div className="flex">
+          <LiquidSegmented
+            ariaLabel={t('typeFilterLabel')}
+            value={library.contentType}
+            items={typeOptions}
+            onChange={library.setContentType}
+          />
+        </div>
+      </div>
 
       <div
         ref={scrollRef}
         aria-busy={library.isRevalidating}
-        className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-5"
+        className="@container relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-1"
       >
         {library.isLoading ? (
-          <div className="lora-lib-grid" aria-hidden>
+          <div className={LIBRARY_GRID_CLASS} aria-hidden>
             {Array.from({ length: SKELETON_TILES }, (_, index) => (
               <div key={index} className="flex flex-col gap-1.5">
-                <span className="block aspect-3/4 rounded-xl bg-muted" />
+                <span className="block aspect-3/4 rounded-12 bg-muted" />
                 <span className="h-2.5 w-3/4 rounded bg-muted" />
                 <span className="h-2.5 w-1/2 rounded bg-muted" />
               </div>
@@ -487,7 +475,8 @@ export function LoraHuggingFaceBrowse({
           <>
             <div
               className={cn(
-                'lora-lib-grid transition-opacity duration-base ease-linear',
+                LIBRARY_GRID_CLASS,
+                'transition-opacity duration-base ease-linear',
                 library.isReplacing && 'opacity-42',
               )}
             >

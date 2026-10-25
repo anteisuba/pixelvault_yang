@@ -1,4 +1,11 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { CivitaiLoraLibraryItem } from '@/types'
@@ -149,6 +156,15 @@ function renderBrowse() {
   )
 }
 
+/** 名叫 `name` 那一格的「更多」打开（挂载收在里面）。 */
+function openMoreOf(name: string) {
+  const tile = screen.getByRole('button', { name }).parentElement as HTMLElement
+  fireEvent.pointerDown(
+    within(tile).getByRole('button', { name: 'LoraWorkbench.browse:more' }),
+    { button: 0, ctrlKey: false },
+  )
+}
+
 describe('LoraLibraryBrowse（库 B · Civitai）', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -158,27 +174,13 @@ describe('LoraLibraryBrowse（库 B · Civitai）', () => {
     resetOperatorThread()
   })
 
-  it('writes the exact count, however large', () => {
-    const { rerender } = renderBrowse()
-    expect(screen.getByText('18,402')).toBeInTheDocument()
-
-    mockLibrary = libraryState({ total: 642554 })
-    rerender(
-      <LoraLibraryBrowse
-        sourceSwitch={<span>source</span>}
-        onFavorite={vi.fn()}
-        onUnfavoriteByUrl={vi.fn()}
-        isFavorited={() => false}
-      />,
-    )
-    expect(screen.getByText('642,554')).toBeInTheDocument()
-  })
-
-  it('keeps type, base, rating and sort as dropdowns in the one bar', () => {
+  it('keeps base, rating and sort as pills in the one bar, type as a switch bar', () => {
     renderBrowse()
 
+    expect(
+      screen.getByRole('tablist', { name: 'LoraWorkbench:typeFilterLabel' }),
+    ).toBeInTheDocument()
     for (const label of [
-      'typeFilterLabel',
       'baseModelFilterLabel',
       'nsfwToggleHint',
       'communitySortFilter',
@@ -194,8 +196,9 @@ describe('LoraLibraryBrowse（库 B · Civitai）', () => {
   it('mounts from a tile in place — pushes to the stack, no navigation', async () => {
     renderBrowse()
 
+    openMoreOf('Roccia')
     fireEvent.click(
-      screen.getByRole('button', {
+      screen.getByRole('menuitem', {
         name: 'LoraWorkbench.browse:mountLabel:{"name":"Roccia"}',
       }),
     )
@@ -215,7 +218,11 @@ describe('LoraLibraryBrowse（库 B · Civitai）', () => {
     ]
     renderBrowse()
 
-    const pill = screen.getByRole('button', {
+    expect(
+      screen.getAllByRole('img', { name: 'LoraWorkbench.browse:mounted' }),
+    ).toHaveLength(1)
+    openMoreOf('Roccia')
+    const pill = screen.getByRole('menuitem', {
       name: 'LoraWorkbench.browse:mountedLabel:{"name":"Roccia"}',
     })
     fireEvent.click(pill)
@@ -230,9 +237,7 @@ describe('LoraLibraryBrowse（库 B · Civitai）', () => {
     })
     const { container } = renderBrowse()
 
-    expect(container.querySelector('.lora-lib-grid')?.className).toContain(
-      'opacity-42',
-    )
+    expect(container.querySelector('.opacity-42')).not.toBeNull()
     expect(container.querySelector('.lora-search-run')).not.toBeNull()
   })
 
@@ -400,8 +405,9 @@ describe('LoraLibraryBrowse（库 B · Civitai）', () => {
         }),
       )
 
+      openMoreOf('Roccia')
       fireEvent.click(
-        screen.getByRole('button', {
+        screen.getByRole('menuitem', {
           name: 'LoraWorkbench.browse:mountLabel:{"name":"Roccia"}',
         }),
       )

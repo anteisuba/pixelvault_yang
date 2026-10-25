@@ -41,6 +41,7 @@ import {
   resetLoraLibraryAgent,
   useLoraLibraryAgent,
 } from '@/hooks/use-lora-library-agent'
+import { useHandMentionToAssistant } from '@/hooks/use-hand-to-assistant'
 import { useLoraSearchHistory } from '@/hooks/use-lora-search-history'
 import { listCivitaiLoraAssetsAPI } from '@/lib/api-client/lora-assets'
 import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'
@@ -48,6 +49,8 @@ import { formatCompactNumber } from '@/lib/format-compact-number'
 import { cn } from '@/lib/utils'
 import type { CivitaiLoraLibraryItem, LoraAssetRecord } from '@/types'
 import { Button } from '@/components/ui/button'
+import { LIBRARY_GRID_CLASS, LibraryToolbar } from '@/components/ui/library-kit'
+import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 
 import { LoraLibraryDetailPage } from './LoraLibraryDetailPage'
 import {
@@ -57,7 +60,7 @@ import {
 } from './lora-library-filter-labels'
 import { LoraLibraryFilterCombobox } from './LoraLibraryFilterCombobox'
 import { LoraLibrarySearchBox } from './LoraLibrarySearchBox'
-import { LoraLibraryTile } from './LoraLibraryTile'
+import { LoraLibraryTile, loraMention } from './LoraLibraryTile'
 import { LoraLibraryTypeSparseCard } from './LoraLibraryTypeStates'
 
 const NSFW_FILTER_LABEL_KEYS: Record<LoraNsfwFilter, string> = {
@@ -114,6 +117,7 @@ export function LoraLibraryBrowse({
   })
   const searchHistory = useLoraSearchHistory()
   const agent = useLoraLibraryAgent()
+  const hand = useHandMentionToAssistant()
   const [mountingId, setMountingId] = useState<string | null>(null)
   // 打开的详情页：存这一项本身（往下滚接了新的一段、或换了筛选，它都还在）。
   const [openItem, setOpenItem] = useState<CivitaiLoraLibraryItem | null>(null)
@@ -386,100 +390,90 @@ export function LoraLibraryBrowse({
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
-      {/* 一行筛选：搜索占满，其余按内容宽。 */}
-      <div className="flex shrink-0 items-center gap-2 px-5 pt-4">
-        <LoraLibrarySearchBox
-          value={library.search}
-          onChange={library.setSearch}
-          onSubmit={handleSearchSubmit}
-          onPickHistory={handleHistoryPick}
-          history={searchHistory.history}
-          onClearHistory={searchHistory.clear}
-          pending={hasPendingSearch}
-          searching={searching}
-          placeholder={t('communitySearch')}
-          agentLabel={
-            agentActive && matchesAgent
-              ? tb(searching ? 'agentSearching' : 'agentSearched')
-              : null
+      {/* 顶上一行（ui-spec §9）：搜索 · 底模 · 分级 · 来源 ……… 排序；下面类型切换条。 */}
+      <div className="flex shrink-0 flex-col gap-3 pb-3">
+        <LibraryToolbar
+          search={
+            <LoraLibrarySearchBox
+              value={library.search}
+              onChange={library.setSearch}
+              onSubmit={handleSearchSubmit}
+              onPickHistory={handleHistoryPick}
+              history={searchHistory.history}
+              onClearHistory={searchHistory.clear}
+              pending={hasPendingSearch}
+              searching={searching}
+              placeholder={t('communitySearch')}
+              agentLabel={
+                agentActive && matchesAgent
+                  ? tb(searching ? 'agentSearching' : 'agentSearched')
+                  : null
+              }
+            />
           }
-        />
-        {sourceSwitch}
-        <LoraLibraryFilterCombobox
-          variant="bar"
-          label={t('libraryTypeFilter')}
-          ariaLabel={t('typeFilterLabel')}
-          value={library.contentType}
-          options={typeOptions}
-          onChange={library.setContentType}
-          changed={library.contentType !== DEFAULT_LORA_CONTENT_TYPE}
-        />
-        <LoraLibraryFilterCombobox
-          variant="bar"
-          label={t('libraryFamilyFilter')}
-          ariaLabel={t('baseModelFilterLabel')}
-          value={familySlug}
-          options={familyOptions}
-          onChange={(slug) =>
-            library.setBaseModel(familySlugToCivitaiBaseModel(slug))
-          }
-          changed={library.baseModel !== 'all'}
-          searchable
-          searchPlaceholder={t('baseModelSearchPlaceholder')}
-          emptyText={t('baseModelSearchEmpty')}
-        />
-        <LoraLibraryFilterCombobox
-          variant="bar"
-          label={tb('ratingLabel')}
-          ariaLabel={t('nsfwToggleHint')}
-          value={library.nsfwFilter}
-          options={nsfwOptions}
-          onChange={library.setNsfwFilter}
-          changed={library.nsfwFilter !== DEFAULT_LORA_NSFW_FILTER}
-        />
-        <LoraLibraryFilterCombobox
-          variant="bar"
-          label={t('communitySortFilter')}
-          ariaLabel={t('communitySortFilter')}
-          value={library.sort}
-          options={sortOptions}
-          onChange={(value) => {
-            if (isCivitaiLoraSort(value)) library.setSort(value)
-          }}
-          changed={library.sort !== 'Highest Rated'}
-        />
-      </div>
-
-      {/* 数量一行：精确数；搜着的时候写在搜什么。 */}
-      {settledEmpty ? null : (
-        <p
-          role="status"
-          className="flex shrink-0 items-baseline gap-2.5 px-5 pb-2.5 pt-3 text-xs text-muted-foreground"
-        >
-          {searching ? (
-            <span>{tb('searching', { query: library.debouncedSearch })}</span>
-          ) : library.total !== null ? (
+          pills={
             <>
-              <b className="text-sm font-semibold tabular-nums text-foreground">
-                {totalLabel}
-              </b>
-              <span>{tb('countUnit', { count: library.total })}</span>
+              <LoraLibraryFilterCombobox
+                variant="bar"
+                label={t('libraryFamilyFilter')}
+                ariaLabel={t('baseModelFilterLabel')}
+                value={familySlug}
+                options={familyOptions}
+                onChange={(slug) =>
+                  library.setBaseModel(familySlugToCivitaiBaseModel(slug))
+                }
+                changed={library.baseModel !== 'all'}
+                searchable
+                searchPlaceholder={t('baseModelSearchPlaceholder')}
+                emptyText={t('baseModelSearchEmpty')}
+              />
+              <LoraLibraryFilterCombobox
+                variant="bar"
+                label={tb('ratingLabel')}
+                ariaLabel={t('nsfwToggleHint')}
+                value={library.nsfwFilter}
+                options={nsfwOptions}
+                onChange={library.setNsfwFilter}
+                changed={library.nsfwFilter !== DEFAULT_LORA_NSFW_FILTER}
+              />
+              {sourceSwitch}
             </>
-          ) : null}
-        </p>
-      )}
+          }
+          end={
+            <LoraLibraryFilterCombobox
+              variant="bar"
+              label={t('communitySortFilter')}
+              ariaLabel={t('communitySortFilter')}
+              value={library.sort}
+              options={sortOptions}
+              onChange={(value) => {
+                if (isCivitaiLoraSort(value)) library.setSort(value)
+              }}
+              changed
+            />
+          }
+        />
+        <div className="flex">
+          <LiquidSegmented
+            ariaLabel={t('typeFilterLabel')}
+            value={library.contentType}
+            items={typeOptions}
+            onChange={library.setContentType}
+          />
+        </div>
+      </div>
 
       <div
         ref={scrollRef}
         aria-busy={library.isRevalidating}
         // `pt-1`：助手推荐那圈外扩 4px（2 白 + 2 黑），顶上不留这一截第一排会被裁掉。
-        className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-1"
+        className="@container relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 pt-1"
       >
         {library.isLoading ? (
-          <div className="lora-lib-grid" aria-hidden>
+          <div className={LIBRARY_GRID_CLASS} aria-hidden>
             {Array.from({ length: SKELETON_TILES }, (_, index) => (
               <div key={index} className="flex flex-col gap-1.5">
-                <span className="block aspect-3/4 rounded-xl bg-muted" />
+                <span className="block aspect-3/4 rounded-12 bg-muted" />
                 <span className="h-2.5 w-3/4 rounded bg-muted" />
                 <span className="h-2.5 w-1/2 rounded bg-muted" />
               </div>
@@ -544,7 +538,8 @@ export function LoraLibraryBrowse({
           <>
             <div
               className={cn(
-                'lora-lib-grid transition-opacity duration-base ease-linear',
+                LIBRARY_GRID_CLASS,
+                'transition-opacity duration-base ease-linear',
                 library.isReplacing && 'opacity-42',
               )}
             >
@@ -558,7 +553,7 @@ export function LoraLibraryBrowse({
                   >
                     <LoraLibraryTile
                       name={item.name}
-                      meta={`↓ ${formatCompactNumber(item.downloadCount)} · ♥ ${formatCompactNumber(item.thumbsUpCount)}`}
+                      meta={`${item.baseModelFamily} · ↓ ${formatCompactNumber(item.downloadCount)}`}
                       coverUrl={cover ? proxyCivitaiImageUrl(cover) : null}
                       coverColor={item.coverColor ?? null}
                       coverVideoUrl={item.cardVideoUrl ?? null}
@@ -571,6 +566,13 @@ export function LoraLibraryBrowse({
                       }
                       onOpen={() => setOpenItem(item)}
                       onMount={() => void handleMount(item)}
+                      favorite={{
+                        saved: isFavorited(item.loraUrl),
+                        onToggle: () => void handleFavoriteToggle(item),
+                      }}
+                      onHandToAssistant={
+                        hand ? () => hand(loraMention(item)) : undefined
+                      }
                     />
                   </div>
                 )

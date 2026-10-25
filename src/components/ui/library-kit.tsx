@@ -191,6 +191,10 @@ export function LibraryRailRow({
  * 等宽格子（不需要虚拟化的库：角色、提示词、声音……）：按这一栏自己的宽排，最宽一行 8 张
  * （`@container` 量自己，⛔ 量整屏 —— 库叫出助手时这一栏会变窄）。
  */
+/** 等宽格的列（放在 `@container` 里，按这一栏自己宽排，最多 8 列）。 */
+export const LIBRARY_GRID_CLASS =
+  'grid grid-cols-2 gap-2.5 @md:grid-cols-3 @xl:grid-cols-4 @3xl:grid-cols-6 @5xl:grid-cols-8'
+
 export function LibraryGrid({
   children,
   className,
@@ -200,12 +204,7 @@ export function LibraryGrid({
 }) {
   return (
     <div className="@container">
-      <div
-        className={cn(
-          'grid grid-cols-2 gap-2.5 @md:grid-cols-3 @xl:grid-cols-4 @3xl:grid-cols-6 @5xl:grid-cols-8',
-          className,
-        )}
-      >
+      <div className={cn(LIBRARY_GRID_CLASS, className)}>
         {children}
       </div>
     </div>

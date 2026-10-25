@@ -579,7 +579,7 @@ export function ImageEditSurface({
           aria-haspopup="dialog"
           data-testid="image-edit-task-chip"
           data-active={tasksOpen || undefined}
-          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-border pl-2.5 pr-2 text-2sm font-medium text-foreground transition-colors duration-fast ease-standard hover:border-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-[active=true]:border-foreground data-[active=true]:ring-3 data-[active=true]:ring-muted motion-reduce:transition-none"
+          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-muted pl-2.5 pr-2 text-2sm font-medium text-foreground transition-[background-color,box-shadow] duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-45 data-[active=true]:bg-fill-strong motion-reduce:transition-none"
         >
           <ActiveTaskIcon className="size-4 shrink-0" aria-hidden />
           {t(`tasks.${activeTask}.label`)}

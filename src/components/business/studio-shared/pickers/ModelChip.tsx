@@ -87,19 +87,19 @@ export function ModelChip({
       className={cn(
         compact
           ? 'inline-flex h-7 min-w-0 max-w-60 items-center gap-1 rounded-full bg-surface-fill px-2.5 text-xs text-foreground hover:bg-surface-fill-hover data-[active=true]:bg-surface-fill-track'
-          : 'inline-flex h-8 min-w-0 max-w-60 items-center gap-2 rounded-full border pl-3 pr-2.5 text-2sm',
-        'transition-colors duration-fast ease-standard motion-reduce:transition-none',
+          : 'inline-flex h-8 min-w-0 max-w-60 items-center gap-1 rounded-full pl-3 pr-2.5 text-2sm font-medium',
+        'transition-[background-color,color,box-shadow] duration-fast ease-standard motion-reduce:transition-none',
         compact
           ? 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
-          : 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+          : 'focus-visible:outline-none focus-visible:shadow-focus',
         'disabled:pointer-events-none disabled:opacity-60',
         compact
           ? null
           : warning
-            ? 'border-status-warning text-foreground'
+            ? 'bg-status-warning-surface text-foreground'
             : active
-              ? 'border-foreground text-foreground'
-              : 'border-border text-foreground hover:border-foreground/40',
+              ? 'bg-fill-strong text-foreground'
+              : 'bg-muted text-foreground hover:tint-hover',
         className,
       )}
       {...rest}

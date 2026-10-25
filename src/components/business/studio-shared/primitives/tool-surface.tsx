@@ -57,22 +57,21 @@ export function StudioPanelHeader({
 }
 
 export const studioToolTriggerClass = cn(
-  'relative inline-flex h-11 items-center gap-2 rounded-full px-3.5 text-sm font-medium text-muted-foreground transition-colors duration-fast ease-standard sm:h-9',
-  'hover:bg-muted/40 hover:text-foreground',
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-  'disabled:pointer-events-none disabled:opacity-50',
+  'relative inline-flex h-11 items-center gap-2 rounded-full bg-muted px-3.5 text-2sm font-medium text-ink-2 transition-[background-color,color,box-shadow] duration-fast ease-standard sm:h-9',
+  'hover:tint-hover hover:text-foreground',
+  'focus-visible:outline-none focus-visible:shadow-focus',
+  'disabled:pointer-events-none disabled:opacity-45',
 )
 
-export const studioChipActiveClass =
-  'bg-primary/10 text-primary ring-1 ring-primary/30'
+export const studioChipActiveClass = 'bg-fill-strong text-foreground'
 
 /**
  * 竖排参数栏里「模板 · 剧本」那一行的幽灵丸：两颗并排，⛔ 一颗带框一颗不带。
  * 开着（舞台上那块面板 / 剧本弹窗在）时换 `studioColumnChipOpenClass`。
  */
 export const studioColumnChipClass =
-  'flex h-9 items-center gap-2 rounded-full px-3 text-sm font-medium text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted/35 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 disabled:pointer-events-none disabled:opacity-50'
-export const studioColumnChipOpenClass = 'bg-muted/55 text-foreground'
+  'flex h-9 items-center gap-2 rounded-full bg-muted px-3 text-2sm font-medium text-ink-2 transition-[background-color,color,box-shadow] duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus disabled:pointer-events-none disabled:opacity-45'
+export const studioColumnChipOpenClass = 'bg-fill-strong text-foreground'
 
 export const studioToolPopoverAnchorSide = 'top' as const
 export const studioToolPopoverAnchorAlign = 'center' as const
@@ -117,11 +116,15 @@ export function useStudioChipDensity(): StudioChipDensity {
   return useContext(StudioChipDensityContext)
 }
 
+/**
+ * 药丸（ui-spec.md §9「药丸」㉕）：浅灰（`fill`）无边、32 高、全圆，和搜索框一家；
+ * 点开时深一档（`fill-strong`，⛔ 变黑）；设好了写名字、字变正文色（⛔ 换强调色）。
+ */
 export const studioOutlineChipClass = cn(
-  'relative inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-background px-3 text-2sm font-medium text-foreground transition-colors duration-fast ease-standard',
-  'hover:border-foreground/40',
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-  'disabled:pointer-events-none disabled:opacity-50',
+  'relative inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-muted px-3 text-2sm font-medium text-ink-2 transition-[background-color,color,box-shadow] duration-fast ease-standard [&_svg:not([class*=size-])]:size-3.75',
+  'hover:tint-hover hover:text-foreground',
+  'focus-visible:outline-none focus-visible:shadow-focus',
+  'disabled:pointer-events-none disabled:opacity-45',
 )
 
 export interface StudioChipClasses {
@@ -162,11 +165,10 @@ const GHOST_CHIP_CLASSES: StudioChipClasses = {
 }
 
 /** 描边药丸「挂了东西 / 改过」那一档 —— 宿主自己画的 chip（负面词、模型）也用它。 */
-export const studioOutlineChipSetClass =
-  'border-transparent bg-muted hover:border-foreground/40'
+export const studioOutlineChipSetClass = 'bg-muted text-foreground'
 
 /** 描边药丸「弹层开着（= 正在改它）」那一档 —— 宿主自己画的 chip（剧本、模型）也用它。 */
-export const studioOutlineChipOpenClass = 'border-foreground ring-3 ring-muted'
+export const studioOutlineChipOpenClass = 'bg-fill-strong text-foreground'
 
 /**
  * 描边 chip 窄了收成图标那一档（见 `StudioChipClasses.compact`）—— 宿主自己画的 chip

@@ -222,7 +222,8 @@
     "referenceOnlyFor": "この参照画像は {models} にのみ送られます。",
     "referenceNoReceiver": "今回選択中のモデルはどれも参照画像を受け取りません。",
     "attachedCount": "{count} 枚添付",
-    "attachedOfMax": "{count} 枚添付 · 最大 {max} 枚"
+    "attachedOfMax": "{count} 枚添付 · 最大 {max} 枚",
+    "thumbIndex": "画像_{index}"
   },
   "StudioForm": {
     "formLabel": "画像生成",

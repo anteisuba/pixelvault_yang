@@ -680,7 +680,6 @@ export function StudioTagsComposer({
                     className={cn(
                       'h-8 font-medium @max-4xl/composer:max-w-36 @max-6xl/tagrow:max-w-36',
                       runModels.length > 0 && studioOutlineChipSetClass,
-                      'data-[active=true]:border-foreground data-[active=true]:ring-3 data-[active=true]:ring-muted',
                     )}
                   />
                 </span>

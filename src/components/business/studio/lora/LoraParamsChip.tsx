@@ -197,14 +197,14 @@ export function LoraParamsChip({
           disabled={disabled}
           aria-label={`${t('generate.advanced.title')} · ${summary}`}
           className={cn(
-            'inline-flex h-8 min-w-0 max-w-56 items-center gap-1.5 rounded-full border px-3 text-2sm transition-colors duration-fast ease-standard',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            'disabled:pointer-events-none disabled:opacity-50',
+            'inline-flex h-8 min-w-0 max-w-56 items-center gap-1.5 rounded-full px-3 text-2sm transition-[background-color,color,box-shadow] duration-fast ease-standard',
+            'focus-visible:outline-none focus-visible:shadow-focus',
+            'disabled:pointer-events-none disabled:opacity-45',
             error
-              ? 'border-status-risk/50 bg-status-risk-surface text-status-risk'
+              ? 'bg-status-risk-surface text-status-risk'
               : open
-                ? 'border-foreground bg-background text-foreground ring-3 ring-muted'
-                : 'border-border bg-background text-foreground hover:border-foreground/40',
+                ? 'bg-fill-strong text-foreground'
+                : 'bg-muted text-foreground hover:tint-hover',
           )}
         >
           <span className="min-w-0 flex-1 truncate text-left">{summary}</span>

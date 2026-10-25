@@ -103,9 +103,8 @@ describe('Studio chip primitives', () => {
     expect(studioToolTriggerClass).toContain('font-medium')
     expect(studioToolTriggerClass).toContain('duration-fast')
     expect(studioToolTriggerClass).toContain('ease-standard')
-    expect(studioChipActiveClass).toBe(
-      'bg-primary/10 text-primary ring-1 ring-primary/30',
-    )
+    // 规范 §9 药丸：开着 = 深一档填充，⛔ 强调色 / 描边
+    expect(studioChipActiveClass).toBe('bg-fill-strong text-foreground')
   })
 
   it('renders the shared primary badge with semantic foreground tokens', () => {

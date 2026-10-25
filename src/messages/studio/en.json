@@ -222,7 +222,8 @@
     "referenceOnlyFor": "These reference images are only sent to {models}.",
     "referenceNoReceiver": "None of the selected models accept reference images this run.",
     "attachedCount": "{count} attached",
-    "attachedOfMax": "{count} attached · up to {max}"
+    "attachedOfMax": "{count} attached · up to {max}",
+    "thumbIndex": "Img_{index}"
   },
   "StudioForm": {
     "formLabel": "Image generation",

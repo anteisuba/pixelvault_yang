@@ -22,7 +22,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import {
   CharacterInlineField,
-  CharacterTagChips,
+  splitCharacterTags,
 } from '@/components/business/cards/CharacterInlineField'
 import {
   CharacterFieldEditor,
@@ -718,17 +718,19 @@ function TagsModule({
   const locale = useLocale()
   const tagWork = characterWork(card, locale).tag
   const tagWorkLabel = tagWork ? workLabelFromTag(tagWork, locale) : null
-  const removeLabel = (tag: string) => t('removeTag', { tag })
 
   return (
     <section className="mb-8 flex flex-col gap-4 border-t border-border pt-6">
       <div className="flex flex-col gap-1.5">
         <p className="text-xs text-muted-foreground">{t('fieldTags')}</p>
-        <CharacterTagChips
-          tags={look.tags}
-          addLabel={t('tagsTitle')}
-          removeLabel={removeLabel}
-          onCommit={(tags) => saveLook({ tags })}
+        {/* 标签是一段逗号隔开的字（owner 2026-10-24 ㉘），与标签台同一个写法。 */}
+        <CharacterInlineField
+          multiline
+          value={look.tags.join(', ')}
+          label={t('fieldTags')}
+          placeholder={t('tagsTitle')}
+          onCommit={(text) => saveLook({ tags: splitCharacterTags(text) })}
+          className="font-mono text-base lg:text-xs"
         />
       </div>
       <div className="grid max-w-3xl gap-x-11 gap-y-4 sm:grid-cols-2">

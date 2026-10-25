@@ -220,10 +220,10 @@ describe('PromptTemplateList（提示词页 A）', () => {
     expect(within(card).getByText('typeLora')).toBeInTheDocument()
     expect(card.textContent).toContain('祀 (Sue)0.90')
     expect(card.textContent).toContain('loraUnnamed0.60')
-    expect(within(card).getByText('sue (arknights)')).toBeInTheDocument()
+    expect(card.textContent).toContain('sue (arknights), 1girl, standing')
   })
 
-  it('标签卡一格一格：前 7 格，多的写 +N；权重写成 ×；来处与元信息', () => {
+  it('标签卡写成一段字：逗号隔开、权重写在字里；来处与元信息', () => {
     render(
       <PromptTemplateList locale="en" recipes={[NAI_ITEM, PROMPTS_ITEM]} />,
     )
@@ -231,19 +231,10 @@ describe('PromptTemplateList（提示词页 A）', () => {
     const nai = screen
       .getByRole('heading', { name: '赛璐璐少女 · 雨夜' })
       .closest('article')!
-    const chips = within(nai)
-      .getAllByRole('listitem')
-      .map((item) => item.textContent)
-    expect(chips).toEqual([
-      '1girl',
-      'solo',
-      'long hair',
-      'silver hair',
-      'blue eyes',
-      'school uniform',
-      'rain×1.2',
-      '+2',
-    ])
+    expect(nai.textContent).toContain(
+      '1girl, solo, long hair, silver hair, blue eyes, school uniform, rain:1.2',
+    )
+    expect(within(nai).queryAllByRole('listitem')).toEqual([])
     expect(within(nai).getByText('sourceTagBench')).toBeInTheDocument()
 
     const mine = screen
@@ -468,8 +459,7 @@ describe('PromptTemplateDetailPage（详情是一页）', () => {
     expect(page.textContent).toContain('Civitai 2220.60')
     expect(page.textContent).toContain('detailTagsCount:{"count":3}')
     expect(page.textContent).toContain('detailNegativeCount:{"count":2}')
-    expect(within(page).getByText('worst quality')).toBeInTheDocument()
-    expect(within(page).getByText('low quality')).toBeInTheDocument()
+    expect(page.textContent).toContain('worst quality, low quality')
     expect(
       within(page).getByRole('button', { name: 'copyTagsAction' }),
     ).toBeInTheDocument()
@@ -514,20 +504,20 @@ describe('PromptTemplateDetailPage（详情是一页）', () => {
     )
   }
 
-  it('标签台存的：负面读整组参数里那一份，各角色也是一墙格子', async () => {
+  it('标签台存的：负面读整组参数里那一份，各角色也是一段字', async () => {
     openNaiDetail()
 
     const page = await screen.findByTestId('prompt-template-detail')
     await waitFor(() =>
       expect(page.textContent).toContain('detailNegativeCount:{"count":2}'),
     )
-    expect(within(page).getByText('bad hands')).toBeInTheDocument()
+    expect(page.textContent).toContain('lowres, bad hands')
     expect(page.textContent).toContain('detailCharacter:{"n":1}')
-    expect(within(page).getByText('holding umbrella')).toBeInTheDocument()
+    expect(page.textContent).toContain('holding umbrella')
     expect(page.textContent).toContain('sourceTagBench')
   })
 
-  it('编辑标签台存的：格子里删一格负面，存的时候整组参数里那一份一起改', async () => {
+  it('编辑标签台存的：负面那段字里删掉一个，存的时候整组参数里那一份一起改', async () => {
     mockUpdateRecipe.mockResolvedValue({
       success: true,
       data: { ...NAI_DETAIL, version: 4 },
@@ -539,9 +529,9 @@ describe('PromptTemplateDetailPage（详情是一页）', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: /editShort/ }))
-    fireEvent.click(
-      screen.getByRole('button', { name: 'removeTag:{"tag":"lowres"}' }),
-    )
+    const negative = screen.getByRole('combobox', { name: 'negativeTagsLabel' })
+    expect(negative).toHaveValue('lowres, bad hands')
+    fireEvent.change(negative, { target: { value: 'bad hands' } })
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'editSubmit' }))
     })

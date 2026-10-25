@@ -71,14 +71,14 @@ import {
 } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
-import { StudioTagChipField } from '@/components/business/studio/tags/StudioTagChipField'
+import { StudioTagTextField } from '@/components/business/studio/tags/StudioTagTextField'
 import { CopyButton } from '@/components/ui/copy-button'
 import {
   PromptTemplateKindBadge,
   PromptTemplateSourceMark,
 } from './PromptTemplateKindBadge'
 import type { PromptTemplateListItem } from './PromptTemplateList'
-import { PromptTemplateTagChips } from './PromptTemplateTagChips'
+import { PromptTemplateTagText } from './PromptTemplateTagText'
 import { PromptTemplateUseMenu } from './PromptTemplateUseMenu'
 
 interface PromptTemplateDetailPageProps {
@@ -565,7 +565,7 @@ export function PromptTemplateDetailPage({
               </label>
               {editsAsChips ? (
                 <>
-                  <StudioTagChipField
+                  <StudioTagTextField
                     variant="form"
                     label={t('tagsLabel')}
                     note={t('tagsNote')}
@@ -578,7 +578,7 @@ export function PromptTemplateDetailPage({
                       })
                     }
                   />
-                  <StudioTagChipField
+                  <StudioTagTextField
                     variant="form"
                     label={t('negativeTagsLabel')}
                     polarity="negative"
@@ -715,7 +715,7 @@ export function PromptTemplateDetailPage({
                     count: parseTagChips(compiledPrompt).length,
                   })}
                 </h3>
-                <PromptTemplateTagChips text={compiledPrompt} />
+                <PromptTemplateTagText text={compiledPrompt} />
               </section>
               <section>
                 <h3 className={blockTitle}>
@@ -728,7 +728,7 @@ export function PromptTemplateDetailPage({
                 {loadState === 'loading' ? (
                   <div className="h-11 rounded-xl bg-muted" />
                 ) : negativePrompt ? (
-                  <PromptTemplateTagChips text={negativePrompt} negative />
+                  <PromptTemplateTagText text={negativePrompt} negative />
                 ) : (
                   <p className="text-2sm text-muted-foreground">
                     {t('detailNoNegative')}
@@ -740,7 +740,7 @@ export function PromptTemplateDetailPage({
                   <h3 className={blockTitle}>
                     {t('detailCharacter', { n: index + 1 })}
                   </h3>
-                  <PromptTemplateTagChips text={text} />
+                  <PromptTemplateTagText text={text} />
                 </section>
               ))}
               {formError ? (

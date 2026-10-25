@@ -27,7 +27,7 @@ import {
   PromptTemplateKindBadge,
   PromptTemplateSourceMark,
 } from './PromptTemplateKindBadge'
-import { PromptTemplateTagChips } from './PromptTemplateTagChips'
+import { PromptTemplateTagText } from './PromptTemplateTagText'
 import { PromptTemplateUseMenu } from './PromptTemplateUseMenu'
 
 /** 卡片上那一行「名字 权重」（旧存的补不到名字就是 `null`）。 */
@@ -54,9 +54,6 @@ export interface PromptTemplateListItem {
   /** 库左栏「收藏」（`Recipe.isFavorite`）。 */
   isFavorite: boolean
 }
-
-/** 卡片上的标签只画前几格，多的写「+N」（画板 `TgA`）。 */
-const CARD_TAG_LIMIT = 7
 
 interface PromptTemplateListProps {
   locale: AppLocale
@@ -375,10 +372,9 @@ function PromptTemplateCard({
           />
         ) : null}
         {tags ? (
-          <PromptTemplateTagChips
+          <PromptTemplateTagText
             text={recipe.compiledPrompt}
-            limit={CARD_TAG_LIMIT}
-            className="pointer-events-none"
+            className="pointer-events-none line-clamp-4"
           />
         ) : cover ? null : (
           <p className="pointer-events-none line-clamp-5 whitespace-pre-wrap text-2sm leading-5 text-muted-foreground">

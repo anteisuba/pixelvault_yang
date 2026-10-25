@@ -66,9 +66,9 @@ describe('focusStudioPrompt', () => {
 
   it('falls back to the positive tag input on the tag studio', () => {
     stubHoverNone(false)
-    const negative = document.createElement('input')
+    const negative = document.createElement('textarea')
     negative.dataset.tagPolarity = 'negative'
-    const positive = document.createElement('input')
+    const positive = document.createElement('textarea')
     positive.dataset.tagPolarity = 'positive'
     document.body.append(negative, positive)
 

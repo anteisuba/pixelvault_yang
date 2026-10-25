@@ -572,6 +572,14 @@
     "uploadFailed": "头像没换成功，再试一次",
     "deleteFailed": "没删成功，再试一次",
     "imageTooLarge": "图片要小于 5 MB",
-    "imageType": "只支持 JPG、PNG、WebP"
+    "imageType": "只支持 JPG、PNG、WebP",
+    "library": {
+      "all": "全部",
+      "favorites": "收藏",
+      "cloned": "我的克隆",
+      "metaCloned": "我的克隆",
+      "emptyFavoritesHint": "在「全部」里试听，喜欢的点书签收藏。",
+      "languages": "语言"
+    }
   }
 }

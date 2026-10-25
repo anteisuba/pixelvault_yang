@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/responsive-dialog'
 import { Spinner } from '@/components/ui/spinner'
 import { VoiceTrainer } from '@/components/business/studio/VoiceTrainer'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { useVoicesPage } from '@/hooks/use-voices-page'
 import { canPreviewVoiceSample } from '@/hooks/use-voice-sample-preview'
 import { charactersOfVoice, voiceAvatarCover } from '@/lib/voice-avatar'
@@ -27,13 +28,14 @@ import {
   VoiceCoverDialog,
   VoiceRenameDialog,
 } from './VoiceDialogs'
-import { VoiceTile } from './VoiceTile'
+import { VoicesLibraryDesk } from './VoicesLibraryDesk'
+import { VoiceTile, type VoiceTileActions } from './VoiceTile'
 
 /**
  * **音色库页** `/voices`（「声音」模块第 1 个 PR，owner 10-23）。
  *
  * 地台 + 白卡，与角色页同一套：上面一行是三个页签（我的收藏 · 我的克隆 · 找音色）
- * 和动作，下面一张白卡放卡片网格。找新音色与克隆在配音间的选角弹窗里也照样能做
+ * 和动作，下面一张白卡放卡片网格（手机）；桌面换成库骨架 `VoicesLibraryDesk`（ui-spec §9，样件 E S22）。找新音色与克隆在配音间的选角弹窗里也照样能做
  * （owner 10-23：选角弹窗保持原样），这一页多出来的是管理：改名、换头像、绑到角色、删除。
  */
 
@@ -45,6 +47,7 @@ const GRID_CLASS =
 export function VoicesPage() {
   const t = useTranslations('VoicesPage')
   const page = useVoicesPage()
+  const isMobile = useIsMobile()
   const { library, characters, preview } = page
 
   const [renaming, setRenaming] = useState<VoiceCardRecord | null>(null)
@@ -64,6 +67,16 @@ export function VoicesPage() {
     cloned: t('tabCloned', { count: library.cloned.length }),
     public: t('tabPublic'),
   }
+
+  const cardActions = (card: VoiceCardRecord): VoiceTileActions => ({
+    onRename: () => setRenaming(card),
+    onChangeCover:
+      charactersOfVoice(card.id, characters).length > 0
+        ? null
+        : () => setCovering(card),
+    onBind: () => setBindingId(card.id),
+    onDelete: () => setDeleting(card),
+  })
 
   const onPublic = library.tab === 'public'
   const myCards = library.tab === 'cloned' ? library.cloned : library.favorites
@@ -88,12 +101,7 @@ export function VoicesPage() {
         canPreview={canPreviewVoiceSample(target)}
         onPreview={() => preview.toggle(target)}
         pending={page.pendingId === card.id}
-        actions={{
-          onRename: () => setRenaming(card),
-          onChangeCover: bound.length > 0 ? null : () => setCovering(card),
-          onBind: () => setBindingId(card.id),
-          onDelete: () => setDeleting(card),
-        }}
+        actions={cardActions(card)}
       />
     )
   }
@@ -208,65 +216,8 @@ export function VoicesPage() {
     return <div className={GRID_CLASS}>{myCards.map(renderCard)}</div>
   })()
 
-  return (
-    <main className="workbench-ground workbench-ground-flush-phone h-page flex-col gap-3 text-foreground">
-      <h1 className="sr-only">{t('title')}</h1>
-      <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 max-md:px-4 max-md:pt-2">
-        <div
-          role="tablist"
-          aria-label={t('title')}
-          className="flex items-center gap-4"
-        >
-          {TABS.map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              role="tab"
-              aria-selected={library.tab === tab}
-              onClick={() => {
-                preview.stop()
-                library.setTab(tab)
-              }}
-              className={cn(
-                'min-h-11 text-lg font-semibold transition-colors duration-fast outline-none focus-visible:underline',
-                library.tab === tab
-                  ? 'text-foreground'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {tabLabel[tab]}
-            </button>
-          ))}
-        </div>
-        <div className="ml-auto flex min-w-0 items-center gap-2 max-md:w-full">
-          {onPublic ? (
-            <label className="flex h-9 w-72 min-w-0 items-center gap-2 rounded-full bg-background px-3.5 text-2sm text-muted-foreground max-md:flex-1">
-              <Search className="size-4 shrink-0" aria-hidden />
-              <input
-                type="search"
-                value={library.search}
-                onChange={(event) => library.setSearch(event.target.value)}
-                placeholder={t('searchPlaceholder')}
-                aria-label={t('searchPlaceholder')}
-                className="min-w-0 flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
-              />
-            </label>
-          ) : null}
-          <Button
-            type="button"
-            className="shrink-0 rounded-full"
-            onClick={() => setCloning(true)}
-          >
-            <Plus className="size-4" />
-            {t('clone')}
-          </Button>
-        </div>
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl border border-border bg-background px-5 pt-6 pb-12 max-md:rounded-none max-md:border-0 max-md:px-4 md:px-8">
-        {body}
-      </div>
-
+  const dialogs = (
+    <>
       <VoiceRenameDialog
         card={renaming}
         onOpenChange={(open) => {
@@ -326,6 +277,83 @@ export function VoicesPage() {
           />
         </ResponsiveDialogContent>
       </ResponsiveDialog>
+    </>
+  )
+
+  if (!isMobile) {
+    return (
+      <main className="flex h-page flex-col bg-background pt-3 pr-5.5 text-foreground">
+        <h1 className="sr-only">{t('title')}</h1>
+        <VoicesLibraryDesk
+          page={page}
+          onClone={() => setCloning(true)}
+          cardActions={cardActions}
+        />
+        {dialogs}
+      </main>
+    )
+  }
+
+  return (
+    <main className="workbench-ground workbench-ground-flush-phone h-page flex-col gap-3 text-foreground">
+      <h1 className="sr-only">{t('title')}</h1>
+      <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 max-md:px-4 max-md:pt-2">
+        <div
+          role="tablist"
+          aria-label={t('title')}
+          className="flex items-center gap-4"
+        >
+          {TABS.map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              role="tab"
+              aria-selected={library.tab === tab}
+              onClick={() => {
+                preview.stop()
+                library.setTab(tab)
+              }}
+              className={cn(
+                'min-h-11 text-lg font-semibold transition-colors duration-fast outline-none focus-visible:underline',
+                library.tab === tab
+                  ? 'text-foreground'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {tabLabel[tab]}
+            </button>
+          ))}
+        </div>
+        <div className="ml-auto flex min-w-0 items-center gap-2 max-md:w-full">
+          {onPublic ? (
+            <label className="flex h-9 w-72 min-w-0 items-center gap-2 rounded-full bg-background px-3.5 text-2sm text-muted-foreground max-md:flex-1">
+              <Search className="size-4 shrink-0" aria-hidden />
+              <input
+                type="search"
+                value={library.search}
+                onChange={(event) => library.setSearch(event.target.value)}
+                placeholder={t('searchPlaceholder')}
+                aria-label={t('searchPlaceholder')}
+                className="min-w-0 flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
+              />
+            </label>
+          ) : null}
+          <Button
+            type="button"
+            className="shrink-0 rounded-full"
+            onClick={() => setCloning(true)}
+          >
+            <Plus className="size-4" />
+            {t('clone')}
+          </Button>
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl border border-border bg-background px-5 pt-6 pb-12 max-md:rounded-none max-md:border-0 max-md:px-4 md:px-8">
+        {body}
+      </div>
+
+      {dialogs}
     </main>
   )
 }

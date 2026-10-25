@@ -215,9 +215,12 @@ export function LibraryGrid({
 /** 第一格的虚线「+ 新建」（角色、提示词、声音）。和格子里的图一样高（3:4）。 */
 export function LibraryNewTile({
   label,
+  icon,
   onClick,
 }: {
   label: string
+  /** 默认一颗「+」；声音库用麦克风。 */
+  icon?: ReactNode
   onClick: () => void
 }) {
   return (
@@ -226,7 +229,9 @@ export function LibraryNewTile({
       onClick={onClick}
       className="flex aspect-3/4 w-full flex-col items-center justify-center gap-1.5 rounded-12 border border-dashed border-input text-xs text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
     >
-      <Plus className="size-4.5" aria-hidden />
+      <span aria-hidden className="[&_svg]:size-4.5">
+        {icon ?? <Plus />}
+      </span>
       {label}
     </button>
   )

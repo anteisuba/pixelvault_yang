@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 
 import { zh as zhMessages } from '@/messages'
@@ -9,6 +9,11 @@ import type { UseVoicesPageReturn } from '@/hooks/use-voices-page'
 import { VoicesPage } from './VoicesPage'
 
 const pageState = vi.hoisted(() => ({ current: null as unknown }))
+const mobile = vi.hoisted(() => ({ current: false }))
+
+vi.mock('@/hooks/use-mobile', () => ({
+  useIsMobile: () => mobile.current,
+}))
 
 vi.mock('@/hooks/use-voices-page', () => ({
   useVoicesPage: () => pageState.current,
@@ -62,6 +67,10 @@ function setup(tab: 'favorites' | 'cloned' | 'public' = 'favorites') {
       error: null,
       search: '',
       setSearch: vi.fn(),
+      language: 'all',
+      setLanguage: vi.fn(),
+      sortBy: 'score',
+      setSortBy: vi.fn(),
       loadMore: vi.fn(),
       favoriteCardOf: () => null,
       toggleFavorite: vi.fn(),
@@ -91,7 +100,42 @@ function setup(tab: 'favorites' | 'cloned' | 'public' = 'favorites') {
   return { setTab }
 }
 
-describe('VoicesPage', () => {
+describe('VoicesPage · desktop library', () => {
+  it('shows the rail with counts and my voices on 全部', () => {
+    mobile.current = false
+    setup('public')
+    const rail = screen.getByRole('navigation', { name: '音色' })
+    expect(within(rail).getByText('Fish Audio')).toBeInTheDocument()
+    expect(within(rail).getByRole('button', { name: /全部/ })).toHaveAttribute(
+      'aria-current',
+      'true',
+    )
+    expect(screen.getByRole('button', { name: '克隆音色' })).toBeInTheDocument()
+    expect(screen.getByText('Warm')).toBeInTheDocument()
+    expect(screen.getByText('Mine')).toBeInTheDocument()
+    expect(screen.getByText('角色：Denia')).toBeInTheDocument()
+  })
+
+  it('switches to 收藏 through the rail', () => {
+    mobile.current = false
+    const { setTab } = setup('public')
+    const rail = screen.getByRole('navigation', { name: '音色' })
+    fireEvent.click(within(rail).getByRole('button', { name: /收藏/ }))
+    expect(setTab).toHaveBeenCalledWith('favorites')
+  })
+
+  it('lists only cloned voices on 我的克隆', () => {
+    mobile.current = false
+    setup('cloned')
+    expect(screen.getByText('Mine')).toBeInTheDocument()
+    expect(screen.queryByText('Warm')).not.toBeInTheDocument()
+  })
+})
+
+describe('VoicesPage · phone', () => {
+  beforeEach(() => {
+    mobile.current = true
+  })
   it('shows my saved voices with counts and who uses them', () => {
     setup()
     expect(screen.getByRole('tab', { name: '我的收藏 2' })).toHaveAttribute(

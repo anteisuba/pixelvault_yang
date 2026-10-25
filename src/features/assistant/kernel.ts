@@ -32,6 +32,7 @@ import {
   ASSISTANT_V3_TRANSCRIPT_ENTRY_IDS,
   type AssistantV3Tool,
 } from '@/constants/assistant-v3'
+import { getGenerationErrorI18nKey } from '@/constants/generation-errors'
 import { isGenerationError, ProviderError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { openCharacterImages } from '@/lib/assistant-v3-cards-board'
@@ -342,14 +343,42 @@ function isRejectedByProvider(error: unknown): boolean {
   )
 }
 
+/**
+ * 厂商的真话在 responseBody 里（`message` 往往只有一句 `Forbidden`）：拿它按出图同一张
+ * 码表认原因，认出来就带上对应文案（余额 / key / 限流…），⛔ 不再一律「模型调用失败」。
+ */
+function providerReasonOf(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error)
+  if (!APICallError.isInstance(error) || !error.responseBody) return message
+  try {
+    const body = JSON.parse(error.responseBody) as unknown
+    const reason =
+      typeof body === 'object' && body !== null
+        ? (body as Record<string, unknown>).error
+        : undefined
+    if (typeof reason === 'string') return `${message}: ${reason}`
+    if (typeof reason === 'object' && reason !== null) {
+      const inner = (reason as Record<string, unknown>).message
+      if (typeof inner === 'string') return `${message}: ${inner}`
+    }
+  } catch {
+    // 不是 JSON：原样截一段。
+  }
+  return `${message}: ${error.responseBody.slice(0, 300)}`
+}
+
 function toProviderError(provider: string, error: unknown): unknown {
   if (error instanceof ProviderError || isFatalOperatorToolError(error))
     return error
   const status = APICallError.isInstance(error) ? error.statusCode : undefined
-  const message = error instanceof Error ? error.message : String(error)
+  const message = providerReasonOf(error)
   logger.warn('assistant next model call failed', { provider, status, message })
+  const i18nKey = getGenerationErrorI18nKey(message, {
+    hasReferenceImage: false,
+  })
   return new ProviderError(provider, message, {
     ...(status === undefined ? {} : { status }),
+    ...(i18nKey ? { i18nKey } : {}),
   })
 }
 

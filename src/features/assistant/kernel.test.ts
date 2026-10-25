@@ -589,6 +589,28 @@ describe('新内核主循环', () => {
     expect(events.at(-1)).toMatchObject({ type: 'done' })
   })
 
+  it('厂商 403 额度用完：认出原因、带余额文案，不说成一句「调用失败」', async () => {
+    models.main = mockModel([
+      new APICallError({
+        message: 'Forbidden',
+        url: 'https://api.x.ai/v1/responses',
+        requestBodyValues: {},
+        statusCode: 403,
+        responseBody: JSON.stringify({
+          code: 'permission-denied',
+          error:
+            'Your team t-1 has either used all available credits or reached its monthly spending limit.',
+        }),
+      }),
+    ])
+    await expect(
+      collect(runAssistantNext('clerk-1', imageRequest('你好'))),
+    ).rejects.toMatchObject({
+      i18nKey: 'errors.provider.insufficientBalance',
+      message: expect.stringContaining('monthly spending limit'),
+    })
+  })
+
   it('厂商自己跑的联网：时间线上一行「联网查」，结果留给模型自己读', async () => {
     const main = mockModel([
       [

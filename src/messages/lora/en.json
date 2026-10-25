@@ -242,15 +242,12 @@
         "groupCount": "{count, plural, one {# sample} other {# samples}}",
         "noteRecipe": "Open one for the full recipe · remake it",
         "noteShowcase": "Open one to enlarge",
-        "fold": "Collapse",
-        "lineName": "“{name}”",
-        "lineCount": " · {count} samples",
-        "lineEmpty": " · no public samples",
-        "empty": "This LoRA has no public samples"
+        "lineEmpty": "{name} · no public samples",
+        "empty": "This LoRA has no public samples",
+        "lineTitle": "{name} samples"
       },
       "hintWithLora": "Write a prompt — the result shows up here",
       "hintPure": "Generate with the base model alone, or mount a LoRA from the Library",
-      "roundLabel": "This round",
       "busy": "Generating",
       "assistantBusy": "The bench is still busy (generating, or mounting recipe LoRAs) — ask again once it is done",
       "restoreShort": "Restore",
@@ -274,7 +271,6 @@
         "upscale": "Upscale"
       },
       "paramsDefaultShort": "Default",
-      "oftenMountedShort": "Often paired",
       "triggerAdd": "Add “{word}” to the prompt",
       "saveTemplate": "Save as template",
       "templateSaved": "Saved as a template",
@@ -282,7 +278,10 @@
       "templateSaveFailed": "Couldn't save it — try again",
       "templateLoadFailed": "This template couldn't be opened (it may have been deleted)",
       "negativeInert": "This base runs at CFG 1, so the negative prompt has no effect. What you wrote stays and comes back when you switch.",
-      "paramsCfg": "CFG {cfg}"
+      "paramsCfg": "CFG {cfg}",
+      "runShort": "Generate",
+      "handToAssistant": "Hand to assistant",
+      "upscaleNone": "No upscale"
     },
     "spine": {
       "sourceCheckpointAuto": "Source image checkpoint (Auto)",
@@ -317,15 +316,11 @@
       "expandAssembly": "Expand assembly",
       "toggleTriggerWord": "Toggle trigger word {word}",
       "loraLabel": "LoRA",
-      "swapBase": "Change base model",
       "stripLabel": "Assembly (collapsed)",
-      "editAssembly": "Edit assembly",
-      "stripMounted": "{count} LoRA mounted",
-      "incompatibleLine": "{family} · doesn't fit this base model, skipped when generating",
-      "compatDotOk": "Fits the current base model"
+      "incompatibleLine": "{family} · doesn't fit this base model, skipped when generating"
     },
     "trainCTA": "Train a new LoRA",
-    "trainTitle": "Train LoRA",
+    "trainTitle": "Train a new LoRA",
     "trainDescription": "Turn your own style, character, or object into a reusable Studio asset.",
     "trainSignal": {
       "dataset": "Training set",
@@ -710,6 +705,18 @@
       "confirm": "Mount {count}",
       "selectLabel": "Pick {name}",
       "mounted": "Mounted"
+    },
+    "pill": {
+      "add": "LoRA",
+      "addLabel": "Add LoRA",
+      "openLabel": "{name} · weight {scale}",
+      "weight": "Weight",
+      "triggers": "Triggers",
+      "remove": "Unmount",
+      "sourceTrained": "Trained",
+      "sourceImported": "Your favorites",
+      "sourceCurated": "Curated",
+      "incompatible": "Won't fit"
     }
   },
   "CivitaiToken": {

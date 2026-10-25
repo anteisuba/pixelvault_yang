@@ -39,6 +39,7 @@ import {
 import { Button } from '@/components/ui/button'
 import {
   LIBRARY_GRID_CLASS,
+  LibraryNewTile,
   LibrarySearch,
   LibraryToolbar,
 } from '@/components/ui/library-kit'
@@ -50,6 +51,7 @@ import {
 } from './LoraLibraryDetailPage'
 import { LoraLibraryFilterCombobox } from './LoraLibraryFilterCombobox'
 import { LoraLibraryTile, loraMention } from './LoraLibraryTile'
+import { useLoraPickSelection } from './lora-pick-selection'
 
 /** 左栏「收藏 / 自训 / 角色」三行各开一格（ui-spec §9，样件 E S19）。 */
 export type FavoritesSection = 'favorites' | 'trained' | 'characters'
@@ -156,6 +158,9 @@ export function LoraFavoritesBrowse({
 
   const [characterId, setCharacterId] = useState(ALL_CHARACTERS)
   const [query, setQuery] = useState('')
+  // 训练入口 = 「自训」那一栏第一格虚线「训练新 LoRA」（ui-spec ㊲，owner 10-25）；挑选框里只管挑，不给。
+  const picking = useLoraPickSelection() !== null
+  const showTrainTile = section === 'trained' && !picking
   const [family, setFamily] = useState('all')
   const [sort, setSort] = useState<FavoritesSort>('newest')
   const [openAsset, setOpenAsset] = useState<LoraAssetRecord | null>(null)
@@ -398,6 +403,10 @@ export function LoraFavoritesBrowse({
               </div>
             ))}
           </div>
+        ) : source.length === 0 && showTrainTile ? (
+          <div className={LIBRARY_GRID_CLASS}>
+            <LibraryNewTile label={t('trainTitle')} onClick={onGoTrain} />
+          </div>
         ) : source.length === 0 ? (
           <div className="grid h-full place-items-center">
             <div className="flex max-w-100 flex-col items-center gap-3 text-center">
@@ -427,6 +436,9 @@ export function LoraFavoritesBrowse({
         ) : (
           <>
             <div className={LIBRARY_GRID_CLASS}>
+              {showTrainTile && !trimmedQuery ? (
+                <LibraryNewTile label={t('trainTitle')} onClick={onGoTrain} />
+              ) : null}
               {shown.map((asset) => (
                 <LoraLibraryTile
                   key={asset.id}

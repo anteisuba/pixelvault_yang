@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 
-import { ChevronDown } from '@/components/icons'
+import { SlidersHorizontal } from '@/components/icons'
 import { RUNNER_SAMPLERS, RUNNER_SCHEDULERS } from '@/constants/runner-sampling'
 import {
   ResponsivePopover,
@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
-import { Switch } from '@/components/ui/switch'
+import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import {
   studioToolPopoverBaseClass,
   useStudioChipPopoverMotion,
@@ -31,8 +31,6 @@ const DEFAULT_OPTION = '__model_default__'
 export type LoraRunnerUpscaler = 'none' | '4x-AnimeSharp'
 
 interface LoraParamsChipProps {
-  /** 弹层标题里的底模名（「参数 · WAI-Illustrious v15」）。 */
-  baseLabel: string
   sampler: string
   onSamplerChange: (value: string) => void
   scheduler: string
@@ -73,7 +71,6 @@ interface LoraParamsChipProps {
  * ⚠ 每一格留空 = 底模默认：值原样是字符串，空串才是「没改」，⛔ 不塞一个假的默认数。
  */
 export function LoraParamsChip({
-  baseLabel,
   sampler,
   onSamplerChange,
   scheduler,
@@ -118,12 +115,13 @@ export function LoraParamsChip({
   const seedFixed = seed.trim().length > 0
 
   const row = (label: string, control: React.ReactNode) => (
-    <div className="flex min-h-7.5 items-center gap-2.5 text-2sm">
+    <div className="flex min-h-8 items-center gap-3 text-2sm">
       <span className="w-14 shrink-0 text-muted-foreground">{label}</span>
       {control}
     </div>
   )
 
+  // 步数 / CFG：黑色胖条（ui-spec §9「滑杆」），值写在右边；没动过写底模默认（浅字）。
   const numberField = (
     label: string,
     value: string,
@@ -132,17 +130,17 @@ export function LoraParamsChip({
   ) =>
     row(
       label,
-      <div className="flex min-w-0 flex-1 items-center gap-2.5">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
         <Slider
+          look="bar"
           aria-label={t('generate.advanced.sliderLabel', { label })}
           min={range.min}
           max={range.max}
           step={range.step}
           value={[Number(value) || range.fallback]}
           onValueChange={([next]) => onChange(String(next))}
-          trackClassName="data-[orientation=horizontal]:h-1 bg-surface-fill-track"
-          thumbClassName="size-3.5 border-0 bg-background shadow-sm ring-1 ring-foreground/20"
         />
+        {/* 值写在右边（等宽）：也能直接敲一个数；没动过时浅字写底模默认。 */}
         <Input
           type="number"
           min={range.min}
@@ -150,13 +148,14 @@ export function LoraParamsChip({
           step={range.step}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          placeholder={t('generate.paramsDefaultShort')}
+          placeholder={String(range.fallback)}
           aria-label={label}
-          className="h-8 w-16 shrink-0 border-border bg-transparent px-2 text-right font-mono tabular-nums placeholder:font-sans md:text-xs"
+          className="h-7 w-11 shrink-0 border-0 bg-transparent px-0 text-right font-mono tabular-nums shadow-none placeholder:text-muted-foreground md:text-xs"
         />
       </div>,
     )
 
+  // 采样器 / 调度器：灰底下拉，没动过写「默认」浅字。
   const selectField = (
     label: string,
     value: string,
@@ -172,13 +171,16 @@ export function LoraParamsChip({
         <SelectTrigger
           size="sm"
           aria-label={label}
-          className="min-w-0 flex-1 border-border bg-transparent md:text-xs"
+          className={cn(
+            'min-w-0 flex-1 border-0 bg-muted font-mono shadow-none md:text-xs',
+            !value && 'font-sans text-muted-foreground',
+          )}
         >
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value={DEFAULT_OPTION}>
-            {t('generate.advanced.modelDefault')}
+            {t('generate.paramsDefaultShort')}
           </SelectItem>
           {options.map((option) => (
             <SelectItem key={option} value={option}>
@@ -187,6 +189,27 @@ export function LoraParamsChip({
           ))}
         </SelectContent>
       </Select>,
+    )
+
+  // Seed / 放大：小号切换条（ui-spec ㊲ `LoraParams`）。
+  const toggleField = <T extends string>(
+    label: string,
+    ariaLabel: string,
+    value: T,
+    items: readonly { value: T; label: string }[],
+    onChange: (value: T) => void,
+  ) =>
+    row(
+      label,
+      <LiquidSegmented
+        ariaLabel={ariaLabel}
+        size="row"
+        semantics="radio"
+        fill
+        value={value}
+        items={items}
+        onChange={onChange}
+      />,
     )
 
   return (
@@ -207,14 +230,11 @@ export function LoraParamsChip({
                 : 'bg-muted text-foreground hover:tint-hover',
           )}
         >
-          <span className="min-w-0 flex-1 truncate text-left">{summary}</span>
-          <ChevronDown
+          <SlidersHorizontal
             aria-hidden
-            className={cn(
-              'size-3.5 shrink-0 text-muted-foreground transition-transform duration-base ease-standard',
-              open && 'rotate-180',
-            )}
+            className="size-3.75 shrink-0 text-muted-foreground"
           />
+          <span className="min-w-0 flex-1 truncate text-left">{summary}</span>
         </button>
       </ResponsivePopoverTrigger>
       <ResponsivePopoverContent
@@ -226,14 +246,11 @@ export function LoraParamsChip({
         style={motion.style}
         className={cn(
           studioToolPopoverBaseClass,
-          'w-80 overflow-y-auto overscroll-contain p-4',
+          'w-85 overflow-y-auto overscroll-contain p-3.5',
           motion.className,
         )}
       >
-        <div className="flex flex-col gap-3">
-          <h4 className="text-xs font-semibold text-foreground/80">
-            {t('generate.paramsTitle', { base: baseLabel })}
-          </h4>
+        <div className="flex flex-col gap-2.5">
           {error ? (
             <p
               role="alert"
@@ -266,58 +283,36 @@ export function LoraParamsChip({
             step: 0.1,
             fallback: defaults?.cfg ?? 7,
           })}
-          {row(
+          {toggleField(
             t('generate.paramsLabels.seed'),
-            <div className="flex min-w-0 flex-1 items-center gap-2.5">
-              <label className="inline-flex shrink-0 items-center gap-2 text-2sm text-foreground/80">
-                <Switch
-                  checked={seedFixed}
-                  onCheckedChange={(fixed) =>
-                    onSeedChange(fixed ? seedToFix() : '')
-                  }
-                  aria-label={t('generate.seedFixed')}
-                />
-                {t('generate.seedFixed')}
-              </label>
-              {seedFixed ? (
-                <Input
-                  value={seed}
-                  onChange={(event) => onSeedChange(event.target.value.trim())}
-                  inputMode="numeric"
-                  aria-label={t('generate.advanced.seed')}
-                  className="h-8 min-w-0 flex-1 border-border bg-transparent px-2 font-mono tabular-nums md:text-xs"
-                />
-              ) : (
-                <span className="ml-auto text-2sm text-muted-foreground">
-                  {t('generate.seedRandom')}
-                </span>
-              )}
-            </div>,
+            t('generate.paramsLabels.seed'),
+            seedFixed ? 'fixed' : 'random',
+            [
+              { value: 'random', label: t('generate.seedRandom') },
+              { value: 'fixed', label: t('generate.seedFixed') },
+            ],
+            (next) => onSeedChange(next === 'fixed' ? seedToFix() : ''),
           )}
-          {row(
+          {seedFixed ? (
+            <div className="flex items-center gap-3 pl-17">
+              <Input
+                value={seed}
+                onChange={(event) => onSeedChange(event.target.value.trim())}
+                inputMode="numeric"
+                aria-label={t('generate.advanced.seed')}
+                className="h-8 min-w-0 flex-1 border-0 bg-muted px-2.5 font-mono tabular-nums shadow-none md:text-xs"
+              />
+            </div>
+          ) : null}
+          {toggleField(
             t('generate.paramsLabels.upscale'),
-            <Select
-              value={upscaler}
-              onValueChange={(next) =>
-                onUpscalerChange(
-                  next === '4x-AnimeSharp' ? '4x-AnimeSharp' : 'none',
-                )
-              }
-            >
-              <SelectTrigger
-                size="sm"
-                aria-label={t('generate.advanced.upscaler')}
-                className="min-w-0 flex-1 border-border bg-transparent md:text-xs"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">
-                  {t('generate.advanced.upscalerNone')}
-                </SelectItem>
-                <SelectItem value="4x-AnimeSharp">4x-AnimeSharp</SelectItem>
-              </SelectContent>
-            </Select>,
+            t('generate.advanced.upscaler'),
+            upscaler,
+            [
+              { value: 'none', label: t('generate.upscaleNone') },
+              { value: '4x-AnimeSharp', label: '4x-AnimeSharp' },
+            ],
+            onUpscalerChange,
           )}
           {upscaleNote ? (
             <p
@@ -334,9 +329,6 @@ export function LoraParamsChip({
           {hiresNote ? (
             <p className="text-xs text-muted-foreground">{hiresNote}</p>
           ) : null}
-          <p className="text-xs text-muted-foreground">
-            {t('generate.paramsDefaultNote')}
-          </p>
         </div>
       </ResponsivePopoverContent>
     </ResponsivePopover>

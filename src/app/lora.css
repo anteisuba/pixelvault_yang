@@ -74,6 +74,11 @@
   }
 }
 
+/* 桌面台（ui-spec ㊲）：板里不再套卡、不铺工作台灰 —— 台面直接落在白板上。 */
+.domain-lora.lora-bench {
+  background: transparent;
+}
+
 .domain-lora .lora-ground {
   display: flex;
   flex-direction: column;
@@ -170,11 +175,10 @@
 /* CD④ Prompt 内联触发词高亮：背板层里命中触发词的片段。只用不占宽度的装饰
  * （底色 + 下边线），不改字体/内边距——背板必须与 textarea 逐字对齐，任何改变
  * 字宽的样式都会让高亮块和真实文字错位。 */
+/* 触发词就写在提示词里（ui-spec ㊲）：@ 引用那种浅底（`highlight-soft`）。 */
 .domain-lora .lora-trigger-hl {
-  border-radius: 3px;
-  background: color-mix(in oklab, var(--primary) 24%, transparent);
-  box-shadow: inset 0 -2px 0
-    color-mix(in oklab, var(--primary) 75%, transparent);
+  border-radius: 4px;
+  background: var(--highlight-soft);
 }
 
 /* ⚠ 退役（B 稿 2026-09-03）：`.lora-mobile-actionbar` 曾把出图条钉成

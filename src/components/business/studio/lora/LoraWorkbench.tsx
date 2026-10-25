@@ -2,7 +2,6 @@
 
 import {
   useCallback,
-  useContext,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -10,7 +9,6 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { createPortal } from 'react-dom'
 import { useSearchParams } from 'next/navigation'
 import { useUser } from '@clerk/nextjs'
 import { motion, useTransform } from 'motion/react'
@@ -80,10 +78,7 @@ import {
 import { RUNNER_SAMPLERS, RUNNER_SCHEDULERS } from '@/constants/runner-sampling'
 import { STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR } from '@/constants/studio-assistant-operator'
 import { ROUTES } from '@/constants/routes'
-import {
-  studioLibraryPath,
-  studioLibraryPickPath,
-} from '@/constants/studio-shell'
+import { studioLibraryPath } from '@/constants/studio-shell'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import type { AspectRatio } from '@/constants/config'
 import {
@@ -109,19 +104,15 @@ import { useLoraAssets } from '@/hooks/use-lora-assets'
 import { MOBILE_BREAKPOINT, useIsMobile } from '@/hooks/use-mobile'
 import { TrainWizard } from '@/components/business/studio/lora/training/TrainWizard'
 import { LoraAssetCard } from '@/components/business/studio/lora/LoraAssetCard'
-import { LoraAssemblyColumn } from '@/components/business/studio/lora/LoraAssemblyColumn'
-import {
-  CharacterLoraPickDialog,
-  CharacterLoraPicker,
-} from '@/components/business/studio/lora/CharacterLoraPickDialog'
-import { StudioLibraryTargetContext } from '@/components/business/studio/shell/StudioLibraryOverlay'
-import { StudioLibraryPickFrame } from '@/components/business/studio/shell/StudioLibraryPickFrame'
+import { CharacterLoraPickDialog } from '@/components/business/studio/lora/CharacterLoraPickDialog'
 import {
   CharacterLorasProvider,
   useCharacterLorasContext,
 } from '@/components/business/studio/lora/character-loras-context'
 import { useCharacterLoras } from '@/hooks/cards/use-character-loras'
 import { LoraNegativeInertHint } from '@/components/business/studio/lora/LoraNegativeInertHint'
+import { LoraBasePill } from '@/components/business/studio/lora/LoraBasePill'
+import { LoraMountPills } from '@/components/business/studio/lora/LoraMountPills'
 import { LoraParamsChip } from '@/components/business/studio/lora/LoraParamsChip'
 import {
   LoraRecipeViewer,
@@ -142,7 +133,6 @@ import {
 } from '@/components/ui/dialog'
 import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer'
 import { Input } from '@/components/ui/input'
-import { LiquidSegmented } from '@/components/ui/liquid-segmented'
 import {
   Select,
   SelectContent,
@@ -245,16 +235,13 @@ import {
 import { AssistantLoraParametersSchema } from '@/types/assistant-operator'
 import { PromptTriggerHighlight } from '@/components/business/studio/lora/PromptTriggerHighlight'
 import { LoraReferenceImageCards } from '@/components/business/studio/lora/LoraReferenceImageCards'
-import {
-  useLibraryPickSlot,
-  useRegisterLoraLibraryPick,
-} from '@/contexts/studio-library-pick'
+import { useRegisterLoraLibraryPick } from '@/contexts/studio-library-pick'
 import { LoraScaleChip } from '@/components/business/studio/lora/LoraScaleChip'
 import type { TriggerChipEntry } from '@/components/business/studio/lora/TriggerChipRow'
 import {
   StudioChipLookProvider,
   studioOutlineChipClass,
-  studioOutlineChipSetClass,
+  studioOutlineChipOpenClass,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 import {
   buildSavedModelOptionsForModels,
@@ -377,18 +364,6 @@ export function LoraWorkbench() {
     [setActiveSection],
   )
 
-  /**
-   * 桌面顶上那排液态分段：点下去**当场**就走，不等路由换完 —— 路由报回来之前先按
-   * 点中的那一格画，报回来就以路由为准（与图片台写法切换同一写法）。
-   */
-  const [pendingSection, setPendingSection] =
-    useState<LoraWorkbenchSection | null>(null)
-  const [routedSection, setRoutedSection] = useState(activeSection)
-  if (routedSection !== activeSection) {
-    setRoutedSection(activeSection)
-    setPendingSection(null)
-  }
-
   // owner 2026-08-07：「我的」从库内的 公开/我的 segmented 提升为一等 tab（改名
   // 「收藏」），公开那半随之取消——库 tab 本身就是公开源，不必再给一个二选一。
   // 于是 section 与 tab 值一一对应，不再需要把 mine 折回 community。
@@ -484,33 +459,11 @@ export function LoraWorkbench() {
           style={{ paddingRight: groundPaddingRight }}
           // ⚠ 顶上一行定高 `h-9`、行距 `gap-3`：助手面板按这两个数对齐舞台顶边
           //   （`STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR`），改这里必须改那边。
-          className="domain-lora lora-locked-height flex w-full min-h-0 flex-col gap-3 overflow-hidden"
+          className="domain-lora lora-bench lora-locked-height flex w-full min-h-0 flex-col gap-3 overflow-hidden"
         >
-          <div className="flex h-9 shrink-0 items-center gap-3.5">
-            <h1 className="text-sm font-semibold text-muted-foreground">
-              {t('pageTitle')}
-            </h1>
-            <LiquidSegmented
-              ariaLabel={t('tabsLabel')}
-              value={pendingSection ?? activeSection}
-              items={[
-                {
-                  value: LORA_WORKBENCH_SECTIONS.GENERATE,
-                  label: t('tabs.generate'),
-                },
-                {
-                  value: LORA_WORKBENCH_SECTIONS.TRAIN,
-                  label: t('tabs.train'),
-                },
-              ]}
-              onChange={(section) => {
-                setPendingSection(section)
-                setActiveSection(section)
-              }}
-            />
-          </div>
           {isGenerate || isLibrary ? (
-            // 库 / 收藏搬去外壳中间的库叠层了（第 9f 步 9f-2b）：这里只剩生成台。
+            // 库 / 收藏搬去外壳中间的库叠层了（第 9f 步 9f-2b）：这里只剩生成台；
+            // 训练从 LoRA 库「自训」那一栏第一格进来（ui-spec ㊲，owner 10-25）。
             <div className="flex min-h-0 flex-1 animate-in flex-col gap-3 fade-in duration-200">
               <GenerateBranch
                 assistantOpen={assistantOpen}
@@ -520,14 +473,26 @@ export function LoraWorkbench() {
               />
             </div>
           ) : (
-            <div
-              key={bodyKey}
-              className="workbench-card min-h-0 flex-1 animate-in fade-in duration-200"
-            >
-              <div className="min-h-0 flex-1 overflow-y-auto p-4">
+            <>
+              <div className="flex h-9 shrink-0 items-center">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setActiveSection(DEFAULT_LORA_WORKBENCH_SECTION)
+                  }
+                  className="inline-flex h-8 items-center gap-1 rounded-full pr-3 pl-2 text-2sm font-medium text-foreground transition-colors duration-fast hover:bg-muted focus-visible:outline-none focus-visible:shadow-focus"
+                >
+                  <ChevronLeft className="size-4" aria-hidden />
+                  {t('trainTitle')}
+                </button>
+              </div>
+              <div
+                key={bodyKey}
+                className="min-h-0 flex-1 animate-in overflow-y-auto fade-in duration-200"
+              >
                 <TrainWizard />
               </div>
-            </div>
+            </>
           )}
         </motion.div>
       </CharacterLorasProvider>
@@ -2008,23 +1973,15 @@ function GenerateBranch({
   // 标签就在提示里问一句要不要加进正文（默认不加，⛔ 自动写）。
   const characterLorasContext = useCharacterLorasContext()
   const tCharacterLoras = useTranslations('LoraWorkbench.characterLoras')
-  const tStudioTools = useTranslations('StudioTools')
-  // 桌面开在外壳中间库叠层的角色那一格（第 9f 步 9f-2d），手机仍是弹窗。
+  // 只有手机还有这一颗（弹窗）：桌面并进「挑 LoRA」框左栏的「角色」（ui-spec ㊲，owner 10-25）。
   const [characterPickOpen, setCharacterPickOpen] = useState(false)
-  const characterPickSlot = useLibraryPickSlot(
-    'cards',
-    isMobile ? null : tStudioTools('tools.lora.label'),
-  )
-  const closeLibrary = useContext(StudioLibraryTargetContext)?.close
   const openCharacterPick = useCallback(() => {
-    if (isMobile) setCharacterPickOpen(true)
-    else if (!characterPickSlot) router.push(studioLibraryPickPath('cards'))
+    setCharacterPickOpen(true)
     void characterLorasContext?.refresh()
-  }, [characterLorasContext, characterPickSlot, isMobile, router])
+  }, [characterLorasContext])
   const handlePickCharacterLora = useCallback(
     (group: CharacterLoraGroup, lora: LoraAssetRecord) => {
       setCharacterPickOpen(false)
-      if (characterPickSlot) closeLibrary?.()
       if (!stack.items.some((item) => item.asset.id === lora.id)) {
         stack.push(lora)
       }
@@ -2051,7 +2008,7 @@ function GenerateBranch({
           : { duration: LORA_TOAST_DURATION_MS },
       )
     },
-    [characterPickSlot, closeLibrary, stack, tCharacterLoras],
+    [stack, tCharacterLoras],
   )
 
   // 库判断「装不装得上」要的底模从这里给（lora-library.md §4）：库叠在外壳中间，
@@ -2878,8 +2835,14 @@ function GenerateBranch({
     </div>
   ) : null
 
-  // 额度提示：平台总闸（platformEnabled）优先于余额。桌面落在装配列底，手机落在
-  // 装配抽屉底 —— ⛔ 不挤进输入框（窄屏会把出图键顶出视口）。
+  // 额度提示：平台总闸（platformEnabled）优先于余额。桌面落在底模列表最底下一行，手机
+  // 落在装配抽屉底 —— ⛔ 不挤进手机输入框（窄屏会把出图键顶出视口）。出不了图的那两档
+  // （总闸关 / 次数用完）桌面另在输入框里说一句，⛔ 只藏在列表底。
+  const runnerBudgetBlocked =
+    isRunnerBase &&
+    runnerUsage?.enabled === true &&
+    (!runnerUsage.platformEnabled ||
+      (!runnerUsage.exempt && runnerUsage.remaining <= 0))
   const runnerBudgetNote =
     isRunnerBase && runnerUsage?.enabled ? (
       <p
@@ -2907,7 +2870,7 @@ function GenerateBranch({
       </p>
     ) : null
 
-  // 手机装配抽屉里的整条装配（桌面走舞台里的 `LoraAssemblyColumn`，参数进工具行
+  // 手机装配抽屉里的整条装配（桌面走输入框里的 `LoraMountPills`，参数进工具行
   // 的「参数」chip）。两套骨架不同屏，⛔ 不会出现两份挂载栈 UI 同时在场。
   const mobileAssemblyColumn = (
     <>
@@ -3060,24 +3023,6 @@ function GenerateBranch({
   // 两套骨架共用的弹层：缺 key 快速配置 · 结果大图 · 库。
   const sharedDialogs = (
     <>
-      {characterLorasContext && characterPickSlot
-        ? createPortal(
-            <StudioLibraryPickFrame
-              benchLabel={tStudioTools('tools.lora.label')}
-            >
-              <CharacterLoraPicker
-                groups={characterLorasContext.groups}
-                isLoading={characterLorasContext.isLoading}
-                isMounted={(assetId) =>
-                  stack.items.some((item) => item.asset.id === assetId)
-                }
-                onPick={handlePickCharacterLora}
-              />
-            </StudioLibraryPickFrame>,
-            characterPickSlot,
-            'lora-character-pick',
-          )
-        : null}
       {characterLorasContext && isMobile ? (
         <CharacterLoraPickDialog
           open={characterPickOpen}
@@ -3159,7 +3104,6 @@ function GenerateBranch({
    */
   const loraParamsChip = isRunnerBase ? (
     <LoraParamsChip
-      baseLabel={selectedBase ? operatorBaseLabel(selectedBase) : ''}
       sampler={runnerSampler}
       onSamplerChange={setRunnerSampler}
       scheduler={runnerScheduler}
@@ -3896,19 +3840,20 @@ function GenerateBranch({
     )
   }
 
-  // ── 桌面（≥1024）：生成台 B（lora-generate.md §2）──────────────────────────
-  // 来源图带（§2.2）：没挂 LoRA 不出现；出图中与出过图都收成一行（结果卡是主角，
-  // owner 09-29「图片太小了」），点它长回整条。
-  // 失败也留在原地说为什么（加载态 A），同样是结果卡在说话。
-  const stageHasResult =
-    displayedResultUrl !== null ||
-    showGeneratingOverlay ||
-    Boolean(generateError)
+  // ── 桌面（≥1024）：LoRA 台（ui-spec ㊲ · lora-generate.md §2）────────────────
+  // 顶上一行「{LoRA} 出过的图 N ›」：没挂 LoRA 不出现，点它长出浮层盖在图上。
   const bandMode: LoraSourceBandMode = !hasLora
     ? 'hidden'
-    : stageHasResult && !bandExpanded
-      ? 'line'
-      : 'open'
+    : bandExpanded
+      ? 'open'
+      : 'line'
+  // 台面上那一格格：这次出的图（新的在前）；会话里还没记着、但钩子手上有上一张的，补它一格。
+  const resultRound =
+    resultHistory.length > 0
+      ? resultHistory
+      : lastGeneration?.url
+        ? [{ id: lastGeneration.id, url: lastGeneration.url }]
+        : []
   const bandKind = hfSource
     ? hfShowcase.isLoading
       ? 'loading'
@@ -3975,25 +3920,6 @@ function GenerateBranch({
         {t('generate.band.empty')}
       </p>
     )
-
-  // 图下右侧那行元信息：只写这一张真的带着的值（快照里空着的格子省略）。
-  const resultMetaLine = selectedResult
-    ? [
-        selectedResult.width != null && selectedResult.height != null
-          ? `${selectedResult.width}×${selectedResult.height}`
-          : null,
-        selectedResult.sampler,
-        selectedResult.steps != null
-          ? t('generate.resultMetaSteps', { steps: selectedResult.steps })
-          : null,
-        selectedResult.cfg != null ? `CFG ${selectedResult.cfg}` : null,
-        selectedResult.seed != null
-          ? t('generate.resultMetaSeed', { seed: selectedResult.seed })
-          : null,
-      ]
-        .filter((part): part is string => Boolean(part))
-        .join(' · ') || null
-    : null
 
   // 「比例」chip：与图片台同一颗 `SpecChip`，只有比例一段；Runner 底模在虚线下多一格
   // 精确宽高。本域一次出一张，⛔ 不画张数。
@@ -4072,145 +3998,109 @@ function GenerateBranch({
     <StudioOperatorHostProvider host={shellHost}>
       {sharedDialogs}
 
-      {/* 舞台（§2.1–2.3）：左边装配列，右边 来源图带 → 结果。 */}
+      {/* 顶上一行（ui-spec ㊲）：「{LoRA} 出过的图 N ›」，点它长出浮层盖在图上。
+          ⚠ 定高 `h-9`、与舞台隔 `gap-3`：助手面板按这两个数对齐舞台顶边
+          （`STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR`），改这里必须改那边。 */}
+      <div className="flex h-9 shrink-0 items-center">
+        <LoraSourceBand
+          mode={bandMode}
+          onExpand={() => setBandExpanded(true)}
+          onFold={() => setBandExpanded(false)}
+          // 样例大图开着时点外面 / Esc 交给大图，浮层留着接着挑。
+          dismissible={!viewerOpen}
+          groups={stack.items.map((item) => ({
+            id: item.asset.id,
+            name: item.asset.name,
+            cover: item.asset.coverImageUrl ?? null,
+          }))}
+          activeGroupId={recipeGroupKey}
+          onSelectGroup={setRecipeGroupAssetId}
+          count={bandKind === 'loading' ? null : bandImages.length}
+          note={
+            bandKind === 'recipes'
+              ? t('generate.band.noteRecipe')
+              : bandKind === 'showcase' || bandKind === 'previews'
+                ? t('generate.band.noteShowcase')
+                : ''
+          }
+          lineThumbs={bandImages.slice(0, 3)}
+        >
+          {bandContent}
+        </LoraSourceBand>
+      </div>
+
+      {/* 台面只放图（ui-spec ㊲）：这次出的图一行 4 张。 */}
       <section
+        ref={stageRightRef}
         aria-label={t('stageLabel')}
-        className="workbench-card min-h-0 flex-row"
+        className="relative flex min-h-0 flex-1 flex-col"
       >
-        <LoraAssemblyColumn
-          compatibleBases={compatibleBases}
-          selectedBase={selectedBase}
-          onSelectBase={handleSelectBase}
-          needsKeySetup={needsKeySetup}
-          onRequestKeySetup={() =>
-            workspaceOptionForBase && openKeySetupFor(workspaceOptionForBase)
+        <LoraResultStage
+          round={resultRound}
+          generating={showGeneratingOverlay}
+          isCompleting={isCompletingGeneration}
+          completionReleased={completionReleased}
+          onEdgeRelease={() => setCompletionReleased(true)}
+          onCompleteAnimationDone={() => setIsCompletingGeneration(false)}
+          elapsedSeconds={elapsedSeconds}
+          stageLabel={generatingStageLabel}
+          paramsLine={generatingParamsLine}
+          failure={
+            !isGenerating && generateError
+              ? {
+                  message: generateError,
+                  retryLabel: t('generate.resultFailedRetry'),
+                  ...(canGenerate ? { onRetry: handleGenerateClick } : {}),
+                }
+              : null
           }
-          loraScaleConfig={loraScaleConfig}
-          onAddLora={addLora}
-          onPickFromCharacter={openCharacterPick}
-          collapsed={assemblyCollapsed}
-          onCollapsedChange={setAssemblyCollapsed}
-          oftenMounted={
-            <LoraOftenMountedWithRow
-              variant="column"
-              extras={oftenMountedExtras}
-              statusByKey={extraMountStatusByKey}
-              onMountExtra={handleMountExtraLora}
-            />
+          onCancel={
+            isGenerating && activeGenerateItem
+              ? () => cancelRunItem(activeGenerateItem.id)
+              : undefined
           }
-          budget={runnerBudgetNote ?? undefined}
+          onOpen={(id) => {
+            setSelectedResultId(id)
+            setResultPreviewOpen(true)
+          }}
+          onAskAssistant={handleAskAssistantAboutResult}
+          templateSaveFor={(id) => {
+            const item = resultHistory.find((entry) => entry.id === id)
+            return item
+              ? {
+                  state: templateSaves[item.id] ?? 'idle',
+                  onSave: () => void handleSaveTemplate(item),
+                }
+              : undefined
+          }}
+          hint={hasLora ? t('generate.hintWithLora') : t('generate.hintPure')}
+          eta={
+            isGenerating && isRunnerBase
+              ? isRunnerColdStart
+                ? t('generate.etaColdStart', LORA_RUNNER_COLD_START_MINUTES)
+                : t('generate.eta', LORA_RUNNER_ETA_SECONDS)
+              : null
+          }
         />
-        <div className="relative min-w-0 flex-1">
-          <div
-            ref={stageRightRef}
-            className="absolute inset-0 flex min-w-0 flex-col"
-          >
-            <LoraSourceBand
-              mode={bandMode}
-              onExpand={() => setBandExpanded(true)}
-              onFold={() => setBandExpanded(false)}
-              canFold={stageHasResult}
-              // 出过图之后点开是浮层，盖在图上不推图（§2.2，owner 09-29 第二轮 A）；
-              // 样例大图开着时点外面 / Esc 交给大图，浮层留着接着挑。
-              overlay={stageHasResult}
-              dismissible={!viewerOpen}
-              groups={stack.items.map((item) => ({
-                id: item.asset.id,
-                name: item.asset.name,
-                cover: item.asset.coverImageUrl ?? null,
-              }))}
-              activeGroupId={recipeGroupKey}
-              onSelectGroup={setRecipeGroupAssetId}
-              count={bandKind === 'loading' ? null : bandImages.length}
-              note={
-                bandKind === 'recipes'
-                  ? t('generate.band.noteRecipe')
-                  : bandKind === 'showcase' || bandKind === 'previews'
-                    ? t('generate.band.noteShowcase')
-                    : ''
-              }
-              lineThumbs={bandImages.slice(0, 3)}
-            >
-              {bandContent}
-            </LoraSourceBand>
-            <LoraResultStage
-              resultUrl={displayedResultUrl}
-              resultRatio={displayedAspect}
-              pendingRatio={previewDimensions.width / previewDimensions.height}
-              generating={showGeneratingOverlay}
-              isCompleting={isCompletingGeneration}
-              completionReleased={completionReleased}
-              onEdgeRelease={() => setCompletionReleased(true)}
-              onCompleteAnimationDone={() => setIsCompletingGeneration(false)}
-              elapsedSeconds={elapsedSeconds}
-              stageLabel={generatingStageLabel}
-              paramsLine={generatingParamsLine}
-              failure={
-                !isGenerating && generateError
-                  ? {
-                      message: generateError,
-                      retryLabel: t('generate.resultFailedRetry'),
-                      ...(canGenerate ? { onRetry: handleGenerateClick } : {}),
-                    }
-                  : null
-              }
-              onCancel={
-                isGenerating && activeGenerateItem
-                  ? () => cancelRunItem(activeGenerateItem.id)
-                  : undefined
-              }
-              onOpenPreview={() => setResultPreviewOpen(true)}
-              onAskAssistant={() =>
-                displayedResultUrl &&
-                handleAskAssistantAboutResult(displayedResultUrl)
-              }
-              templateSave={
-                selectedResult && selectedResult.url === displayedResultUrl
-                  ? {
-                      state: templateSaves[selectedResult.id] ?? 'idle',
-                      onSave: () => void handleSaveTemplate(selectedResult),
-                    }
-                  : undefined
-              }
-              hint={
-                hasLora ? t('generate.hintWithLora') : t('generate.hintPure')
-              }
-              round={resultHistory}
-              selectedId={selectedResult?.id ?? null}
-              onSelect={setSelectedResultId}
-              meta={resultMetaLine}
-              eta={
-                isGenerating && isRunnerBase
-                  ? isRunnerColdStart
-                    ? t('generate.etaColdStart', LORA_RUNNER_COLD_START_MINUTES)
-                    : t('generate.eta', LORA_RUNNER_ETA_SECONDS)
-                  : null
-              }
-            />
-            <LoraRecipeViewer
-              open={viewerOpen && bandKind === 'recipes'}
-              origin={viewerOrigin}
-              recipes={mined.recipes}
-              index={Math.min(
-                viewerIndex,
-                Math.max(0, mined.recipes.length - 1),
-              )}
-              onIndexChange={setViewerIndex}
-              onClose={closeViewer}
-              assetName={recipeGroupAsset?.name ?? ''}
-              sourceUrl={
-                recipeGroupAsset
-                  ? (getLoraAssetSourceUrl(recipeGroupAsset) ?? '')
-                  : ''
-              }
-              mountedExtraKeys={mountedExtraKeys}
-              extraStatusByKey={extraMountStatusByKey}
-              onApplyRecipe={(recipe, includeSeed, extraLoras) =>
-                handleApplyRecipe(recipe, { includeSeed, extraLoras })
-              }
-            />
-          </div>
-        </div>
+        <LoraRecipeViewer
+          open={viewerOpen && bandKind === 'recipes'}
+          origin={viewerOrigin}
+          recipes={mined.recipes}
+          index={Math.min(viewerIndex, Math.max(0, mined.recipes.length - 1))}
+          onIndexChange={setViewerIndex}
+          onClose={closeViewer}
+          assetName={recipeGroupAsset?.name ?? ''}
+          sourceUrl={
+            recipeGroupAsset
+              ? (getLoraAssetSourceUrl(recipeGroupAsset) ?? '')
+              : ''
+          }
+          mountedExtraKeys={mountedExtraKeys}
+          extraStatusByKey={extraMountStatusByKey}
+          onApplyRecipe={(recipe, includeSeed, extraLoras) =>
+            handleApplyRecipe(recipe, { includeSeed, extraLoras })
+          }
+        />
       </section>
 
       {/* 输入框（§2.4）：搭配状态条 → 提示词 → 负面词（原位展开）→ 工具行。 */}
@@ -4244,13 +4134,20 @@ function GenerateBranch({
               : undefined
           }
           className={cn(
-            '@container/composer relative flex shrink-0 flex-col gap-2.5 rounded-2xl bg-card px-4.5 pt-3.5 pb-3 shadow-float transition-shadow duration-fast',
-            composerExpanded && 'ring-1 ring-foreground',
+            '@container/composer relative flex shrink-0 flex-col gap-2.5 rounded-16 border border-border bg-card px-3.5 pt-3 pb-3 transition-[border-color] duration-fast',
+            composerExpanded && 'border-foreground/40',
             referencesSupported &&
               imageUpload.isDragging &&
               'ring-2 ring-primary/35 ring-offset-2 ring-offset-background',
           )}
         >
+          {/* 挂上的 LoRA 是输入框里的药丸，最后一颗「+ LoRA」弹挑 LoRA 的框（ui-spec ㊲）。 */}
+          <LoraMountPills
+            selectedBase={selectedBase}
+            loraScaleConfig={loraScaleConfig}
+            onAddLora={addLora}
+          />
+          {runnerBudgetBlocked ? runnerBudgetNote : null}
           {isMountingExtras ? (
             <p role="status" className="text-xs text-muted-foreground">
               {t('sourceRecipeMounting')}
@@ -4527,13 +4424,13 @@ function GenerateBranch({
                   }}
                   className={cn(
                     studioOutlineChipClass,
+                    'w-8 justify-center px-0',
                     !activeAsset &&
-                      'cursor-not-allowed border-dashed text-muted-foreground hover:border-border',
+                      'cursor-not-allowed text-muted-foreground opacity-50',
                     activeAsset && isGenerating && 'opacity-50',
                   )}
                 >
-                  <Wand2 className="size-4" aria-hidden />
-                  {t('generate.restoreShort')}
+                  <RotateCcw className="size-4" aria-hidden />
                 </button>
                 <LoraNegativeInertHint
                   inert={negativeInert}
@@ -4563,20 +4460,29 @@ function GenerateBranch({
                         negativePromptTextareaRef.current?.focus(),
                       )
                     }}
+                    title={t('generate.negativePromptLabel')}
                     className={cn(
                       studioOutlineChipClass,
-                      'ease-linear',
-                      negativeShown && studioOutlineChipSetClass,
+                      'w-8 justify-center px-0 ease-linear',
+                      negativeShown && studioOutlineChipOpenClass,
                       negativeInert &&
-                        'cursor-not-allowed border-dashed text-muted-foreground hover:border-border',
+                        'cursor-not-allowed text-muted-foreground opacity-50',
                     )}
                   >
                     <Ban className="size-4" aria-hidden />
-                    {t('generate.negativeShort')}
                   </button>
                 </LoraNegativeInertHint>
               </div>
               <div className="ml-auto flex shrink-0 items-center gap-2">
+                <LoraBasePill
+                  compatibleBases={compatibleBases}
+                  selectedBase={selectedBase}
+                  onSelect={handleSelectBase}
+                  hasMountedLora={hasLora}
+                  baseLabel={operatorBaseLabel}
+                  footer={runnerBudgetNote ?? undefined}
+                  disabled={isGenerating}
+                />
                 <SpecChip
                   model={specModel}
                   aspectRatio={aspectRatio}
@@ -4597,7 +4503,17 @@ function GenerateBranch({
                   popoverAlign="end"
                 />
                 {loraParamsChip}
-                {loraGenerateButton}
+                <StudioGenerateButton
+                  variant="pill"
+                  label={t('generate.runShort')}
+                  busyLabel={t('generate.busy')}
+                  ariaLabel={t('generate.run')}
+                  isGenerating={isGenerating}
+                  elapsedSeconds={elapsedSeconds}
+                  canGenerate={canGenerate}
+                  disabled={!canGenerate}
+                  onGenerate={handleGenerateClick}
+                />
               </div>
             </div>
           </StudioChipLookProvider>
@@ -5176,12 +5092,6 @@ interface LoraOftenMountedWithRowProps {
   extras: readonly OftenMountedExtra[]
   statusByKey: Record<string, ExtraMountStatus>
   onMountExtra: (extra: CivitaiRecipeExtraLora) => void
-  /**
-   * `row` = 手机结果流里那一行（名字 ×N + 「挂载」字链）；`column` = 桌面装配列里
-   * 的一排小 chip（lora-generate.md §2.1）：「＋ 名字」点了就补挂，只露两个、
-   * 余下收成「+N」—— ⛔ 一整段长名字铺在窄列里。
-   */
-  variant?: 'row' | 'column'
 }
 
 // §4.2「常与它同挂」：配方面板元信息区下一行，去盒化纯文本——不套卡片/边框，
@@ -5192,106 +5102,11 @@ function LoraOftenMountedWithRow({
   extras,
   statusByKey,
   onMountExtra,
-  variant = 'row',
 }: LoraOftenMountedWithRowProps) {
   const t = useTranslations('LoraWorkbench')
   const tExtra = useTranslations('LoraPromptControl.generate')
-  // 装配列那一排只露两个，余下的收成「+N」，点它全摊开。
-  const [showAll, setShowAll] = useState(false)
 
   if (extras.length === 0) return null
-
-  if (variant === 'column') {
-    const visible = showAll ? extras : extras.slice(0, 2)
-    const hiddenCount = extras.length - visible.length
-    const chipClass =
-      'inline-flex h-6 max-w-24 items-center gap-1 rounded-md px-2 transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
-    return (
-      <div className="flex flex-wrap items-center gap-1.5 text-2xs text-muted-foreground">
-        {/* 标签独占一行：272 的列里「标签 + 两颗 chip」放不下，⛔ 折成参差的两行。 */}
-        <span className="w-full">{t('generate.oftenMountedShort')}</span>
-        {visible.map(({ extra, count }) => {
-          const key = extraLoraKey(extra)
-          const status = statusByKey[key]
-          const label = extraLoraLabel(extra)
-          const full = `${label} ×${count}`
-          return status === 'mounted' ? (
-            <span
-              key={key}
-              title={full}
-              className={cn(
-                chipClass,
-                'bg-status-applied-surface text-foreground',
-              )}
-            >
-              <Check
-                className="size-3 shrink-0 text-status-applied"
-                aria-hidden
-              />
-              <span className="truncate">{label}</span>
-            </span>
-          ) : status === 'failed' ? (
-            <a
-              key={key}
-              href={`${CIVITAI_MODEL_SEARCH_URL}?query=${encodeURIComponent(
-                toCivitaiModelSearchQuery(label),
-              )}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={`${tExtra('recipeExtraSearchLink')} · ${full}`}
-              className={cn(chipClass, 'underline underline-offset-2')}
-            >
-              <span className="truncate">{label}</span>
-            </a>
-          ) : status === 'incompatible' ? (
-            // 补挂的结果写在这一颗上（§7.1）：与底模不兼容，重试也挂不上。
-            <span
-              key={key}
-              role="note"
-              title={`${tExtra('recipeExtraIncompatible')} · ${full}`}
-              aria-label={`${tExtra('recipeExtraIncompatible')} · ${full}`}
-              className={cn(chipClass, 'bg-status-warning-surface')}
-            >
-              <span
-                aria-hidden
-                className="size-1.5 shrink-0 rounded-full bg-status-warning"
-              />
-              <span className="truncate">{label}</span>
-            </span>
-          ) : (
-            <button
-              key={key}
-              type="button"
-              disabled={status === 'loading'}
-              onClick={() => onMountExtra(extra)}
-              title={`${tExtra('recipeExtraMount')} · ${full}`}
-              aria-label={`${tExtra('recipeExtraMount')} · ${full}`}
-              className={cn(
-                chipClass,
-                'bg-muted text-foreground hover:bg-surface-fill-hover disabled:cursor-wait disabled:opacity-60',
-              )}
-            >
-              {status === 'loading' ? (
-                <Spinner size="sm" aria-hidden />
-              ) : (
-                <Plus className="size-3 shrink-0" aria-hidden />
-              )}
-              <span className="truncate">{label}</span>
-            </button>
-          )
-        })}
-        {hiddenCount > 0 ? (
-          <button
-            type="button"
-            onClick={() => setShowAll(true)}
-            className="h-6 rounded-md px-1 tabular-nums text-muted-foreground transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            +{hiddenCount}
-          </button>
-        ) : null}
-      </div>
-    )
-  }
 
   return (
     <p className="flex flex-wrap items-center gap-x-1 gap-y-1 text-2xs text-muted-foreground">

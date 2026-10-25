@@ -9,7 +9,6 @@ vi.mock('next-intl', () => ({
 
 function renderBand(props: {
   mode: LoraSourceBandMode
-  overlay?: boolean
   dismissible?: boolean
   onExpand?: () => void
   onFold?: () => void
@@ -19,11 +18,9 @@ function renderBand(props: {
       <button type="button">outside</button>
       <LoraSourceBand
         mode={props.mode}
-        overlay={props.overlay}
         dismissible={props.dismissible}
         onExpand={props.onExpand ?? vi.fn()}
         onFold={props.onFold ?? vi.fn()}
-        canFold
         groups={[{ id: 'a', name: 'Aki', cover: null }]}
         activeGroupId="a"
         onSelectGroup={vi.fn()}
@@ -37,19 +34,16 @@ function renderBand(props: {
   )
 }
 
-describe('LoraSourceBand overlay (lora-generate §2.2)', () => {
-  it('keeps the full band in flow before any result', () => {
-    renderBand({ mode: 'open' })
-    expect(
-      screen.queryByTestId('lora-source-band-overlay'),
-    ).not.toBeInTheDocument()
-    expect(screen.getByTestId('band-thumbs')).toBeInTheDocument()
+describe('LoraSourceBand（台面顶上一行，ui-spec ㊲）', () => {
+  it('draws nothing without a mounted LoRA', () => {
+    renderBand({ mode: 'hidden' })
+    expect(screen.queryByTestId('lora-source-band')).not.toBeInTheDocument()
   })
 
   it('opens as a floating card over the result and keeps the line in flow', () => {
-    renderBand({ mode: 'open', overlay: true })
+    renderBand({ mode: 'open' })
     const band = screen.getByTestId('lora-source-band')
-    expect(band).toHaveAttribute('data-floating', 'true')
+    expect(band).toHaveAttribute('data-mode', 'open')
     const overlay = screen.getByTestId('lora-source-band-overlay')
     expect(overlay).not.toHaveAttribute('inert')
     expect(overlay).toContainElement(screen.getByTestId('band-thumbs'))
@@ -58,7 +52,7 @@ describe('LoraSourceBand overlay (lora-generate §2.2)', () => {
 
   it('folds on outside pointerdown and Escape', () => {
     const onFold = vi.fn()
-    renderBand({ mode: 'open', overlay: true, onFold })
+    renderBand({ mode: 'open', onFold })
     fireEvent.pointerDown(screen.getByText('outside'))
     expect(onFold).toHaveBeenCalledTimes(1)
     fireEvent.pointerDown(screen.getByTestId('band-thumbs'))
@@ -69,7 +63,7 @@ describe('LoraSourceBand overlay (lora-generate §2.2)', () => {
 
   it('leaves outside clicks and Escape to the sample viewer while it is open', () => {
     const onFold = vi.fn()
-    renderBand({ mode: 'open', overlay: true, dismissible: false, onFold })
+    renderBand({ mode: 'open', dismissible: false, onFold })
     fireEvent.pointerDown(screen.getByText('outside'))
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(onFold).not.toHaveBeenCalled()
@@ -80,7 +74,6 @@ describe('LoraSourceBand overlay (lora-generate §2.2)', () => {
     const onFold = vi.fn()
     const { unmount } = renderBand({
       mode: 'line',
-      overlay: true,
       onExpand,
       onFold,
     })
@@ -91,7 +84,7 @@ describe('LoraSourceBand overlay (lora-generate §2.2)', () => {
     expect(onExpand).toHaveBeenCalledTimes(1)
     unmount()
 
-    renderBand({ mode: 'open', overlay: true, onExpand, onFold })
+    renderBand({ mode: 'open', onExpand, onFold })
     fireEvent.click(screen.getByRole('button', { expanded: true }))
     expect(onFold).toHaveBeenCalledTimes(1)
   })

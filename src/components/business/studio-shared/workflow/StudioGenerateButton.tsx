@@ -34,8 +34,9 @@ interface StudioGenerateButtonProps {
    * `block` = 参数栏底部那颗整宽键（文案写在键上）。
    * `round` = 底部输入框右端那颗 36px 圆键 ①（owner 2026-09-26）：只画 ↑，
    * 张数进角标，缺什么由宿主在左边写一行灰字 —— 键上不写字。
+   * `pill` = 规范的台输入框（ui-spec ㊲ / 样件 E）：右下一颗黑色文字键「生成」，32 高。
    */
-  variant?: 'block' | 'round'
+  variant?: 'block' | 'round' | 'pill'
   /** `round` 的角标数（这一次出几张）；≤ 1 不画。 */
   count?: number
   /**
@@ -206,7 +207,9 @@ export function StudioGenerateButton({
       aria-busy={isGenerating}
       aria-disabled={!canGenerate}
       className={cn(
-        'flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-medium text-primary-foreground shadow-sm',
+        variant === 'pill'
+          ? 'flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-full bg-primary px-4 text-2sm font-semibold text-primary-foreground'
+          : 'flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-medium text-primary-foreground shadow-sm',
         'transition-[background-color,transform,box-shadow] duration-fast ease-standard',
         'hover:shadow-md active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
         // 挡住时降到次级填充。按钮上写着缺什么，就没有「点一下才知道」这层

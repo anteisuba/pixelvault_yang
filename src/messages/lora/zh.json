@@ -242,15 +242,12 @@
         "groupCount": "{count} 张",
         "noteRecipe": "点一张看完整配方 · 做同款",
         "noteShowcase": "点一张看大图",
-        "fold": "收起",
-        "lineName": "「{name}」",
-        "lineCount": "出过的图 {count}",
-        "lineEmpty": "没有公开样例",
-        "empty": "这个 LoRA 没有公开样例"
+        "lineEmpty": "{name} 没有公开样例",
+        "empty": "这个 LoRA 没有公开样例",
+        "lineTitle": "{name} 出过的图"
       },
       "hintWithLora": "写一句提示词，出图后结果在这里",
       "hintPure": "可以直接用底模出图，也可以去「库」挂 LoRA",
-      "roundLabel": "这一轮",
       "busy": "出图中",
       "assistantBusy": "装配台这会儿还在忙（出图或补挂配方 LoRA），忙完再让助手生成",
       "restoreShort": "还原",
@@ -274,7 +271,6 @@
         "upscale": "放大"
       },
       "paramsDefaultShort": "默认",
-      "oftenMountedShort": "常与它同挂",
       "triggerAdd": "把「{word}」写进提示词",
       "saveTemplate": "存成模板",
       "templateSaved": "已存成模板",
@@ -282,7 +278,10 @@
       "templateSaveFailed": "没存成，再试一次",
       "templateLoadFailed": "这个模板打不开了（可能已经删掉）",
       "negativeInert": "这个底模 CFG 1，负面词不起作用；写的内容留着，换回来还在",
-      "paramsCfg": "CFG {cfg}"
+      "paramsCfg": "CFG {cfg}",
+      "runShort": "生成",
+      "handToAssistant": "交给助手",
+      "upscaleNone": "不放大"
     },
     "spine": {
       "sourceCheckpointAuto": "来源图底模（自动）",
@@ -317,15 +316,11 @@
       "expandAssembly": "展开装配栏",
       "toggleTriggerWord": "停用/启用触发词 {word}",
       "loraLabel": "LoRA",
-      "swapBase": "换底模",
       "stripLabel": "装配（已收起）",
-      "editAssembly": "修改装配",
-      "stripMounted": "挂了 {count} 个 LoRA",
-      "incompatibleLine": "{family} · 和底模装不上，出图时不生效",
-      "compatDotOk": "和当前底模装得上"
+      "incompatibleLine": "{family} · 和底模装不上，出图时不生效"
     },
     "trainCTA": "训练新的 LoRA",
-    "trainTitle": "训练 LoRA",
+    "trainTitle": "训练新 LoRA",
     "trainDescription": "把自己的风格、角色或物体变成可复用的 Studio 资产。",
     "trainSignal": {
       "dataset": "训练集",
@@ -710,6 +705,18 @@
       "confirm": "挂上 {count} 个",
       "selectLabel": "挑 {name}",
       "mounted": "已挂"
+    },
+    "pill": {
+      "add": "LoRA",
+      "addLabel": "添加 LoRA",
+      "openLabel": "{name} · 权重 {scale}",
+      "weight": "权重",
+      "triggers": "触发词",
+      "remove": "卸下",
+      "sourceTrained": "自训",
+      "sourceImported": "你的收藏",
+      "sourceCurated": "精选",
+      "incompatible": "装不上"
     }
   },
   "CivitaiToken": {

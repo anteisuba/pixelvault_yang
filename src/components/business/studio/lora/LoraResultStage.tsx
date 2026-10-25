@@ -1,21 +1,21 @@
 'use client'
 
-import { useState } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
-import { BookmarkPlus, Bot, Check, X } from '@/components/icons'
+import { BookmarkPlus, Check, X } from '@/components/icons'
 import {
   StudioGeneratingProgress,
   type StudioGenerationFailure,
 } from '@/components/business/studio-shared'
-import { Spinner } from '@/components/ui/spinner'
 import {
-  DURATION,
-  EASE_STANDARD,
-  RESULT_REVEAL,
-  SPRING,
-} from '@/constants/motion'
+  MEDIA_TILE_CLASS,
+  MEDIA_TILE_ROUND_CLASS,
+  MediaTileActions,
+  MediaTileShade,
+} from '@/components/ui/media-tile'
+import { Spinner } from '@/components/ui/spinner'
+import { DURATION, EASE_STANDARD, RESULT_REVEAL } from '@/constants/motion'
 import { cn } from '@/lib/utils'
 
 export interface LoraResultRoundItem {
@@ -23,15 +23,17 @@ export interface LoraResultRoundItem {
   readonly url: string
 }
 
+export interface LoraResultTemplateSave {
+  state: 'idle' | 'saving' | 'saved'
+  onSave: () => void
+}
+
 interface LoraResultStageProps {
-  /** 正在看的那一张（没出过图时为 `null`）。 */
-  resultUrl: string | null
-  /** 那一张的宽 / 高；没有快照时按正在出的这一张的比例画框。 */
-  resultRatio: number | undefined
-  /** 还没有图时那块素底框的宽 / 高（当前比例 / 精确尺寸）。 */
-  pendingRatio: number
-  /** 生成中，或刚出图还在演收尾那一拍。 */
+  /** 这次出的图，新的在前。 */
+  round: readonly LoraResultRoundItem[]
+  /** 生成中（还没到图）：最前面多一格进度。 */
   generating: boolean
+  /** 刚出图还在演收尾那一拍：最新那一张压在白纱下，线松手时变清。 */
   isCompleting: boolean
   completionReleased: boolean
   onEdgeRelease: () => void
@@ -40,32 +42,19 @@ interface LoraResultStageProps {
   stageLabel: string
   /** 新生成那一行参数（「18s · 底模 · 3:4」）。 */
   paramsLine?: string
-  /** 没出图：线停住变灰 + 原因 + 重试（加载态 A）。 */
+  /** 没出图：最前面那一格线停住变灰 + 原因 + 重试（加载态 A）。 */
   failure: StudioGenerationFailure | null
   onCancel?: () => void
-  onOpenPreview: () => void
-  onAskAssistant: () => void
-  /**
-   * 「存成模板」（pages/prompts.md）：这一张出图那一刻的整套存进提示词页。只有结果条里
-   * 有这一张（记着它的整套）时才给；存过的这一轮换成「已存成模板」。
-   */
-  templateSave?: { state: 'idle' | 'saving' | 'saved'; onSave: () => void }
-  /** 没出过图时舞台中间那一句。 */
+  /** 点一格：看大图。 */
+  onOpen: (id: string) => void
+  onAskAssistant: (url: string) => void
+  /** 「存成模板」（pages/prompts.md）：这一张出图那一刻的整套；记不着整套的格子不给。 */
+  templateSaveFor: (id: string) => LoraResultTemplateSave | undefined
+  /** 还没出过图时台面中间那一句。 */
   hint: string
-  round: readonly LoraResultRoundItem[]
-  selectedId: string | null
-  onSelect: (id: string) => void
-  /** 图下右侧那行等宽元信息。 */
-  meta: string | null
-  /** Runner 线路生成中的耗时预估（替掉元信息那一格）。 */
+  /** Runner 线路生成中的耗时预估。 */
   eta: string | null
 }
-
-/**
- * 这一张图是怎么来的：`hold` = 出图那一拍到的（压在白纱下糊着，线松手时与白纱同一拍
- * 变清）；`swap` = 点了这一轮里的另一张（直接由糊变清）；`none` = 首次挂载就在（⛔ 不演）。
- */
-type ResultArrival = 'none' | 'hold' | 'swap'
 
 const REVEAL_BLURRED = {
   filter: `blur(${RESULT_REVEAL.blurPx}px)`,
@@ -73,25 +62,17 @@ const REVEAL_BLURRED = {
 } as const
 const REVEAL_CLEAR = { opacity: 1, filter: 'blur(0px)', scale: 1 } as const
 
-/** 图上右上角那几颗小圆键（问助手 · 存成模板）：贴在媒体上的固定亮底。 */
-const mediaButton =
-  'grid size-7.5 place-items-center rounded-full bg-background/85 text-muted-foreground shadow-sm backdrop-blur-sm transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default'
-
 /**
- * 生成台 B 的结果区（lora-generate.md §2.3）：图按舞台剩下的地方等比放到最大，
- * 图下一行「这一轮」缩略 + 元信息。
+ * LoRA 台的结果区（ui-spec ㊲ `LoraBench`）：台面只放图 —— 这次出的图一行 4 张（图格
+ * `MediaTile`：干净无框，悬停变暗、左下浮出「交给助手」+ 存成模板），点一格看大图。
  *
- * ⭐ 框的比例就是图的比例（`studio-fit-area` / `studio-fit-box`，与图片台舞台同一套）：
- *   进度线跑在图自己的边上，⛔ 不是一块比图宽的框。
- * ⚠ 生成中 / 失败都在框里说（加载态 A）：没有旧图 = 素底框；有旧图 = 旧图盖白纱。
+ * ⚠ 生成中 / 失败都在最前面那一格里说（加载态 A，「边即进度」跑在格子自己的边上）：
  *   ⛔ 不弹 toast、⛔ 不把失败写进输入框。
  * ⭐ 新图由糊变清（与图片台同一套 `RESULT_REVEAL`）：出图那一拍到的新图先在白纱下
- *   糊着，线松手时白纱撤、图变清；点这一轮里的另一张也由糊变清换进来。⛔ 直接换。
+ *   糊着，线松手时白纱撤、图变清。
  */
 export function LoraResultStage({
-  resultUrl,
-  resultRatio,
-  pendingRatio,
+  round,
   generating,
   isCompleting,
   completionReleased,
@@ -102,222 +83,172 @@ export function LoraResultStage({
   paramsLine,
   failure,
   onCancel,
-  onOpenPreview,
+  onOpen,
   onAskAssistant,
-  templateSave,
+  templateSaveFor,
   hint,
-  round,
-  selectedId,
-  onSelect,
-  meta,
   eta,
 }: LoraResultStageProps) {
   const t = useTranslations('LoraWorkbench')
   const tCancel = useTranslations('GenerationCancel')
-  const tStudio = useTranslations('StudioV3')
-  const busy = generating || failure !== null
-  const ratio = resultUrl ? (resultRatio ?? pendingRatio) : pendingRatio
-  const showBox = busy || resultUrl !== null
   const reduceMotion = useReducedMotion()
-  // 新图到了怎么进来（与图片台同一套「由糊变清」，`RESULT_REVEAL`）：记在 state 里
-  // （渲染中调整 state 的写法），⛔ 在渲染里读写 ref。
-  const [arrival, setArrival] = useState<{
-    url: string | null
-    kind: ResultArrival
-  }>({ url: resultUrl, kind: 'none' })
-  if (arrival.url !== resultUrl) {
-    setArrival({
-      url: resultUrl,
-      kind: resultUrl === null ? 'none' : generating ? 'hold' : 'swap',
-    })
+  // 收尾那一拍：最新那一张已经到了，进度线在它自己的边上合拢；其余时候进度单占一格。
+  const finishingId = isCompleting ? (round[0]?.id ?? null) : null
+  const pendingTile = (generating && !finishingId) || failure !== null
+  const holding = finishingId !== null && !completionReleased && !reduceMotion
+
+  if (!pendingTile && round.length === 0) {
+    return (
+      <p
+        data-testid="lora-result-card"
+        className="grid min-h-0 flex-1 place-items-center text-2sm text-muted-foreground/70"
+      >
+        {hint}
+      </p>
+    )
   }
-  const arrivalKind = reduceMotion ? 'none' : arrival.kind
-  // 出图那一拍：线合拢停住时新图在白纱下糊着，线松手那一下白纱撤、图变清。
-  const holding = arrivalKind === 'hold' && isCompleting && !completionReleased
+
+  const progress = (onMedia: boolean) => (
+    <StudioGeneratingProgress
+      elapsedSeconds={elapsedSeconds}
+      stageLabel={stageLabel}
+      paramsLine={onMedia ? undefined : paramsLine}
+      variant={onMedia ? 'compact' : 'full'}
+      cornerRadiusVar="--radius-12"
+      isCompleting={isCompleting}
+      onEdgeRelease={onEdgeRelease}
+      onCompleteAnimationDone={onCompleteAnimationDone}
+      failure={failure}
+    />
+  )
 
   return (
     <div
       data-testid="lora-result-card"
-      className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 px-6 pb-4 pt-5.5"
+      className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4"
     >
-      {showBox ? (
-        <div className="studio-fit-area flex min-h-0 flex-1 items-center justify-center">
-          {/* 框的比例跟着比例走：换了比例出的新图到了，框用 `SPRING.slot` 拉成新形状
-              （与规格 chip 上那颗比例框同一根弹簧），⛔ 直接跳。 */}
-          <motion.div
-            initial={false}
-            animate={{ '--studio-fit-ratio': ratio }}
-            transition={reduceMotion ? { duration: 0 } : SPRING.slot}
+      <div
+        role="list"
+        aria-label={t('generate.resultHistoryLabel')}
+        className="grid grid-cols-4 gap-2.5"
+      >
+        {pendingTile ? (
+          <div
+            role="listitem"
             className={cn(
-              'studio-fit-box relative overflow-hidden rounded-xl',
-              resultUrl ? 'bg-muted' : 'bg-card',
+              MEDIA_TILE_CLASS,
+              'aspect-3/4 bg-card ring-1 ring-border',
             )}
           >
-            {resultUrl ? (
-              <>
-                <motion.img
-                  key={resultUrl}
-                  src={resultUrl}
-                  alt=""
-                  data-result-arrival={arrivalKind}
-                  initial={
-                    arrivalKind === 'swap'
-                      ? { opacity: 0, ...REVEAL_BLURRED }
-                      : arrivalKind === 'hold'
-                        ? REVEAL_BLURRED
-                        : false
-                  }
-                  animate={holding ? REVEAL_BLURRED : REVEAL_CLEAR}
-                  transition={{ duration: DURATION.slow, ease: EASE_STANDARD }}
-                  className="size-full object-cover"
-                />
-                {busy ? (
-                  <div
-                    aria-hidden
-                    className={cn(
-                      'absolute inset-0 bg-background/60 transition-opacity duration-base ease-linear motion-reduce:transition-none',
-                      isCompleting && completionReleased && 'opacity-0',
-                    )}
-                  />
-                ) : (
-                  <button
-                    type="button"
-                    onClick={onOpenPreview}
-                    aria-label={t('generate.resultPreviewLabel')}
-                    className="absolute inset-0 cursor-zoom-in focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                  />
-                )}
-              </>
-            ) : null}
-            {busy ? (
-              <StudioGeneratingProgress
-                elapsedSeconds={elapsedSeconds}
-                stageLabel={stageLabel}
-                paramsLine={resultUrl ? undefined : paramsLine}
-                variant={resultUrl ? 'compact' : 'full'}
-                cornerRadiusVar="--radius-xl"
-                isCompleting={isCompleting}
-                onEdgeRelease={onEdgeRelease}
-                onCompleteAnimationDone={onCompleteAnimationDone}
-                failure={failure}
-              />
-            ) : null}
+            {progress(false)}
             {generating && onCancel ? (
               <button
                 type="button"
                 onClick={onCancel}
                 data-testid="lora-generation-cancel"
                 aria-label={tCancel('cancel')}
-                className="absolute right-3 top-3 z-10 grid size-7.5 place-items-center rounded-full bg-background/85 text-muted-foreground backdrop-blur-sm transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className={cn(
+                  MEDIA_TILE_ROUND_CLASS,
+                  'absolute top-2 right-2 z-20',
+                )}
               >
-                <X className="size-3.5" aria-hidden />
+                <X aria-hidden />
               </button>
             ) : null}
-            {resultUrl && !busy ? (
-              <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5">
-                {templateSave ? (
-                  <button
-                    type="button"
-                    data-testid="lora-save-template"
-                    onClick={templateSave.onSave}
-                    disabled={templateSave.state !== 'idle'}
-                    aria-busy={templateSave.state === 'saving' || undefined}
-                    aria-label={
-                      templateSave.state === 'saved'
-                        ? t('generate.templateSaved')
-                        : t('generate.saveTemplate')
-                    }
-                    title={
-                      templateSave.state === 'saved'
-                        ? t('generate.templateSaved')
-                        : t('generate.saveTemplate')
-                    }
-                    className={cn(
-                      mediaButton,
-                      templateSave.state === 'saved' && 'text-foreground',
-                    )}
-                  >
-                    {templateSave.state === 'saving' ? (
-                      <Spinner size="sm" />
-                    ) : templateSave.state === 'saved' ? (
-                      <Check className="size-3.5" aria-hidden />
-                    ) : (
-                      <BookmarkPlus className="size-3.5" aria-hidden />
-                    )}
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={onAskAssistant}
-                  aria-label={tStudio('toolAskAssistant')}
-                  title={tStudio('toolAskAssistant')}
-                  className={mediaButton}
-                >
-                  <Bot className="size-3.5" aria-hidden />
-                </button>
-              </div>
-            ) : null}
-          </motion.div>
-        </div>
-      ) : (
-        <p className="grid min-h-0 flex-1 place-items-center text-2sm text-muted-foreground/70">
-          {hint}
-        </p>
-      )}
-
-      {showBox && (round.length > 1 || meta || eta) ? (
-        <div className="flex min-w-0 shrink-0 items-center gap-3">
-          {round.length > 1 ? (
+          </div>
+        ) : null}
+        {round.map((item) => {
+          const finishing = item.id === finishingId
+          const templateSave = finishing ? undefined : templateSaveFor(item.id)
+          return (
             <div
-              role="listbox"
-              aria-label={t('generate.resultHistoryLabel')}
-              className="flex shrink-0 items-center gap-1.5"
+              key={item.id}
+              role="listitem"
+              className={cn(MEDIA_TILE_CLASS, 'aspect-3/4')}
             >
-              <span className="mr-1 whitespace-nowrap text-xs text-muted-foreground">
-                {t('generate.roundLabel')}
-              </span>
-              {round.map((item) => {
-                const active = item.id === selectedId
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    role="option"
-                    aria-selected={active}
-                    onClick={() => onSelect(item.id)}
+              <motion.img
+                src={item.url}
+                alt=""
+                initial={finishing ? REVEAL_BLURRED : false}
+                animate={holding && finishing ? REVEAL_BLURRED : REVEAL_CLEAR}
+                transition={{ duration: DURATION.slow, ease: EASE_STANDARD }}
+                className="size-full object-cover"
+              />
+              {finishing ? (
+                <>
+                  <div
+                    aria-hidden
                     className={cn(
-                      'h-10 w-7.5 shrink-0 overflow-hidden rounded-md bg-muted transition-shadow duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                      active
-                        ? 'ring-2 ring-foreground ring-offset-2 ring-offset-card'
-                        : 'hover:ring-2 hover:ring-foreground/20',
+                      'absolute inset-0 bg-background/60 transition-opacity duration-base ease-linear motion-reduce:transition-none',
+                      completionReleased && 'opacity-0',
                     )}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={item.url}
-                      alt=""
-                      loading="lazy"
-                      className="size-full object-cover"
-                    />
-                  </button>
-                )
-              })}
+                  />
+                  {progress(true)}
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => onOpen(item.id)}
+                    aria-label={t('generate.resultPreviewLabel')}
+                    className="absolute inset-0 z-10 cursor-zoom-in focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                  />
+                  <MediaTileShade className="z-10" />
+                  <MediaTileActions
+                    handToAssistant={{
+                      label: t('generate.handToAssistant'),
+                      onClick: () => onAskAssistant(item.url),
+                    }}
+                    more={
+                      templateSave ? (
+                        <button
+                          type="button"
+                          data-testid="lora-save-template"
+                          onClick={templateSave.onSave}
+                          disabled={templateSave.state !== 'idle'}
+                          aria-busy={
+                            templateSave.state === 'saving' || undefined
+                          }
+                          aria-label={
+                            templateSave.state === 'saved'
+                              ? t('generate.templateSaved')
+                              : t('generate.saveTemplate')
+                          }
+                          title={
+                            templateSave.state === 'saved'
+                              ? t('generate.templateSaved')
+                              : t('generate.saveTemplate')
+                          }
+                          className={cn(
+                            MEDIA_TILE_ROUND_CLASS,
+                            'pointer-events-auto',
+                          )}
+                        >
+                          {templateSave.state === 'saving' ? (
+                            <Spinner size="sm" />
+                          ) : templateSave.state === 'saved' ? (
+                            <Check aria-hidden />
+                          ) : (
+                            <BookmarkPlus aria-hidden />
+                          )}
+                        </button>
+                      ) : undefined
+                    }
+                  />
+                </>
+              )}
             </div>
-          ) : null}
-          {eta ? (
-            <p
-              data-testid="lora-generating-eta"
-              role="status"
-              className="ml-auto min-w-0 truncate text-xs text-muted-foreground"
-            >
-              {eta}
-            </p>
-          ) : meta ? (
-            <p className="ml-auto min-w-0 truncate font-mono text-xs tabular-nums text-muted-foreground">
-              {meta}
-            </p>
-          ) : null}
-        </div>
+          )
+        })}
+      </div>
+      {eta ? (
+        <p
+          data-testid="lora-generating-eta"
+          role="status"
+          className="mt-2.5 text-xs text-muted-foreground"
+        >
+          {eta}
+        </p>
       ) : null}
     </div>
   )

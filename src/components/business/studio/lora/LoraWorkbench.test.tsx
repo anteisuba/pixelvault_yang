@@ -24,6 +24,13 @@ import type { PromptTagSelection } from '@/types/prompt-tags'
 import type { UseLoraOperatorHostInput } from '@/hooks/use-lora-operator-host'
 import { FAKE_GENERATION } from '@/test/api-helpers'
 
+/** 台面顶上那一行「出过的图 ›」：点它长出浮层（ui-spec ㊲），样例 / 配方都在浮层里。 */
+function openSourceBand() {
+  fireEvent.click(
+    within(screen.getByTestId('lora-source-band')).getAllByRole('button')[0],
+  )
+}
+
 import { LoraWorkbench } from './LoraWorkbench'
 
 let mockUserId = 'user-a'
@@ -632,6 +639,7 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     ]
 
     render(<LoraWorkbench />)
+    openSourceBand()
 
     // The source band is just thumbnails now — no inline recipe panel. The
     // thumbnail button is present; clicking it opens the shared recipe modal
@@ -1402,27 +1410,36 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
       name: /LoraWorkbench:generate\.run/,
     })
 
-    // One generation → no filmstrip yet (needs >1 result).
+    // 每出一张，台面上多一格（新的在前）。
     fireEvent.click(generateButton)
     await screen.findByRole('button', {
       name: /LoraWorkbench:generate\.resultPreviewLabel/,
     })
-    expect(screen.queryAllByRole('option')).toHaveLength(0)
-
-    // Second generation → 「这一轮」appears with both, newest selected.
     fireEvent.click(generateButton)
-    const options = await screen.findAllByRole('option')
-    expect(options).toHaveLength(2)
-    const shownImage = () =>
-      screen.getByTestId('lora-result-card').querySelector('img')
-    // gen-2 is the most recent → prepended, selected, and the one on stage.
-    expect(options[0]).toHaveAttribute('aria-selected', 'true')
-    expect(shownImage()).toHaveAttribute('src', 'https://example.com/2.png')
+    await waitFor(() =>
+      expect(
+        within(screen.getByTestId('lora-result-card')).getAllByRole('listitem'),
+      ).toHaveLength(2),
+    )
+    const tiles = within(screen.getByTestId('lora-result-card')).getAllByRole(
+      'listitem',
+    )
+    expect(tiles[0].querySelector('img')).toHaveAttribute(
+      'src',
+      'https://example.com/2.png',
+    )
 
-    // Clicking the older thumbnail switches selection and the shown image.
-    fireEvent.click(options[1])
-    expect(options[1]).toHaveAttribute('aria-selected', 'true')
-    expect(shownImage()).toHaveAttribute('src', 'https://example.com/1.png')
+    // 点旧的那一格：大图看的就是它。
+    fireEvent.click(
+      within(tiles[1]).getByRole('button', {
+        name: /LoraWorkbench:generate\.resultPreviewLabel/,
+      }),
+    )
+    expect(
+      screen.getByRole('img', {
+        name: /LoraWorkbench:generate\.resultPreviewLabel/,
+      }),
+    ).toHaveAttribute('src', 'https://example.com/1.png')
   })
 
   it('「＋ 添加 LoRA」弹「挑 LoRA」框（ui-spec ㉔），台不走', () => {
@@ -1431,7 +1448,7 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     render(<LoraWorkbench />)
     expect(screen.queryByTestId('lora-picker')).toBeNull()
     fireEvent.click(
-      screen.getByRole('button', { name: 'LoraWorkbench:spine.addLoraFull' }),
+      screen.getByRole('button', { name: 'LoraWorkbench:pill.addLabel' }),
     )
 
     expect(screen.getByTestId('lora-picker')).toBeInTheDocument()
@@ -1678,8 +1695,13 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
 
       render(<LoraWorkbench />)
 
+      // 桌面是图格悬停出的「交给助手」白药丸（ui-spec ㊲），手机照旧是图上那颗小圆键。
       fireEvent.click(
-        screen.getByRole('button', { name: 'StudioV3:toolAskAssistant' }),
+        screen.getByRole('button', {
+          name: mobile
+            ? 'StudioV3:toolAskAssistant'
+            : 'LoraWorkbench:generate.handToAssistant',
+        }),
       )
 
       expect(mockRequestOperatorAttachment).toHaveBeenCalledWith(
@@ -1706,17 +1728,14 @@ describe('LoraWorkbench GenerateBranch — pure base and Runner controls', () =>
   it('defaults an empty LoRA stack to Anima Turbo and generates without a fake LoRA', () => {
     render(<LoraWorkbench />)
 
-    expect(screen.getByText('LoraWorkbench:spine.empty')).toBeInTheDocument()
-    // S4：底模选择器是「底模卡」按钮（点开换底模 modal）；纯底模空栈默认 Anima Turbo
+    // 输入框里只有「+ LoRA」那一颗（没挂）；底模就是模型药丸，纯底模空栈默认 Anima Turbo
     // v1.1（owner 2026-09-28）。
-    const baseButton = screen.getByRole('button', {
-      name: /Anima Turbo v1\.1/,
-    })
-    expect(baseButton).toBeInTheDocument()
-    expect(baseButton.querySelector('img')).toHaveAttribute(
-      'src',
-      '/homepage/production/models/image/anima-dit-runner.webp',
-    )
+    expect(
+      within(screen.getByTestId('lora-mount-pills')).getAllByRole('button'),
+    ).toHaveLength(1)
+    expect(
+      screen.getByRole('button', { name: /Anima Turbo v1\.1/ }),
+    ).toBeInTheDocument()
 
     fireEvent.change(
       screen.getByPlaceholderText('LoraWorkbench:generate.promptPlaceholder'),
@@ -1817,7 +1836,7 @@ describe('LoraWorkbench GenerateBranch — pure base and Runner controls', () =>
       }),
     )
     fireEvent.click(
-      screen.getByRole('switch', { name: 'LoraWorkbench:generate.seedFixed' }),
+      screen.getByRole('radio', { name: 'LoraWorkbench:generate.seedFixed' }),
     )
     fireEvent.change(
       screen.getByLabelText('LoraWorkbench:generate.advanced.seed'),
@@ -1846,11 +1865,7 @@ describe('LoraWorkbench GenerateBranch — pure base and Runner controls', () =>
       { target: { value: '1024' } },
     )
 
-    const upscaler = screen.getByRole('combobox', {
-      name: 'LoraWorkbench:generate.advanced.upscaler',
-    })
-    fireEvent.keyDown(upscaler, { key: 'ArrowDown' })
-    fireEvent.click(screen.getByRole('option', { name: '4x-AnimeSharp' }))
+    fireEvent.click(screen.getByRole('radio', { name: '4x-AnimeSharp' }))
 
     fireEvent.change(
       screen.getByPlaceholderText('LoraWorkbench:generate.promptPlaceholder'),
@@ -2098,8 +2113,9 @@ describe('LoraWorkbench GenerateBranch — H1 HF showcase strip', () => {
     })
 
     render(<LoraWorkbench />)
+    openSourceBand()
 
-    // 桌面生成台 B：样例图排进来源图带（标题在带子头上，不再有 showcase 自己的标题）。
+    // 桌面：样例图排进顶上那一行长出的浮层（标题在浮层头上，不再有 showcase 自己的标题）。
     expect(
       screen.getByText('LoraWorkbench.generate.band:title'),
     ).toBeInTheDocument()
@@ -2135,6 +2151,7 @@ describe('LoraWorkbench GenerateBranch — H1 HF showcase strip', () => {
     fireEvent.change(promptField, { target: { value: 'existing text' } })
     expect(promptField).toHaveValue('existing text')
 
+    openSourceBand()
     fireEvent.click(
       screen.getByRole('button', { name: 'LoraWorkbench:showcaseFillPrompt' }),
     )
@@ -2175,6 +2192,7 @@ describe('LoraWorkbench GenerateBranch — H1 HF showcase strip', () => {
     ]
 
     render(<LoraWorkbench />)
+    openSourceBand()
 
     expect(
       screen.getByRole('button', {
@@ -2188,26 +2206,21 @@ describe('LoraWorkbench GenerateBranch — H1 HF showcase strip', () => {
   })
 })
 
-// 生成台 B：桌面顶上一行是液态分段（与图片台写法切换同一颗 LiquidSegmented）——
-// 四个 role="tab" 的原生按钮，点一格驱动 URL（section 深链）。守住 tab 语义与
-// 点击→跳转这条接线。
-describe('LoraWorkbench module tab bar — P2-4/P2-7', () => {
+// 桌面台上没有「生成 / 训练」切换了（ui-spec ㊲）：训练从 LoRA 库「自训」第一格进来
+// （`?section=train`），台顶上一颗「‹ 训练新 LoRA」回到生成。
+describe('LoraWorkbench sections on desktop', () => {
   beforeEach(() => {
     mockRouterReplace.mockReset()
     mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
   })
 
-  // 第 9f 步 9f-2b：库 / 收藏搬去外壳中间的库叠层，台上只剩 生成 · 训练。
-  it('renders the generate and train tabs only, generate selected on the generate deep link', () => {
+  it('has no generate / train switch on the bench', () => {
     render(<LoraWorkbench />)
 
-    expect(screen.getAllByRole('tab')).toHaveLength(2)
+    expect(screen.queryAllByRole('tab')).toHaveLength(0)
     expect(
-      screen.queryByRole('tab', { name: /LoraWorkbench:tabs\.favorites/ }),
+      screen.queryByRole('button', { name: 'LoraWorkbench:trainTitle' }),
     ).toBeNull()
-    expect(
-      screen.getByRole('tab', { name: /LoraWorkbench:tabs\.generate/ }),
-    ).toHaveAttribute('aria-selected', 'true')
   })
 
   // 旧链接 `?section=mine` 送去库叠层的收藏那一格，台回到生成。
@@ -2222,30 +2235,17 @@ describe('LoraWorkbench module tab bar — P2-4/P2-7', () => {
     )
   })
 
-  it('navigates (URL replace) to the clicked section and moves the selection there at once', () => {
+  it('the train deep link opens the wizard with a way back to generate', () => {
+    mockSearch = 'section=train'
     render(<LoraWorkbench />)
 
-    const trainTab = screen.getByRole('tab', {
-      name: /LoraWorkbench:tabs\.train/,
-    })
-    fireEvent.click(trainTab)
-    // 点下去当场就选中（不等路由换完），路由报回来之后以路由为准。
-    expect(trainTab).toHaveAttribute('aria-selected', 'true')
-
+    fireEvent.click(
+      screen.getByRole('button', { name: 'LoraWorkbench:trainTitle' }),
+    )
     expect(mockRouterReplace).toHaveBeenCalledWith(
-      expect.stringContaining('section=train'),
+      '/studio/lora',
       expect.objectContaining({ scroll: false }),
     )
-  })
-
-  it('keeps every tab a native button so Tab / Enter / Space reach it without extra wiring', () => {
-    render(<LoraWorkbench />)
-
-    for (const tab of screen.getAllByRole('tab')) {
-      expect(tab.tagName).toBe('BUTTON')
-      expect(tab).toHaveAttribute('type', 'button')
-      expect(tab).not.toBeDisabled()
-    }
   })
 })
 
@@ -2441,10 +2441,12 @@ describe('LoraWorkbench GenerateBranch — generating state and ETA hint', () =>
     sessionStorage.clear()
   })
 
-  // 生成台 B：结果区按「框的比例就是图的比例」画一块素底框（`studio-fit-box`），
-  // 进度线跑在它自己的边上；没出过图、也没在出图时只有舞台中间那一句话。
+  // 台面只放图（ui-spec ㊲）：出图中最前面一格，进度线跑在那一格自己的边上；没出过图、
+  // 也没在出图时只有台面中间那一句话。
   const resultBox = () =>
-    screen.getByTestId('lora-result-card').querySelector('.studio-fit-box')
+    within(screen.getByTestId('lora-result-card')).queryAllByRole(
+      'listitem',
+    )[0] ?? null
 
   it('renders the in-progress state inside the result box on stage', () => {
     mockIsGenerating = true

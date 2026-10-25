@@ -40,6 +40,7 @@ import { StudioConversationList } from '@/components/business/studio/shell/Studi
 import { StudioLibraryTargetContext } from '@/components/business/studio/shell/StudioLibraryOverlay'
 import {
   StudioBenchRail,
+  StudioShellExpandChat,
   activeBenchId,
   useStudioBenchMotion,
   useStudioBenchSwipe,
@@ -350,7 +351,7 @@ function StudioShellStage({
   // 库是整页（ui-spec §9）：盖满白板；叫出助手时对话按记住的宽贴到右边。
   const conversationHidden =
     bench && split.conversationCollapsed && !libraryOpen
-  // 头像在哪（用户 10-25 ③ A）：一往左收就飞进左栏最上面那格，展开时飞回对话头。
+  // 头像在哪（用户 10-25 ① A）：一往左收就飞到台左上角，点它展开、飞回对话头。
   const avatarDocked = conversationHidden || pulling === 'collapse'
   useEffect(() => {
     setStudioShellAvatar({
@@ -444,6 +445,7 @@ function StudioShellStage({
         className={cn(
           'min-w-0 flex-1 flex-col',
           bench ? 'block desk:flex desk:h-full' : 'hidden',
+          avatarDocked && 'studio-shell-chat-collapsed',
         )}
         style={{
           opacity:
@@ -453,6 +455,9 @@ function StudioShellStage({
           transition: pullTransition,
         }}
       >
+        {bench && avatarDocked ? (
+          <StudioShellExpandChat onExpand={expandConversation} />
+        ) : null}
         <div
           ref={contentRef}
           data-testid="studio-shell-bench"

@@ -92,10 +92,7 @@ import type { AssistantPersona } from '@/types/assistant-persona'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
 import { useSlowLoadingNotice } from '@/hooks/use-slow-loading-notice'
 import { useStudioShellAvatar } from '@/hooks/use-studio-shell-avatar'
-import {
-  StudioOperatorAvatarSwitcher,
-  StudioOperatorCurrentAvatar,
-} from '@/components/business/studio/assistant-operator/StudioOperatorAvatarSwitcher'
+import { StudioOperatorCurrentAvatar } from '@/components/business/studio/assistant-operator/StudioOperatorAvatarSwitcher'
 import { StudioOperatorChatRoleDialog } from '@/components/business/studio/assistant-operator/StudioOperatorChatRoleDialog'
 import { StudioOperatorModeSwitch } from '@/components/business/studio/assistant-operator/StudioOperatorModeSwitch'
 import { StudioOperatorSessionRow } from '@/components/business/studio/assistant-operator/StudioOperatorSessionRow'
@@ -338,26 +335,31 @@ export function StudioOperatorHeader({
           >
             <AssistantAvatarGlyph presetId={persona?.avatarPreset ?? null} />
           </button>
-        ) : avatar === 'board' || avatar === 'boardStatic' ? (
-          // 外壳那一栏：头像就是「换谁陪你」（用户 10-25）；开着台时一排最下面多一颗「收起对话」，
-          // 收起时这一颗飞进左栏最上面那格（`useStudioShellAvatar`）。
-          <StudioOperatorAvatarSwitcher
-            side="bottom"
-            onCollapse={avatar === 'board' ? onCollapse : undefined}
+        ) : avatar === 'board' ? (
+          // 外壳那一栏、开着台：助手头像点一下 = 收起对话（用户 10-25），飞到台左上角
+          //（`StudioShellExpandChat`），点那颗再展开。换人只走左栏最上面那格。
+          <button
+            type="button"
+            data-testid="operator-header-avatar"
+            aria-label={t('collapse')}
+            title={t('collapseHint')}
+            onClick={onCollapse}
+            className={cn(
+              'size-8 shrink-0 rounded-full transition-transform duration-fast ease-standard active:scale-96 focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none',
+              // 飞走了：这里只留位，⛔ 两颗同时在。
+              avatarDocked && 'invisible',
+            )}
           >
-            <button
-              type="button"
-              data-testid="operator-header-avatar"
-              aria-label={t('mode.pickCharacter')}
-              className={cn(
-                'size-8 shrink-0 rounded-full transition-transform duration-fast ease-standard active:scale-96 focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none',
-                // 飞走了：这里只留位，⛔ 两颗同时在。
-                avatarDocked && 'invisible',
-              )}
-            >
-              <StudioOperatorCurrentAvatar fly={!avatarDocked} />
-            </button>
-          </StudioOperatorAvatarSwitcher>
+            <StudioOperatorCurrentAvatar fly={!avatarDocked} />
+          </button>
+        ) : avatar === 'boardStatic' ? (
+          // 首页（没开台）：对话就是整块白板，没东西可收 —— 头像只是在。
+          <span
+            data-testid="operator-header-avatar"
+            className="size-8 shrink-0 rounded-full"
+          >
+            <StudioOperatorCurrentAvatar fly={false} />
+          </span>
         ) : avatar === 'slot' ? (
           <span
             data-testid="operator-header-avatar-slot"

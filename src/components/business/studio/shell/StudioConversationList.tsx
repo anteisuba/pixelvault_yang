@@ -136,32 +136,23 @@ export function StudioConversationList({ className }: { className?: string }) {
         className,
       )}
     >
-      {avatar.docked ? (
-        // 对话收起（用户 10-25）：助手头像飞进这一格；点它弹一排头像换人，挑完对话拉回来。
-        <StudioOperatorAvatarSwitcher
-          side="right"
-          onPicked={avatar.expand ?? undefined}
+      {/* 最上面那格 = 此刻陪你的那一位，只管换人（用户 10-25）；收起 / 展开交给对话头那颗。
+          换了人对话收着就拉回来。 */}
+      <StudioOperatorAvatarSwitcher
+        side="right"
+        onPicked={avatar.expand ?? undefined}
+      >
+        <button
+          type="button"
+          aria-label={tOperator('mode.pickCharacter')}
+          data-testid="studio-shell-avatar"
+          className="mb-2 grid size-10 place-items-center rounded-full focus-visible:outline-none focus-visible:shadow-focus"
         >
-          <button
-            type="button"
-            aria-label={tOperator('mode.pickCharacter')}
-            data-testid="studio-shell-avatar"
-            className="mb-2 grid size-10 place-items-center rounded-full focus-visible:outline-none focus-visible:shadow-focus"
-          >
-            <span className="size-9 rounded-full transition-transform duration-fast ease-standard active:scale-96 motion-reduce:transition-none">
-              <StudioOperatorCurrentAvatar fly />
-            </span>
-          </button>
-        </StudioOperatorAvatarSwitcher>
-      ) : (
-        <Link
-          href={ROUTES.STUDIO}
-          aria-label={tNav('brand')}
-          className="mb-2 grid size-10 place-items-center rounded-12 text-sm font-bold tracking-brand text-foreground focus-visible:outline-none focus-visible:shadow-focus"
-        >
-          AN
-        </Link>
-      )}
+          <span className="size-9 rounded-full transition-transform duration-fast ease-standard active:scale-96 motion-reduce:transition-none">
+            <StudioOperatorCurrentAvatar fly={false} />
+          </span>
+        </button>
+      </StudioOperatorAvatarSwitcher>
       <NavTip label={t('newChat')}>
         <button
           type="button"

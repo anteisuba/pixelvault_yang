@@ -6,22 +6,22 @@ import { motion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
 import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
-import { ChevronLeft } from '@/components/icons'
 import {
   AssistantAvatarGlyph,
   timelineInitials,
 } from '@/components/business/studio/assistant-operator/AssistantAvatarGlyph'
 import {
+  Command,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from '@/components/ui/command'
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import { useChatCharacters } from '@/hooks/use-chat-characters'
 import {
@@ -31,11 +31,11 @@ import {
 } from '@/hooks/use-studio-operator-store'
 import { cn } from '@/lib/utils'
 
-/** 收起 / 展开时飞来飞去的那一颗（对话头 ↔ 左栏最上面那格）。 */
+/** 收起 / 展开时飞来飞去的那一颗（对话头 ↔ 台左上角）。 */
 export const STUDIO_ASSISTANT_AVATAR_LAYOUT_ID = 'studio-assistant-avatar'
 
-const PICK_BUTTON_CLASS =
-  'grid size-9 place-items-center overflow-hidden rounded-full transition-transform duration-fast ease-standard active:scale-96 focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none'
+/** 角色超过这么多才在列表顶上出搜索。 */
+const SEARCH_THRESHOLD = 8
 
 /** 平圆灰底（ui-spec ㉗）：有图铺图，没图写首字；助手没传图用默认那一款。 */
 function AvatarDisc({
@@ -74,7 +74,7 @@ function AvatarDisc({
 
 /**
  * 此刻陪你的那一位的头像：工作时 = 助手，在和角色聊 = 她。
- * `fly`：挂上飞行标记（对话头 ↔ 左栏那格同一颗，Motion `layoutId` 接力）。
+ * `fly`：挂上飞行标记（对话头 ↔ 台左上角同一颗，Motion `layoutId` 接力）。
  */
 export function StudioOperatorCurrentAvatar({ fly }: { fly: boolean }) {
   const { chatCharacter } = useStudioOperatorState()
@@ -109,17 +109,15 @@ export function StudioOperatorCurrentAvatar({ fly }: { fly: boolean }) {
 interface StudioOperatorAvatarSwitcherProps {
   /** 头像本身（触发键）：由宿主给，位置、尺寸各处不同。 */
   children: ReactNode
-  side: 'right' | 'bottom'
+  side: 'right'
   /** 换了人 / 点了自己之后（左栏那格用它把对话拉回来）。 */
   onPicked?: () => void
-  /** 开着台时对话头那颗：一排最下面多一颗「收起对话」。 */
-  onCollapse?: () => void
 }
 
 /**
- * 换谁陪你（用户 10-25 定 ② B + 「点角色 = 和她聊」）：点头像弹出一排竖着的头像 ——
- * 第一颗是工作助手，下面是你的角色；点角色 = 这段对话切成和她聊，点助手 = 回到工作。
- * 现在是谁就套一圈。取代原来头部的「工作 / 聊天」切换与「和谁聊」列表。
+ * 换谁陪你（用户 10-25 定 ② B + 「点角色 = 和她聊」；同日改定排法 C 菜单列表）：
+ * 点头像弹一个菜单 —— 第一行工作助手，下面一行一个角色（头像 + 名字，角色多了顶上出搜索），
+ * 点角色 = 这段对话切成和她聊，点助手 = 回到工作；现在是谁，头像套一圈。
  *
  * ⚠ 正在出字时换不了（`switchOperatorChatMode` 自己拦），这里不另判。
  */
@@ -127,7 +125,6 @@ export function StudioOperatorAvatarSwitcher({
   children,
   side,
   onPicked,
-  onCollapse,
 }: StudioOperatorAvatarSwitcherProps) {
   const t = useTranslations('StudioOperator')
   const [open, setOpen] = useState(false)
@@ -142,6 +139,9 @@ export function StudioOperatorAvatarSwitcher({
     onPicked?.()
   }
 
+  // 角色多了（10-25 截图 13 个）才出搜索；少的时候一眼就看完。
+  const searchable = characters.characters.length > SEARCH_THRESHOLD
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
@@ -149,18 +149,19 @@ export function StudioOperatorAvatarSwitcher({
         side={side}
         align="start"
         sideOffset={8}
-        className="w-auto rounded-full bg-transparent p-0 shadow-none"
+        className="w-60 p-0"
       >
-        <TooltipProvider>
-          <nav
-            aria-label={t('mode.pickCharacter')}
-            data-testid="operator-avatar-switcher"
-            className="flex max-h-(--radix-popover-content-available-height) flex-col gap-1 overflow-y-auto overscroll-contain rounded-full bg-raise p-1 shadow-soft scrollbar-none"
-          >
+        <Command
+          aria-label={t('mode.pickCharacter')}
+          data-testid="operator-avatar-switcher"
+          className="max-h-(--radix-popover-content-available-height)"
+        >
+          <CommandList className="max-h-none flex-1 p-1.5">
             <PickItem
+              value="__assistant"
               label={assistantName}
               current={chatCharacter === null}
-              onClick={() => pick(null)}
+              onSelect={() => pick(null)}
               testId="operator-avatar-switch-assistant"
             >
               <AvatarDisc
@@ -169,69 +170,64 @@ export function StudioOperatorAvatarSwitcher({
                 assistantPreset={persona.avatarPreset ?? null}
               />
             </PickItem>
+            {characters.characters.length > 0 ? (
+              <CommandSeparator className="mx-0 my-1.5" />
+            ) : null}
+            {searchable ? (
+              <CommandInput placeholder={t('mode.searchCharacter')} />
+            ) : null}
             {characters.characters.map((chat) => (
               <PickItem
                 key={chat.character.id}
+                value={`${chat.character.name} ${chat.character.id}`}
                 label={chat.character.name}
                 current={chat.character.id === chatCharacter?.id}
-                onClick={() => pick(chat)}
+                onSelect={() => pick(chat)}
               >
                 <AvatarDisc url={chat.avatarUrl} name={chat.character.name} />
               </PickItem>
             ))}
-            {onCollapse ? (
-              <PickItem
-                label={t('collapse')}
-                current={false}
-                onClick={() => {
-                  setOpen(false)
-                  onCollapse()
-                }}
-                testId="operator-avatar-collapse"
-              >
-                <span className="grid size-full place-items-center rounded-full text-ink-2 hover:tint-hover [&>svg]:size-4.5">
-                  <ChevronLeft />
-                </span>
-              </PickItem>
-            ) : null}
-          </nav>
-        </TooltipProvider>
+          </CommandList>
+        </Command>
       </PopoverContent>
     </Popover>
   )
 }
 
+/** 菜单一行（ui-spec §9 菜单）：头像 32 + 名字；现在是谁，头像套一圈（㉗）。 */
 function PickItem({
+  value,
   label,
   current,
-  onClick,
+  onSelect,
   testId,
   children,
 }: {
+  value: string
   label: string
   current: boolean
-  onClick: () => void
+  onSelect: () => void
   testId?: string
   children: ReactNode
 }) {
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          aria-label={label}
-          aria-current={current ? 'true' : undefined}
-          data-testid={testId}
-          onClick={onClick}
-          className={cn(
-            PICK_BUTTON_CLASS,
-            current && 'ring-2 ring-foreground ring-offset-2 ring-offset-raise',
-          )}
-        >
-          {children}
-        </button>
-      </TooltipTrigger>
-      <TooltipContent side="right">{label}</TooltipContent>
-    </Tooltip>
+    <CommandItem
+      value={value}
+      keywords={[label]}
+      aria-current={current ? 'true' : undefined}
+      data-testid={testId}
+      onSelect={onSelect}
+      className="h-10 px-1.5"
+    >
+      <span
+        className={cn(
+          'size-8 shrink-0 rounded-full',
+          current && 'ring-2 ring-foreground ring-offset-2 ring-offset-popover',
+        )}
+      >
+        {children}
+      </span>
+      <span className="min-w-0 truncate">{label}</span>
+    </CommandItem>
   )
 }

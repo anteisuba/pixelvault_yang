@@ -1093,6 +1093,7 @@
       "work": "工作",
       "chat": "聊天",
       "pickCharacter": "和谁聊",
+      "searchCharacter": "搜角色",
       "toChat": "切到聊天 · 和 {name}",
       "toWork": "回到工作",
       "toDomain": "切到{domain}"

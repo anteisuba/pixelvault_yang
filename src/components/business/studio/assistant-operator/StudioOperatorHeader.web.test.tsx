@@ -413,7 +413,7 @@ describe('StudioOperatorHeader', () => {
   })
 
   /** ui-spec §1 板头：外壳那一栏 = 头像 + 就地改名的标题，⛔ 分隔线、⛔ 历史下拉。 */
-  it('⭐ board：点头像弹出换人一排（最下面「收起」）；点标题就地改名，回车存、Esc 不存', () => {
+  it('⭐ board：点头像 = 收起（换人只走左栏）；点标题就地改名，回车存、Esc 不存', () => {
     const renameSession = vi.fn().mockResolvedValue(true)
     const history = {
       ...HISTORY,
@@ -427,9 +427,8 @@ describe('StudioOperatorHeader', () => {
     )
     expect(screen.queryByTestId('operator-session-menu')).toBeNull()
     fireEvent.click(screen.getByTestId('operator-header-avatar'))
-    expect(screen.getByTestId('operator-avatar-switcher')).toBeInTheDocument()
-    fireEvent.click(screen.getByTestId('operator-avatar-collapse'))
     expect(onCollapse).toHaveBeenCalledTimes(1)
+    expect(screen.queryByTestId('operator-avatar-switcher')).toBeNull()
 
     fireEvent.click(screen.getByTestId('operator-title'))
     const input = screen.getByTestId('operator-title-input')
@@ -445,10 +444,9 @@ describe('StudioOperatorHeader', () => {
     expect(renameSession).toHaveBeenCalledWith(SESSIONS[0], '新名字')
     cleanup()
 
-    // 首页：头像也能换人，但没有「收起」；还没落库的新对话只写字、⛔ 铅笔。
+    // 首页：没东西可收，头像只是在（⛔ 按钮）；还没落库的新对话只写字、⛔ 铅笔。
     renderHeader({ avatar: 'boardStatic' })
-    fireEvent.click(screen.getByTestId('operator-header-avatar'))
-    expect(screen.queryByTestId('operator-avatar-collapse')).toBeNull()
+    expect(screen.getByTestId('operator-header-avatar').tagName).toBe('SPAN')
     expect(screen.getByTestId('operator-title').tagName).toBe('SPAN')
   })
 

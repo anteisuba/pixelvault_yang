@@ -1093,6 +1093,7 @@
       "work": "作業",
       "chat": "チャット",
       "pickCharacter": "話す相手",
+      "searchCharacter": "キャラを検索",
       "toChat": "チャットに切替 · {name}と",
       "toWork": "作業に戻る",
       "toDomain": "{domain}に移動"

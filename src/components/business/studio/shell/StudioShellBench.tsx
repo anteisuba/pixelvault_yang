@@ -27,6 +27,7 @@ import {
   type StudioLibraryCategoryId,
   type StudioShellBenchId,
 } from '@/constants/studio-shell'
+import { StudioOperatorCurrentAvatar } from '@/components/business/studio/assistant-operator/StudioOperatorAvatarSwitcher'
 import {
   Tooltip,
   TooltipContent,
@@ -256,7 +257,7 @@ function scrollsSideways(
 }
 
 /**
- * 台条（ui-spec §1 / §9「切台」）：开着台时竖着贴在白板右边、上下居中 —— 图片 · LoRA ·
+ * 台条（ui-spec §1 / §9「切台」）：开着台时竖着浮在白板右边、上下居中（盖在台上，⛔ 单独占一列） —— 图片 · LoRA ·
  * 视频 · 3D · 画布，同时只开一个台。⛔ 台顶上的切换条、⛔ 台标题。首页不摆（用户 10-25：
  * 一开始交给左栏「工作台」）。点别的 = 换台（滑过去），点当前那颗 = 收台。
  */
@@ -277,9 +278,10 @@ export function StudioBenchRail({
     <nav
       aria-label={t('benches')}
       data-testid="studio-bench-rail"
-      className="order-last hidden w-18 shrink-0 items-center justify-center desk:flex"
+      // 浮在台上面、⛔ 单独占一列（用户 10-25）：外层只管摆位、点不着，点得着的只有那张白卡。
+      className="pointer-events-none absolute inset-y-0 right-3 z-20 hidden items-center desk:flex"
     >
-      <div className="flex flex-col gap-0.5 rounded-16 bg-raise p-1.5 shadow-soft">
+      <div className="pointer-events-auto flex flex-col gap-0.5 rounded-16 bg-raise p-1.5 shadow-soft">
         {BENCH_ITEMS.map((item) => {
           const Icon = item.icon
           const label = tAll(item.labelKey)
@@ -417,6 +419,27 @@ export function StudioLibraryPicker({
         )
       })}
     </nav>
+  )
+}
+
+/**
+ * 对话收起时（用户 10-25 ① A）：助手头像落在台的左上角，再点展开。点哪颗收、点同一颗开 ——
+ * 和对话头里那颗同一个位置（板头 52 高、左 12）、同一颗（Motion `layoutId` 飞过来）。
+ */
+export function StudioShellExpandChat({ onExpand }: { onExpand: () => void }) {
+  const t = useTranslations('StudioShell')
+  return (
+    <BarTip label={t('expandChat')} side="right">
+      <button
+        type="button"
+        aria-label={t('expandChat')}
+        data-testid="studio-shell-expand-chat"
+        onClick={onExpand}
+        className="absolute top-2.5 left-3 z-20 hidden size-8 rounded-full transition-transform duration-fast ease-standard active:scale-96 focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none desk:block"
+      >
+        <StudioOperatorCurrentAvatar fly />
+      </button>
+    </BarTip>
   )
 }
 

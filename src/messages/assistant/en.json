@@ -1093,6 +1093,7 @@
       "work": "Work",
       "chat": "Chat",
       "pickCharacter": "Chat with",
+      "searchCharacter": "Search characters",
       "toChat": "Switched to chat · with {name}",
       "toWork": "Back to work",
       "toDomain": "Moved to {domain}"

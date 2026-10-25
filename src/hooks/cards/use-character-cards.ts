@@ -101,6 +101,8 @@ export interface UseCharacterCardsReturn {
   /** 卡库里的一张 chub 卡（`作者/卡名`）建成角色卡；失败已 toast，返回 `null`。 */
   importChub: (fullPath: string) => Promise<CharacterCardRecord | null>
   update: (id: string, data: UpdateCharacterCardRequest) => Promise<boolean>
+  /** 库里收藏 / 取消收藏：先在界面上翻过去，失败翻回来并 toast。 */
+  toggleFavorite: (id: string) => Promise<boolean>
   remove: (id: string) => Promise<boolean>
   /** 加一套造型；成功返回新造型 id，失败已 toast，返回 `null`。 */
   createLook: (
@@ -358,6 +360,34 @@ export function useCharacterCards(): UseCharacterCardsReturn {
     [replaceCard, t],
   )
 
+  const setFavorite = useCallback((id: string, isFavorite: boolean) => {
+    setCards((prev) => {
+      const next = prev.map((card) =>
+        card.id === id ? { ...card, isFavorite } : card,
+      )
+      writeCardCache(CHARACTER_CARDS_CACHE_KEY, next)
+      return next
+    })
+  }, [])
+  /**
+   * ⚠ ⛔ 拿回包整张换掉：单张回包的 `generationCount` 恒为 0（只在列表里算），换了
+   * 格子上的「N 张」就清零了 —— 只翻这一格。
+   */
+  const toggleFavorite = useCallback(
+    async (id: string): Promise<boolean> => {
+      const card = cards.find((item) => item.id === id)
+      if (!card) return false
+      const next = !card.isFavorite
+      setFavorite(id, next)
+      const response = await updateCharacterCardAPI(id, { isFavorite: next })
+      if (response.success) return true
+      setFavorite(id, !next)
+      toast.error(response.error ?? t('characterCardUpdateFailed'))
+      return false
+    },
+    [cards, setFavorite, t],
+  )
+
   const remove = useCallback(
     async (id: string): Promise<boolean> => {
       const response = await deleteCharacterCardAPI(id)
@@ -496,6 +526,7 @@ export function useCharacterCards(): UseCharacterCardsReturn {
     importTavern,
     importChub,
     update,
+    toggleFavorite,
     remove,
     createLook,
     updateLook,

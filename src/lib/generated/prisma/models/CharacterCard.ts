@@ -39,6 +39,7 @@ export type CharacterCardMinAggregateOutputType = {
   userId: string | null
   name: string | null
   isDeleted: boolean | null
+  isFavorite: boolean | null
   voiceCardId: string | null
   version: number | null
   handle: string | null
@@ -52,6 +53,7 @@ export type CharacterCardMaxAggregateOutputType = {
   userId: string | null
   name: string | null
   isDeleted: boolean | null
+  isFavorite: boolean | null
   voiceCardId: string | null
   version: number | null
   handle: string | null
@@ -66,6 +68,7 @@ export type CharacterCardCountAggregateOutputType = {
   name: number
   tags: number
   isDeleted: number
+  isFavorite: number
   voiceCardId: number
   voiceProfile: number
   persona: number
@@ -92,6 +95,7 @@ export type CharacterCardMinAggregateInputType = {
   userId?: true
   name?: true
   isDeleted?: true
+  isFavorite?: true
   voiceCardId?: true
   version?: true
   handle?: true
@@ -105,6 +109,7 @@ export type CharacterCardMaxAggregateInputType = {
   userId?: true
   name?: true
   isDeleted?: true
+  isFavorite?: true
   voiceCardId?: true
   version?: true
   handle?: true
@@ -119,6 +124,7 @@ export type CharacterCardCountAggregateInputType = {
   name?: true
   tags?: true
   isDeleted?: true
+  isFavorite?: true
   voiceCardId?: true
   voiceProfile?: true
   persona?: true
@@ -223,6 +229,7 @@ export type CharacterCardGroupByOutputType = {
   name: string
   tags: string[]
   isDeleted: boolean
+  isFavorite: boolean
   voiceCardId: string | null
   voiceProfile: runtime.JsonValue | null
   persona: runtime.JsonValue | null
@@ -263,6 +270,7 @@ export type CharacterCardWhereInput = {
   name?: Prisma.StringFilter<"CharacterCard"> | string
   tags?: Prisma.StringNullableListFilter<"CharacterCard">
   isDeleted?: Prisma.BoolFilter<"CharacterCard"> | boolean
+  isFavorite?: Prisma.BoolFilter<"CharacterCard"> | boolean
   voiceCardId?: Prisma.StringNullableFilter<"CharacterCard"> | string | null
   voiceProfile?: Prisma.JsonNullableFilter<"CharacterCard">
   persona?: Prisma.JsonNullableFilter<"CharacterCard">
@@ -288,6 +296,7 @@ export type CharacterCardOrderByWithRelationInput = {
   name?: Prisma.SortOrder
   tags?: Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
+  isFavorite?: Prisma.SortOrder
   voiceCardId?: Prisma.SortOrderInput | Prisma.SortOrder
   voiceProfile?: Prisma.SortOrderInput | Prisma.SortOrder
   persona?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -317,6 +326,7 @@ export type CharacterCardWhereUniqueInput = Prisma.AtLeast<{
   name?: Prisma.StringFilter<"CharacterCard"> | string
   tags?: Prisma.StringNullableListFilter<"CharacterCard">
   isDeleted?: Prisma.BoolFilter<"CharacterCard"> | boolean
+  isFavorite?: Prisma.BoolFilter<"CharacterCard"> | boolean
   voiceCardId?: Prisma.StringNullableFilter<"CharacterCard"> | string | null
   voiceProfile?: Prisma.JsonNullableFilter<"CharacterCard">
   persona?: Prisma.JsonNullableFilter<"CharacterCard">
@@ -342,6 +352,7 @@ export type CharacterCardOrderByWithAggregationInput = {
   name?: Prisma.SortOrder
   tags?: Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
+  isFavorite?: Prisma.SortOrder
   voiceCardId?: Prisma.SortOrderInput | Prisma.SortOrder
   voiceProfile?: Prisma.SortOrderInput | Prisma.SortOrder
   persona?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -367,6 +378,7 @@ export type CharacterCardScalarWhereWithAggregatesInput = {
   name?: Prisma.StringWithAggregatesFilter<"CharacterCard"> | string
   tags?: Prisma.StringNullableListFilter<"CharacterCard">
   isDeleted?: Prisma.BoolWithAggregatesFilter<"CharacterCard"> | boolean
+  isFavorite?: Prisma.BoolWithAggregatesFilter<"CharacterCard"> | boolean
   voiceCardId?: Prisma.StringNullableWithAggregatesFilter<"CharacterCard"> | string | null
   voiceProfile?: Prisma.JsonNullableWithAggregatesFilter<"CharacterCard">
   persona?: Prisma.JsonNullableWithAggregatesFilter<"CharacterCard">
@@ -383,6 +395,7 @@ export type CharacterCardCreateInput = {
   name: string
   tags?: Prisma.CharacterCardCreatetagsInput | string[]
   isDeleted?: boolean
+  isFavorite?: boolean
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
@@ -407,6 +420,7 @@ export type CharacterCardUncheckedCreateInput = {
   name: string
   tags?: Prisma.CharacterCardCreatetagsInput | string[]
   isDeleted?: boolean
+  isFavorite?: boolean
   voiceCardId?: string | null
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -429,6 +443,7 @@ export type CharacterCardUpdateInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   tags?: Prisma.CharacterCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isFavorite?: Prisma.BoolFieldUpdateOperationsInput | boolean
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
@@ -453,6 +468,7 @@ export type CharacterCardUncheckedUpdateInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   tags?: Prisma.CharacterCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isFavorite?: Prisma.BoolFieldUpdateOperationsInput | boolean
   voiceCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -476,6 +492,7 @@ export type CharacterCardCreateManyInput = {
   name: string
   tags?: Prisma.CharacterCardCreatetagsInput | string[]
   isDeleted?: boolean
+  isFavorite?: boolean
   voiceCardId?: string | null
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -492,6 +509,7 @@ export type CharacterCardUpdateManyMutationInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   tags?: Prisma.CharacterCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isFavorite?: Prisma.BoolFieldUpdateOperationsInput | boolean
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
@@ -508,6 +526,7 @@ export type CharacterCardUncheckedUpdateManyInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   tags?: Prisma.CharacterCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isFavorite?: Prisma.BoolFieldUpdateOperationsInput | boolean
   voiceCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -545,6 +564,7 @@ export type CharacterCardCountOrderByAggregateInput = {
   name?: Prisma.SortOrder
   tags?: Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
+  isFavorite?: Prisma.SortOrder
   voiceCardId?: Prisma.SortOrder
   voiceProfile?: Prisma.SortOrder
   persona?: Prisma.SortOrder
@@ -565,6 +585,7 @@ export type CharacterCardMaxOrderByAggregateInput = {
   userId?: Prisma.SortOrder
   name?: Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
+  isFavorite?: Prisma.SortOrder
   voiceCardId?: Prisma.SortOrder
   version?: Prisma.SortOrder
   handle?: Prisma.SortOrder
@@ -578,6 +599,7 @@ export type CharacterCardMinOrderByAggregateInput = {
   userId?: Prisma.SortOrder
   name?: Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
+  isFavorite?: Prisma.SortOrder
   voiceCardId?: Prisma.SortOrder
   version?: Prisma.SortOrder
   handle?: Prisma.SortOrder
@@ -783,6 +805,7 @@ export type CharacterCardCreateWithoutUserInput = {
   name: string
   tags?: Prisma.CharacterCardCreatetagsInput | string[]
   isDeleted?: boolean
+  isFavorite?: boolean
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
@@ -805,6 +828,7 @@ export type CharacterCardUncheckedCreateWithoutUserInput = {
   name: string
   tags?: Prisma.CharacterCardCreatetagsInput | string[]
   isDeleted?: boolean
+  isFavorite?: boolean
   voiceCardId?: string | null
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -857,6 +881,7 @@ export type CharacterCardScalarWhereInput = {
   name?: Prisma.StringFilter<"CharacterCard"> | string
   tags?: Prisma.StringNullableListFilter<"CharacterCard">
   isDeleted?: Prisma.BoolFilter<"CharacterCard"> | boolean
+  isFavorite?: Prisma.BoolFilter<"CharacterCard"> | boolean
   voiceCardId?: Prisma.StringNullableFilter<"CharacterCard"> | string | null
   voiceProfile?: Prisma.JsonNullableFilter<"CharacterCard">
   persona?: Prisma.JsonNullableFilter<"CharacterCard">
@@ -873,6 +898,7 @@ export type CharacterCardCreateWithoutVoiceCardInput = {
   name: string
   tags?: Prisma.CharacterCardCreatetagsInput | string[]
   isDeleted?: boolean
+  isFavorite?: boolean
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
@@ -896,6 +922,7 @@ export type CharacterCardUncheckedCreateWithoutVoiceCardInput = {
   name: string
   tags?: Prisma.CharacterCardCreatetagsInput | string[]
   isDeleted?: boolean
+  isFavorite?: boolean
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
@@ -943,6 +970,7 @@ export type CharacterCardCreateWithoutAssistantPersonasInput = {
   name: string
   tags?: Prisma.CharacterCardCreatetagsInput | string[]
   isDeleted?: boolean
+  isFavorite?: boolean
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
@@ -966,6 +994,7 @@ export type CharacterCardUncheckedCreateWithoutAssistantPersonasInput = {
   name: string
   tags?: Prisma.CharacterCardCreatetagsInput | string[]
   isDeleted?: boolean
+  isFavorite?: boolean
   voiceCardId?: string | null
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1003,6 +1032,7 @@ export type CharacterCardUpdateWithoutAssistantPersonasInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   tags?: Prisma.CharacterCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isFavorite?: Prisma.BoolFieldUpdateOperationsInput | boolean
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1026,6 +1056,7 @@ export type CharacterCardUncheckedUpdateWithoutAssistantPersonasInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   tags?: Prisma.CharacterCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isFavorite?: Prisma.BoolFieldUpdateOperationsInput | boolean
   voiceCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1047,6 +1078,7 @@ export type CharacterCardCreateWithoutLooksInput = {
   name: string
   tags?: Prisma.CharacterCardCreatetagsInput | string[]
   isDeleted?: boolean
+  isFavorite?: boolean
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
@@ -1070,6 +1102,7 @@ export type CharacterCardUncheckedCreateWithoutLooksInput = {
   name: string
   tags?: Prisma.CharacterCardCreatetagsInput | string[]
   isDeleted?: boolean
+  isFavorite?: boolean
   voiceCardId?: string | null
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1107,6 +1140,7 @@ export type CharacterCardUpdateWithoutLooksInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   tags?: Prisma.CharacterCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isFavorite?: Prisma.BoolFieldUpdateOperationsInput | boolean
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1130,6 +1164,7 @@ export type CharacterCardUncheckedUpdateWithoutLooksInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   tags?: Prisma.CharacterCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isFavorite?: Prisma.BoolFieldUpdateOperationsInput | boolean
   voiceCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1151,6 +1186,7 @@ export type CharacterCardCreateWithoutGenerationLinksInput = {
   name: string
   tags?: Prisma.CharacterCardCreatetagsInput | string[]
   isDeleted?: boolean
+  isFavorite?: boolean
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
@@ -1174,6 +1210,7 @@ export type CharacterCardUncheckedCreateWithoutGenerationLinksInput = {
   name: string
   tags?: Prisma.CharacterCardCreatetagsInput | string[]
   isDeleted?: boolean
+  isFavorite?: boolean
   voiceCardId?: string | null
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1211,6 +1248,7 @@ export type CharacterCardUpdateWithoutGenerationLinksInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   tags?: Prisma.CharacterCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isFavorite?: Prisma.BoolFieldUpdateOperationsInput | boolean
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1234,6 +1272,7 @@ export type CharacterCardUncheckedUpdateWithoutGenerationLinksInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   tags?: Prisma.CharacterCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isFavorite?: Prisma.BoolFieldUpdateOperationsInput | boolean
   voiceCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1255,6 +1294,7 @@ export type CharacterCardCreateWithoutLoraLinksInput = {
   name: string
   tags?: Prisma.CharacterCardCreatetagsInput | string[]
   isDeleted?: boolean
+  isFavorite?: boolean
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
@@ -1278,6 +1318,7 @@ export type CharacterCardUncheckedCreateWithoutLoraLinksInput = {
   name: string
   tags?: Prisma.CharacterCardCreatetagsInput | string[]
   isDeleted?: boolean
+  isFavorite?: boolean
   voiceCardId?: string | null
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1315,6 +1356,7 @@ export type CharacterCardUpdateWithoutLoraLinksInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   tags?: Prisma.CharacterCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isFavorite?: Prisma.BoolFieldUpdateOperationsInput | boolean
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1338,6 +1380,7 @@ export type CharacterCardUncheckedUpdateWithoutLoraLinksInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   tags?: Prisma.CharacterCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isFavorite?: Prisma.BoolFieldUpdateOperationsInput | boolean
   voiceCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1359,6 +1402,7 @@ export type CharacterCardCreateWithoutLoraTrainingJobsInput = {
   name: string
   tags?: Prisma.CharacterCardCreatetagsInput | string[]
   isDeleted?: boolean
+  isFavorite?: boolean
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
@@ -1382,6 +1426,7 @@ export type CharacterCardUncheckedCreateWithoutLoraTrainingJobsInput = {
   name: string
   tags?: Prisma.CharacterCardCreatetagsInput | string[]
   isDeleted?: boolean
+  isFavorite?: boolean
   voiceCardId?: string | null
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1419,6 +1464,7 @@ export type CharacterCardUpdateWithoutLoraTrainingJobsInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   tags?: Prisma.CharacterCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isFavorite?: Prisma.BoolFieldUpdateOperationsInput | boolean
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1442,6 +1488,7 @@ export type CharacterCardUncheckedUpdateWithoutLoraTrainingJobsInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   tags?: Prisma.CharacterCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isFavorite?: Prisma.BoolFieldUpdateOperationsInput | boolean
   voiceCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1463,6 +1510,7 @@ export type CharacterCardCreateWithoutAssistantMemoriesInput = {
   name: string
   tags?: Prisma.CharacterCardCreatetagsInput | string[]
   isDeleted?: boolean
+  isFavorite?: boolean
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
@@ -1486,6 +1534,7 @@ export type CharacterCardUncheckedCreateWithoutAssistantMemoriesInput = {
   name: string
   tags?: Prisma.CharacterCardCreatetagsInput | string[]
   isDeleted?: boolean
+  isFavorite?: boolean
   voiceCardId?: string | null
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1523,6 +1572,7 @@ export type CharacterCardUpdateWithoutAssistantMemoriesInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   tags?: Prisma.CharacterCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isFavorite?: Prisma.BoolFieldUpdateOperationsInput | boolean
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1546,6 +1596,7 @@ export type CharacterCardUncheckedUpdateWithoutAssistantMemoriesInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   tags?: Prisma.CharacterCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isFavorite?: Prisma.BoolFieldUpdateOperationsInput | boolean
   voiceCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1567,6 +1618,7 @@ export type CharacterCardCreateManyUserInput = {
   name: string
   tags?: Prisma.CharacterCardCreatetagsInput | string[]
   isDeleted?: boolean
+  isFavorite?: boolean
   voiceCardId?: string | null
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1583,6 +1635,7 @@ export type CharacterCardUpdateWithoutUserInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   tags?: Prisma.CharacterCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isFavorite?: Prisma.BoolFieldUpdateOperationsInput | boolean
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1605,6 +1658,7 @@ export type CharacterCardUncheckedUpdateWithoutUserInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   tags?: Prisma.CharacterCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isFavorite?: Prisma.BoolFieldUpdateOperationsInput | boolean
   voiceCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1627,6 +1681,7 @@ export type CharacterCardUncheckedUpdateManyWithoutUserInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   tags?: Prisma.CharacterCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isFavorite?: Prisma.BoolFieldUpdateOperationsInput | boolean
   voiceCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1644,6 +1699,7 @@ export type CharacterCardCreateManyVoiceCardInput = {
   name: string
   tags?: Prisma.CharacterCardCreatetagsInput | string[]
   isDeleted?: boolean
+  isFavorite?: boolean
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
@@ -1659,6 +1715,7 @@ export type CharacterCardUpdateWithoutVoiceCardInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   tags?: Prisma.CharacterCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isFavorite?: Prisma.BoolFieldUpdateOperationsInput | boolean
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1682,6 +1739,7 @@ export type CharacterCardUncheckedUpdateWithoutVoiceCardInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   tags?: Prisma.CharacterCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isFavorite?: Prisma.BoolFieldUpdateOperationsInput | boolean
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1704,6 +1762,7 @@ export type CharacterCardUncheckedUpdateManyWithoutVoiceCardInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   tags?: Prisma.CharacterCardUpdatetagsInput | string[]
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isFavorite?: Prisma.BoolFieldUpdateOperationsInput | boolean
   voiceProfile?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   persona?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
@@ -1796,6 +1855,7 @@ export type CharacterCardSelect<ExtArgs extends runtime.Types.Extensions.Interna
   name?: boolean
   tags?: boolean
   isDeleted?: boolean
+  isFavorite?: boolean
   voiceCardId?: boolean
   voiceProfile?: boolean
   persona?: boolean
@@ -1822,6 +1882,7 @@ export type CharacterCardSelectCreateManyAndReturn<ExtArgs extends runtime.Types
   name?: boolean
   tags?: boolean
   isDeleted?: boolean
+  isFavorite?: boolean
   voiceCardId?: boolean
   voiceProfile?: boolean
   persona?: boolean
@@ -1841,6 +1902,7 @@ export type CharacterCardSelectUpdateManyAndReturn<ExtArgs extends runtime.Types
   name?: boolean
   tags?: boolean
   isDeleted?: boolean
+  isFavorite?: boolean
   voiceCardId?: boolean
   voiceProfile?: boolean
   persona?: boolean
@@ -1860,6 +1922,7 @@ export type CharacterCardSelectScalar = {
   name?: boolean
   tags?: boolean
   isDeleted?: boolean
+  isFavorite?: boolean
   voiceCardId?: boolean
   voiceProfile?: boolean
   persona?: boolean
@@ -1871,7 +1934,7 @@ export type CharacterCardSelectScalar = {
   updatedAt?: boolean
 }
 
-export type CharacterCardOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "name" | "tags" | "isDeleted" | "voiceCardId" | "voiceProfile" | "persona" | "version" | "handle" | "summary" | "extensions" | "createdAt" | "updatedAt", ExtArgs["result"]["characterCard"]>
+export type CharacterCardOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "name" | "tags" | "isDeleted" | "isFavorite" | "voiceCardId" | "voiceProfile" | "persona" | "version" | "handle" | "summary" | "extensions" | "createdAt" | "updatedAt", ExtArgs["result"]["characterCard"]>
 export type CharacterCardInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   voiceCard?: boolean | Prisma.CharacterCard$voiceCardArgs<ExtArgs>
@@ -1922,6 +1985,10 @@ export type $CharacterCardPayload<ExtArgs extends runtime.Types.Extensions.Inter
     name: string
     tags: string[]
     isDeleted: boolean
+    /**
+     * 库里左栏「收藏」（ui-spec §9「库」，owner 2026-10-25 定加列）。
+     */
+    isFavorite: boolean
     /**
      * 默认嗓子。软引用：删音色卡只清绑定，不删角色卡。
      */
@@ -2389,6 +2456,7 @@ export interface CharacterCardFieldRefs {
   readonly name: Prisma.FieldRef<"CharacterCard", 'String'>
   readonly tags: Prisma.FieldRef<"CharacterCard", 'String[]'>
   readonly isDeleted: Prisma.FieldRef<"CharacterCard", 'Boolean'>
+  readonly isFavorite: Prisma.FieldRef<"CharacterCard", 'Boolean'>
   readonly voiceCardId: Prisma.FieldRef<"CharacterCard", 'String'>
   readonly voiceProfile: Prisma.FieldRef<"CharacterCard", 'Json'>
   readonly persona: Prisma.FieldRef<"CharacterCard", 'Json'>

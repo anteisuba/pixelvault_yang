@@ -19,6 +19,8 @@ export const CHUB_LIBRARY = {
   CHARACTER_URL: 'https://api.chub.ai/api/characters',
   /** 卡在 chub 站上的页面（「在 chub 查看」）。 */
   SITE_URL: 'https://chub.ai/characters',
+  /** 库左栏「卡库」那一行写在计数位置的来源（ui-spec §9「库」：公开的来源写在计数的位置）。 */
+  SOURCE_LABEL: 'chub.ai',
   /** 搜索结果里没给头像地址时按路径拼。 */
   AVATAR_URL: 'https://avatars.charhub.io/avatars',
   PAGE_SIZE: 24,

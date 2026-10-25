@@ -23,7 +23,6 @@
     "newCanvas": "＋ 新しいキャンバス",
     "canvasesLoading": "キャンバスを探しています…",
     "canvasesFailed": "キャンバスを読み込めません。もう一度お試しください",
-    "overviewCount": "{characters} 人のキャラ · {works} 作品",
     "searchPlaceholder": "キャラや作品を検索（名前・タグ・作品）",
     "worksLabel": "作品",
     "overviewAll": "総覧",
@@ -33,9 +32,7 @@
     "mostUsedHint": "枚数順 · カードの画像 + そのキャラで作った画像",
     "loneHint": "1 人だけのときは順位を付けません。キャラが増えると枚数順に並びます。",
     "works": "作品",
-    "byImages": "枚数順",
     "allCharacters": "すべてのキャラクター",
-    "allCharactersHint": "{count} 人 · 名前順",
     "tileMeta": "{work} · {images} 枚",
     "workOriginal": "オリジナル",
     "fieldWork": "作品",
@@ -156,7 +153,20 @@
     "libraryTagAll": "すべて",
     "libraryTagMenu": "タグで絞り込む",
     "fieldLoras": "LoRA",
-    "lorasEmpty": "まだありません"
+    "lorasEmpty": "まだありません",
+    "library": {
+      "rail": "キャラ",
+      "all": "すべて",
+      "favorites": "お気に入り",
+      "search": "キャラや作品を検索",
+      "sortName": "名前",
+      "sortRecent": "最近編集",
+      "handToAssistant": "アシスタントに渡す",
+      "favorite": "お気に入り",
+      "unfavorite": "お気に入りを外す",
+      "more": "その他",
+      "tileUnused": "{work} · まだ使っていません"
+    }
   },
   "CharacterImagePick": {
     "primary": "メイン",

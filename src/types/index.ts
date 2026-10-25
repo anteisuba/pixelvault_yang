@@ -3207,6 +3207,8 @@ export const UpdateCharacterCardSchema = z.object({
     .optional(),
   /** 按键合并：给了哪几个键改哪几个，值为 `null` 的键删掉，其余原样保留。 */
   extensions: CardExtensionsSchema.optional(),
+  /** 库里的收藏（左栏「收藏」那一组）。 */
+  isFavorite: z.boolean().optional(),
 })
 
 export type UpdateCharacterCardRequest = z.infer<
@@ -3293,6 +3295,8 @@ export interface CharacterCardRecord {
   voiceCardId: string | null
   /** 用这个角色出过几张图（生成 ↔ 角色关联表计数；只在列表里算，其余为 0）。 */
   generationCount: number
+  /** 库里收藏了（左栏「收藏」）。 */
+  isFavorite: boolean
   createdAt: Date
   updatedAt: Date
 }

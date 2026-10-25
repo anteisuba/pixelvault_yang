@@ -1263,7 +1263,11 @@ export function addOperatorMention(
   attachment: StudioOperatorAttachment,
   scope: AssistantMentionScope = ASSISTANT_MENTION_SCOPE_IDS.library,
 ): void {
-  const mention = mentionFromAttachment(attachment, scope)
+  queueOperatorMention(mentionFromAttachment(attachment, scope))
+}
+
+/** 同上，递进来的已经是一条引用（库里「交给助手」一位角色 / 一个 LoRA，不是一张图）。 */
+export function queueOperatorMention(mention: AssistantMention): void {
   const key = mentionKey(mention)
   emit({
     ...state,

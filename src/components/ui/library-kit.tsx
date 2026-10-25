@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react'
 
-import { Check, ChevronDown, Search } from '@/components/icons'
+import { Check, ChevronDown, Plus, Search } from '@/components/icons'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,12 +46,14 @@ export function LibrarySearch({
   placeholder,
   label,
   onKeyDown,
+  maxLength,
 }: {
   value: string
   onChange: (value: string) => void
   placeholder: string
   label: string
   onKeyDown?: React.KeyboardEventHandler<HTMLInputElement>
+  maxLength?: number
 }) {
   return (
     <label className="flex h-9 min-w-0 items-center gap-2 rounded-full bg-muted px-3.5 text-muted-foreground focus-within:shadow-focus">
@@ -63,6 +65,7 @@ export function LibrarySearch({
         onKeyDown={onKeyDown}
         placeholder={placeholder}
         aria-label={label}
+        maxLength={maxLength}
         className="min-w-0 flex-1 bg-transparent text-2sm text-foreground outline-none placeholder:text-muted-foreground"
       />
     </label>
@@ -111,5 +114,120 @@ export function LibraryPillSelect<T extends string>({
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
+  )
+}
+
+/** 左栏当前那一行左边那道黑线（`fill` 底之外再标一下，ui-spec §9「库」）。 */
+export const LIBRARY_RAIL_ACTIVE_LINE_CLASS =
+  'before:absolute before:inset-y-2 before:-left-2.5 before:w-0.5 before:rounded-full before:bg-foreground'
+
+/** 左栏：200 宽，一组一组的行（第一组永远是「全部 / 收藏」）。 */
+export function LibraryRail({
+  label,
+  children,
+  className,
+}: {
+  /** 读屏用：这一栏管什么（「角色」）。 */
+  label: string
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <nav
+      aria-label={label}
+      className={cn(
+        'flex w-50 shrink-0 flex-col gap-0.5 overflow-y-auto pl-2.5',
+        className,
+      )}
+    >
+      {children}
+    </nav>
+  )
+}
+
+/** 左栏的一行：图标 · 名字 ……… 计数（或来源，写在计数的位置：chub.ai、Civitai）。 */
+export function LibraryRailRow({
+  icon,
+  label,
+  trailing,
+  active,
+  onSelect,
+}: {
+  icon: ReactNode
+  label: string
+  trailing?: string | number
+  active: boolean
+  onSelect: () => void
+}) {
+  return (
+    <button
+      type="button"
+      aria-current={active ? 'true' : undefined}
+      onClick={onSelect}
+      className={cn(
+        'relative flex h-8.5 w-full shrink-0 items-center gap-2 rounded-lg px-2 text-left text-2sm transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:shadow-focus',
+        active
+          ? cn(
+              'bg-muted font-semibold text-foreground',
+              LIBRARY_RAIL_ACTIVE_LINE_CLASS,
+            )
+          : 'text-foreground hover:tint-hover',
+      )}
+    >
+      <span className="grid size-5 shrink-0 place-items-center text-muted-foreground [&>svg]:size-4">
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      {trailing !== undefined ? (
+        <span className="shrink-0 font-mono text-2xs font-normal text-muted-foreground tabular-nums">
+          {trailing}
+        </span>
+      ) : null}
+    </button>
+  )
+}
+
+/**
+ * 等宽格子（不需要虚拟化的库：角色、提示词、声音……）：按这一栏自己的宽排，最宽一行 8 张
+ * （`@container` 量自己，⛔ 量整屏 —— 库叫出助手时这一栏会变窄）。
+ */
+export function LibraryGrid({
+  children,
+  className,
+}: {
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <div className="@container">
+      <div
+        className={cn(
+          'grid grid-cols-2 gap-2.5 @md:grid-cols-3 @xl:grid-cols-4 @3xl:grid-cols-6 @5xl:grid-cols-8',
+          className,
+        )}
+      >
+        {children}
+      </div>
+    </div>
+  )
+}
+
+/** 第一格的虚线「+ 新建」（角色、提示词、声音）。和格子里的图一样高（3:4）。 */
+export function LibraryNewTile({
+  label,
+  onClick,
+}: {
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex aspect-3/4 w-full flex-col items-center justify-center gap-1.5 rounded-12 border border-dashed border-input text-xs text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover focus-visible:outline-none focus-visible:shadow-focus"
+    >
+      <Plus className="size-4.5" aria-hidden />
+      {label}
+    </button>
   )
 }

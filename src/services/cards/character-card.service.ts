@@ -215,6 +215,7 @@ export async function updateCharacterCard(
   // 角色卡字段 v2 —— 透传落库，⛔ 不在这里加业务逻辑（cards.md「角色卡字段 v2」）。
   Object.assign(updateData, serializeCharacterCardV2Fields(data))
   if (data.summary !== undefined) updateData.summary = data.summary
+  if (data.isFavorite !== undefined) updateData.isFavorite = data.isFavorite
   if (data.extensions !== undefined)
     updateData.extensions = mergeCardExtensions(
       existing.extensions,

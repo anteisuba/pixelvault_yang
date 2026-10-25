@@ -23,7 +23,6 @@
     "newCanvas": "＋ 新画布",
     "canvasesLoading": "正在找画布…",
     "canvasesFailed": "读不到画布列表，再点一次",
-    "overviewCount": "{characters} 位角色 · {works} 部作品",
     "searchPlaceholder": "搜角色或作品（名字、标签、作品都行）",
     "worksLabel": "作品",
     "overviewAll": "总览",
@@ -33,9 +32,7 @@
     "mostUsedHint": "按张数 · 卡上的图 + 用她出过的图",
     "loneHint": "只有一位时不排名次。再建几位角色，这里会按出图张数排成大小格。",
     "works": "作品",
-    "byImages": "按张数",
     "allCharacters": "全部角色",
-    "allCharactersHint": "{count} 位 · 按名字",
     "tileMeta": "{work} · {images} 张",
     "workOriginal": "原创",
     "fieldWork": "作品",
@@ -156,7 +153,20 @@
     "libraryTagAll": "全部",
     "libraryTagMenu": "按标签筛选",
     "fieldLoras": "她的 LoRA",
-    "lorasEmpty": "还没有"
+    "lorasEmpty": "还没有",
+    "library": {
+      "rail": "角色",
+      "all": "全部",
+      "favorites": "收藏",
+      "search": "搜角色或作品",
+      "sortName": "名字",
+      "sortRecent": "最近改过",
+      "handToAssistant": "交给助手",
+      "favorite": "收藏",
+      "unfavorite": "取消收藏",
+      "more": "更多",
+      "tileUnused": "{work} · 还没用过"
+    }
   },
   "CharacterImagePick": {
     "primary": "主图",

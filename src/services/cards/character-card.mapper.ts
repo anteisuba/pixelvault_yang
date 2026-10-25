@@ -44,6 +44,7 @@ export interface DbCharacterCardRow {
   extensions?: unknown
   summary?: string | null
   voiceCardId?: string | null
+  isFavorite?: boolean
 }
 
 /** 读卡时一起读造型：默认在前，其余按顺序。所有返回 `CharacterCardRecord` 的查询都用它。 */
@@ -149,6 +150,7 @@ export function mapCharacterCardRow(
     chatUserRole: readChatUserRole(row.extensions),
     voiceCardId: row.voiceCardId ?? null,
     generationCount: row._count?.generationLinks ?? 0,
+    isFavorite: row.isFavorite ?? false,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   }

@@ -177,7 +177,7 @@
 
 ### 浮层
 
-- **菜单 `Menu`**：圆角 12，`float` + `pop`，行高 32，搜索框是一道下划线；开合照「从 chip 放大、由糊变清」（`useStudioChipPopoverMotion`）。
+- **菜单 `Menu`**：圆角 12，`float` + `pop`，行高 32，搜索框是一道下划线；开合照「从 chip 放大、由糊变清」（`useStudioChipPopoverMotion`）。代码里是 `ui/dropdown-menu` / `select` / `popover` / `command` 和 `studioToolPopoverBaseClass`；自写浮层照抄 `rounded-12 bg-popover shadow-pop`（带 `shadow-pop` 的暗房自动升一档）。下拉框本体是灰底药丸（`SelectTrigger`）。
 - **提示 `Tooltip`**：一悬停就出（不等）；素档 `primary` 底 `on-primary` 字，暗房 `float` 底 `ink` 字 + `pop`（⛔ 米白一大块）；`meta`，28 高，圆角 8，快捷键跟在后面。只写按钮叫什么。⛔ 一句话说明；⛔ 给有字的按钮再加提示。
 - **底部黑条 `Toast`**：照 ui-defaults §7.1；`primary` 底、40 高、圆角 20、`bar`；成功前面一个 14 的勾，失败一颗 8 的 `danger-on-primary` 小圆点；最多一个动作（28 高药丸，带一圈 `on-primary-line` 的框，悬停叠 `on-primary-soft`）。⛔ 标题 + 正文两行、⛔ 右上角弹、⛔ 关闭按钮。
 - **弹窗 `Dialog`**：只用在两件事：就地配 key（`QuickSetupDialog`）、删东西。`float` 底、圆角 18、`pop`、内距 20、宽 420，后面 `scrim`；标题就是要做的事，底部右对齐「取消」+ 主按钮。⛔ 标题下的说明段落（删除那一句后果除外）、⛔ 三个按钮、⛔ 用弹窗做表单页。代码里 `dialog.tsx` / `responsive-dialog.tsx` 换皮。

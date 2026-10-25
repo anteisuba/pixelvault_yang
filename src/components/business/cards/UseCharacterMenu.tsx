@@ -194,7 +194,7 @@ export function UseCharacterMenu({
         <motion.div
           ref={layerRef}
           style={{ clipPath: reveal.clipPath }}
-          className="absolute right-0 top-0 z-30 w-72 overflow-hidden rounded-2xl border border-border bg-popover shadow-xl"
+          className="absolute right-0 top-0 z-30 w-72 overflow-hidden rounded-12 bg-popover shadow-pop"
         >
           <div className="flex h-9 justify-end">
             <button

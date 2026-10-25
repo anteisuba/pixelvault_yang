@@ -116,7 +116,7 @@ export function LoraLibrarySearchBox({
         {searching ? <span aria-hidden className="lora-search-run" /> : null}
       </div>
       {historyOpen && history.length > 0 ? (
-        <div className="absolute inset-x-0 top-full z-30 mt-1 rounded-xl border border-border bg-popover p-1 text-xs shadow-lg">
+        <div className="absolute inset-x-0 top-full z-30 mt-1 rounded-12 bg-popover p-1 text-xs shadow-pop">
           <div className="flex items-center justify-between px-2 py-1 text-2xs text-muted-foreground">
             <span className="inline-flex items-center gap-1">
               <History className="size-3" aria-hidden />

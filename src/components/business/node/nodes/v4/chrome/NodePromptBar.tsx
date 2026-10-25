@@ -423,7 +423,7 @@ export function NodePromptBar({
                   'var(--radix-dropdown-menu-content-transform-origin)',
                 pointerEvents: addOpen ? 'auto' : 'none',
               }}
-              className="z-50 w-72 rounded-node-bar bg-popover p-1.5 text-foreground ring-1 ring-border shadow-node-menu outline-none"
+              className="z-50 w-72 rounded-12 bg-popover p-1.5 text-foreground shadow-pop outline-none"
             >
               {addMenu}
             </motion.div>

@@ -1162,7 +1162,8 @@ html:lang(ja) {
    暗房的浮层 --popover 和 fill（--muted）同是 #191a1d：浮层里的浅底块（搜索框、
    药丸、当前那一行、小签）要从 fill-strong 起，所以在这几个浮层里把 --muted /
    --accent 升到 fill-strong —— 浮层里照常写 `bg-muted` / `bg-accent`，暗房自己升。
-   不是这几个 slot 的自制浮层挂 `data-float`。素档两档都是白，不动。 */
+   不是这几个 slot 的自制浮层：带 `shadow-pop`（规范里 pop 影只给浮层）就自动算，
+   其余挂 `data-float`。素档两档都是白，不动。 */
 .dark
   :where(
     [data-slot='popover-content'],
@@ -1171,7 +1172,8 @@ html:lang(ja) {
     [data-slot='select-content'],
     [data-slot='dialog-content'],
     [data-slot='alert-dialog-content'],
-    [data-float]
+    [data-float],
+    .shadow-pop
   ) {
   --muted: var(--fill-strong);
   --accent: var(--fill-strong);

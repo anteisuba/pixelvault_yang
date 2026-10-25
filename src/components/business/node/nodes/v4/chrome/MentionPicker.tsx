@@ -102,7 +102,7 @@ export function MentionPicker({
       data-node-chrome="mention-picker"
       className={cn(
         // `nowheel`：选择器住在画布里，滚轮不让给 ReactFlow（否则列表滚不动、画布在缩放）。
-        'nodrag nopan nowheel absolute bottom-full left-0 z-30 mb-2 max-h-64 w-64 overflow-y-auto rounded-xl border bg-popover p-1 shadow-node-menu',
+        'nodrag nopan nowheel absolute bottom-full left-0 z-30 mb-2 max-h-64 w-64 overflow-y-auto rounded-12 bg-popover p-1 shadow-pop',
         className,
       )}
       // 点在列表空白处也不能夺走正文的焦点。

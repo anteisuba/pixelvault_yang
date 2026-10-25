@@ -7,6 +7,7 @@ import {
   PROJECT_RULE_KIND_IDS,
 } from '@/constants/assistant-operator'
 import { GENERATION_NAME_PREFIX_BY_OUTPUT_TYPE } from '@/constants/generation-naming'
+import { USER_UPLOAD_PROVIDER } from '@/constants/uploads'
 import { buildAssetRecipeText } from '@/lib/asset-recipe-text'
 import { db } from '@/lib/db'
 import { buildGenerationTag } from '@/lib/generation-name'
@@ -239,6 +240,9 @@ async function readPicture(
 
 /** 一张图的完整配方：A1111 那三行，再加 LoRA（名字 + 权重）与参考图（能认出编号的写编号）。 */
 async function pictureRecipe(userId: string, row: PictureRow): Promise<string> {
+  // 她自己传上来的图没有配方（只有尺寸）：明说，⛔ 让模型换着入口再翻一遍。
+  if (row.model === USER_UPLOAD_PROVIDER)
+    return `Uploaded by the creator, not generated here: no recipe was recorded (no prompt, model or settings)${row.prompt.trim() ? ` — only their note: "${clip(row.prompt, LIMITS.promptPreviewChars)}"` : ''}. Size: ${row.width}x${row.height}. Searching the workspace again will not find more; judge it from the picture itself.`
   const base = buildAssetRecipeText({
     ...row,
     snapshot: { advancedParams: row.advancedParams ?? undefined },

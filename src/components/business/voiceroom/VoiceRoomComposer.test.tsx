@@ -35,6 +35,7 @@ function setup(selectedId: string, mode: 'chat' | 'read' = 'chat') {
   }
   render(
     <VoiceRoomComposer
+      roomId="room-1"
       cast={CAST}
       selectedId={selectedId}
       sending={false}

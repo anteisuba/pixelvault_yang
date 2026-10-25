@@ -95,7 +95,11 @@
 - **念出来的字**：`spokenVoiceText` 去掉作品号、markdown 链接只念字、去掉 URL 和强调符号，`[laughing]` 这类语气提示保留。
 - **挂件 = `VoiceLine.attachments`（可空 JSON，10-25 用户批准加列，迁移 `20261025080000_voice_line_attachments`）**：你那条存挂上的图（`images`：id/url/label/seq，一次最多 `VOICE_ROOM_CHAT_IMAGES_MAX` = 4），她那条存联网查到的来源（`sources`：title/url/publisher，按 url 去重，最多 `VOICE_LINE_SOURCES_MAX` = 12，取自 `search_web` 那一步）。读的时候 safeParse，坏了当没有。
 - **她发的图不进挂件**：回复里的作品号（`图_12`）就是图本身，前端 `usePictureNumberReferences` 查回缩略图——气泡里不显示号，每张图在气泡下面单独一块（Q3 选 C）；查不到的号照原样留字。来源折成一颗「N 个来源 ▸」，点开是链接列表。
-- **输入框 ＋**（Q4 选 C，只在聊天时出现）：上传图片（与助手同一条直传 R2，`useVoiceRoomImages`）/ 从素材库挑（`AssetSelectorDialog` 多选，传剩余容量）；挂上的图在输入行上面一排，× 摘掉，发出去就清空；上传中发送键不可点。
+- **输入框 ＋**（Q4 选 C，只在聊天时出现）：上传图片 / 音频 / 视频（见下）/ 从素材库挑图（`AssetSelectorDialog` 多选，传剩余容量）；挂上的在输入行上面一排，× 摘掉，发出去就清空；上传中发送键不可点。
+- **只负责聊天和查资料（用户 10-25）**：配音间里⛔ 不出图、不出视频（原设计第 ③ 片「出图卡 + 去视频台」10-25 用户取消）。
+- **她上网找的图**（`search_web_images` 那一步）存进她那条的 `attachments.webImages`（每次一组，最多 `VOICE_LINE_WEB_IMAGE_SEARCHES_MAX` = 3 组），气泡下面用助手那格候选网格（`StudioOperatorWebCandidateGrid`），挑了点「存进素材」走同一条转存路（`useStudioOperatorWebImport`，整间房一份）；大图层 `StudioOperatorLightbox` 配音间自己挂（配音间是外壳的 page，没有助手面板）。转存状态只在本次页面里记，刷新后网格回到未存。
+- **传文件**：＋ 的上传就是助手输入框那一套（`useStudioOperatorUpload`，图片 / 音频 / 视频，`useVoiceRoomAttachments` 管挂着的），文件存进你那条的 `attachments.files`（最多 `VOICE_ROOM_CHAT_FILES_MAX` = 4），交给内核当 `mediaAttachments`；视频在浏览器里按助手同一份 `captureTurnClips` 抽帧随 `videoClips` 上去（服务端不解码视频）。气泡里音频 / 视频就地能放。
+- **时限**：配音间接口 `maxDuration` 120 秒、没有接力条，内核按 `VOICE_ROOM_CHAT_KERNEL_TIME_BUDGET`（软 75 秒 / 硬 100 秒）收，到点先把写好的话交出来、照常念和存。
 - 已知缺口：内核聊天提示词里没有 Fish 的方括号语气提示说明（薄管子有），出声的语气靠模型自己。
 
 ### 3.3 素材库头像与 Fish 升级（「声音」模块第 3/4 步，owner 2026-10-23）

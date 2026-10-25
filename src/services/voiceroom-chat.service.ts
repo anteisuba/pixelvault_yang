@@ -10,11 +10,13 @@ import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import { AI_MODELS } from '@/constants/models'
 import {
   VOICE_LINE_SOURCES_MAX,
+  VOICE_LINE_WEB_IMAGE_SEARCHES_MAX,
   VOICE_LINE_TEXT_MAX_LENGTH,
   VOICE_LINE_USER_KIND,
   VOICE_ROOM_BUILTIN_SPEAKER,
   VOICE_ROOM_CHAT_EVENT,
   VOICE_ROOM_CHAT_HISTORY_LINES,
+  VOICE_ROOM_CHAT_KERNEL_TIME_BUDGET,
   VOICE_ROOM_SPEAKER_KIND,
 } from '@/constants/voiceroom'
 import { db } from '@/lib/db'
@@ -44,8 +46,11 @@ import {
 } from '@/types/assistant-operator'
 import {
   VoiceLineSourceSchema,
+  VoiceLineWebImagesSchema,
+  type VoiceLineFile,
   type VoiceLineImage,
   type VoiceLineSource,
+  type VoiceLineWebImages,
   type VoiceRoomCastMember,
   type VoiceRoomChatRequest,
 } from '@/types/voiceroom'
@@ -55,7 +60,7 @@ import {
  * 口吻回一句、用自己的嗓子念出来。
  *
  * 一轮 = 一条流（SSE）：
- * 1. 先把你那句存成一条 `user` 台词（文字 + 你发的图）→ `user`；
+ * 1. 先把你那句存成一条 `user` 台词（文字 + 你发的图 / 文件）→ `user`；
  * 2. 她边写边发 → `delta`（`restart` = 换掉还在写的那段，新内核查完资料会重起一段）；
  * 3. 写完存成她的一条台词（联网查到的来源挂在上面）、按念法与选的模型派出声音 → `reply`。声音之后跟念台词
  *    一样靠轮询落地，气泡点了才放（owner 10-23「像聊天软件」）。
@@ -107,10 +112,10 @@ async function findPersonaCard(userId: string, member: VoiceRoomCastMember) {
   })
 }
 
-/** 她写回复的一种方式：一段一段吐增量，写完交回全文和查到的来源。 */
+/** 她写回复的一种方式：一段一段吐增量，写完交回全文、查到的来源和上网找的图。 */
 type ReplyWriter = AsyncGenerator<
   { text: string; restart?: true },
-  { text: string; sources: VoiceLineSource[] }
+  { text: string; sources: VoiceLineSource[]; webImages: VoiceLineWebImages[] }
 >
 
 /** 没有角色卡：原来那条薄管子，⛔ 没有工具。 */
@@ -134,7 +139,7 @@ async function* thinWriter(input: {
     written += delta
     yield { text: delta }
   }
-  return { text: written, sources: [] }
+  return { text: written, sources: [], webImages: [] }
 }
 
 /**
@@ -167,6 +172,8 @@ async function* kernelWriter(input: {
   history: readonly VoiceChatHistoryLine[]
   message: string
   images: readonly VoiceLineImage[]
+  files: readonly VoiceLineFile[]
+  videoClips: VoiceRoomChatRequest['videoClips']
   routeModel: AssistantRouteModel | undefined
   signal: AbortSignal
 }): ReplyWriter {
@@ -186,12 +193,24 @@ async function* kernelWriter(input: {
           })),
         }
       : {}),
+    ...(input.files.length
+      ? {
+          mediaAttachments: input.files.map((file) => ({
+            kind: file.kind,
+            url: file.url,
+            label: file.label,
+          })),
+        }
+      : {}),
+    ...(input.videoClips?.length ? { videoClips: input.videoClips } : {}),
   })
   let written = ''
   let final: string | null = null
   const sources = new Map<string, VoiceLineSource>()
+  const webImages: VoiceLineWebImages[] = []
   for await (const event of runAssistantNext(input.clerkId, request, {
     signal: input.signal,
+    timeBudget: VOICE_ROOM_CHAT_KERNEL_TIME_BUDGET,
     ...(input.routeModel ? { routeModel: input.routeModel } : {}),
   })) {
     switch (event.type) {
@@ -208,6 +227,9 @@ async function* kernelWriter(input: {
         for (const source of webSourcesOf(event.step))
           if (sources.size < VOICE_LINE_SOURCES_MAX && !sources.has(source.url))
             sources.set(source.url, source)
+        const found = webImagesOf(event.step)
+        if (found && webImages.length < VOICE_LINE_WEB_IMAGE_SEARCHES_MAX)
+          webImages.push(found)
         break
       case ASSISTANT_OPERATOR_EVENTS.error:
         throw new ApiRequestError(
@@ -220,7 +242,28 @@ async function* kernelWriter(input: {
         break
     }
   }
-  return { text: final ?? written, sources: [...sources.values()] }
+  return {
+    text: final ?? written,
+    sources: [...sources.values()],
+    webImages,
+  }
+}
+
+/** 上网找图那一步找回来的一组（她找的图，点了才存进素材库，⛔ 这里一张都不存）。 */
+function webImagesOf(step: AssistantOperatorStep): VoiceLineWebImages | null {
+  if (
+    step.tool !== ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages ||
+    step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.done ||
+    !('result' in step) ||
+    !step.result ||
+    step.result.images.length === 0
+  )
+    return null
+  const parsed = VoiceLineWebImagesSchema.safeParse({
+    query: step.payload.query.slice(0, 300),
+    images: step.result.images,
+  })
+  return parsed.success ? parsed.data : null
 }
 
 /** 联网那一步查回来的几条（内核自带的联网也落成 `search_web` 这一步）。 */
@@ -313,6 +356,7 @@ export async function streamVoiceRoomChat(
       }),
     )
   const images = request.images ?? []
+  const files = request.files ?? []
 
   const encoder = new TextEncoder()
   const abort = new AbortController()
@@ -326,6 +370,8 @@ export async function streamVoiceRoomChat(
         history: historyLines,
         message: request.text,
         images,
+        files,
+        videoClips: request.videoClips,
         routeModel: request.llmModel,
         signal: linkedSignal,
       })
@@ -356,7 +402,13 @@ export async function streamVoiceRoomChat(
           text: request.text,
           emotion: null,
           jobId: null,
-          attachments: images.length ? { images } : null,
+          attachments:
+            images.length || files.length
+              ? {
+                  ...(images.length ? { images } : {}),
+                  ...(files.length ? { files } : {}),
+                }
+              : null,
         })
         emit(VOICE_ROOM_CHAT_EVENT.USER, { line: userLine })
 
@@ -407,9 +459,17 @@ export async function streamVoiceRoomChat(
           text: reply,
           emotion: null,
           jobId,
-          attachments: written.sources.length
-            ? { sources: written.sources }
-            : null,
+          attachments:
+            written.sources.length || written.webImages.length
+              ? {
+                  ...(written.sources.length
+                    ? { sources: written.sources }
+                    : {}),
+                  ...(written.webImages.length
+                    ? { webImages: written.webImages }
+                    : {}),
+                }
+              : null,
         })
         emit(VOICE_ROOM_CHAT_EVENT.REPLY, { line: replyLine })
         if (voiceError) {

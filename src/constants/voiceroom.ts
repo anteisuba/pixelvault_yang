@@ -80,6 +80,16 @@ export type VoiceRoomMode = (typeof VOICE_ROOM_MODES)[number]
 export const VOICE_ROOM_CHAT_HISTORY_LINES = 30
 
 /**
+ * 配音间聊天走助手新内核时的时限：接口最多跑 120 秒（`/api/voiceroom/chat` 的 `maxDuration`），
+ * 内核默认 120 秒才收、270 秒才掐 —— 配音间没有接力条（浏览器不续跑），到点只能先把写出来的话交出来。
+ * 软线一过不再开新的一步，硬线留出念出来 + 存台词的余量。
+ */
+export const VOICE_ROOM_CHAT_KERNEL_TIME_BUDGET = {
+  softMs: 75_000,
+  hardMs: 100_000,
+} as const
+
+/**
  * 配音间写回复用的文本模型记在这台浏览器里（owner 10-23「配音间单独记一份」）——它是顺手的
  * 偏好，丢了就回到「自动」，⛔ 不写进助手的 persona。
  */
@@ -144,6 +154,12 @@ export const VOICE_ROOM_CHAT_IMAGES_MAX = 4
 
 /** 一句回复最多存几条来源。 */
 export const VOICE_LINE_SOURCES_MAX = 12
+
+/** 聊天一句最多带几个文件（音频 / 视频，输入框 ＋，用户 10-25）。 */
+export const VOICE_ROOM_CHAT_FILES_MAX = 4
+
+/** 一句回复最多存几次上网找图（每次一格网格，点了存进素材库，用户 10-25）。 */
+export const VOICE_LINE_WEB_IMAGE_SEARCHES_MAX = 3
 
 /** 一个房间最多几条台词。到顶提示新开房间，而不是静默截断。 */
 export const VOICE_ROOM_LINES_MAX = 500

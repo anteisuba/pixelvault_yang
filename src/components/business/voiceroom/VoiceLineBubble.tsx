@@ -10,14 +10,17 @@ import {
   VOICE_ROOM_SHAKE_MS,
 } from '@/constants/voiceroom'
 import type { AudioEmotion } from '@/constants/voice-cards'
+import type { UseStudioOperatorWebImportResult } from '@/hooks/use-studio-operator-web-import'
 import { withoutPictureHandles } from '@/lib/voiceroom-chat-prompt'
 import type { VoiceLineRecord } from '@/types/voiceroom'
 
 import { VoiceAvatar } from './VoiceAvatar'
 import {
+  VoiceLineFiles,
   VoiceLineImages,
   VoiceLinePictures,
   VoiceLineSources,
+  VoiceLineWebImages,
 } from './VoiceLineExtras'
 import { VoiceLineText } from './VoiceLineText'
 
@@ -85,6 +88,8 @@ interface VoiceLineBubbleProps {
    * 字段），按钮本身也只在 pending 态渲染，双重判据见下方渲染处。
    */
   onCancel?: () => void
+  /** 她上网找的图「存进素材」那一份转存状态（宿主一份，整间房共用）。 */
+  webImport?: UseStudioOperatorWebImportResult
 }
 
 export function VoiceLineBubble({
@@ -94,6 +99,7 @@ export function VoiceLineBubble({
   cancelling = false,
   onRetake,
   onCancel,
+  webImport,
 }: VoiceLineBubbleProps) {
   const t = useTranslations('VoiceRoom')
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -203,6 +209,7 @@ export function VoiceLineBubble({
       >
         <div className="vr-msg-body">
           <VoiceLineImages images={line.attachments?.images ?? []} />
+          <VoiceLineFiles files={line.attachments?.files ?? []} />
           <span className="vr-bubble">{line.text}</span>
         </div>
       </div>
@@ -235,6 +242,11 @@ export function VoiceLineBubble({
           </span>
         ) : null}
         <VoiceLinePictures text={line.text} />
+        <VoiceLineWebImages
+          lineId={line.id}
+          groups={line.attachments?.webImages ?? []}
+          {...(webImport ? { webImport } : {})}
+        />
         <VoiceLineSources sources={line.attachments?.sources ?? []} />
 
         {status === 'COMPLETED' && url && !retaking ? (

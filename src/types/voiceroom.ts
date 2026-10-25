@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { ASSISTANT_ROUTE_MODEL_VALUES } from '@/constants/assistant-persona'
+import { ASSISTANT_OPERATOR_LIMITS } from '@/constants/assistant-operator'
 import {
   AUDIO_EMOTIONS,
   AUDIO_PACES,
@@ -14,10 +15,16 @@ import {
   VOICE_LINE_SPEAKER_KINDS,
   VOICE_LINE_TEXT_MAX_LENGTH,
   VOICE_LINE_SOURCES_MAX,
+  VOICE_LINE_WEB_IMAGE_SEARCHES_MAX,
+  VOICE_ROOM_CHAT_FILES_MAX,
   VOICE_ROOM_CHAT_IMAGES_MAX,
   VOICE_ROOM_NAME_MAX_LENGTH,
   VOICE_ROOM_SPEAKER_KINDS,
 } from '@/constants/voiceroom'
+import {
+  AssistantOperatorRequestSchema,
+  AssistantOperatorWebImageSchema,
+} from '@/types/assistant-operator'
 
 /**
  * 配音间的域类型。
@@ -121,6 +128,26 @@ export const VoiceLineSourceSchema = z.object({
 
 export type VoiceLineSource = z.infer<typeof VoiceLineSourceSchema>
 
+/** 你随这句传的音频 / 视频（输入框 ＋ 上传，用户 10-25）：她听得到 / 看得到。 */
+export const VoiceLineFileSchema = z.object({
+  id: z.string().min(1).max(200),
+  url: z.string().url().max(2_000),
+  kind: z.enum(['audio', 'video']),
+  label: z.string().max(200),
+})
+
+export type VoiceLineFile = z.infer<typeof VoiceLineFileSchema>
+
+/** 她上网找的一组图（`search_web_images` 那一步）：气泡下一格网格，点了存进素材库。 */
+export const VoiceLineWebImagesSchema = z.object({
+  query: z.string().max(300),
+  images: z
+    .array(AssistantOperatorWebImageSchema)
+    .max(ASSISTANT_OPERATOR_LIMITS.maxWebImageResults),
+})
+
+export type VoiceLineWebImages = z.infer<typeof VoiceLineWebImagesSchema>
+
 export const VoiceLineAttachmentsSchema = z.object({
   images: z
     .array(VoiceLineImageSchema)
@@ -129,6 +156,11 @@ export const VoiceLineAttachmentsSchema = z.object({
   sources: z
     .array(VoiceLineSourceSchema)
     .max(VOICE_LINE_SOURCES_MAX)
+    .optional(),
+  files: z.array(VoiceLineFileSchema).max(VOICE_ROOM_CHAT_FILES_MAX).optional(),
+  webImages: z
+    .array(VoiceLineWebImagesSchema)
+    .max(VOICE_LINE_WEB_IMAGE_SEARCHES_MAX)
     .optional(),
 })
 
@@ -313,6 +345,16 @@ export const VoiceRoomChatRequestSchema = VoiceLineDeliverySchema.extend({
     .array(VoiceLineImageSchema)
     .max(VOICE_ROOM_CHAT_IMAGES_MAX)
     .optional(),
+  /** 这句带的音频 / 视频（输入框 ＋ 上传）。 */
+  files: z.array(VoiceLineFileSchema).max(VOICE_ROOM_CHAT_FILES_MAX).optional(),
+  /** 视频文件在浏览器里抽好的帧（与助手同一份，服务端不解码视频）。 */
+  videoClips: AssistantOperatorRequestSchema.shape.videoClips,
 })
 
 export type VoiceRoomChatRequest = z.infer<typeof VoiceRoomChatRequestSchema>
+
+/** 聊天这一句挂着的东西（输入框 ＋）。 */
+export interface VoiceRoomChatAttached {
+  images?: VoiceLineImage[]
+  files?: VoiceLineFile[]
+}

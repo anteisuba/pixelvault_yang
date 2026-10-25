@@ -20,20 +20,22 @@ import { voiceSpeakerLook } from '@/lib/voice-avatar'
 import type { AssistantRouteModel } from '@/constants/assistant-persona'
 import type { AudioEmotion } from '@/constants/voice-cards'
 import type {
-  VoiceLineImage,
   VoiceRoomCastMember,
+  VoiceRoomChatAttached,
   VoiceRoomDeliveryState,
   VoiceRoomDetail,
   VoiceRoomRecord,
 } from '@/types/voiceroom'
 import { Plus, SpeakerHigh, SpeakerSlash } from '@/components/icons'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
+import { StudioOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
 import { VoicePickerDialog } from '@/components/business/voices/VoicePickerDialog'
 import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useStudioOperatorWebImport } from '@/hooks/use-studio-operator-web-import'
 
 import { VoiceLineBubble } from './VoiceLineBubble'
-import { VoiceLineImages } from './VoiceLineExtras'
+import { VoiceLineFiles, VoiceLineImages } from './VoiceLineExtras'
 import { VoiceLinePending } from './VoiceLinePending'
 import { VoiceRoomCasting } from './VoiceRoomCasting'
 import { VoiceRoomComposer } from './VoiceRoomComposer'
@@ -82,7 +84,7 @@ interface VoiceRoomStageProps {
   onChat: (
     speakerId: string,
     text: string,
-    images?: VoiceLineImage[],
+    attached?: VoiceRoomChatAttached,
   ) => Promise<boolean>
   onRetake: (
     lineId: string,
@@ -173,8 +175,10 @@ export function VoiceRoomStage({
     ).length >= VOICE_ROOM_VOICE_CAST_MAX
   const [vaultOpen, setVaultOpen] = useState(false)
   const [pickedId, setPickedId] = useState<string | null>(null)
-  /** 聊天发出去、真台词还没回来时，你那条占位上挂的图。 */
-  const [sentImages, setSentImages] = useState<VoiceLineImage[]>([])
+  /** 聊天发出去、真台词还没回来时，你那条占位上挂的图和文件。 */
+  /** 她上网找的图「存进素材」：整间房一份转存状态（换房间清空）。 */
+  const webImport = useStudioOperatorWebImport({ scopeKey: detail.id })
+  const [sentAttached, setSentAttached] = useState<VoiceRoomChatAttached>({})
   const flowRef = useRef<HTMLDivElement | null>(null)
   /**
    * 正在取消的台词 id——独立状态，理由同 `retakingIds`（见宿主 hook）：不能
@@ -357,6 +361,7 @@ export function VoiceRoomStage({
               cancelling={cancellingIds.has(line.id)}
               onRetake={onRetake}
               onCancel={() => void handleCancelAudio(line)}
+              webImport={webImport}
             />
           ))}
 
@@ -375,7 +380,8 @@ export function VoiceRoomStage({
           {pendingUserText ? (
             <div className="vr-msg" data-self>
               <div className="vr-msg-body">
-                <VoiceLineImages images={sentImages} />
+                <VoiceLineImages images={sentAttached.images ?? []} />
+                <VoiceLineFiles files={sentAttached.files ?? []} />
                 <span className="vr-bubble">{pendingUserText}</span>
               </div>
             </div>
@@ -403,6 +409,7 @@ export function VoiceRoomStage({
 
       {castEmpty ? null : (
         <VoiceRoomComposer
+          roomId={detail.id}
           cast={cast}
           selectedId={selectedId}
           sending={sending}
@@ -419,7 +426,7 @@ export function VoiceRoomStage({
               detail.cast.filter((member) => member.id !== speakerId),
             )
           }
-          onSubmit={async (text, images) => {
+          onSubmit={async (text, attached) => {
             const speaker = cast.find((member) => member.id === selectedId)
             if (!speaker) return false
             // 音效师不会回话：聊天模式下选中它也按念台词走。
@@ -429,17 +436,20 @@ export function VoiceRoomStage({
             )
               return onSay(speaker.id, text)
             // 发着的那条先把挂的图带上（真台词回来之前的占位）。
-            setSentImages(images)
+            setSentAttached(attached)
             try {
-              return await onChat(speaker.id, text, images)
+              return await onChat(speaker.id, text, attached)
             } finally {
-              setSentImages([])
+              setSentAttached({})
             }
           }}
         />
       )}
 
       {/* 聊天写词用的是助手那一家：缺 key 就地配，配好不顺手改出声的模型。 */}
+      {/* 她找的图点开看大图（配音间不在助手面板里，那一份大图层要自己挂）。 */}
+      <StudioOperatorLightbox />
+
       {keySetup ? (
         <QuickSetupDialog
           open

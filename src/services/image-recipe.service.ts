@@ -3,7 +3,11 @@ import 'server-only'
 import { randomBytes } from 'node:crypto'
 
 import { IMAGE_RECIPE } from '@/constants/image-recipe'
-import { USER_UPLOAD_MAX_BYTES } from '@/constants/uploads'
+import {
+  USER_UPLOAD_MAX_BYTES,
+  USER_UPLOAD_PROVIDER,
+} from '@/constants/uploads'
+import { AdvancedParamsSchema } from '@/types'
 import type {
   ImageRecipeEmbedded,
   ImageRecipePrepare,
@@ -12,6 +16,7 @@ import type {
   ImageRecipeTags,
 } from '@/types/image-recipe'
 import type { ImageTaggerResult } from '@/types/image-tagger'
+import { db } from '@/lib/db'
 import { ApiRequestError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import {
@@ -88,6 +93,22 @@ export function tagsFromTagger(result: ImageTaggerResult): ImageRecipeTags {
   }
 }
 
+function readFailed(): ApiRequestError {
+  return new ApiRequestError(
+    'IMAGE_RECIPE_READ_FAILED',
+    502,
+    'errors.imageRecipe.readFailed',
+    'Could not read this picture',
+  )
+}
+
+function logFailure(error: unknown) {
+  logger.warn('image recipe read failed', {
+    error: error instanceof Error ? error.message : String(error),
+  })
+}
+
+/** 本地图：直传到临时键的那份，读完即删。 */
 export async function readImageRecipe(
   clerkId: string,
   storageKey: string,
@@ -110,16 +131,105 @@ export async function readImageRecipe(
     const tagged = await tagPicture(dbUser.id, getR2PublicUrl(storageKey))
     return { recipe: null, tags: tagsFromTagger(tagged) }
   } catch (error) {
-    logger.warn('image recipe read failed', {
-      error: error instanceof Error ? error.message : String(error),
-    })
-    throw new ApiRequestError(
-      'IMAGE_RECIPE_READ_FAILED',
-      502,
-      'errors.imageRecipe.readFailed',
-      'Could not read this picture',
-    )
+    logFailure(error)
+    throw readFailed()
   } finally {
     await deleteFromR2(storageKey).catch(() => undefined)
+  }
+}
+
+interface LibraryRow {
+  url: string
+  storageKey: string
+  prompt: string
+  negativePrompt: string | null
+  model: string
+  provider: string
+  width: number
+  height: number
+  seed: bigint | null
+  snapshot: unknown
+}
+
+/** 本站出的图：那一行记下的配方（文件里不一定还带着 NAI 的文字块）。 */
+function recipeOfRow(row: LibraryRow): ImageRecipeEmbedded | null {
+  if (row.provider === USER_UPLOAD_PROVIDER) return null
+  const snapshot =
+    row.snapshot && typeof row.snapshot === 'object'
+      ? (row.snapshot as { freePrompt?: unknown; advancedParams?: unknown })
+      : {}
+  const params = AdvancedParamsSchema.safeParse(snapshot.advancedParams ?? {})
+  const advanced = params.success ? params.data : {}
+  const prompt =
+    (typeof snapshot.freePrompt === 'string' && snapshot.freePrompt.trim()) ||
+    row.prompt.trim()
+  if (!prompt) return null
+  const layout = advanced.novelAiLayout
+  const seed = row.seed ?? advanced.seed ?? null
+  return {
+    source: 'library',
+    model: row.model,
+    prompt,
+    negative: (row.negativePrompt ?? advanced.negativePrompt ?? '').trim(),
+    characters: (layout?.characters ?? []).map((character) => ({
+      prompt: character.prompt,
+      negative: character.negativePrompt,
+      center: character.position,
+    })),
+    manualPositions: layout?.positioning === 'manual',
+    steps: advanced.steps ?? null,
+    cfg: advanced.guidanceScale ?? null,
+    sampler: advanced.sampler ?? advanced.runnerSampler ?? null,
+    width: row.width,
+    height: row.height,
+    seed: seed === null ? null : String(seed),
+  }
+}
+
+/**
+ * 素材库里挑的图：先读文件自带的（上传的 NAI 原图），再看这一行自己记下的配方，
+ * 都没有才认标签（认过的存在那一行，下次直接读）。
+ */
+export async function readLibraryImageRecipe(
+  clerkId: string,
+  generationId: string,
+): Promise<ImageRecipeReading> {
+  const dbUser = await ensureUser(clerkId)
+  const row = await db.generation.findFirst({
+    where: { id: generationId, userId: dbUser.id, outputType: 'IMAGE' },
+    select: {
+      url: true,
+      storageKey: true,
+      prompt: true,
+      negativePrompt: true,
+      model: true,
+      provider: true,
+      width: true,
+      height: true,
+      seed: true,
+      snapshot: true,
+    },
+  })
+  if (!row)
+    throw new ApiRequestError(
+      'IMAGE_RECIPE_NOT_FOUND',
+      404,
+      'errors.imageRecipe.readFailed',
+      'Picture not found',
+    )
+  try {
+    const { buffer } = await getR2ObjectBuffer({
+      key: row.storageKey,
+      maxBytes: USER_UPLOAD_MAX_BYTES,
+    })
+    const embedded = await readEmbeddedRecipe(buffer)
+    if (embedded) return { recipe: toEmbedded(embedded), tags: null }
+    const own = recipeOfRow(row)
+    if (own) return { recipe: own, tags: null }
+    const tagged = await tagPicture(dbUser.id, row.url)
+    return { recipe: null, tags: tagsFromTagger(tagged) }
+  } catch (error) {
+    logFailure(error)
+    throw readFailed()
   }
 }

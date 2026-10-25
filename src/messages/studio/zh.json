@@ -1178,6 +1178,7 @@
   "ImageRecipeImport": {
     "button": "从图读串",
     "title": "导入这张图",
+    "pickTitle": "挑一张图读串",
     "noRecipe": "没带配方 · 从画面认出",
     "reading": "读取中…",
     "positive": "正面",

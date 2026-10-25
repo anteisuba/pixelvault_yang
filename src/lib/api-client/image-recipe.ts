@@ -68,17 +68,38 @@ export async function readImageRecipeAPI(
         i18nKey: 'errors.upload.storageRejected',
       }
 
-    const read = await post(API_ENDPOINTS.IMAGE_RECIPE_READ, { storageKey })
-    if (!('ok' in read)) return read
-    const reading = ImageRecipeReadingSchema.safeParse(read.data)
-    return reading.success
-      ? { success: true, data: reading.data }
-      : { success: false, error: 'Unexpected response' }
+    return await readBy({ storageKey })
   } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
-    }
+    return failed(error)
+  }
+}
+
+/** 素材库里的一张：不用再传，服务端按那一行读。 */
+export async function readLibraryImageRecipeAPI(
+  generationId: string,
+): Promise<ImageRecipeReadResponse> {
+  try {
+    return await readBy({ generationId })
+  } catch (error) {
+    return failed(error)
+  }
+}
+
+async function readBy(
+  body: { storageKey: string } | { generationId: string },
+): Promise<ImageRecipeReadResponse> {
+  const read = await post(API_ENDPOINTS.IMAGE_RECIPE_READ, body)
+  if (!('ok' in read)) return read
+  const reading = ImageRecipeReadingSchema.safeParse(read.data)
+  return reading.success
+    ? { success: true, data: reading.data }
+    : { success: false, error: 'Unexpected response' }
+}
+
+function failed(error: unknown): ImageRecipeReadResponse {
+  return {
+    success: false,
+    error:
+      error instanceof Error ? error.message : 'An unexpected error occurred',
   }
 }

@@ -19,9 +19,11 @@ export interface ImageRecipePrepare {
   headers: Record<string, string>
 }
 
-export const ImageRecipeReadRequestSchema = z.object({
-  storageKey: z.string().trim().min(1).max(300),
-})
+/** 本地图走直传后的临时键；素材库里的图给它那一行的 id。 */
+export const ImageRecipeReadRequestSchema = z.union([
+  z.object({ storageKey: z.string().trim().min(1).max(300) }),
+  z.object({ generationId: z.string().trim().min(1).max(100) }),
+])
 export type ImageRecipeReadRequest = z.infer<
   typeof ImageRecipeReadRequestSchema
 >
@@ -32,9 +34,12 @@ const ImageRecipeCharacterSchema = z.object({
   center: z.object({ x: z.number(), y: z.number() }).nullable(),
 })
 
-/** 图里自带的配方（NovelAI / A1111 写进文件的那份）。seed 用字符串：可能超出 JS 安全整数。 */
+/**
+ * 图的配方：NovelAI / A1111 写进文件的那份，或（素材库里本站出的图）那一行记下的配方
+ * （`library`，`model` 是模型 id）。seed 用字符串：可能超出 JS 安全整数。
+ */
 export const ImageRecipeEmbeddedSchema = z.object({
-  source: z.enum(['novelai', 'a1111']),
+  source: z.enum(['novelai', 'a1111', 'library']),
   model: z.string().nullable(),
   prompt: z.string(),
   negative: z.string(),

@@ -26,7 +26,7 @@ import {
   useStudioForm,
   useStudioGen,
 } from '@/contexts/studio-context'
-import { pickImageRecipeFile } from '@/hooks/use-image-recipe-import'
+import { openImageRecipePicker } from '@/hooks/use-image-recipe-import'
 import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
 import { useStudioVideoAssets } from '@/hooks/use-studio-video-assets'
 import { useStudioMobileComposerHeight } from '@/hooks/use-studio-mobile-composer-height'
@@ -191,7 +191,7 @@ export const StudioMobileComposer = memo(function StudioMobileComposer({
             key: 'recipe-import',
             icon: <ScanText className="size-4" />,
             label: tRecipe('button'),
-            onSelect: pickImageRecipeFile,
+            onSelect: openImageRecipePicker,
           },
           {
             key: 'characters',

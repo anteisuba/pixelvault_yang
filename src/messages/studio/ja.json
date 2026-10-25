@@ -1178,6 +1178,7 @@
   "ImageRecipeImport": {
     "button": "画像から読む",
     "title": "この画像を読み込む",
+    "pickTitle": "読み込む画像を選ぶ",
     "noRecipe": "設定なし · 画像から推定",
     "reading": "読み込み中…",
     "positive": "ポジティブ",

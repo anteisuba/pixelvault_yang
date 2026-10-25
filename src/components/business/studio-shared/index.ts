@@ -20,7 +20,6 @@
 export * from './chrome/StudioCanvas'
 export * from './chrome/StudioCommandPalette'
 export * from './chrome/StudioErrorBoundary'
-export * from './chrome/StudioLightbox'
 
 // setup — API key / model configuration gates
 export * from './setup/QuickSetupDialog'

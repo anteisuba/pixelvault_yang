@@ -99,7 +99,7 @@ primitive → semantic → domain/component → page
 
 ### Studio 共享 chrome（`studio-shared/chrome`）
 
-StudioBottomDock · StudioCanvas · **StudioResizableLayout（导出 `StudioFlowLayout`；Studio 垂直间距唯一负责人）** · **StudioWorkbenchLayout** · StudioCommandPalette · StudioLightbox · StudioErrorBoundary；教程载体 XiaoheiGuideCarousel。
+StudioBottomDock · StudioCanvas · **StudioResizableLayout（导出 `StudioFlowLayout`；Studio 垂直间距唯一负责人）** · **StudioWorkbenchLayout** · StudioCommandPalette · StudioErrorBoundary；教程载体 XiaoheiGuideCarousel。
 
 ⚠ **两套外壳并列，不是替代**（2026-08-18）：
 

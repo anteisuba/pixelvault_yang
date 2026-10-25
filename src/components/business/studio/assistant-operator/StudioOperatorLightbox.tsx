@@ -2,6 +2,8 @@
 
 /**
  * 操作员面板的灯箱（拍板 17）——**参考图缩略图与评价卡证据图共用同一个**。
+ * 外壳照 ui-spec §9 查看器：`scrim` 遮罩 + 圆角 24 的 `float` 大卡；只放大一张、
+ * 没有配方栏（证据图 / 网图不是生成记录），所以不进 `InPlaceViewer`。
  *
  * ⚠ 状态放模块级而不是某个父组件的 useState：要开它的地方分散在日志条、评价卡、
  * 附件 chip 三处，逐层往下传 `onZoom` 会让每一颗中间组件都多一个与自己无关的
@@ -111,7 +113,7 @@ export function StudioOperatorLightbox() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: reduceMotion ? 0 : DURATION.base }}
-      className="pointer-events-auto fixed inset-0 z-[60] grid cursor-zoom-out place-items-center bg-black/70 p-8 backdrop-blur-sm"
+      className="pointer-events-auto fixed inset-0 z-[60] grid cursor-zoom-out place-items-center bg-scrim p-10"
     >
       <motion.div
         initial={reduceMotion ? false : { opacity: 0, scale: 0.86 }}
@@ -122,7 +124,8 @@ export function StudioOperatorLightbox() {
           duration: reduceMotion ? 0 : DURATION.slow,
           ease: EASE_POP,
         }}
-        className="relative max-h-full w-full max-w-3xl overflow-hidden rounded-2xl shadow-lg"
+        data-float
+        className="relative flex max-h-full w-full max-w-3xl flex-col gap-2 overflow-hidden rounded-24 bg-popover p-3 shadow-pop"
       >
         {lightbox.thirdParty ? (
           <ThirdPartyLightboxImage
@@ -139,15 +142,15 @@ export function StudioOperatorLightbox() {
             alt={lightbox.caption ?? t('lightboxLabel')}
             width={1024}
             height={1024}
-            className="h-auto max-h-full w-full object-contain"
+            className="h-auto max-h-full w-full rounded-12 object-contain"
           />
         )}
+        {lightbox.caption ? (
+          <span className="pointer-events-none px-1 text-2sm text-muted-foreground">
+            {lightbox.caption}
+          </span>
+        ) : null}
       </motion.div>
-      {lightbox.caption ? (
-        <span className="pointer-events-none mt-4 text-2sm text-background/80">
-          {lightbox.caption}
-        </span>
-      ) : null}
     </motion.div>,
     document.body,
   )
@@ -170,7 +173,7 @@ function ThirdPartyLightboxImage({
     return (
       <div
         data-testid="operator-lightbox-unavailable"
-        className="grid aspect-square w-full place-items-center gap-2 bg-muted p-8 text-2sm text-muted-foreground"
+        className="grid aspect-square w-full place-items-center gap-2 rounded-12 bg-muted p-8 text-2sm text-muted-foreground"
       >
         <ImageOff className="size-6" />
         <span>{unavailableLabel}</span>
@@ -186,7 +189,7 @@ function ThirdPartyLightboxImage({
       height={1024}
       referrerPolicy={image.referrerPolicy}
       onError={image.onError}
-      className="h-auto max-h-full w-full object-contain"
+      className="h-auto max-h-full w-full rounded-12 object-contain"
     />
   )
 }

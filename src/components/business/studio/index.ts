@@ -7,11 +7,9 @@ export { StudioCanvas } from '@/components/business/studio-shared/chrome/StudioC
 export { StudioWorkbenchLayout } from '@/components/business/studio-shared/chrome/StudioWorkbenchLayout'
 export { StudioWorkflowPicker } from '@/components/business/studio-shared/workflow/StudioWorkflowPicker'
 export { StudioWorkflowSummary } from '@/components/business/studio-shared/workflow/StudioWorkflowSummary'
-export { StudioLightbox } from '@/components/business/studio-shared/chrome/StudioLightbox'
 export { StudioCommandPalette } from '@/components/business/studio-shared/chrome/StudioCommandPalette'
 
 // Still flat — to be relocated by Spec 6 (4 giants + 24 remaining SHARED)
 // or by individual L2 module specs.
 export { StudioPromptArea } from './StudioPromptArea'
 export { GenerationPreview } from './GenerationPreview'
-export { StudioGallery } from './StudioGallery'

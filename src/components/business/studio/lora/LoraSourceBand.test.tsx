@@ -25,7 +25,6 @@ function renderBand(props: {
         activeGroupId="a"
         onSelectGroup={vi.fn()}
         count={5}
-        note="note"
         lineThumbs={[]}
       >
         <div data-testid="band-thumbs">thumbs</div>

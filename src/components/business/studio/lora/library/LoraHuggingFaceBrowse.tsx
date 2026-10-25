@@ -55,7 +55,6 @@ import {
 } from './lora-library-filter-labels'
 import { LoraLibraryFilterCombobox } from './LoraLibraryFilterCombobox'
 import { LoraLibrarySearchBox } from './LoraLibrarySearchBox'
-import { useLoraPickSelection } from './lora-pick-selection'
 import { LoraLibraryTile } from './LoraLibraryTile'
 import { LoraLibraryTypeSparseCard } from './LoraLibraryTypeStates'
 
@@ -293,9 +292,8 @@ export function LoraHuggingFaceBrowse({
   const typeLabel =
     typeOptions.find((option) => option.value === library.contentType)?.label ??
     ''
-  const familyLocked = useLoraPickSelection()?.familyLocked ?? false
   const baseFiltered = library.baseModelFamily !== 'all'
-  const canRelaxBase = baseFiltered && !familyLocked
+  const canRelaxBase = baseFiltered
   const typeFiltered = library.contentType !== DEFAULT_LORA_CONTENT_TYPE
 
   const settledEmpty =
@@ -362,24 +360,22 @@ export function LoraHuggingFaceBrowse({
           }
           pills={
             <>
-              {familyLocked ? null : (
-                <LoraLibraryFilterCombobox
-                  variant="bar"
-                  label={t('libraryFamilyFilter')}
-                  ariaLabel={t('baseModelFilterLabel')}
-                  value={familySlug}
-                  options={familyOptions}
-                  onChange={(slug) =>
-                    library.setBaseModelFamily(
-                      familySlugToHuggingFaceFamily(slug),
-                    )
-                  }
-                  changed={baseFiltered}
-                  searchable
-                  searchPlaceholder={t('baseModelSearchPlaceholder')}
-                  emptyText={t('baseModelSearchEmpty')}
-                />
-              )}
+              <LoraLibraryFilterCombobox
+                variant="bar"
+                label={t('libraryFamilyFilter')}
+                ariaLabel={t('baseModelFilterLabel')}
+                value={familySlug}
+                options={familyOptions}
+                onChange={(slug) =>
+                  library.setBaseModelFamily(
+                    familySlugToHuggingFaceFamily(slug),
+                  )
+                }
+                changed={baseFiltered}
+                searchable
+                searchPlaceholder={t('baseModelSearchPlaceholder')}
+                emptyText={t('baseModelSearchEmpty')}
+              />
               {sourceSwitch}
             </>
           }

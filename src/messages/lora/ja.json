@@ -242,8 +242,6 @@
         "title": "この LoRA 構成の作例",
         "groupsLabel": "LoRA ごと",
         "groupCount": "{count} 枚",
-        "noteRecipe": "1 枚開くとレシピ全体 · 同じ設定で作る",
-        "noteShowcase": "1 枚開くと拡大",
         "lineEmpty": "{name} の公開作例なし",
         "empty": "この LoRA には公開作例がありません",
         "lineTitle": "{name} の作例"
@@ -702,7 +700,6 @@
     "picker": {
       "title": "LoRA を選ぶ",
       "description": "ライブラリから LoRA を選んで LoRA 台に装着します。",
-      "lock": "{base} に装着できる",
       "count": "{count} 件選択",
       "confirm": "{count} 件装着",
       "selectLabel": "{name} を選ぶ",

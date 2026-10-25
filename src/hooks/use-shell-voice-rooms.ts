@@ -11,15 +11,23 @@ import type { VoiceRoomRecord } from '@/types/voiceroom'
  * 外壳自己挂上时问一次；配音间那一页开着时由它**发布**手上那份（建 / 改名 / 删 / 说了一句都
  * 会换），外壳直接用 —— ⛔ 两边各问各的、改了班底头像还是旧的。
  */
+/** 「聊天」那一页开着时它交出来的改名 / 删除（页面手上那份才是真的，⛔ 外壳绕过它直接打 API）。 */
+export interface ShellVoiceRoomActions {
+  rename(roomId: string, name: string | null): Promise<void>
+  remove(roomId: string): Promise<void>
+}
+
 interface ShellVoiceRooms {
   rooms: readonly VoiceRoomRecord[]
   /** 配音间那一页正开着的房间；不在那一页 = null。 */
   activeRoomId: string | null
+  /** 那一页开着 = 它的那两只手；不在那一页 = null（外壳自己打 API、改自己这份）。 */
+  actions: ShellVoiceRoomActions | null
 }
 
-let state: ShellVoiceRooms = { rooms: [], activeRoomId: null }
+let state: ShellVoiceRooms = { rooms: [], activeRoomId: null, actions: null }
 const listeners = new Set<() => void>()
-const EMPTY: ShellVoiceRooms = { rooms: [], activeRoomId: null }
+const EMPTY: ShellVoiceRooms = { rooms: [], activeRoomId: null, actions: null }
 
 function setState(next: ShellVoiceRooms) {
   state = next
@@ -35,16 +43,28 @@ function subscribe(listener: () => void) {
 export function usePublishVoiceRooms(
   rooms: readonly VoiceRoomRecord[],
   activeRoomId: string | null,
+  actions: ShellVoiceRoomActions,
 ): void {
   useEffect(() => {
-    setState({ rooms, activeRoomId })
-  }, [rooms, activeRoomId])
+    setState({ rooms, activeRoomId, actions })
+  }, [rooms, activeRoomId, actions])
   useEffect(
     () => () => {
-      setState({ ...state, activeRoomId: null })
+      setState({ ...state, activeRoomId: null, actions: null })
     },
     [],
   )
+}
+
+/** 外壳自己改了（不在那一页时改名 / 删除 / 新开）：手上那份跟着换。 */
+export function setShellVoiceRooms(rooms: readonly VoiceRoomRecord[]): void {
+  setState({ ...state, rooms })
+}
+
+/** 重新问一次（外壳替人开了一段之后）。 */
+export async function refreshShellVoiceRooms(): Promise<void> {
+  const result = await listVoiceRoomsAPI()
+  if (result.success && result.data) setState({ ...state, rooms: result.data })
 }
 
 export function useShellVoiceRooms(): ShellVoiceRooms {

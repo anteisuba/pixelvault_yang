@@ -1502,7 +1502,7 @@
         "source": {
           "platformSample": "来自声音库 · 平台样本",
           "history": "来自声音库 · 我的历史",
-          "voiceRoom": "来自声音库 · 配音间",
+          "voiceRoom": "来自声音库 · 聊天",
           "library": "来自素材库",
           "upload": "上传",
           "generated": "本卡生成",
@@ -1516,7 +1516,7 @@
           "tabs": {
             "platformSample": "平台",
             "history": "历史",
-            "voiceRoom": "配音间",
+            "voiceRoom": "聊天",
             "library": "素材库",
             "favorites": "收藏"
           },

@@ -1073,10 +1073,11 @@
       "group": "和 {name} 聊",
       "workGroup": "工作",
       "oldChat": "和{name}以前的聊天，只能看",
-      "goVoiceRoom": "去她的配音间"
+      "goVoiceRoom": "和她聊天"
     },
     "mode": {
-      "pickCharacter": "和谁聊",
+      "pickCharacter": "换助手人设",
+      "defaultAssistant": "默认助手",
       "searchCharacter": "搜角色",
       "toChat": "切到聊天 · 和 {name}",
       "toWork": "回到工作",

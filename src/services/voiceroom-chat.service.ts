@@ -28,6 +28,7 @@ import {
   cleanVoiceChatReply,
   type VoiceChatHistoryLine,
 } from '@/lib/voiceroom-chat-prompt'
+import { castMemberForSpeaker, isVoicelessMember } from '@/lib/voiceroom-cast'
 import { resolveAssistantRoute } from '@/services/kernel/assistant-route.service'
 import { llmTextStream } from '@/services/llm-text.service'
 import { ensureUser } from '@/services/user.service'
@@ -168,7 +169,8 @@ export function voiceChatKernelMessages(
 /** 有角色卡：助手新内核的聊天模式（自带联网、找图、看你发的图）。 */
 async function* kernelWriter(input: {
   clerkId: string
-  characterCardId: string
+  /** 和哪个角色聊；`null` = 默认助手（人设读助手设置，用户 10-25 聊天跟着全局助手）。 */
+  characterCardId: string | null
   history: readonly VoiceChatHistoryLine[]
   message: string
   images: readonly VoiceLineImage[]
@@ -182,7 +184,9 @@ async function* kernelWriter(input: {
     domain: ASSISTANT_PROTOCOL_DOMAIN_IDS.home,
     messages: voiceChatKernelMessages(input.history, input.message),
     snapshot: { prompt: '', availableModels: [] },
-    chatCharacterId: input.characterCardId,
+    ...(input.characterCardId
+      ? { chatCharacterId: input.characterCardId }
+      : {}),
     ...(input.images.length
       ? {
           mentionedAssets: input.images.map((image) => ({
@@ -306,7 +310,8 @@ export async function streamVoiceRoomChat(
     )
   }
 
-  const member = findCastMember(parseCast(room.cast), request.speakerId)
+  const cast = parseCast(room.cast)
+  const member = findCastMember(cast, request.speakerId)
   if (member.kind !== VOICE_ROOM_SPEAKER_KIND.VOICE) {
     // 音效师没有嘴：聊天只跟人声聊。
     throw new ApiRequestError(
@@ -320,7 +325,8 @@ export async function streamVoiceRoomChat(
   assertRoomHasSpace(room._count.lines, 2)
 
   const [character, history, assistant] = await Promise.all([
-    findPersonaCard(user.id, member),
+    // 默认助手：人设读助手设置，⛔ 按嗓子去找角色卡（她挑的嗓子可能也绑着别的角色）。
+    member.assistant ? null : findPersonaCard(user.id, member),
     db.voiceLine.findMany({
       where: { roomId: room.id },
       orderBy: { order: 'desc' },
@@ -348,7 +354,7 @@ export async function streamVoiceRoomChat(
         who:
           line.speakerKind === VOICE_LINE_USER_KIND
             ? 'user'
-            : line.speakerId === member.id
+            : castMemberForSpeaker(cast, line.speakerId) === member
               ? 'self'
               : 'other',
         name: line.speakerName,
@@ -363,29 +369,30 @@ export async function streamVoiceRoomChat(
   const linkedSignal = AbortSignal.any([signal, abort.signal])
   let cancelled = false
 
-  const writer: ReplyWriter = character
-    ? kernelWriter({
-        clerkId,
-        characterCardId: character.id,
-        history: historyLines,
-        message: request.text,
-        images,
-        files,
-        videoClips: request.videoClips,
-        routeModel: request.llmModel,
-        signal: linkedSignal,
-      })
-    : thinWriter({
-        prompt: buildVoiceChatPrompt({
-          name,
-          persona: null,
+  const writer: ReplyWriter =
+    character || member.assistant
+      ? kernelWriter({
+          clerkId,
+          characterCardId: character?.id ?? null,
           history: historyLines,
           message: request.text,
-          expressiveVoice: request.modelId === AI_MODELS.FISH_AUDIO_DRAMA_3,
-        }),
-        assistant,
-        signal: linkedSignal,
-      })
+          images,
+          files,
+          videoClips: request.videoClips,
+          routeModel: request.llmModel,
+          signal: linkedSignal,
+        })
+      : thinWriter({
+          prompt: buildVoiceChatPrompt({
+            name,
+            persona: null,
+            history: historyLines,
+            message: request.text,
+            expressiveVoice: request.modelId === AI_MODELS.FISH_AUDIO_DRAMA_3,
+          }),
+          assistant,
+          signal: linkedSignal,
+        })
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -431,8 +438,8 @@ export async function streamVoiceRoomChat(
 
         let jobId: string | null = null
         let voiceError: unknown = null
-        // 顶栏 🔇：她只打字，气泡上给「念出来」（点了走重录那条路出声）。
-        if (request.voice !== false) {
+        // 顶栏 🔇：她只打字，气泡上给「念出来」（点了走重录那条路出声）。还没嗓子的那一位同样只打字。
+        if (request.voice !== false && !isVoicelessMember(member)) {
           try {
             jobId = await dispatchLine({
               clerkId,

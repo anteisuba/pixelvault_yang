@@ -59,6 +59,13 @@ export const VOICE_ROOM_BUILTIN_SPEAKER = {
   USER: 'builtin:user',
 } as const
 
+/**
+ * 还没有嗓子的那一位（用户 10-25：不强制设音色，可以只打字）在班底里的 `id` 前缀：
+ * `novoice:<角色卡 id>`，默认助手是 `novoice:assistant`。开 🔊 时先挑一副，挑完换成真的 voiceCardId。
+ * ⚠ 带这个前缀的成员**没有声音**：服务端见到它一律不派语音（⛔ 拿它去查 VoiceCard）。
+ */
+export const VOICE_ROOM_VOICELESS_PREFIX = 'novoice:'
+
 /* ── 聊天 / 念台词 ──────────────────────────────────────────────── */
 
 export const VOICE_ROOM_MODE = {

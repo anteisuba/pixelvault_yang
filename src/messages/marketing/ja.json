@@ -199,8 +199,8 @@
         "description": "ショット、動き、シーンの展開をAIで動画化。"
       },
       "audio": {
-        "title": "音声スタジオ — ANTEI",
-        "description": "テキスト読み上げと音声クローンで音声を生成。"
+        "title": "チャット — ANTEI",
+        "description": "アシスタントやキャラクターとチャット。声に出すこともできます。"
       },
       "edit": {
         "title": "画像編集 — ANTEI",

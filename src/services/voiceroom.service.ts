@@ -26,6 +26,7 @@ import {
   CHARACTER_LOOKS_INCLUDE,
   mapCharacterLookRow,
 } from '@/services/cards/character-card.mapper'
+import { castMemberForSpeaker } from '@/lib/voiceroom-cast'
 import { spokenVoiceText } from '@/lib/voiceroom-chat-prompt'
 import { submitAudioGeneration } from '@/services/generate-audio.service'
 import { ensureUser } from '@/services/user.service'
@@ -343,7 +344,7 @@ export function findCastMember(
   cast: VoiceRoomCastMember[],
   speakerId: string,
 ): SpeakingCastMember {
-  const member = cast.find((candidate) => candidate.id === speakerId)
+  const member = castMemberForSpeaker(cast, speakerId)
   if (!member) {
     throw new ApiRequestError(
       'VOICE_ROOM_SPEAKER_NOT_IN_CAST',

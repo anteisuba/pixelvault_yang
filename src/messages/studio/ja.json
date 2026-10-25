@@ -1167,6 +1167,12 @@
     "libraryRailHide": "サイドバーを閉じる",
     "libraryRailShow": "サイドバーを開く",
     "workbench": "ワークベンチ",
-    "homeVoiceRoom": "ボイスルーム"
+    "chat": "チャット",
+    "newChatWith": "{name} と新しいチャット",
+    "historyBucket": {
+      "today": "今日",
+      "yesterday": "昨日",
+      "earlier": "それ以前"
+    }
   }
 }

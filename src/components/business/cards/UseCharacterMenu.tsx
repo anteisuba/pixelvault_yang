@@ -21,18 +21,16 @@ import type { CharacterCardRecord, CharacterLookRecord } from '@/types'
 import { withAssistantCharacter } from '@/types/assistant-persona'
 import { Check, ChevronDown, ChevronRight } from '@/components/icons'
 import { LoraTrainingDialog } from '@/components/business/LoraTrainingDialog'
-import { VoicePickerDialog } from '@/components/business/voices/VoicePickerDialog'
 import { Spinner } from '@/components/ui/spinner'
 import { useRecentCanvases } from '@/hooks/node/use-recent-canvases'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
-import { useOpenCharacterRoom } from '@/hooks/use-open-character-room'
+import { useOpenPersonaChat } from '@/hooks/use-chat-persona'
 import { useLiquidReveal, type LiquidRect } from '@/hooks/use-liquid-reveal'
 import { useRouter } from '@/i18n/navigation'
-import { characterCoverUrl } from '@/lib/card-bus'
 import { cn } from '@/lib/utils'
 
 /**
- * **用她 ▾**（角色详情右上，卡片重设计第 5 片）：一个角色四处用——和她聊（= 进她的配音间）· 出图 · 助手人设 ·
+ * **用她 ▾**（角色详情右上，卡片重设计第 5 片）：一个角色四处用——和她聊（= 助手换成她、进「聊天」）· 出图 · 助手人设 ·
  * 画布 · 训练 LoRA。「放进画布 ›」在菜单里往下展开最近几块画布 + 新画布；选一块 = 打开它，她落在
  * 视口中间并选中（画布用角色 ④ 画板 S5，深链见 `canvasWithCharacterPath`）。
  * 「训练 LoRA」从工作台卡片模式的旧管理抽屉搬来（角色① 2026-10-22，那套抽屉已删）：
@@ -60,7 +58,7 @@ export function UseCharacterMenu({
 }) {
   const t = useTranslations('CharacterRoster')
   const router = useRouter()
-  const voiceRoom = useOpenCharacterRoom()
+  const personaChat = useOpenPersonaChat()
   const reducedMotion = useReducedMotion() ?? false
   const [mounted, setMounted] = useState(false)
   const [closing, setClosing] = useState(false)
@@ -214,11 +212,10 @@ export function UseCharacterMenu({
               hint={t('chatWithHint')}
               onSelect={() => {
                 close()
-                // 和她聊 = 进她的配音间（用户 10-25 去掉聊天模式）；没绑音色先挑一副。
-                void voiceRoom.open({
-                  character: { id: card.id, name: card.name },
-                  avatarUrl: characterCoverUrl(card),
+                // 和她聊 = 助手换成她、进「聊天」（用户 10-25：聊天跟着全局人设）；没绑音色也能先打字。
+                void personaChat.switchTo(card.id, {
                   voiceCardId: card.voiceCardId,
+                  openChat: true,
                 })
               }}
             />
@@ -346,13 +343,6 @@ export function UseCharacterMenu({
           : {})}
         open={trainOpen}
         onOpenChange={setTrainOpen}
-      />
-      <VoicePickerDialog
-        open={voiceRoom.needsVoice !== null}
-        onOpenChange={(next) => {
-          if (!next) voiceRoom.cancelVoice()
-        }}
-        onPick={(picked) => void voiceRoom.bindVoiceAndOpen(picked.id)}
       />
     </div>
   )

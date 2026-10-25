@@ -45,6 +45,8 @@ export async function reloadAssistantPersonaEverywhere(): Promise<void> {
 export interface UseAssistantPersonaValue {
   persona: AssistantPersona
   isLoading: boolean
+  /** 读回来过一次了（成功或失败都算）：在这之前 `persona` 是默认那份，⛔ 拿它判「现在是谁」。 */
+  isLoaded: boolean
   isSaving: boolean
   error: string | null
   /** 写一整份（`PUT` 收完整形状）。返回是否成功，失败时 `error` 上有话说。 */
@@ -63,6 +65,7 @@ export function useAssistantPersona(
   const enabled = options.enabled ?? true
   const [persona, setPersona] = useState<AssistantPersona>(DEFAULT_PERSONA)
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoaded, setIsLoaded] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   /** 组件卸载之后别再 setState —— 对话框是关掉就走的那种。 */
@@ -85,6 +88,7 @@ export function useAssistantPersona(
     const result = await getAssistantPersonaAPI()
     if (!aliveRef.current) return
     setIsLoading(false)
+    setIsLoaded(true)
     if (result.success) {
       setPersona(result.data)
       setError(null)
@@ -142,6 +146,7 @@ export function useAssistantPersona(
   return {
     persona,
     isLoading,
+    isLoaded,
     isSaving,
     error,
     save,

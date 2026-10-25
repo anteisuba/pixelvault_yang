@@ -199,8 +199,8 @@
         "description": "用 AI 把镜头、动作和场景演变变成视频。"
       },
       "audio": {
-        "title": "音频工作台 — ANTEI",
-        "description": "用文本转语音和声音克隆生成音频。"
+        "title": "聊天 — ANTEI",
+        "description": "和你的助手或角色聊天，可以出声。"
       },
       "edit": {
         "title": "图片编辑 — ANTEI",

@@ -1502,7 +1502,7 @@
         "source": {
           "platformSample": "From voice library · platform sample",
           "history": "From voice library · my history",
-          "voiceRoom": "From voice library · voice room",
+          "voiceRoom": "From voice library · chat",
           "library": "From asset library",
           "upload": "Uploaded",
           "generated": "Generated here",
@@ -1516,7 +1516,7 @@
           "tabs": {
             "platformSample": "Platform",
             "history": "History",
-            "voiceRoom": "Voice room",
+            "voiceRoom": "Chat",
             "library": "Assets",
             "favorites": "Favorites"
           },

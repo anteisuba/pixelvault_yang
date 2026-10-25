@@ -172,6 +172,8 @@ export {
   ChatCircleTextIcon as MessageCircleWarning,
   // 标签台的台词（谁说的那一句）。
   ChatCircleTextIcon as ChatCircleText,
+  // 左栏「聊天」（用户 10-25 配音间改名聊天，麦克风换成对话气泡）。
+  ChatCircleIcon as ChatCircle,
   // lucide `MessageSquarePlus` — no chat+plus in Phosphor. All three call sites
   // are "new conversation" controls carrying their own label/aria-label, and
   // compose is the glyph that means "start a new one".

@@ -12,11 +12,13 @@ import {
   type VoiceRoomMode,
 } from '@/constants/voiceroom'
 import { cancelGenerationsAPI } from '@/lib/api-client'
+import { updateCharacterCardAPI } from '@/lib/api-client/cards'
 import {
   assistantKeySetupOptionId,
   type AssistantKeySetupTarget,
 } from '@/lib/assistant-key-setup'
 import { voiceSpeakerLook } from '@/lib/voice-avatar'
+import { isVoicelessMember } from '@/lib/voiceroom-cast'
 import type { AssistantRouteModel } from '@/constants/assistant-persona'
 import type { AudioEmotion } from '@/constants/voice-cards'
 import type {
@@ -24,7 +26,6 @@ import type {
   VoiceRoomChatAttached,
   VoiceRoomDeliveryState,
   VoiceRoomDetail,
-  VoiceRoomRecord,
 } from '@/types/voiceroom'
 import { Plus, SpeakerHigh, SpeakerSlash } from '@/components/icons'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
@@ -39,9 +40,7 @@ import { VoiceLineFiles, VoiceLineImages } from './VoiceLineExtras'
 import { VoiceLinePending } from './VoiceLinePending'
 import { VoiceRoomCasting } from './VoiceRoomCasting'
 import { VoiceRoomComposer } from './VoiceRoomComposer'
-import { VoiceRoomHistoryMenu } from './VoiceRoomHistoryMenu'
 import { VoiceRoomModelChip } from './VoiceRoomModelChip'
-import { VoiceRoomPersonaChip } from './VoiceRoomPersonaChip'
 import { VoiceRoomVault } from './VoiceRoomVault'
 
 /** 房间本体：顶栏 · 聊天流（或空态）· 输入行。 */
@@ -72,13 +71,6 @@ interface VoiceRoomStageProps {
   error: string | null
   delivery: VoiceRoomDeliveryState
   onDeliveryChange: (patch: Partial<VoiceRoomDeliveryState>) => void
-  /** 全部房间：标题 ▾ 从里面挑和这一组人的几段。 */
-  rooms: readonly VoiceRoomRecord[]
-  onOpenRoom: (roomId: string) => void
-  onRenameRoom: (roomId: string, name: string | null) => Promise<void>
-  onDeleteRoom: (roomId: string) => Promise<void>
-  /** 照这一组人新开一段。 */
-  onNewTopic: () => void
   onCastChange: (cast: VoiceRoomCastMember[]) => void
   onSay: (speakerId: string, text: string) => Promise<boolean>
   onChat: (
@@ -112,11 +104,6 @@ export function VoiceRoomStage({
   error,
   delivery,
   onDeliveryChange,
-  rooms,
-  onOpenRoom,
-  onRenameRoom,
-  onDeleteRoom,
-  onNewTopic,
   onCastChange,
   onSay,
   onChat,
@@ -124,8 +111,7 @@ export function VoiceRoomStage({
   onDismissError,
 }: VoiceRoomStageProps) {
   const t = useTranslations('VoiceRoom')
-  const { cards: characters, refresh: refreshCharacters } =
-    useCharacterLibrary()
+  const { cards: characters } = useCharacterLibrary()
 
   /**
    * 头像和名字跟着绑定的角色走（owner 10-23，规则见 `voiceSpeakerLook`）：班底里的人声当场按
@@ -221,9 +207,31 @@ export function VoiceRoomStage({
     pickedId && cast.some((member) => member.id === pickedId)
       ? pickedId
       : (cast[0]?.id ?? null)
-  /** 顶栏人设跟着底部选中的那位走（群里也是）——取班底**快照**，要的是它的 `characterCardId`。 */
+  /** 底部选中的那位（班底**快照**）：还没嗓子时 🔊 / 念台词先请她挑一副。 */
   const selectedMember =
     detail.cast.find((member) => member.id === selectedId) ?? null
+  const selectedVoiceless =
+    selectedMember !== null && isVoicelessMember(selectedMember)
+  /**
+   * 正在给谁挑嗓子（用户 10-25：不强制设音色，想出声时才提醒）。挑完：她是角色就绑到她的卡上，
+   * 班底里那一格换成真的嗓子；声音还关着就顺手打开。
+   */
+  const [voiceFor, setVoiceFor] = useState<VoiceRoomCastMember | null>(null)
+  const bindVoice = async (
+    member: VoiceRoomCastMember,
+    voiceCardId: string,
+  ) => {
+    setVoiceFor(null)
+    if (member.characterCardId)
+      await updateCharacterCardAPI(member.characterCardId, { voiceCardId })
+    onCastChange(
+      detail.cast.map((item) =>
+        item.id === member.id ? { ...item, id: voiceCardId } : item,
+      ),
+    )
+    setPickedId(voiceCardId)
+    if (!voiceOn) onToggleVoice()
+  }
 
   /**
    * 换房间后**首屏**有几条——只有这些参与 40ms/条的接力入场。
@@ -251,28 +259,39 @@ export function VoiceRoomStage({
   return (
     <div className="vr-stage workbench-card">
       <div data-bench-header className="vr-bar">
-        <VoiceRoomHistoryMenu
-          detail={detail}
-          rooms={rooms}
-          switching={switching}
-          onOpen={onOpenRoom}
-          onRename={onRenameRoom}
-          onDelete={onDeleteRoom}
-          onNew={onNewTopic}
-        />
+        <span
+          className="vr-bar-title vr-bar-name"
+          data-unnamed={!detail.name}
+          data-swapping={switching}
+        >
+          {detail.name ?? t('untitledRoom')}
+        </span>
 
-        {/* 这间房的设置（用户 10-25）：🔊 · ＋ 加人 · 人设 ▾。 */}
+        {/* 这间房的设置：🔊 · ＋ 加人（人设跟着全局助手走，用户 10-25 去掉这里的人设 ▾）。 */}
         <div className="vr-bar-room">
           <button
             type="button"
             className="vr-chip vr-chip-icon"
-            data-off={!voiceOn}
-            aria-pressed={voiceOn}
-            aria-label={voiceOn ? t('voiceOnLabel') : t('voiceOffLabel')}
-            title={voiceOn ? t('voiceOnLabel') : t('voiceOffLabel')}
-            onClick={onToggleVoice}
+            data-off={!voiceOn || selectedVoiceless}
+            aria-pressed={voiceOn && !selectedVoiceless}
+            aria-label={
+              voiceOn && !selectedVoiceless
+                ? t('voiceOnLabel')
+                : t('voiceOffLabel')
+            }
+            title={
+              voiceOn && !selectedVoiceless
+                ? t('voiceOnLabel')
+                : t('voiceOffLabel')
+            }
+            onClick={() => {
+              // 还没嗓子：想出声先挑一副（⛔ 只是切开关，开了也没声音）。
+              if (selectedVoiceless && selectedMember)
+                setVoiceFor(selectedMember)
+              else onToggleVoice()
+            }}
           >
-            {voiceOn ? (
+            {voiceOn && !selectedVoiceless ? (
               <SpeakerHigh aria-hidden />
             ) : (
               <SpeakerSlash aria-hidden />
@@ -288,22 +307,6 @@ export function VoiceRoomStage({
               {t('addPerson')}
             </button>
           )}
-          {selectedMember?.kind === VOICE_ROOM_SPEAKER_KIND.VOICE ? (
-            <VoiceRoomPersonaChip
-              member={selectedMember}
-              characters={characters}
-              onPick={(characterCardId) =>
-                onCastChange(
-                  detail.cast.map((member) =>
-                    member.id === selectedMember.id
-                      ? { ...member, characterCardId }
-                      : member,
-                  ),
-                )
-              }
-              onEdited={() => void refreshCharacters()}
-            />
-          ) : null}
         </div>
 
         <span className="vr-bar-meta">{t('roomMeta')}</span>
@@ -433,8 +436,17 @@ export function VoiceRoomStage({
             if (
               mode !== VOICE_ROOM_MODE.CHAT ||
               speaker.kind !== VOICE_ROOM_SPEAKER_KIND.VOICE
-            )
+            ) {
+              // 念台词要嗓子：还没有就先挑一副。
+              if (isVoicelessMember(speaker)) {
+                const member = detail.cast.find(
+                  (item) => item.id === speaker.id,
+                )
+                if (member) setVoiceFor(member)
+                return false
+              }
               return onSay(speaker.id, text)
+            }
             // 发着的那条先把挂的图带上（真台词回来之前的占位）。
             setSentAttached(attached)
             try {
@@ -449,6 +461,17 @@ export function VoiceRoomStage({
       {/* 聊天写词用的是助手那一家：缺 key 就地配，配好不顺手改出声的模型。 */}
       {/* 她找的图点开看大图（配音间不在助手面板里，那一份大图层要自己挂）。 */}
       <StudioOperatorLightbox />
+
+      <VoicePickerDialog
+        open={voiceFor !== null}
+        onOpenChange={(next) => {
+          if (!next) setVoiceFor(null)
+        }}
+        takenIds={castIds}
+        onPick={(card) => {
+          if (voiceFor) void bindVoice(voiceFor, card.id)
+        }}
+      />
 
       {keySetup ? (
         <QuickSetupDialog

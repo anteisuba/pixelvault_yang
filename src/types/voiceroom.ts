@@ -58,6 +58,11 @@ export const VoiceRoomCastMemberSchema = z.object({
    * 不传 = 照旧按嗓子找绑着它的角色（最近改过的那张）。
    */
   characterCardId: z.string().min(1).max(200).nullable().optional(),
+  /**
+   * 这一位是**默认助手**（没套角色的那个全局助手，用户 10-25「聊天」跟着全局人设走）：人设读助手设置，
+   * ⛔ 不按嗓子去找角色卡。
+   */
+  assistant: z.literal(true).optional(),
 })
 
 export type VoiceRoomCastMember = z.infer<typeof VoiceRoomCastMemberSchema>

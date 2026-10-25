@@ -199,8 +199,8 @@
         "description": "Turn shots, motion, and scene beats into video with AI."
       },
       "audio": {
-        "title": "Audio Studio — ANTEI",
-        "description": "Generate audio with text-to-speech and voice cloning."
+        "title": "Chat — ANTEI",
+        "description": "Chat with your assistant or characters, out loud if you like."
       },
       "edit": {
         "title": "Image Edit — ANTEI",

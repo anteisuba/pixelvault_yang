@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect } from 'react'
-import { useSearchParams } from 'next/navigation'
 
 import {
   DEFAULT_HUGGINGFACE_LORA_SORT,
@@ -16,7 +15,7 @@ import {
   parseLoraLibraryFamilyParam,
   parseLoraLibraryTypeParam,
 } from '@/constants/lora'
-import { usePathname, useRouter } from '@/i18n/navigation'
+import { useLibraryQuery } from '@/hooks/use-library-query'
 import {
   useHuggingFaceLoraLibrary,
   type UseHuggingFaceLoraLibraryOptions,
@@ -30,9 +29,7 @@ import {
 export function useHuggingFaceLoraLibraryWithUrl(
   options: Pick<UseHuggingFaceLoraLibraryOptions, 'accumulate' | 'limit'> = {},
 ): UseHuggingFaceLoraLibraryReturn {
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
+  const { params: searchParams, replace } = useLibraryQuery()
   const initialFamilySlug = parseLoraLibraryFamilyParam(
     searchParams.get(LORA_LIBRARY_FAMILY_PARAM),
   )
@@ -76,19 +73,14 @@ export function useHuggingFaceLoraLibraryWithUrl(
     } else {
       params.set(LORA_LIBRARY_TYPE_PARAM, library.contentType)
     }
-    const query = params.toString()
-    const nextUrl = query ? `${pathname}?${query}` : pathname
-    const currentQuery = searchParams.toString()
-    const currentUrl = currentQuery ? `${pathname}?${currentQuery}` : pathname
-    if (nextUrl === currentUrl) return
-    router.replace(nextUrl, { scroll: false })
+    if (params.toString() === searchParams.toString()) return
+    replace(params)
   }, [
     library.baseModelFamily,
     library.sort,
     library.debouncedSearch,
     library.contentType,
-    pathname,
-    router,
+    replace,
     searchParams,
   ])
 

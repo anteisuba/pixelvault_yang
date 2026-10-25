@@ -442,7 +442,8 @@ export function LoraFavoritesBrowse({
                   }
                   mounted={isMounted(asset)}
                   onOpen={() => setOpenAsset(asset)}
-                  onMount={() => void mount(asset)}
+                  onMount={() => mount(asset)}
+                  pickId={asset.id}
                   favorite={
                     asset.source === 'trained'
                       ? undefined

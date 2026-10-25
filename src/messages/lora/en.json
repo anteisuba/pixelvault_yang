@@ -701,7 +701,16 @@
     "librarySourcePill": "Source",
     "librarySectionAll": "All",
     "librarySectionCharacters": "Characters",
-    "librarySectionCharactersEmpty": "No character has LoRAs yet. Use “Add to character…” in a LoRA’s details and it shows up here."
+    "librarySectionCharactersEmpty": "No character has LoRAs yet. Use “Add to character…” in a LoRA’s details and it shows up here.",
+    "picker": {
+      "title": "Pick LoRAs",
+      "description": "Pick LoRAs from the library to mount on the LoRA bench.",
+      "lock": "Fits {base}",
+      "count": "{count} selected",
+      "confirm": "Mount {count}",
+      "selectLabel": "Pick {name}",
+      "mounted": "Mounted"
+    }
   },
   "CivitaiToken": {
     "saveSuccess": "Civitai token saved",

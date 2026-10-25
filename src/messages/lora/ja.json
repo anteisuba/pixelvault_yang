@@ -701,7 +701,16 @@
     "librarySourcePill": "ソース",
     "librarySectionAll": "すべて",
     "librarySectionCharacters": "キャラクター",
-    "librarySectionCharactersEmpty": "キャラクターにまだ LoRA がありません。LoRA の詳細で「キャラクターに追加…」するとここに表示されます。"
+    "librarySectionCharactersEmpty": "キャラクターにまだ LoRA がありません。LoRA の詳細で「キャラクターに追加…」するとここに表示されます。",
+    "picker": {
+      "title": "LoRA を選ぶ",
+      "description": "ライブラリから LoRA を選んで LoRA 台に装着します。",
+      "lock": "{base} に装着できる",
+      "count": "{count} 件選択",
+      "confirm": "{count} 件装着",
+      "selectLabel": "{name} を選ぶ",
+      "mounted": "装着済み"
+    }
   },
   "CivitaiToken": {
     "saveSuccess": "Civitai トークンを保存しました",

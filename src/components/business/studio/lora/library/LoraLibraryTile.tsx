@@ -14,6 +14,7 @@ import {
   MEDIA_TILE_CLASS,
   MediaTileActions,
   MediaTileCaption,
+  MediaTileCheck,
   MediaTileMoreTrigger,
   MediaTileShade,
 } from '@/components/ui/media-tile'
@@ -25,6 +26,7 @@ import { clampLabel } from '@/lib/assistant-mention'
 import { cn } from '@/lib/utils'
 import type { AssistantMention } from '@/types/assistant-mention'
 
+import { useLoraPickSelection } from './lora-pick-selection'
 import { LoraSampleVideo } from './LoraSampleVideo'
 
 interface LoraLibraryTileProps {
@@ -43,7 +45,7 @@ interface LoraLibraryTileProps {
   mounting?: boolean
   onOpen: () => void
   /** 不给 = 这张卡没有「挂载」（例如只能在 Civitai 站内出图的）。 */
-  onMount?: () => void
+  onMount?: () => unknown
   /** 封面还在找（Hugging Face 的 README 首图懒取）：只铺底色，⛔ 先闪占位图标。 */
   coverPending?: boolean
   /**
@@ -60,6 +62,8 @@ interface LoraLibraryTileProps {
   favorite?: { saved: boolean; pending?: boolean; onToggle: () => void }
   /** 「交给助手」：一枚 `@LoRA` 胶囊挂进助手输入框（库整页才有）。 */
   onHandToAssistant?: () => void
+  /** 挑选框里认这一格用的 id（同一把在库与收藏里写法不同，各给各的）。 */
+  pickId?: string
 }
 
 /** 「交给助手」递过去的那一枚 `@LoRA` 胶囊（同 LoRA 台 `@` 菜单里那一组）。 */
@@ -101,8 +105,19 @@ export function LoraLibraryTile({
   agentPick = false,
   favorite,
   onHandToAssistant,
+  pickId,
 }: LoraLibraryTileProps) {
   const t = useTranslations('LoraWorkbench.browse')
+  const tPicker = useTranslations('LoraWorkbench.picker')
+  // 挑选框里（ui-spec ㉔）：整格 = 圈 / 不圈（同素材挑选框），详情收进「更多」；已挂的写「已挂」。
+  const pick = useLoraPickSelection()
+  const picking = pick !== null && pickId !== undefined
+  const pickable = picking && onMount !== undefined && !mountChooses && !mounted
+  const picked = pickable && pick.isSelected(pickId)
+  const handleClick =
+    pickable && onMount
+      ? () => pick.toggle({ id: pickId, mount: onMount })
+      : onOpen
   const [loadedUrl, setLoadedUrl] = useState<string | null>(null)
   const loaded = coverUrl !== null && loadedUrl === coverUrl
   const coverStyle = coverColor
@@ -122,8 +137,9 @@ export function LoraLibraryTile({
         {/* 整格就是「打开详情」：铺满的一颗按钮垫在最底下。 */}
         <button
           type="button"
-          onClick={onOpen}
-          aria-label={name}
+          onClick={handleClick}
+          aria-label={pickable ? tPicker('selectLabel', { name }) : name}
+          aria-pressed={pickable ? picked : undefined}
           className="absolute inset-0 z-10 rounded-12 focus-visible:outline-none focus-visible:shadow-focus"
         />
         {coverUrl ? (
@@ -155,7 +171,14 @@ export function LoraLibraryTile({
             {t('agentPick')}
           </span>
         ) : null}
-        {mounted ? (
+        {pickable ? (
+          <MediaTileCheck selected={picked} tone="highlight" />
+        ) : null}
+        {mounted && picking ? (
+          <span className="pointer-events-none absolute right-2 top-2 z-20 inline-flex h-5.5 items-center rounded-full bg-media-chip px-2 text-2xs font-medium text-on-media-chip">
+            {tPicker('mounted')}
+          </span>
+        ) : mounted ? (
           <span
             role="img"
             aria-label={t('mounted')}
@@ -220,7 +243,7 @@ export function LoraLibraryTile({
       <button
         type="button"
         tabIndex={-1}
-        onClick={onOpen}
+        onClick={handleClick}
         className="block w-full min-w-0 text-left"
       >
         <MediaTileCaption name={name} meta={meta} />

@@ -55,6 +55,7 @@ import {
 } from './lora-library-filter-labels'
 import { LoraLibraryFilterCombobox } from './LoraLibraryFilterCombobox'
 import { LoraLibrarySearchBox } from './LoraLibrarySearchBox'
+import { useLoraPickSelection } from './lora-pick-selection'
 import { LoraLibraryTile } from './LoraLibraryTile'
 import { LoraLibraryTypeSparseCard } from './LoraLibraryTypeStates'
 
@@ -292,7 +293,9 @@ export function LoraHuggingFaceBrowse({
   const typeLabel =
     typeOptions.find((option) => option.value === library.contentType)?.label ??
     ''
+  const familyLocked = useLoraPickSelection()?.familyLocked ?? false
   const baseFiltered = library.baseModelFamily !== 'all'
+  const canRelaxBase = baseFiltered && !familyLocked
   const typeFiltered = library.contentType !== DEFAULT_LORA_CONTENT_TYPE
 
   const settledEmpty =
@@ -359,22 +362,24 @@ export function LoraHuggingFaceBrowse({
           }
           pills={
             <>
-              <LoraLibraryFilterCombobox
-                variant="bar"
-                label={t('libraryFamilyFilter')}
-                ariaLabel={t('baseModelFilterLabel')}
-                value={familySlug}
-                options={familyOptions}
-                onChange={(slug) =>
-                  library.setBaseModelFamily(
-                    familySlugToHuggingFaceFamily(slug),
-                  )
-                }
-                changed={baseFiltered}
-                searchable
-                searchPlaceholder={t('baseModelSearchPlaceholder')}
-                emptyText={t('baseModelSearchEmpty')}
-              />
+              {familyLocked ? null : (
+                <LoraLibraryFilterCombobox
+                  variant="bar"
+                  label={t('libraryFamilyFilter')}
+                  ariaLabel={t('baseModelFilterLabel')}
+                  value={familySlug}
+                  options={familyOptions}
+                  onChange={(slug) =>
+                    library.setBaseModelFamily(
+                      familySlugToHuggingFaceFamily(slug),
+                    )
+                  }
+                  changed={baseFiltered}
+                  searchable
+                  searchPlaceholder={t('baseModelSearchPlaceholder')}
+                  emptyText={t('baseModelSearchEmpty')}
+                />
+              )}
               {sourceSwitch}
             </>
           }
@@ -441,13 +446,13 @@ export function LoraHuggingFaceBrowse({
                   : tb('emptyTitleNoQuery')}
               </h4>
               <p className="text-2sm leading-5 text-muted-foreground">
-                {baseFiltered || typeFiltered
+                {canRelaxBase || typeFiltered
                   ? tb('emptyBodyLoosen', { scope })
                   : tb('emptyBodyNoRelax', { scope })}
               </p>
-              {baseFiltered || typeFiltered ? (
+              {canRelaxBase || typeFiltered ? (
                 <div className="mt-1.5 flex flex-wrap justify-center gap-2">
-                  {baseFiltered ? (
+                  {canRelaxBase ? (
                     <button
                       type="button"
                       onClick={() => library.setBaseModelFamily('all')}

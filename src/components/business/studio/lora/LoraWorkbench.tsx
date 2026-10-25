@@ -101,6 +101,7 @@ import {
 import { useActiveLoraStack } from '@/hooks/use-active-lora-stack'
 import { useUnifiedGenerate } from '@/hooks/use-unified-generate'
 import { CommunitySourceBranch } from '@/components/business/studio/lora/library/LoraLibraryTabs'
+import { LoraPickerDialog } from '@/components/business/studio/lora/library/LoraPickerDialog'
 import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompts'
 import { useHuggingFaceLoraShowcase } from '@/hooks/use-huggingface-lora-showcase'
 import { useRunnerUsage } from '@/hooks/prompts/use-runner-usage'
@@ -2063,6 +2064,13 @@ function GenerateBranch({
     [operatorBaseLabel, selectedBase],
   )
   useRegisterLoraLibraryPick(stageContext)
+  // 桌面「＋ 添加 LoRA」= 挑 LoRA 框（ui-spec ㉔），台不动；手机仍切到卡里的库那一栏。
+  // 助手「打开库」照旧去库整页（`onOpenLibrary`）。
+  const [loraPickerOpen, setLoraPickerOpen] = useState(false)
+  const addLora = useCallback(() => {
+    if (isMobile) onOpenLibrary()
+    else setLoraPickerOpen(true)
+  }, [isMobile, onOpenLibrary])
   /**
    * 装配台自己那条结果列 → 结果行卡（§2.11，切片 3b）。
    *
@@ -2914,7 +2922,7 @@ function GenerateBranch({
         loraScaleConfig={loraScaleConfig}
         activeRecipeGroupId={recipeGroupKey}
         onSelectRecipeGroup={setRecipeGroupAssetId}
-        onAddLora={onOpenLibrary}
+        onAddLora={addLora}
         onPickFromCharacter={openCharacterPick}
         triggerEntries={triggerChipEntries}
         disabledTriggerIds={disabledTriggerIds}
@@ -3701,7 +3709,7 @@ function GenerateBranch({
                   ))}
                   <button
                     type="button"
-                    onClick={onOpenLibrary}
+                    onClick={addLora}
                     aria-label={t('spine.addLoraFull')}
                     className="grid size-8 shrink-0 place-items-center rounded-lg border border-dashed border-border text-muted-foreground transition-colors duration-fast ease-standard active:bg-muted"
                   >
@@ -4078,7 +4086,7 @@ function GenerateBranch({
             workspaceOptionForBase && openKeySetupFor(workspaceOptionForBase)
           }
           loraScaleConfig={loraScaleConfig}
-          onAddLora={onOpenLibrary}
+          onAddLora={addLora}
           onPickFromCharacter={openCharacterPick}
           collapsed={assemblyCollapsed}
           onCollapsedChange={setAssemblyCollapsed}
@@ -4598,6 +4606,11 @@ function GenerateBranch({
 
       {/* 助手：与图片台同一颗 Dock；桌面展开时 root 把工作台让出来（§2.5）。 */}
       <StudioOperatorBenchDock />
+      <LoraPickerDialog
+        open={loraPickerOpen}
+        onOpenChange={setLoraPickerOpen}
+        stage={stageContext}
+      />
     </StudioOperatorHostProvider>
   )
 }

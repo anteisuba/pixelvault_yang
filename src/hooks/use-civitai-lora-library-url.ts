@@ -22,7 +22,7 @@ import {
   type LoraContentType,
   type LoraNsfwFilter,
 } from '@/constants/lora'
-import { usePathname, useRouter } from '@/i18n/navigation'
+import { useLibraryQuery } from '@/hooks/use-library-query'
 import { useLocalPreference } from '@/hooks/use-local-preference'
 import {
   useCivitaiLoraLibrary,
@@ -38,9 +38,7 @@ import {
 export function useCivitaiLoraLibraryWithUrl(
   options: Pick<UseCivitaiLoraLibraryOptions, 'accumulate' | 'pageSize'> = {},
 ): UseCivitaiLoraLibraryReturn {
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
+  const { params: searchParams, replace } = useLibraryQuery()
   const initialFamilySlug = parseLoraLibraryFamilyParam(
     searchParams.get(LORA_LIBRARY_FAMILY_PARAM),
   )
@@ -99,20 +97,15 @@ export function useCivitaiLoraLibraryWithUrl(
     } else {
       params.set(LORA_LIBRARY_TYPE_PARAM, library.contentType)
     }
-    const query = params.toString()
-    const nextUrl = query ? `${pathname}?${query}` : pathname
-    const currentQuery = searchParams.toString()
-    const currentUrl = currentQuery ? `${pathname}?${currentQuery}` : pathname
-    if (nextUrl === currentUrl) return
-    router.replace(nextUrl, { scroll: false })
+    if (params.toString() === searchParams.toString()) return
+    replace(params)
   }, [
     library.baseModel,
     library.sort,
     library.debouncedSearch,
     library.nsfwFilter,
     library.contentType,
-    pathname,
-    router,
+    replace,
     searchParams,
   ])
 

@@ -27,6 +27,10 @@ import { FAKE_GENERATION } from '@/test/api-helpers'
 import { LoraWorkbench } from './LoraWorkbench'
 
 let mockUserId = 'user-a'
+vi.mock('@/components/business/studio/lora/library/LoraPickerDialog', () => ({
+  LoraPickerDialog: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="lora-picker" /> : null,
+}))
 vi.mock('@clerk/nextjs', () => ({
   useUser: () => ({ user: { id: mockUserId } }),
 }))
@@ -1421,16 +1425,17 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     expect(shownImage()).toHaveAttribute('src', 'https://example.com/1.png')
   })
 
-  it('「＋ 添加 LoRA」打开外壳中间的库叠层（第 9f 步 9f-2b，⛔ 另开库弹窗）', () => {
+  it('「＋ 添加 LoRA」弹「挑 LoRA」框（ui-spec ㉔），台不走', () => {
     mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
 
     render(<LoraWorkbench />)
+    expect(screen.queryByTestId('lora-picker')).toBeNull()
     fireEvent.click(
       screen.getByRole('button', { name: 'LoraWorkbench:spine.addLoraFull' }),
     )
 
-    expect(mockRouterPush).toHaveBeenCalledWith('/library/lora')
-    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByTestId('lora-picker')).toBeInTheDocument()
+    expect(mockRouterPush).not.toHaveBeenCalledWith('/library/lora')
   })
 
   describe('LoRA 模板（pages/prompts.md）', () => {

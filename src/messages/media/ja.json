@@ -572,6 +572,14 @@
     "uploadFailed": "アイコンを変更できませんでした。もう一度お試しください。",
     "deleteFailed": "削除できませんでした。もう一度お試しください。",
     "imageTooLarge": "画像は 5 MB 未満にしてください",
-    "imageType": "JPG、PNG、WebP のみ対応しています"
+    "imageType": "JPG、PNG、WebP のみ対応しています",
+    "library": {
+      "all": "すべて",
+      "favorites": "お気に入り",
+      "cloned": "マイクローン",
+      "metaCloned": "マイクローン",
+      "emptyFavoritesHint": "「すべて」で試聴して、気に入った声をブックマーク。",
+      "languages": "言語"
+    }
   }
 }

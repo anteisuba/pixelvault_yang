@@ -572,6 +572,14 @@
     "uploadFailed": "Couldn’t change the avatar. Try again.",
     "deleteFailed": "Couldn’t delete. Try again.",
     "imageTooLarge": "Image must be under 5 MB",
-    "imageType": "Only JPG, PNG and WebP are supported"
+    "imageType": "Only JPG, PNG and WebP are supported",
+    "library": {
+      "all": "All",
+      "favorites": "Favorites",
+      "cloned": "My clones",
+      "metaCloned": "My clone",
+      "emptyFavoritesHint": "Preview voices in All and bookmark the ones you like.",
+      "languages": "Language"
+    }
   }
 }

@@ -118,28 +118,7 @@ export function VoiceTile({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={actions.onRename}>
-              <Pencil aria-hidden />
-              {t('rename')}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={!actions.onChangeCover}
-              onSelect={() => actions.onChangeCover?.()}
-            >
-              <ImagePlus aria-hidden />
-              {actions.onChangeCover
-                ? t('changeCover')
-                : t('coverFromCharacter')}
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={actions.onBind}>
-              <UserRound aria-hidden />
-              {t('bind')}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onSelect={actions.onDelete}>
-              <Trash2 aria-hidden />
-              {t('delete')}
-            </DropdownMenuItem>
+            <VoiceTileMenuItems actions={actions} />
           </DropdownMenuContent>
         </DropdownMenu>
       ) : null}
@@ -174,5 +153,34 @@ export function VoiceTile({
         ) : null}
       </div>
     </div>
+  )
+}
+
+/** 我的音色那几样：改名 · 换头像 · 绑到角色 · 删除（库骨架的「更多」菜单也用这一份）。 */
+export function VoiceTileMenuItems({ actions }: { actions: VoiceTileActions }) {
+  const t = useTranslations('VoicesPage')
+  return (
+    <>
+      <DropdownMenuItem onSelect={actions.onRename}>
+        <Pencil aria-hidden />
+        {t('rename')}
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        disabled={!actions.onChangeCover}
+        onSelect={() => actions.onChangeCover?.()}
+      >
+        <ImagePlus aria-hidden />
+        {actions.onChangeCover ? t('changeCover') : t('coverFromCharacter')}
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={actions.onBind}>
+        <UserRound aria-hidden />
+        {t('bind')}
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem variant="destructive" onSelect={actions.onDelete}>
+        <Trash2 aria-hidden />
+        {t('delete')}
+      </DropdownMenuItem>
+    </>
   )
 }

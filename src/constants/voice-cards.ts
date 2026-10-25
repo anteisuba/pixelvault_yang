@@ -166,6 +166,9 @@ export const AUDIO_PACE_SPEED = {
 
 export const VOICE_LIBRARY_PAGE_SIZE = 20
 
+/** 声音库「全部」的来源（左栏「全部」右边那行小字）。 */
+export const VOICE_LIBRARY_SOURCE_LABEL = 'Fish Audio'
+
 export const VOICE_LIBRARY_LANGUAGES = ['all', 'zh', 'en', 'ja', 'es'] as const
 
 export type VoiceLibraryLanguage = (typeof VOICE_LIBRARY_LANGUAGES)[number]

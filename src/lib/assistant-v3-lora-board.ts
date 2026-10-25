@@ -8,6 +8,7 @@ import {
   buildAssistantV3Handles,
   type AssistantV3Handles,
 } from '@/lib/assistant-v3-board'
+import { renderAssistantV3ResultsLine } from '@/lib/assistant-v3-image-board'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
 import type { CivitaiImageRecipe } from '@/types'
 
@@ -202,6 +203,9 @@ export function renderAssistantV3LoraBoard(input: {
           ...recipeLines(snapshot.sourceRecipe, false),
         ]
       : []),
+    ...[renderAssistantV3ResultsLine(snapshot)].filter(
+      (line): line is string => line !== null,
+    ),
     ...(input.attachedNames.length
       ? [
           `Pictures attached to this message (attached below; use these names with look): ${input.attachedNames.map((name) => `"${name}"`).join(', ')}`,

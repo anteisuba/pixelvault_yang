@@ -172,6 +172,7 @@ import {
 } from '@/constants/studio-assistant-operator'
 import { useStudioWorkbenchOperatorHost } from '@/hooks/use-studio-workbench-operator-host'
 import { buildGenerationDisplayName } from '@/lib/generation-name'
+import { setStudioStageFocus } from '@/lib/studio-stage-focus'
 import { buildImageGenerationControls } from '@/lib/studio-operator-snapshot'
 import {
   appendOperatorPendingResult,
@@ -427,6 +428,74 @@ describe('useStudioWorkbenchOperatorHost 的图片快照', () => {
     expect(buildImageOperatorSnapshot).toHaveBeenLastCalledWith(
       expect.objectContaining({ runModels }),
     )
+  })
+
+  /**
+   * ⭐ 10-25 查明：记录里的类型是大写 `IMAGE`，旧筛选比小写，台上的图一张都没交给过助手
+   *   （助手说「台上没有挂结果图」去库里翻）。这里用记录的真实写法锁住。
+   */
+  it('⭐ 台上这一批（大写 IMAGE）交给助手，选中的那张标出来', () => {
+    useStudioGenOptional.mockReturnValue({
+      activeRun: {
+        outputType: 'IMAGE',
+        selectedItemId: null,
+        items: [
+          runItem('item-a', 'completed', {
+            id: 'gen-a',
+            url: 'https://cdn.test/a.png',
+            prompt: 'malfoy',
+            seq: 1701,
+            outputType: 'IMAGE',
+          }),
+          runItem('item-b', 'completed', {
+            id: 'gen-b',
+            url: 'https://cdn.test/b.png',
+            prompt: 'malfoy',
+            seq: 1702,
+            outputType: 'IMAGE',
+          }),
+        ],
+      },
+    })
+    setStudioStageFocus('gen-b')
+    const { result } = renderHook(() => useStudioWorkbenchOperatorHost())
+    expect(result.current.buildSnapshot().results).toEqual([
+      {
+        assetId: 'gen-a',
+        url: 'https://cdn.test/a.png',
+        label: buildGenerationDisplayName({ seq: 1701, prompt: 'malfoy' }),
+      },
+      {
+        assetId: 'gen-b',
+        url: 'https://cdn.test/b.png',
+        label: buildGenerationDisplayName({ seq: 1702, prompt: 'malfoy' }),
+        selected: true,
+      },
+    ])
+    setStudioStageFocus(null)
+  })
+
+  it('没有这一批时交舞台上的上一张（刷新之后）', () => {
+    useStudioGenOptional.mockReturnValue({
+      activeRun: null,
+      lastGeneration: {
+        id: 'gen-last',
+        url: 'https://cdn.test/last.png',
+        prompt: 'malfoy',
+        seq: 1690,
+        outputType: 'IMAGE',
+        model: 'gpt-image-2',
+      },
+    })
+    const { result } = renderHook(() => useStudioWorkbenchOperatorHost())
+    expect(result.current.buildSnapshot().results).toEqual([
+      {
+        assetId: 'gen-last',
+        url: 'https://cdn.test/last.png',
+        label: buildGenerationDisplayName({ seq: 1690, prompt: 'malfoy' }),
+        selected: true,
+      },
+    ])
   })
 })
 

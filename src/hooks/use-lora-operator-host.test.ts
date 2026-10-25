@@ -24,6 +24,7 @@ import {
   getLoraLibraryAgentState,
   resetLoraLibraryAgent,
 } from '@/hooks/use-lora-library-agent'
+import { setStudioStageFocus } from '@/lib/studio-stage-focus'
 import type { LoraAssetRecord } from '@/types'
 
 const deleteAssistantMemoryAPI = vi.hoisted(() => vi.fn())
@@ -256,6 +257,29 @@ describe('useLoraOperatorHost.buildSnapshot 的触发词三格', () => {
       runnerSeed: null,
     })
     expect(result.current.buildSnapshot().sourceRecipe).toBeUndefined()
+  })
+
+  it('⭐ 台上的图交给助手（result-N），放大的那张标选中', () => {
+    setStudioStageFocus('gen-new')
+    const { result } = renderHook(() =>
+      useLoraOperatorHost({
+        ...hostInput([]),
+        results: [
+          { id: 'gen-new', url: 'https://cdn.test/new.png', label: '提弗洛斯' },
+          { id: 'gen-old', url: 'https://cdn.test/old.png' },
+        ],
+      }),
+    )
+    expect(result.current.buildSnapshot().results).toEqual([
+      {
+        assetId: 'gen-new',
+        url: 'https://cdn.test/new.png',
+        label: '提弗洛斯',
+        selected: true,
+      },
+      { assetId: 'gen-old', url: 'https://cdn.test/old.png' },
+    ])
+    setStudioStageFocus(null)
   })
 
   it('delegates parameter changes to the latest workbench setter', () => {

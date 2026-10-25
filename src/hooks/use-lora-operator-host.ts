@@ -70,7 +70,9 @@ import {
   toOperatorResultRun,
   matchesOperatorResultOwner,
   toOperatorRunResults,
+  toOperatorSnapshotResults,
 } from '@/lib/studio-operator-result-run'
+import { readStudioStageFocus } from '@/lib/studio-stage-focus'
 import {
   clearLoraLibraryPicks,
   requestLoraLibrarySearch,
@@ -293,7 +295,12 @@ export function useLoraOperatorHost(
   const buildSnapshot = useCallback((): AssistantOperatorSnapshot => {
     const current = latest.current
     const baseFamily = current.base?.family ?? null
-    return buildLoraOperatorSnapshot({
+    // 舞台上的图（新的在前）交给助手：`result-N`，放大的那张标选中（与图片台同一份）。
+    const results = toOperatorSnapshotResults(
+      current.results ?? NO_RESULTS,
+      readStudioStageFocus(),
+    )
+    const snapshot = buildLoraOperatorSnapshot({
       loraParameters: current.loraParameters,
       sourceRecipe: current.sourceRecipe,
       viewingRecipe: current.viewingRecipe,
@@ -349,6 +356,7 @@ export function useLoraOperatorHost(
         ? { libraryFilters: current.libraryFilters }
         : {}),
     })
+    return results.length ? { ...snapshot, results } : snapshot
   }, [])
 
   /**

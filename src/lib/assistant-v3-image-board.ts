@@ -169,14 +169,19 @@ function referencesLine(snapshot: AssistantOperatorSnapshot): string {
     : `References: none mounted (${room}).`
 }
 
-/** 舞台上最新一批出好的图（`result-N`）—— look 直接看，⛔ 不用创作者再 @。 */
-function resultsLine(snapshot: AssistantOperatorSnapshot): string | null {
+/**
+ * 舞台上最新一批出好的图（`result-N`）—— look 直接看，⛔ 不用创作者再 @。
+ * 选中的那张标出来：创作者说「这张」就是它。图片台与 LoRA 台的板子共用。
+ */
+export function renderAssistantV3ResultsLine(
+  snapshot: AssistantOperatorSnapshot,
+): string | null {
   const results = snapshot.results
   if (!results?.length) return null
   return `Latest results on the stage (newest batch; look at them by these names, no @ needed): ${results
     .map(
       (result, index) =>
-        `${ASSISTANT_V3_RESULT_PREFIX}${index + 1}${result.label ? ` "${result.label}"` : ''}`,
+        `${ASSISTANT_V3_RESULT_PREFIX}${index + 1}${result.label ? ` "${result.label}"` : ''}${result.selected ? ' (selected on the stage: "this one" / "这张" means it)' : ''}`,
     )
     .join(', ')}`
 }
@@ -267,7 +272,9 @@ export function renderAssistantV3ImageBoard(input: {
     ...tagLines(snapshot),
     ...(video ? videoLines(snapshot) : []),
     referencesLine(snapshot),
-    ...[resultsLine(snapshot)].filter((line): line is string => line !== null),
+    ...[renderAssistantV3ResultsLine(snapshot)].filter(
+      (line): line is string => line !== null,
+    ),
     ...(input.attachedNames.length
       ? [
           `Pictures attached to this message (attached below; use these names with look and mount_reference): ${input.attachedNames.map((name) => `"${name}"`).join(', ')}`,

@@ -353,18 +353,21 @@ export function VoiceLineBubble({
           </span>
         ) : null}
 
-        {/* 聊天回复写出来了、声音没派出去（缺 key、额度……）：话留着，点重试再出声。 */}
+        {/*
+         * 没有声音的回复：顶栏 🔇 时她只打字，或声音没派出去（缺 key、额度……）。话留着，
+         * 点「念出来」走重录那条路出声（用户 10-25）。
+         */}
         {!line.audio && !retaking ? (
-          <span className="vr-failed">
-            <span>{t('noVoice')}</span>
-            <button
-              type="button"
-              className="vr-retry"
-              onClick={() => void onRetake(line.id, {})}
-            >
-              {t('retry')}
-            </button>
-          </span>
+          <button
+            type="button"
+            className="vr-read-aloud"
+            onClick={() => void onRetake(line.id, {})}
+          >
+            <svg width="8" height="9" viewBox="0 0 8 9" aria-hidden>
+              <path d="M0 0l8 4.5L0 9z" fill="currentColor" />
+            </svg>
+            {t('readAloud')}
+          </button>
         ) : null}
 
         {status === 'FAILED' ? (

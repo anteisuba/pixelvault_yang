@@ -36,20 +36,38 @@ export function voiceAvatarCover(
 }
 
 /**
- * 一副嗓子在配音间里露面的样子（owner 10-23「头像跟着绑定的角色走」）：绑了角色就是她——
- * 名字和头像都用角色的；没绑就是音色自己。
+ * 配音间里她用哪张角色卡当人设（顶栏「人设 ▾」，用户 10-25）：这间房挑过哪张就是哪张（被删了
+ * 退回去）；没挑过 → 绑着这副嗓子的第一个角色。服务端 `findPersonaCard` 同一条规则。
+ */
+export function voicePersonaCard<T extends CharacterLike>(
+  voice: { readonly id: string; readonly characterCardId?: string | null },
+  characters: readonly T[],
+): T | null {
+  const picked = voice.characterCardId
+    ? characters.find((card) => card.id === voice.characterCardId)
+    : undefined
+  return picked ?? charactersOfVoice(voice.id, characters)[0] ?? null
+}
+
+/**
+ * 一副嗓子在配音间里露面的样子（owner 10-23「头像跟着绑定的角色走」）：有人设卡就是她——
+ * 名字和头像都用角色的；没有就是音色自己。
  */
 export function voiceSpeakerLook(
   voice: {
     readonly id: string
     readonly name: string
     readonly coverImage: string | null
+    readonly characterCardId?: string | null
   },
   characters: readonly CharacterLike[],
 ): { name: string; cover: string | null } {
-  const [bound] = charactersOfVoice(voice.id, characters)
+  const persona = voicePersonaCard(voice, characters)
+  const picked = Boolean(voice.characterCardId) && persona !== null
   return {
-    name: bound?.name ?? voice.name,
-    cover: voiceAvatarCover(voice, characters),
+    name: persona?.name ?? voice.name,
+    cover: picked
+      ? (characterCoverUrl(persona) ?? voice.coverImage ?? null)
+      : voiceAvatarCover(voice, characters),
   }
 }

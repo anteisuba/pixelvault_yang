@@ -277,9 +277,48 @@
 }
 
 .vr-chip:hover,
-.vr-chip[data-active='true'] {
+.vr-chip[data-active='true'],
+.vr-chip[data-state='open'] {
   border-color: var(--vr-ink);
   color: var(--vr-ink);
+}
+
+/* 这间房的设置（用户 10-25）：🔊 · ＋ 加人 · 人设 ▾，挨着排在标题后面。 */
+.vr-bar-room {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.vr-chip-icon,
+.vr-chip-persona {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.vr-chip-icon > svg,
+.vr-chip-persona > svg {
+  width: 12px;
+  height: 12px;
+  flex: none;
+}
+
+.vr-chip-icon[data-off='true'] {
+  color: var(--vr-dim);
+}
+
+.vr-chip-persona {
+  min-width: 0;
+  max-width: 180px;
+}
+
+.vr-chip-persona-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ── 素材库抽屉 ─────────────────────────────────────────────────── */
@@ -951,6 +990,31 @@
   }
 }
 
+/* 没出声的回复（顶栏 🔇 或没派出去）：虚线小胶囊「▶ 念出来」，⛔ 不用红字——这不是失败。 */
+.vr-read-aloud {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  align-self: flex-start;
+  padding: 3px 10px;
+  border: 1px dashed var(--vr-line-strong);
+  border-radius: 999px;
+  background: none;
+  color: var(--vr-dim);
+  font-family: var(--vr-mono);
+  font-size: 10.5px;
+  cursor: pointer;
+  transition:
+    color var(--vr-t-fast) ease,
+    border-color var(--vr-t-fast) ease,
+    transform var(--vr-t-fast) var(--vr-ease-out);
+}
+
+.vr-read-aloud:hover {
+  color: var(--vr-ink);
+  border-color: var(--vr-ink);
+}
+
 .vr-retry {
   color: var(--vr-ink);
   border: 0;
@@ -1024,12 +1088,6 @@
 .vr-pick[data-selected='true'] {
   opacity: 1;
   border-color: var(--vr-ink);
-}
-
-.vr-pick-add {
-  background: var(--vr-line-2);
-  color: var(--vr-dim);
-  opacity: 1;
 }
 
 /* 聊天 / 念台词（owner 10-23 方案 A）：两档的小分段，挨着头像。 */
@@ -1998,6 +2056,7 @@
     .vr-play,
     .vr-tab,
     .vr-retry,
+    .vr-read-aloud,
     .vr-pick
   ):active:not(:disabled) {
   transform: scale(0.95);

@@ -25,6 +25,7 @@ import type {
   VoiceRoomDetail,
   VoiceRoomRecord,
 } from '@/types/voiceroom'
+import { Plus, SpeakerHigh, SpeakerSlash } from '@/components/icons'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import { VoicePickerDialog } from '@/components/business/voices/VoicePickerDialog'
 import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
@@ -36,6 +37,7 @@ import { VoiceRoomCasting } from './VoiceRoomCasting'
 import { VoiceRoomComposer } from './VoiceRoomComposer'
 import { VoiceRoomHistoryMenu } from './VoiceRoomHistoryMenu'
 import { VoiceRoomModelChip } from './VoiceRoomModelChip'
+import { VoiceRoomPersonaChip } from './VoiceRoomPersonaChip'
 import { VoiceRoomVault } from './VoiceRoomVault'
 
 /** 房间本体：顶栏 · 聊天流（或空态）· 输入行。 */
@@ -57,6 +59,9 @@ interface VoiceRoomStageProps {
   onModeChange: (mode: VoiceRoomMode) => void
   llmModel: AssistantRouteModel
   onLlmModelChange: (model: AssistantRouteModel) => void
+  /** 这间房开着声音没有（顶栏 🔊/🔇）。 */
+  voiceOn: boolean
+  onToggleVoice: () => void
   /** 聊天时助手那一家缺 key：就地配。 */
   keySetup: AssistantKeySetupTarget | null
   onDismissKeySetup: () => void
@@ -92,6 +97,8 @@ export function VoiceRoomStage({
   onModeChange,
   llmModel,
   onLlmModelChange,
+  voiceOn,
+  onToggleVoice,
   keySetup,
   onDismissKeySetup,
   error,
@@ -109,7 +116,8 @@ export function VoiceRoomStage({
   onDismissError,
 }: VoiceRoomStageProps) {
   const t = useTranslations('VoiceRoom')
-  const { cards: characters } = useCharacterLibrary()
+  const { cards: characters, refresh: refreshCharacters } =
+    useCharacterLibrary()
 
   /**
    * 头像和名字跟着绑定的角色走（owner 10-23，规则见 `voiceSpeakerLook`）：班底里的人声当场按
@@ -125,6 +133,7 @@ export function VoiceRoomStage({
             id: member.id,
             name: member.name,
             coverImage: member.coverImage ?? null,
+            characterCardId: member.characterCardId,
           },
           characters,
         )
@@ -200,6 +209,9 @@ export function VoiceRoomStage({
     pickedId && cast.some((member) => member.id === pickedId)
       ? pickedId
       : (cast[0]?.id ?? null)
+  /** 顶栏人设跟着底部选中的那位走（群里也是）——取班底**快照**，要的是它的 `characterCardId`。 */
+  const selectedMember =
+    detail.cast.find((member) => member.id === selectedId) ?? null
 
   /**
    * 换房间后**首屏**有几条——只有这些参与 40ms/条的接力入场。
@@ -236,6 +248,51 @@ export function VoiceRoomStage({
           onDelete={onDeleteRoom}
           onNew={onNewTopic}
         />
+
+        {/* 这间房的设置（用户 10-25）：🔊 · ＋ 加人 · 人设 ▾。 */}
+        <div className="vr-bar-room">
+          <button
+            type="button"
+            className="vr-chip vr-chip-icon"
+            data-off={!voiceOn}
+            aria-pressed={voiceOn}
+            aria-label={voiceOn ? t('voiceOnLabel') : t('voiceOffLabel')}
+            title={voiceOn ? t('voiceOnLabel') : t('voiceOffLabel')}
+            onClick={onToggleVoice}
+          >
+            {voiceOn ? (
+              <SpeakerHigh aria-hidden />
+            ) : (
+              <SpeakerSlash aria-hidden />
+            )}
+          </button>
+          {castEmpty ? null : (
+            <button
+              type="button"
+              className="vr-chip vr-chip-icon"
+              onClick={() => setCastingOpen(true)}
+            >
+              <Plus aria-hidden />
+              {t('addPerson')}
+            </button>
+          )}
+          {selectedMember?.kind === VOICE_ROOM_SPEAKER_KIND.VOICE ? (
+            <VoiceRoomPersonaChip
+              member={selectedMember}
+              characters={characters}
+              onPick={(characterCardId) =>
+                onCastChange(
+                  detail.cast.map((member) =>
+                    member.id === selectedMember.id
+                      ? { ...member, characterCardId }
+                      : member,
+                  ),
+                )
+              }
+              onEdited={() => void refreshCharacters()}
+            />
+          ) : null}
+        </div>
 
         <span className="vr-bar-meta">{t('roomMeta')}</span>
 
@@ -353,7 +410,6 @@ export function VoiceRoomStage({
               detail.cast.filter((member) => member.id !== speakerId),
             )
           }
-          onOpenCasting={() => setCastingOpen(true)}
           onSubmit={(text) => {
             const speaker = cast.find((member) => member.id === selectedId)
             if (!speaker) return Promise.resolve(false)

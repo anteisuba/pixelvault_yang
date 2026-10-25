@@ -142,7 +142,7 @@ describe('VoiceLineBubble — chat (owner 10-23)', () => {
     expect(screen.queryByRole('button')).toBeNull()
   })
 
-  it('dims delivery cues and offers a retry when the reply has no voice', () => {
+  it('dims delivery cues and offers read-aloud when the reply has no voice', () => {
     const onRetake = vi.fn()
     const { container } = render(
       <VoiceLineBubble
@@ -151,8 +151,7 @@ describe('VoiceLineBubble — chat (owner 10-23)', () => {
       />,
     )
     expect(container.querySelector('.vr-cue')?.textContent).toBe('[laughing]')
-    expect(screen.getByText('VoiceRoom:noVoice')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'VoiceRoom:retry' }))
+    fireEvent.click(screen.getByRole('button', { name: 'VoiceRoom:readAloud' }))
     expect(onRetake).toHaveBeenCalledWith('line-1', {})
   })
 })

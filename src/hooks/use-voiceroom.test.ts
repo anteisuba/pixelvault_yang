@@ -292,6 +292,29 @@ describe('useVoiceRoom 聊天（owner 10-23）', () => {
     })
   })
 
+  it('remembers the sound switch per room and sends voice:false while muted', async () => {
+    mockChat.mockResolvedValue({ reply: makeLine({ id: 'line-reply' }) })
+    const { result } = await openedRoom()
+    expect(result.current.voiceOn).toBe(true)
+
+    act(() => result.current.toggleVoice())
+    expect(result.current.voiceOn).toBe(false)
+    expect(
+      JSON.parse(
+        window.localStorage.getItem('antei:voiceroom:muted-rooms') ?? '[]',
+      ),
+    ).toEqual([ROOM_ID])
+
+    await act(async () => {
+      await result.current.chat(SPEAKER_ID, '在吗')
+    })
+    expect(mockChat.mock.calls[0][0]).toMatchObject({ voice: false })
+
+    act(() => result.current.toggleVoice())
+    expect(result.current.voiceOn).toBe(true)
+    window.localStorage.removeItem('antei:voiceroom:muted-rooms')
+  })
+
   it('opens the key setup for the assistant provider when the chat cannot start', async () => {
     mockChat.mockResolvedValue({
       error: 'API key is required',

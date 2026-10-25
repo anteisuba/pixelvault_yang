@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { charactersOfVoice, voiceAvatarCover } from '@/lib/voice-avatar'
+import {
+  charactersOfVoice,
+  voiceAvatarCover,
+  voicePersonaCard,
+  voiceSpeakerLook,
+} from '@/lib/voice-avatar'
 import type { CharacterCardRecord } from '@/types'
 
 function character(
@@ -56,5 +61,35 @@ describe('charactersOfVoice', () => {
       'a',
       'c',
     ])
+  })
+})
+
+describe('voicePersonaCard / voiceSpeakerLook', () => {
+  const cards = [
+    character('denia', 'v1', 'https://cdn.test/denia.png'),
+    character('yuki', 'v2', 'https://cdn.test/yuki.png'),
+  ]
+  const voice = { id: 'v1', name: 'Warm', coverImage: null }
+
+  it('falls back to the first character bound to the voice', () => {
+    expect(voicePersonaCard(voice, cards)?.id).toBe('denia')
+    expect(voiceSpeakerLook(voice, cards)).toEqual({
+      name: 'denia',
+      cover: 'https://cdn.test/denia.png',
+    })
+  })
+
+  it('uses the card picked for this room, even if bound to another voice', () => {
+    const picked = { ...voice, characterCardId: 'yuki' }
+    expect(voicePersonaCard(picked, cards)?.id).toBe('yuki')
+    expect(voiceSpeakerLook(picked, cards)).toEqual({
+      name: 'yuki',
+      cover: 'https://cdn.test/yuki.png',
+    })
+  })
+
+  it('ignores a picked card that no longer exists', () => {
+    const gone = { ...voice, characterCardId: 'deleted' }
+    expect(voicePersonaCard(gone, cards)?.id).toBe('denia')
   })
 })

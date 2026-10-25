@@ -44,7 +44,6 @@ function setup(selectedId: string, mode: 'chat' | 'read' = 'chat') {
       onModeChange={vi.fn()}
       llmModel="auto"
       onLlmModelChange={vi.fn()}
-      onOpenCasting={vi.fn()}
       onSubmit={vi.fn(async () => true)}
       {...props}
     />,

@@ -80,6 +80,7 @@ describe('useOpenCharacterRoom', () => {
           kind: 'voice',
           name: '雪乃',
           coverImage: 'https://cdn/x.png',
+          characterCardId: 'card-1',
         },
       ],
     })

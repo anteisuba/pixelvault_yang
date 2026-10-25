@@ -29,7 +29,10 @@ import {
   parseCast,
 } from '@/services/voiceroom.service'
 import { CharacterPersonaSchema } from '@/types'
-import type { VoiceRoomChatRequest } from '@/types/voiceroom'
+import type {
+  VoiceRoomCastMember,
+  VoiceRoomChatRequest,
+} from '@/types/voiceroom'
 
 /**
  * 配音间**聊天**（「声音」模块第 2 步，owner 10-23）：你说一句，选中的那位用自己的口吻回一句、
@@ -60,6 +63,26 @@ const PROMPT_GUARD_MAX_LENGTH =
 function toErrorPayload(error: unknown) {
   if (isGenerationError(error)) return error.toJSON()
   return { success: false, error: 'The reply could not be finished.' }
+}
+
+/**
+ * 她这一间用的人设：顶栏「人设 ▾」挑过哪张就用哪张（被删了就退回去）；没挑过 → 头像规则同一条：
+ * 一副嗓子被几个角色绑着时取角色列表的第一个（最近改过的在前）。
+ */
+async function findPersonaCard(userId: string, member: VoiceRoomCastMember) {
+  const select = { name: true, persona: true } as const
+  if (member.characterCardId) {
+    const picked = await db.characterCard.findFirst({
+      where: { id: member.characterCardId, userId, isDeleted: false },
+      select,
+    })
+    if (picked) return picked
+  }
+  return db.characterCard.findFirst({
+    where: { userId, voiceCardId: member.id, isDeleted: false },
+    orderBy: { updatedAt: 'desc' },
+    select,
+  })
 }
 
 export async function streamVoiceRoomChat(
@@ -95,12 +118,7 @@ export async function streamVoiceRoomChat(
   assertRoomHasSpace(room._count.lines, 2)
 
   const [character, history, assistant] = await Promise.all([
-    // 头像规则同一条：一副嗓子被几个角色绑着时取角色列表的第一个（最近改过的在前）。
-    db.characterCard.findFirst({
-      where: { userId: user.id, voiceCardId: member.id, isDeleted: false },
-      orderBy: { updatedAt: 'desc' },
-      select: { name: true, persona: true },
-    }),
+    findPersonaCard(user.id, member),
     db.voiceLine.findMany({
       where: { roomId: room.id },
       orderBy: { order: 'desc' },
@@ -196,21 +214,24 @@ export async function streamVoiceRoomChat(
 
         let jobId: string | null = null
         let voiceError: unknown = null
-        try {
-          jobId = await dispatchLine({
-            clerkId,
-            userId: user.id,
-            member,
-            text: reply,
-            emotion: null,
-            delivery: {
-              pace: request.pace,
-              expressiveness: request.expressiveness,
-              modelId: request.modelId,
-            },
-          })
-        } catch (error) {
-          voiceError = error
+        // 顶栏 🔇：她只打字，气泡上给「念出来」（点了走重录那条路出声）。
+        if (request.voice !== false) {
+          try {
+            jobId = await dispatchLine({
+              clerkId,
+              userId: user.id,
+              member,
+              text: reply,
+              emotion: null,
+              delivery: {
+                pace: request.pace,
+                expressiveness: request.expressiveness,
+                modelId: request.modelId,
+              },
+            })
+          } catch (error) {
+            voiceError = error
+          }
         }
 
         const replyLine = await appendVoiceLine(room.id, {

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Box, Check, Film, Heart, Mic, Play } from '@/components/icons'
+import { Box, Film, Mic, Play } from '@/components/icons'
 import NextImage from 'next/image'
 import { useTranslations } from 'next-intl'
 
@@ -14,7 +14,11 @@ import {
   getGenerationVideoPosterUrl,
 } from '@/lib/generation-media'
 import { cn } from '@/lib/utils'
-import { FavoriteBookmark } from '@/components/ui/favorite-bookmark'
+import {
+  MediaTileActions,
+  MediaTileCheck,
+  MediaTileShade,
+} from '@/components/ui/media-tile'
 import { useMediaReveal } from '@/components/ui/load-reveal'
 import { formatDuration } from '@/lib/video-utils'
 import type { GenerationRecord } from '@/types'
@@ -26,15 +30,15 @@ import styles from './AssetTile.module.css'
  *
  * | 类型 | 表达 |
  * | --- | --- |
- * | 图片 | 真实比例；**hover / 键盘进到这一格才**出左下「模型 · 尺寸」小签与右上 ♥ |
+ * | 图片 | 真实比例；悬停 / 键盘进到这一格才出左下动作行（交给助手 · 收藏 · 更多） |
  * | 视频 | poster 帧 + 时长角标 + hover 静音预览 |
  * | 音频 | **恒 1:1 封面卡**（比例在排版层锁死）+ 播放键 + 常显说明条 |
  * | 3D | poster + 立方体角标 |
  *
- * 皮照 LoRA 库那套（排布与详情 A）：`rounded-xl`、没有描边；先铺中性浅灰，真图
- * 解码好后由糊变清；悬停浮起一层投影。
+ * 皮走共用图格 `MediaTile`（ui-spec §9）：圆角 12、没边没影；先铺中性浅灰，真图
+ * 解码好后由糊变清；悬停图变暗，选中只靠右上角的勾。
  *
- * ⭐ 「打开」是垫满整格的一颗按钮，♥ 收藏键浮在它上面 —— 两颗按钮，⛔ 按钮套按钮
+ * ⭐ 「打开」是垫满整格的一颗按钮，动作行浮在它上面 —— 两颗按钮，⛔ 按钮套按钮
  *   （读屏与 Tab 序都会乱）；媒体层整块不接指针，点它落到「打开」上。
  * ⭐ 拖动挂在整格外层，拖出来的影子就是这张图。
  * ⛔ 没有真实波形数据就不画伪波形 —— 音频卡的图形只作抽象表达。
@@ -47,7 +51,7 @@ interface AssetTileProps {
   selected: boolean
   /** 左上角勾选圈：选择模式 / picker 多选时才出。 */
   showSelectionMark: boolean
-  /** 影响 `aria-pressed` 与 ♥ 的让位。 */
+  /** 影响 `aria-pressed` 与动作行的让位。 */
   selectionMode: boolean
   draggable: boolean
   /** 音频封面四级回退链算出的当前候选；用尽为 undefined。 */
@@ -60,6 +64,10 @@ interface AssetTileProps {
   onToggleFavorite?: () => void
   /** 收藏请求在飞：♥ 半透明、不再接第二下。 */
   favoritePending?: boolean
+  /** 悬停动作「交给助手」：把这一张挂进助手输入框（库整页里给）。 */
+  onHandToAssistant?: () => void
+  /** 悬停动作「更多」：宿主给整颗菜单。 */
+  more?: React.ReactNode
   /** 数据到了由糊变清时错开第几步（`revealStep`，左上往右下）。 */
   revealStep?: number
 }
@@ -79,6 +87,8 @@ export function AssetTile({
   onDragStart,
   onToggleFavorite,
   favoritePending = false,
+  onHandToAssistant,
+  more,
   revealStep,
 }: AssetTileProps) {
   const t = useTranslations('AssetsPage')
@@ -92,16 +102,6 @@ export function AssetTile({
     typeof generation.duration === 'number' && generation.duration > 0
       ? formatDuration(Math.round(generation.duration))
       : null
-  const hasPixelSize = generation.width > 0 && generation.height > 0
-  const pixelSize = hasPixelSize
-    ? `${generation.width}×${generation.height}`
-    : null
-  // ⚠ 本地上传的 `model` 是 `user-upload` 哨兵，不是模型名 —— 小签只写尺寸。
-  const modelLabel =
-    generation.model && generation.model !== USER_UPLOAD_PROVIDER
-      ? generation.model
-      : null
-  const hasTag = modelLabel !== null || pixelSize !== null
   // 音频卡的常显说明条（台账 E）：台词 / 提示词，没有就退到模型名。
   const audioCaption =
     generation.prompt?.trim() ||
@@ -116,19 +116,14 @@ export function AssetTile({
       onMouseLeave={isVideo ? () => setIsPreviewing(false) : undefined}
       style={{ width, height }}
       data-asset-tile-id={generation.id}
-      className={cn(
-        // 悬停（动效样片 R）：整格抬起一点 + 投影，`spring-slot`；减少动效时只留投影。
-        'group relative shrink-0 rounded-xl transition-[translate,box-shadow] duration-spring-slot ease-spring-slot hover:shadow-float has-focus-visible:shadow-float motion-safe:hover:-translate-y-1 motion-reduce:transition-shadow motion-reduce:duration-fast motion-reduce:ease-linear',
-      )}
+      // 图格 `MediaTile`（ui-spec §9）：干净无框、没边没影；悬停图变暗、左下出动作。
+      className="group group/tile relative shrink-0 rounded-12"
     >
       {/* 媒体层：整块不接指针（点它落到下面那颗「打开」上）。 */}
       <span
         className={cn(
           styles.tile,
-          'pointer-events-none absolute inset-0 overflow-hidden rounded-xl bg-muted',
-          // 选中 = 图往里缩一点（原型「选择」），弹簧轻过冲。
-          'transition-[scale,border-radius] duration-spring-slot ease-spring-slot motion-reduce:transition-none',
-          selected && 'scale-94 rounded-2xl',
+          'pointer-events-none absolute inset-0 overflow-hidden rounded-12 bg-muted',
         )}
       >
         {isVideo ? (
@@ -148,6 +143,8 @@ export function AssetTile({
             revealStep={revealStep}
           />
         )}
+
+        <MediaTileShade />
 
         {/* 播放键：音频常显（它是封面卡的一部分），视频 hover 才浮；触屏没有悬停，常显。 */}
         {(isAudio || isVideo) && (
@@ -186,65 +183,19 @@ export function AssetTile({
               ) : null}
             </span>
           ) : null
-        ) : hasTag || durationLabel || is3D ? (
-          /* 左下「模型 · 尺寸」小签悬停才出（触屏常显）；右下时长 / 3D 角标常显。 */
+        ) : durationLabel || is3D ? (
+          /* 左上时长 / 3D 角标常显（左下留给悬停出来的动作）。 */
           <span
-            className="absolute inset-x-2 bottom-2 flex items-end justify-between gap-2"
+            className="asset-tile-badge absolute top-2 left-2 flex h-5 items-center rounded-md px-1.5 text-2xs tabular-nums"
             aria-hidden
           >
-            {hasTag ? (
-              /* 窄图上只截模型名，尺寸常留（尺寸才是认图的那一半）。 */
-              /* 悬停时从下面滑上来（动效样片 R），⛔ 只是淡出来。 */
-              <span className="asset-tile-badge flex min-w-0 translate-y-2 items-center gap-1 rounded-md px-1.75 font-mono text-3xs leading-5 tabular-nums opacity-0 transition-[opacity,translate] duration-spring-slot ease-spring-slot group-hover:translate-y-0 group-hover:opacity-100 group-has-focus-visible:translate-y-0 group-has-focus-visible:opacity-100 coarse:translate-y-0 coarse:opacity-100 motion-reduce:translate-y-0 motion-reduce:transition-opacity motion-reduce:duration-fast motion-reduce:ease-linear">
-                {modelLabel ? (
-                  <span className="min-w-0 truncate">{modelLabel}</span>
-                ) : null}
-                {modelLabel && pixelSize ? (
-                  <span className="shrink-0">·</span>
-                ) : null}
-                {pixelSize ? (
-                  <span className="shrink-0">{pixelSize}</span>
-                ) : null}
-              </span>
-            ) : (
-              <span />
-            )}
-            {durationLabel || is3D ? (
-              <span className="asset-tile-badge flex h-5 shrink-0 items-center rounded-md px-1.5 text-2xs tabular-nums">
-                {is3D ? t('badge3D') : durationLabel}
-              </span>
-            ) : null}
+            {is3D ? t('badge3D') : durationLabel}
           </span>
         ) : null}
       </span>
 
-      {/* 选中的黑色描边环 + 左上圆勾（勾上时从小顶出来）。 */}
-      <span
-        aria-hidden
-        className={cn(
-          'pointer-events-none absolute inset-0 rounded-xl ring-foreground ring-inset transition-[box-shadow] duration-base ease-standard motion-reduce:transition-none',
-          selected ? 'ring-3' : 'ring-0',
-        )}
-      />
-      {showSelectionMark && (
-        <span
-          aria-hidden
-          className={cn(
-            'pointer-events-none absolute left-2 top-2 z-20 grid size-5 place-items-center rounded-full border transition-[background-color,border-color,color] duration-fast ease-standard motion-reduce:transition-none',
-            selected
-              ? 'border-foreground bg-foreground text-background'
-              : 'border-muted-foreground/50 bg-background/90 text-transparent',
-          )}
-        >
-          <Check
-            weight="bold"
-            className={cn(
-              'size-3 transition-[scale,opacity] duration-spring-slot ease-spring-slot motion-reduce:transition-none',
-              selected ? 'scale-100 opacity-100' : 'scale-50 opacity-0',
-            )}
-          />
-        </span>
-      )}
+      {/* 选中只靠右上角的勾（ui-spec ⑪），⛔ 铺色、⛔ 描边。 */}
+      {showSelectionMark ? <MediaTileCheck selected={selected} /> : null}
 
       {/* 整格就是「打开」（选择模式下是「选中」）。 */}
       <button
@@ -253,38 +204,29 @@ export function AssetTile({
         aria-label={generation.prompt || generation.id}
         aria-pressed={selectionMode ? selected : undefined}
         title={generation.prompt || undefined}
-        className="absolute inset-0 z-10 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface-workbench"
+        className="absolute inset-0 z-10 rounded-12 focus-visible:outline-none focus-visible:shadow-focus"
       />
 
-      {selectionMode ? null : onToggleFavorite ? (
-        <button
-          type="button"
-          onClick={() => {
-            if (!favoritePending) onToggleFavorite()
-          }}
-          aria-pressed={isLiked}
-          aria-busy={favoritePending || undefined}
-          aria-label={isLiked ? t('detailUnfavorite') : t('detailFavorite')}
-          title={isLiked ? t('detailUnfavorite') : t('detailFavorite')}
-          className={cn(
-            'absolute right-2 top-2 z-20 grid size-6.5 coarse:before:absolute coarse:before:-inset-2.25 place-items-center rounded-full bg-background/95 text-foreground shadow-sm transition-opacity duration-fast ease-linear focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            isLiked
-              ? 'opacity-100'
-              : 'opacity-0 group-hover:opacity-100 group-has-focus-visible:opacity-100 coarse:opacity-100',
-            favoritePending && 'opacity-60 coarse:opacity-60',
-          )}
-        >
-          {/* 收藏（原型 H）：先缩一下再弹回，同时涂黑；首次挂载不弹。 */}
-          <FavoriteBookmark saved={isLiked} />
-        </button>
-      ) : isLiked ? (
-        <span
-          className="pointer-events-none absolute right-2 top-2 z-20 grid size-6.5 place-items-center rounded-full bg-background/95 text-foreground shadow-sm"
-          aria-hidden
-        >
-          <Heart weight="fill" className="size-3.5" />
-        </span>
-      ) : null}
+      {selectionMode ? null : (
+        <MediaTileActions
+          handToAssistant={
+            onHandToAssistant
+              ? { label: t('handToAssistant'), onClick: onHandToAssistant }
+              : undefined
+          }
+          favorite={
+            onToggleFavorite
+              ? {
+                  saved: isLiked,
+                  label: isLiked ? t('detailUnfavorite') : t('detailFavorite'),
+                  pending: favoritePending,
+                  onToggle: onToggleFavorite,
+                }
+              : undefined
+          }
+          more={more}
+        />
+      )}
     </div>
   )
 }

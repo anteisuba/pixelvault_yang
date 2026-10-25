@@ -95,8 +95,8 @@ export const ASSET_PICKER_UPLOAD_CELL_ASPECT_RATIO = 0.8
 
 // ─── 文件夹栏（文件夹 B）──────────────────────────────────────────
 
-/** 左边那一列文件夹栏的宽度（画板 `AfB`：236）。收起 / 展开时宽度在 0 与它之间走。 */
-export const ASSET_FOLDER_RAIL_WIDTH = 236
+/** 左边那一列文件夹栏的宽度（库骨架左栏 200，ui-spec §9「库」；原画板 `AfB` 是 236）。 */
+export const ASSET_FOLDER_RAIL_WIDTH = 200
 
 /** 栏与大河之间的空隙（画板 `af-split`：20）。收起时连它一起收掉。 */
 export const ASSET_FOLDER_RAIL_GAP = 20

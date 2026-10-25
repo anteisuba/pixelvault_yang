@@ -163,3 +163,49 @@ export function computeJustifiedRows(
 
   return rows
 }
+
+export interface UniformGridOptions {
+  containerWidth: number
+  gap: number
+  /** 一格最窄多少（容器窄了就少几列）。 */
+  minTileWidth: number
+  /** 最多几列（库整页一行 8 张）。 */
+  maxColumns: number
+  /** 格子的宽高比（宽 / 高）。 */
+  aspectRatio: number
+}
+
+/**
+ * 库整页的等宽格（ui-spec §9「库」：一行 8 张、图 3:4；叫出助手、库变窄时一行少几张）。
+ * 排出来的形状与 justified 行一样，窗口化那一套照用。
+ */
+export function computeUniformRows(
+  count: number,
+  {
+    containerWidth,
+    gap,
+    minTileWidth,
+    maxColumns,
+    aspectRatio,
+  }: UniformGridOptions,
+): JustifiedRow[] {
+  if (count <= 0 || containerWidth <= 0) return []
+  const columns = Math.max(
+    1,
+    Math.min(
+      maxColumns,
+      Math.floor((containerWidth + gap) / (minTileWidth + gap)),
+    ),
+  )
+  const width = (containerWidth - gap * (columns - 1)) / columns
+  const height = width / aspectRatio
+  const rows: JustifiedRow[] = []
+  for (let start = 0; start < count; start += columns) {
+    const boxes: JustifiedBox[] = []
+    for (let index = start; index < Math.min(count, start + columns); index++) {
+      boxes.push({ index, width, height })
+    }
+    rows.push({ height, boxes })
+  }
+  return rows
+}

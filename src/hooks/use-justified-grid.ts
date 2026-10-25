@@ -16,8 +16,10 @@ import {
 } from '@/constants/assets-grid'
 import {
   computeJustifiedRows,
+  computeUniformRows,
   resolveAssetGridViewport,
   type JustifiedRow,
+  type UniformGridOptions,
 } from '@/lib/justified-layout'
 
 /**
@@ -84,6 +86,8 @@ interface UseJustifiedGridOptions {
   /** 目标行高 = 密度档。 */
   targetRowHeight: number
   gap?: number
+  /** 给了就排等宽格（库整页），⛔ justified；`aspectRatios` 只取个数。 */
+  uniform?: Omit<UniformGridOptions, 'containerWidth' | 'gap'>
 }
 
 interface UseJustifiedGridReturn {
@@ -104,18 +108,40 @@ export function useJustifiedGrid({
   aspectRatios,
   targetRowHeight,
   gap = ASSET_GRID_GAP,
+  uniform,
 }: UseJustifiedGridOptions): UseJustifiedGridReturn {
   const { containerRef, containerWidth } = useContainerWidth()
+  const uniformMin = uniform?.minTileWidth
+  const uniformMax = uniform?.maxColumns
+  const uniformRatio = uniform?.aspectRatio
 
   const rows = useMemo(
     () =>
-      computeJustifiedRows(aspectRatios, {
-        containerWidth,
-        targetRowHeight,
-        gap,
-        lastRowMaxScale: ASSET_GRID_LAST_ROW_MAX_SCALE,
-      }),
-    [aspectRatios, containerWidth, targetRowHeight, gap],
+      uniformMin !== undefined &&
+      uniformMax !== undefined &&
+      uniformRatio !== undefined
+        ? computeUniformRows(aspectRatios.length, {
+            containerWidth,
+            gap,
+            minTileWidth: uniformMin,
+            maxColumns: uniformMax,
+            aspectRatio: uniformRatio,
+          })
+        : computeJustifiedRows(aspectRatios, {
+            containerWidth,
+            targetRowHeight,
+            gap,
+            lastRowMaxScale: ASSET_GRID_LAST_ROW_MAX_SCALE,
+          }),
+    [
+      aspectRatios,
+      containerWidth,
+      targetRowHeight,
+      gap,
+      uniformMin,
+      uniformMax,
+      uniformRatio,
+    ],
   )
 
   return { containerRef, rows, containerWidth }

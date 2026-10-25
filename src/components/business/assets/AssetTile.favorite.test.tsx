@@ -76,29 +76,3 @@ describe('AssetTile ♥ favorite key (排布与详情 A)', () => {
     ).not.toBeInTheDocument()
   })
 })
-
-describe('AssetTile hover tag', () => {
-  it('names the model and the pixel size', () => {
-    renderTile({
-      ...FAKE_GENERATION,
-      model: 'anima-dit-runner',
-      width: 960,
-      height: 1280,
-    })
-
-    expect(screen.getByText('anima-dit-runner')).toBeInTheDocument()
-    expect(screen.getByText('960×1280')).toBeInTheDocument()
-  })
-
-  it('keeps only the size for a local upload', () => {
-    renderTile({
-      ...FAKE_GENERATION,
-      model: 'user-upload',
-      width: 800,
-      height: 600,
-    })
-
-    expect(screen.queryByText('user-upload')).not.toBeInTheDocument()
-    expect(screen.getByText('800×600')).toBeInTheDocument()
-  })
-})

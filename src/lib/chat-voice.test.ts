@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   chatBubbles,
+  leadingVoiceCues,
   spokenVoiceText,
   voiceCueRules,
   withoutPictureHandles,
@@ -38,5 +39,20 @@ describe('picture handles in her reply', () => {
       ),
     ).toBe('[laughing] 看，很像吧？来源 官网')
     expect(spokenVoiceText('图_3')).toBe('图_3')
+  })
+})
+
+describe('leadingVoiceCues', () => {
+  it('pulls the cues at the start apart and leaves the rest', () => {
+    expect(leadingVoiceCues('[whispering] [pause] 嘘，书会被吵醒的。')).toEqual(
+      {
+        cues: ['[whispering]', '[pause]'],
+        rest: '嘘，书会被吵醒的。',
+      },
+    )
+    expect(leadingVoiceCues('欢迎 [laughing] 来玩')).toEqual({
+      cues: [],
+      rest: '欢迎 [laughing] 来玩',
+    })
   })
 })

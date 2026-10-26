@@ -209,6 +209,10 @@
       "imageTags": {
         "title": "Tag Studio — ANTEI",
         "description": "Compose danbooru-style tag prompts for NovelAI and PixAI."
+      },
+      "audio": {
+        "title": "Voice bench — ANTEI",
+        "description": "Read lines in your character's voice."
       }
     },
     "gallery": {

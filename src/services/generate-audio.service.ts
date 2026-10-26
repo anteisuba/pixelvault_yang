@@ -339,7 +339,10 @@ const CJK_FIRST_CHAR = /^[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/
  *    字符**：文档示例里那个空格是英文的词间分隔，中文里它是一个可见的多余字符。
  *    英文保留空格（文档示例如此）。
  */
-function applyAudioStylePrompt(prompt: string, emotion?: string): string {
+export function applyAudioStylePrompt(
+  prompt: string,
+  emotion?: string,
+): string {
   if (!emotion) {
     return prompt
   }

@@ -129,6 +129,20 @@ export function usePlayingOperatorVoice(): string | null {
 
 /* ── 念 ─────────────────────────────────────────────────────────── */
 
+/** 念的那条任务好了 → 音频地址；没念出来 / 等太久 → null。配音台（③）也用它。 */
+export async function waitForAudioJob(jobId: string): Promise<string | null> {
+  for (let tries = 0; tries < STUDIO_OPERATOR_VOICE.pollMaxTries; tries += 1) {
+    await new Promise((resolve) =>
+      window.setTimeout(resolve, STUDIO_OPERATOR_VOICE.pollMs),
+    )
+    const status = await checkAudioStatusAPI(jobId)
+    const data = status.data
+    if (!status.success || !data || data.status === 'FAILED') return null
+    if (data.status === 'COMPLETED') return data.generation.url
+  }
+  return null
+}
+
 /**
  * 念一段：派任务 → 等它好 → 放。状态记在那条正文上（`voice`）。
  * 缺 key / 没绑嗓子不算坏了：条目上标出来，界面就地给配 / 给挑。
@@ -156,22 +170,14 @@ export async function speakOperatorReply(
     })
     return
   }
-  const { jobId } = submitted.data
-  for (let tries = 0; tries < STUDIO_OPERATOR_VOICE.pollMaxTries; tries += 1) {
-    await new Promise((resolve) =>
-      window.setTimeout(resolve, STUDIO_OPERATOR_VOICE.pollMs),
-    )
-    const status = await checkAudioStatusAPI(jobId)
-    const data = status.data
-    if (!status.success || !data || data.status === 'FAILED') break
-    if (data.status === 'COMPLETED') {
-      setOperatorMessageVoice(id, { status: 'ready', url: data.generation.url })
-      // 关掉了就只记着，⛔ 自己响。
-      if (getOperatorVoicePrefs().on) playOperatorVoice(id, data.generation.url)
-      return
-    }
+  const url = await waitForAudioJob(submitted.data.jobId)
+  if (!url) {
+    setOperatorMessageVoice(id, { status: 'failed' })
+    return
   }
-  setOperatorMessageVoice(id, { status: 'failed' })
+  setOperatorMessageVoice(id, { status: 'ready', url })
+  // 关掉了就只记着，⛔ 自己响。
+  if (getOperatorVoicePrefs().on) playOperatorVoice(id, url)
 }
 
 /** 再念一次（没念出来 / 刚挑完嗓子 / 刚配好 key）：念的还是上次那段。 */

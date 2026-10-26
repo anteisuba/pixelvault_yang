@@ -306,7 +306,7 @@ studio 内容裁出视口，是因为侧栏能展开到 144；平板档现在钉
 ≥1024（`desk:`）的 `/studio/**` 不再走全站侧栏：`StudioShell`（`studio/layout.tsx`）自己摆三层 ——
 左 = 对话列表（新对话 · 库 · 配音间 · 最近对话 · 账号），中 = 对话（助手面板**只挂这一份**），右 = 台。
 
-- 路由：`/studio` = 创作首页（新对话）；`/studio/c/<编号>` = 只开着这段对话；`/studio/<台>?c=<编号>` = 对话 + 台；`/studio/audio` 10-26 起重定向回 `/studio`（聊天页删了，路径留给 ③ 配音台）。浏览器后退先收台。规则在 `src/lib/studio-shell-route.ts`。
+- 路由：`/studio` = 创作首页（新对话）；`/studio/c/<编号>` = 只开着这段对话；`/studio/<台>?c=<编号>` = 对话 + 台；`/studio/audio` = 配音台（③-1，10-26；左栏「工作台」竖排：图片 · LoRA · 配音 · 视频 · 3D · 画布，没宿主时落首页宿主，见 `../domains/audio.md` §3.3）。浏览器后退先收台。规则在 `src/lib/studio-shell-route.ts`。
 - 台照旧用 `StudioOperatorHostProvider` 包住自己，它顺手把宿主**登记**给外壳（`StudioOperatorHostSlotProvider`，取最里面那一层）；没台时面板拿首页那张脸。
 - 面板挂哪儿：`StudioOperatorDockPlacement` —— ≥1024 外壳挂（台上 `StudioOperatorBenchDock` 不挂）；更窄照旧台自己挂浮起的那颗；屏宽没量出来前哪边都不挂。
 - 对话 | 台 一根分隔线，宽度记在 `pv:studio-shell:split`；往左拖到底收起对话，往右拖到底收起台。台条竖在台左沿（台都按整屏高写死，横条会把台压出屏）。

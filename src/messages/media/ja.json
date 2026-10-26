@@ -484,5 +484,34 @@
       "taken": "参加中",
       "full": "最大 {max} 人"
     }
+  },
+  "VoiceBench": {
+    "placeholder": "セリフを書く…",
+    "speak": "読む",
+    "play": "再生",
+    "stop": "停止",
+    "retake": "録り直し",
+    "pending": "読んでいます…",
+    "failed": "読めませんでした。もう一度",
+    "pickVoice": "声を選ぶ",
+    "setupKey": "Fish キーを設定",
+    "loadFailed": "セリフを読み込めませんでした",
+    "retry": "もう一度",
+    "emotion": "感情",
+    "noPersonaTitle": "先にキャラクターに切り替えてください",
+    "noPersonaBody": "吹き替え台は彼女の声で読みます。デフォルトのアシスタントには声がありません。",
+    "switchPersona": "キャラクターを切り替える",
+    "voiceOf": "{name}の声",
+    "emotions": {
+      "none": "自動",
+      "calm": "落ち着き",
+      "excited": "興奮",
+      "whisper": "ささやき",
+      "narration": "ナレーション",
+      "dialogue": "会話",
+      "angry": "怒り",
+      "sad": "悲しみ",
+      "surprised": "驚き"
+    }
   }
 }

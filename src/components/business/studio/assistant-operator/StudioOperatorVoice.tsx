@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
@@ -12,7 +12,6 @@ import { ChevronDown, Play, Square, Volume2 } from '@/components/icons'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import { VoicePickerDialog } from '@/components/business/voices/VoicePickerDialog'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { useChatPersona } from '@/hooks/use-chat-persona'
 import {
   playOperatorVoice,
   retryOperatorReply,
@@ -20,65 +19,12 @@ import {
   useOperatorVoice,
   usePlayingOperatorVoice,
 } from '@/hooks/use-operator-voice'
-import { getVoiceCardAPI, updateCharacterCardAPI } from '@/lib/api-client'
+import { usePersonaVoice } from '@/hooks/use-persona-voice'
 import { cn } from '@/lib/utils'
 import type { StudioOperatorMessageVoice } from '@/types/studio-assistant-operator'
 
 /** 三档型号的文案键（和 `STUDIO_OPERATOR_VOICE.modelIds` 同序）。 */
 const MODEL_LABEL_KEYS = ['free', 'pro', 'drama'] as const
-
-/**
- * 她现在用哪副嗓子（设置里那位角色绑的那张音色卡）、换一副。
- * 换完就写回角色卡：配音台、素材库认的也是这一副。
- */
-function usePersonaVoice() {
-  const { ref, name } = useChatPersona()
-  const [picked, setPicked] = useState<{
-    characterCardId: string
-    voiceCardId: string
-    name: string
-  } | null>(null)
-  const current =
-    picked && picked.characterCardId === ref.characterCardId ? picked : null
-  const voiceCardId = current?.voiceCardId ?? ref.voiceCardId
-  const [loaded, setLoaded] = useState<{ id: string; name: string } | null>(
-    null,
-  )
-  useEffect(() => {
-    if (!voiceCardId || current) return
-    let active = true
-    void getVoiceCardAPI(voiceCardId).then((result) => {
-      if (active && result.success && result.data)
-        setLoaded({ id: voiceCardId, name: result.data.name })
-    })
-    return () => {
-      active = false
-    }
-  }, [voiceCardId, current])
-
-  const voiceName =
-    current?.name ?? (loaded?.id === voiceCardId ? loaded.name : null)
-  const bind = async (card: { id: string; name: string }) => {
-    if (!ref.characterCardId) return false
-    const result = await updateCharacterCardAPI(ref.characterCardId, {
-      voiceCardId: card.id,
-    })
-    if (!result.success) return false
-    setPicked({
-      characterCardId: ref.characterCardId,
-      voiceCardId: card.id,
-      name: card.name,
-    })
-    return true
-  }
-  return {
-    characterCardId: ref.characterCardId,
-    personaName: name,
-    voiceCardId,
-    voiceName,
-    bind,
-  }
-}
 
 /**
  * 对话头那颗 🔊（样件 v5）：关着是一颗圆键，开着拉长成墨蓝的「语音」胶囊。

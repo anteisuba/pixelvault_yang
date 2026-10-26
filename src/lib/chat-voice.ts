@@ -55,3 +55,19 @@ export function spokenVoiceText(text: string): string {
     .trim()
   return spoken || text
 }
+
+/**
+ * 句首的方括号语气（`[whispering] [pause] 嘘……`）拆出来：配音台上灰色等宽字摆在前面、正文照常。
+ * 句中的照原样留在正文里。
+ */
+export function leadingVoiceCues(text: string): {
+  cues: string[]
+  rest: string
+} {
+  const lead = /^\s*((?:\[[^\]\n]{1,40}\]\s*)+)/.exec(text)
+  if (!lead) return { cues: [], rest: text }
+  return {
+    cues: lead[1].match(/\[[^\]\n]{1,40}\]/g) ?? [],
+    rest: text.slice(lead[0].length),
+  }
+}

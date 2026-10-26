@@ -986,11 +986,13 @@ describe('记忆与之前几轮（第 6 步）', () => {
             backstory: '',
             moods: ['嘴硬：先否认再软下来'],
             learnedPhrases: ['摸鱼', '绝了'],
+            relationship: '叫你「波特」，嘴上嫌弃其实很在意',
           },
           roleplay: {
             scenario: '图书馆的午后',
             opening: '',
             examples: [{ user: '', reply: '哼，别以为我会谢你。' }],
+            journal: '今天他又来借书，我假装没看见。',
           },
         },
       } as typeof prepared
@@ -1025,6 +1027,9 @@ describe('记忆与之前几轮（第 6 步）', () => {
       prompt.indexOf("THIS CREATOR'S SETTINGS"),
     )
     expect(prompt).toContain('图书馆的午后')
+    // C：她自己写的关系和最近一篇日记跟着聊天走。
+    expect(prompt).toContain('叫你「波特」，嘴上嫌弃其实很在意')
+    expect(prompt).toContain('「今天他又来借书，我假装没看见。」')
     expect(prompt).toContain('STAY IN CHARACTER as 马尔福 — 说话带点傲慢。')
     // 示例对白不再跟着提醒走（10-26：英文示例把中文聊天带成英文、照着示例说）。
     expect(prompt).not.toContain('You sound like')

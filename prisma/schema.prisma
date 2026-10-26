@@ -165,6 +165,7 @@ model User {
   contextCards           ContextCard[]
   assistantMemories      AssistantMemory[]
   characterCardRevisions CharacterCardRevision[]
+  characterJournals      CharacterJournal[]
   assistantSkills        AssistantSkill[]
   mcpTokens              McpToken[]
   danbooruFavorites      DanbooruFavorite[]
@@ -864,6 +865,8 @@ model CharacterCard {
   assistantMemories AssistantMemory[]
   /// 她改了什么（10-26「更像真人」C）。
   revisions         CharacterCardRevision[]
+  /// 她的日记（C）。
+  journals          CharacterJournal[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1327,6 +1330,26 @@ model CharacterCardRevision {
   /// 设置里按人列最近的。
   @@index([userId, createdAt(sort: Desc)])
   /// 按卡列、超 200 行删最旧的。
+  @@index([characterCardId, createdAt(sort: Desc)])
+}
+
+/// **她的日记**（10-26「更像真人」C）：每聊够一段她整理一次，写一篇短日记（她自己的视角）。
+/// 设置里能看；聊天时带上最近一篇，她偶尔会提起（owner 10-26）。每张卡只留最近 100 篇。
+model CharacterJournal {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  characterCardId String
+  characterCard   CharacterCard @relation(fields: [characterCardId], references: [id], onDelete: Cascade)
+
+  text String @db.Text
+
+  createdAt DateTime @default(now())
+
+  /// 设置里按人列最近的。
+  @@index([userId, createdAt(sort: Desc)])
+  /// 按卡取最近一篇、超 100 篇删最旧的。
   @@index([characterCardId, createdAt(sort: Desc)])
 }
 

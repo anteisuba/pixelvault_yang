@@ -119,6 +119,8 @@
     "moodsHint": "1 行に 1 つ。例：「強がり：まず否定してから折れる」。チャットでは毎回 1 つ選びます。",
     "fieldLearnedPhrases": "覚えた言い回し",
     "learnedPhrasesHint": "チャットであなたの言葉から覚えたもの。1 行に 1 つ、自動で追加され、削除できます。",
+    "fieldRelationship": "あなたとの関係",
+    "relationshipHint": "チャットをときどき振り返って、今の関係や呼び方を自分で書き直します。編集もできます。",
     "draftExamples": "設定から何組か書く ›",
     "draftOpening": "設定から一言書く ›",
     "draftFailed": "書けませんでした。もう一度 ›",

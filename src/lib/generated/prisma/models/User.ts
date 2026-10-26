@@ -285,6 +285,7 @@ export type UserWhereInput = {
   contextCards?: Prisma.ContextCardListRelationFilter
   assistantMemories?: Prisma.AssistantMemoryListRelationFilter
   characterCardRevisions?: Prisma.CharacterCardRevisionListRelationFilter
+  characterJournals?: Prisma.CharacterJournalListRelationFilter
   assistantSkills?: Prisma.AssistantSkillListRelationFilter
   mcpTokens?: Prisma.McpTokenListRelationFilter
   danbooruFavorites?: Prisma.DanbooruFavoriteListRelationFilter
@@ -331,6 +332,7 @@ export type UserOrderByWithRelationInput = {
   contextCards?: Prisma.ContextCardOrderByRelationAggregateInput
   assistantMemories?: Prisma.AssistantMemoryOrderByRelationAggregateInput
   characterCardRevisions?: Prisma.CharacterCardRevisionOrderByRelationAggregateInput
+  characterJournals?: Prisma.CharacterJournalOrderByRelationAggregateInput
   assistantSkills?: Prisma.AssistantSkillOrderByRelationAggregateInput
   mcpTokens?: Prisma.McpTokenOrderByRelationAggregateInput
   danbooruFavorites?: Prisma.DanbooruFavoriteOrderByRelationAggregateInput
@@ -380,6 +382,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   contextCards?: Prisma.ContextCardListRelationFilter
   assistantMemories?: Prisma.AssistantMemoryListRelationFilter
   characterCardRevisions?: Prisma.CharacterCardRevisionListRelationFilter
+  characterJournals?: Prisma.CharacterJournalListRelationFilter
   assistantSkills?: Prisma.AssistantSkillListRelationFilter
   mcpTokens?: Prisma.McpTokenListRelationFilter
   danbooruFavorites?: Prisma.DanbooruFavoriteListRelationFilter
@@ -468,6 +471,7 @@ export type UserCreateInput = {
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
@@ -514,6 +518,7 @@ export type UserUncheckedCreateInput = {
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalUncheckedCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
@@ -560,6 +565,7 @@ export type UserUpdateInput = {
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
@@ -606,6 +612,7 @@ export type UserUncheckedUpdateInput = {
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUncheckedUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
@@ -1115,6 +1122,20 @@ export type UserUpdateOneRequiredWithoutCharacterCardRevisionsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutCharacterCardRevisionsInput, Prisma.UserUpdateWithoutCharacterCardRevisionsInput>, Prisma.UserUncheckedUpdateWithoutCharacterCardRevisionsInput>
 }
 
+export type UserCreateNestedOneWithoutCharacterJournalsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutCharacterJournalsInput, Prisma.UserUncheckedCreateWithoutCharacterJournalsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutCharacterJournalsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutCharacterJournalsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutCharacterJournalsInput, Prisma.UserUncheckedCreateWithoutCharacterJournalsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutCharacterJournalsInput
+  upsert?: Prisma.UserUpsertWithoutCharacterJournalsInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutCharacterJournalsInput, Prisma.UserUpdateWithoutCharacterJournalsInput>, Prisma.UserUncheckedUpdateWithoutCharacterJournalsInput>
+}
+
 export type UserCreateNestedOneWithoutAssistantSkillsInput = {
   create?: Prisma.XOR<Prisma.UserCreateWithoutAssistantSkillsInput, Prisma.UserUncheckedCreateWithoutAssistantSkillsInput>
   connectOrCreate?: Prisma.UserCreateOrConnectWithoutAssistantSkillsInput
@@ -1182,6 +1203,7 @@ export type UserCreateWithoutMcpTokensInput = {
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
   promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
@@ -1227,6 +1249,7 @@ export type UserUncheckedCreateWithoutMcpTokensInput = {
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalUncheckedCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
   promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
@@ -1288,6 +1311,7 @@ export type UserUpdateWithoutMcpTokensInput = {
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
   promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
@@ -1333,6 +1357,7 @@ export type UserUncheckedUpdateWithoutMcpTokensInput = {
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUncheckedUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
   promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
@@ -1378,6 +1403,7 @@ export type UserCreateWithoutDanbooruFavoritesInput = {
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
@@ -1423,6 +1449,7 @@ export type UserUncheckedCreateWithoutDanbooruFavoritesInput = {
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalUncheckedCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
@@ -1484,6 +1511,7 @@ export type UserUpdateWithoutDanbooruFavoritesInput = {
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
@@ -1529,6 +1557,7 @@ export type UserUncheckedUpdateWithoutDanbooruFavoritesInput = {
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUncheckedUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
@@ -1574,6 +1603,7 @@ export type UserCreateWithoutPromptTagStackInput = {
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
@@ -1619,6 +1649,7 @@ export type UserUncheckedCreateWithoutPromptTagStackInput = {
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalUncheckedCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
@@ -1680,6 +1711,7 @@ export type UserUpdateWithoutPromptTagStackInput = {
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
@@ -1725,6 +1757,7 @@ export type UserUncheckedUpdateWithoutPromptTagStackInput = {
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUncheckedUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
@@ -1769,6 +1802,7 @@ export type UserCreateWithoutAssistantConversationsInput = {
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
@@ -1814,6 +1848,7 @@ export type UserUncheckedCreateWithoutAssistantConversationsInput = {
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalUncheckedCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
@@ -1875,6 +1910,7 @@ export type UserUpdateWithoutAssistantConversationsInput = {
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
@@ -1920,6 +1956,7 @@ export type UserUncheckedUpdateWithoutAssistantConversationsInput = {
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUncheckedUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
@@ -1965,6 +2002,7 @@ export type UserCreateWithoutResearchRunsInput = {
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
@@ -2010,6 +2048,7 @@ export type UserUncheckedCreateWithoutResearchRunsInput = {
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalUncheckedCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
@@ -2071,6 +2110,7 @@ export type UserUpdateWithoutResearchRunsInput = {
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
@@ -2116,6 +2156,7 @@ export type UserUncheckedUpdateWithoutResearchRunsInput = {
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUncheckedUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
@@ -2161,6 +2202,7 @@ export type UserCreateWithoutNodeWorkflowProjectsInput = {
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
@@ -2206,6 +2248,7 @@ export type UserUncheckedCreateWithoutNodeWorkflowProjectsInput = {
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalUncheckedCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
@@ -2267,6 +2310,7 @@ export type UserUpdateWithoutNodeWorkflowProjectsInput = {
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
@@ -2312,6 +2356,7 @@ export type UserUncheckedUpdateWithoutNodeWorkflowProjectsInput = {
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUncheckedUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
@@ -2357,6 +2402,7 @@ export type UserCreateWithoutProjectsInput = {
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
@@ -2402,6 +2448,7 @@ export type UserUncheckedCreateWithoutProjectsInput = {
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalUncheckedCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
@@ -2463,6 +2510,7 @@ export type UserUpdateWithoutProjectsInput = {
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
@@ -2508,6 +2556,7 @@ export type UserUncheckedUpdateWithoutProjectsInput = {
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUncheckedUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
@@ -2553,6 +2602,7 @@ export type UserCreateWithoutUserApiKeysInput = {
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
@@ -2598,6 +2648,7 @@ export type UserUncheckedCreateWithoutUserApiKeysInput = {
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalUncheckedCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
@@ -2659,6 +2710,7 @@ export type UserUpdateWithoutUserApiKeysInput = {
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
@@ -2704,6 +2756,7 @@ export type UserUncheckedUpdateWithoutUserApiKeysInput = {
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUncheckedUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
@@ -2749,6 +2802,7 @@ export type UserCreateWithoutGenerationsInput = {
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
@@ -2794,6 +2848,7 @@ export type UserUncheckedCreateWithoutGenerationsInput = {
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalUncheckedCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
@@ -2855,6 +2910,7 @@ export type UserUpdateWithoutGenerationsInput = {
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
@@ -2900,6 +2956,7 @@ export type UserUncheckedUpdateWithoutGenerationsInput = {
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUncheckedUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
@@ -2945,6 +3002,7 @@ export type UserCreateWithoutGenerationJobsInput = {
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
@@ -2990,6 +3048,7 @@ export type UserUncheckedCreateWithoutGenerationJobsInput = {
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalUncheckedCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
@@ -3051,6 +3110,7 @@ export type UserUpdateWithoutGenerationJobsInput = {
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
@@ -3096,6 +3156,7 @@ export type UserUncheckedUpdateWithoutGenerationJobsInput = {
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUncheckedUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
@@ -3141,6 +3202,7 @@ export type UserCreateWithoutApiUsageLedgerInput = {
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
@@ -3186,6 +3248,7 @@ export type UserUncheckedCreateWithoutApiUsageLedgerInput = {
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalUncheckedCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
@@ -3247,6 +3310,7 @@ export type UserUpdateWithoutApiUsageLedgerInput = {
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
@@ -3292,6 +3356,7 @@ export type UserUncheckedUpdateWithoutApiUsageLedgerInput = {
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUncheckedUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
@@ -3337,6 +3402,7 @@ export type UserCreateWithoutRecipesInput = {
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
@@ -3382,6 +3448,7 @@ export type UserUncheckedCreateWithoutRecipesInput = {
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalUncheckedCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
@@ -3443,6 +3510,7 @@ export type UserUpdateWithoutRecipesInput = {
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
@@ -3488,6 +3556,7 @@ export type UserUncheckedUpdateWithoutRecipesInput = {
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUncheckedUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
@@ -3533,6 +3602,7 @@ export type UserCreateWithoutVoiceCardsInput = {
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
@@ -3578,6 +3648,7 @@ export type UserUncheckedCreateWithoutVoiceCardsInput = {
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalUncheckedCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
@@ -3639,6 +3710,7 @@ export type UserUpdateWithoutVoiceCardsInput = {
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
@@ -3684,6 +3756,7 @@ export type UserUncheckedUpdateWithoutVoiceCardsInput = {
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUncheckedUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
@@ -3729,6 +3802,7 @@ export type UserCreateWithoutCreativePreferenceInput = {
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
@@ -3774,6 +3848,7 @@ export type UserUncheckedCreateWithoutCreativePreferenceInput = {
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalUncheckedCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
@@ -3835,6 +3910,7 @@ export type UserUpdateWithoutCreativePreferenceInput = {
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
@@ -3880,6 +3956,7 @@ export type UserUncheckedUpdateWithoutCreativePreferenceInput = {
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUncheckedUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
@@ -3925,6 +4002,7 @@ export type UserCreateWithoutAssistantPersonaInput = {
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
@@ -3970,6 +4048,7 @@ export type UserUncheckedCreateWithoutAssistantPersonaInput = {
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalUncheckedCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
@@ -4031,6 +4110,7 @@ export type UserUpdateWithoutAssistantPersonaInput = {
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
@@ -4076,6 +4156,7 @@ export type UserUncheckedUpdateWithoutAssistantPersonaInput = {
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUncheckedUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
@@ -4121,6 +4202,7 @@ export type UserCreateWithoutProjectRulesInput = {
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
@@ -4166,6 +4248,7 @@ export type UserUncheckedCreateWithoutProjectRulesInput = {
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalUncheckedCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
@@ -4227,6 +4310,7 @@ export type UserUpdateWithoutProjectRulesInput = {
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
@@ -4272,6 +4356,7 @@ export type UserUncheckedUpdateWithoutProjectRulesInput = {
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUncheckedUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
@@ -4317,6 +4402,7 @@ export type UserCreateWithoutCharacterCardsInput = {
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
@@ -4362,6 +4448,7 @@ export type UserUncheckedCreateWithoutCharacterCardsInput = {
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalUncheckedCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
@@ -4423,6 +4510,7 @@ export type UserUpdateWithoutCharacterCardsInput = {
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
@@ -4468,6 +4556,7 @@ export type UserUncheckedUpdateWithoutCharacterCardsInput = {
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUncheckedUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
@@ -4513,6 +4602,7 @@ export type UserCreateWithoutLikesGivenInput = {
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
@@ -4558,6 +4648,7 @@ export type UserUncheckedCreateWithoutLikesGivenInput = {
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalUncheckedCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
@@ -4619,6 +4710,7 @@ export type UserUpdateWithoutLikesGivenInput = {
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
@@ -4664,6 +4756,7 @@ export type UserUncheckedUpdateWithoutLikesGivenInput = {
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUncheckedUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
@@ -4709,6 +4802,7 @@ export type UserCreateWithoutFollowsGivenInput = {
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
@@ -4754,6 +4848,7 @@ export type UserUncheckedCreateWithoutFollowsGivenInput = {
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalUncheckedCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
@@ -4804,6 +4899,7 @@ export type UserCreateWithoutFollowsReceivedInput = {
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
@@ -4849,6 +4945,7 @@ export type UserUncheckedCreateWithoutFollowsReceivedInput = {
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalUncheckedCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
@@ -4910,6 +5007,7 @@ export type UserUpdateWithoutFollowsGivenInput = {
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
@@ -4955,6 +5053,7 @@ export type UserUncheckedUpdateWithoutFollowsGivenInput = {
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUncheckedUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
@@ -5011,6 +5110,7 @@ export type UserUpdateWithoutFollowsReceivedInput = {
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
@@ -5056,6 +5156,7 @@ export type UserUncheckedUpdateWithoutFollowsReceivedInput = {
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUncheckedUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
@@ -5101,6 +5202,7 @@ export type UserCreateWithoutLoraTrainingJobsInput = {
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
@@ -5146,6 +5248,7 @@ export type UserUncheckedCreateWithoutLoraTrainingJobsInput = {
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalUncheckedCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
@@ -5207,6 +5310,7 @@ export type UserUpdateWithoutLoraTrainingJobsInput = {
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
@@ -5252,6 +5356,7 @@ export type UserUncheckedUpdateWithoutLoraTrainingJobsInput = {
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUncheckedUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
@@ -5297,6 +5402,7 @@ export type UserCreateWithoutLoraAssetsInput = {
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
@@ -5342,6 +5448,7 @@ export type UserUncheckedCreateWithoutLoraAssetsInput = {
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalUncheckedCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
@@ -5403,6 +5510,7 @@ export type UserUpdateWithoutLoraAssetsInput = {
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
@@ -5448,6 +5556,7 @@ export type UserUncheckedUpdateWithoutLoraAssetsInput = {
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUncheckedUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
@@ -5493,6 +5602,7 @@ export type UserCreateWithoutExtractedElementsInput = {
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
@@ -5538,6 +5648,7 @@ export type UserUncheckedCreateWithoutExtractedElementsInput = {
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalUncheckedCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
@@ -5599,6 +5710,7 @@ export type UserUpdateWithoutExtractedElementsInput = {
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
@@ -5644,6 +5756,7 @@ export type UserUncheckedUpdateWithoutExtractedElementsInput = {
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUncheckedUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
@@ -5689,6 +5802,7 @@ export type UserCreateWithoutContextCardsInput = {
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
@@ -5734,6 +5848,7 @@ export type UserUncheckedCreateWithoutContextCardsInput = {
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalUncheckedCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
@@ -5795,6 +5910,7 @@ export type UserUpdateWithoutContextCardsInput = {
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
@@ -5840,6 +5956,7 @@ export type UserUncheckedUpdateWithoutContextCardsInput = {
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUncheckedUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
@@ -5885,6 +6002,7 @@ export type UserCreateWithoutAssistantMemoriesInput = {
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
@@ -5930,6 +6048,7 @@ export type UserUncheckedCreateWithoutAssistantMemoriesInput = {
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalUncheckedCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
@@ -5991,6 +6110,7 @@ export type UserUpdateWithoutAssistantMemoriesInput = {
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
@@ -6036,6 +6156,7 @@ export type UserUncheckedUpdateWithoutAssistantMemoriesInput = {
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUncheckedUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
@@ -6081,6 +6202,7 @@ export type UserCreateWithoutCharacterCardRevisionsInput = {
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
@@ -6126,6 +6248,7 @@ export type UserUncheckedCreateWithoutCharacterCardRevisionsInput = {
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalUncheckedCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
@@ -6187,6 +6310,7 @@ export type UserUpdateWithoutCharacterCardRevisionsInput = {
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
@@ -6232,6 +6356,207 @@ export type UserUncheckedUpdateWithoutCharacterCardRevisionsInput = {
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUncheckedUpdateManyWithoutUserNestedInput
+  assistantSkills?: Prisma.AssistantSkillUncheckedUpdateManyWithoutUserNestedInput
+  mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
+  danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
+  assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
+}
+
+export type UserCreateWithoutCharacterJournalsInput = {
+  id?: string
+  clerkId: string
+  email: string
+  username?: string | null
+  displayName?: string | null
+  avatarUrl?: string | null
+  avatarStorageKey?: string | null
+  bannerUrl?: string | null
+  bannerStorageKey?: string | null
+  bio?: string | null
+  civitaiToken?: string | null
+  isPublic?: boolean
+  isDeleted?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
+  userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
+  generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
+  projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
+  characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
+  likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
+  followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
+  followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
+  recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
+  loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
+  loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
+  extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
+  assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
+  researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
+  assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
+  projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
+  contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
+  characterCardRevisions?: Prisma.CharacterCardRevisionCreateNestedManyWithoutUserInput
+  assistantSkills?: Prisma.AssistantSkillCreateNestedManyWithoutUserInput
+  mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
+  danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
+  assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
+}
+
+export type UserUncheckedCreateWithoutCharacterJournalsInput = {
+  id?: string
+  clerkId: string
+  email: string
+  username?: string | null
+  displayName?: string | null
+  avatarUrl?: string | null
+  avatarStorageKey?: string | null
+  bannerUrl?: string | null
+  bannerStorageKey?: string | null
+  bio?: string | null
+  civitaiToken?: string | null
+  isPublic?: boolean
+  isDeleted?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
+  userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
+  generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
+  projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
+  characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
+  likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
+  followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
+  followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
+  recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
+  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
+  loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
+  extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
+  assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
+  researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
+  assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
+  projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
+  contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
+  characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedCreateNestedManyWithoutUserInput
+  assistantSkills?: Prisma.AssistantSkillUncheckedCreateNestedManyWithoutUserInput
+  mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
+  danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
+  promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
+  assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type UserCreateOrConnectWithoutCharacterJournalsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutCharacterJournalsInput, Prisma.UserUncheckedCreateWithoutCharacterJournalsInput>
+}
+
+export type UserUpsertWithoutCharacterJournalsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutCharacterJournalsInput, Prisma.UserUncheckedUpdateWithoutCharacterJournalsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutCharacterJournalsInput, Prisma.UserUncheckedCreateWithoutCharacterJournalsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutCharacterJournalsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutCharacterJournalsInput, Prisma.UserUncheckedUpdateWithoutCharacterJournalsInput>
+}
+
+export type UserUpdateWithoutCharacterJournalsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
+  userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
+  generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
+  projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
+  characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
+  likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
+  followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
+  followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
+  recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
+  loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
+  loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
+  extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
+  assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
+  researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
+  assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
+  projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
+  contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
+  characterCardRevisions?: Prisma.CharacterCardRevisionUpdateManyWithoutUserNestedInput
+  assistantSkills?: Prisma.AssistantSkillUpdateManyWithoutUserNestedInput
+  mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
+  danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
+  promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
+  assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutCharacterJournalsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
+  userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
+  generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
+  projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
+  characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
+  likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
+  followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
+  followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
+  recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
+  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
+  loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
+  extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
+  assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
+  researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
+  assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
+  projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
+  contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
+  characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
@@ -6278,6 +6603,7 @@ export type UserCreateWithoutAssistantSkillsInput = {
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
   promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
@@ -6323,6 +6649,7 @@ export type UserUncheckedCreateWithoutAssistantSkillsInput = {
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
   promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
@@ -6384,6 +6711,7 @@ export type UserUpdateWithoutAssistantSkillsInput = {
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
   promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
@@ -6429,6 +6757,7 @@ export type UserUncheckedUpdateWithoutAssistantSkillsInput = {
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
   promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
@@ -6474,6 +6803,7 @@ export type UserCreateWithoutAssistantTurnRecordsInput = {
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
@@ -6519,6 +6849,7 @@ export type UserUncheckedCreateWithoutAssistantTurnRecordsInput = {
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedCreateNestedManyWithoutUserInput
+  characterJournals?: Prisma.CharacterJournalUncheckedCreateNestedManyWithoutUserInput
   assistantSkills?: Prisma.AssistantSkillUncheckedCreateNestedManyWithoutUserInput
   mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
@@ -6580,6 +6911,7 @@ export type UserUpdateWithoutAssistantTurnRecordsInput = {
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
@@ -6625,6 +6957,7 @@ export type UserUncheckedUpdateWithoutAssistantTurnRecordsInput = {
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
   characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedUpdateManyWithoutUserNestedInput
+  characterJournals?: Prisma.CharacterJournalUncheckedUpdateManyWithoutUserNestedInput
   assistantSkills?: Prisma.AssistantSkillUncheckedUpdateManyWithoutUserNestedInput
   mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
   danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
@@ -6658,6 +6991,7 @@ export type UserCountOutputType = {
   contextCards: number
   assistantMemories: number
   characterCardRevisions: number
+  characterJournals: number
   assistantSkills: number
   mcpTokens: number
   danbooruFavorites: number
@@ -6686,6 +7020,7 @@ export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.I
   contextCards?: boolean | UserCountOutputTypeCountContextCardsArgs
   assistantMemories?: boolean | UserCountOutputTypeCountAssistantMemoriesArgs
   characterCardRevisions?: boolean | UserCountOutputTypeCountCharacterCardRevisionsArgs
+  characterJournals?: boolean | UserCountOutputTypeCountCharacterJournalsArgs
   assistantSkills?: boolean | UserCountOutputTypeCountAssistantSkillsArgs
   mcpTokens?: boolean | UserCountOutputTypeCountMcpTokensArgs
   danbooruFavorites?: boolean | UserCountOutputTypeCountDanbooruFavoritesArgs
@@ -6852,6 +7187,13 @@ export type UserCountOutputTypeCountCharacterCardRevisionsArgs<ExtArgs extends r
 /**
  * UserCountOutputType without action
  */
+export type UserCountOutputTypeCountCharacterJournalsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.CharacterJournalWhereInput
+}
+
+/**
+ * UserCountOutputType without action
+ */
 export type UserCountOutputTypeCountAssistantSkillsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.AssistantSkillWhereInput
 }
@@ -6917,6 +7259,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   contextCards?: boolean | Prisma.User$contextCardsArgs<ExtArgs>
   assistantMemories?: boolean | Prisma.User$assistantMemoriesArgs<ExtArgs>
   characterCardRevisions?: boolean | Prisma.User$characterCardRevisionsArgs<ExtArgs>
+  characterJournals?: boolean | Prisma.User$characterJournalsArgs<ExtArgs>
   assistantSkills?: boolean | Prisma.User$assistantSkillsArgs<ExtArgs>
   mcpTokens?: boolean | Prisma.User$mcpTokensArgs<ExtArgs>
   danbooruFavorites?: boolean | Prisma.User$danbooruFavoritesArgs<ExtArgs>
@@ -7004,6 +7347,7 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   contextCards?: boolean | Prisma.User$contextCardsArgs<ExtArgs>
   assistantMemories?: boolean | Prisma.User$assistantMemoriesArgs<ExtArgs>
   characterCardRevisions?: boolean | Prisma.User$characterCardRevisionsArgs<ExtArgs>
+  characterJournals?: boolean | Prisma.User$characterJournalsArgs<ExtArgs>
   assistantSkills?: boolean | Prisma.User$assistantSkillsArgs<ExtArgs>
   mcpTokens?: boolean | Prisma.User$mcpTokensArgs<ExtArgs>
   danbooruFavorites?: boolean | Prisma.User$danbooruFavoritesArgs<ExtArgs>
@@ -7040,6 +7384,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     contextCards: Prisma.$ContextCardPayload<ExtArgs>[]
     assistantMemories: Prisma.$AssistantMemoryPayload<ExtArgs>[]
     characterCardRevisions: Prisma.$CharacterCardRevisionPayload<ExtArgs>[]
+    characterJournals: Prisma.$CharacterJournalPayload<ExtArgs>[]
     assistantSkills: Prisma.$AssistantSkillPayload<ExtArgs>[]
     mcpTokens: Prisma.$McpTokenPayload<ExtArgs>[]
     danbooruFavorites: Prisma.$DanbooruFavoritePayload<ExtArgs>[]
@@ -7479,6 +7824,7 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   contextCards<T extends Prisma.User$contextCardsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$contextCardsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ContextCardPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   assistantMemories<T extends Prisma.User$assistantMemoriesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$assistantMemoriesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AssistantMemoryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   characterCardRevisions<T extends Prisma.User$characterCardRevisionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$characterCardRevisionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CharacterCardRevisionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  characterJournals<T extends Prisma.User$characterJournalsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$characterJournalsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CharacterJournalPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   assistantSkills<T extends Prisma.User$assistantSkillsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$assistantSkillsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AssistantSkillPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   mcpTokens<T extends Prisma.User$mcpTokensArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$mcpTokensArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$McpTokenPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   danbooruFavorites<T extends Prisma.User$danbooruFavoritesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$danbooruFavoritesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$DanbooruFavoritePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -8460,6 +8806,30 @@ export type User$characterCardRevisionsArgs<ExtArgs extends runtime.Types.Extens
   take?: number
   skip?: number
   distinct?: Prisma.CharacterCardRevisionScalarFieldEnum | Prisma.CharacterCardRevisionScalarFieldEnum[]
+}
+
+/**
+ * User.characterJournals
+ */
+export type User$characterJournalsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the CharacterJournal
+   */
+  select?: Prisma.CharacterJournalSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the CharacterJournal
+   */
+  omit?: Prisma.CharacterJournalOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.CharacterJournalInclude<ExtArgs> | null
+  where?: Prisma.CharacterJournalWhereInput
+  orderBy?: Prisma.CharacterJournalOrderByWithRelationInput | Prisma.CharacterJournalOrderByWithRelationInput[]
+  cursor?: Prisma.CharacterJournalWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.CharacterJournalScalarFieldEnum | Prisma.CharacterJournalScalarFieldEnum[]
 }
 
 /**

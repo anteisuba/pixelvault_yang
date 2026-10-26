@@ -265,6 +265,12 @@ export type AssistantMemory = Prisma.AssistantMemoryModel
  */
 export type CharacterCardRevision = Prisma.CharacterCardRevisionModel
 /**
+ * Model CharacterJournal
+ * **她的日记**（10-26「更像真人」C）：每聊够一段她整理一次，写一篇短日记（她自己的视角）。
+ * 设置里能看；聊天时带上最近一篇，她偶尔会提起（owner 10-26）。每张卡只留最近 100 篇。
+ */
+export type CharacterJournal = Prisma.CharacterJournalModel
+/**
  * Model AssistantSkill
  * 创作者自己的技能（第 7b 步，owner 10-23）：SKILL.md 那几样（名字、描述、正文、参考文件）存成一行。
  * ⭐ 每人各自一份：只有本人看得到、只进本人的助手（按 `userId` 收敛）。

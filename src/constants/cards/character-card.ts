@@ -64,6 +64,8 @@ export const CHARACTER_PERSONA_LIMITS = {
   /** 学到的说法（F）：聊天里从你的话学来的口头禅，满了挤掉最旧的。 */
   learnedPhrases: 12,
   learnedPhraseChars: 16,
+  /** 和你的关系（10-26「更像真人」C）：她整理聊天时自己写，称呼和亲近程度跟着它走。 */
+  relationship: 300,
   scenario: 2000,
   opening: 2000,
   examples: 10,

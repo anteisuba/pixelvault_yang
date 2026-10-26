@@ -12209,7 +12209,7 @@ function describeShownMemories(shown: readonly AssistantMemory[]): string {
  * 模型那份草稿 → 三样改动（P3 写入时消解冲突）：新增的、替掉第 N 条的、忘掉的。
  * ⚠ 号只认这一次给它看过的那几条（`shown`），⛔ 不猜：对不上的 replaces 当新加，对不上的 forget 丢掉；同一个号替两次只认第一次。
  */
-function resolveMemoryChanges(
+export function resolveMemoryChanges(
   draft: AssistantRoundMemoriesDraft | null,
   shown: readonly AssistantMemory[],
 ): {

@@ -420,6 +420,7 @@ export const ModelName = {
   ContextCard: 'ContextCard',
   AssistantMemory: 'AssistantMemory',
   CharacterCardRevision: 'CharacterCardRevision',
+  CharacterJournal: 'CharacterJournal',
   AssistantSkill: 'AssistantSkill',
   AssistantTurnRecord: 'AssistantTurnRecord'
 } as const
@@ -437,7 +438,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "danbooruTagName" | "promptTagStack" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "userCreativePreference" | "assistantPersona" | "projectRule" | "modelConfig" | "characterCard" | "characterLook" | "generationCharacterCard" | "userLike" | "userFollow" | "characterCardLora" | "loraTrainingJob" | "loraAsset" | "extractedElement" | "generationLayer" | "contextCard" | "assistantMemory" | "characterCardRevision" | "assistantSkill" | "assistantTurnRecord"
+    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "danbooruTagName" | "promptTagStack" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "userCreativePreference" | "assistantPersona" | "projectRule" | "modelConfig" | "characterCard" | "characterLook" | "generationCharacterCard" | "userLike" | "userFollow" | "characterCardLora" | "loraTrainingJob" | "loraAsset" | "extractedElement" | "generationLayer" | "contextCard" | "assistantMemory" | "characterCardRevision" | "characterJournal" | "assistantSkill" | "assistantTurnRecord"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -3105,6 +3106,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    CharacterJournal: {
+      payload: Prisma.$CharacterJournalPayload<ExtArgs>
+      fields: Prisma.CharacterJournalFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.CharacterJournalFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterJournalPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.CharacterJournalFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterJournalPayload>
+        }
+        findFirst: {
+          args: Prisma.CharacterJournalFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterJournalPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.CharacterJournalFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterJournalPayload>
+        }
+        findMany: {
+          args: Prisma.CharacterJournalFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterJournalPayload>[]
+        }
+        create: {
+          args: Prisma.CharacterJournalCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterJournalPayload>
+        }
+        createMany: {
+          args: Prisma.CharacterJournalCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.CharacterJournalCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterJournalPayload>[]
+        }
+        delete: {
+          args: Prisma.CharacterJournalDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterJournalPayload>
+        }
+        update: {
+          args: Prisma.CharacterJournalUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterJournalPayload>
+        }
+        deleteMany: {
+          args: Prisma.CharacterJournalDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.CharacterJournalUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.CharacterJournalUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterJournalPayload>[]
+        }
+        upsert: {
+          args: Prisma.CharacterJournalUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterJournalPayload>
+        }
+        aggregate: {
+          args: Prisma.CharacterJournalAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCharacterJournal>
+        }
+        groupBy: {
+          args: Prisma.CharacterJournalGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CharacterJournalGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.CharacterJournalCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CharacterJournalCountAggregateOutputType> | number
+        }
+      }
+    }
     AssistantSkill: {
       payload: Prisma.$AssistantSkillPayload<ExtArgs>
       fields: Prisma.AssistantSkillFieldRefs
@@ -3961,6 +4036,17 @@ export const CharacterCardRevisionScalarFieldEnum = {
 export type CharacterCardRevisionScalarFieldEnum = (typeof CharacterCardRevisionScalarFieldEnum)[keyof typeof CharacterCardRevisionScalarFieldEnum]
 
 
+export const CharacterJournalScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  characterCardId: 'characterCardId',
+  text: 'text',
+  createdAt: 'createdAt'
+} as const
+
+export type CharacterJournalScalarFieldEnum = (typeof CharacterJournalScalarFieldEnum)[keyof typeof CharacterJournalScalarFieldEnum]
+
+
 export const AssistantSkillScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -4492,6 +4578,7 @@ export type GlobalOmitConfig = {
   contextCard?: Prisma.ContextCardOmit
   assistantMemory?: Prisma.AssistantMemoryOmit
   characterCardRevision?: Prisma.CharacterCardRevisionOmit
+  characterJournal?: Prisma.CharacterJournalOmit
   assistantSkill?: Prisma.AssistantSkillOmit
   assistantTurnRecord?: Prisma.AssistantTurnRecordOmit
 }

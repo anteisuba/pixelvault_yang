@@ -346,6 +346,14 @@ export function workMoodReminder(
 }
 
 /** 聊天模式的角色卡（打头那一段）：设定 + 场景、开场白、你在故事里是谁、示例对白、世界书命中的几条。 */
+/** 和你的关系（C）：她整理时自己写的那一句 —— 称呼、亲近程度照它来。 */
+function relationshipLine(character: AssistantPromptCharacter): string | null {
+  const relationship = character.relationship?.trim()
+  return relationship
+    ? `- Between you and the creator now (you wrote this yourself; address them and act as close as it says): ${relationship}`
+    : null
+}
+
 function chatCardSection(persona: AssistantPromptPersona): string {
   const character = sanitizePromptCharacter(persona)
   const roleplay = sanitizePromptRoleplay(persona)
@@ -353,6 +361,7 @@ function chatCardSection(persona: AssistantPromptPersona): string {
   const shown = persona.name ?? character.name
   const lines = [
     character.identity ? `- Who you are: ${character.identity}` : null,
+    relationshipLine(character),
     character.behavior ? `- Personality: ${character.behavior}` : null,
     character.speech ? `- How you talk: ${character.speech}` : null,
     character.catchphrases.length
@@ -370,6 +379,9 @@ function chatCardSection(persona: AssistantPromptPersona): string {
       ? `- Who the creator is in this story: ${roleplay.userRole}`
       : null,
     learnedLine(character),
+    roleplay.journal
+      ? `- Your latest diary entry (you wrote it about the two of you; bring it up now and then only when it fits, never recite it): 「${roleplay.journal}」`
+      : null,
   ].filter((line): line is string => line !== null)
   const examples = roleplay.examples.length
     ? `\nHOW YOU SOUND — example exchanges from the card (for your voice only; never repeat them; keep only the spoken words):\n${roleplay.examples
@@ -402,6 +414,7 @@ function characterSection(persona: AssistantPromptPersona): string {
   const shown = persona.name ?? character.name
   const lines = [
     character.identity ? `- Who you are: ${character.identity}` : null,
+    relationshipLine(character),
     character.behavior ? `- Personality: ${character.behavior}` : null,
     character.speech ? `- How you talk: ${character.speech}` : null,
     character.catchphrases.length

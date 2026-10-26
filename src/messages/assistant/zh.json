@@ -1073,7 +1073,7 @@
       "group": "和 {name} 聊",
       "workGroup": "工作",
       "oldChat": "和{name}以前的聊天，只能看",
-      "goVoiceRoom": "和她聊天"
+      "continueChat": "和她聊天"
     },
     "mode": {
       "pickCharacter": "换助手人设",
@@ -1096,6 +1096,25 @@
       "label": "技能",
       "mine": "我的",
       "builtin": "内置"
+    },
+    "voice": {
+      "label": "语音",
+      "turnOn": "打开语音：她说的话念出来",
+      "turnOff": "关掉语音",
+      "speaking": "{name} 在用声音说话",
+      "pickVoice": "挑嗓子",
+      "model": "念的型号",
+      "models": {
+        "free": "免费",
+        "pro": "Pro",
+        "drama": "Drama 3"
+      },
+      "pending": "正在念…",
+      "replay": "重听",
+      "stop": "停",
+      "failed": "没念出来，再念一次",
+      "setupKey": "配 Fish Audio 的 key",
+      "provider": "Fish Audio"
     }
   },
   "ContextCards": {

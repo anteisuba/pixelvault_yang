@@ -282,20 +282,6 @@
       "libraryUnavailable": "ボイスライブラリに今つながりません。少し待ってからもう一度お試しください。",
       "sampleMissing": "このボイスには使えるサンプルがありません。"
     },
-    "voiceRoom": {
-      "notFound": "部屋が見つかりません",
-      "lineNotFound": "台詞が見つかりません",
-      "castFull": "1つのルームに追加できる声は8つまでです。別の声を追加するには、1つ外してください",
-      "castDuplicate": "その音声はすでにキャストにいます",
-      "modelUnavailable": "利用可能な音声モデルがありません",
-      "speakerNotInCast": "その話者はこの部屋にいません",
-      "speakerCannotSpeak": "BGM はルーム全体に流す音楽なので、話者には指定できません",
-      "voiceCardUnavailable": "その音声は利用できなくなりました",
-      "roomFull": "この部屋は満杯です——新しい部屋を作ってください",
-      "lineEmpty": "読み上げるセリフを入力してください",
-      "chatVoiceOnly": "チャットできるのはボイスだけです",
-      "chatEmptyReply": "返事がありませんでした。もう一度試してください"
-    },
     "common": {
       "unexpected": "予期しないエラーが発生しました。もう一度お試しください。",
       "databaseUnavailable": "データベースサービスを一時的に利用できません。しばらくしてから再度お試しください。"
@@ -483,6 +469,11 @@
     },
     "imageRecipe": {
       "readFailed": "この画像を読み込めませんでした。別の画像でお試しください。"
+    },
+    "assistantVoice": {
+      "unbound": "まだ声がありません。先に声を選んでください",
+      "modelUnavailable": "利用可能な音声モデルがありません",
+      "voiceCardUnavailable": "その音声は利用できなくなりました"
     }
   },
   "DropZone": {

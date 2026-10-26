@@ -22,13 +22,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { ROUTES } from '@/constants/routes'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import { useChatCharacters } from '@/hooks/use-chat-characters'
-import { useOpenPersonaChat } from '@/hooks/use-chat-persona'
+import { usePersonaSwitch } from '@/hooks/use-chat-persona'
 import { useStudioOperatorActions } from '@/hooks/use-studio-operator-actions'
 import { useStudioOperatorState } from '@/hooks/use-studio-operator-store'
-import { usePathname } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
 
 /** 收起 / 展开时飞来飞去的那一颗（对话头 ↔ 台左上角）。 */
@@ -72,27 +70,8 @@ export function AvatarDisc({
   )
 }
 
-/** 几个人的那一组（群）：头像叠两颗（左栏「聊天」里群那一行用它）。 */
-export function GroupDisc({
-  members,
-}: {
-  members: readonly { name: string; coverImage?: string | null }[]
-}) {
-  const [first, second] = members
-  return (
-    <span className="relative block size-full">
-      <span className="absolute top-0 left-0 size-2/3">
-        <AvatarDisc url={first?.coverImage} name={first?.name ?? '?'} />
-      </span>
-      <span className="absolute right-0 bottom-0 size-2/3 rounded-full ring-2 ring-popover">
-        <AvatarDisc url={second?.coverImage} name={second?.name ?? '?'} />
-      </span>
-    </span>
-  )
-}
-
 /**
- * 此刻陪你的那一位的头像 = 全局助手（用户 10-25：头像菜单点谁，助手就是谁；「聊天」也跟着它）。
+ * 此刻陪你的那一位的头像 = 全局助手（用户 10-25：头像菜单点谁，助手就是谁）。
  * 正看着以前的聊天（只读）时画那个角色。
  * `fly`：挂上飞行标记（对话头 ↔ 台左上角同一颗，Motion `layoutId` 接力）。
  */
@@ -134,9 +113,7 @@ interface StudioOperatorAvatarSwitcherProps {
 /**
  * 换助手人设（用户 10-25 定 A）：点头像弹一个菜单 —— 第一行默认助手，下面一行一个角色（头像 + 名字，
  * 角色多了顶上出搜索）。点谁 = 全局助手换成谁（头像 + 名字 + 口吻，`withAssistantCharacter`，角色页
- * 「设为助手人设」同一份），对话不断、工具照旧；正在「聊天」里就换到和她的聊天。现在是谁，头像套一圈。
- *
- * ⛔ 不再进配音间、不列群：聊天记录在对话头「聊天」那颗里（只列现在这一位的）。
+ * 「设为助手人设」同一份），对话不断、工具照旧；没开台时她就用自己的口吻聊天（②c）。现在是谁，头像套一圈。
  */
 export function StudioOperatorAvatarSwitcher({
   children,
@@ -147,20 +124,15 @@ export function StudioOperatorAvatarSwitcher({
   const characters = useChatCharacters(open)
   const { chatCharacter } = useStudioOperatorState()
   const operatorActions = useStudioOperatorActions()
-  const personaChat = useOpenPersonaChat()
-  const pathname = usePathname()
+  const personaSwitch = usePersonaSwitch()
   const currentId = persona.character?.id ?? null
-  const inChat = pathname.startsWith(ROUTES.STUDIO_AUDIO)
 
-  const pick = (characterCardId: string | null, voiceCardId: string | null) => {
-    // 正看着以前的聊天（只读）→ 开一段新的工作对话。
-    if (chatCharacter && !inChat) operatorActions?.newThread()
+  const pick = (characterCardId: string | null) => {
+    // 正看着以前的聊天（只读）→ 开一段新的对话。
+    if (chatCharacter) operatorActions?.newThread()
     setOpen(false)
     if (characterCardId === currentId) return
-    void personaChat.switchTo(characterCardId, {
-      voiceCardId,
-      openChat: inChat,
-    })
+    void personaSwitch.switchTo(characterCardId)
   }
 
   // 角色多了（10-25 截图 13 个）才出搜索；少的时候一眼就看完。
@@ -185,7 +157,7 @@ export function StudioOperatorAvatarSwitcher({
               value="__assistant"
               label={t('mode.defaultAssistant')}
               current={currentId === null}
-              onSelect={() => pick(null, null)}
+              onSelect={() => pick(null)}
               testId="operator-avatar-switch-assistant"
             >
               <AvatarDisc
@@ -208,7 +180,7 @@ export function StudioOperatorAvatarSwitcher({
                 value={`${chat.character.name} ${chat.character.id}`}
                 label={chat.character.name}
                 current={currentId === chat.character.id}
-                onSelect={() => pick(chat.character.id, chat.voiceCardId)}
+                onSelect={() => pick(chat.character.id)}
               >
                 <AvatarDisc url={chat.avatarUrl} name={chat.character.name} />
               </PickItem>

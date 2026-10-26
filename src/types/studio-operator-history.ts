@@ -116,6 +116,8 @@ export const StudioOperatorHistoryEntrySchema = z.discriminatedUnion('kind', [
       .optional()
       .catch(undefined),
     versionIndex: z.number().int().min(0).optional().catch(undefined),
+    /** 她在聊天（②c-2）：一行一个气泡。 */
+    chat: z.literal(true).optional().catch(undefined),
   }),
   z.object({
     kind: z.literal('plan'),

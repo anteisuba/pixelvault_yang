@@ -21,7 +21,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 import {
   AUDIO_CLIP_SOURCE,
-  VOICE_LIBRARY_ROOM_LIMIT,
   VOICE_LIBRARY_TAB_LIMIT,
   type AudioClipSourceKind,
   type VoiceLibraryTabId,
@@ -29,18 +28,12 @@ import {
 import { USER_UPLOAD_PROVIDER } from '@/constants/uploads'
 import { useVoiceLibrary } from '@/hooks/use-voice-library'
 import { fetchGalleryImages, importVoiceSampleAPI } from '@/lib/api-client'
-/*
- * ⚠ 配音间那一栏**只有深导入一条来路**：`@/lib/api-client/voiceroom` 从来不在
- * barrel 里（`use-voiceroom.ts` 同一条注释）。⛔ 不为这一栏把整个配音间客户端
- * 提进 barrel —— 那会让 barrel 的每个消费者都拖上配音间的类型。
- */
-import { getVoiceRoomAPI, listVoiceRoomsAPI } from '@/lib/api-client/voiceroom'
 import type { GenerationRecord } from '@/types'
 
 /**
  * 面板那一行需要的全部事实。
  *
- * ⚠ `voiceId` 可空：历史 / 配音间 / 素材库的声音没有音色可继承，那几行的
+ * ⚠ `voiceId` 可空：历史 / 素材库的声音没有音色可继承，那几行的
  * 「设为音色」按不动 —— ⛔ 不给它编一个 id，那会让「之后写台词用它的声」
  * 静默用错嗓子。
  */
@@ -265,44 +258,6 @@ export function useVoiceLibraryClips({
     const run = (runRef.current += 1)
 
     const load = async (): Promise<readonly VoiceLibraryClip[]> => {
-      if (tab === 'voiceRoom') {
-        const rooms = await listVoiceRoomsAPI()
-        if (!rooms.success || !rooms.data) {
-          throw new Error(rooms.error ?? 'voiceroom list failed')
-        }
-        const details = await Promise.all(
-          rooms.data
-            .slice(0, VOICE_LIBRARY_ROOM_LIMIT)
-            .map((room) => getVoiceRoomAPI(room.id)),
-        )
-        return details.flatMap((detail) => {
-          const room = detail.data
-          if (!detail.success || !room) return []
-          return room.lines.flatMap((line) => {
-            const url = line.audio?.url
-            if (!url) return []
-            const name = line.text.trim() || line.speakerName
-            return [
-              {
-                id: line.id,
-                name: `${line.speakerName} · ${name}`,
-                subtitle: room.name,
-                url,
-                durationSec: line.audio?.duration ?? null,
-                voiceId: null,
-                coverUrl: null,
-                sourceKind: AUDIO_CLIP_SOURCE.voiceRoom,
-                sourceLabel: labelRef.current(
-                  AUDIO_CLIP_SOURCE.voiceRoom,
-                  name,
-                ),
-                createdAt: line.createdAt,
-              } satisfies VoiceLibraryClip,
-            ]
-          })
-        })
-      }
-
       // 我的历史 = 生成出来的音频；素材库 = 上传进来的（`provider` 分流，与
       // `/assets` 那边同一条判据）。
       const upload = tab === 'library'

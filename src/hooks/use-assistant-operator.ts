@@ -78,6 +78,7 @@ import {
   getProviderLabel,
 } from '@/constants/providers'
 import { ASSISTANT_V3_CLIP_LIMITS } from '@/constants/assistant-v3'
+import { AI_MODELS } from '@/constants/models'
 import { CONTEXT_CARD_STATUS_IDS } from '@/constants/context-cards'
 import {
   STUDIO_OPERATOR_BENCH_OPEN_POLL_MS,
@@ -129,7 +130,12 @@ import {
   upsertOperatorStep,
 } from '@/hooks/use-studio-operator-store'
 import { readLibraryView } from '@/hooks/use-library-view'
+import {
+  getOperatorVoicePrefs,
+  speakOperatorReply,
+} from '@/hooks/use-operator-voice'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
+import { splitSpokenSegments } from '@/lib/spoken-segments'
 import { studioBenchHref } from '@/lib/studio-shell-route'
 import {
   assistantBenchPath,
@@ -227,6 +233,25 @@ import type {
  * ⚠ 没有 `traceId` 就整块不画（`GenerationError` 那一族本来就说得出原因），
  * ⛔ 不为它编一个短码 —— 编出来的号在日志里查不到，比没有更糟。
  */
+/**
+ * 🔊 开着、这段是用着角色的她说的（②c-2）：念出来。聊天整段念；开着台只念开头和收尾两段，
+ * 中间的正文只出字（`splitSpokenSegments`）。
+ */
+function speakIfVoiceOn(
+  event: { text: string; chat?: true; spoken?: true },
+  id: string,
+) {
+  if (!event.spoken || !getOperatorVoicePrefs().on) return
+  const text = event.text.trim()
+  if (!text) return
+  if (event.chat) {
+    void speakOperatorReply(id, text)
+    return
+  }
+  const { opening, closing } = splitSpokenSegments(text)
+  void speakOperatorReply(id, [opening, closing].filter(Boolean).join('\n\n'))
+}
+
 function toErrorTrace(payload: {
   traceId?: string | undefined
   detail?: string | undefined
@@ -1360,6 +1385,16 @@ export function useAssistantOperator(
            *   「用户特意关掉了隐身」，而绝大多数轮次里他从没碰过这颗开关。
            */
           ...(getOperatorState().incognito ? { incognito: true } : {}),
+          // 🔊 开着（②c-2）：她这一轮会被念出来，服务端教她写语气提示（只在聊天时用）。
+          ...(getOperatorVoicePrefs().on
+            ? {
+                chatVoice: {
+                  expressive:
+                    getOperatorVoicePrefs().modelId ===
+                    AI_MODELS.FISH_AUDIO_DRAMA_3,
+                },
+              }
+            : {}),
           // 聊天会话（附录L）：每轮带上和谁聊，服务端按这张卡扮演。
           ...(getOperatorState().chatCharacter
             ? { chatCharacterId: getOperatorState().chatCharacter?.id }
@@ -1665,6 +1700,7 @@ export function useAssistantOperator(
                 messageEntryId(),
                 event.delta,
                 event.restart === true,
+                event.chat === true,
               )
               break
             }
@@ -1700,9 +1736,14 @@ export function useAssistantOperator(
                   .trim() === event.text.trim()
               ) {
                 for (const entry of streamed) {
-                  finalizeOperatorMessage(entry.id, entry.text.trim())
+                  finalizeOperatorMessage(
+                    entry.id,
+                    entry.text.trim(),
+                    event.chat === true,
+                  )
                   dropOperatorPending(entry.id)
                 }
+                speakIfVoiceOn(event, streamed.at(-1)!.id)
                 break
               }
               const index = entries.findIndex(
@@ -1710,7 +1751,12 @@ export function useAssistantOperator(
                   entry.kind === 'message' && entry.id === messageEntryId(),
               )
               if (index >= 0 && index !== entries.length - 1) messageSeq += 1
-              finalizeOperatorMessage(messageEntryId(), event.text)
+              finalizeOperatorMessage(
+                messageEntryId(),
+                event.text,
+                event.chat === true,
+              )
+              speakIfVoiceOn(event, messageEntryId())
               break
             }
             case ASSISTANT_OPERATOR_EVENTS.step: {

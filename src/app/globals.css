@@ -2661,6 +2661,69 @@ html:lang(ja) {
   overflow: hidden;
 }
 
+/* ── 对话头下面的语音条（②c-2，样件 v5）：开着语音往下展开、关了收回 ──
+   和上面同一招（grid-template-rows 0fr↔1fr），条本身同时往上缩一点、淡掉。 */
+.operator-voice-strip {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows var(--duration-slow) var(--ease-standard),
+    opacity var(--duration-base) var(--ease-standard);
+}
+
+.operator-voice-strip[data-open='true'] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.operator-voice-strip > * {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── 她在聊天时的气泡（②c-2，用户 10-26 定样件 F）：先三点「正在输入」，
+   再整条一次弹出（往上 6px、淡入），⛔ 一个字一个字打。减少动效时不动。 */
+.operator-chat-bubble-in {
+  animation: operator-chat-bubble-in 220ms ease-out both;
+}
+
+@keyframes operator-chat-bubble-in {
+  from {
+    opacity: 0.3;
+    transform: translateY(6px);
+  }
+}
+
+.operator-chat-typing > i {
+  animation: operator-chat-typing 1s infinite both;
+}
+
+.operator-chat-typing > i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.operator-chat-typing > i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes operator-chat-typing {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .operator-chat-bubble-in,
+  .operator-chat-typing > i {
+    animation: none;
+  }
+}
+
 /* ── 消息 Markdown 排版配方（.message-md）─────────────────────────
    `MessageContent` 的 markdown 分支专用。替换 prompt-kit 随组件带进来的
    死类 `prose`：`@tailwindcss/typography` 从未装（package.json /

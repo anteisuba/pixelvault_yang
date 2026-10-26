@@ -134,6 +134,14 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 - `open` 不再有 `character`（10-26）：角色页进了库、桌面上不当宿主，开过去永远「没到」（线上「没能打开那个台」）。角色的设定 / 造型用 edit 的库改法在哪个台都能改，首页两块板子也写明。
 - 系统提示加一条：没在这段对话里 `find` 过、结果为空之前，不许说「库里没有 / 你没有」。
 
+**聊天并回对话（owner 10-26，样件 v5 / 气泡出场样件 F）**：
+
+- 没开台 = 和现在这位聊：首页这一轮请求没带 `chatCharacterId` 时，内核按设置里那张角色卡补上（`getHomeChatCharacterId`），走聊天口吻；学说法（`learnCreatorPhrases`）挪进内核，聊天轮结束后 `after()` 跑。
+- 她说的那几段带记号：`message` / `message_delta` 上 `chat`（在聊天 → 一行一个气泡）、`spoken`（用着角色 → 🔊 开着时念）。条目上的 `chat` 落库，翻历史照样是气泡；`voice` 念读状态不落库。
+- 气泡（`StudioOperatorChatBubbles`）：一行写完才整条弹出（往上 6px 淡入 220ms），后一条等 500ms + 每字 70ms，等的时候三点「正在输入」；⛔ 逐字打、⛔ 光标。翻历史直接整段摆出。
+- 🔊（`StudioOperatorVoice.tsx`）：对话头一颗键（只有用着角色才有，开着拉长成「语音」胶囊）+ 头下面一条（嗓子▾ = 换角色卡绑的音色卡 · 免费 / Pro / Drama 3）。开关与型号记在这台设备（`use-operator-voice.ts`）。开着时每段说完 `POST /api/assistant/speak`（`speakAsPersona` → `speakWithVoiceCard` → `submitAudioGeneration`，和配音间同一条），等 `checkAudioStatusAPI` 好了自动放；聊天整段念，开着台只念首尾段（`splitSpokenSegments`）。请求带 `chatVoice`（Drama 3 = 语气标签）。没绑嗓子就地挑、缺 key 就地 `QuickSetupDialog`、念不出来可再念。
+- 旧聊天房间删了（②c-3，owner 10-26「直接删掉吧」）：配音间 `/studio/audio`、对话头「聊天」键、`VoiceRoom` / `VoiceLine` 两张表一起删，不迁移。气泡 / 念的纯函数搬到 `lib/chat-voice.ts`、常量 `constants/chat-voice.ts`；换人走 `usePersonaSwitch`（`hooks/use-chat-persona.ts`），以前的聊天（只读）那一条「和她聊天」= 换人设 + 开新对话。
+
 **过程记录**：照写 `AssistantTurnRecord`，`promptVersion = next-YYYY-MM-DD`；本轮记录投成 v3 形状（自带联网记成 `search_web`、`find` 记成 `search_library`），评测工具照用。
 
 ## 3. 没验证的（2026-10-23）
@@ -147,6 +155,9 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 - 接口与搜索调研：项目文件 `assistant-reliability/model-interfaces.md`
 
 ## Last Verified
+
+- 2026-10-26 · ②c-3 删旧聊天房间：`tsc` 0 error、相关 vitest 全绿（含 i18n 齐全 / 键覆盖）；迁移漂移交 CI 检查。
+- 2026-10-26 · 聊天并回对话 ②c-1 / ②c-2：`tsc` 0 error、相关 vitest 全绿（首页补角色卡、事件记号、气泡出场时序、历史落库、念读接口与状态）。🔊 真念要在 preview 上用有 Fish key 的账号点一次。
 
 - 2026-10-25 · 反推画风（A + B）：本地 CPU 跑 Tagger 实测 wlop 图 → `wlop 0.28`、初音图 → `hatsune_miku 1.00`（一张约 5 秒）；元数据解析用合成的 NAI / A1111 / stealth PNG 测；`tsc` 0 error、相关 vitest 全绿。Modal 部署后线上实跑见 PR。
 

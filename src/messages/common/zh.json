@@ -282,20 +282,6 @@
       "libraryUnavailable": "声音库暂时连不上，稍后再试。",
       "sampleMissing": "这副音色没有可用的示例。"
     },
-    "voiceRoom": {
-      "notFound": "房间不存在",
-      "lineNotFound": "台词不存在",
-      "castFull": "班底满了，一个房间最多 8 个人声",
-      "castDuplicate": "这个音色已经在班底里了",
-      "modelUnavailable": "当前没有可用的音频模型",
-      "speakerNotInCast": "这位不在本房间的班底里",
-      "speakerCannotSpeak": "配乐是房间底垫，不能说台词",
-      "voiceCardUnavailable": "这个音色已不可用",
-      "roomFull": "这个房间的台词满了，新开一个吧",
-      "lineEmpty": "台词不能为空",
-      "chatVoiceOnly": "聊天只能和人声聊",
-      "chatEmptyReply": "她没有回话，再试一次吧"
-    },
     "common": {
       "unexpected": "发生了意外错误，请重试。",
       "databaseUnavailable": "数据库服务暂时不可用，请稍后再试。"
@@ -483,6 +469,11 @@
     },
     "imageRecipe": {
       "readFailed": "这张图读不出来，换一张试试"
+    },
+    "assistantVoice": {
+      "unbound": "这位还没有嗓子，先给她挑一副",
+      "modelUnavailable": "当前没有可用的音频模型",
+      "voiceCardUnavailable": "这个音色已不可用"
     }
   },
   "DropZone": {

@@ -198,10 +198,6 @@
         "title": "视频工作台 — ANTEI",
         "description": "用 AI 把镜头、动作和场景演变变成视频。"
       },
-      "audio": {
-        "title": "聊天 — ANTEI",
-        "description": "和你的助手或角色聊天，可以出声。"
-      },
       "edit": {
         "title": "图片编辑 — ANTEI",
         "description": "使用局部重绘、超分、去背景和提取元素编辑生成图片。"

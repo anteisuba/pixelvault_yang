@@ -50,6 +50,8 @@ import {
   StudioOperatorThinkingRow,
   StudioOperatorThoughtReceipt,
 } from './StudioOperatorThinkingRow'
+import { StudioOperatorChatBubbles } from './StudioOperatorChatBubbles'
+import { StudioOperatorChatVoice } from './StudioOperatorVoice'
 import { withFindRefs } from './StudioOperatorFindRef'
 import { openOperatorLightbox } from './StudioOperatorLightbox'
 import {
@@ -493,21 +495,32 @@ export function StudioOperatorMessageBody({
             : { thoughtMs: entry.thoughtMs })}
         />
       ) : null}
-      <StudioOperatorCollapsibleText
-        text={entry.text}
-        references={references}
-        {...(findRefs ? { findRefs } : {})}
-        streaming={entry.streaming ?? false}
-        {...(entry.pendingSince === undefined
-          ? {}
-          : { pendingSince: entry.pendingSince })}
-        {...(entry.pendingPhase ? { pendingPhase: entry.pendingPhase } : {})}
-        sources={sources}
-        activeCite={activeCite}
-        onPickCitation={(cite) =>
-          setActiveCite((current) => (current === cite ? null : cite))
-        }
-      />
+      {entry.chat && entry.text ? (
+        <StudioOperatorChatBubbles
+          text={entry.text}
+          streaming={entry.streaming ?? false}
+        />
+      ) : (
+        <StudioOperatorCollapsibleText
+          text={entry.text}
+          references={references}
+          {...(findRefs ? { findRefs } : {})}
+          streaming={entry.streaming ?? false}
+          {...(entry.pendingSince === undefined
+            ? {}
+            : { pendingSince: entry.pendingSince })}
+          {...(entry.pendingPhase ? { pendingPhase: entry.pendingPhase } : {})}
+          sources={sources}
+          activeCite={activeCite}
+          onPickCitation={(cite) =>
+            setActiveCite((current) => (current === cite ? null : cite))
+          }
+        />
+      )}
+      {/* 🔊 开着时这段念到哪了（②c-2）：聊天整段、开着台只念首尾段。 */}
+      {entry.voice ? (
+        <StudioOperatorChatVoice entryId={entry.id} voice={entry.voice} />
+      ) : null}
 
       {/* ⚠ 还在写的时候**不画**（56b 切片 1）：资料要等这段话说完再摆出来，
           否则来源卡会在正文长高的过程中一直往下跳。找到的图与视频同一条。 */}

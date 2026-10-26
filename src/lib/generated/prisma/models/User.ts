@@ -280,7 +280,6 @@ export type UserWhereInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectListRelationFilter
   assistantConversations?: Prisma.AssistantConversationListRelationFilter
   researchRuns?: Prisma.ResearchRunListRelationFilter
-  voiceRooms?: Prisma.VoiceRoomListRelationFilter
   assistantPersona?: Prisma.XOR<Prisma.AssistantPersonaNullableScalarRelationFilter, Prisma.AssistantPersonaWhereInput> | null
   projectRules?: Prisma.ProjectRuleListRelationFilter
   contextCards?: Prisma.ContextCardListRelationFilter
@@ -327,7 +326,6 @@ export type UserOrderByWithRelationInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectOrderByRelationAggregateInput
   assistantConversations?: Prisma.AssistantConversationOrderByRelationAggregateInput
   researchRuns?: Prisma.ResearchRunOrderByRelationAggregateInput
-  voiceRooms?: Prisma.VoiceRoomOrderByRelationAggregateInput
   assistantPersona?: Prisma.AssistantPersonaOrderByWithRelationInput
   projectRules?: Prisma.ProjectRuleOrderByRelationAggregateInput
   contextCards?: Prisma.ContextCardOrderByRelationAggregateInput
@@ -377,7 +375,6 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectListRelationFilter
   assistantConversations?: Prisma.AssistantConversationListRelationFilter
   researchRuns?: Prisma.ResearchRunListRelationFilter
-  voiceRooms?: Prisma.VoiceRoomListRelationFilter
   assistantPersona?: Prisma.XOR<Prisma.AssistantPersonaNullableScalarRelationFilter, Prisma.AssistantPersonaWhereInput> | null
   projectRules?: Prisma.ProjectRuleListRelationFilter
   contextCards?: Prisma.ContextCardListRelationFilter
@@ -466,7 +463,6 @@ export type UserCreateInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
@@ -513,7 +509,6 @@ export type UserUncheckedCreateInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
@@ -560,7 +555,6 @@ export type UserUpdateInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
@@ -607,7 +601,6 @@ export type UserUncheckedUpdateInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
@@ -938,20 +931,6 @@ export type UserUpdateOneRequiredWithoutVoiceCardsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutVoiceCardsInput, Prisma.UserUpdateWithoutVoiceCardsInput>, Prisma.UserUncheckedUpdateWithoutVoiceCardsInput>
 }
 
-export type UserCreateNestedOneWithoutVoiceRoomsInput = {
-  create?: Prisma.XOR<Prisma.UserCreateWithoutVoiceRoomsInput, Prisma.UserUncheckedCreateWithoutVoiceRoomsInput>
-  connectOrCreate?: Prisma.UserCreateOrConnectWithoutVoiceRoomsInput
-  connect?: Prisma.UserWhereUniqueInput
-}
-
-export type UserUpdateOneRequiredWithoutVoiceRoomsNestedInput = {
-  create?: Prisma.XOR<Prisma.UserCreateWithoutVoiceRoomsInput, Prisma.UserUncheckedCreateWithoutVoiceRoomsInput>
-  connectOrCreate?: Prisma.UserCreateOrConnectWithoutVoiceRoomsInput
-  upsert?: Prisma.UserUpsertWithoutVoiceRoomsInput
-  connect?: Prisma.UserWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutVoiceRoomsInput, Prisma.UserUpdateWithoutVoiceRoomsInput>, Prisma.UserUncheckedUpdateWithoutVoiceRoomsInput>
-}
-
 export type UserCreateNestedOneWithoutCreativePreferenceInput = {
   create?: Prisma.XOR<Prisma.UserCreateWithoutCreativePreferenceInput, Prisma.UserUncheckedCreateWithoutCreativePreferenceInput>
   connectOrCreate?: Prisma.UserCreateOrConnectWithoutCreativePreferenceInput
@@ -1198,7 +1177,6 @@ export type UserCreateWithoutMcpTokensInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
@@ -1244,7 +1222,6 @@ export type UserUncheckedCreateWithoutMcpTokensInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
@@ -1306,7 +1283,6 @@ export type UserUpdateWithoutMcpTokensInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
@@ -1352,7 +1328,6 @@ export type UserUncheckedUpdateWithoutMcpTokensInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
@@ -1398,7 +1373,6 @@ export type UserCreateWithoutDanbooruFavoritesInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
@@ -1444,7 +1418,6 @@ export type UserUncheckedCreateWithoutDanbooruFavoritesInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
@@ -1506,7 +1479,6 @@ export type UserUpdateWithoutDanbooruFavoritesInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
@@ -1552,7 +1524,6 @@ export type UserUncheckedUpdateWithoutDanbooruFavoritesInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
@@ -1598,7 +1569,6 @@ export type UserCreateWithoutPromptTagStackInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
@@ -1644,7 +1614,6 @@ export type UserUncheckedCreateWithoutPromptTagStackInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
@@ -1706,7 +1675,6 @@ export type UserUpdateWithoutPromptTagStackInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
@@ -1752,7 +1720,6 @@ export type UserUncheckedUpdateWithoutPromptTagStackInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
@@ -1797,7 +1764,6 @@ export type UserCreateWithoutAssistantConversationsInput = {
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
@@ -1843,7 +1809,6 @@ export type UserUncheckedCreateWithoutAssistantConversationsInput = {
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
@@ -1905,7 +1870,6 @@ export type UserUpdateWithoutAssistantConversationsInput = {
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
@@ -1951,7 +1915,6 @@ export type UserUncheckedUpdateWithoutAssistantConversationsInput = {
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
@@ -1997,7 +1960,6 @@ export type UserCreateWithoutResearchRunsInput = {
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
@@ -2043,7 +2005,6 @@ export type UserUncheckedCreateWithoutResearchRunsInput = {
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
@@ -2105,7 +2066,6 @@ export type UserUpdateWithoutResearchRunsInput = {
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
@@ -2151,7 +2111,6 @@ export type UserUncheckedUpdateWithoutResearchRunsInput = {
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
@@ -2197,7 +2156,6 @@ export type UserCreateWithoutNodeWorkflowProjectsInput = {
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
@@ -2243,7 +2201,6 @@ export type UserUncheckedCreateWithoutNodeWorkflowProjectsInput = {
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
@@ -2305,7 +2262,6 @@ export type UserUpdateWithoutNodeWorkflowProjectsInput = {
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
@@ -2351,7 +2307,6 @@ export type UserUncheckedUpdateWithoutNodeWorkflowProjectsInput = {
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
@@ -2397,7 +2352,6 @@ export type UserCreateWithoutProjectsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
@@ -2443,7 +2397,6 @@ export type UserUncheckedCreateWithoutProjectsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
@@ -2505,7 +2458,6 @@ export type UserUpdateWithoutProjectsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
@@ -2551,7 +2503,6 @@ export type UserUncheckedUpdateWithoutProjectsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
@@ -2597,7 +2548,6 @@ export type UserCreateWithoutUserApiKeysInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
@@ -2643,7 +2593,6 @@ export type UserUncheckedCreateWithoutUserApiKeysInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
@@ -2705,7 +2654,6 @@ export type UserUpdateWithoutUserApiKeysInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
@@ -2751,7 +2699,6 @@ export type UserUncheckedUpdateWithoutUserApiKeysInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
@@ -2797,7 +2744,6 @@ export type UserCreateWithoutGenerationsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
@@ -2843,7 +2789,6 @@ export type UserUncheckedCreateWithoutGenerationsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
@@ -2905,7 +2850,6 @@ export type UserUpdateWithoutGenerationsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
@@ -2951,7 +2895,6 @@ export type UserUncheckedUpdateWithoutGenerationsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
@@ -2997,7 +2940,6 @@ export type UserCreateWithoutGenerationJobsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
@@ -3043,7 +2985,6 @@ export type UserUncheckedCreateWithoutGenerationJobsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
@@ -3105,7 +3046,6 @@ export type UserUpdateWithoutGenerationJobsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
@@ -3151,7 +3091,6 @@ export type UserUncheckedUpdateWithoutGenerationJobsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
@@ -3197,7 +3136,6 @@ export type UserCreateWithoutApiUsageLedgerInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
@@ -3243,7 +3181,6 @@ export type UserUncheckedCreateWithoutApiUsageLedgerInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
@@ -3305,7 +3242,6 @@ export type UserUpdateWithoutApiUsageLedgerInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
@@ -3351,7 +3287,6 @@ export type UserUncheckedUpdateWithoutApiUsageLedgerInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
@@ -3397,7 +3332,6 @@ export type UserCreateWithoutRecipesInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
@@ -3443,7 +3377,6 @@ export type UserUncheckedCreateWithoutRecipesInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
@@ -3505,7 +3438,6 @@ export type UserUpdateWithoutRecipesInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
@@ -3551,7 +3483,6 @@ export type UserUncheckedUpdateWithoutRecipesInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
@@ -3597,7 +3528,6 @@ export type UserCreateWithoutVoiceCardsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
@@ -3643,7 +3573,6 @@ export type UserUncheckedCreateWithoutVoiceCardsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
@@ -3705,7 +3634,6 @@ export type UserUpdateWithoutVoiceCardsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
@@ -3744,207 +3672,6 @@ export type UserUncheckedUpdateWithoutVoiceCardsInput = {
   followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
   followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
   recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
-  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
-  loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
-  extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
-  assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
-  researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
-  assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
-  projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
-  contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
-  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
-  characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedUpdateManyWithoutUserNestedInput
-  assistantSkills?: Prisma.AssistantSkillUncheckedUpdateManyWithoutUserNestedInput
-  mcpTokens?: Prisma.McpTokenUncheckedUpdateManyWithoutUserNestedInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedUpdateManyWithoutUserNestedInput
-  promptTagStack?: Prisma.PromptTagStackUncheckedUpdateOneWithoutUserNestedInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedUpdateManyWithoutUserNestedInput
-}
-
-export type UserCreateWithoutVoiceRoomsInput = {
-  id?: string
-  clerkId: string
-  email: string
-  username?: string | null
-  displayName?: string | null
-  avatarUrl?: string | null
-  avatarStorageKey?: string | null
-  bannerUrl?: string | null
-  bannerStorageKey?: string | null
-  bio?: string | null
-  civitaiToken?: string | null
-  isPublic?: boolean
-  isDeleted?: boolean
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
-  userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
-  generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
-  projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
-  characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
-  likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
-  followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
-  followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
-  recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
-  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
-  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
-  loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
-  extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
-  assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
-  researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
-  projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
-  contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
-  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
-  characterCardRevisions?: Prisma.CharacterCardRevisionCreateNestedManyWithoutUserInput
-  assistantSkills?: Prisma.AssistantSkillCreateNestedManyWithoutUserInput
-  mcpTokens?: Prisma.McpTokenCreateNestedManyWithoutUserInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteCreateNestedManyWithoutUserInput
-  promptTagStack?: Prisma.PromptTagStackCreateNestedOneWithoutUserInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordCreateNestedManyWithoutUserInput
-}
-
-export type UserUncheckedCreateWithoutVoiceRoomsInput = {
-  id?: string
-  clerkId: string
-  email: string
-  username?: string | null
-  displayName?: string | null
-  avatarUrl?: string | null
-  avatarStorageKey?: string | null
-  bannerUrl?: string | null
-  bannerStorageKey?: string | null
-  bio?: string | null
-  civitaiToken?: string | null
-  isPublic?: boolean
-  isDeleted?: boolean
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
-  userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
-  generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
-  projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
-  characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
-  likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
-  followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
-  followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
-  recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
-  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
-  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
-  loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
-  extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
-  assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
-  researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
-  projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
-  contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
-  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
-  characterCardRevisions?: Prisma.CharacterCardRevisionUncheckedCreateNestedManyWithoutUserInput
-  assistantSkills?: Prisma.AssistantSkillUncheckedCreateNestedManyWithoutUserInput
-  mcpTokens?: Prisma.McpTokenUncheckedCreateNestedManyWithoutUserInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteUncheckedCreateNestedManyWithoutUserInput
-  promptTagStack?: Prisma.PromptTagStackUncheckedCreateNestedOneWithoutUserInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordUncheckedCreateNestedManyWithoutUserInput
-}
-
-export type UserCreateOrConnectWithoutVoiceRoomsInput = {
-  where: Prisma.UserWhereUniqueInput
-  create: Prisma.XOR<Prisma.UserCreateWithoutVoiceRoomsInput, Prisma.UserUncheckedCreateWithoutVoiceRoomsInput>
-}
-
-export type UserUpsertWithoutVoiceRoomsInput = {
-  update: Prisma.XOR<Prisma.UserUpdateWithoutVoiceRoomsInput, Prisma.UserUncheckedUpdateWithoutVoiceRoomsInput>
-  create: Prisma.XOR<Prisma.UserCreateWithoutVoiceRoomsInput, Prisma.UserUncheckedCreateWithoutVoiceRoomsInput>
-  where?: Prisma.UserWhereInput
-}
-
-export type UserUpdateToOneWithWhereWithoutVoiceRoomsInput = {
-  where?: Prisma.UserWhereInput
-  data: Prisma.XOR<Prisma.UserUpdateWithoutVoiceRoomsInput, Prisma.UserUncheckedUpdateWithoutVoiceRoomsInput>
-}
-
-export type UserUpdateWithoutVoiceRoomsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
-  email?: Prisma.StringFieldUpdateOperationsInput | string
-  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
-  userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
-  generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
-  projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
-  characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
-  likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
-  followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
-  followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
-  recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
-  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
-  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
-  loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
-  loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
-  extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
-  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
-  assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
-  researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
-  projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
-  contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
-  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
-  characterCardRevisions?: Prisma.CharacterCardRevisionUpdateManyWithoutUserNestedInput
-  assistantSkills?: Prisma.AssistantSkillUpdateManyWithoutUserNestedInput
-  mcpTokens?: Prisma.McpTokenUpdateManyWithoutUserNestedInput
-  danbooruFavorites?: Prisma.DanbooruFavoriteUpdateManyWithoutUserNestedInput
-  promptTagStack?: Prisma.PromptTagStackUpdateOneWithoutUserNestedInput
-  assistantTurnRecords?: Prisma.AssistantTurnRecordUpdateManyWithoutUserNestedInput
-}
-
-export type UserUncheckedUpdateWithoutVoiceRoomsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
-  email?: Prisma.StringFieldUpdateOperationsInput | string
-  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
-  userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
-  generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
-  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
-  projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
-  characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
-  likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
-  followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
-  followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
-  recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
-  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
   creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
   loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
   loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
@@ -3997,7 +3724,6 @@ export type UserCreateWithoutCreativePreferenceInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
@@ -4043,7 +3769,6 @@ export type UserUncheckedCreateWithoutCreativePreferenceInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
@@ -4105,7 +3830,6 @@ export type UserUpdateWithoutCreativePreferenceInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
@@ -4151,7 +3875,6 @@ export type UserUncheckedUpdateWithoutCreativePreferenceInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
@@ -4198,7 +3921,6 @@ export type UserCreateWithoutAssistantPersonaInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
@@ -4244,7 +3966,6 @@ export type UserUncheckedCreateWithoutAssistantPersonaInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
@@ -4306,7 +4027,6 @@ export type UserUpdateWithoutAssistantPersonaInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
@@ -4352,7 +4072,6 @@ export type UserUncheckedUpdateWithoutAssistantPersonaInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
@@ -4398,7 +4117,6 @@ export type UserCreateWithoutProjectRulesInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
@@ -4444,7 +4162,6 @@ export type UserUncheckedCreateWithoutProjectRulesInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
@@ -4506,7 +4223,6 @@ export type UserUpdateWithoutProjectRulesInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
@@ -4552,7 +4268,6 @@ export type UserUncheckedUpdateWithoutProjectRulesInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
@@ -4597,7 +4312,6 @@ export type UserCreateWithoutCharacterCardsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
@@ -4643,7 +4357,6 @@ export type UserUncheckedCreateWithoutCharacterCardsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
@@ -4705,7 +4418,6 @@ export type UserUpdateWithoutCharacterCardsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
@@ -4751,7 +4463,6 @@ export type UserUncheckedUpdateWithoutCharacterCardsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
@@ -4797,7 +4508,6 @@ export type UserCreateWithoutLikesGivenInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
@@ -4843,7 +4553,6 @@ export type UserUncheckedCreateWithoutLikesGivenInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
@@ -4905,7 +4614,6 @@ export type UserUpdateWithoutLikesGivenInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
@@ -4951,7 +4659,6 @@ export type UserUncheckedUpdateWithoutLikesGivenInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
@@ -4997,7 +4704,6 @@ export type UserCreateWithoutFollowsGivenInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
@@ -5043,7 +4749,6 @@ export type UserUncheckedCreateWithoutFollowsGivenInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
@@ -5094,7 +4799,6 @@ export type UserCreateWithoutFollowsReceivedInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
@@ -5140,7 +4844,6 @@ export type UserUncheckedCreateWithoutFollowsReceivedInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
@@ -5202,7 +4905,6 @@ export type UserUpdateWithoutFollowsGivenInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
@@ -5248,7 +4950,6 @@ export type UserUncheckedUpdateWithoutFollowsGivenInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
@@ -5305,7 +5006,6 @@ export type UserUpdateWithoutFollowsReceivedInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
@@ -5351,7 +5051,6 @@ export type UserUncheckedUpdateWithoutFollowsReceivedInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
@@ -5397,7 +5096,6 @@ export type UserCreateWithoutLoraTrainingJobsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
@@ -5443,7 +5141,6 @@ export type UserUncheckedCreateWithoutLoraTrainingJobsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
@@ -5505,7 +5202,6 @@ export type UserUpdateWithoutLoraTrainingJobsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
@@ -5551,7 +5247,6 @@ export type UserUncheckedUpdateWithoutLoraTrainingJobsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
@@ -5597,7 +5292,6 @@ export type UserCreateWithoutLoraAssetsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
@@ -5643,7 +5337,6 @@ export type UserUncheckedCreateWithoutLoraAssetsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
@@ -5705,7 +5398,6 @@ export type UserUpdateWithoutLoraAssetsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
@@ -5751,7 +5443,6 @@ export type UserUncheckedUpdateWithoutLoraAssetsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
@@ -5797,7 +5488,6 @@ export type UserCreateWithoutExtractedElementsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
@@ -5843,7 +5533,6 @@ export type UserUncheckedCreateWithoutExtractedElementsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
@@ -5905,7 +5594,6 @@ export type UserUpdateWithoutExtractedElementsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
@@ -5951,7 +5639,6 @@ export type UserUncheckedUpdateWithoutExtractedElementsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
@@ -5998,7 +5685,6 @@ export type UserCreateWithoutContextCardsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
@@ -6044,7 +5730,6 @@ export type UserUncheckedCreateWithoutContextCardsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
@@ -6106,7 +5791,6 @@ export type UserUpdateWithoutContextCardsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
@@ -6152,7 +5836,6 @@ export type UserUncheckedUpdateWithoutContextCardsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
@@ -6198,7 +5881,6 @@ export type UserCreateWithoutAssistantMemoriesInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
@@ -6244,7 +5926,6 @@ export type UserUncheckedCreateWithoutAssistantMemoriesInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
@@ -6306,7 +5987,6 @@ export type UserUpdateWithoutAssistantMemoriesInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
@@ -6352,7 +6032,6 @@ export type UserUncheckedUpdateWithoutAssistantMemoriesInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
@@ -6398,7 +6077,6 @@ export type UserCreateWithoutCharacterCardRevisionsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
@@ -6444,7 +6122,6 @@ export type UserUncheckedCreateWithoutCharacterCardRevisionsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
@@ -6506,7 +6183,6 @@ export type UserUpdateWithoutCharacterCardRevisionsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
@@ -6552,7 +6228,6 @@ export type UserUncheckedUpdateWithoutCharacterCardRevisionsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
@@ -6598,7 +6273,6 @@ export type UserCreateWithoutAssistantSkillsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
@@ -6644,7 +6318,6 @@ export type UserUncheckedCreateWithoutAssistantSkillsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
@@ -6706,7 +6379,6 @@ export type UserUpdateWithoutAssistantSkillsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
@@ -6752,7 +6424,6 @@ export type UserUncheckedUpdateWithoutAssistantSkillsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
@@ -6798,7 +6469,6 @@ export type UserCreateWithoutAssistantTurnRecordsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
@@ -6844,7 +6514,6 @@ export type UserUncheckedCreateWithoutAssistantTurnRecordsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
   assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
   researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
@@ -6906,7 +6575,6 @@ export type UserUpdateWithoutAssistantTurnRecordsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
@@ -6952,7 +6620,6 @@ export type UserUncheckedUpdateWithoutAssistantTurnRecordsInput = {
   nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
   assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
   researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
-  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
@@ -6987,7 +6654,6 @@ export type UserCountOutputType = {
   nodeWorkflowProjects: number
   assistantConversations: number
   researchRuns: number
-  voiceRooms: number
   projectRules: number
   contextCards: number
   assistantMemories: number
@@ -7016,7 +6682,6 @@ export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.I
   nodeWorkflowProjects?: boolean | UserCountOutputTypeCountNodeWorkflowProjectsArgs
   assistantConversations?: boolean | UserCountOutputTypeCountAssistantConversationsArgs
   researchRuns?: boolean | UserCountOutputTypeCountResearchRunsArgs
-  voiceRooms?: boolean | UserCountOutputTypeCountVoiceRoomsArgs
   projectRules?: boolean | UserCountOutputTypeCountProjectRulesArgs
   contextCards?: boolean | UserCountOutputTypeCountContextCardsArgs
   assistantMemories?: boolean | UserCountOutputTypeCountAssistantMemoriesArgs
@@ -7159,13 +6824,6 @@ export type UserCountOutputTypeCountResearchRunsArgs<ExtArgs extends runtime.Typ
 /**
  * UserCountOutputType without action
  */
-export type UserCountOutputTypeCountVoiceRoomsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  where?: Prisma.VoiceRoomWhereInput
-}
-
-/**
- * UserCountOutputType without action
- */
 export type UserCountOutputTypeCountProjectRulesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.ProjectRuleWhereInput
 }
@@ -7254,7 +6912,6 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   nodeWorkflowProjects?: boolean | Prisma.User$nodeWorkflowProjectsArgs<ExtArgs>
   assistantConversations?: boolean | Prisma.User$assistantConversationsArgs<ExtArgs>
   researchRuns?: boolean | Prisma.User$researchRunsArgs<ExtArgs>
-  voiceRooms?: boolean | Prisma.User$voiceRoomsArgs<ExtArgs>
   assistantPersona?: boolean | Prisma.User$assistantPersonaArgs<ExtArgs>
   projectRules?: boolean | Prisma.User$projectRulesArgs<ExtArgs>
   contextCards?: boolean | Prisma.User$contextCardsArgs<ExtArgs>
@@ -7342,7 +6999,6 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   nodeWorkflowProjects?: boolean | Prisma.User$nodeWorkflowProjectsArgs<ExtArgs>
   assistantConversations?: boolean | Prisma.User$assistantConversationsArgs<ExtArgs>
   researchRuns?: boolean | Prisma.User$researchRunsArgs<ExtArgs>
-  voiceRooms?: boolean | Prisma.User$voiceRoomsArgs<ExtArgs>
   assistantPersona?: boolean | Prisma.User$assistantPersonaArgs<ExtArgs>
   projectRules?: boolean | Prisma.User$projectRulesArgs<ExtArgs>
   contextCards?: boolean | Prisma.User$contextCardsArgs<ExtArgs>
@@ -7379,7 +7035,6 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     nodeWorkflowProjects: Prisma.$NodeWorkflowProjectPayload<ExtArgs>[]
     assistantConversations: Prisma.$AssistantConversationPayload<ExtArgs>[]
     researchRuns: Prisma.$ResearchRunPayload<ExtArgs>[]
-    voiceRooms: Prisma.$VoiceRoomPayload<ExtArgs>[]
     assistantPersona: Prisma.$AssistantPersonaPayload<ExtArgs> | null
     projectRules: Prisma.$ProjectRulePayload<ExtArgs>[]
     contextCards: Prisma.$ContextCardPayload<ExtArgs>[]
@@ -7819,7 +7474,6 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   nodeWorkflowProjects<T extends Prisma.User$nodeWorkflowProjectsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$nodeWorkflowProjectsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$NodeWorkflowProjectPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   assistantConversations<T extends Prisma.User$assistantConversationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$assistantConversationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AssistantConversationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   researchRuns<T extends Prisma.User$researchRunsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$researchRunsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ResearchRunPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
-  voiceRooms<T extends Prisma.User$voiceRoomsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$voiceRoomsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$VoiceRoomPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   assistantPersona<T extends Prisma.User$assistantPersonaArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$assistantPersonaArgs<ExtArgs>>): Prisma.Prisma__AssistantPersonaClient<runtime.Types.Result.GetResult<Prisma.$AssistantPersonaPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   projectRules<T extends Prisma.User$projectRulesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$projectRulesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ProjectRulePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   contextCards<T extends Prisma.User$contextCardsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$contextCardsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ContextCardPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -8691,30 +8345,6 @@ export type User$researchRunsArgs<ExtArgs extends runtime.Types.Extensions.Inter
   take?: number
   skip?: number
   distinct?: Prisma.ResearchRunScalarFieldEnum | Prisma.ResearchRunScalarFieldEnum[]
-}
-
-/**
- * User.voiceRooms
- */
-export type User$voiceRoomsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  /**
-   * Select specific fields to fetch from the VoiceRoom
-   */
-  select?: Prisma.VoiceRoomSelect<ExtArgs> | null
-  /**
-   * Omit specific fields from the VoiceRoom
-   */
-  omit?: Prisma.VoiceRoomOmit<ExtArgs> | null
-  /**
-   * Choose, which related nodes to fetch as well
-   */
-  include?: Prisma.VoiceRoomInclude<ExtArgs> | null
-  where?: Prisma.VoiceRoomWhereInput
-  orderBy?: Prisma.VoiceRoomOrderByWithRelationInput | Prisma.VoiceRoomOrderByWithRelationInput[]
-  cursor?: Prisma.VoiceRoomWhereUniqueInput
-  take?: number
-  skip?: number
-  distinct?: Prisma.VoiceRoomScalarFieldEnum | Prisma.VoiceRoomScalarFieldEnum[]
 }
 
 /**

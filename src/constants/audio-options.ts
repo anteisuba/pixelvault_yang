@@ -255,6 +255,7 @@ export type FishAudioVoiceId = (typeof FISH_AUDIO_VOICES)[number]['id']
 export const AUDIO_CLIP_SOURCE_KINDS = [
   'platformSample',
   'history',
+  /** 配音间台词（10-26 配音间删了；旧卡上还存着这个值，照旧能读）。 */
   'voiceRoom',
   'library',
   'upload',
@@ -283,7 +284,7 @@ export const AUDIO_CLIP_SOURCE = {
 } as const satisfies Record<AudioClipSourceKind, AudioClipSourceKind>
 
 /**
- * 声音库面板的五个页签（画板 `AudioLibrary.dc.html`）—— 顺序即画板顺序。
+ * 声音库面板的四个页签（画板 `AudioLibrary.dc.html`，10-26 配音间那一栏随配音间删了）—— 顺序即画板顺序。
  * ⚠ 与 `AUDIO_CLIP_SOURCE_KINDS` **不是**同一个值域：`upload` / `generated` 是
  * 这张卡自己的来路，不是库里的一栏。
  */
@@ -292,7 +293,6 @@ export const VOICE_LIBRARY_TAB_IDS = [
   // 声音库方向 A（owner 2026-09-29）：收藏紧跟平台 —— 两栏都是「嗓子」，后三栏是录音。
   'favorites',
   'history',
-  'voiceRoom',
   'library',
 ] as const
 
@@ -306,7 +306,6 @@ export type VoiceLibraryTabId = (typeof VOICE_LIBRARY_TAB_IDS)[number]
  */
 export const VOICE_LIBRARY_DATED_TAB_IDS = [
   'history',
-  'voiceRoom',
   'library',
 ] as const satisfies readonly VoiceLibraryTabId[]
 
@@ -315,6 +314,3 @@ export const VOICE_LIBRARY_PANEL_WIDTH = 640
 
 /** 每个页签一次最多列几条（⛔ 面板不做分页，画板只有一条滚动列表）。 */
 export const VOICE_LIBRARY_TAB_LIMIT = 40
-
-/** 「配音间」页签最多翻几个房间的台词（房间是少数，⛔ 不无界并发）。 */
-export const VOICE_LIBRARY_ROOM_LIMIT = 8

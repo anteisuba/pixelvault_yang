@@ -175,6 +175,7 @@ export const API_ENDPOINTS = {
   ASSISTANT_CONVERSATION: '/api/assistant/conversation',
   /** Assistant persona — one per user, shared by all four workbench domains */
   ASSISTANT_PERSONA: '/api/assistant/persona',
+  ASSISTANT_SPEAK: '/api/assistant/speak',
   /** Custom AI avatar upload / removal (separate R2 leg from the account avatar) */
   ASSISTANT_PERSONA_AVATAR: '/api/assistant/persona/avatar',
   /** Standing project rules the assistant reads and records */
@@ -329,15 +330,6 @@ export const API_ENDPOINTS = {
 
   /** Audio generation status polling */
   GENERATE_AUDIO_STATUS: '/api/generate-audio/status',
-
-  /** 配音间：一场戏 = 一个房间 */
-  VOICEROOM_ROOMS: '/api/voiceroom/rooms',
-
-  /** 配音间：一条台词 = 一次生成 */
-  VOICEROOM_LINES: '/api/voiceroom/lines',
-
-  /** 配音间：聊天模式，你说一句、她回一句（SSE） */
-  VOICEROOM_CHAT: '/api/voiceroom/chat',
 
   /** Studio V2 */
   STUDIO_GENERATE: '/api/studio/generate',

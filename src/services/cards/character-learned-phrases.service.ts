@@ -3,10 +3,7 @@ import 'server-only'
 import { z } from 'zod'
 
 import { CHARACTER_PERSONA_LIMITS } from '@/constants/cards/character-card'
-import {
-  VOICE_LINE_TEXT_MAX_LENGTH,
-  VOICE_ROOM_LEARN_PHRASES,
-} from '@/constants/voiceroom'
+import { CHAT_LEARN_PHRASES } from '@/constants/chat-voice'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import type { AssistantRoute } from '@/services/kernel/assistant-route.service'
@@ -31,7 +28,7 @@ const LEARN_SYSTEM_PROMPT = `You read short chat messages written by one person 
 Rules:
 - Copy each expression exactly as it appears in the messages; never translate, fix or invent one.
 - Skip ordinary words anyone would use, names of people or things, and anything private (contacts, places, health, money).
-- Each expression at most ${CHARACTER_PERSONA_LIMITS.learnedPhraseChars} characters. At most ${VOICE_ROOM_LEARN_PHRASES.maxNewPerRun}. None is a fine answer.
+- Each expression at most ${CHARACTER_PERSONA_LIMITS.learnedPhraseChars} characters. At most ${CHAT_LEARN_PHRASES.maxNewPerRun}. None is a fine answer.
 - Output ONLY JSON: {"phrases": ["..."]}`
 
 function parsePhrases(raw: string): string[] {
@@ -69,7 +66,7 @@ export function mergeLearnedPhrases(
             !own.has(phrase),
         ),
     ),
-  ].slice(0, VOICE_ROOM_LEARN_PHRASES.maxNewPerRun)
+  ].slice(0, CHAT_LEARN_PHRASES.maxNewPerRun)
   return [...kept.filter((phrase) => !fresh.includes(phrase)), ...fresh].slice(
     -CHARACTER_PERSONA_LIMITS.learnedPhrases,
   )
@@ -78,8 +75,7 @@ export function mergeLearnedPhrases(
 /** 这一轮该不该学：你在这间说的第 N 句（含刚说的这句）正好是间隔的倍数。 */
 export function shouldLearnPhrases(userLineCount: number): boolean {
   return (
-    userLineCount > 0 &&
-    userLineCount % VOICE_ROOM_LEARN_PHRASES.everyUserLines === 0
+    userLineCount > 0 && userLineCount % CHAT_LEARN_PHRASES.everyUserLines === 0
   )
 }
 
@@ -95,7 +91,7 @@ export async function learnCreatorPhrases(input: {
 }): Promise<string[] | null> {
   try {
     const said = input.said
-      .slice(-VOICE_ROOM_LEARN_PHRASES.readUserLines)
+      .slice(-CHAT_LEARN_PHRASES.readUserLines)
       .map((line) => line.trim())
       .filter(Boolean)
       .join('\n')
@@ -112,7 +108,7 @@ export async function learnCreatorPhrases(input: {
       systemPrompt: LEARN_SYSTEM_PROMPT,
       userPrompt: said,
       promptGuardMaxLength:
-        VOICE_LINE_TEXT_MAX_LENGTH * VOICE_ROOM_LEARN_PHRASES.readUserLines,
+        CHAT_LEARN_PHRASES.lineMaxChars * CHAT_LEARN_PHRASES.readUserLines,
       adapterType: input.assistant.route.adapterType,
       apiKey: input.assistant.route.apiKey,
       providerConfig: input.assistant.route.providerConfig,

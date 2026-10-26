@@ -474,6 +474,10 @@
       "unbound": "まだ声がありません。先に声を選んでください",
       "modelUnavailable": "利用可能な音声モデルがありません",
       "voiceCardUnavailable": "その音声は利用できなくなりました"
+    },
+    "voiceBench": {
+      "noPersona": "先にキャラクターに切り替えてから、彼女の言い方に直してください",
+      "rewriteEmpty": "書き直せませんでした。もう一度試してください"
     }
   },
   "DropZone": {

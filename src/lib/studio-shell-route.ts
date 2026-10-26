@@ -79,10 +79,11 @@ export function shellOverlayFromPath(
   return libraryCategoryFromPath(pathname)
 }
 
-/** 外壳管的路由：`/studio/**` 与 `/library/**`（≥1024 全站侧栏让给外壳左栏）。 */
+/** 外壳管的路由：`/studio/**`、`/library/**` 与我的主页（≥1024 全站侧栏让给外壳左栏）。 */
 export function isStudioShellPath(pathname: string): boolean {
   return (
     underPrefix(pathname, ROUTES.STUDIO) ||
-    underPrefix(pathname, ROUTES.LIBRARY)
+    underPrefix(pathname, ROUTES.LIBRARY) ||
+    pathname === ROUTES.MY_PROFILE
   )
 }

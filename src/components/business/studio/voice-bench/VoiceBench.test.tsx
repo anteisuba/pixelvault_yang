@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const state = vi.hoisted(() => ({
@@ -13,7 +13,6 @@ const state = vi.hoisted(() => ({
     pending: [] as { key: string; text: string; status: string }[],
     speak: vi.fn(),
     retry: vi.fn(),
-    retake: vi.fn(),
     refresh: vi.fn(),
   },
   voice: {
@@ -23,10 +22,14 @@ const state = vi.hoisted(() => ({
     voiceName: 'Warm',
     bind: vi.fn(),
   },
+  rewrite: vi.fn(),
 }))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
+}))
+vi.mock('@/lib/api-client', () => ({
+  rewriteVoiceBenchTextAPI: state.rewrite,
 }))
 vi.mock('@/hooks/use-voice-bench', () => ({
   useVoiceBench: () => state.bench,
@@ -81,23 +84,35 @@ beforeEach(() => {
 })
 
 describe('VoiceBench（配音台 ③）', () => {
-  it('一行一句：句首语气单独摆，▶ 和重录各一颗；写一句按回车就念', () => {
+  it('一行一句：句首语气单独摆，▶ 和「放回输入框」各一颗；写一句按回车就念', () => {
     render(<VoiceBench />)
     const row = screen.getByTestId('voice-bench-line')
     expect(row).toHaveTextContent('[whispering]')
     expect(row).toHaveTextContent('嘘，书会被吵醒的。')
-    fireEvent.click(screen.getByRole('button', { name: 'retake' }))
-    expect(state.bench.retake).toHaveBeenCalledWith(
-      '[whispering] 嘘，书会被吵醒的。',
-    )
-
     const box = screen.getByRole('textbox', { name: 'placeholder' })
+    fireEvent.click(screen.getByRole('button', { name: 'editLine' }))
+    expect(box).toHaveValue('[whispering] 嘘，书会被吵醒的。')
+
     fireEvent.change(box, { target: { value: '欢迎来到图书馆。' } })
     fireEvent.keyDown(box, { key: 'Enter' })
     expect(state.bench.speak).toHaveBeenCalledWith(
       '欢迎来到图书馆。',
       undefined,
     )
+  })
+
+  it('按她说：改好的字回到输入框，⛔ 直接念', async () => {
+    state.rewrite.mockResolvedValue({
+      success: true,
+      data: { text: '欢迎光临～这里是图书馆哦。' },
+    })
+    render(<VoiceBench />)
+    const box = screen.getByRole('textbox', { name: 'placeholder' })
+    fireEvent.change(box, { target: { value: '欢迎来到图书馆。' } })
+    fireEvent.click(screen.getByTestId('voice-bench-rewrite'))
+    expect(state.rewrite).toHaveBeenCalledWith({ text: '欢迎来到图书馆。' })
+    await waitFor(() => expect(box).toHaveValue('欢迎光临～这里是图书馆哦。'))
+    expect(state.bench.speak).not.toHaveBeenCalled()
   })
 
   it('默认助手：先换个角色，⛔ 输入框', () => {

@@ -33,7 +33,7 @@ let pendingSeq = 0
 
 /**
  * 配音台（③）：台上那几句 = 素材库里她这副嗓子念过的音频（⛔ 另存台词表，用户 10-26）。
- * 念一句 = 派任务 → 等它好 → 重新读一遍列表、放刚念好的那条。重录 = 把那句的字再念一遍（新的一条）。
+ * 念一句 = 派任务 → 等它好 → 重新读一遍列表、放刚念好的那条。想改哪句：↻ 放回输入框改了再念（新的一条，旧的留着）。
  *
  * `personaKey` 变了（换人 / 换嗓子）就重新读。
  */
@@ -134,9 +134,6 @@ export function useVoiceBench(personaKey: string) {
     [pending, run],
   )
 
-  /** 重录：那句的字（带着句首语气）原样再念一次。 */
-  const retake = useCallback((text: string) => speak(text), [speak])
-
   return {
     data,
     error,
@@ -144,7 +141,6 @@ export function useVoiceBench(personaKey: string) {
     pending,
     speak,
     retry,
-    retake,
     refresh,
   }
 }

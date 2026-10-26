@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
@@ -13,7 +14,14 @@ import {
   AUDIO_STYLE,
   type AudioEmotion,
 } from '@/constants/voice-cards'
-import { ChevronDown, Play, RotateCcw, Square } from '@/components/icons'
+import {
+  ArrowUp,
+  ChevronDown,
+  PencilLine,
+  Play,
+  Sparkles,
+  Square,
+} from '@/components/icons'
 import {
   AvatarDisc,
   StudioOperatorAvatarSwitcher,
@@ -40,6 +48,7 @@ import {
 } from '@/hooks/use-operator-voice'
 import { usePersonaVoice } from '@/hooks/use-persona-voice'
 import { useVoiceBench, type VoiceBenchPending } from '@/hooks/use-voice-bench'
+import { rewriteVoiceBenchTextAPI } from '@/lib/api-client'
 import { leadingVoiceCues } from '@/lib/chat-voice'
 import { cn } from '@/lib/utils'
 import type { VoiceBenchLine } from '@/types/voice-bench'
@@ -75,7 +84,8 @@ function LineText({ text, muted }: { text: string; muted?: boolean }) {
 
 /**
  * 配音台（③，样件 v5）：只配现在这一位（全局人设那个角色，用户 10-26）。
- * 顶上她 + 嗓子▾；中间一行一句（▶ 放 · ↻ 重录）；底下写一句 · 情绪 · 型号 · 念。
+ * 顶上她 + 嗓子▾；中间一行一句（▶ 放 · ✎ 放回输入框）；底下写一句 · 情绪 · 型号 · 按她说 · 念。
+ * 「按她说」（③-2a）改完回到输入框给你看，你再点念（⛔ 改完直接念，用户 10-26）。
  * 念好的音频照常进素材库；台上列的就是素材库里她这副嗓子念过的那些（⛔ 另存台词表）。
  */
 export function VoiceBench() {
@@ -96,6 +106,8 @@ export function VoiceBench() {
     retryKey?: string
   } | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
+  const inputRef = useRef<HTMLTextAreaElement | null>(null)
+  const [rewriting, setRewriting] = useState(false)
 
   const lines = bench.data?.lines ?? []
   const count = lines.length + bench.pending.length
@@ -109,6 +121,27 @@ export function VoiceBench() {
     if (!draft.trim()) return
     void bench.speak(draft, emotion === AUDIO_STYLE.NONE ? undefined : emotion)
     setDraft('')
+  }
+
+  /** 改好放回输入框、光标落到最后，看一眼再念。 */
+  const fillDraft = (text: string) => {
+    setDraft(text)
+    requestAnimationFrame(() => {
+      const input = inputRef.current
+      if (!input) return
+      input.focus()
+      input.setSelectionRange(text.length, text.length)
+    })
+  }
+
+  const rewrite = async () => {
+    const text = draft.trim()
+    if (!text || rewriting) return
+    setRewriting(true)
+    const result = await rewriteVoiceBenchTextAPI({ text })
+    setRewriting(false)
+    if (result.success) fillDraft(result.data.text)
+    else toast.error(result.error)
   }
 
   const noPersona = bench.data !== null && bench.data.characterCardId === null
@@ -183,7 +216,7 @@ export function VoiceBench() {
                 avatarUrl={persona.avatarUrl}
                 name={voice.personaName}
                 playing={playingId === line.id}
-                onRetake={() => void bench.retake(line.text)}
+                onEdit={() => fillDraft(line.text)}
               />
             ))}
             {bench.pending.map((item) => (
@@ -212,7 +245,9 @@ export function VoiceBench() {
             className="flex shrink-0 flex-col gap-2.5 rounded-16 py-2.5 pr-3 pl-4 shadow-ring"
           >
             <textarea
+              ref={inputRef}
               value={draft}
+              readOnly={rewriting}
               onChange={(event) => setDraft(event.target.value)}
               onKeyDown={(event) => {
                 if (
@@ -254,13 +289,27 @@ export function VoiceBench() {
               />
               <span className="flex-1" />
               <Button
-                type="submit"
+                type="button"
                 size="sm"
-                disabled={!draft.trim()}
-                data-testid="voice-bench-speak"
+                variant="secondary"
+                disabled={!draft.trim() || rewriting}
+                onClick={() => void rewrite()}
+                data-testid="voice-bench-rewrite"
               >
-                {t('speak')}
+                {rewriting ? <Spinner size="sm" /> : <Sparkles aria-hidden />}
+                {t('rewrite')}
               </Button>
+              {/* 和对话输入框同一颗发送键（用户 10-27「换成通用的」）。 */}
+              <button
+                type="submit"
+                disabled={!draft.trim() || rewriting}
+                aria-label={t('speak')}
+                title={t('speak')}
+                data-testid="voice-bench-speak"
+                className="grid size-8 shrink-0 place-items-center rounded-full bg-foreground text-background transition-[background-color,color,transform] duration-fast ease-standard hover:bg-foreground/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none disabled:cursor-not-allowed disabled:bg-surface-fill-track disabled:text-muted-foreground"
+              >
+                <ArrowUp className="size-4" aria-hidden />
+              </button>
             </div>
           </form>
         </>
@@ -357,13 +406,13 @@ function BenchLineRow({
   avatarUrl,
   name,
   playing,
-  onRetake,
+  onEdit,
 }: {
   line: VoiceBenchLine
   avatarUrl: string | null
   name: string
   playing: boolean
-  onRetake(): void
+  onEdit(): void
 }) {
   const t = useTranslations('VoiceBench')
   return (
@@ -386,15 +435,15 @@ function BenchLineRow({
       </button>
       <button
         type="button"
-        aria-label={t('retake')}
-        title={t('retake')}
-        onClick={onRetake}
+        aria-label={t('editLine')}
+        title={t('editLine')}
+        onClick={onEdit}
         className={cn(
           ROUND_KEY_CLASS,
           'text-ink-2 hover:tint-hover hover:text-foreground',
         )}
       >
-        <RotateCcw />
+        <PencilLine />
       </button>
     </div>
   )

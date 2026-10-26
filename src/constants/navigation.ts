@@ -101,7 +101,7 @@ export const SHELL_NAV_GO: readonly ShellNavItem[] = [
    * 头像改开账号菜单，一件事只留一个家，所以它下沉成一条常规导航项。
    *
    * ⭐ 地址是**静态**的 `/u/me`，那条路由在服务端解析当前用户后**就地渲染**
-   * （`app/[locale]/(main)/u/me/page.tsx`，⛔ 不跳转）。⛔ 不要再让壳在渲染时
+   * （`app/[locale]/(main)/(shell)/u/me/my-profile-page.tsx`，⛔ 不跳转）。⛔ 不要再让壳在渲染时
    * 按 `useMyProfile()` 拼地址 —— 那一版真机在日语档看得见侧边栏回流一次。
    *
    * ⚠ 「就地渲染而不是 redirect」正是为了这一项的**激活态**：地址栏停在

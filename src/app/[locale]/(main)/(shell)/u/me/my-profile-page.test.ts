@@ -29,7 +29,7 @@ vi.mock('@/components/business/CreatorProfileView', () => ({
   CreatorProfileView: () => null,
 }))
 
-import { generateMetadata } from './page'
+import { generateMetadata } from './my-profile-page'
 import { ensureUser } from '@/services/user.service'
 
 const mockEnsureUser = vi.mocked(ensureUser)

@@ -1,4 +1,4 @@
-import MyProfilePage from '@/app/[locale]/(main)/u/me/page'
+import MyProfilePage from '@/app/[locale]/(main)/(shell)/u/me/my-profile-page'
 import { StudioLibraryOverlay } from '@/components/business/studio/shell/StudioLibraryOverlay'
 
 /**

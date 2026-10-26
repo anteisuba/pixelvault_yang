@@ -429,9 +429,7 @@ export function StudioLibraryPicker({
             <Link
               href={studioLibraryPath(item.id as StudioLibraryCategoryId)}
               prefetch={false}
-              {...intent(
-                studioLibraryPath(item.id as StudioLibraryCategoryId),
-              )}
+              {...intent(studioLibraryPath(item.id as StudioLibraryCategoryId))}
               replace={replace}
               aria-label={label}
               aria-current={active ? 'page' : undefined}

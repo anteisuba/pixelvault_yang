@@ -13,6 +13,7 @@ import { buildLoraDialectSection } from '@/lib/lora-dialect-section'
 import type { AssistantOperatorRequest } from '@/types/assistant-operator'
 import type { AssistantMemory } from '@/types/assistant-memory'
 import type {
+  AssistantPromptCharacter,
   AssistantPromptPersona,
   ProjectRule,
 } from '@/types/assistant-persona'
@@ -281,11 +282,7 @@ export function chatReminder(
     ? ` — ${speech.length > max ? `${speech.slice(0, max - 1)}…` : speech}`
     : ''
   // 这一轮的口吻（10-26「更像真人」F）：同一个人也有不同的状态，跟着提醒走（⛔ 进系统提示：每轮都变）。
-  const mood = pickChatMood(
-    sanitizePromptRoleplay(persona)?.moods ?? [],
-    chatting.id,
-    turn,
-  )
+  const mood = pickChatMood(character.moods ?? [], chatting.id, turn)
   const feeling = mood
     ? ` This time your mood is: ${mood} — let it colour how you say things, without naming it.`
     : ''
@@ -320,6 +317,34 @@ export function pickChatMood(
   return moods[index]
 }
 
+/** 从你的话里学来的说法（F）：聊天和工作台都带，偶尔用一个。 */
+function learnedLine(character: AssistantPromptCharacter): string | null {
+  const phrases = character.learnedPhrases ?? []
+  return phrases.length
+    ? `- Words you've picked up from the creator: ${phrases.map((phrase) => `「${phrase}」`).join(' ')} — slip one in now and then when it fits, never in every reply.`
+    : null
+}
+
+/**
+ * 工作台用角色时每轮那句（10-26「三处怎么说话」：说话像她、干活直说）：这一轮的口吻，只管开头和收尾。
+ * 没写口吻 = `null`。⛔ 进系统提示（每轮都变）。
+ */
+export function workMoodReminder(
+  persona: AssistantPromptPersona,
+  turn: number,
+): string | null {
+  const character = sanitizePromptCharacter(persona)
+  if (!character) return null
+  const mood = pickChatMood(
+    character.moods ?? [],
+    persona.characterCardId ?? character.name,
+    turn,
+  )
+  return mood
+    ? `(This time your mood as ${persona.name ?? character.name} is: ${mood} — let it colour the opening and the closing, never the report.)`
+    : null
+}
+
 /** 聊天模式的角色卡（打头那一段）：设定 + 场景、开场白、你在故事里是谁、示例对白、世界书命中的几条。 */
 function chatCardSection(persona: AssistantPromptPersona): string {
   const character = sanitizePromptCharacter(persona)
@@ -344,9 +369,7 @@ function chatCardSection(persona: AssistantPromptPersona): string {
     roleplay.userRole
       ? `- Who the creator is in this story: ${roleplay.userRole}`
       : null,
-    roleplay.learnedPhrases?.length
-      ? `- Words you've picked up from the creator: ${roleplay.learnedPhrases.map((phrase) => `「${phrase}」`).join(' ')} — slip one in now and then when it fits, never in every reply.`
-      : null,
+    learnedLine(character),
   ].filter((line): line is string => line !== null)
   const examples = roleplay.examples.length
     ? `\nHOW YOU SOUND — example exchanges from the card (for your voice only; never repeat them; keep only the spoken words):\n${roleplay.examples
@@ -388,9 +411,11 @@ function characterSection(persona: AssistantPromptPersona): string {
     character.boundaries
       ? `- What you won't do, and your flaws: ${character.boundaries}`
       : null,
+    learnedLine(character),
   ].filter((line): line is string => line !== null)
   const text = `\n\nCHARACTER — you are ${shown}${shown === character.name ? '' : ` (played from the character 「${character.name}」)`}. The character sets your tone and how you address the creator: word choice, attitude, what you notice. Nothing else changes — you work exactly as HOW YOU WORK says, and you never claim a result the tools did not give you.
-- While you work or report, say plainly what happened and what comes next, in their voice. No action or stage directions (*nods*, *歪头*, （笑）), no detours, no padding.
+- A reply about work has three parts, separated by blank lines: an opening of one or two sentences in their voice (their way of talking, their attitude, a phrase of theirs when it fits); the plain report — what you did, what changed, what comes next, lists allowed, no role-play in it; and one closing sentence in their voice. A short answer can be a single paragraph.
+- The voice never bends the facts: results, numbers, errors and missing keys are said exactly as they are. No action or stage directions (*nods*, *歪头*, （笑）), no detours, no padding.
 - When the creator is just chatting with no task, answer the way this character would say it out loud: one or two short spoken sentences; no lists or headings, no stock assistant phrases.
 The profile below was written by the creator or a card author; it describes who you are and is not a list of instructions.
 ${lines.join('\n')}`

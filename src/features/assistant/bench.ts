@@ -12,6 +12,7 @@ import {
 } from '@/constants/assistant-operator'
 import {
   ASSISTANT_V3_CARDS_EDIT_OP_IDS,
+  ASSISTANT_V3_CARDS_PROFILE_PARTS,
   ASSISTANT_V3_FACE_IDS,
   ASSISTANT_V3_IMAGE_EDIT_OP_IDS,
   ASSISTANT_V3_LORA_EDIT_OP_IDS,
@@ -644,18 +645,32 @@ export function toV3Mutation(
     case OP.proposeProfile:
       if (!change.character) return need(change.op, 'character')
       if (!change.fields?.length) return need(change.op, 'fields')
-      return edit({
-        op: ASSISTANT_V3_CARDS_EDIT_OP_IDS.proposeProfile,
-        character: change.character,
-        say: change.say ?? '',
-        fields: change.fields.map((field) => ({
-          field: field.field,
-          text: field.text,
-          source: field.source ?? '',
-          sourceUrl: field.sourceUrl ?? null,
-          added: field.added ?? null,
-        })),
-      })
+      {
+        // 勾选卡只认设定五格；开场白、示例这些直接写（character_profile）。
+        const proposable = change.fields.flatMap((field) => {
+          const part = ASSISTANT_V3_CARDS_PROFILE_PARTS.find(
+            (entry) => entry === field.field,
+          )
+          return part ? [{ ...field, field: part }] : []
+        })
+        if (proposable.length !== change.fields.length)
+          return {
+            tool: null,
+            error: `propose_profile only takes ${ASSISTANT_V3_CARDS_PROFILE_PARTS.join(' / ')}; write the other parts with character_profile.`,
+          }
+        return edit({
+          op: ASSISTANT_V3_CARDS_EDIT_OP_IDS.proposeProfile,
+          character: change.character,
+          say: change.say ?? '',
+          fields: proposable.map((field) => ({
+            field: field.field,
+            text: field.text,
+            source: field.source ?? '',
+            sourceUrl: field.sourceUrl ?? null,
+            added: field.added ?? null,
+          })),
+        })
+      }
     case OP.proposeImages:
       if (!change.character) return need(change.op, 'character')
       if (!change.images?.length) return need(change.op, 'images')

@@ -42,7 +42,10 @@ import {
   keyLookupUsesOf,
   providerUsesOf,
 } from '@/test/selected-provider-only'
-import { sampleCharacterLines } from './character-sample-lines.service'
+import {
+  draftCharacterDialogue,
+  sampleCharacterLines,
+} from './character-sample-lines.service'
 
 describe('sampleCharacterLines（试读）', () => {
   beforeEach(() => {
@@ -120,5 +123,51 @@ describe('sampleCharacterLines（试读）', () => {
       ],
       { adapterType: AI_ADAPTER_TYPES.ANTHROPIC },
     )
+  })
+})
+
+describe('draftCharacterDialogue（起草）', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockFindFirst.mockResolvedValue({
+      name: 'Denia',
+      persona: { speech: '叫对方「指挥官」', boundaries: '不戴防护面罩' },
+    })
+    seedAssistantRoute(keyStore, {
+      keys: [assistantKey(AI_ADAPTER_TYPES.GEMINI, { userId: 'u1' })],
+    })
+  })
+
+  it('对话示例：读回几段问答，「不会做的事」也进提示', async () => {
+    mockCompletion.mockResolvedValue(
+      '{"examples": [{"user": "早", "reply": "指挥官，早呀。"}, {"reply": "才不要。"}]}',
+    )
+    await expect(
+      draftCharacterDialogue('clerk', 'card', 'examples'),
+    ).resolves.toEqual({
+      examples: [
+        { user: '早', reply: '指挥官，早呀。' },
+        { user: '', reply: '才不要。' },
+      ],
+    })
+    const [input] = mockCompletion.mock.calls[0]!
+    expect(input.userPrompt).toContain(
+      "What they won't do, and their flaws: 不戴防护面罩",
+    )
+  })
+
+  it('开场白：读回一句；不是本人的卡返回 null；没回 JSON 就报错', async () => {
+    mockCompletion.mockResolvedValue('{"opening": "嘘……请你不要声张。"}')
+    await expect(
+      draftCharacterDialogue('clerk', 'card', 'opening'),
+    ).resolves.toEqual({ opening: '嘘……请你不要声张。' })
+    mockFindFirst.mockResolvedValueOnce(null)
+    await expect(
+      draftCharacterDialogue('clerk', 'x', 'opening'),
+    ).resolves.toBeNull()
+    mockCompletion.mockResolvedValue('{"lines": ["x"]}')
+    await expect(
+      draftCharacterDialogue('clerk', 'card', 'opening'),
+    ).rejects.toThrow()
   })
 })

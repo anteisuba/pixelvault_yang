@@ -10,7 +10,7 @@
 
 ## Service / API
 
-- `src/services/cards/character-card.service.ts`（CRUD + 复制）· `character-look.service.ts`（造型增改删、设默认）· `character-sample-lines.service.ts`（试读：按设定写两句台词）· `character-card.mapper.ts`（行 → `CharacterCardRecord`）。风格卡、背景卡与三卡融合编译 `card-recipe-compiler` 2026-10-21 下线（卡片模式只留角色，出图走选中的模型 + 卡片总线）。工作台卡片模式本身、旧管理抽屉（`CharacterCardManager` 等 5 个组件）、一致性打分接口与组合作品接口 2026-10-22 删除（角色①）：工作台只剩一种模式，选了角色就带上；「训练 LoRA」搬进角色详情「用她 ▾」。
+- `src/services/cards/character-card.service.ts`（CRUD + 复制）· `character-look.service.ts`（造型增改删、设默认）· `character-sample-lines.service.ts`（试读：按设定写两句台词；起草：对话示例空着写 5 段、开场白空着写一句）· `character-card.mapper.ts`（行 → `CharacterCardRecord`）。风格卡、背景卡与三卡融合编译 `card-recipe-compiler` 2026-10-21 下线（卡片模式只留角色，出图走选中的模型 + 卡片总线）。工作台卡片模式本身、旧管理抽屉（`CharacterCardManager` 等 5 个组件）、一致性打分接口与组合作品接口 2026-10-22 删除（角色①）：工作台只剩一种模式，选了角色就带上；「训练 LoRA」搬进角色详情「用她 ▾」。
 - API：`/api/character-cards`（GET/POST）· `/api/character-cards/import`（POST，酒馆卡导入）· `/api/character-cards/chub/import`（POST，卡库建卡；卡库搜索由浏览器直接问 chub，没有我们的路由）· `/api/character-cards/[id]`（GET/PATCH/DELETE）· `/api/character-cards/[id]/duplicate`（POST，服务端复制整个角色含造型与 LoRA）· `/api/character-cards/[id]/looks`（POST，加造型）· `/api/character-looks/[id]`（PUT/DELETE）· `/api/character-cards/[id]/sample-lines`。
 - Hooks：`src/hooks/cards/`。
 
@@ -228,3 +228,5 @@ owner 逐项定的口径（对齐稿 https://claude.ai/artifact/FTTAHbuCwHmnMcPr
 
 - Date: 2026-09-20 · Method: 只核了**记忆 vs 卡**那条分界（56a 落地时补写），对照 `src/constants/assistant-memory.ts` 与 `src/services/assistant-memory.service.ts` 确认两边确实没有互转的代码路径。本文其余各节未在本轮复核。
 - Date: 2026-09-24 · Method: 写「卡片总线 v3 契约」时对照代码复核了：v2 七个字段只有 mapper 在写、`CharacterCardRecord` 不带任何一个；画布侧栏读 `ContextCard`（`useContextCards`）；画布镜头空位 `role` 存的是角色名；画布视频载荷不读空位；LLM 文本层只有系统提示 + 用户提示；`StudioGenerateSchema` 没有 `characterCardIds`（quick 出图丢 id 未实跑）。
+
+**更像真人 A+B（10-26，调研 https://claude.ai/artifact/T5A4x1iB6SvAgB3apuSWBq ）**：设定「人物」多一格 `boundaries`（她不会做的事 / 小缺点），进试读、起草、工作台角色段、聊天角色卡、配音间提示。试读点「像她」= 两句各存成一条只有回复的对话示例（试读一次攒一次，上限 `CHARACTER_PERSONA_LIMITS.examples`）。「对话」组里开场白 / 对话示例空着时给「按设定写」（`POST /api/character-cards/[id]/draft-dialogue`，助手那一家），写好直接存，用户点格再改。聊天提示词（`CHAT_STABLE`）加去 AI 腔一条、长度跟开场白和示例走；每轮末尾的「别出戏」提醒带一句示例回复。助手 `character_profile` / `new_character` 能直接写的格扩到 `ASSISTANT_V3_CHARACTER_WRITE_PARTS`（+ boundaries / catchphrases 一行一句 / scenario / opening / examples 酒馆写法整组替换），卡片台快照也带上这几格；勾选卡 propose_profile 仍只有设定五格。后续顺序：F 表达层（拆条、换口吻、学说法）→ C 记忆+关系（并入语义检索⑤角色记忆）→ G 她先开口。

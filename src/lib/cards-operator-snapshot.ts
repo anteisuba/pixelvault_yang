@@ -10,6 +10,7 @@ import type {
 } from '@/types/assistant-operator'
 import { characterCoverUrl, defaultLook } from '@/lib/card-bus'
 import { characterImageCount, characterWork } from '@/lib/character-works'
+import { examplesToTavernText } from '@/hooks/cards/use-character-card-editor'
 
 /**
  * 卡片助手（第五张脸）的 `read_state` 快照 —— 角色页上**有谁**，以及**打开着的那一位**
@@ -76,6 +77,13 @@ export function buildCardsOperatorSnapshot(
             behavior: clip(openCard.persona?.behavior),
             speech: clip(openCard.persona?.speech),
             backstory: clip(openCard.persona?.backstory),
+            boundaries: clip(openCard.persona?.boundaries),
+            catchphrases: clip(openCard.persona?.catchphrases.join('\n')),
+            scenario: clip(openCard.persona?.scenario),
+            opening: clip(openCard.persona?.opening),
+            examples: clip(
+              examplesToTavernText(openCard.persona?.examples ?? []),
+            ),
             tags: tags(openLook.tags),
             otherLooks: openCard.looks
               .filter((look) => !look.isDefault && look.label)

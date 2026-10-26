@@ -243,6 +243,7 @@ describe('createImportedCharacterCard（导入的酒馆卡，附录J ⑥）', ()
       identity: '',
       behavior: '先替别人撑伞',
       speech: '',
+      boundaries: '',
       catchphrases: [],
       scenario: '雨夜的小店',
       opening: '欢迎光临。',

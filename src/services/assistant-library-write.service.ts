@@ -24,7 +24,7 @@ import {
   ASSISTANT_ROUTE_MODEL_AUTO,
 } from '@/constants/assistant-persona'
 import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
-import { ASSISTANT_V3_CARDS_PROFILE_PARTS } from '@/constants/assistant-v3'
+import { ASSISTANT_V3_CHARACTER_WRITE_PARTS } from '@/constants/assistant-v3'
 import {
   ASSISTANT_MEMORY_KIND_IDS as MEMORY_KIND,
   ASSISTANT_MEMORY_LIMITS as MEMORY_LIMITS,
@@ -35,6 +35,7 @@ import { resolveAdapterType } from '@/constants/models'
 import { db } from '@/lib/db'
 import { Prisma } from '@/lib/generated/prisma/client'
 import { appendSlotSources } from '@/hooks/cards/use-character-card-editor'
+import { parseTavernExamples } from '@/lib/tavern-card'
 import {
   createCharacterCard,
   updateCharacterCard,
@@ -103,7 +104,7 @@ export type LibraryWriteOutcome =
     }
   | { ok: false; error: string }
 
-export type ProfilePart = (typeof ASSISTANT_V3_CARDS_PROFILE_PARTS)[number]
+export type ProfilePart = (typeof ASSISTANT_V3_CHARACTER_WRITE_PARTS)[number]
 
 export interface LibraryWriteOwner {
   readonly userId: string
@@ -225,6 +226,30 @@ export interface ProfileFieldInput {
   readonly text: string
 }
 
+/**
+ * 一格文字落进设定：口头禅一行一句（也认「、」「/」分隔），对话示例按酒馆写法切块（整组替换），
+ * 其余原样。「look」不在设定里，调用方另落到默认造型。
+ */
+function applyPersonaField(
+  persona: Partial<CharacterPersona>,
+  field: Exclude<ProfilePart, 'look'>,
+  text: string,
+  name: string,
+): void {
+  if (field === 'catchphrases') {
+    persona.catchphrases = text
+      .split(/\n|、|\s\/\s/)
+      .map((phrase) => phrase.trim().replace(/^[「『"]|[」』"]$/g, ''))
+      .filter(Boolean)
+    return
+  }
+  if (field === 'examples') {
+    persona.examples = parseTavernExamples(text, name)
+    return
+  }
+  persona[field] = text
+}
+
 function personaOf(raw: unknown): CharacterPersona {
   const parsed = CharacterPersonaSchema.safeParse(raw ?? {})
   return parsed.success ? parsed.data : CharacterPersonaSchema.parse({})
@@ -254,7 +279,7 @@ export async function writeCharacterProfile(
   let description: string | undefined
   for (const { field, text } of fields) {
     if (field === 'look') description = text
-    else persona[field] = text
+    else applyPersonaField(persona, field, text, card.name)
   }
   const personaChanged = fields.some(({ field }) => field !== 'look')
   const checked = personaChanged
@@ -316,7 +341,7 @@ export async function createCharacter(
   let description: string | undefined
   for (const { field, text } of input.fields ?? []) {
     if (field === 'look') description = text
-    else persona[field] = text
+    else applyPersonaField(persona, field, text, name)
   }
   const checked = CharacterPersonaSchema.safeParse(persona)
   if (!checked.success)

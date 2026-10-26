@@ -196,6 +196,20 @@ export const ASSISTANT_V3_CARDS_PROFILE_PARTS = [
   'backstory',
 ] as const
 
+/**
+ * 助手能**直接写**的格（10-26「更像真人」：用户要助手把开场白、示例也写进卡）：设定五格 +
+ * 小缺点、口头禅、场景、开场白、对话示例。勾选卡（propose_profile）仍只有上面五格。
+ * 口头禅一行一句；对话示例用酒馆写法（`<START>` / `{{user}}:` / `{{char}}:`）。
+ */
+export const ASSISTANT_V3_CHARACTER_WRITE_PARTS = [
+  ...ASSISTANT_V3_CARDS_PROFILE_PARTS,
+  'boundaries',
+  'catchphrases',
+  'scenario',
+  'opening',
+  'examples',
+] as const
+
 /** 卡片台板子上的叫法：角色句柄前缀、打开那位的图。 */
 export const ASSISTANT_V3_CARDS_ITEM_IDS = {
   characterPrefix: 'char',

@@ -932,13 +932,14 @@ describe('记忆与之前几轮（第 6 步）', () => {
             identity: '斯莱特林的学生',
             behavior: '嘴硬心软',
             speech: '说话带点傲慢。偶尔叫你「笨蛋」。',
+            boundaries: '不会当着别人面道谢',
             catchphrases: [],
             backstory: '',
           },
           roleplay: {
             scenario: '图书馆的午后',
             opening: '',
-            examples: [],
+            examples: [{ user: '', reply: '哼，别以为我会谢你。' }],
           },
         },
       } as typeof prepared
@@ -962,6 +963,10 @@ describe('记忆与之前几轮（第 6 步）', () => {
     )
     expect(prompt).toContain('图书馆的午后')
     expect(prompt).toContain('STAY IN CHARACTER as 马尔福 — 说话带点傲慢。')
+    expect(prompt).toContain('You sound like: 「哼，别以为我会谢你。」')
+    expect(prompt).toContain(
+      "What you won't do, and your flaws: 不会当着别人面道谢",
+    )
     expect(memoryStore.listed).toHaveBeenCalledWith('user-1', {
       characterCardId: 'card-7',
       projectId: null,

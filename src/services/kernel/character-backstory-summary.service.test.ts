@@ -44,6 +44,7 @@ function persona(backstory: string): AssistantPromptPersona {
       identity: '',
       behavior: '',
       speech: '',
+      boundaries: '',
       catchphrases: [],
       backstory,
     },

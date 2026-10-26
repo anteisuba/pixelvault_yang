@@ -187,6 +187,7 @@ export function mapTavernCard(card: {
       identity: '',
       behavior: clip(fields.personality, CHARACTER_PERSONA_LIMITS.behavior),
       speech: '',
+      boundaries: '',
       catchphrases: [],
       scenario: clip(fields.scenario, CHARACTER_PERSONA_LIMITS.scenario),
       opening: clip(fields.first_mes, CHARACTER_PERSONA_LIMITS.opening),

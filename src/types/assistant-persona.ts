@@ -226,6 +226,8 @@ export const AssistantPromptCharacterSchema = z.object({
   speech: z.string(),
   catchphrases: z.array(z.string()),
   backstory: z.string(),
+  /** 她不会做的事 / 小缺点（10-26）。 */
+  boundaries: z.string(),
 })
 
 export type AssistantPromptCharacter = z.infer<

@@ -454,6 +454,7 @@ export const ASSISTANT_PERSONA_LIMITS = {
   maxCharacterBehaviorChars: 800,
   maxCharacterProfileSpeechChars: 600,
   maxCharacterBackstoryChars: 1500,
+  maxCharacterBoundariesChars: 500,
   maxCharacterCatchphrases: 8,
   maxCharacterSectionChars: 4400,
   /**

@@ -33,6 +33,8 @@ export interface CharacterCardDraft {
   identity: string
   behavior: string
   speech: string
+  /** 她不会做的事 / 小缺点（10-26）。 */
+  boundaries: string
   backstory: string
   /** 作品手改值；空 = 从默认造型的标签取。 */
   work: string
@@ -107,6 +109,7 @@ export function draftFromCard(card: CharacterCardRecord): CharacterCardDraft {
     identity: card.persona?.identity ?? '',
     behavior: card.persona?.behavior ?? '',
     speech: card.persona?.speech ?? '',
+    boundaries: card.persona?.boundaries ?? '',
     backstory: fullBackstory(card),
     work: card.workOverride ?? '',
     scenario: card.persona?.scenario ?? '',
@@ -140,6 +143,7 @@ export function updateFromDraft(
       identity: draft.identity.trim(),
       behavior: draft.behavior.trim(),
       speech: draft.speech.trim(),
+      boundaries: clip(draft.boundaries, CHARACTER_PERSONA_LIMITS.boundaries),
       backstory: draft.backstory.trim(),
       scenario: clip(draft.scenario, CHARACTER_PERSONA_LIMITS.scenario),
       opening: clip(draft.opening, CHARACTER_PERSONA_LIMITS.opening),

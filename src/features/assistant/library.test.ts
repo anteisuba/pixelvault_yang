@@ -256,6 +256,7 @@ describe('记忆（第 6 步）', () => {
             identity: '',
             behavior: '',
             speech: '',
+            boundaries: '',
             catchphrases: [],
             backstory: '',
           },

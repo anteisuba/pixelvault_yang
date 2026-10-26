@@ -160,6 +160,7 @@ const CARDS = [
       identity: '舞台魔术师',
       behavior: '先替别人撑好伞',
       speech: '叫对方「指挥官」',
+      boundaries: '',
       catchphrases: [],
       scenario: '',
       opening: '',

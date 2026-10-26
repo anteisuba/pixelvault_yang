@@ -120,13 +120,15 @@ function toPromptCharacter(
       .map((phrase) => phrase.trim())
       .filter(Boolean),
     backstory: profile.backstory.trim(),
+    boundaries: profile.boundaries.trim(),
   }
   const empty =
     !character.identity &&
     !character.behavior &&
     !character.speech &&
     character.catchphrases.length === 0 &&
-    !character.backstory
+    !character.backstory &&
+    !character.boundaries
   return empty ? null : character
 }
 
@@ -493,6 +495,10 @@ export function sanitizePromptCharacter(
       backstory: clean(
         character.backstory,
         ASSISTANT_PERSONA_LIMITS.maxCharacterBackstoryChars,
+      ),
+      boundaries: clean(
+        character.boundaries,
+        ASSISTANT_PERSONA_LIMITS.maxCharacterBoundariesChars,
       ),
     },
     clean(

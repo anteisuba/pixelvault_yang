@@ -140,6 +140,7 @@ export function CharacterRoster() {
         identity: '',
         behavior: '',
         speech: '',
+        boundaries: '',
         backstory: '',
         catchphrases: [],
         scenario: '',

@@ -11,6 +11,7 @@ import {
 import { TAVERN_CARD } from '@/constants/cards/tavern-card'
 import type {
   CharacterCardRecord,
+  CharacterDialogueDraftKind,
   CharacterLookRecord,
   CreateCharacterLookRequest,
   UpdateCharacterCardRequest,
@@ -35,6 +36,7 @@ import {
   type CharacterCardDraft,
   type CharacterLookDraft,
   draftFromCard,
+  examplesToTavernText,
   lookUpdateFromDraft,
   makePrimary,
   removeSlot,
@@ -42,6 +44,7 @@ import {
   updateFromDraft,
 } from '@/hooks/cards/use-character-card-editor'
 import { useCharacterCardUsage } from '@/hooks/cards/use-character-card-usage'
+import { useCharacterDialogueDraft } from '@/hooks/cards/use-character-dialogue-draft'
 import { useCharacterLoras } from '@/hooks/cards/use-character-loras'
 import { useCharacterSampleLines } from '@/hooks/cards/use-character-sample-lines'
 import {
@@ -423,6 +426,7 @@ const PERSON_FIELDS = [
   ['identity', 'fieldIdentity'],
   ['behavior', 'fieldBehavior'],
   ['speech', 'fieldSpeech'],
+  ['boundaries', 'fieldBoundaries'],
   ['backstory', 'fieldBackstory'],
 ] as const
 
@@ -474,6 +478,8 @@ export function CharacterSettingModule({
               value={persona?.[key] ?? ''}
               limit={CHARACTER_PERSONA_LIMITS[key]}
               hint={key === 'behavior' ? t('behaviorHint') : undefined}
+              // 经历最长，单独占一整行（五格排两列不留孤格）。
+              className={key === 'backstory' ? 'lg:col-span-2' : undefined}
               onSave={(text) => save({ [key]: text })}
               {...(key === 'speech'
                 ? { editing: speechEditing, onEditingChange: setSpeechEditing }
@@ -494,7 +500,23 @@ export function CharacterSettingModule({
                 ))}
               </div>
               <div className="flex items-center gap-2.5">
-                <Button type="button" size="sm" onClick={reading.clear}>
+                {/* 「像她」= 这两句存进对话示例（10-26「更像真人」A）：试读一次攒一次，不想要的去示例里删。 */}
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    const lines = reading.lines ?? []
+                    reading.clear()
+                    void save({
+                      examples: examplesToTavernText(
+                        [
+                          ...(persona?.examples ?? []),
+                          ...lines.map((reply) => ({ user: '', reply })),
+                        ].slice(0, CHARACTER_PERSONA_LIMITS.examples),
+                      ),
+                    })
+                  }}
+                >
                   {t('readingLike')}
                 </Button>
                 <Button
@@ -563,9 +585,38 @@ function SettingTavernGroups({
   save: Save
 }) {
   const t = useTranslations('CharacterRoster')
+  const tErrors = useTranslations('Errors')
   const [moreOpen, setMoreOpen] = useState(false)
   const [adding, setAdding] = useState(false)
+  const drafting = useCharacterDialogueDraft(card.id)
   const draft = draftFromCard(card)
+  const draftButton = (kind: CharacterDialogueDraftKind) => (
+    <div className="flex flex-col gap-1.5">
+      <button
+        type="button"
+        onClick={() =>
+          void drafting.run(kind).then((result) => {
+            if (!result) return
+            if ('examples' in result)
+              void save({ examples: examplesToTavernText(result.examples) })
+            else void save({ opening: result.opening })
+          })
+        }
+        disabled={drafting.running !== null}
+        className="flex w-fit items-center gap-2 text-sm text-muted-foreground transition-colors duration-fast hover:text-foreground"
+      >
+        {drafting.running === kind ? <Spinner size="sm" /> : null}
+        {drafting.failed === kind
+          ? t('draftFailed')
+          : t(kind === 'examples' ? 'draftExamples' : 'draftOpening')}
+      </button>
+      {drafting.failed === kind && drafting.reason ? (
+        <p role="status" className="text-xs text-muted-foreground">
+          {getApiErrorMessage(tErrors, drafting.reason, drafting.reason.error)}
+        </p>
+      ) : null}
+    </div>
+  )
   const greetings = draft.alternateGreetings
   const lorebook = lorebookEntryCount(card.tavern?.characterBook)
   const savedOnly = (
@@ -584,18 +635,24 @@ function SettingTavernGroups({
             limit={CHARACTER_PERSONA_LIMITS.scenario}
             onSave={(text) => save({ scenario: text })}
           />
-          <CharacterTextField
-            label={t('fieldOpening')}
-            value={draft.opening}
-            limit={CHARACTER_PERSONA_LIMITS.opening}
-            onSave={(text) => save({ opening: text })}
-          />
-          <CharacterTextField
-            label={t('fieldExamples')}
-            value={draft.examples}
-            hint={t('examplesHint')}
-            onSave={(text) => save({ examples: text })}
-          />
+          <div className="flex min-w-0 flex-col gap-2">
+            <CharacterTextField
+              label={t('fieldOpening')}
+              value={draft.opening}
+              limit={CHARACTER_PERSONA_LIMITS.opening}
+              onSave={(text) => save({ opening: text })}
+            />
+            {draft.opening.trim() ? null : draftButton('opening')}
+          </div>
+          <div className="flex min-w-0 flex-col gap-2">
+            <CharacterTextField
+              label={t('fieldExamples')}
+              value={draft.examples}
+              hint={t('examplesHint')}
+              onSave={(text) => save({ examples: text })}
+            />
+            {draft.examples.trim() ? null : draftButton('examples')}
+          </div>
           <div className="flex min-w-0 flex-col gap-3">
             {greetings.map((greeting, index) => (
               <CharacterTextField

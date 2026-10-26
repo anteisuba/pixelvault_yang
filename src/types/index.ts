@@ -3005,6 +3005,12 @@ export const CharacterPersonaSchema = z.object({
     .max(CHARACTER_PERSONA_LIMITS.behavior)
     .default(''),
   speech: z.string().trim().max(CHARACTER_PERSONA_LIMITS.speech).default(''),
+  /** 她不会做的事 / 小缺点（10-26「更像真人」A）：有底线、有毛病才像个人。 */
+  boundaries: z
+    .string()
+    .trim()
+    .max(CHARACTER_PERSONA_LIMITS.boundaries)
+    .default(''),
   catchphrases: z
     .array(z.string().trim().max(CHARACTER_PERSONA_LIMITS.catchphraseChars))
     .max(CHARACTER_PERSONA_LIMITS.catchphrases)
@@ -3030,6 +3036,21 @@ export const CharacterPersonaSchema = z.object({
     .default(''),
 })
 export type CharacterPersona = z.infer<typeof CharacterPersonaSchema>
+
+/** 设定页「起草」（10-26「更像真人」A）：对话示例空着写几段、开场白空着写一句。 */
+export const CHARACTER_DIALOGUE_DRAFT_KINDS = ['examples', 'opening'] as const
+export const CharacterDialogueDraftKindSchema = z.enum(
+  CHARACTER_DIALOGUE_DRAFT_KINDS,
+)
+export type CharacterDialogueDraftKind = z.infer<
+  typeof CharacterDialogueDraftKindSchema
+>
+export const CharacterDialogueDraftRequestSchema = z.object({
+  kind: CharacterDialogueDraftKindSchema,
+})
+export type CharacterDialogueDraft =
+  | { examples: CharacterPersona['examples'] }
+  | { opening: string }
 
 /**
  * 一套造型的标签（角色④ 2026-10-22，不再分角色 / 外观两组）：给 NovelAI 这类只认标签的

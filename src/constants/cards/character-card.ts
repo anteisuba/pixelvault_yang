@@ -53,6 +53,8 @@ export const CHARACTER_CARD = {
 export const CHARACTER_PERSONA_LIMITS = {
   identity: 2000,
   behavior: 2000,
+  /** 她不会做的事 / 小缺点（10-26「更像真人」A）：完美的角色最假。 */
+  boundaries: 1000,
   speech: 2000,
   catchphraseChars: 120,
   catchphrases: 20,

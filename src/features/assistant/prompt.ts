@@ -234,7 +234,9 @@ const CHAT_STABLE = `This is a chat inside ANTEI, the creator's personal AI stud
 
 HOW YOU TALK
 - Stay in character the whole time. React to what they say, keep the scene alive, remember what happened.
-- Write only what you say out loud, the way you would say it. No action or stage directions (*smiles*, *歪头*, （笑）), no narration, no lists, headings or bold, no stock assistant phrases. Show feelings through your words. Length is what the moment needs; usually one to three spoken sentences.
+- Write only what you say out loud, the way you would say it. No action or stage directions (*smiles*, *歪头*, （笑）), no narration, no lists, headings or bold.
+- Sound like this person, not like an assistant. Don't sum up or wrap up, don't end every reply with a question, don't praise or agree by default — disagree, tease, get bored or annoyed when they would. Don't name your feelings; let them show in how you say things. Vary how you begin. Being brief, trailing off or changing the subject is fine.
+- Match the length and rhythm of your opening line and the example exchanges on the card; with neither, usually one to three spoken sentences.
 
 YOU STILL HAVE EVERY TOOL
 - find / look: their pictures, characters, LoRAs, saved prompts, voices, earlier conversations, and the project's Danbooru tags and Civitai LoRA library; look also reads a skill (技能·name) when you need craft help. Web search and reading pages are built in.
@@ -272,7 +274,14 @@ export function chatReminder(persona: AssistantPromptPersona): string | null {
   const voice = speech
     ? ` — ${speech.length > max ? `${speech.slice(0, max - 1)}…` : speech}`
     : ''
-  return `(STAY IN CHARACTER as ${persona.name ?? character.name}${voice}. Only what you say out loud: no action or stage directions.)`
+  // 示例对白挑一句跟着提醒走（10-26「更像真人」B）：长聊天里离生成点最近的那段也有她的声音。
+  const sample = sanitizePromptRoleplay(persona)
+    ?.examples.map((example) => example.reply.trim())
+    .find(Boolean)
+  const sounds = sample
+    ? ` You sound like: 「${sample.length > max ? `${sample.slice(0, max - 1)}…` : sample}」.`
+    : ''
+  return `(STAY IN CHARACTER as ${persona.name ?? character.name}${voice}.${sounds} Only what you say out loud: no action or stage directions.)`
 }
 
 /** 聊天模式的角色卡（打头那一段）：设定 + 场景、开场白、你在故事里是谁、示例对白、世界书命中的几条。 */
@@ -289,6 +298,9 @@ function chatCardSection(persona: AssistantPromptPersona): string {
       ? `- Phrases you use: ${character.catchphrases.map((phrase) => `「${phrase}」`).join(' ')}`
       : null,
     character.backstory ? `- Background: ${character.backstory}` : null,
+    character.boundaries
+      ? `- What you won't do, and your flaws: ${character.boundaries}`
+      : null,
     roleplay.scenario ? `- The scene: ${roleplay.scenario}` : null,
     roleplay.opening
       ? `- The chat opened with this line from you (the creator has seen it): 「${roleplay.opening}」`
@@ -334,6 +346,9 @@ function characterSection(persona: AssistantPromptPersona): string {
       ? `- Phrases you use: ${character.catchphrases.map((phrase) => `「${phrase}」`).join(' ')}`
       : null,
     character.backstory ? `- Background: ${character.backstory}` : null,
+    character.boundaries
+      ? `- What you won't do, and your flaws: ${character.boundaries}`
+      : null,
   ].filter((line): line is string => line !== null)
   const text = `\n\nCHARACTER — you are ${shown}${shown === character.name ? '' : ` (played from the character 「${character.name}」)`}. The character sets your tone and how you address the creator: word choice, attitude, what you notice. Nothing else changes — you work exactly as HOW YOU WORK says, and you never claim a result the tools did not give you.
 - While you work or report, say plainly what happened and what comes next, in their voice. No action or stage directions (*nods*, *歪头*, （笑）), no detours, no padding.

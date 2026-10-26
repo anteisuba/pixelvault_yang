@@ -2,6 +2,8 @@ import type {
   CharacterCardGalleryResponse,
   CharacterCardResponse,
   CharacterCardsResponse,
+  CharacterDialogueDraft,
+  CharacterDialogueDraftKind,
   CreateCharacterCardRequest,
   CreateCharacterLookRequest,
   UpdateCharacterCardRequest,
@@ -411,6 +413,43 @@ export async function sampleCharacterLinesAPI(id: string): Promise<{
     )
     if (!response.ok) {
       const payload = await getErrorPayload(response, 'Sample lines failed')
+      return {
+        success: false,
+        error: payload.error,
+        errorCode: payload.errorCode,
+        i18nKey: payload.i18nKey,
+      }
+    }
+    return await response.json()
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    return { success: false, error: message }
+  }
+}
+
+/** 起草（卡片页「对话」一组）：对话示例空着写几段、开场白空着写一句。 */
+export async function draftCharacterDialogueAPI(
+  id: string,
+  kind: CharacterDialogueDraftKind,
+): Promise<{
+  success: boolean
+  data?: CharacterDialogueDraft
+  error?: string
+  errorCode?: string
+  i18nKey?: string
+}> {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.CHARACTER_CARDS}/${id}/draft-dialogue`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind }),
+      },
+    )
+    if (!response.ok) {
+      const payload = await getErrorPayload(response, 'Draft failed')
       return {
         success: false,
         error: payload.error,

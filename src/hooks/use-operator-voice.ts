@@ -133,10 +133,13 @@ export function usePlayingOperatorVoice(): string | null {
  * 念一段：派任务 → 等它好 → 放。状态记在那条正文上（`voice`）。
  * 缺 key / 没绑嗓子不算坏了：条目上标出来，界面就地给配 / 给挑。
  */
+const spokenText = new Map<string, string>()
+
 export async function speakOperatorReply(
   id: string,
   text: string,
 ): Promise<void> {
+  spokenText.set(id, text)
   setOperatorMessageVoice(id, { status: 'pending' })
   const submitted = await speakAssistantReplyAPI({
     text,
@@ -169,4 +172,10 @@ export async function speakOperatorReply(
     }
   }
   setOperatorMessageVoice(id, { status: 'failed' })
+}
+
+/** 再念一次（没念出来 / 刚挑完嗓子 / 刚配好 key）：念的还是上次那段。 */
+export function retryOperatorReply(id: string): void {
+  const text = spokenText.get(id)
+  if (text) void speakOperatorReply(id, text)
 }

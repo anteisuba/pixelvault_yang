@@ -4769,6 +4769,8 @@ export const AssistantOperatorMessageEventSchema = z.object({
   text: z.string().max(LIMITS.maxMessageChars),
   /** 这段是「她」在聊天（没开台 + 换成了某个角色，②c）：界面拆成一行一个气泡。 */
   chat: z.literal(true).optional(),
+  /** 用着角色（她有嗓子）：🔊 开着时念出来（②c-2；开着台只念首尾段）。 */
+  spoken: z.literal(true).optional(),
 })
 
 /**
@@ -4786,6 +4788,8 @@ export const AssistantOperatorMessageDeltaEventSchema = z.object({
   restart: z.literal(true).optional(),
   /** 同 `message.chat`。 */
   chat: z.literal(true).optional(),
+  /** 同 `message.spoken`。 */
+  spoken: z.literal(true).optional(),
 })
 
 /**

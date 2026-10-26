@@ -135,6 +135,7 @@ import {
   speakOperatorReply,
 } from '@/hooks/use-operator-voice'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
+import { splitSpokenSegments } from '@/lib/spoken-segments'
 import { studioBenchHref } from '@/lib/studio-shell-route'
 import {
   assistantBenchPath,
@@ -232,10 +233,23 @@ import type {
  * ⚠ 没有 `traceId` 就整块不画（`GenerationError` 那一族本来就说得出原因），
  * ⛔ 不为它编一个短码 —— 编出来的号在日志里查不到，比没有更糟。
  */
-/** 🔊 开着、这段是她在聊天（②c-2）：念出来。 */
-function speakIfVoiceOn(event: { text: string; chat?: true }, id: string) {
-  if (event.chat && getOperatorVoicePrefs().on && event.text.trim())
-    void speakOperatorReply(id, event.text.trim())
+/**
+ * 🔊 开着、这段是用着角色的她说的（②c-2）：念出来。聊天整段念；开着台只念开头和收尾两段，
+ * 中间的正文只出字（`splitSpokenSegments`）。
+ */
+function speakIfVoiceOn(
+  event: { text: string; chat?: true; spoken?: true },
+  id: string,
+) {
+  if (!event.spoken || !getOperatorVoicePrefs().on) return
+  const text = event.text.trim()
+  if (!text) return
+  if (event.chat) {
+    void speakOperatorReply(id, text)
+    return
+  }
+  const { opening, closing } = splitSpokenSegments(text)
+  void speakOperatorReply(id, [opening, closing].filter(Boolean).join('\n\n'))
 }
 
 function toErrorTrace(payload: {

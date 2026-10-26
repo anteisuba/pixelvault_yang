@@ -1012,7 +1012,12 @@ describe('记忆与之前几轮（第 6 步）', () => {
       (event) => event.type === 'message' || event.type === 'message_delta',
     )
     expect(said.length).toBeGreaterThan(0)
-    expect(said.every((event) => 'chat' in event && event.chat)).toBe(true)
+    expect(
+      said.every(
+        (event) =>
+          'chat' in event && event.chat && 'spoken' in event && event.spoken,
+      ),
+    ).toBe(true)
     const prompt = promptOf(main.doStreamCalls[0]!)
     expect(prompt).toContain('you are that character')
     expect(prompt).not.toContain("You are ANTEI's creative assistant")

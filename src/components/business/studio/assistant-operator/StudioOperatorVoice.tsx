@@ -15,7 +15,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { useChatPersona } from '@/hooks/use-chat-persona'
 import {
   playOperatorVoice,
-  speakOperatorReply,
+  retryOperatorReply,
   stopOperatorVoice,
   useOperatorVoice,
   usePlayingOperatorVoice,
@@ -201,11 +201,9 @@ export function StudioOperatorVoiceStrip() {
  */
 export function StudioOperatorChatVoice({
   entryId,
-  text,
   voice,
 }: {
   entryId: string
-  text: string
   voice: StudioOperatorMessageVoice
 }) {
   const t = useTranslations('StudioOperator.voice')
@@ -213,7 +211,7 @@ export function StudioOperatorChatVoice({
   const persona = usePersonaVoice()
   const { modelId } = useOperatorVoice()
   const [dialog, setDialog] = useState<'voice' | 'key' | null>(null)
-  const retry = () => void speakOperatorReply(entryId, text)
+  const retry = () => retryOperatorReply(entryId)
 
   const action =
     'flex h-7 w-fit items-center gap-1 rounded-full border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-fast ease-standard hover:bg-surface-fill focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none'

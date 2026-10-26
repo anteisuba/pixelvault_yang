@@ -496,19 +496,10 @@ export function StudioOperatorMessageBody({
         />
       ) : null}
       {entry.chat && entry.text ? (
-        <>
-          <StudioOperatorChatBubbles
-            text={entry.text}
-            streaming={entry.streaming ?? false}
-          />
-          {entry.voice ? (
-            <StudioOperatorChatVoice
-              entryId={entry.id}
-              text={entry.text}
-              voice={entry.voice}
-            />
-          ) : null}
-        </>
+        <StudioOperatorChatBubbles
+          text={entry.text}
+          streaming={entry.streaming ?? false}
+        />
       ) : (
         <StudioOperatorCollapsibleText
           text={entry.text}
@@ -526,6 +517,10 @@ export function StudioOperatorMessageBody({
           }
         />
       )}
+      {/* 🔊 开着时这段念到哪了（②c-2）：聊天整段、开着台只念首尾段。 */}
+      {entry.voice ? (
+        <StudioOperatorChatVoice entryId={entry.id} voice={entry.voice} />
+      ) : null}
 
       {/* ⚠ 还在写的时候**不画**（56b 切片 1）：资料要等这段话说完再摆出来，
           否则来源卡会在正文长高的过程中一直往下跳。找到的图与视频同一条。 */}

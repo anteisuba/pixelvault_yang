@@ -563,8 +563,14 @@ async function* runNextTurn(
   const { user, persona, rules, route, run, modelId } = prepared
   // 和角色聊天（第 7a 步 D）：自己的系统提示、记忆挂她身上、故事向摘要、每轮末尾一句「别出戏」。
   const chat = chatCharacterOf(persona)
-  /** 她说的那几段带个记号，界面拆成一行一个气泡（②c-2）。 */
-  const chatReply = chat ? { chat: true as const } : {}
+  /**
+   * 她说的那几段带记号（②c-2）：在聊天 = 界面拆成一行一个气泡；用着角色 = 🔊 开着时念出来
+   * （聊天整段念、开着台只念首尾段）。
+   */
+  const chatReply = {
+    ...(chat ? { chat: true as const } : {}),
+    ...(persona.characterCardId ? { spoken: true as const } : {}),
+  }
   const face = benchFaceOf(request.domain)
   const resolved = modelId ? resolveNextModel(route, modelId) : null
   // 板子画不出来（LoRA 台没带 LoRA 那一块、角色页没带角色、画布没带画面）：各台宿主都会带，缺了是请求坏了。

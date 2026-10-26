@@ -3015,6 +3015,18 @@ export const CharacterPersonaSchema = z.object({
     .array(z.string().trim().max(CHARACTER_PERSONA_LIMITS.catchphraseChars))
     .max(CHARACTER_PERSONA_LIMITS.catchphrases)
     .default([]),
+  /** 几种口吻（10-26「更像真人」F）：聊天每轮挑一种，同一个人也有不同的状态。 */
+  moods: z
+    .array(z.string().trim().min(1).max(CHARACTER_PERSONA_LIMITS.moodChars))
+    .max(CHARACTER_PERSONA_LIMITS.moods)
+    .default([]),
+  /** 学到的说法（F）：聊天里从你的话学来的口头禅 / 网络用语，自动攒、卡上能删；旧的在前。 */
+  learnedPhrases: z
+    .array(
+      z.string().trim().min(1).max(CHARACTER_PERSONA_LIMITS.learnedPhraseChars),
+    )
+    .max(CHARACTER_PERSONA_LIMITS.learnedPhrases)
+    .default([]),
   scenario: z
     .string()
     .trim()

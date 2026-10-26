@@ -331,6 +331,7 @@ describe('新内核改库：做 → 撤 → 回到原状', () => {
           text: '<START>\n{{user}}: 谢谢你\n{{char}}: 别以为我会说不客气。\n<START>\n{{char}}: 走开。',
         },
         { field: 'catchphrases', text: '「哼」\n我父亲会听说这件事的' },
+        { field: 'moods', text: '嘴硬：先否认再软下来\n\n得意：拖长音' },
         { field: 'boundaries', text: '不当着别人面道谢' },
       ],
     })
@@ -343,6 +344,7 @@ describe('新内核改库：做 → 撤 → 回到原状', () => {
         { user: '', reply: '走开。' },
       ],
       catchphrases: ['哼', '我父亲会听说这件事的'],
+      moods: ['嘴硬：先否认再软下来', '得意：拖长音'],
       boundaries: '不当着别人面道谢',
     })
     if (!outcome.ok) return

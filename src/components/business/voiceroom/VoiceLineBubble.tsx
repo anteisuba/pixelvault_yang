@@ -11,7 +11,7 @@ import {
 } from '@/constants/voiceroom'
 import type { AudioEmotion } from '@/constants/voice-cards'
 import type { UseStudioOperatorWebImportResult } from '@/hooks/use-studio-operator-web-import'
-import { withoutPictureHandles } from '@/lib/voiceroom-chat-prompt'
+import { chatBubbles, withoutPictureHandles } from '@/lib/voiceroom-chat-prompt'
 import type { VoiceLineRecord } from '@/types/voiceroom'
 
 import { VoiceAvatar } from './VoiceAvatar'
@@ -236,11 +236,12 @@ export function VoiceLineBubble({
       />
       <div className="vr-msg-body">
         <span className="vr-who">{line.speakerName}</span>
-        {shown ? (
-          <span className="vr-bubble">
-            <VoiceLineText text={shown} />
+        {/* 一行一个气泡（10-26「更像真人」F：像发消息一样一句一条），声音整段一条。 */}
+        {chatBubbles(shown).map((bubble, index) => (
+          <span key={index} className="vr-bubble">
+            <VoiceLineText text={bubble} />
           </span>
-        ) : null}
+        ))}
         <VoiceLinePictures text={line.text} />
         <VoiceLineWebImages
           lineId={line.id}

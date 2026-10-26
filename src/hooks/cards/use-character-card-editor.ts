@@ -44,6 +44,10 @@ export interface CharacterCardDraft {
   opening: string
   /** 对话示例，酒馆 `mes_example` 的写法（`<START>` / `{{user}}:` / `{{char}}:`）。 */
   examples: string
+  /** 几种口吻（10-26「更像真人」F），一行一种。 */
+  moods: string
+  /** 学到的说法（F），一行一个；聊天里自动攒，这里能删能改。 */
+  learnedPhrases: string
   /** 作者备注（酒馆 creator_notes）= 我们的简介。 */
   summary: string
   alternateGreetings: string[]
@@ -52,6 +56,26 @@ export interface CharacterCardDraft {
 }
 
 const clip = (text: string, max: number): string => text.trim().slice(0, max)
+
+/** 一行一条的格 → 列表：空行去掉、每条截断、条数封顶（`fromEnd` = 留最新的）。 */
+function linesOf(
+  text: string,
+  {
+    max,
+    chars,
+    fromEnd = false,
+  }: { max: number; chars: number; fromEnd?: boolean },
+): string[] {
+  const lines = [
+    ...new Set(
+      text
+        .split('\n')
+        .map((line) => clip(line, chars))
+        .filter(Boolean),
+    ),
+  ]
+  return fromEnd ? lines.slice(-max) : lines.slice(0, max)
+}
 
 /** 示例对白 → 酒馆 `mes_example` 的写法（一组一个 `<START>` 块）。 */
 export function examplesToTavernText(
@@ -115,6 +139,8 @@ export function draftFromCard(card: CharacterCardRecord): CharacterCardDraft {
     scenario: card.persona?.scenario ?? '',
     opening: card.persona?.opening ?? '',
     examples: examplesToTavernText(card.persona?.examples ?? []),
+    moods: (card.persona?.moods ?? []).join('\n'),
+    learnedPhrases: (card.persona?.learnedPhrases ?? []).join('\n'),
     summary: card.summary ?? '',
     alternateGreetings: card.tavern?.alternateGreetings ?? [],
     systemPrompt: card.tavern?.systemPrompt ?? '',
@@ -148,6 +174,15 @@ export function updateFromDraft(
       scenario: clip(draft.scenario, CHARACTER_PERSONA_LIMITS.scenario),
       opening: clip(draft.opening, CHARACTER_PERSONA_LIMITS.opening),
       examples,
+      moods: linesOf(draft.moods, {
+        max: CHARACTER_PERSONA_LIMITS.moods,
+        chars: CHARACTER_PERSONA_LIMITS.moodChars,
+      }),
+      learnedPhrases: linesOf(draft.learnedPhrases, {
+        max: CHARACTER_PERSONA_LIMITS.learnedPhrases,
+        chars: CHARACTER_PERSONA_LIMITS.learnedPhraseChars,
+        fromEnd: true,
+      }),
     },
     extensions: {
       ...(tavern ? { [TAVERN_CARD.EXTENSION_KEY]: tavern } : {}),

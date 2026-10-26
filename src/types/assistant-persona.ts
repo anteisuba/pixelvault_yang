@@ -261,6 +261,10 @@ export const AssistantPromptRoleplaySchema = z.object({
   world: z.array(AssistantPromptWorldEntrySchema).optional(),
   /** 你在这段故事里是谁（会话那一格，内核按请求填）；空 / 缺席 = 没写。 */
   userRole: z.string().optional(),
+  /** 几种口吻（10-26「更像真人」F）：每轮挑一种进「别出戏」那句；缺席 = 没写。 */
+  moods: z.array(z.string()).optional(),
+  /** 从你的话里学来的说法（F）：偶尔用一个；缺席 = 还没学到。 */
+  learnedPhrases: z.array(z.string()).optional(),
 })
 
 export type AssistantPromptRoleplay = z.infer<

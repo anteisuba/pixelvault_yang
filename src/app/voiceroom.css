@@ -663,8 +663,43 @@
   }
 }
 
+/* 下一个气泡还在路上（10-26「更像真人」F）：一个小气泡里三颗点轮流亮，像聊天软件的「正在输入」。 */
+.vr-bubble-dots {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  padding-block: 12px;
+}
+
+.vr-bubble-dots i {
+  display: block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--vr-dim);
+  animation: vr-dots 1s ease-in-out infinite;
+}
+
+.vr-bubble-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.vr-bubble-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes vr-dots {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .vr-typing::after {
+  .vr-typing::after,
+  .vr-bubble-dots i {
     animation: none;
   }
 }

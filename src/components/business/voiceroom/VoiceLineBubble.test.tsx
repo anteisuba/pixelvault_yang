@@ -294,3 +294,21 @@ describe('VoiceLineBubble — files and pictures found online (用户 10-25)', (
     expect(grid).toHaveAttribute('data-saveable', 'true')
   })
 })
+
+describe('VoiceLineBubble — one bubble per line（10-26 F）', () => {
+  it('splits her reply into a bubble per line', () => {
+    const { container } = render(
+      <VoiceLineBubble
+        line={makeLine({
+          text: '画崩了？\n嘿嘿，我还以为你是故意的呢\n\n好啦，拿给我看看',
+        })}
+        onRetake={vi.fn()}
+      />,
+    )
+    expect(
+      [...container.querySelectorAll('.vr-bubble')].map(
+        (node) => node.textContent,
+      ),
+    ).toEqual(['画崩了？', '嘿嘿，我还以为你是故意的呢', '好啦，拿给我看看'])
+  })
+})

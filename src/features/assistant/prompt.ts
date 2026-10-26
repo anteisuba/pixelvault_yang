@@ -63,7 +63,7 @@ TOOLS
 - edit: change the bench. Put everything one request needs in ONE call; changes apply in order. For the prompt or negative prefer mode "edit" with exact {find, replace} pairs copied from the bench, so everything else stays as the creator wrote it; "replace" rewrites the whole field, "append" adds to the end.
   The library ops work on every bench and write straight into the creator's library (each is undoable):
   · pictures: tag_pictures, favorite_pictures, new_folder, put_in_folder, verdict ("approved" / "blocked");
-  · characters: character_profile (identity, behavior, speech, backstory, boundaries, catchphrases, scenario, opening, examples, and "look" = the default look's appearance; also name, tags), new_character, character_look ("角色·Name/Look": label, text = appearance, tags, pictures to add), new_character_look;
+  · characters: character_profile (identity, behavior, speech, backstory, boundaries, catchphrases, moods, scenario, opening, examples, and "look" = the default look's appearance; also name, tags), new_character, character_look ("角色·Name/Look": label, text = appearance, tags, pictures to add), new_character_look;
   · LoRAs in their library: lora_to_character ("角色·Name" or "角色·Name/Look"), favorite_lora, lora_cover (a picture number);
   · saved prompts: save_prompt (name; text and negativeText default to what is on the bench), update_prompt ("提示词·Name").
   The settings ops work on every bench too, and land at once (each is undoable):
@@ -100,7 +100,7 @@ The first message of the turn carries the bench as it was when the creator spoke
   [ASSISTANT_V3_FACE_IDS.lora]: `THE BENCH: THE LORA WORKBENCH
 The first message of the turn carries the bench as it was when the creator spoke: base model, prompt, negative, sampling parameters, the mounted LoRAs (handles like lora-cmg1ab, with weights), references and, when one is open on the left, the example picture "sample". edit ops here: prompt, negative, model, remove_reference, add_lora (a LoRA by name, with a weight or null for its recommended one; its trigger words are added for you), lora_weight, remove_lora, lora_param (keys steps, cfg, seed, width, height, sampler, scheduler), apply_recipe. ${RECIPE_NOTE}`,
   [ASSISTANT_V3_FACE_IDS.cards]: `THE PAGE: THE CHARACTER PAGE
-The first message of the turn carries the creator's characters (handles like char-b27ce8) and the one they have open, with their profile and pictures (card-1…). look opens a profile part in full ("look", "identity", "behavior", "speech", "backstory", "boundaries", "catchphrases", "scenario", "opening", "examples", "tags") or their pictures ("card", "card-N"). When the creator tells you what to change, write it with character_profile / character_look (straight into the character, undoable). The proposals are for what you researched or drafted yourself, each a card the creator ticks: propose_profile (profile parts you drafted, each with its source), propose_images (pictures by number, or web finds "#3"). The turn ends on the card. There is no generate here: when they need a picture that does not exist yet, open the image (or tag) bench and set it up there with their pictures as references.`,
+The first message of the turn carries the creator's characters (handles like char-b27ce8) and the one they have open, with their profile and pictures (card-1…). look opens a profile part in full ("look", "identity", "behavior", "speech", "backstory", "boundaries", "catchphrases", "moods", "scenario", "opening", "examples", "tags") or their pictures ("card", "card-N"). When the creator tells you what to change, write it with character_profile / character_look (straight into the character, undoable). The proposals are for what you researched or drafted yourself, each a card the creator ticks: propose_profile (profile parts you drafted, each with its source), propose_images (pictures by number, or web finds "#3"). The turn ends on the card. There is no generate here: when they need a picture that does not exist yet, open the image (or tag) bench and set it up there with their pictures as references.`,
   [ASSISTANT_V3_FACE_IDS.home]: `THE PAGE: HOME
 The creator is on the home page and no bench is open yet. Talk the idea through with them; find and look work as usual, and library, settings and memory edits work everywhere.
 A simple picture is made right here in the conversation, without opening a bench: the first message of the turn carries THE DRAFT (prompt, model, specs, pictures per run, references and the latest results). edit ops on it: prompt, model, specs (aspectRatio), count, add_reference (a picture number like 图_1624), remove_reference, apply_recipe. Then generate as on any bench; the confirm card is a small form they can still change, and the pictures land in this conversation. ${RECIPE_NOTE}
@@ -236,7 +236,9 @@ HOW YOU TALK
 - Stay in character the whole time. React to what they say, keep the scene alive, remember what happened.
 - Write only what you say out loud, the way you would say it. No action or stage directions (*smiles*, *歪头*, （笑）), no narration, no lists, headings or bold.
 - Sound like this person, not like an assistant. Don't sum up or wrap up, don't end every reply with a question, don't praise or agree by default — disagree, tease, get bored or annoyed when they would. Don't name your feelings; let them show in how you say things. Vary how you begin. Being brief, trailing off or changing the subject is fine.
+- Reply in the language the creator writes in, even when the card or its examples are written in another language.
 - Match the length and rhythm of your opening line and the example exchanges on the card; with neither, usually one to three spoken sentences.
+- Text the way people message on a phone: when a reply has more than one beat, send it as two or three short messages, each on its own line — one line is one message bubble. A single short message is fine too; never more than four lines.
 
 YOU STILL HAVE EVERY TOOL
 - find / look: their pictures, characters, LoRAs, saved prompts, voices, earlier conversations, and the project's Danbooru tags and Civitai LoRA library; look also reads a skill (技能·name) when you need craft help. Web search and reading pages are built in.
@@ -266,22 +268,56 @@ export function chatCharacterOf(
 /**
  * 每轮末尾那一句「别出戏」（酒馆的作者注）：长聊天里设定离生成点最远，越聊越不像。只在聊天模式加。
  */
-export function chatReminder(persona: AssistantPromptPersona): string | null {
+export function chatReminder(
+  persona: AssistantPromptPersona,
+  turn: number,
+): string | null {
   const character = sanitizePromptCharacter(persona)
-  if (!character || !chatCharacterOf(persona)) return null
+  const chatting = chatCharacterOf(persona)
+  if (!character || !chatting) return null
   const speech = character.speech.split(/(?<=[。！？.!?])\s*|\n/)[0]?.trim()
   const max = ASSISTANT_PERSONA_LIMITS.maxCharacterReminderChars
   const voice = speech
     ? ` — ${speech.length > max ? `${speech.slice(0, max - 1)}…` : speech}`
     : ''
-  // 示例对白挑一句跟着提醒走（10-26「更像真人」B）：长聊天里离生成点最近的那段也有她的声音。
-  const sample = sanitizePromptRoleplay(persona)
-    ?.examples.map((example) => example.reply.trim())
-    .find(Boolean)
-  const sounds = sample
-    ? ` You sound like: 「${sample.length > max ? `${sample.slice(0, max - 1)}…` : sample}」.`
+  // 这一轮的口吻（10-26「更像真人」F）：同一个人也有不同的状态，跟着提醒走（⛔ 进系统提示：每轮都变）。
+  const mood = pickChatMood(
+    sanitizePromptRoleplay(persona)?.moods ?? [],
+    chatting.id,
+    turn,
+  )
+  const feeling = mood
+    ? ` This time your mood is: ${mood} — let it colour how you say things, without naming it.`
     : ''
-  return `(STAY IN CHARACTER as ${persona.name ?? character.name}${voice}.${sounds} Only what you say out loud: no action or stage directions.)`
+  // ⚠ 10-26 B 曾在这里带一句示例对白（「You sound like: …」）：离生成点太近，模型照着它说——英文示例把
+  // 中文聊天带成英文、还接着示例的话头不回应你刚说的（用户 10-26「丢了语气」）。示例只留在卡上那段。
+  return `(STAY IN CHARACTER as ${persona.name ?? character.name}${voice}.${feeling} Answer what the creator just said, in the language they wrote it in. Only what you say out loud: no action or stage directions.)`
+}
+
+function hashOf(text: string): number {
+  let hash = 2166136261
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  return Math.abs(hash)
+}
+
+/**
+ * 第几轮用哪种口吻：按角色 + 轮数打散（同一轮重跑还是同一种，测得出来），⛔ 连着两轮同一种——
+ * 每一轮从「除了上一轮那种」的几种里挑。没写口吻 = `null`。
+ */
+export function pickChatMood(
+  moods: readonly string[],
+  seed: string,
+  turn: number,
+): string | null {
+  if (moods.length === 0) return null
+  let index = hashOf(`${seed}:0`) % moods.length
+  for (let n = 1; n <= turn && moods.length > 1; n += 1)
+    index =
+      (index + 1 + (hashOf(`${seed}:${n}`) % (moods.length - 1))) % moods.length
+  return moods[index]
 }
 
 /** 聊天模式的角色卡（打头那一段）：设定 + 场景、开场白、你在故事里是谁、示例对白、世界书命中的几条。 */
@@ -307,6 +343,9 @@ function chatCardSection(persona: AssistantPromptPersona): string {
       : null,
     roleplay.userRole
       ? `- Who the creator is in this story: ${roleplay.userRole}`
+      : null,
+    roleplay.learnedPhrases?.length
+      ? `- Words you've picked up from the creator: ${roleplay.learnedPhrases.map((phrase) => `「${phrase}」`).join(' ')} — slip one in now and then when it fits, never in every reply.`
       : null,
   ].filter((line): line is string => line !== null)
   const examples = roleplay.examples.length

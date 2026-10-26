@@ -33,6 +33,7 @@ import { StudioOperatorLightbox } from '@/components/business/studio/assistant-o
 import { VoicePickerDialog } from '@/components/business/voices/VoicePickerDialog'
 import { useCharacterLibrary } from '@/hooks/cards/use-character-library'
 import { useIsMobile } from '@/hooks/use-mobile'
+import type { VoiceRoomStreamingReply } from '@/hooks/use-voiceroom'
 import { useStudioOperatorWebImport } from '@/hooks/use-studio-operator-web-import'
 
 import { VoiceLineBubble } from './VoiceLineBubble'
@@ -57,7 +58,9 @@ interface VoiceRoomStageProps {
   /** 聊天：你刚发出、还没落库的那句。 */
   pendingUserText: string | null
   /** 聊天：她正在写的回复。 */
-  streamingReply: { speakerId: string; text: string } | null
+  streamingReply: VoiceRoomStreamingReply | null
+  /** 聊天：写完的回复气泡都出完了。 */
+  onReplyRevealed: () => void
   mode: VoiceRoomMode
   onModeChange: (mode: VoiceRoomMode) => void
   llmModel: AssistantRouteModel
@@ -93,6 +96,7 @@ export function VoiceRoomStage({
   pendingLine,
   pendingUserText,
   streamingReply,
+  onReplyRevealed,
   mode,
   onModeChange,
   llmModel,
@@ -392,10 +396,14 @@ export function VoiceRoomStage({
 
           {streamingReply ? (
             <VoiceLinePending
+              // 查完资料重起一段 = 气泡从头排。
+              key={streamingReply.round}
               cast={cast}
               speakerId={streamingReply.speakerId}
               text={streamingReply.text}
               typing
+              done={streamingReply.done}
+              onRevealed={onReplyRevealed}
             />
           ) : null}
         </div>

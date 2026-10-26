@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { after } from 'next/server'
+
 import type { AssistantRouteModel } from '@/constants/assistant-persona'
 import {
   ASSISTANT_OPERATOR_EVENTS,
@@ -29,6 +31,10 @@ import {
   type VoiceChatHistoryLine,
 } from '@/lib/voiceroom-chat-prompt'
 import { castMemberForSpeaker, isVoicelessMember } from '@/lib/voiceroom-cast'
+import {
+  learnCreatorPhrases,
+  shouldLearnPhrases,
+} from '@/services/cards/character-learned-phrases.service'
 import { resolveAssistantRoute } from '@/services/kernel/assistant-route.service'
 import { llmTextStream } from '@/services/llm-text.service'
 import { ensureUser } from '@/services/user.service'
@@ -177,6 +183,8 @@ async function* kernelWriter(input: {
   files: readonly VoiceLineFile[]
   videoClips: VoiceRoomChatRequest['videoClips']
   routeModel: AssistantRouteModel | undefined
+  /** 会被念出来：带上念法提示（方括号语气）；`null` = 只打字。 */
+  voice: { expressive: boolean } | null
   signal: AbortSignal
 }): ReplyWriter {
   const request = AssistantOperatorRequestSchema.parse({
@@ -187,6 +195,7 @@ async function* kernelWriter(input: {
     ...(input.characterCardId
       ? { chatCharacterId: input.characterCardId }
       : {}),
+    ...(input.voice ? { chatVoice: input.voice } : {}),
     ...(input.images.length
       ? {
           mentionedAssets: input.images.map((image) => ({
@@ -364,6 +373,10 @@ export async function streamVoiceRoomChat(
   const images = request.images ?? []
   const files = request.files ?? []
 
+  // 学说法（10-26「更像真人」F）：她那句存好之后才知道这一轮该不该学；响应发完再跑（⛔ 拖慢聊天）。
+  let learnAfterReply: (() => Promise<unknown>) | null = null
+  if (character) after(async () => learnAfterReply?.())
+
   const encoder = new TextEncoder()
   const abort = new AbortController()
   const linkedSignal = AbortSignal.any([signal, abort.signal])
@@ -380,6 +393,12 @@ export async function streamVoiceRoomChat(
           files,
           videoClips: request.videoClips,
           routeModel: request.llmModel,
+          voice:
+            request.voice !== false && !isVoicelessMember(member)
+              ? {
+                  expressive: request.modelId === AI_MODELS.FISH_AUDIO_DRAMA_3,
+                }
+              : null,
           signal: linkedSignal,
         })
       : thinWriter({
@@ -479,6 +498,19 @@ export async function streamVoiceRoomChat(
               : null,
         })
         emit(VOICE_ROOM_CHAT_EVENT.REPLY, { line: replyLine })
+        if (character)
+          learnAfterReply = async () => {
+            const said = await db.voiceLine.count({
+              where: { roomId: room.id, speakerKind: VOICE_LINE_USER_KIND },
+            })
+            if (!shouldLearnPhrases(said)) return
+            await learnCreatorPhrases({
+              userId: user.id,
+              cardId: character.id,
+              roomId: room.id,
+              assistant,
+            })
+          }
         if (voiceError) {
           logger.warn('Voice room chat reply could not be voiced', {
             error:

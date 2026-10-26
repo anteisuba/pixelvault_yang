@@ -332,7 +332,7 @@ export const EditChangeSchema = z.object({
     )
     .nullish()
     .describe(
-      'propose_profile: the profile parts you drafted (look / identity / behavior / speech / backstory only). character_profile / new_character: the parts to write ("look" is the appearance of the default look; "boundaries" = what they won\'t do and their flaws; "catchphrases" one per line; "examples" = example exchanges as <START> blocks of "{{user}}: …" / "{{char}}: …" lines, replacing the old ones).',
+      'propose_profile: the profile parts you drafted (look / identity / behavior / speech / backstory only). character_profile / new_character: the parts to write ("look" is the appearance of the default look; "boundaries" = what they won\'t do and their flaws; "catchphrases" one per line; "moods" = the moods they switch between in chat, one per line (e.g. "Stubborn: denies it first, then softens"); "examples" = example exchanges as <START> blocks of "{{user}}: …" / "{{char}}: …" lines, replacing the old ones).',
     ),
   images: z
     .array(

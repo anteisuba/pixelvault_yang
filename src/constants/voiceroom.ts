@@ -87,6 +87,27 @@ export type VoiceRoomMode = (typeof VOICE_ROOM_MODES)[number]
 export const VOICE_ROOM_CHAT_HISTORY_LINES = 30
 
 /**
+ * 像发消息一样（10-26「更像真人」F）：她一条回复按行拆成几个气泡，最多这么多（多出来的并进最后一个）；
+ * 后一个气泡前「正在输入…」停一会儿，前一个越长停得越久（封顶），声音照旧整段念一次。
+ */
+export const VOICE_ROOM_CHAT_BUBBLES_MAX = 4
+export const VOICE_ROOM_CHAT_BUBBLE_PAUSE = {
+  baseMs: 450,
+  perCharMs: 35,
+  maxMs: 1600,
+} as const
+
+/**
+ * 学说法（F）：你在聊天里每说这么多句，她从你最近的话里挑几个口头禅记到角色卡上；
+ * 一次看最近多少句你的话、最多记几个。
+ */
+export const VOICE_ROOM_LEARN_PHRASES = {
+  everyUserLines: 8,
+  readUserLines: 30,
+  maxNewPerRun: 4,
+} as const
+
+/**
  * 配音间聊天走助手新内核时的时限：接口最多跑 120 秒（`/api/voiceroom/chat` 的 `maxDuration`），
  * 内核默认 120 秒才收、270 秒才掐 —— 配音间没有接力条（浏览器不续跑），到点只能先把写出来的话交出来。
  * 软线一过不再开新的一步，硬线留出念出来 + 存台词的余量。

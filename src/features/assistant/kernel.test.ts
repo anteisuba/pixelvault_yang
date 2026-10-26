@@ -198,6 +198,7 @@ import { prepareOperatorTurn } from '@/services/kernel/assistant-operator.servic
 import { assistantV3TurnFingerprint } from '@/lib/assistant-v3-history'
 
 import { runAssistantNext } from './kernel'
+import { pickChatMood } from './prompt'
 
 const usage = {
   inputTokens: {
@@ -940,6 +941,8 @@ describe('记忆与之前几轮（第 6 步）', () => {
             scenario: '图书馆的午后',
             opening: '',
             examples: [{ user: '', reply: '哼，别以为我会谢你。' }],
+            moods: ['嘴硬：先否认再软下来'],
+            learnedPhrases: ['摸鱼', '绝了'],
           },
         },
       } as typeof prepared
@@ -952,6 +955,7 @@ describe('记忆与之前几轮（第 6 步）', () => {
         imageRequest('你好呀', {
           conversationId: 'conv-chat',
           chatCharacterId: 'card-7',
+          chatVoice: { expressive: false },
         } as never),
       ),
     )
@@ -963,10 +967,23 @@ describe('记忆与之前几轮（第 6 步）', () => {
     )
     expect(prompt).toContain('图书馆的午后')
     expect(prompt).toContain('STAY IN CHARACTER as 马尔福 — 说话带点傲慢。')
-    expect(prompt).toContain('You sound like: 「哼，别以为我会谢你。」')
+    // 示例对白不再跟着提醒走（10-26：英文示例把中文聊天带成英文、照着示例说）。
+    expect(prompt).not.toContain('You sound like')
+    expect(prompt).toContain(
+      'Answer what the creator just said, in the language they wrote it in.',
+    )
     expect(prompt).toContain(
       "What you won't do, and your flaws: 不会当着别人面道谢",
     )
+    // F：这一轮的口吻跟着提醒走、学到的说法在卡上、像发消息一样一行一个气泡。
+    expect(prompt).toContain('This time your mood is: 嘴硬：先否认再软下来')
+    expect(prompt).toContain(
+      "Words you've picked up from the creator: 「摸鱼」 「绝了」",
+    )
+    expect(prompt).toContain('one line is one message bubble')
+    // 开着声音：方括号语气提示的写法进这一轮（10-26 换内核后丢了，念出来没情绪）。
+    expect(prompt).toContain('HOW YOUR VOICE SOUNDS')
+    expect(prompt).toContain('[laughing]')
     expect(memoryStore.listed).toHaveBeenCalledWith('user-1', {
       characterCardId: 'card-7',
       projectId: null,
@@ -1266,5 +1283,20 @@ describe('开台（第 9e 步）', () => {
     expect(promptOf(main.doStreamCalls[1]!)).toContain(
       'You are on the image bench already',
     )
+  })
+})
+
+describe('pickChatMood（10-26「更像真人」F）', () => {
+  it('每轮挑一种、同一轮重跑同一种、连着两轮不重复；没写口吻 = null', () => {
+    const moods = ['慵懒', '嘴硬', '狡黠']
+    const picks = Array.from({ length: 40 }, (_, turn) =>
+      pickChatMood(moods, 'card-7', turn),
+    )
+    for (let turn = 1; turn < picks.length; turn += 1)
+      expect(picks[turn]).not.toBe(picks[turn - 1])
+    expect(new Set(picks)).toEqual(new Set(moods))
+    expect(pickChatMood(moods, 'card-7', 5)).toBe(picks[5])
+    expect(pickChatMood(['只有一种'], 'card-7', 3)).toBe('只有一种')
+    expect(pickChatMood([], 'card-7', 3)).toBeNull()
   })
 })

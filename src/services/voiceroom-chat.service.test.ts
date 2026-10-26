@@ -8,14 +8,28 @@ const mocks = vi.hoisted(() => ({
   db: {
     voiceRoom: { findFirst: vi.fn() },
     characterCard: { findFirst: vi.fn() },
-    voiceLine: { findMany: vi.fn() },
+    voiceLine: { findMany: vi.fn(), count: vi.fn() },
   },
   appendVoiceLine: vi.fn(),
   dispatchLine: vi.fn(),
   llmTextStream: vi.fn(),
   resolveAssistantRoute: vi.fn(),
   runAssistantNext: vi.fn(),
+  after: vi.fn(),
+  learnCreatorPhrases: vi.fn(),
 }))
+
+vi.mock('next/server', () => ({ after: mocks.after }))
+vi.mock(
+  '@/services/cards/character-learned-phrases.service',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import('@/services/cards/character-learned-phrases.service')
+      >()
+    return { ...actual, learnCreatorPhrases: mocks.learnCreatorPhrases }
+  },
+)
 
 vi.mock('@/lib/db', () => ({ db: mocks.db }))
 vi.mock('@/lib/logger', () => ({
@@ -260,6 +274,54 @@ describe('streamVoiceRoomChat', () => {
       text: '在的。',
       jobId: null,
     })
+  })
+
+  it('tells the kernel her reply is spoken, so she writes voice cues; not when muted', async () => {
+    await readEvents(
+      await streamVoiceRoomChat(
+        'clerk-1',
+        REQUEST,
+        new AbortController().signal,
+      ),
+    )
+    expect(mocks.runAssistantNext.mock.calls[0][1]).toMatchObject({
+      chatVoice: { expressive: false },
+    })
+
+    await readEvents(
+      await streamVoiceRoomChat(
+        'clerk-1',
+        { ...REQUEST, voice: false },
+        new AbortController().signal,
+      ),
+    )
+    expect(mocks.runAssistantNext.mock.calls[1][1].chatVoice).toBeUndefined()
+  })
+
+  it('learns how you talk after the response, every eighth line of yours', async () => {
+    mocks.db.voiceLine.count.mockResolvedValue(8)
+    const response = await streamVoiceRoomChat(
+      'clerk-1',
+      REQUEST,
+      new AbortController().signal,
+    )
+    await readEvents(response)
+
+    // 学说法排在响应发完之后（after），⛔ 拖慢聊天。
+    expect(mocks.learnCreatorPhrases).not.toHaveBeenCalled()
+    await mocks.after.mock.calls[0][0]()
+    expect(mocks.learnCreatorPhrases).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        cardId: DENIA_ID,
+        roomId: 'room-1',
+      }),
+    )
+
+    mocks.learnCreatorPhrases.mockClear()
+    mocks.db.voiceLine.count.mockResolvedValue(9)
+    await mocks.after.mock.calls[0][0]()
+    expect(mocks.learnCreatorPhrases).not.toHaveBeenCalled()
   })
 
   it('uses the character card picked for this room before the voice binding', async () => {

@@ -58,6 +58,12 @@ export const CHARACTER_PERSONA_LIMITS = {
   speech: 2000,
   catchphraseChars: 120,
   catchphrases: 20,
+  /** 几种口吻（10-26「更像真人」F）：一行一种，聊天每轮挑一种。 */
+  moods: 6,
+  moodChars: 80,
+  /** 学到的说法（F）：聊天里从你的话学来的口头禅，满了挤掉最旧的。 */
+  learnedPhrases: 12,
+  learnedPhraseChars: 16,
   scenario: 2000,
   opening: 2000,
   examples: 10,

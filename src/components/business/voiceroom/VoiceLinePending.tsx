@@ -1,9 +1,11 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 
+import { useChatBubbleReveal } from '@/hooks/use-chat-bubble-reveal'
 import { parseVoiceLineEmotion } from '@/lib/voice-line-emotion'
-import { withoutPictureHandles } from '@/lib/voiceroom-chat-prompt'
+import { chatBubbles, withoutPictureHandles } from '@/lib/voiceroom-chat-prompt'
 import type { VoiceRoomCastMember } from '@/types/voiceroom'
 
 import { VoiceAvatar } from './VoiceAvatar'
@@ -29,6 +31,9 @@ interface VoiceLinePendingProps {
    * 末尾一根光标；写完换成真台词，那时才轮到声音。
    */
   typing?: boolean
+  /** 聊天：写完了（真台词已回来），剩下的气泡按节奏出完就 `onRevealed`。 */
+  done?: boolean
+  onRevealed?: () => void
 }
 
 export function VoiceLinePending({
@@ -36,6 +41,8 @@ export function VoiceLinePending({
   speakerId,
   text,
   typing = false,
+  done = false,
+  onRevealed,
 }: VoiceLinePendingProps) {
   const t = useTranslations('VoiceRoom')
   const speaker = cast.find((member) => member.id === speakerId)
@@ -52,12 +59,10 @@ export function VoiceLinePending({
         cover={speaker?.coverImage}
         kind={speaker?.kind}
       />
-      <div className="vr-msg-body">
+      <div className="vr-msg-body" aria-live={typing ? 'polite' : undefined}>
         <span className="vr-who">{speaker?.name}</span>
         {typing ? (
-          <span className="vr-bubble vr-typing" aria-live="polite">
-            <VoiceLineText text={withoutPictureHandles(text)} />
-          </span>
+          <TypingBubbles text={text} done={done} onRevealed={onRevealed} />
         ) : (
           <>
             <span className="vr-bubble">{clean}</span>
@@ -75,5 +80,63 @@ export function VoiceLinePending({
         )}
       </div>
     </div>
+  )
+}
+
+/**
+ * 她正在写（10-26「更像真人」F）：一行一个气泡，正在写的那个一个字一个字长、末尾一根光标；
+ * 下一个还没露面时摆一个「正在输入」的三点气泡。
+ */
+function TypingBubbles({
+  text,
+  done,
+  onRevealed,
+}: {
+  text: string
+  done: boolean
+  onRevealed?: () => void
+}) {
+  const bubbles = chatBubbles(withoutPictureHandles(text))
+  const shown = useChatBubbleReveal(bubbles, done, onRevealed)
+  const endRef = useRef<HTMLSpanElement | null>(null)
+  // 新气泡 / 三点露面不改字数，聊天流那边的「滚到底」看不见：这里自己往下带一下。
+  useEffect(() => {
+    endRef.current?.scrollIntoView?.({ block: 'nearest' })
+  }, [shown])
+  const visible = bubbles.slice(0, shown)
+  // 前一个写完、下一个还没开头（刚换行）也算在路上。
+  const waiting =
+    shown < bubbles.length ||
+    (!done && visible.length > 0 && /\n\s*$/.test(text))
+
+  if (visible.length === 0)
+    return (
+      <span className="vr-bubble vr-typing">
+        <VoiceLineText text="" />
+      </span>
+    )
+  return (
+    <>
+      {visible.map((bubble, index) => (
+        <span
+          key={index}
+          className={
+            index === visible.length - 1 && !done && !waiting
+              ? 'vr-bubble vr-typing'
+              : 'vr-bubble'
+          }
+        >
+          <VoiceLineText text={bubble} />
+        </span>
+      ))}
+      {waiting ? (
+        <span className="vr-bubble vr-bubble-dots" aria-hidden>
+          <i />
+          <i />
+          <i />
+        </span>
+      ) : null}
+      <span ref={endRef} aria-hidden />
+    </>
   )
 }

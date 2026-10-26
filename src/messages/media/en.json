@@ -484,5 +484,34 @@
       "taken": "In",
       "full": "Up to {max}"
     }
+  },
+  "VoiceBench": {
+    "placeholder": "Write a line…",
+    "speak": "Read",
+    "play": "Play",
+    "stop": "Stop",
+    "retake": "Retake",
+    "pending": "Reading…",
+    "failed": "Didn't come out — read again",
+    "pickVoice": "Pick a voice",
+    "setupKey": "Set up Fish key",
+    "loadFailed": "Couldn't load the lines",
+    "retry": "Try again",
+    "emotion": "Emotion",
+    "noPersonaTitle": "Switch to a character first",
+    "noPersonaBody": "The voice bench reads in her voice, and the default assistant has none.",
+    "switchPersona": "Switch character",
+    "voiceOf": "{name}'s voice",
+    "emotions": {
+      "none": "Auto",
+      "calm": "Calm",
+      "excited": "Excited",
+      "whisper": "Whisper",
+      "narration": "Narration",
+      "dialogue": "Dialogue",
+      "angry": "Angry",
+      "sad": "Sad",
+      "surprised": "Surprised"
+    }
   }
 }

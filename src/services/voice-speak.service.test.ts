@@ -7,12 +7,16 @@ const mocks = vi.hoisted(() => ({
     assistantPersona: { findUnique: vi.fn() },
     voiceCard: { findFirst: vi.fn() },
     characterCard: { findFirst: vi.fn() },
+    generation: { findMany: vi.fn() },
   },
   submitAudioGeneration: vi.fn(),
 }))
 
 vi.mock('@/lib/db', () => ({ db: mocks.db }))
-vi.mock('@/services/generate-audio.service', () => ({
+vi.mock('@/services/generate-audio.service', async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import('@/services/generate-audio.service')
+  >()),
   submitAudioGeneration: mocks.submitAudioGeneration,
 }))
 vi.mock('@/services/user.service', () => ({
@@ -21,7 +25,7 @@ vi.mock('@/services/user.service', () => ({
 
 import { AI_MODELS } from '@/constants/models'
 
-import { speakAsPersona } from './voice-speak.service'
+import { listVoiceBenchLines, speakAsPersona } from './voice-speak.service'
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -72,5 +76,74 @@ describe('speakAsPersona（②c-2 对话里 🔊 念回复）', () => {
       ).rejects.toMatchObject({ errorCode: 'ASSISTANT_VOICE_UNBOUND' })
     }
     expect(mocks.submitAudioGeneration).not.toHaveBeenCalled()
+  })
+})
+
+describe('配音台（③）', () => {
+  it('念台词带情绪：写成句首方括号语气进到念的字里', async () => {
+    mocks.db.assistantPersona.findUnique.mockResolvedValue({
+      characterCard: { voiceCardId: 'voice-card-1', isDeleted: false },
+    })
+    await speakAsPersona('clerk-1', { text: '别回头', emotion: 'whisper' })
+    const prompt = mocks.submitAudioGeneration.mock.calls[0]![1].prompt
+    expect(prompt).toMatch(/^\[[^\]]+\]别回头$/)
+  })
+
+  it('台词 = 素材库里她这副嗓子念过的音频，旧的在前', async () => {
+    mocks.db.assistantPersona.findUnique.mockResolvedValue({
+      characterCard: {
+        id: 'card-1',
+        voiceCardId: 'voice-card-1',
+        isDeleted: false,
+      },
+    })
+    mocks.db.generation.findMany.mockResolvedValue([
+      {
+        id: 'g2',
+        prompt: '[pause] 请保持安静哦。',
+        url: 'https://cdn.test/g2.mp3',
+        duration: 2,
+        createdAt: new Date('2026-10-26T10:01:00Z'),
+      },
+      {
+        id: 'g1',
+        prompt: '欢迎来到图书馆。',
+        url: 'https://cdn.test/g1.mp3',
+        duration: null,
+        createdAt: new Date('2026-10-26T10:00:00Z'),
+      },
+    ])
+    const data = await listVoiceBenchLines('clerk-1')
+    expect(data.characterCardId).toBe('card-1')
+    expect(data.lines.map((line) => line.id)).toEqual(['g1', 'g2'])
+    expect(mocks.db.generation.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          userId: 'user-1',
+          outputType: 'AUDIO',
+          snapshot: { path: ['voiceId'], equals: 'fish-1' },
+        }),
+      }),
+    )
+  })
+
+  it('默认助手 / 没绑嗓子：空台，⛔ 查素材库', async () => {
+    mocks.db.assistantPersona.findUnique.mockResolvedValue({
+      characterCard: null,
+    })
+    await expect(listVoiceBenchLines('clerk-1')).resolves.toEqual({
+      characterCardId: null,
+      voiceCardId: null,
+      lines: [],
+    })
+    mocks.db.assistantPersona.findUnique.mockResolvedValue({
+      characterCard: { id: 'card-1', voiceCardId: null, isDeleted: false },
+    })
+    await expect(listVoiceBenchLines('clerk-1')).resolves.toEqual({
+      characterCardId: 'card-1',
+      voiceCardId: null,
+      lines: [],
+    })
+    expect(mocks.db.generation.findMany).not.toHaveBeenCalled()
   })
 })

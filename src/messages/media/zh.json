@@ -484,5 +484,34 @@
       "taken": "已在",
       "full": "最多 {max} 位"
     }
+  },
+  "VoiceBench": {
+    "placeholder": "写一句台词…",
+    "speak": "念",
+    "play": "播放",
+    "stop": "停",
+    "retake": "重录",
+    "pending": "正在念…",
+    "failed": "没念出来，再念一次",
+    "pickVoice": "挑一副嗓子",
+    "setupKey": "配 Fish key",
+    "loadFailed": "台词没读出来",
+    "retry": "再试一次",
+    "emotion": "情绪",
+    "noPersonaTitle": "先换成一个角色",
+    "noPersonaBody": "配音台用她的嗓子念，默认助手没有嗓子。",
+    "switchPersona": "换一个角色",
+    "voiceOf": "{name}的嗓子",
+    "emotions": {
+      "none": "自动",
+      "calm": "沉稳",
+      "excited": "兴奋",
+      "whisper": "耳语",
+      "narration": "旁白",
+      "dialogue": "对话",
+      "angry": "愤怒",
+      "sad": "悲伤",
+      "surprised": "惊讶"
+    }
   }
 }

@@ -26,7 +26,7 @@ vi.mock('@/hooks/use-studio-operator-store', () => ({
 }))
 
 describe('StudioBenchPicker（左栏「工作台」那一条，用户 10-25）', () => {
-  it('五个台竖着一排，点一个进那个台（带上这段对话），点完收起', () => {
+  it('六个台竖着一排，点一个进那个台（带上这段对话），点完收起', () => {
     const onPicked = vi.fn()
     render(
       <TooltipProvider>
@@ -38,6 +38,7 @@ describe('StudioBenchPicker（左栏「工作台」那一条，用户 10-25）',
     expect(links.map((link) => link.getAttribute('data-bench'))).toEqual([
       'image',
       'lora',
+      'audio',
       'video',
       'model3d',
       'canvas',

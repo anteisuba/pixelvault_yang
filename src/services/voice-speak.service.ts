@@ -3,6 +3,7 @@ import 'server-only'
 import { db } from '@/lib/db'
 import { ApiRequestError } from '@/lib/errors'
 import { AUDIO_KIND, type AudioKind } from '@/constants/audio-options'
+import { VOICE_BENCH } from '@/constants/studio-operator-voice'
 import { getAvailableAudioModels } from '@/constants/models'
 import { resolveAudioKind } from '@/constants/models/audio'
 import { characterCoverUrl } from '@/lib/card-bus'
@@ -11,12 +12,16 @@ import {
   CHARACTER_LOOKS_INCLUDE,
   mapCharacterLookRow,
 } from '@/services/cards/character-card.mapper'
-import { submitAudioGeneration } from '@/services/generate-audio.service'
+import {
+  applyAudioStylePrompt,
+  submitAudioGeneration,
+} from '@/services/generate-audio.service'
 import { ensureUser } from '@/services/user.service'
 import type {
   AssistantSpeakRequest,
   AssistantSpeakResponseData,
 } from '@/types/assistant-speak'
+import type { VoiceBenchData } from '@/types/voice-bench'
 
 /**
  * 用一副音色卡念一段话（对话里 🔊 念回复，②c-2）。
@@ -101,7 +106,8 @@ export async function speakWithVoiceCard(params: {
 }
 
 /**
- * 对话里 🔊 念她的回复（②c-2）：用设置里那位角色绑的嗓子念。
+ * 用设置里那位角色绑的嗓子念（对话里 🔊 念回复 ②c-2 / 配音台念台词 ③）。
+ * 情绪写成句首的方括号语气进到念的字里（和画布音频卡同一个映射），素材库里那条的字也带着它——配音台靠它显示、重录照念。
  * 默认助手 / 角色没绑嗓子 = 念不了（界面上先让人挑一副）。
  */
 export async function speakAsPersona(
@@ -129,8 +135,69 @@ export async function speakAsPersona(
     clerkId,
     userId: user.id,
     voiceCardId,
-    text: request.text,
+    text: request.emotion
+      ? applyAudioStylePrompt(request.text, request.emotion)
+      : request.text,
     ...(request.modelId ? { modelId: request.modelId } : {}),
   })
   return { jobId }
+}
+
+/**
+ * 配音台（③）上的台词：⛔ 另建台词表（用户 10-26）—— 就是素材库里她这副嗓子念过的音频
+ * （`snapshot.voiceId` 认嗓子，对话里 🔊 念的也在里面），最近 `VOICE_BENCH.listLimit` 条，旧的在前。
+ */
+export async function listVoiceBenchLines(
+  clerkId: string,
+): Promise<VoiceBenchData> {
+  const user = await ensureUser(clerkId)
+  const persona = await db.assistantPersona.findUnique({
+    where: { userId: user.id },
+    select: {
+      characterCard: {
+        select: { id: true, voiceCardId: true, isDeleted: true },
+      },
+    },
+  })
+  const card = persona?.characterCard
+  if (!card || card.isDeleted)
+    return { characterCardId: null, voiceCardId: null, lines: [] }
+  const empty = {
+    characterCardId: card.id,
+    voiceCardId: card.voiceCardId,
+    lines: [],
+  }
+  if (!card.voiceCardId) return empty
+  const voice = await db.voiceCard.findFirst({
+    where: { id: card.voiceCardId, userId: user.id, isDeleted: false },
+    select: { voiceId: true },
+  })
+  if (!voice?.voiceId) return empty
+
+  const rows = await db.generation.findMany({
+    where: {
+      userId: user.id,
+      outputType: 'AUDIO',
+      snapshot: { path: ['voiceId'], equals: voice.voiceId },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: VOICE_BENCH.listLimit,
+    select: {
+      id: true,
+      prompt: true,
+      url: true,
+      duration: true,
+      createdAt: true,
+    },
+  })
+  return {
+    ...empty,
+    lines: rows.reverse().map((row) => ({
+      id: row.id,
+      text: row.prompt,
+      url: row.url,
+      duration: row.duration,
+      createdAt: row.createdAt.toISOString(),
+    })),
+  }
 }

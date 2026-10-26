@@ -38,7 +38,8 @@ export const ASSISTANT_NEXT_OPEN_BENCH_WORKSPACES = {
   // ⚠ 没有配音间：配音间单独做、助手不负责（owner 10-23）。
   lora: 'lora',
   canvas: 'canvas',
-  character: 'cards',
+  // ⚠ 没有角色页（10-26）：角色页进了库，库里的页面不当宿主，开过去永远「没到」；
+  //   角色的设定与造型用 edit 的库改法在哪个台都能改。
 } as const satisfies Record<string, AssistantWorkspace>
 
 export type AssistantNextOpenBench =
@@ -173,7 +174,7 @@ export const ASSISTANT_NEXT_LORA_PARAM_KEYS: Readonly<Record<string, string>> =
   }
 
 /** 过程记录里标「这一轮是新内核跑的」（`AssistantTurnRecord.promptVersion`）。改系统提示时一起换。 */
-export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-10-26a'
+export const ASSISTANT_NEXT_PROMPT_VERSION = 'next-2026-10-26b'
 
 export const ASSISTANT_NEXT_LIMITS = {
   /**

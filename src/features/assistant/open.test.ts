@@ -4,16 +4,11 @@ import type { V3Context } from '@/services/kernel/assistant-v3-steps.service'
 
 vi.mock('server-only', () => ({}))
 
-const { recent, characters } = vi.hoisted(() => ({
+const { recent } = vi.hoisted(() => ({
   recent: [] as { id: string; name: string }[],
-  characters: [] as { id: string; name: string }[],
 }))
 vi.mock('@/services/node/node-workflow.service', () => ({
   listRecentNodeWorkflowProjectsForUser: async () => recent,
-}))
-vi.mock('@/services/assistant-library-write.service', () => ({
-  findOwnCharacter: async (_userId: string, name: string) =>
-    characters.find((card) => card.name === name) ?? null,
 }))
 
 import { arrivedAt, openedOutput, planOpen } from './open'
@@ -37,7 +32,6 @@ function contextOn(
 
 beforeEach(() => {
   recent.length = 0
-  characters.length = 0
 })
 
 describe('planOpen（第 9e 步）', () => {
@@ -66,35 +60,11 @@ describe('planOpen（第 9e 步）', () => {
     expect(result.output).toContain('on the canvas already')
   })
 
-  it('角色页按名字认（服务端查），认不出就报错，⛔ 不收模型写的 id', async () => {
-    characters.push({ id: 'card-9', name: '马尔福' })
-    const here = contextOn('image-natural')
-    expect(
-      (await planOpen(here, { bench: 'character', character: '角色·马尔福' }))
-        .opening,
-    ).toEqual({
-      target: { workspace: 'cards', characterId: 'card-9' },
-      label: 'the character page (马尔福 open)',
-    })
-    const unknown = await planOpen(here, {
-      bench: 'character',
-      character: '哈利',
-    })
-    expect(unknown.error).toBe(true)
-    expect(unknown.opening).toBeUndefined()
-  })
-
-  it('角色页上：页上的句柄直接认；开着的就是她时不白跳', async () => {
-    const cards = {
-      characters: [{ id: 'denia', name: 'Denia' }],
-      open: { id: 'denia', name: 'Denia' },
-    }
-    const result = await planOpen(contextOn('cards', cards), {
-      bench: 'character',
-      character: 'char-aa11',
-    })
-    expect(result.opening).toBeUndefined()
-    expect(result.output).toContain('with Denia open')
+  it('没有角色页（10-26）：bench 里不收 character', async () => {
+    const { OpenInputSchema } = await import('./tools')
+    expect(OpenInputSchema.safeParse({ bench: 'character' }).success).toBe(
+      false,
+    )
   })
 })
 

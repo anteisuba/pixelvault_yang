@@ -98,16 +98,16 @@ const BENCH_ROUTE: Record<
   home: ROUTES.STUDIO,
 }
 
-/** 开台（第 9e 步）去哪一页：画布带 `?project=<id|new>`，角色页带打开哪一位。 */
+/**
+ * 开台（第 9e 步）去哪一页：画布带 `?project=<id|new>`。
+ * ⚠ `open` 不再去角色页（10-26，角色页进了库、不当宿主）；旧记录里的 cards 目标落到角色库。
+ */
 export function assistantBenchPath(target: AssistantOperatorBenchOpen): string {
   if (target.workspace === 'canvas')
     return target.projectId
       ? `${ROUTES.STUDIO_NODE}?${new URLSearchParams({ project: target.projectId }).toString()}`
       : ROUTES.STUDIO_NODE
-  if (target.workspace === 'cards')
-    return cardManagementPath(
-      target.characterId ? { character: target.characterId } : {},
-    )
+  if (target.workspace === 'cards') return cardManagementPath({})
   return BENCH_ROUTE[target.workspace]
 }
 

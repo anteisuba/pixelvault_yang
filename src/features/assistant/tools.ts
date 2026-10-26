@@ -462,19 +462,13 @@ export const OpenInputSchema = z.object({
   bench: z
     .enum(ASSISTANT_NEXT_OPEN_BENCHES)
     .describe(
-      'image = the image bench (natural-language prompts), tags = the tag bench (NovelAI / Danbooru tags), video, audio (speech, sound effects, music), lora (LoRA work), canvas (a multi-card, multi-shot piece), character = the character page.',
+      'image = the image bench (natural-language prompts), tags = the tag bench (NovelAI / Danbooru tags), video, lora (LoRA work), canvas (a multi-card, multi-shot piece).',
     ),
   canvas: z
     .enum(ASSISTANT_NEXT_OPEN_CANVAS)
     .nullish()
     .describe(
       'Canvas only: "recent" (the default) opens the canvas they worked on last; "new" starts a new one — only when they ask for a new canvas.',
-    ),
-  character: z
-    .string()
-    .nullish()
-    .describe(
-      'Character page only: who to open, "角色·<name>". null = the page with nobody open.',
     ),
 })
 export type OpenInput = z.infer<typeof OpenInputSchema>

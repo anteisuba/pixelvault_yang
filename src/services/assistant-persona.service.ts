@@ -122,6 +122,10 @@ function toPromptCharacter(
       .filter(Boolean),
     backstory: profile.backstory.trim(),
     boundaries: profile.boundaries.trim(),
+    moods: profile.moods.map((mood) => mood.trim()).filter(Boolean),
+    learnedPhrases: profile.learnedPhrases
+      .map((phrase) => phrase.trim())
+      .filter(Boolean),
   }
   const empty =
     !character.identity &&
@@ -372,8 +376,6 @@ function toChatPersona(
     world: readTavernWorldBook(card.extensions),
     /** 你在她的故事里是谁 —— 按角色记在卡上（owner 2026-10-16），每段聊天都带。 */
     userRole: readChatUserRole(card.extensions),
-    moods: profile.moods,
-    learnedPhrases: profile.learnedPhrases,
   }
   return {
     ...persona,
@@ -492,8 +494,16 @@ export function sanitizePromptCharacter(
       catchphrases: character.catchphrases
         .slice(0, ASSISTANT_PERSONA_LIMITS.maxCharacterCatchphrases)
         .map((phrase) => clean(phrase, 120)),
-      moods: [],
-      learnedPhrases: [],
+      moods: (character.moods ?? [])
+        .map((mood) => clean(mood, CHARACTER_PERSONA_LIMITS.moodChars))
+        .filter(Boolean)
+        .slice(0, CHARACTER_PERSONA_LIMITS.moods),
+      learnedPhrases: (character.learnedPhrases ?? [])
+        .map((phrase) =>
+          clean(phrase, CHARACTER_PERSONA_LIMITS.learnedPhraseChars),
+        )
+        .filter(Boolean)
+        .slice(-CHARACTER_PERSONA_LIMITS.learnedPhrases),
       scenario: '',
       opening: '',
       examples: [],
@@ -556,16 +566,6 @@ export function sanitizePromptRoleplay(
       roleplay.userRole ?? '',
       ASSISTANT_PERSONA_LIMITS.maxChatUserRoleChars,
     ),
-    moods: (roleplay.moods ?? [])
-      .map((mood) => clean(mood, CHARACTER_PERSONA_LIMITS.moodChars))
-      .filter(Boolean)
-      .slice(0, CHARACTER_PERSONA_LIMITS.moods),
-    learnedPhrases: (roleplay.learnedPhrases ?? [])
-      .map((phrase) =>
-        clean(phrase, CHARACTER_PERSONA_LIMITS.learnedPhraseChars),
-      )
-      .filter(Boolean)
-      .slice(-CHARACTER_PERSONA_LIMITS.learnedPhrases),
   }
   return cleaned
 }

@@ -123,6 +123,7 @@ import {
   buildNextSystemPrompt,
   chatCharacterOf,
   chatReminder,
+  workMoodReminder,
 } from '@/features/assistant/prompt'
 import {
   BUILTIN_SKILLS,
@@ -619,15 +620,20 @@ async function* runNextTurn(
         ]
       : []
     // 「别出戏」放在这一轮的消息里（⛔ 进系统提示：每轮都变会废掉缓存）。
+    const userTurns = request.messages.filter(
+      (message) => message.role === 'user',
+    ).length
+    // 工作台用角色：这一轮的口吻只管开头和收尾（10-26「三处怎么说话」）。
     const reminder = chat
-      ? chatReminder(
-          persona,
-          request.messages.filter((message) => message.role === 'user').length,
-        )
-      : null
+      ? chatReminder(persona, userTurns)
+      : workMoodReminder(persona, userTurns)
     // 会被念出来（聊天页开着声音）：方括号语气提示的写法，和薄管子同一段（⛔ 进系统提示：开关随时会变）。
     const voice = request.chatVoice
-      ? `HOW YOUR VOICE SOUNDS\n${voiceCueRules(request.chatVoice.expressive)}\n- These cues are not stage directions: they are allowed, and they are how the voice gets its feeling.`
+      ? `HOW YOUR VOICE SOUNDS\n${voiceCueRules(request.chatVoice.expressive)}\n- These cues are not stage directions: they are allowed, and they are how the voice gets its feeling.${
+          chat
+            ? ''
+            : '\n- While a bench is open only your first and last paragraphs are read aloud: put the cues there, never in the report between them.'
+        }`
       : null
     // 「/」点名的技能：全文直接进这一轮的消息，不等模型自己去读。
     const called = renderCalledSkills(latestUserText, skills)

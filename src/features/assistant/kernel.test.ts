@@ -198,7 +198,7 @@ import { prepareOperatorTurn } from '@/services/kernel/assistant-operator.servic
 import { assistantV3TurnFingerprint } from '@/lib/assistant-v3-history'
 
 import { runAssistantNext } from './kernel'
-import { pickChatMood } from './prompt'
+import { pickChatMood, workMoodReminder } from './prompt'
 
 const usage = {
   inputTokens: {
@@ -936,13 +936,13 @@ describe('记忆与之前几轮（第 6 步）', () => {
             boundaries: '不会当着别人面道谢',
             catchphrases: [],
             backstory: '',
+            moods: ['嘴硬：先否认再软下来'],
+            learnedPhrases: ['摸鱼', '绝了'],
           },
           roleplay: {
             scenario: '图书馆的午后',
             opening: '',
             examples: [{ user: '', reply: '哼，别以为我会谢你。' }],
-            moods: ['嘴硬：先否认再软下来'],
-            learnedPhrases: ['摸鱼', '绝了'],
           },
         },
       } as typeof prepared
@@ -1298,5 +1298,40 @@ describe('pickChatMood（10-26「更像真人」F）', () => {
     expect(pickChatMood(moods, 'card-7', 5)).toBe(picks[5])
     expect(pickChatMood(['只有一种'], 'card-7', 3)).toBe('只有一种')
     expect(pickChatMood([], 'card-7', 3)).toBeNull()
+  })
+})
+
+describe('workMoodReminder（10-26 工作台：说话像她、干活直说）', () => {
+  it('这一轮的口吻只管开头和收尾；没写口吻、没用角色 = null', () => {
+    const persona = {
+      name: null,
+      characterCardId: 'card-7',
+      promptCharacter: {
+        name: 'Denia',
+        identity: '',
+        behavior: '',
+        speech: '说话慢',
+        catchphrases: [],
+        backstory: '',
+        boundaries: '',
+        moods: ['慵懒'],
+      },
+    } as never
+    expect(workMoodReminder(persona, 3)).toBe(
+      '(This time your mood as Denia is: 慵懒 — let it colour the opening and the closing, never the report.)',
+    )
+    expect(
+      workMoodReminder(
+        {
+          ...(persona as object),
+          promptCharacter: {
+            ...(persona as { promptCharacter: object }).promptCharacter,
+            moods: [],
+          },
+        } as never,
+        3,
+      ),
+    ).toBeNull()
+    expect(workMoodReminder({ name: null } as never, 3)).toBeNull()
   })
 })

@@ -270,6 +270,13 @@ export type ContextCard = Prisma.ContextCardModel
  */
 export type AssistantMemory = Prisma.AssistantMemoryModel
 /**
+ * Model CharacterCardRevision
+ * **她改了什么**（10-26「更像真人」C，owner 定「她自己改卡、不用确认，设置里留记录、每条能撤回」）：
+ * 助手每改一次角色卡记一行，只记改到的那几格的前后值。撤回 = 把 `before` 那几格写回去。
+ * ⚠ 你自己在角色页上改的不记（那是你改的，不是她）。每张卡只留最近 200 行。
+ */
+export type CharacterCardRevision = Prisma.CharacterCardRevisionModel
+/**
  * Model AssistantSkill
  * 创作者自己的技能（第 7b 步，owner 10-23）：SKILL.md 那几样（名字、描述、正文、参考文件）存成一行。
  * ⭐ 每人各自一份：只有本人看得到、只进本人的助手（按 `userId` 收敛）。

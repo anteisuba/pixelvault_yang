@@ -421,6 +421,7 @@ export const ModelName = {
   GenerationLayer: 'GenerationLayer',
   ContextCard: 'ContextCard',
   AssistantMemory: 'AssistantMemory',
+  CharacterCardRevision: 'CharacterCardRevision',
   AssistantSkill: 'AssistantSkill',
   AssistantTurnRecord: 'AssistantTurnRecord'
 } as const
@@ -438,7 +439,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "danbooruTagName" | "promptTagStack" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "modelConfig" | "characterCard" | "characterLook" | "generationCharacterCard" | "userLike" | "userFollow" | "characterCardLora" | "loraTrainingJob" | "loraAsset" | "extractedElement" | "generationLayer" | "contextCard" | "assistantMemory" | "assistantSkill" | "assistantTurnRecord"
+    modelProps: "user" | "mcpToken" | "danbooruFavorite" | "danbooruTagName" | "promptTagStack" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "projectItem" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "modelConfig" | "characterCard" | "characterLook" | "generationCharacterCard" | "userLike" | "userFollow" | "characterCardLora" | "loraTrainingJob" | "loraAsset" | "extractedElement" | "generationLayer" | "contextCard" | "assistantMemory" | "characterCardRevision" | "assistantSkill" | "assistantTurnRecord"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -3180,6 +3181,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    CharacterCardRevision: {
+      payload: Prisma.$CharacterCardRevisionPayload<ExtArgs>
+      fields: Prisma.CharacterCardRevisionFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.CharacterCardRevisionFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardRevisionPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.CharacterCardRevisionFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardRevisionPayload>
+        }
+        findFirst: {
+          args: Prisma.CharacterCardRevisionFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardRevisionPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.CharacterCardRevisionFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardRevisionPayload>
+        }
+        findMany: {
+          args: Prisma.CharacterCardRevisionFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardRevisionPayload>[]
+        }
+        create: {
+          args: Prisma.CharacterCardRevisionCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardRevisionPayload>
+        }
+        createMany: {
+          args: Prisma.CharacterCardRevisionCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.CharacterCardRevisionCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardRevisionPayload>[]
+        }
+        delete: {
+          args: Prisma.CharacterCardRevisionDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardRevisionPayload>
+        }
+        update: {
+          args: Prisma.CharacterCardRevisionUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardRevisionPayload>
+        }
+        deleteMany: {
+          args: Prisma.CharacterCardRevisionDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.CharacterCardRevisionUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.CharacterCardRevisionUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardRevisionPayload>[]
+        }
+        upsert: {
+          args: Prisma.CharacterCardRevisionUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$CharacterCardRevisionPayload>
+        }
+        aggregate: {
+          args: Prisma.CharacterCardRevisionAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateCharacterCardRevision>
+        }
+        groupBy: {
+          args: Prisma.CharacterCardRevisionGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CharacterCardRevisionGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.CharacterCardRevisionCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.CharacterCardRevisionCountAggregateOutputType> | number
+        }
+      }
+    }
     AssistantSkill: {
       payload: Prisma.$AssistantSkillPayload<ExtArgs>
       fields: Prisma.AssistantSkillFieldRefs
@@ -4052,6 +4127,22 @@ export const AssistantMemoryScalarFieldEnum = {
 export type AssistantMemoryScalarFieldEnum = (typeof AssistantMemoryScalarFieldEnum)[keyof typeof AssistantMemoryScalarFieldEnum]
 
 
+export const CharacterCardRevisionScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  characterCardId: 'characterCardId',
+  source: 'source',
+  fields: 'fields',
+  before: 'before',
+  after: 'after',
+  reason: 'reason',
+  revertedAt: 'revertedAt',
+  createdAt: 'createdAt'
+} as const
+
+export type CharacterCardRevisionScalarFieldEnum = (typeof CharacterCardRevisionScalarFieldEnum)[keyof typeof CharacterCardRevisionScalarFieldEnum]
+
+
 export const AssistantSkillScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -4438,6 +4529,20 @@ export type EnumAssistantMemorySourceFieldRefInput<$PrismaModel> = FieldRefInput
 export type ListEnumAssistantMemorySourceFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AssistantMemorySource[]'>
     
 
+
+/**
+ * Reference to a field of type 'CharacterRevisionSource'
+ */
+export type EnumCharacterRevisionSourceFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'CharacterRevisionSource'>
+    
+
+
+/**
+ * Reference to a field of type 'CharacterRevisionSource[]'
+ */
+export type ListEnumCharacterRevisionSourceFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'CharacterRevisionSource[]'>
+    
+
 /**
  * Batch Payload for updateMany & deleteMany & createMany
  */
@@ -4570,6 +4675,7 @@ export type GlobalOmitConfig = {
   generationLayer?: Prisma.GenerationLayerOmit
   contextCard?: Prisma.ContextCardOmit
   assistantMemory?: Prisma.AssistantMemoryOmit
+  characterCardRevision?: Prisma.CharacterCardRevisionOmit
   assistantSkill?: Prisma.AssistantSkillOmit
   assistantTurnRecord?: Prisma.AssistantTurnRecordOmit
 }

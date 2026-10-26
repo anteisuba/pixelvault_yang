@@ -26,6 +26,7 @@ import {
 import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
 import { ASSISTANT_V3_CHARACTER_WRITE_PARTS } from '@/constants/assistant-v3'
 import { CHARACTER_PERSONA_LIMITS } from '@/constants/cards/character-card'
+import { CHARACTER_REVISION_SOURCE_IDS } from '@/constants/cards/character-revision'
 import {
   ASSISTANT_MEMORY_KIND_IDS as MEMORY_KIND,
   ASSISTANT_MEMORY_LIMITS as MEMORY_LIMITS,
@@ -37,6 +38,11 @@ import { db } from '@/lib/db'
 import { Prisma } from '@/lib/generated/prisma/client'
 import { appendSlotSources } from '@/hooks/cards/use-character-card-editor'
 import { parseTavernExamples } from '@/lib/tavern-card'
+import {
+  markCharacterRevisionReverted,
+  recordCharacterRevision,
+  type CharacterRevisionSide,
+} from '@/services/cards/character-revision.service'
 import {
   createCharacterCard,
   updateCharacterCard,
@@ -310,6 +316,29 @@ export async function writeCharacterProfile(
   if (look && description !== undefined)
     await updateCharacterLook(owner.clerkId, look.id, { description })
 
+  // 她改了什么（C）：设置里能看、能撤回。
+  const side: CharacterRevisionSide = {
+    name: card.name,
+    tags: card.tags,
+    persona: before,
+    look: look ? { lookId: look.id, description: look.description } : null,
+  }
+  const revisionId = await recordCharacterRevision({
+    userId: owner.userId,
+    cardId: card.id,
+    source: CHARACTER_REVISION_SOURCE_IDS.chat,
+    before: side,
+    after: {
+      name: input.name?.trim() || card.name,
+      tags: input.tags ? [...input.tags] : card.tags,
+      persona: checked?.success ? checked.data : before,
+      look:
+        look && description !== undefined
+          ? { lookId: look.id, description }
+          : side.look,
+    },
+  })
+
   const changed = [
     ...(input.name ? ['name'] : []),
     ...(input.tags ? ['tags'] : []),
@@ -325,6 +354,7 @@ export async function writeCharacterProfile(
       tags: card.tags,
       persona: card.persona ?? null,
       look: look ? { lookId: look.id, description: look.description } : null,
+      ...(revisionId ? { revisionId } : {}),
     },
     `Changed ${changed.join(', ')} of 角色·${input.name?.trim() || card.name}. It is saved in their library.`,
   )
@@ -1270,6 +1300,8 @@ export async function revertLibraryWrite(
           where: { id: inverse.look.lookId, characterCardId: card.id },
           data: { description: inverse.look.description },
         })
+      if (inverse.revisionId)
+        await markCharacterRevisionReverted(userId, inverse.revisionId)
       return reverted(true)
     }
     case KIND.newCharacter: {

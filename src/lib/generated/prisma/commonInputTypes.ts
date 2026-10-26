@@ -623,6 +623,23 @@ export type EnumAssistantMemorySourceWithAggregatesFilter<$PrismaModel = never> 
   _max?: Prisma.NestedEnumAssistantMemorySourceFilter<$PrismaModel>
 }
 
+export type EnumCharacterRevisionSourceFilter<$PrismaModel = never> = {
+  equals?: $Enums.CharacterRevisionSource | Prisma.EnumCharacterRevisionSourceFieldRefInput<$PrismaModel>
+  in?: $Enums.CharacterRevisionSource[] | Prisma.ListEnumCharacterRevisionSourceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.CharacterRevisionSource[] | Prisma.ListEnumCharacterRevisionSourceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumCharacterRevisionSourceFilter<$PrismaModel> | $Enums.CharacterRevisionSource
+}
+
+export type EnumCharacterRevisionSourceWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.CharacterRevisionSource | Prisma.EnumCharacterRevisionSourceFieldRefInput<$PrismaModel>
+  in?: $Enums.CharacterRevisionSource[] | Prisma.ListEnumCharacterRevisionSourceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.CharacterRevisionSource[] | Prisma.ListEnumCharacterRevisionSourceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumCharacterRevisionSourceWithAggregatesFilter<$PrismaModel> | $Enums.CharacterRevisionSource
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumCharacterRevisionSourceFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumCharacterRevisionSourceFilter<$PrismaModel>
+}
+
 export type NestedStringFilter<$PrismaModel = never> = {
   equals?: string | Prisma.StringFieldRefInput<$PrismaModel>
   in?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel>
@@ -1167,6 +1184,23 @@ export type NestedEnumAssistantMemorySourceWithAggregatesFilter<$PrismaModel = n
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedEnumAssistantMemorySourceFilter<$PrismaModel>
   _max?: Prisma.NestedEnumAssistantMemorySourceFilter<$PrismaModel>
+}
+
+export type NestedEnumCharacterRevisionSourceFilter<$PrismaModel = never> = {
+  equals?: $Enums.CharacterRevisionSource | Prisma.EnumCharacterRevisionSourceFieldRefInput<$PrismaModel>
+  in?: $Enums.CharacterRevisionSource[] | Prisma.ListEnumCharacterRevisionSourceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.CharacterRevisionSource[] | Prisma.ListEnumCharacterRevisionSourceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumCharacterRevisionSourceFilter<$PrismaModel> | $Enums.CharacterRevisionSource
+}
+
+export type NestedEnumCharacterRevisionSourceWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.CharacterRevisionSource | Prisma.EnumCharacterRevisionSourceFieldRefInput<$PrismaModel>
+  in?: $Enums.CharacterRevisionSource[] | Prisma.ListEnumCharacterRevisionSourceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.CharacterRevisionSource[] | Prisma.ListEnumCharacterRevisionSourceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumCharacterRevisionSourceWithAggregatesFilter<$PrismaModel> | $Enums.CharacterRevisionSource
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumCharacterRevisionSourceFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumCharacterRevisionSourceFilter<$PrismaModel>
 }
 
 

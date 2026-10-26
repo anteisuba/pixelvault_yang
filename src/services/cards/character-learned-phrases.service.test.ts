@@ -5,7 +5,6 @@ vi.mock('server-only', () => ({}))
 const mocks = vi.hoisted(() => ({
   db: {
     characterCard: { findFirst: vi.fn(), update: vi.fn() },
-    voiceLine: { findMany: vi.fn() },
   },
   llmTextCompletion: vi.fn(),
 }))
@@ -36,11 +35,6 @@ beforeEach(() => {
     persona: { identity: '图书馆管理员', learnedPhrases: ['绝了'] },
     updatedAt: UPDATED_AT,
   })
-  // 新的在前（按 order 倒序取）。
-  mocks.db.voiceLine.findMany.mockResolvedValue([
-    { text: '今天又摸鱼了' },
-    { text: '这张光影绝了' },
-  ])
 })
 
 describe('mergeLearnedPhrases', () => {
@@ -74,12 +68,12 @@ describe('shouldLearnPhrases', () => {
 })
 
 describe('learnCreatorPhrases', () => {
-  it('reads your recent lines oldest first and saves new phrases without bumping the card', async () => {
+  it('reads what you said oldest first and saves new phrases without bumping the card', async () => {
     mocks.llmTextCompletion.mockResolvedValue('{"phrases": ["摸鱼", "光影"]}')
     const merged = await learnCreatorPhrases({
       userId: 'user-1',
       cardId: 'card-1',
-      roomId: 'room-1',
+      said: ['这张光影绝了', '今天又摸鱼了'],
       assistant: ASSISTANT,
     })
 
@@ -104,7 +98,7 @@ describe('learnCreatorPhrases', () => {
     await learnCreatorPhrases({
       userId: 'user-1',
       cardId: 'card-1',
-      roomId: 'room-1',
+      said: ['这张光影绝了'],
       assistant: ASSISTANT,
     })
     expect(mocks.db.characterCard.update).not.toHaveBeenCalled()
@@ -114,7 +108,7 @@ describe('learnCreatorPhrases', () => {
       learnCreatorPhrases({
         userId: 'user-1',
         cardId: 'card-1',
-        roomId: 'room-1',
+        said: ['这张光影绝了'],
         assistant: ASSISTANT,
       }),
     ).resolves.toBeNull()

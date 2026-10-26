@@ -146,9 +146,11 @@ export function StudioOperatorVoiceStrip() {
                 className={cn(
                   'w-0.5 rounded-full bg-current',
                   height,
-                  index % 2 === 0
-                    ? 'animate-spinner-dot-1'
-                    : 'animate-spinner-dot-2',
+                  // 收着的时候不跳（⛔ 在看不见的地方一直转）。
+                  open &&
+                    (index % 2 === 0
+                      ? 'animate-spinner-dot-1'
+                      : 'animate-spinner-dot-2'),
                   'motion-reduce:animate-none',
                 )}
               />

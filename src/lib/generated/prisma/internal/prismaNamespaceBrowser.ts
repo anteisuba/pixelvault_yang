@@ -70,8 +70,6 @@ export const ModelName = {
   FreeTierSlot: 'FreeTierSlot',
   Recipe: 'Recipe',
   VoiceCard: 'VoiceCard',
-  VoiceRoom: 'VoiceRoom',
-  VoiceLine: 'VoiceLine',
   UserCreativePreference: 'UserCreativePreference',
   AssistantPersona: 'AssistantPersona',
   ProjectRule: 'ProjectRule',
@@ -466,38 +464,6 @@ export const VoiceCardScalarFieldEnum = {
 } as const
 
 export type VoiceCardScalarFieldEnum = (typeof VoiceCardScalarFieldEnum)[keyof typeof VoiceCardScalarFieldEnum]
-
-
-export const VoiceRoomScalarFieldEnum = {
-  id: 'id',
-  userId: 'userId',
-  name: 'name',
-  cast: 'cast',
-  bed: 'bed',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type VoiceRoomScalarFieldEnum = (typeof VoiceRoomScalarFieldEnum)[keyof typeof VoiceRoomScalarFieldEnum]
-
-
-export const VoiceLineScalarFieldEnum = {
-  id: 'id',
-  roomId: 'roomId',
-  order: 'order',
-  speakerId: 'speakerId',
-  speakerKind: 'speakerKind',
-  speakerName: 'speakerName',
-  speakerCover: 'speakerCover',
-  text: 'text',
-  emotion: 'emotion',
-  jobId: 'jobId',
-  attachments: 'attachments',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-} as const
-
-export type VoiceLineScalarFieldEnum = (typeof VoiceLineScalarFieldEnum)[keyof typeof VoiceLineScalarFieldEnum]
 
 
 export const UserCreativePreferenceScalarFieldEnum = {

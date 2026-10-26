@@ -5,7 +5,6 @@ import {
 } from '@/constants/routes'
 import {
   STUDIO_LIBRARY_CATEGORY_IDS,
-  STUDIO_SHELL_PAGE_ROUTES,
   type StudioLibraryCategoryId,
   type StudioShellOverlayId,
   type StudioShellRouteKind,
@@ -31,8 +30,6 @@ export function studioShellRouteKind(pathname: string): StudioShellRouteKind {
     underPrefix(pathname, ROUTES.STUDIO_CONVERSATION)
   )
     return 'home'
-  if (STUDIO_SHELL_PAGE_ROUTES.some((route) => underPrefix(pathname, route)))
-    return 'page'
   return 'bench'
 }
 

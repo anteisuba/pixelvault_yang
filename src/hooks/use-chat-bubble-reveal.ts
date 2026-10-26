@@ -3,14 +3,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useReducedMotion } from 'motion/react'
 
-import { VOICE_ROOM_CHAT_BUBBLE_PAUSE } from '@/constants/voiceroom'
+import { CHAT_BUBBLE_PAUSE } from '@/constants/chat-voice'
 
 /** 前一个气泡有多长，后一个之前就停多久（封顶）。 */
 export function chatBubblePauseMs(previous: string): number {
   return Math.min(
-    VOICE_ROOM_CHAT_BUBBLE_PAUSE.maxMs,
-    VOICE_ROOM_CHAT_BUBBLE_PAUSE.baseMs +
-      previous.length * VOICE_ROOM_CHAT_BUBBLE_PAUSE.perCharMs,
+    CHAT_BUBBLE_PAUSE.maxMs,
+    CHAT_BUBBLE_PAUSE.baseMs + previous.length * CHAT_BUBBLE_PAUSE.perCharMs,
   )
 }
 

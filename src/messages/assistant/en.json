@@ -1073,7 +1073,7 @@
       "group": "With {name}",
       "workGroup": "Work",
       "oldChat": "An earlier chat with {name} — read only",
-      "goVoiceRoom": "Chat with her"
+      "continueChat": "Chat with her"
     },
     "mode": {
       "pickCharacter": "Switch assistant persona",

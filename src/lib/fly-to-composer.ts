@@ -13,7 +13,7 @@ import { cssSpringEasing } from '@/lib/studio-workbench-motion'
  * ⭐ 纯装饰 —— 真正的插入（正文里那枚 `@` 胶囊）由调用方**立刻**做，这里只放一个影子飞过去。
  * ⚠ 影子**一定会被摘掉**：正常播完、动画没跑起来（后台标签页里 WAAPI 会被暂停，
  *   `onfinish` 可能永远不来）两条路都通向同一个清理，兜底定时器保证不留残影
- *   （与 `VoiceRoomCasting` 的飞入同一条教训）。
+ *   （配音间选角飞入当年踩过的同一条教训）。
  * ⚠ `prefers-reduced-motion` 下不飞。
  */
 export function flyImageToComposer(

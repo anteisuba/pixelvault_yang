@@ -21,13 +21,10 @@ export type StudioShellBenchId = (typeof STUDIO_SHELL_BENCH_IDS)[number]
  * 路由在外壳里算哪一种。
  * - `home`：只有对话（首页、`/studio/c/编号`）—— 中间一栏铺开，右边贴一条台条。
  * - `bench`：对话 + 台，中间那一根分隔线定宽窄。
- * - `page`：整页（配音间）—— 左边列表 + 这一页，⛔ 不挂对话（助手不进配音间，owner 10-23）。
+ * - `page`：整页 —— ⛔ 不挂对话（现在只有库就地铺开时用，`StudioShell` 的 `libraryInPlace`）。
  * - `library`：库叠在中间（`/library/<类>`）—— 底下是进来之前那一页（台不卸载）。
  */
 export type StudioShellRouteKind = 'home' | 'bench' | 'page' | 'library'
-
-/** 整页显示、不挂对话的那几条（前缀）。 */
-export const STUDIO_SHELL_PAGE_ROUTES: readonly string[] = [ROUTES.STUDIO_AUDIO]
 
 /** 宽窄那一根分隔线（对话栏的像素宽，台吃掉剩下的）。 */
 export const STUDIO_SHELL_SPLIT = {

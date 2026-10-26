@@ -36,7 +36,7 @@ import {
 import { getGenerationErrorI18nKey } from '@/constants/generation-errors'
 import { isGenerationError, ProviderError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
-import { voiceCueRules } from '@/lib/voiceroom-chat-prompt'
+import { voiceCueRules } from '@/lib/chat-voice'
 import { openCharacterImages } from '@/lib/assistant-v3-cards-board'
 import {
   assistantV3HistoryMessages,

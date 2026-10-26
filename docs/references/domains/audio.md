@@ -3,7 +3,7 @@
 > **沉淀说明**：本文 2026-09-01 由任务包 `audio-domain-design-2026-07.md`（原始拍板 2026-07-05）随 plans 全清沉淀而来，内容 1:1 平移（仅删除已失效的 svg 图解链接）；过程与背景见 git 历史。
 > **本文是音频域的最新施工基准**，合并了方向调研与情绪控制专题（背景与来源见 audio-domain-direction-2026-07.md（已删，见 git 历史））。改音频相关的模型 / 服务 / UI 前先读本文。
 > 视觉权力限定（2026-07-19）：本文保留音频业务、模型、数据和功能信息架构决策；下文基于旧双面模式的外观描述已经废止。未来 Audio 视觉需独立完成域定义、三个结构方向与关键切片确认，不能继承 Studio Image、Canvas 或旧暗面工作台皮肤。
-> ⚠ 时效注记（2026-09-01）：`/studio/audio` 已于 2026-08-29 改为对话式配音间（`bf5eb1f8`），§4 的旧 UI 形态描述只作功能需求参考，现行界面以代码为准。
+> ⚠ 时效注记（2026-10-26）：对话式配音间（2026-08-29 起）已于 10-26 删除，见 §3.2；§4 的旧 UI 形态描述只作功能需求参考。
 
 > ⛔ **配音间不挂统一助手**（owner 2026-09-19，D7 Q5 改口）。统一 dock 的宿主只有三处：工作台 · 画布 · LoRA 装配台（见 [`../pages/assistant-shell-v2.md`](../pages/assistant-shell-v2.md) §0「宿主范围」）。判据：台词与语气**本身就是配音间的主工作流**，不是「替你拧旋钮」的那只手；再套一层助手只会多出一条谁都不走的路。此前 D7 画板里那一帧「配音间壳」作废，⛔ 不要按它实现。`ASSISTANT_OPERATOR_DOMAINS` 里也没有 `audio` 域。
 
@@ -64,52 +64,24 @@
 
 ### 3.1 音色库页 `/voices`（「声音」模块第 1 步，owner 2026-10-23）
 
-- **一页管所有嗓子**：三个页签「我的收藏 · 我的克隆 · 找音色」，数据全走 `useVoiceLibrary` 内核（与画布 `VoiceSelector`、配音间选角弹窗同一份，收藏↔克隆仍只靠 `referenceAudioUrl` 分流）。页面 `components/business/voices/`，状态 `hooks/use-voices-page.ts`，导航「去处」里的「音色」。
+- **一页管所有嗓子**：三个页签「我的收藏 · 我的克隆 · 找音色」，数据全走 `useVoiceLibrary` 内核（与画布 `VoiceSelector`、挑音色框同一份，收藏↔克隆仍只靠 `referenceAudioUrl` 分流）。页面 `components/business/voices/`，状态 `hooks/use-voices-page.ts`，导航「去处」里的「音色」。
 - **卡上的管理**：改名 · 换头像（拖图 / 上传走 `POST /api/voice-cards/[id]/cover`，存到 `profiles/<userId>/voice-cover/`；从素材挑的图直接 PATCH `coverImage`）· 绑到角色（写角色卡 `voiceCardId`，一个角色只有一副嗓子）· 删除（软删，同时把绑着它的角色松开）。
 - **头像规则只有一份**：`lib/voice-avatar.ts` —— 绑了角色用角色头像 → 没绑用音色自己的 → 都没有写名字首字。绑着角色时「换头像」置灰。
-- 配音间「加人」：在顶栏「＋ 加人」（10-25 从输入行挪上去：加人是管房间的）；桌面 2026-10-25 起换成 ui-spec ㉔ 的「挑音色」框 `voices/VoicePickerDialog.tsx`（声音库同一副骨架，照样能搜公共库、「我的克隆」第一格能克隆——owner 10-23 的两条照留）；手机仍是原来的选角面板 `VoiceRoomCasting`。
+- 「挑音色」框 `voices/VoicePickerDialog.tsx`（ui-spec ㉔，声音库同一副骨架，照样能搜公共库、「我的克隆」第一格能克隆——owner 10-23 的两条照留）：对话里 🔊 换嗓子、角色的声音都弹它。
 
-### 3.2 配音间聊天（「声音」模块第 2 步，owner 2026-10-23）
+### 3.2 配音间聊天（2026-10-26 已删）
 
-- **两种玩法，输入框旁一个分段切换**（方案 A）：**聊天**（默认）= 选中谁就是跟谁聊，你打字、她用自己的嗓子回一句；**念台词** = 原来的「打的字就是她的台词」。选中音效师时聊天也按念台词走。
-- **一轮 = 一条 SSE**（`POST /api/voiceroom/chat` → `services/voiceroom-chat.service.ts`）：你那句先存成 `speakerKind: 'user'` 的台词（只有文字、`jobId` 空，靠右墨底气泡）→ 回复边写边发（`delta`，气泡里一个字一个字长）→ 写完存成她的台词并按念法和**输入框旁选的语音模型**派出声音 → 之后与念台词一样靠轮询落地，**点气泡才播放**，不自动放。
-- **写词模型在底部选**（聊天时头像后面那颗，复用助手的模型 chip；配音间单独记在浏览器里，⛔ 不改助手设置；挑法仍是 `resolveAssistantRoute`，key 用户自己的）；缺 key 在开流前就失败，配音间就地开 `QuickSetupDialog`。提示词 `lib/voiceroom-chat-prompt.ts`：绑了角色就是她（角色名 + 设定 + 示例对白），没绑就是音色名本人；只写说出口的话，语气用句首方括号（`[laughing]`），长度交给模型；记得本房间最近 30 句（`VOICE_ROOM_CHAT_HISTORY_LINES`）。
-- **出声失败不丢话**：回复照存（没有声音），气泡下一颗虚线「▶ 念出来」（走重录那条路出声；10-25 起与关声音共用，⛔ 不再写红字）。方括号提示在气泡里淡一档显示（`VoiceLineText`）。
-- **头像与名字跟着绑定的角色走**：班底里的人声按 `voiceSpeakerLook` 当场换成角色的名字和头像；台词上的快照只在那位已不在班底时兜底。
-- **移出房间**：再点一下已选中的头像 → 「移出房间」，她说过的话留着。头像多了这一行左右滑，手机上单独一行。
-- **Worker 派发超时不丢台词**：`submitAudioGeneration` 遇到「送没送到不知道」时照常交回 jobId（Workflow id 就是它，晚到的回调能落）；配音间打开房间时把超过 stale 阈值还没回调的任务收成失败，气泡给重试。10-23 查 Cloudflare 日志：Worker 本身 CPU 1–4ms，慢在 `workflow.create`（4–10s+），10s 超时会把还没建成的实例掐掉 → `EXECUTION_WORKER.DISPATCH_TIMEOUT_MS` 改 25s。
-- 聊天出的语音与念台词一样自动进自己的素材库、默认不公开（owner 10-23：先保持自动入库，不做收藏键；说话人/类型筛选也先不做）。
-- **素材库音频卡跟头像规则走**（第 3 步，10-23）：`dispatchLine` 出声时把绑定角色的名字和头像写进这条作品（`voiceName` / `coverImageUrl` → `previewUrl`），没绑角色用音色卡的；只影响之后新出的，旧作品不回填。
-
-### 3.2.1 顶栏三颗：声音 · 加人 · 人设（「配音间加能力」① ，用户 2026-10-25）
-
-顶栏标题后面一组「这间房的设置」（`VoiceRoomStage` 的 `.vr-bar-room`）：
-
-- **🔊/🔇**：按房间记在浏览器里（`VOICE_ROOM_MUTED_ROOMS_STORAGE_KEY`，只记关着的，新房间默认出声）。关着时聊天请求带 `voice: false`，服务端照写照存、⛔ 不派声音，气泡下给「▶ 念出来」。只管聊天，念台词照旧出声。
-- **＋ 加人**：原来输入行头像后的 ＋ 挪到这里（输入行的 ＋ 留给第 ② 片的上传）。
-- **人设：X ▾**（`VoiceRoomPersonaChip`）：人设就是角色卡，⛔ 不另起数据。跟着底部选中的那位走（群里也是）。菜单 =「这一间用谁的设定」· 当前那张 · 换一张角色卡…（子菜单列全部角色）· 改设定（就地开角色页同一块 `CharacterSettingModule`，改的是角色卡本身）。换卡只写这一间班底上那位的 `characterCardId`，⛔ 不换嗓子；名字头像跟着换（`voiceSpeakerLook`）。没挑过 = 照旧取绑着这副嗓子的第一个角色；从角色头像「和她聊」开的房间直接记上她。服务端同一条规则 `findPersonaCard`（挑的卡被删了就退回去）。
-
-### 3.2.2 聊天换新内核 · 挂件（「配音间加能力」②，用户 2026-10-25）
-
-- **有角色卡就走助手新内核的聊天模式**（`runAssistantNext`，`chatCharacterId` = 这一间那位的人设卡，域 `home`）：自带联网、找图、看你发的图、按角色记忆；回复照样边写边发（`delta` 可带 `restart`，内核改口时整段替换）、写完照样念出来。**没有角色卡**（只有音色）仍走薄管子（`llmTextStream` + `buildVoiceChatPrompt`，音色名本人）。房间历史映射成内核消息：她说的 = assistant，你说的 = user，别人说的 = user 并带「名字: 」前缀，相邻同侧合并（`voiceChatKernelMessages`）。写词模型仍是底部那颗，服务端经 `runAssistantNext` 的 `routeModel` 选项传进去（⛔ 不进请求体，请求体不收客户端模型字段）。
-- **念出来的字**：`spokenVoiceText` 去掉作品号、markdown 链接只念字、去掉 URL 和强调符号，`[laughing]` 这类语气提示保留。
-- **挂件 = `VoiceLine.attachments`（可空 JSON，10-25 用户批准加列，迁移 `20261025080000_voice_line_attachments`）**：你那条存挂上的图（`images`：id/url/label/seq，一次最多 `VOICE_ROOM_CHAT_IMAGES_MAX` = 4），她那条存联网查到的来源（`sources`：title/url/publisher，按 url 去重，最多 `VOICE_LINE_SOURCES_MAX` = 12，取自 `search_web` 那一步）。读的时候 safeParse，坏了当没有。
-- **她发的图不进挂件**：回复里的作品号（`图_12`）就是图本身，前端 `usePictureNumberReferences` 查回缩略图——气泡里不显示号，每张图在气泡下面单独一块（Q3 选 C）；查不到的号照原样留字。来源折成一颗「N 个来源 ▸」，点开是链接列表。
-- **输入框 ＋**（Q4 选 C，只在聊天时出现）：上传图片 / 音频 / 视频（见下）/ 从素材库挑图（`AssetSelectorDialog` 多选，传剩余容量）；挂上的在输入行上面一排，× 摘掉，发出去就清空；上传中发送键不可点。
-- **只负责聊天和查资料（用户 10-25）**：配音间里⛔ 不出图、不出视频（原设计第 ③ 片「出图卡 + 去视频台」10-25 用户取消）。
-- **她上网找的图**（`search_web_images` 那一步）存进她那条的 `attachments.webImages`（每次一组，最多 `VOICE_LINE_WEB_IMAGE_SEARCHES_MAX` = 3 组），气泡下面用助手那格候选网格（`StudioOperatorWebCandidateGrid`），挑了点「存进素材」走同一条转存路（`useStudioOperatorWebImport`，整间房一份）；大图层 `StudioOperatorLightbox` 配音间自己挂（配音间是外壳的 page，没有助手面板）。转存状态只在本次页面里记，刷新后网格回到未存。
-- **传文件**：＋ 的上传就是助手输入框那一套（`useStudioOperatorUpload`，图片 / 音频 / 视频，`useVoiceRoomAttachments` 管挂着的），文件存进你那条的 `attachments.files`（最多 `VOICE_ROOM_CHAT_FILES_MAX` = 4），交给内核当 `mediaAttachments`；视频在浏览器里按助手同一份 `captureTurnClips` 抽帧随 `videoClips` 上去（服务端不解码视频）。气泡里音频 / 视频就地能放。
-- **时限**：配音间接口 `maxDuration` 120 秒、没有接力条，内核按 `VOICE_ROOM_CHAT_KERNEL_TIME_BUDGET`（软 75 秒 / 硬 100 秒）收，到点先把写好的话交出来、照常念和存。
-- 已知缺口：内核聊天提示词里没有 Fish 的方括号语气提示说明（薄管子有），出声的语气靠模型自己。
+- 配音间的聊天房间（`/studio/audio`、`VoiceRoom` / `VoiceLine` 两张表、`/api/voiceroom/*`、左栏「聊天」键）**10-26 整块删掉**（owner：「直接删掉吧，基本都是我自己的，没关系」；不迁移、不备份，迁移 `20261026170000_drop_voice_rooms`）。和角色聊天并回首页对话（[`../assistant-next.md`](../assistant-next.md)「聊天并回对话」）：没开台时她用自己的口吻说、一行一个气泡，🔊 用她角色卡绑的嗓子念（`services/voice-speak.service.ts`）。
+- 念出来的音频照旧是 Generation，留在素材库；头像规则（绑了角色挂角色的名字和头像）在 `speakWithVoiceCard` 里照旧。
+- `/studio/audio` 先重定向回 `/studio`，路径留给 ③ 配音台。原来的做法（班底、念台词、SSE 聊天、挂件、时限）看 git 历史。
 
 ### 3.3 素材库头像与 Fish 升级（「声音」模块第 3/4 步，owner 2026-10-23）
 
-- 素材库音频卡头像按头像规则走（见 §3.2 末条）；聊天语音仍自动入库，收藏键、说话人/类型筛选先不做；画布参考语音等到画布模块一起设计。
+- 素材库音频卡头像按头像规则走（`speakWithVoiceCard`）；聊天语音仍自动入库，收藏键、说话人/类型筛选先不做；画布参考语音等到画布模块一起设计。
 - **Drama 3** 进目录（`fish-audio-drama-3`），Worker 照常派（`FISH_AUDIO_SPEECH_MODEL_IDS`）。
-- 配音间语音模型留在顶栏，**记在浏览器里**（`VOICE_ROOM_VOICE_MODEL_STORAGE_KEY`），第一次默认免费档。
-- 聊天提示词：方括号提示句首句中都行；选 Drama 3 时再告诉 AI 可用中文提示与成对标签（`DRAMA_PAIRED_TAGS`），气泡把两种都淡一档显示。
+- 对话里 🔊 的语音模型**记在浏览器里**（`STUDIO_OPERATOR_VOICE.storageKey`），第一次默认免费档。
+- 聊天提示词：方括号提示句首句中都行；选 Drama 3 时再告诉 AI 可用中文提示与成对标签（`lib/chat-voice.ts` 的 `voiceCueRules`，标签表 `constants/chat-voice.ts`）。
 - 念台词用 Drama 3 多人对白一次合成整段：施工单另记，以后做。
-- 配音间根节点挂 `h-page`：高度固定一屏，对话区自己滚，输入框不出屏。
 
 ## 4. UI 功能需求（旧外观规则已退役）
 
@@ -162,10 +134,11 @@ B/C 可并行于 D；A 独立最先。每个 Phase 完成走 UI 确认阶梯（l
 
 ## 7. 移动端等级（owner 2026-09-03 拍板，配方见 `../ui-defaults.md §6`）
 
-- **降级**。对话式配音间在手机上：对话流占满，输入条固定底部，情绪 / 音色参数进底部抽屉；播放器控件命中区 44px。
+- **降级**。配音台（③，待做）在手机上：对话流占满，输入条固定底部，参数进底部抽屉；播放器控件命中区 44px。
 
 ## Last Verified
 
+- 2026-10-26 · §3.2 配音间聊天整块删除（聊天并回对话 ②c-3）。
 - 2026-10-23 · 新增 §3.2 配音间聊天。
 - 2026-10-23 · 新增 §3.1 音色库页 `/voices`。
 - 2026-09-03 · 新增 §7 移动端等级。

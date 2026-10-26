@@ -24,7 +24,7 @@ import { LoraTrainingDialog } from '@/components/business/LoraTrainingDialog'
 import { Spinner } from '@/components/ui/spinner'
 import { useRecentCanvases } from '@/hooks/node/use-recent-canvases'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
-import { useOpenPersonaChat } from '@/hooks/use-chat-persona'
+import { usePersonaSwitch } from '@/hooks/use-chat-persona'
 import { useLiquidReveal, type LiquidRect } from '@/hooks/use-liquid-reveal'
 import { useRouter } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
@@ -58,7 +58,7 @@ export function UseCharacterMenu({
 }) {
   const t = useTranslations('CharacterRoster')
   const router = useRouter()
-  const personaChat = useOpenPersonaChat()
+  const personaSwitch = usePersonaSwitch()
   const reducedMotion = useReducedMotion() ?? false
   const [mounted, setMounted] = useState(false)
   const [closing, setClosing] = useState(false)
@@ -212,11 +212,8 @@ export function UseCharacterMenu({
               hint={t('chatWithHint')}
               onSelect={() => {
                 close()
-                // 和她聊 = 助手换成她、进「聊天」（用户 10-25：聊天跟着全局人设）；没绑音色也能先打字。
-                void personaChat.switchTo(card.id, {
-                  voiceCardId: card.voiceCardId,
-                  openChat: true,
-                })
+                // 和她聊 = 助手换成她、回首页对话（②c 聊天并回对话）；没绑音色也能先打字。
+                void personaSwitch.switchTo(card.id, { goHome: true })
               }}
             />
             <MenuItem

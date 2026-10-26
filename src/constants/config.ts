@@ -331,15 +331,6 @@ export const API_ENDPOINTS = {
   /** Audio generation status polling */
   GENERATE_AUDIO_STATUS: '/api/generate-audio/status',
 
-  /** 配音间：一场戏 = 一个房间 */
-  VOICEROOM_ROOMS: '/api/voiceroom/rooms',
-
-  /** 配音间：一条台词 = 一次生成 */
-  VOICEROOM_LINES: '/api/voiceroom/lines',
-
-  /** 配音间：聊天模式，你说一句、她回一句（SSE） */
-  VOICEROOM_CHAT: '/api/voiceroom/chat',
-
   /** Studio V2 */
   STUDIO_GENERATE: '/api/studio/generate',
   STUDIO_GENERATE_STATUS: '/api/studio/generate/status',

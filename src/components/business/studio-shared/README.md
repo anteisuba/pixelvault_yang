@@ -40,10 +40,10 @@ getAvailable{Image,Video,Audio,3D}Models()
     → StudioModelOption[]                     (one option shape)
       → ModelPickerPopover                    (行 = 模型·型号·价格；渠道在右侧独立浮层)
         ← MainModelPicker(modality=…)         Studio / 3D / LLM 助手
-        ← NodeModelChip / TextAssistantBar / VoiceRoomModelChip  直接挂
+        ← NodeModelChip / TextAssistantBar  直接挂
 ```
 
-五处宿主用的是**同一颗触发器**（`ModelChip`：名 + 型号 + 价 / 状态 + caret）与同一个
+这几处宿主用的是**同一颗触发器**（`ModelChip`：名 + 型号 + 价 / 状态 + caret）与同一个
 弹层，只换触发器上的字。⛔ 不为某个宿主另开一套皮肤。
 
 三条不可动的规则（owner D2 Q1 亲手定）：

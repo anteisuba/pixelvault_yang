@@ -32,13 +32,6 @@ vi.mock('@/hooks/use-voice-library', () => ({
 const fetchGallery = vi.hoisted(() => vi.fn())
 vi.mock('@/lib/api-client', () => ({ fetchGalleryImages: fetchGallery }))
 
-const listRooms = vi.hoisted(() => vi.fn())
-const getRoom = vi.hoisted(() => vi.fn())
-vi.mock('@/lib/api-client/voiceroom', () => ({
-  listVoiceRoomsAPI: listRooms,
-  getVoiceRoomAPI: getRoom,
-}))
-
 import {
   groupVoiceLibraryClipsByDate,
   useVoiceLibraryClips,
@@ -81,22 +74,6 @@ beforeEach(() => {
       ],
     },
   })
-  listRooms.mockResolvedValue({ success: true, data: [{ id: 'r1' }] })
-  getRoom.mockResolvedValue({
-    success: true,
-    data: {
-      name: '站台',
-      lines: [
-        {
-          id: 'l1',
-          speakerName: '莫宁',
-          text: '你听见了吗',
-          audio: { url: 'https://cdn.test/l1.mp3', duration: 3 },
-        },
-        { id: 'l2', speakerName: '旁白', text: '还没录', audio: null },
-      ],
-    },
-  })
 })
 
 describe('五个页签各自的供数（S5c，画板 AudioLibrary）', () => {
@@ -131,17 +108,6 @@ describe('五个页签各自的供数（S5c，画板 AudioLibrary）', () => {
     expect(result.current.clips[0]?.sourceKind).toBe('library')
   })
 
-  it('配音间 = VoiceLine 的产物，⛔ 还没录出声的那条不列', async () => {
-    const { result } = run('voiceRoom')
-    await waitFor(() => expect(result.current.clips).toHaveLength(1))
-    expect(result.current.clips[0]).toMatchObject({
-      id: 'l1',
-      subtitle: '站台',
-      sourceKind: 'voiceRoom',
-      voiceId: null,
-    })
-  })
-
   it('收藏 = 音色卡，试听地址取 sampleAudioUrl', async () => {
     const { result } = run('favorites')
     await waitFor(() => expect(result.current.clips).toHaveLength(1))
@@ -154,13 +120,13 @@ describe('五个页签各自的供数（S5c，画板 AudioLibrary）', () => {
   it('搜索在本地过一遍名与副标', async () => {
     const { result } = renderHook(() =>
       useVoiceLibraryClips({
-        tab: 'voiceRoom' as never,
+        tab: 'history' as never,
         enabled: true,
         search: '没有这个词',
         labelOf,
       }),
     )
-    await waitFor(() => expect(listRooms).toHaveBeenCalled())
+    await waitFor(() => expect(fetchGallery).toHaveBeenCalled())
     expect(result.current.clips).toHaveLength(0)
   })
 })

@@ -1166,8 +1166,6 @@
     "libraryAssistant": "Assistant",
     "libraryRailHide": "Hide sidebar",
     "libraryRailShow": "Show sidebar",
-    "chat": "Chat",
-    "newChatWith": "New chat with {name}",
     "historyBucket": {
       "today": "Today",
       "yesterday": "Yesterday",

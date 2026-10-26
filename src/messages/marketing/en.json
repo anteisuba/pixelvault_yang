@@ -198,10 +198,6 @@
         "title": "Video Studio — ANTEI",
         "description": "Turn shots, motion, and scene beats into video with AI."
       },
-      "audio": {
-        "title": "Chat — ANTEI",
-        "description": "Chat with your assistant or characters, out loud if you like."
-      },
       "edit": {
         "title": "Image Edit — ANTEI",
         "description": "Edit generated images with inpaint, super resolution, background removal, and element extraction."

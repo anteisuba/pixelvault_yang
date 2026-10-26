@@ -1073,7 +1073,7 @@
       "group": "{name}とのチャット",
       "workGroup": "作業",
       "oldChat": "{name} との以前のチャット（閲覧のみ）",
-      "goVoiceRoom": "彼女とチャット"
+      "continueChat": "彼女とチャット"
     },
     "mode": {
       "pickCharacter": "アシスタントの人格を切り替え",

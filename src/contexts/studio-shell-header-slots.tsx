@@ -3,8 +3,7 @@
 import { createContext, useContext, type ReactNode } from 'react'
 
 /**
- * 外壳塞进对话头（和聊天页那一条）的几颗键（用户 10-26：左栏只管「在哪儿」，
- * 历史 · 换人 · 聊天搬进白板头）。
+ * 外壳塞进对话头的几颗键（用户 10-26：左栏只管「在哪儿」，历史 · 换人搬进白板头）。
  *
  * ⚠ 走 context 不直接 import：那几颗键要用对话头里的 `SessionActivityBadge`，
  *   对话头再反过来 import 它们就成了环。
@@ -12,8 +11,6 @@ import { createContext, useContext, type ReactNode } from 'react'
 export interface StudioShellHeaderSlots {
   /** 对话记录（第一行「＋ 新对话」）。 */
   history: ReactNode
-  /** 和现在这一位的聊天记录（聊天并回对话之前先留着）。 */
-  chat: ReactNode
   /** 头像 + 名字 ▾（点开换人）。`fly`：挂飞行标记（对话收起时飞到台左上角那一颗）。 */
   renderPersona(fly: boolean): ReactNode
 }

@@ -1073,7 +1073,7 @@
       "group": "和 {name} 聊",
       "workGroup": "工作",
       "oldChat": "和{name}以前的聊天，只能看",
-      "goVoiceRoom": "和她聊天"
+      "continueChat": "和她聊天"
     },
     "mode": {
       "pickCharacter": "换助手人设",

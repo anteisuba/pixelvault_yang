@@ -282,20 +282,6 @@
       "libraryUnavailable": "The voice library is unavailable right now. Try again later.",
       "sampleMissing": "This voice has no sample to use."
     },
-    "voiceRoom": {
-      "notFound": "Room not found",
-      "lineNotFound": "Line not found",
-      "castFull": "A room can have up to 8 voices. Remove one to add another.",
-      "castDuplicate": "That voice is already in the cast",
-      "modelUnavailable": "No audio model is available right now",
-      "speakerNotInCast": "That speaker is not in this room",
-      "speakerCannotSpeak": "Background music applies to the whole room and can't be assigned as a speaker.",
-      "voiceCardUnavailable": "That voice is no longer available",
-      "roomFull": "This room is full — start a new one",
-      "lineEmpty": "Enter a line to generate speech.",
-      "chatVoiceOnly": "You can only chat with a voice.",
-      "chatEmptyReply": "No reply came back. Try again."
-    },
     "common": {
       "unexpected": "An unexpected error occurred. Please try again.",
       "databaseUnavailable": "Database service is temporarily unavailable. Please try again later."
@@ -485,7 +471,9 @@
       "readFailed": "Could not read this picture. Try another one."
     },
     "assistantVoice": {
-      "unbound": "This persona has no voice yet — pick one first"
+      "unbound": "This persona has no voice yet — pick one first",
+      "modelUnavailable": "No audio model is available right now",
+      "voiceCardUnavailable": "That voice is no longer available"
     }
   },
   "DropZone": {

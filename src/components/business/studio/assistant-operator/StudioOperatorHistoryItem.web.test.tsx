@@ -25,6 +25,17 @@ const LONG =
   ['一', '二', '三', '四', '五', '六', '七', '八'].join('。\n') + '。'
 
 describe('StudioOperatorHistoryItem', () => {
+  it('她在聊天的那段（②c-2）：一行一个气泡，整段直接摆出来、⛔ 不折', () => {
+    render(
+      <StudioOperatorHistoryItem
+        entry={{ kind: 'message', id: 'h2', text: LONG, chat: true }}
+      />,
+    )
+    expect(screen.getAllByTestId('operator-chat-bubble')).toHaveLength(8)
+    expect(screen.queryByTestId('operator-chat-typing')).toBeNull()
+    expect(screen.queryByTestId('operator-message-expand')).toBeNull()
+  })
+
   it('⭐ 历史里的长正文也折成首句 + 「展开全文」，点开才是全文', () => {
     render(
       <StudioOperatorHistoryItem

@@ -175,6 +175,7 @@ export const API_ENDPOINTS = {
   ASSISTANT_CONVERSATION: '/api/assistant/conversation',
   /** Assistant persona — one per user, shared by all four workbench domains */
   ASSISTANT_PERSONA: '/api/assistant/persona',
+  ASSISTANT_SPEAK: '/api/assistant/speak',
   /** Custom AI avatar upload / removal (separate R2 leg from the account avatar) */
   ASSISTANT_PERSONA_AVATAR: '/api/assistant/persona/avatar',
   /** Standing project rules the assistant reads and records */

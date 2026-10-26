@@ -113,6 +113,7 @@ import {
   type StudioOperatorChangedCard,
 } from '@/components/business/studio/assistant-operator/StudioOperatorChangedCards'
 import { StudioOperatorHistoryItem } from '@/components/business/studio/assistant-operator/StudioOperatorHistoryItem'
+import { StudioOperatorVoiceStrip } from '@/components/business/studio/assistant-operator/StudioOperatorVoice'
 import {
   StudioOperatorChatMark,
   StudioOperatorDomainMark,
@@ -2308,6 +2309,11 @@ export function StudioOperatorPanel({
               resume: { stepNumber: resumeStepNumber, onResume: resumePlan },
             })}
       />
+
+      {/* 开着语音时头下面那一条（②c-2）：只在白框里（外壳那一档头部才有 🔊）。 */}
+      {headerAvatar === 'board' || headerAvatar === 'boardStatic' ? (
+        <StudioOperatorVoiceStrip />
+      ) : null}
 
       {/* ── 钉住的证据常驻条（§3.2）——钉住之后在面板顶部留一份，可点回卡。
           ⚠ 排在头部之下、时间线之上：它是「这一整轮都别忘了这句」，

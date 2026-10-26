@@ -4767,6 +4767,10 @@ export const AssistantOperatorStepEventSchema = z.object({
 export const AssistantOperatorMessageEventSchema = z.object({
   type: z.literal(ASSISTANT_OPERATOR_EVENTS.message),
   text: z.string().max(LIMITS.maxMessageChars),
+  /** 这段是「她」在聊天（没开台 + 换成了某个角色，②c）：界面拆成一行一个气泡。 */
+  chat: z.literal(true).optional(),
+  /** 用着角色（她有嗓子）：🔊 开着时念出来（②c-2；开着台只念首尾段）。 */
+  spoken: z.literal(true).optional(),
 })
 
 /**
@@ -4782,6 +4786,10 @@ export const AssistantOperatorMessageDeltaEventSchema = z.object({
   delta: z.string().min(1).max(LIMITS.maxMessageChars),
   /** 这一步的第一段：换掉还在流的那段旧稿，⛔ 不接在后面。 */
   restart: z.literal(true).optional(),
+  /** 同 `message.chat`。 */
+  chat: z.literal(true).optional(),
+  /** 同 `message.spoken`。 */
+  spoken: z.literal(true).optional(),
 })
 
 /**

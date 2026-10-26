@@ -1096,6 +1096,25 @@
       "label": "Skills",
       "mine": "Mine",
       "builtin": "Built-in"
+    },
+    "voice": {
+      "label": "Voice",
+      "turnOn": "Turn on voice: read replies aloud",
+      "turnOff": "Turn off voice",
+      "speaking": "{name} is speaking aloud",
+      "pickVoice": "Pick a voice",
+      "model": "Voice model",
+      "models": {
+        "free": "Free",
+        "pro": "Pro",
+        "drama": "Drama 3"
+      },
+      "pending": "Reading aloud…",
+      "replay": "Replay",
+      "stop": "Stop",
+      "failed": "Couldn't read it, try again",
+      "setupKey": "Add a Fish Audio key",
+      "provider": "Fish Audio"
     }
   },
   "ContextCards": {

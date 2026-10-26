@@ -100,6 +100,7 @@ import { useStudioShellAvatar } from '@/hooks/use-studio-shell-avatar'
 import { useStudioShellHeaderSlots } from '@/contexts/studio-shell-header-slots'
 import { StudioOperatorCurrentAvatar } from '@/components/business/studio/assistant-operator/StudioOperatorAvatarSwitcher'
 import { StudioOperatorSessionRow } from '@/components/business/studio/assistant-operator/StudioOperatorSessionRow'
+import { StudioOperatorVoiceKey } from '@/components/business/studio/assistant-operator/StudioOperatorVoice'
 import { deriveAssistantConversationTitle } from '@/lib/assistant-conversation-title'
 import {
   assistantWorkspaceDomain,
@@ -603,6 +604,7 @@ export function StudioOperatorHeader({
         {/* 标题药丸 hug 之后靠这一格把右上三颗推到右边（⛔ 不靠 `flex-1` 撑标题）。 */}
         <span className="flex-1" />
 
+        {board ? <StudioOperatorVoiceKey /> : null}
         {board ? shellSlots?.chat : null}
 
         {/* ── 右上**一颗 ⋯**（D7b ④ · 画板 `DesignD7bToggle` 的「⋯ 菜单」）────

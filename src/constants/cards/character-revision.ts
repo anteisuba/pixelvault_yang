@@ -26,3 +26,9 @@ export const CHARACTER_REVISION_CARD_FIELDS = {
   tags: 'tags',
   look: 'look',
 } as const
+
+/** 设置「她」那一页一次读多少（日记、她改了什么各自最新的这么多条）。 */
+export const CHARACTER_GROWTH_PAGE = {
+  journals: 30,
+  revisions: 50,
+} as const

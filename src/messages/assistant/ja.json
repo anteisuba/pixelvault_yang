@@ -1134,7 +1134,8 @@
       "persona": "人物設定",
       "memory": "記憶",
       "memoryCount": "記憶 · {count}",
-      "skills": "スキル"
+      "skills": "スキル",
+      "her": "彼女"
     },
     "status": {
       "saving": "保存中",
@@ -1355,6 +1356,41 @@
       "cancel": "キャンセル",
       "save": "保存",
       "failed": "保存できませんでした。もう一度お試しください。"
+    },
+    "her": {
+      "noCharacters": "まだキャラクターがいません",
+      "noCharactersHint": "キャラクターを作ってしばらく話すと、ここに彼女の日記と変えたことが出てきます。",
+      "createCharacter": "キャラクターを作る",
+      "failed": "読み込めませんでした。少ししてからもう一度。",
+      "journal": "日記",
+      "noJournal": "まだ日記はありません。30 回話すごとに振り返って一篇書きます。",
+      "journalEarlier": "以前の {count} 篇",
+      "journalCollapse": "たたむ",
+      "revisions": "彼女が変えたこと",
+      "noRevisions": "まだ自分のカードを変えていません。",
+      "revertFailed": "元に戻せませんでした。もう一度。",
+      "reason": "「{reason}」",
+      "fromChat": "会話で変更",
+      "reverted": "元に戻した",
+      "revert": "元に戻す",
+      "emptyValue": "（空）",
+      "fields": {
+        "name": "名前",
+        "tags": "タグ",
+        "look": "ひとこと外見",
+        "identity": "身分",
+        "behavior": "性格",
+        "speech": "話し方",
+        "boundaries": "しないこと",
+        "catchphrases": "口ぐせ",
+        "moods": "口調",
+        "learnedPhrases": "覚えた言い回し",
+        "relationship": "あなたとの関係",
+        "scenario": "シーン",
+        "opening": "最初のひとこと",
+        "examples": "会話例",
+        "backstory": "経歴"
+      }
     }
   }
 }

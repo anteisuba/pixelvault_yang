@@ -7,6 +7,7 @@ import { useAssistantMemories } from '@/hooks/use-assistant-memories'
 import { useAssistantPersonaAutosave } from '@/hooks/use-assistant-persona'
 import { useAssistantSkills } from '@/hooks/use-assistant-skills'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { AssistantHerPane } from '@/components/business/assistant-settings/AssistantHerPane'
 import { AssistantMemoryPane } from '@/components/business/assistant-settings/AssistantMemoryPane'
 import { AssistantPersonaPane } from '@/components/business/assistant-settings/AssistantPersonaPane'
 import { AssistantSaveStatus } from '@/components/business/assistant-settings/AssistantSaveStatus'
@@ -22,7 +23,7 @@ import {
  * 工作台右上角头像 ⋯ 的「助手设置」弹出它（`AssistantSettingsDialog`），
  * `/settings/assistant` 整页打开它（`SettingsAssistantSection`）。
  *
- * 结构：顶部「人设 / 记忆 / 技能」三页（技能：第 7b 步）；改了就存，右上角一小行「已保存」；⛔ 没有
+ * 结构：顶部「人设 / 记忆 / 技能 / 她」四页（技能：第 7b 步；她：10-26 C）；改了就存，右上角一小行「已保存」；⛔ 没有
  * 「取消 / 保存」。手机上弹窗走底部抽屉（`ResponsiveDialog`），头部换成两行。
  */
 
@@ -30,6 +31,8 @@ export const ASSISTANT_SETTINGS_SECTIONS = {
   persona: 'persona',
   memory: 'memory',
   skills: 'skills',
+  /** 「她」：选一个角色看她的日记与她改了什么（10-26「更像真人」C）。 */
+  her: 'her',
 } as const
 
 export type AssistantSettingsSection =
@@ -80,6 +83,10 @@ export function AssistantSettings({
           value: ASSISTANT_SETTINGS_SECTIONS.skills,
           label: t('tabs.skills'),
         },
+        {
+          value: ASSISTANT_SETTINGS_SECTIONS.her,
+          label: t('tabs.her'),
+        },
       ]}
       value={section}
       onChange={onSectionChange}
@@ -107,8 +114,10 @@ export function AssistantSettings({
       <AssistantPersonaPane autosave={autosave} />
     ) : section === ASSISTANT_SETTINGS_SECTIONS.memory ? (
       <AssistantMemoryPane memories={memories} autosave={autosave} />
-    ) : (
+    ) : section === ASSISTANT_SETTINGS_SECTIONS.skills ? (
       <AssistantSkillsPane skills={skills} />
+    ) : (
+      <AssistantHerPane />
     )
   /** 切页：内容淡入（动效表：不左右推页，两页并列不分先后）。 */
   const body = (

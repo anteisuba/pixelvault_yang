@@ -16,6 +16,7 @@ import {
   useDanbooruTagPreview,
 } from '@/hooks/use-danbooru-tag-library'
 import { useNearViewport } from '@/hooks/use-near-viewport'
+import { useReportLibraryItem } from '@/hooks/use-library-view'
 import {
   danbooruTagSearchUrl,
   displayDanbooruTag,
@@ -141,6 +142,10 @@ export function TagLibraryDesk() {
     : (listed[0] ?? null)
   const selectedName = params.tag ?? picked?.item.name ?? null
   const selectedOf = params.tag ? params.of : (picked?.of ?? null)
+  // 右边详情是哪一个，助手就认这一个（库开着时报给它，`use-library-view`）。
+  useReportLibraryItem(
+    selectedName ? { kind: 'tag', name: selectedName } : null,
+  )
   const detail = useDanbooruCatalog(
     selectedName
       ? { tag: selectedName, ...(selectedOf ? { kind: selectedOf } : {}) }

@@ -25,6 +25,7 @@ import { PanelLeft } from '@/components/icons'
 import { AssistantAvatarGlyph } from '@/components/business/studio/assistant-operator/AssistantAvatarGlyph'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import { useLibraryRailOpen } from '@/hooks/use-library-rail'
+import { setLibraryViewCategory } from '@/hooks/use-library-view'
 import { Link } from '@/i18n/navigation'
 import { shellEnter } from '@/lib/studio-shell-motion'
 import { cn } from '@/lib/utils'
@@ -70,7 +71,11 @@ export function StudioLibraryOverlay({
   useEffect(() => {
     if (!setOpenCategory) return
     setOpenCategory(category)
-    return () => setOpenCategory(null)
+    setLibraryViewCategory(category)
+    return () => {
+      setOpenCategory(null)
+      setLibraryViewCategory(null)
+    }
   }, [category, setOpenCategory])
 
   // 不在外壳里（不该发生）就原地画，⛔ 白屏。

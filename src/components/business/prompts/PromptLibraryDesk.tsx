@@ -41,6 +41,7 @@ import {
   MediaTileShade,
 } from '@/components/ui/media-tile'
 import { usePromptTemplateModelLabel } from '@/hooks/use-prompt-template-model-label'
+import { useReportLibraryItem } from '@/hooks/use-library-view'
 import { usePromptTemplateUse } from '@/hooks/use-prompt-template-use'
 import type { AppLocale } from '@/i18n/routing'
 import { setRecipeFavoriteAPI } from '@/lib/api-client/recipes'
@@ -179,6 +180,10 @@ export function PromptLibraryDesk({
   const openItem = openId
     ? (items.find((recipe) => recipe.id === openId) ?? null)
     : null
+  // 助手认得出「这一条」（库开着时报给它，`use-library-view`）。
+  useReportLibraryItem(
+    openItem ? { kind: 'prompt', name: openItem.name } : null,
+  )
 
   const body =
     shown.length === 0 && favoritesOnly && !needle && type === 'ALL' ? (

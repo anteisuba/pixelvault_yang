@@ -128,6 +128,11 @@ v3 的问题不在某一条规矩，而在外壳替模型做了太多事（审�
 - B 认图：`look` 多一个 `tagger: true`（不加第七个工具），对 names 里的图跑 PixAI Tagger v1.0，回画师 / 角色 / 作品 / 内容标签与置信度（`features/assistant/tagger.ts`）。链路 app → execution Worker `/tag-image`（签名）→ Modal `pixelvault-runner` 的 `/tag`（`Tagger` 类，CPU 8 核，权重烤进镜像），token 只在 Worker。库里的图认原图、结果存 `snapshot.tagger`（带模型版本，换版才重认）；库外的地址照认不存。
 - 技能「复刻与反推」：没配方的图先 `tagger: true` 再写；报画师带把握程度，认不出不报名字。
 
+**库开着时助手认得出你在看什么**（owner 10-26 选「A + 先查再回答」）：
+
+- 库叠层里的页面不当宿主（`StudioOperatorDetachedScope`，⛔ 一打开库就掐掉台上那一轮），助手仍是底下那个台的身份。库改为往 `hooks/use-library-view.ts` 报一句：叠层挂上时报开着哪个库（`setLibraryViewCategory`），各页点开某一样时报那一样（`useReportLibraryItem`：角色、LoRA（收藏 / Civitai 抽屉）、标签详情、素材详情图、提示词）。发请求时带 `libraryView`，服务端在任何一张脸的板子底下接一句 `LIBRARY ON SCREEN …, looking at 角色·Denia`（`renderLibraryView`），「这个」就是它，先 `look`。音色 / 酒馆 / 画廊只报开着哪个库。
+- 系统提示加一条：没在这段对话里 `find` 过、结果为空之前，不许说「库里没有 / 你没有」。
+
 **过程记录**：照写 `AssistantTurnRecord`，`promptVersion = next-YYYY-MM-DD`；本轮记录投成 v3 形状（自带联网记成 `search_web`、`find` 记成 `search_library`），评测工具照用。
 
 ## 3. 没验证的（2026-10-23）

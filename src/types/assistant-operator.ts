@@ -44,6 +44,7 @@ import {
 } from '@/constants/assistant-memory'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { ASSISTANT_V3_CLIP_LIMITS } from '@/constants/assistant-v3'
+import { STUDIO_LIBRARY_CATEGORY_IDS } from '@/constants/studio-shell'
 import { AssistantV3TranscriptSchema } from '@/types/assistant-v3'
 import { AssistantWebFindSchema } from '@/types/assistant-web-finds'
 import { AssistantMentionRefSchema } from '@/types/assistant-mention'
@@ -1965,6 +1966,28 @@ function isIanaTimeZone(value: string): boolean {
   }
 }
 
+/** 库里点开的那一样能被助手 `look` 的几类（各自的编号前缀在服务端拼）。 */
+export const ASSISTANT_LIBRARY_VIEW_ITEM_KINDS = [
+  'character',
+  'lora',
+  'prompt',
+  'tag',
+  'picture',
+] as const
+
+export const AssistantLibraryViewSchema = z.object({
+  library: z.enum(STUDIO_LIBRARY_CATEGORY_IDS),
+  item: z
+    .object({
+      kind: z.enum(ASSISTANT_LIBRARY_VIEW_ITEM_KINDS),
+      /** 名字（角色 / LoRA / 提示词 / 标签）或图的身份段（`图_012`）。 */
+      name: z.string().trim().min(1).max(200),
+    })
+    .optional(),
+})
+export type AssistantLibraryView = z.infer<typeof AssistantLibraryViewSchema>
+export type AssistantLibraryViewItem = NonNullable<AssistantLibraryView['item']>
+
 export const AssistantOperatorRequestSchema = z.object({
   workspaceKey: AssistantWorkspaceKeySchema,
   stepBudget: z.number().int().min(1).max(LIMITS.maxCanvasSteps).optional(),
@@ -2020,6 +2043,12 @@ export const AssistantOperatorRequestSchema = z.object({
    * 「用 Grok 搜这一次」按钮发出，只管这一轮。⛔ 没有它就不碰别家的 key。
    */
   searchWithGrok: z.literal(true).optional(),
+  /**
+   * **库开着、在看哪一样**（10-26）：库是叠在台上的整页，助手仍是底下那个台的身份
+   *（⛔ 一打开库就掐掉台上那一轮），所以库自己报一句「开着哪个库、点开了谁」，
+   * 用户说「这个角色」时助手知道是谁。缺席 = 库没开。
+   */
+  libraryView: AssistantLibraryViewSchema.optional(),
   /**
    * 创作者浏览器的 IANA 时区：联网时 Claude / GPT 据此偏向当地结果。
    * ⚠ 认不得的时区当没给（`catch`），⛔ 不为它让整轮 400。

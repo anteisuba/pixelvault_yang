@@ -38,6 +38,7 @@ import {
 } from '@/components/business/cards/CharacterOverview'
 import { StudioOperatorHostProvider } from '@/contexts/studio-operator-host'
 import { useCardsOperatorHost } from '@/hooks/cards/use-cards-operator-host'
+import { useReportLibraryItem } from '@/hooks/use-library-view'
 import { appendSlotSources } from '@/hooks/cards/use-character-card-editor'
 import { defaultLook } from '@/lib/card-bus'
 import { useCharacterCards } from '@/hooks/cards/use-character-cards'
@@ -115,6 +116,10 @@ export function CharacterRoster() {
   const selected = useMemo(
     () => flatCards.find((card) => card.id === openId) ?? null,
     [flatCards, openId],
+  )
+  // 助手认得出「这个角色」（库开着时报给它，`use-library-view`）。
+  useReportLibraryItem(
+    selected ? { kind: 'character', name: selected.name } : null,
   )
   /**
    * 设定提议卡「收下勾选的」（卡片助手 C2）：勾中的几格合进这个角色已有的设定，

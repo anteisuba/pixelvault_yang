@@ -19,6 +19,8 @@ const EMBED_BATCH = 32
 const EMBED_CONCURRENCY = 6
 /** Vectorize 在 Worker 里一次最多写 1000 条。 */
 export const MAX_ITEMS_PER_REQUEST = 1000
+/** `deleteByIds` 一次删多少（2026-10-26 实测一次 500 个回 500）。 */
+const DELETE_BATCH = 100
 /** 带元数据返回时 topK 的上限。 */
 export const MAX_TOP_K = 50
 
@@ -167,7 +169,9 @@ export async function deleteItems(
   const ids = await Promise.all(
     input.items.map((item) => vectorId(input.namespace, item.kind, item.key)),
   )
-  await index.deleteByIds(ids)
+  for (let start = 0; start < ids.length; start += DELETE_BATCH) {
+    await index.deleteByIds(ids.slice(start, start + DELETE_BATCH))
+  }
   return ids.length
 }
 

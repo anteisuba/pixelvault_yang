@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
 
-const { queryRaw, findMany, keys, cards, loraGroups, loras, recipes } =
+const { queryRaw, findMany, keys, cards, loraGroups, loras, recipes, expand } =
   vi.hoisted(() => ({
     queryRaw: vi.fn(),
     findMany: vi.fn(),
@@ -11,6 +11,7 @@ const { queryRaw, findMany, keys, cards, loraGroups, loras, recipes } =
     loraGroups: vi.fn(),
     loras: vi.fn(),
     recipes: vi.fn(),
+    expand: vi.fn(),
   }))
 
 vi.mock('server-only', () => ({}))
@@ -51,6 +52,9 @@ vi.mock('@/services/project-rule.service', () => ({
 }))
 vi.mock('@/services/prompts/recipe.service', () => ({
   listRecipeSummaries: recipes,
+}))
+vi.mock('@/services/search-expansion.service', () => ({
+  expandSearchQuery: expand,
 }))
 vi.mock('@/features/assistant/library-sources.service', () => ({
   findTags: vi.fn(async () => 'TAGS — Danbooru\n标签·watercolor (medium)'),
@@ -96,6 +100,7 @@ const pictureRow = {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  expand.mockResolvedValue([])
 })
 
 describe('编号认法', () => {
@@ -290,6 +295,39 @@ describe('查', () => {
     ])
     const found = await findInWorkspace(owner, '马尔福 性转', ['characters'])
     expect(found.text).toContain('角色·女德拉科')
+  })
+
+  it('字面不够时把搜索词翻成标签再整词对一遍，接在后面（下雨 → rain，⛔ training）', async () => {
+    expand.mockResolvedValue(['rain'])
+    recipes.mockResolvedValueOnce([
+      { name: '下雨的街', compiledPrompt: 'street', modelId: null },
+      { name: '雨夜', compiledPrompt: '1girl, rain, night', modelId: null },
+      { name: '训练', compiledPrompt: 'training ground', modelId: null },
+    ])
+    const found = await findInWorkspace(owner, '下雨', ['prompts'])
+    expect(expand).toHaveBeenCalledWith('下雨')
+    expect(found.text).toContain('提示词·下雨的街')
+    expect(found.text).toContain('提示词·雨夜')
+    expect(found.text).not.toContain('训练')
+    expect(found.text.indexOf('下雨的街')).toBeLessThan(
+      found.text.indexOf('雨夜'),
+    )
+  })
+
+  it('图：字面不够时按翻出来的词再查一批，整词筛过才要', async () => {
+    expand.mockResolvedValue(['cat ears'])
+    queryRaw
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { id: 'gen-1624', prompt: '1girl, cat_ears' },
+        { id: 'gen-9', prompt: 'bobcat earsplitting' },
+      ])
+      .mockResolvedValueOnce([pictureRow])
+    const found = await findInWorkspace(owner, '猫耳', ['pictures'])
+    expect(found.pictures.map((picture) => picture.generationId)).toEqual([
+      'gen-1624',
+    ])
+    expect(queryRaw.mock.calls[2]?.slice(1)).toContainEqual(['gen-1624'])
   })
 
   it('不点名不查外面的库；点名了才查标签 / LoRA 大库', async () => {

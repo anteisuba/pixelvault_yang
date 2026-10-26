@@ -25,11 +25,13 @@ function fakeAi() {
 /** 假向量库：按 namespace 与 kind / category 过滤后算 cosine。 */
 function fakeVectors() {
   const store = new Map<string, VectorizeVector>()
+  const deleteBatches: number[] = []
   const index: VectorizeIndex = {
     async upsert(vectors) {
       for (const vector of vectors) store.set(vector.id, vector)
     },
     async deleteByIds(ids) {
+      deleteBatches.push(ids.length)
       for (const id of ids) store.delete(id)
     },
     async query(vector, options) {
@@ -52,12 +54,12 @@ function fakeVectors() {
       return { matches, count: matches.length }
     },
   }
-  return { index, store }
+  return { index, store, deleteBatches }
 }
 
 function setup() {
   const { ai, calls } = fakeAi()
-  const { index, store } = fakeVectors()
+  const { index, store, deleteBatches } = fakeVectors()
   const env: Env = { AI: ai, VECTORS: index, INDEX_TOKEN: 'secret' }
   const call = (path: string, body: unknown, token = 'secret') =>
     worker.fetch(
@@ -68,7 +70,7 @@ function setup() {
       }),
       env,
     )
-  return { call, calls, store, env }
+  return { call, calls, store, env, deleteBatches }
 }
 
 const tag = (key: string, text: string, category: number) => ({
@@ -181,6 +183,23 @@ describe('semantic index worker', () => {
       namespace: 'public',
       items: [{ kind: 'danbooru-tag', key: 'a' }],
     })
+    expect(store.size).toBe(0)
+  })
+})
+
+describe('delete', () => {
+  it('deletes in batches of 100 (Vectorize rejects 500 at once)', async () => {
+    const { call, store, deleteBatches } = setup()
+    const items = Array.from({ length: 250 }, (_, i) =>
+      tag(`t${i}`, `tag ${i}`, 0),
+    )
+    await call('/upsert', { namespace: 'public', items })
+    const response = await call('/delete', {
+      namespace: 'public',
+      items: items.map(({ kind, key }) => ({ kind, key })),
+    })
+    expect(await response.json()).toEqual({ deleted: 250 })
+    expect(deleteBatches).toEqual([100, 100, 50])
     expect(store.size).toBe(0)
   })
 })

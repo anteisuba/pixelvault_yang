@@ -18,9 +18,11 @@ import { useCivitaiDownloadGate } from '@/hooks/use-civitai-download-gate'
 import { useHandMentionToAssistant } from '@/hooks/use-hand-to-assistant'
 import { useLocalPreference } from '@/hooks/use-local-preference'
 import { useReportLibraryItem } from '@/hooks/use-library-view'
+import { useSearchExpansion } from '@/hooks/use-search-expansion'
 import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'
 import { getLoraAssetSourceUrl } from '@/lib/lora-asset-source-url'
 import { buildLibraryFavoriteRequest } from '@/lib/lora-source-snapshot'
+import { withWordMatches } from '@/lib/search-words'
 import { cn } from '@/lib/utils'
 import type {
   CharacterLoraGroup,
@@ -208,21 +210,31 @@ export function LoraFavoritesBrowse({
   // 换了一格（收藏 ↔ 自训）底模可能不在这一格里：落回「全部」。
   const activeFamily = families.includes(family) ? family : 'all'
   const trimmedQuery = query.trim().toLowerCase()
+  // 字面没对上的，把搜索词翻成标签（水彩 → watercolor）再整词对名字和触发词，接在后面。
+  const expansion = useSearchExpansion(query)
   const shown = useMemo(() => {
-    const matched = source.filter(
+    const pool = source
+      .filter(
+        (asset) =>
+          activeFamily === 'all' || asset.baseModelFamily === activeFamily,
+      )
+      .sort((a, b) => {
+        if (sort === 'nameAsc') return a.name.localeCompare(b.name)
+        const diff =
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        return sort === 'oldest' ? diff : -diff
+      })
+    if (!trimmedQuery) return pool
+    const literal = pool.filter(
       (asset) =>
-        (activeFamily === 'all' || asset.baseModelFamily === activeFamily) &&
-        (!trimmedQuery ||
-          asset.name.toLowerCase().includes(trimmedQuery) ||
-          asset.triggerWord.toLowerCase().includes(trimmedQuery)),
+        asset.name.toLowerCase().includes(trimmedQuery) ||
+        asset.triggerWord.toLowerCase().includes(trimmedQuery),
     )
-    return [...matched].sort((a, b) => {
-      if (sort === 'nameAsc') return a.name.localeCompare(b.name)
-      const diff =
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      return sort === 'oldest' ? diff : -diff
-    })
-  }, [activeFamily, sort, source, trimmedQuery])
+    return withWordMatches(pool, literal, expansion, (asset) => [
+      asset.name,
+      asset.triggerWord,
+    ])
+  }, [activeFamily, expansion, sort, source, trimmedQuery])
 
   // 连版本号一起认：收藏记录与详情页取回的版本条目是同一把，但 id / 链接写法不同。
   const isMounted = useCallback(

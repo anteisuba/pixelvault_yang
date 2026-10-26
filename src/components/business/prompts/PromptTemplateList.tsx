@@ -10,6 +10,7 @@ import { Search, X } from '@/components/icons'
 import { PROMPT_OUTPUT_TYPE_LABEL_KEYS } from '@/constants/prompt-library'
 import { ROUTES } from '@/constants/routes'
 import { usePromptTemplateModelLabel } from '@/hooks/use-prompt-template-model-label'
+import { useSearchExpansion } from '@/hooks/use-search-expansion'
 import { usePromptTemplateUse } from '@/hooks/use-prompt-template-use'
 import { Link } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'
@@ -17,6 +18,7 @@ import type {
   RecipeTemplateKind,
   TagTemplateSource,
 } from '@/lib/recipe-template-kind'
+import { withWordMatches } from '@/lib/search-words'
 import { cn } from '@/lib/utils'
 import type { OutputType } from '@/types'
 import { Button } from '@/components/ui/button'
@@ -113,19 +115,26 @@ export function PromptTemplateList({
     [t],
   )
 
+  // 字面没对上的，把搜索词翻成标签（下雨 → rain）再整词对一遍提示词，接在后面。
+  const expansion = useSearchExpansion(query)
   const shown = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase(locale)
-    return items
+    const pool = items
       .filter(
-        (recipe) =>
-          (typeFilter === 'ALL' || recipe.templateKind === typeFilter) &&
-          (!needle ||
-            `${recipe.name} ${recipe.compiledPrompt}`
-              .toLocaleLowerCase(locale)
-              .includes(needle)),
+        (recipe) => typeFilter === 'ALL' || recipe.templateKind === typeFilter,
       )
       .sort(sort === 'recent' ? byRecent : byCreated)
-  }, [items, locale, query, sort, typeFilter])
+    if (!needle) return pool
+    const literal = pool.filter((recipe) =>
+      `${recipe.name} ${recipe.compiledPrompt}`
+        .toLocaleLowerCase(locale)
+        .includes(needle),
+    )
+    return withWordMatches(pool, literal, expansion, (recipe) => [
+      recipe.name,
+      recipe.compiledPrompt,
+    ])
+  }, [expansion, items, locale, query, sort, typeFilter])
 
   const openItem = openId
     ? (items.find((recipe) => recipe.id === openId) ?? null)

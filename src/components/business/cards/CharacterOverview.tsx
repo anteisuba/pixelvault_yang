@@ -9,6 +9,7 @@ import { LIQUID_SPRING } from '@/constants/motion'
 import type { CharacterCardRecord } from '@/types'
 import { Search } from '@/components/icons'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useSearchExpansion } from '@/hooks/use-search-expansion'
 import { useTouchLongPress } from '@/hooks/use-touch-long-press'
 import {
   allLookSlots,
@@ -16,6 +17,7 @@ import {
   referenceUrlKey,
 } from '@/lib/card-bus'
 import { characterImageCount, characterWork } from '@/lib/character-works'
+import { withWordMatches } from '@/lib/search-words'
 import { cn } from '@/lib/utils'
 
 /**
@@ -105,20 +107,34 @@ export function CharacterOverview({
   }, [entries])
 
   const needle = query.trim().toLowerCase()
+  // 字面没对上的，把搜索词翻成标签（猫耳 → cat ears）再对造型标签、外观和简介，接在后面。
+  const expansion = useSearchExpansion(query)
   const matches = needle
-    ? entries
-        .filter((entry) =>
-          [
-            entry.card.name,
-            entry.card.handle ?? '',
-            entry.workLabel,
-            ...entry.card.looks.flatMap((look) => [
-              look.label ?? '',
-              ...look.tags,
-            ]),
-          ].some((text) => text.toLowerCase().includes(needle)),
-        )
-        .sort(byImages)
+    ? withWordMatches(
+        entries,
+        entries
+          .filter((entry) =>
+            [
+              entry.card.name,
+              entry.card.handle ?? '',
+              entry.workLabel,
+              ...entry.card.looks.flatMap((look) => [
+                look.label ?? '',
+                ...look.tags,
+              ]),
+            ].some((text) => text.toLowerCase().includes(needle)),
+          )
+          .sort(byImages),
+        expansion,
+        (entry) => [
+          entry.card.summary,
+          ...entry.card.tags,
+          ...entry.card.looks.flatMap((look) => [
+            ...look.tags,
+            look.description,
+          ]),
+        ],
+      )
     : null
   const activeGroup = groups.find((group) => group.key === workKey) ?? null
   const ranked = [...entries].sort(byImages).slice(0, RANKED_COUNT)

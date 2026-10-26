@@ -28,3 +28,4 @@ export * from '@/lib/api-client/render'
 export * from '@/lib/api-client/mcp'
 
 export * from '@/lib/api-client/novelai-tags'
+export * from '@/lib/api-client/search-expansion'

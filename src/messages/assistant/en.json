@@ -1134,7 +1134,8 @@
       "persona": "Persona",
       "memory": "Memory",
       "memoryCount": "Memory · {count}",
-      "skills": "Skills"
+      "skills": "Skills",
+      "her": "Her"
     },
     "status": {
       "saving": "Saving",
@@ -1355,6 +1356,41 @@
       "cancel": "Cancel",
       "save": "Save",
       "failed": "Not saved. Try again."
+    },
+    "her": {
+      "noCharacters": "No characters yet",
+      "noCharactersHint": "Create a character and chat for a while. Her diary and the changes she made will show up here.",
+      "createCharacter": "Create a character",
+      "failed": "Couldn't load this. Try again in a moment.",
+      "journal": "Diary",
+      "noJournal": "No diary yet. She looks back every 30 lines and writes an entry.",
+      "journalEarlier": "{count} earlier",
+      "journalCollapse": "Collapse",
+      "revisions": "What she changed",
+      "noRevisions": "She hasn't changed her card yet.",
+      "revertFailed": "Couldn't revert. Try again.",
+      "reason": "“{reason}”",
+      "fromChat": "Changed in chat",
+      "reverted": "Reverted",
+      "revert": "Revert",
+      "emptyValue": "(empty)",
+      "fields": {
+        "name": "Name",
+        "tags": "Tags",
+        "look": "Look",
+        "identity": "Identity",
+        "behavior": "Personality",
+        "speech": "Speech",
+        "boundaries": "Won't do",
+        "catchphrases": "Catchphrases",
+        "moods": "Moods",
+        "learnedPhrases": "Learned phrases",
+        "relationship": "Relationship",
+        "scenario": "Scenario",
+        "opening": "Opening",
+        "examples": "Example dialogue",
+        "backstory": "Backstory"
+      }
     }
   }
 }

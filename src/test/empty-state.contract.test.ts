@@ -37,6 +37,7 @@ const LANDING_POINTS = [
   'src/components/business/cards/CharacterLibrary.tsx',
   'src/components/business/cards/CharacterRoster.tsx',
   'src/components/business/node/NodeCanvasEmptyGuide.tsx',
+  'src/components/business/assistant-settings/AssistantHerPane.tsx',
   'src/components/business/assistant-settings/AssistantMemoryPane.tsx',
   'src/components/business/studio/lora/LoraWorkbench.tsx',
   'src/components/business/studio/lora/library/LoraLibraryTypeStates.tsx',

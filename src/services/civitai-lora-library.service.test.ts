@@ -92,17 +92,13 @@ describe('listCivitaiLoras', () => {
     })
   })
 
-  it('retries once when the index times out', async () => {
-    mockFetch
-      .mockRejectedValueOnce(
-        new DOMException('The operation was aborted', 'TimeoutError'),
-      )
-      .mockResolvedValueOnce(
-        jsonResponse({ rows: [], total: 0, totalCapped: false }),
-      )
+  it('does not retry a timeout (the index is still waking up)', async () => {
+    mockFetch.mockRejectedValueOnce(
+      new DOMException('The operation was aborted', 'TimeoutError'),
+    )
 
-    await expect(listCivitaiLoras()).resolves.toMatchObject({ total: 0 })
-    expect(mockFetch).toHaveBeenCalledTimes(2)
+    await expect(listCivitaiLoras()).rejects.toThrow('aborted')
+    expect(mockFetch).toHaveBeenCalledTimes(1)
   })
 
   it('retries once when the index answers 5xx', async () => {

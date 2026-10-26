@@ -52,6 +52,9 @@ const SYNC_STEP_CONFIG: WorkflowStepConfig = {
  */
 const SLOW_SEARCH_MS = 2000
 
+/** 保温（与 wrangler.jsonc 的第二条 cron 同一串）：读一行，让 D1 别睡过去。 */
+const KEEP_WARM_CRON = '*/3 * * * *'
+
 function json(body: unknown, status = 200, serverTiming?: string): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -156,6 +159,14 @@ const civitaiIndexWorker = {
     env: Env,
     ctx: ExecutionContext,
   ): Promise<void> {
+    if (controller.cron === KEEP_WARM_CRON) {
+      ctx.waitUntil(
+        env.DB.prepare('SELECT 1 FROM sync_state WHERE id = 1')
+          .first()
+          .catch(() => undefined),
+      )
+      return
+    }
     const day = new Date(controller.scheduledTime).toISOString().slice(0, 10)
     // 同一天只开一轮：cron 重投时 id 撞车，create 抛错，吞掉即可。
     ctx.waitUntil(startSync(env, `daily-${day}`).catch(() => undefined))

@@ -20,6 +20,7 @@ import {
   buildCivitaiVersionDownloadUrl,
   inferLoraType,
 } from '@/lib/civitai-library-item'
+import { cacheableFn } from '@/lib/cache-tags'
 import type { CronHeartbeat } from '@/lib/cron-heartbeat'
 import { extractCivitaiTrigger } from '@/lib/lora-trigger-extract'
 import {
@@ -37,10 +38,17 @@ import type { CivitaiLoraLibraryItem, CivitaiLoraLibraryResult } from '@/types'
  * 总数、翻页都以索引为准。新上架的模型最迟一天后出现。
  */
 
-// 热查询几十到几百毫秒，冷的时候（D1 页缓存没热）慢一个量级。4 秒的上限在
-// 2026-10 一周里超时 16 次——给足 8 秒，超时或索引 5xx 再试一次（只读，重试安全）。
-const CIVITAI_INDEX_TIMEOUT_MS = 8000
+// 热查询几十到几百毫秒；索引闲了十几分钟后 D1 要先醒过来，第一批请求一起卡
+// 8–35 秒（2026-10-24～26 线上每天好几次，SQL 本身只要几毫秒）。超时再试只会
+// 在同一个还没醒的库后面多排一个，所以超时不重试、一次等足 30 秒；索引 5xx 才再试。
+const CIVITAI_INDEX_TIMEOUT_MS = 30_000
 const CIVITAI_INDEX_ATTEMPTS = 2
+/**
+ * 不带搜索词的浏览页（打开库默认那页、换底模 / 分级 / 类型 / 排序）在应用这边缓存：
+ * 过期后先给旧的、后台再向索引要新的，D1 醒不醒都不让人等。索引每天才同步一轮，
+ * 一小时的旧数据无关紧要。有搜索词的照常现查（词千变万化，缓存不划算）。
+ */
+const CIVITAI_BROWSE_CACHE_SECONDS = 60 * 60
 /** 卡片上最多带几个标签（与旧的上游路径一致）。 */
 const ITEM_MAX_TAGS = 8
 
@@ -115,11 +123,7 @@ async function callIndex(path: string, body?: unknown): Promise<unknown> {
       }
       return await response.json()
     } catch (error) {
-      const timedOut =
-        error instanceof DOMException && error.name === 'TimeoutError'
-      if (!(timedOut || retryable) || attempt >= CIVITAI_INDEX_ATTEMPTS) {
-        throw error
-      }
+      if (!retryable || attempt >= CIVITAI_INDEX_ATTEMPTS) throw error
     }
   }
 }
@@ -232,20 +236,42 @@ function indexRowToLibraryItem(
 export async function listCivitaiLoras(
   input: ListCivitaiLorasInput = {},
 ): Promise<CivitaiLoraLibraryResult> {
-  const page = input.page ?? 1
-  const pageSize = input.pageSize ?? CIVITAI_LORA_PAGE_SIZE
-  const search = input.search?.trim() ?? ''
-  const nsfwFilter = input.nsfwFilter ?? DEFAULT_LORA_NSFW_FILTER
+  const normalized: Required<ListCivitaiLorasInput> = {
+    page: input.page ?? 1,
+    pageSize: input.pageSize ?? CIVITAI_LORA_PAGE_SIZE,
+    search: input.search?.trim() ?? '',
+    baseModel: input.baseModel ?? 'all',
+    sort: input.sort ?? 'Highest Rated',
+    nsfwFilter: input.nsfwFilter ?? DEFAULT_LORA_NSFW_FILTER,
+    contentType: input.contentType ?? DEFAULT_LORA_CONTENT_TYPE,
+  }
+  return normalized.search
+    ? queryCivitaiIndex(normalized)
+    : listCivitaiBrowsePage(normalized)
+}
 
+const listCivitaiBrowsePage = cacheableFn(
+  (input: Required<ListCivitaiLorasInput>) => queryCivitaiIndex(input),
+  ['civitai-lora-browse', 'v1'],
+  { tags: ['civitai-lora-browse'], revalidate: CIVITAI_BROWSE_CACHE_SECONDS },
+)
+
+async function queryCivitaiIndex({
+  page,
+  pageSize,
+  search,
+  baseModel,
+  sort,
+  nsfwFilter,
+  contentType,
+}: Required<ListCivitaiLorasInput>): Promise<CivitaiLoraLibraryResult> {
   const result = IndexSearchResponseSchema.parse(
     await callIndex('/search', {
       q: search,
-      ...indexBaseModels(input.baseModel ?? 'all'),
+      ...indexBaseModels(baseModel),
       nsfw: indexNsfw(nsfwFilter),
-      contentType: indexContentType(
-        input.contentType ?? DEFAULT_LORA_CONTENT_TYPE,
-      ),
-      sort: indexSort(input.sort ?? 'Highest Rated', search),
+      contentType: indexContentType(contentType),
+      sort: indexSort(sort, search),
       page,
       pageSize,
     }),

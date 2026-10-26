@@ -1,37 +1,31 @@
 'use client'
 
-import { useContext, useState, type MouseEvent, type ReactNode } from 'react'
+import {
+  useContext,
+  useRef,
+  useState,
+  type MouseEvent,
+  type ReactNode,
+} from 'react'
 import { useTranslations } from 'next-intl'
 
-import { ROUTES } from '@/constants/routes'
 import { STUDIO_LIBRARY_ITEMS } from '@/constants/navigation'
 import {
   STUDIO_LIBRARY_TAB_IDS,
   studioLibraryPath,
   type StudioLibraryCategoryId,
 } from '@/constants/studio-shell'
-import { Images, LayoutGrid, Library } from '@/components/icons'
+import { ChatCircleText, Library } from '@/components/icons'
 import { AccountMenu } from '@/components/layout/AccountMenu'
 import { ProfileAvatar } from '@/components/layout/ProfileAvatar'
-import {
-  StudioOperatorAvatarSwitcher,
-  StudioOperatorCurrentAvatar,
-} from '@/components/business/studio/assistant-operator/StudioOperatorAvatarSwitcher'
 import { StudioLibraryTargetContext } from '@/components/business/studio/shell/StudioLibraryOverlay'
-import {
-  StudioShellChatKey,
-  StudioShellNewChatKey,
-} from '@/components/business/studio/shell/StudioShellHistoryKeys'
-import {
-  StudioBenchPicker,
-  StudioLibraryPicker,
-  activeBenchId,
-} from '@/components/business/studio/shell/StudioShellBench'
+import { StudioLibraryPicker } from '@/components/business/studio/shell/StudioShellBench'
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { SidebarMenuSlider } from '@/components/ui/sidebar'
 import {
   Tooltip,
   TooltipContent,
@@ -39,143 +33,147 @@ import {
 } from '@/components/ui/tooltip'
 import { useIntentPrefetch } from '@/hooks/use-intent-prefetch'
 import { useMyProfile } from '@/hooks/use-my-profile'
-import { useStudioShellAvatar } from '@/hooks/use-studio-shell-avatar'
+import { useNavIndicator } from '@/hooks/use-nav-indicator'
+import { useStudioOperatorState } from '@/hooks/use-studio-operator-store'
 import { Link, usePathname } from '@/i18n/navigation'
 import {
   libraryCategoryFromPath,
+  studioConversationHref,
   studioShellRouteKind,
 } from '@/lib/studio-shell-route'
 import { cn } from '@/lib/utils'
 
-/** 左栏的图标键（ui-spec §1 / §9「左栏」）：落在灰底上，当前那一颗 `fill-strong`。 */
-const NAV_BUTTON_CLASS =
-  'grid size-10 place-items-center rounded-12 text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus data-[state=open]:bg-fill-strong data-[state=open]:text-foreground [&>svg]:size-4.5'
+/**
+ * 左栏一格（用户 10-26：回到 10-21 那版窄图标栏的 CSS 与动效）：灰底上一列图标，
+ * ⛔ 每格自己亮 —— 当前那一格靠滑过来的白浮片 + 左边墨竖条（`SidebarMenuSlider`），
+ * 悬停是一块往暗走的幽灵块跟着滑（反极性，app-shell.md §5.1）。格子只换字色。
+ * `data-slot` / `data-active` 是 `useNavIndicator` 认格子的记号。
+ */
+const RAIL_ITEM_CLASS =
+  'relative z-1 grid size-10 place-items-center rounded-md text-sidebar-foreground outline-hidden ring-sidebar-ring transition-colors duration-fast ease-standard hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent-strong data-[active=true]:text-sidebar-accent-foreground data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground [&>svg]:size-4.5 [&>svg]:transition-transform [&>svg]:duration-fast [&>svg]:ease-standard hover:[&>svg]:scale-105 motion-reduce:transition-none'
 
-const NAV_ACTIVE_CLASS = 'bg-fill-strong text-foreground'
-
-/** 左栏单独一颗、点开整页的那几样（用户 10-25）：素材 · 角色 · 提示词。 */
-const PAGE_ITEM_IDS: readonly StudioLibraryCategoryId[] = [
+/** 左栏单独一颗、点开整页的那几样：画廊 · 素材 · 提示词在上（用户 10-26），角色在下一组。 */
+const TOP_PAGE_IDS: readonly StudioLibraryCategoryId[] = [
+  'gallery',
   'assets',
-  'cards',
   'prompts',
 ]
-const PAGE_ITEMS = PAGE_ITEM_IDS.flatMap((id) =>
-  STUDIO_LIBRARY_ITEMS.filter((item) => item.id === id).map((item) => ({
-    ...item,
-    id,
-  })),
-)
+const pageItems = (ids: readonly StudioLibraryCategoryId[]) =>
+  ids.flatMap((id) =>
+    STUDIO_LIBRARY_ITEMS.filter((item) => item.id === id).map((item) => ({
+      ...item,
+      id,
+    })),
+  )
+const TOP_PAGE_ITEMS = pageItems(TOP_PAGE_IDS)
+const CARDS_ITEMS = pageItems(['cards'])
 
 /**
- * `/studio` 外壳左边那一栏（ui-spec §1）：64 宽的细图标栏落在灰底上，只放图标 ——
- * 助手头像（点开换全局人设）、白底「新对话」、画廊 / 聊天 / 工作台 / 库 / 素材 / 角色 / 提示词、最底下头像（顺序
- * 用户 10-25 定）。点「工作台」浮出一条竖排的台、点「库」浮出一条竖排的库（LoRA · 酒馆 · 标签 · 音色），点一个进那一个。
+ * `/studio` 外壳左边那一栏（用户 10-26 整理）：
+ * 对话（回到和她的这一段）｜画廊 · 素材 · 提示词｜角色 · 库▾ … 最底下账号。
  *
- * ⛔ 没有常驻的对话列表（用户 10-25）：工作台的历史在「新对话」那颗里，聊天记录在「聊天」那颗里
- *   （只列现在这一位的）；两边分开，人设都跟最上面那格走。
+ * - 换人只在白框左上头像▾，新对话 / 历史 / 聊天在对话头上 —— ⛔ 左栏不再放头像、新对话、聊天。
+ * - 台从白框右边缘那条细线浮出（首页也有）—— ⛔ 左栏不再放「工作台」。
+ * - 「库」点开浮出一条竖排的库（LoRA · 酒馆 · 标签 · 音色），点一个进那一个。
  */
 export function StudioConversationList({ className }: { className?: string }) {
   const t = useTranslations('StudioShell')
-  const tNav = useTranslations('Navbar')
   const tAll = useTranslations()
-  const tOperator = useTranslations('StudioOperator')
-  const avatar = useStudioShellAvatar()
   const intent = useIntentPrefetch()
   const pathname = usePathname()
   const kind = studioShellRouteKind(pathname)
   const openCategory = libraryCategoryFromPath(pathname)
-  const [benchesOpen, setBenchesOpen] = useState(false)
+  const { sessionId } = useStudioOperatorState()
   const [librariesOpen, setLibrariesOpen] = useState(false)
-  const voiceRoomActive =
-    pathname === ROUTES.STUDIO_AUDIO ||
-    pathname.startsWith(`${ROUTES.STUDIO_AUDIO}/`)
-  const openBenchId =
-    kind === 'bench' && !voiceRoomActive ? activeBenchId(pathname) : undefined
   const librarySlot = useContext(StudioLibraryTargetContext)
   const libraryActive =
     openCategory !== null &&
     (STUDIO_LIBRARY_TAB_IDS as readonly string[]).includes(openCategory)
+  /** 对话亮着：首页、开着台（台也是这段对话的一部分）。聊天页、整页的库不算。 */
+  const conversationActive =
+    (kind === 'home' || kind === 'bench') && openCategory === null
+  const navRef = useRef<HTMLElement>(null)
+  const indicator = useNavIndicator(navRef, pathname)
   /** 库是整页、没有返回键：再点一下亮着的那一颗 = 收起库，回到进来之前那一页。 */
   const closeIfActive = (active: boolean) => (event: MouseEvent) => {
     if (!active || !librarySlot) return
     event.preventDefault()
     librarySlot.close()
   }
+  const conversationHref = studioConversationHref(sessionId)
+
+  const pageLink = (item: (typeof TOP_PAGE_ITEMS)[number]) => {
+    const Icon = item.icon
+    const label = tAll(item.labelKey)
+    const active = openCategory === item.id
+    const href = studioLibraryPath(item.id)
+    return (
+      <NavTip key={item.id} label={label}>
+        <Link
+          href={href}
+          prefetch={false}
+          {...intent(href)}
+          replace={openCategory !== null}
+          onClick={closeIfActive(active)}
+          aria-label={label}
+          aria-current={active ? 'page' : undefined}
+          data-slot="sidebar-menu-button"
+          data-active={active}
+          data-testid={`studio-shell-page-${item.id}`}
+          className={RAIL_ITEM_CLASS}
+        >
+          <Icon />
+        </Link>
+      </NavTip>
+    )
+  }
 
   return (
     <nav
+      ref={navRef}
       aria-label={t('conversations')}
       data-testid="studio-conversation-list"
+      onPointerOver={indicator.onPointerOver}
+      onPointerLeave={indicator.onPointerLeave}
       className={cn(
-        'h-svh w-16 shrink-0 flex-col items-center gap-1 py-3',
+        'relative h-svh w-14 shrink-0 flex-col items-center gap-1 bg-sidebar py-3',
         className,
       )}
     >
-      {/* 最上面那格 = 全局助手，点开换人设（用户 10-25）；收起 / 展开交给对话头那颗。
-          换了人对话收着就拉回来。 */}
-      <StudioOperatorAvatarSwitcher
-        side="right"
-        onPicked={avatar.expand ?? undefined}
-      >
-        <button
-          type="button"
-          aria-label={tOperator('mode.pickCharacter')}
-          data-testid="studio-shell-avatar"
-          className="mb-2 grid size-10 place-items-center rounded-full focus-visible:outline-none focus-visible:shadow-focus"
-        >
-          <span className="size-9 rounded-full transition-transform duration-fast ease-standard active:scale-96 motion-reduce:transition-none">
-            <StudioOperatorCurrentAvatar fly={false} />
-          </span>
-        </button>
-      </StudioOperatorAvatarSwitcher>
-      <StudioShellNewChatKey />
+      {/* 整栏唯一的两个运动主体（app-shell.md §5.1），排在格子前面 = 画在格子下面。 */}
+      <SidebarMenuSlider
+        rect={indicator.hover}
+        tone="hover"
+        visible={indicator.hoverVisible}
+        jumped={indicator.hoverJumped}
+      />
+      <SidebarMenuSlider
+        rect={indicator.active}
+        tone="active"
+        visible={indicator.active !== null}
+        tracking={indicator.activeTracking}
+      />
 
-      <NavTip label={tNav('links.gallery')}>
+      <NavTip label={t('conversation')}>
         <Link
-          href={studioLibraryPath('gallery')}
+          href={conversationHref}
           prefetch={false}
-          {...intent(studioLibraryPath('gallery'))}
-          replace={openCategory !== null}
-          onClick={closeIfActive(openCategory === 'gallery')}
-          aria-label={tNav('links.gallery')}
-          aria-current={openCategory === 'gallery' ? 'page' : undefined}
-          className={cn(
-            NAV_BUTTON_CLASS,
-            openCategory === 'gallery' && NAV_ACTIVE_CLASS,
-          )}
+          {...intent(conversationHref)}
+          aria-label={t('conversation')}
+          aria-current={conversationActive ? 'page' : undefined}
+          data-slot="sidebar-menu-button"
+          data-active={conversationActive}
+          data-testid="studio-shell-conversation-key"
+          className={RAIL_ITEM_CLASS}
         >
-          <Images />
+          <ChatCircleText />
         </Link>
       </NavTip>
 
-      {/* 聊天（用户 10-25：配音间改名聊天）：点开是和现在这一位的聊天记录。 */}
-      <StudioShellChatKey active={voiceRoomActive} />
-
-      <Popover open={benchesOpen} onOpenChange={setBenchesOpen}>
-        <NavTip label={t('workbench')}>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              aria-label={t('workbench')}
-              data-testid="studio-shell-benches"
-              className={cn(NAV_BUTTON_CLASS, openBenchId && NAV_ACTIVE_CLASS)}
-            >
-              <LayoutGrid />
-            </button>
-          </PopoverTrigger>
-        </NavTip>
-        <PopoverContent
-          side="right"
-          align="start"
-          sideOffset={8}
-          className="w-auto rounded-full bg-transparent p-0 shadow-none"
-        >
-          <StudioBenchPicker
-            activeId={openBenchId}
-            onPicked={() => setBenchesOpen(false)}
-          />
-        </PopoverContent>
-      </Popover>
+      <RailDivider />
+      {TOP_PAGE_ITEMS.map(pageLink)}
+      <RailDivider />
+      {CARDS_ITEMS.map(pageLink)}
 
       <Popover open={librariesOpen} onOpenChange={setLibrariesOpen}>
         <NavTip label={t('library')}>
@@ -183,11 +181,10 @@ export function StudioConversationList({ className }: { className?: string }) {
             <button
               type="button"
               aria-label={t('library')}
+              data-slot="sidebar-menu-button"
+              data-active={libraryActive}
               data-testid="studio-shell-libraries"
-              className={cn(
-                NAV_BUTTON_CLASS,
-                libraryActive && NAV_ACTIVE_CLASS,
-              )}
+              className={RAIL_ITEM_CLASS}
             >
               <Library />
             </button>
@@ -207,32 +204,15 @@ export function StudioConversationList({ className }: { className?: string }) {
         </PopoverContent>
       </Popover>
 
-      {/* 素材 / 角色 / 提示词各一颗（用户 10-25），点开整页；开着时换一样 = 换叠层里那一页，⛔ 多压一层历史。 */}
-      {PAGE_ITEMS.map((item) => {
-        const Icon = item.icon
-        const label = tAll(item.labelKey)
-        const active = openCategory === item.id
-        return (
-          <NavTip key={item.id} label={label}>
-            <Link
-              href={studioLibraryPath(item.id)}
-              prefetch={false}
-              {...intent(studioLibraryPath(item.id))}
-              replace={openCategory !== null}
-              onClick={closeIfActive(active)}
-              aria-label={label}
-              aria-current={active ? 'page' : undefined}
-              data-testid={`studio-shell-page-${item.id}`}
-              className={cn(NAV_BUTTON_CLASS, active && NAV_ACTIVE_CLASS)}
-            >
-              <Icon />
-            </Link>
-          </NavTip>
-        )
-      })}
-
       <StudioConversationListAccount />
     </nav>
+  )
+}
+
+/** 两组之间那根细线（10-21 那版收起档的段标题）。 */
+function RailDivider() {
+  return (
+    <span aria-hidden className="my-1.5 h-px w-6 shrink-0 bg-sidebar-border" />
   )
 }
 

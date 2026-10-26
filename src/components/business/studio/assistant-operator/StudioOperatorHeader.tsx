@@ -48,8 +48,10 @@
  *  · `own` —— 手机 Sheet：没有 morph，由头部自己画一颗（点它收起）。
  *  · `none` —— 布局 A「分栏并排」（图片台桌面）：头像留在面板**上方**那一行里，
  *    头部不留位，标题从左缘起。
- *  · `board` / `boardStatic` —— `/studio` 外壳那一栏（ui-spec §1 板头）：32 的平圆头像 +
- *    标题；开着台时点头像整栏收起（`board`），首页没有台可让、头像不可点（`boardStatic`）。
+ *  · `board` / `boardStatic` —— `/studio` 外壳那一栏（ui-spec §1 板头，用户 10-26 定稿 v5）：
+ *    对话记录 · 头像 + 名字 ▾（换人）· 淡标题 …… 聊天 · ⋯；开着台时最右多一颗收起（`board`），
+ *    首页没有台可让（`boardStatic`）。那几颗键由外壳经 context 给（`studio-shell-header-slots`）。
+ *    ⚠ 外壳里头像管换人，所以收起单独一颗 —— 下面「收起 = 点头像」只说 `own`（手机 Sheet）。
  *    这两档的标题**不是**下拉（用户 10-25：工作台的历史挪到左栏「新对话」那颗里），只写这段的名字。
  *    别的宿主（手机 Sheet、画布）照旧是标题 ▾ 历史。
  */
@@ -61,6 +63,7 @@ import {
   ChevronDown,
   EyeOff,
   MoreHorizontal,
+  PanelLeftClose,
   Settings2,
 } from '@/components/icons'
 import { useFormatter, useTranslations } from 'next-intl'
@@ -94,6 +97,7 @@ import type { AssistantPersona } from '@/types/assistant-persona'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
 import { useSlowLoadingNotice } from '@/hooks/use-slow-loading-notice'
 import { useStudioShellAvatar } from '@/hooks/use-studio-shell-avatar'
+import { useStudioShellHeaderSlots } from '@/contexts/studio-shell-header-slots'
 import { StudioOperatorCurrentAvatar } from '@/components/business/studio/assistant-operator/StudioOperatorAvatarSwitcher'
 import { StudioOperatorSessionRow } from '@/components/business/studio/assistant-operator/StudioOperatorSessionRow'
 import { deriveAssistantConversationTitle } from '@/lib/assistant-conversation-title'
@@ -251,6 +255,7 @@ export function StudioOperatorHeader({
   /** 标题▾ 与历史图标共开的那一个菜单（见头注），⛔ 不是两个实例。 */
   const [menuOpen, setMenuOpen] = useState(false)
   const { docked: avatarDocked } = useStudioShellAvatar()
+  const shellSlots = useStudioShellHeaderSlots()
   /**
    * 会话按「工作 / 和谁聊」分组（附录L：聊天会话按角色归组）。组的先后跟各组最近那一条走；
    * 组内照旧按时间。卡删了的聊天会话归回工作那一组。
@@ -342,31 +347,31 @@ export function StudioOperatorHeader({
           >
             <AssistantAvatarGlyph presetId={persona?.avatarPreset ?? null} />
           </button>
-        ) : avatar === 'board' ? (
-          // 外壳那一栏、开着台：助手头像点一下 = 收起对话（用户 10-25），飞到台左上角
-          //（`StudioShellExpandChat`），点那颗再展开。换人只走左栏最上面那格。
-          <button
-            type="button"
-            data-testid="operator-header-avatar"
-            aria-label={t('collapse')}
-            title={t('collapseHint')}
-            onClick={onCollapse}
-            className={cn(
-              'size-8 shrink-0 rounded-full transition-transform duration-fast ease-standard active:scale-96 focus-visible:outline-none focus-visible:shadow-focus motion-reduce:transition-none',
-              // 飞走了：这里只留位，⛔ 两颗同时在。
-              avatarDocked && 'invisible',
-            )}
-          >
-            <StudioOperatorCurrentAvatar fly={!avatarDocked} />
-          </button>
-        ) : avatar === 'boardStatic' ? (
-          // 首页（没开台）：对话就是整块白板，没东西可收 —— 头像只是在。
-          <span
-            data-testid="operator-header-avatar"
-            className="size-8 shrink-0 rounded-full"
-          >
-            <StudioOperatorCurrentAvatar fly={false} />
-          </span>
+        ) : board ? (
+          // `/studio` 外壳那一栏（用户 10-26 定稿 v5）：对话记录 · 头像 + 名字 ▾（点开换人）。
+          // 外壳外面拿不到那几颗键（单测），只画头像。
+          shellSlots ? (
+            <>
+              {shellSlots.history}
+              <span
+                data-testid="operator-header-avatar"
+                // 收起时头像飞到台左上角：这里只留位，⛔ 两颗同时在。
+                className={cn(
+                  'flex min-w-0 shrink',
+                  avatar === 'board' && avatarDocked && 'invisible',
+                )}
+              >
+                {shellSlots.renderPersona(avatar === 'board' && !avatarDocked)}
+              </span>
+            </>
+          ) : (
+            <span
+              data-testid="operator-header-avatar"
+              className="size-8 shrink-0 rounded-full"
+            >
+              <StudioOperatorCurrentAvatar fly={false} />
+            </span>
+          )
         ) : avatar === 'slot' ? (
           <span
             data-testid="operator-header-avatar-slot"
@@ -380,11 +385,11 @@ export function StudioOperatorHeader({
         ) : null}
 
         {board ? (
-          // `/studio` 外壳那一栏：标题只是这段对话的名字 —— 历史挪到左栏「新对话」那颗里（用户 10-25）。
+          // `/studio` 外壳那一栏：标题只是这段对话的名字（淡一档，主角是头像 + 名字）。
           <span
             data-testid="operator-session-title"
             title={sessionTitle}
-            className="min-w-0 truncate px-2 text-2sm font-semibold text-foreground"
+            className="min-w-0 truncate px-1 text-2sm text-muted-foreground"
           >
             {sessionTitle}
           </span>
@@ -606,6 +611,8 @@ export function StudioOperatorHeader({
         {/* 标题药丸 hug 之后靠这一格把右上三颗推到右边（⛔ 不靠 `flex-1` 撑标题）。 */}
         <span className="flex-1" />
 
+        {board ? shellSlots?.chat : null}
+
         {/* ── 右上**一颗 ⋯**（D7b ④ · 画板 `DesignD7bToggle` 的「⋯ 菜单」）────
             设置 · 分隔线 · 隐身。⛔ 历史会话只走标题下拉（D12 B7：⋯ 里那一项与它
             是同一份历史，两个入口）。 */}
@@ -661,6 +668,20 @@ export function StudioOperatorHeader({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {avatar === 'board' ? (
+          // 开着台：收起对话（头像飞到台左上角，点那颗再展开）。头像现在管换人，收起单独一颗。
+          <button
+            type="button"
+            data-testid="operator-header-collapse"
+            aria-label={t('collapse')}
+            title={t('collapseHint')}
+            onClick={onCollapse}
+            className={HEADER_ICON_BUTTON_CLASS}
+          >
+            <PanelLeftClose className="size-4" aria-hidden />
+          </button>
+        ) : null}
       </div>
     </div>
   )

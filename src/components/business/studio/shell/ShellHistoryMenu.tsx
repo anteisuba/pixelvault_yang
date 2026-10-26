@@ -38,7 +38,7 @@ export interface ShellHistoryItem {
 }
 
 interface ShellHistoryMenuProps {
-  /** 触发键（左栏那一颗）。 */
+  /** 触发键（对话头里那一颗）。 */
   children: ReactNode
   /** 悬停在键上那一句。 */
   tooltip: string
@@ -66,7 +66,7 @@ interface ShellHistoryMenuProps {
 }
 
 /**
- * 左栏「新对话」与「聊天」两颗键弹出来的那一块（用户 10-25 定样子：第一行「＋ 新…」，下面按今天 /
+ * 对话头里「对话记录」与「聊天」两颗键弹出来的那一块（用户 10-25 定样子：第一行「＋ 新…」，下面按今天 /
  * 昨天 / 更早分组，时间靠右，当前那一行浅灰底）。两边同一块，⛔ 各画各的。
  *
  * 行就是标题 ▾ 历史那一套（`StudioOperatorSessionRow` 的 `compact`）：就地改名、删除两段确认；
@@ -137,10 +137,10 @@ export function ShellHistoryMenu({
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
         </TooltipTrigger>
-        <TooltipContent side="right">{tooltip}</TooltipContent>
+        <TooltipContent side="bottom">{tooltip}</TooltipContent>
       </Tooltip>
       <DropdownMenuContent
-        side="right"
+        side="bottom"
         align="start"
         sideOffset={8}
         data-testid={testId}

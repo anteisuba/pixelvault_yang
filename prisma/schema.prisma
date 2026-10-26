@@ -164,6 +164,7 @@ model User {
   projectRules           ProjectRule[]
   contextCards           ContextCard[]
   assistantMemories      AssistantMemory[]
+  characterCardRevisions CharacterCardRevision[]
   assistantSkills        AssistantSkill[]
   mcpTokens              McpToken[]
   danbooruFavorites      DanbooruFavorite[]
@@ -861,6 +862,8 @@ model CharacterCard {
   assistantPersonas AssistantPersona[]
   /// 和这个角色聊天时记下的事（附录L 第二片 B）。
   assistantMemories AssistantMemory[]
+  /// 她改了什么（10-26「更像真人」C）。
+  revisions         CharacterCardRevision[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1287,6 +1290,44 @@ model AssistantMemory {
   @@index([userId, projectId, lastUsedAt(sort: Desc)])
   /// 聊天按角色取那个角色的记忆。
   @@index([userId, characterCardId, updatedAt(sort: Desc)])
+}
+
+/// 角色卡这一笔是谁改的（10-26「更像真人」C）。
+enum CharacterRevisionSource {
+  /// 对话里助手改的（改设定那条路）。
+  CHAT
+  /// 后台整理时她自己改的。
+  REFLECTION
+}
+
+/// **她改了什么**（10-26「更像真人」C，owner 定「她自己改卡、不用确认，设置里留记录、每条能撤回」）：
+/// 助手每改一次角色卡记一行，只记改到的那几格的前后值。撤回 = 把 `before` 那几格写回去。
+/// ⚠ 你自己在角色页上改的不记（那是你改的，不是她）。每张卡只留最近 200 行。
+model CharacterCardRevision {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  characterCardId String
+  characterCard   CharacterCard @relation(fields: [characterCardId], references: [id], onDelete: Cascade)
+
+  source CharacterRevisionSource
+  /// 改到的格：人设里的键名，或 name / tags / look。
+  fields String[]
+  /// 这几格改前 / 改后的值（`{ 格: 值 }`）。
+  before Json
+  after  Json
+  /// 她为什么改（整理时写；对话里改的为空）。
+  reason String?                 @db.Text
+
+  /// 撤回过就有：设置里显示「已撤回」，⛔ 不能再撤一次。
+  revertedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  /// 设置里按人列最近的。
+  @@index([userId, createdAt(sort: Desc)])
+  /// 按卡列、超 200 行删最旧的。
+  @@index([characterCardId, createdAt(sort: Desc)])
 }
 
 /// 创作者自己的技能（第 7b 步，owner 10-23）：SKILL.md 那几样（名字、描述、正文、参考文件）存成一行。

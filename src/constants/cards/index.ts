@@ -6,3 +6,4 @@
  */
 export * from './character-card'
 export * from './character-works'
+export * from './character-revision'

@@ -143,3 +143,11 @@ export const AssistantMemoryKind = {
 } as const
 
 export type AssistantMemoryKind = (typeof AssistantMemoryKind)[keyof typeof AssistantMemoryKind]
+
+
+export const CharacterRevisionSource = {
+  CHAT: 'CHAT',
+  REFLECTION: 'REFLECTION'
+} as const
+
+export type CharacterRevisionSource = (typeof CharacterRevisionSource)[keyof typeof CharacterRevisionSource]

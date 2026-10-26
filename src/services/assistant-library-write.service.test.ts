@@ -286,6 +286,14 @@ vi.mock('@/services/prompts/recipe.service', () => ({
   updateRecipe: vi.fn(),
 }))
 vi.mock('@/services/storage/r2', () => ({ isOwnedStorageUrl: () => true }))
+const revisions = vi.hoisted(() => ({
+  record: vi.fn(async () => 'rev-1'),
+  markReverted: vi.fn(async () => undefined),
+}))
+vi.mock('@/services/cards/character-revision.service', () => ({
+  recordCharacterRevision: revisions.record,
+  markCharacterRevisionReverted: revisions.markReverted,
+}))
 
 import {
   favoriteLora,
@@ -318,6 +326,31 @@ describe('新内核改库：做 → 撤 → 回到原状', () => {
     expect(outcome.payload.summary).toContain('角色·马尔福')
     await revertLibraryWrite(owner.userId, outcome.inverse)
     expect(snapshot()).toEqual(before)
+  })
+
+  it('改设定记进「她改了什么」，对话里撤销时那一行一起标成撤回过（C）', async () => {
+    const outcome = await writeCharacterProfile(owner, {
+      character: '马尔福',
+      fields: [{ field: 'speech', text: 'sneers a lot' }],
+    })
+    expect(revisions.record).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        userId: owner.userId,
+        source: 'CHAT',
+        before: expect.objectContaining({
+          persona: expect.objectContaining({ speech: 'drawl' }),
+        }),
+        after: expect.objectContaining({
+          persona: expect.objectContaining({ speech: 'sneers a lot' }),
+        }),
+      }),
+    )
+    if (!outcome.ok) throw new Error('write failed')
+    await revertLibraryWrite(owner.userId, outcome.inverse)
+    expect(revisions.markReverted).toHaveBeenLastCalledWith(
+      owner.userId,
+      'rev-1',
+    )
   })
 
   it('开场白、对话示例、口头禅、不会做的事也能直接写（10-26），撤销写回', async () => {

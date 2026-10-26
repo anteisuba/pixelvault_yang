@@ -2687,6 +2687,8 @@ export const AssistantLibraryWriteInverseSchema = z.discriminatedUnion('kind', [
     look: z
       .object({ lookId: IdSchema, description: LibraryTextSchema.nullable() })
       .nullable(),
+    /** 「她改了什么」里对应的那一行（C）：对话里撤销时一起标成撤回过。 */
+    revisionId: IdSchema.optional(),
   }),
   z.object({
     kind: z.literal(LIBRARY_KIND.newCharacter),

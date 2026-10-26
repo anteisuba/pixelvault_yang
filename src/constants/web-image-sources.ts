@@ -1,3 +1,5 @@
+import { API_ENDPOINTS } from '@/constants/config'
+
 /**
  * 一张联网候选**能不能当生成输入**的判据（切片 3b）。
  *
@@ -112,17 +114,28 @@ export const WEB_IMAGE_SOURCE_HOTLINK_LIST = [
  * ⭐ 面板里的网图一律 `referrerPolicy="no-referrer"` 直连，多数图床就放行了；这几家
  * 连**空** Referer 也拒（pixiv 最出名），只能由 `workers/civitai-image-proxy` 的
  * `/hotlink/` 那一支带上它们自己站内的 Referer 去取。
- * ⭐ `donmai.us`（标签库的 Danbooru 样图，2026-10-26）不是 Referer 的事：Cloudflare 把
- *   可疑客户端（无头浏览器、部分机房 / VPN 出口）拦成 403 质询页，那页带 CORP
- *   `same-origin`，浏览器报 NotSameOrigin。服务端取得到，所以它⛔ 不进上面那张表。
- * ⚠ 除 `donmai.us` 外是上面 `WEB_IMAGE_SOURCE_HOTLINK_LIST` 的**子集**，而且只收**图床**域（页面域
+ * ⚠ 这是上面 `WEB_IMAGE_SOURCE_HOTLINK_LIST` 的**子集**，而且只收**图床**域（页面域
  *   不会出现在 `<img src>` 里）。Worker 那边的 `HOTLINK_HOSTS` 是同一张表 —— 两处一起改。
  * ⚠ 只管「看」：转存（`web-image-import`）是服务端直取，这张表不让它取得回来。
  */
 export const WEB_IMAGE_HOTLINK_PROXY = {
   pathPrefix: '/hotlink',
-  hosts: ['pximg.net', 'hdslb.com', 'sinaimg.cn', 'donmai.us'],
+  hosts: ['pximg.net', 'hdslb.com', 'sinaimg.cn'],
 } as const
+
+/**
+ * **浏览器直连取不到时退回自家服务端去取的图床**（直连在前、服务端在后）。
+ *
+ * Danbooru 的 `cdn.donmai.us`（标签库样图，2026-10-26）拦的不是 Referer：它的 Cloudflare
+ * 把判为可疑的客户端（无头浏览器、隐私浏览器、部分 VPN 出口）回成 403 质询页，那页带
+ * CORP `same-origin`，浏览器报 `ERR_BLOCKED_BY_RESPONSE.NotSameOrigin`、样图空白。
+ * 🔬 实测：真 Chrome 直连放行，所以直连在前、不白花服务端；自家图片 Worker 回源也被拦
+ *   （`Upstream 403`），⛔ 进 `WEB_IMAGE_HOTLINK_PROXY`；Vercel 外部 rewrite 会把浏览器的
+ *   UA 转过去，「Chrome UA + 非 Chrome 指纹」照样被拦，⛔ 用 rewrite。服务端用自己的 UA 取才放行。
+ */
+export const WEB_IMAGE_SERVER_FALLBACK = [
+  { host: 'cdn.donmai.us', route: API_ENDPOINTS.DANBOORU_IMAGE },
+] as const
 
 /**
  * 发布方就是权利方的站——官方 wiki / 官方社区 / 自由许可百科。

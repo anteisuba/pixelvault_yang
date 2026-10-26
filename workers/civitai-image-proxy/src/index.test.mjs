@@ -152,11 +152,10 @@ test('hotlink: fetches the allow-listed host with that site’s own Referer', as
   await Promise.all(pending)
 })
 
-test('hotlink: bilibili, weibo and Danbooru hosts get their own Referer', async () => {
+test('hotlink: bilibili and weibo hosts get their own Referer', async () => {
   for (const [path, referer] of [
     ['i0.hdslb.com/bfs/archive/a.jpg@672w.webp', 'https://www.bilibili.com/'],
     ['wx1.sinaimg.cn/large/b.jpg', 'https://weibo.com/'],
-    ['cdn.donmai.us/180x180/9b/67/9b67.jpg', 'https://danbooru.donmai.us/'],
   ]) {
     const { calls, ctx } = setupHotlink([])
     const response = await worker.fetch(hotlink(path), {}, ctx)

@@ -1,6 +1,7 @@
 import {
   matchesHostPattern,
   WEB_IMAGE_HOTLINK_PROXY,
+  WEB_IMAGE_SERVER_FALLBACK,
 } from '@/constants/web-image-sources'
 
 /**
@@ -45,6 +46,27 @@ export function hotlinkProxyImageUrl(url: string): string | null {
   return `${base}${WEB_IMAGE_HOTLINK_PROXY.pathPrefix}/${host}${parsed.pathname}${parsed.search}`
 }
 
+/**
+ * 直连取不到时退回自家服务端去取的地址（`WEB_IMAGE_SERVER_FALLBACK`，如 Danbooru 样图）；
+ * 不在名单里或地址不合规矩时是 `null`。
+ */
+export function serverFallbackImageUrl(url: string): string | null {
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return null
+  }
+  if (parsed.protocol !== 'https:') return null
+  if (parsed.port || parsed.username || parsed.password) return null
+  const rule = WEB_IMAGE_SERVER_FALLBACK.find(
+    (candidate) => candidate.host === parsed.hostname.toLowerCase(),
+  )
+  return rule
+    ? `${rule.route}?path=${encodeURIComponent(parsed.pathname)}`
+    : null
+}
+
 /** 这个地址是不是自家代理的 `/hotlink/` 那一支（`hotlinkProxyImageUrl` 的产物）。 */
 export function isHotlinkProxyImageUrl(url: string): boolean {
   const rawBase = process.env.NEXT_PUBLIC_CIVITAI_IMAGE_PROXY_BASE
@@ -56,7 +78,8 @@ export function isHotlinkProxyImageUrl(url: string): boolean {
 }
 
 /**
- * 一张网图依次试哪几个地址：每个地址先代理（能走的话）再直连，按传入顺序排，去重。
+ * 一张网图依次试哪几个地址：每个地址先代理（能走的话）再直连，直连取不到再退自家服务端
+ * （`WEB_IMAGE_SERVER_FALLBACK`），按传入顺序排，去重。
  *
  * ⭐ 后面的参数是**退路**：灯箱传「原图, 缩略图」—— 原图三成取不到（附录 I 问题 4），
  *    取不到就先给看小图（ui-defaults §7.2「看大图」那一行）。
@@ -68,7 +91,13 @@ export function thirdPartyImageSources(
   for (const url of urls) {
     if (!url) continue
     const proxied = hotlinkProxyImageUrl(url)
-    for (const candidate of proxied ? [proxied, url] : [url]) {
+    const fallback = serverFallbackImageUrl(url)
+    const candidates = proxied
+      ? [proxied, url]
+      : fallback
+        ? [url, fallback]
+        : [url]
+    for (const candidate of candidates) {
       if (!sources.includes(candidate)) sources.push(candidate)
     }
   }

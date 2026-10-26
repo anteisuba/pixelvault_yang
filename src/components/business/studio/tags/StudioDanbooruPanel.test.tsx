@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 
 import type { DanbooruCatalogRequest } from '@/hooks/use-danbooru-catalog'
@@ -256,12 +256,6 @@ beforeEach(() => {
   mocks.requests = []
   mocks.favorites = []
   mocks.answer = answerFixtures
-  // Danbooru 样图先走自家图片代理（cdn.donmai.us 会把可疑客户端拦成 NotSameOrigin）。
-  vi.stubEnv('NEXT_PUBLIC_CIVITAI_IMAGE_PROXY_BASE', 'https://img.example')
-})
-
-afterEach(() => {
-  vi.unstubAllEnvs()
 })
 
 describe('查资料 B · 角色', () => {
@@ -290,7 +284,7 @@ describe('查资料 B · 角色', () => {
     const dialog = screen.getByRole('dialog')
     expect(within(dialog).getByRole('img')).toHaveAttribute(
       'src',
-      'https://img.example/hotlink/cdn.donmai.us/7.jpg',
+      'https://cdn.donmai.us/7.jpg',
     )
     expect(
       within(dialog).getByRole('link', { name: 'openPost' }),
@@ -315,7 +309,7 @@ describe('查资料 B · 角色', () => {
     // 样图用大图，点开 Danbooru 原帖。
     expect(screen.getByRole('img', { name: 'sample(7)' })).toHaveAttribute(
       'src',
-      'https://img.example/hotlink/cdn.donmai.us/7.jpg',
+      'https://cdn.donmai.us/7.jpg',
     )
     expect(
       mocks.requests.some(

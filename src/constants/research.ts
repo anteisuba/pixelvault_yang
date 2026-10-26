@@ -413,6 +413,8 @@ export const BILIBILI_REQUEST = {
 
 export const DANBOORU_REQUEST = {
   baseUrl: 'https://danbooru.donmai.us',
+  /** 样图 CDN：浏览器直连被 Cloudflare 拦时由服务端代取（`/api/danbooru/image`）。 */
+  imageCdnUrl: 'https://cdn.donmai.us',
   /** 角色 tag 的 danbooru category 编号。 */
   characterTagCategory: 4,
   /** 共现统计取样张数（切片 0 用的就是 100 张）。 */

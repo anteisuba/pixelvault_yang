@@ -35,6 +35,18 @@ const DonmaiImageUrlSchema = z
   })
 
 /**
+ * 服务端代取一张 Danbooru 样图（`/api/danbooru/image?path=…`）：只收 CDN 上的图片路径，
+ * 如 `/180x180/9b/67/<md5>.jpg`。⛔ `..`、查询串、别的扩展名 —— 主机写死在服务端。
+ */
+export const DanbooruImageQuerySchema = z.object({
+  path: z
+    .string()
+    .max(200)
+    .regex(/^(?:\/[\w-]+)+\.(?:jpe?g|png|webp|gif|avif)$/i),
+})
+export type DanbooruImageQuery = z.infer<typeof DanbooruImageQuerySchema>
+
+/**
  * 查资料（标签台，owner 2026-09-27 B）与标签库（第 9f 步 9f-2c）的几种问法：
  * 搜名字（`query`）· 取一个候选的详情（`tag`）· 「随便看看」（`random`）·
  * 按热度翻页（`page`，标签库的网格）· 一张卡的样图（`tag` + `preview`，网格的卡滚到才问）。

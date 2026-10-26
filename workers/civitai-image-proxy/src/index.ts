@@ -33,7 +33,8 @@
  *     → https://i.pximg.net/img-master/…/x.jpg   (Referer: https://www.pixiv.net/)
  * ⛔ 不是开放代理：host 只认 `HOTLINK_HOSTS` 那几家图床（及其子域），跳转也只跟到
  * 同一张名单里；回来的必须是图（魔数判型，同上面那一支），否则 415。
- * 标签库的 Danbooru 样图（cdn.donmai.us）也走这一支，见 `HOTLINK_HOSTS` 里那一条。
+ * ⚠ Danbooru（cdn.donmai.us）⛔ 放这里：它的 Cloudflare 把 Worker 的回源也拦成 403
+ *   质询（2026-10-26 实测），改为直连失败再退自家服务端，见 `WEB_IMAGE_SERVER_FALLBACK`。
  * 前端改写在 `src/lib/third-party-image-url.ts`（名单 = `WEB_IMAGE_HOTLINK_PROXY`，
  * 与这里的 `HOTLINK_HOSTS` 两处要一起改）。
  */
@@ -52,11 +53,6 @@ const HOTLINK_HOSTS = [
   { suffix: 'pximg.net', referer: 'https://www.pixiv.net/' },
   { suffix: 'hdslb.com', referer: 'https://www.bilibili.com/' },
   { suffix: 'sinaimg.cn', referer: 'https://weibo.com/' },
-  // Danbooru 的 cdn.donmai.us 不看 Referer，看的是「像不像机器人」：Cloudflare 判可疑
-  // （无头浏览器、部分机房 / VPN 出口）就回 403 质询页，那一页带
-  // `Cross-Origin-Resource-Policy: same-origin`，浏览器报 NotSameOrigin、样图空白。
-  // Worker 服务端取不吃这一套，还能把标签库样图在所有用户间共享缓存（2026-10-26）。
-  { suffix: 'donmai.us', referer: 'https://danbooru.donmai.us/' },
 ] as const
 
 /** 合法主机名：小写字母数字与连字符组成的点分标签（⛔ 端口、userinfo、百分号转义）。 */

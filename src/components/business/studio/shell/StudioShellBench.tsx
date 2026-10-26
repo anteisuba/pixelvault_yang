@@ -351,7 +351,6 @@ export function StudioBenchPicker({
   const t = useTranslations('StudioShell')
   const tAll = useTranslations()
   const { sessionId } = useStudioOperatorState()
-  const intent = useIntentPrefetch()
 
   return (
     <nav
@@ -374,8 +373,6 @@ export function StudioBenchPicker({
           >
             <Link
               href={href}
-              prefetch={false}
-              {...intent(href)}
               aria-label={label}
               aria-current={active ? 'page' : undefined}
               data-bench={item.id}
@@ -412,7 +409,6 @@ export function StudioLibraryPicker({
 }) {
   const t = useTranslations('StudioShell')
   const tAll = useTranslations()
-  const intent = useIntentPrefetch()
 
   return (
     <nav
@@ -428,8 +424,6 @@ export function StudioLibraryPicker({
           <BarTip key={item.id} label={label} side="right">
             <Link
               href={studioLibraryPath(item.id as StudioLibraryCategoryId)}
-              prefetch={false}
-              {...intent(studioLibraryPath(item.id as StudioLibraryCategoryId))}
               replace={replace}
               aria-label={label}
               aria-current={active ? 'page' : undefined}

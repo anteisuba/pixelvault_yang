@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useTranslations } from 'next-intl'
 
@@ -13,8 +14,9 @@ import {
   unfavoriteLoraAPI,
 } from '@/lib/api-client/lora-assets'
 import { LORA_TOAST_DURATION_MS } from '@/constants/lora'
-import { deferEffectTask } from '@/lib/defer-effect-task'
+import { QUERY_KEYS } from '@/constants/query'
 import { buildLibraryFavoriteRequest } from '@/lib/lora-source-snapshot'
+import { queryClient } from '@/lib/query-client'
 import type { FavoriteLoraRequest, LoraAssetRecord } from '@/types'
 
 export interface UseLoraAssetsReturn {
@@ -39,6 +41,39 @@ export interface UseLoraAssetsReturn {
   isFavorited: (loraUrl: string) => boolean
 }
 
+const EMPTY: LoraAssetRecord[] = []
+
+async function fetchMyLoraAssets(): Promise<LoraAssetRecord[]> {
+  const result = await listLoraAssetsAPI()
+  if (!result.success || !result.data) {
+    throw new Error(result.error ?? 'Failed to load LoRA assets')
+  }
+  return result.data
+}
+
+async function fetchDiscoverLoraAssets(): Promise<LoraAssetRecord[]> {
+  const result = await listDiscoverLoraAssetsAPI()
+  if (!result.success || !result.data) {
+    throw new Error(result.error ?? 'Failed to load LoRA discover feed')
+  }
+  return result.data
+}
+
+function readMine(): LoraAssetRecord[] {
+  return (
+    queryClient.getQueryData<LoraAssetRecord[]>(QUERY_KEYS.loraAssets) ?? []
+  )
+}
+
+function writeMine(
+  update: (current: LoraAssetRecord[]) => LoraAssetRecord[],
+): void {
+  queryClient.setQueryData<LoraAssetRecord[]>(
+    QUERY_KEYS.loraAssets,
+    (current) => update(current ?? []),
+  )
+}
+
 /**
  * Two-feed LoRA library hook for the /studio/lora workbench.
  *
@@ -46,61 +81,52 @@ export interface UseLoraAssetsReturn {
  *   - `myAssets`   — owned + curated (from /api/lora-assets)
  *   - `discoverAssets` — public LoRAs from other users (from /api/lora-assets/discover)
  *
+ * 两份都在共用查询缓存里（`QUERY_KEYS.loraAssets` / `loraDiscover`）：库整页、挑选框、
+ * LoRA 台同时挂着也只拉一次，在一处收藏，别处的星马上跟着变。
+ *
  * `setVisibility` updates an asset in `myAssets` optimistically.
  * On success, the canonical row replaces the optimistic one. On
  * failure, the optimistic flip reverts and a toast surfaces.
  */
 export function useLoraAssets(): UseLoraAssetsReturn {
   const t = useTranslations('LoraWorkbench')
-  const [myAssets, setMyAssets] = useState<LoraAssetRecord[]>([])
-  const [discoverAssets, setDiscoverAssets] = useState<LoraAssetRecord[]>([])
-  const [isLoadingMine, setIsLoadingMine] = useState(true)
-  const [isLoadingDiscover, setIsLoadingDiscover] = useState(true)
+  const mine = useQuery(
+    { queryKey: QUERY_KEYS.loraAssets, queryFn: fetchMyLoraAssets },
+    queryClient,
+  )
+  const discover = useQuery(
+    { queryKey: QUERY_KEYS.loraDiscover, queryFn: fetchDiscoverLoraAssets },
+    queryClient,
+  )
+  const myAssets = mine.data ?? EMPTY
+  const discoverAssets = discover.data ?? EMPTY
   // 把 mine 的失败原因暴露给 UI，否则一次网络错误会变成「假阴性空状态」
   // — 用户会以为自己的 LoRA 全没了。错误清晰显示 + 重试入口比静默更诚实。
-  const [errorMine, setErrorMine] = useState<string | null>(null)
+  const errorMine = mine.error?.message ?? null
 
+  const { refetch: refetchMine } = mine
+  const { refetch: refetchDiscover } = discover
   const refresh = useCallback(async () => {
-    setIsLoadingMine(true)
-    setIsLoadingDiscover(true)
-    setErrorMine(null)
-    const [mine, discover] = await Promise.all([
-      listLoraAssetsAPI(),
-      listDiscoverLoraAssetsAPI(),
-    ])
-    if (mine.success && mine.data) {
-      setMyAssets(mine.data)
-    } else if (!mine.success) {
-      setErrorMine(mine.error ?? 'Failed to load LoRA assets')
-    }
-    if (discover.success && discover.data) setDiscoverAssets(discover.data)
-    setIsLoadingMine(false)
-    setIsLoadingDiscover(false)
-  }, [])
-
-  useEffect(() => {
-    return deferEffectTask(() => {
-      void refresh()
-    })
-  }, [refresh])
+    await Promise.all([refetchMine(), refetchDiscover()])
+  }, [refetchMine, refetchDiscover])
 
   const setVisibility = useCallback(
     async (assetId: string, isPublic: boolean): Promise<boolean> => {
       // Optimistic flip
-      const previous = myAssets
-      setMyAssets((prev) =>
+      const previous = readMine()
+      writeMine((prev) =>
         prev.map((a) => (a.id === assetId ? { ...a, isPublic } : a)),
       )
 
       const result = await setLoraAssetVisibilityAPI(assetId, isPublic)
       if (!result.success || !result.data) {
-        setMyAssets(previous)
+        writeMine(() => previous)
         toast.error(result.error ?? t('visibilityUpdateFailed'), {
           duration: LORA_TOAST_DURATION_MS,
         })
         return false
       }
-      setMyAssets((prev) =>
+      writeMine((prev) =>
         prev.map((a) => (a.id === assetId ? result.data! : a)),
       )
       toast.success(isPublic ? t('madePublic') : t('madePrivate'), {
@@ -108,13 +134,18 @@ export function useLoraAssets(): UseLoraAssetsReturn {
       })
       return true
     },
-    [myAssets, t],
+    [t],
   )
 
-  const trainedAssets = myAssets.filter(
-    (a) => a.source === 'trained' || a.source === 'curated',
+  const trainedAssets = useMemo(
+    () =>
+      myAssets.filter((a) => a.source === 'trained' || a.source === 'curated'),
+    [myAssets],
   )
-  const favoriteAssets = myAssets.filter((a) => a.source === 'imported')
+  const favoriteAssets = useMemo(
+    () => myAssets.filter((a) => a.source === 'imported'),
+    [myAssets],
+  )
 
   // 参数类型放宽到 LoraAssetRecord —— CivitaiLoraLibraryItem（公开库卡片）
   // 和 discoverAssets 里的记录（我的页「推荐你收藏」条）结构上都满足
@@ -129,7 +160,7 @@ export function useLoraAssets(): UseLoraAssetsReturn {
         })
         return null
       }
-      setMyAssets((prev) => {
+      writeMine((prev) => {
         if (prev.some((a) => a.id === result.data!.id)) return prev
         return [result.data!, ...prev]
       })
@@ -150,11 +181,11 @@ export function useLoraAssets(): UseLoraAssetsReturn {
 
   const unfavoriteAsset = useCallback(
     async (assetId: string): Promise<boolean> => {
-      const previous = myAssets
-      setMyAssets((prev) => prev.filter((a) => a.id !== assetId))
+      const previous = readMine()
+      writeMine((prev) => prev.filter((a) => a.id !== assetId))
       const result = await unfavoriteLoraAPI(assetId)
       if (!result.success) {
-        setMyAssets(previous)
+        writeMine(() => previous)
         toast.error(result.error ?? t('favoriteFailed'), {
           duration: LORA_TOAST_DURATION_MS,
         })
@@ -163,7 +194,7 @@ export function useLoraAssets(): UseLoraAssetsReturn {
       toast.success(t('favoriteRemoved'), { duration: LORA_TOAST_DURATION_MS })
       return true
     },
-    [myAssets, t],
+    [t],
   )
 
   // 永久删除自训 LoRA — 乐观从 myAssets 移除，失败回滚。
@@ -173,12 +204,12 @@ export function useLoraAssets(): UseLoraAssetsReturn {
   // 菜单条件渲染）。
   const deleteAsset = useCallback(
     async (assetId: string): Promise<boolean> => {
-      const target = myAssets.find((a) => a.id === assetId)
-      const previous = myAssets
-      setMyAssets((prev) => prev.filter((a) => a.id !== assetId))
+      const previous = readMine()
+      const target = previous.find((a) => a.id === assetId)
+      writeMine((prev) => prev.filter((a) => a.id !== assetId))
       const result = await deleteLoraAssetAPI(assetId)
       if (!result.success) {
-        setMyAssets(previous)
+        writeMine(() => previous)
         toast.error(result.error ?? t('assetDeleteFailed'), {
           duration: LORA_TOAST_DURATION_MS,
         })
@@ -192,7 +223,7 @@ export function useLoraAssets(): UseLoraAssetsReturn {
       )
       return true
     },
-    [myAssets, t],
+    [t],
   )
 
   const isFavorited = useCallback(
@@ -215,8 +246,8 @@ export function useLoraAssets(): UseLoraAssetsReturn {
     trainedAssets,
     favoriteAssets,
     discoverAssets,
-    isLoadingMine,
-    isLoadingDiscover,
+    isLoadingMine: mine.isPending,
+    isLoadingDiscover: discover.isPending,
     errorMine,
     refresh,
     setVisibility,

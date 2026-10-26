@@ -123,7 +123,12 @@ function useLibraryFrameMotion(category: StudioShellOverlayId) {
     const body = bodyRef.current
     const before = lastFrameGone
     lastFrameGone = null
-    if (frame && body && !reduceMotion) {
+    // 同一类卸掉又马上挂上 = 「还在取」那一拍换成了真页面（`StudioLibraryLoading`），原地接上不再动。
+    const sameCategoryRemount =
+      before !== null &&
+      before.category === category &&
+      performance.now() - before.at < CATEGORY_SWITCH_WINDOW_MS
+    if (frame && body && !reduceMotion && !sameCategoryRemount) {
       if (
         before &&
         before.category !== category &&
@@ -282,3 +287,20 @@ const TAB_CLASS =
   'flex h-8 shrink-0 items-center rounded-full px-3 text-2sm text-ink-2 transition-colors duration-fast ease-standard hover:tint-hover hover:text-foreground focus-visible:outline-none focus-visible:shadow-focus'
 
 const TAB_ACTIVE_CLASS = 'bg-muted font-semibold text-foreground'
+
+/**
+ * 库里换类时新那一类还没到的那一拍（各类的 `loading.tsx`）：顶上页签当场换过去、正文先空着
+ * 滑进来，到了再填上 —— 点下去立刻有反应，⛔ 停在旧那一类上干等服务器（2026-10-27）。
+ * ⛔ 画骨架，同台的 `studio/loading.tsx`。
+ */
+export function StudioLibraryLoading({
+  category,
+}: {
+  category: StudioShellOverlayId
+}) {
+  return (
+    <StudioLibraryOverlay category={category}>
+      <div aria-busy="true" className="h-full" />
+    </StudioLibraryOverlay>
+  )
+}

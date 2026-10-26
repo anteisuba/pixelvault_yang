@@ -1,102 +1,54 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useCallback } from 'react'
 import { useAuth } from '@clerk/nextjs'
+import { useQuery } from '@tanstack/react-query'
 
+import { QUERY_KEYS } from '@/constants/query'
 import { getMyProfileAPI } from '@/lib/api-client'
-import { deferEffectTask } from '@/lib/defer-effect-task'
-import { deferToIdle } from '@/lib/defer-to-idle'
+import { queryClient } from '@/lib/query-client'
 import type { UpdateProfileResponse } from '@/types'
 
 type MyProfile = NonNullable<UpdateProfileResponse['data']>
 
-let cachedProfile: MyProfile | null = null
-let cachedUserId: string | null = null
-let inFlightProfile: {
-  userId: string
-  request: Promise<MyProfile | null>
-} | null = null
-
-function getCachedProfile(userId: string): MyProfile | null {
-  return cachedUserId === userId ? cachedProfile : null
+async function fetchMyProfile(): Promise<MyProfile | null> {
+  const res = await getMyProfileAPI()
+  if (res.success && res.data) return res.data
+  throw new Error(res.error ?? 'Failed to load profile')
 }
 
-async function loadMyProfile(
-  userId: string,
-  force: boolean,
-): Promise<MyProfile | null> {
-  if (!force) {
-    const cached = getCachedProfile(userId)
-    if (cached) return cached
-    if (inFlightProfile?.userId === userId) return inFlightProfile.request
-  }
-
-  const request = getMyProfileAPI()
-    .then((res) => {
-      if (res.success && res.data) {
-        cachedProfile = res.data
-        cachedUserId = userId
-        return res.data
-      }
-      return getCachedProfile(userId)
-    })
-    .finally(() => {
-      if (inFlightProfile?.request === request) {
-        inFlightProfile = null
-      }
-    })
-
-  inFlightProfile = { userId, request }
-  return request
-}
-
+/**
+ * 我的资料（头像、用户名…）。全站共用一份（`QUERY_KEYS.myProfile`）：对话列表、
+ * 时间线头像、设置页同时挂着也只拉一次（2026-10-27 之前首次挂载各拉各的，一次切库 7 次）。
+ */
 export function useMyProfile() {
   const { userId } = useAuth()
-  const [profile, setProfile] = useState<MyProfile | null>(() =>
-    userId && cachedUserId === userId ? cachedProfile : null,
+  const query = useQuery(
+    {
+      queryKey: QUERY_KEYS.myProfile(userId ?? null),
+      queryFn: fetchMyProfile,
+      enabled: Boolean(userId),
+    },
+    queryClient,
   )
-  const [isLoading, setIsLoading] = useState(false)
 
-  const refresh = useCallback(() => {
-    if (!userId) return Promise.resolve(null)
-    setIsLoading(true)
-    return loadMyProfile(userId, true)
-      .then((nextProfile) => {
-        if (nextProfile) setProfile(nextProfile)
-        return nextProfile
-      })
-      .finally(() => {
-        setIsLoading(false)
-      })
-  }, [userId])
+  const { refetch } = query
+  const refresh = useCallback(async () => {
+    if (!userId) return null
+    const result = await refetch()
+    return result.data ?? null
+  }, [userId, refetch])
 
-  useEffect(() => {
-    if (!userId) {
-      cachedProfile = null
-      cachedUserId = null
-      return deferEffectTask(() => {
-        setProfile(null)
-        setIsLoading(false)
-      })
-    }
-    const cached = getCachedProfile(userId)
-    if (cached) {
-      return deferEffectTask(() => {
-        setProfile(cached)
-        setIsLoading(false)
-      })
-    }
-    return deferToIdle(() => {
-      void refresh()
-    })
-  }, [userId, refresh])
-
-  return { profile: userId ? profile : null, refresh, isLoading }
+  return {
+    profile: userId ? (query.data ?? null) : null,
+    refresh,
+    isLoading: query.isFetching,
+  }
 }
 
 /** Invalidate the cached profile so it re-fetches on next mount */
 export function invalidateMyProfile() {
-  cachedProfile = null
-  cachedUserId = null
-  inFlightProfile = null
+  void queryClient.invalidateQueries({
+    queryKey: [QUERY_KEYS.myProfile(null)[0]],
+  })
 }

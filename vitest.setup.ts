@@ -1,5 +1,19 @@
 import '@testing-library/jest-dom/vitest'
 
+import { notifyManager } from '@tanstack/react-query'
+
+import { queryClient } from '@/lib/query-client'
+
+// 客户端查询缓存是模块级单例：每例清空，免得上一例拉到的数据漏进下一例；单测里失败不重试。
+// 通知同步发（默认是 setTimeout 0）：`act(…)` 一结束，缓存的改动就已经画上去。
+notifyManager.setScheduler((callback) => callback())
+queryClient.setDefaultOptions({
+  queries: { ...queryClient.getDefaultOptions().queries, retry: false },
+})
+afterEach(() => {
+  queryClient.clear()
+})
+
 // Mock server-only module so API route tests can import factory functions
 vi.mock('server-only', () => ({}))
 

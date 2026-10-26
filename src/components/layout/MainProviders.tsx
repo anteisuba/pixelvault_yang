@@ -6,6 +6,7 @@ import { ROUTES } from '@/constants/routes'
 import { ApiKeysProvider } from '@/contexts/api-keys-context'
 import { usePathname } from '@/i18n/navigation'
 import { KeyboardInsetBridge } from '@/components/layout/KeyboardInsetBridge'
+import { QueryUserBoundary } from '@/components/layout/QueryUserBoundary'
 
 /**
  * MainProviders — client-side providers shared across all `(main)` pages.
@@ -24,6 +25,7 @@ export function MainProviders({ children }: { children: ReactNode }) {
   return (
     <>
       <KeyboardInsetBridge />
+      <QueryUserBoundary />
       <ApiKeysProvider autoLoad={shouldLoadApiKeys}>{children}</ApiKeysProvider>
     </>
   )

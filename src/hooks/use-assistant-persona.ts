@@ -1,15 +1,17 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 
 import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
 import { DURATION_MS } from '@/constants/motion'
-import { deferEffectTask } from '@/lib/defer-effect-task'
+import { QUERY_KEYS } from '@/constants/query'
 import {
   getAssistantPersonaAPI,
   updateAssistantPersonaAPI,
   uploadAssistantAvatarAPI,
 } from '@/lib/api-client'
+import { queryClient } from '@/lib/query-client'
 import {
   toAssistantPersonaUpdate,
   type AssistantPersona,
@@ -23,14 +25,24 @@ import {
  * ⚠ **初值不是 null 而是默认值**：库里没有那一行时服务返回的就是
  * `ASSISTANT_PERSONA_DEFAULTS`，所以对话框在拉到数据之前也能画出正确的初始态 ——
  * ⛔ 不做「加载中什么都不显示」的空窗（那一格永远是同一份默认值）。
+ *
+ * ⭐ 全站共用一份（`QUERY_KEYS.assistantPersona`）：外壳、库页、每张角色卡的「用她」菜单
+ * 都在读它，2026-10-27 之前各拉各的，切一次库能拉二十来次。
  */
 
 const DEFAULT_PERSONA: AssistantPersona = { ...ASSISTANT_PERSONA_DEFAULTS }
 
-const personaListeners = new Set<(update: Partial<AssistantPersona>) => void>()
+async function fetchAssistantPersona(): Promise<AssistantPersona> {
+  const result = await getAssistantPersonaAPI()
+  if (!result.success) throw new Error(result.error)
+  return result.data
+}
 
 function publishPersona(update: Partial<AssistantPersona>) {
-  for (const listener of personaListeners) listener(update)
+  queryClient.setQueryData<AssistantPersona>(
+    QUERY_KEYS.assistantPersona,
+    (current) => ({ ...(current ?? DEFAULT_PERSONA), ...update }),
+  )
 }
 
 /**
@@ -63,63 +75,42 @@ export function useAssistantPersona(
   options: { enabled?: boolean } = {},
 ): UseAssistantPersonaValue {
   const enabled = options.enabled ?? true
-  const [persona, setPersona] = useState<AssistantPersona>(DEFAULT_PERSONA)
-  const [isLoading, setIsLoading] = useState(false)
-  const [isLoaded, setIsLoaded] = useState(false)
+  const query = useQuery(
+    {
+      queryKey: QUERY_KEYS.assistantPersona,
+      queryFn: fetchAssistantPersona,
+      enabled,
+    },
+    queryClient,
+  )
   const [isSaving, setIsSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
   /** 组件卸载之后别再 setState —— 对话框是关掉就走的那种。 */
   const aliveRef = useRef(true)
 
   useEffect(() => {
     aliveRef.current = true
-    const onChange = (update: Partial<AssistantPersona>) => {
-      setPersona((current) => ({ ...current, ...update }))
-    }
-    personaListeners.add(onChange)
     return () => {
-      personaListeners.delete(onChange)
       aliveRef.current = false
     }
   }, [])
 
+  const { refetch } = query
   const reload = useCallback(async () => {
-    setIsLoading(true)
-    const result = await getAssistantPersonaAPI()
-    if (!aliveRef.current) return
-    setIsLoading(false)
-    setIsLoaded(true)
-    if (result.success) {
-      setPersona(result.data)
-      setError(null)
-      return
-    }
-    setError(result.error)
-  }, [])
-
-  /**
-   * ⚠ 走 `deferEffectTask`：React 19 的 lint 不允许在 effect 体里同步启动会
-   * setState 的活（`react-hooks/set-state-in-effect`）。全仓既有 hook 都是这个
-   * 形状（`use-character-cards.ts` 等），⛔ 别在这里另发明一套。
-   */
-  useEffect(() => {
-    if (!enabled) return
-    return deferEffectTask(() => {
-      void reload()
-    })
-  }, [enabled, reload])
+    await refetch()
+  }, [refetch])
 
   const save = useCallback(async (input: UpdateAssistantPersonaRequest) => {
     setIsSaving(true)
     const result = await updateAssistantPersonaAPI(input)
+    if (result.success) publishPersona(result.data)
     if (!aliveRef.current) return result.success
     setIsSaving(false)
     if (result.success) {
-      publishPersona(result.data)
-      setError(null)
+      setSaveError(null)
       return true
     }
-    setError(result.error)
+    setSaveError(result.error)
     return false
   }, [])
 
@@ -127,28 +118,30 @@ export function useAssistantPersona(
     setIsSaving(true)
     const result = await uploadAssistantAvatarAPI(imageData)
     const fresh = result.success ? await getAssistantPersonaAPI() : null
+    if (result.success) {
+      /** 重读失败也算传成功了 —— 图已经在库里，至少把那张图先换上。 */
+      publishPersona(
+        fresh?.success
+          ? fresh.data
+          : { avatarUrl: result.data.url, uploadedAvatarUrl: result.data.url },
+      )
+    }
     if (!aliveRef.current) return result.success
     setIsSaving(false)
     if (!result.success) {
-      setError(result.error)
+      setSaveError(result.error)
       return false
     }
-    /** 重读失败也算传成功了 —— 图已经在库里，至少把那张图先换上。 */
-    publishPersona(
-      fresh?.success
-        ? fresh.data
-        : { avatarUrl: result.data.url, uploadedAvatarUrl: result.data.url },
-    )
-    setError(null)
+    setSaveError(null)
     return true
   }, [])
 
   return {
-    persona,
-    isLoading,
-    isLoaded,
+    persona: query.data ?? DEFAULT_PERSONA,
+    isLoading: query.isFetching,
+    isLoaded: query.isFetched,
     isSaving,
-    error,
+    error: saveError ?? query.error?.message ?? null,
     save,
     uploadAvatar,
     reload,

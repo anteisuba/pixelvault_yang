@@ -14,6 +14,8 @@ const localNames = vi.hoisted(() => ({
   hits: [] as { name: string; category: number; post_count: number }[],
   /** 按意思对上的（语义检索），从近到远。 */
   related: [] as { name: string; category: number; post_count: number }[],
+  /** 给了就等它：模拟语义那边慢。 */
+  relatedGate: null as Promise<void> | null,
   names: new Map<
     string,
     { zh: string | null; zhNote: string | null; ja: string | null }
@@ -22,8 +24,10 @@ const localNames = vi.hoisted(() => ({
 vi.mock('@/services/research/danbooru-tag-name.service', () => ({
   findTagsByLocalName: async (_text: string, categories: number[]) =>
     localNames.hits.filter((hit) => categories.includes(hit.category)),
-  findTagsByMeaning: async (_text: string, categories: number[]) =>
-    localNames.related.filter((hit) => categories.includes(hit.category)),
+  findTagsByMeaning: async (_text: string, categories: number[]) => {
+    await localNames.relatedGate
+    return localNames.related.filter((hit) => categories.includes(hit.category))
+  },
   localNamesOf: async () => localNames.names,
 }))
 
@@ -41,6 +45,7 @@ beforeEach(() => {
   resetDanbooruCatalogCache()
   localNames.hits = []
   localNames.related = []
+  localNames.relatedGate = null
   localNames.names = new Map()
   vi.clearAllMocks()
   vi.stubGlobal('fetch', mockFetch)
@@ -791,6 +796,30 @@ describe('catalog used by the tag workbench', () => {
       'cat_girl',
       'cat_ears',
     ])
+  })
+
+  it('字面已经排满时不等慢的语义那边', async () => {
+    localNames.relatedGate = new Promise(() => undefined)
+    localNames.related = [{ name: 'cat_ears', category: 0, post_count: 9 }]
+    const fuzzy = Array.from({ length: 6 }, (_, i) => ({
+      name: `cat_${i}`,
+      category: 0,
+      post_count: 100 - i,
+    }))
+    mockFetch.mockImplementation(async (raw: string) => {
+      const url = new URL(raw)
+      if (
+        url.pathname === '/tags.json' &&
+        url.searchParams.get('search[name_matches]')
+      )
+        return jsonResponse(fuzzy)
+      return jsonResponse([])
+    })
+    const { fetchDanbooruCatalog } = await import('./danbooru.connector')
+    const found = await fetchDanbooruCatalog({ kind: 'general', query: 'cat' })
+    expect(found.candidates.map((item) => item.name)).toEqual(
+      fuzzy.map((tag) => tag.name),
+    )
   })
 
   it('draws random features from the all-ages list, not the top general tags', async () => {

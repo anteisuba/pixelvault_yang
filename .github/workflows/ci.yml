@@ -232,7 +232,15 @@ jobs:
         run: npm run prisma:generate
 
       - name: Build
-        run: npm run build
+        # next/font/google 构建时要从 Google Fonts 取字体，偶尔取不到（2026-10-25/26 两次
+        # 「next/font/google queries have exactly one entry」）。只在这一种报错时重来一次，
+        # 别的失败照常红。
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee build.log && exit 0
+          grep -q 'next/font/google' build.log || exit 1
+          echo '::warning::Google Fonts 取字体失败，重试一次'
+          npm run build
         env:
           # Stub env vars for build (not real secrets)
           DATABASE_URL: "postgresql://stub:stub@localhost:5432/stub"

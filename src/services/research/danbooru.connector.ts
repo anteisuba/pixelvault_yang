@@ -470,11 +470,31 @@ async function aliasTags(text: string): Promise<CatalogTag[]> {
  * 字面对得上的在前（别名、模糊匹配，各按作品数排），意思相近的接在后面（按相近程度排）：
  * 打对了名字就是要它，按意思补的只在字面不够时露出来。
  */
+/** 字面结果已经排满时，按意思找最多再等这么久（转向量要 0.5–4.5 秒，2026-10-26 实测）。 */
+const MEANING_BUDGET_MS = 300
+
+async function withinBudget<T>(
+  work: Promise<T>,
+  budgetMs: number,
+  fallback: T,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const late = Symbol('late')
+  const result = await Promise.race([
+    work,
+    new Promise<typeof late>((resolve) => {
+      timer = setTimeout(() => resolve(late), budgetMs)
+    }),
+  ])
+  clearTimeout(timer)
+  return result === late ? fallback : result
+}
+
 async function matchTags(
   text: string,
   category: number,
   aliases: readonly CatalogTag[],
-  related: readonly CatalogTag[],
+  related: Promise<readonly CatalogTag[]>,
   limit: number = DANBOORU_REQUEST.catalogCandidateLimit,
 ): Promise<CatalogTag[]> {
   const slug = text.toLowerCase().replace(/\s+/g, '_')
@@ -488,11 +508,21 @@ async function matchTags(
   )
   const byCount = (a: CatalogTag, b: CatalogTag) => b.post_count - a.post_count
   const seen = new Set<string>()
-  return [
+  const unique = (tag: CatalogTag) =>
+    !seen.has(tag.name) && Boolean(seen.add(tag.name))
+  const literal = [
     ...aliases.filter((tag) => tag.category === category).sort(byCount),
     ...fuzzy.filter((tag) => tag.category === category).sort(byCount),
-    ...related.filter((tag) => tag.category === category),
-  ].filter((tag) => !seen.has(tag.name) && Boolean(seen.add(tag.name)))
+  ].filter(unique)
+  // 字面已经排满：意思那边只等一小会儿，没回来就不要了；不满时照等。
+  const meaning =
+    literal.length >= limit
+      ? await withinBudget(related, MEANING_BUDGET_MS, [])
+      : await related
+  return [
+    ...literal,
+    ...meaning.filter((tag) => tag.category === category).filter(unique),
+  ]
 }
 
 /**
@@ -509,15 +539,17 @@ async function matchPage(
       ? [CATALOG_CATEGORY.artist, DANBOORU_REQUEST.metaTagCategory]
       : [CATALOG_CATEGORY[kind]]
   // 中日文名先查自家词库（9f-2c）：Danbooru 的 name_matches 只认英文写法。
-  // 意思相近的（语义检索）同时去问，排在字面结果后面。
-  const [local, related] = await Promise.all([
-    findTagsByLocalName(
-      text,
-      categories,
-      DANBOORU_REQUEST.catalogCandidateLimit * 2,
-    ),
-    findTagsByMeaning(text, categories, DANBOORU_REQUEST.meaningMatchLimit),
-  ])
+  // 意思相近的（语义检索）一开始就去问，与字面那几步同时跑，排在字面结果后面。
+  const related = findTagsByMeaning(
+    text,
+    categories,
+    DANBOORU_REQUEST.meaningMatchLimit,
+  )
+  const local = await findTagsByLocalName(
+    text,
+    categories,
+    DANBOORU_REQUEST.catalogCandidateLimit * 2,
+  )
   const aliases = [...local, ...wikiAliases]
   if (kind !== 'artist')
     return (

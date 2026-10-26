@@ -599,11 +599,35 @@ async function readFilteredPage(
   return results
 }
 
+/** 字面结果排得满这一页时，按意思找最多等这么久。 */
+const MEANING_BUDGET_MS = 300
+
+/** 限时等：到点没回来就给 fallback，那件事挪到响应之后接着跑完。 */
+async function withinBudget<T>(
+  work: Promise<T>,
+  budgetMs: number,
+  fallback: T,
+  defer?: Defer,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const late = Symbol('late')
+  const result = await Promise.race([
+    work,
+    new Promise<typeof late>((resolve) => {
+      timer = setTimeout(() => resolve(late), budgetMs)
+    }),
+  ])
+  clearTimeout(timer)
+  if (result !== late) return result
+  defer?.(work)
+  return fallback
+}
+
 /** 各段耗时（毫秒），给 Server-Timing 与慢查询日志（见 index.ts）。 */
 export interface SearchTimings {
   countMs: number
   pageMs: number
-  /** 按意思找 + 回 D1 筛（与计数同时跑） */
+  /** 从开始到拿到（或不再等）意思接近的那些，与计数同时跑 */
   meaningMs: number
 }
 
@@ -730,22 +754,28 @@ export async function searchIndex(
 ): Promise<SearchResult> {
   const { timings, defer, semantic } = options
   // 先数，按总数决定取这一页时走哪条路；按意思找同时跑。
-  const countStartedAt = Date.now()
-  const [{ total: literalTotal, totalCapped, syncedAt }, extras] =
-    await Promise.all([
-      countMatches(db, input, defer).finally(() => {
-        if (timings) timings.countMs = Date.now() - countStartedAt
-      }),
-      findLorasByMeaning(semantic, input.q)
-        .then((ids) => readMeaningExtras(db, input, ids))
-        .catch(() => [])
-        .finally(() => {
-          if (timings) timings.meaningMs = Date.now() - countStartedAt
-        }),
-    ])
+  const startedAt = Date.now()
+  const meaning = findLorasByMeaning(semantic, input.q)
+    .then((ids) => readMeaningExtras(db, input, ids))
+    .catch(() => [] as number[])
+  const {
+    total: literalTotal,
+    totalCapped,
+    syncedAt,
+  } = await countMatches(db, input, defer)
+  if (timings) timings.countMs = Date.now() - startedAt
+  const offset = (input.page - 1) * input.pageSize
+  // 这一页字面结果就排得满：意思那边（转向量要 0.5–4.5 秒，2026-10-26 实测）只等一小会儿，
+  // 没回来就先出字面结果、总数先不算它们；它照样算完记进缓存，下一页接着用。
+  // 字面不够一页时照等：那时意思接近的就是要给用户看的东西。⚠ 用 `<`：排到字面最后一条
+  // 的那一页也照等，它回的总数是真的，界面才知道后面还有意思接近的可翻。
+  const literalFillsPage = offset + input.pageSize < literalTotal
+  const extras = literalFillsPage
+    ? await withinBudget(meaning, MEANING_BUDGET_MS, [], defer)
+    : await meaning
+  if (timings) timings.meaningMs = Date.now() - startedAt
   const pageStartedAt = Date.now()
   const total = literalTotal + extras.length
-  const offset = (input.page - 1) * input.pageSize
   if (offset >= total) return { rows: [], total, totalCapped, syncedAt }
 
   // 字面在前，意思接后：这一页跨过字面结果的末尾时，余下的位置由意思接近的补上。

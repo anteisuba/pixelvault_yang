@@ -125,23 +125,18 @@ export async function embedPending(
   return { embedded: results.length, done: results.length < limit }
 }
 
-/** 同一句话翻页、改筛选时不再算一次（每个 isolate 各记一份，最多这么多句）。 */
+/**
+ * 同一句话翻页、改筛选时不再算一次（每个 isolate 各记一份，最多这么多句）。记的是还在算的
+ * 那个 promise：这一次没等它（见 search.ts 的限时），下一页直接接着用。
+ */
 const QUERY_CACHE_SIZE = 200
 const QUERY_CACHE_TTL_MS = 10 * 60 * 1000
-const queryCache = new Map<string, { at: number; ids: number[] }>()
+const queryCache = new Map<string, { at: number; ids: Promise<number[]> }>()
 
-/**
- * 意思接近的 model_id，按相似度从高到低。⭐ 这是锦上添花：语义那边出任何错都只当没有，
- * 字面结果照常返回。
- */
-export async function findLorasByMeaning(
-  semantic: SemanticIndexBinding | undefined,
-  q: string,
+async function queryLoras(
+  semantic: SemanticIndexBinding,
+  text: string,
 ): Promise<number[]> {
-  const text = q.trim().toLowerCase()
-  if (!semantic || !text) return []
-  const cached = queryCache.get(text)
-  if (cached && Date.now() - cached.at < QUERY_CACHE_TTL_MS) return cached.ids
   try {
     const matches = await semantic.query({
       namespace: PUBLIC_NAMESPACE,
@@ -149,17 +144,13 @@ export async function findLorasByMeaning(
       kind: LORA_KIND,
       topK: SEMANTIC_TOP_K,
     })
-    const ids = matches
+    return matches
       .filter((match) => match.score >= SEMANTIC_MIN_SCORE)
       .map((match) => Number(match.key))
       .filter((id) => Number.isSafeInteger(id))
-    queryCache.delete(text)
-    queryCache.set(text, { at: Date.now(), ids })
-    if (queryCache.size > QUERY_CACHE_SIZE) {
-      queryCache.delete(queryCache.keys().next().value as string)
-    }
-    return ids
   } catch (error) {
+    // 出错的不记：下一次再问。
+    queryCache.delete(text)
     console.log(
       JSON.stringify({
         event: 'semantic_query_failed',
@@ -168,6 +159,27 @@ export async function findLorasByMeaning(
     )
     return []
   }
+}
+
+/**
+ * 意思接近的 model_id，按相似度从高到低。⭐ 这是锦上添花：语义那边出任何错都只当没有，
+ * 字面结果照常返回。
+ */
+export function findLorasByMeaning(
+  semantic: SemanticIndexBinding | undefined,
+  q: string,
+): Promise<number[]> {
+  const text = q.trim().toLowerCase()
+  if (!semantic || !text) return Promise.resolve([])
+  const cached = queryCache.get(text)
+  if (cached && Date.now() - cached.at < QUERY_CACHE_TTL_MS) return cached.ids
+  const ids = queryLoras(semantic, text)
+  queryCache.delete(text)
+  queryCache.set(text, { at: Date.now(), ids })
+  if (queryCache.size > QUERY_CACHE_SIZE) {
+    queryCache.delete(queryCache.keys().next().value as string)
+  }
+  return ids
 }
 
 /** 测试用：清掉上一条用例记下的查询。 */

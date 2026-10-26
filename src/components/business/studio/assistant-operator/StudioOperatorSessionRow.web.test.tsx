@@ -35,7 +35,11 @@ vi.mock('@/components/ui/dropdown-menu', () => ({
   }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
     onSelect?: (event: { preventDefault(): void }) => void
   }) => (
-    <button {...props} onClick={(event) => onSelect?.(event)}>
+    <button
+      {...props}
+      data-mock-menu-item=""
+      onClick={(event) => onSelect?.(event)}
+    >
       {children}
     </button>
   ),
@@ -82,6 +86,23 @@ function renderRow(
 
 afterEach(() => {
   vi.useRealTimers()
+})
+
+describe('StudioOperatorSessionRow — 摆在框里（用户 10-26 历史列）', () => {
+  it('inMenu={false}：三格都是普通按钮（⛔ 菜单项离了菜单会报错），点了照样选中 / 改名 / 删除', () => {
+    const { onSelect, onRequestDelete, container } = renderRow({
+      compact: true,
+      inMenu: false,
+    })
+    expect(container.querySelector('[data-mock-menu-item]')).toBeNull()
+
+    fireEvent.click(screen.getByTestId('operator-session-item'))
+    expect(onSelect).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByTestId('operator-session-delete'))
+    expect(onRequestDelete).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByTestId('operator-session-rename'))
+    expect(screen.getByTestId('operator-session-rename-input')).toBeTruthy()
+  })
 })
 
 describe('StudioOperatorSessionRow — 编辑就地', () => {

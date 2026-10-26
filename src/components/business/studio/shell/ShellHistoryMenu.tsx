@@ -23,7 +23,11 @@ import {
 const MS_PER_DAY = 86_400_000
 
 /** 加载中那三条骨架的宽（不等长，读起来是三个标题而不是三条进度条）。 */
-const SKELETON_WIDTHS = ['w-3/5', 'w-1/2', 'w-7/10'] as const
+export const SHELL_HISTORY_SKELETON_WIDTHS = [
+  'w-3/5',
+  'w-1/2',
+  'w-7/10',
+] as const
 
 type DayBucket = 'today' | 'yesterday' | 'earlier'
 
@@ -38,7 +42,7 @@ export interface ShellHistoryItem {
 }
 
 interface ShellHistoryMenuProps {
-  /** 触发键（左栏那一颗）。 */
+  /** 触发键（对话头里那一颗）。 */
   children: ReactNode
   /** 悬停在键上那一句。 */
   tooltip: string
@@ -65,8 +69,53 @@ interface ShellHistoryMenuProps {
   testId: string
 }
 
+export interface ShellHistoryBucket {
+  id: DayBucket
+  items: ShellHistoryItem[]
+  /** 行右边那枚时间：今天 / 昨天写钟点，更早写月日。 */
+  timeLabel(iso: string): string
+}
+
 /**
- * 左栏「新对话」与「聊天」两颗键弹出来的那一块（用户 10-25 定样子：第一行「＋ 新…」，下面按今天 /
+ * 按今天 / 昨天 / 更早分组（列表已按时间倒序）。下拉和框里那一列（用户 10-26）同一份，⛔ 各算各的。
+ * 日差按本地零点算（23:50 和次日 00:10 是两天）。
+ */
+export function useShellHistoryBuckets(
+  items: readonly ShellHistoryItem[],
+): ShellHistoryBucket[] {
+  const format = useFormatter()
+  const bucketOf = (iso: string): DayBucket => {
+    const midnight = (value: Date) =>
+      new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime()
+    const days = Math.round(
+      (midnight(new Date()) - midnight(new Date(iso))) / MS_PER_DAY,
+    )
+    if (days <= 0) return 'today'
+    if (days === 1) return 'yesterday'
+    return 'earlier'
+  }
+  const timeLabelFor = (bucket: DayBucket) => (iso: string) =>
+    bucket === 'earlier'
+      ? format.dateTime(new Date(iso), { month: '2-digit', day: '2-digit' })
+      : format.dateTime(new Date(iso), { hour: '2-digit', minute: '2-digit' })
+
+  const buckets: ShellHistoryBucket[] = []
+  for (const item of items) {
+    const bucket = bucketOf(item.updatedAt)
+    const last = buckets.at(-1)
+    if (last?.id === bucket) last.items.push(item)
+    else
+      buckets.push({
+        id: bucket,
+        items: [item],
+        timeLabel: timeLabelFor(bucket),
+      })
+  }
+  return buckets
+}
+
+/**
+ * 对话头里「对话记录」与「聊天」两颗键弹出来的那一块（用户 10-25 定样子：第一行「＋ 新…」，下面按今天 /
  * 昨天 / 更早分组，时间靠右，当前那一行浅灰底）。两边同一块，⛔ 各画各的。
  *
  * 行就是标题 ▾ 历史那一套（`StudioOperatorSessionRow` 的 `compact`）：就地改名、删除两段确认；
@@ -94,34 +143,11 @@ export function ShellHistoryMenu({
   testId,
 }: ShellHistoryMenuProps) {
   const t = useTranslations('StudioShell')
-  const format = useFormatter()
   const [open, setOpen] = useState(false)
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const cancelConfirm = useCallback(() => setConfirmId(null), [])
 
-  /** 按本地零点算日差（23:50 和次日 00:10 是两天）。 */
-  const bucketOf = (iso: string): DayBucket => {
-    const midnight = (value: Date) =>
-      new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime()
-    const days = Math.round(
-      (midnight(new Date()) - midnight(new Date(iso))) / MS_PER_DAY,
-    )
-    if (days <= 0) return 'today'
-    if (days === 1) return 'yesterday'
-    return 'earlier'
-  }
-  const timeLabel = (iso: string, bucket: DayBucket) =>
-    bucket === 'earlier'
-      ? format.dateTime(new Date(iso), { month: '2-digit', day: '2-digit' })
-      : format.dateTime(new Date(iso), { hour: '2-digit', minute: '2-digit' })
-
-  const buckets: { id: DayBucket; items: ShellHistoryItem[] }[] = []
-  for (const item of items) {
-    const bucket = bucketOf(item.updatedAt)
-    const last = buckets.at(-1)
-    if (last?.id === bucket) last.items.push(item)
-    else buckets.push({ id: bucket, items: [item] })
-  }
+  const buckets = useShellHistoryBuckets(items)
 
   return (
     <DropdownMenu
@@ -137,10 +163,10 @@ export function ShellHistoryMenu({
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
         </TooltipTrigger>
-        <TooltipContent side="right">{tooltip}</TooltipContent>
+        <TooltipContent side="bottom">{tooltip}</TooltipContent>
       </Tooltip>
       <DropdownMenuContent
-        side="right"
+        side="bottom"
         align="start"
         sideOffset={8}
         data-testid={testId}
@@ -156,7 +182,7 @@ export function ShellHistoryMenu({
           <span className="min-w-0 truncate">{newLabel}</span>
         </DropdownMenuItem>
         {loading && items.length === 0
-          ? SKELETON_WIDTHS.map((width) => (
+          ? SHELL_HISTORY_SKELETON_WIDTHS.map((width) => (
               <div key={width} className="flex h-9 items-center px-2.25">
                 <Skeleton className={`h-2.5 rounded-sm ${width}`} />
               </div>
@@ -176,7 +202,7 @@ export function ShellHistoryMenu({
                 leading={item.leading}
                 badge={item.badge}
                 domainLabel={null}
-                dateLabel={timeLabel(item.updatedAt, bucket.id)}
+                dateLabel={bucket.timeLabel(item.updatedAt)}
                 current={item.id === currentId}
                 selectDisabled={
                   deletingId === item.id || (selectDisabled?.(item.id) ?? false)

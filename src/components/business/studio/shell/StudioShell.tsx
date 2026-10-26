@@ -29,6 +29,10 @@ import {
 } from '@/constants/studio-shell'
 import { StudioLibraryPickProvider } from '@/contexts/studio-library-pick'
 import {
+  StudioShellHeaderSlotsProvider,
+  type StudioShellHeaderSlots,
+} from '@/contexts/studio-shell-header-slots'
+import {
   StudioOperatorDockPlacementProvider,
   StudioOperatorHostSlotProvider,
   type StudioOperatorDockPlacement,
@@ -45,6 +49,13 @@ import {
   useStudioBenchMotion,
   useStudioBenchSwipe,
 } from '@/components/business/studio/shell/StudioShellBench'
+import { StudioShellHistoryColumn } from '@/components/business/studio/shell/StudioShellHistoryColumn'
+import {
+  StudioShellChatKey,
+  StudioShellHistoryExpandKey,
+  StudioShellHistoryKey,
+  StudioShellPersonaKey,
+} from '@/components/business/studio/shell/StudioShellHistoryKeys'
 import { useHomeOperatorHost } from '@/hooks/use-home-operator-host'
 import { useIsDesk } from '@/hooks/use-mobile'
 import { useStudioConversationBenchSync } from '@/hooks/use-studio-conversation-bench'
@@ -181,6 +192,37 @@ export function StudioShell({
     [isDesk, kind, restore],
   )
 
+  const voiceRoomActive =
+    pathname === ROUTES.STUDIO_AUDIO ||
+    pathname.startsWith(`${ROUTES.STUDIO_AUDIO}/`)
+  /**
+   * 框里那一列对话记录（用户 10-26 定稿 v5）：没开台时摊开，一开台自动收起、收台再摊开；
+   * 中间用户自己开合照用户的。⚠ 渲染期按 `kind` 调整（⛔ 晚一帧闪一下）。
+   */
+  const [historyOpen, setHistoryOpen] = useState(kind !== 'bench')
+  const [historyKind, setHistoryKind] = useState(kind)
+  if (historyKind !== kind) {
+    setHistoryKind(kind)
+    if (kind === 'bench') setHistoryOpen(false)
+    else if (historyKind === 'bench') setHistoryOpen(true)
+  }
+  /** 对话头（和「聊天」那一页顶上）那几颗键（用户 10-26：从左栏搬进白板）。 */
+  const headerSlots = useMemo<StudioShellHeaderSlots>(
+    () => ({
+      // 桌面上记录是框里那一列，收起时这里留一颗展开键；手机没有那一列，照旧弹下拉。
+      history: isDesk ? (
+        historyOpen ? null : (
+          <StudioShellHistoryExpandKey onExpand={() => setHistoryOpen(true)} />
+        )
+      ) : (
+        <StudioShellHistoryKey />
+      ),
+      chat: <StudioShellChatKey active={voiceRoomActive} />,
+      renderPersona: (fly) => <StudioShellPersonaKey fly={fly} />,
+    }),
+    [historyOpen, isDesk, voiceRoomActive],
+  )
+
   const libraryLayer = (
     <div
       ref={setLibraryTarget}
@@ -191,46 +233,50 @@ export function StudioShell({
 
   return (
     <StudioOperatorDockPlacementProvider value={placement}>
-      <StudioLibraryTargetContext.Provider value={libraryContext}>
-        <StudioLibraryPickProvider>
-          <StudioOperatorHostSlotProvider fallback={homeHost}>
-            {() => (
-              <div
-                data-testid="studio-shell"
-                data-kind={kind}
-                data-library={libraryCategory ?? undefined}
-                className="desk:flex desk:h-svh desk:overflow-hidden desk:bg-surface-sunken"
-              >
-                <StudioConversationList className="hidden desk:flex" />
-                {kind === 'page' ? (
-                  <div
-                    className={cn(SHELL_BOARD_CLASS, 'desk:overflow-y-auto')}
-                    style={libraryWidth('100%')}
-                  >
-                    {children}
-                    {libraryLayer}
-                  </div>
-                ) : (
-                  <StudioShellStage
-                    kind={kind}
-                    benchPathname={base?.pathname ?? ROUTES.STUDIO}
-                    shellDock={placement.owner === 'shell'}
-                    libraryOpen={libraryOpen}
-                    libraryAssistantOpen={libraryAssistantOpen}
-                    libraryLayer={libraryLayer}
-                  >
-                    {children}
-                  </StudioShellStage>
-                )}
-                {library}
-                {kind === 'home' ? (
-                  <HomeDraftBench onHost={setDraftHost} />
-                ) : null}
-              </div>
-            )}
-          </StudioOperatorHostSlotProvider>
-        </StudioLibraryPickProvider>
-      </StudioLibraryTargetContext.Provider>
+      <StudioShellHeaderSlotsProvider value={headerSlots}>
+        <StudioLibraryTargetContext.Provider value={libraryContext}>
+          <StudioLibraryPickProvider>
+            <StudioOperatorHostSlotProvider fallback={homeHost}>
+              {() => (
+                <div
+                  data-testid="studio-shell"
+                  data-kind={kind}
+                  data-library={libraryCategory ?? undefined}
+                  className="desk:flex desk:h-svh desk:overflow-hidden desk:bg-surface-sunken"
+                >
+                  <StudioConversationList className="hidden desk:flex" />
+                  {kind === 'page' ? (
+                    <div
+                      className={cn(SHELL_BOARD_CLASS, 'desk:overflow-y-auto')}
+                      style={libraryWidth('100%')}
+                    >
+                      {children}
+                      {libraryLayer}
+                    </div>
+                  ) : (
+                    <StudioShellStage
+                      kind={kind}
+                      benchPathname={base?.pathname ?? ROUTES.STUDIO}
+                      shellDock={placement.owner === 'shell'}
+                      libraryOpen={libraryOpen}
+                      libraryAssistantOpen={libraryAssistantOpen}
+                      libraryLayer={libraryLayer}
+                      historyOpen={historyOpen}
+                      onCloseHistory={() => setHistoryOpen(false)}
+                    >
+                      {children}
+                    </StudioShellStage>
+                  )}
+                  {library}
+                  {kind === 'home' ? (
+                    <HomeDraftBench onHost={setDraftHost} />
+                  ) : null}
+                </div>
+              )}
+            </StudioOperatorHostSlotProvider>
+          </StudioLibraryPickProvider>
+        </StudioLibraryTargetContext.Provider>
+      </StudioShellHeaderSlotsProvider>
       <Suspense fallback={null}>
         <StudioConversationUrlSync />
       </Suspense>
@@ -267,6 +313,8 @@ function StudioShellStage({
   libraryOpen,
   libraryAssistantOpen,
   libraryLayer,
+  historyOpen,
+  onCloseHistory,
   children,
 }: {
   kind: 'home' | 'bench'
@@ -277,6 +325,8 @@ function StudioShellStage({
   /** 库里叫出了助手：对话贴到白板右边，库让出那一块。 */
   libraryAssistantOpen: boolean
   libraryLayer: ReactNode
+  historyOpen: boolean
+  onCloseHistory(): void
   children: ReactNode
 }) {
   const t = useTranslations('StudioShell')
@@ -285,6 +335,7 @@ function StudioShellStage({
     useStudioShellSplit()
   const stageRef = useRef<HTMLDivElement | null>(null)
   const columnRef = useRef<HTMLDivElement | null>(null)
+  const conversationRef = useRef<HTMLElement | null>(null)
   const contentRef = useRef<HTMLDivElement | null>(null)
   const bench = kind === 'bench'
   const activeId = bench ? activeBenchId(benchPathname) : undefined
@@ -379,7 +430,13 @@ function StudioShellStage({
         libraryChat ? `calc(100% - ${conversationWidth})` : '100%',
       )}
     >
+      <StudioShellHistoryColumn
+        open={historyOpen && !conversationHidden && !libraryOpen}
+        onClose={onCloseHistory}
+      />
+
       <section
+        ref={conversationRef}
         aria-label={t('conversations')}
         data-testid="studio-shell-conversation"
         className={cn(
@@ -419,6 +476,7 @@ function StudioShellStage({
       {bench && !conversationHidden && !libraryOpen ? (
         <StudioShellDivider
           stageRef={stageRef}
+          conversationRef={conversationRef}
           conversationPx={split.conversationPx}
           onResize={setConversationPx}
           onDraggingChange={setDragging}
@@ -431,7 +489,8 @@ function StudioShellStage({
         />
       ) : null}
 
-      {libraryOpen || !bench ? null : (
+      {/* 首页也摆（用户 10-26 定稿 v5：左栏不再有「工作台」，开台只走这一条）。 */}
+      {libraryOpen ? null : (
         <StudioBenchRail
           activeId={activeId}
           onSwitch={(item) => void switchBench(item)}
@@ -480,6 +539,7 @@ type StudioShellCollapseSide = 'conversation' | 'bench' | null
  */
 function StudioShellDivider({
   stageRef,
+  conversationRef,
   conversationPx,
   onResize,
   onDraggingChange,
@@ -488,6 +548,8 @@ function StudioShellDivider({
   onCloseBench,
 }: {
   stageRef: React.RefObject<HTMLDivElement | null>
+  /** 宽从对话栏左缘量起：左边摊着记录那一列时，⛔ 从白板左缘量。 */
+  conversationRef: React.RefObject<HTMLElement | null>
   conversationPx: number
   onResize: (px: number) => void
   onDraggingChange: (dragging: boolean) => void
@@ -511,7 +573,9 @@ function StudioShellDivider({
   } = STUDIO_SHELL_SPLIT
 
   const maxConversationPx = () => {
-    const width = stageRef.current?.getBoundingClientRect().width ?? 0
+    const stage = stageRef.current?.getBoundingClientRect()
+    const left = conversationRef.current?.getBoundingClientRect().left
+    const width = stage ? stage.right - (left ?? stage.left) : 0
     return Math.max(minConversationPx, width - minBenchPx)
   }
 
@@ -553,7 +617,10 @@ function StudioShellDivider({
 
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!dragging.current) return
-    const left = stageRef.current?.getBoundingClientRect().left ?? 0
+    const left =
+      conversationRef.current?.getBoundingClientRect().left ??
+      stageRef.current?.getBoundingClientRect().left ??
+      0
     place(event.clientX - left)
   }
 

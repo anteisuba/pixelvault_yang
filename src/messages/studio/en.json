@@ -1166,14 +1166,18 @@
     "libraryAssistant": "Assistant",
     "libraryRailHide": "Hide sidebar",
     "libraryRailShow": "Show sidebar",
-    "workbench": "Workbenches",
     "chat": "Chat",
     "newChatWith": "New chat with {name}",
     "historyBucket": {
       "today": "Today",
       "yesterday": "Yesterday",
       "earlier": "Earlier"
-    }
+    },
+    "conversation": "Conversation",
+    "history": "Conversations",
+    "switchPersona": "Switch persona (now {name})",
+    "historyShow": "Show conversations",
+    "historyHide": "Hide conversations"
   },
   "ImageRecipeImport": {
     "button": "Read from image",

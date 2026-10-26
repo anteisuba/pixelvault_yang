@@ -233,6 +233,35 @@ describe('会话历史落库', () => {
     expect(store.getOperatorState().sessionId).toBe('conv-1')
   })
 
+  it('换台不重拉会话列表、⛔ 先清空：列表是这个人全部的会话，新鲜就留着（10-26 卡顿）', async () => {
+    const summary = {
+      id: 'conv-9',
+      title: '冬装四张',
+      updatedAt: '2026-10-26T00:00:00.000Z',
+      chatCharacter: null,
+    }
+    listMock.mockResolvedValue({ success: true, data: [summary] })
+    const rendered = renderHook(
+      ({ workspace }: { workspace: AssistantWorkspace }) =>
+        historyHook.useStudioOperatorHistory({
+          ...IMAGE_SCOPE,
+          workspace,
+          restore: 'none',
+        }),
+      { initialProps: { workspace: 'image-natural' } },
+    )
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect(listMock).toHaveBeenCalledTimes(1)
+    rendered.rerender({ workspace: 'lora' })
+    expect(rendered.result.current.sessions.map((s) => s.id)).toEqual([
+      'conv-9',
+    ])
+    expect(rendered.result.current.isHydrating).toBe(false)
+    expect(listMock).toHaveBeenCalledTimes(1)
+  })
+
   it('「新对话」之后是**新建**一行，⛔ 不覆盖上一条会话', async () => {
     await mount()
 
